@@ -41,6 +41,9 @@ module ExprBuilder = struct
 	let make_float com f p =
 		mk (TConst (TFloat f)) com.basic.tfloat p
 
+	let make_bool com b p =
+		mk (TConst(TBool b)) com.basic.tbool p
+
 	let make_string com s p =
 		mk (TConst (TString s)) com.basic.tstring p
 

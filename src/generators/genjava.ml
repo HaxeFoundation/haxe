@@ -2394,10 +2394,10 @@ let configure gen =
 	let label_special = alloc_var "__label__" t_dynamic in
 	SwitchBreakSynf.configure gen
 		(fun e_loop n api ->
-			{ e_loop with eexpr = TBlock( { eexpr = TCall( mk_local label_special e_loop.epos, [ mk_int gen n e_loop.epos ] ); etype = t_dynamic; epos = e_loop.epos } :: [e_loop] ) };
+			{ e_loop with eexpr = TBlock( { eexpr = TCall( mk_local label_special e_loop.epos, [ Codegen.ExprBuilder.make_int gen.gcon n e_loop.epos ] ); etype = t_dynamic; epos = e_loop.epos } :: [e_loop] ) };
 		)
 		(fun e_break n api ->
-			{ eexpr = TCall( mk_local goto_special e_break.epos, [ mk_int gen n e_break.epos ] ); etype = t_dynamic; epos = e_break.epos }
+			{ eexpr = TCall( mk_local goto_special e_break.epos, [  Codegen.ExprBuilder.make_int gen.gcon n e_break.epos ] ); etype = t_dynamic; epos = e_break.epos }
 		);
 
 	DefaultArguments.configure gen;

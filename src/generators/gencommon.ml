@@ -47,6 +47,7 @@ open Common
 open Option
 open Printf
 open ExtString
+open Codegen
 
 let alloc_var n t = alloc_var n t null_pos
 
@@ -1071,8 +1072,6 @@ let get_real_fun gen t =
 	match follow t with
 	| TFun(args,t) -> TFun(List.map (fun (n,o,t) -> n,o,gen.greal_type t) args, gen.greal_type t)
 	| _ -> t
-
-let mk_int gen i pos =  Codegen.ExprBuilder.make_int gen.gcon i pos
 
 let mk_return e = { eexpr = TReturn (Some e); etype = e.etype; epos = e.epos }
 
@@ -3675,7 +3674,7 @@ struct
 				let this = { eexpr = TConst(TThis); etype = cl_t; epos = pos } in
 				let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
 				let mk_int i = { eexpr = TConst(TInt ( Int32.of_int i)); etype = basic.tint; epos = pos } in
-				let mk_string s = { eexpr = TConst(TString s); etype = basic.tstring; epos = pos } in
+				let mk_string s = ExprBuilder.make_string gen.gcon s pos in
 
 				(*
 					if it is the Function class, the base class fields will be
@@ -4397,7 +4396,7 @@ struct
 								};
 								(* var i = 0; *)
 								{
-									eexpr = TVar(i_var, Some(mk_int gen 0 pos));
+									eexpr = TVar(i_var, Some(ExprBuilder.make_int gen.gcon 0 pos));
 									etype = gen.gcon.basic.tvoid;
 									epos = pos
 								};
@@ -6884,16 +6883,8 @@ struct
 			epos = pos;
 		}
 
-	let mk_string ctx str pos =
-		{ eexpr = TConst(TString(str)); etype = ctx.rcf_gen.gcon.basic.tstring; epos = pos }
 
-	let mk_int ctx i pos =
-		{ eexpr = TConst(TInt(Int32.of_int i)); etype = ctx.rcf_gen.gcon.basic.tint; epos = pos }
-
-	let mk_bool ctx b pos =
-		{ eexpr = TConst(TBool(b)); etype = ctx.rcf_gen.gcon.basic.tbool; epos = pos }
-
-	let mk_throw ctx str pos = { eexpr = TThrow (mk_string ctx str pos); etype = ctx.rcf_gen.gcon.basic.tvoid; epos = pos }
+	let mk_throw ctx str pos = { eexpr = TThrow (ExprBuilder.make_string ctx.rcf_gen.gcon str pos); etype = ctx.rcf_gen.gcon.basic.tvoid; epos = pos }
 
 	let enumerate_dynamic_fields ctx cl when_found =
 		let gen = ctx.rcf_gen in
@@ -6907,7 +6898,7 @@ struct
 			let convert_str e = if ctx.rcf_optimize then ctx.rcf_lookup_function e else e in
 			let tmpinc = { eexpr = TUnop(Ast.Increment, Ast.Postfix, mk_local vtmp pos); etype = basic.tint; epos = pos } in
 			[
-				{ eexpr = TBinop(OpAssign, mk_local vtmp pos, mk_int ctx 0 pos); etype = basic.tint; epos = pos };
+				{ eexpr = TBinop(OpAssign, mk_local vtmp pos, ExprBuilder.make_int ctx.rcf_gen.gcon 0 pos); etype = basic.tint; epos = pos };
 				{
 					eexpr = TWhile (
 						{ eexpr = TBinop(Ast.OpLt, mk_local vtmp pos, len); etype = basic.tbool; epos = pos },
@@ -7786,7 +7777,7 @@ struct
 		let tf_args, args = if is_set then tf_args @ [ "setVal", false, rett ], args @ [get set_option] else tf_args, args in
 		let tf_args, args = tf_args @ [ "throwErrors",false,basic.tbool ], args @ [throw_errors] in
 		let tf_args, args = if is_set || is_float then tf_args, args else tf_args @ [ "isCheck", false, basic.tbool ], args @ [{ eexpr = TConst(TBool false); etype = basic.tbool; epos = pos }] in
-		let tf_args, args = tf_args @ [ "handleProperties",false,basic.tbool; ], args @ [ mk_bool ctx false pos; ] in
+		let tf_args, args = tf_args @ [ "handleProperties",false,basic.tbool; ], args @ [ ExprBuilder.make_bool ctx.rcf_gen.gcon false pos; ] in
 
 		{
 			eexpr = TCall(
@@ -7966,7 +7957,7 @@ struct
 				let cases = List.map (switch_case ctx pos) names in
 				(cases,
 					{ eexpr = TReturn(Some ( (if static then mk_static_call else mk_this_call) cf (List.map (fun (name,_,t) ->
-							let ret = { eexpr = TArray(dyn_arg_local, mk_int ctx !i pos); etype = t_dynamic; epos = pos } in
+							let ret = { eexpr = TArray(dyn_arg_local, ExprBuilder.make_int ctx.rcf_gen.gcon !i pos); etype = t_dynamic; epos = pos } in
 							incr i;
 							ret
 						) (fst (get_args (cf.cf_type))) ) ));
@@ -8178,7 +8169,7 @@ struct
 				tf_args = tf_args;
 				tf_type = basic.tvoid;
 				tf_expr = { eexpr = TBlock({
-					eexpr = TCall({ eexpr = TConst(TSuper); etype = TInst(cl,[]); epos = pos }, [mk_int ctx (-1) pos; mk_int ctx (-1) pos]);
+					eexpr = TCall({ eexpr = TConst(TSuper); etype = TInst(cl,[]); epos = pos }, [ExprBuilder.make_int ctx.rcf_gen.gcon (-1) pos; ExprBuilder.make_int ctx.rcf_gen.gcon (-1) pos]);
 					etype = basic.tvoid;
 					epos = pos
 				} :: ctor_body); etype = basic.tvoid; epos = pos }
@@ -8448,7 +8439,7 @@ struct
 							eexpr = TFunction({
 								tf_args = tf_args;
 								tf_type = ret;
-								tf_expr = mk_block ( mk_return { eexpr = TNew(cl,List.map snd dup_types, [mk_int gen old_i pos; arr_decl] ); etype = TInst(cl, List.map snd dup_types); epos = pos } );
+								tf_expr = mk_block ( mk_return { eexpr = TNew(cl,List.map snd dup_types, [ExprBuilder.make_int gen.gcon old_i pos; arr_decl] ); etype = TInst(cl, List.map snd dup_types); epos = pos } );
 							});
 							etype = ef_type;
 							epos = pos
@@ -8462,9 +8453,9 @@ struct
 						in
 						let cf = mk_class_field name actual_t true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
 						let args = if has_params then
-							[mk_int gen old_i pos; null (gen.gclasses.nativearray t_dynamic) pos]
+							[ExprBuilder.make_int gen.gcon old_i pos; null (gen.gclasses.nativearray t_dynamic) pos]
 						else
-							[mk_int gen old_i pos]
+							[ExprBuilder.make_int gen.gcon old_i pos]
 						in
 						cf.cf_meta <- [Meta.ReadOnly,[],pos];
 						cf.cf_expr <- Some {
@@ -8591,7 +8582,7 @@ struct
 						f
 					in
 					let cond_array = { (mk_field_access gen f "params" f.epos) with etype = gen.gclasses.nativearray t_dynamic } in
-					{ e with eexpr = TArray(cond_array, mk_int gen i cond_array.epos); }
+					{ e with eexpr = TArray(cond_array, ExprBuilder.make_int gen.gcon i cond_array.epos); }
 				| _ ->
 					Type.map_expr run e
 			in

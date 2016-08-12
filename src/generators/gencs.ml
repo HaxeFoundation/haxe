@@ -23,6 +23,7 @@ open Common
 open Type
 open Gencommon
 open Gencommon.SourceWriter
+open Codegen
 open Printf
 open Option
 open ExtString
@@ -438,7 +439,7 @@ struct
 					{ e with eexpr = TField(run ef, FDynamic "ToUpperInvariant") }
 
 				| TCall( { eexpr = TField(_, FStatic({ cl_path = [], "String" }, { cf_name = "fromCharCode" })) }, [cc] ) ->
-					{ e with eexpr = TNew(get_cl_from_t basic.tstring, [], [mk_cast tchar (run cc); mk_int gen 1 cc.epos]) }
+					{ e with eexpr = TNew(get_cl_from_t basic.tstring, [], [mk_cast tchar (run cc); ExprBuilder.make_int gen.gcon 1 cc.epos]) }
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("charAt" as field) })) }, args )
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("charCodeAt" as field) })) }, args )
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("indexOf" as field) })) }, args )
@@ -603,7 +604,7 @@ let add_cast_handler gen =
 				epos = e.epos
 			};
 			{
-				eexpr = TVar(i, Some( mk_int gen (-1) e.epos ));
+				eexpr = TVar(i, Some( ExprBuilder.make_int gen.gcon (-1) e.epos ));
 				etype = basic.tvoid;
 				epos = e.epos
 			};
@@ -3135,11 +3136,11 @@ let configure gen =
 	let label_special = alloc_var "__label__" t_dynamic in
 	SwitchBreakSynf.configure gen
 		(fun e_loop n api ->
-			api ({ eexpr = TCall( mk_local label_special e_loop.epos, [ mk_int gen n e_loop.epos ] ); etype = t_dynamic; epos = e_loop.epos }) false;
+			api ({ eexpr = TCall( mk_local label_special e_loop.epos, [ ExprBuilder.make_int gen.gcon n e_loop.epos ] ); etype = t_dynamic; epos = e_loop.epos }) false;
 			e_loop
 		)
 		(fun e_break n api ->
-			{ eexpr = TCall( mk_local goto_special e_break.epos, [ mk_int gen n e_break.epos ] ); etype = t_dynamic; epos = e_break.epos }
+			{ eexpr = TCall( mk_local goto_special e_break.epos, [ ExprBuilder.make_int gen.gcon n e_break.epos ] ); etype = t_dynamic; epos = e_break.epos }
 		);
 
 	DefaultArguments.configure gen;
