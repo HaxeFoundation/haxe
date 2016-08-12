@@ -4336,7 +4336,7 @@ struct
 							epos = pos;
 						} in
 
-						([{ eexpr = TConst(TString(cf.cf_name)); etype = gen.gcon.basic.tstring; epos = pos }], expr)
+						[ExprBuilder.make_string gen.gcon cf.cf_name pos], expr
 					) fields
 				in
 
@@ -6824,9 +6824,9 @@ struct
 		match ctx.rcf_optimize with
 			| true ->
 				let i = hash_field_i32 ctx pos field_name in
-				{ eexpr = TConst(TInt(i)); etype = ctx.rcf_gen.gcon.basic.tint; epos = pos }
+				mk (TConst (TInt i)) ctx.rcf_gen.gcon.basic.tint pos
 			| false ->
-				{ eexpr = TConst(TString(field_name)); etype = ctx.rcf_gen.gcon.basic.tstring; epos = pos }
+				ExprBuilder.make_string ctx.rcf_gen.gcon field_name pos
 
 	(*
 		Will implement getField / setField which will follow the following rule:
@@ -7277,10 +7277,9 @@ struct
 
 		let may_hash_field s =
 			if ctx.rcf_optimize then begin
-				(* let hash_field ctx f pos = *)
-				{ eexpr = TConst(TInt (hash_field_i32 ctx pos s)); etype = basic.tint; epos = pos }
+				mk (TConst (TInt (hash_field_i32 ctx pos s))) basic.tint pos
 			end else begin
-				{ eexpr = TConst(TString s); etype = basic.tstring; epos = pos }
+				ExprBuilder.make_string gen.gcon s pos
 			end
 		in
 
@@ -7818,7 +7817,7 @@ struct
 					| Var _
 					| Method MethDynamic when not (List.memq cf cl.cl_overrides) ->
 						has_value := true;
-						mk_push { eexpr = TConst(TString(cf.cf_name)); etype = basic.tstring; epos = pos }
+						mk_push (ExprBuilder.make_string gen.gcon cf.cf_name pos)
 					| _ -> null basic.tvoid pos
 			)
 		in
@@ -8179,7 +8178,7 @@ struct
 		cl.cl_constructor <- Some ctor_cf;
 
 		let closure_fun eclosure e field is_static =
-			let f = { eexpr = TConst(TString field); etype = basic.tstring; epos = eclosure.epos } in
+			let f = ExprBuilder.make_string gen.gcon field eclosure.epos in
 			let args = if ctx.rcf_optimize then [ f; { eexpr = TConst(TInt (hash_field_i32 ctx eclosure.epos field)); etype = basic.tint; epos = eclosure.epos } ] else [ f ] in
 			let args = args @ [ mk_cast (TInst(ctx.rcf_object_iface, [])) e ] in
 
@@ -8194,7 +8193,7 @@ struct
 			mk_cast eclosure.etype { eclosure with
 				eexpr = TNew(closure_cl, [], [
 					e;
-					{ eexpr = TConst(TString field); etype = basic.tstring; epos = eclosure.epos }
+					ExprBuilder.make_string gen.gcon field eclosure.epos
 				] @ (
 					if ctx.rcf_optimize then [ { eexpr = TConst(TInt (hash_field_i32 ctx eclosure.epos field)); etype = basic.tint; epos = eclosure.epos } ] else []
 				));
