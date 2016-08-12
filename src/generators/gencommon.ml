@@ -114,7 +114,7 @@ let reset_temps () = tmp_count := 0
 (* the undefined is a special var that works like null, but can have special meaning *)
 let v_undefined = alloc_var "__undefined__" t_dynamic
 
-let undefined pos = { eexpr = TLocal(v_undefined); etype = t_dynamic; epos = pos }
+let undefined pos = ExprBuilder.make_local v_undefined pos
 
 let path_of_md_def md_def =
 	match md_def.m_types with
@@ -231,7 +231,7 @@ let get_tdef mt = match mt with | TTypeDecl t -> t | _ -> assert false
 
 let mk_mt_access mt pos = { eexpr = TTypeExpr(mt); etype = anon_of_mt mt; epos = pos }
 
-let mk_local = Codegen.ExprBuilder.make_local
+let mk_local = ExprBuilder.make_local
 
 (* this function is used by CastDetection module *)
 let get_fun t =
@@ -449,7 +449,7 @@ type generator_ctx =
 {
 	(* these are the basic context fields. If another target is using this context, *)
 	(* this is all you need to care about *)
-	mutable gcon : Common.context;
+	gcon : Common.context;
 
 	gclasses : gen_classes;
 
@@ -460,7 +460,7 @@ type generator_ctx =
 		to ensure that it will not be called from outside.
 		To avoid name clashes between internal names, user must specify two strings: a "namespace" and the name itself
 	 *)
-	mutable gmk_internal_name : string->string->string;
+	gmk_internal_name : string->string->string;
 
 	(*
 		module filters run before module filters and they should generate valid haxe syntax as a result.
