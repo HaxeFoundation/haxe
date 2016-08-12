@@ -25,6 +25,40 @@ open Typecore
 (* -------------------------------------------------------------------------- *)
 (* TOOLS *)
 
+(* Collection of functions that return expressions *)
+module ExprBuilder = struct
+	let make_static_this c p =
+		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
+		mk (TTypeExpr (TClassDecl c)) ta p
+
+	let make_static_field c cf p =
+		let e_this = make_static_this c p in
+		mk (TField(e_this,FStatic(c,cf))) cf.cf_type p
+
+	let make_int com i p =
+		mk (TConst (TInt (Int32.of_int i))) com.basic.tint p
+
+	let make_float com f p =
+		mk (TConst (TFloat f)) com.basic.tfloat p
+
+	let make_string com s p =
+		mk (TConst (TString s)) com.basic.tstring p
+
+	let make_null t p =
+		mk (TConst TNull) t p
+
+	let make_local v p =
+		mk (TLocal v) v.v_type p
+
+	let make_const_texpr com ct p = match ct with
+		| TString s -> mk (TConst (TString s)) com.basic.tstring p
+		| TInt i -> mk (TConst (TInt i)) com.basic.tint p
+		| TFloat f -> mk (TConst (TFloat f)) com.basic.tfloat p
+		| TBool b -> mk (TConst (TBool b)) com.basic.tbool p
+		| TNull -> mk (TConst TNull) (com.basic.tnull (mk_mono())) p
+		| _ -> error "Unsupported constant" p
+end
+
 let field e name t p =
 	mk (TField (e,try quick_field e.etype name with Not_found -> assert false)) t p
 
@@ -34,9 +68,6 @@ let fcall e name el ret p =
 
 let mk_parent e =
 	mk (TParenthesis e) e.etype e.epos
-
-let string com str p =
-	mk (TConst (TString str)) com.basic.tstring p
 
 let binop op a b t p =
 	mk (TBinop (op,a,b)) t p
@@ -109,7 +140,7 @@ let add_property_field com c =
 	| _ ->
 		let fields,values = List.fold_left (fun (fields,values) (n,v) ->
 			let cf = mk_field n com.basic.tstring p in
-			PMap.add n cf fields,(n, string com v p) :: values
+			PMap.add n cf fields,(n, ExprBuilder.make_string com v p) :: values
 		) (PMap.empty,[]) props in
 		let t = mk_anon fields in
 		let e = mk (TObjectDecl values) t p in
@@ -582,9 +613,9 @@ let stack_context_init com stack_var exc_var pos_var tmp_var use_add p =
 	let stack_push c m =
 		fcall stack_e "push" [
 			if use_add then
-				binop OpAdd (string com (s_type_path c.cl_path ^ "::") p) (string com m p) t.tstring p
+				binop OpAdd (ExprBuilder.make_string com (s_type_path c.cl_path ^ "::") p) (ExprBuilder.make_string com m p) t.tstring p
 			else
-				string com (s_type_path c.cl_path ^ "::" ^ m) p
+				ExprBuilder.make_string com (s_type_path c.cl_path ^ "::" ^ m) p
 		] t.tvoid p
 	in
 	let stack_return e =
@@ -1391,36 +1422,6 @@ let map_source_header com f =
 	| "" -> ()
 	| s -> f s
 
-(* Collection of functions that return expressions *)
-module ExprBuilder = struct
-	let make_static_this c p =
-		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
-		mk (TTypeExpr (TClassDecl c)) ta p
-
-	let make_static_field c cf p =
-		let e_this = make_static_this c p in
-		mk (TField(e_this,FStatic(c,cf))) cf.cf_type p
-
-	let make_int com i p =
-		mk (TConst (TInt (Int32.of_int i))) com.basic.tint p
-
-	let make_float com f p =
-		mk (TConst (TFloat f)) com.basic.tfloat p
-
-	let make_null t p =
-		mk (TConst TNull) t p
-
-	let make_local v p =
-		mk (TLocal v) v.v_type p
-
-	let make_const_texpr com ct p = match ct with
-		| TString s -> mk (TConst (TString s)) com.basic.tstring p
-		| TInt i -> mk (TConst (TInt i)) com.basic.tint p
-		| TFloat f -> mk (TConst (TFloat f)) com.basic.tfloat p
-		| TBool b -> mk (TConst (TBool b)) com.basic.tbool p
-		| TNull -> mk (TConst TNull) (com.basic.tnull (mk_mono())) p
-		| _ -> error "Unsupported constant" p
-end
 
 (* Static extensions for classes *)
 module ExtClass = struct
