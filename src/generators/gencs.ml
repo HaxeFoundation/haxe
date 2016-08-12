@@ -522,7 +522,7 @@ struct
 					let mk_ret e = match op with | Ast.OpNotEq -> { e with eexpr = TUnop(Ast.Not, Ast.Prefix, e) } | _ -> e in
 					mk_ret { e with
 						eexpr = TCall({
-							eexpr = TField(mk_classtype_access clstring e.epos, FDynamic "Equals");
+							eexpr = TField(ExprBuilder.make_static_this clstring e.epos, FDynamic "Equals");
 							etype = TFun(["obj1",false,basic.tstring; "obj2",false,basic.tstring], basic.tbool);
 							epos = e1.epos
 						}, [ run e1; run e2 ])
@@ -2330,7 +2330,7 @@ let configure gen =
 				in
 				if prop v.v_read && prop v.v_write && (v.v_read = AccCall || v.v_write = AccCall) then begin
 					let this = if static then
-						mk_classtype_access cl f.cf_pos
+						ExprBuilder.make_static_this cl f.cf_pos
 					else
 						{ eexpr = TConst TThis; etype = TInst(cl,List.map snd cl.cl_params); epos = f.cf_pos }
 					in

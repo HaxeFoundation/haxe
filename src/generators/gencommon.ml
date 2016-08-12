@@ -246,12 +246,10 @@ let mk_cast t e = Type.mk_cast e t e.epos
  *        C# and Java do not use the second part of TCast for anything *)
 let mk_castfast t e = { e with eexpr = TCast(e, Some (TClassDecl null_class)); etype = t }
 
-let mk_classtype_access cl pos = Codegen.ExprBuilder.make_static_this cl pos
-
 let mk_static_field_access_infer cl field pos params =
 	try
 		let cf = (PMap.find field cl.cl_statics) in
-		{ eexpr = TField(mk_classtype_access cl pos, FStatic(cl, cf)); etype = (if params = [] then cf.cf_type else apply_params cf.cf_params params cf.cf_type); epos = pos }
+		{ eexpr = TField(ExprBuilder.make_static_this cl pos, FStatic(cl, cf)); etype = (if params = [] then cf.cf_type else apply_params cf.cf_params params cf.cf_type); epos = pos }
 	with | Not_found -> failwith ("Cannot find field " ^ field ^ " in type " ^ (s_type_path cl.cl_path))
 
 let mk_static_field_access cl field fieldt pos =
@@ -1576,7 +1574,7 @@ struct
 		{
 			eexpr = TCall(
 				{
-					eexpr = TField(mk_classtype_access sup p, FStatic(sup,cf));
+					eexpr = TField(ExprBuilder.make_static_this sup p, FStatic(sup,cf));
 					etype = apply_params cf.cf_params stl cf.cf_type;
 					epos = p
 				},
@@ -1675,7 +1673,7 @@ struct
 					eexpr = TCall(
 						{
 							eexpr = TField(
-								mk_classtype_access cl p,
+								ExprBuilder.make_static_this cl p,
 								FStatic(cl, static_ctor));
 							etype = apply_params static_ctor.cf_params (List.map snd cl.cl_params) static_ctor.cf_type;
 							epos = p
@@ -1971,7 +1969,7 @@ struct
 							| Some e ->
 								(match cf.cf_params with
 									| [] ->
-										let var = { eexpr = TField(mk_classtype_access cl cf.cf_pos, FStatic(cl,cf)); etype = cf.cf_type; epos = cf.cf_pos } in
+										let var = { eexpr = TField(ExprBuilder.make_static_this cl cf.cf_pos, FStatic(cl,cf)); etype = cf.cf_type; epos = cf.cf_pos } in
 										let ret = ({ eexpr = TBinop(Ast.OpAssign, var, e); etype = cf.cf_type; epos = cf.cf_pos; }) in
 										cf.cf_expr <- None;
 
@@ -1979,7 +1977,7 @@ struct
 									| _ ->
 										let params = List.map (fun _ -> t_dynamic) cf.cf_params in
 										let fn = apply_params cf.cf_params params in
-										let var = { eexpr = TField(mk_classtype_access cl cf.cf_pos, FStatic(cl,cf)); etype = fn cf.cf_type; epos = cf.cf_pos } in
+										let var = { eexpr = TField(ExprBuilder.make_static_this cl cf.cf_pos, FStatic(cl,cf)); etype = fn cf.cf_type; epos = cf.cf_pos } in
 										let rec change_expr e =
 											Type.map_expr_type (change_expr) fn (fun v -> v.v_type <- fn v.v_type; v) e
 										in
@@ -4344,7 +4342,7 @@ struct
 
 				let mk_typehandle =
 					let thandle = alloc_var "__typeof__" t_dynamic in
-					(fun cl -> { eexpr = TCall(mk_local thandle pos, [ mk_classtype_access cl pos ]); etype = t_dynamic; epos = pos })
+					(fun cl -> { eexpr = TCall(mk_local thandle pos, [ ExprBuilder.make_static_this cl pos ]); etype = t_dynamic; epos = pos })
 				in
 				let mk_eq cl1 cl2 =
 					{ eexpr = TBinop(Ast.OpEq, mk_typehandle cl1, mk_typehandle cl2); etype = basic.tbool; epos = pos }
