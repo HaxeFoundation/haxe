@@ -3395,8 +3395,8 @@ struct
 				invoke_field.cf_expr <- Some invoke_fun;
 
 				invoke_field, [
-					{ eexpr = TConst(TInt( Int32.of_int arity )); etype = gen.gcon.basic.tint; epos = pos };
-					{ eexpr = TConst(TInt( Int32.of_int type_number )); etype = gen.gcon.basic.tint; epos = pos };
+					ExprBuilder.make_int gen.gcon arity pos;
+					ExprBuilder.make_int gen.gcon type_number pos;
 				]
 			in
 
