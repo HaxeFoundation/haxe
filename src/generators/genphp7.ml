@@ -169,6 +169,11 @@ class virtual type_wrapper (type_path:path) (meta:metadata) (needs_generation:bo
 		*)
 		method virtual needs_initialization : bool
 		(**
+			Returns expression of a user-defined static __init__ method
+			@see http://old.haxe.org/doc/advanced/magic#initialization-magic
+		*)
+		method get_magic_init : texpr option = None
+		(**
 			Namespace path. E.g. ["some"; "pack"] for "some.pack.MyType"
 		*)
 		method get_namespace = get_module_path type_path
@@ -200,6 +205,11 @@ class class_wrapper (cls) =
 				)
 				cls.cl_statics;
 			!needs
+		(**
+			Returns expression of a user-defined static __init__ method
+			@see http://old.haxe.org/doc/advanced/magic#initialization-magic
+		*)
+		method get_magic_init = cls.cl_init
 	end
 
 (**
@@ -348,6 +358,10 @@ class virtual type_builder ctx wrapper =
 		*)
 		method get_name : string = wrapper#get_name
 		(**
+			Get full type path
+		*)
+		method get_type_path : path = wrapper#get_type_path
+		(**
 			Writes type declaration line to output buffer.
 			E.g. "class SomeClass extends Another implements IFace"
 		*)
@@ -376,6 +390,11 @@ class virtual type_builder ctx wrapper =
 		*)
 		method indent level =
 			indentation <- String.make level '\t';
+		(**
+			Indicates if class has user-defined static __init__ method
+			@see http://old.haxe.org/doc/advanced/magic#initialization-magic
+		*)
+		method has_magic_init = match wrapper#get_magic_init with None -> false | Some _ -> true
 		(**
 			Returns generated file contents
 		*)
@@ -655,6 +674,13 @@ class virtual type_builder ctx wrapper =
 			self#write_statement "static $called = false";
 			self#write_statement "if ($called) return";
 			self#write_statement "$called = true";
+			self#write "\n";
+			(match wrapper#get_magic_init with
+				| None -> ()
+				| Some expr ->
+					self#write_indentation;
+					self#write_as_block ~inline:true expr expr.epos
+			);
 			self#write "\n";
 			self#write_hx_init_body;
 			self#indent 1;
@@ -1219,6 +1245,7 @@ class generator (com:context) =
 	object (self)
 		val mutable build_dir = ""
 		val root_dir = com.file
+		val mutable init_types = []
 		(**
 			Perform required actions before actual php files generation
 		*)
@@ -1234,7 +1261,14 @@ class generator (com:context) =
 			let filename = (create_dir_recursive (build_dir :: namespace)) ^ "/" ^ name ^ ".php" in
 			let channel = open_out filename in
 			output_string channel contents;
-			close_out channel
+			close_out channel;
+			if builder#has_magic_init then
+				init_types <- (get_full_type_name builder#get_type_path) :: []
+		(**
+			Generates calls to static __init__ methods in Boot.php
+		*)
+		method generate_magic_init : unit =
+			failwith "Not implemented"
 		(**
 			Create necessary directories  before processing types
 		*)
@@ -1264,5 +1298,5 @@ let generate (com:context) =
 				| TAbstractDecl abstr -> ()
 	in
 	List.iter generate com.types;
-	clear_wrappers ()
-	(* Hashtbl.clear custom_exceptions *)
+	(* gen#generate_magic_init; *)
+	clear_wrappers ();
