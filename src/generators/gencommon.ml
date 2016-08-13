@@ -5845,12 +5845,6 @@ struct
 			in
 			loop sup
 
-	let does_unify a b =
-		try
-			unify a b;
-			true
-		with | Unify_error _ -> false
-
 	(* this is a workaround for issue #1743, as FInstance() is returning the incorrect classfield *)
 	let rec clean_t t = match follow t with
 		| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
