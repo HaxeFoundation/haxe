@@ -44,9 +44,11 @@ let get_module_path (type_path:path) = match type_path with (module_path, _) -> 
 class virtual type_builder =
 	object (self)
 		(** List of types for "use" section *)
-		val use_table = Hashtbl.create 50;
+		val use_table = Hashtbl.create 50
 		(** Output buffer *)
-		val buffer = Buffer.create 1024;
+		val buffer = Buffer.create 1024
+		(** Cache for generated conent *)
+		val mutable contents = ""
 		(**
 			Get namespace path for this type
 		*)
@@ -56,9 +58,32 @@ class virtual type_builder =
 		*)
 		method virtual get_name : string
 		(**
+			Writes type declaration line to output buffer.
+			E.g. "class SomeClass extends Another implements IFace"
+		*)
+		method virtual private write_declaration : unit
+		(**
+			Writes type body to output buffer.
+			E.g. for "class SomeClass { <BODY> }" writes <BODY> part.
+		*)
+		method virtual private write_body : unit
+		(**
 			Returns generated file contents
 		*)
-		method virtual get_contents : string
+		method get_contents =
+			if (String.length contents) = 0 then begin
+				self#write_declaration;
+				self#write_line "{";
+				self#write_body;
+				self#write_line "}";
+				let body = Buffer.contents buffer in
+				Buffer.clear buffer;
+				self#write_header;
+				self#write "\n\n";
+				let header = Buffer.contents buffer in
+				contents <- header ^ body;
+			end;
+			contents
 		(**
 			Adds type to "use" section if not added yet.
 			If it's a top-level type then type name returned without adding to "use" section.
@@ -136,7 +161,6 @@ class virtual type_builder =
 class class_builder (cls:tclass) =
 	object (self)
 		inherit type_builder
-		val mutable contents = ""
 		(**
 			Get namespace path for this type
 		*)
@@ -146,40 +170,35 @@ class class_builder (cls:tclass) =
 		*)
 		method get_name = get_type_name cls.cl_path
 		(**
-			Returns generated file contents
-		*)
-		method get_contents =
-			if (String.length contents) = 0 then begin
-				let declaration = self#get_declaration in
-				self#write_header;
-				self#write "\n\n";
-				self#write_line declaration;
-				self#write_line "{";
-				self#write_line "}";
-				contents <- Buffer.contents buffer
-			end;
-			contents
-		(**
-			Generates class declaration line.
+			Writes type declaration line to output buffer.
 			E.g. "class SomeClass extends Another implements IFace"
 		*)
-		method private get_declaration =
-			let keyword = if cls.cl_interface then "interface" else "class" in
-			let declaration = ref (keyword ^ " " ^ self#get_name) in
+		method private write_declaration =
+			self#write (if cls.cl_interface then "interface " else "class ");
+			self#write self#get_name;
 			(
 				match cls.cl_super with
 					| None -> ();
 					| Some (super_class, _) ->
 						let super_name = self#use super_class.cl_path in
-						declaration := !declaration ^ " extends " ^ super_name
+						self#write (" extends " ^ super_name)
 			);
 			if List.length cls.cl_implements > 0 then begin
-				let implements = if cls.cl_interface then "extends" else "implements"
-				and use_interface iface = match iface with (i, _) -> self#use i.cl_path in
+				self#write (if cls.cl_interface then " extends " else " implements ");
+				let use_interface iface =
+					match iface with
+						| (i, _) -> self#use i.cl_path
+				in
 				let interfaces = List.map use_interface cls.cl_implements in
-				declaration := !declaration ^ " " ^ implements ^ " " ^ (String.concat ", " interfaces);
+				self#write (String.concat ", " interfaces);
 			end;
-			!declaration
+			self#write "\n"
+		(**
+			Writes type body to output buffer.
+			E.g. for "class SomeClass { <BODY> }" writes <BODY> part.
+		*)
+		method private write_body =
+			()
 	end
 
 (**
