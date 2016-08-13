@@ -1189,7 +1189,7 @@ class class_builder ctx (cls:tclass) =
 		method private write_body =
 			let empty_lines_before_var = ref false (* write empty lines to visually separate groups of fields *)
 			and empty_lines_before_method = ref false in
-			let write_if_const _ field =
+			let write_if_constant _ field =
 				match field.cf_kind with
 					| Var { v_read = AccInline; v_write = AccNever } -> self#write_field true field
 					| _ -> ()
@@ -1215,7 +1215,7 @@ class class_builder ctx (cls:tclass) =
 			in
 		 	if not cls.cl_interface then begin
 		 		(* Inlined statc vars (constants) *)
-				PMap.iter (write_if_const) cls.cl_statics;
+				PMap.iter (write_if_constant) cls.cl_statics;
 				empty_lines_before_var := true;
 		 		(* Statc vars *)
 				PMap.iter (write_if_var true) cls.cl_statics;
@@ -1227,7 +1227,10 @@ class class_builder ctx (cls:tclass) =
 			(* Statc methods *)
 			PMap.iter (write_if_method true) cls.cl_statics;
 			(* Constructor *)
-			(match cls.cl_constructor with None -> () | Some field -> self#write_field false field);
+			(match cls.cl_constructor with
+				| None -> ()
+				| Some field -> write_if_method false "new" field
+			);
 			(* Instance methods *)
 			PMap.iter (write_if_method false) cls.cl_fields
 		(**
