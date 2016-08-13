@@ -62,6 +62,7 @@
 /tests/unit/node_modules/
 
 /haxe.sublime*
+.idea
 build.bat
 /.vscode
 tests/unit/compile.php.hxml

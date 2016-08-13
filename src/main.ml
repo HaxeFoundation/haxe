@@ -159,7 +159,7 @@ let htmlescape s =
 	s
 
 let reserved_flags = [
-	"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
+	"cross";"js";"lua";"neko";"flash";"php";"php7";"cpp";"cs";"java";"python";
 	"as3";"swc";"macro";"sys"
 	]
 
@@ -1032,7 +1032,7 @@ and do_connect host port args =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s - (C)2005-2016 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-cppia|-as3|-cs|-java|-python|-hl|-lua] <output> [options]\n Options :"
+		"Haxe Compiler %s - (C)2005-2016 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-php7|-cpp|-cppia|-as3|-cs|-java|-python|-hl|-lua] <output> [options]\n Options :"
 		s_version (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
@@ -1116,6 +1116,7 @@ try
 			classes := (["php"],"Boot") :: !classes;
 			set_platform Php dir;
 		),"<directory> : generate PHP code into target directory");
+		("-php7",Arg.String (set_platform Php7),"<directory> : generate code into target directory");
 		("-cpp",Arg.String (fun dir ->
 			set_platform Cpp dir;
 		),"<directory> : generate C++ code into target directory");
@@ -1540,6 +1541,9 @@ try
 		| Php ->
 			add_std "php";
 			"php"
+		| Php7 ->			
+			add_std "php7";
+			"php7"
 		| Cpp ->
 			Common.define_value com Define.HxcppApiLevel "330";
 			add_std "cpp";
@@ -1638,7 +1642,7 @@ try
 		if not !no_output then begin match com.platform with
 			| Neko when !interp -> ()
 			| Cpp when Common.defined com Define.Cppia -> ()
-			| Cpp | Cs | Java | Php -> Common.mkdir_from_path (com.file ^ "/.")
+			| Cpp | Cs | Java | Php | Php7 -> Common.mkdir_from_path (com.file ^ "/.")
 			| _ -> Common.mkdir_from_path com.file
 		end;
 		if not !no_output then begin
@@ -1664,6 +1668,8 @@ try
 					Genlua.generate,"lua"
 				| Php ->
 					Genphp.generate,"php"
+				| Php7 ->
+					Genphp7.generate,"php7"
 				| Cpp ->
 					Gencpp.generate,"cpp"
 				| Cs ->

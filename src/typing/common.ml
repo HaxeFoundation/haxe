@@ -56,6 +56,7 @@ type platform =
 	| Java
 	| Python
 	| Hl
+	| Php7
 
 (**
 	The capture policy tells which handling we make of captured locals
@@ -684,6 +685,12 @@ let get_config com =
 			pf_static = false;
 			pf_pad_nulls = true;
 		}
+	| Php7 ->
+		{
+			default_config with
+			pf_static = false;
+			pf_pad_nulls = true;
+		}
 	| Cpp ->
 		{
 			default_config with
@@ -844,6 +851,7 @@ let platforms = [
 	Neko;
 	Flash;
 	Php;
+	Php7;
 	Cpp;
 	Cs;
 	Java;
@@ -858,6 +866,7 @@ let platform_name = function
 	| Neko -> "neko"
 	| Flash -> "flash"
 	| Php -> "php"
+	| Php7 -> "php7"
 	| Cpp -> "cpp"
 	| Cs -> "cs"
 	| Java -> "java"
