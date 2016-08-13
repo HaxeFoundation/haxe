@@ -7,6 +7,19 @@ open Meta
 let debug = ref false
 
 (**
+	Type path for native PHP Exception class
+*)
+let native_exception_path = (["php7"], "Exception")
+(**
+	Type path for Haxe exceptions wrapper
+*)
+let haxe_exception_path = (["php7"], "HException")
+(**
+	type path of `php7.Boot`
+*)
+let boot_class_path = (["php7"], "Boot")
+
+(**
 	Resolve real type (bypass abstracts and typedefs)
 *)
 let follow = Abstract.follow_with_abstracts
@@ -19,9 +32,32 @@ let error_message pos message = (Lexer.get_error_pos (Printf.sprintf "%s:%d:") p
 (**
 	Check if `target` is or extends native PHP `Extension` class
 *)
-let is_native_exception target =
-	match
+let rec is_native_exception (target:Type.t) =
+	match follow target with
+		| TInst ({ cl_path = path }, _) -> path = native_exception_path
+		| TInst ({ cl_super = Some (parent, params) }, _) -> is_native_exception (TInst (parent, params))
+		| _ -> false
 
+(**
+	If Haxe code throws something which does not extend native PHP Exception, then custom exception class generated.
+	E.g. to implement "throw 'Some string'" Genphp will generate additional `class String_HException extends HException {}`
+	in Boot.php file.
+*)
+(* let custom_exceptions = Hashtbl.create 100 *)
+(*
+let get_exception_type_path (throwed_type:Type.t) =
+	match follow throwed_type with
+		| TEnum ({ e_path = path }, _) ->
+		| TInst ({ cl_path = path }, _) ->
+		| TFun _ -> (* dynamic *)
+		| TDynamic _ ->
+		| TAbstract ({ a_path = path }, _) ->
+		| _ -> assert false *)
+
+(**
+	Check if `target` is a `Dynamic` type
+*)
+let rec is_dynamic (target:Type.t) = match follow target with TDynamic _ -> true | _ -> false
 
 (**
 	@return `opt` value or `default` if `opt` is None
@@ -59,10 +95,6 @@ let get_full_type_name (type_path:path) =
 	@return Short type name. E.g. returns "Test" for (["example"], "Test")
 *)
 let get_type_name (type_path:path) = match type_path with (_, type_name) -> type_name
-(**
-	@return type path of `php7.Boot`
-*)
-let get_boot_class_path () = (["php7"], "Boot")
 
 (**
 	@return E.g. returns ["example"] for (["example"], "Test")
@@ -662,7 +694,7 @@ class virtual type_builder ctx wrapper =
 				| TIf (condition, if_expr, else_expr) -> self#write_expr_if condition if_expr else_expr pos
 				| TWhile (condition, expr, do_while) -> self#write_expr_while condition expr do_while pos
 				| TSwitch (switch, cases, default ) -> self#write_expr_switch switch cases default pos
-				(* | TTry of texpr * (tvar * texpr) list *)
+				| TTry (try_expr, catches) -> self#write_expr_try_catch try_expr catches pos
 				| TReturn expr -> self#write_expr_return expr pos
 				| TBreak -> self#write "break"
 				| TContinue -> self#write "continue"
@@ -886,14 +918,38 @@ class virtual type_builder ctx wrapper =
 			Writes TThrow to output buffer
 		*)
 		method private write_expr_throw expr pos =
-			let is_native_exception = false in
-
+			self#write "throw ";
+			if is_native_exception expr.etype then
+				self#write_expr expr
+			else begin
+				self#write ("new " ^ (self#use haxe_exception_path) ^ "(");
+				self#write_expr expr;
+				self#write ")"
+			end
+		(**
+			Writes try...catch to output buffer
+		*)
+		method private write_expr_try_catch try_expr catches pos =
+			self#write ""
+			(* let write_catch var expr =
+				self#write " catch (";
+				if is_dynamic var.v_type or is_native_exception var.v_type then
+					self#write (self#use native_exception_path)
+				else if is_native_exception var.v_type then
+					self#write (self#use haxe_exception_path);
+				self#write ("$" ^ var.v_name ^ ") ");
+				if is_native_exception
+				self#write_as_block expr;
+			in
+			self#write "try ";
+			self#write_as_block try_expr pos;
+			List.iter write_catch cacthes; *)
 		(**
 			Writes binary operation to output buffer
 		*)
 		method private write_expr_binop operation expr1 expr2 pos =
 			let write_shiftRightUnsigned () =
-				self#write ((self#use (get_boot_class_path ())) ^ "::shiftRightUnsigned(");
+				self#write ((self#use boot_class_path) ^ "::shiftRightUnsigned(");
 				self#write_expr expr1;
 				self#write ", ";
 				self#write_expr expr2;
@@ -1310,3 +1366,4 @@ let generate (com:context) =
 	in
 	List.iter generate com.types;
 	clear_wrappers ()
+	(* Hashtbl.clear custom_exceptions *)
