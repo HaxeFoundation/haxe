@@ -6624,12 +6624,12 @@ end;;
 	of strategies between what should have been different modules, they are all unified in this reflection-enabling class fields.
 
 	They include:
-		* Get(isStatic, throwErrors, isCheck) / Set fields . Remember to allow implements Dynamic also.
-		* Invoke fields(isStatic) -> You need to configure how many invoke_field fields there will be. + invokeDynamic
+		* Get(throwErrors, isCheck) / Set fields . Remember to allow implements Dynamic also.
+		* Invoke fields() -> You need to configure how many invoke_field fields there will be. + invokeDynamic
 		* Has field -> parameter in get field that returns __undefined__ if it doesn't exist.
 
 		* GetType -> return the current Class<> / Enum<>
-		* Fields(isStatic) -> returns all the fields / static fields. Remember to allow implements Dynamic also
+		* Fields() -> returns all the fields / static fields. Remember to allow implements Dynamic also
 
 		* Create(arguments array), CreateEmpty - calls new() or create empty
 		* getInstanceFields / getClassFields -> show even function fields, everything!
@@ -6827,48 +6827,6 @@ struct
 				mk (TConst (TInt i)) ctx.rcf_gen.gcon.basic.tint pos
 			| false ->
 				ExprBuilder.make_string ctx.rcf_gen.gcon field_name pos
-
-	(*
-		Will implement getField / setField which will follow the following rule:
-			function getField(field, isStatic, throwErrors, isCheck, handleProperty, isFirst):Dynamic
-			{
-				if (isStatic)
-				{
-					switch(field)
-					{
-						case "aStaticField": return ThisClass.aStaticField;
-						case "aDynamicField": return ThisClass.aDynamicField;
-						default:
-							if (isFirst) return getField_d(field, isStatic, throwErrors, handleProperty, false);
-							if(throwErrors) throw "Field not found"; else if (isCheck) return __undefined__ else	 return null;
-					}
-				} else {
-					switch(field)
-					{
-						case "aNormalField": return this.aNormalField;
-						case "aBoolField": return this.aBoolField;
-						case "aDoubleField": return this.aDoubleField;
-						default: return getField_d(field, isStatic, throwErrors, isCheck);
-					}
-				}
-			}
-
-			function getField_d(field, isStatic, throwErrors, handleProperty, isFirst):Float
-			{
-				if (isStatic)
-				{
-					switch(field)
-					{
-						case "aDynamicField": return cast ThisClass.aDynamicField;
-						default: if (throwErrors) throw "Field not found"; else return null;
-					}
-				}
-				etc...
-			}
-
-			function setField(field, value, isStatic):Dynamic  {}
-			function setField_d(field, value:Float, isStatic):Float {}
-	*)
 
 	let call_super ctx fn_args ret_t cf cl this_t pos =
 		{
@@ -7626,7 +7584,6 @@ struct
 
 				(mk_do_default tf_args do_default, do_field, tf_args)
 			end else begin
-				(* (field, isStatic, throwErrors, isCheck):Dynamic *)
 				let throw_errors = alloc_var "throwErrors" basic.tbool in
 				let throw_errors_local = mk_local throw_errors pos in
 				let do_default, tf_args = if not is_float then begin
@@ -7760,30 +7717,6 @@ struct
 		mk_cfield true false;
 		mk_cfield false false;
 		mk_cfield false true
-
-	let mk_field_access_r ctx pos local field is_float is_static throw_errors set_option =
-		let is_set = is_some set_option in
-		let gen = ctx.rcf_gen in
-		let basic = gen.gcon.basic in
-
-		let fun_name = ctx.rcf_gen.gmk_internal_name "hx" ( (if is_set then "setField" else "getField") ^ (if is_float then "_f" else "") ) in
-		let tf_args, _ = field_type_args ctx pos in
-		let tf_args, args = fun_args tf_args, field in
-
-		let rett = if is_float then basic.tfloat else t_dynamic in
-		let tf_args, args = if is_set then tf_args @ [ "setVal", false, rett ], args @ [get set_option] else tf_args, args in
-		let tf_args, args = tf_args @ [ "throwErrors",false,basic.tbool ], args @ [throw_errors] in
-		let tf_args, args = if is_set || is_float then tf_args, args else tf_args @ [ "isCheck", false, basic.tbool ], args @ [{ eexpr = TConst(TBool false); etype = basic.tbool; epos = pos }] in
-		let tf_args, args = tf_args @ [ "handleProperties",false,basic.tbool; ], args @ [ ExprBuilder.make_bool ctx.rcf_gen.gcon false pos; ] in
-
-		{
-			eexpr = TCall(
-				{ (mk_field_access gen local fun_name pos) with etype = TFun(tf_args, rett) },
-				args);
-			etype = rett;
-			epos = pos;
-		}
-
 
 	let implement_getFields ctx cl =
 		let gen = ctx.rcf_gen in
@@ -7922,29 +7855,24 @@ struct
 			mk_this_call_raw cf.cf_name (TFun(args, ret)) params
 		in
 
-		let mk_static_call cf params =
-			let t = apply_object cf in
-			let _, ret = get_fun (follow t) in
-			{ eexpr = TCall( mk_static_field_access cl cf.cf_name t pos, params ); etype = ret; epos = pos }
-		in
-
 		let extends_hxobject = extends_hxobject cl in
 		ignore extends_hxobject;
-		(* creates a dynamicInvoke of the class fields listed here *)
+
+		(* creates a invokeField of the class fields listed here *)
 		(*
-			function dynamicInvoke(field, isStatic, dynargs)
+			function invokeField(field, dynargs)
 			{
 				switch(field)
 				{
 					case "a": this.a(dynargs[0], dynargs[1], dynargs[2]...);
-					default: super.dynamicInvoke //or this.getField(field).invokeField(dynargs)
+					default: super.invokeField //or this.getField(field).invokeDynamic(dynargs)
 				}
 			}
 		*)
 
 		let dyn_fun = mk_class_field (ctx.rcf_gen.gmk_internal_name "hx" "invokeField") fun_t false cl.cl_pos (Method MethNormal) [] in
 
-		let mk_switch_dyn cfs static old =
+		let mk_switch_dyn cfs old =
 			(* mk_class_field name t public pos kind params = *)
 
 			let get_case (names,cf) =
@@ -7953,7 +7881,7 @@ struct
 				let dyn_arg_local = mk_local dynamic_arg pos in
 				let cases = List.map (switch_case ctx pos) names in
 				(cases,
-					{ eexpr = TReturn(Some ( (if static then mk_static_call else mk_this_call) cf (List.map (fun (name,_,t) ->
+					{ eexpr = TReturn(Some (mk_this_call cf (List.map (fun (name,_,t) ->
 							let ret = { eexpr = TArray(dyn_arg_local, ExprBuilder.make_int ctx.rcf_gen.gcon !i pos); etype = t_dynamic; epos = pos } in
 							incr i;
 							ret
@@ -7977,16 +7905,20 @@ struct
 					( ncases, mk_return ((get slow_invoke) this (mk_local (fst (List.hd field_args)) pos) (mk_local dynamic_arg pos)) ) :: cases
 			in
 
-			let default = if !is_override && not(static) then
-				(* let call_super ctx fn_args ret_t fn_name this_t pos = *)
+			let default = if !is_override then
 				{ eexpr = TReturn(Some (call_super ctx all_args t_dynamic dyn_fun cl this_t pos) ); etype = basic.tvoid; epos = pos }
-			(*else if ctx.rcf_create_getsetinvoke_fields then (* we always need to run create_getset before *)
-				let get_field_name = gen.gmk_internal_name "hx" "getField" in
-				{ eexpr = TReturn( Some (mk_this_call (PMap.find get_field_name cl.cl_fields) [mk_local dynamic_arg pos] ) ); etype = basic.tvoid; epos = pos }*)
 			else (
-				(*let field = (gen.gtools.r_field false (TInst(ctx.rcf_ft.func_class,[])) this (mk_local (fst (List.hd all_args)) pos)) in*)
-				(* let mk_field_access ctx pos local field is_float is_static throw_errors set_option = *)
-				let field = mk_field_access_r ctx pos this field_args_exprs false {eexpr = TConst(TBool static); etype = basic.tbool; epos = pos} { eexpr = TConst(TBool true); etype = basic.tbool; epos = pos } None in
+				let field = begin
+					let fun_name = ctx.rcf_gen.gmk_internal_name "hx" "getField" in
+					let tf_args, _ = field_type_args ctx pos in
+					let tf_args, args = fun_args tf_args, field_args_exprs in
+
+					let tf_args, args = tf_args @ ["throwErrors",false, basic.tbool],       args @ [ExprBuilder.make_bool gen.gcon true pos] in
+					let tf_args, args = tf_args @ ["isCheck", false, basic.tbool],          args @ [ExprBuilder.make_bool gen.gcon false pos] in
+					let tf_args, args = tf_args @ ["handleProperties", false, basic.tbool], args @ [ExprBuilder.make_bool gen.gcon false pos] in
+
+					mk (TCall ({ (mk_field_access gen this fun_name pos) with etype = TFun(tf_args, t_dynamic) }, args)) t_dynamic pos
+				end in
 				let field = mk_cast (TInst(ctx.rcf_ft.func_class,[])) field in
 				mk_return {
 					eexpr = TCall(
@@ -8019,7 +7951,7 @@ struct
 					) nonstatics
 			in
 
-			mk_switch_dyn nonstatics false !old_nonstatics
+			mk_switch_dyn nonstatics !old_nonstatics
 		in
 
 		dyn_fun.cf_expr <- Some
