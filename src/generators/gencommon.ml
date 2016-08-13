@@ -20,17 +20,37 @@
 (*
 	Gen Common API
 
-	This module intends to be a common set of utilities common to all targets.
+	This is the key module for generation of Java and C# sources
+	In order for both modules to share as much code as possible, some
+	rules were devised:
 
-	It's intended to provide a set of tools to be able to make targets in Haxe more easily, and to
-	allow the programmer to have more control of how the target language will handle the program.
+	- every feature has its own submodule, and may contain the following methods:
+		- configure
+			sets all the configuration variables for the module to run. If a module has this method,
+			it *should* be called once before running any filter
+		- run_filter ->
+			runs the filter immediately on the context
+		- add_filter ->
+			adds the filter to an expr->expr list. Most filter modules will provide this option so the filter
+			function can only run once.
+	- most submodules will have side-effects so the order of operations will matter.
+		When running configure / add_filter this might be taken care of with the rule-based dispatch system working
+		underneath, but still there might be some incompatibilities. There will be an effort to document it.
+		The modules can hint on the order by suffixing their functions with _first or _last.
+	- any of those methods might have different parameters, that configure how the filter will run.
+		For example, a simple filter that maps switch() expressions to if () .. else if... might receive
+		a function that filters what content should be mapped
+	- Other targets can use those filters on their own code. In order to do that,
+		a simple configuration step is needed: you need to initialize a generator_ctx type with
+		Gencommon.new_gen (context:Common.context)
+		with a generator_ctx context you will be able to add filters to your code, and execute them with
+		Gencommon.run_filters (gen_context:Gencommon.generator_ctx)
 
-	For example, as of now, the hxcpp target, while greatly done, relies heavily on cpp's own operator
-	overloading, and implicit conversions, which make it very hard to deliver a similar solution for languages
-	that lack these features.
+		After running the filters, you can run your own generator normally.
 
-	So this little framework is here so you can manipulate the Haxe AST and start bringing the AST closer
-	to how it's intenteded to be in your host language.
+		(* , or you can run
+		Gencommon.generate_modules (gen_context:Gencommon.generator_ctx) (extension:string) (module_gen:module_type list->bool)
+		where module_gen will take a whole module (can be *)
 *)
 open Unix
 open Ast
@@ -110,42 +130,6 @@ let path_of_md_def md_def =
 		| [TClassDecl c] -> c.cl_path
 		| _ -> md_def.m_path
 
-(* ******************************************* *)
-(*	Gen Common
-
-This is the key module for generation of Java and C# sources
-In order for both modules to share as much code as possible, some
-rules were devised:
-
-- every feature has its own submodule, and may contain the following methods:
-	- configure
-		sets all the configuration variables for the module to run. If a module has this method,
-		it *should* be called once before running any filter
-	- run_filter ->
-		runs the filter immediately on the context
-	- add_filter ->
-		adds the filter to an expr->expr list. Most filter modules will provide this option so the filter
-		function can only run once.
-- most submodules will have side-effects so the order of operations will matter.
-	When running configure / add_filter this might be taken care of with the rule-based dispatch system working
-	underneath, but still there might be some incompatibilities. There will be an effort to document it.
-	The modules can hint on the order by suffixing their functions with _first or _last.
-- any of those methods might have different parameters, that configure how the filter will run.
-	For example, a simple filter that maps switch() expressions to if () .. else if... might receive
-	a function that filters what content should be mapped
-- Other targets can use those filters on their own code. In order to do that,
-	a simple configuration step is needed: you need to initialize a generator_ctx type with
-	Gencommon.new_gen (context:Common.context)
-	with a generator_ctx context you will be able to add filters to your code, and execute them with
-	Gencommon.run_filters (gen_context:Gencommon.generator_ctx)
-
-	After running the filters, you can run your own generator normally.
-
-	(* , or you can run
-	Gencommon.generate_modules (gen_context:Gencommon.generator_ctx) (extension:string) (module_gen:module_type list->bool)
-	where module_gen will take a whole module (can be *)
-
-*)
 
 (* ******************************************* *)
 (* common helpers *)
