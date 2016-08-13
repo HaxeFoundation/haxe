@@ -4,34 +4,6 @@ open Type
 open Common
 open Meta
 
-(* Check lists:
-tclass = {
-	[x] mutable cl_path : path;
-	[ ] mutable cl_module : module_def;
-	[ ] mutable cl_pos : Ast.pos;
-	[ ] mutable cl_private : bool;
-	[ ] mutable cl_doc : Ast.documentation;
-	[ ] mutable cl_meta : metadata;
-	[ ] mutable cl_params : type_params;
-	[ ] mutable cl_kind : tclass_kind;
-	[ ] mutable cl_extern : bool;
-	[x] mutable cl_interface : bool;
-	[x] mutable cl_super : (tclass * tparams) option;
-	[x] mutable cl_implements : (tclass * tparams) list;
-	[ ] mutable cl_fields : (string , tclass_field) PMap.t;
-	[ ] mutable cl_statics : (string, tclass_field) PMap.t;
-	[ ] mutable cl_ordered_statics : tclass_field list;
-	[ ] mutable cl_ordered_fields : tclass_field list;
-	[ ] mutable cl_dynamic : t option;
-	[ ] mutable cl_array_access : t option;
-	[ ] mutable cl_constructor : tclass_field option;
-	[ ] mutable cl_init : texpr option;
-	[ ] mutable cl_overrides : tclass_field list;
-	[ ] mutable cl_build : unit -> build_state;
-	[ ] mutable cl_restore : unit -> unit;
-}
-
-*)
 
 (**
 	Resolve real type (bypass abstracts and typedefs)
@@ -142,7 +114,7 @@ let is_var_with_nonconstant_expr (field:tclass_field) =
 		| Method _ -> false
 
 (**
-	@return New expression which is composed of setting default values for optional arguments and function body.
+	@return New TBlock expression which is composed of setting default values for optional arguments and function body.
 *)
 let inject_defaults ctx (func:tfunc) =
 	let rec inject args body_exprs =
@@ -353,7 +325,7 @@ let get_wrapper (mtype:module_type) : type_wrapper =
 		| TAbstractDecl abstr -> get_abstract_wrapper abstr
 
 (**
-
+	Drop cached instances of type_wrapper
 *)
 let clear_wrappers () =
 	Hashtbl.clear classes;
@@ -376,8 +348,10 @@ class virtual type_builder ctx wrapper =
 		val buffer = Buffer.create 1024
 		(** Cache for generated conent *)
 		val mutable contents = ""
-		(** intendation used for each line written *)
+		(** Intendation used for each line written *)
 		val mutable indentation = ""
+		(** Used to find out if current expression is located at top level of a block *)
+		val mutable current_is_block = [false]
 		(**
 			Get PHP namespace path
 		*)
@@ -386,7 +360,6 @@ class virtual type_builder ctx wrapper =
 			Get type name
 		*)
 		method get_name = get_type_name wrapper#get_native_path
-
 		(**
 			Writes type declaration line to output buffer.
 			E.g. "class SomeClass extends Another implements IFace"
@@ -511,6 +484,13 @@ class virtual type_builder ctx wrapper =
 						| ([],"Void") -> "void"
 						| _ -> self#use_t abstr.a_this
 		(**
+			Indicates whether current expression nesting level is a top level of a block
+		*)
+		method private parent_expr_is_block =
+			match current_is_block with
+				| _ :: parent :: _ -> parent
+				| _ -> false
+		(**
 			Writes specified string to output buffer
 		*)
 		method private write str =
@@ -634,6 +614,7 @@ class virtual type_builder ctx wrapper =
 			Writes expression to output buffer
 		*)
 		method private write_expr (expr:texpr) =
+			current_is_block <- false :: current_is_block;
 			(match expr.eexpr with
 				| TConst const -> self#write_expr_const const expr.epos
 				| TLocal var -> self#write ("$" ^ var.v_name)
@@ -667,6 +648,7 @@ class virtual type_builder ctx wrapper =
 				(* | TEnumParameter of texpr * tenum_field * int *)
 				| _ -> ()
 			);
+			current_is_block <- List.tl current_is_block
 		(**
 			Writes type initialization method.
 		*)
@@ -822,6 +804,7 @@ class virtual type_builder ctx wrapper =
 			Writes TBlock to output buffer
 		*)
 		method private write_expr_block exprs pos =
+			current_is_block <- true :: current_is_block;
 			self#write "{\n";
 			self#indent_more;
 			let write_expr expr =
@@ -830,10 +813,10 @@ class virtual type_builder ctx wrapper =
 				self#write ";\n";
 			in
 			List.iter write_expr exprs;
-			self#write "\n";
 			self#indent_less;
 			self#write_indentation;
-			self#write "}"
+			self#write "}";
+			current_is_block <- List.tl current_is_block
 		(**
 			Writes binary operation to output buffer
 		*)
@@ -944,19 +927,49 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes "if...else..." expression to output buffer
 		*)
-		method private write_expr_if condition if_expr else_expr pos =
-			let write_block expr =
-				match if_expr.eexpr with
-				| TBlock exprs -> self#write_expr_block exprs pos
-				| _ -> self#write_expr_block [expr] pos
+		method private write_expr_if condition if_expr (else_expr:texpr option) pos =
+			let is_ternary =
+				if self#parent_expr_is_block then
+					false
+				else
+					match (if_expr.eexpr, else_expr) with
+						| (TBlock _, _) | (_, Some { eexpr=TBlock _ }) -> assert false
+						| _ -> true
 			in
-			self#write "if ";
-			self#write_expr condition;
-			self#write " ";
-			write_block if_expr;
-			match else_expr with
-				| None -> ()
-				| Some expr -> write_block expr
+			if is_ternary then
+				match else_expr with
+					| None -> assert false
+					| Some expr ->
+						self#write_expr_ternary condition if_expr expr pos
+			else begin
+				let write_block expr =
+					match if_expr.eexpr with
+					| TBlock exprs -> self#write_expr_block exprs pos
+					| _ -> self#write_expr_block [expr] pos
+				in
+				self#write "if ";
+				self#write_expr condition;
+				self#write " ";
+				write_block if_expr;
+				(match else_expr with
+					| None -> ()
+					| Some expr ->
+						self#write " else ";
+						write_block expr
+				)
+			end
+		(**
+			Writes ternary operator expressions to output buffer
+		*)
+		method private write_expr_ternary condition if_expr (else_expr:texpr) pos =
+			(match condition.eexpr with
+				| TParenthesis expr -> self#write_expr expr;
+				| _ -> self#write_expr else_expr
+			);
+			self#write " ? ";
+			self#write_expr if_expr;
+			self#write " : ";
+			self#write_expr else_expr
 	end
 
 (**
