@@ -17,6 +17,13 @@ let follow = Abstract.follow_with_abstracts
 let error_message pos message = (Lexer.get_error_pos (Printf.sprintf "%s:%d:") pos) ^ message
 
 (**
+	Check if `target` is or extends native PHP `Extension` class
+*)
+let is_native_exception target =
+	match
+
+
+(**
 	@return `opt` value or `default` if `opt` is None
 *)
 let get_option_value (opt:'a option) default =
@@ -659,7 +666,7 @@ class virtual type_builder ctx wrapper =
 				| TReturn expr -> self#write_expr_return expr pos
 				| TBreak -> self#write "break"
 				| TContinue -> self#write "continue"
-				(* | TThrow of texpr *)
+				| TThrow expr -> self#write_expr_throw expr pos
 				(* | TCast of texpr * module_type option *)
 				| TMeta (_, expr) -> self#write_expr expr
 				(* | TEnumParameter of texpr * tenum_field * int *)
@@ -875,6 +882,12 @@ class virtual type_builder ctx wrapper =
 				| Some expr ->
 					self#write "return ";
 					self#write_expr expr
+		(**
+			Writes TThrow to output buffer
+		*)
+		method private write_expr_throw expr pos =
+			let is_native_exception = false in
+
 		(**
 			Writes binary operation to output buffer
 		*)
