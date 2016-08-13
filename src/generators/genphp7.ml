@@ -3,6 +3,11 @@ open Ast
 open Type
 open Common
 
+type out = {
+	channel : out_channel;
+	buffer  : Buffer.t;
+}
+
 (*
 	@param path Something like [ "/some/path/first_dir_to_create"; "nested_level1"; "nested_level2" ]
 *)
@@ -33,8 +38,19 @@ let create_output_dir php7_path php_lib_path =
 	String.concat "/" build_path
 
 let generate_class build_dir cls =
-	let namespace = (match cls.cl_path with (module_path, _) -> module_path) in
-	create_dir_recursive (build_dir :: namespace)
+	let namespace = match cls.cl_path with (module_path, _) -> module_path in
+	create_dir_recursive (build_dir :: namespace);
+	let class_name = match cls.cl_path with (_, class_name) -> class_name in
+	let filename = build_dir ^ "/" ^ (String.concat "/" namespace) ^ "/" ^ class_name ^ ".php" in
+	let out = {
+		channel = open_out filename;
+		buffer  = Buffer.create 1024;
+	} in
+	Buffer.add_string out.buffer "<?php\n";
+	if (List.length namespace) > 0 then
+		Buffer.add_string out.buffer ("namespace " ^ (String.concat "\\" namespace) ^ ";\n");
+	output_string out.channel (Buffer.contents out.buffer);
+	close_out out.channel
 
 let generate_type build_dir type_declaration =
 	match type_declaration with
