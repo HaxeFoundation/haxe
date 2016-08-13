@@ -943,7 +943,7 @@ class virtual type_builder ctx wrapper =
 					| TDynamic _ ->
 						dynamic := true;
 						catching_dynamic := true;
-						if not !first_catch then self#write " {\n"
+						if not !first_catch then self#write "{\n"
 					| vtype -> self#write ("if ($__hx__real_e instanceof " ^ (self#use_t vtype) ^ ") {\n")
 				);
 				if !dynamic && !first_catch then
@@ -962,7 +962,7 @@ class virtual type_builder ctx wrapper =
 						self#write_indentation;
 						self#write "}";
 					end;
-				if not !dynamic then self#write " else";
+				if not !dynamic then self#write " else ";
 				first_catch := false;
 			in
 			self#write "try ";
@@ -1132,7 +1132,9 @@ class virtual type_builder ctx wrapper =
 					| None -> ()
 					| Some expr ->
 						self#write " else ";
-						self#write_as_block expr pos
+						match expr.eexpr with
+							| TIf _ -> self#write_expr expr
+							| _ -> self#write_as_block expr pos
 				)
 			end
 		(**
