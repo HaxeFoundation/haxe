@@ -21,6 +21,7 @@
  */
 package php7;
 
+using StringTools;
 
 /**
 	Various Haxe->PHP compatibility utilities
@@ -85,7 +86,7 @@ private class HxClass {
 	/**
 		Get `HxClass` instance for specified PHP fully qualified class name (E.g. '\some\pack\MyClass')
 	*/
-	public static function get (phpClassName:String) : HxClass {
+	public static function get( phpClassName:String ) : HxClass {
 		var cls = classes.get(phpClassName);
 		if (cls == null) {
 			cls = new HxClass(phpClassName);
@@ -96,7 +97,7 @@ private class HxClass {
 	}
 
 	@:protected
-	private function new (phpClassName:String) : Void {
+	private function new( phpClassName:String ) : Void {
 		this.phpClassName = phpClassName;
 	}
 
@@ -104,7 +105,52 @@ private class HxClass {
 		Implementation for `cast(value, Class<Dynamic>)`
 		@throws HException if `value` cannot be casted to this type
 	*/
-	public function tryCast (value:Dynamic) : Dynamic {
-		throw "Not implemented";
+	public function tryCast( value:Dynamic ) : Dynamic {
+		switch (phpClassName) {
+			case '\\Int':
+				if (untyped __php__("is_int($value) || is_float($value)")) {
+					return untyped __php__("(int)$value");
+				}
+			case '\\Float':
+				if (untyped __php__("is_int($value) || is_float($value)")) {
+					return untyped __php__("(float)$value");
+				}
+			case '\\Bool':
+				if (untyped __php__("is_bool($value)")) {
+					return value;
+				}
+			case '\\String':
+				if (untyped __php__("is_string($value)")) {
+					return value;
+				}
+			case '\\php7\\NativeArray':
+				if (untyped __php__("is_array($value)")) {
+					return value;
+				}
+			case _:
+				if (untyped __php__("is_object($value) && $value instanceof $this->phpClassName")) {
+					return value;
+				}
+		}
+		throw 'Cannot cast ' + Std.string(value) + ' to ' + toString();
+	}
+
+	/**
+		Get string representation of this `Class`
+	*/
+	public function toString() : String {
+		return __toString();
+	}
+
+	/**
+		PHP magic method to get string representation of this `Class`
+	*/
+	public function __toString() : String {
+		var haxeType = phpClassName.replace('\\', '.');
+		if (haxeType.charAt(0) == '.') {
+			haxeType = haxeType.substr(1);
+		}
+
+		return haxeType;
 	}
 }

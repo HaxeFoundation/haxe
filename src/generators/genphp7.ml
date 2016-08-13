@@ -1208,43 +1208,38 @@ class class_builder ctx (cls:tclass) =
 			E.g. for "class SomeClass { <BODY> }" writes <BODY> part.
 		*)
 		method private write_body =
-			let empty_lines_before_var = ref false (* write empty lines to visually separate groups of fields *)
-			and empty_lines_before_method = ref false in
+			let at_least_one_field_written = ref false in
 			let write_if_constant _ field =
 				match field.cf_kind with
-					| Var { v_read = AccInline; v_write = AccNever } -> self#write_field true field
+					| Var { v_read = AccInline; v_write = AccNever } ->
+						at_least_one_field_written := true;
+						self#write_field true field
 					| _ -> ()
 			and write_if_method is_static _ field =
 				match field.cf_kind with
 					| Var _ -> ()
 					| Method _ ->
-						if !empty_lines_before_method then
-							self#write_empty_lines
-						else
-							empty_lines_before_method := true;
+						if !at_least_one_field_written then self#write_empty_lines;
+						at_least_one_field_written := true;
 						self#write_field is_static field
 			and write_if_var is_static _ field =
 				match field.cf_kind with
 					| Var { v_read = AccInline; v_write = AccNever } -> ()
 					| Method _ -> ()
 					| Var _ ->
-						if !empty_lines_before_var then begin
-							self#write_empty_lines;
-							empty_lines_before_var := false
-						end;
+						at_least_one_field_written := true;
 						self#write_field is_static field
 			in
 		 	if not cls.cl_interface then begin
 		 		(* Inlined statc vars (constants) *)
 				PMap.iter (write_if_constant) cls.cl_statics;
-				empty_lines_before_var := true;
+				if !at_least_one_field_written then self#write_empty_lines;
 		 		(* Statc vars *)
 				PMap.iter (write_if_var true) cls.cl_statics;
-				empty_lines_before_var := true;
+				if !at_least_one_field_written then self#write_empty_lines;
 				(* instance vars *)
 				PMap.iter (write_if_var false) cls.cl_fields
 			end;
-			empty_lines_before_method := not !empty_lines_before_var;
 			(* Statc methods *)
 			PMap.iter (write_if_method true) cls.cl_statics;
 			(* Constructor *)
