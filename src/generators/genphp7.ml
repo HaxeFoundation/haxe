@@ -510,20 +510,22 @@ class virtual type_builder ctx wrapper =
 			match follow t_inst with
 				| TEnum (tenum, _) -> self#use tenum.e_path
 				| TInst (tcls, _) ->
-					(
-						match tcls.cl_path with
-							| ([], "String") -> "string"
-							| _ -> self#use tcls.cl_path
+					(match tcls.cl_kind with
+						| KTypeParameter _ -> "mixed"
+						| _ ->
+							(match tcls.cl_path with
+								| ([], "String") -> "string"
+								| _ -> self#use tcls.cl_path
+							)
 					)
 				| TFun _ -> self#use ([], "Closure")
 				| TAnon _ -> "object"
 				| TDynamic _ -> "mixed"
 				| TLazy _ -> failwith "TLazy not implemented"
 				| TMono mono ->
-					(
-						match !mono with
-							| None -> "mixed"
-							| Some t -> self#use_t t
+					(match !mono with
+						| None -> "mixed"
+						| Some t -> self#use_t t
 					)
 				| TType _ -> failwith "TType not implemented"
 				| TAbstract (abstr, _) ->
@@ -967,7 +969,7 @@ class virtual type_builder ctx wrapper =
 			in
 			self#write "try ";
 			self#write_as_block try_expr pos;
-			self#write " catch (\Exception $__hx__caught_e) {\n";
+			self#write " catch (\\Exception $__hx__caught_e) {\n";
 			self#indent_more;
 			self#write_statement ("$__hx__real_e = ($__hx__caught_e instanceof " ^ haxe_exception ^ " ? $__hx__caught_e->e : $__hx__caught_e)");
 			self#write_indentation;
