@@ -36,6 +36,12 @@ class Boot {
 		trace('Boot.__init__');
 	}
 
+	/**
+		Typed cast implementation.
+	**/
+	public static function typedCast<T> (expr:Dynamic, className:Class<T>) : T {
+		return expr;
+	}
 
 	/**
 		Performs `left >>> right` operation

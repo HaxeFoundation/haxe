@@ -22,7 +22,7 @@ let boot_class_path = (["php7"], "Boot")
 (**
 	Resolve real type (bypass abstracts and typedefs)
 *)
-let follow = Abstract.follow_with_abstracts
+let rec follow = Abstract.follow_with_abstracts
 
 (**
 	@return Error message with position information
@@ -515,6 +515,7 @@ class virtual type_builder ctx wrapper =
 						| ([],"Float") -> "float"
 						| ([],"Bool") -> "bool"
 						| ([],"Void") -> "void"
+						| ([], "Class") -> "string"
 						| _ -> self#use_t abstr.a_this
 		(**
 			Indicates whether current expression nesting level is a top level of a block
@@ -681,7 +682,7 @@ class virtual type_builder ctx wrapper =
 				| TBreak -> self#write "break"
 				| TContinue -> self#write "continue"
 				| TThrow expr -> self#write_expr_throw expr pos
-				(* | TCast of texpr * module_type option *)
+				| TCast (expr, mtype) -> self#write_expr_cast expr mtype pos
 				| TMeta (_, expr) -> self#write_expr expr
 				(* | TEnumParameter of texpr * tenum_field * int *)
 				| _ -> ()
@@ -907,6 +908,12 @@ class virtual type_builder ctx wrapper =
 			self#indent_less;
 			self#write_indentation;
 			self#write "}"
+		(**
+			Writes TCast to output buffer
+		*)
+		method private write_expr_cast expr (mtype:module_type option) pos =
+			(* of texpr * module_type option *)
+			Printf.printf "%s" "dsffs"
 		(**
 			Writes binary operation to output buffer
 		*)
