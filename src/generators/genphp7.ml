@@ -360,10 +360,9 @@ class virtual type_builder ctx wrapper =
 		(** Intendation used for each line written *)
 		val mutable indentation = ""
 		(**
-			Used to find out if current expression is located at top level of a block.
-			It's not guaranteed this list contains correct value for grandparent.
+			Expressions nesting. E.g. "if(callFn(ident))" will be represented as [ident, callFn, if]
 		*)
-		val mutable current_is_block = [false]
+		val mutable expr_hierarchy : texpr list = []
 		(**
 			Get PHP namespace path
 		*)
@@ -499,8 +498,11 @@ class virtual type_builder ctx wrapper =
 			Indicates whether current expression nesting level is a top level of a block
 		*)
 		method private parent_expr_is_block =
-			match current_is_block with
-				| _ :: parent :: _ -> parent
+			match expr_hierarchy with
+				| _ :: [] -> true
+				| _ :: { eexpr = TBlock _ } :: _ -> true
+				| _ :: { eexpr = TIf _ } :: _ -> true
+				| _ :: { eexpr = TTry _ } :: _ -> true
 				| _ -> false
 		(**
 			Writes specified string to output buffer
@@ -603,7 +605,7 @@ class virtual type_builder ctx wrapper =
 			in
 			List.iter write_line lines
 		(**
-			Generates docblock for a method and writes it to ourput buffer
+			Generates docblock for a method and writes it to output buffer
 		*)
 		method write_method_docblock args return_type doc =
 			self#write_line "/**";
@@ -626,7 +628,7 @@ class virtual type_builder ctx wrapper =
 			Writes expression to output buffer
 		*)
 		method private write_expr (expr:texpr) =
-			current_is_block <- false :: current_is_block;
+			expr_hierarchy <- expr :: expr_hierarchy;
 			(match expr.eexpr with
 				| TConst const -> self#write_expr_const const expr.epos
 				| TLocal var -> self#write ("$" ^ var.v_name)
@@ -660,7 +662,7 @@ class virtual type_builder ctx wrapper =
 				(* | TEnumParameter of texpr * tenum_field * int *)
 				| _ -> ()
 			);
-			current_is_block <- List.tl current_is_block
+			expr_hierarchy <- List.tl expr_hierarchy
 		(**
 			Writes type initialization method.
 		*)
@@ -808,7 +810,6 @@ class virtual type_builder ctx wrapper =
 			Writes TBlock to output buffer
 		*)
 		method private write_expr_block exprs pos =
-			current_is_block <- true :: current_is_block;
 			self#write "{\n";
 			self#indent_more;
 			let write_expr expr =
@@ -821,8 +822,7 @@ class virtual type_builder ctx wrapper =
 			List.iter write_expr exprs;
 			self#indent_less;
 			self#write_indentation;
-			self#write "}";
-			current_is_block <- List.tl current_is_block
+			self#write "}"
 		(**
 			Writes binary operation to output buffer
 		*)
@@ -957,7 +957,7 @@ class virtual type_builder ctx wrapper =
 						self#write_expr_ternary condition if_expr expr pos
 			else begin
 				let write_block expr =
-					match if_expr.eexpr with
+					match expr.eexpr with
 					| TBlock exprs -> self#write_expr_block exprs pos
 					| _ -> self#write_expr_block [expr] pos
 				in
