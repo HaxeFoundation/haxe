@@ -33,6 +33,21 @@ tclass = {
 *)
 
 (**
+	PHP DocBlock types
+*)
+type doc_type =
+	| DocVar of string * (string option) (* (type name, description) *)
+	| DocMethod of string option
+
+(**
+	@return `opt` value or `default` if `opt` is None
+*)
+let get_option_value (opt:'a option) default =
+	match opt with
+		| None -> default
+		| Some value -> value
+
+(**
 	@param path Something like [ "/some/path/first_dir_to_create"; "nested_level1"; "nested_level2" ]
 	@return String representation of created path (E.g. "/some/path/first_dir_to_create/nested_level1/nested_level2")
 *)
@@ -179,20 +194,27 @@ class virtual type_builder =
 					)
 				| TFun _ -> self#use ([], "Closure")
 				| TAnon _ -> failwith "TAnon not implemented"
-				| TDynamic _ -> failwith "TDynamic not implemented"
+				| TDynamic _ -> "mixed"
 				| TLazy _ -> failwith "TLazy not implemented"
-				| TAbstract (tabs, _) ->
-					match tabs.a_path with
+				| TMono _ -> failwith "TMono not implemented"
+				| TType _ -> failwith "TType not implemented"
+				| TAbstract (abstr, _) ->
+					match abstr.a_path with
 						| ([],"Int") -> "int"
 						| ([],"Float") -> "float"
 						| ([],"Bool") -> "bool"
 						| ([],"Void") -> "void"
-						| _ -> failwith "TAbstract not implemented"
+						| _ -> self#use_t abstr.a_this
 		(**
 			Writes specified string to output buffer
 		*)
 		method private write str =
 			Buffer.add_string buffer str
+		(**
+			Writes current indentation to output buffer
+		*)
+		method private write_indentation =
+			Buffer.add_string buffer indentation
 		(**
 			Writes specified line to output buffer and appends \n
 		*)
@@ -201,7 +223,7 @@ class virtual type_builder =
 		(**
 			Writes specified statement to output buffer and appends ";\n"
 		*)
-		method private write_stmnt statement =
+		method private write_statement statement =
 			Buffer.add_string buffer (indentation ^ statement ^ ";\n")
 		(**
 			Build file header (<?php, namespace and file doc block)
@@ -220,12 +242,28 @@ class virtual type_builder =
 			self#indent 0;
 			let write alias type_path =
 				if get_type_name type_path = alias then
-					self#write_stmnt ("use " ^ (get_full_type_name type_path))
+					self#write_statement ("use " ^ (get_full_type_name type_path))
 				else
 					let full_name = get_full_type_name type_path in
-					self#write_stmnt ("use " ^ full_name ^ " as " ^ alias)
+					self#write_statement ("use " ^ full_name ^ " as " ^ alias)
 			in
 			Hashtbl.iter write use_table
+		(**
+			Generates PHP docblock to output buffer.
+		*)
+		method private write_doc doc_block =
+			let write_description doc =
+				let lines = Str.split (Str.regexp "\n") (String.trim doc) in
+				List.iter (fun line -> self#write_line (" * " ^ (String.trim line))) lines
+			in
+			match doc_block with
+				| DocVar (type_name, None) -> self#write_line ("/** @var " ^ type_name ^ " */")
+				| DocVar (type_name, Some doc) ->
+					self#write_line "/**";
+					self#write_line (" * @var " ^ type_name);
+					write_description doc;
+					self#write_line " */"
+				| DocMethod _ -> ()
 	end
 
 (**
@@ -285,8 +323,9 @@ class class_builder (cls:tclass) =
 		*)
 		method private write_var field =
 			self#indent 1;
-			self#write_line ("/** @var " ^ (self#use_t field.cf_type) ^ " */");
-			self#write_stmnt ("public " ^ field.cf_name)
+			self#write_doc (DocVar (self#use_t field.cf_type, field.cf_doc));
+			self#write_statement ("public " ^ field.cf_name)
+			(* let expr = match *)
 	end
 
 (**
