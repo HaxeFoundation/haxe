@@ -110,6 +110,7 @@ let get_visibility (meta:metadata) = if Meta.has Meta.Protected meta then "prote
 type doc_type =
 	| DocVar of string * (string option) (* (type name, description) *)
 	| DocMethod of (string * bool * t) list * t * (string option) (* (arguments, return type, description) *)
+	| DocClass of string option
 
 (**
 	Common interface for module_type instances
@@ -366,7 +367,7 @@ class virtual type_builder wrapper =
 			Extracts type path from Type.t value and execute self#use on it
 			@return Unique alias for specified type.
 		*)
-		method use_t t_inst =
+		method use_t (t_inst:Type.t) =
 			match follow t_inst with
 				| TEnum (tenum, _) -> self#use tenum.e_path
 				| TInst (tcls, _) ->
@@ -398,6 +399,12 @@ class virtual type_builder wrapper =
 		*)
 		method private write str =
 			Buffer.add_string buffer str
+		(**
+			Writes fixed amount of empty lines (E.g. between methods)
+		*)
+		method private write_empty_lines =
+			self#write "\n";
+			self#write "\n"
 		(**
 			Writes current indentation to output buffer
 		*)
@@ -440,28 +447,58 @@ class virtual type_builder wrapper =
 			Generates PHP docblock to output buffer.
 		*)
 		method private write_doc doc_block =
-			let write_description doc =
-				let lines = Str.split (Str.regexp "\n") (String.trim doc)
-				and write_line line =
-					let trimmed = String.trim line in
-					if String.get trimmed 0 = '*' then
-						self#write_line (" " ^ trimmed)
-					else
-						self#write_line (" * " ^ trimmed)
-				in
-				List.iter write_line lines
-			in
 			match doc_block with
 				| DocVar (type_name, None) -> self#write_line ("/** @var " ^ type_name ^ " */")
 				| DocVar (type_name, Some doc) ->
 					self#write_line "/**";
 					self#write_line (" * @var " ^ type_name);
-					write_description doc;
+					self#write_doc_description doc;
 					self#write_line " */"
+				| DocClass doc ->
+					(match doc with
+						| None -> ()
+						| Some txt ->
+							self#write_line "/**";
+							self#write_doc_description txt;
+							self#write_line " */"
+					)
 				| DocMethod (args, return, doc) ->
-					self#write_line "/**";
-					(match doc with None -> () | Some txt -> write_description txt);
-					self#write_line "*/";
+					self#write_method_docblock args return doc
+		(**
+			Writes description section of docblocks
+		*)
+		method write_doc_description (doc:string) =
+			let lines = Str.split (Str.regexp "\n") (String.trim doc)
+			and write_line line =
+				let trimmed = String.trim line in
+				if String.length trimmed > 0 then (
+					if String.get trimmed 0 = '*' then
+						self#write_line (" " ^ trimmed)
+					else
+						self#write_line (" * " ^ trimmed)
+				)
+			in
+			List.iter write_line lines
+		(**
+			Generates docblock for a method and writes it to ourput buffer
+		*)
+		method write_method_docblock args return_type doc =
+			self#write_line "/**";
+			(match doc with
+				| None -> ()
+				| Some txt ->
+					self#write_doc_description txt;
+					self#write_line " * "
+			);
+			let write_arg arg =
+				match arg with
+					| (arg_name, is_optional, arg_type) ->
+						self#write_line (" * @param $" ^ arg_name ^ " " ^ (self#use_t arg_type))
+			in
+			List.iter write_arg args;
+			if List.length args > 0 then self#write_line " * ";
+			self#write_line (" * @return " ^ (self#use_t return_type));
+			self#write_line " */"
 		(**
 			Writes expression to output buffer
 		*)
@@ -501,7 +538,7 @@ class virtual type_builder wrapper =
 			Writes special method which allows other types to call protected methods of this type.
 		*)
 		method private write_hx_call_protected =
-			self#write "\n";
+			self#write_empty_lines;
 			self#indent 1;
 			self#write_line "/**";
 			self#write_line " * @internal";
@@ -525,7 +562,7 @@ class virtual type_builder wrapper =
 			Writes special method which allows other types to read protected vars of this type.
 		*)
 		method private write_hx_get_protected =
-			self#write "\n";
+			self#write_empty_lines;
 			self#indent 1;
 			self#write_line "/**";
 			self#write_line " * @internal";
@@ -549,7 +586,7 @@ class virtual type_builder wrapper =
 			Writes special method which allows other types to write protected vars of this type.
 		*)
 		method private write_hx_set_protected =
-			self#write "\n";
+			self#write_empty_lines;
 			self#indent 1;
 			self#write_line "/**";
 			self#write_line " * @internal";
@@ -656,7 +693,7 @@ class class_builder (cls:tclass) =
 			E.g. "class SomeClass extends Another implements IFace"
 		*)
 		method private write_declaration =
-			self#write "\n";
+			self#write_doc (DocClass cls.cl_doc);
 			self#write (if cls.cl_interface then "interface " else "class ");
 			self#write self#get_name;
 			(
@@ -693,7 +730,7 @@ class class_builder (cls:tclass) =
 		 	if not cls.cl_interface then begin
 		 		(* Statc vars *)
 				PMap.iter (write_if_var true) cls.cl_statics;
-				self#write "\n";
+				self#write_empty_lines;
 				(* instance vars *)
 				PMap.iter (write_if_var false) cls.cl_fields
 			end;
@@ -738,7 +775,7 @@ class class_builder (cls:tclass) =
 			Writes method to output buffer
 		*)
 		method private write_method field is_static =
-			self#write "\n";
+			self#write_empty_lines;
 			self#indent 1;
 			let (args, return_type) =
 				(match follow field.cf_type with
