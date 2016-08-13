@@ -31,14 +31,6 @@
 
 	So this little framework is here so you can manipulate the Haxe AST and start bringing the AST closer
 	to how it's intenteded to be in your host language.
-
-	Rules
-
-	Design goals
-
-	Naming convention
-
-	Weaknesses and TODO's
 *)
 open Unix
 open Ast
