@@ -23,7 +23,6 @@ package cs.internal;
 import cs.Lib;
 import cs.Lib.*;
 import cs.NativeArray;
-import cs.NativeArray;
 import cs.StdTypes;
 import cs.system.Activator;
 import cs.system.IConvertible;
