@@ -2,6 +2,7 @@
 open Ast
 open Type
 open Common
+open Meta
 
 (* Check lists:
 tclass = {
@@ -89,6 +90,28 @@ let get_type_name (type_path:path) = match type_path with (_, type_name) -> type
 let get_module_path (type_path:path) = match type_path with (module_path, _) -> module_path
 
 (**
+	Extract native type path from @:native metadata (if exists)
+*)
+let get_native_path (meta:metadata) =
+	try
+		let entry = Meta.get Meta.Native meta in
+		match entry with
+			| (Native, [(EConst (String str_path), _)], _) ->
+				let build_path parts =
+					let reversed = List.rev parts in
+					Some (List.rev (List.tl reversed), List.hd reversed)
+				in
+				(match Str.split (Str.regexp "\\") (String.trim str_path) with
+					| "" :: [] -> failwith ("Invalid @:native value: " ^ str_path)
+					| "" :: parts -> build_path parts
+					| parts -> build_path parts
+				)
+			| _ -> failwith "Invalid @:native meta"
+	with
+		| Not_found -> None
+		| e -> raise e
+
+(**
 	PHP DocBlock types
 *)
 type doc_type =
@@ -96,9 +119,143 @@ type doc_type =
 	| DocMethod of tfunc * (string option) (* (function, description) *)
 
 (**
+	Common interface for module_type instances
+*)
+class virtual type_wrapper (haxe_path:path) (meta:metadata) (needs_generation:bool) =
+	object (self)
+		val mutable native_path = None
+		(**
+			Indicates if this type should be rendered to corresponding php file
+		*)
+		method needs_generation = needs_generation
+		(**
+			Native namespace path in PHP
+		*)
+		method get_namespace = get_module_path self#get_native_path
+		(**
+			Native type path in PHP
+		*)
+		method get_native_path =
+			match native_path with
+				| Some path -> path
+				| None ->
+					let path =
+						match (get_native_path meta) with
+							| Some path -> path
+							| None -> haxe_path
+					in
+					native_path <- Some path;
+					path
+
+	end
+
+(**
+	TClassDecl
+*)
+class class_wrapper (cls) =
+	object (self)
+		inherit type_wrapper cls.cl_path cls.cl_meta (not cls.cl_extern)
+	end
+
+(**
+	TEnumDecl
+*)
+class enum_wrapper (enm) =
+	object (self)
+		inherit type_wrapper enm.e_path enm.e_meta (not enm.e_extern)
+	end
+
+(**
+	TTypeDecl
+*)
+class typedef_wrapper (tdef) =
+	object (self)
+		inherit type_wrapper tdef.t_path tdef.t_meta false
+	end
+
+(**
+	TAbstractDecl
+*)
+class abstract_wrapper (abstr) =
+	object (self)
+		inherit type_wrapper abstr.a_path abstr.a_meta false
+	end
+
+(**
+	type_wrapper for classes
+*)
+let classes = Hashtbl.create 1000
+let get_class_wrapper cls  : type_wrapper =
+	try
+		let wrapper = Hashtbl.find classes cls in
+		wrapper
+	with
+		| Not_found ->
+			let wrapper = new class_wrapper cls in
+			Hashtbl.add classes cls wrapper;
+			wrapper
+		| e -> raise e
+
+(**
+	type_wrapper for enums
+*)
+let enums = Hashtbl.create 200
+let get_enum_wrapper enm : type_wrapper=
+	try
+		let wrapper = Hashtbl.find enums enm in
+		wrapper
+	with
+		| Not_found ->
+			let wrapper = new enum_wrapper enm in
+			Hashtbl.add enums enm wrapper;
+			wrapper
+		| e -> raise e
+
+(**
+	type_wrapper for typedefs
+*)
+let typedefs = Hashtbl.create 200
+let get_typedef_wrapper typedef : type_wrapper =
+	try
+		let wrapper = Hashtbl.find typedefs typedef in
+		wrapper
+	with
+		| Not_found ->
+			let wrapper = new typedef_wrapper typedef in
+			Hashtbl.add typedefs typedef wrapper;
+			wrapper
+		| e -> raise e
+
+(**
+	type_wrapper for abstracts
+*)
+let abstracts = Hashtbl.create 200
+let get_abstract_wrapper abstr : type_wrapper =
+	try
+		let wrapper = Hashtbl.find abstracts abstr in
+		wrapper
+	with
+		| Not_found ->
+			let wrapper = new abstract_wrapper abstr in
+			Hashtbl.add abstracts abstr wrapper;
+			wrapper
+		| e -> raise e
+
+(**
+	Returns wrapper for module_type.
+	Caches wrappers so that each type will always return the same wrapper instance.
+*)
+let get_wrapper (mtype:module_type) : type_wrapper =
+	match mtype with
+		| TClassDecl cls -> get_class_wrapper cls
+		| TEnumDecl enm -> get_enum_wrapper enm
+		| TTypeDecl typedef -> get_typedef_wrapper typedef
+		| TAbstractDecl abstr -> get_abstract_wrapper abstr
+
+(**
 	Base class for type builders
 *)
-class virtual type_builder =
+class virtual type_builder wrapper =
 	object (self)
 		(** List of types for "use" section *)
 		val use_table = Hashtbl.create 50
@@ -109,13 +266,13 @@ class virtual type_builder =
 		(** intendation used for each line written *)
 		val mutable indentation = ""
 		(**
-			Get namespace path for this type
+			Get PHP namespace path
 		*)
-		method virtual get_namespace : string list
+		method get_namespace = wrapper#get_namespace
 		(**
 			Get type name
 		*)
-		method virtual get_name : string
+		method get_name = get_type_name wrapper#get_native_path
 		(**
 			Writes type declaration line to output buffer.
 			E.g. "class SomeClass extends Another implements IFace"
@@ -250,7 +407,7 @@ class virtual type_builder =
 		method private write_header =
 			self#indent 0;
 			self#write_line "<?php";
-			let namespace = self#get_namespace in
+			let namespace = wrapper#get_namespace in
 			if List.length namespace > 0 then
 				self#write_line ("namespace " ^ (String.concat "\\" namespace) ^ ";\n");
 			self#write_use
@@ -353,7 +510,6 @@ class virtual type_builder =
 					self#write ",\n"
 				)
 				exprs;
-			self#write "\n";
 			self#indent_less;
 			self#write_indentation;
 			self#write "]"
@@ -370,17 +526,9 @@ class virtual type_builder =
 (**
 	Builds class contents
 *)
-and class_builder (cls:tclass) =
+class class_builder (cls:tclass) =
 	object (self)
-		inherit type_builder
-		(**
-			Get namespace path for this type
-		*)
-		method get_namespace = get_module_path cls.cl_path
-		(**
-			Get type name
-		*)
-		method get_name = get_type_name cls.cl_path
+		inherit type_builder (get_wrapper (TClassDecl cls))
 		(**
 			Writes type declaration line to output buffer.
 			E.g. "class SomeClass extends Another implements IFace"
@@ -420,9 +568,11 @@ and class_builder (cls:tclass) =
 					| Var _ -> self#write_field field_name field is_static
 					| Method _ -> ()
 			in
-			PMap.iter (write_var true) cls.cl_statics;
-			self#write "\n";
-			PMap.iter (write_var false) cls.cl_fields;
+		 	if not cls.cl_interface then begin
+				PMap.iter (write_var true) cls.cl_statics;
+				self#write "\n";
+				PMap.iter (write_var false) cls.cl_fields
+			end;
 			PMap.iter (write_method true) cls.cl_statics;
 			PMap.iter (write_method false) cls.cl_fields
 		(**
@@ -456,29 +606,35 @@ and class_builder (cls:tclass) =
 		method private write_method field is_static =
 			self#write "\n";
 			self#indent 1;
-			let func =
+			(* let func =
 				match field.cf_expr with
 					| Some ({ eexpr = TFunction fn }) -> fn
 					(* | None -> *)
 					| _ -> failwith ("Invalid expr for method " ^ field.cf_name)
 			in
-			self#write_doc (DocMethod (func, field.cf_doc));
+			self#write_doc (DocMethod (func, field.cf_doc)); *)
+			self#write_indentation;
 			if is_static then self#write "static ";
-			self#write ("public $" ^ field.cf_name);
+			self#write ("public " ^ field.cf_name);
 			self#write " (";
-			self#write ")\n";
-			self#indent 1;
-			self#write_line "{";
-			(** method body *)
-			self#indent 1;
-			self#write_line "}"
+			self#write ")";
+			if cls.cl_interface then
+				self#write " ;\n"
+			else begin
+				self#write "\n";
+				self#indent 1;
+				self#write_line "{";
+				(** method body *)
+				self#indent 1;
+				self#write_line "}"
+			end
 
 	end
 
 (**
 	Handles generation process
 *)
-and generator (com:context) =
+class generator (com:context) =
 	object (self)
 		val mutable build_dir = ""
 		val root_dir = com.file
@@ -517,10 +673,12 @@ let generate (com:context) =
 	let gen = new generator com in
 	gen#initialize;
 	let generate com_type =
-		match com_type with
-			| TClassDecl cls -> gen#generate (new class_builder cls);
-			| TEnumDecl tenum -> ();
-			| TTypeDecl typedef -> ();
-			| TAbstractDecl abstr -> ()
+		let wrapper = get_wrapper com_type in
+		if wrapper#needs_generation then
+			match com_type with
+				| TClassDecl cls -> gen#generate (new class_builder cls);
+				| TEnumDecl tenum -> ();
+				| TTypeDecl typedef -> ();
+				| TAbstractDecl abstr -> ()
 	in
 	List.iter generate com.types
