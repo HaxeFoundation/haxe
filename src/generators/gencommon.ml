@@ -8403,7 +8403,7 @@ struct
 						f
 					in
 					let cond_array = { (mk_field_access gen f "params" f.epos) with etype = gen.gclasses.nativearray t_dynamic } in
-					{ e with eexpr = TArray(cond_array, ExprBuilder.make_int gen.gcon i cond_array.epos); }
+					Codegen.index gen.gcon cond_array i e.etype e.epos
 				| _ ->
 					Type.map_expr run e
 			in
