@@ -2682,9 +2682,9 @@ struct
 			or the invokeField implementation for the classes
 			They will either try to call the right function or will fail with
 
-			(tclass - subject (so we know the type of this)) -> is_function_base -> additional arguments for each function (at the beginning) -> list of the abstract implementation class fields
+			(tclass - subject (so we know the type of this)) -> list of the abstract implementation class fields
 		*)
-		get_base_classfields_for : tclass->bool->(unit->(tvar * tconstant option) list)->tclass_field list;
+		get_base_classfields_for : tclass->tclass_field list;
 
 		(*
 			This is a more complex version of get_base_classfields_for.
@@ -2693,7 +2693,6 @@ struct
 
 			arguments:
 				tclass -> subject (so we know the type of this)
-				bool -> is it a function type
 				( int -> (int->t->tconstant option->texpr) -> ( (tvar * tconstant option) list * texpr) )
 					int -> current arity of the function whose member will be mapped; -1 for dynamic function. It is guaranteed that dynamic function will be called last
 					t -> the return type of the function
@@ -2705,7 +2704,7 @@ struct
 					should return a list with additional arguments (only works if is_function_base = true)
 					and the underlying function expression
 		*)
-		map_base_classfields : tclass->bool->( int -> t -> (tvar list) -> (int->t->tconstant option->texpr) -> ( (tvar * tconstant option) list * texpr) )->tclass_field list;
+		map_base_classfields : tclass->( int -> t -> (tvar list) -> (int->t->tconstant option->texpr) -> texpr )->tclass_field list;
 
 		transform_closure : texpr->texpr->string->texpr;
 	}
@@ -3463,19 +3462,19 @@ struct
 				}
 			in
 
-			let iname is_function i is_float =
+			let iname i is_float =
 				let postfix = if is_float then "_f" else "_o" in
-				gen.gmk_internal_name "hx" ("invoke" ^ (if not is_function then "Field" else "") ^ string_of_int i) ^ postfix
+				gen.gmk_internal_name "hx" ("invoke" ^ string_of_int i) ^ postfix
 			in
 
-			let map_base_classfields cl is_function map_fn =
+			let map_base_classfields cl map_fn =
 				let pos = cl.cl_pos in
 				let this_t = TInst(cl,List.map snd cl.cl_params) in
 				let this = { eexpr = TConst(TThis); etype = this_t; epos = pos } in
 				let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
 
 				let mk_invoke_i i is_float =
-					let cf = mk_class_field (iname is_function i is_float) (TFun(func_sig_i i, if is_float then basic.tfloat else t_dynamic)) false pos (Method MethNormal) [] in
+					let cf = mk_class_field (iname i is_float) (TFun(func_sig_i i, if is_float then basic.tfloat else t_dynamic)) false pos (Method MethNormal) [] in
 					cf
 				in
 
@@ -3532,8 +3531,7 @@ struct
 
 					let ret = if is_float then basic.tfloat else t_dynamic in
 
-					let added_args, fn_expr = map_fn i ret (List.map fst args) api in
-					let args = added_args @ args in
+					let fn_expr = map_fn i ret (List.map fst args) api in
 
 					let t = TFun(fun_args args, ret) in
 
@@ -3564,7 +3562,7 @@ struct
 
 				let cfs = loop max_arity [] in
 
-				let added_s_args, switch =
+				let switch =
 					let api i t const =
 						match i with
 							| -1 ->
@@ -3581,7 +3579,7 @@ struct
 					map_fn (-1) t_dynamic [dynamic_arg] api
 				in
 
-				let args = added_s_args @ [dynamic_arg, None] in
+				let args = [dynamic_arg, None] in
 				let dyn_t = TFun(fun_args args, t_dynamic) in
 				let dyn_cf = mk_class_field (gen.gmk_internal_name "hx" "invokeDynamic") dyn_t false pos (Method MethNormal) [] in
 
@@ -3595,7 +3593,7 @@ struct
 					epos = pos;
 				};
 
-				let additional_cfs = if is_function then begin
+				let additional_cfs = begin
 					let new_t = TFun(["arity", false, basic.tint; "type", false, basic.tint],basic.tvoid) in
 					let new_cf = mk_class_field "new" (new_t) true pos (Method MethNormal) [] in
 					let v_arity, v_type = alloc_var "arity" basic.tint, alloc_var "type" basic.tint in
@@ -3625,15 +3623,13 @@ struct
 						mk_class_field type_name basic.tint true pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
 						mk_class_field arity_name basic.tint true pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
 					]
-				end else
-					[]
-				in
+				end in
 
 				dyn_cf :: (additional_cfs @ cfs)
 			in
 
 			(* maybe another param for prefix *)
-			let get_base_classfields_for cl is_function mk_additional_args =
+			let get_base_classfields_for cl =
 				let pos = cl.cl_pos in
 
 				let this_t = TInst(cl,List.map snd cl.cl_params) in
@@ -3659,7 +3655,7 @@ struct
 					( [{ eexpr = TConst(TInt(Int32.of_int i)); etype = basic.tint; epos = pos }],
 					{
 						eexpr = TReturn(Some( {
-							eexpr = TCall(mk_this (iname is_function i false) t, mk_dyn_call i api);
+							eexpr = TCall(mk_this (iname i false) t, mk_dyn_call i api);
 							etype = t_dynamic;
 							epos = pos;
 						} ));
@@ -3671,7 +3667,7 @@ struct
 				let cl_t = TInst(cl,List.map snd cl.cl_params) in
 				let this = { eexpr = TConst(TThis); etype = cl_t; epos = pos } in
 				let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
-				let mk_int i = { eexpr = TConst(TInt ( Int32.of_int i)); etype = basic.tint; epos = pos } in
+				let mk_int i = ExprBuilder.make_int gen.gcon i pos in
 				let mk_string s = ExprBuilder.make_string gen.gcon s pos in
 
 				(*
@@ -3693,52 +3689,24 @@ struct
 				let type_name = gen.gmk_internal_name "fn" "type" in
 
 				let mk_expr i is_float vars =
-
-					let name = if is_function then "invoke" else "invokeField" in
-
-					let look_ahead = alloc_var "lookAhead" basic.tbool in
-					let add_args = if not is_function then mk_additional_args() else [] in
-					let vars = if not is_function then (List.map fst add_args) @ (look_ahead :: vars) else vars in
-
+					let name = "invoke" in
 					let call_expr =
-
 						let call_t = TFun(List.map (fun v -> (v.v_name, false, v.v_type)) vars, if is_float then t_dynamic else basic.tfloat) in
 						{
-							eexpr = TCall(mk_this (gen.gmk_internal_name "hx" (name ^ (string_of_int i) ^ (if is_float then "_o" else "_f"))) call_t, List.map (fun v ->	if v.v_id = look_ahead.v_id then ( { eexpr = TConst(TBool false); etype = basic.tbool; epos = pos } ) else mk_local v pos) vars );
+							eexpr = TCall(mk_this (gen.gmk_internal_name "hx" (name ^ (string_of_int i) ^ (if is_float then "_o" else "_f"))) call_t, List.map (fun v -> mk_local v pos) vars);
 							etype = if is_float then t_dynamic else basic.tfloat;
 							epos = pos
 						}
 					in
-					(*let call_expr = if is_float then mk_cast basic.tfloat call_expr else call_expr in*)
-
-					let if_cond = if is_function then
-						{ eexpr=TBinop(Ast.OpNotEq, mk_this type_name basic.tint, mk_int (if is_float then 0 else 1) ); etype = basic.tbool; epos = pos }
-					else
-						mk_local look_ahead pos
-					in
-
-					let if_expr = if is_function then
-						{
-							eexpr = TIf(if_cond,
-								{ eexpr = TThrow(mk_string "Wrong number of arguments"); etype = basic.tstring; epos = pos },
-								Some( { eexpr = TReturn( Some( call_expr ) ); etype = call_expr.etype; epos = pos } )
-							);
-							etype = t_dynamic;
-							epos = pos;
-						}
-					else
-						{
-							eexpr = TIf(if_cond,
-							{ eexpr = TReturn( Some( call_expr ) ); etype = call_expr.etype; epos = pos },
-							Some( { eexpr = TThrow(mk_string "Field not found or wrong number of arguments"); etype = basic.tstring; epos = pos } )
-							);
-							etype = t_dynamic;
-							epos = pos;
-						}
-					in
-
-					let args = if not is_function then (mk_additional_args()) @ [look_ahead, None] else [] in
-					(args, if_expr)
+					{
+						eexpr = TIf(
+							mk (TBinop (Ast.OpNotEq, mk_this type_name basic.tint, mk_int (if is_float then 0 else 1))) basic.tbool pos,
+							mk (TThrow (mk_string "Wrong number of arguments")) t_dynamic pos,
+							Some (mk (TReturn (Some call_expr)) t_dynamic pos)
+						);
+						etype = t_dynamic;
+						epos = pos;
+					}
 				in
 
 				let arities_processed = Hashtbl.create 10 in
@@ -3752,42 +3720,38 @@ struct
 				let map_fn cur_arity fun_ret_type vars (api:(int->t->tconstant option->texpr)) =
 					let is_float = like_float fun_ret_type && not (like_i64 fun_ret_type) in
 					match cur_arity with
-						| -1 ->
-							let dynargs = api (-1) (t_dynamic) None in
-							let switch_cond = mk_field_access gen dynargs "length" pos in
-							let switch_cond = {
-								eexpr = TIf(
-									{ eexpr = TBinop(Ast.OpEq, dynargs, null dynargs.etype pos); etype = basic.tbool; epos = pos; },
-									{ eexpr = TConst(TInt(Int32.zero)); etype = basic.tint; epos = pos },
-									Some switch_cond);
-								etype = basic.tint;
-								epos = pos;
-							} in
+					| -1 ->
+						let dynargs = api (-1) (t_dynamic) None in
+						let switch_cond = mk_field_access gen dynargs "length" pos in
+						let switch_cond = {
+							eexpr = TIf(
+								{ eexpr = TBinop(Ast.OpEq, dynargs, null dynargs.etype pos); etype = basic.tbool; epos = pos; },
+								{ eexpr = TConst(TInt(Int32.zero)); etype = basic.tint; epos = pos },
+								Some switch_cond);
+							etype = basic.tint;
+							epos = pos;
+						} in
 
-							let switch =
-							{
-								eexpr = TSwitch( switch_cond,
-									loop_cases api !max_arity [],
-									Some({ eexpr = TThrow(mk_string "Too many arguments"); etype = basic.tvoid; epos = pos; }) );
-								etype = basic.tvoid;
-								epos = pos;
-							} in
-
-							( (if not is_function then mk_additional_args () else []), switch )
-						| _ ->
-							if not (Hashtbl.mem arities_processed cur_arity) then begin
-								Hashtbl.add arities_processed cur_arity true;
-								if cur_arity > !max_arity then max_arity := cur_arity
-							end;
-
-							mk_expr cur_arity is_float vars
+						{
+							eexpr = TSwitch( switch_cond,
+								loop_cases api !max_arity [],
+								Some({ eexpr = TThrow(mk_string "Too many arguments"); etype = basic.tvoid; epos = pos; }) );
+							etype = basic.tvoid;
+							epos = pos;
+						}
+					| _ ->
+						if not (Hashtbl.mem arities_processed cur_arity) then begin
+							Hashtbl.add arities_processed cur_arity true;
+							if cur_arity > !max_arity then max_arity := cur_arity
+						end;
+						mk_expr cur_arity is_float vars
 				in
 
-				map_base_classfields cl is_function map_fn
+				map_base_classfields cl map_fn
 			in
 
 			begin
-				let cfs = get_base_classfields_for parent_func_class true (fun () -> []) in
+				let cfs = get_base_classfields_for parent_func_class in
 				List.iter (fun cf ->
 					if cf.cf_name = "new" then
 						parent_func_class.cl_constructor <- Some cf
@@ -8010,10 +7974,10 @@ struct
 
 			let expr = if like_float ret && not (like_int ret) then mk_cast ret expr else expr in
 
-			[], mk_return expr
+			mk_return expr
 		in
 
-		let all_cfs = List.filter (fun cf -> cf.cf_name <> "new" && cf.cf_name <> (invokedyn) && match cf.cf_kind with Method _ -> true | _ -> false) (ctx.rcf_ft.map_base_classfields cl true map_fn) in
+		let all_cfs = List.filter (fun cf -> cf.cf_name <> "new" && cf.cf_name <> (invokedyn) && match cf.cf_kind with Method _ -> true | _ -> false) (ctx.rcf_ft.map_base_classfields cl map_fn) in
 
 		cl.cl_ordered_fields <- cl.cl_ordered_fields @ all_cfs;
 		List.iter (fun cf ->
@@ -8073,10 +8037,10 @@ struct
 
 			let expr = if like_float ret && not (like_int ret) then mk_cast ret expr else expr in
 
-			[], mk_return expr
+			mk_return expr
 		in
 
-		let all_cfs = List.filter (fun cf -> cf.cf_name <> "new" && match cf.cf_kind with Method _ -> true | _ -> false) (ctx.rcf_ft.map_base_classfields cl true map_fn) in
+		let all_cfs = List.filter (fun cf -> cf.cf_name <> "new" && match cf.cf_kind with Method _ -> true | _ -> false) (ctx.rcf_ft.map_base_classfields cl map_fn) in
 
 		List.iter (fun cf ->
 			cl.cl_overrides <- cf :: cl.cl_overrides
