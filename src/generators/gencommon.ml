@@ -591,8 +591,6 @@ and gen_classes =
 	cl_type : tclass;
 	cl_dyn : tclass;
 
-	t_iterator : tdef;
-
 	mutable nativearray_len : texpr -> pos -> texpr;
 	mutable nativearray_type : Type.t -> Type.t;
 	mutable nativearray : Type.t -> Type.t;
@@ -646,8 +644,6 @@ let new_ctx con =
 			cl_reflect = get_cl (get_type con.types ([], "Reflect"));
 			cl_type = get_cl (get_type con.types ([], "Type"));
 			cl_dyn = cl_dyn;
-
-			t_iterator = get_tdef (get_type con.types ([], "Iterator"));
 
 			nativearray = (fun _ -> assert false);
 			nativearray_type = (fun _ -> assert false);
