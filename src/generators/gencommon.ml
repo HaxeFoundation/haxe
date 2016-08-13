@@ -2658,8 +2658,6 @@ struct
 	let priority = solve_deps name [ DAfter DynamicFieldAccess.priority ]
 
 	type closures_ctx = {
-		fgen : generator_ctx;
-
 		func_class : tclass;
 
 		(*
@@ -2957,10 +2955,8 @@ struct
 		This means that it also imposes that the dynamic function return types may only be Dynamic or Float, and all other basic types must be converted to/from it.
 	*)
 	let configure gen ft =
-		let gen = ft.fgen in
 
 		let handle_anon_func fexpr tfunc mapinfo delegate_type : texpr * (tclass * texpr list) =
-			let gen = ft.fgen in
 			let in_unsafe = mapinfo.in_unsafe || match gen.gcurrent_class, gen.gcurrent_classfield with
 				| Some c, _ when Meta.has Meta.Unsafe c.cl_meta -> true
 				| _, Some cf when Meta.has Meta.Unsafe cf.cf_meta -> true
@@ -2979,19 +2975,19 @@ struct
 			let cltypes = List.map (fun cl -> (snd cl.cl_path, TInst(cl, []) )) tparams in
 
 			(* create a new class that extends abstract function class, with a ctor implementation that will setup all captured variables *)
-			let cfield = match ft.fgen.gcurrent_classfield with
+			let cfield = match gen.gcurrent_classfield with
 				| None -> "Anon"
 				| Some cf -> cf.cf_name
 			in
 			let cur_line = Lexer.get_error_line fexpr.epos in
-			let path = (fst ft.fgen.gcurrent_path, Printf.sprintf "%s_%s_%d__Fun" (snd ft.fgen.gcurrent_path) cfield cur_line) in
-			let cls = mk_class (get ft.fgen.gcurrent_class).cl_module path tfunc.tf_expr.epos in
+			let path = (fst gen.gcurrent_path, Printf.sprintf "%s_%s_%d__Fun" (snd gen.gcurrent_path) cfield cur_line) in
+			let cls = mk_class (get gen.gcurrent_class).cl_module path tfunc.tf_expr.epos in
 			if in_unsafe then cls.cl_meta <- (Meta.Unsafe,[],Ast.null_pos) :: cls.cl_meta;
 
 			if Common.defined gen.gcon Define.EraseGenerics then begin
 				cls.cl_meta <- (Meta.HaxeGeneric,[],Ast.null_pos) :: cls.cl_meta
 			end;
-			cls.cl_module <- (get ft.fgen.gcurrent_class).cl_module;
+			cls.cl_module <- (get gen.gcurrent_class).cl_module;
 			cls.cl_params <- cltypes;
 
 			let mk_this v pos =
@@ -3072,19 +3068,19 @@ struct
 			let super_call =
 			{
 				eexpr = TCall({ eexpr = TConst(TSuper); etype = TInst(ft.func_class,[]); epos = pos }, super_args);
-				etype = ft.fgen.gcon.basic.tvoid;
+				etype = gen.gcon.basic.tvoid;
 				epos = pos;
 			} in
 
-			let ctor_type = (TFun(ctor_sig, ft.fgen.gcon.basic.tvoid)) in
+			let ctor_type = (TFun(ctor_sig, gen.gcon.basic.tvoid)) in
 			let ctor = mk_class_field "new" ctor_type true cls.cl_pos (Method(MethNormal)) [] in
 			ctor.cf_expr <- Some(
 			{
 				eexpr = TFunction(
 				{
 					tf_args = ctor_args;
-					tf_type = ft.fgen.gcon.basic.tvoid;
-					tf_expr = { eexpr = TBlock(super_call :: ctor_exprs); etype = ft.fgen.gcon.basic.tvoid; epos = cls.cl_pos }
+					tf_type = gen.gcon.basic.tvoid;
+					tf_expr = { eexpr = TBlock(super_call :: ctor_exprs); etype = gen.gcon.basic.tvoid; epos = cls.cl_pos }
 				});
 				etype = ctor_type;
 				epos = cls.cl_pos;
@@ -3096,13 +3092,13 @@ struct
 			cls.cl_fields <- PMap.add invoke_field.cf_name invoke_field cls.cl_fields;
 			cls.cl_overrides <- invoke_field :: cls.cl_overrides;
 
-			ft.fgen.gadd_to_module (TClassDecl cls) priority;
+			gen.gadd_to_module (TClassDecl cls) priority;
 
 			(* if there are no captured variables, we can create a cache so subsequent calls don't need to create a new function *)
 			let expr, clscapt =
 				match captured, tparams with
 				| [], [] ->
-					let cache_var = ft.fgen.gmk_internal_name "hx" "current" in
+					let cache_var = gen.gmk_internal_name "hx" "current" in
 					let cache_cf = mk_class_field cache_var (TInst(cls,[])) false func_expr.epos (Var({ v_read = AccNormal; v_write = AccNormal })) [] in
 					cls.cl_ordered_statics <- cache_cf :: cls.cl_ordered_statics;
 					cls.cl_statics <- PMap.add cache_var cache_cf cls.cl_statics;
@@ -3117,7 +3113,7 @@ struct
 						eexpr = TIf(
 							{
 								eexpr = TBinop(OpNotEq, hx_current, null (TInst(cls,[])) pos);
-								etype = ft.fgen.gcon.basic.tbool;
+								etype = gen.gcon.basic.tbool;
 								epos = pos;
 							},
 							hx_current,
@@ -3146,7 +3142,7 @@ struct
 		let tvar_to_cdecl = Hashtbl.create 0 in
 
 		let run = traverse
-			ft.fgen
+			gen
 			~tparam_anon_decl:(fun v e fn ->
 				let _, info = handle_anon_func e fn null_map_info None in
 				Hashtbl.add tvar_to_cdecl v.v_id info
@@ -3728,7 +3724,6 @@ struct
 			end;
 
 			{
-				fgen = gen;
 				func_class = parent_func_class;
 				closure_to_classfield = closure_to_classfield;
 				dynamic_fun_call = dynamic_fun_call;
