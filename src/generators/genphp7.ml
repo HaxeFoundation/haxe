@@ -264,6 +264,11 @@ class virtual type_builder =
 					write_description doc;
 					self#write_line " */"
 				| DocMethod _ -> ()
+		(**
+			Writes expression to output buffer
+		*)
+		method private write_expr (expr:texpr) =
+			()
 	end
 
 (**
@@ -324,8 +329,13 @@ class class_builder (cls:tclass) =
 		method private write_var field =
 			self#indent 1;
 			self#write_doc (DocVar (self#use_t field.cf_type, field.cf_doc));
-			self#write_statement ("public " ^ field.cf_name)
-			(* let expr = match *)
+			self#write_indentation;
+			self#write ("public " ^ field.cf_name);
+			match field.cf_expr with
+				| None -> self#write ";\n"
+				| Some expr ->
+					self#write " = ";
+					self#write_expr expr
 	end
 
 (**
