@@ -553,7 +553,7 @@ class virtual type_builder wrapper =
 			self#indent_less;
 			self#write_line "} else {";
 			self#indent_more;
-			self#write_line "return call_user_func_array([__CLASS__, $method], $args);";
+			self#write_line "return call_user_func_array([static::class, $method], $args);";
 			self#indent_less;
 			self#write_line "}";
 			self#indent 1;
