@@ -521,7 +521,6 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private parent_expr_is_block =
 			match expr_hierarchy with
-				| _ :: [] -> false
 				| _ :: { eexpr = TBlock _ } :: _ -> true
 				| _ :: { eexpr = TIf _ } :: _ -> true
 				| _ :: { eexpr = TTry _ } :: _ -> true
@@ -669,7 +668,7 @@ class virtual type_builder ctx wrapper =
 				| TArrayDecl exprs -> self#write_expr_array_decl exprs pos
 				| TCall (target, args) -> self#write_expr_call target args pos
 				| TNew (tcls, _, args) -> self#write_expr_new tcls args pos
-				(* | TUnop of Ast.unop * Ast.unop_flag * texpr *)
+				| TUnop (operation, flag, expr) -> self#write_expr_unop operation flag expr pos
 				| TFunction fn -> self#write_expr_function fn pos
 				| TVar (var, expr) -> self#write_expr_var var expr pos
 				| TBlock exprs -> self#write_expr_block expr pos
@@ -970,6 +969,25 @@ class virtual type_builder ctx wrapper =
 					self#write " = ";
 					write_shiftRightUnsigned ()
 				| _ -> failwith (error_message pos "Binary operation is not implemented")
+		(**
+			Writes TUnOp to output buffer
+		*)
+		method private write_expr_unop operation flag expr pos =
+			let write_unop operation =
+				match operation with
+					| Increment -> self#write "++"
+					| Decrement -> self#write "--"
+					| Not -> self#write "!"
+					| Neg -> self#write "-"
+					| NegBits -> self#write "~"
+			in
+			match flag with
+				| Prefix ->
+					write_unop operation;
+					self#write_expr expr
+				| Postfix ->
+					self#write_expr expr;
+					write_unop operation
 		(**
 			Writes TField to output buffer
 		*)
