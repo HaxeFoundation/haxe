@@ -350,7 +350,10 @@ class virtual type_builder ctx wrapper =
 		val mutable contents = ""
 		(** Intendation used for each line written *)
 		val mutable indentation = ""
-		(** Used to find out if current expression is located at top level of a block *)
+		(**
+			Used to find out if current expression is located at top level of a block.
+			It's not guaranteed this list contains correct value for grandparent.
+		*)
 		val mutable current_is_block = [false]
 		(**
 			Get PHP namespace path
@@ -792,14 +795,6 @@ class virtual type_builder ctx wrapper =
 				self#write_indentation
 			end;
 			self#write_expr (inject_defaults ctx func)
-			(* atch func.tf_expr.eexpr with
-				| TBlock _ -> self#write_expr func.tf_expr
-				| _ ->
-					self#write "{\n";
-					self#indent_more;
-					self#write_expr func.tf_expr;
-					self#indent_less;
-			 		self#write_line "}" *)
 		(**
 			Writes TBlock to output buffer
 		*)
@@ -810,7 +805,9 @@ class virtual type_builder ctx wrapper =
 			let write_expr expr =
 				self#write_indentation;
 				self#write_expr expr;
-				self#write ";\n";
+				match expr.eexpr with
+					| TBlock _ | TIf _ | TTry _ -> self#write "\n"
+					| _ -> self#write ";\n"
 			in
 			List.iter write_expr exprs;
 			self#indent_less;
