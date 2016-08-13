@@ -1038,16 +1038,24 @@ class class_builder ctx (cls:tclass) =
 			E.g. for "class SomeClass { <BODY> }" writes <BODY> part.
 		*)
 		method private write_body =
-			let write_if_method is_static _ field =
+			let write_if_const _ field =
+				match field.cf_kind with
+					| Var { v_read = AccInline; v_write = AccNever } -> self#write_field true field
+					| _ -> ()
+			and write_if_method is_static _ field =
 				match field.cf_kind with
 					| Var _ -> ()
 					| Method _ -> self#write_field is_static field
 			and write_if_var is_static _ field =
 				match field.cf_kind with
+					| Var { v_read = AccInline; v_write = AccNever } -> ()
 					| Var _ -> self#write_field is_static field
 					| Method _ -> ()
 			in
 		 	if not cls.cl_interface then begin
+		 		(* Inlined statc vars (constants) *)
+				PMap.iter (write_if_const) cls.cl_statics;
+				self#write_empty_lines;
 		 		(* Statc vars *)
 				PMap.iter (write_if_var true) cls.cl_statics;
 				self#write_empty_lines;
@@ -1081,11 +1089,10 @@ class class_builder ctx (cls:tclass) =
 		*)
 		method private write_field is_static field =
 			match (field.cf_kind) with
+				| Var { v_read = AccInline; v_write = AccNever } -> self#write_const field
 				| Var _ -> self#write_var field is_static
-				| Method MethNormal -> self#write_method field is_static
-				| Method MethInline -> self#write_method field is_static
-				| Method MethDynamic -> self#write_method field is_static
 				| Method MethMacro -> ()
+				| Method _ -> self#write_method field is_static
 		(**
 			Writes var-field to output buffer
 		*)
@@ -1105,6 +1112,19 @@ class class_builder ctx (cls:tclass) =
 							self#write_expr expr;
 							self#write ";\n"
 						| _ -> self#write ";\n"
+		(**
+			Writes "inline var" to output buffer as constant
+		*)
+		method private write_const field =
+			self#indent 1;
+			self#write_doc (DocVar (self#use_t field.cf_type, field.cf_doc));
+			self#write_indentation;
+			self#write ("const " ^ field.cf_name ^ " = ");
+			match field.cf_expr with
+				| None -> assert false
+				| Some expr ->
+					self#write_expr expr;
+					self#write ";\n"
 		(**
 			Writes method to output buffer
 		*)
