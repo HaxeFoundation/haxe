@@ -882,9 +882,12 @@ class virtual type_builder ctx wrapper =
 				self#write_expr expr2;
 				self#write ")"
 			and write_binop str =
+				let parent_is_binop = match expr_hierarchy with _ :: { eexpr = TBinop _ } :: _ -> true | _ -> false in
+				if parent_is_binop then self#write "(";
 				self#write_expr expr1;
 				self#write str;
 				self#write_expr expr2;
+				if parent_is_binop then self#write ")"
 			in
 			match operation with
 				| OpAdd ->
