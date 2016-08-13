@@ -117,6 +117,18 @@ let get_native_path (meta:metadata) =
 let get_visibility (meta:metadata) = if Meta.has Meta.Protected meta then "protected" else "public"
 
 (**
+	Writes arguments list to output buffer
+*)
+let rec write_args buffer arg_writer (args:'a) =
+	match args with
+		| [] -> ()
+		| [arg] -> arg_writer arg
+		| arg :: rest ->
+			arg_writer arg;
+			Buffer.add_string buffer ", ";
+			write_args buffer arg_writer rest
+
+(**
 	Check if specified field is a var with non-constant expression
 *)
 let is_var_with_nonconstant_expr (field:tclass_field) =
@@ -128,6 +140,30 @@ let is_var_with_nonconstant_expr (field:tclass_field) =
 				| Some _ -> true
 			)
 		| Method _ -> false
+
+(**
+	@return New expression which is composed of setting default values for optional arguments and function body.
+*)
+let inject_defaults ctx (func:tfunc) =
+	let rec inject args body_exprs =
+		match args with
+			| [] -> body_exprs
+			| (_, None) :: rest -> inject rest body_exprs
+			| (_, Some TNull) :: rest -> inject rest body_exprs
+			| (var, Some const) :: rest ->
+				let expr = Codegen.set_default ctx var const func.tf_expr.epos in
+			 	expr :: (inject rest body_exprs)
+	in
+	let exprs =
+		match func.tf_expr.eexpr with
+			| TBlock exprs -> inject func.tf_args exprs
+			| _ -> inject func.tf_args [ func.tf_expr ]
+	in
+	{
+		eexpr = TBlock exprs;
+		etype = func.tf_expr.etype;
+		epos  = func.tf_expr.epos;
+	}
 
 (**
 	PHP DocBlock types
@@ -328,10 +364,12 @@ let clear_wrappers () =
 (**
 	Base class for type builders
 *)
-class virtual type_builder wrapper =
+class virtual type_builder ctx wrapper =
 	object (self)
 		(** This is required to make wrapper accessible by extending classes *)
 		val wrapper = wrapper
+		(** This is required to make conext accessible by extending classes *)
+		val ctx = ctx
 		(** List of types for "use" section *)
 		val use_table = Hashtbl.create 50
 		(** Output buffer *)
@@ -602,7 +640,7 @@ class virtual type_builder wrapper =
 				| TArray (target, index) -> self#write_expr_array_access target index expr.epos
 				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2 expr.epos
 				| TField (expr, access) -> self#write_expr_field expr access expr.epos
-				(* | TTypeExpr of module_type *)
+				| TTypeExpr mtype -> self#write (self#use (get_wrapper mtype)#get_native_path)
 				| TParenthesis expr ->
 					self#write "(";
 					self#write_expr expr;
@@ -610,13 +648,13 @@ class virtual type_builder wrapper =
 				| TObjectDecl fields -> self#write_expr_object_declaration fields expr.epos
 				| TArrayDecl exprs -> self#write_expr_array_decl exprs expr.epos
 				| TCall (target, args) -> self#write_expr_call target args expr.epos
-				(* | TNew of tclass * tparams * texpr list *)
+				| TNew (tcls, _, args) -> self#write_expr_new tcls args expr.epos
 				(* | TUnop of Ast.unop * Ast.unop_flag * texpr *)
-				(* | TFunction of tfunc *)
+				| TFunction fn -> self#write_expr_function fn expr.epos
 				(* | TVar of tvar * texpr option *)
 				| TBlock exprs -> self#write_expr_block exprs expr.epos
 				(* | TFor of tvar * texpr * texpr *)
-				(* | TIf of texpr * texpr * texpr option *)
+				| TIf (condition, if_expr, else_expr) -> self#write_expr_if condition if_expr else_expr expr.epos
 				(* | TWhile of texpr * texpr * Ast.while_flag *)
 				(* | TSwitch of texpr * (texpr list * texpr) list * texpr option *)
 				(* | TTry of texpr * (tvar * texpr) list *)
@@ -625,7 +663,7 @@ class virtual type_builder wrapper =
 				(* | TContinue *)
 				(* | TThrow of texpr *)
 				(* | TCast of texpr * module_type option *)
-				(* | TMeta of metadata_entry * texpr *)
+				| TMeta (_, expr) -> self#write_expr expr
 				(* | TEnumParameter of texpr * tenum_field * int *)
 				| _ -> ()
 			);
@@ -758,18 +796,9 @@ class virtual type_builder wrapper =
 						self#write ("$" ^ arg_name ^ " = ");
 						self#write_expr_const const pos
 			in
-			let rec write_args args =
-				match args with
-					| [] -> ()
-					| [arg] -> write_arg arg
-					| arg :: args ->
-						write_arg arg;
-						self#write ", ";
-						write_args args
-			in
 			let str_name = match name with None -> "" | Some str -> str ^ " " in
 			self#write ("function " ^ str_name ^ "(");
-			write_args func.tf_args;
+			write_args buffer write_arg func.tf_args;
 			self#write ")";
 			(* Closures don't have names. Bracket on same line for closures *)
 			if str_name = "" then
@@ -778,16 +807,17 @@ class virtual type_builder wrapper =
 			else begin
 				self#indent 1;
 				self#write "\n";
-				self#write_indentation;
+				self#write_indentation
 			end;
-			match func.tf_expr.eexpr with
+			self#write_expr (inject_defaults ctx func)
+			(* atch func.tf_expr.eexpr with
 				| TBlock _ -> self#write_expr func.tf_expr
 				| _ ->
 					self#write "{\n";
 					self#indent_more;
 					self#write_expr func.tf_expr;
 					self#indent_less;
-					self#write_line "}"
+			 		self#write_line "}" *)
 		(**
 			Writes TBlock to output buffer
 		*)
@@ -825,8 +855,8 @@ class virtual type_builder wrapper =
 				| OpDiv -> write_binop " / "
 				| OpSub -> write_binop " - "
 				| OpAssign -> write_binop " = "
-				| OpEq -> write_binop " == "
-				| OpNotEq -> write_binop " != "
+				| OpEq -> write_binop " === "
+				| OpNotEq -> write_binop " !== "
 				| OpGt -> write_binop " > "
 				| OpGte -> write_binop " >= "
 				| OpLt -> write_binop " < "
@@ -890,7 +920,7 @@ class virtual type_builder wrapper =
 		(**
 			Writes TCall to output buffer
 		*)
-		method private write_expr_call target_expr arg_exprs pos =
+		method private write_expr_call target_expr args pos =
 			self#write_expr target_expr;
 			self#write "(";
 			let rec write_next_arg exprs =
@@ -902,16 +932,39 @@ class virtual type_builder wrapper =
 						self#write ", ";
 						write_next_arg rest
 			in
-			write_next_arg arg_exprs;
+			write_next_arg args;
 			self#write ")";
+		(**
+			Writes TNew to output buffer
+		*)
+		method private write_expr_new inst_class args pos =
+			self#write ("new " ^ (self#use inst_class.cl_path) ^ "(");
+			write_args buffer self#write_expr args;
+			self#write ")"
+		(**
+			Writes "if...else..." expression to output buffer
+		*)
+		method private write_expr_if condition if_expr else_expr pos =
+			let write_block expr =
+				match if_expr.eexpr with
+				| TBlock exprs -> self#write_expr_block exprs pos
+				| _ -> self#write_expr_block [expr] pos
+			in
+			self#write "if ";
+			self#write_expr condition;
+			self#write " ";
+			write_block if_expr;
+			match else_expr with
+				| None -> ()
+				| Some expr -> write_block expr
 	end
 
 (**
 	Builds class contents
 *)
-class class_builder (cls:tclass) =
+class class_builder ctx (cls:tclass) =
 	object (self)
-		inherit type_builder (get_wrapper (TClassDecl cls))
+		inherit type_builder ctx (get_wrapper (TClassDecl cls))
 		(**
 			Writes type declaration line to output buffer.
 			E.g. "class SomeClass extends Another implements IFace"
@@ -1030,17 +1083,8 @@ class class_builder (cls:tclass) =
 					let write_arg (arg_name, optional, _) =
 						self#write ("$" ^ arg_name ^ (if optional then " = null" else ""))
 					in
-					let rec write_args args =
-						match args with
-							| [] -> ()
-							| [arg] -> write_arg arg
-							| arg :: args ->
-								write_arg arg;
-								self#write ", ";
-								write_args args
-					in
 					self#write (field.cf_name ^ " (");
-					write_args args;
+					write_args buffer write_arg args;
 					self#write ")";
 					self#write " ;\n"
 				| Some { eexpr = TFunction fn; epos = pos } ->
@@ -1094,7 +1138,7 @@ let generate (com:context) =
 		let wrapper = get_wrapper com_type in
 		if wrapper#needs_generation then
 			match com_type with
-				| TClassDecl cls -> gen#generate (new class_builder cls);
+				| TClassDecl cls -> gen#generate (new class_builder com cls);
 				| TEnumDecl tenum -> ();
 				| TTypeDecl typedef -> ();
 				| TAbstractDecl abstr -> ()
