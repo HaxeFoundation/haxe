@@ -32,20 +32,8 @@ tclass = {
 }
 
 *)
-(*
-let php_type_path_tbl = Hashtbl.create 1000
 
-let get_php_type_path (cls:tclass) =
-	try
-		let php_type_path = Hashtbl.find php_type_path_tbl cls.cl_path in
-		php_type_path
-	with
-		| Not_found ->
-			let php_type_path = ref cls.cl_path in
-			Hashtbl.add php_type_path_tbl cls.cl_path !php_type_path;
-			php_type_path;
-		| e -> raise e
- *)
+let follow = Abstract.follow_with_abstracts
 
 (**
 	@return `opt` value or `default` if `opt` is None
@@ -116,7 +104,7 @@ let get_native_path (meta:metadata) =
 *)
 type doc_type =
 	| DocVar of string * (string option) (* (type name, description) *)
-	| DocMethod of tfunc * (string option) (* (function, description) *)
+	| DocMethod of (string * bool * t) list * t * (string option) (* (arguments, return type, description) *)
 
 (**
 	Common interface for module_type instances
@@ -146,7 +134,6 @@ class virtual type_wrapper (haxe_path:path) (meta:metadata) (needs_generation:bo
 					in
 					native_path <- Some path;
 					path
-
 	end
 
 (**
@@ -355,7 +342,7 @@ class virtual type_builder wrapper =
 			@return Unique alias for specified type.
 		*)
 		method use_t t_inst =
-			match t_inst with
+			match follow t_inst with
 				| TEnum (tenum, _) -> self#use tenum.e_path
 				| TInst (tcls, _) ->
 					(
@@ -364,7 +351,7 @@ class virtual type_builder wrapper =
 							| _ -> self#use tcls.cl_path
 					)
 				| TFun _ -> self#use ([], "Closure")
-				| TAnon _ -> failwith "TAnon not implemented"
+				| TAnon _ -> "object"
 				| TDynamic _ -> "mixed"
 				| TLazy _ -> failwith "TLazy not implemented"
 				| TMono mono ->
@@ -446,7 +433,7 @@ class virtual type_builder wrapper =
 					self#write_line (" * @var " ^ type_name);
 					write_description doc;
 					self#write_line " */"
-				| DocMethod (func, doc) ->
+				| DocMethod (args, return, doc) ->
 					self#write_line "/**";
 					(match doc with None -> () | Some txt -> write_description txt);
 					self#write_line "*/";
@@ -521,6 +508,44 @@ class virtual type_builder wrapper =
 			self#write "[";
 			self#write_expr index;
 			self#write "]"
+		(**
+			Writes TFunction to output buffer
+		*)
+		method private write_expr_function ?name func =
+			let write_arg arg =
+				match arg with
+					| ({ v_name = arg_name }, None) -> self#write ("$" ^ arg_name)
+					| ({ v_name = arg_name }, Some const) ->
+						self#write ("$" ^ arg_name ^ " = ");
+						self#write_expr_const const
+			in
+			let rec write_args args =
+				match args with
+					| [] -> ()
+					| [arg] -> write_arg arg
+					| arg :: args ->
+						write_arg arg;
+						self#write ", ";
+						write_args args
+			in
+			let str_name = match name with None -> "" | Some str -> str ^ " " in
+			self#write ("function " ^ str_name ^ "(");
+			write_args func.tf_args;
+			self#write ")";
+			(* Closures don't have names. Bracket on same line for closures *)
+			if str_name <> "" then
+				self#write " "
+			(* Only methods can be named functions. We want bracket on new line for methods. *)
+			else begin
+				self#indent 1;
+				self#write "\n";
+				self#write_indentation;
+			end;
+			self#write "{\n";
+			self#indent_more;
+			self#write_expr func.tf_expr;
+			self#indent_less;
+			self#write_line "}"
 	end
 
 (**
@@ -606,29 +631,37 @@ class class_builder (cls:tclass) =
 		method private write_method field is_static =
 			self#write "\n";
 			self#indent 1;
-			(* let func =
-				match field.cf_expr with
-					| Some ({ eexpr = TFunction fn }) -> fn
-					(* | None -> *)
-					| _ -> failwith ("Invalid expr for method " ^ field.cf_name)
+			let (args, return_type) =
+				(match follow field.cf_type with
+					| TFun (args, return_type) -> (args, return_type)
+					| _ -> failwith ("Invalid signature of method " ^ field.cf_name)
+				)
 			in
-			self#write_doc (DocMethod (func, field.cf_doc)); *)
+			(* self#write_doc (DocMethod (args, return_type, field.cf_doc)); *)
 			self#write_indentation;
 			if is_static then self#write "static ";
-			self#write ("public " ^ field.cf_name);
-			self#write " (";
-			self#write ")";
-			if cls.cl_interface then
-				self#write " ;\n"
-			else begin
-				self#write "\n";
-				self#indent 1;
-				self#write_line "{";
-				(** method body *)
-				self#indent 1;
-				self#write_line "}"
-			end
-
+			self#write "public ";
+			match field.cf_expr with
+				| None ->
+					let write_arg (arg_name, optional, _) =
+						self#write ("$" ^ arg_name ^ (if optional then " = null" else ""))
+					in
+					let rec write_args args =
+						match args with
+							| [] -> ()
+							| [arg] -> write_arg arg
+							| arg :: args ->
+								write_arg arg;
+								self#write ", ";
+								write_args args
+					in
+					self#write (field.cf_name ^ " (");
+					write_args args;
+					self#write ")";
+					self#write " ;\n"
+				| Some { eexpr = TFunction fn } ->
+					self#write_expr_function ~name:field.cf_name fn
+				| _ -> failwith ("invalid expression for method " ^ field.cf_name)
 	end
 
 (**
