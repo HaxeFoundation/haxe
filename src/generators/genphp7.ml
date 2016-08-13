@@ -224,14 +224,17 @@ class class_wrapper (cls) =
 			Indicates if class initialization method should be executed upon class loaded
 		*)
 		method needs_initialization =
-			let needs = ref false in
-			PMap.iter
-				(fun _ field ->
-					if not !needs then
-						needs := is_var_with_nonconstant_expr field
-				)
-				cls.cl_statics;
-			!needs
+			match cls.cl_init with
+				| Some _ -> true
+				| None ->
+					let needs = ref false in
+					PMap.iter
+						(fun _ field ->
+							if not !needs then
+								needs := is_var_with_nonconstant_expr field
+						)
+						cls.cl_statics;
+					!needs
 		(**
 			Returns expression of a user-defined static __init__ method
 			@see http://old.haxe.org/doc/advanced/magic#initialization-magic
@@ -992,13 +995,16 @@ class virtual type_builder ctx wrapper =
 			Write anonymous object declaration to output buffer
 		*)
 		method private write_expr_object_declaration fields pos =
-			self#write "(object)[\n";
-			self#indent_more;
-			let write_field (key, value) = self#write_array_item ~key:key value in
-			List.iter write_field fields;
-			self#indent_less;
-			self#write_indentation;
-			self#write "]"
+			match fields with
+				| [] ->  self#write "new \StdClass()"
+				| _ ->
+					self#write "(object)[\n";
+					self#indent_more;
+					let write_field (key, value) = self#write_array_item ~key:key value in
+					List.iter write_field fields;
+					self#indent_less;
+					self#write_indentation;
+					self#write "]"
 		(**
 			Writes TCall to output buffer
 		*)
@@ -1156,6 +1162,8 @@ class class_builder ctx (cls:tclass) =
 			E.g. for "class SomeClass { <BODY> }" writes <BODY> part.
 		*)
 		method private write_body =
+			let empty_lines_before_var = ref false (* write empty lines to visually separate groups of fields *)
+			and empty_lines_before_method = ref false in
 			let write_if_const _ field =
 				match field.cf_kind with
 					| Var { v_read = AccInline; v_write = AccNever } -> self#write_field true field
@@ -1163,23 +1171,34 @@ class class_builder ctx (cls:tclass) =
 			and write_if_method is_static _ field =
 				match field.cf_kind with
 					| Var _ -> ()
-					| Method _ -> self#write_field is_static field
+					| Method _ ->
+						if !empty_lines_before_method then
+							self#write_empty_lines
+						else
+							empty_lines_before_method := true;
+						self#write_field is_static field
 			and write_if_var is_static _ field =
 				match field.cf_kind with
 					| Var { v_read = AccInline; v_write = AccNever } -> ()
-					| Var _ -> self#write_field is_static field
 					| Method _ -> ()
+					| Var _ ->
+						if !empty_lines_before_var then begin
+							self#write_empty_lines;
+							empty_lines_before_var := false
+						end;
+						self#write_field is_static field
 			in
 		 	if not cls.cl_interface then begin
 		 		(* Inlined statc vars (constants) *)
 				PMap.iter (write_if_const) cls.cl_statics;
-				self#write_empty_lines;
+				empty_lines_before_var := true;
 		 		(* Statc vars *)
 				PMap.iter (write_if_var true) cls.cl_statics;
-				self#write_empty_lines;
+				empty_lines_before_var := true;
 				(* instance vars *)
 				PMap.iter (write_if_var false) cls.cl_fields
 			end;
+			empty_lines_before_method := not !empty_lines_before_var;
 			(* Statc methods *)
 			PMap.iter (write_if_method true) cls.cl_statics;
 			(* Constructor *)
@@ -1247,7 +1266,7 @@ class class_builder ctx (cls:tclass) =
 			Writes method to output buffer
 		*)
 		method private write_method field is_static =
-			self#write_empty_lines;
+			(* self#write_empty_lines; *)
 			self#indent 1;
 			let (args, return_type) =
 				(match follow field.cf_type with
