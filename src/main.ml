@@ -1116,7 +1116,10 @@ try
 			classes := (["php"],"Boot") :: !classes;
 			set_platform Php dir;
 		),"<directory> : generate PHP code into target directory");
-		("-php7",Arg.String (set_platform Php7),"<directory> : generate code into target directory");
+		("-php7",Arg.String (fun dir ->
+			classes := (["php7"],"Boot") :: !classes;
+			set_platform Php7 dir;
+		),"<directory> : generate code into target directory");
 		("-cpp",Arg.String (fun dir ->
 			set_platform Cpp dir;
 		),"<directory> : generate C++ code into target directory");
@@ -1541,7 +1544,7 @@ try
 		| Php ->
 			add_std "php";
 			"php"
-		| Php7 ->			
+		| Php7 ->
 			add_std "php7";
 			"php7"
 		| Cpp ->

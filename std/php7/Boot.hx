@@ -30,6 +30,14 @@ package php7;
 class Boot {
 
 	/**
+		Initialization stuff
+	**/
+	static function __init__ () {
+		trace('Boot.__init__');
+	}
+
+
+	/**
 		Performs `left >>> right` operation
 	 */
 	public static function shiftRightUnsigned( left:Int, right:Int ) : Int {
@@ -42,16 +50,16 @@ class Boot {
 		}
 	}
 
-	/**
-		Access fields of untyped things
-	 */
-	public static function dynamicFieldAccess( target:Dynamic, field:String ) : Dynamic {
-		if (field == 'length' && untyped __call__("is_string", target)) {
-			return untyped __call__("strlen", $target)
-		} else {
-			return __php__("$target->$field");
-		}
-	}
+	// /**
+	// 	Access fields of dynamic things
+	//  */
+	// public static function dynamicFieldAccess( target:Dynamic, field:String ) : Dynamic {
+	// 	if (field == 'length' && untyped __call__("is_string", target)) {
+	// 		return untyped __call__("strlen", $target);
+	// 	} else {
+	// 		return untyped __php__("$target->$field");
+	// 	}
+	// }
 }
 
 
