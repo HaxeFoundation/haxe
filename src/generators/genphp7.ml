@@ -31,13 +31,20 @@ tclass = {
 }
 
 *)
+(*
+let php_type_path_tbl = Hashtbl.create 1000
 
-(**
-	PHP DocBlock types
-*)
-type doc_type =
-	| DocVar of string * (string option) (* (type name, description) *)
-	| DocMethod of string option
+let get_php_type_path (cls:tclass) =
+	try
+		let php_type_path = Hashtbl.find php_type_path_tbl cls.cl_path in
+		php_type_path
+	with
+		| Not_found ->
+			let php_type_path = ref cls.cl_path in
+			Hashtbl.add php_type_path_tbl cls.cl_path !php_type_path;
+			php_type_path;
+		| e -> raise e
+ *)
 
 (**
 	@return `opt` value or `default` if `opt` is None
@@ -80,6 +87,13 @@ let get_type_name (type_path:path) = match type_path with (_, type_name) -> type
 	@return E.g. returns ["example"] for (["example"], "Test")
 *)
 let get_module_path (type_path:path) = match type_path with (module_path, _) -> module_path
+
+(**
+	PHP DocBlock types
+*)
+type doc_type =
+	| DocVar of string * (string option) (* (type name, description) *)
+	| DocMethod of tfunc * (string option) (* (function, description) *)
 
 (**
 	Base class for type builders
@@ -258,8 +272,15 @@ class virtual type_builder =
 		*)
 		method private write_doc doc_block =
 			let write_description doc =
-				let lines = Str.split (Str.regexp "\n") (String.trim doc) in
-				List.iter (fun line -> self#write_line (" * " ^ (String.trim line))) lines
+				let lines = Str.split (Str.regexp "\n") (String.trim doc)
+				and write_line line =
+					let trimmed = String.trim line in
+					if String.get trimmed 0 = '*' then
+						self#write_line (" " ^ trimmed)
+					else
+						self#write_line (" * " ^ trimmed)
+				in
+				List.iter write_line lines
 			in
 			match doc_block with
 				| DocVar (type_name, None) -> self#write_line ("/** @var " ^ type_name ^ " */")
@@ -268,22 +289,25 @@ class virtual type_builder =
 					self#write_line (" * @var " ^ type_name);
 					write_description doc;
 					self#write_line " */"
-				| DocMethod _ -> ()
+				| DocMethod (func, doc) ->
+					self#write_line "/**";
+					(match doc with None -> () | Some txt -> write_description txt);
+					self#write_line "*/";
 		(**
 			Writes expression to output buffer
 		*)
 		method private write_expr (expr:texpr) =
 			(match expr.eexpr with
 				| TConst const -> self#write_expr_const const
-				| _ -> ()
 				(* | TLocal of tvar *)
-				(* | TArray of texpr * texpr *)
+				| TArray (target, index) -> self#write_expr_array_access target index
 				(* | TBinop of Ast.binop * texpr * texpr *)
 				(* | TField of texpr * tfield_access *)
 				(* | TTypeExpr of module_type *)
 				(* | TParenthesis of texpr *)
+
 				(* | TObjectDecl of (string * texpr) list *)
-				(* | TArrayDecl of texpr list *)
+				| TArrayDecl exprs -> self#write_expr_array_decl exprs
 				(* | TCall of texpr * texpr list *)
 				(* | TNew of tclass * tparams * texpr list *)
 				(* | TUnop of Ast.unop * Ast.unop_flag * texpr *)
@@ -302,10 +326,10 @@ class virtual type_builder =
 				(* | TCast of texpr * module_type option *)
 				(* | TMeta of metadata_entry * texpr *)
 				(* | TEnumParameter of texpr * tenum_field * int *)
+				| _ -> ()
 			);
-			self#write ";\n"
 		(**
-			Writes constant expression to output buffer
+			Writes TConst to output buffer
 		*)
 		method private write_expr_const const =
 			match const with
@@ -316,12 +340,37 @@ class virtual type_builder =
 				| TNull -> self#write "null"
 				| TThis -> self#write "$this->"
 				| TSuper -> self#write "parent::"
+		(**
+			Writes TArrayDecl to output buffer
+		*)
+		method private write_expr_array_decl exprs =
+			self#write "[\n";
+			self#indent_more;
+			List.iter
+				(fun expr ->
+					self#write_indentation;
+					self#write_expr expr;
+					self#write ",\n"
+				)
+				exprs;
+			self#write "\n";
+			self#indent_less;
+			self#write_indentation;
+			self#write "]"
+		(**
+			Writes TArray to output buffer
+		*)
+		method private write_expr_array_access target index =
+			self#write_expr target;
+			self#write "[";
+			self#write_expr index;
+			self#write "]"
 	end
 
 (**
 	Builds class contents
 *)
-class class_builder (cls:tclass) =
+and class_builder (cls:tclass) =
 	object (self)
 		inherit type_builder
 		(**
@@ -399,20 +448,37 @@ class class_builder (cls:tclass) =
 				| None -> self#write ";\n"
 				| Some expr ->
 					self#write " = ";
-					self#write_expr expr
+					self#write_expr expr;
+					self#write ";\n"
 		(**
 			Writes method to output buffer
 		*)
 		method private write_method field is_static =
 			self#write "\n";
-			self#indent 1
+			self#indent 1;
+			let func =
+				match field.cf_expr with
+					| Some ({ eexpr = TFunction fn }) -> fn
+					(* | None -> *)
+					| _ -> failwith ("Invalid expr for method " ^ field.cf_name)
+			in
+			self#write_doc (DocMethod (func, field.cf_doc));
+			if is_static then self#write "static ";
+			self#write ("public $" ^ field.cf_name);
+			self#write " (";
+			self#write ")\n";
+			self#indent 1;
+			self#write_line "{";
+			(** method body *)
+			self#indent 1;
+			self#write_line "}"
 
 	end
 
 (**
 	Handles generation process
 *)
-class generator (com:context) =
+and generator (com:context) =
 	object (self)
 		val mutable build_dir = ""
 		val root_dir = com.file
@@ -453,8 +519,8 @@ let generate (com:context) =
 	let generate com_type =
 		match com_type with
 			| TClassDecl cls -> gen#generate (new class_builder cls);
-			| TEnumDecl cenum -> ();
-			| TTypeDecl ctypedef -> ();
-			| TAbstractDecl cabstract -> ()
+			| TEnumDecl tenum -> ();
+			| TTypeDecl typedef -> ();
+			| TAbstractDecl abstr -> ()
 	in
 	List.iter generate com.types
