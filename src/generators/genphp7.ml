@@ -31,6 +31,8 @@ tclass = {
 	[ ] mutable cl_restore : unit -> unit;
 }
 
+[ ] @access private
+
 *)
 
 let follow = Abstract.follow_with_abstracts
@@ -47,7 +49,7 @@ let get_option_value (opt:'a option) default =
 	@param path Something like [ "/some/path/first_dir_to_create"; "nested_level1"; "nested_level2" ]
 	@return String representation of created path (E.g. "/some/path/first_dir_to_create/nested_level1/nested_level2")
 *)
-let create_dir_recursive path =
+let create_dir_recursive (path:string list) =
 	let rec create dir nested_dirs =
 		if not (Sys.file_exists dir) then (Unix.mkdir dir 0o755);
 		match nested_dirs with
@@ -100,6 +102,11 @@ let get_native_path (meta:metadata) =
 		| e -> raise e
 
 (**
+	@return PHP visibility keyword.
+*)
+let get_visibility is_public = if is_public then "public" else "protected"
+
+(**
 	PHP DocBlock types
 *)
 type doc_type =
@@ -111,11 +118,29 @@ type doc_type =
 *)
 class virtual type_wrapper (haxe_path:path) (meta:metadata) (needs_generation:bool) =
 	object (self)
+		val mutable allow_private_calls = false
+		val mutable allow_private_vars = false
 		val mutable native_path = None
 		(**
 			Indicates if this type should be rendered to corresponding php file
 		*)
 		method needs_generation = needs_generation
+		(**
+			Indicates if third party types call private methods of this type
+		*)
+		method allows_private_calls = allow_private_calls;
+		(**
+			Indicates if third party types access private vars of this type
+		*)
+		method allows_private_vars_access = allow_private_vars;
+		(**
+			Makes this class type private methods accessible by third party types
+		*)
+		method enable_private_calls = allow_private_calls <- true;
+		(**
+			Makes this class type private variables accessible by third party types
+		*)
+		method enable_private_vars_access = allow_private_vars <- true;
 		(**
 			Native namespace path in PHP
 		*)
@@ -244,6 +269,8 @@ let get_wrapper (mtype:module_type) : type_wrapper =
 *)
 class virtual type_builder wrapper =
 	object (self)
+		(** This is required to make wrapper accessible by extending classes *)
+		val wrapper = wrapper
 		(** List of types for "use" section *)
 		val use_table = Hashtbl.create 50
 		(** Output buffer *)
@@ -473,6 +500,66 @@ class virtual type_builder wrapper =
 				| _ -> ()
 			);
 		(**
+			Writes special method which allows other types to call protected methods of this type.
+		*)
+		method private write_hx_call_protected =
+			self#write "\n";
+			self#indent 1;
+			self#write_line "public function __hx__call_protected ($method, ...$args)";
+			self#write_line "{";
+			self#indent_more;
+			self#write_line "if (isset($this)) {";
+			self#indent_more;
+			self#write_line "return call_user_func_array([$this, $method], $args);";
+			self#indent_less;
+			self#write_line "} else {";
+			self#indent_more;
+			self#write_line "return call_user_func_array([__CLASS__, $method], $args);";
+			self#indent_less;
+			self#write_line "}";
+			self#indent 1;
+			self#write_line "}"
+		(**
+			Writes special method which allows other types to read protected vars of this type.
+		*)
+		method private write_hx_get_protected =
+			self#write "\n";
+			self#indent 1;
+			self#write_line "public function __hx__get_protected ($property)";
+			self#write_line "{";
+			self#indent_more;
+			self#write_line "if (isset($this)) {";
+			self#indent_more;
+			self#write_line "return $this->$property;";
+			self#indent_less;
+			self#write_line "} else {";
+			self#indent_more;
+			self#write_line "return static::$$property;";
+			self#indent_less;
+			self#write_line "}";
+			self#indent 1;
+			self#write_line "}"
+		(**
+			Writes special method which allows other types to write protected vars of this type.
+		*)
+		method private write_hx_set_protected =
+			self#write "\n";
+			self#indent 1;
+			self#write_line "public function __hx__set_protected ($property, $value)";
+			self#write_line "{";
+			self#indent_more;
+			self#write_line "if (isset($this)) {";
+			self#indent_more;
+			self#write_line "return $this->$property = $value;";
+			self#indent_less;
+			self#write_line "} else {";
+			self#indent_more;
+			self#write_line "return static::$$property = $value;";
+			self#indent_less;
+			self#write_line "}";
+			self#indent 1;
+			self#write_line "}"
+		(**
 			Writes TConst to output buffer
 		*)
 		method private write_expr_const const =
@@ -533,7 +620,7 @@ class virtual type_builder wrapper =
 			write_args func.tf_args;
 			self#write ")";
 			(* Closures don't have names. Bracket on same line for closures *)
-			if str_name <> "" then
+			if str_name = "" then
 				self#write " "
 			(* Only methods can be named functions. We want bracket on new line for methods. *)
 			else begin
@@ -599,7 +686,12 @@ class class_builder (cls:tclass) =
 				PMap.iter (write_var false) cls.cl_fields
 			end;
 			PMap.iter (write_method true) cls.cl_statics;
-			PMap.iter (write_method false) cls.cl_fields
+			PMap.iter (write_method false) cls.cl_fields;
+			if wrapper#allows_private_calls then self#write_hx_call_protected;
+			if wrapper#allows_private_vars_access then begin
+				self#write_hx_get_protected;
+				self#write_hx_set_protected
+			end
 		(**
 			Writes single field to output buffer
 		*)
@@ -618,7 +710,8 @@ class class_builder (cls:tclass) =
 			self#write_doc (DocVar (self#use_t field.cf_type, field.cf_doc));
 			self#write_indentation;
 			if is_static then self#write "static ";
-			self#write ("public $" ^ field.cf_name);
+			let visibility = get_visibility field.cf_public in
+			self#write (visibility ^ " $" ^ field.cf_name);
 			match field.cf_expr with
 				| None -> self#write ";\n"
 				| Some expr ->
@@ -640,7 +733,7 @@ class class_builder (cls:tclass) =
 			(* self#write_doc (DocMethod (args, return_type, field.cf_doc)); *)
 			self#write_indentation;
 			if is_static then self#write "static ";
-			self#write "public ";
+			self#write ((get_visibility field.cf_public) ^ " ");
 			match field.cf_expr with
 				| None ->
 					let write_arg (arg_name, optional, _) =
