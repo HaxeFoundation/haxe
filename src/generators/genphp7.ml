@@ -6,7 +6,7 @@ open Common
 
 (**
 	@param path Something like [ "/some/path/first_dir_to_create"; "nested_level1"; "nested_level2" ]
-	@returns String representation of created path (E.g. "/some/path/first_dir_to_create/nested_level1/nested_level2")
+	@return String representation of created path (E.g. "/some/path/first_dir_to_create/nested_level1/nested_level2")
 *)
 let create_dir_recursive path =
 	let rec create dir nested_dirs =
@@ -20,6 +20,23 @@ let create_dir_recursive path =
 		| root :: rest ->
 			create root rest;
 			(String.concat "/" path)
+
+(**
+	@return String representation of specified type path. E.g. returns "\example\Test" for (["example"], "Test")
+*)
+let get_full_type_name (type_path:path) =
+	match type_path with
+		| (module_path, type_name) -> (String.concat "\\" ("" :: module_path)) ^ "\\" ^ type_name
+
+(**
+	@return Short type name. E.g. returns "Test" for (["example"], "Test")
+*)
+let get_type_name (type_path:path) = match type_path with (_, type_name) -> type_name
+
+(**
+	@return E.g. returns ["example"] for (["example"], "Test")
+*)
+let get_module_path (type_path:path) = match type_path with (module_path, _) -> module_path
 
 (**
 	Base class for type builders
@@ -47,17 +64,19 @@ class virtual type_builder =
 			If it's a top-level type then type name returned without adding to "use" section.
 			@return Unique alias for specified type.
 		*)
-		method use (type_path:string list) =
+		method use (type_path:path) =
+			let module_path = get_module_path type_path
+			and type_name = get_type_name type_path in
 			let add () =
-				let alias_source = ref (List.rev type_path) in
+				let alias_source = ref (List.rev module_path) in
 				let get_alias_next_part () =
 					match !alias_source with
-						| [] -> failwith ("Failed to find already used type: " ^ (String.concat "\\" type_path))
+						| [] -> failwith ("Failed to find already used type: " ^ get_full_type_name type_path)
 						| name :: rest ->
 							alias_source := rest;
 							String.capitalize name
-				and added = ref false in
-				let alias = ref (get_alias_next_part ()) in
+				and added = ref false
+				and alias = ref type_name in
 				while not !added do
 					try
 						let used_type = Hashtbl.find use_table !alias in
@@ -74,9 +93,13 @@ class virtual type_builder =
 				!alias
 			in
 			match type_path with
-				| [type_name] -> "\\" ^ type_name
-				| [] -> failwith "Invalid type_path"
+				| ([], type_name) -> "\\" ^ type_name
 				| _ -> add ()
+		(**
+			Writes specified string to output buffer
+		*)
+		method private write str =
+			Buffer.add_string buffer str
 		(**
 			Writes specified line to output buffer and appends \n
 		*)
@@ -101,14 +124,11 @@ class virtual type_builder =
 		*)
 		method private write_use =
 			let write alias type_path =
-				let type_str = "\\" ^ String.concat "\\" type_path in
-				match (List.rev type_path) with
-					| type_name :: _ ->
-						if type_name = alias then
-							self#write_stmnt ("use " ^ type_str)
-						else
-							self#write_stmnt ("use " ^ type_str ^ " as " ^ alias);
-					| [] -> failwith "Invalid type_path used"
+				if get_type_name type_path = alias then
+					self#write_stmnt ("use " ^ (get_full_type_name type_path))
+				else
+					let full_name = get_full_type_name type_path in
+					self#write_stmnt ("use " ^ full_name ^ " as " ^ alias)
 			in
 			Hashtbl.iter write use_table
 	end
@@ -135,10 +155,28 @@ class class_builder (cls:tclass) =
 		*)
 		method get_contents =
 			if (String.length contents) = 0 then begin
+				self#use (["example"], "Test");
+				self#use (["example"; "another"], "Test");
 				self#write_header;
+				self#write_declaration;
+				self#write_line "{";
+				self#write_line "}";
 				contents <- Buffer.contents buffer
 			end;
 			contents
+		(**
+			Generates class declaration line.
+			E.g. "class SomeClass extends Another implements IFace"
+		*)
+		method private write_declaration =
+			self#write ("class " ^ self#get_name);
+			(* match cls.cl_super with
+				| None -> ()
+				| Some (super_class, _) ->
+					let super_builder = new 'self super_class in
+					let super_name = self#use
+					self#write (" " ^  *)
+			self#write "\n"
 	end
 
 (**
