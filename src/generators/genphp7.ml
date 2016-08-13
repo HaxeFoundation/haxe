@@ -35,6 +35,33 @@ let error_message pos message = (Lexer.get_error_pos (Printf.sprintf "%s:%d:") p
 let rec is_dynamic (target:Type.t) = match follow target with TDynamic _ -> true | _ -> false
 
 (**
+	Check if `target` is 100% guaranteed to be a scalar type in PHP.
+	Inversion of `is_sure_scalar` does not guarantee `target` is not scalar.
+*)
+let is_sure_scalar (target:Type.t) =
+	match follow target with
+		| TInst ({ cl_path = ([], "String") }, _) -> true
+		| TAbstract (abstr, _) ->
+			(match abstr.a_path with
+				| ([],"Int") -> true
+				| ([],"Float") -> true
+				| ([],"Bool") -> true
+				| _ -> false
+			)
+		| _ -> false
+
+(**
+	Check if `target` is 100% guaranteed to be or extend an extern class.
+	Inversion of `sure_extends_extern` does not guarantee `target` does not extend an extern class.
+*)
+let rec sure_extends_extern (target:Type.t) =
+	match follow target with
+		| TInst ({ cl_path = ([], "String") }, _) -> false
+		| TInst ({ cl_extern = true }, _) -> true
+		| TInst ({ cl_super = Some (tsuper, params) }, _) -> sure_extends_extern (TInst (tsuper,params))
+		| _ -> false
+
+(**
 	@return `opt` value or `default` if `opt` is None
 *)
 let get_option_value (opt:'a option) default =
@@ -813,11 +840,18 @@ class virtual type_builder ctx wrapper =
 			self#write "throw ";
 			if is_native_exception expr.etype then
 				self#write_expr expr
-			else begin
-				self#write ("new " ^ (self#use haxe_exception_path) ^ "(");
-				self#write_expr expr;
-				self#write ")"
-			end
+			else if sure_extends_extern expr.etype or is_dynamic expr.etype then
+				begin
+					self#write "throw (is_object($__hx__throw = ";
+					self#write_expr expr;
+					self#write (") && $__hx__throw instanceof \Exception ? $__hx__throw : new " ^ (self#use haxe_exception_path) ^ "($__hx__throw))")
+				end
+			else
+				begin
+					self#write ("new " ^ (self#use haxe_exception_path) ^ "(");
+					self#write_expr expr;
+					self#write ")"
+				end
 		(**
 			Writes try...catch to output buffer
 		*)
