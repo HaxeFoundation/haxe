@@ -654,7 +654,7 @@ class virtual type_builder ctx wrapper =
 				(* | TWhile of texpr * texpr * Ast.while_flag *)
 				(* | TSwitch of texpr * (texpr list * texpr) list * texpr option *)
 				(* | TTry of texpr * (tvar * texpr) list *)
-				(* | TReturn of texpr option *)
+				| TReturn expr -> self#write_expr_return expr pos
 				(* | TBreak *)
 				(* | TContinue *)
 				(* | TThrow of texpr *)
@@ -839,6 +839,15 @@ class virtual type_builder ctx wrapper =
 			self#indent_less;
 			self#write_indentation;
 			self#write "}"
+		(**
+			Writes TReturn to output buffer
+		*)
+		method private write_expr_return expr pos =
+			match expr with
+				| None -> self#write "return";
+				| Some expr ->
+					self#write "return ";
+					self#write_expr expr
 		(**
 			Writes binary operation to output buffer
 		*)
