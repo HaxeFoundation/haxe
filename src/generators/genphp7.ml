@@ -31,8 +31,6 @@ tclass = {
 	[ ] mutable cl_restore : unit -> unit;
 }
 
-[ ] @access private
-
 *)
 
 let follow = Abstract.follow_with_abstracts
@@ -104,7 +102,7 @@ let get_native_path (meta:metadata) =
 (**
 	@return PHP visibility keyword.
 *)
-let get_visibility is_public = if is_public then "public" else "protected"
+let get_visibility (meta:metadata) = if Meta.has Meta.Protected meta then "protected" else "public"
 
 (**
 	PHP DocBlock types
@@ -505,6 +503,10 @@ class virtual type_builder wrapper =
 		method private write_hx_call_protected =
 			self#write "\n";
 			self#indent 1;
+			self#write_line "/**";
+			self#write_line " * @internal";
+			self#write_line " * @access protected";
+			self#write_line " */";
 			self#write_line "public function __hx__call_protected ($method, ...$args)";
 			self#write_line "{";
 			self#indent_more;
@@ -525,6 +527,10 @@ class virtual type_builder wrapper =
 		method private write_hx_get_protected =
 			self#write "\n";
 			self#indent 1;
+			self#write_line "/**";
+			self#write_line " * @internal";
+			self#write_line " * @access protected";
+			self#write_line " */";
 			self#write_line "public function __hx__get_protected ($property)";
 			self#write_line "{";
 			self#indent_more;
@@ -545,6 +551,10 @@ class virtual type_builder wrapper =
 		method private write_hx_set_protected =
 			self#write "\n";
 			self#indent 1;
+			self#write_line "/**";
+			self#write_line " * @internal";
+			self#write_line " * @access protected";
+			self#write_line " */";
 			self#write_line "public function __hx__set_protected ($property, $value)";
 			self#write_line "{";
 			self#indent_more;
@@ -671,22 +681,28 @@ class class_builder (cls:tclass) =
 			E.g. for "class SomeClass { <BODY> }" writes <BODY> part.
 		*)
 		method private write_body =
-			let write_method is_static field_name field =
+			let write_if_method is_static _ field =
 				match field.cf_kind with
 					| Var _ -> ()
-					| Method _ -> self#write_field field_name field is_static
-			and write_var is_static field_name field =
+					| Method _ -> self#write_field is_static field
+			and write_if_var is_static _ field =
 				match field.cf_kind with
-					| Var _ -> self#write_field field_name field is_static
+					| Var _ -> self#write_field is_static field
 					| Method _ -> ()
 			in
 		 	if not cls.cl_interface then begin
-				PMap.iter (write_var true) cls.cl_statics;
+		 		(* Statc vars *)
+				PMap.iter (write_if_var true) cls.cl_statics;
 				self#write "\n";
-				PMap.iter (write_var false) cls.cl_fields
+				(* instance vars *)
+				PMap.iter (write_if_var false) cls.cl_fields
 			end;
-			PMap.iter (write_method true) cls.cl_statics;
-			PMap.iter (write_method false) cls.cl_fields;
+			(* Statc methods *)
+			PMap.iter (write_if_method true) cls.cl_statics;
+			(* Constructor *)
+			(match cls.cl_constructor with None -> () | Some field -> self#write_field false field);
+			(* Instance methods *)
+			PMap.iter (write_if_method false) cls.cl_fields;
 			if wrapper#allows_private_calls then self#write_hx_call_protected;
 			if wrapper#allows_private_vars_access then begin
 				self#write_hx_get_protected;
@@ -695,7 +711,7 @@ class class_builder (cls:tclass) =
 		(**
 			Writes single field to output buffer
 		*)
-		method private write_field field_name field is_static =
+		method private write_field is_static field =
 			match (field.cf_kind) with
 				| Var _ -> self#write_var field is_static
 				| Method MethNormal -> self#write_method field is_static
@@ -710,7 +726,7 @@ class class_builder (cls:tclass) =
 			self#write_doc (DocVar (self#use_t field.cf_type, field.cf_doc));
 			self#write_indentation;
 			if is_static then self#write "static ";
-			let visibility = get_visibility field.cf_public in
+			let visibility = get_visibility field.cf_meta in
 			self#write (visibility ^ " $" ^ field.cf_name);
 			match field.cf_expr with
 				| None -> self#write ";\n"
@@ -730,10 +746,10 @@ class class_builder (cls:tclass) =
 					| _ -> failwith ("Invalid signature of method " ^ field.cf_name)
 				)
 			in
-			(* self#write_doc (DocMethod (args, return_type, field.cf_doc)); *)
+			self#write_doc (DocMethod (args, return_type, field.cf_doc));
 			self#write_indentation;
 			if is_static then self#write "static ";
-			self#write ((get_visibility field.cf_public) ^ " ");
+			self#write ((get_visibility field.cf_meta) ^ " ");
 			match field.cf_expr with
 				| None ->
 					let write_arg (arg_name, optional, _) =
@@ -753,7 +769,8 @@ class class_builder (cls:tclass) =
 					self#write ")";
 					self#write " ;\n"
 				| Some { eexpr = TFunction fn } ->
-					self#write_expr_function ~name:field.cf_name fn
+					let name = if field.cf_name = "new" then "__construct" else field.cf_name in
+					self#write_expr_function ~name:name fn
 				| _ -> failwith ("invalid expression for method " ^ field.cf_name)
 	end
 
