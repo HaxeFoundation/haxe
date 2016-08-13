@@ -3,6 +3,34 @@ open Ast
 open Type
 open Common
 
+(* Check lists:
+tclass = {
+	[x] mutable cl_path : path;
+	[ ] mutable cl_module : module_def;
+	[ ] mutable cl_pos : Ast.pos;
+	[ ] mutable cl_private : bool;
+	[ ] mutable cl_doc : Ast.documentation;
+	[ ] mutable cl_meta : metadata;
+	[ ] mutable cl_params : type_params;
+	[ ] mutable cl_kind : tclass_kind;
+	[ ] mutable cl_extern : bool;
+	[x] mutable cl_interface : bool;
+	[x] mutable cl_super : (tclass * tparams) option;
+	[x] mutable cl_implements : (tclass * tparams) list;
+	[ ] mutable cl_fields : (string , tclass_field) PMap.t;
+	[ ] mutable cl_statics : (string, tclass_field) PMap.t;
+	[ ] mutable cl_ordered_statics : tclass_field list;
+	[ ] mutable cl_ordered_fields : tclass_field list;
+	[ ] mutable cl_dynamic : t option;
+	[ ] mutable cl_array_access : t option;
+	[ ] mutable cl_constructor : tclass_field option;
+	[ ] mutable cl_init : texpr option;
+	[ ] mutable cl_overrides : tclass_field list;
+	[ ] mutable cl_build : unit -> build_state;
+	[ ] mutable cl_restore : unit -> unit;
+}
+
+*)
 
 (**
 	@param path Something like [ "/some/path/first_dir_to_create"; "nested_level1"; "nested_level2" ]
@@ -49,6 +77,8 @@ class virtual type_builder =
 		val buffer = Buffer.create 1024
 		(** Cache for generated conent *)
 		val mutable contents = ""
+		(** intendation used for each line written *)
+		val mutable indentation = ""
 		(**
 			Get namespace path for this type
 		*)
@@ -68,18 +98,35 @@ class virtual type_builder =
 		*)
 		method virtual private write_body : unit
 		(**
+			Increase indentation by one level
+		*)
+		method indent_more =
+			indentation <- indentation ^ "\t";
+		(**
+			Decrease indentation by one level
+		*)
+		method indent_less =
+			indentation <- String.make ((String.length indentation) - 1) '\t';
+		(**
+			Set indentation level (starting from zero for no indentation)
+		*)
+		method indent level =
+			indentation <- String.make level '\t';
+		(**
 			Returns generated file contents
 		*)
 		method get_contents =
 			if (String.length contents) = 0 then begin
 				self#write_declaration;
+				self#indent 0;
 				self#write_line "{";
 				self#write_body;
+				self#indent 0;
 				self#write_line "}";
 				let body = Buffer.contents buffer in
 				Buffer.clear buffer;
 				self#write_header;
-				self#write "\n\n";
+				self#write "\n";
 				let header = Buffer.contents buffer in
 				contents <- header ^ body;
 			end;
@@ -118,6 +165,30 @@ class virtual type_builder =
 					done;
 					!alias
 		(**
+			Extracts type path from Type.t value and execute self#use on it
+			@return Unique alias for specified type.
+		*)
+		method use_t t_inst =
+			match t_inst with
+				| TEnum (tenum, _) -> self#use tenum.e_path
+				| TInst (tcls, _) ->
+					(
+						match tcls.cl_path with
+							| ([], "String") -> "string"
+							| _ -> self#use tcls.cl_path
+					)
+				| TFun _ -> self#use ([], "Closure")
+				| TAnon _ -> failwith "TAnon not implemented"
+				| TDynamic _ -> failwith "TDynamic not implemented"
+				| TLazy _ -> failwith "TLazy not implemented"
+				| TAbstract (tabs, _) ->
+					match tabs.a_path with
+						| ([],"Int") -> "int"
+						| ([],"Float") -> "float"
+						| ([],"Bool") -> "bool"
+						| ([],"Void") -> "void"
+						| _ -> failwith "TAbstract not implemented"
+		(**
 			Writes specified string to output buffer
 		*)
 		method private write str =
@@ -126,16 +197,17 @@ class virtual type_builder =
 			Writes specified line to output buffer and appends \n
 		*)
 		method private write_line line =
-			Buffer.add_string buffer (line ^ "\n")
+			Buffer.add_string buffer (indentation ^ line ^ "\n")
 		(**
 			Writes specified statement to output buffer and appends ";\n"
 		*)
 		method private write_stmnt statement =
-			Buffer.add_string buffer (statement ^ ";\n")
+			Buffer.add_string buffer (indentation ^ statement ^ ";\n")
 		(**
 			Build file header (<?php, namespace and file doc block)
 		*)
 		method private write_header =
+			self#indent 0;
 			self#write_line "<?php";
 			let namespace = self#get_namespace in
 			if List.length namespace > 0 then
@@ -145,6 +217,7 @@ class virtual type_builder =
 			Build "use" statements
 		*)
 		method private write_use =
+			self#indent 0;
 			let write alias type_path =
 				if get_type_name type_path = alias then
 					self#write_stmnt ("use " ^ (get_full_type_name type_path))
@@ -174,6 +247,7 @@ class class_builder (cls:tclass) =
 			E.g. "class SomeClass extends Another implements IFace"
 		*)
 		method private write_declaration =
+			self#write "\n";
 			self#write (if cls.cl_interface then "interface " else "class ");
 			self#write self#get_name;
 			(
@@ -198,7 +272,21 @@ class class_builder (cls:tclass) =
 			E.g. for "class SomeClass { <BODY> }" writes <BODY> part.
 		*)
 		method private write_body =
-			()
+			PMap.iter self#write_field cls.cl_fields
+		(**
+			Writes single field to output buffer
+		*)
+		method private write_field field_name field =
+			match (field.cf_kind) with
+				| Var _ -> self#write_var field
+				| Method _ -> () (* Method of method -> self#write method *)
+		(**
+			Writes var-field to output buffer
+		*)
+		method private write_var field =
+			self#indent 1;
+			self#write_line ("/** @var " ^ (self#use_t field.cf_type) ^ " */");
+			self#write_stmnt ("public " ^ field.cf_name)
 	end
 
 (**
