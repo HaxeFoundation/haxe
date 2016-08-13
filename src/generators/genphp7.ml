@@ -503,6 +503,7 @@ class virtual type_builder ctx wrapper =
 				| _ :: { eexpr = TBlock _ } :: _ -> true
 				| _ :: { eexpr = TIf _ } :: _ -> true
 				| _ :: { eexpr = TTry _ } :: _ -> true
+				| _ :: { eexpr = TWhile _ } :: _ -> true
 				| _ -> false
 		(**
 			Writes specified string to output buffer
@@ -649,14 +650,14 @@ class virtual type_builder ctx wrapper =
 				| TFunction fn -> self#write_expr_function fn pos
 				| TVar (var, expr) -> self#write_expr_var var expr pos
 				| TBlock exprs -> self#write_expr_block exprs pos
-				(* | TFor of tvar * texpr * texpr *)
+				| TFor (var, iterator, body) -> assert false
 				| TIf (condition, if_expr, else_expr) -> self#write_expr_if condition if_expr else_expr pos
-				(* | TWhile of texpr * texpr * Ast.while_flag *)
+				| TWhile (condition, expr, do_while) -> self#write_expr_while condition expr do_while pos
 				(* | TSwitch of texpr * (texpr list * texpr) list * texpr option *)
 				(* | TTry of texpr * (tvar * texpr) list *)
 				| TReturn expr -> self#write_expr_return expr pos
-				(* | TBreak *)
-				(* | TContinue *)
+				| TBreak -> self#write "break"
+				| TContinue -> self#write "continue"
 				(* | TThrow of texpr *)
 				(* | TCast of texpr * module_type option *)
 				| TMeta (_, expr) -> self#write_expr expr
@@ -998,6 +999,26 @@ class virtual type_builder ctx wrapper =
 				)
 			end
 		(**
+			Writes TWhile ("while..." or "do...while") to output buffer
+		*)
+		method private write_expr_while condition expr do_while pos =
+			let write_expr () =
+				self#write " ";
+				match expr.eexpr with
+					| TBlock exprs -> self#write_expr_block exprs pos
+					| _ -> self#write_expr_block [expr] pos
+			in
+			match do_while with
+				| NormalWhile ->
+					self#write "while ";
+					self#write_expr condition;
+					write_expr ()
+				| DoWhile ->
+					self#write "do ";
+					write_expr;
+					self#write " while ";
+					self#write_expr condition
+		(**
 			Writes ternary operator expressions to output buffer
 		*)
 		method private write_expr_ternary condition if_expr (else_expr:texpr) pos =
@@ -1178,7 +1199,7 @@ class generator (com:context) =
 		val mutable build_dir = ""
 		val root_dir = com.file
 		(**
-			Perform required action before actual php files generation
+			Perform required actions before actual php files generation
 		*)
 		method initialize =
 			self#create_output_dirs;
@@ -1186,11 +1207,12 @@ class generator (com:context) =
 			Generates php file for specified type
 		*)
 		method generate (builder:type_builder) =
-			let namespace = builder#get_namespace
+			let contents = builder#get_contents
+			and namespace = builder#get_namespace
 			and name = builder#get_name in
 			let filename = (create_dir_recursive (build_dir :: namespace)) ^ "/" ^ name ^ ".php" in
 			let channel = open_out filename in
-			output_string channel builder#get_contents;
+			output_string channel contents;
 			close_out channel
 		(**
 			Create necessary directories  before processing types
