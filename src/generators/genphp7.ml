@@ -629,27 +629,28 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write_expr (expr:texpr) =
 			expr_hierarchy <- expr :: expr_hierarchy;
+			let pos = expr.epos in
 			(match expr.eexpr with
-				| TConst const -> self#write_expr_const const expr.epos
+				| TConst const -> self#write_expr_const const pos
 				| TLocal var -> self#write ("$" ^ var.v_name)
-				| TArray (target, index) -> self#write_expr_array_access target index expr.epos
-				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2 expr.epos
-				| TField (expr, access) -> self#write_expr_field expr access expr.epos
+				| TArray (target, index) -> self#write_expr_array_access target index pos
+				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2 pos
+				| TField (expr, access) -> self#write_expr_field expr access pos
 				| TTypeExpr mtype -> self#write (self#use (get_wrapper mtype)#get_native_path)
 				| TParenthesis expr ->
 					self#write "(";
 					self#write_expr expr;
 					self#write ")"
-				| TObjectDecl fields -> self#write_expr_object_declaration fields expr.epos
-				| TArrayDecl exprs -> self#write_expr_array_decl exprs expr.epos
-				| TCall (target, args) -> self#write_expr_call target args expr.epos
-				| TNew (tcls, _, args) -> self#write_expr_new tcls args expr.epos
+				| TObjectDecl fields -> self#write_expr_object_declaration fields pos
+				| TArrayDecl exprs -> self#write_expr_array_decl exprs pos
+				| TCall (target, args) -> self#write_expr_call target args pos
+				| TNew (tcls, _, args) -> self#write_expr_new tcls args pos
 				(* | TUnop of Ast.unop * Ast.unop_flag * texpr *)
-				| TFunction fn -> self#write_expr_function fn expr.epos
-				(* | TVar of tvar * texpr option *)
-				| TBlock exprs -> self#write_expr_block exprs expr.epos
+				| TFunction fn -> self#write_expr_function fn pos
+				| TVar (var, expr) -> self#write_expr_var var expr pos
+				| TBlock exprs -> self#write_expr_block exprs pos
 				(* | TFor of tvar * texpr * texpr *)
-				| TIf (condition, if_expr, else_expr) -> self#write_expr_if condition if_expr else_expr expr.epos
+				| TIf (condition, if_expr, else_expr) -> self#write_expr_if condition if_expr else_expr pos
 				(* | TWhile of texpr * texpr * Ast.while_flag *)
 				(* | TSwitch of texpr * (texpr list * texpr) list * texpr option *)
 				(* | TTry of texpr * (tvar * texpr) list *)
@@ -767,12 +768,19 @@ class virtual type_builder ctx wrapper =
 			Writes TArrayDecl to output buffer
 		*)
 		method private write_expr_array_decl exprs pos =
-			self#write "[\n";
-			self#indent_more;
-			List.iter (fun expr -> self#write_array_item expr) exprs;
-			self#indent_less;
-			self#write_indentation;
-			self#write "]"
+			match exprs with
+				| [] -> self#write "[]"
+				| [expr] ->
+					self#write "[";
+					self#write_expr expr;
+					self#write "]"
+				| _ ->
+					self#write "[\n";
+					self#indent_more;
+					List.iter (fun expr -> self#write_array_item expr) exprs;
+					self#indent_less;
+					self#write_indentation;
+					self#write "]"
 		(**
 			Writes TArray to output buffer
 		*)
@@ -781,6 +789,14 @@ class virtual type_builder ctx wrapper =
 			self#write "[";
 			self#write_expr index;
 			self#write "]"
+		(**
+			Writes TVar to output buffer
+		*)
+		method private write_expr_var var expr pos =
+			self#write ("$" ^ var.v_name ^ " = ");
+			match expr with
+				| None -> self#write "null"
+				| Some expr -> self#write_expr expr
 		(**
 			Writes TFunction to output buffer
 		*)
