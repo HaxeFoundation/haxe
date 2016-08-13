@@ -9,7 +9,7 @@ let debug = ref false
 (**
 	Type path for native PHP Exception class
 *)
-let native_exception_path = (["php7"], "Exception")
+let native_exception_path = ([], "Exception")
 (**
 	Type path for Haxe exceptions wrapper
 *)
@@ -930,20 +930,55 @@ class virtual type_builder ctx wrapper =
 			Writes try...catch to output buffer
 		*)
 		method private write_expr_try_catch try_expr catches pos =
-			self#write ""
-			(* let write_catch var expr =
-				self#write " catch (";
-				if is_dynamic var.v_type or is_native_exception var.v_type then
-					self#write (self#use native_exception_path)
-				else if is_native_exception var.v_type then
-					self#write (self#use haxe_exception_path);
-				self#write ("$" ^ var.v_name ^ ") ");
-				if is_native_exception
-				self#write_as_block expr;
+			let catching_dynamic = ref false in
+			let haxe_exception = self#use haxe_exception_path
+			and first_catch = ref true in
+			let write_catch (var, expr) =
+				let dynamic = ref false in
+				(match follow var.v_type with
+					| TInst ({ cl_path = ([], "String") }, _) -> self#write "if (is_string($__hx__real_e)) {\n"
+					| TAbstract ({ a_path = ([], "Float") }, _) -> self#write "if (is_float($__hx__real_e)) {\n"
+					| TAbstract ({ a_path = ([], "Int") }, _) -> self#write "if (is_int($__hx__real_e)) {\n"
+					| TAbstract ({ a_path = ([], "Bool") }, _) -> self#write "if (is_float($__hx__real_e)) {\n"
+					| TDynamic _ ->
+						dynamic := true;
+						catching_dynamic := true;
+						if not !first_catch then self#write " {\n"
+					| vtype -> self#write ("if ($__hx__real_e instanceof " ^ (self#use_t vtype) ^ ") {\n")
+				);
+				if !dynamic && !first_catch then
+					begin
+						self#write ("$" ^ var.v_name ^ " = $__hx__real_e;\n");
+						self#write_indentation;
+						self#write_as_block ~inline:true expr pos;
+					end
+				else
+					begin
+						self#indent_more;
+						self#write_statement ("$" ^ var.v_name ^ " = $__hx__real_e");
+						self#write_indentation;
+						self#write_as_block ~inline:true expr pos;
+						self#indent_less;
+						self#write_indentation;
+						self#write "}";
+					end;
+				if not !dynamic then self#write " else";
+				first_catch := false;
 			in
 			self#write "try ";
 			self#write_as_block try_expr pos;
-			List.iter write_catch cacthes; *)
+			self#write " catch (\Exception $__hx__caught_e) {\n";
+			self#indent_more;
+			self#write_statement ("$__hx__real_e = ($__hx__caught_e instanceof " ^ haxe_exception ^ " ? $__hx__caught_e->e : $__hx__caught_e)");
+			self#write_indentation;
+			List.iter write_catch catches;
+			if not !catching_dynamic then
+				self#write " throw $__hx__caught_e;\n"
+			else
+				(match catches with [_] -> () | _ -> self#write "\n");
+			self#indent_less;
+			self#write_indentation;
+			self#write "}"
 		(**
 			Writes binary operation to output buffer
 		*)

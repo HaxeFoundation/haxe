@@ -21,6 +21,7 @@
  */
 package php7;
 
+@:native('Exception')
 extern class Exception {
   public function new(?message : String, ?code : Int) : Void;
 
