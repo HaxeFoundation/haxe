@@ -2678,18 +2678,7 @@ struct
 		dynamic_fun_call : texpr->texpr;
 
 		(*
-			Base classfields are the class fields for the abstract implementation of either the Function implementation,
-			or the invokeField implementation for the classes
-			They will either try to call the right function or will fail with
-
-			(tclass - subject (so we know the type of this)) -> list of the abstract implementation class fields
-		*)
-		get_base_classfields_for : tclass->tclass_field list;
-
-		(*
-			This is a more complex version of get_base_classfields_for.
-			It's meant to provide a toolchain so we can easily create classes that extend Function
-			and add more functionality on top of it.
+			Provide a toolchain so we can easily create classes that extend Function and add more functionality on top of it.
 
 			arguments:
 				tclass -> subject (so we know the type of this)
@@ -2705,8 +2694,6 @@ struct
 					and the underlying function expression
 		*)
 		map_base_classfields : tclass->( int -> t -> (tvar list) -> (int->t->tconstant option->texpr) -> texpr )->tclass_field list;
-
-		transform_closure : texpr->texpr->string->texpr;
 	}
 
 	type map_info = {
@@ -2768,7 +2755,7 @@ struct
 			tf_type = ret;
 		}
 
-	let traverse gen ?tparam_anon_decl ?tparam_anon_acc (transform_closure:texpr->texpr->string->texpr) (handle_anon_func:texpr->tfunc->map_info->t option->texpr) (dynamic_func_call:texpr->texpr) e =
+	let traverse gen ?tparam_anon_decl ?tparam_anon_acc (handle_anon_func:texpr->tfunc->map_info->t option->texpr) (dynamic_func_call:texpr->texpr) e =
 		let info = ref null_map_info in
 		let rec run e =
 			match e.eexpr with
@@ -2851,8 +2838,6 @@ struct
 									let t = TFun(List.map (fun e -> incr i; "arg" ^ (string_of_int !i), false, e.etype) params, e.etype) in
 									dynamic_func_call { e with eexpr = TCall( mk_castfast t (run e1), List.map run params ) }
 					)
-				| TField(ecl, FClosure (_,cf)) ->
-					transform_closure e (run ecl) cf.cf_name
 				| TFunction tf ->
 					handle_anon_func e { tf with tf_expr = run tf.tf_expr } !info None
 				| TCall({ eexpr = TConst(TSuper) }, _) ->
@@ -3206,8 +3191,7 @@ struct
 				gen.gcon.warning "This expression may be invalid" e.epos;
 				e
 			)
-			(* (transform_closure:texpr->texpr->string->texpr) (handle_anon_func:texpr->tfunc->texpr) (dynamic_func_call:texpr->texpr->texpr list->texpr) *)
-			ft.transform_closure
+			(* (handle_anon_func:texpr->tfunc->texpr) (dynamic_func_call:texpr->texpr->texpr list->texpr) *)
 			(fun e f info delegate_type -> fst (handle_anon_func e f info delegate_type))
 			ft.dynamic_fun_call
 			(* (dynamic_func_call:texpr->texpr->texpr list->texpr) *)
@@ -3597,7 +3581,7 @@ struct
 					let new_t = TFun(["arity", false, basic.tint; "type", false, basic.tint],basic.tvoid) in
 					let new_cf = mk_class_field "new" (new_t) true pos (Method MethNormal) [] in
 					let v_arity, v_type = alloc_var "arity" basic.tint, alloc_var "type" basic.tint in
-					let mk_assign v field = { eexpr = TBinop(Ast.OpAssign, mk_this field v.v_type, mk_local v pos); etype = v.v_type; epos = pos } in
+					let mk_assign v field = mk (TBinop (OpAssign, mk_this field v.v_type, mk_local v pos)) v.v_type pos in
 
 					let arity_name = gen.gmk_internal_name "hx" "arity" in
 					new_cf.cf_expr <- Some {
@@ -3628,81 +3612,69 @@ struct
 				dyn_cf :: (additional_cfs @ cfs)
 			in
 
-			(* maybe another param for prefix *)
-			let get_base_classfields_for cl =
+			begin
+				(*
+					setup fields for the abstract implementation of the Function class
+
+					new(arity, type)
+					{
+						this.arity = arity;
+						this.type = type;
+					}
+
+					hx::invokeX_f|o (where X is from 0 to max_arity) (args)
+					{
+						if (this.type == 0|1) return invokeX_o|f(args); else throw "Invalid number of arguments."
+					}
+
+					hx::invokeDynamic, which will work in the same way
+				*)
+				let cl = parent_func_class in
 				let pos = cl.cl_pos in
 
-				let this_t = TInst(cl,List.map snd cl.cl_params) in
-				let this = { eexpr = TConst(TThis); etype = this_t; epos = pos } in
-				let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
-
 				let rec mk_dyn_call arity api =
-					let zero = { eexpr = TConst(TFloat("0.0")); etype = basic.tfloat; epos = pos } in
+					let zero = ExprBuilder.make_float gen.gcon "0.0" pos in
 					let rec loop i acc =
-						if i = 0 then acc else begin
-							let arr = api (i-1) t_dynamic None in
+						if i = 0 then
+							acc
+						else begin
+							let arr = api (i - 1) t_dynamic None in
 							loop (i - 1) (zero :: arr :: acc)
 						end
 					in
-					loop arity ([])
+					loop arity []
 				in
 
-				let mk_invoke_switch i (api:(int->t->tconstant option->texpr)) =
-
-					let t = TFun(func_sig_i i,t_dynamic) in
-
-					(* case i: return this.invokeX_o(0, 0, 0, 0, 0, ... arg[0], args[1]....); *)
-					( [{ eexpr = TConst(TInt(Int32.of_int i)); etype = basic.tint; epos = pos }],
-					{
-						eexpr = TReturn(Some( {
-							eexpr = TCall(mk_this (iname i false) t, mk_dyn_call i api);
-							etype = t_dynamic;
-							epos = pos;
-						} ));
-						etype = t_dynamic;
-						epos = pos;
-					} )
-				in
-
-				let cl_t = TInst(cl,List.map snd cl.cl_params) in
-				let this = { eexpr = TConst(TThis); etype = cl_t; epos = pos } in
+				let this = mk (TConst TThis) (TInst (cl, List.map snd cl.cl_params)) pos in
 				let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
-				let mk_int i = ExprBuilder.make_int gen.gcon i pos in
-				let mk_string s = ExprBuilder.make_string gen.gcon s pos in
 
-				(*
-					if it is the Function class, the base class fields will be
-						* hx::invokeX_d|o (where X is from 0 to max_arity) (args)
-						{
-							if (this.type == 0|1) return invokeX_o|d(args); else throw "Invalid number of arguments."
-						}
+				let mk_invoke_switch i api =
+					let t = TFun (func_sig_i i, t_dynamic) in
+					(* case i: return this.invokeX_o(0, 0, 0, 0, 0, ... arg[0], args[1]....); *)
+					[ExprBuilder.make_int gen.gcon i pos], mk_return (mk (TCall(mk_this (iname i false) t, mk_dyn_call i api)) t_dynamic pos)
+				in
+				let rec loop_cases api arity acc =
+					if arity < 0 then
+						acc
+					else
+						loop_cases api (arity - 1) (mk_invoke_switch arity api :: acc)
+				in
 
-						hx::invokeDynamic, which will work in the same way
-
-						new(arity, type)
-						{
-							if (type != 0 && type != 1) throw "Invalid type";
-							this.arity = arity;
-							this.type = type;
-						}
-				*)
 				let type_name = gen.gmk_internal_name "fn" "type" in
-
 				let mk_expr i is_float vars =
-					let name = "invoke" in
 					let call_expr =
 						let call_t = TFun(List.map (fun v -> (v.v_name, false, v.v_type)) vars, if is_float then t_dynamic else basic.tfloat) in
 						{
-							eexpr = TCall(mk_this (gen.gmk_internal_name "hx" (name ^ (string_of_int i) ^ (if is_float then "_o" else "_f"))) call_t, List.map (fun v -> mk_local v pos) vars);
+							eexpr = TCall(mk_this (iname i (not is_float)) call_t, List.map (fun v -> mk_local v pos) vars);
 							etype = if is_float then t_dynamic else basic.tfloat;
 							epos = pos
 						}
 					in
 					{
 						eexpr = TIf(
-							mk (TBinop (Ast.OpNotEq, mk_this type_name basic.tint, mk_int (if is_float then 0 else 1))) basic.tbool pos,
-							mk (TThrow (mk_string "Wrong number of arguments")) t_dynamic pos,
-							Some (mk (TReturn (Some call_expr)) t_dynamic pos)
+							mk (TBinop (Ast.OpNotEq, mk_this type_name basic.tint, (ExprBuilder.make_int gen.gcon (if is_float then 0 else 1) pos))) basic.tbool pos,
+							mk (TThrow (ExprBuilder.make_string gen.gcon "Wrong number of arguments" pos)) t_dynamic pos,
+							Some (mk_return call_expr)
 						);
 						etype = t_dynamic;
 						epos = pos;
@@ -3712,30 +3684,27 @@ struct
 				let arities_processed = Hashtbl.create 10 in
 				let max_arity = ref 0 in
 
-				let rec loop_cases api arity acc =
-					if arity < 0 then acc else
-						loop_cases api (arity - 1) (mk_invoke_switch arity api :: acc)
-				in
-				(* let rec loop goes here *)
-				let map_fn cur_arity fun_ret_type vars (api:(int->t->tconstant option->texpr)) =
+				let map_fn cur_arity fun_ret_type vars (api:int->t->tconstant option->texpr) =
 					let is_float = like_float fun_ret_type && not (like_i64 fun_ret_type) in
 					match cur_arity with
 					| -1 ->
-						let dynargs = api (-1) (t_dynamic) None in
-						let switch_cond = mk_field_access gen dynargs "length" pos in
+						let dynargs = api (-1) t_dynamic None in
+
+						(* (dynargs == null) ? 0 : dynargs.length *)
 						let switch_cond = {
 							eexpr = TIf(
-								{ eexpr = TBinop(Ast.OpEq, dynargs, null dynargs.etype pos); etype = basic.tbool; epos = pos; },
-								{ eexpr = TConst(TInt(Int32.zero)); etype = basic.tint; epos = pos },
-								Some switch_cond);
+								mk (TBinop (OpEq, dynargs, null dynargs.etype pos)) basic.tbool pos,
+								mk (TConst (TInt Int32.zero)) basic.tint pos,
+								Some (mk_field_access gen dynargs "length" pos));
 							etype = basic.tint;
 							epos = pos;
 						} in
 
 						{
-							eexpr = TSwitch( switch_cond,
+							eexpr = TSwitch(
+								switch_cond,
 								loop_cases api !max_arity [],
-								Some({ eexpr = TThrow(mk_string "Too many arguments"); etype = basic.tvoid; epos = pos; }) );
+								Some(mk (TThrow (ExprBuilder.make_string gen.gcon "Too many arguments" pos)) basic.tvoid pos));
 							etype = basic.tvoid;
 							epos = pos;
 						}
@@ -3744,14 +3713,11 @@ struct
 							Hashtbl.add arities_processed cur_arity true;
 							if cur_arity > !max_arity then max_arity := cur_arity
 						end;
+
 						mk_expr cur_arity is_float vars
 				in
 
-				map_base_classfields cl map_fn
-			in
-
-			begin
-				let cfs = get_base_classfields_for parent_func_class in
+				let cfs = map_base_classfields cl map_fn in
 				List.iter (fun cf ->
 					if cf.cf_name = "new" then
 						parent_func_class.cl_constructor <- Some cf
@@ -3763,35 +3729,14 @@ struct
 
 			{
 				fgen = gen;
-
 				func_class = parent_func_class;
-
 				closure_to_classfield = closure_to_classfield;
-
 				dynamic_fun_call = dynamic_fun_call;
-
-				(*
-					Base classfields are the class fields for the abstract implementation of either the Function implementation,
-					or the invokeField implementation for the classes
-					They will either try to call the right function or will fail with
-
-					(tclass - subject (so we know the type of this)) -> is_function_base -> list of the abstract implementation class fields
-				*)
-				get_base_classfields_for = get_base_classfields_for;
-
 				map_base_classfields = map_base_classfields;
-
-				(*
-					for now we won't deal with the closures.
-					They can be dealt with the module ReflectionCFs,
-					or a custom implementation
-				*)
-				transform_closure = (fun tclosure texpr str -> tclosure);
 			}
-
 	end;;
-
 end;;
+
 
 (* ******************************************* *)
 (* Type Parameters *)
