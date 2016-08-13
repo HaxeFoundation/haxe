@@ -25,8 +25,8 @@ package php7;
 /**
 	Various Haxe->PHP compatibility utilities
 **/
-@:dox(hide)
 @:keep
+@:dox(hide)
 class Boot {
 
 	/**
@@ -37,10 +37,11 @@ class Boot {
 	}
 
 	/**
-		Typed cast implementation.
-	**/
-	public static function typedCast<T> (expr:Dynamic, className:Class<T>) : T {
-		return expr;
+		Get Class<T> instance for PHP fully qualified class name (E.g. '\some\pack\MyClass')
+		It's always the same instance for the same `phpClassName`
+	*/
+	public static function getClass (phpClassName:String) : HxClass {
+		return HxClass.get(phpClassName);
 	}
 
 	/**
@@ -70,11 +71,40 @@ class Boot {
 
 
 /**
-	Implements Haxe's String interface for PHP
- */
-class StringImpl
-{
+	Class<T> implementation for Haxe->PHP internals
+*/
+@:keep
+@:dox(hide)
+private class HxClass {
+	@:protected
+	static private var classes = new Map<String,HxClass>();
 
+	@:protected
+	var phpClassName : String;
 
+	/**
+		Get `HxClass` instance for specified PHP fully qualified class name (E.g. '\some\pack\MyClass')
+	*/
+	public static function get (phpClassName:String) : HxClass {
+		var cls = classes.get(phpClassName);
+		if (cls == null) {
+			cls = new HxClass(phpClassName);
+			classes.set(phpClassName, cls);
+		}
 
-}//class StringImpl
+		return cls;
+	}
+
+	@:protected
+	private function new (phpClassName:String) : Void {
+		this.phpClassName = phpClassName;
+	}
+
+	/**
+		Implementation for `cast(value, Class<Dynamic>)`
+		@throws HException if `value` cannot be casted to this type
+	*/
+	public function tryCast (value:Dynamic) : Dynamic {
+		throw "Not implemented";
+	}
+}

@@ -1,4 +1,8 @@
 
+(**
+	Compatible with PHP 5.4+
+*)
+
 open Ast
 open Type
 open Common
@@ -98,7 +102,7 @@ let get_full_type_name (type_path:path) =
 *)
 let rec is_native_exception (target:Type.t) =
 	match follow target with
-		| TInst ({ cl_path = path }, _) -> path = native_exception_path
+		| TInst ({ cl_path = path }, _) when path = native_exception_path -> true
 		| TInst ({ cl_super = Some (parent, params) }, _) -> is_native_exception (TInst (parent, params))
 		| _ -> false
 
@@ -660,7 +664,7 @@ class virtual type_builder ctx wrapper =
 				| TArray (target, index) -> self#write_expr_array_access target index pos
 				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2 pos
 				| TField (expr, access) -> self#write_expr_field expr access pos
-				| TTypeExpr mtype -> self#write (self#use (get_wrapper mtype)#get_type_path)
+				| TTypeExpr mtype -> self#write_expr_type mtype pos
 				| TParenthesis expr ->
 					self#write "(";
 					self#write_expr expr;
@@ -847,7 +851,7 @@ class virtual type_builder ctx wrapper =
 				begin
 					self#write "throw (is_object($__hx__throw = ";
 					self#write_expr expr;
-					self#write (") && $__hx__throw instanceof \Exception ? $__hx__throw : new " ^ (self#use haxe_exception_path) ^ "($__hx__throw))")
+					self#write (") && $__hx__throw instanceof \\Exception ? $__hx__throw : new " ^ (self#use haxe_exception_path) ^ "($__hx__throw))")
 				end
 			else
 				begin
@@ -912,8 +916,25 @@ class virtual type_builder ctx wrapper =
 			Writes TCast to output buffer
 		*)
 		method private write_expr_cast expr (mtype:module_type option) pos =
-			(* of texpr * module_type option *)
-			Printf.printf "%s" "dsffs"
+			match mtype with
+				| None -> self#write_expr expr
+				| Some mtype ->
+					let wrapper = get_wrapper mtype in
+					let type_name = self#use wrapper#get_type_path in
+					self#write_expr_type mtype pos;
+					self#write "->typedCast(";
+					self#write_expr expr;
+					self#write ")"
+		(**
+			Writes TTypeExpr to output buffer
+		*)
+		method private write_expr_type (mtype:module_type) pos =
+			let type_path = (get_wrapper mtype)#get_type_path in
+			match expr_hierarchy with
+				| _ :: { eexpr = TField _ } :: _ -> self#write (self#use type_path)
+				| _ ->
+					let type_name = String.escaped (get_full_type_name type_path) in
+					self#write ((self#use boot_class_path) ^ "::getClass('" ^ type_name ^ "')")
 		(**
 			Writes binary operation to output buffer
 		*)
@@ -1021,7 +1042,7 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write_expr_object_declaration fields pos =
 			match fields with
-				| [] ->  self#write "new \StdClass()"
+				| [] ->  self#write "new \\StdClass()"
 				| _ ->
 					self#write "(object)[\n";
 					self#indent_more;

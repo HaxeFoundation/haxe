@@ -21,7 +21,7 @@
  */
 package haxe.ds;
 
-@:coreApi class IntMap<T> implements php.IteratorAggregate<T> implements haxe.Constraints.IMap<Int,T> {
+@:coreApi class IntMap<T> implements php7.IteratorAggregate<T> implements haxe.Constraints.IMap<Int,T> {
 	@:analyzer(no_simplification)
 	private var h : ArrayAccess<Int>;
 
@@ -76,7 +76,7 @@ package haxe.ds;
 	/**
 		Implement IteratorAggregate for native php iteration
 	**/
-	#if php
+	#if php7
 	function getIterator() : Iterator<T> {
 		return iterator();
 	}
