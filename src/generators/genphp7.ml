@@ -71,6 +71,10 @@ let get_full_type_name (type_path:path) =
 	@return Short type name. E.g. returns "Test" for (["example"], "Test")
 *)
 let get_type_name (type_path:path) = match type_path with (_, type_name) -> type_name
+(**
+	@return type path of `php7.Boot`
+*)
+let get_boot_class_path () = (["php7"], "Boot")
 
 (**
 	@return E.g. returns ["example"] for (["example"], "Test")
@@ -305,6 +309,15 @@ let get_wrapper (mtype:module_type) : type_wrapper =
 		| TAbstractDecl abstr -> get_abstract_wrapper abstr
 
 (**
+
+*)
+let clear_wrappers () =
+	Hashtbl.clear classes;
+	Hashtbl.clear enums;
+	Hashtbl.clear typedefs;
+	Hashtbl.clear abstracts
+
+(**
 	Base class for type builders
 *)
 class virtual type_builder wrapper =
@@ -505,11 +518,13 @@ class virtual type_builder wrapper =
 		*)
 		method private write_doc doc_block =
 			match doc_block with
-				| DocVar (type_name, None) -> self#write_line ("/** @var " ^ type_name ^ " */")
-				| DocVar (type_name, Some doc) ->
+				| DocVar (type_name, doc) ->
 					self#write_line "/**";
 					self#write_line (" * @var " ^ type_name);
-					self#write_doc_description doc;
+					(match doc with
+						| None -> ()
+						| Some txt -> self#write_doc_description txt
+					);
 					self#write_line " */"
 				| DocClass doc ->
 					(match doc with
@@ -550,7 +565,7 @@ class virtual type_builder wrapper =
 			let write_arg arg =
 				match arg with
 					| (arg_name, is_optional, arg_type) ->
-						self#write_line (" * @param $" ^ arg_name ^ " " ^ (self#use_t arg_type))
+						self#write_line (" * @param " ^ (self#use_t arg_type) ^ " $" ^ arg_name)
 			in
 			List.iter write_arg args;
 			if List.length args > 0 then self#write_line " * ";
@@ -562,9 +577,9 @@ class virtual type_builder wrapper =
 		method private write_expr (expr:texpr) =
 			(match expr.eexpr with
 				| TConst const -> self#write_expr_const const
-				(* | TLocal of tvar *)
+				| TLocal var -> self#write ("$" ^ var.v_name)
 				| TArray (target, index) -> self#write_expr_array_access target index
-				(* | TBinop of Ast.binop * texpr * texpr *)
+				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2 expr.epos
 				(* | TField of texpr * tfield_access *)
 				(* | TTypeExpr of module_type *)
 				(* | TParenthesis of texpr *)
@@ -576,7 +591,7 @@ class virtual type_builder wrapper =
 				(* | TUnop of Ast.unop * Ast.unop_flag * texpr *)
 				(* | TFunction of tfunc *)
 				(* | TVar of tvar * texpr option *)
-				(* | TBlock of texpr list *)
+				| TBlock exprs -> self#write_expr_block exprs
 				(* | TFor of tvar * texpr * texpr *)
 				(* | TIf of texpr * texpr * texpr option *)
 				(* | TWhile of texpr * texpr * Ast.while_flag *)
@@ -748,11 +763,82 @@ class virtual type_builder wrapper =
 				self#write "\n";
 				self#write_indentation;
 			end;
+			match func.tf_expr.eexpr with
+				| TBlock _ -> self#write_expr func.tf_expr
+				| _ ->
+					self#write "{\n";
+					self#indent_more;
+					self#write_expr func.tf_expr;
+					self#indent_less;
+					self#write_line "}"
+		(**
+			Writes TBlock to output buffer
+		*)
+		method private write_expr_block exprs =
 			self#write "{\n";
 			self#indent_more;
-			self#write_expr func.tf_expr;
+			let write_expr expr =
+				self#write_indentation;
+				self#write_expr expr;
+				self#write ";\n";
+			in
+			List.iter write_expr exprs;
+			self#write "\n";
 			self#indent_less;
-			self#write_line "}"
+			self#write_indentation;
+			self#write "}"
+		(**
+			Writes binary operation to output buffer
+		*)
+		method private write_expr_binop operation expr1 expr2 pos =
+			let write_shiftRightUnsigned () =
+				self#write ((self#use (get_boot_class_path ())) ^ "::shiftRightUnsigned(");
+				self#write_expr expr1;
+				self#write ", ";
+				self#write_expr expr2;
+				self#write ")"
+			in
+			match operation with
+				| OpUShr -> write_shiftRightUnsigned ()
+				| OpAssignOp OpUShr ->
+					self#write_expr expr1;
+					self#write " = ";
+					write_shiftRightUnsigned ()
+				| _ ->
+					self#write_expr expr1;
+					(match operation with
+						| OpAdd -> self#write " + "
+						| OpMult -> self#write " * "
+						| OpDiv -> self#write " / "
+						| OpSub -> self#write " - "
+						| OpAssign -> self#write " = "
+						| OpEq -> self#write " == "
+						| OpNotEq -> self#write " != "
+						| OpGt -> self#write " > "
+						| OpGte -> self#write " >= "
+						| OpLt -> self#write " < "
+						| OpLte -> self#write " <= "
+						| OpAnd -> self#write " & "
+						| OpOr -> self#write " | "
+						| OpXor -> self#write " ^ "
+						| OpBoolAnd -> self#write " && "
+						| OpBoolOr -> self#write " || "
+						| OpShl  -> self#write " << "
+						| OpShr -> self#write " >> "
+						| OpMod -> self#write " % "
+						| OpAssignOp OpAdd -> self#write " += "
+						| OpAssignOp OpMult -> self#write " *= "
+						| OpAssignOp OpDiv -> self#write " /= "
+						| OpAssignOp OpSub -> self#write " -= "
+						| OpAssignOp OpAnd -> self#write " &= "
+						| OpAssignOp OpOr -> self#write " |= "
+						| OpAssignOp OpXor -> self#write " ^= "
+						| OpAssignOp OpShl  -> self#write " <<= "
+						| OpAssignOp OpShr -> self#write " >>= "
+						| OpAssignOp OpMod -> self#write " % "
+						| _ -> failwith ((Lexer.get_error_pos (Printf.sprintf "%s:%d:") pos) ^ ": Binary operation is not implemented")
+					);
+					self#write_expr expr2
 	end
 
 (**
@@ -852,8 +938,8 @@ class class_builder (cls:tclass) =
 			match field.cf_expr with
 				| None -> self#write ";\n"
 				| Some expr ->
-					match expr with
-						| { eexpr = TConst _ } ->
+					match expr.eexpr with
+						| TConst _ ->
 							self#write " = ";
 							self#write_expr expr;
 							self#write ";\n"
@@ -948,4 +1034,5 @@ let generate (com:context) =
 				| TTypeDecl typedef -> ();
 				| TAbstractDecl abstr -> ()
 	in
-	List.iter generate com.types
+	List.iter generate com.types;
+	clear_wrappers ()
