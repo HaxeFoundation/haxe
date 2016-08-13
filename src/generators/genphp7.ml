@@ -65,36 +65,33 @@ class virtual type_builder =
 			@return Unique alias for specified type.
 		*)
 		method use (type_path:path) =
-			let module_path = get_module_path type_path
-			and type_name = get_type_name type_path in
-			let add () =
-				let alias_source = ref (List.rev module_path) in
-				let get_alias_next_part () =
-					match !alias_source with
-						| [] -> failwith ("Failed to find already used type: " ^ get_full_type_name type_path)
-						| name :: rest ->
-							alias_source := rest;
-							String.capitalize name
-				and added = ref false
-				and alias = ref type_name in
-				while not !added do
-					try
-						let used_type = Hashtbl.find use_table !alias in
-						if used_type = type_path then
-							added := true
-						else
-							alias := get_alias_next_part () ^ !alias;
-					with
-						| Not_found ->
-							Hashtbl.add use_table !alias type_path;
-							added := true
-						| _ -> failwith "Unknown"
-				done;
-				!alias
-			in
+			let module_path = get_module_path type_path in
 			match type_path with
 				| ([], type_name) -> "\\" ^ type_name
-				| _ -> add ()
+				| _ ->
+					let alias_source = ref (List.rev module_path) in
+					let get_alias_next_part () =
+						match !alias_source with
+							| [] -> failwith ("Failed to find already used type: " ^ get_full_type_name type_path)
+							| name :: rest ->
+								alias_source := rest;
+								String.capitalize name
+					and added = ref false
+					and alias = ref (get_type_name type_path) in
+					while not !added do
+						try
+							let used_type = Hashtbl.find use_table !alias in
+							if used_type = type_path then
+								added := true
+							else
+								alias := get_alias_next_part () ^ !alias;
+						with
+							| Not_found ->
+								Hashtbl.add use_table !alias type_path;
+								added := true
+							| _ -> failwith "Unknown"
+					done;
+					!alias
 		(**
 			Writes specified string to output buffer
 		*)
@@ -143,22 +140,20 @@ class class_builder (cls:tclass) =
 		(**
 			Get namespace path for this type
 		*)
-		method get_namespace =
-			match cls.cl_path with (module_path, _) -> module_path
+		method get_namespace = get_module_path cls.cl_path
 		(**
 			Get type name
 		*)
-		method get_name =
-			match cls.cl_path with (_, class_name) -> class_name
+		method get_name = get_type_name cls.cl_path
 		(**
 			Returns generated file contents
 		*)
 		method get_contents =
 			if (String.length contents) = 0 then begin
-				self#use (["example"], "Test");
-				self#use (["example"; "another"], "Test");
+				let declaration = self#get_declaration in
 				self#write_header;
-				self#write_declaration;
+				self#write "\n\n";
+				self#write_line declaration;
 				self#write_line "{";
 				self#write_line "}";
 				contents <- Buffer.contents buffer
@@ -168,15 +163,23 @@ class class_builder (cls:tclass) =
 			Generates class declaration line.
 			E.g. "class SomeClass extends Another implements IFace"
 		*)
-		method private write_declaration =
-			self#write ("class " ^ self#get_name);
-			(* match cls.cl_super with
-				| None -> ()
-				| Some (super_class, _) ->
-					let super_builder = new 'self super_class in
-					let super_name = self#use
-					self#write (" " ^  *)
-			self#write "\n"
+		method private get_declaration =
+			let keyword = if cls.cl_interface then "interface" else "class" in
+			let declaration = ref (keyword ^ " " ^ self#get_name) in
+			(
+				match cls.cl_super with
+					| None -> ();
+					| Some (super_class, _) ->
+						let super_name = self#use super_class.cl_path in
+						declaration := !declaration ^ " extends " ^ super_name
+			);
+			if List.length cls.cl_implements > 0 then begin
+				let implements = if cls.cl_interface then "extends" else "implements"
+				and use_interface iface = match iface with (i, _) -> self#use i.cl_path in
+				let interfaces = List.map use_interface cls.cl_implements in
+				declaration := !declaration ^ " " ^ implements ^ " " ^ (String.concat ", " interfaces);
+			end;
+			!declaration
 	end
 
 (**
