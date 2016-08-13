@@ -30,31 +30,6 @@ let follow = Abstract.follow_with_abstracts
 let error_message pos message = (Lexer.get_error_pos (Printf.sprintf "%s:%d:") pos) ^ message
 
 (**
-	Check if `target` is or extends native PHP `Extension` class
-*)
-let rec is_native_exception (target:Type.t) =
-	match follow target with
-		| TInst ({ cl_path = path }, _) -> path = native_exception_path
-		| TInst ({ cl_super = Some (parent, params) }, _) -> is_native_exception (TInst (parent, params))
-		| _ -> false
-
-(**
-	If Haxe code throws something which does not extend native PHP Exception, then custom exception class generated.
-	E.g. to implement "throw 'Some string'" Genphp will generate additional `class String_HException extends HException {}`
-	in Boot.php file.
-*)
-(* let custom_exceptions = Hashtbl.create 100 *)
-(*
-let get_exception_type_path (throwed_type:Type.t) =
-	match follow throwed_type with
-		| TEnum ({ e_path = path }, _) ->
-		| TInst ({ cl_path = path }, _) ->
-		| TFun _ -> (* dynamic *)
-		| TDynamic _ ->
-		| TAbstract ({ a_path = path }, _) ->
-		| _ -> assert false *)
-
-(**
 	Check if `target` is a `Dynamic` type
 *)
 let rec is_dynamic (target:Type.t) = match follow target with TDynamic _ -> true | _ -> false
@@ -92,6 +67,15 @@ let get_full_type_name (type_path:path) =
 		| (module_path, type_name) -> (String.concat "\\" ("" :: module_path)) ^ "\\" ^ type_name
 
 (**
+	Check if `target` is or extends native PHP `Extension` class
+*)
+let rec is_native_exception (target:Type.t) =
+	match follow target with
+		| TInst ({ cl_path = path }, _) -> path = native_exception_path
+		| TInst ({ cl_super = Some (parent, params) }, _) -> is_native_exception (TInst (parent, params))
+		| _ -> false
+
+(**
 	@return Short type name. E.g. returns "Test" for (["example"], "Test")
 *)
 let get_type_name (type_path:path) = match type_path with (_, type_name) -> type_name
@@ -100,28 +84,6 @@ let get_type_name (type_path:path) = match type_path with (_, type_name) -> type
 	@return E.g. returns ["example"] for (["example"], "Test")
 *)
 let get_module_path (type_path:path) = match type_path with (module_path, _) -> module_path
-
-(**
-	Extract native type path from @:native metadata (if exists)
-*)
-let get_native_path (meta:metadata) =
-	try
-		let entry = Meta.get Meta.Native meta in
-		match entry with
-			| (Native, [(EConst (String str_path), _)], _) ->
-				let build_path parts =
-					let reversed = List.rev parts in
-					Some (List.rev (List.tl reversed), List.hd reversed)
-				in
-				(match Str.split (Str.regexp "\\") (String.trim str_path) with
-					| "" :: [] -> failwith ("Invalid @:native value: " ^ str_path)
-					| "" :: parts -> build_path parts
-					| parts -> build_path parts
-				)
-			| _ -> failwith "Invalid @:native meta"
-	with
-		| Not_found -> None
-		| e -> raise e
 
 (**
 	@return PHP visibility keyword.
@@ -196,11 +158,8 @@ type doc_type =
 (**
 	Common interface for module_type instances
 *)
-class virtual type_wrapper (haxe_path:path) (meta:metadata) (needs_generation:bool) =
+class virtual type_wrapper (type_path:path) (meta:metadata) (needs_generation:bool) =
 	object (self)
-		val mutable allow_private_calls = false
-		val mutable allow_private_vars = false
-		val mutable native_path = None
 		(**
 			Indicates if this type should be rendered to corresponding php file
 		*)
@@ -210,39 +169,17 @@ class virtual type_wrapper (haxe_path:path) (meta:metadata) (needs_generation:bo
 		*)
 		method virtual needs_initialization : bool
 		(**
-			Indicates if third party types call private methods of this type
+			Namespace path. E.g. ["some"; "pack"] for "some.pack.MyType"
 		*)
-		method allows_private_calls = allow_private_calls;
+		method get_namespace = get_module_path type_path
 		(**
-			Indicates if third party types access private vars of this type
+			Short type name. E.g. `SomeType` for `pack.SomeType`
 		*)
-		method allows_private_vars_access = allow_private_vars;
+		method get_name = get_type_name type_path
 		(**
-			Makes this class type private methods accessible by third party types
+			Full type path
 		*)
-		method enable_private_calls = allow_private_calls <- true;
-		(**
-			Makes this class type private variables accessible by third party types
-		*)
-		method enable_private_vars_access = allow_private_vars <- true;
-		(**
-			Native namespace path in PHP
-		*)
-		method get_namespace = get_module_path self#get_native_path
-		(**
-			Native type path in PHP
-		*)
-		method get_native_path =
-			match native_path with
-				| Some path -> path
-				| None ->
-					let path =
-						match (get_native_path meta) with
-							| Some path -> path
-							| None -> haxe_path
-					in
-					native_path <- Some path;
-					path
+		method get_type_path = type_path
 	end
 
 (**
@@ -409,7 +346,7 @@ class virtual type_builder ctx wrapper =
 		(**
 			Get type name
 		*)
-		method get_name = get_type_name wrapper#get_native_path
+		method get_name : string = wrapper#get_name
 		(**
 			Writes type declaration line to output buffer.
 			E.g. "class SomeClass extends Another implements IFace"
@@ -449,15 +386,10 @@ class virtual type_builder ctx wrapper =
 				self#write_line "{"; (** opening bracket for a class *)
 				self#write_body;
 				if wrapper#needs_initialization then self#write_hx_init;
-				if wrapper#allows_private_calls then self#write_hx_call_protected;
-				if wrapper#allows_private_vars_access then begin
-					self#write_hx_get_protected;
-					self#write_hx_set_protected
-				end;
 				self#indent 0;
 				self#write_line "}"; (** closing bracket for a class *)
 				if wrapper#needs_initialization then begin
-					let qualified_name = get_full_type_name wrapper#get_native_path in
+					let qualified_name = get_full_type_name wrapper#get_type_path in
 					self#write_empty_lines;
 					self#write_statement (qualified_name ^ "::__hx__init()")
 				end;
@@ -679,7 +611,7 @@ class virtual type_builder ctx wrapper =
 				| TArray (target, index) -> self#write_expr_array_access target index pos
 				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2 pos
 				| TField (expr, access) -> self#write_expr_field expr access pos
-				| TTypeExpr mtype -> self#write (self#use (get_wrapper mtype)#get_native_path)
+				| TTypeExpr mtype -> self#write (self#use (get_wrapper mtype)#get_type_path)
 				| TParenthesis expr ->
 					self#write "(";
 					self#write_expr expr;
@@ -720,79 +652,11 @@ class virtual type_builder ctx wrapper =
 			self#write_line "static public function __hx__init ()";
 			self#write_line "{";
 			self#indent_more;
+			self#write_statement "static $called = false";
+			self#write_statement "if ($called) return";
+			self#write_statement "$called = true";
+			self#write "\n";
 			self#write_hx_init_body;
-			self#indent 1;
-			self#write_line "}"
-		(**
-			Writes special method which allows other types to call protected methods of this type.
-		*)
-		method private write_hx_call_protected =
-			self#write_empty_lines;
-			self#indent 1;
-			self#write_line "/**";
-			self#write_line " * @internal";
-			self#write_line " * @access protected";
-			self#write_line " */";
-			self#write_line "public function __hx__call_protected ($method, ...$args)";
-			self#write_line "{";
-			self#indent_more;
-			self#write_line "if (isset($this)) {";
-			self#indent_more;
-			self#write_line "return call_user_func_array([$this, $method], $args);";
-			self#indent_less;
-			self#write_line "} else {";
-			self#indent_more;
-			self#write_line "return call_user_func_array([static::class, $method], $args);";
-			self#indent_less;
-			self#write_line "}";
-			self#indent 1;
-			self#write_line "}"
-		(**
-			Writes special method which allows other types to read protected vars of this type.
-		*)
-		method private write_hx_get_protected =
-			self#write_empty_lines;
-			self#indent 1;
-			self#write_line "/**";
-			self#write_line " * @internal";
-			self#write_line " * @access protected";
-			self#write_line " */";
-			self#write_line "public function __hx__get_protected ($property)";
-			self#write_line "{";
-			self#indent_more;
-			self#write_line "if (isset($this)) {";
-			self#indent_more;
-			self#write_line "return $this->$property;";
-			self#indent_less;
-			self#write_line "} else {";
-			self#indent_more;
-			self#write_line "return static::$$property;";
-			self#indent_less;
-			self#write_line "}";
-			self#indent 1;
-			self#write_line "}"
-		(**
-			Writes special method which allows other types to write protected vars of this type.
-		*)
-		method private write_hx_set_protected =
-			self#write_empty_lines;
-			self#indent 1;
-			self#write_line "/**";
-			self#write_line " * @internal";
-			self#write_line " * @access protected";
-			self#write_line " */";
-			self#write_line "public function __hx__set_protected ($property, $value)";
-			self#write_line "{";
-			self#indent_more;
-			self#write_line "if (isset($this)) {";
-			self#indent_more;
-			self#write_line "return $this->$property = $value;";
-			self#indent_less;
-			self#write_line "} else {";
-			self#indent_more;
-			self#write_line "return static::$$property = $value;";
-			self#indent_less;
-			self#write_line "}";
 			self#indent 1;
 			self#write_line "}"
 		(**
@@ -1274,10 +1138,6 @@ class class_builder ctx (cls:tclass) =
 					self#write ";\n"
 				end
 			in
-			self#write_statement "static $called = false";
-			self#write_statement "if ($called) return";
-			self#write_statement "$called = true";
-			self#write "\n";
 			PMap.iter write_var_initialization cls.cl_statics
 		(**
 			Writes single field to output buffer
