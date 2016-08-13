@@ -522,6 +522,19 @@ class virtual type_builder wrapper =
 			in
 			Hashtbl.iter write use_table
 		(**
+			Writes array item declaration to output buffer and appends ",\n"
+		*)
+		method private write_array_item ?key value_expr =
+			(match key with
+				| None ->
+					self#write_indentation;
+					self#write_expr value_expr;
+				| Some key_str ->
+					self#write (indentation  ^ "\"" ^ (String.escaped key_str) ^ "\" => ");
+					self#write_expr value_expr
+			);
+			self#write ",\n"
+		(**
 			Generates PHP docblock to output buffer.
 		*)
 		method private write_doc doc_block =
@@ -590,11 +603,13 @@ class virtual type_builder wrapper =
 				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2 expr.epos
 				| TField (expr, access) -> self#write_expr_field expr access expr.epos
 				(* | TTypeExpr of module_type *)
-				(* | TParenthesis of texpr *)
-
-				(* | TObjectDecl of (string * texpr) list *)
+				| TParenthesis expr ->
+					self#write "(";
+					self#write_expr expr;
+					self#write ")"
+				| TObjectDecl fields -> self#write_expr_object_declaration fields expr.epos
 				| TArrayDecl exprs -> self#write_expr_array_decl exprs expr.epos
-				(* | TCall of texpr * texpr list *)
+				| TCall (target, args) -> self#write_expr_call target args expr.epos
 				(* | TNew of tclass * tparams * texpr list *)
 				(* | TUnop of Ast.unop * Ast.unop_flag * texpr *)
 				(* | TFunction of tfunc *)
@@ -720,13 +735,7 @@ class virtual type_builder wrapper =
 		method private write_expr_array_decl exprs pos =
 			self#write "[\n";
 			self#indent_more;
-			List.iter
-				(fun expr ->
-					self#write_indentation;
-					self#write_expr expr;
-					self#write ",\n"
-				)
-				exprs;
+			List.iter (fun expr -> self#write_array_item expr) exprs;
 			self#indent_less;
 			self#write_indentation;
 			self#write "]"
@@ -845,6 +854,7 @@ class virtual type_builder wrapper =
 					self#write_expr expr1;
 					self#write " = ";
 					write_shiftRightUnsigned ()
+				| _ -> failwith (error_message pos "Binary operation is not implemented")
 		(**
 			Writes TField to output buffer
 		*)
@@ -866,6 +876,34 @@ class virtual type_builder wrapper =
 				(* | FClosure of (tclass * tparams) option * tclass_field (* None class = TAnon *) *)
 				(* | FEnum of tenum * tenum_field *)
 				| _ -> failwith (error_message pos ": Field access is not implemented")
+		(**
+			Write anonymous object declaration to output buffer
+		*)
+		method private write_expr_object_declaration fields pos =
+			self#write "(object)[\n";
+			self#indent_more;
+			let write_field (key, value) = self#write_array_item ~key:key value in
+			List.iter write_field fields;
+			self#indent_less;
+			self#write_indentation;
+			self#write "]"
+		(**
+			Writes TCall to output buffer
+		*)
+		method private write_expr_call target_expr arg_exprs pos =
+			self#write_expr target_expr;
+			self#write "(";
+			let rec write_next_arg exprs =
+				match exprs with
+					| [] -> ()
+					| [expr] -> self#write_expr expr
+					| expr :: rest ->
+						self#write_expr expr;
+						self#write ", ";
+						write_next_arg rest
+			in
+			write_next_arg arg_exprs;
+			self#write ")";
 	end
 
 (**

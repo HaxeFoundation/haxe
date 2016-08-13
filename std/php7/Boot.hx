@@ -30,17 +30,22 @@ package php7;
 class Boot {
 
 	/**
-		Performs `leftExpr >>> rightExpr` operation
+		Performs `left >>> right` operation
 	 */
-	public static function shiftRightUnsigned( leftExpr:Int, rightExpr:Int ) : Int
-	{
-		return (rightExpr == 0) ? leftExpr : (leftExpr >= 0) ? (leftExpr >> rightExpr) : (leftExpr >> rightExpr) & (0x7fffffff >> (rightExpr-1))
+	public static function shiftRightUnsigned( left:Int, right:Int ) : Int {
+		if (right == 0) {
+			return left;
+		} else if (left >= 0) {
+			return (left >> right);
+		} else {
+			return (left >> right) & (0x7fffffff >> (right - 1));
+		}
 	}
 
 	/**
-		Access properties of untyped things
+		Access fields of untyped things
 	 */
-	public static function dynamicPropertyAccess( target:Dynamic, field:String ) : Dynamic {
+	public static function dynamicFieldAccess( target:Dynamic, field:String ) : Dynamic {
 		if (field == 'length' && untyped __call__("is_string", target)) {
 			return untyped __call__("strlen", $target)
 		} else {
