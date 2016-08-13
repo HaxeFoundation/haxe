@@ -674,7 +674,7 @@ class virtual type_builder ctx wrapper =
 			self#write_line " * @internal";
 			self#write_line " * @access private";
 			self#write_line " */";
-			self#write_line "public function __hx__init ()";
+			self#write_line "static public function __hx__init ()";
 			self#write_line "{";
 			self#indent_more;
 			self#write_hx_init_body;
@@ -1083,6 +1083,10 @@ class class_builder ctx (cls:tclass) =
 					self#write ";\n"
 				end
 			in
+			self#write_statement "static $called = false";
+			self#write_statement "if ($called) return";
+			self#write_statement "$called = true";
+			self#write "\n";
 			PMap.iter write_var_initialization cls.cl_statics
 		(**
 			Writes single field to output buffer
