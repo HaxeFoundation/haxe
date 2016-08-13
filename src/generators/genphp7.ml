@@ -196,7 +196,12 @@ class virtual type_builder =
 				| TAnon _ -> failwith "TAnon not implemented"
 				| TDynamic _ -> "mixed"
 				| TLazy _ -> failwith "TLazy not implemented"
-				| TMono _ -> failwith "TMono not implemented"
+				| TMono mono ->
+					(
+						match !mono with
+							| None -> "mixed"
+							| Some t -> self#use_t t
+					)
 				| TType _ -> failwith "TType not implemented"
 				| TAbstract (abstr, _) ->
 					match abstr.a_path with
@@ -268,7 +273,49 @@ class virtual type_builder =
 			Writes expression to output buffer
 		*)
 		method private write_expr (expr:texpr) =
-			()
+			(match expr.eexpr with
+				| TConst const -> self#write_expr_const const
+				| _ -> ()
+				(* | TLocal of tvar *)
+				(* | TArray of texpr * texpr *)
+				(* | TBinop of Ast.binop * texpr * texpr *)
+				(* | TField of texpr * tfield_access *)
+				(* | TTypeExpr of module_type *)
+				(* | TParenthesis of texpr *)
+				(* | TObjectDecl of (string * texpr) list *)
+				(* | TArrayDecl of texpr list *)
+				(* | TCall of texpr * texpr list *)
+				(* | TNew of tclass * tparams * texpr list *)
+				(* | TUnop of Ast.unop * Ast.unop_flag * texpr *)
+				(* | TFunction of tfunc *)
+				(* | TVar of tvar * texpr option *)
+				(* | TBlock of texpr list *)
+				(* | TFor of tvar * texpr * texpr *)
+				(* | TIf of texpr * texpr * texpr option *)
+				(* | TWhile of texpr * texpr * Ast.while_flag *)
+				(* | TSwitch of texpr * (texpr list * texpr) list * texpr option *)
+				(* | TTry of texpr * (tvar * texpr) list *)
+				(* | TReturn of texpr option *)
+				(* | TBreak *)
+				(* | TContinue *)
+				(* | TThrow of texpr *)
+				(* | TCast of texpr * module_type option *)
+				(* | TMeta of metadata_entry * texpr *)
+				(* | TEnumParameter of texpr * tenum_field * int *)
+			);
+			self#write ";\n"
+		(**
+			Writes constant expression to output buffer
+		*)
+		method private write_expr_const const =
+			match const with
+				| TInt value -> self#write (Int32.to_string value)
+				| TFloat str -> self#write str
+				| TString str -> self#write ("\"" ^ (String.escaped str) ^ "\"")
+				| TBool value -> self#write (if value then "true" else "false")
+				| TNull -> self#write "null"
+				| TThis -> self#write "$this->"
+				| TSuper -> self#write "parent::"
 	end
 
 (**
@@ -315,27 +362,51 @@ class class_builder (cls:tclass) =
 			E.g. for "class SomeClass { <BODY> }" writes <BODY> part.
 		*)
 		method private write_body =
-			PMap.iter self#write_field cls.cl_fields
+			let write_method is_static field_name field =
+				match field.cf_kind with
+					| Var _ -> ()
+					| Method _ -> self#write_field field_name field is_static
+			and write_var is_static field_name field =
+				match field.cf_kind with
+					| Var _ -> self#write_field field_name field is_static
+					| Method _ -> ()
+			in
+			PMap.iter (write_var true) cls.cl_statics;
+			self#write "\n";
+			PMap.iter (write_var false) cls.cl_fields;
+			PMap.iter (write_method true) cls.cl_statics;
+			PMap.iter (write_method false) cls.cl_fields
 		(**
 			Writes single field to output buffer
 		*)
-		method private write_field field_name field =
+		method private write_field field_name field is_static =
 			match (field.cf_kind) with
-				| Var _ -> self#write_var field
-				| Method _ -> () (* Method of method -> self#write method *)
+				| Var _ -> self#write_var field is_static
+				| Method MethNormal -> self#write_method field is_static
+				| Method MethInline -> self#write_method field is_static
+				| Method MethDynamic -> self#write_method field is_static
+				| Method MethMacro -> ()
 		(**
 			Writes var-field to output buffer
 		*)
-		method private write_var field =
+		method private write_var field is_static =
 			self#indent 1;
 			self#write_doc (DocVar (self#use_t field.cf_type, field.cf_doc));
 			self#write_indentation;
-			self#write ("public " ^ field.cf_name);
+			if is_static then self#write "static ";
+			self#write ("public $" ^ field.cf_name);
 			match field.cf_expr with
 				| None -> self#write ";\n"
 				| Some expr ->
 					self#write " = ";
 					self#write_expr expr
+		(**
+			Writes method to output buffer
+		*)
+		method private write_method field is_static =
+			self#write "\n";
+			self#indent 1
+
 	end
 
 (**
