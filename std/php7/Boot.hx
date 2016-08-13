@@ -36,4 +36,26 @@ class Boot {
 	{
 		return (rightExpr == 0) ? leftExpr : (leftExpr >= 0) ? (leftExpr >> rightExpr) : (leftExpr >> rightExpr) & (0x7fffffff >> (rightExpr-1))
 	}
+
+	/**
+		Access properties of untyped things
+	 */
+	public static function dynamicPropertyAccess( target:Dynamic, field:String ) : Dynamic {
+		if (field == 'length' && untyped __call__("is_string", target)) {
+			return untyped __call__("strlen", $target)
+		} else {
+			return __php__("$target->$field");
+		}
+	}
 }
+
+
+/**
+	Implements Haxe's String interface for PHP
+ */
+class StringImpl
+{
+
+
+
+}//class StringImpl

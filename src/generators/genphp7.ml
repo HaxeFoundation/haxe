@@ -33,7 +33,15 @@ tclass = {
 
 *)
 
+(**
+	Resolve real type (bypass abstracts and typedefs)
+*)
 let follow = Abstract.follow_with_abstracts
+
+(**
+	@return Error message with position information
+*)
+let error_message pos message = (Lexer.get_error_pos (Printf.sprintf "%s:%d:") pos) ^ message
 
 (**
 	@return `opt` value or `default` if `opt` is None
@@ -576,22 +584,22 @@ class virtual type_builder wrapper =
 		*)
 		method private write_expr (expr:texpr) =
 			(match expr.eexpr with
-				| TConst const -> self#write_expr_const const
+				| TConst const -> self#write_expr_const const expr.epos
 				| TLocal var -> self#write ("$" ^ var.v_name)
-				| TArray (target, index) -> self#write_expr_array_access target index
+				| TArray (target, index) -> self#write_expr_array_access target index expr.epos
 				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2 expr.epos
-				(* | TField of texpr * tfield_access *)
+				| TField (expr, access) -> self#write_expr_field expr access expr.epos
 				(* | TTypeExpr of module_type *)
 				(* | TParenthesis of texpr *)
 
 				(* | TObjectDecl of (string * texpr) list *)
-				| TArrayDecl exprs -> self#write_expr_array_decl exprs
+				| TArrayDecl exprs -> self#write_expr_array_decl exprs expr.epos
 				(* | TCall of texpr * texpr list *)
 				(* | TNew of tclass * tparams * texpr list *)
 				(* | TUnop of Ast.unop * Ast.unop_flag * texpr *)
 				(* | TFunction of tfunc *)
 				(* | TVar of tvar * texpr option *)
-				| TBlock exprs -> self#write_expr_block exprs
+				| TBlock exprs -> self#write_expr_block exprs expr.epos
 				(* | TFor of tvar * texpr * texpr *)
 				(* | TIf of texpr * texpr * texpr option *)
 				(* | TWhile of texpr * texpr * Ast.while_flag *)
@@ -697,19 +705,19 @@ class virtual type_builder wrapper =
 		(**
 			Writes TConst to output buffer
 		*)
-		method private write_expr_const const =
+		method private write_expr_const const pos =
 			match const with
 				| TInt value -> self#write (Int32.to_string value)
 				| TFloat str -> self#write str
 				| TString str -> self#write ("\"" ^ (String.escaped str) ^ "\"")
 				| TBool value -> self#write (if value then "true" else "false")
 				| TNull -> self#write "null"
-				| TThis -> self#write "$this->"
-				| TSuper -> self#write "parent::"
+				| TThis -> self#write "$this"
+				| TSuper -> self#write "parent"
 		(**
 			Writes TArrayDecl to output buffer
 		*)
-		method private write_expr_array_decl exprs =
+		method private write_expr_array_decl exprs pos =
 			self#write "[\n";
 			self#indent_more;
 			List.iter
@@ -725,7 +733,7 @@ class virtual type_builder wrapper =
 		(**
 			Writes TArray to output buffer
 		*)
-		method private write_expr_array_access target index =
+		method private write_expr_array_access target index pos =
 			self#write_expr target;
 			self#write "[";
 			self#write_expr index;
@@ -733,13 +741,13 @@ class virtual type_builder wrapper =
 		(**
 			Writes TFunction to output buffer
 		*)
-		method private write_expr_function ?name func =
+		method private write_expr_function ?name func pos =
 			let write_arg arg =
 				match arg with
 					| ({ v_name = arg_name }, None) -> self#write ("$" ^ arg_name)
 					| ({ v_name = arg_name }, Some const) ->
 						self#write ("$" ^ arg_name ^ " = ");
-						self#write_expr_const const
+						self#write_expr_const const pos
 			in
 			let rec write_args args =
 				match args with
@@ -774,7 +782,7 @@ class virtual type_builder wrapper =
 		(**
 			Writes TBlock to output buffer
 		*)
-		method private write_expr_block exprs =
+		method private write_expr_block exprs pos =
 			self#write "{\n";
 			self#indent_more;
 			let write_expr expr =
@@ -797,48 +805,67 @@ class virtual type_builder wrapper =
 				self#write ", ";
 				self#write_expr expr2;
 				self#write ")"
+			and write_binop str =
+				self#write_expr expr1;
+				self#write str;
+				self#write_expr expr2;
 			in
 			match operation with
+				| OpAdd -> write_binop " + "
+				| OpMult -> write_binop " * "
+				| OpDiv -> write_binop " / "
+				| OpSub -> write_binop " - "
+				| OpAssign -> write_binop " = "
+				| OpEq -> write_binop " == "
+				| OpNotEq -> write_binop " != "
+				| OpGt -> write_binop " > "
+				| OpGte -> write_binop " >= "
+				| OpLt -> write_binop " < "
+				| OpLte -> write_binop " <= "
+				| OpAnd -> write_binop " & "
+				| OpOr -> write_binop " | "
+				| OpXor -> write_binop " ^ "
+				| OpBoolAnd -> write_binop " && "
+				| OpBoolOr -> write_binop " || "
+				| OpShl  -> write_binop " << "
+				| OpShr -> write_binop " >> "
+				| OpMod -> write_binop " % "
 				| OpUShr -> write_shiftRightUnsigned ()
+				| OpAssignOp OpAdd -> write_binop " += "
+				| OpAssignOp OpMult -> write_binop " *= "
+				| OpAssignOp OpDiv -> write_binop " /= "
+				| OpAssignOp OpSub -> write_binop " -= "
+				| OpAssignOp OpAnd -> write_binop " &= "
+				| OpAssignOp OpOr -> write_binop " |= "
+				| OpAssignOp OpXor -> write_binop " ^= "
+				| OpAssignOp OpShl  -> write_binop " <<= "
+				| OpAssignOp OpShr -> write_binop " >>= "
+				| OpAssignOp OpMod -> write_binop " % "
 				| OpAssignOp OpUShr ->
 					self#write_expr expr1;
 					self#write " = ";
 					write_shiftRightUnsigned ()
-				| _ ->
-					self#write_expr expr1;
-					(match operation with
-						| OpAdd -> self#write " + "
-						| OpMult -> self#write " * "
-						| OpDiv -> self#write " / "
-						| OpSub -> self#write " - "
-						| OpAssign -> self#write " = "
-						| OpEq -> self#write " == "
-						| OpNotEq -> self#write " != "
-						| OpGt -> self#write " > "
-						| OpGte -> self#write " >= "
-						| OpLt -> self#write " < "
-						| OpLte -> self#write " <= "
-						| OpAnd -> self#write " & "
-						| OpOr -> self#write " | "
-						| OpXor -> self#write " ^ "
-						| OpBoolAnd -> self#write " && "
-						| OpBoolOr -> self#write " || "
-						| OpShl  -> self#write " << "
-						| OpShr -> self#write " >> "
-						| OpMod -> self#write " % "
-						| OpAssignOp OpAdd -> self#write " += "
-						| OpAssignOp OpMult -> self#write " *= "
-						| OpAssignOp OpDiv -> self#write " /= "
-						| OpAssignOp OpSub -> self#write " -= "
-						| OpAssignOp OpAnd -> self#write " &= "
-						| OpAssignOp OpOr -> self#write " |= "
-						| OpAssignOp OpXor -> self#write " ^= "
-						| OpAssignOp OpShl  -> self#write " <<= "
-						| OpAssignOp OpShr -> self#write " >>= "
-						| OpAssignOp OpMod -> self#write " % "
-						| _ -> failwith ((Lexer.get_error_pos (Printf.sprintf "%s:%d:") pos) ^ ": Binary operation is not implemented")
-					);
-					self#write_expr expr2
+		(**
+			Writes TField to output buffer
+		*)
+		method private write_expr_field expr access pos =
+			let write_access fieldStr =
+				self#write_expr expr;
+				self#write fieldStr
+			in
+			match (expr.etype, access) with
+				| (TInst ({ cl_path = ([], "String") }, _), FInstance (_, _, { cf_name = "length" })) ->
+					self#write "strlen(";
+					self#write_expr expr;
+					self#write ")"
+				| (_, FInstance (_, _, { cf_name = name })) -> write_access ("->" ^ name)
+				| (_, FStatic (_, { cf_name = name; cf_kind = Var _ })) -> write_access ("::$" ^ name)
+				| (_, FStatic (_, { cf_name = name; cf_kind = Method _ })) -> write_access ("::" ^ name)
+				| (_, FAnon _) -> failwith (error_message pos ": FAnon is not implemented")
+				(* | FDynamic of string *)
+				(* | FClosure of (tclass * tparams) option * tclass_field (* None class = TAnon *) *)
+				(* | FEnum of tenum * tenum_field *)
+				| _ -> failwith (error_message pos ": Field access is not implemented")
 	end
 
 (**
@@ -978,9 +1005,9 @@ class class_builder (cls:tclass) =
 					write_args args;
 					self#write ")";
 					self#write " ;\n"
-				| Some { eexpr = TFunction fn } ->
+				| Some { eexpr = TFunction fn; epos = pos } ->
 					let name = if field.cf_name = "new" then "__construct" else field.cf_name in
-					self#write_expr_function ~name:name fn
+					self#write_expr_function ~name:name fn pos
 				| _ -> failwith ("invalid expression for method " ^ field.cf_name)
 	end
 
