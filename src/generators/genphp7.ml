@@ -883,7 +883,7 @@ class virtual type_builder ctx wrapper =
 					if (is_string expr1) then
 						write_binop " .= "
 					else
-						write_binop " + "
+						write_binop " += "
 				| OpAssignOp OpMult -> write_binop " *= "
 				| OpAssignOp OpDiv -> write_binop " /= "
 				| OpAssignOp OpSub -> write_binop " -= "
@@ -892,7 +892,7 @@ class virtual type_builder ctx wrapper =
 				| OpAssignOp OpXor -> write_binop " ^= "
 				| OpAssignOp OpShl  -> write_binop " <<= "
 				| OpAssignOp OpShr -> write_binop " >>= "
-				| OpAssignOp OpMod -> write_binop " % "
+				| OpAssignOp OpMod -> write_binop " %= "
 				| OpAssignOp OpUShr ->
 					self#write_expr expr1;
 					self#write " = ";
@@ -1152,7 +1152,8 @@ class class_builder ctx (cls:tclass) =
 					self#write " ;\n"
 				| Some { eexpr = TFunction fn; epos = pos } ->
 					let name = if field.cf_name = "new" then "__construct" else field.cf_name in
-					self#write_expr_function ~name:name fn pos
+					self#write_expr_function ~name:name fn pos;
+					self#write "\n"
 				| _ -> failwith ("invalid expression for method " ^ field.cf_name)
 	end
 
