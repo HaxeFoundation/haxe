@@ -105,6 +105,19 @@ let get_native_path (meta:metadata) =
 let get_visibility (meta:metadata) = if Meta.has Meta.Protected meta then "protected" else "public"
 
 (**
+	Check if specified field is a var with non-constant expression
+*)
+let is_var_with_nonconstant_expr (field:tclass_field) =
+	match field.cf_kind with
+		| Var _ ->
+			(match field.cf_expr with
+				| None -> false
+				| Some ({eexpr = TConst _ }) -> false
+				| Some _ -> true
+			)
+		| Method _ -> false
+
+(**
 	PHP DocBlock types
 *)
 type doc_type =
@@ -124,6 +137,10 @@ class virtual type_wrapper (haxe_path:path) (meta:metadata) (needs_generation:bo
 			Indicates if this type should be rendered to corresponding php file
 		*)
 		method needs_generation = needs_generation
+		(**
+			Indicates if class initialization method should be executed upon class loaded
+		*)
+		method virtual needs_initialization : bool
 		(**
 			Indicates if third party types call private methods of this type
 		*)
@@ -166,6 +183,18 @@ class virtual type_wrapper (haxe_path:path) (meta:metadata) (needs_generation:bo
 class class_wrapper (cls) =
 	object (self)
 		inherit type_wrapper cls.cl_path cls.cl_meta (not cls.cl_extern)
+		(**
+			Indicates if class initialization method should be executed upon class loaded
+		*)
+		method needs_initialization =
+			let needs = ref false in
+			PMap.iter
+				(fun _ field ->
+					if not !needs then
+						needs := is_var_with_nonconstant_expr field
+				)
+				cls.cl_statics;
+			!needs
 	end
 
 (**
@@ -174,6 +203,10 @@ class class_wrapper (cls) =
 class enum_wrapper (enm) =
 	object (self)
 		inherit type_wrapper enm.e_path enm.e_meta (not enm.e_extern)
+		(**
+			Indicates if class initialization method should be executed upon class loaded
+		*)
+		method needs_initialization = false
 	end
 
 (**
@@ -182,6 +215,10 @@ class enum_wrapper (enm) =
 class typedef_wrapper (tdef) =
 	object (self)
 		inherit type_wrapper tdef.t_path tdef.t_meta false
+		(**
+			Indicates if class initialization method should be executed upon class loaded
+		*)
+		method needs_initialization = false
 	end
 
 (**
@@ -190,6 +227,10 @@ class typedef_wrapper (tdef) =
 class abstract_wrapper (abstr) =
 	object (self)
 		inherit type_wrapper abstr.a_path abstr.a_meta false
+		(**
+			Indicates if class initialization method should be executed upon class loaded
+		*)
+		method needs_initialization = false
 	end
 
 (**
@@ -286,6 +327,7 @@ class virtual type_builder wrapper =
 			Get type name
 		*)
 		method get_name = get_type_name wrapper#get_native_path
+
 		(**
 			Writes type declaration line to output buffer.
 			E.g. "class SomeClass extends Another implements IFace"
@@ -296,6 +338,10 @@ class virtual type_builder wrapper =
 			E.g. for "class SomeClass { <BODY> }" writes <BODY> part.
 		*)
 		method virtual private write_body : unit
+		(**
+			Writes expressions for `__hx__init` method
+		*)
+		method virtual private write_hx_init_body : unit
 		(**
 			Increase indentation by one level
 		*)
@@ -318,10 +364,21 @@ class virtual type_builder wrapper =
 			if (String.length contents) = 0 then begin
 				self#write_declaration;
 				self#indent 0;
-				self#write_line "{";
+				self#write_line "{"; (** opening bracket for a class *)
 				self#write_body;
+				if wrapper#needs_initialization then self#write_hx_init;
+				if wrapper#allows_private_calls then self#write_hx_call_protected;
+				if wrapper#allows_private_vars_access then begin
+					self#write_hx_get_protected;
+					self#write_hx_set_protected
+				end;
 				self#indent 0;
-				self#write_line "}";
+				self#write_line "}"; (** closing bracket for a class *)
+				if wrapper#needs_initialization then begin
+					let qualified_name = get_full_type_name wrapper#get_native_path in
+					self#write_empty_lines;
+					self#write_statement (qualified_name ^ "::__hx__init()")
+				end;
 				let body = Buffer.contents buffer in
 				Buffer.clear buffer;
 				self#write_header;
@@ -535,6 +592,22 @@ class virtual type_builder wrapper =
 				| _ -> ()
 			);
 		(**
+			Writes type initialization method.
+		*)
+		method private write_hx_init =
+			self#write_empty_lines;
+			self#indent 1;
+			self#write_line "/**";
+			self#write_line " * @internal";
+			self#write_line " * @access private";
+			self#write_line " */";
+			self#write_line "public function __hx__init ()";
+			self#write_line "{";
+			self#indent_more;
+			self#write_hx_init_body;
+			self#indent 1;
+			self#write_line "}"
+		(**
 			Writes special method which allows other types to call protected methods of this type.
 		*)
 		method private write_hx_call_protected =
@@ -739,12 +812,23 @@ class class_builder (cls:tclass) =
 			(* Constructor *)
 			(match cls.cl_constructor with None -> () | Some field -> self#write_field false field);
 			(* Instance methods *)
-			PMap.iter (write_if_method false) cls.cl_fields;
-			if wrapper#allows_private_calls then self#write_hx_call_protected;
-			if wrapper#allows_private_vars_access then begin
-				self#write_hx_get_protected;
-				self#write_hx_set_protected
-			end
+			PMap.iter (write_if_method false) cls.cl_fields
+		(**
+			Writes expressions for `__hx__init` method
+		*)
+		method private write_hx_init_body =
+			let write_var_initialization _ field =
+				if is_var_with_nonconstant_expr field then begin
+					self#write_indentation;
+					self#write ("self::$" ^ field.cf_name ^ " = ");
+					(match field.cf_expr with
+						| None -> ()
+						| Some expr -> self#write_expr expr
+					);
+					self#write ";\n"
+				end
+			in
+			PMap.iter write_var_initialization cls.cl_statics
 		(**
 			Writes single field to output buffer
 		*)
@@ -768,9 +852,12 @@ class class_builder (cls:tclass) =
 			match field.cf_expr with
 				| None -> self#write ";\n"
 				| Some expr ->
-					self#write " = ";
-					self#write_expr expr;
-					self#write ";\n"
+					match expr with
+						| { eexpr = TConst _ } ->
+							self#write " = ";
+							self#write_expr expr;
+							self#write ";\n"
+						| _ -> self#write ";\n"
 		(**
 			Writes method to output buffer
 		*)
