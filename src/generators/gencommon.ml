@@ -8559,6 +8559,9 @@ struct
 
 		dependencies:
 			Must run before Dynamic fields access is run
+
+		TODO: I think TFor is always rewritten to TWhile before getting into the generator nowadays,
+		so this filter could probably be removed. Gotta ask Simon about it.
 	*)
 	module IteratorsInterfaceExprf =
 	struct
