@@ -179,6 +179,22 @@ let is_string expr =
 		| _ -> false
 
 (**
+	Indicates if `expr` is actually a call to Haxe->PHP magic function
+	@see http://old.haxe.org/doc/advanced/magic#php-magic
+*)
+let is_magic expr =
+	match expr.eexpr with
+	| TCall ({ eexpr = TLocal { v_name = name }}, _) ->
+		(match name with
+			| "__php__" -> true
+			| "__call__" -> true
+			| "__physeq__" -> true
+			| "__var__" -> true
+			| _ -> false
+		)
+	| _ -> false
+
+(**
 	PHP DocBlock types
 *)
 type doc_type =
@@ -671,6 +687,7 @@ class virtual type_builder ctx wrapper =
 					self#write ")"
 				| TObjectDecl fields -> self#write_expr_object_declaration fields pos
 				| TArrayDecl exprs -> self#write_expr_array_decl exprs pos
+				| TCall ({ eexpr = TLocal { v_name = name }}, args) when is_magic expr -> self#write_expr_magic name args pos
 				| TCall (target, args) -> self#write_expr_call target args pos
 				| TNew (tcls, _, args) -> self#write_expr_new tcls args pos
 				| TUnop (operation, flag, expr) -> self#write_expr_unop operation flag expr pos
@@ -919,12 +936,54 @@ class virtual type_builder ctx wrapper =
 			match mtype with
 				| None -> self#write_expr expr
 				| Some mtype ->
-					let wrapper = get_wrapper mtype in
-					let type_name = self#use wrapper#get_type_path in
 					self#write_expr_type mtype pos;
 					self#write "->typedCast(";
 					self#write_expr expr;
 					self#write ")"
+		(**
+			Write Haxe->PHP magic function call
+			@see http://old.haxe.org/doc/advanced/magic#php-magic
+		*)
+		method private write_expr_magic name args pos =
+			let error = error_message pos ("Invalid arguments for " ^ name ^ " magic call") in
+			match args with
+				| [] -> failwith error
+				| { eexpr = TConst (TString code) } as expr :: args ->
+					(match name with
+						| "__php__" ->
+							(match args with
+								| [] -> self#write code
+								| _ -> failwith error
+							)
+						| "__call__" ->
+							self#write (code ^ "(");
+							write_args buffer self#write_expr args;
+							self#write ")"
+						| "__physeq__" ->
+							(match args with
+								| [expr2] -> self#write_expr_binop OpEq expr expr2 pos
+								| _ -> failwith error
+							)
+						| "__var__" ->
+							(match args with
+								| [expr2] ->
+									self#write ("$" ^ code ^ "[");
+									self#write_expr expr2;
+									self#write "]"
+								| _ -> failwith error
+							)
+						| _ -> failwith error
+					)
+				| [expr1; expr2] ->
+					(match name with
+						| "__physeq__" ->
+							(match args with
+								| [expr1; expr2] -> self#write_expr_binop OpEq expr1 expr2 pos
+								| _ -> failwith error
+							)
+						| _ -> failwith error
+					)
+				| _ -> failwith error
 		(**
 			Writes TTypeExpr to output buffer
 		*)

@@ -106,29 +106,33 @@ private class HxClass {
 		@throws HException if `value` cannot be casted to this type
 	*/
 	public function tryCast( value:Dynamic ) : Dynamic {
+		inline function isNumber( value ) {
+			return untyped __call__("is_int", value) || untyped __call__("is_float", value);
+		}
+
 		switch (phpClassName) {
 			case '\\Int':
-				if (untyped __php__("is_int($value) || is_float($value)")) {
+				if (isNumber(value)) {
 					return untyped __php__("(int)$value");
 				}
 			case '\\Float':
-				if (untyped __php__("is_int($value) || is_float($value)")) {
+				if (isNumber(value)) {
 					return untyped __php__("(float)$value");
 				}
 			case '\\Bool':
-				if (untyped __php__("is_bool($value)")) {
+				if (untyped __call__("is_bool", value)) {
 					return value;
 				}
 			case '\\String':
-				if (untyped __php__("is_string($value)")) {
+				if (untyped __call__("is_string", value)) {
 					return value;
 				}
 			case '\\php7\\NativeArray':
-				if (untyped __php__("is_array($value)")) {
+				if (untyped __call__("is_array", value)) {
 					return value;
 				}
 			case _:
-				if (untyped __php__("is_object($value) && $value instanceof $this->phpClassName")) {
+				if (untyped __call__("is_object", value) && Std.is(value, cast this)) {
 					return value;
 				}
 		}
