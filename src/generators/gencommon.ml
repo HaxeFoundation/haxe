@@ -2155,9 +2155,9 @@ struct
 	let configure gen ?(handle_strings = true) (should_change:texpr->bool) (equals_handler:texpr->texpr->texpr) (dyn_plus_handler:texpr->texpr->texpr->texpr) (compare_handler:texpr->texpr->texpr) =
 		let get_etype_one e =
 			if like_int e.etype then
-				(gen.gcon.basic.tint, { eexpr = TConst(TInt(Int32.one)); etype = gen.gcon.basic.tint; epos = e.epos })
+				ExprBuilder.make_int gen.gcon 1 e.epos
 			else
-				(gen.gcon.basic.tfloat, { eexpr = TConst(TFloat("1.0")); etype = gen.gcon.basic.tfloat; epos = e.epos })
+				ExprBuilder.make_float gen.gcon "1.0" e.epos
 		in
 
 		let basic = gen.gcon.basic in
@@ -2205,7 +2205,7 @@ struct
 						| OpGt | OpGte | OpLt | OpLte  -> (* type 2 *)
 							{ eexpr = TBinop(op, compare_handler (run e1) (run e2), { eexpr = TConst(TInt(Int32.zero)); etype = gen.gcon.basic.tint; epos = e.epos} ); etype = gen.gcon.basic.tbool; epos = e.epos }
 						| OpMult | OpDiv | OpSub | OpMod -> (* always cast everything to double *)
-							let etype, _ = get_etype_one e in
+							let etype = (get_etype_one e).etype in
 							{ e with eexpr = TBinop(op, mk_cast etype (run e1), mk_cast etype (run e2)) }
 						| OpBoolAnd | OpBoolOr ->
 							{ e with eexpr = TBinop(op, mk_cast gen.gcon.basic.tbool (run e1), mk_cast gen.gcon.basic.tbool (run e2)) }
@@ -2225,7 +2225,8 @@ struct
 							- if Prefix, return getvar = getvar + 1.0
 							- if Postfix, set ret = getvar; getvar = getvar + 1.0; ret;
 					*)
-					let etype, one = get_etype_one e in
+					let one = get_etype_one e in
+					let etype = one.etype in
 					let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false) in
 
 					let var, getvar =
