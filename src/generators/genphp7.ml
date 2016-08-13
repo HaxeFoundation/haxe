@@ -4,6 +4,7 @@ open Type
 open Common
 open Meta
 
+let debug = ref false
 
 (**
 	Resolve real type (bypass abstracts and typedefs)
@@ -133,9 +134,17 @@ let inject_defaults ctx (func:tfunc) =
 	in
 	{
 		eexpr = TBlock exprs;
-		etype = func.tf_expr.etype;
+		etype = follow func.tf_expr.etype;
 		epos  = func.tf_expr.epos;
 	}
+
+(**
+	Check if specified expression is of String type
+*)
+let is_string expr =
+	match follow expr.etype with
+		| TInst ({ cl_path = ([], "String") }, _) -> true
+		| _ -> false
 
 (**
 	PHP DocBlock types
@@ -830,7 +839,11 @@ class virtual type_builder ctx wrapper =
 				self#write_expr expr2;
 			in
 			match operation with
-				| OpAdd -> write_binop " + "
+				| OpAdd ->
+					if (is_string expr1) or (is_string expr2) then
+						write_binop " . "
+					else
+						write_binop " + "
 				| OpMult -> write_binop " * "
 				| OpDiv -> write_binop " / "
 				| OpSub -> write_binop " - "
@@ -850,7 +863,11 @@ class virtual type_builder ctx wrapper =
 				| OpShr -> write_binop " >> "
 				| OpMod -> write_binop " % "
 				| OpUShr -> write_shiftRightUnsigned ()
-				| OpAssignOp OpAdd -> write_binop " += "
+				| OpAssignOp OpAdd ->
+					if (is_string expr1) then
+						write_binop " .= "
+					else
+						write_binop " + "
 				| OpAssignOp OpMult -> write_binop " *= "
 				| OpAssignOp OpDiv -> write_binop " /= "
 				| OpAssignOp OpSub -> write_binop " -= "
@@ -873,7 +890,7 @@ class virtual type_builder ctx wrapper =
 				self#write_expr expr;
 				self#write fieldStr
 			in
-			match (expr.etype, access) with
+			match (follow expr.etype, access) with
 				| (TInst ({ cl_path = ([], "String") }, _), FInstance (_, _, { cf_name = "length" })) ->
 					self#write "strlen(";
 					self#write_expr expr;
