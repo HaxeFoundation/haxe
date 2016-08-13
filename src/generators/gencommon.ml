@@ -75,12 +75,9 @@ let rec like_int t =
 
 let rec like_i64 t =
 	match follow t with
-		| TInst({ cl_path = (["cs"], "Int64") },[])
 		| TAbstract({ a_path = (["cs"], "Int64") },[])
-		| TInst({ cl_path = (["cs"], "UInt64") },[])
-		| TInst({ cl_path = (["java"], "Int64") },[])
+		| TAbstract({ a_path = (["cs"], "UInt64") },[])
 		| TAbstract({ a_path = (["java"], "Int64") },[])
-		| TInst({ cl_path = (["haxe"], "Int64") },[])
 		| TAbstract({ a_path = (["haxe"], "Int64") },[]) -> true
 		| TAbstract(a, _) -> List.exists (fun t -> like_i64 t) a.a_from || List.exists (fun t -> like_i64 t) a.a_to
 		| _ -> false
