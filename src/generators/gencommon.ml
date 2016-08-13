@@ -7739,9 +7739,8 @@ struct
 		let t = TFun(fun_args tf_args, basic.tvoid) in
 		let cf = mk_class_field name t false pos (Method MethNormal) [] in
 
-		let mk_push value =
-			{ eexpr = TCall({ (mk_field_access gen base_arr "push" pos) with etype = TFun(["x", false, basic.tstring], basic.tint); }, [value] ); etype = basic.tint; epos = pos }
-		in
+		let e_pushfield = mk_field_access gen base_arr "push" pos in
+		let mk_push value = mk (TCall (e_pushfield, [value])) basic.tint pos in
 
 		let has_value = ref false in
 		let map_fields =
@@ -7873,8 +7872,6 @@ struct
 		let dyn_fun = mk_class_field (ctx.rcf_gen.gmk_internal_name "hx" "invokeField") fun_t false cl.cl_pos (Method MethNormal) [] in
 
 		let mk_switch_dyn cfs old =
-			(* mk_class_field name t public pos kind params = *)
-
 			let get_case (names,cf) =
 				has_method := true;
 				let i = ref 0 in
