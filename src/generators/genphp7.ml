@@ -499,11 +499,12 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private parent_expr_is_block =
 			match expr_hierarchy with
-				| _ :: [] -> true
+				| _ :: [] -> false
 				| _ :: { eexpr = TBlock _ } :: _ -> true
 				| _ :: { eexpr = TIf _ } :: _ -> true
 				| _ :: { eexpr = TTry _ } :: _ -> true
 				| _ :: { eexpr = TWhile _ } :: _ -> true
+				| _ :: { eexpr = TSwitch _ } :: _ -> true
 				| _ -> false
 		(**
 			Writes specified string to output buffer
@@ -649,11 +650,11 @@ class virtual type_builder ctx wrapper =
 				(* | TUnop of Ast.unop * Ast.unop_flag * texpr *)
 				| TFunction fn -> self#write_expr_function fn pos
 				| TVar (var, expr) -> self#write_expr_var var expr pos
-				| TBlock exprs -> self#write_expr_block exprs pos
+				| TBlock exprs -> self#write_expr_block expr pos
 				| TFor (var, iterator, body) -> assert false
 				| TIf (condition, if_expr, else_expr) -> self#write_expr_if condition if_expr else_expr pos
 				| TWhile (condition, expr, do_while) -> self#write_expr_while condition expr do_while pos
-				(* | TSwitch of texpr * (texpr list * texpr) list * texpr option *)
+				| TSwitch (switch, cases, default ) -> self#write_expr_switch switch cases default pos
 				(* | TTry of texpr * (tvar * texpr) list *)
 				| TReturn expr -> self#write_expr_return expr pos
 				| TBreak -> self#write "break"
@@ -826,20 +827,45 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes TBlock to output buffer
 		*)
-		method private write_expr_block exprs pos =
-			self#write "{\n";
-			self#indent_more;
-			let write_expr expr =
-				self#write_indentation;
-				self#write_expr expr;
-				match expr.eexpr with
-					| TBlock _ | TIf _ | TTry _ -> self#write "\n"
-					| _ -> self#write ";\n"
+		method private write_expr_block block_expr pos =
+			let inline_block = self#parent_expr_is_block in
+			self#write_as_block ~inline:inline_block block_expr pos
+		(**
+			Writes "{ <expressions> }" to output buffer
+		*)
+		method private write_as_block ?inline expr pos =
+			let exprs = match expr.eexpr with TBlock exprs -> exprs | _ -> [expr] in
+			let write_body () =
+				let write_expr expr =
+					self#write_expr expr;
+					match expr.eexpr with
+						| TBlock _ | TIf _ | TTry _ | TSwitch _ -> self#write "\n"
+						| _ -> self#write ";\n"
+				in
+				let write_expr_with_indent expr =
+					self#write_indentation;
+					write_expr expr
+				in
+				match exprs with
+					| [] -> ()
+					| first :: rest ->
+						write_expr first; (* write first expression without indentation in case of block inlining *)
+						List.iter write_expr_with_indent rest
 			in
-			List.iter write_expr exprs;
-			self#indent_less;
-			self#write_indentation;
-			self#write "}"
+			match inline with
+				| Some true -> write_body ()
+				| _ ->
+					self#write "{\n";
+					self#indent_more;
+					(match exprs with
+						| [] -> ()
+						| _ ->
+							self#write_indentation; (* indentation for the first expression in block *)
+							write_body ()
+					);
+					self#indent_less;
+					self#write_indentation;
+					self#write "}"
 		(**
 			Writes TReturn to output buffer
 		*)
@@ -965,6 +991,18 @@ class virtual type_builder ctx wrapper =
 			write_args buffer self#write_expr args;
 			self#write ")"
 		(**
+			Writes ternary operator expressions to output buffer
+		*)
+		method private write_expr_ternary condition if_expr (else_expr:texpr) pos =
+			(match condition.eexpr with
+				| TParenthesis expr -> self#write_expr expr;
+				| _ -> self#write_expr else_expr
+			);
+			self#write " ? ";
+			self#write_expr if_expr;
+			self#write " : ";
+			self#write_expr else_expr
+		(**
 			Writes "if...else..." expression to output buffer
 		*)
 		method private write_expr_if condition if_expr (else_expr:texpr option) pos =
@@ -982,54 +1020,69 @@ class virtual type_builder ctx wrapper =
 					| Some expr ->
 						self#write_expr_ternary condition if_expr expr pos
 			else begin
-				let write_block expr =
-					match expr.eexpr with
-					| TBlock exprs -> self#write_expr_block exprs pos
-					| _ -> self#write_expr_block [expr] pos
-				in
 				self#write "if ";
 				self#write_expr condition;
 				self#write " ";
-				write_block if_expr;
+				self#write_as_block if_expr pos;
 				(match else_expr with
 					| None -> ()
 					| Some expr ->
 						self#write " else ";
-						write_block expr
+						self#write_as_block expr pos
 				)
 			end
 		(**
 			Writes TWhile ("while..." or "do...while") to output buffer
 		*)
 		method private write_expr_while condition expr do_while pos =
-			let write_expr () =
-				self#write " ";
-				match expr.eexpr with
-					| TBlock exprs -> self#write_expr_block exprs pos
-					| _ -> self#write_expr_block [expr] pos
-			in
 			match do_while with
 				| NormalWhile ->
 					self#write "while ";
 					self#write_expr condition;
-					write_expr ()
+					self#write " ";
+					self#write_as_block expr pos
 				| DoWhile ->
 					self#write "do ";
-					write_expr;
+					self#write_as_block expr pos;
 					self#write " while ";
 					self#write_expr condition
 		(**
-			Writes ternary operator expressions to output buffer
+			Writes TSwitch to output buffer
 		*)
-		method private write_expr_ternary condition if_expr (else_expr:texpr) pos =
-			(match condition.eexpr with
-				| TParenthesis expr -> self#write_expr expr;
-				| _ -> self#write_expr else_expr
+		method private write_expr_switch switch cases default pos =
+			let write_case (conditions, expr) =
+				List.iter
+					(fun condition ->
+						self#write_indentation;
+						self#write "case ";
+						self#write_expr condition;
+						self#write ":\n";
+					)
+					conditions;
+				self#indent_more;
+				self#write_indentation;
+				self#write_as_block ~inline:true expr pos;
+				self#write_statement "break";
+				self#indent_less
+			in
+			self#write "switch ";
+			self#write_expr switch;
+			self#write " {\n";
+			self#indent_more;
+			List.iter write_case cases;
+			(match default with
+				| None -> ()
+				| Some expr ->
+					self#write_line "default:";
+					self#indent_more;
+					self#write_indentation;
+					self#write_as_block ~inline:true expr pos;
+					self#write_statement "break";
+					self#indent_less
 			);
-			self#write " ? ";
-			self#write_expr if_expr;
-			self#write " : ";
-			self#write_expr else_expr
+			self#indent_less;
+			self#write_indentation;
+			self#write "}"
 	end
 
 (**
