@@ -66,6 +66,14 @@ let is_sure_scalar (target:Type.t) =
 		| _ -> false
 
 (**
+	Check if specified enum constructor has arguments
+*)
+let is_enum_constructor_with_args (constructor:tenum_field) =
+	match follow constructor.ef_type with
+		| TFun _ -> true
+		| _ -> false
+
+(**
 	Check if `target` is 100% guaranteed to be or extend an extern class.
 	Inversion of `sure_extends_extern` does not guarantee `target` does not extend an extern class.
 *)
@@ -1122,7 +1130,9 @@ class virtual type_builder ctx wrapper =
 				| (_, FAnon _) -> fail self#pos __POS__
 				(* | FDynamic of string *)
 				(* | FClosure of (tclass * tparams) option * tclass_field (* None class = TAnon *) *)
-				(* | FEnum of tenum * tenum_field *)
+				| (_, FEnum (_, field)) ->
+					write_access ("::" ^ field.ef_name);
+					if not (is_enum_constructor_with_args field) then self#write "()"
 				| _ -> fail self#pos __POS__
 		(**
 			Write anonymous object declaration to output buffer
