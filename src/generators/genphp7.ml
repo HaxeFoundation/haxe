@@ -1127,7 +1127,7 @@ class virtual type_builder ctx wrapper =
 				| (_, FInstance (_, _, { cf_name = name })) -> write_access ("->" ^ name)
 				| (_, FStatic (_, { cf_name = name; cf_kind = Var _ })) -> write_access ("::$" ^ name)
 				| (_, FStatic (_, { cf_name = name; cf_kind = Method _ })) -> write_access ("::" ^ name)
-				| (_, FAnon _) -> fail self#pos __POS__
+				| (_, FAnon { cf_name = name }) -> write_access ("->" ^ name)
 				(* | FDynamic of string *)
 				(* | FClosure of (tclass * tparams) option * tclass_field (* None class = TAnon *) *)
 				| (_, FEnum (_, field)) ->
