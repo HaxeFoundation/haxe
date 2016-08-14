@@ -493,33 +493,38 @@ class virtual type_builder ctx wrapper =
 			@return Unique alias for specified type.
 		*)
 		method use (type_path:path) =
-			let module_path = get_module_path type_path in
-			match type_path with
-				| ([], type_name) -> "\\" ^ type_name
-				| _ ->
-					let alias_source = ref (List.rev module_path) in
-					let get_alias_next_part () =
-						match !alias_source with
-							| [] -> failwith ("Failed to find already used type: " ^ get_full_type_name type_path)
-							| name :: rest ->
-								alias_source := rest;
-								String.capitalize name
-					and added = ref false
-					and alias = ref (get_type_name type_path) in
-					while not !added do
-						try
-							let used_type = Hashtbl.find use_table !alias in
-							if used_type = type_path then
-								added := true
-							else
-								alias := get_alias_next_part () ^ !alias;
-						with
-							| Not_found ->
-								Hashtbl.add use_table !alias type_path;
-								added := true
-							| _ -> failwith "Unknown"
-					done;
-					!alias
+			if type_path == wrapper#get_type_path then
+				self#get_name
+			else
+				let module_path = get_module_path type_path in
+				match type_path with
+					| ([], type_name) -> "\\" ^ type_name
+					| _ ->
+						let alias_source = ref (List.rev module_path) in
+						let get_alias_next_part () =
+							match !alias_source with
+								| [] -> failwith ("Failed to find already used type: " ^ get_full_type_name type_path)
+								| name :: rest ->
+									alias_source := rest;
+									String.capitalize name
+						and added = ref false
+						and alias = ref (get_type_name type_path) in
+						if !alias = self#get_name then
+							alias := get_alias_next_part () ^ !alias;
+						while not !added do
+							try
+								let used_type = Hashtbl.find use_table !alias in
+								if used_type = type_path then
+									added := true
+								else
+									alias := get_alias_next_part () ^ !alias;
+							with
+								| Not_found ->
+									Hashtbl.add use_table !alias type_path;
+									added := true
+								| _ -> failwith "Unknown"
+						done;
+						!alias
 		(**
 			Extracts type path from Type.t value and execute self#use on it
 			@return Unique alias for specified type.
@@ -1287,7 +1292,7 @@ class enum_builder ctx (enm:tenum) =
 					| _ -> fail field.ef_pos __POS__
 			in
 			self#indent 1;
-			self#write_doc (self#build_constructor_doc field);
+			self#write_doc (DocMethod (args, TEnum (enm, []), field.ef_doc));
 			self#write_indentation;
 			self#write ("static public function " ^ name ^ " (");
 			write_args buffer self#write_arg args;
@@ -1313,15 +1318,6 @@ class enum_builder ctx (enm:tenum) =
 		method private write_arg (name, optional, arg_type) =
 			self#write ("$" ^ name);
 			if optional then self#write " = null"
-		(**
-			Builds doc_type instance for specified constructor
-		*)
-		method private build_constructor_doc field =
-			(* DocMethod of (string * bool * t) list * t * (string option) (* (arguments, return type, description) *) *)
-			let args =
-				List.map (fun (name, arg_type) -> (name, false, arg_type)) field.ef_params
-			in
-			DocMethod (args, TEnum (enm, []), field.ef_doc)
 		(**
 			Method `__hx__init` is not needed for enums
 		**)
