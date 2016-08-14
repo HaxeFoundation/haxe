@@ -22,8 +22,8 @@
 package php7;
 
 /**
-	Platform-specific PHP Library. Provides some platform-specific functions 
-	for the PHP target, such as conversion from Haxe types to native types 
+	Platform-specific PHP Library. Provides some platform-specific functions
+	for the PHP target, such as conversion from Haxe types to native types
 	and vice-versa.
 **/
 class Lib {
@@ -35,7 +35,7 @@ class Lib {
 	}
 
 	/**
-		Print the specified value on the default output followed by 
+		Print the specified value on the default output followed by
 		a newline character.
 	**/
 	public static function println( v : Dynamic ) : Void {
@@ -44,8 +44,8 @@ class Lib {
 	}
 
 	/**
-		Displays structured information about one or more expressions 
-		that includes its type and value. Arrays and objects are 
+		Displays structured information about one or more expressions
+		that includes its type and value. Arrays and objects are
 		explored recursively with values indented to show structure.
 	*/
 	public static function dump(v : Dynamic) : Void {
@@ -53,7 +53,7 @@ class Lib {
 	}
 
 	/**
-		Serialize using native PHP serialization. This will return a binary 
+		Serialize using native PHP serialization. This will return a binary
 		`String` that can be stored for long term usage.
 	**/
 	public static function serialize( v : Dynamic ) : String {
@@ -86,32 +86,27 @@ class Lib {
 	}
 
 	public static function toPhpArray(a : Array<Dynamic>) : NativeArray {
-		return untyped __field__(a, 'a');
+		throw "Not implemented";
 	}
 
 	public static inline function toHaxeArray(a : NativeArray) : Array<Dynamic> {
-		return untyped __call__("new _hx_array", a);
+		throw "Not implemented";
 	}
 
 	public static function hashOfAssociativeArray<T>(arr : NativeArray) : Map<String,T> {
-		var h = new haxe.ds.StringMap<T>();
-		untyped h.h = arr;
-		return h;
+		throw "Not implemented";
 	}
 
 	public static function associativeArrayOfHash(hash : haxe.ds.StringMap<Dynamic>) : NativeArray {
-		return untyped hash.h;
+		throw "Not implemented";
 	}
 
 	public static function objectOfAssociativeArray(arr : NativeArray) : Dynamic {
-		untyped __php__("foreach($arr as $key => $value){
-			if(is_array($value)) $arr[$key] = php_Lib::objectOfAssociativeArray($value);
-		}");
-		return untyped __call__("_hx_anonymous", arr);
+		throw "Not implemented";
 	}
 
 	public static function associativeArrayOfObject(ob : Dynamic) : NativeArray {
-		return untyped __php__("(array) $ob");
+		throw "Not implemented";
 	}
 
 	/**
@@ -125,45 +120,22 @@ class Lib {
 	 */
 	public static function mail(to : String, subject : String, message : String, ?additionalHeaders : String, ?additionalParameters : String) : Bool
 	{
-		if(null != additionalParameters)
-			return untyped __call__("mail", to, subject, message, additionalHeaders, additionalParameters);
-		else if(null != additionalHeaders)
-			return untyped __call__("mail", to, subject, message, additionalHeaders);
-		else
-			return untyped __call__("mail", to, subject, message);
+		throw "Not implemented";
 	}
 
 	/**
 		For neko compatibility only.
 	**/
 	public static function rethrow( e : Dynamic ) {
-		if(Std.is(e, Exception)) {
-			var __rtex__ = e;
-			untyped __php__("throw $__rtex__");
-		}
-		else throw e;
+		throw "Not implemented";
 	}
 
 	static function appendType(o : Dynamic, path : Array<String>, t : Dynamic) {
-		var name = path.shift();
-		if(path.length == 0)
-			untyped __php__("$o->$name = $t");
-		else {
-			var so = untyped __call__("isset", __php__("$o->$name")) ? __php__("$o->$name") : {};
-			appendType(so, path, t);
-			untyped __php__("$o->$name = $so");
-		}
+		throw "Not implemented";
 	}
 
 	public static function getClasses() {
-		var path : String = null;
-		var o = {};
-		untyped __call__('reset', php.Boot.qtypes);
-		while((path = untyped __call__('key', php.Boot.qtypes)) != null) {
-			appendType(o, path.split('.'), untyped php.Boot.qtypes[path]);
-			untyped __call__('next',php.Boot.qtypes);
-		}
-		return o;
+		throw "Not implemented";
 	}
 
 	/**
@@ -171,29 +143,6 @@ class Lib {
  	*/
  	public static function loadLib(pathToLib : String) : Void
  	{
-		var prefix = untyped __prefix__();
-		untyped __php__("$_hx_types_array = array();
- 		$_hx_cache_content = '';
- 		//Calling this function will put all types present in the specified types in the $_hx_types_array
- 		_hx_build_paths($pathToLib, $_hx_types_array, array(), $prefix);
-
- 		foreach($_hx_types_array as $val) {
- 			//For every type that has been found, create its description
- 			$t = null;
- 			if($val['type'] == 0) {
- 				$t = new _hx_class($val['phpname'], $val['qname'], $val['path']);
- 			} else if($val['type'] == 1) {
- 				$t = new _hx_enum($val['phpname'], $val['qname'], $val['path']);
- 			} else if($val['type'] == 2) {
- 				$t = new _hx_interface($val['phpname'], $val['qname'], $val['path']);
- 			} else if($val['type'] == 3) {
- 				$t = new _hx_class($val['name'], $val['qname'], $val['path']);
- 			}
- 			//Register the type
- 			if(!array_key_exists($t->__qname__, php_Boot::$qtypes)) {
- 				_hx_register_type($t);
- 			}
- 		}
- ");
+		throw "Not implemented";
  	}
 }

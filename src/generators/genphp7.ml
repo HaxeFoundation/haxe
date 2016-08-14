@@ -19,9 +19,13 @@ let native_exception_path = ([], "Exception")
 *)
 let haxe_exception_path = (["php7"], "HException")
 (**
-	type path of `php7.Boot`
+	Type path of `php7.Boot`
 *)
 let boot_class_path = (["php7"], "Boot")
+(**
+	Type path of the base class for all enums: `php7.Boot.HxEnum`
+*)
+let hxenum_class_path = (["php7"; "_Boot"], "HxEnum")
 
 (**
 	Resolve real type (bypass abstracts and typedefs)
@@ -31,7 +35,14 @@ let rec follow = Abstract.follow_with_abstracts
 (**
 	@return Error message with position information
 *)
-let error_message pos message = (Lexer.get_error_pos (Printf.sprintf "%s:%d:") pos) ^ message
+let error_message pos message = (Lexer.get_error_pos (Printf.sprintf "%s:%d:") pos) ^ ": " ^ message
+
+let fail hxpos mlpos =
+	match mlpos with
+		| (file, line, _, _) ->
+			Printf.printf "%s\n" (error_message hxpos "Unexpected expression. Please submit an issue with expression example and following information:");
+			Printf.printf "%s:%d\n" file line;
+			assert false
 
 (**
 	Check if `target` is a `Dynamic` type
@@ -93,9 +104,15 @@ let create_dir_recursive (path:string list) =
 (**
 	@return String representation of specified type path. E.g. returns "\example\Test" for (["example"], "Test")
 *)
-let get_full_type_name (type_path:path) =
-	match type_path with
-		| (module_path, type_name) -> (String.concat "\\" ("" :: module_path)) ^ "\\" ^ type_name
+let get_full_type_name ?escape (type_path:path) =
+	let name =
+		(match type_path with
+			| (module_path, type_name) -> (String.concat "\\" ("" :: module_path)) ^ "\\" ^ type_name
+		)
+	in
+	match escape with
+		| Some true -> String.escaped name
+		| _ -> name
 
 (**
 	Check if `target` is or extends native PHP `Extension` class
@@ -992,7 +1009,7 @@ class virtual type_builder ctx wrapper =
 			match expr_hierarchy with
 				| _ :: { eexpr = TField _ } :: _ -> self#write (self#use type_path)
 				| _ ->
-					let type_name = String.escaped (get_full_type_name type_path) in
+					let type_name = get_full_type_name ~escape:true type_path in
 					self#write ((self#use boot_class_path) ^ "::getClass('" ^ type_name ^ "')")
 		(**
 			Writes binary operation to output buffer
@@ -1232,6 +1249,86 @@ class virtual type_builder ctx wrapper =
 	end
 
 (**
+	Builds enum contents
+*)
+class enum_builder ctx (enm:tenum) =
+	object (self)
+		inherit type_builder ctx (get_wrapper (TEnumDecl enm))
+		(**
+			Writes type declaration line to output buffer.
+			E.g. "class SomeClass extends Another implements IFace"
+		*)
+		method private write_declaration =
+			self#write_doc (DocClass enm.e_doc);
+			self#write_line ("class " ^ self#get_name ^ " extends " ^ (self#use hxenum_class_path))
+		(**
+			Writes type body to output buffer.
+			E.g. for "class SomeClass { <BODY> }" writes <BODY> part.
+		*)
+		method private write_body =
+			let write_empty_lines = ref false in
+			PMap.iter
+				(fun name field ->
+					if !write_empty_lines then
+						self#write_empty_lines
+					else
+						write_empty_lines := true;
+					self#write_constructor name field
+				)
+				enm.e_constrs
+		(**
+			Writes constructor declaration to output buffer
+		*)
+		method private write_constructor name (field:tenum_field) =
+			let args =
+				match follow field.ef_type with
+					| TFun (args, _) -> args
+					| TEnum _ -> []
+					| _ -> fail field.ef_pos __POS__
+			in
+			self#indent 1;
+			self#write_doc (self#build_constructor_doc field);
+			self#write_indentation;
+			self#write ("static public function " ^ name ^ " (");
+			write_args buffer self#write_arg args;
+			self#write ")\n";
+			self#write_line "{";
+			self#indent_more;
+			self#write_indentation;
+			self#write "return ";
+			let type_name = get_full_type_name ~escape:true self#get_type_path in
+			(match args with
+				| [] -> self#write ((self#use hxenum_class_path) ^ "::singleton('" ^ type_name ^ "', '" ^ name ^ "')")
+				| args ->
+					self#write ("new " ^ self#get_name ^ "('" ^ name ^ "', [");
+					write_args buffer (fun (name, _, _) -> self#write ("$" ^ name)) args;
+					self#write "])"
+			);
+			self#write ";\n";
+			self#indent_less;
+			self#write_line "}"
+		(**
+			Writes constructor argument to output buffer
+		*)
+		method private write_arg (name, optional, arg_type) =
+			self#write ("$" ^ name);
+			if optional then self#write " = null"
+		(**
+			Builds doc_type instance for specified constructor
+		*)
+		method private build_constructor_doc field =
+			(* DocMethod of (string * bool * t) list * t * (string option) (* (arguments, return type, description) *) *)
+			let args =
+				List.map (fun (name, arg_type) -> (name, false, arg_type)) field.ef_params
+			in
+			DocMethod (args, TEnum (enm, []), field.ef_doc)
+		(**
+			Method `__hx__init` is not needed for enums
+		**)
+		method private write_hx_init_body = ()
+	end
+
+(**
 	Builds class contents
 *)
 class class_builder ctx (cls:tclass) =
@@ -1315,7 +1412,7 @@ class class_builder ctx (cls:tclass) =
 			(* Instance methods *)
 			PMap.iter (write_if_method false) cls.cl_fields
 		(**
-			Writes `--php-prefix` value to static inline var
+			Writes `--php-prefix` value as class constant PHP_PREFIX
 		*)
 		method private write_php_prefix () =
 			let prefix = match ctx.php_prefix with
@@ -1470,7 +1567,7 @@ let generate (com:context) =
 		if wrapper#needs_generation then
 			match com_type with
 				| TClassDecl cls -> gen#generate (new class_builder com cls);
-				| TEnumDecl tenum -> ();
+				| TEnumDecl enm -> gen#generate (new enum_builder com enm);
 				| TTypeDecl typedef -> ();
 				| TAbstractDecl abstr -> ()
 	in

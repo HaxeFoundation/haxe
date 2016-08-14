@@ -21,7 +21,10 @@
  */
 package php7;
 
+import php7.NativeArray;
+
 using StringTools;
+using php7.Lib;
 
 /**
 	Various Haxe->PHP compatibility utilities
@@ -185,14 +188,31 @@ private class HxClass {
 /**
 	Base class for enum types
 **/
-// @:keep
-// @:dox(hide)
-// private class HxEnum {
-// 	var constructor : String;
-// 	var arguments : Array<Dynamic>;
+@:keep
+@:dox(hide)
+private class HxEnum {
+	static var singletons = new Map<String,HxEnum>();
 
-// 	public function new(constructor:String, arguments:Array<Dynamic>) : Void {
-// 		this.constructor = constructor;
-// 		this.arguments = arguments;
-// 	}
-// }
+	var constructor : String;
+	var arguments : Array<Dynamic>;
+
+	/**
+		Returns instances of constructors without arguments
+	**/
+	public static function singleton( enumClass:String, constructor:String ) : HxEnum {
+		var key = '$enumClass::$constructor';
+
+		var instance = singletons.get(key);
+		if (instance == null) {
+			instance = untyped __php__("new $enumClass($constructor)");
+			singletons.set(key, instance);
+		}
+
+		return instance;
+	}
+
+	public function new(constructor:String, arguments:NativeArray = null) : Void {
+		this.constructor = constructor;
+		this.arguments = (arguments == null ? [] : arguments.toHaxeArray());
+	}
+}
