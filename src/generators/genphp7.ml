@@ -50,6 +50,11 @@ let fail hxpos mlpos =
 let rec is_dynamic (target:Type.t) = match follow target with TDynamic _ -> true | _ -> false
 
 (**
+	@return `expr` wrapped in parenthesis
+*)
+let parenthesis expr = {eexpr = TParenthesis expr; etype = expr.etype; epos = expr.epos}
+
+(**
 	Check if `target` is 100% guaranteed to be a scalar type in PHP.
 	Inversion of `is_sure_scalar` does not guarantee `target` is not scalar.
 *)
@@ -63,6 +68,16 @@ let is_sure_scalar (target:Type.t) =
 				| ([],"Bool") -> true
 				| _ -> false
 			)
+		| _ -> false
+
+(**
+	Indicates if `expr` is an access to a field which can contain closures.
+*)
+let is_callback_field_access expr =
+	match expr.eexpr with
+		| TField (_, FStatic (_, { cf_kind = Var _ })) -> true
+		| TField (_, FInstance (_, _, { cf_kind = Var _ })) -> true
+		| TField (_, FAnon _) -> true
 		| _ -> false
 
 (**
@@ -724,9 +739,7 @@ class virtual type_builder ctx wrapper =
 				| TObjectDecl fields -> self#write_expr_object_declaration fields
 				| TArrayDecl exprs -> self#write_expr_array_decl exprs
 				| TCall ({ eexpr = TLocal { v_name = name }}, args) when is_magic expr -> self#write_expr_magic name args
-				| TCall ({ eexpr = TField (_, FAnon _) } as target, args) ->
-					let target = {eexpr = TParenthesis target; etype = target.etype; epos = target.epos} in
-					self#write_expr_call target args
+				| TCall (target, args) when is_callback_field_access target -> self#write_expr_call (parenthesis target) args
 				| TCall (target, args) -> self#write_expr_call target args
 				| TNew (tcls, _, args) -> self#write_expr_new tcls args
 				| TUnop (operation, flag, expr) -> self#write_expr_unop operation flag expr
@@ -1119,7 +1132,10 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write_expr_field expr access =
 			let write_access fieldStr =
-				self#write_expr expr;
+				(match expr.eexpr with
+					| TNew _ -> self#write_expr (parenthesis expr)
+					| _ -> self#write_expr expr
+				);
 				self#write fieldStr
 			in
 			match (follow expr.etype, access) with
