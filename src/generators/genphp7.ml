@@ -1289,13 +1289,19 @@ class class_builder ctx (cls:tclass) =
 						at_least_one_field_written := true;
 						self#write_field is_static field
 			in
+			if boot_class_path = self#get_type_path then begin
+				self#write_php_prefix ();
+				at_least_one_field_written := true
+			end;
 		 	if not cls.cl_interface then begin
 		 		(* Inlined statc vars (constants) *)
 				PMap.iter (write_if_constant) cls.cl_statics;
 				if !at_least_one_field_written then self#write_empty_lines;
+				at_least_one_field_written := false;
 		 		(* Statc vars *)
 				PMap.iter (write_if_var true) cls.cl_statics;
 				if !at_least_one_field_written then self#write_empty_lines;
+				at_least_one_field_written := false;
 				(* instance vars *)
 				PMap.iter (write_if_var false) cls.cl_fields
 			end;
@@ -1308,6 +1314,18 @@ class class_builder ctx (cls:tclass) =
 			);
 			(* Instance methods *)
 			PMap.iter (write_if_method false) cls.cl_fields
+		(**
+			Writes `--php-prefix` value to static inline var
+		*)
+		method private write_php_prefix () =
+			let prefix = match ctx.php_prefix with
+				| None -> ""
+				| Some str -> if String.length str = 0 then "" else "\\\\" ^ (Str.replace_first (Str.regexp "\\") "" str)
+			in
+			let indentation = String.length indentation in
+			self#indent 1;
+			self#write_statement ("const PHP_PREFIX = \"" ^ prefix ^ "\"");
+			self#indent indentation
 		(**
 			Writes expressions for `__hx__init` method
 		*)

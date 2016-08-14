@@ -29,25 +29,32 @@ using StringTools;
 @:keep
 @:dox(hide)
 class Boot {
-
 	/**
 		Initialization stuff
 	**/
-	static function __init__ () {
-		trace('Boot.__init__');
+	static function __init__() {
+		untyped __php__("error_reporting(E_ALL)");
+	}
+
+	/**
+		Returns root namespace based on a value of `--php-prefix` compiler flag.
+		Returns empty string if no `--php-prefix` provided.
+	**/
+	public static function getPrefix() : String {
+		return untyped __php__("self::PHP_PREFIX");
 	}
 
 	/**
 		Get Class<T> instance for PHP fully qualified class name (E.g. '\some\pack\MyClass')
 		It's always the same instance for the same `phpClassName`
-	*/
-	public static function getClass (phpClassName:String) : HxClass {
+	**/
+	public static function getClass( phpClassName:String ) : HxClass {
 		return HxClass.get(phpClassName);
 	}
 
 	/**
 		Performs `left >>> right` operation
-	 */
+	**/
 	public static function shiftRightUnsigned( left:Int, right:Int ) : Int {
 		if (right == 0) {
 			return left;
@@ -73,7 +80,7 @@ class Boot {
 
 /**
 	Class<T> implementation for Haxe->PHP internals
-*/
+**/
 @:keep
 @:dox(hide)
 private class HxClass {
@@ -85,7 +92,7 @@ private class HxClass {
 
 	/**
 		Get `HxClass` instance for specified PHP fully qualified class name (E.g. '\some\pack\MyClass')
-	*/
+	**/
 	public static function get( phpClassName:String ) : HxClass {
 		var cls = classes.get(phpClassName);
 		if (cls == null) {
@@ -102,9 +109,17 @@ private class HxClass {
 	}
 
 	/**
+		Returns native PHP fully qualified class name for this type
+	**/
+	public function getClassName() : String {
+		return phpClassName;
+	}
+
+
+	/**
 		Implementation for `cast(value, Class<Dynamic>)`
 		@throws HException if `value` cannot be casted to this type
-	*/
+	**/
 	public function tryCast( value:Dynamic ) : Dynamic {
 		inline function isNumber( value ) {
 			return untyped __call__("is_int", value) || untyped __call__("is_float", value);
@@ -141,16 +156,23 @@ private class HxClass {
 
 	/**
 		Get string representation of this `Class`
-	*/
+	**/
 	public function toString() : String {
 		return __toString();
 	}
 
 	/**
 		PHP magic method to get string representation of this `Class`
-	*/
+	**/
 	public function __toString() : String {
-		var haxeType = phpClassName.replace('\\', '.');
+		var haxeType = phpClassName;
+
+		var prefix = Boot.getPrefix();
+		if (prefix.length > 0 && phpClassName.indexOf(prefix) >= 0) {
+			haxeType = haxeType.substr(prefix.length);
+		}
+
+		haxeType = phpClassName.replace('\\', '.');
 		if (haxeType.charAt(0) == '.') {
 			haxeType = haxeType.substr(1);
 		}
@@ -158,3 +180,19 @@ private class HxClass {
 		return haxeType;
 	}
 }
+
+
+/**
+	Base class for enum types
+**/
+// @:keep
+// @:dox(hide)
+// private class HxEnum {
+// 	var constructor : String;
+// 	var arguments : Array<Dynamic>;
+
+// 	public function new(constructor:String, arguments:Array<Dynamic>) : Void {
+// 		this.constructor = constructor;
+// 		this.arguments = arguments;
+// 	}
+// }
