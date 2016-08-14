@@ -503,7 +503,7 @@ class virtual type_builder ctx wrapper =
 						let alias_source = ref (List.rev module_path) in
 						let get_alias_next_part () =
 							match !alias_source with
-								| [] -> failwith ("Failed to find already used type: " ^ get_full_type_name type_path)
+								| [] ->  failwith ("Failed to find already used type: " ^ get_full_type_name type_path)
 								| name :: rest ->
 									alias_source := rest;
 									String.capitalize name
@@ -570,6 +570,13 @@ class virtual type_builder ctx wrapper =
 				| _ :: { eexpr = TWhile _ } :: _ -> true
 				| _ :: { eexpr = TSwitch _ } :: _ -> true
 				| _ -> false
+		(**
+			Position of currently generated code in source hx files
+		*)
+		method private pos =
+			match expr_hierarchy with
+				| { epos = pos } :: _ -> pos
+				| _ -> { pfile = ""; pmin = 0; pmax = 0 }
 		(**
 			Writes specified string to output buffer
 		*)
@@ -695,37 +702,36 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write_expr (expr:texpr) =
 			expr_hierarchy <- expr :: expr_hierarchy;
-			let pos = expr.epos in
 			(match expr.eexpr with
-				| TConst const -> self#write_expr_const const pos
+				| TConst const -> self#write_expr_const const
 				| TLocal var -> self#write ("$" ^ var.v_name)
-				| TArray (target, index) -> self#write_expr_array_access target index pos
-				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2 pos
-				| TField (expr, access) -> self#write_expr_field expr access pos
-				| TTypeExpr mtype -> self#write_expr_type mtype pos
+				| TArray (target, index) -> self#write_expr_array_access target index
+				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2
+				| TField (expr, access) -> self#write_expr_field expr access
+				| TTypeExpr mtype -> self#write_expr_type mtype
 				| TParenthesis expr ->
 					self#write "(";
 					self#write_expr expr;
 					self#write ")"
-				| TObjectDecl fields -> self#write_expr_object_declaration fields pos
-				| TArrayDecl exprs -> self#write_expr_array_decl exprs pos
-				| TCall ({ eexpr = TLocal { v_name = name }}, args) when is_magic expr -> self#write_expr_magic name args pos
-				| TCall (target, args) -> self#write_expr_call target args pos
-				| TNew (tcls, _, args) -> self#write_expr_new tcls args pos
-				| TUnop (operation, flag, expr) -> self#write_expr_unop operation flag expr pos
-				| TFunction fn -> self#write_expr_function fn pos
-				| TVar (var, expr) -> self#write_expr_var var expr pos
-				| TBlock exprs -> self#write_expr_block expr pos
-				| TFor (var, iterator, body) -> assert false
-				| TIf (condition, if_expr, else_expr) -> self#write_expr_if condition if_expr else_expr pos
-				| TWhile (condition, expr, do_while) -> self#write_expr_while condition expr do_while pos
-				| TSwitch (switch, cases, default ) -> self#write_expr_switch switch cases default pos
-				| TTry (try_expr, catches) -> self#write_expr_try_catch try_expr catches pos
-				| TReturn expr -> self#write_expr_return expr pos
+				| TObjectDecl fields -> self#write_expr_object_declaration fields
+				| TArrayDecl exprs -> self#write_expr_array_decl exprs
+				| TCall ({ eexpr = TLocal { v_name = name }}, args) when is_magic expr -> self#write_expr_magic name args
+				| TCall (target, args) -> self#write_expr_call target args
+				| TNew (tcls, _, args) -> self#write_expr_new tcls args
+				| TUnop (operation, flag, expr) -> self#write_expr_unop operation flag expr
+				| TFunction fn -> self#write_expr_function fn
+				| TVar (var, expr) -> self#write_expr_var var expr
+				| TBlock exprs -> self#write_expr_block expr
+				| TFor (var, iterator, body) -> fail self#pos __POS__
+				| TIf (condition, if_expr, else_expr) -> self#write_expr_if condition if_expr else_expr
+				| TWhile (condition, expr, do_while) -> self#write_expr_while condition expr do_while
+				| TSwitch (switch, cases, default ) -> self#write_expr_switch switch cases default
+				| TTry (try_expr, catches) -> self#write_expr_try_catch try_expr catches
+				| TReturn expr -> self#write_expr_return expr
 				| TBreak -> self#write "break"
 				| TContinue -> self#write "continue"
-				| TThrow expr -> self#write_expr_throw expr pos
-				| TCast (expr, mtype) -> self#write_expr_cast expr mtype pos
+				| TThrow expr -> self#write_expr_throw expr
+				| TCast (expr, mtype) -> self#write_expr_cast expr mtype
 				| TMeta (_, expr) -> self#write_expr expr
 				(* | TEnumParameter of texpr * tenum_field * int *)
 				| _ -> ()
@@ -752,7 +758,7 @@ class virtual type_builder ctx wrapper =
 				| None -> ()
 				| Some expr ->
 					self#write_indentation;
-					self#write_as_block ~inline:true expr expr.epos
+					self#write_as_block ~inline:true expr
 			);
 			self#write "\n";
 			self#write_hx_init_body;
@@ -761,7 +767,7 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes TConst to output buffer
 		*)
-		method private write_expr_const const pos =
+		method private write_expr_const const =
 			match const with
 				| TInt value -> self#write (Int32.to_string value)
 				| TFloat str -> self#write str
@@ -773,7 +779,7 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes TArrayDecl to output buffer
 		*)
-		method private write_expr_array_decl exprs pos =
+		method private write_expr_array_decl exprs =
 			match exprs with
 				| [] -> self#write "[]"
 				| [expr] ->
@@ -790,7 +796,7 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes TArray to output buffer
 		*)
-		method private write_expr_array_access target index pos =
+		method private write_expr_array_access target index =
 			self#write_expr target;
 			self#write "[";
 			self#write_expr index;
@@ -798,7 +804,7 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes TVar to output buffer
 		*)
-		method private write_expr_var var expr pos =
+		method private write_expr_var var expr =
 			self#write ("$" ^ var.v_name ^ " = ");
 			match expr with
 				| None -> self#write "null"
@@ -806,13 +812,13 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes TFunction to output buffer
 		*)
-		method private write_expr_function ?name func pos =
+		method private write_expr_function ?name func =
 			let write_arg arg =
 				match arg with
 					| ({ v_name = arg_name }, None) -> self#write ("$" ^ arg_name)
 					| ({ v_name = arg_name }, Some const) ->
 						self#write ("$" ^ arg_name ^ " = ");
-						self#write_expr_const const pos
+						self#write_expr_const const
 			in
 			let str_name = match name with None -> "" | Some str -> str ^ " " in
 			self#write ("function " ^ str_name ^ "(");
@@ -831,13 +837,13 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes TBlock to output buffer
 		*)
-		method private write_expr_block block_expr pos =
+		method private write_expr_block block_expr =
 			let inline_block = self#parent_expr_is_block in
-			self#write_as_block ~inline:inline_block block_expr pos
+			self#write_as_block ~inline:inline_block block_expr
 		(**
 			Writes "{ <expressions> }" to output buffer
 		*)
-		method private write_as_block ?inline expr pos =
+		method private write_as_block ?inline expr =
 			let exprs = match expr.eexpr with TBlock exprs -> exprs | _ -> [expr] in
 			let write_body () =
 				let write_expr expr =
@@ -873,7 +879,7 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes TReturn to output buffer
 		*)
-		method private write_expr_return expr pos =
+		method private write_expr_return expr =
 			match expr with
 				| None -> self#write "return";
 				| Some expr ->
@@ -882,7 +888,7 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes TThrow to output buffer
 		*)
-		method private write_expr_throw expr pos =
+		method private write_expr_throw expr =
 			self#write "throw ";
 			if is_native_exception expr.etype then
 				self#write_expr expr
@@ -901,7 +907,7 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes try...catch to output buffer
 		*)
-		method private write_expr_try_catch try_expr catches pos =
+		method private write_expr_try_catch try_expr catches =
 			let catching_dynamic = ref false in
 			let haxe_exception = self#use haxe_exception_path
 			and first_catch = ref true in
@@ -922,14 +928,14 @@ class virtual type_builder ctx wrapper =
 					begin
 						self#write ("$" ^ var.v_name ^ " = $__hx__real_e;\n");
 						self#write_indentation;
-						self#write_as_block ~inline:true expr pos;
+						self#write_as_block ~inline:true expr;
 					end
 				else
 					begin
 						self#indent_more;
 						self#write_statement ("$" ^ var.v_name ^ " = $__hx__real_e");
 						self#write_indentation;
-						self#write_as_block ~inline:true expr pos;
+						self#write_as_block ~inline:true expr;
 						self#indent_less;
 						self#write_indentation;
 						self#write "}";
@@ -938,7 +944,7 @@ class virtual type_builder ctx wrapper =
 				first_catch := false;
 			in
 			self#write "try ";
-			self#write_as_block try_expr pos;
+			self#write_as_block try_expr;
 			self#write " catch (\\Exception $__hx__caught_e) {\n";
 			self#indent_more;
 			self#write_statement ("$__hx__real_e = ($__hx__caught_e instanceof " ^ haxe_exception ^ " ? $__hx__caught_e->e : $__hx__caught_e)");
@@ -954,11 +960,11 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes TCast to output buffer
 		*)
-		method private write_expr_cast expr (mtype:module_type option) pos =
+		method private write_expr_cast expr (mtype:module_type option) =
 			match mtype with
 				| None -> self#write_expr expr
 				| Some mtype ->
-					self#write_expr_type mtype pos;
+					self#write_expr_type mtype;
 					self#write "->typedCast(";
 					self#write_expr expr;
 					self#write ")"
@@ -966,8 +972,8 @@ class virtual type_builder ctx wrapper =
 			Write Haxe->PHP magic function call
 			@see http://old.haxe.org/doc/advanced/magic#php-magic
 		*)
-		method private write_expr_magic name args pos =
-			let error = error_message pos ("Invalid arguments for " ^ name ^ " magic call") in
+		method private write_expr_magic name args =
+			let error = error_message self#pos ("Invalid arguments for " ^ name ^ " magic call") in
 			match args with
 				| [] -> failwith error
 				| { eexpr = TConst (TString code) } as expr :: args ->
@@ -983,7 +989,7 @@ class virtual type_builder ctx wrapper =
 							self#write ")"
 						| "__physeq__" ->
 							(match args with
-								| [expr2] -> self#write_expr_binop OpEq expr expr2 pos
+								| [expr2] -> self#write_expr_binop OpEq expr expr2
 								| _ -> failwith error
 							)
 						| "__var__" ->
@@ -1000,7 +1006,7 @@ class virtual type_builder ctx wrapper =
 					(match name with
 						| "__physeq__" ->
 							(match args with
-								| [expr1; expr2] -> self#write_expr_binop OpEq expr1 expr2 pos
+								| [expr1; expr2] -> self#write_expr_binop OpEq expr1 expr2
 								| _ -> failwith error
 							)
 						| _ -> failwith error
@@ -1009,7 +1015,7 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes TTypeExpr to output buffer
 		*)
-		method private write_expr_type (mtype:module_type) pos =
+		method private write_expr_type (mtype:module_type) =
 			let type_path = (get_wrapper mtype)#get_type_path in
 			match expr_hierarchy with
 				| _ :: { eexpr = TField _ } :: _ -> self#write (self#use type_path)
@@ -1019,7 +1025,7 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes binary operation to output buffer
 		*)
-		method private write_expr_binop operation expr1 expr2 pos =
+		method private write_expr_binop operation expr1 expr2 =
 			let write_shiftRightUnsigned () =
 				self#write ((self#use boot_class_path) ^ "::shiftRightUnsigned(");
 				self#write_expr expr1;
@@ -1077,11 +1083,11 @@ class virtual type_builder ctx wrapper =
 					self#write_expr expr1;
 					self#write " = ";
 					write_shiftRightUnsigned ()
-				| _ -> failwith (error_message pos "Binary operation is not implemented")
+				| _ -> fail self#pos __POS__
 		(**
 			Writes TUnOp to output buffer
 		*)
-		method private write_expr_unop operation flag expr pos =
+		method private write_expr_unop operation flag expr =
 			let write_unop operation =
 				match operation with
 					| Increment -> self#write "++"
@@ -1100,7 +1106,7 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes TField to output buffer
 		*)
-		method private write_expr_field expr access pos =
+		method private write_expr_field expr access =
 			let write_access fieldStr =
 				self#write_expr expr;
 				self#write fieldStr
@@ -1113,15 +1119,15 @@ class virtual type_builder ctx wrapper =
 				| (_, FInstance (_, _, { cf_name = name })) -> write_access ("->" ^ name)
 				| (_, FStatic (_, { cf_name = name; cf_kind = Var _ })) -> write_access ("::$" ^ name)
 				| (_, FStatic (_, { cf_name = name; cf_kind = Method _ })) -> write_access ("::" ^ name)
-				| (_, FAnon _) -> failwith (error_message pos ": FAnon is not implemented")
+				| (_, FAnon _) -> fail self#pos __POS__
 				(* | FDynamic of string *)
 				(* | FClosure of (tclass * tparams) option * tclass_field (* None class = TAnon *) *)
 				(* | FEnum of tenum * tenum_field *)
-				| _ -> failwith (error_message pos ": Field access is not implemented")
+				| _ -> fail self#pos __POS__
 		(**
 			Write anonymous object declaration to output buffer
 		*)
-		method private write_expr_object_declaration fields pos =
+		method private write_expr_object_declaration fields =
 			match fields with
 				| [] ->  self#write "new \\StdClass()"
 				| _ ->
@@ -1135,7 +1141,7 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes TCall to output buffer
 		*)
-		method private write_expr_call target_expr args pos =
+		method private write_expr_call target_expr args =
 			self#write_expr target_expr;
 			self#write "(";
 			let rec write_next_arg exprs =
@@ -1152,7 +1158,7 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes TNew to output buffer
 		*)
-		method private write_expr_new inst_class args pos =
+		method private write_expr_new inst_class args =
 			self#write ("new " ^ (self#use inst_class.cl_path) ^ "(");
 			write_args buffer self#write_expr args;
 			self#write ")"
@@ -1171,53 +1177,53 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes "if...else..." expression to output buffer
 		*)
-		method private write_expr_if condition if_expr (else_expr:texpr option) pos =
+		method private write_expr_if condition if_expr (else_expr:texpr option) =
 			let is_ternary =
 				if self#parent_expr_is_block then
 					false
 				else
 					match (if_expr.eexpr, else_expr) with
-						| (TBlock _, _) | (_, Some { eexpr=TBlock _ }) -> assert false
+						| (TBlock _, _) | (_, Some { eexpr=TBlock _ }) -> fail self#pos __POS__
 						| _ -> true
 			in
 			if is_ternary then
 				match else_expr with
-					| None -> assert false
+					| None -> fail self#pos __POS__
 					| Some expr ->
-						self#write_expr_ternary condition if_expr expr pos
+						self#write_expr_ternary condition if_expr expr self#pos
 			else begin
 				self#write "if ";
 				self#write_expr condition;
 				self#write " ";
-				self#write_as_block if_expr pos;
+				self#write_as_block if_expr;
 				(match else_expr with
 					| None -> ()
 					| Some expr ->
 						self#write " else ";
 						match expr.eexpr with
 							| TIf _ -> self#write_expr expr
-							| _ -> self#write_as_block expr pos
+							| _ -> self#write_as_block expr
 				)
 			end
 		(**
 			Writes TWhile ("while..." or "do...while") to output buffer
 		*)
-		method private write_expr_while condition expr do_while pos =
+		method private write_expr_while condition expr do_while =
 			match do_while with
 				| NormalWhile ->
 					self#write "while ";
 					self#write_expr condition;
 					self#write " ";
-					self#write_as_block expr pos
+					self#write_as_block expr
 				| DoWhile ->
 					self#write "do ";
-					self#write_as_block expr pos;
+					self#write_as_block expr;
 					self#write " while ";
 					self#write_expr condition
 		(**
 			Writes TSwitch to output buffer
 		*)
-		method private write_expr_switch switch cases default pos =
+		method private write_expr_switch switch cases default =
 			let write_case (conditions, expr) =
 				List.iter
 					(fun condition ->
@@ -1229,7 +1235,7 @@ class virtual type_builder ctx wrapper =
 					conditions;
 				self#indent_more;
 				self#write_indentation;
-				self#write_as_block ~inline:true expr pos;
+				self#write_as_block ~inline:true expr;
 				self#write_statement "break";
 				self#indent_less
 			in
@@ -1244,7 +1250,7 @@ class virtual type_builder ctx wrapper =
 					self#write_line "default:";
 					self#indent_more;
 					self#write_indentation;
-					self#write_as_block ~inline:true expr pos;
+					self#write_as_block ~inline:true expr;
 					self#write_statement "break";
 					self#indent_less
 			);
@@ -1472,7 +1478,7 @@ class class_builder ctx (cls:tclass) =
 			self#write_indentation;
 			self#write ("const " ^ field.cf_name ^ " = ");
 			match field.cf_expr with
-				| None -> assert false
+				| None -> fail self#pos __POS__
 				| Some expr ->
 					self#write_expr expr;
 					self#write ";\n"
@@ -1503,7 +1509,7 @@ class class_builder ctx (cls:tclass) =
 					self#write " ;\n"
 				| Some { eexpr = TFunction fn; epos = pos } ->
 					let name = if field.cf_name = "new" then "__construct" else field.cf_name in
-					self#write_expr_function ~name:name fn pos;
+					self#write_expr_function ~name:name fn;
 					self#write "\n"
 				| _ -> failwith ("invalid expression for method " ^ field.cf_name)
 	end
