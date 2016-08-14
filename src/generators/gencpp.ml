@@ -1805,6 +1805,8 @@ let rec cpp_type_of ctx haxe_type =
       | Some _ -> cpp_type_of_null ctx tvar.t_type
       | _ -> cpp_type_of ctx tvar.t_type
 
+   and cpp_tfun_arg_type_of ctx opt t =
+      if opt then cpp_type_of_null ctx t else cpp_type_of ctx t
 
    and cpp_function_type_of ctx function_type abi =
       let abi = (match follow abi with
@@ -2433,11 +2435,6 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                CppNullAccess, TCppDynamic
             else begin
                let cppType = cpp_type_of expr.etype in
-               (*
-               let retypedArgs = List.map2 (fun arg (var,opt) ->
-                   retype (cpp_fun_arg_type_of ctx var opt) arg
-                   ) args, func.tf_args in
-               *)
                let retypedArgs = List.map (retype TCppDynamic ) args in
                match retypedFunc.cppexpr with
                |  CppFunction(FuncFromStaticFunction ,returnType) ->
@@ -2469,6 +2466,16 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                   *)
 
                (* Other functions ... *)
+
+                 (* todo - non objc? *)
+               | CppFunction( FuncInstance(_,true,{cf_type=TFun(arg_types,_)} ) as func, returnType )
+               | CppFunction( FuncStatic(_,true,{cf_type=TFun(arg_types,_)} ) as func, returnType ) ->
+                  (* retype args specifically (not just CppDynamic) *)
+                  let retypedArgs = List.map2 (fun arg (_,opt,t) ->
+                      retype (cpp_tfun_arg_type_of ctx opt t) arg
+                      ) args arg_types in
+                  CppCall(func,retypedArgs), returnType
+ 
                |  CppFunction(func,returnType) ->
                      CppCall(func,retypedArgs), returnType
 
