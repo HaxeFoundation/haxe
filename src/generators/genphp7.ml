@@ -724,6 +724,9 @@ class virtual type_builder ctx wrapper =
 				| TObjectDecl fields -> self#write_expr_object_declaration fields
 				| TArrayDecl exprs -> self#write_expr_array_decl exprs
 				| TCall ({ eexpr = TLocal { v_name = name }}, args) when is_magic expr -> self#write_expr_magic name args
+				| TCall ({ eexpr = TField (_, FAnon _) } as target, args) ->
+					let target = {eexpr = TParenthesis target; etype = target.etype; epos = target.epos} in
+					self#write_expr_call target args
 				| TCall (target, args) -> self#write_expr_call target args
 				| TNew (tcls, _, args) -> self#write_expr_new tcls args
 				| TUnop (operation, flag, expr) -> self#write_expr_unop operation flag expr
