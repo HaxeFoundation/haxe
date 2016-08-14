@@ -1,3 +1,5 @@
+import php7.Boot;
+
 /*
  * Copyright (C)2005-2016 Haxe Foundation
  *
@@ -22,7 +24,7 @@
 @:coreApi class Std {
 
 	public static function is( v : Dynamic, t : Dynamic ) : Bool {
-		return untyped untyped __call__("_hx_instanceof", v,t);
+		return Boot.is(v, t);
 	}
 
 	public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {

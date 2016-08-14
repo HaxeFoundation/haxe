@@ -493,7 +493,7 @@ class virtual type_builder ctx wrapper =
 			@return Unique alias for specified type.
 		*)
 		method use (type_path:path) =
-			if type_path == wrapper#get_type_path then
+			if type_path = wrapper#get_type_path then
 				self#get_name
 			else
 				let module_path = get_module_path type_path in

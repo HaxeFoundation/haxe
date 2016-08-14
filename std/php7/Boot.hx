@@ -56,6 +56,42 @@ class Boot {
 	}
 
 	/**
+		`Std.is()` implementation
+	**/
+	public static function is( value:Dynamic, type:Class<Dynamic> ) : Bool {
+		var type : HxClass = cast type;
+		var phpType = type.getClassName();
+		switch (phpType) {
+			case '\\Dynamic':
+				return true;
+			case '\\Int':
+				return untyped __call__("is_int", value);
+			case '\\Float':
+				return untyped __call__("is_float", value);
+			case '\\Bool':
+				return untyped __call__("is_bool", value);
+			case '\\String':
+				return untyped __call__("is_string", value);
+			case '\\php7\\NativeArray':
+				return untyped __call__("is_array", value);
+			case '\\Enum':
+				if (untyped __call__("is_object", value)) {
+					var hxClass : HxClass = cast HxClass;
+					if (untyped __php__("$value instanceof $hxClass->getClassName()")) {
+						var valueType : HxClass = cast value;
+						var hxEnum : HxClass = cast HxEnum;
+						return untyped __call__('is_subclass_of', valueType.getClassName(), hxEnum.getClassName());
+					}
+				}
+			case _:
+				if (untyped __call__("is_object", value)) {
+					return untyped __php__("$value instanceof $phpType");
+				}
+		}
+		return false;
+	}
+
+	/**
 		Performs `left >>> right` operation
 	**/
 	public static function shiftRightUnsigned( left:Int, right:Int ) : Int {
