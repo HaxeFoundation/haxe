@@ -59,6 +59,26 @@ let rec is_dynamic (target:Type.t) = match follow target with TDynamic _ -> true
 let parenthesis expr = {eexpr = TParenthesis expr; etype = expr.etype; epos = expr.epos}
 
 (**
+	Check if `current` binary should be surrounded with parenthesis
+*)
+let need_parenthesis_for_binop current parent =
+	if current = parent then
+		false
+	else
+		match (current, parent) with
+			| (_, OpAssign) -> false
+			| (_, OpAssignOp _) -> false
+			| (OpAdd, OpSub) -> false
+			| (OpSub, OpAdd) -> false
+			| (OpMult, OpDiv) -> false
+			| (OpDiv, OpMult) -> false
+			| (OpMult, OpAdd) -> false
+			| (OpMult, OpSub) -> false
+			| (OpDiv, OpAdd) -> false
+			| (OpDiv, OpSub) -> false
+			| _ -> true
+
+(**
 	Check if `target` is 100% guaranteed to be a scalar type in PHP.
 	Inversion of `is_sure_scalar` does not guarantee `target` is not scalar.
 *)
@@ -1070,12 +1090,16 @@ class virtual type_builder ctx wrapper =
 				self#write_expr expr2;
 				self#write ")"
 			and write_binop str =
-				let parent_is_binop = match expr_hierarchy with _ :: { eexpr = TBinop _ } :: _ -> true | _ -> false in
-				if parent_is_binop then self#write "(";
+				let need_parenthesis =
+					match expr_hierarchy with
+						| _ :: { eexpr = TBinop (parent, _, _) } :: _ -> need_parenthesis_for_binop operation parent
+						| _ -> false
+				in
+				if need_parenthesis then self#write "(";
 				self#write_expr expr1;
 				self#write str;
 				self#write_expr expr2;
-				if parent_is_binop then self#write ")"
+				if need_parenthesis then self#write ")"
 			in
 			match operation with
 				| OpAdd ->
