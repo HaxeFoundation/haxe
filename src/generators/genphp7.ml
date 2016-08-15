@@ -25,7 +25,11 @@ let boot_class_path = (["php7"], "Boot")
 (**
 	Type path of the base class for all enums: `php7.Boot.HxEnum`
 *)
-let hxenum_class_path = (["php7"; "_Boot"], "HxEnum")
+let hxenum_type_path = (["php7"; "_Boot"], "HxEnum")
+(**
+	Type path of the implementation class for `Class<Dynamic>`
+*)
+let hxclass_type_path = (["php7"; "_Boot"], "HxClass")
 
 (**
 	Resolve real type (bypass abstracts and typedefs)
@@ -71,13 +75,21 @@ let is_sure_scalar (target:Type.t) =
 		| _ -> false
 
 (**
-	Indicates if `expr` is an access to a field which can contain closures.
+	Indicates if `expr` is an access to a `var` field.
 *)
-let is_callback_field_access expr =
+let is_var_field_access expr =
 	match expr.eexpr with
 		| TField (_, FStatic (_, { cf_kind = Var _ })) -> true
 		| TField (_, FInstance (_, _, { cf_kind = Var _ })) -> true
 		| TField (_, FAnon _) -> true
+		| _ -> false
+
+(**
+	Indicates whether `expr` is a field access which should be generated as global namespace function
+*)
+let is_php_global expr =
+	match expr.eexpr with
+		| TField (_, FStatic ({ cl_extern = true; cl_meta = meta }, _)) -> Meta.has Meta.PhpGlobal meta
 		| _ -> false
 
 (**
@@ -580,7 +592,7 @@ class virtual type_builder ctx wrapper =
 						| ([],"Float") -> "float"
 						| ([],"Bool") -> "bool"
 						| ([],"Void") -> "void"
-						| ([], "Class") -> "string"
+						| ([], "Class") -> self#use hxclass_type_path
 						| _ -> self#use_t abstr.a_this
 		(**
 			Indicates whether current expression nesting level is a top level of a block
@@ -730,6 +742,7 @@ class virtual type_builder ctx wrapper =
 				| TLocal var -> self#write ("$" ^ var.v_name)
 				| TArray (target, index) -> self#write_expr_array_access target index
 				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2
+				| TField (fexpr, access) when is_php_global expr -> self#write_expr_php_global expr
 				| TField (expr, access) -> self#write_expr_field expr access
 				| TTypeExpr mtype -> self#write_expr_type mtype
 				| TParenthesis expr ->
@@ -739,7 +752,7 @@ class virtual type_builder ctx wrapper =
 				| TObjectDecl fields -> self#write_expr_object_declaration fields
 				| TArrayDecl exprs -> self#write_expr_array_decl exprs
 				| TCall ({ eexpr = TLocal { v_name = name }}, args) when is_magic expr -> self#write_expr_magic name args
-				| TCall (target, args) when is_callback_field_access target -> self#write_expr_call (parenthesis target) args
+				| TCall (target, args) when is_var_field_access target -> self#write_expr_call (parenthesis target) args
 				| TCall (target, args) -> self#write_expr_call target args
 				| TNew (tcls, _, args) -> self#write_expr_new tcls args
 				| TUnop (operation, flag, expr) -> self#write_expr_unop operation flag expr
@@ -1173,17 +1186,18 @@ class virtual type_builder ctx wrapper =
 		method private write_expr_call target_expr args =
 			self#write_expr target_expr;
 			self#write "(";
-			let rec write_next_arg exprs =
-				match exprs with
-					| [] -> ()
-					| [expr] -> self#write_expr expr
-					| expr :: rest ->
-						self#write_expr expr;
-						self#write ", ";
-						write_next_arg rest
-			in
-			write_next_arg args;
+			write_args buffer self#write_expr args;
 			self#write ")";
+		(**
+			Writes a name of a function or a constant from global php namespace
+		*)
+		method private write_expr_php_global target_expr =
+			let name =
+				match target_expr.eexpr with
+					| TField (_, FStatic (_, field)) -> field.cf_name
+					| _ -> fail self#pos __POS__
+			in
+			self#write name;
 		(**
 			Writes TNew to output buffer
 		*)
@@ -1300,7 +1314,7 @@ class enum_builder ctx (enm:tenum) =
 		*)
 		method private write_declaration =
 			self#write_doc (DocClass enm.e_doc);
-			self#write_line ("class " ^ self#get_name ^ " extends " ^ (self#use hxenum_class_path))
+			self#write_line ("class " ^ self#get_name ^ " extends " ^ (self#use hxenum_type_path))
 		(**
 			Writes type body to output buffer.
 			E.g. for "class SomeClass { <BODY> }" writes <BODY> part.
@@ -1338,7 +1352,7 @@ class enum_builder ctx (enm:tenum) =
 			self#write "return ";
 			let type_name = get_full_type_name ~escape:true self#get_type_path in
 			(match args with
-				| [] -> self#write ((self#use hxenum_class_path) ^ "::singleton('" ^ type_name ^ "', '" ^ name ^ "')")
+				| [] -> self#write ((self#use hxenum_type_path) ^ "::singleton('" ^ type_name ^ "', '" ^ name ^ "')")
 				| args ->
 					self#write ("new " ^ self#get_name ^ "('" ^ name ^ "', [");
 					write_args buffer (fun (name, _, _) -> self#write ("$" ^ name)) args;

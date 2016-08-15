@@ -21,10 +21,12 @@
  */
 package php7;
 
+import php7.Const;
 import php7.NativeArray;
 
 using StringTools;
 using php7.Lib;
+using php7.Global;
 
 /**
 	Various Haxe->PHP compatibility utilities
@@ -36,7 +38,7 @@ class Boot {
 		Initialization stuff
 	**/
 	static function __init__() {
-		untyped __php__("error_reporting(E_ALL)");
+		Global.error_reporting(Const.E_ALL);
 	}
 
 	/**
@@ -65,26 +67,26 @@ class Boot {
 			case '\\Dynamic':
 				return true;
 			case '\\Int':
-				return untyped __call__("is_int", value);
+				return value.is_int();
 			case '\\Float':
-				return untyped __call__("is_float", value);
+				return value.is_float();
 			case '\\Bool':
-				return untyped __call__("is_bool", value);
+				return value.is_bool();
 			case '\\String':
-				return untyped __call__("is_string", value);
+				return value.is_string();
 			case '\\php7\\NativeArray':
-				return untyped __call__("is_array", value);
+				return value.is_array();
 			case '\\Enum':
-				if (untyped __call__("is_object", value)) {
+				if (value.is_object()) {
 					var hxClass : HxClass = cast HxClass;
 					if (untyped __php__("$value instanceof $hxClass->getClassName()")) {
 						var valueType : HxClass = cast value;
 						var hxEnum : HxClass = cast HxEnum;
-						return untyped __call__('is_subclass_of', valueType.getClassName(), hxEnum.getClassName());
+						return valueType.getClassName().is_subclass_of(hxEnum.getClassName());
 					}
 				}
 			case _:
-				if (untyped __call__("is_object", value)) {
+				if (value.is_object()) {
 					return untyped __php__("$value instanceof $phpType");
 				}
 		}
@@ -161,32 +163,32 @@ private class HxClass {
 	**/
 	public function tryCast( value:Dynamic ) : Dynamic {
 		inline function isNumber( value ) {
-			return untyped __call__("is_int", value) || untyped __call__("is_float", value);
+			return value.is_int() || value.is_float();
 		}
 
 		switch (phpClassName) {
 			case '\\Int':
 				if (isNumber(value)) {
-					return untyped __php__("(int)$value");
+					return value.intval();
 				}
 			case '\\Float':
 				if (isNumber(value)) {
-					return untyped __php__("(float)$value");
+					return value.floatval();
 				}
 			case '\\Bool':
-				if (untyped __call__("is_bool", value)) {
+				if (value.is_bool()) {
 					return value;
 				}
 			case '\\String':
-				if (untyped __call__("is_string", value)) {
+				if (value.is_string()) {
 					return value;
 				}
 			case '\\php7\\NativeArray':
-				if (untyped __call__("is_array", value)) {
+				if (value.is_array()) {
 					return value;
 				}
 			case _:
-				if (untyped __call__("is_object", value) && Std.is(value, cast this)) {
+				if (value.is_object() && Std.is(value, cast this)) {
 					return value;
 				}
 		}
