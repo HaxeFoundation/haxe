@@ -80,6 +80,16 @@ let should_prefix_include = function
    |  ([],"hxMath") -> true
    | _ -> false;;
 
+
+let verbatim_include file =
+   if (String.sub file 0 1)="@" then 
+      ("@import " ^ (String.sub file 1 ((String.length file) - 1 )) ^ ";\n")
+   else
+      ("#include \"" ^ file ^ "\"\n")
+;;
+
+
+
 class source_writer common_ctx write_header_func write_func close_func =
    object(this)
    val indent_str = "\t"
@@ -110,7 +120,7 @@ class source_writer common_ctx write_header_func write_func close_func =
 
    method add_include class_path =
       ( match class_path with
-         | (["@verbatim"],file) -> this#write_h ("#include \"" ^ file ^ "\"\n");
+         | (["@verbatim"],file) -> this#write_h (verbatim_include file)
          | _ ->
             let prefix = if should_prefix_include class_path then "" else get_include_prefix common_ctx true in
             this#write_h ("#ifndef INCLUDED_" ^ (join_class_path class_path "_") ^ "\n");
@@ -478,6 +488,7 @@ let add_include writer class_path =
 
 let list_num l = string_of_int (List.length l);;
 
+
 (* This gets the class include order correct.  In the header files, we forward declare
    the class types so the header file does not have any undefined variables.
    In the cpp files, we include all the required header files, providing the actual
@@ -487,7 +498,7 @@ let gen_forward_decl writer class_path isNative =
    begin
       let output = writer#write in
       match class_path with
-      | (["@verbatim"],file) -> writer#write ("#include <" ^ file ^ ">\n");
+      | (["@verbatim"],file) -> writer#write (verbatim_include file)
       | _ ->
          let name = fst (remap_class_path class_path) in
          output ((if isNative then "HX_DECLARE_NATIVE" else "HX_DECLARE_CLASS") ^ list_num name  ^ "(");
