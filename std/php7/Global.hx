@@ -46,13 +46,15 @@ extern class Global {
 
     /**
         @see http://php.net/manual/en/function.is-subclass-of.php
-     */
-    static function is_subclass_of( value:Dynamic, className:String ) : Bool ;
+    **/
+    @:overload(function(value:Dynamic,className:String):Bool {})
+    static function is_subclass_of( value:Dynamic, className:String, allow_string:Bool ) : Bool ;
 
     /**
         @see http://php.net/manual/en/function.intval.php
     **/
-    static function intval( value:Dynamic, base:Int = 10 ) : Int ;
+    @:overload(function(value:Dynamic):Int {})
+    static function intval( value:Dynamic, base:Int ) : Int ;
 
     /**
         @see http://php.net/manual/en/function.floatval.php
@@ -68,4 +70,16 @@ extern class Global {
         @see http://php.net/manual/en/function.strval.php
     **/
     static function strval( value:Dynamic ) : Float ;
+
+    /**
+        @see http://php.net/manual/en/function.phpversion.php
+    **/
+    @:overload(function():String {})
+    static function phpversion( extension:String ) : String ;
+
+    /**
+        @see http://php.net/manual/en/function.class_alias.php
+    **/
+    @:overload(function(original:String,alias:String):Bool {})
+    static function class_alias( original:String, alias:String, autoload:Bool ) : Bool ;
 }

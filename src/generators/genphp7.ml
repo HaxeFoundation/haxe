@@ -815,7 +815,10 @@ class virtual type_builder ctx wrapper =
 				| None -> ()
 				| Some expr ->
 					self#write_indentation;
-					self#write_as_block ~inline:true expr
+					let fake_block = { expr with eexpr = TBlock [expr] } in
+					expr_hierarchy <- fake_block :: expr_hierarchy;
+					self#write_as_block ~inline:true expr;
+					expr_hierarchy <- List.tl expr_hierarchy
 			);
 			self#write "\n";
 			self#write_hx_init_body;
@@ -974,7 +977,7 @@ class virtual type_builder ctx wrapper =
 					| TInst ({ cl_path = ([], "String") }, _) -> self#write "if (is_string($__hx__real_e)) {\n"
 					| TAbstract ({ a_path = ([], "Float") }, _) -> self#write "if (is_float($__hx__real_e)) {\n"
 					| TAbstract ({ a_path = ([], "Int") }, _) -> self#write "if (is_int($__hx__real_e)) {\n"
-					| TAbstract ({ a_path = ([], "Bool") }, _) -> self#write "if (is_float($__hx__real_e)) {\n"
+					| TAbstract ({ a_path = ([], "Bool") }, _) -> self#write "if (is_bool($__hx__real_e)) {\n"
 					| TDynamic _ ->
 						dynamic := true;
 						catching_dynamic := true;
