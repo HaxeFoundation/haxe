@@ -29,10 +29,6 @@ using php7.Lib;
 using php7.Global;
 
 
-@:coreType abstract Some<T> {
-	public inline function wtf() return this;
-}
-
 /**
 	Various Haxe->PHP compatibility utilities
 **/

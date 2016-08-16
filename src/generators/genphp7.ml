@@ -79,6 +79,14 @@ let need_parenthesis_for_binop current parent =
 			| _ -> true
 
 (**
+	@return (arguments_list, return_type)
+*)
+let get_function_signature (field:tclass_field) : (string * bool * Type.t) list * Type.t =
+	match follow field.cf_type with
+		| TFun (args, return_type) -> (args, return_type)
+		| _ -> fail field.cf_pos __POS__
+
+(**
 	Check if `target` is 100% guaranteed to be a scalar type in PHP.
 	Inversion of `is_sure_scalar` does not guarantee `target` is not scalar.
 *)
@@ -1188,11 +1196,35 @@ class virtual type_builder ctx wrapper =
 				| (_, FStatic (_, { cf_name = name; cf_kind = Method _ })) -> write_access ("::" ^ name)
 				| (_, FAnon { cf_name = name }) -> write_access ("->" ^ name)
 				(* | FDynamic of string *)
-				(* | FClosure of (tclass * tparams) option * tclass_field (* None class = TAnon *) *)
+				| (_, FClosure (tcls, field)) -> self#write_expr_field_closure tcls field expr
 				| (_, FEnum (_, field)) ->
 					write_access ("::" ^ field.ef_name);
 					if not (is_enum_constructor_with_args field) then self#write "()"
 				| _ -> fail self#pos __POS__
+		(**
+			Writes FClosure field access to output buffer
+		*)
+		method private write_expr_field_closure tcls field expr =
+			let (args, return_type) = get_function_signature field
+			and write_arg with_optionals (arg_name, optional, _) =
+				self#write ("$" ^ arg_name ^ (if with_optionals && optional then " = null" else ""))
+			in
+			self#write "function (";
+			write_args buffer (write_arg true) args;
+			self#write ") { return ";
+			(match expr.eexpr with
+				| TField (_, FClosure _)  -> self#write_expr (parenthesis expr)
+				| TField _  -> self#write_expr expr
+				| TLocal _ -> self#write_expr expr
+				| TConst (TThis _) -> self#write_expr expr
+				| _ -> self#write_expr (parenthesis expr)
+			);
+			self#write ("->" ^ field.cf_name ^ "(");
+			write_args buffer (write_arg false) args;
+			self#write ");}"
+			(* match tcls with
+				| None -> ()
+				| Some (tcls, _) -> () *)
 		(**
 			Write anonymous object declaration to output buffer
 		*)
@@ -1558,12 +1590,7 @@ class class_builder ctx (cls:tclass) =
 		method private write_method field is_static =
 			(* self#write_empty_lines; *)
 			self#indent 1;
-			let (args, return_type) =
-				(match follow field.cf_type with
-					| TFun (args, return_type) -> (args, return_type)
-					| _ -> failwith ("Invalid signature of method " ^ field.cf_name)
-				)
-			in
+			let (args, return_type) = get_function_signature field in
 			self#write_doc (DocMethod (args, return_type, field.cf_doc));
 			self#write_indentation;
 			if is_static then self#write "static ";
