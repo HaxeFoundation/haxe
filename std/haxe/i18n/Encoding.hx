@@ -157,13 +157,11 @@ class Encoding {
             i+=2;
             /* If we have a surrogate pair, convert to UTF32 first. */
             if (ch >= UNI_SUR_HIGH_START && ch <= UNI_SUR_HIGH_END) {
-                trace("surrogate pair");
                 /* If the 16 bits following the high surrogate are in the source buffer... */
                 if (i < source.length) {
                     var ch2 = source.getInt16(i);
                     /* If it's a low surrogate, convert to UTF32. */
                     if (ch2 >= UNI_SUR_LOW_START && ch2 <= UNI_SUR_LOW_END) {
-                        trace("low surrogate");
                         ch = ((ch - UNI_SUR_HIGH_START) << halfShift)
                             + (ch2 - UNI_SUR_LOW_START) + halfBase;
                         i+=2;

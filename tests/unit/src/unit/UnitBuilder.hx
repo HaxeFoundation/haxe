@@ -75,7 +75,8 @@ class UnitBuilder {
 		}
 	}
 
-	static function mkEq(e1, e2, p:Position) {
+	static function mkEq(e1, e2, p, ?previousCode:Array<Expr>) {
+		if (previousCode == null) previousCode = [];
 		function isFloat(e) {
 			try return switch(Context.follow(Context.typeof(e))) {
 				case TAbstract(tr, _):
@@ -86,12 +87,31 @@ class UnitBuilder {
 				return false;
 			}
 		}
-		var e = switch [isFloat(e1) || isFloat(e2), e2.expr] {
-			case [_, EField( { expr:EConst(CIdent("Math" | "math")) }, "POSITIVE_INFINITY" | "NEGATIVE_INFINITY")] if (Context.defined("cpp") || Context.defined("php")):
+		function isAbstract(e, checkPrev = true) {
+			try return switch(Context.follow(Context.typeof(e))) {
+				case TAbstract(_, _):
+					true;
+				case x:
+					false;
+			} catch (err:Dynamic) {
+				if (checkPrev && previousCode.length > 0) {
+					var arr = previousCode.concat([e]);
+					var e = macro $b{arr};
+					return isAbstract(e , false);
+				}
+				return false;
+			}
+		}
+		var e = switch [isAbstract(e1) && isAbstract(e2), isFloat(e1) || isFloat(e2), e2.expr] {
+			case [_, _, EField( { expr:EConst(CIdent("Math" | "math")) }, "POSITIVE_INFINITY" | "NEGATIVE_INFINITY")] if (Context.defined("cpp") || Context.defined("php")):
 				macro t($e1 == $e2);
-			case [true, _]:
+
+			case [_,true, _]:
 				macro feq($e1, $e2);
+			case [true, _, _]:
+				macro eqAbstract($e1 == $e2, $e1, $e2);
 			case _:
+
 				macro eq($e1, $e2);
 		}
 		return {
@@ -111,6 +131,7 @@ class UnitBuilder {
 		}
 		function bl(block:Array<Expr>):Array<Expr> {
 			var ret = [];
+			var defs = [];
 			for (e in block) {
 				var e = switch(e.expr) {
 					case EBinop(OpEq, e1, { expr: EConst(CIdent("false")) } )
@@ -137,7 +158,7 @@ class UnitBuilder {
 						else
 							macro { $a{el2}; };
 					case EBinop(OpEq, e1, e2):
-						mkEq(e1, e2, e.pos);
+						mkEq(e1, e2, e.pos, defs);
 					case EBinop(OpNotEq, e1, e2):
 						macro t($e1 != $e2);
 					case EBinop(OpGt | OpGte | OpLt | OpLte, _, _):
@@ -154,8 +175,9 @@ class UnitBuilder {
 						macro @:pos(e.pos) t(${ collapseToOrExpr(el2) } );
 					case EVars(vl):
 						for (v in vl)
-							if (v.name == "t" || v.name == "f" || v.name == "eq" || v.name == "neq")
+							if (v.name == "t" || v.name == "f" || v.name == "eq" || v.name == "neq" || v.name == "eqAbstract")
 								Context.error('${v.name} is reserved for unit testing', e.pos);
+							defs.push(e);
 							e;
 					case EFor(it, {expr: EBlock(el), pos: p}):
 						{ expr: EFor(it, {expr:EBlock(bl(el)), pos: p}), pos: e.pos };

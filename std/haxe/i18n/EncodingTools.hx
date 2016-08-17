@@ -113,6 +113,7 @@ class EncodingTools {
 	    else if (ucs2 >= 0x800 && ucs2 < 0xFFFF) {
 			if (ucs2 >= 0xD800 && ucs2 <= 0xDFFF) {
 			    /* Ill-formed. */
+			    trace(StringTools.hex(ucs2));
 			    throw UnicodeError.SurrogatePair;
 			}
 			buf.addByte(((ucs2 >> 12)       ) | 0xE0);

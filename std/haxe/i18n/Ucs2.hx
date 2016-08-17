@@ -401,8 +401,21 @@ abstract Ucs2(ByteAccess) {
 	}
 
 	@:extern public static inline function fromCharCode( code : Int ) : Ucs2 {
-		return new Ucs2(String.fromCharCode(code));
+	{
+		var size = getCodeSize(code);
+		var bytes = ByteAccess.alloc(size);
+		switch size {
+			case 2:
+				bytes.set(0, code & 0xFF00);
+				bytes.set(1, code & 0x00FF);
+			case 4:
+				throw "no surrogate pairs allowed";
+
+			case _: throw "invalid char code";
+		}
+		return wrapAsUcs2(bytes);
 	}
+
 
 	/*@:extern inline*/
 	public function toBytes(  ) : haxe.io.Bytes {

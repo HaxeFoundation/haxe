@@ -31,6 +31,14 @@ class Test {
 		}
 	}
 
+	function eqAbstract<T>( isEq:Bool, v : T, v2 : T, ?pos ) {
+		incrCount(pos);
+		if( !isEq ) {
+			report(Std.string(v)+" should be "+Std.string(v2),pos);
+			success = false;
+		}
+	}
+
 	function feq( v : Float, v2 : Float, ?pos ) {
 		incrCount(pos);
 		if (!Math.isFinite(v) || !Math.isFinite(v2))

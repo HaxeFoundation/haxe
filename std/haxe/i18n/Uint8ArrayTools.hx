@@ -18,7 +18,7 @@ class Uint8ArrayTools {
 	public static inline function set( b:Uint8Array, pos : Int, v : Int ) : Void {
 		b[pos] = v & 0xFF;
 	}
-	public static inline function getString( b:Uint8Array, pos : Int, len : Int ) : String {
+	public static function getString( b:Uint8Array, pos : Int, len : Int ) : String {
 		if( pos < 0 || len < 0 || pos + len > getLength(b) ) throw Error.OutsideBounds;
 		var s = "";
 
@@ -51,7 +51,7 @@ class Uint8ArrayTools {
 		var data = new BytesData(length);
 		return Uint8ArrayTools.wrapData(data);
 	}
-	public static inline function sub(b:Uint8Array, pos:Int, len:Int):Uint8Array {
+	public static function sub(b:Uint8Array, pos:Int, len:Int):Uint8Array {
 		if( pos < 0 || len < 0 || pos + len > getLength(b) ) throw Error.OutsideBounds;
 		return wrapData(b.buffer.slice(pos+b.byteOffset,pos+b.byteOffset+len));
 	}
@@ -65,7 +65,7 @@ class Uint8ArrayTools {
 		return (b:Dynamic).bufferValue;
 	}
 
-	public static inline function getLength (b:Uint8Array):Int {
+	public static function getLength (b:Uint8Array):Int {
 		return getData(b).byteLength;
 	}
 	public static inline function wrapData (data:BytesData):Uint8Array {

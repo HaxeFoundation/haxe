@@ -49,6 +49,7 @@ abstract Utf8(ByteAccess) {
 		}
 		return wrapAsUtf8(res);
 	}
+
 	/*@:extern inline*/
 	public function toLowerCase() : Utf8 {
 		var res = ByteAccess.alloc(this.length);
@@ -62,6 +63,7 @@ abstract Utf8(ByteAccess) {
 		}
 		return wrapAsUtf8(res);
 	}
+
 	/*@:extern inline*/
 	public function charAt(index : Int) : Utf8 {
 		var res = null;
@@ -80,6 +82,7 @@ abstract Utf8(ByteAccess) {
 		}
 		return res == null ? empty() : res;
 	}
+
 	/*@:extern inline*/
 	public function charCodeAt( index : Int) : Null<Int> {
 		var pos = 0;
@@ -98,6 +101,7 @@ abstract Utf8(ByteAccess) {
 		}
 		return r;
 	}
+
 	/*@:extern inline*/
 	public function indexOf( str : Utf8, ?startIndex : Int ) : Int
 	{
@@ -164,6 +168,7 @@ abstract Utf8(ByteAccess) {
 		}
 		return wrapAsUtf8(res);
 	}
+
 	/*@:extern inline*/
 	public function lastIndexOf( str : Utf8, ?startIndex : Int ) : Int {
 		var rev = wrapAsUtf8(this).reverse();
@@ -175,6 +180,7 @@ abstract Utf8(ByteAccess) {
 		return res;
 
 	}
+
 	/*@:extern inline*/
 	public function split( delimiter : Utf8 ) : Array<Utf8>
 	{
@@ -249,12 +255,8 @@ abstract Utf8(ByteAccess) {
 
 		if (len != null && len <= 0) {
 
-			return new Utf8("");
+			return empty();
 		}
-
-		//trace("pos: " + pos, "len: " + len);
-
-
 
 		var buf = new ByteAccessBuffer();
 
@@ -279,7 +281,6 @@ abstract Utf8(ByteAccess) {
 			i+=size;
 			cur++;
 		}
-		//trace(buf);
 		return wrapAsUtf8(buf.getByteAccess());
 	}
 
@@ -291,43 +292,12 @@ abstract Utf8(ByteAccess) {
 			substr(startIndex, endIndex - startIndex);
 		} else empty();
 	}
-	/*@:extern inline*/
-	public function toNativeString() : String {
-		return this.getString(0, this.length);
+
+	@:op(A + B) inline function opAdd (other:Utf8) {
+		return wrapAsUtf8(this.append(asByteAccess(other)));
 	}
 
-	@:extern public static inline function fromCharCode( code : Int ) : Utf8
-	{
-		var size = getCodeSize(code);
-		var bytes = ByteAccess.alloc(size);
-		switch size {
-			case 1:
-				bytes.set(0, code);
-			case 2:
-				bytes.set(0, code & 0xFF00);
-				bytes.set(1, code & 0x00FF);
-			case 3:
-				bytes.set(0, (code & 0xFF0000) >> 16);
-				bytes.set(1, (code & 0x00FF00) >> 8);
-				bytes.set(2, code & 0x0000FF);
-			case _: throw "invalid char code";
-		}
-		return wrapAsUtf8(bytes);
-	}
-	/*@:extern inline*/
-	public function toBytes() : haxe.io.Bytes {
-		return this.copy().toBytes();
-	}
-
-	@:extern public static inline function fromBytes( bytes : haxe.io.Bytes ) : Utf8 {
-		return wrapAsUtf8(ByteAccess.fromBytes(bytes).copy());
-	}
-	/*@:extern inline*/
-	public function toUcs2() : Ucs2 {
-		return EncodingTools.utf8ToUcs2(wrapAsUtf8(this));
-	}
-
-	@:op(A == B) inline function opEq (other:Utf8) {
+	@:op(A == B) public inline function opEq (other:Utf8) {
 		return this.equal(asByteAccess(other));
 	}
 
@@ -348,24 +318,28 @@ abstract Utf8(ByteAccess) {
 		return len;
 	}
 
-	@:extern static inline function getCharSize (start:Int):Int {
+	/*@:extern inline*/
+	static function getCharSize (start:Int):Int {
 		return if (start < 0x80) 1
 		else if ((start & 0xE0) == 0xE0) 3
 		else if ((start & 0xC0) == 0xC0) 2
 		else throw "invalid utf8";
 	}
 
-	@:extern static inline function isUpperCaseLetter (bytes:ByteAccess, pos:Int, size:Int) {
+	/*@:extern inline*/
+	static function isUpperCaseLetter (bytes:ByteAccess, pos:Int, size:Int) {
 		var b = bytes.fastGet(pos);
 		return b >= 0x41 && b <= 0x5A;
 	}
 
-	@:extern static inline function isLowerCaseLetter (bytes:ByteAccess, pos:Int, size:Int) {
+	/*@:extern inline*/
+	static function isLowerCaseLetter (bytes:ByteAccess, pos:Int, size:Int) {
 		var b = bytes.fastGet(pos);
 		return b >= 0x61 && b <= 0x7A;
 	}
 
-	@:extern static inline function toLowerCaseLetter (bytes:ByteAccess, target:ByteAccess, pos:Int, size:Int) {
+	/*@:extern inline*/
+	static function toLowerCaseLetter (bytes:ByteAccess, target:ByteAccess, pos:Int, size:Int) {
 		if (isUpperCaseLetter(bytes, pos, size)) {
 			target.set(pos, bytes.fastGet(pos)+0x20);
 		} else {
@@ -375,7 +349,8 @@ abstract Utf8(ByteAccess) {
 		}
 	}
 
-	@:extern static inline function toUpperCaseLetter (bytes:ByteAccess, target:ByteAccess, pos:Int, size:Int) {
+	/*@:extern inline*/
+	static function toUpperCaseLetter (bytes:ByteAccess, target:ByteAccess, pos:Int, size:Int) {
 		if (isLowerCaseLetter(bytes, pos, size)) {
 			target.set(pos, bytes.fastGet(pos)-0x20);
 		} else {
@@ -385,11 +360,13 @@ abstract Utf8(ByteAccess) {
 		}
 	}
 
-	@:extern static inline function empty () {
+	/*@:extern inline*/
+	static function empty () {
 		return new Utf8("");
 	}
 
-	@:extern static inline function getCharCode ( b:ByteAccess, pos:Int, size:Int):Int {
+	/*@:extern inline*/
+	static function getCharCode ( b:ByteAccess, pos:Int, size:Int):Int {
 		return switch size {
 			case 1: b.fastGet(pos);
 			case 2: (b.fastGet(pos) << 8) | (b.fastGet(pos+1));
@@ -398,36 +375,78 @@ abstract Utf8(ByteAccess) {
 		}
 	}
 
-	@:extern static inline function compareChar ( b1:ByteAccess, pos1:Int, b2:ByteAccess, pos2:Int, size:Int):Int {
+	/*@:extern inline*/
+	static function compareChar ( b1:ByteAccess, pos1:Int, b2:ByteAccess, pos2:Int, size:Int):Int {
 		var c1 = getCharCode(b1, pos1, size);
 		var c2 = getCharCode(b2, pos2, size);
 
 		return c1 - c2;
 	}
 
-	@:extern static inline function pushCharCode (bytes:ByteAccess, buf:ByteAccessBuffer, pos:Int, size:Int) {
+	/*@:extern inline*/
+	static function pushCharCode (bytes:ByteAccess, buf:ByteAccessBuffer, pos:Int, size:Int) {
 		for (i in 0...size) {
 			buf.addByte(bytes.fastGet(pos+i));
 		}
 	}
 
-	@:extern static inline function getCodeSize (code:Int):Int {
-		return
-			if (code > 0xFFFF && code <= 0xFFFFFF) 3
-			else if (code > 0xFF && code <= 0xFFFF) 2
-			else if (code <= 0xFF) 1
-			else throw "invalid code";
+	/*@:extern inline*/
+	static function getCodeSize (code:Int):Int {
+		return if (code <= 0x7F) {
+			1;
+		} else if (code <= 0x7FF) {
+			2;
+		} else if (code <= 0xFFFF) {
+			3;
+		} else if (code <= 0x10FFFF) {
+			4;
+		} else {
+			throw "invalid code " + code;
+		}
 	}
 
-	@:extern public static inline function asByteAccess (s:Utf8):ByteAccess {
+	/*@:extern inline*/
+	public static function asByteAccess (s:Utf8):ByteAccess {
 		return cast s;
 	}
 
-	@:extern public static inline function wrapAsUtf8 (bytes:ByteAccess):Utf8 {
+	/*@:extern inline*/
+	public static function wrapAsUtf8 (bytes:ByteAccess):Utf8 {
 		return cast bytes;
 	}
 
-	@:extern public static inline function fromNativeString (s:String):Utf8 {
+	/*@:extern inline*/
+	public static function fromCharCode( code : Int ) : Utf8
+	{
+		var size = getCodeSize(code);
+		var bytes = ByteAccess.alloc(size);
+		switch size {
+			case 1:
+				bytes.set(0, code);
+			case 2:
+				bytes.set(0, 0xC0 | (code >> 6));
+				bytes.set(1, 0x80 | (code & 0x3F));
+			case 3:
+				bytes.set(0, 0xE0 | (code >> 12));
+				bytes.set(1, 0x80 | ((code >> 6) & 0x3F));
+				bytes.set(2, 0x80 | (code & 0x3F));
+			case 4:
+				bytes.set(0, 0xF0 | (code >> 18));
+				bytes.set(1, 0x80 | ((code >> 12)  & 0x3F));
+				bytes.set(2, 0x80 | ((code >> 6) & 0x3F));
+				bytes.set(3, 0x80 | (code & 0x3F));
+			case _: throw "invalid char code";
+		}
+		return wrapAsUtf8(bytes);
+	}
+
+	/*@:extern inline*/
+	public static function fromBytes( bytes : haxe.io.Bytes ) : Utf8 {
+		return wrapAsUtf8(ByteAccess.fromBytes(bytes).copy());
+	}
+
+	/*@:extern inline*/
+	public static function fromNativeString (s:String):Utf8 {
 
  		#if python
  		return wrapAsUtf8(ByteAccess.ofData(python.NativeStringTools.encode(s, "utf-8")));
@@ -439,7 +458,23 @@ abstract Utf8(ByteAccess) {
  		#end
  	}
 
+ 	/*@:extern inline*/
+	public function toNativeString() : String {
+		return this.getString(0, this.length);
+	}
+
+ 	/*@:extern inline*/
+	public function toUcs2() : Ucs2 {
+		return EncodingTools.utf8ToUcs2(wrapAsUtf8(this));
+	}
+
+	/*@:extern inline*/
  	public function toUtf16 ():Utf16 {
 		return EncodingTools.utf8ToUtf16(wrapAsUtf8(this));
+	}
+
+	/*@:extern inline*/
+	public function toBytes() : haxe.io.Bytes {
+		return this.copy().toBytes();
 	}
 }

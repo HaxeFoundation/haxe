@@ -79,6 +79,14 @@ abstract ByteAccess(Uint8Array) {
 		return Uint8ArrayTools.blit(this, pos, src.asUint8Array(), srcpos, len);
 	}
 
+	public inline function append (other : ByteAccess):ByteAccess {
+
+		var c = Uint8ArrayTools.alloc(this.length + other.length);
+		c.set(this);
+		c.set(other.asUint8Array(), this.length);
+		return fromUint8Array(c);
+	}
+
 	static inline function fromUint8Array (b:Uint8Array):ByteAccess {
 		return cast b;
 	}
@@ -152,6 +160,9 @@ abstract ByteAccess(BytesData) {
 
 	}
 
+	@:op(a == b) inline function opEq (other: ByteAccess) {
+		return asByteAccess().equal(other);
+	}
 
 	public static inline function alloc (length:Int) {
 		return new ByteAccess(length);
