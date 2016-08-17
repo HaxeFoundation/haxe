@@ -765,7 +765,7 @@ class RunCi {
 			runCommand("backportpackage -d vivid   --upload ${PPA} --yes ../haxe_*.dsc");
 			runCommand("backportpackage -d trusty  --upload ${PPA} --yes ../haxe_*.dsc");
 			runCommand("git checkout debian/changelog");
-			runCommand("git merge -X ours --no-edit origin/backport-precise");
+			runCommand("git merge -X ours --no-edit origin/next-precise");
 			runCommand('dch -v "1:${SNAPSHOT_VERSION}-1" --urgency low "snapshot build"');
 			runCommand("debuild -S -sa");
 			runCommand("backportpackage -d precise --upload ${PPA} --yes ../haxe_*.dsc");
