@@ -3,6 +3,10 @@ package haxe.i18n;
 import haxe.io.BytesData;
 import haxe.io.Error;
 
+#if cpp
+using cpp.NativeArray;
+#end
+
 class BytesDataTools {
 
 	#if (!js)

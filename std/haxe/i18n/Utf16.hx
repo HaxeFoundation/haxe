@@ -26,6 +26,8 @@ package haxe.i18n;
 **/
 
 #if (java || cs)
+import haxe.io.Bytes;
+import haxe.io.BytesData;
 abstract Utf16(String) {
 
 	/*@:extern */
@@ -42,18 +44,18 @@ abstract Utf16(String) {
 	}
 
 	/*@:extern inline*/
-	public function toUpperCase() : Ucs2 {
-		return new Ucs2(this.toUpperCase());
+	public function toUpperCase() : Utf16 {
+		return new Utf16(this.toUpperCase());
 	}
 
 	/*@:extern inline*/
-	public function toLowerCase() : Ucs2 {
-		return new Ucs2(this.toLowerCase());
+	public function toLowerCase() : Utf16 {
+		return new Utf16(this.toLowerCase());
 	}
 
 	/*@:extern inline*/
-	public function charAt(index : Int) : Ucs2 {
-		return new Ucs2(this.charAt(index));
+	public function charAt(index : Int) : Utf16 {
+		return new Utf16(this.charAt(index));
 	}
 
 	/*@:extern inline*/
@@ -62,32 +64,32 @@ abstract Utf16(String) {
 	}
 
 	/*@:extern inline*/
-	public function indexOf( str : Ucs2, ?startIndex : Int ) : Int {
+	public function indexOf( str : Utf16, ?startIndex : Int ) : Int {
 		return this.indexOf(str.toNativeString(),startIndex);
 	}
 
 	/*@:extern inline*/
-	public function lastIndexOf( str : Ucs2, ?startIndex : Int ) : Int {
+	public function lastIndexOf( str : Utf16, ?startIndex : Int ) : Int {
 		return this.lastIndexOf(str.toNativeString(),startIndex);
 	}
 
 	/*@:extern inline*/
-	public function split( delimiter : Ucs2 ) : Array<Ucs2> {
+	public function split( delimiter : Utf16 ) : Array<Utf16> {
 		return cast this.split(delimiter.toNativeString());
 	}
 
 	/*@:extern inline*/
-	public function substr( pos : Int, ?len : Int ) : Ucs2 {
-		return new Ucs2(this.substr(pos,len));
+	public function substr( pos : Int, ?len : Int ) : Utf16 {
+		return new Utf16(this.substr(pos,len));
 	}
 
 	/*@:extern inline*/
-	public function substring( startIndex : Int, ?endIndex : Int ) : Ucs2 {
-		return new Ucs2(this.substring(startIndex,endIndex));
+	public function substring( startIndex : Int, ?endIndex : Int ) : Utf16 {
+		return new Utf16(this.substring(startIndex,endIndex));
 	}
 
 	@:op(A == B) inline function opEq (other:Utf16) {
-		return fromNativeString(this == other.toNativeString());
+		return this == other.toNativeString();
 	}
 
 	@:op(A + B) inline function opAdd (other:Utf16) {
@@ -99,12 +101,12 @@ abstract Utf16(String) {
 	}
 
 	/*@:extern inline*/
-	public static function fromCharCode( code : Int ) : Ucs2 {
-		return new Ucs2(String.fromCharCode(code));
+	public static function fromCharCode( code : Int ) : Utf16 {
+		return new Utf16(String.fromCharCode(code));
 	}
 
 	/*@:extern inline*/
-	public static function fromBytes( bytes : haxe.io.Bytes ) : Ucs2 {
+	public static function fromBytes( bytes : haxe.io.Bytes ) : Utf16 {
 		throw "not implemented";
 	}
 
@@ -118,26 +120,44 @@ abstract Utf16(String) {
 		return this;
 	}
 
-	/*@:extern inline*/
-	public function toUcs2() : Ucs2 {
-		return EncodingTools.utf8ToUcs2(wrapAsUtf8(this));
+	@:extern public static inline function asByteAccess (s:Utf16):ByteAccess {
+		return ByteAccess.fromBytes(s.toBytes());
+	}
+
+	@:extern public static inline function wrapAsUtf16 (bytes:ByteAccess):Utf16 {
+		#if cs
+		return new Utf16(cs.system.text.Encoding.BigEndianUnicode.GetString(bytes.asBytesData(), 0, bytes.asBytesData().length));
+		#elseif java
+		try
+			return new Utf16(new String(bytes.asBytesData(), 0, bytes.asBytesData().length, "UTF-16BE"))
+		catch (e:Dynamic) throw e;
+		#end
+
 	}
 
 	/*@:extern inline*/
- 	public function toUtf8 ():Utf16 {
-		return EncodingTools.ucs2ToUtf8(wrapAsUtf8(this));
+	public function toUcs2() : Ucs2 {
+		return EncodingTools.utf16ToUcs2(new Utf16(this));
+	}
+
+
+
+
+	/*@:extern inline*/
+ 	public function toUtf8 ():Utf8 {
+		return EncodingTools.utf16ToUtf8(new Utf16(this));
 	}
 
 	/*@:extern inline*/
 	public function toBytes(  ) : haxe.io.Bytes {
 		#if cs
-		var b = cs.system.text.Encoding.BigEndianUnicode.GetBytes(s);
-		return new Bytes(b.Length, b);
+		var b = cs.system.text.Encoding.BigEndianUnicode.GetBytes(this);
+		return Bytes.ofData(b);
 		#elseif java
 		try
 		{
-			var b:BytesData = untyped s.getBytes("UTF-16BE");
-			return new Bytes(b.length, b);
+			var b:haxe.io.BytesData = untyped this.getBytes("UTF-16BE");
+			return Bytes.ofData(b);
 		}
 		catch (e:Dynamic) throw e;
 		#end
@@ -212,7 +232,7 @@ abstract Utf16(ByteAccess) {
 	public function charCodeAt( index : Int) : Null<Int> {
 		var pos = 0;
 		var i = 0;
-		var r = null;
+		var r:Null<Int> = null;
 		while (r == null && i < this.length) {
 
 			var b = this.fastGet(i);
@@ -395,7 +415,7 @@ abstract Utf16(ByteAccess) {
 
 		while (i < byteLength) {
 			var char = getNext2Bytes(i);
-			if (char == null) throw "error";
+			//if (char == null) throw "error";
 			var size = getCharSize(char);
 			if (cur >= pos && (len == null || cur < pos + len))
 			{
@@ -560,7 +580,7 @@ abstract Utf16(ByteAccess) {
  		return EncodingTools.ucs2ToUtf16( new Ucs2(s));
  		#else
 
- 		return wrapAsUtf16(ByteAccess.fromBytes(Bytes.ofString(s)));
+ 		return wrapAsUtf16(ByteAccess.fromBytes(haxe.io.Bytes.ofString(s)));
  		#end
  	}
 

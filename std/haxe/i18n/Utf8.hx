@@ -87,7 +87,7 @@ abstract Utf8(ByteAccess) {
 	public function charCodeAt( index : Int) : Null<Int> {
 		var pos = 0;
 		var i = 0;
-		var r = null;
+		var r:Null<Int> = null;
 		while (r == null && i < this.length) {
 
 			var b = this.fastGet(i);
@@ -269,7 +269,7 @@ abstract Utf8(ByteAccess) {
 
 		while (i < byteLength) {
 			var char = str.fastGet(i);
-			if (char == null) throw "error";
+			//if (char == null) throw "error";
 			var size = getCharSize(char);
 			if (cur >= pos && (len == null || cur < pos + len))
 			{

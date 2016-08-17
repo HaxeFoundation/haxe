@@ -1,7 +1,7 @@
 package haxe.i18n;
 
 import haxe.io.BytesBuffer;
-
+import haxe.io.BytesData;
 
 @:access(haxe.io.BytesBuffer)
 class BytesBufferTools {

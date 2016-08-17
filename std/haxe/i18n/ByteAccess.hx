@@ -193,7 +193,7 @@ abstract ByteAccess(BytesData) {
 
 
 
-	inline function asBytesData ():BytesData {
+	public inline function asBytesData ():BytesData {
 		return this;
 	}
 

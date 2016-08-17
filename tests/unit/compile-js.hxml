@@ -6,5 +6,6 @@
 --next
 
 compile-each.hxml
-unit.TestMain
+-main unit.Test
+-D nodejs
 -js bin/unit.js
