@@ -400,8 +400,11 @@ abstract Ucs2(ByteAccess) {
 		return EncodingTools.ucs2ToUtf8(wrapAsUcs2(this)).toNativeString();
 	}
 
+	@:extern static inline function getCodeSize (code:Int):Int {
+		return if (code <= 0xFFFF) 2 else 4;
+	}
+
 	@:extern public static inline function fromCharCode( code : Int ) : Ucs2 {
-	{
 		var size = getCodeSize(code);
 		var bytes = ByteAccess.alloc(size);
 		switch size {
