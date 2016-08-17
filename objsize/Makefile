@@ -1,4 +1,4 @@
-CFLAGS = -I .
+ALL_CFLAGS = $(CFLAGS) -I .
 LIBS =
 OCAMLOPT=ocamlopt
 OCAMLC=ocamlc
@@ -17,7 +17,7 @@ objsize.cmxa: c_objsize.o $(SRC)
 	$(OCAMLOPT) -a -o objsize.cmxa $(LIBS) $(SRC)
 
 c_objsize.o: c_objsize.c
-	$(OCAMLC) $(CFLAGS) c_objsize.c
+	$(OCAMLC) $(ALL_CFLAGS) c_objsize.c
 
 clean:
 	rm -rf $(wildcard *.cma) $(wildcard *.cmxa) $(wildcard *.cmx) $(wildcard *.cmi) $(wildcard *.cmo) $(wildcard *.obj) $(wildcard *.o) $(wildcard *.a)

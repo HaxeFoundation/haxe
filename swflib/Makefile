@@ -4,7 +4,7 @@ OCAMLOPT=ocamlopt
 OCAMLC=ocamlc
 .SUFFIXES : .ml .mli .cmo .cmi .cmx .mll .mly
 
-CFLAGS= -I ../extlib -I ../extc -g
+ALL_CFLAGS= $(CFLAGS) -I ../extlib -I ../extc -g
 LIBS=
 
 SRC=actionScript.ml as3hl.mli as3.mli png.ml swflib.sln swf.ml swfPic.ml as3code.ml as3hlparse.ml as3parse.ml png.mli swfParser.ml
@@ -61,13 +61,13 @@ clean:
 
 # SUFFIXES
 .ml.cmo:
-	$(OCAMLC) $(CFLAGS) -c $<
+	$(OCAMLC) $(ALL_CFLAGS) -c $<
 
 .ml.cmx:
-	$(OCAMLOPT) $(CFLAGS) -c $<
+	$(OCAMLOPT) $(ALL_CFLAGS) -c $<
 
 .mli.cmi:
-	$(OCAMLC) $(CFLAGS) $<
+	$(OCAMLC) $(ALL_CFLAGS) $<
 
 .mll.ml:
 	ocamllex $<

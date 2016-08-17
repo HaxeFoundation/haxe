@@ -8,7 +8,7 @@ OCAMLFIND=ocamlfind
 .SUFFIXES : .ml .mli .cmo .cmx .cmi .mll .mly
 
 INSTALLDIR=`$(OCAMLC) -where`
-CFLAGS=
+ALL_CFLAGS= $(CFLAGS)
 LFLAGS= -a
 LIBS=
 SRC=dtd.mli xml.dsp xml_lexer.mli xml.ml xmlParser.ml xml_parser.mly dtd.ml test.ml xml.dsw xml_lexer.mll xml.mli xmlParser.mli
@@ -97,13 +97,13 @@ clean:
 
 # SUFFIXES
 .ml.cmo:
-	$(OCAMLC) $(CFLAGS) -c $<
+	$(OCAMLC) $(ALL_CFLAGS) -c $<
 
 .ml.cmx:
-	$(OCAMLOPT) $(CFLAGS) -c $<
+	$(OCAMLOPT) $(ALL_CFLAGS) -c $<
 
 .mli.cmi:
-	$(OCAMLC) $(CFLAGS) $<
+	$(OCAMLC) $(ALL_CFLAGS) $<
 
 .mll.ml:
 	ocamllex $<

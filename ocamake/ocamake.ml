@@ -613,7 +613,7 @@ match files with
 		fprint "# http://tech.motion-twin.com";
 		fprint ".SUFFIXES : .ml .mli .cmo .cmi .cmx .mll .mly";
 		fprint "";
-		fprint ("CFLAGS="^(flatten (!cflags @ p4param::paths)));
+		fprint ("ALL_CFLAGS= $(CFLAGS) "^(flatten (!cflags @ p4param::paths)));
 		fprint ("LIBS="^(flatten (List.map (fun f -> f.name) libs)));
 		let targets = flatten (List.map (fun f -> f.target) cmos) in
 		(match output_file with
@@ -645,9 +645,9 @@ match files with
 		fprint ("\t-@del "^cleanfiles^" 2>NUL");
 		fprint "";
 		fprint "# SUFFIXES";
-		fprint ".ml.cmo:\n\tocamlc $(CFLAGS) -c $<\n";
-		fprint ".ml.cmx:\n\tocamlopt $(CFLAGS) -c $<\n";
-		fprint ".mli.cmi:\n\tocamlc $(CFLAGS) $<\n";
+		fprint ".ml.cmo:\n\tocamlc $(ALL_CFLAGS) -c $<\n";
+		fprint ".ml.cmx:\n\tocamlopt $(ALL_CFLAGS) -c $<\n";
+		fprint ".mli.cmi:\n\tocamlc $(ALL_CFLAGS) $<\n";
 		fprint ".mll.ml:\n\tocamllex $<\n";
 		fprint ".mly.ml:\n\tocamlyacc $<\n";
 		close_out out
