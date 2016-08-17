@@ -74,7 +74,7 @@ class RunCi {
 		If `useRetry` is `true`, the command will be re-run if it exits with non-zero code (3 trials).
 		It is useful for running network-dependent commands.
 	*/
-	static function runCommand(cmd:String, ?args:Array<String>, useRetry:Bool = false):Void {
+	static function runCommand(cmd:String, ?args:Array<String>, useRetry:Bool = false, allowFailure:Bool = false):Void {
 		var trials = useRetry ? 3 : 1;
 		var exitCode:Int = 1;
 		var cmdStr = cmd + (args == null ? '' : ' $args');
@@ -98,7 +98,8 @@ class RunCi {
 			}
 		}
 
-		fail();
+		if (!allowFailure)
+			fail();
 	}
 
 	static function isAptPackageInstalled(aptPackage:String):Bool {
@@ -1041,7 +1042,7 @@ class RunCi {
 						if (!success)
 							fail();
 					case Hl:
-						runCommand("haxe", ["compile-hl.hxml"]);
+						runCommand("haxe", ["compile-hl.hxml"], false, true);
 					case ThirdParty:
 						getPhpDependencies();
 						getJavaDependencies();
