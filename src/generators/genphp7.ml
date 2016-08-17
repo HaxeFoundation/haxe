@@ -954,29 +954,46 @@ class virtual type_builder ctx wrapper =
 		method private write_expr_function ?name func =
 			let write_arg arg =
 				match arg with
-					| ({ v_name = arg_name }, None) -> self#write ("$" ^ arg_name)
+					| ({ v_name = arg_name }, None) ->
+						vars#declared arg_name;
+						self#write ("$" ^ arg_name)
 					| ({ v_name = arg_name }, Some const) ->
+						vars#declared arg_name;
 						self#write ("$" ^ arg_name ^ " = ");
 						self#write_expr_const const
 			in
-			vars#dive;
 			let str_name = match name with None -> "" | Some str -> str ^ " " in
-			(* TODO: generate body expression first. Then generate declaration with captured local vars *)
+			let is_closure = str_name = "" in (* Closures don't have names *)
+			if is_closure then vars#dive;
 			self#write ("function " ^ str_name ^ "(");
 			write_args buffer write_arg func.tf_args;
 			self#write ")";
-			(* Closures don't have names. Bracket on same line for closures *)
-			if str_name = "" then
-				self#write " "
-			(* Only methods can be named functions. We want bracket on new line for methods. *)
-			else begin
-				self#indent 1;
-				self#write "\n";
-				self#write_indentation
-			end;
-			self#write_expr (inject_defaults ctx func);
-			let used_vars = vars#pop in
-			()
+			if is_closure then
+				begin
+					(* Generate closure body to separate buffer *)
+					let original_buffer = buffer in
+					buffer <- Buffer.create 256;
+					self#write_expr (inject_defaults ctx func);
+					let body = Buffer.contents buffer in
+					buffer <- original_buffer;
+					(* Use captured local vars *)
+					let used_vars = vars#pop in
+					self#write " ";
+					if List.length used_vars > 0 then begin
+						self#write " use (";
+						write_args buffer (fun name -> self#write ("&$" ^ name)) used_vars;
+						self#write ") "
+					end;
+					self#write body
+				end
+			else
+				begin
+					(* We want bracket on new line for methods. *)
+					self#indent 1;
+					self#write "\n";
+					self#write_indentation;
+					self#write_expr (inject_defaults ctx func)
+				end
 		(**
 			Writes TBlock to output buffer
 		*)
@@ -1300,7 +1317,7 @@ class virtual type_builder ctx wrapper =
 			buffer <- original_buffer;
 			(* Write whole closure to output buffer *)
 			let (args, return_type) = get_function_signature field
-			and write_arg with_optionals (arg_name, optional, _) = (* TODO: generate actual default values for optional arguments instead of `null`s *)
+			and write_arg with_optionals (arg_name, optional, _) =
 				self#write ("$" ^ arg_name ^ (if with_optionals && optional then " = null" else ""))
 			in
 			let args = (** Make sure arguments will not shadow local vars declared in higher scopes *)
