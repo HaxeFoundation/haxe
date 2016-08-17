@@ -687,6 +687,7 @@ class virtual type_builder ctx wrapper =
 						| ([],"Bool") -> "bool"
 						| ([],"Void") -> "void"
 						| ([], "Class") -> self#use hxclass_type_path
+						| _ when Meta.has Meta.CoreType abstr.a_meta -> "mixed"
 						| _ -> self#use_t abstr.a_this
 		(**
 			Indicates whether current expression nesting level is a top level of a block
