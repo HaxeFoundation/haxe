@@ -1286,7 +1286,7 @@ class virtual type_builder ctx wrapper =
 					self#write ")"
 				| (_, FInstance (_, _, { cf_name = name })) -> write_access ("->" ^ name)
 				| (_, FStatic (_, { cf_name = name; cf_kind = Var _ })) -> write_access ("::$" ^ name)
-				| (_, FStatic (_, { cf_name = name; cf_kind = Method _ })) -> write_access ("::" ^ name)
+				| (_, FStatic (_, ({ cf_name = name; cf_kind = Method _ } as field))) -> self#write_expr_field_static expr field
 				| (_, FAnon { cf_name = name }) -> write_access ("->" ^ name)
 				(* | FDynamic of string *)
 				| (_, FClosure (tcls, field)) -> self#write_expr_field_closure tcls field expr
@@ -1294,6 +1294,25 @@ class virtual type_builder ctx wrapper =
 					write_access ("::" ^ field.ef_name);
 					if not (is_enum_constructor_with_args field) then self#write "()"
 				| _ -> fail self#pos __POS__
+		(**
+			Writes FStatic field access for methods to output buffer
+		*)
+		method private write_expr_field_static expr field =
+			match expr_hierarchy with
+				| _ :: { eexpr = TCall ({ eexpr = TField (e, FStatic (_, f)) }, _) } :: _ when e == expr && f == field ->
+					self#write_expr expr;
+					self#write ("::" ^ field.cf_name)
+				| _ ->
+					let write_arg with_optionals (arg_name, optional, _) =
+						self#write ("$" ^ arg_name ^ (if with_optionals && optional then " = null" else ""))
+					and (args, return_type) = get_function_signature field  in
+					self#write "function(";
+					write_args buffer (write_arg true) args;
+					self#write ") { return ";
+					self#write_expr expr;
+					self#write ("::" ^ field.cf_name ^ "(");
+					write_args buffer (write_arg false) args;
+					self#write "); }"
 		(**
 			Writes FClosure field access to output buffer
 		*)
