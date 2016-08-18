@@ -1503,8 +1503,12 @@ struct
 			| None -> prev_ctor sup stl
 			| Some ctor -> ctor, sup, stl
 
+	let make_static_ctor_name gen cl =
+		let name = gen.gmk_internal_name "hx" "ctor" in
+		name ^ "_" ^ (String.concat "_" (fst cl.cl_path)) ^ "_" ^ (snd cl.cl_path)
+
 	(* replaces super() call with last static constructor call *)
-	let replace_super_call gen name c tl with_params me p =
+	let replace_super_call gen c tl with_params me p =
 		let rec loop_super c tl =
 			match c.cl_super with
 			| None ->
@@ -1512,7 +1516,7 @@ struct
 			| Some(sup,stl) ->
 				let stl = List.map (apply_params c.cl_params tl) stl in
 				try
-					let static_ctor_name = name ^ "_" ^ (String.concat "_" (fst sup.cl_path)) ^ "_" ^ (snd sup.cl_path) in
+					let static_ctor_name = make_static_ctor_name gen sup in
 					sup, stl, PMap.find static_ctor_name sup.cl_statics
 				with Not_found ->
 					loop_super sup stl
@@ -1554,12 +1558,12 @@ struct
 		}
 
 	(* will create a static counterpart of 'ctor', and replace its contents to a call to the static version*)
-	let create_static_ctor gen ~empty_ctor_expr cl name ctor =
+	let create_static_ctor gen ~empty_ctor_expr cl ctor =
 		match Meta.has Meta.SkipCtor ctor.cf_meta with
 		| true -> ()
 		| false when is_none ctor.cf_expr -> ()
 		| false ->
-			let static_ctor_name = name ^ "_" ^ (String.concat "_" (fst cl.cl_path)) ^ "_" ^ (snd cl.cl_path) in
+			let static_ctor_name = make_static_ctor_name gen cl in
 			(* create the static constructor *)
 			let basic = gen.gcon.basic in
 			let ctor_types = List.map (fun (s,t) -> (s, TInst(map_param (get_cl_t t), []))) cl.cl_params in
@@ -1592,7 +1596,7 @@ struct
 				| TCall (({ eexpr = TConst TSuper } as tsuper), params) -> (try
 					let params = List.map (fun e -> map_expr ~is_first:false e) params in
 					actual_super_call := Some { e with eexpr = TCall(tsuper, [empty_ctor_expr]) };
-					replace_super_call gen name cl ctor_params params me e.epos
+					replace_super_call gen cl ctor_params params me e.epos
 				with | Not_found ->
 					(* last static function was not found *)
 					actual_super_call := Some e;
@@ -1723,7 +1727,6 @@ struct
 
 		let basic = gen.gcon.basic in
 		let should_change cl = not cl.cl_interface && (not cl.cl_extern || is_hxgen (TClassDecl cl)) && (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) in
-		let static_ctor_name = gen.gmk_internal_name "hx" "ctor" in
 		let msize = List.length gen.gtypes_list in
 		let processed, empty_ctors = Hashtbl.create msize, Hashtbl.create msize in
 
@@ -1785,9 +1788,7 @@ struct
 						List.iter (fun cf -> ensure_super_is_first gen cf) (ctor :: ctor.cf_overloads)
 					else
 						(* now that we have a current ctor, create the static counterparts *)
-						List.iter (fun cf ->
-							create_static_ctor gen ~empty_ctor_expr:empty_ctor_expr cl static_ctor_name cf
-						) (ctor :: ctor.cf_overloads)
+						List.iter (fun cf -> create_static_ctor gen ~empty_ctor_expr:empty_ctor_expr cl cf) (ctor :: ctor.cf_overloads)
 				with | Exit ->());
 
 				(* implement empty ctor *)
