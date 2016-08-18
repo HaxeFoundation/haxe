@@ -1271,26 +1271,30 @@ class virtual type_builder ctx wrapper =
 			Writes TField to output bufferTEnumParameter
 		*)
 		method private write_expr_field expr access =
-			let write_access fieldStr =
+			let write_access access_str field_str =
+				let access_str = ref access_str in
 				(match expr.eexpr with
 					| TNew _ -> self#write_expr (parenthesis expr)
+					| TConst TSuper ->
+						self#write "parent";
+						access_str := "::"
 					| _ -> self#write_expr expr
 				);
-				self#write fieldStr
+				self#write (!access_str ^ field_str)
 			in
 			match (follow expr.etype, access) with
 				| (TInst ({ cl_path = ([], "String") }, _), FInstance (_, _, { cf_name = "length" })) ->
 					self#write "strlen(";
 					self#write_expr expr;
 					self#write ")"
-				| (_, FInstance (_, _, { cf_name = name })) -> write_access ("->" ^ name)
-				| (_, FStatic (_, { cf_name = name; cf_kind = Var _ })) -> write_access ("::$" ^ name)
+				| (_, FInstance (_, _, { cf_name = name })) -> write_access "->" name
+				| (_, FStatic (_, { cf_name = name; cf_kind = Var _ })) -> write_access "::" ("$" ^ name)
 				| (_, FStatic (_, ({ cf_name = name; cf_kind = Method _ } as field))) -> self#write_expr_field_static expr field
-				| (_, FAnon { cf_name = name }) -> write_access ("->" ^ name)
+				| (_, FAnon { cf_name = name }) -> write_access "->" name
 				| (_, FDynamic str) -> self#write_expr expr; self#write ("->" ^ str)
 				| (_, FClosure (tcls, field)) -> self#write_expr_field_closure tcls field expr
 				| (_, FEnum (_, field)) ->
-					write_access ("::" ^ field.ef_name);
+					write_access "::" field.ef_name;
 					if not (is_enum_constructor_with_args field) then self#write "()"
 		(**
 			Writes FStatic field access for methods to output buffer
@@ -1380,7 +1384,10 @@ class virtual type_builder ctx wrapper =
 			Writes TCall to output buffer
 		*)
 		method private write_expr_call target_expr args =
-			self#write_expr target_expr;
+			(match target_expr.eexpr with
+				| TConst TSuper -> self#write "parent::__construct"
+				| _ -> self#write_expr target_expr
+			);
 			self#write "(";
 			write_args buffer self#write_expr args;
 			self#write ")";

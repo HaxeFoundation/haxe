@@ -25,7 +25,6 @@ import php7.Const;
 import php7.NativeArray;
 
 using StringTools;
-using php7.Lib;
 using php7.Global;
 
 
@@ -237,7 +236,7 @@ private class HxEnum {
 
 	var constructor : String;
 	var index : Int;
-	var args : Array<Dynamic>;
+	var args : NativeArray;
 
 	/**
 		Returns instances of constructors without arguments
@@ -257,6 +256,6 @@ private class HxEnum {
 	public function new( constructor:String, index:Int, arguments:NativeArray = null ) : Void {
 		this.constructor = constructor;
 		this.index = index;
-		args = (arguments == null ? [] : arguments.toHaxeArray());
+		args = (arguments == null ? untyped __php__("[]") : arguments);
 	}
 }
