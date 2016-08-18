@@ -867,8 +867,7 @@ class virtual type_builder ctx wrapper =
 				| TThrow expr -> self#write_expr_throw expr
 				| TCast (expr, mtype) -> self#write_expr_cast expr mtype
 				| TMeta (_, expr) -> self#write_expr expr
-				(* | TEnumParameter of texpr * tenum_field * int *)
-				| _ -> ()
+				| TEnumParameter (expr, constructor, index) -> self#write_expr_enum_parameter expr constructor index
 			);
 			expr_hierarchy <- List.tl expr_hierarchy
 		(**
@@ -1269,7 +1268,7 @@ class virtual type_builder ctx wrapper =
 					self#write_expr expr;
 					write_unop operation
 		(**
-			Writes TField to output buffer
+			Writes TField to output bufferTEnumParameter
 		*)
 		method private write_expr_field expr access =
 			let write_access fieldStr =
@@ -1288,12 +1287,11 @@ class virtual type_builder ctx wrapper =
 				| (_, FStatic (_, { cf_name = name; cf_kind = Var _ })) -> write_access ("::$" ^ name)
 				| (_, FStatic (_, ({ cf_name = name; cf_kind = Method _ } as field))) -> self#write_expr_field_static expr field
 				| (_, FAnon { cf_name = name }) -> write_access ("->" ^ name)
-				(* | FDynamic of string *)
+				| (_, FDynamic str) -> self#write_expr expr; self#write ("->" ^ str)
 				| (_, FClosure (tcls, field)) -> self#write_expr_field_closure tcls field expr
 				| (_, FEnum (_, field)) ->
 					write_access ("::" ^ field.ef_name);
 					if not (is_enum_constructor_with_args field) then self#write "()"
-				| _ -> fail self#pos __POS__
 		(**
 			Writes FStatic field access for methods to output buffer
 		*)
@@ -1498,6 +1496,12 @@ class virtual type_builder ctx wrapper =
 			self#indent_less;
 			self#write_indentation;
 			self#write "}"
+		(**
+			Write TEnumParameter expression to output buffer
+		*)
+		method private write_expr_enum_parameter expr constructor index =
+			self#write_expr expr;
+			self#write ("->args[" ^ (string_of_int index) ^ "]")
 	end
 
 (**
@@ -1548,11 +1552,12 @@ class enum_builder ctx (enm:tenum) =
 			self#indent_more;
 			self#write_indentation;
 			self#write "return ";
-			let type_name = get_full_type_name ~escape:true self#get_type_path in
+			let type_name = get_full_type_name ~escape:true self#get_type_path
+			and index_str = string_of_int field.ef_index in
 			(match args with
-				| [] -> self#write ((self#use hxenum_type_path) ^ "::singleton('" ^ type_name ^ "', '" ^ name ^ "')")
+				| [] -> self#write ((self#use hxenum_type_path) ^ "::singleton('" ^ type_name ^ "', '" ^ name ^ "', " ^ index_str ^")")
 				| args ->
-					self#write ("new " ^ self#get_name ^ "('" ^ name ^ "', [");
+					self#write ("new " ^ self#get_name ^ "('" ^ name ^ "', " ^ index_str ^", [");
 					write_args buffer (fun (name, _, _) -> self#write ("$" ^ name)) args;
 					self#write "])"
 			);

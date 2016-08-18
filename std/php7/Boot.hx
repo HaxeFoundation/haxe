@@ -236,12 +236,13 @@ private class HxEnum {
 	static var singletons = new Map<String,HxEnum>();
 
 	var constructor : String;
-	var arguments : Array<Dynamic>;
+	var index : Int;
+	var args : Array<Dynamic>;
 
 	/**
 		Returns instances of constructors without arguments
 	**/
-	public static function singleton( enumClass:String, constructor:String ) : HxEnum {
+	public static function singleton( enumClass:String, constructor:String, index:Int ) : HxEnum {
 		var key = '$enumClass::$constructor';
 
 		var instance = singletons.get(key);
@@ -253,8 +254,9 @@ private class HxEnum {
 		return instance;
 	}
 
-	public function new(constructor:String, arguments:NativeArray = null) : Void {
+	public function new( constructor:String, index:Int, arguments:NativeArray = null ) : Void {
 		this.constructor = constructor;
-		this.arguments = (arguments == null ? [] : arguments.toHaxeArray());
+		this.index = index;
+		args = (arguments == null ? [] : arguments.toHaxeArray());
 	}
 }
