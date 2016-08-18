@@ -1741,13 +1741,12 @@ struct
 		in
 
 		let rec change cl =
-			match Hashtbl.mem processed cl.cl_path with
-			| true -> ()
-			| false ->
+			if not (Hashtbl.mem processed cl.cl_path) then begin
 				Hashtbl.add processed cl.cl_path true;
+
 				(* make sure we've processed the super types *)
 				(match cl.cl_super with
-				| Some (super,_) when should_change super && not (Hashtbl.mem processed super.cl_path) ->
+				| Some (super,_) when should_change super ->
 					change super
 				| _ -> ());
 
@@ -1852,13 +1851,16 @@ struct
 					| None -> cl.cl_constructor <- Some ctor
 					| Some c -> c.cf_overloads <- ctor :: c.cf_overloads
 				with | Exit -> ());
-
+			end
 		in
-		let module_filter md = match md with
-			| TClassDecl cl when should_change cl && not (Hashtbl.mem processed cl.cl_path) ->
+
+		let module_filter md =
+			(match md with
+			| TClassDecl cl when should_change cl ->
 				change cl;
-				None
-			| _ -> None
+			| _ ->
+				());
+			None
 		in
 		gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) module_filter
 
