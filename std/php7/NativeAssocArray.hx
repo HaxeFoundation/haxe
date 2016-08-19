@@ -21,37 +21,17 @@
  */
 package php7;
 
-import haxe.extern.EitherType;
-
-//@:coreType //doesn't seem to work atm
-//@:arrayAccess
-@:runtimeValue
-abstract NativeArray(Dynamic) {
+@:forward
+abstract NativeAssocArray<T>(NativeArray) from NativeArray to NativeArray {
 	public inline function new()
 		this = untyped __php__("[]");
 
 	@:arrayAccess
-	inline function get(key:Scalar):Dynamic
+	inline function get(key:String):T
 		return this[key];
 
 	@:arrayAccess
-	inline function set(key:Scalar, val:Dynamic)
+	inline function set(key:String, val:T)
 		this[key] = val;
 
-	public inline function count():Int
-		return Global.count(this);
-
-	public inline function implode(glue:String):String
-		return Global.implode(glue, this);
-
-	public inline function merge(arr:NativeArray):NativeArray
-		return Global.array_merge(this, arr);
-
-	public inline function reverse():NativeArray
-		return Global.array_reverse(this);
-
-	public inline function slice(offset:Int, len:Int):NativeArray
-		return Global.array_slice(this, offset, len);
 }
-
-private typedef Scalar = EitherType<Int,EitherType<String,EitherType<Float,Bool>>>;

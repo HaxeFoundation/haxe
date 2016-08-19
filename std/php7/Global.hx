@@ -1,6 +1,6 @@
 package php7;
 
-
+import haxe.extern.Rest;
 
 /**
 	This class contains externs for native PHP functions defined in global namespace.
@@ -78,8 +78,88 @@ extern class Global {
 	static function phpversion( extension:String ) : String ;
 
 	/**
-		@see http://php.net/manual/en/function.class_alias.php
+			@see http://php.net/manual/en/function.class_alias.php
 	**/
 	@:overload(function(original:String,alias:String):Bool {})
 	static function class_alias( original:String, alias:String, autoload:Bool ) : Bool ;
+
+
+	/**
+			@see http://php.net/manual/en/function.count.php
+	**/
+	@:overload(function(array:NativeArray):Int {})
+	static function count( array:NativeArray, mode:Int ) : Int ;
+
+	/**
+			@see http://php.net/manual/en/function.array-filter.php
+	**/
+	@:overload(function(array:NativeArray):NativeArray {})
+	@:overload(function(array:NativeArray,callback:Dynamic->Bool):NativeArray {})
+	static function array_filter( array:NativeArray, callback:Dynamic->Bool, flag:Int ) : NativeArray ;
+
+	/**
+			@see http://php.net/manual/en/function.implode.php
+	**/
+	static function implode( glue:String = "", array:NativeArray ) : String ;
+
+	/**
+			@see http://php.net/manual/en/function.array-map.php
+	**/
+	static function array_map( callback:Dynamic->Dynamic, array:Rest<NativeArray> ) : NativeArray ;
+
+	/**
+			@see http://php.net/manual/en/function.array-merge.php
+	**/
+	static function array_merge( array:Rest<NativeArray> ) : NativeArray ;
+
+	/**
+			@see http://php.net/manual/en/function.array-pop.php
+	**/
+	static function array_pop( array:NativeArray ) : Dynamic;
+
+	/**
+			@see http://php.net/manual/en/function.array-push.php
+	**/
+	static function array_push( array:NativeArray, value:Rest<Dynamic> ) : Int ;
+
+	/**
+			@see http://php.net/manual/en/function.array-reverse.php
+	**/
+	@:overload(function(array:NativeArray):NativeArray {})
+	static function array_reverse( array:NativeArray, preserve_keys:Bool ) : NativeArray ;
+
+	/**
+			@see http://php.net/manual/en/function.array-search.php
+	**/
+	@:overload(function(needle:Dynamic,haystack:NativeArray):Dynamic {})
+	static function array_search( needle:Dynamic, haystack:NativeArray, strict:Bool ) : Dynamic ;
+
+	/**
+			@see http://php.net/manual/en/function.array-shift.php
+	**/
+	static function array_shift( array:NativeArray ) : Dynamic ;
+
+	/**
+			@see http://php.net/manual/en/function.array-slice.php
+	**/
+	@:overload(function(array:NativeArray,offset:Int):NativeArray {})
+	@:overload(function(array:NativeArray,offset:Int,length:Int):NativeArray {})
+	static function array_slice( array:NativeArray, offset:Int, length:Int, preserve_keys:Bool ) : NativeArray ;
+
+	/**
+			@see http://php.net/manual/en/function.array-splice.php
+	**/
+	@:overload(function(array:NativeArray,offset:Int):NativeArray {})
+	@:overload(function(array:NativeArray,offset:Int,length:Int):NativeArray {})
+	static function array_splice( array:NativeArray, offset:Int, lenght:Int, replacement:Dynamic ) : NativeArray ;
+
+	/**
+			@see http://php.net/manual/en/function.array-unshift.php
+	**/
+	static function array_unshift( arr:NativeArray, value:Rest<Dynamic> ) : Int ;
+
+	/**
+			@see http://php.net/manual/en/function.usort.php
+	**/
+	static function usort( array:NativeArray, value_compare_func:Dynamic->Dynamic->Int ) : Bool ;
 }
