@@ -21,44 +21,20 @@
  */
 package php7;
 
-import haxe.extern.EitherType;
-
-using php7.Global;
-
-
-/**
-	Native PHP array.
-**/
-@:coreType @:runtimeValue abstract NativeArray {
+@:forward
+abstract NativeAssocArray<T>(NativeArray) from NativeArray to NativeArray {
 	public inline function new()
 		this = untyped __php__("[]");
 
-	@:arrayAccess function get(key:Scalar):Dynamic;
-	@:arrayAccess function set(key:Scalar, val:Dynamic):Dynamic;
+	@:arrayAccess
+	inline function get(key:String):T
+		return this[key];
 
-	public inline function iterator()
-		return new NativeArrayIterator(this);
-}
+	@:arrayAccess
+	inline function set(key:String, val:T):T
+		return this[key] = val;
 
-/**
-	Allows iterating over native PHP array with Haxe for-loop
-**/
-private class NativeArrayIterator {
-	var arr:NativeArray;
-	var hasMore:Bool;
-
-	public inline function new( a:NativeArray ) {
-		arr = a;
-		hasMore = (arr.reset() != false);
-	}
-
-	public inline function hasNext() : Bool {
-		return hasMore;
-	}
-
-	public inline function next() : Dynamic {
-		var result = arr.current();
-		hasMore = (arr.next() != false);
-		return result;
-	}
+    //TODO
+    // @:to function toMap():Map<String,T>
+    // @:from static function fromMap<T>(map:Map<String,T>):NativeAssocArray<T>
 }

@@ -85,12 +85,12 @@ class Lib {
 		return untyped __call__("fpassthru", __call__("fopen", file,  "r"));
 	}
 
-	public static function toPhpArray(a : Array<Dynamic>) : NativeArray {
-		throw "Not implemented";
+	public static inline function toPhpArray(a : Array<Dynamic>) : NativeArray {
+		return @:privateAccess a.arr;
 	}
 
 	public static inline function toHaxeArray(a : NativeArray) : Array<Dynamic> {
-		throw "Not implemented";
+		return @:privateAccess Array.wrap(a);
 	}
 
 	public static function hashOfAssociativeArray<T>(arr : NativeArray) : Map<String,T> {

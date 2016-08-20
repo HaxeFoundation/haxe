@@ -31,7 +31,7 @@ let haxe_exception_path = (["php7"], "HException")
 (**
 	Type path of `php7.Boot`
 *)
-let boot_class_path = (["php7"], "Boot")
+let boot_type_path = (["php7"], "Boot")
 (**
 	Type path of the base class for all enums: `php7.Boot.HxEnum`
 *)
@@ -40,6 +40,11 @@ let hxenum_type_path = (["php7"; "_Boot"], "HxEnum")
 	Type path of the implementation class for `Class<Dynamic>`
 *)
 let hxclass_type_path = (["php7"; "_Boot"], "HxClass")
+
+(**
+	Type path of the implementation class for `Array<T>`
+*)
+let array_type_path = ([], "Array")
 
 (**
 	Resolve real type (bypass abstracts and typedefs)
@@ -919,23 +924,32 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write_expr_array_decl exprs =
 			match exprs with
-				| [] -> self#write "[]"
+				| [] -> self#write ("new " ^ (self#use array_type_path) ^ "()")
 				| [expr] ->
-					self#write "[";
+					self#write ((self#use array_type_path) ^ "::wrap([");
 					self#write_expr expr;
-					self#write "]"
+					self#write "])"
 				| _ ->
-					self#write "[\n";
+					self#write ((self#use array_type_path) ^ "::wrap([\n");
 					self#indent_more;
 					List.iter (fun expr -> self#write_array_item expr) exprs;
 					self#indent_less;
 					self#write_indentation;
-					self#write "]"
+					self#write "])"
 		(**
 			Writes TArray to output buffer
 		*)
 		method private write_expr_array_access target index =
 			self#write_expr target;
+			(match follow target.etype with
+				| TInst ({ cl_path = path }, _) when path = array_type_path ->
+					(match expr_hierarchy with
+						| _ :: { eexpr = TBinop (OpAssign, _, _) } :: _ -> ()
+						| _ :: { eexpr = TBinop (OpAssignOp _, _, _) } :: _ -> ()
+						| _ -> self#write "->arr"
+					)
+				| _ -> ()
+			);
 			self#write "[";
 			self#write_expr index;
 			self#write "]"
@@ -1181,13 +1195,13 @@ class virtual type_builder ctx wrapper =
 				| _ :: { eexpr = TField _ } :: _ -> self#write (self#use type_path)
 				| _ ->
 					let type_name = get_full_type_name ~escape:true type_path in
-					self#write ((self#use boot_class_path) ^ "::getClass('" ^ type_name ^ "')")
+					self#write ((self#use boot_type_path) ^ "::getClass('" ^ type_name ^ "')")
 		(**
 			Writes binary operation to output buffer
 		*)
 		method private write_expr_binop operation expr1 expr2 =
 			let write_shiftRightUnsigned () =
-				self#write ((self#use boot_class_path) ^ "::shiftRightUnsigned(");
+				self#write ((self#use boot_type_path) ^ "::shiftRightUnsigned(");
 				self#write_expr expr1;
 				self#write ", ";
 				self#write_expr expr2;
@@ -1641,7 +1655,7 @@ class class_builder ctx (cls:tclass) =
 						at_least_one_field_written := true;
 						self#write_field is_static field
 			in
-			if boot_class_path = self#get_type_path then begin
+			if boot_type_path = self#get_type_path then begin
 				self#write_php_prefix ();
 				at_least_one_field_written := true
 			end;
