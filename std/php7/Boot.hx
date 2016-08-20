@@ -61,6 +61,13 @@ class Boot {
 	}
 
 	/**
+		Builds Haxe Array from array declaration syntax.
+	**/
+	public static function array( arr:NativeIndexedArray<Dynamic> ) : Array<Dynamic> {
+		return @:privateAccess Array.wrap(arr);
+	}
+
+	/**
 		`Std.is()` implementation
 	**/
 	public static function is( value:Dynamic, type:Class<Dynamic> ) : Bool {

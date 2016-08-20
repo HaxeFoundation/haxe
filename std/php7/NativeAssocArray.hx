@@ -31,7 +31,10 @@ abstract NativeAssocArray<T>(NativeArray) from NativeArray to NativeArray {
 		return this[key];
 
 	@:arrayAccess
-	inline function set(key:String, val:T)
-		this[key] = val;
+	inline function set(key:String, val:T):T
+		return this[key] = val;
 
+    //TODO
+    // @:to function toMap():Map<String,T>
+    // @:from static function fromMap<T>(map:Map<String,T>):NativeAssocArray<T>
 }

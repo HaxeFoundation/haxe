@@ -23,20 +23,24 @@ package php7;
 
 import haxe.extern.EitherType;
 
-//@:coreType //doesn't seem to work atm
-//@:arrayAccess
-@:runtimeValue
-abstract NativeArray(Dynamic) {
+using php7.Global;
+
+
+/**
+	Native PHP array.
+**/
+@:coreType @:runtimeValue abstract NativeArray {
 	public inline function new()
 		this = untyped __php__("[]");
 
-	@:arrayAccess
-	inline function get(key:Scalar):Dynamic
-		return this[key];
+	@:arrayAccess function get(key:Scalar):Dynamic;
+	@:arrayAccess function set(key:Scalar, val:Dynamic):Dynamic;
 
-	@:arrayAccess
-	inline function set(key:Scalar, val:Dynamic)
-		this[key] = val;
+	public inline function keys():NativeIndexedArray<EitherType<String,Int>>
+		return Global.array_keys(this);
+
+	public inline function values():NativeIndexedArray<Dynamic>
+		return Global.array_values(this);
 
 	public inline function count():Int
 		return Global.count(this);
@@ -47,11 +51,37 @@ abstract NativeArray(Dynamic) {
 	public inline function merge(arr:NativeArray):NativeArray
 		return Global.array_merge(this, arr);
 
-	public inline function reverse():NativeArray
-		return Global.array_reverse(this);
+	// Not sure if these methods should be added, because PHP `slice` and `reverse` differ from Haxe analogues.
+	// These methods are potential source of mistakes and confusions for end-users.
+	//
+	// public inline function slice(offset:Int, len:Int):NativeArray
+	// 	return Global.array_slice(this, offset, len);
+	// public inline function reverse():NativeArray
+	// 	return Global.array_reverse(this);
 
-	public inline function slice(offset:Int, len:Int):NativeArray
-		return Global.array_slice(this, offset, len);
+	public inline function iterator()
+		return new NativeArrayIterator(this);
 }
 
-private typedef Scalar = EitherType<Int,EitherType<String,EitherType<Float,Bool>>>;
+/**
+	Allows iterating over native PHP array with Haxe for-loop
+**/
+private class NativeArrayIterator {
+	var arr:NativeArray;
+	var hasMore:Bool;
+
+	public inline function new( a:NativeArray ) {
+		arr = a;
+		hasMore = (arr.reset() != false);
+	}
+
+	public inline function hasNext() : Bool {
+		return hasMore;
+	}
+
+	public inline function next() : Dynamic {
+		var result = arr.current();
+		hasMore = (arr.next() != false);
+		return result;
+	}
+}

@@ -42,6 +42,11 @@ let hxenum_type_path = (["php7"; "_Boot"], "HxEnum")
 let hxclass_type_path = (["php7"; "_Boot"], "HxClass")
 
 (**
+	Type path of the implementation class for `Array<T>`
+*)
+let array_type_path = ([], "Array")
+
+(**
 	Resolve real type (bypass abstracts and typedefs)
 *)
 let rec follow = Abstract.follow_with_abstracts
@@ -919,23 +924,32 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write_expr_array_decl exprs =
 			match exprs with
-				| [] -> self#write "[]"
+				| [] -> self#write ("new " ^ (self#use array_type_path) ^ "()")
 				| [expr] ->
-					self#write "[";
+					self#write ((self#use boot_class_path) ^ "::array([");
 					self#write_expr expr;
-					self#write "]"
+					self#write "])"
 				| _ ->
-					self#write "[\n";
+					self#write ((self#use boot_class_path) ^ "::array([\n");
 					self#indent_more;
 					List.iter (fun expr -> self#write_array_item expr) exprs;
 					self#indent_less;
 					self#write_indentation;
-					self#write "]"
+					self#write "])"
 		(**
 			Writes TArray to output buffer
 		*)
 		method private write_expr_array_access target index =
 			self#write_expr target;
+			(match follow target.etype with
+				| TInst ({ cl_path = path }, _) when path = array_type_path ->
+					(match expr_hierarchy with
+						| _ :: { eexpr = TBinop (OpAssign, _, _) } :: _ -> ()
+						| _ :: { eexpr = TBinop (OpAssignOp _, _, _) } :: _ -> ()
+						| _ -> self#write "->arr"
+					)
+				| _ -> ()
+			);
 			self#write "[";
 			self#write_expr index;
 			self#write "]"

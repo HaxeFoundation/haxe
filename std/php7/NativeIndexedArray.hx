@@ -33,8 +33,8 @@ abstract NativeIndexedArray<T>(NativeArray) from NativeArray to NativeArray {
 		return this[idx];
 
 	@:arrayAccess
-	inline function set(idx:Int, val:T)
-		this[idx] = val;
+	inline function set(idx:Int, val:T):T
+		return this[idx] = val;
 
 	@:to
 	inline function toHaxeArray():Array<T>
@@ -56,7 +56,7 @@ abstract NativeIndexedArray<T>(NativeArray) from NativeArray to NativeArray {
 	public inline function push(val:T):Int
 		return Global.array_push(this, val);
 
-	public inline function search(needle:T):KeyOrFalse
+	public inline function search(needle:T):Null<EitherType<String,Int>>
 		return Global.array_search(needle, this, true);
 
 	public inline function shift():T
@@ -71,5 +71,3 @@ abstract NativeIndexedArray<T>(NativeArray) from NativeArray to NativeArray {
 	public inline function usort(func:T->T->Int):Bool
 		return Global.usort(this, func);
 }
-
-private typedef KeyOrFalse = EitherType<EitherType<String,Int>,Bool>;

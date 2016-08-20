@@ -21,9 +21,12 @@
  */
 import php7.NativeIndexedArray;
 
-@:coreApi
-@:native("HxArray")
-class Array<T> {
+using php7.Global;
+
+
+// @:coreApi
+@:final
+class Array<T> implements php7.ArrayAccess<Int,T> {
 	public var length(default, null):Int;
 	var arr:NativeIndexedArray<T>;
 
@@ -32,61 +35,46 @@ class Array<T> {
 		length = 0;
 	}
 
-	public function concat(a:Array<T>):Array<T> {
+	public inline function concat(a:Array<T>):Array<T> {
 		return wrap(arr.merge(a.arr));
 	}
 
-	public function copy():Array<T> {
+	public inline function copy():Array<T> {
 		return wrap(arr);
 	}
 
-	public function filter(f:T->Bool):Array<T> {
+	public inline function filter(f:T->Bool):Array<T> {
 		return wrap(arr.filter(f));
 	}
 
 	public function indexOf(x:T, ?fromIndex:Int):Int {
-		/*if (fromIndex == null) fromIndex = 0;
-		if (fromIndex < 0) fromIndex += length - 1;
+		if (fromIndex == null) fromIndex = 0;
+		if (fromIndex < 0) fromIndex += length;
 		if (fromIndex < 0) fromIndex = 0;
 		while (fromIndex < length) {
 			if (arr[fromIndex] == x)
 				return fromIndex;
 			fromIndex++;
 		}
-		return -1;*/
-		// maybe better?
-		var idx = arr.search(x);
-		if (idx == false)
-			return -1;
-		if (fromIndex != null) {
-			if (fromIndex >= length)
-				return -1;
-			if (fromIndex < 0) fromIndex += length - 1;
-			if (fromIndex > 0) {
-				idx -= fromIndex;
-				if ((idx:Int) < 0)
-					return -1;
-			}
-		}
-		return idx;
+		return -1;
 	}
 
-	public function insert(pos:Int, x:T):Void {
+	public inline function insert(pos:Int, x:T):Void {
 		length++;
 		arr.splice(pos, 0, x);
 	}
 
-	public function iterator():Iterator<T> {
-		return new ArrayIterator(arr);
+	public inline function iterator() : ArrayIterator<T> {
+		return new ArrayIterator(this);
 	}
 
-	public function join(sep:String):String {
+	public inline function join(sep:String):String {
 		return arr.implode(sep);
 	}
 
 	public function lastIndexOf(x:T, ?fromIndex:Int):Int {
 		if (fromIndex == null || fromIndex >= length) fromIndex = length - 1;
-		if (fromIndex < 0) fromIndex += length - 1;
+		if (fromIndex < 0) fromIndex += length;
 		while (fromIndex >= 0) {
 			if (arr[fromIndex] == x)
 				return fromIndex;
@@ -95,7 +83,7 @@ class Array<T> {
 		return -1;
 	}
 
-	public function map<S>(f:T->S):Array<S> {
+	public inline function map<S>(f:T->S):Array<S> {
 		return wrap(arr.map(f));
 	}
 
@@ -104,7 +92,7 @@ class Array<T> {
 		return arr.pop();
 	}
 
-	public function push(x:T):Int {
+	public inline function push(x:T):Int {
 		return length = arr.push(x);
 	}
 
@@ -119,8 +107,8 @@ class Array<T> {
 		return false;
 	}
 
-	public function reverse():Void {
-		arr = arr.reverse();
+	public inline function reverse():Void {
+		arr = Global.array_reverse(arr);
 	}
 
 	public function shift():Null<T> {
@@ -129,23 +117,60 @@ class Array<T> {
 	}
 
 	public function slice(pos:Int, ?end:Int):Array<T> {
-		return wrap(arr.slice(pos, end == null ? null : end - pos));
+		if (pos < 0) pos += length;
+		if (pos < 0) pos = 0;
+		if (end == null) {
+			return wrap(Global.array_slice(arr, pos));
+		} else {
+			if (end < 0) end += length;
+			if (end <= pos) {
+				return [];
+			} else {
+				return wrap(Global.array_slice(arr, pos, end - pos));
+			}
+		}
 	}
 
-	public function sort(f:T->T->Int):Void {
+	public inline function sort(f:T->T->Int):Void {
 		arr.usort(f);
 	}
 
-	public function splice(pos:Int, len:Int):Array<T> {
+	public inline function splice(pos:Int, len:Int):Array<T> {
 		return wrap(arr.splice(pos, len));
 	}
 
-	public function unshift(x:T):Void {
+	public inline function unshift(x:T):Void {
 		length = arr.unshift(x);
 	}
 
 	public function toString():String {
 		return "array"; //TODO
+	}
+
+	@:noCompletion
+	public function offsetExists( offset:Int ) : Bool {
+		return offset < length;
+	}
+
+	@:noCompletion
+	public function offsetGet( offset:Int ) : T {
+		return arr[offset];
+	}
+
+	@:noCompletion
+	public function offsetSet( offset:Int, value:T ) : Void {
+		if (length <= offset) {
+			arr = arr.merge(Global.array_fill(0, offset + 1 - length, null));
+		}
+		arr[offset] = value;
+	}
+
+	@:noCompletion
+	public function offsetUnset( offset:Int ) : Void {
+		if (offset >= 0 && offset < length ) {
+			arr.splice(offset, 1);
+			length--;
+		}
 	}
 
 	static function wrap<T>(arr:NativeIndexedArray<T>):Array<T> {
@@ -154,20 +179,20 @@ class Array<T> {
 		a.length = arr.count();
 		return a;
 	}
-
 }
+
 
 private class ArrayIterator<T> {
 	var idx:Int;
-	var arr:NativeIndexedArray<T>;
+	var arr:Array<T>;
 
-	public inline function new(arr:NativeIndexedArray<T>) {
-		arr = this.arr = arr;
+	public inline function new(arr:Array<T>) {
+		this.arr = arr;
 		idx = 0;
 	}
 
 	public inline function hasNext():Bool {
-		return idx < arr.count();
+		return idx < arr.length;
 	}
 
 	public inline function next():T {
