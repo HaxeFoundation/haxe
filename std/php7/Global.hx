@@ -132,7 +132,7 @@ extern class Global {
 		@see http://php.net/manual/en/function.array-search.php
 	**/
 	@:overload(function(needle:Dynamic,haystack:NativeArray):Null<EitherType<String,Int>> {})
-	static function array_search( needle:Dynamic, haystack:NativeArray, strict:Bool ) : Null<EitherType<String,Int>> ;
+	static function array_search( needle:Dynamic, haystack:NativeArray, strict:Bool ) : EitherType<Bool,EitherType<String,Int>> ;
 
 	/**
 		@see http://php.net/manual/en/function.array-shift.php

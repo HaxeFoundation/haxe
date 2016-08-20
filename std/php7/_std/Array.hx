@@ -48,7 +48,14 @@ class Array<T> implements php7.ArrayAccess<Int,T> {
 	}
 
 	public function indexOf(x:T, ?fromIndex:Int):Int {
-		if (fromIndex == null) fromIndex = 0;
+		if (fromIndex == null) {
+			var index = Global.array_search(x, arr, true);
+			if (index == false) {
+				return -1;
+			} else {
+				return index;
+			}
+		}
 		if (fromIndex < 0) fromIndex += length;
 		if (fromIndex < 0) fromIndex = 0;
 		while (fromIndex < length) {
