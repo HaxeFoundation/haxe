@@ -36,7 +36,7 @@ class Array<T> implements php7.ArrayAccess<Int,T> {
 	}
 
 	public inline function concat(a:Array<T>):Array<T> {
-		return wrap(arr.merge(a.arr));
+		return wrap(Global.array_merge(arr, a.arr));
 	}
 
 	public inline function copy():Array<T> {
@@ -44,7 +44,7 @@ class Array<T> implements php7.ArrayAccess<Int,T> {
 	}
 
 	public inline function filter(f:T->Bool):Array<T> {
-		return wrap(arr.filter(f));
+		return wrap(Global.array_filter(arr, f));
 	}
 
 	public function indexOf(x:T, ?fromIndex:Int):Int {
@@ -68,7 +68,7 @@ class Array<T> implements php7.ArrayAccess<Int,T> {
 
 	public inline function insert(pos:Int, x:T):Void {
 		length++;
-		arr.splice(pos, 0, x);
+		Global.array_splice(arr, pos, 0, x);
 	}
 
 	public inline function iterator() : ArrayIterator<T> {
@@ -76,7 +76,7 @@ class Array<T> implements php7.ArrayAccess<Int,T> {
 	}
 
 	public inline function join(sep:String):String {
-		return arr.implode(sep);
+		return Global.implode(sep, arr);
 	}
 
 	public function lastIndexOf(x:T, ?fromIndex:Int):Int {
@@ -91,22 +91,22 @@ class Array<T> implements php7.ArrayAccess<Int,T> {
 	}
 
 	public inline function map<S>(f:T->S):Array<S> {
-		return wrap(arr.map(f));
+		return wrap(Global.array_map(f, arr));
 	}
 
 	public function pop():Null<T> {
 		if (length > 0) length--;
-		return arr.pop();
+		return Global.array_pop(arr);
 	}
 
 	public inline function push(x:T):Int {
-		return length = arr.push(x);
+		return length = Global.array_push(arr, x);
 	}
 
 	public function remove(x:T):Bool {
 		for (i in 0...length) {
 			if (arr[i] == x) {
-				arr.splice(i, 1);
+				Global.array_splice(arr, i, 1);
 				length--;
 				return true;
 			}
@@ -120,7 +120,7 @@ class Array<T> implements php7.ArrayAccess<Int,T> {
 
 	public function shift():Null<T> {
 		if (length > 0) length--;
-		return arr.shift();
+		return Global.array_shift(arr);
 	}
 
 	public function slice(pos:Int, ?end:Int):Array<T> {
@@ -143,11 +143,11 @@ class Array<T> implements php7.ArrayAccess<Int,T> {
 	}
 
 	public inline function splice(pos:Int, len:Int):Array<T> {
-		return wrap(arr.splice(pos, len));
+		return wrap(Global.array_splice(arr, pos, len));
 	}
 
 	public inline function unshift(x:T):Void {
-		length = arr.unshift(x);
+		length = Global.array_unshift(arr, x);
 	}
 
 	public function toString():String {
@@ -167,7 +167,7 @@ class Array<T> implements php7.ArrayAccess<Int,T> {
 	@:noCompletion
 	public function offsetSet( offset:Int, value:T ) : Void {
 		if (length <= offset) {
-			arr = arr.merge(Global.array_fill(0, offset + 1 - length, null));
+			arr = Global.array_merge(arr, Global.array_fill(0, offset + 1 - length, null));
 		}
 		arr[offset] = value;
 	}
@@ -175,7 +175,7 @@ class Array<T> implements php7.ArrayAccess<Int,T> {
 	@:noCompletion
 	public function offsetUnset( offset:Int ) : Void {
 		if (offset >= 0 && offset < length ) {
-			arr.splice(offset, 1);
+			Global.array_splice(arr, offset, 1);
 			length--;
 		}
 	}
@@ -183,7 +183,7 @@ class Array<T> implements php7.ArrayAccess<Int,T> {
 	static function wrap<T>(arr:NativeIndexedArray<T>):Array<T> {
 		var a = new Array();
 		a.arr = arr;
-		a.length = arr.count();
+		a.length = Global.count(arr);
 		return a;
 	}
 }

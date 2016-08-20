@@ -43,31 +43,4 @@ abstract NativeIndexedArray<T>(NativeArray) from NativeArray to NativeArray {
 	@:from
 	static inline function fromHaxeArray<T>(a:Array<T>):NativeIndexedArray<T>
 		return @:privateAccess a.arr;
-
-	public inline function filter(cb:T->Bool):NativeIndexedArray<T>
-		return Global.array_filter(this, cb);
-
-	public inline function map<S>(cb:T->S):NativeIndexedArray<S>
-		return Global.array_map(cb, this);
-
-	public inline function pop():T
-		return Global.array_pop(this);
-
-	public inline function push(val:T):Int
-		return Global.array_push(this, val);
-
-	public inline function search(needle:T):Null<EitherType<String,Int>>
-		return Global.array_search(needle, this, true);
-
-	public inline function shift():T
-		return Global.array_shift(this);
-
-	public inline function splice(offset:Int, len:Int, ?repl:T):NativeIndexedArray<T>
-		return Global.array_splice(this, offset, len, repl);
-
-	public inline function unshift(val:T):Int
-		return Global.array_unshift(this, val);
-
-	public inline function usort(func:T->T->Int):Bool
-		return Global.usort(this, func);
 }

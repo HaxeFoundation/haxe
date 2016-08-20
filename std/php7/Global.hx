@@ -95,7 +95,7 @@ extern class Global {
 	**/
 	@:overload(function(array:NativeArray):NativeArray {})
 	@:overload(function(array:NativeArray,callback:Dynamic->Bool):NativeArray {})
-	static function array_filter( array:NativeArray, callback:Dynamic->Bool, flag:Int ) : NativeArray ;
+	static function array_filter( array:NativeArray, callback:Dynamic->?Dynamic->Bool, flag:Int ) : NativeArray ;
 
 	/**
 		@see http://php.net/manual/en/function.implode.php

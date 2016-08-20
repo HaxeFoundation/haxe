@@ -30,4 +30,9 @@ extern class Const {
 	**/
 	static var COUNT_NORMAL : Int;
 	static var COUNT_RECURSIVE : Int;
+	/**
+		@see http://php.net/manual/en/function.array-filter.php
+	**/
+	static var ARRAY_FILTER_USE_KEY : Int;
+	static var ARRAY_FILTER_USE_BOTH : Int;
 }

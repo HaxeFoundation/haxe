@@ -36,29 +36,6 @@ using php7.Global;
 	@:arrayAccess function get(key:Scalar):Dynamic;
 	@:arrayAccess function set(key:Scalar, val:Dynamic):Dynamic;
 
-	public inline function keys():NativeIndexedArray<EitherType<String,Int>>
-		return Global.array_keys(this);
-
-	public inline function values():NativeIndexedArray<Dynamic>
-		return Global.array_values(this);
-
-	public inline function count():Int
-		return Global.count(this);
-
-	public inline function implode(glue:String):String
-		return Global.implode(glue, this);
-
-	public inline function merge(arr:NativeArray):NativeArray
-		return Global.array_merge(this, arr);
-
-	// Not sure if these methods should be added, because PHP `slice` and `reverse` differ from Haxe analogues.
-	// These methods are potential source of mistakes and confusions for end-users.
-	//
-	// public inline function slice(offset:Int, len:Int):NativeArray
-	// 	return Global.array_slice(this, offset, len);
-	// public inline function reverse():NativeArray
-	// 	return Global.array_reverse(this);
-
 	public inline function iterator()
 		return new NativeArrayIterator(this);
 }
