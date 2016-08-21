@@ -609,6 +609,14 @@ class virtual type_builder ctx wrapper =
 		*)
 		method virtual private write_instance_initialization : unit
 		(**
+			Indicates if type should be declared as `final`
+		*)
+		method is_final = false
+		(**
+			Indicates if `field` should be declared as `final`
+		*)
+		method is_final_field (field:tclass_field) : bool = false
+		(**
 			Increase indentation by one level
 		*)
 		method indent_more =
@@ -1669,10 +1677,51 @@ class class_builder ctx (cls:tclass) =
 	object (self)
 		inherit type_builder ctx (get_wrapper (TClassDecl cls))
 		(**
+			Indicates if type should be declared as `final`
+		*)
+		method is_final =
+			if not (Meta.has Meta.Final cls.cl_meta) then
+				false
+			else begin
+				let hacked = ref false in
+				List.iter
+					(fun com_type ->
+						if not !hacked then
+							match com_type with
+								| TClassDecl tcls ->
+									if self#extended_by tcls then hacked := Meta.has Meta.Hack tcls.cl_meta
+								| _ -> ()
+					)
+					ctx.types;
+				not !hacked
+			end
+		(**
+			Indicates if `field` should be declared as `final`
+		*)
+		method is_final_field (field:tclass_field) : bool = false
+		(**
+			Recursively check if current class is a parent class for a `child`
+		*)
+		method private extended_by child =
+			let result =
+				if child == cls then
+					false
+				else
+					let rec check current =
+						match current.cl_super with
+							| None -> false
+							| Some (scls, _) ->
+								if scls == cls then true else check scls
+					in
+					check child
+			in
+			result
+		(**
 			Writes type declaration line to output buffer.
 			E.g. "class SomeClass extends Another implements IFace"
 		*)
 		method private write_declaration =
+			if self#is_final then self#write "final ";
 			self#write_doc (DocClass cls.cl_doc);
 			self#write (if cls.cl_interface then "interface " else "class ");
 			self#write self#get_name;
