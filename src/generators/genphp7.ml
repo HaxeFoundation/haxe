@@ -77,6 +77,24 @@ let rec is_dynamic_method (field:tclass_field) =
 		| _ -> false
 
 (**
+	@return `Type.tabstract` instance for `Void`
+*)
+let void = ref None
+let get_void ctx : tabstract =
+	match !void with
+		| Some value -> value
+		| None ->
+			let find com_type =
+				match com_type with
+					| TAbstractDecl ({ a_path = ([], "Void") } as abstr) -> void := Some abstr;
+					| _ -> ()
+			in
+			List.iter find ctx.types;
+			match !void with
+				| Some value -> value
+				| None -> fail { pfile = ""; pmin = 0; pmax = 0 } __POS__
+
+(**
 	@return `expr` wrapped in parenthesis
 *)
 let parenthesis expr = {eexpr = TParenthesis expr; etype = expr.etype; epos = expr.epos}
@@ -1675,6 +1693,50 @@ class class_builder ctx (cls:tclass) =
 				self#write (String.concat ", " interfaces);
 			end;
 			self#write "\n"
+		(**
+			Returns either user-defined constructor or creates empty constructor if instance initialization is required.
+		*)
+		(* method private get_constructor : tclass_field option =
+			match cls.cl_constructor with
+				| Some field -> Some field
+				| None ->
+					let needs = ref false in
+					PMap.iter
+						(fun _ field ->
+							(* Check instance dynamic functions *)
+							if not !needs then needs := is_dynamic_method field
+						)
+						cls.cl_fields;
+					if not !needs then
+						None
+					else begin
+						let rec find cls =
+							match cls.cl_constructor with
+								| Some field -> Some field
+								| None ->
+									match cls.cl_super with
+										| None -> None
+										| Some (cls, _) -> find cls
+						in
+						match find cls with
+							| None -> fail cls.cl_pos __POS__
+							| Some field ->
+								Some {
+									field with
+										cf_pos  = cls.cl_pos;
+										cf_expr = Some {
+											epos  = cls.cl_pos;
+											etype = TAbstract (get_void ctx, []);
+											eexpr = TCall({
+													epos  = cls.cl_pos;
+													etype = TInst (cls, []);
+													eexpr = TConst TSuper;
+												},
+												[]
+											)
+										};
+								}
+					end *)
 		(**
 			Writes type body to output buffer.
 			E.g. for "class SomeClass { <BODY> }" writes <BODY> part.
