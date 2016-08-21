@@ -895,12 +895,7 @@ class virtual type_builder ctx wrapper =
 			vars#clear;
 			(match wrapper#get_magic_init with
 				| None -> ()
-				| Some expr ->
-					self#write_indentation;
-					let fake_block = { expr with eexpr = TBlock [expr] } in
-					expr_hierarchy <- fake_block :: expr_hierarchy;
-					self#write_as_block ~inline:true expr;
-					expr_hierarchy <- List.tl expr_hierarchy
+				| Some expr -> self#write_fake_block expr
 			);
 			self#write "\n";
 			vars#clear;
@@ -976,44 +971,73 @@ class virtual type_builder ctx wrapper =
 						self#write ("$" ^ arg_name ^ " = ");
 						self#write_expr_const const
 			in
-			let str_name = match name with None -> "" | Some str -> str ^ " " in
-			let is_closure = str_name = "" in (* Closures don't have names *)
-			if is_closure then vars#dive;
-			self#write ("function " ^ str_name ^ "(");
+			match name with
+				| None -> self#write_closure_declaration func write_arg
+				| Some "__construct" -> self#write_constructor_function_declaration func write_arg
+				| Some name -> self#write_method_function_declaration name func write_arg
+		(**
+			Writes constructor declaration (except visibility and `static` keywords) to output buffer
+		*)
+		method private write_constructor_function_declaration func write_arg =
+			self#write ("function __construct (");
 			write_args buffer write_arg func.tf_args;
 			self#write ")";
-			if is_closure then
-				begin
-					(* Generate closure body to separate buffer *)
-					let original_buffer = buffer in
-					buffer <- Buffer.create 256;
-					self#write_expr (inject_defaults ctx func);
-					let body = Buffer.contents buffer in
-					buffer <- original_buffer;
-					(* Use captured local vars *)
-					let used_vars = vars#pop in
-					self#write " ";
-					if List.length used_vars > 0 then begin
-						self#write " use (";
-						write_args buffer (fun name -> self#write ("&$" ^ name)) used_vars;
-						self#write ") "
-					end;
-					self#write body
-				end
-			else
-				begin
-					(* We want bracket on new line for methods. *)
-					self#indent 1;
-					self#write "\n";
-					self#write_indentation;
-					self#write_expr (inject_defaults ctx func)
-				end
+			self#indent 1;
+			self#write "\n";
+			self#write_line "{";
+			self#indent_more;
+			self#write_fake_block (inject_defaults ctx func);
+			self#indent_less;
+			self#write_line "}"
+		(**
+			Writes method declaration (except visibility and `static` keywords) to output buffer
+		*)
+		method private write_method_function_declaration name func write_arg =
+			self#write ("function " ^ name ^ " (");
+			write_args buffer write_arg func.tf_args;
+			self#write ")";
+			self#indent 1;
+			self#write "\n";
+			self#write_indentation;
+			self#write_expr (inject_defaults ctx func)
+		(**
+			Writes closure declaration to output buffer
+		*)
+		method private write_closure_declaration func write_arg =
+			vars#dive;
+			self#write "function (";
+			write_args buffer write_arg func.tf_args;
+			self#write ")";
+			(* Generate closure body to separate buffer *)
+			let original_buffer = buffer in
+			buffer <- Buffer.create 256;
+			self#write_expr (inject_defaults ctx func);
+			let body = Buffer.contents buffer in
+			buffer <- original_buffer;
+			(* Use captured local vars *)
+			let used_vars = vars#pop in
+			self#write " ";
+			if List.length used_vars > 0 then begin
+				self#write " use (";
+				write_args buffer (fun name -> self#write ("&$" ^ name)) used_vars;
+				self#write ") "
+			end;
+			self#write body
 		(**
 			Writes TBlock to output buffer
 		*)
 		method private write_expr_block block_expr =
 			let inline_block = self#parent_expr_is_block in
 			self#write_as_block ~inline:inline_block block_expr
+		(**
+			Emulates TBlock for parent expression and writes `expr` as inlined block
+		*)
+		method private write_fake_block expr =
+			self#write_indentation;
+			let fake_block = { expr with eexpr = TBlock [expr] } in
+			expr_hierarchy <- fake_block :: expr_hierarchy;
+			self#write_as_block ~inline:true expr;
+			expr_hierarchy <- List.tl expr_hierarchy
 		(**
 			Writes "{ <expressions> }" to output buffer
 		*)
@@ -1023,7 +1047,7 @@ class virtual type_builder ctx wrapper =
 				let write_expr expr =
 					self#write_expr expr;
 					match expr.eexpr with
-						| TBlock _ | TIf _ | TTry _ | TSwitch _ -> self#write "\n"
+						| TBlock _ | TIf _ | TTry _ | TSwitch _ | TWhile (_, _, NormalWhile) -> self#write "\n"
 						| _ -> self#write ";\n"
 				in
 				let write_expr_with_indent expr =
@@ -1644,10 +1668,14 @@ class class_builder ctx (cls:tclass) =
 			and write_if_var is_static _ field =
 				match field.cf_kind with
 					| Var { v_read = AccInline; v_write = AccNever } -> ()
-					| Method _ -> ()
+					| Method MethDynamic ->
+						at_least_one_field_written := true;
+						let kind = Var { v_read = AccNormal; v_write = AccNormal; } in
+						self#write_field is_static { field with cf_kind = kind }
 					| Var _ ->
 						at_least_one_field_written := true;
 						self#write_field is_static field
+					| Method _ -> ()
 			in
 			if boot_type_path = self#get_type_path then begin
 				self#write_php_prefix ();
@@ -1703,7 +1731,7 @@ class class_builder ctx (cls:tclass) =
 			in
 			PMap.iter write_var_initialization cls.cl_statics
 		(**
-			Writes single field to output buffer
+			Writes single field to output buffer.
 		*)
 		method private write_field is_static field =
 			match field.cf_kind with
@@ -1768,25 +1796,12 @@ class class_builder ctx (cls:tclass) =
 					self#write_expr_function ~name:name fn;
 					self#write "\n"
 				| _ -> fail field.cf_pos __POS__
-		method private write_dynamic_method field = ()
-			(* vars#clear;
-			self#indent 1;
-			let (args, return_type) = get_function_signature field in
-			List.iter (fun (arg_name, _, _) -> vars#declared arg_name) args;
-			self#write_doc (DocMethod (args, return_type, field.cf_doc));
-			self#write_indentation;
-			if is_static then self#write "static ";
-			self#write ((get_visibility field.cf_meta) ^ " ");
-			match field.cf_expr with
-				| Some { eexpr = TFunction fn } ->
-					self#write (field.cf_name ^ " (");
-					write_args buffer write_arg args;
-					self#write ")\n";
-					self#write_line "{";
-					self#indent_more;
-					self#write ("($this->" ^ field.cf_name ^ ")(")
-					self#write_line "}"
-				| _ -> fail field.cf_pos __POS__ *)
+		(**
+			Writes dynamic method to output buffer.
+			Only for non-static methods. Static methods are created as static vars in `__hx__init`.
+		*)
+		method private write_dynamic_method field =
+			()
 	end
 
 (**
