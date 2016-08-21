@@ -577,6 +577,10 @@ class virtual type_builder ctx wrapper =
 		*)
 		method virtual private write_hx_init_body : unit
 		(**
+			Writes initialization code for type instances
+		*)
+		method virtual private write_instance_initialization : unit
+		(**
 			Increase indentation by one level
 		*)
 		method indent_more =
@@ -986,9 +990,11 @@ class virtual type_builder ctx wrapper =
 			self#write "\n";
 			self#write_line "{";
 			self#indent_more;
+			self#write_instance_initialization;
 			self#write_fake_block (inject_defaults ctx func);
 			self#indent_less;
-			self#write_line "}"
+			self#write_indentation;
+			self#write "}"
 		(**
 			Writes method declaration (except visibility and `static` keywords) to output buffer
 		*)
@@ -1613,6 +1619,10 @@ class enum_builder ctx (enm:tenum) =
 			Method `__hx__init` is not needed for enums
 		**)
 		method private write_hx_init_body = ()
+		(**
+			No need for additional initialization of enum instances
+		*)
+		method private write_instance_initialization = ()
 	end
 
 (**
@@ -1661,6 +1671,7 @@ class class_builder ctx (cls:tclass) =
 			and write_if_method is_static _ field =
 				match field.cf_kind with
 					| Var _ -> ()
+					| Method MethDynamic when is_static -> ()
 					| Method _ ->
 						if !at_least_one_field_written then self#write_empty_lines;
 						at_least_one_field_written := true;
@@ -1801,7 +1812,59 @@ class class_builder ctx (cls:tclass) =
 			Only for non-static methods. Static methods are created as static vars in `__hx__init`.
 		*)
 		method private write_dynamic_method field =
-			()
+			vars#clear;
+			self#indent 1;
+			let (args, return_type) = get_function_signature field in
+			List.iter (fun (arg_name, _, _) -> vars#declared arg_name) args;
+			self#write_doc (DocMethod (args, return_type, field.cf_doc));
+			self#write_indentation;
+			self#write ((get_visibility field.cf_meta) ^ " function ");
+			(match field.cf_expr with
+				| Some { eexpr = TFunction fn } ->
+					self#write (field.cf_name ^ " (");
+					write_args buffer (self#write_arg true) args;
+					self#write ")\n";
+					self#write_line "{";
+					self#indent_more;
+					self#write_indentation;
+					let field_access = "$this->" ^ field.cf_name
+					and default_value = "$this->__hx__default__" ^ field.cf_name in
+					self#write ("if (" ^ field_access ^ " !== " ^ default_value ^ ") return (" ^ field_access ^ ")(");
+					write_args buffer (self#write_arg false) args;
+					self#write ");\n";
+					self#write_fake_block (inject_defaults ctx fn);
+					self#indent_less;
+					self#write_line "}"
+				| _ -> fail field.cf_pos __POS__
+			);
+			(* Don't forget to create a field for default value *)
+			self#write_statement ("protected $__hx__default__" ^ field.cf_name)
+		(**
+			Writes initialization code for instances of this class
+		*)
+		method private write_instance_initialization =
+			let init field =
+				let (args, _) = get_function_signature field
+				and default_field = "$this->__hx__default__" ^ field.cf_name in
+				self#write_line ("if (!" ^ default_field ^ ") {");
+				self#indent_more;
+				self#write_indentation;
+				self#write (default_field ^ " = function (");
+				write_args buffer (self#write_arg true) args;
+				self#write (") { return $this->" ^ field.cf_name ^"(");
+				write_args buffer (self#write_arg false) args;
+				self#write "; });\n";
+				self#write_statement ("$this->" ^ field.cf_name ^ " = " ^ default_field);
+				self#indent_less;
+				self#write_line "}"
+			in
+			PMap.iter
+				(fun _ field ->
+					match field.cf_kind with
+						| Method MethDynamic -> init field
+						| _ -> ()
+				)
+				cls.cl_fields
 	end
 
 (**
