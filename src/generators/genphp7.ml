@@ -69,6 +69,14 @@ let fail hxpos mlpos =
 let rec is_dynamic_type (target:Type.t) = match follow target with TDynamic _ -> true | _ -> false
 
 (**
+	Check if `field` is a `dynamic function`
+*)
+let rec is_dynamic_method (field:tclass_field) =
+	match field.cf_kind with
+		| Method MethDynamic -> true
+		| _ -> false
+
+(**
 	@return `expr` wrapped in parenthesis
 *)
 let parenthesis expr = {eexpr = TParenthesis expr; etype = expr.etype; epos = expr.epos}
@@ -345,8 +353,10 @@ class class_wrapper (cls) =
 					let needs = ref false in
 					PMap.iter
 						(fun _ field ->
-							if not !needs then
-								needs := is_var_with_nonconstant_expr field
+							(* Check static vars with non-constant expressions *)
+							if not !needs then needs := is_var_with_nonconstant_expr field;
+							(* Check static dynamic functions *)
+							if not !needs then needs := is_dynamic_method field
 						)
 						cls.cl_statics;
 					!needs
@@ -943,9 +953,9 @@ class virtual type_builder ctx wrapper =
 			(match follow target.etype with
 				| TInst ({ cl_path = path }, _) when path = array_type_path ->
 					(match expr_hierarchy with
-						| _ :: { eexpr = TBinop (OpAssign, _, _) } :: _ -> ()
-						| _ :: { eexpr = TBinop (OpAssignOp _, _, _) } :: _ -> ()
-						| _ -> self#write "->arr"
+						| _ :: { eexpr = TBinop (OpAssign, { eexpr = TArray (t, i) }, _) } :: _ when t == target -> ()
+						| _ :: { eexpr = TBinop (OpAssignOp _, { eexpr = TArray (t, i) }, _) } :: _ when t == target -> ()
+						| _ -> self#write "->arr" (* inline array index read *)
 					)
 				| _ -> ()
 			);
@@ -1333,6 +1343,15 @@ class virtual type_builder ctx wrapper =
 					self#write ")"
 				| (_, FInstance (_, _, { cf_name = name })) -> write_access "->" name
 				| (_, FStatic (_, { cf_name = name; cf_kind = Var _ })) -> write_access "::" ("$" ^ name)
+				| (_, FStatic (_, { cf_name = name; cf_kind = Method MethDynamic })) ->
+					(match expr_hierarchy with
+						| _ :: { eexpr = TCall ({ eexpr = TField (e, a) }, _) } :: _ when a == access ->
+							self#write "(";
+							write_access "::" ("$" ^ name);
+							self#write ")"
+						| _ ->
+							write_access "::" ("$" ^ name)
+					)
 				| (_, FStatic (_, ({ cf_name = name; cf_kind = Method _ } as field))) -> self#write_expr_field_static expr field
 				| (_, FAnon { cf_name = name }) -> write_access "->" name
 				| (_, FDynamic field_name) -> self#write_expr expr; self#write ("->" ^ field_name)
@@ -1729,6 +1748,25 @@ class class_builder ctx (cls:tclass) =
 			Writes expressions for `__hx__init` method
 		*)
 		method private write_hx_init_body =
+			(* `static dynamic function` initialization *)
+			let write_dynamic_method_initialization field =
+				let (args, _) = get_function_signature field
+				and field_access = "self::$" ^ field.cf_name in
+				self#write_indentation;
+				self#write (field_access ^ " = function (");
+				write_args buffer (self#write_arg true) args;
+				self#write (") { return $this->" ^ field.cf_name ^"(");
+				write_args buffer (self#write_arg false) args;
+				self#write "); };\n";
+			in
+			PMap.iter
+				(fun _ field ->
+					match field.cf_kind with
+						| Method MethDynamic -> write_dynamic_method_initialization field
+						| _ -> ()
+				)
+				cls.cl_statics;
+			(* `static var` initialization *)
 			let write_var_initialization _ field =
 				if is_var_with_nonconstant_expr field then begin
 					self#write_indentation;
@@ -1843,7 +1881,7 @@ class class_builder ctx (cls:tclass) =
 			Writes initialization code for instances of this class
 		*)
 		method private write_instance_initialization =
-			let init field =
+			let init_dynamic_method field =
 				let (args, _) = get_function_signature field
 				and default_field = "$this->__hx__default__" ^ field.cf_name in
 				self#write_line ("if (!" ^ default_field ^ ") {");
@@ -1853,7 +1891,7 @@ class class_builder ctx (cls:tclass) =
 				write_args buffer (self#write_arg true) args;
 				self#write (") { return $this->" ^ field.cf_name ^"(");
 				write_args buffer (self#write_arg false) args;
-				self#write "; });\n";
+				self#write "); };\n";
 				self#write_statement ("$this->" ^ field.cf_name ^ " = " ^ default_field);
 				self#indent_less;
 				self#write_line "}"
@@ -1861,7 +1899,7 @@ class class_builder ctx (cls:tclass) =
 			PMap.iter
 				(fun _ field ->
 					match field.cf_kind with
-						| Method MethDynamic -> init field
+						| Method MethDynamic -> init_dynamic_method field
 						| _ -> ()
 				)
 				cls.cl_fields
