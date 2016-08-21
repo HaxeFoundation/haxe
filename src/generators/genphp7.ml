@@ -66,7 +66,7 @@ let fail hxpos mlpos =
 (**
 	Check if `target` is a `Dynamic` type
 *)
-let rec is_dynamic (target:Type.t) = match follow target with TDynamic _ -> true | _ -> false
+let rec is_dynamic_type (target:Type.t) = match follow target with TDynamic _ -> true | _ -> false
 
 (**
 	@return `expr` wrapped in parenthesis
@@ -1066,7 +1066,7 @@ class virtual type_builder ctx wrapper =
 			self#write "throw ";
 			if is_native_exception expr.etype then
 				self#write_expr expr
-			else if sure_extends_extern expr.etype or is_dynamic expr.etype then
+			else if sure_extends_extern expr.etype or is_dynamic_type expr.etype then
 				begin
 					self#write "throw (is_object($__hx__throw = ";
 					self#write_expr expr;
@@ -1282,7 +1282,7 @@ class virtual type_builder ctx wrapper =
 					self#write_expr expr;
 					write_unop operation
 		(**
-			Writes TField to output bufferTEnumParameter
+			Writes TField to output buffer
 		*)
 		method private write_expr_field expr access =
 			let write_access access_str field_str =
@@ -1305,7 +1305,7 @@ class virtual type_builder ctx wrapper =
 				| (_, FStatic (_, { cf_name = name; cf_kind = Var _ })) -> write_access "::" ("$" ^ name)
 				| (_, FStatic (_, ({ cf_name = name; cf_kind = Method _ } as field))) -> self#write_expr_field_static expr field
 				| (_, FAnon { cf_name = name }) -> write_access "->" name
-				| (_, FDynamic str) -> self#write_expr expr; self#write ("->" ^ str)
+				| (_, FDynamic field_name) -> self#write_expr expr; self#write ("->" ^ field_name)
 				| (_, FClosure (tcls, field)) -> self#write_expr_field_closure tcls field expr
 				| (_, FEnum (_, field)) ->
 					write_access "::" field.ef_name;
@@ -1319,15 +1319,13 @@ class virtual type_builder ctx wrapper =
 					self#write_expr expr;
 					self#write ("::" ^ field.cf_name)
 				| _ ->
-					let write_arg with_optionals (arg_name, optional, _) =
-						self#write ("$" ^ arg_name ^ (if with_optionals && optional then " = null" else ""))
-					and (args, return_type) = get_function_signature field  in
+					let (args, return_type) = get_function_signature field  in
 					self#write "function(";
-					write_args buffer (write_arg true) args;
+					write_args buffer (self#write_arg true) args;
 					self#write ") { return ";
 					self#write_expr expr;
 					self#write ("::" ^ field.cf_name ^ "(");
-					write_args buffer (write_arg false) args;
+					write_args buffer (self#write_arg false) args;
 					self#write "); }"
 		(**
 			Writes FClosure field access to output buffer
@@ -1352,10 +1350,7 @@ class virtual type_builder ctx wrapper =
 			(* Restore original output buffer and local vars *)
 			buffer <- original_buffer;
 			(* Write whole closure to output buffer *)
-			let (args, return_type) = get_function_signature field
-			and write_arg with_optionals (arg_name, optional, _) =
-				self#write ("$" ^ arg_name ^ (if with_optionals && optional then " = null" else ""))
-			in
+			let (args, return_type) = get_function_signature field in
 			let args = (** Make sure arguments will not shadow local vars declared in higher scopes *)
 				List.map
 					(fun (arg_name, optional, arg_type) ->
@@ -1367,7 +1362,7 @@ class virtual type_builder ctx wrapper =
 					args
 			in
 			self#write "function (";
-			write_args buffer (write_arg true) args;
+			write_args buffer (self#write_arg true) args;
 			self#write ")";
 			(match used_vars with
 				| [] -> ()
@@ -1377,7 +1372,7 @@ class virtual type_builder ctx wrapper =
 					self#write ")"
 			);
 			self#write access_str;
-			write_args buffer (write_arg false) args;
+			write_args buffer (self#write_arg false) args;
 			self#write "); }"
 
 		(**
@@ -1523,6 +1518,11 @@ class virtual type_builder ctx wrapper =
 		method private write_expr_enum_parameter expr constructor index =
 			self#write_expr expr;
 			self#write ("->args[" ^ (string_of_int index) ^ "]")
+		(**
+			Writes list of arguments for function declarations or calls
+		*)
+		method write_arg with_optionals (arg_name, optional, (arg_type:Type.t)) =
+			self#write ("$" ^ arg_name ^ (if with_optionals && optional then " = null" else ""))
 	end
 
 (**
@@ -1567,7 +1567,7 @@ class enum_builder ctx (enm:tenum) =
 			self#write_doc (DocMethod (args, TEnum (enm, []), field.ef_doc));
 			self#write_indentation;
 			self#write ("static public function " ^ name ^ " (");
-			write_args buffer self#write_arg args;
+			write_args buffer (self#write_arg true) args;
 			self#write ")\n";
 			self#write_line "{";
 			self#indent_more;
@@ -1585,12 +1585,6 @@ class enum_builder ctx (enm:tenum) =
 			self#write ";\n";
 			self#indent_less;
 			self#write_line "}"
-		(**
-			Writes constructor argument to output buffer
-		*)
-		method private write_arg (name, optional, arg_type) =
-			self#write ("$" ^ name);
-			if optional then self#write " = null"
 		(**
 			Method `__hx__init` is not needed for enums
 		**)
@@ -1712,10 +1706,12 @@ class class_builder ctx (cls:tclass) =
 			Writes single field to output buffer
 		*)
 		method private write_field is_static field =
-			match (field.cf_kind) with
+			match field.cf_kind with
 				| Var { v_read = AccInline; v_write = AccNever } -> self#write_const field
 				| Var _ -> self#write_var field is_static
 				| Method MethMacro -> ()
+				| Method MethDynamic when is_static -> ()
+				| Method MethDynamic -> self#write_dynamic_method field
 				| Method _ -> self#write_method field is_static
 		(**
 			Writes var-field to output buffer
@@ -1763,18 +1759,34 @@ class class_builder ctx (cls:tclass) =
 			self#write ((get_visibility field.cf_meta) ^ " ");
 			match field.cf_expr with
 				| None ->
-					let write_arg (arg_name, optional, _) =
-						self#write ("$" ^ arg_name ^ (if optional then " = null" else ""))
-					in
 					self#write (field.cf_name ^ " (");
-					write_args buffer write_arg args;
+					write_args buffer (self#write_arg true) args;
 					self#write ")";
 					self#write " ;\n"
-				| Some { eexpr = TFunction fn; epos = pos } ->
+				| Some { eexpr = TFunction fn } ->
 					let name = if field.cf_name = "new" then "__construct" else field.cf_name in
 					self#write_expr_function ~name:name fn;
 					self#write "\n"
-				| _ -> failwith ("invalid expression for method " ^ field.cf_name)
+				| _ -> fail field.cf_pos __POS__
+		method private write_dynamic_method field = ()
+			(* vars#clear;
+			self#indent 1;
+			let (args, return_type) = get_function_signature field in
+			List.iter (fun (arg_name, _, _) -> vars#declared arg_name) args;
+			self#write_doc (DocMethod (args, return_type, field.cf_doc));
+			self#write_indentation;
+			if is_static then self#write "static ";
+			self#write ((get_visibility field.cf_meta) ^ " ");
+			match field.cf_expr with
+				| Some { eexpr = TFunction fn } ->
+					self#write (field.cf_name ^ " (");
+					write_args buffer write_arg args;
+					self#write ")\n";
+					self#write_line "{";
+					self#indent_more;
+					self#write ("($this->" ^ field.cf_name ^ ")(")
+					self#write_line "}"
+				| _ -> fail field.cf_pos __POS__ *)
 	end
 
 (**
