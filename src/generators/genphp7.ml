@@ -1698,7 +1698,8 @@ class class_builder ctx (cls:tclass) =
 		(**
 			Indicates if `field` should be declared as `final`
 		*)
-		method is_final_field (field:tclass_field) : bool = false
+		method is_final_field (field:tclass_field) : bool =
+			Meta.has Meta.Final field.cf_meta
 		(**
 			Recursively check if current class is a parent class for a `child`
 		*)
@@ -1944,6 +1945,7 @@ class class_builder ctx (cls:tclass) =
 			List.iter (fun (arg_name, _, _) -> vars#declared arg_name) args;
 			self#write_doc (DocMethod (args, return_type, field.cf_doc));
 			self#write_indentation;
+			if self#is_final_field field then self#write "final ";
 			if is_static then self#write "static ";
 			self#write ((get_visibility field.cf_meta) ^ " ");
 			match field.cf_expr with
