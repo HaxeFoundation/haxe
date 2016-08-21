@@ -1815,11 +1815,12 @@ class class_builder ctx (cls:tclass) =
 				let (args, _) = get_function_signature field
 				and field_access = "self::$" ^ field.cf_name in
 				self#write_indentation;
-				self#write (field_access ^ " = function (");
-				write_args buffer (self#write_arg true) args;
-				self#write (") { return $this->" ^ field.cf_name ^"(");
-				write_args buffer (self#write_arg false) args;
-				self#write "); };\n";
+				self#write (field_access ^ " = ");
+				(match field.cf_expr with
+					| Some expr -> self#write_expr expr
+					| None -> fail field.cf_pos __POS__
+				);
+				self#write ";\n"
 			in
 			PMap.iter
 				(fun _ field ->
