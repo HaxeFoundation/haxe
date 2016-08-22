@@ -40,7 +40,10 @@ let hxenum_type_path = (["php7"; "_Boot"], "HxEnum")
 	Type path of the implementation class for `Class<Dynamic>`
 *)
 let hxclass_type_path = (["php7"; "_Boot"], "HxClass")
-
+(**
+	Special abstract which enables passing function arguments and return value by reference
+*)
+let ref_type_path = (["php7"], "Ref")
 (**
 	Type path of the implementation class for `Array<T>`
 *)
@@ -67,6 +70,11 @@ let fail hxpos mlpos =
 	Check if `target` is a `Dynamic` type
 *)
 let rec is_dynamic_type (target:Type.t) = match follow target with TDynamic _ -> true | _ -> false
+
+(**
+	Check if `target` is `php7.Ref`
+*)
+let is_ref (target:Type.t) = match target with TAbstract ({ a_path = type_path }, _) -> type_path = ref_type_path | _ -> false 
 
 (**
 	Check if `field` is a `dynamic function`
@@ -1003,13 +1011,15 @@ class virtual type_builder ctx wrapper =
 		method private write_expr_function ?name func =
 			let write_arg arg =
 				match arg with
-					| ({ v_name = arg_name }, None) ->
+					| ({ v_name = arg_name; v_type = arg_type }, default_value) ->
 						vars#declared arg_name;
-						self#write ("$" ^ arg_name)
-					| ({ v_name = arg_name }, Some const) ->
-						vars#declared arg_name;
-						self#write ("$" ^ arg_name ^ " = ");
-						self#write_expr_const const
+						if is_ref arg_type then self#write "&";
+						self#write ("$" ^ arg_name);
+						match default_value with
+							| None -> ()
+							| Some const ->
+								self#write " = ";
+								self#write_expr_const const											 
 			in
 			match name with
 				| None -> self#write_closure_declaration func write_arg
@@ -1862,8 +1872,7 @@ class class_builder ctx (cls:tclass) =
 		method private write_hx_init_body =
 			(* `static dynamic function` initialization *)
 			let write_dynamic_method_initialization field =
-				let (args, _) = get_function_signature field
-				and field_access = "self::$" ^ field.cf_name in
+				let field_access = "self::$" ^ field.cf_name in
 				self#write_indentation;
 				self#write (field_access ^ " = ");
 				(match field.cf_expr with
