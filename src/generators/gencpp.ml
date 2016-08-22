@@ -80,6 +80,16 @@ let should_prefix_include = function
    |  ([],"hxMath") -> true
    | _ -> false;;
 
+
+let verbatim_include file =
+   if (String.sub file 0 1)="@" then 
+      ("@import " ^ (String.sub file 1 ((String.length file) - 1 )) ^ ";\n")
+   else
+      ("#include \"" ^ file ^ "\"\n")
+;;
+
+
+
 class source_writer common_ctx write_header_func write_func close_func =
    object(this)
    val indent_str = "\t"
@@ -110,7 +120,7 @@ class source_writer common_ctx write_header_func write_func close_func =
 
    method add_include class_path =
       ( match class_path with
-         | (["@verbatim"],file) -> this#write_h ("#include \"" ^ file ^ "\"\n");
+         | (["@verbatim"],file) -> this#write_h (verbatim_include file)
          | _ ->
             let prefix = if should_prefix_include class_path then "" else get_include_prefix common_ctx true in
             this#write_h ("#ifndef INCLUDED_" ^ (join_class_path class_path "_") ^ "\n");
@@ -478,6 +488,7 @@ let add_include writer class_path =
 
 let list_num l = string_of_int (List.length l);;
 
+
 (* This gets the class include order correct.  In the header files, we forward declare
    the class types so the header file does not have any undefined variables.
    In the cpp files, we include all the required header files, providing the actual
@@ -487,7 +498,7 @@ let gen_forward_decl writer class_path isNative =
    begin
       let output = writer#write in
       match class_path with
-      | (["@verbatim"],file) -> writer#write ("#include <" ^ file ^ ">\n");
+      | (["@verbatim"],file) -> writer#write (verbatim_include file)
       | _ ->
          let name = fst (remap_class_path class_path) in
          output ((if isNative then "HX_DECLARE_NATIVE" else "HX_DECLARE_CLASS") ^ list_num name  ^ "(");
@@ -1805,6 +1816,8 @@ let rec cpp_type_of ctx haxe_type =
       | Some _ -> cpp_type_of_null ctx tvar.t_type
       | _ -> cpp_type_of ctx tvar.t_type
 
+   and cpp_tfun_arg_type_of ctx opt t =
+      if opt then cpp_type_of_null ctx t else cpp_type_of ctx t
 
    and cpp_function_type_of ctx function_type abi =
       let abi = (match follow abi with
@@ -2433,11 +2446,6 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                CppNullAccess, TCppDynamic
             else begin
                let cppType = cpp_type_of expr.etype in
-               (*
-               let retypedArgs = List.map2 (fun arg (var,opt) ->
-                   retype (cpp_fun_arg_type_of ctx var opt) arg
-                   ) args, func.tf_args in
-               *)
                let retypedArgs = List.map (retype TCppDynamic ) args in
                match retypedFunc.cppexpr with
                |  CppFunction(FuncFromStaticFunction ,returnType) ->
@@ -2469,6 +2477,16 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                   *)
 
                (* Other functions ... *)
+
+                 (* todo - non objc? *)
+               | CppFunction( FuncInstance(_,true,{cf_type=TFun(arg_types,_)} ) as func, returnType )
+               | CppFunction( FuncStatic(_,true,{cf_type=TFun(arg_types,_)} ) as func, returnType ) ->
+                  (* retype args specifically (not just CppDynamic) *)
+                  let retypedArgs = List.map2 (fun arg (_,opt,t) ->
+                      retype (cpp_tfun_arg_type_of ctx opt t) arg
+                      ) args arg_types in
+                  CppCall(func,retypedArgs), returnType
+ 
                |  CppFunction(func,returnType) ->
                      CppCall(func,retypedArgs), returnType
 

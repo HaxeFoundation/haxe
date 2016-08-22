@@ -272,6 +272,7 @@ module Define = struct
 		| LuaVer
 		| LuaJit
 		| Macro
+		| MacroDebug
 		| MacroTimes
 		| NekoSource
 		| NekoV1
@@ -364,6 +365,7 @@ module Define = struct
 		| LuaJit -> ("lua_jit","Enable the jit compiler for lua (version 5.2 only")
 		| LuaVer -> ("lua_ver","The lua version to target")
 		| Macro -> ("macro","Defined when code is compiled in the macro context")
+		| MacroDebug -> ("macro_debug","Show warnings for potential macro problems (e.g. macro-in-macro calls)")
 		| MacroTimes -> ("macro_times","Display per-macro timing when used with --times")
 		| NetVer -> ("net_ver", "<version:20-45> Sets the .NET version to be targeted")
 		| NetTarget -> ("net_target", "<name> Sets the .NET target. Defaults to \"net\". xbox, micro (Micro Framework), compact (Compact Framework) are some valid values")

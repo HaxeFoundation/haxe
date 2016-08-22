@@ -5227,6 +5227,8 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			);
 		);
 		ctx.m.curmod.m_extra.m_time <- -1.; (* disable caching for modules having macro-in-macro *)
+		if Common.defined ctx.com Define.MacroDebug then
+			ctx.com.warning "Macro-in-macro call detected" p;
 		let e = (EConst (Ident "__dollar__delay_call"),p) in
 		Some (EUntyped (ECall (e,[EConst (Int (string_of_int pos)),p]),p),p)
 	end else

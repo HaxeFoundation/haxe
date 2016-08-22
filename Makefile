@@ -23,7 +23,8 @@ OCAMLOPT?=ocamlopt
 OCAMLC?=ocamlc
 LFLAGS=
 
-CFLAGS= -g -w -3 -I libs/extlib -I libs/extc -I libs/neko -I libs/javalib -I libs/ziplib -I libs/swflib -I libs/xml-light -I libs/ttflib -I libs/ilib -I libs/objsize \
+CFLAGS= -bin-annot
+ALL_CFLAGS= $(CFLAGS) -g -w -3 -I libs/extlib -I libs/extc -I libs/neko -I libs/javalib -I libs/ziplib -I libs/swflib -I libs/xml-light -I libs/ttflib -I libs/ilib -I libs/objsize \
 	-I src -I src/generators -I src/macro -I src/optimization -I src/syntax -I src/typing -I src/display
 
 LIBS=unix str libs/extlib/extLib libs/xml-light/xml-light libs/swflib/swflib \
@@ -45,9 +46,9 @@ else
 	MODULE_EXT = cmx
 endif
 
-CC_CMD = $(COMPILER) $(CFLAGS) -c $<
+CC_CMD = $(COMPILER) $(ALL_CFLAGS) -c $<
 
-CC_PARSER_CMD = $(COMPILER) -pp camlp4o $(CFLAGS) -c src/syntax/parser.ml
+CC_PARSER_CMD = $(COMPILER) -pp camlp4o $(ALL_CFLAGS) -c src/syntax/parser.ml
 
 RELDIR=../../..
 
@@ -221,7 +222,7 @@ src/main.$(MODULE_EXT): src/optimization/filters.$(MODULE_EXT) src/typing/matche
 
 src/version.$(MODULE_EXT):
 	$(MAKE) -f Makefile.version_extra -s --no-print-directory ADD_REVISION=$(ADD_REVISION) BRANCH=$(BRANCH) COMMIT_SHA=$(COMMIT_SHA) COMMIT_DATE=$(COMMIT_DATE) > src/version.ml
-	$(COMPILER) $(CFLAGS) -c src/version.ml
+	$(COMPILER) $(ALL_CFLAGS) -c src/version.ml
 
 # Package
 

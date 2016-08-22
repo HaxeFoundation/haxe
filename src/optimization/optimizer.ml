@@ -1546,7 +1546,7 @@ let inline_constructors ctx e =
 		 try
 			let v = get_field_var v name in
 			let e1 = mk (TLocal v) t p in
-			{e with eexpr = TBinop(OpAssign,e1,e2)}
+			mk (TBinop(OpAssign,e1,e2)) e1.etype p
 		with Not_found ->
 			let v = add_field_var v name t in
 			mk (TVar(v,Some e2)) ctx.t.tvoid e.epos

@@ -20,25 +20,37 @@
 (*
 	Gen Common API
 
-	This module intends to be a common set of utilities common to all targets.
+	This is the key module for generation of Java and C# sources
+	In order for both modules to share as much code as possible, some
+	rules were devised:
 
-	It's intended to provide a set of tools to be able to make targets in Haxe more easily, and to
-	allow the programmer to have more control of how the target language will handle the program.
+	- every feature has its own submodule, and may contain the following methods:
+		- configure
+			sets all the configuration variables for the module to run. If a module has this method,
+			it *should* be called once before running any filter
+		- run_filter ->
+			runs the filter immediately on the context
+		- add_filter ->
+			adds the filter to an expr->expr list. Most filter modules will provide this option so the filter
+			function can only run once.
+	- most submodules will have side-effects so the order of operations will matter.
+		When running configure / add_filter this might be taken care of with the rule-based dispatch system working
+		underneath, but still there might be some incompatibilities. There will be an effort to document it.
+		The modules can hint on the order by suffixing their functions with _first or _last.
+	- any of those methods might have different parameters, that configure how the filter will run.
+		For example, a simple filter that maps switch() expressions to if () .. else if... might receive
+		a function that filters what content should be mapped
+	- Other targets can use those filters on their own code. In order to do that,
+		a simple configuration step is needed: you need to initialize a generator_ctx type with
+		Gencommon.new_gen (context:Common.context)
+		with a generator_ctx context you will be able to add filters to your code, and execute them with
+		Gencommon.run_filters (gen_context:Gencommon.generator_ctx)
 
-	For example, as of now, the hxcpp target, while greatly done, relies heavily on cpp's own operator
-	overloading, and implicit conversions, which make it very hard to deliver a similar solution for languages
-	that lack these features.
+		After running the filters, you can run your own generator normally.
 
-	So this little framework is here so you can manipulate the Haxe AST and start bringing the AST closer
-	to how it's intenteded to be in your host language.
-
-	Rules
-
-	Design goals
-
-	Naming convention
-
-	Weaknesses and TODO's
+		(* , or you can run
+		Gencommon.generate_modules (gen_context:Gencommon.generator_ctx) (extension:string) (module_gen:module_type list->bool)
+		where module_gen will take a whole module (can be *)
 *)
 open Unix
 open Ast
@@ -83,12 +95,9 @@ let rec like_int t =
 
 let rec like_i64 t =
 	match follow t with
-		| TInst({ cl_path = (["cs"], "Int64") },[])
 		| TAbstract({ a_path = (["cs"], "Int64") },[])
-		| TInst({ cl_path = (["cs"], "UInt64") },[])
-		| TInst({ cl_path = (["java"], "Int64") },[])
+		| TAbstract({ a_path = (["cs"], "UInt64") },[])
 		| TAbstract({ a_path = (["java"], "Int64") },[])
-		| TInst({ cl_path = (["haxe"], "Int64") },[])
 		| TAbstract({ a_path = (["haxe"], "Int64") },[]) -> true
 		| TAbstract(a, _) -> List.exists (fun t -> like_i64 t) a.a_from || List.exists (fun t -> like_i64 t) a.a_to
 		| _ -> false
@@ -121,42 +130,6 @@ let path_of_md_def md_def =
 		| [TClassDecl c] -> c.cl_path
 		| _ -> md_def.m_path
 
-(* ******************************************* *)
-(*	Gen Common
-
-This is the key module for generation of Java and C# sources
-In order for both modules to share as much code as possible, some
-rules were devised:
-
-- every feature has its own submodule, and may contain the following methods:
-	- configure
-		sets all the configuration variables for the module to run. If a module has this method,
-		it *should* be called once before running any filter
-	- run_filter ->
-		runs the filter immediately on the context
-	- add_filter ->
-		adds the filter to an expr->expr list. Most filter modules will provide this option so the filter
-		function can only run once.
-- most submodules will have side-effects so the order of operations will matter.
-	When running configure / add_filter this might be taken care of with the rule-based dispatch system working
-	underneath, but still there might be some incompatibilities. There will be an effort to document it.
-	The modules can hint on the order by suffixing their functions with _first or _last.
-- any of those methods might have different parameters, that configure how the filter will run.
-	For example, a simple filter that maps switch() expressions to if () .. else if... might receive
-	a function that filters what content should be mapped
-- Other targets can use those filters on their own code. In order to do that,
-	a simple configuration step is needed: you need to initialize a generator_ctx type with
-	Gencommon.new_gen (context:Common.context)
-	with a generator_ctx context you will be able to add filters to your code, and execute them with
-	Gencommon.run_filters (gen_context:Gencommon.generator_ctx)
-
-	After running the filters, you can run your own generator normally.
-
-	(* , or you can run
-	Gencommon.generate_modules (gen_context:Gencommon.generator_ctx) (extension:string) (module_gen:module_type list->bool)
-	where module_gen will take a whole module (can be *)
-
-*)
 
 (* ******************************************* *)
 (* common helpers *)
@@ -591,8 +564,6 @@ and gen_classes =
 	cl_type : tclass;
 	cl_dyn : tclass;
 
-	t_iterator : tdef;
-
 	mutable nativearray_len : texpr -> pos -> texpr;
 	mutable nativearray_type : Type.t -> Type.t;
 	mutable nativearray : Type.t -> Type.t;
@@ -646,8 +617,6 @@ let new_ctx con =
 			cl_reflect = get_cl (get_type con.types ([], "Reflect"));
 			cl_type = get_cl (get_type con.types ([], "Type"));
 			cl_dyn = cl_dyn;
-
-			t_iterator = get_tdef (get_type con.types ([], "Iterator"));
 
 			nativearray = (fun _ -> assert false);
 			nativearray_type = (fun _ -> assert false);
@@ -1534,8 +1503,12 @@ struct
 			| None -> prev_ctor sup stl
 			| Some ctor -> ctor, sup, stl
 
+	let make_static_ctor_name gen cl =
+		let name = gen.gmk_internal_name "hx" "ctor" in
+		name ^ "_" ^ (String.concat "_" (fst cl.cl_path)) ^ "_" ^ (snd cl.cl_path)
+
 	(* replaces super() call with last static constructor call *)
-	let replace_super_call gen name c tl with_params me p =
+	let replace_super_call gen c tl with_params me p =
 		let rec loop_super c tl =
 			match c.cl_super with
 			| None ->
@@ -1543,7 +1516,7 @@ struct
 			| Some(sup,stl) ->
 				let stl = List.map (apply_params c.cl_params tl) stl in
 				try
-					let static_ctor_name = name ^ "_" ^ (String.concat "_" (fst sup.cl_path)) ^ "_" ^ (snd sup.cl_path) in
+					let static_ctor_name = make_static_ctor_name gen sup in
 					sup, stl, PMap.find static_ctor_name sup.cl_statics
 				with Not_found ->
 					loop_super sup stl
@@ -1585,12 +1558,12 @@ struct
 		}
 
 	(* will create a static counterpart of 'ctor', and replace its contents to a call to the static version*)
-	let create_static_ctor gen ~empty_ctor_expr cl name ctor =
+	let create_static_ctor gen ~empty_ctor_expr cl ctor =
 		match Meta.has Meta.SkipCtor ctor.cf_meta with
 		| true -> ()
 		| false when is_none ctor.cf_expr -> ()
 		| false ->
-			let static_ctor_name = name ^ "_" ^ (String.concat "_" (fst cl.cl_path)) ^ "_" ^ (snd cl.cl_path) in
+			let static_ctor_name = make_static_ctor_name gen cl in
 			(* create the static constructor *)
 			let basic = gen.gcon.basic in
 			let ctor_types = List.map (fun (s,t) -> (s, TInst(map_param (get_cl_t t), []))) cl.cl_params in
@@ -1623,7 +1596,7 @@ struct
 				| TCall (({ eexpr = TConst TSuper } as tsuper), params) -> (try
 					let params = List.map (fun e -> map_expr ~is_first:false e) params in
 					actual_super_call := Some { e with eexpr = TCall(tsuper, [empty_ctor_expr]) };
-					replace_super_call gen name cl ctor_params params me e.epos
+					replace_super_call gen cl ctor_params params me e.epos
 				with | Not_found ->
 					(* last static function was not found *)
 					actual_super_call := Some e;
@@ -1754,7 +1727,6 @@ struct
 
 		let basic = gen.gcon.basic in
 		let should_change cl = not cl.cl_interface && (not cl.cl_extern || is_hxgen (TClassDecl cl)) && (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) in
-		let static_ctor_name = gen.gmk_internal_name "hx" "ctor" in
 		let msize = List.length gen.gtypes_list in
 		let processed, empty_ctors = Hashtbl.create msize, Hashtbl.create msize in
 
@@ -1769,13 +1741,12 @@ struct
 		in
 
 		let rec change cl =
-			match Hashtbl.mem processed cl.cl_path with
-			| true -> ()
-			| false ->
+			if not (Hashtbl.mem processed cl.cl_path) then begin
 				Hashtbl.add processed cl.cl_path true;
+
 				(* make sure we've processed the super types *)
 				(match cl.cl_super with
-				| Some (super,_) when should_change super && not (Hashtbl.mem processed super.cl_path) ->
+				| Some (super,_) when should_change super ->
 					change super
 				| _ -> ());
 
@@ -1816,9 +1787,7 @@ struct
 						List.iter (fun cf -> ensure_super_is_first gen cf) (ctor :: ctor.cf_overloads)
 					else
 						(* now that we have a current ctor, create the static counterparts *)
-						List.iter (fun cf ->
-							create_static_ctor gen ~empty_ctor_expr:empty_ctor_expr cl static_ctor_name cf
-						) (ctor :: ctor.cf_overloads)
+						List.iter (fun cf -> create_static_ctor gen ~empty_ctor_expr:empty_ctor_expr cl cf) (ctor :: ctor.cf_overloads)
 				with | Exit ->());
 
 				(* implement empty ctor *)
@@ -1882,13 +1851,16 @@ struct
 					| None -> cl.cl_constructor <- Some ctor
 					| Some c -> c.cf_overloads <- ctor :: c.cf_overloads
 				with | Exit -> ());
-
+			end
 		in
-		let module_filter md = match md with
-			| TClassDecl cl when should_change cl && not (Hashtbl.mem processed cl.cl_path) ->
+
+		let module_filter md =
+			(match md with
+			| TClassDecl cl when should_change cl ->
 				change cl;
-				None
-			| _ -> None
+			| _ ->
+				());
+			None
 		in
 		gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) module_filter
 
@@ -2159,9 +2131,9 @@ struct
 	let configure gen ?(handle_strings = true) (should_change:texpr->bool) (equals_handler:texpr->texpr->texpr) (dyn_plus_handler:texpr->texpr->texpr->texpr) (compare_handler:texpr->texpr->texpr) =
 		let get_etype_one e =
 			if like_int e.etype then
-				(gen.gcon.basic.tint, { eexpr = TConst(TInt(Int32.one)); etype = gen.gcon.basic.tint; epos = e.epos })
+				ExprBuilder.make_int gen.gcon 1 e.epos
 			else
-				(gen.gcon.basic.tfloat, { eexpr = TConst(TFloat("1.0")); etype = gen.gcon.basic.tfloat; epos = e.epos })
+				ExprBuilder.make_float gen.gcon "1.0" e.epos
 		in
 
 		let basic = gen.gcon.basic in
@@ -2209,7 +2181,7 @@ struct
 						| OpGt | OpGte | OpLt | OpLte  -> (* type 2 *)
 							{ eexpr = TBinop(op, compare_handler (run e1) (run e2), { eexpr = TConst(TInt(Int32.zero)); etype = gen.gcon.basic.tint; epos = e.epos} ); etype = gen.gcon.basic.tbool; epos = e.epos }
 						| OpMult | OpDiv | OpSub | OpMod -> (* always cast everything to double *)
-							let etype, _ = get_etype_one e in
+							let etype = (get_etype_one e).etype in
 							{ e with eexpr = TBinop(op, mk_cast etype (run e1), mk_cast etype (run e2)) }
 						| OpBoolAnd | OpBoolOr ->
 							{ e with eexpr = TBinop(op, mk_cast gen.gcon.basic.tbool (run e1), mk_cast gen.gcon.basic.tbool (run e2)) }
@@ -2229,7 +2201,8 @@ struct
 							- if Prefix, return getvar = getvar + 1.0
 							- if Postfix, set ret = getvar; getvar = getvar + 1.0; ret;
 					*)
-					let etype, one = get_etype_one e in
+					let one = get_etype_one e in
+					let etype = one.etype in
 					let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false) in
 
 					let var, getvar =
@@ -5845,12 +5818,6 @@ struct
 			in
 			loop sup
 
-	let does_unify a b =
-		try
-			unify a b;
-			true
-		with | Unify_error _ -> false
-
 	(* this is a workaround for issue #1743, as FInstance() is returning the incorrect classfield *)
 	let rec clean_t t = match follow t with
 		| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
@@ -8412,7 +8379,7 @@ struct
 						f
 					in
 					let cond_array = { (mk_field_access gen f "params" f.epos) with etype = gen.gclasses.nativearray t_dynamic } in
-					{ e with eexpr = TArray(cond_array, ExprBuilder.make_int gen.gcon i cond_array.epos); }
+					Codegen.index gen.gcon cond_array i e.etype e.epos
 				| _ ->
 					Type.map_expr run e
 			in
@@ -8565,6 +8532,9 @@ struct
 
 		dependencies:
 			Must run before Dynamic fields access is run
+
+		TODO: I think TFor is always rewritten to TWhile before getting into the generator nowadays,
+		so this filter could probably be removed. Gotta ask Simon about it.
 	*)
 	module IteratorsInterfaceExprf =
 	struct
