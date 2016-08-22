@@ -10,9 +10,27 @@ import haxe.extern.Rest;
 @:phpGlobal
 extern class Global {
 	/**
+		@see http://php.net/manual/en/function.exit.php
+	**/
+	static function exit( status:EitherType<String,Int> ) : Void ;
+	
+	/**
+		@see http://php.net/manual/en/function.exit.php
+	**/
+	static function die( status:EitherType<String,Int> ) : Void ;
+
+	/**
 		@see http://php.net/manual/en/function.error-reporting.php
 	**/
 	static function error_reporting( level:Int ) : Int ;
+
+	/**
+		@see http://php.net/manual/en/function.set-error-handler.php
+	**/
+	@:overload(function( error_handler:Int->String->Bool, error_types:Int ) : Dynamic {})
+	@:overload(function( error_handler:Int->String->String->Bool, error_types:Int ) : Dynamic {})
+	@:overload(function( error_handler:Int->String->String->Int->Bool, error_types:Int ) : Dynamic {})
+	static function set_error_handler( error_handler:Null<Int->String->String->Int->Array<Dynamic>->Bool>, error_types:Int ) : Dynamic ;
 
 	/**
 		@see http://php.net/manual/en/function.is-int.php
