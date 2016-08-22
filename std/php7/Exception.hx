@@ -22,20 +22,21 @@
 package php7;
 
 @:native('Exception')
-extern class Exception {
-  public function new(?message : String, ?code : Int) : Void;
+extern class Exception implements Throwable {
+	public function new(?message : String, ?code : Int) : Void;
 
-  private var message : String;
-  private var code : Int;
-  private var file : String;
-  private var line : Int;
+	private var message : String;
+	private var code : Int;
+	private var file : String;
+	private var line : Int;
 
-  public function getMessage() : String;       // message of the exception
-  public function getCode() : Int;             // code of the exception
-  public function getFile() : String;          // source filename
-  public function getLine() : Int;             // source line
-  public function getTrace() : Array<String>;  // an array of the backtrace()
-  public function getTraceAsString() : String; // formated string of trace
-
-  public function __toString() : String;       // formated string for display
+	@:final
+	public function getPrevious() : Throwable;   // Returns previous Throwable
+    public function getMessage() : String;       // message of the exception
+    public function getCode() : Int;             // code of the exception
+    public function getFile() : String;          // source filename
+    public function getLine() : Int;             // source line
+    public function getTrace() : Array<String>;  // an array of the backtrace()
+    public function getTraceAsString() : String; // formated string of trace
+	public function __toString() : String;       // formated string for display
 }

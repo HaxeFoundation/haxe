@@ -13,7 +13,7 @@ extern class Global {
 		@see http://php.net/manual/en/function.exit.php
 	**/
 	static function exit( status:EitherType<String,Int> ) : Void ;
-	
+
 	/**
 		@see http://php.net/manual/en/function.exit.php
 	**/
@@ -31,6 +31,21 @@ extern class Global {
 	@:overload(function( error_handler:Int->String->String->Bool, error_types:Int ) : Dynamic {})
 	@:overload(function( error_handler:Int->String->String->Int->Bool, error_types:Int ) : Dynamic {})
 	static function set_error_handler( error_handler:Null<Int->String->String->Int->Array<Dynamic>->Bool>, error_types:Int ) : Dynamic ;
+
+	/**
+		@see http://php.net/manual/en/function.restore-error-handler.php
+	**/
+	static function restore_error_handler() : Bool ;
+
+	/**
+		@see http://php.net/manual/en/function.set-exception-handler.php
+	**/
+	static function set_exception_handler( exception_handler:Throwable->Void ) : Dynamic ;
+
+	/**
+		@see http://php.net/manual/en/function.restore-exception-handler.php
+	**/
+	static function restore_exception_handler() : Bool ;
 
 	/**
 		@see http://php.net/manual/en/function.is-int.php
