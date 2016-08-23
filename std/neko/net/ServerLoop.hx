@@ -126,7 +126,7 @@ class ServerLoop<ClientData> {
 	}
 
 	/**
-		This method is called when some data has been readed into a Client buffer.
+		This method is called when some data has been read into a Client buffer.
 		If the data can be handled, then you can return the number of bytes handled
 		that needs to be removed from the buffer. It the data can't be handled (some
 		part of the message is missing for example), returns 0.
