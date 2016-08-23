@@ -1,6 +1,6 @@
 
 (**
-	Compatible with PHP 5.4+
+	Compatible with PHP 7+
 *)
 
 open Ast
@@ -23,7 +23,7 @@ let diff_lists list1 list2 = List.filter (fun x -> not (List.mem x list2)) list1
 (**
 	Type path for native PHP Exception class
 *)
-let native_exception_path = ([], "Exception")
+let native_exception_path = ([], "Throwable")
 (**
 	Type path for Haxe exceptions wrapper
 *)
@@ -1185,7 +1185,7 @@ class virtual type_builder ctx wrapper =
 				begin
 					self#write "throw (is_object($__hx__throw = ";
 					self#write_expr expr;
-					self#write (") && $__hx__throw instanceof \\Exception ? $__hx__throw : new " ^ (self#use haxe_exception_path) ^ "($__hx__throw))")
+					self#write (") && $__hx__throw instanceof \\Throwable ? $__hx__throw : new " ^ (self#use haxe_exception_path) ^ "($__hx__throw))")
 				end
 			else
 				begin
@@ -1234,7 +1234,7 @@ class virtual type_builder ctx wrapper =
 			in
 			self#write "try ";
 			self#write_as_block try_expr;
-			self#write " catch (\\Exception $__hx__caught_e) {\n";
+			self#write " catch (\\Throwable $__hx__caught_e) {\n";
 			self#indent_more;
 			self#write_statement ("$__hx__real_e = ($__hx__caught_e instanceof " ^ haxe_exception ^ " ? $__hx__caught_e->e : $__hx__caught_e)");
 			self#write_indentation;
