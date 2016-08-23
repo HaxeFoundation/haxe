@@ -1745,35 +1745,34 @@ struct
 				Hashtbl.add processed cl.cl_path true;
 
 				(* make sure we've processed the super types *)
-				(match cl.cl_super with
-				| Some (super,_) when should_change super ->
-					change super
-				| _ -> ());
+				Option.may (fun (super,_) -> if should_change super then change super) cl.cl_super;
 
 				(* implement static hx_ctor and reimplement constructors *)
 				(try
-					let ctor = match cl.cl_constructor with
-					| Some ctor -> ctor
-					| None -> try
-						let sctor, sup, stl = prev_ctor cl (List.map snd cl.cl_params) in
-						(* we'll make constructors that will only call super() *)
-						let ctor = clone_ctors gen sctor sup stl cl in
-						cl.cl_constructor <- Some ctor;
-						ctor
-					with | Not_found -> (* create default constructor *)
-						let ctor = mk_class_field "new" (TFun([], basic.tvoid)) false cl.cl_pos (Method MethNormal) [] in
-						ctor.cf_expr <- Some
-						{
-							eexpr = TFunction {
-								tf_args = [];
-								tf_type = basic.tvoid;
-								tf_expr = { eexpr = TBlock[]; etype = basic.tvoid; epos = cl.cl_pos };
-							};
-							etype = ctor.cf_type;
-							epos = ctor.cf_pos;
-						};
-						cl.cl_constructor <- Some ctor;
-						ctor
+					let ctor =
+						match cl.cl_constructor with
+						| Some ctor ->
+							ctor
+						| None ->
+							try
+								let sctor, sup, stl = prev_ctor cl (List.map snd cl.cl_params) in
+								(* we'll make constructors that will only call super() *)
+								let ctor = clone_ctors gen sctor sup stl cl in
+								cl.cl_constructor <- Some ctor;
+								ctor
+							with Not_found -> (* create default constructor *)
+								let ctor = mk_class_field "new" (TFun ([], basic.tvoid)) false cl.cl_pos (Method MethNormal) [] in
+								ctor.cf_expr <- Some {
+									eexpr = TFunction {
+										tf_args = [];
+										tf_type = basic.tvoid;
+										tf_expr = mk (TBlock []) basic.tvoid cl.cl_pos;
+									};
+									etype = ctor.cf_type;
+									epos = ctor.cf_pos;
+								};
+								cl.cl_constructor <- Some ctor;
+								ctor
 					in
 					(* now that we made sure we have a constructor, exit if native gen *)
 					if not (is_hxgen (TClassDecl cl)) || Meta.has Meta.SkipCtor cl.cl_meta then begin
@@ -1788,59 +1787,53 @@ struct
 					else
 						(* now that we have a current ctor, create the static counterparts *)
 						List.iter (fun cf -> create_static_ctor gen ~empty_ctor_expr:empty_ctor_expr cl cf) (ctor :: ctor.cf_overloads)
-				with | Exit ->());
+				with Exit -> ());
 
 				(* implement empty ctor *)
 				(try
 					(* now that we made sure we have a constructor, exit if native gen *)
 					if not (is_hxgen (TClassDecl cl)) then raise Exit;
+
 					(* get first *)
-					let empty_type = TFun(["empty",false,empty_ctor_type],basic.tvoid) in
-					let super = match cl.cl_super with
-					| None -> (* implement empty *)
-							[]
-					| Some (sup,_) -> try
-						ignore (get_last_empty sup);
-						[{
-							eexpr = TCall(
-								{ eexpr = TConst TSuper; etype = TInst(cl, List.map snd cl.cl_params); epos = cl.cl_pos },
-								[ empty_ctor_expr ]);
-							etype = basic.tvoid;
-							epos = cl.cl_pos
-						}]
-					with | Not_found -> try
-						(* super type is native: find super constructor with least arguments *)
-						let sctor, sup, stl = prev_ctor cl (List.map snd cl.cl_params) in
-						let rec loop remaining (best,n) =
-							match remaining with
-							| [] -> best
-							| cf :: r ->
-								let args,_ = get_fun cf.cf_type in
-								if (List.length args) < n then
-									loop r (cf,List.length args)
-								else
-									loop r (best,n)
-						in
-						let args,_ = get_fun sctor.cf_type in
-						let best = loop sctor.cf_overloads (sctor, List.length args) in
-						let args,_ = get_fun (apply_params sup.cl_params stl best.cf_type) in
-						[{
-							eexpr = TCall(
-								{ eexpr = TConst TSuper; etype = TInst(sup, stl); epos = cl.cl_pos },
-								List.map (fun (n,o,t) -> null t cl.cl_pos) args);
-							etype = basic.tvoid;
-							epos = cl.cl_pos
-						}]
-					with | Not_found ->
-						(* extends native type, but no ctor found *)
-						[]
+					let empty_type = TFun (["empty",false,empty_ctor_type],basic.tvoid) in
+					let super =
+						match cl.cl_super with
+						| None -> (* implement empty *)
+								[]
+						| Some (sup,_) ->
+							try
+								ignore (get_last_empty sup);
+								let esuper = mk (TConst TSuper) (TInst (cl, List.map snd cl.cl_params)) cl.cl_pos in
+								[mk (TCall (esuper, [empty_ctor_expr])) basic.tvoid cl.cl_pos]
+							with Not_found ->
+								try
+									(* super type is native: find super constructor with least arguments *)
+									let sctor, sup, stl = prev_ctor cl (List.map snd cl.cl_params) in
+									let rec loop remaining (best,n) =
+										match remaining with
+										| [] -> best
+										| cf :: r ->
+											let args,_ = get_fun cf.cf_type in
+											if (List.length args) < n then
+												loop r (cf,List.length args)
+											else
+												loop r (best,n)
+									in
+									let args,_ = get_fun sctor.cf_type in
+									let best = loop sctor.cf_overloads (sctor, List.length args) in
+									let args,_ = get_fun (apply_params sup.cl_params stl best.cf_type) in
+									let esuper = mk (TConst TSuper) (TInst (sup, stl)) cl.cl_pos in
+									[mk (TCall (esuper, List.map (fun (n,o,t) -> null t cl.cl_pos) args)) basic.tvoid cl.cl_pos]
+								with Not_found ->
+									(* extends native type, but no ctor found *)
+									[]
 					in
 					let ctor = mk_class_field "new" empty_type false cl.cl_pos (Method MethNormal) [] in
 					ctor.cf_expr <- Some {
 						eexpr = TFunction {
 							tf_type = basic.tvoid;
 							tf_args = [alloc_var "empty" empty_ctor_type, None];
-							tf_expr = { eexpr = TBlock super; etype = basic.tvoid; epos = cl.cl_pos }
+							tf_expr = mk (TBlock super) basic.tvoid cl.cl_pos
 						};
 						etype = empty_type;
 						epos = cl.cl_pos;
@@ -1848,9 +1841,11 @@ struct
 					ctor.cf_meta <- [Meta.SkipCtor, [], ctor.cf_pos];
 					Hashtbl.add empty_ctors cl.cl_path ctor;
 					match cl.cl_constructor with
-					| None -> cl.cl_constructor <- Some ctor
-					| Some c -> c.cf_overloads <- ctor :: c.cf_overloads
-				with | Exit -> ());
+					| None ->
+						cl.cl_constructor <- Some ctor
+					| Some c ->
+						c.cf_overloads <- ctor :: c.cf_overloads
+				with Exit -> ());
 			end
 		in
 
