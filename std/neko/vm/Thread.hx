@@ -33,7 +33,7 @@ class Thread {
 	}
 
 	/**
-		Send a message to the thread queue. This message can be readed by using `readMessage`.
+		Send a message to the thread queue. This message can be read by using `readMessage`.
 	**/
 	public function sendMessage( msg : Dynamic ) {
 		thread_send(handle,msg);
