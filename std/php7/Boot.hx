@@ -35,13 +35,11 @@ using php7.Global;
 @:dox(hide)
 class Boot {
 	/**
-		Initialization stuff
+		Initialization stuff.
+		This method is called once before invoking any Haxe-generated user code.
 	**/
 	static function __init__() {
 		Global.error_reporting(Const.E_ALL);
-		if (Global.phpversion() < "7.0.0") {
-			Global.class_alias("\\Exception", "\\Throwable");
-		}
 	}
 
 	/**

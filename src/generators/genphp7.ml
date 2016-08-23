@@ -688,11 +688,13 @@ class virtual type_builder ctx wrapper =
 				if wrapper#needs_initialization then self#write_hx_init;
 				self#indent 0;
 				self#write_line "}"; (** closing bracket for a class *)
-				if wrapper#needs_initialization then begin
-					let qualified_name = get_full_type_name wrapper#get_type_path in
-					self#write_empty_lines;
-					self#write_statement (qualified_name ^ "::__hx__init()")
-				end;
+				self#write_empty_lines;
+				(* Boot initialization *)
+				if boot_type_path <> self#get_type_path then
+					self#write_statement ((self#use boot_type_path) ^ "::__hx__init()");
+				(* Current class initialization *)
+				if wrapper#needs_initialization then
+					self#write_statement (self#get_name ^ "::__hx__init()");
 				let body = Buffer.contents buffer in
 				Buffer.clear buffer;
 				self#write_header;
