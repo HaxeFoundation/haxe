@@ -54,6 +54,35 @@ let array_type_path = ([], "Array")
 *)
 let rec follow = Abstract.follow_with_abstracts
 
+let prefix = ref None
+(**
+	Returns value of `--php-prefix` compiler flag
+*)
+let get_php_prefix ctx =
+	match !prefix with
+		| Some prefix -> prefix
+		| None ->
+			let lst =
+				match ctx.php_prefix with
+					| None -> []
+					| Some str ->
+						if String.length str = 0 then
+							[]
+						else
+							Str.split (Str.regexp "\\.") str
+			in
+			prefix := Some lst;
+			lst
+
+(**
+	Adds packages specified by `--php-prefix` to `type_path`.
+	E.g. if `--php-prefix some.sub` and `type_path` is `(["pack"], "MyClass")`, then this function
+	will return `(["some", "sub", "pack"], "MyClass")`
+*)
+let add_php_prefix ctx type_path =
+	match type_path with
+		| (pack, name) -> ((get_php_prefix ctx) @ pack, name)
+
 (**
 	@return Error message with position information
 *)
@@ -74,7 +103,7 @@ let rec is_dynamic_type (target:Type.t) = match follow target with TDynamic _ ->
 (**
 	Check if `target` is `php7.Ref`
 *)
-let is_ref (target:Type.t) = match target with TAbstract ({ a_path = type_path }, _) -> type_path = ref_type_path | _ -> false 
+let is_ref (target:Type.t) = match target with TAbstract ({ a_path = type_path }, _) -> type_path = ref_type_path | _ -> false
 
 (**
 	Check if `field` is a `dynamic function`
@@ -589,7 +618,10 @@ class virtual type_builder ctx wrapper =
 		(**
 			Get PHP namespace path
 		*)
-		method get_namespace = wrapper#get_namespace
+		method get_namespace =
+			match get_php_prefix ctx with
+				| [] -> wrapper#get_namespace
+				| prefix -> prefix @ wrapper#get_namespace
 		(**
 			Get type name
 		*)
@@ -674,10 +706,15 @@ class virtual type_builder ctx wrapper =
 			If it's a top-level type then type name returned without adding to "use" section.
 			@return Unique alias for specified type.
 		*)
-		method use (type_path:path) =
+		method use ?prefix (type_path:path) =
 			if type_path = wrapper#get_type_path then
 				self#get_name
 			else
+				let type_path =
+					match prefix with
+						| Some false -> type_path
+						| _ -> add_php_prefix ctx type_path
+				in
 				let module_path = get_module_path type_path in
 				match type_path with
 					| ([], type_name) -> "\\" ^ type_name
@@ -704,7 +741,7 @@ class virtual type_builder ctx wrapper =
 								| Not_found ->
 									Hashtbl.add use_table !alias type_path;
 									added := true
-								| _ -> failwith "Unknown"
+								| _ -> fail self#pos __POS__
 						done;
 						!alias
 		(**
@@ -720,10 +757,10 @@ class virtual type_builder ctx wrapper =
 						| _ ->
 							(match tcls.cl_path with
 								| ([], "String") -> "string"
-								| _ -> self#use tcls.cl_path
+								| _ -> self#use ~prefix:(not tcls.cl_extern) tcls.cl_path
 							)
 					)
-				| TFun _ -> self#use ([], "Closure")
+				| TFun _ -> self#use ~prefix:false ([], "Closure")
 				| TAnon _ -> "object"
 				| TDynamic _ -> "mixed"
 				| TLazy _ -> failwith "TLazy not implemented"
@@ -792,7 +829,7 @@ class virtual type_builder ctx wrapper =
 		method private write_header =
 			self#indent 0;
 			self#write_line "<?php";
-			let namespace = wrapper#get_namespace in
+			let namespace = self#get_namespace in
 			if List.length namespace > 0 then
 				self#write_line ("namespace " ^ (String.concat "\\" namespace) ^ ";\n");
 			self#write_use
@@ -1019,7 +1056,7 @@ class virtual type_builder ctx wrapper =
 							| None -> ()
 							| Some const ->
 								self#write " = ";
-								self#write_expr_const const											 
+								self#write_expr_const const
 			in
 			match name with
 				| None -> self#write_closure_declaration func write_arg
@@ -1142,7 +1179,7 @@ class virtual type_builder ctx wrapper =
 			self#write "throw ";
 			if is_native_exception expr.etype then
 				self#write_expr expr
-			else if sure_extends_extern expr.etype or is_dynamic_type expr.etype then
+			else if sure_extends_extern expr.etype || is_dynamic_type expr.etype then
 				begin
 					self#write "throw (is_object($__hx__throw = ";
 					self#write_expr expr;
@@ -1296,7 +1333,7 @@ class virtual type_builder ctx wrapper =
 			in
 			match operation with
 				| OpAdd ->
-					if (is_string expr1) or (is_string expr2) then
+					if (is_string expr1) || (is_string expr2) then
 						write_binop " . "
 					else
 						write_binop " + "
@@ -1499,7 +1536,8 @@ class virtual type_builder ctx wrapper =
 			Writes TNew to output buffer
 		*)
 		method private write_expr_new inst_class args =
-			self#write ("new " ^ (self#use inst_class.cl_path) ^ "(");
+			let needs_php_prefix = not inst_class.cl_extern in
+			self#write ("new " ^ (self#use ~prefix:needs_php_prefix inst_class.cl_path) ^ "(");
 			write_args buffer self#write_expr args;
 			self#write ")"
 		(**
@@ -1858,13 +1896,10 @@ class class_builder ctx (cls:tclass) =
 			Writes `--php-prefix` value as class constant PHP_PREFIX
 		*)
 		method private write_php_prefix () =
-			let prefix = match ctx.php_prefix with
-				| None -> ""
-				| Some str -> if String.length str = 0 then "" else "\\\\" ^ (Str.replace_first (Str.regexp "\\") "" str)
-			in
+			let prefix = String.concat "\\\\" (get_php_prefix ctx) in
 			let indentation = String.length indentation in
 			self#indent 1;
-			self#write_statement ("const PHP_PREFIX = \"" ^ prefix ^ "\"");
+			self#write_statement ("const PHP_PREFIX = \"" ^ (String.escaped prefix) ^ "\"");
 			self#indent indentation
 		(**
 			Writes expressions for `__hx__init` method
