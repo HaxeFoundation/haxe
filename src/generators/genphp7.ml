@@ -118,16 +118,16 @@ let rec is_dynamic_method (field:tclass_field) =
 		| _ -> false
 
 (**
-	@return `Type.tabstract` instance for `Void`
+	@return `Type.t` instance for `Void`
 *)
 let void = ref None
-let get_void ctx : tabstract =
+let get_void ctx : Type.t =
 	match !void with
 		| Some value -> value
 		| None ->
 			let find com_type =
 				match com_type with
-					| TAbstractDecl ({ a_path = ([], "Void") } as abstr) -> void := Some abstr;
+					| TAbstractDecl ({ a_path = ([], "Void") } as abstr) -> void := Some (TAbstract (abstr, []));
 					| _ -> ()
 			in
 			List.iter find ctx.types;
@@ -1800,47 +1800,33 @@ class class_builder ctx (cls:tclass) =
 		(**
 			Returns either user-defined constructor or creates empty constructor if instance initialization is required.
 		*)
-		(* method private get_constructor : tclass_field option =
+		method private get_constructor : tclass_field option =
 			match cls.cl_constructor with
 				| Some field -> Some field
 				| None ->
-					let needs = ref false in
-					PMap.iter
-						(fun _ field ->
-							(* Check instance dynamic functions *)
-							if not !needs then needs := is_dynamic_method field
-						)
-						cls.cl_fields;
-					if not !needs then
+					if not self#constructor_is_required then
 						None
-					else begin
-						let rec find cls =
-							match cls.cl_constructor with
-								| Some field -> Some field
-								| None ->
-									match cls.cl_super with
-										| None -> None
-										| Some (cls, _) -> find cls
-						in
-						match find cls with
-							| None -> fail cls.cl_pos __POS__
-							| Some field ->
-								Some {
-									field with
-										cf_pos  = cls.cl_pos;
-										cf_expr = Some {
-											epos  = cls.cl_pos;
-											etype = TAbstract (get_void ctx, []);
-											eexpr = TCall({
-													epos  = cls.cl_pos;
-													etype = TInst (cls, []);
-													eexpr = TConst TSuper;
-												},
-												[]
-											)
-										};
-								}
-					end *)
+					else
+						Some {
+							cf_name = "new";
+							cf_type = TFun ([], get_void ctx);
+							cf_public = true;
+							cf_pos = cls.cl_pos;
+							cf_doc = None;
+							cf_meta = [];
+							cf_kind = Method MethNormal;
+							cf_params = [];
+							cf_expr = Some {
+								eexpr = TFunction {
+									tf_args = [];
+									tf_type = get_void ctx;
+									tf_expr = { eexpr = TBlock []; epos = cls.cl_pos; etype = get_void ctx; };
+								};
+								epos = cls.cl_pos;
+								etype = get_void ctx;
+							};
+							cf_overloads = [];
+						}
 		(**
 			Writes type body to output buffer.
 			E.g. for "class SomeClass { <BODY> }" writes <BODY> part.
@@ -1892,14 +1878,9 @@ class class_builder ctx (cls:tclass) =
 			(* Statc methods *)
 			PMap.iter (write_if_method true) cls.cl_statics;
 			(* Constructor *)
-			(match cls.cl_constructor with
+			(match self#get_constructor with
 				| Some field -> write_if_method false "new" field
-				| None ->
-					if self#constructor_is_required then begin
-						if !at_least_one_field_written then self#write_empty_lines;
-						at_least_one_field_written := true;
-						self#write_constructor_stub
-					end
+				| None -> ()
 			);
 			(* Instance methods *)
 			PMap.iter (write_if_method false) cls.cl_fields
@@ -1916,16 +1897,9 @@ class class_builder ctx (cls:tclass) =
 						if not !required then
 							required := (String.lowercase field.cf_name = String.lowercase self#get_name)
 					)
-					cls.cl_ordered_statics;
+					(cls.cl_ordered_statics @ cls.cl_ordered_fields);
 				!required
 			end
-		(**
-			Writes empty constructor to output buffer
-		*)
-		method private write_constructor_stub =
-			self#indent 1;
-			self#write_doc (DocMethod ([], TAbstract (get_void ctx, []), None));
-			self#write_line "public function __construct() {}";
 		(**
 			Writes `--php-prefix` value as class constant PHP_PREFIX
 		*)
