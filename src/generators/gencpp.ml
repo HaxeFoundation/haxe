@@ -2764,6 +2764,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                | TCppCode(t) when baseStr <> (tcpp_to_string t)  ->
                      CppCast(baseCpp, t),  t
                | TCppNativePointer(klass) -> CppCastNative(baseCpp), return_type
+               | TCppDynamic when baseCpp.cpptype=TCppClass ->  CppCast(baseCpp,TCppDynamic), TCppDynamic
                | _ -> baseCpp.cppexpr, baseCpp.cpptype (* use autocasting rules *)
             )
 
