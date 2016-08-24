@@ -54,6 +54,22 @@ let array_type_path = ([], "Array")
 let void_type_path = ([], "Void")
 
 (**
+	Check if specified string is a reserved word in PHP
+*)
+let is_keyword str =
+	match String.lowercase str with
+		| "__halt_compiler" | "abstract" | "and" | "array" | "as" | "break" | "callable" | "case" | "catch" | "class"
+		| "clone" | "const" | "continue" | "declare" | "default" | "die" | "do" | "echo" | "else" | "elseif" | "empty"
+		| "enddeclare" | "endfor" | "endforeach" | "endif" | "endswitch" | "endwhile" | "eval" | "exit" | "extends"
+		| "final" | "finally" | "for" | "foreach" | "function" | "global" | "goto" | "if" | "implements" | "include"
+		| "include_once" | "instanceof" | "insteadof" | "interface" | "isset" | "list" | "namespace" | "new" | "or"
+		| "print" | "private" | "protected" | "public" | "require" | "require_once" | "return" | "static" | "switch"
+		| "throw" | "trait" | "try" | "unset" | "use" | "var" | "while" | "xor" | "yield" | "__class__" | "__dir__"
+		| "__file__" | "__function__" | "__line__" | "__method__" | "__trait__" | "__namespace__"
+			-> true
+		| _ -> false
+
+(**
 	Resolve real type (bypass abstracts and typedefs)
 *)
 let rec follow = Abstract.follow_with_abstracts
@@ -629,7 +645,12 @@ class virtual type_builder ctx wrapper =
 		(**
 			Get type name
 		*)
-		method get_name : string = wrapper#get_name
+		method get_name : string =
+			let name = wrapper#get_name in
+			if is_keyword name then
+				name ^ "_hx"
+			else
+				name
 		(**
 			Get full type path
 		*)
@@ -716,6 +737,13 @@ class virtual type_builder ctx wrapper =
 			if type_path = wrapper#get_type_path then
 				self#get_name
 			else
+				let type_path =
+					match type_path with (pack, name) ->
+						if is_keyword name then
+							(pack, name ^ "_hx")
+						else
+							type_path
+				in
 				let type_path =
 					match prefix with
 						| Some false -> type_path
