@@ -70,6 +70,17 @@ let is_keyword str =
 		| _ -> false
 
 (**
+	If `name` is not a reserved word in PHP then `name` is returned as-is.
+	Otherwise this method returns another string, which can be used instead of `name`
+*)
+let get_real_name name = if is_keyword name then name ^ "_hx" else name
+
+(**
+	If `path` contains some reserved in PHP words, they will be replaced with allowed words.
+*)
+let get_real_path path = List.map get_real_name path
+
+(**
 	Resolve real type (bypass abstracts and typedefs)
 *)
 let rec follow = Abstract.follow_with_abstracts
@@ -268,7 +279,7 @@ let create_dir_recursive (path:string list) =
 let get_full_type_name ?escape (type_path:path) =
 	let name =
 		(match type_path with
-			| (module_path, type_name) -> (String.concat "\\" ("" :: module_path)) ^ "\\" ^ type_name
+			| (module_path, type_name) -> (String.concat "\\" ("" :: get_real_path module_path)) ^ "\\" ^ type_name
 		)
 	in
 	match escape with
@@ -640,21 +651,18 @@ class virtual type_builder ctx wrapper =
 		*)
 		method get_namespace =
 			match get_php_prefix ctx with
-				| [] -> wrapper#get_namespace
-				| prefix -> prefix @ wrapper#get_namespace
+				| [] -> get_real_path wrapper#get_namespace
+				| prefix -> get_real_path (prefix @ wrapper#get_namespace)
 		(**
 			Get type name
 		*)
-		method get_name : string =
-			let name = wrapper#get_name in
-			if is_keyword name then
-				name ^ "_hx"
-			else
-				name
+		method get_name : string = get_real_name wrapper#get_name
 		(**
 			Get full type path
 		*)
-		method get_type_path : path = wrapper#get_type_path
+		method get_type_path : path =
+			match wrapper#get_type_path with
+				| (path, name) -> (get_real_path path, get_real_name name)
 		(**
 			Writes type declaration line to output buffer.
 			E.g. "class SomeClass extends Another implements IFace"
@@ -737,13 +745,7 @@ class virtual type_builder ctx wrapper =
 			if type_path = wrapper#get_type_path then
 				self#get_name
 			else
-				let type_path =
-					match type_path with (pack, name) ->
-						if is_keyword name then
-							(pack, name ^ "_hx")
-						else
-							type_path
-				in
+				let type_path = match type_path with (pack, name) -> (pack, get_real_name name) in
 				let type_path =
 					match prefix with
 						| Some false -> type_path
