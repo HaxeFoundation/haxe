@@ -48,6 +48,10 @@ let ref_type_path = (["php7"], "Ref")
 	Type path of the implementation class for `Array<T>`
 *)
 let array_type_path = ([], "Array")
+(**
+	Type path of the `Void`
+*)
+let void_type_path = ([], "Void")
 
 (**
 	Resolve real type (bypass abstracts and typedefs)
@@ -1889,11 +1893,39 @@ class class_builder ctx (cls:tclass) =
 			PMap.iter (write_if_method true) cls.cl_statics;
 			(* Constructor *)
 			(match cls.cl_constructor with
-				| None -> ()
 				| Some field -> write_if_method false "new" field
+				| None ->
+					if self#constructor_is_required then begin
+						if !at_least_one_field_written then self#write_empty_lines;
+						at_least_one_field_written := true;
+						self#write_constructor_stub
+					end
 			);
 			(* Instance methods *)
 			PMap.iter (write_if_method false) cls.cl_fields
+		(**
+			Check if this class requires constructor to be generated even if there is no user-defined one
+		*)
+		method private constructor_is_required =
+			if List.length self#get_namespace > 0 then
+				false
+			else begin
+				let required = ref false in
+				List.iter
+					(fun field ->
+						if not !required then
+							required := (String.lowercase field.cf_name = String.lowercase self#get_name)
+					)
+					cls.cl_ordered_statics;
+				!required
+			end
+		(**
+			Writes empty constructor to output buffer
+		*)
+		method private write_constructor_stub =
+			self#indent 1;
+			self#write_doc (DocMethod ([], TAbstract (get_void ctx, []), None));
+			self#write_line "public function __construct() {}";
 		(**
 			Writes `--php-prefix` value as class constant PHP_PREFIX
 		*)

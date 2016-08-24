@@ -7,6 +7,18 @@ package php7;
 @:phpGlobal
 extern class Const {
 	/**
+		@see http://php.net/manual/en/language.constants.predefined.php
+	**/
+	static var __LINE__ : Int;
+	static var __FILE__ : String;
+	static var __DIR__ : String;
+	static var __FUNCTION__ : String;
+	static var __CLASS__ : String;
+	static var __TRAIT__ : String;
+	static var __METHOD__ : String;
+	static var __NAMESPACE__ : String;
+
+	/**
 		@see http://php.net/manual/en/errorfunc.constants.php
 	**/
 	static var E_ERROR : Int;
