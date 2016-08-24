@@ -49,7 +49,7 @@ class DateTools {
 			case "b","h":
 				MONTH_SHORT_NAMES[d.getMonth()];
 			case "B":
-				MONTH_NAMES[d.getDate()];
+				MONTH_NAMES[d.getMonth()];
 			case "C":
 				untyped StringTools.lpad(Std.string(Std.int(d.getFullYear()/100)),"0",2);
 			case "d":
