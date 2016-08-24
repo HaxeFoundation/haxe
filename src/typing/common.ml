@@ -691,7 +691,6 @@ let get_config com =
 		{
 			default_config with
 			pf_static = false;
-			pf_pad_nulls = true;
 		}
 	| Cpp ->
 		{

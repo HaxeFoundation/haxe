@@ -21,12 +21,8 @@
  */
 package php7;
 
-import php7.Const;
-import php7.NativeArray;
 
 using StringTools;
-using php7.Global;
-
 
 /**
 	Various Haxe->PHP compatibility utilities

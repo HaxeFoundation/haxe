@@ -22,15 +22,15 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.error-reporting.php
 	**/
-	static function error_reporting( level:Int ) : Int ;
+	static function error_reporting( ?level:Int ) : Int ;
 
 	/**
 		@see http://php.net/manual/en/function.set-error-handler.php
 	**/
-	@:overload(function( error_handler:Int->String->Bool, error_types:Int ) : Dynamic {})
-	@:overload(function( error_handler:Int->String->String->Bool, error_types:Int ) : Dynamic {})
-	@:overload(function( error_handler:Int->String->String->Int->Bool, error_types:Int ) : Dynamic {})
-	static function set_error_handler( error_handler:Null<Int->String->String->Int->Array<Dynamic>->Bool>, error_types:Int ) : Dynamic ;
+	@:overload(function( error_handler:Int->String->Bool, ?error_types:Int ) : Dynamic {})
+	@:overload(function( error_handler:Int->String->String->Bool, ?error_types:Int ) : Dynamic {})
+	@:overload(function( error_handler:Int->String->String->Int->Bool, ?error_types:Int ) : Dynamic {})
+	static function set_error_handler( error_handler:Null<Int->String->String->Int->Array<Dynamic>->Bool>, ?error_types:Int ) : Dynamic ;
 
 	/**
 		@see http://php.net/manual/en/function.restore-error-handler.php
@@ -81,14 +81,12 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.is-subclass-of.php
 	**/
-	@:overload(function(value:Dynamic,className:String):Bool {})
-	static function is_subclass_of( value:Dynamic, className:String, allow_string:Bool ) : Bool ;
+	static function is_subclass_of( value:Dynamic, className:String, allow_string:Bool = true ) : Bool ;
 
 	/**
 		@see http://php.net/manual/en/function.intval.php
 	**/
-	@:overload(function(value:Dynamic):Int {})
-	static function intval( value:Dynamic, base:Int ) : Int ;
+	static function intval( value:Dynamic, base:Int = 10 ) : Int ;
 
 	/**
 		@see http://php.net/manual/en/function.floatval.php
@@ -108,32 +106,29 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.phpversion.php
 	**/
-	@:overload(function():String {})
-	static function phpversion( extension:String ) : String ;
+	static function phpversion( ?extension:String ) : String ;
 
 	/**
-		@see http://php.net/manual/en/function.class_alias.php
+		@see http://php.net/manual/en/function.class-alias.php
 	**/
-	@:overload(function(original:String,alias:String):Bool {})
-	static function class_alias( original:String, alias:String, autoload:Bool ) : Bool ;
+	static function class_alias( original:String, alias:String, autoload:Bool = true ) : Bool ;
 
 	/**
 		@see http://php.net/manual/en/function.count.php
 	**/
-	@:overload(function(array:NativeArray):Int {})
-	static function count( array:NativeArray, mode:Int ) : Int ;
+	static function count( array:NativeArray, ?mode:Int ) : Int ;
 
 	/**
 		@see http://php.net/manual/en/function.array-filter.php
 	**/
-	@:overload(function(array:NativeArray):NativeArray {})
-	@:overload(function(array:NativeArray,callback:Dynamic->Bool):NativeArray {})
-	static function array_filter( array:NativeArray, callback:Dynamic->?Dynamic->Bool, flag:Int ) : NativeArray ;
+	@:overload(function(array:NativeArray,callback:Dynamic->Bool,?flag:Int):NativeArray {})
+	static function array_filter( array:NativeArray, ?callback:Dynamic->?Dynamic->Bool, flag:Int = 0 ) : NativeArray ;
 
 	/**
 		@see http://php.net/manual/en/function.implode.php
 	**/
-	static function implode( glue:String = "", array:NativeArray ) : String ;
+	@:overload(function(pieces:NativeArray):String {})
+	static function implode( glue:String, pieces:NativeArray ) : String ;
 
 	/**
 		@see http://php.net/manual/en/function.array-map.php
@@ -158,14 +153,12 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.array-reverse.php
 	**/
-	@:overload(function(array:NativeArray):NativeArray {})
-	static function array_reverse( array:NativeArray, preserve_keys:Bool ) : NativeArray ;
+	static function array_reverse( array:NativeArray, preserve_keys:Bool = false ) : NativeArray ;
 
 	/**
 		@see http://php.net/manual/en/function.array-search.php
 	**/
-	@:overload(function(needle:Dynamic,haystack:NativeArray):Null<EitherType<String,Int>> {})
-	static function array_search( needle:Dynamic, haystack:NativeArray, strict:Bool ) : EitherType<Bool,EitherType<String,Int>> ;
+	static function array_search( needle:Dynamic, haystack:NativeArray, strict:Bool = false) : EitherType<Bool,EitherType<String,Int>> ;
 
 	/**
 		@see http://php.net/manual/en/function.array-shift.php
@@ -175,16 +168,12 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.array-slice.php
 	**/
-	@:overload(function(array:NativeArray,offset:Int):NativeArray {})
-	@:overload(function(array:NativeArray,offset:Int,length:Int):NativeArray {})
-	static function array_slice( array:NativeArray, offset:Int, length:Int, preserve_keys:Bool ) : NativeArray ;
+	static function array_slice( array:NativeArray, offset:Int, length:Int = null, preserve_keys:Bool = false ) : NativeArray ;
 
 	/**
 		@see http://php.net/manual/en/function.array-splice.php
 	**/
-	@:overload(function(array:NativeArray,offset:Int):NativeArray {})
-	@:overload(function(array:NativeArray,offset:Int,length:Int):NativeArray {})
-	static function array_splice( array:NativeArray, offset:Int, lenght:Int, replacement:Dynamic ) : NativeArray ;
+	static function array_splice( array:NativeArray, offset:Int, lenght:Int = 0, ?replacement:Dynamic ) : NativeArray ;
 
 	/**
 		@see http://php.net/manual/en/function.array-unshift.php

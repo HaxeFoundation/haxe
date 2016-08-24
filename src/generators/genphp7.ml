@@ -307,7 +307,7 @@ let is_var_with_nonconstant_expr (field:tclass_field) =
 (**
 	@return New TBlock expression which is composed of setting default values for optional arguments and function body.
 *)
-let inject_defaults ctx (func:tfunc) =
+(*let inject_defaults ctx (func:tfunc) = func.tf_expr
 	let rec inject args body_exprs =
 		match args with
 			| [] -> body_exprs
@@ -326,7 +326,7 @@ let inject_defaults ctx (func:tfunc) =
 		eexpr = TBlock exprs;
 		etype = follow func.tf_expr.etype;
 		epos  = func.tf_expr.epos;
-	}
+	}*)
 
 (**
 	Check if specified expression is of String type
@@ -1076,7 +1076,7 @@ class virtual type_builder ctx wrapper =
 			self#write_line "{";
 			self#indent_more;
 			self#write_instance_initialization;
-			self#write_fake_block (inject_defaults ctx func);
+			self#write_fake_block func.tf_expr; (* (inject_defaults ctx func); *)
 			self#indent_less;
 			self#write_indentation;
 			self#write "}"
@@ -1090,7 +1090,7 @@ class virtual type_builder ctx wrapper =
 			self#indent 1;
 			self#write "\n";
 			self#write_indentation;
-			self#write_expr (inject_defaults ctx func)
+			self#write_expr func.tf_expr (* (inject_defaults ctx func) *)
 		(**
 			Writes closure declaration to output buffer
 		*)
@@ -1102,7 +1102,7 @@ class virtual type_builder ctx wrapper =
 			(* Generate closure body to separate buffer *)
 			let original_buffer = buffer in
 			buffer <- Buffer.create 256;
-			self#write_expr (inject_defaults ctx func);
+			self#write_expr func.tf_expr; (* (inject_defaults ctx func); *)
 			let body = Buffer.contents buffer in
 			buffer <- original_buffer;
 			(* Use captured local vars *)
@@ -2030,7 +2030,7 @@ class class_builder ctx (cls:tclass) =
 					self#write ("if (" ^ field_access ^ " !== " ^ default_value ^ ") return (" ^ field_access ^ ")(");
 					write_args buffer (self#write_arg false) args;
 					self#write ");\n";
-					self#write_fake_block (inject_defaults ctx fn);
+					self#write_fake_block fn.tf_expr; (* (inject_defaults ctx fn); *)
 					self#indent_less;
 					self#write_line "}"
 				| _ -> fail field.cf_pos __POS__
