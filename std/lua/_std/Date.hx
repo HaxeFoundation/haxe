@@ -56,7 +56,7 @@
 		untyped {
 			lua.Lua.setmetatable(d, untyped {__index : Date.prototype});
 			d.t = t/1000;
-			d.d = lua.Os.date("*t", d.t);
+			d.d = lua.Os.date("*t", Std.int(d.t));
 		}
 		return d;
 	}
