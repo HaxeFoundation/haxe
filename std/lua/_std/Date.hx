@@ -48,7 +48,7 @@
 	}
 
 	public static inline function now() : Date {
-		return fromTime(lua.Os.time());
+		return fromTime(lua.Os.time()*1000);
 	}
 
 	public static inline function fromTime( t : Float ) : Date {
