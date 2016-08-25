@@ -54,6 +54,11 @@ let array_type_path = ([], "Array")
 let void_type_path = ([], "Void")
 
 (**
+	Stub to use when you need a `Ast.pos` instance, but don't have one
+*)
+let dummy_pos = { pfile = ""; pmin = 0; pmax = 0 }
+
+(**
 	Check if specified string is a reserved word in PHP
 *)
 let is_keyword str =
@@ -160,7 +165,7 @@ let get_void ctx : Type.t =
 			List.iter find ctx.types;
 			match !void with
 				| Some value -> value
-				| None -> fail { pfile = ""; pmin = 0; pmax = 0 } __POS__
+				| None -> fail dummy_pos __POS__
 
 (**
 	@return `expr` wrapped in parenthesis
@@ -644,7 +649,7 @@ class virtual type_builder ctx wrapper =
 		val mutable indentation = ""
 		(** Expressions nesting. E.g. "if(callFn(ident))" will be represented as [ident, callFn, if] *)
 		val mutable expr_hierarchy : texpr list = []
-		(** *)
+		(** Object to collect local vars declarations and usage as we iterate through methods' expressions *)
 		val vars = new local_vars
 		(**
 			Get PHP namespace path
@@ -832,7 +837,7 @@ class virtual type_builder ctx wrapper =
 		method private pos =
 			match expr_hierarchy with
 				| { epos = pos } :: _ -> pos
-				| _ -> { pfile = ""; pmin = 0; pmax = 0 }
+				| _ -> dummy_pos
 		(**
 			Writes specified string to output buffer
 		*)
@@ -1217,7 +1222,7 @@ class virtual type_builder ctx wrapper =
 				self#write_expr expr
 			else if sure_extends_extern expr.etype || is_dynamic_type expr.etype then
 				begin
-					self#write "throw (is_object($__hx__throw = ";
+					self#write "(is_object($__hx__throw = ";
 					self#write_expr expr;
 					self#write (") && $__hx__throw instanceof \\Throwable ? $__hx__throw : new " ^ (self#use haxe_exception_path) ^ "($__hx__throw))")
 				end
@@ -2109,6 +2114,7 @@ class generator (com:context) =
 		val mutable build_dir = ""
 		val root_dir = com.file
 		val mutable init_types = []
+		val mutable boot : (type_builder * string) option  = None
 		(**
 			Perform required actions before actual php files generation
 		*)
@@ -2125,24 +2131,71 @@ class generator (com:context) =
 			let channel = open_out filename in
 			output_string channel contents;
 			close_out channel;
-			if builder#has_magic_init then
-				init_types <- (get_full_type_name builder#get_type_path) :: []
+			if builder#get_type_path = boot_type_path then
+				boot <- Some (builder, filename)
+			else if builder#has_magic_init then
+				init_types <- (get_full_type_name (namespace, name)) :: init_types
+		(**
+			Perform actions which should be executed after all classes were processed
+		*)
+		method finalize : unit =
+			self#generate_magic_init;
+			self#generate_entry_point
 		(**
 			Generates calls to static __init__ methods in Boot.php
 		*)
 		method generate_magic_init : unit =
-			failwith "Not implemented"
+			match init_types with
+				| [] -> ()
+				| _ ->
+					match boot with
+						| None -> fail dummy_pos __POS__
+						| Some (_, filename) ->
+							let channel = open_out_gen [Open_creat; Open_text; Open_append] 0o644 filename in
+							List.iter
+								(fun class_name -> output_string channel (class_name ^ "::__hx__init();\n"))
+								init_types;
+							close_out channel
+		(**
+			Creates `index.php` which can be used as entry-point for standalone Haxe->PHP app
+		*)
+		method generate_entry_point =
+			match self#get_main_class with
+				| None -> ()
+				| Some main_class ->
+					let channel = open_out (root_dir ^ "/index.php") in
+					output_string channel "<?php\n";
+					output_string channel ("set_include_path(__DIR__.'/" ^ (String.concat "/" self#get_lib_path) ^ "');\n");
+					output_string channel "spl_autoload_register(\n";
+					output_string channel "	function($class){\n";
+					output_string channel "		$file = stream_resolve_include_path(str_replace('\\\\', '/', $class) .'.php');\n";
+					output_string channel "		if ($file) {\n";
+					output_string channel "			include_once $file;\n";
+					output_string channel "		}\n";
+					output_string channel "	}\n";
+					output_string channel ");\n";
+					output_string channel (main_class ^ "::main();\n");
+					close_out channel
 		(**
 			Create necessary directories  before processing types
 		*)
 		method private create_output_dirs =
-			let lib_path =
-				match com.php_lib with
-					| None -> ["lib"];
-					| Some path -> (Str.split (Str.regexp "/")  path)
-			in
-			let build_path = (root_dir :: lib_path) in
+			let build_path = (root_dir :: self#get_lib_path) in
 			build_dir <- create_dir_recursive build_path
+		(**
+			Returns path from `index.php` to directory which will contain all generated classes
+		*)
+		method private get_lib_path : string list =
+			match com.php_lib with
+				| None -> ["lib"];
+				| Some path -> (Str.split (Str.regexp "/")  path)
+		(**
+			Returns FQN for main class if defined
+		*)
+		method private get_main_class : string option =
+			match com.main_class with
+				| None -> None
+				| Some type_path -> Some (get_full_type_name (add_php_prefix com type_path))
 	end
 
 (**
@@ -2161,5 +2214,6 @@ let generate (com:context) =
 				| TAbstractDecl abstr -> ()
 	in
 	List.iter generate com.types;
+	gen#finalize;
 	(* gen#generate_magic_init; *)
 	clear_wrappers ();
