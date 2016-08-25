@@ -864,7 +864,7 @@
 	resolve environment variable in -cmd commands
 	added flash.Vector.indexOf and lastIndexOf
 	fixed bug in interfaces that define the method toString (Haxe/PHP)
-	fixed bug in haxe.io.BytesInput.readBytes in Flash9 (was throwing Eof if full buffer can't be readed)
+	fixed bug in haxe.io.BytesInput.readBytes in Flash9 (was throwing Eof if full buffer can't be read)
 	fixed implements/extends special classes when they are imported
 	StringBuf now uses an array for JS implementation (around same on FF, faster on IE)
 	fixed assignment of field length in anonym objects (Haxe/PHP)

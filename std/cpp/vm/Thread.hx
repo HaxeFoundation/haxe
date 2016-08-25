@@ -32,7 +32,7 @@ class Thread {
 	}
 
 	/**
-		Send a message to the thread queue. This message can be readed by using `readMessage`.
+		Send a message to the thread queue. This message can be read by using `readMessage`.
 	**/
 	public function sendMessage( msg : Dynamic ) {
 		untyped __global__.__hxcpp_thread_send(handle,msg);

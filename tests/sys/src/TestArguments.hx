@@ -14,10 +14,16 @@ class TestArguments extends haxe.unit.TestCase {
 		"|",
 		"||",
 		".",
+		",",
 		"<",
 		">",
 		"<<",
 		">>",
+		":",
+		";",
+		"(",
+		")",
+		"( )",
 
 		// backslashes
 		"\\",

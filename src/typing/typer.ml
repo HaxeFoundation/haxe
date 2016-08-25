@@ -2044,7 +2044,13 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			| _ ->
 				(* this must be an abstract cast *)
 				check_assign ctx e;
-				eop)
+				if has_side_effect then
+					mk (TBlock [
+						mk (TVar(v,Some e)) ctx.t.tvoid eop.epos;
+						eop
+					]) eop.etype eop.epos
+				else
+					eop)
 		| AKSet (e,t,cf) ->
 			let l = save_locals ctx in
 			let v = gen_local ctx e.etype e.epos in
