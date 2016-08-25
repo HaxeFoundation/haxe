@@ -76,7 +76,8 @@ class Boot {
 			case '\\Enum':
 				if (value.is_object()) {
 					var hxClass : HxClass = cast HxClass;
-					if (untyped __php__("$value instanceof $hxClass->getClassName()")) {
+					var className = hxClass.getClassName();
+					if (untyped __php__("$value instanceof $className")) {
 						var valueType : HxClass = cast value;
 						var hxEnum : HxClass = cast HxEnum;
 						return Global.is_subclass_of(valueType.getClassName(), hxEnum.getClassName());
