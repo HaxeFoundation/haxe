@@ -99,9 +99,13 @@ let rec func ctx bb tf t p =
 			bb,e
 		| TCall(e1,el) ->
 			call bb e e1 el
+		| TBinop(OpAssignOp op,({eexpr = TArray(e1,e2)} as ea),e3) ->
+			array_assign_op bb op e ea e1 e2 e3
+		| TBinop(OpAssignOp op,({eexpr = TField(e1,fa)} as ef),e2) ->
+			field_assign_op bb op e ef e1 fa e2
 		| TBinop((OpAssign | OpAssignOp _) as op,e1,e2) ->
-			let bb,e2 = value bb e2 in
 			let bb,e1 = value bb e1 in
+			let bb,e2 = value bb e2 in
 			bb,{e with eexpr = TBinop(op,e1,e2)}
 		| TBinop(op,e1,e2) ->
 			let bb,e1,e2 = match ordered_value_list bb [e1;e2] with
@@ -156,8 +160,8 @@ let rec func ctx bb tf t p =
 			close_node g bb;
 			add_cfg_edge bb_func_end bb_next CFGGoto;
 			bb_next,ec
-		| TTypeExpr(TClassDecl {cl_kind = KAbstractImpl a}) when not (Meta.has Meta.RuntimeValue a.a_meta) ->
-			error "Cannot use abstract as value" e.epos
+		(*| TTypeExpr(TClassDecl {cl_kind = KAbstractImpl a}) when not (Meta.has Meta.RuntimeValue a.a_meta) ->
+			error "Cannot use abstract as value" e.epos*)
 		| TTypeExpr(TClassDecl c) ->
 			List.iter (fun cf -> if not (Meta.has Meta.MaybeUsed cf.cf_meta) then cf.cf_meta <- (Meta.MaybeUsed,[],cf.cf_pos) :: cf.cf_meta;) c.cl_ordered_statics;
 			bb,e
@@ -195,8 +199,10 @@ let rec func ctx bb tf t p =
 		) (bb,[]) el in
 		bb,List.rev values
 	and bind_to_temp bb sequential e =
-		let is_probably_not_affected e e1 fa = match extract_field fa with
-			| Some {cf_kind = Method MethNormal} -> true
+		let is_probably_not_affected e e1 fa = match fa with
+			| FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf) when cf.cf_kind = Method MethNormal -> true
+			| FEnum _ -> true
+			| FDynamic ("cca" | "__Index" | "__s") -> true (* This is quite retarded, but we have to deal with this somehow... *)
 			| _ -> match follow e.etype,follow e1.etype with
 				| TFun _,TInst _ -> false
 				| TFun _,_ -> true (* We don't know what's going on here, don't create a temp var (see #5082). *)
@@ -205,6 +211,12 @@ let rec func ctx bb tf t p =
 		let rec loop fl e = match e.eexpr with
 			| TField(e1,fa) when is_probably_not_affected e e1 fa ->
 				loop ((fun e' -> {e with eexpr = TField(e',fa)}) :: fl) e1
+			| TField(e1,fa) ->
+				let fa = match fa with
+					| FInstance(c,tl,({cf_kind = Method _ } as cf)) -> FClosure(Some(c,tl),cf)
+					| _ -> fa
+				in
+				fl,{e with eexpr = TField(e1,fa)}
 			| _ ->
 				fl,e
 		in
@@ -266,23 +278,35 @@ let rec func ctx bb tf t p =
 		let e,efinal = map_values f e in
 		block_element_plus bb (e,efinal) f
 	and call bb e e1 el =
-		begin match e1.eexpr with
-			| TConst TSuper when ctx.com.platform = Java || ctx.com.platform = Cs ->
-				bb,e
+		let check e t = match e.eexpr with
+			| TLocal v when is_ref_type t ->
+				v.v_capture <- true;
+				e
 			| _ ->
-				let check e t = match e.eexpr with
-					| TLocal v when is_ref_type t ->
-						v.v_capture <- true;
-						e
-					| _ ->
-						e
-				in
-				let el = Codegen.UnificationCallback.check_call check el e1.etype in
-					let bb,el = ordered_value_list bb (e1 :: el) in
-					match el with
-						| e1 :: el -> bb,{e with eexpr = TCall(e1,el)}
-						| _ -> assert false
-		end
+				e
+		in
+		let el = Codegen.UnificationCallback.check_call check el e1.etype in
+			let bb,el = ordered_value_list bb (e1 :: el) in
+			match el with
+				| e1 :: el -> bb,{e with eexpr = TCall(e1,el)}
+				| _ -> assert false
+	and array_assign_op bb op e ea e1 e2 e3 =
+		let bb,e1 = bind_to_temp bb false e1 in
+		let bb,e2 = bind_to_temp bb false e2 in
+		let ea = {ea with eexpr = TArray(e1,e2)} in
+		let bb,e4 = bind_to_temp bb false ea in
+		let bb,e3 = bind_to_temp bb false e3 in
+		let eop = {e with eexpr = TBinop(op,e4,e3)} in
+		add_texpr bb {e with eexpr = TBinop(OpAssign,ea,eop)};
+		bb,ea
+	and field_assign_op bb op e ef e1 fa e2 =
+		let bb,e1 = bind_to_temp bb false e1 in
+		let ef = {ef with eexpr = TField(e1,fa)} in
+		let bb,e3 = bind_to_temp bb false ef in
+		let bb,e2 = bind_to_temp bb false e2 in
+		let eop = {e with eexpr = TBinop(op,e3,e2)} in
+		add_texpr bb {e with eexpr = TBinop(OpAssign,ef,eop)};
+		bb,ef
 	and block_element bb e = match e.eexpr with
 		(* variables *)
 		| TVar(v,None) ->
@@ -518,12 +542,18 @@ let rec func ctx bb tf t p =
 			let b,e1 = value bb e1 in
 			add_texpr bb {e with eexpr = TCast(e1,Some mt)};
 			bb
-		| TBinop((OpAssign | OpAssignOp _) as op,({eexpr = TArray(e1,e2)} as ea),e3) ->
+		| TBinop(OpAssignOp op,({eexpr = TArray(e1,e2)} as ea),e3) ->
+			let bb,_ = array_assign_op bb op e ea e1 e2 e3 in
+			bb
+		| TBinop(OpAssignOp op,({eexpr = TField(e1,fa)} as ef),e2) ->
+			let bb,_ = field_assign_op bb op e ef e1 fa e2 in
+			bb
+		| TBinop(OpAssign,({eexpr = TArray(e1,e2)} as ea),e3) ->
 			let bb,e1,e2,e3 = match ordered_value_list bb [e1;e2;e3] with
 				| bb,[e1;e2;e3] -> bb,e1,e2,e3
 				| _ -> assert false
 			in
-			add_texpr bb {e with eexpr = TBinop(op,{ea with eexpr = TArray(e1,e2)},e3)};
+			add_texpr bb {e with eexpr = TBinop(OpAssign,{ea with eexpr = TArray(e1,e2)},e3)};
 			bb
 		| TBinop((OpAssign | OpAssignOp _ as op),e1,e2) ->
 			let bb,e1 = value bb e1 in

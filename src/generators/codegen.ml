@@ -441,9 +441,14 @@ module AbstractCast = struct
 				end
 			| TCall(e1, el) ->
 				begin try
-					let rec find_abstract e = match follow e.etype,e.eexpr with
+					let rec find_abstract e t = match follow t,e.eexpr with
 						| TAbstract(a,pl),_ when Meta.has Meta.MultiType a.a_meta -> a,pl,e
-						| _,TCast(e1,None) -> find_abstract e1
+						| _,TCast(e1,None) -> find_abstract e1 e1.etype
+						| _,TLocal {v_extra = Some(_,Some e')} ->
+							begin match follow e'.etype with
+							| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta -> a,pl,mk (TCast(e,None)) e'.etype e.epos
+							| _ -> raise Not_found
+							end
 						| _ -> raise Not_found
 					in
 					let rec find_field e1 =
@@ -451,7 +456,7 @@ module AbstractCast = struct
 						| TCast(e2,None) ->
 							{e1 with eexpr = TCast(find_field e2,None)}
 						| TField(e2,fa) ->
-							let a,pl,e2 = find_abstract e2 in
+							let a,pl,e2 = find_abstract e2 e2.etype in
 							let m = Abstract.get_underlying_type a pl in
 							let fname = field_name fa in
 							let el = List.map (loop ctx) el in

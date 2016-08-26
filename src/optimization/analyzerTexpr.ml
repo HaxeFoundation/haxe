@@ -102,7 +102,10 @@ let target_handles_unops com = match com.platform with
 	| _ -> true
 
 let target_handles_assign_ops com = match com.platform with
-	| Lua -> false
+	(* Technically PHP can handle assign ops, but unfortunately x += y is not always
+	   equivalent to x = x + y in case y has side-effects. *)
+	| Lua | Php -> false
+	| Cpp when not (Common.defined com Define.Cppia) -> false
 	| _ -> true
 
 let rec can_be_used_as_value com e =
@@ -126,10 +129,6 @@ let rec can_be_used_as_value com e =
 		true
 	with Exit ->
 		false
-
-let has_pure_meta meta = Meta.has Meta.Pure meta
-
-let is_pure c cf = has_pure_meta c.cl_meta || has_pure_meta cf.cf_meta
 
 let wrap_meta s e =
 	mk (TMeta((Meta.Custom s,[],e.epos),e)) e.etype e.epos
@@ -308,46 +307,149 @@ module VarLazifier = struct
 		snd (loop PMap.empty e)
 end
 
-module Fusion = struct
+module InterferenceReport = struct
+	type interference_report = {
+		ir_var_reads : (int,bool) Hashtbl.t;
+		ir_var_writes : (int,bool) Hashtbl.t;
+		ir_field_reads : (string,bool) Hashtbl.t;
+		ir_field_writes : (string,bool) Hashtbl.t;
+		mutable ir_state_read : bool;
+		mutable ir_state_write : bool;
+	}
 
-	open AnalyzerConfig
+	let create () = {
+		ir_var_reads = Hashtbl.create 0;
+		ir_var_writes = Hashtbl.create 0;
+		ir_field_reads = Hashtbl.create 0;
+		ir_field_writes = Hashtbl.create 0;
+		ir_state_read = false;
+		ir_state_write = false;
+	}
 
-	let get_interference_kind e =
-		let vars = ref [] in
-		let has_side_effect = ref false in
+	let set_var_read ir v = Hashtbl.replace ir.ir_var_reads v.v_id true
+	let set_var_write ir v = Hashtbl.replace ir.ir_var_writes v.v_id true
+	let set_field_read ir s = Hashtbl.replace ir.ir_field_reads s true
+	let set_field_write ir s = Hashtbl.replace ir.ir_field_writes s true
+	let set_state_read ir = ir.ir_state_read <- true
+	let set_state_write ir = ir.ir_state_write <- true
+
+	let has_var_read ir v = Hashtbl.mem ir.ir_var_reads v.v_id
+	let has_var_write ir v = Hashtbl.mem ir.ir_var_writes v.v_id
+	let has_field_read ir s = Hashtbl.mem ir.ir_field_reads s
+	let has_field_write ir s = Hashtbl.mem ir.ir_field_writes s
+	let has_state_read ir = ir.ir_state_read
+	let has_state_write ir = ir.ir_state_write
+	let has_any_field_read ir = Hashtbl.length ir.ir_field_reads > 0
+	let has_any_field_write ir = Hashtbl.length ir.ir_field_writes > 0
+
+	let from_texpr e =
+		let ir = create () in
 		let rec loop e = match e.eexpr with
-			| TMeta((Meta.Pure,_,_),_) ->
-				()
-			| TUnop((Increment | Decrement),_,{eexpr = TLocal v}) ->
-				vars := v :: !vars
-			| TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal v},e2) ->
-				vars := v :: !vars;
+			(* vars *)
+			| TLocal v ->
+				set_var_read ir v
+			| TBinop(OpAssign,{eexpr = TLocal v},e2) ->
+				set_var_write ir v;
 				loop e2
-			| TBinop((OpAssign | OpAssignOp _),e1,e2) ->
-				has_side_effect := true;
+			| TBinop(OpAssignOp _,{eexpr = TLocal v},e2) ->
+				set_var_read ir v;
+				set_var_write ir v;
+				loop e2
+			| TUnop((Increment | Decrement),_,{eexpr = TLocal v}) ->
+				set_var_read ir v;
+				set_var_write ir v;
+			(* fields *)
+			| TField(e1,fa) ->
+				loop e1;
+				if not (Optimizer.is_read_only_field_access fa) then set_field_read ir (field_name fa);
+			| TBinop(OpAssign,{eexpr = TField(e1,fa)},e2) ->
+				set_field_write ir (field_name fa);
 				loop e1;
 				loop e2;
-			| TUnop((Increment | Decrement),_,e1) ->
-				has_side_effect := true;
+			| TBinop(OpAssignOp _,{eexpr = TField(e1,fa)},e2) ->
+				let name = field_name fa in
+				set_field_read ir name;
+				set_field_write ir name;
+				loop e1;
+				loop e2;
+			| TUnop((Increment | Decrement),_,{eexpr = TField(e1,fa)}) ->
+				let name = field_name fa in
+				set_field_read ir name;
+				set_field_write ir name;
 				loop e1
+			(* array *)
+			| TArray(e1,e2) ->
+				set_state_read ir;
+				loop e1;
+				loop e2;
+			| TBinop(OpAssign,{eexpr = TArray(e1,e2)},e3) ->
+				set_state_write ir;
+				loop e1;
+				loop e2;
+				loop e3;
+			| TBinop(OpAssignOp _,{eexpr = TArray(e1,e2)},e3) ->
+				set_state_read ir;
+				set_state_write ir;
+				loop e1;
+				loop e2;
+				loop e3;
+			| TUnop((Increment | Decrement),_,{eexpr = TArray(e1,e2)}) ->
+				set_state_read ir;
+				set_state_write ir;
+				loop e1;
+				loop e2;
+			(* state *)
 			| TCall({eexpr = TLocal v},el) when not (is_unbound_call_that_might_have_side_effects v el) ->
 				List.iter loop el
-			| TCall({eexpr = TField(_,FStatic(c,cf))},el) when is_pure c cf ->
-				List.iter loop el
-			| TNew(c,_,el) when (match c.cl_constructor with Some cf when is_pure c cf -> true | _ -> false) ->
+			| TNew(c,_,el) when (match c.cl_constructor with Some cf when Optimizer.is_pure c cf -> true | _ -> false) ->
+				set_state_read ir;
 				List.iter loop el;
 			| TCall(e1,el) ->
-				has_side_effect := true;
+				set_state_read ir;
+				if Optimizer.has_side_effect e then set_state_write ir;
 				loop e1;
 				List.iter loop el
 			| TNew(_,_,el) ->
-				has_side_effect := true;
-				List.iter loop el;
+				set_state_read ir;
+				set_state_write ir;
+				List.iter loop el
+			| TBinop(OpAssign,e1,e2) ->
+				set_state_write ir;
+				loop e1;
+				loop e2;
+			| TBinop(OpAssignOp _,e1,e2) ->
+				set_state_read ir;
+				set_state_write ir;
+				loop e1;
+				loop e2;
+			| TUnop((Increment | Decrement),_,e1) ->
+				set_state_read ir;
+				set_state_write ir;
+				loop e1
 			| _ ->
 				Type.iter loop e
 		in
 		loop e;
-		!has_side_effect,!vars
+		ir
+
+	let to_string ir =
+		let s_hashtbl f h =
+			String.concat ", " (Hashtbl.fold (fun k _ acc -> (f k) :: acc) h [])
+		in
+		Type.Printer.s_record_fields "" [
+			"ir_var_reads",s_hashtbl string_of_int ir.ir_var_reads;
+			"ir_var_writes",s_hashtbl string_of_int ir.ir_var_writes;
+			"ir_field_reads",s_hashtbl (fun x -> x) ir.ir_field_reads;
+			"ir_field_writes",s_hashtbl (fun x -> x) ir.ir_field_writes;
+			"ir_state_read",string_of_bool ir.ir_state_read;
+			"ir_state_write",string_of_bool ir.ir_state_write;
+		]
+	end
+
+
+module Fusion = struct
+	open AnalyzerConfig
+	open InterferenceReport
 
 	let apply com config e =
 		let rec block_element acc el = match el with
@@ -412,14 +514,46 @@ module Fusion = struct
 			        can_be_used_as_value com e &&
 			        (Meta.has Meta.CompilerGenerated v.v_meta || config.optimize && config.fusion && config.user_var_fusion && v.v_extra = None)
 			in
-(* 			let st = s_type (print_context()) in
+ 			(*let st = s_type (print_context()) in
 			if e.epos.pfile = "src/Main.hx" then
 				print_endline (Printf.sprintf "%s(%s) -> %s: #uses=%i && #writes=%i && used_as_value=%b && (compiler-generated=%b || optimize=%b && fusion=%b && user_var_fusion=%b && type_change_ok=%b && v_extra=%b) -> %b"
 					v.v_name (st v.v_type) (st e.etype)
 					(get_num_uses v) (get_num_writes v) (can_be_used_as_value com e)
 					(Meta.has Meta.CompilerGenerated v.v_meta) config.optimize config.fusion
-					config.user_var_fusion (type_change_ok com v.v_type e.etype) (v.v_extra = None) b); *)
+					config.user_var_fusion (type_change_ok com v.v_type e.etype) (v.v_extra = None) b);*)
 			b
+		in
+		let is_assign_op = function
+			| OpAdd
+			| OpMult
+			| OpDiv
+			| OpSub
+			| OpAnd
+			| OpOr
+			| OpXor
+			| OpShl
+			| OpShr
+			| OpUShr
+			| OpMod ->
+				true
+			| OpAssign
+			| OpEq
+			| OpNotEq
+			| OpGt
+			| OpGte
+			| OpLt
+			| OpLte
+			| OpBoolAnd
+			| OpBoolOr
+			| OpAssignOp _
+			| OpInterval
+			| OpArrow ->
+				false
+		in
+		let use_assign_op op e1 e2 =
+			is_assign_op op && target_handles_assign_ops com && Texpr.equal e1 e2 && not (Optimizer.has_side_effect e1) && match com.platform with
+				| Cs when is_null e1.etype || is_null e2.etype -> false
+				| _ -> true
 		in
 		let rec fuse acc el = match el with
 			| ({eexpr = TVar(v1,None)} as e1) :: {eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)} :: el when v1 == v2 ->
@@ -446,102 +580,146 @@ module Fusion = struct
 				with Exit ->
 					fuse (e1 :: acc) (e2 :: el)
 				end
-			| ({eexpr = TVar(v1,Some e1)} as ev) :: e2 :: el when can_be_fused v1 e1 ->
+			| ({eexpr = TVar(v1,Some e1)} as ev) :: el when can_be_fused v1 e1 ->
 				let found = ref false in
-				let affected = ref false in
-				let ik1 = get_interference_kind e1 in
-				let check_interference e2 =
-					let check (has_side_effect,modified_vars) e2 =
-						if has_side_effect then begin
-							let rec loop e = match e.eexpr with
-								| TMeta((Meta.Pure,_,_),_) ->
-									()
-								| TArray _ ->
-									raise Exit
-								| TField _ when Optimizer.is_affected_type e.etype ->
-									raise Exit
-								| TCall({eexpr = TField(_,FStatic(c,cf))},el) when is_pure c cf ->
-									List.iter loop el
-								| TNew(c,_,el) when (match c.cl_constructor with Some cf when is_pure c cf -> true | _ -> false) ->
-									List.iter loop el
-								| TCall _ | TNew _ | TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_) ->
-									raise Exit
-								| _ ->
-									Type.iter loop e
-							in
-							loop e2
-						end;
-						if modified_vars <> [] then begin
-							let rec loop e = match e.eexpr with
-								| TLocal v when List.memq v modified_vars -> raise Exit
-								| _ -> Type.iter loop e
-							in
-							loop e2
-						end
-					in
-					try
-						check ik1 e2;
-						check (get_interference_kind e2) e1
-					with Exit -> match com.platform with
-						| Cpp when not (Common.defined com Define.Cppia) -> raise Exit
-						| Php -> raise Exit (* They don't define evaluation order, so let's exit *)
-						| _ -> affected := true;
-				in
+				let blocked = ref false in
+				let ir = InterferenceReport.from_texpr e1 in
+				(*if e.epos.pfile = "src/Main.hx" then print_endline (Printf.sprintf "FUSION %s<%i> = %s\n\t%s\n\t%s" v1.v_name v1.v_id (s_expr_pretty e1) (s_expr_pretty e2) (InterferenceReport.to_string ir));*)
 				let rec replace e =
-					let e = match e.eexpr with
+					let explore e =
+						let old = !blocked in
+						blocked := true;
+						let e = replace e in
+						blocked := old;
+						e
+					in
+					let handle_call e2 el = match com.platform with
+						| Neko ->
+							(* Neko has this reversed at the moment (issue #4787) *)
+							let el = List.map replace el in
+							let e2 = replace e2 in
+							e2,el
+						| Php | Cpp  when not (Common.defined com Define.Cppia) ->
+							let e2 = match e1.eexpr with
+								(* PHP doesn't like call()() expressions. *)
+								| TCall _ when com.platform = Php -> explore e2
+								| _ -> replace e2
+							in
+							let temp_found = false in
+							let really_found = ref !found in
+							let el = List.map (fun e ->
+								found := temp_found;
+								let e = replace e in
+								if !found then really_found := true;
+								e
+							) el in
+							found := !really_found;
+							e2,el
+						| _ ->
+							let e2 = replace e2 in
+							let el = List.map replace el in
+							e2,el
+						in
+					if !found then e else match e.eexpr with
 						| TWhile _ | TFunction _ ->
 							e
-						| TIf(e1,e2,eo) ->
-							let e1 = replace e1 in
-							{e with eexpr = TIf(e1,e2,eo)}
 						| TSwitch(e1,cases,edef) ->
 							let e1 = match com.platform with
-								| Lua | Python -> e1
+								| Lua | Python -> explore e1
 								| _ -> replace e1
 							in
 							{e with eexpr = TSwitch(e1,cases,edef)}
-						| TLocal v2 when v1 == v2 && not !affected ->
+						| TLocal v2 when v1 == v2 && not !blocked ->
 							found := true;
 							if type_change_ok com v1.v_type e1.etype then e1 else mk (TCast(e1,None)) v1.v_type e.epos
-						| TBinop((OpAssign | OpAssignOp _ as op),({eexpr = TArray(e1,e2)} as ea),e3) ->
-							let e1 = replace e1 in
+						| TLocal v when has_var_write ir v ->
+							raise Exit
+						| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
 							let e2 = replace e2 in
-							let ea = {ea with eexpr = TArray(e1,e2)} in
-							let e3 = replace e3 in
-							{e with eexpr = TBinop(op,ea,e3)}
-						| TBinop((OpAssign | OpAssignOp _ as op),e1,e2) ->
+							if not !found && has_var_read ir v then raise Exit;
+							{e with eexpr = TBinop(OpAssign,e1,e2)}
+						| TBinop(OpAssignOp _ as op,({eexpr = TLocal v} as e1),e2) ->
 							let e2 = replace e2 in
-							let e1 = match e1.eexpr with TLocal _ -> e1 | _ -> replace e1 in
+							if not !found && (has_var_read ir v || has_var_write ir v) then raise Exit;
 							{e with eexpr = TBinop(op,e1,e2)}
-						| TUnop((Increment | Decrement),_,{eexpr = TLocal _}) ->
-							e
-						| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
-							e
-						(* TODO: this is a pretty outrageous hack for https://github.com/HaxeFoundation/haxe/issues/5366 *)
-						| TCall({eexpr = TField(_,FStatic({cl_path=["python"],"Syntax"},{cf_name="arraySet"}))} as ef,[e1;e2;e3]) ->
-							let e3 = replace e3 in
+						| TUnop((Increment | Decrement),_,{eexpr = TLocal v}) when has_var_read ir v || has_var_write ir v ->
+							raise Exit
+						(* fields *)
+						| TField(e1,fa) ->
+							let e1 = replace e1 in
+							if not !found && not (Optimizer.is_read_only_field_access fa) && (has_field_write ir (field_name fa) || has_state_write ir) then raise Exit;
+							{e with eexpr = TField(e1,fa)}
+						| TBinop(OpAssign,({eexpr = TField(e1,fa)} as ef),e2) ->
 							let e1 = replace e1 in
 							let e2 = replace e2 in
-							{e with eexpr = TCall(ef,[e1;e2;e3])}
-						| TCall(e1,el) when com.platform = Neko ->
-							(* Neko has this reversed at the moment (issue #4787) *)
-							let el = List.map replace el in
+							if not !found && (has_field_read ir (field_name fa) || has_state_read ir) then raise Exit;
+							{e with eexpr = TBinop(OpAssign,{ef with eexpr = TField(e1,fa)},e2)}
+						| TBinop(OpAssignOp _ as op,({eexpr = TField(e1,fa)} as ef),e2) ->
 							let e1 = replace e1 in
+							let s = field_name fa in
+							if not !found && (has_field_write ir s || has_state_write ir) then raise Exit;
+							let e2 = replace e2 in
+							if not !found && (has_field_read ir s || has_state_read ir) then raise Exit;
+							{e with eexpr = TBinop(op,{ef with eexpr = TField(e1,fa)},e2)}
+						| TUnop((Increment | Decrement),_,{eexpr = TField(e1,fa)}) when has_field_read ir (field_name fa) || has_state_read ir
+							|| has_field_write ir (field_name fa) || has_state_write ir ->
+							raise Exit
+						(* state *)
+						| TCall({eexpr = TLocal v},el) when not (is_unbound_call_that_might_have_side_effects v el) ->
+							e
+						| TNew(c,tl,el) when (match c.cl_constructor with Some cf when Optimizer.is_pure c cf -> true | _ -> false) ->
+							let el = List.map replace el in
+							{e with eexpr = TNew(c,tl,el)}
+						| TCall(e1,el) ->
+							let e1,el = handle_call e1 el in
+							if not !found && ((Optimizer.has_side_effect e && (has_state_read ir || has_any_field_read ir)) || has_state_write ir || has_any_field_write ir) then raise Exit;
 							{e with eexpr = TCall(e1,el)}
+						| TNew(c,tl,el) ->
+							let el = List.map replace el in
+							if not !found && (has_state_write ir || has_state_read ir || has_any_field_read ir || has_any_field_write ir) then raise Exit;
+							{e with eexpr = TNew(c,tl,el)}
+						| TBinop(OpAssign,({eexpr = TArray(e1,e2)} as ea),e3) ->
+							let e1 = replace e1 in
+							let e2 = replace e2 in
+							let e3 = replace e3 in
+							if not !found && has_state_read ir then raise Exit;
+							{e with eexpr = TBinop(OpAssign,{ea with eexpr = TArray(e1,e2)},e3)}
+						| TBinop(op,e1,e2) when (match com.platform with Cpp | Php -> true | _ -> false) ->
+							let e1 = replace e1 in
+							let temp_found = !found in
+							found := false;
+							let e2 = replace e2 in
+							found := !found || temp_found;
+							{e with eexpr = TBinop(op,e1,e2)}
+						| TArray(e1,e2) ->
+							let e1 = replace e1 in
+							let e2 = replace e2 in
+							if not !found && has_state_write ir then raise Exit;
+							{e with eexpr = TArray(e1,e2)}
 						| _ ->
 							Type.map_expr replace e
-					in
-					check_interference e;
-					e
 				in
 				begin try
-					let e = replace e2 in
+					let rec loop acc el = match el with
+						| e :: el ->
+							let e = replace e in
+							if !found then (List.rev (e :: acc)) @ el
+							else begin match e.eexpr with
+								| TWhile _ | TIf _ | TSwitch _ | TTry _ -> raise Exit
+								| _ -> loop (e :: acc) el
+							end
+						| [] ->
+							List.rev acc
+					in
+					let el = loop [] el in
 					if not !found then raise Exit;
 					changed := true;
 					change_num_uses v1 (-1);
-					fuse (e :: acc) el
+					(*if e.epos.pfile = "src/Main.hx" then print_endline (Printf.sprintf "OK: %s" (s_expr_pretty e));*)
+					fuse acc el
 				with Exit ->
-					fuse (ev :: acc) (e2 :: el)
+					(*if e.epos.pfile = "src/Main.hx" then print_endline (Printf.sprintf "NOPE: %s" (Printexc.get_backtrace()));*)
+					fuse (ev :: acc) el
 				end
 			| {eexpr = TUnop((Increment | Decrement as op,Prefix,({eexpr = TLocal v} as ev)))} as e1 :: e2 :: el ->
 				begin try
@@ -575,6 +753,17 @@ module Fusion = struct
 				with Exit ->
 					fuse (e1 :: acc) (e2 :: el)
 				end
+			| {eexpr = TBinop(OpAssign,e1,{eexpr = TBinop(op,e2,e3)})} as e :: el when use_assign_op op e1 e2 ->
+				let rec loop e = match e.eexpr with
+					| TLocal v -> change_num_uses v (-1)
+					| _ -> Type.iter loop e
+				in
+				loop e1;
+				changed := true;
+				fuse acc ({e with eexpr = TBinop(OpAssignOp op,e1,e3)} :: el)
+			| {eexpr = TBinop(OpAssignOp _,e1,_)} as eop :: ({eexpr = TVar(v,Some e2)} as evar) :: el when Texpr.equal e1 e2 ->
+				changed := true;
+				fuse ({evar with eexpr = TVar(v,Some eop)} :: acc) el
 			| e1 :: el ->
 				fuse (e1 :: acc) el
 			| [] ->
@@ -582,7 +771,8 @@ module Fusion = struct
 		in
 		let rec loop e = match e.eexpr with
 			| TBlock el ->
-				let el = List.map loop el in
+				let el = List.rev_map loop el in
+				let el = block_element [] el in
 				(* fuse flips element order, but block_element doesn't care and flips it back *)
 				let el = fuse [] el in
 				let el = block_element [] el in
@@ -752,7 +942,7 @@ module Purity = struct
 		| Some e ->
 			try
 				if (Meta.has (Meta.Custom ":impure")) cf.cf_meta then taint_raise node;
-				if is_pure c cf then raise Exit;
+				if Optimizer.is_pure c cf then raise Exit;
 				loop e;
 				node.pn_purity <- Pure;
 			with Exit ->
