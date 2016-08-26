@@ -2711,11 +2711,11 @@ struct
 			body
 		in
 		let body = {
-			eexpr = TBlock(block @ [body]);
+			eexpr = TBlock([body]);
 			etype = body.etype;
 			epos = body.epos;
 		} in
-		{
+		block, {
 			tf_args = tf_args;
 			tf_expr = body;
 			tf_type = ret;
@@ -2741,9 +2741,15 @@ struct
 							let ret = handle_anon_func clean { tf with tf_expr = run tf.tf_expr } !info (Some e.etype) in
 							replace_delegate ret
 						| _ -> try
-							let tf = mk_conversion_fun gen del in
-							let ret = handle_anon_func del { tf with tf_expr = run tf.tf_expr } !info (Some e.etype) in
-							replace_delegate ret
+							let block, tf = mk_conversion_fun gen del in
+							let block = List.map run block in
+							let tf = { tf with tf_expr = run tf.tf_expr } in
+							let ret = handle_anon_func { clean with eexpr = TFunction(tf) } { tf with tf_expr = run tf.tf_expr } !info (Some e.etype) in
+							let ret = replace_delegate ret in
+							if block = [] then
+								ret
+							else
+								{ ret with eexpr = TBlock(block @ [ret]) }
 						with Not_found ->
 							gen.gcon.error "This delegate construct is unsupported" e.epos;
 							replace_delegate (run clean))

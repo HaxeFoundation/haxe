@@ -2459,6 +2459,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                      retypedFunc.cppexpr, retypedFunc.cpptype
                |  CppFunction( FuncInstance(obj, false, member), args ) when return_type=TCppVoid && is_array_splice_call obj member ->
                      CppCall( FuncInstance(obj, false, {member with cf_name="removeRange"}), retypedArgs), TCppVoid
+
                |  CppFunction( FuncStatic(obj, false, member), returnType ) when cpp_is_templated_call ctx member ->
                      (match retypedArgs with
                      | {cppexpr = CppClassOf(path,native) }::rest ->
@@ -2477,10 +2478,9 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                   *)
 
                (* Other functions ... *)
-
-                 (* todo - non objc? *)
-               | CppFunction( FuncInstance(_,true,{cf_type=TFun(arg_types,_)} ) as func, returnType )
-               | CppFunction( FuncStatic(_,true,{cf_type=TFun(arg_types,_)} ) as func, returnType ) ->
+               | CppFunction( FuncInstance(_,_,{cf_type=TFun(arg_types,_)} ) as func, returnType )
+               | CppFunction( FuncStatic(_,_,{cf_type=TFun(arg_types,_)} ) as func, returnType )
+               | CppFunction( FuncThis({cf_type=TFun(arg_types,_)} ) as func, returnType ) ->
                   (* retype args specifically (not just CppDynamic) *)
                   let retypedArgs = List.map2 (fun arg (_,opt,t) ->
                       retype (cpp_tfun_arg_type_of ctx opt t) arg

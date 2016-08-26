@@ -344,9 +344,9 @@ function _hx_exception_handler($e) {
 		$i = $GLOBALS['%s']->length;
 		while(--$i >= 0)
 			$stack .= 'Called from '.$GLOBALS['%s'][$i].$nl;
-		fwrite(STDERR, $pre.'uncaught exception: '.$msg.$nl.$nl.$stack.$post.'\n');
+		echo $pre.'uncaught exception: '.$msg.$nl.$nl.$stack.$post;
 	} else
-		fwrite(STDERR, $pre.'uncaught exception: '.$msg.$nl.$nl.'in file: '.$e->getFile().' line '.$e->getLine().$nl.$e->getTraceAsString().$post.'\n');
+		echo $pre.'uncaught exception: '.$msg.$nl.$nl.'in file: '.$e->getFile().' line '.$e->getLine().$nl.$e->getTraceAsString().$post;
 	exit(1);
 }
 
