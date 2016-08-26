@@ -1132,16 +1132,16 @@ module Run = struct
 		if actx.com.debug then add_debug_expr actx "after var-lazifier" e;
 		let e = with_timer actx "analyzer-filter-apply" (fun () -> TexprFilter.apply actx.com e) in
 		if actx.com.debug then add_debug_expr actx "after filter-apply" e;
-		let tf,is_real_function = match e.eexpr with
+		let tf,t,is_real_function = match e.eexpr with
 			| TFunction tf ->
-				tf,true
+				tf,e.etype,true
 			| _ ->
 				(* Wrap expression in a function so we don't have to treat it as a special case throughout. *)
 				let e = mk (TReturn (Some e)) t_dynamic e.epos in
 				let tf = { tf_args = []; tf_type = e.etype; tf_expr = e; } in
-				tf,false
+				tf,tfun [] e.etype,false
 		in
-		with_timer actx "analyzer-from-texpr" (fun () -> AnalyzerTexprTransformer.from_tfunction actx tf e.etype e.epos);
+		with_timer actx "analyzer-from-texpr" (fun () -> AnalyzerTexprTransformer.from_tfunction actx tf t e.epos);
 		is_real_function
 
 	let back_again actx is_real_function =
@@ -1160,7 +1160,14 @@ module Run = struct
 			(* Get rid of the wrapping function and its return expressions. *)
 			let rec loop first e = match e.eexpr with
 				| TReturn (Some e) -> e
-				| TFunction tf when first -> loop false tf.tf_expr
+				| TFunction tf when first ->
+					begin match loop false tf.tf_expr with
+						| {eexpr = TBlock _ | TIf _ | TSwitch _ | TTry _} when actx.com.platform = Cpp ->
+							mk (TCall(e,[])) tf.tf_type e.epos
+						| e ->
+							e
+					end
+				| TBlock [e] -> loop first e
 				| TFunction _ -> e
 				| _ -> Type.map_expr (loop first) e
 			in

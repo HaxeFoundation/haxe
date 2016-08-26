@@ -2,7 +2,7 @@ package unit.issues;
 
 class Issue5358 extends unit.Test {
 
-	#if false
+	#if !hl
 	static var example = if (veryRandom() > 0.5) 1 else 2;
 
 	function test() {
