@@ -363,7 +363,7 @@ module InterferenceReport = struct
 			(* fields *)
 			| TField(e1,fa) ->
 				loop e1;
-				if not (Optimizer.is_read_only_field_access fa) then set_field_read ir (field_name fa);
+				if not (Optimizer.is_read_only_field_access e1 fa) then set_field_read ir (field_name fa);
 			| TBinop(OpAssign,{eexpr = TField(e1,fa)},e2) ->
 				set_field_write ir (field_name fa);
 				loop e1;
@@ -663,7 +663,7 @@ module Fusion = struct
 						(* fields *)
 						| TField(e1,fa) ->
 							let e1 = replace e1 in
-							if not !found && not (Optimizer.is_read_only_field_access fa) && (has_field_write ir (field_name fa) || has_state_write ir) then raise Exit;
+							if not !found && not (Optimizer.is_read_only_field_access e1 fa) && (has_field_write ir (field_name fa) || has_state_write ir) then raise Exit;
 							{e with eexpr = TField(e1,fa)}
 						| TBinop(OpAssign,({eexpr = TField(e1,fa)} as ef),e2) ->
 							let e1 = replace e1 in
