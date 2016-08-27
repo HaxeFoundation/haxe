@@ -247,7 +247,7 @@ let is_read_only_field_access fa = match fa with
 		match cf.cf_kind with
 			| Method MethDynamic -> false
 			| Method _ -> true
-			| Var {v_write = AccNever | AccNo} -> true
+			| Var {v_write = AccNever} -> true
 			| _ -> false
 
 let create_affection_checker () =
