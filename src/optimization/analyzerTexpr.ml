@@ -858,6 +858,11 @@ module Cleanup = struct
 					| _ ->
 						{e with eexpr = TWhile(e1,e2,NormalWhile)}
 				end
+			| TField({eexpr = TTypeExpr _},_) ->
+				e
+			| TTypeExpr (TClassDecl c) ->
+				List.iter (fun cf -> if not (Meta.has Meta.MaybeUsed cf.cf_meta) then cf.cf_meta <- (Meta.MaybeUsed,[],cf.cf_pos) :: cf.cf_meta;) c.cl_ordered_statics;
+				e
 			| _ ->
 				Type.map_expr loop e
 		in
