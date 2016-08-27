@@ -244,12 +244,19 @@ let is_read_only_field_access e fa = match fa with
 	| FDynamic _ ->
 		false
 	| FAnon {cf_kind = Var {v_write = AccNo}} when (match e.eexpr with TLocal v when is_unbound v -> true | _ -> false) -> true
-	| FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf) ->
-		match cf.cf_kind with
+	| FInstance (c,_,cf) | FStatic (c,cf) | FClosure (Some(c,_),cf) ->
+		begin match cf.cf_kind with
 			| Method MethDynamic -> false
 			| Method _ -> true
-			| Var {v_write = AccNever} -> true
+			| Var {v_write = AccNever} when not c.cl_interface -> true
 			| _ -> false
+		end
+	| FAnon cf | FClosure(None,cf) ->
+		begin match cf.cf_kind with
+			| Method MethDynamic -> false
+			| Method _ -> true
+			| _ -> false
+		end
 
 let create_affection_checker () =
 	let modified_locals = Hashtbl.create 0 in
