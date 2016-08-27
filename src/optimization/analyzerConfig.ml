@@ -37,6 +37,7 @@ type t = {
 	debug_kind : debug_kind;
 	detail_times : bool;
 	user_var_fusion : bool;
+	fusion_debug : bool;
 }
 
 let flag_const_propagation = "const_propagation"
@@ -49,6 +50,7 @@ let flag_ignore = "ignore"
 let flag_dot_debug = "dot_debug"
 let flag_full_debug = "full_debug"
 let flag_user_var_fusion = "user_var_fusion"
+let flag_fusion_debug = "fusion_debug"
 
 let all_flags =
 	List.fold_left (fun acc flag ->
@@ -91,6 +93,7 @@ let get_base_config com =
 		debug_kind = DebugNone;
 		detail_times = Common.raw_defined com "analyzer-times";
 		user_var_fusion = Common.raw_defined com "analyzer-user-var-fusion" || (not com.debug && not (Common.raw_defined com "analyzer-no-user-var-fusion"));
+		fusion_debug = false;
 	}
 
 let update_config_from_meta com config meta =
@@ -113,6 +116,7 @@ let update_config_from_meta com config meta =
 				| EConst (Ident s) when s = flag_full_debug -> {config with debug_kind = DebugFull}
 				| EConst (Ident s) when s = flag_user_var_fusion -> {config with user_var_fusion = true}
 				| EConst (Ident s) when s = "no_" ^ flag_user_var_fusion -> {config with user_var_fusion = false}
+				| EConst (Ident s) when s = flag_fusion_debug -> {config with fusion_debug = true}
 				| _ ->
 					let s = Ast.s_expr e in
 					com.warning (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);

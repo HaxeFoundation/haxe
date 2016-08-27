@@ -438,7 +438,7 @@ module InterferenceReport = struct
 		let s_hashtbl f h =
 			String.concat ", " (Hashtbl.fold (fun k _ acc -> (f k) :: acc) h [])
 		in
-		Type.Printer.s_record_fields "" [
+		Type.Printer.s_record_fields "\t" [
 			"ir_var_reads",s_hashtbl string_of_int ir.ir_var_reads;
 			"ir_var_writes",s_hashtbl string_of_int ir.ir_var_writes;
 			"ir_field_reads",s_hashtbl (fun x -> x) ir.ir_field_reads;
@@ -591,7 +591,8 @@ module Fusion = struct
 				let found = ref false in
 				let blocked = ref false in
 				let ir = InterferenceReport.from_texpr e1 in
-				(*if e.epos.pfile = "src/Main.hx" then print_endline (Printf.sprintf "FUSION %s<%i> = %s\n\t%s\n\t%s" v1.v_name v1.v_id (s_expr_pretty e1) (s_expr_pretty (mk (TBlock el) t_dynamic null_pos)) (InterferenceReport.to_string ir));*)
+				if config.fusion_debug then print_endline (Printf.sprintf "FUSION\n\tvar %s<%i> = %s\n\t%s\n\t%s"
+					v1.v_name v1.v_id (s_expr_pretty e1) (InterferenceReport.to_string ir) (Type.s_expr_pretty true "" (s_type (print_context())) (mk (TBlock el) t_dynamic null_pos)));
 				let rec replace e =
 					let explore e =
 						let old = !blocked in
@@ -728,10 +729,10 @@ module Fusion = struct
 					if not !found then raise Exit;
 					changed := true;
 					change_num_uses v1 (-1);
-					(*if e.epos.pfile = "src/Main.hx" then print_endline (Printf.sprintf "OK: %s" (s_expr_pretty e));*)
+					if config.fusion_debug then print_endline (Printf.sprintf "YES: %s" (s_expr_pretty (mk (TBlock el) t_dynamic null_pos)));
 					fuse acc el
 				with Exit ->
-					(*if e.epos.pfile = "src/Main.hx" then print_endline (Printf.sprintf "NOPE: %s" (Printexc.get_backtrace()));*)
+					if config.fusion_debug then print_endline (Printf.sprintf "NO: %s" (Printexc.get_backtrace()));
 					fuse (ev :: acc) el
 				end
 			| {eexpr = TUnop((Increment | Decrement as op,Prefix,({eexpr = TLocal v} as ev)))} as e1 :: e2 :: el ->
