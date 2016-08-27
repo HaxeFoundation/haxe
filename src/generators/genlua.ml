@@ -362,6 +362,8 @@ let rec gen_call ctx e el in_value =
 		spr ctx ")";
 	| TLocal { v_name = "__lua_length__" }, [e]->
 		spr ctx "#"; gen_value ctx e;
+	| TLocal { v_name = "__lua_table__" }, _ when not in_value ->
+		()
 	| TLocal { v_name = "__lua_table__" }, el ->
 		let count = ref 0 in
 		spr ctx "({";

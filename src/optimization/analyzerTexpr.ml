@@ -454,13 +454,34 @@ module Fusion = struct
 	open InterferenceReport
 
 	let apply com config e =
+		let changed = ref false in
+		let var_uses = Hashtbl.create 0 in
+		let var_writes = Hashtbl.create 0 in
+		let get_num_uses v =
+			try Hashtbl.find var_uses v.v_id with Not_found -> 0
+		in
+		let get_num_writes v =
+			try Hashtbl.find var_writes v.v_id with Not_found -> 0
+		in
+		let change map v delta =
+			Hashtbl.replace map v.v_id ((try Hashtbl.find map v.v_id with Not_found -> 0) + delta);
+		in
+		let change_num_uses v delta =
+			change var_uses v delta
+		in
+		let change_num_writes v delta =
+			change var_writes v delta
+		in
 		let rec block_element acc el = match el with
 			| {eexpr = TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_)} as e1 :: el ->
 				block_element (e1 :: acc) el
 			| {eexpr = TLocal _} as e1 :: el when not config.local_dce ->
 				block_element (e1 :: acc) el
+			| {eexpr = TLocal v} :: el ->
+				change_num_uses v (-1);
+				block_element acc el
 			(* no-side-effect *)
-			| {eexpr = TEnumParameter _ | TFunction _ | TConst _ | TTypeExpr _ | TLocal _} :: el ->
+			| {eexpr = TEnumParameter _ | TFunction _ | TConst _ | TTypeExpr _} :: el ->
 				block_element acc el
 			(* no-side-effect composites *)
 			| {eexpr = TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) | TField(e1,_) | TUnop(_,_,e1)} :: el ->
@@ -481,24 +502,6 @@ module Fusion = struct
 				block_element (e1 :: acc) el
 			| [] ->
 				acc
-		in
-		let changed = ref false in
-		let var_uses = Hashtbl.create 0 in
-		let var_writes = Hashtbl.create 0 in
-		let get_num_uses v =
-			try Hashtbl.find var_uses v.v_id with Not_found -> 0
-		in
-		let get_num_writes v =
-			try Hashtbl.find var_writes v.v_id with Not_found -> 0
-		in
-		let change map v delta =
-			Hashtbl.replace map v.v_id ((try Hashtbl.find map v.v_id with Not_found -> 0) + delta);
-		in
-		let change_num_uses v delta =
-			change var_uses v delta
-		in
-		let change_num_writes v delta =
-			change var_writes v delta
 		in
 		let rec loop e = match e.eexpr with
 			| TLocal v ->
@@ -582,6 +585,8 @@ module Fusion = struct
 				with Exit ->
 					fuse (e1 :: acc) (e2 :: el)
 				end
+			| {eexpr = TVar(v1,Some e1)} :: el when config.optimize && config.local_dce && get_num_uses v1 = 0 && get_num_writes v1 = 0 ->
+				fuse acc (e1 :: el)
 			| ({eexpr = TVar(v1,Some e1)} as ev) :: el when can_be_fused v1 e1 ->
 				let found = ref false in
 				let blocked = ref false in
