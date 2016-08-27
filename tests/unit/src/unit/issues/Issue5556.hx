@@ -3,7 +3,7 @@ package unit.issues;
 class Issue5556 extends unit.Test {
 	function test() {
 		var x = dynamicFunc(randomCall());
-		#if !flash
+		#if (!flash && !js)
 		eq(1, x);
 		#end
 	}

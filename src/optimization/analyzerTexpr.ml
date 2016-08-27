@@ -514,18 +514,20 @@ module Fusion = struct
 		in
 		loop e;
 		let can_be_fused v e =
-			let b = get_num_uses v <= 1 &&
-			        get_num_writes v = 0 &&
-			        can_be_used_as_value com e &&
-			        (Meta.has Meta.CompilerGenerated v.v_meta || config.optimize && config.fusion && config.user_var_fusion && v.v_extra = None)
+			let num_uses = get_num_uses v in
+			let num_writes = get_num_writes v in
+			let can_be_used_as_value = can_be_used_as_value com e in
+			let is_compiler_generated = Meta.has Meta.CompilerGenerated v.v_meta in
+			let b = num_uses <= 1 &&
+			        num_writes = 0 &&
+			        can_be_used_as_value &&
+			        (is_compiler_generated || config.optimize && config.fusion && config.user_var_fusion)
 			in
- 			(*let st = s_type (print_context()) in
-			if e.epos.pfile = "src/Main.hx" then
-				print_endline (Printf.sprintf "%s(%s) -> %s: #uses=%i && #writes=%i && used_as_value=%b && (compiler-generated=%b || optimize=%b && fusion=%b && user_var_fusion=%b && type_change_ok=%b && v_extra=%b) -> %b"
-					v.v_name (st v.v_type) (st e.etype)
-					(get_num_uses v) (get_num_writes v) (can_be_used_as_value com e)
-					(Meta.has Meta.CompilerGenerated v.v_meta) config.optimize config.fusion
-					config.user_var_fusion (type_change_ok com v.v_type e.etype) (v.v_extra = None) b);*)
+			if config.fusion_debug then begin
+				print_endline (Printf.sprintf "FUSION\n\tvar %s<%i> = %s" v.v_name v.v_id (s_expr_pretty e));
+				print_endline (Printf.sprintf "\tcan_be_fused:%b: num_uses:%i <= 1 && num_writes:%i = 0 && can_be_used_as_value:%b && (is_compiler_generated:%b || config.optimize:%b && config.fusion:%b && config.user_var_fusion:%b)"
+					b num_uses num_writes can_be_used_as_value is_compiler_generated config.optimize config.fusion config.user_var_fusion)
+			end;
 			b
 		in
 		let is_assign_op = function
@@ -591,8 +593,8 @@ module Fusion = struct
 				let found = ref false in
 				let blocked = ref false in
 				let ir = InterferenceReport.from_texpr e1 in
-				if config.fusion_debug then print_endline (Printf.sprintf "FUSION\n\tvar %s<%i> = %s\n\t%s\n\t%s"
-					v1.v_name v1.v_id (s_expr_pretty e1) (InterferenceReport.to_string ir) (Type.s_expr_pretty true "" (s_type (print_context())) (mk (TBlock el) t_dynamic null_pos)));
+				if config.fusion_debug then print_endline (Printf.sprintf "\tInterferenceReport: %s\n\t%s"
+					 (InterferenceReport.to_string ir) (Type.s_expr_pretty true "\t" (s_type (print_context())) (mk (TBlock el) t_dynamic null_pos)));
 				let rec replace e =
 					let explore e =
 						let old = !blocked in
