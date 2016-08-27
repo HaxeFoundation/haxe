@@ -425,7 +425,7 @@ CAMLprim value process_run( value cmd, value vargs ) {
 	process_stdout_read : 'process -> buf:string -> pos:int -> len:int -> int
 	<doc>
 	Read up to [len] bytes in [buf] starting at [pos] from the process stdout.
-	Returns the number of bytes readed this way. Raise an exception if this
+	Returns the number of bytes read this way. Raise an exception if this
 	process stdout is closed and no more data is available for reading.
 	</doc>
 **/
@@ -456,7 +456,7 @@ CAMLprim value process_stdout_read( value vp, value str, value pos, value len ) 
 	process_stderr_read : 'process -> buf:string -> pos:int -> len:int -> int
 	<doc>
 	Read up to [len] bytes in [buf] starting at [pos] from the process stderr.
-	Returns the number of bytes readed this way. Raise an exception if this
+	Returns the number of bytes read this way. Raise an exception if this
 	process stderr is closed and no more data is available for reading.
 	</doc>
 **/
