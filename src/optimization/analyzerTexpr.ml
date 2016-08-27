@@ -341,6 +341,8 @@ module InterferenceReport = struct
 	let has_state_write ir = ir.ir_state_write
 	let has_any_field_read ir = Hashtbl.length ir.ir_field_reads > 0
 	let has_any_field_write ir = Hashtbl.length ir.ir_field_writes > 0
+	let has_any_var_read ir = Hashtbl.length ir.ir_var_reads > 0
+	let has_any_var_write ir = Hashtbl.length ir.ir_var_writes > 0
 
 	let from_texpr e =
 		let ir = create () in
@@ -584,7 +586,7 @@ module Fusion = struct
 				let found = ref false in
 				let blocked = ref false in
 				let ir = InterferenceReport.from_texpr e1 in
-				(*if e.epos.pfile = "src/Main.hx" then print_endline (Printf.sprintf "FUSION %s<%i> = %s\n\t%s\n\t%s" v1.v_name v1.v_id (s_expr_pretty e1) (s_expr_pretty e2) (InterferenceReport.to_string ir));*)
+				(*if e.epos.pfile = "src/Main.hx" then print_endline (Printf.sprintf "FUSION %s<%i> = %s\n\t%s\n\t%s" v1.v_name v1.v_id (s_expr_pretty e1) (s_expr_pretty (mk (TBlock el) t_dynamic null_pos)) (InterferenceReport.to_string ir));*)
 				let rec replace e =
 					let explore e =
 						let old = !blocked in
@@ -623,6 +625,12 @@ module Fusion = struct
 					if !found then e else match e.eexpr with
 						| TWhile _ | TFunction _ ->
 							e
+						| TIf(e1,e2,eo) ->
+							let e1 = replace e1 in
+							if not !found && (has_state_write ir || has_any_field_write ir || has_any_var_write ir) then raise Exit;
+							let e2 = replace e2 in
+							let eo = Option.map replace eo in
+							{e with eexpr = TIf(e1,e2,eo)}
 						| TSwitch(e1,cases,edef) ->
 							let e1 = match com.platform with
 								| Lua | Python -> explore e1
