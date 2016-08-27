@@ -628,7 +628,9 @@ module Fusion = struct
 							e2,el
 						in
 					if !found then e else match e.eexpr with
-						| TWhile _ | TFunction _ ->
+						| TWhile _ | TTry _ ->
+							raise Exit
+						| TFunction _ ->
 							e
 						| TIf(e1,e2,eo) ->
 							let e1 = replace e1 in
@@ -641,6 +643,7 @@ module Fusion = struct
 								| Lua | Python -> explore e1
 								| _ -> replace e1
 							in
+							if not !found then raise Exit;
 							{e with eexpr = TSwitch(e1,cases,edef)}
 						| TLocal v2 when v1 == v2 && not !blocked ->
 							found := true;
@@ -717,10 +720,7 @@ module Fusion = struct
 						| e :: el ->
 							let e = replace e in
 							if !found then (List.rev (e :: acc)) @ el
-							else begin match e.eexpr with
-								| TWhile _ | TIf _ | TSwitch _ | TTry _ -> raise Exit
-								| _ -> loop (e :: acc) el
-							end
+							else loop (e :: acc) el
 						| [] ->
 							List.rev acc
 					in
