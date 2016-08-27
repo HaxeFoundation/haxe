@@ -29,9 +29,8 @@ class Host {
 	public var ip(default,null) : Int;
 
 	public function new( name : String ) : Void {
-		var size = 0;
 		host = name;
-		ip = host_resolve(@:privateAccess name.bytes.utf16ToUtf8(0,size));
+		ip = host_resolve(@:privateAccess name.bytes.utf16ToUtf8(0,null));
 		if( ip == -1 ) throw new Sys.SysError("Unresolved host " + name);
 	}
 

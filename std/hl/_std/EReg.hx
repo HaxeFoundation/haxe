@@ -53,8 +53,7 @@ private typedef ERegValue = hl.types.NativeAbstract<"ereg">;
 	}
 
 	public function matchedLeft() : String {
-		var len = 0;
-		var p = regexp_matched_pos(r,0,len);
+		var p = regexp_matched_pos(r,0,null);
 		return last.substr(0,p);
 	}
 
