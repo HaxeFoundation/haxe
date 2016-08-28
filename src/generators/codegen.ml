@@ -944,13 +944,7 @@ module Dump = struct
 						) else ();
 					(match f.cf_expr with
 					| None -> ()
-					| Some e -> match e.eexpr with
-						(* partially handle functions at field level ourselves *)
-						| TFunction f ->
-							let slist f l = String.concat ", " (List.map f l) in
-							let args = slist (fun (v,o) -> Printf.sprintf "%s:%s%s" v.v_name (s_type v.v_type) (match o with None -> "" | Some c -> " = " ^ s_const c)) f.tf_args in
-							print "(%s):%s %s" args (s_type f.tf_type) (s_expr_pretty false "\t" s_type f.tf_expr)
-						| _ -> print " %s" (s_expr s_type e));
+					| Some e -> print " %s" (s_expr s_type e));
 					print "\n";
 					List.iter (fun f -> print_field stat f) f.cf_overloads
 				in
