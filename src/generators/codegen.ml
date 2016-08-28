@@ -944,7 +944,7 @@ module Dump = struct
 						) else ();
 					(match f.cf_expr with
 					| None -> ()
-					| Some e -> print " %s" (s_expr s_type e));
+					| Some e -> print "%s" (s_expr s_type e));
 					print "\n";
 					List.iter (fun f -> print_field stat f) f.cf_overloads
 				in

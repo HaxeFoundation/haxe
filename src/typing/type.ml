@@ -1078,7 +1078,8 @@ let rec s_expr_pretty print_var_ids tabs s_type e =
 		| Postfix -> sprintf "%s %s" (loop e) (s_unop op))
 	| TFunction f ->
 		let args = slist (fun (v,o) -> sprintf "%s:%s%s" (local v) (s_type v.v_type) (match o with None -> "" | Some c -> " = " ^ s_const c)) f.tf_args in
-		sprintf "function(%s) = %s" args (loop f.tf_expr)
+		(* need to omit "function" if top-level - this is pretty hacky... *)
+		sprintf "%s(%s) %s" (if (String.length tabs == 1) then "" else "function") args (loop f.tf_expr)
 	| TVar (v,eo) ->
 		sprintf "var %s" (sprintf "%s%s" (local v) (match eo with None -> "" | Some e -> " = " ^ loop e))
 	| TBlock el ->
