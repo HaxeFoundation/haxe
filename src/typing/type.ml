@@ -1089,7 +1089,7 @@ let rec s_expr_pretty print_var_ids tabs top_level s_type e =
 	| TFor (v,econd,e) ->
 		sprintf "for (%s in %s) %s" (local v) (loop econd) (loop e)
 	| TIf (e,e1,e2) ->
-		sprintf "if (%s)%s%s" (loop e) (loop e1) (match e2 with None -> "" | Some e -> " else " ^ loop e)
+		sprintf "if (%s) %s%s" (loop e) (loop e1) (match e2 with None -> "" | Some e -> " else " ^ loop e)
 	| TWhile (econd,e,flag) ->
 		(match flag with
 		| NormalWhile -> sprintf "while (%s) %s" (loop econd) (loop e)
@@ -1099,7 +1099,7 @@ let rec s_expr_pretty print_var_ids tabs top_level s_type e =
 		let s = sprintf "switch (%s) {\n%s%s" (loop e) (slist "" (fun (cl,e) -> sprintf "%scase %s: %s;\n" ntabs (clist loop cl) (s_expr_pretty print_var_ids ntabs top_level s_type e)) cases) (match def with None -> "" | Some e -> ntabs ^ "default: " ^ (s_expr_pretty print_var_ids ntabs top_level s_type e) ^ "\n") in
 		s ^ tabs ^ "}"
 	| TTry (e,cl) ->
-		sprintf "try %s%s" (loop e) (clist (fun (v,e) -> sprintf "catch( %s : %s ) %s" (local v) (s_type v.v_type) (loop e)) cl)
+		sprintf "try %s%s" (loop e) (clist (fun (v,e) -> sprintf " catch (%s:%s) %s" (local v) (s_type v.v_type) (loop e)) cl)
 	| TReturn None ->
 		"return"
 	| TReturn (Some e) ->
