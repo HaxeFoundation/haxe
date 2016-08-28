@@ -21,8 +21,6 @@
  */
 package php7;
 
-import haxe.extern.EitherType;
-
 using php7.Global;
 
 

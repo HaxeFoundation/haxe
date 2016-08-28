@@ -28,6 +28,13 @@ package php7;
 extern class ErrorException implements Throwable {
 	public function new (?message:String, ?code:Int, ?severety:Int, ?filename:String, ?lineno:Int, ?previous:Throwable) : Void;
 
-	@:final
-	public function getSeverity() : Int;
+	@:final public function getSeverity() : Int;
+	@:final public function getPrevious() : Throwable;   // Returns previous Throwable
+    @:final public function getMessage() : String;       // message of the exception
+    @:final public function getCode() : Int;             // code of the exception
+    @:final public function getFile() : String;          // source filename
+    @:final public function getLine() : Int;             // source line
+    @:final public function getTrace() : Array<String>;  // an array of the backtrace()
+    @:final public function getTraceAsString() : String; // formated string of trace
+	public function __toString() : String;       // formated string for display
 }

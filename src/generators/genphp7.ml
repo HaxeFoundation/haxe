@@ -727,9 +727,13 @@ class virtual type_builder ctx wrapper =
 				self#indent 0;
 				self#write_line "}"; (** closing bracket for a class *)
 				self#write_empty_lines;
+				let boot_class = self#use boot_type_path in
 				(* Boot initialization *)
 				if boot_type_path <> self#get_type_path then
-					self#write_statement ((self#use boot_type_path) ^ "::__hx__init()");
+					self#write_statement (boot_class ^ "::__hx__init()");
+				let php_class = get_full_type_name ~escape:true (add_php_prefix ctx self#get_type_path)
+				and haxe_class = match wrapper#get_type_path with (path, name) -> String.concat "." (path @ [name]) in
+				self#write_statement (boot_class ^ "::registerClass('" ^ php_class ^ "', '" ^ haxe_class ^ "')");
 				(* Current class initialization *)
 				if wrapper#needs_initialization then
 					self#write_statement (self#get_name ^ "::__hx__init()");

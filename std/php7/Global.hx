@@ -30,7 +30,7 @@ extern class Global {
 	@:overload(function( error_handler:Int->String->Bool, ?error_types:Int ) : Dynamic {})
 	@:overload(function( error_handler:Int->String->String->Bool, ?error_types:Int ) : Dynamic {})
 	@:overload(function( error_handler:Int->String->String->Int->Bool, ?error_types:Int ) : Dynamic {})
-	static function set_error_handler( error_handler:Null<Int->String->String->Int->Array<Dynamic>->Bool>, ?error_types:Int ) : Dynamic ;
+	static function set_error_handler( ?error_handler:Int->String->String->Int->Array<Dynamic>->Bool, ?error_types:Int ) : Dynamic ;
 
 	/**
 		@see http://php.net/manual/en/function.restore-error-handler.php
@@ -101,7 +101,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.strval.php
 	**/
-	static function strval( value:Dynamic ) : Float ;
+	static function strval( value:Dynamic ) : String ;
 
 	/**
 		@see http://php.net/manual/en/function.phpversion.php
@@ -234,4 +234,44 @@ extern class Global {
 		@see http://php.net/manual/en/function.each.php
 	**/
 	static function each( array:NativeArray ) : NativeArray;
+
+	/**
+		@see http://php.net/manual/en/function.defined.php
+	**/
+	static function defined( name:String ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.define.php
+	**/
+	static function define( name:String, value:Dynamic, case_insensitive:Bool = false ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.echo.php
+	**/
+	static function echo( args:Rest<String> ) : Void;
+
+	/**
+		@see http://php.net/manual/en/function.method-exists.php
+	**/
+	static function method_exists( object:Dynamic, method_name:String ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.is-callable.php
+	**/
+	static function is_callable( value:Dynamic,  syntax_only:Bool = false, ?callable_name:String ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.isset.php
+	**/
+	static function isset( args:Rest<Dynamic> ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.get-object-vars.php
+	**/
+	static function get_object_vars( object:{} ) : NativeAssocArray<Dynamic>;
+
+	/**
+		@see http://php.net/manual/en/function.get-class.php
+	**/
+	static function get_class( object:{} = null ) : String;
 }

@@ -21,8 +21,10 @@
  */
 package php7;
 
+import haxe.PosInfos;
 
 using StringTools;
+using php7.Global;
 
 /**
 	Various Haxe->PHP compatibility utilities
@@ -35,7 +37,22 @@ class Boot {
 		This method is called once before invoking any Haxe-generated user code.
 	**/
 	static function __init__() {
-		Global.error_reporting(Const.E_ALL);
+		if (!Global.defined('HAXE_CUSTOM_ERROR_HANDLER') || !Const.HAXE_CUSTOM_ERROR_HANDLER) {
+			var previousLevel = Global.error_reporting(Const.E_ALL);
+			var previousHandler = Global.set_error_handler(
+				function (errno:Int, errstr:String, errfile:String, errline:Int) {
+					if (Global.error_reporting() & errno == 0) {
+						return false;
+					}
+					throw new ErrorException(errstr, 0, errno, errfile, errline);
+				}
+			);
+			//Already had user-defined handler. Return it.
+			if (previousHandler != null) {
+				Global.error_reporting(previousLevel);
+				Global.set_error_handler(previousHandler);
+			}
+		}
 	}
 
 	/**
@@ -55,11 +72,72 @@ class Boot {
 	}
 
 	/**
+		Associate PHP class name with Haxe class name
+	**/
+	public static function registerClass( phpClassName:String, haxeClassName:String ) : Void {
+		HxClass.register(phpClassName, haxeClassName);
+	}
+
+	/**
+		`trace()` implementation
+	**/
+	public static function trace( value:Dynamic, infos:PosInfos ) : Void {
+		if (infos != null) {
+			Global.echo('${infos.fileName}:${infos.lineNumber}: ');
+		}
+		Global.echo(stringify(value));
+	}
+
+	/**
+		Returns string representation of `value`
+	**/
+	public static function stringify( value : Dynamic ) : String {
+		if (value == null) {
+			return 'null';
+		}
+		if (value.is_string()) {
+			return value;
+		}
+		if (value.is_int() || value.is_float()) {
+			return value;
+		}
+		if (value.is_bool()) {
+			return value ? 'true' : 'false';
+		}
+		if (value.is_array()) {
+			var strings = Global.array_map(function (item) return stringify(item), value);
+			return '[' + Global.implode(',', strings) + ']';
+		}
+		if (value.is_object()) {
+			if (value.method_exists('__toString')) {
+				return value.__toString();
+			}
+			if (value.method_exists('toString')) {
+				return value.toString();
+			}
+			if (untyped __php__("$value instanceof \\StdClass")) {
+				if (value.toString.isset() && value.toString.is_callable()) {
+					return value.toString();
+				}
+				var result = new NativeIndexedArray<String>();
+				var data = Global.get_object_vars(value);
+				for (key in data.array_keys()) {
+					result.array_push('$key:' + stringify(data[key]));
+				}
+				return '{' + Global.implode(',', result) + '}';
+			}
+			var hxClass = getClass(Global.get_class(value));
+			return '[object ' + hxClass.toString() + ']';
+		}
+		throw "Unable to stringify value";
+	}
+
+	/**
 		`Std.is()` implementation
 	**/
 	public static function is( value:Dynamic, type:Class<Dynamic> ) : Bool {
 		var type : HxClass = cast type;
-		var phpType = type.getClassName();
+		var phpType = type.getPhpName();
 		switch (phpType) {
 			case '\\Dynamic':
 				return true;
@@ -76,11 +154,11 @@ class Boot {
 			case '\\Enum':
 				if (value.is_object()) {
 					var hxClass : HxClass = cast HxClass;
-					var className = hxClass.getClassName();
+					var className = hxClass.getPhpName();
 					if (untyped __php__("$value instanceof $className")) {
 						var valueType : HxClass = cast value;
 						var hxEnum : HxClass = cast HxEnum;
-						return Global.is_subclass_of(valueType.getClassName(), hxEnum.getClassName());
+						return Global.is_subclass_of(valueType.getPhpName(), hxEnum.getPhpName());
 					}
 				}
 			case _:
@@ -124,36 +202,49 @@ class Boot {
 @:dox(hide)
 private class HxClass {
 	@:protected
-	static private var classes = new Map<String,HxClass>();
+	static var aliases = new NativeAssocArray<String>();
+	@:protected
+	static var classes = new NativeAssocArray<HxClass>();
 
 	@:protected
 	var phpClassName : String;
 
 	/**
+		Associate PHP class name with Haxe class name
+	**/
+	public static function register( phpClassName:String, haxeClassName:String ) : Void {
+		aliases[phpClassName] = haxeClassName;
+	}
+
+	/**
 		Get `HxClass` instance for specified PHP fully qualified class name (E.g. '\some\pack\MyClass')
 	**/
 	public static function get( phpClassName:String ) : HxClass {
-		var cls = classes.get(phpClassName);
-		if (cls == null) {
-			cls = new HxClass(phpClassName);
-			classes.set(phpClassName, cls);
+		if (!Global.isset(classes[phpClassName])) {
+			classes[phpClassName] = new HxClass(phpClassName);
 		}
 
-		return cls;
+		return classes[phpClassName];
 	}
 
 	@:protected
-	private function new( phpClassName:String ) : Void {
+	function new( phpClassName:String ) : Void {
 		this.phpClassName = phpClassName;
 	}
 
 	/**
 		Returns native PHP fully qualified class name for this type
 	**/
-	public function getClassName() : String {
+	public function getPhpName() : String {
 		return phpClassName;
 	}
 
+	/**
+		Returns original Haxe fully qualified class name for this type (if exists)
+	**/
+	public function getHaxeName() : Null<String> {
+		return (Global.isset(aliases[phpClassName]) ? aliases[phpClassName] : null);
+	}
 
 	/**
 		Implementation for `cast(value, Class<Dynamic>)`
@@ -204,19 +295,7 @@ private class HxClass {
 		PHP magic method to get string representation of this `Class`
 	**/
 	public function __toString() : String {
-		var haxeType = phpClassName;
-
-		var prefix = Boot.getPrefix();
-		if (prefix.length > 0 && phpClassName.indexOf(prefix) >= 0) {
-			haxeType = haxeType.substr(prefix.length);
-		}
-
-		haxeType = phpClassName.replace('\\', '.');
-		if (haxeType.charAt(0) == '.') {
-			haxeType = haxeType.substr(1);
-		}
-
-		return haxeType;
+		return '[class ' + (Global.isset(aliases[phpClassName]) ? aliases[phpClassName] : phpClassName) + ']';
 	}
 }
 
@@ -252,5 +331,24 @@ private class HxEnum {
 		this.constructor = constructor;
 		this.index = index;
 		args = (arguments == null ? untyped __php__("[]") : arguments);
+	}
+
+	/**
+		Get string representation of this `Class`
+	**/
+	public function toString() : String {
+		return __toString();
+	}
+
+	/**
+		PHP magic method to get string representation of this `Class`
+	**/
+	public function __toString() : String {
+		var result = constructor;
+		if (Global.count(args) > 0) {
+			var strings = Global.array_map(function (item) return Boot.stringify(item), args);
+			result += '(' + Global.implode(',', strings) + ')';
+		}
+		return result;
 	}
 }

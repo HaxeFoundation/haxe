@@ -151,7 +151,7 @@ class Array<T> implements php7.ArrayAccess<Int,T> {
 	}
 
 	public function toString():String {
-		return "array"; //TODO
+		return php7.Boot.stringify(arr);
 	}
 
 	@:noCompletion

@@ -7,6 +7,10 @@ package php7;
 @:phpGlobal
 extern class Const {
 	/**
+		If this constant is defined and equals `true` then Haxe will not set error handler automatically.
+	**/
+	static var HAXE_CUSTOM_ERROR_HANDLER : Bool;
+	/**
 		@see http://php.net/manual/en/language.constants.predefined.php
 	**/
 	static var __LINE__ : Int;
