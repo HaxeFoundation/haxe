@@ -1818,15 +1818,15 @@ class class_builder ctx (cls:tclass) =
 			(
 				match cls.cl_super with
 					| None -> ();
-					| Some (super_class, _) ->
-						let super_name = self#use super_class.cl_path in
+					| Some (super_class, params) ->
+						let super_name = self#use_t (TInst (super_class, params)) in
 						self#write (" extends " ^ super_name)
 			);
 			if List.length cls.cl_implements > 0 then begin
 				self#write (if cls.cl_interface then " extends " else " implements ");
 				let use_interface iface =
 					match iface with
-						| (i, _) -> self#use i.cl_path
+						| (i, params) -> self#use_t (TInst (i, params))
 				in
 				let interfaces = List.map use_interface cls.cl_implements in
 				self#write (String.concat ", " interfaces);
@@ -2174,6 +2174,12 @@ class generator (com:context) =
 					output_string channel "		}\n";
 					output_string channel "	}\n";
 					output_string channel ");\n";
+					(match boot with
+						| None -> fail dummy_pos __POS__
+						| Some (builder, filename) ->
+							let boot_class = get_full_type_name (add_php_prefix com builder#get_type_path) in
+							output_string channel (boot_class ^ "::__hx__init();\n")
+					);
 					output_string channel (main_class ^ "::main();\n");
 					close_out channel
 		(**
