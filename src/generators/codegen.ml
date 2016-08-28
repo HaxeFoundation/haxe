@@ -907,11 +907,15 @@ module Dump = struct
 			let path = Type.t_path mt in
 			let buf,close = create_dumpfile_from_path com path in
 			let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
+			let s_metas ml tabs =
+					match ml with
+					| [] -> ""
+					| ml -> String.concat " " (List.map (fun me -> match me with (m,_,_) -> "@" ^ Meta.to_string m) ml) ^ "\n" ^ tabs in
 			(match mt with
 			| Type.TClassDecl c ->
 				let rec print_field stat f =
 					print "\n\t%s%s%s%s%s %s%s"
-						(s_metas f.cf_meta)
+						(s_metas f.cf_meta "\t")
 						(if f.cf_public then "public " else "")
 						(if stat then "static " else "")
 						(match f.cf_kind with
@@ -939,12 +943,8 @@ module Dump = struct
 						| _ -> print " %s" (s_expr s_type e));
 					print "\n";
 					List.iter (fun f -> print_field stat f) f.cf_overloads
-				and s_metas ml =
-					match ml with
-					| [] -> ""
-					| ml -> String.concat " " (List.map (fun me -> match me with (m,_,_) -> "@" ^ Meta.to_string m) ml) ^ "\n\t"
 				in
-				print "%s%s%s %s%s" (if c.cl_private then "private " else "") (if c.cl_extern then "extern " else "") (if c.cl_interface then "interface" else "class") (s_type_path path) (params c.cl_params);
+				print "%s%s%s%s %s%s" (s_metas c.cl_meta "") (if c.cl_private then "private " else "") (if c.cl_extern then "extern " else "") (if c.cl_interface then "interface" else "class") (s_type_path path) (params c.cl_params);
 				(match c.cl_super with None -> () | Some (c,pl) -> print " extends %s" (s_type (TInst (c,pl))));
 				List.iter (fun (c,pl) -> print " implements %s" (s_type (TInst (c,pl)))) c.cl_implements;
 				(match c.cl_dynamic with None -> () | Some t -> print " implements Dynamic<%s>" (s_type t));
@@ -963,16 +963,17 @@ module Dump = struct
 					print "}\n");
 				print "}";
 			| Type.TEnumDecl e ->
-				print "%s%senum %s%s {\n" (if e.e_private then "private " else "") (if e.e_extern then "extern " else "") (s_type_path path) (params e.e_params);
+				print "%s%s%senum %s%s {\n" (s_metas e.e_meta "") (if e.e_private then "private " else "") (if e.e_extern then "extern " else "") (s_type_path path) (params e.e_params);
 				List.iter (fun n ->
 					let f = PMap.find n e.e_constrs in
 					print "\t%s : %s;\n" f.ef_name (s_type f.ef_type);
 				) e.e_names;
 				print "}"
 			| Type.TTypeDecl t ->
-				print "%stype %s%s = %s" (if t.t_private then "private " else "") (s_type_path path) (params t.t_params) (s_type t.t_type);
+				print "%s%stypedef %s%s = %s" (s_metas t.t_meta "") (if t.t_private then "private " else "") (s_type_path path) (params t.t_params) (s_type t.t_type);
 			| Type.TAbstractDecl a ->
-				print "%sabstract %s%s {}" (if a.a_private then "private " else "") (s_type_path path) (params a.a_params);
+				print "%s%sabstract %s%s {}" (s_metas a.a_meta "") (if a.a_private then "private " else "") (s_type_path path) (params a.a_params)
+				(*(String.concat " from " (List.map (fun (t,cf) -> s_type t) a.a_from_field));*)
 			);
 			close();
 		) com.types
