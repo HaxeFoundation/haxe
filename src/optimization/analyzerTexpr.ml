@@ -307,6 +307,11 @@ module VarLazifier = struct
 		snd (loop PMap.empty e)
 end
 
+(*
+	An InterferenceReport represents in which way a given code may be influenced and
+	how it might influence other code itself. It keeps track of read and write operations
+	for both variable and fields, as well as a generic state read and write.
+*)
 module InterferenceReport = struct
 	type interference_report = {
 		ir_var_reads : (int,bool) Hashtbl.t;
@@ -448,37 +453,103 @@ module InterferenceReport = struct
 		]
 	end
 
+class fusion_state = object(self)
+	val mutable _changed = false
+	val var_reads = Hashtbl.create 0
+	val var_writes = Hashtbl.create 0
 
+	method private change map v delta =
+		Hashtbl.replace map v.v_id ((try Hashtbl.find map v.v_id with Not_found -> 0) + delta);
+
+	method inc_reads (v : tvar) : unit = self#change var_reads v 1
+	method dec_reads (v : tvar) : unit = self#change var_reads v (-1)
+	method inc_writes (v : tvar) : unit = self#change var_writes v 1
+	method dec_writes (v : tvar) : unit = self#change var_writes v (-1)
+
+	method get_reads (v : tvar) = try Hashtbl.find var_reads v.v_id with Not_found -> 0
+	method get_writes (v : tvar) = try Hashtbl.find var_writes v.v_id with Not_found -> 0
+
+	method change_writes (v : tvar) delta = self#change var_writes v delta
+
+	method changed = _changed <- true
+	method reset = _changed <- false
+	method did_change = _changed
+
+	method infer_from_texpr (e : texpr) =
+		let rec loop e = match e.eexpr with
+			| TLocal v ->
+				self#inc_reads v;
+			| TBinop(OpAssign,{eexpr = TLocal v},e2) ->
+				self#inc_writes v;
+				loop e2
+			| _ ->
+				Type.iter loop e
+		in
+		loop e
+end
+
+(*
+	Fusion tries to join expressions together in order to make the output "look nicer". To that end,
+	several transformations occur:
+
+	- `var x; x = e;` is transformed to `var x = e;`
+	- `var x; if(e1) x = e2 else x = e3` is transformed to `var x = e1 ? e2 : e3` on targets that
+	  deal well with that.
+	- `var x = e;` is transformed to `e` if `x` is unused.
+	- Some block-level increment/decrement unary operators are put back into value places and the
+	  transformation of their postfix variant is reversed.
+	- `x = x op y` is transformed (back) to `x op= y` on targets that deal well with that.
+
+	Most importantly, any `var v = e;` might be fused into expressions that follow it in the same
+	block if there is no interference.
+*)
 module Fusion = struct
 	open AnalyzerConfig
 	open InterferenceReport
 
+	let is_assign_op = function
+		| OpAdd
+		| OpMult
+		| OpDiv
+		| OpSub
+		| OpAnd
+		| OpOr
+		| OpXor
+		| OpShl
+		| OpShr
+		| OpUShr
+		| OpMod ->
+			true
+		| OpAssign
+		| OpEq
+		| OpNotEq
+		| OpGt
+		| OpGte
+		| OpLt
+		| OpLte
+		| OpBoolAnd
+		| OpBoolOr
+		| OpAssignOp _
+		| OpInterval
+		| OpArrow ->
+			false
+
+	let use_assign_op com op e1 e2 =
+		is_assign_op op && target_handles_assign_ops com && Texpr.equal e1 e2 && not (Optimizer.has_side_effect e1) && match com.platform with
+			| Cs when is_null e1.etype || is_null e2.etype -> false (* C# hates OpAssignOp on Null<T> *)
+			| _ -> true
+
 	let apply com config e =
-		let changed = ref false in
-		let var_uses = Hashtbl.create 0 in
-		let var_writes = Hashtbl.create 0 in
-		let get_num_uses v =
-			try Hashtbl.find var_uses v.v_id with Not_found -> 0
-		in
-		let get_num_writes v =
-			try Hashtbl.find var_writes v.v_id with Not_found -> 0
-		in
-		let change map v delta =
-			Hashtbl.replace map v.v_id ((try Hashtbl.find map v.v_id with Not_found -> 0) + delta);
-		in
-		let change_num_uses v delta =
-			change var_uses v delta
-		in
-		let change_num_writes v delta =
-			change var_writes v delta
-		in
+		let state = new fusion_state in
+		(* Handles block-level expressions, e.g. by removing side-effect-free ones and recursing into compound constructs like
+		   array or object declarations. The resulting element list is reversed. *)
 		let rec block_element acc el = match el with
 			| {eexpr = TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_)} as e1 :: el ->
 				block_element (e1 :: acc) el
 			| {eexpr = TLocal _} as e1 :: el when not config.local_dce ->
 				block_element (e1 :: acc) el
 			| {eexpr = TLocal v} :: el ->
-				change_num_uses v (-1);
+				state#dec_reads v;
 				block_element acc el
 			(* no-side-effect *)
 			| {eexpr = TEnumParameter _ | TFunction _ | TConst _ | TTypeExpr _} :: el ->
@@ -503,19 +574,9 @@ module Fusion = struct
 			| [] ->
 				acc
 		in
-		let rec loop e = match e.eexpr with
-			| TLocal v ->
-				change_num_uses v 1;
-			| TBinop(OpAssign,{eexpr = TLocal v},e2) ->
-				change_num_writes v 1;
-				loop e2
-			| _ ->
-				Type.iter loop e
-		in
-		loop e;
 		let can_be_fused v e =
-			let num_uses = get_num_uses v in
-			let num_writes = get_num_writes v in
+			let num_uses = state#get_reads v in
+			let num_writes = state#get_writes v in
 			let can_be_used_as_value = can_be_used_as_value com e in
 			let is_compiler_generated = Meta.has Meta.CompilerGenerated v.v_meta in
 			let b = num_uses <= 1 &&
@@ -530,43 +591,11 @@ module Fusion = struct
 			end;
 			b
 		in
-		let is_assign_op = function
-			| OpAdd
-			| OpMult
-			| OpDiv
-			| OpSub
-			| OpAnd
-			| OpOr
-			| OpXor
-			| OpShl
-			| OpShr
-			| OpUShr
-			| OpMod ->
-				true
-			| OpAssign
-			| OpEq
-			| OpNotEq
-			| OpGt
-			| OpGte
-			| OpLt
-			| OpLte
-			| OpBoolAnd
-			| OpBoolOr
-			| OpAssignOp _
-			| OpInterval
-			| OpArrow ->
-				false
-		in
-		let use_assign_op op e1 e2 =
-			is_assign_op op && target_handles_assign_ops com && Texpr.equal e1 e2 && not (Optimizer.has_side_effect e1) && match com.platform with
-				| Cs when is_null e1.etype || is_null e2.etype -> false
-				| _ -> true
-		in
 		let rec fuse acc el = match el with
 			| ({eexpr = TVar(v1,None)} as e1) :: {eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)} :: el when v1 == v2 ->
-				changed := true;
+				state#changed;
 				let e1 = {e1 with eexpr = TVar(v1,Some e2)} in
-				change_num_writes v1 (-1);
+				state#dec_writes v1;
 				fuse (e1 :: acc) el
 			| ({eexpr = TVar(v1,None)} as e1) :: ({eexpr = TIf(eif,_,Some _)} as e2) :: el when can_be_used_as_value com e2 && (match com.platform with Php -> false | Cpp when not (Common.defined com Define.Cppia) -> false | _ -> true) ->
 				begin try
@@ -581,13 +610,13 @@ module Fusion = struct
 						| _ -> e
 					in
 					let e1 = {e1 with eexpr = TVar(v1,Some e)} in
-					changed := true;
-					change_num_writes v1 (- !i);
+					state#changed;
+					state#change_writes v1 (- !i);
 					fuse (e1 :: acc) el
 				with Exit ->
 					fuse (e1 :: acc) (e2 :: el)
 				end
-			| {eexpr = TVar(v1,Some e1)} :: el when config.optimize && config.local_dce && get_num_uses v1 = 0 && get_num_writes v1 = 0 ->
+			| {eexpr = TVar(v1,Some e1)} :: el when config.optimize && config.local_dce && state#get_reads v1 = 0 && state#get_writes v1 = 0 ->
 				fuse acc (e1 :: el)
 			| ({eexpr = TVar(v1,Some e1)} as ev) :: el when can_be_fused v1 e1 ->
 				let found = ref false in
@@ -595,6 +624,8 @@ module Fusion = struct
 				let ir = InterferenceReport.from_texpr e1 in
 				if config.fusion_debug then print_endline (Printf.sprintf "\tInterferenceReport: %s\n\t%s"
 					 (InterferenceReport.to_string ir) (Type.s_expr_pretty true "\t" (s_type (print_context())) (mk (TBlock el) t_dynamic null_pos)));
+				(* This function walks the AST in order of evaluation and tries to find an occurrence of v1. If successful, that occurrence is
+				   replaced with e1. If there's an interference "on the way" the replacement is canceled. *)
 				let rec replace e =
 					let explore e =
 						let old = !blocked in
@@ -615,6 +646,9 @@ module Fusion = struct
 								| TCall _ when com.platform = Php -> explore e2
 								| _ -> replace e2
 							in
+							(* This mess deals with the fact that the order of evaluation is undefined for call
+							   arguments on these targets. Even if we find a replacement, we pretend that we
+							   didn't in order to find possible interferences in later call arguments. *)
 							let temp_found = false in
 							let really_found = ref !found in
 							let el = List.map (fun e ->
@@ -718,6 +752,7 @@ module Fusion = struct
 						| _ ->
 							Type.map_expr replace e
 				in
+				state#infer_from_texpr e;
 				begin try
 					let rec loop acc el = match el with
 						| e :: el ->
@@ -729,8 +764,8 @@ module Fusion = struct
 					in
 					let el = loop [] el in
 					if not !found then raise Exit;
-					changed := true;
-					change_num_uses v1 (-1);
+					state#changed;
+					state#dec_reads v1;
 					if config.fusion_debug then print_endline (Printf.sprintf "YES: %s" (s_expr_pretty (mk (TBlock el) t_dynamic null_pos)));
 					fuse acc el
 				with Exit ->
@@ -754,13 +789,13 @@ module Fusion = struct
 					in
 					begin match e2.eexpr with
 						| TBinop(op2,{eexpr = TLocal v2},{eexpr = TConst (TInt i32)}) when v == v2 && Int32.to_int i32 = 1 && ops_match op op2 ->
-							changed := true;
-							change_num_uses v2 (-1);
+							state#changed;
+							state#dec_reads v2;
 							let e = (f {e1 with eexpr = TUnop(op,Postfix,ev)}) in
 							fuse (e :: acc) el
 						| TLocal v2 when v == v2 ->
-							changed := true;
-							change_num_uses v2 (-1);
+							state#changed;
+							state#dec_reads v2;
 							let e = (f {e1 with eexpr = TUnop(op,Prefix,ev)}) in
 							fuse (e :: acc) el
 						| _ ->
@@ -769,16 +804,16 @@ module Fusion = struct
 				with Exit ->
 					fuse (e1 :: acc) (e2 :: el)
 				end
-			| {eexpr = TBinop(OpAssign,e1,{eexpr = TBinop(op,e2,e3)})} as e :: el when use_assign_op op e1 e2 ->
+			| {eexpr = TBinop(OpAssign,e1,{eexpr = TBinop(op,e2,e3)})} as e :: el when use_assign_op com op e1 e2 ->
 				let rec loop e = match e.eexpr with
-					| TLocal v -> change_num_uses v (-1)
+					| TLocal v -> state#dec_reads v;
 					| _ -> Type.iter loop e
 				in
 				loop e1;
-				changed := true;
+				state#changed;
 				fuse acc ({e with eexpr = TBinop(OpAssignOp op,e1,e3)} :: el)
 			| {eexpr = TBinop(OpAssignOp _,e1,_)} as eop :: ({eexpr = TVar(v,Some e2)} as evar) :: el when Texpr.equal e1 e2 ->
-				changed := true;
+				state#changed;
 				fuse ({evar with eexpr = TVar(v,Some eop)} :: acc) el
 			| e1 :: el ->
 				fuse (e1 :: acc) el
@@ -793,10 +828,10 @@ module Fusion = struct
 				let el = fuse [] el in
 				let el = block_element [] el in
 				let rec fuse_loop el =
-					changed := false;
+					state#reset;
 					let el = fuse [] el in
 					let el = block_element [] el in
-					if !changed then fuse_loop el else el
+					if state#did_change then fuse_loop el else el
 				in
 				let el = fuse_loop el in
 				{e with eexpr = TBlock el}
@@ -805,8 +840,7 @@ module Fusion = struct
 			| _ ->
 				Type.map_expr loop e
 		in
-		let e = loop e in
-		e
+		loop e
 end
 
 module Cleanup = struct
