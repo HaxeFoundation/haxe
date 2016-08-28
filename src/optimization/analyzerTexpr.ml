@@ -541,6 +541,7 @@ module Fusion = struct
 
 	let apply com config e =
 		let state = new fusion_state in
+		state#infer_from_texpr e;
 		(* Handles block-level expressions, e.g. by removing side-effect-free ones and recursing into compound constructs like
 		   array or object declarations. The resulting element list is reversed. *)
 		let rec block_element acc el = match el with
@@ -752,7 +753,6 @@ module Fusion = struct
 						| _ ->
 							Type.map_expr replace e
 				in
-				state#infer_from_texpr e;
 				begin try
 					let rec loop acc el = match el with
 						| e :: el ->
