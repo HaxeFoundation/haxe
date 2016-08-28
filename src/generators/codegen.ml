@@ -965,9 +965,9 @@ module Dump = struct
 				(match c.cl_init with
 				| None -> ()
 				| Some e ->
-					print "\n\n\t__init__ = ";
+					print "\n\tstatic function __init__() ";
 					print "%s" (s_expr s_type e);
-					print "}\n");
+					print "\n");
 				print "}";
 			| Type.TEnumDecl e ->
 				print "%s%s%senum %s%s {\n" (s_metas e.e_meta "") (if e.e_private then "private " else "") (if e.e_extern then "extern " else "") (s_type_path path) (params e.e_params);
