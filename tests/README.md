@@ -59,7 +59,7 @@ Assuming all test dependencies has been installed, we compile and run the unit t
  1. Change to the "unit" directory.
  2. Compile: `haxe compile.hxml`.
  3. Start a dev server: `nekotools server`.
- 4. Open `http://localhost:2000/unit.html` in your browser.
+ 4. Open [http://localhost:2000/unit.html](http://localhost:2000/unit.html) in your browser.
 
 ## Sys tests
 
