@@ -709,7 +709,7 @@ let rec get_fun_modifiers meta access modifiers =
 		| (Meta.ReadOnly,[],_) :: meta -> get_fun_modifiers meta access ("readonly" :: modifiers)
 		| (Meta.Unsafe,[],_) :: meta -> get_fun_modifiers meta access ("unsafe" :: modifiers)
 		| (Meta.Volatile,[],_) :: meta -> get_fun_modifiers meta access ("volatile" :: modifiers)
-		| (Meta.Custom ("?prop_impl" | "?event_impl"),[],_) :: meta -> get_fun_modifiers meta "private" modifiers
+		| (Meta.Custom ("?prop_impl" | ":cs_event_impl"),[],_) :: meta -> get_fun_modifiers meta "private" modifiers
 		| _ :: meta -> get_fun_modifiers meta access modifiers
 
 (* this was the way I found to pass the generator context to be accessible across all functions here *)
@@ -2030,7 +2030,7 @@ let configure gen =
 				let unop = PMap.find name unops_names in
 				"operator " ^ s_unop unop, false, false
 			with | Not_found ->
-				if Meta.has (Meta.Custom "?prop_impl") cf.cf_meta || Meta.has (Meta.Custom "?event_impl") cf.cf_meta then
+				if Meta.has (Meta.Custom "?prop_impl") cf.cf_meta || Meta.has (Meta.Custom ":cs_event_impl") cf.cf_meta then
 					"_" ^ name, false, false
 				else
 					name, false, false
@@ -2471,8 +2471,6 @@ let configure gen =
 				| Var { v_read = AccCall } | Var { v_write = AccCall } when Type.is_extern_field v && Meta.has Meta.Property v.cf_meta ->
 					props := (v.cf_name, ref (v, v.cf_type, None, None)) :: !props;
 				| Var { v_read = AccNormal; v_write = AccNormal } when Meta.has Meta.Event v.cf_meta ->
-					if v.cf_public then gen.gcon.error "@:event fields must be private" v.cf_pos;
-					v.cf_meta <- (Meta.SkipReflection, [], null_pos) :: v.cf_meta;
 					events := (v.cf_name, ref (v, v.cf_type, false, None, None)) :: !events;
 				| _ ->
 					nonprops := v :: !nonprops;
@@ -2521,7 +2519,6 @@ let configure gen =
 					let event = find_event (String.sub cf.cf_name 4 (String.length cf.cf_name - 4)) in
 					let v, t, _, add, remove = !event in
 					assert (add = None);
-					cf.cf_meta <- (Meta.Custom "?event_impl", [], null_pos) :: cf.cf_meta;
 					let custom = not (is_empty_function cf) in
 					event := (v, t, custom, Some cf, remove);
 					false
@@ -2530,7 +2527,6 @@ let configure gen =
 					let event = find_event (String.sub cf.cf_name 7 (String.length cf.cf_name - 7)) in
 					let v, t, _, add, remove = !event in
 					assert (remove = None);
-					cf.cf_meta <- (Meta.Custom "?event_impl", [], null_pos) :: cf.cf_meta;
 					let custom = not (is_empty_function cf) in
 					event := (v, t, custom, add, Some cf);
 					false
@@ -2541,25 +2537,11 @@ let configure gen =
 			let nonprops = ref nonprops in
 			List.iter (fun (n,r) ->
 				let ev, t, custom, add, remove = !r in
-				let tmeth = (tfun [t] basic.tvoid) in
 				match add, remove with
-				| None, _ ->
-					gen.gcon.error ("Missing event method add_" ^ n) ev.cf_pos;
-					failwith "Build failed"
-				| _, None ->
-					gen.gcon.error ("Missing event method remove_" ^ n) ev.cf_pos;
-					failwith "Build failed"
 				| Some add, Some remove ->
-					let check cf = try
-						type_eq EqStrict cf.cf_type tmeth
-					with Unify_error el ->
-						List.iter (fun e -> gen.gcon.error (Typecore.unify_error_msg (print_context()) e) cf.cf_pos) el;
-						failwith "Build failed";
-					in
-					check add;
-					check remove;
 					if custom && not cl.cl_interface then
 						nonprops := add :: remove :: !nonprops
+				| _ -> assert false (* shouldn't happen because Filters.check_cs_events makes sure methods are present *)
 			) events;
 
 			let evts = List.map (fun(_,v) -> !v) events in

@@ -811,6 +811,7 @@ private class EventClass implements IEventIface {
 	function remove_Event1(cb:Action_1<Int>) {}
 	function invokeEvent1(i) if (Event1 != null) Event1.Invoke(i);
 
+	@:keep
 	@:event private var Event2:Action_1<Int>;
 	var event2Counter = 0;
 	function add_Event2(cb:Action_1<Int>) event2Counter++;
@@ -821,6 +822,7 @@ private class EventClass implements IEventIface {
 	static function remove_SEvent1(cb:Action_1<Int>) {}
 	static function invokeSEvent1(i) if (SEvent1 != null) SEvent1.Invoke(i);
 
+	@:keep
 	@:event private static var SEvent2:Action_1<Int>;
 	static var sEvent2Counter = 0;
 	static function add_SEvent2(cb:Action_1<Int>) sEvent2Counter++;
