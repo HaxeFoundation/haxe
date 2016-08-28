@@ -910,7 +910,7 @@ module Dump = struct
 			(match mt with
 			| Type.TClassDecl c ->
 				let rec print_field stat f =
-					print "\t%s%s%s%s%s %s%s"
+					print "\n\t%s%s%s%s%s %s%s"
 						(s_metas f.cf_meta)
 						(if f.cf_public then "public " else "")
 						(if stat then "static " else "")
@@ -937,7 +937,7 @@ module Dump = struct
 							let args = slist (fun (v,o) -> Printf.sprintf "%s:%s%s" v.v_name (s_type v.v_type) (match o with None -> "" | Some c -> " = " ^ s_const c)) f.tf_args in
 							print "(%s):%s %s" args (s_type f.tf_type) (s_expr_pretty false "\t" s_type f.tf_expr)
 						| _ -> print " %s" (s_expr s_type e));
-					print "\n\n"; (* TODO: only one newline if last list entry *)
+					print "\n";
 					List.iter (fun f -> print_field stat f) f.cf_overloads
 				and s_metas ml =
 					match ml with
@@ -949,7 +949,7 @@ module Dump = struct
 				List.iter (fun (c,pl) -> print " implements %s" (s_type (TInst (c,pl)))) c.cl_implements;
 				(match c.cl_dynamic with None -> () | Some t -> print " implements Dynamic<%s>" (s_type t));
 				(match c.cl_array_access with None -> () | Some t -> print " implements ArrayAccess<%s>" (s_type t));
-				print "{\n";
+				print " {\n";
 				(match c.cl_constructor with
 				| None -> ()
 				| Some f -> print_field false f);
