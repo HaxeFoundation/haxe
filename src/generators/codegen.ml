@@ -976,8 +976,9 @@ module Dump = struct
 			| Type.TTypeDecl t ->
 				print "%s%stypedef %s%s = %s" (s_metas t.t_meta "") (if t.t_private then "private " else "") (s_type_path path) (params t.t_params) (s_type t.t_type);
 			| Type.TAbstractDecl a ->
-				print "%s%sabstract %s%s {}" (s_metas a.a_meta "") (if a.a_private then "private " else "") (s_type_path path) (params a.a_params)
-				(*(String.concat " from " (List.map (fun (t,cf) -> s_type t) a.a_from_field));*)
+				print "%s%sabstract %s%s%s%s {}" (s_metas a.a_meta "") (if a.a_private then "private " else "") (s_type_path path) (params a.a_params)
+				(String.concat " " (List.map (fun t -> " from " ^ s_type t) a.a_from))
+				(String.concat " " (List.map (fun t -> " to " ^ s_type t) a.a_to));
 			);
 			close();
 		) com.types
