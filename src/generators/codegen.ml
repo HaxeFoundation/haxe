@@ -920,7 +920,7 @@ module Dump = struct
 				let rec print_field stat f =
 					print "\n\t%s%s%s%s%s %s%s"
 						(s_metas f.cf_meta "\t")
-						(if f.cf_public then "public " else "")
+						(if (f.cf_public && not (c.cl_extern || c.cl_interface)) then "public " else "")
 						(if stat then "static " else "")
 						(match f.cf_kind with
 							| Var v -> ""
