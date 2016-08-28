@@ -908,9 +908,13 @@ module Dump = struct
 			let buf,close = create_dumpfile_from_path com path in
 			let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 			let s_metas ml tabs =
-					match ml with
+				let args el =
+					match el with
 					| [] -> ""
-					| ml -> String.concat " " (List.map (fun me -> match me with (m,_,_) -> "@" ^ Meta.to_string m) ml) ^ "\n" ^ tabs in
+					| el -> Printf.sprintf "(%s)" (String.concat ", " (List.map (fun e -> Ast.s_expr e) el)) in
+				match ml with
+				| [] -> ""
+				| ml -> String.concat " " (List.map (fun me -> match me with (m,el,_) -> "@" ^ Meta.to_string m ^ args el) ml) ^ "\n" ^ tabs in
 			(match mt with
 			| Type.TClassDecl c ->
 				let rec print_field stat f =
