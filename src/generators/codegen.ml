@@ -970,7 +970,10 @@ module Dump = struct
 				print "%s%s%senum %s%s {\n" (s_metas e.e_meta "") (if e.e_private then "private " else "") (if e.e_extern then "extern " else "") (s_type_path path) (params e.e_params);
 				List.iter (fun n ->
 					let f = PMap.find n e.e_constrs in
-					print "\t%s : %s;\n" f.ef_name (s_type f.ef_type);
+					print "\t%s%s;\n" f.ef_name (
+						match f.ef_type with
+						| TEnum _ -> ""
+						| _ -> "(" ^ (s_type f.ef_type) ^ ")");
 				) e.e_names;
 				print "}"
 			| Type.TTypeDecl t ->
