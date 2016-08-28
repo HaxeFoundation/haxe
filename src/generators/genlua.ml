@@ -296,6 +296,12 @@ let rec should_wrap_int_op ctx op e1 e2 =
 	    is_int_type ctx e1.etype && is_int_type ctx e2.etype
     | _ -> false
 
+let rec extract_expr e = match e.eexpr with
+    | TParenthesis e
+    | TMeta (_,e)
+    | TCast(e,_) -> extract_expr e
+    | _ -> e
+
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
 	| TFloat s -> spr ctx s
@@ -356,6 +362,8 @@ let rec gen_call ctx e el in_value =
 		spr ctx ")";
 	| TLocal { v_name = "__lua_length__" }, [e]->
 		spr ctx "#"; gen_value ctx e;
+	| TLocal { v_name = "__lua_table__" }, _ when not in_value ->
+		()
 	| TLocal { v_name = "__lua_table__" }, el ->
 		let count = ref 0 in
 		spr ctx "({";
@@ -1227,28 +1235,26 @@ and gen_tbinop ctx op e1 e2 =
 	    print ctx " .. ";
 	    gen_value ctx e2;
     | _ -> begin
-	    spr ctx "(";
-	    gen_value ctx e1;
-	    spr ctx ")";
+	    (* wrap expressions used in comparisons for lua *)
+	    gen_paren_tbinop ctx e1;
 	    (match op with
 		| Ast.OpNotEq -> print ctx " ~= ";
 		| Ast.OpBoolAnd -> print ctx " and ";
 		| Ast.OpBoolOr -> print ctx " or ";
 		| _ -> print ctx " %s " (Ast.s_binop op));
-	    spr ctx "(";
-	    gen_value ctx e2;
-	    spr ctx ")";
+	    gen_paren_tbinop ctx e2;
 	    end;
     );
 
-and gen_wrap_tbinop ctx e=
-    match e.eexpr with
+and gen_paren_tbinop ctx e =
+    let ee = extract_expr e in
+    match ee.eexpr with
     | TBinop _  ->
 	    spr ctx "(";
-	    gen_value ctx e;
+	    gen_value ctx ee;
 	    spr ctx ")";
     | _ ->
-	    gen_value ctx e
+	    gen_value ctx ee
 
 and gen_bitop ctx op e1 e2 =
     add_feature ctx "use._bitop";

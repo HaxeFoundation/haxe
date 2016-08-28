@@ -162,9 +162,6 @@ let rec func ctx bb tf t p =
 			bb_next,ec
 		(*| TTypeExpr(TClassDecl {cl_kind = KAbstractImpl a}) when not (Meta.has Meta.RuntimeValue a.a_meta) ->
 			error "Cannot use abstract as value" e.epos*)
-		| TTypeExpr(TClassDecl c) ->
-			List.iter (fun cf -> if not (Meta.has Meta.MaybeUsed cf.cf_meta) then cf.cf_meta <- (Meta.MaybeUsed,[],cf.cf_pos) :: cf.cf_meta;) c.cl_ordered_statics;
-			bb,e
 		| TConst _ | TTypeExpr _ ->
 			bb,e
 		| TThrow _ | TReturn _ | TBreak | TContinue ->
@@ -201,6 +198,7 @@ let rec func ctx bb tf t p =
 	and bind_to_temp bb sequential e =
 		let is_probably_not_affected e e1 fa = match fa with
 			| FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf) when cf.cf_kind = Method MethNormal -> true
+			| FStatic(_,{cf_kind = Method MethDynamic}) -> false
 			| FEnum _ -> true
 			| FDynamic ("cca" | "__Index" | "__s") -> true (* This is quite retarded, but we have to deal with this somehow... *)
 			| _ -> match follow e.etype,follow e1.etype with

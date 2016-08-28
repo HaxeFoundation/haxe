@@ -238,17 +238,25 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 	| _ ->
 		api_inline2 ctx.com c field params p
 
-let is_read_only_field_access fa = match fa with
+let is_read_only_field_access e fa = match fa with
 	| FEnum _ ->
 		true
 	| FDynamic _ ->
 		false
-	| FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf) ->
-		match cf.cf_kind with
+	| FAnon {cf_kind = Var {v_write = AccNo}} when (match e.eexpr with TLocal v when is_unbound v -> true | _ -> false) -> true
+	| FInstance (c,_,cf) | FStatic (c,cf) | FClosure (Some(c,_),cf) ->
+		begin match cf.cf_kind with
 			| Method MethDynamic -> false
 			| Method _ -> true
-			| Var {v_write = AccNever | AccNo} -> true
+			| Var {v_write = AccNever} when not c.cl_interface -> true
 			| _ -> false
+		end
+	| FAnon cf | FClosure(None,cf) ->
+		begin match cf.cf_kind with
+			| Method MethDynamic -> false
+			| Method _ -> true
+			| _ -> false
+		end
 
 let create_affection_checker () =
 	let modified_locals = Hashtbl.create 0 in
@@ -256,7 +264,7 @@ let create_affection_checker () =
 		let rec loop e = match e.eexpr with
 			| TConst _ | TFunction _ | TTypeExpr _ -> ()
 			| TLocal v when Hashtbl.mem modified_locals v.v_id -> raise Exit
-			| TField(_,fa) when not (is_read_only_field_access fa) -> raise Exit
+			| TField(e1,fa) when not (is_read_only_field_access e1 fa) -> raise Exit
 			| _ -> Type.iter loop e
 		in
 		try

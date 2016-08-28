@@ -29,56 +29,56 @@ extern class Math
 	static var PI(default,null) : Float;
 
 	static var NEGATIVE_INFINITY(get, null) : Float;
-	private static inline function get_NEGATIVE_INFINITY () : Float {
+	@:pure private static inline function get_NEGATIVE_INFINITY () : Float {
 		return -(untyped __js__("Infinity"));
 	}
 
 	static var POSITIVE_INFINITY(get,null) : Float;
-	private static inline function get_POSITIVE_INFINITY () : Float {
+	@:pure private static inline function get_POSITIVE_INFINITY () : Float {
 		return (untyped __js__("Infinity"));
 	}
 
 	static var NaN(get, null) : Float;
-	private static inline function get_NaN () : Float {
+	@:pure private static inline function get_NaN () : Float {
 		return (untyped __js__("NaN"));
 	}
 
-	static function abs(v:Float):Float;
-	static function acos(v:Float):Float;
-	static function asin(v:Float):Float;
-	static function atan(v:Float):Float;
-	static function atan2(y:Float, x:Float):Float;
-	static function ceil(v:Float):Int;
-	static function cos(v:Float):Float;
-	static function exp(v:Float):Float;
-	static function floor(v:Float):Int;
-	static function log(v:Float):Float;
-	static function max(a:Float, b:Float):Float;
-	static function min(a:Float, b:Float):Float;
-	static function pow(v:Float, exp:Float):Float;
+	@:pure static function abs(v:Float):Float;
+	@:pure static function acos(v:Float):Float;
+	@:pure static function asin(v:Float):Float;
+	@:pure static function atan(v:Float):Float;
+	@:pure static function atan2(y:Float, x:Float):Float;
+	@:pure static function ceil(v:Float):Int;
+	@:pure static function cos(v:Float):Float;
+	@:pure static function exp(v:Float):Float;
+	@:pure static function floor(v:Float):Int;
+	@:pure static function log(v:Float):Float;
+	@:pure static function max(a:Float, b:Float):Float;
+	@:pure static function min(a:Float, b:Float):Float;
+	@:pure static function pow(v:Float, exp:Float):Float;
 	static function random() : Float;
-	static function round(v:Float):Int;
-	static function sin(v:Float):Float;
-	static function sqrt(v:Float):Float;
-	static function tan(v:Float):Float;
+	@:pure static function round(v:Float):Int;
+	@:pure static function sin(v:Float):Float;
+	@:pure static function sqrt(v:Float):Float;
+	@:pure static function tan(v:Float):Float;
 
-	static inline function ffloor( v : Float ) : Float {
+	@:pure static inline function ffloor( v : Float ) : Float {
 		return floor(v);
 	}
 
-	static inline function fceil( v : Float ) : Float {
+	@:pure static inline function fceil( v : Float ) : Float {
 		return ceil(v);
 	}
 
-	static inline function fround( v : Float ) : Float {
+	@:pure static inline function fround( v : Float ) : Float {
 		return round(v);
 	}
 
-	static inline function isFinite( f : Float ) : Bool {
+	@:pure static inline function isFinite( f : Float ) : Bool {
 		return (untyped __js__("isFinite"))(f);
 	}
 
-	static inline function isNaN( f : Float ) : Bool {
+	@:pure static inline function isNaN( f : Float ) : Bool {
 		return (untyped __js__("isNaN"))(f);
 	}
 
