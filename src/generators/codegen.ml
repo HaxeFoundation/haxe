@@ -975,8 +975,9 @@ module Dump = struct
 					let f = PMap.find n e.e_constrs in
 					print "\t%s%s;\n" f.ef_name (
 						match f.ef_type with
-						| TEnum _ -> ""
-						| _ -> "(" ^ (s_type f.ef_type) ^ ")");
+						| TFun (al,t) -> Printf.sprintf "(%s)" (String.concat ", "
+							(List.map (fun (n,o,t) -> n ^ ":" ^ (if o then "?" else "") ^ (s_type t)) al))
+						| _ -> "")
 				) e.e_names;
 				print "}"
 			| Type.TTypeDecl t ->
