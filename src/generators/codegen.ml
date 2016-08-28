@@ -931,7 +931,10 @@ module Dump = struct
 								| MethInline -> "inline "
 								| MethMacro -> "macro ")
 						(match f.cf_kind with Var v -> "var" | Method m -> "function")
-						(f.cf_name ^ match f.cf_kind with Var v -> s_kind f.cf_kind | _ -> "")
+						(f.cf_name ^ match f.cf_kind with 
+							| Var { v_read = AccNormal; v_write = AccNormal } -> ""
+							| Var v -> "(" ^ s_access true v.v_read ^ "," ^ s_access false v.v_write ^ ")"
+							| _ -> "")
 						(params f.cf_params);
 					match f.cf_kind with
 						| Var v -> print ":%s;\n" (s_type f.cf_type)
