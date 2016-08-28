@@ -21,7 +21,7 @@ open Ast
 open Type
 open Common
 
-let s_expr_pretty e = s_expr_pretty false "" (s_type (print_context())) e
+let s_expr_pretty e = s_expr_pretty false "" false (s_type (print_context())) e
 
 let rec is_true_expr e1 = match e1.eexpr with
 	| TConst(TBool true) -> true
@@ -624,7 +624,7 @@ module Fusion = struct
 				let blocked = ref false in
 				let ir = InterferenceReport.from_texpr e1 in
 				if config.fusion_debug then print_endline (Printf.sprintf "\tInterferenceReport: %s\n\t%s"
-					 (InterferenceReport.to_string ir) (Type.s_expr_pretty true "\t" (s_type (print_context())) (mk (TBlock el) t_dynamic null_pos)));
+					 (InterferenceReport.to_string ir) (Type.s_expr_pretty true "\t" false (s_type (print_context())) (mk (TBlock el) t_dynamic null_pos)));
 				(* This function walks the AST in order of evaluation and tries to find an occurrence of v1. If successful, that occurrence is
 				   replaced with e1. If there's an interference "on the way" the replacement is canceled. *)
 				let rec replace e =

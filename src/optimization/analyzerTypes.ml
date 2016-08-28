@@ -111,7 +111,7 @@ module BasicBlock = struct
 		| CFGGoto -> "CFGGoto"
 		| CFGFunction -> "CFGFunction"
 		| CFGMaybeThrow -> "CFGMaybeThrow"
-		| CFGCondBranch e -> "CFGCondBranch " ^ (s_expr_pretty false "" (s_type (print_context())) e)
+		| CFGCondBranch e -> "CFGCondBranch " ^ (s_expr_pretty false "" false (s_type (print_context())) e)
 		| CFGCondElse -> "CFGCondElse"
 
 	let has_flag edge flag =

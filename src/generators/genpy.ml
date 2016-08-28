@@ -124,12 +124,12 @@ module Transformer = struct
 
 	and debug_expr e =
 		let s_type = Type.s_type (print_context()) in
-		let s = Type.s_expr_pretty false "    " s_type e in
+		let s = Type.s_expr_pretty false "    " false s_type e in
 		Printf.printf "%s\n" s
 
 	and debug_expr_with_type e =
 		let s_type = Type.s_type (print_context()) in
-		let es = Type.s_expr_pretty false "    " s_type e in
+		let es = Type.s_expr_pretty false "    " false s_type e in
 		let t = s_type e.etype in
 		Printf.printf "%s : %s\n" es t
 
