@@ -1053,9 +1053,9 @@ let rec s_expr s_type e =
 	) in
 	sprintf "(%s : %s)" str (s_type e.etype)
 
-let rec s_expr_pretty print_var_ids tabs s_type e =
+let rec s_expr_pretty print_var_ids tabs top_level s_type e =
 	let sprintf = Printf.sprintf in
-	let loop = s_expr_pretty print_var_ids tabs s_type in
+	let loop = s_expr_pretty print_var_ids tabs false s_type in
 	let slist f l = String.concat "," (List.map f l) in
 	let local v = if print_var_ids then sprintf "%s<%i>" v.v_name v.v_id else v.v_name in
 	match e.eexpr with
@@ -1078,13 +1078,12 @@ let rec s_expr_pretty print_var_ids tabs s_type e =
 		| Postfix -> sprintf "%s %s" (loop e) (s_unop op))
 	| TFunction f ->
 		let args = slist (fun (v,o) -> sprintf "%s:%s%s" (local v) (s_type v.v_type) (match o with None -> "" | Some c -> " = " ^ s_const c)) f.tf_args in
-		(* need to omit "function" if top-level - this is pretty hacky... *)
-		sprintf "%s(%s) %s" (if (String.length tabs == 1) then "" else "function") args (loop f.tf_expr)
+		sprintf "%s(%s) %s" (if top_level then "" else "function") args (loop f.tf_expr)
 	| TVar (v,eo) ->
 		sprintf "var %s" (sprintf "%s%s" (local v) (match eo with None -> "" | Some e -> " = " ^ loop e))
 	| TBlock el ->
 		let ntabs = tabs ^ "\t" in
-		let s = sprintf "{\n%s" (String.concat "" (List.map (fun e -> sprintf "%s%s;\n" ntabs (s_expr_pretty print_var_ids ntabs s_type e)) el)) in
+		let s = sprintf "{\n%s" (String.concat "" (List.map (fun e -> sprintf "%s%s;\n" ntabs (s_expr_pretty print_var_ids ntabs top_level s_type e)) el)) in
 		s ^ tabs ^ "}"
 	| TFor (v,econd,e) ->
 		sprintf "for (%s in %s) %s" (local v) (loop econd) (loop e)
@@ -1096,7 +1095,7 @@ let rec s_expr_pretty print_var_ids tabs s_type e =
 		| DoWhile -> sprintf "do (%s) while(%s)" (loop e) (loop econd))
 	| TSwitch (e,cases,def) ->
 		let ntabs = tabs ^ "\t" in
-		let s = sprintf "switch (%s) {\n%s%s" (loop e) (slist (fun (cl,e) -> sprintf "%scase %s: %s\n" ntabs (slist loop cl) (s_expr_pretty print_var_ids ntabs s_type e)) cases) (match def with None -> "" | Some e -> ntabs ^ "default: " ^ (s_expr_pretty print_var_ids ntabs s_type e) ^ "\n") in
+		let s = sprintf "switch (%s) {\n%s%s" (loop e) (slist (fun (cl,e) -> sprintf "%scase %s: %s\n" ntabs (slist loop cl) (s_expr_pretty print_var_ids ntabs top_level s_type e)) cases) (match def with None -> "" | Some e -> ntabs ^ "default: " ^ (s_expr_pretty print_var_ids ntabs top_level s_type e) ^ "\n") in
 		s ^ tabs ^ "}"
 	| TTry (e,cl) ->
 		sprintf "try %s%s" (loop e) (slist (fun (v,e) -> sprintf "catch( %s : %s ) %s" (local v) (s_type v.v_type) (loop e)) cl)

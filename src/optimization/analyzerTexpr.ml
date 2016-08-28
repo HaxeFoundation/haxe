@@ -21,7 +21,7 @@ open Ast
 open Type
 open Common
 
-let s_expr_pretty e = s_expr_pretty false "" (s_type (print_context())) e
+let s_expr_pretty e = s_expr_pretty false "" false (s_type (print_context())) e
 
 let rec is_true_expr e1 = match e1.eexpr with
 	| TConst(TBool true) -> true

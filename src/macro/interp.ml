@@ -2467,7 +2467,7 @@ let macro_lib =
 			VString (Type.s_type (print_context()) (decode_type v))
 		);
 		"s_expr", Fun2 (fun v b ->
-			let f = match b with VBool true -> Type.s_expr_pretty false "" | _ -> Type.s_expr_ast true "" in
+			let f = match b with VBool true -> Type.s_expr_pretty false "" false | _ -> Type.s_expr_ast true "" in
 			VString (f (Type.s_type (print_context())) (decode_texpr v))
 		);
 		"is_fmt_string", Fun1 (fun v ->
