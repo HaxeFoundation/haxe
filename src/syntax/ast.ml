@@ -155,7 +155,6 @@ module Meta = struct
 		| Require
 		| RequiresAssign
 		| Resolve
-		| ReplaceReflection
 		| Rtti
 		| Runtime
 		| RuntimeValue

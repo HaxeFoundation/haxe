@@ -18,6 +18,7 @@ exception DisplayPosition of Ast.pos list
 exception DisplaySubExpression of Ast.expr
 exception DisplayFields of (string * t * display_field_kind option * documentation) list
 exception DisplayToplevel of IdentifierType.t list
+exception DisplayPackage of string list
 
 let is_display_file file =
 	file <> "?" && Common.unique_full_path file = (!Parser.resume_display).pfile

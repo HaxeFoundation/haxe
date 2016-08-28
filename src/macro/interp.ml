@@ -1781,10 +1781,7 @@ let std_lib =
 			match com.main_class with
 			| None -> error()
 			| Some p ->
-				let path_s path =
-					match path with | ([], s) -> s | (p, s) -> (String.concat "." (fst path)) ^ "." ^ (snd path)
-				in
-				match ctx.curapi.get_type (path_s p) with
+				match ctx.curapi.get_type (Ast.s_type_path p) with
 				| Some(TInst (c, _)) ->
 					VString (Extc.get_full_path c.cl_pos.Ast.pfile)
 				| _ -> error();
@@ -2470,7 +2467,7 @@ let macro_lib =
 			VString (Type.s_type (print_context()) (decode_type v))
 		);
 		"s_expr", Fun2 (fun v b ->
-			let f = match b with VBool true -> Type.s_expr_pretty false "" | _ -> Type.s_expr_ast true "" in
+			let f = match b with VBool true -> Type.s_expr_pretty false "" false | _ -> Type.s_expr_ast true "" in
 			VString (f (Type.s_type (print_context())) (decode_texpr v))
 		);
 		"is_fmt_string", Fun1 (fun v ->

@@ -25,10 +25,16 @@ open Typecore
 (* ---------------------------------------------------------------------- *)
 (* API OPTIMIZATIONS *)
 
+let has_pure_meta meta = Meta.has Meta.Pure meta
+
+let is_pure c cf = has_pure_meta c.cl_meta || has_pure_meta cf.cf_meta
+
 let field_call_has_side_effect f e1 fa el =
-	begin match extract_field fa with
-		| Some cf when Meta.has Meta.Pure cf.cf_meta -> ()
-		| _ -> raise Exit
+	begin match fa with
+	| FInstance(c,_,cf) | FStatic(c,cf) | FClosure(Some(c,_),cf) when is_pure c cf -> ()
+	| FAnon cf | FClosure(None,cf) when has_pure_meta cf.cf_meta -> ()
+	| FEnum _ -> ()
+	| _ -> raise Exit
 	end;
 	f e1;
 	List.iter f el
@@ -40,6 +46,7 @@ let has_side_effect e =
 		| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ -> ()
 		| TCall ({ eexpr = TField(_,FStatic({ cl_path = ([],"Std") },{ cf_name = "string" })) },args) -> Type.iter loop e
 		| TCall({eexpr = TField(e1,fa)},el) -> field_call_has_side_effect loop e1 fa el
+		| TNew(c,_,el) when (match c.cl_constructor with Some cf when is_pure c cf -> true | _ -> false) -> List.iter loop el
 		| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
 		| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
 		| TArray _ | TEnumParameter _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _ | TFor _
@@ -231,12 +238,25 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 	| _ ->
 		api_inline2 ctx.com c field params p
 
-let rec is_affected_type t = match follow t with
-	| TAbstract({a_path = [],("Int" | "Float" | "Bool")},_) -> true
-	| TAbstract({a_path = ["haxe"],("Int64" | "Int32")},_) -> true
-	| TAbstract(a,tl) -> is_affected_type (Abstract.get_underlying_type a tl)
-	| TDynamic _ -> true (* sadly *)
-	| _ -> false
+let is_read_only_field_access e fa = match fa with
+	| FEnum _ ->
+		true
+	| FDynamic _ ->
+		false
+	| FAnon {cf_kind = Var {v_write = AccNo}} when (match e.eexpr with TLocal v when is_unbound v -> true | _ -> false) -> true
+	| FInstance (c,_,cf) | FStatic (c,cf) | FClosure (Some(c,_),cf) ->
+		begin match cf.cf_kind with
+			| Method MethDynamic -> false
+			| Method _ -> true
+			| Var {v_write = AccNever} when not c.cl_interface -> true
+			| _ -> false
+		end
+	| FAnon cf | FClosure(None,cf) ->
+		begin match cf.cf_kind with
+			| Method MethDynamic -> false
+			| Method _ -> true
+			| _ -> false
+		end
 
 let create_affection_checker () =
 	let modified_locals = Hashtbl.create 0 in
@@ -244,7 +264,7 @@ let create_affection_checker () =
 		let rec loop e = match e.eexpr with
 			| TConst _ | TFunction _ | TTypeExpr _ -> ()
 			| TLocal v when Hashtbl.mem modified_locals v.v_id -> raise Exit
-			| TField _ when is_affected_type e.etype -> raise Exit
+			| TField(e1,fa) when not (is_read_only_field_access e1 fa) -> raise Exit
 			| _ -> Type.iter loop e
 		in
 		try
@@ -254,9 +274,9 @@ let create_affection_checker () =
 			true
 	in
 	let rec collect_modified_locals e = match e.eexpr with
-		| TUnop((Increment | Decrement),_,{eexpr = TLocal v}) when is_affected_type v.v_type ->
+		| TUnop((Increment | Decrement),_,{eexpr = TLocal v}) ->
 			Hashtbl.add modified_locals v.v_id true
-		| TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal v},e2) when is_affected_type v.v_type ->
+		| TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal v},e2) ->
 			collect_modified_locals e2;
 			Hashtbl.add modified_locals v.v_id true
 		| _ ->
@@ -400,6 +420,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			had_side_effect := true;
 			l.i_force_temp <- true;
 		end;
+		if l.i_abstract_this then l.i_subst.v_extra <- Some ([],Some e);
 		l, e
 	) (ethis :: loop params f.tf_args true) ((vthis,None) :: f.tf_args) in
 	List.iter (fun (l,e) ->
@@ -999,7 +1020,7 @@ let sanitize_expr com e =
 			match ee.eexpr with
 			| TBinop (op2,_,_) -> if left then not (swap op2 op) else swap op op2
 			| TIf _ -> if left then not (swap (OpAssignOp OpAssign) op) else swap op (OpAssignOp OpAssign)
-			| TCast (e,None) -> loop e left
+			| TCast (e,None) | TMeta (_,e) -> loop e left
 			| _ -> false
 		in
 		let e1 = if loop e1 true then parent e1 else e1 in
@@ -1009,7 +1030,7 @@ let sanitize_expr com e =
 		let rec loop ee =
 			match ee.eexpr with
 			| TBinop _ | TIf _ | TUnop _ -> parent e1
-			| TCast (e,None) -> loop e
+			| TCast (e,None) | TMeta (_, e) -> loop e
 			| _ -> e1
 		in
 		{ e with eexpr = TUnop (op,mode,loop e1)}
@@ -1546,7 +1567,7 @@ let inline_constructors ctx e =
 		 try
 			let v = get_field_var v name in
 			let e1 = mk (TLocal v) t p in
-			{e with eexpr = TBinop(OpAssign,e1,e2)}
+			mk (TBinop(OpAssign,e1,e2)) e1.etype p
 		with Not_found ->
 			let v = add_field_var v name t in
 			mk (TVar(v,Some e2)) ctx.t.tvoid e.epos

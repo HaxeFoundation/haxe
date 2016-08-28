@@ -2044,7 +2044,13 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			| _ ->
 				(* this must be an abstract cast *)
 				check_assign ctx e;
-				eop)
+				if has_side_effect then
+					mk (TBlock [
+						mk (TVar(v,Some e)) ctx.t.tvoid eop.epos;
+						eop
+					]) eop.etype eop.epos
+				else
+					eop)
 		| AKSet (e,t,cf) ->
 			let l = save_locals ctx in
 			let v = gen_local ctx e.etype e.epos in
@@ -3860,7 +3866,7 @@ and handle_display ctx e_ast iscall with_type =
 			f
 	in
 	match ctx.com.display with
-	| DMResolve _ ->
+	| DMResolve _ | DMPackage ->
 		assert false
 	| DMType ->
 		let t = match e.eexpr with
@@ -5227,6 +5233,8 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			);
 		);
 		ctx.m.curmod.m_extra.m_time <- -1.; (* disable caching for modules having macro-in-macro *)
+		if Common.defined ctx.com Define.MacroDebug then
+			ctx.com.warning "Macro-in-macro call detected" p;
 		let e = (EConst (Ident "__dollar__delay_call"),p) in
 		Some (EUntyped (ECall (e,[EConst (Int (string_of_int pos)),p]),p),p)
 	end else

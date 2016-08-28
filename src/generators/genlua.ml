@@ -296,6 +296,12 @@ let rec should_wrap_int_op ctx op e1 e2 =
 	    is_int_type ctx e1.etype && is_int_type ctx e2.etype
     | _ -> false
 
+let rec extract_expr e = match e.eexpr with
+    | TParenthesis e
+    | TMeta (_,e)
+    | TCast(e,_) -> extract_expr e
+    | _ -> e
+
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
 	| TFloat s -> spr ctx s
@@ -354,6 +360,10 @@ let rec gen_call ctx e el in_value =
 		spr ctx "(";
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")";
+	| TLocal { v_name = "__lua_length__" }, [e]->
+		spr ctx "#"; gen_value ctx e;
+	| TLocal { v_name = "__lua_table__" }, _ when not in_value ->
+		()
 	| TLocal { v_name = "__lua_table__" }, el ->
 		let count = ref 0 in
 		spr ctx "({";
@@ -431,6 +441,7 @@ let rec gen_call ctx e el in_value =
 		if Hashtbl.mem kwds s || not (valid_lua_ident s) then begin
 		    match e.eexpr with
 		    |TNew _-> (
+			add_feature ctx "use._hx_apply_self";
 			spr ctx "_hx_apply_self(";
 			gen_value ctx e;
 			print ctx ",\"%s\"" (field_name ef);
@@ -728,7 +739,7 @@ and gen_expr ?(local=true) ctx e = begin
 		println ctx "end";
 		spr ctx "break end";
 	| TObjectDecl [] ->
-		spr ctx "_hx_empty()";
+		spr ctx "_hx_e()";
 		ctx.separator <- true
 	| TObjectDecl fields ->
 		spr ctx "_hx_o({__fields__={";
@@ -1017,6 +1028,7 @@ and gen_value ctx e =
 	(* TODO: this is just a hack because this specific case is a TestReflect unit test. I don't know how to address this properly
 	   at the moment. - Simon *)
 	| TCast ({ eexpr = TTypeExpr mt } as e1, None) when (match mt with TClassDecl {cl_path = ([],"Array")} -> false | _ -> true) ->
+	    add_feature ctx "use._hx_staticToInstance";
 	    spr ctx "_hx_staticToInstance(";
 	    gen_expr ctx e1;
 	    spr ctx ")";
@@ -1139,13 +1151,15 @@ and gen_tbinop ctx op e1 e2 =
 	    | TField(e3, FInstance _ ), TField(e4, FClosure _ )  ->
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
-		spr ctx "_hx_functionToInstanceFunction(";
+		add_feature ctx "use._hx_funcToField";
+		spr ctx "_hx_funcToField(";
 		gen_value ctx e2;
 		spr ctx ")";
 	    | TField(_, FInstance _ ), TLocal t  when (is_function_type ctx t.v_type)   ->
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
-		spr ctx "_hx_functionToInstanceFunction(";
+		add_feature ctx "use._hx_funcToField";
+		spr ctx "_hx_funcToField(";
 		gen_value ctx e2;
 		spr ctx ")";
 	    | _ ->
@@ -1221,28 +1235,26 @@ and gen_tbinop ctx op e1 e2 =
 	    print ctx " .. ";
 	    gen_value ctx e2;
     | _ -> begin
-	    spr ctx "(";
-	    gen_value ctx e1;
-	    spr ctx ")";
+	    (* wrap expressions used in comparisons for lua *)
+	    gen_paren_tbinop ctx e1;
 	    (match op with
 		| Ast.OpNotEq -> print ctx " ~= ";
 		| Ast.OpBoolAnd -> print ctx " and ";
 		| Ast.OpBoolOr -> print ctx " or ";
 		| _ -> print ctx " %s " (Ast.s_binop op));
-	    spr ctx "(";
-	    gen_value ctx e2;
-	    spr ctx ")";
+	    gen_paren_tbinop ctx e2;
 	    end;
     );
 
-and gen_wrap_tbinop ctx e=
-    match e.eexpr with
+and gen_paren_tbinop ctx e =
+    let ee = extract_expr e in
+    match ee.eexpr with
     | TBinop _  ->
 	    spr ctx "(";
-	    gen_value ctx e;
+	    gen_value ctx ee;
 	    spr ctx ")";
     | _ ->
-	    gen_value ctx e
+	    gen_value ctx ee
 
 and gen_bitop ctx op e1 e2 =
     add_feature ctx "use._bitop";
@@ -1490,7 +1502,7 @@ let generate_class ctx c =
 
 	newline ctx;
 	if (has_prototype ctx c) then begin
-		print ctx "%s.prototype = _hx_anon(" p;
+		print ctx "%s.prototype = _hx_a(" p;
 		let bend = open_block ctx in
 		newline ctx;
 		let count = ref 0 in
@@ -1663,14 +1675,14 @@ let generate_type_forward ctx = function
 		if not c.cl_extern then begin
 		    generate_package_create ctx c.cl_path;
 		    let p = s_path ctx c.cl_path in
-		    println ctx "%s = _hx_empty()" p;
+		    println ctx "%s = _hx_e()" p;
 		end
 	| TEnumDecl e when e.e_extern ->
 		()
 	| TEnumDecl e ->
 		generate_package_create ctx e.e_path;
 		let p = s_path ctx e.e_path in
-		println ctx "%s = _hx_empty()" p;
+		println ctx "%s = _hx_e()" p;
 	| TTypeDecl _ | TAbstractDecl _ -> ()
 
 let set_current_class ctx c =
@@ -1781,7 +1793,7 @@ let generate com =
 
 	let rec print_obj f root = (
 		let path = root ^ (path_to_brackets f.os_name) in
-		print ctx "%s = %s or _hx_empty()" path path;
+		print ctx "%s = %s or _hx_e()" path path;
 		ctx.separator <- true;
 		newline ctx;
 		concat ctx ";" (fun g -> print_obj g path) f.os_fields
@@ -1806,7 +1818,7 @@ let generate com =
 	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
 	(* Generate some dummy placeholders for utility libs that may be required*)
-	println ctx "local _hx_bind,_hx_bit";
+	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self";
 
 	if has_feature ctx "use._bitop" || has_feature ctx "lua.Boot.clamp" then begin
 	    println ctx "pcall(require, 'bit32') pcall(require, 'bit')";
@@ -1866,7 +1878,74 @@ let generate com =
 		add_feature ctx "use._hx_bind";
 		println ctx "function _hx_iterator(o)  if ( lua.Boot.__instanceof(o, Array) ) then return function() return HxOverrides.iter(o) end elseif (typeof(o.iterator) == 'function') then return  _hx_bind(o,o.iterator) else return  o.iterator end end";
 	end;
-	if has_feature ctx "use._hx_bind" then println ctx "_hx_bind = lua.Boot.bind";
+
+	if has_feature ctx "use._hx_bind" then begin
+	    println ctx "_hx_bind = function(o,m)";
+	    println ctx "  if m == nil then return nil end;";
+	    println ctx "  local f;";
+	    println ctx "  if o._hx__closures == nil then";
+	    println ctx "    _G.rawset(o, '_hx__closures', {});";
+	    println ctx "  else ";
+	    println ctx "    f = o._hx__closures[m];";
+	    println ctx "  end";
+	    println ctx "  if (f == nil) then";
+	    println ctx "    f = function(...) return m(o, ...) end;";
+	    println ctx "    o._hx__closures[m] = f;";
+	    println ctx "  end";
+	    println ctx "  return f;";
+	    println ctx "end";
+	end;
+
+	if has_feature ctx "use._hx_staticToInstance" then begin
+	    println ctx "_hx_staticToInstance = function (tab)";
+	    println ctx "  return setmetatable({}, {";
+	    println ctx "    __index = function(t,k)";
+	    println ctx "      if type(rawget(tab,k)) == 'function' then ";
+	    println ctx "	return function(self,...)";
+	    println ctx "	  return rawget(tab,k)(...)";
+	    println ctx "	end";
+	    println ctx "      else";
+	    println ctx "	return rawget(tab,k)";
+	    println ctx "      end";
+	    println ctx "    end";
+	    println ctx "  })";
+	    println ctx "end";
+	end;
+
+	if has_feature ctx "use._hx_funcToField" then begin
+	    println ctx "_hx_funcToField = function(f)";
+	    println ctx "  if type(f) == 'function' then ";
+	    println ctx "    return function(self,...) ";
+	    println ctx "      return f(...) ";
+	    println ctx "    end";
+	    println ctx "  else ";
+	    println ctx "    return f";
+	    println ctx "  end";
+	    println ctx "end";
+	end;
+
+	if has_feature ctx "Math.random" then begin
+	    println ctx "_G.math.randomseed(_G.os.time());"
+	end;
+
+	if has_feature ctx "use._hx_maxn" then begin
+	    println ctx "_hx_maxn = table.maxn or function(t)";
+	    println ctx "  local maxn=0;";
+	    println ctx "  for i in pairs(t) do";
+	    println ctx "    maxn=type(i)=='number'and i>maxn and i or maxn";
+	    println ctx "  end";
+	    println ctx "  return maxn";
+	    println ctx "end;";
+	end;
+
+	if has_feature ctx "use._hx_print" then
+	    println ctx "_hx_print = print or (function() end)";
+
+	if has_feature ctx "use._hx_apply_self" then begin
+	    println ctx "_hx_apply_self = function(self, f, ...)";
+	    println ctx "  return self[f](self,...)";
+	    println ctx "end";
+	end;
 
 
 	List.iter (generate_enumMeta_fields ctx) com.types;

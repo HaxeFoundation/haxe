@@ -361,7 +361,7 @@ class Test {
 		#if ( (neko || (php && (travis || appveyor || php_sqlite)) || java || cpp || (cs && (travis || appveyor))) && !macro && !interp)
 		#if ( (travis || appveyor) && !(cpp || cs) )
 		classes.push(new TestSpod(sys.db.Mysql.connect({
-			host : "localhost",
+			host : "127.0.0.1",
 			user : "travis",
 			pass : "",
 			port : 3306,

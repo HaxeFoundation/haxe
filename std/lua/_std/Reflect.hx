@@ -81,23 +81,16 @@ import lua.Boot;
 			}
 			return if (self_arg){
 				// call with o as leading self param
-				func(o, lua.Table.unpack(new_args, 1, lua.Table.maxn(new_args)));
+				func(o, lua.Table.unpack(new_args, 1, Boot.tableMaxN(new_args)));
 			} else {
 				// call with no self param
-				func(lua.Table.unpack(new_args, 1, lua.Table.maxn(new_args)));
+				func(lua.Table.unpack(new_args, 1,  Boot.tableMaxN(new_args)));
 			}
 		}
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> {
-		var ret = new Array<String>();
-		var fields = lua.Boot.hiddenFields;
-		if (untyped o.__fields__ != null) {
-			untyped __lua__("for k,_ in pairs(o.__fields__) do if fields:indexOf(k) == -1 then ret:push(k) end end");
-		} else {
-			untyped __lua__("for k,_ in pairs(o) do if fields:indexOf(k) == -1 then ret:push(k) end end");
-		}
-		return ret;
+		return [for (f in lua.Boot.fieldIterator(o)) f];
 	}
 
 	public static function isFunction( f : Dynamic ) : Bool {

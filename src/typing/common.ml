@@ -97,6 +97,7 @@ type display_mode =
 	| DMPosition
 	| DMToplevel
 	| DMResolve of string
+	| DMPackage
 	| DMType
 	| DMModuleSymbols
 	| DMDiagnostics
@@ -270,6 +271,7 @@ module Define = struct
 		| LuaVer
 		| LuaJit
 		| Macro
+		| MacroDebug
 		| MacroTimes
 		| NekoSource
 		| NekoV1
@@ -362,6 +364,7 @@ module Define = struct
 		| LuaJit -> ("lua_jit","Enable the jit compiler for lua (version 5.2 only")
 		| LuaVer -> ("lua_ver","The lua version to target")
 		| Macro -> ("macro","Defined when code is compiled in the macro context")
+		| MacroDebug -> ("macro_debug","Show warnings for potential macro problems (e.g. macro-in-macro calls)")
 		| MacroTimes -> ("macro_times","Display per-macro timing when used with --times")
 		| NetVer -> ("net_ver", "<version:20-45> Sets the .NET version to be targeted")
 		| NetTarget -> ("net_target", "<name> Sets the .NET target. Defaults to \"net\". xbox, micro (Micro Framework), compact (Compact Framework) are some valid values")
@@ -460,7 +463,7 @@ module MetaInfo = struct
 		| Dce -> ":dce",("Forces dead code elimination even when -dce full is not specified",[UsedOnEither [TClass;TEnum]])
 		| Debug -> ":debug",("Forces debug information to be generated into the Swf even without -debug",[UsedOnEither [TClass;TClassField]; Platform Flash])
 		| Decl -> ":decl",("",[Platform Cpp])
-		| DefParam -> ":defParam",("?",[])
+		| DefParam -> ":defParam",("Default function argument value loaded from the SWF and used for documentation in Genxml",[Platform Flash;Internal])
 		| Delegate -> ":delegate",("Automatically added by -net-lib on delegates",[Platform Cs; UsedOn TAbstract])
 		| Depend -> ":depend",("",[Platform Cpp])
 		| Deprecated -> ":deprecated",("Mark a type or field as deprecated",[])
@@ -502,7 +505,7 @@ module MetaInfo = struct
 		| PythonImport -> ":pythonImport",("Generates python import statement for extern classes",[Platforms [Python]; UsedOn TClass])
 		| ImplicitCast -> ":implicitCast",("Generated automatically on the AST when an implicit abstract cast happens",[Internal; UsedOn TExpr])
 		| Include -> ":include",("",[Platform Cpp])
-		| InitPackage -> ":initPackage",("?",[])
+		| InitPackage -> ":initPackage",("Some weird thing for Genjs we want to remove someday",[Internal; Platform Js])
 		| InlineConstructorVariable -> ":inlineConstructorVariable",("Internally used to mark variables that come from inlined constructors",[Internal])
 		| Meta.Internal -> ":internal",("Generates the annotated field/class with 'internal' access",[Platforms [Java;Cs]; UsedOnEither[TClass;TEnum;TClassField]])
 		| IsVar -> ":isVar",("Forces a physical field to be generated for properties that otherwise would not require one",[UsedOn TClassField])
@@ -556,7 +559,6 @@ module MetaInfo = struct
 		| Require -> ":require",("Allows access to a field only if the specified compiler flag is set",[HasParam "Compiler flag to check";UsedOn TClassField])
 		| RequiresAssign -> ":requiresAssign",("Used internally to mark certain abstract operator overloads",[Internal])
 		| Resolve -> ":resolve",("Abstract fields marked with this metadata can be used to resolve unknown fields",[UsedOn TClassField])
-		| ReplaceReflection -> ":replaceReflection",("Used internally to specify a function that should replace its internal __hx_functionName counterpart",[Platforms [Java;Cs]; UsedOnEither[TClass;TEnum]; Internal])
 		| Rtti -> ":rtti",("Adds runtime type informations",[UsedOn TClass])
 		| Runtime -> ":runtime",("?",[])
 		| RuntimeValue -> ":runtimeValue",("Marks an abstract as being a runtime value",[UsedOn TAbstract])
@@ -582,11 +584,11 @@ module MetaInfo = struct
 		| Transient -> ":transient",("Adds the 'transient' flag to the class field",[Platform Java; UsedOn TClassField])
 		| ValueUsed -> ":valueUsed",("Internally used by DCE to mark an abstract value as used",[Internal])
 		| Volatile -> ":volatile",("",[Platforms [Java;Cs]])
-		| Unbound -> ":unbound", ("Compiler internal to denote unbounded global variable",[])
+		| Unbound -> ":unbound", ("Compiler internal to denote unbounded global variable",[Internal])
 		| UnifyMinDynamic -> ":unifyMinDynamic",("Allows a collection of types to unify to Dynamic",[UsedOn TClassField])
 		| Unreflective -> ":unreflective",("",[Platform Cpp])
 		| Unsafe -> ":unsafe",("Declares a class, or a method with the C#'s 'unsafe' flag",[Platform Cs; UsedOnEither [TClass;TClassField]])
-		| Usage -> ":usage",("?",[])
+		| Usage -> ":usage",("Internal metadata used to mark a symbol for which usage request was invoked",[Internal])
 		| Used -> ":used",("Internally used by DCE to mark a class or field as used",[Internal])
 		| UserVariable -> ":userVariable",("Internally used to mark variables that come from user code",[Internal])
 		| Value -> ":value",("Used to store default values for fields and function arguments",[UsedOn TClassField])
@@ -1027,13 +1029,22 @@ let get_full_path f = try Extc.get_full_path f with _ -> f
 let unique_full_path = if Sys.os_type = "Win32" || Sys.os_type = "Cygwin" then (fun f -> String.lowercase (get_full_path f)) else get_full_path
 
 let get_path_parts f =
-	let f = String.concat "/" (ExtString.String.nsplit f "\\") in
-	let cl = ExtString.String.nsplit f "." in
-	let cl = (match List.rev cl with
-		| ["hx";path] -> ExtString.String.nsplit path "/"
-		| _ -> cl
-	) in
-	cl
+	(*
+		this function is quite weird: it tries to determine whether the given
+		argument is a .hx file path with slashes or a dotted module path and
+		based on that it returns path "parts", which are basically a list of
+		either folders or packages (which are folders too) appended by the module name
+
+		TODO: i started doubting my sanity while writing this comment, let's somehow
+		refactor this stuff so it doesn't mix up file and module paths and doesn't introduce
+		the weird "path part" entity.
+	*)
+	let l = String.length f in
+	if l > 3 && (String.sub f (l-3) 3) = ".hx" then
+		let f = String.sub f 0 (l-3) in (* strip the .hx *)
+		ExtString.String.nsplit (String.concat "/" (ExtString.String.nsplit f "\\")) "/" (* TODO: wouldn't it be faster to Str.split here? *)
+	else
+		ExtString.String.nsplit f "."
 
 let add_trailing_slash p =
 	let l = String.length p in
@@ -1042,6 +1053,29 @@ let add_trailing_slash p =
 	else match p.[l-1] with
 		| '\\' | '/' -> p
 		| _ -> p ^ "/"
+
+let path_regex = Str.regexp "[/\\]+"
+let normalize_path path =
+	let rec normalize acc m =
+		match m with
+		| [] ->
+			List.rev acc
+		| Str.Text "." :: Str.Delim _ :: tl when acc = [] ->
+			normalize [] tl
+		| Str.Text ".." :: Str.Delim _ :: tl ->
+			(match acc with
+			| [] -> raise Exit
+			| _ :: acc -> normalize acc tl)
+		| Str.Text t :: Str.Delim _ :: tl ->
+			normalize (t :: acc) tl
+		| Str.Delim _ :: tl ->
+			normalize ("" :: acc) tl
+		| Str.Text t :: [] ->
+			List.rev (t :: acc)
+		| Str.Text _ :: Str.Text  _ :: _ ->
+			assert false
+	in
+	String.concat "/" (normalize [] (Str.full_split path_regex path))
 
 let rec mkdir_recursive base dir_list =
 	match dir_list with

@@ -503,7 +503,7 @@ class StringTools {
 	/**
 		Character codes of the characters that will be escaped by `quoteWinArg(_, true)`.
 	*/
-	public static var winMetaCharacters = [" ".code, "(".code, ")".code, "%".code, "!".code, "^".code, "\"".code, "<".code, ">".code, "&".code, "|".code, "\n".code, "\r".code];
+	public static var winMetaCharacters = [" ".code, "(".code, ")".code, "%".code, "!".code, "^".code, "\"".code, "<".code, ">".code, "&".code, "|".code, "\n".code, "\r".code, ",".code, ";".code];
 
 	/**
 		Returns a String that can be used as a single command line argument

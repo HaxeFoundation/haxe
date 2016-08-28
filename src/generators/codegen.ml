@@ -25,6 +25,43 @@ open Typecore
 (* -------------------------------------------------------------------------- *)
 (* TOOLS *)
 
+(* Collection of functions that return expressions *)
+module ExprBuilder = struct
+	let make_static_this c p =
+		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
+		mk (TTypeExpr (TClassDecl c)) ta p
+
+	let make_static_field c cf p =
+		let e_this = make_static_this c p in
+		mk (TField(e_this,FStatic(c,cf))) cf.cf_type p
+
+	let make_int com i p =
+		mk (TConst (TInt (Int32.of_int i))) com.basic.tint p
+
+	let make_float com f p =
+		mk (TConst (TFloat f)) com.basic.tfloat p
+
+	let make_bool com b p =
+		mk (TConst(TBool b)) com.basic.tbool p
+
+	let make_string com s p =
+		mk (TConst (TString s)) com.basic.tstring p
+
+	let make_null t p =
+		mk (TConst TNull) t p
+
+	let make_local v p =
+		mk (TLocal v) v.v_type p
+
+	let make_const_texpr com ct p = match ct with
+		| TString s -> mk (TConst (TString s)) com.basic.tstring p
+		| TInt i -> mk (TConst (TInt i)) com.basic.tint p
+		| TFloat f -> mk (TConst (TFloat f)) com.basic.tfloat p
+		| TBool b -> mk (TConst (TBool b)) com.basic.tbool p
+		| TNull -> mk (TConst TNull) (com.basic.tnull (mk_mono())) p
+		| _ -> error "Unsupported constant" p
+end
+
 let field e name t p =
 	mk (TField (e,try quick_field e.etype name with Not_found -> assert false)) t p
 
@@ -34,9 +71,6 @@ let fcall e name el ret p =
 
 let mk_parent e =
 	mk (TParenthesis e) e.etype e.epos
-
-let string com str p =
-	mk (TConst (TString str)) com.basic.tstring p
 
 let binop op a b t p =
 	mk (TBinop (op,a,b)) t p
@@ -109,7 +143,7 @@ let add_property_field com c =
 	| _ ->
 		let fields,values = List.fold_left (fun (fields,values) (n,v) ->
 			let cf = mk_field n com.basic.tstring p in
-			PMap.add n cf fields,(n, string com v p) :: values
+			PMap.add n cf fields,(n, ExprBuilder.make_string com v p) :: values
 		) (PMap.empty,[]) props in
 		let t = mk_anon fields in
 		let e = mk (TObjectDecl values) t p in
@@ -407,9 +441,14 @@ module AbstractCast = struct
 				end
 			| TCall(e1, el) ->
 				begin try
-					let rec find_abstract e = match follow e.etype,e.eexpr with
+					let rec find_abstract e t = match follow t,e.eexpr with
 						| TAbstract(a,pl),_ when Meta.has Meta.MultiType a.a_meta -> a,pl,e
-						| _,TCast(e1,None) -> find_abstract e1
+						| _,TCast(e1,None) -> find_abstract e1 e1.etype
+						| _,TLocal {v_extra = Some(_,Some e')} ->
+							begin match follow e'.etype with
+							| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta -> a,pl,mk (TCast(e,None)) e'.etype e.epos
+							| _ -> raise Not_found
+							end
 						| _ -> raise Not_found
 					in
 					let rec find_field e1 =
@@ -417,7 +456,7 @@ module AbstractCast = struct
 						| TCast(e2,None) ->
 							{e1 with eexpr = TCast(find_field e2,None)}
 						| TField(e2,fa) ->
-							let a,pl,e2 = find_abstract e2 in
+							let a,pl,e2 = find_abstract e2 e2.etype in
 							let m = Abstract.get_underlying_type a pl in
 							let fname = field_name fa in
 							let el = List.map (loop ctx) el in
@@ -582,9 +621,9 @@ let stack_context_init com stack_var exc_var pos_var tmp_var use_add p =
 	let stack_push c m =
 		fcall stack_e "push" [
 			if use_add then
-				binop OpAdd (string com (s_type_path c.cl_path ^ "::") p) (string com m p) t.tstring p
+				binop OpAdd (ExprBuilder.make_string com (s_type_path c.cl_path ^ "::") p) (ExprBuilder.make_string com m p) t.tstring p
 			else
-				string com (s_type_path c.cl_path ^ "::" ^ m) p
+				ExprBuilder.make_string com (s_type_path c.cl_path ^ "::" ^ m) p
 		] t.tvoid p
 	in
 	let stack_return e =
@@ -868,23 +907,56 @@ module Dump = struct
 			let path = Type.t_path mt in
 			let buf,close = create_dumpfile_from_path com path in
 			let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
+			let s_metas ml tabs =
+				let args el =
+					match el with
+					| [] -> ""
+					| el -> Printf.sprintf "(%s)" (String.concat ", " (List.map (fun e -> Ast.s_expr e) el)) in
+				match ml with
+				| [] -> ""
+				| ml -> String.concat " " (List.map (fun me -> match me with (m,el,_) -> "@" ^ Meta.to_string m ^ args el) ml) ^ "\n" ^ tabs in
 			(match mt with
 			| Type.TClassDecl c ->
 				let rec print_field stat f =
-					print "\t%s%s%s%s" (if stat then "static " else "") (if f.cf_public then "public " else "") f.cf_name (params f.cf_params);
-					print "(%s) : %s" (s_kind f.cf_kind) (s_type f.cf_type);
+					print "\n\t%s%s%s%s%s %s%s"
+						(s_metas f.cf_meta "\t")
+						(if (f.cf_public && not (c.cl_extern || c.cl_interface)) then "public " else "")
+						(if stat then "static " else "")
+						(match f.cf_kind with
+							| Var v -> ""
+							| Method m ->
+								match m with
+								| MethNormal -> ""
+								| MethDynamic -> "dynamic "
+								| MethInline -> "inline "
+								| MethMacro -> "macro ")
+						(match f.cf_kind with Var v -> "var" | Method m -> "function")
+						(f.cf_name ^ match f.cf_kind with 
+							| Var { v_read = AccNormal; v_write = AccNormal } -> ""
+							| Var v -> "(" ^ s_access true v.v_read ^ "," ^ s_access false v.v_write ^ ")"
+							| _ -> "")
+						(params f.cf_params);
+					match f.cf_kind with
+						| Var v -> print ":%s;\n" (s_type f.cf_type)
+						| Method m -> if (c.cl_extern || c.cl_interface) then (
+							match f.cf_type with
+							| TFun(al,t) -> print "(%s):%s;" (String.concat ", " (
+								List.map (fun (n,o,t) -> n ^ ":" ^ (s_type t)) al))
+								(s_type t); 
+							| _ -> ()
+						) else ();
 					(match f.cf_expr with
 					| None -> ()
-					| Some e -> print "\n\n\t = %s" (s_expr s_type e));
-					print "\n\n";
+					| Some e -> print "%s" (s_expr s_type e));
+					print "\n";
 					List.iter (fun f -> print_field stat f) f.cf_overloads
 				in
-				print "%s%s%s %s%s" (if c.cl_private then "private " else "") (if c.cl_extern then "extern " else "") (if c.cl_interface then "interface" else "class") (s_type_path path) (params c.cl_params);
+				print "%s%s%s%s %s%s" (s_metas c.cl_meta "") (if c.cl_private then "private " else "") (if c.cl_extern then "extern " else "") (if c.cl_interface then "interface" else "class") (s_type_path path) (params c.cl_params);
 				(match c.cl_super with None -> () | Some (c,pl) -> print " extends %s" (s_type (TInst (c,pl))));
 				List.iter (fun (c,pl) -> print " implements %s" (s_type (TInst (c,pl)))) c.cl_implements;
 				(match c.cl_dynamic with None -> () | Some t -> print " implements Dynamic<%s>" (s_type t));
 				(match c.cl_array_access with None -> () | Some t -> print " implements ArrayAccess<%s>" (s_type t));
-				print "{\n";
+				print " {\n";
 				(match c.cl_constructor with
 				| None -> ()
 				| Some f -> print_field false f);
@@ -893,21 +965,27 @@ module Dump = struct
 				(match c.cl_init with
 				| None -> ()
 				| Some e ->
-					print "\n\n\t__init__ = ";
+					print "\n\tstatic function __init__() ";
 					print "%s" (s_expr s_type e);
-					print "}\n");
+					print "\n");
 				print "}";
 			| Type.TEnumDecl e ->
-				print "%s%senum %s%s {\n" (if e.e_private then "private " else "") (if e.e_extern then "extern " else "") (s_type_path path) (params e.e_params);
+				print "%s%s%senum %s%s {\n" (s_metas e.e_meta "") (if e.e_private then "private " else "") (if e.e_extern then "extern " else "") (s_type_path path) (params e.e_params);
 				List.iter (fun n ->
 					let f = PMap.find n e.e_constrs in
-					print "\t%s : %s;\n" f.ef_name (s_type f.ef_type);
+					print "\t%s%s;\n" f.ef_name (
+						match f.ef_type with
+						| TFun (al,t) -> Printf.sprintf "(%s)" (String.concat ", "
+							(List.map (fun (n,o,t) -> (if o then "?" else "") ^ n ^ ":" ^ (s_type t)) al))
+						| _ -> "")
 				) e.e_names;
 				print "}"
 			| Type.TTypeDecl t ->
-				print "%stype %s%s = %s" (if t.t_private then "private " else "") (s_type_path path) (params t.t_params) (s_type t.t_type);
+				print "%s%stypedef %s%s = %s" (s_metas t.t_meta "") (if t.t_private then "private " else "") (s_type_path path) (params t.t_params) (s_type t.t_type);
 			| Type.TAbstractDecl a ->
-				print "%sabstract %s%s {}" (if a.a_private then "private " else "") (s_type_path path) (params a.a_params);
+				print "%s%sabstract %s%s%s%s {}" (s_metas a.a_meta "") (if a.a_private then "private " else "") (s_type_path path) (params a.a_params)
+				(String.concat " " (List.map (fun t -> " from " ^ s_type t) a.a_from))
+				(String.concat " " (List.map (fun t -> " to " ^ s_type t) a.a_to));
 			);
 			close();
 		) com.types
@@ -927,7 +1005,7 @@ module Dump = struct
 
 	let dump_types com =
 		match Common.defined_value_safe com Define.Dump with
-			| "pretty" -> dump_types com (Type.s_expr_pretty false "\t")
+			| "pretty" -> dump_types com (Type.s_expr_pretty false "\t" true)
 			| "legacy" -> dump_types com Type.s_expr
 			| "record" -> dump_record com
 			| _ -> dump_types com (Type.s_expr_ast (not (Common.defined com Define.DumpIgnoreVarIds)) "\t")
@@ -1391,36 +1469,6 @@ let map_source_header com f =
 	| "" -> ()
 	| s -> f s
 
-(* Collection of functions that return expressions *)
-module ExprBuilder = struct
-	let make_static_this c p =
-		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
-		mk (TTypeExpr (TClassDecl c)) ta p
-
-	let make_static_field c cf p =
-		let e_this = make_static_this c p in
-		mk (TField(e_this,FStatic(c,cf))) cf.cf_type p
-
-	let make_int com i p =
-		mk (TConst (TInt (Int32.of_int i))) com.basic.tint p
-
-	let make_float com f p =
-		mk (TConst (TFloat f)) com.basic.tfloat p
-
-	let make_null t p =
-		mk (TConst TNull) t p
-
-	let make_local v p =
-		mk (TLocal v) v.v_type p
-
-	let make_const_texpr com ct p = match ct with
-		| TString s -> mk (TConst (TString s)) com.basic.tstring p
-		| TInt i -> mk (TConst (TInt i)) com.basic.tint p
-		| TFloat f -> mk (TConst (TFloat f)) com.basic.tfloat p
-		| TBool b -> mk (TConst (TBool b)) com.basic.tbool p
-		| TNull -> mk (TConst TNull) (com.basic.tnull (mk_mono())) p
-		| _ -> error "Unsupported constant" p
-end
 
 (* Static extensions for classes *)
 module ExtClass = struct

@@ -216,7 +216,8 @@ let module_pass_1 ctx m tdecls loadp =
 							()
 					) a.a_meta;
 					a.a_impl <- Some c;
-					c.cl_kind <- KAbstractImpl a
+					c.cl_kind <- KAbstractImpl a;
+					c.cl_meta <- (Meta.Final,[],c.cl_pos) :: c.cl_meta
 				| _ -> assert false);
 				acc
 		) in
