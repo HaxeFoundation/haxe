@@ -935,7 +935,13 @@ module Dump = struct
 						(params f.cf_params);
 					match f.cf_kind with
 						| Var v -> print ":%s;\n" (s_type f.cf_type)
-						| Method m -> print "";
+						| Method m -> if (c.cl_extern || c.cl_interface) then (
+							match f.cf_type with
+							| TFun(al,t) -> print "(%s):%s;" (String.concat ", " (
+								List.map (fun (n,o,t) -> n ^ ":" ^ (s_type t)) al))
+								(s_type t); 
+							| _ -> ()
+						) else ();
 					(match f.cf_expr with
 					| None -> ()
 					| Some e -> match e.eexpr with
