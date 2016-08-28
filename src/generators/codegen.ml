@@ -976,7 +976,7 @@ module Dump = struct
 					print "\t%s%s;\n" f.ef_name (
 						match f.ef_type with
 						| TFun (al,t) -> Printf.sprintf "(%s)" (String.concat ", "
-							(List.map (fun (n,o,t) -> n ^ ":" ^ (if o then "?" else "") ^ (s_type t)) al))
+							(List.map (fun (n,o,t) -> (if o then "?" else "") ^ n ^ ":" ^ (s_type t)) al))
 						| _ -> "")
 				) e.e_names;
 				print "}"
