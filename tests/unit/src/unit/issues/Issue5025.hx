@@ -2,7 +2,7 @@ package unit.issues;
 
 class Issue5025 extends Test {
 	function test() {
-		#if !(java || cs || as3)
+		#if !(java || cs || as3 || lua)
 		try {
 			switch (null) {
 				case Value(i):
