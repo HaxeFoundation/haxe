@@ -1085,7 +1085,9 @@ let rec s_expr_pretty print_var_ids tabs top_level s_type e =
 	| TBlock el ->
 		let ntabs = tabs ^ "\t" in
 		let s = sprintf "{\n%s" (String.concat "" (List.map (fun e -> sprintf "%s%s;\n" ntabs (s_expr_pretty print_var_ids ntabs top_level s_type e)) el)) in
-		s ^ tabs ^ "}"
+		(match el with
+			| [] -> "{}"
+			| _ ->  s ^ tabs ^ "}")
 	| TFor (v,econd,e) ->
 		sprintf "for (%s in %s) %s" (local v) (loop econd) (loop e)
 	| TIf (e,e1,e2) ->
