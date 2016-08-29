@@ -384,7 +384,7 @@ let is_constant_string expr =
 *)
 let is_concatenation expr =
 	match expr.eexpr with
-		| TBinop (OpAdd, expr1, expr2) -> (is_string expr1) || (is_string expr2) 
+		| TBinop (OpAdd, expr1, expr2) -> (is_string expr1) || (is_string expr2)
 		| _ -> false
 
 (**
@@ -1007,6 +1007,7 @@ class virtual type_builder ctx wrapper =
 				| TCall ({ eexpr = TField (expr, access) }, args) when is_string expr -> self#write_expr_call_string expr access args
 				| TCall (target, args) when is_var_field_access target -> self#write_expr_call (parenthesis target) args
 				| TCall (target, args) -> self#write_expr_call target args
+				| TNew (_, _, args) when is_string expr -> write_args buffer self#write_expr args
 				| TNew (tcls, _, args) -> self#write_expr_new tcls args
 				| TUnop (operation, flag, expr) -> self#write_expr_unop operation flag expr
 				| TFunction fn -> self#write_expr_function fn
