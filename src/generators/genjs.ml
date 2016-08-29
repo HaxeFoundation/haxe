@@ -540,7 +540,7 @@ and gen_expr ctx e =
 	| TField (x,f) ->
 		let rec skip e = match e.eexpr with
 			| TCast(e1,None) | TMeta(_,e1) -> skip e1
-			| TConst(TInt _ | TFloat _) -> {e with eexpr = TParenthesis e}
+			| TConst(TInt _ | TFloat _) | TObjectDecl _ -> {e with eexpr = TParenthesis e}
 			| _ -> e
 		in
 		let x = skip x in
