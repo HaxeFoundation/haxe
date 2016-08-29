@@ -274,4 +274,9 @@ extern class Global {
 		@see http://php.net/manual/en/function.get-class.php
 	**/
 	static function get_class( object:{} = null ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.var-dump.php
+	**/
+	static function var_dump( args:Rest<Dynamic> ) : Void;
 }
