@@ -362,3 +362,97 @@ private class HxEnum {
 		return result;
 	}
 }
+
+
+/**
+	`String` implementation
+**/
+@:keep
+@:dox(hide)
+class HxString {
+
+	public static function toUpperCase( str:String ) : String {
+		return Global.strtoupper(str);
+	}
+
+	public static function toLowerCase( str:String ) : String {
+		return Global.strtolower(str);
+	}
+
+	public static function charAt( str:String, index:Int) : String {
+		if (index < 0 || index >= str.length) {
+			return '';
+		} else {
+			return untyped __php__("$string[$index]");
+		}
+	}
+
+	public static function charCodeAt( str:String, index:Int) : Null<Int> {
+		if (index < 0 || index >= str.length) {
+			return null;
+		} else {
+			return Global.ord(untyped __php__("$string[$index]"));
+		}
+	}
+
+	public static function indexOf( str:String, search:String, startIndex:Int = 0 ) : Int {
+		if (startIndex < 0) startIndex += str.length;
+		var index = Global.strpos(str, search, startIndex);
+		if (index == false) {
+			return -1;
+		} else {
+			return index;
+		}
+	}
+
+	public static function lastIndexOf( str:String, search:String, startIndex:Int = null ) : Int {
+		var index = Global.strrpos(str, search, (startIndex == null ? 0 : startIndex - str.length));
+		if (index == false) {
+			return -1;
+		} else {
+			return index;
+		}
+	}
+
+	public static function split( str:String, delimiter:String ) : Array<String> {
+		if (delimiter == '') {
+			return @:privateAccess Array.wrap(Global.str_split(str));
+		} else {
+			return @:privateAccess Array.wrap(Global.explode(delimiter, str));
+		}
+	}
+
+	public static function substr( str:String, pos:Int, ?len:Int ) : String {
+		if (pos < -str.length) pos = 0;
+		if (len == null) {
+			return Global.substr(str, pos);
+		} else {
+			var result = Global.substr(str, pos, len);
+			return (result == false ? '' : result);
+		}
+	}
+
+	public static function substring( str:String, startIndex:Int, ?endIndex:Int ) : String {
+		if (endIndex == null) {
+			endIndex = str.length;
+		} else if (endIndex < 0) {
+			endIndex = 0;
+		}
+		if (startIndex < 0) startIndex = 0;
+		if (startIndex > endIndex) {
+			var tmp = endIndex;
+			endIndex = startIndex;
+			startIndex = tmp;
+		}
+		var result = Global.substr(str, startIndex, endIndex - startIndex);
+		return (result == false ? '' : result);
+	}
+
+	public static function toString( str:String ) : String {
+		return str;
+	}
+
+	public static function fromCharCode( code:Int ) : String {
+		return Global.chr(code);
+	}
+}

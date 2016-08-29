@@ -10,6 +10,14 @@ extern class Const {
 		If this constant is defined and equals `true` then Haxe will not set error handler automatically.
 	**/
 	static var HAXE_CUSTOM_ERROR_HANDLER : Bool;
+
+	/**
+		@see http://php.net/manual/en/reserved.constants.php
+	**/
+	static var PHP_INT_MAX : Int;
+	static var PHP_INT_MIN : Int;
+	static var PHP_INT_SIZE : Int;
+
 	/**
 		@see http://php.net/manual/en/language.constants.predefined.php
 	**/

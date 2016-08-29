@@ -41,6 +41,10 @@ let hxenum_type_path = (["php7"; "_Boot"], "HxEnum")
 *)
 let hxclass_type_path = (["php7"; "_Boot"], "HxClass")
 (**
+	Type path of the implementation class for `String`
+*)
+let hxstring_type_path = (["php7"; "_Boot"], "HxString")
+(**
 	Special abstract which enables passing function arguments and return value by reference
 *)
 let ref_type_path = (["php7"], "Ref")
@@ -1514,23 +1518,9 @@ class virtual type_builder ctx wrapper =
 		method private write_expr_call_string expr access args =
 			match access with
 				| FInstance (_, _, { cf_name = method_name; cf_kind = Method _ }) ->
-					(match method_name with
-						| "charAt" ->
-							if is_binop expr then
-								self#write_expr (parenthesis expr)
-							else
-								self#write_expr expr;
-							self#write "[";
-							write_args buffer self#write_expr args;
-							self#write "]"
-						| "split" ->
-							self#write ((self#use array_type_path) ^ "::wrap(explode(");
-							write_args buffer self#write_expr args;
-							self#write ", ";
-							self#write_expr expr;
-							self#write "))"
-						| _ -> () (* fail self#pos __POS__ *)
-					)
+					self#write ((self#use hxstring_type_path) ^ "::" ^ method_name ^ "(");
+					write_args buffer self#write_expr (expr :: args);
+					self#write ")"
 				| _ -> fail self#pos __POS__
 		(**
 			Writes FStatic field access for methods to output buffer

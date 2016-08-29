@@ -279,4 +279,49 @@ extern class Global {
 		@see http://php.net/manual/en/function.var-dump.php
 	**/
 	static function var_dump( args:Rest<Dynamic> ) : Void;
+
+	/**
+		@see http://php.net/manual/en/function.ord.php
+	**/
+	static function ord( string:String ) : Int;
+
+	/**
+		@see http://php.net/manual/en/function.chr.php
+	**/
+	static function chr( code:Int ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.strpos.php
+	**/
+	static function strpos( haystack:String, needle:String, offset:Int = 0 ) : EitherType<Bool, Int>;
+
+	/**
+		@see http://php.net/manual/en/function.strrpos.php
+	**/
+	static function strrpos( haystack:String, needle:String, offset:Int = 0 ) : EitherType<Bool, Int>;
+
+	/**
+		@see http://php.net/manual/en/function.str_split.php
+	**/
+	static function str_split( string:String, split_length:Int = 1 ) : EitherType<Bool,NativeIndexedArray<String>>;
+
+	/**
+		@see http://php.net/manual/en/function.explode.php
+	**/
+	static function explode( delimiter:String, string:String, ?limit:Int ) : EitherType<Bool,NativeIndexedArray<String>>;
+
+	/**
+		@see http://php.net/manual/en/function.substr.php
+	**/
+	static function substr( string:String, start:Int, ?length:Int ) : EitherType<Bool,String>;
+
+	/**
+		@see http://php.net/manual/en/function.strtoupper.php
+	**/
+	static function strtoupper( string:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.strtolower.php
+	**/
+	static function strtolower( string:String ) : String;
 }
