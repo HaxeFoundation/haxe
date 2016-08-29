@@ -593,10 +593,11 @@ module Fusion = struct
 			let num_writes = state#get_writes v in
 			let can_be_used_as_value = can_be_used_as_value com e in
 			let is_compiler_generated = Meta.has Meta.CompilerGenerated v.v_meta in
+			let has_type_params = match v.v_extra with Some (tl,_) when tl <> [] -> true | _ -> false in
 			let b = num_uses <= 1 &&
 			        num_writes = 0 &&
 			        can_be_used_as_value &&
-			        (is_compiler_generated || config.optimize && config.fusion && config.user_var_fusion)
+			        (is_compiler_generated || config.optimize && config.fusion && config.user_var_fusion && not has_type_params)
 			in
 			if config.fusion_debug then begin
 				print_endline (Printf.sprintf "FUSION\n\tvar %s<%i> = %s" v.v_name v.v_id (s_expr_pretty e));
