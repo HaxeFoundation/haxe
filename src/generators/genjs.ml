@@ -473,16 +473,29 @@ let rec gen_call ctx e el in_value =
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 
+(*
+	this wraps {} in parenthesis which is required to produce valid js code for field and array access to it.
+	the case itself is very rare and most probably comes from redundant code fused by the analyzer,
+	but we still have to support it.
+*)
+and add_objectdecl_parens e =
+	let rec loop e = match e.eexpr with
+		| TCast(e1,None) | TMeta(_,e1) -> loop e1 (* TODO: do we really want to lose these? *)
+		| TObjectDecl _ -> {e with eexpr = TParenthesis e}
+		| _ -> e
+	in
+	loop e
+
 and gen_expr ctx e =
 	add_mapping ctx false e;
 	(match e.eexpr with
 	| TConst c -> gen_constant ctx e.epos c
 	| TLocal v -> spr ctx (ident v.v_name)
 	| TArray (e1,{ eexpr = TConst (TString s) }) when valid_js_ident s && (match e1.eexpr with TConst (TInt _|TFloat _) -> false | _ -> true) ->
-		gen_value ctx e1;
+		gen_value ctx (add_objectdecl_parens e1);
 		spr ctx (field s)
 	| TArray (e1,e2) ->
-		gen_value ctx e1;
+		gen_value ctx (add_objectdecl_parens e1);
 		spr ctx "[";
 		gen_value ctx e2;
 		spr ctx "]";
