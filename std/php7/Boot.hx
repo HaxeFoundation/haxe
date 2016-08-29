@@ -99,7 +99,7 @@ class Boot {
 			return value;
 		}
 		if (value.is_int() || value.is_float()) {
-			return '' + value;
+			return untyped __php__("(string)$value");
 		}
 		if (value.is_bool()) {
 			return value ? 'true' : 'false';

@@ -380,6 +380,14 @@ let is_constant_string expr =
 		| _ -> false
 
 (**
+	Check if `expr` is a concatenation
+*)
+let is_concatenation expr =
+	match expr.eexpr with
+		| TBinop (OpAdd, expr1, expr2) -> (is_string expr1) || (is_string expr2) 
+		| _ -> false
+
+(**
 	Indicates if `expr` is actually a call to Haxe->PHP magic function
 	@see http://old.haxe.org/doc/advanced/magic#php-magic
 *)
@@ -1366,7 +1374,7 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write_expr_binop operation expr1 expr2 =
 			let write_for_concat expr =
-				if (is_constant_string expr) || (not (is_string expr)) then
+				if (is_constant_string expr) || (is_concatenation expr) || (not (is_string expr)) then
 					self#write_expr expr
 				else begin
 					self#write ((self#use boot_type_path) ^ "::stringOrNull(");
