@@ -25,28 +25,13 @@ open Typecore
 (* ---------------------------------------------------------------------- *)
 (* API OPTIMIZATIONS *)
 
-let has_pure_meta meta = Meta.has Meta.Pure meta
-
-let is_pure c cf = has_pure_meta c.cl_meta || has_pure_meta cf.cf_meta
-
-let field_call_has_side_effect f e1 fa el =
-	begin match fa with
-	| FInstance(c,_,cf) | FStatic(c,cf) | FClosure(Some(c,_),cf) when is_pure c cf -> ()
-	| FAnon cf | FClosure(None,cf) when has_pure_meta cf.cf_meta -> ()
-	| FEnum _ -> ()
-	| _ -> raise Exit
-	end;
-	f e1;
-	List.iter f el
-
 (* tells if an expression causes side effects. This does not account for potential null accesses (fields/arrays/ops) *)
 let has_side_effect e =
 	let rec loop e =
 		match e.eexpr with
 		| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ -> ()
-		| TCall ({ eexpr = TField(_,FStatic({ cl_path = ([],"Std") },{ cf_name = "string" })) },args) -> Type.iter loop e
-		| TCall({eexpr = TField(e1,fa)},el) -> field_call_has_side_effect loop e1 fa el
-		| TNew(c,_,el) when (match c.cl_constructor with Some cf when is_pure c cf -> true | _ -> false) -> List.iter loop el
+		| TCall({eexpr = TField(e1,fa)},el) when PurityState.is_pure_field_access fa -> loop e1; List.iter loop el
+		| TNew(c,_,el) when (match c.cl_constructor with Some cf when PurityState.is_pure c cf -> true | _ -> false) -> List.iter loop el
 		| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
 		| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
 		| TArray _ | TEnumParameter _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _ | TFor _
@@ -265,6 +250,7 @@ let create_affection_checker () =
 			| TConst _ | TFunction _ | TTypeExpr _ -> ()
 			| TLocal v when Hashtbl.mem modified_locals v.v_id -> raise Exit
 			| TField(e1,fa) when not (is_read_only_field_access e1 fa) -> raise Exit
+			| TCall _ | TNew _ -> raise Exit
 			| _ -> Type.iter loop e
 		in
 		try

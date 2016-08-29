@@ -9,7 +9,7 @@ class Issue5477 {
 		use(pureUse(12) > 0.5 ? 1 : v);
 	}
 
-	@:impure
+	@:pure(false)
 	static function use<T>(t:T) { return t; }
 	@:pure
 	static function pureUse<T>(t:T) { return t; }

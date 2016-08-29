@@ -30,7 +30,7 @@ class Issue5555 extends unit.Test {
 		return false;
 	}
 
-	@:impure
+	@:pure(false)
 	static function impureCall() {
 		flag = true;
 		return false;

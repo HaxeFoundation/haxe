@@ -194,6 +194,6 @@ class TestLocalDce {
 		trace(s);
 	}
 
-	@:impure
+	@:pure(false)
 	static function keep(v:Dynamic) { return v; }
 }

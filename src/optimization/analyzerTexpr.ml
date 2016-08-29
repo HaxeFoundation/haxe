@@ -408,12 +408,19 @@ module InterferenceReport = struct
 			(* state *)
 			| TCall({eexpr = TLocal v},el) when not (is_unbound_call_that_might_have_side_effects v el) ->
 				List.iter loop el
-			| TNew(c,_,el) when (match c.cl_constructor with Some cf when Optimizer.is_pure c cf -> true | _ -> false) ->
+			| TNew(c,_,el) when (match c.cl_constructor with Some cf when PurityState.is_pure c cf -> true | _ -> false) ->
 				set_state_read ir;
 				List.iter loop el;
+			| TCall({eexpr = TField(e1,FEnum _)},el) ->
+				loop e1;
+				List.iter loop el;
+			| TCall({eexpr = TField(e1,fa)},el) when PurityState.is_pure_field_access fa ->
+				set_state_read ir;
+				loop e1;
+				List.iter loop el
 			| TCall(e1,el) ->
 				set_state_read ir;
-				if Optimizer.has_side_effect e then set_state_write ir;
+				set_state_write ir;
 				loop e1;
 				List.iter loop el
 			| TNew(_,_,el) ->
@@ -555,6 +562,12 @@ module Fusion = struct
 			(* no-side-effect *)
 			| {eexpr = TEnumParameter _ | TFunction _ | TConst _ | TTypeExpr _} :: el ->
 				block_element acc el
+			| {eexpr = TMeta((Meta.Pure,_,_),_)} :: el ->
+				block_element acc el
+			| {eexpr = TCall({eexpr = TField(e1,fa)},el1)} :: el2 when PurityState.is_pure_field_access fa && config.local_dce ->
+				block_element acc (e1 :: el1 @ el2)
+			| {eexpr = TNew(c,tl,el1)} :: el2 when (match c.cl_constructor with Some cf when PurityState.is_pure c cf -> true | _ -> false) && config.local_dce ->
+				block_element acc (el1 @ el2)
 			(* no-side-effect composites *)
 			| {eexpr = TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) | TField(e1,_) | TUnop(_,_,e1)} :: el ->
 				block_element acc (e1 :: el)
@@ -721,17 +734,25 @@ module Fusion = struct
 						(* state *)
 						| TCall({eexpr = TLocal v},el) when not (is_unbound_call_that_might_have_side_effects v el) ->
 							e
-						| TNew(c,tl,el) when (match c.cl_constructor with Some cf when Optimizer.is_pure c cf -> true | _ -> false) ->
+						| TNew(c,tl,el) when (match c.cl_constructor with Some cf when PurityState.is_pure c cf -> true | _ -> false) ->
 							let el = List.map replace el in
+							if not !found && (has_state_write ir || has_any_field_write ir) then raise Exit;
 							{e with eexpr = TNew(c,tl,el)}
-						| TCall(e1,el) ->
-							let e1,el = handle_call e1 el in
-							if not !found && ((Optimizer.has_side_effect e && (has_state_read ir || has_any_field_read ir)) || has_state_write ir || has_any_field_write ir) then raise Exit;
-							{e with eexpr = TCall(e1,el)}
 						| TNew(c,tl,el) ->
 							let el = List.map replace el in
 							if not !found && (has_state_write ir || has_state_read ir || has_any_field_read ir || has_any_field_write ir) then raise Exit;
 							{e with eexpr = TNew(c,tl,el)}
+						| TCall({eexpr = TField(_,FEnum _)} as ef,el) ->
+							let el = List.map replace el in
+							{e with eexpr = TCall(ef,el)}
+						| TCall({eexpr = TField(_,fa)} as ef,el) when PurityState.is_pure_field_access fa ->
+							let ef,el = handle_call ef el in
+							if not !found && (has_state_write ir || has_any_field_write ir) then raise Exit;
+							{e with eexpr = TCall(ef,el)}
+						| TCall(e1,el) ->
+							let e1,el = handle_call e1 el in
+							if not !found && (((has_state_read ir || has_any_field_read ir)) || has_state_write ir || has_any_field_write ir) then raise Exit;
+							{e with eexpr = TCall(e1,el)}
 						| TBinop(OpAssign,({eexpr = TArray(e1,e2)} as ea),e3) ->
 							let e1 = replace e1 in
 							let e2 = replace e2 in
@@ -910,16 +931,16 @@ module Cleanup = struct
 end
 
 module Purity = struct
-	type purity =
-		| Pure
-		| NotPure
-		| MaybePure
+	open PurityState
 
 	type purity_node = {
+		pn_class : tclass;
 		pn_field : tclass_field;
-		mutable pn_purity : purity;
+		mutable pn_purity : PurityState.t;
 		mutable pn_dependents : purity_node list;
 	}
+
+	exception Purity_conflict of purity_node * pos
 
 	let node_lut = Hashtbl.create 0
 
@@ -930,35 +951,50 @@ module Purity = struct
 			Hashtbl.find node_lut (get_field_id c cf)
 		with Not_found ->
 			let node = {
+				pn_class = c;
 				pn_field = cf;
-				pn_purity = MaybePure;
+				pn_purity = PurityState.get_purity c cf;
 				pn_dependents = []
 			} in
 			Hashtbl.replace node_lut (get_field_id c cf) node;
 			node
 
+	let rec taint node = match node.pn_purity with
+		| Impure -> ()
+		| ExpectPure p -> raise (Purity_conflict(node,p));
+		| MaybePure | Pure ->
+			node.pn_purity <- Impure;
+			List.iter taint node.pn_dependents;
+			let rec loop c = match c.cl_super with
+				| None -> ()
+				| Some(c,_) ->
+					begin try
+						let cf = PMap.find node.pn_field.cf_name c.cl_fields in
+						taint (get_node c cf);
+					with Not_found ->
+						()
+					end;
+					loop c
+			in
+			loop node.pn_class
+
+	let taint_raise node =
+		taint node;
+		raise Exit
+
 	let apply_to_field com is_ctor c cf =
 		let node = get_node c cf in
-		let rec taint node =
-			if node.pn_purity <> NotPure then begin
-				node.pn_purity <- NotPure;
-				List.iter taint node.pn_dependents
-			end
-		in
-		let taint_raise node =
-			taint node;
-			raise Exit;
-		in
 		let check_field c cf =
 			let node' = get_node c cf in
 			match node'.pn_purity with
-				| Pure -> ()
-				| NotPure -> taint_raise node;
+				| Pure | ExpectPure _ -> ()
+				| Impure -> taint_raise node;
 				| MaybePure -> node'.pn_dependents <- node :: node'.pn_dependents
 		in
 		let rec check_write e1 =
 			begin match e1.eexpr with
 				| TLocal v ->
+					if is_ref_type v.v_type then taint_raise node; (* Writing to a ref type means impurity. *)
 					() (* Writing to locals does not violate purity. *)
 				| TField({eexpr = TConst TThis},_) when is_ctor ->
 					() (* A constructor can write to its own fields without violating purity. *)
@@ -984,6 +1020,14 @@ module Purity = struct
 					| Some cf -> check_field c cf
 					| None -> taint_raise node
 				end
+			| TCall({eexpr = TConst TSuper},el) ->
+				begin match c.cl_super with
+					| Some({cl_constructor = Some cf} as c,_) ->
+						check_field c cf;
+						List.iter loop el
+					| _ ->
+						taint_raise node (* Can that even happen? *)
+				end
 			| TCall({eexpr = TLocal v},el) when not (is_unbound_call_that_might_have_side_effects v el) ->
 				List.iter loop el;
 			| TCall _ ->
@@ -991,17 +1035,27 @@ module Purity = struct
 			| _ ->
 				Type.iter loop e
 		in
-		match cf.cf_expr with
-		| None ->
-			taint node
-		| Some e ->
-			try
-				if (Meta.has (Meta.Custom ":impure")) cf.cf_meta then taint_raise node;
-				if Optimizer.is_pure c cf then raise Exit;
-				loop e;
-				node.pn_purity <- Pure;
-			with Exit ->
-				()
+		match cf.cf_kind with
+			| Method MethDynamic | Var _ ->
+				taint node;
+			| _ ->
+				match cf.cf_expr with
+				| None ->
+					if not (is_pure c cf) then taint node
+				(* TODO: The function code check shouldn't be here I guess. *)
+				| Some _ when (Meta.has Meta.Extern cf.cf_meta || Meta.has Meta.FunctionCode cf.cf_meta) ->
+					if not (is_pure c cf) then taint node
+				| Some e ->
+					try
+						begin match node.pn_purity with
+							| Impure -> taint_raise node
+							| Pure -> raise Exit
+							| _ ->
+								loop e;
+								node.pn_purity <- Pure;
+						end
+					with Exit ->
+						()
 
 	let apply_to_class com c =
 		List.iter (apply_to_field com false c) c.cl_ordered_fields;
@@ -1011,12 +1065,18 @@ module Purity = struct
 	let infer com =
 		Hashtbl.clear node_lut;
 		List.iter (fun mt -> match mt with
-			| TClassDecl c -> apply_to_class com c
+			| TClassDecl c ->
+				begin try
+					apply_to_class com c
+				with Purity_conflict(impure,p) ->
+					com.error "Impure field overrides/implements field which was explicitly marked as @:pure" impure.pn_field.cf_pos;
+					error "Pure field is here" p;
+				end
 			| _ -> ()
 		) com.types;
 		Hashtbl.fold (fun _ node acc ->
 			if node.pn_purity = Pure then begin
-				node.pn_field.cf_meta <- (Meta.Pure,[],node.pn_field.cf_pos) :: node.pn_field.cf_meta;
+				node.pn_field.cf_meta <- (Meta.Pure,[EConst(Ident "true"),node.pn_field.cf_pos],node.pn_field.cf_pos) :: node.pn_field.cf_meta;
 				node.pn_field :: acc
 			end else acc
 		) node_lut [];

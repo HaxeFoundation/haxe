@@ -924,10 +924,10 @@ let add_meta_field ctx t = match t with
 	if we have an @:event var field, there should also be add_<name> and remove_<name> methods,
 	this filter checks for their existence and also adds some metadata for analyzer and C# generator
 *)
-let check_cs_events com t = match t with 
+let check_cs_events com t = match t with
 	| TClassDecl cl when not cl.cl_extern ->
 		let check fields f =
-			match f.cf_kind with 
+			match f.cf_kind with
 			| Var { v_read = AccNormal; v_write = AccNormal } when Meta.has Meta.Event f.cf_meta ->
 				if f.cf_public then error "@:event fields must be private" f.cf_pos;
 
@@ -949,10 +949,10 @@ let check_cs_events com t = match t with
 					end;
 
 					(*
-						add @:impure to prevent purity inference, because empty add/remove methods
+						add @:pure(false) to prevent purity inference, because empty add/remove methods
 						have special meaning here and they are always impure
 					*)
-					m.cf_meta <- (Meta.Custom ":impure",[],f.cf_pos) :: (Meta.Custom ":cs_event_impl",[],f.cf_pos) :: m.cf_meta;
+					m.cf_meta <- (Meta.Pure,[EConst(Ident "false"),f.cf_pos],f.cf_pos) :: (Meta.Custom ":cs_event_impl",[],f.cf_pos) :: m.cf_meta;
 
 					(* add @:keep to event methods if the event is kept *)
 					if Meta.has Meta.Keep f.cf_meta && not (Meta.has Meta.Keep m.cf_meta) then
