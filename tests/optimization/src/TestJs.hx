@@ -23,7 +23,7 @@ private enum EnumFlagTest {
 }
 
 @:analyzer(code_motion)
-@:analyzer(no_fusion)
+@:analyzer(no_user_var_fusion)
 class TestJs {
 	//@:js('var x = 10;"" + x;var x1 = 10;"" + x1;var x2 = 10.0;"" + x2;var x3 = "10";x3;var x4 = true;"" + x4;')
 	//static function testStdString() {

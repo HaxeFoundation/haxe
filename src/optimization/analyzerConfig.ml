@@ -88,11 +88,11 @@ let get_base_config com =
 		copy_propagation = not (Common.raw_defined com "analyzer-no-copy-propagation");
 		code_motion = Common.raw_defined com "analyzer-code-motion";
 		local_dce = not (Common.raw_defined com "analyzer-no-local-dce");
-		fusion = not (Common.raw_defined com "analyzer-no-fusion") && (match com.platform with Flash | Java | Cs -> false | _ -> true);
+		fusion = not (Common.raw_defined com "analyzer-no-fusion");
 		purity_inference = not (Common.raw_defined com "analyzer-no-purity-inference");
 		debug_kind = DebugNone;
 		detail_times = Common.raw_defined com "analyzer-times";
-		user_var_fusion = Common.raw_defined com "analyzer-user-var-fusion" || (not com.debug && not (Common.raw_defined com "analyzer-no-user-var-fusion"));
+		user_var_fusion = (match com.platform with Flash | Java -> false | _ -> true) && (Common.raw_defined com "analyzer-user-var-fusion" || (not com.debug && not (Common.raw_defined com "analyzer-no-user-var-fusion")));
 		fusion_debug = false;
 	}
 

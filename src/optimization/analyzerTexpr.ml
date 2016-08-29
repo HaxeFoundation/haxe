@@ -697,6 +697,9 @@ module Fusion = struct
 							in
 							if not !found then raise Exit;
 							{e with eexpr = TSwitch(e1,cases,edef)}
+						| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
+							e
+						(* locals *)
 						| TLocal v2 when v1 == v2 && not !blocked ->
 							found := true;
 							if type_change_ok com v1.v_type e1.etype then e1 else mk (TCast(e1,None)) v1.v_type e.epos
@@ -885,6 +888,8 @@ module Cleanup = struct
 				let e2 = loop e2 in
 				let e3 = loop e3 in
 				if_or_op e e1 e2 e3;
+			| TUnop((Increment | Decrement),_,({eexpr = TConst _} as e1)) ->
+				loop e1
 			| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
 				e
 			| TBlock el ->

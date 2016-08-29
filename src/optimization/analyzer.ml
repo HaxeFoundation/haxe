@@ -1150,7 +1150,7 @@ module Run = struct
 		DynArray.iter (fun vi ->
 			vi.vi_var.v_extra <- vi.vi_extra;
 		) actx.graph.g_var_infos;
-		let e = with_timer actx "analyzer-fusion" (fun () -> Fusion.apply actx.com actx.config e) in
+		let e = if actx.config.fusion then with_timer actx "analyzer-fusion" (fun () -> Fusion.apply actx.com actx.config e) else e in
 		if actx.com.debug then add_debug_expr actx "after fusion" e;
 		let e = with_timer actx "analyzer-cleanup" (fun () -> Cleanup.apply actx.com e) in
 		if actx.com.debug then add_debug_expr actx "after cleanup" e;
