@@ -85,7 +85,7 @@ class Boot {
 		if (infos != null) {
 			Global.echo('${infos.fileName}:${infos.lineNumber}: ');
 		}
-		Global.echo(stringify(value));
+		Global.echo(stringify(value) + '\n');
 	}
 
 	/**
@@ -99,7 +99,7 @@ class Boot {
 			return value;
 		}
 		if (value.is_int() || value.is_float()) {
-			return value;
+			return '' + value;
 		}
 		if (value.is_bool()) {
 			return value ? 'true' : 'false';
@@ -130,6 +130,13 @@ class Boot {
 			return '[object ' + hxClass.toString() + ']';
 		}
 		throw "Unable to stringify value";
+	}
+
+	/**
+		If `value` is `null` returns `"null"`. Otherwise returns `value`.
+	**/
+	public static function stringOrNull( value:Null<String> ) : String {
+		return (value == null ? 'null' : value);
 	}
 
 	/**

@@ -371,6 +371,13 @@ let is_string expr =
 	match follow expr.etype with
 		| TInst ({ cl_path = ([], "String") }, _) -> true
 		| _ -> false
+(**
+	Check if `expr` is a constant string
+*)
+let is_constant_string expr =
+	match expr.eexpr with
+		| TConst (TString _) -> true
+		| _ -> false
 
 (**
 	Indicates if `expr` is actually a call to Haxe->PHP magic function
@@ -1358,28 +1365,37 @@ class virtual type_builder ctx wrapper =
 			Writes binary operation to output buffer
 		*)
 		method private write_expr_binop operation expr1 expr2 =
-			let write_shiftRightUnsigned () =
+			let write_for_concat expr =
+				if (is_constant_string expr) || (not (is_string expr)) then
+					self#write_expr expr
+				else begin
+					self#write ((self#use boot_type_path) ^ "::stringOrNull(");
+					self#write_expr expr;
+					self#write ")"
+				end
+			and write_shiftRightUnsigned () =
 				self#write ((self#use boot_type_path) ^ "::shiftRightUnsigned(");
 				self#write_expr expr1;
 				self#write ", ";
 				self#write_expr expr2;
 				self#write ")"
-			and write_binop str =
-				let need_parenthesis =
+			and write_binop ?writer str =
+				let write = match writer with None -> self#write_expr | Some writer -> writer
+				and need_parenthesis =
 					match expr_hierarchy with
 						| _ :: { eexpr = TBinop (parent, _, _) } :: _ -> need_parenthesis_for_binop operation parent
 						| _ -> false
 				in
 				if need_parenthesis then self#write "(";
-				self#write_expr expr1;
+				write expr1;
 				self#write str;
-				self#write_expr expr2;
+				write expr2;
 				if need_parenthesis then self#write ")"
 			in
 			match operation with
 				| OpAdd ->
 					if (is_string expr1) || (is_string expr2) then
-						write_binop " . "
+						write_binop ~writer:write_for_concat " . "
 					else
 						write_binop " + "
 				| OpMult -> write_binop " * "
