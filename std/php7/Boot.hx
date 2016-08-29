@@ -127,7 +127,6 @@ class Boot {
 				return '{' + Global.implode(',', result) + '}';
 			}
 			var hxClass = getClass(Global.get_class(value));
-			Global.var_dump(Global.get_class(value), hxClass);
 			return '[object ' + hxClass.getHaxeName() + ']';
 		}
 		throw "Unable to stringify value";

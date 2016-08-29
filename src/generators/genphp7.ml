@@ -388,6 +388,11 @@ let is_concatenation expr =
 		| _ -> false
 
 (**
+	Check if provided expression is a binary operation
+*)
+let is_binop expr = match expr.eexpr with TBinop _ -> true | _ -> false
+
+(**
 	Indicates if `expr` is actually a call to Haxe->PHP magic function
 	@see http://old.haxe.org/doc/advanced/magic#php-magic
 *)
@@ -999,6 +1004,7 @@ class virtual type_builder ctx wrapper =
 				| TObjectDecl fields -> self#write_expr_object_declaration fields
 				| TArrayDecl exprs -> self#write_expr_array_decl exprs
 				| TCall ({ eexpr = TLocal { v_name = name }}, args) when is_magic expr -> self#write_expr_magic name args
+				| TCall ({ eexpr = TField (expr, access) }, args) when is_string expr -> self#write_expr_call_string expr access args
 				| TCall (target, args) when is_var_field_access target -> self#write_expr_call (parenthesis target) args
 				| TCall (target, args) -> self#write_expr_call target args
 				| TNew (tcls, _, args) -> self#write_expr_new tcls args
@@ -1479,7 +1485,7 @@ class virtual type_builder ctx wrapper =
 				self#write (!access_str ^ field_str)
 			in
 			match (follow expr.etype, access) with
-				| (TInst ({ cl_path = ([], "String") }, _), FInstance (_, _, { cf_name = "length" })) ->
+				| (TInst ({ cl_path = ([], "String") }, _), FInstance (_, _, { cf_name = "length"; cf_kind = Var _ })) ->
 					self#write "strlen(";
 					self#write_expr expr;
 					self#write ")"
@@ -1501,6 +1507,30 @@ class virtual type_builder ctx wrapper =
 				| (_, FEnum (_, field)) ->
 					write_access "::" field.ef_name;
 					if not (is_enum_constructor_with_args field) then self#write "()"
+		(**
+			Convert field access expressions for strings to native PHP string functions and write to output buffer
+		*)
+		method private write_expr_call_string expr access args =
+			match access with
+				| FInstance (_, _, { cf_name = method_name; cf_kind = Method _ }) ->
+					(match method_name with
+						| "charAt" ->
+							if is_binop expr then
+								self#write_expr (parenthesis expr)
+							else
+								self#write_expr expr;
+							self#write "[";
+							write_args buffer self#write_expr args;
+							self#write "]"
+						| "split" ->
+							self#write ((self#use array_type_path) ^ "::wrap(explode(");
+							write_args buffer self#write_expr args;
+							self#write ", ";
+							self#write_expr expr;
+							self#write "))"
+						| _ -> () (* fail self#pos __POS__ *)
+					)
+				| _ -> fail self#pos __POS__
 		(**
 			Writes FStatic field access for methods to output buffer
 		*)
