@@ -1526,16 +1526,21 @@ class virtual type_builder ctx wrapper =
 			Writes FStatic field access for methods to output buffer
 		*)
 		method private write_expr_field_static expr field =
+			let write_expr () =
+				match expr.eexpr with
+					| TTypeExpr (TClassDecl { cl_path = ([], "String") }) -> self#write (self#use hxstring_type_path)
+					| _ -> self#write_expr expr
+			in
 			match expr_hierarchy with
 				| _ :: { eexpr = TCall ({ eexpr = TField (e, FStatic (_, f)) }, _) } :: _ when e == expr && f == field ->
-					self#write_expr expr;
+					write_expr ();
 					self#write ("::" ^ field.cf_name)
 				| _ ->
 					let (args, return_type) = get_function_signature field  in
 					self#write "function(";
 					write_args buffer (self#write_arg true) args;
 					self#write ") { return ";
-					self#write_expr expr;
+					write_expr ();
 					self#write ("::" ^ field.cf_name ^ "(");
 					write_args buffer (self#write_arg false) args;
 					self#write "); }"
