@@ -127,7 +127,8 @@ class Boot {
 				return '{' + Global.implode(',', result) + '}';
 			}
 			var hxClass = getClass(Global.get_class(value));
-			return '[object ' + hxClass.toString() + ']';
+			Global.var_dump(Global.get_class(value), hxClass);
+			return '[object ' + hxClass.getHaxeName() + ']';
 		}
 		throw "Unable to stringify value";
 	}
@@ -227,6 +228,9 @@ private class HxClass {
 		Get `HxClass` instance for specified PHP fully qualified class name (E.g. '\some\pack\MyClass')
 	**/
 	public static function get( phpClassName:String ) : HxClass {
+		if (phpClassName.charAt(0) != '\\') {
+			phpClassName = '\\' + phpClassName;
+		}
 		if (!Global.isset(classes[phpClassName])) {
 			classes[phpClassName] = new HxClass(phpClassName);
 		}
