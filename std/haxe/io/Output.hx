@@ -132,7 +132,7 @@ class Output {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public #if !(flash || python) inline #end function writeFloat( x : Float ) {
+	public function writeFloat( x : Float ) {
 		writeInt32(FPHelper.floatToI32(x));
 	}
 

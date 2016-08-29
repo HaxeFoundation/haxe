@@ -32,7 +32,7 @@ class PairTools {
 	public static function ipairsConcat<T>(table1:Table<Int,T>, table2:Table<Int,T>){
 		var ret:Table<Int,T> = Table.create();
 		ipairsFold(table1, function(a,b,c:Table<Int,T>){ c[a] = b; return c;}, ret);
-		var size = lua.Table.maxn(ret);
+		var size = lua.Boot.tableMaxN(ret);
 		ipairsFold(table2, function(a,b,c:Table<Int,T>){ c[a + size] = b; return c;}, ret);
 		return ret;
 	}

@@ -23,7 +23,6 @@ package cs.internal;
 import cs.Lib;
 import cs.Lib.*;
 import cs.NativeArray;
-import cs.NativeArray;
 import cs.StdTypes;
 import cs.system.Activator;
 import cs.system.IConvertible;
@@ -860,7 +859,7 @@ import cs.system.Object;
 }
 
 @:nativeGen
-@:keep @:native("haxe.lang.EmptyObject") private enum EmptyObject
+@:keep @:native("haxe.lang.EmptyObject") enum EmptyObject
 {
 	EMPTY;
 }

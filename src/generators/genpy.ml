@@ -124,12 +124,12 @@ module Transformer = struct
 
 	and debug_expr e =
 		let s_type = Type.s_type (print_context()) in
-		let s = Type.s_expr_pretty false "    " s_type e in
+		let s = Type.s_expr_pretty false "    " false s_type e in
 		Printf.printf "%s\n" s
 
 	and debug_expr_with_type e =
 		let s_type = Type.s_type (print_context()) in
-		let es = Type.s_expr_pretty false "    " s_type e in
+		let es = Type.s_expr_pretty false "    " false s_type e in
 		let t = s_type e.etype in
 		Printf.printf "%s : %s\n" es t
 
@@ -273,18 +273,21 @@ module Transformer = struct
 
 	let rec transform_function tf ae is_value =
 		let p = tf.tf_expr.epos in
-		let assigns = List.fold_left (fun acc (v,value) -> match value with
-			| None | Some TNull ->
-				acc
-			| Some ct ->
-				let a_local = mk (TLocal v) v.v_type p in
-				let a_null = mk (TConst TNull) v.v_type p in
-				let a_cmp = mk (TBinop(OpEq,a_local,a_null)) !t_bool p in
-				let a_value = mk (TConst(ct)) v.v_type p in
-				let a_assign = mk (TBinop(OpAssign,a_local,a_value)) v.v_type p in
-				let a_if = mk (TIf(a_cmp,a_assign,None)) !t_void p in
-				a_if :: acc
-		) [] tf.tf_args in
+		let assigns = List.fold_left (fun acc (v,value) ->
+			KeywordHandler.check_var_declaration v;
+			match value with
+				| None | Some TNull ->
+					acc
+				| Some ct ->
+					let a_local = mk (TLocal v) v.v_type p in
+					let a_null = mk (TConst TNull) v.v_type p in
+					let a_cmp = mk (TBinop(OpEq,a_local,a_null)) !t_bool p in
+					let a_value = mk (TConst(ct)) v.v_type p in
+					let a_assign = mk (TBinop(OpAssign,a_local,a_value)) v.v_type p in
+					let a_if = mk (TIf(a_cmp,a_assign,None)) !t_void p in
+					a_if :: acc
+			) [] tf.tf_args
+		in
 		let body = match assigns with
 			| [] ->
 				tf.tf_expr
@@ -309,6 +312,7 @@ module Transformer = struct
 			lift_expr fn
 
 	and transform_var_expr ae eo v =
+		KeywordHandler.check_var_declaration v;
 		let b,new_expr = match eo with
 			| None ->
 				[],None
@@ -889,7 +893,7 @@ module Transformer = struct
 			lift_expr ~blocks:blocks r
 		| (false, TTry(etry, catches)) ->
 			let etry = trans false [] etry in
-			let catches = List.map (fun(v,e) -> v, trans false [] e) catches in
+			let catches = List.map (fun(v,e) -> KeywordHandler.check_var_declaration v; v, trans false [] e) catches in
 			let blocks = List.flatten (List.map (fun (_,e) -> e.a_blocks) catches) in
 			let catches = List.map (fun(v,e) -> v, e.a_expr) catches in
 			let r = { a_expr with eexpr = TTry(etry.a_expr, catches)} in
@@ -903,7 +907,7 @@ module Transformer = struct
 			let temp_local = { a_expr with eexpr = TLocal(temp_var)} in
 			let mk_temp_assign right = { a_expr with eexpr = TBinop(OpAssign, temp_local, right)} in
 			let etry = mk_temp_assign etry in
-			let catches = List.map (fun (v,e)-> v, mk_temp_assign e) catches in
+			let catches = List.map (fun (v,e)-> KeywordHandler.check_var_declaration v; v, mk_temp_assign e) catches in
 			let new_try = { a_expr with eexpr = TTry(etry, catches)} in
 			let block = [temp_var_def; new_try; temp_local] in
 			let new_block = { a_expr with eexpr = TBlock(block)} in
@@ -1089,7 +1093,6 @@ module Printer = struct
 		let had_kw_args = ref false in
 		let sl = List.map (fun (v,cto) ->
 			let check_err () = if !had_var_args || !had_kw_args then error "Arguments after KwArgs/VarArgs are not allowed" p in
-			KeywordHandler.check_var_declaration v;
 			let name = handle_keywords v.v_name in
 			match follow v.v_type with
 				| TAbstract({a_path = ["python"],"KwArgs"},_) ->
@@ -1325,7 +1328,6 @@ module Printer = struct
 			| TFunction tf ->
 				print_function pctx tf None e.epos
 			| TVar (v,eo) ->
-				KeywordHandler.check_var_declaration v;
 				print_var pctx v eo
 			| TBlock [] ->
 				Printf.sprintf "pass"
@@ -1442,7 +1444,6 @@ module Printer = struct
 			| _ -> false
 		end in
 		let print_catch pctx i (v,e) =
-			KeywordHandler.check_var_declaration v;
 			let is_empty_expr = begin match e.eexpr with
 				| TBlock [] -> true
 				| _ -> false

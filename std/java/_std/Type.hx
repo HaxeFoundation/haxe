@@ -24,7 +24,7 @@ import java.internal.HxObject;
 
 using StringTools;
 
-@:keep enum ValueType {
+enum ValueType {
 	TNull;
 	TInt;
 	TFloat;
@@ -36,7 +36,7 @@ using StringTools;
 	TUnknown;
 }
 
-@:keep @:coreApi class Type {
+@:coreApi class Type {
 
 	public static function getClass<T>( o : T ) : Class<T>
 	{
@@ -243,11 +243,18 @@ using StringTools;
 		return null;
 	}
 
-	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped
-	{
-		if (Reflect.hasField(cl, "__hx_createEmpty"))
-			return cl.__hx_createEmpty();
-		return createInstance(cl, []);
+	// cache empty constructor arguments so we don't allocate it on each createEmptyInstance call
+	@:protected @:readOnly static var __createEmptyInstance_EMPTY_TYPES = java.NativeArray.make(java.Lib.toNativeEnum(java.internal.Runtime.EmptyObject));
+	@:protected @:readOnly static var __createEmptyInstance_EMPTY_ARGS = java.NativeArray.make(java.internal.Runtime.EmptyObject.EMPTY);
+
+	public static function createEmptyInstance<T>( cl : Class<T> ) : T {
+		var t = java.Lib.toNativeType(cl);
+		try {
+			var ctor = t.getConstructor(__createEmptyInstance_EMPTY_TYPES);
+			return ctor.newInstance(__createEmptyInstance_EMPTY_ARGS);
+		} catch (_:java.lang.NoSuchMethodException) {
+			return t.newInstance();
+		}
 	}
 
 	@:functionCode('

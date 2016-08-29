@@ -173,8 +173,7 @@ class String {
 	}
 
 	function toUtf8() : hl.types.Bytes {
-		var size = 0;
-		return bytes.utf16ToUtf8(0, size);
+		return bytes.utf16ToUtf8(0, null);
 	}
 
 	@:keep function __string() : hl.types.Bytes {

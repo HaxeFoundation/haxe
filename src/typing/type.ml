@@ -301,6 +301,7 @@ and module_kind =
 	| MFake
 	| MSub
 	| MExtern
+	| MImport
 
 and build_state =
 	| Built
@@ -1052,10 +1053,11 @@ let rec s_expr s_type e =
 	) in
 	sprintf "(%s : %s)" str (s_type e.etype)
 
-let rec s_expr_pretty print_var_ids tabs s_type e =
+let rec s_expr_pretty print_var_ids tabs top_level s_type e =
 	let sprintf = Printf.sprintf in
-	let loop = s_expr_pretty print_var_ids tabs s_type in
-	let slist f l = String.concat "," (List.map f l) in
+	let loop = s_expr_pretty print_var_ids tabs false s_type in
+	let slist c f l = String.concat c (List.map f l) in
+	let clist f l = slist ", " f l in
 	let local v = if print_var_ids then sprintf "%s<%i>" v.v_name v.v_id else v.v_name in
 	match e.eexpr with
 	| TConst c -> s_const c
@@ -1066,38 +1068,40 @@ let rec s_expr_pretty print_var_ids tabs s_type e =
 	| TField (e1,s) -> sprintf "%s.%s" (loop e1) (field_name s)
 	| TTypeExpr mt -> (s_type_path (t_path mt))
 	| TParenthesis e1 -> sprintf "(%s)" (loop e1)
-	| TObjectDecl fl -> sprintf "{%s}" (slist (fun (f,e) -> sprintf "%s : %s" f (loop e)) fl)
-	| TArrayDecl el -> sprintf "[%s]" (slist loop el)
-	| TCall (e1,el) -> sprintf "%s(%s)" (loop e1) (slist loop el)
+	| TObjectDecl fl -> sprintf "{%s}" (clist (fun (f,e) -> sprintf "%s : %s" f (loop e)) fl)
+	| TArrayDecl el -> sprintf "[%s]" (clist loop el)
+	| TCall (e1,el) -> sprintf "%s(%s)" (loop e1) (clist loop el)
 	| TNew (c,pl,el) ->
-		sprintf "new %s(%s)" (s_type_path c.cl_path) (slist loop el)
+		sprintf "new %s(%s)" (s_type_path c.cl_path) (clist loop el)
 	| TUnop (op,f,e) ->
 		(match f with
 		| Prefix -> sprintf "%s %s" (s_unop op) (loop e)
 		| Postfix -> sprintf "%s %s" (loop e) (s_unop op))
 	| TFunction f ->
-		let args = slist (fun (v,o) -> sprintf "%s:%s%s" (local v) (s_type v.v_type) (match o with None -> "" | Some c -> " = " ^ s_const c)) f.tf_args in
-		sprintf "function(%s) = %s" args (loop f.tf_expr)
+		let args = clist (fun (v,o) -> sprintf "%s:%s%s" (local v) (s_type v.v_type) (match o with None -> "" | Some c -> " = " ^ s_const c)) f.tf_args in
+		sprintf "%s(%s) %s" (if top_level then "" else "function") args (loop f.tf_expr)
 	| TVar (v,eo) ->
 		sprintf "var %s" (sprintf "%s%s" (local v) (match eo with None -> "" | Some e -> " = " ^ loop e))
 	| TBlock el ->
 		let ntabs = tabs ^ "\t" in
-		let s = sprintf "{\n%s" (String.concat "" (List.map (fun e -> sprintf "%s%s;\n" ntabs (s_expr_pretty print_var_ids ntabs s_type e)) el)) in
-		s ^ tabs ^ "}"
+		let s = sprintf "{\n%s" (String.concat "" (List.map (fun e -> sprintf "%s%s;\n" ntabs (s_expr_pretty print_var_ids ntabs top_level s_type e)) el)) in
+		(match el with
+			| [] -> "{}"
+			| _ ->  s ^ tabs ^ "}")
 	| TFor (v,econd,e) ->
 		sprintf "for (%s in %s) %s" (local v) (loop econd) (loop e)
 	| TIf (e,e1,e2) ->
-		sprintf "if (%s)%s%s" (loop e) (loop e1) (match e2 with None -> "" | Some e -> " else " ^ loop e)
+		sprintf "if (%s) %s%s" (loop e) (loop e1) (match e2 with None -> "" | Some e -> " else " ^ loop e)
 	| TWhile (econd,e,flag) ->
 		(match flag with
 		| NormalWhile -> sprintf "while (%s) %s" (loop econd) (loop e)
 		| DoWhile -> sprintf "do (%s) while(%s)" (loop e) (loop econd))
 	| TSwitch (e,cases,def) ->
 		let ntabs = tabs ^ "\t" in
-		let s = sprintf "switch (%s) {\n%s%s" (loop e) (slist (fun (cl,e) -> sprintf "%scase %s: %s\n" ntabs (slist loop cl) (s_expr_pretty print_var_ids ntabs s_type e)) cases) (match def with None -> "" | Some e -> ntabs ^ "default: " ^ (s_expr_pretty print_var_ids ntabs s_type e) ^ "\n") in
+		let s = sprintf "switch (%s) {\n%s%s" (loop e) (slist "" (fun (cl,e) -> sprintf "%scase %s: %s;\n" ntabs (clist loop cl) (s_expr_pretty print_var_ids ntabs top_level s_type e)) cases) (match def with None -> "" | Some e -> ntabs ^ "default: " ^ (s_expr_pretty print_var_ids ntabs top_level s_type e) ^ "\n") in
 		s ^ tabs ^ "}"
 	| TTry (e,cl) ->
-		sprintf "try %s%s" (loop e) (slist (fun (v,e) -> sprintf "catch( %s : %s ) %s" (local v) (s_type v.v_type) (loop e)) cl)
+		sprintf "try %s%s" (loop e) (clist (fun (v,e) -> sprintf " catch (%s:%s) %s" (local v) (s_type v.v_type) (loop e)) cl)
 	| TReturn None ->
 		"return"
 	| TReturn (Some e) ->
@@ -1243,6 +1247,9 @@ module Printer = struct
 		| None -> "None"
 		| Some v -> f v
 
+	let s_pmap fk fv pm =
+		"{" ^ (String.concat ", " (PMap.foldi (fun k v acc -> (Printf.sprintf "%s = %s" (fk k) (fv v)) :: acc) pm [])) ^ "}"
+
 	let s_doc = s_opt (fun s -> s)
 
 	let s_metadata_entry (s,el,_) =
@@ -1362,6 +1369,38 @@ module Printer = struct
 			"v_capture",string_of_bool v.v_capture;
 			"v_extra",s_opt s_tvar_extra v.v_extra;
 			"v_meta",s_metadata v.v_meta;
+		]
+
+	let s_module_kind = function
+		| MCode -> "MCode"
+		| MMacro -> "MMacro"
+		| MFake -> "MFake"
+		| MSub -> "MSub"
+		| MExtern -> "MExtern"
+		| MImport -> "MImport"
+
+	let s_module_def_extra tabs me =
+		s_record_fields tabs [
+			"m_file",me.m_file;
+			"m_sign",me.m_sign;
+			"m_time",string_of_float me.m_time;
+			"m_dirty",string_of_bool me.m_dirty;
+			"m_added",string_of_int me.m_added;
+			"m_mark",string_of_int me.m_mark;
+			"m_deps",s_pmap string_of_int (fun m -> snd m.m_path) me.m_deps;
+			"m_processed",string_of_int me.m_processed;
+			"m_kind",s_module_kind me.m_kind;
+			"m_binded_res",""; (* TODO *)
+			"m_macro_calls",String.concat ", " me.m_macro_calls;
+			"m_if_feature",""; (* TODO *)
+			"m_features",""; (* TODO *)
+		]
+
+	let s_module_def m =
+		s_record_fields "" [
+			"m_id",string_of_int m.m_id;
+			"m_path",s_type_path m.m_path;
+			"m_extra",s_module_def_extra "\t" m.m_extra
 		]
 end
 

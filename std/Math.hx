@@ -205,6 +205,8 @@ extern class Math
 	/**
 		Rounds `v` to the nearest integer value.
 
+		Ties are rounded up, so that `0.5` becomes `1` and `-0.5` becomes `0`.
+
 		If `v` is outside of the signed `Int32` range, or is `NaN`, `NEGATIVE_INFINITY`
 		or `POSITIVE_INFINITY`, the result is unspecified.
 	**/
@@ -251,6 +253,8 @@ extern class Math
 
 	/**
 		Rounds `v` to the nearest integer value, as a Float.
+
+		Ties are rounded up, so that `0.5` becomes `1` and `-0.5` becomes `0`.
 
 		If `v` is is `NaN`, `NEGATIVE_INFINITY` or `POSITIVE_INFINITY`,
 		the result is unspecified.

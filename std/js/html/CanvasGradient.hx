@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/CanvasRenderingContext2D.webidl line 299:0. Do not edit!
+// This file is generated from mozilla\CanvasRenderingContext2D.webidl line 374:0. Do not edit!
 
 package js.html;
 

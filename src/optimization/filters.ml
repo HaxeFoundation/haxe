@@ -79,7 +79,7 @@ let rec wrap_js_exceptions com e =
 				let ewrap = Codegen.fcall eterr "wrap" [eerr] t_dynamic e.epos in
 				{ e with eexpr = TThrow ewrap }
 			| _ ->
-				let ewrap = { eerr with eexpr = TNew (cerr,[],[eerr]) } in
+				let ewrap = { eerr with eexpr = TNew (cerr,[],[eerr]); etype = TInst (cerr,[]) } in
 				{ e with eexpr = TThrow ewrap }
 			)
 		| _ ->
@@ -919,6 +919,55 @@ let add_meta_field ctx t = match t with
 	| _ ->
 		()
 
+(*
+	C# events have special semantics:
+	if we have an @:event var field, there should also be add_<name> and remove_<name> methods,
+	this filter checks for their existence and also adds some metadata for analyzer and C# generator
+*)
+let check_cs_events com t = match t with 
+	| TClassDecl cl when not cl.cl_extern ->
+		let check fields f =
+			match f.cf_kind with 
+			| Var { v_read = AccNormal; v_write = AccNormal } when Meta.has Meta.Event f.cf_meta ->
+				if f.cf_public then error "@:event fields must be private" f.cf_pos;
+
+				(* prevent generating reflect helpers for the event in gencommon *)
+				f.cf_meta <- (Meta.SkipReflection, [], f.cf_pos) :: f.cf_meta;
+
+				(* type for both add and remove methods *)
+				let tmeth = (tfun [f.cf_type] com.basic.tvoid) in
+
+				let process_event_method name =
+					let m = try PMap.find name fields with Not_found -> error ("Missing event method: " ^ name) f.cf_pos in
+
+					(* check method signature *)
+					begin
+						try
+							type_eq EqStrict m.cf_type tmeth
+						with Unify_error el ->
+							List.iter (fun e -> com.error (Typecore.unify_error_msg (print_context()) e) m.cf_pos) el
+					end;
+
+					(*
+						add @:impure to prevent purity inference, because empty add/remove methods
+						have special meaning here and they are always impure
+					*)
+					m.cf_meta <- (Meta.Custom ":impure",[],f.cf_pos) :: (Meta.Custom ":cs_event_impl",[],f.cf_pos) :: m.cf_meta;
+
+					(* add @:keep to event methods if the event is kept *)
+					if Meta.has Meta.Keep f.cf_meta && not (Meta.has Meta.Keep m.cf_meta) then
+						m.cf_meta <- (Meta.Keep,[],f.cf_pos) :: m.cf_meta;
+				in
+				process_event_method ("add_" ^ f.cf_name);
+				process_event_method ("remove_" ^ f.cf_name)
+			| _ ->
+				()
+		in
+		List.iter (check cl.cl_fields) cl.cl_ordered_fields;
+		List.iter (check cl.cl_statics) cl.cl_ordered_statics
+	| _ ->
+		()
+
 (* Removes interfaces tagged with @:remove metadata *)
 let check_remove_metadata ctx t = match t with
 	| TClassDecl c ->
@@ -1039,6 +1088,10 @@ let run com tctx main =
 		captured_vars com;
 	] in
 	List.iter (run_expression_filters tctx filters) new_types;
+	(* PASS 1.5: pre-analyzer type filters *)
+	List.iter (fun t ->
+		if com.platform = Cs then check_cs_events tctx.com t;
+	) new_types;
 	if com.platform <> Cross then Analyzer.Run.run_on_types tctx new_types;
 	let filters = [
 		Optimizer.sanitize com;

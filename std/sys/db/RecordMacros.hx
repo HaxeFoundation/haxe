@@ -363,7 +363,7 @@ class RecordMacros {
 			};
 			var isId = switch( fi.t ) {
 			case DId, DUId, DBigId: true;
-			default: fi.name == "id";
+			default: i.key == null && fi.name == "id";
 			}
 			if( isId ) {
 				switch(fi.t)

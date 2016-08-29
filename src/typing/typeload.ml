@@ -216,7 +216,8 @@ let module_pass_1 ctx m tdecls loadp =
 							()
 					) a.a_meta;
 					a.a_impl <- Some c;
-					c.cl_kind <- KAbstractImpl a
+					c.cl_kind <- KAbstractImpl a;
+					c.cl_meta <- (Meta.Final,[],c.cl_pos) :: c.cl_meta
 				| _ -> assert false);
 				acc
 		) in
@@ -470,7 +471,7 @@ let rec load_instance ?(allow_display=false) ctx (t,pn) allow_no_params p =
 							if not expects_expression && not accepts_expression then
 								error "Constant value unexpected here" p
 						end else if expects_expression then
-							error "Constant value excepted as type parameter" p
+							error "Type parameter is expected to be a constant value" p
 					in
 					let is_rest = is_rest || name = "Rest" && is_generic_build in
 					let t = match follow t2 with
@@ -3455,6 +3456,7 @@ let handle_import_hx ctx m decls p =
 		Hashtbl.replace ctx.com.parser_cache path r;
 		(* We use the file path as module name to make it unique. This may or may not be a good idea... *)
 		let m_import = make_module ctx ([],path) path p in
+		m_import.m_extra.m_kind <- MImport;
 		add_module ctx m_import p;
 		m_import
 	in

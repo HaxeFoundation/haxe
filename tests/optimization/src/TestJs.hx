@@ -576,7 +576,7 @@ class TestJs {
 	static function use<T>(t:T) { return t; }
 
 	static var intField = 12;
-	static var stringField = "foo";
+	static var stringField(default, never) = "foo";
 
 	@:js('
 		var _g = Type["typeof"]("");

@@ -738,7 +738,7 @@ and wait_loop verbose accept =
 			else try
 				if m.m_extra.m_mark <= start_mark then begin
 					(match m.m_extra.m_kind with
-					| MFake | MSub -> () (* don't get classpath *)
+					| MFake | MSub | MImport -> () (* don't get classpath *)
 					| MExtern ->
 						(* if we have a file then this will override our extern type *)
 						let has_file = (try ignore(Typeload.resolve_module_file com2 m.m_path (ref[]) p); true with Not_found -> false) in
@@ -1290,6 +1290,8 @@ try
 					| "usage" ->
 						Common.define com Define.NoCOpt;
 						DMUsage
+					| "package" ->
+						DMPackage
 					| "type" ->
 						Common.define com Define.NoCOpt;
 						DMType
@@ -1475,6 +1477,7 @@ try
 		let real = get_real_path (!Parser.resume_display).Ast.pfile in
 		(match get_module_path_from_file_path com real with
 		| Some path ->
+			if com.display = DMPackage then raise (Display.DisplayPackage (fst path));
 			classes := path :: !classes
 		| None ->
 			if not (Sys.file_exists real) then failwith "Display file does not exist";
@@ -1724,6 +1727,8 @@ with
 		error ctx ("Error: " ^ msg) Ast.null_pos
 	| Arg.Help msg ->
 		message ctx msg Ast.null_pos
+	| Display.DisplayPackage pack ->
+		raise (Completion (String.concat "." pack))
 	| Display.DisplayFields fields ->
 		let ctx = print_context() in
 		let fields = List.map (fun (name,t,kind,doc) -> name, s_type ctx t, kind, (match doc with None -> "" | Some d -> d)) fields in

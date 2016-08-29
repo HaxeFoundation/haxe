@@ -39,7 +39,7 @@ class Issue4690 {
 		console.log(c_y);
 		console.log(c_z);
 	')
-	@:analyzer(no_const_propagation)
+	@:analyzer(no_const_propagation, no_fusion)
 	static function test() {
 		var c = new Child(1, 2, 3);
 		trace(c.x);

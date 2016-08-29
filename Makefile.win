@@ -32,8 +32,8 @@ FILTER=sed '/File/{ N; s/File "\([^"]\+\)", line \([0-9]\+\), characters \([0-9-
 endif
 
 ifdef FILTER
-CC_CMD=($(OCAMLOPT) $(CFLAGS) -c $< 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
-CC_PARSER_CMD=($(OCAMLOPT) -pp camlp4o $(CFLAGS) -c src/syntax/parser.ml 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
+CC_CMD=($(OCAMLOPT) $(ALL_CFLAGS) -c $< 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
+CC_PARSER_CMD=($(OCAMLOPT) -pp camlp4o $(ALL_CFLAGS) -c src/syntax/parser.ml 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
 endif
 
 package_bin:

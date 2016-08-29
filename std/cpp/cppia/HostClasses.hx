@@ -108,7 +108,7 @@ class HostClasses
    "haxe.crypto.Adler32",
    "haxe.crypto.Md5",
    "haxe.crypto.Sha1",
- 
+
    "haxe.io.BufferInput",
    "haxe.io.Bytes",
    "haxe.io.BytesBuffer",
@@ -153,7 +153,7 @@ class HostClasses
    "EReg",
    "Enum",
    "EnumValue",
-   "IntIterator",
+   // "IntIterator",
    "List",
    "Map",
    "String",

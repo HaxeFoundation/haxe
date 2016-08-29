@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/MessageEvent.webidl line 76:0. Do not edit!
+// This file is generated from mozilla\MessageEvent.webidl line 58:0. Do not edit!
 
 package js.html;
 

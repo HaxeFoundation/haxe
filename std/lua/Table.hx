@@ -23,13 +23,8 @@ extern class Table<A,B> implements ArrayAccess<B> implements Dynamic<B> {
 	@:overload(function<B>(table:Table<Int,B>):Void{})
 	public static function remove<B>(table:Table<Int,B>, ?pos:Int) : Void;
 
-	public static function maxn<B>(table: Table<Int,B>) : Int;
 	public static function pack<T>(args:T) : Table<Int,T>;
 	public static function unpack(arg:Table<Dynamic,Dynamic>, ?min:Int, ?max:Int) : Dynamic;
-	private static function __init__() : Void {
-		// lua table polyfills
-		haxe.macro.Compiler.includeFile("lua/_lua/_hx_table_polyfill.lua");
-	}
 }
 
 typedef AnyTable = Table<Dynamic, Dynamic>;

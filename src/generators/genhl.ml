@@ -66,7 +66,7 @@ and class_proto = {
 and enum_proto = {
 	ename : string;
 	eid : int;
-	mutable eglobal : int;
+	mutable eglobal : int option;
 	mutable efields : (string * string index * ttype array) array;
 }
 
@@ -318,7 +318,7 @@ let null_proto =
 
 let all_types =
 	let vp = { vfields = [||]; vindex = PMap.empty } in
-	let ep = { ename = ""; eid = 0; eglobal = 0; efields = [||] } in
+	let ep = { ename = ""; eid = 0; eglobal = None; efields = [||] } in
 	[HVoid;HI8;HI16;HI32;HF32;HF64;HBool;HBytes;HDyn;HFun ([],HVoid);HObj null_proto;HArray;HType;HRef HVoid;HVirtual vp;HDynObj;HAbstract ("",0);HEnum ep;HNull HVoid]
 
 let is_number = function
@@ -963,7 +963,7 @@ and enum_type ?(tref=None) ctx e =
 	with Not_found ->
 		let ename = s_type_path e.e_path in
 		let et = {
-			eglobal = 0;
+			eglobal = None;
 			ename = ename;
 			eid = alloc_string ctx ename;
 			efields = [||];
@@ -982,7 +982,7 @@ and enum_type ?(tref=None) ctx e =
 			(f.ef_name, alloc_string ctx f.ef_name, args)
 		) e.e_names);
 		let ct = enum_class ctx e in
-		et.eglobal <- alloc_global ctx (match ct with HObj o -> o.pname | _ -> assert false) ct;
+		et.eglobal <- Some (alloc_global ctx (match ct with HObj o -> o.pname | _ -> assert false) ct);
 		t
 
 and enum_class ctx e =
@@ -2684,7 +2684,7 @@ and build_capture_vars ctx f =
 		c_map = !indexes;
 		c_vars = cvars;
 		c_type = HEnum {
-			eglobal = 0;
+			eglobal = None;
 			ename = "";
 			eid = 0;
 			efields = [|"",0,Array.map (fun v -> to_type ctx v.v_type) cvars|];
@@ -4829,7 +4829,7 @@ let interp code =
 				| _ -> assert false)
 			| "sys_exit" ->
 				(function
-				| [VInt code] -> VUndef
+				| [VInt code] -> exit (Int32.to_int code)
 				| _ -> assert false)
 			| "sys_utf8_path" ->
 				(function
@@ -4856,7 +4856,7 @@ let interp code =
 				| [VType t] ->
 					(match t with
 					| HObj c -> (match c.pclassglobal with None -> VNull | Some g -> globals.(g))
-					| HEnum e -> globals.(e.eglobal)
+					| HEnum e -> (match e.eglobal with None -> VNull | Some g -> globals.(g))
 					| _ -> VNull)
 				| _ -> assert false)
 			| "type_name" ->
@@ -5356,7 +5356,7 @@ let write_index_gen b i =
 		b (i land 0xFF);
 	end
 
-let write_code ch code =
+let write_code ch code debug =
 
 	let types = gather_types code in
 	let byte = IO.write_byte ch in
@@ -5409,6 +5409,7 @@ let write_code ch code =
 			write_type t
 		| OSwitch (r,pl,eend) ->
 			byte oid;
+			write_index r;
 			write_index (Array.length pl);
 			Array.iter write_index pl;
 			write_index eend
@@ -5444,7 +5445,11 @@ let write_code ch code =
 	in
 
 	IO.nwrite ch "HLB";
-	IO.write_byte ch code.version;
+	byte code.version;
+
+	let flags = ref 0 in
+	if debug then flags := !flags lor 1;
+	byte !flags;
 
 	write_index (Array.length code.ints);
 	write_index (Array.length code.floats);
@@ -5458,11 +5463,19 @@ let write_code ch code =
 	Array.iter (IO.write_real_i32 ch) code.ints;
 	Array.iter (IO.write_double ch) code.floats;
 
-	let str_length = ref 0 in
-	Array.iter (fun str -> str_length := !str_length + String.length str + 1) code.strings;
-	IO.write_i32 ch !str_length;
-	Array.iter (IO.write_string ch) code.strings;
-	Array.iter (fun str -> write_index (String.length str)) code.strings;
+	let write_strings strings =
+		let str_length = ref 0 in
+		Array.iter (fun str -> str_length := !str_length + String.length str + 1) strings;
+		IO.write_i32 ch !str_length;
+		Array.iter (IO.write_string ch) strings;
+		Array.iter (fun str -> write_index (String.length str)) strings;
+	in
+	write_strings code.strings;
+
+	if debug then begin
+		write_index (Array.length code.debugfiles);
+		write_strings code.debugfiles;
+	end;
 
 	DynArray.iter (fun t ->
 		match t with
@@ -5488,6 +5501,9 @@ let write_code ch code =
 			(match p.psuper with
 			| None -> write_index (-1)
 			| Some t -> write_type (HObj t));
+			(match p.pclassglobal with
+			| None -> write_index 0
+			| Some g -> write_index (g + 1));
 			write_index (Array.length p.pfields);
 			write_index (Array.length p.pproto);
 			Array.iter (fun (_,n,t) -> write_index n; write_type t) p.pfields;
@@ -5511,6 +5527,9 @@ let write_code ch code =
 		| HEnum e ->
 			byte 17;
 			write_index e.eid;
+			(match e.eglobal with
+			| None -> write_index 0
+			| Some g -> write_index (g + 1));
 			write_index (Array.length e.efields);
 			Array.iter (fun (_,nid,tl) ->
 				write_index nid;
@@ -5522,6 +5541,49 @@ let write_code ch code =
 			byte 18;
 			write_type t
 	) types.arr;
+
+	let write_debug_infos debug =
+		let curfile = ref (-1) in
+		let curpos = ref 0 in
+		let rcount = ref 0 in
+		let rec flush_repeat p =
+			if !rcount > 0 then begin
+				if !rcount > 15 then begin
+					byte ((15 lsl 2) lor 2);
+					rcount := !rcount - 15;
+					flush_repeat(p)
+				end else begin
+					let delta = p - !curpos in
+					let delta = (if delta > 0 && delta < 4 then delta else 0) in
+					byte ((delta lsl 6) lor (!rcount lsl 2) lor 2);
+					rcount := 0;
+					curpos := !curpos + delta;
+				end
+			end
+		in
+		Array.iter (fun (f,p) ->
+			if f <> !curfile then begin
+				flush_repeat(p);
+				curfile := f;
+				byte ((f lsr 7) lor 1);
+				byte (f land 0xFF);
+			end;
+			if p <> !curpos then flush_repeat(p);
+			if p = !curpos then
+				rcount := !rcount + 1
+			else
+				let delta = p - !curpos in
+				if delta > 0 && delta < 32 then
+					byte ((delta lsl 3) lor 4)
+				else begin
+					byte (p lsl 3);
+					byte (p lsr 5);
+					byte (p lsr 13);
+				end;
+				curpos := p;
+		) debug;
+		flush_repeat(!curpos)
+	in
 
 	Array.iter write_type code.globals;
 	Array.iter (fun (lib_index, name_index,ttype,findex) ->
@@ -5537,12 +5599,13 @@ let write_code ch code =
 		write_index (Array.length f.code);
 		Array.iter write_type f.regs;
 		Array.iter write_op f.code;
+		if debug then write_debug_infos f.debug;
 	) code.functions
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
 (* DUMP *)
 
-let ostr o =
+let ostr fstr o =
 	match o with
 	| OMov (a,b) -> Printf.sprintf "mov %d,%d" a b
 	| OInt (r,i) -> Printf.sprintf "int %d,@%d" r i
@@ -5568,18 +5631,18 @@ let ostr o =
 	| ONot (r,v) -> Printf.sprintf "not %d,%d" r v
 	| OIncr r -> Printf.sprintf "incr %d" r
 	| ODecr r -> Printf.sprintf "decr %d" r
-	| OCall0 (r,g) -> Printf.sprintf "call %d, f%d()" r g
-	| OCall1 (r,g,a) -> Printf.sprintf "call %d, f%d(%d)" r g a
-	| OCall2 (r,g,a,b) -> Printf.sprintf "call %d, f%d(%d,%d)" r g a b
-	| OCall3 (r,g,a,b,c) -> Printf.sprintf "call %d, f%d(%d,%d,%d)" r g a b c
-	| OCall4 (r,g,a,b,c,d) -> Printf.sprintf "call %d, f%d(%d,%d,%d,%d)" r g a b c d
-	| OCallN (r,g,rl) -> Printf.sprintf "call %d, f%d(%s)" r g (String.concat "," (List.map string_of_int rl))
+	| OCall0 (r,g) -> Printf.sprintf "call %d, %s()" r (fstr g)
+	| OCall1 (r,g,a) -> Printf.sprintf "call %d, %s(%d)" r (fstr g) a
+	| OCall2 (r,g,a,b) -> Printf.sprintf "call %d, %s(%d,%d)" r (fstr g) a b
+	| OCall3 (r,g,a,b,c) -> Printf.sprintf "call %d, %s(%d,%d,%d)" r (fstr g) a b c
+	| OCall4 (r,g,a,b,c,d) -> Printf.sprintf "call %d, %s(%d,%d,%d,%d)" r (fstr g) a b c d
+	| OCallN (r,g,rl) -> Printf.sprintf "call %d, %s(%s)" r (fstr g) (String.concat "," (List.map string_of_int rl))
 	| OCallMethod (r,f,[]) -> "callmethod ???"
 	| OCallMethod (r,f,o :: rl) -> Printf.sprintf "callmethod %d, %d[%d](%s)" r o f (String.concat "," (List.map string_of_int rl))
 	| OCallClosure (r,f,rl) -> Printf.sprintf "callclosure %d, %d(%s)" r f (String.concat "," (List.map string_of_int rl))
 	| OCallThis (r,f,rl) -> Printf.sprintf "callthis %d, [%d](%s)" r f (String.concat "," (List.map string_of_int rl))
-	| OStaticClosure (r,f) -> Printf.sprintf "staticclosure %d, f%d" r f
-	| OInstanceClosure (r,f,v) -> Printf.sprintf "instanceclosure %d, f%d(%d)" r f v
+	| OStaticClosure (r,f) -> Printf.sprintf "staticclosure %d, %s" r (fstr f)
+	| OInstanceClosure (r,f,v) -> Printf.sprintf "instanceclosure %d, %s(%d)" r (fstr f) v
 	| OGetGlobal (r,g) -> Printf.sprintf "global %d, %d" r g
 	| OSetGlobal (g,r) -> Printf.sprintf "setglobal %d, %d" g r
 	| ORet r -> Printf.sprintf "ret %d" r
@@ -5646,6 +5709,7 @@ let ostr o =
 
 let dump pr code =
 	let all_protos = Hashtbl.create 0 in
+	let funnames = Hashtbl.create 0 in
 	let tstr t =
 		(match t with
 		| HObj p -> Hashtbl.replace all_protos p.pname p
@@ -5657,6 +5721,12 @@ let dump pr code =
 			code.strings.(idx)
 		with _ ->
 			"INVALID:" ^ string_of_int idx
+	in
+	let fstr fid =
+		try
+			Hashtbl.find funnames fid
+		with _ ->
+			Printf.sprintf "f@%X" fid
 	in
 	let debug_infos (fid,line) =
 		(try code.debugfiles.(fid) with _ -> "???") ^ ":" ^ string_of_int line
@@ -5682,16 +5752,25 @@ let dump pr code =
 	pr (string_of_int (Array.length code.natives) ^ " natives");
 	Array.iter (fun (lib,name,t,fidx) ->
 		pr ("	@" ^ string_of_int fidx ^ " native " ^ str lib ^ "@" ^ str name ^ " " ^ tstr t);
+		Hashtbl.add funnames fidx (str lib ^ "@" ^ str name)
 	) code.natives;
+	Array.iter (fun f -> Hashtbl.add funnames f.findex (fundecl_name f)) code.functions;
 	pr (string_of_int (Array.length code.functions) ^ " functions");
 	Array.iter (fun f ->
 		pr (Printf.sprintf "	fun@%d(%Xh) %s" f.findex f.findex (tstr f.ftype));
-		pr (Printf.sprintf "	; %s" (debug_infos f.debug.(0)));
+		let fid, _ = f.debug.(0) in
+		let cur_fid = ref fid in
+		pr (Printf.sprintf "	; %s (%s)" (debug_infos f.debug.(0)) (fundecl_name f));
 		Array.iteri (fun i r ->
 			pr ("		r" ^ string_of_int i ^ " " ^ tstr r);
 		) f.regs;
 		Array.iteri (fun i o ->
-			pr (Printf.sprintf "		.%-5d @%d %s" (snd f.debug.(i)) i (ostr o))
+			let fid, line = f.debug.(i) in
+			if fid <> !cur_fid then begin
+				cur_fid := fid;
+				pr (Printf.sprintf "	; %s" (debug_infos (fid,line)));
+			end;
+			pr (Printf.sprintf "		.%-5d @%X %s" line i (ostr fstr o))
 		) f.code;
 	) code.functions;
 	let protos = Hashtbl.fold (fun _ p acc -> p :: acc) all_protos [] in
@@ -6070,7 +6149,8 @@ let write_c version file (code:code) =
 					sexpr "static int %s[] = {%s}" name (String.concat "," (List.map (fun _ -> "0") (Array.to_list tl)));
 					name
 				in
-				sprintf "{(const uchar*)string$%d, %d, %s, %s, %s}" nid (Array.length tl) tval size offsets
+				let has_ptr = List.exists is_gc_ptr (Array.to_list tl) in
+				sprintf "{(const uchar*)string$%d, %d, %s, %s, %s, %s}" nid (Array.length tl) tval size (if has_ptr then "true" else "false") offsets
 			in
 			sexpr "static hl_enum_construct %s[] = {%s}" constr_name (String.concat "," (Array.to_list (Array.mapi constr_value e.efields)));
 			let efields = [
@@ -6334,21 +6414,18 @@ let write_c version file (code:code) =
 					let meth = cast_fun meth (HDyn :: List.map rtype args) rt in
 					sline "if( hl_vfields(%s)[%d] ) %s%s(%s); else {" (reg o) fid (rassign r rt) meth (String.concat "," ((reg o ^ "->value") :: List.map reg args));
 					block();
-					if args <> [] then sexpr "vdynamic *args[] = {%s}" (String.concat "," (List.map (fun p ->
-						match rtype p with
-						| HDyn ->
+					if args <> [] then sexpr "void *args[] = {%s}" (String.concat "," (List.map (fun p ->
+						let t = rtype p in
+						if is_ptr t then
 							reg p
-						| t ->
-							if is_dynamic t then
-								sprintf "(vdynamic*)%s" (reg p)
-							else
-								sprintf "hl_make_dyn(&%s,%s)" (reg p) (type_value t)
+						else
+							sprintf "&%s" (reg p)
 					) args));
 					let rt = rtype r in
-					let ret = if rt = HVoid then "" else if is_dynamic rt then sprintf "%s = (%s)" (reg r) (ctype rt) else "vdynamic *ret = " in
-					let fname, fid, _ = vp.vfields.(fid) in
-					sexpr "%shlc_dyn_call_obj(%s->value,%ld/*%s*/,%s,%d)" ret (reg o) (hash fid) fname (if args = [] then "NULL" else "args") (List.length args);
-					if rt <> HVoid && not (is_dynamic rt) then sexpr "%s = (%s)hl_dyn_cast%s(&ret,&hlt_dyn%s)" (reg r) (ctype rt) (dyn_prefix rt) (type_value_opt rt);
+					let ret = if rt = HVoid then "" else if is_ptr rt then sprintf "%s = (%s)" (reg r) (ctype rt) else begin sexpr "vdynamic ret"; ""; end in
+					let fname, fid, ft = vp.vfields.(fid) in
+					sexpr "%shl_dyn_call_obj(%s->value,%s,%ld/*%s*/,%s,%s)" ret (reg o) (type_value ft) (hash fid) fname (if args = [] then "NULL" else "args") (if is_ptr rt || rt == HVoid then "NULL" else "&ret");
+					if rt <> HVoid && not (is_ptr rt) then sexpr "%s = (%s)ret.v.%s" (reg r) (ctype rt) (dyn_prefix rt);
 					unblock();
 					sline "}"
 				| _ ->
@@ -6449,7 +6526,7 @@ let write_c version file (code:code) =
 				label
 			in
 			let todo() =
-				sexpr "hl_fatal(\"%s\")" (ostr op)
+				sexpr "hl_fatal(\"%s\")" (ostr (fun id -> "f" ^ string_of_int id) op)
 			in
 			let compare_op op a b d =
 				let phys_compare() =
@@ -6774,10 +6851,10 @@ let write_c version file (code:code) =
 			| ONullCheck r ->
 				sexpr "if( %s == NULL ) hl_null_access()" (reg r)
 			| OTrap (r,d) ->
-				sexpr "hlc_trap(trap$%d,%s,%s)" !trap_depth (reg r) (label d);
+				sexpr "hl_trap(trap$%d,%s,%s)" !trap_depth (reg r) (label d);
 				incr trap_depth
 			| OEndTrap b ->
-				sexpr "hlc_endtrap(trap$%d)" (!trap_depth - 1);
+				sexpr "hl_endtrap(trap$%d)" (!trap_depth - 1);
 				if b then decr trap_depth;
 			| ODump r ->
 				todo()
@@ -6813,7 +6890,7 @@ let write_c version file (code:code) =
 			sexpr "type$%d.tparam = %s" i (type_value t)
 		| HEnum e ->
 			sexpr "type$%d.tenum = &enum$%d" i i;
-			if e.eglobal <> 0 then sexpr "enum$%d.global_value = (void**)&global$%d" i e.eglobal;
+			(match e.eglobal with None -> () | Some g -> sexpr "enum$%d.global_value = (void**)&global$%d" i g);
 			Array.iteri (fun cid (_,_,tl) ->
 				if Array.length tl > 0 then begin
 					line "{";
@@ -6956,7 +7033,7 @@ let generate com =
 		write_c com.Common.version com.file code
 	else begin
 		let ch = IO.output_string() in
-		write_code ch code;
+		write_code ch code true;
 		let str = IO.close_out ch in
 		let ch = open_out_bin com.file in
 		output_string ch str;

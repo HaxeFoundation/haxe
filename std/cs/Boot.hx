@@ -25,7 +25,8 @@ import cs.internal.FieldLookup;
 import cs.internal.Function;
 import cs.internal.HxObject;
 import cs.internal.Runtime;
-import cs.internal.Iterator;
+// TODO (see Gencommon.IteratorsInterfaceModf)
+//import cs.internal.Iterator;
 #if !erase_generics
 import cs.internal.Null;
 #end

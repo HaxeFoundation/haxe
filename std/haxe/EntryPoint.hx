@@ -112,10 +112,12 @@ class EntryPoint {
 	@:keep public static function run() @:privateAccess {
 		#if js
 
-		processEvents();
+		var nextTick = processEvents();
 
 		#if nodejs
-		(untyped process).nextTick(run);
+		if( nextTick < 0 )
+			return;
+		(untyped setTimeout)(run,nextTick);
 		#else
 		var window : Dynamic = js.Browser.window;
 		var rqf : Dynamic = window.requestAnimationFrame ||

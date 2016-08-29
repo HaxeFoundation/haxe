@@ -39,8 +39,7 @@ class Sys {
 		utf8Path = sys_utf8_path();
 	}
 	static function getPath( s : String ) : hl.types.Bytes {
-		var size = 0;
-		return utf8Path ? s.bytes.utf16ToUtf8(0, size) : s.bytes;
+		return utf8Path ? s.bytes.utf16ToUtf8(0, null) : s.bytes;
 	}
 	static function makePath( b : hl.types.Bytes ) : String {
 		return utf8Path ? String.fromUTF8(b) : String.fromUCS2(b);
@@ -97,8 +96,7 @@ class Sys {
 	}
 
 	public static function setTimeLocale( loc : String ) : Bool {
-		var size = 0;
-		return set_time_locale(loc.bytes.utf16ToUtf8(0,size));
+		return set_time_locale(loc.bytes.utf16ToUtf8(0,null));
 	}
 
 	public static function getCwd() : String {

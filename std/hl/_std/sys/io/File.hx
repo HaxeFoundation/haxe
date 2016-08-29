@@ -27,8 +27,7 @@ typedef FileHandle = hl.types.NativeAbstract<"hl_fdesc">;
 @:coreApi class File {
 
 	public static function getContent( path : String ) : String {
-		var size = 0;
-		var bytes = file_contents(Sys.getPath(path), size);
+		var bytes = file_contents(Sys.getPath(path), null);
 		if( bytes == null ) throw new Sys.SysError("Can't read "+path);
 		return @:privateAccess String.fromUTF8(bytes);
 	}

@@ -84,6 +84,7 @@ class Lib
 
 		This function will not work with Value Types (such as Int, Float, Bool...)
 	**/
+	@:pure
 	@:extern public static inline function as<T>(obj:Dynamic, cl:Class<T>):T
 	{
 		return untyped __as__(obj);

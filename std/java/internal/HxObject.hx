@@ -38,7 +38,6 @@ interface IHxObject
 }
 
 @:native('haxe.lang.DynamicObject')
-@:replaceReflection
 @:keep
 class DynamicObject extends HxObject implements Dynamic
 {
