@@ -32,6 +32,7 @@ import js.Boot;
 		return untyped __instanceof__(value, c) ? cast value : null;
 	}
 
+	@:pure
 	public static function string( s : Dynamic ) : String {
 		return untyped js.Boot.__string_rec(s,"");
 	}

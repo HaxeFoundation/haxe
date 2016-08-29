@@ -567,12 +567,12 @@ class TestJs {
 		return call(d2, d1);
 	}
 
-	@:impure
+	@:pure(false)
 	static function getInt(?d:Dynamic) { return 1; }
 	static function getArray() { return [0, 1]; }
-	@:impure
+	@:pure(false)
 	static function call(d1:Dynamic, d2:Dynamic) { return d1; }
-	@:impure
+	@:pure(false)
 	static function use<T>(t:T) { return t; }
 
 	static var intField = 12;

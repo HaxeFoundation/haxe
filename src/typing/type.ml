@@ -1253,7 +1253,7 @@ module Printer = struct
 	let s_doc = s_opt (fun s -> s)
 
 	let s_metadata_entry (s,el,_) =
-		Printf.sprintf "@%s%s" (Meta.to_string s) (match el with [] -> "" | el -> String.concat ", " (List.map Ast.s_expr el))
+		Printf.sprintf "@%s%s" (Meta.to_string s) (match el with [] -> "" | el -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")")
 
 	let s_metadata metadata =
 		s_list " " s_metadata_entry metadata
