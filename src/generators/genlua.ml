@@ -227,43 +227,6 @@ let is_dynamic_iterator ctx e =
 		false
 
 (* from genphp *)
-let rec is_uncertain_type t =
-	match follow t with
-	| TInst (c, _) -> c.cl_interface
-	| TMono _ -> true
-	| TAnon a ->
-	  (match !(a.a_status) with
-	  | Statics _
-	  | EnumStatics _ -> false
-	  | _ -> true)
-	| TDynamic _ -> true
-	| _ -> false
-
-let is_uncertain_expr e =
-	is_uncertain_type e.etype
-
-let rec is_anonym_type t =
-	match follow t with
-	| TAnon a ->
-	  (match !(a.a_status) with
-	  | Statics _
-	  | EnumStatics _ -> false
-	  | _ -> true)
-	| TDynamic _ -> true
-	| _ -> false
-
-let is_anonym_expr e = is_anonym_type e.etype
-
-let rec is_unknown_type t =
-	match follow t with
-	| TMono r ->
-		(match !r with
-		| None -> true
-		| Some t -> is_unknown_type t)
-	| _ -> false
-
-let is_unknown_expr e =	is_unknown_type e.etype
-
 let rec is_string_type t =
 	match follow t with
 	| TInst ({cl_path = ([], "String")}, _) -> true
@@ -288,13 +251,6 @@ let rec is_int_type ctx t =
 	| TAbstract ({a_path = ([],"Int")}, pl) -> true
 	| TAbstract (a,pl) -> is_int_type ctx (Abstract.get_underlying_type a pl)
 	| _ -> false
-
-let rec should_wrap_int_op ctx op e1 e2 =
-    match op with
-    | Ast.OpAdd | Ast.OpMult | Ast.OpDiv | Ast.OpSub | Ast.OpAnd | Ast.OpOr
-    | Ast.OpXor | Ast.OpShl  | Ast.OpShr | Ast.OpUShr ->
-	    is_int_type ctx e1.etype && is_int_type ctx e2.etype
-    | _ -> false
 
 let rec extract_expr e = match e.eexpr with
     | TParenthesis e
@@ -1685,9 +1641,6 @@ let generate_type_forward ctx = function
 		println ctx "%s = _hx_e()" p;
 	| TTypeDecl _ | TAbstractDecl _ -> ()
 
-let set_current_class ctx c =
-	ctx.current <- c
-
 let alloc_ctx com =
 	let ctx = {
 		com = com;
@@ -1719,13 +1672,6 @@ let alloc_ctx com =
 			-> dot_path p
 		| _ -> s_path ctx p);
 	ctx
-
-let gen_single_expr ctx e expr =
-	if expr then gen_expr ctx e else gen_value ctx e;
-	let str = Buffer.contents ctx.buf in
-	Buffer.reset ctx.buf;
-	ctx.id_counter <- 0;
-	str
 
 let generate com =
 	let t = Common.timer "generate lua" in
