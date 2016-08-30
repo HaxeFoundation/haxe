@@ -3502,11 +3502,14 @@ let type_module ctx mpath file ?(is_extern=false) tdecls p =
 			List.iter (fun mt -> match mt with
 				| TClassDecl c | TAbstractDecl({a_impl = Some c}) ->
 					ignore(c.cl_build());
-					let field cf = match cf.cf_kind with
+					let field cf =
+						begin match cf.cf_kind with
 						| Method MethMacro ->
 							(try ignore (ctx.g.do_macro ctx MDisplay c.cl_path cf.cf_name [] p) with Exit -> ())
 						| _ ->
 							ignore(follow cf.cf_type);
+						end;
+						Display.Diagnostics.find_unused_variables ctx.com cf;
 					in
 					List.iter field c.cl_ordered_fields;
 					List.iter field c.cl_ordered_statics;

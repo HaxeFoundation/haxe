@@ -368,6 +368,22 @@ module Diagnostics = struct
 	open UnresolvedIdentifierSuggestion
 	open DiagnosticsKind
 
+	let find_unused_variables com cf =
+		let vars = Hashtbl.create 0 in
+		let rec loop e = match e.eexpr with
+			| TVar(v,eo) when Meta.has Meta.UserVariable v.v_meta ->
+				Hashtbl.replace vars v.v_id v;
+				(match eo with None -> () | Some e -> loop e)
+			| TLocal v when Meta.has Meta.UserVariable v.v_meta ->
+				Hashtbl.remove vars v.v_id;
+			| _ ->
+				Type.iter loop e
+		in
+		(match cf.cf_expr with None -> () | Some e -> loop e);
+		Hashtbl.iter (fun _ v ->
+			add_diagnostics_message com "Unused variable" v.v_pos DiagnosticsSeverity.Warning
+		) vars
+
 	let print_diagnostics ctx =
 		let com = ctx.com in
 		let diag = DynArray.create() in
