@@ -32,7 +32,7 @@ import php7.Boot;
 	}
 
 	public static function string( s : Dynamic ) : String {
-		return untyped __call__("_hx_string_rec", s, '');
+		return Boot.stringify(s);
 	}
 
 	public static function int( x : Float ) : Int {

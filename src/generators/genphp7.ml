@@ -1326,6 +1326,8 @@ class virtual type_builder ctx wrapper =
 			self#write_as_block try_expr;
 			self#write " catch (\\Throwable $__hx__caught_e) {\n";
 			self#indent_more;
+			if ctx.debug then
+				self#write_statement ((self#use (["php7"; "stdimpl"; "haxe"], "CallStack")) ^ "::saveExceptionTrace($__hx__caught_e)");
 			self#write_statement ("$__hx__real_e = ($__hx__caught_e instanceof " ^ haxe_exception ^ " ? $__hx__caught_e->e : $__hx__caught_e)");
 			self#write_indentation;
 			List.iter write_catch catches;
@@ -1447,7 +1449,7 @@ class virtual type_builder ctx wrapper =
 						write_boot_method "equal"
 					else
 						write_binop " === "
-				| OpNotEq -> 
+				| OpNotEq ->
 					if need_boot_equal expr1 expr2 then
 						begin
 							self#write "!";

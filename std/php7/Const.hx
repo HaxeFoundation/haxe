@@ -10,14 +10,12 @@ extern class Const {
 		If this constant is defined and equals `true` then Haxe will not set error handler automatically.
 	**/
 	static var HAXE_CUSTOM_ERROR_HANDLER : Bool;
-
 	/**
 		@see http://php.net/manual/en/reserved.constants.php
 	**/
 	static var PHP_INT_MAX : Int;
 	static var PHP_INT_MIN : Int;
 	static var PHP_INT_SIZE : Int;
-
 	/**
 		@see http://php.net/manual/en/language.constants.predefined.php
 	**/
@@ -29,7 +27,6 @@ extern class Const {
 	static var __TRAIT__ : String;
 	static var __METHOD__ : String;
 	static var __NAMESPACE__ : String;
-
 	/**
 		@see http://php.net/manual/en/errorfunc.constants.php
 	**/
@@ -59,4 +56,9 @@ extern class Const {
 	**/
 	static var ARRAY_FILTER_USE_KEY : Int;
 	static var ARRAY_FILTER_USE_BOTH : Int;
+	/**
+		@see http://php.net/manual/en/function.debug-backtrace.php
+	**/
+	static var DEBUG_BACKTRACE_PROVIDE_OBJECT : Int;
+	static var DEBUG_BACKTRACE_IGNORE_ARGS : Int;
 }

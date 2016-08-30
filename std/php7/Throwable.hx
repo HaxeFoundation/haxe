@@ -10,7 +10,7 @@ extern interface Throwable {
     public function getCode() : Int;             // code of the exception
     public function getFile() : String;          // source filename
     public function getLine() : Int;             // source line
-    public function getTrace() : Array<String>;  // an array of the backtrace()
+    public function getTrace() : NativeIndexedArray<NativeAssocArray<Dynamic>>;  // an array of the backtrace
     public function getTraceAsString() : String; // formated string of trace
 	public function __toString() : String;       // formated string for display
 }

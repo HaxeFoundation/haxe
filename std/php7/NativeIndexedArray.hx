@@ -21,8 +21,6 @@
  */
 package php7;
 
-import haxe.extern.EitherType;
-
 @:forward
 abstract NativeIndexedArray<T>(NativeArray) from NativeArray to NativeArray {
 	public inline function new()

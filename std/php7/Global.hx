@@ -329,4 +329,9 @@ extern class Global {
 		@see http://php.net/manual/en/function.strtolower.php
 	**/
 	static function strtolower( string:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.debug-backtrace.php
+	**/
+	static function debug_backtrace( ?options:Int, ?limit:Int ) : NativeIndexedArray<NativeAssocArray<Dynamic>>;
 }

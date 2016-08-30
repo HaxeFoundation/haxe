@@ -127,7 +127,7 @@ class Boot {
 				return '{' + Global.implode(',', result) + '}';
 			}
 			var hxClass = getClass(Global.get_class(value));
-			return '[object ' + hxClass.getHaxeName() + ']';
+			return '[object ' + hxClass.getName() + ']';
 		}
 		throw "Unable to stringify value";
 	}
@@ -147,7 +147,7 @@ class Boot {
 		Check if specified values are equal
 	**/
 	public static function equal( left:Dynamic, right:Dynamic ) : Bool {
-		if (isNumber(left) && isNumber(right)) {			
+		if (isNumber(left) && isNumber(right)) {
 			return untyped __php__("$left == $right");
 		}
 		return left == right;
@@ -217,7 +217,7 @@ class Boot {
 
 
 /**
-	Class<T> implementation for Haxe->PHP internals
+	Class<T> implementation for Haxe->PHP internals.
 **/
 @:keep
 @:dox(hide)
@@ -271,6 +271,14 @@ private class HxClass {
 	}
 
 	/**
+		Returns original Haxe name. If Haxe name is unknown, returns PHP name.
+	**/
+	public function getName() : String {
+		var name = getHaxeName();
+		return (name == null ? phpClassName : name);
+	}
+
+	/**
 		Implementation for `cast(value, Class<Dynamic>)`
 		@throws HException if `value` cannot be casted to this type
 	**/
@@ -315,7 +323,7 @@ private class HxClass {
 		PHP magic method to get string representation of this `Class`
 	**/
 	public function __toString() : String {
-		return '[class ' + (Global.isset(aliases[phpClassName]) ? aliases[phpClassName] : phpClassName) + ']';
+		return '[class ' + getName() + ']';
 	}
 }
 
@@ -379,7 +387,7 @@ private class HxEnum {
 **/
 @:keep
 @:dox(hide)
-class HxString {
+private class HxString {
 
 	public static function toUpperCase( str:String ) : String {
 		return Global.strtoupper(str);
@@ -393,7 +401,7 @@ class HxString {
 		if (index < 0 || index >= str.length) {
 			return '';
 		} else {
-			return untyped __php__("$string[$index]");
+			return untyped __php__("$str[$index]");
 		}
 	}
 
@@ -401,7 +409,7 @@ class HxString {
 		if (index < 0 || index >= str.length) {
 			return null;
 		} else {
-			return Global.ord(untyped __php__("$string[$index]"));
+			return Global.ord(untyped __php__("$str[$index]"));
 		}
 	}
 

@@ -34,7 +34,7 @@ extern class ErrorException implements Throwable {
     @:final public function getCode() : Int;             // code of the exception
     @:final public function getFile() : String;          // source filename
     @:final public function getLine() : Int;             // source line
-    @:final public function getTrace() : Array<String>;  // an array of the backtrace()
+    @:final public function getTrace() : NativeIndexedArray<NativeAssocArray<Dynamic>>;  // an array of the backtrace
     @:final public function getTraceAsString() : String; // formated string of trace
 	public function __toString() : String;       // formated string for display
 }
