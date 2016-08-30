@@ -774,11 +774,16 @@ let load_type_hint ?(opt=false) ctx pcur t =
 (* ---------------------------------------------------------------------- *)
 (* Structure check *)
 
-let valid_redefinition ctx f1 t1 f2 t2 =
+let valid_redefinition ctx f1 t1 f2 t2 = (* child, parent *)
 	let valid t1 t2 =
 		Type.unify t1 t2;
 		if is_null t1 <> is_null t2 || ((follow t1) == t_dynamic && (follow t2) != t_dynamic) then raise (Unify_error [Cannot_unify (t1,t2)]);
 	in
+	begin match PurityState.get_purity_from_meta f2.cf_meta,PurityState.get_purity_from_meta f1.cf_meta with
+		| PurityState.Pure,PurityState.MaybePure -> f1.cf_meta <- (Meta.Pure,[EConst(Ident "expect"),f2.cf_pos],f2.cf_pos) :: f1.cf_meta
+		| PurityState.ExpectPure p,PurityState.MaybePure -> f1.cf_meta <- (Meta.Pure,[EConst(Ident "expect"),p],p) :: f1.cf_meta
+		| _ -> ()
+	end;
 	let t1, t2 = (match f1.cf_params, f2.cf_params with
 		| [], [] -> t1, t2
 		| l1, l2 when List.length l1 = List.length l2 ->
@@ -2731,7 +2736,7 @@ module ClassInitializer = struct
 		let fields = build_fields (ctx,cctx) c fields in
 		if cctx.is_core_api && ctx.com.display = DMNone then delay ctx PForce (fun() -> init_core_api ctx c);
 		if not cctx.is_lib then begin
-			(match c.cl_super with None -> () | Some _ -> delay ctx PForce (fun() -> check_overriding ctx c));
+			(match c.cl_super with None -> () | Some _ -> delay_late ctx PForce (fun() -> check_overriding ctx c));
 			if ctx.com.config.pf_overload then delay ctx PForce (fun() -> check_overloads ctx c)
 		end;
 		let rec has_field f = function
@@ -3509,7 +3514,7 @@ let type_module ctx mpath file ?(is_extern=false) tdecls p =
 				| _ ->
 					()
 			) m.m_types;
-			raise (Display.Diagnostics (Display.Diagnostics.print_diagnostics ctx.com))
+			raise (Display.Diagnostics (Display.Diagnostics.print_diagnostics ctx))
 		| DMResolve s ->
 			resolve_position_by_path ctx {tname = s; tpackage = []; tsub = None; tparams = []} p
 		| _ ->

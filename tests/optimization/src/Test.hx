@@ -13,7 +13,7 @@ class InlineCtor {
 }
 
 @:analyzer(no_local_dce)
-@:analyzer(no_fusion)
+@:analyzer(no_user_var_fusion)
 class Test {
 	@:js('')
 	static function testNoOpRemoval() {

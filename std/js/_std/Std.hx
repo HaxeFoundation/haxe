@@ -32,6 +32,7 @@ import js.Boot;
 		return untyped __instanceof__(value, c) ? cast value : null;
 	}
 
+	@:pure
 	public static function string( s : Dynamic ) : String {
 		return untyped js.Boot.__string_rec(s,"");
 	}
@@ -40,6 +41,7 @@ import js.Boot;
 		return (cast x) | 0;
 	}
 
+	@:pure
 	public static function parseInt( x : String ) : Null<Int> {
 		var v = untyped __js__("parseInt")(x, 10);
 		// parse again if hexadecimal

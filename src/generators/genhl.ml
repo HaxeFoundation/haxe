@@ -5356,7 +5356,7 @@ let write_index_gen b i =
 		b (i land 0xFF);
 	end
 
-let write_code ch code =
+let write_code ch code debug =
 
 	let types = gather_types code in
 	let byte = IO.write_byte ch in
@@ -5445,7 +5445,11 @@ let write_code ch code =
 	in
 
 	IO.nwrite ch "HLB";
-	IO.write_byte ch code.version;
+	byte code.version;
+
+	let flags = ref 0 in
+	if debug then flags := !flags lor 1;
+	byte !flags;
 
 	write_index (Array.length code.ints);
 	write_index (Array.length code.floats);
@@ -5459,11 +5463,19 @@ let write_code ch code =
 	Array.iter (IO.write_real_i32 ch) code.ints;
 	Array.iter (IO.write_double ch) code.floats;
 
-	let str_length = ref 0 in
-	Array.iter (fun str -> str_length := !str_length + String.length str + 1) code.strings;
-	IO.write_i32 ch !str_length;
-	Array.iter (IO.write_string ch) code.strings;
-	Array.iter (fun str -> write_index (String.length str)) code.strings;
+	let write_strings strings =
+		let str_length = ref 0 in
+		Array.iter (fun str -> str_length := !str_length + String.length str + 1) strings;
+		IO.write_i32 ch !str_length;
+		Array.iter (IO.write_string ch) strings;
+		Array.iter (fun str -> write_index (String.length str)) strings;
+	in
+	write_strings code.strings;
+
+	if debug then begin
+		write_index (Array.length code.debugfiles);
+		write_strings code.debugfiles;
+	end;
 
 	DynArray.iter (fun t ->
 		match t with
@@ -5530,6 +5542,49 @@ let write_code ch code =
 			write_type t
 	) types.arr;
 
+	let write_debug_infos debug =
+		let curfile = ref (-1) in
+		let curpos = ref 0 in
+		let rcount = ref 0 in
+		let rec flush_repeat p =
+			if !rcount > 0 then begin
+				if !rcount > 15 then begin
+					byte ((15 lsl 2) lor 2);
+					rcount := !rcount - 15;
+					flush_repeat(p)
+				end else begin
+					let delta = p - !curpos in
+					let delta = (if delta > 0 && delta < 4 then delta else 0) in
+					byte ((delta lsl 6) lor (!rcount lsl 2) lor 2);
+					rcount := 0;
+					curpos := !curpos + delta;
+				end
+			end
+		in
+		Array.iter (fun (f,p) ->
+			if f <> !curfile then begin
+				flush_repeat(p);
+				curfile := f;
+				byte ((f lsr 7) lor 1);
+				byte (f land 0xFF);
+			end;
+			if p <> !curpos then flush_repeat(p);
+			if p = !curpos then
+				rcount := !rcount + 1
+			else
+				let delta = p - !curpos in
+				if delta > 0 && delta < 32 then
+					byte ((delta lsl 3) lor 4)
+				else begin
+					byte (p lsl 3);
+					byte (p lsr 5);
+					byte (p lsr 13);
+				end;
+				curpos := p;
+		) debug;
+		flush_repeat(!curpos)
+	in
+
 	Array.iter write_type code.globals;
 	Array.iter (fun (lib_index, name_index,ttype,findex) ->
 		write_index lib_index;
@@ -5544,6 +5599,7 @@ let write_code ch code =
 		write_index (Array.length f.code);
 		Array.iter write_type f.regs;
 		Array.iter write_op f.code;
+		if debug then write_debug_infos f.debug;
 	) code.functions
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
@@ -6977,7 +7033,7 @@ let generate com =
 		write_c com.Common.version com.file code
 	else begin
 		let ch = IO.output_string() in
-		write_code ch code;
+		write_code ch code true;
 		let str = IO.close_out ch in
 		let ch = open_out_bin com.file in
 		output_string ch str;

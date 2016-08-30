@@ -368,39 +368,35 @@ module Diagnostics = struct
 	open UnresolvedIdentifierSuggestion
 	open DiagnosticsKind
 
-	let print_diagnostics com =
+	let print_diagnostics ctx =
+		let com = ctx.com in
 		let diag = DynArray.create() in
 		let add dk p sev args =
 			DynArray.add diag (dk,p,sev,args)
 		in
-		begin match !(Common.global_cache) with
-			| None ->
-				()
-			| Some cache ->
-				let find_type i =
-					let types = ref [] in
-					Hashtbl.iter (fun _ m ->
-						List.iter (fun mt ->
-							let tinfos = t_infos mt in
-							if snd tinfos.mt_path = i then
-								types := JObject [
-									"kind",JInt (UnresolvedIdentifierSuggestion.to_int UISImport);
-									"name",JString (s_type_path m.m_path)
-								] :: !types
-						) m.m_types;
-					) cache.c_modules;
-					!types
-				in
-			List.iter (fun (s,p,suggestions) ->
-				let suggestions = List.map (fun (s,_) ->
-					JObject [
-						"kind",JInt (UnresolvedIdentifierSuggestion.to_int UISTypo);
-						"name",JString s
-					]
-				) suggestions in
-				add DKUnresolvedIdentifier p DiagnosticsSeverity.Error (suggestions @ (find_type s));
-			) com.display_information.unresolved_identifiers;
-		end;
+		let find_type i =
+			let types = ref [] in
+			Hashtbl.iter (fun _ m ->
+				List.iter (fun mt ->
+					let tinfos = t_infos mt in
+					if snd tinfos.mt_path = i then
+						types := JObject [
+							"kind",JInt (UnresolvedIdentifierSuggestion.to_int UISImport);
+							"name",JString (s_type_path m.m_path)
+						] :: !types
+				) m.m_types;
+			) ctx.g.modules;
+			!types
+		in
+		List.iter (fun (s,p,suggestions) ->
+			let suggestions = List.map (fun (s,_) ->
+				JObject [
+					"kind",JInt (UnresolvedIdentifierSuggestion.to_int UISTypo);
+					"name",JString s
+				]
+			) suggestions in
+			add DKUnresolvedIdentifier p DiagnosticsSeverity.Error (suggestions @ (find_type s));
+		) com.display_information.unresolved_identifiers;
 		PMap.iter (fun p r ->
 			if not !r then add DKUnusedImport p DiagnosticsSeverity.Warning []
 		) com.shared.shared_display_information.import_positions;

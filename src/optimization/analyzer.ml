@@ -814,7 +814,7 @@ module LocalDce = struct
 			| TCall ({ eexpr = TField(_,FStatic({ cl_path = ([],"Std") },{ cf_name = "string" })) },args) -> Type.iter loop e
 			| TCall ({eexpr = TField(_,FEnum _)},_) -> Type.iter loop e
 			| TCall ({eexpr = TConst (TString ("phi" | "fun"))},_) -> ()
-			| TCall({eexpr = TField(e1,fa)},el) -> Optimizer.field_call_has_side_effect loop e1 fa el
+			| TCall({eexpr = TField(e1,fa)},el) when PurityState.is_pure_field_access fa -> loop e1; List.iter loop el
 			| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
 			| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
 			| TFor _ -> raise Exit
@@ -1132,16 +1132,16 @@ module Run = struct
 		if actx.com.debug then add_debug_expr actx "after var-lazifier" e;
 		let e = with_timer actx "analyzer-filter-apply" (fun () -> TexprFilter.apply actx.com e) in
 		if actx.com.debug then add_debug_expr actx "after filter-apply" e;
-		let tf,is_real_function = match e.eexpr with
+		let tf,t,is_real_function = match e.eexpr with
 			| TFunction tf ->
-				tf,true
+				tf,e.etype,true
 			| _ ->
 				(* Wrap expression in a function so we don't have to treat it as a special case throughout. *)
 				let e = mk (TReturn (Some e)) t_dynamic e.epos in
 				let tf = { tf_args = []; tf_type = e.etype; tf_expr = e; } in
-				tf,false
+				tf,tfun [] e.etype,false
 		in
-		with_timer actx "analyzer-from-texpr" (fun () -> AnalyzerTexprTransformer.from_tfunction actx tf e.etype e.epos);
+		with_timer actx "analyzer-from-texpr" (fun () -> AnalyzerTexprTransformer.from_tfunction actx tf t e.epos);
 		is_real_function
 
 	let back_again actx is_real_function =
@@ -1150,7 +1150,7 @@ module Run = struct
 		DynArray.iter (fun vi ->
 			vi.vi_var.v_extra <- vi.vi_extra;
 		) actx.graph.g_var_infos;
-		let e = with_timer actx "analyzer-fusion" (fun () -> Fusion.apply actx.com actx.config e) in
+		let e = if actx.config.fusion then with_timer actx "analyzer-fusion" (fun () -> Fusion.apply actx.com actx.config e) else e in
 		if actx.com.debug then add_debug_expr actx "after fusion" e;
 		let e = with_timer actx "analyzer-cleanup" (fun () -> Cleanup.apply actx.com e) in
 		if actx.com.debug then add_debug_expr actx "after cleanup" e;
@@ -1160,7 +1160,14 @@ module Run = struct
 			(* Get rid of the wrapping function and its return expressions. *)
 			let rec loop first e = match e.eexpr with
 				| TReturn (Some e) -> e
-				| TFunction tf when first -> loop false tf.tf_expr
+				| TFunction tf when first ->
+					begin match loop false tf.tf_expr with
+						| {eexpr = TBlock _ | TIf _ | TSwitch _ | TTry _} when actx.com.platform = Cpp ->
+							mk (TCall(e,[])) tf.tf_type e.epos
+						| e ->
+							e
+					end
+				| TBlock [e] -> loop first e
 				| TFunction _ -> e
 				| _ -> Type.map_expr (loop first) e
 			in
@@ -1191,7 +1198,7 @@ module Run = struct
 				prerr_endline (Printf.sprintf "While analyzing %s.%s" (s_type_path c.cl_path) cf.cf_name);
 				List.iter (fun (s,e) ->
 					prerr_endline (Printf.sprintf "<%s>" s);
-					prerr_endline (Type.s_expr_pretty true "" (s_type (print_context())) e);
+					prerr_endline (Type.s_expr_pretty true "" false (s_type (print_context())) e);
 					prerr_endline (Printf.sprintf "</%s>" s);
 				) (List.rev actx.debug_exprs);
 				Debug.dot_debug actx c cf;

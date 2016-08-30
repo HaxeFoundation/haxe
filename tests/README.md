@@ -59,7 +59,11 @@ Assuming all test dependencies has been installed, we compile and run the unit t
  1. Change to the "unit" directory.
  2. Compile: `haxe compile.hxml`.
  3. Start a dev server: `nekotools server`.
- 4. Open `http://localhost:2000/unit.html` in your browser.
+ 4. Open [http://localhost:2000/unit.html](http://localhost:2000/unit.html) in your browser.
+
+### Cpp unit tests
+
+Cpp unit tests are compiled with `-D HXCPP_NO_DEBUG_LINK` (removes debug symbols) to speed up compilation times. You can remove this from `compile-cpp.hxml` to be able to open the generated `Test-debug.exe` in Visual Studio and debug it. This is useful if it's difficult to figure out why a test is failing, or also _which_ test is failing (for instance with a segmentation fault).
 
 ## Sys tests
 

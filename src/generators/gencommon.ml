@@ -1567,7 +1567,7 @@ struct
 			(* create the static constructor *)
 			let basic = gen.gcon.basic in
 			let ctor_types = List.map (fun (s,t) -> (s, TInst(map_param (get_cl_t t), []))) cl.cl_params in
-			let me = mk_temp gen "me" (TInst(cl, List.map snd ctor_types)) in
+			let me = alloc_var "__hx_this" (TInst(cl, List.map snd ctor_types)) in
 			me.v_capture <- true;
 
 			let fn_args, _ = get_fun ctor.cf_type in
