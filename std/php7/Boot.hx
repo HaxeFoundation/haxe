@@ -328,29 +328,29 @@ private class HxClass {
 private class HxEnum {
 	static var singletons = new Map<String,HxEnum>();
 
-	var constructor : String;
+	var tag : String;
 	var index : Int;
-	var args : NativeArray;
+	var params : NativeArray;
 
 	/**
 		Returns instances of constructors without arguments
 	**/
-	public static function singleton( enumClass:String, constructor:String, index:Int ) : HxEnum {
-		var key = '$enumClass::$constructor';
+	public static function singleton( enumClass:String, tag:String, index:Int ) : HxEnum {
+		var key = '$enumClass::$tag';
 
 		var instance = singletons.get(key);
 		if (instance == null) {
-			instance = untyped __php__("new $enumClass($constructor)");
+			instance = untyped __php__("new $enumClass($tag)");
 			singletons.set(key, instance);
 		}
 
 		return instance;
 	}
 
-	public function new( constructor:String, index:Int, arguments:NativeArray = null ) : Void {
-		this.constructor = constructor;
+	public function new( tag:String, index:Int, arguments:NativeArray = null ) : Void {
+		this.tag = tag;
 		this.index = index;
-		args = (arguments == null ? untyped __php__("[]") : arguments);
+		params = (arguments == null ? untyped __php__("[]") : arguments);
 	}
 
 	/**
@@ -364,9 +364,9 @@ private class HxEnum {
 		PHP magic method to get string representation of this `Class`
 	**/
 	public function __toString() : String {
-		var result = constructor;
-		if (Global.count(args) > 0) {
-			var strings = Global.array_map(function (item) return Boot.stringify(item), args);
+		var result = tag;
+		if (Global.count(params) > 0) {
+			var strings = Global.array_map(function (item) return Boot.stringify(item), params);
 			result += '(' + Global.implode(',', strings) + ')';
 		}
 		return result;

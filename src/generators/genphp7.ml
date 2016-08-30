@@ -1767,7 +1767,7 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write_expr_enum_parameter expr constructor index =
 			self#write_expr expr;
-			self#write ("->args[" ^ (string_of_int index) ^ "]")
+			self#write ("->params[" ^ (string_of_int index) ^ "]")
 		(**
 			Writes list of arguments for function declarations or calls
 		*)
