@@ -154,6 +154,34 @@ let rec is_dynamic_method (field:tclass_field) =
 		| _ -> false
 
 (**
+	Check if specified expression is of `Dynamic` type
+*)
+let is_dynamic expr = is_dynamic_type expr.etype
+
+(**
+	Check if specified expression is of `Int` type
+*)
+let is_int expr = match follow expr.etype with TAbstract ({ a_path = ([], "Int") }, _) -> true | _ -> false
+
+(**
+	Check if specified expression is of `Float` type
+*)
+let is_float expr = match follow expr.etype with TAbstract ({ a_path = ([], "Float") }, _) -> true | _ -> false
+
+(**
+	Check if specified expression is of String type
+*)
+let is_string expr = match follow expr.etype with TInst ({ cl_path = ([], "String") }, _) -> true | _ -> false
+
+(**
+	Check if `expr1` and `expr2` can be reliably checked for equality only with `Boot.equal()`
+*)
+let need_boot_equal expr1 expr2 =
+	(is_int expr1 && (is_float expr2 || is_dynamic expr2))
+	|| (is_float expr1 && (is_int expr2 || is_dynamic expr2))
+	|| (is_dynamic expr1 && (is_int expr2 || is_float expr2))
+
+(**
 	@return `Type.t` instance for `Void`
 *)
 let void = ref None
@@ -368,13 +396,6 @@ let is_var_with_nonconstant_expr (field:tclass_field) =
 		epos  = func.tf_expr.epos;
 	}*)
 
-(**
-	Check if specified expression is of String type
-*)
-let is_string expr =
-	match follow expr.etype with
-		| TInst ({ cl_path = ([], "String") }, _) -> true
-		| _ -> false
 (**
 	Check if `expr` is a constant string
 *)
@@ -1392,8 +1413,8 @@ class virtual type_builder ctx wrapper =
 					self#write_expr expr;
 					self#write ")"
 				end
-			and write_shiftRightUnsigned () =
-				self#write ((self#use boot_type_path) ^ "::shiftRightUnsigned(");
+			and write_boot_method method_name =
+				self#write ((self#use boot_type_path) ^ "::" ^ method_name ^ "(");
 				self#write_expr expr1;
 				self#write ", ";
 				self#write_expr expr2;
@@ -1421,8 +1442,19 @@ class virtual type_builder ctx wrapper =
 				| OpDiv -> write_binop " / "
 				| OpSub -> write_binop " - "
 				| OpAssign -> write_binop " = "
-				| OpEq -> write_binop " === "
-				| OpNotEq -> write_binop " !== "
+				| OpEq ->
+					if need_boot_equal expr1 expr2 then
+						write_boot_method "equal"
+					else
+						write_binop " === "
+				| OpNotEq -> 
+					if need_boot_equal expr1 expr2 then
+						begin
+							self#write "!";
+							write_boot_method "equal"
+						end
+					else
+						write_binop " !== "
 				| OpGt -> write_binop " > "
 				| OpGte -> write_binop " >= "
 				| OpLt -> write_binop " < "
@@ -1435,7 +1467,7 @@ class virtual type_builder ctx wrapper =
 				| OpShl  -> write_binop " << "
 				| OpShr -> write_binop " >> "
 				| OpMod -> write_binop " % "
-				| OpUShr -> write_shiftRightUnsigned ()
+				| OpUShr -> write_boot_method "shiftRightUnsigned"
 				| OpAssignOp OpAdd ->
 					if (is_string expr1) then
 						write_binop " .= "
@@ -1453,7 +1485,7 @@ class virtual type_builder ctx wrapper =
 				| OpAssignOp OpUShr ->
 					self#write_expr expr1;
 					self#write " = ";
-					write_shiftRightUnsigned ()
+					write_boot_method "shiftRightUnsigned"
 				| _ -> fail self#pos __POS__
 		(**
 			Writes TUnOp to output buffer

@@ -139,6 +139,20 @@ class Boot {
 		return (value == null ? 'null' : value);
 	}
 
+	static public inline function isNumber( value:Dynamic ) {
+		return value.is_int() || value.is_float();
+	}
+
+	/**
+		Check if specified values are equal
+	**/
+	public static function equal( left:Dynamic, right:Dynamic ) : Bool {
+		if (isNumber(left) && isNumber(right)) {			
+			return untyped __php__("$left == $right");
+		}
+		return left == right;
+	}
+
 	/**
 		`Std.is()` implementation
 	**/
@@ -261,17 +275,13 @@ private class HxClass {
 		@throws HException if `value` cannot be casted to this type
 	**/
 	public function tryCast( value:Dynamic ) : Dynamic {
-		inline function isNumber( value ) {
-			return value.is_int() || value.is_float();
-		}
-
 		switch (phpClassName) {
 			case '\\Int':
-				if (isNumber(value)) {
+				if (Boot.isNumber(value)) {
 					return Global.intval(value);
 				}
 			case '\\Float':
-				if (isNumber(value)) {
+				if (Boot.isNumber(value)) {
 					return value.floatval();
 				}
 			case '\\Bool':
