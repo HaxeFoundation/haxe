@@ -14,18 +14,7 @@ class CallStack {
 		Return the call stack elements, or an empty array if not available.
 	**/
     public static inline function callStack() : Array<StackItem> {
-        var line = Const.__LINE__;
-
-        var native = Global.debug_backtrace(Const.DEBUG_BACKTRACE_IGNORE_ARGS);
-        var calledAt = new NativeAssocArray<Dynamic>();
-        calledAt['function'] = '';
-        calledAt['line'] = line;
-        calledAt['file'] = Const.__FILE__;
-        calledAt['class'] = '';
-        calledAt['args'] = new NativeArray();
-        Global.array_unshift(native, calledAt);
-
-        return makeStack(native);
+        return makeStack(Global.debug_backtrace(Const.DEBUG_BACKTRACE_IGNORE_ARGS));
     }
 
     /**
