@@ -3514,7 +3514,7 @@ let type_module ctx mpath file ?(is_extern=false) tdecls p =
 				| _ ->
 					()
 			) m.m_types;
-			raise (Display.Diagnostics (Display.Diagnostics.print_diagnostics ctx.com))
+			raise (Display.Diagnostics (Display.Diagnostics.print_diagnostics ctx))
 		| DMResolve s ->
 			resolve_position_by_path ctx {tname = s; tpackage = []; tsub = None; tparams = []} p
 		| _ ->
