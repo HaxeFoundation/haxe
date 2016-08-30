@@ -6555,6 +6555,14 @@ struct
 
 	let name = "reflection_cfs"
 
+	type rcf_hash_conflict_ctx = {
+		t : t;
+		add_names : texpr->texpr->texpr;
+		get_conflict : texpr->texpr->texpr->texpr;
+		set : texpr->texpr->texpr->texpr->texpr;
+		delete : texpr->texpr->texpr->texpr;
+	}
+
 	type rcf_ctx =
 	{
 		rcf_gen : generator_ctx;
@@ -6586,6 +6594,8 @@ struct
 
 		rcf_hash_paths : (path * int, string) Hashtbl.t;
 
+		rcf_hash_conflict_ctx : rcf_hash_conflict_ctx option;
+
 		(*
 			main expr -> field expr -> field string -> possible hash int (if optimize) -> possible set expr -> should_throw_exceptions -> changed expression
 
@@ -6596,7 +6606,7 @@ struct
 		rcf_on_call_field : texpr->texpr->string->int32 option->texpr list->texpr;
 	}
 
-	let new_ctx gen ft object_iface optimize dynamic_getset_field dynamic_call_field hash_function lookup_function insert_function remove_function =
+	let new_ctx gen ft object_iface optimize dynamic_getset_field dynamic_call_field hash_function lookup_function insert_function remove_function hash_conflict_ctx =
 		{
 			rcf_gen = gen;
 			rcf_ft = ft;
@@ -6618,6 +6628,7 @@ struct
 
 			rcf_on_getset_field = dynamic_getset_field;
 			rcf_on_call_field = dynamic_call_field;
+			rcf_hash_conflict_ctx = hash_conflict_ctx;
 		}
 
 	(*
@@ -6714,7 +6725,7 @@ struct
 
 	let mk_throw ctx str pos = { eexpr = TThrow (ExprBuilder.make_string ctx.rcf_gen.gcon str pos); etype = ctx.rcf_gen.gcon.basic.tvoid; epos = pos }
 
-	let enumerate_dynamic_fields ctx cl when_found =
+	let enumerate_dynamic_fields ctx cl when_found base_arr =
 		let gen = ctx.rcf_gen in
 		let basic = gen.gcon.basic in
 		let pos = cl.cl_pos in
@@ -6749,6 +6760,12 @@ struct
 			mk_for (mk_this (gen.gmk_internal_name "hx" "hashes") (gen.gclasses.nativearray basic.tint)) (mk_this (gen.gmk_internal_name "hx" "length") basic.tint)
 			@
 			mk_for (mk_this (gen.gmk_internal_name "hx" "hashes_f") (gen.gclasses.nativearray basic.tint)) (mk_this (gen.gmk_internal_name "hx" "length_f") basic.tint)
+			@
+			(
+				let conflict_ctx = Option.get ctx.rcf_hash_conflict_ctx in
+				let ehead = mk_this (gen.gmk_internal_name "hx" "conflicts") conflict_ctx.t in
+				[conflict_ctx.add_names ehead base_arr]
+			)
 		else
 			mk_for (mk_this (gen.gmk_internal_name "hx" "hashes") (gen.gclasses.nativearray basic.tstring)) (mk_this (gen.gmk_internal_name "hx" "length") basic.tint)
 			@
@@ -6766,7 +6783,7 @@ struct
 		 A binary search or linear search algorithm may be implemented. The only need is that if not found, the NegBits of
 		 the place where it should be inserted must be returned.
 	*)
-	let abstract_dyn_lookup_implementation ctx this hash_local may_value is_float pos =
+	let abstract_dyn_lookup_implementation ctx this field_local hash_local may_value is_float pos =
 		let gen = ctx.rcf_gen in
 		let basic = gen.gcon.basic in
 		let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
@@ -6827,7 +6844,26 @@ struct
 						epos = pos;
 					})); etype = ret_t; epos = pos }
 				] in
-				block
+
+				if ctx.rcf_optimize then
+					let conflict_ctx = Option.get ctx.rcf_hash_conflict_ctx in
+					let ehead = mk_this (gen.gmk_internal_name "hx" "conflicts") conflict_ctx.t in
+					let vconflict = alloc_var "conflict" conflict_ctx.t in
+					let local_conflict = mk_local vconflict pos in 
+					[mk (TIf (
+						mk (TBinop (OpLt, hash_local, ExprBuilder.make_int gen.gcon 0 pos)) basic.tbool pos,
+						mk (TBlock [
+							mk (TVar (vconflict, Some (conflict_ctx.get_conflict ehead hash_local field_local))) basic.tvoid pos;
+							mk (TIf (
+								mk (TBinop (OpNotEq, local_conflict, mk (TConst TNull) local_conflict.etype pos)) basic.tbool pos,
+								mk_return (Codegen.field local_conflict "value" t_dynamic pos),
+								None
+							)) basic.tvoid pos;
+						]) basic.tvoid pos,
+						Some (mk (TBlock block) basic.tvoid pos) 
+					)) basic.tvoid pos]
+				else
+					block
 			| Some value_local ->
 				(*
 					//if is not float:
@@ -6883,9 +6919,21 @@ struct
 					ctx.rcf_insert_function fst_hash fst_length neg_res hash_local;
 					ctx.rcf_insert_function fst_dynamics fst_length neg_res value_local;
 					mk (TUnop(Increment,Postfix,fst_length)) basic.tint pos;
-					mk_return value_local
 				] in
-				block
+
+				let block =
+					if ctx.rcf_optimize then
+						let conflict_ctx = Option.get ctx.rcf_hash_conflict_ctx in
+						let ehead = mk_this (gen.gmk_internal_name "hx" "conflicts") conflict_ctx.t in
+						[mk (TIf (
+							mk (TBinop (OpLt, hash_local, ExprBuilder.make_int gen.gcon 0 pos)) basic.tbool pos,
+							conflict_ctx.set ehead hash_local field_local value_local,
+							Some (mk (TBlock block) basic.tvoid pos) 
+						)) basic.tvoid pos]
+					else
+						block
+				in
+				block @ [mk_return value_local]
 
 	let get_delete_field ctx cl is_dynamic =
 		let pos = cl.cl_pos in
@@ -6934,7 +6982,7 @@ struct
 
 				return false;
 			*)
-			[
+			let common = [
 				{ eexpr = TVar(res,Some(ctx.rcf_hash_function local_switch_var hx_hashes hx_length)); etype = basic.tvoid; epos = pos };
 				{
 					eexpr = TIf(gte, { eexpr = TBlock([
@@ -6955,7 +7003,20 @@ struct
 					epos = pos;
 				};
 				mk_return { eexpr = TConst(TBool false); etype = basic.tbool; epos = pos }
-			]
+			] in
+
+			if ctx.rcf_optimize then
+				let v_name = match tf_args with (v,_) :: _ -> v | _ -> assert false in
+				let local_name = mk_local v_name pos in
+				let conflict_ctx = Option.get ctx.rcf_hash_conflict_ctx in
+				let ehead = mk_this (gen.gmk_internal_name "hx" "conflicts") conflict_ctx.t in 
+				(mk (TIf (
+					mk (TBinop (OpLt, local_switch_var, ExprBuilder.make_int gen.gcon 0 pos)) basic.tbool pos,
+					mk (TReturn (Some (conflict_ctx.delete ehead local_switch_var local_name))) basic.tvoid pos,
+					None
+				)) basic.tvoid pos) :: common
+			else
+				common
 		end else
 		[
 			mk_return { eexpr = TConst(TBool false); etype = basic.tbool; epos = pos }
@@ -7185,6 +7246,14 @@ struct
 					List.iter (fun cf -> cf.cf_expr <- Some { eexpr = TCall(mk_local v_nativearray pos, []); etype = cf.cf_type; epos = cf.cf_pos }) new_fields
 				);
 
+				let new_fields =
+					if ctx.rcf_optimize then
+						let f = mk_class_field (gen.gmk_internal_name "hx" "conflicts") (Option.get ctx.rcf_hash_conflict_ctx).t false pos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
+						f :: new_fields
+					else
+						new_fields
+				in
+
 				let delete = get_delete_field ctx cl true in
 
 				let new_fields = new_fields @ [
@@ -7335,7 +7404,8 @@ struct
 			(* callback : is_float fields_args switch_var throw_errors_option is_check_option value_option : texpr list *)
 			if is_first_dynamic cl then
 				create_cfs true (fun is_float fields_args switch_var _ _ value_opt ->
-					abstract_dyn_lookup_implementation ctx this (mk_local switch_var pos) (Option.map (fun v -> mk_local v pos) value_opt) is_float pos
+					let v_name = match fields_args with (v,_) :: _ -> v | _ -> assert false in
+					abstract_dyn_lookup_implementation ctx this (mk_local v_name pos) (mk_local switch_var pos) (Option.map (fun v -> mk_local v pos) value_opt) is_float pos
 				)
 		end else if not is_override then begin
 			create_cfs false (fun is_float fields_args switch_var _ _ value_opt ->
@@ -7632,7 +7702,7 @@ struct
 		let exprs =
 			if is_some cl.cl_dynamic && is_first_dynamic cl then begin
 				has_value := true;
-				enumerate_dynamic_fields ctx cl mk_push
+				enumerate_dynamic_fields ctx cl mk_push base_arr
 			end else
 				[]
 		in
