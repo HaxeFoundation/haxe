@@ -14,7 +14,18 @@ class CallStack {
 		Return the call stack elements, or an empty array if not available.
 	**/
     public static inline function callStack() : Array<StackItem> {
-        return makeStack(Global.debug_backtrace(Const.DEBUG_BACKTRACE_IGNORE_ARGS));
+        var line = Const.__LINE__;
+
+        var native = Global.debug_backtrace(Const.DEBUG_BACKTRACE_IGNORE_ARGS);
+        var calledAt = new NativeAssocArray<Dynamic>();
+        calledAt['function'] = '';
+        calledAt['line'] = line;
+        calledAt['file'] = Const.__FILE__;
+        calledAt['class'] = '';
+        calledAt['args'] = new NativeArray();
+        Global.array_unshift(native, calledAt);
+
+        return makeStack(native);
     }
 
     /**
@@ -45,15 +56,16 @@ class CallStack {
 
     static function makeStack (native:NativeTrace) : Array<StackItem> {
         var result = [];
-        var item : StackItem;
-        for (e in native) {
-            var entry:NativeAssocArray<Dynamic> = cast e; //WTF? $type(e) is String ???
-            item = null;
-            if ((entry['function']:String).indexOf('{closure}') >= 0) {
+        var count = Global.count(native);
+        for (i in 0...count) {
+            var entry = native[i];
+            var next = (i + 1 < count ? native[i + 1] : null);
+            var item = null;
+            if ((next['function']:String).indexOf('{closure}') >= 0) {
                 item = LocalFunction();
-            } else if ((entry['class']:String).length > 0 && (entry['function']:String).length > 0) {
-                var cls = Boot.getClass(entry['class']);
-                item = Method(cls.getName(), entry['function']);
+            } else if ((next['class']:String).length > 0 && (next['function']:String).length > 0) {
+                var cls = Boot.getClass(next['class']);
+                item = Method(cls.getName(), next['function']);
             }
             result.push(FilePos(item, entry['file'], entry['line']));
         }
