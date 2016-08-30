@@ -31,8 +31,16 @@ class CallStack {
 		lastExceptionTrace = e.getTrace();
 		var count = php7.Global.count(lastExceptionTrace);
 		for (i in 0...count) {
-			lastExceptionTrace[i]['args'] = new NativeAssocArray();
+			lastExceptionTrace[i]['args'] = new NativeArray();
 		}
+
+        var thrownAt = new NativeAssocArray<Dynamic>();
+        thrownAt['function'] = '';
+        thrownAt['line'] = e.getLine();
+        thrownAt['file'] = e.getFile();
+        thrownAt['class'] = '';
+        thrownAt['args'] = new NativeArray();
+        Global.array_unshift(lastExceptionTrace, thrownAt);
 	}
 
     static function makeStack (native:NativeTrace) : Array<StackItem> {
