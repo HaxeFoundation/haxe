@@ -2056,12 +2056,28 @@ class class_builder ctx (cls:tclass) =
 				cls.cl_statics;
 			(* `static var` initialization *)
 			let write_var_initialization _ field =
-				if is_var_with_nonconstant_expr field then begin
+				let write_assign expr =
 					self#write_indentation;
 					self#write ("self::$" ^ field.cf_name ^ " = ");
+					self#write_expr expr
+				in
+				if is_var_with_nonconstant_expr field then begin
 					(match field.cf_expr with
 						| None -> ()
-						| Some expr -> self#write_expr expr
+						(* There can be not-inlined blocks when compiling with `-debug` *)
+						| Some { eexpr = TBlock exprs } ->
+							let rec write_per_line exprs =
+								match exprs with
+									| [] -> ()
+									| [expr] -> write_assign expr
+									| expr :: rest ->
+										self#write_indentation;
+										self#write_expr expr;
+										self#write ";\n";
+										write_per_line rest
+							in
+							write_per_line exprs
+						| Some expr -> write_assign expr
 					);
 					self#write ";\n"
 				end
