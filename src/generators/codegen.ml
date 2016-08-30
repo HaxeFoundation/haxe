@@ -917,6 +917,10 @@ module Dump = struct
 				| ml -> String.concat " " (List.map (fun me -> match me with (m,el,_) -> "@" ^ Meta.to_string m ^ args el) ml) ^ "\n" ^ tabs in
 			(match mt with
 			| Type.TClassDecl c ->
+				let s_cf_expr f =
+					match f.cf_expr with
+					| None -> ""
+					| Some e -> Printf.sprintf "%s" (s_expr s_type e) in
 				let rec print_field stat f =
 					print "\n\t%s%s%s%s%s %s%s"
 						(s_metas f.cf_meta "\t")
@@ -936,18 +940,18 @@ module Dump = struct
 							| Var v -> "(" ^ s_access true v.v_read ^ "," ^ s_access false v.v_write ^ ")"
 							| _ -> "")
 						(params f.cf_params);
-					match f.cf_kind with
-						| Var v -> print ":%s;\n" (s_type f.cf_type)
+					(match f.cf_kind with
+						| Var v -> print ":%s%s;" (s_type f.cf_type)
+							(match f.cf_expr with
+							| None -> ""
+							| Some e -> " = " ^ (s_cf_expr f));
 						| Method m -> if (c.cl_extern || c.cl_interface) then (
 							match f.cf_type with
 							| TFun(al,t) -> print "(%s):%s;" (String.concat ", " (
 								List.map (fun (n,o,t) -> n ^ ":" ^ (s_type t)) al))
-								(s_type t); 
+								(s_type t)
 							| _ -> ()
-						) else ();
-					(match f.cf_expr with
-					| None -> ()
-					| Some e -> print "%s" (s_expr s_type e));
+						) else print "%s" (s_cf_expr f));
 					print "\n";
 					List.iter (fun f -> print_field stat f) f.cf_overloads
 				in
