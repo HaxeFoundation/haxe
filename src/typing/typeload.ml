@@ -3509,7 +3509,7 @@ let type_module ctx mpath file ?(is_extern=false) tdecls p =
 						| _ ->
 							ignore(follow cf.cf_type);
 						end;
-						Display.Diagnostics.find_unused_variables ctx.com cf;
+						Display.Diagnostics.prepare_field ctx.com cf;
 					in
 					List.iter field c.cl_ordered_fields;
 					List.iter field c.cl_ordered_statics;

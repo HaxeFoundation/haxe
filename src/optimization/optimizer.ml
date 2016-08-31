@@ -675,6 +675,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			| _ -> e
 		in
 		let e = List.fold_left inline_meta e cf.cf_meta in
+		let e = match ctx.com.display with DMDiagnostics _ -> mk (TMeta((Meta.Extern,[],e.epos),e)) e.etype e.epos | _ -> e in
 		(* we need to replace type-parameters that were used in the expression *)
 		if not has_params then
 			Some e

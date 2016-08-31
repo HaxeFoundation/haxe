@@ -368,7 +368,7 @@ module Diagnostics = struct
 	open UnresolvedIdentifierSuggestion
 	open DiagnosticsKind
 
-	let find_unused_variables com cf =
+	let find_unused_variables com e =
 		let vars = Hashtbl.create 0 in
 		let rec loop e = match e.eexpr with
 			| TVar(v,eo) when Meta.has Meta.UserVariable v.v_meta ->
@@ -379,18 +379,74 @@ module Diagnostics = struct
 			| _ ->
 				Type.iter loop e
 		in
-		(match cf.cf_expr with None -> () | Some e -> loop e);
+		loop e;
 		Hashtbl.iter (fun _ v ->
 			add_diagnostics_message com "Unused variable" v.v_pos DiagnosticsSeverity.Warning
 		) vars
 
+	let check_other_things com e =
+		let had_effect = ref false in
+		let no_effect p =
+			add_diagnostics_message com "This code has no effect" p DiagnosticsSeverity.Warning;
+		in
+		let pointless_compound s p =
+			add_diagnostics_message com (Printf.sprintf "This %s has no effect, but some of its sub-expressions do" s) p DiagnosticsSeverity.Warning;
+		in
+		let rec compound s el p =
+			let old = !had_effect in
+			had_effect := false;
+			List.iter (loop true) el;
+			if not !had_effect then no_effect p else pointless_compound s p;
+			had_effect := old;
+		and loop in_value e = match e.eexpr with
+			| TBlock el ->
+				let rec loop2 el = match el with
+					| [] -> ()
+					| [e] -> loop in_value e
+					| e :: el -> loop false e; loop2 el
+				in
+				loop2 el
+			| TMeta((Meta.Extern,_,_),_) ->
+				(* This is so something like `[inlineFunc()]` is not reported. *)
+				had_effect := true;
+			| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ when not in_value ->
+				no_effect e.epos;
+			| TConst _ | TLocal _ | TTypeExpr _ | TEnumParameter _ | TVar _ ->
+				()
+			| TFunction tf ->
+				loop false tf.tf_expr
+			| TNew _ | TCall _ | TBinop ((Ast.OpAssignOp _ | Ast.OpAssign),_,_) | TUnop ((Ast.Increment | Ast.Decrement),_,_)
+			| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _)
+			| TIf _ | TTry _ | TSwitch _ | TWhile _ | TFor _ ->
+				had_effect := true;
+				Type.iter (loop true) e
+			| TParenthesis e1 | TMeta(_,e1) ->
+				loop in_value e1
+			| TArray _ | TCast (_,None) | TBinop _ | TUnop _
+			| TField _ | TArrayDecl _ | TObjectDecl _ when in_value ->
+				Type.iter (loop true) e;
+			| TArray(e1,e2) -> compound "array access" [e1;e2] e.epos
+			| TCast(e1,None) -> compound "cast" [e1] e.epos
+			| TBinop(op,e1,e2) -> compound (Printf.sprintf "'%s' operator" (s_binop op)) [e1;e2] e.epos
+			| TUnop(op,_,e1) -> compound (Printf.sprintf "'%s' operator" (s_unop op)) [e1] e.epos
+			| TField(e1,_) -> compound "field access" [e1] e.epos
+			| TArrayDecl el -> compound "array declaration" el e.epos
+			| TObjectDecl fl -> compound "object declaration" (List.map snd fl) e.epos
+		in
+		loop true e
+
+	let prepare_field com cf = match cf.cf_expr with
+		| None -> ()
+		| Some e ->
+			find_unused_variables com e;
+			check_other_things com e
+
 	let prepare com =
 		List.iter (function
 			| TClassDecl c ->
-				let field = find_unused_variables com in
-				List.iter field c.cl_ordered_fields;
-				List.iter field c.cl_ordered_statics;
-				(match c.cl_constructor with None -> () | Some cf -> field cf);
+				List.iter (prepare_field com) c.cl_ordered_fields;
+				List.iter (prepare_field com) c.cl_ordered_statics;
+				(match c.cl_constructor with None -> () | Some cf -> prepare_field com cf);
 			| _ ->
 				()
 		) com.types
