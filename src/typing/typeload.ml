@@ -2922,17 +2922,17 @@ let init_module_type ctx context_init do_init (decl,p) =
 	let get_type name =
 		try List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types with Not_found -> assert false
 	in
+	let check_path_display path p = match ctx.com.display with
+		(* We cannot use ctx.is_display_file because the import could come from an import.hx file. *)
+		| DMDiagnostics b when (b && not (ExtString.String.ends_with p.pfile "import.hx")) || Display.is_display_file p.pfile ->
+			Display.add_import_position ctx.com p;
+		| _ ->
+			if Display.is_display_file p.pfile then handle_path_display ctx path p
+	in
 	match decl with
 	| EImport (path,mode) ->
 		ctx.m.module_imports <- (path,mode) :: ctx.m.module_imports;
-		(* We cannot use ctx.is_display_file because the import could come from an import.hx file. *)
-		begin match ctx.com.display with
-			| DMDiagnostics b when (b && not (ExtString.String.ends_with p.pfile "import.hx")) || Display.is_display_file p.pfile ->
-				Display.add_import_position ctx.com p;
-				handle_path_display ctx path p;
-			| _ ->
-				()
-		end;
+		check_path_display path p;
 		let rec loop acc = function
 			| x :: l when is_lower_ident (fst x) -> loop (x::acc) l
 			| rest -> List.rev acc, rest
@@ -3045,13 +3045,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				) :: !context_init
 			))
 	| EUsing path ->
-		begin match ctx.com.display with
-			| DMDiagnostics b when (b && not (ExtString.String.ends_with p.pfile "import.hx")) || Display.is_display_file p.pfile ->
-				Display.add_import_position ctx.com p;
-				handle_path_display ctx path p;
-			| _ ->
-				()
-		end;
+		check_path_display path p;
 		let t = match List.rev path with
 			| (s1,_) :: (s2,_) :: sl ->
 				if is_lower_ident s2 then { tpackage = (List.rev (s2 :: List.map fst sl)); tname = s1; tsub = None; tparams = [] }
