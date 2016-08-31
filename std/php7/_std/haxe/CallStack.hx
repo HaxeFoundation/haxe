@@ -1,9 +1,19 @@
-package php7.stdimpl.haxe;
+package haxe;
 
-import haxe.CallStack;
-
+import php7.*;
 
 private typedef NativeTrace = NativeIndexedArray<NativeAssocArray<Dynamic>>;
+
+/**
+	Elements return by `CallStack` methods.
+**/
+enum StackItem {
+	CFunction;
+	Module( m : String );
+	FilePos( s : Null<StackItem>, file : String, line : Int );
+	Method( classname : String, method : String );
+	LocalFunction( ?v : Int );
+}
 
 @:dox(hide)
 @:noCompletion
@@ -13,7 +23,7 @@ class CallStack {
 	/**
 		Return the call stack elements, or an empty array if not available.
 	**/
-	public static inline function callStack() : Array<StackItem> {
+	public static function callStack() : Array<StackItem> {
 		return makeStack(Global.debug_backtrace(Const.DEBUG_BACKTRACE_IGNORE_ARGS));
 	}
 
@@ -22,8 +32,46 @@ class CallStack {
 		the place the last exception was thrown and the place it was
 		caught, or an empty array if not available.
 	**/
-	public static inline function exceptionStack() : Array<StackItem> {
+	public static function exceptionStack() : Array<StackItem> {
 		return makeStack(lastExceptionTrace == null ? new NativeIndexedArray() : lastExceptionTrace);
+	}
+
+	/**
+		Returns a representation of the stack as a printable string.
+	**/
+	public static function toString( stack : Array<StackItem> ) {
+		var b = new StringBuf();
+		for( s in stack ) {
+			b.add("\nCalled from ");
+			itemToString(b,s);
+		}
+		return b.toString();
+	}
+
+	static function itemToString( b:StringBuf, s ) {
+		switch( s ) {
+		case CFunction:
+			b.add("a C function");
+		case Module(m):
+			b.add("module ");
+			b.add(m);
+		case FilePos(s,file,line):
+			if( s != null ) {
+				itemToString(b,s);
+				b.add(" (");
+			}
+			b.add(file);
+			b.add(" line ");
+			b.add(line);
+			if( s != null ) b.add(")");
+		case Method(cname,meth):
+			b.add(cname);
+			b.add(".");
+			b.add(meth);
+		case LocalFunction(n):
+			b.add("local function #");
+			b.add(n);
+		}
 	}
 
 	@:keep
@@ -62,17 +110,20 @@ class CallStack {
 		var count = Global.count(native);
 		for (i in 0...count) {
 			var entry = native[i];
-			var next = (i + 1 < count ? native[i + 1] : null);
 			var item = null;
-			if ((next['function']:String).indexOf('{closure}') >= 0) {
-				item = LocalFunction();
-			} else if ((next['class']:String).length > 0 && (next['function']:String).length > 0) {
-				var cls = Boot.getClass(next['class']);
-				item = Method(cls.getName(), next['function']);
+			if (i + 1 < count) {
+				var next = native[i + 1];
+				if ((next['function']:String).indexOf('{closure}') >= 0) {
+					item = LocalFunction();
+				} else if ((next['class']:String).length > 0 && (next['function']:String).length > 0) {
+					var cls = Boot.getClass(next['class']);
+					item = Method(cls.getName(), next['function']);
+				}
 			}
 			result.push(FilePos(item, entry['file'], entry['line']));
 		}
 
 		return result;
 	}
+
 }

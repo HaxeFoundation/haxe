@@ -85,8 +85,6 @@ class CallStack {
 			return a;
 		#elseif php
 			return makeStack("%s");
-		#elseif php7
-			return php7.stdimpl.haxe.CallStack.callStack();
 		#elseif cpp
 			var s:Array<String> = untyped __global__.__hxcpp_get_call_stack(true);
 			return makeStack(s);
@@ -171,9 +169,7 @@ class CallStack {
 			}
 			return a;
 		#elseif php
-			return makeStack("%e");
-		#elseif php7
-			return php7.stdimpl.haxe.CallStack.exceptionStack();
+			return makeStack("%e");		
 		#elseif cpp
 			var s:Array<String> = untyped __global__.__hxcpp_get_exception_stack();
 			return makeStack(s);
