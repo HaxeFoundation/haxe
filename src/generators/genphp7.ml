@@ -1425,17 +1425,18 @@ class virtual type_builder ctx wrapper =
 				self#write ", ";
 				self#write_expr expr2;
 				self#write ")"
-			and write_binop ?writer str =
-				let write = match writer with None -> self#write_expr | Some writer -> writer
+			and write_binop ?writer ?right_writer str =
+				let write_left = match writer with None -> self#write_expr | Some writer -> writer in
+				let write_right = match right_writer with None -> write_left | Some writer -> writer
 				and need_parenthesis =
 					match expr_hierarchy with
 						| _ :: { eexpr = TBinop (parent, _, _) } :: _ -> need_parenthesis_for_binop operation parent
 						| _ -> false
 				in
 				if need_parenthesis then self#write "(";
-				write expr1;
+				write_left expr1;
 				self#write str;
-				write expr2;
+				write_right expr2;
 				if need_parenthesis then self#write ")"
 			in
 			match operation with
@@ -1476,7 +1477,11 @@ class virtual type_builder ctx wrapper =
 				| OpUShr -> write_boot_method "shiftRightUnsigned"
 				| OpAssignOp OpAdd ->
 					if (is_string expr1) then
-						write_binop " .= "
+						begin
+							self#write_expr expr1;
+							self#write " = ";
+							write_binop ~writer:write_for_concat " . "
+						end
 					else
 						write_binop " += "
 				| OpAssignOp OpMult -> write_binop " *= "
