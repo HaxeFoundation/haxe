@@ -814,6 +814,7 @@ let clone com =
 		main_class = None;
 		features = Hashtbl.create 0;
 		file_lookup_cache = Hashtbl.create 0;
+		parser_cache = Hashtbl.create 0 ;
 		callbacks = create_callbacks();
 	}
 
