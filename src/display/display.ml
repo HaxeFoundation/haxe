@@ -384,6 +384,17 @@ module Diagnostics = struct
 			add_diagnostics_message com "Unused variable" v.v_pos DiagnosticsSeverity.Warning
 		) vars
 
+	let prepare com =
+		List.iter (function
+			| TClassDecl c ->
+				let field = find_unused_variables com in
+				List.iter field c.cl_ordered_fields;
+				List.iter field c.cl_ordered_statics;
+				(match c.cl_constructor with None -> () | Some cf -> field cf);
+			| _ ->
+				()
+		) com.types
+
 	let print_diagnostics ctx =
 		let com = ctx.com in
 		let diag = DynArray.create() in
@@ -424,12 +435,20 @@ module Diagnostics = struct
 				"kind",JInt (to_int dk);
 				"severity",JInt (DiagnosticsSeverity.to_int sev);
 				"range",pos_to_json_range p;
-				"args",JArray args
+				"args",JArray args;
+				"file",JString (get_real_path p.pfile)
 			]) :: acc
 		) [] diag in
 		let js = JArray jl in
 		let b = Buffer.create 0 in
 		write_json (Buffer.add_string b) js;
 		Buffer.contents b
+
+	let is_diagnostics_run ctx = match ctx.com.display with
+		| DMDiagnostics true -> true
+		| DMDiagnostics false -> ctx.is_display_file
+		| _ -> false
 end
 
+let maybe_mark_import_position ctx p =
+	if Diagnostics.is_diagnostics_run ctx then mark_import_position ctx.com p

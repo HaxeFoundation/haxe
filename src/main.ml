@@ -72,12 +72,6 @@ let start_time = ref (get_time())
 
 let path_sep = if Sys.os_type = "Unix" then "/" else "\\"
 
-let get_real_path p =
-	try
-		Extc.get_real_path p
-	with _ ->
-		p
-
 let executable_path() =
 	Extc.executable_path()
 
@@ -1279,6 +1273,10 @@ try
 			| "memory" ->
 				did_something := true;
 				(try display_memory ctx with e -> prerr_endline (Printexc.get_backtrace ()));
+			| "diagnostics" ->
+				Common.define com Define.NoCOpt;
+				com.display <- DMDiagnostics true;
+				Common.display_default := DMDiagnostics true;
 			| _ ->
 				let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format : " ^ file_pos) in
 				let file = unquote file in
@@ -1303,7 +1301,7 @@ try
 						DMModuleSymbols;
 					| "diagnostics" ->
 						Common.define com Define.NoCOpt;
-						DMDiagnostics;
+						DMDiagnostics false;
 					| "" ->
 						DMDefault
 					| _ ->
@@ -1468,8 +1466,11 @@ try
 	process_ref := process;
 	process ctx.com.args;
 	process_libs();
-	if com.display <> DMNone then begin
-		com.warning <- if com.display = DMDiagnostics then (fun s p -> add_diagnostics_message com s p DiagnosticsSeverity.Warning) else message ctx;
+	begin match com.display with
+	| DMNone | DMDiagnostics true ->
+		()
+	| _ ->
+		com.warning <- if com.display = DMDiagnostics false then (fun s p -> add_diagnostics_message com s p DiagnosticsSeverity.Warning) else message ctx;
 		com.error <- error ctx;
 		com.main_class <- None;
 		if com.display <> DMUsage then
@@ -1603,7 +1604,7 @@ try
 		t();
 		if ctx.has_error then raise Abort;
 		begin match ctx.com.display with
-			| DMNone | DMUsage | DMDiagnostics ->
+			| DMNone | DMUsage | DMDiagnostics true ->
 				()
 			| _ ->
 				if ctx.has_next then raise Abort;
@@ -1616,6 +1617,9 @@ try
 		com.modules <- modules;
 		begin match com.display with
 			| DMUsage -> Codegen.detect_usage com;
+			| DMDiagnostics true ->
+				Display.Diagnostics.prepare com;
+				raise (Display.Diagnostics (Display.Diagnostics.print_diagnostics tctx))
 			| _ -> ()
 		end;
 		Filters.run com tctx main;

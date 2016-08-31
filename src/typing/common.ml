@@ -100,7 +100,7 @@ type display_mode =
 	| DMPackage
 	| DMType
 	| DMModuleSymbols
-	| DMDiagnostics
+	| DMDiagnostics of bool (* true = global, false = only in display file *)
 
 type compiler_callback = {
 	mutable after_typing : (module_type list -> unit) list;
@@ -1028,6 +1028,12 @@ let find_file ctx f =
 let get_full_path f = try Extc.get_full_path f with _ -> f
 
 let unique_full_path = if Sys.os_type = "Win32" || Sys.os_type = "Cygwin" then (fun f -> String.lowercase (get_full_path f)) else get_full_path
+
+let get_real_path p =
+	try
+		Extc.get_real_path p
+	with _ ->
+		p
 
 let get_path_parts f =
 	(*

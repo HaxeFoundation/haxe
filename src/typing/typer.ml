@@ -1298,7 +1298,7 @@ let rec using_field ctx mode e i p =
 						| _ -> ()
 					) monos cf.cf_params;
 					let et = type_module_type ctx (TClassDecl c) None p in
-					if ctx.is_display_file then Display.mark_import_position ctx.com pc;
+					Display.maybe_mark_import_position ctx pc;
 					AKUsing (mk (TField (et,FStatic (c,cf))) t p,c,cf,e)
 				| _ ->
 					raise Not_found
@@ -1421,7 +1421,7 @@ let rec type_ident_raise ctx i p mode =
 							let et = type_module_type ctx (TClassDecl c) None p in
 							let fa = FStatic(c,cf) in
 							let t = monomorphs cf.cf_params cf.cf_type in
-							if ctx.is_display_file then Display.mark_import_position ctx.com pt;
+							Display.maybe_mark_import_position ctx pt;
 							begin match cf.cf_kind with
 								| Var {v_read = AccInline} -> AKInline(et,cf,fa,t)
 								| _ -> AKExpr (mk (TField(et,fa)) t p)
@@ -1442,7 +1442,7 @@ let rec type_ident_raise ctx i p mode =
 						let et = type_module_type ctx t None p in
 						let monos = List.map (fun _ -> mk_mono()) e.e_params in
 						let monos2 = List.map (fun _ -> mk_mono()) ef.ef_params in
-						if ctx.is_display_file then Display.mark_import_position ctx.com pt;
+						Display.maybe_mark_import_position ctx pt;
 						wrap (mk (TField (et,FEnum (e,ef))) (enum_field_type ctx e ef monos monos2 p) p)
 					with
 						Not_found -> loop l
@@ -1451,7 +1451,7 @@ let rec type_ident_raise ctx i p mode =
 	with Not_found ->
 		(* lookup imported globals *)
 		let t, name, pi = PMap.find i ctx.m.module_globals in
-		if ctx.is_display_file then Display.mark_import_position ctx.com pi;
+		Display.maybe_mark_import_position ctx pi;
 		let e = type_module_type ctx t None p in
 		type_field ctx e name p mode
 
@@ -2659,7 +2659,7 @@ and type_ident ctx i p mode =
 						raise (Error(err,p))
 					in
 					e
-				| DMDiagnostics when ctx.is_display_file ->
+				| DMDiagnostics b when b || ctx.is_display_file ->
 					let l = ToplevelCollecter.run ctx in
 					let cl = List.map (fun it ->
 						let s = IdentifierType.get_name it in
@@ -2767,7 +2767,7 @@ and handle_efield ctx e p mode =
 								List.find path_match ctx.m.curmod.m_types
 							with Not_found ->
 								let t,p = List.find (fun (t,_) -> path_match t) ctx.m.module_types in
-								if ctx.is_display_file then Display.mark_import_position ctx.com p;
+								Display.maybe_mark_import_position ctx p;
 								t
 							in
 							(* if the static is not found, look for a subtype instead - #1916 *)
@@ -3947,7 +3947,7 @@ and handle_display ctx e_ast iscall with_type =
 		raise (Display.DisplayPosition pl);
 	| DMToplevel ->
 		raise (Display.DisplayToplevel (ToplevelCollecter.run ctx))
-	| DMDefault | DMNone | DMModuleSymbols | DMDiagnostics ->
+	| DMDefault | DMNone | DMModuleSymbols | DMDiagnostics _ ->
 		let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
 		let e,tl_overloads,doc = match e.eexpr with
 			| TField (e1,fa) ->

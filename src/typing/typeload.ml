@@ -2125,7 +2125,7 @@ module ClassInitializer = struct
 			end
 		in
 		begin match ctx.com.display with
-			| DMNone | DMUsage ->
+			| DMNone | DMUsage | DMDiagnostics true ->
 				if fctx.is_macro && not ctx.in_macro then
 					()
 				else begin
@@ -2133,7 +2133,7 @@ module ClassInitializer = struct
 					(* is_lib ? *)
 					cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
 				end
-			| DMDiagnostics ->
+			| DMDiagnostics false ->
 				handle_display_field()
 			| _ ->
 				if fctx.is_display_field then begin
@@ -2926,9 +2926,12 @@ let init_module_type ctx context_init do_init (decl,p) =
 	| EImport (path,mode) ->
 		ctx.m.module_imports <- (path,mode) :: ctx.m.module_imports;
 		(* We cannot use ctx.is_display_file because the import could come from an import.hx file. *)
-		if Display.is_display_file p.pfile then begin
-			Display.add_import_position ctx.com p;
-			handle_path_display ctx path p;
+		begin match ctx.com.display with
+			| DMDiagnostics b when (b && not (ExtString.String.ends_with p.pfile "import.hx")) || Display.is_display_file p.pfile ->
+				Display.add_import_position ctx.com p;
+				handle_path_display ctx path p;
+			| _ ->
+				()
 		end;
 		let rec loop acc = function
 			| x :: l when is_lower_ident (fst x) -> loop (x::acc) l
@@ -3042,9 +3045,12 @@ let init_module_type ctx context_init do_init (decl,p) =
 				) :: !context_init
 			))
 	| EUsing path ->
-		if Display.is_display_file p.pfile then begin
-			Display.add_import_position ctx.com p;
-			handle_path_display ctx path p;
+		begin match ctx.com.display with
+			| DMDiagnostics b when (b && not (ExtString.String.ends_with p.pfile "import.hx")) || Display.is_display_file p.pfile ->
+				Display.add_import_position ctx.com p;
+				handle_path_display ctx path p;
+			| _ ->
+				()
 		end;
 		let t = match List.rev path with
 			| (s1,_) :: (s2,_) :: sl ->
@@ -3497,7 +3503,7 @@ let type_module ctx mpath file ?(is_extern=false) tdecls p =
 	let ctx = type_types_into_module ctx m tdecls p in
 	if is_extern then m.m_extra.m_kind <- MExtern;
 	begin if ctx.is_display_file then match ctx.com.display with
-		| DMDiagnostics ->
+		| DMDiagnostics false ->
 			flush_pass ctx PBuildClass "diagnostics";
 			List.iter (fun mt -> match mt with
 				| TClassDecl c | TAbstractDecl({a_impl = Some c}) ->

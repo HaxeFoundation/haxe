@@ -232,7 +232,7 @@ let pass_name = function
 	| PFinal -> "final"
 
 let display_error ctx msg p = match ctx.com.display with
-	| DMDiagnostics -> add_diagnostics_message ctx.com msg p DiagnosticsSeverity.Error
+	| DMDiagnostics _ -> add_diagnostics_message ctx.com msg p DiagnosticsSeverity.Error
 	| _ -> ctx.on_error ctx msg p
 
 let error msg p = raise (Error (Custom msg,p))
