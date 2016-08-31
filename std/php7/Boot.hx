@@ -85,7 +85,13 @@ class Boot {
 		if (infos != null) {
 			Global.echo('${infos.fileName}:${infos.lineNumber}: ');
 		}
-		Global.echo(stringify(value) + '\n');
+		Global.echo(stringify(value));
+		if (infos.customParams != null) {
+			for (value in infos.customParams) {
+				Global.echo(',' + stringify(value));
+			}
+		}
+		Global.echo('\n');
 	}
 
 	/**
@@ -472,5 +478,24 @@ private class HxString {
 
 	public static function fromCharCode( code:Int ) : String {
 		return Global.chr(code);
+	}
+}
+
+
+/**
+	Anonymous objects implementation
+**/
+@:keep
+@:dox(hide)
+private class HxAnon extends StdClass {
+
+	public function new( fields:NativeArray ) {
+		untyped __php__("foreach ($fields as $name => $value) {
+			$this->$name = $value;
+		}");
+	}
+
+	function __get( name:String ) {
+		return null;
 	}
 }

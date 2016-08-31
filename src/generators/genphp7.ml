@@ -45,6 +45,10 @@ let hxclass_type_path = (["php7"; "_Boot"], "HxClass")
 *)
 let hxstring_type_path = (["php7"; "_Boot"], "HxString")
 (**
+	Type path of the implementation class for anonymous objects
+*)
+let hxanon_type_path = (["php7"; "_Boot"], "HxAnon")
+(**
 	Special abstract which enables passing function arguments and return value by reference
 *)
 let ref_type_path = (["php7"], "Ref")
@@ -1633,13 +1637,13 @@ class virtual type_builder ctx wrapper =
 			match fields with
 				| [] ->  self#write "new \\StdClass()"
 				| _ ->
-					self#write "(object)[\n";
+					self#write ("new " ^ (self#use hxanon_type_path)  ^ "([\n");
 					self#indent_more;
 					let write_field (key, value) = self#write_array_item ~key:key value in
 					List.iter write_field fields;
 					self#indent_less;
 					self#write_indentation;
-					self#write "]"
+					self#write "])"
 		(**
 			Writes TCall to output buffer
 		*)
