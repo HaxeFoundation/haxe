@@ -29,7 +29,7 @@
 **/
 class DateTools {
 
-	#if php
+	#if (php || php7)
 	#elseif (neko && !(macro || interp))
 	static var date_format = neko.Lib.load("std","date_format",2);
 	#else
@@ -130,7 +130,7 @@ class DateTools {
 	public static function format( d : Date, f : String ) : String {
 		#if (neko && !(macro || interp))
 			return new String(untyped date_format(d.__t, f.__s));
-		#elseif php
+		#elseif (php || php7)
 			return untyped __call__("strftime",f,d.__t);
 		#else
 			return __format(d,f);
@@ -216,14 +216,14 @@ class DateTools {
 		return o.ms + 1000.0 * (o.seconds + 60.0 * (o.minutes + 60.0 * (o.hours + 24.0 * o.days)));
 	}
 
-	#if (js || flash || php || cpp || python)
+	#if (js || flash || php || php7 || cpp || python)
 	/**
 		Retrieve Unix timestamp value from Date components. Takes same argument sequence as the Date constructor.
 	**/
 	public static #if (js || flash || php) inline #end function makeUtc(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ):Float {
 	    #if (js || flash || python)
 		   return untyped Date.UTC(year, month, day, hour, min, sec);
-		#elseif php
+		#elseif (php || php7)
 		   return untyped __call__("gmmktime", hour, min, sec, month + 1, day, year) * 1000;
 		#elseif cpp
 		  return untyped __global__.__hxcpp_utc_date(year,month,day,hour,min,sec)*1000.0 ;

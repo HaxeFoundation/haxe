@@ -262,7 +262,7 @@ class Serializer {
 				#if (flash || python || hl)
 				var v : Array<Dynamic> = v;
 				#end
-				var l = #if (neko || flash || php || cs || java || python || hl || lua) v.length #elseif cpp v.__length() #else __getField(v, "length") #end;
+				var l = #if (neko || flash || php || php7 || cs || java || python || hl || lua) v.length #elseif cpp v.__length() #else __getField(v, "length") #end;
 				for( i in 0...l ) {
 					if( v[i] == null )
 						ucount++;
@@ -464,7 +464,7 @@ class Serializer {
 			buf.add(len);
 			for( p in 0...len )
 				serialize( enumBase.getParamI(p));
-			#elseif php
+			#elseif (php || php7)
 			if( useEnumIndex ) {
 				buf.add(":");
 				buf.add(v.index);

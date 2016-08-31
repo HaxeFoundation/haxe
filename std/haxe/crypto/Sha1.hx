@@ -27,7 +27,7 @@ package haxe.crypto;
 class Sha1 {
 
 	public static function encode( s:String ) : String {
-		#if php
+		#if (php || php7)
 		return untyped __call__("sha1", s);
 		#else
 		var sh = new Sha1();
@@ -37,7 +37,7 @@ class Sha1 {
 	}
 
 	public static function make( b : haxe.io.Bytes ) : haxe.io.Bytes {
-		#if php
+		#if (php || php7)
 		return haxe.io.Bytes.ofData(haxe.io.BytesData.ofString(untyped __call__("sha1", b.getData().toString(), true)));
 		#else
 		var h = new Sha1().doEncode(bytes2blks(b));
@@ -53,7 +53,7 @@ class Sha1 {
 		#end
 	}
 
-	#if !php
+	#if !(php || php7)
 
 	function new() {
 	}
@@ -105,7 +105,7 @@ class Sha1 {
 		Append padding bits and the length, as described in the SHA1 standard.
 	 */
 	static function str2blks( s :String ) : Array<Int> {
-#if !(neko || cpp || php)
+#if !(neko || cpp || php || php7)
 		var s = haxe.io.Bytes.ofString(s);
 #end
 		var nblk = ((s.length + 8) >> 6) + 1;
@@ -115,7 +115,7 @@ class Sha1 {
 			blks[i] = 0;
 		for (i in 0...s.length){
 			var p = i >> 2;
-			blks[p] |= #if !(neko || cpp || php) s.get(i) #else s.charCodeAt(i) #end << (24 - ((i & 3) << 3));
+			blks[p] |= #if !(neko || cpp || php || php7) s.get(i) #else s.charCodeAt(i) #end << (24 - ((i & 3) << 3));
 		}
 		var i = s.length;
 		var p = i >> 2;
