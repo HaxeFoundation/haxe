@@ -612,7 +612,7 @@ module Fusion = struct
 				let e1 = {e1 with eexpr = TVar(v1,Some e2)} in
 				state#dec_writes v1;
 				fuse (e1 :: acc) el
-			| ({eexpr = TVar(v1,None)} as e1) :: ({eexpr = TIf(eif,_,Some _)} as e2) :: el when can_be_used_as_value com e2 && (match com.platform with Php -> false | Cpp when not (Common.defined com Define.Cppia) -> false | _ -> true) ->
+			| ({eexpr = TVar(v1,None)} as e1) :: ({eexpr = TIf(eif,_,Some _)} as e2) :: el when can_be_used_as_value com e2 && not (ExtType.is_void e2.etype) && (match com.platform with Php -> false | Cpp when not (Common.defined com Define.Cppia) -> false | _ -> true) ->
 				begin try
 					let i = ref 0 in
 					let check_assign e = match e.eexpr with
@@ -620,10 +620,6 @@ module Fusion = struct
 						| _ -> raise Exit
 					in
 					let e,_ = map_values ~allow_control_flow:false check_assign e2 in
-					let e = match follow e.etype with
-						| TAbstract({a_path=[],"Void"},_) -> {e with etype = v1.v_type}
-						| _ -> e
-					in
 					let e1 = {e1 with eexpr = TVar(v1,Some e)} in
 					state#changed;
 					state#change_writes v1 (- !i);
