@@ -128,9 +128,12 @@ class Boot {
 				var result = new NativeIndexedArray<String>();
 				var data = Global.get_object_vars(value);
 				for (key in data.array_keys()) {
-					result.array_push('$key:' + stringify(data[key]));
+					result.array_push('$key : ' + stringify(data[key]));
 				}
-				return '{' + Global.implode(',', result) + '}';
+				return '{ ' + Global.implode(', ', result) + ' }';
+			}
+			if (untyped __php__("$value instanceof \\Closure")) {
+				return '<function>';
 			}
 			var hxClass = getClass(Global.get_class(value));
 			return '[object ' + hxClass.getName() + ']';

@@ -69,8 +69,7 @@ class CallStack {
 			b.add(".");
 			b.add(meth);
 		case LocalFunction(n):
-			b.add("local function #");
-			b.add(n);
+			b.add("local function");
 		}
 	}
 
