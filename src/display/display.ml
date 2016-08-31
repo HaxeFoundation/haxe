@@ -397,8 +397,16 @@ module Diagnostics = struct
 
 	let print_diagnostics ctx =
 		let com = ctx.com in
-		let diag = DynArray.create() in
+		let diag = Hashtbl.create 0 in
 		let add dk p sev args =
+			let file = get_real_path p.pfile in
+			let diag = try
+				Hashtbl.find diag file
+			with Not_found ->
+				let d = DynArray.create() in
+				Hashtbl.add diag file d;
+				d
+			in
 			DynArray.add diag (dk,p,sev,args)
 		in
 		let find_type i =
@@ -430,15 +438,20 @@ module Diagnostics = struct
 		List.iter (fun (s,p,sev) ->
 			add DKCompilerError p sev [JString s]
 		) com.shared.shared_display_information.diagnostics_messages;
-		let jl = DynArray.fold_left (fun acc (dk,p,sev,args) ->
+		let jl = Hashtbl.fold (fun file diag acc ->
+			let jl = DynArray.fold_left (fun acc (dk,p,sev,args) ->
+				(JObject [
+					"kind",JInt (to_int dk);
+					"severity",JInt (DiagnosticsSeverity.to_int sev);
+					"range",pos_to_json_range p;
+					"args",JArray args
+				]) :: acc
+			) [] diag in
 			(JObject [
-				"kind",JInt (to_int dk);
-				"severity",JInt (DiagnosticsSeverity.to_int sev);
-				"range",pos_to_json_range p;
-				"args",JArray args;
-				"file",JString (get_real_path p.pfile)
+				"file",JString file;
+				"diagnostics",JArray jl
 			]) :: acc
-		) [] diag in
+		) diag [] in
 		let js = JArray jl in
 		let b = Buffer.create 0 in
 		write_json (Buffer.add_string b) js;
