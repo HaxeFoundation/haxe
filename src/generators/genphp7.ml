@@ -45,6 +45,11 @@ let hxclass_type_path = (["php7"; "_Boot"], "HxClass")
 *)
 let hxstring_type_path = (["php7"; "_Boot"], "HxString")
 (**
+	Type path of the special implementation class for `String`
+	which is used when Dynamic value is suspected to be a string
+*)
+let hxdynamicstr_type_path = (["php7"; "_Boot"], "HxDynamicStr")
+(**
 	Type path of the implementation class for anonymous objects
 *)
 let hxanon_type_path = (["php7"; "_Boot"], "HxAnon")
@@ -1550,11 +1555,34 @@ class virtual type_builder ctx wrapper =
 					)
 				| (_, FStatic (_, ({ cf_name = name; cf_kind = Method _ } as field))) -> self#write_expr_field_static expr field
 				| (_, FAnon { cf_name = name }) -> write_access "->" name
-				| (_, FDynamic field_name) -> self#write_expr expr; self#write ("->" ^ field_name)
+				| (_, FDynamic field_name) -> self#write_expr_field_dynamic expr field_name
 				| (_, FClosure (tcls, field)) -> self#write_expr_field_closure tcls field expr
 				| (_, FEnum (_, field)) ->
 					write_access "::" field.ef_name;
 					if not (is_enum_constructor_with_args field) then self#write "()"
+		(**
+			Writes field access on Dynamic expression to output buffer
+		*)
+		method private write_expr_field_dynamic expr field_name =
+			(* Special case for String fields *)
+			match field_name with
+				| "length"
+				| "toUpperCase"
+				| "toLowerCase"
+				| "charAt"
+				| "indexOf"
+				| "lastIndexOf"
+				| "split"
+				| "toString"
+				| "substring"
+				| "substr"
+				| "charCodeAt" ->
+					self#write ((self#use hxdynamicstr_type_path) ^ "::wrap(");
+					self#write_expr expr;
+					self#write (")->" ^ field_name)
+				| _ ->
+					self#write_expr expr;
+					self#write ("->" ^ field_name)
 		(**
 			Convert field access expressions for strings to native PHP string functions and write to output buffer
 		*)

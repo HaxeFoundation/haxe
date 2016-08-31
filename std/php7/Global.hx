@@ -268,7 +268,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.isset.php
 	**/
-	static function isset( args:Rest<Dynamic> ) : Bool;
+	static function isset( value:Dynamic, args:Rest<Dynamic> ) : Bool;
 
 	/**
 		@see http://php.net/manual/en/function.get-object-vars.php
@@ -334,4 +334,14 @@ extern class Global {
 		@see http://php.net/manual/en/function.debug-backtrace.php
 	**/
 	static function debug_backtrace( ?options:Int, ?limit:Int ) : NativeIndexedArray<NativeAssocArray<Dynamic>>;
+
+	/**
+		@see http://php.net/manual/en/function.call-user-func.php
+	**/
+	static function call_user_func( callback:Dynamic, arguments:Rest<Dynamic> ) : Dynamic;
+
+	/**
+		@see http://php.net/manual/en/function.call-user-func-array.php
+	**/
+	static function call_user_func_array( callback:Dynamic, arguments:NativeArray ) : Dynamic;
 }

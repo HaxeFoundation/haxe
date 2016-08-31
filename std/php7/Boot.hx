@@ -481,6 +481,54 @@ private class HxString {
 	}
 }
 
+/**
+	For Dynamic access which looks like String
+**/
+@:dox(hide)
+@:keep
+private class HxDynamicStr {
+	static var hxString : String = ((cast HxString):HxClass).getPhpName();
+	var str:String;
+
+	/**
+		Returns HxDynamicStr instance if `value` is a string.
+		Otherwise returns `value` as-is.
+	**/
+	static function wrap( value:Dynamic ) : Dynamic {
+		if (value.is_string()) {
+			return new HxDynamicStr(value);
+		} else {
+			return value;
+		}
+	}
+
+	function new( str:String ) {
+		this.str = str;
+	}
+
+	function __get( field:String ) : Dynamic {
+		switch (field) {
+			case 'length':      return str.length;
+			case 'toUpperCase': return HxString.toUpperCase.bind(str);
+			case 'toLowerCase': return HxString.toLowerCase.bind(str);
+			case 'charAt':      return HxString.charAt.bind(str);
+			case 'indexOf':     return HxString.indexOf.bind(str);
+			case 'lastIndexOf': return HxString.lastIndexOf.bind(str);
+			case 'split':       return HxString.split.bind(str);
+			case 'toString':    return HxString.toString.bind(str);
+			case 'substring':   return HxString.substring.bind(str);
+			case 'substr':      return HxString.substr.bind(str);
+			case 'charCodeAt':  return HxString.charCodeAt.bind(str);
+		}
+		return str;
+	}
+
+	function __call( method:String, args:NativeArray ) : Dynamic {
+		Global.array_unshift(args, str);
+		return Global.call_user_func_array(hxString + '::' + method, args);
+	}
+}
+
 
 /**
 	Anonymous objects implementation
