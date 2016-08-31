@@ -1365,7 +1365,7 @@ let rec type_ident_raise ctx i p mode =
 		| Some (params,e) ->
 			let t = monomorphs params v.v_type in
 			(match e with
-			| Some ({ eexpr = TFunction f } as e) when ctx.com.display = DMNone ->
+			| Some ({ eexpr = TFunction f } as e) when (match ctx.com.display with DMNone | DMDiagnostics _ -> true | _ -> false) ->
 				begin match mode with
 					| MSet -> error "Cannot set inline closure" p
 					| MGet -> error "Cannot create closure on inline closure" p
@@ -5288,7 +5288,7 @@ let rec create com =
 			delayed = [];
 			debug_delayed = [];
 			delayed_macros = DynArray.create();
-			doinline = not (Common.defined com Define.NoInline || com.display <> DMNone);
+			doinline = not (Common.defined com Define.NoInline || (match com.display with DMNone | DMDiagnostics _ -> false | _ -> true));
 			hook_generate = [];
 			get_build_infos = (fun() -> None);
 			std = null_module;
