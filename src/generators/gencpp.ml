@@ -1349,6 +1349,7 @@ type tcpp =
    | TCppPointer of string * tcpp
    | TCppRawPointer of string * tcpp
    | TCppFunction of tcpp list * tcpp * string
+   | TCppObjCBlock of tcpp list * tcpp
    | TCppReference of tcpp
    | TCppStar of tcpp
    | TCppVoidStar
@@ -1496,6 +1497,7 @@ and tcpp_expr_expr =
    | CppCastScalar of tcppexpr * string
    | CppCastVariant of tcppexpr
    | CppCastObjC of tcppexpr * tclass
+   | CppCastObjCBlock of tcppexpr * tcpp list * tcpp
    | CppCastNative of tcppexpr
 
 let rec s_tcpp = function
@@ -1572,6 +1574,7 @@ let rec s_tcpp = function
    | CppCastScalar _ -> "CppCastScalar"
    | CppCastVariant _ -> "CppCastVariant"
    | CppCastObjC _ -> "CppCastObjC"
+   | CppCastObjCBlock _ -> "CppCastObjCBlock"
    | CppCastNative _ -> "CppCastNative"
 
 and tcpp_to_string_suffix suffix tcpp = match tcpp with
@@ -1591,6 +1594,8 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
    | TCppFunction(argTypes,retType,abi) ->
         let args = (String.concat "," (List.map tcpp_to_string argTypes)) in
         "::cpp::Function< " ^ abi ^ " " ^ (tcpp_to_string retType) ^ "(" ^ args ^ ") >"
+   | TCppObjCBlock(argTypes,retType) ->
+        (tcpp_objc_block_struct argTypes retType) ^ "::t"
    | TCppDynamicArray -> "::cpp::VirtualArray" ^ suffix
    | TCppObjectArray _ -> "::Array" ^ suffix ^ "< ::Dynamic>"
    | TCppWrapped _ -> " ::Dynamic"
@@ -1616,6 +1621,22 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
    | TCppGlobal -> "";
    | TCppNull -> " ::Dynamic";
    | TCppCode _ -> "Code"
+
+and tcpp_objc_block_struct argTypes retType =
+   let args = (String.concat "," (List.map tcpp_to_string argTypes)) in
+   let ret = tcpp_to_string retType in
+   let suffix = (string_of_int (List.length argTypes)) in
+      if (ret="void") then begin
+         if (List.length argTypes) = 0 then
+            "hx::TObjcBlockVoidVoid"
+         else
+            "hx::TObjcBlockVoidArgs" ^ suffix ^ "< " ^ args ^ " >"
+      end else begin
+         if (List.length argTypes) = 0 then
+            "hx::TObjcBlockRetVoid< " ^ ret ^ " >"
+         else
+            "hx::TObjcBlockRetArgs" ^ suffix ^ "< " ^ ret ^ "," ^ args ^ " >"
+      end
 
 and tcpp_to_string tcpp =
     tcpp_to_string_suffix "" tcpp
@@ -1771,6 +1792,9 @@ let rec cpp_type_of ctx haxe_type =
             cpp_function_type_of ctx function_type abi;
       | (["cpp"],"Callable"), [function_type] ->
             cpp_function_type_of_string ctx function_type "";
+      | (("cpp"::["objc"]),"BlockPtr"), [function_type] ->
+            let args,ret = (cpp_function_type_of_args_ret ctx function_type) in
+            TCppObjCBlock(args,ret)
       | (["cpp"],"Reference"), [param] ->
             TCppReference(cpp_type_of ctx param)
       | (["cpp"],"Star"), [param] ->
@@ -1826,6 +1850,10 @@ let rec cpp_type_of ctx haxe_type =
       in
       cpp_function_type_of_string ctx function_type abi
    and cpp_function_type_of_string ctx function_type abi_string =
+      let args,ret = cpp_function_type_of_args_ret ctx function_type in
+      TCppFunction(args, ret, abi_string)
+
+   and cpp_function_type_of_args_ret ctx function_type =
       match follow function_type with
       | TFun(args,ret) ->
           (* Optional types are Dynamic if they norally could not be null *)
@@ -1835,9 +1863,9 @@ let rec cpp_type_of ctx haxe_type =
              else
                 cpp_type_of ctx haxe_type
           in
-          TCppFunction(List.map cpp_arg_type_of args, cpp_type_of ctx ret, abi_string)
+          List.map cpp_arg_type_of args, cpp_type_of ctx ret
       | _ ->  (* ? *)
-          TCppFunction([TCppVoid], TCppVoid, abi_string)
+          [TCppVoid], TCppVoid
 
    and cpp_instance_type ctx klass params =
       cpp_type_from_path ctx klass.cl_path params (fun () ->
@@ -1938,6 +1966,7 @@ let cpp_variant_type_of t = match t with
    | TCppScalarArray _
    | TCppWrapped _
    | TCppObjC _
+   | TCppObjCBlock _
    | TCppInst _
    | TCppInterface _
    | TCppCode _
@@ -2048,6 +2077,17 @@ let rec ctx_tfun_arg_list ctx include_names arg_list =
 let cpp_var_type_of ctx var =
    tcpp_to_string (cpp_type_of ctx var.v_type)
 ;;
+
+
+let cpp_macro_var_type_of ctx var =
+   let t = tcpp_to_string (cpp_type_of ctx var.v_type) in
+   if String.contains t ',' then
+      Str.global_replace (Str.regexp ",") " HX_COMMA " t
+   else
+     t
+;;
+
+
 
 
 let ctx_function_signature ctx include_names tfun abi =
@@ -2213,6 +2253,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
       | CppCast(cppExpr,_)
       | CppCastStatic(cppExpr,_)
       | CppCastObjC(cppExpr,_)
+      | CppCastObjCBlock(cppExpr,_,_)
       | CppCastScalar(cppExpr,_) -> to_lvalue cppExpr
       | CppCastVariant(cppExpr) -> to_lvalue cppExpr
       | CppGlobal(name) -> CppGlobalRef(name)
@@ -2764,6 +2805,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                | TCppCode(t) when baseStr <> (tcpp_to_string t)  ->
                      CppCast(baseCpp, t),  t
                | TCppNativePointer(klass) -> CppCastNative(baseCpp), return_type
+               | TCppObjCBlock(args,ret) -> CppCastObjCBlock(baseCpp,args,ret), return_type
                | TCppDynamic when baseCpp.cpptype=TCppClass ->  CppCast(baseCpp,TCppDynamic), TCppDynamic
                | _ -> baseCpp.cppexpr, baseCpp.cpptype (* use autocasting rules *)
             )
@@ -2971,10 +3013,11 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          else begin
             let dbgName =  cpp_var_debug_name_of var in
             let macro = if init=None then "HX_VAR" else "HX_VARI" in
+            let varType = cpp_macro_var_type_of ctx var in
             if name<>dbgName then
-               out ( macro ^ "_NAME( " ^ (cpp_var_type_of ctx var) ^ "," ^ name ^ ",\"" ^ dbgName ^ "\")" )
+               out ( macro ^ "_NAME( " ^ varType ^ "," ^ name ^ ",\"" ^ dbgName ^ "\")" )
             else
-               out ( macro ^ "( " ^ (cpp_var_type_of ctx var) ^ "," ^ name ^ ")");
+               out ( macro ^ "( " ^ varType  ^ "," ^ name ^ ")");
          end;
          (match init with Some init -> out " = "; gen init | _ -> () );
 
@@ -3452,7 +3495,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       | CppTry(block,catches) ->
           let prologue = function () ->
              ExtList.List.iteri (fun idx (v,_) ->
-                output_i ("HX_STACK_CATCHABLE(" ^ cpp_var_type_of ctx v  ^ ", " ^ string_of_int idx ^ ");\n")
+                output_i ("HX_STACK_CATCHABLE(" ^ cpp_macro_var_type_of ctx v  ^ ", " ^ string_of_int idx ^ ");\n")
              ) catches
           in
           out ("try ");
@@ -3521,6 +3564,12 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          let path = join_class_path_remap klass.cl_path "::"  in
          let toType = if klass.cl_interface then "id < " ^ path ^ ">" else path ^ " *" in
          out ("( (" ^ toType ^ ") (id) ("); gen expr; out ") )"
+
+      | CppCastObjCBlock(expr,args,ret) ->
+         out (tcpp_objc_block_struct args ret ^ "::create( ");
+         gen expr;
+         out ")"
+       
 
       | CppCastNative(expr) ->
          out "("; gen expr; out ").mPtr"
@@ -3628,7 +3677,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       out (if closure.close_this != None then "hx::LocalThisFunc," else "hx::LocalFunc,");
       out ("_hx_Closure_" ^ (string_of_int closure.close_id) );
       Hashtbl.iter (fun name var ->
-         out ("," ^ (cpp_var_type_of ctx var) ^ "," ^ (keyword_remap name));
+         out ("," ^ (cpp_macro_var_type_of ctx var) ^ "," ^ (keyword_remap name));
       ) closure.close_undeclared;
       out (") HXARGC(" ^ argsCount ^")\n");
 
