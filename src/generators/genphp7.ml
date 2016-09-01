@@ -322,11 +322,16 @@ let create_dir_recursive (path:string list) =
 (**
 	@return String representation of specified type path. E.g. returns "\example\Test" for (["example"], "Test")
 *)
-let get_full_type_name ?escape (type_path:path) =
+let get_full_type_name ?escape ?omit_first_slash (type_path:path) =
 	let name =
-		(match type_path with
-			| (module_path, type_name) -> (String.concat "\\" ("" :: get_real_path module_path)) ^ "\\" ^ type_name
-		)
+		match type_path with
+			| (module_path, type_name) ->
+				let parts =
+					match omit_first_slash with
+						| Some true -> get_real_path module_path
+						| _ -> "" :: get_real_path module_path
+				in
+				(String.concat "\\" parts) ^ "\\" ^ type_name
 	in
 	match escape with
 		| Some true -> String.escaped name
@@ -785,7 +790,7 @@ class virtual type_builder ctx wrapper =
 				(* Boot initialization *)
 				if boot_type_path <> self#get_type_path then
 					self#write_statement (boot_class ^ "::__hx__init()");
-				let php_class = get_full_type_name ~escape:true (add_php_prefix ctx self#get_type_path)
+				let php_class = get_full_type_name ~escape:true ~omit_first_slash:true (add_php_prefix ctx self#get_type_path)
 				and haxe_class = match wrapper#get_type_path with (path, name) -> String.concat "." (path @ [name]) in
 				self#write_statement (boot_class ^ "::registerClass('" ^ php_class ^ "', '" ^ haxe_class ^ "')");
 				(* Current class initialization *)

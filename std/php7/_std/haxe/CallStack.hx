@@ -115,8 +115,8 @@ class CallStack {
 				if ((next['function']:String).indexOf('{closure}') >= 0) {
 					item = LocalFunction();
 				} else if ((next['class']:String).length > 0 && (next['function']:String).length > 0) {
-					var cls = Boot.getClass(next['class']);
-					item = Method(cls.getName(), next['function']);
+					var cls = Boot.getClassName(next['class']);
+					item = Method(cls, next['function']);
 				}
 			}
 			result.push(FilePos(item, entry['file'], entry['line']));

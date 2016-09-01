@@ -89,6 +89,16 @@ extern class Global {
 	static function is_subclass_of( value:Dynamic, className:String, allow_string:Bool = true ) : Bool ;
 
 	/**
+		@see http://php.net/manual/en/function.class-exists.php
+	**/
+	static function class_exists( class_name:String, autoload:Bool = true ) : Bool ;
+
+	/**
+		@see http://php.net/manual/en/function.interface-exists.php
+	**/
+	static function interface_exists( interface_name:String, autoload:Bool = true ) : Bool ;
+
+	/**
 		@see http://php.net/manual/en/function.intval.php
 	**/
 	static function intval( value:Dynamic, base:Int = 10 ) : Int ;

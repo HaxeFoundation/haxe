@@ -72,6 +72,13 @@ class Boot {
 	}
 
 	/**
+		Returns either Haxe class name for specified `phpClassName` or (if no such Haxe class registered) `phpClassName`.
+	**/
+	public static function getClassName( phpClassName:String ) : String {
+		return HxClass.getName(HxClass.get(phpClassName));
+	}
+
+	/**
 		Associate PHP class name with Haxe class name
 	**/
 	public static function registerClass( phpClassName:String, haxeClassName:String ) : Void {
@@ -115,11 +122,11 @@ class Boot {
 			return '[' + Global.implode(',', strings) + ']';
 		}
 		if (value.is_object()) {
-			if (value.method_exists('__toString')) {
-				return value.__toString();
-			}
 			if (value.method_exists('toString')) {
 				return value.toString();
+			}
+			if (value.method_exists('__toString')) {
+				return value.__toString();
 			}
 			if (untyped __php__("$value instanceof \\StdClass")) {
 				if (value.toString.isset() && value.toString.is_callable()) {
@@ -135,8 +142,13 @@ class Boot {
 			if (untyped __php__("$value instanceof \\Closure")) {
 				return '<function>';
 			}
-			var hxClass = getClass(Global.get_class(value));
-			return '[object ' + hxClass.getName() + ']';
+			var hxClassPhpName = HxClass.getPhpName(cast HxClass);
+			if (untyped __php__("$value instanceof $hxClassPhpName")) {
+				return '[class ' + HxClass.getName(cast value) + ']';
+			} else {
+				var cls = getClass(Global.get_class(value));
+				return '[object ' + HxClass.getName(cls) + ']';
+			}
 		}
 		throw "Unable to stringify value";
 	}
@@ -166,8 +178,7 @@ class Boot {
 		`Std.is()` implementation
 	**/
 	public static function is( value:Dynamic, type:Class<Dynamic> ) : Bool {
-		var type : HxClass = cast type;
-		var phpType = type.getPhpName();
+		var phpType = HxClass.getPhpName(cast type);
 		switch (phpType) {
 			case '\\Dynamic':
 				return true;
@@ -184,11 +195,11 @@ class Boot {
 			case '\\Enum':
 				if (value.is_object()) {
 					var hxClass : HxClass = cast HxClass;
-					var className = hxClass.getPhpName();
+					var className = HxClass.getPhpName(cast HxClass);
 					if (untyped __php__("$value instanceof $className")) {
-						var valueType : HxClass = cast value;
-						var hxEnum : HxClass = cast HxEnum;
-						return Global.is_subclass_of(valueType.getPhpName(), hxEnum.getPhpName());
+						var valuePhpClass = HxClass.getPhpName(cast value);
+						var enumPhpClass = HxClass.getPhpName(cast HxEnum);
+						return Global.is_subclass_of(valuePhpClass, enumPhpClass);
 					}
 				}
 			case _:
@@ -250,8 +261,8 @@ private class HxClass {
 		Get `HxClass` instance for specified PHP fully qualified class name (E.g. '\some\pack\MyClass')
 	**/
 	public static function get( phpClassName:String ) : HxClass {
-		if (phpClassName.charAt(0) != '\\') {
-			phpClassName = '\\' + phpClassName;
+		if (phpClassName.charAt(0) == '\\') {
+			phpClassName = phpClassName.substr(1);
 		}
 		if (!Global.isset(classes[phpClassName])) {
 			classes[phpClassName] = new HxClass(phpClassName);
@@ -260,39 +271,44 @@ private class HxClass {
 		return classes[phpClassName];
 	}
 
-	@:protected
-	function new( phpClassName:String ) : Void {
-		this.phpClassName = phpClassName;
-	}
-
 	/**
 		Returns native PHP fully qualified class name for this type
 	**/
-	public function getPhpName() : String {
-		return phpClassName;
+	public static function getPhpName( hxClass:HxClass ) : String {
+		return hxClass.phpClassName;
 	}
 
 	/**
 		Returns original Haxe fully qualified class name for this type (if exists)
 	**/
-	public function getHaxeName() : Null<String> {
-		return (Global.isset(aliases[phpClassName]) ? aliases[phpClassName] : null);
+	public static function getHaxeName( hxClass:HxClass) : Null<String> {
+		inline function exists() return Global.isset(aliases[hxClass.phpClassName]);
+
+		if (exists()) {
+			return aliases[hxClass.phpClassName];
+		} else if (Global.class_exists(hxClass.phpClassName) && exists()) {
+			return aliases[hxClass.phpClassName];
+		} else if (Global.interface_exists(hxClass.phpClassName) && exists()) {
+			return aliases[hxClass.phpClassName];
+		}
+
+		return null;
 	}
 
 	/**
 		Returns original Haxe name. If Haxe name is unknown, returns PHP name.
 	**/
-	public function getName() : String {
-		var name = getHaxeName();
-		return (name == null ? phpClassName : name);
+	public static function getName( hxClass:HxClass) : String {
+		var name = getHaxeName(hxClass);
+		return (name == null ? hxClass.phpClassName : name);
 	}
 
 	/**
 		Implementation for `cast(value, Class<Dynamic>)`
 		@throws HException if `value` cannot be casted to this type
 	**/
-	public function tryCast( value:Dynamic ) : Dynamic {
-		switch (phpClassName) {
+	public static function tryCast( hxClass:HxClass, value:Dynamic ) : Dynamic {
+		switch (hxClass.phpClassName) {
 			case '\\Int':
 				if (Boot.isNumber(value)) {
 					return Global.intval(value);
@@ -314,25 +330,24 @@ private class HxClass {
 					return value;
 				}
 			case _:
-				if (value.is_object() && Std.is(value, cast this)) {
+				if (value.is_object() && Std.is(value, cast hxClass)) {
 					return value;
 				}
 		}
-		throw 'Cannot cast ' + Std.string(value) + ' to ' + toString();
+		throw 'Cannot cast ' + Std.string(value) + ' to ' + getName(hxClass);
+	}
+
+	@:protected
+	function new( phpClassName:String ) : Void {
+		this.phpClassName = phpClassName;
 	}
 
 	/**
-		Get string representation of this `Class`
+		Magic method to call static methods of this class, when `HxClass` instance is in a `Dynamic` variable.
 	**/
-	public function toString() : String {
-		return __toString();
-	}
-
-	/**
-		PHP magic method to get string representation of this `Class`
-	**/
-	public function __toString() : String {
-		return '[class ' + getName() + ']';
+	function __call( method:String, args:NativeArray ) : Dynamic {
+		var callback = phpClassName + '::' + method;
+		return Global.call_user_func_array(callback, args);
 	}
 }
 
@@ -357,7 +372,7 @@ private class HxEnum {
 
 		var instance = singletons.get(key);
 		if (instance == null) {
-			instance = untyped __php__("new $enumClass($tag)");
+			instance = untyped __php__("new $enumClass($tag, $index)");
 			singletons.set(key, instance);
 		}
 
@@ -490,7 +505,7 @@ private class HxString {
 @:dox(hide)
 @:keep
 private class HxDynamicStr {
-	static var hxString : String = ((cast HxString):HxClass).getPhpName();
+	static var hxString : String = HxClass.getPhpName(cast HxString);
 	var str:String;
 
 	/**
