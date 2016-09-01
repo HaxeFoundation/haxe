@@ -11,6 +11,7 @@ type display_field_kind =
 	| FKPackage
 
 exception Diagnostics of string
+exception Statistics of string
 exception ModuleSymbols of string
 exception DisplaySignatures of (t * documentation) list
 exception DisplayType of t * pos
@@ -521,3 +522,87 @@ end
 
 let maybe_mark_import_position ctx p =
 	if Diagnostics.is_diagnostics_run ctx then mark_import_position ctx.com p
+
+
+module Statistics = struct
+
+	type class_relation = (path,(tclass * tclass DynArray.t)) Hashtbl.t
+
+	type file_statistics = {
+		implementer : class_relation;
+		subclasses : class_relation;
+	}
+
+	type statistics = {
+		files : (string,file_statistics) Hashtbl.t;
+	}
+
+	let print_statistics tctx =
+		let statistics = {
+			files = Hashtbl.create 0
+		} in
+		let get_file_statistics file =
+			let key = get_real_path file in
+			try
+				Hashtbl.find statistics.files key
+			with Not_found ->
+				let file_statistics = {
+					implementer = Hashtbl.create 0;
+					subclasses = Hashtbl.create 0;
+				} in
+				Hashtbl.add statistics.files key file_statistics;
+				file_statistics
+		in
+		let add map ci c =
+			let l = try
+				snd (Hashtbl.find map ci.cl_path)
+			with Not_found ->
+				let l = DynArray.create () in
+				Hashtbl.add map ci.cl_path (ci,l);
+				l
+			in
+			DynArray.add l c
+		in
+		List.iter (function
+			| TClassDecl c ->
+				List.iter (fun (ci,_) ->
+					if is_display_file ci.cl_pos.pfile then add (get_file_statistics ci.cl_pos.pfile).implementer ci c
+				) c.cl_implements;
+				begin match c.cl_super with
+					| Some (cs,_) when is_display_file cs.cl_pos.pfile -> add (get_file_statistics cs.cl_pos.pfile).subclasses cs c
+					| _ -> ()
+				end
+			| _ -> ()
+		) tctx.com.types;
+		let relation_list l =
+			Hashtbl.fold (fun _ (ci,l) acc ->
+				let jl = List.map (fun c ->
+					JObject [
+						"range",pos_to_json_range c.cl_pos;
+						"file",JString (get_real_path c.cl_pos.pfile)
+					]
+				) (DynArray.to_list l) in
+				(JObject [
+					"range",pos_to_json_range ci.cl_pos;
+					"classes",JArray jl
+				]) :: acc
+			) l []
+		in
+		let ja = Hashtbl.fold (fun file statistics acc ->
+			if Hashtbl.length statistics.implementer = 0 && Hashtbl.length statistics.subclasses = 0 then
+				acc
+			else begin
+				let js = JObject [
+					"implementer",JArray (relation_list statistics.implementer);
+					"subclasses",JArray (relation_list statistics.subclasses);
+				] in
+				(JObject [
+					"file",JString file;
+					"statistics",js
+				]) :: acc
+			end
+		) statistics.files [] in
+		let b = Buffer.create 0 in
+		write_json (Buffer.add_string b) (JArray ja);
+		Buffer.contents b
+end

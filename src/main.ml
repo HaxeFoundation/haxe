@@ -1302,6 +1302,9 @@ try
 					| "diagnostics" ->
 						Common.define com Define.NoCOpt;
 						DMDiagnostics false;
+					| "statistics" ->
+						Common.define com Define.NoCOpt;
+						DMStatistics
 					| "" ->
 						DMDefault
 					| _ ->
@@ -1467,7 +1470,7 @@ try
 	process ctx.com.args;
 	process_libs();
 	begin match com.display with
-	| DMNone | DMDiagnostics true ->
+	| DMNone | DMDiagnostics true | DMStatistics ->
 		()
 	| _ ->
 		com.warning <- if com.display = DMDiagnostics false then (fun s p -> add_diagnostics_message com s p DiagnosticsSeverity.Warning) else message ctx;
@@ -1604,7 +1607,7 @@ try
 		t();
 		if ctx.has_error then raise Abort;
 		begin match ctx.com.display with
-			| DMNone | DMUsage | DMDiagnostics true ->
+			| DMNone | DMUsage | DMDiagnostics true | DMStatistics ->
 				()
 			| _ ->
 				if ctx.has_next then raise Abort;
@@ -1620,6 +1623,7 @@ try
 			| DMDiagnostics true ->
 				Display.Diagnostics.prepare com;
 				raise (Display.Diagnostics (Display.Diagnostics.print_diagnostics tctx))
+			| DMStatistics -> raise (Display.Statistics (Display.Statistics.print_statistics tctx))
 			| _ -> ()
 		end;
 		Filters.run com tctx main;
@@ -1868,7 +1872,7 @@ with
 				raise (Completion c)
 			| _ ->
 				error ctx ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos)
-	| Display.ModuleSymbols s | Display.Diagnostics s ->
+	| Display.ModuleSymbols s | Display.Diagnostics s | Display.Statistics s ->
 		raise (Completion s)
 	| Interp.Sys_exit i ->
 		ctx.flush();

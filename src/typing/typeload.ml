@@ -2125,7 +2125,7 @@ module ClassInitializer = struct
 			end
 		in
 		begin match ctx.com.display with
-			| DMNone | DMUsage | DMDiagnostics true ->
+			| DMNone | DMUsage | DMDiagnostics true | DMStatistics ->
 				if fctx.is_macro && not ctx.in_macro then
 					()
 				else begin

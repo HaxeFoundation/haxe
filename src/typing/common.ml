@@ -101,6 +101,7 @@ type display_mode =
 	| DMType
 	| DMModuleSymbols
 	| DMDiagnostics of bool (* true = global, false = only in display file *)
+	| DMStatistics
 
 type compiler_callback = {
 	mutable after_typing : (module_type list -> unit) list;
