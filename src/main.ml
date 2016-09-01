@@ -1623,7 +1623,7 @@ try
 			| DMDiagnostics true ->
 				Display.Diagnostics.prepare com;
 				raise (Display.Diagnostics (Display.Diagnostics.print_diagnostics tctx))
-			| DMStatistics -> raise (Display.Statistics (Display.Statistics.print_statistics tctx))
+			| DMStatistics -> raise (Display.Statistics (Display.Statistics.collect_statistics tctx))
 			| _ -> ()
 		end;
 		Filters.run com tctx main;

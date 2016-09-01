@@ -527,116 +527,135 @@ let maybe_mark_import_position ctx p =
 
 
 module Statistics = struct
+	type relation =
+		| Implemented
+		| Extended
+		| Overridden
+		| Referenced
 
-	type 'a relation = ('a,(pos * pos DynArray.t)) Hashtbl.t
+	type source_kind =
+		| SKClass
+		| SKInterface
+		| SKEnum
+		| SKField
+		| SKEnumField
 
-	type file_statistics = {
-		implementer : path relation;
-		subclasses : path relation;
-		field_references : (path * string) relation;
-		overrides : (path * string) relation;
-	}
+	let relation_to_string = function
+		| Implemented -> "implementer"
+		| Extended -> "subclasses"
+		| Overridden -> "overrides"
+		| Referenced -> "references"
 
-	type statistics = {
-		files : (string,file_statistics) Hashtbl.t;
-	}
+	let source_kind_to_string = function
+		| SKClass -> "class type"
+		| SKInterface -> "interface type"
+		| SKEnum -> "enum type"
+		| SKField -> "class field"
+		| SKEnumField -> "enum field"
 
-	let print_statistics tctx =
-		let statistics = {
-			files = Hashtbl.create 0
-		} in
-		let get_file_statistics file =
-			let key = get_real_path file in
+	let print_statistics kinds relations =
+		let files = Hashtbl.create 0 in
+		Hashtbl.iter (fun p rl ->
+			let file = get_real_path p.pfile in
 			try
-				Hashtbl.find statistics.files key
+				Hashtbl.replace files file ((p,rl) :: Hashtbl.find files file)
 			with Not_found ->
-				let file_statistics = {
-					implementer = Hashtbl.create 0;
-					subclasses = Hashtbl.create 0;
-					field_references = Hashtbl.create 0;
-					overrides = Hashtbl.create 0;
-				} in
-				Hashtbl.add statistics.files key file_statistics;
-				file_statistics
-		in
-		let add map key p value =
-			let l = try
-				snd (Hashtbl.find map key)
-			with Not_found ->
-				let l = DynArray.create () in
-				Hashtbl.add map key (p,l);
-				l
-			in
-			DynArray.add l value
-		in
-		List.iter (function
-			| TClassDecl c ->
-				List.iter (fun (ci,_) ->
-					if is_display_file ci.cl_pos.pfile then add (get_file_statistics ci.cl_pos.pfile).implementer ci.cl_path ci.cl_pos c.cl_pos
-				) c.cl_implements;
-				begin match c.cl_super with
-					| Some (cs,_) when is_display_file cs.cl_pos.pfile -> add (get_file_statistics cs.cl_pos.pfile).subclasses cs.cl_path cs.cl_pos c.cl_pos
-					| _ -> ()
-				end;
-				List.iter (fun cf ->
-					let rec loop c = match c.cl_super with
-						| Some (c,_) ->
-							begin try
-								let cf' = PMap.find cf.cf_name c.cl_fields in
-								if is_display_file cf'.cf_pos.pfile then add (get_file_statistics cf'.cf_pos.pfile).overrides (c.cl_path,cf'.cf_name) cf'.cf_pos cf.cf_pos
-							with Not_found ->
-								loop c
-							end
-						| _ ->
-							()
-					in
-					loop c
-				) c.cl_overrides;
-				let rec loop e = match e.eexpr with
-					| TField(e1,(FStatic(c,cf) | FInstance(c,_,cf) | FClosure(Some(c,_),cf))) when is_display_file cf.cf_pos.pfile ->
-						loop e1;
-						add (get_file_statistics cf.cf_pos.pfile).field_references (c.cl_path,cf.cf_name) cf.cf_pos e.epos
-					| _ ->
-						Type.iter loop e
-				in
-				let field cf = match cf.cf_expr with None -> () | Some e -> loop e in
-				List.iter field c.cl_ordered_statics;
-				List.iter field c.cl_ordered_fields;
-				(match c.cl_constructor with None -> () | Some cf -> field cf);
-			| _ -> ()
-		) tctx.com.types;
-		let relation_list l =
-			Hashtbl.fold (fun _ (pi,l) acc ->
-				let jl = List.map (fun p ->
-					JObject [
+				Hashtbl.add files file [p,rl]
+		) relations;
+		let ja = Hashtbl.fold (fun file relations acc ->
+			let l = List.map (fun (p,rl) ->
+				let h = Hashtbl.create 0 in
+				List.iter (fun (r,p) ->
+					let s = relation_to_string r in
+					let jo = JObject [
 						"range",pos_to_json_range p;
-						"file",JString (get_real_path p.pfile)
-					]
-				) (DynArray.to_list l) in
-				(JObject [
-					"range",pos_to_json_range pi;
-					"relations",JArray jl
-				]) :: acc
-			) l []
-		in
-		let ja = Hashtbl.fold (fun file statistics acc ->
-			if Hashtbl.length statistics.implementer + Hashtbl.length statistics.subclasses
-			   + Hashtbl.length statistics.overrides + Hashtbl.length statistics.field_references = 0 then
-				acc
-			else begin
-				let js = JObject [
-					"implementer",JArray (relation_list statistics.implementer);
-					"subclasses",JArray (relation_list statistics.subclasses);
-					"overrides",JArray (relation_list statistics.overrides);
-					"fieldReferences",JArray (relation_list statistics.field_references);
-				] in
-				(JObject [
-					"file",JString file;
-					"statistics",js
-				]) :: acc
-			end
-		) statistics.files [] in
+						"file",JString (get_real_path p.pfile);
+					] in
+					try Hashtbl.replace h s (jo :: Hashtbl.find h s)
+					with Not_found -> Hashtbl.add h s [jo]
+				) rl;
+				let l = Hashtbl.fold (fun s js acc -> (s,JArray js) :: acc) h [] in
+				let l = ("range",pos_to_json_range p) :: l in
+				let l = try ("kind",JString (source_kind_to_string (Hashtbl.find kinds p))) :: l with Not_found -> l in
+				JObject l
+			) relations in
+			(JObject [
+				"file",JString file;
+				"statistics",JArray l
+			]) :: acc
+		) files [] in
 		let b = Buffer.create 0 in
 		write_json (Buffer.add_string b) (JArray ja);
 		Buffer.contents b
+
+	let collect_statistics ctx =
+		let relations = Hashtbl.create 0 in
+		let kinds = Hashtbl.create 0 in
+		let add_relation pos r =
+			if is_display_file pos.pfile then try
+				Hashtbl.replace relations pos (r :: Hashtbl.find relations pos)
+			with Not_found ->
+				Hashtbl.add relations pos [r]
+		in
+		let declare kind p =
+			if is_display_file p.pfile then begin
+				if not (Hashtbl.mem relations p) then Hashtbl.add relations p [];
+				Hashtbl.replace kinds p kind;
+			end
+		in
+		let collect_overrides c =
+			List.iter (fun cf ->
+				let rec loop c = match c.cl_super with
+					| Some (c,_) ->
+						begin try
+							let cf' = PMap.find cf.cf_name c.cl_fields in
+							add_relation cf'.cf_pos (Overridden,cf.cf_pos)
+						with Not_found ->
+							loop c
+						end
+					| _ ->
+						()
+				in
+				loop c
+			) c.cl_overrides
+		in
+		let collect_references e =
+			let rec loop e = match e.eexpr with
+				| TField(e1,FEnum(_,ef)) ->
+					loop e1;
+					add_relation ef.ef_pos (Referenced,e.epos);
+				| TField(e1,fa) ->
+					loop e1;
+					begin match extract_field fa with
+						| Some cf when is_display_file cf.cf_pos.pfile ->
+							add_relation cf.cf_pos (Referenced,e.epos)
+						| _ ->
+							()
+					end
+				| _ ->
+					Type.iter loop e
+			in
+			loop e
+		in
+		List.iter (function
+			| TClassDecl c ->
+				declare (if c.cl_interface then SKInterface else SKClass) c.cl_pos;
+				List.iter (fun (c',_) -> add_relation c'.cl_pos ((if c.cl_interface then Extended else Implemented),c.cl_pos)) c.cl_implements;
+				(match c.cl_super with None -> () | Some (c',_) -> add_relation c'.cl_pos (Extended,c.cl_pos));
+				collect_overrides c;
+				let field cf =
+					declare SKField cf.cf_pos;
+					let _ = follow cf.cf_type in
+					match cf.cf_expr with None -> () | Some e -> collect_references e
+				in
+				let _ = Option.map field c.cl_constructor in
+				List.iter field c.cl_ordered_fields;
+				List.iter field c.cl_ordered_statics;
+			| TEnumDecl en ->
+				declare SKEnum en.e_pos;
+				PMap.iter (fun _ ef -> declare SKEnumField ef.ef_pos) en.e_constrs
+			| _ ->
+				()
+		) ctx.com.types;
+		print_statistics kinds relations
 end
