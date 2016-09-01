@@ -526,11 +526,13 @@ let maybe_mark_import_position ctx p =
 
 module Statistics = struct
 
-	type class_relation = (path,(tclass * tclass DynArray.t)) Hashtbl.t
+	type 'a relation = ('a,(pos * pos DynArray.t)) Hashtbl.t
 
 	type file_statistics = {
-		implementer : class_relation;
-		subclasses : class_relation;
+		implementer : path relation;
+		subclasses : path relation;
+		field_references : (path * string) relation;
+		overrides : (path * string) relation;
 	}
 
 	type statistics = {
@@ -549,52 +551,82 @@ module Statistics = struct
 				let file_statistics = {
 					implementer = Hashtbl.create 0;
 					subclasses = Hashtbl.create 0;
+					field_references = Hashtbl.create 0;
+					overrides = Hashtbl.create 0;
 				} in
 				Hashtbl.add statistics.files key file_statistics;
 				file_statistics
 		in
-		let add map ci c =
+		let add map key p value =
 			let l = try
-				snd (Hashtbl.find map ci.cl_path)
+				snd (Hashtbl.find map key)
 			with Not_found ->
 				let l = DynArray.create () in
-				Hashtbl.add map ci.cl_path (ci,l);
+				Hashtbl.add map key (p,l);
 				l
 			in
-			DynArray.add l c
+			DynArray.add l value
 		in
 		List.iter (function
 			| TClassDecl c ->
 				List.iter (fun (ci,_) ->
-					if is_display_file ci.cl_pos.pfile then add (get_file_statistics ci.cl_pos.pfile).implementer ci c
+					if is_display_file ci.cl_pos.pfile then add (get_file_statistics ci.cl_pos.pfile).implementer ci.cl_path ci.cl_pos c.cl_pos
 				) c.cl_implements;
 				begin match c.cl_super with
-					| Some (cs,_) when is_display_file cs.cl_pos.pfile -> add (get_file_statistics cs.cl_pos.pfile).subclasses cs c
+					| Some (cs,_) when is_display_file cs.cl_pos.pfile -> add (get_file_statistics cs.cl_pos.pfile).subclasses cs.cl_path cs.cl_pos c.cl_pos
 					| _ -> ()
-				end
+				end;
+				List.iter (fun cf ->
+					let rec loop c = match c.cl_super with
+						| Some (c,_) ->
+							begin try
+								let cf' = PMap.find cf.cf_name c.cl_fields in
+								if is_display_file cf'.cf_pos.pfile then add (get_file_statistics cf'.cf_pos.pfile).overrides (c.cl_path,cf'.cf_name) cf'.cf_pos cf.cf_pos
+							with Not_found ->
+								loop c
+							end
+						| _ ->
+							()
+					in
+					loop c
+				) c.cl_overrides;
+				let rec loop e = match e.eexpr with
+					| TField(e1,(FStatic(c,cf) | FInstance(c,_,cf) | FClosure(Some(c,_),cf))) when is_display_file cf.cf_pos.pfile ->
+						loop e1;
+						add (get_file_statistics cf.cf_pos.pfile).field_references (c.cl_path,cf.cf_name) cf.cf_pos e.epos
+					| _ ->
+						Type.iter loop e
+				in
+				let field cf = match cf.cf_expr with None -> () | Some e -> loop e in
+				List.iter field c.cl_ordered_statics;
+				List.iter field c.cl_ordered_fields;
+				(match c.cl_constructor with None -> () | Some cf -> field cf);
 			| _ -> ()
 		) tctx.com.types;
 		let relation_list l =
-			Hashtbl.fold (fun _ (ci,l) acc ->
-				let jl = List.map (fun c ->
+			Hashtbl.fold (fun _ (pi,l) acc ->
+				let jl = List.map (fun p ->
 					JObject [
-						"range",pos_to_json_range c.cl_pos;
-						"file",JString (get_real_path c.cl_pos.pfile)
+						"range",pos_to_json_range p;
+						"file",JString (get_real_path p.pfile)
 					]
 				) (DynArray.to_list l) in
 				(JObject [
-					"range",pos_to_json_range ci.cl_pos;
-					"classes",JArray jl
+					"range",pos_to_json_range pi;
+					"relations",JArray jl
 				]) :: acc
 			) l []
 		in
 		let ja = Hashtbl.fold (fun file statistics acc ->
-			if Hashtbl.length statistics.implementer = 0 && Hashtbl.length statistics.subclasses = 0 then
+			if Hashtbl.length statistics.implementer + Hashtbl.length statistics.subclasses
+			   + Hashtbl.length statistics.overrides + Hashtbl.length statistics.field_references = 0 then
 				acc
 			else begin
 				let js = JObject [
 					"implementer",JArray (relation_list statistics.implementer);
 					"subclasses",JArray (relation_list statistics.subclasses);
+					"overrides",JArray (relation_list statistics.overrides);
+					"fieldReferences",JArray (relation_list statistics.field_references);
 				] in
 				(JObject [
 					"file",JString file;
