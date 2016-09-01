@@ -5007,6 +5007,11 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                          let class_implementation = find_class_implementation ctx class_def field.cf_name interface in
                          let realName= cpp_member_name_of field in
                          let castKey = realName ^ "::" ^ cast in
+                         (* C++ can't work out which function it needs to take the addrss of
+                           when the implementation is overloaded - currently the map-set functions.
+                           Change the castKey to force a glue function in this case (could double-cast the pointer, but it is ugly)
+                         *)
+                         let castKey = if interface_name="_hx_haxe_IMap" && realName="set" then castKey ^ "*" else castKey in
                          let implementationKey = realName ^ "::" ^ class_implementation in
                          if castKey <> implementationKey && not (Hashtbl.mem alreadyGlued castKey) then begin
                             Hashtbl.replace alreadyGlued castKey ();
