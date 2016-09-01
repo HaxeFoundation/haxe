@@ -822,9 +822,12 @@ and wait_loop verbose accept =
 		let read, write, close = accept() in
 		let t0 = get_time() in
 		let rec cache_context com =
-			if com.display = DMNone then begin
-				List.iter cache_module com.modules;
-				if verbose then print_endline ("Cached " ^ string_of_int (List.length com.modules) ^ " modules");
+			begin match com.display with
+				| DMNone | DMDiagnostics true ->
+					List.iter cache_module com.modules;
+					if verbose then print_endline ("Cached " ^ string_of_int (List.length com.modules) ^ " modules");
+				| _ ->
+					()
 			end;
 			match com.get_macros() with
 			| None -> ()
@@ -845,13 +848,16 @@ and wait_loop verbose accept =
 					print_endline ("Using signature " ^ Digest.to_hex (get_signature ctx.com));
 				end;
 				Parser.display_error := (fun e p -> has_parse_error := true; ctx.com.error (Parser.error_msg e) p);
-				if ctx.com.display <> DMNone then begin
-					let file = (!Parser.resume_display).Ast.pfile in
-					let fkey = file ^ "!" ^ get_signature ctx.com in
-					(* force parsing again : if the completion point have been changed *)
-					Hashtbl.remove cache.c_files fkey;
-					(* force module reloading (if cached) *)
-					Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- true) cache.c_modules
+				begin match ctx.com.display with
+					| DMNone | DMDiagnostics true ->
+						()
+					| _ ->
+						let file = (!Parser.resume_display).Ast.pfile in
+						let fkey = file ^ "!" ^ get_signature ctx.com in
+						(* force parsing again : if the completion point have been changed *)
+						Hashtbl.remove cache.c_files fkey;
+						(* force module reloading (if cached) *)
+						Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- true) cache.c_modules
 				end
 			);
 			ctx.com.print <- (fun str -> write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit str "\n") ^ "\n"));
@@ -1470,7 +1476,7 @@ try
 	process ctx.com.args;
 	process_libs();
 	begin match com.display with
-	| DMNone | DMDiagnostics true | DMStatistics ->
+	| DMNone | DMDiagnostics true ->
 		()
 	| _ ->
 		com.warning <- if com.display = DMDiagnostics false then (fun s p -> add_diagnostics_message com s p DiagnosticsSeverity.Warning) else message ctx;
