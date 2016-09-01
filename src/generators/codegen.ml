@@ -921,12 +921,14 @@ module Dump = struct
 					match f.cf_expr with
 					| None -> ""
 					| Some e -> Printf.sprintf "%s" (s_expr s_type e) in
+				let is_inline_var v : bool = v = Var { v_read = AccInline; v_write = AccNever } in
 				let rec print_field stat f =
 					print "\n\t%s%s%s%s%s %s%s"
 						(s_metas f.cf_meta "\t")
 						(if (f.cf_public && not (c.cl_extern || c.cl_interface)) then "public " else "")
 						(if stat then "static " else "")
 						(match f.cf_kind with
+							| Var v when (is_inline_var f.cf_kind) -> "inline "
 							| Var v -> ""
 							| Method m ->
 								match m with
@@ -935,8 +937,9 @@ module Dump = struct
 								| MethInline -> "inline "
 								| MethMacro -> "macro ")
 						(match f.cf_kind with Var v -> "var" | Method m -> "function")
-						(f.cf_name ^ match f.cf_kind with 
+						(f.cf_name ^ match f.cf_kind with
 							| Var { v_read = AccNormal; v_write = AccNormal } -> ""
+							| Var v when (is_inline_var f.cf_kind) -> ""
 							| Var v -> "(" ^ s_access true v.v_read ^ "," ^ s_access false v.v_write ^ ")"
 							| _ -> "")
 						(params f.cf_params);
