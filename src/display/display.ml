@@ -410,6 +410,8 @@ module Diagnostics = struct
 			| TMeta((Meta.Extern,_,_),_) ->
 				(* This is so something like `[inlineFunc()]` is not reported. *)
 				had_effect := true;
+			| TLocal v when not (Meta.has Meta.UserVariable v.v_meta) ->
+				()
 			| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ when not in_value ->
 				no_effect e.epos;
 			| TConst _ | TLocal _ | TTypeExpr _ | TEnumParameter _ | TVar _ ->
