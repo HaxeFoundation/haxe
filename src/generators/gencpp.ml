@@ -3551,7 +3551,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          | CppCall( FuncInternal _, _) ->
             gen expr; out (".StaticCast< " ^ tcpp_to_string toType ^" >()")
          | _ ->
-            out ("( ("^ tcpp_to_string toType ^")("); gen expr; out (") )")
+            (match tcpp_to_string toType with
+               | " ::hx::Object *" -> out ("hx::DynamicPtr("); gen expr; out (")")
+               | t -> out ("( ("^ t ^")("); gen expr; out (") )")
+            )
          )
 
       | CppCastScalar(expr,scalar) ->
