@@ -619,7 +619,13 @@ module Statistics = struct
 				loop c
 			) c.cl_overrides
 		in
-		let collect_references e =
+		let rec find_real_constructor c = match c.cl_constructor,c.cl_super with
+			(* The pos comparison might be a bit week, not sure... *)
+			| Some cf,_ when not (Meta.has Meta.CompilerGenerated cf.cf_meta) && c.cl_pos <> cf.cf_pos -> cf
+			| _,Some(c,_) -> find_real_constructor c
+			| _,None -> raise Not_found
+		in
+		let collect_references c e =
 			let rec loop e = match e.eexpr with
 				| TField(e1,FEnum(_,ef)) ->
 					loop e1;
@@ -632,6 +638,16 @@ module Statistics = struct
 						| _ ->
 							()
 					end
+				| TNew(c,_,el) ->
+					List.iter loop el;
+					(try add_relation (find_real_constructor c).cf_pos (Referenced,e.epos) with Not_found -> ());
+				| TCall({eexpr = TConst TSuper},el) ->
+					List.iter loop el;
+					begin match c.cl_super with
+						| Some(c,_) -> (try add_relation (find_real_constructor c).cf_pos (Referenced,e.epos) with Not_found -> ())
+						| None -> ()
+					end
+
 				| _ ->
 					Type.iter loop e
 			in
@@ -646,7 +662,7 @@ module Statistics = struct
 				let field cf =
 					declare SKField cf.cf_pos;
 					let _ = follow cf.cf_type in
-					match cf.cf_expr with None -> () | Some e -> collect_references e
+					match cf.cf_expr with None -> () | Some e -> collect_references c e
 				in
 				let _ = Option.map field c.cl_constructor in
 				List.iter field c.cl_ordered_fields;
