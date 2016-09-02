@@ -5042,6 +5042,14 @@ let load_macro ctx display cpath f p =
 		mctx.com.display <- DMNone;
 		if not ctx.in_macro then flush_macro_context mint ctx;
 		Hashtbl.add mctx.com.cached_macros (cpath,f) meth;
+		mctx.m <- {
+			curmod = null_module;
+			module_types = [];
+			module_using = [];
+			module_globals = PMap.empty;
+			wildcard_packages = [];
+			module_imports = [];
+		};
 		meth
 	in
 	t();
