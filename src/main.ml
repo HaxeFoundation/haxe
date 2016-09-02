@@ -72,12 +72,6 @@ let start_time = ref (get_time())
 
 let path_sep = if Sys.os_type = "Unix" then "/" else "\\"
 
-let get_real_path p =
-	try
-		Extc.get_real_path p
-	with _ ->
-		p
-
 let executable_path() =
 	Extc.executable_path()
 
@@ -828,9 +822,12 @@ and wait_loop verbose accept =
 		let read, write, close = accept() in
 		let t0 = get_time() in
 		let rec cache_context com =
-			if com.display = DMNone then begin
-				List.iter cache_module com.modules;
-				if verbose then print_endline ("Cached " ^ string_of_int (List.length com.modules) ^ " modules");
+			begin match com.display with
+				| DMNone | DMDiagnostics true ->
+					List.iter cache_module com.modules;
+					if verbose then print_endline ("Cached " ^ string_of_int (List.length com.modules) ^ " modules");
+				| _ ->
+					()
 			end;
 			match com.get_macros() with
 			| None -> ()
@@ -851,13 +848,16 @@ and wait_loop verbose accept =
 					print_endline ("Using signature " ^ Digest.to_hex (get_signature ctx.com));
 				end;
 				Parser.display_error := (fun e p -> has_parse_error := true; ctx.com.error (Parser.error_msg e) p);
-				if ctx.com.display <> DMNone then begin
-					let file = (!Parser.resume_display).Ast.pfile in
-					let fkey = file ^ "!" ^ get_signature ctx.com in
-					(* force parsing again : if the completion point have been changed *)
-					Hashtbl.remove cache.c_files fkey;
-					(* force module reloading (if cached) *)
-					Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- true) cache.c_modules
+				begin match ctx.com.display with
+					| DMNone | DMDiagnostics true ->
+						()
+					| _ ->
+						let file = (!Parser.resume_display).Ast.pfile in
+						let fkey = file ^ "!" ^ get_signature ctx.com in
+						(* force parsing again : if the completion point have been changed *)
+						Hashtbl.remove cache.c_files fkey;
+						(* force module reloading (if cached) *)
+						Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- true) cache.c_modules
 				end
 			);
 			ctx.com.print <- (fun str -> write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit str "\n") ^ "\n"));
@@ -1283,6 +1283,10 @@ try
 			| "memory" ->
 				did_something := true;
 				(try display_memory ctx with e -> prerr_endline (Printexc.get_backtrace ()));
+			| "diagnostics" ->
+				Common.define com Define.NoCOpt;
+				com.display <- DMDiagnostics true;
+				Common.display_default := DMDiagnostics true;
 			| _ ->
 				let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format : " ^ file_pos) in
 				let file = unquote file in
@@ -1307,7 +1311,10 @@ try
 						DMModuleSymbols;
 					| "diagnostics" ->
 						Common.define com Define.NoCOpt;
-						DMDiagnostics;
+						DMDiagnostics false;
+					| "statistics" ->
+						Common.define com Define.NoCOpt;
+						DMStatistics
 					| "" ->
 						DMDefault
 					| _ ->
@@ -1472,8 +1479,11 @@ try
 	process_ref := process;
 	process ctx.com.args;
 	process_libs();
-	if com.display <> DMNone then begin
-		com.warning <- if com.display = DMDiagnostics then (fun s p -> add_diagnostics_message com s p DiagnosticsSeverity.Warning) else message ctx;
+	begin match com.display with
+	| DMNone | DMDiagnostics true ->
+		()
+	| _ ->
+		com.warning <- if com.display = DMDiagnostics false then (fun s p -> add_diagnostics_message com s p DiagnosticsSeverity.Warning) else message ctx;
 		com.error <- error ctx;
 		com.main_class <- None;
 		if com.display <> DMUsage then
@@ -1610,7 +1620,7 @@ try
 		t();
 		if ctx.has_error then raise Abort;
 		begin match ctx.com.display with
-			| DMNone | DMUsage | DMDiagnostics ->
+			| DMNone | DMUsage | DMDiagnostics true | DMStatistics ->
 				()
 			| _ ->
 				if ctx.has_next then raise Abort;
@@ -1623,6 +1633,10 @@ try
 		com.modules <- modules;
 		begin match com.display with
 			| DMUsage -> Codegen.detect_usage com;
+			| DMDiagnostics true ->
+				Display.Diagnostics.prepare com;
+				raise (Display.Diagnostics (Display.Diagnostics.print_diagnostics tctx))
+			| DMStatistics -> raise (Display.Statistics (Display.Statistics.collect_statistics tctx))
 			| _ -> ()
 		end;
 		Filters.run com tctx main;
@@ -1873,7 +1887,7 @@ with
 				raise (Completion c)
 			| _ ->
 				error ctx ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos)
-	| Display.ModuleSymbols s | Display.Diagnostics s ->
+	| Display.ModuleSymbols s | Display.Diagnostics s | Display.Statistics s ->
 		raise (Completion s)
 	| Interp.Sys_exit i ->
 		ctx.flush();

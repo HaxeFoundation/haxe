@@ -11,6 +11,7 @@ type display_field_kind =
 	| FKPackage
 
 exception Diagnostics of string
+exception Statistics of string
 exception ModuleSymbols of string
 exception DisplaySignatures of (t * documentation) list
 exception DisplayType of t * pos
@@ -368,10 +369,103 @@ module Diagnostics = struct
 	open UnresolvedIdentifierSuggestion
 	open DiagnosticsKind
 
+	let find_unused_variables com e =
+		let vars = Hashtbl.create 0 in
+		let rec loop e = match e.eexpr with
+			| TVar(v,eo) when Meta.has Meta.UserVariable v.v_meta ->
+				Hashtbl.replace vars v.v_id v;
+				(match eo with None -> () | Some e -> loop e)
+			| TLocal v when Meta.has Meta.UserVariable v.v_meta ->
+				Hashtbl.remove vars v.v_id;
+			| _ ->
+				Type.iter loop e
+		in
+		loop e;
+		Hashtbl.iter (fun _ v ->
+			add_diagnostics_message com "Unused variable" v.v_pos DiagnosticsSeverity.Warning
+		) vars
+
+	let check_other_things com e =
+		let had_effect = ref false in
+		let no_effect p =
+			add_diagnostics_message com "This code has no effect" p DiagnosticsSeverity.Warning;
+		in
+		let pointless_compound s p =
+			add_diagnostics_message com (Printf.sprintf "This %s has no effect, but some of its sub-expressions do" s) p DiagnosticsSeverity.Warning;
+		in
+		let rec compound s el p =
+			let old = !had_effect in
+			had_effect := false;
+			List.iter (loop true) el;
+			if not !had_effect then no_effect p else pointless_compound s p;
+			had_effect := old;
+		and loop in_value e = match e.eexpr with
+			| TBlock el ->
+				let rec loop2 el = match el with
+					| [] -> ()
+					| [e] -> loop in_value e
+					| e :: el -> loop false e; loop2 el
+				in
+				loop2 el
+			| TMeta((Meta.Extern,_,_),_) ->
+				(* This is so something like `[inlineFunc()]` is not reported. *)
+				had_effect := true;
+			| TLocal v when not (Meta.has Meta.UserVariable v.v_meta) ->
+				()
+			| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ when not in_value ->
+				no_effect e.epos;
+			| TConst _ | TLocal _ | TTypeExpr _ | TEnumParameter _ | TVar _ ->
+				()
+			| TFunction tf ->
+				loop false tf.tf_expr
+			| TNew _ | TCall _ | TBinop ((Ast.OpAssignOp _ | Ast.OpAssign),_,_) | TUnop ((Ast.Increment | Ast.Decrement),_,_)
+			| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _)
+			| TIf _ | TTry _ | TSwitch _ | TWhile _ | TFor _ ->
+				had_effect := true;
+				Type.iter (loop true) e
+			| TParenthesis e1 | TMeta(_,e1) ->
+				loop in_value e1
+			| TArray _ | TCast (_,None) | TBinop _ | TUnop _
+			| TField _ | TArrayDecl _ | TObjectDecl _ when in_value ->
+				Type.iter (loop true) e;
+			| TArray(e1,e2) -> compound "array access" [e1;e2] e.epos
+			| TCast(e1,None) -> compound "cast" [e1] e.epos
+			| TBinop(op,e1,e2) -> compound (Printf.sprintf "'%s' operator" (s_binop op)) [e1;e2] e.epos
+			| TUnop(op,_,e1) -> compound (Printf.sprintf "'%s' operator" (s_unop op)) [e1] e.epos
+			| TField(e1,_) -> compound "field access" [e1] e.epos
+			| TArrayDecl el -> compound "array declaration" el e.epos
+			| TObjectDecl fl -> compound "object declaration" (List.map snd fl) e.epos
+		in
+		loop true e
+
+	let prepare_field com cf = match cf.cf_expr with
+		| None -> ()
+		| Some e ->
+			find_unused_variables com e;
+			check_other_things com e
+
+	let prepare com =
+		List.iter (function
+			| TClassDecl c ->
+				List.iter (prepare_field com) c.cl_ordered_fields;
+				List.iter (prepare_field com) c.cl_ordered_statics;
+				(match c.cl_constructor with None -> () | Some cf -> prepare_field com cf);
+			| _ ->
+				()
+		) com.types
+
 	let print_diagnostics ctx =
 		let com = ctx.com in
-		let diag = DynArray.create() in
+		let diag = Hashtbl.create 0 in
 		let add dk p sev args =
+			let file = get_real_path p.pfile in
+			let diag = try
+				Hashtbl.find diag file
+			with Not_found ->
+				let d = DynArray.create() in
+				Hashtbl.add diag file d;
+				d
+			in
 			DynArray.add diag (dk,p,sev,args)
 		in
 		let find_type i =
@@ -403,17 +497,165 @@ module Diagnostics = struct
 		List.iter (fun (s,p,sev) ->
 			add DKCompilerError p sev [JString s]
 		) com.shared.shared_display_information.diagnostics_messages;
-		let jl = DynArray.fold_left (fun acc (dk,p,sev,args) ->
+		let jl = Hashtbl.fold (fun file diag acc ->
+			let jl = DynArray.fold_left (fun acc (dk,p,sev,args) ->
+				(JObject [
+					"kind",JInt (to_int dk);
+					"severity",JInt (DiagnosticsSeverity.to_int sev);
+					"range",pos_to_json_range p;
+					"args",JArray args
+				]) :: acc
+			) [] diag in
 			(JObject [
-				"kind",JInt (to_int dk);
-				"severity",JInt (DiagnosticsSeverity.to_int sev);
-				"range",pos_to_json_range p;
-				"args",JArray args
+				"file",JString file;
+				"diagnostics",JArray jl
 			]) :: acc
-		) [] diag in
+		) diag [] in
 		let js = JArray jl in
 		let b = Buffer.create 0 in
 		write_json (Buffer.add_string b) js;
 		Buffer.contents b
+
+	let is_diagnostics_run ctx = match ctx.com.display with
+		| DMDiagnostics true -> true
+		| DMDiagnostics false -> ctx.is_display_file
+		| _ -> false
 end
 
+let maybe_mark_import_position ctx p =
+	if Diagnostics.is_diagnostics_run ctx then mark_import_position ctx.com p
+
+
+module Statistics = struct
+	type relation =
+		| Implemented
+		| Extended
+		| Overridden
+		| Referenced
+
+	type source_kind =
+		| SKClass
+		| SKInterface
+		| SKEnum
+		| SKField
+		| SKEnumField
+
+	let relation_to_string = function
+		| Implemented -> "implementer"
+		| Extended -> "subclasses"
+		| Overridden -> "overrides"
+		| Referenced -> "references"
+
+	let source_kind_to_string = function
+		| SKClass -> "class type"
+		| SKInterface -> "interface type"
+		| SKEnum -> "enum type"
+		| SKField -> "class field"
+		| SKEnumField -> "enum field"
+
+	let print_statistics kinds relations =
+		let files = Hashtbl.create 0 in
+		Hashtbl.iter (fun p rl ->
+			let file = get_real_path p.pfile in
+			try
+				Hashtbl.replace files file ((p,rl) :: Hashtbl.find files file)
+			with Not_found ->
+				Hashtbl.add files file [p,rl]
+		) relations;
+		let ja = Hashtbl.fold (fun file relations acc ->
+			let l = List.map (fun (p,rl) ->
+				let h = Hashtbl.create 0 in
+				List.iter (fun (r,p) ->
+					let s = relation_to_string r in
+					let jo = JObject [
+						"range",pos_to_json_range p;
+						"file",JString (get_real_path p.pfile);
+					] in
+					try Hashtbl.replace h s (jo :: Hashtbl.find h s)
+					with Not_found -> Hashtbl.add h s [jo]
+				) rl;
+				let l = Hashtbl.fold (fun s js acc -> (s,JArray js) :: acc) h [] in
+				let l = ("range",pos_to_json_range p) :: l in
+				let l = try ("kind",JString (source_kind_to_string (Hashtbl.find kinds p))) :: l with Not_found -> l in
+				JObject l
+			) relations in
+			(JObject [
+				"file",JString file;
+				"statistics",JArray l
+			]) :: acc
+		) files [] in
+		let b = Buffer.create 0 in
+		write_json (Buffer.add_string b) (JArray ja);
+		Buffer.contents b
+
+	let collect_statistics ctx =
+		let relations = Hashtbl.create 0 in
+		let kinds = Hashtbl.create 0 in
+		let add_relation pos r =
+			if is_display_file pos.pfile then try
+				Hashtbl.replace relations pos (r :: Hashtbl.find relations pos)
+			with Not_found ->
+				Hashtbl.add relations pos [r]
+		in
+		let declare kind p =
+			if is_display_file p.pfile then begin
+				if not (Hashtbl.mem relations p) then Hashtbl.add relations p [];
+				Hashtbl.replace kinds p kind;
+			end
+		in
+		let collect_overrides c =
+			List.iter (fun cf ->
+				let rec loop c = match c.cl_super with
+					| Some (c,_) ->
+						begin try
+							let cf' = PMap.find cf.cf_name c.cl_fields in
+							add_relation cf'.cf_pos (Overridden,cf.cf_pos)
+						with Not_found ->
+							loop c
+						end
+					| _ ->
+						()
+				in
+				loop c
+			) c.cl_overrides
+		in
+		let collect_references e =
+			let rec loop e = match e.eexpr with
+				| TField(e1,FEnum(_,ef)) ->
+					loop e1;
+					add_relation ef.ef_pos (Referenced,e.epos);
+				| TField(e1,fa) ->
+					loop e1;
+					begin match extract_field fa with
+						| Some cf when is_display_file cf.cf_pos.pfile ->
+							add_relation cf.cf_pos (Referenced,e.epos)
+						| _ ->
+							()
+					end
+				| _ ->
+					Type.iter loop e
+			in
+			loop e
+		in
+		List.iter (function
+			| TClassDecl c ->
+				declare (if c.cl_interface then SKInterface else SKClass) c.cl_pos;
+				List.iter (fun (c',_) -> add_relation c'.cl_pos ((if c.cl_interface then Extended else Implemented),c.cl_pos)) c.cl_implements;
+				(match c.cl_super with None -> () | Some (c',_) -> add_relation c'.cl_pos (Extended,c.cl_pos));
+				collect_overrides c;
+				let field cf =
+					declare SKField cf.cf_pos;
+					let _ = follow cf.cf_type in
+					match cf.cf_expr with None -> () | Some e -> collect_references e
+				in
+				let _ = Option.map field c.cl_constructor in
+				List.iter field c.cl_ordered_fields;
+				List.iter field c.cl_ordered_statics;
+			| TEnumDecl en ->
+				declare SKEnum en.e_pos;
+				PMap.iter (fun _ ef -> declare SKEnumField ef.ef_pos) en.e_constrs
+			| _ ->
+				()
+		) ctx.com.types;
+		print_statistics kinds relations
+end

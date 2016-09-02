@@ -675,6 +675,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			| _ -> e
 		in
 		let e = List.fold_left inline_meta e cf.cf_meta in
+		let e = match ctx.com.display with DMDiagnostics _ -> mk (TMeta((Meta.Extern,[],e.epos),e)) e.etype e.epos | _ -> e in
 		(* we need to replace type-parameters that were used in the expression *)
 		if not has_params then
 			Some e
@@ -950,8 +951,8 @@ let standard_precedence op =
 
 let rec need_parent e =
 	match e.eexpr with
-	| TConst _ | TLocal _ | TArray _ | TField _ | TEnumParameter _ | TParenthesis _ | TMeta _ | TCall _ | TNew _ | TTypeExpr _ | TObjectDecl _ | TArrayDecl _ -> false
-	| TCast (e,None) -> need_parent e
+	| TConst _ | TLocal _ | TArray _ | TField _ | TEnumParameter _ | TParenthesis _ | TCall _ | TNew _ | TTypeExpr _ | TObjectDecl _ | TArrayDecl _ -> false
+	| TCast (e,None) | TMeta(_,e) -> need_parent e
 	| TCast _ | TThrow _ | TReturn _ | TTry _ | TSwitch _ | TFor _ | TIf _ | TWhile _ | TBinop _ | TContinue | TBreak
 	| TBlock _ | TVar _ | TFunction _ | TUnop _ -> true
 

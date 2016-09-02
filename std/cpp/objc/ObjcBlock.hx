@@ -19,27 +19,18 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package cpp;
+package cpp.objc;
 
-@:native("NSString") @:objc extern class NSStringData { }
+@:objc @:callable
+extern class BlockPtr<T> { }
 
-@:objc
-extern abstract NSString( NSStringData )
+@:objc @:callable
+extern abstract ObjcBlock<T>( BlockPtr<T> )
 {
-   @:native(" (NSString *)") @:extern static function StringToNSString(s:String) : NSString return null;
-   @:native(" (NSString *)") @:extern static function StringToNSStringData(s:String) : NSStringData return null;
-   @:native("String") @:extern static function NSStringDataToString(s:NSStringData) : String return null;
-
-
-   inline function new(s:NSStringData) this = s;
-
+   inline function new(v:BlockPtr<T>) this = v;
 
    @:from @:extern
-   static public inline function fromString(s:String):NSString return new NSString( StringToNSStringData(s) );
-
-
-   @:to @:extern
-   public inline function toString():String return NSStringDataToString(this);
+   static public inline function fromHaxe<T>(func:T):ObjcBlock<T> return new ObjcBlock<T>( cast func );
 
 }
 

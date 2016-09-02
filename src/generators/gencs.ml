@@ -2841,6 +2841,8 @@ let configure gen =
 	else
 		TypeParams.RealTypeParams.RealTypeParamsModf.configure gen (TypeParams.RealTypeParams.RealTypeParamsModf.set_only_hxgeneric gen);
 
+	let flookup_cl = get_cl (get_type gen (["haxe";"lang"], "FieldLookup")) in
+
 	let rcf_ctx =
 		ReflectionCFs.new_ctx
 			gen
@@ -2858,6 +2860,20 @@ let configure gen =
 			(fun hash_array length pos ->
 				let t = gen.gclasses.nativearray_type hash_array.etype in
 				{ hash_array with eexpr = TCall(rcf_static_remove t, [hash_array; length; pos]); etype = gen.gcon.basic.tvoid }
+			)
+			(
+				let delete = mk_static_field_access_infer flookup_cl "deleteHashConflict" null_pos [] in
+				let get = mk_static_field_access_infer flookup_cl "getHashConflict" null_pos [] in
+				let set = mk_static_field_access_infer flookup_cl "setHashConflict" null_pos [] in
+				let add = mk_static_field_access_infer flookup_cl "addHashConflictNames" null_pos [] in
+				let conflict_t = TInst (get_cl (get_type gen (["haxe"; "lang"], "FieldHashConflict")), []) in
+				Some {
+					t = conflict_t;
+					get_conflict = (fun ehead ehash ename -> mk (TCall (get, [ehead; ehash; ename])) conflict_t ehead.epos);
+					set = (fun ehead ehash ename evalue -> mk (TCall (set, [ehead; ehash; ename; evalue])) basic.tvoid ehead.epos);
+					delete = (fun ehead ehash ename -> mk (TCall (delete, [ehead; ehash; ename])) basic.tbool ehead.epos);
+					add_names = (fun ehead earr -> mk (TCall (add, [ehead; earr])) basic.tvoid ehead.epos);
+				}
 			)
 	in
 
@@ -3175,7 +3191,6 @@ let configure gen =
 	let hashes = Hashtbl.fold (fun i s acc -> incr nhash; (normalize_i i,s) :: acc) rcf_ctx.rcf_hash_fields [] in
 	let hashes = List.sort (fun (i,s) (i2,s2) -> compare i i2) hashes in
 
-	let flookup_cl = get_cl (get_type gen (["haxe";"lang"], "FieldLookup")) in
 	let haxe_libs = List.filter (function (_,_,_,lookup) -> is_some (lookup (["haxe";"lang"], "DceNo"))) gen.gcon.net_libs in
 	(try
 		(* first let's see if we're adding a -net-lib that has already a haxe.lang.FieldLookup *)
