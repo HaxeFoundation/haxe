@@ -541,7 +541,7 @@ module Statistics = struct
 		| SKEnumField
 
 	let relation_to_string = function
-		| Implemented -> "implementer"
+		| Implemented -> "implementers"
 		| Extended -> "subclasses"
 		| Overridden -> "overrides"
 		| Referenced -> "references"
