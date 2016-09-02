@@ -35,8 +35,8 @@ class Log {
 
 		This method can be rebound to a custom function:
 			var oldTrace = haxe.Log.trace; // store old function
-			haxe.Log.trace = function(v, ?infos) { 
-			  // handle trace 
+			haxe.Log.trace = function(v, ?infos) {
+			  // handle trace
 			}
 			...
 			haxe.Log.trace = oldTrace;
@@ -94,7 +94,7 @@ class Log {
 			#if cs
 			cs.system.Console.WriteLine(str);
 			#elseif java
-			untyped __java__("java.lang.System.out.println(str)");
+			Sys.println(str);
 			#elseif lua
 			untyped __define_feature__("use._hx_print",_hx_print(Std.string(str)));
 			#end
