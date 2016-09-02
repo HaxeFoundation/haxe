@@ -32,15 +32,15 @@ package java;
 	/**
 		Print the specified value on the default output.
 	**/
-	public static function print( v : Dynamic ) : Void {
-		untyped __java__("java.lang.System.out.print(v)");
+	inline public static function print( v : Dynamic ) : Void {
+		Sys.print(v);
 	}
 
 	/**
 		Print the specified value on the default output followed by a newline character.
 	**/
-	public static function println( v : Dynamic ) : Void {
-		untyped __java__("java.lang.System.out.println(v)");
+	inline public static function println( v : Dynamic ) : Void {
+		Sys.println(v);
 	}
 
 	/**
