@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,7 +23,7 @@ package cs.internal;
 import cs.Lib;
 import cs.Lib.*;
 import cs.NativeArray;
-import cs.NativeArray;
+import cs.StdTypes;
 import cs.system.Activator;
 import cs.system.IConvertible;
 import cs.system.IComparable;
@@ -106,7 +106,9 @@ import cs.system.Object;
 			{
 				case [Decimal, _] | [_, Decimal]:
 					return v1c.ToDecimal(null) == v2c.ToDecimal(null);
-				case [UInt64 | Int64 | DateTime, _] | [_, UInt64 | Int64 | DateTime]:
+				case [Int64, _] | [_, Int64]:
+					return v1c.ToInt64(null) == v2c.ToInt64(null);
+				case [UInt64 | DateTime, _] | [_, UInt64 | DateTime]:
 					return v1c.ToUInt64(null) == v2c.ToUInt64(null);
 				case [Double | Single, _] | [_, Double | Single]:
 					return v1c.ToDouble(null) == v2c.ToDouble(null);
@@ -153,6 +155,13 @@ import cs.system.Object;
 	{
 		return (obj == null) ? 0 : Std.is(obj,Int) ? cast obj : Lib.as(obj,IConvertible).ToInt32(null);
 	}
+
+#if erase_generics
+	public static function toLong(obj:Dynamic):Int64
+	{
+		return (obj == null) ? 0 : Std.is(obj,Int64) ? cast obj : Lib.as(obj,IConvertible).ToInt64(null);
+	}
+#end
 
 	public static function isInt(obj:Dynamic):Bool
 	{
@@ -788,7 +797,7 @@ import cs.system.Object;
 
 
 #if !erase_generics
-	private static function getGenericAttr(t:cs.system.Type):cs.internal.HxObject.GenericInterface
+	public static function getGenericAttr(t:cs.system.Type):cs.internal.HxObject.GenericInterface
 	{
 		for (attr in t.GetCustomAttributes(true))
 			if (Std.is(attr,cs.internal.HxObject.GenericInterface))
@@ -850,7 +859,7 @@ import cs.system.Object;
 }
 
 @:nativeGen
-@:keep @:native("haxe.lang.EmptyObject") private enum EmptyObject
+@:keep @:native("haxe.lang.EmptyObject") enum EmptyObject
 {
 	EMPTY;
 }

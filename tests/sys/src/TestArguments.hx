@@ -14,10 +14,26 @@ class TestArguments extends haxe.unit.TestCase {
 		"|",
 		"||",
 		".",
+		",",
 		"<",
 		">",
 		"<<",
 		">>",
+		":",
+		";",
+		"(",
+		")",
+		"( )",
+
+		// backslashes
+		"\\",
+		"\\\\",
+		"\\\\\\",
+
+		// single quote
+		"'",
+		// kind of an escaped single quote
+		"\\'",
 
 		// double quote
 		'"',
@@ -36,33 +52,11 @@ class TestArguments extends haxe.unit.TestCase {
 		"a b  %PATH% $HOME c\\&<>[\\\"]#{}|%$\\\"\"",
 	].concat(switch (Sys.systemName()) {
 		case "Windows":
-		[
-			// backslashes
-			"\\",
-			"\\\\",
-			"\\\\\\",
-
-			// single quote
-			"'",
-			// kind of an escaped single quote
-			"\\'",
-		];
+		[];
 		case _:
 		[
-			#if !cs
-			// backslashes
-			"\\",
-			"\\\\",
-			"\\\\\\",
-
-			// single quote
-			"'",
-			// kind of an escaped single quote
-			"\\'",
-
 			// linebreak
 			"\n",
-			#end
 
 			// Chinese, Japanese
 			"中文，にほんご",
@@ -94,6 +88,8 @@ class TestArguments extends haxe.unit.TestCase {
 		"bin/python/TestArguments.py";
 	#elseif php
 		"bin/php/TestArguments/index.php";
+	#elseif lua
+		"bin/lua/TestArguments.lua";
 	#else
 		null;
 	#end
@@ -102,7 +98,6 @@ class TestArguments extends haxe.unit.TestCase {
 
 	function testArgs() {
 		var args = Sys.args();
-		// trace(args);
 		for (i in 0...expectedArgs.length) {
 			assertEquals(expectedArgs[i], args[i]);
 		}

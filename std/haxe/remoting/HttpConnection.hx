@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -68,7 +68,7 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 		return new haxe.Unserializer(data).unserialize();
 	}
 
-	#if (js || neko || php)
+	#if !flash
 
 	public static function urlConnect( url : String ) {
 		return new HttpConnection(url,[]);

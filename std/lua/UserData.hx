@@ -1,0 +1,2 @@
+package lua;
+class UserData {}

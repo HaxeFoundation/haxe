@@ -44,11 +44,6 @@ class TestType extends Test {
 		};
 	}
 
-	static public macro function complete(e:String) : haxe.macro.Expr.ExprOf<String> {
-		var str = new String(untyped haxe.macro.Context.load("display", 1)(e.__s));
-		return { expr : EConst(CString(str)), pos : haxe.macro.Context.currentPos() };
-	}
-
 	public function testType() {
 		var name = u("unit")+"."+u("MyClass");
 		eq( Type.resolveClass(name), unit.MyClass );
@@ -296,7 +291,7 @@ class TestType extends Test {
 
 		// TODO: this fails on flash 9
 		var foo = function(bar = 2) { return bar; };
-		#if flash
+		#if (flash || hl)
 		t(typeError(foo.bind(_)));
 		#else
 		var l = foo.bind(_);
@@ -513,12 +508,10 @@ class TestType extends Test {
 		typedAs(inlineTest2([1]), var void:Void);
 	}
 
-	@:analyzer(no_check_has_effect)
 	inline function inlineTest1<T>(map:Array<T>) {
 		map[0];
 	}
 
-	@:analyzer(no_check_has_effect)
 	inline function inlineTest2(map:Array<Dynamic>) {
 		map[0];
 	}
@@ -616,7 +609,7 @@ class TestType extends Test {
 		return Std.string(a) + Std.string(b);
 	}
 
-	@:generic static function gf3 < A:{function new(s:String):Void;}, B:Array<A> > (a:A, b:B) {
+	@:generic static function gf3 < A:haxe.Constraints.Constructible<String -> Void>, B:Array<A> > (a:A, b:B) {
 		var clone = new A("foo");
 		b.push(clone);
 		return b;
@@ -630,43 +623,6 @@ class TestType extends Test {
 		return a + "foo";
 	}
 
-	function testCompletion() {
-		#if !macro
-		var s = { foo: 1 };
-		eq(complete("s.|"), "foo:Int");
-		eq(complete("var x : haxe.|"), "path(haxe)");
-		eq(complete("var x : haxe.macro.Expr.|"), "path(haxe.macro:Expr)");
-
-		// could be improved by listing sub types
-		eq(complete("haxe.macro.Expr.|"), "error(haxe.macro.Expr is not a value)");
-
-		// know issue : the expr optimization will prevent inferring the array content
-		//eq(complete('{
-			//var a = [];
-			//a.push("");
-			//a[0].|
-		//}'),"Unknown<0>");
-
-		// could be improved : expr optimization assume that variable not in scope is a member
-		// so it will eliminate the assignement that would have forced it into the local context
-		// that would be useful when you want to write some code and add the member variable afterwards
-		eq(complete('{
-			unknownVar = "";
-			unknownVar.|
-		}'),"path(unknownVar)");
-
-
-		for (k in [s].iterator()) {
-			eq(complete("k.|"), "foo:Int");
-		}
-
-		var f = function():Iterator<{foo:Int}> {
-			return [s].iterator();
-		};
-		eq(complete("for (k in f()) k.|"), "foo:Int");
-		#end
-	}
-
 	function testSuperPropAccess() {
 		var c = new ChildSuperProp();
 		eq(c.prop, 2);
@@ -675,7 +631,6 @@ class TestType extends Test {
 		eq(c.fProp(9), "test09");
 	}
 
-	@:analyzer(ignore)
 	function testVoidFunc() {
 		exc(function() { throw null; return 1; } );
 		exc(function() { throw null; return "foo"; } );

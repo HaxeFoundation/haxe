@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -208,11 +208,9 @@ class Path {
 		If `path` is null, the result is unspecified.
 	**/
 	public static function normalize(path : String) : String {
-		var slash = '/';
-		path = path.split("\\").join("/");
-		if( path == null || path == slash ) {
-			return slash;
-		}
+		var slash = "/";
+		path = path.split("\\").join(slash);
+		if (path == slash) return slash;
 
 		var target = [];
 
@@ -235,7 +233,7 @@ class Path {
 				case ":".code:
 					acc.add(":");
 					colon = true;
-				case "/".code if (colon == false):
+				case "/".code if (!colon):
 					slashes = true;
 				case i:
 					colon = false;
@@ -246,8 +244,7 @@ class Path {
 					acc.add(String.fromCharCode(i));
 			}
 		}
-		var result = acc.toString();
-		return result;
+		return acc.toString();
 	}
 
 	/**

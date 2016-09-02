@@ -1,5 +1,5 @@
 -cp src
--D analyzer
+-D analyzer-user-var-fusion
 --each
 
 -main TestAnalyzer

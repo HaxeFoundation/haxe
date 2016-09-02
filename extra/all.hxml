@@ -45,5 +45,9 @@
 -xml python.xml
 
 --next
+-hl all_hl
+-xml hl.xml
+
+--next
 
 -xml cross.xml

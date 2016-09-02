@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,9 +25,9 @@
 	Use this type to have access to the bitwise operators of C# enums that have a `cs.system.FlagsAttribute` attribute.
 
 	Usage example:
+
 	```haxe
 		import cs.system.reflection.BindingFlags;
-
 		var binding = new Flags(BindingFlags.Public) | BindingFlags.Static | BindingFlags.NonPublic;
 	```
  **/

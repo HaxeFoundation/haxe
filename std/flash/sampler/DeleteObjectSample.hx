@@ -1,6 +1,6 @@
 package flash.sampler;
 
 @:final extern class DeleteObjectSample extends Sample {
-	var id : Float;
-	var size : Float;
+	var id(default,never) : Float;
+	var size(default,never) : Float;
 }

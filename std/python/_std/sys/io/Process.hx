@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -36,10 +36,8 @@ class Process {
 
 	var p:Popen;
 
-	public function new( cmd : String, args : Array<String> ) : Void {
-
-		p = Popen.create([cmd].concat(args), { stdin : Subprocess.PIPE, stdout: Subprocess.PIPE, stderr : Subprocess.PIPE });
-
+	public function new( cmd : String, ?args : Array<String> ) : Void {
+		p = Popen.create(args == null ? cmd : [cmd].concat(args), { shell : args == null, stdin : Subprocess.PIPE, stdout: Subprocess.PIPE, stderr : Subprocess.PIPE });
 		this.stdout = IoTools.createFileInputFromText(new TextIOWrapper(new BufferedReader(p.stdout)));
 		this.stderr = IoTools.createFileInputFromText(new TextIOWrapper(new BufferedReader(p.stderr)));
 		this.stdin =  IoTools.createFileOutputFromText(new TextIOWrapper(new BufferedWriter(p.stdin)));

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -112,6 +112,20 @@ class DateTools {
 		support in Flash and JS for day and months names (due to lack of proper
 		internationalization API). On Haxe/Neko/Windows, some formats are not
 		supported.
+
+		```haxe
+		var t = DateTools.format(Date.now(), "%Y-%m-%d_%H:%M:%S"); 
+		// 2016-07-08_14:44:05
+
+		var t = DateTools.format(Date.now(), "%r"); 
+		// 02:44:05 PM
+
+		var t = DateTools.format(Date.now(), "%T"); 
+		// 14:44:05
+
+		var t = DateTools.format(Date.now(), "%F"); 
+		// 2016-07-08
+		```
 	**/
 	public static function format( d : Date, f : String ) : String {
 		#if (neko && !(macro || interp))
@@ -161,7 +175,7 @@ class DateTools {
 	/**
 		Converts a number of minutes to a timestamp.
 	**/
-	public static inline function minutes( n : Float ) : Float {
+	#if as3 @:extern #end public static inline function minutes( n : Float ) : Float {
 		return n * 60.0 * 1000.0;
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,7 +25,7 @@ import java.internal.HxObject;
 import java.internal.Runtime;
 import java.Boot;
 
-@:keep @:coreApi class Reflect {
+@:coreApi class Reflect {
 
 	public static function hasField( o : Dynamic, field : String ) : Bool
 	{
@@ -35,6 +35,7 @@ import java.Boot;
 		return Runtime.slowHasField(o, field);
 	}
 
+	@:keep
 	public static function field( o : Dynamic, field : String ) : Dynamic
 	{
 		if (Std.is(o, IHxObject)) {
@@ -43,6 +44,7 @@ import java.Boot;
 		return Runtime.slowGetField(o, field, false);
 	}
 
+	@:keep
 	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void
 	{
 		if (Std.is(o, IHxObject)) {
@@ -79,6 +81,7 @@ import java.Boot;
 		return untyped (func : Function).__hx_invokeDynamic(args);
 	}
 
+	@:keep
 	public static function fields( o : Dynamic ) : Array<String>
 	{
 		if (Std.is(o, IHxObject)) {

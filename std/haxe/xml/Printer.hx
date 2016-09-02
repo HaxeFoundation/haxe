@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,8 +22,16 @@
 
 package haxe.xml;
 
+/**
+	This class provides utility methods to convert Xml instances to 
+	String representation.
+**/
 class Printer {
-
+	/**
+		Convert `Xml` to string representation.
+		
+		Set `pretty` to `true` to prettify the result.
+	**/
 	static public function print(xml:Xml, ?pretty = false) {
 		var printer = new Printer(pretty);
 		printer.writeNode(xml, "");

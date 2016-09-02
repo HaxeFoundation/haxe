@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -46,7 +46,11 @@ class ImportAll {
 		case "cs":
 			if( !Context.defined("cs") ) return;
 		case "python":
-			if( !Context.defined("python") ) return;
+			if ( !Context.defined("python") ) return;
+		case "hl":
+			if( !Context.defined("hl") ) return;
+		case "lua":
+			if( !Context.defined("lua") ) return;
 		case "tools":
 			return;
 		case "build-tool":

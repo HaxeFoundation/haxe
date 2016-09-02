@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,25 +19,37 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package cpp;
+package cpp;
 
-#if cpp
 
-typedef Callable<T> = Function<T, cpp.abi.Abi >
-
-#else
-
-@:noPackageRestrict
+// The generator intercepts this type and converts it to a cpp.Function<T> on cpp
+@:noPackageRestrict @:callable
+#if cpp extern #end
 abstract Callable<T>(T)
 {
-   public var call(get,never):T;
-
    inline public function new(inValue:T) this = inValue;
-
+   public var call(get,never):T;
    inline function get_call():T return this;
+
+   #if cpp
+   @:from
+   inline static public function fromFunction<F>( func:Function<F,cpp.abi.Abi> ) : Callable<F>
+       return new Callable<F>(cast func);
+   @:to
+   inline public function toFunction() : Function<T,cpp.abi.Abi> return cast this;
+
+
+   inline public static function getProcAddress<T,ABI:cpp.abi.Abi>(inModule:String, inFunction:String) : Function<T,ABI>
+      return Function.getProcAddress(inModule, inFunction);
+
+   inline public static function fromStaticFunction<T>(inStaticFunction:T) : Callable<T>
+      return Function.fromStaticFunction(inStaticFunction);
+
+   inline public function lt(inOther:Callable<T>):Bool return toFunction().lt(inOther.toFunction());
+   inline public function leq(inOther:Callable<T>):Bool return toFunction().leq(inOther.toFunction());
+   inline public function gt(inOther:Callable<T>):Bool return toFunction().gt(inOther.toFunction());
+   inline public function geq(inOther:Callable<T>):Bool return toFunction().geq(inOther.toFunction());
+   #end
 }
-
-
-#end
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,6 +29,12 @@ class Host
    {
       untyped __global__.__scriptable_load_cppia(source);
    }
+
+   public static function runFile(filename:String)
+   {
+      run( sys.io.File.getContent(filename) );
+   }
+
 
    public static function main()
    {

@@ -13,6 +13,7 @@ class Issue2809 extends Test {
 		switch(val) {
 			case MyEnum.SomeValue:
 				x = "bar";
+			case _:
 		}
 		eq("foo", x);
 	}

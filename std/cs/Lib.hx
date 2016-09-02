@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -84,6 +84,7 @@ class Lib
 
 		This function will not work with Value Types (such as Int, Float, Bool...)
 	**/
+	@:pure
 	@:extern public static inline function as<T>(obj:Dynamic, cl:Class<T>):T
 	{
 		return untyped __as__(obj);

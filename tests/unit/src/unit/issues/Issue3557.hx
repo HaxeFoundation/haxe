@@ -13,7 +13,7 @@ private class MyClass extends Generic<MyBaseClass> {
 private interface Interface {}
 
 @:generic
-private class Generic<Default:{ public function new():Void; }>
+private class Generic<Default:haxe.Constraints.Constructible<Void->Void>>
 	extends Default
 	implements Interface {}
 

@@ -119,30 +119,6 @@ class RunSauceLabs {
 				"platform": "OS X 10.11",
 				"version": "9.0"
 			},
-			{
-				"browserName": "iphone",
-				"platform": "OS X 10.8",
-				"version": "6.1",
-				"device-orientation": "portrait"
-			},
-			{
-				"browserName": "iphone",
-				"platform": "OS X 10.9",
-				"version": "8.1",
-				"device-orientation": "portrait"
-			},
-			{
-				"browserName": "android",
-				"platform": "Linux",
-				"version": "4.0",
-				"device-orientation": "portrait"
-			},
-			{
-				"browserName": "android",
-				"platform": "Linux",
-				"version": "4.3",
-				"device-orientation": "portrait"
-			}
 		];
 
 		var arg, args = process.argv.slice(2);
@@ -226,7 +202,7 @@ class RunSauceLabs {
 
 			var browserSuccess = true;
 			var urls = if (!isEs5(caps)) {
-				urls.filter(function(url:String) return url.indexOf("-es5") < 0);
+				urls.filter(function(url:String) return url.indexOf("js-es=3") != -1);
 			} else {
 				urls;
 			}

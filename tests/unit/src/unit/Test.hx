@@ -252,7 +252,7 @@ class Test {
 	}
 
 	static function resetTimer() {
-		#if (neko || php || cpp || java || cs || python)
+		#if (neko || php || cpp || java || cs || python || hl || lua)
 		#else
 		if( timer != null ) timer.stop();
 		timer = new haxe.Timer(30000);
@@ -331,6 +331,9 @@ class Test {
 			#if python
 			new TestPython(),
 			#end
+			#if hl
+			new TestHL(),
+			#end
 			#if php
 			new TestPhp(),
 			#end
@@ -355,20 +358,17 @@ class Test {
 		#end
 
 		// SPOD tests
-		#if ( (neko || (php && (travis || php_sqlite)) || java || cpp || (cs && travis)) && !macro && !interp)
-		#if ( travis && !(cpp || cs) )
-		if (Sys.getEnv("CI") != null && Sys.systemName() == "Linux")
-		{
-			classes.push(new TestSpod(sys.db.Mysql.connect({
-				host : "localhost",
-				user : "travis",
-				pass : "",
-				port : 3306,
-				database : "haxe_test" })));
-		}
+		#if ( (neko || (php && (travis || appveyor || php_sqlite)) || java || cpp || (cs && (travis || appveyor))) && !macro && !interp)
+		#if ( (travis || appveyor) && !(cpp || cs) )
+		classes.push(new TestSpod(sys.db.Mysql.connect({
+			host : "127.0.0.1",
+			user : "travis",
+			pass : "",
+			port : 3306,
+			database : "haxe_test" })));
 		#end
-	  if (verbose)
-		 logVerbose("Setup sqlite");
+		if (verbose)
+			logVerbose("Setup sqlite");
 		classes.push(new TestSpod(sys.db.Sqlite.open("db.db3")));
 		#end
 		TestIssues.addIssueClasses("src/unit/issues", "unit.issues");

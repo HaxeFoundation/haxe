@@ -1,0 +1,19 @@
+-main Main
+-dce full
+--each
+-swf eventLoop.swf
+-swf-version 14
+--next
+-neko eventLoop.n
+--next
+-js eventLoop.js
+--next
+-python eventLoop.py
+--next
+-php php
+--next
+-java java
+--next
+-cs cs
+--next
+-cpp cpp

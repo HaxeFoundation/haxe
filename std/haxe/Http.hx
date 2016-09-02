@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,31 +26,21 @@ package haxe;
 import sys.net.Host;
 import sys.net.Socket;
 
-private typedef AbstractSocket = {
-	var input(default,null) : haxe.io.Input;
-	var output(default,null) : haxe.io.Output;
-	function connect( host : Host, port : Int ) : Void;
-	function setTimeout( t : Float ) : Void;
-	function write( str : String ) : Void;
-	function close() : Void;
-	function shutdown( read : Bool, write : Bool ) : Void;
-}
-
 #end
 
 /**
 	This class can be used to handle Http requests consistently across
 	platforms. There are two intended usages:
 
-	- call haxe.Http.requestUrl(url) and receive the result as a String (not
-	available on flash)
-	- create a new haxe.Http(url), register your callbacks for onData, onError
-	and onStatus, then call request().
+	- call `haxe.Http.requestUrl(url)` and receive the result as a `String`
+	(not available on flash)
+	- create a `new haxe.Http(url)`, register your callbacks for `onData`, 
+	`onError` and `onStatus`, then call `request()`.
 **/
 class Http {
 
 	/**
-		The url of `this` request. It is used only by the request() method and
+		The url of `this` request. It is used only by the `request()` method and
 		can be changed in order to send the same request to different target
 		Urls.
 	**/
@@ -63,7 +53,7 @@ class Http {
 	var chunk_size : Null<Int>;
 	var chunk_buf : haxe.io.Bytes;
 	var file : { param : String, filename : String, io : haxe.io.Input, size : Int, mimeType : String };
-#elseif js
+#elseif (js && !nodejs)
 	public var async : Bool;
 	public var withCredentials : Bool;
 #end
@@ -78,10 +68,10 @@ class Http {
 	/**
 		Creates a new Http instance with `url` as parameter.
 
-		This does not do a request until request() is called.
+		This does not do a request until `request()` is called.
 
 		If `url` is null, the field url must be set to a value before making the
-		call to request(), or the result is unspecified.
+		call to `request()`, or the result is unspecified.
 
 		(Php) Https (SSL) connections are allowed only if the OpenSSL extension
 		is enabled.
@@ -91,7 +81,7 @@ class Http {
 		headers = new List<{ header:String, value:String }>();
 		params = new List<{ param:String, value:String }>();
 
-		#if js
+		#if (js && !nodejs)
 		async = true;
 		withCredentials = false;
 		#elseif sys
@@ -155,7 +145,9 @@ class Http {
 
 	#if (js || flash)
 
-	#if js
+	#if nodejs
+	var req:js.node.http.ClientRequest;
+	#elseif js
 	var req:js.html.XMLHttpRequest;
 	#elseif flash
 	var req:flash.net.URLLoader;
@@ -184,27 +176,85 @@ class Http {
 		sent as GET request.
 
 		Depending on the outcome of the request, this method calls the
-		onStatus(), onError() or onData() callback functions.
+		`onStatus()`, `onError()` or `onData()` callback functions.
 
 		If `this.url` is null, the result is unspecified.
 
-		If `this.url` is an invalid or inaccessible Url, the onError() callback
+		If `this.url` is an invalid or inaccessible Url, the `onError()` callback
 		function is called.
 
-		(Js) If `this.async` is false, the callback functions are called before
+		[js] If `this.async` is false, the callback functions are called before
 		this method returns.
 	**/
 	public function request( ?post : Bool ) : Void {
 		var me = this;
-	#if js
+	#if nodejs
+		me.responseData = null;
+		var parsedUrl = js.node.Url.parse(url);
+		var secure = (parsedUrl.protocol == "https:");
+		var host = parsedUrl.hostname;
+		var path = parsedUrl.path;
+		var port = if (parsedUrl.port != null) Std.parseInt(parsedUrl.port) else (secure ? 443 : 80);
+		var h:Dynamic = {};
+		for (i in headers) {
+			var arr = Reflect.field(h, i.header);
+			if (arr == null) {
+				arr = new Array<String>();
+				Reflect.setField(h, i.header, arr);
+			}
+			
+			arr.push(i.value);
+		}
+		var uri = postData;
+		if( uri != null )
+			post = true;
+		else for( p in params ) {
+			if( uri == null )
+				uri = "";
+			else
+				uri += "&";
+			uri += StringTools.urlEncode(p.param)+"="+StringTools.urlEncode(p.value);
+		}
+		var question = path.split("?").length <= 1;
+		if (!post && uri != null) path += (if( question ) "?" else "&") + uri;
+		
+		var opts = {
+			protocol: parsedUrl.protocol,
+			hostname: host,
+			port: port,
+			method: post ? 'POST' : 'GET',
+			path: path,
+			headers: h
+		};
+		function httpResponse (res) {
+			var s = res.statusCode;
+			if (s != null)
+				me.onStatus(s);
+			var body = '';
+			res.on('data', function (d) {
+				body += d;
+			});
+			res.on('end', function (_) {
+				me.responseData = body;
+				me.req = null;
+				if (s != null && s >= 200 && s < 400) {
+					me.onData(body);
+				} else {
+					me.onError("Http Error #"+s);
+				}
+			});
+		}
+		req = secure ? js.node.Https.request(untyped opts, httpResponse) : js.node.Http.request(untyped opts, httpResponse);
+		if (post) req.write(uri);
+		req.end();
+	#elseif js
 		me.responseData = null;
 		var r = req = js.Browser.createXMLHttpRequest();
-		r.withCredentials = withCredentials;
 		var onreadystatechange = function(_) {
 			if( r.readyState != 4 )
 				return;
 			var s = try r.status catch( e : Dynamic ) null;
-			if ( s != null ) {
+			if ( s != null && untyped __js__('"undefined" !== typeof window') ) {
 				// If the request is local and we have data: assume a success (jQuery approach):
 				var protocol = js.Browser.location.protocol.toLowerCase();
 				var rlocalProtocol = ~/^(?:about|app|app-storage|.+-extension|file|res|widget):$/;
@@ -264,6 +314,7 @@ class Http {
 			onError(e.toString());
 			return;
 		}
+		r.withCredentials = withCredentials;
 		if( !Lambda.exists(headers, function(h) return h.header == "Content-Type") && post && postData == null )
 			r.setRequestHeader("Content-Type","application/x-www-form-urlencoded");
 
@@ -371,7 +422,7 @@ class Http {
 		this.file = { param : argname, filename : filename, io : file, size : size, mimeType : mimeType };
 	}
 
-	public function customRequest( post : Bool, api : haxe.io.Output, ?sock : AbstractSocket, ?method : String  ) {
+	public function customRequest( post : Bool, api : haxe.io.Output, ?sock : sys.net.Socket, ?method : String  ) {
 		this.responseData = null;
 		var url_regexp = ~/^(https?:\/\/)?([a-zA-Z\.0-9_-]+)(:[0-9]+)?(.*)$/;
 		if( !url_regexp.match(url) ) {
@@ -385,12 +436,8 @@ class Http {
 				sock = new php.net.SslSocket();
 				#elseif java
 				sock = new java.net.SslSocket();
-				#elseif hxssl
-				#if neko
-				sock = new neko.tls.Socket();
-				#else
+				#elseif (!no_ssl && (hxssl || cpp || (neko && !(macro || interp))))
 				sock = new sys.ssl.Socket();
-				#end
 				#else
 				throw "Https is only supported with -lib hxssl";
 				#end
@@ -492,6 +539,7 @@ class Http {
 			else
 				b.add("Content-Length: "+uri.length+"\r\n");
 		}
+		b.add("Connection: close\r\n");
 		for( h in headers ) {
 			b.add(h.header);
 			b.add(": ");
@@ -534,7 +582,7 @@ class Http {
 		}
 	}
 
-	function readHttpResponse( api : haxe.io.Output, sock : AbstractSocket ) {
+	function readHttpResponse( api : haxe.io.Output, sock : sys.net.Socket ) {
 		// READ the HTTP header (until \r\n\r\n)
 		var b = new haxe.io.BytesBuffer();
 		var k = 4;
@@ -637,17 +685,23 @@ class Http {
 
 		var bufsize = 1024;
 		var buf = haxe.io.Bytes.alloc(bufsize);
-		if( size == null ) {
+		if( chunked ) {
+			try {
+				while( true ) {
+					var len = sock.input.readBytes(buf,0,bufsize);
+					if( !readChunk(chunk_re,api,buf,len) )
+						break;
+				}
+			} catch ( e : haxe.io.Eof ) {
+				throw "Transfer aborted";
+			}
+		} else if( size == null ) {
 			if( !noShutdown )
 				sock.shutdown(false,true);
 			try {
 				while( true ) {
 					var len = sock.input.readBytes(buf,0,bufsize);
-					if( chunked ) {
-						if( !readChunk(chunk_re,api,buf,len) )
-							break;
-					} else
-						api.writeBytes(buf,0,len);
+					api.writeBytes(buf,0,len);
 				}
 			} catch( e : haxe.io.Eof ) {
 			}
@@ -656,11 +710,7 @@ class Http {
 			try {
 				while( size > 0 ) {
 					var len = sock.input.readBytes(buf,0,if( size > bufsize ) bufsize else size);
-					if( chunked ) {
-						if( !readChunk(chunk_re,api,buf,len) )
-							break;
-					} else
-						api.writeBytes(buf,0,len);
+					api.writeBytes(buf,0,len);
 					size -= len;
 				}
 			} catch( e : haxe.io.Eof ) {
@@ -737,7 +787,7 @@ class Http {
 		This method is called upon a successful request, with `data` containing
 		the result String.
 
-		The intended usage is to bind it to a custom function:
+		The intended usage is to bind it to a custom function:  
 		`httpInstance.onData = function(data) { // handle result }`
 	**/
 	public dynamic function onData( data : String ) {
@@ -747,7 +797,7 @@ class Http {
 		This method is called upon a request error, with `msg` containing the
 		error description.
 
-		The intended usage is to bind it to a custom function:
+		The intended usage is to bind it to a custom function:  
 		`httpInstance.onError = function(msg) { // handle error }`
 	**/
 	public dynamic function onError( msg : String ) {
@@ -757,18 +807,18 @@ class Http {
 		This method is called upon a Http status change, with `status` being the
 		new status.
 
-		The intended usage is to bind it to a custom function:
+		The intended usage is to bind it to a custom function:  
 		`httpInstance.onStatus = function(status) { // handle status }`
 	**/
 	public dynamic function onStatus( status : Int ) {
 	}
 
-#if !flash
+#if (!flash && !nodejs)
 	/**
 		Makes a synchronous request to `url`.
 
 		This creates a new Http instance and makes a GET request by calling its
-		request(false) method.
+		`request(false)` method.
 
 		If `url` is null, the result is unspecified.
 	**/

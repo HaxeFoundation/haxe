@@ -1,7 +1,7 @@
 package flash.text;
 
 extern class TextSnapshot {
-	var charCount(default,null) : Int;
+	var charCount(default,never) : Int;
 	function new() : Void;
 	function findText(beginIndex : Int, textToFind : String, caseSensitive : Bool) : Int;
 	function getSelected(beginIndex : Int, endIndex : Int) : Bool;

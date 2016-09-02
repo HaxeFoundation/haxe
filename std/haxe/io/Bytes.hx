@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -319,7 +319,10 @@ class Bytes {
 		return untyped $sget32(b, pos, false);
 		#elseif (php || python)
 		var v = get(pos) | (get(pos + 1) << 8) | (get(pos + 2) << 16) | (get(pos+3) << 24);
-        return if( v & 0x80000000 != 0 ) v | 0x80000000 else v;
+		return if( v & 0x80000000 != 0 ) v | 0x80000000 else v;
+		#elseif lua
+		var v = get(pos) | (get(pos + 1) << 8) | (get(pos + 2) << 16) | (get(pos+3) << 24);
+		return lua.Boot.clamp(if( v & 0x80000000 != 0 ) v | 0x80000000 else v);
 		#else
 		return get(pos) | (get(pos + 1) << 8) | (get(pos + 2) << 16) | (get(pos+3) << 24);
 		#end
@@ -377,6 +380,10 @@ class Bytes {
 		catch (e:Dynamic) throw e;
 		#elseif python
 		return python.Syntax.pythonCode("self.b[{0}:{0}+{1}].decode('UTF-8','replace')", pos, len);
+		#elseif lua
+		var begin = cast(Math.min(pos,b.length),Int);
+		var end = cast(Math.min(pos+len,b.length),Int);
+		return [for (i in begin...end) String.fromCharCode(b[i])].join("");
 		#else
 		var s = "";
 		var b = b;
@@ -479,6 +486,7 @@ class Bytes {
 		#end
 	}
 
+	@:pure
 	public static function ofString( s : String ) : Bytes {
 		#if neko
 		return new Bytes(s.length,untyped __dollar__ssub(s.__s,0,s.length));
@@ -508,6 +516,9 @@ class Bytes {
 			var b:BytesData = new python.Bytearray(s, "UTF-8");
 			return new Bytes(b.length, b);
 
+		#elseif lua
+			var bytes = [for (c in 0...s.length) StringTools.fastCodeAt(s,c)];
+			return new Bytes(bytes.length, bytes);
 		#else
 		var a = new Array();
 		// utf16-decode and utf8-encode

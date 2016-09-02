@@ -503,8 +503,10 @@ class TestBasetypes extends Test {
 		var a:{?f:Int} = o;
 		eq(a.f, null);
 
+		#if !hl
 		var i:Dynamic = 1;
 		var a:{?f:Int} = i;
 		unspec(function() a.f);
+		#end
 	}
 }

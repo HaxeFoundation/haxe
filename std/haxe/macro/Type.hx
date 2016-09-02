@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -728,6 +728,11 @@ typedef TVar = {
 		information
 	**/
 	public var extra(default,never):Null<{params: Array<TypeParameter>, expr: Null<TypedExpr>}>;
+
+	/**
+		The metadata of the variable.
+	**/
+	public var meta(default,never):Null<MetaAccess>;
 }
 
 /**

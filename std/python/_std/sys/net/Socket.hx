@@ -1,5 +1,5 @@
 /*
-* Copyright (C)2005-2015 Haxe Foundation
+* Copyright (C)2005-2016 Haxe Foundation
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -116,7 +116,7 @@ private class SocketOutput extends haxe.io.Output {
     var __s:PSocket;
     /**
         The stream on which you can read available data. By default the stream is blocking until the requested data is available,
-        use [setBlocking(false)] or [setTimeout] to prevent infinite waiting.
+        use `setBlocking(false)` or `setTimeout` to prevent infinite waiting.
     **/
     public var input(default,null) : haxe.io.Input;
 
@@ -126,7 +126,7 @@ private class SocketOutput extends haxe.io.Output {
     public var output(default,null) : haxe.io.Output;
 
     /**
-        A custom value that can be associated with the socket. Can be used to retreive your custom infos after a [select].
+        A custom value that can be associated with the socket. Can be used to retreive your custom infos after a `select`.
     ***/
     public var custom : Dynamic;
 
@@ -173,7 +173,7 @@ private class SocketOutput extends haxe.io.Output {
     }
 
     /**
-        Allow the socket to listen for incoming questions. The parameter tells how many pending connections we can have until they get refused. Use [accept()] to accept incoming connections.
+        Allow the socket to listen for incoming questions. The parameter tells how many pending connections we can have until they get refused. Use `accept()` to accept incoming connections.
     **/
     public function listen( connections : Int ) : Void {
         __s.listen(connections);
@@ -252,11 +252,11 @@ private class SocketOutput extends haxe.io.Output {
 
     /**
         Wait until one of the sockets groups is ready for the given operation :
-        [read] contains sockets on which we want to wait for available data to be read,
-        [write] contains sockets on which we want to wait until we are allowed to write some data to their output buffers,
-        [others] contains sockets on which we want to wait for exceptional conditions.
-        [select] will block until one of the condition is met, in which case it will return the sockets for which the condition was true.
-        In case a [timeout] (in seconds) is specified, select might wait at worse until the timeout expires.
+        - `read` contains sockets on which we want to wait for available data to be read,
+        - `write` contains sockets on which we want to wait until we are allowed to write some data to their output buffers,
+        - `others` contains sockets on which we want to wait for exceptional conditions.
+        - `select` will block until one of the condition is met, in which case it will return the sockets for which the condition was true.
+        In case a `timeout` (in seconds) is specified, select might wait at worse until the timeout expires.
     **/
     public static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float) : { read: Array<Socket>,write: Array<Socket>,others: Array<Socket> } {
         var t3 = Select.select(read,write,others,timeout);

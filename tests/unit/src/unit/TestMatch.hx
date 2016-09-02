@@ -332,16 +332,16 @@ class TestMatch extends Test {
 		eq("Unmatched patterns: false", TestMatchMacro.getErrorMessage(switch(true) {
 			case true:
 		}));
-		eq("Unmatched patterns: OpNegBits | OpNeg", TestMatchMacro.getErrorMessage(switch(OpIncrement) {
+		eq("Unmatched patterns: OpNeg | OpNegBits", TestMatchMacro.getErrorMessage(switch(OpIncrement) {
 			case OpIncrement:
 			case OpDecrement:
 			case OpNot:
 		}));
-		eq("Unmatched patterns: Node(Leaf(_),_)", TestMatchMacro.getErrorMessage(switch(Leaf("foo")) {
+		eq("Unmatched patterns: Node(Node, _)", TestMatchMacro.getErrorMessage(switch(Leaf("foo")) {
 			case Node(Leaf("foo"), _):
 			case Leaf(_):
 		}));
-		eq("Unmatched patterns: Leaf(_)", TestMatchMacro.getErrorMessage(switch(Leaf("foo")) {
+		eq("Unmatched patterns: Leaf", TestMatchMacro.getErrorMessage(switch(Leaf("foo")) {
 			case Node(_, _):
 			case Leaf(_) if (false):
 		}));
@@ -349,7 +349,7 @@ class TestMatch extends Test {
 			case Node(_, _):
 			case Leaf("foo"):
 		}));
-		eq("Unmatched patterns: [_,false,_]", TestMatchMacro.getErrorMessage(switch [1, true, "foo"] {
+		eq("Unmatched patterns: false", TestMatchMacro.getErrorMessage(switch [1, true, "foo"] {
 			case [_, true, _]:
 		}));
 		//var x:Null<Bool> = true;
@@ -377,11 +377,12 @@ class TestMatch extends Test {
 		eq("Variable l must appear exactly once in each sub-pattern", TestMatchMacro.getErrorMessage(switch(Leaf("foo")) {
 			case Node(l = Leaf(x),_) | Node(Leaf(x), _):
 		}));
-		eq("Variable l must appear exactly once in each sub-pattern", TestMatchMacro.getErrorMessage(switch(Leaf("foo")) {
+		eq("Variable l is bound multiple times", TestMatchMacro.getErrorMessage(switch(Leaf("foo")) {
 			case Node(l = Leaf(l), _):
 		}));
 		eq("String should be unit.Tree<String>", TestMatchMacro.getErrorMessage(switch(Leaf("foo")) {
 			case Node(l = Leaf(_), _) | Leaf(l):
+			case _:
 		}));
 	}
 
@@ -581,46 +582,4 @@ class TestMatch extends Test {
 	}
 
 	static function deref<T>(ref:MiniRef<T>) return ref.get();
-
-	#if false
-	 //all lines marked as // unused should give an error
-	function testRedundance() {
-		switch(true) {
-			case false:
-			case true:
-			case false: // unused
-		}
-
-		switch(true) {
-			case false | true:
-			case true: // unused
-			case false: // unused
-		}
-
-		switch(true) {
-			case false
-			| false: // unused
-			case true:
-		}
-
-		switch(Leaf(true)) {
-			case Leaf(true):
-			case Leaf(false):
-			case Leaf(x): // unused
-			case Node(_):
-		}
-
-		switch({s:"foo"}) {
-			case { s : "foo" } :
-			case { s : a } :
-		}
-
-		switch( { s:"foo", t:"bar" } ) {
-			case { s : "foo" }:
-			case { t : "bar" }:
-			case { s : "foo", t:"bar" }: // unused
-			case _:
-		}
-	}
-	#end
 }

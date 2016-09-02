@@ -1,7 +1,6 @@
 package unit.issues;
 import unit.Test;
 
-@:analyzer(no_check_has_effect)
 class Issue2776 extends Test {
 	function test() {
 		var type = null;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +22,6 @@
  package cpp;
 
 @:coreType @:structAccess @:include("cpp/Pointer.h")
-@:analyzer(no_simplification)
 extern class Function<T,ABI:cpp.abi.Abi>
 {
    public function new(d:Dynamic);
@@ -30,8 +29,21 @@ extern class Function<T,ABI:cpp.abi.Abi>
    // Actually a function pointer, but can be called using haxe notation
 	public var call(default,null):T;
 
-   public static function getProcAddress<T,ABI:cpp.abi.Abi>(inModule:String, inFunction:String) : Function<T,ABI>;
-   public static function fromStaticFunction<T>(inStaticFunction:T) : Callable<T>;
+   @:native("::cpp::Function_obj::getProcAddress")
+   static function nativeGetProcAddress<T,ABI:cpp.abi.Abi>(inModule:String, inFunction:String) : Function<T,ABI>;
+   public static function getProcAddress<T,ABI:cpp.abi.Abi>(inModule:String, inFunction:String) : Function<T,ABI>
+   {
+      var autoCast = nativeGetProcAddress(inModule, inFunction);
+      return autoCast;
+   }
+
+   @:native("::cpp::Function_obj::fromStaticFunction")
+   static function nativeFromStaticFunction<T>(inStaticFunction:T) : Callable<T>;
+   inline public static function fromStaticFunction<T>(inStaticFunction:T) : Callable<T>
+   {
+      var autoCast = nativeFromStaticFunction(inStaticFunction);
+      return autoCast;
+   }
 
 	public function lt(inOther:Function<T,ABI>):Bool;
 	public function leq(inOther:Function<T,ABI>):Bool;

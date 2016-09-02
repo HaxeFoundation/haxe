@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,6 +32,7 @@ import js.Boot;
 		return untyped __instanceof__(value, c) ? cast value : null;
 	}
 
+	@:pure
 	public static function string( s : Dynamic ) : String {
 		return untyped js.Boot.__string_rec(s,"");
 	}
@@ -40,6 +41,7 @@ import js.Boot;
 		return (cast x) | 0;
 	}
 
+	@:pure
 	public static function parseInt( x : String ) : Null<Int> {
 		var v = untyped __js__("parseInt")(x, 10);
 		// parse again if hexadecimal
@@ -91,7 +93,7 @@ import js.Boot;
 			var Void = __feature__("Type.resolveEnum", $hxClasses["Void"] = { __ename__ : ["Void"] }, { __ename__ : ["Void"] });
 		});
 
-#if !js_es5
+#if (js_es < 5)
 		__feature__("Array.map",
 			if( Array.prototype.map == null )
 				Array.prototype.map = function(f) {

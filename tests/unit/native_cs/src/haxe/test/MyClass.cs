@@ -82,6 +82,7 @@ public class MyClass
 			voidvoid2.Invoke();
 	}
 
+	public readonly int readonlyField = 5;
 }
 
 public delegate void VoidVoid();

@@ -5,5 +5,5 @@ package flash.events;
 	var isLocal : Bool;
 	var voucher : flash.net.drm.DRMVoucher;
 	function new(?type : String, bubbles : Bool = false, cancelable : Bool = false, ?inMetadata : flash.net.drm.DRMContentData, ?inVoucher : flash.net.drm.DRMVoucher, inLocal : Bool = false) : Void;
-	static var DRM_STATUS : String;
+	static var DRM_STATUS(default,never) : String;
 }

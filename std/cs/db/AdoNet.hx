@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -287,8 +287,9 @@ private class AdoResultSet implements ResultSet
 		for (i in 0...names.length)
 		{
 			var name = names[i], t = types[i], val:Dynamic = null;
-			if (t == cs.system.Single)
-			{
+			if (reader.IsDBNull(i)) {
+				val = null;
+			} else if (t == cs.system.Single) {
 				val = reader.GetDouble(i);
 			} else if (t == cs.system.DateTime || t == cs.system.TimeSpan) {
 				var d = reader.GetDateTime(i);

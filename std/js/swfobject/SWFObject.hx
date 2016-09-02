@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -125,10 +125,4 @@ extern class SWFObject {
 		swfobject version
 	*/
 	static var version:String;
-
-	private static function __init__():Void {
-		#if embed_js
-		haxe.macro.Compiler.includeFile("js/swfobject/swfobject.js");
-		#end
-	}
 }

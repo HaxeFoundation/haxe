@@ -104,6 +104,7 @@ var requiredFields = ["func", "v", "prop"];
 for (f in fields)
 	t(requiredFields.remove(f));
 requiredFields == [];
+#if !hl
 var cdyn = new CDyn();
 cdyn.foo = "1";
 Reflect.setField(cdyn, "bar", 1);
@@ -111,6 +112,7 @@ var fields = Type.getInstanceFields(Type.getClass(cdyn));
 var requiredFields = ["func", "v", "prop"];
 for (f in fields)
 	t(requiredFields.remove(f));
+#end
 requiredFields == [];
 var fields = Type.getClassFields(C);
 var requiredFields = #if as3 ["staticVar"] #else ["staticFunc", "staticVar", "staticProp"] #end;

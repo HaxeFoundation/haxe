@@ -1,6 +1,8 @@
 import sys.*;
+import haxe.io.*;
 
 class TestCommandBase extends haxe.unit.TestCase {
+	var runInfo:{out:String, err:String} = null;
 	function run(cmd:String, ?args:Array<String>):Int {
 		throw "should be overridden";
 	}
@@ -29,13 +31,18 @@ class TestCommandBase extends haxe.unit.TestCase {
 						run("mono", [bin].concat(args));
 				}
 			#elseif java
-				run("java", ["-jar", bin].concat(args));
+				run(Path.join([java.lang.System.getProperty("java.home"), "bin", "java"]), ["-jar", bin].concat(args));
 			#elseif python
-				run("python3", [bin].concat(args));
+				run(python.lib.Sys.executable, [bin].concat(args));
 			#elseif neko
 				run("neko", [bin].concat(args));
 			#elseif php
-				run("php", [bin].concat(args));
+				run(untyped __php__("defined('PHP_BINARY') ? PHP_BINARY : 'php'"), [bin].concat(args));
+			#elseif lua
+				switch(Sys.getEnv("LUA")){
+					case null : run("lua", [bin].concat(args));
+					default   : run(Sys.getEnv("LUA"), [bin].concat(args));
+				};
 			#else
 				-1;
 			#end
@@ -44,7 +51,7 @@ class TestCommandBase extends haxe.unit.TestCase {
 		assertEquals(0, exitCode);
 	}
 
-	function testCommandName() {		
+	function testCommandName() {
 		var binExt = switch (Sys.systemName()) {
 			case "Windows":
 				".exe";
@@ -109,17 +116,32 @@ class TestCommandBase extends haxe.unit.TestCase {
 							run("mono", [bin].concat(args));
 					}
 				#elseif java
-					run("java", ["-jar", bin].concat(args));
+					run(Path.join([java.lang.System.getProperty("java.home"), "bin", "java"]), ["-jar", bin].concat(args));
 				#elseif python
-					run("python3", [bin].concat(args));
+					run(python.lib.Sys.executable, [bin].concat(args));
 				#elseif neko
 					run("neko", [bin].concat(args));
 				#elseif php
-					run("php", [bin].concat(args));
+					run(untyped __php__("defined('PHP_BINARY') ? PHP_BINARY : 'php'"), [bin].concat(args));
+				#elseif lua
+					switch(Sys.getEnv("LUA")){
+						case null: run("lua", [bin].concat(args));
+						default : run(Sys.getEnv("LUA"), [bin].concat(args));
+					};
 				#else
 					-1;
 				#end
+			if ((code != exitCode) && (runInfo != null)) {
+				trace(runInfo);
+			}
 			assertEquals(code, exitCode);
 		}
+	}
+
+	function testRawCommand() {
+		var bin = sys.FileSystem.absolutePath(ExitCode.bin);
+		var native = sys.FileSystem.absolutePath(ExitCode.getNative());
+		var exitCode = run('$native 1 || $native 0');
+		assertEquals(0, exitCode);
 	}
 }

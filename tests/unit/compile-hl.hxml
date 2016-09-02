@@ -1,0 +1,4 @@
+compile-each.hxml
+-main unit.Test
+-hl bin/unit.hl
+-D interp

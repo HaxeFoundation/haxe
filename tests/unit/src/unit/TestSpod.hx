@@ -1,5 +1,7 @@
 package unit;
 import sys.db.*;
+import sys.db.Object;
+import sys.db.Types;
 import haxe.io.Bytes;
 import haxe.EnumFlags;
 import sys.db.Connection;
@@ -60,6 +62,91 @@ class TestSpod extends Test
 		scls.anEnum = SecondValue;
 
 		return scls;
+	}
+
+	function getDefaultNull() {
+		var scls = new NullableSpodClass();
+		scls.int = 1;
+		scls.double = 2.0;
+		scls.boolean = true;
+		scls.string = "some string";
+		scls.date = new Date(2012, 7, 30, 0, 0, 0);
+		scls.abstractType = "other string";
+
+		var bytes = Bytes.ofString("\x01\n\r'\x02");
+		scls.binary = bytes;
+		scls.enumFlags = EnumFlags.ofInt(0);
+		scls.enumFlags.set(FirstValue);
+		scls.enumFlags.set(ThirdValue);
+
+		scls.data = [new ComplexClass( { name:"test", array:["this", "is", "a", "test"] } )];
+		scls.anEnum = SecondValue;
+		return scls;
+	}
+
+	public function testNull() {
+		setManager();
+		var n1 = getDefaultNull();
+		n1.insert();
+		var n2 = new NullableSpodClass();
+		n2.insert();
+		var id = n2.theId;
+
+		n1 = null; n2 = null;
+		Manager.cleanup();
+
+		var nullVal = getNull();
+		inline function checkReq(lst:List<NullableSpodClass>, ?nres=1, ?pos:haxe.PosInfos) {
+			eq(lst.length,nres, pos);
+			if (lst.length == 1) {
+				eq(lst.first().theId, id, pos);
+			}
+		}
+
+		checkReq(NullableSpodClass.manager.search($relationNullable == null), 2);
+		checkReq(NullableSpodClass.manager.search($data == null));
+		checkReq(NullableSpodClass.manager.search($anEnum == null));
+
+		checkReq(NullableSpodClass.manager.search($int == null));
+		checkReq(NullableSpodClass.manager.search($double == null));
+		checkReq(NullableSpodClass.manager.search($boolean == null));
+		checkReq(NullableSpodClass.manager.search($string == null));
+		checkReq(NullableSpodClass.manager.search($date == null));
+		checkReq(NullableSpodClass.manager.search($binary == null));
+		checkReq(NullableSpodClass.manager.search($abstractType == null));
+
+		checkReq(NullableSpodClass.manager.search($enumFlags == null));
+
+
+		var relationNullable:Null<OtherSpodClass> = getNull();
+		checkReq(NullableSpodClass.manager.search($relationNullable == relationNullable), 2);
+		var data:Null<Bytes> = getNull();
+		checkReq(NullableSpodClass.manager.search($data == data));
+		var anEnum:Null<SEnum<SpodEnum>> = getNull();
+		checkReq(NullableSpodClass.manager.search($anEnum == anEnum));
+
+		var int:Null<Int> = getNull();
+		checkReq(NullableSpodClass.manager.search($int == int));
+		var double:Null<Float> = getNull();
+		checkReq(NullableSpodClass.manager.search($double == double));
+		var boolean:Null<Bool> = getNull();
+		checkReq(NullableSpodClass.manager.search($boolean == boolean));
+		var string:SNull<SString<255>> = getNull();
+		checkReq(NullableSpodClass.manager.search($string == string));
+		var date:SNull<SDateTime> = getNull();
+		checkReq(NullableSpodClass.manager.search($date == date));
+		var binary:SNull<SBinary> = getNull();
+		checkReq(NullableSpodClass.manager.search($binary == binary));
+		var abstractType:SNull<String> = getNull();
+		checkReq(NullableSpodClass.manager.search($abstractType == abstractType));
+
+		for (val in NullableSpodClass.manager.all()) {
+			val.delete();
+		}
+	}
+
+	private function getNull<T>():Null<T> {
+		return null;
 	}
 
 	public function testIssue3828()

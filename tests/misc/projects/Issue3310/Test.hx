@@ -6,8 +6,8 @@ class Test {
 
     static function main() {
         var proc = new sys.io.Process("haxe", ["--display", "Main.hx@62@toplevel"]);
-        var exit = proc.exitCode();
         var stderr = proc.stderr.readAll().toString();
+        var exit = proc.exitCode();
         if (exit != 0)
             error(stderr, exit);
         else if (stderr.indexOf("<il>") != 0)

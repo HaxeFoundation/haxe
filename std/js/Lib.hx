@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,10 @@
  */
 package js;
 
+/**
+	Platform-specific JavaScript Library. Provides some platform-specific functions 
+	for the JavaScript target.
+**/
 class Lib {
 
 	/**
@@ -50,7 +54,7 @@ class Lib {
 		This is only supported in environments where `require` function
 		is available, such as Node.js or RequireJS.
 	**/
-	public static inline function require( module:String ) : Dynamic {
+	@:extern public static inline function require( module:String ) : Dynamic {
 		return untyped __js__("require")(module);
 	}
 

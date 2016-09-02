@@ -689,7 +689,9 @@ class TestAnalyzer extends TestBase {
 		var b = B(0);
 		switch (b) {
 			case B(i):
-				assertEquals(0, i); // Null<Int> vs. Int, should not propagate
+				// Null<Int> vs. Int, should not propagate
+				// Actually we can on dynamic targets.
+				assertEqualsConst(0, i);
 			case A(_):
 		}
 	}

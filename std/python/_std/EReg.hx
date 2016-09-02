@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -106,8 +106,10 @@ class EReg {
 			var res = by;
 			var g = x.groups();
 			for (i in 0...g.length) {
-
-				res = res.split("$"+UBuiltins.str(i+1)).join(g[i]);
+				var gs = g[i];
+				if (gs == null)
+					continue;
+				res = res.split("$"+UBuiltins.str(i+1)).join(gs);
 			}
 			res = res.split("_hx_#repl#__").join("$");
 			return res;

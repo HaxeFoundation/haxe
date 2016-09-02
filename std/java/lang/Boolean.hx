@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,27 +22,13 @@
  package java.lang;
 
 @:native("") // make sure the generator won't see this
-@:forward abstract Boolean(BooleanClass) from BooleanClass to BooleanClass
+@:forward
+@:forwardStatics abstract Boolean(BooleanClass) from BooleanClass to BooleanClass
 {
 	@:to @:extern inline public function toBool():Bool
 		return this.booleanValue();
 	@:from @:extern inline public static function fromBool(b:Bool):Boolean
 		return BooleanClass.valueOf(b);
-
-	@:extern public static var FALSE(get,set):Boolean;
-	@:extern static inline function get_FALSE():Boolean return BooleanClass.FALSE;
-	@:extern static inline function set_FALSE(val:Boolean):Boolean return BooleanClass.FALSE = val;
-	@:extern public static var TRUE(get,set):Boolean;
-	@:extern static inline function get_TRUE():Boolean return BooleanClass.TRUE;
-	@:extern static inline function set_TRUE(val:Boolean):Boolean return BooleanClass.TRUE = val;
-	@:extern public static var TYPE(get,set):Class<java.lang.Boolean>;
-	@:extern static inline function get_TYPE():Class<java.lang.Boolean> return BooleanClass.TYPE;
-	@:extern static inline function set_TYPE(val:Class<java.lang.Boolean>):Class<java.lang.Boolean> return BooleanClass.TYPE = val;
-	@:extern @:overload inline public static function compare(param1:Bool, param2:Bool):Int return BooleanClass.compare(param1, param2);
-	@:extern @:overload inline public static function getBoolean(param1:String):Bool return BooleanClass.getBoolean(param1);
-	@:extern @:overload inline public static function parseBoolean(param1:String):Bool return BooleanClass.parseBoolean(param1);
-	@:extern @:overload inline public static function _toString(param1:Bool):String return BooleanClass._toString(param1);
-	@:extern @:overload inline public static function valueOf(param1:Bool):Boolean return BooleanClass.valueOf(param1);
 }
 
 @:native("java.lang.Boolean") extern class BooleanClass extends Number implements Comparable<Boolean>

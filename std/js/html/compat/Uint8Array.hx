@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +22,9 @@
 package js.html.compat;
 
 #if !nodejs
-@:keep
+import js.Lib.nativeThis;
+
+@:ifFeature("js.html.Uint8Array.*")
 class Uint8Array {
 
 	static var BYTES_PER_ELEMENT = 1;
@@ -70,26 +72,24 @@ class Uint8Array {
 	}
 
 	static function _set( ?arg : Dynamic, ?offset : Int ) {
-		var t : Dynamic = untyped __js__("this");
 		if( Std.is(arg.buffer,ArrayBuffer) ) {
 			var a : Array<Int> = arg;
-			if( arg.byteLength + offset > t.byteLength )
+			if( arg.byteLength + offset > nativeThis.byteLength )
 				throw "set() outside of range";
 			for( i in 0...arg.byteLength )
-				t[i + offset] = a[i];
+				nativeThis[i + offset] = a[i];
 		} else if( Std.is(arg,Array) ) {
 			var a : Array<Int> = arg;
-			if( a.length + offset > t.byteLength )
+			if( a.length + offset > nativeThis.byteLength )
 				throw "set() outside of range";
 			for( i in 0...a.length )
-				t[i + offset] = a[i];
+				nativeThis[i + offset] = a[i];
 		} else
 			throw "TODO";
 	}
 
 	static function _subarray( start : Int, ?end : Int ) {
-		var t : Dynamic = untyped __js__("this");
-		var a = _new(t.slice(start,end));
+		var a = _new(nativeThis.slice(start,end));
 		a.byteOffset = start;
 		return a;
 	}

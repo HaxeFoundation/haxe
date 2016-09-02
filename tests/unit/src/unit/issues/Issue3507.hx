@@ -26,10 +26,19 @@ private class C<T1, T2, T3> extends B<T1, T2> {
 class Issue3507 extends Test {
 	function test() {
 		var c = new C("foo", 12, false);
-		var s = switch (c) {
+		var c2 = new C("foo", 12, true);
+		var c3 = new C("foo", 13, false);
+		var c4 = new C("bar", 12, false);
+		eq("ok", match(c));
+		eq("not ok", match(c2));
+		eq("not ok", match(c3));
+		eq("not ok", match(c4));
+	}
+
+	function match(c:C<String, Int, Bool>) {
+		return switch (c) {
 			case { t1:'foo', t2:12, t3:false } : "ok";
 			case _: "not ok";
 		}
-		eq("ok", s);
 	}
 }

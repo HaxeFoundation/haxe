@@ -11,6 +11,7 @@ class Issue2988 extends Test {
 		if( (a is MyEnum2) ){
 			switch( a ){
 				case MyEnumValue(s1): s = s1;
+				case _:
 			}
 		}
 		eq("foo", s);

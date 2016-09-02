@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -191,7 +191,7 @@ class Boot {
 			return false;
 		switch( cl ) {
 		case Int:
-			return (untyped __js__("(o|0) === o"));
+			return (untyped __js__("typeof"))(o) == "number" && untyped __js__("(o|0) === o");
 		case Float:
 			return (untyped __js__("typeof"))(o) == "number";
 		case Bool:
@@ -230,7 +230,7 @@ class Boot {
 		else throw "Cannot cast " +Std.string(o) + " to " +Std.string(t);
 	}
 
-	static var __toStr = untyped __js__("{}.toString");
+	static var __toStr = untyped ({}).toString;
 	// get native JS [[Class]]
 	static function __nativeClassName(o:Dynamic):String {
 		var name = untyped __toStr.call(o).slice(8, -1);

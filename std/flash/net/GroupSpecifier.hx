@@ -19,7 +19,7 @@ package flash.net;
 	function setPostingPassword(?password : String, ?salt : String) : Void;
 	function setPublishPassword(?password : String, ?salt : String) : Void;
 	function toString() : String;
-	static var maxSupportedGroupspecVersion(default,null) : Int;
+	static var maxSupportedGroupspecVersion(default,never) : Int;
 	static function encodeBootstrapPeerIDSpec(peerID : String) : String;
 	static function encodeIPMulticastAddressSpec(address : String, ?port : Dynamic, ?source : String) : String;
 	static function encodePostingAuthorization(password : String) : String;

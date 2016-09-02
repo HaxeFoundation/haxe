@@ -1,9 +1,9 @@
 package flash.net;
 
 extern class Socket extends flash.events.EventDispatcher implements flash.utils.IDataOutput implements flash.utils.IDataInput {
-	var bytesAvailable(default,null) : UInt;
-	@:require(flash11) var bytesPending(default,null) : UInt;
-	var connected(default,null) : Bool;
+	var bytesAvailable(default,never) : UInt;
+	@:require(flash11) var bytesPending(default,never) : UInt;
+	var connected(default,never) : Bool;
 	var endian : flash.utils.Endian;
 	var objectEncoding : UInt;
 	@:require(flash10) var timeout : UInt;

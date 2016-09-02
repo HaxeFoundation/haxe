@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -67,10 +67,26 @@ abstract Int32(Int) from Int to Int {
 
 	@:op(A - B) public static function floatSub(a:Float, b:Int32):Float;
 
-	#if (as3 || js || php || python)
+	#if (as3 || js || php || python || lua)
 
+	#if js
+	// on JS we want to try using Math.imul, but we have to assign that function to Int32.mul only once,
+	// or else V8 will deoptimize it, so we need to be a bit funky with this.
+	// See https://github.com/HaxeFoundation/haxe/issues/5367 for benchmarks.
+	@:op(A * B) inline static function mul(a:Int32, b:Int32):Int32
+		return _mul(a, b);
+
+	static var _mul:Int32->Int32->Int32 = untyped
+		if (Math.imul != null)
+			Math.imul
+		else
+			function(a:Int32, b:Int32):Int32
+				return clamp( (a : Int) * ((b : Int) & 0xFFFF) + clamp( (a : Int) * ((b : Int) >>> 16) << 16 ) );
+
+	#else
 	@:op(A * B) private static function mul(a:Int32, b:Int32):Int32
 		return clamp( (a : Int) * ((b : Int) & 0xFFFF) + clamp( (a : Int) * ((b : Int) >>> 16) << 16 ) );
+	#end
 
 	@:op(A * B) @:commutative private static inline function mulInt(a:Int32, b:Int):Int32
 		return mul(a, b);
@@ -128,27 +144,55 @@ abstract Int32(Int) from Int to Int {
 	@:op(A >= B) private static function gteFloat(a:Int32, b:Float):Bool;
 	@:op(A >= B) private static function floatGte(a:Float, b:Int32):Bool;
 
+	#if lua
+	@:op(~A) private static inline function complement( a : Int32 ) : Int32
+		return lua.Boot.clamp(~a);
+	#else
 	@:op(~A) private function complement():Int32;
+	#end
 
 	@:op(A & B) private static function and(a:Int32, b:Int32):Int32;
 	@:op(A & B) @:commutative private static function andInt(a:Int32, b:Int):Int32;
 
+	#if lua
+	@:op(A | B) private static function or(a:Int32, b:Int32):Int32
+		return clamp((a:Int) | (b:Int));
+	@:op(A | B) @:commutative private static function orInt(a:Int32, b:Int):Int32
+		return clamp((a:Int) | b);
+	#else
 	@:op(A | B) private static function or(a:Int32, b:Int32):Int32;
 	@:op(A | B) @:commutative private static function orInt(a:Int32, b:Int):Int32;
+	#end
 
+	#if lua
+	@:op(A ^ B) private static function xor(a:Int32, b:Int32):Int32
+		return clamp((a:Int) ^ (b:Int));
+	@:op(A ^ B) @:commutative private static function xorInt(a:Int32, b:Int):Int32
+		return clamp((a:Int) ^ b);
+	#else
 	@:op(A ^ B) private static function xor(a:Int32, b:Int32):Int32;
 	@:op(A ^ B) @:commutative private static function xorInt(a:Int32, b:Int):Int32;
+	#end
 
 
+#if lua
+	@:op(A >> B) private static function shr(a:Int32, b:Int32):Int32
+		return clamp((a:Int) >> (b:Int));
+	@:op(A >> B) private static function shrInt(a:Int32, b:Int):Int32
+		return clamp((a:Int) >> b);
+	@:op(A >> B) private static function intShr(a:Int, b:Int32):Int32
+		return clamp(a >> (b:Int));
+#else
 	@:op(A >> B) private static function shr(a:Int32, b:Int32):Int32;
 	@:op(A >> B) private static function shrInt(a:Int32, b:Int):Int32;
 	@:op(A >> B) private static function intShr(a:Int, b:Int32):Int32;
+#end
 
 	@:op(A >>> B) private static function ushr(a:Int32, b:Int32):Int32;
 	@:op(A >>> B) private static function ushrInt(a:Int32, b:Int):Int32;
 	@:op(A >>> B) private static function intUshr(a:Int, b:Int32):Int32;
 
-	#if (php || python)
+	#if (php || python || lua)
 
 	// PHP may be 64-bit, so shifts must be clamped
 	@:op(A << B) private static inline function shl(a:Int32, b:Int32):Int32
@@ -158,7 +202,7 @@ abstract Int32(Int) from Int to Int {
 		return clamp( (a : Int) << b );
 
 	@:op(A << B) private static inline function intShl(a:Int, b:Int32):Int32
-		return clamp( a << (b : Int) );
+ 		return clamp( a << (b : Int) );
 
 	#else
 
@@ -167,6 +211,7 @@ abstract Int32(Int) from Int to Int {
 	@:op(A << B) private static function intShl(a:Int, b:Int32):Int32;
 
 	#end
+
 
 	@:to private inline function toFloat():Float
 		return this;
@@ -184,7 +229,8 @@ abstract Int32(Int) from Int to Int {
 	static var extraBits : Int = untyped __php__("PHP_INT_SIZE") * 8 - 32;
 	#end
 
-	static inline function clamp( x : Int ) : Int {
+#if !lua inline #end
+	static function clamp( x : Int ) : Int {
 		// force to-int conversion on platforms that require it
 		#if (as3 || js)
 		return x | 0;
@@ -193,14 +239,10 @@ abstract Int32(Int) from Int to Int {
 		return (x << extraBits) >> extraBits;
 		#elseif python
 		return python.Syntax.pythonCode("{0} % {1}", (x + python.Syntax.opPow(2, 31)), python.Syntax.opPow(2, 32)) - python.Syntax.opPow(2, 31);
+		#elseif lua
+		return lua.Boot.clamp(x);
 		#else
 		return (x);
 		#end
 	}
-
-	#if js
-	static function __init__() {
-		untyped __feature__("haxe._Int32.Int32_Impl_.mul", if (Math.imul != null) Int32.mul = Math.imul);
-	}
-	#end
 }

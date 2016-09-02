@@ -22,7 +22,7 @@ class Issue3713 {
 		var b = BImpl._new();
 		var c_x = 1;
 	')
-	@:analyzer(no_const_propagation, no_local_dce, no_check_has_effect)
+	@:analyzer(no_const_propagation, no_local_dce)
 	static function test() {
         var b = new B<Int>();
         var c = b.f();

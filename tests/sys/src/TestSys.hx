@@ -4,15 +4,45 @@ class TestSys extends TestCommandBase {
 	}
 
 	function testEnv() {
-		#if !(java || php)
+		#if !(java || php || lua)
 		Sys.putEnv("foo", "value");
 		assertEquals("value", Sys.getEnv("foo"));
 		#end
 		assertEquals(null, Sys.getEnv("doesn't exist"));
 
-		#if !(java || php)
+		#if !(java || php || lua)
 		var env = Sys.environment();
 		assertEquals("value", env.get("foo"));
+		#end
+	}
+
+	function testProgramPath() {
+		var p = Sys.programPath();
+
+		assertTrue(haxe.io.Path.isAbsolute(p));
+		assertTrue(sys.FileSystem.exists(p));
+
+		#if interp
+			assertTrue(StringTools.endsWith(p, "Main.hx"));
+		#elseif neko
+			assertTrue(StringTools.endsWith(p, "sys.n"));
+		#elseif cpp
+			switch (Sys.systemName()) {
+				case "Windows":
+					assertTrue(StringTools.endsWith(p, "Main-debug.exe"));
+				case _:
+					assertTrue(StringTools.endsWith(p, "Main-debug"));
+			}
+		#elseif cs
+			assertTrue(StringTools.endsWith(p, "Main-Debug.exe"));
+		#elseif java
+			assertTrue(StringTools.endsWith(p, "Main-Debug.jar"));
+		#elseif python
+			assertTrue(StringTools.endsWith(p, "sys.py"));
+		#elseif php
+			assertTrue(StringTools.endsWith(p, "index.php"));
+		#elseif lua
+			assertTrue(StringTools.endsWith(p, "sys.lua"));
 		#end
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -319,7 +319,7 @@ class Web {
 	/**
 		Parse the multipart data. Call `onPart` when a new part is found
 		with the part name and the filename if present
-		and `onData` when some part data is readed. You can this way
+		and `onData` when some part data is read. You can this way
 		directly save the data on hard drive in the case of a file upload.
 	**/
 	public static function parseMultipart( onPart : String -> String -> Void, onData : Bytes -> Int -> Int -> Void ) : Void {

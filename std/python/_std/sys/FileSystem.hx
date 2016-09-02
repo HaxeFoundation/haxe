@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -43,7 +43,7 @@ class FileSystem {
 			dev : s.st_dev,
 			ino : s.st_ino,
 			nlink : s.st_nlink,
-			rdev : s.st_rdev,
+			rdev : python.internal.UBuiltins.getattr(s, "st_rdev", 0), // st_rdev is not available on Windows
 			mode : s.st_mode
 		}
 	}

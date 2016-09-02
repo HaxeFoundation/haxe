@@ -7,3 +7,4 @@
 -dce full
 -D analyzer
 -D analyzer-code-motion
+-D analyzer-user-var-fusion

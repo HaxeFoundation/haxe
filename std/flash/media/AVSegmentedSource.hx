@@ -1,11 +1,12 @@
 package flash.media;
 
 extern class AVSegmentedSource extends AVSource {
-	var cookieHeader(null,default) : String;
-	var masterUpdateInterval(null,default) : Int;
+	var cookieHeader(never,default) : String;
+	var masterUpdateInterval(never,default) : Int;
 	var networkingParams : AVNetworkingParams;
-	var useRedirectedUrl(null,default) : Bool;
+	var useRedirectedUrl(never,default) : Bool;
 	function new() : Void;
+	function addCustomHeader(headerName : String, args : flash.Vector<String>) : Void;
 	function clearPauseAtPeriodEnd(periodIndex : Int) : AVResult;
 	function getABRProfileCount(periodIndex : Int) : Int;
 	function getABRProfileInfoAtIndex(periodIndex : Int, abrProfileIndex : Int) : AVABRProfileInfo;
@@ -17,6 +18,8 @@ extern class AVSegmentedSource extends AVSource {
 	function getSubscribedTag(periodIndex : Int, tagDataIndex : Int) : AVTagData;
 	function getSubscribedTagForBackgroundManifest(periodIndex : Int, tagDataIndex : Int) : AVTagData;
 	function getTimeline() : AVTimeline;
+	function getTimelineSubscribedTag(tagDataIndex : Int) : AVTagData;
+	function getTimelineSubscribedTagForBackgroundManifest(tagDataIndex : Int) : AVTagData;
 	function getTrackCount(periodIndex : Int, payloadType : String) : Int;
 	function getTrackInfo(periodIndex : Int, payloadType : String, trackIndex : Int) : AVTrackInfo;
 	function insertByLocalTime(periodIndex : Int, insertionTime : Float, handle : Int, userData : Int = 0, replaceDuration : Float = 0) : AVInsertionResult;
@@ -36,14 +39,14 @@ extern class AVSegmentedSource extends AVSource {
 	function setPauseAtPeriodEnd(periodIndex : Int, userData : Int = 0) : AVResult;
 	function setSubscribedTags(tagArray : Array<Dynamic>) : AVResult;
 	function setSubscribedTagsForBackgroundManifest(tagArray : Array<Dynamic>) : AVResult;
-	static var AUDIO : String;
-	static var AUDIO_DESCRIPTION : String;
-	static var AUDIO_LANGUAGE : String;
-	static var AUDIO_PID : String;
-	static var DASH : String;
-	static var DATA : String;
-	static var DATA_DESCRIPTION : String;
-	static var HLS : String;
-	static var VIDEO : String;
-	static var VIDEO_DESCRIPTION : String;
+	static var AUDIO(default,never) : String;
+	static var AUDIO_DESCRIPTION(default,never) : String;
+	static var AUDIO_LANGUAGE(default,never) : String;
+	static var AUDIO_PID(default,never) : String;
+	static var DASH(default,never) : String;
+	static var DATA(default,never) : String;
+	static var DATA_DESCRIPTION(default,never) : String;
+	static var HLS(default,never) : String;
+	static var VIDEO(default,never) : String;
+	static var VIDEO_DESCRIPTION(default,never) : String;
 }

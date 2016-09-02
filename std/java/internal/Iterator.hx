@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package java.internal;
-
+/* TODO (see Gencommon.IteratorsInterfaceModf)
 @:native('haxe.lang.Iterator')
 @:keep
 interface Iterator<T>
@@ -39,4 +39,4 @@ interface Iterable<T>
 
 	public function iterator():Iterator<T>;
 
-}
+}*/

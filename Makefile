@@ -23,7 +23,9 @@ OCAMLOPT?=ocamlopt
 OCAMLC?=ocamlc
 LFLAGS=
 
-CFLAGS= -g -I libs/extlib -I libs/extc -I libs/neko -I libs/javalib -I libs/ziplib -I libs/swflib -I libs/xml-light -I libs/ttflib -I libs/ilib -I libs/objsize
+CFLAGS= -bin-annot
+ALL_CFLAGS= $(CFLAGS) -g -w -3 -I libs/extlib -I libs/extc -I libs/neko -I libs/javalib -I libs/ziplib -I libs/swflib -I libs/xml-light -I libs/ttflib -I libs/ilib -I libs/objsize \
+	-I src -I src/generators -I src/macro -I src/optimization -I src/syntax -I src/typing -I src/display
 
 LIBS=unix str libs/extlib/extLib libs/xml-light/xml-light libs/swflib/swflib \
 	libs/extc/extc libs/neko/neko libs/javalib/java libs/ziplib/zip \
@@ -44,15 +46,21 @@ else
 	MODULE_EXT = cmx
 endif
 
-CC_CMD = $(COMPILER) $(CFLAGS) -c $<
+CC_CMD = $(COMPILER) $(ALL_CFLAGS) -c $<
 
-CC_PARSER_CMD = $(COMPILER) -pp camlp4o $(CFLAGS) -c parser.ml
+CC_PARSER_CMD = $(COMPILER) -pp camlp4o $(ALL_CFLAGS) -c src/syntax/parser.ml
 
 RELDIR=../../..
 
-MODULES=ast type lexer common genxml parser typecore optimizer typeload \
-	codegen gencommon genas3 gencpp genjs genneko genphp \
-	genswf9 genswf genjava gencs genpy interp dce analyzer filters typer matcher version main
+MODULES=json syntax/ast typing/type syntax/lexer typing/common generators/genxml syntax/parser typing/typecore \
+	display/display \
+	optimization/optimizer typing/typeload generators/codegen generators/gencommon generators/genas3 \
+	generators/gencpp generators/genjs generators/genneko generators/genphp generators/genswf9 \
+	generators/genswf generators/genjava generators/gencs generators/genpy macro/interp generators/genhl \
+	generators/genlua \
+	optimization/dce optimization/analyzerConfig optimization/analyzerTypes optimization/analyzerTexpr \
+	optimization/analyzerTexprTransformer optimization/analyzer \
+	optimization/filters typing/typer typing/matcher version main
 
 ADD_REVISION?=0
 
@@ -74,7 +82,7 @@ else
 	export HAXE_STD_PATH=$(CURDIR)/std
 endif
 
-all: libs haxe
+all: libs haxe tools
 
 libs:
 	make -C libs/extlib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
@@ -88,12 +96,12 @@ libs:
 	make -C libs/ttflib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
 	make -C libs/objsize OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
 
-haxe: $(MODULES:=.$(MODULE_EXT))
-	$(COMPILER) -o $(OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(LIBS:=.$(LIB_EXT)) $(MODULES:=.$(MODULE_EXT))
+haxe: $(MODULES:%=src/%.$(MODULE_EXT))
+	$(COMPILER) -o $(OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(LIBS:=.$(LIB_EXT)) $(MODULES:%=src/%.$(MODULE_EXT))
 
 haxelib:
-	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(OUTPUT) haxelib.hxml && nekotools boot bin/haxelib.n)
-	cp extra/haxelib_src/bin/haxelib$(EXTENSION) haxelib$(EXTENSION)
+	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(OUTPUT) client.hxml && nekotools boot run.n)
+	mv extra/haxelib_src/run$(EXTENSION) haxelib$(EXTENSION)
 
 tools: haxelib
 
@@ -107,11 +115,11 @@ install:
 	rm -f $(INSTALL_BIN_DIR)/haxe
 	cp haxe $(INSTALL_LIB_DIR)
 	ln -s $(INSTALL_LIB_DIR)/haxe $(INSTALL_BIN_DIR)/haxe
+	rm -f $(INSTALL_BIN_DIR)/haxelib
+	cp haxelib $(INSTALL_LIB_DIR)
+	ln -s $(INSTALL_LIB_DIR)/haxelib $(INSTALL_BIN_DIR)/haxelib
 	chmod -R a+rx $(INSTALL_LIB_DIR)
 	chmod 777 $(INSTALL_LIB_DIR)/lib
-	# cp extra/haxelib_src/haxelib_script.sh $(INSTALL_DIR)/bin/haxelib
-	echo "#!/bin/sh" > $(INSTALL_BIN_DIR)/haxelib
-	echo "exec haxe -cp $(INSTALL_LIB_DIR)/extra/haxelib_src/src --run haxelib.client.Main \"\$$@\"" >> $(INSTALL_BIN_DIR)/haxelib
 	chmod a+rx $(INSTALL_BIN_DIR)/haxe $(INSTALL_BIN_DIR)/haxelib
 
 # will install native version of the tools instead of script ones
@@ -124,68 +132,95 @@ uninstall:
 
 # Modules
 
-analyzer.$(MODULE_EXT): ast.$(MODULE_EXT) type.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT)
+# display
 
-codegen.$(MODULE_EXT): optimizer.$(MODULE_EXT) typeload.$(MODULE_EXT) typecore.$(MODULE_EXT) type.$(MODULE_EXT) genxml.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
+src/display/display.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT)
 
-common.$(MODULE_EXT): type.$(MODULE_EXT) ast.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
+# generators
 
-dce.$(MODULE_EXT): ast.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) type.$(MODULE_EXT)
+src/generators/codegen.$(MODULE_EXT): src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/generators/genxml.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/display/display.$(MODULE_EXT)
 
-filters.$(MODULE_EXT): ast.$(MODULE_EXT) analyzer.$(MODULE_EXT) common.$(MODULE_EXT) type.$(MODULE_EXT) dce.$(MODULE_EXT) codegen.$(MODULE_EXT) typecore.$(MODULE_EXT)
+src/generators/genas3.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
-genas3.$(MODULE_EXT): type.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
+src/generators/gencommon.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/typing/typeload.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
 
-gencommon.$(MODULE_EXT): type.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
+src/generators/gencpp.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
-gencpp.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT) gencommon.$(MODULE_EXT)
+src/generators/gencs.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/generators/gencommon.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
 
-gencs.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) gencommon.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
+src/generators/genjava.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/generators/gencommon.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
-genjava.$(MODULE_EXT): type.$(MODULE_EXT) gencommon.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
+src/generators/genjs.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
-genjs.$(MODULE_EXT): type.$(MODULE_EXT) optimizer.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
+src/generators/genneko.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
-genneko.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
+src/generators/genlua.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
-genphp.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
+src/generators/genphp.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
-genpy.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
+src/generators/genpy.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
-genswf.$(MODULE_EXT): type.$(MODULE_EXT) genswf9.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
+src/generators/genswf.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/generators/genswf9.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
-genswf9.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
+src/generators/genhl.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT)
 
-genxml.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
+src/generators/genswf9.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
-interp.$(MODULE_EXT): typecore.$(MODULE_EXT) type.$(MODULE_EXT) lexer.$(MODULE_EXT) genneko.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT) genswf.$(MODULE_EXT) genjava.$(MODULE_EXT) gencs.$(MODULE_EXT) parser.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
+src/generators/genxml.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
-matcher.$(MODULE_EXT): optimizer.$(MODULE_EXT) codegen.$(MODULE_EXT) typecore.$(MODULE_EXT) type.$(MODULE_EXT) typer.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
+# macro
 
-main.$(MODULE_EXT): filters.$(MODULE_EXT) matcher.$(MODULE_EXT) typer.$(MODULE_EXT) typeload.$(MODULE_EXT) typecore.$(MODULE_EXT) type.$(MODULE_EXT) parser.$(MODULE_EXT) optimizer.$(MODULE_EXT) lexer.$(MODULE_EXT) interp.$(MODULE_EXT) genxml.$(MODULE_EXT) genswf.$(MODULE_EXT) genphp.$(MODULE_EXT) genneko.$(MODULE_EXT) genjs.$(MODULE_EXT) gencpp.$(MODULE_EXT) genas3.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT) gencommon.$(MODULE_EXT) genjava.$(MODULE_EXT) gencs.$(MODULE_EXT) genpy.$(MODULE_EXT) version.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
+src/macro/interp.$(MODULE_EXT): src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/generators/genneko.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/generators/genswf.$(MODULE_EXT) src/generators/genjava.$(MODULE_EXT) src/generators/gencs.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
 
-optimizer.$(MODULE_EXT): typecore.$(MODULE_EXT) type.$(MODULE_EXT) parser.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
+# optimization
 
-parser.$(MODULE_EXT): parser.ml lexer.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
+src/optimization/analyzer.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/optimization/analyzerConfig.$(MODULE_EXT) src/optimization/analyzerTypes.$(MODULE_EXT) src/optimization/analyzerTexpr.$(MODULE_EXT) src/optimization/analyzerTexprTransformer.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT)
+
+src/optimization/analyzerConfig.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT)
+
+src/optimization/analyzerTexpr.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/optimization/analyzerConfig.$(MODULE_EXT) src/optimization/optimizer.$(MODULE_EXT)
+
+src/optimization/analyzerTexprTransformer.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/optimization/analyzerConfig.$(MODULE_EXT) src/optimization/analyzerTypes.$(MODULE_EXT) src/optimization/analyzerTexpr.$(MODULE_EXT)
+
+src/optimization/analyzerTypes.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/optimization/analyzerConfig.$(MODULE_EXT)
+
+src/optimization/dce.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/typing/type.$(MODULE_EXT)
+
+src/optimization/filters.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/optimization/analyzer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/optimization/dce.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT)
+
+src/optimization/optimizer.$(MODULE_EXT): src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
+
+# syntax
+
+src/syntax/ast.$(MODULE_EXT):
+
+src/syntax/lexer.$(MODULE_EXT): src/syntax/lexer.ml src/syntax/ast.$(MODULE_EXT)
+
+src/syntax/parser.$(MODULE_EXT): src/syntax/parser.ml src/syntax/lexer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 	$(CC_PARSER_CMD)
 
-type.$(MODULE_EXT): ast.$(MODULE_EXT)
+# typing
 
-typecore.$(MODULE_EXT): type.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
+src/typing/common.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
 
-typeload.$(MODULE_EXT): typecore.$(MODULE_EXT) type.$(MODULE_EXT) parser.$(MODULE_EXT) optimizer.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
+src/typing/matcher.$(MODULE_EXT): src/optimization/optimizer.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/typer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
-typer.$(MODULE_EXT): typeload.$(MODULE_EXT) typecore.$(MODULE_EXT) type.$(MODULE_EXT) parser.$(MODULE_EXT) optimizer.$(MODULE_EXT) lexer.$(MODULE_EXT) interp.$(MODULE_EXT) genneko.$(MODULE_EXT) genjs.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT) filters.$(MODULE_EXT) gencommon.$(MODULE_EXT)
+src/typing/type.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/json.$(MODULE_EXT)
 
-lexer.$(MODULE_EXT): lexer.ml
+src/typing/typecore.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
-lexer.$(MODULE_EXT): ast.$(MODULE_EXT)
+src/typing/typeload.$(MODULE_EXT): src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/optimization/optimizer.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/json.$(MODULE_EXT) src/display/display.$(MODULE_EXT)
 
-ast.$(MODULE_EXT):
+src/typing/typer.$(MODULE_EXT): src/typing/typeload.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/optimization/optimizer.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/optimization/filters.$(MODULE_EXT) src/generators/genjs.$(MODULE_EXT) src/generators/genlua.$(MODULE_EXT) src/display/display.$(MODULE_EXT)
 
-version.$(MODULE_EXT):
-	$(MAKE) -f Makefile.version_extra -s --no-print-directory ADD_REVISION=$(ADD_REVISION) BRANCH=$(BRANCH) COMMIT_SHA=$(COMMIT_SHA) COMMIT_DATE=$(COMMIT_DATE) > version.ml
-	$(COMPILER) $(CFLAGS) -c version.ml
+
+# main
+
+src/main.$(MODULE_EXT): src/optimization/filters.$(MODULE_EXT) src/typing/matcher.$(MODULE_EXT) src/typing/typer.$(MODULE_EXT) src/typing/typeload.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/optimization/optimizer.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT) src/generators/genxml.$(MODULE_EXT) src/generators/genswf.$(MODULE_EXT) src/generators/genphp.$(MODULE_EXT) src/generators/genneko.$(MODULE_EXT) src/generators/genjs.$(MODULE_EXT) src/generators/genlua.$(MODULE_EXT) src/generators/gencpp.$(MODULE_EXT) src/generators/genas3.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/generators/genjava.$(MODULE_EXT) src/generators/gencs.$(MODULE_EXT) src/generators/genpy.$(MODULE_EXT) src/generators/genhl.$(MODULE_EXT) src/version.$(MODULE_EXT) src/display/display.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
+
+src/version.$(MODULE_EXT):
+	$(MAKE) -f Makefile.version_extra -s --no-print-directory ADD_REVISION=$(ADD_REVISION) BRANCH=$(BRANCH) COMMIT_SHA=$(COMMIT_SHA) COMMIT_DATE=$(COMMIT_DATE) > src/version.ml
+	$(COMPILER) $(ALL_CFLAGS) -c src/version.ml
 
 # Package
 
@@ -215,11 +250,16 @@ install_dox:
 	haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp
 	haxelib git hxjava https://github.com/HaxeFoundation/hxjava
 	haxelib git hxcs https://github.com/HaxeFoundation/hxcs
-	haxelib git dox https://github.com/dpeek/dox
+	haxelib git dox https://github.com/HaxeFoundation/dox
 
 package_doc:
+	mkdir -p $(PACKAGE_OUT_DIR)
 	cd $$(haxelib path dox | head -n 1) && haxe run.hxml && haxe gen.hxml
-	haxelib run dox --title "Haxe API" -o $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip -D version "$$(haxe -version 2>&1)" -i $$(haxelib path dox | head -n 1)bin/xml -ex microsoft -ex javax -ex cs.internal -D source-path https://github.com/HaxeFoundation/haxe/blob/$(BRANCH)/std/
+	haxelib run dox -theme haxe_api -D website "http://haxe.org/" --title "Haxe API" -o $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip -D version "$$(haxe -version 2>&1)" -i $$(haxelib path dox | head -n 1)bin/xml -ex microsoft -ex javax -ex cs.internal -D source-path https://github.com/HaxeFoundation/haxe/blob/$(BRANCH)/std/
+
+deploy_doc:
+	scp $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip www-haxe@api.haxe.org:/data/haxeapi/www/v/dev/api-latest.zip
+	ssh www-haxe@api.haxe.org "cd /data/haxeapi/www/v/dev && find . ! -name 'api-latest.zip' -maxdepth 1 -mindepth 1 -exec rm -rf {} + && unzip -q -o api-latest.zip"
 
 # Clean
 
@@ -238,12 +278,10 @@ clean_libs:
 	make -C libs/objsize clean
 
 clean_haxe:
-	rm -f $(MODULES:=.obj) $(MODULES:=.o) $(MODULES:=.cmx) $(MODULES:=.cmi) $(MODULES:=.cmo) lexer.ml version.ml $(OUTPUT)
+	rm -f -r  $(MODULES:%=src/%.obj) $(MODULES:%=src/%.o) $(MODULES:%=src/%.cmx) $(MODULES:%=src/%.cmi) $(MODULES:%=src/%.cmo) src/syntax/lexer.ml src/version.ml $(OUTPUT)
 
 clean_tools:
 	rm -f $(OUTPUT) haxelib
-	rm -f extra/haxelib_src/bin/haxelib.n
-	rm -f extra/haxelib_src/bin/haxelib
 
 clean_package:
 	rm -rf $(PACKAGE_OUT_DIR)

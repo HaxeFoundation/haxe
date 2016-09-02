@@ -32,8 +32,8 @@ FILTER=sed '/File/{ N; s/File "\([^"]\+\)", line \([0-9]\+\), characters \([0-9-
 endif
 
 ifdef FILTER
-CC_CMD=($(OCAMLOPT) $(CFLAGS) -c $< 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
-CC_PARSER_CMD=($(OCAMLOPT) -pp camlp4o $(CFLAGS) -c parser.ml 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
+CC_CMD=($(OCAMLOPT) $(ALL_CFLAGS) -c $< 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
+CC_PARSER_CMD=($(OCAMLOPT) -pp camlp4o $(ALL_CFLAGS) -c src/syntax/parser.ml 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
 endif
 
 package_bin:
@@ -42,11 +42,11 @@ package_bin:
 	# Copy the package contents to $(PACKAGE_FILE_NAME)
 	# Using poor man's cp (zip then unzip), because cp in cygwin is quite broken
 	mkdir -p $(PACKAGE_FILE_NAME)
-	7za a -y -tzip -mx0 temp.zip $(OUTPUT) haxelib$(EXTENSION) std > log.txt || type log.txt
-	cd extra && 7za a -y -tzip -mx0 ../temp.zip LICENSE.txt CONTRIB.txt CHANGES.txt > log.txt || type log.txt
-	7za x -y temp.zip -o$(PACKAGE_FILE_NAME) > log.txt || type log.txt
+	7z a -y -tzip -mx0 temp.zip $(OUTPUT) haxelib$(EXTENSION) std > log.txt || type log.txt
+	cd extra && 7z a -y -tzip -mx0 ../temp.zip LICENSE.txt CONTRIB.txt CHANGES.txt > log.txt || type log.txt
+	7z x -y temp.zip -o$(PACKAGE_FILE_NAME) > log.txt || type log.txt
 	rm temp.zip
 	# archive
-	7za a -r -tzip out/$(PACKAGE_FILE_NAME)_bin.zip $(PACKAGE_FILE_NAME) > log.txt || type log.txt
+	7z a -r -tzip out/$(PACKAGE_FILE_NAME)_bin.zip $(PACKAGE_FILE_NAME) > log.txt || type log.txt
 	rm -r $(PACKAGE_FILE_NAME)
 	rm log.txt extra/log.txt

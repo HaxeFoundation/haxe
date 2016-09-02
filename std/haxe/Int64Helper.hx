@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,8 +25,13 @@ using haxe.Int64;
 
 import StringTools;
 
+/**
+	Helper for parsing to `Int64` instances.
+**/
 class Int64Helper {
-
+	/**
+		Create `Int64` from given string.
+	**/
 	public static function parseString( sParam : String ) : Int64 {
 		var base = Int64.ofInt(10);
 		var current = Int64.ofInt(0);
@@ -64,6 +69,9 @@ class Int64Helper {
 		return current;
 	}
 
+	/**
+		Create `Int64` from given float.
+	**/
 	public static function fromFloat( f : Float ) : Int64 {
 		if (Math.isNaN(f) || !Math.isFinite(f)) {
 			throw "Number is NaN or Infinite";

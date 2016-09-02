@@ -1,8 +1,8 @@
 package flash.sensors;
 
 @:require(flash10_1) extern class Geolocation extends flash.events.EventDispatcher {
-	var muted(default,null) : Bool;
+	var muted(default,never) : Bool;
 	function new() : Void;
 	function setRequestedUpdateInterval(interval : Float) : Void;
-	static var isSupported(default,null) : Bool;
+	static var isSupported(default,never) : Bool;
 }

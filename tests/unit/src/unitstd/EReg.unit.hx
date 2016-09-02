@@ -87,6 +87,7 @@ pos.len == 2;
 ~/a/g.replace("bab", "z") == "bzb";
 ~/a/g.replace("baba", "z") == "bzbz";
 
+#if !hl
 // replace + $
 ~/href="(.*?)"/.replace('lead href="foo" trail',"$1") == "lead foo trail";
 //~/href="(.*?)"/.replace('lead href="foo" trail',"$2") == "lead $2 trail";
@@ -95,7 +96,11 @@ pos.len == 2;
 ~/href="(.*?)"/g.replace('lead href="foo" href="bar" trail',"$1") == "lead foo bar trail";
 ~/href="(.*?)"/g.replace('lead href="foo" href="bar" trail',"$$$1$$") == "lead $foo$ $bar$ trail";
 //~/href="(.*?)"/g.replace('lead href="foo" href="bar" trail',"$$$2$$") == "lead $$2$ $$2$ trail";
+#end
+
 ~/a(b)c/g.replace("abcabc", "$1") == "bb";
+~/(a)|(b)/.replace("abc", '*') == "*bc";
+~/(a)|(b)/g.replace("abc", '*') == "**c";
 
 // map
 ~/(Hello)/.map("Hello World", function(e) return "Hallo") == "Hallo World";

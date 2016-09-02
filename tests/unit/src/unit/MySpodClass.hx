@@ -4,33 +4,43 @@ import sys.db.Types;
 
 @:keep class MySpodClass extends Object
 {
-  public var theId:SId;
-  public var int:SInt;
-  public var double:SFloat;
-  public var boolean:SBool;
-  public var string:SString<255>;
-  public var date:SDateTime;
-  public var binary:SBinary;
+	public var theId:SId;
+	public var int:SInt;
+	public var double:SFloat;
+	public var boolean:SBool;
+	public var string:SString<255>;
+	public var date:SDateTime;
+	public var binary:SBinary;
 	public var abstractType:AbstractSpodTest<String>;
 
-  public var nullInt:SNull<Int>;
-  public var enumFlags:SFlags<SpodEnum>;
+	public var nullInt:SNull<Int>;
+	public var enumFlags:SFlags<SpodEnum>;
 
-  @:relation(rid) public var relation:OtherSpodClass;
-  @:relation(rnid) public var relationNullable:Null<OtherSpodClass>;
+	@:relation(rid) public var relation:OtherSpodClass;
+	@:relation(rnid) public var relationNullable:Null<OtherSpodClass>;
 	@:relation(spid) public var next:Null<MySpodClass>;
 
-  public var data:SData<Array<ComplexClass>>;
-  public var anEnum:SEnum<SpodEnum>;
+	public var data:SData<Array<ComplexClass>>;
+	public var anEnum:SEnum<SpodEnum>;
 }
 
 @:keep class NullableSpodClass extends Object
 {
 	public var theId:SId;
-  @:relation(rnid) public var relationNullable:Null<OtherSpodClass>;
-  public var data:Null<SData<Array<ComplexClass>>>;
-	public var abstractType:Null<AbstractSpodTest<String>>;
+	@:relation(rnid) public var relationNullable:Null<OtherSpodClass>;
+	public var data:Null<SData<Array<ComplexClass>>>;
 	public var anEnum:Null<SEnum<SpodEnum>>;
+
+	public var int:SNull<SInt>;
+	public var double:SNull<SFloat>;
+	public var boolean:SNull<SBool>;
+	public var string:SNull<SString<255>>;
+	public var date:SNull<SDateTime>;
+	public var binary:SNull<SBinary>;
+	public var abstractType:SNull<AbstractSpodTest<String>>;
+
+	public var nullInt:SNull<Int>;
+	public var enumFlags:SNull<SFlags<SpodEnum>>;
 }
 
 @:keep class ComplexClass
@@ -71,7 +81,7 @@ abstract AbstractSpodTest<A>(A) from A
 }
 
 @:id(name)
-@:keep class ClassWithStringId extends Object
+	@:keep class ClassWithStringId extends Object
 {
 	public var name:SString<255>;
 	public var field:SInt;
@@ -88,7 +98,7 @@ abstract AbstractSpodTest<A>(A) from A
 @:keep @:skip class BaseIssueC3828 extends sys.db.Object {
 	public var id : SInt;
 	@:relation(ruid)
-	public var refUser : SNull<IssueC3828>;
+		public var refUser : SNull<IssueC3828>;
 }
 
 @:keep class IssueC3828 extends BaseIssueC3828 {

@@ -13,13 +13,4 @@ package js.jquery;
 		return new js.jquery.JQuery(js.Lib.nativeThis);
 	}
 	#end
-
-	@:allow(js.jquery.JQuery)
-	macro static function embed() {
-		return if (haxe.macro.Context.defined("embed_js")) {
-			macro haxe.macro.Compiler.includeFile("js/jquery/jquery-1.11.3.min.js");
-		} else {
-			macro {};
-		}
-	}
 }

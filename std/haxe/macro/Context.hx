@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -272,7 +272,7 @@ class Context {
 	}
 
 	/**
-		Parses `expr` as haxe code, returning the corresponding AST.
+		Parses `expr` as Haxe code, returning the corresponding AST.
 
 		String interpolation of single quote strings within `expr` is not
 		supported.
@@ -336,6 +336,18 @@ class Context {
 	}
 
 	/**
+		Adds a callback function `callback` which is invoked after the compiler
+		is done typing, but before optimization. The callback receives the types
+		which have been typed.
+
+		It is possible to define new types in the callback, in which case it
+		will be called again with the new types as argument.
+	**/
+	public static function onAfterTyping( callback : Array<haxe.macro.Type.ModuleType> -> Void ) {
+		load("after_typing",1)(callback);
+	}
+
+	/**
 		Adds a callback function `callback` which is invoked when a type name
 		cannot be resolved.
 
@@ -366,6 +378,18 @@ class Context {
 	@:require(haxe_ver >= 3.1)
 	public static function typeExpr( e : Expr ) : TypedExpr {
 		return load("type_expr", 1)(e);
+	}
+
+	/**
+		Resolve type `t` and returns the corresponding `Type`.
+
+		Resolving the type may result in a compiler error which can be
+		caught using `try ... catch`.
+		Resolution is performed based on the current context in which the macro is called.
+	**/
+	@:require(haxe_ver >= 3.3)
+	public static function resolveType( t : ComplexType, p : Position ) : Type {
+		return load("resolve_type", 2)(t,p);
 	}
 
 	/**
@@ -439,7 +463,7 @@ class Context {
 		The resource is then available using the `haxe.macro.Resource` API.
 
 		If a previous resource was bound to `name`, it is overwritten.
-		
+
 		Compilation server : when using the compilation server, the resource is bound
 		to the Haxe module which calls the macro, so it will be included again if
 		that module is reused. If this resource concerns several modules, prefix its
@@ -529,10 +553,10 @@ class Context {
 
 		If `e` is null, the result is unspecified.
 	**/
-	@:require(haxe_ver >= 3.3)
-	public static function eval( e : Expr ) : Dynamic {
-		return load("eval",1)(e);
-	}
+	//@:require(haxe_ver >= 3.3)
+	//public static function eval( e : Expr ) : Dynamic {
+		//return load("eval",1)(e);
+	//}
 
 	/**
 		Manually adds a dependency between module `modulePath` and an external

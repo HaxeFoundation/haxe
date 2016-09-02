@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,7 +21,8 @@
  */
 /**
 	This class provides advanced methods on Strings. It is ideally used with
-	`using StringTools` and then acts as an extension to the String class.
+	`using StringTools` and then acts as an [extension](http://haxe.org/manual/lf-static-extension.html)
+	to the `String` class.
 
 	If the first argument to any of the methods is null, the result is
 	unspecified.
@@ -33,7 +34,7 @@ class StringTools {
 	/**
 		Encode an URL by using the standard format.
 	**/
-	#if (!java && !cpp) inline #end public static function urlEncode( s : String ) : String {
+	#if (!java && !cpp && !lua) inline #end public static function urlEncode( s : String ) : String {
 		#if flash
 			return untyped __global__["encodeURIComponent"](s);
 		#elseif neko
@@ -43,22 +44,67 @@ class StringTools {
 		#elseif cpp
 			return untyped s.__URLEncode();
 		#elseif java
-			try
-				return untyped __java__("java.net.URLEncoder.encode(s, \"UTF-8\")")
-			catch (e:Dynamic) throw e;
+			return postProcessUrlEncode(java.net.URLEncoder.encode(s, "UTF-8"));
 		#elseif cs
 			return untyped cs.system.Uri.EscapeDataString(s);
 		#elseif python
 			return python.lib.urllib.Parse.quote(s, "");
+		#elseif hl
+			var len = 0;
+			var b = @:privateAccess s.bytes.urlEncode(len);
+			return @:privateAccess String.__alloc__(b,len);
+		#elseif lua
+			s = lua.NativeStringTools.gsub(s, "\n", "\r\n");
+			s = lua.NativeStringTools.gsub(s, "([^%w %-%_%.%~])", function (c) {
+				return lua.NativeStringTools.format("%%%02X", lua.NativeStringTools.byte(c) + '');
+			});
+			s = lua.NativeStringTools.gsub(s, " ", "+");
+			return s;
 		#else
 			return null;
 		#end
 	}
 
+#if java
+	private static function postProcessUrlEncode( s : String ) : String {
+		var ret = new StringBuf();
+		var i = 0,
+		    len = s.length;
+		while (i < len) {
+			switch(_charAt(s, i++)) {
+			case '+'.code:
+				ret.add('%20');
+			case '%'.code if (i <= len - 2):
+				var c1 = _charAt(s, i++),
+				    c2 = _charAt(s, i++);
+				switch[c1, c2] {
+				case ['2'.code, '1'.code]:
+					ret.addChar('!'.code);
+				case ['2'.code, '7'.code]:
+					ret.addChar('\''.code);
+				case ['2'.code, '8'.code]:
+					ret.addChar('('.code);
+				case ['2'.code, '9'.code]:
+					ret.addChar(')'.code);
+				case ['7'.code, 'E'.code]:
+					ret.addChar('-'.code);
+				case _:
+					ret.addChar('%'.code);
+					ret.addChar(cast c1);
+					ret.addChar(cast c2);
+				}
+			case chr:
+				ret.addChar(cast chr);
+			}
+		}
+		return ret.toString();
+	}
+#end
+
 	/**
 		Decode an URL using the standard format.
 	**/
-	#if (!java && !cpp) inline #end public static function urlDecode( s : String ) : String {
+	#if (!java && !cpp && !lua) inline #end public static function urlDecode( s : String ) : String {
 		#if flash
 			return untyped __global__["decodeURIComponent"](s.split("+").join(" "));
 		#elseif neko
@@ -75,6 +121,16 @@ class StringTools {
 			return untyped cs.system.Uri.UnescapeDataString(s);
 		#elseif python
 			return python.lib.urllib.Parse.unquote(s);
+		#elseif hl
+			var len = 0;
+			var b = @:privateAccess s.bytes.urlDecode(len);
+			return @:privateAccess String.__alloc__(b,len);
+		#elseif lua
+			s = lua.NativeStringTools.gsub (s, "+", " ");
+			s = lua.NativeStringTools.gsub (s, "%%(%x%x)",
+				function(h) {return lua.NativeStringTools.char(lua.Lua.tonumber(h,16));});
+			s = lua.NativeStringTools.gsub (s, "\r\n", "\n");
+			return s;
 		#else
 			return null;
 		#end
@@ -138,6 +194,8 @@ class StringTools {
 			if ( p0.at(i) != p1.at(i) )
 				return false;
 		return true;
+		#elseif hl
+		return @:privateAccess (s.length >= start.length && s.bytes.compare(0,start.bytes,0,start.length<<1) == 0);
 		#else
 		return( s.length >= start.length && s.substr(0, start.length) == start );
 		#end
@@ -164,6 +222,10 @@ class StringTools {
 			if ( p0.at(i) != p1.at(i) )
 				return false;
 		return true;
+		#elseif hl
+		var elen = end.length;
+		var slen = s.length;
+		return @:privateAccess (slen >= elen && s.bytes.compare((slen - elen) << 1, end.bytes, 0, elen << 1) == 0);
 		#else
 		var elen = end.length;
 		var slen = s.length;
@@ -181,7 +243,7 @@ class StringTools {
 		`s`, the result is false.
 	**/
 	public static function isSpace( s : String, pos : Int ) : Bool {
-		#if python
+		#if (python || lua)
 		if (s.length == 0 || pos < 0 || pos >= s.length) return false;
 		#end
 		var c = s.charCodeAt( pos );
@@ -388,6 +450,10 @@ class StringTools {
 		return (untyped s).charCodeAt(index);
 		#elseif python
 		return if (index >= s.length) -1 else python.internal.UBuiltins.ord(python.Syntax.arrayAccess(s, index));
+		#elseif hl
+		return @:privateAccess s.bytes.getUI16(index << 1);
+		#elseif lua
+		return lua.NativeStringTools.byte(s,index+1);
 		#else
 		return untyped s.cca(index);
 		#end
@@ -397,11 +463,11 @@ class StringTools {
 		Tells if `c` represents the end-of-file (EOF) character.
 	*/
 	@:noUsing public static inline function isEof( c : Int ) : Bool {
-		#if (flash || cpp)
+		#if (flash || cpp || hl)
 		return c == 0;
 		#elseif js
 		return c != c; // fast NaN
-		#elseif neko
+		#elseif (neko || lua)
 		return c == null;
 		#elseif cs
 		return c == -1;
@@ -437,7 +503,7 @@ class StringTools {
 	/**
 		Character codes of the characters that will be escaped by `quoteWinArg(_, true)`.
 	*/
-	public static var winMetaCharacters = [" ".code, "(".code, ")".code, "%".code, "!".code, "^".code, "\"".code, "<".code, ">".code, "&".code, "|".code, "\n".code, "\r".code];
+	public static var winMetaCharacters = [" ".code, "(".code, ")".code, "%".code, "!".code, "^".code, "\"".code, "<".code, ">".code, "&".code, "|".code, "\n".code, "\r".code, ",".code, ";".code];
 
 	/**
 		Returns a String that can be used as a single command line argument
@@ -455,7 +521,7 @@ class StringTools {
 	public static function quoteWinArg(argument:String, escapeMetaCharacters:Bool):String {
 		// If there is no space, tab, back-slash, or double-quotes, and it is not an empty string.
 		if (!~/^[^ \t\\"]+$/.match(argument)) {
-			
+
 			// Based on cpython's subprocess.list2cmdline().
 			// https://hg.python.org/cpython/file/50741316dd3a/Lib/subprocess.py#l620
 

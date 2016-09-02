@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#if ((flash || flash9doc || cs) && !doc_gen)
+#if ((flash || flash9doc || cs || hl) && !doc_gen)
 /**
-	The unsigned Int type is only defined for Flash and C#. It's currently
+	The unsigned `Int` type is only defined for Flash and C#. It's currently
 	handled the same as a normal Int.
+
+	@see http://haxe.org/manual/types-basic-types.html
 **/
 @:coreType
 @:notNull
@@ -92,8 +94,10 @@ abstract UInt to Int from Int
 }
 #else
 /**
-	The unsigned Int type is only defined for Flash and C#.
+	The unsigned `Int` type is only defined for Flash and C#.
 	Simulate it for other platforms.
+
+	@see http://haxe.org/manual/types-basic-types.html
 **/
 abstract UInt(Int) from Int to Int {
 
@@ -202,12 +206,12 @@ abstract UInt(Int) from Int to Int {
 	}
 
 	@:commutative @:op(A == B) private static inline function equalsFloat<T:Float>(a:UInt, b:T):Bool {
-        return a.toFloat() == b;
-    }
+		return a.toFloat() == b;
+	}
 
-    @:commutative @:op(A != B) private static inline function notEqualsFloat<T:Float>(a:UInt, b:T):Bool {
-        return a.toFloat() != b;
-    }
+	@:commutative @:op(A != B) private static inline function notEqualsFloat<T:Float>(a:UInt, b:T):Bool {
+		return a.toFloat() != b;
+	}
 
 	@:op(A >= B) private static inline function gteFloat(a:UInt, b:Float):Bool {
 		return a.toFloat() >= b;

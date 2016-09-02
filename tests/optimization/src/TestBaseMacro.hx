@@ -6,6 +6,8 @@ using StringTools;
 using haxe.macro.Tools;
 
 class TestBaseMacro {
+	static var numFailures = 0;
+
 	macro static public function run() {
 		var c = Context.getLocalClass();
 		var fields = c.get().fields.get();
@@ -31,6 +33,9 @@ class TestBaseMacro {
 				case _:
 			}
 		}
+		if (numFailures > 0) {
+			Sys.exit(1);
+		}
 	}
 
 	static function checkClass(c:ClassType) {
@@ -45,9 +50,11 @@ class TestBaseMacro {
 				switch [el[0].expr, el[1].expr] {
 					case [TConst(tc1), TConst(tc2)]:
 						if (!constEquals(tc1, tc2)) {
+							++numFailures;
 							Context.warning('$tc2 should be $tc1', e.pos);
 						}
 					case [e1, e2]:
+						++numFailures;
 						Context.warning('$e2 should be $e1', e.pos);
 				}
 			case TCall({ expr: TField(_, FInstance(_, _, _.get() => {name: "assertEquals"}))}, el):
@@ -56,6 +63,7 @@ class TestBaseMacro {
 				}
 				switch (el[1].expr) {
 					case (TConst(tc)):
+						++numFailures;
 						Context.warning('Unexpected constant $tc in assertEquals, use assertEqualsConst if this is intended', e.pos);
 					case _:
 				}

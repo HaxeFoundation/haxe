@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,14 +26,16 @@ package haxe.format;
 
 	This class is used by `haxe.Json` when native JSON implementation
 	is not available.
+
+	@see http://haxe.org/manual/std-Json-encoding.html
 **/
 class JsonPrinter {
 
 	/**
-		Encodes `o` value and returns the resulting JSON string.
+		Encodes `o`'s value and returns the resulting JSON string.
 
 		If `replacer` is given and is not null, it is used to retrieve
-		actual object to be encoded. The `replacer` function two parameters,
+		actual object to be encoded. The `replacer` function takes two parameters,
 		the key and the value being encoded. Initial key value is an empty string.
 
 		If `space` is given and is not null, the result will be pretty-printed.

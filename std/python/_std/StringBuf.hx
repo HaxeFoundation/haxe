@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -34,7 +34,7 @@ class StringBuf {
 
 	public var length(get, never):Int;
 
-	public function get_length ():Int {
+	function get_length ():Int {
 		var pos = b.tell();
 		b.seek(0, SeekEnd);
 		var len = b.tell();

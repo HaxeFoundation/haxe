@@ -151,6 +151,8 @@ s.substring(0, 100) == "xfooxfooxxbarxbarxx";
 s.substring(100, 120) == "";
 s.substring(100, 0) == "xfooxfooxxbarxbarxx";
 s.substring(120, 100) == "";
+s.substring(5, 8) == "foo";
+s.substring(8, 5) == "foo";
 
 // fromCharCode
 String.fromCharCode(65) == "A";

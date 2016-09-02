@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -140,7 +140,11 @@ class FPHelper {
 			var af = f < 0 ? -f : f;
 			var exp = Math.floor(Math.log(af) / LN2);
 			if( exp < -127 ) exp = -127 else if( exp > 128 ) exp = 128;
-			var sig = Math.round((af / Math.pow(2, exp) - 1) * 0x800000) & 0x7FFFFF;
+			var sig = Math.round((af / Math.pow(2, exp) - 1) * 0x800000);
+			if( sig == 0x800000 && exp < 128 ){
+				sig = 0;
+				exp++;
+			}
 			return (f < 0 ? 0x80000000 : 0) | ((exp + 127) << 23) | sig;
 		#end
 	}
@@ -191,6 +195,13 @@ class FPHelper {
 		#elseif php
 			return untyped  __call__('unpack', 'd', __call__('pack', 'ii', isLittleEndian ? low : high, isLittleEndian ? high : low))[1];
 		#else
+			#if python
+			if (low == 0 && high == 2146435072) {
+				return Math.POSITIVE_INFINITY;
+			} else if (low == 0 && high == -1048576 ) {
+				return Math.NEGATIVE_INFINITY;
+			}
+			#end
 			var sign = 1 - ((high >>> 31) << 1);
 			var exp = ((high >> 20) & 0x7FF) - 1023;
 			var sig = (high&0xFFFFF) * 4294967296. + (low>>>31) * 2147483648. + (low&0x7FFFFFFF);
@@ -275,6 +286,14 @@ class FPHelper {
 				@:privateAccess {
 					i64.set_low(0);
 					i64.set_high(0);
+				}
+			} else if (!Math.isFinite(v)) @:privateAccess {
+				if (v > 0) {
+					i64.set_low(0);
+					i64.set_high(2146435072);
+				} else {
+					i64.set_low(0);
+					i64.set_high(-1048576);
 				}
 			} else {
 				var av = v < 0 ? -v : v;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -56,22 +56,22 @@ enum Constant {
 	**/
 	CInt( v : String );
 
-	/*
+	/**
 		Represents a float literal.
 	**/
 	CFloat( f : String );
 
-	/*
+	/**
 		Represents a string literal.
 	**/
 	CString( s : String );
 
-	/*
+	/**
 		Represents an indentifier.
 	**/
 	CIdent( s : String );
 
-	/*
+	/**
 		Represents a regular expression literal.
 
 		Example: `~/haxe/i`
@@ -655,6 +655,11 @@ typedef FunctionArg = {
 		The optional value of the function argument, if available.
 	**/
 	@:optional var value : Null<Expr>;
+
+	/**
+		The metadata of the function argument.
+	**/
+	@:optional var meta : Metadata;
 }
 
 /**

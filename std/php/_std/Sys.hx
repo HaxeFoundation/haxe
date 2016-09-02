@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -99,8 +99,14 @@
 		return untyped __call__("microtime", true) - __php__("$_SERVER['REQUEST_TIME']");
 	}
 
-	public static function executablePath() : String {
+	@:deprecated("Use programPath instead") public static function executablePath() : String {
 		return untyped __php__("$_SERVER['SCRIPT_FILENAME']");
+	}
+
+	// It has to be initialized before any call to Sys.setCwd()...
+	static var _programPath = sys.FileSystem.fullPath(untyped __php__("$_SERVER['SCRIPT_FILENAME']"));
+	public static function programPath() : String {
+		return _programPath;
 	}
 
 	public static function environment() : Map<String,String> {

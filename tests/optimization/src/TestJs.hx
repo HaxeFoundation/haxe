@@ -23,6 +23,7 @@ private enum EnumFlagTest {
 }
 
 @:analyzer(code_motion)
+@:analyzer(no_user_var_fusion)
 class TestJs {
 	//@:js('var x = 10;"" + x;var x1 = 10;"" + x1;var x2 = 10.0;"" + x2;var x3 = "10";x3;var x4 = true;"" + x4;')
 	//static function testStdString() {
@@ -44,10 +45,9 @@ class TestJs {
 		for (v in a) { }
 	}
 
-	@:js('var a = 1;var v2 = a;if(a + v2 > 0) TestJs["use"](a);')
+	@:js('var a = 1;var v2 = a;if(a + v2 > 0) {TestJs["use"](a);}')
 	@:analyzer(no_const_propagation)
 	@:analyzer(no_copy_propagation)
-	@:analyzer(no_check_has_effect)
 	@:analyzer(no_local_dce)
 	static function testInlineWithArgumentUsedMoreThanOnce() {
 		var a = 1;
@@ -61,20 +61,19 @@ class TestJs {
 		return v + v2;
 	}
 
-	@:js("var a = [];a;")
-	@:analyzer(no_check_has_effect)
+	@:js("var a = [];var tmp;try {tmp = a[0];} catch( e ) {tmp = null;}tmp;")
 	@:analyzer(no_local_dce)
 	static function testInlineWithComplexExpr() {
 		var a = [];
 		if (_inlineWithComplexExpr(a, 0)) {}
 	}
 
-	inline static function _inlineWithComplexExpr(a, i) {
+	inline static function _inlineWithComplexExpr(a:Array<Bool>, i:Int) {
 		return try a[i] catch (e:Dynamic) null;
 	}
 
-	@:js("var a = { v : [{ b : 1}]};a;var tmp;switch(a.v.length) {case 1:switch(a.v[0].b) {case 1:tmp = true;break;default:tmp = false;}break;default:tmp = false;}tmp;")
-	@:analyzer(no_const_propagation, no_local_dce, no_check_has_effect)
+	@:js("var a = { v : [{ b : 1}]};a;a.v.length == 1 && a.v[0].b == 1;")
+	@:analyzer(no_const_propagation, no_local_dce)
 	static function testDeepMatchingWithoutClosures() {
 		var a = {v: [{b: 1}]};
 		a;
@@ -91,7 +90,7 @@ class TestJs {
 		forEach(function(x) trace(x + 2));
 	}
 
-	@:js('var a = "";var e;var __ex0 = a;var _g = __ex0.toLowerCase();switch(_g) {case "e":e = 0;break;default:throw new Error();}')
+	@:js('var a = "";var e;var _hx_tmp = a.toLowerCase();if(_hx_tmp == "e") {e = 0;} else {throw new Error();}')
 	@:analyzer(no_const_propagation, no_local_dce, no_copy_propagation)
 	static function testRValueSwitchWithExtractors() {
 		var a = "";
@@ -230,7 +229,7 @@ class TestJs {
 
 	@:js('
 		var map = new haxe_ds_StringMap();
-		if(__map_reserved.some != null) map.setReserved("some",2); else map.h["some"] = 2;
+		if(__map_reserved.some != null) {map.setReserved("some",2);} else {map.h["some"] = 2;}
 		TestJs["use"](2);
 	')
 	static function testIssue4731() {
@@ -282,9 +281,13 @@ class TestJs {
 
 	@:js('
 		var a = 0;
-		if(Math.random() < 0.5) a = 2;
+		if(Math.random() < 0.5) {
+			a = 2;
+		}
 		var b = "";
-		if(Math.random() < 0.5) b = "hello";
+		if(Math.random() < 0.5) {
+			b = "hello";
+		}
 		TestJs["use"](a);
 		TestJs["use"](b);
 	')
@@ -429,22 +432,24 @@ class TestJs {
 		use(b);
 	}
 
-	@:js('
-		var b = TestJs.getInt();
-		TestJs["use"](b);
-	')
-	static function testCopyPropagation3() {
-		var a;
-		{
-			var b = getInt();
-			a = b;
-		}
-		use(a);
-	}
+	//@:js('
+		//var b = TestJs.getInt();
+		//TestJs["use"](b);
+	//')
+	//static function testCopyPropagation3() {
+		//var a;
+		//{
+			//var b = getInt();
+			//a = b;
+		//}
+		//use(a);
+	//}
 
 	@:js('
 		TestJs.getInt();
-		if(TestJs.getInt() != 0) throw new js__$Boot_HaxeError("meh");
+		if(TestJs.getInt() != 0) {
+			throw new js__$Boot_HaxeError("meh");
+		}
 	')
 	static function testIfInvert() {
 		var tmp;
@@ -483,12 +488,13 @@ class TestJs {
 
 	@:js('
 		var a = TestJs.getArray();
-		var d1 = a[0] = 1;
-		TestJs.call(a[1] = 1,d1);
+		a[0] = 1;
+		a[1] = 2;
+		TestJs.call(2,1);
 	')
 	static function testInlineRebuilding4() {
 		var a = getArray();
-		inlineCall(a[0] = 1, a[1] = 1);
+		inlineCall(a[0] = 1, a[1] = 2);
 	}
 
 	@:js('
@@ -548,15 +554,38 @@ class TestJs {
 		a[i++] = i++;
 	}
 
-	static inline function inlineCall(d1:Dynamic, d2:Dynamic) {
+	@:js('
+		var i = 5;
+		while(--i >= 0) TestJs["use"](i);
+	')
+	static function testPrefixRebuilding() {
+		var i:Int = 5;
+		while (--i >= 0) use(i);
+	}
+
+	static inline function inlineCall<S, T>(d1:S, d2:T) {
 		return call(d2, d1);
 	}
 
+	@:pure(false)
 	static function getInt(?d:Dynamic) { return 1; }
 	static function getArray() { return [0, 1]; }
+	@:pure(false)
 	static function call(d1:Dynamic, d2:Dynamic) { return d1; }
+	@:pure(false)
 	static function use<T>(t:T) { return t; }
 
 	static var intField = 12;
-	static var stringField = "foo";
+	static var stringField(default, never) = "foo";
+
+	@:js('
+		var _g = Type["typeof"]("");
+		var v = _g[1] == 6 && _g[2] == String;
+		TestJs["use"](v);
+	')
+	static function testIssue4745() {
+        var o = "";
+        var v = Type.typeof(o).match(TClass(String));
+        use(v);
+	}
 }

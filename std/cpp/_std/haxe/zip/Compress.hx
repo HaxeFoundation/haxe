@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,7 +21,7 @@
  */
 package haxe.zip;
 
-@:coreApi
+@:coreApi @:buildXml('<include name="${HXCPP}/src/hx/libs/zlib/Build.xml" />')
 class Compress {
 
 	var s : Dynamic;
@@ -53,10 +53,19 @@ class Compress {
 		return out.sub(0,r.write);
 	}
 
-	static var _deflate_init = cpp.Lib.load("zlib","deflate_init",1);
-	static var _deflate_bound = cpp.Lib.load("zlib","deflate_bound",2);
-	static var _deflate_buffer = cpp.Lib.load("zlib","deflate_buffer",5);
-	static var _deflate_end = cpp.Lib.load("zlib","deflate_end",1);
-	static var _set_flush_mode = cpp.Lib.load("zlib","set_flush_mode",2);
+   @:extern @:native("_hx_deflate_init")
+	static function _deflate_init(level:Int) : Dynamic return null;
+
+   @:extern @:native("_hx_deflate_bound")
+	static function _deflate_bound(handle:Dynamic,length:Int):Int return 0;
+
+   @:extern @:native("_hx_deflate_buffer")
+	static function _deflate_buffer(handle:Dynamic, src:haxe.io.BytesData, srcPos:Int,  dest:haxe.io.BytesData, destPos:Int) : { done : Bool, read : Int, write : Int } return null;
+
+   @:extern @:native("_hx_deflate_end")
+	static function _deflate_end(handle:Dynamic) : Void { }
+
+   @:extern @:native("_hx_zip_set_flush_mode")
+	static function _set_flush_mode(handle:Dynamic, flushMode:String):Void { }
 
 }

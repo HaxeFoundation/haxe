@@ -133,7 +133,7 @@ StringTools.isEof(StringTools.fastCodeAt(str, 3)) == true;
 StringTools.isEof(StringTools.fastCodeAt("", 0)) == true;
 
 // isEOF
-#if neko
+#if (neko || lua)
 StringTools.isEof(null) == true;
 #elseif (cs || java || python)
 StringTools.isEof( -1) == true;
