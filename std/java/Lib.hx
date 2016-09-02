@@ -30,6 +30,20 @@ package java;
 {
 
 	/**
+		Print the specified value on the default output.
+	**/
+	public static function print( v : Dynamic ) : Void {
+		untyped __java__("java.lang.System.out.print(v)");
+	}
+
+	/**
+		Print the specified value on the default output followed by a newline character.
+	**/
+	public static function println( v : Dynamic ) : Void {
+		untyped __java__("java.lang.System.out.println(v)");
+	}
+
+	/**
 		Returns a native array from the supplied Array. This native array is unsafe to be written on,
 		as it may or may not be linked to the actual Array implementation.
 
