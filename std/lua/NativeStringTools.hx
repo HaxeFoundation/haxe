@@ -49,7 +49,7 @@ extern class NativeStringTools {
 		       a plain "find substring" operation, with no characters in pattern 
 		       being considered "magic". Note that if plain is given, then `start` must be given as well.
 	**/
-	public static function find(str : String, target : String, ?start : Int, ?plain : Bool): Int;
+	public static function find(str : String, target : String, ?start : Int, ?plain : Bool): StringFind;
 
 	/**
 		Returns the internal numerical codes of the characters `str[index]`.
@@ -127,3 +127,7 @@ extern class NativeStringTools {
 	public static function dump(d:Dynamic) : Dynamic;
 }
 
+@:multiReturn extern class StringFind {
+	var begin : Int;
+	var end   : Int;
+}
