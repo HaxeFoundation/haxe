@@ -26,7 +26,7 @@ exception Internal_match_failure
 let s_type = s_type (print_context())
 let s_expr_pretty = s_expr_pretty false "" false s_type
 
-let fake_tuple_type = TInst(mk_class null_module ([],"-Tuple") null_pos, [])
+let fake_tuple_type = TInst(mk_class null_module ([],"-Tuple") null_pos null_pos, [])
 
 let tuple_type tl =
 	tfun tl fake_tuple_type

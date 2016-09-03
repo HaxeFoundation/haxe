@@ -499,59 +499,6 @@ module AbstractCast = struct
 		loop ctx e
 end
 
-(* -------------------------------------------------------------------------- *)
-(* USAGE *)
-
-let detect_usage com =
-	let usage = ref [] in
-	List.iter (fun t -> match t with
-		| TClassDecl c ->
-			let check_constructor c p =
-				try
-					let _,cf = get_constructor (fun cf -> cf.cf_type) c in
-					if Meta.has Meta.Usage cf.cf_meta then
-						usage := p :: !usage;
-				with Not_found ->
-					()
-			in
-			let rec expr e = match e.eexpr with
-				| TField(_,FEnum(_,ef)) when Meta.has Meta.Usage ef.ef_meta ->
-					let p = {e.epos with pmin = e.epos.pmax - (String.length ef.ef_name)} in
-					usage := p :: !usage;
-					Type.iter expr e
-				| TField(_,(FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf))) when Meta.has Meta.Usage cf.cf_meta ->
-					let p = {e.epos with pmin = e.epos.pmax - (String.length cf.cf_name)} in
-					usage := p :: !usage;
-					Type.iter expr e
-				| TLocal v when Meta.has Meta.Usage v.v_meta ->
-					usage := e.epos :: !usage
-				| TTypeExpr mt when (Meta.has Meta.Usage (t_infos mt).mt_meta) ->
-					usage := e.epos :: !usage
-				| TNew (c,_,_) ->
-					check_constructor c e.epos;
-					Type.iter expr e;
-				| TCall({eexpr = TConst TSuper},_) ->
-					begin match c.cl_super with
-						| Some (c,_) ->
-							check_constructor c e.epos
-						| _ ->
-							()
-					end
-				| _ -> Type.iter expr e
-			in
-			let field cf = ignore(follow cf.cf_type); match cf.cf_expr with None -> () | Some e -> expr e in
-			(match c.cl_constructor with None -> () | Some cf -> field cf);
-			(match c.cl_init with None -> () | Some e -> expr e);
-			List.iter field c.cl_ordered_statics;
-			List.iter field c.cl_ordered_fields;
-		| _ -> ()
-	) com.types;
-	let usage = List.sort (fun p1 p2 ->
-		let c = compare p1.pfile p2.pfile in
-		if c <> 0 then c else compare p1.pmin p2.pmin
-	) !usage in
-	raise (Display.DisplayPosition usage)
-
 let update_cache_dependencies t =
 	let rec check_t m t = match t with
 		| TInst(c,tl) ->

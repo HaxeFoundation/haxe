@@ -93,7 +93,7 @@ type platform_config = {
 type display_mode =
 	| DMNone
 	| DMDefault
-	| DMUsage
+	| DMUsage of bool (* true = also report definition *)
 	| DMPosition
 	| DMToplevel
 	| DMResolve of string
@@ -143,12 +143,14 @@ module DiagnosticsSeverity = struct
 end
 
 type shared_display_information = {
-	mutable import_positions : (pos,bool ref) PMap.t;
+	mutable import_positions : (pos,bool ref * placed_name list) PMap.t;
 	mutable diagnostics_messages : (string * pos * DiagnosticsSeverity.t) list;
+	mutable type_hints : (pos,Type.t) Hashtbl.t;
 }
 
 type display_information = {
 	mutable unresolved_identifiers : (string * pos * (string * IdentifierType.t) list) list;
+	mutable interface_field_implementations : (tclass * tclass_field * tclass * tclass_field option) list;
 }
 
 (* This information is shared between normal and macro context. *)
@@ -745,10 +747,12 @@ let create version s_version args =
 			shared_display_information = {
 				import_positions = PMap.empty;
 				diagnostics_messages = [];
+				type_hints = Hashtbl.create 0;
 			}
 		};
 		display_information = {
 			unresolved_identifiers = [];
+			interface_field_implementations = [];
 		};
 		sys_args = args;
 		debug = false;

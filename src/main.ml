@@ -1293,7 +1293,10 @@ try
 						DMPosition
 					| "usage" ->
 						Common.define com Define.NoCOpt;
-						DMUsage
+						DMUsage false
+					(*| "rename" ->
+						Common.define com Define.NoCOpt;
+						DMUsage true*)
 					| "package" ->
 						DMPackage
 					| "type" ->
@@ -1482,8 +1485,10 @@ try
 		com.warning <- if com.display = DMDiagnostics false then (fun s p -> add_diagnostics_message com s p DiagnosticsSeverity.Warning) else message ctx;
 		com.error <- error ctx;
 		com.main_class <- None;
-		if com.display <> DMUsage then
-			classes := [];
+		begin match com.display with
+			| DMUsage _ | DMStatistics -> ()
+			| _ -> classes := []
+		end;
 		let real = get_real_path (!Parser.resume_display).Ast.pfile in
 		(match get_module_path_from_file_path com real with
 		| Some path ->
@@ -1613,7 +1618,7 @@ try
 		t();
 		if ctx.has_error then raise Abort;
 		begin match ctx.com.display with
-			| DMNone | DMUsage | DMDiagnostics true | DMStatistics ->
+			| DMNone | DMUsage _ | DMDiagnostics true | DMStatistics ->
 				()
 			| _ ->
 				if ctx.has_next then raise Abort;
@@ -1625,11 +1630,32 @@ try
 		com.types <- types;
 		com.modules <- modules;
 		begin match com.display with
-			| DMUsage -> Codegen.detect_usage com;
+			| DMUsage with_definition ->
+				let symbols,relations = Display.Statistics.collect_statistics tctx in
+				let rec loop acc relations = match relations with
+					| (Display.Statistics.Referenced,p) :: relations -> loop (p :: acc) relations
+					| _ :: relations -> loop acc relations
+					| [] -> acc
+				in
+				let usages = Hashtbl.fold (fun p sym acc ->
+					if Display.Statistics.is_usage_symbol sym then begin
+						let acc = if with_definition then p :: acc else acc in
+						(try loop acc (Hashtbl.find relations p)
+						with Not_found -> acc)
+					end else
+						acc
+				) symbols [] in
+				let usages = List.sort (fun p1 p2 ->
+					let c = compare p1.pfile p2.pfile in
+					if c <> 0 then c else compare p1.pmin p2.pmin
+				) usages in
+				raise (Display.DisplayPosition usages)
 			| DMDiagnostics true ->
 				Display.Diagnostics.prepare com;
 				raise (Display.Diagnostics (Display.Diagnostics.print_diagnostics tctx))
-			| DMStatistics -> raise (Display.Statistics (Display.Statistics.collect_statistics tctx))
+			| DMStatistics ->
+				let stats = Display.Statistics.collect_statistics tctx in
+				raise (Display.Statistics (Display.StatisticsPrinter.print_statistics stats))
 			| _ -> ()
 		end;
 		Filters.run com tctx main;

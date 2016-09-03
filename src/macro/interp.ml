@@ -283,7 +283,7 @@ let constants =
 	"constructs";"names";"superClass";"interfaces";"fields";"statics";"constructor";"init";"t";
 	"gid";"uid";"atime";"mtime";"ctime";"dev";"ino";"nlink";"rdev";"size";"mode";"pos";"len";
 	"binops";"unops";"from";"to";"array";"op";"isPostfix";"impl";"resolve";
-	"id";"capture";"extra";"v";"ids";"vars";"en";"overrides";"status";"overloads";"path"];
+	"id";"capture";"extra";"v";"ids";"vars";"en";"overrides";"status";"overloads";"path";"namePos"];
 	h
 
 let h_get = hash "__get" and h_set = hash "__set"
@@ -4526,6 +4526,7 @@ and encode_efield f =
 		"name", enc_string f.ef_name;
 		"type", encode_type f.ef_type;
 		"pos", encode_pos f.ef_pos;
+		"namePos", encode_pos f.ef_name_pos;
 		"index", VInt f.ef_index;
 		"meta", encode_meta f.ef_meta (fun m -> f.ef_meta <- m);
 		"doc", null enc_string f.ef_doc;
@@ -4542,6 +4543,7 @@ and encode_cfield f =
 		"expr", (VFunction (Fun0 (fun() -> ignore(follow f.cf_type); (match f.cf_expr with None -> VNull | Some e -> encode_texpr e))));
 		"kind", encode_field_kind f.cf_kind;
 		"pos", encode_pos f.cf_pos;
+		"namePos",encode_pos f.cf_name_pos;
 		"doc", null enc_string f.cf_doc;
 		"overloads", encode_ref f.cf_overloads (encode_array encode_cfield) (fun() -> "overloads");
 	]
@@ -4903,6 +4905,7 @@ let decode_cfield v =
 		cf_type = decode_type (field v "type");
 		cf_public = dec_bool (field v "isPublic");
 		cf_pos = decode_pos (field v "pos");
+		cf_name_pos = decode_pos (field v "namePos");
 		cf_doc = opt dec_string (field v "doc");
 		cf_meta = []; (* TODO *)
 		cf_kind = decode_field_kind (field v "kind");
@@ -4916,6 +4919,7 @@ let decode_efield v =
 		ef_name = dec_string (field v "name");
 		ef_type = decode_type (field v "type");
 		ef_pos = decode_pos (field v "pos");
+		ef_name_pos = decode_pos (field v "namePos");
 		ef_index = (match field v "index" with VInt i -> i | _ -> raise Invalid_expr);
 		ef_meta = []; (* TODO *)
 		ef_doc = opt dec_string (field v "doc");

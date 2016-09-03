@@ -887,6 +887,7 @@ let rec type_module_type ctx t tparams p =
 			t_module = c.cl_module;
 			t_doc = None;
 			t_pos = c.cl_pos;
+			t_name_pos = null_pos;
 			t_type = TAnon {
 				a_fields = c.cl_statics;
 				a_status = ref (Statics c);
@@ -921,6 +922,7 @@ let rec type_module_type ctx t tparams p =
 			t_module = a.a_module;
 			t_doc = None;
 			t_pos = a.a_pos;
+			t_name_pos = null_pos;
 			t_type = TAnon {
 				a_fields = PMap.empty;
 				a_status = ref (AbstractStatics a);
@@ -1081,7 +1083,7 @@ let rec acc_get ctx g p =
 						in
 						loop c.cl_module.m_types
 					with Not_found ->
-						let c2 = mk_class c.cl_module mpath c.cl_pos in
+						let c2 = mk_class c.cl_module mpath c.cl_pos null_pos in
 						c.cl_module.m_types <- (TClassDecl c2) :: c.cl_module.m_types;
 						c2
 				in
@@ -1371,7 +1373,7 @@ let rec type_ident_raise ctx i p mode =
 					| MGet -> error "Cannot create closure on inline closure" p
 					| MCall ->
 						(* create a fake class with a fake field to emulate inlining *)
-						let c = mk_class ctx.m.curmod (["local"],v.v_name) e.epos in
+						let c = mk_class ctx.m.curmod (["local"],v.v_name) e.epos null_pos in
 						let cf = { (mk_field v.v_name v.v_type e.epos) with cf_params = params; cf_expr = Some e; cf_kind = Method MethInline } in
 						c.cl_extern <- true;
 						c.cl_fields <- PMap.add cf.cf_name cf PMap.empty;
@@ -1617,6 +1619,7 @@ and type_field ?(resume=false) ctx e i p mode =
 					cf_meta = no_meta;
 					cf_public = true;
 					cf_pos = p;
+					cf_name_pos = null_pos;
 					cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
 					cf_expr = None;
 					cf_params = [];
@@ -1633,6 +1636,7 @@ and type_field ?(resume=false) ctx e i p mode =
 			cf_meta = no_meta;
 			cf_public = true;
 			cf_pos = p;
+			cf_name_pos = null_pos;
 			cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
 			cf_expr = None;
 			cf_params = [];
@@ -3201,7 +3205,7 @@ and type_new ctx path el with_type p =
 		| mt ->
 			error ((s_type_path (t_infos mt).mt_path) ^ " cannot be constructed") p
 	in
-	if ctx.in_display && Display.is_display_position (pos path) then Display.display_type ctx.com.display t (pos path);
+	Display.check_display_type ctx t (pos path);
 	let build_constructor_call c tl =
 		let ct, f = get_constructor ctx c tl p in
 		if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (s_type_path c.cl_path ^ " does not have a constructor") p;
@@ -3876,7 +3880,7 @@ and handle_display ctx e_ast iscall with_type =
 			| _ -> e.etype
 		in
 		raise (Display.DisplayType (t,p))
-	| DMUsage ->
+	| DMUsage _ ->
 		let rec loop e = match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->
 			ef.ef_meta <- (Meta.Usage,[],p) :: ef.ef_meta;

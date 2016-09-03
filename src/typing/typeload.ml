@@ -100,7 +100,7 @@ let module_pass_1 ctx m tdecls loadp =
 			pt := Some p;
 			let priv = List.mem HPrivate d.d_flags in
 			let path = make_path name priv in
-			let c = mk_class m path p in
+			let c = mk_class m path p (pos d.d_name) in
 			(* we shouldn't load any other type until we propertly set cl_build *)
 			c.cl_build <- (fun() -> assert false);
 			c.cl_module <- m;
@@ -119,6 +119,7 @@ let module_pass_1 ctx m tdecls loadp =
 				e_path = path;
 				e_module = m;
 				e_pos = p;
+				e_name_pos = (pos d.d_name);
 				e_doc = d.d_doc;
 				e_meta = d.d_meta;
 				e_params = [];
@@ -131,6 +132,7 @@ let module_pass_1 ctx m tdecls loadp =
 					t_module = m;
 					t_doc = None;
 					t_pos = p;
+					t_name_pos = null_pos;
 					t_type = mk_mono();
 					t_private = true;
 					t_params = [];
@@ -149,6 +151,7 @@ let module_pass_1 ctx m tdecls loadp =
 				t_path = path;
 				t_module = m;
 				t_pos = p;
+				t_name_pos = pos d.d_name;
 				t_doc = d.d_doc;
 				t_private = priv;
 				t_params = [];
@@ -173,6 +176,7 @@ let module_pass_1 ctx m tdecls loadp =
 				a_private = priv;
 				a_module = m;
 				a_pos = p;
+				a_name_pos = pos d.d_name;
 				a_doc = d.d_doc;
 				a_params = [];
 				a_meta = d.d_meta;
@@ -456,7 +460,7 @@ let rec load_instance ?(allow_display=false) ctx (t,pn) allow_no_params p =
 						| EConst (Float f) -> "F" ^ f
 						| _ -> "Expr"
 					) in
-					let c = mk_class null_module ([],name) p in
+					let c = mk_class null_module ([],name) p (pos e) in
 					c.cl_kind <- KExpr e;
 					TInst (c,[])
 				| TPType t -> load_complex_type ctx true p t
@@ -508,8 +512,7 @@ let rec load_instance ?(allow_display=false) ctx (t,pn) allow_no_params p =
 			f params
 		end
 	in
-	if allow_display && ctx.is_display_file && Display.is_display_position pn then
-		Display.display_type ctx.com.display t pn;
+	if allow_display then Display.check_display_type ctx t pn;
 	t
 
 (*
@@ -543,7 +546,7 @@ and load_complex_type ctx allow_display p (t,pn) =
 					error "Cannot structurally extend type parameters" p
 				| TInst (c,tl) ->
 					ctx.com.warning "Structurally extending classes is deprecated and will be removed" p;
-					let c2 = mk_class null_module (fst c.cl_path,"+" ^ snd c.cl_path) p in
+					let c2 = mk_class null_module (fst c.cl_path,"+" ^ snd c.cl_path) p null_pos in
 					c2.cl_private <- true;
 					PMap.iter (fun f _ ->
 						try
@@ -652,6 +655,7 @@ and load_complex_type ctx allow_display p (t,pn) =
 				cf_name = n;
 				cf_type = t;
 				cf_pos = p;
+				cf_name_pos = (pos f.cff_name);
 				cf_public = !pub;
 				cf_kind = access;
 				cf_params = !params;
@@ -809,7 +813,7 @@ let valid_redefinition ctx f1 t1 f2 t2 = (* child, parent *)
 					| _ ->
 						raise (Unify_error [Unify_custom "Different number of constraints"]))
 				| _ -> ());
-				TInst (mk_class null_module ([],name) Ast.null_pos,[])
+				TInst (mk_class null_module ([],name) Ast.null_pos Ast.null_pos,[])
 			) l1 l2 in
 			List.iter (fun f -> f monos) !to_check;
 			apply_params l1 monos t1, apply_params l2 monos t2
@@ -1404,7 +1408,12 @@ module Inheritance = struct
 					else
 						t2, f2
 				in
-
+				begin match ctx.com.display with
+					| DMUsage _ | DMStatistics ->
+						let h = ctx.com.display_information in
+						h.interface_field_implementations <- (intf,f,c,Some f2) :: h.interface_field_implementations;
+					| _ ->	()
+				end;
 				ignore(follow f2.cf_type); (* force evaluation *)
 				let p = (match f2.cf_expr with None -> p | Some e -> e.epos) in
 				let mkind = function
@@ -1550,7 +1559,7 @@ end
 
 let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 	let n = fst tp.tp_name in
-	let c = mk_class ctx.m.curmod (fst path @ [snd path],n) (pos tp.tp_name) in
+	let c = mk_class ctx.m.curmod (fst path @ [snd path],n) (pos tp.tp_name) (pos tp.tp_name) in
 	c.cl_params <- type_type_params ctx c.cl_path get_params p tp.tp_params;
 	c.cl_kind <- KTypeParameter [];
 	c.cl_meta <- tp.Ast.tp_meta;
@@ -2125,7 +2134,7 @@ module ClassInitializer = struct
 			end
 		in
 		begin match ctx.com.display with
-			| DMNone | DMUsage | DMDiagnostics true | DMStatistics ->
+			| DMNone | DMUsage _ | DMDiagnostics true | DMStatistics ->
 				if fctx.is_macro && not ctx.in_macro then
 					()
 				else begin
@@ -2299,6 +2308,7 @@ module ClassInitializer = struct
 			cf_meta = f.cff_meta;
 			cf_type = t;
 			cf_pos = f.cff_pos;
+			cf_name_pos = pos f.cff_name;
 			cf_kind = Var (if fctx.is_inline then { v_read = AccInline ; v_write = AccNever } else { v_read = AccNormal; v_write = AccNormal });
 			cf_expr = None;
 			cf_public = is_public (ctx,cctx) f.cff_access None;
@@ -2523,6 +2533,7 @@ module ClassInitializer = struct
 			cf_meta = f.cff_meta;
 			cf_type = t;
 			cf_pos = f.cff_pos;
+			cf_name_pos = pos f.cff_name;
 			cf_kind = Method (if fctx.is_macro then MethMacro else if fctx.is_inline then MethInline else if dynamic then MethDynamic else MethNormal);
 			cf_expr = None;
 			cf_public = is_public (ctx,cctx) f.cff_access parent;
@@ -2696,6 +2707,7 @@ module ClassInitializer = struct
 			cf_doc = f.cff_doc;
 			cf_meta = f.cff_meta;
 			cf_pos = f.cff_pos;
+			cf_name_pos = pos f.cff_name;
 			cf_kind = Var { v_read = get; v_write = set };
 			cf_expr = None;
 			cf_type = ret;
@@ -2884,7 +2896,7 @@ let add_module ctx m p =
 	Hashtbl.add ctx.g.modules m.m_path m
 
 let handle_path_display ctx path p =
-	match Display.convert_import_to_something_usable path,ctx.com.display with
+	match Display.convert_import_to_something_usable !Parser.resume_display path,ctx.com.display with
 		| (Display.IDKPackage sl,_),_ ->
 			raise (Parser.TypePath(sl,None,true))
 		| (Display.IDKModule(sl,s),_),DMPosition ->
@@ -2925,7 +2937,9 @@ let init_module_type ctx context_init do_init (decl,p) =
 	let check_path_display path p = match ctx.com.display with
 		(* We cannot use ctx.is_display_file because the import could come from an import.hx file. *)
 		| DMDiagnostics b when (b && not (ExtString.String.ends_with p.pfile "import.hx")) || Display.is_display_file p.pfile ->
-			Display.add_import_position ctx.com p;
+			Display.add_import_position ctx.com p path;
+		| DMStatistics | DMUsage _ ->
+			Display.add_import_position ctx.com p path;
 		| _ ->
 			if Display.is_display_file p.pfile then handle_path_display ctx path p
 	in
@@ -2969,6 +2983,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 					t_path = (fst md.m_path @ ["_" ^ snd md.m_path],name);
 					t_module = md;
 					t_pos = p;
+					t_name_pos = null_pos;
 					t_private = true;
 					t_doc = None;
 					t_meta = [];
@@ -3228,6 +3243,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				ef_name = fst c.ec_name;
 				ef_type = t;
 				ef_pos = p;
+				ef_name_pos = snd c.ec_name;
 				ef_doc = c.ec_doc;
 				ef_index = !index;
 				ef_params = params;
@@ -3242,6 +3258,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 					| _ -> Var { v_read = AccNormal; v_write = AccNo }
 				);
 				cf_pos = p;
+				cf_name_pos = f.ef_name_pos;
 				cf_doc = f.ef_doc;
 				cf_meta = no_meta;
 				cf_expr = None;
@@ -3879,7 +3896,7 @@ let rec build_generic ctx c p tl =
 			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake;
 		} in
 		gctx.mg <- Some mg;
-		let cg = mk_class mg (pack,name) c.cl_pos in
+		let cg = mk_class mg (pack,name) c.cl_pos null_pos in
 		mg.m_types <- [TClassDecl cg];
 		Hashtbl.add ctx.g.modules mg.m_path mg;
 		add_dependency mg m;
@@ -4065,6 +4082,7 @@ let extend_xml_proxy ctx c t file p =
 						cf_type = t;
 						cf_public = true;
 						cf_pos = p;
+						cf_name_pos = null_pos;
 						cf_doc = None;
 						cf_meta = no_meta;
 						cf_kind = Var { v_read = AccResolve; v_write = AccNo };

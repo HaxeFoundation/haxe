@@ -97,7 +97,7 @@ let display_type dm t p =
 		let mt = module_type_of_type t in
 		begin match dm with
 			| DMPosition -> raise (DisplayPosition [(t_infos mt).mt_pos]);
-			| DMUsage ->
+			| DMUsage _ ->
 				let ti = t_infos mt in
 				ti.mt_meta <- (Meta.Usage,[],ti.mt_pos) :: ti.mt_meta
 			| DMType -> raise (DisplayType (t,p))
@@ -106,24 +106,37 @@ let display_type dm t p =
 	with Exit ->
 		()
 
+let check_display_type ctx t p =
+	let add_type_hint () =
+		Hashtbl.replace ctx.com.shared.shared_display_information.type_hints p t;
+	in
+	let maybe_display_type () =
+		if ctx.is_display_file && is_display_position p then
+			display_type ctx.com.display t p
+	in
+	match ctx.com.display with
+	| DMStatistics -> add_type_hint()
+	| DMUsage _ -> add_type_hint(); maybe_display_type()
+	| _ -> maybe_display_type()
+
 let display_module_type dm mt =
 	display_type dm (type_of_module_type mt)
 
 let display_variable dm v p = match dm with
 	| DMPosition -> raise (DisplayPosition [v.v_pos])
-	| DMUsage -> v.v_meta <- (Meta.Usage,[],v.v_pos) :: v.v_meta;
+	| DMUsage _ -> v.v_meta <- (Meta.Usage,[],v.v_pos) :: v.v_meta;
 	| DMType -> raise (DisplayType (v.v_type,p))
 	| _ -> ()
 
 let display_field dm cf p = match dm with
 	| DMPosition -> raise (DisplayPosition [cf.cf_pos]);
-	| DMUsage -> cf.cf_meta <- (Meta.Usage,[],cf.cf_pos) :: cf.cf_meta;
+	| DMUsage _ -> cf.cf_meta <- (Meta.Usage,[],cf.cf_pos) :: cf.cf_meta;
 	| DMType -> raise (DisplayType (cf.cf_type,p))
 	| _ -> ()
 
 let display_enum_field dm ef p = match dm with
 	| DMPosition -> raise (DisplayPosition [p]);
-	| DMUsage -> ef.ef_meta <- (Meta.Usage,[],p) :: ef.ef_meta;
+	| DMUsage _ -> ef.ef_meta <- (Meta.Usage,[],p) :: ef.ef_meta;
 	| DMType -> raise (DisplayType (ef.ef_type,p))
 	| _ -> ()
 
@@ -297,11 +310,11 @@ type import_display_kind =
 
 type import_display = import_display_kind * pos
 
-let convert_import_to_something_usable path =
+let convert_import_to_something_usable pt path =
 	let rec loop pack m t = function
 		| (s,p) :: l ->
 			let is_lower = is_lower_ident s in
-			let is_display_pos = encloses_position !Parser.resume_display p in
+			let is_display_pos = encloses_position pt p in
 			begin match is_lower,m,t with
 				| _,None,Some _ ->
 					assert false (* impossible, I think *)
@@ -328,15 +341,15 @@ let convert_import_to_something_usable path =
 
 let process_expr com e = match com.display with
 	| DMToplevel -> find_enclosing com e
-	| DMPosition | DMUsage | DMType -> find_before_pos com e
+	| DMPosition | DMUsage _ | DMType -> find_before_pos com e
 	| _ -> e
 
-let add_import_position com p =
-	com.shared.shared_display_information.import_positions <- PMap.add p (ref false) com.shared.shared_display_information.import_positions
+let add_import_position com p path =
+	com.shared.shared_display_information.import_positions <- PMap.add p (ref false,path) com.shared.shared_display_information.import_positions
 
 let mark_import_position com p =
 	try
-		let r = PMap.find p com.shared.shared_display_information.import_positions in
+		let r = fst (PMap.find p com.shared.shared_display_information.import_positions) in
 		r := true
 	with Not_found ->
 		()
@@ -491,7 +504,7 @@ module Diagnostics = struct
 			) suggestions in
 			add DKUnresolvedIdentifier p DiagnosticsSeverity.Error (suggestions @ (find_type s));
 		) com.display_information.unresolved_identifiers;
-		PMap.iter (fun p r ->
+		PMap.iter (fun p (r,_) ->
 			if not !r then add DKUnusedImport p DiagnosticsSeverity.Warning []
 		) com.shared.shared_display_information.import_positions;
 		List.iter (fun (s,p,sev) ->
@@ -525,7 +538,6 @@ end
 let maybe_mark_import_position ctx p =
 	if Diagnostics.is_diagnostics_run ctx then mark_import_position ctx.com p
 
-
 module Statistics = struct
 	type relation =
 		| Implemented
@@ -533,12 +545,195 @@ module Statistics = struct
 		| Overridden
 		| Referenced
 
-	type source_kind =
-		| SKClass
-		| SKInterface
-		| SKEnum
-		| SKField
-		| SKEnumField
+	type symbol =
+		| SKClass of tclass
+		| SKInterface of tclass
+		| SKEnum of tenum
+		| SKField of tclass_field
+		| SKEnumField of tenum_field
+		| SKVariable of tvar
+
+	let is_usage_symbol symbol =
+		let meta = match symbol with
+			| SKClass c | SKInterface c -> c.cl_meta
+			| SKEnum en -> en.e_meta
+			| SKField cf -> cf.cf_meta
+			| SKEnumField ef -> ef.ef_meta
+			| SKVariable v -> v.v_meta
+		in
+		Meta.has Meta.Usage meta
+
+	let collect_statistics ctx =
+		let relations = Hashtbl.create 0 in
+		let symbols = Hashtbl.create 0 in
+		let add_relation pos r =
+			if is_display_file pos.pfile then try
+				Hashtbl.replace relations pos (r :: Hashtbl.find relations pos)
+			with Not_found ->
+				Hashtbl.add relations pos [r]
+		in
+		let declare kind p =
+			if is_display_file p.pfile then begin
+				if not (Hashtbl.mem relations p) then Hashtbl.add relations p [];
+				Hashtbl.replace symbols p kind;
+			end
+		in
+		let collect_overrides c =
+			List.iter (fun cf ->
+				let rec loop c = match c.cl_super with
+					| Some (c,_) ->
+						begin try
+							let cf' = PMap.find cf.cf_name c.cl_fields in
+							add_relation cf'.cf_name_pos (Overridden,cf.cf_pos)
+						with Not_found ->
+							loop c
+						end
+					| _ ->
+						()
+				in
+				loop c
+			) c.cl_overrides
+		in
+		let rec find_real_constructor c = match c.cl_constructor,c.cl_super with
+			(* The pos comparison might be a bit weak, not sure... *)
+			| Some cf,_ when not (Meta.has Meta.CompilerGenerated cf.cf_meta) && c.cl_pos <> cf.cf_pos -> cf
+			| _,Some(c,_) -> find_real_constructor c
+			| _,None -> raise Not_found
+		in
+		let var_decl v = declare (SKVariable v) v.v_pos in
+		let patch_string_pos p s = { p with pmin = p.pmax - String.length s } in
+		let patch_string_pos_front p s  = { p with pmax = p.pmin + String.length s } in
+		let field_reference cf p =
+			add_relation cf.cf_name_pos (Referenced,patch_string_pos p cf.cf_name)
+		in
+		let collect_references c e =
+			let rec loop e = match e.eexpr with
+				| TField(e1,fa) ->
+					(* Check if the sub-expression is actually shorter than the whole one. This should
+					   detect cases where it was automatically generated. *)
+					if e1.epos.pmin = e.epos.pmin && e1.epos.pmax <> e.epos.pmax then
+						loop e1;
+					begin match fa with
+						| FStatic(_,cf) | FInstance(_,_,cf) | FClosure(_,cf) ->
+							field_reference cf e.epos
+						| FAnon cf ->
+							declare  (SKField cf) cf.cf_name_pos;
+							field_reference cf e.epos
+						| FEnum(_,ef) ->
+							add_relation ef.ef_name_pos (Referenced,patch_string_pos e.epos ef.ef_name)
+						| FDynamic _ ->
+							()
+					end
+				| TTypeExpr mt ->
+					let tinfos = t_infos mt in
+					add_relation tinfos.mt_name_pos (Referenced,patch_string_pos e.epos (snd tinfos.mt_path))
+				| TNew(c,_,el) ->
+					List.iter loop el;
+					(try add_relation (find_real_constructor c).cf_name_pos (Referenced,e.epos) with Not_found -> ());
+				| TCall({eexpr = TConst TSuper},el) ->
+					List.iter loop el;
+					begin match c.cl_super with
+						| Some(c,_) -> (try add_relation (find_real_constructor c).cf_name_pos (Referenced,e.epos) with Not_found -> ())
+						| None -> ()
+					end
+				| TVar(v,eo) ->
+					Option.may loop eo;
+					var_decl v;
+				| TFor(v,e1,e2) ->
+					var_decl v;
+					loop e1;
+					loop e2;
+				| TFunction tf ->
+					List.iter (fun (v,_) -> var_decl v) tf.tf_args;
+					loop tf.tf_expr;
+				| TLocal v when e.epos.pmax - e.epos.pmin = String.length v.v_name ->
+					add_relation v.v_pos (Referenced,e.epos)
+				| _ ->
+					Type.iter loop e
+			in
+			loop e
+		in
+		List.iter (function
+			| TClassDecl c ->
+				declare (if c.cl_interface then (SKInterface c) else (SKClass c)) c.cl_name_pos;
+				List.iter (fun (c',_) -> add_relation c'.cl_name_pos ((if c.cl_interface then Extended else Implemented),c.cl_name_pos)) c.cl_implements;
+				begin match c.cl_super with
+					| None -> ()
+					| Some (c',_) -> add_relation c'.cl_name_pos (Extended,c.cl_name_pos);
+				end;
+				collect_overrides c;
+				let field cf =
+					if cf.cf_pos.pmin > c.cl_name_pos.pmin then declare (SKField cf) cf.cf_name_pos;
+					let _ = follow cf.cf_type in
+					match cf.cf_expr with None -> () | Some e -> collect_references c e
+				in
+				Option.may field c.cl_constructor;
+				List.iter field c.cl_ordered_fields;
+				List.iter field c.cl_ordered_statics;
+			| TEnumDecl en ->
+				declare (SKEnum en) en.e_name_pos;
+				PMap.iter (fun _ ef -> declare (SKEnumField ef) ef.ef_name_pos) en.e_constrs
+			| _ ->
+				()
+		) ctx.com.types;
+		let explore_type_hint p t = match follow t with
+			| TInst(c,_) -> add_relation c.cl_name_pos (Referenced,(patch_string_pos_front p (snd c.cl_path)))
+			| _ -> ()
+		in
+		Hashtbl.iter (fun p t ->
+			explore_type_hint p t
+		) ctx.com.shared.shared_display_information.type_hints;
+		let l = List.fold_left (fun acc (_,cfi,_,cfo) -> match cfo with
+			| Some cf -> if List.mem_assoc cf.cf_name_pos acc then acc else (cf.cf_name_pos,cfi.cf_name_pos) :: acc
+			| None -> acc
+		) [] ctx.com.display_information.interface_field_implementations in
+		List.iter (fun (p,p') -> add_relation p' (Implemented,p)) l;
+		let deal_with_imports paths =
+			let check_subtype m s p =
+				try
+					let mt = List.find (fun mt -> snd (t_infos mt).mt_path = s) m.m_types in
+					add_relation (t_infos mt).mt_name_pos (Referenced,p);
+					Some mt
+				with Not_found ->
+					None
+			in
+			let check_module path p =
+				let m = ctx.g.do_load_module ctx path p in
+				m
+			in
+			let check_field c s p =
+				let cf = PMap.find s c.cl_statics in
+				add_relation cf.cf_name_pos (Referenced,p)
+			in
+			let check_subtype_field m ssub psub sfield pfield = match check_subtype m ssub psub with
+				| Some (TClassDecl c) -> check_field c sfield pfield
+				| _ -> ()
+			in
+			PMap.iter (fun p (_,path) ->
+				match convert_import_to_something_usable { p with pmin = p.pmax - 1; pmax = p.pmax - 1 } path,List.rev path with
+				| (IDKSubType(sl,s1,s2),_),(_,psubtype) :: (_,pmodule) :: _ ->
+					let m = check_module (sl,s1) pmodule in
+					(*ignore(check_subtype m s1 pmodule);*)
+					ignore(check_subtype m s2 psubtype)
+				| (IDKModuleField(sl,s1,s2),_),(_,pfield) :: (_,pmodule) :: _ ->
+					let m = check_module (sl,s1) pmodule in
+					check_subtype_field m s1 pmodule s2 pfield
+				| (IDKSubTypeField(sl,s1,s2,s3),_),(_,pfield) :: (_,psubtype) :: (_,pmodule) :: _ ->
+					let m = check_module (sl,s1) pmodule in
+					check_subtype_field m s2 psubtype s3 pfield
+				| (IDKModule(sl,s),_),(_,pmodule) :: _ ->
+					let m = check_module (sl,s) pmodule in
+					ignore(check_subtype m s pmodule);
+				| _ ->
+					()
+			) paths
+		in
+		deal_with_imports ctx.com.shared.shared_display_information.import_positions;
+		symbols,relations
+end
+
+module StatisticsPrinter = struct
+	open Statistics
 
 	let relation_to_string = function
 		| Implemented -> "implementers"
@@ -546,14 +741,15 @@ module Statistics = struct
 		| Overridden -> "overrides"
 		| Referenced -> "references"
 
-	let source_kind_to_string = function
-		| SKClass -> "class type"
-		| SKInterface -> "interface type"
-		| SKEnum -> "enum type"
-		| SKField -> "class field"
-		| SKEnumField -> "enum field"
+	let symbol_to_string = function
+		| SKClass _ -> "class type"
+		| SKInterface _ -> "interface type"
+		| SKEnum _ -> "enum type"
+		| SKField _ -> "class field"
+		| SKEnumField _ -> "enum field"
+		| SKVariable _ -> "variable"
 
-	let print_statistics kinds relations =
+	let print_statistics (kinds,relations) =
 		let files = Hashtbl.create 0 in
 		Hashtbl.iter (fun p rl ->
 			let file = get_real_path p.pfile in
@@ -576,7 +772,7 @@ module Statistics = struct
 				) rl;
 				let l = Hashtbl.fold (fun s js acc -> (s,JArray js) :: acc) h [] in
 				let l = ("range",pos_to_json_range p) :: l in
-				let l = try ("kind",JString (source_kind_to_string (Hashtbl.find kinds p))) :: l with Not_found -> l in
+				let l = try ("kind",JString (symbol_to_string (Hashtbl.find kinds p))) :: l with Not_found -> l in
 				JObject l
 			) relations in
 			(JObject [
@@ -587,91 +783,4 @@ module Statistics = struct
 		let b = Buffer.create 0 in
 		write_json (Buffer.add_string b) (JArray ja);
 		Buffer.contents b
-
-	let collect_statistics ctx =
-		let relations = Hashtbl.create 0 in
-		let kinds = Hashtbl.create 0 in
-		let add_relation pos r =
-			if is_display_file pos.pfile then try
-				Hashtbl.replace relations pos (r :: Hashtbl.find relations pos)
-			with Not_found ->
-				Hashtbl.add relations pos [r]
-		in
-		let declare kind p =
-			if is_display_file p.pfile then begin
-				if not (Hashtbl.mem relations p) then Hashtbl.add relations p [];
-				Hashtbl.replace kinds p kind;
-			end
-		in
-		let collect_overrides c =
-			List.iter (fun cf ->
-				let rec loop c = match c.cl_super with
-					| Some (c,_) ->
-						begin try
-							let cf' = PMap.find cf.cf_name c.cl_fields in
-							add_relation cf'.cf_pos (Overridden,cf.cf_pos)
-						with Not_found ->
-							loop c
-						end
-					| _ ->
-						()
-				in
-				loop c
-			) c.cl_overrides
-		in
-		let rec find_real_constructor c = match c.cl_constructor,c.cl_super with
-			(* The pos comparison might be a bit week, not sure... *)
-			| Some cf,_ when not (Meta.has Meta.CompilerGenerated cf.cf_meta) && c.cl_pos <> cf.cf_pos -> cf
-			| _,Some(c,_) -> find_real_constructor c
-			| _,None -> raise Not_found
-		in
-		let collect_references c e =
-			let rec loop e = match e.eexpr with
-				| TField(e1,FEnum(_,ef)) ->
-					loop e1;
-					add_relation ef.ef_pos (Referenced,e.epos);
-				| TField(e1,fa) ->
-					loop e1;
-					begin match extract_field fa with
-						| Some cf when is_display_file cf.cf_pos.pfile ->
-							add_relation cf.cf_pos (Referenced,e.epos)
-						| _ ->
-							()
-					end
-				| TNew(c,_,el) ->
-					List.iter loop el;
-					(try add_relation (find_real_constructor c).cf_pos (Referenced,e.epos) with Not_found -> ());
-				| TCall({eexpr = TConst TSuper},el) ->
-					List.iter loop el;
-					begin match c.cl_super with
-						| Some(c,_) -> (try add_relation (find_real_constructor c).cf_pos (Referenced,e.epos) with Not_found -> ())
-						| None -> ()
-					end
-
-				| _ ->
-					Type.iter loop e
-			in
-			loop e
-		in
-		List.iter (function
-			| TClassDecl c ->
-				declare (if c.cl_interface then SKInterface else SKClass) c.cl_pos;
-				List.iter (fun (c',_) -> add_relation c'.cl_pos ((if c.cl_interface then Extended else Implemented),c.cl_pos)) c.cl_implements;
-				(match c.cl_super with None -> () | Some (c',_) -> add_relation c'.cl_pos (Extended,c.cl_pos));
-				collect_overrides c;
-				let field cf =
-					declare SKField cf.cf_pos;
-					let _ = follow cf.cf_type in
-					match cf.cf_expr with None -> () | Some e -> collect_references c e
-				in
-				let _ = Option.map field c.cl_constructor in
-				List.iter field c.cl_ordered_fields;
-				List.iter field c.cl_ordered_statics;
-			| TEnumDecl en ->
-				declare SKEnum en.e_pos;
-				PMap.iter (fun _ ef -> declare SKEnumField ef.ef_pos) en.e_constrs
-			| _ ->
-				()
-		) ctx.com.types;
-		print_statistics kinds relations
 end

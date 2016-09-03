@@ -149,6 +149,7 @@ and tclass_field = {
 	mutable cf_type : t;
 	mutable cf_public : bool;
 	cf_pos : pos;
+	cf_name_pos : pos;
 	mutable cf_doc : Ast.documentation;
 	mutable cf_meta : metadata;
 	mutable cf_kind : field_kind;
@@ -174,6 +175,7 @@ and tinfos = {
 	mt_path : path;
 	mt_module : module_def;
 	mt_pos : Ast.pos;
+	mt_name_pos : Ast.pos;
 	mt_private : bool;
 	mt_doc : Ast.documentation;
 	mutable mt_meta : metadata;
@@ -184,6 +186,7 @@ and tclass = {
 	mutable cl_path : path;
 	mutable cl_module : module_def;
 	mutable cl_pos : Ast.pos;
+	mutable cl_name_pos : Ast.pos;
 	mutable cl_private : bool;
 	mutable cl_doc : Ast.documentation;
 	mutable cl_meta : metadata;
@@ -212,6 +215,7 @@ and tenum_field = {
 	ef_name : string;
 	ef_type : t;
 	ef_pos : Ast.pos;
+	ef_name_pos : Ast.pos;
 	ef_doc : Ast.documentation;
 	ef_index : int;
 	ef_params : type_params;
@@ -222,6 +226,7 @@ and tenum = {
 	mutable e_path : path;
 	e_module : module_def;
 	e_pos : Ast.pos;
+	e_name_pos : Ast.pos;
 	e_private : bool;
 	e_doc : Ast.documentation;
 	mutable e_meta : metadata;
@@ -237,6 +242,7 @@ and tdef = {
 	t_path : path;
 	t_module : module_def;
 	t_pos : Ast.pos;
+	t_name_pos : Ast.pos;
 	t_private : bool;
 	t_doc : Ast.documentation;
 	mutable t_meta : metadata;
@@ -249,6 +255,7 @@ and tabstract = {
 	mutable a_path : path;
 	a_module : module_def;
 	a_pos : Ast.pos;
+	a_name_pos : Ast.pos;
 	a_private : bool;
 	a_doc : Ast.documentation;
 	mutable a_meta : metadata;
@@ -345,11 +352,12 @@ let tfun pl r = TFun (List.map (fun t -> "",false,t) pl,r)
 
 let fun_args l = List.map (fun (a,c,t) -> a, c <> None, t) l
 
-let mk_class m path pos =
+let mk_class m path pos name_pos =
 	{
 		cl_path = path;
 		cl_module = m;
 		cl_pos = pos;
+		cl_name_pos = name_pos;
 		cl_doc = None;
 		cl_meta = [];
 		cl_private = false;
@@ -394,6 +402,7 @@ let mk_field name t p = {
 	cf_name = name;
 	cf_type = t;
 	cf_pos = p;
+	cf_name_pos = p;
 	cf_doc = None;
 	cf_meta = [];
 	cf_public = true;
@@ -411,7 +420,7 @@ let null_module = {
 	}
 
 let null_class =
-	let c = mk_class null_module ([],"") Ast.null_pos in
+	let c = mk_class null_module ([],"") Ast.null_pos Ast.null_pos in
 	c.cl_private <- true;
 	c
 
@@ -421,6 +430,7 @@ let null_abstract = {
 	a_path = ([],"");
 	a_module = null_module;
 	a_pos = null_pos;
+	a_name_pos = null_pos;
 	a_private = true;
 	a_doc = None;
 	a_meta = [];
