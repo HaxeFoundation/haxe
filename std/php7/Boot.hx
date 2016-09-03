@@ -180,19 +180,19 @@ class Boot {
 	public static function is( value:Dynamic, type:Class<Dynamic> ) : Bool {
 		var phpType = HxClass.getPhpName(cast type);
 		switch (phpType) {
-			case '\\Dynamic':
+			case 'Dynamic':
 				return true;
-			case '\\Int':
+			case 'Int':
 				return value.is_int();
-			case '\\Float':
-				return value.is_float();
-			case '\\Bool':
+			case 'Float':
+				return value.is_float() || value.is_int();
+			case 'Bool':
 				return value.is_bool();
-			case '\\String':
+			case 'String':
 				return value.is_string();
-			case '\\php7\\NativeArray':
+			case 'php7\\NativeArray':
 				return value.is_array();
-			case '\\Enum':
+			case 'Enum':
 				if (value.is_object()) {
 					var hxClass : HxClass = cast HxClass;
 					var className = HxClass.getPhpName(cast HxClass);

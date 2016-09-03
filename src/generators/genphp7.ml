@@ -1151,23 +1151,11 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes TFunction to output buffer
 		*)
-		method private write_expr_function ?name func =
-			let write_arg arg =
-				match arg with
-					| ({ v_name = arg_name; v_type = arg_type }, default_value) ->
-						vars#declared arg_name;
-						if is_ref arg_type then self#write "&";
-						self#write ("$" ^ arg_name);
-						match default_value with
-							| None -> ()
-							| Some const ->
-								self#write " = ";
-								self#write_expr_const const
-			in
+		method private write_expr_function ?name func =			
 			match name with
-				| None -> self#write_closure_declaration func write_arg
-				| Some "__construct" -> self#write_constructor_function_declaration func write_arg
-				| Some name -> self#write_method_function_declaration name func write_arg
+				| None -> self#write_closure_declaration func self#write_function_arg
+				| Some "__construct" -> self#write_constructor_function_declaration func self#write_function_arg
+				| Some name -> self#write_method_function_declaration name func self#write_function_arg
 		(**
 			Writes constructor declaration (except visibility and `static` keywords) to output buffer
 		*)
@@ -1180,7 +1168,7 @@ class virtual type_builder ctx wrapper =
 			self#write_line "{";
 			self#indent_more;
 			self#write_instance_initialization;
-			self#write_fake_block func.tf_expr; (* (inject_defaults ctx func); *)
+			self#write_fake_block func.tf_expr;
 			self#indent_less;
 			self#write_indentation;
 			self#write "}"
@@ -1194,7 +1182,7 @@ class virtual type_builder ctx wrapper =
 			self#indent 1;
 			self#write "\n";
 			self#write_indentation;
-			self#write_expr func.tf_expr (* (inject_defaults ctx func) *)
+			self#write_expr func.tf_expr
 		(**
 			Writes closure declaration to output buffer
 		*)
@@ -1206,7 +1194,7 @@ class virtual type_builder ctx wrapper =
 			(* Generate closure body to separate buffer *)
 			let original_buffer = buffer in
 			buffer <- Buffer.create 256;
-			self#write_expr func.tf_expr; (* (inject_defaults ctx func); *)
+			self#write_expr func.tf_expr;
 			let body = Buffer.contents buffer in
 			buffer <- original_buffer;
 			(* Use captured local vars *)
@@ -1415,7 +1403,7 @@ class virtual type_builder ctx wrapper =
 			match expr_hierarchy with
 				| _ :: { eexpr = TField _ } :: _ -> self#write (self#use type_path)
 				| _ ->
-					let type_name = get_full_type_name ~escape:true type_path in
+					let type_name = get_full_type_name ~escape:true ~omit_first_slash:true type_path in
 					self#write ((self#use boot_type_path) ^ "::getClass('" ^ type_name ^ "')")
 		(**
 			Writes binary operation to output buffer
@@ -1813,10 +1801,24 @@ class virtual type_builder ctx wrapper =
 			self#write_expr expr;
 			self#write ("->params[" ^ (string_of_int index) ^ "]")
 		(**
-			Writes list of arguments for function declarations or calls
+			Writes argument for function declarations or calls
 		*)
 		method write_arg with_optionals (arg_name, optional, (arg_type:Type.t)) =
 			self#write ("$" ^ arg_name ^ (if with_optionals && optional then " = null" else ""))
+		(**
+			Writes argument with optional value for function declarations
+		*)
+		method write_function_arg arg =
+			match arg with
+				| ({ v_name = arg_name; v_type = arg_type }, default_value) ->
+					vars#declared arg_name;
+					if is_ref arg_type then self#write "&";
+					self#write ("$" ^ arg_name);
+					match default_value with
+						| None -> ()
+						| Some const ->
+							self#write " = ";
+							self#write_expr_const const
 	end
 
 (**
@@ -2207,17 +2209,15 @@ class class_builder ctx (cls:tclass) =
 			(match field.cf_expr with
 				| Some { eexpr = TFunction fn } ->
 					self#write (field.cf_name ^ " (");
-					write_args buffer (self#write_arg true) args;
+					write_args buffer self#write_function_arg fn.tf_args;
 					self#write ")\n";
 					self#write_line "{";
 					self#indent_more;
 					self#write_indentation;
 					let field_access = "$this->" ^ field.cf_name
 					and default_value = "$this->__hx__default__" ^ field.cf_name in
-					self#write ("if (" ^ field_access ^ " !== " ^ default_value ^ ") return (" ^ field_access ^ ")(");
-					write_args buffer (self#write_arg false) args;
-					self#write ");\n";
-					self#write_fake_block fn.tf_expr; (* (inject_defaults ctx fn); *)
+					self#write ("if (" ^ field_access ^ " !== " ^ default_value ^ ") return call_user_func_array(" ^ field_access ^ ", func_get_args());\n");					
+					self#write_fake_block fn.tf_expr;
 					self#indent_less;
 					self#write_line "}"
 				| _ -> fail field.cf_pos __POS__
