@@ -32,6 +32,11 @@ using php7.Global;
 @:keep
 @:dox(hide)
 class Boot {
+	/** List of Haxe classes registered by their PHP class names  */
+	@:protected static var aliases = new NativeAssocArray<String>();
+	/** Cache of HxClass instances */
+	@:protected static var classes = new NativeAssocArray<HxClass>();
+
 	/**
 		Initialization stuff.
 		This method is called once before invoking any Haxe-generated user code.
@@ -64,25 +69,86 @@ class Boot {
 	}
 
 	/**
+		Associate PHP class name with Haxe class name
+	**/
+	public static function registerClass( phpClassName:String, haxeClassName:String ) : Void {
+		aliases[phpClassName] = haxeClassName;
+	}
+
+	/**
 		Get Class<T> instance for PHP fully qualified class name (E.g. '\some\pack\MyClass')
 		It's always the same instance for the same `phpClassName`
 	**/
 	public static function getClass( phpClassName:String ) : HxClass {
-		return HxClass.get(phpClassName);
+		if (phpClassName.charAt(0) == '\\') {
+			phpClassName = phpClassName.substr(1);
+		}
+		if (!Global.isset(classes[phpClassName])) {
+			classes[phpClassName] = new HxClass(phpClassName);
+		}
+
+		return classes[phpClassName];
 	}
 
 	/**
 		Returns either Haxe class name for specified `phpClassName` or (if no such Haxe class registered) `phpClassName`.
 	**/
 	public static function getClassName( phpClassName:String ) : String {
-		return HxClass.getName(HxClass.get(phpClassName));
+		var hxClass = getClass(phpClassName);
+		var name = getHaxeName(hxClass);
+		return (name == null ? hxClass.phpClassName : name);
 	}
 
 	/**
-		Associate PHP class name with Haxe class name
+		Returns original Haxe fully qualified class name for this type (if exists)
 	**/
-	public static function registerClass( phpClassName:String, haxeClassName:String ) : Void {
-		HxClass.register(phpClassName, haxeClassName);
+	public static function getHaxeName( hxClass:HxClass) : Null<String> {
+		inline function exists() return Global.isset(aliases[hxClass.phpClassName]);
+
+		if (exists()) {
+			return aliases[hxClass.phpClassName];
+		} else if (Global.class_exists(hxClass.phpClassName) && exists()) {
+			return aliases[hxClass.phpClassName];
+		} else if (Global.interface_exists(hxClass.phpClassName) && exists()) {
+			return aliases[hxClass.phpClassName];
+		}
+
+		return null;
+	}
+
+
+	/**
+		Implementation for `cast(value, Class<Dynamic>)`
+		@throws HException if `value` cannot be casted to this type
+	**/
+	public static function tryCast( hxClass:HxClass, value:Dynamic ) : Dynamic {
+		switch (hxClass.phpClassName) {
+			case '\\Int':
+				if (Boot.isNumber(value)) {
+					return Global.intval(value);
+				}
+			case '\\Float':
+				if (Boot.isNumber(value)) {
+					return value.floatval();
+				}
+			case '\\Bool':
+				if (value.is_bool()) {
+					return value;
+				}
+			case '\\String':
+				if (value.is_string()) {
+					return value;
+				}
+			case '\\php7\\NativeArray':
+				if (value.is_array()) {
+					return value;
+				}
+			case _:
+				if (value.is_object() && Std.is(value, cast hxClass)) {
+					return value;
+				}
+		}
+		throw 'Cannot cast ' + Std.string(value) + ' to ' + getClassName(hxClass.phpClassName);
 	}
 
 	/**
@@ -142,12 +208,11 @@ class Boot {
 			if (untyped __php__("$value instanceof \\Closure")) {
 				return '<function>';
 			}
-			var hxClassPhpName = HxClass.getPhpName(cast HxClass);
+			var hxClassPhpName = (cast HxClass:HxClass).phpClassName;
 			if (untyped __php__("$value instanceof $hxClassPhpName")) {
-				return '[class ' + HxClass.getName(cast value) + ']';
+				return '[class ' + getClassName(cast value) + ']';
 			} else {
-				var cls = getClass(Global.get_class(value));
-				return '[object ' + HxClass.getName(cls) + ']';
+				return '[object ' + getClassName(Global.get_class(value)) + ']';
 			}
 		}
 		throw "Unable to stringify value";
@@ -177,8 +242,8 @@ class Boot {
 	/**
 		`Std.is()` implementation
 	**/
-	public static function is( value:Dynamic, type:Class<Dynamic> ) : Bool {
-		var phpType = HxClass.getPhpName(cast type);
+	public static function is( value:Dynamic, type:HxClass ) : Bool {
+		var phpType = type.phpClassName;
 		switch (phpType) {
 			case 'Dynamic':
 				return true;
@@ -195,10 +260,9 @@ class Boot {
 			case 'Enum':
 				if (value.is_object()) {
 					var hxClass : HxClass = cast HxClass;
-					var className = HxClass.getPhpName(cast HxClass);
-					if (untyped __php__("$value instanceof $className")) {
-						var valuePhpClass = HxClass.getPhpName(cast value);
-						var enumPhpClass = HxClass.getPhpName(cast HxEnum);
+					if (untyped __php__("$value instanceof $hxClass->phpClassName")) {
+						var valuePhpClass = (cast value:HxClass).phpClassName;
+						var enumPhpClass = (cast HxEnum:HxClass).phpClassName;
 						return Global.is_subclass_of(valuePhpClass, enumPhpClass);
 					}
 				}
@@ -242,103 +306,10 @@ class Boot {
 @:keep
 @:dox(hide)
 private class HxClass {
-	@:protected
-	static var aliases = new NativeAssocArray<String>();
-	@:protected
-	static var classes = new NativeAssocArray<HxClass>();
 
-	@:protected
-	var phpClassName : String;
+	public var phpClassName (default,null) : String;
 
-	/**
-		Associate PHP class name with Haxe class name
-	**/
-	public static function register( phpClassName:String, haxeClassName:String ) : Void {
-		aliases[phpClassName] = haxeClassName;
-	}
-
-	/**
-		Get `HxClass` instance for specified PHP fully qualified class name (E.g. '\some\pack\MyClass')
-	**/
-	public static function get( phpClassName:String ) : HxClass {
-		if (phpClassName.charAt(0) == '\\') {
-			phpClassName = phpClassName.substr(1);
-		}
-		if (!Global.isset(classes[phpClassName])) {
-			classes[phpClassName] = new HxClass(phpClassName);
-		}
-
-		return classes[phpClassName];
-	}
-
-	/**
-		Returns native PHP fully qualified class name for this type
-	**/
-	public static function getPhpName( hxClass:HxClass ) : String {
-		return hxClass.phpClassName;
-	}
-
-	/**
-		Returns original Haxe fully qualified class name for this type (if exists)
-	**/
-	public static function getHaxeName( hxClass:HxClass) : Null<String> {
-		inline function exists() return Global.isset(aliases[hxClass.phpClassName]);
-
-		if (exists()) {
-			return aliases[hxClass.phpClassName];
-		} else if (Global.class_exists(hxClass.phpClassName) && exists()) {
-			return aliases[hxClass.phpClassName];
-		} else if (Global.interface_exists(hxClass.phpClassName) && exists()) {
-			return aliases[hxClass.phpClassName];
-		}
-
-		return null;
-	}
-
-	/**
-		Returns original Haxe name. If Haxe name is unknown, returns PHP name.
-	**/
-	public static function getName( hxClass:HxClass) : String {
-		var name = getHaxeName(hxClass);
-		return (name == null ? hxClass.phpClassName : name);
-	}
-
-	/**
-		Implementation for `cast(value, Class<Dynamic>)`
-		@throws HException if `value` cannot be casted to this type
-	**/
-	public static function tryCast( hxClass:HxClass, value:Dynamic ) : Dynamic {
-		switch (hxClass.phpClassName) {
-			case '\\Int':
-				if (Boot.isNumber(value)) {
-					return Global.intval(value);
-				}
-			case '\\Float':
-				if (Boot.isNumber(value)) {
-					return value.floatval();
-				}
-			case '\\Bool':
-				if (value.is_bool()) {
-					return value;
-				}
-			case '\\String':
-				if (value.is_string()) {
-					return value;
-				}
-			case '\\php7\\NativeArray':
-				if (value.is_array()) {
-					return value;
-				}
-			case _:
-				if (value.is_object() && Std.is(value, cast hxClass)) {
-					return value;
-				}
-		}
-		throw 'Cannot cast ' + Std.string(value) + ' to ' + getName(hxClass);
-	}
-
-	@:protected
-	function new( phpClassName:String ) : Void {
+	public function new( phpClassName:String ) : Void {
 		this.phpClassName = phpClassName;
 	}
 
@@ -505,7 +476,7 @@ private class HxString {
 @:dox(hide)
 @:keep
 private class HxDynamicStr {
-	static var hxString : String = HxClass.getPhpName(cast HxString);
+	static var hxString : String = (cast HxString:HxClass).phpClassName;
 	var str:String;
 
 	/**
