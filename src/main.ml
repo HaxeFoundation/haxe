@@ -1316,9 +1316,9 @@ try
 						match smode with
 							| "resolve" ->
 								DMResolve arg
-                            | "workspace-symbols" ->
-                                Common.define com Define.NoCOpt;
-                                DMModuleSymbols (Some arg)
+							| "workspace-symbols" ->
+								Common.define com Define.NoCOpt;
+								DMModuleSymbols (Some arg)
 							| _ ->
 								DMDefault
 				in
