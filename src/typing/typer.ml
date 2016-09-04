@@ -1066,7 +1066,7 @@ let rec acc_get ctx g p =
 		let cmode = (match fmode with FStatic _ -> fmode | FInstance (c,tl,f) -> FClosure (Some (c,tl),f) | _ -> assert false) in
 		ignore(follow f.cf_type); (* force computing *)
 		(match f.cf_expr with
-		| _ when ctx.com.display.dms_display ->
+		| None when ctx.com.display.dms_display ->
 			mk (TField (e,cmode)) t p
 		| None ->
 			error "Recursive inline is not supported" p

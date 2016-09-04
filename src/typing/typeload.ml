@@ -1096,7 +1096,8 @@ let type_function_arg_value ctx t c =
 				| TConst c -> Some c
 				| TCast(e,None) -> loop e
 				| _ ->
-					if not ctx.com.display.dms_display || ctx.com.display.dms_error_policy = EPCollect then display_error ctx "Parameter default value should be constant" p;
+					if not ctx.com.display.dms_display || ctx.com.display.dms_inline && ctx.com.display.dms_error_policy = EPCollect then
+						display_error ctx "Parameter default value should be constant" p;
 					None
 			in
 			loop e
