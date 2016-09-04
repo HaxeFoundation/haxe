@@ -71,7 +71,6 @@ let measure_times = ref false
 let prompt = ref false
 let start_time = ref (get_time())
 
-let path_sep = if Sys.os_type = "Unix" then "/" else "\\"
 
 let executable_path() =
 	Extc.executable_path()
@@ -440,7 +439,7 @@ let run_command ctx cmd =
 		0
 	end else
 	let binary_string s =
-		if Sys.os_type <> "Win32" && Sys.os_type <> "Cygwin" then s else String.concat "\n" (Str.split (Str.regexp "\r\n") s)
+		if not is_windows then s else String.concat "\n" (Str.split (Str.regexp "\r\n") s)
 	in
 	let pout, pin, perr = Unix.open_process_full cmd (Unix.environment()) in
 	let iout = Unix.descr_of_in_channel pout in

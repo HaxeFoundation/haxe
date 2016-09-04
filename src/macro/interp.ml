@@ -511,8 +511,7 @@ let rec dlopen dls =
 		None
 
 let neko =
-	let is_win = Sys.os_type = "Win32" || Sys.os_type = "Cygwin" in
-	match dlopen (if is_win then
+	match dlopen (if is_windows then
 		["neko.dll"]
 	else
 		(*

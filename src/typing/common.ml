@@ -1127,7 +1127,11 @@ let find_file ctx f =
 
 let get_full_path f = try Extc.get_full_path f with _ -> f
 
-let unique_full_path = if Sys.os_type = "Win32" || Sys.os_type = "Cygwin" then (fun f -> String.lowercase (get_full_path f)) else get_full_path
+let is_windows = Sys.os_type = "Win32" || Sys.os_type = "Cygwin"
+
+let path_sep = if is_windows then "\\" else "/"
+
+let unique_full_path = if is_windows then (fun f -> String.lowercase (get_full_path f)) else get_full_path
 
 let get_real_path p =
 	try
