@@ -168,8 +168,8 @@ module DisplayMode = struct
 				dms_exit_during_typing = false
 			}
 		| DMToplevel -> { settings with dms_full_typing = true; }
-		| DMModuleSymbols _ -> { settings with
-				dms_display_file_policy = DFPOnly;
+		| DMModuleSymbols filter -> { settings with
+				dms_display_file_policy = if filter = None then DFPOnly else DFPNo;
 				dms_exit_during_typing = false;
 				dms_force_macro_typing = true;
 			}

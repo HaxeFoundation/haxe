@@ -238,7 +238,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	incr stats.s_files_parsed;
 	let data = (try Parser.parse com lexbuf with e -> t(); raise e) in
     begin match !display_default with
-        | DMModuleSymbols None when Display.is_display_file file ->
+        | DMModuleSymbols filter when filter <> None || Display.is_display_file file ->
             let ds = Display.DocumentSymbols.collect_module_symbols data in
 			com.shared.shared_display_information.document_symbols <- (file,ds) :: com.shared.shared_display_information.document_symbols;
         | _ ->

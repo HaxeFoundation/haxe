@@ -1316,6 +1316,9 @@ try
 						match smode with
 							| "resolve" ->
 								DMResolve arg
+                            | "workspace-symbols" ->
+                                Common.define com Define.NoCOpt;
+                                DMModuleSymbols (Some arg)
 							| _ ->
 								DMDefault
 				in
@@ -1648,6 +1651,21 @@ try
 				raise (Display.Statistics (Display.StatisticsPrinter.print_statistics stats))
 			| DMModuleSymbols filter ->
 				let symbols = com.shared.shared_display_information.document_symbols in
+				let symbols = match !global_cache with
+					| None -> symbols
+					| Some cache ->
+						let rec loop acc com =
+							let com_sign = get_signature com in
+							let acc = Hashtbl.fold (fun (file,sign) (_,data) acc ->
+								if (filter <> None || Display.is_display_file file) && com_sign = sign then
+									(file,Display.DocumentSymbols.collect_module_symbols data) :: acc
+								else
+									acc
+							) cache.c_files acc in
+							match com.get_macros() with None -> acc | Some com -> loop acc com
+						in
+						loop symbols com
+				in
 				raise (Display.ModuleSymbols(Display.DocumentSymbols.print_module_symbols com symbols filter))
 			| _ -> ()
 		end;
