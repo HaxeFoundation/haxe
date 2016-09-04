@@ -142,8 +142,7 @@ let display_enum_field dm ef p = match dm.dms_kind with
 	| _ -> ()
 
 open Json
-open DisplayTypes.SymbolKind
-open DisplayTypes.SymbolInformation
+
 
 let pos_to_json_range p =
 	if p.pmin = -1 then
@@ -156,106 +155,133 @@ let pos_to_json_range p =
 			("end", to_json l2 p2);
 		]
 
-let print_module_symbols (pack,decls) =
-	let l = DynArray.create() in
-	let add name kind location parent =
-		let si = make name kind location (match parent with None -> None | Some si -> Some si.name) in
-		DynArray.add l si;
-		si
-	in
-(* 		let si_pack = match pack with
-		| [] -> None
-		| _ -> Some (add (String.concat "." pack) Package null_pos None) (* TODO: we don't have the position *)
-	in *)
-	let si_pack = None in (* TODO: no position, no point *)
-	let rec expr si (e,p) =
-		let add name kind location = add name kind location si in
-		let add_ignore name kind location = ignore(add name kind location) in
-		begin match e with
-			(* TODO: disabled for now because it's too spammy *)
-(* 			| EConst ct ->
-			begin match ct with
-				| Int i | Float i -> add_ignore i Number p
-				| Ast.String s -> add_ignore s String p
-				| Ident ("true" | "false" as s) -> add_ignore s Boolean p
-				| Ident _ -> (* Hmm... *) ()
-				| _ -> ()
-			end *)
-		| EVars vl ->
-			List.iter (fun ((s,p),_,eo) ->
-				add_ignore s Variable p;
-				expr_opt si eo
-			) vl
-		| ETry(e1,catches) ->
-			expr si e1;
-			List.iter (fun ((s,p),_,e) ->
-				add_ignore s Variable p;
-				expr si e
-			) catches;
-		| EFunction(Some s,f) ->
-			let si_function = add s Function p in
-			func si_function f
-		| EIn((EConst(Ident s),p),e2) ->
-			add_ignore s Variable p;
-			expr si e2;
-		| _ ->
-			iter_expr (expr si) (e,p)
-		end
-	and expr_opt si eo = match eo with
-		| None -> ()
-		| Some e -> expr si e
-	and func si f =
-		List.iter (fun ((s,p),_,_,_,eo) ->
-			let si_arg = add s Variable p (Some si) in
-			expr_opt (Some si_arg) eo
-		) f.f_args;
-		expr_opt (Some si) f.f_expr
-	in
-	let field si_type cff = match cff.cff_kind with
-		| FVar(_,eo) ->
-			let si_field = add (fst cff.cff_name) Field cff.cff_pos (Some si_type) in
-			expr_opt (Some si_field) eo
-		| FFun f ->
-			let si_method = add (fst cff.cff_name) (if fst cff.cff_name = "new" then Constructor else Method) cff.cff_pos (Some si_type) in
-			func si_method f
-		| FProp(_,_,_,eo) ->
-			let si_property = add (fst cff.cff_name) Property cff.cff_pos (Some si_type) in
-			expr_opt (Some si_property) eo
-	in
-	List.iter (fun (td,p) -> match td with
-		| EImport _ | EUsing _ ->
-			() (* TODO: Can we do anything with these? *)
-		| EClass d ->
-			let si_type = add (fst d.d_name) (if List.mem HInterface d.d_flags then Interface else Class) p si_pack in
-			List.iter (field si_type) d.d_data
-		| EEnum d ->
-			let si_type = add (fst d.d_name) Enum p si_pack in
-			List.iter (fun ef ->
-				ignore (add (fst ef.ec_name) Method ef.ec_pos (Some si_type))
-			) d.d_data
-		| ETypedef d ->
-			let si_type = add (fst d.d_name) Typedef p si_pack in
-			(match d.d_data with
-			| CTAnonymous fields,_ ->
-				List.iter (field si_type) fields
-			| _ -> ())
-		| EAbstract d ->
-			let si_type = add (fst d.d_name) Abstract p si_pack in
-			List.iter (field si_type) d.d_data
-	) decls;
-	let jl = List.map (fun si ->
-		let l =
-			("name",JString si.name) ::
-			("kind",JInt (to_int si.kind)) ::
-			("range", pos_to_json_range si.pos) ::
-			(match si.container_name with None -> [] | Some s -> ["containerName",JString s])
+module DocumentSymbols = struct
+	open DisplayTypes.SymbolKind
+	open DisplayTypes.SymbolInformation
+	open Json
+
+	let collect_module_symbols (pack,decls) =
+		let l = DynArray.create() in
+		let add name kind location parent =
+			let si = make name kind location (match parent with None -> None | Some si -> Some si.name) in
+			DynArray.add l si;
+			si
 		in
-		JObject l
-	) (DynArray.to_list l) in
-	let js = JArray jl in
-	let b = Buffer.create 0 in
-	write_json (Buffer.add_string b) js;
-	Buffer.contents b
+	(* 		let si_pack = match pack with
+			| [] -> None
+			| _ -> Some (add (String.concat "." pack) Package null_pos None) (* TODO: we don't have the position *)
+		in *)
+		let si_pack = None in (* TODO: no position, no point *)
+		let rec expr si (e,p) =
+			let add name kind location = add name kind location si in
+			let add_ignore name kind location = ignore(add name kind location) in
+			begin match e with
+				(* TODO: disabled for now because it's too spammy *)
+	(* 			| EConst ct ->
+				begin match ct with
+					| Int i | Float i -> add_ignore i Number p
+					| Ast.String s -> add_ignore s String p
+					| Ident ("true" | "false" as s) -> add_ignore s Boolean p
+					| Ident _ -> (* Hmm... *) ()
+					| _ -> ()
+				end *)
+			| EVars vl ->
+				List.iter (fun ((s,p),_,eo) ->
+					add_ignore s Variable p;
+					expr_opt si eo
+				) vl
+			| ETry(e1,catches) ->
+				expr si e1;
+				List.iter (fun ((s,p),_,e) ->
+					add_ignore s Variable p;
+					expr si e
+				) catches;
+			| EFunction(Some s,f) ->
+				let si_function = add s Function p in
+				func si_function f
+			| EIn((EConst(Ident s),p),e2) ->
+				add_ignore s Variable p;
+				expr si e2;
+			| _ ->
+				iter_expr (expr si) (e,p)
+			end
+		and expr_opt si eo = match eo with
+			| None -> ()
+			| Some e -> expr si e
+		and func si f =
+			List.iter (fun ((s,p),_,_,_,eo) ->
+				let si_arg = add s Variable p (Some si) in
+				expr_opt (Some si_arg) eo
+			) f.f_args;
+			expr_opt (Some si) f.f_expr
+		in
+		let field si_type cff = match cff.cff_kind with
+			| FVar(_,eo) ->
+				let si_field = add (fst cff.cff_name) Field cff.cff_pos (Some si_type) in
+				expr_opt (Some si_field) eo
+			| FFun f ->
+				let si_method = add (fst cff.cff_name) (if fst cff.cff_name = "new" then Constructor else Method) cff.cff_pos (Some si_type) in
+				func si_method f
+			| FProp(_,_,_,eo) ->
+				let si_property = add (fst cff.cff_name) Property cff.cff_pos (Some si_type) in
+				expr_opt (Some si_property) eo
+		in
+		List.iter (fun (td,p) -> match td with
+			| EImport _ | EUsing _ ->
+				() (* TODO: Can we do anything with these? *)
+			| EClass d ->
+				let si_type = add (fst d.d_name) (if List.mem HInterface d.d_flags then Interface else Class) p si_pack in
+				List.iter (field si_type) d.d_data
+			| EEnum d ->
+				let si_type = add (fst d.d_name) Enum p si_pack in
+				List.iter (fun ef ->
+					ignore (add (fst ef.ec_name) Method ef.ec_pos (Some si_type))
+				) d.d_data
+			| ETypedef d ->
+				let si_type = add (fst d.d_name) Typedef p si_pack in
+				(match d.d_data with
+				| CTAnonymous fields,_ ->
+					List.iter (field si_type) fields
+				| _ -> ())
+			| EAbstract d ->
+				let si_type = add (fst d.d_name) Abstract p si_pack in
+				List.iter (field si_type) d.d_data
+		) decls;
+		l
+
+	let print_module_symbols com symbols filter =
+		let regex = Option.map Str.regexp filter in
+		let matches s = match regex with
+			| None -> true
+			| Some regex -> (try ignore(Str.search_forward regex s 0); true with Not_found -> false)
+		in
+		let ja = List.fold_left (fun acc (file,l) ->
+			let jl = ExtList.List.filter_map (fun si ->
+				if not (matches si.name) then
+					None
+				else begin
+					let l =
+						("name",JString si.name) ::
+						("kind",JInt (to_int si.kind)) ::
+						("range", pos_to_json_range si.pos) ::
+						(match si.container_name with None -> [] | Some s -> ["containerName",JString s])
+					in
+					Some (JObject l)
+				end
+			) (DynArray.to_list l) in
+			if jl = [] then
+				acc
+			else
+				(JObject [
+					"file",JString file;
+					"symbols",JArray jl
+				]) :: acc
+		) [] symbols in
+		let js = JArray ja in
+		let b = Buffer.create 0 in
+		write_json (Buffer.add_string b) js;
+		Buffer.contents b
+end
 
 type import_display_kind =
 	| IDKPackage of string list

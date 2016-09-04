@@ -237,8 +237,13 @@ let parse_file_from_lexbuf com file p lexbuf =
 	Lexer.init file true;
 	incr stats.s_files_parsed;
 	let data = (try Parser.parse com lexbuf with e -> t(); raise e) in
-	if com.display.dms_kind = DMModuleSymbols && Display.is_display_file file then
-		raise (Display.ModuleSymbols(Display.print_module_symbols data));
+    begin match com.display.dms_kind with
+        | DMModuleSymbols when Display.is_display_file file ->
+            let ds = Display.DocumentSymbols.collect_module_symbols data in
+            raise (Display.ModuleSymbols(Display.DocumentSymbols.print_module_symbols com [file,ds] None))
+        | _ ->
+            ()
+    end;
 	t();
 	Common.log com ("Parsed " ^ file);
 	data
