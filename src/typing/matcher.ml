@@ -1242,7 +1242,7 @@ module TexprConverter = struct
 		let p = dt.dt_pos in
 		let c_type = match follow (Typeload.load_instance ctx ({ tpackage = ["std"]; tname="Type"; tparams=[]; tsub = None},null_pos) true p) with TInst(c,_) -> c | t -> assert false in
 		let mk_index_call e =
-			if ctx.com.display <> DMNone then
+			if not ctx.com.display.DisplayMode.dms_full_typing then
 				(* If we are in display mode there's a chance that these fields don't exist. Let's just use a
 				   (correctly typed) neutral value because it doesn't actually matter. *)
 				mk (TConst (TInt (Int32.of_int 0))) ctx.t.tint e.epos
@@ -1251,7 +1251,7 @@ module TexprConverter = struct
 				make_static_call ctx c_type cf (fun t -> t) [e] com.basic.tint e.epos
 		in
 		let mk_name_call e =
-			if ctx.com.display <> DMNone then
+			if not ctx.com.display.DisplayMode.dms_full_typing then
 				mk (TConst (TString "")) ctx.t.tstring e.epos
 			else
 				let cf = PMap.find "enumConstructor" c_type.cl_statics in
@@ -1273,7 +1273,7 @@ module TexprConverter = struct
 					with Not_exhaustive -> match with_type,finiteness with
 						| NoValue,Infinite -> None
 						| _,CompileTimeFinite when unmatched = [] -> None
-						| _ when ctx.com.display <> DMNone -> None
+						| _ when ctx.com.display.DisplayMode.dms_error_policy = DisplayMode.EPIgnore -> None
 						| _ -> report_not_exhaustive e_subject unmatched
 				in
 				let cases = ExtList.List.filter_map (fun (con,_,dt) -> match unify_constructor ctx params e_subject.etype con with
@@ -1346,7 +1346,7 @@ module TexprConverter = struct
 					)
 				with Not_exhaustive ->
 					if toplevel then (fun () -> loop false params dt2)
-					else if ctx.com.display <> DMNone then (fun () -> mk (TConst TNull) (mk_mono()) dt2.dt_pos)
+					else if ctx.com.display.DisplayMode.dms_error_policy = DisplayMode.EPIgnore then (fun () -> mk (TConst TNull) (mk_mono()) dt2.dt_pos)
 					else report_not_exhaustive e [ConConst TNull,dt.dt_pos]
 				in
 				f()

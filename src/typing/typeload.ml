@@ -18,8 +18,9 @@
  *)
 
 open Ast
-open Type
 open Common
+open Common.DisplayMode
+open Type
 open Typecore
 
 exception Build_canceled of build_state
@@ -236,7 +237,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	Lexer.init file true;
 	incr stats.s_files_parsed;
 	let data = (try Parser.parse com lexbuf with e -> t(); raise e) in
-	if com.display = DMModuleSymbols && Display.is_display_file file then
+	if com.display.dms_kind = DMModuleSymbols && Display.is_display_file file then
 		raise (Display.ModuleSymbols(Display.print_module_symbols data));
 	t();
 	Common.log com ("Parsed " ^ file);
@@ -450,7 +451,7 @@ let rec load_instance ?(allow_display=false) ctx (t,pn) allow_no_params p =
 			| [TPType t] -> TDynamic (load_complex_type ctx false p t)
 			| _ -> error "Too many parameters for Dynamic" p
 		else begin
-			if not is_rest && ctx.com.display = DMNone && List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p;
+			if not is_rest && ctx.com.display.dms_error_policy <> EPIgnore && List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p;
 			let tparams = List.map (fun t ->
 				match t with
 				| TPExpr e ->
@@ -498,7 +499,7 @@ let rec load_instance ?(allow_display=false) ctx (t,pn) allow_no_params p =
 					[]
 				| [],["Rest",_] when is_generic_build ->
 					[]
-				| [],(_,t) :: tl when ctx.com.display <> DMNone ->
+				| [],(_,t) :: tl when ctx.com.display.dms_error_policy = EPIgnore ->
 					t :: loop [] tl is_rest
 				| [],_ ->
 					error ("Not enough type parameters for " ^ s_type_path path) p
@@ -1090,7 +1091,7 @@ let type_function_arg_value ctx t c =
 				| TConst c -> Some c
 				| TCast(e,None) -> loop e
 				| _ ->
-					if ctx.com.display = DMNone then display_error ctx "Parameter default value should be constant" p;
+					if not ctx.com.display.dms_display || ctx.com.display.dms_error_policy = EPCollect then display_error ctx "Parameter default value should be constant" p;
 					None
 			in
 			loop e
@@ -1408,11 +1409,9 @@ module Inheritance = struct
 					else
 						t2, f2
 				in
-				begin match ctx.com.display with
-					| DMUsage _ | DMStatistics ->
+				if ctx.com.display.dms_collect_data then begin
 						let h = ctx.com.display_information in
 						h.interface_field_implementations <- (intf,f,c,Some f2) :: h.interface_field_implementations;
-					| _ ->	()
 				end;
 				ignore(follow f2.cf_type); (* force evaluation *)
 				let p = (match f2.cf_expr with None -> p | Some e -> e.epos) in
@@ -1634,7 +1633,7 @@ let type_function ctx args ret fmode f do_display p =
 		| Parser.TypePath (_,None,_) | Exit ->
 			type_expr ctx e NoValue
 		| Display.DisplayType (t,_) | Display.DisplaySignatures [(t,_)] when (match follow t with TMono _ -> true | _ -> false) ->
-			type_expr ctx (if ctx.com.display = DMToplevel then Display.find_enclosing ctx.com e else e) NoValue
+			type_expr ctx (if ctx.com.display.dms_kind = DMToplevel then Display.find_enclosing ctx.com e else e) NoValue
 	end in
 	let e = match e.eexpr with
 		| TMeta((Meta.MergeBlock,_,_), ({eexpr = TBlock el} as e1)) -> e1
@@ -1657,7 +1656,7 @@ let type_function ctx args ret fmode f do_display p =
 		   can _not_ use type_iseq to avoid the Void check above because that
 		   would turn Dynamic returns to Void returns. *)
 		| TMono t when not (has_return e) -> ignore(link t ret ctx.t.tvoid)
-		| _ when ctx.com.display <> DMNone -> ()
+		| _ when ctx.com.display.dms_error_policy = EPIgnore -> ()
 		| _ -> (try return_flow ctx e with Exit -> ())
 	end;
 	let rec loop e =
@@ -2133,8 +2132,7 @@ module ClassInitializer = struct
 				cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
 			end
 		in
-		begin match ctx.com.display with
-			| DMNone | DMUsage _ | DMDiagnostics true | DMStatistics ->
+		if ctx.com.display.dms_full_typing then begin
 				if fctx.is_macro && not ctx.in_macro then
 					()
 				else begin
@@ -2142,17 +2140,18 @@ module ClassInitializer = struct
 					(* is_lib ? *)
 					cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
 				end
-			| DMDiagnostics false ->
+		end else begin
+			(*| DMDiagnostics false ->
 				handle_display_field()
-			| _ ->
-				if fctx.is_display_field then begin
-					handle_display_field()
-				end else begin
-					if not (is_full_type cf.cf_type) then begin
-						cctx.delayed_expr <- (ctx, None) :: cctx.delayed_expr;
-						cf.cf_type <- TLazy r;
-					end;
-				end
+			| _ ->*)
+			if fctx.is_display_field then begin
+				handle_display_field()
+			end else begin
+				if not (is_full_type cf.cf_type) then begin
+					cctx.delayed_expr <- (ctx, None) :: cctx.delayed_expr;
+					cf.cf_type <- TLazy r;
+				end;
+			end
 		end
 
 	let bind_var (ctx,cctx,fctx) cf e =
@@ -2213,7 +2212,7 @@ module ClassInitializer = struct
 						| _ -> !analyzer_run_on_expr_ref ctx.com e
 					in
 					let require_constant_expression e msg =
-						if ctx.com.display <> DMNone then
+						if ctx.com.display.dms_display && ctx.com.display.dms_error_policy <> EPCollect then
 							e
 						else match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
 						| Some e -> e
@@ -2232,23 +2231,20 @@ module ClassInitializer = struct
 						(* disallow initialization of non-physical fields (issue #1958) *)
 						display_error ctx "This field cannot be initialized because it is not a real variable" p; e
 					| Var v when not fctx.is_static ->
-						let e = match ctx.com.display with
-							| DMNone ->
-								begin match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
-									| Some e -> e
-									| None ->
-										let rec has_this e = match e.eexpr with
-											| TConst TThis ->
-												display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
-											| TLocal v when (match ctx.vthis with Some v2 -> v == v2 | None -> false) ->
-												display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
-											| _ ->
-											Type.iter has_this e
-										in
-										has_this e;
-										e
-								end
-							| _ ->
+						let e = if ctx.com.display.dms_display && ctx.com.display.dms_error_policy <> EPCollect then
+							e
+						else match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
+							| Some e -> e
+							| None ->
+								let rec has_this e = match e.eexpr with
+									| TConst TThis ->
+										display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
+									| TLocal v when (match ctx.vthis with Some v2 -> v == v2 | None -> false) ->
+										display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
+									| _ ->
+									Type.iter has_this e
+								in
+								has_this e;
 								e
 						in
 						e
@@ -2609,7 +2605,7 @@ module ClassInitializer = struct
 			| _ -> tfun [] ret, TFun(["value",false,ret],ret)
 		in
 		let check_method m t req_name =
-			if ctx.com.display <> DMNone then () else
+			if ctx.com.display.dms_error_policy = EPIgnore then () else
 			try
 				let overloads =
 					(* on pf_overload platforms, the getter/setter may have been defined as an overloaded function; get all overloads *)
@@ -2725,7 +2721,7 @@ module ClassInitializer = struct
 		let name = fst f.cff_name in
 		check_global_metadata ctx (fun m -> f.cff_meta <- m :: f.cff_meta) c.cl_module.m_path c.cl_path (Some name);
 		let p = f.cff_pos in
-		if name.[0] = '$' && ctx.com.display = DMNone then error "Field names starting with a dollar are not allowed" p;
+		if name.[0] = '$' then display_error ctx "Field names starting with a dollar are not allowed" p;
 		List.iter (fun acc ->
 			match (acc, f.cff_kind) with
 			| APublic, _ | APrivate, _ | AStatic, _ -> ()
@@ -2746,7 +2742,7 @@ module ClassInitializer = struct
 		let ctx,cctx = create_class_context ctx c context_init p in
 		let fields = patch_class ctx c fields in
 		let fields = build_fields (ctx,cctx) c fields in
-		if cctx.is_core_api && ctx.com.display = DMNone then delay ctx PForce (fun() -> init_core_api ctx c);
+		if cctx.is_core_api && ctx.com.display.dms_check_core_api then delay ctx PForce (fun() -> init_core_api ctx c);
 		if not cctx.is_lib then begin
 			(match c.cl_super with None -> () | Some _ -> delay_late ctx PForce (fun() -> check_overriding ctx c));
 			if ctx.com.config.pf_overload then delay ctx PForce (fun() -> check_overloads ctx c)
@@ -2896,7 +2892,7 @@ let add_module ctx m p =
 	Hashtbl.add ctx.g.modules m.m_path m
 
 let handle_path_display ctx path p =
-	match Display.convert_import_to_something_usable !Parser.resume_display path,ctx.com.display with
+	match Display.convert_import_to_something_usable !Parser.resume_display path,ctx.com.display.dms_kind with
 		| (Display.IDKPackage sl,_),_ ->
 			raise (Parser.TypePath(sl,None,true))
 		| (Display.IDKModule(sl,s),_),DMPosition ->
@@ -2934,7 +2930,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 	let get_type name =
 		try List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types with Not_found -> assert false
 	in
-	let check_path_display path p = match ctx.com.display with
+	let check_path_display path p = match ctx.com.display.dms_kind with
 		(* We cannot use ctx.is_display_file because the import could come from an import.hx file. *)
 		| DMDiagnostics b when (b && not (ExtString.String.ends_with p.pfile "import.hx")) || Display.is_display_file p.pfile ->
 			Display.add_import_position ctx.com p path;
@@ -3434,7 +3430,7 @@ let type_types_into_module ctx m tdecls p =
 			wildcard_packages = [];
 			module_imports = [];
 		};
-		is_display_file = (match ctx.com.display with DMNone -> false | _ -> Display.is_display_file m.m_extra.m_file);
+		is_display_file = (ctx.com.display.dms_display && Display.is_display_file m.m_extra.m_file);
 		meta = [];
 		this_stack = [];
 		with_type_stack = [];
@@ -3513,7 +3509,7 @@ let type_module ctx mpath file ?(is_extern=false) tdecls p =
 	let tdecls = handle_import_hx ctx m tdecls p in
 	let ctx = type_types_into_module ctx m tdecls p in
 	if is_extern then m.m_extra.m_kind <- MExtern;
-	begin if ctx.is_display_file then match ctx.com.display with
+	begin if ctx.is_display_file then match ctx.com.display.dms_kind with
 		| DMDiagnostics false ->
 			flush_pass ctx PBuildClass "diagnostics";
 			List.iter (fun mt -> match mt with
@@ -3878,7 +3874,7 @@ let rec build_generic ctx c p tl =
 			()
 	in
 	List.iter check_recursive tl;
-	if !recurse || ctx.com.display <> DMNone then begin
+	if !recurse || not (ctx.com.display.dms_full_typing) then begin
 		TInst (c,tl) (* build a normal instance *)
 	end else begin
 	let gctx = make_generic ctx c.cl_params tl p in

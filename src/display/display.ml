@@ -1,5 +1,6 @@
 open Ast
 open Common
+open Common.DisplayMode
 open Type
 open Typecore
 
@@ -95,7 +96,7 @@ let find_before_pos com e =
 let display_type dm t p =
 	try
 		let mt = module_type_of_type t in
-		begin match dm with
+		begin match dm.dms_kind with
 			| DMPosition -> raise (DisplayPosition [(t_infos mt).mt_pos]);
 			| DMUsage _ ->
 				let ti = t_infos mt in
@@ -114,7 +115,7 @@ let check_display_type ctx t p =
 		if ctx.is_display_file && is_display_position p then
 			display_type ctx.com.display t p
 	in
-	match ctx.com.display with
+	match ctx.com.display.dms_kind with
 	| DMStatistics -> add_type_hint()
 	| DMUsage _ -> add_type_hint(); maybe_display_type()
 	| _ -> maybe_display_type()
@@ -122,19 +123,19 @@ let check_display_type ctx t p =
 let display_module_type dm mt =
 	display_type dm (type_of_module_type mt)
 
-let display_variable dm v p = match dm with
+let display_variable dm v p = match dm.dms_kind with
 	| DMPosition -> raise (DisplayPosition [v.v_pos])
 	| DMUsage _ -> v.v_meta <- (Meta.Usage,[],v.v_pos) :: v.v_meta;
 	| DMType -> raise (DisplayType (v.v_type,p))
 	| _ -> ()
 
-let display_field dm cf p = match dm with
+let display_field dm cf p = match dm.dms_kind with
 	| DMPosition -> raise (DisplayPosition [cf.cf_pos]);
 	| DMUsage _ -> cf.cf_meta <- (Meta.Usage,[],cf.cf_pos) :: cf.cf_meta;
 	| DMType -> raise (DisplayType (cf.cf_type,p))
 	| _ -> ()
 
-let display_enum_field dm ef p = match dm with
+let display_enum_field dm ef p = match dm.dms_kind with
 	| DMPosition -> raise (DisplayPosition [p]);
 	| DMUsage _ -> ef.ef_meta <- (Meta.Usage,[],p) :: ef.ef_meta;
 	| DMType -> raise (DisplayType (ef.ef_type,p))
@@ -339,7 +340,7 @@ let convert_import_to_something_usable pt path =
 	in
 	loop [] None None path
 
-let process_expr com e = match com.display with
+let process_expr com e = match com.display.dms_kind with
 	| DMToplevel -> find_enclosing com e
 	| DMPosition | DMUsage _ | DMType -> find_before_pos com e
 	| _ -> e
@@ -529,7 +530,7 @@ module Diagnostics = struct
 		write_json (Buffer.add_string b) js;
 		Buffer.contents b
 
-	let is_diagnostics_run ctx = match ctx.com.display with
+	let is_diagnostics_run ctx = match ctx.com.display.dms_kind with
 		| DMDiagnostics true -> true
 		| DMDiagnostics false -> ctx.is_display_file
 		| _ -> false
@@ -728,7 +729,7 @@ module Statistics = struct
 					()
 			) paths
 		in
-		deal_with_imports ctx.com.shared.shared_display_information.import_positions;
+		if false then deal_with_imports ctx.com.shared.shared_display_information.import_positions;
 		symbols,relations
 end
 

@@ -18,8 +18,9 @@
  *)
 
 open Ast
-open Type
+open Common.DisplayMode
 open Common
+open Type
 open Typecore
 
 (* ---------------------------------------------------------------------- *)
@@ -836,7 +837,7 @@ let unify_field_call ctx fa el args ret p inline =
 		begin try
 			let el,tf,mk_call = attempt_call t cf in
 			List.map fst el,tf,mk_call
-		with Error _ when ctx.com.display <> DMNone ->
+		with Error _ when ctx.com.display.dms_error_policy = EPIgnore ->
 			fail_fun();
 		end
 	| _ ->
@@ -1003,7 +1004,7 @@ let make_call ctx e params t p =
 
 let mk_array_get_call ctx (cf,tf,r,e1,e2o) c ebase p = match cf.cf_expr with
 	| None ->
-		if not (Meta.has Meta.NoExpr cf.cf_meta) && ctx.com.display = DMNone then display_error ctx "Recursive array get method" p;
+		if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx "Recursive array get method" p;
 		mk (TArray(ebase,e1)) r p
 	| Some _ ->
 		let et = type_module_type ctx (TClassDecl c) None p in
@@ -1014,7 +1015,7 @@ let mk_array_set_call ctx (cf,tf,r,e1,e2o) c ebase p =
 	let evalue = match e2o with None -> assert false | Some e -> e in
 	match cf.cf_expr with
 		| None ->
-			if not (Meta.has Meta.NoExpr cf.cf_meta) && ctx.com.display = DMNone then display_error ctx "Recursive array set method" p;
+			if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx "Recursive array set method" p;
 			let ea = mk (TArray(ebase,e1)) r p in
 			mk (TBinop(OpAssign,ea,evalue)) r p
 		| Some _ ->
@@ -1065,7 +1066,7 @@ let rec acc_get ctx g p =
 		let cmode = (match fmode with FStatic _ -> fmode | FInstance (c,tl,f) -> FClosure (Some (c,tl),f) | _ -> assert false) in
 		ignore(follow f.cf_type); (* force computing *)
 		(match f.cf_expr with
-		| _ when ctx.com.display <> DMNone ->
+		| _ when ctx.com.display.dms_display ->
 			mk (TField (e,cmode)) t p
 		| None ->
 			error "Recursive inline is not supported" p
@@ -1367,7 +1368,7 @@ let rec type_ident_raise ctx i p mode =
 		| Some (params,e) ->
 			let t = monomorphs params v.v_type in
 			(match e with
-			| Some ({ eexpr = TFunction f } as e) when (match ctx.com.display with DMNone | DMDiagnostics _ -> true | _ -> false) ->
+			| Some ({ eexpr = TFunction f } as e) when ctx.com.display.dms_full_typing ->
 				begin match mode with
 					| MSet -> error "Cannot set inline closure" p
 					| MGet -> error "Cannot create closure on inline closure" p
@@ -2646,38 +2647,39 @@ and type_ident ctx i p mode =
 				AKExpr (mk (TLocal v) t p)
 		end else begin
 			if ctx.curfun = FunStatic && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
-			let err = Unknown_ident i in
-			if ctx.in_display then raise (Error (err,p));
-			match ctx.com.display with
-				| DMNone ->
-					let e = try
-						let t = List.find (fun (i2,_) -> i2 = i) ctx.type_params in
-						let c = match follow (snd t) with TInst(c,_) -> c | _ -> assert false in
-						if Typeload.is_generic_parameter ctx c && Meta.has Meta.Const c.cl_meta then
-							AKExpr (type_module_type ctx (TClassDecl c) None p)
-						else begin
-							display_error ctx ("Type parameter " ^ i ^ " is only available at compilation and is not a runtime value") p;
-							AKExpr (mk (TConst TNull) t_dynamic p)
-						end
-					with Not_found ->
+			begin try
+				let t = List.find (fun (i2,_) -> i2 = i) ctx.type_params in
+				let c = match follow (snd t) with TInst(c,_) -> c | _ -> assert false in
+				if Typeload.is_generic_parameter ctx c && Meta.has Meta.Const c.cl_meta then
+					AKExpr (type_module_type ctx (TClassDecl c) None p)
+				else begin
+					display_error ctx ("Type parameter " ^ i ^ " is only available at compilation and is not a runtime value") p;
+					AKExpr (mk (TConst TNull) t_dynamic p)
+				end
+			with Not_found ->
+				let err = Unknown_ident i in
+				if ctx.in_display then begin
+					raise (Error (err,p))
+				end;
+				match ctx.com.display.dms_kind with
+					| DMNone ->
 						raise (Error(err,p))
-					in
-					e
-				| DMDiagnostics b when b || ctx.is_display_file ->
-					let l = ToplevelCollecter.run ctx in
-					let cl = List.map (fun it ->
-						let s = IdentifierType.get_name it in
-						(s,it),StringError.levenshtein i s
-					) l in
-					let cl = List.sort (fun (_,c1) (_,c2) -> compare c1 c2) cl in
-					let cl = StringError.filter_similar (fun (s,_) r -> r > 0 && r <= (min (String.length s) (String.length i)) / 3) cl in
-					ctx.com.display_information.unresolved_identifiers <- (i,p,cl) :: ctx.com.display_information.unresolved_identifiers;
-					let t = mk_mono() in
-					AKExpr (mk (TLocal (add_local ctx i t p)) t p)
-				| _ ->
-					display_error ctx (error_msg err) p;
-					let t = mk_mono() in
-					AKExpr (mk (TLocal (add_local ctx i t p)) t p)
+					| DMDiagnostics b when b || ctx.is_display_file ->
+						let l = ToplevelCollecter.run ctx in
+						let cl = List.map (fun it ->
+							let s = IdentifierType.get_name it in
+							(s,it),StringError.levenshtein i s
+						) l in
+						let cl = List.sort (fun (_,c1) (_,c2) -> compare c1 c2) cl in
+						let cl = StringError.filter_similar (fun (s,_) r -> r > 0 && r <= (min (String.length s) (String.length i)) / 3) cl in
+						ctx.com.display_information.unresolved_identifiers <- (i,p,cl) :: ctx.com.display_information.unresolved_identifiers;
+						let t = mk_mono() in
+						AKExpr (mk (TLocal (add_local ctx i t p)) t p)
+					| _ ->
+						display_error ctx (error_msg err) p;
+						let t = mk_mono() in
+						AKExpr (mk (TLocal (add_local ctx i t p)) t p)
+			end
 		end
 
 (* MORDOR *)
@@ -2895,7 +2897,7 @@ and type_vars ctx vl p =
 					let e = Codegen.AbstractCast.cast_or_unify ctx t e p in
 					Some e
 			) in
-			if v.[0] = '$' && ctx.com.display = DMNone then error "Variables names starting with a dollar are not allowed" p;
+			if v.[0] = '$' then display_error ctx "Variables names starting with a dollar are not allowed" p;
 			let v = add_local ctx v t pv in
 			v.v_meta <- (Meta.UserVariable,[],pv) :: v.v_meta;
 			if ctx.in_display && Display.is_display_position pv then
@@ -3869,7 +3871,7 @@ and handle_display ctx e_ast iscall with_type =
 			let _, f = get_constructor ctx c params p in
 			f
 	in
-	match ctx.com.display with
+	match ctx.com.display.dms_kind with
 	| DMResolve _ | DMPackage ->
 		assert false
 	| DMType ->
@@ -4605,7 +4607,8 @@ let typing_timer ctx need_type f =
 	(*
 		disable resumable errors... unless we are in display mode (we want to reach point of completion)
 	*)
-	if ctx.com.display = DMNone then ctx.com.error <- (fun e p -> raise (Error(Custom e,p)));
+	(*if ctx.com.display = DMNone then ctx.com.error <- (fun e p -> raise (Error(Custom e,p)));*) (* TODO: review this... *)
+	ctx.com.error <- (fun e p -> raise (Error(Custom e,p)));
 	if need_type && ctx.pass < PTypeField then ctx.pass <- PTypeField;
 	let exit() =
 		t();
@@ -4992,7 +4995,7 @@ let get_macro_context ctx p =
 		ctx.com.get_macros <- (fun() -> Some com2);
 		com2.package_rules <- PMap.empty;
 		com2.main_class <- None;
-		com2.display <- DMNone;
+		com2.display <- DisplayMode.create DMNone;
 		List.iter (fun p -> com2.defines <- PMap.remove (platform_name p) com2.defines) platforms;
 		com2.defines_signature <- None;
 		com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
@@ -5043,7 +5046,7 @@ let load_macro ctx display cpath f p =
 			| _ -> error "Macro should be called on a class" p
 		) in
 		let meth = (match follow meth.cf_type with TFun (args,ret) -> args,ret,cl,meth | _ -> error "Macro call should be a method" p) in
-		mctx.com.display <- DMNone;
+		mctx.com.display <- DisplayMode.create DMNone;
 		if not ctx.in_macro then flush_macro_context mint ctx;
 		Hashtbl.add mctx.com.cached_macros (cpath,f) meth;
 		mctx.m <- {
@@ -5300,7 +5303,7 @@ let rec create com =
 			delayed = [];
 			debug_delayed = [];
 			delayed_macros = DynArray.create();
-			doinline = not (Common.defined com Define.NoInline || (match com.display with DMNone | DMDiagnostics _ -> false | _ -> true));
+			doinline = com.display.dms_inline && not (Common.defined com Define.NoInline);
 			hook_generate = [];
 			get_build_infos = (fun() -> None);
 			std = null_module;

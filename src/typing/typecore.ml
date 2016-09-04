@@ -231,9 +231,9 @@ let pass_name = function
 	| PForce -> "force"
 	| PFinal -> "final"
 
-let display_error ctx msg p = match ctx.com.display with
-	| DMDiagnostics _ -> add_diagnostics_message ctx.com msg p DiagnosticsSeverity.Error
-	| _ -> ctx.on_error ctx msg p
+let display_error ctx msg p = match ctx.com.display.DisplayMode.dms_error_policy with
+	| DisplayMode.EPShow | DisplayMode.EPIgnore -> ctx.on_error ctx msg p
+	| DisplayMode.EPCollect -> add_diagnostics_message ctx.com msg p DiagnosticsSeverity.Error
 
 let error msg p = raise (Error (Custom msg,p))
 

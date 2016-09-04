@@ -46,6 +46,7 @@ open Printf
 open Ast
 open Genswf
 open Common
+open Common.DisplayMode
 open Type
 
 type context = {
@@ -402,7 +403,7 @@ let add_libs com libs =
 			| Some cache ->
 				(try
 					(* if we are compiling, really call haxelib since library path might have changed *)
-					if com.display = DMNone then raise Not_found;
+					if not com.display.dms_display then raise Not_found;
 					Hashtbl.find cache.c_haxelib libs
 				with Not_found ->
 					let lines = call_haxelib() in
@@ -822,12 +823,9 @@ and wait_loop verbose accept =
 		let read, write, close = accept() in
 		let t0 = get_time() in
 		let rec cache_context com =
-			begin match com.display with
-				| DMNone | DMDiagnostics true ->
-					List.iter cache_module com.modules;
-					if verbose then print_endline ("Cached " ^ string_of_int (List.length com.modules) ^ " modules");
-				| _ ->
-					()
+			if com.display.dms_full_typing then begin
+				List.iter cache_module com.modules;
+				if verbose then print_endline ("Cached " ^ string_of_int (List.length com.modules) ^ " modules");
 			end;
 			match com.get_macros() with
 			| None -> ()
@@ -848,16 +846,13 @@ and wait_loop verbose accept =
 					print_endline ("Using signature " ^ Digest.to_hex (get_signature ctx.com));
 				end;
 				Parser.display_error := (fun e p -> has_parse_error := true; ctx.com.error (Parser.error_msg e) p);
-				begin match ctx.com.display with
-					| DMNone | DMDiagnostics true ->
-						()
-					| _ ->
-						let file = (!Parser.resume_display).Ast.pfile in
-						let fkey = file ^ "!" ^ get_signature ctx.com in
-						(* force parsing again : if the completion point have been changed *)
-						Hashtbl.remove cache.c_files fkey;
-						(* force module reloading (if cached) *)
-						Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- true) cache.c_modules
+				if ctx.com.display.dms_display then begin
+					let file = (!Parser.resume_display).Ast.pfile in
+					let fkey = file ^ "!" ^ get_signature ctx.com in
+					(* force parsing again : if the completion point have been changed *)
+					Hashtbl.remove cache.c_files fkey;
+					(* force module reloading (if cached) *)
+					Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- true) cache.c_modules
 				end
 			);
 			ctx.com.print <- (fun str -> write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit str "\n") ^ "\n"));
@@ -1281,7 +1276,7 @@ try
 				(try display_memory ctx with e -> prerr_endline (Printexc.get_backtrace ()));
 			| "diagnostics" ->
 				Common.define com Define.NoCOpt;
-				com.display <- DMDiagnostics true;
+				com.display <- DisplayMode.create (DMDiagnostics true);
 				Common.display_default := DMDiagnostics true;
 			| _ ->
 				let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format : " ^ file_pos) in
@@ -1325,7 +1320,7 @@ try
 								DMDefault
 				in
 				let pos = try int_of_string pos with _ -> failwith ("Invalid format : "  ^ pos) in
-				com.display <- mode;
+				com.display <- DisplayMode.create mode;
 				Common.display_default := mode;
 				Common.define_value com Define.Display (if smode <> "" then smode else "1");
 				Parser.use_doc := true;
@@ -1478,31 +1473,32 @@ try
 	process_ref := process;
 	process ctx.com.args;
 	process_libs();
-	begin match com.display with
-	| DMNone | DMDiagnostics true ->
-		()
-	| _ ->
-		com.warning <- if com.display = DMDiagnostics false then (fun s p -> add_diagnostics_message com s p DiagnosticsSeverity.Warning) else message ctx;
+	if com.display.dms_display then begin
+		com.warning <- if com.display.dms_error_policy = EPCollect then (fun s p -> add_diagnostics_message com s p DiagnosticsSeverity.Warning) else message ctx;
 		com.error <- error ctx;
-		com.main_class <- None;
-		begin match com.display with
-			| DMUsage _ | DMStatistics -> ()
-			| _ -> classes := []
-		end;
-		let real = get_real_path (!Parser.resume_display).Ast.pfile in
-		(match get_module_path_from_file_path com real with
-		| Some path ->
-			if com.display = DMPackage then raise (Display.DisplayPackage (fst path));
-			classes := path :: !classes
-		| None ->
-			if not (Sys.file_exists real) then failwith "Display file does not exist";
-			(match List.rev (ExtString.String.nsplit real path_sep) with
-			| file :: _ when file.[0] >= 'a' && file.[1] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
-			| _ -> ());
-			failwith "Display file was not found in class path"
-		);
-		Common.log com ("Display file : " ^ real);
-		Common.log com ("Classes found : ["  ^ (String.concat "," (List.map Ast.s_type_path !classes)) ^ "]");
+	end;
+	begin match com.display.dms_display_file_policy with
+		| DFPNo ->
+			()
+		| dfp ->
+			if dfp = DFPOnly then begin
+				classes := [];
+				com.main_class <- None;
+			end;
+			let real = get_real_path (!Parser.resume_display).Ast.pfile in
+			(match get_module_path_from_file_path com real with
+			| Some path ->
+				if com.display.dms_kind = DMPackage then raise (Display.DisplayPackage (fst path));
+				classes := path :: !classes
+			| None ->
+				if not (Sys.file_exists real) then failwith "Display file does not exist";
+				(match List.rev (ExtString.String.nsplit real path_sep) with
+				| file :: _ when file.[0] >= 'a' && file.[1] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
+				| _ -> ());
+				failwith "Display file was not found in class path"
+			);
+			Common.log com ("Display file : " ^ real);
+			Common.log com ("Classes found : ["  ^ (String.concat "," (List.map Ast.s_type_path !classes)) ^ "]");
 	end;
 	let add_std dir =
 		com.class_path <- List.filter (fun s -> not (List.mem s com.std_path)) com.class_path @ List.map (fun p -> p ^ dir ^ "/_std/") com.std_path @ com.std_path
@@ -1586,11 +1582,8 @@ try
 			"hl"
 	) in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
-	begin match com.display with
-		| DMNone | DMToplevel ->
-			()
-		| _ ->
-			if not ctx.has_next then com.package_rules <- PMap.foldi (fun p r acc -> match r with Forbidden -> acc | _ -> PMap.add p r acc) com.package_rules PMap.empty;
+	if com.display.dms_display then begin
+		if not ctx.has_next then com.package_rules <- PMap.foldi (fun p r acc -> match r with Forbidden -> acc | _ -> PMap.add p r acc) com.package_rules PMap.empty;
 	end;
 	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)
 
@@ -1617,19 +1610,16 @@ try
 		Typer.finalize tctx;
 		t();
 		if ctx.has_error then raise Abort;
-		begin match ctx.com.display with
-			| DMNone | DMUsage _ | DMDiagnostics true | DMStatistics ->
-				()
-			| _ ->
-				if ctx.has_next then raise Abort;
-				failwith "No completion point was found";
+		if ctx.com.display.dms_exit_during_typing then begin
+			if ctx.has_next then raise Abort;
+			failwith "No completion point was found";
 		end;
 		let t = Common.timer "filters" in
 		let main, types, modules = Typer.generate tctx in
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
-		begin match com.display with
+		begin match com.display.dms_kind with
 			| DMUsage with_definition ->
 				let symbols,relations = Display.Statistics.collect_statistics tctx in
 				let rec loop acc relations = match relations with
