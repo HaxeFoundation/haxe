@@ -50,26 +50,26 @@ class CallStack {
 
 	static function itemToString( b:StringBuf, s ) {
 		switch( s ) {
-		case CFunction:
-			b.add("a C function");
-		case Module(m):
-			b.add("module ");
-			b.add(m);
-		case FilePos(s,file,line):
-			if( s != null ) {
-				itemToString(b,s);
-				b.add(" (");
-			}
-			b.add(file);
-			b.add(" line ");
-			b.add(line);
-			if( s != null ) b.add(")");
-		case Method(cname,meth):
-			b.add(cname);
-			b.add(".");
-			b.add(meth);
-		case LocalFunction(n):
-			b.add("local function");
+			case CFunction:
+				b.add("a C function");
+			case Module(m):
+				b.add("module ");
+				b.add(m);
+			case FilePos(s,file,line):
+				if( s != null ) {
+					itemToString(b,s);
+					b.add(" (");
+				}
+				b.add(file);
+				b.add(" line ");
+				b.add(line);
+				if( s != null ) b.add(")");
+			case Method(cname,meth):
+				b.add(cname);
+				b.add(".");
+				b.add(meth);
+			case LocalFunction(n):
+				b.add("local function");
 		}
 	}
 

@@ -36,6 +36,10 @@ class Boot {
 	@:protected static var aliases = new NativeAssocArray<String>();
 	/** Cache of HxClass instances */
 	@:protected static var classes = new NativeAssocArray<HxClass>();
+	/** List of getters (for Reflect) */
+	@:protected static var getters = new NativeAssocArray<NativeAssocArray<Bool>>();
+	/** List of setters (for Reflect) */
+	@:protected static var setters = new NativeAssocArray<NativeAssocArray<Bool>>();
 
 	/**
 		Initialization stuff.
@@ -66,6 +70,34 @@ class Boot {
 	**/
 	public static function getPrefix() : String {
 		return untyped __php__("self::PHP_PREFIX");
+	}
+
+	/**
+		Register list of getters to be able to call getters using reflection
+	**/
+	public static function registerGetters( phpClassName:String, list:NativeAssocArray<Bool> ) : Void {
+		getters[phpClassName] = list;
+	}
+
+	/**
+		Register list of setters to be able to call getters using reflection
+	**/
+	public static function registerSetters( phpClassName:String, list:NativeAssocArray<Bool> ) : Void {
+		setters[phpClassName] = list;
+	}
+
+	/**
+		Check if specified property has getter
+	**/
+	public static function hasGetter( phpClassName:String, property:String ) : Bool {
+		return Global.isset(getters[property]);
+	}
+
+	/**
+		Check if specified property has setter
+	**/
+	public static function hasSetter( phpClassName:String, property:String ) : Bool {
+		return Global.isset(setters[property]);
 	}
 
 	/**

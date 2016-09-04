@@ -271,6 +271,11 @@ extern class Global {
 	static function method_exists( object:Dynamic, method_name:String ) : Bool;
 
 	/**
+		@see http://php.net/manual/en/function.property-exists.php
+	**/
+	static function property_exists( object:Dynamic, property_name:String ) : Bool;
+
+	/**
 		@see http://php.net/manual/en/function.is-callable.php
 	**/
 	static function is_callable( value:Dynamic,  syntax_only:Bool = false, ?callable_name:String ) : Bool;

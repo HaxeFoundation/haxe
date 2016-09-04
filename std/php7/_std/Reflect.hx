@@ -19,18 +19,25 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+using php7.Global;
+
 @:coreApi class Reflect {
 
-	public inline static function hasField( o : Dynamic, field : String ) : Bool {
-		return untyped __call__("_hx_has_field", o, field);
+	public static function hasField( o : Dynamic, field : String ) : Bool {
+		return o.is_object() && o.property_exists(field);
 	}
 
 	public static function field( o : Dynamic, field : String ) : Dynamic {
-		return untyped __call__("_hx_field", o, field);
+		if (hasField(o, field)) {
+			return untyped __php__("$o->$field");
+		} else {
+			return null;
+		}
 	}
 
-	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
-		untyped __setfield__(o, field, value);
+	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
+		return untyped __php__("$o->$field = $value");
 	}
 
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic {

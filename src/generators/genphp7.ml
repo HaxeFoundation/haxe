@@ -742,6 +742,10 @@ class virtual type_builder ctx wrapper =
 		*)
 		method virtual private write_hx_init_body : unit
 		(**
+			Writes additional initialization code, which should be called before `__hx__init()`
+		*)
+		method virtual private write_pre_hx_init : unit
+		(**
 			Writes initialization code for type instances
 		*)
 		method virtual private write_instance_initialization : unit
@@ -788,13 +792,14 @@ class virtual type_builder ctx wrapper =
 				self#write_empty_lines;
 				let boot_class = self#use boot_type_path in
 				(* Boot initialization *)
-				if boot_type_path <> self#get_type_path then
+				if boot_type_path = self#get_type_path then
 					self#write_statement (boot_class ^ "::__hx__init()");
 				let php_class = get_full_type_name ~escape:true ~omit_first_slash:true (add_php_prefix ctx self#get_type_path)
 				and haxe_class = match wrapper#get_type_path with (path, name) -> String.concat "." (path @ [name]) in
 				self#write_statement (boot_class ^ "::registerClass('" ^ php_class ^ "', '" ^ haxe_class ^ "')");
+				self#write_pre_hx_init;
 				(* Current class initialization *)
-				if wrapper#needs_initialization then
+				if wrapper#needs_initialization && boot_type_path <> self#get_type_path then
 					self#write_statement (self#get_name ^ "::__hx__init()");
 				let body = Buffer.contents buffer in
 				Buffer.clear buffer;
@@ -1151,7 +1156,7 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes TFunction to output buffer
 		*)
-		method private write_expr_function ?name func =			
+		method private write_expr_function ?name func =
 			match name with
 				| None -> self#write_closure_declaration func self#write_function_arg
 				| Some "__construct" -> self#write_constructor_function_declaration func self#write_function_arg
@@ -1889,6 +1894,10 @@ class enum_builder ctx (enm:tenum) =
 			No need for additional initialization of enum instances
 		*)
 		method private write_instance_initialization = ()
+		(**
+			No need for additional type initialization for enums
+		*)
+		method private write_pre_hx_init = ()
 	end
 
 (**
@@ -2216,7 +2225,7 @@ class class_builder ctx (cls:tclass) =
 					self#write_indentation;
 					let field_access = "$this->" ^ field.cf_name
 					and default_value = "$this->__hx__default__" ^ field.cf_name in
-					self#write ("if (" ^ field_access ^ " !== " ^ default_value ^ ") return call_user_func_array(" ^ field_access ^ ", func_get_args());\n");					
+					self#write ("if (" ^ field_access ^ " !== " ^ default_value ^ ") return call_user_func_array(" ^ field_access ^ ", func_get_args());\n");
 					self#write_fake_block fn.tf_expr;
 					self#indent_less;
 					self#write_line "}"
@@ -2250,6 +2259,38 @@ class class_builder ctx (cls:tclass) =
 						| _ -> ()
 				)
 				cls.cl_fields
+		(**
+			Writes additional initialization code, which should be called before `__hx__init()`
+		*)
+		method private write_pre_hx_init =
+			let getters = ref []
+			and setters = ref [] in
+			let collect field =
+				match field.cf_kind with
+					| Var { v_read = read; v_write = write } ->
+						if read = AccCall then getters := field.cf_name :: !getters;
+						if write = AccCall then setters := field.cf_name :: !setters;
+					| _ -> ()
+			in
+			List.iter collect cls.cl_ordered_fields;
+			List.iter collect cls.cl_ordered_statics;
+			let rec write lst =
+				match lst with
+					| [] -> ()
+					| [item] -> self#write_line ("'" ^ item ^ "' => true");
+					| item :: rest ->
+						self#write_line ("'" ^ item ^ "' => true,");
+						write rest
+			and type_name = get_full_type_name ~escape:true ~omit_first_slash:true (add_php_prefix ctx wrapper#get_type_path) in
+			let write_register register_method lst =
+				self#write_line ((self#use boot_type_path) ^ "::" ^ register_method ^ "('" ^ type_name ^ "', [");
+				self#indent_more;
+				write lst;
+				self#indent_less;
+				self#write_statement "])"
+			in
+			if List.length !getters > 0 then write_register "registerGetters" !getters;
+			if List.length !setters > 0 then write_register "registerSetters" !setters;
 	end
 
 (**
