@@ -100,7 +100,7 @@ module DisplayMode = struct
 		| DMResolve of string
 		| DMPackage
 		| DMType
-		| DMModuleSymbols
+		| DMModuleSymbols of string option
 		| DMDiagnostics of bool (* true = global, false = only in display file *)
 		| DMStatistics
 
@@ -118,6 +118,7 @@ module DisplayMode = struct
 		dms_kind : t;
 		dms_display : bool;
 		dms_full_typing : bool;
+		dms_force_macro_typing : bool;
 		dms_error_policy : error_policy;
 		dms_is_diagnostics_run : bool;
 		dms_collect_data : bool;
@@ -131,6 +132,7 @@ module DisplayMode = struct
 		dms_kind = DMDefault;
 		dms_display = true;
 		dms_full_typing = false;
+		dms_force_macro_typing = false;
 		dms_error_policy = EPIgnore;
 		dms_is_diagnostics_run = false;
 		dms_collect_data = false;
@@ -144,6 +146,7 @@ module DisplayMode = struct
 		dms_kind = DMNone;
 		dms_display = false;
 		dms_full_typing = true;
+		dms_force_macro_typing = true;
 		dms_error_policy = EPShow;
 		dms_is_diagnostics_run = false;
 		dms_collect_data = false;
@@ -165,9 +168,10 @@ module DisplayMode = struct
 				dms_exit_during_typing = false
 			}
 		| DMToplevel -> { settings with dms_full_typing = true; }
-		| DMModuleSymbols -> { settings with
-				dms_display_file_policy = DFPAlso;
-				dms_exit_during_typing = false
+		| DMModuleSymbols _ -> { settings with
+				dms_display_file_policy = DFPOnly;
+				dms_exit_during_typing = false;
+				dms_force_macro_typing = true;
 			}
 		| DMDiagnostics _ -> { settings with
 				dms_full_typing = true;
@@ -185,6 +189,21 @@ module DisplayMode = struct
 				dms_display_file_policy = DFPAlso;
 				dms_exit_during_typing = false
 			}
+
+	let to_string = function
+		| DMNone -> "none"
+		| DMDefault -> "default"
+		| DMPosition -> "position"
+		| DMResolve s -> "resolve " ^ s
+		| DMPackage -> "package"
+		| DMType -> "type"
+		| DMUsage true -> "rename"
+		| DMUsage false -> "references"
+		| DMToplevel -> "toplevel"
+		| DMModuleSymbols None -> "module-symbols"
+		| DMModuleSymbols (Some s) -> "workspace-symbols " ^ s
+		| DMDiagnostics b -> (if b then "global " else "") ^ "diagnostics"
+		| DMStatistics -> "statistics"
 end
 
 type compiler_callback = {
@@ -216,6 +235,7 @@ type shared_display_information = {
 	mutable import_positions : (pos,bool ref * placed_name list) PMap.t;
 	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsSeverity.t) list;
 	mutable type_hints : (pos,Type.t) Hashtbl.t;
+	mutable document_symbols : (string * DisplayTypes.SymbolInformation.t DynArray.t) list;
 }
 
 type display_information = {
@@ -289,7 +309,7 @@ let display_default = ref DisplayMode.DMNone
 
 type cache = {
 	mutable c_haxelib : (string list, string list) Hashtbl.t;
-	mutable c_files : (string, float * Ast.package) Hashtbl.t;
+	mutable c_files : ((string * string), float * Ast.package) Hashtbl.t;
 	mutable c_modules : (path * string, module_def) Hashtbl.t;
 }
 
@@ -818,6 +838,7 @@ let create version s_version args =
 				import_positions = PMap.empty;
 				diagnostics_messages = [];
 				type_hints = Hashtbl.create 0;
+				document_symbols = [];
 			}
 		};
 		display_information = {
@@ -891,6 +912,10 @@ let clone com =
 		file_lookup_cache = Hashtbl.create 0;
 		parser_cache = Hashtbl.create 0 ;
 		callbacks = create_callbacks();
+		display_information = {
+			unresolved_identifiers = [];
+			interface_field_implementations = [];
+		};
 	}
 
 let file_time file =

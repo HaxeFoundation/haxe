@@ -251,13 +251,21 @@ module DocumentSymbols = struct
 
 	let print_module_symbols com symbols filter =
 		let regex = Option.map Str.regexp filter in
-		let matches s = match regex with
-			| None -> true
-			| Some regex -> (try ignore(Str.search_forward regex s 0); true with Not_found -> false)
+		let reported = Hashtbl.create 0 in
+		let add si =
+			if Hashtbl.mem reported si.pos then false
+			else begin
+				let b = match regex with
+					| None -> true
+					| Some regex -> (try ignore(Str.search_forward regex si.name 0); true with Not_found -> false)
+				in
+				Hashtbl.replace reported si.pos true;
+				b
+			end
 		in
 		let ja = List.fold_left (fun acc (file,l) ->
 			let jl = ExtList.List.filter_map (fun si ->
-				if not (matches si.name) then
+				if not (add si) then
 					None
 				else begin
 					let l =

@@ -692,7 +692,7 @@ and wait_loop verbose accept =
 		| _ ->
 			let sign = get_signature com2 in
 			let ftime = file_time ffile in
-			let fkey = ffile ^ "!" ^ sign in
+			let fkey = (ffile,sign) in
 			try
 				let time, data = Hashtbl.find cache.c_files fkey in
 				if time <> ftime then raise Not_found;
@@ -848,7 +848,7 @@ and wait_loop verbose accept =
 				Parser.display_error := (fun e p -> has_parse_error := true; ctx.com.error (Parser.error_msg e) p);
 				if ctx.com.display.dms_display then begin
 					let file = (!Parser.resume_display).Ast.pfile in
-					let fkey = file ^ "!" ^ get_signature ctx.com in
+					let fkey = (file,get_signature ctx.com) in
 					(* force parsing again : if the completion point have been changed *)
 					Hashtbl.remove cache.c_files fkey;
 					(* force module reloading (if cached) *)
@@ -1302,7 +1302,7 @@ try
 						DMToplevel
 					| "module-symbols" ->
 						Common.define com Define.NoCOpt;
-						DMModuleSymbols;
+						DMModuleSymbols None;
 					| "diagnostics" ->
 						Common.define com Define.NoCOpt;
 						DMDiagnostics false;
@@ -1646,6 +1646,9 @@ try
 			| DMStatistics ->
 				let stats = Display.Statistics.collect_statistics tctx in
 				raise (Display.Statistics (Display.StatisticsPrinter.print_statistics stats))
+			| DMModuleSymbols filter ->
+				let symbols = com.shared.shared_display_information.document_symbols in
+				raise (Display.ModuleSymbols(Display.DocumentSymbols.print_module_symbols com symbols filter))
 			| _ -> ()
 		end;
 		Filters.run com tctx main;

@@ -237,10 +237,10 @@ let parse_file_from_lexbuf com file p lexbuf =
 	Lexer.init file true;
 	incr stats.s_files_parsed;
 	let data = (try Parser.parse com lexbuf with e -> t(); raise e) in
-    begin match com.display.dms_kind with
-        | DMModuleSymbols when Display.is_display_file file ->
+    begin match !display_default with
+        | DMModuleSymbols None when Display.is_display_file file ->
             let ds = Display.DocumentSymbols.collect_module_symbols data in
-            raise (Display.ModuleSymbols(Display.DocumentSymbols.print_module_symbols com [file,ds] None))
+			com.shared.shared_display_information.document_symbols <- (file,ds) :: com.shared.shared_display_information.document_symbols;
         | _ ->
             ()
     end;
@@ -2145,10 +2145,9 @@ module ClassInitializer = struct
 					(* is_lib ? *)
 					cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
 				end
-		end else begin
-			(*| DMDiagnostics false ->
-				handle_display_field()
-			| _ ->*)
+		end else if ctx.com.display.dms_force_macro_typing then
+			handle_display_field()
+		else begin
 			if fctx.is_display_field then begin
 				handle_display_field()
 			end else begin
