@@ -212,23 +212,9 @@ module IdentifierType = struct
 		| ITPackage s -> s
 end
 
-module DiagnosticsSeverity = struct
-	type t =
-		| Error
-		| Warning
-		| Information
-		| Hint
-
-	let to_int = function
-		| Error -> 1
-		| Warning -> 2
-		| Information -> 3
-		| Hint -> 4
-end
-
 type shared_display_information = {
 	mutable import_positions : (pos,bool ref * placed_name list) PMap.t;
-	mutable diagnostics_messages : (string * pos * DiagnosticsSeverity.t) list;
+	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsSeverity.t) list;
 	mutable type_hints : (pos,Type.t) Hashtbl.t;
 }
 

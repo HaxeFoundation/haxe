@@ -141,53 +141,9 @@ let display_enum_field dm ef p = match dm.dms_kind with
 	| DMType -> raise (DisplayType (ef.ef_type,p))
 	| _ -> ()
 
-module SymbolKind = struct
-	type t =
-		| Class
-		| Interface
-		| Enum
-		| Typedef
-		| Abstract
-		| Field
-		| Property
-		| Method
-		| Constructor
-		| Function
-		| Variable
-
-	let to_int = function
-		| Class -> 1
-		| Interface -> 2
-		| Enum -> 3
-		| Typedef -> 4
-		| Abstract -> 5
-		| Field -> 6
-		| Property -> 7
-		| Method -> 8
-		| Constructor -> 9
-		| Function -> 10
-		| Variable -> 11
-end
-
-module SymbolInformation = struct
-	type t = {
-		name : string;
-		kind : SymbolKind.t;
-		pos : pos;
-		container_name : string option;
-	}
-
-	let make name kind pos container_name = {
-		name = name;
-		kind = kind;
-		pos = pos;
-		container_name = container_name;
-	}
-end
-
-open SymbolKind
-open SymbolInformation
 open Json
+open DisplayTypes.SymbolKind
+open DisplayTypes.SymbolInformation
 
 let pos_to_json_range p =
 	if p.pmin = -1 then
@@ -203,7 +159,7 @@ let pos_to_json_range p =
 let print_module_symbols (pack,decls) =
 	let l = DynArray.create() in
 	let add name kind location parent =
-		let si = SymbolInformation.make name kind location (match parent with None -> None | Some si -> Some si.name) in
+		let si = make name kind location (match parent with None -> None | Some si -> Some si.name) in
 		DynArray.add l si;
 		si
 	in
@@ -382,6 +338,7 @@ module Diagnostics = struct
 
 	open UnresolvedIdentifierSuggestion
 	open DiagnosticsKind
+	open DisplayTypes
 
 	let find_unused_variables com e =
 		let vars = Hashtbl.create 0 in

@@ -52,8 +52,8 @@ CC_PARSER_CMD = $(COMPILER) -pp camlp4o $(ALL_CFLAGS) -c src/syntax/parser.ml
 
 RELDIR=../../..
 
-MODULES=json syntax/ast typing/type syntax/lexer typing/common generators/genxml syntax/parser typing/typecore \
-	display/display \
+MODULES=json syntax/ast display/displayTypes typing/type syntax/lexer typing/common generators/genxml syntax/parser \
+	typing/typecore display/display \
 	optimization/optimizer typing/typeload generators/codegen generators/gencommon generators/genas3 \
 	generators/gencpp generators/genjs generators/genneko generators/genphp generators/genswf9 \
 	generators/genswf generators/genjava generators/gencs generators/genpy macro/interp generators/genhl \
@@ -134,7 +134,9 @@ uninstall:
 
 # display
 
-src/display/display.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT)
+src/display/display.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/display/displayTypes.$(MODULE_EXT)
+
+src/display/displayTypes.$(MODULE_EXT) : src/syntax/ast.$(MODULE_EXT)
 
 # generators
 
@@ -201,7 +203,7 @@ src/syntax/parser.$(MODULE_EXT): src/syntax/parser.ml src/syntax/lexer.$(MODULE_
 
 # typing
 
-src/typing/common.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
+src/typing/common.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/display/displayTypes.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
 
 src/typing/matcher.$(MODULE_EXT): src/optimization/optimizer.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/typer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
