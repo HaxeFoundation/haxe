@@ -286,6 +286,11 @@ extern class Global {
 	static function isset( value:Dynamic, args:Rest<Dynamic> ) : Bool;
 
 	/**
+		@see http://php.net/manual/en/function.unset.php
+	**/
+	static function unset( value:Dynamic, values:Rest<Dynamic> ) : Void;
+
+	/**
 		@see http://php.net/manual/en/function.get-object-vars.php
 	**/
 	static function get_object_vars( object:{} ) : NativeAssocArray<Dynamic>;
@@ -321,9 +326,19 @@ extern class Global {
 	static function strrpos( haystack:String, needle:String, offset:Int = 0 ) : EitherType<Bool, Int>;
 
 	/**
-		@see http://php.net/manual/en/function.str_split.php
+		@see http://php.net/manual/en/function.str-split.php
 	**/
 	static function str_split( string:String, split_length:Int = 1 ) : EitherType<Bool,NativeIndexedArray<String>>;
+
+	/**
+		@see http://php.net/manual/en/function.strlen.php
+	**/
+	static function strlen( string:String ) : Int;
+
+	/**
+		@see http://php.net/manual/en/function.strcmp.php
+	**/
+	static function strcmp( str1:String, str2:String ) : Int;
 
 	/**
 		@see http://php.net/manual/en/function.explode.php
@@ -359,4 +374,9 @@ extern class Global {
 		@see http://php.net/manual/en/function.call-user-func-array.php
 	**/
 	static function call_user_func_array( callback:Dynamic, arguments:NativeArray ) : Dynamic;
+
+	/**
+		@see http://php.net/manual/en/function.func-get-args.php
+	**/
+	static function func_get_args() : NativeIndexedArray<Dynamic>;
 }

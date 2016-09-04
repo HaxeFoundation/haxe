@@ -123,6 +123,13 @@ class Boot {
 	}
 
 	/**
+		Returns Class<HxAnon>
+	**/
+	public static function getHxAnon() : HxClass {
+		return cast HxAnon;
+	}
+
+	/**
 		Returns either Haxe class name for specified `phpClassName` or (if no such Haxe class registered) `phpClassName`.
 	**/
 	public static function getClassName( phpClassName:String ) : String {
