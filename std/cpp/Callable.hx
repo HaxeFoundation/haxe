@@ -22,10 +22,12 @@
 package cpp;
 
 
+typedef CallableData<T> = T;
+
 // The generator intercepts this type and converts it to a cpp.Function<T> on cpp
 @:noPackageRestrict @:callable
 #if cpp extern #end
-abstract Callable<T>(T)
+abstract Callable<T>( CallableData<T> )
 {
    inline public function new(inValue:T) this = inValue;
    public var call(get,never):T;

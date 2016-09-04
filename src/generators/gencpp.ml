@@ -1340,6 +1340,7 @@ let hx_stack_push ctx output clazz func_name pos =
 type tcpp =
    | TCppDynamic
    | TCppObject
+   | TCppObjectPtr
    | TCppVoid
    | TCppNull
    | TCppEnum of tenum
@@ -1425,6 +1426,7 @@ and tcppfuncloc =
    | FuncSuper of tcppthis * tclass_field
    | FuncNew of tcpp
    | FuncDynamic of tcppexpr
+   | FuncFunctionPtr of tcppexpr
    | FuncInternal of tcppexpr * string * string
    | FuncGlobal of string
    | FuncFromStaticFunction
@@ -1537,6 +1539,7 @@ let rec s_tcpp = function
    | CppCall (FuncSuper _,_) -> "CppCallSuper"
    | CppCall (FuncNew _,_) -> "CppCallNew"
    | CppCall (FuncDynamic _,_) -> "CppCallDynamic"
+   | CppCall (FuncFunctionPtr _,_) -> "CppCallFunctionPtr"
    | CppCall (FuncInternal _,_) -> "CppCallInternal"
    | CppCall (FuncGlobal _,_) -> "CppCallGlobal"
    | CppCall (FuncFromStaticFunction,_) -> "CppCallFromStaticFunction"
@@ -1580,6 +1583,7 @@ let rec s_tcpp = function
 and tcpp_to_string_suffix suffix tcpp = match tcpp with
    | TCppDynamic -> " ::Dynamic"
    | TCppObject -> " ::Dynamic"
+   | TCppObjectPtr -> " ::hx::Object *"
    | TCppReference t -> (tcpp_to_string t) ^" &"
    | TCppStar t -> (tcpp_to_string t) ^" *"
    | TCppVoid -> "void"
@@ -1763,6 +1767,7 @@ let rec cpp_type_of ctx haxe_type =
       | ([], "Class"),_ -> TCppClass
       | ([], "Enum"),_  -> TCppClass
       | (["cpp"], "Char"),_ -> TCppScalar("char")
+      | (["cpp"], "Object"),_ -> TCppObjectPtr
       | (["cpp"], "Float32"),_ -> TCppScalar("float")
       | (["cpp"], "Float64"),_ -> TCppScalar("double")
       | (["cpp"], "Int8"),_ -> TCppScalar("signed char")
@@ -1790,7 +1795,8 @@ let rec cpp_type_of ctx haxe_type =
             TCppRawPointer("const ", cpp_type_of ctx p)
       | (["cpp"],"Function"), [function_type; abi] ->
             cpp_function_type_of ctx function_type abi;
-      | (["cpp"],"Callable"), [function_type] ->
+      | (["cpp"],"Callable"), [function_type]
+      | (["cpp"],"CallableData"), [function_type] ->
             cpp_function_type_of_string ctx function_type "";
       | (("cpp"::["objc"]),"BlockPtr"), [function_type] ->
             let args,ret = (cpp_function_type_of_args_ret ctx function_type) in
@@ -1808,6 +1814,7 @@ let rec cpp_type_of ctx haxe_type =
               TCppDynamicArray
 
             | TCppObject
+            | TCppObjectPtr
             | TCppReference _
             | TCppStar _
             | TCppEnum _
@@ -1957,6 +1964,7 @@ let cpp_class_name klass =
 let cpp_variant_type_of t = match t with
    | TCppDynamic
    | TCppObject
+   | TCppObjectPtr
    | TCppReference _
    | TCppStar _
    | TCppVoid
@@ -2483,12 +2491,18 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
 
          | TCall( func, args ) ->
             let retypedFunc = retype TCppDynamic func in
-            if retypedFunc.cpptype=TCppNull then
+            (match retypedFunc.cpptype with
+            | TCppNull ->
                CppNullAccess, TCppDynamic
-            else begin
-               let cppType = cpp_type_of expr.etype in
+            | TCppFunction(argTypes,retType,_) ->
+              let retypedArgs = List.map2 (fun arg wantedType ->
+                   retype wantedType arg
+                   ) args argTypes in
+              CppCall( FuncFunctionPtr(retypedFunc) ,retypedArgs), retType
+            | _ ->
                let retypedArgs = List.map (retype TCppDynamic ) args in
-               match retypedFunc.cppexpr with
+               let cppType = cpp_type_of expr.etype in
+               (match retypedFunc.cppexpr with
                |  CppFunction(FuncFromStaticFunction ,returnType) ->
                    ( match retypedArgs with
                    | [ {cppexpr=CppFunction( FuncStatic(clazz,false,member), funcReturn)} ] ->
@@ -2557,7 +2571,8 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                      CppCall( FuncDynamic(retypedFunc) ,retypedArgs), cppType
                | _ ->
                   CppCall( FuncDynamic(retypedFunc), retypedArgs), TCppDynamic
-               end
+               )
+            )
 
          | TNew (clazz,params,args) ->
             (* New DynamicArray ? *)
@@ -2838,6 +2853,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
          | TCppScalarArray _
          | TCppNativePointer _
          | TCppDynamicArray
+         | TCppObjectPtr
          | TCppInst _
              -> mk_cppexpr (CppCast(cppExpr,return_type)) return_type
 
@@ -2866,6 +2882,9 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
          | TCppStar(TCppDynamic), TCppStar(_) -> cppExpr
          | TCppStar(TCppDynamic),  t ->
              mk_cppexpr retypedExpr (TCppStar(t))
+         | TCppObjectPtr, TCppObjectPtr -> cppExpr
+         | _, TCppObjectPtr ->
+             mk_cppexpr (CppCast(cppExpr,TCppObjectPtr)) TCppObjectPtr
          | _ -> cppExpr
    in
    retype request_type expression_tree
@@ -3043,7 +3062,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
                  out rename
               else
                  (out (cpp_class_name clazz); out ("::" ^ (cpp_member_name_of field) ^ "_dyn()"))
-         | FuncDynamic(expr) ->
+         | FuncDynamic(expr) | FuncFunctionPtr(expr) ->
               gen expr;
          | FuncGlobal(name) ->
               out ("::" ^ name);
@@ -3168,7 +3187,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
          | FuncGlobal(name) ->
               out ("::" ^ name);
-         | FuncDynamic(expr) ->
+         | FuncDynamic(expr) | FuncFunctionPtr(expr) ->
               gen expr;
          );
          let sep = ref "" in
@@ -3551,9 +3570,9 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          | CppCall( FuncInternal _, _) ->
             gen expr; out (".StaticCast< " ^ tcpp_to_string toType ^" >()")
          | _ ->
-            (match tcpp_to_string toType with
-               | " ::hx::Object *" -> out ("hx::DynamicPtr("); gen expr; out (")")
-               | t -> out ("( ("^ t ^")("); gen expr; out (") )")
+            (match toType with
+               | TCppObjectPtr -> out ("hx::DynamicPtr("); gen expr; out (")")
+               | t -> out ("( ("^ tcpp_to_string t ^")("); gen expr; out (") )")
             )
          )
 
