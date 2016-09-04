@@ -87,16 +87,16 @@ class DocumentSymbols extends DisplayTestCase {
 		checkDocumentSymbols([
 			{ name: "Main", kind: MClass, containerName: null },
 			{ name: "main", kind: MMethod, containerName: "Main" },
-			{ name: "a", kind: MVariable, containerName: "main" },
-			{ name: "b", kind: MVariable, containerName: "main" },
-			{ name: "c", kind: MVariable, containerName: "main" },
-			{ name: "d", kind: MVariable, containerName: "main" },
-			{ name: "e", kind: MVariable, containerName: "main" },
-			{ name: "f", kind: MFunction, containerName: "main" }
+			{ name: "a", kind: MVariable, containerName: "Main.main" },
+			{ name: "b", kind: MVariable, containerName: "Main.main" },
+			{ name: "c", kind: MVariable, containerName: "Main.main" },
+			{ name: "d", kind: MVariable, containerName: "Main.main" },
+			{ name: "e", kind: MVariable, containerName: "Main.main" },
+			{ name: "f", kind: MFunction, containerName: "Main.main" }
 		], ctx.documentSymbols());
 	}
 
 	function checkDocumentSymbols(expected:Array<ModuleSymbolEntry>, actual:Array<ModuleSymbolEntry>, ?pos:haxe.PosInfos) {
-		arrayCheck(expected, actual, function(entry) return entry.kind + ":" + entry.name + ":" + entry.containerName);
+		arrayCheck(expected, actual, function(entry) return entry.kind + ":" + entry.name + ":" + entry.containerName, pos);
 	}
 }

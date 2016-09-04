@@ -163,89 +163,75 @@ module DocumentSymbols = struct
 	let collect_module_symbols (pack,decls) =
 		let l = DynArray.create() in
 		let add name kind location parent =
-			let si = make name kind location (match parent with None -> None | Some si -> Some si.name) in
+			let si = make name kind location (if parent = "" then None else Some parent) in
 			DynArray.add l si;
-			si
 		in
-	(* 		let si_pack = match pack with
-			| [] -> None
-			| _ -> Some (add (String.concat "." pack) Package null_pos None) (* TODO: we don't have the position *)
-		in *)
-		let si_pack = None in (* TODO: no position, no point *)
-		let rec expr si (e,p) =
-			let add name kind location = add name kind location si in
-			let add_ignore name kind location = ignore(add name kind location) in
+		let rec expr parent (e,p) =
+			let add name kind location = add name kind location parent in
 			begin match e with
-				(* TODO: disabled for now because it's too spammy *)
-	(* 			| EConst ct ->
-				begin match ct with
-					| Int i | Float i -> add_ignore i Number p
-					| Ast.String s -> add_ignore s String p
-					| Ident ("true" | "false" as s) -> add_ignore s Boolean p
-					| Ident _ -> (* Hmm... *) ()
-					| _ -> ()
-				end *)
 			| EVars vl ->
 				List.iter (fun ((s,p),_,eo) ->
-					add_ignore s Variable p;
-					expr_opt si eo
+					add s Variable p;
+					expr_opt parent eo
 				) vl
 			| ETry(e1,catches) ->
-				expr si e1;
+				expr parent e1;
 				List.iter (fun ((s,p),_,e) ->
-					add_ignore s Variable p;
-					expr si e
+					add s Variable p;
+					expr parent e
 				) catches;
 			| EFunction(Some s,f) ->
-				let si_function = add s Function p in
-				func si_function f
+				add s Function p;
+				func parent f
 			| EIn((EConst(Ident s),p),e2) ->
-				add_ignore s Variable p;
-				expr si e2;
+				add s Variable p;
+				expr parent e2;
 			| _ ->
-				iter_expr (expr si) (e,p)
+				iter_expr (expr parent) (e,p)
 			end
-		and expr_opt si eo = match eo with
+		and expr_opt parent eo = match eo with
 			| None -> ()
-			| Some e -> expr si e
-		and func si f =
+			| Some e -> expr parent e
+		and func parent f =
 			List.iter (fun ((s,p),_,_,_,eo) ->
-				let si_arg = add s Variable p (Some si) in
-				expr_opt (Some si_arg) eo
+				add s Variable p parent;
+				expr_opt parent eo
 			) f.f_args;
-			expr_opt (Some si) f.f_expr
+			expr_opt parent f.f_expr
 		in
-		let field si_type cff = match cff.cff_kind with
+		let field parent cff =
+			let field_parent = parent ^ "." ^ (fst cff.cff_name) in
+			match cff.cff_kind with
 			| FVar(_,eo) ->
-				let si_field = add (fst cff.cff_name) Field cff.cff_pos (Some si_type) in
-				expr_opt (Some si_field) eo
+				add (fst cff.cff_name) Field cff.cff_pos parent;
+				expr_opt field_parent eo
 			| FFun f ->
-				let si_method = add (fst cff.cff_name) (if fst cff.cff_name = "new" then Constructor else Method) cff.cff_pos (Some si_type) in
-				func si_method f
+				add (fst cff.cff_name) (if fst cff.cff_name = "new" then Constructor else Method) cff.cff_pos parent;
+				func field_parent f
 			| FProp(_,_,_,eo) ->
-				let si_property = add (fst cff.cff_name) Property cff.cff_pos (Some si_type) in
-				expr_opt (Some si_property) eo
+				add (fst cff.cff_name) Property cff.cff_pos parent;
+				expr_opt field_parent eo
 		in
 		List.iter (fun (td,p) -> match td with
 			| EImport _ | EUsing _ ->
 				() (* TODO: Can we do anything with these? *)
 			| EClass d ->
-				let si_type = add (fst d.d_name) (if List.mem HInterface d.d_flags then Interface else Class) p si_pack in
-				List.iter (field si_type) d.d_data
+				add (fst d.d_name) (if List.mem HInterface d.d_flags then Interface else Class) p "";
+				List.iter (field (fst d.d_name)) d.d_data
 			| EEnum d ->
-				let si_type = add (fst d.d_name) Enum p si_pack in
+				add (fst d.d_name) Enum p "";
 				List.iter (fun ef ->
-					ignore (add (fst ef.ec_name) Method ef.ec_pos (Some si_type))
+					add (fst ef.ec_name) Method ef.ec_pos (fst d.d_name)
 				) d.d_data
 			| ETypedef d ->
-				let si_type = add (fst d.d_name) Typedef p si_pack in
+				add (fst d.d_name) Typedef p "";
 				(match d.d_data with
 				| CTAnonymous fields,_ ->
-					List.iter (field si_type) fields
+					List.iter (field (fst d.d_name)) fields
 				| _ -> ())
 			| EAbstract d ->
-				let si_type = add (fst d.d_name) Abstract p si_pack in
-				List.iter (field si_type) d.d_data
+				add (fst d.d_name) Abstract p "";
+				List.iter (field (fst d.d_name)) d.d_data
 		) decls;
 		l
 
