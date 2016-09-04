@@ -65,6 +65,10 @@ class DisplayTestContext {
 		return extractPositions(callHaxe('$pos@usage'));
 	}
 
+	public function documentSymbols():Array<ModuleSymbolEntry> {
+		return haxe.Json.parse(callHaxe("0@module-symbols"))[0].symbols;
+	}
+
 	function callHaxe(displayPart:String):String {
 		var args = [
 			"-cp", "src",

@@ -50,6 +50,26 @@ class DisplayTestCase {
 		}
 	}
 
+	function arrayCheck<T>(expected:Array<T>, actual:Array<T>, f : T -> String, ?pos:haxe.PosInfos) {
+		var expected = [for (expected in expected) f(expected) => expected];
+		for (actual in actual) {
+			var key = f(actual);
+			if (!expected.exists(key)) {
+				numFailures++;
+				report("Result not part of expected Array:", pos);
+				report(Std.string(actual), pos);
+			}
+			expected.remove(key);
+		}
+
+		for (expected in expected) {
+			numFailures++;
+			report("Expected result was not part of actual Array:", pos);
+			report(Std.string(expected), pos);
+			return;
+		}
+	}
+
 	function hasField(a:Array<FieldElement>, name:String, type:String):Bool {
 		return a.exists(function(t) return t.type == type && t.name == name);
 	}
