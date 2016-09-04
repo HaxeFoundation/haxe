@@ -1352,8 +1352,9 @@ class virtual type_builder ctx wrapper =
 			match mtype with
 				| None -> self#write_expr expr
 				| Some mtype ->
+					self#write ((self#use boot_type_path) ^ "::typedCast(");
 					self#write_expr_type mtype;
-					self#write "->typedCast(";
+					self#write ", ";
 					self#write_expr expr;
 					self#write ")"
 		(**
