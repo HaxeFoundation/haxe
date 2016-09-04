@@ -328,6 +328,9 @@ class Test {
 			#if java
 			new TestJava(),
 			#end
+			#if lua
+			new TestLua(),
+			#end
 			#if python
 			new TestPython(),
 			#end
