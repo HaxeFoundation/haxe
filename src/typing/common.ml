@@ -762,6 +762,21 @@ module MetaInfo = struct
 			Some (str,params ^ doc ^ pfs)
 		end else
 			None
+
+	let get_documentation_list () =
+		let m = ref 0 in
+		let rec loop i =
+			let d = Obj.magic i in
+			if d <> Meta.Last then begin match get_documentation d with
+				| None -> loop (i + 1)
+				| Some (str,desc) ->
+					if String.length str > !m then m := String.length str;
+						(str,desc) :: loop (i + 1)
+			end else
+				[]
+		in
+		let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop 0) in
+		all,!m
 end
 
 let stats =

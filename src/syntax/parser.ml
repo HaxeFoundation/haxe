@@ -842,17 +842,21 @@ and parse_meta_params pname s = match s with parser
 	| [< >] -> []
 
 and parse_meta_entry = parser
-	[< '(At,_); name,p = meta_name; params = parse_meta_params p; s >] -> (name,params,p)
+	[< '(At,p1); s >] ->
+		match s with parser
+		| [< name,p = meta_name p1; params = parse_meta_params p; s >] -> (name,params,p)
+		| [< >] ->
+			if is_resuming p1 then (Meta.Last,[],p1) else serror()
 
 and parse_meta = parser
 	| [< entry = parse_meta_entry; s >] ->
 		entry :: parse_meta s
 	| [< >] -> []
 
-and meta_name = parser
-	| [< '(Const (Ident i),p) >] -> (Meta.Custom i), p
-	| [< '(Kwd k,p) >] -> (Meta.Custom (s_keyword k)),p
-	| [< '(DblDot,_); s >] -> match s with parser
+and meta_name p1 = parser
+	| [< '(Const (Ident i),p) when p.pmin = p1.pmax >] -> (Meta.Custom i), p
+	| [< '(Kwd k,p) when p.pmin = p1.pmax >] -> (Meta.Custom (s_keyword k)),p
+	| [< '(DblDot,p) when p.pmin = p1.pmax; s >] -> match s with parser
 		| [< '(Const (Ident i),p) >] -> (Common.MetaInfo.parse i), p
 		| [< '(Kwd k,p) >] -> (Common.MetaInfo.parse (s_keyword k)),p
 

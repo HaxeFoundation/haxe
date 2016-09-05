@@ -1407,19 +1407,8 @@ try
 			did_something := true
 		),": print help for all compiler specific defines");
 		("--help-metas", Arg.Unit (fun() ->
-			let m = ref 0 in
-			let rec loop i =
-				let d = Obj.magic i in
-				if d <> Meta.Last then begin match MetaInfo.get_documentation d with
-					| None -> loop (i + 1)
-					| Some (str,desc) ->
-						if String.length str > !m then m := String.length str;
-						 (str,desc) :: loop (i + 1)
-				end else
-					[]
-			in
-			let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop 0) in
-			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" !m n (limit_string doc (!m + 3))) all in
+			let all,max_length = MetaInfo.get_documentation_list() in
+			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
 			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
 			did_something := true
 		),": print help for all compiler metadatas");

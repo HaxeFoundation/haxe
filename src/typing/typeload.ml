@@ -1820,15 +1820,27 @@ let check_global_metadata ctx meta f_add mpath tpath so =
 		let add = ((field_mode && to_fields) || (not field_mode && to_types)) && (match_path recursive sl1 sl2) in
 		if add then f_add m
 	) ctx.g.global_metadata;
-	if ctx.is_display_file && ctx.com.display.dms_kind = DMType then
-		List.iter (fun (meta,_,p) -> match meta with
-			| Meta.Custom _ | Meta.Dollar _ -> ()
-			| _ -> match MetaInfo.get_documentation meta with
-				| None -> ()
-				| Some (_,s) ->
-					(* TODO: hack until we support proper output for hover display mode *)
-					if Display.is_display_position p then raise (Display.Metadata ("<metadata>" ^ s ^ "</metadata>"));
-		) meta
+	if ctx.is_display_file then match ctx.com.display.dms_kind with
+		| DMType ->
+			List.iter (fun (meta,_,p) ->
+				if Display.is_display_position p then match meta with
+				| Meta.Custom _ | Meta.Dollar _ -> ()
+				| _ -> match MetaInfo.get_documentation meta with
+					| None -> ()
+					| Some (_,s) ->
+						(* TODO: hack until we support proper output for hover display mode *)
+						 raise (Display.Metadata ("<metadata>" ^ s ^ "</metadata>"));
+			) meta
+		| DMDefault ->
+			List.iter (fun (meta,_,p) ->
+				if Display.is_display_position p then begin
+					let all,_ = MetaInfo.get_documentation_list() in
+					let all = List.map (fun (s,doc) -> (s,t_dynamic,None,Some doc)) all in
+					raise (Display.DisplayFields all)
+				end
+			) meta
+		| _ ->
+			()
 
 let patch_class ctx c fields =
 	let path = match c.cl_kind with
