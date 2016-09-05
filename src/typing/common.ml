@@ -503,6 +503,32 @@ module Define = struct
 		| Last -> assert false
 end
 
+let platforms = [
+	Js;
+	Lua;
+	Neko;
+	Flash;
+	Php;
+	Cpp;
+	Cs;
+	Java;
+	Python;
+	Hl;
+]
+
+let platform_name = function
+	| Cross -> "cross"
+	| Js -> "js"
+	| Lua -> "lua"
+	| Neko -> "neko"
+	| Flash -> "flash"
+	| Php -> "php"
+	| Cpp -> "cpp"
+	| Cs -> "cs"
+	| Java -> "java"
+	| Python -> "python"
+	| Hl -> "hl"
+
 module MetaInfo = struct
 	open Meta
 	type meta_usage =
@@ -710,6 +736,32 @@ module MetaInfo = struct
 		| ':' -> (try Hashtbl.find hmeta s with Not_found -> Custom s)
 		| '$' -> Dollar (String.sub s 1 (String.length s - 1))
 		| _ -> Custom s
+
+	let get_documentation d =
+		let t, (doc,flags) = to_string d in
+		if not (List.mem Internal flags) then begin
+			let params = ref [] and used = ref [] and pfs = ref [] in
+			List.iter (function
+				| HasParam s -> params := s :: !params
+				| Platform f -> pfs := f :: !pfs
+				| Platforms fl -> pfs := fl @ !pfs
+				| UsedOn u -> used := u :: !used
+				| UsedOnEither ul -> used := ul @ !used
+				| Internal -> assert false
+			) flags;
+			let params = (match List.rev !params with
+				| [] -> ""
+				| l -> "(" ^ String.concat "," l ^ ")"
+			) in
+			let pfs = (match List.rev !pfs with
+				| [] -> ""
+				| [p] -> " (" ^ platform_name p ^ " only)"
+				| pl -> " (for " ^ String.concat "," (List.map platform_name pl) ^ ")"
+			) in
+			let str = "@" ^ t in
+			Some (str,params ^ doc ^ pfs)
+		end else
+			None
 end
 
 let stats =
@@ -940,32 +992,6 @@ let file_extension file =
 	match List.rev (ExtString.String.nsplit file ".") with
 	| e :: _ -> String.lowercase e
 	| [] -> ""
-
-let platforms = [
-	Js;
-	Lua;
-	Neko;
-	Flash;
-	Php;
-	Cpp;
-	Cs;
-	Java;
-	Python;
-	Hl;
-]
-
-let platform_name = function
-	| Cross -> "cross"
-	| Js -> "js"
-	| Lua -> "lua"
-	| Neko -> "neko"
-	| Flash -> "flash"
-	| Php -> "php"
-	| Cpp -> "cpp"
-	| Cs -> "cs"
-	| Java -> "java"
-	| Python -> "python"
-	| Hl -> "hl"
 
 let flash_versions = List.map (fun v ->
 	let maj = int_of_float v in

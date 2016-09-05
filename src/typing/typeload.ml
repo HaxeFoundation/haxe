@@ -1813,13 +1813,22 @@ let init_core_api ctx c =
 	| None, Some { cf_public = false } -> ()
 	| _ -> error "Constructor differs from core type" c.cl_pos)
 
-let check_global_metadata ctx f_add mpath tpath so =
+let check_global_metadata ctx meta f_add mpath tpath so =
 	let sl1 = full_dot_path mpath tpath in
 	let sl1,field_mode = match so with None -> sl1,false | Some s -> sl1 @ [s],true in
 	List.iter (fun (sl2,m,(recursive,to_types,to_fields)) ->
 		let add = ((field_mode && to_fields) || (not field_mode && to_types)) && (match_path recursive sl1 sl2) in
 		if add then f_add m
-	) ctx.g.global_metadata
+	) ctx.g.global_metadata;
+	if ctx.is_display_file && ctx.com.display.dms_kind = DMType then
+		List.iter (fun (meta,_,p) -> match meta with
+			| Meta.Custom _ | Meta.Dollar _ -> ()
+			| _ -> match MetaInfo.get_documentation meta with
+				| None -> ()
+				| Some (_,s) ->
+					(* TODO: hack until we support proper output for hover display mode *)
+					if Display.is_display_position p then raise (Display.Metadata ("<metadata>" ^ s ^ "</metadata>"));
+		) meta
 
 let patch_class ctx c fields =
 	let path = match c.cl_kind with
@@ -2139,13 +2148,13 @@ module ClassInitializer = struct
 			end
 		in
 		if ctx.com.display.dms_full_typing then begin
-				if fctx.is_macro && not ctx.in_macro then
-					()
-				else begin
-					cf.cf_type <- TLazy r;
-					(* is_lib ? *)
-					cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
-				end
+			if fctx.is_macro && not ctx.in_macro then
+				()
+			else begin
+				cf.cf_type <- TLazy r;
+				(* is_lib ? *)
+				cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
+			end
 		end else if ctx.com.display.dms_force_macro_typing then
 			handle_display_field()
 		else begin
@@ -2724,7 +2733,7 @@ module ClassInitializer = struct
 	let init_field (ctx,cctx,fctx) f =
 		let c = cctx.tclass in
 		let name = fst f.cff_name in
-		check_global_metadata ctx (fun m -> f.cff_meta <- m :: f.cff_meta) c.cl_module.m_path c.cl_path (Some name);
+		check_global_metadata ctx f.cff_meta (fun m -> f.cff_meta <- m :: f.cff_meta) c.cl_module.m_path c.cl_path (Some name);
 		let p = f.cff_pos in
 		if name.[0] = '$' then display_error ctx "Field names starting with a dollar are not allowed" p;
 		List.iter (fun acc ->
@@ -3102,7 +3111,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 		let c = (match get_type (fst d.d_name) with TClassDecl c -> c | _ -> assert false) in
 		if ctx.is_display_file && Display.is_display_position (pos d.d_name) then
 			Display.display_module_type ctx.com.display (match c.cl_kind with KAbstractImpl a -> TAbstractDecl a | _ -> TClassDecl c) (pos d.d_name);
-		check_global_metadata ctx (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
+		check_global_metadata ctx c.cl_meta (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
 		let herits = d.d_flags in
 		c.cl_extern <- List.mem HExtern herits;
 		c.cl_interface <- List.mem HInterface herits;
@@ -3159,7 +3168,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			Display.display_module_type ctx.com.display (TEnumDecl e) (pos d.d_name);
 		let ctx = { ctx with type_params = e.e_params } in
 		let h = (try Some (Hashtbl.find ctx.g.type_patches e.e_path) with Not_found -> None) in
-		check_global_metadata ctx (fun m -> e.e_meta <- m :: e.e_meta) e.e_module.m_path e.e_path None;
+		check_global_metadata ctx e.e_meta (fun m -> e.e_meta <- m :: e.e_meta) e.e_module.m_path e.e_path None;
 		(match h with
 		| None -> ()
 		| Some (h,hcl) ->
@@ -3295,7 +3304,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 		let t = (match get_type (fst d.d_name) with TTypeDecl t -> t | _ -> assert false) in
 		if ctx.is_display_file && Display.is_display_position (pos d.d_name) then
 			Display.display_module_type ctx.com.display (TTypeDecl t) (pos d.d_name);
-		check_global_metadata ctx (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
+		check_global_metadata ctx t.t_meta (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
 		let ctx = { ctx with type_params = t.t_params } in
 		let tt = load_complex_type ctx true p d.d_data in
 		let tt = (match fst d.d_data with
@@ -3333,7 +3342,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 		let a = (match get_type (fst d.d_name) with TAbstractDecl a -> a | _ -> assert false) in
 		if ctx.is_display_file && Display.is_display_position (pos d.d_name) then
 			Display.display_module_type ctx.com.display (TAbstractDecl a) (pos d.d_name);
-		check_global_metadata ctx (fun m -> a.a_meta <- m :: a.a_meta) a.a_module.m_path a.a_path None;
+		check_global_metadata ctx a.a_meta (fun m -> a.a_meta <- m :: a.a_meta) a.a_module.m_path a.a_path None;
 		let ctx = { ctx with type_params = a.a_params } in
 		let is_type = ref false in
 		let load_type t from =

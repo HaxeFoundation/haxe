@@ -14,6 +14,7 @@ type display_field_kind =
 exception Diagnostics of string
 exception Statistics of string
 exception ModuleSymbols of string
+exception Metadata of string
 exception DisplaySignatures of (t * documentation) list
 exception DisplayType of t * pos
 exception DisplayPosition of Ast.pos list

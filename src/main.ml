@@ -1410,32 +1410,11 @@ try
 			let m = ref 0 in
 			let rec loop i =
 				let d = Obj.magic i in
-				if d <> Meta.Last then begin
-					let t, (doc,flags) = MetaInfo.to_string d in
-					if not (List.mem MetaInfo.Internal flags) then begin
-						let params = ref [] and used = ref [] and pfs = ref [] in
-						List.iter (function
-							| MetaInfo.HasParam s -> params := s :: !params
-							| MetaInfo.Platform f -> pfs := f :: !pfs
-							| MetaInfo.Platforms fl -> pfs := fl @ !pfs
-							| MetaInfo.UsedOn u -> used := u :: !used
-							| MetaInfo.UsedOnEither ul -> used := ul @ !used
-							| MetaInfo.Internal -> assert false
-						) flags;
-						let params = (match List.rev !params with
-							| [] -> ""
-							| l -> "(" ^ String.concat "," l ^ ")"
-						) in
-						let pfs = (match List.rev !pfs with
-							| [] -> ""
-							| [p] -> " (" ^ platform_name p ^ " only)"
-							| pl -> " (for " ^ String.concat "," (List.map platform_name pl) ^ ")"
-						) in
-						let str = "@" ^ t in
+				if d <> Meta.Last then begin match MetaInfo.get_documentation d with
+					| None -> loop (i + 1)
+					| Some (str,desc) ->
 						if String.length str > !m then m := String.length str;
-						(str,params ^ doc ^ pfs) :: loop (i + 1)
-					end else
-						loop (i + 1)
+						 (str,desc) :: loop (i + 1)
 				end else
 					[]
 			in
@@ -1914,7 +1893,7 @@ with
 				raise (Completion c)
 			| _ ->
 				error ctx ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos)
-	| Display.ModuleSymbols s | Display.Diagnostics s | Display.Statistics s ->
+	| Display.ModuleSymbols s | Display.Diagnostics s | Display.Statistics s | Display.Metadata s ->
 		raise (Completion s)
 	| Interp.Sys_exit i ->
 		ctx.flush();
