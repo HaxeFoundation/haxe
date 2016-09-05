@@ -150,9 +150,6 @@ let reserved_flags = [
 	"as3";"swc";"macro";"sys"
 	]
 
-let complete_fields com fields =
-	let details = Common.raw_defined com "display-details" in
-	raise (Completion (Display.print_fields fields details))
 
 let report_times print =
 	let tot = ref 0. in
@@ -293,6 +290,73 @@ let rec read_type_path com p =
 		) (all_files())
 	) com.net_libs;
 	unique !packages, unique !classes
+
+(** raise field completion listing given fields *)
+let complete_fields com fields =
+	let details = Common.raw_defined com "display-details" in
+	raise (Completion (Display.print_fields fields details))
+
+(** raise field completion listing packages and modules in a given package *)
+let complete_type_path ctx p =
+	let packs, modules = read_type_path ctx.com p in
+	if packs = [] && modules = [] then
+		error ctx ("No classes found in " ^ String.concat "." p) Ast.null_pos
+	else
+		let convert k f = (f,"",Some k,"") in
+		let packs = List.map (convert Display.FKPackage) packs in
+		let modules = List.map (convert Display.FKType) modules in
+		complete_fields ctx.com (packs @ modules)
+
+(** raise field completion listing module sub-types and static fields *)
+let complete_type_path_inner ctx p c cur_package is_import =
+	let com = ctx.com in
+	try
+		let sl_pack,s_module = match List.rev p with
+			| s :: sl when s.[0] >= 'A' && s.[0] <= 'Z' -> List.rev sl,s
+			| _ -> p,c
+		in
+		let ctx = Typer.create com in
+		let rec lookup p =
+			try
+				Typeload.load_module ctx (p,s_module) Ast.null_pos
+			with e ->
+				if cur_package then
+					match List.rev p with
+					| [] -> raise e
+					| _ :: p -> lookup (List.rev p)
+				else
+					raise e
+		in
+		let m = lookup sl_pack in
+		let statics = ref None in
+		let public_types = List.filter (fun t ->
+			let tinfos = t_infos t in
+			let is_module_type = snd tinfos.mt_path = c in
+			if is_import && is_module_type then begin match t with
+				| TClassDecl c ->
+					ignore(c.cl_build());
+					statics := Some c.cl_ordered_statics
+				| _ -> ()
+			end;
+			not tinfos.mt_private
+		) m.m_types in
+		let types = if c <> s_module then [] else List.map (fun t -> snd (t_path t),"",Some Display.FKType,"") public_types in
+		let ctx = print_context() in
+		let make_field_doc cf =
+			cf.cf_name,
+			s_type ctx cf.cf_type,
+			Some (match cf.cf_kind with Method _ -> Display.FKMethod | Var _ -> Display.FKVar),
+			(match cf.cf_doc with Some s -> s | None -> "")
+		in
+		let types = match !statics with
+			| None -> types
+			| Some cfl -> types @ (List.map make_field_doc (List.filter (fun cf -> cf.cf_public) cfl))
+		in
+		complete_fields com types
+	with Completion c ->
+		raise (Completion c)
+	| _ ->
+		error ctx ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos
 
 let delete_file f = try Sys.remove f with _ -> ()
 
@@ -1751,62 +1815,9 @@ with
 	| Parser.TypePath (p,c,is_import) ->
 		(match c with
 		| None ->
-			let packs, classes = read_type_path com p in
-			if packs = [] && classes = [] then
-				error ctx ("No classes found in " ^ String.concat "." p) Ast.null_pos
-			else
-				complete_fields com (
-					let convert k f = (f,"",Some k,"") in
-					(List.map (convert Display.FKPackage) packs) @ (List.map (convert Display.FKType) classes)
-				)
+			complete_type_path ctx p
 		| Some (c,cur_package) ->
-			try
-				let sl_pack,s_module = match List.rev p with
-					| s :: sl when s.[0] >= 'A' && s.[0] <= 'Z' -> List.rev sl,s
-					| _ -> p,c
-				in
-				let ctx = Typer.create com in
-				let rec lookup p =
-					try
-						Typeload.load_module ctx (p,s_module) Ast.null_pos
-					with e ->
-						if cur_package then
-							match List.rev p with
-							| [] -> raise e
-							| _ :: p -> lookup (List.rev p)
-						else
-							raise e
-				in
-				let m = lookup sl_pack in
-				let statics = ref None in
-				let public_types = List.filter (fun t ->
-					let tinfos = t_infos t in
-					let is_module_type = snd tinfos.mt_path = c in
-					if is_import && is_module_type then begin match t with
-						| TClassDecl c ->
-							ignore(c.cl_build());
-							statics := Some c.cl_ordered_statics
-						| _ -> ()
-					end;
-					not tinfos.mt_private
-				) m.m_types in
-				let types = if c <> s_module then [] else List.map (fun t -> snd (t_path t),"",Some Display.FKType,"") public_types in
-				let ctx = print_context() in
-				let make_field_doc cf =
-					cf.cf_name,
-					s_type ctx cf.cf_type,
-					Some (match cf.cf_kind with Method _ -> Display.FKMethod | Var _ -> Display.FKVar),
-					(match cf.cf_doc with Some s -> s | None -> "")
-				in
-				let types = match !statics with
-					| None -> types
-					| Some cfl -> types @ (List.map make_field_doc (List.filter (fun cf -> cf.cf_public) cfl))
-				in
-				complete_fields com types
-			with Completion c ->
-				raise (Completion c)
-			| _ ->
-				error ctx ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos)
+			complete_type_path_inner ctx p c cur_package is_import)
 	| Display.ModuleSymbols s | Display.Diagnostics s | Display.Statistics s | Display.Metadata s ->
 		raise (Completion s)
 	| Interp.Sys_exit i ->
