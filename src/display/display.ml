@@ -144,7 +144,6 @@ let display_enum_field dm ef p = match dm.dms_kind with
 
 open Json
 
-
 let pos_to_json_range p =
 	if p.pmin = -1 then
 		JNull

@@ -969,7 +969,7 @@ and parse_type_anonymous opt = parser
 		let next p2 acc =
 			{
 				cff_name = name,p1;
-				cff_meta = if opt then [Meta.Optional,[],p1] else [];
+				cff_meta = if opt then [Meta.Optional,[],null_pos] else [];
 				cff_access = [];
 				cff_doc = None;
 				cff_kind = FVar (Some t,None);

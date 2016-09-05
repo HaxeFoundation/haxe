@@ -33,8 +33,8 @@ let transform_abstract_field com this_t a_t a f =
 	match f.cff_kind with
 	| FProp (("get" | "never"),("set" | "never"),_,_) when not stat ->
 		(* TODO: hack to avoid issues with abstract property generation on As3 *)
-		if Common.defined com Define.As3 then f.cff_meta <- (Meta.Extern,[],p) :: f.cff_meta;
-		{ f with cff_access = AStatic :: f.cff_access; cff_meta = (Meta.Impl,[],p) :: f.cff_meta }
+		if Common.defined com Define.As3 then f.cff_meta <- (Meta.Extern,[],null_pos) :: f.cff_meta;
+		{ f with cff_access = AStatic :: f.cff_access; cff_meta = (Meta.Impl,[],null_pos) :: f.cff_meta }
 	| FProp _ when not stat ->
 		error "Member property accessors must be get/set or never" p;
 	| FFun fu when fst f.cff_name = "new" && not stat ->
@@ -222,7 +222,7 @@ let module_pass_1 ctx m tdecls loadp =
 					) a.a_meta;
 					a.a_impl <- Some c;
 					c.cl_kind <- KAbstractImpl a;
-					c.cl_meta <- (Meta.Final,[],c.cl_pos) :: c.cl_meta
+					c.cl_meta <- (Meta.Final,[],null_pos) :: c.cl_meta
 				| _ -> assert false);
 				acc
 		) in
@@ -416,7 +416,7 @@ let generate_value_meta com co cf args =
 		let values = List.fold_left (fun acc ((name,_),_,_,_,eo) -> match eo with Some e -> (name,e) :: acc | _ -> acc) [] args in
 		match values with
 			| [] -> ()
-			| _ -> cf.cf_meta <- ((Meta.Value,[EObjectDecl values,cf.cf_pos],cf.cf_pos) :: cf.cf_meta)
+			| _ -> cf.cf_meta <- ((Meta.Value,[EObjectDecl values,cf.cf_pos],null_pos) :: cf.cf_meta)
 	end
 
 let pselect p1 p2 =
@@ -790,8 +790,8 @@ let valid_redefinition ctx f1 t1 f2 t2 = (* child, parent *)
 		if is_null t1 <> is_null t2 || ((follow t1) == t_dynamic && (follow t2) != t_dynamic) then raise (Unify_error [Cannot_unify (t1,t2)]);
 	in
 	begin match PurityState.get_purity_from_meta f2.cf_meta,PurityState.get_purity_from_meta f1.cf_meta with
-		| PurityState.Pure,PurityState.MaybePure -> f1.cf_meta <- (Meta.Pure,[EConst(Ident "expect"),f2.cf_pos],f2.cf_pos) :: f1.cf_meta
-		| PurityState.ExpectPure p,PurityState.MaybePure -> f1.cf_meta <- (Meta.Pure,[EConst(Ident "expect"),p],p) :: f1.cf_meta
+		| PurityState.Pure,PurityState.MaybePure -> f1.cf_meta <- (Meta.Pure,[EConst(Ident "expect"),f2.cf_pos],null_pos) :: f1.cf_meta
+		| PurityState.ExpectPure p,PurityState.MaybePure -> f1.cf_meta <- (Meta.Pure,[EConst(Ident "expect"),p],null_pos) :: f1.cf_meta
 		| _ -> ()
 	end;
 	let t1, t2 = (match f1.cf_params, f2.cf_params with
@@ -1342,7 +1342,7 @@ let add_constructor ctx c force_constructor p =
 		let cf = mk_field "new" constr.etype p in
 		cf.cf_expr <- Some constr;
 		cf.cf_type <- constr.etype;
-		cf.cf_meta <- [Meta.CompilerGenerated,[],p];
+		cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos];
 		cf.cf_kind <- Method MethNormal;
 		c.cl_constructor <- Some cf;
 	| _ ->
@@ -1376,7 +1376,7 @@ let check_struct_init_constructor ctx c p = match c.cl_constructor with
 		let cf = mk_field "new" e.etype p in
 		cf.cf_expr <- Some e;
 		cf.cf_type <- e.etype;
-		cf.cf_meta <- [Meta.CompilerGenerated,[],p];
+		cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos];
 		cf.cf_kind <- Method MethNormal;
 		c.cl_constructor <- Some cf
 
@@ -1471,7 +1471,7 @@ module Inheritance = struct
 			List.iter (fun m ->
 				match m with
 				| Meta.Final, _, _ -> if not (Meta.has Meta.Hack c.cl_meta || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then error "Cannot extend a final class" p;
-				| Meta.AutoBuild, el, p -> c.cl_meta <- (Meta.Build,el,p) :: m :: c.cl_meta
+				| Meta.AutoBuild, el, p -> c.cl_meta <- (Meta.Build,el,null_pos) :: m :: c.cl_meta
 				| _ -> ()
 			) csup.cl_meta
 		in
@@ -1568,7 +1568,7 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 	c.cl_params <- type_type_params ctx c.cl_path get_params p tp.tp_params;
 	c.cl_kind <- KTypeParameter [];
 	c.cl_meta <- tp.Ast.tp_meta;
-	if enum_constructor then c.cl_meta <- (Meta.EnumConstructorParam,[],c.cl_pos) :: c.cl_meta;
+	if enum_constructor then c.cl_meta <- (Meta.EnumConstructorParam,[],null_pos) :: c.cl_meta;
 	let t = TInst (c,List.map snd c.cl_params) in
 	if ctx.is_display_file && Display.is_display_position (pos tp.tp_name) then
 		Display.display_type ctx.com.display t (pos tp.tp_name);
@@ -1618,7 +1618,7 @@ let type_function ctx args ret fmode f do_display p =
 		v.v_meta <- m;
 		if do_display && Display.is_display_position pn then
 			Display.display_variable ctx.com.display v pn;
-		if n = "this" then v.v_meta <- (Meta.This,[],p) :: v.v_meta;
+		if n = "this" then v.v_meta <- (Meta.This,[],null_pos) :: v.v_meta;
 		v,c
 	) args f.f_args in
 	let old_ret = ctx.ret in
@@ -1881,7 +1881,7 @@ let build_enum_abstract ctx c a fields p =
 		match field.cff_kind with
 		| FVar(ct,eo) when not (List.mem AStatic field.cff_access) ->
 			field.cff_access <- [AStatic; if (List.mem APrivate field.cff_access) then APrivate else APublic];
-			field.cff_meta <- (Meta.Enum,[],field.cff_pos) :: (Meta.Impl,[],field.cff_pos) :: field.cff_meta;
+			field.cff_meta <- (Meta.Enum,[],null_pos) :: (Meta.Impl,[],null_pos) :: field.cff_meta;
 			let ct = match ct with
 				| Some _ -> ct
 				| None -> Some (TExprToExpr.convert_type (TAbstract(a,List.map snd a.a_params)),null_pos)
@@ -2201,7 +2201,7 @@ module ClassInitializer = struct
 		| None ->
 			()
 		| Some e ->
-			if requires_value_meta ctx.com (Some c) then cf.cf_meta <- ((Meta.Value,[e],cf.cf_pos) :: cf.cf_meta);
+			if requires_value_meta ctx.com (Some c) then cf.cf_meta <- ((Meta.Value,[e],null_pos) :: cf.cf_meta);
 			let check_cast e =
 				(* insert cast to keep explicit field type (issue #1901) *)
 				if type_iseq e.etype cf.cf_type then
@@ -2350,7 +2350,7 @@ module ClassInitializer = struct
 					| (Meta.To,_,_) :: _ ->
 						if fctx.is_macro then error (cf.cf_name ^ ": Macro cast functions are not supported") p;
 						(* TODO: this doesn't seem quite right... *)
-						if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],cf.cf_pos) :: cf.cf_meta;
+						if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],null_pos) :: cf.cf_meta;
 						let resolve_m args =
 							(try unify_raise ctx t (tfun (tthis :: args) m) cf.cf_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
 							match follow m with
@@ -2438,7 +2438,7 @@ module ClassInitializer = struct
 							| None -> error (cf.cf_name ^ ": Functions without expressions must have an explicit return type") cf.cf_pos
 							| Some _ -> ()
 						end;
-						cf.cf_meta <- (Meta.NoExpr,[],cf.cf_pos) :: cf.cf_meta;
+						cf.cf_meta <- (Meta.NoExpr,[],null_pos) :: cf.cf_meta;
 						fctx.do_bind <- false;
 						if not (Meta.has Meta.CoreType a.a_meta) then fctx.do_add <- false;
 					end
@@ -2654,7 +2654,7 @@ module ClassInitializer = struct
 				in
 				let t2, f2 = get_overload overloads in
 				(* accessors must be public on As3 (issue #1872) *)
-				if Common.defined ctx.com Define.As3 then f2.cf_meta <- (Meta.Public,[],p) :: f2.cf_meta;
+				if Common.defined ctx.com Define.As3 then f2.cf_meta <- (Meta.Public,[],null_pos) :: f2.cf_meta;
 				(match f2.cf_kind with
 					| Method MethMacro ->
 						display_error ctx (f2.cf_name ^ ": Macro methods cannot be used as property accessor") p;
@@ -2674,7 +2674,7 @@ module ClassInitializer = struct
 					if req_name <> None then display_error ctx (name ^ ": Custom property accessor is no longer supported, please use get/set") p else
 					if c.cl_interface then begin
 						let cf = mk_field m t p in
-						cf.cf_meta <- [Meta.CompilerGenerated,[],p];
+						cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos];
 						cf.cf_kind <- Method MethNormal;
 						c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
 						c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
@@ -3289,7 +3289,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			a_fields = !fields;
 			a_status = ref (EnumStatics e);
 		};
-		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],e.e_pos) :: e.e_meta;
+		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
 
 		if (ctx.com.platform = Java || ctx.com.platform = Cs) && not e.e_extern then
 			delay ctx PTypeField (fun () ->
@@ -4031,8 +4031,8 @@ let rec build_generic ctx c p tl =
 		);
 		add_constructor ctx cg false p;
 		cg.cl_kind <- KGenericInstance (c,tl);
-		cg.cl_meta <- (Meta.NoDoc,[],p) :: cg.cl_meta;
-		if has_meta Meta.Keep c.cl_meta then cg.cl_meta <- (Meta.Keep,[],p) :: cg.cl_meta;
+		cg.cl_meta <- (Meta.NoDoc,[],null_pos) :: cg.cl_meta;
+		if has_meta Meta.Keep c.cl_meta then cg.cl_meta <- (Meta.Keep,[],null_pos) :: cg.cl_meta;
 		cg.cl_interface <- c.cl_interface;
 		cg.cl_constructor <- (match cg.cl_constructor, c.cl_constructor, c.cl_super with
 			| _, Some cf, _ -> Some (build_field cf)
@@ -4056,7 +4056,7 @@ let rec build_generic ctx c p tl =
 		(* In rare cases the class name can become too long, so let's shorten it (issue #3090). *)
 		if String.length (snd cg.cl_path) > 254 then begin
 			let n = get_short_name () in
-			cg.cl_meta <- (Meta.Native,[EConst(String (n)),p],p) :: cg.cl_meta;
+			cg.cl_meta <- (Meta.Native,[EConst(String (n)),p],null_pos) :: cg.cl_meta;
 		end;
 		TInst (cg,[])
 	end
