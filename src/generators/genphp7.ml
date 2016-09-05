@@ -27,7 +27,7 @@ let native_exception_path = ([], "Throwable")
 (**
 	Type path for Haxe exceptions wrapper
 *)
-let haxe_exception_path = (["php7"], "HException")
+let hxexception_type_path = (["php7"; "_Boot"], "HxException")
 (**
 	Type path of `php7.Boot`
 *)
@@ -342,12 +342,24 @@ let get_full_type_name ?escape ?omit_first_slash (type_path:path) =
 		| _ -> name
 
 (**
-	Check if `target` is or extends native PHP `Extension` class
+	Check if `target` is or implements native PHP `Throwable` interface
 *)
 let rec is_native_exception (target:Type.t) =
 	match follow target with
+		| TInst ({ cl_extern = true }, _) -> true
 		| TInst ({ cl_path = path }, _) when path = native_exception_path -> true
-		| TInst ({ cl_super = Some (parent, params) }, _) -> is_native_exception (TInst (parent, params))
+		| TInst ({ cl_super = Some (parent, params) ; cl_implements = interfaces }, _) ->
+			let found = ref false in
+			List.iter
+				(fun (cls, params) ->
+					if not !found then
+						found := is_native_exception (TInst (cls, params))
+				)
+				interfaces;
+			if !found then
+				true
+			else
+				is_native_exception (TInst (parent, params))
 		| _ -> false
 
 (**
@@ -1286,11 +1298,11 @@ class virtual type_builder ctx wrapper =
 				begin
 					self#write "(is_object($__hx__throw = ";
 					self#write_expr expr;
-					self#write (") && $__hx__throw instanceof \\Throwable ? $__hx__throw : new " ^ (self#use haxe_exception_path) ^ "($__hx__throw))")
+					self#write (") && $__hx__throw instanceof \\Throwable ? $__hx__throw : new " ^ (self#use hxexception_type_path) ^ "($__hx__throw))")
 				end
 			else
 				begin
-					self#write ("new " ^ (self#use haxe_exception_path) ^ "(");
+					self#write ("new " ^ (self#use hxexception_type_path) ^ "(");
 					self#write_expr expr;
 					self#write ")"
 				end
@@ -1299,7 +1311,7 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write_expr_try_catch try_expr catches =
 			let catching_dynamic = ref false in
-			let haxe_exception = self#use haxe_exception_path
+			let haxe_exception = self#use hxexception_type_path
 			and first_catch = ref true in
 			let write_catch (var, expr) =
 				let dynamic = ref false in

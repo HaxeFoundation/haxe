@@ -649,3 +649,16 @@ private class HxClosure {
 		return Global.call_user_func_array(getCallback(newThis), args);
 	}
 }
+
+/**
+	Special exception which is used to wrap non-throwable values
+**/
+@:keep
+@:dox(hide)
+private class HxException extends Exception {
+  var e : Dynamic;
+  public function new( e:Dynamic ) : Void {
+	  this.e = e;
+	  super(Boot.stringify(e));
+  }
+}
