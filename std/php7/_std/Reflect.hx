@@ -95,7 +95,12 @@ using php7.Global;
 	}
 
 	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool {
-		throw "Not implemented";
+		var hxClosure = Boot.closureHxClass().phpClassName;
+		if (untyped __php__("$f1 instanceof $hxClosure && $f2 instanceof $hxClosure")) {
+			return f1.equals(f2);
+		} else {
+			return f1 == f2;
+		}
 	}
 
 	public static function isObject( v : Dynamic ) : Bool {

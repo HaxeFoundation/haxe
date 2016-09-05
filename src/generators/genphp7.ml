@@ -54,6 +54,10 @@ let hxdynamicstr_type_path = (["php7"; "_Boot"], "HxDynamicStr")
 *)
 let hxanon_type_path = (["php7"; "_Boot"], "HxAnon")
 (**
+	Type path of the implementation class for closures
+*)
+let hxclosure_type_path = (["php7"; "_Boot"], "HxClosure")
+(**
 	Special abstract which enables passing function arguments and return value by reference
 *)
 let ref_type_path = (["php7"], "Ref")
@@ -1193,13 +1197,14 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write_closure_declaration func write_arg =
 			vars#dive;
-			self#write "function (";
+			self#write ("new " ^ (self#use hxclosure_type_path) ^ "(null, function (");
 			write_args buffer write_arg func.tf_args;
 			self#write ")";
 			(* Generate closure body to separate buffer *)
 			let original_buffer = buffer in
 			buffer <- Buffer.create 256;
 			self#write_expr func.tf_expr;
+			self#write ")";
 			let body = Buffer.contents buffer in
 			buffer <- original_buffer;
 			(* Use captured local vars *)
@@ -1618,50 +1623,22 @@ class virtual type_builder ctx wrapper =
 			Writes FClosure field access to output buffer
 		*)
 		method private write_expr_field_closure tcls field expr =
-			(* backup originl output buffer *)
-			let original_buffer = buffer in
-			(* generate feild access expression string *)
-			buffer <- Buffer.create 128;
-			vars#dive;
-			self#write " { return ";
-			(match expr.eexpr with
-				| TField (_, FClosure _)  -> self#write_expr (parenthesis expr)
-				| TField _  -> self#write_expr expr
-				| TLocal _ -> self#write_expr expr
-				| TConst TThis -> self#write_expr expr
-				| _ -> self#write_expr (parenthesis expr)
-			);
-			self#write ("->" ^ field.cf_name ^ "(");
-			let access_str = Buffer.contents buffer
-			and used_vars = vars#pop in
-			(* Restore original output buffer and local vars *)
-			buffer <- original_buffer;
-			(* Write whole closure to output buffer *)
-			let (args, return_type) = get_function_signature field in
-			let args = (** Make sure arguments will not shadow local vars declared in higher scopes *)
-				List.map
-					(fun (arg_name, optional, arg_type) ->
-						if List.mem arg_name used_vars then
-							("__hx__" ^ arg_name, optional, arg_type)
-						else
-							(arg_name, optional, arg_type)
-					)
-					args
-			in
-			self#write "function (";
-			write_args buffer (self#write_arg true) args;
-			self#write ")";
-			(match used_vars with
-				| [] -> ()
+			let new_closure = "new " ^ (self#use hxclosure_type_path) in
+			match expr.eexpr with
+				| TTypeExpr mtype ->
+					let class_name = self#use_t (type_of_module_type mtype) in
+					self#write (new_closure ^ "(" ^ class_name ^ "::class, '" ^ field.cf_name ^ "')");
 				| _ ->
-					self#write " use (";
-					write_args buffer (fun name -> self#write ("&$" ^ name)) used_vars;
-					self#write ")"
-			);
-			self#write access_str;
-			write_args buffer (self#write_arg false) args;
-			self#write "); }"
-
+					self#write (new_closure ^ "(");
+					(match follow expr.etype with
+						| TInst ({ cl_path = ([], "String") }, []) ->
+							self#write ((self#use hxdynamicstr_type_path) ^ "::wrap(");
+							self#write_expr expr;
+							self#write ")"
+						| _ ->
+							self#write_expr expr
+					);
+					self#write (", '" ^ field.cf_name ^ "')")
 		(**
 			Write anonymous object declaration to output buffer
 		*)

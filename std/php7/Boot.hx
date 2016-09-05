@@ -155,6 +155,21 @@ class Boot {
 		return null;
 	}
 
+	/**
+		Creates Haxe-compatible closure.
+		@param type `this` for instance methods; full php class name for static methods; `null` for anonymous functions
+		@param func Method name for methods; closures for anonymous functions
+	**/
+	public static function closure( target:Dynamic, func:Dynamic ) : HxClosure {
+		return new HxClosure(target, func);
+	}
+
+	/**
+		Returns `Class<T>` for `HxClosure`
+	**/
+	public static inline function closureHxClass() : HxClass {
+		return cast HxClosure;
+	}
 
 	/**
 		Implementation for `cast(value, Class<Dynamic>)`
@@ -516,7 +531,7 @@ private class HxString {
 @:keep
 private class HxDynamicStr {
 	static var hxString : String = (cast HxString:HxClass).phpClassName;
-	var str:String;
+	var str : String;
 
 	/**
 		Returns HxDynamicStr instance if `value` is a string.
@@ -548,7 +563,8 @@ private class HxDynamicStr {
 			case 'substr':      return HxString.substr.bind(str);
 			case 'charCodeAt':  return HxString.charCodeAt.bind(str);
 		}
-		return str;
+		/** Force invalid field access error */
+		return untyped __php__("$this->str->$field");
 	}
 
 	function __call( method:String, args:NativeArray ) : Dynamic {
@@ -573,5 +589,41 @@ private class HxAnon extends StdClass {
 
 	function __get( name:String ) {
 		return null;
+	}
+}
+
+/**
+	Closures implementation
+**/
+@:keep
+@:dox(hide)
+private class HxClosure {
+	/** `this` for instance methods; php class name for static methods; `null` for anonymous functions */
+	var target : Dynamic;
+	/** Method name for methods; closures for anonymous functions */
+	var func : Dynamic;
+
+	public function new( target:Dynamic, func:Dynamic ) : Void {
+		this.target = target;
+		this.func = func;
+		//Force runtime error if trying to create a closure of an instance which happen to be `null`
+		if (target.is_null() && func.is_string()) {
+			throw "Unable to create closure on `null`";
+		}
+	}
+
+	/**
+		@see http://php.net/manual/en/language.oop5.magic.php#object.invoke
+	**/
+	function __invoke() {
+		var callback = (func.is_string() ? untyped __php__("[$this->target, $this->func]") : func);
+		return Global.call_user_func_array(callback, Global.func_get_args());
+	}
+
+	/**
+		Check if this is the same closure
+	**/
+	public function equals( closure:HxClosure ) : Bool {
+		return (target == closure.target && func == closure.func);
 	}
 }
