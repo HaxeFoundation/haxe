@@ -237,7 +237,7 @@ module DocumentSymbols = struct
 		l
 
 	let print_module_symbols com symbols filter =
-		let regex = Option.map Str.regexp filter in
+		let regex = Option.map Str.regexp_case_fold filter in
 		let reported = Hashtbl.create 0 in
 		let add si =
 			if Hashtbl.mem reported si.pos then false

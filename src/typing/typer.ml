@@ -432,6 +432,10 @@ module ToplevelCollecter = struct
 		(* enum constructors *)
 		let rec enum_ctors t =
 			match t with
+			| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta ->
+				List.iter (fun cf ->
+					if (Meta.has Meta.Enum cf.cf_meta) then DynArray.add acc (ITEnumAbstract(a,cf));
+				) c.cl_ordered_statics
 			| TClassDecl _ | TAbstractDecl _ ->
 				()
 			| TTypeDecl t ->

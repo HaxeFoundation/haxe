@@ -218,13 +218,14 @@ module IdentifierType = struct
 		| ITMember of tclass * tclass_field
 		| ITStatic of tclass * tclass_field
 		| ITEnum of tenum * tenum_field
+		| ITEnumAbstract of tabstract * tclass_field
 		| ITGlobal of module_type * string * Type.t
 		| ITType of module_type
 		| ITPackage of string
 
 	let get_name = function
 		| ITLocal v -> v.v_name
-		| ITMember(_,cf) | ITStatic(_,cf) -> cf.cf_name
+		| ITMember(_,cf) | ITStatic(_,cf) | ITEnumAbstract(_,cf) -> cf.cf_name
 		| ITEnum(_,ef) -> ef.ef_name
 		| ITGlobal(_,s,_) -> s
 		| ITType mt -> snd (t_infos mt).mt_path

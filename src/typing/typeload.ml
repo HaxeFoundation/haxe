@@ -1085,11 +1085,12 @@ let is_generic_parameter ctx c =
 	with Not_found ->
 		false
 
-let type_function_arg_value ctx t c =
+let type_function_arg_value ctx t c do_display =
 	match c with
 		| None -> None
 		| Some e ->
 			let p = pos e in
+			let e = if do_display then Display.process_expr ctx.com e else e in
 			let e = ctx.g.do_optimize ctx (type_expr ctx e (WithType t)) in
 			unify ctx e.etype t p;
 			let rec loop e = match e.eexpr with
@@ -1312,7 +1313,7 @@ let add_constructor ctx c force_constructor p =
 					match follow cfsup.cf_type with
 					| TFun (args,_) ->
 						List.map (fun (n,o,t) ->
-							let def = try type_function_arg_value ctx t (Some (PMap.find n values)) with Not_found -> if o then Some TNull else None in
+							let def = try type_function_arg_value ctx t (Some (PMap.find n values)) false with Not_found -> if o then Some TNull else None in
 							map_arg (alloc_var n (if o then ctx.t.tnull t else t) p,def) (* TODO: var pos *)
 						) args
 					| _ -> assert false
@@ -1613,7 +1614,7 @@ let type_function ctx args ret fmode f do_display p =
 	let locals = save_locals ctx in
 	let fargs = List.map2 (fun (n,c,t) ((_,pn),_,m,_,_) ->
 		if n.[0] = '$' then error "Function argument names starting with a dollar are not allowed" p;
-		let c = type_function_arg_value ctx t c in
+		let c = type_function_arg_value ctx t c do_display in
 		let v,c = add_local ctx n t pn, c in
 		v.v_meta <- m;
 		if do_display && Display.is_display_position pn then
