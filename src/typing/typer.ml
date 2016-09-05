@@ -1735,7 +1735,7 @@ let type_bind ctx (e : texpr) params p =
 	let vexpr v = mk (TLocal v) v.v_type p in
 	let acount = ref 0 in
 	let alloc_name n =
-		if n = "" || String.length n > 2 then begin
+		if n = "" || String.length n > 2 && not ctx.is_display_file then begin
 			incr acount;
 			"a" ^ string_of_int !acount;
 		end else
@@ -2676,11 +2676,11 @@ and type_ident ctx i p mode =
 						let cl = StringError.filter_similar (fun (s,_) r -> r > 0 && r <= (min (String.length s) (String.length i)) / 3) cl in
 						ctx.com.display_information.unresolved_identifiers <- (i,p,cl) :: ctx.com.display_information.unresolved_identifiers;
 						let t = mk_mono() in
-						AKExpr (mk (TLocal (add_local ctx i t p)) t p)
+						AKExpr (mk (TLocal (add_unbound_local ctx i t p)) t p)
 					| _ ->
 						display_error ctx (error_msg err) p;
 						let t = mk_mono() in
-						AKExpr (mk (TLocal (add_local ctx i t p)) t p)
+						AKExpr (mk (TLocal (add_unbound_local ctx i t p)) t p)
 			end
 		end
 
@@ -2908,7 +2908,7 @@ and type_vars ctx vl p =
 		with
 			Error (e,p) ->
 				display_error ctx (error_msg e) p;
-				add_local ctx v t_dynamic pv, None
+				add_unbound_local ctx v t_dynamic pv, None
 	) vl in
 	match vl with
 	| [v,eo] ->
@@ -3842,15 +3842,15 @@ and handle_display ctx e_ast iscall with_type =
 		) tl in
 		tl
 	in
-	begin match e_ast with
-		| EConst (Ident "$type"),_ ->
-			let mono = mk_mono() in
-			raise (Display.DisplaySignatures [(TFun(["expression",false,mono],mono),Some "Outputs type of argument as a warning and uses argument as value")])
-		| EConst (Ident "trace"),_ ->
-			raise (Display.DisplaySignatures [(tfun [t_dynamic] ctx.com.basic.tvoid,Some "Print given arguments")])
-		| _ -> ()
-	end;
-	let e = try
+	let e = match e_ast,with_type with
+	| (EConst (Ident "$type"),_),_ ->
+		let mono = mk_mono() in
+		raise (Display.DisplaySignatures [(TFun(["expression",false,mono],mono),Some "Outputs type of argument as a warning and uses argument as value")])
+	| (EConst (Ident "trace"),_),_ ->
+		raise (Display.DisplaySignatures [(tfun [t_dynamic] ctx.com.basic.tvoid,Some "Print given arguments")])
+	| (EConst (Ident "_"),p),WithType t ->
+		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
+	| _ -> try
 		type_expr ctx e_ast with_type
 	with Error (Unknown_ident n,_) when not iscall ->
 		raise (Parser.TypePath ([n],None,false))
@@ -3888,6 +3888,7 @@ and handle_display ctx e_ast iscall with_type =
 		let t = match e.eexpr with
 			| TVar(v,_) -> v.v_type
 			| TCall({eexpr = TConst TSuper; etype = t},_) -> t
+			| TNew({cl_kind = KAbstractImpl a},tl,_) -> TType(abstract_module_type a,tl)
 			| TNew(c,tl,_) -> TInst(c,tl)
 			| TTypeExpr (TClassDecl {cl_kind = KAbstractImpl a}) -> TType(abstract_module_type a,List.map snd a.a_params)
 			| TField(e1,FDynamic "bind") when (match follow e1.etype with TFun _ -> true | _ -> false) -> e1.etype

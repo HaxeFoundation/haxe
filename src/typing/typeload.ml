@@ -237,13 +237,13 @@ let parse_file_from_lexbuf com file p lexbuf =
 	Lexer.init file true;
 	incr stats.s_files_parsed;
 	let data = (try Parser.parse com lexbuf with e -> t(); raise e) in
-    begin match !display_default with
-        | DMModuleSymbols filter when filter <> None || Display.is_display_file file ->
-            let ds = Display.DocumentSymbols.collect_module_symbols data in
+	begin match !display_default with
+		| DMModuleSymbols filter when filter <> None || Display.is_display_file file ->
+			let ds = Display.DocumentSymbols.collect_module_symbols data in
 			com.shared.shared_display_information.document_symbols <- (file,ds) :: com.shared.shared_display_information.document_symbols;
-        | _ ->
-            ()
-    end;
+		| _ ->
+			()
+	end;
 	t();
 	Common.log com ("Parsed " ^ file);
 	data
@@ -2180,6 +2180,10 @@ module ClassInitializer = struct
 			end
 		end
 
+	let check_field_display ctx p cf =
+ 		if Display.is_display_position p then
+			Display.display_field ctx.com.display cf p
+
 	let bind_var (ctx,cctx,fctx) cf e =
 		let c = cctx.tclass in
 		let p = cf.cf_pos in
@@ -2293,15 +2297,12 @@ module ClassInitializer = struct
 					let e = check_cast e in
 					cf.cf_expr <- Some e;
 					cf.cf_type <- t;
+					if fctx.is_display_field then check_field_display ctx (cf.cf_name_pos) cf;
 				end;
 				t
 			) "bind_var" in
 			if not fctx.is_static then cctx.force_constructor <- true;
 			bind_type (ctx,cctx,fctx) cf r (snd e)
-
-	let check_field_display com p cf =
- 		if Display.is_display_position p then
-			Display.display_field com.display cf p
 
 	let create_variable (ctx,cctx,fctx) c f t eo p =
 		if not fctx.is_static && cctx.abstract <> None then error (fst f.cff_name ^ ": Cannot declare member variable in abstract") p;
@@ -2339,7 +2340,6 @@ module ClassInitializer = struct
 		} in
 		ctx.curfield <- cf;
 		bind_var (ctx,cctx,fctx) cf eo;
-		if fctx.is_display_field then check_field_display ctx.com (pos f.cff_name) cf;
 		cf
 
 	let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
@@ -2604,11 +2604,11 @@ module ClassInitializer = struct
 							| _ -> c.cl_init <- Some e);
 						cf.cf_expr <- Some (mk (TFunction tf) t p);
 						cf.cf_type <- t;
+						if fctx.is_display_field then check_field_display ctx (cf.cf_name_pos) cf;
 			end;
 			t
 		) "type_fun" in
 		if fctx.do_bind then bind_type (ctx,cctx,fctx) cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos);
-		if fctx.is_display_field then check_field_display ctx.com (pos f.cff_name) cf;
 		cf
 
 	let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
@@ -2739,7 +2739,6 @@ module ClassInitializer = struct
 		} in
 		ctx.curfield <- cf;
 		bind_var (ctx,cctx,fctx) cf eo;
-		if fctx.is_display_field then check_field_display ctx.com (pos f.cff_name) cf;
 		cf
 
 	let init_field (ctx,cctx,fctx) f =
@@ -3933,7 +3932,7 @@ let rec build_generic ctx c p tl =
 		List.iter loop tl;
 		let build_field cf_old =
 			(* We have to clone the type parameters (issue #4672). We cannot substitute the constraints immediately because
-		       we need the full substitution list first. *)
+			   we need the full substitution list first. *)
 			let param_subst,params = List.fold_left (fun (subst,params) (s,t) -> match follow t with
 				| TInst(c,tl) as t ->
 					let t2 = TInst({c with cl_pos = c.cl_pos;},tl) in

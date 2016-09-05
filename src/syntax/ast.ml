@@ -844,12 +844,10 @@ let s_expr e =
 	and s_expr_list tabs el sep =
 		(String.concat sep (List.map (s_expr_inner tabs) el))
 	and s_complex_type_path tabs (t,_) =
-		(String.concat "." t.tpackage) ^ if List.length t.tpackage > 0 then "." else "" ^
-		t.tname ^
-		match t.tsub with
-		| Some s -> "." ^ s
-		| None -> "" ^
-		s_type_param_or_consts tabs t.tparams
+		Printf.sprintf "%s%s%s"
+			(s_type_path (t.tpackage,t.tname))
+			(Option.map_default (fun s -> "." ^ s) "" t.tsub)
+			(s_type_param_or_consts tabs t.tparams)
 	and s_type_param_or_consts tabs pl =
 		if List.length pl > 0
 		then "<" ^ (String.concat "," (List.map (s_type_param_or_const tabs) pl)) ^ ">"
