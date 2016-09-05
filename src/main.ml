@@ -1782,7 +1782,9 @@ with
 		let ctx = print_context() in
 		let b = Buffer.create 0 in
 		List.iter (fun (t,doc) ->
-			Buffer.add_string b "<type>\n";
+			Buffer.add_string b "<type";
+			Option.may (fun s -> Buffer.add_string b (Printf.sprintf " d=\"%s\"" (htmlescape s))) doc;
+			Buffer.add_string b ">\n";
 			Buffer.add_string b (htmlescape (s_type ctx (follow t)));
 			Buffer.add_string b "\n</type>\n";
 		) tl;

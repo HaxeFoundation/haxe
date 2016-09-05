@@ -3846,6 +3846,8 @@ and handle_display ctx e_ast iscall with_type =
 		| EConst (Ident "$type"),_ ->
 			let mono = mk_mono() in
 			raise (Display.DisplaySignatures [(TFun(["expression",false,mono],mono),Some "Outputs type of argument as a warning and uses argument as value")])
+		| EConst (Ident "trace"),_ ->
+			raise (Display.DisplaySignatures [(tfun [t_dynamic] ctx.com.basic.tvoid,Some "Print given arguments")])
 		| _ -> ()
 	end;
 	let e = try
