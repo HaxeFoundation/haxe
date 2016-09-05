@@ -1138,6 +1138,13 @@ let add_filter ctx f =
 let add_final_filter ctx f =
 	ctx.callbacks.after_generation <- f :: ctx.callbacks.after_generation
 
+let htmlescape s =
+	let s = String.concat "&amp;" (ExtString.String.nsplit s "&") in
+	let s = String.concat "&lt;" (ExtString.String.nsplit s "<") in
+	let s = String.concat "&gt;" (ExtString.String.nsplit s ">") in
+	let s = String.concat "&quot;" (ExtString.String.nsplit s "\"") in
+	s
+
 let find_file ctx f =
 	try
 		(match Hashtbl.find ctx.file_lookup_cache f with

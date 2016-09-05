@@ -145,6 +145,27 @@ let display_enum_field dm ef p = match dm.dms_kind with
 
 open Json
 
+let print_fields fields details =
+	let b = Buffer.create 0 in
+	Buffer.add_string b "<list>\n";
+	List.iter (fun (n,t,k,d) ->
+		let s_kind = match k with
+			| Some k -> (match k with
+				| FKVar -> "var"
+				| FKMethod -> "method"
+				| FKType -> "type"
+				| FKPackage -> "package"
+				| FKMetadata -> "metadata")
+			| None -> ""
+		in
+		if details then
+			Buffer.add_string b (Printf.sprintf "<i n=\"%s\" k=\"%s\"><t>%s</t><d>%s</d></i>\n" n s_kind (htmlescape t) (htmlescape d))
+		else
+			Buffer.add_string b (Printf.sprintf "<i n=\"%s\"><t>%s</t><d>%s</d></i>\n" n (htmlescape t) (htmlescape d))
+	) (List.sort (fun (a,_,ak,_) (b,_,bk,_) -> compare (ak,a) (bk,b)) fields);
+	Buffer.add_string b "</list>\n";
+	Buffer.contents b
+
 let pos_to_json_range p =
 	if p.pmin = -1 then
 		JNull

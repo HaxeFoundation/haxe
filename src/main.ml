@@ -145,39 +145,14 @@ let error ctx msg p =
 	message ctx msg p;
 	ctx.has_error <- true
 
-let htmlescape s =
-	let s = String.concat "&amp;" (ExtString.String.nsplit s "&") in
-	let s = String.concat "&lt;" (ExtString.String.nsplit s "<") in
-	let s = String.concat "&gt;" (ExtString.String.nsplit s ">") in
-	let s = String.concat "&quot;" (ExtString.String.nsplit s "\"") in
-	s
-
 let reserved_flags = [
 	"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
 	"as3";"swc";"macro";"sys"
 	]
 
 let complete_fields com fields =
-	let b = Buffer.create 0 in
 	let details = Common.raw_defined com "display-details" in
-	Buffer.add_string b "<list>\n";
-	List.iter (fun (n,t,k,d) ->
-		let s_kind = match k with
-			| Some k -> (match k with
-				| Display.FKVar -> "var"
-				| Display.FKMethod -> "method"
-				| Display.FKType -> "type"
-				| Display.FKPackage -> "package"
-				| Display.FKMetadata -> "metadata")
-			| None -> ""
-		in
-		if details then
-			Buffer.add_string b (Printf.sprintf "<i n=\"%s\" k=\"%s\"><t>%s</t><d>%s</d></i>\n" n s_kind (htmlescape t) (htmlescape d))
-		else
-			Buffer.add_string b (Printf.sprintf "<i n=\"%s\"><t>%s</t><d>%s</d></i>\n" n (htmlescape t) (htmlescape d))
-	) (List.sort (fun (a,_,ak,_) (b,_,bk,_) -> compare (ak,a) (bk,b)) fields);
-	Buffer.add_string b "</list>\n";
-	raise (Completion (Buffer.contents b))
+	raise (Completion (Display.print_fields fields details))
 
 let report_times print =
 	let tot = ref 0. in
