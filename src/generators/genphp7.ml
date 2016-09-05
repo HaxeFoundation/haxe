@@ -1197,14 +1197,13 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write_closure_declaration func write_arg =
 			vars#dive;
-			self#write ("new " ^ (self#use hxclosure_type_path) ^ "(null, function (");
+			self#write "function (";
 			write_args buffer write_arg func.tf_args;
 			self#write ")";
 			(* Generate closure body to separate buffer *)
 			let original_buffer = buffer in
 			buffer <- Buffer.create 256;
 			self#write_expr func.tf_expr;
-			self#write ")";
 			let body = Buffer.contents buffer in
 			buffer <- original_buffer;
 			(* Use captured local vars *)

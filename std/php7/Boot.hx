@@ -157,8 +157,8 @@ class Boot {
 
 	/**
 		Creates Haxe-compatible closure.
-		@param type `this` for instance methods; full php class name for static methods; `null` for anonymous functions
-		@param func Method name for methods; closures for anonymous functions
+		@param type `this` for instance methods; full php class name for static methods
+		@param func Method name
 	**/
 	public static function closure( target:Dynamic, func:Dynamic ) : HxClosure {
 		return new HxClosure(target, func);
@@ -598,16 +598,16 @@ private class HxAnon extends StdClass {
 @:keep
 @:dox(hide)
 private class HxClosure {
-	/** `this` for instance methods; php class name for static methods; `null` for anonymous functions */
+	/** `this` for instance methods; php class name for static methods */
 	var target : Dynamic;
-	/** Method name for methods; closures for anonymous functions */
-	var func : Dynamic;
+	/** Method name for methods */
+	var func : String;
 
-	public function new( target:Dynamic, func:Dynamic ) : Void {
+	public function new( target:Dynamic, func:String ) : Void {
 		this.target = target;
 		this.func = func;
 		//Force runtime error if trying to create a closure of an instance which happen to be `null`
-		if (target.is_null() && func.is_string()) {
+		if (target.is_null()) {
 			throw "Unable to create closure on `null`";
 		}
 	}
@@ -616,8 +616,23 @@ private class HxClosure {
 		@see http://php.net/manual/en/language.oop5.magic.php#object.invoke
 	**/
 	function __invoke() {
-		var callback = (func.is_string() ? untyped __php__("[$this->target, $this->func]") : func);
-		return Global.call_user_func_array(callback, Global.func_get_args());
+		return Global.call_user_func_array(getCallback(), Global.func_get_args());
+	}
+
+	/**
+		Generates callable value for PHP
+	**/
+	public function getCallback(eThis:Dynamic = null) : NativeIndexedArray<Dynamic> {
+		if (eThis == null) {
+			eThis = target;
+		}
+		if (untyped __php__("$eThis instanceof \\StdClass")) {
+			var hxAnon = (cast HxAnon:HxClass).phpClassName;
+			if (untyped __php__("$eThis instanceof $hxAnon")) {
+				return untyped __php__("$eThis->{$this->func}");
+			}
+		}
+		return untyped __php__("[$eThis, func]");
 	}
 
 	/**
@@ -631,12 +646,6 @@ private class HxClosure {
 		Invoke this closure with `newThis` instead of `this`
 	**/
 	public function callWith( newThis:Dynamic, args:NativeArray ) : Dynamic {
-		var callback = null;
-		if (newThis == null) {
-			callback = (func.is_string() ? untyped __php__("[$this->target, $this->func]") : func);
-		} else {
-			callback = (func.is_string() ? untyped __php__("[$newThis, $this->func]") : func.bindTo(newThis));
-		}
-		return Global.call_user_func_array(callback, Global.func_get_args());
+		return Global.call_user_func_array(getCallback(newThis), args);
 	}
 }
