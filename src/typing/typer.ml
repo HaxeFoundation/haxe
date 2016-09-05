@@ -3521,8 +3521,8 @@ and type_array_decl ctx el with_type p =
 
 and type_expr ctx (e,p) (with_type:with_type) =
 	match e with
-	| EField ((EConst (String s),p),"code") ->
-		if UTF8.length s <> 1 then error "String must be a single UTF8 char" p;
+	| EField ((EConst (String s),ps),"code") ->
+		if UTF8.length s <> 1 then error "String must be a single UTF8 char" ps;
 		mk (TConst (TInt (Int32.of_int (UChar.code (UTF8.get s 0))))) ctx.t.tint p
 	| EField(_,n) when n.[0] = '$' ->
 		error "Field names starting with $ are not allowed" p
@@ -3842,6 +3842,12 @@ and handle_display ctx e_ast iscall with_type =
 		) tl in
 		tl
 	in
+	begin match e_ast with
+		| EConst (Ident "$type"),_ ->
+			let mono = mk_mono() in
+			raise (Display.DisplaySignatures [(TFun(["expression",false,mono],mono),Some "Outputs type of argument as a warning and uses argument as value")])
+		| _ -> ()
+	end;
 	let e = try
 		type_expr ctx e_ast with_type
 	with Error (Unknown_ident n,_) when not iscall ->
@@ -3882,6 +3888,7 @@ and handle_display ctx e_ast iscall with_type =
 			| TCall({eexpr = TConst TSuper; etype = t},_) -> t
 			| TNew(c,tl,_) -> TInst(c,tl)
 			| TTypeExpr (TClassDecl {cl_kind = KAbstractImpl a}) -> TType(abstract_module_type a,List.map snd a.a_params)
+			| TField(e1,FDynamic "bind") when (match follow e1.etype with TFun _ -> true | _ -> false) -> e1.etype
 			| _ -> e.etype
 		in
 		raise (Display.DisplayType (t,p))
