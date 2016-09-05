@@ -405,7 +405,7 @@ let get_module_path_from_file_path com spath =
 		| [] -> None
 		| cp :: l ->
 			let cp = (if cp = "" then "./" else cp) in
-			let c = add_trailing_slash (get_real_path (Common.get_full_path cp)) in
+			let c = add_trailing_slash (get_real_path cp) in
 			let clen = String.length c in
 			if clen < String.length spath && String.sub spath 0 clen = c then begin
 				let path = String.sub spath clen (String.length spath - clen) in
