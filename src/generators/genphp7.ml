@@ -2216,16 +2216,17 @@ class class_builder ctx (cls:tclass) =
 		*)
 		method private write_instance_initialization =
 			let init_dynamic_method field =
-				let (args, _) = get_function_signature field
-				and default_field = "$this->__hx__default__" ^ field.cf_name in
+				(*let (args, _) = get_function_signature field*)
+				let default_field = "$this->__hx__default__" ^ field.cf_name in
 				self#write_line ("if (!" ^ default_field ^ ") {");
 				self#indent_more;
-				self#write_indentation;
-				self#write (default_field ^ " = function (");
+				(*self#write_indentation;*)
+				self#write_statement (default_field ^ " = new " ^ (self#use hxclosure_type_path) ^ "($this, '" ^ field.cf_name ^ "')");
+				(*self#write (default_field ^ " = function (");
 				write_args buffer (self#write_arg true) args;
 				self#write (") { return $this->" ^ field.cf_name ^"(");
 				write_args buffer (self#write_arg false) args;
-				self#write "); };\n";
+				self#write "); };\n";*)
 				self#write_statement ("$this->" ^ field.cf_name ^ " = " ^ default_field);
 				self#indent_less;
 				self#write_line "}"
