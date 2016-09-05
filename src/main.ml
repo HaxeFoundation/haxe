@@ -167,7 +167,8 @@ let complete_fields com fields =
 				| Display.FKVar -> "var"
 				| Display.FKMethod -> "method"
 				| Display.FKType -> "type"
-				| Display.FKPackage -> "package")
+				| Display.FKPackage -> "package"
+				| Display.FKMetadata -> "metadata")
 			| None -> ""
 		in
 		if details then

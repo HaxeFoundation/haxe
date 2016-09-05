@@ -1835,7 +1835,7 @@ let check_global_metadata ctx meta f_add mpath tpath so =
 			List.iter (fun (meta,_,p) ->
 				if Display.is_display_position p then begin
 					let all,_ = MetaInfo.get_documentation_list() in
-					let all = List.map (fun (s,doc) -> (s,t_dynamic,None,Some doc)) all in
+					let all = List.map (fun (s,doc) -> (s,t_dynamic,Some Display.FKMetadata,Some doc)) all in
 					raise (Display.DisplayFields all)
 				end
 			) meta

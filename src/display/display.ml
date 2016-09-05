@@ -10,6 +10,7 @@ type display_field_kind =
 	| FKMethod
 	| FKType
 	| FKPackage
+	| FKMetadata
 
 exception Diagnostics of string
 exception Statistics of string
