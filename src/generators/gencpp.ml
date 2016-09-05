@@ -587,29 +587,18 @@ let is_cpp_function_instance haxe_type =
    ;;
 
 
-let is_cpp_function_class haxe_type =
-   match follow haxe_type with
-   | TType (klass,params) ->
-      (match klass.t_path with
-      | ["cpp"] , "Function" -> true
-      | _ -> false )
-   | _ -> false
-   ;;
-
-let is_objc_call field =
-  match field with
-  | FStatic(cl,_) | FInstance(cl,_,_) ->
-      cl.cl_extern && Meta.has Meta.Objc cl.cl_meta
-  | _ -> false
-;;
-
 let is_objc_class klass =
    klass.cl_extern && Meta.has Meta.Objc klass.cl_meta
 ;;
 
-let is_objc_type t = match follow t with
-  | TInst(cl,_) -> cl.cl_extern && Meta.has Meta.Objc cl.cl_meta
-  | _ -> false
+let rec is_objc_type t =
+   match t with
+   | TInst(cl,_) -> cl.cl_extern && Meta.has Meta.Objc cl.cl_meta
+   | TType(td,_) -> (Meta.has Meta.Objc td.t_meta)
+   | TAbstract (a,_) -> (Meta.has Meta.Objc a.a_meta)
+   | TMono r -> (match !r with | Some t -> is_objc_type t | _ -> false)
+   | TLazy f -> is_objc_type (!f())
+   | _ -> false
 ;;
 
 
@@ -930,9 +919,6 @@ let member_type ctx field_object member =
 let is_interface obj = is_interface_type obj.etype;;
 
 let should_implement_field x = not (is_extern_field x);;
-
-let is_function_member expression =
-   match (follow expression.etype) with | TFun (_,_) -> true | _ -> false;;
 
 let is_extern_class class_def =
    class_def.cl_extern || (has_meta_key class_def.cl_meta Meta.Extern) ||
@@ -1339,6 +1325,7 @@ let hx_stack_push ctx output clazz func_name pos =
 
 type tcpp =
    | TCppDynamic
+   | TCppUnchanged
    | TCppObject
    | TCppObjectPtr
    | TCppVoid
@@ -1425,8 +1412,7 @@ and tcppfuncloc =
    | FuncSuperConstruct
    | FuncSuper of tcppthis * tclass_field
    | FuncNew of tcpp
-   | FuncDynamic of tcppexpr
-   | FuncFunctionPtr of tcppexpr
+   | FuncExpression of tcppexpr
    | FuncInternal of tcppexpr * string * string
    | FuncGlobal of string
    | FuncFromStaticFunction
@@ -1538,8 +1524,7 @@ let rec s_tcpp = function
    | CppCall (FuncSuperConstruct,_) -> "CppCallSuperConstruct"
    | CppCall (FuncSuper _,_) -> "CppCallSuper"
    | CppCall (FuncNew _,_) -> "CppCallNew"
-   | CppCall (FuncDynamic _,_) -> "CppCallDynamic"
-   | CppCall (FuncFunctionPtr _,_) -> "CppCallFunctionPtr"
+   | CppCall (FuncExpression _,_) -> "CppCallExpression"
    | CppCall (FuncInternal _,_) -> "CppCallInternal"
    | CppCall (FuncGlobal _,_) -> "CppCallGlobal"
    | CppCall (FuncFromStaticFunction,_) -> "CppCallFromStaticFunction"
@@ -1582,6 +1567,7 @@ let rec s_tcpp = function
 
 and tcpp_to_string_suffix suffix tcpp = match tcpp with
    | TCppDynamic -> " ::Dynamic"
+   | TCppUnchanged -> " ::Dynamic/*Unchanged*/"
    | TCppObject -> " ::Dynamic"
    | TCppObjectPtr -> " ::hx::Object *"
    | TCppReference t -> (tcpp_to_string t) ^" &"
@@ -1798,7 +1784,7 @@ let rec cpp_type_of ctx haxe_type =
       | (["cpp"],"Callable"), [function_type]
       | (["cpp"],"CallableData"), [function_type] ->
             cpp_function_type_of_string ctx function_type "";
-      | (("cpp"::["objc"]),"BlockPtr"), [function_type] ->
+      | (("cpp"::["objc"]),"ObjcBlock"), [function_type] ->
             let args,ret = (cpp_function_type_of_args_ret ctx function_type) in
             TCppObjCBlock(args,ret)
       | (["cpp"],"Reference"), [param] ->
@@ -1963,6 +1949,7 @@ let cpp_class_name klass =
 
 let cpp_variant_type_of t = match t with
    | TCppDynamic
+   | TCppUnchanged
    | TCppObject
    | TCppObjectPtr
    | TCppReference _
@@ -2490,15 +2477,20 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             cppExpr, TCppCode(cpp_type_of expr.etype)
 
          | TCall( func, args ) ->
-            let retypedFunc = retype TCppDynamic func in
+            let retypedFunc = retype TCppUnchanged func in
             (match retypedFunc.cpptype with
             | TCppNull ->
                CppNullAccess, TCppDynamic
             | TCppFunction(argTypes,retType,_) ->
-              let retypedArgs = List.map2 (fun arg wantedType ->
+               let retypedArgs = List.map2 (fun arg wantedType ->
                    retype wantedType arg
                    ) args argTypes in
-              CppCall( FuncFunctionPtr(retypedFunc) ,retypedArgs), retType
+               CppCall( FuncExpression(retypedFunc) ,retypedArgs), retType
+            |  TCppObjCBlock(argTypes,retType) ->
+               let retypedArgs = List.map2 (fun arg wantedType ->
+                   retype wantedType arg
+                   ) args argTypes in
+               CppCall( FuncExpression(retypedFunc) ,retypedArgs), retType
             | _ ->
                let retypedArgs = List.map (retype TCppDynamic ) args in
                let cppType = cpp_type_of expr.etype in
@@ -2565,12 +2557,12 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                         CppCall( FuncInternal(expr,name,"->"),retypedArgs), cppType
 
                      | _ -> (* not special *)
-                        CppCall( FuncDynamic(retypedFunc), retypedArgs), TCppDynamic
+                        CppCall( FuncExpression(retypedFunc), retypedArgs), TCppDynamic
                      )
                |  CppGlobal(_) ->
-                     CppCall( FuncDynamic(retypedFunc) ,retypedArgs), cppType
+                     CppCall( FuncExpression(retypedFunc) ,retypedArgs), cppType
                | _ ->
-                  CppCall( FuncDynamic(retypedFunc), retypedArgs), TCppDynamic
+                  CppCall( FuncExpression(retypedFunc), retypedArgs), TCppDynamic
                )
             )
 
@@ -2862,6 +2854,9 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
          | TCppObjC k
              -> mk_cppexpr (CppCastObjC(cppExpr,k)) return_type
 
+         | TCppObjCBlock(ret,args)
+             -> mk_cppexpr (CppCastObjCBlock(cppExpr,ret,args)) return_type
+
          | TCppScalar(scalar)
              -> mk_cppexpr (CppCastScalar(cppExpr,scalar)) return_type
 
@@ -2876,7 +2871,9 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
 
          | _ -> cppExpr
       end else match cppExpr.cpptype, return_type with
-         | TCppObjC(k), TCppDynamic
+         | _, TCppUnchanged -> cppExpr
+         | TCppObjC(_), TCppDynamic
+         | TCppObjCBlock(_), TCppDynamic
               -> mk_cppexpr (CppCast(cppExpr,TCppDynamic)) return_type
          | TCppReference(TCppDynamic), TCppReference(_) -> cppExpr
          | TCppReference(TCppDynamic),  t ->
@@ -3066,7 +3063,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
                  out rename
               else
                  (out (cpp_class_name clazz); out ("::" ^ (cpp_member_name_of field) ^ "_dyn()"))
-         | FuncDynamic(expr) | FuncFunctionPtr(expr) ->
+         | FuncExpression(expr) ->
               gen expr;
          | FuncGlobal(name) ->
               out ("::" ^ name);
@@ -3191,7 +3188,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
          | FuncGlobal(name) ->
               out ("::" ^ name);
-         | FuncDynamic(expr) | FuncFunctionPtr(expr) ->
+         | FuncExpression(expr)  ->
               gen expr;
          );
          let sep = ref "" in
@@ -3570,10 +3567,13 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          gen expr; out (close ^ ".StaticCast< " ^ tcpp_to_string toType ^" >()")
 
       | CppCast(expr,toType) ->
-         (match expr.cppexpr with
-         | CppCall( FuncInternal _, _) ->
+         (match expr.cppexpr, expr.cpptype with
+         | CppCall( FuncInternal _, _), _ ->
             gen expr; out (".StaticCast< " ^ tcpp_to_string toType ^" >()")
-         | _ ->
+         | _, TCppObjC(_)
+         | _, TCppObjCBlock(_)  ->
+            out ("( ("^ tcpp_to_string toType ^")((id) ( "); gen expr; out (") ))")
+         | _,_ ->
             (match toType with
                | TCppObjectPtr -> out ("hx::DynamicPtr("); gen expr; out (")")
                | t -> out ("( ("^ tcpp_to_string t ^")("); gen expr; out (") )")
