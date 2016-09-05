@@ -1741,68 +1741,13 @@ with
 		in
 		complete_fields com fields
 	| Display.DisplayType (t,p) ->
-		let ctx = print_context() in
-		let b = Buffer.create 0 in
-		if p = null_pos then
-			Buffer.add_string b "<type>\n"
-		else begin
-			let error_printer file line = sprintf "%s:%d:" (Common.unique_full_path file) line in
-			let epos = Lexer.get_error_pos error_printer p in
-			Buffer.add_string b ("<type p=\"" ^ (htmlescape epos) ^ "\">\n")
-		end;
-		Buffer.add_string b (htmlescape (s_type ctx t));
-		Buffer.add_string b "\n</type>\n";
-		raise (Completion (Buffer.contents b))
+		raise (Completion (Display.print_type t p))
 	| Display.DisplaySignatures tl ->
-		let ctx = print_context() in
-		let b = Buffer.create 0 in
-		List.iter (fun (t,doc) ->
-			Buffer.add_string b "<type";
-			Option.may (fun s -> Buffer.add_string b (Printf.sprintf " d=\"%s\"" (htmlescape s))) doc;
-			Buffer.add_string b ">\n";
-			Buffer.add_string b (htmlescape (s_type ctx (follow t)));
-			Buffer.add_string b "\n</type>\n";
-		) tl;
-		raise (Completion (Buffer.contents b))
+		raise (Completion (Display.print_signatures tl))
 	| Display.DisplayPosition pl ->
-		let b = Buffer.create 0 in
-		let error_printer file line = sprintf "%s:%d:" (Common.unique_full_path file) line in
-		Buffer.add_string b "<list>\n";
-		List.iter (fun p ->
-			let epos = Lexer.get_error_pos error_printer p in
-			Buffer.add_string b "<pos>";
-			Buffer.add_string b epos;
-			Buffer.add_string b "</pos>\n";
-		) pl;
-		Buffer.add_string b "</list>";
-		raise (Completion (Buffer.contents b))
+		raise (Completion (Display.print_positions pl))
 	| Display.DisplayToplevel il ->
-		let b = Buffer.create 0 in
-		Buffer.add_string b "<il>\n";
-		let ctx = print_context() in
-		let s_type t = htmlescape (s_type ctx t) in
-		let s_doc d = Option.map_default (fun s -> Printf.sprintf " d=\"%s\"" (htmlescape s)) "" d in
-		List.iter (fun id -> match id with
-			| IdentifierType.ITLocal v ->
-				Buffer.add_string b (Printf.sprintf "<i k=\"local\" t=\"%s\">%s</i>\n" (s_type v.v_type) v.v_name);
-			| IdentifierType.ITMember(c,cf) ->
-				Buffer.add_string b (Printf.sprintf "<i k=\"member\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
-			| IdentifierType.ITStatic(c,cf) ->
-				Buffer.add_string b (Printf.sprintf "<i k=\"static\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
-			| IdentifierType.ITEnum(en,ef) ->
-				Buffer.add_string b (Printf.sprintf "<i k=\"enum\" t=\"%s\"%s>%s</i>\n" (s_type ef.ef_type) (s_doc ef.ef_doc) ef.ef_name);
-			| IdentifierType.ITEnumAbstract(a,cf) ->
-				Buffer.add_string b (Printf.sprintf "<i k=\"enumabstract\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
-			| IdentifierType.ITGlobal(mt,s,t) ->
-				Buffer.add_string b (Printf.sprintf "<i k=\"global\" p=\"%s\" t=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (s_type t) s);
-			| IdentifierType.ITType(mt) ->
-				let infos = t_infos mt in
-				Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s>%s</i>\n" (s_type_path infos.mt_path) (s_doc infos.mt_doc) (snd infos.mt_path));
-			| IdentifierType.ITPackage s ->
-				Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
-		) il;
-		Buffer.add_string b "</il>";
-		raise (Completion (Buffer.contents b))
+		raise (Completion (Display.print_toplevel il))
 	| Parser.TypePath (p,c,is_import) ->
 		(match c with
 		| None ->
