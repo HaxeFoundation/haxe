@@ -3536,27 +3536,6 @@ let type_module ctx mpath file ?(is_extern=false) tdecls p =
 	let ctx = type_types_into_module ctx m tdecls p in
 	if is_extern then m.m_extra.m_kind <- MExtern;
 	begin if ctx.is_display_file then match ctx.com.display.dms_kind with
-		| DMDiagnostics false ->
-			flush_pass ctx PBuildClass "diagnostics";
-			List.iter (fun mt -> match mt with
-				| TClassDecl c | TAbstractDecl({a_impl = Some c}) ->
-					ignore(c.cl_build());
-					let field cf =
-						begin match cf.cf_kind with
-						| Method MethMacro ->
-							(try ignore (ctx.g.do_macro ctx MDisplay c.cl_path cf.cf_name [] p) with Exit -> ())
-						| _ ->
-							ignore(follow cf.cf_type);
-						end;
-						Display.Diagnostics.prepare_field ctx.com cf;
-					in
-					List.iter field c.cl_ordered_fields;
-					List.iter field c.cl_ordered_statics;
-					(match c.cl_constructor with None -> () | Some cf -> field cf);
-				| _ ->
-					()
-			) m.m_types;
-			raise (Display.Diagnostics (Display.Diagnostics.print_diagnostics ctx))
 		| DMResolve s ->
 			resolve_position_by_path ctx {tname = s; tpackage = []; tsub = None; tparams = []} p
 		| _ ->

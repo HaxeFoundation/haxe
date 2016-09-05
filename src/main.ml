@@ -1611,9 +1611,9 @@ try
 					if c <> 0 then c else compare p1.pmin p2.pmin
 				) usages in
 				raise (Display.DisplayPosition usages)
-			| DMDiagnostics true ->
-				Display.Diagnostics.prepare com;
-				raise (Display.Diagnostics (Display.Diagnostics.print_diagnostics tctx))
+			| DMDiagnostics global ->
+				Display.Diagnostics.prepare com global;
+				raise (Display.Diagnostics (Display.Diagnostics.print_diagnostics tctx global))
 			| DMStatistics ->
 				let stats = Display.Statistics.collect_statistics tctx in
 				raise (Display.Statistics (Display.StatisticsPrinter.print_statistics stats))

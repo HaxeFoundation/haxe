@@ -436,9 +436,9 @@ module Diagnostics = struct
 			find_unused_variables com e;
 			check_other_things com e
 
-	let prepare com =
+	let prepare com global =
 		List.iter (function
-			| TClassDecl c ->
+			| TClassDecl c when global || is_display_file c.cl_pos.pfile ->
 				List.iter (prepare_field com) c.cl_ordered_fields;
 				List.iter (prepare_field com) c.cl_ordered_statics;
 				(match c.cl_constructor with None -> () | Some cf -> prepare_field com cf);
@@ -446,7 +446,7 @@ module Diagnostics = struct
 				()
 		) com.types
 
-	let print_diagnostics ctx =
+	let print_diagnostics ctx global =
 		let com = ctx.com in
 		let diag = Hashtbl.create 0 in
 		let add dk p sev args =
@@ -459,6 +459,9 @@ module Diagnostics = struct
 				d
 			in
 			DynArray.add diag (dk,p,sev,args)
+		in
+		let add dk p sev args =
+			if global || is_display_file p.pfile then add dk p sev args
 		in
 		let find_type i =
 			let types = ref [] in

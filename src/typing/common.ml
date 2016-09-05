@@ -173,13 +173,13 @@ module DisplayMode = struct
 				dms_exit_during_typing = false;
 				dms_force_macro_typing = true;
 			}
-		| DMDiagnostics _ -> { settings with
+		| DMDiagnostics global -> { settings with
 				dms_full_typing = true;
 				dms_error_policy = EPCollect;
 				dms_is_diagnostics_run = true;
 				dms_collect_data = true;
 				dms_inline = false;
-				dms_display_file_policy = DFPAlso;
+				dms_display_file_policy = if global then DFPNo else DFPAlso;
 				dms_exit_during_typing = false;
 			}
 		| DMStatistics -> { settings with
