@@ -870,6 +870,21 @@ let fast_enum_field e ef p =
 	let et = mk (TTypeExpr (TEnumDecl e)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }) p in
 	TField (et,FEnum (e,ef))
 
+let abstract_module_type a = {
+	t_path = [],"Abstract<" ^ (s_type_path a.a_path) ^ ">";
+	t_module = a.a_module;
+	t_doc = None;
+	t_pos = a.a_pos;
+	t_name_pos = null_pos;
+	t_type = TAnon {
+		a_fields = PMap.empty;
+		a_status = ref (AbstractStatics a);
+	};
+	t_private = true;
+	t_params = [];
+	t_meta = no_meta;
+}
+
 let rec type_module_type ctx t tparams p =
 	match t with
 	| TClassDecl {cl_kind = KGenericBuild _} ->
@@ -918,20 +933,7 @@ let rec type_module_type ctx t tparams p =
 		type_module_type ctx (TClassDecl c) tparams p
 	| TAbstractDecl a ->
 		if not (Meta.has Meta.RuntimeValue a.a_meta) then error (s_type_path a.a_path ^ " is not a value") p;
-		let t_tmp = {
-			t_path = [],"Abstract<" ^ (s_type_path a.a_path) ^ ">";
-			t_module = a.a_module;
-			t_doc = None;
-			t_pos = a.a_pos;
-			t_name_pos = null_pos;
-			t_type = TAnon {
-				a_fields = PMap.empty;
-				a_status = ref (AbstractStatics a);
-			};
-			t_private = true;
-			t_params = [];
-			t_meta = no_meta;
-		} in
+		let t_tmp = abstract_module_type a in
 		mk (TTypeExpr (TAbstractDecl a)) (TType (t_tmp,[])) p
 
 let type_type ctx tpath p =
@@ -3879,6 +3881,7 @@ and handle_display ctx e_ast iscall with_type =
 			| TVar(v,_) -> v.v_type
 			| TCall({eexpr = TConst TSuper; etype = t},_) -> t
 			| TNew(c,tl,_) -> TInst(c,tl)
+			| TTypeExpr (TClassDecl {cl_kind = KAbstractImpl a}) -> TType(abstract_module_type a,List.map snd a.a_params)
 			| _ -> e.etype
 		in
 		raise (Display.DisplayType (t,p))
