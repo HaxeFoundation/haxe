@@ -4370,6 +4370,7 @@ and build_call ctx acc el (with_type:with_type) p =
 			!ethis_f();
 			raise (Fatal_error ((error_msg m),p))
 		in
+		let e = if ctx.com.display.DisplayMode.dms_is_diagnostics_run then mk (TMeta((Meta.Extern,[],e.epos),e)) e.etype e.epos else e in
 		ctx.on_error <- old;
 		!ethis_f();
 		e
