@@ -626,4 +626,17 @@ private class HxClosure {
 	public function equals( closure:HxClosure ) : Bool {
 		return (target == closure.target && func == closure.func);
 	}
+
+	/**
+		Invoke this closure with `newThis` instead of `this`
+	**/
+	public function callWith( newThis:Dynamic, args:NativeArray ) : Dynamic {
+		var callback = null;
+		if (newThis == null) {
+			callback = (func.is_string() ? untyped __php__("[$this->target, $this->func]") : func);
+		} else {
+			callback = (func.is_string() ? untyped __php__("[$newThis, $this->func]") : func.bindTo(newThis));
+		}
+		return Global.call_user_func_array(callback, Global.func_get_args());
+	}
 }

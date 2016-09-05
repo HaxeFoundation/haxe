@@ -68,10 +68,7 @@ using php7.Global;
 	}
 
 	public static function callMethod( o : Dynamic, func : Function, args : Array<Dynamic> ) : Dynamic {
-		if (o != null) {
-			untyped __php__("$func.bindTo($o)");
-		}
-		return Global.call_user_func_array(func, @:privateAccess args.arr);
+		return untyped func.callWith(o, @:privateAccess args.arr);
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> {
