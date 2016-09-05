@@ -798,9 +798,9 @@ class virtual type_builder ctx wrapper =
 				(* Boot initialization *)
 				if boot_type_path = self#get_type_path then
 					self#write_statement (boot_class ^ "::__hx__init()");
-				let php_class = get_full_type_name ~escape:true ~omit_first_slash:true (add_php_prefix ctx self#get_type_path)
-				and haxe_class = match wrapper#get_type_path with (path, name) -> String.concat "." (path @ [name]) in
-				self#write_statement (boot_class ^ "::registerClass('" ^ php_class ^ "', '" ^ haxe_class ^ "')");
+				(*let php_class = get_full_type_name ~escape:true ~omit_first_slash:true (add_php_prefix ctx self#get_type_path)*)
+				let haxe_class = match wrapper#get_type_path with (path, name) -> String.concat "." (path @ [name]) in
+				self#write_statement (boot_class ^ "::registerClass(" ^ (self#get_name) ^ "::class, '" ^ haxe_class ^ "')");
 				self#write_pre_hx_init;
 				(* Current class initialization *)
 				if wrapper#needs_initialization && boot_type_path <> self#get_type_path then
@@ -1409,12 +1409,20 @@ class virtual type_builder ctx wrapper =
 			Writes TTypeExpr to output buffer
 		*)
 		method private write_expr_type (mtype:module_type) =
-			let type_path = (get_wrapper mtype)#get_type_path in
+			let ttype = type_of_module_type mtype in
 			match expr_hierarchy with
-				| _ :: { eexpr = TField _ } :: _ -> self#write (self#use type_path)
+				| _ :: { eexpr = TField _ } :: _ -> self#write (self#use_t ttype)
 				| _ ->
-					let type_name = get_full_type_name ~escape:true ~omit_first_slash:true type_path in
-					self#write ((self#use boot_type_path) ^ "::getClass('" ^ type_name ^ "')")
+					let class_name =
+						match self#use_t ttype with
+							| "int" -> "'Int'"
+							| "float" -> "'Float'"
+							| "bool" -> "'Bool'"
+							| "string" -> "'String'"
+							| "mixed" -> "'Dynamic'"
+							| name -> name ^ "::class"
+					in
+					self#write ((self#use boot_type_path) ^ "::getClass(" ^ class_name ^ ")")
 		(**
 			Writes binary operation to output buffer
 		*)

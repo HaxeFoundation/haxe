@@ -177,23 +177,23 @@ class Boot {
 	**/
 	public static function typedCast( hxClass:HxClass, value:Dynamic ) : Dynamic {
 		switch (hxClass.phpClassName) {
-			case '\\Int':
+			case 'Int':
 				if (Boot.isNumber(value)) {
 					return Global.intval(value);
 				}
-			case '\\Float':
+			case 'Float':
 				if (Boot.isNumber(value)) {
 					return value.floatval();
 				}
-			case '\\Bool':
+			case 'Bool':
 				if (value.is_bool()) {
 					return value;
 				}
-			case '\\String':
+			case 'String':
 				if (value.is_string()) {
 					return value;
 				}
-			case '\\php7\\NativeArray':
+			case 'php7\\NativeArray':
 				if (value.is_array()) {
 					return value;
 				}
