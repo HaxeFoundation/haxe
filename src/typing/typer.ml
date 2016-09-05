@@ -874,8 +874,8 @@ let fast_enum_field e ef p =
 	let et = mk (TTypeExpr (TEnumDecl e)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }) p in
 	TField (et,FEnum (e,ef))
 
-let abstract_module_type a = {
-	t_path = [],"Abstract<" ^ (s_type_path a.a_path) ^ ">";
+let abstract_module_type a tl = {
+	t_path = [],Printf.sprintf "Abstract<%s%s>" (s_type_path a.a_path) (s_type_params (ref []) tl);
 	t_module = a.a_module;
 	t_doc = None;
 	t_pos = a.a_pos;
@@ -937,7 +937,7 @@ let rec type_module_type ctx t tparams p =
 		type_module_type ctx (TClassDecl c) tparams p
 	| TAbstractDecl a ->
 		if not (Meta.has Meta.RuntimeValue a.a_meta) then error (s_type_path a.a_path ^ " is not a value") p;
-		let t_tmp = abstract_module_type a in
+		let t_tmp = abstract_module_type a [] in
 		mk (TTypeExpr (TAbstractDecl a)) (TType (t_tmp,[])) p
 
 let type_type ctx tpath p =
@@ -3892,9 +3892,9 @@ and handle_display ctx e_ast iscall with_type =
 		let t = match e.eexpr with
 			| TVar(v,_) -> v.v_type
 			| TCall({eexpr = TConst TSuper; etype = t},_) -> t
-			| TNew({cl_kind = KAbstractImpl a},tl,_) -> TType(abstract_module_type a,tl)
+			| TNew({cl_kind = KAbstractImpl a},tl,_) -> TType(abstract_module_type a tl,[])
 			| TNew(c,tl,_) -> TInst(c,tl)
-			| TTypeExpr (TClassDecl {cl_kind = KAbstractImpl a}) -> TType(abstract_module_type a,List.map snd a.a_params)
+			| TTypeExpr (TClassDecl {cl_kind = KAbstractImpl a}) -> TType(abstract_module_type a (List.map snd a.a_params),[])
 			| TField(e1,FDynamic "bind") when (match follow e1.etype with TFun _ -> true | _ -> false) -> e1.etype
 			| _ -> e.etype
 		in
@@ -4034,7 +4034,6 @@ and handle_display ctx e_ast iscall with_type =
 				loop c params
 			| TAbstract({a_impl = Some c} as a,pl) ->
 				if Meta.has Meta.CoreApi c.cl_meta then merge_core_doc c;
-				ctx.m.module_using <- (c,null_pos) :: ctx.m.module_using;
 				let fields = try
 					let _,el,_ = Meta.get Meta.Forward a.a_meta in
 					let sl = ExtList.List.filter_map (fun e -> match fst e with
