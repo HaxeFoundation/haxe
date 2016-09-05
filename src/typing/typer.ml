@@ -316,7 +316,7 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 	b
 
 (* removes the first argument of the class field's function type and all its overloads *)
-let prepare_using_field cf = match cf.cf_type with
+let prepare_using_field cf = match follow cf.cf_type with
 	| TFun((_,_,tf) :: args,ret) ->
 		let rec loop acc overloads = match overloads with
 			| ({cf_type = TFun((_,_,tfo) :: args,ret)} as cfo) :: l ->
