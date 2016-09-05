@@ -2642,8 +2642,9 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             let objC1 = (is_objc_type e1.etype) in
             let objC2 = (is_objc_type e2.etype) in
             let compareObjC = (objC1<>objC2) && (op=OpEq || op=OpNotEq) in
+            let e2 = retype (if compareObjC && objC2 then TCppDynamic
+                else cpp_type_of (if op=OpAssign then e1 else e2).etype) e2 in
             let e1 = retype (if compareObjC && objC1 then TCppDynamic else cpp_type_of e1.etype) e1 in
-            let e2 = retype (if compareObjC && objC2 then TCppDynamic else cpp_type_of e2.etype) e2 in
             let complex = (is_complex_compare e1.cpptype) || (is_complex_compare e2.cpptype) in
             let e1_null = e1.cpptype=TCppNull in
             let e2_null = e2.cpptype=TCppNull in
@@ -2805,7 +2806,8 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             CppTry(cppBlock, cppCatches), TCppVoid
 
          | TReturn eo ->
-            CppReturn(match eo with None -> None | Some e -> Some (retype (cpp_type_of e.etype) e)), TCppVoid
+            CppReturn(match eo with None -> None | Some e -> Some (retype (cpp_type_of expr.etype) e)), TCppVoid
+
          | TCast (base,None) -> (* Use auto-cast rules *)
             let return_type = cpp_type_of expr.etype in
             let baseCpp = retype (return_type) base in
@@ -2883,6 +2885,8 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
          | TCppStar(TCppDynamic),  t ->
              mk_cppexpr retypedExpr (TCppStar(t))
          | TCppObjectPtr, TCppObjectPtr -> cppExpr
+         | TCppObjectPtr, _ ->
+             mk_cppexpr (CppCast(cppExpr,TCppDynamic)) TCppDynamic
          | _, TCppObjectPtr ->
              mk_cppexpr (CppCast(cppExpr,TCppObjectPtr)) TCppObjectPtr
          | _ -> cppExpr
@@ -4073,8 +4077,7 @@ let gen_member_def ctx class_def is_static is_interface field =
          | _ when nativeGen  -> ()
          | TFun (_,_) ->
             output (if is_static then "\t\tstatic " else "\t\t");
-            gen_type ctx field.cf_type;
-            output (" &" ^ remap_name ^ "_dyn() { return " ^ remap_name ^ ";}\n" )
+            output ("Dynamic " ^ remap_name ^ "_dyn() { return " ^ remap_name ^ ";}\n" )
          | _ ->  (match field.cf_kind with
             | Var { v_read = AccCall } when (not is_static) && (is_dynamic_accessor ("get_" ^ field.cf_name) "get" field class_def) ->
                output ("\t\tDynamic get_" ^ field.cf_name ^ ";\n" )

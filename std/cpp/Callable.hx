@@ -22,6 +22,7 @@
 package cpp;
 
 
+@:noPackageRestrict @:callable
 typedef CallableData<T> = T;
 
 // The generator intercepts this type and converts it to a cpp.Function<T> on cpp

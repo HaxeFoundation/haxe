@@ -21,5 +21,6 @@
  */
  package cpp;
 
+@:noPackageRestrict
 typedef Object = Dynamic;
 
