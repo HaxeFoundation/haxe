@@ -564,7 +564,7 @@ typedef TypePath = {
 }
 
 /**
-	Represents a concrete type parameters in the AST.
+	Represents a concrete type parameter in the AST.
 
 	Haxe allows expressions in concrete type parameters, e.g.
 	`new YourType<["hello", "world"]>`. In that case the value is `TPExpr` while
