@@ -625,7 +625,7 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 			) PMap.empty el in
 			let fields = PMap.foldi (fun n el acc ->
 				let t = try unify_min_raise ctx el with Error (Unify _, _) -> raise Not_found in
-				PMap.add n (mk_field n t (List.hd el).epos) acc
+				PMap.add n (mk_field n t (List.hd el).epos null_pos) acc
 			) fields PMap.empty in
 			TAnon { a_fields = fields; a_status = ref Closed }
 		with Not_found ->
@@ -1375,7 +1375,7 @@ let rec type_ident_raise ctx i p mode =
 					| MCall ->
 						(* create a fake class with a fake field to emulate inlining *)
 						let c = mk_class ctx.m.curmod (["local"],v.v_name) e.epos null_pos in
-						let cf = { (mk_field v.v_name v.v_type e.epos) with cf_params = params; cf_expr = Some e; cf_kind = Method MethInline } in
+						let cf = { (mk_field v.v_name v.v_type e.epos null_pos) with cf_params = params; cf_expr = Some e; cf_kind = Method MethInline } in
 						c.cl_extern <- true;
 						c.cl_fields <- PMap.add cf.cf_name cf PMap.empty;
 						AKInline (mk (TConst TNull) (TInst (c,[])) p, cf, FInstance(c,[],cf), t)
@@ -1908,7 +1908,7 @@ let unify_int ctx e k =
 			in
 			cf2
 		with Not_found ->
-			let cf2 = mk_field name (map_monos cf.cf_type) cf.cf_pos in
+			let cf2 = mk_field name (map_monos cf.cf_type) cf.cf_pos cf.cf_name_pos in
 			if stat then begin
 				c.cl_statics <- PMap.add name cf2 c.cl_statics;
 				c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics
@@ -3068,7 +3068,7 @@ and type_object_decl ctx fl with_type p =
 	let type_fields field_map =
 		let fields = ref PMap.empty in
 		let extra_fields = ref [] in
-		let fl = List.map (fun (n, e) ->
+		let fl = List.map (fun (n,e) ->
 			let n,is_quoted,is_valid = Parser.unquote_ident n in
 			if PMap.mem n !fields then error ("Duplicate field in object declaration : " ^ n) p;
 			let e = try
@@ -3083,7 +3083,7 @@ and type_object_decl ctx fl with_type p =
 			in
 			if is_valid then begin
 				if String.length n > 0 && n.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
-				let cf = mk_field n e.etype e.epos in
+				let cf = mk_field n e.etype e.epos null_pos in (* TODO: use field pos if we have it *)
 				fields := PMap.add n cf !fields;
 			end;
 			let e = if is_quoted then wrap_quoted_meta e else e in
@@ -3108,7 +3108,7 @@ and type_object_decl ctx fl with_type p =
 			if PMap.mem f acc then error ("Duplicate field in object declaration : " ^ f) p;
 			let e = type_expr ctx e Value in
 			(match follow e.etype with TAbstract({a_path=[],"Void"},_) -> error "Fields of type Void are not allowed in structures" e.epos | _ -> ());
-			let cf = mk_field f e.etype e.epos in
+			let cf = mk_field f e.etype e.epos null_pos in
 			let e = if is_quoted then wrap_quoted_meta e else e in
 			((f,e) :: l, if is_valid then begin
 				if String.length f > 0 && f.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
@@ -3130,7 +3130,7 @@ and type_object_decl ctx fl with_type p =
 			| _ -> assert false
 		in
 		let fields = List.fold_left (fun acc (n,opt,t) ->
-			let f = mk_field n t ctor.cf_pos in
+			let f = mk_field n t ctor.cf_pos ctor.cf_name_pos in
 			if opt then f.cf_meta <- [(Meta.Optional,[],ctor.cf_pos)];
 			PMap.add n f acc
 		) PMap.empty args in
@@ -4061,7 +4061,7 @@ and handle_display ctx e_ast iscall with_type =
 					a.a_fields)
 			| TFun (args,ret) ->
 				let t = opt_args args ret in
-				let cf = mk_field "bind" (tfun [t] t) p in
+				let cf = mk_field "bind" (tfun [t] t) p null_pos in
 				PMap.add "bind" cf PMap.empty
 			| _ ->
 				PMap.empty
@@ -4106,7 +4106,7 @@ and handle_display ctx e_ast iscall with_type =
 		let fields = PMap.fold (fun f acc -> PMap.add f.cf_name f acc) fields use_methods in
 		let fields = match fst e_ast with
 			| EConst(String s) when String.length s = 1 ->
-				let cf = mk_field "code" ctx.t.tint e.epos in
+				let cf = mk_field "code" ctx.t.tint e.epos null_pos in
 				cf.cf_doc <- Some "The character code of this character (inlined at compile-time).";
 				cf.cf_kind <- Var { v_read = AccNormal; v_write = AccNever };
 				PMap.add cf.cf_name cf fields

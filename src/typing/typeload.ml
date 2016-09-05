@@ -1339,7 +1339,7 @@ let add_constructor ctx c force_constructor p =
 			tf_type = ctx.t.tvoid;
 			tf_expr = mk (TBlock []) ctx.t.tvoid p;
 		}) (tfun [] ctx.t.tvoid) p in
-		let cf = mk_field "new" constr.etype p in
+		let cf = mk_field "new" constr.etype p null_pos in
 		cf.cf_expr <- Some constr;
 		cf.cf_type <- constr.etype;
 		cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos];
@@ -1373,7 +1373,7 @@ let check_struct_init_constructor ctx c p = match c.cl_constructor with
 			tf_expr = mk (TBlock el) ctx.t.tvoid p
 		} in
 		let e = mk (TFunction tf) (TFun(tl,ctx.t.tvoid)) p in
-		let cf = mk_field "new" e.etype p in
+		let cf = mk_field "new" e.etype p null_pos in
 		cf.cf_expr <- Some e;
 		cf.cf_type <- e.etype;
 		cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos];
@@ -2685,7 +2685,7 @@ module ClassInitializer = struct
 				| Not_found ->
 					if req_name <> None then display_error ctx (name ^ ": Custom property accessor is no longer supported, please use get/set") p else
 					if c.cl_interface then begin
-						let cf = mk_field m t p in
+						let cf = mk_field m t p null_pos in
 						cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos];
 						cf.cf_kind <- Method MethNormal;
 						c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;

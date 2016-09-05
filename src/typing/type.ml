@@ -398,11 +398,11 @@ let module_extra file sign time kind =
 	}
 
 
-let mk_field name t p = {
+let mk_field name t p name_pos = {
 	cf_name = name;
 	cf_type = t;
 	cf_pos = p;
-	cf_name_pos = p;
+	cf_name_pos = name_pos;
 	cf_doc = None;
 	cf_meta = [];
 	cf_public = true;
@@ -424,7 +424,7 @@ let null_class =
 	c.cl_private <- true;
 	c
 
-let null_field = mk_field "" t_dynamic Ast.null_pos
+let null_field = mk_field "" t_dynamic Ast.null_pos Ast.null_pos
 
 let null_abstract = {
 	a_path = ([],"");
