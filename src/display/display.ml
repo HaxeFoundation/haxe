@@ -219,7 +219,7 @@ let print_signatures tl =
 
 let print_positions pl =
 	let b = Buffer.create 0 in
-	let error_printer file line = Printf.sprintf "%s:%d:" (Common.unique_full_path file) line in
+	let error_printer file line = Printf.sprintf "%s:%d:" (get_real_path file) line in
 	Buffer.add_string b "<list>\n";
 	List.iter (fun p ->
 		let epos = Lexer.get_error_pos error_printer p in
