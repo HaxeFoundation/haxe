@@ -83,8 +83,7 @@ let normalize_path path =
 	in
 	String.concat "/" (normalize [] (Str.full_split path_regex path))
 
-let is_windows = Sys.os_type = "Win32" || Sys.os_type = "Cygwin"
-let path_sep = if is_windows then "\\" else "/"
+let path_sep = if Globals.is_windows then "\\" else "/"
 
 (** Returns absolute path. Doesn't fix path case on Windows. *)
 let get_full_path f = try Extc.get_full_path f with _ -> f
@@ -92,7 +91,7 @@ let get_full_path f = try Extc.get_full_path f with _ -> f
 (** Returns absolute path (on Windows ensures proper case with drive letter upper-cased)
     Use for returning positions from IDE support functions *)
 let get_real_path =
-	if is_windows then
+	if Globals.is_windows then
 		(fun p -> try Extc.get_real_path p with _ -> p)
 	else
 		get_full_path
@@ -100,7 +99,7 @@ let get_real_path =
 (** Returns absolute path guaranteed to be the same for different letter case.
     Use where equality comparison is required, lowercases the path on Windows *)
 let unique_full_path =
-	if is_windows then
+	if Globals.is_windows then
 		(fun f -> String.lowercase (get_full_path f))
 	else
 		get_full_path

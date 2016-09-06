@@ -511,7 +511,7 @@ let rec dlopen dls =
 		None
 
 let neko =
-	match dlopen (if Path.is_windows then
+	match dlopen (if Globals.is_windows then
 		["neko.dll"]
 	else
 		(*
