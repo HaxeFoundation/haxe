@@ -646,6 +646,38 @@ let generate tctx ext xml_out interp swf_header =
 		t()
 	end
 
+let get_std_class_paths () =
+	try
+		let p = Sys.getenv "HAXE_STD_PATH" in
+		let rec loop = function
+			| drive :: path :: l ->
+				if String.length drive = 1 && ((drive.[0] >= 'a' && drive.[0] <= 'z') || (drive.[0] >= 'A' && drive.[0] <= 'Z')) then
+					(drive ^ ":" ^ path) :: loop l
+				else
+					drive :: loop (path :: l)
+			| l ->
+				l
+		in
+		let parts = Str.split_delim (Str.regexp "[;:]") p in
+		"" :: List.map Path.add_trailing_slash (loop parts)
+	with Not_found ->
+		if Sys.os_type = "Unix" then
+			[
+				"/usr/lib/haxe/std/";
+				"/usr/share/haxe/std/";
+				"/usr/local/lib/haxe/std/";
+				"/usr/lib/haxe/extraLibs/";
+				"/usr/local/lib/haxe/extraLibs/";
+				""
+			]
+		else
+			let base_path = Path.add_trailing_slash (Path.get_real_path (try executable_path() with _ -> "./")) in
+			[
+				base_path ^ "std/";
+				base_path ^ "extraLibs/";
+				""
+			]
+
 let rec process_params create pl =
 	let each_params = ref [] in
 	let rec loop acc = function
@@ -728,26 +760,7 @@ try
 	if !global_cache <> None then com.run_command <- run_command ctx;
 	Parser.display_error := (fun e p -> com.error (Parser.error_msg e) p);
 	Parser.use_doc := !Common.display_default <> DMNone || (!global_cache <> None);
-	(try
-		let p = Sys.getenv "HAXE_STD_PATH" in
-		let rec loop = function
-			| drive :: path :: l ->
-				if String.length drive = 1 && ((drive.[0] >= 'a' && drive.[0] <= 'z') || (drive.[0] >= 'A' && drive.[0] <= 'Z')) then
-					(drive ^ ":" ^ path) :: loop l
-				else
-					drive :: loop (path :: l)
-			| l ->
-				l
-		in
-		let parts = Str.split_delim (Str.regexp "[;:]") p in
-		com.class_path <- "" :: List.map Path.add_trailing_slash (loop parts)
-	with
-		Not_found ->
-			if Sys.os_type = "Unix" then
-				com.class_path <- ["/usr/lib/haxe/std/";"/usr/share/haxe/std/";"/usr/local/lib/haxe/std/";"/usr/lib/haxe/extraLibs/";"/usr/local/lib/haxe/extraLibs/";""]
-			else
-				let base_path = Path.add_trailing_slash (Path.get_real_path (try executable_path() with _ -> "./")) in
-				com.class_path <- [base_path ^ "std/";base_path ^ "extraLibs/";""]);
+	com.class_path <- get_std_class_paths ();
 	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path;
 	let define f = Arg.Unit (fun () -> Common.define com f) in
 	let process_ref = ref (fun args -> ()) in
