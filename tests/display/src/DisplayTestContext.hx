@@ -154,9 +154,8 @@ class DisplayTestContext {
 			p = Sys.getCwd() + p;
 		}
 		if (Sys.systemName() == "Windows") {
-			// on windows, haxe returns lowercase paths with backslashes
+			// on windows, haxe returns paths with backslashes
 			p = p.replace("/", "\\");
-			p = p.toLowerCase();
 		}
 		return p;
 	}

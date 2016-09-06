@@ -1170,26 +1170,24 @@ let find_file ctx f =
 let is_windows = Sys.os_type = "Win32" || Sys.os_type = "Cygwin"
 let path_sep = if is_windows then "\\" else "/"
 
-(** Returns absolute path for given path `f`.
-    Doesn't fix path case on Windows. *)
+(** Returns absolute path. Doesn't fix path case on Windows. *)
 let get_full_path f = try Extc.get_full_path f with _ -> f
 
+(** Returns absolute path (on Windows ensures proper case with drive letter upper-cased)
+    Use for returning positions from IDE support functions *)
+let get_real_path =
+	if is_windows then
+		(fun p -> try Extc.get_real_path p with _ -> p)
+	else
+		get_full_path
+
 (** Returns absolute path guaranteed to be the same for different letter case.
-    For use where equality comparison is required, lowercases the path on Windows *)
+    Use where equality comparison is required, lowercases the path on Windows *)
 let unique_full_path =
 	if is_windows then
 		(fun f -> String.lowercase (get_full_path f))
 	else
 		get_full_path
-
-(** On Windows: returns absolute path with proper case (drive letter upper-cased),
-    unless there's an error, then is a no-op. On non-Windows is a no-op.
-    ¯\_(ツ)_/¯ *)
-let get_real_path p =
-	try
-		Extc.get_real_path p
-	with _ ->
-		p
 
 let get_path_parts f =
 	(*

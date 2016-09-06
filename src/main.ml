@@ -145,39 +145,11 @@ let error ctx msg p =
 	message ctx msg p;
 	ctx.has_error <- true
 
-let htmlescape s =
-	let s = String.concat "&amp;" (ExtString.String.nsplit s "&") in
-	let s = String.concat "&lt;" (ExtString.String.nsplit s "<") in
-	let s = String.concat "&gt;" (ExtString.String.nsplit s ">") in
-	let s = String.concat "&quot;" (ExtString.String.nsplit s "\"") in
-	s
-
 let reserved_flags = [
 	"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
 	"as3";"swc";"macro";"sys"
 	]
 
-let complete_fields com fields =
-	let b = Buffer.create 0 in
-	let details = Common.raw_defined com "display-details" in
-	Buffer.add_string b "<list>\n";
-	List.iter (fun (n,t,k,d) ->
-		let s_kind = match k with
-			| Some k -> (match k with
-				| Display.FKVar -> "var"
-				| Display.FKMethod -> "method"
-				| Display.FKType -> "type"
-				| Display.FKPackage -> "package"
-				| Display.FKMetadata -> "metadata")
-			| None -> ""
-		in
-		if details then
-			Buffer.add_string b (Printf.sprintf "<i n=\"%s\" k=\"%s\"><t>%s</t><d>%s</d></i>\n" n s_kind (htmlescape t) (htmlescape d))
-		else
-			Buffer.add_string b (Printf.sprintf "<i n=\"%s\"><t>%s</t><d>%s</d></i>\n" n (htmlescape t) (htmlescape d))
-	) (List.sort (fun (a,_,ak,_) (b,_,bk,_) -> compare (ak,a) (bk,b)) fields);
-	Buffer.add_string b "</list>\n";
-	raise (Completion (Buffer.contents b))
 
 let report_times print =
 	let tot = ref 0. in
@@ -319,6 +291,73 @@ let rec read_type_path com p =
 	) com.net_libs;
 	unique !packages, unique !classes
 
+(** raise field completion listing given fields *)
+let complete_fields com fields =
+	let details = Common.raw_defined com "display-details" in
+	raise (Completion (Display.print_fields fields details))
+
+(** raise field completion listing packages and modules in a given package *)
+let complete_type_path ctx p =
+	let packs, modules = read_type_path ctx.com p in
+	if packs = [] && modules = [] then
+		error ctx ("No classes found in " ^ String.concat "." p) Ast.null_pos
+	else
+		let convert k f = (f,"",Some k,"") in
+		let packs = List.map (convert Display.FKPackage) packs in
+		let modules = List.map (convert Display.FKType) modules in
+		complete_fields ctx.com (packs @ modules)
+
+(** raise field completion listing module sub-types and static fields *)
+let complete_type_path_inner ctx p c cur_package is_import =
+	let com = ctx.com in
+	try
+		let sl_pack,s_module = match List.rev p with
+			| s :: sl when s.[0] >= 'A' && s.[0] <= 'Z' -> List.rev sl,s
+			| _ -> p,c
+		in
+		let ctx = Typer.create com in
+		let rec lookup p =
+			try
+				Typeload.load_module ctx (p,s_module) Ast.null_pos
+			with e ->
+				if cur_package then
+					match List.rev p with
+					| [] -> raise e
+					| _ :: p -> lookup (List.rev p)
+				else
+					raise e
+		in
+		let m = lookup sl_pack in
+		let statics = ref None in
+		let public_types = List.filter (fun t ->
+			let tinfos = t_infos t in
+			let is_module_type = snd tinfos.mt_path = c in
+			if is_import && is_module_type then begin match t with
+				| TClassDecl c ->
+					ignore(c.cl_build());
+					statics := Some c.cl_ordered_statics
+				| _ -> ()
+			end;
+			not tinfos.mt_private
+		) m.m_types in
+		let types = if c <> s_module then [] else List.map (fun t -> snd (t_path t),"",Some Display.FKType,"") public_types in
+		let ctx = print_context() in
+		let make_field_doc cf =
+			cf.cf_name,
+			s_type ctx cf.cf_type,
+			Some (match cf.cf_kind with Method _ -> Display.FKMethod | Var _ -> Display.FKVar),
+			(match cf.cf_doc with Some s -> s | None -> "")
+		in
+		let types = match !statics with
+			| None -> types
+			| Some cfl -> types @ (List.map make_field_doc (List.filter (fun cf -> cf.cf_public) cfl))
+		in
+		complete_fields com types
+	with Completion c ->
+		raise (Completion c)
+	| _ ->
+		error ctx ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos
+
 let delete_file f = try Sys.remove f with _ -> ()
 
 let expand_env ?(h=None) path  =
@@ -366,7 +405,7 @@ let get_module_path_from_file_path com spath =
 		| [] -> None
 		| cp :: l ->
 			let cp = (if cp = "" then "./" else cp) in
-			let c = add_trailing_slash (get_real_path (Common.get_full_path cp)) in
+			let c = add_trailing_slash (get_real_path cp) in
 			let clen = String.length c in
 			if clen < String.length spath && String.sub spath 0 clen = c then begin
 				let path = String.sub spath clen (String.length spath - clen) in
@@ -1766,127 +1805,19 @@ with
 		in
 		complete_fields com fields
 	| Display.DisplayType (t,p) ->
-		let ctx = print_context() in
-		let b = Buffer.create 0 in
-		if p = null_pos then
-			Buffer.add_string b "<type>\n"
-		else begin
-			let error_printer file line = sprintf "%s:%d:" (Common.unique_full_path file) line in
-			let epos = Lexer.get_error_pos error_printer p in
-			Buffer.add_string b ("<type p=\"" ^ (htmlescape epos) ^ "\">\n")
-		end;
-		Buffer.add_string b (htmlescape (s_type ctx t));
-		Buffer.add_string b "\n</type>\n";
-		raise (Completion (Buffer.contents b))
+		raise (Completion (Display.print_type t p))
 	| Display.DisplaySignatures tl ->
-		let ctx = print_context() in
-		let b = Buffer.create 0 in
-		List.iter (fun (t,doc) ->
-			Buffer.add_string b "<type";
-			Option.may (fun s -> Buffer.add_string b (Printf.sprintf " d=\"%s\"" (htmlescape s))) doc;
-			Buffer.add_string b ">\n";
-			Buffer.add_string b (htmlescape (s_type ctx (follow t)));
-			Buffer.add_string b "\n</type>\n";
-		) tl;
-		raise (Completion (Buffer.contents b))
+		raise (Completion (Display.print_signatures tl))
 	| Display.DisplayPosition pl ->
-		let b = Buffer.create 0 in
-		let error_printer file line = sprintf "%s:%d:" (Common.unique_full_path file) line in
-		Buffer.add_string b "<list>\n";
-		List.iter (fun p ->
-			let epos = Lexer.get_error_pos error_printer p in
-			Buffer.add_string b "<pos>";
-			Buffer.add_string b epos;
-			Buffer.add_string b "</pos>\n";
-		) pl;
-		Buffer.add_string b "</list>";
-		raise (Completion (Buffer.contents b))
+		raise (Completion (Display.print_positions pl))
 	| Display.DisplayToplevel il ->
-		let b = Buffer.create 0 in
-		Buffer.add_string b "<il>\n";
-		let ctx = print_context() in
-		let s_type t = htmlescape (s_type ctx t) in
-		let s_doc d = Option.map_default (fun s -> Printf.sprintf " d=\"%s\"" (htmlescape s)) "" d in
-		List.iter (fun id -> match id with
-			| IdentifierType.ITLocal v ->
-				Buffer.add_string b (Printf.sprintf "<i k=\"local\" t=\"%s\">%s</i>\n" (s_type v.v_type) v.v_name);
-			| IdentifierType.ITMember(c,cf) ->
-				Buffer.add_string b (Printf.sprintf "<i k=\"member\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
-			| IdentifierType.ITStatic(c,cf) ->
-				Buffer.add_string b (Printf.sprintf "<i k=\"static\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
-			| IdentifierType.ITEnum(en,ef) ->
-				Buffer.add_string b (Printf.sprintf "<i k=\"enum\" t=\"%s\"%s>%s</i>\n" (s_type ef.ef_type) (s_doc ef.ef_doc) ef.ef_name);
-			| IdentifierType.ITEnumAbstract(a,cf) ->
-				Buffer.add_string b (Printf.sprintf "<i k=\"enumabstract\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
-			| IdentifierType.ITGlobal(mt,s,t) ->
-				Buffer.add_string b (Printf.sprintf "<i k=\"global\" p=\"%s\" t=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (s_type t) s);
-			| IdentifierType.ITType(mt) ->
-				let infos = t_infos mt in
-				Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s>%s</i>\n" (s_type_path infos.mt_path) (s_doc infos.mt_doc) (snd infos.mt_path));
-			| IdentifierType.ITPackage s ->
-				Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
-		) il;
-		Buffer.add_string b "</il>";
-		raise (Completion (Buffer.contents b))
+		raise (Completion (Display.print_toplevel il))
 	| Parser.TypePath (p,c,is_import) ->
 		(match c with
 		| None ->
-			let packs, classes = read_type_path com p in
-			if packs = [] && classes = [] then
-				error ctx ("No classes found in " ^ String.concat "." p) Ast.null_pos
-			else
-				complete_fields com (
-					let convert k f = (f,"",Some k,"") in
-					(List.map (convert Display.FKPackage) packs) @ (List.map (convert Display.FKType) classes)
-				)
+			complete_type_path ctx p
 		| Some (c,cur_package) ->
-			try
-				let sl_pack,s_module = match List.rev p with
-					| s :: sl when s.[0] >= 'A' && s.[0] <= 'Z' -> List.rev sl,s
-					| _ -> p,c
-				in
-				let ctx = Typer.create com in
-				let rec lookup p =
-					try
-						Typeload.load_module ctx (p,s_module) Ast.null_pos
-					with e ->
-						if cur_package then
-							match List.rev p with
-							| [] -> raise e
-							| _ :: p -> lookup (List.rev p)
-						else
-							raise e
-				in
-				let m = lookup sl_pack in
-				let statics = ref None in
-				let public_types = List.filter (fun t ->
-					let tinfos = t_infos t in
-					let is_module_type = snd tinfos.mt_path = c in
-					if is_import && is_module_type then begin match t with
-						| TClassDecl c ->
-							ignore(c.cl_build());
-							statics := Some c.cl_ordered_statics
-						| _ -> ()
-					end;
-					not tinfos.mt_private
-				) m.m_types in
-				let types = if c <> s_module then [] else List.map (fun t -> snd (t_path t),"",Some Display.FKType,"") public_types in
-				let ctx = print_context() in
-				let make_field_doc cf =
-					cf.cf_name,
-					s_type ctx cf.cf_type,
-					Some (match cf.cf_kind with Method _ -> Display.FKMethod | Var _ -> Display.FKVar),
-					(match cf.cf_doc with Some s -> s | None -> "")
-				in
-				let types = match !statics with
-					| None -> types
-					| Some cfl -> types @ (List.map make_field_doc (List.filter (fun cf -> cf.cf_public) cfl))
-				in
-				complete_fields com types
-			with Completion c ->
-				raise (Completion c)
-			| _ ->
-				error ctx ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos)
+			complete_type_path_inner ctx p c cur_package is_import)
 	| Display.ModuleSymbols s | Display.Diagnostics s | Display.Statistics s | Display.Metadata s ->
 		raise (Completion s)
 	| Interp.Sys_exit i ->
