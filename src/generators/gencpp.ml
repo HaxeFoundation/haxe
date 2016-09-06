@@ -402,7 +402,7 @@ let get_meta_string_path meta key =
               else
                  pos.pfile
               in
-              normalize_path (Filename.concat (Filename.dirname base) (String.sub name 2 ((String.length name) -2)  ))
+              Path.normalize_path (Filename.concat (Filename.dirname base) (String.sub name 2 ((String.length name) -2)  ))
            end else
               name
            with Invalid_argument _ -> name)
@@ -417,7 +417,7 @@ let get_meta_string_full_filename meta key =
       | [] -> ""
       | (k,_, pos) :: _  when k=key->
            if (Filename.is_relative pos.pfile) then
-              normalize_path (Filename.concat (Sys.getcwd()) pos.pfile)
+              Path.normalize_path (Filename.concat (Sys.getcwd()) pos.pfile)
            else
               pos.pfile
       | _ :: l -> loop l
@@ -428,7 +428,7 @@ let get_meta_string_full_filename meta key =
 let get_meta_string_full_dirname meta key =
    let name = get_meta_string_full_filename meta key in
    try
-      normalize_path (Filename.dirname name)
+      Path.normalize_path (Filename.dirname name)
    with Invalid_argument _ -> ""
 ;;
 
@@ -4417,7 +4417,7 @@ let generate_files common_ctx file_info =
    output_files "const char *__hxcpp_all_files_fullpath[] = {\n";
    output_files "#ifdef HXCPP_DEBUGGER\n";
    List.iter ( fun file -> output_files ((const_char_star (
-      Common.get_full_path (try Common.find_file common_ctx file with Not_found -> file)
+      Path.get_full_path (try Common.find_file common_ctx file with Not_found -> file)
       ))^",\n" ) )
       ( List.sort String.compare ( pmap_keys !file_info) );
    output_files "#endif\n";
@@ -7030,7 +7030,7 @@ let generate_source ctx =
 
          (* Output file info too *)
          List.iter ( fun file ->
-               let full_path = Common.get_full_path (try Common.find_file common_ctx file with Not_found -> file) in
+               let full_path = Path.get_full_path (try Common.find_file common_ctx file with Not_found -> file) in
                if file <> "?" then
                   out ("file " ^ (escape file) ^ " " ^ (escape full_path) ^"\n") )
             ( List.sort String.compare ( pmap_keys !(ctx.ctx_file_info) ) );

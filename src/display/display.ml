@@ -25,7 +25,7 @@ exception DisplayToplevel of IdentifierType.t list
 exception DisplayPackage of string list
 
 let is_display_file file =
-	file <> "?" && Common.unique_full_path file = (!Parser.resume_display).pfile
+	file <> "?" && Path.unique_full_path file = (!Parser.resume_display).pfile
 
 let encloses_position p_target p =
 	p.pmin <= p_target.pmin && p.pmax >= p_target.pmax
@@ -205,7 +205,7 @@ let print_type t p =
 	if p = null_pos then
 		Buffer.add_string b "<type>\n"
 	else begin
-		let error_printer file line = Printf.sprintf "%s:%d:" (Common.unique_full_path file) line in
+		let error_printer file line = Printf.sprintf "%s:%d:" (Path.unique_full_path file) line in
 		let epos = Lexer.get_error_pos error_printer p in
 		Buffer.add_string b ("<type p=\"" ^ (htmlescape epos) ^ "\">\n")
 	end;
@@ -226,7 +226,7 @@ let print_signatures tl =
 
 let print_positions pl =
 	let b = Buffer.create 0 in
-	let error_printer file line = Printf.sprintf "%s:%d:" (get_real_path file) line in
+	let error_printer file line = Printf.sprintf "%s:%d:" (Path.get_real_path file) line in
 	Buffer.add_string b "<list>\n";
 	List.iter (fun p ->
 		let epos = Lexer.get_error_pos error_printer p in
@@ -542,7 +542,7 @@ module Diagnostics = struct
 		let com = ctx.com in
 		let diag = Hashtbl.create 0 in
 		let add dk p sev args =
-			let file = get_real_path p.pfile in
+			let file = Path.get_real_path p.pfile in
 			let diag = try
 				Hashtbl.find diag file
 			with Not_found ->
@@ -826,7 +826,7 @@ module StatisticsPrinter = struct
 	let print_statistics (kinds,relations) =
 		let files = Hashtbl.create 0 in
 		Hashtbl.iter (fun p rl ->
-			let file = get_real_path p.pfile in
+			let file = Path.get_real_path p.pfile in
 			try
 				Hashtbl.replace files file ((p,rl) :: Hashtbl.find files file)
 			with Not_found ->
@@ -839,7 +839,7 @@ module StatisticsPrinter = struct
 					let s = relation_to_string r in
 					let jo = JObject [
 						"range",pos_to_json_range p;
-						"file",JString (get_real_path p.pfile);
+						"file",JString (Path.get_real_path p.pfile);
 					] in
 					try Hashtbl.replace h s (jo :: Hashtbl.find h s)
 					with Not_found -> Hashtbl.add h s [jo]
@@ -858,3 +858,94 @@ module StatisticsPrinter = struct
 		write_json (Buffer.add_string b) (JArray ja);
 		Buffer.contents b
 end
+
+let process_display_file com classes =
+	let get_module_path_from_file_path com spath =
+		let rec loop = function
+			| [] -> None
+			| cp :: l ->
+				let cp = (if cp = "" then "./" else cp) in
+				let c = Path.add_trailing_slash (Path.get_real_path cp) in
+				let clen = String.length c in
+				if clen < String.length spath && String.sub spath 0 clen = c then begin
+					let path = String.sub spath clen (String.length spath - clen) in
+					(try
+						let path = Path.parse_type_path path in
+						(match loop l with
+						| Some x as r when String.length (Ast.s_type_path x) < String.length (Ast.s_type_path path) -> r
+						| _ -> Some path)
+					with _ -> loop l)
+				end else
+					loop l
+		in
+		loop com.class_path
+	in
+	match com.display.dms_display_file_policy with
+		| DFPNo ->
+			()
+		| dfp ->
+			if dfp = DFPOnly then begin
+				classes := [];
+				com.main_class <- None;
+			end;
+			let real = Path.get_real_path (!Parser.resume_display).Ast.pfile in
+			(match get_module_path_from_file_path com real with
+			| Some path ->
+				if com.display.dms_kind = DMPackage then raise (DisplayPackage (fst path));
+				classes := path :: !classes
+			| None ->
+				if not (Sys.file_exists real) then failwith "Display file does not exist";
+				(match List.rev (ExtString.String.nsplit real Path.path_sep) with
+				| file :: _ when file.[0] >= 'a' && file.[1] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
+				| _ -> ());
+				failwith "Display file was not found in class path"
+			);
+			Common.log com ("Display file : " ^ real);
+			Common.log com ("Classes found : ["  ^ (String.concat "," (List.map Ast.s_type_path !classes)) ^ "]")
+
+let process_global_display_mode com tctx = match com.display.dms_kind with
+	| DMUsage with_definition ->
+		let symbols,relations = Statistics.collect_statistics tctx in
+		let rec loop acc relations = match relations with
+			| (Statistics.Referenced,p) :: relations -> loop (p :: acc) relations
+			| _ :: relations -> loop acc relations
+			| [] -> acc
+		in
+		let usages = Hashtbl.fold (fun p sym acc ->
+			if Statistics.is_usage_symbol sym then begin
+				let acc = if with_definition then p :: acc else acc in
+				(try loop acc (Hashtbl.find relations p)
+				with Not_found -> acc)
+			end else
+				acc
+		) symbols [] in
+		let usages = List.sort (fun p1 p2 ->
+			let c = compare p1.pfile p2.pfile in
+			if c <> 0 then c else compare p1.pmin p2.pmin
+		) usages in
+		raise (DisplayPosition usages)
+	| DMDiagnostics global ->
+		Diagnostics.prepare com global;
+		raise (Diagnostics (Diagnostics.print_diagnostics tctx global))
+	| DMStatistics ->
+		let stats = Statistics.collect_statistics tctx in
+		raise (Statistics (StatisticsPrinter.print_statistics stats))
+	| DMModuleSymbols filter ->
+		let symbols = com.shared.shared_display_information.document_symbols in
+		let symbols = match !global_cache with
+			| None -> symbols
+			| Some cache ->
+				let rec loop acc com =
+					let com_sign = get_signature com in
+					let acc = Hashtbl.fold (fun (file,sign) (_,data) acc ->
+						if (filter <> None || is_display_file file) && com_sign = sign then
+							(file,DocumentSymbols.collect_module_symbols data) :: acc
+						else
+							acc
+					) cache.c_files acc in
+					match com.get_macros() with None -> acc | Some com -> loop acc com
+				in
+				loop symbols com
+		in
+		raise (ModuleSymbols(DocumentSymbols.print_module_symbols com symbols filter))
+	| _ -> ()

@@ -370,7 +370,7 @@ let exc_protect ctx f (where:string) =
 
 let fake_modules = Hashtbl.create 0
 let create_fake_module ctx file =
-	let file = Common.unique_full_path file in
+	let file = Path.unique_full_path file in
 	let mdep = (try Hashtbl.find fake_modules file with Not_found ->
 		let mdep = {
 			m_id = alloc_mid();

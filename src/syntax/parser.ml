@@ -90,10 +90,10 @@ let type_path sl in_import = match sl with
 
 let is_resuming p =
 	let p2 = !resume_display in
-	p.pmax = p2.pmin && Common.unique_full_path p.pfile = p2.pfile
+	p.pmax = p2.pmin && Path.unique_full_path p.pfile = p2.pfile
 
 let set_resume p =
-	resume_display := { p with pfile = Common.unique_full_path p.pfile }
+	resume_display := { p with pfile = Path.unique_full_path p.pfile }
 
 let is_dollar_ident e = match fst e with
 	| EConst (Ident n) when n.[0] = '$' ->
@@ -1631,7 +1631,7 @@ let parse ctx code =
 	and enter_macro p =
 		let tk, e = parse_macro_cond false sraw in
 		let tk = (match tk with None -> Lexer.token code | Some tk -> tk) in
-		if is_true (eval ctx e) || (match fst e with EConst (Ident "macro") when Common.unique_full_path p.pfile = (!resume_display).pfile -> true | _ -> false) then begin
+		if is_true (eval ctx e) || (match fst e with EConst (Ident "macro") when Path.unique_full_path p.pfile = (!resume_display).pfile -> true | _ -> false) then begin
 			mstack := p :: !mstack;
 			tk
 		end else

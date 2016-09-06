@@ -161,50 +161,6 @@ let report_times print =
 		List.iter (fun t -> print (Printf.sprintf "  %s : %.3fs, %.0f%%" t.name t.total (t.total *. 100. /. !tot))) timers
 	end
 
-let make_path f =
-	let cl = get_path_parts f in
-	let error msg =
-		let msg = "Could not process argument " ^ f ^ "\n" ^ msg in
-		failwith msg
-	in
-	let invalid_char x =
-		for i = 1 to String.length x - 1 do
-			match x.[i] with
-			| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' -> ()
-			| c -> error ("invalid character: " ^ (String.make 1 c))
-		done
-	in
-	let rec loop = function
-		| [] ->
-			error "empty part"
-		| [x] ->
-			invalid_char x;
-			[],x
-		| x :: l ->
-			if String.length x = 0 then
-				error "empty part"
-			else if x.[0] < 'a' || x.[0] > 'z' then
-				error "Package name must start with a lower case character";
-			invalid_char x;
-			let path,name = loop l in
-			x :: path,name
-	in
-	loop cl
-
-let starts_uppercase x =
-	x.[0] = '_' || (x.[0] >= 'A' && x.[0] <= 'Z')
-
-let check_uppercase x =
-	if String.length x = 0 then
-		failwith "empty part"
-	else if not (starts_uppercase x) then
-		failwith "Class name must start with uppercase character"
-
-let make_type_path f =
-	let pack,name = make_path f in
-	check_uppercase name;
-	pack,name
-
 let unique l =
 	let rec _unique = function
 		| [] -> []
@@ -400,26 +356,6 @@ let parse_hxml file =
 	IO.close_in ch;
 	parse_hxml_data data
 
-let get_module_path_from_file_path com spath =
-	let rec loop = function
-		| [] -> None
-		| cp :: l ->
-			let cp = (if cp = "" then "./" else cp) in
-			let c = add_trailing_slash (get_real_path cp) in
-			let clen = String.length c in
-			if clen < String.length spath && String.sub spath 0 clen = c then begin
-				let path = String.sub spath clen (String.length spath - clen) in
-				(try
-					let path = make_type_path path in
-					(match loop l with
-					| Some x as r when String.length (Ast.s_type_path x) < String.length (Ast.s_type_path path) -> r
-					| _ -> Some path)
-				with _ -> loop l)
-			end else
-				loop l
-	in
-	loop com.class_path
-
 let add_libs com libs =
 	let call_haxelib() =
 		let t = Common.timer "haxelib" in
@@ -479,7 +415,7 @@ let run_command ctx cmd =
 		0
 	end else
 	let binary_string s =
-		if not is_windows then s else String.concat "\n" (Str.split (Str.regexp "\r\n") s)
+		if not Path.is_windows then s else String.concat "\n" (Str.split (Str.regexp "\r\n") s)
 	in
 	let pout, pin, perr = Unix.open_process_full cmd (Unix.environment()) in
 	let iout = Unix.descr_of_in_channel pout in
@@ -638,26 +574,170 @@ let display_memory ctx =
 		if !mcount > 0 then print ("*** " ^ string_of_int !mcount ^ " modules have leaks !");
 		print "Cache dump complete")
 
+module Initialize = struct
+	let default_flush ctx =
+		List.iter prerr_endline (List.rev ctx.messages);
+		if ctx.has_error && !prompt then begin
+			print_endline "Press enter to exit...";
+			ignore(read_line());
+		end;
+		if ctx.has_error then exit 1
 
-let default_flush ctx =
-	List.iter prerr_endline (List.rev ctx.messages);
-	if ctx.has_error && !prompt then begin
-		print_endline "Press enter to exit...";
-		ignore(read_line());
+	let create_context params =
+		let ctx = {
+			com = Common.create version s_version params;
+			flush = (fun()->());
+			setup = (fun()->());
+			messages = [];
+			has_next = false;
+			has_error = false;
+		} in
+		ctx.flush <- (fun() -> default_flush ctx);
+		ctx
+
+	let set_platform com pf file =
+		if com.platform <> Cross then failwith "Multiple targets";
+		Common.init_platform com pf;
+		com.file <- file;
+		if (pf = Flash) && file_extension file = "swc" then Common.define com Define.Swc
+
+	let initialize_target ctx com classes =
+		let add_std dir =
+			com.class_path <- List.filter (fun s -> not (List.mem s com.std_path)) com.class_path @ List.map (fun p -> p ^ dir ^ "/_std/") com.std_path @ com.std_path
+		in
+		match com.platform with
+			| Cross ->
+				(* no platform selected *)
+				set_platform com Cross "";
+				"?"
+			| Flash ->
+				let rec loop = function
+					| [] -> ()
+					| (v,_) :: _ when v > com.flash_version -> ()
+					| (v,def) :: l ->
+						Common.raw_define com ("flash" ^ def);
+						loop l
+				in
+				loop Common.flash_versions;
+				Common.raw_define com "flash";
+				com.package_rules <- PMap.remove "flash" com.package_rules;
+				add_std "flash";
+				"swf"
+			| Neko ->
+				add_std "neko";
+				"n"
+			| Js ->
+				if not (PMap.exists (fst (Define.infos Define.JqueryVer)) com.defines) then
+					Common.define_value com Define.JqueryVer "11204";
+
+				let es_version =
+					try
+						int_of_string (Common.defined_value com Define.JsEs)
+					with
+					| Not_found ->
+						(Common.define_value com Define.JsEs "5"; 5)
+					| _ ->
+						0
+				in
+
+				if es_version < 3 || es_version = 4 then (* we don't support ancient and there's no 4th *)
+					failwith "Invalid -D js-es value";
+
+				if es_version >= 5 then Common.raw_define com "js-es5"; (* backward-compatibility *)
+
+				add_std "js";
+				"js"
+			| Lua ->
+				add_std "lua";
+				"lua"
+			| Php ->
+				add_std "php";
+				"php"
+			| Cpp ->
+				Common.define_value com Define.HxcppApiLevel "330";
+				add_std "cpp";
+				if Common.defined com Define.Cppia then
+					classes := (Path.parse_path "cpp.cppia.HostClasses" ) :: !classes;
+				"cpp"
+			| Cs ->
+				let old_flush = ctx.flush in
+				ctx.flush <- (fun () ->
+					com.net_libs <- [];
+					old_flush()
+				);
+				Gencs.before_generate com;
+				add_std "cs"; "cs"
+			| Java ->
+				let old_flush = ctx.flush in
+				ctx.flush <- (fun () ->
+					List.iter (fun (_,_,close,_,_) -> close()) com.java_libs;
+					com.java_libs <- [];
+					old_flush()
+				);
+				Genjava.before_generate com;
+				add_std "java"; "java"
+			| Python ->
+				add_std "python";
+				"python"
+			| Hl ->
+				add_std "hl";
+				"hl"
+end
+
+let generate tctx ext xml_out interp swf_header =
+	let com = tctx.Typecore.com in
+	(* check file extension. In case of wrong commandline, we don't want
+		to accidentaly delete a source file. *)
+	if file_extension com.file = ext then delete_file com.file;
+	if com.platform = Flash || com.platform = Cpp then List.iter (Codegen.fix_overrides com) com.types;
+	if Common.defined com Define.Dump then Codegen.Dump.dump_types com;
+	if Common.defined com Define.DumpDependencies then Codegen.Dump.dump_dependencies com;
+	begin match com.platform with
+		| Neko when interp -> ()
+		| Cpp when Common.defined com Define.Cppia -> ()
+		| Cpp | Cs | Java | Php -> Common.mkdir_from_path (com.file ^ "/.")
+		| _ -> Common.mkdir_from_path com.file
 	end;
-	if ctx.has_error then exit 1
-
-let create_context params =
-	let ctx = {
-		com = Common.create version s_version params;
-		flush = (fun()->());
-		setup = (fun()->());
-		messages = [];
-		has_next = false;
-		has_error = false;
-	} in
-	ctx.flush <- (fun() -> default_flush ctx);
-	ctx
+	if interp then begin
+		let ctx = Interp.create com (Typer.make_macro_api tctx Ast.null_pos) in
+		Interp.add_types ctx com.types (fun t -> ());
+		(match com.main with
+		| None -> ()
+		| Some e -> ignore(Interp.eval_expr ctx e));
+	end else if com.platform = Cross then
+		()
+	else begin
+		let generate,name = match com.platform with
+		| Flash when Common.defined com Define.As3 ->
+			Genas3.generate,"AS3"
+		| Flash ->
+			Genswf.generate swf_header,"swf"
+		| Neko ->
+			Genneko.generate,"neko"
+		| Js ->
+			Genjs.generate,"js"
+		| Lua ->
+			Genlua.generate,"lua"
+		| Php ->
+			Genphp.generate,"php"
+		| Cpp ->
+			Gencpp.generate,"cpp"
+		| Cs ->
+			Gencs.generate,"cs"
+		| Java ->
+			Genjava.generate,"java"
+		| Python ->
+			Genpy.generate,"python"
+		| Hl ->
+			Genhl.generate,"hl"
+		| Cross ->
+			assert false
+		in
+		Common.log com ("Generating " ^ name ^ ": " ^ com.file);
+		let t = Common.timer ("generate " ^ name) in
+		generate com;
+		t()
+	end
 
 let rec process_params create pl =
 	let each_params = ref [] in
@@ -722,7 +802,7 @@ and wait_loop verbose accept =
 	Typer.macro_enable_cache := true;
 	let current_stdin = ref None in
 	Typeload.parse_hook := (fun com2 file p ->
-		let ffile = Common.unique_full_path file in
+		let ffile = Path.unique_full_path file in
 		let is_display_file = ffile = (!Parser.resume_display).Ast.pfile in
 
 		match is_display_file, !current_stdin with
@@ -747,7 +827,7 @@ and wait_loop verbose accept =
 		Hashtbl.replace cache.c_modules (m.m_path,m.m_extra.m_sign) m;
 	in
 	let check_module_path com m p =
-		if m.m_extra.m_file <> Common.unique_full_path (Typeload.resolve_module_file com m.m_path (ref[]) p) then begin
+		if m.m_extra.m_file <> Path.unique_full_path (Typeload.resolve_module_file com m.m_path (ref[]) p) then begin
 			if verbose then print_endline ("Module path " ^ s_type_path m.m_path ^ " has been changed");
 			raise Not_found;
 		end
@@ -788,7 +868,7 @@ and wait_loop verbose accept =
 								match load m.m_path p with
 								| None -> loop l
 								| Some (file,_) ->
-									if Common.unique_full_path file <> m.m_extra.m_file then begin
+									if Path.unique_full_path file <> m.m_extra.m_file then begin
 										if verbose then print_endline ("Library file was changed for " ^ s_type_path m.m_path);
 										raise Not_found;
 									end
@@ -871,7 +951,7 @@ and wait_loop verbose accept =
 			| Some com -> cache_context com
 		in
 		let create params =
-			let ctx = create_context params in
+			let ctx = Initialize.create_context params in
 			ctx.flush <- (fun() ->
 				incr compilation_step;
 				compilation_mark := !mark_loop;
@@ -1105,21 +1185,15 @@ try
 				l
 		in
 		let parts = Str.split_delim (Str.regexp "[;:]") p in
-		com.class_path <- "" :: List.map add_trailing_slash (loop parts)
+		com.class_path <- "" :: List.map Path.add_trailing_slash (loop parts)
 	with
 		Not_found ->
 			if Sys.os_type = "Unix" then
 				com.class_path <- ["/usr/lib/haxe/std/";"/usr/share/haxe/std/";"/usr/local/lib/haxe/std/";"/usr/lib/haxe/extraLibs/";"/usr/local/lib/haxe/extraLibs/";""]
 			else
-				let base_path = add_trailing_slash (get_real_path (try executable_path() with _ -> "./")) in
+				let base_path = Path.add_trailing_slash (Path.get_real_path (try executable_path() with _ -> "./")) in
 				com.class_path <- [base_path ^ "std/";base_path ^ "extraLibs/";""]);
 	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path;
-	let set_platform pf file =
-		if com.platform <> Cross then failwith "Multiple targets";
-		Common.init_platform com pf;
-		com.file <- file;
-		if (pf = Flash) && file_extension file = "swc" then Common.define com Define.Swc;
-	in
 	let define f = Arg.Unit (fun () -> Common.define com f) in
 	let process_ref = ref (fun args -> ()) in
 	let process_libs() =
@@ -1135,41 +1209,41 @@ try
 	let basic_args_spec = [
 		("-cp",Arg.String (fun path ->
 			process_libs();
-			com.class_path <- add_trailing_slash path :: com.class_path
+			com.class_path <- Path.add_trailing_slash path :: com.class_path
 		),"<path> : add a directory to find source files");
-		("-js",Arg.String (set_platform Js),"<file> : compile code to JavaScript file");
-		("-lua",Arg.String (set_platform Lua),"<file> : compile code to Lua file");
-		("-swf",Arg.String (set_platform Flash),"<file> : compile code to Flash SWF file");
+		("-js",Arg.String (Initialize.set_platform com Js),"<file> : compile code to JavaScript file");
+		("-lua",Arg.String (Initialize.set_platform com Lua),"<file> : compile code to Lua file");
+		("-swf",Arg.String (Initialize.set_platform com Flash),"<file> : compile code to Flash SWF file");
 		("-as3",Arg.String (fun dir ->
-			set_platform Flash dir;
+			Initialize.set_platform com Flash dir;
 			Common.define com Define.As3;
 			Common.define com Define.NoInline;
 		),"<directory> : generate AS3 code into target directory");
-		("-neko",Arg.String (set_platform Neko),"<file> : compile code to Neko Binary");
+		("-neko",Arg.String (Initialize.set_platform com Neko),"<file> : compile code to Neko Binary");
 		("-php",Arg.String (fun dir ->
 			classes := (["php"],"Boot") :: !classes;
-			set_platform Php dir;
+			Initialize.set_platform com Php dir;
 		),"<directory> : generate PHP code into target directory");
 		("-cpp",Arg.String (fun dir ->
-			set_platform Cpp dir;
+			Initialize.set_platform com Cpp dir;
 		),"<directory> : generate C++ code into target directory");
 		("-cppia",Arg.String (fun file ->
-			set_platform Cpp file;
+			Initialize.set_platform com Cpp file;
 			Common.define com Define.Cppia;
 		),"<file> : generate Cppia code into target file");
 		("-cs",Arg.String (fun dir ->
 			cp_libs := "hxcs" :: !cp_libs;
-			set_platform Cs dir;
+			Initialize.set_platform com Cs dir;
 		),"<directory> : generate C# code into target directory");
 		("-java",Arg.String (fun dir ->
 			cp_libs := "hxjava" :: !cp_libs;
-			set_platform Java dir;
+			Initialize.set_platform com Java dir;
 		),"<directory> : generate Java code into target directory");
 		("-python",Arg.String (fun dir ->
-			set_platform Python dir;
+			Initialize.set_platform com Python dir;
 		),"<file> : generate Python code as target file");
 		("-hl",Arg.String (fun file ->
-			set_platform Hl file;
+			Initialize.set_platform com Hl file;
 		),"<file> : compile HL code as target file");
 		("-xml",Arg.String (fun file ->
 			Parser.use_doc := true;
@@ -1177,7 +1251,7 @@ try
 		),"<file> : generate XML types description");
 		("-main",Arg.String (fun cl ->
 			if com.main_class <> None then raise (Arg.Bad "Multiple -main");
-			let cpath = make_type_path cl in
+			let cpath = Path.parse_type_path cl in
 			com.main_class <- Some cpath;
 			classes := cpath :: !classes
 		),"<class> : select startup class");
@@ -1253,9 +1327,9 @@ try
 		),"<arg> : pass option <arg> to the native Java/C# compiler");
 		("-x", Arg.String (fun file ->
 			let neko_file = file ^ ".n" in
-			set_platform Neko neko_file;
+			Initialize.set_platform com Neko neko_file;
 			if com.main_class = None then begin
-				let cpath = make_type_path file in
+				let cpath = Path.parse_type_path file in
 				com.main_class <- Some cpath;
 				classes := cpath :: !classes
 			end;
@@ -1367,7 +1441,7 @@ try
 				Common.define_value com Define.Display (if smode <> "" then smode else "1");
 				Parser.use_doc := true;
 				Parser.resume_display := {
-					Ast.pfile = Common.unique_full_path file;
+					Ast.pfile = Path.unique_full_path file;
 					Ast.pmin = pos;
 					Ast.pmax = pos;
 				};
@@ -1398,7 +1472,7 @@ try
 		),"<package:target> : remap a package to another one");
 		("--interp", Arg.Unit (fun() ->
 			Common.define com Define.Interp;
-			set_platform Neko "";
+			Initialize.set_platform com Neko "";
 			interp := true;
 		),": interpret the program using internal macro system");
 		("--macro", Arg.String (fun e ->
@@ -1454,8 +1528,8 @@ try
 		),": print help for all compiler metadatas");
 	] in
 	let args_callback cl =
-		let path,name = make_path cl in
-		if starts_uppercase name then
+		let path,name = Path.parse_path cl in
+		if Path.starts_uppercase name then
 			classes := (path,name) :: !classes
 		else begin
 			force_typing := true;
@@ -1487,110 +1561,8 @@ try
 		com.warning <- if com.display.dms_error_policy = EPCollect then (fun s p -> add_diagnostics_message com s p DisplayTypes.DiagnosticsSeverity.Warning) else message ctx;
 		com.error <- error ctx;
 	end;
-	begin match com.display.dms_display_file_policy with
-		| DFPNo ->
-			()
-		| dfp ->
-			if dfp = DFPOnly then begin
-				classes := [];
-				com.main_class <- None;
-			end;
-			let real = get_real_path (!Parser.resume_display).Ast.pfile in
-			(match get_module_path_from_file_path com real with
-			| Some path ->
-				if com.display.dms_kind = DMPackage then raise (Display.DisplayPackage (fst path));
-				classes := path :: !classes
-			| None ->
-				if not (Sys.file_exists real) then failwith "Display file does not exist";
-				(match List.rev (ExtString.String.nsplit real path_sep) with
-				| file :: _ when file.[0] >= 'a' && file.[1] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
-				| _ -> ());
-				failwith "Display file was not found in class path"
-			);
-			Common.log com ("Display file : " ^ real);
-			Common.log com ("Classes found : ["  ^ (String.concat "," (List.map Ast.s_type_path !classes)) ^ "]");
-	end;
-	let add_std dir =
-		com.class_path <- List.filter (fun s -> not (List.mem s com.std_path)) com.class_path @ List.map (fun p -> p ^ dir ^ "/_std/") com.std_path @ com.std_path
-	in
-	let ext = (match com.platform with
-		| Cross ->
-			(* no platform selected *)
-			set_platform Cross "";
-			"?"
-		| Flash ->
-			let rec loop = function
-				| [] -> ()
-				| (v,_) :: _ when v > com.flash_version -> ()
-				| (v,def) :: l ->
-					Common.raw_define com ("flash" ^ def);
-					loop l
-			in
-			loop Common.flash_versions;
-			Common.raw_define com "flash";
-			com.package_rules <- PMap.remove "flash" com.package_rules;
-			add_std "flash";
-			"swf"
-		| Neko ->
-			add_std "neko";
-			"n"
-		| Js ->
-			if not (PMap.exists (fst (Define.infos Define.JqueryVer)) com.defines) then
-				Common.define_value com Define.JqueryVer "11204";
-
-			let es_version =
-				try
-					int_of_string (Common.defined_value com Define.JsEs)
-				with
-				| Not_found ->
-					(Common.define_value com Define.JsEs "5"; 5)
-				| _ ->
-					0
-			in
-
-			if es_version < 3 || es_version = 4 then (* we don't support ancient and there's no 4th *)
-				failwith "Invalid -D js-es value";
-
-			if es_version >= 5 then Common.raw_define com "js-es5"; (* backward-compatibility *)
-
-			add_std "js";
-			"js"
-		| Lua ->
-			add_std "lua";
-			"lua"
-		| Php ->
-			add_std "php";
-			"php"
-		| Cpp ->
-			Common.define_value com Define.HxcppApiLevel "330";
-			add_std "cpp";
-			if Common.defined com Define.Cppia then
-				classes := (make_path "cpp.cppia.HostClasses" ) :: !classes;
-			"cpp"
-		| Cs ->
-			let old_flush = ctx.flush in
-			ctx.flush <- (fun () ->
-				com.net_libs <- [];
-				old_flush()
-			);
-			Gencs.before_generate com;
-			add_std "cs"; "cs"
-		| Java ->
-			let old_flush = ctx.flush in
-			ctx.flush <- (fun () ->
-				List.iter (fun (_,_,close,_,_) -> close()) com.java_libs;
-				com.java_libs <- [];
-				old_flush()
-			);
-			Genjava.before_generate com;
-			add_std "java"; "java"
-		| Python ->
-			add_std "python";
-			"python"
-		| Hl ->
-			add_std "hl";
-			"hl"
-	) in
+	Display.process_display_file com classes;
+	let ext = Initialize.initialize_target ctx com classes in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
 	if com.display.dms_display then begin
 		if not ctx.has_next then com.package_rules <- PMap.foldi (fun p r acc -> match r with Forbidden -> acc | _ -> PMap.add p r acc) com.package_rules PMap.empty;
@@ -1629,58 +1601,10 @@ try
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
-		begin match com.display.dms_kind with
-			| DMUsage with_definition ->
-				let symbols,relations = Display.Statistics.collect_statistics tctx in
-				let rec loop acc relations = match relations with
-					| (Display.Statistics.Referenced,p) :: relations -> loop (p :: acc) relations
-					| _ :: relations -> loop acc relations
-					| [] -> acc
-				in
-				let usages = Hashtbl.fold (fun p sym acc ->
-					if Display.Statistics.is_usage_symbol sym then begin
-						let acc = if with_definition then p :: acc else acc in
-						(try loop acc (Hashtbl.find relations p)
-						with Not_found -> acc)
-					end else
-						acc
-				) symbols [] in
-				let usages = List.sort (fun p1 p2 ->
-					let c = compare p1.pfile p2.pfile in
-					if c <> 0 then c else compare p1.pmin p2.pmin
-				) usages in
-				raise (Display.DisplayPosition usages)
-			| DMDiagnostics global ->
-				Display.Diagnostics.prepare com global;
-				raise (Display.Diagnostics (Display.Diagnostics.print_diagnostics tctx global))
-			| DMStatistics ->
-				let stats = Display.Statistics.collect_statistics tctx in
-				raise (Display.Statistics (Display.StatisticsPrinter.print_statistics stats))
-			| DMModuleSymbols filter ->
-				let symbols = com.shared.shared_display_information.document_symbols in
-				let symbols = match !global_cache with
-					| None -> symbols
-					| Some cache ->
-						let rec loop acc com =
-							let com_sign = get_signature com in
-							let acc = Hashtbl.fold (fun (file,sign) (_,data) acc ->
-								if (filter <> None || Display.is_display_file file) && com_sign = sign then
-									(file,Display.DocumentSymbols.collect_module_symbols data) :: acc
-								else
-									acc
-							) cache.c_files acc in
-							match com.get_macros() with None -> acc | Some com -> loop acc com
-						in
-						loop symbols com
-				in
-				raise (Display.ModuleSymbols(Display.DocumentSymbols.print_module_symbols com symbols filter))
-			| _ -> ()
-		end;
+		Display.process_global_display_mode com tctx;
 		Filters.run com tctx main;
+		t();
 		if ctx.has_error then raise Abort;
-		(* check file extension. In case of wrong commandline, we don't want
-			to accidentaly delete a source file. *)
-		if not !no_output && file_extension com.file = ext then delete_file com.file;
 		(match !xml_out with
 		| None -> ()
 		| Some "hx" ->
@@ -1689,58 +1613,7 @@ try
 			Common.log com ("Generating xml : " ^ file);
 			Common.mkdir_from_path file;
 			Genxml.generate com file);
-		if com.platform = Flash || com.platform = Cpp then List.iter (Codegen.fix_overrides com) com.types;
-		if Common.defined com Define.Dump then Codegen.Dump.dump_types com;
-		if Common.defined com Define.DumpDependencies then Codegen.Dump.dump_dependencies com;
-		t();
-		if not !no_output then begin match com.platform with
-			| Neko when !interp -> ()
-			| Cpp when Common.defined com Define.Cppia -> ()
-			| Cpp | Cs | Java | Php -> Common.mkdir_from_path (com.file ^ "/.")
-			| _ -> Common.mkdir_from_path com.file
-		end;
-		if not !no_output then begin
-			if !interp then begin
-				let ctx = Interp.create com (Typer.make_macro_api tctx Ast.null_pos) in
-				Interp.add_types ctx com.types (fun t -> ());
-				(match com.main with
-				| None -> ()
-				| Some e -> ignore(Interp.eval_expr ctx e));
-			end else if com.platform = Cross then
-				()
-			else begin
-				let generate,name = match com.platform with
-				| Flash when Common.defined com Define.As3 ->
-					Genas3.generate,"AS3"
-				| Flash ->
-					Genswf.generate !swf_header,"swf"
-				| Neko ->
-					Genneko.generate,"neko"
-				| Js ->
-					Genjs.generate,"js"
-				| Lua ->
-					Genlua.generate,"lua"
-				| Php ->
-					Genphp.generate,"php"
-				| Cpp ->
-					Gencpp.generate,"cpp"
-				| Cs ->
-					Gencs.generate,"cs"
-				| Java ->
-					Genjava.generate,"java"
-				| Python ->
-					Genpy.generate,"python"
-				| Hl ->
-					Genhl.generate,"hl"
-				| Cross ->
-					assert false
-				in
-				Common.log com ("Generating " ^ name ^ ": " ^ com.file);
-				let t = Common.timer ("generate " ^ name) in
-				generate com;
-				t()
-			end
-		end
+		if not !no_output then generate tctx ext !xml_out !interp !swf_header;
 	end;
 	Sys.catch_break false;
 	List.iter (fun f -> f()) (List.rev com.callbacks.after_generation);
@@ -1835,7 +1708,7 @@ let args = List.tl (Array.to_list Sys.argv) in
 	let host, port = (try ExtString.String.split server ":" with _ -> "127.0.0.1", server) in
 	do_connect host (try int_of_string port with _ -> failwith "Invalid HAXE_COMPILATION_SERVER port") args
 with Not_found -> try
-	process_params create_context args
+	process_params Initialize.create_context args
 with Completion c ->
 	prerr_endline c;
 	exit 0

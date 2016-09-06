@@ -617,7 +617,7 @@ let debug_infos ?(is_min=true) ctx p =
 	if ctx.debug then begin
 		let line = Lexer.get_error_line (if is_min then p else { p with pmin = p.pmax }) in
 		if ctx.last_file <> p.pfile then begin
-			write ctx (HDebugFile (if ctx.debugger then Common.get_full_path p.pfile else p.pfile));
+			write ctx (HDebugFile (if ctx.debugger then Path.get_full_path p.pfile else p.pfile));
 			ctx.last_file <- p.pfile;
 			ctx.last_line <- -1;
 		end;

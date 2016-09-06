@@ -73,7 +73,7 @@ let make_module ctx mpath file loadp =
 		m_id = alloc_mid();
 		m_path = mpath;
 		m_types = [];
-		m_extra = module_extra (Common.unique_full_path file) (Common.get_signature ctx.com) (file_time file) (if ctx.in_macro then MMacro else MCode);
+		m_extra = module_extra (Path.unique_full_path file) (Common.get_signature ctx.com) (file_time file) (if ctx.in_macro then MMacro else MCode);
 	} in
 	m
 
@@ -3488,8 +3488,8 @@ let type_types_into_module ctx m tdecls p =
 	ctx
 
 let handle_import_hx ctx m decls p =
-	let path_split = List.tl (List.rev (get_path_parts m.m_extra.m_file)) in
-	let join l = String.concat path_sep (List.rev ("import.hx" :: l)) in
+	let path_split = List.tl (List.rev (Path.get_path_parts m.m_extra.m_file)) in
+	let join l = String.concat Path.path_sep (List.rev ("import.hx" :: l)) in
 	let rec loop path pack = match path,pack with
 		| _,[] -> [join path]
 		| (p :: path),(_ :: pack) -> (join (p :: path)) :: (loop path pack)
@@ -3567,8 +3567,8 @@ let resolve_module_file com m remap p =
 	(* if we try to load a std.xxxx class and resolve a real std file, the package name is not valid, ignore *)
 	(match fst m with
 	| "std" :: _ ->
-		let file = Common.unique_full_path file in
-		if List.exists (fun path -> ExtString.String.starts_with file (try Common.unique_full_path path with _ -> path)) com.std_path then raise Not_found;
+		let file = Path.unique_full_path file in
+		if List.exists (fun path -> ExtString.String.starts_with file (try Path.unique_full_path path with _ -> path)) com.std_path then raise Not_found;
 	| _ -> ());
 	if !forbid then begin
 		let _, decls = (!parse_hook) com file p in

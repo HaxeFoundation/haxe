@@ -511,7 +511,7 @@ let rec dlopen dls =
 		None
 
 let neko =
-	match dlopen (if is_windows then
+	match dlopen (if Path.is_windows then
 		["neko.dll"]
 	else
 		(*
@@ -2371,7 +2371,7 @@ let macro_lib =
 				try
 					Hashtbl.find hfiles f
 				with Not_found ->
-					let ff = Common.unique_full_path f in
+					let ff = Path.unique_full_path f in
 					Hashtbl.add hfiles f ff;
 					ff
 			in
@@ -2642,7 +2642,7 @@ let macro_lib =
 			match v with
 			| VString cp ->
 				let com = ccom() in
-				let cp = Common.add_trailing_slash cp in
+				let cp = Path.add_trailing_slash cp in
 				com.class_path <- cp :: com.class_path;
 				(match com.get_macros() with
 					| Some(mcom) ->
