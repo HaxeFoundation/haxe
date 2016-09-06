@@ -200,21 +200,17 @@ let rec read_type_path com p =
 	) com.net_libs;
 	unique !packages, unique !classes
 
-(** raise field completion listing given fields *)
-let complete_fields com fields =
-	let details = Common.raw_defined com "display-details" in
-	raise (Completion (Display.print_fields fields details))
-
 (** raise field completion listing packages and modules in a given package *)
 let complete_type_path ctx p =
 	let packs, modules = read_type_path ctx.com p in
 	if packs = [] && modules = [] then
-		error ctx ("No classes found in " ^ String.concat "." p) Ast.null_pos
+		(error ctx ("No classes found in " ^ String.concat "." p) Ast.null_pos;
+		None)
 	else
 		let convert k f = (f,"",Some k,"") in
 		let packs = List.map (convert Display.FKPackage) packs in
 		let modules = List.map (convert Display.FKType) modules in
-		complete_fields ctx.com (packs @ modules)
+		Some (packs @ modules)
 
 (** raise field completion listing module sub-types and static fields *)
 let complete_type_path_inner ctx p c cur_package is_import =
@@ -257,15 +253,14 @@ let complete_type_path_inner ctx p c cur_package is_import =
 			Some (match cf.cf_kind with Method _ -> Display.FKMethod | Var _ -> Display.FKVar),
 			(match cf.cf_doc with Some s -> s | None -> "")
 		in
-		let types = match !statics with
+		let fields = match !statics with
 			| None -> types
 			| Some cfl -> types @ (List.map make_field_doc (List.filter (fun cf -> cf.cf_public) cfl))
 		in
-		complete_fields com types
-	with Completion c ->
-		raise (Completion c)
-	| _ ->
-		error ctx ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos
+		Some fields
+	with _ ->
+		error ctx ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos;
+		None
 
 let delete_file f = try Sys.remove f with _ -> ()
 
@@ -951,7 +946,8 @@ try
 			| "classes" ->
 				pre_compilation := (fun() -> raise (Parser.TypePath (["."],None,true))) :: !pre_compilation;
 			| "keywords" ->
-				complete_fields com (Hashtbl.fold (fun k _ acc -> (k,"",None,"") :: acc) Lexer.keywords [])
+				let fields = Hashtbl.fold (fun k _ acc -> (k,"",None,"") :: acc) Lexer.keywords [] in
+				raise (Completion (Display.print_fields fields))
 			| "memory" ->
 				did_something := true;
 				(try display_memory ctx with e -> prerr_endline (Printexc.get_backtrace ()));
@@ -1244,7 +1240,7 @@ with
 		end else
 			fields
 		in
-		complete_fields com fields
+		raise (Completion (Display.print_fields fields))
 	| Display.DisplayType (t,p) ->
 		raise (Completion (Display.print_type t p))
 	| Display.DisplaySignatures tl ->
@@ -1254,11 +1250,14 @@ with
 	| Display.DisplayToplevel il ->
 		raise (Completion (Display.print_toplevel il))
 	| Parser.TypePath (p,c,is_import) ->
-		(match c with
-		| None ->
-			complete_type_path ctx p
-		| Some (c,cur_package) ->
-			complete_type_path_inner ctx p c cur_package is_import)
+		let fields = 
+			match c with
+			| None ->
+				complete_type_path ctx p
+			| Some (c,cur_package) ->
+				complete_type_path_inner ctx p c cur_package is_import
+		in
+		Option.may (fun fields -> raise (Completion (Display.print_fields fields))) fields
 	| Display.ModuleSymbols s | Display.Diagnostics s | Display.Statistics s | Display.Metadata s ->
 		raise (Completion s)
 	| Interp.Sys_exit i ->
