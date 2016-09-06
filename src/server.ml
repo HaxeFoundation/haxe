@@ -1,6 +1,5 @@
 open Printf
 open Ast
-open Genswf
 open Common
 open Common.DisplayMode
 open Type
