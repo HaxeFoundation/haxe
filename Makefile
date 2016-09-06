@@ -280,7 +280,7 @@ clean_libs:
 	make -C libs/objsize clean
 
 clean_haxe:
-	rm -f -r  $(MODULES:%=src/%.obj) $(MODULES:%=src/%.o) $(MODULES:%=src/%.cmx) $(MODULES:%=src/%.cmi) $(MODULES:%=src/%.cmo) src/syntax/lexer.ml src/version.ml $(OUTPUT)
+	rm -f -r  $(MODULES:%=src/%.obj) $(MODULES:%=src/%.o) $(MODULES:%=src/%.cmx) $(MODULES:%=src/%.cmi) $(MODULES:%=src/%.cmo) $(MODULES:%=src/%.cmt) src/syntax/lexer.ml src/version.ml $(OUTPUT)
 
 clean_tools:
 	rm -f $(OUTPUT) haxelib
