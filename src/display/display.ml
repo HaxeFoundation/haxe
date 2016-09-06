@@ -145,6 +145,13 @@ let display_enum_field dm ef p = match dm.dms_kind with
 
 open Json
 
+let htmlescape s =
+	let s = String.concat "&amp;" (ExtString.String.nsplit s "&") in
+	let s = String.concat "&lt;" (ExtString.String.nsplit s "<") in
+	let s = String.concat "&gt;" (ExtString.String.nsplit s ">") in
+	let s = String.concat "&quot;" (ExtString.String.nsplit s "\"") in
+	s
+
 let print_fields fields details =
 	let b = Buffer.create 0 in
 	Buffer.add_string b "<list>\n";
