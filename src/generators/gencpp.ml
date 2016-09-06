@@ -113,7 +113,7 @@ class source_writer common_ctx write_header_func write_func close_func =
    method end_block_line = this#pop_indent; this#write_i "}"; just_finished_block <- true
    method terminate_line = this#write (if just_finished_block then "" else ";\n")
    method add_big_closures = if not has_big_closures then begin
-     this#write_h "#include <hx/MacrosJumbo.h>";
+     this#write_h "#include <hx/MacrosJumbo.h>\n";
      has_big_closures <- true
    end
 
@@ -3696,7 +3696,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       let size = string_of_int argc in
       if argc >= 62 then (* Limited by c++ macro size of 128 args *)
          error "Too many capture variables" closure.close_expr.cpppos;
-      if argc >= 20 then
+      if argc >= 20 || (List.length closure.close_args) >= 20 then
          writer#add_big_closures;
       let argsCount = list_num closure.close_args in
       output_i ("HX_BEGIN_LOCAL_FUNC_S" ^ size ^ "(");
