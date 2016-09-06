@@ -281,7 +281,7 @@ let rec type_str ctx t p =
 	| TInst (c,_) ->
 		(match c.cl_kind with
 		| KNormal | KGeneric | KGenericInstance _ | KAbstractImpl _ -> s_path ctx false c.cl_path p
-		| KTypeParameter _ | KExtension _ | KExpr _ | KMacroType | KGenericBuild _ -> "*")
+		| KTypeParameter _ | KExpr _ | KMacroType | KGenericBuild _ -> "*")
 	| TFun _ ->
 		"Function"
 	| TMono r ->

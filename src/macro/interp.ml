@@ -4579,7 +4579,7 @@ and encode_class_kind k =
 	let tag, pl = (match k with
 		| KNormal -> 0, []
 		| KTypeParameter pl -> 1, [encode_tparams pl]
-		| KExtension (cl, params) -> 2, [encode_clref cl; encode_tparams params]
+		(* KExtension was here *)
 		| KExpr e -> 3, [encode_expr e]
 		| KGeneric -> 4, []
 		| KGenericInstance (cl, params) -> 5, [encode_clref cl; encode_tparams params]

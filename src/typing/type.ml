@@ -161,7 +161,6 @@ and tclass_field = {
 and tclass_kind =
 	| KNormal
 	| KTypeParameter of t list
-	| KExtension of tclass * tparams
 	| KExpr of Ast.expr
 	| KGeneric
 	| KGenericInstance of tclass * tparams
@@ -1223,8 +1222,6 @@ let s_class_kind = function
 		"KNormal"
 	| KTypeParameter tl ->
 		Printf.sprintf "KTypeParameter [%s]" (s_types tl)
-	| KExtension(c,tl) ->
-		Printf.sprintf "KExtension %s<%s>" (s_type_path c.cl_path) (s_types tl)
 	| KExpr _ ->
 		"KExpr"
 	| KGeneric ->
