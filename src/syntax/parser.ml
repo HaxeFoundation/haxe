@@ -31,6 +31,7 @@ type error_msg =
 exception Error of error_msg * pos
 exception TypePath of string list * (string * bool) option * bool (* in import *)
 exception Display of expr
+exception SkippedPastDisplayPos of expr list
 
 let error_msg = function
 	| Unexpected t -> "Unexpected "^(s_token t)
@@ -1581,12 +1582,38 @@ let parse ctx code =
 	let old = Lexer.save() in
 	let old_cache = !cache in
 	let mstack = ref [] in
+	let cond_stack = ref [] in
 	cache := DynArray.create();
 	last_doc := None;
 	in_macro := Common.defined ctx Common.Define.Macro;
 	Lexer.skip_header code;
 
 	let sraw = Stream.from (fun _ -> Some (Lexer.token code)) in
+
+	let push_cond_stack () = cond_stack := [] :: !cond_stack in
+	let pop_cond_stack () = cond_stack := List.tl !cond_stack in
+	let add_to_cond_stack e = match !cond_stack with
+		| s :: sl -> cond_stack := (e :: s) :: sl
+		| [] -> assert false
+	in
+	let record_macro_cond () =
+		let _, e = parse_macro_cond false sraw in
+		add_to_cond_stack e
+	in
+	let flip_cond_stack p = match !cond_stack with
+		| (e :: el) :: sl -> cond_stack := ((EUnop(Not,Prefix,e),p) :: el) :: sl
+		| _ -> ()
+	in
+	let check_cond_stack p flip =
+		begin match !cond_stack with
+		| (e :: el) :: sl when Path.unique_full_path (pos e).pfile = !resume_display.pfile && (pos e).pmin <= !resume_display.pmin && p.pmax >= !resume_display.pmax ->
+			raise (SkippedPastDisplayPos (List.rev ((e :: el) @ List.flatten sl)));
+		| _ ->
+			()
+		end;
+		if flip then flip_cond_stack p else pop_cond_stack()
+	in
+
 	let rec next_token() = process_token (Lexer.token code)
 
 	and process_token tk =
@@ -1601,18 +1628,22 @@ let parse ctx code =
 		| CommentLine s ->
 			next_token()
 		| Sharp "end" ->
+			pop_cond_stack();
 			(match !mstack with
 			| [] -> tk
 			| _ :: l ->
 				mstack := l;
 				next_token())
 		| Sharp "else" | Sharp "elseif" ->
+			flip_cond_stack (pos tk);
+			if fst tk = Sharp "elseif" then record_macro_cond();
 			(match !mstack with
 			| [] -> tk
 			| _ :: l ->
 				mstack := l;
 				process_token (skip_tokens (snd tk) false))
 		| Sharp "if" ->
+			push_cond_stack();
 			process_token (enter_macro (snd tk))
 		| Sharp "error" ->
 			(match Lexer.token code with
@@ -1630,8 +1661,9 @@ let parse ctx code =
 
 	and enter_macro p =
 		let tk, e = parse_macro_cond false sraw in
+		add_to_cond_stack e;
 		let tk = (match tk with None -> Lexer.token code | Some tk -> tk) in
-		if is_true (eval ctx e) || (match fst e with EConst (Ident "macro") when Path.unique_full_path p.pfile = (!resume_display).pfile -> true | _ -> false) then begin
+		if is_true (eval ctx e) then begin
 			mstack := p :: !mstack;
 			tk
 		end else
@@ -1640,15 +1672,25 @@ let parse ctx code =
 	and skip_tokens_loop p test tk =
 		match fst tk with
 		| Sharp "end" ->
+			check_cond_stack (pos tk) false;
 			Lexer.token code
-		| Sharp "elseif" | Sharp "else" when not test ->
+		| Sharp "elseif" when not test ->
+			check_cond_stack (pos tk) true;
+			record_macro_cond ();
+			skip_tokens p test
+		| Sharp "else" when not test ->
+			check_cond_stack (pos tk) true;
 			skip_tokens p test
 		| Sharp "else" ->
+			check_cond_stack (pos tk) true;
 			mstack := snd tk :: !mstack;
 			Lexer.token code
 		| Sharp "elseif" ->
+			check_cond_stack (pos tk) true;
 			enter_macro (snd tk)
 		| Sharp "if" ->
+			push_cond_stack();
+			record_macro_cond ();
 			skip_tokens_loop p test (skip_tokens p false)
 		| Eof ->
 			if do_resume() then tk else error Unclosed_macro p

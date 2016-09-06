@@ -1259,6 +1259,8 @@ with
 			complete_type_path ctx p
 		| Some (c,cur_package) ->
 			complete_type_path_inner ctx p c cur_package is_import)
+	| Parser.SkippedPastDisplayPos el ->
+		print_endline ("The following must hold to reach this position: " ^ (String.concat " && " (List.map Ast.s_expr el)));
 	| Display.ModuleSymbols s | Display.Diagnostics s | Display.Statistics s | Display.Metadata s ->
 		raise (Completion s)
 	| Interp.Sys_exit i ->
