@@ -559,11 +559,12 @@ module Diagnostics = struct
 			let types = ref [] in
 			Hashtbl.iter (fun _ m ->
 				List.iter (fun mt ->
+					let s_full_type_path (p,s) n = s_type_path (p,s) ^ if (s <> n) then "." ^ n else "" in
 					let tinfos = t_infos mt in
 					if snd tinfos.mt_path = i then
 						types := JObject [
 							"kind",JInt (UnresolvedIdentifierSuggestion.to_int UISImport);
-							"name",JString (s_type_path m.m_path)
+							"name",JString (s_full_type_path m.m_path i)
 						] :: !types
 				) m.m_types;
 			) ctx.g.modules;
