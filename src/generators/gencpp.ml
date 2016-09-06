@@ -1351,6 +1351,7 @@ type tcpp =
    | TCppCode of tcpp
    | TCppInst of tclass
    | TCppInterface of tclass
+   | TCppProtocol of tclass
    | TCppClass
    | TCppGlobal
 
@@ -1486,6 +1487,7 @@ and tcpp_expr_expr =
    | CppCastVariant of tcppexpr
    | CppCastObjC of tcppexpr * tclass
    | CppCastObjCBlock of tcppexpr * tcpp list * tcpp
+   | CppCastProtocol of tcppexpr * tclass
    | CppCastNative of tcppexpr
 
 let rec s_tcpp = function
@@ -1563,6 +1565,7 @@ let rec s_tcpp = function
    | CppCastVariant _ -> "CppCastVariant"
    | CppCastObjC _ -> "CppCastObjC"
    | CppCastObjCBlock _ -> "CppCastObjCBlock"
+   | CppCastProtocol _ -> "CppCastProtocol"
    | CppCastNative _ -> "CppCastNative"
 
 and tcpp_to_string_suffix suffix tcpp = match tcpp with
@@ -1596,6 +1599,10 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
          "id < " ^ path ^ ">"
       else
          path ^ " *"
+   | TCppProtocol interface ->
+      let path = get_meta_string interface.cl_meta Meta.ObjcProtocol in
+      let path = if path<>"" then path else join_class_path_remap interface.cl_path "::" in
+      "id < " ^ path ^ ">"
    | TCppNativePointer klass ->
        let name = (join_class_path_remap klass.cl_path "::") in
        if suffix="_obj" then
@@ -1634,7 +1641,6 @@ and tcpp_to_string tcpp =
 and cpp_class_path_of klass =
       " ::" ^ (join_class_path_remap klass.cl_path "::")
 ;;
-
 
 
 let cpp_const_type cval = match cval with
@@ -1787,6 +1793,14 @@ let rec cpp_type_of ctx haxe_type =
       | (("cpp"::["objc"]),"ObjcBlock"), [function_type] ->
             let args,ret = (cpp_function_type_of_args_ret ctx function_type) in
             TCppObjCBlock(args,ret)
+      | (("cpp"::["objc"]),"Protocol"), [interface_type] ->
+            (match follow interface_type with
+            | TInst (klass,[]) when klass.cl_interface ->
+                TCppProtocol(klass)
+            (* TODO - get the line number here *)
+            | _ -> print_endline "cpp.objc.Protocol must refer to an interface";
+                   assert false;
+            )
       | (["cpp"],"Reference"), [param] ->
             TCppReference(cpp_type_of ctx param)
       | (["cpp"],"Star"), [param] ->
@@ -1806,6 +1820,7 @@ let rec cpp_type_of ctx haxe_type =
             | TCppEnum _
             | TCppInst _
             | TCppInterface _
+            | TCppProtocol _
             | TCppClass
             | TCppDynamicArray
             | TCppObjectArray _
@@ -1964,6 +1979,7 @@ let cpp_variant_type_of t = match t with
    | TCppObjCBlock _
    | TCppInst _
    | TCppInterface _
+   | TCppProtocol _
    | TCppCode _
    | TCppClass
    | TCppGlobal
@@ -2815,6 +2831,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                      CppCast(baseCpp, t),  t
                | TCppNativePointer(klass) -> CppCastNative(baseCpp), return_type
                | TCppObjCBlock(args,ret) -> CppCastObjCBlock(baseCpp,args,ret), return_type
+               | TCppProtocol(p) -> CppCastProtocol(baseCpp,p), return_type
                | TCppDynamic when baseCpp.cpptype=TCppClass ->  CppCast(baseCpp,TCppDynamic), TCppDynamic
                | _ -> baseCpp.cppexpr, baseCpp.cpptype (* use autocasting rules *)
             )
@@ -2884,6 +2901,11 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
          | TCppObjectPtr, TCppObjectPtr -> cppExpr
          | TCppObjectPtr, _ ->
              mk_cppexpr (CppCast(cppExpr,TCppDynamic)) TCppDynamic
+
+         | TCppProtocol _, TCppProtocol _ -> cppExpr
+         | t, TCppProtocol protocol ->
+              mk_cppexpr (CppCastProtocol(cppExpr,protocol)) return_type
+
          | _, TCppObjectPtr ->
              mk_cppexpr (CppCast(cppExpr,TCppObjectPtr)) TCppObjectPtr
          | _ -> cppExpr
@@ -3596,6 +3618,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          gen expr;
          out ")"
 
+      | CppCastProtocol(expr,klass) ->
+         out ( (join_class_path_remap klass.cl_path "::" ) ^ "_obj::_hx_toProtocol( ");
+         gen expr;
+         out ")"
 
       | CppCastNative(expr) ->
          out "("; gen expr; out ").mPtr"
@@ -4900,6 +4926,50 @@ let constructor_arg_var_list class_def ctx =
    | _ -> []
 ;;
 
+let generate_protocol_delegate ctx class_def output =
+   let protocol = get_meta_string class_def.cl_meta Meta.ObjcProtocol in
+   let name = "_hx_" ^ protocol ^ "_delegate" in
+   output ("@interface " ^ name ^ " : NSObject<" ^ protocol ^ "> {\n");
+   output ("\t::hx::Object *haxeObj;\n");
+   output ("}\n");
+   output ("@end\n\n");
+   output ("@implementation " ^ name ^ "\n");
+   output ("- (id)initWithImplementation:( ::hx::Object *)inInplemnetation {\n");
+   output ("  if (self = [super init]) {\n");
+   output ("     self->haxeObj = inInplemnetation;\n");
+   output ("     GCAddRoot(&self->haxeObj);\n");
+   output ("  }\n");
+   output ("  return self;\n");
+   output ("}\n");
+   output ("- (void)dealloc {\n");
+   output ("   GCRemoveRoot(&self->haxeObj);\n");
+   output ("   #ifndef OBJC_ARC\n");
+   output ("   [super dealloc];\n");
+   output ("   #endif\n");
+   output ("}\n\n");
+
+   let class_path = class_def.cl_path in
+   let class_name = (snd class_path) ^ "_obj" in
+
+   let dump_delegate field =
+      match field.cf_type with
+      |  TFun(args,ret) ->
+         let retStr = ctx_type_string ctx ret in
+         let objcName = get_meta_string field.cf_meta Meta.ObjcProtocol in
+         let objcName = if objcName="" then field.cf_name else objcName in
+         output ("- (" ^ retStr ^ ") " ^ objcName);
+         List.iter (fun (name,_,argType) -> output (":(" ^ (ctx_type_string ctx argType) ^ ")" ^ name ^ " ")) args;
+         output (" {\n"); 
+         output ("\thx::NativeAttach _hx_attach;\n");
+         output ( (if retStr="void" then "\t" else "\treturn ") ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ "(haxeObj");
+         List.iter (fun (name,_,_) -> output ("," ^ name)) args;
+         output (");\n}\n\n"); 
+      | _ -> ()
+   in
+   List.iter dump_delegate class_def.cl_ordered_fields;
+
+   output ("@end\n\n");
+;;
 
 
 (*
@@ -5628,6 +5698,18 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    end;
 
 
+
+   if class_def.cl_interface && has_meta_key class_def.cl_meta Meta.ObjcProtocol then begin
+      let protocol = get_meta_string class_def.cl_meta Meta.ObjcProtocol in
+      generate_protocol_delegate ctx class_def output_cpp;
+      output_cpp ("id<" ^ protocol ^ "> " ^  class_name ^ "::_hx_toProtocol(Dynamic inImplementation) {\n");
+      output_cpp ("\treturn [ [_hx_" ^ protocol ^ "_delegate alloc] initWithImplementation:inImplementation.mPtr];\n");
+      output_cpp ("}\n\n");
+   end;
+
+
+
+
    gen_close_namespace output_cpp class_path;
 
    cpp_file#close;
@@ -5807,6 +5889,11 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       List.iter (fun (field,_,_) -> gen_member_def ctx class_def false true field) functions;
    end else begin
       List.iter (gen_member_def ctx class_def false false) (List.filter should_implement_field class_def.cl_ordered_fields);
+   end;
+
+   if class_def.cl_interface && has_meta_key class_def.cl_meta Meta.ObjcProtocol then begin
+      let protocol = get_meta_string class_def.cl_meta Meta.ObjcProtocol in
+      output_h ("\t\tstatic id<" ^ protocol ^ "> _hx_toProtocol(Dynamic inImplementation);\n");
    end;
 
 

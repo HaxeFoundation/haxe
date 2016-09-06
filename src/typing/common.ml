@@ -661,6 +661,7 @@ module MetaInfo = struct
 		| NoUsing -> ":noUsing",("Prevents a field from being used with 'using'",[UsedOn TClassField])
 		| Ns -> ":ns",("Internally used by the Swf generator to handle namespaces",[Platform Flash])
 		| Objc -> ":objc",("Declares a class or interface that is used to interoperate with Objective-C code",[Platform Cpp;UsedOn TClass])
+		| ObjcProtocol -> ":objcProtocol",("Associates an interface with, or describes a function in, a native Objective-C protocol.",[Platform Cpp;UsedOnEither [TClass;TClassField] ])
 		| Op -> ":op",("Declares an abstract field as being an operator overload",[HasParam "The operation";UsedOn TAbstractField])
 		| Optional -> ":optional",("Marks the field of a structure as optional",[UsedOn TClassField])
 		| Overload -> ":overload",("Allows the field to be called with different argument types",[HasParam "Function specification (no expression)";UsedOn TClassField])

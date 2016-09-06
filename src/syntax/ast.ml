@@ -137,6 +137,7 @@ module Meta = struct
 		| NoUsing
 		| Ns
 		| Objc
+		| ObjcProtocol
 		| Op
 		| Optional
 		| Overload
