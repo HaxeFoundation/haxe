@@ -104,6 +104,8 @@ extern class Type {
 
 		If `name` is the path of an existing class, that class is returned.
 
+		On some targets external classes cannot be resolved
+		
 		Otherwise null is returned.
 
 		If `name` is null or the path to a different type, the result is
@@ -115,8 +117,6 @@ extern class Type {
 
 	/**
 		Resolves an enum by name.
-
-		On some targets external classes cannot be resolved
 		
 		If `name` is the path of an existing enum, that enum is returned.
 
