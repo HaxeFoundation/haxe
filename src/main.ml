@@ -245,7 +245,15 @@ let complete_type_path_inner ctx p c cur_package is_import =
 			end;
 			not tinfos.mt_private
 		) m.m_types in
-		let types = if c <> s_module then [] else List.map (fun t -> snd (t_path t),"",Some Display.FKType,"") public_types in
+		let types =
+			if c <> s_module then
+				[]
+			else
+				List.map (fun t ->
+					let t = t_infos t in
+					(snd t.mt_path), "", Some Display.FKType, (Option.default "" t.mt_doc)
+				) public_types
+		in
 		let ctx = print_context() in
 		let make_field_doc cf =
 			cf.cf_name,
