@@ -550,28 +550,12 @@ and load_complex_type ctx allow_display p (t,pn) =
 				match follow t with
 				| TInst ({cl_kind = KTypeParameter _},_) ->
 					error "Cannot structurally extend type parameters" p
-				| TInst (c,tl) ->
-					ctx.com.warning "Structurally extending classes is deprecated and will be removed" p;
-					let c2 = mk_class null_module (fst c.cl_path,"+" ^ snd c.cl_path) p null_pos in
-					c2.cl_private <- true;
-					PMap.iter (fun f _ ->
-						try
-							ignore(class_field c tl f);
-							error ("Cannot redefine field " ^ f) p
-						with
-							Not_found -> ()
-					) a.a_fields;
-					(* do NOT tag as extern - for protect *)
-					c2.cl_kind <- KExtension (c,tl);
-					c2.cl_super <- Some (c,tl);
-					c2.cl_fields <- a.a_fields;
-					TInst (c2,[])
 				| TMono _ ->
 					error "Loop found in cascading signatures definitions. Please change order/import" p
 				| TAnon a2 ->
 					PMap.iter (fun _ cf -> ignore(is_redefined cf a2)) a.a_fields;
 					TAnon { a_fields = (PMap.foldi PMap.add a.a_fields a2.a_fields); a_status = ref (Extend [t]); }
-				| _ -> error "Can only extend classes and structures" p
+				| _ -> error "Can only extend structures" p
 			in
 			let loop t = match follow t with
 				| TAnon a2 ->
@@ -580,7 +564,7 @@ and load_complex_type ctx allow_display p (t,pn) =
 							a.a_fields <- PMap.add f cf a.a_fields
 					) a2.a_fields
 				| _ ->
-					error "Multiple structural extension is only allowed for structures" p
+					error "Can only extend structures" p
 			in
 			let il = List.map (fun (t,_) -> load_instance ctx ~allow_display (t,pn) false p) tl in
 			let tr = ref None in

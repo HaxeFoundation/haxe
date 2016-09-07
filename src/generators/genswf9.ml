@@ -225,8 +225,6 @@ let rec type_id ctx t =
 			(match l with
 			| [t] -> type_id ctx t
 			| _ -> type_path ctx ([],"Object"))
-		| KExtension (c,params) ->
-			type_id ctx (TInst (c,params))
 		| _ ->
 			type_path ctx c.cl_path)
 	| TAbstract (a,_) ->
@@ -346,13 +344,6 @@ let property ctx p t =
 			| "ffloor" | "fceil" | "fround" -> ident (String.sub p 1 (String.length p - 1)), None, false
 			| _ -> ident p, None, false)
 		| _ -> ident p, None, false)
-	| TInst ({ cl_kind = KExtension _ } as c,params) ->
-		(* cast type when accessing an extension field *)
-		(try
-			let f = PMap.find p c.cl_fields in
-			ident p, Some (classify ctx (apply_params c.cl_params params f.cf_type)), false
-		with Not_found ->
-			ident p, None, false)
 	| TInst ({ cl_interface = true } as c,_) ->
 		(* lookup the interface in which the field was actually declared *)
 		let rec loop c =
