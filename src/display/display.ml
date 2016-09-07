@@ -143,6 +143,17 @@ let display_enum_field dm ef p = match dm.dms_kind with
 	| DMType -> raise (DisplayType (ef.ef_type,p))
 	| _ -> ()
 
+let get_timer_fields start_time =
+	let tot = ref 0. in
+	Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
+	let fields = [("@TOTAL", Printf.sprintf "%.3fs" (get_time() -. start_time), None, "")] in
+	if !tot > 0. then
+		Hashtbl.fold (fun _ t acc ->
+			("@TIME " ^ t.name, Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot), None, "") :: acc
+		) Common.htimers fields
+	else
+		fields
+
 open Json
 
 let htmlescape s =

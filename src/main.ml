@@ -1224,20 +1224,15 @@ with
 	| Display.DisplayPackage pack ->
 		raise (Completion (String.concat "." pack))
 	| Display.DisplayFields fields ->
-		let ctx = print_context() in
-		let fields = List.map (fun (name,t,kind,doc) -> name, s_type ctx t, kind, (match doc with None -> "" | Some d -> d)) fields in
-		let fields = if !measure_times then begin
-			close_times();
-			let tot = ref 0. in
-			Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
-			let fields = ("@TOTAL", Printf.sprintf "%.3fs" (get_time() -. !start_time), None, "") :: fields in
-			if !tot > 0. then
-				Hashtbl.fold (fun _ t acc ->
-					("@TIME " ^ t.name, Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot), None, "") :: acc
-				) Common.htimers fields
-			else fields
-		end else
-			fields
+		let fields = List.map (
+			fun (name,t,kind,doc) -> name, s_type (print_context()) t, kind, (Option.default "" doc)
+		) fields in
+		let fields =
+			if !measure_times then begin
+				close_times();
+				(Display.get_timer_fields !start_time) @ fields
+			end else
+				fields
 		in
 		raise (Completion (Display.print_fields fields))
 	| Display.DisplayType (t,p) ->
