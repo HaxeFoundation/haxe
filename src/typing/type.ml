@@ -2402,6 +2402,16 @@ let map_expr_type f ft fv e =
 	| TMeta (m,e1) ->
 		{e with eexpr = TMeta(m, f e1); etype = ft e.etype }
 
+let resolve_typedef t =
+	match t with
+	| TClassDecl _ | TEnumDecl _ | TAbstractDecl _ -> t
+	| TTypeDecl td ->
+		match follow td.t_type with
+		| TEnum (e,_) -> TEnumDecl e
+		| TInst (c,_) -> TClassDecl c
+		| TAbstract (a,_) -> TAbstractDecl a
+		| _ -> t
+
 module TExprToExpr = struct
 	let tpath p mp pl =
 		if snd mp = snd p then

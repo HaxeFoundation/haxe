@@ -308,6 +308,7 @@ let apply_macro ctx mode path el p =
 let rec load_type_def ctx p t =
 	let no_pack = t.tpackage = [] in
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
+	if tname = "" then raise (Display.DisplayToplevel (Display.ToplevelCollector.run ctx true));
 	try
 		if t.tsub <> None then raise Not_found;
 		let path_matches t2 =
@@ -761,7 +762,13 @@ let t_iterator ctx =
 let load_type_hint ?(opt=false) ctx pcur t =
 	let t = match t with
 		| None -> mk_mono()
-		| Some (t,p) -> load_complex_type ctx true pcur (t,p)
+		| Some (t,p) ->
+			try
+				load_complex_type ctx true pcur (t,p)
+			with Error(Module_not_found(([],name)),p) as exc ->
+				if Display.Diagnostics.is_diagnostics_run ctx then Display.ToplevelCollector.handle_unresolved_identifier ctx name p true;
+				(* Default to Dynamic in display mode *)
+				if ctx.com.display.dms_display then t_dynamic else raise exc
 	in
 	if opt then ctx.t.tnull t else t
 
@@ -2876,16 +2883,6 @@ module ClassInitializer = struct
 			| Some r -> delay ctx PTypeField (fun() -> ignore((!r)())))
 		) cctx.delayed_expr
 end
-
-let resolve_typedef t =
-	match t with
-	| TClassDecl _ | TEnumDecl _ | TAbstractDecl _ -> t
-	| TTypeDecl td ->
-		match follow td.t_type with
-		| TEnum (e,_) -> TEnumDecl e
-		| TInst (c,_) -> TClassDecl c
-		| TAbstract (a,_) -> TAbstractDecl a
-		| _ -> t
 
 let check_module_types ctx m p t =
 	let t = t_infos t in

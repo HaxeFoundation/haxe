@@ -154,6 +154,7 @@ let get_constructor_ref : (typer -> tclass -> t list -> Ast.pos -> (t * tclass_f
 let cast_or_unify_ref : (typer -> t -> texpr -> Ast.pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
 let find_array_access_raise_ref : (typer -> tabstract -> tparams -> texpr -> texpr option -> pos -> (tclass_field * t * t * texpr * texpr option)) ref = ref (fun _ _ _ _ _ _ -> assert false)
 let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun _ _ -> assert false)
+let merge_core_doc_ref : (typer -> tclass -> unit) ref = ref (fun _ _ -> assert false)
 
 let string_source t = match follow t with
 	| TInst(c,_) -> List.map (fun cf -> cf.cf_name) c.cl_ordered_fields

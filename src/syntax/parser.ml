@@ -867,11 +867,15 @@ and parse_class_flags = parser
 	| [< '(Kwd Class,p) >] -> [] , p
 	| [< '(Kwd Interface,p) >] -> [HInterface] , p
 
+and parse_complex_type_at p = parser
+	| [< t = parse_complex_type >] -> t
+	| [< >] -> if is_resuming p then CTPath { tpackage = []; tname = ""; tparams = []; tsub = None },p else serror()
+
 and parse_type_hint = parser
-	| [< '(DblDot,_); t = parse_complex_type >] -> t
+	| [< '(DblDot,p1); t = parse_complex_type_at p1 >] -> t
 
 and parse_type_hint_with_pos s = match s with parser
-	| [< '(DblDot,p1); t = parse_complex_type >] -> t
+	| [< '(DblDot,p1); t = parse_complex_type_at p1 >] -> t
 
 and parse_type_opt = parser
 	| [< t = parse_type_hint >] -> Some t

@@ -407,156 +407,11 @@ let merge_core_doc ctx c =
 		| Some ({cf_doc = None} as cf),Some cf2 -> cf.cf_doc <- cf2.cf_doc
 		| _ -> ()
 
-module ToplevelCollecter = struct
-	open IdentifierType
-
-	let run ctx =
-		let acc = DynArray.create () in
-
-		(* locals *)
-		PMap.iter (fun _ v ->
-			if not (is_gen_local v) then
-				DynArray.add acc (ITLocal v)
-		) ctx.locals;
-
-		(* member vars *)
-		if ctx.curfun <> FunStatic then begin
-			let rec loop c =
-				List.iter (fun cf ->
-					DynArray.add acc (ITMember(ctx.curclass,cf))
-				) c.cl_ordered_fields;
-				match c.cl_super with
-					| None ->
-						()
-					| Some (csup,tl) ->
-						loop csup; (* TODO: type parameters *)
-			in
-			loop ctx.curclass;
-			(* TODO: local using? *)
-		end;
-
-		(* statics *)
-		List.iter (fun cf ->
-			DynArray.add acc (ITStatic(ctx.curclass,cf))
-		) ctx.curclass.cl_ordered_statics;
-
-		(* enum constructors *)
-		let rec enum_ctors t =
-			match t with
-			| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta ->
-				List.iter (fun cf ->
-					if (Meta.has Meta.Enum cf.cf_meta) then DynArray.add acc (ITEnumAbstract(a,cf));
-				) c.cl_ordered_statics
-			| TClassDecl _ | TAbstractDecl _ ->
-				()
-			| TTypeDecl t ->
-				begin match follow t.t_type with
-					| TEnum (e,_) -> enum_ctors (TEnumDecl e)
-					| _ -> ()
-				end
-			| TEnumDecl e ->
-				PMap.iter (fun _ ef ->
-					DynArray.add acc (ITEnum(e,ef))
-				) e.e_constrs;
-		in
-		List.iter enum_ctors ctx.m.curmod.m_types;
-		List.iter enum_ctors (List.map fst ctx.m.module_types);
-
-		(* imported globals *)
-		PMap.iter (fun _ (mt,s,_) ->
-			try
-				let t = match Typeload.resolve_typedef mt with
-					| TClassDecl c -> (PMap.find s c.cl_statics).cf_type
-					| TEnumDecl en -> (PMap.find s en.e_constrs).ef_type
-					| TAbstractDecl {a_impl = Some c} -> (PMap.find s c.cl_statics).cf_type
-					| _ -> raise Not_found
-				in
-				DynArray.add acc (ITGlobal(mt,s,t))
-			with Not_found ->
-				()
-		) ctx.m.module_globals;
-
-		let module_types = ref [] in
-
-		let add_type mt =
-			match mt with
-			| TClassDecl {cl_kind = KAbstractImpl _} -> ()
-			| _ ->
-				let path = (t_infos mt).mt_path in
-				if not (List.exists (fun mt2 -> (t_infos mt2).mt_path = path) !module_types) then begin
-					(match mt with
-					| TClassDecl c | TAbstractDecl { a_impl = Some c } when Meta.has Meta.CoreApi c.cl_meta ->
-						merge_core_doc ctx c
-					| _ -> ());
-					module_types := mt :: !module_types
-				end
-		in
-
-		(* module types *)
-		List.iter add_type ctx.m.curmod.m_types;
-
-		(* module imports *)
-		List.iter add_type (List.map fst ctx.m.module_types);
-
-		(* module using *)
-		List.iter (fun (c,_) ->
-			add_type (TClassDecl c)
-		) ctx.m.module_using;
-
-		(* TODO: wildcard packages. How? *)
-
-		(* packages and toplevel types *)
-		let class_paths = ctx.com.class_path in
-		let class_paths = List.filter (fun s -> s <> "") class_paths in
-
-		let packages = ref [] in
-		let add_package pack =
-			try
-				begin match PMap.find pack ctx.com.package_rules with
-					| Forbidden ->
-						()
-					| _ ->
-						raise Not_found
-				end
-			with Not_found ->
-				if not (List.mem pack !packages) then packages := pack :: !packages
-		in
-
-		List.iter (fun dir ->
-			try
-				let entries = Sys.readdir dir in
-				Array.iter (fun file ->
-					match file with
-						| "." | ".." ->
-							()
-						| _ when Sys.is_directory (dir ^ file) && file.[0] >= 'a' && file.[0] <= 'z' ->
-							add_package file
-						| _ ->
-							let l = String.length file in
-							if l > 3 && String.sub file (l - 3) 3 = ".hx" then begin
-								try
-									let name = String.sub file 0 (l - 3) in
-									let md = Typeload.load_module ctx ([],name) Ast.null_pos in
-									List.iter (fun mt ->
-										if (t_infos mt).mt_path = md.m_path then add_type mt
-									) md.m_types
-								with _ ->
-									()
-							end
-				) entries;
-			with Sys_error _ ->
-				()
-		) class_paths;
-
-		List.iter (fun pack ->
-			DynArray.add acc (ITPackage pack)
-		) !packages;
-
-		List.iter (fun mt ->
-			DynArray.add acc (ITType mt)
-		) !module_types;
-		DynArray.to_list acc
-end
+let check_error ctx err p = match err with
+	| Module_not_found ([],name) when Display.Diagnostics.is_diagnostics_run ctx ->
+		Display.ToplevelCollector.handle_unresolved_identifier ctx name p true
+	| _ ->
+		display_error ctx (error_msg err) p
 
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
@@ -2688,14 +2543,7 @@ and type_ident ctx i p mode =
 					| DMNone ->
 						raise (Error(err,p))
 					| DMDiagnostics b when b || ctx.is_display_file ->
-						let l = ToplevelCollecter.run ctx in
-						let cl = List.map (fun it ->
-							let s = IdentifierType.get_name it in
-							(s,it),StringError.levenshtein i s
-						) l in
-						let cl = List.sort (fun (_,c1) (_,c2) -> compare c1 c2) cl in
-						let cl = StringError.filter_similar (fun (s,_) r -> r > 0 && r <= (min (String.length s) (String.length i)) / 3) cl in
-						ctx.com.display_information.unresolved_identifiers <- (i,p,cl) :: ctx.com.display_information.unresolved_identifiers;
+						Display.ToplevelCollector.handle_unresolved_identifier ctx i p false;
 						let t = mk_mono() in
 						AKExpr (mk (TLocal (add_unbound_local ctx i t p)) t p)
 					| _ ->
@@ -2928,7 +2776,7 @@ and type_vars ctx vl p =
 			v,e
 		with
 			Error (e,p) ->
-				display_error ctx (error_msg e) p;
+				check_error ctx e p;
 				add_unbound_local ctx v t_dynamic pv, None
 	) vl in
 	match vl with
@@ -3042,14 +2890,13 @@ and type_block ctx el with_type p =
 		| [e] ->
 			(try
 				merge (type_expr ctx e with_type)
-			with
-				Error (e,p) -> display_error ctx (error_msg e) p; [])
+			with Error (e,p) -> check_error ctx e p; [])
 		| e :: l ->
 			try
 				let e = type_expr ctx e NoValue in
 				merge e @ loop l
 			with
-				Error (e,p) -> display_error ctx (error_msg e) p; loop l
+				Error (e,p) -> check_error ctx e p; loop l
 	in
 	let l = loop el in
 	let rec loop = function
@@ -3205,7 +3052,7 @@ and type_new ctx path el with_type p =
 		end
 	with Typeload.Generic_Exception _ ->
 		(* Try to infer generic parameters from the argument list (issue #2044) *)
-		match Typeload.resolve_typedef (Typeload.load_type_def ctx p (fst path)) with
+		match resolve_typedef (Typeload.load_type_def ctx p (fst path)) with
 		| TClassDecl ({cl_constructor = Some cf} as c) ->
 			let monos = List.map (fun _ -> mk_mono()) c.cl_params in
 			let ct, f = get_constructor ctx c monos p in
@@ -3986,7 +3833,7 @@ and handle_display ctx e_ast iscall with_type =
 		let pl = loop e in
 		raise (Display.DisplayPosition pl);
 	| DMToplevel ->
-		raise (Display.DisplayToplevel (ToplevelCollecter.run ctx))
+		raise (Display.DisplayToplevel (Display.ToplevelCollector.run ctx false))
 	| DMDefault | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
 		let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
 		let e,tl_overloads,doc = match e.eexpr with
@@ -5441,4 +5288,5 @@ cast_or_unify_ref := Codegen.AbstractCast.cast_or_unify_raise;
 type_module_type_ref := type_module_type;
 find_array_access_raise_ref := Codegen.AbstractCast.find_array_access_raise;
 build_call_ref := build_call;
-load_macro_ref := load_macro
+load_macro_ref := load_macro;
+merge_core_doc_ref := merge_core_doc
