@@ -116,6 +116,8 @@ extern class Type {
 	/**
 		Resolves an enum by name.
 
+		"On some targets external classes cannot be resolved"
+		
 		If `name` is the path of an existing enum, that enum is returned.
 
 		Otherwise null is returned.
