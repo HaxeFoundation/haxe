@@ -946,8 +946,7 @@ try
 			| "classes" ->
 				pre_compilation := (fun() -> raise (Parser.TypePath (["."],None,true))) :: !pre_compilation;
 			| "keywords" ->
-				let fields = Hashtbl.fold (fun k _ acc -> (k,"",None,"") :: acc) Lexer.keywords [] in
-				raise (Completion (Display.print_fields fields))
+				raise (Completion (Display.print_keywords ()))
 			| "memory" ->
 				did_something := true;
 				(try display_memory ctx with e -> prerr_endline (Printexc.get_backtrace ()));

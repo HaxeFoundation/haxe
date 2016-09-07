@@ -152,6 +152,15 @@ let htmlescape s =
 	let s = String.concat "&quot;" (ExtString.String.nsplit s "\"") in
 	s
 
+let print_keywords () =
+	let b = Buffer.create 0 in
+	Buffer.add_string b "<list>\n";
+	Hashtbl.iter (fun k _ ->
+		Buffer.add_string b (Printf.sprintf "<i n=\"%s\"></i>\n" k) 
+	) Lexer.keywords;
+	Buffer.add_string b "</list>\n";
+	Buffer.contents b
+
 let print_fields fields =
 	let b = Buffer.create 0 in
 	Buffer.add_string b "<list>\n";
