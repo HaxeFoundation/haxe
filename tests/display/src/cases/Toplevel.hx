@@ -81,7 +81,7 @@ class Toplevel extends DisplayTestCase {
 	/**
 	import {-1-}
 	**/
-	function testTypeCompletionArgumentImport() {
+	function testTypeCompletionImport() {
 		var typesCompletion = toplevel(pos(1));
 		eq(true, hasToplevel(typesCompletion, "type", "Array"));
 		eq(true, hasToplevel(typesCompletion, "package", "haxe"));
@@ -90,7 +90,7 @@ class Toplevel extends DisplayTestCase {
 	/**
 	using {-1-}
 	**/
-	function testTypeCompletionArgumentUsing() {
+	function testTypeCompletionUsing() {
 		var typesCompletion = toplevel(pos(1));
 		eq(true, hasToplevel(typesCompletion, "type", "Array"));
 		eq(true, hasToplevel(typesCompletion, "package", "haxe"));
@@ -99,7 +99,7 @@ class Toplevel extends DisplayTestCase {
 	/**
 	class C extends {-1-} {
 	**/
-	function testTypeCompletionArgumentExtends() {
+	function testTypeCompletionExtends() {
 		// TODO: this currently doesn't work if there's no token after extends
 		var typesCompletion = toplevel(pos(1));
 		eq(true, hasToplevel(typesCompletion, "type", "Array"));
@@ -109,8 +109,27 @@ class Toplevel extends DisplayTestCase {
 	/**
 	class C implements {-1-} {
 	**/
-	function testTypeCompletionArgumentImplements() {
+	function testTypeCompletionImplements() {
 		// TODO: this currently doesn't work if there's no token after implements
+		var typesCompletion = toplevel(pos(1));
+		eq(true, hasToplevel(typesCompletion, "type", "Array"));
+		eq(true, hasToplevel(typesCompletion, "package", "haxe"));
+	}
+
+	/**
+	typedef T = {a:{-1-}}
+	**/
+	function testTypeCompletionStructureField() {
+		// TODO: this currently doesn't work if there's no token after the completion position
+		var typesCompletion = toplevel(pos(1));
+		eq(true, hasToplevel(typesCompletion, "type", "Array"));
+		eq(true, hasToplevel(typesCompletion, "package", "haxe"));
+	}
+
+	/**
+	var a:{a:{-1-}
+	**/
+	@:funcCode function testTypeCompletionStructureFieldAsType() {
 		var typesCompletion = toplevel(pos(1));
 		eq(true, hasToplevel(typesCompletion, "type", "Array"));
 		eq(true, hasToplevel(typesCompletion, "package", "haxe"));
