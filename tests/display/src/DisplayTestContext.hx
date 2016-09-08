@@ -154,7 +154,8 @@ class DisplayTestContext {
 			p = Sys.getCwd() + p;
 		}
 		if (Sys.systemName() == "Windows") {
-			// on windows, haxe returns paths with backslashes
+			// on windows, haxe returns paths with backslashes, drive letter uppercased
+			p = p.substr(0, 1).toUpperCase() + p.substr(1);
 			p = p.replace("/", "\\");
 		}
 		return p;
