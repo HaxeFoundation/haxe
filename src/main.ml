@@ -207,9 +207,11 @@ let complete_type_path ctx p =
 		(error ctx ("No classes found in " ^ String.concat "." p) Ast.null_pos;
 		None)
 	else
-		let convert k f = (f,"",Some k,"") in
-		let packs = List.map (convert Display.FKPackage) packs in
-		let modules = List.map (convert Display.FKType) modules in
+		let packs = List.map (fun n -> n,Display.FKPackage,"") packs in
+		let modules = List.map (fun n ->
+			let c = mk_class null_module (p,n) null_pos null_pos in
+			n, (Display.FKType (TInst (c, []))), "" (* TODO: try loading the type and show proper info? *)
+		) modules in
 		Some (packs @ modules)
 
 (** raise field completion listing module sub-types and static fields *)
@@ -250,15 +252,13 @@ let complete_type_path_inner ctx p c cur_package is_import =
 				[]
 			else
 				List.map (fun t ->
-					let t = t_infos t in
-					(snd t.mt_path), "", Some Display.FKType, (Option.default "" t.mt_doc)
+					let infos = t_infos t in
+					(snd infos.mt_path), Display.FKType (type_of_module_type t), (Option.default "" infos.mt_doc)
 				) public_types
 		in
-		let ctx = print_context() in
 		let make_field_doc cf =
 			cf.cf_name,
-			s_type ctx cf.cf_type,
-			Some (match cf.cf_kind with Method _ -> Display.FKMethod | Var _ -> Display.FKVar),
+			(match cf.cf_kind with Method _ -> Display.FKMethod cf.cf_type | Var _ -> Display.FKVar cf.cf_type),
 			(match cf.cf_doc with Some s -> s | None -> "")
 		in
 		let fields = match !statics with
@@ -1233,7 +1233,7 @@ with
 		raise (Completion (String.concat "." pack))
 	| Display.DisplayFields fields ->
 		let fields = List.map (
-			fun (name,t,kind,doc) -> name, s_type (print_context()) t, kind, (Option.default "" doc)
+			fun (name,kind,doc) -> name, kind, (Option.default "" doc)
 		) fields in
 		let fields =
 			if !measure_times then begin
@@ -1252,7 +1252,7 @@ with
 	| Display.DisplayToplevel il ->
 		raise (Completion (Display.print_toplevel il))
 	| Parser.TypePath (p,c,is_import) ->
-		let fields = 
+		let fields =
 			match c with
 			| None ->
 				complete_type_path ctx p

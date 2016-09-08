@@ -6,11 +6,12 @@ open Typecore
 
 (* order of these variants affects output sorting *)
 type display_field_kind =
-	| FKVar
-	| FKMethod
-	| FKType
+	| FKVar of t
+	| FKMethod of t
+	| FKType of t
 	| FKPackage
 	| FKMetadata
+	| FKTimer of string
 
 exception Diagnostics of string
 exception Statistics of string
@@ -20,7 +21,7 @@ exception DisplaySignatures of (t * documentation) list
 exception DisplayType of t * pos
 exception DisplayPosition of Ast.pos list
 exception DisplaySubExpression of Ast.expr
-exception DisplayFields of (string * t * display_field_kind option * documentation) list
+exception DisplayFields of (string * display_field_kind * documentation) list
 exception DisplayToplevel of IdentifierType.t list
 exception DisplayPackage of string list
 
@@ -146,10 +147,10 @@ let display_enum_field dm ef p = match dm.dms_kind with
 let get_timer_fields start_time =
 	let tot = ref 0. in
 	Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
-	let fields = [("@TOTAL", Printf.sprintf "%.3fs" (get_time() -. start_time), None, "")] in
+	let fields = [("@TOTAL", FKTimer (Printf.sprintf "%.3fs" (get_time() -. start_time)), "")] in
 	if !tot > 0. then
 		Hashtbl.fold (fun _ t acc ->
-			("@TIME " ^ t.name, Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot), None, "") :: acc
+			("@TIME " ^ t.name, FKTimer (Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot)), "") :: acc
 		) Common.htimers fields
 	else
 		fields
@@ -167,7 +168,7 @@ let print_keywords () =
 	let b = Buffer.create 0 in
 	Buffer.add_string b "<list>\n";
 	Hashtbl.iter (fun k _ ->
-		Buffer.add_string b (Printf.sprintf "<i n=\"%s\"></i>\n" k) 
+		Buffer.add_string b (Printf.sprintf "<i n=\"%s\"></i>\n" k)
 	) Lexer.keywords;
 	Buffer.add_string b "</list>\n";
 	Buffer.contents b
@@ -175,18 +176,17 @@ let print_keywords () =
 let print_fields fields =
 	let b = Buffer.create 0 in
 	Buffer.add_string b "<list>\n";
-	List.iter (fun (n,t,k,d) ->
-		let s_kind = match k with
-			| Some k -> (match k with
-				| FKVar -> "var"
-				| FKMethod -> "method"
-				| FKType -> "type"
-				| FKPackage -> "package"
-				| FKMetadata -> "metadata")
-			| None -> ""
+	List.iter (fun (n,k,d) ->
+		let s_kind, t = match k with
+			| FKVar t -> "var", s_type (print_context()) t
+			| FKMethod t -> "method", s_type (print_context()) t
+			| FKType t -> "type", s_type (print_context()) t
+			| FKPackage -> "package", ""
+			| FKMetadata -> "metadata", ""
+			| FKTimer s -> "", s
 		in
 		Buffer.add_string b (Printf.sprintf "<i n=\"%s\" k=\"%s\"><t>%s</t><d>%s</d></i>\n" n s_kind (htmlescape t) (htmlescape d))
-	) (List.sort (fun (a,_,ak,_) (b,_,bk,_) -> compare (ak,a) (bk,b)) fields);
+	) (List.sort (fun (a,ak,_) (b,bk,_) -> compare (ak,a) (bk,b)) fields);
 	Buffer.add_string b "</list>\n";
 	Buffer.contents b
 
