@@ -1032,14 +1032,14 @@ and parse_class_field s =
 				let t = popt parse_type_hint_with_pos s in
 				let e , p2 = (match s with parser
 				| [< '(Binop OpAssign,_); e = toplevel_expr; p2 = semicolon >] -> Some e , p2
-				| [< '(Semicolon,p2) >] -> None , p2
+				| [< p2 = semicolon >] -> None , p2
 				| [< >] -> serror()
 				) in
 				name, punion p1 p2, FProp (i1,i2,t, e)
 			| [< t = popt parse_type_hint_with_pos; s >] ->
 				let e , p2 = (match s with parser
 				| [< '(Binop OpAssign,_); e = toplevel_expr; p2 = semicolon >] -> Some e , p2
-				| [< '(Semicolon,p2) >] -> None , p2
+				| [< p2 = semicolon >] -> None , p2
 				| [< >] -> serror()
 				) in
 				name, punion p1 p2, FVar (t,e))
@@ -1048,7 +1048,7 @@ and parse_class_field s =
 				| [< e = toplevel_expr; s >] ->
 					(try ignore(semicolon s) with Error (Missing_semicolon,p) -> !display_error Missing_semicolon p);
 					Some e, pos e
-				| [< '(Semicolon,p) >] -> None, p
+				| [< p = semicolon >] -> None, p
 				| [< >] -> serror()
 			) in
 			let f = {
