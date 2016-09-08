@@ -4,14 +4,23 @@ open Common.DisplayMode
 open Type
 open Typecore
 
-(* order of these variants affects output sorting *)
 type display_field_kind =
 	| FKVar of t
 	| FKMethod of t
 	| FKType of t
+	| FKModule
 	| FKPackage
 	| FKMetadata
 	| FKTimer of string
+
+let display_field_kind_index = function
+	| FKVar _ -> 0
+	| FKMethod _ -> 1
+	| FKType _ -> 2
+	| FKModule -> 3
+	| FKPackage -> 4
+	| FKMetadata -> 5
+	| FKTimer _ -> 6
 
 exception Diagnostics of string
 exception Statistics of string
@@ -182,11 +191,12 @@ let print_fields fields =
 			| FKMethod t -> "method", s_type (print_context()) t
 			| FKType t -> "type", s_type (print_context()) t
 			| FKPackage -> "package", ""
+			| FKModule -> "type", ""
 			| FKMetadata -> "metadata", ""
 			| FKTimer s -> "", s
 		in
 		Buffer.add_string b (Printf.sprintf "<i n=\"%s\" k=\"%s\"><t>%s</t><d>%s</d></i>\n" n s_kind (htmlescape t) (htmlescape d))
-	) (List.sort (fun (a,ak,_) (b,bk,_) -> compare (ak,a) (bk,b)) fields);
+	) (List.sort (fun (a,ak,_) (b,bk,_) -> compare (display_field_kind_index ak,a) (display_field_kind_index bk,b)) fields);
 	Buffer.add_string b "</list>\n";
 	Buffer.contents b
 

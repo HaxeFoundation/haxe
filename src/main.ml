@@ -208,10 +208,7 @@ let complete_type_path ctx p =
 		None)
 	else
 		let packs = List.map (fun n -> n,Display.FKPackage,"") packs in
-		let modules = List.map (fun n ->
-			let c = mk_class null_module (p,n) null_pos null_pos in
-			n, (Display.FKType (TInst (c, []))), "" (* TODO: try loading the type and show proper info? *)
-		) modules in
+		let modules = List.map (fun n -> n,Display.FKModule,"") modules in
 		Some (packs @ modules)
 
 (** raise field completion listing module sub-types and static fields *)
@@ -253,7 +250,7 @@ let complete_type_path_inner ctx p c cur_package is_import =
 			else
 				List.map (fun t ->
 					let infos = t_infos t in
-					(snd infos.mt_path), Display.FKType (type_of_module_type t), (Option.default "" infos.mt_doc)
+					(snd infos.mt_path), Display.FKModule, (Option.default "" infos.mt_doc)
 				) public_types
 		in
 		let make_field_doc cf =
