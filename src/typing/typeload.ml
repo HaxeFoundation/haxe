@@ -2962,7 +2962,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				ctx.m.wildcard_packages <- (List.map fst pack,p) :: ctx.m.wildcard_packages
 			| _ ->
 				(match List.rev path with
-				| [] -> assert false
+				| [] -> raise (Display.DisplayToplevel (Display.ToplevelCollector.run ctx true));
 				| (_,p) :: _ -> error "Module name must start with an uppercase letter" p))
 		| (tname,p2) :: rest ->
 			let p1 = (match pack with [] -> p2 | (_,p1) :: _ -> p1) in
@@ -3071,7 +3071,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			| (s1,_) :: sl ->
 				{ tpackage = List.rev (List.map fst sl); tname = s1; tsub = None; tparams = [] }
 			| [] ->
-				assert false
+				raise (Display.DisplayToplevel (Display.ToplevelCollector.run ctx true));
 		in
 		(* do the import first *)
 		let types = (match t.tsub with

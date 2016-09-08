@@ -88,9 +88,12 @@ let type_path sl in_import = match sl with
 	| n :: l when n.[0] >= 'A' && n.[0] <= 'Z' -> raise (TypePath (List.rev l,Some (n,false),in_import));
 	| _ -> raise (TypePath (List.rev sl,None,in_import))
 
+let is_resuming_file file =
+	Path.unique_full_path file = !resume_display.pfile
+
 let is_resuming p =
 	let p2 = !resume_display in
-	p.pmax = p2.pmin && Path.unique_full_path p.pfile = p2.pfile
+	p.pmax = p2.pmin && is_resuming_file p.pfile
 
 let set_resume p =
 	resume_display := { p with pfile = Path.unique_full_path p.pfile }
@@ -583,6 +586,13 @@ let semicolon s =
 			let pos = snd (last_token s) in
 			if do_resume() then pos else error Missing_semicolon pos
 
+let would_skip_resume p1 s =
+	match Stream.npeek 1 s with
+	| [ (_,p2) ] ->
+		is_resuming_file p2.pfile && p1.pmax < !resume_display.pmin && p2.pmin >= !resume_display.pmax
+	| _ ->
+		false
+
 let rec	parse_file s =
 	last_doc := None;
 	match s with parser
@@ -704,7 +714,7 @@ and parse_import s p1 =
 	in
 	let p2, path, mode = (match s with parser
 		| [< '(Const (Ident name),p) >] -> loop [name,p]
-		| [< >] -> serror()
+		| [< >] -> if would_skip_resume p1 s then p1, [], INormal else serror()
 	) in
 	(EImport (path,mode),punion p1 p2)
 
@@ -727,7 +737,7 @@ and parse_using s p1 =
 	in
 	let p2, path = (match s with parser
 		| [< '(Const (Ident name),p) >] -> loop [name,p]
-		| [< >] -> serror()
+		| [< >] -> if would_skip_resume p1 s then p1, [] else serror()
 	) in
 	(EUsing path,punion p1 p2)
 
@@ -1122,9 +1132,13 @@ and parse_constraint_param = parser
 			tp_meta = meta;
 		}
 
+and parse_type_path_or_resume p1 s = match s with parser
+	| [< t = parse_type_path >] -> t
+	| [< >] -> if would_skip_resume p1 s then { tpackage = []; tname = ""; tparams = []; tsub = None },null_pos else raise Stream.Failure
+
 and parse_class_herit = parser
-	| [< '(Kwd Extends,_); t = parse_type_path >] -> HExtends t
-	| [< '(Kwd Implements,_); t = parse_type_path >] -> HImplements t
+	| [< '(Kwd Extends,p1); t = parse_type_path_or_resume p1 >] -> HExtends t
+	| [< '(Kwd Implements,p1); t = parse_type_path_or_resume p1 >] -> HImplements t
 
 and block1 = parser
 	| [< name,p = dollar_ident; s >] -> block2 name (Ident name) p s
