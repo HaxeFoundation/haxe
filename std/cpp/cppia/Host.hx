@@ -22,7 +22,6 @@
  package cpp.cppia;
 
 
-@:build(cpp.cppia.HostClasses.include())
 class Host
 {
    public static function run(source:String)

@@ -23,11 +23,13 @@ package cpp.cppia;
 
 
 @:native("hx::CppiaLoadedModule")
+@:build(cpp.cppia.HostClasses.include())
 extern class Module
 {
    @:native("__scriptable_cppia_from_string")
    public static function fromString(sourceCode:String) : Module;
    public function boot():Void;
    public function run():Void;
+   public function resolveClass(inName:String):Class<Dynamic>;
 }
 
