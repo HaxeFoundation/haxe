@@ -1322,11 +1322,17 @@ and expr = parser
 			| [< >] -> serror())
 		| [< e = secure_expr >] -> expr_next (ECast (e,None),punion p1 (pos e)) s)
 	| [< '(Kwd Throw,p); e = expr >] -> (EThrow e,p)
-	| [< '(Kwd New,p1); t = parse_type_path; '(POpen,p); s >] ->
-		if is_resuming p then display (EDisplayNew t,punion p1 p);
-		(match s with parser
-		| [< al = psep Comma expr; '(PClose,p2); s >] -> expr_next (ENew (t,al),punion p1 p2) s
-		| [< >] -> serror())
+	| [< '(Kwd New,p1); t = parse_type_path; s >] ->
+		begin match s with parser
+		| [< '(POpen,p) >] ->
+			if is_resuming p then display (EDisplayNew t,punion p1 p);
+			(match s with parser
+			| [< al = psep Comma expr; '(PClose,p2); s >] -> expr_next (ENew (t,al),punion p1 p2) s
+			| [< >] -> serror())
+		| [< >] ->
+			if do_resume() then (ENew(t,[]),punion p1 (pos t))
+			else serror()
+		end
 	| [< '(POpen,p1); e = expr; s >] -> (match s with parser
 		| [< '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
 		| [< t,pt = parse_type_hint_with_pos; '(PClose,p2); s >] -> expr_next (EParenthesis (ECheckType(e,(t,pt)),punion p1 p2), punion p1 p2) s
