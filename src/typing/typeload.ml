@@ -2142,10 +2142,13 @@ module ClassInitializer = struct
 			| TMono r -> (match !r with None -> false | Some t -> is_full_type t)
 			| TAbstract _ | TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
 		in
+		let force_macro () =
+			(* force macro system loading of this class in order to get completion *)
+			delay ctx PTypeField (fun() -> try ignore(ctx.g.do_macro ctx MDisplay c.cl_path cf.cf_name [] p) with Exit | Error _ -> ())
+		in
 		let handle_display_field () =
 			if fctx.is_macro && not ctx.in_macro then
-				(* force macro system loading of this class in order to get completion *)
-				delay ctx PTypeField (fun() -> try ignore(ctx.g.do_macro ctx MDisplay c.cl_path cf.cf_name [] p) with Exit | Error _ -> ())
+				force_macro()
 			else begin
 				cf.cf_type <- TLazy r;
 				cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
@@ -2159,8 +2162,8 @@ module ClassInitializer = struct
 				(* is_lib ? *)
 				cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
 			end
-		end else if ctx.com.display.dms_force_macro_typing then
-			handle_display_field()
+		end else if ctx.com.display.dms_force_macro_typing && fctx.is_macro && not ctx.in_macro then
+			force_macro()
 		else begin
 			if fctx.is_display_field then begin
 				handle_display_field()

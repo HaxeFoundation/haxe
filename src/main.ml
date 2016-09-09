@@ -1157,9 +1157,9 @@ try
 		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath Ast.null_pos)) (List.rev !classes);
 		Typer.finalize tctx;
 		t();
-		if ctx.has_error then raise Abort;
+		if not ctx.com.display.dms_display && ctx.has_error then raise Abort;
 		if ctx.com.display.dms_exit_during_typing then begin
-			if ctx.has_next then raise Abort;
+			if ctx.has_next || ctx.has_error then raise Abort;
 			failwith "No completion point was found";
 		end;
 		let t = Common.timer "filters" in
