@@ -3757,16 +3757,17 @@ and display_expr ctx e_ast e iscall with_type p =
 	| DMResolve _ | DMPackage ->
 		assert false
 	| DMType ->
-		let t = match e.eexpr with
+		let rec loop e = match e.eexpr with
 			| TVar(v,_) -> v.v_type
 			| TCall({eexpr = TConst TSuper; etype = t},_) -> t
 			| TNew({cl_kind = KAbstractImpl a},tl,_) -> TType(abstract_module_type a tl,[])
 			| TNew(c,tl,_) -> TInst(c,tl)
 			| TTypeExpr (TClassDecl {cl_kind = KAbstractImpl a}) -> TType(abstract_module_type a (List.map snd a.a_params),[])
 			| TField(e1,FDynamic "bind") when (match follow e1.etype with TFun _ -> true | _ -> false) -> e1.etype
+			| TReturn (Some e1) -> loop e1 (* No point in letting the internal Dynamic surface (issue #5655) *)
 			| _ -> e.etype
 		in
-		raise (Display.DisplayType (t,p))
+		raise (Display.DisplayType (loop e,p))
 	| DMUsage _ ->
 		let rec loop e = match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->
