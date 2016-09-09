@@ -4233,8 +4233,12 @@ let decode_import_mode t =
 
 let decode_import t = (List.map (fun o -> ((dec_string (field o "name")), (decode_pos (field o "pos")))) (dec_array (field t "path")), decode_import_mode (field t "mode"))
 
+let maybe_decode_pos v = match v with
+	| VAbstract (APos p) -> p
+	| _ -> null_pos
+
 let decode_placed_name vp v =
-	dec_string v,(match vp with VAbstract (APos p) -> p | _ -> null_pos)
+	dec_string v,maybe_decode_pos vp
 
 let rec decode_path t =
 	{
@@ -4383,7 +4387,7 @@ let rec decode_expr v =
 			ESwitch (loop e,cases,opt decode_null_expr eo)
 		| 18, [e;catches] ->
 			let catches = List.map (fun c ->
-				((decode_placed_name (field c "name_pos") (field c "name")),(decode_ctype (field c "type")),loop (field c "expr"),decode_pos (field c "pos"))
+				((decode_placed_name (field c "name_pos") (field c "name")),(decode_ctype (field c "type")),loop (field c "expr"),maybe_decode_pos (field c "pos"))
 			) (dec_array catches) in
 			ETry (loop e, catches)
 		| 19, [e] ->
