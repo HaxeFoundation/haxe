@@ -104,19 +104,22 @@ let find_before_pos com e =
 	in
 	map e
 
-let display_type dm t p =
-	try
-		let mt = module_type_of_type t in
-		begin match dm.dms_kind with
-			| DMPosition -> raise (DisplayPosition [(t_infos mt).mt_pos]);
-			| DMUsage _ ->
-				let ti = t_infos mt in
-				ti.mt_meta <- (Meta.Usage,[],ti.mt_pos) :: ti.mt_meta
-			| DMType -> raise (DisplayType (t,p))
+let display_module_type dm mt p = match dm.dms_kind with
+	| DMPosition -> raise (DisplayPosition [(t_infos mt).mt_pos]);
+	| DMUsage _ ->
+		let ti = t_infos mt in
+		ti.mt_meta <- (Meta.Usage,[],ti.mt_pos) :: ti.mt_meta
+	| DMType -> raise (DisplayType (type_of_module_type mt,p))
+	| _ -> ()
+
+let rec display_type dm t p = match dm.dms_kind with
+	| DMType -> raise (DisplayType (t,p))
+	| _ ->
+		try display_module_type dm (module_type_of_type t) p
+		with Exit -> match follow t,follow !t_dynamic_def with
+			| _,TDynamic _ -> () (* sanity check in case it's still t_dynamic *)
+			| TDynamic _,_ -> display_type dm !t_dynamic_def p
 			| _ -> ()
-		end
-	with Exit ->
-		()
 
 let check_display_type ctx t p =
 	let add_type_hint () =
@@ -130,9 +133,6 @@ let check_display_type ctx t p =
 	| DMStatistics -> add_type_hint()
 	| DMUsage _ -> add_type_hint(); maybe_display_type()
 	| _ -> maybe_display_type()
-
-let display_module_type dm mt =
-	display_type dm (type_of_module_type mt)
 
 let display_variable dm v p = match dm.dms_kind with
 	| DMPosition -> raise (DisplayPosition [v.v_pos])

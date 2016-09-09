@@ -454,7 +454,7 @@ let rec load_instance ?(allow_display=false) ctx (t,pn) allow_no_params p =
 		end else if path = ([],"Dynamic") then
 			match t.tparams with
 			| [] -> t_dynamic
-			| [TPType t] -> TDynamic (load_complex_type ctx false p t)
+			| [TPType t] -> TDynamic (load_complex_type ctx true p t)
 			| _ -> error "Too many parameters for Dynamic" p
 		else begin
 			if not is_rest && ctx.com.display.dms_error_policy <> EPIgnore && List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p;

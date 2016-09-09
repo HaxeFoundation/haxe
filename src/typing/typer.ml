@@ -5234,6 +5234,7 @@ let rec create com =
 			| "Float" -> ctx.t.tfloat <- TAbstract (a,[]);
 			| "Int" -> ctx.t.tint <- TAbstract (a,[])
 			| "Bool" -> ctx.t.tbool <- TAbstract (a,[])
+			| "Dynamic" -> t_dynamic_def := TAbstract(a,List.map snd a.a_params);
 			| _ -> ());
 		| TEnumDecl e ->
 			()
