@@ -135,6 +135,7 @@ and error_msg =
 	| Unknown_ident of string
 	| Stack of error_msg * error_msg
 	| Call_error of call_error
+	| No_constructor of module_type
 
 exception Fatal_error of string * Ast.pos
 
@@ -215,6 +216,7 @@ let rec error_msg = function
 	| Custom s -> s
 	| Stack (m1,m2) -> error_msg m1 ^ "\n" ^ error_msg m2
 	| Call_error err -> s_call_error err
+	| No_constructor mt -> (Ast.s_type_path (t_infos mt).mt_path ^ " does not have a constructor")
 
 and s_call_error = function
 	| Not_enough_arguments tl ->
@@ -237,6 +239,8 @@ let display_error ctx msg p = match ctx.com.display.DisplayMode.dms_error_policy
 	| DisplayMode.EPCollect -> add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsSeverity.Error
 
 let error msg p = raise (Error (Custom msg,p))
+
+let raise_error err p = raise (Error(err,p))
 
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 

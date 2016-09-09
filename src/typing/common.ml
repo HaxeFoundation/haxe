@@ -119,7 +119,6 @@ module DisplayMode = struct
 		dms_full_typing : bool;
 		dms_force_macro_typing : bool;
 		dms_error_policy : error_policy;
-		dms_is_diagnostics_run : bool;
 		dms_collect_data : bool;
 		dms_check_core_api : bool;
 		dms_inline : bool;
@@ -133,7 +132,6 @@ module DisplayMode = struct
 		dms_full_typing = false;
 		dms_force_macro_typing = false;
 		dms_error_policy = EPIgnore;
-		dms_is_diagnostics_run = false;
 		dms_collect_data = false;
 		dms_check_core_api = false;
 		dms_inline = false;
@@ -147,7 +145,6 @@ module DisplayMode = struct
 		dms_full_typing = true;
 		dms_force_macro_typing = true;
 		dms_error_policy = EPShow;
-		dms_is_diagnostics_run = false;
 		dms_collect_data = false;
 		dms_check_core_api = true;
 		dms_inline = true;
@@ -175,7 +172,6 @@ module DisplayMode = struct
 		| DMDiagnostics global -> { settings with
 				dms_full_typing = true;
 				dms_error_policy = EPCollect;
-				dms_is_diagnostics_run = true;
 				dms_collect_data = true;
 				dms_inline = false;
 				dms_display_file_policy = if global then DFPNo else DFPAlso;

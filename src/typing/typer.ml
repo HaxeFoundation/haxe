@@ -818,11 +818,11 @@ let type_type ctx tpath p =
 let get_constructor ctx c params p =
 	match c.cl_kind with
 	| KAbstractImpl a ->
-		let f = (try PMap.find "_new" c.cl_statics with Not_found -> error (s_type_path a.a_path ^ " does not have a constructor") p) in
+		let f = (try PMap.find "_new" c.cl_statics with Not_found -> raise_error (No_constructor (TAbstractDecl a)) p) in
 		let ct = field_type ctx c params f p in
 		apply_params a.a_params params ct, f
 	| _ ->
-		let ct, f = (try Type.get_constructor (fun f -> field_type ctx c params f p) c with Not_found -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
+		let ct, f = (try Type.get_constructor (fun f -> field_type ctx c params f p) c with Not_found -> raise_error (No_constructor (TClassDecl c)) p) in
 		apply_params c.cl_params params ct, f
 
 let make_call ctx e params t p =
@@ -3043,7 +3043,7 @@ and type_new ctx path el with_type p =
 	Display.check_display_type ctx t (pos path);
 	let build_constructor_call c tl =
 		let ct, f = get_constructor ctx c tl p in
-		if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (s_type_path c.cl_path ^ " does not have a constructor") p;
+		if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
 		if not (can_access ctx c f true || is_parent c ctx.curclass) && not ctx.untyped then display_error ctx "Cannot access private constructor" p;
 		(match f.cf_kind with
 		| Var { v_read = AccRequire (r,msg) } -> (match msg with Some msg -> error msg p | None -> error_require r p)
@@ -3051,7 +3051,7 @@ and type_new ctx path el with_type p =
 		let el = unify_constructor_call c tl f ct in
 		el,f,ct
 	in
-	(match t with
+	try begin match t with
 	| TInst ({cl_kind = KTypeParameter tl} as c,params) ->
 		if not (Typeload.is_generic_parameter ctx c) then error "Only generic type parameters can be constructed" p;
 		let el = List.map (fun e -> type_expr ctx e Value) el in
@@ -3067,7 +3067,7 @@ and type_new ctx path el with_type p =
 			| TInst({cl_kind = KTypeParameter tl},_) -> List.exists loop tl
 			| _ -> false
 		in
-		if not (List.exists loop tl) then error (s_type_path c.cl_path ^ " does not have a constructor") p;
+		if not (List.exists loop tl) then raise_error (No_constructor (TClassDecl c)) p;
 		mk (TNew (c,params,el)) t p
 	| TAbstract({a_impl = Some c} as a,tl) when not (Meta.has Meta.MultiType a.a_meta) ->
 		let el,cf,ct = build_constructor_call c tl in
@@ -3079,7 +3079,10 @@ and type_new ctx path el with_type p =
 		let el,_,_ = build_constructor_call c params in
 		mk (TNew (c,params,el)) t p
 	| _ ->
-		error (s_type (print_context()) t ^ " cannot be constructed") p)
+		error (s_type (print_context()) t ^ " cannot be constructed") p
+	end with Error(No_constructor _ as err,p) when ctx.com.display.dms_display ->
+		display_error ctx (error_msg err) p;
+		Display.Diagnostics.secure_generated_code ctx (mk (TConst TNull) t p)
 
 and type_try ctx e1 catches with_type p =
 	let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
@@ -4089,7 +4092,7 @@ and type_call ctx e el (with_type:with_type) p =
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
 			let ct, f = get_constructor ctx c params p in
-			if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (s_type_path c.cl_path ^ " does not have a constructor") p;
+			if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
 			let el = (match follow ct with
 			| TFun (args,r) ->
 				let el,_,_ = unify_field_call ctx (FInstance(c,params,f)) el args r p false in
@@ -4199,7 +4202,7 @@ and build_call ctx acc el (with_type:with_type) p =
 			!ethis_f();
 			raise (Fatal_error ((error_msg m),p))
 		in
-		let e = if ctx.com.display.DisplayMode.dms_is_diagnostics_run then mk (TMeta((Meta.Extern,[],e.epos),e)) e.etype e.epos else e in
+		let e = Display.Diagnostics.secure_generated_code ctx e in
 		ctx.on_error <- old;
 		!ethis_f();
 		e

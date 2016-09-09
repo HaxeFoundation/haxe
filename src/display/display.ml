@@ -641,6 +641,9 @@ module Diagnostics = struct
 		| DMDiagnostics true -> true
 		| DMDiagnostics false -> ctx.is_display_file
 		| _ -> false
+
+	let secure_generated_code ctx e =
+		if is_diagnostics_run ctx then mk (TMeta((Meta.Extern,[],e.epos),e)) e.etype e.epos else e
 end
 
 let maybe_mark_import_position ctx p =
