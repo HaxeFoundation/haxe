@@ -2467,46 +2467,6 @@ and type_unop ctx op flag e p =
 	in
 	loop acc
 
-and type_switch_old ctx e cases def with_type p =
-	let eval = type_expr ctx e Value in
-	let el = ref [] in
-	let type_case_code e =
-		let e = (match e with
-			| Some e -> type_expr ctx e with_type
-			| None -> mk (TBlock []) ctx.com.basic.tvoid Ast.null_pos
-		) in
-		el := e :: !el;
-		e
-	in
-	let consts = Hashtbl.create 0 in
-	let exprs (el,_,e) =
-		let el = List.map (fun e ->
-			match type_expr ctx e (WithType eval.etype) with
-			| { eexpr = TConst c } as e ->
-				if Hashtbl.mem consts c then error "Duplicate constant in switch" e.epos;
-				Hashtbl.add consts c true;
-				e
-			| e ->
-				e
-		) el in
-		let locals = save_locals ctx in
-		let e = type_case_code e in
-		locals();
-		el, e
-	in
-	let cases = List.map exprs cases in
-	let def() = (match def with
-		| None -> None
-		| Some e ->
-			let locals = save_locals ctx in
-			let e = type_case_code e in
-			locals();
-			Some e
-	) in
-	let def = def() in
-	let t = if with_type = NoValue then (mk_mono()) else unify_min ctx (List.rev !el) in
-	mk (TSwitch (eval,cases,def)) t p
-
 and type_ident ctx i p mode =
 	try
 		type_ident_raise ctx i p mode
@@ -3556,13 +3516,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let cond = Codegen.AbstractCast.cast_or_unify ctx ctx.t.tbool cond cond.epos in
 		mk (TWhile (cond,e,DoWhile)) ctx.t.tvoid p
 	| ESwitch (e1,cases,def) ->
-		begin try
-			let wrap e1 = mk (TMeta((Meta.Ast,[e,p],p),e1)) e1.etype e1.epos in
-			let e = match_expr ctx e1 cases def with_type p in
-			wrap e
-		with Exit ->
-			type_switch_old ctx e1 cases def with_type p
-		end
+		let wrap e1 = mk (TMeta((Meta.Ast,[e,p],p),e1)) e1.etype e1.epos in
+		let e = match_expr ctx e1 cases def with_type p in
+		wrap e
 	| EReturn e ->
 		begin match e with
 			| None ->
@@ -4111,7 +4067,7 @@ and type_call ctx e el (with_type:with_type) p =
 		let et = type_expr ctx e Value in
 		(match follow et.etype with
 			| TEnum _ ->
-				let e = match_expr ctx e [[epat],None,Some (EConst(Ident "true"),p)] (Some (Some (EConst(Ident "false"),p))) (WithType ctx.t.tbool) p in
+				let e = match_expr ctx e [[epat],None,Some (EConst(Ident "true"),p),p] (Some (Some (EConst(Ident "false"),p),p)) (WithType ctx.t.tbool) p in
 				(* TODO: add that back *)
 (* 				let locals = !get_pattern_locals_ref ctx epat t in
 				PMap.iter (fun _ (_,p) -> display_error ctx "Capture variables are not allowed" p) locals; *)

@@ -4074,13 +4074,14 @@ and encode_expr e =
 			| EWhile (econd,e,flag) ->
 				16, [loop econd;loop e;VBool (match flag with NormalWhile -> true | DoWhile -> false)]
 			| ESwitch (e,cases,eopt) ->
-				17, [loop e;enc_array (List.map (fun (ecl,eg,e) ->
+				17, [loop e;enc_array (List.map (fun (ecl,eg,e,p) ->
 					enc_obj [
 						"values",enc_array (List.map loop ecl);
 						"guard",null loop eg;
-						"expr",null loop e
+						"expr",null loop e;
+						"pos",encode_pos p;
 					]
-				) cases);null encode_null_expr eopt]
+				) cases);null (fun (e,_) -> encode_null_expr e) eopt]
 			| ETry (e,catches) ->
 				18, [loop e;enc_array (List.map (fun (v,t,e,p) ->
 					enc_obj [
@@ -4382,9 +4383,9 @@ let rec decode_expr v =
 			EWhile (loop e1,loop e2,if flag then NormalWhile else DoWhile)
 		| 17, [e;cases;eo] ->
 			let cases = List.map (fun c ->
-				(List.map loop (dec_array (field c "values")),opt loop (field c "guard"),opt loop (field c "expr"))
+				(List.map loop (dec_array (field c "values")),opt loop (field c "guard"),opt loop (field c "expr"),maybe_decode_pos (field c "pos"))
 			) (dec_array cases) in
-			ESwitch (loop e,cases,opt decode_null_expr eo)
+			ESwitch (loop e,cases,opt (fun v -> decode_null_expr v,null_pos) eo)
 		| 18, [e;catches] ->
 			let catches = List.map (fun c ->
 				((decode_placed_name (field c "name_pos") (field c "name")),(decode_ctype (field c "type")),loop (field c "expr"),maybe_decode_pos (field c "pos"))

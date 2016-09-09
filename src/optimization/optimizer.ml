@@ -1713,9 +1713,9 @@ let optimize_completion_expr e =
 			map e
 		| ESwitch (e,cases,def) ->
 			let e = loop e in
-			let cases = List.map (fun (el,eg,eo) -> match eo with
+			let cases = List.map (fun (el,eg,eo,p) -> match eo with
 				| None ->
-					el,eg,eo
+					el,eg,eo,p
 				| Some e ->
 					let el = List.map loop el in
 					let old = save() in
@@ -1731,12 +1731,12 @@ let optimize_completion_expr e =
 					) el;
 					let e = loop e in
 					old();
-					el, eg, Some e
+					el, eg, Some e, p
 			) cases in
 			let def = match def with
 				| None -> None
-				| Some None -> Some None
-				| Some (Some e) -> Some (Some (loop e))
+				| Some (None,p) -> Some (None,p)
+				| Some (Some e,p) -> Some (Some (loop e),p)
 			in
 			(ESwitch (e,cases,def),p)
 		| ETry (et,cl) ->

@@ -368,7 +368,7 @@ and expr_def =
 	| EIn of expr * expr
 	| EIf of expr * expr * expr option
 	| EWhile of expr * expr * while_flag
-	| ESwitch of expr * (expr list * expr option * expr option) list * expr option option
+	| ESwitch of expr * (expr list * expr option * expr option * pos) list * (expr option * pos) option
 	| ETry of expr * (placed_name * type_hint * expr * pos) list
 	| EReturn of expr option
 	| EBreak
@@ -757,7 +757,7 @@ let map_expr loop (e,p) =
 	| EIn (e1,e2) -> EIn (loop e1, loop e2)
 	| EIf (e,e1,e2) -> EIf (loop e, loop e1, opt loop e2)
 	| EWhile (econd,e,f) -> EWhile (loop econd, loop e, f)
-	| ESwitch (e,cases,def) -> ESwitch (loop e, List.map (fun (el,eg,e) -> List.map loop el, opt loop eg, opt loop e) cases, opt (opt loop) def)
+	| ESwitch (e,cases,def) -> ESwitch (loop e, List.map (fun (el,eg,e,p) -> List.map loop el, opt loop eg, opt loop e, p) cases, opt (fun (eo,p) -> opt loop eo,p) def)
 	| ETry (e,catches) -> ETry (loop e, List.map (fun (n,t,e,p) -> n,type_hint t,loop e,p) catches)
 	| EReturn e -> EReturn (opt loop e)
 	| EBreak -> EBreak
@@ -790,12 +790,12 @@ let iter_expr loop (e,p) =
 		List.iter (fun (_,_,e,_) -> loop e) catches
 	| ESwitch(e1,cases,def) ->
 		loop e1;
-		List.iter (fun (el,eg,e) ->
+		List.iter (fun (el,eg,e,_) ->
 			exprs el;
 			opt eg;
 			opt e;
 		) cases;
-		(match def with None -> () | Some e -> opt e);
+		(match def with None -> () | Some (e,_) -> opt e);
 	| EFunction(_,f) ->
 		List.iter (fun (_,_,_,_,eo) -> opt eo) f.f_args;
 		opt f.f_expr
@@ -827,7 +827,7 @@ let s_expr e =
 		| EWhile (econd,e,NormalWhile) -> "while (" ^ s_expr_inner tabs econd ^ ") " ^ s_expr_inner tabs e
 		| EWhile (econd,e,DoWhile) -> "do " ^ s_expr_inner tabs e ^ " while (" ^ s_expr_inner tabs econd ^ ")"
 		| ESwitch (e,cases,def) -> "switch " ^ s_expr_inner tabs e ^ " {\n\t" ^ tabs ^ String.concat ("\n\t" ^ tabs) (List.map (s_case tabs) cases) ^
-			(match def with None -> "" | Some def -> "\n\t" ^ tabs ^ "default:" ^
+			(match def with None -> "" | Some (def,_) -> "\n\t" ^ tabs ^ "default:" ^
 			(match def with None -> "" | Some def -> s_expr_omit_block tabs def)) ^ "\n" ^ tabs ^ "}"
 		| ETry (e,catches) -> "try " ^ s_expr_inner tabs e ^ String.concat "" (List.map (s_catch tabs) catches)
 		| EReturn e -> "return" ^ s_opt_expr tabs e " "
@@ -899,7 +899,7 @@ let s_expr e =
 		if o then "?" else "" ^ n ^ s_opt_type_hint tabs t ":" ^ s_opt_expr tabs e " = "
 	and s_var tabs ((n,_),t,e) =
 		n ^ (s_opt_type_hint tabs t ":") ^ s_opt_expr tabs e " = "
-	and s_case tabs (el,e1,e2) =
+	and s_case tabs (el,e1,e2,_) =
 		"case " ^ s_expr_list tabs el ", " ^
 		(match e1 with None -> ":" | Some e -> " if (" ^ s_expr_inner tabs e ^ "):") ^
 		(match e2 with None -> "" | Some e -> s_expr_omit_block tabs e)

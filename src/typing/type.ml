@@ -2534,9 +2534,9 @@ module TExprToExpr = struct
 		| TWhile (e1,e2,flag) -> EWhile (convert_expr e1, convert_expr e2, flag)
 		| TSwitch (e,cases,def) ->
 			let cases = List.map (fun (vl,e) ->
-				List.map convert_expr vl,None,(match e.eexpr with TBlock [] -> None | _ -> Some (convert_expr e))
+				List.map convert_expr vl,None,(match e.eexpr with TBlock [] -> None | _ -> Some (convert_expr e)),e.epos
 			) cases in
-			let def = match eopt def with None -> None | Some (EBlock [],_) -> Some None | e -> Some e in
+			let def = match eopt def with None -> None | Some (EBlock [],_) -> Some (None,null_pos) | Some e -> Some (Some e,pos e) in
 			ESwitch (convert_expr e,cases,def)
 		| TEnumParameter _ ->
 			(* these are considered complex, so the AST is handled in TMeta(Meta.Ast) *)

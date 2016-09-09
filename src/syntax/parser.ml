@@ -432,10 +432,10 @@ let reify in_macro =
 		| EWhile (e1,e2,flag) ->
 			expr "EWhile" [loop e1;loop e2;to_bool (flag = NormalWhile) p]
 		| ESwitch (e1,cases,def) ->
-			let scase (el,eg,e) p =
+			let scase (el,eg,e,_) p =
 				to_obj [("values",to_expr_array el p);"guard",to_opt to_expr eg p;"expr",to_opt to_expr e p] p
 			in
-			expr "ESwitch" [loop e1;to_array scase cases p;to_opt (to_opt to_expr) def p]
+			expr "ESwitch" [loop e1;to_array scase cases p;to_opt (fun (e,_) -> to_opt to_expr e) def p]
 		| ETry (e1,catches) ->
 			let scatch ((n,_),t,e,_) p =
 				to_obj [("name",to_string n p);("type",to_ctype t p);("expr",loop e)] p
@@ -1160,20 +1160,23 @@ and block2 name ident p s =
 				EBlock (block [e] s)
 
 and block acc s =
+	fst (block_with_pos acc null_pos s)
+
+and block_with_pos acc p s =
 	try
 		(* because of inner recursion, we can't put Display handling in errors below *)
 		let e = try parse_block_elt s with Display e -> display (EBlock (List.rev (e :: acc)),snd e) in
-		block (e :: acc) s
+		block_with_pos (e :: acc) (pos e) s
 	with
 		| Stream.Failure ->
-			List.rev acc
+			List.rev acc,p
 		| Stream.Error _ ->
 			let tk , pos = (match Stream.peek s with None -> last_token s | Some t -> t) in
 			(!display_error) (Unexpected tk) pos;
-			block acc s
+			block_with_pos acc pos s
 		| Error (e,p) ->
 			(!display_error) e p;
-			block acc s
+			block_with_pos acc p s
 
 and parse_block_elt = parser
 	| [< '(Kwd Var,p1); vl = parse_var_decls p1; p2 = semicolon >] ->
@@ -1442,10 +1445,10 @@ and parse_guard = parser
 
 and parse_switch_cases eswitch cases = parser
 	| [< '(Kwd Default,p1); '(DblDot,_); s >] ->
-		let b = (try block [] s with Display e -> display (ESwitch (eswitch,cases,Some (Some e)),punion (pos eswitch) (pos e))) in
+		let b,p2 = (try block_with_pos [] p1 s with Display e -> display (ESwitch (eswitch,cases,Some (Some e,punion p1 (pos e))),punion (pos eswitch) (pos e))) in
 		let b = match b with
-			| [] -> None
-			| _ -> Some ((EBlock b,p1))
+			| [] -> None,p1
+			| _ -> let p = punion p1 p2 in Some ((EBlock b,p)),p
 		in
 		let l , def = parse_switch_cases eswitch cases s in
 		(match def with None -> () | Some _ -> error Duplicate_default p1);
@@ -1454,12 +1457,14 @@ and parse_switch_cases eswitch cases = parser
 		(match el with
 		| [] -> error (Custom "case without a pattern is not allowed") p1
 		| _ ->
-			let b = (try block [] s with Display e -> display (ESwitch (eswitch,List.rev ((el,eg,Some e) :: cases),None),punion (pos eswitch) (pos e))) in
-			let b = match b with
-				| [] -> None
-				| _ -> Some ((EBlock b,p1))
+			let b,p2 = (try block_with_pos [] p1 s with Display e -> display (ESwitch (eswitch,List.rev ((el,eg,Some e,punion p1 (pos e)) :: cases),None),punion (pos eswitch) (pos e))) in
+			let b,p = match b with
+				| [] ->
+					let p2 = match eg with Some e -> pos e | None -> match List.rev el with (_,p) :: _ -> p | [] -> p1 in
+					None,punion p1 p2
+				| _ -> let p = punion p1 p2 in Some ((EBlock b,p)),p
 			in
-			parse_switch_cases eswitch ((el,eg,b) :: cases) s
+			parse_switch_cases eswitch ((el,eg,b,p) :: cases) s
 		)
 	| [< >] ->
 		List.rev cases , None
