@@ -1401,7 +1401,7 @@ module Match = struct
 		) cases in
 		let infer_switch_type () =
 			match with_type with
-				| NoValue -> ctx.t.tvoid
+				| NoValue -> mk_mono()
 				| Value ->
 					let el = List.map (fun (case,_,_) -> match case.Case.case_expr with Some e -> e | None -> mk (TBlock []) ctx.t.tvoid p) cases in
 					unify_min ctx el
