@@ -264,6 +264,13 @@ let print_positions pl =
 	Buffer.add_string b "</list>";
 	Buffer.contents b
 
+(** return a range JSON structure for given position
+    positions are 0-based and the result object looks like this:
+    {
+        start: {line: 0, character: 0},
+        end: {line: 3, character: 42},
+    }
+*)
 let pos_to_json_range p =
 	if p.pmin = -1 then
 		JNull
