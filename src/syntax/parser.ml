@@ -1371,7 +1371,7 @@ and expr = parser
 			Display e -> display (EWhile (cond,e,NormalWhile),punion p1 (pos e)))
 	| [< '(Kwd Do,p1); e = expr; '(Kwd While,_); '(POpen,_); cond = expr; '(PClose,_); s >] -> (EWhile (cond,e,DoWhile),punion p1 (pos e))
 	| [< '(Kwd Switch,p1); e = expr; '(BrOpen,_); cases , def = parse_switch_cases e []; '(BrClose,p2); s >] -> (ESwitch (e,cases,def),punion p1 p2)
-	| [< '(Kwd Try,p1); e = expr; cl = plist (parse_catch e); >] -> (ETry (e,cl),p1)
+	| [< '(Kwd Try,p1); e = expr; cl,p2 = parse_catches e [] (pos e) >] -> (ETry (e,cl),punion p1 p2)
 	| [< '(IntInterval i,p1); e2 = expr >] -> make_binop OpInterval (EConst (Int i),p1) e2
 	| [< '(Kwd Untyped,p1); e = expr >] -> (EUntyped e,punion p1 (pos e))
 	| [< '(Dollar v,p); s >] -> expr_next (EConst (Ident ("$"^v)),p) s
@@ -1469,10 +1469,15 @@ and parse_catch etry = parser
 		match s with parser
 		| [< t,pt = parse_type_hint_with_pos; '(PClose,_); s >] ->
 			(try
-				((name,pn),(t,pt),secure_expr s)
+				let e = secure_expr s in
+				((name,pn),(t,pt),e),(pos e)
 			with
 				Display e -> display (ETry (etry,[(name,pn),(t,pt),e]),punion (pos etry) (pos e)))
 		| [< '(_,p) >] -> error Missing_type p
+
+and parse_catches etry catches p = parser
+	| [< (catch,p) = parse_catch etry; s >] -> parse_catches etry (catch :: catches) p s
+	| [< >] -> List.rev catches,p
 
 and parse_call_params ec s =
 	let e = (try
