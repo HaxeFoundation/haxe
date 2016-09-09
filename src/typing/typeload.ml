@@ -1630,7 +1630,7 @@ let type_function ctx args ret fmode f do_display p =
 		with
 		| Parser.TypePath (_,None,_) | Exit ->
 			type_expr ctx e NoValue
-		| Display.DisplayType (t,_) | Display.DisplaySignatures [(t,_)] when (match follow t with TMono _ -> true | _ -> false) ->
+		| Display.DisplayType (t,_,_) | Display.DisplaySignatures [(t,_)] when (match follow t with TMono _ -> true | _ -> false) ->
 			type_expr ctx (if ctx.com.display.dms_kind = DMToplevel then Display.find_enclosing ctx.com e else e) NoValue
 	end in
 	let e = match e.eexpr with

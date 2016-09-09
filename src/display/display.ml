@@ -27,7 +27,7 @@ exception Statistics of string
 exception ModuleSymbols of string
 exception Metadata of string
 exception DisplaySignatures of (t * documentation) list
-exception DisplayType of t * pos
+exception DisplayType of t * pos * string option
 exception DisplayPosition of Ast.pos list
 exception DisplayFields of (string * display_field_kind * documentation) list
 exception DisplayToplevel of IdentifierType.t list
@@ -109,11 +109,11 @@ let display_module_type dm mt p = match dm.dms_kind with
 	| DMUsage _ ->
 		let ti = t_infos mt in
 		ti.mt_meta <- (Meta.Usage,[],ti.mt_pos) :: ti.mt_meta
-	| DMType -> raise (DisplayType (type_of_module_type mt,p))
+	| DMType -> raise (DisplayType (type_of_module_type mt,p,None))
 	| _ -> ()
 
 let rec display_type dm t p = match dm.dms_kind with
-	| DMType -> raise (DisplayType (t,p))
+	| DMType -> raise (DisplayType (t,p,None))
 	| _ ->
 		try display_module_type dm (module_type_of_type t) p
 		with Exit -> match follow t,follow !t_dynamic_def with
@@ -137,19 +137,19 @@ let check_display_type ctx t p =
 let display_variable dm v p = match dm.dms_kind with
 	| DMPosition -> raise (DisplayPosition [v.v_pos])
 	| DMUsage _ -> v.v_meta <- (Meta.Usage,[],v.v_pos) :: v.v_meta;
-	| DMType -> raise (DisplayType (v.v_type,p))
+	| DMType -> raise (DisplayType (v.v_type,p,None))
 	| _ -> ()
 
 let display_field dm cf p = match dm.dms_kind with
 	| DMPosition -> raise (DisplayPosition [cf.cf_pos]);
 	| DMUsage _ -> cf.cf_meta <- (Meta.Usage,[],cf.cf_pos) :: cf.cf_meta;
-	| DMType -> raise (DisplayType (cf.cf_type,p))
+	| DMType -> raise (DisplayType (cf.cf_type,p,cf.cf_doc))
 	| _ -> ()
 
 let display_enum_field dm ef p = match dm.dms_kind with
 	| DMPosition -> raise (DisplayPosition [p]);
 	| DMUsage _ -> ef.ef_meta <- (Meta.Usage,[],p) :: ef.ef_meta;
-	| DMType -> raise (DisplayType (ef.ef_type,p))
+	| DMType -> raise (DisplayType (ef.ef_type,p,ef.ef_doc))
 	| _ -> ()
 
 let get_timer_fields start_time =
@@ -199,11 +199,14 @@ let print_fields fields =
 	Buffer.add_string b "</list>\n";
 	Buffer.contents b
 
+let maybe_print_doc d =
+	Option.map_default (fun s -> Printf.sprintf " d=\"%s\"" (htmlescape s)) "" d
+
 let print_toplevel il =
 	let b = Buffer.create 0 in
 	Buffer.add_string b "<il>\n";
 	let s_type t = htmlescape (s_type (print_context()) t) in
-	let s_doc d = Option.map_default (fun s -> Printf.sprintf " d=\"%s\"" (htmlescape s)) "" d in
+	let s_doc d = maybe_print_doc d in
 	List.iter (fun id -> match id with
 		| IdentifierType.ITLocal v ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"local\" t=\"%s\">%s</i>\n" (s_type v.v_type) v.v_name);
@@ -226,15 +229,17 @@ let print_toplevel il =
 	Buffer.add_string b "</il>";
 	Buffer.contents b
 
-let print_type t p =
+let print_type t p doc =
 	let b = Buffer.create 0 in
 	if p = null_pos then
-		Buffer.add_string b "<type>\n"
+		Buffer.add_string b "<type"
 	else begin
 		let error_printer file line = Printf.sprintf "%s:%d:" (Path.unique_full_path file) line in
 		let epos = Lexer.get_error_pos error_printer p in
-		Buffer.add_string b ("<type p=\"" ^ (htmlescape epos) ^ "\">\n")
+		Buffer.add_string b ("<type p=\"" ^ (htmlescape epos) ^ "\"")
 	end;
+	Buffer.add_string b (maybe_print_doc doc);
+	Buffer.add_string b ">\n";
 	Buffer.add_string b (htmlescape (s_type (print_context()) t));
 	Buffer.add_string b "\n</type>\n";
 	Buffer.contents b

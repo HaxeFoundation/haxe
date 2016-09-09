@@ -3717,16 +3717,20 @@ and display_expr ctx e_ast e iscall with_type p =
 		assert false
 	| DMType ->
 		let rec loop e = match e.eexpr with
-			| TVar(v,_) -> v.v_type
-			| TCall({eexpr = TConst TSuper; etype = t},_) -> t
-			| TNew({cl_kind = KAbstractImpl a},tl,_) -> TType(abstract_module_type a tl,[])
-			| TNew(c,tl,_) -> TInst(c,tl)
-			| TTypeExpr (TClassDecl {cl_kind = KAbstractImpl a}) -> TType(abstract_module_type a (List.map snd a.a_params),[])
-			| TField(e1,FDynamic "bind") when (match follow e1.etype with TFun _ -> true | _ -> false) -> e1.etype
+			| TVar(v,_) -> v.v_type,None
+			| TCall({eexpr = TConst TSuper; etype = t},_) -> t,None
+			| TNew({cl_kind = KAbstractImpl a},tl,_) -> TType(abstract_module_type a tl,[]),None
+			| TNew(c,tl,_) -> TInst(c,tl),None
+			| TTypeExpr (TClassDecl {cl_kind = KAbstractImpl a}) -> TType(abstract_module_type a (List.map snd a.a_params),[]),None
+			| TField(e1,FDynamic "bind") when (match follow e1.etype with TFun _ -> true | _ -> false) -> e1.etype,None
 			| TReturn (Some e1) -> loop e1 (* No point in letting the internal Dynamic surface (issue #5655) *)
-			| _ -> e.etype
+			| TField(_,(FStatic(c,cf) | FInstance(c,_,cf) | FClosure(Some(c,_),cf))) ->
+				if Meta.has Meta.CoreApi c.cl_meta then merge_core_doc ctx c;
+				e.etype,cf.cf_doc
+			| _ -> e.etype,None
 		in
-		raise (Display.DisplayType (loop e,p))
+		let t,doc = loop e in
+		raise (Display.DisplayType (t,p,doc))
 	| DMUsage _ ->
 		let rec loop e = match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->

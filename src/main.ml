@@ -1238,8 +1238,8 @@ with
 				fields
 		in
 		raise (Completion (Display.print_fields fields))
-	| Display.DisplayType (t,p) ->
-		raise (Completion (Display.print_type t p))
+	| Display.DisplayType (t,p,doc) ->
+		raise (Completion (Display.print_type t p doc))
 	| Display.DisplaySignatures tl ->
 		raise (Completion (Display.print_signatures tl))
 	| Display.DisplayPosition pl ->
