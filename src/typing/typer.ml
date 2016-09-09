@@ -2792,12 +2792,15 @@ and format_string ctx s p =
 	let min = ref (p.pmin + 1) in
 	let add_expr (enext,p) len =
 		min := !min + len;
-		if ctx.in_display && Display.is_display_position p then
-			raise (Display.DisplaySubExpression (enext,p));
+		let enext = if ctx.in_display && Display.is_display_position p then
+			Display.process_expr ctx.com (enext,p)
+		else
+			enext,p
+		in
 		match !e with
-		| None -> e := Some (enext,p)
+		| None -> e := Some enext
 		| Some prev ->
-			e := Some (EBinop (OpAdd,prev,(enext,p)),punion (pos prev) p)
+			e := Some (EBinop (OpAdd,prev,enext),punion (pos prev) p)
 	in
 	let add enext len =
 		let p = { p with pmin = !min; pmax = !min + len } in
@@ -3733,11 +3736,6 @@ and handle_display ctx e_ast iscall with_type =
 		with Not_found ->
 			raise err
 		end
-	| Display.DisplaySubExpression e ->
-		ctx.in_display <- false;
-		let e = type_expr ctx e Value in
-		ctx.in_display <- true;
-		e
 	in
 	let p = e.epos in
 	let e = match with_type with

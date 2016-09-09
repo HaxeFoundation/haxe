@@ -29,7 +29,6 @@ exception Metadata of string
 exception DisplaySignatures of (t * documentation) list
 exception DisplayType of t * pos
 exception DisplayPosition of Ast.pos list
-exception DisplaySubExpression of Ast.expr
 exception DisplayFields of (string * display_field_kind * documentation) list
 exception DisplayToplevel of IdentifierType.t list
 exception DisplayPackage of string list

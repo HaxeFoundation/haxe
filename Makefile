@@ -190,7 +190,7 @@ src/optimization/dce.$(MODULE_EXT): src/path.$(MODULE_EXT) src/syntax/ast.$(MODU
 
 src/optimization/filters.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/optimization/analyzer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/optimization/dce.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT)
 
-src/optimization/optimizer.$(MODULE_EXT): src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
+src/optimization/optimizer.$(MODULE_EXT): src/display/display.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
 # syntax
 

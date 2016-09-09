@@ -1681,7 +1681,7 @@ let optimize_completion_expr e =
 			let el = List.fold_left (fun acc e ->
 				typing_side_effect := false;
 				let e = loop e in
-				if !typing_side_effect then begin told := true; e :: acc end else acc
+				if !typing_side_effect || Display.is_display_position (pos e) then begin told := true; e :: acc end else acc
 			) [] el in
 			old();
 			typing_side_effect := !told;
