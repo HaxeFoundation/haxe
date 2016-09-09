@@ -129,7 +129,6 @@ let rec read_type_path com p =
 		| x :: l ->
 			(try
 				match PMap.find x com.package_rules with
-				| Directory d -> d :: l
 				| Remap s -> s :: l
 				| _ -> p
 			with
@@ -150,7 +149,6 @@ let rec read_type_path com p =
 								match PMap.find f com.package_rules with
 								| Forbidden -> ()
 								| Remap f -> packages := f :: !packages
-								| Directory _ -> raise Not_found
 							with Not_found ->
 								packages := f :: !packages
 					else

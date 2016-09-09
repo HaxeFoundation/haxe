@@ -22,7 +22,6 @@ open Type
 
 type package_rule =
 	| Forbidden
-	| Directory of string
 	| Remap of string
 
 type pos = Ast.pos
