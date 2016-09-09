@@ -51,8 +51,8 @@ extern class Date
 	function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void;
 
 	/**
-		Returns the timestamp of the date. It might only have a per-second
-		precision depending on the platforms.
+		Returns the timestamp (in milliseconds) of the date. It might
+		only have a per-second precision depending on the platforms.
 	**/
 	function getTime() : Float;
 
