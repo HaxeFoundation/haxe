@@ -437,7 +437,7 @@ let reify in_macro =
 			in
 			expr "ESwitch" [loop e1;to_array scase cases p;to_opt (to_opt to_expr) def p]
 		| ETry (e1,catches) ->
-			let scatch ((n,_),t,e) p =
+			let scatch ((n,_),t,e,_) p =
 				to_obj [("name",to_string n p);("type",to_ctype t p);("expr",loop e)] p
 			in
 			expr "ETry" [loop e1;to_array scatch catches p]
@@ -1470,14 +1470,14 @@ and parse_catch etry = parser
 		| [< t,pt = parse_type_hint_with_pos; '(PClose,_); s >] ->
 			(try
 				let e = secure_expr s in
-				((name,pn),(t,pt),e),(pos e)
+				((name,pn),(t,pt),e,punion p (pos e)),(pos e)
 			with
-				Display e -> display (ETry (etry,[(name,pn),(t,pt),e]),punion (pos etry) (pos e)))
+				Display e -> display (ETry (etry,[(name,pn),(t,pt),e,(pos e)]),punion (pos etry) (pos e)))
 		| [< '(_,p) >] -> error Missing_type p
 
-and parse_catches etry catches p = parser
-	| [< (catch,p) = parse_catch etry; s >] -> parse_catches etry (catch :: catches) p s
-	| [< >] -> List.rev catches,p
+and parse_catches etry catches pmax = parser
+	| [< (catch,pmax) = parse_catch etry; s >] -> parse_catches etry (catch :: catches) pmax s
+	| [< >] -> List.rev catches,pmax
 
 and parse_call_params ec s =
 	let e = (try

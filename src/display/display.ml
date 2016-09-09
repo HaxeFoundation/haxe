@@ -303,7 +303,7 @@ module DocumentSymbols = struct
 				) vl
 			| ETry(e1,catches) ->
 				expr parent e1;
-				List.iter (fun ((s,p),_,e) ->
+				List.iter (fun ((s,p),_,e,_) ->
 					add s Variable p;
 					expr parent e
 				) catches;

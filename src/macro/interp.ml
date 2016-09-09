@@ -4082,12 +4082,13 @@ and encode_expr e =
 					]
 				) cases);null encode_null_expr eopt]
 			| ETry (e,catches) ->
-				18, [loop e;enc_array (List.map (fun (v,t,e) ->
+				18, [loop e;enc_array (List.map (fun (v,t,e,p) ->
 					enc_obj [
 						"name",encode_placed_name v;
 						"name_pos",encode_pos (pos v);
 						"type",encode_ctype t;
-						"expr",loop e
+						"expr",loop e;
+						"pos",encode_pos p
 					]
 				) catches)]
 			| EReturn eo ->
@@ -4382,7 +4383,7 @@ let rec decode_expr v =
 			ESwitch (loop e,cases,opt decode_null_expr eo)
 		| 18, [e;catches] ->
 			let catches = List.map (fun c ->
-				((decode_placed_name (field c "name_pos") (field c "name")),(decode_ctype (field c "type")),loop (field c "expr"))
+				((decode_placed_name (field c "name_pos") (field c "name")),(decode_ctype (field c "type")),loop (field c "expr"),decode_pos (field c "pos"))
 			) (dec_array catches) in
 			ETry (loop e, catches)
 		| 19, [e] ->

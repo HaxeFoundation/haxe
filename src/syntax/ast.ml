@@ -369,7 +369,7 @@ and expr_def =
 	| EIf of expr * expr * expr option
 	| EWhile of expr * expr * while_flag
 	| ESwitch of expr * (expr list * expr option * expr option) list * expr option option
-	| ETry of expr * (placed_name * type_hint * expr) list
+	| ETry of expr * (placed_name * type_hint * expr * pos) list
 	| EReturn of expr option
 	| EBreak
 	| EContinue
@@ -758,7 +758,7 @@ let map_expr loop (e,p) =
 	| EIf (e,e1,e2) -> EIf (loop e, loop e1, opt loop e2)
 	| EWhile (econd,e,f) -> EWhile (loop econd, loop e, f)
 	| ESwitch (e,cases,def) -> ESwitch (loop e, List.map (fun (el,eg,e) -> List.map loop el, opt loop eg, opt loop e) cases, opt (opt loop) def)
-	| ETry (e,catches) -> ETry (loop e, List.map (fun (n,t,e) -> n,type_hint t,loop e) catches)
+	| ETry (e,catches) -> ETry (loop e, List.map (fun (n,t,e,p) -> n,type_hint t,loop e,p) catches)
 	| EReturn e -> EReturn (opt loop e)
 	| EBreak -> EBreak
 	| EContinue -> EContinue
@@ -787,7 +787,7 @@ let iter_expr loop (e,p) =
 	| EObjectDecl fl -> List.iter (fun (_,e) -> loop e) fl;
 	| ETry(e1,catches) ->
 		loop e1;
-		List.iter (fun (_,_,e) -> loop e) catches
+		List.iter (fun (_,_,e,_) -> loop e) catches
 	| ESwitch(e1,cases,def) ->
 		loop e1;
 		List.iter (fun (el,eg,e) ->
@@ -903,7 +903,7 @@ let s_expr e =
 		"case " ^ s_expr_list tabs el ", " ^
 		(match e1 with None -> ":" | Some e -> " if (" ^ s_expr_inner tabs e ^ "):") ^
 		(match e2 with None -> "" | Some e -> s_expr_omit_block tabs e)
-	and s_catch tabs ((n,_),(t,_),e) =
+	and s_catch tabs ((n,_),(t,_),e,_) =
 		" catch(" ^ n ^ ":" ^ s_complex_type tabs t ^ ") " ^ s_expr_inner tabs e
 	and s_block tabs el opn nl cls =
 		 opn ^ "\n\t" ^ tabs ^ (s_expr_list (tabs ^ "\t") el (";\n\t" ^ tabs)) ^ ";" ^ nl ^ tabs ^ cls

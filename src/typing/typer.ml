@@ -3151,7 +3151,7 @@ and type_try ctx e1 catches with_type p =
 		| x :: _ , _ -> x
 		| [] , name -> name)
 	in
-	let catches = List.fold_left (fun acc ((v,pv),t,e) ->
+	let catches = List.fold_left (fun acc ((v,pv),t,e_ast,pc) ->
 		let t = Typeload.load_complex_type ctx true p t in
 		let rec loop t = match follow t with
 			| TInst ({ cl_kind = KTypeParameter _} as c,_) when not (Typeload.is_generic_parameter ctx c) ->
@@ -3164,16 +3164,19 @@ and type_try ctx e1 catches with_type p =
 			| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
 				loop (Abstract.get_underlying_type a tl)
 			| TDynamic _ -> "",t
-			| _ -> error "Catch type must be a class, an enum or Dynamic" (pos e)
+			| _ -> error "Catch type must be a class, an enum or Dynamic" (pos e_ast)
 		in
 		let name,t2 = loop t in
 		if v.[0] = '$' then display_error ctx "Catch variable names starting with a dollar are not allowed" p;
-		check_unreachable acc t2 (pos e);
+		check_unreachable acc t2 (pos e_ast);
 		let locals = save_locals ctx in
 		let v = add_local ctx v t pv in
 		if ctx.is_display_file && Display.is_display_position pv then
 			Display.display_variable ctx.com.display v pv;
-		let e = type_expr ctx e with_type in
+		let e = type_expr ctx e_ast with_type in
+		(* If the catch position is the display position it means we get completion on the catch keyword or some
+		   punctuation. Otherwise we wouldn't reach this point. *)
+		if ctx.is_display_file && Display.is_display_position pc then ignore(display_expr ctx e_ast e false with_type pc);
 		v.v_type <- t2;
 		locals();
 		if with_type <> NoValue then unify ctx e.etype e1.etype e.epos;
@@ -3697,19 +3700,19 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		ctx.meta <- old;
 		e
 
+and get_submodule_fields ctx path =
+	let m = Hashtbl.find ctx.g.modules path in
+	let tl = List.filter (fun t -> path <> (t_infos t).mt_path && not (t_infos t).mt_private) m.m_types in
+	let tl = List.map (fun mt ->
+		let infos = t_infos mt in
+		(snd infos.mt_path),Display.FKType (type_of_module_type mt),infos.mt_doc
+	) tl in
+	tl
+
 and handle_display ctx e_ast iscall with_type =
 	let old = ctx.in_display,ctx.in_call_args in
 	ctx.in_display <- true;
 	ctx.in_call_args <- false;
-	let get_submodule_fields path =
-		let m = Hashtbl.find ctx.g.modules path in
-		let tl = List.filter (fun t -> path <> (t_infos t).mt_path && not (t_infos t).mt_private) m.m_types in
-		let tl = List.map (fun mt ->
-			let infos = t_infos mt in
-			(snd infos.mt_path),Display.FKType (type_of_module_type mt),infos.mt_doc
-		) tl in
-		tl
-	in
 	let e = match e_ast,with_type with
 	| (EConst (Ident "$type"),_),_ ->
 		let mono = mk_mono() in
@@ -3726,7 +3729,7 @@ and handle_display ctx e_ast iscall with_type =
 		raise (Display.DisplaySignatures [(tfun [t_dynamic] ctx.com.basic.tvoid,Some "Print given arguments")])
 	| Error (Type_not_found (path,_),_) as err ->
 		begin try
-			raise (Display.DisplayFields (get_submodule_fields path))
+			raise (Display.DisplayFields (get_submodule_fields ctx path))
 		with Not_found ->
 			raise err
 		end
@@ -3743,6 +3746,9 @@ and handle_display ctx e_ast iscall with_type =
 	in
 	ctx.in_display <- fst old;
 	ctx.in_call_args <- snd old;
+	display_expr ctx e_ast e iscall with_type p
+
+and display_expr ctx e_ast e iscall with_type p =
 	let get_super_constructor () = match ctx.curclass.cl_super with
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
@@ -3999,7 +4005,7 @@ and handle_display ctx e_ast iscall with_type =
 			let fields = List.fold_left get_field [] fields in
 			let fields = try
 				let sl = string_list_of_expr_path_raise e_ast in
-				fields @ get_submodule_fields (List.tl sl,List.hd sl)
+				fields @ get_submodule_fields ctx (List.tl sl,List.hd sl)
 			with Exit | Not_found ->
 				fields
 			in

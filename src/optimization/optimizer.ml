@@ -1741,12 +1741,12 @@ let optimize_completion_expr e =
 			(ESwitch (e,cases,def),p)
 		| ETry (et,cl) ->
 			let et = loop et in
-			let cl = List.map (fun ((n,pn),(t,pt),e) ->
+			let cl = List.map (fun ((n,pn),(t,pt),e,p) ->
 				let old = save() in
 				decl n (Some t) None;
 				let e = loop e in
 				old();
-				(n,pn), (t,pt), e
+				(n,pn), (t,pt), e, p
 			) cl in
 			(ETry (et,cl),p)
 		| EDisplay (s,call) ->
