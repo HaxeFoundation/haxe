@@ -2523,14 +2523,14 @@ module ClassInitializer = struct
 		(* TODO is_lib: avoid forcing the return type to be typed *)
 		let ret = if fctx.field_kind = FKConstructor then ctx.t.tvoid else type_opt (ctx,cctx) p fd.f_type in
 		let rec loop args = match args with
-			| ((name,_),opt,m,t,ct) :: args ->
+			| ((name,p),opt,m,t,ct) :: args ->
 				(* TODO is_lib: avoid forcing the field to be typed *)
 				let t, ct = type_function_arg ctx (type_opt (ctx,cctx) p t) ct opt p in
 				delay ctx PTypeField (fun() -> match follow t with
 					| TAbstract({a_path = ["haxe";"extern"],"Rest"},_) ->
 						if not c.cl_extern then error "Rest argument are only supported for extern methods" p;
 						if opt then error "Rest argument cannot be optional" p;
-						if ct <> None then error "Rest argument cannot have default value" p;
+						begin match ct with None -> () | Some (_,p) -> error "Rest argument cannot have default value" p end;
 						if args <> [] then error "Rest should only be used for the last function argument" p;
 					| _ ->
 						()
