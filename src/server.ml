@@ -261,6 +261,7 @@ let rec wait_loop process_params verbose accept =
 					let defines = PMap.foldi (fun k v acc -> (k ^ "=" ^ v) :: acc) ctx.com.defines [] in
 					print_endline ("Defines " ^ (String.concat "," (List.sort compare defines)));
 					print_endline ("Using signature " ^ Digest.to_hex (get_signature ctx.com));
+					print_endline ("Display position: " ^ (Printer.s_pos !Parser.resume_display));
 				end;
 				Parser.display_error := (fun e p -> has_parse_error := true; ctx.com.error (Parser.error_msg e) p);
 				if ctx.com.display.dms_display then begin

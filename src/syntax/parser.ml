@@ -519,6 +519,10 @@ let reify in_macro =
 	in
 	(fun e -> to_expr e (snd e)), to_ctype, to_type_def
 
+let next_token s = match Stream.peek s with
+	| Some tk -> tk
+	| _ -> last_token s
+
 let popt f = parser
 	| [< v = f >] -> Some v
 	| [< >] -> None
@@ -757,7 +761,7 @@ and parse_class_fields tdecl p1 s =
 	let l = parse_class_field_resume tdecl s in
 	let p2 = (match s with parser
 		| [< '(BrClose,p2) >] -> p2
-		| [< >] -> if do_resume() then pos (last_token s) else serror()
+		| [< >] -> if do_resume() then pos (next_token s) else serror()
 	) in
 	l, p2
 
@@ -1171,7 +1175,7 @@ and block_with_pos acc p s =
 		| Stream.Failure ->
 			List.rev acc,p
 		| Stream.Error _ ->
-			let tk , pos = (match Stream.peek s with None -> last_token s | Some t -> t) in
+			let tk , pos = next_token s in
 			(!display_error) (Unexpected tk) pos;
 			block_with_pos acc pos s
 		| Error (e,p) ->
@@ -1288,10 +1292,7 @@ and expr = parser
 				| [< '(BrClose,p2) >] -> p2
 				| [< >] ->
 					(* Ignore missing } if we are resuming and "guess" the last position. *)
-					if do_resume() then begin match Stream.peek s with
-						| Some (_,p) -> p
-						| None -> pos (last_token s)
-					end else serror()
+					if do_resume() then pos (next_token s) else serror()
 			in
 			let e = (b,punion p1 p2) in
 			(match b with
