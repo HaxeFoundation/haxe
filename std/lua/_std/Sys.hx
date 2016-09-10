@@ -65,7 +65,7 @@ class Sys {
 	}
 
 	public static function systemName() : String {
-		switch(Package.config.sub(1,1)){
+		switch(Package.config.sub(1,1).match){
 			case "/" : {
 				var f = Lua.assert(lua.Io.popen("uname"));
 				var s = Lua.assert(f.read(All));
