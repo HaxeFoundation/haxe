@@ -948,10 +948,10 @@ module Dump = struct
 		List.iter (fun mt ->
 			let buf,close = create_dumpfile_from_path com (t_path mt) in
 			let s = match mt with
-				| TClassDecl c -> Printer.s_tclass c
-				| TEnumDecl en -> Printer.s_tenum en
+				| TClassDecl c -> Printer.s_tclass "" c
+				| TEnumDecl en -> Printer.s_tenum "" en
 				| TTypeDecl t -> Printer.s_tdef "" t
-				| TAbstractDecl a -> Printer.s_tabstract a
+				| TAbstractDecl a -> Printer.s_tabstract "" a
 			in
 			Buffer.add_string buf s;
 			close();
