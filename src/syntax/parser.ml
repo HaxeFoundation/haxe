@@ -761,7 +761,7 @@ and parse_class_fields tdecl p1 s =
 	let l = parse_class_field_resume tdecl s in
 	let p2 = (match s with parser
 		| [< '(BrClose,p2) >] -> p2
-		| [< >] -> if do_resume() then pos (next_token s) else serror()
+		| [< >] -> if do_resume() then pos (last_token s) else serror()
 	) in
 	l, p2
 
