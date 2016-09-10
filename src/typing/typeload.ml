@@ -1952,10 +1952,10 @@ module ClassInitializer = struct
 		is_lib : bool;
 		is_native : bool;
 		is_core_api : bool;
+		is_class_debug : bool;
 		extends_public : bool;
 		abstract : tabstract option;
 		context_init : unit -> unit;
-		completion_position : pos;
 		mutable delayed_expr : (typer * (unit -> t) ref option) list;
 		mutable force_constructor : bool;
 	}
@@ -1973,10 +1973,43 @@ module ClassInitializer = struct
 		is_macro : bool;
 		is_abstract_member : bool;
 		is_display_field : bool;
+		is_field_debug : bool;
 		field_kind : field_kind;
 		mutable do_bind : bool;
 		mutable do_add : bool;
 	}
+
+	let dump_class_context cctx =
+		Printer.s_record_fields "" [
+			"tclass",Printer.s_tclass "\t" cctx.tclass;
+			"is_lib",string_of_bool cctx.is_lib;
+			"is_native",string_of_bool cctx.is_native;
+			"is_core_api",string_of_bool cctx.is_core_api;
+			"is_class_debug",string_of_bool cctx.is_class_debug;
+			"extends_public",string_of_bool cctx.extends_public;
+			"abstract",Printer.s_opt (Printer.s_tabstract "\t") cctx.abstract;
+			"force_constructor",string_of_bool cctx.force_constructor;
+		]
+
+	let s_field_kind = function
+		| FKNormal -> "FKNormal"
+		| FKConstructor -> "FKConstructor"
+		| FKInit -> "FKInit"
+
+	let dump_field_context fctx =
+		Printer.s_record_fields "" [
+			"is_inline",string_of_bool fctx.is_inline;
+			"is_static",string_of_bool fctx.is_static;
+			"is_override",string_of_bool fctx.is_override;
+			"is_extern",string_of_bool fctx.is_extern;
+			"is_macro",string_of_bool fctx.is_macro;
+			"is_abstract_member",string_of_bool fctx.is_abstract_member;
+			"is_display_field",string_of_bool fctx.is_display_field;
+			"is_field_debug",string_of_bool fctx.is_field_debug;
+			"field_kind",s_field_kind fctx.field_kind;
+			"do_bind",string_of_bool fctx.do_bind;
+			"do_add",string_of_bool fctx.do_add;
+		]
 
 	let create_class_context ctx c context_init p =
 		locate_macro_error := true;
@@ -2019,10 +2052,10 @@ module ClassInitializer = struct
 			is_lib = is_lib;
 			is_native = is_native;
 			is_core_api = Meta.has Meta.CoreApi c.cl_meta;
+			is_class_debug = Meta.has Meta.Debug c.cl_meta;
 			extends_public = extends_public c;
 			abstract = abstract;
 			context_init = context_init;
-			completion_position = !Parser.resume_display;
 			force_constructor = false;
 			delayed_expr = [];
 		} in
@@ -2054,6 +2087,7 @@ module ClassInitializer = struct
 			is_macro = is_macro;
 			is_extern = is_extern;
 			is_display_field = ctx.is_display_file && Display.is_display_position cff.cff_pos;
+			is_field_debug = cctx.is_class_debug || Meta.has Meta.Debug cff.cff_meta;
 			is_abstract_member = cctx.abstract <> None && Meta.has Meta.Impl cff.cff_meta;
 			field_kind = field_kind;
 			do_bind = (((not c.cl_extern || is_inline) && not c.cl_interface) || field_kind = FKInit);
@@ -2760,6 +2794,7 @@ module ClassInitializer = struct
 
 	let init_class ctx c p context_init herits fields =
 		let ctx,cctx = create_class_context ctx c context_init p in
+		if cctx.is_class_debug then print_endline ("Created class context: " ^ dump_class_context cctx);
 		let fields = patch_class ctx c fields in
 		let fields = build_fields (ctx,cctx) c fields in
 		if cctx.is_core_api && ctx.com.display.dms_check_core_api then delay ctx PForce (fun() -> init_core_api ctx c);
@@ -2803,7 +2838,9 @@ module ClassInitializer = struct
 			let p = f.cff_pos in
 			try
 				let ctx,fctx = create_field_context (ctx,cctx) c f in
+				if fctx.is_field_debug then print_endline ("Created field context: " ^ dump_field_context fctx);
 				let cf = init_field (ctx,cctx,fctx) f in
+				if fctx.is_field_debug then print_endline ("Created field: " ^ Printer.s_tclass_field "" cf);
 				if fctx.is_static && c.cl_interface && fctx.field_kind <> FKInit && not cctx.is_lib then error "You can't declare static fields in interfaces" p;
 				let set_feature s =
 					ctx.m.curmod.m_extra.m_if_feature <- (s,(c,cf,fctx.is_static)) :: ctx.m.curmod.m_extra.m_if_feature
