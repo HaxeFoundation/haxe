@@ -271,7 +271,7 @@ let mk_mr_select com e name =
 			assert false
 	in
 	if i == 0 then
-	    mk_lua_code com "{0}" [e] e.etype e.epos
+	    e
 	else
 	    let code = Printf.sprintf "_G.select(%i, {0})" (i + 1) in
 	    mk_lua_code com code [e] e.etype e.epos
