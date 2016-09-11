@@ -71,6 +71,6 @@ class Lib {
 	}
 
 	public inline static function isShellAvailable() : Bool {
-		return Os.execute();
+		return Os.execute().status > 0;
 	}
 }

@@ -39,6 +39,7 @@ type ctx = {
 	mutable in_loop : bool;
 	mutable iife_assign : bool;
 	mutable handle_break : bool;
+	mutable handle_continue : bool;
 	mutable id_counter : int;
 	mutable type_accessor : module_type -> string;
 	mutable separator : bool;
@@ -70,6 +71,23 @@ let dot_path = Ast.s_type_path
 
 let s_path ctx = dot_path
 
+(* Lua requires decimal encoding for characters, rather than the hex *)
+(* provided by Ast.s_escape *)
+let s_escape_lua ?(dec=true) s =
+	let b = Buffer.create (String.length s) in
+	for i = 0 to (String.length s) - 1 do
+		match s.[i] with
+		| '\n' -> Buffer.add_string b "\\n"
+		| '\t' -> Buffer.add_string b "\\t"
+		| '\r' -> Buffer.add_string b "\\r"
+		| '"' -> Buffer.add_string b "\\\""
+		| '\\' -> Buffer.add_string b "\\\\"
+		| c when int_of_char c < 32 && dec ->
+			Buffer.add_string b (Printf.sprintf "\\%.3d" (int_of_char c))
+		| c -> Buffer.add_char b c
+	done;
+	Buffer.contents b
+
 (* TODO: are all these kwds necessary for field quotes *and* id escapes? *)
 let kwds =
 	let h = Hashtbl.create 0 in
@@ -97,7 +115,7 @@ let valid_lua_ident s =
 let field s = if Hashtbl.mem kwds s || not (valid_lua_ident s) then "[\"" ^ s ^ "\"]" else "." ^ s
 let ident s = if Hashtbl.mem kwds s then "_" ^ s else s
 
-let anon_field s = if Hashtbl.mem kwds s || not (valid_lua_ident s) then "['" ^ (Ast.s_escape s) ^ "']" else s
+let anon_field s = if Hashtbl.mem kwds s || not (valid_lua_ident s) then "['" ^ (s_escape_lua s) ^ "']" else s
 let static_field c s =
 	match s with
 	| "length" | "name" when not c.cl_extern || Meta.has Meta.HxGen c.cl_meta-> "._hx" ^ s
@@ -258,7 +276,7 @@ let mk_mr_box ctx e =
 	in
 	add_feature ctx "use._hx_box_mr";
 	add_feature ctx "use._hx_tbl_pack";
-	let code = Printf.sprintf "_hx_box_mr(_hx_tbl_pack({0}), {%s})" s_fields in
+	let code = Printf.sprintf "_hx_box_mr(_G.table.pack({0}), {%s})" s_fields in
 	mk_lua_code ctx.com code [e] e.etype e.epos
 
 (* create a multi-return select call for given expr and field name *)
@@ -313,7 +331,7 @@ let gen_constant ctx p = function
 	| TFloat s -> spr ctx s
 	| TString s -> begin
 	    add_feature ctx "use.string";
-	    print ctx "\"%s\"" (Ast.s_escape s)
+	    print ctx "\"%s\"" (s_escape_lua s)
 	end
 	| TBool b -> spr ctx (if b then "true" else "false")
 	| TNull -> spr ctx "nil"
@@ -547,10 +565,15 @@ and gen_expr ?(local=true) ctx e = begin
 	| TReturn eo -> gen_return ctx e eo;
 	| TBreak ->
 		if not ctx.in_loop then unsupported e.epos;
-		if ctx.handle_break then spr ctx "_G.error(\"_hx__break__\")" else spr ctx "break" (*todo*)
+		if ctx.handle_break then
+		    spr ctx "_G.error(\"_hx__break__\")"
+		else if ctx.handle_continue then
+		    spr ctx "_hx_break = true; break"
+		else
+		    spr ctx "break" (*todo*)
 	| TContinue ->
 		if not ctx.in_loop then unsupported e.epos;
-		spr ctx "goto _hx_continue";
+		spr ctx "break";
 	| TBlock el ->
 		let bend = open_block ctx in
 		List.iter (gen_block_element ctx) el;
@@ -643,7 +666,8 @@ and gen_expr ?(local=true) ctx e = begin
 		end
 	| TNew (c,_,el) ->
 		(match c.cl_constructor with
-		| Some cf when Meta.has Meta.SelfCall cf.cf_meta -> ()
+		| Some cf when Meta.has Meta.SelfCall cf.cf_meta ->
+			print ctx "%s" (ctx.type_accessor (TClassDecl c));
 		| _ -> print ctx "%s.new" (ctx.type_accessor (TClassDecl c)));
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;
@@ -744,38 +768,58 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx (Ast.s_unop op)
 	| TWhile (cond,e,Ast.NormalWhile) ->
 		let handle_break = handle_break ctx e in
+		let has_continue = has_continue e in
+		let old_ctx_continue = ctx.handle_continue in
+		ctx.handle_continue <- has_continue;
 		spr ctx "while ";
 		gen_cond ctx cond;
-		spr ctx " do ";
 		let b = open_block ctx in
-		gen_block_element ctx e;
-		b();
-		if has_continue e then begin
-		    newline ctx;
-		    spr ctx "::_hx_continue::";
+		println ctx " do ";
+		let b2 = open_block ctx in
+		if has_continue then begin
+		    spr ctx "repeat "
 		end;
+		gen_block_element ctx e;
 		newline ctx;
 		handle_break();
+		if has_continue then begin
+		    b2();
+		    newline ctx;
+		    println ctx "until true";
+		    print ctx "if _hx_break then _hx_break = false; break; end";
+		end;
+		b();
 		newline ctx;
 		spr ctx "end";
+		ctx.handle_continue <- old_ctx_continue;
 	| TWhile (cond,e,Ast.DoWhile) ->
 		let handle_break = handle_break ctx e in
-		spr ctx "while true do ";
+		let has_continue = has_continue e in
+		let old_ctx_continue = ctx.handle_continue in
+		ctx.handle_continue <- has_continue;
+		println ctx "while true do ";
 		gen_block_element ctx e;
 		newline ctx;
 		spr ctx " while ";
 		gen_cond ctx cond;
-		spr ctx " do ";
+		let b = open_block ctx in
+		println ctx " do ";
+		let b2 = open_block ctx in
+		if has_continue then begin
+		    spr ctx "repeat "
+		end;
 		gen_block_element ctx e;
 		handle_break();
-		newline ctx;
-		if has_continue e then begin
+		if has_continue then begin
+		    b2();
 		    newline ctx;
-		    spr ctx "::_hx_continue::";
+		    println ctx "until true";
+		    print ctx "if _hx_break then _hx_break = false; break; end";
 		end;
+		b();
 		newline ctx;
-		println ctx "end";
-		spr ctx "break end";
+		spr ctx "end";
+		ctx.handle_continue <- old_ctx_continue;
 	| TObjectDecl [] ->
 		spr ctx "_hx_e()";
 		ctx.separator <- true
@@ -1456,7 +1500,7 @@ let generate_class___name__ ctx c =
 		let p = s_path ctx c.cl_path in
 		print ctx "%s.__name__ = " p;
 		if has_feature ctx "Type.getClassName" then
-			println ctx "{%s}" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst c.cl_path @ [snd c.cl_path])))
+			println ctx "{%s}" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (s_escape_lua s)) (fst c.cl_path @ [snd c.cl_path])))
 		else
 			println ctx "true";
 	end
@@ -1576,7 +1620,7 @@ let generate_class ctx c =
 
 let generate_enum ctx e =
 	let p = s_path ctx e.e_path in
-	let ename = List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst e.e_path @ [snd e.e_path]) in
+	let ename = List.map (fun s -> Printf.sprintf "\"%s\"" (s_escape_lua s)) (fst e.e_path @ [snd e.e_path]) in
 
 	(* TODO: Unify the _hxClasses declaration *)
 	if has_feature ctx "Type.resolveEnum" then begin
@@ -1734,6 +1778,7 @@ let alloc_ctx com =
 		iife_assign = false;
 		in_loop = false;
 		handle_break = false;
+		handle_continue = false;
 		id_counter = 0;
 		type_accessor = (fun _ -> assert false);
 		separator = false;
@@ -1914,11 +1959,10 @@ let generate com =
 	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
 	(* Generate some dummy placeholders for utility libs that may be required*)
-	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_tbl_pack";
+	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_break = false";
 
 	if has_feature ctx "use._bitop" || has_feature ctx "lua.Boot.clamp" then begin
-	    println ctx "pcall(require, 'bit32') pcall(require, 'bit')";
-	    println ctx "local _hx_bit_raw = bit or bit32";
+	    println ctx "local _hx_bit_raw = require 'bit32'";
 	    println ctx "local function _hx_bit_clamp(v) return _hx_bit_raw.band(v, 2147483647 ) - _hx_bit_raw.band(v, 2147483648) end";
 	    println ctx "if type(jit) == 'table' then";
 	    println ctx "_hx_bit = setmetatable({},{__index = function(t,k) return function(...) return _hx_bit_clamp(rawget(_hx_bit_raw,k)(...)) end end})";
@@ -2049,11 +2093,16 @@ let generate com =
 	    println ctx "end";
 	end;
 
-	if has_feature ctx "use._hx_tbl_pack" then begin
-	    println ctx "_hx_tbl_pack = function(...)";
-	    println ctx "  return {n=select('#',...),...}";
+	(* if has_feature ctx "use.table" then begin *)
+	    println ctx "if not _G.table.pack then";
+	    println ctx "  _G.table.pack = function(...)";
+	    println ctx "    return {...}";
+	    println ctx "  end";
 	    println ctx "end";
-	end;
+	    println ctx "if not _G.table.unpack then";
+	    println ctx " _G.table.unpack = _G.unpack";
+	    println ctx "end";
+	(* end; *)
 
 
 	List.iter (generate_enumMeta_fields ctx) com.types;
@@ -2068,4 +2117,5 @@ let generate com =
 	output_string ch (Buffer.contents ctx.buf);
 	close_out ch;
 	t()
+
 
