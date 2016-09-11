@@ -32,6 +32,7 @@ exception DisplayPosition of Ast.pos list
 exception DisplayFields of (string * display_field_kind * documentation) list
 exception DisplayToplevel of IdentifierType.t list
 exception DisplayPackage of string list
+exception DisplaySignature of string
 
 let is_display_file file =
 	file <> "?" && Path.unique_full_path file = (!Parser.resume_display).pfile
@@ -93,7 +94,7 @@ let find_before_pos com e =
 		end else
 			false
 	in
-	let rec loop e =
+	let loop e =
 		if is_annotated (pos e) then
 			(EDisplay(e,false),(pos e))
 		else
@@ -101,6 +102,24 @@ let find_before_pos com e =
 	in
 	let rec map e =
 		loop (Ast.map_expr map e)
+	in
+	map e
+
+let find_display_call e =
+	let found = ref false in
+	let loop e = if !found then e else match fst e with
+		| ECall _ | ENew _ when is_display_position (pos e) ->
+			found := true;
+			(EDisplay(e,true),(pos e))
+		| _ ->
+			e
+	in
+	let rec map e = match fst e with
+		| EDisplay(_,true) ->
+			found := true;
+			e
+		| EDisplay(e1,false) -> map e1
+		| _ -> loop (Ast.map_expr map e)
 	in
 	map e
 
@@ -450,6 +469,7 @@ let convert_import_to_something_usable pt path =
 let process_expr com e = match com.display.dms_kind with
 	| DMToplevel -> find_enclosing com e
 	| DMPosition | DMUsage _ | DMType -> find_before_pos com e
+	| DMSignature -> find_display_call e
 	| _ -> e
 
 let add_import_position com p path =
@@ -1154,3 +1174,34 @@ module ToplevelCollector = struct
 		let cl = StringError.filter_similar (fun (s,_) r -> r > 0 && r <= (min (String.length s) (String.length i)) / 3) cl in
 		ctx.com.display_information.unresolved_identifiers <- (i,p,cl) :: ctx.com.display_information.unresolved_identifiers
 end
+
+let display_signature tl display_arg =
+	let st = s_type (print_context()) in
+	let s_arg (n,o,t) = Printf.sprintf "%s%s:%s" (if o then "?" else "") n (st t) in
+	let s_fun args ret = Printf.sprintf "(%s):%s" (String.concat ", " (List.map s_arg args)) (st ret) in
+	let siginf = List.map (fun (t,doc) ->
+		let label = match follow t with TFun(args,ret) -> s_fun args ret | _ -> st t in
+		let parameters = match follow t with
+			| TFun(args,_) ->
+				List.map (fun arg ->
+					let label = s_arg arg in
+					JObject [
+						"label",JString label
+					]
+				) args
+			| _ -> []
+		in
+		let js = [
+			"label",JString label;
+			"parameters",JArray parameters;
+		] in
+		JObject (match doc with None -> js | Some s -> ("documentation",JString s) :: js)
+	) tl in
+	let jo = JObject [
+		"signatures",JArray siginf;
+		"activeParameter",JInt display_arg;
+		"activeSignature",JInt 0;
+	] in
+	let b = Buffer.create 0 in
+	write_json (Buffer.add_string b) jo;
+	Buffer.contents b

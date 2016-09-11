@@ -411,9 +411,10 @@ module Pattern = struct
 				v.v_name <- "tmp";
 				let pat = make pctx e1.etype e2 in
 				PatExtractor(v,e1,pat)
-			| EDisplay(e,call) ->
+			| EDisplay(e,iscall) ->
 				let pat = loop e in
-				let _ = Typer.handle_display ctx e call (WithType t) in
+				let _ = if iscall then Typer.handle_signature_display ctx e (WithType t)
+				else Typer.handle_display ctx e (WithType t) in
 				pat
 			| _ ->
 				fail()
@@ -485,8 +486,8 @@ module Case = struct
 		List.iter (fun (v,t) -> v.v_type <- t) old_types;
 		save();
 		if ctx.is_display_file && Display.is_display_position p then begin match eo,eo_ast with
-			| Some e,Some e_ast -> ignore(Typer.display_expr ctx e_ast e false with_type p)
-			| None,None -> ignore(Typer.display_expr ctx (EBlock [],p) (mk (TBlock []) ctx.t.tvoid p) false with_type p)
+			| Some e,Some e_ast -> ignore(Typer.display_expr ctx e_ast e with_type p)
+			| None,None -> ignore(Typer.display_expr ctx (EBlock [],p) (mk (TBlock []) ctx.t.tvoid p) with_type p)
 			| _ -> assert false
 		end;
 		{

@@ -3142,7 +3142,7 @@ and type_try ctx e1 catches with_type p =
 		let e = type_expr ctx e_ast with_type in
 		(* If the catch position is the display position it means we get completion on the catch keyword or some
 		   punctuation. Otherwise we wouldn't reach this point. *)
-		if ctx.is_display_file && Display.is_display_position pc then ignore(display_expr ctx e_ast e false with_type pc);
+		if ctx.is_display_file && Display.is_display_position pc then ignore(display_expr ctx e_ast e with_type pc);
 		v.v_type <- t2;
 		locals();
 		if with_type <> NoValue then unify ctx e.etype e1.etype e.epos;
@@ -3466,13 +3466,13 @@ and type_expr ctx (e,p) (with_type:with_type) =
 						mk (TConst TNull) t_dynamic p
 				)
 			) in
-			if display then ignore(handle_display ctx (EConst(Ident i.v_name),i.v_pos) false (WithType i.v_type));
+			if display then ignore(handle_display ctx (EConst(Ident i.v_name),i.v_pos) (WithType i.v_type));
 			let e2 = type_expr ctx e2 NoValue in
 			(try Optimizer.optimize_for_loop_iterator ctx i e1 e2 p with Exit -> mk (TFor (i,e1,e2)) ctx.t.tvoid p)
 		in
 		let e = match Optimizer.optimize_for_loop ctx (i,pi) e1 e2 p with
 			| Some e ->
-				if display then ignore(handle_display ctx (EConst(Ident i),pi) false Value);
+				if display then ignore(handle_display ctx (EConst(Ident i),pi) Value);
 				e
 			| None -> default()
 		in
@@ -3604,7 +3604,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let texpr = loop t in
 		mk (TCast (type_expr ctx e Value,Some texpr)) t p
 	| EDisplay (e,iscall) ->
-		handle_display ctx e iscall with_type
+		if iscall then handle_signature_display ctx e with_type
+		else handle_display ctx e with_type
 	| EDisplayNew t ->
 		let t = Typeload.load_instance ctx t true p in
 		(match follow t with
@@ -3671,7 +3672,7 @@ and get_submodule_fields ctx path =
 	) tl in
 	tl
 
-and handle_display ctx e_ast iscall with_type =
+and handle_display ctx e_ast with_type =
 	let old = ctx.in_display,ctx.in_call_args in
 	ctx.in_display <- true;
 	ctx.in_call_args <- false;
@@ -3685,10 +3686,8 @@ and handle_display ctx e_ast iscall with_type =
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
 	| _ -> try
 		type_expr ctx e_ast with_type
-	with Error (Unknown_ident n,_) when not iscall ->
+	with Error (Unknown_ident n,_) ->
 		raise (Parser.TypePath ([n],None,false))
-	| Error (Unknown_ident "trace",_) ->
-		raise (Display.DisplaySignatures [(tfun [t_dynamic] ctx.com.basic.tvoid,Some "Print given arguments")])
 	| Error (Type_not_found (path,_),_) as err ->
 		begin try
 			raise (Display.DisplayFields (get_submodule_fields ctx path))
@@ -3703,9 +3702,82 @@ and handle_display ctx e_ast iscall with_type =
 	in
 	ctx.in_display <- fst old;
 	ctx.in_call_args <- snd old;
-	display_expr ctx e_ast e iscall with_type p
+	display_expr ctx e_ast e with_type p
 
-and display_expr ctx e_ast e iscall with_type p =
+and handle_signature_display ctx e_ast with_type =
+	ctx.in_display <- true;
+	let p = pos e_ast in
+	let find_constructor_types t = match follow t with
+		| TInst (c,tl) | TAbstract({a_impl = Some c},tl) ->
+			let ct,cf = get_constructor ctx c tl p in
+			let tl = (ct,cf.cf_doc) :: List.rev_map (fun cf' -> cf'.cf_type,cf.cf_doc) cf.cf_overloads in
+			tl
+		| _ ->
+			[]
+	in
+	let tl,el,p0 = match fst e_ast with
+		| ECall(e1,el) ->
+			let e1 = try
+				type_expr ctx e1 Value
+			with Error (Unknown_ident "trace",_) ->
+				let e = expr_of_type_path (["haxe";"Log"],"trace") p in
+				type_expr ctx e Value
+			in
+			let tl = match e1.eexpr with
+				| TField(_,fa) ->
+					begin match extract_field fa with
+						| Some cf -> (e1.etype,cf.cf_doc) :: List.rev_map (fun cf' -> cf'.cf_type,cf.cf_doc) cf.cf_overloads
+						| None -> [e1.etype,None]
+					end
+				| TConst TSuper ->
+					find_constructor_types e1.etype
+				| _ -> [e1.etype,None]
+			in
+			tl,el,e1.epos
+		| ENew(tpath,el) ->
+			let t = Typeload.load_instance ctx tpath true p in
+			find_constructor_types t,el,pos tpath
+		| _ -> error "Call expected" p
+	in
+	let rec follow_with_callable (t,doc) = match follow t with
+		| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta -> follow_with_callable (Abstract.get_underlying_type a tl,doc)
+		| t -> (t,doc)
+	in
+	let tl = List.map follow_with_callable tl in
+	let rec loop i p1 el = match el with
+		| (e,p2) :: el ->
+			if Display.is_display_position (punion p1 p2) then i else loop (i + 1) p2 el
+		| [] ->
+			i
+	in
+	let display_arg = loop 0 p0 el in
+	(* If our display position exceeds the argument number we add a null expression in order to make
+	   unify_call_args error out. *)
+	let el = if display_arg >= List.length el then el @ [EConst (Ident "null"),null_pos] else el in
+	let rec loop acc tl = match tl with
+		| (t,doc) :: tl ->
+			let keep t = match t with
+				| TFun (args,r) ->
+					begin try
+						let _ = unify_call_args' ctx el args r p false false in
+						true
+					with
+					| Error(Call_error (Not_enough_arguments _),_) -> true
+					| _ -> false
+					end
+				| _ -> false
+			in
+			loop (if keep t then (t,doc) :: acc else acc) tl
+		| [] ->
+			acc
+	in
+	let overloads = match loop [] tl with [] -> tl | tl -> tl in
+	if ctx.com.display.dms_kind = DMSignature then
+		raise (Display.DisplaySignature (Display.display_signature overloads display_arg))
+	else
+		raise (Display.DisplaySignatures overloads)
+
+and display_expr ctx e_ast e with_type p =
 	let get_super_constructor () = match ctx.curclass.cl_super with
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
@@ -3713,7 +3785,7 @@ and display_expr ctx e_ast e iscall with_type p =
 			f
 	in
 	match ctx.com.display.dms_kind with
-	| DMResolve _ | DMPackage ->
+	| DMResolve _ | DMPackage | DMSignature ->
 		assert false
 	| DMType ->
 		let rec loop e = match e.eexpr with
@@ -3804,19 +3876,15 @@ and display_expr ctx e_ast e iscall with_type p =
 		raise (Display.DisplayToplevel (Display.ToplevelCollector.run ctx false))
 	| DMDefault | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
 		let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
-		let e,tl_overloads,doc = match e.eexpr with
+		let e = match e.eexpr with
 			| TField (e1,fa) ->
-				let tl,doc = match extract_field fa with
-					| Some cf when iscall -> (List.map (fun cf -> (cf.cf_type,cf.cf_doc)) cf.cf_overloads),cf.cf_doc
-					| _ -> [],None
-				in
 				if field_name fa = "bind" then (match follow e1.etype with
-					| TFun(args,ret) -> {e1 with etype = opt_args args ret},tl,doc
-					| _ -> e,tl,doc)
+					| TFun(args,ret) -> {e1 with etype = opt_args args ret}
+					| _ -> e)
 				else
-					e,tl,doc
+					e
 			| _ ->
-				e,[],None
+				e
 		in
 		let opt_type t =
 			match t with
@@ -3950,35 +4018,20 @@ and display_expr ctx e_ast e iscall with_type p =
 				fields
 		in
 		let fields = PMap.fold (fun f acc -> if Meta.has Meta.NoCompletion f.cf_meta then acc else f :: acc) fields [] in
-		let t = if iscall then
-			let rec loop t = match follow t with
-				| TFun _ -> t
-				| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta -> loop (Abstract.get_underlying_type a tl)
-				| _ -> t_dynamic
-			in
-			loop e.etype
-		else
-			let get_field acc f =
-				List.fold_left (fun acc f ->
-					let kind = match f.cf_kind with Method _ -> Display.FKMethod f.cf_type | Var _ -> Display.FKVar f.cf_type in
-					if f.cf_public then (f.cf_name,kind,f.cf_doc) :: acc else acc
-				) acc (f :: f.cf_overloads)
-			in
-			let fields = List.fold_left get_field [] fields in
-			let fields = try
-				let sl = string_list_of_expr_path_raise e_ast in
-				fields @ get_submodule_fields ctx (List.tl sl,List.hd sl)
-			with Exit | Not_found ->
-				fields
-			in
-			if fields = [] then
-				e.etype
-			else
-				raise (Display.DisplayFields fields)
+		let get_field acc f =
+			List.fold_left (fun acc f ->
+				let kind = match f.cf_kind with Method _ -> Display.FKMethod f.cf_type | Var _ -> Display.FKVar f.cf_type in
+				if f.cf_public then (f.cf_name,kind,f.cf_doc) :: acc else acc
+			) acc (f :: f.cf_overloads)
 		in
-		(match follow t with
-		| TMono _ | TDynamic _ when ctx.in_macro -> mk (TConst TNull) t p
-		| _ -> raise (Display.DisplaySignatures ((t,doc) :: tl_overloads)))
+		let fields = List.fold_left get_field [] fields in
+		let fields = try
+			let sl = string_list_of_expr_path_raise e_ast in
+			fields @ get_submodule_fields ctx (List.tl sl,List.hd sl)
+		with Exit | Not_found ->
+			fields
+		in
+		raise (Display.DisplayFields fields)
 
 and maybe_type_against_enum ctx f with_type p =
 	try
@@ -4089,7 +4142,7 @@ and type_call ctx e el (with_type:with_type) p =
 		else
 			e
 	| (EDisplay((EConst (Ident "super"),_ as e1),false),_),_ ->
-		handle_display ctx (ECall(e1,el),p) false with_type
+		handle_display ctx (ECall(e1,el),p) with_type
 	| (EConst (Ident "super"),sp) , el ->
 		if ctx.curfun <> FunConstructor then error "Cannot call super constructor outside class constructor" p;
 		let el, t = (match ctx.curclass.cl_super with

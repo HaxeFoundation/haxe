@@ -988,6 +988,8 @@ try
 					| "statistics" ->
 						Common.define com Define.NoCOpt;
 						DMStatistics
+					| "signature" ->
+						DMSignature
 					| "" ->
 						DMDefault
 					| _ ->
@@ -1255,7 +1257,7 @@ with
 				complete_type_path_inner ctx p c cur_package is_import
 		in
 		Option.may (fun fields -> raise (Completion (Display.print_fields fields))) fields
-	| Display.ModuleSymbols s | Display.Diagnostics s | Display.Statistics s | Display.Metadata s ->
+	| Display.ModuleSymbols s | Display.Diagnostics s | Display.Statistics s | Display.Metadata s | Display.DisplaySignature s ->
 		raise (Completion s)
 	| Interp.Sys_exit i ->
 		ctx.flush();

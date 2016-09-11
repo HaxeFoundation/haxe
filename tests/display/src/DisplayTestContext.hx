@@ -69,6 +69,10 @@ class DisplayTestContext {
 		return haxe.Json.parse(callHaxe("0@module-symbols"))[0].symbols;
 	}
 
+	public function signature(pos:Position):SignatureHelp {
+		return haxe.Json.parse(callHaxe('$pos@signature'));
+	}
+
 	function callHaxe(displayPart:String):String {
 		var args = [
 			"-cp", "src",

@@ -590,10 +590,13 @@ let semicolon s =
 			let pos = snd (last_token s) in
 			if do_resume() then pos else error Missing_semicolon pos
 
+let encloses_resume p =
+	p.pmin <= !resume_display.pmin && p.pmax >= !resume_display.pmax
+
 let would_skip_resume p1 s =
 	match Stream.npeek 1 s with
 	| [ (_,p2) ] ->
-		is_resuming_file p2.pfile && p1.pmax < !resume_display.pmin && p2.pmin >= !resume_display.pmax
+		is_resuming_file p2.pfile && encloses_resume (punion p1 p2)
 	| _ ->
 		false
 
@@ -1325,11 +1328,7 @@ and expr = parser
 	| [< '(Kwd Throw,p); e = expr >] -> (EThrow e,p)
 	| [< '(Kwd New,p1); t = parse_type_path; s >] ->
 		begin match s with parser
-		| [< '(POpen,p) >] ->
-			if is_resuming p then display (EDisplayNew t,punion p1 p);
-			(match s with parser
-			| [< al = psep Comma expr; '(PClose,p2); s >] -> expr_next (ENew (t,al),punion p1 p2) s
-			| [< >] -> serror())
+		| [< '(POpen,po); e = parse_call_params (fun el p2 -> (ENew(t,el)),punion p1 p2) po >] -> expr_next e s
 		| [< >] ->
 			if do_resume() then (ENew(t,[]),punion p1 (pos t))
 			else serror()
@@ -1407,14 +1406,7 @@ and expr_next e1 = parser
 			match e1 with
 			| (EConst (Int v),p2) when p2.pmax = p.pmin -> expr_next (EConst (Float (v ^ ".")),punion p p2) s
 			| _ -> serror())
-	| [< '(POpen,p1); s >] ->
-		if is_resuming p1 then display (EDisplay (e1,true),p1);
-		(match s with parser
-		| [< '(Binop OpOr,p2) when do_resume() >] ->
-			set_resume p1;
-			display (EDisplay (e1,true),p1) (* help for debug display mode *)
-		| [< params = parse_call_params e1; '(PClose,p2); s >] -> expr_next (ECall (e1,params) , punion (pos e1) p2) s
-		| [< >] -> serror())
+	| [< '(POpen,p1); e = parse_call_params (fun el p2 -> (ECall(e1,el)),punion (pos e1) p2) p1; s >] -> expr_next e s
 	| [< '(BkOpen,_); e2 = expr; '(BkClose,p2); s >] ->
 		expr_next (EArray (e1,e2), punion (pos e1) p2) s
 	| [< '(Binop OpGt,p1); s >] ->
@@ -1491,25 +1483,37 @@ and parse_catches etry catches pmax = parser
 	| [< (catch,pmax) = parse_catch etry; s >] -> parse_catches etry (catch :: catches) pmax s
 	| [< >] -> List.rev catches,pmax
 
-and parse_call_params ec s =
-	let e = (try
-		match s with parser
-		| [< e = expr >] -> Some e
-		| [< >] -> None
-	with Display e ->
-		display (ECall (ec,[e]),punion (pos ec) (pos e))
-	) in
-	let rec loop acc =
-		try
-			match s with parser
-			| [< '(Comma,_); e = expr >] -> loop (e::acc)
-			| [< >] -> List.rev acc
-		with Display e ->
-			display (ECall (ec,List.rev (e::acc)),punion (pos ec) (pos e))
+and parse_call_params f p1 s =
+	let make_display_call el p2 =
+		let e = f el p2 in
+		display (EDisplay(e,true),pos e)
 	in
-	match e with
-	| None -> []
-	| Some e -> loop [e]
+	if is_resuming p1 then make_display_call [] p1;
+	let rec parse_next_param acc p1 =
+		let e = try
+			expr s
+		with
+		| Stream.Error _ | Stream.Failure as exc ->
+			let p2 = pos (next_token s) in
+			if encloses_resume (punion p1 p2) then make_display_call (List.rev acc) p2
+			else raise exc
+		| Display e ->
+			display (f (List.rev (e :: acc)) (pos e))
+		in
+		match s with parser
+		| [< '(PClose,p2) >] -> f (List.rev (e :: acc)) p2
+		| [< '(Comma,p2) >] -> parse_next_param (e :: acc) p2
+		| [< '(Semicolon,p2) >] -> if encloses_resume (punion p1 p2) then make_display_call (List.rev acc) p2 else serror()
+		| [< >] ->
+			let p2 = pos (next_token s) in
+			if encloses_resume (punion p1 p2) then make_display_call (List.rev (e :: acc)) p2 else serror()
+	in
+	match s with parser
+	| [< '(PClose,p2) >] -> f [] p2
+	| [< '(Binop OpOr,p2) when do_resume() >] ->
+		set_resume p1;
+		make_display_call [] p2
+	| [< >] -> parse_next_param [] p1
 
 and parse_macro_cond allow_op s =
 	match s with parser

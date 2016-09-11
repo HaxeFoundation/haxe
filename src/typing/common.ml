@@ -102,6 +102,7 @@ module DisplayMode = struct
 		| DMModuleSymbols of string option
 		| DMDiagnostics of bool (* true = global, false = only in display file *)
 		| DMStatistics
+		| DMSignature
 
 	type error_policy =
 		| EPIgnore
@@ -156,7 +157,7 @@ module DisplayMode = struct
 		let settings = { default_display_settings with dms_kind = dm } in
 		match dm with
 		| DMNone -> default_compilation_settings
-		| DMDefault | DMPosition | DMResolve _ | DMPackage | DMType -> settings
+		| DMDefault | DMPosition | DMResolve _ | DMPackage | DMType | DMSignature -> settings
 		| DMUsage _ -> { settings with
 				dms_full_typing = true;
 				dms_collect_data = true;
@@ -199,6 +200,7 @@ module DisplayMode = struct
 		| DMModuleSymbols (Some s) -> "workspace-symbols " ^ s
 		| DMDiagnostics b -> (if b then "global " else "") ^ "diagnostics"
 		| DMStatistics -> "statistics"
+		| DMSignature -> "signature"
 end
 
 type compiler_callback = {
