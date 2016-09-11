@@ -266,30 +266,44 @@ module Diagnostics = struct
 			| DKUnusedImport
 			| DKUnresolvedIdentifier
 			| DKCompilerError
+			| DKRemovableCode
 
 		let to_int = function
 			| DKUnusedImport -> 0
 			| DKUnresolvedIdentifier -> 1
 			| DKCompilerError -> 2
+			| DKRemovableCode -> 3
 	end
 
 	open DiagnosticsKind
 	open DisplayTypes
 
+	let add_removable_code com s p prange =
+		let di = com.shared.shared_display_information in
+		di.removable_code <- (s,p,prange) :: di.removable_code
+
 	let find_unused_variables com e =
 		let vars = Hashtbl.create 0 in
+		let pmin_map = Hashtbl.create 0 in
 		let rec loop e = match e.eexpr with
 			| TVar(v,eo) when Meta.has Meta.UserVariable v.v_meta ->
-				Hashtbl.replace vars v.v_id v;
-				(match eo with None -> () | Some e -> loop e)
+				Hashtbl.add pmin_map e.epos.pmin v;
+				let p = match eo with
+					| None -> e.epos
+					| Some e1 ->
+						loop e1;
+						{ e.epos with pmax = e1.epos.pmin }
+				in
+				Hashtbl.replace vars v.v_id (v,p);
 			| TLocal v when Meta.has Meta.UserVariable v.v_meta ->
 				Hashtbl.remove vars v.v_id;
 			| _ ->
 				Type.iter loop e
 		in
 		loop e;
-		Hashtbl.iter (fun _ v ->
-			add_diagnostics_message com "Unused variable" v.v_pos DiagnosticsSeverity.Warning
+		Hashtbl.iter (fun _ (v,p) ->
+			let p = match (Hashtbl.find_all pmin_map p.pmin) with [_] -> p | _ -> null_pos in
+			add_removable_code com "Unused variable" v.v_pos p
 		) vars
 
 	let check_other_things com e =

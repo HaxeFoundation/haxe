@@ -540,21 +540,24 @@ module DiagnosticsPrinter = struct
 					"name",JString s
 				]
 			) suggestions in
-			add DKUnresolvedIdentifier p DiagnosticsSeverity.Error (suggestions @ (find_type s));
+			add DKUnresolvedIdentifier p DiagnosticsSeverity.Error (JArray (suggestions @ (find_type s)));
 		) com.display_information.unresolved_identifiers;
 		PMap.iter (fun p (r,_) ->
-			if not !r then add DKUnusedImport p DiagnosticsSeverity.Warning []
+			if not !r then add DKUnusedImport p DiagnosticsSeverity.Warning (JArray [])
 		) com.shared.shared_display_information.import_positions;
 		List.iter (fun (s,p,sev) ->
-			add DKCompilerError p sev [JString s]
+			add DKCompilerError p sev (JString s)
 		) com.shared.shared_display_information.diagnostics_messages;
+		List.iter (fun (s,p,prange) ->
+			add DKRemovableCode p DiagnosticsSeverity.Warning (JObject ["description",JString s;"range",if prange = null_pos then JNull else pos_to_json_range prange])
+		) com.shared.shared_display_information.removable_code;
 		let jl = Hashtbl.fold (fun file diag acc ->
-			let jl = DynArray.fold_left (fun acc (dk,p,sev,args) ->
+			let jl = DynArray.fold_left (fun acc (dk,p,sev,jargs) ->
 				(JObject [
 					"kind",JInt (to_int dk);
 					"severity",JInt (DiagnosticsSeverity.to_int sev);
 					"range",pos_to_json_range p;
-					"args",JArray args
+					"args",jargs
 				]) :: acc
 			) [] diag in
 			(JObject [
