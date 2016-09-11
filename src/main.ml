@@ -68,29 +68,7 @@ let format msg p =
 let message ctx msg p =
 	ctx.messages <- format msg p :: ctx.messages
 
-let deprecated = [
-	"Type not found : IntIter","IntIter was renamed to IntIterator";
-	"EReg has no field customReplace","EReg.customReplace was renamed to EReg.map";
-	"#StringTools has no field isEOF","StringTools.isEOF was renamed to StringTools.isEof";
-	"Type not found : haxe.BaseCode","haxe.BaseCode was moved to haxe.crypto.BaseCode";
-	"Type not found : haxe.Md5","haxe.Md5 was moved to haxe.crypto.Md5";
-	"Type not found : haxe.SHA1","haxe.SHA1 was moved to haxe.crypto.SHA1";
-	"Type not found : Hash","Hash has been removed, use Map instead";
-	"Type not found : IntHash","IntHash has been removed, use Map instead";
-	"Type not found : haxe.FastList","haxe.FastList was moved to haxe.ds.GenericStack";
-	"#Std has no field format","Std.format has been removed, use single quote 'string ${escape}' syntax instead";
-	"Identifier 'EType' is not part of enum haxe.macro.ExprDef","EType has been removed, use EField instead";
-	"Identifier 'CType' is not part of enum haxe.macro.Constant","CType has been removed, use CIdent instead";
-	"Type not found : haxe.rtti.Infos","Use @:rtti instead of implementing haxe.rtti.Infos";
-	"Type not found : haxe.rtti.Generic","Use @:generic instead of implementing haxe.Generic";
-	"Type not found : flash.utils.TypedDictionary","flash.utils.TypedDictionary has been removed, use Map instead";
-	"Type not found : haxe.Stack", "haxe.Stack has been renamed to haxe.CallStack";
-	"Type not found : neko.zip.Reader", "neko.zip.Reader has been removed, use haxe.zip.Reader instead";
-	"Type not found : neko.zip.Writer", "neko.zip.Writer has been removed, use haxe.zip.Writer instead";
-	"Type not found : haxe.Public", "Use @:publicFields instead of implementing or extending haxe.Public";
-	"#Xml has no field createProlog", "Xml.createProlog was renamed to Xml.createProcessingInstruction";
-	"Duplicate type parameter name: Const", "Multiple Const type parameters are no longer allowed, use @:const T instead"
-]
+let deprecated = []
 
 let limit_string s offset =
 	let rest = 80 - offset in
@@ -470,8 +448,6 @@ let rec process_params create pl =
 	) in
 	loop [] pl
 
-
-
 and init ctx =
 	let usage = Printf.sprintf
 		"Haxe Compiler %s - (C)2005-2016 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-cppia|-as3|-cs|-java|-python|-hl|-lua] <output> [options]\n Options :"
@@ -812,7 +788,6 @@ try
 		if not ctx.has_next then com.package_rules <- PMap.foldi (fun p r acc -> match r with Forbidden -> acc | _ -> PMap.add p r acc) com.package_rules PMap.empty;
 	end;
 	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)
-
 	List.iter (fun f -> f()) (List.rev (!pre_compilation));
 	if !classes = [([],"Std")] && not !force_typing then begin
 		let help_spec = basic_args_spec @ [
