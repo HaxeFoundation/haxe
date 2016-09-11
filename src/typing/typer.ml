@@ -3872,7 +3872,7 @@ and display_expr ctx e_ast e with_type p =
 		raise (Display.DisplayPosition pl);
 	| DMToplevel ->
 		raise (Display.DisplayToplevel (Display.ToplevelCollector.run ctx false))
-	| DMDefault | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
+	| DMField | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
 		let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
 		let e = match e.eexpr with
 			| TField (e1,fa) ->

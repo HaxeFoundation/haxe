@@ -1823,7 +1823,7 @@ let check_global_metadata ctx meta f_add mpath tpath so =
 						(* TODO: hack until we support proper output for hover display mode *)
 						 raise (Display.Metadata ("<metadata>" ^ s ^ "</metadata>"));
 			) meta
-		| DMDefault ->
+		| DMField ->
 			List.iter (fun (meta,_,p) ->
 				if Display.is_display_position p then begin
 					let all,_ = MetaInfo.get_documentation_list() in

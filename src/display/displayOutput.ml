@@ -669,7 +669,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 			| "signature" ->
 				DMSignature
 			| "" ->
-				DMDefault
+				DMField
 			| _ ->
 				let smode,arg = try ExtString.String.split smode "@" with _ -> pos,"" in
 				match smode with
@@ -679,7 +679,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 						Common.define com Define.NoCOpt;
 						DMModuleSymbols (Some arg)
 					| _ ->
-						DMDefault
+						DMField
 		in
 		let pos = try int_of_string pos with _ -> failwith ("Invalid format : "  ^ pos) in
 		com.display <- DisplayMode.create mode;

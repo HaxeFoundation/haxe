@@ -92,7 +92,7 @@ type platform_config = {
 module DisplayMode = struct
 	type t =
 		| DMNone
-		| DMDefault
+		| DMField
 		| DMUsage of bool (* true = also report definition *)
 		| DMPosition
 		| DMToplevel
@@ -128,7 +128,7 @@ module DisplayMode = struct
 	}
 
 	let default_display_settings = {
-		dms_kind = DMDefault;
+		dms_kind = DMField;
 		dms_display = true;
 		dms_full_typing = false;
 		dms_force_macro_typing = false;
@@ -157,7 +157,7 @@ module DisplayMode = struct
 		let settings = { default_display_settings with dms_kind = dm } in
 		match dm with
 		| DMNone -> default_compilation_settings
-		| DMDefault | DMPosition | DMResolve _ | DMPackage | DMType | DMSignature -> settings
+		| DMField | DMPosition | DMResolve _ | DMPackage | DMType | DMSignature -> settings
 		| DMUsage _ -> { settings with
 				dms_full_typing = true;
 				dms_collect_data = true;
@@ -188,7 +188,7 @@ module DisplayMode = struct
 
 	let to_string = function
 		| DMNone -> "none"
-		| DMDefault -> "default"
+		| DMField -> "field"
 		| DMPosition -> "position"
 		| DMResolve s -> "resolve " ^ s
 		| DMPackage -> "package"
