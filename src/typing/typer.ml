@@ -1179,7 +1179,7 @@ let rec using_field ctx mode e i p =
 						| _ -> ()
 					) monos cf.cf_params;
 					let et = type_module_type ctx (TClassDecl c) None p in
-					Display.maybe_mark_import_position ctx pc;
+					Display.ImportHandling.maybe_mark_import_position ctx pc;
 					AKUsing (mk (TField (et,FStatic (c,cf))) t p,c,cf,e)
 				| _ ->
 					raise Not_found
@@ -1302,7 +1302,7 @@ let rec type_ident_raise ctx i p mode =
 							let et = type_module_type ctx (TClassDecl c) None p in
 							let fa = FStatic(c,cf) in
 							let t = monomorphs cf.cf_params cf.cf_type in
-							Display.maybe_mark_import_position ctx pt;
+							Display.ImportHandling.maybe_mark_import_position ctx pt;
 							begin match cf.cf_kind with
 								| Var {v_read = AccInline} -> AKInline(et,cf,fa,t)
 								| _ -> AKExpr (mk (TField(et,fa)) t p)
@@ -1323,7 +1323,7 @@ let rec type_ident_raise ctx i p mode =
 						let et = type_module_type ctx t None p in
 						let monos = List.map (fun _ -> mk_mono()) e.e_params in
 						let monos2 = List.map (fun _ -> mk_mono()) ef.ef_params in
-						Display.maybe_mark_import_position ctx pt;
+						Display.ImportHandling.maybe_mark_import_position ctx pt;
 						wrap (mk (TField (et,FEnum (e,ef))) (enum_field_type ctx e ef monos monos2 p) p)
 					with
 						Not_found -> loop l
@@ -1332,7 +1332,7 @@ let rec type_ident_raise ctx i p mode =
 	with Not_found ->
 		(* lookup imported globals *)
 		let t, name, pi = PMap.find i ctx.m.module_globals in
-		Display.maybe_mark_import_position ctx pi;
+		Display.ImportHandling.maybe_mark_import_position ctx pi;
 		let e = type_module_type ctx t None p in
 		type_field ctx e name p mode
 
@@ -2604,7 +2604,7 @@ and handle_efield ctx e p mode =
 								List.find path_match ctx.m.curmod.m_types
 							with Not_found ->
 								let t,p = List.find (fun (t,_) -> path_match t) ctx.m.module_types in
-								Display.maybe_mark_import_position ctx p;
+								Display.ImportHandling.maybe_mark_import_position ctx p;
 								t
 							in
 							(* if the static is not found, look for a subtype instead - #1916 *)
@@ -2732,7 +2732,7 @@ and type_vars ctx vl p =
 			let v = add_local ctx v t pv in
 			v.v_meta <- (Meta.UserVariable,[],pv) :: v.v_meta;
 			if ctx.in_display && Display.is_display_position pv then
-				Display.display_variable ctx.com.display v pv;
+				Display.DisplayEmitter.display_variable ctx.com.display v pv;
 			v,e
 		with
 			Error (e,p) ->
@@ -2753,7 +2753,7 @@ and format_string ctx s p =
 	let add_expr (enext,p) len =
 		min := !min + len;
 		let enext = if ctx.in_display && Display.is_display_position p then
-			Display.process_expr ctx.com (enext,p)
+			Display.ExprPreprocessing.process_expr ctx.com (enext,p)
 		else
 			enext,p
 		in
@@ -3040,7 +3040,7 @@ and type_new ctx path el with_type p =
 		| mt ->
 			error ((s_type_path (t_infos mt).mt_path) ^ " cannot be constructed") p
 	in
-	Display.check_display_type ctx t (pos path);
+	Display.DisplayEmitter.check_display_type ctx t (pos path);
 	let build_constructor_call c tl =
 		let ct, f = get_constructor ctx c tl p in
 		if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
@@ -3138,7 +3138,7 @@ and type_try ctx e1 catches with_type p =
 		let locals = save_locals ctx in
 		let v = add_local ctx v t pv in
 		if ctx.is_display_file && Display.is_display_position pv then
-			Display.display_variable ctx.com.display v pv;
+			Display.DisplayEmitter.display_variable ctx.com.display v pv;
 		let e = type_expr ctx e_ast with_type in
 		(* If the catch position is the display position it means we get completion on the catch keyword or some
 		   punctuation. Otherwise we wouldn't reach this point. *)
@@ -3607,13 +3607,14 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		if iscall then handle_signature_display ctx e with_type
 		else handle_display ctx e with_type
 	| EDisplayNew t ->
-		let t = Typeload.load_instance ctx t true p in
+		assert false
+		(*let t = Typeload.load_instance ctx t true p in
 		(match follow t with
 		| TInst (c,params) | TAbstract({a_impl = Some c},params) ->
 			let ct, f = get_constructor ctx c params p in
 			raise (Display.DisplaySignatures ((ct,f.cf_doc) :: List.map (fun f -> (f.cf_type,f.cf_doc)) f.cf_overloads))
 		| _ ->
-			error "Not a class" p)
+			error "Not a class" p)*)
 	| ECheckType (e,t) ->
 		let t = Typeload.load_complex_type ctx true p t in
 		let e = type_expr ctx e (WithType t) in
@@ -3679,9 +3680,9 @@ and handle_display ctx e_ast with_type =
 	let e = match e_ast,with_type with
 	| (EConst (Ident "$type"),_),_ ->
 		let mono = mk_mono() in
-		raise (Display.DisplaySignatures [(TFun(["expression",false,mono],mono),Some "Outputs type of argument as a warning and uses argument as value")])
+		raise (Display.DisplaySignatures ([(TFun(["expression",false,mono],mono),Some "Outputs type of argument as a warning and uses argument as value")],0))
 	| (EConst (Ident "trace"),_),_ ->
-		raise (Display.DisplaySignatures [(tfun [t_dynamic] ctx.com.basic.tvoid,Some "Print given arguments")])
+		raise (Display.DisplaySignatures ([(tfun [t_dynamic] ctx.com.basic.tvoid,Some "Print given arguments")],0))
 	| (EConst (Ident "_"),p),WithType t ->
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
 	| _ -> try
@@ -3772,10 +3773,7 @@ and handle_signature_display ctx e_ast with_type =
 			acc
 	in
 	let overloads = match loop [] tl with [] -> tl | tl -> tl in
-	if ctx.com.display.dms_kind = DMSignature then
-		raise (Display.DisplaySignature (Display.display_signature overloads display_arg))
-	else
-		raise (Display.DisplaySignatures overloads)
+	raise (Display.DisplaySignatures(overloads,display_arg))
 
 and display_expr ctx e_ast e with_type p =
 	let get_super_constructor () = match ctx.curclass.cl_super with

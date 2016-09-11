@@ -3,8 +3,7 @@ open Ast
 open Common
 open Common.DisplayMode
 open Type
-
-exception Completion of string
+open DisplayOutput
 
 let measure_times = ref false
 let prompt = ref false
@@ -51,10 +50,6 @@ let create_context params =
 	} in
 	ctx.flush <- (fun() -> default_flush ctx);
 	ctx
-
-let unquote v =
-	let len = String.length v in
-	if len > 0 && v.[0] = '"' && v.[len - 1] = '"' then String.sub v 1 (len - 2) else v
 
 let parse_hxml_data data =
 	let lines = Str.split (Str.regexp "[\r\n]+") data in

@@ -286,7 +286,7 @@ let type_function_arg ctx t e opt p =
 
 let type_var_field ctx t e stat do_display p =
 	if stat then ctx.curfun <- FunStatic else ctx.curfun <- FunMember;
-	let e = if do_display then Display.process_expr ctx.com e else e in
+	let e = if do_display then Display.ExprPreprocessing.process_expr ctx.com e else e in
 	let e = type_expr ctx e (WithType t) in
 	let e = (!cast_or_unify_ref) ctx t e p in
 	match t with
@@ -319,7 +319,7 @@ let rec load_type_def ctx p t =
 			List.find path_matches ctx.m.curmod.m_types
 		with Not_found ->
 			let t,pi = List.find (fun (t2,pi) -> path_matches t2) ctx.m.module_types in
-			Display.mark_import_position ctx.com pi;
+			Display.ImportHandling.mark_import_position ctx.com pi;
 			t
 	with
 		Not_found ->
@@ -347,7 +347,7 @@ let rec load_type_def ctx p t =
 					| (wp,pi) :: l ->
 						try
 							let t = load_type_def ctx p { t with tpackage = wp } in
-							Display.mark_import_position ctx.com pi;
+							Display.ImportHandling.mark_import_position ctx.com pi;
 							t
 						with
 							| Error (Module_not_found _,p2)
@@ -519,7 +519,7 @@ let rec load_instance ?(allow_display=false) ctx (t,pn) allow_no_params p =
 			f params
 		end
 	in
-	if allow_display then Display.check_display_type ctx t pn;
+	if allow_display then Display.DisplayEmitter.check_display_type ctx t pn;
 	t
 
 (*
@@ -1081,7 +1081,7 @@ let type_function_arg_value ctx t c do_display =
 		| None -> None
 		| Some e ->
 			let p = pos e in
-			let e = if do_display then Display.process_expr ctx.com e else e in
+			let e = if do_display then Display.ExprPreprocessing.process_expr ctx.com e else e in
 			let e = ctx.g.do_optimize ctx (type_expr ctx e (WithType t)) in
 			unify ctx e.etype t p;
 			let rec loop e = match e.eexpr with
@@ -1491,7 +1491,7 @@ module Inheritance = struct
 						List.find path_matches ctx.m.curmod.m_types
 					with Not_found ->
 						let t,pi = List.find (fun (lt,_) -> path_matches lt) ctx.m.module_types in
-						Display.mark_import_position ctx.com pi;
+						Display.ImportHandling.mark_import_position ctx.com pi;
 						t
 					in
 					{ t with tpackage = fst (t_path lt) },p
@@ -1563,7 +1563,7 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 	if enum_constructor then c.cl_meta <- (Meta.EnumConstructorParam,[],null_pos) :: c.cl_meta;
 	let t = TInst (c,List.map snd c.cl_params) in
 	if ctx.is_display_file && Display.is_display_position (pos tp.tp_name) then
-		Display.display_type ctx.com.display t (pos tp.tp_name);
+		Display.DisplayEmitter.display_type ctx.com.display t (pos tp.tp_name);
 	match tp.tp_constraints with
 	| [] ->
 		n, t
@@ -1609,7 +1609,7 @@ let type_function ctx args ret fmode f do_display p =
 		let v,c = add_local ctx n t pn, c in
 		v.v_meta <- m;
 		if do_display && Display.is_display_position pn then
-			Display.display_variable ctx.com.display v pn;
+			Display.DisplayEmitter.display_variable ctx.com.display v pn;
 		if n = "this" then v.v_meta <- (Meta.This,[],null_pos) :: v.v_meta;
 		v,c
 	) args f.f_args in
@@ -1623,15 +1623,15 @@ let type_function ctx args ret fmode f do_display p =
 	let e = if not do_display then
 		type_expr ctx e NoValue
 	else begin
-		let e = Display.process_expr ctx.com e in
+		let e = Display.ExprPreprocessing.process_expr ctx.com e in
 		try
 			if Common.defined ctx.com Define.NoCOpt then raise Exit;
 			type_expr ctx (Optimizer.optimize_completion_expr e) NoValue
 		with
 		| Parser.TypePath (_,None,_) | Exit ->
 			type_expr ctx e NoValue
-		| Display.DisplayType (t,_,_) | Display.DisplaySignatures [(t,_)] when (match follow t with TMono _ -> true | _ -> false) ->
-			type_expr ctx (if ctx.com.display.dms_kind = DMToplevel then Display.find_enclosing ctx.com e else e) NoValue
+		| Display.DisplayType (t,_,_) | Display.DisplaySignatures ([(t,_)],_) when (match follow t with TMono _ -> true | _ -> false) ->
+			type_expr ctx (if ctx.com.display.dms_kind = DMToplevel then Display.ExprPreprocessing.find_enclosing ctx.com e else e) NoValue
 	end in
 	let e = match e.eexpr with
 		| TMeta((Meta.MergeBlock,_,_), ({eexpr = TBlock el} as e1)) -> e1
@@ -2211,7 +2211,7 @@ module ClassInitializer = struct
 
 	let check_field_display ctx p cf =
  		if Display.is_display_position p then
-			Display.display_field ctx.com.display cf p
+			Display.DisplayEmitter.display_field ctx.com.display cf p
 
 	let bind_var (ctx,cctx,fctx) cf e =
 		let c = cctx.tclass in
@@ -2939,33 +2939,34 @@ let add_module ctx m p =
 	Hashtbl.add ctx.g.modules m.m_path m
 
 let handle_path_display ctx path p =
-	match Display.convert_import_to_something_usable !Parser.resume_display path,ctx.com.display.dms_kind with
-		| (Display.IDKPackage sl,_),_ ->
+	let open Display.ImportHandling in
+	match Display.ImportHandling.convert_import_to_something_usable !Parser.resume_display path,ctx.com.display.dms_kind with
+		| (IDKPackage sl,_),_ ->
 			raise (Parser.TypePath(sl,None,true))
-		| (Display.IDKModule(sl,s),_),DMPosition ->
+		| (IDKModule(sl,s),_),DMPosition ->
 			(* We assume that we want to go to the module file, not a specific type
 			   which might not even exist anyway. *)
 			let mt = ctx.g.do_load_module ctx (sl,s) p in
 			let p = { pfile = mt.m_extra.m_file; pmin = 0; pmax = 0} in
 			raise (Display.DisplayPosition [p])
-		| (Display.IDKModule(sl,s),_),_ ->
+		| (IDKModule(sl,s),_),_ ->
 			(* TODO: wait till nadako requests @type display for these, then implement it somehow *)
 			raise (Parser.TypePath(sl,Some(s,false),true))
-		| (Display.IDKSubType(sl,sm,st),p),DMPosition ->
+		| (IDKSubType(sl,sm,st),p),DMPosition ->
 			resolve_position_by_path ctx { tpackage = sl; tname = sm; tparams = []; tsub = Some st} p
-		| (Display.IDKSubType(sl,sm,st),_),_ ->
+		| (IDKSubType(sl,sm,st),_),_ ->
 			raise (Parser.TypePath(sl @ [sm],Some(st,false),true))
-		| ((Display.IDKSubTypeField(sl,sm,st,sf) | Display.IDKModuleField(sl,(sm as st),sf)),p),_ ->
+		| ((IDKSubTypeField(sl,sm,st,sf) | IDKModuleField(sl,(sm as st),sf)),p),_ ->
 			let m = ctx.g.do_load_module ctx (sl,sm) p in
 			List.iter (fun t -> match t with
 				| TClassDecl c when snd c.cl_path = st ->
 					ignore(c.cl_build());
 					let cf = PMap.find sf c.cl_statics in
-					Display.display_field ctx.com.display cf p
+					Display.DisplayEmitter.display_field ctx.com.display cf p
 				| _ ->
 					()
 			) m.m_types;
-		| (Display.IDK,_),_ ->
+		| (IDK,_),_ ->
 			()
 
 (*
@@ -2980,9 +2981,9 @@ let init_module_type ctx context_init do_init (decl,p) =
 	let check_path_display path p = match ctx.com.display.dms_kind with
 		(* We cannot use ctx.is_display_file because the import could come from an import.hx file. *)
 		| DMDiagnostics b when (b && not (ExtString.String.ends_with p.pfile "import.hx")) || Display.is_display_file p.pfile ->
-			Display.add_import_position ctx.com p path;
+			Display.ImportHandling.add_import_position ctx.com p path;
 		| DMStatistics | DMUsage _ ->
-			Display.add_import_position ctx.com p path;
+			Display.ImportHandling.add_import_position ctx.com p path;
 		| _ ->
 			if Display.is_display_file p.pfile then handle_path_display ctx path p
 	in
@@ -3143,7 +3144,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 	| EClass d ->
 		let c = (match get_type (fst d.d_name) with TClassDecl c -> c | _ -> assert false) in
 		if ctx.is_display_file && Display.is_display_position (pos d.d_name) then
-			Display.display_module_type ctx.com.display (match c.cl_kind with KAbstractImpl a -> TAbstractDecl a | _ -> TClassDecl c) (pos d.d_name);
+			Display.DisplayEmitter.display_module_type ctx.com.display (match c.cl_kind with KAbstractImpl a -> TAbstractDecl a | _ -> TClassDecl c) (pos d.d_name);
 		check_global_metadata ctx c.cl_meta (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
 		let herits = d.d_flags in
 		c.cl_extern <- List.mem HExtern herits;
@@ -3198,7 +3199,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 	| EEnum d ->
 		let e = (match get_type (fst d.d_name) with TEnumDecl e -> e | _ -> assert false) in
 		if ctx.is_display_file && Display.is_display_position (pos d.d_name) then
-			Display.display_module_type ctx.com.display (TEnumDecl e) (pos d.d_name);
+			Display.DisplayEmitter.display_module_type ctx.com.display (TEnumDecl e) (pos d.d_name);
 		let ctx = { ctx with type_params = e.e_params } in
 		let h = (try Some (Hashtbl.find ctx.g.type_patches e.e_path) with Not_found -> None) in
 		check_global_metadata ctx e.e_meta (fun m -> e.e_meta <- m :: e.e_meta) e.e_module.m_path e.e_path None;
@@ -3309,7 +3310,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				cf_overloads = [];
 			} in
  			if ctx.is_display_file && Display.is_display_position p then
- 				Display.display_enum_field ctx.com.display f p;
+ 				Display.DisplayEmitter.display_enum_field ctx.com.display f p;
 			e.e_constrs <- PMap.add f.ef_name f e.e_constrs;
 			fields := PMap.add cf.cf_name cf !fields;
 			incr index;
@@ -3336,7 +3337,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 	| ETypedef d ->
 		let t = (match get_type (fst d.d_name) with TTypeDecl t -> t | _ -> assert false) in
 		if ctx.is_display_file && Display.is_display_position (pos d.d_name) then
-			Display.display_module_type ctx.com.display (TTypeDecl t) (pos d.d_name);
+			Display.DisplayEmitter.display_module_type ctx.com.display (TTypeDecl t) (pos d.d_name);
 		check_global_metadata ctx t.t_meta (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
 		let ctx = { ctx with type_params = t.t_params } in
 		let tt = load_complex_type ctx true p d.d_data in
@@ -3374,7 +3375,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 	| EAbstract d ->
 		let a = (match get_type (fst d.d_name) with TAbstractDecl a -> a | _ -> assert false) in
 		if ctx.is_display_file && Display.is_display_position (pos d.d_name) then
-			Display.display_module_type ctx.com.display (TAbstractDecl a) (pos d.d_name);
+			Display.DisplayEmitter.display_module_type ctx.com.display (TAbstractDecl a) (pos d.d_name);
 		check_global_metadata ctx a.a_meta (fun m -> a.a_meta <- m :: a.a_meta) a.a_module.m_path a.a_path None;
 		let ctx = { ctx with type_params = a.a_params } in
 		let is_type = ref false in

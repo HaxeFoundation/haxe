@@ -114,157 +114,6 @@ let reserved_flags = [
 	"as3";"swc";"macro";"sys"
 	]
 
-let unique l =
-	let rec _unique = function
-		| [] -> []
-		| x1 :: x2 :: l when x1 = x2 -> _unique (x2 :: l)
-		| x :: l -> x :: _unique l
-	in
-	_unique (List.sort compare l)
-
-let rec read_type_path com p =
-	let classes = ref [] in
-	let packages = ref [] in
-	let p = (match p with
-		| x :: l ->
-			(try
-				match PMap.find x com.package_rules with
-				| Remap s -> s :: l
-				| _ -> p
-			with
-				Not_found -> p)
-		| _ -> p
-	) in
-	List.iter (fun path ->
-		let dir = path ^ String.concat "/" p in
-		let r = (try Sys.readdir dir with _ -> [||]) in
-		Array.iter (fun f ->
-			if (try (Unix.stat (dir ^ "/" ^ f)).Unix.st_kind = Unix.S_DIR with _ -> false) then begin
-				if f.[0] >= 'a' && f.[0] <= 'z' then begin
-					if p = ["."] then
-						match read_type_path com [f] with
-						| [] , [] -> ()
-						| _ ->
-							try
-								match PMap.find f com.package_rules with
-								| Forbidden -> ()
-								| Remap f -> packages := f :: !packages
-							with Not_found ->
-								packages := f :: !packages
-					else
-						packages := f :: !packages
-				end;
-			end else if file_extension f = "hx" then begin
-				let c = Filename.chop_extension f in
-				if String.length c < 2 || String.sub c (String.length c - 2) 2 <> "__" then classes := c :: !classes;
-			end;
-		) r;
-	) com.class_path;
-	List.iter (fun (_,_,extract) ->
-		Hashtbl.iter (fun (path,name) _ ->
-			if path = p then classes := name :: !classes else
-			let rec loop p1 p2 =
-				match p1, p2 with
-				| [], _ -> ()
-				| x :: _, [] -> packages := x :: !packages
-				| a :: p1, b :: p2 -> if a = b then loop p1 p2
-			in
-			loop path p
-		) (extract());
-	) com.swf_libs;
-	List.iter (fun (path,std,close,all_files,lookup) ->
-		List.iter (fun (path, name) ->
-			if path = p then classes := name :: !classes else
-			let rec loop p1 p2 =
-				match p1, p2 with
-				| [], _ -> ()
-				| x :: _, [] -> packages := x :: !packages
-				| a :: p1, b :: p2 -> if a = b then loop p1 p2
-			in
-			loop path p
-		) (all_files())
-	) com.java_libs;
-	List.iter (fun (path,std,all_files,lookup) ->
-		List.iter (fun (path, name) ->
-			if path = p then classes := name :: !classes else
-			let rec loop p1 p2 =
-				match p1, p2 with
-				| [], _ -> ()
-				| x :: _, [] -> packages := x :: !packages
-				| a :: p1, b :: p2 -> if a = b then loop p1 p2
-			in
-		loop path p
-		) (all_files())
-	) com.net_libs;
-	unique !packages, unique !classes
-
-(** raise field completion listing packages and modules in a given package *)
-let complete_type_path ctx p =
-	let packs, modules = read_type_path ctx.com p in
-	if packs = [] && modules = [] then
-		(error ctx ("No classes found in " ^ String.concat "." p) Ast.null_pos;
-		None)
-	else
-		let packs = List.map (fun n -> n,Display.FKPackage,"") packs in
-		let modules = List.map (fun n -> n,Display.FKModule,"") modules in
-		Some (packs @ modules)
-
-(** raise field completion listing module sub-types and static fields *)
-let complete_type_path_inner ctx p c cur_package is_import =
-	let com = ctx.com in
-	try
-		let sl_pack,s_module = match List.rev p with
-			| s :: sl when s.[0] >= 'A' && s.[0] <= 'Z' -> List.rev sl,s
-			| _ -> p,c
-		in
-		let ctx = Typer.create com in
-		let rec lookup p =
-			try
-				Typeload.load_module ctx (p,s_module) Ast.null_pos
-			with e ->
-				if cur_package then
-					match List.rev p with
-					| [] -> raise e
-					| _ :: p -> lookup (List.rev p)
-				else
-					raise e
-		in
-		let m = lookup sl_pack in
-		let statics = ref None in
-		let public_types = List.filter (fun t ->
-			let tinfos = t_infos t in
-			let is_module_type = snd tinfos.mt_path = c in
-			if is_import && is_module_type then begin match t with
-				| TClassDecl c ->
-					ignore(c.cl_build());
-					statics := Some c.cl_ordered_statics
-				| _ -> ()
-			end;
-			not tinfos.mt_private
-		) m.m_types in
-		let types =
-			if c <> s_module then
-				[]
-			else
-				List.map (fun t ->
-					let infos = t_infos t in
-					(snd infos.mt_path), Display.FKModule, (Option.default "" infos.mt_doc)
-				) public_types
-		in
-		let make_field_doc cf =
-			cf.cf_name,
-			(match cf.cf_kind with Method _ -> Display.FKMethod cf.cf_type | Var _ -> Display.FKVar cf.cf_type),
-			(match cf.cf_doc with Some s -> s | None -> "")
-		in
-		let fields = match !statics with
-			| None -> types
-			| Some cfl -> types @ (List.map make_field_doc (List.filter (fun cf -> cf.cf_public) cfl))
-		in
-		Some fields
-	with _ ->
-		error ctx ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos;
-		None
-
 let delete_file f = try Sys.remove f with _ -> ()
 
 let expand_env ?(h=None) path  =
@@ -392,112 +241,6 @@ let run_command ctx cmd =
 	) in
 	t();
 	r
-
-let display_memory ctx =
-	let verbose = ctx.com.verbose in
-	let print = print_endline in
-	let fmt_size sz =
-		if sz < 1024 then
-			string_of_int sz ^ " B"
-		else if sz < 1024*1024 then
-			string_of_int (sz asr 10) ^ " KB"
-		else
-			Printf.sprintf "%.1f MB" ((float_of_int sz) /. (1024.*.1024.))
-	in
-	let size v =
-		fmt_size (mem_size v)
-	in
-	Gc.full_major();
-	Gc.compact();
-	let mem = Gc.stat() in
-	print ("Total Allocated Memory " ^ fmt_size (mem.Gc.heap_words * (Sys.word_size asr 8)));
-	print ("Free Memory " ^ fmt_size (mem.Gc.free_words * (Sys.word_size asr 8)));
-	(match !global_cache with
-	| None ->
-		print "No cache found";
-	| Some c ->
-		print ("Total cache size " ^ size c);
-		print ("  haxelib " ^ size c.c_haxelib);
-		print ("  parsed ast " ^ size c.c_files ^ " (" ^ string_of_int (Hashtbl.length c.c_files) ^ " files stored)");
-		print ("  typed modules " ^ size c.c_modules ^ " (" ^ string_of_int (Hashtbl.length c.c_modules) ^ " modules stored)");
-		let rec scan_module_deps m h =
-			if Hashtbl.mem h m.m_id then
-				()
-			else begin
-				Hashtbl.add h m.m_id m;
-				PMap.iter (fun _ m -> scan_module_deps m h) m.m_extra.m_deps
-			end
-		in
-		let all_modules = Hashtbl.fold (fun _ m acc -> PMap.add m.m_id m acc) c.c_modules PMap.empty in
-		let modules = Hashtbl.fold (fun (path,key) m acc ->
-			let mdeps = Hashtbl.create 0 in
-			scan_module_deps m mdeps;
-			let deps = ref [] in
-			let out = ref all_modules in
-			Hashtbl.iter (fun _ md ->
-				out := PMap.remove md.m_id !out;
-				if m == md then () else begin
-				deps := Obj.repr md :: !deps;
-				List.iter (fun t ->
-					match t with
-					| TClassDecl c ->
-						deps := Obj.repr c :: !deps;
-						List.iter (fun f -> deps := Obj.repr f :: !deps) c.cl_ordered_statics;
-						List.iter (fun f -> deps := Obj.repr f :: !deps) c.cl_ordered_fields;
-					| TEnumDecl e ->
-						deps := Obj.repr e :: !deps;
-						List.iter (fun n -> deps := Obj.repr (PMap.find n e.e_constrs) :: !deps) e.e_names;
-					| TTypeDecl t -> deps := Obj.repr t :: !deps;
-					| TAbstractDecl a -> deps := Obj.repr a :: !deps;
-				) md.m_types;
-				end
-			) mdeps;
-			let chk = Obj.repr Common.memory_marker :: PMap.fold (fun m acc -> Obj.repr m :: acc) !out [] in
-			let inf = Objsize.objsize m !deps chk in
-			(m,Objsize.size_with_headers inf, (inf.Objsize.reached,!deps,!out)) :: acc
-		) c.c_modules [] in
-		let cur_key = ref "" and tcount = ref 0 and mcount = ref 0 in
-		List.iter (fun (m,size,(reached,deps,out)) ->
-			let key = m.m_extra.m_sign in
-			if key <> !cur_key then begin
-				print (Printf.sprintf ("    --- CONFIG %s ----------------------------") (Digest.to_hex key));
-				cur_key := key;
-			end;
-			let sign md =
-				if md.m_extra.m_sign = key then "" else "(" ^ (try Digest.to_hex md.m_extra.m_sign with _ -> "???" ^ md.m_extra.m_sign) ^ ")"
-			in
-			print (Printf.sprintf "    %s : %s" (Ast.s_type_path m.m_path) (fmt_size size));
-			(if reached then try
-				incr mcount;
-				let lcount = ref 0 in
-				let leak l =
-					incr lcount;
-					incr tcount;
-					print (Printf.sprintf "      LEAK %s" l);
-					if !lcount >= 3 && !tcount >= 100 && not verbose then begin
-						print (Printf.sprintf "      ...");
-						raise Exit;
-					end;
-				in
-				if (Objsize.objsize m deps [Obj.repr Common.memory_marker]).Objsize.reached then leak "common";
-				PMap.iter (fun _ md ->
-					if (Objsize.objsize m deps [Obj.repr md]).Objsize.reached then leak (Ast.s_type_path md.m_path ^ sign md);
-				) out;
-			with Exit ->
-				());
-			if verbose then begin
-				print (Printf.sprintf "      %d total deps" (List.length deps));
-				PMap.iter (fun _ md ->
-					print (Printf.sprintf "      dep %s%s" (Ast.s_type_path md.m_path) (sign md));
-				) m.m_extra.m_deps;
-			end;
-			flush stdout
-		) (List.sort (fun (m1,s1,_) (m2,s2,_) ->
-			let k1 = m1.m_extra.m_sign and k2 = m2.m_extra.m_sign in
-			if k1 = k2 then s1 - s2 else if k1 > k2 then 1 else -1
-		) modules);
-		if !mcount > 0 then print ("*** " ^ string_of_int !mcount ^ " modules have leaks !");
-		print "Cache dump complete")
 
 module Initialize = struct
 	let set_platform com pf file =
@@ -921,7 +664,7 @@ try
 		),"<file>[@name] : add a named resource file");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
 		("-cmd", Arg.String (fun cmd ->
-			cmds := unquote cmd :: !cmds
+			cmds := DisplayOutput.unquote cmd :: !cmds
 		),": run the specified command after successful compilation");
 		("--flash-strict", define Define.FlashStrict, ": more type strict flash API");
 		("--no-traces", define Define.NoTraces, ": don't compile trace calls in the program");
@@ -945,74 +688,7 @@ try
 		("--next", Arg.Unit (fun() -> assert false), ": separate several haxe compilations");
 		("--each", Arg.Unit (fun() -> assert false), ": append preceding parameters to all haxe compilations separated by --next");
 		("--display", Arg.String (fun file_pos ->
-			match file_pos with
-			| "classes" ->
-				pre_compilation := (fun() -> raise (Parser.TypePath (["."],None,true))) :: !pre_compilation;
-			| "keywords" ->
-				raise (Completion (Display.print_keywords ()))
-			| "memory" ->
-				did_something := true;
-				(try display_memory ctx with e -> prerr_endline (Printexc.get_backtrace ()));
-			| "diagnostics" ->
-				Common.define com Define.NoCOpt;
-				com.display <- DisplayMode.create (DMDiagnostics true);
-				Common.display_default := DMDiagnostics true;
-			| _ ->
-				let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format : " ^ file_pos) in
-				let file = unquote file in
-				let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
-				let mode = match smode with
-					| "position" ->
-						Common.define com Define.NoCOpt;
-						DMPosition
-					| "usage" ->
-						Common.define com Define.NoCOpt;
-						DMUsage false
-					(*| "rename" ->
-						Common.define com Define.NoCOpt;
-						DMUsage true*)
-					| "package" ->
-						DMPackage
-					| "type" ->
-						Common.define com Define.NoCOpt;
-						DMType
-					| "toplevel" ->
-						Common.define com Define.NoCOpt;
-						DMToplevel
-					| "module-symbols" ->
-						Common.define com Define.NoCOpt;
-						DMModuleSymbols None;
-					| "diagnostics" ->
-						Common.define com Define.NoCOpt;
-						DMDiagnostics false;
-					| "statistics" ->
-						Common.define com Define.NoCOpt;
-						DMStatistics
-					| "signature" ->
-						DMSignature
-					| "" ->
-						DMDefault
-					| _ ->
-						let smode,arg = try ExtString.String.split smode "@" with _ -> pos,"" in
-						match smode with
-							| "resolve" ->
-								DMResolve arg
-							| "workspace-symbols" ->
-								Common.define com Define.NoCOpt;
-								DMModuleSymbols (Some arg)
-							| _ ->
-								DMDefault
-				in
-				let pos = try int_of_string pos with _ -> failwith ("Invalid format : "  ^ pos) in
-				com.display <- DisplayMode.create mode;
-				Common.display_default := mode;
-				Common.define_value com Define.Display (if smode <> "" then smode else "1");
-				Parser.use_doc := true;
-				Parser.resume_display := {
-					Ast.pfile = Path.unique_full_path file;
-					Ast.pmin = pos;
-					Ast.pmax = pos;
-				};
+			DisplayOutput.handle_display_argument com file_pos pre_compilation did_something;
 		),": display code tips");
 		("--no-output", Arg.Unit (fun() -> no_output := true),": compiles but does not generate any file");
 		("--times", Arg.Unit (fun() -> measure_times := true),": measure compilation times");
@@ -1129,7 +805,7 @@ try
 		com.warning <- if com.display.dms_error_policy = EPCollect then (fun s p -> add_diagnostics_message com s p DisplayTypes.DiagnosticsSeverity.Warning) else message ctx;
 		com.error <- error ctx;
 	end;
-	Display.process_display_file com classes;
+	DisplayOutput.process_display_file com classes;
 	let ext = Initialize.initialize_target ctx com classes in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
 	if com.display.dms_display then begin
@@ -1169,7 +845,7 @@ try
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
-		Display.process_global_display_mode com tctx;
+		DisplayOutput.process_global_display_mode com tctx;
 		Filters.run com tctx main;
 		t();
 		if ctx.has_error then raise Abort;
@@ -1227,7 +903,7 @@ with
 	| Arg.Help msg ->
 		message ctx msg Ast.null_pos
 	| Display.DisplayPackage pack ->
-		raise (Completion (String.concat "." pack))
+		raise (DisplayOutput.Completion (String.concat "." pack))
 	| Display.DisplayFields fields ->
 		let fields = List.map (
 			fun (name,kind,doc) -> name, kind, (Option.default "" doc)
@@ -1235,30 +911,33 @@ with
 		let fields =
 			if !measure_times then begin
 				close_times();
-				(Display.get_timer_fields !start_time) @ fields
+				(DisplayOutput.get_timer_fields !start_time) @ fields
 			end else
 				fields
 		in
-		raise (Completion (Display.print_fields fields))
+		raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))
 	| Display.DisplayType (t,p,doc) ->
-		raise (Completion (Display.print_type t p doc))
-	| Display.DisplaySignatures tl ->
-		raise (Completion (Display.print_signatures tl))
+		raise (DisplayOutput.Completion (DisplayOutput.print_type t p doc))
+	| Display.DisplaySignatures(tl,display_arg) ->
+		if ctx.com.display.dms_kind = DMSignature then
+			raise (DisplayOutput.Completion (DisplayOutput.print_signature tl display_arg))
+		else
+			raise (DisplayOutput.Completion (DisplayOutput.print_signatures tl))
 	| Display.DisplayPosition pl ->
-		raise (Completion (Display.print_positions pl))
+		raise (DisplayOutput.Completion (DisplayOutput.print_positions pl))
 	| Display.DisplayToplevel il ->
-		raise (Completion (Display.print_toplevel il))
+		raise (DisplayOutput.Completion (DisplayOutput.print_toplevel il))
 	| Parser.TypePath (p,c,is_import) ->
 		let fields =
 			match c with
 			| None ->
-				complete_type_path ctx p
+				DisplayOutput.TypePathHandler.complete_type_path com p
 			| Some (c,cur_package) ->
-				complete_type_path_inner ctx p c cur_package is_import
+				DisplayOutput.TypePathHandler.complete_type_path_inner com p c cur_package is_import
 		in
-		Option.may (fun fields -> raise (Completion (Display.print_fields fields))) fields
-	| Display.ModuleSymbols s | Display.Diagnostics s | Display.Statistics s | Display.Metadata s | Display.DisplaySignature s ->
-		raise (Completion s)
+		Option.may (fun fields -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))) fields
+	| Display.ModuleSymbols s | Display.Diagnostics s | Display.Statistics s | Display.Metadata s ->
+		raise (DisplayOutput.Completion s)
 	| Interp.Sys_exit i ->
 		ctx.flush();
 		exit i
@@ -1275,7 +954,7 @@ let args = List.tl (Array.to_list Sys.argv) in
 	do_connect host (try int_of_string port with _ -> failwith "Invalid HAXE_COMPILATION_SERVER port") args
 with Not_found -> try
 	process_params create_context args
-with Completion c ->
+with DisplayOutput.Completion c ->
 	prerr_endline c;
 	exit 0
 | Arg.Bad msg ->
