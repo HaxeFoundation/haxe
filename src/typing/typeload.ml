@@ -1505,8 +1505,7 @@ module Inheritance = struct
 		) herits in
 		let herits = List.filter (ctx.g.do_inherit ctx c p) herits in
 		(* Pass 1: Check and set relations *)
-		let fl = List.map (fun (is_extends,t) ->
-			let t = load_instance ~allow_display:true ctx t false p in
+		let check_herit t is_extends =
 			if is_extends then begin
 				if c.cl_super <> None then error "Cannot extend several classes" p;
 				let csup,params = check_extends ctx c t p in
@@ -1550,6 +1549,14 @@ module Inheritance = struct
 				| _ ->
 					error "Should implement by using an interface" p
 			end
+		in
+		let fl = ExtList.List.filter_map (fun (is_extends,t) ->
+			try
+				let t = load_instance ~allow_display:true ctx t false p in
+				Some (check_herit t is_extends)
+			with Error(Module_not_found(([],name)),p) ->
+				if Display.Diagnostics.is_diagnostics_run ctx then Display.ToplevelCollector.handle_unresolved_identifier ctx name p true;
+				None
 		) herits in
 		fl
 end
