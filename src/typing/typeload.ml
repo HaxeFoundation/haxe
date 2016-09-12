@@ -852,82 +852,6 @@ let copy_meta meta_src meta_target sl =
 	) meta_src;
 	!meta
 
-let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
-	let get_vmtype = match get_vmtype with
-		| None -> (fun f -> f)
-		| Some f -> f
-	in
-	if List.length f1.cf_params <> List.length f2.cf_params then
-		false
-	else
-	let rec follow_skip_null t = match t with
-		| TMono r ->
-			(match !r with
-			| Some t -> follow_skip_null t
-			| _ -> t)
-		| TLazy f ->
-			follow_skip_null (!f())
-		| TType ({ t_path = [],"Null" } as t, [p]) ->
-			TType(t,[follow p])
-		| TType (t,tl) ->
-			follow_skip_null (apply_params t.t_params tl t.t_type)
-		| _ -> t
-	in
-	let same_arg t1 t2 =
-		let t1 = get_vmtype (follow_skip_null t1) in
-		let t2 = get_vmtype (follow_skip_null t2) in
-		match t1, t2 with
-			| TType _, TType _ -> type_iseq t1 t2
-			| TType _, _
-			| _, TType _ -> false
-			| _ -> type_iseq t1 t2
-	in
-
-	match follow (apply_params f1.cf_params (List.map (fun (_,t) -> t) f2.cf_params) t1), follow t2 with
-		| TFun(a1,_), TFun(a2,_) ->
-			(try
-				List.for_all2 (fun (_,_,t1) (_,_,t2) ->
-				same_arg t1 t2) a1 a2
-			with | Invalid_argument("List.for_all2") ->
-				false)
-		| _ -> assert false
-
-(** retrieves all overloads from class c and field i, as (Type.t * tclass_field) list *)
-let rec get_overloads c i =
-	let ret = try
-			let f = PMap.find i c.cl_fields in
-			match f.cf_kind with
-				| Var _ ->
-					(* @:libType may generate classes that have a variable field in a superclass of an overloaded method *)
-					[]
-				| Method _ ->
-					(f.cf_type, f) :: (List.map (fun f -> f.cf_type, f) f.cf_overloads)
-		with | Not_found -> []
-	in
-	let rsup = match c.cl_super with
-	| None when c.cl_interface ->
-			let ifaces = List.concat (List.map (fun (c,tl) ->
-				List.map (fun (t,f) -> apply_params c.cl_params tl t, f) (get_overloads c i)
-			) c.cl_implements) in
-			ret @ ifaces
-	| None -> ret
-	| Some (c,tl) ->
-			ret @ ( List.map (fun (t,f) -> apply_params c.cl_params tl t, f) (get_overloads c i) )
-	in
-	ret @ (List.filter (fun (t,f) -> not (List.exists (fun (t2,f2) -> same_overload_args t t2 f f2) ret)) rsup)
-
-
-let check_overloads ctx c =
-	(* check if field with same signature was declared more than once *)
-	List.iter (fun f ->
-		if Meta.has Meta.Overload f.cf_meta then
-			List.iter (fun f2 ->
-				try
-					ignore (List.find (fun f3 -> f3 != f2 && same_overload_args f2.cf_type f3.cf_type f2 f3) (f :: f.cf_overloads));
-					display_error ctx ("Another overloaded field of same signature was already declared : " ^ f2.cf_name) f2.cf_pos
-				with | Not_found -> ()
-		) (f :: f.cf_overloads)) (c.cl_ordered_fields @ c.cl_ordered_statics)
-
 let check_overriding ctx c =
 	match c.cl_super with
 	| None ->
@@ -981,7 +905,7 @@ let check_overriding ctx c =
 						display_error ctx msg p
 			in
 			if ctx.com.config.pf_overload && Meta.has Meta.Overload f.cf_meta then begin
-				let overloads = get_overloads csup i in
+				let overloads = Overloads.get_overloads csup i in
 				List.iter (fun (t,f2) ->
 					(* check if any super class fields are vars *)
 					match f2.cf_kind with
@@ -993,7 +917,7 @@ let check_overriding ctx c =
 					(* find the exact field being overridden *)
 					check_field f (fun csup i ->
 						List.find (fun (t,f2) ->
-							same_overload_args f.cf_type (apply_params csup.cl_params params t) f f2
+							Overloads.same_overload_args f.cf_type (apply_params csup.cl_params params t) f f2
 						) overloads
 					) true
 				) (f :: f.cf_overloads)
@@ -1400,10 +1324,10 @@ module Inheritance = struct
 				let t2, f2 = class_field_no_interf c i in
 				let t2, f2 =
 					if ctx.com.config.pf_overload && (f2.cf_overloads <> [] || Meta.has Meta.Overload f2.cf_meta) then
-						let overloads = get_overloads c i in
+						let overloads = Overloads.get_overloads c i in
 						is_overload := true;
 						let t = (apply_params intf.cl_params params f.cf_type) in
-						List.find (fun (t1,f1) -> same_overload_args t t1 f f1) overloads
+						List.find (fun (t1,f1) -> Overloads.same_overload_args t t1 f f1) overloads
 					else
 						t2, f2
 				in
@@ -2666,7 +2590,7 @@ module ClassInitializer = struct
 							let f = PMap.find m c.cl_statics in
 							(f.cf_type, f) :: (List.map (fun f -> f.cf_type, f) f.cf_overloads)
 						else
-							get_overloads c m
+							Overloads.get_overloads c m
 					else
 						[ if fctx.is_static then
 							let f = PMap.find m c.cl_statics in
@@ -2797,7 +2721,7 @@ module ClassInitializer = struct
 		if cctx.is_core_api && ctx.com.display.dms_check_core_api then delay ctx PForce (fun() -> init_core_api ctx c);
 		if not cctx.is_lib then begin
 			(match c.cl_super with None -> () | Some _ -> delay_late ctx PForce (fun() -> check_overriding ctx c));
-			if ctx.com.config.pf_overload then delay ctx PForce (fun() -> check_overloads ctx c)
+			if ctx.com.config.pf_overload then delay ctx PForce (fun() -> Overloads.check_overloads ctx c)
 		end;
 		let rec has_field f = function
 			| None -> false
@@ -2906,7 +2830,7 @@ module ClassInitializer = struct
 				List.iter (fun f ->
 					try
 						(* TODO: consider making a broader check, and treat some types, like TAnon and type parameters as Dynamic *)
-						ignore(List.find (fun f2 -> f != f2 && same_overload_args f.cf_type f2.cf_type f f2) (ctor :: ctor.cf_overloads));
+						ignore(List.find (fun f2 -> f != f2 && Overloads.same_overload_args f.cf_type f2.cf_type f f2) (ctor :: ctor.cf_overloads));
 						display_error ctx ("Another overloaded field of same signature was already declared : " ^ f.cf_name) f.cf_pos;
 					with Not_found -> ()
 				) (ctor :: ctor.cf_overloads)

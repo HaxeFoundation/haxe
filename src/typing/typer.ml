@@ -665,7 +665,7 @@ let unify_field_call ctx fa el args ret p inline =
 			let cfl = if cf.cf_name = "new" || not (Meta.has Meta.Overload cf.cf_meta && ctx.com.config.pf_overload) then
 				List.map (map_cf cf map) cf.cf_overloads
 			else
-				List.map (fun (t,cf) -> map (monomorphs cf.cf_params t),cf) (Typeload.get_overloads c cf.cf_name)
+				List.map (fun (t,cf) -> map (monomorphs cf.cf_params t),cf) (Overloads.get_overloads c cf.cf_name)
 			in
 			(TFun(args,ret),cf) :: cfl,Some c,cf,(fun cf -> FInstance(c,tl,cf))
 		| FClosure(co,cf) ->
@@ -733,7 +733,7 @@ let unify_field_call ctx fa el args ret p inline =
 				error "End of overload failure reasons" p
 			end
 		in
-		if is_overload && ctx.com.config.pf_overload then begin match Codegen.Overloads.reduce_compatible candidates with
+		if is_overload && ctx.com.config.pf_overload then begin match Overloads.Resolution.reduce_compatible candidates with
 			| [] -> fail()
 			| [el,tf,mk_call] -> List.map fst el,tf,mk_call
 			| _ -> error "Ambiguous overload" p

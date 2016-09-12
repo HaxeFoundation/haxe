@@ -60,6 +60,7 @@ open Option
 open Printf
 open ExtString
 open Codegen
+open Overloads
 
 let alloc_var n t = alloc_var n t null_pos
 
@@ -1200,7 +1201,7 @@ let find_first_declared_field gen orig_cl ?get_vmtype ?exact_field field =
 			| _, Some f2 ->
 				List.iter (fun f ->
 					let declared_t = apply_params c.cl_params tl f.cf_type in
-					if Typeload.same_overload_args ~get_vmtype declared_t f2.cf_type f f2 then
+					if same_overload_args ~get_vmtype declared_t f2.cf_type f f2 then
 						chosen := Some(depth,f,c,tl,tlch)
 				) (ret :: ret.cf_overloads)
 		with | Not_found -> ());
@@ -6004,9 +6005,9 @@ struct
 						| FInstance(c,_,cf) | FClosure(Some (c,_),cf) ->
 							(* get from overloads *)
 							(* FIXME: this is a workaround for issue #1743 . Uncomment this code after it was solved *)
-							(* let t, cf = List.find (fun (t,cf2) -> cf == cf2) (Typeload.get_overloads cl (field_name f)) in *)
+							(* let t, cf = List.find (fun (t,cf2) -> cf == cf2) (Overloads.get_overloads cl (field_name f)) in *)
 							(* cf, t, false *)
-							select_overload gen e1.etype (Typeload.get_overloads cl (field_name f)) cl.cl_params params, false
+							select_overload gen e1.etype (Overloads.get_overloads cl (field_name f)) cl.cl_params params, false
 						| FStatic(c,f) ->
 							(* workaround for issue #1743 *)
 							(* f,f.cf_type, false *)
@@ -9870,14 +9871,14 @@ struct
 						let ftype = apply_params iface.cl_params itl f.cf_type in
 						let real_ftype = get_real_fun gen (apply_params iface.cl_params real_itl f.cf_type) in
 						replace_mono real_ftype;
-						let overloads = Typeload.get_overloads c f.cf_name in
+						let overloads = Overloads.get_overloads c f.cf_name in
 						try
 							let t2, f2 =
 								match overloads with
 								| (_, cf) :: _ when Meta.has Meta.Overload cf.cf_meta -> (* overloaded function *)
 									(* try to find exact function *)
 									List.find (fun (t,f2) ->
-										Typeload.same_overload_args ~get_vmtype ftype t f f2
+										Overloads.same_overload_args ~get_vmtype ftype t f f2
 									) overloads
 								| _ :: _ ->
 									(match field_access gen (TInst(c, List.map snd c.cl_params)) f.cf_name with
@@ -9893,7 +9894,7 @@ struct
 								if List.length f.cf_params <> List.length f2.cf_params then raise Not_found;
 								replace_mono t2;
 								match follow (apply_params f2.cf_params (List.map snd f.cf_params) t2), follow real_ftype with
-								| TFun(a1,r1), TFun(a2,r2) when not implement_explicitly && not (type_iseq r1 r2) && Typeload.same_overload_args ~get_vmtype real_ftype t2 f f2 ->
+								| TFun(a1,r1), TFun(a2,r2) when not implement_explicitly && not (type_iseq r1 r2) && Overloads.same_overload_args ~get_vmtype real_ftype t2 f f2 ->
 									(* different return types are the trickiest cases to deal with *)
 									(* check for covariant return type *)
 									let is_covariant = match follow r1, follow r2 with
@@ -9919,7 +9920,7 @@ struct
 								| TFun(a1,r1), TFun(a2,r2) ->
 									(* just implement a function that will call the main one *)
 									let name, is_explicit = match explicit_fn_name with
-										| Some fn when not (type_iseq r1 r2) && Typeload.same_overload_args ~get_vmtype real_ftype t2 f f2 ->
+										| Some fn when not (type_iseq r1 r2) && Overloads.same_overload_args ~get_vmtype real_ftype t2 f f2 ->
 												fn iface itl f.cf_name, true
 										| _ -> f.cf_name, false
 									in
@@ -9970,7 +9971,7 @@ struct
 					in
 					match decl with
 					| Some(f2,actual_t,_,t,declared_cl,_,_)
-						when not (Typeload.same_overload_args ~get_vmtype actual_t (get_real_fun gen f.cf_type) f2 f) ->
+						when not (Overloads.same_overload_args ~get_vmtype actual_t (get_real_fun gen f.cf_type) f2 f) ->
 							(match f.cf_expr with
 							| Some({ eexpr = TFunction(tf) } as e) ->
 								let actual_args, _ = get_fun (get_real_fun gen actual_t) in
