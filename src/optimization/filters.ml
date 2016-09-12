@@ -1076,8 +1076,6 @@ let iter_expressions fl mt =
 		()
 
 let run com tctx main =
-	if not (Common.defined com Define.NoDeprecationWarnings) then
-		Codegen.DeprecationCheck.run com;
 	let new_types = List.filter (fun t -> not (is_cached t)) com.types in
 	(* PASS 1: general expression filters *)
 	let filters = [
