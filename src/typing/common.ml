@@ -174,7 +174,7 @@ module DisplayMode = struct
 				dms_full_typing = true;
 				dms_error_policy = EPCollect;
 				dms_collect_data = true;
-				dms_inline = false;
+				dms_inline = true;
 				dms_display_file_policy = if global then DFPNo else DFPAlso;
 				dms_exit_during_typing = false;
 			}

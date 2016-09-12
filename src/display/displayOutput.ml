@@ -684,7 +684,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 					| _ ->
 						DMField
 		in
-		let pos = try int_of_string pos with _ -> failwith ("Invalid format : "  ^ pos) in
+		let pos = try int_of_string pos with _ -> failwith ("Invalid format: "  ^ pos) in
 		com.display <- DisplayMode.create mode;
 		Common.display_default := mode;
 		Common.define_value com Define.Display (if smode <> "" then smode else "1");
