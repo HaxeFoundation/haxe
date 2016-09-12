@@ -20,6 +20,7 @@ class DisplayTestCase {
 	inline function usage(pos) return ctx.usage(pos);
 	inline function range(pos1, pos2) return ctx.range(pos1, pos2);
 	inline function signature(pos1) return ctx.signature(pos1);
+	inline function metadataDoc(pos1) return ctx.metadataDoc(pos1);
 
 	function assert(v:Bool) if (!v) throw "assertion failed";
 

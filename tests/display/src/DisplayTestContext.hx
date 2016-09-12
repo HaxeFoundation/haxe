@@ -73,6 +73,10 @@ class DisplayTestContext {
 		return haxe.Json.parse(callHaxe('$pos@signature'));
 	}
 
+	public function metadataDoc(pos:Position):String {
+		return extractMetadata(callHaxe('$pos@type'));
+	}
+
 	function callHaxe(displayPart:String):String {
 		var args = [
 			"-cp", "src",
@@ -151,6 +155,15 @@ class DisplayTestContext {
 			ret.push({name: xml.get("n"), type: xml.firstElement().firstChild().nodeValue});
 		}
 		return ret;
+	}
+
+	static function extractMetadata(result:String) {
+		var xml = Xml.parse(result);
+		xml = xml.firstElement();
+		if (xml.nodeName != "metadata") {
+			return null;
+		}
+		return xml.firstChild().nodeValue;
 	}
 
 	static function normalizePath(p:String):String {

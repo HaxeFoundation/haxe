@@ -639,7 +639,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		com.display <- DisplayMode.create (DMDiagnostics true);
 		Common.display_default := DMDiagnostics true;
 	| _ ->
-		let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format : " ^ file_pos) in
+		let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format: " ^ file_pos) in
 		let file = unquote file in
 		let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
 		let mode = match smode with

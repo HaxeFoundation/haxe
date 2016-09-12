@@ -179,6 +179,23 @@ module DisplayEmitter = struct
 		| DMUsage _ -> ef.ef_meta <- (Meta.Usage,[],p) :: ef.ef_meta;
 		| DMType -> raise (DisplayType (ef.ef_type,p,ef.ef_doc))
 		| _ -> ()
+
+	let display_meta dm meta = match dm.dms_kind with
+		| DMType ->
+			begin match meta with
+			| Meta.Custom _ | Meta.Dollar _ -> ()
+			| _ -> match MetaInfo.get_documentation meta with
+				| None -> ()
+				| Some (_,s) ->
+					(* TODO: hack until we support proper output for hover display mode *)
+					raise (Metadata ("<metadata>" ^ s ^ "</metadata>"));
+			end
+		| DMField ->
+			let all,_ = MetaInfo.get_documentation_list() in
+			let all = List.map (fun (s,doc) -> (s,FKMetadata,Some doc)) all in
+			raise (DisplayFields all)
+		| _ ->
+			()
 end
 
 module DocumentSymbols = struct
