@@ -168,7 +168,7 @@ module DisplayMode = struct
 		| DMModuleSymbols filter -> { settings with
 				dms_display_file_policy = if filter = None then DFPOnly else DFPNo;
 				dms_exit_during_typing = false;
-				dms_force_macro_typing = true;
+				dms_force_macro_typing = false;
 			}
 		| DMDiagnostics global -> { settings with
 				dms_full_typing = true;
