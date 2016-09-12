@@ -1825,7 +1825,7 @@ let check_global_metadata ctx meta f_add mpath tpath so =
 			List.iter (fun e ->
 				if Display.is_display_position (pos e) then begin
 					let e = Display.ExprPreprocessing.process_expr ctx.com e in
-					ignore(type_expr ctx e Value);
+					delay ctx PTypeField (fun _ -> ignore(type_expr ctx e Value));
 				end
 			) args
 		) meta
