@@ -108,6 +108,11 @@ let target_handles_assign_ops com = match com.platform with
 	| Cpp when not (Common.defined com Define.Cppia) -> false
 	| _ -> true
 
+let target_handles_side_effect_order com = match com.platform with
+	| Cpp -> not (Common.defined com Define.Cppia)
+	| Php -> false
+	| _ -> true
+
 let rec can_be_used_as_value com e =
 	let rec loop e = match e.eexpr with
 		| TBlock [e] -> loop e
@@ -646,6 +651,22 @@ module Fusion = struct
 						blocked := old;
 						e
 					in
+					let handle_el el =
+						(* This mess deals with the fact that the order of evaluation is undefined for call
+							arguments on these targets. Even if we find a replacement, we pretend that we
+							didn't in order to find possible interferences in later call arguments. *)
+						let temp_found = false in
+						let really_found = ref !found in
+						let el = List.map (fun e ->
+							found := temp_found;
+							let e = replace e in
+							if !found then really_found := true;
+							e
+						) el in
+						found := !really_found;
+						el
+					in
+					let handle_el = if target_handles_side_effect_order com then handle_el else List.map replace in
 					let handle_call e2 el = match com.platform with
 						| Neko ->
 							(* Neko has this reversed at the moment (issue #4787) *)
@@ -658,24 +679,13 @@ module Fusion = struct
 								| TCall _ when com.platform = Php -> explore e2
 								| _ -> replace e2
 							in
-							(* This mess deals with the fact that the order of evaluation is undefined for call
-							   arguments on these targets. Even if we find a replacement, we pretend that we
-							   didn't in order to find possible interferences in later call arguments. *)
-							let temp_found = false in
-							let really_found = ref !found in
-							let el = List.map (fun e ->
-								found := temp_found;
-								let e = replace e in
-								if !found then really_found := true;
-								e
-							) el in
-							found := !really_found;
+							let el = handle_el el in
 							e2,el
 						| _ ->
 							let e2 = replace e2 in
 							let el = List.map replace el in
 							e2,el
-						in
+					in
 					if !found then e else match e.eexpr with
 						| TWhile _ | TTry _ ->
 							raise Exit
@@ -736,11 +746,11 @@ module Fusion = struct
 						| TCall({eexpr = TLocal v},el) when not (is_unbound_call_that_might_have_side_effects v el) ->
 							e
 						| TNew(c,tl,el) when (match c.cl_constructor with Some cf when PurityState.is_pure c cf -> true | _ -> false) ->
-							let el = List.map replace el in
+							let el = handle_el el in
 							if not !found && (has_state_write ir || has_any_field_write ir) then raise Exit;
 							{e with eexpr = TNew(c,tl,el)}
 						| TNew(c,tl,el) ->
-							let el = List.map replace el in
+							let el = handle_el el in
 							if not !found && (has_state_write ir || has_state_read ir || has_any_field_read ir || has_any_field_write ir) then raise Exit;
 							{e with eexpr = TNew(c,tl,el)}
 						| TCall({eexpr = TField(_,FEnum _)} as ef,el) ->
@@ -754,13 +764,17 @@ module Fusion = struct
 							let e1,el = handle_call e1 el in
 							if not !found && (((has_state_read ir || has_any_field_read ir)) || has_state_write ir || has_any_field_write ir) then raise Exit;
 							{e with eexpr = TCall(e1,el)}
+						| TObjectDecl fl ->
+							let el = handle_el (List.map snd fl) in
+							if not !found && (has_state_write ir || has_any_field_write ir) then raise Exit;
+							{e with eexpr = TObjectDecl (List.map2 (fun (s,_) e -> s,e) fl el)}
 						| TBinop(OpAssign,({eexpr = TArray(e1,e2)} as ea),e3) ->
 							let e1 = replace e1 in
 							let e2 = replace e2 in
 							let e3 = replace e3 in
 							if not !found && has_state_read ir then raise Exit;
 							{e with eexpr = TBinop(OpAssign,{ea with eexpr = TArray(e1,e2)},e3)}
-						| TBinop(op,e1,e2) when (match com.platform with Cpp | Php -> true | _ -> false) ->
+						| TBinop(op,e1,e2) when not (target_handles_side_effect_order com) ->
 							let e1 = replace e1 in
 							let temp_found = !found in
 							found := false;
