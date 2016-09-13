@@ -5878,8 +5878,8 @@ let write_c version file (code:code) =
 
 	let rec ctype_no_ptr = function
 		| HVoid -> "void",0
-		| HUI8 -> "char",0
-		| HUI16 -> "short",0
+		| HUI8 -> "unsigned char",0
+		| HUI16 -> "unsigned short",0
 		| HI32 -> "int",0
 		| HF32 -> "float",0
 		| HF64 -> "double",0
@@ -5964,8 +5964,8 @@ let write_c version file (code:code) =
 
 	let dyn_value_field t =
 		"->v." ^ match t with
-		| HUI8 -> "c"
-		| HUI16 -> "s"
+		| HUI8 -> "ui8"
+		| HUI16 -> "ui16"
 		| HI32 -> "i"
 		| HF32 -> "f"
 		| HF64 -> "d"
@@ -6195,19 +6195,17 @@ let write_c version file (code:code) =
 	let funByArgs = Hashtbl.create 0 in
 	let type_kind t =
 		match t with
-		| HVoid | HUI8 | HUI16 | HI32 | HF32 | HF64 -> t
-		| HBool -> HUI8
+		| HVoid | HF32 | HF64 -> t
+		| HBool | HUI8 | HUI16 | HI32 -> HI32
 		| HBytes | HDyn | HFun _ | HObj _ | HArray | HType | HRef _ | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ -> HDyn
 	in
 	let type_kind_id t =
 		match t with
 		| HVoid -> 0
-		| HUI8 -> 1
-		| HUI16 -> 2
-		| HI32 -> 3
-		| HF32 -> 4
-		| HF64 -> 5
-		| _ -> 6
+		| HBool | HUI8 | HUI16 | HI32 -> 1 (* same int representation *)
+		| HF32 -> 2
+		| HF64 -> 3
+		| _ -> 4
 	in
 	Array.iter (fun (args,t) ->
 		let nargs = List.length args in
@@ -6270,9 +6268,7 @@ let write_c version file (code:code) =
 	line "";
 	let wrap_char = function
 		| HVoid -> "v"
-		| HUI8 | HBool -> "c"
-		| HUI16 -> "s"
-		| HI32 -> "i"
+		| HUI8 | HUI16 | HBool | HI32 -> "i"
 		| HF32 -> "f"
 		| HF64 -> "d"
 		| _ -> "p"
