@@ -133,8 +133,9 @@ let rec can_be_used_as_value com e =
 let wrap_meta s e =
 	mk (TMeta((Meta.Custom s,[],e.epos),e)) e.etype e.epos
 
-let is_really_unbound v =
-	v.v_name <> "`trace" && is_unbound v
+let is_really_unbound v = match v.v_name with
+	| "`trace" | "__int__" -> false
+	| _ -> is_unbound v
 
 let r = Str.regexp "^\\([A-Za-z0-9_]\\)+$"
 let is_unbound_call_that_might_have_side_effects v el = match v.v_name,el with
