@@ -264,7 +264,7 @@ class Boot {
 			}
 			var hxClassPhpName = (cast HxClass:HxClass).phpClassName;
 			if (untyped __php__("$value instanceof $hxClassPhpName")) {
-				return '[class ' + getClassName(cast value) + ']';
+				return '[class ' + getClassName((value:HxClass).phpClassName) + ']';
 			} else {
 				return '[object ' + getClassName(Global.get_class(value)) + ']';
 			}
@@ -326,6 +326,22 @@ class Boot {
 				}
 		}
 		return false;
+	}
+
+	/**
+		Check if `value` is a `Class<T>`
+	**/
+	public static function isClass(value:Dynamic) : Bool {
+		var hxClass : HxClass = cast HxClass;
+		return untyped __php__("$value instanceof $hxClass->phpClassName");
+	}
+
+	/**
+		Check if `value` is an enum constructor instance
+	**/
+	public static function isEnumValue(value:Dynamic) : Bool {
+		var hxEnum : HxClass = cast HxEnum;
+		return untyped __php__("$value instanceof $hxEnum->phpClassName");
 	}
 
 	/**

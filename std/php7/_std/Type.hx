@@ -20,6 +20,9 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+import php7.Global;
+import php7.Boot;
+
 enum ValueType {
 	TNull;
 	TInt;
@@ -34,49 +37,35 @@ enum ValueType {
 
 @:coreApi class Type {
 
-	public static function getClass<T>( o : T ) : Class<T> untyped {
-		if(o == null) return null;
-		untyped if(__call__("is_array",  o)) {
-			if(__call__("count", o) == 2 && __call__("is_callable", o)) return null;
-			return __call__("_hx_ttype", 'Array');
-		}
-		if(untyped __call__("is_string", o)) {
-			if(__call__("_hx_is_lambda", untyped o)) return null;
-			return __call__("_hx_ttype", 'String');
-		}
-		if(!untyped __call__("is_object", o)) {
+	public static function getClass<T>( o : T ) : Class<T> {
+		if(Global.is_object(o) && !Boot.isClass(o) && !Boot.isEnumValue(o)) {
+			return cast Boot.getClass(Global.get_class(cast o));
+		} else if(Boot.is(o, cast String)) {
+			return cast String;
+		} else {
 			return null;
 		}
-		var c = __call__("get_class", o);
-		if(c == false || c == '_hx_anonymous' || __call__("is_subclass_of", c, "enum"))
-			return null;
-		else
-			return __call__("_hx_ttype", c);
 	}
 
-	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped {
-		if(!__php__("$o instanceof Enum"))
-			return null;
-		else
-			return __php__("_hx_ttype(get_class($o))");
+	public static function getEnum( o : EnumValue ) : Enum<Dynamic> {
+		if(o == null) return null;
+		return cast Boot.getClass(Global.get_class(cast o));
 	}
 
 	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> {
-		var s = untyped __call__("get_parent_class", c.__tname__);
-		if(s == false)
-			return null;
-		else
-			return untyped __call__("_hx_ttype", s);
+		if(c == null) return null;
+		var parentClass = Global.get_parent_class((cast c).phpClassName);
+		if(!parentClass) return null;
+		return cast Boot.getClass(parentClass);
 	}
 
 	public static function getClassName( c : Class<Dynamic> ) : String {
-		if( c == null )
-			return null;
-		return untyped c.__qname__;
+		if(c == null) return null;
+		return Boot.getHaxeName(cast c);
 	}
 
 	public static function getEnumName( e : Enum<Dynamic> ) : String {
-		return untyped e.__qname__;
+		return getClassName(cast e);
 	}
 
 	public static function resolveClass( name : String ) : Class<Dynamic> untyped {

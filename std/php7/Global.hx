@@ -298,7 +298,12 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.get-class.php
 	**/
-	static function get_class( object:{} = null ) : String;
+	static function get_class( object:{} = null ) : EitherType<Bool,String>;
+
+	/**
+		@see http://php.net/manual/en/function.get-parent-class.php
+	**/
+	static function get_parent_class( ?object:Dynamic ) : EitherType<Bool,String>;
 
 	/**
 		@see http://php.net/manual/en/function.var-dump.php
