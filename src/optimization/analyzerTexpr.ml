@@ -774,7 +774,7 @@ module Fusion = struct
 							let e3 = replace e3 in
 							if not !found && has_state_read ir then raise Exit;
 							{e with eexpr = TBinop(OpAssign,{ea with eexpr = TArray(e1,e2)},e3)}
-						| TBinop(op,e1,e2) when not (target_handles_side_effect_order com) ->
+						| TBinop(op,e1,e2) when (match com.platform with Cpp | Php -> true | _ -> false) ->
 							let e1 = replace e1 in
 							let temp_found = !found in
 							found := false;
