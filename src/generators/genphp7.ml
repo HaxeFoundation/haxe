@@ -1871,10 +1871,9 @@ class enum_builder ctx (enm:tenum) =
 			self#indent_more;
 			self#write_indentation;
 			self#write "return ";
-			let type_name = get_full_type_name ~escape:true self#get_type_path
-			and index_str = string_of_int field.ef_index in
+			let index_str = string_of_int field.ef_index in
 			(match args with
-				| [] -> self#write ((self#use hxenum_type_path) ^ "::singleton('" ^ type_name ^ "', '" ^ name ^ "', " ^ index_str ^")")
+				| [] -> self#write ((self#use hxenum_type_path) ^ "::singleton(static::class, '" ^ name ^ "', " ^ index_str ^")")
 				| args ->
 					self#write ("new " ^ self#get_name ^ "('" ^ name ^ "', " ^ index_str ^", [");
 					write_args buffer (fun (name, _, _) -> self#write ("$" ^ name)) args;
@@ -2078,7 +2077,7 @@ class class_builder ctx (cls:tclass) =
 			Writes `--php-prefix` value as class constant PHP_PREFIX
 		*)
 		method private write_php_prefix () =
-			let prefix = String.concat "\\\\" (get_php_prefix ctx) in
+			let prefix = String.concat "\\" (get_php_prefix ctx) in
 			let indentation = String.length indentation in
 			self#indent 1;
 			self#write_statement ("const PHP_PREFIX = \"" ^ (String.escaped prefix) ^ "\"");

@@ -68,12 +68,17 @@ enum ValueType {
 		return getClassName(cast e);
 	}
 
-	public static function resolveClass( name : String ) : Class<Dynamic> untyped {
-		var c = untyped __call__("_hx_qtype", name);
-		if(__php__("$c instanceof _hx_class || $c instanceof _hx_interface"))
-			return c;
-		else
-			return null;
+	public static function resolveClass( name : String ) : Class<Dynamic> {
+		if (name == null) return null;
+		if (name == 'String') return String;
+
+		var phpClass = Boot.getPhpName(name);
+		if (!Global.class_exists(phpClass)) return null;
+
+		var hxClass = Boot.getClass(phpClass);
+		if (Boot.is(hxClass, Boot.getClass('Enum'))) return null;
+
+		return cast hxClass;
 	}
 
 	public static function resolveEnum( name : String ) : Enum<Dynamic> {
