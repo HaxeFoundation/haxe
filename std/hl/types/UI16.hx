@@ -21,4 +21,4 @@
  */
 package hl.types;
 
-@:coreType @:notNull @:runtimeValue abstract I16 to Int from Int {}
+@:coreType @:notNull @:runtimeValue abstract UI16 to Int from Int {}

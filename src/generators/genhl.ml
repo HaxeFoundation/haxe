@@ -31,8 +31,8 @@ type functable
 
 type ttype =
 	| HVoid
-	| HI8
-	| HI16
+	| HUI8
+	| HUI16
 	| HI32
 	| HF32
 	| HF64
@@ -254,7 +254,7 @@ type array_impl = {
 	abase : tclass;
 	adyn : tclass;
 	aobj : tclass;
-	ai16 : tclass;
+	aui16 : tclass;
 	ai32 : tclass;
 	af32 : tclass;
 	af64 : tclass;
@@ -319,10 +319,10 @@ let null_proto =
 let all_types =
 	let vp = { vfields = [||]; vindex = PMap.empty } in
 	let ep = { ename = ""; eid = 0; eglobal = None; efields = [||] } in
-	[HVoid;HI8;HI16;HI32;HF32;HF64;HBool;HBytes;HDyn;HFun ([],HVoid);HObj null_proto;HArray;HType;HRef HVoid;HVirtual vp;HDynObj;HAbstract ("",0);HEnum ep;HNull HVoid]
+	[HVoid;HUI8;HUI16;HI32;HF32;HF64;HBool;HBytes;HDyn;HFun ([],HVoid);HObj null_proto;HArray;HType;HRef HVoid;HVirtual vp;HDynObj;HAbstract ("",0);HEnum ep;HNull HVoid]
 
 let is_number = function
-	| HI8 | HI16 | HI32 | HF32 | HF64 -> true
+	| HUI8 | HUI16 | HI32 | HF32 | HF64 -> true
 	| _ -> false
 
 let is_to_string t =
@@ -377,8 +377,8 @@ let resolve_field p fid =
 let rec tstr ?(stack=[]) ?(detailed=false) t =
 	match t with
 	| HVoid -> "void"
-	| HI8 -> "i8"
-	| HI16 -> "i16"
+	| HUI8 -> "ui8"
+	| HUI16 -> "ui16"
 	| HI32 -> "i32"
 	| HF32 -> "f32"
 	| HF64 -> "f64"
@@ -440,7 +440,7 @@ let rec tsame t1 t2 =
 let is_nullable t =
 	match t with
 	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HRef _ -> true
-	| HI8 | HI16 | HI32 | HF32 | HF64 | HBool | HVoid | HType -> false
+	| HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool | HVoid | HType -> false
 
 (*
 	does the runtime value carry its type
@@ -525,8 +525,8 @@ let to_utf8 str p =
 	u8, !ccount
 
 let type_size_bits = function
-	| HI8 | HBool -> 0
-	| HI16 -> 1
+	| HUI8 | HBool -> 0
+	| HUI16 -> 1
 	| HI32 | HF32 -> 2
 	| HF64 -> 3
 	| _ -> assert false
@@ -600,7 +600,7 @@ let gather_types (code:code) =
 			t
 		));
 	in
-	List.iter (fun t -> get_type t) [HVoid; HI8; HI16; HI32; HF32; HF64; HBool; HType; HDyn]; (* make sure all basic types get lower indexes *)
+	List.iter (fun t -> get_type t) [HVoid; HUI8; HUI16; HI32; HF32; HF64; HBool; HType; HDyn]; (* make sure all basic types get lower indexes *)
 	Array.iter (fun g -> get_type g) code.globals;
 	Array.iter (fun (_,_,t,_) -> get_type t) code.natives;
 	Array.iter (fun f ->
@@ -642,8 +642,8 @@ let array_class ctx t =
 	match t with
 	| HI32 ->
 		ctx.array_impl.ai32
-	| HI16 ->
-		ctx.array_impl.ai16
+	| HUI16 ->
+		ctx.array_impl.aui16
 	| HF32 ->
 		ctx.array_impl.af32
 	| HF64 ->
@@ -668,7 +668,7 @@ let rec get_index name p =
 
 let rec unsigned t =
 	match follow t with
-	| TAbstract ({ a_path = ["hl";"types"],("UI32"|"UI16"|"UI8") },_) | TAbstract ({ a_path = [],"UInt" },_) -> true
+	| TAbstract ({ a_path = [],"UInt" },_) -> true
 	| TAbstract (a,pl) -> unsigned (Abstract.get_underlying_type a pl)
 	| _ -> false
 
@@ -796,7 +796,8 @@ let rec to_type ?tref ctx t =
 			| ["hl";"types"], "Ref" -> HRef (to_type ctx (List.hd pl))
 			| ["hl";"types"], ("Bytes" | "BytesAccess") -> HBytes
 			| ["hl";"types"], "Type" -> HType
-			| ["hl";"types"], "I16" -> HI16
+			| ["hl";"types"], "UI16" -> HUI16
+			| ["hl";"types"], "UI8" -> HUI8
 			| ["hl";"types"], "NativeArray" -> HArray
 			| _ -> failwith ("Unknown core type " ^ s_type_path a.a_path))
 		else
@@ -1045,7 +1046,7 @@ let alloc_std ctx name args ret =
 
 let is_int ctx t =
 	match to_type ctx t with
-	| HI8 | HI16 | HI32 -> true
+	| HUI8 | HUI16 | HI32 -> true
 	| _ -> false
 
 let is_float ctx t =
@@ -1094,7 +1095,7 @@ let shl ctx idx v =
 
 let set_default ctx r =
 	match rtype ctx r with
-	| HI8 | HI16 | HI32 ->
+	| HUI8 | HUI16 | HI32 ->
 		op ctx (OInt (r,alloc_i32 ctx 0l))
 	| HF32 | HF64 ->
 		op ctx (OFloat (r,alloc_float ctx 0.))
@@ -1107,9 +1108,9 @@ let set_default ctx r =
 
 let read_mem ctx rdst bytes index t =
 	match t with
-	| HI8 ->
+	| HUI8 ->
 		op ctx (OGetI8 (rdst,bytes,index))
-	| HI16 ->
+	| HUI16 ->
 		op ctx (OGetI16 (rdst,bytes,index))
 	| HI32 ->
 		op ctx (OGetI32 (rdst,bytes,index))
@@ -1122,9 +1123,9 @@ let read_mem ctx rdst bytes index t =
 
 let write_mem ctx bytes index t r=
 	match t with
-	| HI8 ->
+	| HUI8 ->
 		op ctx (OSetI8 (bytes,index,r))
-	| HI16 ->
+	| HUI16 ->
 		op ctx (OSetI16 (bytes,index,r))
 	| HI32 ->
 		op ctx (OSetI32 (bytes,index,r))
@@ -1141,16 +1142,16 @@ let common_type ctx e1 e2 for_eq p =
 	let rec loop t1 t2 =
 		if t1 == t2 then t1 else
 		match t1, t2 with
-		| HI8, (HI16 | HI32 | HF32 | HF64) -> t2
-		| HI16, (HI32 | HF32 | HF64) -> t2
+		| HUI8, (HUI16 | HI32 | HF32 | HF64) -> t2
+		| HUI16, (HI32 | HF32 | HF64) -> t2
 		| HI32, HF32 -> t2 (* possible loss of precision *)
 		| (HI32 | HF32), HF64 -> t2
-		| (HI8|HI16|HI32|HF32|HF64), (HI8|HI16|HI32|HF32|HF64) -> t1
-		| (HI8|HI16|HI32|HF32|HF64), (HNull t2) -> if for_eq then HNull (loop t1 t2) else loop t1 t2
-		| (HNull t1), (HI8|HI16|HI32|HF32|HF64) -> if for_eq then HNull (loop t1 t2) else loop t1 t2
+		| (HUI8|HUI16|HI32|HF32|HF64), (HUI8|HUI16|HI32|HF32|HF64) -> t1
+		| (HUI8|HUI16|HI32|HF32|HF64), (HNull t2) -> if for_eq then HNull (loop t1 t2) else loop t1 t2
+		| (HNull t1), (HUI8|HUI16|HI32|HF32|HF64) -> if for_eq then HNull (loop t1 t2) else loop t1 t2
 		| (HNull t1), (HNull t2) -> if for_eq then HNull (loop t1 t2) else loop t1 t2
-		| HDyn, (HI8|HI16|HI32|HF32|HF64) -> HF64
-		| (HI8|HI16|HI32|HF32|HF64), HDyn -> HF64
+		| HDyn, (HUI8|HUI16|HI32|HF32|HF64) -> HF64
+		| (HUI8|HUI16|HI32|HF32|HF64), HDyn -> HF64
 		| HDyn, _ -> HDyn
 		| _, HDyn -> HDyn
 		| _ when for_eq && safe_cast t1 t2 -> t2
@@ -1215,15 +1216,15 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		let tmp = alloc_tmp ctx HDyn in
 		op ctx (OMov (tmp,r));
 		cast_to ctx tmp t p
-	| (HI8 | HI16 | HI32 | HF32 | HF64), (HF32 | HF64) ->
+	| (HUI8 | HUI16 | HI32 | HF32 | HF64), (HF32 | HF64) ->
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToSFloat (tmp, r));
 		tmp
-	| (HI8 | HI16 | HI32 | HF32 | HF64), (HI8 | HI16 | HI32) ->
+	| (HUI8 | HUI16 | HI32 | HF32 | HF64), (HUI8 | HUI16 | HI32) ->
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToInt (tmp, r));
 		tmp
-	| (HI8 | HI16 | HI32), HObj { pname = "String" } ->
+	| (HUI8 | HUI16 | HI32), HObj { pname = "String" } ->
 		let out = alloc_tmp ctx t in
 		let len = alloc_tmp ctx HI32 in
 		let lref = alloc_tmp ctx (HRef HI32) in
@@ -1282,25 +1283,25 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		j();
 		op ctx (ONull out);
 		out
-	| (HI8 | HI16 | HI32 | HF32 | HF64), HNull ((HF32 | HF64) as t) ->
+	| (HUI8 | HUI16 | HI32 | HF32 | HF64), HNull ((HF32 | HF64) as t) ->
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToSFloat (tmp, r));
 		let r = alloc_tmp ctx (HNull t) in
 		op ctx (OToDyn (r,tmp));
 		r
-	| (HI8 | HI16 | HI32 | HF32 | HF64), HNull ((HI8 | HI16 | HI32) as t) ->
+	| (HUI8 | HUI16 | HI32 | HF32 | HF64), HNull ((HUI8 | HUI16 | HI32) as t) ->
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToInt (tmp, r));
 		let r = alloc_tmp ctx (HNull t) in
 		op ctx (OToDyn (r,tmp));
 		r
-	| HNull ((HI8 | HI16 | HI32) as it), (HF32 | HF64) ->
+	| HNull ((HUI8 | HUI16 | HI32) as it), (HF32 | HF64) ->
 		let i = alloc_tmp ctx it in
 		op ctx (OSafeCast (i,r));
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToSFloat (tmp, i));
 		tmp
-	| HNull ((HF32 | HF64) as it), (HI8 | HI16 | HI32) ->
+	| HNull ((HF32 | HF64) as it), (HUI8 | HUI16 | HI32) ->
 		let i = alloc_tmp ctx it in
 		op ctx (OSafeCast (i,r));
 		let tmp = alloc_tmp ctx t in
@@ -1425,14 +1426,14 @@ and get_access ctx e =
 
 and array_read ctx ra (at,vt) ridx p =
 	match at with
-	| HI8 | HI16 | HI32 | HF32 | HF64 ->
+	| HUI8 | HUI16 | HI32 | HF32 | HF64 ->
 		(* check bounds *)
 		let length = alloc_tmp ctx HI32 in
 		op ctx (OField (length, ra, 0));
-		let r = alloc_tmp ctx (match at with HI8 | HI16 -> HI32 | _ -> at) in
+		let r = alloc_tmp ctx (match at with HUI8 | HUI16 -> HI32 | _ -> at) in
 		let j = jump ctx (fun i -> OJULt (ridx,length,i)) in
 		(match at with
-		| HI8 | HI16 | HI32 ->
+		| HUI8 | HUI16 | HI32 ->
 			op ctx (OInt (r,alloc_i32 ctx 0l));
 		| HF32 | HF64 ->
 			op ctx (OFloat (r,alloc_float ctx 0.));
@@ -1663,8 +1664,8 @@ and eval_expr ctx e =
 			(match follow eb.etype with
 			| TAbstract({a_path = ["hl";"types"],"BytesAccess"},[t]) ->
 				reg_int ctx (match to_type ctx t with
-				| HI8 -> 0
-				| HI16 -> 1
+				| HUI8 -> 0
+				| HUI16 -> 1
 				| HI32 -> 2
 				| HF32 -> 2
 				| HF64 -> 3
@@ -1677,7 +1678,7 @@ and eval_expr ctx e =
 				let t = to_type ctx t in
 				let r = alloc_tmp ctx t in
 				(match t with
-				| HI8 | HI16 | HI32 ->
+				| HUI8 | HUI16 | HI32 ->
 					op ctx (OInt (r,alloc_i32 ctx 0l))
 				| HF32 | HF64 ->
 					op ctx (OFloat (r, alloc_float ctx 0.))
@@ -1693,11 +1694,11 @@ and eval_expr ctx e =
 				let pos = eval_to ctx pos HI32 in
 				let t = to_type ctx t in
 				(match t with
-				| HI8 ->
+				| HUI8 ->
 					let r = alloc_tmp ctx HI32 in
 					op ctx (OGetI8 (r, b, pos));
 					r
-				| HI16 ->
+				| HUI16 ->
 					let r = alloc_tmp ctx HI32 in
 					op ctx (OGetI16 (r, b, shl ctx pos 1));
 					r
@@ -1724,11 +1725,11 @@ and eval_expr ctx e =
 				let pos = eval_to ctx pos HI32 in
 				let t = to_type ctx t in
 				(match t with
-				| HI8 ->
+				| HUI8 ->
 					let v = eval_to ctx value HI32 in
 					op ctx (OSetI8 (b, pos, v));
 					v
-				| HI16 ->
+				| HUI16 ->
 					let v = eval_to ctx value HI32 in
 					op ctx (OSetI16 (b, shl ctx pos 1, v));
 					v
@@ -2057,7 +2058,7 @@ and eval_expr ctx e =
 				| OpNotEq -> boolop r (fun d -> OJNotEq (a,b,d))
 				| OpAdd ->
 					(match rtype ctx r with
-					| HI8 | HI16 | HI32 | HF32 | HF64 ->
+					| HUI8 | HUI16 | HI32 | HF32 | HF64 ->
 						op ctx (OAdd (r,a,b))
 					| HObj { pname = "String" } ->
 						op ctx (OCall2 (r,alloc_fun_path ctx ([],"String") "__add__",a,b))
@@ -2067,7 +2068,7 @@ and eval_expr ctx e =
 						error ("Cannot add " ^ tstr t) e.epos)
 				| OpSub | OpMult | OpMod | OpDiv ->
 					(match rtype ctx r with
-					| HI8 | HI16 | HI32 | HF32 | HF64 ->
+					| HUI8 | HUI16 | HI32 | HF32 | HF64 ->
 						(match bop with
 						| OpSub -> op ctx (OSub (r,a,b))
 						| OpMult -> op ctx (OMul (r,a,b))
@@ -2078,7 +2079,7 @@ and eval_expr ctx e =
 						assert false)
 				| OpShl | OpShr | OpUShr | OpAnd | OpOr | OpXor ->
 					(match rtype ctx r with
-					| HI8 | HI16 | HI32 ->
+					| HUI8 | HUI16 | HI32 ->
 						(match bop with
 						| OpShl -> op ctx (OShl (r,a,b))
 						| OpShr -> op ctx (if unsigned e1.etype then OUShr (r,a,b) else OSShr (r,a,b))
@@ -2145,7 +2146,7 @@ and eval_expr ctx e =
 				op ctx (OMov (l, r));
 				r
 			| AArray (ra,(at,vt),ridx) ->
-				let v = cast_to ctx (value()) (match at with HI16 | HI8 -> HI32 | _ -> at) e.epos in
+				let v = cast_to ctx (value()) (match at with HUI16 | HUI8 -> HI32 | _ -> at) e.epos in
 				(* bounds check against length *)
 				(match at with
 				| HDyn ->
@@ -2158,7 +2159,7 @@ and eval_expr ctx e =
 					op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx (array_class ctx at).cl_path "__expand", ra, ridx));
 					j();
 					match at with
-					| HI32 | HF64 | HI16 | HF32 ->
+					| HI32 | HF64 | HUI16 | HF32 ->
 						let b = alloc_tmp ctx HBytes in
 						op ctx (OField (b,ra,1));
 						write_mem ctx b (shl ctx ridx (type_size_bits at)) at v
@@ -2230,8 +2231,8 @@ and eval_expr ctx e =
 		let tmp = alloc_tmp ctx t in
 		let r = eval_to ctx v t in
 		let mask = (match t with
-			| HI8 -> 0xFFl
-			| HI16 -> 0xFFFFl
+			| HUI8 -> 0xFFl
+			| HUI16 -> 0xFFFFl
 			| HI32 -> 0xFFFFFFFFl
 			| _ -> error (tstr t) e.epos
 		) in
@@ -2242,13 +2243,13 @@ and eval_expr ctx e =
 	| TUnop (Increment|Decrement as uop,fix,v) ->
 		let rec unop r =
 			match rtype ctx r with
-			| HI8 | HI16 | HI32 ->
+			| HUI8 | HUI16 | HI32 ->
 				if uop = Increment then op ctx (OIncr r) else op ctx (ODecr r)
 			| HF32 | HF64 as t ->
 				let tmp = alloc_tmp ctx t in
 				op ctx (OFloat (tmp,alloc_float ctx 1.));
 				if uop = Increment then op ctx (OAdd (r,r,tmp)) else op ctx (OSub (r,r,tmp))
-			| HNull (HI8 | HI16 | HI32 | HF32 | HF64 as t) ->
+			| HNull (HUI8 | HUI16 | HI32 | HF32 | HF64 as t) ->
 				let tmp = alloc_tmp ctx t in
 				op ctx (OSafeCast (tmp,r));
 				unop tmp;
@@ -2358,7 +2359,7 @@ and eval_expr ctx e =
 				op ctx (OSetI32 (b,reg_int ctx (i * 4),r));
 			) el;
 			op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayBase") "allocI32", b, reg_int ctx (List.length el)));
-		| HI16 ->
+		| HUI16 ->
 			let b = alloc_tmp ctx HBytes in
 			let size = reg_int ctx ((List.length el) * 2) in
 			op ctx (OCall1 (b,alloc_std ctx "alloc_bytes" [HI32] HBytes,size));
@@ -2366,7 +2367,7 @@ and eval_expr ctx e =
 				let r = eval_to ctx e HI32 in
 				op ctx (OSetI16 (b,reg_int ctx (i * 2),r));
 			) el;
-			op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayBase") "allocI16", b, reg_int ctx (List.length el)));
+			op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayBase") "allocUI16", b, reg_int ctx (List.length el)));
 		| HF32 ->
 			let b = alloc_tmp ctx HBytes in
 			let size = reg_int ctx ((List.length el) * 4) in
@@ -2762,11 +2763,11 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 			let j = jump ctx (fun n -> OJNotNull (r,n)) in
 			(match c with
 			| TNull | TThis | TSuper -> assert false
-			| TInt i when (match to_type ctx (follow v.v_type) with HI8 | HI16 | HI32 | HDyn -> true | _ -> false) ->
+			| TInt i when (match to_type ctx (follow v.v_type) with HUI8 | HUI16 | HI32 | HDyn -> true | _ -> false) ->
 				let tmp = alloc_tmp ctx HI32 in
 				op ctx (OInt (tmp, alloc_i32 ctx i));
 				op ctx (OToDyn (r, tmp));
-			| TFloat s when (match to_type ctx (follow v.v_type) with HI8 | HI16 | HI32 -> true | _ -> false) ->
+			| TFloat s when (match to_type ctx (follow v.v_type) with HUI8 | HUI16 | HI32 -> true | _ -> false) ->
 				let tmp = alloc_tmp ctx HI32 in
 				op ctx (OInt (tmp, alloc_i32 ctx (Int32.of_float (float_of_string s))));
 				op ctx (OToDyn (r, tmp));
@@ -2824,7 +2825,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 	else if has_final_jump f.tf_expr then begin
 		let r = alloc_tmp ctx tret in
 		(match tret with
-		| HI32 | HI8 | HI16 -> op ctx (OInt (r,alloc_i32 ctx 0l))
+		| HI32 | HUI8 | HUI16 -> op ctx (OInt (r,alloc_i32 ctx 0l))
 		| HF32 | HF64 -> op ctx (OFloat (r,alloc_float ctx 0.))
 		| HBool -> op ctx (OBool (r,false))
 		| _ -> op ctx (ONull r));
@@ -3160,12 +3161,12 @@ let check code =
 		in
 		let numeric r =
 			match rtype r with
-			| HI8 | HI16 | HI32 | HF32 | HF64 -> ()
+			| HUI8 | HUI16 | HI32 | HF32 | HF64 -> ()
 			| _ -> error (reg_inf r ^ " should be numeric")
 		in
 		let int r =
 			match rtype r with
-			| HI8 | HI16 | HI32 -> ()
+			| HUI8 | HUI16 | HI32 -> ()
 			| _ -> error (reg_inf r ^ " should be integral")
 		in
 		let float r =
@@ -3563,7 +3564,7 @@ exception Return of value
 
 let default t =
 	match t with
-	| HI8 | HI16 | HI32 -> VInt Int32.zero
+	| HUI8 | HUI16 | HI32 -> VInt Int32.zero
 	| HF32 | HF64 -> VFloat 0.
 	| HBool -> VBool false
 	| _ -> if is_nullable t then VNull else VUndef
@@ -3585,7 +3586,7 @@ let v_dynamic = function
 
 let rec is_compatible v t =
 	match v, t with
-	| VInt _, (HI8 | HI16 | HI32) -> true
+	| VInt _, (HUI8 | HUI16 | HI32) -> true
 	| VFloat _, (HF32 | HF64) -> true
 	| VBool _, HBool -> true
 	| VNull, t -> is_nullable t
@@ -3917,11 +3918,11 @@ let interp code =
 		else if v = VNull then
 			default()
 		else match t, rt with
-		| (HI8|HI16|HI32), (HF32|HF64) ->
+		| (HUI8|HUI16|HI32), (HF32|HF64) ->
 			(match v with VInt i -> VFloat (Int32.to_float i) | _ -> assert false)
-		| (HF32|HF64), (HI8|HI16|HI32) ->
+		| (HF32|HF64), (HUI8|HUI16|HI32) ->
 			(match v with VFloat f -> VInt (Int32.of_float f) | _ -> assert false)
-		| (HI8|HI16|HI32|HF32|HF64), HNull ((HI8|HI16|HI32|HF32|HF64) as rt) ->
+		| (HUI8|HUI16|HI32|HF32|HF64), HNull ((HUI8|HUI16|HI32|HF32|HF64) as rt) ->
 			let v = dyn_cast v t rt in
 			VDyn (v,rt)
 		| HBool, HNull HBool ->
@@ -4153,8 +4154,8 @@ let interp code =
 		let traps = ref [] in
 		let numop iop fop a b =
 			match rtype a with
-			(* todo : sign-extend and mask after result for HI8/16 *)
-			| HI8 | HI16 | HI32 ->
+			(* todo : sign-extend and mask after result for HUI8/16 *)
+			| HUI8 | HUI16 | HI32 ->
 				(match regs.(a), regs.(b) with
 				| VInt a, VInt b -> VInt (iop a b)
 				| _ -> assert false)
@@ -4167,8 +4168,8 @@ let interp code =
 		in
 		let iop f a b =
 			match rtype a with
-			(* todo : sign-extend and mask after result for HI8/16 *)
-			| HI8 | HI16 | HI32 ->
+			(* todo : sign-extend and mask after result for HUI8/16 *)
+			| HUI8 | HUI16 | HI32 ->
 				(match regs.(a), regs.(b) with
 				| VInt a, VInt b -> VInt (f a b)
 				| _ -> assert false)
@@ -4177,7 +4178,7 @@ let interp code =
 		in
 		let iunop iop r =
 			match rtype r with
-			| HI8 | HI16 | HI32 ->
+			| HUI8 | HUI16 | HI32 ->
 				(match regs.(r) with
 				| VInt a -> VInt (iop a)
 				| _ -> assert false)
@@ -4435,8 +4436,8 @@ let interp code =
 					| VType t ->
 						(VInt (Int32.of_int (match t with
 						| HVoid -> 0
-						| HI8 -> 1
-						| HI16 -> 2
+						| HUI8 -> 1
+						| HUI16 -> 2
 						| HI32 -> 3
 						| HF32 -> 4
 						| HF64 -> 5
@@ -5480,8 +5481,8 @@ let write_code ch code debug =
 	DynArray.iter (fun t ->
 		match t with
 		| HVoid -> byte 0
-		| HI8 -> byte 1
-		| HI16 -> byte 2
+		| HUI8 -> byte 1
+		| HUI16 -> byte 2
 		| HI32 -> byte 3
 		| HF32 -> byte 4
 		| HF64 -> byte 5
@@ -5866,19 +5867,19 @@ let write_c version file (code:code) =
 	let tname str = String.concat "__" (ExtString.String.nsplit str ".") in
 
 	let is_gc_ptr = function
-		| HVoid | HI8 | HI16 | HI32 | HF32 | HF64 | HBool | HType | HRef _ -> false
+		| HVoid | HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool | HType | HRef _ -> false
 		| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ -> true
 	in
 
 	let is_ptr = function
-		| HVoid | HI8 | HI16 | HI32 | HF32 | HF64 | HBool -> false
+		| HVoid | HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool -> false
 		| _ -> true
 	in
 
 	let rec ctype_no_ptr = function
 		| HVoid -> "void",0
-		| HI8 -> "char",0
-		| HI16 -> "short",0
+		| HUI8 -> "char",0
+		| HUI16 -> "short",0
 		| HI32 -> "int",0
 		| HF32 -> "float",0
 		| HF64 -> "double",0
@@ -5905,8 +5906,8 @@ let write_c version file (code:code) =
 	let type_id t =
 		match t with
 		| HVoid -> "HVOID"
-		| HI8 -> "HI8"
-		| HI16 -> "HI16"
+		| HUI8 -> "HUI8"
+		| HUI16 -> "HUI16"
 		| HI32 -> "HI32"
 		| HF32 -> "HF32"
 		| HF64 -> "HF64"
@@ -5963,8 +5964,8 @@ let write_c version file (code:code) =
 
 	let dyn_value_field t =
 		"->v." ^ match t with
-		| HI8 -> "c"
-		| HI16 -> "s"
+		| HUI8 -> "c"
+		| HUI16 -> "s"
 		| HI32 -> "i"
 		| HF32 -> "f"
 		| HF64 -> "d"
@@ -6194,15 +6195,15 @@ let write_c version file (code:code) =
 	let funByArgs = Hashtbl.create 0 in
 	let type_kind t =
 		match t with
-		| HVoid | HI8 | HI16 | HI32 | HF32 | HF64 -> t
-		| HBool -> HI8
+		| HVoid | HUI8 | HUI16 | HI32 | HF32 | HF64 -> t
+		| HBool -> HUI8
 		| HBytes | HDyn | HFun _ | HObj _ | HArray | HType | HRef _ | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ -> HDyn
 	in
 	let type_kind_id t =
 		match t with
 		| HVoid -> 0
-		| HI8 -> 1
-		| HI16 -> 2
+		| HUI8 -> 1
+		| HUI16 -> 2
 		| HI32 -> 3
 		| HF32 -> 4
 		| HF64 -> 5
@@ -6269,8 +6270,8 @@ let write_c version file (code:code) =
 	line "";
 	let wrap_char = function
 		| HVoid -> "v"
-		| HI8 | HBool -> "c"
-		| HI16 -> "s"
+		| HUI8 | HBool -> "c"
+		| HUI16 -> "s"
 		| HI32 -> "i"
 		| HF32 -> "f"
 		| HF64 -> "d"
@@ -6370,7 +6371,7 @@ let write_c version file (code:code) =
 
 
 		let dyn_prefix = function
-			| HI8 | HI16 | HI32 | HBool -> "i"
+			| HUI8 | HUI16 | HI32 | HBool -> "i"
 			| HF32 -> "f"
 			| HF64 -> "d"
 			| _ -> "p"
@@ -6538,7 +6539,7 @@ let write_c version file (code:code) =
 					one way for comparisons
 				*)
 				match rtype a, rtype b with
-				| (HI8 | HI16 | HI32 | HF32 | HF64 | HBool), (HI8 | HI16 | HI32 | HF32 | HF64 | HBool) ->
+				| (HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool), (HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool) ->
 					phys_compare()
 				| HType, HType ->
 					sexpr "if( hl_same_type(%s,%s) %s 0 ) {} else goto %s" (reg a) (reg b) (s_binop op) (label d)
@@ -6612,7 +6613,7 @@ let write_c version file (code:code) =
 				sexpr "%s = %s * %s" (reg r) (reg a) (reg b)
 			| OSDiv (r,a,b) ->
 				(match rtype r with
-				| HI8 | HI16 | HI32 ->
+				| HUI8 | HUI16 | HI32 ->
 					sexpr "%s = %s == 0 ? 0 : %s / %s" (reg r) (reg b) (reg a) (reg b)
 				| _ ->
 					sexpr "%s = %s / %s" (reg r) (reg a) (reg b))
@@ -6620,7 +6621,7 @@ let write_c version file (code:code) =
 				sexpr "%s = %s == 0 ? 0 : ((unsigned)%s) / ((unsigned)%s)" (reg r) (reg b) (reg a) (reg b)
 			| OSMod (r,a,b) ->
 				(match rtype r with
-				| HI8 | HI16 | HI32 ->
+				| HUI8 | HUI16 | HI32 ->
 					sexpr "%s = %s == 0 ? 0 : %s %% %s" (reg r) (reg b) (reg a) (reg b)
 				| HF32 ->
 					sexpr "%s = fmodf(%s,%s)" (reg r) (reg a) (reg b)
@@ -6725,7 +6726,7 @@ let write_c version file (code:code) =
 				end;
 				sexpr "%s = hl_alloc_dynamic(%s)" (reg r) (type_value (rtype v));
 				(match rtype v with
-				| HI8 | HI16 | HI32 | HBool ->
+				| HUI8 | HUI16 | HI32 | HBool ->
 					sexpr "%s->v.i = %s" (reg r) (reg v)
 				| HF32 ->
 					sexpr "%s->v.f = %s" (reg r) (reg v)
@@ -6949,7 +6950,7 @@ let generate com =
 			abase = get_class "ArrayBase";
 			adyn = get_class "ArrayDyn";
 			aobj = get_class "ArrayObj";
-			ai16 = get_class "ArrayBasic_hl_types_I16";
+			aui16 = get_class "ArrayBasic_hl_types_UI16";
 			ai32 = get_class "ArrayBasic_Int";
 			af32 = get_class "ArrayBasic_Single";
 			af64 = get_class "ArrayBasic_Float";

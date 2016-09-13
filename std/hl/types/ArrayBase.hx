@@ -110,8 +110,8 @@ class ArrayBase extends ArrayAccess {
 		return a;
 	}
 
-	public static function allocI16( bytes : BytesAccess<I16>, length : Int ) @:privateAccess {
-		var a : ArrayI16 = untyped $new(ArrayI16);
+	public static function allocUI16( bytes : BytesAccess<UI16>, length : Int ) @:privateAccess {
+		var a : ArrayUI16 = untyped $new(ArrayUI16);
 		a.length = length;
 		a.bytes = bytes;
 		a.size = length;
@@ -388,6 +388,6 @@ class BasicIterator<T> {
 }
 
 typedef ArrayI32 = ArrayBasic<Int>;
-typedef ArrayI16 = ArrayBasic<I16>;
+typedef ArrayUI16 = ArrayBasic<UI16>;
 typedef ArrayF32 = ArrayBasic<F32>;
 typedef ArrayF64 = ArrayBasic<Float>;
