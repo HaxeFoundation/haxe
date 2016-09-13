@@ -2650,9 +2650,9 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             let objC1 = (is_objc_type e1.etype) in
             let objC2 = (is_objc_type e2.etype) in
             let compareObjC = (objC1<>objC2) && (op=OpEq || op=OpNotEq) in
-            let e2 = retype (if compareObjC && objC2 then TCppDynamic
+            let e2 = retype (if compareObjC && objC2 then TCppUnchanged
                 else cpp_type_of (if op=OpAssign then e1 else e2).etype) e2 in
-            let e1 = retype (if compareObjC && objC1 then TCppDynamic else cpp_type_of e1.etype) e1 in
+            let e1 = retype (if compareObjC && objC1 then TCppUnchanged else cpp_type_of e1.etype) e1 in
             let complex = (is_complex_compare e1.cpptype) || (is_complex_compare e2.cpptype) in
             let e1_null = e1.cpptype=TCppNull in
             let e2_null = e2.cpptype=TCppNull in
@@ -4928,6 +4928,7 @@ let constructor_arg_var_list class_def ctx =
 
 let generate_protocol_delegate ctx class_def output =
    let protocol = get_meta_string class_def.cl_meta Meta.ObjcProtocol in
+   let full_class_name =  ("::" ^ (join_class_path_remap class_def.cl_path "::") ) ^ "_obj"  in
    let name = "_hx_" ^ protocol ^ "_delegate" in
    output ("@interface " ^ name ^ " : NSObject<" ^ protocol ^ "> {\n");
    output ("\t::hx::Object *haxeObj;\n");
@@ -4948,9 +4949,6 @@ let generate_protocol_delegate ctx class_def output =
    output ("   #endif\n");
    output ("}\n\n");
 
-   let class_path = class_def.cl_path in
-   let class_name = (snd class_path) ^ "_obj" in
-
    let dump_delegate field =
       match field.cf_type with
       |  TFun(args,ret) ->
@@ -4958,10 +4956,17 @@ let generate_protocol_delegate ctx class_def output =
          let objcName = get_meta_string field.cf_meta Meta.ObjcProtocol in
          let objcName = if objcName="" then field.cf_name else objcName in
          output ("- (" ^ retStr ^ ") " ^ objcName);
-         List.iter (fun (name,_,argType) -> output (":(" ^ (ctx_type_string ctx argType) ^ ")" ^ name ^ " ")) args;
+         let first = ref true in
+         List.iter (fun (name,_,argType) ->
+             if !first then
+               output (" :(" ^ (ctx_type_string ctx argType) ^ ")" ^ name )
+             else
+               output (" " ^ name ^ ":(" ^ (ctx_type_string ctx argType) ^ ")" ^ name );
+             first := false;
+             ) args;
          output (" {\n"); 
          output ("\thx::NativeAttach _hx_attach;\n");
-         output ( (if retStr="void" then "\t" else "\treturn ") ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ "(haxeObj");
+         output ( (if retStr="void" then "\t" else "\treturn ") ^ full_class_name ^ "::" ^ (keyword_remap field.cf_name) ^ "(haxeObj");
          List.iter (fun (name,_,_) -> output ("," ^ name)) args;
          output (");\n}\n\n"); 
       | _ -> ()
@@ -5698,19 +5703,17 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    end;
 
 
+   gen_close_namespace output_cpp class_path;
 
    if class_def.cl_interface && has_meta_key class_def.cl_meta Meta.ObjcProtocol then begin
+      let full_class_name =  ("::" ^ (join_class_path_remap class_path "::") ) ^ "_obj"  in
       let protocol = get_meta_string class_def.cl_meta Meta.ObjcProtocol in
       generate_protocol_delegate ctx class_def output_cpp;
-      output_cpp ("id<" ^ protocol ^ "> " ^  class_name ^ "::_hx_toProtocol(Dynamic inImplementation) {\n");
+      output_cpp ("id<" ^ protocol ^ "> " ^  full_class_name ^ "::_hx_toProtocol(Dynamic inImplementation) {\n");
       output_cpp ("\treturn [ [_hx_" ^ protocol ^ "_delegate alloc] initWithImplementation:inImplementation.mPtr];\n");
       output_cpp ("}\n\n");
    end;
 
-
-
-
-   gen_close_namespace output_cpp class_path;
 
    cpp_file#close;
  in
