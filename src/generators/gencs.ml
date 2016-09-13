@@ -1136,7 +1136,7 @@ let configure gen =
 		else fun w p ->
 			if p.pfile <> Ast.null_pos.pfile then (* Compiler Error CS1560 https://msdn.microsoft.com/en-us/library/z3t5e5sw(v=vs.90).aspx *)
 			let cur_line = Lexer.get_error_line p in
-			let file = Common.get_full_path p.pfile in
+			let file = Path.get_full_path p.pfile in
 			if cur_line <> ((!last_line)+1) then
 				let line = Ast.s_escape file in
 				if String.length line <= 256 then
@@ -3163,7 +3163,7 @@ let configure gen =
 			output_string f v;
 			close_out f;
 
-			out_files := (unique_full_path full_path) :: !out_files
+			out_files := (Path.unique_full_path full_path) :: !out_files
 		) gen.gcon.resources;
 	end;
 	(* add resources array *)

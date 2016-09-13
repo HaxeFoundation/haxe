@@ -71,7 +71,7 @@ extern class Debug {
 		the current hook function, the current hook mask, and the current hook count 
 		(as set by the `Debug.sethook` function).
 	**/
-	public static function gethook(thread : Coroutine) : Function;
+	public static function gethook(thread : Thread) : Function;
 
 	/**
 		Returns the registry table.
@@ -120,7 +120,7 @@ extern class Debug {
 		@param level (optional) tells at which level to start the traceback. 
 		       default is `1`, the function calling traceback.
 	**/
-	public static function traceback(?thread : Coroutine, ?message : String, ?level : Int) : String;
+	public static function traceback(?thread : Thread, ?message : String, ?level : Int) : String;
 
 	/**
 		Returns a unique identifier (as a light userdata) for the upvalue numbered 

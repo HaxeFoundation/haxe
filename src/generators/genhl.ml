@@ -6395,7 +6395,7 @@ let write_c version file (code:code) =
 			) pl));
 			let rt = rtype r in
 			let ret = if rt = HVoid then "" else if is_dynamic rt then sprintf "%s = (%s)" (reg r) (ctype rt) else "vdynamic *ret = " in
-			sexpr "%shlc_dyn_call_args((vclosure*)%s,%s,%d)" ret (reg f) (if pl = [] then "NULL" else "args") (List.length pl);
+			sexpr "%shl_dyn_call((vclosure*)%s,%s,%d)" ret (reg f) (if pl = [] then "NULL" else "args") (List.length pl);
 			if rt <> HVoid && not (is_dynamic rt) then sexpr "%s = (%s)hl_dyn_cast%s(&ret,&hlt_dyn%s)" (reg r) (ctype rt) (dyn_prefix rt) (type_value_opt rt);
 			unblock();
 			line "}";

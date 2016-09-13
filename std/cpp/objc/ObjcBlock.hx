@@ -21,16 +21,7 @@
  */
 package cpp.objc;
 
-@:objc @:callable
-extern class BlockPtr<T> { }
+@:objc
+typedef ObjcBlock<T> = T;
 
-@:objc @:callable
-extern abstract ObjcBlock<T>( BlockPtr<T> )
-{
-   inline function new(v:BlockPtr<T>) this = v;
-
-   @:from @:extern
-   static public inline function fromHaxe<T>(func:T):ObjcBlock<T> return new ObjcBlock<T>( cast func );
-
-}
 

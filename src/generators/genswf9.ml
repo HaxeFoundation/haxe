@@ -225,8 +225,6 @@ let rec type_id ctx t =
 			(match l with
 			| [t] -> type_id ctx t
 			| _ -> type_path ctx ([],"Object"))
-		| KExtension (c,params) ->
-			type_id ctx (TInst (c,params))
 		| _ ->
 			type_path ctx c.cl_path)
 	| TAbstract (a,_) ->
@@ -346,13 +344,6 @@ let property ctx p t =
 			| "ffloor" | "fceil" | "fround" -> ident (String.sub p 1 (String.length p - 1)), None, false
 			| _ -> ident p, None, false)
 		| _ -> ident p, None, false)
-	| TInst ({ cl_kind = KExtension _ } as c,params) ->
-		(* cast type when accessing an extension field *)
-		(try
-			let f = PMap.find p c.cl_fields in
-			ident p, Some (classify ctx (apply_params c.cl_params params f.cf_type)), false
-		with Not_found ->
-			ident p, None, false)
 	| TInst ({ cl_interface = true } as c,_) ->
 		(* lookup the interface in which the field was actually declared *)
 		let rec loop c =
@@ -617,7 +608,7 @@ let debug_infos ?(is_min=true) ctx p =
 	if ctx.debug then begin
 		let line = Lexer.get_error_line (if is_min then p else { p with pmin = p.pmax }) in
 		if ctx.last_file <> p.pfile then begin
-			write ctx (HDebugFile (if ctx.debugger then Common.get_full_path p.pfile else p.pfile));
+			write ctx (HDebugFile (if ctx.debugger then Path.get_full_path p.pfile else p.pfile));
 			ctx.last_file <- p.pfile;
 			ctx.last_line <- -1;
 		end;
@@ -2125,6 +2116,7 @@ let generate_class ctx c =
 				cf_meta = [];
 				cf_doc = None;
 				cf_pos = c.cl_pos;
+				cf_name_pos = null_pos;
 				cf_type = TFun ([],t_dynamic);
 				cf_params = [];
 				cf_expr = None;
@@ -2333,7 +2325,7 @@ let rec generate_type ctx t =
 				hlf_metas = extract_meta e.e_meta;
 			})
 	| TAbstractDecl ({ a_path = [],"Dynamic" } as a) ->
-		generate_type ctx (TClassDecl (mk_class a.a_module a.a_path a.a_pos))
+		generate_type ctx (TClassDecl (mk_class a.a_module a.a_path a.a_pos null_pos))
 	| TTypeDecl _ | TAbstractDecl _ ->
 		None
 
@@ -2341,8 +2333,8 @@ let resource_path name =
 	(["_res"],"_" ^ String.concat "_" (ExtString.String.nsplit name "."))
 
 let generate_resource ctx name =
-	let c = mk_class null_module (resource_path name) null_pos in
-	c.cl_super <- Some (mk_class null_module (["flash";"utils"],"ByteArray") null_pos,[]);
+	let c = mk_class null_module (resource_path name) null_pos null_pos in
+	c.cl_super <- Some (mk_class null_module (["flash";"utils"],"ByteArray") null_pos null_pos,[]);
 	let t = TClassDecl c in
 	match generate_type ctx t with
 	| Some (m,f) -> (t,m,f)

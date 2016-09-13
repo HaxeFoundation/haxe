@@ -51,9 +51,9 @@ Math.isNaN(Math.POSITIVE_INFINITY / Math.NEGATIVE_INFINITY) == true;
 Math.isNaN(Math.NEGATIVE_INFINITY / Math.POSITIVE_INFINITY) == true;
 Math.isNaN(Math.NEGATIVE_INFINITY / Math.NEGATIVE_INFINITY) == true;
 Math.isNaN(Math.NaN / Math.POSITIVE_INFINITY) == true;
-// Math.isNaN(Math.POSITIVE_INFINITY / Math.NaN) == true;
+Math.isNaN(Math.POSITIVE_INFINITY / Math.NaN) == true;
 Math.isNaN(Math.NaN / Math.POSITIVE_INFINITY) == true;
-// Math.isNaN(Math.NEGATIVE_INFINITY / Math.NaN) == true;
+Math.isNaN(Math.NEGATIVE_INFINITY / Math.NaN) == true;
 
 // abs
 Math.abs(-1.223) == 1.223;
@@ -276,9 +276,9 @@ math.isNaN(math.POSITIVE_INFINITY / math.NEGATIVE_INFINITY) == true;
 math.isNaN(math.NEGATIVE_INFINITY / math.POSITIVE_INFINITY) == true;
 math.isNaN(math.NEGATIVE_INFINITY / math.NEGATIVE_INFINITY) == true;
 math.isNaN(math.NaN / math.POSITIVE_INFINITY) == true;
-// math.isNaN(math.POSITIVE_INFINITY / math.NaN) == true;
+math.isNaN(math.POSITIVE_INFINITY / math.NaN) == true;
 math.isNaN(math.NaN / math.POSITIVE_INFINITY) == true;
-// math.isNaN(math.NEGATIVE_INFINITY / math.NaN) == true;
+math.isNaN(math.NEGATIVE_INFINITY / math.NaN) == true;
 
 // abs
 math.abs(-1.223) == 1.223;

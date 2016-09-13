@@ -117,6 +117,7 @@ module Meta = struct
 		| Macro
 		| MaybeUsed
 		| MergeBlock
+		| MultiReturn
 		| MultiType
 		| Native
 		| NativeChildren
@@ -137,6 +138,7 @@ module Meta = struct
 		| NoUsing
 		| Ns
 		| Objc
+		| ObjcProtocol
 		| Op
 		| Optional
 		| Overload
@@ -367,8 +369,8 @@ and expr_def =
 	| EIn of expr * expr
 	| EIf of expr * expr * expr option
 	| EWhile of expr * expr * while_flag
-	| ESwitch of expr * (expr list * expr option * expr option) list * expr option option
-	| ETry of expr * (placed_name * type_hint * expr) list
+	| ESwitch of expr * (expr list * expr option * expr option * pos) list * (expr option * pos) option
+	| ETry of expr * (placed_name * type_hint * expr * pos) list
 	| EReturn of expr option
 	| EBreak
 	| EContinue
@@ -756,8 +758,8 @@ let map_expr loop (e,p) =
 	| EIn (e1,e2) -> EIn (loop e1, loop e2)
 	| EIf (e,e1,e2) -> EIf (loop e, loop e1, opt loop e2)
 	| EWhile (econd,e,f) -> EWhile (loop econd, loop e, f)
-	| ESwitch (e,cases,def) -> ESwitch (loop e, List.map (fun (el,eg,e) -> List.map loop el, opt loop eg, opt loop e) cases, opt (opt loop) def)
-	| ETry (e,catches) -> ETry (loop e, List.map (fun (n,t,e) -> n,type_hint t,loop e) catches)
+	| ESwitch (e,cases,def) -> ESwitch (loop e, List.map (fun (el,eg,e,p) -> List.map loop el, opt loop eg, opt loop e, p) cases, opt (fun (eo,p) -> opt loop eo,p) def)
+	| ETry (e,catches) -> ETry (loop e, List.map (fun (n,t,e,p) -> n,type_hint t,loop e,p) catches)
 	| EReturn e -> EReturn (opt loop e)
 	| EBreak -> EBreak
 	| EContinue -> EContinue
@@ -786,15 +788,15 @@ let iter_expr loop (e,p) =
 	| EObjectDecl fl -> List.iter (fun (_,e) -> loop e) fl;
 	| ETry(e1,catches) ->
 		loop e1;
-		List.iter (fun (_,_,e) -> loop e) catches
+		List.iter (fun (_,_,e,_) -> loop e) catches
 	| ESwitch(e1,cases,def) ->
 		loop e1;
-		List.iter (fun (el,eg,e) ->
+		List.iter (fun (el,eg,e,_) ->
 			exprs el;
 			opt eg;
 			opt e;
 		) cases;
-		(match def with None -> () | Some e -> opt e);
+		(match def with None -> () | Some (e,_) -> opt e);
 	| EFunction(_,f) ->
 		List.iter (fun (_,_,_,_,eo) -> opt eo) f.f_args;
 		opt f.f_expr
@@ -826,7 +828,7 @@ let s_expr e =
 		| EWhile (econd,e,NormalWhile) -> "while (" ^ s_expr_inner tabs econd ^ ") " ^ s_expr_inner tabs e
 		| EWhile (econd,e,DoWhile) -> "do " ^ s_expr_inner tabs e ^ " while (" ^ s_expr_inner tabs econd ^ ")"
 		| ESwitch (e,cases,def) -> "switch " ^ s_expr_inner tabs e ^ " {\n\t" ^ tabs ^ String.concat ("\n\t" ^ tabs) (List.map (s_case tabs) cases) ^
-			(match def with None -> "" | Some def -> "\n\t" ^ tabs ^ "default:" ^
+			(match def with None -> "" | Some (def,_) -> "\n\t" ^ tabs ^ "default:" ^
 			(match def with None -> "" | Some def -> s_expr_omit_block tabs def)) ^ "\n" ^ tabs ^ "}"
 		| ETry (e,catches) -> "try " ^ s_expr_inner tabs e ^ String.concat "" (List.map (s_catch tabs) catches)
 		| EReturn e -> "return" ^ s_opt_expr tabs e " "
@@ -839,17 +841,15 @@ let s_expr e =
 		| ETernary (e1,e2,e3) -> s_expr_inner tabs e1 ^ " ? " ^ s_expr_inner tabs e2 ^ " : " ^ s_expr_inner tabs e3
 		| ECheckType (e,(t,_)) -> "(" ^ s_expr_inner tabs e ^ " : " ^ s_complex_type tabs t ^ ")"
 		| EMeta (m,e) -> s_metadata tabs m ^ " " ^ s_expr_inner tabs e
-		| EDisplay (e1,_) -> Printf.sprintf "#DISPLAY(%s)" (s_expr_inner tabs e1)
+		| EDisplay (e1,iscall) -> Printf.sprintf "#DISPLAY(%s, %b)" (s_expr_inner tabs e1) iscall
 		| EDisplayNew tp -> Printf.sprintf "#DISPLAY_NEW(%s)" (s_complex_type_path tabs tp)
 	and s_expr_list tabs el sep =
 		(String.concat sep (List.map (s_expr_inner tabs) el))
 	and s_complex_type_path tabs (t,_) =
-		(String.concat "." t.tpackage) ^ if List.length t.tpackage > 0 then "." else "" ^
-		t.tname ^
-		match t.tsub with
-		| Some s -> "." ^ s
-		| None -> "" ^
-		s_type_param_or_consts tabs t.tparams
+		Printf.sprintf "%s%s%s"
+			(s_type_path (t.tpackage,t.tname))
+			(Option.map_default (fun s -> "." ^ s) "" t.tsub)
+			(s_type_param_or_consts tabs t.tparams)
 	and s_type_param_or_consts tabs pl =
 		if List.length pl > 0
 		then "<" ^ (String.concat "," (List.map (s_type_param_or_const tabs) pl)) ^ ">"
@@ -900,11 +900,11 @@ let s_expr e =
 		if o then "?" else "" ^ n ^ s_opt_type_hint tabs t ":" ^ s_opt_expr tabs e " = "
 	and s_var tabs ((n,_),t,e) =
 		n ^ (s_opt_type_hint tabs t ":") ^ s_opt_expr tabs e " = "
-	and s_case tabs (el,e1,e2) =
+	and s_case tabs (el,e1,e2,_) =
 		"case " ^ s_expr_list tabs el ", " ^
 		(match e1 with None -> ":" | Some e -> " if (" ^ s_expr_inner tabs e ^ "):") ^
 		(match e2 with None -> "" | Some e -> s_expr_omit_block tabs e)
-	and s_catch tabs ((n,_),(t,_),e) =
+	and s_catch tabs ((n,_),(t,_),e,_) =
 		" catch(" ^ n ^ ":" ^ s_complex_type tabs t ^ ") " ^ s_expr_inner tabs e
 	and s_block tabs el opn nl cls =
 		 opn ^ "\n\t" ^ tabs ^ (s_expr_list (tabs ^ "\t") el (";\n\t" ^ tabs)) ^ ";" ^ nl ^ tabs ^ cls

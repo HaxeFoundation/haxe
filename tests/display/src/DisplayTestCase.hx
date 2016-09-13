@@ -19,6 +19,8 @@ class DisplayTestCase {
 	inline function position(pos) return ctx.position(pos);
 	inline function usage(pos) return ctx.usage(pos);
 	inline function range(pos1, pos2) return ctx.range(pos1, pos2);
+	inline function signature(pos1) return ctx.signature(pos1);
+	inline function metadataDoc(pos1) return ctx.metadataDoc(pos1);
 
 	function assert(v:Bool) if (!v) throw "assertion failed";
 
@@ -46,6 +48,26 @@ class DisplayTestCase {
 			numFailures++;
 			report("Expected result was not part of actual Array:", pos);
 			report(leftover, pos);
+			return;
+		}
+	}
+
+	function arrayCheck<T>(expected:Array<T>, actual:Array<T>, f : T -> String, ?pos:haxe.PosInfos) {
+		var expected = [for (expected in expected) f(expected) => expected];
+		for (actual in actual) {
+			var key = f(actual);
+			if (!expected.exists(key)) {
+				numFailures++;
+				report("Result not part of expected Array:", pos);
+				report(Std.string(actual), pos);
+			}
+			expected.remove(key);
+		}
+
+		for (expected in expected) {
+			numFailures++;
+			report("Expected result was not part of actual Array:", pos);
+			report(Std.string(expected), pos);
 			return;
 		}
 	}

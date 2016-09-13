@@ -354,19 +354,19 @@ class Boot {
 	}
 
 	public static function fieldIterator( o : Table<String,Dynamic>) : Iterator<String> {
-		var tbl = (untyped o.__fields__ != null) ?  o.__fields__ : o;
-		var cur = Lua.pairs(tbl);
+		var tbl : Table<String,String> =  cast (untyped o.__fields__ != null) ?  o.__fields__ : o;
+		var cur = Lua.pairs(tbl).next;
 		var next_valid = function(tbl, val){
 			while (hiddenFields[untyped val] != null){
-				val = cur(tbl, val);
+				val = cur(tbl, val).index;
 			}
 			return val;
 		}
-		var cur_val = next_valid(tbl, cur(tbl, null));
+		var cur_val = next_valid(tbl, cur(tbl, null).index);
 		return {
 			next : function(){
 				var ret = cur_val;
-				cur_val = next_valid(tbl, cur(tbl, cur_val));
+				cur_val = next_valid(tbl, cur(tbl, cur_val).index);
 				return ret;
 			},
 			hasNext : function() return cur_val !=  null

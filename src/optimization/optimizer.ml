@@ -675,7 +675,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			| _ -> e
 		in
 		let e = List.fold_left inline_meta e cf.cf_meta in
-		let e = match ctx.com.display with DMDiagnostics _ -> mk (TMeta((Meta.Extern,[],e.epos),e)) e.etype e.epos | _ -> e in
+		let e = Display.Diagnostics.secure_generated_code ctx e in
 		(* we need to replace type-parameters that were used in the expression *)
 		if not has_params then
 			Some e
@@ -1313,7 +1313,7 @@ let rec reduce_loop ctx e =
 		| None -> reduce_expr ctx e
 		| Some e -> reduce_loop ctx e)
 	| TCall ({ eexpr = TFunction func } as ef,el) ->
-		let cf = mk_field "" ef.etype e.epos in
+		let cf = mk_field "" ef.etype e.epos null_pos in
 		let ethis = mk (TConst TThis) t_dynamic e.epos in
 		let rt = (match follow ef.etype with TFun (_,rt) -> rt | _ -> assert false) in
 		let inl = (try type_inline ctx cf func ethis el rt None e.epos ~self_calling_closure:true false with Error (Custom _,_) -> None) in
@@ -1681,7 +1681,7 @@ let optimize_completion_expr e =
 			let el = List.fold_left (fun acc e ->
 				typing_side_effect := false;
 				let e = loop e in
-				if !typing_side_effect then begin told := true; e :: acc end else acc
+				if !typing_side_effect || Display.is_display_position (pos e) then begin told := true; e :: acc end else acc
 			) [] el in
 			old();
 			typing_side_effect := !told;
@@ -1713,9 +1713,9 @@ let optimize_completion_expr e =
 			map e
 		| ESwitch (e,cases,def) ->
 			let e = loop e in
-			let cases = List.map (fun (el,eg,eo) -> match eo with
+			let cases = List.map (fun (el,eg,eo,p) -> match eo with
 				| None ->
-					el,eg,eo
+					el,eg,eo,p
 				| Some e ->
 					let el = List.map loop el in
 					let old = save() in
@@ -1731,22 +1731,22 @@ let optimize_completion_expr e =
 					) el;
 					let e = loop e in
 					old();
-					el, eg, Some e
+					el, eg, Some e, p
 			) cases in
 			let def = match def with
 				| None -> None
-				| Some None -> Some None
-				| Some (Some e) -> Some (Some (loop e))
+				| Some (None,p) -> Some (None,p)
+				| Some (Some e,p) -> Some (Some (loop e),p)
 			in
 			(ESwitch (e,cases,def),p)
 		| ETry (et,cl) ->
 			let et = loop et in
-			let cl = List.map (fun ((n,pn),(t,pt),e) ->
+			let cl = List.map (fun ((n,pn),(t,pt),e,p) ->
 				let old = save() in
 				decl n (Some t) None;
 				let e = loop e in
 				old();
-				(n,pn), (t,pt), e
+				(n,pn), (t,pt), e, p
 			) cl in
 			(ETry (et,cl),p)
 		| EDisplay (s,call) ->

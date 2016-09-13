@@ -1985,6 +1985,7 @@ class class_builder ctx (cls:tclass) =
 							cf_type = TFun ([], get_void ctx);
 							cf_public = true;
 							cf_pos = cls.cl_pos;
+							cf_name_pos = cls.cl_pos;
 							cf_doc = None;
 							cf_meta = [];
 							cf_kind = Method MethNormal;

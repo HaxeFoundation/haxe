@@ -283,7 +283,7 @@ let constants =
 	"constructs";"names";"superClass";"interfaces";"fields";"statics";"constructor";"init";"t";
 	"gid";"uid";"atime";"mtime";"ctime";"dev";"ino";"nlink";"rdev";"size";"mode";"pos";"len";
 	"binops";"unops";"from";"to";"array";"op";"isPostfix";"impl";"resolve";
-	"id";"capture";"extra";"v";"ids";"vars";"en";"overrides";"status";"overloads";"path"];
+	"id";"capture";"extra";"v";"ids";"vars";"en";"overrides";"status";"overloads";"path";"namePos"];
 	h
 
 let h_get = hash "__get" and h_set = hash "__set"
@@ -511,8 +511,7 @@ let rec dlopen dls =
 		None
 
 let neko =
-	let is_win = Sys.os_type = "Win32" || Sys.os_type = "Cygwin" in
-	match dlopen (if is_win then
+	match dlopen (if Globals.is_windows then
 		["neko.dll"]
 	else
 		(*
@@ -2372,7 +2371,7 @@ let macro_lib =
 				try
 					Hashtbl.find hfiles f
 				with Not_found ->
-					let ff = Common.unique_full_path f in
+					let ff = Path.unique_full_path f in
 					Hashtbl.add hfiles f ff;
 					ff
 			in
@@ -2643,7 +2642,7 @@ let macro_lib =
 			match v with
 			| VString cp ->
 				let com = ccom() in
-				let cp = Common.add_trailing_slash cp in
+				let cp = Path.add_trailing_slash cp in
 				com.class_path <- cp :: com.class_path;
 				(match com.get_macros() with
 					| Some(mcom) ->
@@ -4075,20 +4074,22 @@ and encode_expr e =
 			| EWhile (econd,e,flag) ->
 				16, [loop econd;loop e;VBool (match flag with NormalWhile -> true | DoWhile -> false)]
 			| ESwitch (e,cases,eopt) ->
-				17, [loop e;enc_array (List.map (fun (ecl,eg,e) ->
+				17, [loop e;enc_array (List.map (fun (ecl,eg,e,p) ->
 					enc_obj [
 						"values",enc_array (List.map loop ecl);
 						"guard",null loop eg;
-						"expr",null loop e
+						"expr",null loop e;
+						"pos",encode_pos p;
 					]
-				) cases);null encode_null_expr eopt]
+				) cases);null (fun (e,_) -> encode_null_expr e) eopt]
 			| ETry (e,catches) ->
-				18, [loop e;enc_array (List.map (fun (v,t,e) ->
+				18, [loop e;enc_array (List.map (fun (v,t,e,p) ->
 					enc_obj [
 						"name",encode_placed_name v;
 						"name_pos",encode_pos (pos v);
 						"type",encode_ctype t;
-						"expr",loop e
+						"expr",loop e;
+						"pos",encode_pos p
 					]
 				) catches)]
 			| EReturn eo ->
@@ -4233,8 +4234,12 @@ let decode_import_mode t =
 
 let decode_import t = (List.map (fun o -> ((dec_string (field o "name")), (decode_pos (field o "pos")))) (dec_array (field t "path")), decode_import_mode (field t "mode"))
 
+let maybe_decode_pos v = match v with
+	| VAbstract (APos p) -> p
+	| _ -> null_pos
+
 let decode_placed_name vp v =
-	dec_string v,(match vp with VAbstract (APos p) -> p | _ -> null_pos)
+	dec_string v,maybe_decode_pos vp
 
 let rec decode_path t =
 	{
@@ -4378,12 +4383,12 @@ let rec decode_expr v =
 			EWhile (loop e1,loop e2,if flag then NormalWhile else DoWhile)
 		| 17, [e;cases;eo] ->
 			let cases = List.map (fun c ->
-				(List.map loop (dec_array (field c "values")),opt loop (field c "guard"),opt loop (field c "expr"))
+				(List.map loop (dec_array (field c "values")),opt loop (field c "guard"),opt loop (field c "expr"),maybe_decode_pos (field c "pos"))
 			) (dec_array cases) in
-			ESwitch (loop e,cases,opt decode_null_expr eo)
+			ESwitch (loop e,cases,opt (fun v -> decode_null_expr v,null_pos) eo)
 		| 18, [e;catches] ->
 			let catches = List.map (fun c ->
-				((decode_placed_name (field c "name_pos") (field c "name")),(decode_ctype (field c "type")),loop (field c "expr"))
+				((decode_placed_name (field c "name_pos") (field c "name")),(decode_ctype (field c "type")),loop (field c "expr"),maybe_decode_pos (field c "pos"))
 			) (dec_array catches) in
 			ETry (loop e, catches)
 		| 19, [e] ->
@@ -4526,6 +4531,7 @@ and encode_efield f =
 		"name", enc_string f.ef_name;
 		"type", encode_type f.ef_type;
 		"pos", encode_pos f.ef_pos;
+		"namePos", encode_pos f.ef_name_pos;
 		"index", VInt f.ef_index;
 		"meta", encode_meta f.ef_meta (fun m -> f.ef_meta <- m);
 		"doc", null enc_string f.ef_doc;
@@ -4542,6 +4548,7 @@ and encode_cfield f =
 		"expr", (VFunction (Fun0 (fun() -> ignore(follow f.cf_type); (match f.cf_expr with None -> VNull | Some e -> encode_texpr e))));
 		"kind", encode_field_kind f.cf_kind;
 		"pos", encode_pos f.cf_pos;
+		"namePos",encode_pos f.cf_name_pos;
 		"doc", null enc_string f.cf_doc;
 		"overloads", encode_ref f.cf_overloads (encode_array encode_cfield) (fun() -> "overloads");
 	]
@@ -4578,7 +4585,7 @@ and encode_class_kind k =
 	let tag, pl = (match k with
 		| KNormal -> 0, []
 		| KTypeParameter pl -> 1, [encode_tparams pl]
-		| KExtension (cl, params) -> 2, [encode_clref cl; encode_tparams params]
+		(* KExtension was here *)
 		| KExpr e -> 3, [encode_expr e]
 		| KGeneric -> 4, []
 		| KGenericInstance (cl, params) -> 5, [encode_clref cl; encode_tparams params]
@@ -4903,6 +4910,7 @@ let decode_cfield v =
 		cf_type = decode_type (field v "type");
 		cf_public = dec_bool (field v "isPublic");
 		cf_pos = decode_pos (field v "pos");
+		cf_name_pos = decode_pos (field v "namePos");
 		cf_doc = opt dec_string (field v "doc");
 		cf_meta = []; (* TODO *)
 		cf_kind = decode_field_kind (field v "kind");
@@ -4916,6 +4924,7 @@ let decode_efield v =
 		ef_name = dec_string (field v "name");
 		ef_type = decode_type (field v "type");
 		ef_pos = decode_pos (field v "pos");
+		ef_name_pos = decode_pos (field v "namePos");
 		ef_index = (match field v "index" with VInt i -> i | _ -> raise Invalid_expr);
 		ef_meta = []; (* TODO *)
 		ef_doc = opt dec_string (field v "doc");

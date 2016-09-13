@@ -790,7 +790,7 @@ let add_rtti ctx t =
 	in
 	match t with
 	| TClassDecl c when has_rtti c && not (PMap.mem "__rtti" c.cl_statics) ->
-		let f = mk_field "__rtti" ctx.t.tstring c.cl_pos in
+		let f = mk_field "__rtti" ctx.t.tstring c.cl_pos null_pos in
 		let str = Genxml.gen_type_string ctx.com t in
 		f.cf_expr <- Some (mk (TConst (TString str)) f.cf_type c.cl_pos);
 		c.cl_ordered_statics <- f :: c.cl_ordered_statics;
@@ -858,7 +858,7 @@ let add_field_inits ctx t =
 					tf_type = ctx.com.basic.tvoid;
 					tf_expr = mk (TBlock el) ctx.com.basic.tvoid c.cl_pos;
 				}) ct c.cl_pos in
-				let ctor = mk_field "new" ct c.cl_pos in
+				let ctor = mk_field "new" ct c.cl_pos null_pos in
 				ctor.cf_kind <- Method MethNormal;
 				{ ctor with cf_expr = Some ce }
 			| Some cf ->
@@ -895,7 +895,7 @@ let add_meta_field ctx t = match t with
 		| None -> ()
 		| Some e ->
 			add_feature ctx.com "has_metadata";
-			let f = mk_field "__meta__" t_dynamic c.cl_pos in
+			let f = mk_field "__meta__" t_dynamic c.cl_pos null_pos in
 			f.cf_expr <- Some e;
 			let can_deal_with_interface_metadata () = match ctx.com.platform with
 				| Flash when Common.defined ctx.com Define.As3 -> false
@@ -905,8 +905,8 @@ let add_meta_field ctx t = match t with
 			if c.cl_interface && not (can_deal_with_interface_metadata()) then begin
 				(* borrowed from gencommon, but I did wash my hands afterwards *)
 				let path = fst c.cl_path,snd c.cl_path ^ "_HxMeta" in
-				let ncls = mk_class c.cl_module path c.cl_pos in
-				let cf = mk_field "__meta__" e.etype e.epos in
+				let ncls = mk_class c.cl_module path c.cl_pos null_pos in
+				let cf = mk_field "__meta__" e.etype e.epos null_pos in
 				cf.cf_expr <- Some e;
 				ncls.cl_statics <- PMap.add "__meta__" cf ncls.cl_statics;
 				ncls.cl_ordered_statics <- cf :: ncls.cl_ordered_statics;
@@ -1076,8 +1076,6 @@ let iter_expressions fl mt =
 		()
 
 let run com tctx main =
-	if not (Common.defined com Define.NoDeprecationWarnings) then
-		Codegen.DeprecationCheck.run com;
 	let new_types = List.filter (fun t -> not (is_cached t)) com.types in
 	(* PASS 1: general expression filters *)
 	let filters = [

@@ -135,6 +135,7 @@ and error_msg =
 	| Unknown_ident of string
 	| Stack of error_msg * error_msg
 	| Call_error of call_error
+	| No_constructor of module_type
 
 exception Fatal_error of string * Ast.pos
 
@@ -148,12 +149,13 @@ let make_call_ref : (typer -> texpr -> texpr list -> t -> pos -> texpr) ref = re
 let type_expr_ref : (typer -> Ast.expr -> with_type -> texpr) ref = ref (fun _ _ _ -> assert false)
 let type_module_type_ref : (typer -> module_type -> t list option -> pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
 let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> assert false)
-let match_expr_ref : (typer -> Ast.expr -> (Ast.expr list * Ast.expr option * Ast.expr option) list -> Ast.expr option option -> with_type -> Ast.pos -> texpr) ref = ref (fun _ _ _ _ _ _ -> assert false)
+let match_expr_ref : (typer -> Ast.expr -> (Ast.expr list * Ast.expr option * Ast.expr option * pos) list -> (Ast.expr option * pos) option -> with_type -> Ast.pos -> texpr) ref = ref (fun _ _ _ _ _ _ -> assert false)
 let get_pattern_locals_ref : (typer -> Ast.expr -> Type.t -> (string, tvar * pos) PMap.t) ref = ref (fun _ _ _ -> assert false)
 let get_constructor_ref : (typer -> tclass -> t list -> Ast.pos -> (t * tclass_field)) ref = ref (fun _ _ _ _ -> assert false)
 let cast_or_unify_ref : (typer -> t -> texpr -> Ast.pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
 let find_array_access_raise_ref : (typer -> tabstract -> tparams -> texpr -> texpr option -> pos -> (tclass_field * t * t * texpr * texpr option)) ref = ref (fun _ _ _ _ _ _ -> assert false)
 let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun _ _ -> assert false)
+let merge_core_doc_ref : (typer -> tclass -> unit) ref = ref (fun _ _ -> assert false)
 
 let string_source t = match follow t with
 	| TInst(c,_) -> List.map (fun cf -> cf.cf_name) c.cl_ordered_fields
@@ -214,6 +216,7 @@ let rec error_msg = function
 	| Custom s -> s
 	| Stack (m1,m2) -> error_msg m1 ^ "\n" ^ error_msg m2
 	| Call_error err -> s_call_error err
+	| No_constructor mt -> (Ast.s_type_path (t_infos mt).mt_path ^ " does not have a constructor")
 
 and s_call_error = function
 	| Not_enough_arguments tl ->
@@ -231,11 +234,13 @@ let pass_name = function
 	| PForce -> "force"
 	| PFinal -> "final"
 
-let display_error ctx msg p = match ctx.com.display with
-	| DMDiagnostics _ -> add_diagnostics_message ctx.com msg p DiagnosticsSeverity.Error
-	| _ -> ctx.on_error ctx msg p
+let display_error ctx msg p = match ctx.com.display.DisplayMode.dms_error_policy with
+	| DisplayMode.EPShow | DisplayMode.EPIgnore -> ctx.on_error ctx msg p
+	| DisplayMode.EPCollect -> add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsSeverity.Error
 
 let error msg p = raise (Error (Custom msg,p))
+
+let raise_error err p = raise (Error(err,p))
 
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 
@@ -290,6 +295,11 @@ let save_locals ctx =
 let add_local ctx n t p =
 	let v = alloc_var n t p in
 	ctx.locals <- PMap.add n v ctx.locals;
+	v
+
+let add_unbound_local ctx n t p =
+	let v = add_local ctx n t p in
+	v.v_meta <- (Ast.Meta.Unbound,[],Ast.null_pos) :: v.v_meta;
 	v
 
 let gen_local_prefix = "`"
@@ -365,7 +375,7 @@ let exc_protect ctx f (where:string) =
 
 let fake_modules = Hashtbl.create 0
 let create_fake_module ctx file =
-	let file = Common.unique_full_path file in
+	let file = Path.unique_full_path file in
 	let mdep = (try Hashtbl.find fake_modules file with Not_found ->
 		let mdep = {
 			m_id = alloc_mid();

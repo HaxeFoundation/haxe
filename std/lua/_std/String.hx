@@ -47,7 +47,7 @@ class String {
 	public function indexOf( str : String, ?startIndex : Int ) : Int {
 		if (startIndex == null) startIndex = 1;
 		else startIndex += 1;
-		var r = NativeStringTools.find(this, str, startIndex, true);
+		var r = NativeStringTools.find(this, str, startIndex, true).begin;
 		if (r != null && r > 0) return r-1;
 		else return -1;
 	}
@@ -70,7 +70,7 @@ class String {
 		while (idx != null){
 			var newidx = 0;
 			if (delimiter.length > 0){
-				newidx = NativeStringTools.find(this, delimiter, idx, true);
+				newidx = NativeStringTools.find(this, delimiter, idx, true).begin;
 			} else if (idx >= this.length){
 				newidx = null;
 			} else {
@@ -78,11 +78,11 @@ class String {
 			}
 
 			if (newidx != null){
-				var match = NativeStringTools.sub(this, idx, newidx-1);
+				var match = NativeStringTools.sub(this, idx, newidx-1).match;
 				ret.push(match);
 				idx = newidx + delimiter.length;
 			} else {
-				ret.push(NativeStringTools.sub(this,idx,NativeStringTools.len(this)));
+				ret.push(NativeStringTools.sub(this,idx,NativeStringTools.len(this)).match);
 				idx = null;
 			}
 		}
@@ -98,9 +98,9 @@ class String {
 		if (startIndex < 0) startIndex = 0;
 		if (endIndex < startIndex) {
 			// swap the index positions
-			return NativeStringTools.sub(this, endIndex+1, startIndex);
+			return NativeStringTools.sub(this, endIndex+1, startIndex).match;
 		} else {
-			return NativeStringTools.sub(this, startIndex+1, endIndex);
+			return NativeStringTools.sub(this, startIndex+1, endIndex).match;
 		}
 	}
 
@@ -108,7 +108,7 @@ class String {
 		return NativeStringTools.len(this);
 	}
 	public function charAt( index : Int) : String {
-		return NativeStringTools.sub(this,index+1, index+1);
+		return NativeStringTools.sub(this,index+1, index+1).match;
 	}
 	public function charCodeAt( index : Int) : Null<Int> {
 		return NativeStringTools.byte(this,index+1);
@@ -119,7 +119,7 @@ class String {
 		else if (len < 0) len = length + len;
 		if (pos < 0) pos = length + pos;
 		if (pos < 0) pos = 0;
-		return NativeStringTools.sub(this, pos + 1, pos+len);
+		return NativeStringTools.sub(this, pos + 1, pos+len).match;
 	}
 
 	public inline static function fromCharCode( code : Int ) : String {
