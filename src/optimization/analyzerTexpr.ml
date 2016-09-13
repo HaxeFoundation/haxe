@@ -109,7 +109,7 @@ let target_handles_assign_ops com = match com.platform with
 	| _ -> true
 
 let target_handles_side_effect_order com = match com.platform with
-	| Cpp -> not (Common.defined com Define.Cppia)
+	| Cpp -> Common.defined com Define.Cppia
 	| Php -> false
 	| _ -> true
 
@@ -666,7 +666,7 @@ module Fusion = struct
 						found := !really_found;
 						el
 					in
-					let handle_el = if target_handles_side_effect_order com then handle_el else List.map replace in
+					let handle_el = if not (target_handles_side_effect_order com) then handle_el else List.map replace in
 					let handle_call e2 el = match com.platform with
 						| Neko ->
 							(* Neko has this reversed at the moment (issue #4787) *)
