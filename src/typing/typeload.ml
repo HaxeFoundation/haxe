@@ -104,7 +104,7 @@ let module_pass_1 ctx m tdecls loadp =
 			let path = make_path name priv in
 			let c = mk_class m path p (pos d.d_name) in
 			(* we shouldn't load any other type until we propertly set cl_build *)
-			c.cl_build <- (fun() -> assert false);
+			c.cl_build <- (fun() -> error (s_type_path c.cl_path ^ " is not ready to be accessed, separate your type declarations in several files") p);
 			c.cl_module <- m;
 			c.cl_private <- priv;
 			c.cl_doc <- d.d_doc;
