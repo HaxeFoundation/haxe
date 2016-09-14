@@ -580,7 +580,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 	let type_against t e =
 		try
 			let e = type_expr ctx e (WithType t) in
-			Codegen.AbstractCast.cast_or_unify_raise ctx t e e.epos
+			AbstractCast.cast_or_unify_raise ctx t e e.epos
 		with Error(l,p) when (match l with Call_error _ -> false | _ -> true) ->
 			raise (WithTypeError (l,p))
 	in
@@ -1171,7 +1171,7 @@ let rec using_field ctx mode e i p =
 			begin match follow t with
 				| TFun((_,_,(TType({t_path = ["haxe";"macro"],"ExprOf"},[t0]) | t0)) :: args,r) ->
 					if is_dynamic && follow t0 != t_dynamic then raise Not_found;
-					let e = Codegen.AbstractCast.cast_or_unify_raise ctx t0 e p in
+					let e = AbstractCast.cast_or_unify_raise ctx t0 e p in
 					(* early constraints check is possible because e.etype has no monomorphs *)
 					List.iter2 (fun m (name,t) -> match follow t with
 						| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] && not (has_mono m) ->
@@ -1856,7 +1856,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		(match e1 with
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
 		| AKExpr e1  ->
-			let e2 = Codegen.AbstractCast.cast_or_unify ctx e1.etype e2 p in
+			let e2 = AbstractCast.cast_or_unify ctx e1.etype e2 p in
 			check_assign ctx e1;
 			(match e1.eexpr , e2.eexpr with
 			| TLocal i1 , TLocal i2 when i1 == i2 -> error "Assigning a value to itself" p
@@ -1865,15 +1865,15 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			| _ , _ -> ());
 			mk (TBinop (op,e1,e2)) e1.etype p
 		| AKSet (e,t,cf) ->
-			let e2 = Codegen.AbstractCast.cast_or_unify ctx t e2 p in
+			let e2 = AbstractCast.cast_or_unify ctx t e2 p in
 			make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [e2] t p
 		| AKAccess(a,tl,c,ebase,ekey) ->
-			mk_array_set_call ctx (Codegen.AbstractCast.find_array_access ctx a tl ekey (Some e2) p) c ebase p
+			mk_array_set_call ctx (AbstractCast.find_array_access ctx a tl ekey (Some e2) p) c ebase p
 		| AKUsing(ef,_,_,et) ->
 			(* this must be an abstract setter *)
 			let e2,ret = match follow ef.etype with
 				| TFun([_;(_,_,t)],ret) ->
-					Codegen.AbstractCast.cast_or_unify ctx t e2 p,ret
+					AbstractCast.cast_or_unify ctx t e2 p,ret
 				| _ ->  error "Invalid field type for abstract setter" p
 			in
 			make_call ctx ef [et;e2] ret p
@@ -1979,7 +1979,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			else
 				e_call
 		| AKAccess(a,tl,c,ebase,ekey) ->
-			let cf_get,tf_get,r_get,ekey,_ = Codegen.AbstractCast.find_array_access ctx a tl ekey None p in
+			let cf_get,tf_get,r_get,ekey,_ = AbstractCast.find_array_access ctx a tl ekey None p in
 			(* bind complex keys to a variable so they do not make it into the output twice *)
 			let ekey,l = match Optimizer.make_constant_expression ctx ekey with
 				| Some e -> e, fun () -> None
@@ -1992,7 +1992,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let eget = mk_array_get_call ctx (cf_get,tf_get,r_get,ekey,None) c ebase p in
 			let eget = type_binop2 ctx op eget e2 true (WithType eget.etype) p in
 			unify ctx eget.etype r_get p;
-			let cf_set,tf_set,r_set,ekey,eget = Codegen.AbstractCast.find_array_access ctx a tl ekey (Some eget) p in
+			let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_access ctx a tl ekey (Some eget) p in
 			let eget = match eget with None -> assert false | Some e -> e in
 			let et = type_module_type ctx (TClassDecl c) None p in
 			begin match cf_set.cf_expr,cf_get.cf_expr with
@@ -2051,7 +2051,7 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 				make_call ctx acc [e] ctx.t.tstring e.epos
 			| KAbstract (a,tl) ->
 				try
-					Codegen.AbstractCast.cast_or_unify_raise ctx tstring e p
+					AbstractCast.cast_or_unify_raise ctx tstring e p
 				with Error (Unify _,_) ->
 					loop (Abstract.get_underlying_type a tl)
 		in
@@ -2173,9 +2173,9 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 		let e1,e2 = try
 			(* we only have to check one type here, because unification fails if one is Void and the other is not *)
 			(match follow e2.etype with TAbstract({a_path=[],"Void"},_) -> error "Cannot compare Void" p | _ -> ());
-			Codegen.AbstractCast.cast_or_unify_raise ctx e2.etype e1 p,e2
+			AbstractCast.cast_or_unify_raise ctx e2.etype e1 p,e2
 		with Error (Unify _,_) ->
-			e1,Codegen.AbstractCast.cast_or_unify ctx e1.etype e2 p
+			e1,AbstractCast.cast_or_unify ctx e1.etype e2 p
 		in
 		mk_op e1 e2 ctx.t.tbool
 	| OpGt
@@ -2286,10 +2286,10 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 							let t1 = if is_impl then Abstract.follow_with_abstracts t1 else t1 in
 							let e1,e2 = if left || not left && swapped then begin
 								Type.type_eq EqStrict (if is_impl then Abstract.follow_with_abstracts e1.etype else e1.etype) t1;
-								e1,Codegen.AbstractCast.cast_or_unify_raise ctx t2 e2 p
+								e1,AbstractCast.cast_or_unify_raise ctx t2 e2 p
 							end else begin
 								Type.type_eq EqStrict e2.etype t2;
-								Codegen.AbstractCast.cast_or_unify_raise ctx t1 e1 p,e2
+								AbstractCast.cast_or_unify_raise ctx t1 e1 p,e2
 							end in
 							check_constraints ctx "" cf.cf_params monos (apply_params a.a_params tl) false cf.cf_pos;
 							let check_null e t = if is_eq_op then match e.eexpr with
@@ -2418,7 +2418,7 @@ and type_unop ctx op flag e p =
 				let evar_key = mk (TVar(v_key,Some ekey)) ctx.com.basic.tvoid ekey.epos in
 				let ekey = mk (TLocal v_key) ekey.etype ekey.epos in
 				(* get *)
-				let e_get = mk_array_get_call ctx (Codegen.AbstractCast.find_array_access_raise ctx a tl ekey None p) c ebase p in
+				let e_get = mk_array_get_call ctx (AbstractCast.find_array_access_raise ctx a tl ekey None p) c ebase p in
 				let v_get = alloc_var "tmp" e_get.etype e_get.epos in
 				let ev_get = mk (TLocal v_get) v_get.v_type p in
 				let evar_get = mk (TVar(v_get,Some e_get)) ctx.com.basic.tvoid p in
@@ -2426,11 +2426,11 @@ and type_unop ctx op flag e p =
 				let e_one = mk (TConst (TInt (Int32.of_int 1))) ctx.com.basic.tint p in
 				let e_op = mk (TBinop((if op = Increment then OpAdd else OpSub),ev_get,e_one)) ev_get.etype p in
 				(* set *)
-				let e_set = mk_array_set_call ctx (Codegen.AbstractCast.find_array_access_raise ctx a tl ekey (Some e_op) p) c ebase p in
+				let e_set = mk_array_set_call ctx (AbstractCast.find_array_access_raise ctx a tl ekey (Some e_op) p) c ebase p in
 				let el = evar_key :: evar_get :: e_set :: (if flag = Postfix then [ev_get] else []) in
 				mk (TBlock el) e_set.etype p
 			with Not_found ->
-				let e = mk_array_get_call ctx (Codegen.AbstractCast.find_array_access ctx a tl ekey None p) c ebase p in
+				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a tl ekey None p) c ebase p in
 				loop (AKExpr e)
 			end
 		| AKInline _ | AKUsing _ | AKMacro _ ->
@@ -2684,7 +2684,7 @@ and type_access ctx e p mode =
 				AKAccess (a,pl,c,e1,e2)
 			| _ ->
 				has_abstract_array_access := true;
-				let e = mk_array_get_call ctx (Codegen.AbstractCast.find_array_access ctx a pl e2 None p) c e1 p in
+				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a pl e2 None p) c e1 p in
 				AKExpr e
 			end
 		| _ -> raise Not_found)
@@ -2725,7 +2725,7 @@ and type_vars ctx vl p =
 				| None -> None
 				| Some e ->
 					let e = type_expr ctx e (WithType t) in
-					let e = Codegen.AbstractCast.cast_or_unify ctx t e p in
+					let e = AbstractCast.cast_or_unify ctx t e p in
 					Some e
 			) in
 			if v.[0] = '$' then display_error ctx "Variables names starting with a dollar are not allowed" p;
@@ -2907,7 +2907,7 @@ and type_object_decl ctx fl with_type p =
 			let e = try
 				let t = (match !dynamic_parameter with Some t -> t | None -> (PMap.find n field_map).cf_type) in
 				let e = type_expr ctx e (WithType t) in
-				let e = Codegen.AbstractCast.cast_or_unify ctx t e p in
+				let e = AbstractCast.cast_or_unify ctx t e p in
 				(try type_eq EqStrict e.etype t; e with Unify_error _ -> mk (TCast (e,None)) t e.epos)
 			with Not_found ->
 				if is_valid then
@@ -3182,9 +3182,9 @@ and type_map_declaration ctx e1 el with_type p =
 		let el_k,el_v = List.fold_left (fun (el_k,el_v) (e1,e2) ->
 			let e1 = type_expr ctx e1 (WithType tkey) in
 			check_key e1;
-			let e1 = Codegen.AbstractCast.cast_or_unify ctx tkey e1 e1.epos in
+			let e1 = AbstractCast.cast_or_unify ctx tkey e1 e1.epos in
 			let e2 = type_expr ctx e2 (WithType tval) in
-			let e2 = Codegen.AbstractCast.cast_or_unify ctx tval e2 e2.epos in
+			let e2 = AbstractCast.cast_or_unify ctx tval e2 e2.epos in
 			(e1 :: el_k,e2 :: el_v)
 		) ([],[]) el_kv in
 		el_k,el_v,tkey,tval
@@ -3352,7 +3352,7 @@ and type_array_decl ctx el with_type p =
 	| Some t ->
 		let el = List.map (fun e ->
 			let e = type_expr ctx e (WithType t) in
-			Codegen.AbstractCast.cast_or_unify ctx t e p;
+			AbstractCast.cast_or_unify ctx t e p;
 		) el in
 		mk (TArrayDecl el) (ctx.t.tarray t) p)
 
@@ -3454,7 +3454,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				assert false
 			| _ ->
 				(try
-					Codegen.AbstractCast.cast_or_unify_raise ctx t e1 p
+					AbstractCast.cast_or_unify_raise ctx t e1 p
 				with Error (Unify _,_) ->
 					let acc = build_call ctx (type_field ctx e1 "iterator" e1.epos MCall) [] Value e1.epos in
 					try
@@ -3485,7 +3485,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		type_expr ctx (EIf (e1,e2,Some e3),p) with_type
 	| EIf (e,e1,e2) ->
 		let e = type_expr ctx e Value in
-		let e = Codegen.AbstractCast.cast_or_unify ctx ctx.t.tbool e p in
+		let e = AbstractCast.cast_or_unify ctx ctx.t.tbool e p in
 		let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
 		(match e2 with
 		| None ->
@@ -3497,15 +3497,15 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				| Value -> e1,e2,unify_min ctx [e1; e2]
 				| WithType t when (match follow t with TMono _ -> true | _ -> false) -> e1,e2,unify_min ctx [e1; e2]
 				| WithType t ->
-					let e1 = Codegen.AbstractCast.cast_or_unify ctx t e1 e1.epos in
-					let e2 = Codegen.AbstractCast.cast_or_unify ctx t e2 e2.epos in
+					let e1 = AbstractCast.cast_or_unify ctx t e1 e1.epos in
+					let e2 = AbstractCast.cast_or_unify ctx t e2 e2.epos in
 					e1,e2,t
 			in
 			mk (TIf (e,e1,Some e2)) t p)
 	| EWhile (cond,e,NormalWhile) ->
 		let old_loop = ctx.in_loop in
 		let cond = type_expr ctx cond Value in
-		let cond = Codegen.AbstractCast.cast_or_unify ctx ctx.t.tbool cond p in
+		let cond = AbstractCast.cast_or_unify ctx ctx.t.tbool cond p in
 		ctx.in_loop <- true;
 		let e = type_expr ctx (Expr.ensure_block e) NoValue in
 		ctx.in_loop <- old_loop;
@@ -3516,7 +3516,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let e = type_expr ctx (Expr.ensure_block e) NoValue in
 		ctx.in_loop <- old_loop;
 		let cond = type_expr ctx cond Value in
-		let cond = Codegen.AbstractCast.cast_or_unify ctx ctx.t.tbool cond cond.epos in
+		let cond = AbstractCast.cast_or_unify ctx ctx.t.tbool cond cond.epos in
 		mk (TWhile (cond,e,DoWhile)) ctx.t.tvoid p
 	| ESwitch (e1,cases,def) ->
 		let wrap e1 = mk (TMeta((Meta.Ast,[e,p],p),e1)) e1.etype e1.epos in
@@ -3530,7 +3530,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				mk (TReturn None) t_dynamic p
 			| Some e ->
 				let e = type_expr ctx e (WithType ctx.ret) in
-				let e = Codegen.AbstractCast.cast_or_unify ctx ctx.ret e p in
+				let e = AbstractCast.cast_or_unify ctx ctx.ret e p in
 				begin match follow e.etype with
 				| TAbstract({a_path=[],"Void"},_) ->
 					(* if we get a Void expression (e.g. from inlining) we don't want to return it (issue #4323) *)
@@ -3618,7 +3618,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| ECheckType (e,t) ->
 		let t = Typeload.load_complex_type ctx true p t in
 		let e = type_expr ctx e (WithType t) in
-		let e = Codegen.AbstractCast.cast_or_unify ctx t e p in
+		let e = AbstractCast.cast_or_unify ctx t e p in
 		if e.etype == t then e else mk (TCast (e,None)) t p
 	| EMeta (m,e1) ->
 		let old = ctx.meta in
@@ -3698,7 +3698,7 @@ and handle_display ctx e_ast with_type =
 	in
 	let p = e.epos in
 	let e = match with_type with
-		| WithType t -> (try Codegen.AbstractCast.cast_or_unify_raise ctx t e e.epos with Error (Unify l,p) -> e)
+		| WithType t -> (try AbstractCast.cast_or_unify_raise ctx t e e.epos with Error (Unify l,p) -> e)
 		| _ -> e
 	in
 	ctx.in_display <- fst old;
@@ -4786,7 +4786,7 @@ let make_macro_api ctx p =
 			format_string ctx s p
 		);
 		Interp.cast_or_unify = (fun t e p ->
-			Codegen.AbstractCast.cast_or_unify_raise ctx t e p
+			AbstractCast.cast_or_unify_raise ctx t e p
 		);
 		Interp.add_global_metadata = (fun s1 s2 config ->
 			let meta = (match parse_string ctx.com (s2 ^ " typedef T = T") null_pos false with
@@ -4824,7 +4824,7 @@ and flush_macro_context mint ctx =
 		mint
 	end else mint in
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
-	let expr_filters = [Codegen.AbstractCast.handle_abstract_casts mctx; Filters.captured_vars mctx.com; Filters.rename_local_vars mctx] in
+	let expr_filters = [AbstractCast.handle_abstract_casts mctx; Filters.captured_vars mctx.com; Filters.rename_local_vars mctx] in
 
 	(*
 		some filters here might cause side effects that would break compilation server.
@@ -5306,9 +5306,9 @@ let rec create com =
 unify_min_ref := unify_min;
 make_call_ref := make_call;
 get_constructor_ref := get_constructor;
-cast_or_unify_ref := Codegen.AbstractCast.cast_or_unify_raise;
+cast_or_unify_ref := AbstractCast.cast_or_unify_raise;
 type_module_type_ref := type_module_type;
-find_array_access_raise_ref := Codegen.AbstractCast.find_array_access_raise;
+find_array_access_raise_ref := AbstractCast.find_array_access_raise;
 build_call_ref := build_call;
 load_macro_ref := load_macro;
 merge_core_doc_ref := merge_core_doc

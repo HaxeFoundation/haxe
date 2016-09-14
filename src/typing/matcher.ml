@@ -476,7 +476,7 @@ module Case = struct
 				None
 			| Some e,WithType t ->
 				let e = type_expr ctx e (WithType (map t)) in
-				let e = Codegen.AbstractCast.cast_or_unify ctx (map t) e e.epos in
+				let e = AbstractCast.cast_or_unify ctx (map t) e e.epos in
 				Some e
 			| Some e,_ ->
 				let e = type_expr ctx e with_type in

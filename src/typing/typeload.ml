@@ -2713,6 +2713,17 @@ module ClassInitializer = struct
 		| FProp (get,set,t,eo) ->
 			create_property (ctx,cctx,fctx) c f (get,set,t,eo) p
 
+	let check_overloads ctx c =
+		(* check if field with same signature was declared more than once *)
+		List.iter (fun f ->
+			if Meta.has Meta.Overload f.cf_meta then
+				List.iter (fun f2 ->
+					try
+						ignore (List.find (fun f3 -> f3 != f2 && Overloads.same_overload_args f2.cf_type f3.cf_type f2 f3) (f :: f.cf_overloads));
+						display_error ctx ("Another overloaded field of same signature was already declared : " ^ f2.cf_name) f2.cf_pos
+					with | Not_found -> ()
+			) (f :: f.cf_overloads)) (c.cl_ordered_fields @ c.cl_ordered_statics)
+
 	let init_class ctx c p context_init herits fields =
 		let ctx,cctx = create_class_context ctx c context_init p in
 		if cctx.is_class_debug then print_endline ("Created class context: " ^ dump_class_context cctx);
@@ -2721,7 +2732,7 @@ module ClassInitializer = struct
 		if cctx.is_core_api && ctx.com.display.dms_check_core_api then delay ctx PForce (fun() -> init_core_api ctx c);
 		if not cctx.is_lib then begin
 			(match c.cl_super with None -> () | Some _ -> delay_late ctx PForce (fun() -> check_overriding ctx c));
-			if ctx.com.config.pf_overload then delay ctx PForce (fun() -> Overloads.check_overloads ctx c)
+			if ctx.com.config.pf_overload then delay ctx PForce (fun() -> check_overloads ctx c)
 		end;
 		let rec has_field f = function
 			| None -> false

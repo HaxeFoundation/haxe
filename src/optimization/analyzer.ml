@@ -1191,7 +1191,7 @@ module Run = struct
 		back_again actx is_real_function
 
 	let run_on_field ctx config c cf = match cf.cf_expr with
-		| Some e when not (is_ignored cf.cf_meta) && not (Codegen.is_removable_field ctx cf) ->
+		| Some e when not (is_ignored cf.cf_meta) && not (Typecore.is_removable_field ctx cf) ->
 			let config = update_config_from_meta ctx.Typecore.com config cf.cf_meta in
 			let actx = create_analyzer_context ctx.Typecore.com config e in
 			let debug() =

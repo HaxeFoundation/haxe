@@ -142,7 +142,7 @@ src/display/displayOutput.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing
 
 # generators
 
-src/generators/codegen.$(MODULE_EXT): src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/generators/genxml.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/display/display.$(MODULE_EXT)
+src/generators/codegen.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/generators/genxml.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
 src/generators/genas3.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
@@ -188,7 +188,7 @@ src/optimization/analyzerTexprTransformer.$(MODULE_EXT): src/syntax/ast.$(MODULE
 
 src/optimization/analyzerTypes.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/optimization/analyzerConfig.$(MODULE_EXT)
 
-src/optimization/dce.$(MODULE_EXT): src/path.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/typing/type.$(MODULE_EXT)
+src/optimization/dce.$(MODULE_EXT): src/path.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/typing/type.$(MODULE_EXT)
 
 src/optimization/filters.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/optimization/analyzer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/optimization/dce.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT)
 
@@ -209,7 +209,7 @@ src/typing/common.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/ast.$(
 
 src/typing/matcher.$(MODULE_EXT): src/optimization/optimizer.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/typer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
-src/typing/overloads.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT)
+src/typing/overloads.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT)
 
 src/typing/type.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/json.$(MODULE_EXT)
 
