@@ -358,6 +358,14 @@
     <hidden path="src\server.cmt" />
     <hidden path="src\server.cmx" />
     <hidden path="src\server.o" />
+    <hidden path="src\typing\overloads.cmi" />
+    <hidden path="src\typing\overloads.cmt" />
+    <hidden path="src\typing\overloads.cmx" />
+    <hidden path="src\typing\overloads.o" />
+    <hidden path="src\display\displayOutput.cmi" />
+    <hidden path="src\display\displayOutput.cmt" />
+    <hidden path="src\display\displayOutput.cmx" />
+    <hidden path="src\display\displayOutput.o" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand>make -j4 FD_OUTPUT=1 -f Makefile.win kill haxe</preBuildCommand>
