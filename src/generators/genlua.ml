@@ -63,7 +63,7 @@ let get_exposed ctx path meta = try
 		(match args with
 			| [ EConst (String s), _ ] -> [s]
 			| [] -> [path]
-			| _ -> error "Invalid @:expose parameters" pos)
+			| _ -> abort "Invalid @:expose parameters" pos)
 	with Not_found -> []
 
 let dot_path = Ast.s_type_path
@@ -130,7 +130,7 @@ let println ctx =
 		newline ctx
 	end)
 
-let unsupported p = error "This expression cannot be compiled to Lua" p
+let unsupported p = abort "This expression cannot be compiled to Lua" p
 
 let basename path =
 	try
@@ -325,7 +325,7 @@ let rec gen_call ctx e el in_value =
 	(match e.eexpr , el with
 	| TConst TSuper , params ->
 		(match ctx.current.cl_super with
-		| None -> error "Missing api.setCurrentClass" e.epos
+		| None -> abort "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
 			print ctx "%s.super(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
@@ -333,7 +333,7 @@ let rec gen_call ctx e el in_value =
 		);
 	| TField ({ eexpr = TConst TSuper },f) , params ->
 		(match ctx.current.cl_super with
-		| None -> error "Missing api.setCurrentClass" e.epos
+		| None -> abort "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
 			let name = field_name f in
 			print ctx "%s.prototype%s(%s" (ctx.type_accessor (TClassDecl c)) (field name) (this ctx);
@@ -386,7 +386,7 @@ let rec gen_call ctx e el in_value =
 			    if List.length(fields) > 0 then incr count;
 		    | { eexpr = TConst(TNull)} -> ()
 		    | _ ->
-			    error "__lua_table__ only accepts array or anonymous object arguments" e.epos;
+			    abort "__lua_table__ only accepts array or anonymous object arguments" e.epos;
 		)) el;
 		spr ctx "})";
 	| TLocal { v_name = "__lua__" }, [{ eexpr = TConst (TString code) }] ->
@@ -1367,13 +1367,13 @@ let check_multireturn ctx c =
     match c with
     | _ when Meta.has Meta.MultiReturn c.cl_meta ->
 	    if not c.cl_extern then
-		error "MultiReturns must be externs" c.cl_pos
+		abort "MultiReturns must be externs" c.cl_pos
 	    else if List.length c.cl_ordered_statics > 0 then
-		error "MultiReturns must not contain static fields" c.cl_pos
+		abort "MultiReturns must not contain static fields" c.cl_pos
 		else if (List.exists (fun cf -> match cf.cf_kind with Method _ -> true | _-> false) c.cl_ordered_fields) then
-		    error "MultiReturns must not contain methods" c.cl_pos;
+		    abort "MultiReturns must not contain methods" c.cl_pos;
     | {cl_super = Some(csup,_)} when Meta.has Meta.MultiReturn csup.cl_meta ->
-	    error "Cannot extend a MultiReturn" c.cl_pos
+	    abort "Cannot extend a MultiReturn" c.cl_pos
     | _ -> ()
 
 
@@ -1400,7 +1400,7 @@ let generate_package_create ctx (p,_) =
 let check_field_name c f =
 	match f.cf_name with
 	| "prototype" | "__proto__" | "constructor" ->
-		error ("The field name '" ^ f.cf_name ^ "'  is not allowed in Lua") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
+		abort ("The field name '" ^ f.cf_name ^ "'  is not allowed in Lua") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
 	| _ -> ()
 
 (* convert a.b.c to ["a"]["b"]["c"] *)
@@ -1484,7 +1484,7 @@ let generate_class ctx c =
 	ctx.current <- c;
 	ctx.id_counter <- 0;
 	(match c.cl_path with
-	| [],"Function" -> error "This class redefines a native one" c.cl_pos
+	| [],"Function" -> abort "This class redefines a native one" c.cl_pos
 	| _ -> ());
 	let p = s_path ctx c.cl_path in
 	let hxClasses = has_feature ctx "Type.resolveClass" in
@@ -1690,7 +1690,7 @@ let generate_require ctx path meta =
 	| [(EConst(String(module_name)),_) ; (EConst(String(object_path)),_)] ->
 		print ctx "%s = _G.require(\"%s\").%s" p module_name object_path
 	| _ ->
-		error "Unsupported @:luaRequire format" mp);
+		abort "Unsupported @:luaRequire format" mp);
 
 	newline ctx
 

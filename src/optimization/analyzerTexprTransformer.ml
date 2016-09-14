@@ -84,7 +84,7 @@ let rec func ctx bb tf t p =
 		if is_unbound_call_that_might_have_side_effects v el then ctx.has_unbound <- true
 	in
 	let no_void t p =
-		if ExtType.is_void (follow t) then error "Cannot use Void as value" p
+		if ExtType.is_void (follow t) then Error.error "Cannot use Void as value" p
 	in
 	let rec value' bb e = match e.eexpr with
 		| TLocal v ->
@@ -169,7 +169,7 @@ let rec func ctx bb tf t p =
 			let bb = block_element bb e in
 			bb,mk (TConst TNull) t_dynamic e.epos
 		| TVar _ | TFor _ | TWhile _ ->
-			error "Cannot use this expression as value" e.epos
+			Error.error "Cannot use this expression as value" e.epos
 	and value bb e =
 		let bb,e = value' bb e in
 		no_void e.etype e.epos;
@@ -654,7 +654,7 @@ let rec block_to_texpr_el ctx bb =
 					| SEIfThen(bb_then,bb_next,p) -> Some bb_next,TIf(e1,block bb_then,None),ctx.com.basic.tvoid,p
 					| SEIfThenElse(bb_then,bb_else,bb_next,t,p) -> Some bb_next,TIf(e1,block bb_then,Some (block bb_else)),t,p
 					| SESwitch(bbl,bo,bb_next,p) -> Some bb_next,TSwitch(e1,List.map (fun (el,bb) -> el,block bb) bbl,Option.map block bo),ctx.com.basic.tvoid,p
-					| _ -> error (Printf.sprintf "Invalid node exit: %s" (s_expr_pretty e1)) bb.bb_pos
+					| _ -> abort (Printf.sprintf "Invalid node exit: %s" (s_expr_pretty e1)) bb.bb_pos
 				in
 				bb_next,(mk e1_def t p) :: el
 			| [],_ ->

@@ -71,7 +71,7 @@ let get_exposed ctx path meta =
 		(match args with
 			| [ EConst (String s), _ ] -> [s]
 			| [] -> [path]
-			| _ -> error "Invalid @:expose parameters" pos)
+			| _ -> abort "Invalid @:expose parameters" pos)
 	with Not_found -> []
 
 let dot_path = Ast.s_type_path
@@ -136,7 +136,7 @@ let static_field c s =
 let has_feature ctx = Common.has_feature ctx.com
 let add_feature ctx = Common.add_feature ctx.com
 
-let unsupported p = error "This expression cannot be compiled to Javascript" p
+let unsupported p = abort "This expression cannot be compiled to Javascript" p
 
 
 let add_mapping ctx force e =
@@ -370,7 +370,7 @@ let rec gen_call ctx e el in_value =
 	match e.eexpr , el with
 	| TConst TSuper , params ->
 		(match ctx.current.cl_super with
-		| None -> error "Missing api.setCurrentClass" e.epos
+		| None -> abort "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
 			print ctx "%s.call(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
@@ -378,7 +378,7 @@ let rec gen_call ctx e el in_value =
 		);
 	| TField ({ eexpr = TConst TSuper },f) , params ->
 		(match ctx.current.cl_super with
-		| None -> error "Missing api.setCurrentClass" e.epos
+		| None -> abort "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
 			let name = field_name f in
 			print ctx "%s.prototype%s.call(%s" (ctx.type_accessor (TClassDecl c)) (field name) (this ctx);
@@ -995,7 +995,7 @@ let generate_package_create ctx (p,_) =
 let check_field_name c f =
 	match f.cf_name with
 	| "prototype" | "__proto__" | "constructor" ->
-		error ("The field name '" ^ f.cf_name ^ "'  is not allowed in JS") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
+		abort ("The field name '" ^ f.cf_name ^ "'  is not allowed in JS") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
 	| _ -> ()
 
 (* convert a.b.c to ["a"]["b"]["c"] *)
@@ -1060,7 +1060,7 @@ let generate_class ctx c =
 	ctx.current <- c;
 	ctx.id_counter <- 0;
 	(match c.cl_path with
-	| [],"Function" -> error "This class redefine a native one" c.cl_pos
+	| [],"Function" -> abort "This class redefine a native one" c.cl_pos
 	| _ -> ());
 	let p = s_path ctx c.cl_path in
 	let hxClasses = has_feature ctx "Type.resolveClass" in
@@ -1224,7 +1224,7 @@ let generate_require ctx path meta =
 	| [(EConst(String(module_name)),_) ; (EConst(String(object_path)),_)] ->
 		print ctx "%s = require(\"%s\").%s" p module_name object_path
 	| _ ->
-		error "Unsupported @:jsRequire format" mp);
+		abort "Unsupported @:jsRequire format" mp);
 
 	newline ctx
 

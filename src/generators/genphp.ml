@@ -397,7 +397,7 @@ let init com cwd path def_type =
 	Codegen.map_source_header com (fun s -> print ctx "// %s\n" s);
 	ctx
 
-let unsupported msg p = error ("This expression cannot be generated to PHP: " ^ msg) p
+let unsupported msg p = abort ("This expression cannot be generated to PHP: " ^ msg) p
 
 let newline ctx =
 	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
@@ -781,7 +781,7 @@ and get_constant_prefix meta =
 	(match args with
 		| [EConst(String prefix), _] -> prefix
 		| [] -> ""
-		| _ -> error "Invalid @:phpConstant parameters" pos)
+		| _ -> abort "Invalid @:phpConstant parameters" pos)
 
 and gen_member_access ctx isvar e s =
 	match follow e.etype with

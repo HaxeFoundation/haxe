@@ -2208,12 +2208,11 @@ let cpp_template_param path native =
 ;;
 
 
-
 let cpp_append_block block expr =
    match block.cppexpr with
    | CppBlock(expr_list, closures) ->
        { block with cppexpr = CppBlock( expr_list @ [expr], closures) }
-   | _ -> error "Internal error appending expression" block.cpppos
+   | _ -> abort "Internal error appending expression" block.cpppos
 ;;
 
 
@@ -2247,7 +2246,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             loop_stack := tl;
             if !used then label_id else -1
          | [] ->
-            error "Invalid inernal loop handling" expression_tree.epos
+            abort "Invalid inernal loop handling" expression_tree.epos
       )
    in
 
@@ -2268,7 +2267,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
       | CppCastScalar(cppExpr,_) -> to_lvalue cppExpr
       | CppCastVariant(cppExpr) -> to_lvalue cppExpr
       | CppGlobal(name) -> CppGlobalRef(name)
-      | _ -> error ("Could not convert expression to l-value (" ^ s_tcpp value.cppexpr ^ ")") value.cpppos
+      | _ -> abort ("Could not convert expression to l-value (" ^ s_tcpp value.cppexpr ^ ")") value.cpppos
    in
 
    let rec retype return_type expr =
@@ -2488,7 +2487,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             | ({ eexpr = TConst (TString code) }) :: remaining ->
                   let retypedArgs = List.map (fun arg -> retype (TCppCode(cpp_type_of arg.etype)) arg) remaining in
                   CppCode(code, retypedArgs)
-            | _ -> error "__cpp__'s first argument must be a string" expr.epos;
+            | _ -> abort "__cpp__'s first argument must be a string" expr.epos;
             in
             cppExpr, TCppCode(cpp_type_of expr.etype)
 
@@ -2515,7 +2514,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                    ( match retypedArgs with
                    | [ {cppexpr=CppFunction( FuncStatic(clazz,false,member), funcReturn)} ] ->
                       CppFunctionAddress(clazz,member), funcReturn
-                   | _ -> error "cpp.Function.fromStaticFunction must be called on static function" expr.epos;
+                   | _ -> abort "cpp.Function.fromStaticFunction must be called on static function" expr.epos;
                    )
                |  CppEnumIndex(_) ->
                      (* Not actually a TCall...*)
@@ -2527,7 +2526,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                      (match retypedArgs with
                      | {cppexpr = CppClassOf(path,native) }::rest ->
                          CppCall( FuncTemplate(obj,member,path,native), rest), returnType
-                     | _ -> error "First parameter of template function must be a Class" retypedFunc.cpppos
+                     | _ -> abort "First parameter of template function must be a Class" retypedFunc.cpppos
                      )
 
                | CppFunction( FuncInstance(obj,false,member) as func, returnType ) when cpp_can_static_cast returnType cppType ->
@@ -2778,7 +2777,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
           (* Switch internal return - wrap whole thing in block  *)
          | TSwitch (condition,cases,def) ->
             if return_type<>TCppVoid then
-               error "Value from a switch not handled" expr.epos;
+               abort "Value from a switch not handled" expr.epos;
 
             let conditionType = cpp_type_of condition.etype in
             let condition = retype conditionType condition in
@@ -2802,7 +2801,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
          | TTry (try_block,catches) ->
             (* TTry internal return - wrap whole thing in block ? *)
             if return_type<>TCppVoid then
-               error "Value from a try-block not handled" expr.epos;
+               abort "Value from a try-block not handled" expr.epos;
             let cppBlock = retype TCppVoid try_block in
             let cppCatches = List.map (fun (tvar,catch_block) ->
                 let old_declarations = Hashtbl.copy !declarations in
@@ -3091,11 +3090,11 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
               out ("::" ^ name);
          | FuncInternal(expr,name,_) ->
               gen expr; out ("->__Field(" ^ (strq name) ^ ",hx::paccDynamic)")
-         | FuncSuper _ | FuncSuperConstruct -> error "Can't create super closure" expr.cpppos
-         | FuncNew _ -> error "Can't create new closure" expr.cpppos
-         | FuncEnumConstruct _ -> error "Enum constructor outside of CppCall" expr.cpppos
-         | FuncFromStaticFunction -> error "Can't create cpp.Function.fromStaticFunction closure" expr.cpppos
-         | FuncTemplate _ -> error "Can't create template function closure" expr.cpppos
+         | FuncSuper _ | FuncSuperConstruct -> abort "Can't create super closure" expr.cpppos
+         | FuncNew _ -> abort "Can't create new closure" expr.cpppos
+         | FuncEnumConstruct _ -> abort "Enum constructor outside of CppCall" expr.cpppos
+         | FuncFromStaticFunction -> abort "Can't create cpp.Function.fromStaticFunction closure" expr.cpppos
+         | FuncTemplate _ -> abort "Can't create template function closure" expr.cpppos
          );
       | CppCall( FuncInterface(expr,clazz,field), args) when not (is_native_gen_class clazz)->
          out ( cpp_class_name clazz ^ "::" ^ cpp_member_name_of field ^ "(");
@@ -3127,7 +3126,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
                out (" " ^ arg_name ^ ": ");
                gen arg) args arg_names
          with | Invalid_argument _ -> (* not all arguments names are known *)
-           error (
+           abort (
              "The function called here with name " ^ (String.concat ":" names) ^
              " does not contain the right amount of arguments' names as required" ^
              " by the objective-c calling / naming convention:" ^
@@ -3152,7 +3151,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
             | fst :: remaining ->
                argsRef := remaining;
                gen fst; out ("->" ^ (cpp_member_name_of field) );
-            | _ -> error "Native static extensions must have at least 1 argument" expr.cpppos
+            | _ -> abort "Native static extensions must have at least 1 argument" expr.cpppos
             );
 
          | FuncStatic(clazz,_,field) ->
@@ -3181,7 +3180,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
               out ("< " ^ (cpp_template_param tpath native) ^ "  >")
 
          | FuncFromStaticFunction ->
-              error "Unexpected FuncFromStaticFunction" expr.cpppos
+              abort "Unexpected FuncFromStaticFunction" expr.cpppos
          | FuncEnumConstruct(enum,field) ->
             out ((string_of_path enum.e_path) ^ "::" ^ (cpp_enum_name_of field));
 
@@ -3201,7 +3200,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
             | TCppInst klass -> (cpp_class_path_of klass) ^ "_obj::__new"
             | TCppClass -> "hx::Class_obj::__new";
             | TCppFunction _ -> tcpp_to_string newType
-            | _ -> error ("Unknown 'new' target " ^ (tcpp_to_string newType)) expr.cpppos
+            | _ -> abort ("Unknown 'new' target " ^ (tcpp_to_string newType)) expr.cpppos
             in
             out objName
 
@@ -3690,7 +3689,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       | OpShr  -> "hx::ShrEq"
       | OpUShr  -> "hx::UShrEq"
       | OpMod  -> "hx::ModEq"
-      | _ -> error "Bad assign op" pos
+      | _ -> abort "Bad assign op" pos
    and string_of_op op pos = match op with
       | OpAdd -> "+"
       | OpMult -> "*"
@@ -3713,7 +3712,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       | OpMod -> "%"
       | OpInterval -> "..."
       | OpArrow -> "->"
-      | OpAssign | OpAssignOp _ -> error "Unprocessed OpAssign" pos
+      | OpAssign | OpAssignOp _ -> abort "Unprocessed OpAssign" pos
    and string_of_path path =
       "::" ^ (join_class_path_remap path "::") ^ "_obj"
 
@@ -3721,7 +3720,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       let argc = Hashtbl.length closure.close_undeclared in
       let size = string_of_int argc in
       if argc >= 62 then (* Limited by c++ macro size of 128 args *)
-         error "Too many capture variables" closure.close_expr.cpppos;
+         abort "Too many capture variables" closure.close_expr.cpppos;
       if argc >= 20 || (List.length closure.close_args) >= 20 then
          writer#add_big_closures;
       let argsCount = list_num closure.close_args in
@@ -4094,7 +4093,7 @@ let gen_member_def ctx class_def is_static is_interface field =
          let tcpp = cpp_type_of ctx field.cf_type in
          let tcppStr = tcpp_to_string tcpp in
          if not is_static && only_stack_access ctx field.cf_type then
-            error ("Variables of type " ^ tcppStr ^ " may not be used as members") field.cf_pos;
+            abort ("Variables of type " ^ tcppStr ^ " may not be used as members") field.cf_pos;
 
          output (tcppStr ^ " " ^ remap_name ^ ";\n" );
 
@@ -4847,7 +4846,7 @@ let find_class_implementation ctx class_def name interface =
    in
    try
      find class_def;
-     error ("Could not find implementation of " ^ name ^ " in " ^
+     abort ("Could not find implementation of " ^ name ^ " in " ^
         (join_class_path class_def.cl_path ".") ^ " required by " ^ (join_class_path interface.cl_path ".")) class_def.cl_pos
    with FieldFound field ->
       match follow field.cf_type, field.cf_kind  with
@@ -4955,7 +4954,7 @@ let generate_protocol_delegate ctx class_def output =
          let retStr = ctx_type_string ctx ret in
          let nativeName = get_meta_string field.cf_meta Meta.ObjcProtocol in
          let names = if nativeName<>"" then
-            ExtString.String.nsplit nativeName ":" 
+            ExtString.String.nsplit nativeName ":"
          else
             List.map (fun (n,_,_) -> n ) args
          in
@@ -4969,11 +4968,11 @@ let generate_protocol_delegate ctx class_def output =
                output (" " ^ signature_name ^ ":(" ^ (ctx_type_string ctx argType) ^ ")" ^ name );
              first := false;
              ) args names;
-         output (" {\n"); 
+         output (" {\n");
          output ("\thx::NativeAttach _hx_attach;\n");
          output ( (if retStr="void" then "\t" else "\treturn ") ^ full_class_name ^ "::" ^ (keyword_remap field.cf_name) ^ "(haxeObj");
          List.iter (fun (name,_,_) -> output ("," ^ name)) args;
-         output (");\n}\n\n"); 
+         output (");\n}\n\n");
       | _ -> ()
    in
    List.iter dump_delegate class_def.cl_ordered_fields;
@@ -6853,8 +6852,8 @@ class script_writer ctx filename asciiOut =
          ) catches;
    | TCast (cast,None) -> this#checkCast expression.etype cast true true;
    | TCast (cast,Some _) -> this#checkCast expression.etype cast true true;
-   | TParenthesis _ -> error "Unexpected parens" expression.epos
-   | TMeta(_,_) -> error "Unexpected meta" expression.epos
+   | TParenthesis _ -> abort "Unexpected parens" expression.epos
+   | TMeta(_,_) -> abort "Unexpected meta" expression.epos
    );
    this#end_expr;
 end;;
@@ -7028,7 +7027,7 @@ let generate_source ctx =
          This will guard all code changes to this flag *)
       (if not (Common.defined common_ctx Define.Objc) then match object_def with
          | TClassDecl class_def when Meta.has Meta.Objc class_def.cl_meta ->
-            error "In order to compile '@:objc' classes, please define '-D objc'" class_def.cl_pos
+            abort "In order to compile '@:objc' classes, please define '-D objc'" class_def.cl_pos
          | _ -> ());
       (match object_def with
       | TClassDecl class_def when is_extern_class class_def ->

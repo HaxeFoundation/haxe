@@ -1126,7 +1126,7 @@ let allow_package ctx s =
 	with Not_found ->
 		()
 
-let error msg p = raise (Abort (msg,p))
+let abort msg p = raise (Abort (msg,p))
 
 let platform ctx p = ctx.platform = p
 

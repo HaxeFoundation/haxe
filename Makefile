@@ -182,9 +182,9 @@ src/optimization/analyzer.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing
 
 src/optimization/analyzerConfig.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT)
 
-src/optimization/analyzerTexpr.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/optimization/analyzerConfig.$(MODULE_EXT) src/optimization/optimizerTexpr.$(MODULE_EXT)
+src/optimization/analyzerTexpr.$(MODULE_EXT): src/typing/error.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/optimization/analyzerConfig.$(MODULE_EXT) src/optimization/optimizerTexpr.$(MODULE_EXT)
 
-src/optimization/analyzerTexprTransformer.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/optimization/analyzerConfig.$(MODULE_EXT) src/optimization/analyzerTypes.$(MODULE_EXT) src/optimization/analyzerTexpr.$(MODULE_EXT)
+src/optimization/analyzerTexprTransformer.$(MODULE_EXT): src/typing/error.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/optimization/analyzerConfig.$(MODULE_EXT) src/optimization/analyzerTypes.$(MODULE_EXT) src/optimization/analyzerTexpr.$(MODULE_EXT)
 
 src/optimization/analyzerTypes.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/optimization/analyzerConfig.$(MODULE_EXT)
 
@@ -211,7 +211,7 @@ src/typing/common.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/ast.$(
 
 src/typing/error.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
-src/typing/matcher.$(MODULE_EXT): src/optimization/optimizer.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/typer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
+src/typing/matcher.$(MODULE_EXT): src/typing/error.$(MODULE_EXT) src/optimization/optimizer.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/typer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
 src/typing/overloads.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT)
 

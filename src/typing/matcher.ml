@@ -20,6 +20,7 @@
 open Ast
 open Type
 open Common
+open Error
 
 exception Internal_match_failure
 

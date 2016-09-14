@@ -169,7 +169,7 @@ let gen_constant ctx pe c =
 			if (h land 128 = 0) <> (h land 64 = 0) then raise Exit;
 			int p (Int32.to_int i)
 		with _ ->
-			if ctx.version < 2 then error "This integer is too big to be compiled to a Neko 31-bit integer. Please use a Float instead" pe;
+			if ctx.version < 2 then abort "This integer is too big to be compiled to a Neko 31-bit integer. Please use a Float instead" pe;
 			(EConst (Int32 i),p))
 	| TFloat f -> (EConst (Float f),p)
 	| TString s -> call p (field p (ident p "String") "new") [gen_big_string ctx p s]
@@ -235,7 +235,7 @@ and gen_expr ctx e =
 		(match follow e.etype with
 		| TFun (args,_) ->
 			let n = List.length args in
-			if n > 5 then error "Cannot create closure with more than 5 arguments" e.epos;
+			if n > 5 then abort "Cannot create closure with more than 5 arguments" e.epos;
 			let tmp = ident p "@tmp" in
 			EBlock [
 				(EVars ["@tmp", Some (gen_expr ctx e2); "@fun", Some (field p tmp f.cf_name)] , p);
@@ -802,7 +802,7 @@ let generate com =
 				else
 					loop (p + 1)
 			in
-			error msg (loop 0)
+			abort msg (loop 0)
 	end;
 	let command cmd = try com.run_command cmd with _ -> -1 in
 	let neko_file = (try Filename.chop_extension com.file with _ -> com.file) ^ ".neko" in

@@ -518,7 +518,7 @@ let to_utf8 str p =
 	let ccount = ref 0 in
 	UTF8.iter (fun c ->
 		let c = UChar.code c in
-		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then error "Invalid unicode char" p;
+		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then abort "Invalid unicode char" p;
 		incr ccount;
 		if c > 0x10000 then incr ccount;
 	) u8;
@@ -701,7 +701,7 @@ let rec to_type ?tref ctx t =
 	| TType (td,tl) ->
 		let t = (try
 			match !(List.assq t ctx.rec_cache) with
-			| None -> error "Unsupported recursive type" td.t_pos
+			| None -> abort "Unsupported recursive type" td.t_pos
 			| Some t -> t
 		with Not_found ->
 			let tref = ref None in
@@ -827,7 +827,7 @@ and field_type ctx f p =
 			with Not_found ->
 				match c.cl_super with
 				| Some (csup,_) -> loop csup
-				| None -> error (s_type_path creal.cl_path ^ " is missing field " ^ f.cf_name) p
+				| None -> abort (s_type_path creal.cl_path ^ " is missing field " ^ f.cf_name) p
 		in
 		(loop creal).cf_type
 	| FStatic (_,f) | FAnon f | FClosure (_,f) -> f.cf_type
@@ -1160,7 +1160,7 @@ let common_type ctx e1 e2 for_eq p =
 		| HNull HBool, HBool when for_eq -> t1
 		| HObj _, HVirtual _ | HVirtual _, HObj _ -> HDyn
 		| _ ->
-			error ("Don't know how to compare " ^ tstr t1 ^ " and " ^ tstr t2) p
+			abort ("Don't know how to compare " ^ tstr t1 ^ " and " ^ tstr t2) p
 	in
 	loop t1 t2
 
@@ -1192,7 +1192,7 @@ let type_value ctx t p =
 		| [], "Class" -> op ctx (OGetGlobal (r, fst (class_global ctx ctx.base_class)))
 		| [], "Enum" -> op ctx (OGetGlobal (r, fst (class_global ctx ctx.base_enum)))
 		| [], "Dynamic" -> op ctx (OGetGlobal (r, alloc_global ctx "$Dynamic" (rtype ctx r)))
-		| _ -> error ("Unsupported type value " ^ s_type_path (t_path t)) p);
+		| _ -> abort ("Unsupported type value " ^ s_type_path (t_path t)) p);
 		r
 	| TEnumDecl e ->
 		let r = alloc_tmp ctx (enum_class ctx e) in
@@ -1325,7 +1325,7 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 			op ctx (OSafeCast (out, r));
 			out
 		else
-			error ("Don't know how to cast " ^ tstr rt ^ " to " ^ tstr t) p
+			abort ("Don't know how to cast " ^ tstr rt ^ " to " ^ tstr t) p
 
 and unsafe_cast_to ctx (r:reg) (t:ttype) p =
 	let rt = rtype ctx r in
@@ -1372,7 +1372,7 @@ and object_access ctx eobj t f =
 	| HDyn ->
 		ADynamic (eobj, alloc_string ctx f.cf_name)
 	| _ ->
-		error ("Unsupported field access " ^ tstr t) eobj.epos
+		abort ("Unsupported field access " ^ tstr t) eobj.epos
 
 and get_access ctx e =
 	match e.eexpr with
@@ -1618,7 +1618,7 @@ and eval_expr ctx e =
 			)
 		| _ -> assert false);
 	| TCall ({ eexpr = TLocal v }, el) when v.v_name.[0] = '$' ->
-		let invalid() = error "Invalid native call" e.epos in
+		let invalid() = abort "Invalid native call" e.epos in
 		(match v.v_name, el with
 		| "$new", [{ eexpr = TTypeExpr (TClassDecl _) }] ->
 			(match follow e.etype with
@@ -1669,9 +1669,9 @@ and eval_expr ctx e =
 				| HI32 -> 2
 				| HF32 -> 2
 				| HF64 -> 3
-				| t -> error ("Unsupported basic type " ^ tstr t) e.epos)
+				| t -> abort ("Unsupported basic type " ^ tstr t) e.epos)
 			| _ ->
-				error "Invalid BytesAccess" eb.epos);
+				abort "Invalid BytesAccess" eb.epos);
 		| "$bytes_nullvalue", [eb] ->
 			(match follow eb.etype with
 			| TAbstract({a_path = ["hl";"types"],"BytesAccess"},[t]) ->
@@ -1683,10 +1683,10 @@ and eval_expr ctx e =
 				| HF32 | HF64 ->
 					op ctx (OFloat (r, alloc_float ctx 0.))
 				| t ->
-					error ("Unsupported basic type " ^ tstr t) e.epos);
+					abort ("Unsupported basic type " ^ tstr t) e.epos);
 				r
 			| _ ->
-				error "Invalid BytesAccess" eb.epos);
+				abort "Invalid BytesAccess" eb.epos);
 		| "$bget", [eb;pos] ->
 			(match follow eb.etype with
 			| TAbstract({a_path = ["hl";"types"],"BytesAccess"},[t]) ->
@@ -1715,9 +1715,9 @@ and eval_expr ctx e =
 					op ctx (OGetF64 (r, b, shl ctx pos 3));
 					r
 				| _ ->
-					error ("Unsupported basic type " ^ tstr t) e.epos)
+					abort ("Unsupported basic type " ^ tstr t) e.epos)
 			| _ ->
-				error "Invalid BytesAccess" eb.epos);
+				abort "Invalid BytesAccess" eb.epos);
 		| "$bset", [eb;pos;value] ->
 			(match follow eb.etype with
 			| TAbstract({a_path = ["hl";"types"],"BytesAccess"},[t]) ->
@@ -1746,9 +1746,9 @@ and eval_expr ctx e =
 					op ctx (OSetF64 (b, shl ctx pos 3, v));
 					v
 				| _ ->
-					error ("Unsupported basic type " ^ tstr t) e.epos)
+					abort ("Unsupported basic type " ^ tstr t) e.epos)
 			| _ ->
-				error "Invalid BytesAccess" eb.epos);
+				abort "Invalid BytesAccess" eb.epos);
 		| "$bgeti8", [b;pos] ->
 			let b = eval_to ctx b HBytes in
 			let pos = eval_to ctx pos HI32 in
@@ -1810,7 +1810,7 @@ and eval_expr ctx e =
 				op ctx (ORef (r,rv));
 				r
 			| _ ->
-				error "Ref should be a local variable" v.epos)
+				abort "Ref should be a local variable" v.epos)
 		| "$setref", [e1;e2] ->
 			let rec loop e = match e.eexpr with
 				| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) -> loop e1
@@ -1890,7 +1890,7 @@ and eval_expr ctx e =
 				let r = alloc_tmp ctx HI32 in
 				op ctx (OInt (r,alloc_i32 ctx (hash str)));
 				r
-			| _ -> error "Constant string required" v.epos)
+			| _ -> abort "Constant string required" v.epos)
 		| "$enumIndex", [v] ->
 			let r = alloc_tmp ctx HI32 in
 			let re = eval_expr ctx v in
@@ -1898,7 +1898,7 @@ and eval_expr ctx e =
 			op ctx (OEnumIndex (r,re));
 			r
 		| _ ->
-			error ("Unknown native call " ^ v.v_name) e.epos)
+			abort ("Unknown native call " ^ v.v_name) e.epos)
 	| TCall (ec,args) ->
 		let tfun = real_type ctx ec in
 		let el() = eval_args ctx args tfun e.epos in
@@ -1988,7 +1988,7 @@ and eval_expr ctx e =
 			end;
 			op ctx (OStaticClosure (r,fid));
 		| ANone | ALocal _ | AArray _ | ACaptured _ ->
-			error "Invalid access" e.epos);
+			abort "Invalid access" e.epos);
 		unsafe_cast_to ctx r (to_type ctx e.etype) e.epos
 	| TObjectDecl fl ->
 		(match to_type ctx e.etype with
@@ -2023,7 +2023,7 @@ and eval_expr ctx e =
 		op ctx (ONew r);
 		(match c.cl_constructor with
 		| None -> ()
-		| Some { cf_expr = None } -> error (s_type_path c.cl_path ^ " does not have a constructor") e.epos
+		| Some { cf_expr = None } -> abort (s_type_path c.cl_path ^ " does not have a constructor") e.epos
 		| Some ({ cf_expr = Some cexpr } as constr) ->
 			let rl = eval_args ctx el (to_type ctx cexpr.etype) e.epos in
 			let ret = alloc_tmp ctx HVoid in
@@ -2076,7 +2076,7 @@ and eval_expr ctx e =
 					| HDyn ->
 						op ctx (OCall2 (r,alloc_fun_path ctx ([],"Std") "__add__",a,b))
 					| t ->
-						error ("Cannot add " ^ tstr t) e.epos)
+						abort ("Cannot add " ^ tstr t) e.epos)
 				| OpSub | OpMult | OpMod | OpDiv ->
 					(match rtype ctx r with
 					| HUI8 | HUI16 | HI32 | HF32 | HF64 ->
@@ -2245,7 +2245,7 @@ and eval_expr ctx e =
 			| HUI8 -> 0xFFl
 			| HUI16 -> 0xFFFFl
 			| HI32 -> 0xFFFFFFFFl
-			| _ -> error (tstr t) e.epos
+			| _ -> abort (tstr t) e.epos
 		) in
 		let r2 = alloc_tmp ctx t in
 		op ctx (OInt (r2,alloc_i32 ctx mask));
@@ -2876,7 +2876,7 @@ let generate_static ctx c f =
 			| (Meta.Custom ":hlNative",[] ,_ ) :: _ ->
 				add_native "std" f.cf_name
 			| (Meta.Custom ":hlNative",_ ,p) :: _ ->
-				error "Invalid @:hlNative decl" p
+				abort "Invalid @:hlNative decl" p
 			| [] ->
 				ignore(make_fun ctx ((underscore_class_name c),f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) None None)
 			| _ :: l ->
@@ -2908,7 +2908,7 @@ let rec generate_member ctx c f =
 				| _ -> ()
 			) c.cl_ordered_fields;
 		) in
-		ignore(make_fun ?gen_content ctx (underscore_class_name c,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> error "Missing function body" f.cf_pos) (Some c) None);
+		ignore(make_fun ?gen_content ctx (underscore_class_name c,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> abort "Missing function body" f.cf_pos) (Some c) None);
 		if f.cf_name = "toString" && not (List.memq f c.cl_overrides) && not (PMap.mem "__string" c.cl_fields) && is_to_string f.cf_type then begin
 			let p = f.cf_pos in
 			(* function __string() return this.toString().bytes *)
@@ -5330,8 +5330,8 @@ let interp code =
 		(try
 			ignore(call f [])
 		with
-			| InterpThrow v -> Common.error ("Uncaught exception " ^ vstr v HDyn ^ "\n" ^ get_stack (List.rev !exc_stack)) Ast.null_pos
-			| Runtime_error msg -> Common.error ("HL Interp error " ^ msg ^ "\n" ^ get_stack !stack) Ast.null_pos
+			| InterpThrow v -> abort ("Uncaught exception " ^ vstr v HDyn ^ "\n" ^ get_stack (List.rev !exc_stack)) Ast.null_pos
+			| Runtime_error msg -> abort ("HL Interp error " ^ msg ^ "\n" ^ get_stack !stack) Ast.null_pos
 		)
 	| _ -> assert false
 
@@ -6993,7 +6993,7 @@ let generate com =
 					let lib, prefix = (match args with
 					| [(EConst (String lib),_)] -> lib, ""
 					| [(EConst (String lib),_);(EConst (String p),_)] -> lib, p
-					| _ -> error "hlNative on class requires library name" p
+					| _ -> abort "hlNative on class requires library name" p
 					) in
 					(* adds :hlNative for all empty methods *)
 					List.iter (fun f ->
