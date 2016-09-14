@@ -4953,17 +4953,22 @@ let generate_protocol_delegate ctx class_def output =
       match field.cf_type with
       |  TFun(args,ret) ->
          let retStr = ctx_type_string ctx ret in
-         let objcName = get_meta_string field.cf_meta Meta.ObjcProtocol in
-         let objcName = if objcName="" then field.cf_name else objcName in
-         output ("- (" ^ retStr ^ ") " ^ objcName);
+         let nativeName = get_meta_string field.cf_meta Meta.ObjcProtocol in
+         let names = if nativeName<>"" then
+            ExtString.String.nsplit nativeName ":" 
+         else
+            List.map (fun (n,_,_) -> n ) args
+         in
+         output ("- (" ^ retStr ^ ") " ^ (if nativeName="" then field.cf_name else (List.hd names) ) );
+
          let first = ref true in
-         List.iter (fun (name,_,argType) ->
+         List.iter2 (fun (name,_,argType) signature_name ->
              if !first then
                output (" :(" ^ (ctx_type_string ctx argType) ^ ")" ^ name )
              else
-               output (" " ^ name ^ ":(" ^ (ctx_type_string ctx argType) ^ ")" ^ name );
+               output (" " ^ signature_name ^ ":(" ^ (ctx_type_string ctx argType) ^ ")" ^ name );
              first := false;
-             ) args;
+             ) args names;
          output (" {\n"); 
          output ("\thx::NativeAttach _hx_attach;\n");
          output ( (if retStr="void" then "\t" else "\treturn ") ^ full_class_name ^ "::" ^ (keyword_remap field.cf_name) ^ "(haxeObj");
