@@ -25,6 +25,7 @@ open AnalyzerTypes
 open AnalyzerTypes.BasicBlock
 open AnalyzerTypes.Graph
 open AnalyzerTexpr
+open OptimizerTexpr
 
 (*
 	Transforms an expression to a graph, and a graph back to an expression. This module relies on TexprFilter being
@@ -174,7 +175,7 @@ let rec func ctx bb tf t p =
 		no_void e.etype e.epos;
 		bb,e
 	and ordered_value_list bb el =
-		let might_be_affected,collect_modified_locals = Optimizer.create_affection_checker() in
+		let might_be_affected,collect_modified_locals = create_affection_checker() in
 		let rec can_be_optimized e = match e.eexpr with
 			| TBinop _ | TArray _ | TCall _ -> true
 			| TParenthesis e1 -> can_be_optimized e1
@@ -182,9 +183,9 @@ let rec func ctx bb tf t p =
 		in
 		let _,el = List.fold_left (fun (had_side_effect,acc) e ->
 			if had_side_effect then
-				(true,(might_be_affected e || Optimizer.has_side_effect e,can_be_optimized e,e) :: acc)
+				(true,(might_be_affected e || has_side_effect e,can_be_optimized e,e) :: acc)
 			else begin
-				let had_side_effect = Optimizer.has_side_effect e in
+				let had_side_effect = has_side_effect e in
 				if had_side_effect then collect_modified_locals e;
 				let opt = can_be_optimized e in
 				(had_side_effect || opt,(false,opt,e) :: acc)
@@ -378,7 +379,7 @@ let rec func ctx bb tf t p =
 				bb_next
 			end
 		| TSwitch(e1,cases,edef) ->
-			let is_exhaustive = edef <> None || Optimizer.is_exhaustive e1 in
+			let is_exhaustive = edef <> None || is_exhaustive e1 in
 			let bb,e1 = bind_to_temp bb false e1 in
 			add_texpr bb (wrap_meta ":cond-branch" e1);
 			let reachable = ref [] in

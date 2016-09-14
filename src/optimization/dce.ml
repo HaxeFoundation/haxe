@@ -177,7 +177,7 @@ and mark_t dce p t =
 		| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
 			begin try
 				mark_t dce p (snd (Typecore.AbstractCast.find_multitype_specialization dce.com a pl p))
-			with Typecore.Error _ ->
+			with Error.Error _ ->
 				()
 			end
 		| TAbstract(a,pl) ->

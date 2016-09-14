@@ -4,6 +4,7 @@ open Common.DisplayMode
 open Type
 open Display
 open Typecore
+open Error
 
 (* Old XML stuff *)
 

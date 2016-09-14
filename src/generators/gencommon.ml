@@ -3159,7 +3159,7 @@ struct
 				gen.gcon.warning "This expression may be invalid" e.epos;
 				e
 				| Unify_error el ->
-					List.iter (fun el -> gen.gcon.warning (Typecore.unify_error_msg (print_context()) el) e.epos) el;
+					List.iter (fun el -> gen.gcon.warning (Error.unify_error_msg (print_context()) el) e.epos) el;
 				gen.gcon.warning "This expression may be invalid" e.epos;
 				e
 			)

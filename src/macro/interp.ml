@@ -472,7 +472,7 @@ let catch_errors ctx ?(final=(fun() -> ())) f =
 			(match get_field o (hash "message"), get_field o (hash "pos") with
 			| VObject msg, VAbstract (APos pos) ->
 				(match get_field msg h_s with
-				| VString msg -> raise (Typecore.Error (Typecore.Custom msg,pos))
+				| VString msg -> raise (Error.Error (Error.Custom msg,pos))
 				| _ -> ());
 			| _ -> ());
 		| _ -> ());
@@ -1704,7 +1704,7 @@ let std_lib =
 			VInt (((get_ctx()).curapi.get_com()).run_command (vstring cmd))
 		);
 		"sys_exit", Fun1 (fun code ->
-			if (get_ctx()).curapi.use_cache() then raise (Typecore.Fatal_error ("",Ast.null_pos));
+			if (get_ctx()).curapi.use_cache() then raise (Error.Fatal_error ("",Ast.null_pos));
 			raise (Sys_exit(vint code));
 		);
 		"sys_exists", Fun1 (fun file ->
@@ -2199,7 +2199,7 @@ let macro_lib =
 		"fatal_error", Fun2 (fun msg p ->
 			match msg, p with
 			| VString s, VAbstract (APos p) ->
-				raise (Typecore.Fatal_error (s,p))
+				raise (Error.Fatal_error (s,p))
 			| _ -> error()
 		);
 		"warning", Fun2 (fun msg p ->
@@ -2451,7 +2451,7 @@ let macro_lib =
 		"unify", Fun2 (fun t1 t2 ->
 			let e1 = mk (TObjectDecl []) (decode_type t1) Ast.null_pos in
 			try ignore(((get_ctx()).curapi.cast_or_unify) (decode_type t2) e1 Ast.null_pos); VBool true
-			with Typecore.Error (Typecore.Unify _,_) -> VBool false
+			with Error.Error (Error.Unify _,_) -> VBool false
 		);
 		"typeof", Fun1 (fun v ->
 			encode_type ((get_ctx()).curapi.type_expr (decode_expr v)).etype

@@ -22,6 +22,7 @@ open Common.DisplayMode
 open Common
 open Type
 open Typecore
+open Error
 
 (* ---------------------------------------------------------------------- *)
 (* TOOLS *)
@@ -1887,7 +1888,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		| AKExpr e ->
 			let save = save_locals ctx in
 			let v = gen_local ctx e.etype e.epos in
-			let has_side_effect = Optimizer.has_side_effect e in
+			let has_side_effect = OptimizerTexpr.has_side_effect e in
 			let e1 = if has_side_effect then (EConst(Ident v.v_name),e.epos) else e1 in
 			let eop = type_binop ctx op e1 e2 true with_type p in
 			save();
@@ -2304,7 +2305,7 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 							end;
 							let e = if not swapped then
 								make e1 e2
-							else if not (Optimizer.has_side_effect e1) && not (Optimizer.has_side_effect e2) then
+							else if not (OptimizerTexpr.has_side_effect e1) && not (OptimizerTexpr.has_side_effect e2) then
 								make e1 e2
 							else
 								let v1,v2 = gen_local ctx t1 e1.epos, gen_local ctx t2 e2.epos in
@@ -2979,7 +2980,7 @@ and type_object_decl ctx fl with_type p =
 					let eloc = mk (TLocal v) v.v_type e.epos in
 					(ev :: evars),((s,eloc) :: elocs),had_side_effect
 				end else
-					evars,(s,e) :: elocs,Optimizer.has_side_effect e
+					evars,(s,e) :: elocs,OptimizerTexpr.has_side_effect e
 			end
 		) ([],[],false) (List.rev fl) in
 		let el = List.map (fun (n,_,t) ->
@@ -4511,10 +4512,10 @@ let typing_timer ctx need_type f =
 		r
 	with Error (ekind,p) ->
 			exit();
-			Interp.compiler_error (Typecore.error_msg ekind) p
+			Interp.compiler_error (error_msg ekind) p
 		| WithTypeError (l,p) ->
 			exit();
-			Interp.compiler_error (Typecore.error_msg l) p
+			Interp.compiler_error (error_msg l) p
 		| e ->
 			exit();
 			raise e

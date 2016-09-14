@@ -849,7 +849,7 @@ with
 		()
 	| Ast.Error (m,p) ->
 		error ctx m p
-	| Typecore.Fatal_error (m,p) ->
+	| Error.Fatal_error (m,p) ->
 		error ctx m p
 	| Common.Abort (m,p) ->
 		error ctx m p
@@ -865,8 +865,8 @@ with
 			error ctx (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (Ast.s_type_path m) ) p;
 			List.iter (error ctx "    referenced here") (List.rev pl);
 		end
-	| Typecore.Error (m,p) ->
-		error ctx (Typecore.error_msg m) p
+	| Error.Error (m,p) ->
+		error ctx (Error.error_msg m) p
 	| Interp.Error (msg,p :: l) ->
 		message ctx msg p;
 		List.iter (message ctx "Called from") l;

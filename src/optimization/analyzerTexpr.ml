@@ -20,6 +20,7 @@
 open Ast
 open Type
 open Common
+open OptimizerTexpr
 
 let s_expr_pretty e = s_expr_pretty false "" false (s_type (print_context())) e
 
@@ -374,7 +375,7 @@ module InterferenceReport = struct
 			(* fields *)
 			| TField(e1,fa) ->
 				loop e1;
-				if not (Optimizer.is_read_only_field_access e1 fa) then set_field_read ir (field_name fa);
+				if not (is_read_only_field_access e1 fa) then set_field_read ir (field_name fa);
 			| TBinop(OpAssign,{eexpr = TField(e1,fa)},e2) ->
 				set_field_write ir (field_name fa);
 				loop e1;
@@ -548,7 +549,7 @@ module Fusion = struct
 			false
 
 	let use_assign_op com op e1 e2 =
-		is_assign_op op && target_handles_assign_ops com && Texpr.equal e1 e2 && not (Optimizer.has_side_effect e1) && match com.platform with
+		is_assign_op op && target_handles_assign_ops com && Texpr.equal e1 e2 && not (has_side_effect e1) && match com.platform with
 			| Cs when is_null e1.etype || is_null e2.etype -> false (* C# hates OpAssignOp on Null<T> *)
 			| _ -> true
 
@@ -725,7 +726,7 @@ module Fusion = struct
 						(* fields *)
 						| TField(e1,fa) ->
 							let e1 = replace e1 in
-							if not !found && not (Optimizer.is_read_only_field_access e1 fa) && (has_field_write ir (field_name fa) || has_state_write ir) then raise Exit;
+							if not !found && not (is_read_only_field_access e1 fa) && (has_field_write ir (field_name fa) || has_state_write ir) then raise Exit;
 							{e with eexpr = TField(e1,fa)}
 						| TBinop(OpAssign,({eexpr = TField(e1,fa)} as ef),e2) ->
 							let e1 = replace e1 in
@@ -882,13 +883,13 @@ end
 module Cleanup = struct
 	let apply com e =
 		let if_or_op e e1 e2 e3 = match (Texpr.skip e1).eexpr,(Texpr.skip e3).eexpr with
-			| TUnop(Not,Prefix,e1),TConst (TBool true) -> Optimizer.optimize_binop {e with eexpr = TBinop(OpBoolOr,e1,e2)} OpBoolOr e1 e2
-			| _,TConst (TBool false) -> Optimizer.optimize_binop {e with eexpr = TBinop(OpBoolAnd,e1,e2)} OpBoolAnd e1 e2
+			| TUnop(Not,Prefix,e1),TConst (TBool true) -> optimize_binop {e with eexpr = TBinop(OpBoolOr,e1,e2)} OpBoolOr e1 e2
+			| _,TConst (TBool false) -> optimize_binop {e with eexpr = TBinop(OpBoolAnd,e1,e2)} OpBoolAnd e1 e2
 			| _,TBlock [] -> {e with eexpr = TIf(e1,e2,None)}
 			| _ -> match (Texpr.skip e2).eexpr with
 				| TBlock [] when com.platform <> Cs ->
 					let e1' = mk (TUnop(Not,Prefix,e1)) e1.etype e1.epos in
-					let e1' = Optimizer.optimize_unop e1' Not Prefix e1 in
+					let e1' = optimize_unop e1' Not Prefix e1 in
 					{e with eexpr = TIf(e1',e3,None)}
 				| _ ->
 					{e with eexpr = TIf(e1,e2,Some e3)}
@@ -942,9 +943,6 @@ module Cleanup = struct
 				Type.map_expr loop e
 		in
 		loop e
-
-	let rec reduce_control_flow ctx e =
-		Type.map_expr (reduce_control_flow ctx) (Optimizer.reduce_control_flow ctx e)
 end
 
 module Purity = struct

@@ -22,6 +22,7 @@ open Type
 open Common
 open AnalyzerTexpr
 open AnalyzerTypes
+open OptimizerTexpr
 
 (* File organization:
 	* analyzer.ml: The controlling file with all graph-based optimizations
@@ -394,7 +395,7 @@ module ConstPropagation = DataFlow(struct
 				let e1 = wrap cl1 in
 				let e2 = wrap cl2 in
 				let e = {e with eexpr = TBinop(op,e1,e2)} in
-				let e' = Optimizer.optimize_binop e op e1 e2 in
+				let e' = optimize_binop e op e1 e2 in
 				if e != e' then
 					eval bb e'
 				else
@@ -403,7 +404,7 @@ module ConstPropagation = DataFlow(struct
 				let cl1 = eval bb e1 in
 				let e1 = wrap cl1 in
 				let e = {e with eexpr = TUnop(op,flag,e1)} in
-				let e' = Optimizer.optimize_unop e op flag e1 in
+				let e' = optimize_unop e op flag e1 in
 				if e != e' then
 					eval bb e'
 				else
@@ -465,13 +466,13 @@ module ConstPropagation = DataFlow(struct
 				end
 			| TBinop((OpAssign | OpAssignOp _ as op),({eexpr = TLocal v} as e1),e2) ->
 				let e2 = try
-					if (Optimizer.has_side_effect e2) then raise Not_found;
+					if (has_side_effect e2) then raise Not_found;
 					inline e2 v.v_id
 				with Not_found ->
 					commit e2
 				in
 				{e with eexpr = TBinop(op,e1,e2)}
-			| TVar(v,Some e1) when not (Optimizer.has_side_effect e1) ->
+			| TVar(v,Some e1) when not (has_side_effect e1) ->
 				let e1 = try inline e1 v.v_id with Not_found -> commit e1 in
 				{e with eexpr = TVar(v,Some e1)}
 			| _ ->
@@ -1190,6 +1191,9 @@ module Run = struct
 		end;
 		back_again actx is_real_function
 
+	let rec reduce_control_flow ctx e =
+		Type.map_expr (reduce_control_flow ctx) (Optimizer.reduce_control_flow ctx e)
+
 	let run_on_field ctx config c cf = match cf.cf_expr with
 		| Some e when not (is_ignored cf.cf_meta) && not (Typecore.is_removable_field ctx cf) ->
 			let config = update_config_from_meta ctx.Typecore.com config cf.cf_meta in
@@ -1213,7 +1217,7 @@ module Run = struct
 				debug();
 				raise exc
 			in
-			let e = Cleanup.reduce_control_flow ctx e in
+			let e = reduce_control_flow ctx e in
 			begin match config.debug_kind with
 				| DebugNone -> ()
 				| DebugDot -> Debug.dot_debug actx c cf;

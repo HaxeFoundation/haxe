@@ -21,6 +21,7 @@ open Ast
 open Common
 open Type
 open Typecore
+open Error
 
 (* PASS 1 begin *)
 
@@ -945,7 +946,7 @@ let check_cs_events com t = match t with
 						try
 							type_eq EqStrict m.cf_type tmeth
 						with Unify_error el ->
-							List.iter (fun e -> com.error (Typecore.unify_error_msg (print_context()) e) m.cf_pos) el
+							List.iter (fun e -> com.error (unify_error_msg (print_context()) e) m.cf_pos) el
 					end;
 
 					(*
