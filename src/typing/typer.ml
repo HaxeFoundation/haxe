@@ -3797,6 +3797,8 @@ and display_expr ctx e_ast e with_type p =
 			| TField(_,(FStatic(c,cf) | FInstance(c,_,cf) | FClosure(Some(c,_),cf))) ->
 				if Meta.has Meta.CoreApi c.cl_meta then merge_core_doc ctx c;
 				e.etype,cf.cf_doc
+			| TField(_,FEnum(_,ef)) ->
+				e.etype,ef.ef_doc
 			| _ -> e.etype,None
 		in
 		let t,doc = loop e in
