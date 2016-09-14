@@ -81,7 +81,11 @@ let rec func ctx bb tf t p =
 		g.g_unreachable
 	in
 	let check_unbound_call v el =
-		if is_unbound_call_that_might_have_side_effects v el then ctx.has_unbound <- true
+		if v.v_name = "$ref" then begin match el with
+			| [{eexpr = TLocal v}] -> v.v_capture <- true
+			| _ -> ()
+		end;
+		if is_unbound_call_that_might_have_side_effects v el then ctx.has_unbound <- true;
 	in
 	let no_void t p =
 		if ExtType.is_void (follow t) then Error.error "Cannot use Void as value" p

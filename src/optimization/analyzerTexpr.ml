@@ -711,8 +711,9 @@ module Fusion = struct
 						| TLocal v2 when v1 == v2 && not !blocked ->
 							found := true;
 							if type_change_ok com v1.v_type e1.etype then e1 else mk (TCast(e1,None)) v1.v_type e.epos
-						| TLocal v when has_var_write ir v ->
-							raise Exit
+						| TLocal v ->
+							if has_var_write ir v || ((v.v_capture || is_ref_type v.v_type) && (has_state_write ir)) then raise Exit;
+							e
 						| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
 							let e2 = replace e2 in
 							if not !found && has_var_read ir v then raise Exit;
