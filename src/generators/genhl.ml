@@ -76,6 +76,7 @@ type context = {
 	optimize : bool;
 	overrides : (string * path, bool) Hashtbl.t;
 	defined_funs : (int,unit) Hashtbl.t;
+	mutable dump_out : (unit IO.output) option;
 	mutable cached_types : (path, ttype) PMap.t;
 	mutable m : method_context;
 	mutable anons_cache : (tanon * ttype) list;
@@ -2415,7 +2416,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 	} in
 	ctx.m <- old;
 	Hashtbl.add ctx.defined_funs fidx ();
-	let f = if ctx.optimize then Hlopt.optimize f else f in
+	let f = if ctx.optimize then Hlopt.optimize ctx.dump_out f else f in
 	DynArray.add ctx.cfunctions f;
 	capt
 
@@ -2995,9 +2996,11 @@ let generate com =
 			Not_found ->
 				failwith ("hl class " ^ name ^ " not found")
 	in
+	let dump = Common.defined com Define.Dump in
 	let ctx = {
 		com = com;
 		optimize = not (Common.raw_defined com "hl-no-opt");
+		dump_out = if dump then Some (IO.output_channel (open_out_bin "dump/hlopt.txt")) else None;
 		m = method_context 0 HVoid null_capture;
 		cints = new_lookup();
 		cstrings = new_lookup();
@@ -3082,7 +3085,8 @@ let generate com =
 		debugfiles = DynArray.to_array ctx.cdebug_files.arr;
 	} in
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
-	if Common.defined com Define.Dump then begin
+	if dump then begin
+		(match ctx.dump_out with None -> () | Some ch -> IO.close_out ch);
 		let ch = open_out_bin "dump/hlcode.txt" in
 		Hlcode.dump (fun s -> output_string ch (s ^ "\n")) code;
 		close_out ch;

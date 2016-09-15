@@ -386,6 +386,10 @@
     <hidden path="src\optimization\optimizerTexpr.cmt" />
     <hidden path="src\optimization\optimizerTexpr.cmx" />
     <hidden path="src\optimization\optimizerTexpr.o" />
+    <hidden path="src\generators\hlopt.cmi" />
+    <hidden path="src\generators\hlopt.cmt" />
+    <hidden path="src\generators\hlopt.cmx" />
+    <hidden path="src\generators\hlopt.o" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand>make -j4 FD_OUTPUT=1 -f Makefile.win kill haxe</preBuildCommand>
