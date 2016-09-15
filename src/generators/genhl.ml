@@ -73,6 +73,7 @@ type context = {
 	cnatives : (string, (string index * string index * ttype * functable index)) lookup;
 	cfids : (string * path, unit) lookup;
 	cfunctions : fundecl DynArray.t;
+	optimize : bool;
 	overrides : (string * path, bool) Hashtbl.t;
 	defined_funs : (int,unit) Hashtbl.t;
 	mutable cached_types : (path, ttype) PMap.t;
@@ -2414,6 +2415,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 	} in
 	ctx.m <- old;
 	Hashtbl.add ctx.defined_funs fidx ();
+	let f = if ctx.optimize then Hlopt.optimize f else f in
 	DynArray.add ctx.cfunctions f;
 	capt
 
@@ -2480,9 +2482,6 @@ let rec generate_member ctx c f =
 			ignore(make_fun ctx (underscore_class_name c,"__string") (alloc_fun_path ctx c.cl_path "__string") { tf_expr = estr; tf_args = []; tf_type = cf_bytes.cf_type; } (Some c) None)
 		end
 
-let generate_enum ctx e =
-	()
-
 let generate_type ctx t =
 	match t with
 	| TClassDecl { cl_interface = true }->
@@ -2501,10 +2500,8 @@ let generate_type ctx t =
 		| None -> ()
 		| Some f -> generate_member ctx c f);
 		List.iter (generate_member ctx c) c.cl_ordered_fields;
-	| TTypeDecl _ | TAbstractDecl _ ->
+	| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
 		()
-	| TEnumDecl e  ->
-		generate_enum ctx e
 
 let generate_static_init ctx =
 	let exprs = ref [] in
@@ -3000,6 +2997,7 @@ let generate com =
 	in
 	let ctx = {
 		com = com;
+		optimize = not (Common.raw_defined com "hl-no-opt");
 		m = method_context 0 HVoid null_capture;
 		cints = new_lookup();
 		cstrings = new_lookup();
@@ -3089,7 +3087,7 @@ let generate com =
 		Hlcode.dump (fun s -> output_string ch (s ^ "\n")) code;
 		close_out ch;
 	end;
-	if Common.raw_defined com "check" then begin
+	if Common.raw_defined com "hl-check" then begin
 		PMap.iter (fun (s,p) fid ->
 			if not (Hashtbl.mem ctx.defined_funs fid) then failwith (Printf.sprintf "Unresolved method %s:%s(@%d)" (s_type_path p) s fid)
 		) ctx.cfids.map;
