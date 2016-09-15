@@ -909,25 +909,6 @@ and gen_expr ?(local=true) ctx e = begin
 		gen_value ctx e1;
 end;
 
-and gen__init__hoist ctx e =
-    begin match e.eexpr with
-	| TVar (v,eo) ->(
-		print ctx ", %s" (ident v.v_name);
-	    )
-	| TBlock el ->
-		List.iter (gen__init__hoist ctx) el
-	| TCall (e, el) ->
-		(match e.eexpr , el with
-		    | TLocal { v_name = "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse ->
-			    (if has_feature ctx f then
-				    gen__init__hoist ctx eif
-			    else match eelse with
-				    | [] -> ()
-				    | e :: _ -> gen__init__hoist ctx e)
-		    |_->());
-	| _ -> ()
-    end;
-
 and gen__init__impl ctx e =
     begin match e.eexpr with
 	| TVar (v,eo) ->
@@ -1941,9 +1922,6 @@ let generate com =
 	    println ctx "_hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end";
 	    println ctx "end";
 	end;
-
-	List.iter (gen__init__hoist ctx) (List.rev ctx.inits); newline ctx;
-	ctx.inits <- []; (* reset inits after hoist *)
 
 	List.iter (transform_multireturn ctx) com.types;
 	List.iter (generate_type ctx) com.types;
