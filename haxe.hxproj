@@ -382,6 +382,10 @@
     <hidden path="src\generators\hl2c.cmi" />
     <hidden path="src\generators\hl2c.cmx" />
     <hidden path="src\generators\hl2c.o" />
+    <hidden path="src\optimization\optimizerTexpr.cmi" />
+    <hidden path="src\optimization\optimizerTexpr.cmt" />
+    <hidden path="src\optimization\optimizerTexpr.cmx" />
+    <hidden path="src\optimization\optimizerTexpr.o" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand>make -j4 FD_OUTPUT=1 -f Makefile.win kill haxe</preBuildCommand>
