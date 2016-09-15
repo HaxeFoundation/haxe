@@ -8,6 +8,11 @@ class TestLua extends Test {
 		eq(lua.Lua.type(untyped __lua__("multi")), "table");
 		eq(l, "table");
 	}
+	function testMultiReturnPlainFunctionCall(){
+		var multi : Multi = untyped MultiCall.doit();
+		// this shouldn't box the result
+		eq(untyped __lua__("multi"), null);
+	}
 	function testMultiReturnValue(){
 		var multi : Multi = untyped MultiCall.doit();
 		var l = lua.Lua.type(multi.b);
