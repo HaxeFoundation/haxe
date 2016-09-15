@@ -1850,7 +1850,8 @@ class enum_builder ctx (enm:tenum) =
 						write_empty_lines := true;
 					self#write_constructor name field
 				)
-				enm.e_constrs
+				enm.e_constrs;			
+			self#write_reflection
 		(**
 			Writes constructor declaration to output buffer
 		*)
@@ -1882,6 +1883,29 @@ class enum_builder ctx (enm:tenum) =
 			self#write ";\n";
 			self#indent_less;
 			self#write_line "}"
+		(**
+			Writes special methods for reflection
+		*)
+		method private write_reflection =
+			self#write_empty_lines;
+			self#indent 1;
+			self#write_line "/**";
+			self#write_line " * Returns array of (constructorIndex => constructorName)";
+			self#write_line " */";
+			self#write_line "static public function __hx__list ()";
+			self#write_line "{";
+			self#indent_more;
+			self#write_line "return [";
+			self#indent_more;
+			PMap.iter
+				(fun name field -> 
+					self#write_line ((string_of_int field.ef_index) ^ " => '" ^ name ^ "',")
+				)
+				enm.e_constrs;
+			self#indent_less;
+			self#write_statement "]";
+			self#indent_less;
+			self#write_line "}";
 		(**
 			Method `__hx__init` is not needed for enums
 		**)

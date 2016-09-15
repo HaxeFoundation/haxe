@@ -22,6 +22,8 @@
 
 import php7.Global;
 import php7.Boot;
+import php7.reflection.ReflectionClass;
+import haxe.extern.EitherType;
 
 enum ValueType {
 	TNull;
@@ -82,62 +84,64 @@ enum ValueType {
 	}
 
 	public static function resolveEnum( name : String ) : Enum<Dynamic> {
-		var e = untyped __call__("_hx_qtype", name);
-		if(untyped __php__("$e instanceof _hx_enum"))
-			return e;
-		else
-			return null;
+		if (name == null) return null;
+		
+		var phpClass = Boot.getPhpName(name);
+		if (!Global.class_exists(phpClass)) return null;
+
+		var hxClass = Boot.getClass(phpClass);
+		if (!Boot.is(hxClass, Boot.getClass('Enum'))) return null;
+
+		return cast hxClass;
 	}
 
-	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped {
-		if(cl.__qname__ == 'Array') return [];
-		if(cl.__qname__ == 'String') return args[0];
-		var c = cl.__rfl__();
-		if(c == null) return null;
-		return __php__("$inst = $c->getConstructor() ? $c->newInstanceArgs($args->a) : $c->newInstanceArgs()");
+	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T {
+		if (String == cast cl) return args[0];
+
+		var phpName = getPhpName(cl);
+		if (phpName == null) return null;
+		
+		return untyped __php__("new $phpName(...$args->arr)");
 	}
 
-	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped {
-		if(cl.__qname__ == 'Array') return [];
-		if(cl.__qname__ == 'String') return '';
-		try {
-			__php__("php_Boot::$skip_constructor = true");
-			var rfl = cl.__rfl__();
-			if(rfl == null) return null;
-			var m = __php__("$rfl->getConstructor()");
-			var nargs : Int = m.getNumberOfRequiredParameters();
-			var i;
-			if(nargs > 0) {
-				var args = __call__("array_fill", 0, m.getNumberOfRequiredParameters(), null);
-				i = __php__("$rfl->newInstanceArgs($args)");
-			} else {
-				i = __php__("$rfl->newInstanceArgs(array())");
-			}
-			__php__("php_Boot::$skip_constructor = false");
-			return i;
-		} catch( e : Dynamic ) {
-			__php__("php_Boot::$skip_constructor = false");
-			throw "Unable to instantiate " + Std.string(cl);
-		}
-		return null;
+	public static function createEmptyInstance<T>( cl : Class<T> ) : T {
+		if (String == cast cl) return cast '';
+		if (Array == cast cl) return cast [];
+
+		var phpName = getPhpName(cl);
+		if (phpName == null) return null;
+		
+		var reflection = new ReflectionClass(phpName);
+		return reflection.newInstanceWithoutConstructor();
 	}
 
 	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T {
-		var f:Dynamic = Reflect.field(e,constr);
-		if( f == null ) throw "No such constructor "+constr;
-		if( Reflect.isFunction(f) ) {
-			if( params == null ) throw "Constructor "+constr+" need parameters";
-			return Reflect.callMethod(e,f,params);
+		if (e == null || constr == null) return null;
+
+		var phpName = getPhpName(e);
+		if (phpName == null) return null;
+
+		if (params == null) {
+			return untyped __php__("$phpName::$constr()");
+		} else {
+			return untyped __php__("$phpName::$constr(...$params->arr)");
 		}
-		if( params != null && params.length != 0 )
-			throw "Constructor "+constr+" does not need parameters";
-		return f;
 	}
 
 	public static function createEnumIndex<T>( e : Enum<T>, index : Int, ?params : Array<Dynamic> ) : T {
-		var c = Type.getEnumConstructs(e)[index];
-		if( c == null ) throw index+" is not a valid enum constructor index";
-		return createEnum(e,c,params);
+		if (e == null || index == null) return null;
+
+		var phpName = getPhpName(e);
+		if (phpName == null) return null;
+
+		var constr = untyped __php__("$phpName::__hx__list()[$index]");
+		if (constr == null) return null;
+
+		if (params == null) {
+			return untyped __php__("$phpName::$constr()");
+		} else {
+			return untyped __php__("$phpName::$constr(...$params->arr)");
+		}
 	}
 
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
@@ -256,6 +260,14 @@ enum ValueType {
 		return all;
 	}
 
-
+	/**
+		Get corresponding PHP name for specified `type`.
+		Returns `null` if `type` does not exist.
+	**/
+	static function getPhpName( type:EitherType<Class<Dynamic>,Enum<Dynamic>> ) : Null<String> {
+		var haxeName = Boot.getHaxeName(cast type);
+		
+		return (haxeName == null ? null : Boot.getPhpName(haxeName));		 
+	}
 }
 

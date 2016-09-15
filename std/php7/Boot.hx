@@ -659,7 +659,7 @@ private class HxClosure {
 	/**
 		@see http://php.net/manual/en/language.oop5.magic.php#object.invoke
 	**/
-	function __invoke() {
+	public function __invoke() {
 		return Global.call_user_func_array(getCallback(), Global.func_get_args());
 	}
 
