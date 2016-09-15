@@ -366,6 +366,22 @@
     <hidden path="src\display\displayOutput.cmt" />
     <hidden path="src\display\displayOutput.cmx" />
     <hidden path="src\display\displayOutput.o" />
+    <hidden path="src\generators\hlcode.cmt" />
+    <hidden path="src\generators\hlinterp.cmt" />
+    <hidden path="src\generators\hlcode.o" />
+    <hidden path="src\generators\hlcode.cmi" />
+    <hidden path="src\generators\hlcode.cmx" />
+    <hidden path="src\typing\error.cmi" />
+    <hidden path="src\typing\error.cmt" />
+    <hidden path="src\typing\error.cmx" />
+    <hidden path="src\typing\error.o" />
+    <hidden path="src\generators\hl2c.cmt" />
+    <hidden path="src\generators\hlinterp.cmi" />
+    <hidden path="src\generators\hlinterp.cmx" />
+    <hidden path="src\generators\hlinterp.o" />
+    <hidden path="src\generators\hl2c.cmi" />
+    <hidden path="src\generators\hl2c.cmx" />
+    <hidden path="src\generators\hl2c.o" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand>make -j4 FD_OUTPUT=1 -f Makefile.win kill haxe</preBuildCommand>

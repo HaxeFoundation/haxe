@@ -56,7 +56,7 @@ MODULES=json version globals path syntax/ast display/displayTypes typing/type ty
 	syntax/parser typing/typecore display/display optimization/optimizerTexpr \
 	optimization/optimizer typing/overloads typing/typeload generators/codegen generators/gencommon generators/genas3 \
 	generators/gencpp generators/genjs generators/genneko generators/genphp generators/genswf9 \
-	generators/genswf generators/genjava generators/gencs generators/genpy macro/interp generators/genhl \
+	generators/genswf generators/genjava generators/gencs generators/genpy macro/interp generators/hlcode generators/hlinterp generators/hl2c generators/genhl \
 	generators/genlua \
 	optimization/dce optimization/analyzerConfig optimization/analyzerTypes optimization/analyzerTexpr \
 	optimization/analyzerTexprTransformer optimization/analyzer \
@@ -166,7 +166,11 @@ src/generators/genpy.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/lex
 
 src/generators/genswf.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/generators/genswf9.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
-src/generators/genhl.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT)
+src/generators/hlinterp.$(MODULE_EXT): src/generators/hlcode.$(MODULE_EXT)
+
+src/generators/hl2c.$(MODULE_EXT): src/generators/hlcode.$(MODULE_EXT)
+
+src/generators/genhl.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT) src/generators/hlcode.$(MODULE_EXT) src/generators/hlinterp.$(MODULE_EXT) src/generators/hl2c.$(MODULE_EXT)
 
 src/generators/genswf9.$(MODULE_EXT): src/path.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
