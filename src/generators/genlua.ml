@@ -1785,6 +1785,7 @@ let transform_multireturn ctx = function
 						let e = Type.map_expr loop e in
 						mk_mr_box ctx e
 
+					(* Don't bother wrapping multireturn function results if we don't use the return values *)
 					| TBlock el ->
 						let el2 = List.map (fun x ->
 						    match x.eexpr with
@@ -1796,6 +1797,9 @@ let transform_multireturn ctx = function
 
 					(* if we found a field access for a multi-return local - that's fine, because it'll be generated as a local var *)
 					| TField ({ eexpr = TLocal v}, _) when Meta.has Meta.MultiReturn v.v_meta ->
+						e
+					| TReturn Some(e2) when is_multireturn e2.etype ->
+						abort "You cannot return a multireturn type from a haxe function" c.cl_pos;
 						e
 
 					(*
