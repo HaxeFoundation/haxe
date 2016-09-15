@@ -1455,8 +1455,8 @@ let std_lib =
 					| "rb" -> AFRead (open_in_gen [Open_rdonly;Open_binary] 0 f,ref false)
 					| "w" -> AFWrite (open_out_gen [Open_wronly;Open_creat;Open_trunc] perms f)
 					| "wb" -> AFWrite (open_out_gen [Open_wronly;Open_creat;Open_trunc;Open_binary] perms f)
-					| "a" -> AFWrite (open_out_gen [Open_append] perms f)
-					| "ab" -> AFWrite (open_out_gen [Open_append;Open_binary] perms f)
+					| "a" -> AFWrite (open_out_gen [Open_append;Open_creat] perms f)
+					| "ab" -> AFWrite (open_out_gen [Open_append;Open_creat;Open_binary] perms f)
 					| _ -> error())
 			| _ -> error()
 		);
