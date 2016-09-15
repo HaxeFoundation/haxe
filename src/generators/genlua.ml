@@ -1799,6 +1799,20 @@ let transform_multireturn ctx = function
 						let ecall = Type.map_expr loop ecall in
 						mk_mr_select ctx.com ecall (field_name f)
 
+					(* if we found a multi-return call used as a value, box it *)
+					| TCall _ when is_multireturn e.etype ->
+						let e = Type.map_expr loop e in
+						mk_mr_box ctx e
+
+					| TBlock el ->
+						let el2 = List.map (fun x ->
+						    match x.eexpr with
+						    | TCall (e2, el) when is_multireturn x.etype ->
+							    mk (TCall (e2, List.map(fun x-> Type.map_expr loop x) el)) x.etype x.epos
+						    | _ -> loop x) el in
+						mk (TBlock el2) e.etype e.epos;
+
+
 					(* if we found a field access for a multi-return local - that's fine, because it'll be generated as a local var *)
 					| TField ({ eexpr = TLocal v}, _) when Meta.has Meta.MultiReturn v.v_meta ->
 						e
