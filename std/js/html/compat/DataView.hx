@@ -32,6 +32,14 @@ class DataView {
 	var offset : Int;
 	var length : Int;
 
+	public var byteLength(get,never):Int;
+	public var byteOffset(get,never):Int;
+	public var buffer(get,never):ArrayBuffer;
+
+	function get_byteLength():Int return length;
+	function get_byteOffset():Int return offset;
+	function get_buffer():ArrayBuffer return buf;
+
 	public function new( buffer : ArrayBuffer, ?byteOffset : Int, ?byteLength : Int ) : Void {
 		this.buf = buffer;
 		this.offset = byteOffset == null ? 0 : byteOffset;
