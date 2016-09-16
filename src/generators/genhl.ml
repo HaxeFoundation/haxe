@@ -44,13 +44,13 @@ type method_context = {
 	mregs : (int, ttype) lookup;
 	mops : opcode DynArray.t;
 	mret : ttype;
-	mdebug : Ast.pos DynArray.t;
+	mdebug : (int * int) DynArray.t;
 	mutable mcaptured : method_capture;
 	mutable mcontinues : (int -> unit) list;
 	mutable mbreaks : (int -> unit) list;
 	mutable mtrys : int;
 	mutable mcaptreg : int;
-	mutable mcurpos : Ast.pos;
+	mutable mcurpos : (int * int);
 }
 
 type array_impl = {
@@ -193,7 +193,7 @@ let method_context id t captured =
 		mtrys = 0;
 		mcaptreg = 0;
 		mdebug = DynArray.create();
-		mcurpos = Ast.null_pos;
+		mcurpos = (0,0);
 	}
 
 let field_name c f =
@@ -246,10 +246,7 @@ let rec unsigned t =
 	| _ -> false
 
 let set_curpos ctx p =
-	ctx.m.mcurpos <- p
-
-let make_debug ctx arr =
-	let get_relative_path p =
+	let get_relative_path() =
 		match Common.defined ctx.com Common.Define.AbsolutePath with
 		| true -> if (Filename.is_relative p.pfile)
 			then Filename.concat (Sys.getcwd()) p.pfile
@@ -266,26 +263,7 @@ let make_debug ctx arr =
 		with Not_found ->
 			p.pfile
 	in
-	let pos = ref (0,0) in
-	let cur_file = ref 0 in
-	let cur_line = ref 0 in
-	let cur = ref Ast.null_pos in
-	let out = Array.make (DynArray.length arr) !pos in
-	for i = 0 to DynArray.length arr - 1 do
-		let p = DynArray.unsafe_get arr i in
-		if p != !cur then begin
-			let file = if p.pfile == (!cur).pfile then !cur_file else lookup ctx.cdebug_files p.pfile (fun() -> get_relative_path p) in
-			let line = Lexer.get_error_line p in
-			if line <> !cur_line || file <> !cur_file then begin
-				cur_file := file;
-				cur_line := line;
-				pos := (file,line);
-			end;
-			cur := p;
-		end;
-		Array.unsafe_set out i !pos
-	done;
-	out
+	ctx.m.mcurpos <- (lookup ctx.cdebug_files p.pfile get_relative_path,Lexer.get_error_line p)
 
 let rec to_type ?tref ctx t =
 	match t with
@@ -2309,7 +2287,7 @@ and gen_method_wrapper ctx rt t p =
 			ftype = HFun (rt :: targs, tret);
 			regs = DynArray.to_array ctx.m.mregs.arr;
 			code = DynArray.to_array ctx.m.mops;
-			debug = make_debug ctx ctx.m.mdebug;
+			debug = DynArray.to_array ctx.m.mdebug;
 		} in
 		ctx.m <- old;
 		DynArray.add ctx.cfunctions f;
@@ -2434,7 +2412,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 		ftype = HFun (fargs, tret);
 		regs = DynArray.to_array ctx.m.mregs.arr;
 		code = DynArray.to_array ctx.m.mops;
-		debug = make_debug ctx ctx.m.mdebug;
+		debug = DynArray.to_array ctx.m.mdebug;
 	} in
 	ctx.m <- old;
 	Hashtbl.add ctx.defined_funs fidx ();
