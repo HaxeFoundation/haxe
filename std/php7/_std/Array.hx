@@ -23,7 +23,6 @@ import php7.NativeIndexedArray;
 
 using php7.Global;
 
-
 // @:coreApi
 @:final
 class Array<T> implements php7.ArrayAccess<Int,T> {

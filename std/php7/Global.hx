@@ -156,6 +156,11 @@ extern class Global {
 	static function array_merge( array:Rest<NativeArray> ) : NativeArray ;
 
 	/**
+		@see http://php.net/manual/en/function.array-diff.php
+	**/
+	static function array_diff( array:Rest<NativeArray> ) : NativeArray ;
+
+	/**
 		@see http://php.net/manual/en/function.array-pop.php
 	**/
 	static function array_pop( array:NativeArray ) : Dynamic;
