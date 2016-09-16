@@ -46,7 +46,7 @@ let print_fields fields =
 			| FKPackage -> "package", ""
 			| FKModule -> "type", ""
 			| FKMetadata -> "metadata", ""
-			| FKTimer s -> "", s
+			| FKTimer s -> "timer", s
 		in
 		Buffer.add_string b (Printf.sprintf "<i n=\"%s\" k=\"%s\"><t>%s</t><d>%s</d></i>\n" n s_kind (htmlescape t) (htmlescape d))
 	) (List.sort (fun (a,ak,_) (b,bk,_) -> compare (display_field_kind_index ak,a) (display_field_kind_index bk,b)) fields);
