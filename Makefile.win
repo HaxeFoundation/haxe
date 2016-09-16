@@ -1,5 +1,5 @@
+PLATFORM=win
 include Makefile
-
 OUTPUT=haxe.exe
 EXTENSION=.exe
 PACKAGE_SRC_EXTENSION=.zip
@@ -36,7 +36,7 @@ CC_CMD=($(OCAMLOPT) $(ALL_CFLAGS) -c $< 2>tmp.cmi && $(FILTER)) || ($(FILTER) &&
 CC_PARSER_CMD=($(OCAMLOPT) -pp camlp4o $(ALL_CFLAGS) -c src/syntax/parser.ml 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
 endif
 
-package_bin::
+package_win:
 	mkdir -p out
 	rm -rf $(PACKAGE_FILE_NAME) $(PACKAGE_FILE_NAME).zip temp.zip
 	# Copy the package contents to $(PACKAGE_FILE_NAME)
