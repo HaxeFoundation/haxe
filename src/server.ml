@@ -233,7 +233,6 @@ let rec wait_loop process_params verbose accept =
 	let run_count = ref 0 in
 	while true do
 		let read, write, close = accept() in
-		let t0 = get_time() in
 		let rec cache_context com =
 			if com.display.dms_full_typing then begin
 				List.iter cache_module com.modules;
@@ -273,6 +272,7 @@ let rec wait_loop process_params verbose accept =
 		in
 		(try
 			let s = read() in
+			let t0 = get_time() in
 			let hxml =
 				try
 					let idx = String.index s '\001' in
