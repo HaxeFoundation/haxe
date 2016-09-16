@@ -168,13 +168,13 @@ src/generators/genpy.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/lex
 
 src/generators/genswf.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/generators/genswf9.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
-src/generators/hlinterp.$(MODULE_EXT): src/typing/common.$(MODULE_EXT) src/generators/hlcode.$(MODULE_EXT)
+src/generators/hlinterp.$(MODULE_EXT): src/typing/common.$(MODULE_EXT) src/generators/hlcode.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT)
 
 src/generators/hl2c.$(MODULE_EXT): src/generators/hlcode.$(MODULE_EXT)
 
 src/generators/hlopt.$(MODULE_EXT): src/generators/hlcode.$(MODULE_EXT)
 
-src/generators/genhl.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT) src/generators/hlcode.$(MODULE_EXT) src/generators/hlinterp.$(MODULE_EXT) src/generators/hl2c.$(MODULE_EXT) src/generators/hlopt.$(MODULE_EXT)
+src/generators/genhl.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/generators/hlcode.$(MODULE_EXT) src/generators/hlinterp.$(MODULE_EXT) src/generators/hl2c.$(MODULE_EXT) src/generators/hlopt.$(MODULE_EXT)
 
 src/generators/genswf9.$(MODULE_EXT): src/path.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
