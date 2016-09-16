@@ -56,6 +56,7 @@ install_linux: &install_linux
   - make package_src -s
   - make -s
   - make package_bin -s
+  - ls -l out
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
 
@@ -75,6 +76,7 @@ install_osx: &install_osx
   - make package_src -s
   - make -s
   - make package_bin -s
+  - ls -l out
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
 
