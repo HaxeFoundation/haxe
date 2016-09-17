@@ -300,6 +300,19 @@ and h_class = hash "__class__"
 let exc v =
 	raise (Runtime v)
 
+let s_value_kind = function
+	| VNull -> "VNull"
+	| VBool _ -> "VBool"
+	| VInt _ -> "VInt"
+	| VFloat _ -> "VFloat"
+	| VString _ -> "VString"
+	| VObject _ -> "VObject"
+	| VArray _ -> "VArray"
+	| VAbstract _ -> "VAbstract"
+	| VFunction _ -> "VFunction"
+	| VClosure _ -> "VClosure"
+	| VInt32 _ -> "VInt32"
+
 let hash_field ctx f =
 	let h = hash f in
 	(try
@@ -3611,6 +3624,11 @@ let rec compare ctx a b =
 let select ctx =
 	get_ctx_ref := (fun() -> ctx)
 
+let value_match_failure s expected actual =
+	let sl = String.concat ", " in
+	let slv l = sl (List.map s_value_kind l) in
+	Printf.sprintf "%s (expected [%s], got [%s])" s (sl expected) (slv actual)
+
 let load_prim ctx f n =
 	match f, n with
 	| VString f, VInt n ->
@@ -3628,7 +3646,7 @@ let load_prim ctx f n =
 		with Not_found ->
 			VFunction (FunVar (fun _ -> exc (VString ("Primitive not found " ^ f ^ ":" ^ string_of_int n)))))
 	| _ ->
-		exc (VString "Invalid call")
+		exc (VString (value_match_failure "Invalid call" ["VString";"VInt"] [f;n]))
 
 let create com api =
 	let loader = obj hash [
@@ -3741,7 +3759,9 @@ let call_path ctx path f vl api =
 		| VObject o ->
 			let f = get_field o (hash f) in
 			call ctx (VObject o) f vl p
-		| _ -> assert false
+		| v ->
+			print_endline (value_match_failure ("Unexpected value for " ^ (String.concat "." path)) ["VObject"] [v]);
+			assert false
 	)
 
 (* ---------------------------------------------------------------------- *)
