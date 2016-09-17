@@ -1006,9 +1006,9 @@ let write_c version file (code:code) =
 				sexpr "hl_throw((vdynamic*)%s)" (reg r)
 			| ORethrow r ->
 				sexpr "hl_rethrow((vdynamic*)%s)" (reg r)
-			| OGetI8 (r,b,idx) ->
+			| OGetUI8 (r,b,idx) ->
 				sexpr "%s = *(unsigned char*)(%s + %s)" (reg r) (reg b) (reg idx)
-			| OGetI16 (r,b,idx) ->
+			| OGetUI16 (r,b,idx) ->
 				sexpr "%s = *(unsigned short*)(%s + %s)" (reg r) (reg b) (reg idx)
 			| OGetI32 (r,b,idx) ->
 				sexpr "%s = *(int*)(%s + %s)" (reg r) (reg b) (reg idx)
@@ -1018,9 +1018,9 @@ let write_c version file (code:code) =
 				sexpr "%s = *(double*)(%s + %s)" (reg r) (reg b) (reg idx)
 			| OGetArray (r, arr, idx) ->
 				sexpr "%s = ((%s*)(%s + 1))[%s]" (reg r) (ctype (rtype r)) (reg arr) (reg idx)
-			| OSetI8 (b,idx,r) ->
+			| OSetUI8 (b,idx,r) ->
 				sexpr "*(unsigned char*)(%s + %s) = (unsigned char)%s" (reg b) (reg idx) (reg r)
-			| OSetI16 (b,idx,r) ->
+			| OSetUI16 (b,idx,r) ->
 				sexpr "*(unsigned short*)(%s + %s) = (unsigned short)%s" (reg b) (reg idx) (reg r)
 			| OSetI32 (b,idx,r) ->
 				sexpr "*(int*)(%s + %s) = %s" (reg b) (reg idx) (reg r)

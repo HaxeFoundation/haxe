@@ -672,9 +672,9 @@ let set_default ctx r =
 let read_mem ctx rdst bytes index t =
 	match t with
 	| HUI8 ->
-		op ctx (OGetI8 (rdst,bytes,index))
+		op ctx (OGetUI8 (rdst,bytes,index))
 	| HUI16 ->
-		op ctx (OGetI16 (rdst,bytes,index))
+		op ctx (OGetUI16 (rdst,bytes,index))
 	| HI32 ->
 		op ctx (OGetI32 (rdst,bytes,index))
 	| HF32 ->
@@ -687,9 +687,9 @@ let read_mem ctx rdst bytes index t =
 let write_mem ctx bytes index t r=
 	match t with
 	| HUI8 ->
-		op ctx (OSetI8 (bytes,index,r))
+		op ctx (OSetUI8 (bytes,index,r))
 	| HUI16 ->
-		op ctx (OSetI16 (bytes,index,r))
+		op ctx (OSetUI16 (bytes,index,r))
 	| HI32 ->
 		op ctx (OSetI32 (bytes,index,r))
 	| HF32 ->
@@ -1199,11 +1199,17 @@ and eval_expr ctx e =
 			let tmp = alloc_tmp ctx HI32 in
 			op ctx (OToInt (tmp, eval_expr ctx e));
 			tmp
-		| "$bseti8", [b;pos;v] ->
+		| "$bsetui8", [b;pos;v] ->
 			let b = eval_to ctx b HBytes in
 			let pos = eval_to ctx pos HI32 in
 			let r = eval_to ctx v HI32 in
-			op ctx (OSetI8 (b, pos, r));
+			op ctx (OSetUI8 (b, pos, r));
+			r
+		| "$bsetui16", [b;pos;v] ->
+			let b = eval_to ctx b HBytes in
+			let pos = eval_to ctx pos HI32 in
+			let r = eval_to ctx v HI32 in
+			op ctx (OSetUI16 (b, pos, r));
 			r
 		| "$bseti32", [b;pos;v] ->
 			let b = eval_to ctx b HBytes in
@@ -1259,11 +1265,11 @@ and eval_expr ctx e =
 				(match t with
 				| HUI8 ->
 					let r = alloc_tmp ctx HI32 in
-					op ctx (OGetI8 (r, b, pos));
+					op ctx (OGetUI8 (r, b, pos));
 					r
 				| HUI16 ->
 					let r = alloc_tmp ctx HI32 in
-					op ctx (OGetI16 (r, b, shl ctx pos 1));
+					op ctx (OGetUI16 (r, b, shl ctx pos 1));
 					r
 				| HI32 ->
 					let r = alloc_tmp ctx HI32 in
@@ -1290,11 +1296,11 @@ and eval_expr ctx e =
 				(match t with
 				| HUI8 ->
 					let v = eval_to ctx value HI32 in
-					op ctx (OSetI8 (b, pos, v));
+					op ctx (OSetUI8 (b, pos, v));
 					v
 				| HUI16 ->
 					let v = eval_to ctx value HI32 in
-					op ctx (OSetI16 (b, shl ctx pos 1, v));
+					op ctx (OSetUI16 (b, shl ctx pos 1, v));
 					v
 				| HI32 ->
 					let v = eval_to ctx value HI32 in
@@ -1312,11 +1318,17 @@ and eval_expr ctx e =
 					abort ("Unsupported basic type " ^ tstr t) e.epos)
 			| _ ->
 				abort "Invalid BytesAccess" eb.epos);
-		| "$bgeti8", [b;pos] ->
+		| "$bgetui8", [b;pos] ->
 			let b = eval_to ctx b HBytes in
 			let pos = eval_to ctx pos HI32 in
 			let r = alloc_tmp ctx HI32 in
-			op ctx (OGetI8 (r, b, pos));
+			op ctx (OGetUI8 (r, b, pos));
+			r
+		| "$bgetui16", [b;pos] ->
+			let b = eval_to ctx b HBytes in
+			let pos = eval_to ctx pos HI32 in
+			let r = alloc_tmp ctx HI32 in
+			op ctx (OGetUI16 (r, b, pos));
 			r
 		| "$bgeti32", [b;pos] ->
 			let b = eval_to ctx b HBytes in
@@ -1939,7 +1951,7 @@ and eval_expr ctx e =
 			op ctx (OCall1 (b,alloc_std ctx "alloc_bytes" [HI32] HBytes,size));
 			list_iteri (fun i e ->
 				let r = eval_to ctx e HI32 in
-				op ctx (OSetI16 (b,reg_int ctx (i * 2),r));
+				op ctx (OSetUI16 (b,reg_int ctx (i * 2),r));
 			) el;
 			op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayBase") "allocUI16", b, reg_int ctx (List.length el)));
 		| HF32 ->

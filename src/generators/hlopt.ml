@@ -113,9 +113,9 @@ let opcode_fx frw op =
 		()
 	| OEndTrap _ ->
 		() (* ??? *)
-	| OGetI8 (d,a,b) | OGetI16 (d,a,b) | OGetI32 (d,a,b) | OGetF32 (d,a,b) | OGetF64 (d,a,b) | OGetArray (d,a,b) ->
+	| OGetUI8 (d,a,b) | OGetUI16 (d,a,b) | OGetI32 (d,a,b) | OGetF32 (d,a,b) | OGetF64 (d,a,b) | OGetArray (d,a,b) ->
 		read a; read b; write d
-	| OSetI8 (a,b,c) | OSetI16 (a,b,c) | OSetI32 (a,b,c) | OSetF32 (a,b,c) | OSetF64 (a,b,c) | OSetArray (a,b,c) ->
+	| OSetUI8 (a,b,c) | OSetUI16 (a,b,c) | OSetI32 (a,b,c) | OSetF32 (a,b,c) | OSetF64 (a,b,c) | OSetArray (a,b,c) ->
 		read a; read b; read c
 	| ONew d ->
 		write d

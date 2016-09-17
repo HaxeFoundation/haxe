@@ -879,11 +879,11 @@ let interp code =
 			| ORethrow r ->
 				stack := List.rev !exc_stack @ !stack;
 				throw (get r)
-			| OGetI8 (r,b,p) ->
+			| OGetUI8 (r,b,p) ->
 				(match get b, get p with
 				| VBytes b, VInt p -> set r (VInt (Int32.of_int (int_of_char (String.get b (Int32.to_int p)))))
 				| _ -> assert false)
-			| OGetI16 (r,b,p) ->
+			| OGetUI16 (r,b,p) ->
 				(match get b, get p with
 				| VBytes b, VInt p ->
 					let a = int_of_char (String.get b (Int32.to_int p)) in
@@ -909,11 +909,11 @@ let interp code =
 				(match get a, get i with
 				| VArray (a,_), VInt i -> set r a.(Int32.to_int i)
 				| _ -> assert false);
-			| OSetI8 (r,p,v) ->
+			| OSetUI8 (r,p,v) ->
 				(match get r, get p, get v with
 				| VBytes b, VInt p, VInt v -> String.set b (Int32.to_int p) (char_of_int ((Int32.to_int v) land 0xFF))
 				| _ -> assert false)
-			| OSetI16 (r,p,v) ->
+			| OSetUI16 (r,p,v) ->
 				(match get r, get p, get v with
 				| VBytes b, VInt p, VInt v ->
 					String.set b (Int32.to_int p) (char_of_int ((Int32.to_int v) land 0xFF));
@@ -2076,11 +2076,7 @@ let check code =
 				reg a HArray;
 				reg i HI32;
 				ignore(rtype v);
-			| OGetI8 (r,b,p) ->
-				reg r HI32;
-				reg b HBytes;
-				reg p HI32;
-			| OGetI32 (r,b,p) | OGetI16(r,b,p) ->
+			| OGetUI8 (r,b,p) | OGetI32 (r,b,p) | OGetUI16(r,b,p) ->
 				reg r HI32;
 				reg b HBytes;
 				reg p HI32;
@@ -2092,11 +2088,7 @@ let check code =
 				reg r HF64;
 				reg b HBytes;
 				reg p HI32;
-			| OSetI8 (r,p,v) ->
-				reg r HBytes;
-				reg p HI32;
-				reg v HI32;
-			| OSetI32 (r,p,v) | OSetI16 (r,p,v) ->
+			| OSetUI8 (r,p,v) | OSetI32 (r,p,v) | OSetUI16 (r,p,v) ->
 				reg r HBytes;
 				reg p HI32;
 				reg v HI32;

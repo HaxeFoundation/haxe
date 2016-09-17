@@ -164,14 +164,14 @@ type opcode =
 	| OTrap of reg * int
 	| OEndTrap of bool
 	(* memory access *)
-	| OGetI8 of reg * reg * reg
-	| OGetI16 of reg * reg * reg
+	| OGetUI8 of reg * reg * reg
+	| OGetUI16 of reg * reg * reg
 	| OGetI32 of reg * reg * reg
 	| OGetF32 of reg * reg * reg
 	| OGetF64 of reg * reg * reg
 	| OGetArray of reg * reg * reg
-	| OSetI8 of reg * reg * reg
-	| OSetI16 of reg * reg * reg
+	| OSetUI8 of reg * reg * reg
+	| OSetUI16 of reg * reg * reg
 	| OSetI32 of reg * reg * reg
 	| OSetF32 of reg * reg * reg
 	| OSetF64 of reg * reg * reg
@@ -525,14 +525,14 @@ let ostr fstr o =
 	| OSetThis (i,r) -> Printf.sprintf "setthis [%d],%d" i r
 	| OThrow r -> Printf.sprintf "throw %d" r
 	| ORethrow r -> Printf.sprintf "rethrow %d" r
-	| OGetI8 (r,b,p) -> Printf.sprintf "geti8 %d,%d[%d]" r b p
-	| OGetI16 (r,b,p) -> Printf.sprintf "geti16 %d,%d[%d]" r b p
+	| OGetUI8 (r,b,p) -> Printf.sprintf "getui8 %d,%d[%d]" r b p
+	| OGetUI16 (r,b,p) -> Printf.sprintf "getui16 %d,%d[%d]" r b p
 	| OGetI32 (r,b,p) -> Printf.sprintf "geti32 %d,%d[%d]" r b p
 	| OGetF32 (r,b,p) -> Printf.sprintf "getf32 %d,%d[%d]" r b p
 	| OGetF64 (r,b,p) -> Printf.sprintf "getf64 %d,%d[%d]" r b p
 	| OGetArray (r,a,i) -> Printf.sprintf "getarray %d,%d[%d]" r a i
-	| OSetI8 (r,p,v) -> Printf.sprintf "seti8 %d,%d,%d" r p v
-	| OSetI16 (r,p,v) -> Printf.sprintf "seti16 %d,%d,%d" r p v
+	| OSetUI8 (r,p,v) -> Printf.sprintf "setui8 %d,%d,%d" r p v
+	| OSetUI16 (r,p,v) -> Printf.sprintf "setui16 %d,%d,%d" r p v
 	| OSetI32 (r,p,v) -> Printf.sprintf "seti32 %d,%d,%d" r p v
 	| OSetF32 (r,p,v) -> Printf.sprintf "setf32 %d,%d,%d" r p v
 	| OSetF64 (r,p,v) -> Printf.sprintf "setf64 %d,%d,%d" r p v
