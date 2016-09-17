@@ -2238,6 +2238,7 @@ type svalue =
 	| SRefResult of string 
 	| SUnreach
 	| SExc
+	| SDelayed of string * svalue list option ref
 	
 type call_spec =
 	| SFid of int
@@ -2261,6 +2262,7 @@ type spec =
 	| SSetEnumField of svalue * int * svalue
 	| SStoreResult of string * spec
 	| SNew of ttype * int
+	| SVal of svalue
 
 let rec svalue_string v =
 	let sval = svalue_string in
@@ -2292,6 +2294,39 @@ let rec svalue_string v =
 	| SUnion vl -> Printf.sprintf "union(%s)" (String.concat " | " (List.map sval vl))
 	| SUnreach -> "unreach"
 	| SExc -> "exc"
+	| SDelayed (str,_) -> str
+
+let svalue_iter f = function
+	| SUndef | SArg _ | SInt _ | SFloat _ | SString _ | SBool _ | SNull | SType _ | SResult _
+	| SFun (_,None) | SGlobal _ | SRef _ | SRefResult _ | SUnreach | SExc | SDelayed _ ->
+		()
+	| SOp (_,a,b) | SMem (a,b,_) -> f a; f b
+	| SUnop (_,a) | SFun (_,Some a) | SMeth (a,_) | SField (a,_) | SDField (a,_) | SConv (_,a) | SCast (a,_) | SEnumField (a,_,_) -> f a
+	| SUnion vl | SEnum (_,vl) -> List.iter f vl
+
+let spec_iter fs fv = function
+	| SCall (c,vl) ->
+		(match c with SClosure v -> fv v | _ -> ());
+		List.iter fv vl
+	| SVal v
+	| SJEq (_,v)
+	| SRet v
+	| SNullCheck v
+	| SThrow v
+	| SSwitch v
+	| SGlobalSet (_,v) -> fv v
+	| SJComp (_,a,b)
+	| SSetRef (a,b)
+	| SSetEnumField (a,_,b)
+	| SFieldDSet (a,_,b) | SFieldSet (a,_,b) -> fv a; fv b
+	| SJump ->
+		()
+	| SWriteMem (m,a,b,_) ->
+		fv m; fv a; fv b
+	| SStoreResult (_,s) ->
+		fs s
+	| SNew _ ->
+		()
 
 let rec svalue_same a b = 
 	let vsame = svalue_same in
@@ -2309,6 +2344,7 @@ let rec svalue_same a b =
 	| SEnum (i1,vl1), SEnum (i2,vl2) -> i1 = i2 && List.length vl1 = List.length vl2 && List.for_all2 vsame vl1 vl2
 	| SEnumField (v1,c1,i1), SEnumField (v2,c2,i2) -> vsame v1 v2 && c1 = c2 && i1 = i2
 	| SUnion vl1, SUnion vl2 -> List.length vl1 = List.length vl2 && List.for_all2 vsame vl1 vl2
+	| SDelayed (id1,_), SDelayed (id2,_) -> id1 = id2
 	| _ -> a = b
 
 let rec spec_string s =
@@ -2349,23 +2385,43 @@ let rec spec_string s =
 		r ^ " <- " ^ spec_string s
 	| SNew (t,idx) -> 
 		Printf.sprintf "new %s(%d)" (tstr t) idx
+	| SVal v ->
+		sval v
 		
 let make_spec (code:code) (f:fundecl) =
 	let op = Array.get f.code in
 	let out_spec = ref [] in
 	let alloc_count = ref (-1) in
+
+	let digest str =
+		let d = Digest.to_hex (Digest.string str) in
+		String.sub d 0 4
+	in
 	
-	let semit s = 
+	let rec semit s = 
+		let rec loop_spec s =
+			spec_iter loop_spec loop_val s
+		
+		and loop_val v =
+			match v with
+			| SDelayed (r,used) ->
+				(match !used with
+				| None -> ()
+				| Some vl -> used := None; semit (SStoreResult (r,SVal (SUnion vl))))
+			| _ ->
+				svalue_iter loop_val v
+		in
+		loop_spec s;
 		out_spec := s :: !out_spec
 	in
 
 	let emit (s:spec) =
-		let d = Digest.to_hex (Digest.string (spec_string s)) in
-		let r = String.sub d 0 4 in
-		semit (SStoreResult (r,s));
-		SResult r
+		let d = digest (spec_string s) in
+		semit (SStoreResult (d,s));
+		SResult d
 	in
 
+	let big_unions = Hashtbl.create 0 in
 	
 	let block_args = Hashtbl.create 0 in
 	let rec get_args b =
@@ -2391,8 +2447,18 @@ let make_spec (code:code) (f:fundecl) =
 						if not (svalue_same args.(i) args2.(i)) then begin
 							let l1 = (match args.(i) with SUnion l -> l | v -> [v]) in
 							let l2 = (match args2.(i) with SUnion l -> l | v -> [v]) in
-							let l = l1 @ List.filter (fun v -> not (List.mem v l1)) l2 in
-							args.(i) <- SUnion l;
+							let l = l1 @ List.filter (fun v -> not (List.exists (svalue_same v) l1)) l2 in
+							if List.length l > 10 then begin
+								(try 
+									let ident, used = Hashtbl.find big_unions l in
+									args.(i) <- SDelayed (ident, used);
+								with Not_found ->
+									let ident = digest (String.concat "," (List.map svalue_string l)) in
+									let used = ref (Some l) in
+									Hashtbl.replace big_unions l (ident,used);
+									args.(i) <- SDelayed (ident, used))
+							end else
+								args.(i) <- SUnion l;
 						end
 					done;
 				) l;
