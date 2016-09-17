@@ -584,11 +584,14 @@ let interp code =
 		| _ -> assert false
 
 	and set_i32 b p v =
-		String.set b p (char_of_int ((Int32.to_int v) land 0xFF));
-		String.set b (p+1) (char_of_int ((Int32.to_int (Int32.shift_right_logical v 8)) land 0xFF));
-		String.set b (p+2) (char_of_int ((Int32.to_int (Int32.shift_right_logical v 16)) land 0xFF));
-		String.set b (p+3) (char_of_int (Int32.to_int (Int32.shift_right_logical v 24)));
-
+		try
+			String.set b p (char_of_int ((Int32.to_int v) land 0xFF));
+			String.set b (p+1) (char_of_int ((Int32.to_int (Int32.shift_right_logical v 8)) land 0xFF));
+			String.set b (p+2) (char_of_int ((Int32.to_int (Int32.shift_right_logical v 16)) land 0xFF));
+			String.set b (p+3) (char_of_int (Int32.to_int (Int32.shift_right_logical v 24)));
+		with _ ->
+			error "Set outside of bytes bounds"
+		
 	and get_i32 b p =
 		let i = int_of_char (String.get b p) in
 		let j = int_of_char (String.get b (p + 1)) in
@@ -669,7 +672,6 @@ let interp code =
 				()
 		in
 		let set r v =
-			(*if f.findex = 0 then Printf.eprintf "%d@%d set %d = %s\n" f.findex (!pos - 1) r (vstr_d v);*)
 			check v (rtype r) (fun() -> "register " ^ string_of_int r);
 			Array.unsafe_set regs r v
 		in
@@ -1822,6 +1824,11 @@ let interp code =
 					(match (try r.r_groups.(n) with _ -> failwith ("Invalid group " ^ string_of_int n)) with
 					| None -> to_int (-1)
 					| Some (pos,pend) -> regs.(rlen) <- to_int (pend - pos); to_int pos)
+				| [VAbstract (AReg r); VInt n; VNull] ->
+					let n = int n in
+					(match (try r.r_groups.(n) with _ -> failwith ("Invalid group " ^ string_of_int n)) with
+					| None -> to_int (-1)
+					| Some (pos,pend) -> to_int pos)
 				| _ -> assert false)
 			| _ ->
 				unresolved())
@@ -1836,7 +1843,7 @@ let interp code =
 		String.concat "\n" (List.map (fun (f,pos) ->
 			let pos = !pos - 1 in
 			let file, line = (try let fid, line = f.debug.(pos) in code.debugfiles.(fid), line with _ -> "???", 0) in
-			Printf.sprintf "%s:%d: Called from fun(%d)@%d" file line f.findex pos
+			Printf.sprintf "%s:%d: Called from fun(%d)@x%x" file line f.findex pos
 		) st)
 	in
 	match functions.(code.entrypoint) with
@@ -1859,7 +1866,7 @@ let check code =
 		let pos = ref 0 in
 		let error msg =
 			let dfile, dline = f.debug.(!pos) in
-			failwith (Printf.sprintf "\n%s:%d: Check failure at %d@%d - %s" code.debugfiles.(dfile) dline f.findex (!pos) msg)
+			failwith (Printf.sprintf "\n%s:%d: Check failure at %d@x%x - %s" code.debugfiles.(dfile) dline f.findex (!pos) msg)
 		in
 		let targs, tret = (match f.ftype with HFun (args,ret) -> args, ret | _ -> assert false) in
 		let rtype i = f.regs.(i) in
@@ -2199,3 +2206,327 @@ let check code =
 	) code.natives;
 	(* TODO : check that no object type has a virtual native in his proto *)
 	Array.iter check_fun code.functions
+
+(* ------------------------------- SPEC ---------------------------------------------- *)
+
+open Hlopt
+
+type svalue =
+	| SUndef
+	| SArg of int
+	| SInt of int32
+	| SFloat of float
+	| SString of string
+	| SBool of bool
+	| SNull
+	| SType of ttype
+	| SOp of string * svalue * svalue
+	| SUnop of string * svalue
+	| SResult of string
+	| SFun of int * svalue option
+	| SMeth of svalue * int
+	| SGlobal of int
+	| SField of svalue * int
+	| SDField of svalue * string
+	| SConv of string * svalue
+	| SCast of svalue * ttype
+	| SMem of svalue * svalue * ttype
+	| SEnum of int * svalue list
+	| SEnumField of svalue * int * int
+	| SUnion of svalue list
+	| SRef of int
+	| SRefResult of string 
+	| SUnreach
+	| SExc
+	
+type call_spec =
+	| SFid of int
+	| SMethod of int
+	| SClosure of svalue
+
+type spec =
+	| SCall of call_spec * svalue list
+	| SGlobalSet of int * svalue
+	| SFieldSet of svalue * int * svalue
+	| SFieldDSet of svalue * string * svalue
+	| SJEq of string * svalue
+	| SJComp of string * svalue * svalue
+	| SJump
+	| SRet of svalue
+	| SNullCheck of svalue
+	| SThrow of svalue
+	| SSwitch of svalue
+	| SWriteMem of svalue * svalue * svalue * ttype
+	| SSetRef of svalue * svalue
+	| SSetEnumField of svalue * int * svalue
+	| SStoreResult of string * spec
+	| SNew of ttype * int
+
+let rec svalue_string v =
+	let sval = svalue_string in
+	match v with
+	| SUndef -> "undef"
+	| SArg i -> "arg" ^ string_of_int i
+	| SInt i -> Int32.to_string i
+	| SFloat f -> string_of_float f
+	| SString s -> "\"" ^ s ^ "\""
+	| SBool b -> if b then "true" else "false"
+	| SNull -> "null"
+	| SRef _ -> "ref"
+	| SRefResult s -> Printf.sprintf "refresult(%s)" s
+	| SType t -> tstr t
+	| SOp (op,a,b) -> Printf.sprintf "(%s %s %s)" (sval a) op (sval b)
+	| SUnop (op,v) -> op ^ sval v
+	| SResult i -> i
+	| SFun (i,None) -> "fun" ^ string_of_int i
+	| SFun (i,Some v) -> Printf.sprintf "fun%d(%s)" i (sval v)
+	| SMeth (v,i) -> Printf.sprintf "meth%d(%s)" i (sval v)
+	| SGlobal g -> Printf.sprintf "G[%d]" g
+	| SField (o,i) -> Printf.sprintf  "%s[%d]" (sval o) i
+	| SDField (o,f) -> Printf.sprintf  "%s.%s" (sval o) f
+	| SConv (f,v) -> Printf.sprintf "%s(%s)" f (sval v)
+	| SCast (v,t) -> Printf.sprintf "cast(%s,%s)" (sval v) (tstr t)
+	| SMem (m,idx,t) -> Printf.sprintf "(%s*)%s[%s]" (tstr t) (sval m) (sval idx)
+	| SEnum (i,vl) -> Printf.sprintf "enum%d(%s)" i (String.concat "," (List.map sval vl))
+	| SEnumField (v,k,i) -> Printf.sprintf "%s[%d:%d]" (sval v) k i
+	| SUnion vl -> Printf.sprintf "union(%s)" (String.concat " | " (List.map sval vl))
+	| SUnreach -> "unreach"
+	| SExc -> "exc"
+
+let rec svalue_same a b = 
+	let vsame = svalue_same in
+	match a, b with
+	| SType t1, SType t2 -> tsame t1 t2
+	| SOp (op1,a1,b1), SOp (op2,a2,b2) -> op1 = op2 && vsame a1 a2 && vsame b1 b2
+	| SUnop (op1,v1), SUnop (op2,v2) -> op1 = op2 && vsame v1 v2
+	| SFun (f1,Some v1), SFun (f2,Some v2) -> f1 = f2 && vsame v1 v2
+	| SMeth (v1,m1), SMeth (v2,m2) -> vsame v1 v2 && m1 = m2
+	| SField (v1,f1), SField (v2,f2) -> vsame v1 v2 && f1 = f2
+	| SDField (v1,f1), SDField (v2,f2) -> vsame v1 v2 && f1 = f2
+	| SConv (op1,v1), SConv (op2,v2) -> op1 = op2 && vsame v1 v2
+	| SCast (v1,t1), SCast (v2,t2) -> vsame v1 v2 && tsame t1 t2
+	| SMem (m1,i1,t1), SMem (m2,i2,t2) -> vsame m1 m2 && vsame i1 i2 && tsame t1 t2
+	| SEnum (i1,vl1), SEnum (i2,vl2) -> i1 = i2 && List.length vl1 = List.length vl2 && List.for_all2 vsame vl1 vl2
+	| SEnumField (v1,c1,i1), SEnumField (v2,c2,i2) -> vsame v1 v2 && c1 = c2 && i1 = i2
+	| SUnion vl1, SUnion vl2 -> List.length vl1 = List.length vl2 && List.for_all2 vsame vl1 vl2
+	| _ -> a = b
+
+let rec spec_string s =
+	let sval = svalue_string in
+	match s with
+	| SCall (c,vl) ->
+		let cstr = (match c with
+			| SFid i -> Printf.sprintf "fun%d" i
+			| SMethod i -> Printf.sprintf "meth%d" i
+			| SClosure v -> Printf.sprintf "closure(%s)" (sval v)
+		) in
+		Printf.sprintf "%s(%s)" cstr (String.concat "," (List.map sval vl))
+	| SGlobalSet (i,v) ->
+		Printf.sprintf "G[%d] = %s" i (sval v)
+	| SFieldSet (o,fid,v) | SSetEnumField (o,fid,v) ->
+		Printf.sprintf "%s[%d] = %s" (sval o) fid (sval v)
+	| SFieldDSet (o,f,v) ->
+		Printf.sprintf "%s.%s = %s" (sval o) f (sval v)
+	| SJEq (s,v) ->
+		Printf.sprintf "j%s(%s)" s (sval v)
+	| SJComp (s,a,b) ->
+		Printf.sprintf "jump(%s %s %s)" (sval a) s (sval b)
+	| SJump -> 
+		"jump"
+	| SRet v ->
+		"ret " ^ sval v
+	| SNullCheck v ->
+		"nullcheck " ^ sval v
+	| SThrow v ->
+		"throw " ^ sval v
+	| SSwitch v ->
+		"switch " ^ sval v
+	| SWriteMem (m,idx,v,t) ->
+		Printf.sprintf "(%s*)%s[%s] = %s" (tstr t) (sval m) (sval idx) (sval v)
+	| SSetRef (r,v) ->
+		Printf.sprintf "*%s = %s" (sval r) (sval v)
+	| SStoreResult (r,s) ->
+		r ^ " <- " ^ spec_string s
+	| SNew (t,idx) -> 
+		Printf.sprintf "new %s(%d)" (tstr t) idx
+		
+let make_spec (code:code) (f:fundecl) =
+	let op = Array.get f.code in
+	let out_spec = ref [] in
+	let alloc_count = ref (-1) in
+	
+	let semit s = 
+		out_spec := s :: !out_spec
+	in
+
+	let emit (s:spec) =
+		let d = Digest.to_hex (Digest.string (spec_string s)) in
+		let r = String.sub d 0 4 in
+		semit (SStoreResult (r,s));
+		SResult r
+	in
+
+	
+	let block_args = Hashtbl.create 0 in
+	let rec get_args b =
+		try
+			Hashtbl.find block_args b.bstart
+		with Not_found ->
+			assert false
+	
+	and calc_spec b =
+		let bprev = List.filter (fun b2 -> b2.bstart < b.bstart) b.bprev in
+		let args = (match bprev with
+			| [] ->
+				let args = Array.make (Array.length f.regs) SUndef in
+				(match f.ftype with
+				| HFun (tl,_) -> list_iteri (fun i _ -> args.(i) <- SArg i) tl
+				| _ -> assert false);
+				args
+			| b2 :: l ->
+				let args = Array.copy (get_args b2) in
+				List.iter (fun b2 ->
+					let args2 = get_args b2 in
+					for i = 0 to Array.length args - 1 do
+						if not (svalue_same args.(i) args2.(i)) then begin
+							let l1 = (match args.(i) with SUnion l -> l | v -> [v]) in
+							let l2 = (match args2.(i) with SUnion l -> l | v -> [v]) in
+							let l = l1 @ List.filter (fun v -> not (List.mem v l1)) l2 in
+							args.(i) <- SUnion l;
+						end
+					done;
+				) l;
+				if l = [] then (match op b2.bend with OTrap (r,_) -> args.(r) <- SExc | _ -> ());
+				args
+		) in
+		let make_call c vl =
+			let r = emit (SCall (c,vl)) in
+			(match r with
+			| SResult result -> List.iter (fun v -> match v with SRef r -> args.(r) <- SRefResult result | _ -> ()) vl
+			| _ -> assert false);
+			r
+		in
+		for i = b.bstart to b.bend do
+			match op i with
+			| OMov (d,r) -> args.(d) <- args.(r)
+			| OInt (d,i) -> args.(d) <- SInt code.ints.(i)
+			| OFloat (d,f) -> args.(d) <- SFloat code.floats.(f)
+			| OBool (d,b) -> args.(d) <- SBool b
+			| OBytes (d,s) | OString (d,s) -> args.(d) <- SString code.strings.(s)
+			| ONull d -> args.(d) <- SNull
+			| OAdd (d,a,b) -> args.(d) <- SOp ("+",args.(a),args.(b))
+			| OSub (d,a,b) -> args.(d) <- SOp ("-",args.(a),args.(b))
+			| OMul (d,a,b) -> args.(d) <- SOp ("*",args.(a),args.(b))
+			| OSDiv (d,a,b) -> args.(d) <- SOp ("/",args.(a),args.(b))
+			| OUDiv (d,a,b) -> args.(d) <- SOp ("//",args.(a),args.(b))
+			| OSMod (d,a,b) -> args.(d) <- SOp ("%",args.(a),args.(b))
+			| OUMod (d,a,b) -> args.(d) <- SOp ("%%",args.(a),args.(b))
+			| OShl (d,a,b) -> args.(d) <- SOp ("<<",args.(a),args.(b))
+			| OSShr (d,a,b) -> args.(d) <- SOp (">>",args.(a),args.(b))
+			| OUShr (d,a,b) -> args.(d) <- SOp (">>>",args.(a),args.(b))
+			| OAnd (d,a,b) -> args.(d) <- SOp ("&",args.(a),args.(b))
+			| OOr (d,a,b) -> args.(d) <- SOp ("|",args.(a),args.(b))
+			| OXor (d,a,b) -> args.(d) <- SOp ("^",args.(a),args.(b))
+			| ONeg (d,r) -> args.(d) <- SUnop ("-",args.(r))
+			| ONot (d,r) -> args.(d) <- SUnop ("!",args.(r))
+			| OIncr r -> args.(r) <- SUnop ("++",args.(r))
+			| ODecr r -> args.(r) <- SUnop ("++",args.(r))
+			| OCall0 (d,f) -> args.(d) <- make_call (SFid f) []
+			| OCall1 (d,f,a) -> args.(d) <- make_call (SFid f) [args.(a)]
+			| OCall2 (d,f,a,b) -> args.(d) <- make_call (SFid f) [args.(a);args.(b)]
+			| OCall3 (d,f,a,b,c) -> args.(d) <- make_call (SFid f) [args.(a);args.(b);args.(c)]
+			| OCall4 (d,f,a,b,c,k) -> args.(d) <- make_call (SFid f) [args.(a);args.(b);args.(c);args.(k)]
+			| OCallN (d,f,rl) -> args.(d) <- make_call (SFid f) (List.map (fun r -> args.(r)) rl)
+			| OCallMethod (d,fid,rl) -> args.(d) <- make_call (SMethod fid) (List.map (fun r -> args.(r)) rl)
+			| OCallThis (d,fid,rl) -> args.(d) <- make_call (SMethod fid) (List.map (fun r -> args.(r)) (0 :: rl))
+			| OCallClosure (d,r,rl) -> args.(d) <- make_call (SClosure args.(r)) (List.map (fun r -> args.(r)) rl)
+			| OStaticClosure (d,fid) -> args.(d) <- SFun (fid,None)
+			| OInstanceClosure (d,fid,r) -> args.(d) <- SFun (fid,Some args.(r))
+			| OVirtualClosure (d,r,index) -> args.(d) <- SMeth (args.(r),index)
+			| OGetGlobal (d,g) -> args.(d) <- SGlobal g
+			| OSetGlobal (g,r) -> semit (SGlobalSet (g,args.(r)))
+			| OField (d,r,f) -> args.(d) <- SField (args.(r),f)
+			| OSetField (o,f,r) -> semit (SFieldSet (args.(o),f,args.(r)))
+			| OGetThis (d,fid) -> args.(d) <- SField (args.(0),fid)
+			| OSetThis (f,r) -> semit (SFieldSet (args.(0),f,args.(r)))
+			| ODynGet (d,o,f) -> args.(d) <- SDField (args.(o),code.strings.(f))
+			| ODynSet (o,f,v) -> semit (SFieldDSet (args.(o),code.strings.(f),args.(v)))
+			| OJTrue (r,_) -> semit (SJEq ("true",args.(r)))
+			| OJFalse (r,_) -> semit (SJEq ("false",args.(r)))
+			| OJNull (r,_) -> semit (SJEq ("null",args.(r)))
+			| OJNotNull (r,_) -> semit (SJEq ("not null",args.(r)))
+			| OJSLt (a,b,_) -> semit (SJComp ("<",args.(a),args.(b)))
+			| OJSGte (a,b,_) -> semit (SJComp (">=",args.(a),args.(b)))
+			| OJSGt (a,b,_) -> semit (SJComp (">",args.(a),args.(b)))
+			| OJSLte (a,b,_) -> semit (SJComp ("<=",args.(a),args.(b)))
+			| OJULt (a,b,_) -> semit (SJComp ("<!",args.(a),args.(b)))
+			| OJUGte (a,b,_) -> semit (SJComp (">=!",args.(a),args.(b)))
+			| OJEq (a,b,_) -> semit (SJComp ("==",args.(a),args.(b)))
+			| OJNotEq (a,b,_) -> semit (SJComp ("!=",args.(a),args.(b)))
+			| OJAlways _ -> semit SJump
+			| OToDyn (d,r) -> args.(d) <- SConv ("dyn",args.(r))
+			| OToSFloat (d,r) -> args.(d) <- SConv ("sfloat",args.(r))
+			| OToUFloat (d,r) -> args.(d) <- SConv ("ufloat",args.(r))
+			| OToInt (d,r) -> args.(d) <- SConv ("int",args.(r))
+			| OSafeCast (d,r) -> args.(d) <- SCast (args.(r),f.regs.(d))
+			| OUnsafeCast (d,r) -> args.(d) <- SConv ("cast", args.(r))
+			| OToVirtual (d,r) -> args.(d) <- SConv ("virtual",args.(r))
+			| OLabel _ -> ()
+			| ORet r ->
+				semit (SRet (if f.regs.(r) = HVoid then SUndef else args.(r)));
+				if i < b.bend then for i = 0 to Array.length args - 1 do args.(i) <- SUnreach done				
+			| OThrow r | ORethrow r -> 
+				semit (SThrow args.(r));
+				if i < b.bend then for i = 0 to Array.length args - 1 do args.(i) <- SUnreach done
+			| OSwitch (r,_,_) -> semit (SSwitch args.(r))
+			| ONullCheck r -> semit (SNullCheck args.(r))
+			| OTrap _ | OEndTrap _ -> ()
+			| OGetUI8 (d,b,i) -> args.(d) <- SMem (args.(b),args.(i),HUI8)
+			| OGetUI16 (d,b,i) -> args.(d) <- SMem (args.(b),args.(i),HUI16)
+			| OGetI32 (d,b,i) -> args.(d) <- SMem (args.(b),args.(i),HI32)
+			| OGetF32 (d,b,i) -> args.(d) <- SMem (args.(b),args.(i),HF32)
+			| OGetF64 (d,b,i) -> args.(d) <- SMem (args.(b),args.(i),HF64)
+			| OGetArray (d,b,i) -> args.(d) <- SMem (args.(b),args.(i),HArray)
+			| OSetUI8 (b,i,v) -> semit (SWriteMem (args.(b),args.(i),args.(v),HUI8))
+			| OSetUI16 (b,i,v) -> semit (SWriteMem (args.(b),args.(i),args.(v),HUI16))
+			| OSetI32 (b,i,v) -> semit (SWriteMem (args.(b),args.(i),args.(v),HI32))
+			| OSetF32 (b,i,v) -> semit (SWriteMem (args.(b),args.(i),args.(v),HF32))
+			| OSetF64 (b,i,v) -> semit (SWriteMem (args.(b),args.(i),args.(v),HF64))
+			| OSetArray (b,i,v) -> semit (SWriteMem (args.(b),args.(i),args.(v),HArray))
+			| ONew d ->
+				incr alloc_count;
+				args.(d) <- emit (SNew (f.regs.(d),!alloc_count))
+			| OArraySize (d,r) -> args.(d) <- SConv ("size",args.(r))
+			| OType (d,t) -> args.(d) <- SType t
+			| OGetType (d,r) -> args.(d) <- SConv ("type",args.(r))
+			| OGetTID (d,r) -> args.(d) <- SConv ("tid",args.(r))
+			| ORef (d,r) -> args.(d) <- SRef r
+			| OUnref (d,r) -> 
+				(match args.(r) with
+				| SRef r -> args.(d) <- args.(r)
+				| _ -> args.(d) <- SConv ("unref",args.(r)))
+			| OSetref (r,v) -> 
+				(match args.(r) with
+				| SRef r -> args.(r) <- args.(v)
+				| _ -> ());
+				semit (SSetRef (args.(r),args.(v)))
+			| OMakeEnum (d,fid,rl) -> args.(d) <- SEnum (fid, List.map (fun r -> args.(r)) rl)
+			| OEnumAlloc (d,fid) -> args.(d) <- SEnum (fid, [])
+			| OEnumIndex (d,r) -> args.(d) <- SConv ("index",args.(r))
+			| OEnumField (d,r,fid,cid) -> args.(d) <- SEnumField (args.(r),fid,cid)
+			| OSetEnumField (e,fid,r) -> semit (SSetEnumField (args.(e),fid,args.(r)))
+			| ODump _ -> ()
+		done;
+		Hashtbl.add block_args b.bstart args
+	in
+	let all_blocks, _ = Hlopt.code_graph f in
+	let rec loop i =
+		if i = Array.length f.code then () else
+		if not (Hashtbl.mem all_blocks i) then loop (i + 1) else (* unreachable code *)
+		let b = try Hashtbl.find all_blocks i with Not_found -> failwith (Printf.sprintf "Missing block %s(%d)" (fundecl_name f) i) in
+		calc_spec b;
+		loop (b.bend + 1)
+	in
+	loop 0;
+	List.rev !out_spec
+

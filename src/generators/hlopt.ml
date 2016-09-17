@@ -132,13 +132,10 @@ let opcode_fx frw op =
 	| ODump r ->
 		read r
 
-let optimize dump (f:fundecl) =
-	let op index = f.code.(index) in
-	
-	let write str = match dump with None -> () | Some ch -> IO.nwrite ch (str ^ "\n") in
+(* build code graph *)
 
-	(* build code graph *)
-	
+let code_graph (f:fundecl) =
+	let op index = f.code.(index) in
 	let blocks_pos = Hashtbl.create 0 in
 	let all_blocks = Hashtbl.create 0 in
 	for i = 0 to Array.length f.code - 1 do
@@ -188,7 +185,13 @@ let optimize dump (f:fundecl) =
 			loop pos;
 			b
 	in
-	let root = make_block 0 in
+	blocks_pos, make_block 0
+
+let optimize dump (f:fundecl) =
+	let op index = f.code.(index) in
+	let write str = match dump with None -> () | Some ch -> IO.nwrite ch (str ^ "\n") in
+
+	let blocks_pos, root = code_graph f in
 	
 	(* build registers liveness *)
 (*	
@@ -235,8 +238,9 @@ let optimize dump (f:fundecl) =
 			if i = Array.length f.code then () else
 			let block = try 
 				let nblock = Hashtbl.find blocks_pos i in
-				write (Printf.sprintf "\t----- [%s]"
+				write (Printf.sprintf "\t----- [%s] (%d)"
 					(String.concat "," (List.map (fun b -> string_of_int b.bstart) nblock.bnext))
+					nblock.bend
 				);
 				nblock
 			with Not_found ->
