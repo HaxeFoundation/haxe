@@ -86,7 +86,13 @@ using php7.Global;
 	}
 
 	public static function isFunction( f : Dynamic ) : Bool {
-		return untyped __php__("$f instanceof \\Closure");
+		if (untyped __php__("$f instanceof \\Closure")) {
+			return true;
+		} else {
+			var hxClosure = Boot.getHaxeName(Boot.closureHxClass());
+			var phpClosure = Boot.getPhpName(hxClosure); 
+			return untyped __php__("$f instanceof $phpClosure");
+		}
 	}
 
 	public static function compare<T>( a : T, b : T ) : Int {
