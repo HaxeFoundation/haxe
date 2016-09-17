@@ -3900,11 +3900,17 @@ and display_expr ctx e_ast e with_type p =
 			| _ ->
 				t
 		in
+		let should_access c cf stat =
+			if c != ctx.curclass && not cf.cf_public && String.length cf.cf_name > 4 then begin match String.sub cf.cf_name 0 4 with
+				| "get_" | "set_" -> false
+				| _ -> can_access ctx c cf stat
+			end else
+				can_access ctx c cf stat
+		in
 		let rec get_fields t =
 			match follow t with
 			| TInst (c,params) ->
 				if Meta.has Meta.CoreApi c.cl_meta then merge_core_doc ctx c;
-				let priv = is_parent c ctx.curclass in
 				let merge ?(cond=(fun _ -> true)) a b =
 					PMap.foldi (fun k f m -> if cond f then PMap.add k f m else m) a b
 				in
@@ -3916,7 +3922,7 @@ and display_expr ctx e_ast e with_type p =
 						| None -> m
 						| Some (csup,cparams) -> merge m (loop csup cparams)
 					) in
-					let m = merge ~cond:(fun f -> priv || can_access ctx c f false) c.cl_fields m in
+					let m = merge ~cond:(fun f -> should_access c f false) c.cl_fields m in
 					let m = (match c.cl_kind with
 						| KTypeParameter pl -> List.fold_left (fun acc t -> merge acc (get_fields t)) m pl
 						| _ -> m
@@ -3943,7 +3949,7 @@ and display_expr ctx e_ast e with_type p =
 					PMap.empty
 				in
 				PMap.fold (fun f acc ->
-					if f.cf_name <> "_new" && can_access ctx c f true && Meta.has Meta.Impl f.cf_meta && not (Meta.has Meta.Enum f.cf_meta) then begin
+					if f.cf_name <> "_new" && should_access c f true && Meta.has Meta.Impl f.cf_meta && not (Meta.has Meta.Enum f.cf_meta) then begin
 						let f = prepare_using_field f in
 						let t = apply_params a.a_params pl (follow f.cf_type) in
 						PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type t } acc
@@ -3962,7 +3968,7 @@ and display_expr ctx e_ast e with_type p =
 					let is_abstract_impl = match c.cl_kind with KAbstractImpl _ -> true | _ -> false in
 					let pm = match c.cl_constructor with None -> PMap.empty | Some cf -> PMap.add "new" cf PMap.empty in
 					PMap.fold (fun f acc ->
-						if can_access ctx c f true && (not is_abstract_impl || not (Meta.has Meta.Impl f.cf_meta) || Meta.has Meta.Enum f.cf_meta) then
+						if should_access c f true && (not is_abstract_impl || not (Meta.has Meta.Impl f.cf_meta) || Meta.has Meta.Enum f.cf_meta) then
 							PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type f.cf_type } acc else acc
 					) a.a_fields pm
 				| _ ->
