@@ -225,10 +225,9 @@ enum ValueType {
 		return @:privateAccess Array.wrap(fields);
 	}
 
-	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> untyped {
-		if (__php__("$e->__tname__ == 'Bool'")) return ['true', 'false'];
-		if (__php__("$e->__tname__ == 'Void'")) return [];
-		return __call__("new _hx_array", e.__constructors);
+	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
+		if (e == null) return null;
+		return @:privateAccess Array.wrap(untyped e.__hx__list());
 	}
 
 	public static function typeof( v : Dynamic ) : ValueType untyped {
