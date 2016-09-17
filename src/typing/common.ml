@@ -997,6 +997,8 @@ let get_signature com =
 		let defines = PMap.foldi (fun k v acc ->
 			(* don't make much difference between these special compilation flags *)
 			match String.concat "_" (ExtString.String.nsplit k "-") with
+			(* If we add something here that might be used in conditional compilation it should be added to
+			   Parser.parse_macro_ident as well (issue #5682). *)
 			| "display" | "use_rtti_doc" | "macro_times" | "display_details" | "no_copt" | "display_stdin" -> acc
 			| _ -> (k ^ "=" ^ v) :: acc
 		) com.defines [] in

@@ -44,6 +44,8 @@ let error_msg = function
 let error m p = raise (Error (m,p))
 let display_error : (error_msg -> pos -> unit) ref = ref (fun _ _ -> assert false)
 
+let special_identifier_files = Hashtbl.create 0
+
 let quoted_ident_prefix = "@$__hx__"
 
 let quote_ident s =
@@ -1534,6 +1536,7 @@ and parse_macro_cond allow_op s =
 		tk, make_unop op e p
 
 and parse_macro_ident allow_op t p s =
+	if t = "display" then Hashtbl.replace special_identifier_files (Path.unique_full_path p.pfile) t;
 	let e = (EConst (Ident t),p) in
 	if not allow_op then
 		None, e

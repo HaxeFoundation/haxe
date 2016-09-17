@@ -113,7 +113,13 @@ let rec wait_loop process_params verbose accept =
 				has_parse_error := false;
 				let data = Typeload.parse_file com2 file p in
 				if verbose then print_endline ("Parsed " ^ ffile);
-				if not !has_parse_error && (not is_display_file) then Hashtbl.replace cache.c_files fkey (ftime,data);
+				if not !has_parse_error && (not is_display_file) then begin
+					try
+						let ident = Hashtbl.find Parser.special_identifier_files ffile in
+						if verbose then print_endline (Printf.sprintf "%s not cached (using \"%s\" define)" ffile ident);
+					with Not_found ->
+						Hashtbl.replace cache.c_files fkey (ftime,data);
+				end;
 				data
 	);
 	let cache_module m =
