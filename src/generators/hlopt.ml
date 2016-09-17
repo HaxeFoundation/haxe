@@ -140,6 +140,12 @@ let optimize dump (f:fundecl) =
 	(* build code graph *)
 	
 	let blocks_pos = Hashtbl.create 0 in
+	let all_blocks = Hashtbl.create 0 in
+	for i = 0 to Array.length f.code - 1 do
+		match control (op i) with
+		| CJAlways d | CJCond d -> Hashtbl.replace all_blocks (i + 1 + d) true
+		| _ -> ()
+	done;
 	let rec make_block pos =
 		try
 			Hashtbl.find blocks_pos pos
@@ -158,7 +164,10 @@ let optimize dump (f:fundecl) =
 					b2.bprev <- b :: b2.bprev;
 					b2
 				in
-				match control (op i) with
+				if i > pos && Hashtbl.mem all_blocks i then begin
+					b.bend <- i - 1;
+					b.bnext <- [goto (-1)];
+				end else match control (op i) with
 				| CNo ->
 					loop (i + 1)
 				| CRet | CThrow ->
@@ -172,12 +181,9 @@ let optimize dump (f:fundecl) =
 				| CJCond d | CTry d ->
 					b.bend <- i;
 					b.bnext <- [goto 0; goto d];
-				| CLabel when i = pos ->
+				| CLabel ->
 					b.bloop <- true;
 					loop (i + 1)
-				| CLabel ->
-					b.bend <- i - 1;
-					b.bnext <- [goto (-1)];
 			in
 			loop pos;
 			b
@@ -185,7 +191,7 @@ let optimize dump (f:fundecl) =
 	let root = make_block 0 in
 	
 	(* build registers liveness *)
-	
+(*	
 	let rec liveness (b:block) regs =
 		let regs = ref regs in
 		let rec loop i =
@@ -220,7 +226,7 @@ let optimize dump (f:fundecl) =
 		| _ :: args ->
 			loop (i + 1) args (PMap.add i [(-1,-1)] map) 
 	in
-(*	let live = liveness root (loop 0 (match f.ftype with HFun (args,_) -> args | _ -> assert false) PMap.empty) in
+	let live = liveness root (loop 0 (match f.ftype with HFun (args,_) -> args | _ -> assert false) PMap.empty) in
 	*)
 	(* done *)
 	
