@@ -1061,12 +1061,18 @@ let write_c version file (code:code) =
 			| OMakeEnum (r,cid,rl) ->
 				let e, et = (match rtype r with HEnum e -> e, enum_constr_type e cid | _ -> assert false) in
 				let has_ptr = List.exists (fun r -> is_gc_ptr (rtype r)) rl in
-				sexpr "%s = (venum*)hl_gc_alloc%s(sizeof(%s))" (reg r) (if has_ptr then "" else "_noptr") et;
-				sexpr "%s->index = %d" (reg r) cid;
+				let need_tmp = List.mem r rl in
+				let tmp = if not need_tmp then reg r else begin
+					sexpr "{ venum *tmp";
+					"tmp"
+				end in
+				sexpr "%s = (venum*)hl_gc_alloc%s(sizeof(%s))" tmp (if has_ptr then "" else "_noptr") et;
+				sexpr "%s->index = %d" tmp cid;
 				let _,_,tl = e.efields.(cid) in
 				list_iteri (fun i v ->
-					sexpr "((%s*)%s)->p%d = %s" et (reg r) i (rcast v tl.(i))
+					sexpr "((%s*)%s)->p%d = %s" et tmp i (rcast v tl.(i))
 				) rl;
+				if need_tmp then sexpr "%s = tmp; }" (reg r)
 			| OEnumAlloc (r,cid) ->
 				let et, (_,_,tl) = (match rtype r with HEnum e -> enum_constr_type e cid, e.efields.(cid) | _ -> assert false) in
 				let has_ptr = List.exists is_gc_ptr (Array.to_list tl) in
