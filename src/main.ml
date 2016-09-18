@@ -317,7 +317,12 @@ let generate tctx ext xml_out interp swf_header =
 	if file_extension com.file = ext then delete_file com.file;
 	if com.platform = Flash || com.platform = Cpp then List.iter (Codegen.fix_overrides com) com.types;
 	if Common.defined com Define.Dump then Codegen.Dump.dump_types com;
-	if Common.defined com Define.DumpDependencies then Codegen.Dump.dump_dependencies com;
+	if Common.defined com Define.DumpDependencies then begin
+		Codegen.Dump.dump_dependencies com;
+		if not tctx.Typecore.in_macro then match tctx.g.Typecore.macros with
+			| None -> ()
+			| Some(_,ctx) -> print_endline "generate"; Codegen.Dump.dump_dependencies ~target_override:(Some "macro") ctx.Typecore.com
+	end;
 	begin match com.platform with
 		| Neko when interp -> ()
 		| Cpp when Common.defined com Define.Cppia -> ()

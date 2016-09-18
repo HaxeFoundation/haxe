@@ -668,8 +668,12 @@ module Dump = struct
 			| "record" -> dump_record com
 			| _ -> dump_types com (Type.s_expr_ast (not (Common.defined com Define.DumpIgnoreVarIds)) "\t")
 
-	let dump_dependencies com =
-		let buf,close = create_dumpfile [] ["dump";Common.platform_name com.platform;".dependencies"] in
+	let dump_dependencies ?(target_override=None) com =
+		let target_name = match target_override with
+			| None -> Common.platform_name com.platform
+			| Some s -> s
+		in
+		let buf,close = create_dumpfile [] ["dump";target_name;".dependencies"] in
 		let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 		let dep = Hashtbl.create 0 in
 		List.iter (fun m ->
@@ -681,7 +685,7 @@ module Dump = struct
 			) m.m_extra.m_deps;
 		) com.Common.modules;
 		close();
-		let buf,close = create_dumpfile [] ["dump";Common.platform_name com.platform;".dependants"] in
+		let buf,close = create_dumpfile [] ["dump";target_name;".dependants"] in
 		let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 		Hashtbl.iter (fun n ml ->
 			print "%s:\n" n;
