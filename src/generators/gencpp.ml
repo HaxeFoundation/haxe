@@ -1310,11 +1310,19 @@ let hx_stack_push ctx output clazz func_name pos =
            if (clazz="*") then
              (" (" ^ esc_file ^ ":" ^ (string_of_int (Lexer.get_error_line pos) ) ^ ")")
            else "") in
+
          let hash_class_func = gen_hash 0 (clazz^"."^func_name) in
          let hash_file = gen_hash 0 stripped_file in
-         output ("HX_STACK_FRAME(\"" ^ clazz ^ "\",\"" ^ func_name ^ "\"," ^ hash_class_func ^ ",\"" ^
-               full_name ^ "\",\"" ^ esc_file ^ "\"," ^
-               (string_of_int (Lexer.get_error_line pos) ) ^  "," ^ hash_file ^ ")\n")
+
+         let out_top = ctx.ctx_writer#write_h in
+         let lineName  = (string_of_int (Lexer.get_error_line pos) ) in
+         incr ctx.ctx_file_id;
+         let id = string_of_int( !(ctx.ctx_file_id) ) in
+         let varName = "_hx_pos_" ^func_name ^ "_" ^ id in
+         out_top ("namespace { HX_DEFINE_STACK_FRAME(" ^ varName ^ ",\"" ^ clazz ^ "\",\"" ^ func_name ^ "\"," ^ hash_class_func ^ ",\"" ^
+                 full_name ^ "\",\"" ^ esc_file ^ "\"," ^
+                 lineName ^  "," ^ hash_file ^ ")\n}\n");
+         output ("HX_STACKFRAME(&" ^ varName ^ ")\n");
       end
    end
 ;;
