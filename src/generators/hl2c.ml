@@ -684,7 +684,7 @@ let write_c version file (code:code) =
 				sexpr "%s->%s = %s" (reg obj) (ident name) (rcast v t)
 			| HVirtual vp ->
 				let name, nid, t = vp.vfields.(fid) in
-				let dset = sprintf "hl_dyn_set%s((vdynamic*)%s,%ld/*%s*/%s,%s)" (dyn_prefix t) (reg obj) (hash nid) name (type_value_opt (rtype v)) (reg v) in
+				let dset = sprintf "hl_dyn_set%s(%s->value,%ld/*%s*/%s,%s)" (dyn_prefix t) (reg obj) (hash nid) name (type_value_opt (rtype v)) (reg v) in
 				(match t with
 				| HFun _ -> expr dset
 				| _ -> sexpr "if( hl_vfields(%s)[%d] ) *(%s*)(hl_vfields(%s)[%d]) = (%s)%s; else %s" (reg obj) fid (ctype t) (reg obj) fid (ctype t) (reg v) dset)
@@ -699,7 +699,7 @@ let write_c version file (code:code) =
 				sexpr "%s%s->%s" (rassign r t) (reg obj) (ident name)
 			| HVirtual v ->
 				let name, nid, t = v.vfields.(fid) in
-				let dget = sprintf "(%s)hl_dyn_get%s((vdynamic*)%s,%ld/*%s*/%s)" (ctype t) (dyn_prefix t) (reg obj) (hash nid) name (type_value_opt t) in
+				let dget = sprintf "(%s)hl_dyn_get%s(%s->value,%ld/*%s*/%s)" (ctype t) (dyn_prefix t) (reg obj) (hash nid) name (type_value_opt t) in
 				(match t with
 				| HFun _ -> sexpr "%s%s" (rassign r t) dget
 				| _ -> sexpr "%shl_vfields(%s)[%d] ? (*(%s*)(hl_vfields(%s)[%d])) : %s" (rassign r t) (reg obj) fid (ctype t) (reg obj) fid dget)
