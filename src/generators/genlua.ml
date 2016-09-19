@@ -1019,8 +1019,12 @@ and gen_block_element ?(after=false) ctx e  =
 			| [] -> ()
 			| [e] -> gen_block_element ~after ctx e
 			| _ -> assert false)
-	| TCall({ eexpr = TLocal { v_name = "__lua_table__" }} , _) ->
-		()
+	(* For plain lua table instantiations, just capture argument operations *)
+	| TCall({ eexpr = TLocal { v_name = "__lua_table__" }} , el) ->
+		List.iter(fun x -> gen_block_element ctx ~after x) el
+	(* make a no-op __define_feature__ expression possible *)
+	| TCall({eexpr = TLocal ({v_name = "__define_feature__"})}, [_;e]) ->
+		gen_block_element ~after ctx e
 	| TFunction _ -> ()
 	| TObjectDecl fl ->
 		List.iter (fun (_,e) -> gen_block_element ~after ctx e) fl
