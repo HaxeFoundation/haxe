@@ -230,27 +230,24 @@ enum ValueType {
 		return @:privateAccess Array.wrap(untyped e.__hx__list());
 	}
 
-	public static function typeof( v : Dynamic ) : ValueType untyped {
-		if(v == null) return TNull;
-		if(__call__("is_array", v)) {
-			if(__call__("is_callable", v)) return TFunction;
-			return TClass(Array);
-		}
-		if(__call__("is_string", v)) {
-			if(__call__("_hx_is_lambda", v)) return TFunction;
-			return TClass(String);
-		}
-		if(__call__("is_bool", v)) return TBool;
-		if(__call__("is_int", v)) return TInt;
-		if(__call__("is_float", v)) return TFloat;
-		if(__php__("$v instanceof _hx_anonymous"))  return TObject;
-		if(__php__("$v instanceof _hx_enum"))  return TObject;
-		if(__php__("$v instanceof _hx_class"))  return TObject;
+	public static function typeof( v : Dynamic ) : ValueType {
+		if (v == null) return TNull;
 
-		var c = __php__("_hx_ttype(get_class($v))");
+		if (v.is_object()) {
+			if (Reflect.isFunction(v)) return TFunction;
+			if (untyped __php__("$v instanceof \\StdClass")) return TObject;
+			if (Boot.isClass(v)) return TObject;
 
-		if(__php__("$c instanceof _hx_enum"))  return TEnum(cast c);
-		if(__php__("$c instanceof _hx_class")) return TClass(cast c);
+			var hxClass = Boot.getClass(Global.get_class(v));
+			if (Boot.isEnumValue(v)) return TEnum(cast hxClass);
+			return TClass(cast hxClass);
+		}
+
+		if (v.is_bool()) return TBool;
+		if (v.is_int()) return TInt;
+		if (v.is_float()) return TFloat;
+		if (v.is_string()) return TClass(String);
+
 		return TUnknown;
 	}
 
