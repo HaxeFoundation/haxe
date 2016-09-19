@@ -91,6 +91,20 @@ let rec wait_loop process_params verbose accept =
 		c_files = Hashtbl.create 0;
 		c_modules = Hashtbl.create 0;
 	} in
+	let signs = ref [] in
+	let sign_string com =
+		let sign = get_signature com in
+		let	sign_id =
+			try
+				List.assoc sign !signs
+			with Not_found ->
+				let i = string_of_int (List.length !signs) in
+				signs := (sign,i) :: !signs;
+				print_endline (Printf.sprintf "Found context %s:\n%s" i (dump_context com));
+				i
+		in
+		Printf.sprintf "%2s,%3s: " sign_id (short_platform_name com.platform)
+	in
 	global_cache := Some cache;
 	Typer.macro_enable_cache := true;
 	let current_stdin = ref None in
@@ -112,19 +126,18 @@ let rec wait_loop process_params verbose accept =
 			with Not_found ->
 				has_parse_error := false;
 				let data = Typeload.parse_file com2 file p in
-				if verbose then print_endline ("Parsed " ^ ffile);
-				if not !has_parse_error && (not is_display_file) then begin
-					try
+				let info = if !has_parse_error then "not cached, has parse error"
+					else if is_display_file then "not cached, is display file"
+					else begin try
 						let ident = Hashtbl.find Parser.special_identifier_files ffile in
-						if verbose then print_endline (Printf.sprintf "%s not cached (using \"%s\" define)" ffile ident);
+						Printf.sprintf "not cached, using \"%s\" define" ident;
 					with Not_found ->
 						Hashtbl.replace cache.c_files fkey (ftime,data);
-				end;
+						"cached"
+				end in
+				if verbose then print_endline (Printf.sprintf "%sparsed %s (%s)" (sign_string com2) ffile info);
 				data
 	);
-	let cache_module m =
-		Hashtbl.replace cache.c_modules (m.m_path,m.m_extra.m_sign) m;
-	in
 	let check_module_path com m p =
 		if m.m_extra.m_file <> Path.unique_full_path (Typeload.resolve_module_file com m.m_path (ref[]) p) then begin
 			if verbose then print_endline ("Module path " ^ s_type_path m.m_path ^ " has been changed");
@@ -180,7 +193,7 @@ let rec wait_loop process_params verbose accept =
 						check_module_path mctx.Typecore.com m p
 					);
 					if file_time m.m_extra.m_file <> m.m_extra.m_time then begin
-						if verbose then print_endline ("File " ^ m.m_extra.m_file ^ (if m.m_extra.m_time = -1. then " not cached (macro-in-macro)" else " has been modified"));
+						if verbose then print_endline (Printf.sprintf "%s%s not cached (%s)" (sign_string com2) (s_type_path m.m_path) (if m.m_extra.m_time = -1. then "macro-in-macro" else "modified"));
 						if m.m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules m.m_extra.m_file;
 						raise Not_found;
 					end;
@@ -192,14 +205,14 @@ let rec wait_loop process_params verbose accept =
 				m.m_extra.m_dirty <- true;
 				false
 		in
-		let rec add_modules m0 m =
+		let rec add_modules tabs m0 m =
 			if m.m_extra.m_added < !compilation_step then begin
 				(match m0.m_extra.m_kind, m.m_extra.m_kind with
 				| MCode, MMacro | MMacro, MCode ->
 					(* this was just a dependency to check : do not add to the context *)
 					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
 				| _ ->
-					if verbose then print_endline ("Reusing  cached module " ^ Ast.s_type_path m.m_path);
+					if verbose then print_endline (Printf.sprintf "%s%sreusing %s" (sign_string com2) tabs (s_type_path m.m_path));
 					m.m_extra.m_added <- !compilation_step;
 					List.iter (fun t ->
 						match t with
@@ -219,17 +232,17 @@ let rec wait_loop process_params verbose accept =
 					) m.m_types;
 					if m.m_extra.m_kind <> MSub then Typeload.add_module ctx m p;
 					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
-					PMap.iter (fun _ m2 -> add_modules m0 m2) m.m_extra.m_deps);
+					PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps);
 					List.iter (Typer.call_init_macro ctx) m.m_extra.m_macro_calls
 			end
 		in
 		try
 			let m = Hashtbl.find cache.c_modules (mpath,sign) in
 			if not (check m) then begin
-				if verbose then print_endline ("Skipping cached module " ^ Ast.s_type_path mpath ^ (match !dep with None -> "" | Some m -> "(" ^ Ast.s_type_path m.m_path ^ ")"));
+				if verbose then print_endline (Printf.sprintf "%sskipping %s%s" (sign_string com2) (s_type_path m.m_path) (Option.map_default (fun m -> Printf.sprintf " (via %s)" (s_type_path m.m_path)) "" !dep));
 				raise Not_found;
 			end;
-			add_modules m m;
+			add_modules "" m m;
 			t();
 			Some m
 		with Not_found ->
@@ -240,6 +253,10 @@ let rec wait_loop process_params verbose accept =
 	while true do
 		let read, write, close = accept() in
 		let rec cache_context com =
+			let cache_module m =
+				Hashtbl.replace cache.c_modules (m.m_path,m.m_extra.m_sign) m;
+				if verbose then print_endline (Printf.sprintf "%scached %s" (sign_string com) (s_type_path m.m_path));
+			in
 			if com.display.dms_full_typing then begin
 				List.iter cache_module com.modules;
 				if verbose then print_endline ("Cached " ^ string_of_int (List.length com.modules) ^ " modules");

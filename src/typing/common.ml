@@ -528,6 +528,19 @@ let platform_name = function
 	| Python -> "python"
 	| Hl -> "hl"
 
+let short_platform_name = function
+	| Cross -> "x"
+	| Js -> "js"
+	| Lua -> "lua"
+	| Neko -> "n"
+	| Flash -> "swf"
+	| Php -> "php"
+	| Cpp -> "cpp"
+	| Cs -> "cs"
+	| Java -> "jav"
+	| Python -> "py"
+	| Hl -> "hl"
+
 module MetaInfo = struct
 	open Meta
 	type meta_usage =
@@ -1279,3 +1292,16 @@ let float_repres f =
 let add_diagnostics_message com s p sev =
 	let di = com.shared.shared_display_information in
 	di.diagnostics_messages <- (s,p,sev) :: di.diagnostics_messages
+
+open Printer
+
+let dump_context com = s_record_fields "" [
+	"version",string_of_int com.version;
+	"args",s_list ", " (fun s -> s) com.args;
+	"debug",string_of_bool com.debug;
+	"platform",platform_name com.platform;
+	"std_path",s_list ", " (fun s -> s) com.std_path;
+	"class_path",s_list ", " (fun s -> s) com.class_path;
+	"defines",s_pmap (fun s -> s) (fun s -> s) com.defines;
+	"defines_signature",s_opt (fun s -> Digest.to_hex s) com.defines_signature;
+]
