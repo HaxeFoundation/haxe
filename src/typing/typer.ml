@@ -4741,16 +4741,16 @@ let make_macro_api ctx p =
 		);
 		Interp.define_type = (fun v ->
 			let m, tdef, pos = (try Interp.decode_type_def v with Interp.Invalid_expr -> Interp.exc (Interp.VString "Invalid type definition")) in
-			let add ctx =
+			let add is_macro ctx =
 				let mnew = Typeload.type_module ctx m ctx.m.curmod.m_extra.m_file [tdef,pos] pos in
-				mnew.m_extra.m_kind <- MFake;
+				mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
 				add_dependency mnew ctx.m.curmod;
 			in
-			add ctx;
+			add false ctx;
 			(* if we are adding a class which has a macro field, we also have to add it to the macro context (issue #1497) *)
 			if not ctx.in_macro then match tdef,ctx.g.macros with
 			| EClass c,Some (_,mctx) when List.exists (fun cff -> (Meta.has Meta.Macro cff.cff_meta || List.mem AMacro cff.cff_access)) c.d_data ->
-				add mctx
+				add true mctx
 			| _ ->
 				()
 		);
