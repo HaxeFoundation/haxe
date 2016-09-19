@@ -909,7 +909,7 @@ class RunCi {
 								}
 								FileSystem.rename("bin/unit.js", output);
 								FileSystem.rename("bin/unit.js.map", output + ".map");
-								runCommand("node", ["-e", "var unit = require('./" + output + "').unit; unit.TestMain.main(); process.exit(unit.Test.success ? 0 : 1);"]);
+								runCommand("node", ["-e", "var unit = require('./" + output + "').unit; unit.TestMain.main(); process.exit(unit.TestMain.success ? 0 : 1);"]);
 								output;
 							}
 						];
