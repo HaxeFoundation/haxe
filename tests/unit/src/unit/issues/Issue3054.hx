@@ -19,7 +19,7 @@ class Issue3054 extends Test {
 		}
 
 		var myOtherValue:Null<MyOtherEnum> = B;
-		t(unit.TestType.typeError(switch(myOtherValue) {
+		t(unit.HelperMacros.typeError(switch(myOtherValue) {
 			case A(A):
 			case A(B):
 			case B:

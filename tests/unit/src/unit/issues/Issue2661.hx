@@ -66,7 +66,7 @@ class Issue2661 extends Test {
 		eq(10, new A1(i++) % new AChild(i++));
 		eq(12, i);
 
-		t(unit.TestType.typeError(new AChild(1) - new A1(0)));
-		t(unit.TestType.typeError(new AChild(1) % new A1(1)));
+		t(unit.HelperMacros.typeError(new AChild(1) - new A1(0)));
+		t(unit.HelperMacros.typeError(new AChild(1) % new A1(1)));
 	}
 }

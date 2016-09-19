@@ -197,7 +197,7 @@ class UsingChild2 extends UsingBase {
 
 class UsingUnrelated {
 	static public function test() {
-		var err = TestType.typeError("foo".privFunc());
+		var err = HelperMacros.typeError("foo".privFunc());
 		return err + "foo".pupFunc() + "foo".siblingFunc();
 	}
 }

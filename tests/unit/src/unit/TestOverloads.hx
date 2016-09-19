@@ -1,7 +1,7 @@
 package unit;
 import haxe.io.Bytes;
-import unit.TestType.typeError;
-import unit.TestType.typedAs;
+import unit.HelperMacros.typeError;
+import unit.HelperMacros.typedAs;
 using unit.TestOverloads.UsingTest2;
 using unit.TestOverloads.UsingTest3;
 

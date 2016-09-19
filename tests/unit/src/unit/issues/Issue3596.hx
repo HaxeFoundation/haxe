@@ -47,8 +47,8 @@ private class ClassWithConstructorThatCallsChild extends ClassWithConstructorTha
 
 class Issue3596 extends Test {
 	function test() {
-		t(unit.TestType.typeError(new ClassWithInitButNoConstructor()));
-		t(unit.TestType.typeError(new ClassWithInitButNoConstructorChild()));
+		t(unit.HelperMacros.typeError(new ClassWithInitButNoConstructor()));
+		t(unit.HelperMacros.typeError(new ClassWithInitButNoConstructorChild()));
 
 		//var c = new ClassWithInitAndConstructorChild();
 		//eq(1, c.a);

@@ -14,6 +14,6 @@ class Issue4284 extends Test {
 		eq("FOO", a!);
 
 		var b = true;
-		t(unit.TestType.typeError(b!));
+		t(unit.HelperMacros.typeError(b!));
 	}
 }

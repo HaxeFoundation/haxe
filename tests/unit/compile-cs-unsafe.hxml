@@ -4,7 +4,7 @@
 --next
 
 compile-each.hxml
--main unit.Test
+-main unit.TestMain
 -D unsafe
 -cs bin/cs_unsafe
 -net-lib native_cs/bin/native_cs.dll
