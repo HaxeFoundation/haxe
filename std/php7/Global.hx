@@ -131,7 +131,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.count.php
 	**/
-	static function count( array:NativeArray, ?mode:Int ) : Int ;
+	static function count( array:Dynamic, ?mode:Int ) : Int ;
 
 	/**
 		@see http://php.net/manual/en/function.array-filter.php

@@ -26,6 +26,7 @@ import php7.reflection.ReflectionClass;
 import php7.reflection.ReflectionMethod;
 import php7.reflection.ReflectionProperty;
 import php7.NativeArray;
+import php7.NativeIndexedArray;
 import haxe.extern.EitherType;
 
 using php7.Global;
@@ -251,35 +252,47 @@ enum ValueType {
 		return TUnknown;
 	}
 
-	public static function enumEq<T>( a : T, b : T ) : Bool untyped {
-		if( a == b )
-			return true;
+	public static function enumEq<T:EnumValue>( a : T, b : T ) : Bool {
+		if (a == b) return true;
+		if (a == null || b == null) return false;
+
 		try {
-			if( a.index != b.index )
-				return false;
-			for( i in 0...__call__("count", a.params))
-				if(getEnum(untyped __php__("$a->params[$i]")) != null) {
-					if(!untyped enumEq(__php__("$a->params[$i]"),__php__("$b->params[$i]")))
+			if (Global.get_class(cast a) != Global.get_class(cast b)) return false;
+			if (enumIndex(a) != enumIndex(b)) return false;
+
+			var aParams:NativeIndexedArray<Dynamic> = untyped a.params;
+			var bParams:NativeIndexedArray<Dynamic> = untyped b.params;
+			for (i in 0...Global.count(aParams)) {
+				//enums
+				if (Boot.isEnumValue(aParams[i])) {
+					if (!enumEq(aParams[i], bParams[i])) {
 						return false;
-				} else {
-					if(!untyped __call__("_hx_equal", __php__("$a->params[$i]"),__php__("$b->params[$i]")))
-						return false;
+					}
 				}
-		} catch( e : Dynamic ) {
+				//functions
+				if (Reflect.isFunction(aParams[i])) {
+					if (!Reflect.compareMethods(aParams[i], bParams[i])) {
+						return false;
+					}
+				}
+				//everything else
+				if (aParams[i] != bParams[i]) {
+					return false;
+				}
+			}
+
+			return true;
+		} catch (e:Dynamic) {
 			return false;
 		}
-		return true;
 	}
 
 	public static function enumConstructor( e : EnumValue ) : String {
 		return untyped e.tag;
 	}
 
-	public static function enumParameters( e : EnumValue ) : Array<Dynamic> untyped {
-		if(e.params == null)
-			return [];
-		else
-			return __php__("new _hx_array($e->params)");
+	public inline static function enumParameters( e : EnumValue ) : Array<Dynamic> {
+		return @:privateAccess Array.wrap(untyped e.params);
 	}
 
 	public inline static function enumIndex( e : EnumValue ) : Int {
@@ -287,13 +300,21 @@ enum ValueType {
 	}
 
 	public static function allEnums<T>( e : Enum<T> ) : Array<T> {
-		var all = [];
-		for( c in getEnumConstructs(e) ) {
-			var v = Reflect.field(e,c);
-			if( !Reflect.isFunction(v) )
-				all.push(v);
+		if (e == null) return null;
+
+		var phpName = getPhpName(e);
+		if (phpName == null) return null;
+
+		var result = [];
+
+		for (name in getEnumConstructs(e)) {
+			var reflection = new ReflectionMethod(phpName, name);
+			if (reflection.getNumberOfParameters() == 0) {
+				result.push(reflection.invoke(null));
+			}
 		}
-		return all;
+
+		return result;
 	}
 
 	/**

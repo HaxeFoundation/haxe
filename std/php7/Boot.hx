@@ -451,7 +451,7 @@ private class HxEnum {
 	public function new( tag:String, index:Int, arguments:NativeArray = null ) : Void {
 		this.tag = tag;
 		this.index = index;
-		params = (arguments == null ? untyped __php__("[]") : arguments);
+		params = (arguments == null ? new NativeArray() : arguments);
 	}
 
 	/**
