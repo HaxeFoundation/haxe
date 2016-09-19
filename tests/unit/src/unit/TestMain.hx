@@ -4,6 +4,7 @@ import unit.Test.*;
 
 @:access(unit.Test)
 @:expose("unit.TestMain")
+@:keep
 class TestMain {
 
 	static var asyncWaits = new Array<haxe.PosInfos>();
