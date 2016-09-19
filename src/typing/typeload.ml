@@ -1976,7 +1976,7 @@ module ClassInitializer = struct
 			is_lib = is_lib;
 			is_native = is_native;
 			is_core_api = Meta.has Meta.CoreApi c.cl_meta;
-			is_class_debug = Meta.has Meta.Debug c.cl_meta;
+			is_class_debug = false;
 			extends_public = extends_public c;
 			abstract = abstract;
 			context_init = context_init;
@@ -2011,7 +2011,7 @@ module ClassInitializer = struct
 			is_macro = is_macro;
 			is_extern = is_extern;
 			is_display_field = ctx.is_display_file && Display.is_display_position cff.cff_pos;
-			is_field_debug = cctx.is_class_debug || Meta.has Meta.Debug cff.cff_meta;
+			is_field_debug = cctx.is_class_debug;
 			is_abstract_member = cctx.abstract <> None && Meta.has Meta.Impl cff.cff_meta;
 			field_kind = field_kind;
 			do_bind = (((not c.cl_extern || is_inline) && not c.cl_interface) || field_kind = FKInit);
