@@ -1798,10 +1798,11 @@ let transform_multireturn ctx = function
 					(* if we found a field access for a multi-return local - that's fine, because it'll be generated as a local var *)
 					| TField ({ eexpr = TLocal v}, _) when Meta.has Meta.MultiReturn v.v_meta ->
 						e
-					| TReturn Some(e2) when is_multireturn e2.etype ->
-						abort "You cannot return a multireturn type from a haxe function" c.cl_pos;
+					| TReturn Some(e2) ->
+					    if is_multireturn e2.etype then
+						failwith "You cannot return a multireturn type from a haxe function"
+					    else
 						e
-
 					(*
 						if we found usage of local var we previously marked with @:multiReturn as a value itself,
 						remove the @:multiReturn meta and add "box me" meta so it'll be boxed on var initialization
