@@ -2138,7 +2138,7 @@ let configure gen =
 									| TBlock _ ->
 										let unchecked = needs_unchecked e in
 										if unchecked then (begin_block w; write w "unchecked ");
-										let t = Common.timer "expression to string" in
+										let t = Common.timer ["expression to string"] in
 										expr_s w e;
 										t();
 										line_reset_directive w;
@@ -2165,7 +2165,7 @@ let configure gen =
 												| None -> ()
 												| Some sc ->
 													write w ": ";
-													let t = Common.timer "expression to string" in
+													let t = Common.timer ["expression to string"] in
 													expr_s w sc;
 													write w " ";
 													t()

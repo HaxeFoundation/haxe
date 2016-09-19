@@ -21,7 +21,7 @@ let get_timer_fields start_time =
 	let fields = [("@TOTAL", FKTimer (Printf.sprintf "%.3fs" (get_time() -. start_time)), "")] in
 	if !tot > 0. then
 		Hashtbl.fold (fun _ t acc ->
-			("@TIME " ^ t.name, FKTimer (Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot)), "") :: acc
+			("@TIME " ^ (String.concat "." t.id), FKTimer (Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot)), "") :: acc
 		) Common.htimers fields
 	else
 		fields

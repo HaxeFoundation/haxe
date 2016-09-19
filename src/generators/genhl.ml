@@ -637,7 +637,7 @@ let alloc_fresh ctx t =
 	let rid = DynArray.length ctx.m.mregs.arr in
 	DynArray.add ctx.m.mregs.arr t;
 	rid
-	
+
 let alloc_tmp ctx t =
 	if not ctx.optimize then alloc_fresh ctx t else
 	let a = try PMap.find t ctx.m.mallocs with Not_found ->
@@ -655,14 +655,14 @@ let alloc_tmp ctx t =
 		r
 	| r :: _ ->
 		r
-		
+
 let current_pos ctx =
 	DynArray.length ctx.m.mops
 
 let rtype ctx r =
 	DynArray.get ctx.m.mregs.arr r
 
-let hold ctx r = 
+let hold ctx r =
 	if not ctx.optimize || Hashtbl.mem ctx.m.mvars r then () else
 	let t = rtype ctx r in
 	let a = PMap.find t ctx.m.mallocs in
@@ -674,7 +674,7 @@ let hold ctx r =
 	in
 	a.a_all <- loop a.a_all;
 	a.a_hold <- r :: a.a_hold
-	
+
 let free ctx r =
 	if not ctx.optimize || Hashtbl.mem ctx.m.mvars r then () else
 	let t = rtype ctx r in
@@ -683,7 +683,7 @@ let free ctx r =
 	let rec loop l =
 		match l with
 		| [] -> assert false
-		| n :: l when n = r -> 
+		| n :: l when n = r ->
 			if List.mem r l then last := false;
 			l
 		| n :: l -> n :: loop l
@@ -1160,7 +1160,7 @@ and jump_expr ctx e jcond =
 		jump ctx (fun i -> if jcond then OJTrue (r,i) else OJFalse (r,i))
 
 and eval_args ctx el t p =
-	let rl = List.map2 (fun e t -> 
+	let rl = List.map2 (fun e t ->
 		let r = eval_to ctx e t in
 		hold ctx r;
 		r
@@ -1636,7 +1636,7 @@ and eval_expr ctx e =
 		| AInstanceFun (ethis, f) ->
 			let r = eval_null_check ctx ethis in
 			hold ctx r;
-			let el = r :: el() in	
+			let el = r :: el() in
 			free ctx r;
 			(match el with
 			| [a] -> op ctx (OCall1 (ret, f, a))
@@ -1649,7 +1649,7 @@ and eval_expr ctx e =
 		| AInstanceProto (ethis, fid) | AVirtualMethod (ethis, fid) ->
 			let r = eval_null_check ctx ethis in
 			hold ctx r;
-			let el = r :: el() in	
+			let el = r :: el() in
 			free ctx r;
 			op ctx (OCallMethod (ret, fid, el))
 		| AEnum (_,index) ->
@@ -2130,7 +2130,7 @@ and eval_expr ctx e =
 	| TArrayDecl el ->
 		let r = alloc_tmp ctx (to_type ctx e.etype) in
 		let et = (match follow e.etype with TInst (_,[t]) -> to_type ctx t | _ -> assert false) in
-		let array_bytes bits t tname get_op = 
+		let array_bytes bits t tname get_op =
 			let b = alloc_tmp ctx HBytes in
 			let size = reg_int ctx ((List.length el) lsl bits) in
 			op ctx (OCall1 (b,alloc_std ctx "alloc_bytes" [HI32] HBytes,size));
@@ -2146,7 +2146,7 @@ and eval_expr ctx e =
 			) el;
 			free ctx b;
 			free ctx idx;
-			op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayBase") ("alloc" ^ tname), b, reg_int ctx (List.length el)));		
+			op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayBase") ("alloc" ^ tname), b, reg_int ctx (List.length el)));
 		in
 		(match et with
 		| HI32 ->
@@ -2504,7 +2504,7 @@ and gen_method_wrapper ctx rt t p =
 		let iargs, iret = (match rt with HFun (args, ret) -> args, ret | _ -> assert false) in
 		ctx.m <- method_context fid HDyn null_capture;
 		let rfun = alloc_tmp ctx rt in
-		let rargs = List.map (fun t -> 
+		let rargs = List.map (fun t ->
 			let r = alloc_tmp ctx t in
 			hold ctx r;
 			r
@@ -2833,7 +2833,7 @@ let generate_static_init ctx =
 				| Some e ->
 					let r = eval_to ctx e HDyn in
 					op ctx (OSetField (rc,index "__meta__",r)));
-					
+
 				free ctx rc;
 
 			| TEnumDecl e when not e.e_extern ->
@@ -3340,7 +3340,7 @@ let generate com =
 			List.iter (fun s -> write ("\t" ^ Hlinterp.spec_string s)) spec;
 			write "";
 		) code.functions;
-		close_out ch;	
+		close_out ch;
 	end;
 	if Common.raw_defined com "hl-check" then begin
 		PMap.iter (fun (s,p) fid ->
@@ -3348,7 +3348,7 @@ let generate com =
 		) ctx.cfids.map;
 		Hlinterp.check code;
 	end;
-	let t = Common.timer "write hl" in
+	let t = Common.timer ["write";"hl"] in
 	if file_extension com.file = "c" then
 		Hl2c.write_c com.Common.version com.file code
 	else begin

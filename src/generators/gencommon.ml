@@ -367,7 +367,7 @@ class ['tp, 'ret] rule_dispatcher name ignore_not_found =
 				if key < priority then begin
 					let q = Hashtbl.find tbl key in
 					Stack.iter (fun (n, rule) ->
-						let t = if !debug_mode then Common.timer ("rule dispatcher rule: " ^ n) else fun () -> () in
+						let t = if !debug_mode then Common.timer [("rule dispatcher rule: " ^ n)] else fun () -> () in
 						let r = rule(tp) in
 						t();
 						if is_some r then begin ret := r; raise Exit end
@@ -405,7 +405,7 @@ class ['tp] rule_map_dispatcher name =
 					let q = Hashtbl.find tbl key in
 					Stack.iter (fun (n, rule) ->
 						trace ("running rule " ^ n);
-						let t = if !debug_mode then Common.timer ("rule map dispatcher rule: " ^ n) else fun () -> () in
+						let t = if !debug_mode then Common.timer [("rule map dispatcher rule: " ^ n)] else fun () -> () in
 						let r = rule(!cur) in
 						t();
 						if is_some r then begin cur := get r end
@@ -772,7 +772,7 @@ let run_filters gen =
 	let has_errors = ref false in
 	gen.gcon.error <- (fun msg pos -> has_errors := true; last_error msg pos);
 	(* first of all, we have to make sure that the filters won't trigger a major Gc collection *)
-	let t = Common.timer "gencommon_filters" in
+	let t = Common.timer ["gencommon_filters"] in
 	(if Common.defined gen.gcon Define.GencommonDebug then debug_mode := true else debug_mode := false);
 	let run_filters filter =
 		let rec loop acc mds =
@@ -868,7 +868,7 @@ let run_filters gen =
 (* ******************************************* *)
 
 let write_file gen w source_dir path extension out_files =
-	let t = timer "write file" in
+	let t = timer ["write";"file"] in
 	let s_path = source_dir	^ "/" ^ (snd path) ^ "." ^ (extension) in
 	(* create the folders if they don't exist *)
 	mkdir_from_path s_path;

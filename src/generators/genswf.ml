@@ -363,7 +363,7 @@ let build_class com c file =
 	(path.tpackage, [(EClass class_data,pos)])
 
 let extract_data (_,tags) =
-	let t = Common.timer "read swf" in
+	let t = Common.timer ["read";"swf"] in
 	let h = Hashtbl.create 0 in
 	let rec loop_field f =
 		match f.hlf_kind with
@@ -455,7 +455,7 @@ let remove_debug_infos as3 =
 	As3hlparse.flatten (List.map loop_static hl)
 
 let parse_swf com file =
-	let t = Common.timer "read swf" in
+	let t = Common.timer ["read";"swf"] in
 	let is_swc = file_extension file = "swc" || file_extension file = "ane" in
 	let file = (try Common.find_file com file with Not_found -> failwith ((if is_swc then "SWC" else "SWF") ^ " Library not found : " ^ file)) in
 	let ch = if is_swc then begin
@@ -1164,7 +1164,7 @@ let generate swf_header com =
 		{header with h_frame_count = header.h_frame_count + 1},loop tags
 	| _ -> swf in
 	(* write swf/swc *)
-	let t = Common.timer "write swf" in
+	let t = Common.timer ["write";"swf"] in
 	let level = (try int_of_string (Common.defined_value com Define.SwfCompressLevel) with Not_found -> 9) in
 	SwfParser.init Extc.input_zip (Extc.output_zip ~level);
 	(match swc with

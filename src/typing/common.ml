@@ -1211,22 +1211,25 @@ let mem_size v =
 (* ------------------------- TIMERS ----------------------------- *)
 
 type timer_infos = {
-	name : string;
+	id : string list;
 	mutable start : float list;
 	mutable total : float;
+	mutable calls : int;
 }
 
 let get_time = Extc.time
 let htimers = Hashtbl.create 0
 
-let new_timer name =
+let new_timer id =
+	let key = String.concat "." id in
 	try
-		let t = Hashtbl.find htimers name in
+		let t = Hashtbl.find htimers key in
 		t.start <- get_time() :: t.start;
+		t.calls <- t.calls + 1;
 		t
 	with Not_found ->
-		let t = { name = name; start = [get_time()]; total = 0.; } in
-		Hashtbl.add htimers name t;
+		let t = { id = id; start = [get_time()]; total = 0.; calls = 1; } in
+		Hashtbl.add htimers key t;
 		t
 
 let curtime = ref []
@@ -1241,15 +1244,15 @@ let close t =
 	t.total <- t.total +. dt;
 	let rec loop() =
 		match !curtime with
-		| [] -> failwith ("Timer " ^ t.name ^ " closed while not active")
+		| [] -> failwith ("Timer " ^ (String.concat "." t.id) ^ " closed while not active")
 		| tt :: l -> curtime := l; if t != tt then loop()
 	in
 	loop();
 	(* because of rounding errors while adding small times, we need to make sure that we don't have start > now *)
 	List.iter (fun ct -> ct.start <- List.map (fun t -> let s = t +. dt in if s > now then now else s) ct.start) !curtime
 
-let timer name =
-	let t = new_timer name in
+let timer id =
+	let t = new_timer id in
 	curtime := t :: !curtime;
 	(function() -> close t)
 

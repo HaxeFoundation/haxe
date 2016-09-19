@@ -4504,11 +4504,11 @@ let get_type_patch ctx t sub =
 			Hashtbl.add h k tp;
 			tp
 
-let macro_timer ctx path =
-	Common.timer (if Common.defined ctx.com Define.MacroTimes then "macro " ^ path else "macro execution")
+let macro_timer ctx l =
+	Common.timer (if Common.defined ctx.com Define.MacroTimes then ("macro" :: l) else ["macro"])
 
 let typing_timer ctx need_type f =
-	let t = Common.timer "typing" in
+	let t = Common.timer ["typing"] in
 	let old = ctx.com.error and oldp = ctx.pass in
 	(*
 		disable resumable errors... unless we are in display mode (we want to reach point of completion)
@@ -4572,21 +4572,21 @@ let make_macro_api ctx p =
 		);
 		Interp.after_typing = (fun f ->
 			Common.add_typing_filter ctx.com (fun tl ->
-				let t = macro_timer ctx "afterTyping" in
+				let t = macro_timer ctx ["afterTyping"] in
 				f tl;
 				t()
 			)
 		);
 		Interp.on_generate = (fun f ->
 			Common.add_filter ctx.com (fun() ->
-				let t = macro_timer ctx "onGenerate" in
+				let t = macro_timer ctx ["onGenerate"] in
 				f (List.map type_of_module_type ctx.com.types);
 				t()
 			)
 		);
 		Interp.after_generate = (fun f ->
 			Common.add_final_filter ctx.com (fun() ->
-				let t = macro_timer ctx "afterGenerate" in
+				let t = macro_timer ctx ["afterGenerate"] in
 				f();
 				t()
 			)
@@ -4690,7 +4690,7 @@ let make_macro_api ctx p =
 						Interp.VNull
 					));
 				] in
-				let t = macro_timer ctx "jsGenerator" in
+				let t = macro_timer ctx ["jsGenerator"] in
 				gen jsctx;
 				t()
 			);
@@ -4824,6 +4824,7 @@ let rec init_macro_interp ctx mctx mint =
 	if !macro_enable_cache && not (Common.defined mctx.com Define.NoMacroCache) then macro_interp_cache := Some mint
 
 and flush_macro_context mint ctx =
+	let t = macro_timer ctx ["flush"] in
 	let mctx = (match ctx.g.macros with None -> assert false | Some (_,mctx) -> mctx) in
 	finalize mctx;
 	let _, types, modules = generate mctx in
@@ -4861,7 +4862,8 @@ and flush_macro_context mint ctx =
 		List.iter (fun f -> f t) type_filters
 	in
 	(try Interp.add_types mint types ready
-	with Error (e,p) -> raise (Fatal_error(error_msg e,p)));
+	with Error (e,p) -> t(); raise (Fatal_error(error_msg e,p)));
+	t();
 	Filters.next_compilation()
 
 let create_macro_interp ctx mctx =
@@ -4913,12 +4915,7 @@ let get_macro_context ctx p =
 		api, mctx
 
 let load_macro ctx display cpath f p =
-	(*
-		The time measured here takes into account both macro typing an init, but benchmarks
-		shows that - unless you re doing heavy statics vars init - the time is mostly spent in
-		typing the classes needed for macro execution.
-	*)
-	let t = macro_timer ctx ("typing (+init) " ^ (Ast.s_type_path cpath) ^ "." ^ f) in
+	let t = macro_timer ctx ["typing";Ast.s_type_path cpath ^ "." ^ f] in
 	let api, mctx = get_macro_context ctx p in
 	let mint = Interp.get_ctx() in
 	let cpath, sub = (match List.rev (fst cpath) with
@@ -4943,7 +4940,9 @@ let load_macro ctx display cpath f p =
 		let mt = Typeload.load_type_def mctx p { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = sub } in
 		let cl, meth = (match mt with
 			| TClassDecl c ->
+				let t = macro_timer ctx ["finalize"] in
 				finalize mctx;
+				t();
 				c, (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
 			| _ -> error "Macro should be called on a class" p
 		) in
@@ -4963,7 +4962,7 @@ let load_macro ctx display cpath f p =
 	in
 	t();
 	let call args =
-		let t = macro_timer ctx (s_type_path cpath ^ "." ^ f) in
+		let t = macro_timer ctx ["execution";s_type_path cpath ^ "." ^ f] in
 		incr stats.s_macros_called;
 		let r = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [(match sub with None -> snd cpath | Some s -> s)]) f args api in
 		t();

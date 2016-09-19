@@ -110,7 +110,7 @@ let expand_env ?(h=None) path  =
 
 let add_libs com libs =
 	let call_haxelib() =
-		let t = Common.timer "haxelib" in
+		let t = Common.timer ["haxelib"] in
 		let cmd = "haxelib path " ^ String.concat " " libs in
 		let pin, pout, perr = Unix.open_process_full cmd (Unix.environment()) in
 		let lines = Std.input_list pin in
@@ -159,7 +159,7 @@ let run_command ctx cmd =
 	let h = Hashtbl.create 0 in
 	Hashtbl.add h "__file__" ctx.com.file;
 	Hashtbl.add h "__platform__" (platform_name ctx.com.platform);
-	let t = Common.timer "command" in
+	let t = Common.timer ["command"] in
 	let cmd = expand_env ~h:(Some h) cmd in
 	let len = String.length cmd in
 	if len > 3 && String.sub cmd 0 3 = "cd " then begin
@@ -365,7 +365,7 @@ let generate tctx ext xml_out interp swf_header =
 			assert false
 		in
 		Common.log com ("Generating " ^ name ^ ": " ^ com.file);
-		let t = Common.timer ("generate " ^ name) in
+		let t = Common.timer ["generate";name] in
 		generate com;
 		t()
 	end
@@ -807,7 +807,7 @@ try
 		ctx.setup();
 		Common.log com ("Classpath : " ^ (String.concat ";" com.class_path));
 		Common.log com ("Defines : " ^ (String.concat ";" (PMap.foldi (fun k v acc -> (match v with "1" -> k | _ -> k ^ "=" ^ v) :: acc) com.defines [])));
-		let t = Common.timer "typing" in
+		let t = Common.timer ["typing"] in
 		Typecore.type_expr_ref := (fun ctx e with_type -> Typer.type_expr ctx e with_type);
 		let tctx = Typer.create com in
 		List.iter (Typer.call_init_macro tctx) (List.rev !config_macros);
@@ -820,7 +820,7 @@ try
 			if ctx.has_next || ctx.has_error then raise Abort;
 			failwith "No completion point was found";
 		end;
-		let t = Common.timer "filters" in
+		let t = Common.timer ["filters"] in
 		let main, types, modules = Typer.generate tctx in
 		com.main <- main;
 		com.types <- types;
@@ -927,7 +927,7 @@ with
 		error ctx (Printexc.to_string e) Ast.null_pos
 
 ;;
-let other = Common.timer "other" in
+let other = Common.timer ["other"] in
 Sys.catch_break true;
 let args = List.tl (Array.to_list Sys.argv) in
 (try

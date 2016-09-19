@@ -1869,7 +1869,6 @@ let transform_multireturn ctx = function
 	| _ -> ()
 
 let generate com =
-	let t = Common.timer "generate lua" in
 	let ctx = alloc_ctx com in
 
 	Codegen.map_source_header com (fun s -> print ctx "-- %s\n" s);
@@ -2115,7 +2114,6 @@ let generate com =
 
 	let ch = open_out_bin com.file in
 	output_string ch (Buffer.contents ctx.buf);
-	close_out ch;
-	t()
+	close_out ch
 
 

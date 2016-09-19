@@ -24,11 +24,54 @@ type context = {
 let report_times print =
 	let tot = ref 0. in
 	Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
-	print (Printf.sprintf "Total time : %.3fs" !tot);
 	if !tot > 0. then begin
-		print "------------------------------------";
-		let timers = List.sort (fun t1 t2 -> compare t1.name t2.name) (Hashtbl.fold (fun _ t acc -> t :: acc) Common.htimers []) in
-		List.iter (fun t -> print (Printf.sprintf "  %s : %.3fs, %.0f%%" t.name t.total (t.total *. 100. /. !tot))) timers
+		let buckets = Hashtbl.create 0 in
+		let add id time calls =
+			try
+				let time',calls' = Hashtbl.find buckets id in
+				Hashtbl.replace buckets id (time' +. time,calls' + calls)
+			with Not_found ->
+				Hashtbl.add buckets id (time,calls)
+		in
+		Hashtbl.iter (fun _ t ->
+			let rec loop acc ids = match ids with
+				| id :: ids ->
+					add (List.rev (id :: acc)) t.total t.calls;
+					loop (id :: acc) ids
+				| [] ->
+					()
+			in
+			loop [] t.id
+		) Common.htimers;
+		let max_name = ref 0 in
+		let max_calls = ref 0 in
+		let timers = Hashtbl.fold (fun id t acc ->
+			let name,indent = match List.rev id with
+				| [] -> assert false
+				| name :: l -> name,(String.make (List.length l * 2) ' ')
+			in
+			let name,info = try
+				let i = String.rindex name '.' in
+				String.sub name (i + 1) (String.length name - i - 1),String.sub name 0 i
+			with Not_found ->
+				name,""
+			in
+			let name = indent ^ name in
+			if String.length name > !max_name then max_name := String.length name;
+			if snd t > !max_calls then max_calls := snd t;
+			(id,name,info,t) :: acc
+		) buckets [] in
+		let max_calls = String.length (string_of_int !max_calls) in
+		print (Printf.sprintf "%-*s | %7s |   %% | %*s | info" !max_name "name" "time(s)" max_calls "#");
+		let sep = String.make (!max_name + max_calls + 21) '-' in
+		print sep;
+		let timers = List.sort (fun (id1,_,_,_) (id2,_,_,_) -> compare id1 id2) timers in
+		let print_timer id name info (time,calls) =
+			print (Printf.sprintf "%-*s | %7.3f | %3.0f | %*i | %s" !max_name name time (time *. 100. /. !tot) max_calls calls info)
+		in
+		List.iter (fun (id,name,info,t) -> print_timer id name info t) timers;
+		print sep;
+		print_timer ["total"] "total" "" (!tot,0)
 	end
 
 let default_flush ctx =
@@ -148,7 +191,7 @@ let rec wait_loop process_params verbose accept =
 	let compilation_mark = ref 0 in
 	let mark_loop = ref 0 in
 	Typeload.type_module_hook := (fun (ctx:Typecore.typer) mpath p ->
-		let t = Common.timer "module cache check" in
+		let t = Common.timer ["server";"module cache check"] in
 		let com2 = ctx.Typecore.com in
 		let sign = get_signature com2 in
 		let dep = ref None in
@@ -317,7 +360,7 @@ let rec wait_loop process_params verbose accept =
 				stats.s_methods_typed := 0;
 				stats.s_macros_called := 0;
 				Hashtbl.clear Common.htimers;
-				let _ = Common.timer "other" in
+				let _ = Common.timer ["other"] in
 				incr compilation_step;
 				compilation_mark := !mark_loop;
 				start_time := get_time();

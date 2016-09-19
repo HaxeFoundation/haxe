@@ -4937,7 +4937,7 @@ let constructor_arg_var_list class_def ctx =
    | _ -> []
 ;;
 
-let can_inline_constructor ctx class_def = 
+let can_inline_constructor ctx class_def =
    match class_def.cl_constructor with
    | Some definition -> false
    | _ -> true
@@ -5111,7 +5111,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let isContainer = if (has_gc_references common_ctx class_def) then "true" else "false" in
    let inlineContructor = can_inline_constructor common_ctx class_def in
 
-   let outputConstructor out = 
+   let outputConstructor out =
       out (ptr_name ^ " " ^ class_name ^ "::__new(" ^constructor_type_args ^") {\n");
       out ("\t" ^ ptr_name ^ " _hx_result = new " ^ class_name ^ "();\n");
       out ("\t_hx_result->__construct(" ^ constructor_args ^ ");\n");
@@ -5121,7 +5121,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       out (ptr_name ^ " " ^ class_name ^ "::__alloc(hx::ImmixAllocator *_hx_alloc" ^ (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^") {\n");
       out ("\t" ^ class_name ^ " *_hx_result = (" ^ class_name ^ "*)(hx::ImmixAllocator::alloc(_hx_alloc, sizeof(" ^ class_name ^ "), " ^ isContainer ^", " ^ gcName ^ "));\n");
       out ("\t*(void **)_hx_result = " ^ class_name ^ "::_hx_vtable;\n");
-      let rec dump_dynamic class_def = 
+      let rec dump_dynamic class_def =
          if has_dynamic_member_functions class_def then
             out ("\t" ^ (join_class_path_remap class_def.cl_path "::") ^ "_obj::__alloc_dynamic_functions(_hx_alloc,_hx_result);\n")
          else match class_def.cl_super with
@@ -7223,7 +7223,7 @@ let generate_source ctx =
       | _ -> cmd_defines := !cmd_defines ^ " -D" ^ name ^ "=\"" ^ (escape_command value) ^ "\"" ) common_ctx.defines;
    write_build_options common_ctx (common_ctx.file ^ "/Options.txt") common_ctx.defines;
    if ( not (Common.defined common_ctx Define.NoCompilation) ) then begin
-      let t = Common.timer "generate cpp - native compilation" in
+      let t = Common.timer ["generate";"cpp";"native compilation"] in
       let old_dir = Sys.getcwd() in
       Sys.chdir common_ctx.file;
       let cmd = ref "haxelib run hxcpp Build.xml haxe" in
