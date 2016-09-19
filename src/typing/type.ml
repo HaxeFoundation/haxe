@@ -1251,6 +1251,9 @@ module Printer = struct
 	let s_type =
 		s_type (print_context())
 
+	let s_pair s1 s2 =
+		Printf.sprintf "(%s,%s)" s1 s2
+
 	let s_record_field name value =
 		Printf.sprintf "%s = %s;" name value
 
@@ -1434,6 +1437,33 @@ module Printer = struct
 			"m_id",string_of_int m.m_id;
 			"m_path",s_type_path m.m_path;
 			"m_extra",s_module_def_extra "\t" m.m_extra
+		]
+
+	let s_type_path tp =
+		s_record_fields "" [
+			"tpackage",s_list "." (fun s -> s) tp.tpackage;
+			"tname",tp.tname;
+			"tparams","";
+			"tsub",s_opt (fun s -> s) tp.tsub;
+		]
+
+	let s_class_flag = function
+		| HInterface -> "HInterface"
+		| HExtern -> "HExtern"
+		| HPrivate -> "HPrivate"
+		| HExtends tp -> "HExtends " ^ (s_type_path (fst tp))
+		| HImplements tp -> "HImplements " ^ (s_type_path (fst tp))
+
+	let s_placed f (x,p) =
+		s_pair (f x) (s_pos p)
+
+	let s_class_field cff =
+		s_record_fields "" [
+			"cff_name",s_placed (fun s -> s) cff.cff_name;
+			"cff_doc",s_opt (fun s -> s) cff.cff_doc;
+			"cff_pos",s_pos cff.cff_pos;
+			"cff_meta",s_metadata cff.cff_meta;
+			"cff_access",s_list ", " Ast.s_access cff.cff_access;
 		]
 end
 
