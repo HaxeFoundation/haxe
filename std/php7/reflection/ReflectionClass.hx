@@ -3,16 +3,16 @@ package php7.reflection;
 import haxe.extern.Rest;
 
 @:native('ReflectionClass')
-extern class ReflectionClass implements Reflector {    
-    // const integer IS_IMPLICIT_ABSTRACT = 16 ;
-    // const integer IS_EXPLICIT_ABSTRACT = 32 ;
-    // const integer IS_FINAL = 64 ;
-    
+extern class ReflectionClass implements Reflector {
+    @:phpClassConst static var IS_IMPLICIT_ABSTRACT : Int;
+    @:phpClassConst static var IS_EXPLICIT_ABSTRACT : Int;
+    @:phpClassConst static var IS_FINAL : Int;
+
     public static function export( argument:Dynamic, returnValue:Bool = false ) : String;
 
     public var name : String;
-        
-    public function new( argument:Dynamic ) : Void;    
+
+    public function new( argument:Dynamic ) : Void;
     public function getConstant( name:String ) : Dynamic;
     public function getConstants() : NativeAssocArray<Dynamic>;
     public function getConstructor() : ReflectionMethod;

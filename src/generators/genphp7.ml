@@ -280,6 +280,15 @@ let is_php_global expr =
 		| _ -> false
 
 (**
+	Indicates whether `expr` is a field access which should be generated as class constant access
+*)
+let is_php_class_const expr =
+	match expr.eexpr with
+		| TField (_, FStatic ({ cl_extern = true }, { cf_meta = meta; cf_kind = Var _ })) ->
+			Meta.has Meta.PhpClassConst meta
+		| _ -> false
+
+(**
 	Check if specified enum constructor has arguments
 *)
 let is_enum_constructor_with_args (constructor:tenum_field) =
@@ -1055,6 +1064,7 @@ class virtual type_builder ctx wrapper =
 				| TArray (target, index) -> self#write_expr_array_access target index
 				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2
 				| TField (fexpr, access) when is_php_global expr -> self#write_expr_php_global expr
+				| TField (fexpr, access) when is_php_class_const expr -> self#write_expr_php_class_const expr
 				| TField (expr, access) -> self#write_expr_field expr access
 				| TTypeExpr mtype -> self#write_expr_type mtype
 				| TParenthesis expr ->
@@ -1687,12 +1697,17 @@ class virtual type_builder ctx wrapper =
 			Writes a name of a function or a constant from global php namespace
 		*)
 		method private write_expr_php_global target_expr =
-			let name =
-				match target_expr.eexpr with
-					| TField (_, FStatic (_, field)) -> field.cf_name
-					| _ -> fail self#pos __POS__
-			in
-			self#write name;
+			match target_expr.eexpr with
+				| TField (_, FStatic (_, field)) -> self#write field.cf_name
+				| _ -> fail self#pos __POS__
+		(**
+			Writes access to PHP class constant
+		*)
+		method private write_expr_php_class_const target_expr =
+			match target_expr.eexpr with
+				| TField (_, FStatic (ecls, field)) ->
+					self#write ((self#use_t (TInst (ecls, []))) ^ "::" ^ field.cf_name)
+				| _ -> fail self#pos __POS__
 		(**
 			Writes TNew to output buffer
 		*)
