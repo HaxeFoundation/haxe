@@ -319,7 +319,7 @@ let generate tctx ext xml_out interp swf_header =
 	if Common.defined com Define.Dump then Codegen.Dump.dump_types com;
 	if Common.defined com Define.DumpDependencies then begin
 		Codegen.Dump.dump_dependencies com;
-		if not tctx.Typecore.in_macro then match tctx.g.Typecore.macros with
+		if not tctx.Typecore.in_macro then match tctx.Typecore.g.Typecore.macros with
 			| None -> ()
 			| Some(_,ctx) -> print_endline "generate"; Codegen.Dump.dump_dependencies ~target_override:(Some "macro") ctx.Typecore.com
 	end;

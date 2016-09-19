@@ -4065,14 +4065,20 @@ and maybe_type_against_enum ctx f with_type p =
 			in
 			let path,fields,mt = loop t in
 			let old = ctx.m.curmod.m_types in
+			let restore () = ctx.m.curmod.m_types <- old in
 			ctx.m.curmod.m_types <- ctx.m.curmod.m_types @ [mt];
 			let e = try
 				f()
-			with Error (Unknown_ident n,_) ->
+			with
+			| Error (Unknown_ident n,_) ->
+				restore();
 				raise_or_display_message ctx (StringError.string_error n fields ("Identifier '" ^ n ^ "' is not part of " ^ s_type_path path)) p;
 				AKExpr (mk (TConst TNull) (mk_mono()) p)
+			| exc ->
+				restore();
+				raise exc;
 			in
-			ctx.m.curmod.m_types <- old;
+			restore();
 			e
 		| _ ->
 			raise Exit
