@@ -1802,7 +1802,7 @@ let transform_multireturn ctx = function
 					    if is_multireturn e2.etype then
 						failwith "You cannot return a multireturn type from a haxe function"
 					    else
-						e
+						Type.map_expr loop e;
 					(*
 						if we found usage of local var we previously marked with @:multiReturn as a value itself,
 						remove the @:multiReturn meta and add "box me" meta so it'll be boxed on var initialization
