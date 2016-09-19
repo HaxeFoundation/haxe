@@ -10,6 +10,11 @@ class TestMain {
 	static var asyncWaits = new Array<haxe.PosInfos>();
 	static var asyncCache = new Array<Void -> Void>();
 
+	static function nodejsMain() {
+		main();
+		(untyped process).exit(Test.success ? 0 : 1);
+	}
+
 	static function main() {
 	  var verbose = #if ( cpp || neko || php ) Sys.args().indexOf("-v") >= 0 #else false #end;
 
