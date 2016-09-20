@@ -774,7 +774,7 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx "while ";
 		gen_cond ctx cond;
 		let b = open_block ctx in
-		println ctx " do ";
+		print ctx " do ";
 		let b2 = open_block ctx in
 		if has_continue then begin
 		    spr ctx "repeat "
@@ -789,8 +789,7 @@ and gen_expr ?(local=true) ctx e = begin
 		    print ctx "if _hx_break then _hx_break = false; break; end";
 		end;
 		b();
-		newline ctx;
-		spr ctx "end";
+		spr ctx " end";
 		ctx.handle_continue <- old_ctx_continue;
 	| TWhile (cond,e,Ast.DoWhile) ->
 		let handle_break = handle_break ctx e in
@@ -917,14 +916,14 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx " elseif _hx_result ~= _hx_expected_result then return _hx_result end";
 	| TSwitch (e,cases,def) ->
 		List.iteri (fun cnt (el,e2) ->
-		    if cnt == 0 then spr ctx "if " else spr ctx "elseif ";
+		    if cnt == 0 then spr ctx "if " else println ctx "elseif ";
 		    List.iteri (fun ccnt e3 ->
 			if ccnt > 0 then spr ctx " or ";
 			gen_value ctx e;
 			spr ctx " == ";
 			gen_value ctx e3;
 		    ) el;
-		    spr ctx " then ";
+		    println ctx " then ";
 		    let bend = open_block ctx in
 		    bend();
 		    gen_block_element ctx e2;
