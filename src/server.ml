@@ -172,6 +172,9 @@ let rec wait_loop process_params verbose accept =
 				let info = if !has_parse_error then "not cached, has parse error"
 					else if is_display_file then "not cached, is display file"
 					else begin try
+						(* We assume that when not in display mode it's okay to cache stuff that has #if display
+						   checks. The reasoning is that non-display mode has more information than display mode. *)
+						if not com2.display.dms_display then raise Not_found;
 						let ident = Hashtbl.find Parser.special_identifier_files ffile in
 						Printf.sprintf "not cached, using \"%s\" define" ident;
 					with Not_found ->
