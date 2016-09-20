@@ -597,9 +597,7 @@ and gen_expr ?(local=true) ctx e = begin
 		ctx.in_loop <- snd old;
 		ctx.separator <- true
 	| TCall (e,el) ->
-		begin
 		    gen_call ctx e el false;
-		end;
 	| TArrayDecl el ->
 		spr ctx "_hx_tab_array({";
 		let count = ref 0 in
@@ -628,7 +626,6 @@ and gen_expr ?(local=true) ctx e = begin
 				    spr ctx (ident v.v_name);
 				    spr ctx " = ";
 				    gen_value ctx e1;
-				    semicolon ctx;
 
 				| _ when Meta.has Meta.MultiReturn v.v_meta ->
 					(* multi-return var is generated as several vars for unpacking *)
@@ -647,7 +644,6 @@ and gen_expr ?(local=true) ctx e = begin
 				    spr ctx (String.concat ", " names);
 				    spr ctx " = ";
 				    gen_value ctx e;
-				    semicolon ctx
 
 				| _ ->
 				    if local then
@@ -662,7 +658,6 @@ and gen_expr ?(local=true) ctx e = begin
 					let is_boxed_multireturn = Meta.has (Meta.Custom ":lua_mr_box") v.v_meta in
 					let e = if is_boxed_multireturn then mk_mr_box ctx e else e in
 				    gen_value ctx e;
-				    semicolon ctx;
 		end
 	| TNew (c,_,el) ->
 		(match c.cl_constructor with
@@ -977,7 +972,6 @@ and gen_block_element ctx e  =
 		newline ctx;
 		let f () = gen_tbinop ctx op e1 e2 in
 		gen_iife_assign ctx f;
-		semicolon ctx;
 	| TUnop ((Increment|Decrement) as op,_,e) ->
 		newline ctx;
 		gen_expr ctx e;
@@ -1123,8 +1117,7 @@ and gen_value ctx e =
 			gen_elseif ctx eo3;
 		    | _ ->
 			spr ctx " else ";
-			gen_expr ctx (assign e2);
-			semicolon ctx;
+			gen_block_element ctx (assign e2);
 		    ));
 		in
 		gen_elseif ctx eo;
