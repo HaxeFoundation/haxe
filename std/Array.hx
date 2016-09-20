@@ -124,11 +124,11 @@ extern class Array<T> {
 		`this` Array.
 
 		If `pos` or `end` are negative, their offsets are calculated from the
-		end	of `this` Array by `this.length + pos` and `this.length + end`
+		end of `this` Array by `this.length + pos` and `this.length + end`
 		respectively. If this yields a negative value, 0 is used instead.
 
-		If `pos` exceeds `this.length` or if `end` exceeds or equals `pos`,
-		the result is `[]`.
+		If `pos` exceeds `this.length` or if `end` is less than or equals
+		`pos`, the result is `[]`.
 	**/
 	function slice( pos : Int, ?end : Int ) : Array<T>;
 
