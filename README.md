@@ -1,5 +1,5 @@
 
-# [<img src="http://haxe.org/img/haxe-logo-horizontal.svg" alt="Haxe logo" width="140">](http://haxe.org) - [The Cross-Platform Toolkit](http://haxe.org)
+# [<img src="http://haxe.org/img/haxe-logo-horizontal.svg" alt="Haxe logo" width="140">](https://haxe.org) - [The Cross-Platform Toolkit](https://haxe.org)
 [![TravisCI Build Status](https://travis-ci.org/HaxeFoundation/haxe.svg?branch=development)](https://travis-ci.org/HaxeFoundation/haxe)
 [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/HaxeFoundation/haxe?branch=development&svg=true)](https://ci.appveyor.com/project/HaxeFoundation/haxe)
 [![SauceLabs Test Status](https://saucelabs.com/buildstatus/haxe)](https://saucelabs.com/u/haxe)
@@ -26,7 +26,7 @@ Haxe allows you to compile for the following targets:
 
 You can try Haxe directly from your browser at [try.haxe.org](http://try.haxe.org)!
 
-For more information about Haxe, head to the [offical Haxe website](http://haxe.org).
+For more information about Haxe, head to the [offical Haxe website](https://haxe.org).
 
 ## License
 
@@ -36,19 +36,19 @@ The Haxe project has several licenses, covering different parts of the projects.
  * The Haxe standard library is released under the MIT license.
  * The Neko virtual machine is released under the MIT license. Its bundled runtime libraries (ndll) and tools are released under open source licenses as described in https://github.com/HaxeFoundation/neko/blob/master/LICENSE
 
-For the complete Haxe licenses, please see http://haxe.org/foundation/open-source.html or [extra/LICENSE.txt](extra/LICENSE.txt).
+For the complete Haxe licenses, please see https://haxe.org/foundation/open-source.html or [extra/LICENSE.txt](extra/LICENSE.txt).
 
 ## Installing Haxe
 
-The latest stable release is [Haxe 3.3.0-rc.1](http://haxe.org/download/version/3.3.0-rc.1/). Pre-built binaries are available for your platform:
+The latest stable release is [Haxe 3.3.0-rc.1](https://haxe.org/download/version/3.3.0-rc.1/). Pre-built binaries are available for your platform:
 
- * **[Windows installer](http://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-win.exe)**
- * **[Windows binaries](http://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-win.zip)**
- * **[OSX installer](http://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-osx-installer.pkg)**
- * **[OSX binaries](http://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-osx.tar.gz)**
- * **[Linux Software Packages](http://haxe.org/download/linux)**
- * **[Linux 32-bit binaries](http://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-linux32.tar.gz)**
- * **[Linux 64-bit binaries](http://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-linux64.tar.gz)**
+ * **[Windows installer](https://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-win.exe)**
+ * **[Windows binaries](https://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-win.zip)**
+ * **[OSX installer](https://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-osx-installer.pkg)**
+ * **[OSX binaries](https://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-osx.tar.gz)**
+ * **[Linux Software Packages](https://haxe.org/download/linux)**
+ * **[Linux 32-bit binaries](https://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-linux32.tar.gz)**
+ * **[Linux 64-bit binaries](https://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-linux64.tar.gz)**
 
 Automated development builds are available from [build.haxe.org](http://build.haxe.org).
 
@@ -59,17 +59,17 @@ Automated development builds are available from [build.haxe.org](http://build.ha
         git clone --recursive git://github.com/HaxeFoundation/haxe.git
         cd haxe
 
- 2. Follow the [documentation on building Haxe for your platform](http://haxe.org/documentation/introduction/building-haxe.html).
+ 2. Follow the [documentation on building Haxe for your platform](https://haxe.org/documentation/introduction/building-haxe.html).
 
 ## Using Haxe
 
-For information on on using Haxe, consult the [Haxe documentation](http://haxe.org/documentation):
+For information on on using Haxe, consult the [Haxe documentation](https://haxe.org/documentation):
 
- * [Haxe Introduction](http://haxe.org/documentation/introduction), an introduction to the Haxe toolkit
- * [The Haxe Manual](http://haxe.org/manual), the reference manual for the Haxe language
+ * [Haxe Introduction](https://haxe.org/documentation/introduction), an introduction to the Haxe toolkit
+ * [The Haxe Manual](https://haxe.org/manual), the reference manual for the Haxe language
  * [Haxe Code Cookbook](http://code.haxe.org), code snippets / learning resource
  * [Haxe API](http://api.haxe.org), documentation for the Haxe standard and native APIs
- * [Haxelib](http://lib.haxe.org), a repository of Haxe libraries for a variety of needs
+ * [Haxelib](https://lib.haxe.org), a repository of Haxe libraries for a variety of needs
 
 ## Community
 
