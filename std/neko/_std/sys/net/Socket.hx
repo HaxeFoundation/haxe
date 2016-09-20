@@ -162,7 +162,7 @@ class Socket {
 				// that a non-blocking connect is in progress
 			}
 			else
-				neko.Lib.rethrow(s);
+				throw s;
 		}
 	}
 

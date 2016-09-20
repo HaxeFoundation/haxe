@@ -658,6 +658,7 @@ module MetaInfo = struct
 		| Build -> ":build",("Builds a class or enum from a macro",[HasParam "Build macro call";UsedOnEither [TClass;TEnum]])
 		| BuildXml -> ":buildXml",("Specify xml data to be injected into Build.xml",[Platform Cpp])
 		| Callable -> ":callable",("Abstract forwards call to its underlying type",[UsedOn TAbstract])
+		| CatchVariable -> ":catchVariable",("Internally used to mark catch variables",[Internal])
 		| Class -> ":class",("Used internally to annotate an enum that will be generated as a class",[Platforms [Java;Cs]; UsedOn TEnum; Internal])
 		| ClassCode -> ":classCode",("Used to inject platform-native code into a class",[Platforms [Java;Cs]; UsedOn TClass])
 		| Commutative -> ":commutative",("Declares an abstract operator as commutative",[UsedOn TAbstractField])

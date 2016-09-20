@@ -61,6 +61,7 @@ class Lib {
 		Rethrow an exception. This is useful when manually filtering an exception in order
 		to keep the previous exception stack.
 	**/
+	@:deprecated("Use throw instead, the compiler detects rethrows")
 	public static function rethrow( e : Dynamic ) : Dynamic {
 		return untyped __dollar__rethrow(e);
 	}

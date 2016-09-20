@@ -176,6 +176,7 @@ class Lib
 		Rethrow an exception. This is useful when manually filtering an exception in order
 		to keep the previous exception stack.
 	**/
+	@:deprecated("Use throw instead, the compiler detects rethrows")
 	@:extern inline public static function rethrow(e:Dynamic):Void
 	{
 		untyped __rethrow__();
