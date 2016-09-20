@@ -122,7 +122,6 @@ let print_positions pl =
 	Buffer.add_string b "</list>";
 	Buffer.contents b
 
-
 let display_memory com =
 	let verbose = com.verbose in
 	let print = print_endline in
@@ -142,14 +141,14 @@ let display_memory com =
 	let mem = Gc.stat() in
 	print ("Total Allocated Memory " ^ fmt_size (mem.Gc.heap_words * (Sys.word_size asr 8)));
 	print ("Free Memory " ^ fmt_size (mem.Gc.free_words * (Sys.word_size asr 8)));
-	(match !global_cache with
+	(match CompilationServer.get() with
 	| None ->
 		print "No cache found";
-	| Some c ->
+	| Some {CompilationServer.cache = c} ->
 		print ("Total cache size " ^ size c);
-		print ("  haxelib " ^ size c.c_haxelib);
-		print ("  parsed ast " ^ size c.c_files ^ " (" ^ string_of_int (Hashtbl.length c.c_files) ^ " files stored)");
-		print ("  typed modules " ^ size c.c_modules ^ " (" ^ string_of_int (Hashtbl.length c.c_modules) ^ " modules stored)");
+		print ("  haxelib " ^ size c.CompilationServer.c_haxelib);
+		print ("  parsed ast " ^ size c.CompilationServer.c_files ^ " (" ^ string_of_int (Hashtbl.length c.CompilationServer.c_files) ^ " files stored)");
+		print ("  typed modules " ^ size c.CompilationServer.c_modules ^ " (" ^ string_of_int (Hashtbl.length c.CompilationServer.c_modules) ^ " modules stored)");
 		let rec scan_module_deps m h =
 			if Hashtbl.mem h m.m_id then
 				()
@@ -158,7 +157,7 @@ let display_memory com =
 				PMap.iter (fun _ m -> scan_module_deps m h) m.m_extra.m_deps
 			end
 		in
-		let all_modules = Hashtbl.fold (fun _ m acc -> PMap.add m.m_id m acc) c.c_modules PMap.empty in
+		let all_modules = Hashtbl.fold (fun _ m acc -> PMap.add m.m_id m acc) c.CompilationServer.c_modules PMap.empty in
 		let modules = Hashtbl.fold (fun (path,key) m acc ->
 			let mdeps = Hashtbl.create 0 in
 			scan_module_deps m mdeps;
@@ -185,7 +184,7 @@ let display_memory com =
 			let chk = Obj.repr Common.memory_marker :: PMap.fold (fun m acc -> Obj.repr m :: acc) !out [] in
 			let inf = Objsize.objsize m !deps chk in
 			(m,Objsize.size_with_headers inf, (inf.Objsize.reached,!deps,!out)) :: acc
-		) c.c_modules [] in
+		) c.CompilationServer.c_modules [] in
 		let cur_key = ref "" and tcount = ref 0 and mcount = ref 0 in
 		List.iter (fun (m,size,(reached,deps,out)) ->
 			let key = m.m_extra.m_sign in
@@ -769,20 +768,11 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 		raise (Statistics (StatisticsPrinter.print_statistics stats))
 	| DMModuleSymbols filter ->
 		let symbols = com.shared.shared_display_information.document_symbols in
-		let symbols = match !global_cache with
+		let symbols = match CompilationServer.get() with
 			| None -> symbols
-			| Some cache ->
-				let rec loop acc com =
-					let com_sign = get_signature com in
-					let acc = Hashtbl.fold (fun (file,sign) (_,data) acc ->
-						if (filter <> None || is_display_file file) && com_sign = sign then
-							(file,DocumentSymbols.collect_module_symbols data) :: acc
-						else
-							acc
-					) cache.c_files acc in
-					match com.get_macros() with None -> acc | Some com -> loop acc com
-				in
-				loop symbols com
+			| Some cs ->
+				let l = CompilationServer.get_context_files cs ((get_signature com) :: (match com.get_macros() with None -> [] | Some com -> [get_signature com])) in
+				List.map (fun (file,data) -> (file,DocumentSymbols.collect_module_symbols data)) l
 		in
 		raise (ModuleSymbols(ModuleSymbolsPrinter.print_module_symbols com symbols filter))
 	| _ -> ()

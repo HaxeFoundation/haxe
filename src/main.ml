@@ -126,15 +126,15 @@ let add_libs com libs =
 	match libs with
 	| [] -> []
 	| _ ->
-		let lines = match !global_cache with
-			| Some cache ->
+		let lines = match CompilationServer.get() with
+			| Some cs ->
 				(try
 					(* if we are compiling, really call haxelib since library path might have changed *)
 					if not com.display.dms_display then raise Not_found;
-					Hashtbl.find cache.c_haxelib libs
+					CompilationServer.find_haxelib cs libs
 				with Not_found ->
 					let lines = call_haxelib() in
-					Hashtbl.replace cache.c_haxelib libs lines;
+					CompilationServer.cache_haxelib cs libs lines;
 					lines)
 			| _ -> call_haxelib()
 		in
@@ -425,7 +425,7 @@ let rec process_params create pl =
 			(try Unix.chdir dir with _ -> raise (Arg.Bad ("Invalid directory: " ^ dir)));
 			loop acc l
 		| "--connect" :: hp :: l ->
-			(match !global_cache with
+			(match CompilationServer.get() with
 			| None ->
 				let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
 				do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l)
@@ -479,9 +479,9 @@ try
 	Common.define_value com Define.Dce "std";
 	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
 	com.error <- error ctx;
-	if !global_cache <> None then com.run_command <- run_command ctx;
+	if CompilationServer.runs() then com.run_command <- run_command ctx;
 	Parser.display_error := (fun e p -> com.error (Parser.error_msg e) p);
-	Parser.use_doc := !Common.display_default <> DMNone || (!global_cache <> None);
+	Parser.use_doc := !Common.display_default <> DMNone || (CompilationServer.runs());
 	com.class_path <- get_std_class_paths ();
 	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path;
 	let define f = Arg.Unit (fun () -> Common.define com f) in
@@ -923,7 +923,7 @@ with
 	| Interp.Sys_exit i ->
 		ctx.flush();
 		exit i
-	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || !global_cache <> None with _ -> true) && not (is_debug_run()) ->
+	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not (is_debug_run()) ->
 		error ctx (Printexc.to_string e) Ast.null_pos
 
 ;;

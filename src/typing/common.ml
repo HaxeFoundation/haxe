@@ -306,13 +306,91 @@ exception Abort of string * Ast.pos
 
 let display_default = ref DisplayMode.DMNone
 
-type cache = {
-	mutable c_haxelib : (string list, string list) Hashtbl.t;
-	mutable c_files : ((string * string), float * Ast.package) Hashtbl.t;
-	mutable c_modules : (path * string, module_def) Hashtbl.t;
-}
+let get_signature com =
+	match com.defines_signature with
+	| Some s -> s
+	| None ->
+		let defines = PMap.foldi (fun k v acc ->
+			(* don't make much difference between these special compilation flags *)
+			match String.concat "_" (ExtString.String.nsplit k "-") with
+			(* If we add something here that might be used in conditional compilation it should be added to
+			   Parser.parse_macro_ident as well (issue #5682). *)
+			| "display" | "use_rtti_doc" | "macro_times" | "display_details" | "no_copt" | "display_stdin" -> acc
+			| _ -> (k ^ "=" ^ v) :: acc
+		) com.defines [] in
+		let str = String.concat "@" (List.sort compare defines) in
+		let s = Digest.string str in
+		com.defines_signature <- Some s;
+		s
 
-let global_cache : cache option ref = ref None
+module CompilationServer = struct
+	type cache = {
+		mutable c_haxelib : (string list, string list) Hashtbl.t;
+		mutable c_files : ((string * string), float * Ast.package) Hashtbl.t;
+		mutable c_modules : (path * string, module_def) Hashtbl.t;
+	}
+
+	type t = {
+		cache : cache
+	}
+
+	let instance : t option ref = ref None
+
+	let create_cache () = {
+		c_haxelib = Hashtbl.create 0;
+		c_files = Hashtbl.create 0;
+		c_modules = Hashtbl.create 0;
+	}
+
+	let create () =
+		let cs = {
+			cache = create_cache();
+		} in
+		instance := Some cs;
+		cs
+
+	let get () =
+		!instance
+
+	let runs () =
+		!instance <> None
+
+	let get_context_files cs signs =
+		Hashtbl.fold (fun (file,sign) (_,data) acc ->
+			if (List.mem sign signs) then (file,data) :: acc
+			else acc
+		) cs.cache.c_files []
+
+	(* modules *)
+
+	let find_module cs key =
+		Hashtbl.find cs.cache.c_modules key
+
+	let cache_module cs key value =
+		Hashtbl.replace cs.cache.c_modules key value
+
+	let taint_modules cs file =
+		Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- true) cs.cache.c_modules
+
+	(* files *)
+
+	let find_file cs key =
+		Hashtbl.find cs.cache.c_files key
+
+	let cache_file cs key value =
+		Hashtbl.replace cs.cache.c_files key value
+
+	let remove_file cs key =
+		Hashtbl.remove cs.cache.c_files key
+
+	(* haxelibs *)
+
+	let find_haxelib cs key =
+		Hashtbl.find cs.cache.c_haxelib key
+
+	let cache_haxelib cs key value =
+		Hashtbl.replace cs.cache.c_haxelib key value
+end
 
 module Define = struct
 
@@ -1002,23 +1080,6 @@ let clone com =
 
 let file_time file =
 	try (Unix.stat file).Unix.st_mtime with _ -> 0.
-
-let get_signature com =
-	match com.defines_signature with
-	| Some s -> s
-	| None ->
-		let defines = PMap.foldi (fun k v acc ->
-			(* don't make much difference between these special compilation flags *)
-			match String.concat "_" (ExtString.String.nsplit k "-") with
-			(* If we add something here that might be used in conditional compilation it should be added to
-			   Parser.parse_macro_ident as well (issue #5682). *)
-			| "display" | "use_rtti_doc" | "macro_times" | "display_details" | "no_copt" | "display_stdin" -> acc
-			| _ -> (k ^ "=" ^ v) :: acc
-		) com.defines [] in
-		let str = String.concat "@" (List.sort compare defines) in
-		let s = Digest.string str in
-		com.defines_signature <- Some s;
-		s
 
 let file_extension file =
 	match List.rev (ExtString.String.nsplit file ".") with

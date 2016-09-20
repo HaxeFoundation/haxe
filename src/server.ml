@@ -129,11 +129,7 @@ let ssend sock str =
 let rec wait_loop process_params verbose accept =
 	Sys.catch_break false;
 	let has_parse_error = ref false in
-	let cache = {
-		c_haxelib = Hashtbl.create 0;
-		c_files = Hashtbl.create 0;
-		c_modules = Hashtbl.create 0;
-	} in
+
 	let signs = ref [] in
 	let sign_string com =
 		let sign = get_signature com in
@@ -148,7 +144,7 @@ let rec wait_loop process_params verbose accept =
 		in
 		Printf.sprintf "%2s,%3s: " sign_id (short_platform_name com.platform)
 	in
-	global_cache := Some cache;
+	let cs = CompilationServer.create () in
 	Typer.macro_enable_cache := true;
 	let current_stdin = ref None in
 	Typeload.parse_hook := (fun com2 file p ->
@@ -163,7 +159,7 @@ let rec wait_loop process_params verbose accept =
 			let ftime = file_time ffile in
 			let fkey = (ffile,sign) in
 			try
-				let time, data = Hashtbl.find cache.c_files fkey in
+				let time, data = CompilationServer.find_file cs fkey in
 				if time <> ftime then raise Not_found;
 				data
 			with Not_found ->
@@ -178,7 +174,7 @@ let rec wait_loop process_params verbose accept =
 						let ident = Hashtbl.find Parser.special_identifier_files ffile in
 						Printf.sprintf "not cached, using \"%s\" define" ident;
 					with Not_found ->
-						Hashtbl.replace cache.c_files fkey (ftime,data);
+						CompilationServer.cache_file cs fkey (ftime,data);
 						"cached"
 				end in
 				if verbose then print_endline (Printf.sprintf "%sparsed %s (%s)" (sign_string com2) ffile info);
@@ -283,7 +279,7 @@ let rec wait_loop process_params verbose accept =
 			end
 		in
 		try
-			let m = Hashtbl.find cache.c_modules (mpath,sign) in
+			let m = CompilationServer.find_module cs (mpath,sign) in
 			if not (check m) then begin
 				if verbose then print_endline (Printf.sprintf "%sskipping %s%s" (sign_string com2) (s_type_path m.m_path) (Option.map_default (fun m -> Printf.sprintf " (via %s)" (s_type_path m.m_path)) "" !dep));
 				raise Not_found;
@@ -300,7 +296,7 @@ let rec wait_loop process_params verbose accept =
 		let read, write, close = accept() in
 		let rec cache_context com =
 			let cache_module m =
-				Hashtbl.replace cache.c_modules (m.m_path,m.m_extra.m_sign) m;
+				CompilationServer.cache_module cs (m.m_path,m.m_extra.m_sign) m;
 				if verbose then print_endline (Printf.sprintf "%scached %s" (sign_string com) (s_type_path m.m_path));
 			in
 			if com.display.dms_full_typing then begin
@@ -331,9 +327,9 @@ let rec wait_loop process_params verbose accept =
 					let file = (!Parser.resume_display).Ast.pfile in
 					let fkey = (file,get_signature ctx.com) in
 					(* force parsing again : if the completion point have been changed *)
-					Hashtbl.remove cache.c_files fkey;
+					CompilationServer.remove_file cs fkey;
 					(* force module reloading (if cached) *)
-					Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- true) cache.c_modules
+					CompilationServer.taint_modules cs file;
 				end
 			);
 			ctx.com.print <- (fun str -> write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit str "\n") ^ "\n"));
