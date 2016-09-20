@@ -951,13 +951,28 @@ and gen_expr ?(local=true) ctx e = begin
 		gen_value ctx e1;
 end;
 
+(* gen_block_element handles expressions that map to "statements" in lua. *)
+(* It handles no-op situations, and ensures that expressions are formatted with newlines *)
 and gen_block_element ctx e  =
     ctx.iife_assign <- false;
     begin match e.eexpr with
-	| TTypeExpr _ -> ()
-	| TCast (ce,_) -> gen_block_element ctx ce
-	| TParenthesis pe -> gen_block_element ctx pe
-	| TArrayDecl el -> concat ctx " " (gen_block_element ctx) el;
+	| TTypeExpr _ | TConst _ | TLocal _ | TFunction _ ->
+		()
+	| TCast (e',_) | TParenthesis e' | TMeta (_,e') ->
+		gen_block_element ctx e'
+	| TArray (e1,e2) ->
+		gen_block_element ctx e1;
+		gen_block_element ctx e2;
+	| TArrayDecl el | TBlock el ->
+		List.iter (gen_block_element ctx) el;
+	(* For plain lua table instantiations, just capture argument operations *)
+	| TCall({ eexpr = TLocal { v_name = "__lua_table__" }} , el) ->
+		List.iter(fun x -> gen_block_element ctx x) el
+	(* make a no-op __define_feature__ expression possible *)
+	| TCall({eexpr = TLocal ({v_name = "__define_feature__"})}, [_;e]) ->
+		gen_block_element ctx e
+	| TObjectDecl fl ->
+		List.iter (fun (_,e) -> gen_block_element ctx e) fl
 	| TBinop (op,e1,e2) when op <> Ast.OpAssign ->
 		newline ctx;
 		let f () = gen_tbinop ctx op e1 e2 in
@@ -972,9 +987,6 @@ and gen_block_element ctx e  =
 			| Increment -> print ctx " + 1;"
 			| _ -> print ctx " - 1;"
 		)
-	| TArray (e1,e2) ->
-		gen_block_element ctx e1;
-		gen_block_element ctx e2;
 	| TSwitch (e,[],def) ->
 		(match def with
 		| None -> ()
@@ -984,9 +996,6 @@ and gen_block_element ctx e  =
 		let f () = gen_expr ctx e in
 		gen_iife_assign ctx f;
 		semicolon ctx;
-	| TConst _ | TLocal _ -> ()
-	| TBlock el ->
-		List.iter (gen_block_element ctx) el
 	| TCall ({ eexpr = TLocal { v_name = "__feature__" } }, { eexpr = TConst (TString f) } :: eif :: eelse) ->
 		if has_feature ctx f then
 			gen_block_element ctx eif
@@ -994,20 +1003,6 @@ and gen_block_element ctx e  =
 			| [] -> ()
 			| [e] -> gen_block_element ctx e
 			| _ -> assert false)
-	(* For plain lua table instantiations, just capture argument operations *)
-	| TCall({ eexpr = TLocal { v_name = "__lua_table__" }} , el) ->
-		List.iter(fun x -> gen_block_element ctx x) el
-	(* make a no-op __define_feature__ expression possible *)
-	| TCall({eexpr = TLocal ({v_name = "__define_feature__"})}, [_;e]) ->
-		gen_block_element ctx e
-	| TFunction _ -> ()
-	| TObjectDecl fl ->
-		List.iter (fun (_,e) -> gen_block_element ctx e) fl
-	| TVar (v,eo) ->
-		newline ctx;
-		gen_expr ctx e; (* these already generate semicolons*)
-	| TMeta (_,e) ->
-		gen_block_element ctx e
 	| _ ->
 		newline ctx;
 		gen_expr ctx e;
