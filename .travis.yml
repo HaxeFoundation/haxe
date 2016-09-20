@@ -21,6 +21,7 @@ env:
 
 sudo: required
 dist: trusty
+osx_image: xcode6.4
 addons: &addons
   ssh_known_hosts:
     - haxe.org
