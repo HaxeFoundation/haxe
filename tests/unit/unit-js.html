@@ -17,7 +17,7 @@
                 url: getURLParameter("js") || "bin/unit.js",
                 dataType: "script",
                 success: function() {
-                    unit.Test.main();
+                    unit.TestMain.main();
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     throw errorThrown;
