@@ -61,4 +61,30 @@ extern class Const {
 	**/
 	static var DEBUG_BACKTRACE_PROVIDE_OBJECT : Int;
 	static var DEBUG_BACKTRACE_IGNORE_ARGS : Int;
+	/**
+		@see http://php.net/manual/en/math.constants.php
+	**/
+	static var M_PI : Float;
+	static var M_E : Float;
+	static var M_LOG2E : Float;
+	static var M_LOG10E : Float;
+	static var M_LN2 : Float;
+	static var M_LN10 : Float;
+	static var M_PI_2 : Float;
+	static var M_PI_4 : Float;
+	static var M_1_PI : Float;
+	static var M_2_PI : Float;
+	static var M_SQRTPI : Float;
+	static var M_2_SQRTPI : Float;
+	static var M_SQRT2 : Float;
+	static var M_SQRT3 : Float;
+	static var M_SQRT1_2 : Float;
+	static var M_LNPI : Float;
+	static var M_EULER : Float;
+	static var PHP_ROUND_HALF_UP : Int;
+	static var PHP_ROUND_HALF_DOWN : Int;
+	static var PHP_ROUND_HALF_EVEN : Int;
+	static var PHP_ROUND_HALF_ODD : Int;
+	static var NAN : Float;
+	static var INF : Float;
 }

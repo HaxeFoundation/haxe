@@ -389,4 +389,110 @@ extern class Global {
 		@see http://php.net/manual/en/function.func-get-args.php
 	**/
 	static function func_get_args() : NativeIndexedArray<Dynamic>;
+
+	/**
+		@see http://php.net/manual/en/function.abs.php
+	**/
+	static function abs<T:Float>( number:T ) : T;
+
+	/**
+		@see http://php.net/manual/en/function.min.php
+	**/
+	static function min( values:Rest<Dynamic> ) : Dynamic;
+
+	/**
+		@see http://php.net/manual/en/function.max.php
+	**/
+	static function max( values:Rest<Dynamic> ) : Dynamic;
+
+	/**
+		@see http://php.net/manual/en/function.sin.php
+	**/
+	static function sin( arg:Float ) : Float;
+
+	/**
+		@see http://php.net/manual/en/function.cos.php
+	**/
+	static function cos( arg:Float ) : Float;
+
+	/**
+		@see http://php.net/manual/en/function.atan2.php
+	**/
+	static function atan2( y:Float, x:Float ) : Float;
+
+	/**
+		@see http://php.net/manual/en/function.tan.php
+	**/
+	static function tan( arg:Float ) : Float;
+
+	/**
+		@see http://php.net/manual/en/function.exp.php
+	**/
+	static function exp( arg:Float ) : Float;
+
+	/**
+		@see http://php.net/manual/en/function.log.php
+	**/
+	static function log( arg:Float ) : Float;
+
+	/**
+		@see http://php.net/manual/en/function.sqrt.php
+	**/
+	static function sqrt( arg:Float ) : Float;
+
+	/**
+		@see http://php.net/manual/en/function.floor.php
+	**/
+	static function floor( arg:Float ) : Float;
+
+	/**
+		@see http://php.net/manual/en/function.ceil.php
+	**/
+	static function ceil( arg:Float ) : Float;
+
+	/**
+		@see http://php.net/manual/en/function.round.php
+	**/
+	static function round( val:Float, precision:Int = 0, ?mode:Int ) : Float;
+
+	/**
+		@see http://php.net/manual/en/function.atan.php
+	**/
+	static function atan( arg:Float ) : Float;
+
+	/**
+		@see http://php.net/manual/en/function.asin.php
+	**/
+	static function asin( arg:Float ) : Float;
+
+	/**
+		@see http://php.net/manual/en/function.acos.php
+	**/
+	static function acos( arg:Float ) : Float;
+
+	/**
+		@see http://php.net/manual/en/function.pow.php
+	**/
+	static function pow( base:Float, exp:Float ) : Float;
+
+	/**
+		@see http://php.net/manual/en/function.mt-rand.php
+	**/
+	@:overload(function() : Int {})
+	static function mt_rand( base:Int, exp:Int ) : Int;
+
+	/**
+		@see http://php.net/manual/en/function.mt-getrandmax.php
+	**/
+	static function mt_getrandmax() : Int;
+
+	/**
+		@see http://php.net/manual/en/function.is-nan.php
+	**/
+	static function is_nan( arg:Float ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.is-finite.php
+	**/
+	static function is_finite( arg:Float ) : Bool;
 }

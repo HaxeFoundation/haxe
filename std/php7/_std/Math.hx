@@ -19,54 +19,40 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-@:coreApi class Math
-{
-	public static var PI(default,null) : Float;
-	public static var NaN(default,null) : Float;
-	public static var POSITIVE_INFINITY(default,null) : Float;
-	public static var NEGATIVE_INFINITY(default,null) : Float;
 
-	public static function abs(v : Float) : Float      { return untyped __call__("abs", v); }
-	public static function min(a : Float,b : Float) : Float    { return untyped !isNaN(a) ? __call__("min", a, b) : NaN; }
-	public static function max(a : Float,b : Float) : Float    { return untyped !isNaN(b) ? __call__("max", a, b) : NaN; }
-	public static function sin(v : Float) : Float      { return untyped __call__("sin", v); }
-	public static function cos(v : Float) : Float      { return untyped __call__("cos", v); }
-	public static function atan2(y : Float,x : Float) : Float  { return untyped __call__("atan2", y, x); }
-	public static function tan(v : Float) : Float      { return untyped __call__("tan", v); }
-	public static function exp(v : Float) : Float      {
-		if(isNaN(v))
-			return NaN;
-		if(untyped __call__("is_finite", v))
-			return untyped __call__("exp", v);
-		else if(v == POSITIVE_INFINITY)
-			return POSITIVE_INFINITY;
-		else
-			return 0.0;
-	}
-	public static function log(v : Float) : Float      { return untyped __call__("log", v); }
-	public static function sqrt(v : Float) : Float     { return untyped __call__("sqrt", v); }
-	public static function round(v : Float) : Int      { return untyped __call__("(int) floor", v + 0.5); }
-	public static function floor(v : Float) : Int      { return untyped __call__("(int) floor", v); }
-	public static function ceil(v : Float) : Int       { return untyped __call__("(int) ceil", v); }
-	public static function atan(v : Float) : Float     { return untyped __call__("atan", v); }
-	public static function asin(v : Float) : Float     { return untyped __call__("asin", v); }
-	public static function acos(v : Float) : Float     { return untyped __call__("acos", v); }
-	public static function pow(v : Float,exp : Float) : Float    { return untyped __call__("pow", v, exp); }
-	public static function random() : Float    { return untyped __call__("mt_rand") / __call__("mt_getrandmax"); }
-	public static function isNaN(f : Float) : Bool     { return untyped __call__("is_nan", f); }
-	public static function isFinite(f : Float) : Bool  { return untyped __call__("is_finite", f); }
+import php7.Global;
+import php7.Const;
 
-	public static function fround(v : Float) : Float      { return untyped __call__("floor", v + 0.5); }
-	public static function ffloor(v : Float) : Float      { return untyped __call__("floor", v); }
-	public static function fceil(v : Float) : Float       { return untyped __call__("ceil", v); }
+@:coreApi class Math {
+	public static var PI(default,null) : Float = Const.M_PI;
+	public static var NaN(default,null) : Float = Const.NAN;
+	public static var POSITIVE_INFINITY(default,null) : Float = Const.INF;
+	public static var NEGATIVE_INFINITY(default,null) : Float = -Const.INF;
 
-	static function __init__() : Void {
-	 	PI = untyped __php__("M_PI");
-	 	NaN = untyped __php__("acos(1.01)");
-	 	NEGATIVE_INFINITY = untyped __php__("log(0)");
-	 	POSITIVE_INFINITY = -NEGATIVE_INFINITY;
-	}
+	public static inline function abs( v:Float ) : Float return Global.abs(v);
+	public static inline function min( a:Float, b:Float ) : Float return isNaN(a) ? NaN : Global.min(a, b);
+	public static inline function max( a:Float, b:Float ) : Float return isNaN(b) ? NaN : Global.max(a, b);
+	public static inline function sin( v:Float ) : Float return Global.sin(v);
+	public static inline function cos( v:Float ) : Float return Global.cos(v);
+	public static inline function atan2( y:Float, x:Float ) : Float return Global.atan2(y, x);
+	public static inline function tan( v:Float ) : Float return Global.tan(v);
+	public static inline function exp( v:Float ) : Float return Global.exp(v);
+	public static inline function log( v:Float ) : Float return Global.log(v);
+	public static inline function sqrt( v:Float ) : Float return Global.sqrt(v);
+	public static inline function round( v:Float ) : Int return untyped __call__("(int)floor", v + 0.5);
+	public static inline function floor( v:Float ) : Int return untyped __call__("(int)floor", v);
+	public static inline function ceil( v:Float ) : Int return untyped __call__("(int)ceil", v);
+	public static inline function atan( v:Float ) : Float return Global.atan(v);
+	public static inline function asin( v:Float ) : Float return Global.asin(v);
+	public static inline function acos( v:Float ) : Float return Global.acos(v);
+	public static inline function pow( v:Float, exp:Float ) : Float return Global.pow(v, exp);
+	public static inline function random() : Float return Global.mt_rand() / Global.mt_getrandmax();
+	public static inline function isNaN( f:Float ) : Bool return Global.is_nan(f);
+	public static inline function isFinite( f:Float ) : Bool return Global.is_finite(f);
 
+	public static inline function fround( v:Float ) : Float return Global.floor(v + 0.5);
+	public static inline function ffloor( v:Float ) : Float return Global.floor(v);
+	public static inline function fceil( v:Float ) : Float return Global.ceil(v);
 }
 
 
