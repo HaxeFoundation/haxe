@@ -950,7 +950,7 @@ and gen_expr ?(local=true) ctx e = begin
 		gen_value ctx e1;
 end;
 
-and gen_block_element ?(after=false) ctx e  =
+and gen_block_element ctx e  =
     ctx.iife_assign <- false;
     begin match e.eexpr with
 	| TTypeExpr _ -> ()
@@ -985,23 +985,23 @@ and gen_block_element ?(after=false) ctx e  =
 		semicolon ctx;
 	| TConst _ | TLocal _ -> ()
 	| TBlock el ->
-		List.iter (gen_block_element ~after ctx) el
+		List.iter (gen_block_element ctx) el
 	| TCall ({ eexpr = TLocal { v_name = "__feature__" } }, { eexpr = TConst (TString f) } :: eif :: eelse) ->
 		if has_feature ctx f then
-			gen_block_element ~after ctx eif
+			gen_block_element ctx eif
 		else (match eelse with
 			| [] -> ()
-			| [e] -> gen_block_element ~after ctx e
+			| [e] -> gen_block_element ctx e
 			| _ -> assert false)
 	(* For plain lua table instantiations, just capture argument operations *)
 	| TCall({ eexpr = TLocal { v_name = "__lua_table__" }} , el) ->
-		List.iter(fun x -> gen_block_element ctx ~after x) el
+		List.iter(fun x -> gen_block_element ctx x) el
 	(* make a no-op __define_feature__ expression possible *)
 	| TCall({eexpr = TLocal ({v_name = "__define_feature__"})}, [_;e]) ->
-		gen_block_element ~after ctx e
+		gen_block_element ctx e
 	| TFunction _ -> ()
 	| TObjectDecl fl ->
-		List.iter (fun (_,e) -> gen_block_element ~after ctx e) fl
+		List.iter (fun (_,e) -> gen_block_element ctx e) fl
 	| TVar (v,eo) ->
 		newline ctx;
 		gen_expr ctx e; (* these already generate semicolons*)
