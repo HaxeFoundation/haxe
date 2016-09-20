@@ -5111,14 +5111,15 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let isContainer = if (has_gc_references common_ctx class_def) then "true" else "false" in
    let inlineContructor = can_inline_constructor common_ctx class_def in
 
-   let outputConstructor out =
-      out (ptr_name ^ " " ^ class_name ^ "::__new(" ^constructor_type_args ^") {\n");
+   let outputConstructor out isHeader =
+      let classScope = if isHeader then "" else class_name ^ "::" in
+      out (ptr_name ^ " " ^ classScope ^ "__new(" ^constructor_type_args ^") {\n");
       out ("\t" ^ ptr_name ^ " _hx_result = new " ^ class_name ^ "();\n");
       out ("\t_hx_result->__construct(" ^ constructor_args ^ ");\n");
       out ("\treturn _hx_result;\n");
       out ("}\n\n");
 
-      out (ptr_name ^ " " ^ class_name ^ "::__alloc(hx::ImmixAllocator *_hx_alloc" ^ (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^") {\n");
+      out (ptr_name ^ " " ^ classScope ^ "__alloc(hx::ImmixAllocator *_hx_alloc" ^ (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^") {\n");
       out ("\t" ^ class_name ^ " *_hx_result = (" ^ class_name ^ "*)(hx::ImmixAllocator::alloc(_hx_alloc, sizeof(" ^ class_name ^ "), " ^ isContainer ^", " ^ gcName ^ "));\n");
       out ("\t*(void **)_hx_result = " ^ class_name ^ "::_hx_vtable;\n");
       let rec dump_dynamic class_def =
@@ -5310,7 +5311,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    end;
 
    if (not class_def.cl_interface) && not nativeGen && not inlineContructor then
-      outputConstructor output_cpp;
+      outputConstructor output_cpp false;
 
 
    (* Initialise non-static variables *)
@@ -5896,7 +5897,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       output_h ("\t\t\t{ return hx::Object::operator new(inSize+extra," ^ isContainer ^ "," ^ gcName ^ "); }\n" );
       if inlineContructor then begin
          output_h "\n";
-         outputConstructor (fun str -> output_h ("\t\t" ^ str) )
+         outputConstructor (fun str -> output_h ("\t\t" ^ str) ) true
       end else begin
          output_h ("\t\tstatic " ^ptr_name^ " __new(" ^constructor_type_args ^");\n");
          output_h ("\t\tstatic " ^ptr_name^ " __alloc(hx::ImmixAllocator *_hx_alloc" ^ (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^");\n");
