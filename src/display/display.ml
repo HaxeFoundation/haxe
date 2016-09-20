@@ -737,6 +737,35 @@ module Statistics = struct
 		symbols,relations
 end
 
+let explore_class_paths ctx class_paths recusive f_pack f_module f_type =
+	let rec loop dir pack =
+		try
+			let entries = Sys.readdir dir in
+			Array.iter (fun file ->
+				match file with
+					| "." | ".." ->
+						()
+					| _ when Sys.is_directory (dir ^ file) && file.[0] >= 'a' && file.[0] <= 'z' ->
+						f_pack file;
+						if recusive then loop (dir ^ file ^ "/") (file :: pack)
+					| _ ->
+						let l = String.length file in
+						if l > 3 && String.sub file (l - 3) 3 = ".hx" then begin
+							try
+								let name = String.sub file 0 (l - 3) in
+								let path = (List.rev pack,name) in
+								let md = ctx.g.do_load_module ctx path Ast.null_pos in
+								f_module md;
+								List.iter (fun mt -> f_type mt) md.m_types
+							with _ ->
+								()
+						end
+			) entries;
+		with Sys_error _ ->
+			()
+	in
+	List.iter (fun dir -> loop dir []) class_paths
+
 module ToplevelCollector = struct
 	open IdentifierType
 
@@ -854,31 +883,7 @@ module ToplevelCollector = struct
 				if not (List.mem pack !packages) then packages := pack :: !packages
 		in
 
-		List.iter (fun dir ->
-			try
-				let entries = Sys.readdir dir in
-				Array.iter (fun file ->
-					match file with
-						| "." | ".." ->
-							()
-						| _ when Sys.is_directory (dir ^ file) && file.[0] >= 'a' && file.[0] <= 'z' ->
-							add_package file
-						| _ ->
-							let l = String.length file in
-							if l > 3 && String.sub file (l - 3) 3 = ".hx" then begin
-								try
-									let name = String.sub file 0 (l - 3) in
-									let md = ctx.g.do_load_module ctx ([],name) Ast.null_pos in
-									List.iter (fun mt ->
-										if (t_infos mt).mt_path = md.m_path then add_type mt
-									) md.m_types
-								with _ ->
-									()
-							end
-				) entries;
-			with Sys_error _ ->
-				()
-		) class_paths;
+		explore_class_paths ctx class_paths false add_package (fun _ -> ()) add_type;
 
 		List.iter (fun pack ->
 			DynArray.add acc (ITPackage pack)
