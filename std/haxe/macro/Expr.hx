@@ -48,7 +48,7 @@ typedef Position = {
 
 /**
 	Represents a constant.
-	@see http://haxe.org/manual/expression-constants.html
+	@see https://haxe.org/manual/expression-constants.html
 **/
 enum Constant {
 	/**
@@ -78,14 +78,14 @@ enum Constant {
 		 * The first argument _haxe_ is a string with regular expression pattern.
 		 * The second argument _i_ is a string with regular expression flags.
 
-		@see http://haxe.org/manual/std-regex.html
+		@see https://haxe.org/manual/std-regex.html
 	**/
 	CRegexp( r : String, opt : String );
 }
 
 /**
 	A binary operator.
-	@see http://haxe.org/manual/types-numeric-operators.html
+	@see https://haxe.org/manual/types-numeric-operators.html
 **/
 enum Binop {
 	/**
@@ -216,7 +216,7 @@ enum Binop {
 
 /**
 	A unary operator.
-	@see http://haxe.org/manual/types-numeric-operators.html
+	@see https://haxe.org/manual/types-numeric-operators.html
 **/
 enum Unop {
 	/**
@@ -247,7 +247,7 @@ enum Unop {
 
 /**
 	Represents a node in the AST.
-	@see http://haxe.org/manual/macro-reification-expression.html
+	@see https://haxe.org/manual/macro-reification-expression.html
 **/
 typedef Expr = {
 	/**
@@ -264,13 +264,13 @@ typedef Expr = {
 /**
 	Represents a AST node identical to `Expr`, but it allows constraining the
 	type of accepted expressions.
-	@see http://haxe.org/manual/macro-ExprOf.html
+	@see https://haxe.org/manual/macro-ExprOf.html
 **/
 typedef ExprOf<T> = Expr;
 
 /**
 	Represents a switch case.
-	@see http://haxe.org/manual/expression-switch.html
+	@see https://haxe.org/manual/expression-switch.html
 **/
 typedef Case = {
 	/**
@@ -291,7 +291,7 @@ typedef Case = {
 
 /**
 	Represents a variable in the AST.
-	@see http://haxe.org/manual/expression-var.html
+	@see https://haxe.org/manual/expression-var.html
 **/
 typedef Var = {
 	/**
@@ -312,7 +312,7 @@ typedef Var = {
 
 /**
 	Represents a catch in the AST.
-	@http://haxe.org/manual/expression-try-catch.html
+	@https://haxe.org/manual/expression-try-catch.html
 **/
 typedef Catch = {
 	/**
@@ -508,13 +508,13 @@ enum ComplexType {
 
 	/**
 		Represents a function type.
-		@see http://haxe.org/manual/types-function.html
+		@see https://haxe.org/manual/types-function.html
 	**/
 	TFunction( args : Array<ComplexType>, ret : ComplexType );
 
 	/**
 		Represents an anonymous structure type.
-		@see http://haxe.org/manual/types-anonymous-structure.html
+		@see https://haxe.org/manual/types-anonymous-structure.html
 	**/
 	TAnonymous( fields : Array<Field> );
 
@@ -527,7 +527,7 @@ enum ComplexType {
 	/**
 		Represents typedef extensions `> Iterable<T>`.
 		The array `p` holds the type paths to the given types.
-		@see http://haxe.org/manual/type-system-extensions.html
+		@see https://haxe.org/manual/type-system-extensions.html
 	**/
 	TExtend( p : Array<TypePath>, fields : Array<Field> );
 
@@ -704,7 +704,7 @@ typedef Field = {
 
 	/**
 		The access modifiers of the field. By default fields have private access.
-		@see http://haxe.org/manual/class-field-access-modifier.html
+		@see https://haxe.org/manual/class-field-access-modifier.html
 	**/
 	@:optional var access : Array<Access>;
 
@@ -726,20 +726,20 @@ typedef Field = {
 
 /**
 	Represents an access modifier.
-	@see http://haxe.org/manual/class-field-access-modifier.html
+	@see https://haxe.org/manual/class-field-access-modifier.html
 **/
 enum Access {
 
 	/**
 		Public access modifier, grants access from anywhere.
-		@see http://haxe.org/manual/class-field-visibility.html
+		@see https://haxe.org/manual/class-field-visibility.html
 	**/
 	APublic;
 
 	/**
 		Private access modifier, grants access to class and its sub-classes
 		only.
-		@see http://haxe.org/manual/class-field-visibility.html
+		@see https://haxe.org/manual/class-field-visibility.html
 	**/
 	APrivate;
 
@@ -750,20 +750,20 @@ enum Access {
 
 	/**
 		Override access modifier.
-		@see http://haxe.org/manual/class-field-override.html
+		@see https://haxe.org/manual/class-field-override.html
 	**/
 	AOverride;
 
 	/**
 		Dynamic (re-)bindable access modifier.
-		@see http://haxe.org/manual/class-field-dynamic.html
+		@see https://haxe.org/manual/class-field-dynamic.html
 	**/
 	ADynamic;
 
 	/**
 		Inline access modifier. Allows expressions to be directly inserted in
 		place of calls to them.
-		@see http://haxe.org/manual/class-field-inline.html
+		@see https://haxe.org/manual/class-field-inline.html
 	**/
 	AInline;
 
@@ -902,7 +902,7 @@ class Error {
 
 /**
 	Represents the import mode.
-	@see http://haxe.org/manual/type-system-import.html
+	@see https://haxe.org/manual/type-system-import.html
 **/
 enum ImportMode {
 	/**

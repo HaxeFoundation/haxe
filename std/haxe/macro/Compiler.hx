@@ -38,7 +38,7 @@ class Compiler {
 		If the compiler flag is not defined, `Compiler.getDefine` returns
 		`null`.
 
-		@see http://haxe.org/manual/lf-condition-compilation.html
+		@see https://haxe.org/manual/lf-condition-compilation.html
 	**/
 	macro static public function getDefine( key : String ) {
 		return macro $v{haxe.macro.Context.definedValue(key)};

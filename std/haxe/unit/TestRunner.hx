@@ -34,7 +34,7 @@ import Reflect;
 	r.run();
 	```
 	
-	@see <http://haxe.org/manual/std-unit-testing.html>
+	@see <https://haxe.org/manual/std-unit-testing.html>
 **/
 class TestRunner {
 	/**

@@ -27,7 +27,7 @@ package haxe.format;
 	This class is used by `haxe.Json` when native JSON implementation
 	is not available.
 
-	@see http://haxe.org/manual/std-Json-parsing.html
+	@see https://haxe.org/manual/std-Json-parsing.html
 **/
 class JsonParser {
 

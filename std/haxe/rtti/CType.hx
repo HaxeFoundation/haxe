@@ -91,7 +91,7 @@ typedef MetaData = Array<{ name : String, params : Array<String> }>;
 /**
 	The runtime class field information.
 	
-	@see <http://haxe.org/manual/cr-rtti-structure.html#class-field-information>
+	@see <https://haxe.org/manual/cr-rtti-structure.html#class-field-information>
 **/
 typedef ClassField = {
 	/**
@@ -122,13 +122,13 @@ typedef ClassField = {
 	var doc : Null<String>;
 
 	/**
-		The [read access](http://haxe.org/manual/dictionary.html#define-read-access) 
+		The [read access](https://haxe.org/manual/dictionary.html#define-read-access) 
 		behavior of the field.
 	**/
 	var get : Rights;
 
 	/**
-		The [write access](http://haxe.org/manual/dictionary.html#define-write-access)
+		The [write access](https://haxe.org/manual/dictionary.html#define-write-access)
 		behavior of the field.
 	**/
 	var set : Rights;
@@ -203,7 +203,7 @@ typedef TypeInfos = {
 	var doc : Null<String>;
 
 	/**
-		Whether or not the type is [private](http://haxe.org/manual/dictionary.html#define-private-type).
+		Whether or not the type is [private](https://haxe.org/manual/dictionary.html#define-private-type).
 	**/
 	var isPrivate : Bool;
 
@@ -213,7 +213,7 @@ typedef TypeInfos = {
 	var platforms : Platforms;
 
 	/**
-		The [metadata](http://haxe.org/manual/lf-metadata.html) the type was 
+		The [metadata](https://haxe.org/manual/lf-metadata.html) the type was 
 		annotated with.
 	**/
 	var meta : MetaData;
@@ -224,12 +224,12 @@ typedef TypeInfos = {
 **/
 typedef Classdef = {> TypeInfos,
 	/**
-		Whether or not the class is [extern](http://haxe.org/manual/lf-externs.html).
+		Whether or not the class is [extern](https://haxe.org/manual/lf-externs.html).
 	**/
 	var isExtern : Bool;
 
 	/**
-		Whether or not the class is actually an [interface](http://haxe.org/manual/types-interfaces.html).
+		Whether or not the class is actually an [interface](https://haxe.org/manual/types-interfaces.html).
 	**/
 	var isInterface : Bool;
 
@@ -246,7 +246,7 @@ typedef Classdef = {> TypeInfos,
 	var interfaces : List<PathParams>;
 
 	/**
-		The list of member [class fields](http://haxe.org/manual/class-field.html).
+		The list of member [class fields](https://haxe.org/manual/class-field.html).
 	**/
 	var fields : List<ClassField>;
 
@@ -265,7 +265,7 @@ typedef Classdef = {> TypeInfos,
 /**
 	The runtime enum constructor information.
 	
-	@see <http://haxe.org/manual/cr-rtti-structure.html#enum-constructor-information>
+	@see <https://haxe.org/manual/cr-rtti-structure.html#enum-constructor-information>
 **/
 typedef EnumField = {
 	/**
@@ -301,11 +301,11 @@ typedef EnumField = {
 /**
 	The enum runtime type information.
 	
-	@see <http://haxe.org/manual/cr-rtti-structure.html#enum-type-information>
+	@see <https://haxe.org/manual/cr-rtti-structure.html#enum-type-information>
 **/
 typedef Enumdef = {> TypeInfos,
 	/**
-		Whether or not the enum is [extern](http://haxe.org/manual/lf-externs.html).
+		Whether or not the enum is [extern](https://haxe.org/manual/lf-externs.html).
 	**/
 	var isExtern : Bool;
 
@@ -333,7 +333,7 @@ typedef Typedef = {> TypeInfos,
 /**
 	The abstract type runtime information.
 	
-	@see <http://haxe.org/manual/cr-rtti-structure.html#abstract-type-information>
+	@see <https://haxe.org/manual/cr-rtti-structure.html#abstract-type-information>
 **/
 typedef Abstractdef = {> TypeInfos,
 	var to : Array<{t:CType, field:Null<String>}>;

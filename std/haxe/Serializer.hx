@@ -37,7 +37,7 @@ package haxe;
 	or may not work for instances of external/native classes.
 
 	The specification of the serialization format can be found here:
-	<http://haxe.org/manual/serialization/format>
+	<https://haxe.org/manual/serialization/format>
 **/
 class Serializer {
 
@@ -111,7 +111,7 @@ class Serializer {
 		Return the String representation of `this` Serializer.
 
 		The exact format specification can be found here:
-		http://haxe.org/manual/serialization/format
+		https://haxe.org/manual/serialization/format
 	**/
 	public function toString() {
 		return buf.toString();

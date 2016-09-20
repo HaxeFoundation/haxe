@@ -46,7 +46,7 @@ import haxe.PosInfos;
 	To run code before or after the test, override the functions `setup` 
 	and `tearDown`.
 
-	@see <http://haxe.org/manual/std-unit-testing.html>
+	@see <https://haxe.org/manual/std-unit-testing.html>
 **/
 @:keepSub
 @:publicFields

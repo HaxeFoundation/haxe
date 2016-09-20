@@ -31,7 +31,7 @@
 	in a for-loop. Subsequent uses of the same instance will then have no
 	effect.
 
-	@see http://haxe.org/manual/lf-iterators.html
+	@see https://haxe.org/manual/lf-iterators.html
 **/
 class IntIterator {
 
