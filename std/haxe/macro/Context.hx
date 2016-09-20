@@ -575,7 +575,7 @@ class Context {
 		Register a macro call to be performed everytime the module `modulePath` is reused by the compilation cache,
 		meaning that neither the module itself nor its dependencies was changed since last compilation.
 
-		The `macroCall` should be a String containing valid Haxe expression, similar to `--init` macros (see http://haxe.org/manual/macro-initialization.html).
+		The `macroCall` should be a String containing valid Haxe expression, similar to `--init` macros (see https://haxe.org/manual/macro-initialization.html).
 		Multiple calls with the exact same `macroCall` value will only register the callback once.
 
 		This also triggers loading of given module and its dependencies, if it's not yet loaded,

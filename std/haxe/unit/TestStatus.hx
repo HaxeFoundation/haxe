@@ -27,7 +27,7 @@ import haxe.PosInfos;
 /**
 	The status information of a unit test case method.
 
-	@see <http://haxe.org/manual/std-unit-testing.html>
+	@see <https://haxe.org/manual/std-unit-testing.html>
 **/
 class TestStatus {
 	/**

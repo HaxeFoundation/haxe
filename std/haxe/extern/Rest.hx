@@ -29,6 +29,6 @@ package haxe.extern;
 	representing that arbitrary number of arguments of given type can be
 	passed to that method.
 	
-	@see <http://haxe.org/manual/lf-externs.html>
+	@see <https://haxe.org/manual/lf-externs.html>
 **/
 abstract Rest<T>(Array<T>) {}

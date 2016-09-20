@@ -42,7 +42,7 @@ import haxe.Constraints.IMap;
 
 	Map is an abstract type, it is not available at runtime.
 
-	@see http://haxe.org/manual/std-Map.html
+	@see https://haxe.org/manual/std-Map.html
 **/
 @:multiType(@:followWithAbstracts K)
 abstract Map<K,V>(IMap<K,V> ) {

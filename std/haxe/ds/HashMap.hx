@@ -26,7 +26,7 @@ package haxe.ds;
 
 	See `Map` for documentation details.
 
-	@see http://haxe.org/manual/std-Map.html
+	@see https://haxe.org/manual/std-Map.html
 **/
 abstract HashMap<K:{ function hashCode():Int; }, V >(HashMapData<K,V>) {
 	/**

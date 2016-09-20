@@ -30,6 +30,6 @@ package haxe.extern;
 
 	Otherwise, use of this type is discouraged.
 	
-	@see <http://haxe.org/manual/lf-externs.html>
+	@see <https://haxe.org/manual/lf-externs.html>
 **/
 abstract EitherType<T1,T2>(Dynamic) from T1 to T1 from T2 to T2 {}

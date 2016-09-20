@@ -23,7 +23,7 @@
 	The Reflect API is a way to manipulate values dynamically through an
 	abstract interface in an untyped manner. Use with care.
 
-	@see http://haxe.org/manual/std-reflection.html
+	@see https://haxe.org/manual/std-reflection.html
 **/
 extern class Reflect {
 

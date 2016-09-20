@@ -34,7 +34,7 @@
 	its methods.
 
 	A detailed explanation of the supported operations is available at
-	<http://haxe.org/manual/std-regex.html>
+	<https://haxe.org/manual/std-regex.html>
 **/
 class EReg {
 

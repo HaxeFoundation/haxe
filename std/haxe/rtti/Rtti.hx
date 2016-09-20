@@ -26,7 +26,7 @@ import haxe.rtti.CType;
 /**
 	Rtti is a helper class which supplements the `@:rtti` metadata.
 	
-	@see <http://haxe.org/manual/cr-rtti.html>
+	@see <https://haxe.org/manual/cr-rtti.html>
 **/
 class Rtti {
 

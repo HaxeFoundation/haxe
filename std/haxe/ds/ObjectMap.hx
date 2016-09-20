@@ -30,7 +30,7 @@ package haxe.ds;
 
 	See `Map` for documentation details.
 
-	@see http://haxe.org/manual/std-Map.html
+	@see https://haxe.org/manual/std-Map.html
 **/
 extern class ObjectMap < K: { }, V > implements haxe.Constraints.IMap<K,V> {
 

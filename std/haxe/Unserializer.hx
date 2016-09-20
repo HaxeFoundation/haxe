@@ -40,7 +40,7 @@ typedef TypeResolver = {
 		String
 
 	The specification of the serialization format can be found here:
-	<http://haxe.org/manual/serialization/format>
+	<https://haxe.org/manual/serialization/format>
 **/
 class Unserializer {
 
