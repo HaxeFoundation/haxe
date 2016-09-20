@@ -190,7 +190,7 @@ let rec wait_loop process_params verbose accept =
 	let compilation_mark = ref 0 in
 	let mark_loop = ref 0 in
 	Typeload.type_module_hook := (fun (ctx:Typecore.typer) mpath p ->
-		let t = Common.timer ["server";"module cache check"] in
+		let t = Common.timer ["server";"module cache"] in
 		let com2 = ctx.Typecore.com in
 		let sign = get_signature com2 in
 		let dep = ref None in
@@ -280,11 +280,16 @@ let rec wait_loop process_params verbose accept =
 		in
 		try
 			let m = CompilationServer.find_module cs (mpath,sign) in
+			let tcheck = Common.timer ["server";"module cache";"check"] in
 			if not (check m) then begin
 				if verbose then print_endline (Printf.sprintf "%sskipping %s%s" (sign_string com2) (s_type_path m.m_path) (Option.map_default (fun m -> Printf.sprintf " (via %s)" (s_type_path m.m_path)) "" !dep));
+				tcheck();
 				raise Not_found;
 			end;
+			tcheck();
+			let tadd = Common.timer ["server";"module cache";"add modules"] in
 			add_modules "" m m;
+			tadd();
 			t();
 			Some m
 		with Not_found ->
