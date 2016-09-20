@@ -926,22 +926,20 @@ and gen_expr ?(local=true) ctx e = begin
 		    ) el;
 		    spr ctx " then ";
 		    let bend = open_block ctx in
-		    gen_block_element ctx e2;
 		    bend();
-		    newline ctx;
+		    gen_block_element ctx e2;
 		) cases;
 		(match def with
-		| None -> spr ctx "end"
+		| None -> spr ctx " end"
 		| Some e ->
 			begin
 			if (List.length(cases) > 0) then
 			    spr ctx "else";
 			let bend = open_block ctx in
-			gen_block_element ctx e;
 			bend();
-			newline ctx;
+			gen_block_element ctx e;
 			if (List.length(cases) > 0) then
-			    spr ctx "end";
+			    spr ctx " end";
 			end;);
 	| TCast (e1,Some t) ->
 		print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["lua"],"Boot" }));
@@ -953,32 +951,7 @@ and gen_expr ?(local=true) ctx e = begin
 		gen_value ctx e1;
 end;
 
-and gen__init__impl ctx e =
-    begin match e.eexpr with
-	| TVar (v,eo) ->
-		newline ctx;
-		gen_expr ctx e
-	| TBlock el ->
-		List.iter (gen__init__impl ctx) el
-	| TCall (e, el) ->
-		(match e.eexpr , el with
-		    | TLocal { v_name = "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse ->
-			    (if has_feature ctx f then
-				    gen__init__impl ctx eif
-			    else match eelse with
-				    | [] -> ()
-				    | e :: _ -> gen__init__impl ctx e)
-		    |_->
-			begin
-			    newline ctx;
-			    gen_call ctx e el false
-			end;
-			    );
-	| _ -> gen_block_element ctx e;
-    end;
-
 and gen_block_element ?(after=false) ctx e  =
-    newline ctx;
     ctx.iife_assign <- false;
     begin match e.eexpr with
 	| TTypeExpr _ -> ()
@@ -986,6 +959,7 @@ and gen_block_element ?(after=false) ctx e  =
 	| TParenthesis pe -> gen_block_element ctx pe
 	| TArrayDecl el -> concat ctx " " (gen_block_element ctx) el;
 	| TBinop (op,e1,e2) when op <> Ast.OpAssign ->
+		newline ctx;
 		let f () = gen_tbinop ctx op e1 e2 in
 		gen_iife_assign ctx f;
 		semicolon ctx;
@@ -1006,6 +980,7 @@ and gen_block_element ?(after=false) ctx e  =
 		| None -> ()
 		| Some e -> gen_block_element ctx e)
 	| TField _ ->
+		newline ctx;
 		let f () = gen_expr ctx e in
 		gen_iife_assign ctx f;
 		semicolon ctx;
@@ -1029,14 +1004,15 @@ and gen_block_element ?(after=false) ctx e  =
 	| TObjectDecl fl ->
 		List.iter (fun (_,e) -> gen_block_element ~after ctx e) fl
 	| TVar (v,eo) ->
+		newline ctx;
 		gen_expr ctx e; (* these already generate semicolons*)
 	| TMeta (_,e) ->
 		gen_block_element ctx e
 	| _ ->
+		newline ctx;
 		gen_expr ctx e;
 		semicolon ctx;
-		if after then newline ctx;
-    end;
+	end;
 
 and gen_value ctx e =
 	let assign e =
@@ -1997,7 +1973,7 @@ let generate com =
 	(* Localize init variables inside a do-block *)
 	(* Note: __init__ logic can modify static variables. *)
 	println ctx "do";
-	List.iter (gen__init__impl ctx) (List.rev ctx.inits);
+	List.iter (gen_block_element ctx) (List.rev ctx.inits);
 	newline ctx;
 	println ctx "end";
 
