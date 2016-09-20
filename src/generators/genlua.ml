@@ -222,7 +222,7 @@ let handle_break ctx e =
 				println ctx " return _hx_expected_result end)";
 				spr ctx " if not _hx_status then ";
 				newline ctx;
-				spr ctx " elseif _hx_result ~= _hx_expected_result then return _hx_result";
+				println ctx " elseif _hx_result ~= _hx_expected_result then return _hx_result";
 			)
 
 let this ctx = match ctx.in_value with None -> "self" | Some _ -> "self"
@@ -775,7 +775,6 @@ and gen_expr ?(local=true) ctx e = begin
 		gen_cond ctx cond;
 		let b = open_block ctx in
 		print ctx " do ";
-		let b2 = open_block ctx in
 		if has_continue then begin
 		    spr ctx "repeat "
 		end;
@@ -783,13 +782,13 @@ and gen_expr ?(local=true) ctx e = begin
 		newline ctx;
 		handle_break();
 		if has_continue then begin
-		    b2();
+		    b();
 		    newline ctx;
 		    println ctx "until true";
-		    print ctx "if _hx_break then _hx_break = false; break; end";
+		    println ctx "if _hx_break then _hx_break = false; break; end";
 		end;
 		b();
-		spr ctx " end";
+		spr ctx "end";
 		ctx.handle_continue <- old_ctx_continue;
 	| TWhile (cond,e,Ast.DoWhile) ->
 		let handle_break = handle_break ctx e in
@@ -853,9 +852,11 @@ and gen_expr ?(local=true) ctx e = begin
 	| TTry (e,catchs) ->
 		(* TODO: add temp variables *)
 		println ctx "local _hx_expected_result = {}";
-		spr ctx "local _hx_status, _hx_result = pcall(function() ";
+		println ctx "local _hx_status, _hx_result = pcall(function() ";
+		let b = open_block ctx in
 		gen_expr ctx e;
 		let vname = temp ctx in
+		b();
 		println ctx " return _hx_expected_result end)";
 		spr ctx " if not _hx_status then ";
 		let bend = open_block ctx in
@@ -913,7 +914,7 @@ and gen_expr ?(local=true) ctx e = begin
 		end;
 		bend();
 		newline ctx;
-		spr ctx " elseif _hx_result ~= _hx_expected_result then return _hx_result end";
+		println ctx " elseif _hx_result ~= _hx_expected_result then return _hx_result end;";
 	| TSwitch (e,cases,def) ->
 		List.iteri (fun cnt (el,e2) ->
 		    if cnt == 0 then spr ctx "if " else println ctx "elseif ";
@@ -1518,7 +1519,7 @@ let generate_class ctx c =
 					if p = "String" then println ctx "self = string";
 					spr ctx "return self";
 					bend(); newline ctx;
-					spr ctx "end"; newline ctx; newline ctx;
+					spr ctx "end"; newline ctx;
 					let bend = open_block ctx in
 					print ctx "%s.super = function(%s) " p (String.concat "," ("self" :: (List.map ident (List.map arg_name f.tf_args))));
 					List.iter (gen_block_element ctx) el;
@@ -1558,7 +1559,6 @@ let generate_class ctx c =
 
 	List.iter (gen_class_static_field ctx c) c.cl_ordered_statics;
 
-	newline ctx;
 	if (has_prototype ctx c) then begin
 		print ctx "%s.prototype = _hx_a(" p;
 		let bend = open_block ctx in
@@ -1603,11 +1603,9 @@ let generate_enum ctx e =
 
 	(* TODO: Unify the _hxClasses declaration *)
 	if has_feature ctx "Type.resolveEnum" then begin
-	    newline ctx;
 	    print ctx "_hxClasses[\"%s\"] = %s" (dot_path e.e_path) p; semicolon ctx; newline ctx;
 	end;
 	if has_feature ctx "lua.Boot.isEnum" then begin
-	    newline ctx;
 	    print ctx "_hxClasses[\"%s\"] = {" (dot_path e.e_path);
 	    if has_feature ctx "lua.Boot.isEnum" then  begin
 		print ctx " __ename__ = %s," (if has_feature ctx "Type.getEnumName" then "{" ^ String.concat "," ename ^ "}" else "true");
