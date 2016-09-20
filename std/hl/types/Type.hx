@@ -24,8 +24,8 @@ package hl.types;
 @:enum
 abstract TypeKind(Int) {
 	public var HVoid = 0;
-	public var HI8 = 1;
-	public var HI16 = 2;
+	public var HUI8 = 1;
+	public var HUI16 = 2;
 	public var HI32 = 3;
 	public var HF32 = 4;
 	public var HF64 = 5;

@@ -163,7 +163,7 @@ class Type {
 		switch( t.kind ) {
 		case HVoid:
 			return TNull;
-		case HI8, HI16, HI32:
+		case HUI8, HUI16, HI32:
 			return TInt;
 		case HF32, HF64:
 			return TFloat;
