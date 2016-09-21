@@ -23,6 +23,7 @@ open Common.DisplayMode
 open Type
 open Typecore
 open Error
+open Globals
 
 exception Build_canceled of build_state
 
@@ -813,7 +814,7 @@ let valid_redefinition ctx f1 t1 f2 t2 = (* child, parent *)
 					| _ ->
 						raise (Unify_error [Unify_custom "Different number of constraints"]))
 				| _ -> ());
-				TInst (mk_class null_module ([],name) Ast.null_pos Ast.null_pos,[])
+				TInst (mk_class null_module ([],name) null_pos null_pos,[])
 			) l1 l2 in
 			List.iter (fun f -> f monos) !to_check;
 			apply_params l1 monos t1, apply_params l2 monos t2
@@ -877,7 +878,7 @@ let check_overriding ctx c =
 				if ctx.com.config.pf_overload && (Meta.has Meta.Overload f2.cf_meta && not (Meta.has Meta.Overload f.cf_meta)) then
 					display_error ctx ("Field " ^ i ^ " should be declared with @:overload since it was already declared as @:overload in superclass") p
 				else if not (List.memq f c.cl_overrides) then
-					display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass " ^ Ast.s_type_path csup.cl_path) p
+					display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass " ^ s_type_path csup.cl_path) p
 				else if not f.cf_public && f2.cf_public then
 					display_error ctx ("Field " ^ i ^ " has less visibility (public/private) than superclass one") p
 				else (match f.cf_kind, f2.cf_kind with
@@ -2162,7 +2163,7 @@ module ClassInitializer = struct
 				| Some (csup,_) ->
 					(* this can happen on -net-lib generated classes if a combination of explicit interfaces and variables with the same name happens *)
 					if not (csup.cl_interface && Meta.has Meta.CsNative c.cl_meta) then
-						error ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (Ast.s_type_path csup.cl_path) ) p
+						error ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path) ) p
 		end;
 		let t = cf.cf_type in
 
@@ -3554,7 +3555,7 @@ let parse_module ctx m p =
 	let pack, decls = (!parse_hook) ctx.com file p in
 	if pack <> !remap then begin
 		let spack m = if m = [] then "<empty>" else String.concat "." m in
-		if p == Ast.null_pos then
+		if p == null_pos then
 			display_error ctx ("Invalid commandline class : " ^ s_type_path m ^ " should be " ^ s_type_path (pack,snd m)) p
 		else
 			display_error ctx ("Invalid package : " ^ spack (fst m) ^ " should be " ^ spack pack) p
@@ -3617,7 +3618,7 @@ let load_module ctx m p =
 			let is_extern = !is_extern in
 			try
 				type_module ctx m file ~is_extern decls p
-			with Forbid_package (inf,pl,pf) when p <> Ast.null_pos ->
+			with Forbid_package (inf,pl,pf) when p <> null_pos ->
 				raise (Forbid_package (inf,p::pl,pf))
 	) in
 	add_dependency ctx.m.curmod m2;
@@ -3712,7 +3713,7 @@ let extend_remoting ctx c t p async prot =
 (* -------------------------------------------------------------------------- *)
 (* HAXE.RTTI.GENERIC *)
 
-exception Generic_Exception of string * Ast.pos
+exception Generic_Exception of string * pos
 
 type generic_context = {
 	ctx : typer;

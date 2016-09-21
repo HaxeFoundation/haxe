@@ -24,6 +24,7 @@ open Genswf9
 open Type
 open Common
 open Ast
+open Globals
 
 let rec make_tpath = function
 	| HMPath (pack,name) ->
@@ -109,7 +110,7 @@ let is_valid_path com pack name =
 		| [] ->
 			false
 		| load :: l ->
-			match load (pack,name) Ast.null_pos with
+			match load (pack,name) null_pos with
 			| None -> loop l
 			| Some (file,(_,a)) -> true
 	in
@@ -1140,7 +1141,7 @@ let generate swf_header com =
 	let fattr = if Common.defined com Define.AdvancedTelemetry then fattr @ [tag (TUnknown (0x5D,"\x00\x00"))] else fattr in
 	let swf_script_limits = try
 		let s = Common.defined_value com Define.SwfScriptTimeout in
-		let i = try int_of_string s with _ -> abort "Argument to swf_script_timeout must be an integer" Ast.null_pos in
+		let i = try int_of_string s with _ -> abort "Argument to swf_script_timeout must be an integer" null_pos in
 		[tag(TScriptLimits (256, if i < 0 then 0 else if i > 65535 then 65535 else i))]
 	with Not_found ->
 		[]

@@ -25,7 +25,7 @@ open Type
 open Common
 open ExtList
 
-type pos = Ast.pos
+type pos = Globals.pos
 
 type ctx = {
 	com : Common.context;
@@ -67,7 +67,7 @@ let get_exposed ctx path meta = try
 			| _ -> abort "Invalid @:expose parameters" pos)
 	with Not_found -> []
 
-let dot_path = Ast.s_type_path
+let dot_path = Globals.s_type_path
 
 let s_path ctx = dot_path
 
@@ -630,7 +630,7 @@ and gen_expr ?(local=true) ctx e = begin
 				| _ when Meta.has Meta.MultiReturn v.v_meta ->
 					(* multi-return var is generated as several vars for unpacking *)
 				    let id = temp ctx in
-				    let temp_expr = (EConst(String(id)), null_pos) in
+				    let temp_expr = (EConst(String(id)), Globals.null_pos) in
 				    v.v_meta <- (Meta.Custom ":lua_mr_id", [temp_expr], v.v_pos) :: v.v_meta;
 				    let name = ident v.v_name in
 				    let names =

@@ -17,6 +17,7 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
+open Globals
 open Ast
 open Type
 open Common
@@ -226,7 +227,7 @@ let rec func ctx bb tf t p =
 		let fl,e = loop [] e in
 		let v = alloc_var ctx.temp_var_name e.etype e.epos in
 		begin match ctx.com.platform with
-			| Cpp when sequential && not (Common.defined ctx.com Define.Cppia) -> ()
+			| Globals.Cpp when sequential && not (Common.defined ctx.com Define.Cppia) -> ()
 			| _ -> v.v_meta <- [Meta.CompilerGenerated,[],e.epos];
 		end;
 		let bb = declare_var_and_assign bb v e e.epos in

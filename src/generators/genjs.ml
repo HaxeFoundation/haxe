@@ -17,11 +17,10 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
+open Globals
 open Ast
 open Type
 open Common
-
-type pos = Ast.pos
 
 type sourcemap = {
 	sources : (string) DynArray.t;
@@ -74,7 +73,7 @@ let get_exposed ctx path meta =
 			| _ -> abort "Invalid @:expose parameters" pos)
 	with Not_found -> []
 
-let dot_path = Ast.s_type_path
+let dot_path = s_type_path
 
 let flat_path (p,s) =
 	(* Replace _ with _$ in paths to prevent name collisions. *)

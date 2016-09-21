@@ -344,7 +344,7 @@ let write_resource dir name data =
 	close_out ch
 
 let stack_init com use_add =
-	Codegen.stack_context_init com "GLOBALS['%s']" "GLOBALS['%e']" "__hx__spos" "tmp" use_add null_pos
+	Codegen.stack_context_init com "GLOBALS['%s']" "GLOBALS['%e']" "__hx__spos" "tmp" use_add Globals.null_pos
 
 let init com cwd path def_type =
 	let rec create acc = function
@@ -2262,9 +2262,9 @@ let generate com =
 							else
 								((n = (prefixed_name false)) || (n = (prefixed_name true)))
 						) !lc_names in
-						unsupported ("method '" ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name ^ "' already exists here '" ^ (fst lc) ^ "' (different case?)") c.cl_pos
+						unsupported ("method '" ^ (Globals.s_type_path c.cl_path) ^ "." ^ cf.cf_name ^ "' already exists here '" ^ (fst lc) ^ "' (different case?)") c.cl_pos
 					with Not_found ->
-						lc_names := ((s_type_path c.cl_path) ^ "." ^ cf.cf_name, prefixed_name static) :: !lc_names)
+						lc_names := ((Globals.s_type_path c.cl_path) ^ "." ^ cf.cf_name, prefixed_name static) :: !lc_names)
 				| _ ->
 					()
 			) lst

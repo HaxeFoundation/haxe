@@ -1,4 +1,5 @@
 open Printf
+open Globals
 open Ast
 open Common
 open Common.DisplayMode
@@ -84,7 +85,7 @@ let default_flush ctx =
 
 let create_context params =
 	let ctx = {
-		com = Common.create Globals.version Globals.s_version params;
+		com = Common.create version s_version params;
 		flush = (fun()->());
 		setup = (fun()->());
 		messages = [];
@@ -149,7 +150,7 @@ let rec wait_loop process_params verbose accept =
 	let current_stdin = ref None in
 	Typeload.parse_hook := (fun com2 file p ->
 		let ffile = Path.unique_full_path file in
-		let is_display_file = ffile = (!Parser.resume_display).Ast.pfile in
+		let is_display_file = ffile = (!Parser.resume_display).pfile in
 
 		match is_display_file, !current_stdin with
 		| true, Some stdin when Common.defined com2 Define.DisplayStdin ->
@@ -262,14 +263,14 @@ let rec wait_loop process_params verbose accept =
 						| TEnumDecl e ->
 							let rec loop acc = function
 								| [] -> ()
-								| (Ast.Meta.RealPath,[Ast.EConst (Ast.String path),_],_) :: l ->
+								| (Meta.RealPath,[Ast.EConst (Ast.String path),_],_) :: l ->
 									e.e_path <- Ast.parse_path path;
 									e.e_meta <- (List.rev acc) @ l;
 								| x :: l -> loop (x::acc) l
 							in
 							loop [] e.e_meta
 						| TAbstractDecl a ->
-							a.a_meta <- List.filter (fun (m,_,_) -> m <> Ast.Meta.ValueUsed) a.a_meta
+							a.a_meta <- List.filter (fun (m,_,_) -> m <> Meta.ValueUsed) a.a_meta
 						| _ -> ()
 					) m.m_types;
 					if m.m_extra.m_kind <> MSub then Typeload.add_module ctx m p;
@@ -329,7 +330,7 @@ let rec wait_loop process_params verbose accept =
 				end;
 				Parser.display_error := (fun e p -> has_parse_error := true; ctx.com.error (Parser.error_msg e) p);
 				if ctx.com.display.dms_display then begin
-					let file = (!Parser.resume_display).Ast.pfile in
+					let file = (!Parser.resume_display).pfile in
 					let fkey = (file,get_signature ctx.com) in
 					(* force parsing again : if the completion point have been changed *)
 					CompilationServer.remove_file cs fkey;
@@ -355,7 +356,7 @@ let rec wait_loop process_params verbose accept =
 			if verbose then print_endline ("Processing Arguments [" ^ String.concat "," data ^ "]");
 			(try
 				Common.display_default := DMNone;
-				Parser.resume_display := Ast.null_pos;
+				Parser.resume_display := null_pos;
 				Typeload.return_partial_type := false;
 				measure_times := false;
 				close_times();

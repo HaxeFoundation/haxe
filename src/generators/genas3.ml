@@ -109,7 +109,7 @@ let s_path ctx stat path p =
 		let name = protect name in
 		let packs = (try Hashtbl.find ctx.imports name with Not_found -> []) in
 		if not (List.mem pack packs) then Hashtbl.replace ctx.imports name (pack :: packs);
-		Ast.s_type_path (pack,name)
+		Globals.s_type_path (pack,name)
 
 let reserved =
 	let h = Hashtbl.create 0 in
@@ -190,7 +190,7 @@ let close ctx =
 	Hashtbl.iter (fun name paths ->
 		List.iter (fun pack ->
 			let path = pack, name in
-			if path <> ctx.path then output_string ctx.ch ("\timport " ^ Ast.s_type_path path ^ ";\n");
+			if path <> ctx.path then output_string ctx.ch ("\timport " ^ Globals.s_type_path path ^ ";\n");
 		) paths
 	) ctx.imports;
 	output_string ctx.ch (Buffer.contents ctx.buf);
@@ -247,7 +247,7 @@ let rec type_str ctx t p =
 	match t with
 	| TEnum _ | TInst _ when List.memq t ctx.local_types ->
 		"*"
-	| TAbstract (a,pl) when not (Ast.Meta.has Ast.Meta.CoreType a.a_meta) ->
+	| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 		type_str ctx (Abstract.get_underlying_type a pl) p
 	| TAbstract (a,_) ->
 		(match a.a_path with
@@ -264,7 +264,7 @@ let rec type_str ctx t p =
 			| _ ->
 				let rec loop = function
 					| [] -> "Object"
-					| (Ast.Meta.FakeEnum,[Ast.EConst (Ast.Ident n),_],_) :: _ ->
+					| (Meta.FakeEnum,[Ast.EConst (Ast.Ident n),_],_) :: _ ->
 						(match n with
 						| "Int" -> "int"
 						| "UInt" -> "uint"
@@ -397,8 +397,8 @@ let gen_function_header ctx name f params p =
 	print ctx "function%s(" (match name with None -> "" | Some (n,meta) ->
 		let rec loop = function
 			| [] -> n
-			| (Ast.Meta.Getter,[Ast.EConst (Ast.Ident i),_],_) :: _ -> "get " ^ i
-			| (Ast.Meta.Setter,[Ast.EConst (Ast.Ident i),_],_) :: _ -> "set " ^ i
+			| (Meta.Getter,[Ast.EConst (Ast.Ident i),_],_) :: _ -> "get " ^ i
+			| (Meta.Setter,[Ast.EConst (Ast.Ident i),_],_) :: _ -> "set " ^ i
 			| _ :: l -> loop l
 		in
 		" " ^ loop meta
@@ -964,7 +964,7 @@ and gen_value ctx e =
 		v()
 
 let final m =
-	if Ast.Meta.has Ast.Meta.Final m then " final " else ""
+	if Meta.has Meta.Final m then " final " else ""
 
 let generate_field ctx static f =
 	newline ctx;
@@ -972,7 +972,7 @@ let generate_field ctx static f =
 	ctx.gen_uid <- 0;
 	List.iter (fun(m,pl,_) ->
 		match m,pl with
-		| Ast.Meta.Meta, [Ast.ECall ((Ast.EConst (Ast.Ident n),_),args),_] ->
+		| Meta.Meta, [Ast.ECall ((Ast.EConst (Ast.Ident n),_),args),_] ->
 			let mk_arg (a,p) =
 				match a with
 				| Ast.EConst (Ast.String s) -> (None, s)
@@ -994,7 +994,7 @@ let generate_field ctx static f =
 		| _ -> ()
 	) f.cf_meta;
 	let public = f.cf_public || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static)
-		|| f.cf_name = "resolve" || Ast.Meta.has Ast.Meta.Public f.cf_meta
+		|| f.cf_name = "resolve" || Meta.has Meta.Public f.cf_meta
 		(* consider all abstract methods public to avoid issues with inlined private access *)
 	    || (match ctx.curclass.cl_kind with KAbstractImpl _ -> true | _ -> false)
 	in
@@ -1024,8 +1024,8 @@ let generate_field ctx static f =
 			| TFun (args,r) when (match f.cf_kind with Method MethDynamic | Var _ -> false | _ -> true) ->
 				let rec loop = function
 					| [] -> f.cf_name
-					| (Ast.Meta.Getter,[Ast.EConst (Ast.String name),_],_) :: _ -> "get " ^ name
-					| (Ast.Meta.Setter,[Ast.EConst (Ast.String name),_],_) :: _ -> "set " ^ name
+					| (Meta.Getter,[Ast.EConst (Ast.String name),_],_) :: _ -> "get " ^ name
+					| (Meta.Setter,[Ast.EConst (Ast.String name),_],_) :: _ -> "set " ^ name
 					| _ :: l -> loop l
 				in
 				print ctx "function %s(" (loop f.cf_meta);
@@ -1137,13 +1137,13 @@ let generate_class ctx c =
 		newline ctx;
 		spr ctx "namespace static_init";
 		newline ctx;
-		print ctx "%s.static_init::init()" (s_path ctx true ctx.curclass.cl_path Ast.null_pos);
+		print ctx "%s.static_init::init()" (s_path ctx true ctx.curclass.cl_path Globals.null_pos);
 	end;
 	newline ctx;
-	if c.cl_interface && Ast.Meta.has (Ast.Meta.Custom ":hasMetadata") c.cl_meta then begin
+	if c.cl_interface && Meta.has (Meta.Custom ":hasMetadata") c.cl_meta then begin
 		(* we have to reference the metadata class in order for it to be compiled *)
 		let path = fst c.cl_path,snd c.cl_path ^ "_HxMeta" in
-		spr ctx (Ast.s_type_path path);
+		spr ctx (Globals.s_type_path path);
 		newline ctx
 	end
 
@@ -1152,7 +1152,7 @@ let generate_main ctx inits =
 	let pack = open_block ctx in
 	print ctx "\timport flash.Lib";
 	newline ctx;
-	print ctx "public class __main__ extends %s {" (s_path ctx true (["flash"],"Boot") Ast.null_pos);
+	print ctx "public class __main__ extends %s {" (s_path ctx true (["flash"],"Boot") Globals.null_pos);
 	let cl = open_block ctx in
 	newline ctx;
 	spr ctx "public function __main__() {";

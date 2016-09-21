@@ -20,6 +20,7 @@
 open Ast
 open Common
 open Type
+open Globals
 
 type dce = {
 	com : context;

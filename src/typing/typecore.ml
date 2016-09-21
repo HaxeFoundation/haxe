@@ -17,6 +17,7 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
+open Globals
 open Ast
 open Common
 open Type
@@ -476,7 +477,7 @@ module AbstractCast = struct
 						if not (has_mono t) then t
 						else t_dynamic
 				) a.a_params pl in
-				if com.platform = Js && a.a_path = ([],"Map") then begin match tl with
+				if com.platform = Globals.Js && a.a_path = ([],"Map") then begin match tl with
 					| t1 :: _ ->
 						let rec loop stack t =
 							if List.exists (fun t2 -> fast_eq t t2) stack then

@@ -43,12 +43,12 @@
 *)
 
 open Printf
-open Ast
 open Genswf
 open Common
 open Common.DisplayMode
 open Type
 open Server
+open Globals
 
 exception Abort
 
@@ -56,7 +56,7 @@ let executable_path() =
 	Extc.executable_path()
 
 let format msg p =
-	if p = Ast.null_pos then
+	if p = null_pos then
 		msg
 	else begin
 		let error_printer file line = sprintf "%s:%d:" file line in
@@ -330,7 +330,7 @@ let generate tctx ext xml_out interp swf_header =
 		| _ -> Common.mkdir_from_path com.file
 	end;
 	if interp then begin
-		let ctx = Interp.create com (Typer.make_macro_api tctx Ast.null_pos) in
+		let ctx = Interp.create com (Typer.make_macro_api tctx null_pos) in
 		Interp.add_types ctx com.types (fun t -> ());
 		(match com.main with
 		| None -> ()
@@ -726,7 +726,7 @@ try
 			assert false
 		),"<dir> : set current working directory");
 		("-version",Arg.Unit (fun() ->
-			message ctx Globals.s_version Ast.null_pos;
+			message ctx Globals.s_version null_pos;
 			did_something := true;
 		),": print version and exit");
 		("--help-defines", Arg.Unit (fun() ->
@@ -746,7 +746,7 @@ try
 			did_something := true
 		),": print help for all compiler specific defines");
 		("--help-metas", Arg.Unit (fun() ->
-			let all,max_length = MetaInfo.get_documentation_list() in
+			let all,max_length = Meta.get_documentation_list() in
 			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
 			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
 			did_something := true
@@ -812,7 +812,7 @@ try
 		let tctx = Typer.create com in
 		List.iter (Typer.call_init_macro tctx) (List.rev !config_macros);
 		List.iter (Typer.eval tctx) !evals;
-		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath Ast.null_pos)) (List.rev !classes);
+		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev !classes);
 		Typer.finalize tctx;
 		t();
 		if not ctx.com.display.dms_display && ctx.has_error then raise Abort;
@@ -852,8 +852,6 @@ try
 with
 	| Abort ->
 		()
-	| Ast.Error (m,p) ->
-		error ctx m p
 	| Error.Fatal_error (m,p) ->
 		error ctx m p
 	| Common.Abort (m,p) ->
@@ -867,7 +865,7 @@ with
 			ctx.has_error <- false;
 			ctx.messages <- [];
 		end else begin
-			error ctx (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (Ast.s_type_path m) ) p;
+			error ctx (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m) ) p;
 			List.iter (error ctx "    referenced here") (List.rev pl);
 		end
 	| Error.Error (m,p) ->
@@ -875,15 +873,15 @@ with
 	| Interp.Error (msg,p :: l) ->
 		message ctx msg p;
 		List.iter (message ctx "Called from") l;
-		error ctx "Aborted" Ast.null_pos;
+		error ctx "Aborted" null_pos;
 	| Typeload.Generic_Exception(m,p) ->
 		error ctx m p
 	| Arg.Bad msg ->
-		error ctx ("Error: " ^ msg) Ast.null_pos
+		error ctx ("Error: " ^ msg) null_pos
 	| Failure msg when not (is_debug_run()) ->
-		error ctx ("Error: " ^ msg) Ast.null_pos
+		error ctx ("Error: " ^ msg) null_pos
 	| Arg.Help msg ->
-		message ctx msg Ast.null_pos
+		message ctx msg null_pos
 	| Display.DisplayPackage pack ->
 		raise (DisplayOutput.Completion (String.concat "." pack))
 	| Display.DisplayFields fields ->
@@ -924,7 +922,7 @@ with
 		ctx.flush();
 		exit i
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not (is_debug_run()) ->
-		error ctx (Printexc.to_string e) Ast.null_pos
+		error ctx (Printexc.to_string e) null_pos
 
 ;;
 let other = Common.timer ["other"] in

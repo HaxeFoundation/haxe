@@ -1,4 +1,4 @@
-open Ast
+open Globals
 open Common
 open Common.DisplayMode
 open Type
@@ -195,7 +195,7 @@ let display_memory com =
 			let sign md =
 				if md.m_extra.m_sign = key then "" else "(" ^ (try Digest.to_hex md.m_extra.m_sign with _ -> "???" ^ md.m_extra.m_sign) ^ ")"
 			in
-			print (Printf.sprintf "    %s : %s" (Ast.s_type_path m.m_path) (fmt_size size));
+			print (Printf.sprintf "    %s : %s" (s_type_path m.m_path) (fmt_size size));
 			(if reached then try
 				incr mcount;
 				let lcount = ref 0 in
@@ -210,14 +210,14 @@ let display_memory com =
 				in
 				if (Objsize.objsize m deps [Obj.repr Common.memory_marker]).Objsize.reached then leak "common";
 				PMap.iter (fun _ md ->
-					if (Objsize.objsize m deps [Obj.repr md]).Objsize.reached then leak (Ast.s_type_path md.m_path ^ sign md);
+					if (Objsize.objsize m deps [Obj.repr md]).Objsize.reached then leak (s_type_path md.m_path ^ sign md);
 				) out;
 			with Exit ->
 				());
 			if verbose then begin
 				print (Printf.sprintf "      %d total deps" (List.length deps));
 				PMap.iter (fun _ md ->
-					print (Printf.sprintf "      dep %s%s" (Ast.s_type_path md.m_path) (sign md));
+					print (Printf.sprintf "      dep %s%s" (s_type_path md.m_path) (sign md));
 				) m.m_extra.m_deps;
 			end;
 			flush stdout
@@ -317,7 +317,7 @@ module TypePathHandler = struct
 	let complete_type_path com p =
 		let packs, modules = read_type_path com p in
 		if packs = [] && modules = [] then
-			(error ("No classes found in " ^ String.concat "." p) Ast.null_pos)
+			(error ("No classes found in " ^ String.concat "." p) null_pos)
 		else
 			let packs = List.map (fun n -> n,Display.FKPackage,"") packs in
 			let modules = List.map (fun n -> n,Display.FKModule,"") modules in
@@ -333,7 +333,7 @@ module TypePathHandler = struct
 			let ctx = Typer.create com in
 			let rec lookup p =
 				try
-					Typeload.load_module ctx (p,s_module) Ast.null_pos
+					Typeload.load_module ctx (p,s_module) null_pos
 				with e ->
 					if cur_package then
 						match List.rev p with
@@ -375,7 +375,7 @@ module TypePathHandler = struct
 			in
 			Some fields
 		with _ ->
-			error ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos
+			error ("Could not load module " ^ (s_type_path (p,c))) null_pos
 end
 
 (* New JSON stuff *)
@@ -690,9 +690,9 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		Common.define_value com Define.Display (if smode <> "" then smode else "1");
 		Parser.use_doc := true;
 		Parser.resume_display := {
-			Ast.pfile = Path.unique_full_path file;
-			Ast.pmin = pos;
-			Ast.pmax = pos;
+			pfile = Path.unique_full_path file;
+			pmin = pos;
+			pmax = pos;
 		}
 
 let process_display_file com classes =
@@ -708,7 +708,7 @@ let process_display_file com classes =
 					(try
 						let path = Path.parse_type_path path in
 						(match loop l with
-						| Some x as r when String.length (Ast.s_type_path x) < String.length (Ast.s_type_path path) -> r
+						| Some x as r when String.length (s_type_path x) < String.length (s_type_path path) -> r
 						| _ -> Some path)
 					with _ -> loop l)
 				end else
@@ -724,7 +724,7 @@ let process_display_file com classes =
 				classes := [];
 				com.main_class <- None;
 			end;
-			let real = Path.get_real_path (!Parser.resume_display).Ast.pfile in
+			let real = Path.get_real_path (!Parser.resume_display).pfile in
 			(match get_module_path_from_file_path com real with
 			| Some path ->
 				if com.display.dms_kind = DMPackage then raise (DisplayPackage (fst path));
@@ -737,7 +737,7 @@ let process_display_file com classes =
 				failwith "Display file was not found in class path"
 			);
 			Common.log com ("Display file : " ^ real);
-			Common.log com ("Classes found : ["  ^ (String.concat "," (List.map Ast.s_type_path !classes)) ^ "]")
+			Common.log com ("Classes found : ["  ^ (String.concat "," (List.map s_type_path !classes)) ^ "]")
 
 let process_global_display_mode com tctx = match com.display.dms_kind with
 	| DMUsage with_definition ->

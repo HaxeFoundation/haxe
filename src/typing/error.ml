@@ -1,4 +1,4 @@
-open Ast
+open Globals
 open Type
 
 type call_error =
@@ -17,8 +17,8 @@ and error_msg =
 	| Call_error of call_error
 	| No_constructor of module_type
 
-exception Fatal_error of string * pos
-exception Error of error_msg * pos
+exception Fatal_error of string * Globals.pos
+exception Error of error_msg * Globals.pos
 
 let string_source t = match follow t with
 	| TInst(c,_) -> List.map (fun cf -> cf.cf_name) c.cl_ordered_fields

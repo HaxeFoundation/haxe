@@ -21,6 +21,7 @@ open Ast
 open Type
 open Common
 open OptimizerTexpr
+open Globals
 
 let s_expr_pretty e = s_expr_pretty false "" false (s_type (print_context())) e
 

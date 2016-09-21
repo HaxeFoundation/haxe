@@ -17,191 +17,7 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
-type pos = {
-	pfile : string;
-	pmin : int;
-	pmax : int;
-}
-
-module IntMap = Map.Make(struct type t = int let compare a b = a - b end)
-module StringMap = Map.Make(struct type t = string let compare = String.compare end)
-
-module Meta = struct
-	type strict_meta =
-		| Abi
-		| Abstract
-		| Access
-		| Accessor
-		| Allow
-		| Analyzer
-		| Annotation
-		| ArrayAccess
-		| Ast
-		| AstSource
-		| AutoBuild
-		| Bind
-		| Bitmap
-		| BridgeProperties
-		| Build
-		| BuildXml
-		| Callable
-		| Class
-		| ClassCode
-		| Commutative
-		| CompilerGenerated
-		| Const
-		| CoreApi
-		| CoreType
-		| CppFileCode
-		| CppInclude
-		| CppNamespaceCode
-		| CsNative
-		| Dce
-		| Debug
-		| Decl
-		| DefParam
-		| Delegate
-		| Depend
-		| Deprecated
-		| DirectlyUsed
-		| DynamicObject
-		| Eager
-		| Enum
-		| EnumConstructorParam
-		| Event
-		| Exhaustive
-		| Expose
-		| Extern
-		| FakeEnum
-		| File
-		| FileXml
-		| Final
-		| Fixed
-		| FlatEnum
-		| Font
-		| Forward
-		| ForwardStatics
-		| From
-		| FunctionCode
-		| FunctionTailCode
-		| Generic
-		| GenericBuild
-		| GenericInstance
-		| Getter
-		| Hack
-		| HasUntyped
-		| HaxeGeneric
-		| HeaderClassCode
-		| HeaderCode
-		| HeaderInclude
-		| HeaderNamespaceCode
-		| HxGen
-		| IfFeature
-		| Impl
-		| PythonImport
-		| ImplicitCast
-		| Include
-		| InitPackage
-		| InlineConstructorVariable
-		| Internal
-		| IsVar
-		| JavaCanonical
-		| JavaNative
-		| JsRequire
-		| Keep
-		| KeepInit
-		| KeepSub
-		| LibType
-		| LuaRequire
-		| Meta
-		| Macro
-		| MaybeUsed
-		| MergeBlock
-		| MultiReturn
-		| MultiType
-		| Native
-		| NativeChildren
-		| NativeGen
-		| NativeGeneric
-		| NativeProperty
-		| NativeStaticExtension
-		| NoCompletion
-		| NoDebug
-		| NoDoc
-		| NoExpr
-		| NoImportGlobal
-		| NonVirtual
-		| NoPackageRestrict
-		| NoPrivateAccess
-		| NoStack
-		| NotNull
-		| NoUsing
-		| Ns
-		| Objc
-		| ObjcProtocol
-		| Op
-		| Optional
-		| Overload
-		| PhpConstants
-		| PhpGlobal
-		| PrivateAccess
-		| Property
-		| Protected
-		| Public
-		| PublicFields
-		| Pure
-		| QuotedField
-		| ReadOnly
-		| RealPath
-		| Remove
-		| Require
-		| RequiresAssign
-		| Resolve
-		| Rtti
-		| Runtime
-		| RuntimeValue
-		| Scalar
-		| SelfCall
-		| Setter
-		| SkipCtor
-		| SkipReflection
-		| Sound
-		| SourceFile
-		| StackOnly
-		| StoredTypedExpr
-		| Strict
-		| Struct
-		| StructAccess
-		| StructInit
-		| SuppressWarnings
-		| This
-		| Throws
-		| To
-		| ToString
-		| Transient
-		| TemplatedCall
-		| ValueUsed
-		| Volatile
-		| Unbound
-		| UnifyMinDynamic
-		| Unreflective
-		| Unsafe
-		| Usage
-		| Used
-		| UserVariable
-		| Value
-		| Void
-		| Last
-		(* do not put any custom metadata after Last *)
-		| Dollar of string
-		| Custom of string
-
-	let has m ml = List.exists (fun (m2,_,_) -> m = m2) ml
-	let get m ml = List.find (fun (m2,_,_) -> m = m2) ml
-
-	let to_string_ref = ref (fun _ -> assert false)
-	let to_string (m : strict_meta) : string = !to_string_ref m
-end
+open Globals
 
 type keyword =
 	| Function
@@ -476,8 +292,6 @@ type type_decl = type_def * pos
 
 type package = string list * type_decl list
 
-exception Error of string * pos
-
 let is_lower_ident i =
 	let rec loop p =
 		match String.unsafe_get i p with
@@ -499,8 +313,6 @@ let is_prefix = function
 
 let base_class_name = snd
 
-let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
-
 let punion p p2 =
 	{
 		pfile = p.pfile;
@@ -515,8 +327,6 @@ let rec punion_el el = match el with
 		p
 	| (_,p) :: el ->
 		punion p (punion_el el)
-
-let s_type_path (p,s) = match p with [] -> s | _ -> String.concat "." p ^ "." ^ s
 
 let parse_path s =
 	match List.rev (ExtString.String.nsplit s ".") with

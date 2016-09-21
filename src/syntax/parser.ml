@@ -18,6 +18,7 @@
  *)
 
 open Ast
+open Globals
 
 type error_msg =
 	| Unexpected of token
@@ -340,7 +341,7 @@ let reify in_macro =
 	and to_meta m p =
 		to_array (fun (m,el,p) _ ->
 			let fields = [
-				"name", to_string (fst (Common.MetaInfo.to_string m)) p;
+				"name", to_string (Meta.to_string m) p;
 				"params", to_expr_array el p;
 				"pos", to_pos p;
 			] in
@@ -490,7 +491,7 @@ let reify in_macro =
 				cur_pos := old;
 				e
 			| _ ->
-				expr "EMeta" [to_obj [("name",to_string (fst (Common.MetaInfo.to_string m)) p);("params",to_expr_array ml p);("pos",to_pos p)] p;loop e1]
+				expr "EMeta" [to_obj [("name",to_string (Meta.to_string m) p);("params",to_expr_array ml p);("pos",to_pos p)] p;loop e1]
 	and to_tparam_decl p t =
 		to_obj [
 			"name", to_placed_name t.tp_name;
@@ -876,8 +877,8 @@ and meta_name p1 = parser
 	| [< '(Const (Ident i),p) when p.pmin = p1.pmax >] -> (Meta.Custom i), p
 	| [< '(Kwd k,p) when p.pmin = p1.pmax >] -> (Meta.Custom (s_keyword k)),p
 	| [< '(DblDot,p) when p.pmin = p1.pmax; s >] -> match s with parser
-		| [< '(Const (Ident i),p) >] -> (Common.MetaInfo.parse i), p
-		| [< '(Kwd k,p) >] -> (Common.MetaInfo.parse (s_keyword k)),p
+		| [< '(Const (Ident i),p) >] -> (Meta.parse i), p
+		| [< '(Kwd k,p) >] -> (Meta.parse (s_keyword k)),p
 
 and parse_enum_flags = parser
 	| [< '(Kwd Enum,p) >] -> [] , p
@@ -1390,7 +1391,7 @@ and expr = parser
 and expr_next e1 = parser
 	| [< '(BrOpen,p1) when is_dollar_ident e1; eparam = expr; '(BrClose,p2); s >] ->
 		(match fst e1 with
-		| EConst(Ident n) -> expr_next (EMeta((Common.MetaInfo.from_string n,[],snd e1),eparam), punion p1 p2) s
+		| EConst(Ident n) -> expr_next (EMeta((Meta.from_string n,[],snd e1),eparam), punion p1 p2) s
 		| _ -> assert false)
 	| [< '(Dot,p); s >] ->
 		if is_resuming p then display (EDisplay (e1,false),p);

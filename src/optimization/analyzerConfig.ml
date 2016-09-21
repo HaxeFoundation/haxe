@@ -20,6 +20,7 @@
 open Ast
 open Type
 open Common
+open Globals
 
 type debug_kind =
 	| DebugNone

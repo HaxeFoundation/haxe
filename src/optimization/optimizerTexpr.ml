@@ -1,6 +1,7 @@
 open Ast
 open Type
 open Error
+open Globals
 
 (*
 	PurityState represents whether or not something has a side-effect. Unless otherwise stated

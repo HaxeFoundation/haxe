@@ -17,6 +17,7 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
+open Globals
 open Ast
 open Type
 open Common
@@ -85,7 +86,7 @@ let gen_meta meta =
 	| [] -> []
 	| _ ->
 		let nodes = List.map (fun (m,el,_) ->
-			node "m" ["n",fst (MetaInfo.to_string m)] (List.map (fun e -> node "e" [] [gen_string (Ast.s_expr e)]) el)
+			node "m" ["n",Meta.to_string m] (List.map (fun e -> node "e" [] [gen_string (Ast.s_expr e)]) el)
 		) meta in
 		[node "meta" [] nodes]
 
@@ -425,8 +426,8 @@ let generate_type com t =
 			| Meta.DefParam | Meta.CoreApi | Meta.Used | Meta.MaybeUsed | Meta.FlatEnum | Meta.Value | Meta.DirectlyUsed -> ()
 			| _ ->
 			match pl with
-			| [] -> p "@%s " (fst (MetaInfo.to_string m))
-			| l -> p "@%s(%s) " (fst (MetaInfo.to_string m)) (String.concat "," (List.map Ast.s_expr pl))
+			| [] -> p "@%s " (Meta.to_string m)
+			| l -> p "@%s(%s) " (Meta.to_string m) (String.concat "," (List.map Ast.s_expr pl))
 		) ml
 	in
 	let access is_read a = s_access is_read a in

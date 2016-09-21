@@ -32,7 +32,7 @@ module SymbolInformation = struct
 	type t = {
 		name : string;
 		kind : SymbolKind.t;
-		pos : pos;
+		pos : Globals.pos;
 		container_name : string option;
 	}
 

@@ -23,6 +23,7 @@ open Common
 open Type
 open Typecore
 open Error
+open Globals
 
 (* ---------------------------------------------------------------------- *)
 (* TOOLS *)
@@ -4759,7 +4760,7 @@ let make_macro_api ctx p =
 				let _, tdef, pos = (try Interp.decode_type_def v with Interp.Invalid_expr -> Interp.exc (Interp.VString "Invalid type definition")) in
 				tdef, pos
 			) types in
-			let pos = (match types with [] -> Ast.null_pos | (_,p) :: _ -> p) in
+			let pos = (match types with [] -> null_pos | (_,p) :: _ -> p) in
 			let imports = List.map (fun (il,ik) -> EImport(il,ik),pos) imports in
 			let usings = List.map (fun tp ->
 				let sl = tp.tpackage @ [tp.tname] @ (match tp.tsub with None -> [] | Some s -> [s]) in
@@ -4816,7 +4817,7 @@ let make_macro_api ctx p =
 	}
 
 let rec init_macro_interp ctx mctx mint =
-	let p = Ast.null_pos in
+	let p = null_pos in
 	ignore(Typeload.load_module mctx (["haxe";"macro"],"Expr") p);
 	ignore(Typeload.load_module mctx (["haxe";"macro"],"Type") p);
 	flush_macro_context mint ctx;
@@ -4870,10 +4871,10 @@ let create_macro_interp ctx mctx =
 	let com2 = mctx.com in
 	let mint, init = (match !macro_interp_cache with
 		| None ->
-			let mint = Interp.create com2 (make_macro_api ctx Ast.null_pos) in
+			let mint = Interp.create com2 (make_macro_api ctx null_pos) in
 			mint, (fun() -> init_macro_interp ctx mctx mint)
 		| Some mint ->
-			Interp.do_reuse mint (make_macro_api ctx Ast.null_pos);
+			Interp.do_reuse mint (make_macro_api ctx null_pos);
 			mint, (fun() -> ())
 	) in
 	let on_error = com2.error in
@@ -4900,7 +4901,7 @@ let get_macro_context ctx p =
 		com2.package_rules <- PMap.empty;
 		com2.main_class <- None;
 		com2.display <- DisplayMode.create DMNone;
-		List.iter (fun p -> com2.defines <- PMap.remove (platform_name p) com2.defines) platforms;
+		List.iter (fun p -> com2.defines <- PMap.remove (Globals.platform_name p) com2.defines) Globals.platforms;
 		com2.defines_signature <- None;
 		com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
 		com2.class_path <- List.map (fun p -> p ^ "neko" ^ "/_std/") com2.std_path @ com2.class_path;
@@ -4915,7 +4916,7 @@ let get_macro_context ctx p =
 		api, mctx
 
 let load_macro ctx display cpath f p =
-	let t = macro_timer ctx ["typing";Ast.s_type_path cpath ^ "." ^ f] in
+	let t = macro_timer ctx ["typing";s_type_path cpath ^ "." ^ f] in
 	let api, mctx = get_macro_context ctx p in
 	let mint = Interp.get_ctx() in
 	let cpath, sub = (match List.rev (fst cpath) with

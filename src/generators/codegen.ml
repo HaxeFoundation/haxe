@@ -21,6 +21,7 @@ open Ast
 open Type
 open Common
 open Error
+open Globals
 
 (* -------------------------------------------------------------------------- *)
 (* TOOLS *)
@@ -548,7 +549,7 @@ module Dump = struct
 			close_out ch)
 
 	let create_dumpfile_from_path com path =
-		let buf,close = create_dumpfile [] ("dump" :: (Common.platform_name com.platform) :: fst path @ [snd path]) in
+		let buf,close = create_dumpfile [] ("dump" :: (platform_name com.platform) :: fst path @ [snd path]) in
 		buf,close
 
 	let dump_types com s_expr =
@@ -670,7 +671,7 @@ module Dump = struct
 
 	let dump_dependencies ?(target_override=None) com =
 		let target_name = match target_override with
-			| None -> Common.platform_name com.platform
+			| None -> platform_name com.platform
 			| Some s -> s
 		in
 		let buf,close = create_dumpfile [] ["dump";target_name;".dependencies"] in

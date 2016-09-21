@@ -20,6 +20,7 @@
 open Ast
 open Type
 open Common
+open Globals
 
 (*
    Generators do not care about non-core-type abstracts, so let us follow them
@@ -471,7 +472,7 @@ let type_has_meta_key haxe_type key =
 
 (*
 let dump_meta meta =
-   List.iter (fun m -> match m with | (k,_,_) -> print_endline ((fst (MetaInfo.to_string k)) ^ "=" ^ (get_meta_string meta k) ) | _ -> () ) meta;;
+   List.iter (fun m -> match m with | (k,_,_) -> print_endline ((fst (Meta.to_string k)) ^ "=" ^ (get_meta_string meta k) ) | _ -> () ) meta;;
 *)
 
 let get_class_code class_def key = match class_def.cl_kind with
@@ -1369,7 +1370,7 @@ type tcpp =
 and tcppexpr = {
    cppexpr : tcpp_expr_expr;
    cpptype : tcpp;
-   cpppos : Ast.pos;
+   cpppos : pos;
 }
 
 

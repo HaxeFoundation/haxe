@@ -1,4 +1,3 @@
-open Ast
 open Type
 
 let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =

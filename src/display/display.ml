@@ -3,6 +3,7 @@ open Common
 open Common.DisplayMode
 open Type
 open Typecore
+open Globals
 
 type display_field_kind =
 	| FKVar of t
@@ -28,7 +29,7 @@ exception ModuleSymbols of string
 exception Metadata of string
 exception DisplaySignatures of (t * documentation) list * int
 exception DisplayType of t * pos * string option
-exception DisplayPosition of Ast.pos list
+exception DisplayPosition of pos list
 exception DisplayFields of (string * display_field_kind * documentation) list
 exception DisplayToplevel of IdentifierType.t list
 exception DisplayPackage of string list
@@ -184,14 +185,14 @@ module DisplayEmitter = struct
 		| DMType ->
 			begin match meta with
 			| Meta.Custom _ | Meta.Dollar _ -> ()
-			| _ -> match MetaInfo.get_documentation meta with
+			| _ -> match Meta.get_documentation meta with
 				| None -> ()
 				| Some (_,s) ->
 					(* TODO: hack until we support proper output for hover display mode *)
 					raise (Metadata ("<metadata>" ^ s ^ "</metadata>"));
 			end
 		| DMField ->
-			let all,_ = MetaInfo.get_documentation_list() in
+			let all,_ = Meta.get_documentation_list() in
 			let all = List.map (fun (s,doc) -> (s,FKMetadata,Some doc)) all in
 			raise (DisplayFields all)
 		| _ ->
@@ -754,7 +755,7 @@ let explore_class_paths ctx class_paths recusive f_pack f_module f_type =
 							try
 								let name = String.sub file 0 (l - 3) in
 								let path = (List.rev pack,name) in
-								let md = ctx.g.do_load_module ctx path Ast.null_pos in
+								let md = ctx.g.do_load_module ctx path null_pos in
 								f_module md;
 								List.iter (fun mt -> f_type mt) md.m_types
 							with _ ->

@@ -18,6 +18,7 @@
  *)
 
 open Ast
+open Globals
 open Type
 open Nast
 open Common

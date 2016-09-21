@@ -22,6 +22,7 @@ open Common
 open Type
 open Typecore
 open Error
+open Globals
 
 (* PASS 1 begin *)
 

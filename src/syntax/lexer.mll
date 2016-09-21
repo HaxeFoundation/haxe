@@ -20,6 +20,7 @@
 {
 open Lexing
 open Ast
+open Globals
 
 type error_msg =
 	| Invalid_character of char

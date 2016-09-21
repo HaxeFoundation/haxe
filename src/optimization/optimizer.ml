@@ -23,6 +23,7 @@ open Common
 open Typecore
 open OptimizerTexpr
 open Error
+open Globals
 
 (* ---------------------------------------------------------------------- *)
 (* API OPTIMIZATIONS *)
