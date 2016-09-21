@@ -788,8 +788,7 @@ let clone com =
 		};
 	}
 
-let file_time file =
-	try (Unix.stat file).Unix.st_mtime with _ -> 0.
+let file_time file = Extc.filetime file
 
 let file_extension file =
 	match List.rev (ExtString.String.nsplit file ".") with
