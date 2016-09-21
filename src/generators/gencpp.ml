@@ -2629,7 +2629,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
          | TArray (e1,e2) ->
             let retypedObj = retype TCppDynamic e1 in
             let retypedIdx = retype (TCppScalar("Int")) e2 in
-            (match retypedObj.cpptype with
+            let arrayExpr, elemType = (match retypedObj.cpptype with
               | TCppScalarArray scalar ->
                  CppArray( ArrayTyped(retypedObj,retypedIdx) ), scalar
               | TCppPointer (_,elem) ->
@@ -2646,7 +2646,12 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                  CppArray( ArrayVirtual(retypedObj, retypedIdx) ), TCppDynamic
               | _ ->
                  CppArray( ArrayDynamic(retypedObj, retypedIdx) ), TCppDynamic
-            )
+            ) in
+            let returnType = cpp_type_of expr.etype in
+            if cpp_can_static_cast elemType returnType then
+               CppCastStatic(mk_cppexpr arrayExpr returnType, returnType), returnType
+            else
+               arrayExpr, elemType
 
          | TTypeExpr module_type ->
             let path = t_path module_type in
