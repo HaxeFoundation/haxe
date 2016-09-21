@@ -1164,7 +1164,7 @@ module Run = struct
 				| TReturn (Some e) -> e
 				| TFunction tf when first ->
 					begin match loop false tf.tf_expr with
-						| {eexpr = TBlock _ | TIf _ | TSwitch _ | TTry _} when actx.com.platform = Cpp ->
+						| {eexpr = TBlock _ | TIf _ | TSwitch _ | TTry _} when actx.com.platform = Cpp || actx.com.platform = Hl ->
 							mk (TCall(e,[])) tf.tf_type e.epos
 						| e ->
 							e

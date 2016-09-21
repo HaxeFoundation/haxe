@@ -643,7 +643,7 @@ let interp code =
 		| VVirtual v ->
 			to_virtual v.vvalue vp
 		| _ ->
-			error ("Invalid ToVirtual " ^ vstr_d v ^ " : " ^ tstr (HVirtual vp))
+			throw_msg ("Invalid ToVirtual " ^ vstr_d v ^ " : " ^ tstr (HVirtual vp))
 
 	and call f args =
 		let regs = Array.create (Array.length f.regs) VUndef in
