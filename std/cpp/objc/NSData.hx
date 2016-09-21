@@ -26,21 +26,26 @@ package cpp.objc;
 @:objc
 extern abstract NSData( NSDataData )
 {
-   @:native("_hx_bytes_to_nsdata") @:extern static function BytesToNSData(b:haxe.io.BytesData) : NSData return null;
-   @:native("_hx_bytes_to_nsdata") @:extern static function BytesToNSDataData(b:haxe.io.BytesData) : NSDataData return null;
-   @:native("_hx_nsdata_to_bytes") @:extern static function NSDataDataToBytes(d:NSDataData) : haxe.io.BytesData return null;
+   @:native("_hx_value_to_objc") @:extern static function to_data(b:haxe.io.BytesData) : NSData return null;
+   @:native("_hx_value_to_objc") @:extern static function to_data_data(b:haxe.io.BytesData) : NSDataData return null;
+   @:native("_hx_objc_to_bytes") @:extern static function NSDataDataToBytes(d:NSDataData) : haxe.io.BytesData return null;
 
 
    inline function new(d:NSDataData) this = d;
 
    @:from @:extern
-   static public inline function fromBytesData(d:haxe.io.BytesData):NSData return new NSData( BytesToNSDataData(d) );
+   static public inline function fromBytesData(d:haxe.io.BytesData):NSData return new NSData( to_data_data(d) );
 
    @:from @:extern
-   static public inline function fromBytes(d:haxe.io.Bytes):NSData return new NSData( BytesToNSDataData(d.getData()) );
+   static public inline function fromBytes(d:haxe.io.Bytes):NSData return new NSData( to_data_data(d.getData()) );
 
    @:to @:extern
-   public inline function toBytes():haxe.io.BytesData return NSDataDataToBytes(this);
+   public inline function toBytesData():haxe.io.BytesData return NSDataDataToBytes(this);
+
+   @:to @:extern
+   public inline function toBytes():haxe.io.Bytes return haxe.io.Bytes.ofData(NSDataDataToBytes(this));
+
+   @:to @:extern public inline function toNSObject():NSObject return cast this;
 
 }
 

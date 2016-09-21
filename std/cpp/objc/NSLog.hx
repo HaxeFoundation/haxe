@@ -21,25 +21,13 @@
  */
 package cpp.objc;
 
-@:native("NSString")  @:objc extern class NSStringData { }
-
-@:objc
-extern abstract NSString( NSStringData )
+extern class NSLog
 {
-   inline function new(s:NSStringData) this = s;
-   @:native("(id)") @:extern static function toObject(d:NSStringData) : NSObject return null;
+   @:native("NSLog")
+   @:overload(function(format:NSString,a0:NSObject):Void { })
+   @:overload(function(format:NSString,a0:NSObject,a1:NSObject):Void { })
+   public static function log(format:NSString):Void;
 
-   @:native("(NSString *)") @:extern static function castFromString(s:String) : NSString return null;
-   @:native("String") @:extern static function castToString(s:NSStringData) : String return null;
-
-
-   @:from @:extern
-   static public inline function fromString(s:String):NSString return castFromString(s);
-
-
-   @:to @:extern
-   public inline function toString():String return castToString(this);
-
-   @:to @:extern public inline function toNSObject():NSObject return toObject(this);
 }
+
 

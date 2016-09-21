@@ -4985,21 +4985,29 @@ let generate_protocol_delegate ctx class_def output =
       |  TFun(args,ret) ->
          let retStr = ctx_type_string ctx ret in
          let nativeName = get_meta_string field.cf_meta Meta.ObjcProtocol in
-         let names = if nativeName<>"" then
-            ExtString.String.nsplit nativeName ":"
-         else
-            List.map (fun (n,_,_) -> n ) args
+         let fieldName,argNames = if nativeName<>"" then begin
+            let parts = ExtString.String.nsplit nativeName ":" in
+            List.hd parts, List.tl parts
+         end else
+            field.cf_name, List.map (fun (n,_,_) -> n ) args
          in
-         output ("- (" ^ retStr ^ ") " ^ (if nativeName="" then field.cf_name else (List.hd names) ) );
+         output ("- (" ^ retStr ^ ") " ^ fieldName );
 
          let first = ref true in
-         List.iter2 (fun (name,_,argType) signature_name ->
-             if !first then
-               output (" :(" ^ (ctx_type_string ctx argType) ^ ")" ^ name )
-             else
-               output (" " ^ signature_name ^ ":(" ^ (ctx_type_string ctx argType) ^ ")" ^ name );
-             first := false;
-             ) args names;
+         (try
+            List.iter2 (fun (name,_,argType) signature_name ->
+                if !first then
+                  output (" :(" ^ (ctx_type_string ctx argType) ^ ")" ^ name )
+                else
+                  output (" " ^ signature_name ^ ":(" ^ (ctx_type_string ctx argType) ^ ")" ^ name );
+                first := false;
+                ) args argNames;
+         with Invalid_argument _ -> begin
+           abort (
+              let argString  = String.concat "," (List.map (fun (name,_,_) -> name) args) in
+             "Invalid arg count in delegate in " ^ field.cf_name ^ " '" ^ field.cf_name ^ "," ^
+             (argString) ^ "' != '" ^ (String.concat "," argNames) ^ "'" ) field.cf_pos
+         end);
          output (" {\n");
          output ("\thx::NativeAttach _hx_attach;\n");
          output ( (if retStr="void" then "\t" else "\treturn ") ^ full_class_name ^ "::" ^ (keyword_remap field.cf_name) ^ "(haxeObj");
