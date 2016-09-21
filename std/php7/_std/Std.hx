@@ -21,9 +21,13 @@ import php7.Boot;
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import php7.Global;
+import php7.Const;
+@:keep
 @:coreApi class Std {
 
-	public static function is( v : Dynamic, t : Dynamic ) : Bool {
+	public static inline function is( v : Dynamic, t : Dynamic ) : Bool {
 		return Boot.is(v, t);
 	}
 
@@ -31,38 +35,58 @@ import php7.Boot;
 		return Std.is(value, c) ? cast value : null;
 	}
 
-	public static function string( s : Dynamic ) : String {
+	public static inline function string( s : Dynamic ) : String {
 		return Boot.stringify(s);
 	}
 
-	public static function int( x : Float ) : Int {
-		var i : Int = untyped __call__("fmod", x, 0x80000000) & 0xffffffff;
-		if (untyped i & 0x80000000)
-        	i = -((~i & 0xffffffff) + 1);
-        return i;
+	public static inline function int( x : Float ) : Int {
+		return untyped __call__('(int)', x);
 	}
 
 	public static function parseInt( x : String ) : Null<Int> {
-		untyped if (!__call__("is_numeric", x)) {
-			var matches = null;
-			__call__('preg_match', '/^-?\\d+/', x, matches);
-			return __call__("count", matches) == 0 ? null : __call__('intval', matches[0]);
-		} else
-			return x.substr(0, 2).toLowerCase() == "0x" ? __php__("(int) hexdec(substr($x, 2))") : __php__("intval($x)");
+		if (Global.is_numeric(x)) {
+			return Global.intval(x, 10);
+		} else {
+			x = Global.rtrim(x);
+			var firstCharIndex = (x.charAt(0) == '-' ? 1 : 0);
+			var firstCharCode = x.charCodeAt(firstCharIndex);
+			if (!isDigitCode(firstCharCode)) {
+				return null;
+			}
+			var secondChar = x.charAt(firstCharIndex + 1);
+			if (secondChar == 'x' || secondChar == 'X') {
+				return Global.intval(x, 0);
+			} else {
+				return Global.intval(x, 10);
+			}
+		}
 	}
 
 	public static function parseFloat( x : String ) : Float {
-		var v : Float = untyped __call__("floatval", x);
-		untyped	if (v==0.0) {
-			x=untyped __call__("rtrim", x);
-			v=untyped __call__("floatval", x);
-			if (v == 0.0 && !__call__("is_numeric", x)) v = untyped __call__("acos", 1.01);
+		var result = Global.floatval(x);
+		if (result != 0) return result;
+
+		x = Global.rtrim(x);
+		var firstCharIndex = (x.charAt(0) == '-' ? 1 : 0);
+		var charCode = x.charCodeAt(firstCharIndex);
+
+		if (charCode == '.'.code) {
+			charCode = x.charCodeAt(firstCharIndex + 1);
 		}
-		return v;
+
+		if (isDigitCode(charCode)) {
+			return 0.0;
+		} else {
+			return Const.NAN;
+		}
 	}
 
 	public static function random( x : Int ) : Int {
-		return untyped x <= 0 ? 0 : __call__("mt_rand", 0, x-1);
+		return x <= 1 ? 0 : Global.mt_rand(0, x - 1);
+	}
+
+	static inline function isDigitCode( charCode:Null<Int> ) : Bool {
+		return charCode != null && charCode >= '0'.code && charCode <= '9'.code;
 	}
 
 }

@@ -63,6 +63,11 @@ extern class Global {
 	static function is_string( value:Dynamic ) : Bool ;
 
 	/**
+		@see http://php.net/manual/en/function.is-numeric.php
+	**/
+	static function is_numeric( value:Dynamic ) : Bool ;
+
+	/**
 		@see http://php.net/manual/en/function.is-bool.php
 	**/
 	static function is_bool( value:Dynamic ) : Bool ;
@@ -495,4 +500,19 @@ extern class Global {
 		@see http://php.net/manual/en/function.is-finite.php
 	**/
 	static function is_finite( arg:Float ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.trim.php
+	**/
+	static function trim( str:String, ?character_mask:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.rtrim.php
+	**/
+	static function rtrim( str:String, ?character_mask:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.ltrim.php
+	**/
+	static function ltrim( str:String, ?character_mask:String ) : String;
 }
