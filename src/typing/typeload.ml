@@ -70,12 +70,16 @@ let transform_abstract_field com this_t a_t a f =
 	| _ ->
 		f
 
+let get_policy ctx mpath =
+	let sl1 = full_dot_path mpath mpath in
+	List.fold_left (fun acc (sl2,policy,recursive) -> if match_path recursive sl1 sl2 then policy @ acc else acc) [] ctx.g.module_check_policies
+
 let make_module ctx mpath file loadp =
 	let m = {
 		m_id = alloc_mid();
 		m_path = mpath;
 		m_types = [];
-		m_extra = module_extra (Path.unique_full_path file) (Common.get_signature ctx.com) (file_time file) (if ctx.in_macro then MMacro else MCode);
+		m_extra = module_extra (Path.unique_full_path file) (Common.get_signature ctx.com) (file_time file) (if ctx.in_macro then MMacro else MCode) (get_policy ctx mpath);
 	} in
 	m
 
@@ -3865,7 +3869,7 @@ let rec build_generic ctx c p tl =
 			m_id = alloc_mid();
 			m_path = (pack,name);
 			m_types = [];
-			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake;
+			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake m.m_extra.m_check_policy;
 		} in
 		gctx.mg <- Some mg;
 		let cg = mk_class mg (pack,name) c.cl_pos null_pos in

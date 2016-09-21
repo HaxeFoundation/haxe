@@ -4814,6 +4814,9 @@ let make_macro_api ctx p =
 				ctx.g.global_metadata <- (ExtString.String.nsplit s1 ".",m,config) :: ctx.g.global_metadata;
 			) meta;
 		);
+		Interp.add_module_check_policy = (fun sl il b ->
+			ctx.g.module_check_policies <- (List.fold_left (fun acc s -> (ExtString.String.nsplit s ".",List.map Obj.magic il,b) :: acc) ctx.g.module_check_policies sl)
+		);
 	}
 
 let rec init_macro_interp ctx mctx mint =
@@ -5184,6 +5187,7 @@ let call_init_macro ctx e =
 		in
 		let path, meth = (match loop e with
 		| [meth] -> (["haxe";"macro"],"Compiler"), meth
+		| [meth;"server"] -> (["haxe";"macro"],"CompilationServer"), meth
 		| meth :: cl :: path -> (List.rev path,cl), meth
 		| _ -> error "Invalid macro call" p) in
 		ignore(call_macro ctx path meth args p);
@@ -5204,6 +5208,7 @@ let rec create com =
 			types_module = Hashtbl.create 0;
 			type_patches = Hashtbl.create 0;
 			global_metadata = [];
+			module_check_policies = [];
 			delayed = [];
 			debug_delayed = [];
 			delayed_macros = DynArray.create();

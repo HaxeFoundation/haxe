@@ -191,11 +191,67 @@ let rec wait_loop process_params verbose accept =
 		let t = Common.timer ["server";"module cache"] in
 		let com2 = ctx.Typecore.com in
 		let sign = get_signature com2 in
+		let content_changed m file =
+			let ffile = Path.unique_full_path file in
+			let fkey = (ffile,sign) in
+			try
+				let _, old_data = CompilationServer.find_file cs fkey in
+				(* We must use the module path here because the file path is absolute and would cause
+				   positions in the parsed declarations to differ. *)
+				let new_data = Typeload.parse_module ctx m.m_path p in
+				snd old_data <> snd new_data
+			with Not_found ->
+				true
+		in
 		let dep = ref None in
 		incr mark_loop;
 		let mark = !mark_loop in
 		let start_mark = !compilation_mark in
 		let rec check m =
+			let check_module_path () = match m.m_extra.m_kind with
+				| MFake | MSub | MImport -> () (* don't get classpath *)
+				| MExtern ->
+					(* if we have a file then this will override our extern type *)
+					let has_file = (try ignore(Typeload.resolve_module_file com2 m.m_path (ref[]) p); true with Not_found -> false) in
+					if has_file then begin
+						if verbose then print_endline ("A file is masking the library file " ^ s_type_path m.m_path);
+						raise Not_found;
+					end;
+					let rec loop = function
+						| [] ->
+							if verbose then print_endline ("No library file was found for " ^ s_type_path m.m_path);
+							raise Not_found (* no extern registration *)
+						| load :: l ->
+							match load m.m_path p with
+							| None -> loop l
+							| Some (file,_) ->
+								if Path.unique_full_path file <> m.m_extra.m_file then begin
+									if verbose then print_endline ("Library file was changed for " ^ s_type_path m.m_path);
+									raise Not_found;
+								end
+					in
+					loop com2.load_extern_type
+				| MCode -> check_module_path com2 m p
+				| MMacro when ctx.Typecore.in_macro -> check_module_path com2 m p
+				| MMacro ->
+					let _, mctx = Typer.get_macro_context ctx p in
+					check_module_path mctx.Typecore.com m p
+			in
+			let has_policy policy = List.mem policy m.m_extra.m_check_policy in
+			let check_file () =
+				if file_time m.m_extra.m_file <> m.m_extra.m_time then begin
+					if has_policy CheckFileContentModification && not (content_changed m m.m_extra.m_file) then begin
+						if verbose then print_endline (Printf.sprintf "%s%s changed time not but content, reusing" (sign_string com2) m.m_extra.m_file)
+					end else begin
+						if verbose then print_endline (Printf.sprintf "%s%s not cached (%s)" (sign_string com2) (s_type_path m.m_path) (if m.m_extra.m_time = -1. then "macro-in-macro" else "modified"));
+						if m.m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules m.m_extra.m_file;
+						raise Not_found;
+					end
+				end
+			in
+			let check_dependencies () =
+				PMap.iter (fun _ m2 -> if not (check m2) then begin dep := Some m2; raise Not_found end) m.m_extra.m_deps;
+			in
 			if m.m_extra.m_dirty then begin
 				dep := Some m;
 				false
@@ -203,43 +259,11 @@ let rec wait_loop process_params verbose accept =
 				true
 			else try
 				if m.m_extra.m_mark <= start_mark then begin
-					(match m.m_extra.m_kind with
-					| MFake | MSub | MImport -> () (* don't get classpath *)
-					| MExtern ->
-						(* if we have a file then this will override our extern type *)
-						let has_file = (try ignore(Typeload.resolve_module_file com2 m.m_path (ref[]) p); true with Not_found -> false) in
-						if has_file then begin
-							if verbose then print_endline ("A file is masking the library file " ^ s_type_path m.m_path);
-							raise Not_found;
-						end;
-						let rec loop = function
-							| [] ->
-								if verbose then print_endline ("No library file was found for " ^ s_type_path m.m_path);
-								raise Not_found (* no extern registration *)
-							| load :: l ->
-								match load m.m_path p with
-								| None -> loop l
-								| Some (file,_) ->
-									if Path.unique_full_path file <> m.m_extra.m_file then begin
-										if verbose then print_endline ("Library file was changed for " ^ s_type_path m.m_path);
-										raise Not_found;
-									end
-						in
-						loop com2.load_extern_type
-					| MCode -> check_module_path com2 m p
-					| MMacro when ctx.Typecore.in_macro -> check_module_path com2 m p
-					| MMacro ->
-						let _, mctx = Typer.get_macro_context ctx p in
-						check_module_path mctx.Typecore.com m p
-					);
-					if file_time m.m_extra.m_file <> m.m_extra.m_time then begin
-						if verbose then print_endline (Printf.sprintf "%s%s not cached (%s)" (sign_string com2) (s_type_path m.m_path) (if m.m_extra.m_time = -1. then "macro-in-macro" else "modified"));
-						if m.m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules m.m_extra.m_file;
-						raise Not_found;
-					end;
+					if not (has_policy NoCheckShadowing) then check_module_path();
+					if not (has_policy NoCheckFileTimeModification) then check_file();
 				end;
 				m.m_extra.m_mark <- mark;
-				PMap.iter (fun _ m2 -> if not (check m2) then begin dep := Some m2; raise Not_found end) m.m_extra.m_deps;
+				if not (has_policy NoCheckDependencies) then check_dependencies();
 				true
 			with Not_found ->
 				m.m_extra.m_dirty <- true;
@@ -272,8 +296,10 @@ let rec wait_loop process_params verbose accept =
 					) m.m_types;
 					if m.m_extra.m_kind <> MSub then Typeload.add_module ctx m p;
 					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
-					PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps);
+					if ctx.Typecore.in_macro || com2.display.dms_full_typing then
+						PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps;
 					List.iter (Typer.call_init_macro ctx) m.m_extra.m_macro_calls
+				)
 			end
 		in
 		try

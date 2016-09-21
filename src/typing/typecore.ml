@@ -77,6 +77,7 @@ type typer_globals = {
 	mutable hook_generate : (unit -> unit) list;
 	type_patches : (path, (string * bool, type_patch) Hashtbl.t * type_patch) Hashtbl.t;
 	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
+	mutable module_check_policies : (string list * module_check_policy list * bool) list;
 	mutable get_build_infos : unit -> (module_type * t list * class_field list) option;
 	delayed_macros : (unit -> unit) DynArray.t;
 	mutable global_using : (tclass * pos) list;
@@ -287,7 +288,7 @@ let create_fake_module ctx file =
 			m_id = alloc_mid();
 			m_path = (["$DEP"],file);
 			m_types = [];
-			m_extra = module_extra file (Common.get_signature ctx.com) (file_time file) MFake;
+			m_extra = module_extra file (Common.get_signature ctx.com) (file_time file) MFake [];
 		} in
 		Hashtbl.add fake_modules file mdep;
 		mdep
