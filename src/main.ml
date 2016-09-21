@@ -909,11 +909,14 @@ with
 		raise (DisplayOutput.Completion (DisplayOutput.print_toplevel il))
 	| Parser.TypePath (p,c,is_import) ->
 		let fields =
-			match c with
-			| None ->
-				DisplayOutput.TypePathHandler.complete_type_path com p
-			| Some (c,cur_package) ->
-				DisplayOutput.TypePathHandler.complete_type_path_inner com p c cur_package is_import
+			try begin match c with
+				| None ->
+					DisplayOutput.TypePathHandler.complete_type_path com p
+				| Some (c,cur_package) ->
+					DisplayOutput.TypePathHandler.complete_type_path_inner com p c cur_package is_import
+			end with Common.Abort(msg,p) ->
+				error ctx msg p;
+				None
 		in
 		Option.may (fun fields -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))) fields
 	| Display.ModuleSymbols s | Display.Diagnostics s | Display.Statistics s | Display.Metadata s ->

@@ -147,7 +147,7 @@ src/display/display.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/context/meta.$(
 
 src/display/displayTypes.$(MODULE_EXT) : src/globals.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
-src/display/displayOutput.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/typing/error.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/typer.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/display/display.$(MODULE_EXT)
+src/display/displayOutput.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/typer.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/display/display.$(MODULE_EXT)
 
 # generators
 

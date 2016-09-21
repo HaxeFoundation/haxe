@@ -4,7 +4,6 @@ open Common.DisplayMode
 open Type
 open Display
 open Typecore
-open Error
 
 (* Old XML stuff *)
 
@@ -317,7 +316,7 @@ module TypePathHandler = struct
 	let complete_type_path com p =
 		let packs, modules = read_type_path com p in
 		if packs = [] && modules = [] then
-			(error ("No classes found in " ^ String.concat "." p) null_pos)
+			(abort ("No classes found in " ^ String.concat "." p) null_pos)
 		else
 			let packs = List.map (fun n -> n,Display.FKPackage,"") packs in
 			let modules = List.map (fun n -> n,Display.FKModule,"") modules in
@@ -375,7 +374,7 @@ module TypePathHandler = struct
 			in
 			Some fields
 		with _ ->
-			error ("Could not load module " ^ (s_type_path (p,c))) null_pos
+			abort ("Could not load module " ^ (s_type_path (p,c))) null_pos
 end
 
 (* New JSON stuff *)
