@@ -4947,6 +4947,8 @@ let load_macro ctx display cpath f p =
 				c, (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
 			| _ -> error "Macro should be called on a class" p
 		) in
+		if not (Common.defined ctx.com Define.NoDeprecationWarnings) then
+			Display.DeprecationCheck.check_cf mctx.com meth p;
 		let meth = (match follow meth.cf_type with TFun (args,ret) -> args,ret,cl,meth | _ -> error "Macro call should be a method" p) in
 		mctx.com.display <- DisplayMode.create DMNone;
 		if not ctx.in_macro then flush_macro_context mint ctx;
