@@ -583,7 +583,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 		try
 			let e = type_expr ctx e (WithType t) in
 			AbstractCast.cast_or_unify_raise ctx t e e.epos
-		with Error(l,p) when (match l with Call_error _ -> false | _ -> true) ->
+		with Error(l,p) when (match l with Call_error _ | Module_not_found _ -> false | _ -> true) ->
 			raise (WithTypeError (l,p))
 	in
 	let rec loop el args = match el,args with
