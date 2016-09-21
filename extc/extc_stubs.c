@@ -305,6 +305,27 @@ CAMLprim value sys_getch( value b ) {
 #	endif
 }
 
+CAMLprim value sys_filetime( value file ) {
+#	ifdef _WIN32
+	FILETIME fp;
+	ULARGE_INTEGER ui;
+	HANDLE h = CreateFile(String_val(file),GENERIC_READ,0,NULL,OPEN_EXISTING,0,NULL);
+	if( h == INVALID_HANDLE_VALUE || !GetFileTime(h,NULL,NULL,&fp) ) {
+		CloseHandle(h);
+		return caml_copy_double(0.);
+	}
+	CloseHandle(h);
+	ui.LowPart = fp.dwLowDateTime;
+	ui.HighPart = fp.dwHighDateTime;
+	return caml_copy_double( ((double)ui.QuadPart) / 10000000.0 - EPOCH_DIFF );
+#	else
+	struct stat sbuf;
+	if( stat(String_val(file),&sbuf) < 0 )
+		return caml_copy_double(0.);
+	return caml_copy_double( sbuf.m_time );
+#	endif
+}
+
 // --------------- Support for NekoVM Bridge
 
 CAMLprim value sys_dlopen( value lib ) {
