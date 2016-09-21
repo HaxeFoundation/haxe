@@ -4343,7 +4343,7 @@ and decode_field v =
 		| 1, [f] ->
 			FFun (decode_fun f)
 		| 2, [get;set; t; e] ->
-			FProp (decode_placed_name get VNull, decode_placed_name set VNull, opt decode_ctype t, opt decode_expr e)
+			FProp (decode_placed_name VNull get, decode_placed_name VNull set, opt decode_ctype t, opt decode_expr e)
 		| _ ->
 			raise Invalid_expr
 	in
