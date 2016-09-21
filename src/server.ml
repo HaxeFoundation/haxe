@@ -130,22 +130,19 @@ let ssend sock str =
 let rec wait_loop process_params verbose accept =
 	Sys.catch_break false;
 	let has_parse_error = ref false in
-
-	let signs = ref [] in
+	let cs = CompilationServer.create () in
 	let sign_string com =
 		let sign = get_signature com in
 		let	sign_id =
 			try
-				List.assoc sign !signs
+				CompilationServer.get_sign cs sign;
 			with Not_found ->
-				let i = string_of_int (List.length !signs) in
-				signs := (sign,i) :: !signs;
+				let i = CompilationServer.add_sign cs sign in
 				print_endline (Printf.sprintf "Found context %s:\n%s" i (dump_context com));
 				i
 		in
 		Printf.sprintf "%2s,%3s: " sign_id (short_platform_name com.platform)
 	in
-	let cs = CompilationServer.create () in
 	Typer.macro_enable_cache := true;
 	let current_stdin = ref None in
 	Typeload.parse_hook := (fun com2 file p ->

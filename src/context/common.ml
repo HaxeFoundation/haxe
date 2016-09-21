@@ -319,7 +319,8 @@ module CompilationServer = struct
 	}
 
 	type t = {
-		cache : cache
+		cache : cache;
+		mutable signs : (string * string) list;
 	}
 
 	let instance : t option ref = ref None
@@ -333,6 +334,7 @@ module CompilationServer = struct
 	let create () =
 		let cs = {
 			cache = create_cache();
+			signs = [];
 		} in
 		instance := Some cs;
 		cs
@@ -348,6 +350,16 @@ module CompilationServer = struct
 			if (List.mem sign signs) then (file,data) :: acc
 			else acc
 		) cs.cache.c_files []
+
+	(* signatures *)
+
+	let get_sign cs sign =
+		List.assoc sign cs.signs
+
+	let add_sign cs sign =
+		let i = string_of_int (List.length cs.signs) in
+		cs.signs <- (sign,i) :: cs.signs;
+		i
 
 	(* modules *)
 
@@ -370,6 +382,9 @@ module CompilationServer = struct
 
 	let remove_file cs key =
 		Hashtbl.remove cs.cache.c_files key
+
+	let remove_files cs file =
+		List.iter (fun (sign,_) -> remove_file cs (sign,file)) cs.signs
 
 	(* haxelibs *)
 
