@@ -45,28 +45,8 @@ abstract Vector<T>(VectorData<T>) {
 		return this.length;
 	}
 
-	public static function blit<T>(src:Vector<T>, srcPos:Int, dest:Vector<T>, destPos:Int, len:Int):Void {
-		if( src == dest ) {
-			if (srcPos < destPos) {
-				var i = srcPos + len;
-				var j = destPos + len;
-				for (k in 0...len) {
-					i--;
-					j--;
-					src[j] = src[i];
-				}
-			} else if (srcPos > destPos) {
-				var i = srcPos;
-				var j = destPos;
-				for (k in 0...len) {
-					src[j] = src[i];
-					i++;
-					j++;
-				}
-			}		
-		} else
-			for (i in 0...len)
-				dest[destPos + i] = src[srcPos + i];
+	public static inline function blit<T>(src:Vector<T>, srcPos:Int, dest:Vector<T>, destPos:Int, len:Int):Void {
+		(cast dest : hl.types.ArrayBase.ArrayAccess).blit(destPos,(cast src : hl.types.ArrayBase.ArrayAccess),srcPos,len);
 	}
 
 	public inline function toArray():Array<T> {

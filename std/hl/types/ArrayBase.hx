@@ -33,6 +33,10 @@ class ArrayAccess {
 		throw "Not implemented";
 	}
 
+	public function blit( pos : Int, src : ArrayAccess, srcpos : Int, len : Int ) : Void {
+		throw "Not implemented";		
+	}
+
 }
 
 @:keep
@@ -215,6 +219,12 @@ class BasicIterator<T> {
 		length--;
 		(bytes:Bytes).blit(0, bytes, 1 << bytes.sizeBits, length << bytes.sizeBits);
 		return v;
+	}
+	
+	override function blit( pos : Int, src : ArrayAccess, srcpos : Int, len : Int ) : Void {
+		var src = (cast src : ArrayBasic<T>);
+		if( pos < 0 || srcpos < 0 || len < 0 || pos + len > length || srcpos + len > src.length ) throw haxe.io.Error.OutsideBounds;
+		(bytes:Bytes).blit(pos << bytes.sizeBits,src.bytes,srcpos<<bytes.sizeBits,len<<bytes.sizeBits);
 	}
 
 	override function slice( pos : Int, ?end : Int ) : ArrayBasic<T> {
