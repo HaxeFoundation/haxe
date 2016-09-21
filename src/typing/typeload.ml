@@ -33,7 +33,7 @@ let transform_abstract_field com this_t a_t a f =
 	let stat = List.mem AStatic f.cff_access in
 	let p = f.cff_pos in
 	match f.cff_kind with
-	| FProp (("get" | "never"),("set" | "never"),_,_) when not stat ->
+	| FProp ((("get" | "never"),_),(("set" | "never"),_),_,_) when not stat ->
 		(* TODO: hack to avoid issues with abstract property generation on As3 *)
 		if Common.defined com Define.As3 then f.cff_meta <- (Meta.Extern,[],null_pos) :: f.cff_meta;
 		{ f with cff_access = AStatic :: f.cff_access; cff_meta = (Meta.Impl,[],null_pos) :: f.cff_meta }
@@ -627,7 +627,7 @@ and load_complex_type ctx allow_display p (t,pn) =
 					t
 				| FProp (i1,i2,t,e) ->
 					no_expr e;
-					let access m get =
+					let access (m,_) get =
 						match m with
 						| "null" -> AccNo
 						| "never" -> AccNever
@@ -1818,7 +1818,7 @@ let build_enum_abstract ctx c a fields p =
 			begin match eo with
 				| None ->
 					if not c.cl_extern then error "Value required" field.cff_pos
-					else field.cff_kind <- FProp("default","never",ct,None)
+					else field.cff_kind <- FProp(("default",null_pos),("never",null_pos),ct,None)
 				| Some e ->
 					field.cff_access <- AInline :: field.cff_access;
 					let e = (ECast(e,None),(pos e)) in
@@ -2586,24 +2586,25 @@ module ClassInitializer = struct
 				tfun [ta] ret, tfun [ta;ret] ret
 			| _ -> tfun [] ret, TFun(["value",false,ret],ret)
 		in
+		let find_accessor m =
+			(* on pf_overload platforms, the getter/setter may have been defined as an overloaded function; get all overloads *)
+			if ctx.com.config.pf_overload then
+				if fctx.is_static then
+					let f = PMap.find m c.cl_statics in
+					(f.cf_type, f) :: (List.map (fun f -> f.cf_type, f) f.cf_overloads)
+				else
+					Overloads.get_overloads c m
+			else
+				[ if fctx.is_static then
+					let f = PMap.find m c.cl_statics in
+					f.cf_type, f
+				else match class_field c (List.map snd c.cl_params) m with
+					| _, t,f -> t,f ]
+		in
 		let check_method m t req_name =
 			if ctx.com.display.dms_error_policy = EPIgnore then () else
 			try
-				let overloads =
-					(* on pf_overload platforms, the getter/setter may have been defined as an overloaded function; get all overloads *)
-					if ctx.com.config.pf_overload then
-						if fctx.is_static then
-							let f = PMap.find m c.cl_statics in
-							(f.cf_type, f) :: (List.map (fun f -> f.cf_type, f) f.cf_overloads)
-						else
-							Overloads.get_overloads c m
-					else
-						[ if fctx.is_static then
-							let f = PMap.find m c.cl_statics in
-							f.cf_type, f
-						else match class_field c (List.map snd c.cl_params) m with
-							| _, t,f -> t,f ]
-				in
+				let overloads = find_accessor m in
 				(* choose the correct overload if and only if there is more than one overload found *)
 				let rec get_overload overl = match overl with
 					| [tf] -> tf
@@ -2654,28 +2655,37 @@ module ClassInitializer = struct
 							display_error ctx ("Method " ^ m ^ " required by property " ^ name ^ " is missing") p
 					end
 		in
+		let display_accessor m p =
+			try
+				let cf = match find_accessor m with [_,cf] -> cf | _ -> raise Not_found in
+				Display.DisplayEmitter.display_field ctx.com.display cf p
+			with Not_found ->
+				()
+		in
 		let get = (match get with
-			| "null" -> AccNo
-			| "dynamic" -> AccCall
-			| "never" -> AccNever
-			| "default" -> AccNormal
-			| _ ->
+			| "null",_ -> AccNo
+			| "dynamic",_ -> AccCall
+			| "never",_ -> AccNever
+			| "default",_ -> AccNormal
+			| get,pget ->
 				let get = if get = "get" then "get_" ^ name else get in
+				if fctx.is_display_field && Display.is_display_position pget then delay ctx PTypeField (fun () -> display_accessor get pget);
 				if not cctx.is_lib then delay ctx PTypeField (fun() -> check_method get t_get (if get <> "get" && get <> "get_" ^ name then Some ("get_" ^ name) else None));
 				AccCall
 		) in
 		let set = (match set with
-			| "null" ->
+			| "null",_ ->
 				(* standard flash library read-only variables can't be accessed for writing, even in subclasses *)
 				if c.cl_extern && (match c.cl_path with "flash" :: _	, _ -> true | _ -> false) && ctx.com.platform = Flash then
 					AccNever
 				else
 					AccNo
-			| "never" -> AccNever
-			| "dynamic" -> AccCall
-			| "default" -> AccNormal
-			| _ ->
+			| "never",_ -> AccNever
+			| "dynamic",_ -> AccCall
+			| "default",_ -> AccNormal
+			| set,pset ->
 				let set = if set = "set" then "set_" ^ name else set in
+				if fctx.is_display_field && Display.is_display_position pset then delay ctx PTypeField (fun () -> display_accessor set pset);
 				if not cctx.is_lib then delay ctx PTypeField (fun() -> check_method set t_set (if set <> "set" && set <> "set_" ^ name then Some ("set_" ^ name) else None));
 				AccCall
 		) in

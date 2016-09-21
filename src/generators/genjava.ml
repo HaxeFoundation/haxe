@@ -2789,7 +2789,7 @@ let convert_java_enum ctx p pe =
 
 		let kind = match field.jf_kind with
 			| JKField when !readonly ->
-				FProp ("default", "null", Some (convert_signature ctx p field.jf_signature,null_pos), None)
+				FProp (("default",null_pos), ("null",null_pos), Some (convert_signature ctx p field.jf_signature,null_pos), None)
 			| JKField ->
 				FVar (Some (convert_signature ctx p field.jf_signature,null_pos), None)
 			| JKMethod ->

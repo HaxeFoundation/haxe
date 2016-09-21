@@ -3573,7 +3573,7 @@ let convert_ilfield ctx p field =
 	let kind = match readonly with
 		| true ->
 			cff_meta := (Meta.ReadOnly, [], cff_pos) :: !cff_meta;
-			FProp ("default", "never", Some (convert_signature ctx p field.fsig.snorm,null_pos), None)
+			FProp (("default",null_pos), ("never",null_pos), Some (convert_signature ctx p field.fsig.snorm,null_pos), None)
 		| false ->
 			FVar (Some (convert_signature ctx p field.fsig.snorm,null_pos), None)
 	in
@@ -3809,7 +3809,7 @@ let convert_ilprop ctx p prop is_explicit_impl =
 	in
 
 	let kind =
-		FProp (get, set, Some(convert_signature ctx p ilsig,null_pos), None)
+		FProp ((get,null_pos), (set,null_pos), Some(convert_signature ctx p ilsig,null_pos), None)
 	in
 	{
 		cff_name = prop.pname,null_pos;

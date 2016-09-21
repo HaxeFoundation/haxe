@@ -324,7 +324,7 @@ let reify in_macro =
 			let n, vl = (match k with
 				| FVar (ct,e) -> "FVar", [to_opt to_type_hint ct p;to_opt to_expr e p]
 				| FFun f -> "FFun", [to_fun f p]
-				| FProp (get,set,t,e) -> "FProp", [to_string get p; to_string set p; to_opt to_type_hint t p; to_opt to_expr e p]
+				| FProp (get,set,t,e) -> "FProp", [to_placed_name get; to_placed_name set; to_opt to_type_hint t p; to_opt to_expr e p]
 			) in
 			mk_enum "FieldType" n vl p
 		in
@@ -562,10 +562,10 @@ let lower_ident_or_macro = parser
 	| [< '(Kwd Extern,_) >] -> "extern"
 
 let property_ident = parser
-	| [< i, _ = ident >] -> i
-	| [< '(Kwd Dynamic,_) >] -> "dynamic"
-	| [< '(Kwd Default,_) >] -> "default"
-	| [< '(Kwd Null,_) >] -> "null"
+	| [< i,p = ident >] -> i,p
+	| [< '(Kwd Dynamic,p) >] -> "dynamic",p
+	| [< '(Kwd Default,p) >] -> "default",p
+	| [< '(Kwd Null,p) >] -> "null",p
 
 let get_doc s =
 	(* do the peek first to make sure we fetch the doc *)
