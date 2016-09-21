@@ -1072,9 +1072,7 @@ module Purity = struct
 						begin match node.pn_purity with
 							| Impure -> taint_raise node
 							| Pure -> raise Exit
-							| _ ->
-								loop e;
-								node.pn_purity <- Pure;
+							| _ -> loop e
 						end
 					with Exit ->
 						()
@@ -1097,9 +1095,11 @@ module Purity = struct
 			| _ -> ()
 		) com.types;
 		Hashtbl.fold (fun _ node acc ->
-			if node.pn_purity = Pure then begin
+			match node.pn_purity with
+			| Pure | MaybePure ->
 				node.pn_field.cf_meta <- (Meta.Pure,[EConst(Ident "true"),node.pn_field.cf_pos],node.pn_field.cf_pos) :: node.pn_field.cf_meta;
 				node.pn_field :: acc
-			end else acc
+			| _ ->
+				acc
 		) node_lut [];
 end
