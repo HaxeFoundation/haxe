@@ -5,7 +5,7 @@ import haxe.macro.Compiler;
 @:enum
 abstract ModuleCheckPolicy(Int) {
 	/**
-		Disables file modification checks, avoiding some filsystem operations.
+		Disables file modification checks, avoiding some filesystem operations.
 	**/
 	var NoCheckFileTimeModification = 0;
 
