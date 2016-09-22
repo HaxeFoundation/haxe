@@ -7,4 +7,5 @@
 --next compile-cs.hxml
 --next compile-java.hxml
 --next compile-php.hxml
+--next compile-php7.hxml
 --next compile-hl.hxml

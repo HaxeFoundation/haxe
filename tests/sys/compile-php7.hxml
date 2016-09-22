@@ -1,0 +1,13 @@
+compile-each.hxml
+-main Main
+-php bin/php7/Main
+
+--next
+compile-each.hxml
+-main TestArguments
+-php7 bin/php7/TestArguments
+
+--next
+compile-each.hxml
+-main ExitCode
+-php7 bin/php7/ExitCode
