@@ -1936,11 +1936,14 @@ let generate com =
 	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
 	(* Generate some dummy placeholders for utility libs that may be required*)
-	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr";
+	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp";
+
+	List.iter (transform_multireturn ctx) com.types;
+	List.iter (generate_type ctx) com.types;
 
 	if has_feature ctx "use._bitop" || has_feature ctx "lua.Boot.clamp" then begin
 	    println ctx "local _hx_bit_raw = require 'bit32'";
-	    println ctx "local function _hx_bit_clamp(v) ";
+	    println ctx "_hx_bit_clamp = function(v) ";
 	    println ctx "  if v <= 2147483647 and v >= -2147483648 then";
 	    println ctx "    if v > 0 then return _G.math.floor(v)";
 	    println ctx "    else return _G.math.ceil(v)";
@@ -1956,9 +1959,6 @@ let generate com =
 	    println ctx "  _hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end";
 	    println ctx "end";
 	end;
-
-	List.iter (transform_multireturn ctx) com.types;
-	List.iter (generate_type ctx) com.types;
 
 	(* If we use haxe Strings, patch Lua's string *)
 	if has_feature ctx "use.string" then begin
