@@ -4817,6 +4817,7 @@ let make_macro_api ctx p =
 		Interp.add_module_check_policy = (fun sl il b i ->
 			let add ctx =
 				ctx.g.module_check_policies <- (List.fold_left (fun acc s -> (ExtString.String.nsplit s ".",List.map Obj.magic il,b) :: acc) ctx.g.module_check_policies sl);
+				Hashtbl.iter (fun _ m -> m.m_extra.m_check_policy <- Typeload.get_policy ctx m.m_path) ctx.g.modules;
 			in
 			let add_macro ctx = match ctx.g.macros with
 				| None -> ()
