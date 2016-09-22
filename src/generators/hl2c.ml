@@ -811,7 +811,9 @@ let write_c version file (code:code) =
 							sexpr "if( %s && %s && %s(%s,%s) %s 0 ) goto %s" (reg a) (reg b) funnames.(fid) (reg a) (reg b) (s_comp op) (label d)
 					with Not_found ->
 						phys_compare())
-				| HEnum _, HEnum _ | HVirtual _, HVirtual _ | HDynObj, HDynObj ->
+				| HVirtual _, HVirtual _ ->
+					sexpr "if( %s %s %s || (%s && %s && %s->value && %s->value && %s->value %s %s->value) ) goto %s" (reg a) (s_comp op) (reg b) (reg a) (reg b) (reg a) (reg b) (reg a) (s_comp op) (reg b) (label d)
+				| HEnum _, HEnum _ | HDynObj, HDynObj ->
 					phys_compare()
 				| HVirtual _, HObj _->
 					if op = CEq then
