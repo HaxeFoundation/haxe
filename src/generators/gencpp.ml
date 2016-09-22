@@ -355,6 +355,7 @@ let keyword_remap name =
    | "INT16_MAX" | "UINT16_MAX" | "INT32_MIN" | "INT32_MAX" | "UINT32_MAX"
    | "asm" | "near" | "far"
    | "HX_" | "HXLINE" | "HXDLIN"
+   | "NO" | "YES"
    | "abstract" | "decltype" | "finally" | "nullptr" | "static_assert"
    | "struct" -> "_hx_" ^ name
    | x -> x
