@@ -38,6 +38,7 @@ type method_capture = {
 	c_map : (int, int) PMap.t;
 	c_vars : tvar array;
 	c_type : ttype;
+	c_group : bool;
 }
 
 type allocator = {
@@ -173,6 +174,7 @@ let null_capture =
 		c_vars = [||];
 		c_map = PMap.empty;
 		c_type = HVoid;
+		c_group = false;
 	}
 
 let lookup l v fb =
@@ -1195,6 +1197,14 @@ and make_string ctx s p =
 	op ctx (OSetField (s,1,reg_int ctx len));
 	s
 
+and eval_var ctx v =
+	match captured_index ctx v with
+	| None -> alloc_reg ctx v false
+	| Some idx ->
+		let r = alloc_tmp ctx (to_type ctx v.v_type) in
+		op ctx (OEnumField (r,ctx.m.mcaptreg,0,idx));
+		r
+
 and eval_expr ctx e =
 	set_curpos ctx e.epos;
 	match e.eexpr with
@@ -2072,24 +2082,18 @@ and eval_expr ctx e =
 		let r = alloc_tmp ctx (to_type ctx e.etype) in
 		if capt == ctx.m.mcaptured then
 			op ctx (OInstanceClosure (r, fid, ctx.m.mcaptreg))
-		else if Array.length capt.c_vars > 0 then
+		else (match Array.length capt.c_vars with
+		| 0 ->
+			op ctx (OStaticClosure (r, fid))
+		| 1 when not capt.c_group ->
+			op ctx (OInstanceClosure (r, fid, eval_var ctx capt.c_vars.(0)))
+		| _ ->
 			let env = alloc_tmp ctx capt.c_type in
 			op ctx (OEnumAlloc (env,0));
 			hold ctx env;
-			Array.iteri (fun i v ->
-				let r = (match captured_index ctx v with
-				| None -> alloc_reg ctx v false
-				| Some idx ->
-					let r = alloc_tmp ctx (to_type ctx v.v_type) in
-					op ctx (OEnumField (r,ctx.m.mcaptreg,0,idx));
-					r
-				) in
-				op ctx (OSetEnumField (env,i,r));
-			) capt.c_vars;
+			Array.iteri (fun i v -> op ctx (OSetEnumField (env,i,eval_var ctx v))) capt.c_vars;
 			free ctx env;
-			op ctx (OInstanceClosure (r, fid, env))
-		else
-			op ctx (OStaticClosure (r, fid));
+			op ctx (OInstanceClosure (r, fid, env)));
 		r
 	| TThrow v ->
 		op ctx (OThrow (eval_to ctx v HDyn));
@@ -2488,23 +2492,33 @@ and build_capture_vars ctx f =
 	let cvars = Array.of_list (PMap.fold (fun v acc -> if PMap.mem v.v_id !ignored_vars then acc else v :: acc) !used_vars []) in
 	Array.sort (fun v1 v2 -> v1.v_id - v2.v_id) cvars;
 	let indexes = ref PMap.empty in
-	Array.iteri (fun i v -> indexes := PMap.add v.v_id i !indexes) cvars;
-	let ctypes = Array.map (fun v -> to_type ctx v.v_type) cvars in
-	let ltypes = Array.to_list ctypes in
-	let ct = try PMap.find ltypes ctx.captured_cache with Not_found ->
-		let ct = HEnum {
-			eglobal = None;
-			ename = "";
-			eid = 0;
-			efields = [|"",0,ctypes|];
-		} in
-		ctx.captured_cache <- PMap.add ltypes ct ctx.captured_cache;
-		ct
-	in
+	let v0t = (if Array.length cvars = 1 then to_type ctx cvars.(0).v_type else HDyn) in 
+	let ct, group = (match Array.length cvars with
+		| 0 -> HVoid, false
+		| 1 when is_nullable v0t -> v0t, false
+		| _ ->
+			Array.iteri (fun i v -> indexes := PMap.add v.v_id i !indexes) cvars;
+			let ctypes = Array.map (fun v -> to_type ctx v.v_type) cvars in
+			let ltypes = Array.to_list ctypes in
+			let ct = (try
+				PMap.find ltypes ctx.captured_cache
+			with Not_found ->
+				let ct = HEnum {
+					eglobal = None;
+					ename = "";
+					eid = 0;
+					efields = [|"",0,ctypes|];
+				} in
+				ctx.captured_cache <- PMap.add ltypes ct ctx.captured_cache;
+				ct
+			) in
+			ct, true
+	) in
 	{
 		c_map = !indexes;
 		c_vars = cvars;
-		c_type = ct
+		c_type = ct;
+		c_group = group;
 	}
 
 and gen_method_wrapper ctx rt t p =
@@ -2561,7 +2575,16 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 		Some t
 	) in
 
-	let rcapt = if has_captured_vars && cparent <> None then Some (let r = alloc_tmp ctx capt.c_type in hold ctx r; r) else None in
+	let rcapt = match has_captured_vars && cparent <> None with
+		| true when capt.c_group ->
+			let r = alloc_tmp ctx capt.c_type in 
+			hold ctx r;
+			Some r
+		| true ->
+			Some (alloc_reg ctx capt.c_vars.(0) true)
+		| false ->
+			None
+	in
 
 	let args = List.map (fun (v,o) ->
 		let r = alloc_reg ctx (if o = None then v else { v with v_type = ctx.com.basic.tnull v.v_type }) true in
@@ -2569,6 +2592,8 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 	) f.tf_args in
 
 	if has_captured_vars then ctx.m.mcaptreg <- (match rcapt with
+		| None when not capt.c_group -> 
+			-1
 		| None ->
 			let r = alloc_tmp ctx capt.c_type in
 			hold ctx r;
