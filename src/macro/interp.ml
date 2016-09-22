@@ -131,6 +131,7 @@ type extern_api = {
 	format_string : string -> Globals.pos -> Ast.expr;
 	cast_or_unify : Type.t -> texpr -> Globals.pos -> Type.texpr;
 	add_global_metadata : string -> string -> (bool * bool * bool) -> unit;
+	add_module_check_policy : string list -> int list -> bool -> int -> unit;
 }
 
 type callstack = {
@@ -2795,6 +2796,32 @@ let macro_lib =
 			| _ ->
 				error()
 		);
+		(* Compilation server *)
+		"server_add_module_check_policy", Fun4 (fun filter policy recursive context_options ->
+			match filter,policy,recursive,context_options with
+			| VArray vl1, VArray vl2, VBool b, VInt i ->
+				let sl = Array.fold_left (fun acc v -> match v with VString s -> (s :: acc) | _ -> error()) [] vl1 in
+				let il = Array.fold_left (fun acc v -> match v with VInt i -> (i :: acc) | _ -> error()) [] vl2 in
+				(get_ctx()).curapi.add_module_check_policy sl il b i;
+				VNull
+			| _ ->
+				error()
+		);
+		"server_invalidate_files", Fun1 (fun a -> match a with
+			| VArray vl ->
+				let cs = match CompilationServer.get() with Some cs -> cs | None -> failwith "compilation server not running" in
+				Array.iter (fun v -> match v with
+					| VString s ->
+						let s = Path.unique_full_path s in
+						CompilationServer.taint_modules cs s;
+						CompilationServer.remove_files cs s;
+					| _ ->
+						error()
+				) vl;
+				VNull
+			| _ ->
+				error()
+		);
 	]
 
 (* ---------------------------------------------------------------------- *)
@@ -5122,7 +5149,7 @@ let rec make_const e =
 		| TBool b -> VBool b
 		| TNull -> VNull
 		| TThis | TSuper -> raise Exit)
-	| TParenthesis e | TMeta(_,e) ->
+	| TParenthesis e | TMeta(_,e) | TCast(e,None) ->
 		make_const e
 	| TObjectDecl el ->
 		VObject (obj (hash_field (get_ctx())) (List.map (fun (f,e) -> f, make_const e) el))

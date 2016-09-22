@@ -46,6 +46,12 @@ and method_kind =
 	| MethDynamic
 	| MethMacro
 
+type module_check_policy =
+	| NoCheckFileTimeModification
+	| CheckFileContentModification
+	| NoCheckDependencies
+	| NoCheckShadowing
+
 type t =
 	| TMono of t option ref
 	| TEnum of tenum * tparams
@@ -290,6 +296,7 @@ and module_def = {
 and module_def_extra = {
 	m_file : string;
 	m_sign : string;
+	mutable m_check_policy : module_check_policy list;
 	mutable m_time : float;
 	mutable m_dirty : bool;
 	mutable m_added : int;
@@ -390,7 +397,7 @@ let mk_class m path pos name_pos =
 		cl_restore = (fun() -> ());
 	}
 
-let module_extra file sign time kind =
+let module_extra file sign time kind policy =
 	{
 		m_file = file;
 		m_sign = sign;
@@ -405,6 +412,7 @@ let module_extra file sign time kind =
 		m_macro_calls = [];
 		m_if_feature = [];
 		m_features = Hashtbl.create 0;
+		m_check_policy = policy;
 	}
 
 
@@ -427,7 +435,7 @@ let null_module = {
 		m_id = alloc_mid();
 		m_path = [] , "";
 		m_types = [];
-		m_extra = module_extra "" "" 0. MFake;
+		m_extra = module_extra "" "" 0. MFake [];
 	}
 
 let null_class =
