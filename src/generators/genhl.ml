@@ -2126,6 +2126,11 @@ and eval_expr ctx e =
 			let r = alloc_tmp ctx t in
 			op ctx (OToUFloat (r,rv));
 			r
+		| HDyn when (match rtype ctx rv with HFun _ -> true | _ -> false) ->
+			(* if called, a HDyn method will return HDyn, not its usual return type *)
+			let r = alloc_tmp ctx t in
+			op ctx (OMov (r,rv));
+			r			
 		| _ ->
 			cast_to ~force:true ctx rv t e.epos)
 	| TArrayDecl el ->

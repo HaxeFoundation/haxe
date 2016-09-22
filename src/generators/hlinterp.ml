@@ -1899,7 +1899,7 @@ let check code =
 			| HFun (targs, tret) ->
 				if List.length args <> List.length targs then error (tstr (HFun (List.map rtype args, rtype r)) ^ " should be " ^ tstr ftypes.(f));
 				List.iter2 reg args targs;
-				reg r tret
+				check tret (rtype r)
 			| _ -> assert false
 		in
 		let can_jump delta =
@@ -1983,7 +1983,7 @@ let check code =
 				call f rl r
 			| OCallThis (r, m, rl) ->
 				(match tfield 0 m true with
-				| HFun (tobj :: targs, tret) when List.length targs = List.length rl -> reg 0 tobj; List.iter2 reg rl targs; reg r tret
+				| HFun (tobj :: targs, tret) when List.length targs = List.length rl -> reg 0 tobj; List.iter2 reg rl targs; check tret (rtype r)
 				| t -> check t (HFun (rtype 0 :: List.map rtype rl, rtype r)));
 			| OCallMethod (r, m, rl) ->
 				(match rl with
@@ -1997,11 +1997,11 @@ let check code =
 							tfield obj m true, rl
 					) in
 					match t with
-					| HFun (targs, tret) when List.length targs = List.length rl -> List.iter2 reg rl targs; reg r tret
+					| HFun (targs, tret) when List.length targs = List.length rl -> List.iter2 reg rl targs; check tret (rtype r)
 					| t -> check t (HFun (List.map rtype rl, rtype r)))
 			| OCallClosure (r,f,rl) ->
 				(match rtype f with
-				| HFun (targs,tret) when List.length targs = List.length rl -> List.iter2 reg rl targs; reg r tret
+				| HFun (targs,tret) when List.length targs = List.length rl -> List.iter2 reg rl targs; check tret (rtype r)
 				| HDyn -> List.iter (fun r -> ignore(rtype r)) rl;
 				| _ -> reg f (HFun(List.map rtype rl,rtype r)))
 			| OGetGlobal (r,g) ->
