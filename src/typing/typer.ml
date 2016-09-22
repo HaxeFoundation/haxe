@@ -4814,8 +4814,18 @@ let make_macro_api ctx p =
 				ctx.g.global_metadata <- (ExtString.String.nsplit s1 ".",m,config) :: ctx.g.global_metadata;
 			) meta;
 		);
-		Interp.add_module_check_policy = (fun sl il b ->
-			ctx.g.module_check_policies <- (List.fold_left (fun acc s -> (ExtString.String.nsplit s ".",List.map Obj.magic il,b) :: acc) ctx.g.module_check_policies sl)
+		Interp.add_module_check_policy = (fun sl il b i ->
+			let add ctx =
+				ctx.g.module_check_policies <- (List.fold_left (fun acc s -> (ExtString.String.nsplit s ".",List.map Obj.magic il,b) :: acc) ctx.g.module_check_policies sl);
+			in
+			let add_macro ctx = match ctx.g.macros with
+				| None -> ()
+				| Some(_,mctx) -> add mctx;
+			in
+			match Obj.magic i with
+			| CompilationServer.NormalContext -> add ctx
+			| CompilationServer.MacroContext -> add_macro ctx
+			| CompilationServer.NormalAndMacroContext -> add ctx; add_macro ctx;
 		);
 	}
 

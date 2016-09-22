@@ -131,7 +131,7 @@ type extern_api = {
 	format_string : string -> Globals.pos -> Ast.expr;
 	cast_or_unify : Type.t -> texpr -> Globals.pos -> Type.texpr;
 	add_global_metadata : string -> string -> (bool * bool * bool) -> unit;
-	add_module_check_policy : string list -> int list -> bool -> unit;
+	add_module_check_policy : string list -> int list -> bool -> int -> unit;
 }
 
 type callstack = {
@@ -2797,12 +2797,12 @@ let macro_lib =
 				error()
 		);
 		(* Compilation server *)
-		"server_add_module_check_policy", Fun3 (fun filter policy recursive ->
-			match filter,policy,recursive with
-			| VArray vl1, VArray vl2, VBool b ->
+		"server_add_module_check_policy", Fun4 (fun filter policy recursive context_options ->
+			match filter,policy,recursive,context_options with
+			| VArray vl1, VArray vl2, VBool b, VInt i ->
 				let sl = Array.fold_left (fun acc v -> match v with VString s -> (s :: acc) | _ -> error()) [] vl1 in
 				let il = Array.fold_left (fun acc v -> match v with VInt i -> (i :: acc) | _ -> error()) [] vl2 in
-				(get_ctx()).curapi.add_module_check_policy sl il b;
+				(get_ctx()).curapi.add_module_check_policy sl il b i;
 				VNull
 			| _ ->
 				error()

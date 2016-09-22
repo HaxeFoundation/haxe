@@ -28,6 +28,23 @@ abstract ModuleCheckPolicy(Int) {
 	var NoCheckShadowing = 3;
 }
 
+@:enum abstract ContextOptions(Int) {
+	/**
+		Affects only the normal context.
+	**/
+	var NormalContext = 0;
+
+	/**
+		Affects only the macro context.
+	**/
+	var MacroContext = 1;
+
+	/**
+		Affects the normal and macro contexts.
+	**/
+	var NormalAndMacroContext = 2;
+}
+
 /**
 	This class provides some methods which can be invoked from command line using
 	`--macro server.field(args)`.
@@ -47,12 +64,15 @@ class CompilationServer {
 		everything (if `recursive = true`) or only top-level types (if
 		`recursive = false`).
 
+		The argument `contextOptions` determines which context (normal, macro
+		or both) this affects.
+
 		If a call to this function is added to the compilation parameters, the
 		compilation server should be restarted to ensure it takes effect.
 	**/
-	static public function setModuleCheckPolicy(pathFilters:Array<String>, policy:Array<ModuleCheckPolicy>, ?recursive = true) {
+	static public function setModuleCheckPolicy(pathFilters:Array<String>, policy:Array<ModuleCheckPolicy>, ?recursive = true, ?contextOptions:ContextOptions = NormalContext) {
 		pathFilters = [for (pathFilter in pathFilters) untyped pathFilter.__s];
-		@:privateAccess Compiler.load("server_add_module_check_policy", 3)(untyped pathFilters.__neko(), policy.__neko(), recursive);
+		@:privateAccess Compiler.load("server_add_module_check_policy", 4)(untyped pathFilters.__neko(), policy.__neko(), recursive, contextOptions);
 	}
 
 	/**

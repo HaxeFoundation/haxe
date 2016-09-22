@@ -296,7 +296,7 @@ and module_def = {
 and module_def_extra = {
 	m_file : string;
 	m_sign : string;
-	m_check_policy : module_check_policy list;
+	mutable m_check_policy : module_check_policy list;
 	mutable m_time : float;
 	mutable m_dirty : bool;
 	mutable m_added : int;

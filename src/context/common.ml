@@ -324,6 +324,11 @@ module CompilationServer = struct
 		mutable signs : (string * string) list;
 	}
 
+	type context_options =
+		| NormalContext
+		| MacroContext
+		| NormalAndMacroContext
+
 	let instance : t option ref = ref None
 
 	let create_cache () = {
