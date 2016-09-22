@@ -178,11 +178,65 @@ let rec wait_loop process_params verbose accept =
 				if verbose then print_endline (Printf.sprintf "%sparsed %s (%s)" (sign_string com2) ffile info);
 				data
 	);
-	let check_module_path com m p =
-		if m.m_extra.m_file <> Path.unique_full_path (Typeload.resolve_module_file com m.m_path (ref[]) p) then begin
-			if verbose then print_endline ("Module path " ^ s_type_path m.m_path ^ " has been changed");
-			raise Not_found;
-		end
+	let check_module_shadowing com paths m =
+		List.iter (fun (path,_) ->
+			let file = (path ^ (snd m.m_path)) ^ ".hx" in
+			if Sys.file_exists file then begin
+				let time = file_time file in
+				if time > m.m_extra.m_time then begin
+					if verbose then print_endline (Printf.sprintf "%smodule path might have changed: %s\n\twas: %2.0f %s\n\tnow: %2.0f %s"
+						(sign_string com) (s_type_path m.m_path) m.m_extra.m_time m.m_extra.m_file time file);
+					raise Not_found
+				end
+			end
+		) paths
+	in
+	let delays = ref [] in
+	let changed_directories = Hashtbl.create 0 in
+	let get_changed_directories (ctx : Typecore.typer) =
+		let t = Common.timer ["server";"module cache";"changed dirs"] in
+		let sign = get_signature ctx.Typecore.com in
+		let dirs = try
+			(* First, check if we already have determined changed directories for current compilation. *)
+			Hashtbl.find changed_directories sign
+		with Not_found ->
+			let dirs = try
+				(* Next, get all directories from the cache and filter the ones that haven't changed. *)
+				List.filter (fun (dir,time) ->
+					try
+						let time' = (Unix.stat (Path.remove_trailing_slash dir)).Unix.st_mtime in
+						if !time < time' then (time := time'; true) else false
+					with Unix.Unix_error _ ->
+						false
+				) (CompilationServer.find_directories cs sign)
+			with Not_found ->
+				(* There were no directories in the cache, so this must be a new context. Let's add
+				   an empty list to make sure no crazy recursion happens. *)
+				CompilationServer.add_directories cs sign [];
+				(* Register the delay that is going to populate the cache dirs. *)
+				delays := (fun () ->
+					let dirs = ref [] in
+					let add_dir path =
+						try
+							let time = (Unix.stat (Path.remove_trailing_slash path)).Unix.st_mtime in
+							dirs := (path,ref time) :: !dirs
+						with Unix.Unix_error _ ->
+							()
+					in
+					List.iter add_dir ctx.Typecore.com.class_path;
+					List.iter add_dir (Path.find_directories (platform_name ctx.Typecore.com.platform) ctx.Typecore.com.class_path);
+					if verbose then print_endline (Printf.sprintf "%sfound %i directories" (sign_string ctx.Typecore.com) (List.length !dirs));
+					CompilationServer.add_directories cs sign !dirs
+				) :: !delays;
+				(* Returning [] should be fine here because it's a new context, so we won't do any
+				   shadowing checks anyway. *)
+				[]
+			in
+			Hashtbl.add changed_directories sign dirs;
+			dirs
+		in
+		t();
+		dirs
 	in
 	let compilation_step = ref 0 in
 	let compilation_mark = ref 0 in
@@ -208,11 +262,13 @@ let rec wait_loop process_params verbose accept =
 		let mark = !mark_loop in
 		let start_mark = !compilation_mark in
 		let rec check m =
-			let check_module_path () = match m.m_extra.m_kind with
+			let check_module_path () =
+				let directories = get_changed_directories ctx in
+				match m.m_extra.m_kind with
 				| MFake | MSub | MImport -> () (* don't get classpath *)
 				| MExtern ->
 					(* if we have a file then this will override our extern type *)
-					let has_file = (try ignore(Typeload.resolve_module_file com2 m.m_path (ref[]) p); true with Not_found -> false) in
+					let has_file = (try check_module_shadowing com2 directories m; true with Not_found -> false) in
 					if has_file then begin
 						if verbose then print_endline ("A file is masking the library file " ^ s_type_path m.m_path);
 						raise Not_found;
@@ -231,11 +287,11 @@ let rec wait_loop process_params verbose accept =
 								end
 					in
 					loop com2.load_extern_type
-				| MCode -> check_module_path com2 m p
-				| MMacro when ctx.Typecore.in_macro -> check_module_path com2 m p
+				| MCode -> check_module_shadowing com2 directories m
+				| MMacro when ctx.Typecore.in_macro -> check_module_shadowing com2 directories m
 				| MMacro ->
 					let _, mctx = Typer.get_macro_context ctx p in
-					check_module_path mctx.Typecore.com m p
+					check_module_shadowing mctx.Typecore.com (get_changed_directories mctx) m
 			in
 			let has_policy policy = List.mem policy m.m_extra.m_check_policy in
 			let check_file () =
@@ -378,6 +434,7 @@ let rec wait_loop process_params verbose accept =
 			let data = parse_hxml_data hxml in
 			if verbose then print_endline ("Processing Arguments [" ^ String.concat "," data ^ "]");
 			(try
+				Hashtbl.clear changed_directories;
 				Common.display_default := DMNone;
 				Parser.resume_display := null_pos;
 				Typeload.return_partial_type := false;
@@ -402,10 +459,13 @@ let rec wait_loop process_params verbose accept =
 			| Arg.Bad msg ->
 				prerr_endline ("Error: " ^ msg);
 			);
+			let fl = !delays in
+			delays := [];
+			List.iter (fun f -> f()) fl;
 			if verbose then begin
 				print_endline (Printf.sprintf "Stats = %d files, %d classes, %d methods, %d macros" !(stats.s_files_parsed) !(stats.s_classes_built) !(stats.s_methods_typed) !(stats.s_macros_called));
 				print_endline (Printf.sprintf "Time spent : %.3fs" (get_time() -. t0));
-			end
+			end;
 		with Unix.Unix_error _ ->
 			if verbose then print_endline "Connection Aborted"
 		| e ->

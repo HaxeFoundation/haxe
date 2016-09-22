@@ -313,9 +313,10 @@ let get_signature com =
 
 module CompilationServer = struct
 	type cache = {
-		mutable c_haxelib : (string list, string list) Hashtbl.t;
-		mutable c_files : ((string * string), float * Ast.package) Hashtbl.t;
-		mutable c_modules : (path * string, module_def) Hashtbl.t;
+		c_haxelib : (string list, string list) Hashtbl.t;
+		c_files : ((string * string), float * Ast.package) Hashtbl.t;
+		c_modules : (path * string, module_def) Hashtbl.t;
+		c_directories : (string, (string * float ref) list) Hashtbl.t;
 	}
 
 	type t = {
@@ -329,6 +330,7 @@ module CompilationServer = struct
 		c_haxelib = Hashtbl.create 0;
 		c_files = Hashtbl.create 0;
 		c_modules = Hashtbl.create 0;
+		c_directories = Hashtbl.create 0;
 	}
 
 	let create () =
@@ -393,6 +395,14 @@ module CompilationServer = struct
 
 	let cache_haxelib cs key value =
 		Hashtbl.replace cs.cache.c_haxelib key value
+
+	(* directories *)
+
+	let find_directories cs key =
+		Hashtbl.find cs.cache.c_directories key
+
+	let add_directories cs key value =
+		Hashtbl.replace cs.cache.c_directories key value
 end
 
 module Define = struct
