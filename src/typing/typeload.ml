@@ -2173,7 +2173,7 @@ module ClassInitializer = struct
 
 		match e with
 		| None ->
-			()
+			if fctx.is_display_field then check_field_display ctx (cf.cf_name_pos) cf;
 		| Some e ->
 			if requires_value_meta ctx.com (Some c) then cf.cf_meta <- ((Meta.Value,[e],null_pos) :: cf.cf_meta);
 			let check_cast e =

@@ -66,6 +66,8 @@ class Basic extends DisplayTestCase {
 
 		var x4(default, null) = "fo{-4-}";
 		static var x5(default, null) = "fo{-5-}";
+
+		static var x{-6-}6:String;
 	}
 	**/
 	function testFieldDisplay() {
@@ -74,6 +76,7 @@ class Basic extends DisplayTestCase {
 		eq("String", type(pos(3)));
 		eq("String", type(pos(4)));
 		eq("String", type(pos(5)));
+		eq("String", type(pos(6)));
 	}
 
 	/**
