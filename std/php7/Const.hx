@@ -87,4 +87,20 @@ extern class Const {
 	static var PHP_ROUND_HALF_ODD : Int;
 	static var NAN : Float;
 	static var INF : Float;
+	/**
+		@see http://php.net/manual/en/function.setlocale.php
+	**/
+	static var LC_ALL : Int;
+	static var LC_COLLATE : Int;
+	static var LC_CTYPE : Int;
+	static var LC_MONETARY : Int;
+	static var LC_NUMERIC : Int;
+	static var LC_TIME : Int;
+	static var LC_MESSAGES : Int;
+	/**
+		@see http://php.net/manual/en/features.commandline.io-streams.php
+	**/
+	static var STDIN : Resource;
+	static var STDOUT : Resource;
+	static var STDERR : Resource;
 }

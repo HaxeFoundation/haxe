@@ -216,6 +216,11 @@ extern class Global {
 	static function array_keys( arr:NativeArray ) : NativeIndexedArray<EitherType<String,Int>> ;
 
 	/**
+		@see http://php.net/manual/en/function.array-key-exists.php
+	**/
+	static function array_key_exists( key:EitherType<String,Int>, arr:NativeArray ) : Bool ;
+
+	/**
 		@see http://php.net/manual/en/function.array-fill.php
 	**/
 	static function array_fill( start_index:Int, num:Int, value:Dynamic ) : NativeArray ;
@@ -515,4 +520,65 @@ extern class Global {
 		@see http://php.net/manual/en/function.ltrim.php
 	**/
 	static function ltrim( str:String, ?character_mask:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.getenv.php
+	**/
+	static function getenv( varname:String ) : EitherType<String,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.putenv.php
+	**/
+	static function putenv( setting:String ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.sleep.php
+	**/
+	static function sleep( seconds:Int ) : EitherType<Bool,Int>;
+
+	/**
+		@see http://php.net/manual/en/function.usleep.php
+	**/
+	static function usleep( micro_seconds:Int ) : Void;
+
+	/**
+		@see http://php.net/manual/en/function.setlocale.php
+	**/
+	@:overload(function( category:Int, locale:NativeIndexedArray<String> ) : EitherType<Bool,String> {})
+	static function setlocale( category:Int, locale:Rest<String> ) : EitherType<Bool,String>;
+
+	/**
+		@see http://php.net/manual/en/function.getcwd.php
+	**/
+	static function getcwd() : EitherType<String,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.chdir.php
+	**/
+	static function chdir( directory:String ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.php-uname.php
+	**/
+	static function php_uname( mode:String = 'a' ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.system.php
+	**/
+	static function system( command:String, ?return_var:Ref<Int> ) : EitherType<String,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.microtime.php
+	**/
+	static function microtime( get_as_float:Bool = false ) : EitherType<Float,String>;
+
+	/**
+		@see http://php.net/manual/en/function.fopen.php
+	**/
+	static function fopen( filename:String, mode:String, use_include_path:Bool = false, ?context:Resource ) : EitherType<Bool,Resource>;
+
+	/**
+		@see http://php.net/manual/en/function.fgetc.php
+	**/
+	static function fgetc( handle:Resource ) : EitherType<Bool,String>;
 }

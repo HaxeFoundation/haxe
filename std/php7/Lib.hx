@@ -93,8 +93,12 @@ class Lib {
 		return @:privateAccess Array.wrap(a);
 	}
 
-	public static function hashOfAssociativeArray<T>(arr : NativeArray) : Map<String,T> {
-		throw "Not implemented";
+	public static function hashOfAssociativeArray<T>(arr : NativeAssocArray<T>) : Map<String,T> {
+		var result = new Map();
+		for (key in Global.array_keys(arr)) {
+			result.set(key, arr[key]);
+		}
+		return result;
 	}
 
 	public static function associativeArrayOfHash(hash : haxe.ds.StringMap<Dynamic>) : NativeArray {
