@@ -6,7 +6,7 @@ class Issue5572 extends unit.Test {
 	static var field2 = "user_3235_65290";
 
 	function test() {
-		#if !neko
+		#if !(neko || hl)
 		var o = {};
 		Reflect.setField(o, field1, 1); // first, goes into hashes array 
 		Reflect.setField(o, field2, 2); // second, added to object's "conflicts"

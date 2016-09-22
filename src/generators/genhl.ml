@@ -255,6 +255,14 @@ let rec unsigned t =
 	| TAbstract ({ a_path = [],"UInt" },_) -> true
 	| TAbstract (a,pl) -> unsigned (Abstract.get_underlying_type a pl)
 	| _ -> false
+	
+let unsigned_op e1 e2 =
+	let is_unsigned e = 
+		match e.eexpr with
+		| TConst (TInt _) -> true
+		| _ -> unsigned e.etype
+	in
+	is_unsigned e1 && is_unsigned e2
 
 let set_curpos ctx p =
 	let get_relative_path() =
@@ -1133,7 +1141,7 @@ and jump_expr ctx e jcond =
 		hold ctx r1;
 		let r2 = eval_to ctx e2 t in
 		free ctx r1;
-		let unsigned = unsigned e1.etype && unsigned e2.etype in
+		let unsigned = unsigned_op e1 e2 in
 		jump ctx (fun i ->
 			let lt a b = if unsigned then OJULt (a,b,i) else OJSLt (a,b,i) in
 			let gte a b = if unsigned then OJUGte (a,b,i) else OJSGte (a,b,i) in
@@ -1288,7 +1296,7 @@ and eval_expr ctx e =
 			hold ctx r1;
 			let r2 = eval_to ctx e2 HI32 in
 			free ctx r1;
-			op ctx (if unsigned e1.etype && unsigned e2.etype then OUDiv (tmp,r1,r2) else OSDiv (tmp, r1, r2));
+			op ctx (if unsigned_op e1 e2 then OUDiv (tmp,r1,r2) else OSDiv (tmp, r1, r2));
 			tmp
 		| "$int", [e] ->
 			let tmp = alloc_tmp ctx HI32 in
@@ -1787,7 +1795,7 @@ and eval_expr ctx e =
 			jexit());
 		out
 	| TBinop (bop, e1, e2) ->
-		let is_unsigned() = unsigned e1.etype && unsigned e2.etype in
+		let is_unsigned() = unsigned_op e1 e2 in
 		let boolop r f =
 			let j = jump ctx f in
 			op ctx (OBool (r,false));
@@ -1820,7 +1828,7 @@ and eval_expr ctx e =
 						(match bop with
 						| OpSub -> op ctx (OSub (r,a,b))
 						| OpMult -> op ctx (OMul (r,a,b))
-						| OpMod -> op ctx (if is_unsigned() then OUMod (r,a,b) else OSMod (r,a,b))
+						| OpMod -> op ctx (if unsigned e1.etype then OUMod (r,a,b) else OSMod (r,a,b))
 						| OpDiv -> op ctx (OSDiv (r,a,b)) (* don't use UDiv since both operands are float already *)
 						| _ -> assert false)
 					| _ ->
