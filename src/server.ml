@@ -6,6 +6,8 @@ open Common.DisplayMode
 open Type
 open DisplayOutput
 
+exception Dirty of module_def
+
 let measure_times = ref false
 let prompt = ref false
 let start_time = ref (get_time())
@@ -163,19 +165,19 @@ let rec wait_loop process_params verbose accept =
 			with Not_found ->
 				has_parse_error := false;
 				let data = Typeload.parse_file com2 file p in
-				let info = if !has_parse_error then "not cached, has parse error"
-					else if is_display_file then "not cached, is display file"
+				let info,is_unusual = if !has_parse_error then "not cached, has parse error",true
+					else if is_display_file then "not cached, is display file",true
 					else begin try
 						(* We assume that when not in display mode it's okay to cache stuff that has #if display
 						   checks. The reasoning is that non-display mode has more information than display mode. *)
 						if not com2.display.dms_display then raise Not_found;
 						let ident = Hashtbl.find Parser.special_identifier_files ffile in
-						Printf.sprintf "not cached, using \"%s\" define" ident;
+						Printf.sprintf "not cached, using \"%s\" define" ident,true
 					with Not_found ->
 						CompilationServer.cache_file cs fkey (ftime,data);
-						"cached"
+						"cached",false
 				end in
-				if verbose then print_endline (Printf.sprintf "%sparsed %s (%s)" (sign_string com2) ffile info);
+				if verbose && is_unusual then print_endline (Printf.sprintf "%sparsed %s (%s)" (sign_string com2) ffile info);
 				data
 	);
 	let check_module_shadowing com paths m =
@@ -257,7 +259,6 @@ let rec wait_loop process_params verbose accept =
 			with Not_found ->
 				true
 		in
-		let dep = ref None in
 		incr mark_loop;
 		let mark = !mark_loop in
 		let start_mark = !compilation_mark in
@@ -306,24 +307,33 @@ let rec wait_loop process_params verbose accept =
 				end
 			in
 			let check_dependencies () =
-				PMap.iter (fun _ m2 -> if not (check m2) then begin dep := Some m2; raise Not_found end) m.m_extra.m_deps;
+				PMap.iter (fun _ m2 -> match check m2 with
+					| None -> ()
+					| Some m -> raise (Dirty m)
+				) m.m_extra.m_deps;
 			in
-			if m.m_extra.m_dirty then begin
-				dep := Some m;
-				false
-			end else if m.m_extra.m_mark = mark then
-				true
-			else try
-				if m.m_extra.m_mark <= start_mark then begin
-					if not (has_policy NoCheckShadowing) then check_module_path();
-					if not (has_policy NoCheckFileTimeModification) then check_file();
-				end;
-				m.m_extra.m_mark <- mark;
-				if not (has_policy NoCheckDependencies) then check_dependencies();
-				true
-			with Not_found ->
-				m.m_extra.m_dirty <- true;
-				false
+			begin match m.m_extra.m_dirty with
+			| Some m ->
+				Some m
+			| None ->
+				if m.m_extra.m_mark = mark then
+					None
+				else try
+					if m.m_extra.m_mark <= start_mark then begin
+						if not (has_policy NoCheckShadowing) then check_module_path();
+						if not (has_policy NoCheckFileTimeModification) then check_file();
+					end;
+					m.m_extra.m_mark <- mark;
+					if not (has_policy NoCheckDependencies) then check_dependencies();
+					None
+				with
+				| Not_found ->
+					m.m_extra.m_dirty <- Some m;
+					Some m
+				| Dirty m' ->
+					m.m_extra.m_dirty <- Some m';
+					Some m'
+				end
 		in
 		let rec add_modules tabs m0 m =
 			if m.m_extra.m_added < !compilation_step then begin
@@ -332,7 +342,7 @@ let rec wait_loop process_params verbose accept =
 					(* this was just a dependency to check : do not add to the context *)
 					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
 				| _ ->
-					if verbose then print_endline (Printf.sprintf "%s%sreusing %s" (sign_string com2) tabs (s_type_path m.m_path));
+					(*if verbose then print_endline (Printf.sprintf "%s%sreusing %s" (sign_string com2) tabs (s_type_path m.m_path));*)
 					m.m_extra.m_added <- !compilation_step;
 					List.iter (fun t ->
 						match t with
@@ -361,8 +371,10 @@ let rec wait_loop process_params verbose accept =
 		try
 			let m = CompilationServer.find_module cs (mpath,sign) in
 			let tcheck = Common.timer ["server";"module cache";"check"] in
-			if not (check m) then begin
-				if verbose then print_endline (Printf.sprintf "%sskipping %s%s" (sign_string com2) (s_type_path m.m_path) (Option.map_default (fun m -> Printf.sprintf " (via %s)" (s_type_path m.m_path)) "" !dep));
+			begin match check m with
+			| None -> ()
+			| Some m' ->
+				if verbose then print_endline (Printf.sprintf "%sskipping %s%s" (sign_string com2) (s_type_path m.m_path) (if m == m' then "" else Printf.sprintf "(%s)" (s_type_path m'.m_path)));
 				tcheck();
 				raise Not_found;
 			end;
@@ -382,7 +394,7 @@ let rec wait_loop process_params verbose accept =
 		let rec cache_context com =
 			let cache_module m =
 				CompilationServer.cache_module cs (m.m_path,m.m_extra.m_sign) m;
-				if verbose then print_endline (Printf.sprintf "%scached %s" (sign_string com) (s_type_path m.m_path));
+				(*if verbose then print_endline (Printf.sprintf "%scached %s" (sign_string com) (s_type_path m.m_path));*)
 			in
 			if com.display.dms_full_typing then begin
 				List.iter cache_module com.modules;

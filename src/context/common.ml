@@ -377,7 +377,7 @@ module CompilationServer = struct
 		Hashtbl.replace cs.cache.c_modules key value
 
 	let taint_modules cs file =
-		Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- true) cs.cache.c_modules
+		Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- Some m) cs.cache.c_modules
 
 	(* files *)
 
