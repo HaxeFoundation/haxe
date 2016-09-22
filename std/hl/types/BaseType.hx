@@ -28,6 +28,10 @@ class BaseType {
 	public var __implementedBy__ : NativeArray<Type>;
 	public function check( v : Dynamic ) {
 		var t = Type.getDynamic(v);
+		if( t.kind == HVirtual ) {
+			var v2 = hl.types.Api.getVirtualValue(v);
+			if( v2 != null ) t = Type.getDynamic(v2);
+		}
 		if( __implementedBy__ == null ) {
 			if( t.safeCast(__type__) )
 				return true;		

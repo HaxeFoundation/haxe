@@ -325,9 +325,10 @@ let write_c version file (code:code) =
 	Array.iter (fun f ->
 		match f.ftype with
 		| HFun (args,t) ->
-			sexpr "static %s %s(%s)" (ctype t) (fundecl_name f) (String.concat "," (List.map ctype args));
+			let fname = String.concat "_" (ExtString.String.nsplit (fundecl_name f) ".") in
+			sexpr "static %s %s(%s)" (ctype t) fname (String.concat "," (List.map ctype args));
 			Array.set tfuns f.findex (args,t);
-			funnames.(f.findex) <- fundecl_name f;
+			funnames.(f.findex) <- fname;
 		| _ ->
 			assert false
 	) code.functions;
@@ -709,7 +710,7 @@ let write_c version file (code:code) =
 
 		let fret = (match f.ftype with
 		| HFun (args,t) ->
-			sline "static %s %s(%s) {" (ctype t) (fundecl_name f) (String.concat "," (List.map (fun t -> incr rid; var_type (reg !rid) t) args));
+			sline "static %s %s(%s) {" (ctype t) funnames.(f.findex) (String.concat "," (List.map (fun t -> incr rid; var_type (reg !rid) t) args));
 			t
 		| _ ->
 			assert false

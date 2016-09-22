@@ -196,7 +196,7 @@ type opcode =
 	| ODump of reg
 
 type fundecl = {
-	name : string * string;
+	fpath : string * string;
 	findex : functable index;
 	ftype : ttype;
 	regs : ttype array;
@@ -560,7 +560,7 @@ let ostr fstr o =
 	| OEndTrap b -> Printf.sprintf "endtrap %b" b
 	| ODump r -> Printf.sprintf "dump %d" r
 
-let fundecl_name f = if snd f.name = "" then "fun$" ^ (string_of_int f.findex) else (fst f.name) ^ "_" ^ (snd f.name)
+let fundecl_name f = if snd f.fpath = "" then "fun$" ^ (string_of_int f.findex) else (fst f.fpath) ^ "." ^ (snd f.fpath)
 
 let dump pr code =
 	let all_protos = Hashtbl.create 0 in

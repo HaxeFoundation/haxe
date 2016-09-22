@@ -215,8 +215,6 @@ let field_name c f =
 let efield_name e f =
 	s_type_path e.e_path ^ ":" ^ f.ef_name
 
-let underscore_class_name c = match c.cl_path with [],s -> s | p,s -> String.concat "_" p ^ "_" ^ s
-
 let global_type ctx g =
 	DynArray.get ctx.cglobals.arr g
 
@@ -1023,6 +1021,18 @@ and object_access ctx eobj t f =
 	| _ ->
 		abort ("Unsupported field access " ^ tstr t) eobj.epos
 
+and direct_method_call ctx c f ethis =
+	if (match f.cf_kind with Method m -> m = MethDynamic | Var _ -> true) then
+		false
+	else if c.cl_interface then
+		false
+	else if (match c.cl_kind with KTypeParameter _ ->  true | _ -> false) then
+		false
+	else if is_overriden ctx c f && ethis.eexpr <> TConst(TSuper) then
+		false
+	else
+		true
+
 and get_access ctx e =
 	match e.eexpr with
 	| TField (ethis, a) ->
@@ -1032,8 +1042,8 @@ and get_access ctx e =
 			AStaticVar (g, t, (match t with HObj o -> (try fst (get_index f.cf_name o) with Not_found -> assert false) | _ -> assert false))
 		| FStatic (c,({ cf_kind = Method _ } as f)), _ ->
 			AStaticFun (alloc_fid ctx c f)
-		| FClosure (Some (cdef,pl), ({ cf_kind = Method m } as f)), TInst (c,_)
-		| FInstance (cdef,pl,({ cf_kind = Method m } as f)), TInst (c,_) when m <> MethDynamic && not (c.cl_interface || (is_overriden ctx c f && ethis.eexpr <> TConst(TSuper))) ->
+		| FClosure (Some (cdef,pl), f), TInst (c,_)
+		| FInstance (cdef,pl,f), TInst (c,_) when direct_method_call ctx c f ethis ->
 			(* cdef is the original definition, we want the last redefinition *)
 			let rec loop c =
 				if PMap.mem f.cf_name c.cl_fields then c else (match c.cl_super with None -> cdef | Some (c,_) -> loop c)
@@ -2543,7 +2553,7 @@ and gen_method_wrapper ctx rt t p =
 		op ctx (OCallClosure (rret,rfun,casts));
 		op ctx (ORet (cast_to ctx rret tret p));
 		let f = {
-			name = "","";
+			fpath = "","";
 			findex = fid;
 			ftype = HFun (rt :: targs, tret);
 			regs = DynArray.to_array ctx.m.mregs.arr;
@@ -2682,7 +2692,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 	end;
 	let fargs = (match tthis with None -> [] | Some t -> [t]) @ (match rcapt with None -> [] | Some r -> [rtype ctx r]) @ args in
 	let f = {
-		name = name;
+		fpath = name;
 		findex = fidx;
 		ftype = HFun (fargs, tret);
 		regs = DynArray.to_array ctx.m.mregs.arr;
@@ -2717,7 +2727,7 @@ let generate_static ctx c f =
 			| (Meta.Custom ":hlNative",_ ,p) :: _ ->
 				abort "Invalid @:hlNative decl" p
 			| [] ->
-				ignore(make_fun ctx ((underscore_class_name c),f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) None None)
+				ignore(make_fun ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) None None)
 			| _ :: l ->
 				loop l
 		in
@@ -2747,7 +2757,7 @@ let rec generate_member ctx c f =
 				| _ -> ()
 			) c.cl_ordered_fields;
 		) in
-		ignore(make_fun ?gen_content ctx (underscore_class_name c,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> abort "Missing function body" f.cf_pos) (Some c) None);
+		ignore(make_fun ?gen_content ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> abort "Missing function body" f.cf_pos) (Some c) None);
 		if f.cf_name = "toString" && not (List.memq f c.cl_overrides) && not (PMap.mem "__string" c.cl_fields) && is_to_string f.cf_type then begin
 			let p = f.cf_pos in
 			(* function __string() return this.toString().bytes *)
@@ -2755,7 +2765,7 @@ let rec generate_member ctx c f =
 			let tstr = mk (TCall (mk (TField (ethis,FInstance(c,List.map snd c.cl_params,f))) f.cf_type p,[])) ctx.com.basic.tstring p in
 			let cstr, cf_bytes = (try (match ctx.com.basic.tstring with TInst(c,_) -> c, PMap.find "bytes" c.cl_fields | _ -> assert false) with Not_found -> assert false) in
 			let estr = mk (TReturn (Some (mk (TField (tstr,FInstance (cstr,[],cf_bytes))) cf_bytes.cf_type p))) ctx.com.basic.tvoid p in
-			ignore(make_fun ctx (underscore_class_name c,"__string") (alloc_fun_path ctx c.cl_path "__string") { tf_expr = estr; tf_args = []; tf_type = cf_bytes.cf_type; } (Some c) None)
+			ignore(make_fun ctx (s_type_path c.cl_path,"__string") (alloc_fun_path ctx c.cl_path "__string") { tf_expr = estr; tf_args = []; tf_type = cf_bytes.cf_type; } (Some c) None)
 		end
 
 let generate_type ctx t =
