@@ -39,6 +39,7 @@ type ctx = {
 	mutable in_loop : bool;
 	mutable iife_assign : bool;
 	mutable handle_break : bool;
+	mutable break_depth : int;
 	mutable handle_continue : bool;
 	mutable id_counter : int;
 	mutable type_accessor : module_type -> string;
@@ -568,7 +569,7 @@ and gen_expr ?(local=true) ctx e = begin
 		if ctx.handle_break then
 		    spr ctx "_G.error(\"_hx__break__\")"
 		else if ctx.handle_continue then
-		    spr ctx "_hx_break = true; break"
+		    print ctx "_hx_break_%i = true; break" ctx.break_depth
 		else
 		    spr ctx "break" (*todo*)
 	| TContinue ->
@@ -766,13 +767,18 @@ and gen_expr ?(local=true) ctx e = begin
 		let has_continue = has_continue e in
 		let old_ctx_continue = ctx.handle_continue in
 		ctx.handle_continue <- has_continue;
+		if has_continue then
+		  println ctx "local _hx_break_%i = false;" ctx.break_depth;
 		spr ctx "while ";
 		gen_cond ctx cond;
 		let b = open_block ctx in
 		print ctx " do ";
 		if has_continue then begin
+		    newline ctx;
+		    (open_block ctx)();
 		    spr ctx "repeat "
 		end;
+		ctx.break_depth <- ctx.break_depth + 1;
 		gen_block_element ctx e;
 		newline ctx;
 		handle_break();
@@ -780,10 +786,11 @@ and gen_expr ?(local=true) ctx e = begin
 		    b();
 		    newline ctx;
 		    println ctx "until true";
-		    println ctx "if _hx_break then _hx_break = false; break; end";
+		    println ctx "if _hx_break_%i then _hx_break_%i = false; break; end" ctx.break_depth ctx.break_depth;
 		end;
 		b();
 		spr ctx "end";
+		ctx.break_depth <- ctx.break_depth-1;
 		ctx.handle_continue <- old_ctx_continue;
 	| TWhile (cond,e,Ast.DoWhile) ->
 		let handle_break = handle_break ctx e in
@@ -793,25 +800,30 @@ and gen_expr ?(local=true) ctx e = begin
 		println ctx "while true do ";
 		gen_block_element ctx e;
 		newline ctx;
+		if has_continue then
+		  println ctx "local _hx_break_%i = false;" ctx.break_depth;
 		spr ctx " while ";
 		gen_cond ctx cond;
 		let b = open_block ctx in
 		println ctx " do ";
 		let b2 = open_block ctx in
 		if has_continue then begin
+		    newline ctx;
+		    (open_block ctx)();
 		    spr ctx "repeat "
 		end;
+		ctx.break_depth <- ctx.break_depth + 1;
 		gen_block_element ctx e;
 		handle_break();
 		if has_continue then begin
 		    b2();
 		    newline ctx;
 		    println ctx "until true";
-		    print ctx "if _hx_break then _hx_break = false; break; end";
+		    println ctx "if _hx_break_%i then _hx_break_%i = false; break; end" ctx.break_depth ctx.break_depth;
 		end;
 		b();
-		newline ctx;
 		spr ctx "end";
+		ctx.break_depth <- ctx.break_depth-1;
 		ctx.handle_continue <- old_ctx_continue;
 	| TObjectDecl [] ->
 		spr ctx "_hx_e()";
@@ -1743,6 +1755,7 @@ let alloc_ctx com =
 		iife_assign = false;
 		in_loop = false;
 		handle_break = false;
+		break_depth = 0;
 		handle_continue = false;
 		id_counter = 0;
 		type_accessor = (fun _ -> assert false);
@@ -1923,7 +1936,7 @@ let generate com =
 	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
 	(* Generate some dummy placeholders for utility libs that may be required*)
-	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_break = false";
+	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr";
 
 	if has_feature ctx "use._bitop" || has_feature ctx "lua.Boot.clamp" then begin
 	    println ctx "local _hx_bit_raw = require 'bit32'";
