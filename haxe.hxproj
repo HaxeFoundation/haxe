@@ -390,6 +390,20 @@
     <hidden path="src\generators\hlopt.cmt" />
     <hidden path="src\generators\hlopt.cmx" />
     <hidden path="src\generators\hlopt.o" />
+    <hidden path="src\json.cmt" />
+    <hidden path="src\version.cmt" />
+    <hidden path="src\context\common.cmi" />
+    <hidden path="src\context\common.cmt" />
+    <hidden path="src\context\common.cmx" />
+    <hidden path="src\context\common.o" />
+    <hidden path="src\context\meta.cmi" />
+    <hidden path="src\context\meta.cmt" />
+    <hidden path="src\context\meta.cmx" />
+    <hidden path="src\context\meta.o" />
+    <hidden path="src\typing\abstract.cmi" />
+    <hidden path="src\typing\abstract.cmt" />
+    <hidden path="src\typing\abstract.cmx" />
+    <hidden path="src\typing\abstract.o" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand>make -j4 FD_OUTPUT=1 -f Makefile.win kill haxe</preBuildCommand>
