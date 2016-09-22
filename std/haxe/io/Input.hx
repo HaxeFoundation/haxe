@@ -288,9 +288,7 @@ class Input {
 		else return n;
 #elseif lua
 		var n = bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
-		// lua can't do 32 bit ints, the adjustment for 64 bits must be numeric
-		if (n > 2147483647) n -=  untyped 4294967296.;
-		return n ;
+		return lua.Boot.clamp(n);
 #else
 		return bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
 #end

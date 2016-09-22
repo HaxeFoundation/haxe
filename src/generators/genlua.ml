@@ -1940,12 +1940,20 @@ let generate com =
 
 	if has_feature ctx "use._bitop" || has_feature ctx "lua.Boot.clamp" then begin
 	    println ctx "local _hx_bit_raw = require 'bit32'";
-	    println ctx "local function _hx_bit_clamp(v) return _hx_bit_raw.band(v, 2147483647 ) - _hx_bit_raw.band(v, 2147483648) end";
+	    println ctx "local function _hx_bit_clamp(v) ";
+	    println ctx "  if v <= 2147483647 and v >= -2147483648 then";
+	    println ctx "    if v > 0 then return _G.math.floor(v)";
+	    println ctx "    else return _G.math.ceil(v)";
+	    println ctx "    end";
+	    println ctx "  end";
+	    println ctx "  if v > 2251798999999999 then v = v*2 end;";
+	    println ctx "  return _hx_bit_raw.band(v, 2147483647 ) - _hx_bit_raw.band(v, 2147483648)";
+	    println ctx "end";
 	    println ctx "if type(jit) == 'table' then";
-	    println ctx "_hx_bit = setmetatable({},{__index = function(t,k) return function(...) return _hx_bit_clamp(rawget(_hx_bit_raw,k)(...)) end end})";
+	    println ctx "  _hx_bit = setmetatable({},{__index = function(t,k) return function(...) return _hx_bit_clamp(rawget(_hx_bit_raw,k)(...)) end end})";
 	    println ctx "else";
-	    println ctx "_hx_bit = setmetatable({}, { __index = _hx_bit_raw })";
-	    println ctx "_hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end";
+	    println ctx "  _hx_bit = setmetatable({}, { __index = _hx_bit_raw })";
+	    println ctx "  _hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end";
 	    println ctx "end";
 	end;
 

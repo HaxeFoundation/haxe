@@ -252,9 +252,9 @@ class Boot {
 	}
 
 	/*
-	   A 32 bit clamp function for integers
+	   A 32 bit clamp function for numbers
 	*/
-	public inline static function clamp(x:Int){
+	public inline static function clamp(x:Float){
 		return untyped __define_feature__("lua.Boot.clamp", _hx_bit_clamp(x));
 	}
 
