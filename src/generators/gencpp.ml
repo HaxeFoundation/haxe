@@ -1352,6 +1352,7 @@ type tcpp =
    | TCppReference of tcpp
    | TCppStar of tcpp
    | TCppVoidStar
+   | TCppVarArg
    | TCppDynamicArray
    | TCppObjectArray of tcpp
    | TCppWrapped of tcpp
@@ -1581,6 +1582,7 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
    | TCppStar t -> (tcpp_to_string t) ^" *"
    | TCppVoid -> "void"
    | TCppVoidStar -> "void *"
+   | TCppVarArg -> "vararg"
    | TCppVariant -> "::cpp::Variant"
    | TCppEnum(enum) -> " ::" ^ (join_class_path_remap enum.e_path "::") ^ suffix
    | TCppScalar(scalar) -> scalar
@@ -1774,6 +1776,7 @@ let rec cpp_type_of ctx haxe_type =
       | (["cpp"], "UInt16"),_ -> TCppScalar("unsigned short")
       | (["cpp"], "UInt32"),_ -> TCppScalar("unsigned int")
       | (["cpp"], "UInt64"),_ -> TCppScalar("::cpp::UInt64")
+      | (["cpp"], "VarArg"),_ -> TCppVarArg
 
       | ([],"String"), [] ->
          TCppString
@@ -1994,6 +1997,7 @@ let cpp_variant_type_of t = match t with
    | TCppNativePointer _
    | TCppPointer _
    | TCppRawPointer _
+   | TCppVarArg _
    | TCppVoidStar -> TCppVoidStar
    | TCppScalar "Int"
    | TCppScalar "Bool"
@@ -2867,16 +2871,25 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
       in
       let cppExpr = mk_cppexpr retypedExpr retypedType in
 
-      (* Auto cast rules... *)
+      (* Autocast rules... *)
       if return_type=TCppVoid then
          mk_cppexpr retypedExpr TCppVoid
-      else if (cppExpr.cpptype=TCppVariant || cppExpr.cpptype=TCppDynamic) then begin
+      else if return_type=TCppVarArg then begin
+         match cpp_variant_type_of cppExpr.cpptype with
+         | TCppVoidStar
+         | TCppScalar _ -> cppExpr
+         | TCppString ->  mk_cppexpr (CppVar(VarInternal(cppExpr,".","__s"))) (TCppPointer("ConstPointer", TCppScalar("char")))
+         | TCppDynamic ->  mk_cppexpr (CppCastNative(cppExpr)) TCppVoidStar
+         | _ -> let toDynamic = mk_cppexpr (CppCast(cppExpr, TCppDynamic)) TCppDynamic in
+                mk_cppexpr (CppCastNative(toDynamic)) TCppVoidStar
+      end else if (cppExpr.cpptype=TCppVariant || cppExpr.cpptype=TCppDynamic) then begin
          match return_type with
          | TCppObjectArray _
          | TCppScalarArray _
          | TCppNativePointer _
          | TCppDynamicArray
          | TCppObjectPtr
+         | TCppVarArg
          | TCppInst _
              -> mk_cppexpr (CppCast(cppExpr,return_type)) return_type
 
