@@ -21,24 +21,13 @@
  */
 package cpp;
 
+import haxe.extern.Rest;
+
 @:include("stdio.h")
 extern class Stdio
 {
    @:native("printf")
-   @:overload(function(format:ConstCharStar,a0:VarArg):Void { })
-   @:overload(function(format:ConstCharStar,a0:VarArg,a1:VarArg):Void { })
-   @:overload(function(format:ConstCharStar,a0:VarArg,a1:VarArg,a2:VarArg):Void { })
-   @:overload(function(format:ConstCharStar,a0:VarArg,a1:VarArg,a2:VarArg,a3:VarArg):Void { })
-   @:overload(function(format:ConstCharStar,a0:VarArg,a1:VarArg,a2:VarArg,a3:VarArg,a4:VarArg):Void { })
-   @:overload(function(format:ConstCharStar,a0:VarArg,a1:VarArg,a2:VarArg,a3:VarArg,a4:VarArg,a5:VarArg):Void { })
-   @:overload(function(format:ConstCharStar,a0:VarArg,a1:VarArg,a2:VarArg,a3:VarArg,a4:VarArg,a5:VarArg,a6:VarArg):Void { })
-   @:overload(function(format:ConstCharStar,a0:VarArg,a1:VarArg,a2:VarArg,a3:VarArg,a4:VarArg,a5:VarArg,a6:VarArg,a7:VarArg):Void { })
-   @:overload(function(format:ConstCharStar,a0:VarArg,a1:VarArg,a2:VarArg,a3:VarArg,a4:VarArg,a5:VarArg,a6:VarArg,a7:VarArg,a8:VarArg):Void { })
-   @:overload(function(format:ConstCharStar,a0:VarArg,a1:VarArg,a2:VarArg,a3:VarArg,a4:VarArg,a5:VarArg,a6:VarArg,a7:VarArg,a8:VarArg,a8:VarArg):Void { })
-   @:overload(function(format:ConstCharStar,a0:VarArg,a1:VarArg,a2:VarArg,a3:VarArg,a4:VarArg,a5:VarArg,a6:VarArg,a7:VarArg,a8:VarArg,a9:VarArg,a10:VarArg):Void { })
-   @:overload(function(format:ConstCharStar,a0:VarArg,a1:VarArg,a2:VarArg,a3:VarArg,a4:VarArg,a5:VarArg,a6:VarArg,a7:VarArg,a8:VarArg,a9:VarArg,a10:VarArg,a11:VarArg):Void { })
-   @:overload(function(format:ConstCharStar,a0:VarArg,a1:VarArg,a2:VarArg,a3:VarArg,a4:VarArg,a5:VarArg,a6:VarArg,a7:VarArg,a8:VarArg,a9:VarArg,a10:VarArg,a11:VarArg,a12:VarArg):Void { })
-   public static function printf(format:ConstCharStar):Void;
+   public static function printf(format:ConstCharStar, rest:Rest<VarArg>):Void;
 
    @:native("fopen")
    public static function fopen(filename:ConstCharStar, mode:ConstCharStar) : FILE;
@@ -51,23 +40,6 @@ extern class Stdio
 
 
    @:native("fprintf")
-   @:overload(function(file:FILE,format:ConstCharStar,a0:VarArg):Void { })
-   @:overload(function(file:FILE,format:ConstCharStar,a0:VarArg,a1:VarArg):Void { })
-   @:overload(function(file:FILE,format:ConstCharStar,a0:VarArg,a1:VarArg,a2:VarArg):Void { })
-   @:overload(function(file:FILE,format:ConstCharStar,a0:VarArg,a1:VarArg,a2:VarArg,a3:VarArg):Void { })
-   @:overload(function(file:FILE,format:ConstCharStar,a0:VarArg,a1:VarArg,a2:VarArg,a3:VarArg,a4:VarArg):Void { })
-   @:overload(function(file:FILE,format:ConstCharStar,a0:VarArg,a1:VarArg,a2:VarArg,a3:VarArg,a4:VarArg,a5:VarArg):Void { })
-   @:overload(function(file:FILE,format:ConstCharStar,a0:VarArg,a1:VarArg,a2:VarArg,a3:VarArg,a4:VarArg,a5:VarArg,a6:VarArg):Void { })
-   @:overload(function(file:FILE,format:ConstCharStar,a0:VarArg,a1:VarArg,a2:VarArg,a3:VarArg,a4:VarArg,a5:VarArg,a6:VarArg,a7:VarArg):Void { })
-   @:overload(function(file:FILE,format:ConstCharStar,a0:VarArg,a1:VarArg,a2:VarArg,a3:VarArg,a4:VarArg,a5:VarArg,a6:VarArg,a7:VarArg,a8:VarArg):Void { })
-   @:overload(function(file:FILE,format:ConstCharStar,a0:VarArg,a1:VarArg,a2:VarArg,a3:VarArg,a4:VarArg,a5:VarArg,a6:VarArg,a7:VarArg,a8:VarArg,a8:VarArg):Void { })
-   @:overload(function(file:FILE,format:ConstCharStar,a0:VarArg,a1:VarArg,a2:VarArg,a3:VarArg,a4:VarArg,a5:VarArg,a6:VarArg,a7:VarArg,a8:VarArg,a9:VarArg,a10:VarArg):Void { })
-   @:overload(function(file:FILE,format:ConstCharStar,a0:VarArg,a1:VarArg,a2:VarArg,a3:VarArg,a4:VarArg,a5:VarArg,a6:VarArg,a7:VarArg,a8:VarArg,a9:VarArg,a10:VarArg,a11:VarArg):Void { })
-   @:overload(function(file:FILE,format:ConstCharStar,a0:VarArg,a1:VarArg,a2:VarArg,a3:VarArg,a4:VarArg,a5:VarArg,a6:VarArg,a7:VarArg,a8:VarArg,a9:VarArg,a10:VarArg,a11:VarArg,a12:VarArg):Void { })
-   public static function fprintf(file:FILE,format:ConstCharStar):Void;
-
-
-
-
+   public static function fprintf(file:FILE,format:ConstCharStar, rest:Rest<VarArg>):Void;
 }
 

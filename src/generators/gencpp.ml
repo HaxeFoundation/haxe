@@ -1349,6 +1349,7 @@ type tcpp =
    | TCppRawPointer of string * tcpp
    | TCppFunction of tcpp list * tcpp * string
    | TCppObjCBlock of tcpp list * tcpp
+   | TCppRest of tcpp
    | TCppReference of tcpp
    | TCppStar of tcpp
    | TCppVoidStar
@@ -1582,6 +1583,7 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
    | TCppStar t -> (tcpp_to_string t) ^" *"
    | TCppVoid -> "void"
    | TCppVoidStar -> "void *"
+   | TCppRest _ -> "vaarg_list"
    | TCppVarArg -> "vararg"
    | TCppVariant -> "::cpp::Variant"
    | TCppEnum(enum) -> " ::" ^ (join_class_path_remap enum.e_path "::") ^ suffix
@@ -1800,6 +1802,8 @@ let rec cpp_type_of ctx haxe_type =
       | (("cpp"::["objc"]),"ObjcBlock"), [function_type] ->
             let args,ret = (cpp_function_type_of_args_ret ctx function_type) in
             TCppObjCBlock(args,ret)
+      | (["haxe";"extern"], "Rest"),[rest] ->
+            TCppRest(cpp_type_of ctx rest)
       | (("cpp"::["objc"]),"Protocol"), [interface_type] ->
             (match follow interface_type with
             | TInst (klass,[]) when klass.cl_interface ->
@@ -1984,6 +1988,7 @@ let cpp_variant_type_of t = match t with
    | TCppWrapped _
    | TCppObjC _
    | TCppObjCBlock _
+   | TCppRest _
    | TCppInst _
    | TCppInterface _
    | TCppProtocol _
@@ -1997,7 +2002,7 @@ let cpp_variant_type_of t = match t with
    | TCppNativePointer _
    | TCppPointer _
    | TCppRawPointer _
-   | TCppVarArg _
+   | TCppVarArg
    | TCppVoidStar -> TCppVoidStar
    | TCppScalar "Int"
    | TCppScalar "Bool"
@@ -2233,6 +2238,8 @@ let cpp_enum_name_of field =
       keyword_remap field.ef_name
 ;;
 
+
+
 let retype_expression ctx request_type function_args expression_tree forInjection =
    let rev_closures = ref [] in
    let closureId = ref 0 in
@@ -2282,6 +2289,18 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
    let rec retype return_type expr =
       let cpp_type_of t = cpp_type_of ctx t in
       let mk_cppexpr newExpr newType = { cppexpr = newExpr; cpptype = newType; cpppos = expr.epos } in
+      let retype_function_args args arg_types =
+         let rec map_pair args types result=
+            match args, types with
+            | args, [TCppRest(rest)] -> (List.rev (List.map (retype rest) args) ) @ result
+            | [], [] -> result
+            | a::arest, t::trest -> map_pair arest trest ((retype t a) :: result )
+            | _, [] -> abort ("Too many args") expr.epos
+            | [], _ -> abort ("Too many types") expr.epos
+         in
+         List.rev (map_pair args arg_types [])
+      in
+
       let retypedExpr, retypedType =
          match expr.eexpr with
          | TEnumParameter( enumObj, enumField, enumIndex  ) ->
@@ -2506,14 +2525,10 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             | TCppNull ->
                CppNullAccess, TCppDynamic
             | TCppFunction(argTypes,retType,_) ->
-               let retypedArgs = List.map2 (fun arg wantedType ->
-                   retype wantedType arg
-                   ) args argTypes in
+               let retypedArgs = retype_function_args args argTypes in
                CppCall( FuncExpression(retypedFunc) ,retypedArgs), retType
             |  TCppObjCBlock(argTypes,retType) ->
-               let retypedArgs = List.map2 (fun arg wantedType ->
-                   retype wantedType arg
-                   ) args argTypes in
+               let retypedArgs = retype_function_args args argTypes in
                CppCall( FuncExpression(retypedFunc) ,retypedArgs), retType
             | _ ->
                let retypedArgs = List.map (retype TCppDynamic ) args in
@@ -2552,10 +2567,9 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                | CppFunction( FuncInstance(_,_,{cf_type=TFun(arg_types,_)} ) as func, returnType )
                | CppFunction( FuncStatic(_,_,{cf_type=TFun(arg_types,_)} ) as func, returnType )
                | CppFunction( FuncThis({cf_type=TFun(arg_types,_)} ) as func, returnType ) ->
+                  let arg_types = List.map (fun (_,opt,t) -> cpp_tfun_arg_type_of ctx opt t) arg_types in
                   (* retype args specifically (not just CppDynamic) *)
-                  let retypedArgs = List.map2 (fun arg (_,opt,t) ->
-                      retype (cpp_tfun_arg_type_of ctx opt t) arg
-                      ) args arg_types in
+                  let retypedArgs = retype_function_args args arg_types in
                   CppCall(func,retypedArgs), returnType
 
                |  CppFunction(func,returnType) ->
