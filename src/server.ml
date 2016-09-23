@@ -196,24 +196,41 @@ let rec wait_loop process_params verbose accept =
 	let delays = ref [] in
 	let changed_directories = Hashtbl.create 0 in
 	let arguments = Hashtbl.create 0 in
+	let stat dir =
+		(Unix.stat (Path.remove_trailing_slash dir)).Unix.st_mtime
+	in
 	let get_changed_directories (ctx : Typecore.typer) =
 		let t = Common.timer ["server";"module cache";"changed dirs"] in
-		let sign = get_signature ctx.Typecore.com in
+		let com = ctx.Typecore.com in
+		let sign = get_signature com in
 		let dirs = try
 			(* First, check if we already have determined changed directories for current compilation. *)
 			Hashtbl.find changed_directories sign
 		with Not_found ->
 			let dirs = try
 				(* Next, get all directories from the cache and filter the ones that haven't changed. *)
-				List.filter (fun (dir,time) ->
+				let all_dirs = CompilationServer.find_directories cs sign in
+				List.fold_left (fun acc (dir,time) ->
 					try
-						let time' = (Unix.stat (Path.remove_trailing_slash dir)).Unix.st_mtime in
-						if !time < time' then (time := time'; true) else false
+						let time' = stat dir in
+						if !time < time' then begin
+							time := time';
+							let sub_dirs = Path.find_directories (platform_name com.platform) false [dir] in
+							List.iter (fun dir ->
+								if not (CompilationServer.has_directory cs sign dir) then begin
+									let time = stat dir in
+									if verbose then print_endline (Printf.sprintf "%sadded directory %s" (sign_string com) dir);
+									CompilationServer.add_directory cs sign (dir,ref time)
+								end;
+							) sub_dirs;
+							(dir,time') :: acc
+						end else
+							acc
 					with Unix.Unix_error _ ->
 						CompilationServer.remove_directory cs sign dir;
-						if verbose then print_endline (Printf.sprintf "%sremoved directory %s" (sign_string ctx.Typecore.com) dir);
-						false
-				) (CompilationServer.find_directories cs sign)
+						if verbose then print_endline (Printf.sprintf "%sremoved directory %s" (sign_string com) dir);
+						acc
+				) [] all_dirs
 			with Not_found ->
 				(* There were no directories in the cache, so this must be a new context. Let's add
 				   an empty list to make sure no crazy recursion happens. *)
@@ -223,14 +240,14 @@ let rec wait_loop process_params verbose accept =
 					let dirs = ref [] in
 					let add_dir path =
 						try
-							let time = (Unix.stat (Path.remove_trailing_slash path)).Unix.st_mtime in
+							let time = stat path in
 							dirs := (path,ref time) :: !dirs
 						with Unix.Unix_error _ ->
 							()
 					in
-					List.iter add_dir ctx.Typecore.com.class_path;
-					List.iter add_dir (Path.find_directories (platform_name ctx.Typecore.com.platform) ctx.Typecore.com.class_path);
-					if verbose then print_endline (Printf.sprintf "%sfound %i directories" (sign_string ctx.Typecore.com) (List.length !dirs));
+					List.iter add_dir com.class_path;
+					List.iter add_dir (Path.find_directories (platform_name com.platform) true com.class_path);
+					if verbose then print_endline (Printf.sprintf "%sfound %i directories" (sign_string com) (List.length !dirs));
 					CompilationServer.add_directories cs sign !dirs
 				) :: !delays;
 				(* Returning [] should be fine here because it's a new context, so we won't do any

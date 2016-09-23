@@ -122,7 +122,7 @@ let rec remove_trailing_slash p =
 
 open Globals
 
-let find_directories target paths =
+let find_directories target recursive paths =
 	let target_dirs = List.map platform_name platforms in
 	let rec loop acc dir =
 		try
@@ -136,7 +136,8 @@ let find_directories target paths =
 							acc
 						else begin
 							let full = (dir ^ file) in
-							loop (full :: acc) (full ^ "/")
+							if recursive then loop (full :: acc) (full ^ "/")
+							else full :: acc
 						end
 					| _ ->
 						acc

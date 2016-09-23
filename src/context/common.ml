@@ -416,6 +416,19 @@ module CompilationServer = struct
 		with Not_found ->
 			()
 
+	let has_directory cs key value =
+		try
+			List.mem_assoc value (find_directories cs key)
+		with Not_found ->
+			false
+
+	let add_directory cs key value =
+		try
+			let current = find_directories cs key in
+			add_directories cs key (value :: current)
+		with Not_found ->
+			add_directories cs key [value]
+
 	let clear_directories cs key =
 		Hashtbl.remove cs.cache.c_directories key
 end
