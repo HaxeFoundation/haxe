@@ -2256,6 +2256,7 @@ class class_builder ctx (cls:tclass) =
 			self#write_indentation;
 			self#write ((get_visibility field.cf_meta) ^ " function ");
 			(match field.cf_expr with
+				| None -> () (* interface *)
 				| Some { eexpr = TFunction fn } ->
 					self#write (field.cf_name ^ " (");
 					write_args buffer self#write_function_arg fn.tf_args;
