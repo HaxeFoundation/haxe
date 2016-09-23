@@ -753,6 +753,7 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx "not ";
 		gen_value ctx e;
 	| TUnop (NegBits,unop_flag,e) ->
+		add_feature ctx "use._bitop";
 		spr ctx "_hx_bit.bnot(";
 		gen_value ctx e;
 		spr ctx ")";
