@@ -19,6 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import php7.Global;
+import php7.NativeString;
+
 @:coreApi class StringTools {
 
 	public inline static function urlEncode( s : String ) : String untyped {
@@ -88,7 +92,7 @@
 	}
 
 	public static inline function fastCodeAt( s : String, index : Int ) : Int {
-		return untyped s.cca(index);
+		return (s.length == index ? 0 : Global.ord((s:NativeString)[index]));
 	}
 
 	public static inline function isEof( c : Int ) : Bool {
