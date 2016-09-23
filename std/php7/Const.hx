@@ -103,4 +103,10 @@ extern class Const {
 	static var STDIN : Resource;
 	static var STDOUT : Resource;
 	static var STDERR : Resource;
+	/**
+		@see http://php.net/manual/en/function.preg-match-all.php
+	**/
+	static var PREG_PATTERN_ORDER : Int;
+	static var PREG_SET_ORDER : Int;
+	static var PREG_OFFSET_CAPTURE : Int;
 }

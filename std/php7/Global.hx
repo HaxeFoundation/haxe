@@ -581,4 +581,14 @@ extern class Global {
 		@see http://php.net/manual/en/function.fgetc.php
 	**/
 	static function fgetc( handle:Resource ) : EitherType<Bool,String>;
+
+	/**
+		@see http://php.net/manual/en/function.preg-match.php
+	**/
+	static function preg_match( pattern:String, subject:String, ?matches:Ref<NativeIndexedArray<String>>, ?flags:Int, ?offset:Int ) : EitherType<Bool,Int> ;
+
+	/**
+		@see http://php.net/manual/en/function.preg-match-all.php
+	**/
+	static function preg_match_all( pattern:String, subject:String, ?matches:Ref<NativeIndexedArray<String>>, ?flags:Int, ?offset:Int ) : EitherType<Bool,Int> ;
 }

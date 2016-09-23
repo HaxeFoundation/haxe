@@ -47,7 +47,7 @@ import php7.Const;
 		if (Global.is_numeric(x)) {
 			return Global.intval(x, 10);
 		} else {
-			x = Global.rtrim(x);
+			x = Global.ltrim(x);
 			var firstCharIndex = (x.charAt(0) == '-' ? 1 : 0);
 			var firstCharCode = x.charCodeAt(firstCharIndex);
 			if (!isDigitCode(firstCharCode)) {
@@ -66,7 +66,7 @@ import php7.Const;
 		var result = Global.floatval(x);
 		if (result != 0) return result;
 
-		x = Global.rtrim(x);
+		x = Global.ltrim(x);
 		var firstCharIndex = (x.charAt(0) == '-' ? 1 : 0);
 		var charCode = x.charCodeAt(firstCharIndex);
 
