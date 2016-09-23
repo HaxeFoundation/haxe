@@ -276,8 +276,8 @@ let mk_mr_box ctx e =
 		| _ -> assert false
 	in
 	add_feature ctx "use._hx_box_mr";
-	add_feature ctx "use._hx_tbl_pack";
-	let code = Printf.sprintf "_hx_box_mr(_G.table.pack({0}), {%s})" s_fields in
+	add_feature ctx "use._hx_table";
+	let code = Printf.sprintf "_hx_box_mr(_hx_table.pack({0}), {%s})" s_fields in
 	mk_lua_code ctx.com code [e] e.etype e.epos
 
 (* create a multi-return select call for given expr and field name *)
@@ -1937,7 +1937,7 @@ let generate com =
 	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
 	(* Generate some dummy placeholders for utility libs that may be required*)
-	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp";
+	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp, _hx_table";
 
 	List.iter (transform_multireturn ctx) com.types;
 	List.iter (generate_type ctx) com.types;
@@ -2050,16 +2050,6 @@ let generate com =
 	    println ctx "_G.math.randomseed(_G.os.time());"
 	end;
 
-	if has_feature ctx "use._hx_maxn" then begin
-	    println ctx "_hx_maxn = table.maxn or function(t)";
-	    println ctx "  local maxn=0;";
-	    println ctx "  for i in pairs(t) do";
-	    println ctx "    maxn=type(i)=='number'and i>maxn and i or maxn";
-	    println ctx "  end";
-	    println ctx "  return maxn";
-	    println ctx "end;";
-	end;
-
 	if has_feature ctx "use._hx_print" then
 	    println ctx "_hx_print = print or (function() end)";
 
@@ -2079,16 +2069,20 @@ let generate com =
 	    println ctx "end";
 	end;
 
-	(* if has_feature ctx "use.table" then begin *)
-	    println ctx "if not _G.table.pack then";
-	    println ctx "  _G.table.pack = function(...)";
+	if has_feature ctx "use._hx_table" then begin
+	    println ctx "_hx_table = {}";
+	    println ctx "_hx_table.pack = _G.table.pack or function(...)";
 	    println ctx "    return {...}";
+	    println ctx "end";
+	    println ctx "_hx_table.unpack = _G.table.unpack or _G.unpack";
+	    println ctx "_hx_table.maxn = _G.table.maxn or function(t)";
+	    println ctx "  local maxn=0;";
+	    println ctx "  for i in pairs(t) do";
+	    println ctx "    maxn=type(i)=='number'and i>maxn and i or maxn";
 	    println ctx "  end";
-	    println ctx "end";
-	    println ctx "if not _G.table.unpack then";
-	    println ctx " _G.table.unpack = _G.unpack";
-	    println ctx "end";
-	(* end; *)
+	    println ctx "  return maxn";
+	    println ctx "end;";
+	end;
 
 
 	List.iter (generate_enumMeta_fields ctx) com.types;

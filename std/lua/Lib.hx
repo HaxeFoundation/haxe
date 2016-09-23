@@ -70,7 +70,12 @@ class Lib {
 		return ret;
 	}
 
-	public inline static function isShellAvailable() : Bool {
-		return Os.execute().status > 0;
+	public static function isShellAvailable() : Bool {
+		var ret : Dynamic = Os.execute();
+		if (Lua.type(ret) == "bool"){
+			return ret;
+		} else {
+			return ret != 0;
+		}
 	}
 }

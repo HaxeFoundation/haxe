@@ -23,8 +23,10 @@ extern class Table<A,B> implements ArrayAccess<B> implements Dynamic<B> {
 	@:overload(function<B>(table:Table<Int,B>):Void{})
 	public static function remove<B>(table:Table<Int,B>, ?pos:Int) : Void;
 
+#if (lua_ver >= 5.2)
 	public static function pack<T>(args:haxe.extern.Rest<T>) : Table<Int,T>;
 	public static function unpack<Int,V>(args:lua.Table<Int,V>, ?min : Int, ?max : Int) : Dynamic;
+#end
 
 }
 

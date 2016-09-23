@@ -82,7 +82,7 @@ enum ValueType {
 	}
 
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped {
-		return __new__(cl, lua.Table.unpack(cast args, 0));
+		return __new__(cl, lua.TableTools.unpack(cast args, 0));
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped {

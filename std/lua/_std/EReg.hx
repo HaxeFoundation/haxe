@@ -51,7 +51,7 @@ class EReg {
 	}
 
 	public function match( s : String ) : Bool {
-		this.m = lua.Table.pack(r.exec(s));
+		this.m = lua.TableTools.pack(r.exec(s));
 		this.s = s;
 		return  m[1] != null;
 	}
@@ -93,14 +93,14 @@ class EReg {
 		var ss = s.substr(0, len < 0 ? s.length : pos + len);
 
 		if (global){
-			m = lua.Table.pack(r.exec(ss, pos + 1));
+			m = lua.TableTools.pack(r.exec(ss, pos + 1));
 			var b = m[1] != null;
 			if (b){
 				this.s = s;
 			}
 			return b;
 		} else {
-			m = lua.Table.pack(r.exec(ss, pos + 1));
+			m = lua.TableTools.pack(r.exec(ss, pos + 1));
 			var b = m[1] != null;
 			if (b){
 				this.s = s;

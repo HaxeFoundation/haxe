@@ -25,6 +25,7 @@ using lua.NativeStringTools;
 import lua.Package;
 import lua.Lua;
 import lua.Table;
+import lua.TableTools;
 import lua.Os;
 import lua.lib.lfs.Lfs;
 import lua.FileHandle;
@@ -48,7 +49,15 @@ class Sys {
 	}
 	public static function command( cmd : String, ?args : Array<String> ) : Int  {
 		cmd = Boot.shellEscapeCmd(cmd, args);
+#if (lua_ver < 5.2)
+		return Os.execute(cmd);
+#elseif (lua_ver >= 5.2)
 		return Os.execute(cmd).status;
+#else
+		var ret = TableTools.pack(untyped os.execute(cmd));
+		if (ret[3] != null) return ret[3]
+		else return ret[1];
+#end
 	}
 
 
@@ -119,9 +128,9 @@ class Sys {
 	public static function sleep(seconds : Float) : Void {
 		if (seconds <= 0) return;
 		if (Sys.systemName() == "Windows") {
-			Os.execute("ping -n " + (seconds+1) + " localhost > NUL");
+			Sys.command("ping -n " + (seconds+1) + " localhost > NUL");
 		} else {
-			Os.execute('sleep $seconds');
+			Sys.command('sleep $seconds');
 		}
 	}
 
