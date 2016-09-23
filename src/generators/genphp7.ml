@@ -2234,7 +2234,7 @@ class class_builder ctx (cls:tclass) =
 			self#write ((get_visibility field.cf_meta) ^ " ");
 			match field.cf_expr with
 				| None ->
-					self#write (field.cf_name ^ " (");
+					self#write ("function " ^ field.cf_name ^ " (");
 					write_args buffer (self#write_arg true) args;
 					self#write ")";
 					self#write " ;\n"
