@@ -361,6 +361,11 @@ extern class Global {
 	static function strcmp( str1:String, str2:String ) : Int;
 
 	/**
+		@see http://php.net/manual/en/function.str-repeat.php
+	**/
+	static function str_repeat( input:String, multiplier:Int ) : String;
+
+	/**
 		@see http://php.net/manual/en/function.explode.php
 	**/
 	static function explode( delimiter:String, string:String, ?limit:Int ) : EitherType<Bool,NativeIndexedArray<String>>;

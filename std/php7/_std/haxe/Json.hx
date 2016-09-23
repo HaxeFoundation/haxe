@@ -21,6 +21,9 @@
  */
 package haxe;
 
+import php7.NativeArray;
+import php7.Lib;
+
 @:coreApi
 class Json {
 
@@ -46,14 +49,14 @@ class Json {
 	}
 
 	static function convertAfterDecode(val:Dynamic):Dynamic {
-		var arr:php.NativeArray;
+		var arr:NativeArray;
 		if (untyped __call__("is_object", val)) {
-			arr = phpMapArray(php.Lib.associativeArrayOfObject(val), convertAfterDecode);
+			arr = phpMapArray(Lib.associativeArrayOfObject(val), convertAfterDecode);
 			return untyped __call__("_hx_anonymous", arr);
 		}
 		else if (untyped __call__("is_array", val)) {
 			arr = phpMapArray(val, convertAfterDecode);
-			return php.Lib.toHaxeArray(arr);
+			return Lib.toHaxeArray(arr);
 		}
 		else
 			return val;
@@ -70,16 +73,16 @@ class Json {
 	}
 
 	static function convertBeforeEncode(val:Dynamic):Dynamic {
-		var arr:php.NativeArray;
+		var arr:NativeArray;
 		if (untyped __call__("is_object", val)) {
 			switch (untyped __call__("get_class", val)) {
-				case "_hx_anonymous", "stdClass" : arr = php.Lib.associativeArrayOfObject(val);
-				case "_hx_array" : arr = php.Lib.toPhpArray(val);
+				case "_hx_anonymous", "stdClass" : arr = Lib.associativeArrayOfObject(val);
+				case "_hx_array" : arr = Lib.toPhpArray(val);
 				case "Date" : return Std.string(val); //.split(" ").join("T"); //better with "T"?
-				case "HList" : arr = php.Lib.toPhpArray(Lambda.array(val)); //convert List to array?
+				case "HList" : arr = Lib.toPhpArray(Lambda.array(val)); //convert List to array?
 				case "_hx_enum" : return Type.enumIndex(val);
-				case "StringMap", "IntMap" : arr = php.Lib.associativeArrayOfHash(val);
-				default : arr = php.Lib.associativeArrayOfObject(val);
+				case "StringMap", "IntMap" : arr = Lib.associativeArrayOfHash(val);
+				default : arr = Lib.associativeArrayOfObject(val);
 			}
 		}
 		else if (untyped __call__("is_array", val)) arr = val;
@@ -90,7 +93,7 @@ class Json {
 		return phpMapArray(arr, convertBeforeEncode);
 	}
 
-	inline static function phpMapArray(arr:php.NativeArray, func:Dynamic->Dynamic):php.NativeArray {
+	inline static function phpMapArray(arr:NativeArray, func:Dynamic->Dynamic):NativeArray {
 		return untyped __call__("array_map", func, arr);
 	}
 

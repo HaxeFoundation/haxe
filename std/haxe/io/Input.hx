@@ -67,7 +67,7 @@ class Input {
 			while( k > 0 ) {
 			    #if neko
 				    untyped __dollar__sset(b,pos,readByte());
-			    #elseif php
+				#elseif (php || php7)
 				    b.set(pos, readByte());
 			    #elseif cpp
 				    b[pos] = untyped readByte();
@@ -104,7 +104,7 @@ class Input {
 	**/
 	public function readAll( ?bufsize : Int ) : Bytes {
 		if( bufsize == null )
-		#if php
+		#if (php || php7)
 			bufsize = 8192; // default value for PHP and max under certain circumstances
 		#else
 			bufsize = (1 << 14); // 16 Ko

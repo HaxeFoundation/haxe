@@ -19,9 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package php7;
-
-
+package php7;
 
 private class Wrapper {
 	public var s : NativeString;
@@ -32,17 +30,14 @@ private class Wrapper {
 
 abstract BytesData(Wrapper) {
 
+	public var length(get,never):Int;
+	inline function get_length() return Global.strlen(str);
+
+	var str (get,set):NativeString;
+	inline function get_str() return this.s;
+	inline function set_str(v) return this.s = v;
+
 	inline function new (x:Wrapper) this = x;
-
-	inline function str ():php.NativeString return this.s;
-
-	inline function setNativeString (val:NativeString):Void {
-		this.s = val;
-	}
-
-	inline function get_length ():Int {
-		return untyped __call__("strlen", str());
-	}
 
 	static inline function wrap (s:NativeString):Wrapper {
 		return new Wrapper(s);
@@ -52,43 +47,41 @@ abstract BytesData(Wrapper) {
 		return new BytesData( wrap(s));
 	}
 
-	public inline function set (index:Int, val:Int):Void {
-		untyped __php__("{0}->s[{1}] = chr({2})", this, index, val);
+	public inline function get (pos:Int):Int {
+		return Global.ord(str[pos]);
 	}
-
-	public var length(get, never):Int;
+ 
+	public inline function set (index:Int, val:Int):Void {
+		str[index] = Global.chr(val);
+	}
 
 	public inline function compare (other:BytesData):Int {
-		return untyped __php__("{0} < {1} ? -1 : ({0} == {1} ? 0 : 1)", str(), other.str());
-	}
-
-	public inline function get (pos:Int):Int {
-		return untyped __call__("ord", str()[pos]);
+		return Global.strcmp(str, other.str);
 	}
 
 	public inline function copy ():BytesData {
-		return ofNativeString(str());
+		return ofNativeString(str);
 	}
 
 	public inline function getString (pos:Int, len:Int):String {
-		return untyped __call__("substr", str(), pos, len);
+		return Global.substr(str, pos, len);
 	}
 
 	public inline function sub (pos:Int, len:Int):BytesData {
-		return ofString(untyped __call__("substr", str(), pos, len));
+		return ofString(Global.substr(str, pos, len));
 	}
 
 	public inline function blit (pos : Int, src : BytesData, srcpos : Int, len : Int):Void {
-		setNativeString(untyped __php__("substr({0}, 0, {2}) . substr({1}, {3}, {4}) . substr({0}, {2}+{4})", str(), src.str(), pos, srcpos, len));
+		str = (Global.substr(str, 0, pos):String) + (Global.substr(src.str, srcpos, len):String) + (Global.substr(str, pos + len):String);
 	}
 
-	public inline function toString():String return cast str();
+	public inline function toString():String return str;
 
 	public static inline function ofString (s:String) {
-		return ofNativeString(cast s);
+		return ofNativeString(s);
 	}
 
 	public static inline function alloc (length:Int) {
-		return ofNativeString(untyped __call__("str_repeat", __call__("chr", 0), length));
+		return ofNativeString(Global.str_repeat(Global.chr(0), length));
 	}
 }
