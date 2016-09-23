@@ -310,7 +310,7 @@ CAMLprim value sys_filetime( value file ) {
 #	ifdef _WIN32
 	FILETIME fp;
 	ULARGE_INTEGER ui;
-	HANDLE h = CreateFile(String_val(file),GENERIC_READ,0,NULL,OPEN_EXISTING,0,NULL);
+	HANDLE h = CreateFile(String_val(file),GENERIC_READ,0,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS,NULL);
 	if( h == INVALID_HANDLE_VALUE || !GetFileTime(h,NULL,NULL,&fp) ) {
 		CloseHandle(h);
 		return caml_copy_double(0.);
