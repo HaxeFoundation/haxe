@@ -774,7 +774,7 @@ let write_c version file (code:code) =
 			let todo() =
 				sexpr "hl_fatal(\"%s\")" (ostr (fun id -> "f" ^ string_of_int id) op)
 			in
-			let compare_op op a b d =
+			let rec compare_op op a b d =
 				let phys_compare() =
 					sexpr "if( %s %s %s ) goto %s" (reg a) (s_comp op) (rcast b (rtype a)) (label d)
 				in
@@ -812,23 +812,23 @@ let write_c version file (code:code) =
 					with Not_found ->
 						phys_compare())
 				| HVirtual _, HVirtual _ ->
-					sexpr "if( %s %s %s || (%s && %s && %s->value && %s->value && %s->value %s %s->value) ) goto %s" (reg a) (s_comp op) (reg b) (reg a) (reg b) (reg a) (reg b) (reg a) (s_comp op) (reg b) (label d)
+					if op = CEq then
+						sexpr "if( %s == %s || (%s && %s && %s->value && %s->value && %s->value == %s->value) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (label d)
+					else if op = CNeq then
+						sexpr "if( %s != %s && (!%s || !%s || !%s->value || !%s->value || %s->value != %s->value) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (label d)
+					else
+						assert false
 				| HEnum _, HEnum _ | HDynObj, HDynObj ->
 					phys_compare()
 				| HVirtual _, HObj _->
 					if op = CEq then
-						sexpr "if( (void*)%s == (void*)%s || (%s && %s && %s->value == (vdynamic*)%s) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (label d)
+						sexpr "if( %s ? (%s && %s->value == (vdynamic*)%s) : (%s == NULL) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg b) (label d)
 					else if op = CNeq then
-						sexpr "if( (void*)%s != (void*)%s && (!%s || !%s || %s->value != (vdynamic*)%s) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (label d)
+						sexpr "if( %s ? (%s == NULL || %s->value != (vdynamic*)%s) : (%s != NULL) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg b) (label d)
 					else
 						assert false
 				| HObj _, HVirtual _ ->
-					if op = CEq then
-						sexpr "if( (void*)%s == (void*)%s || (%s && %s && %s->value == (vdynamic*)%s) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg b) (reg a) (label d)
-					else if op = CNeq then
-						sexpr "if( (void*)%s != (void*)%s && (!%s || !%s || %s->value != (vdynamic*)%s) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg b) (reg a) (label d)
-					else
-						assert false
+					compare_op op b a d
 				| HFun _, HFun _ ->
 					phys_compare()
 				| ta, tb ->
