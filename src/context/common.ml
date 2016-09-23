@@ -408,6 +408,9 @@ module CompilationServer = struct
 
 	let add_directories cs key value =
 		Hashtbl.replace cs.cache.c_directories key value
+
+	let clear_directories cs key =
+		Hashtbl.remove cs.cache.c_directories key
 end
 
 module Define = struct

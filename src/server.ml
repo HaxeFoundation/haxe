@@ -195,6 +195,7 @@ let rec wait_loop process_params verbose accept =
 	in
 	let delays = ref [] in
 	let changed_directories = Hashtbl.create 0 in
+	let arguments = Hashtbl.create 0 in
 	let get_changed_directories (ctx : Typecore.typer) =
 		let t = Common.timer ["server";"module cache";"changed dirs"] in
 		let sign = get_signature ctx.Typecore.com in
@@ -415,19 +416,29 @@ let rec wait_loop process_params verbose accept =
 				if ctx.has_error then write "\x02\n" else cache_context ctx.com;
 			);
 			ctx.setup <- (fun() ->
+				let sign = get_signature ctx.com in
 				if verbose then begin
 					let defines = PMap.foldi (fun k v acc -> (k ^ "=" ^ v) :: acc) ctx.com.defines [] in
 					print_endline ("Defines " ^ (String.concat "," (List.sort compare defines)));
-					print_endline ("Using signature " ^ Digest.to_hex (get_signature ctx.com));
+					print_endline ("Using signature " ^ Digest.to_hex sign);
 					print_endline ("Display position: " ^ (Printer.s_pos !Parser.resume_display));
 				end;
 				Parser.display_error := (fun e p -> has_parse_error := true; ctx.com.error (Parser.error_msg e) p);
 				if ctx.com.display.dms_display then begin
 					let file = (!Parser.resume_display).pfile in
-					let fkey = (file,get_signature ctx.com) in
+					let fkey = (file,sign) in
 					(* force parsing again : if the completion point have been changed *)
 					CompilationServer.remove_file cs fkey;
-				end
+				end;
+				try
+					if (Hashtbl.find arguments sign) <> ctx.com.args then begin
+						if verbose then print_endline (Printf.sprintf "%sclass paths changed, resetting directories" (sign_string ctx.com));
+						Hashtbl.replace arguments sign ctx.com.args;
+						CompilationServer.clear_directories cs sign;
+					end;
+				with Not_found ->
+					Hashtbl.add arguments sign ctx.com.args;
+					()
 			);
 			ctx.com.print <- (fun str -> write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit str "\n") ^ "\n"));
 			ctx
