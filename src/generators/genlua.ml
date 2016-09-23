@@ -925,17 +925,18 @@ and gen_expr ?(local=true) ctx e = begin
 		println ctx " elseif _hx_result ~= _hx_expected_result then return _hx_result end;";
 	| TSwitch (e,cases,def) ->
 		List.iteri (fun cnt (el,e2) ->
-		    if cnt == 0 then spr ctx "if " else println ctx "elseif ";
+		    if cnt == 0 then spr ctx "if "
+		    else (newline ctx; spr ctx "elseif ");
 		    List.iteri (fun ccnt e3 ->
 			if ccnt > 0 then spr ctx " or ";
 			gen_value ctx e;
 			spr ctx " == ";
 			gen_value ctx e3;
 		    ) el;
-		    println ctx " then ";
+		    print ctx " then ";
 		    let bend = open_block ctx in
-		    bend();
 		    gen_block_element ctx e2;
+		    bend();
 		) cases;
 		(match def with
 		| None -> spr ctx " end"
