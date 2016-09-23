@@ -24,4 +24,6 @@
 @:unreflective
 extern class RawConstPointer<T> implements ArrayAccess<T>
 {
+    @:extern inline static function nullptr<T>():RawConstPointer<T> return untyped __cpp__("NULL");
+    @:extern inline static function of<T>(v:T):RawConstPointer<T> return untyped __cpp__("&{0}", v);
 }
