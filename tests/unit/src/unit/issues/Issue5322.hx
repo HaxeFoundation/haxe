@@ -1,7 +1,7 @@
 package unit.issues;
 
-import unit.TestType.typeErrorText;
-import unit.TestType.typedAs;
+import unit.HelperMacros.typeErrorText;
+import unit.HelperMacros.typedAs;
 
 private abstract A(String) from String {}
 

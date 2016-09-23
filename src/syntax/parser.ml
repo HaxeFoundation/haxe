@@ -18,6 +18,7 @@
  *)
 
 open Ast
+open Globals
 
 type error_msg =
 	| Unexpected of token
@@ -43,6 +44,8 @@ let error_msg = function
 
 let error m p = raise (Error (m,p))
 let display_error : (error_msg -> pos -> unit) ref = ref (fun _ _ -> assert false)
+
+let special_identifier_files = Hashtbl.create 0
 
 let quoted_ident_prefix = "@$__hx__"
 
@@ -321,7 +324,7 @@ let reify in_macro =
 			let n, vl = (match k with
 				| FVar (ct,e) -> "FVar", [to_opt to_type_hint ct p;to_opt to_expr e p]
 				| FFun f -> "FFun", [to_fun f p]
-				| FProp (get,set,t,e) -> "FProp", [to_string get p; to_string set p; to_opt to_type_hint t p; to_opt to_expr e p]
+				| FProp (get,set,t,e) -> "FProp", [to_placed_name get; to_placed_name set; to_opt to_type_hint t p; to_opt to_expr e p]
 			) in
 			mk_enum "FieldType" n vl p
 		in
@@ -338,7 +341,7 @@ let reify in_macro =
 	and to_meta m p =
 		to_array (fun (m,el,p) _ ->
 			let fields = [
-				"name", to_string (fst (Common.MetaInfo.to_string m)) p;
+				"name", to_string (Meta.to_string m) p;
 				"params", to_expr_array el p;
 				"pos", to_pos p;
 			] in
@@ -488,7 +491,7 @@ let reify in_macro =
 				cur_pos := old;
 				e
 			| _ ->
-				expr "EMeta" [to_obj [("name",to_string (fst (Common.MetaInfo.to_string m)) p);("params",to_expr_array ml p);("pos",to_pos p)] p;loop e1]
+				expr "EMeta" [to_obj [("name",to_string (Meta.to_string m) p);("params",to_expr_array ml p);("pos",to_pos p)] p;loop e1]
 	and to_tparam_decl p t =
 		to_obj [
 			"name", to_placed_name t.tp_name;
@@ -559,10 +562,10 @@ let lower_ident_or_macro = parser
 	| [< '(Kwd Extern,_) >] -> "extern"
 
 let property_ident = parser
-	| [< i, _ = ident >] -> i
-	| [< '(Kwd Dynamic,_) >] -> "dynamic"
-	| [< '(Kwd Default,_) >] -> "default"
-	| [< '(Kwd Null,_) >] -> "null"
+	| [< i,p = ident >] -> i,p
+	| [< '(Kwd Dynamic,p) >] -> "dynamic",p
+	| [< '(Kwd Default,p) >] -> "default",p
+	| [< '(Kwd Null,p) >] -> "null",p
 
 let get_doc s =
 	(* do the peek first to make sure we fetch the doc *)
@@ -874,8 +877,8 @@ and meta_name p1 = parser
 	| [< '(Const (Ident i),p) when p.pmin = p1.pmax >] -> (Meta.Custom i), p
 	| [< '(Kwd k,p) when p.pmin = p1.pmax >] -> (Meta.Custom (s_keyword k)),p
 	| [< '(DblDot,p) when p.pmin = p1.pmax; s >] -> match s with parser
-		| [< '(Const (Ident i),p) >] -> (Common.MetaInfo.parse i), p
-		| [< '(Kwd k,p) >] -> (Common.MetaInfo.parse (s_keyword k)),p
+		| [< '(Const (Ident i),p) >] -> (Meta.parse i), p
+		| [< '(Kwd k,p) >] -> (Meta.parse (s_keyword k)),p
 
 and parse_enum_flags = parser
 	| [< '(Kwd Enum,p) >] -> [] , p
@@ -1388,7 +1391,7 @@ and expr = parser
 and expr_next e1 = parser
 	| [< '(BrOpen,p1) when is_dollar_ident e1; eparam = expr; '(BrClose,p2); s >] ->
 		(match fst e1 with
-		| EConst(Ident n) -> expr_next (EMeta((Common.MetaInfo.from_string n,[],snd e1),eparam), punion p1 p2) s
+		| EConst(Ident n) -> expr_next (EMeta((Meta.from_string n,[],snd e1),eparam), punion p1 p2) s
 		| _ -> assert false)
 	| [< '(Dot,p); s >] ->
 		if is_resuming p then display (EDisplay (e1,false),p);
@@ -1534,6 +1537,7 @@ and parse_macro_cond allow_op s =
 		tk, make_unop op e p
 
 and parse_macro_ident allow_op t p s =
+	if t = "display" then Hashtbl.replace special_identifier_files (Path.unique_full_path p.pfile) t;
 	let e = (EConst (Ident t),p) in
 	if not allow_op then
 		None, e

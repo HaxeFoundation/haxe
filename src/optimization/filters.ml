@@ -21,6 +21,8 @@ open Ast
 open Common
 open Type
 open Typecore
+open Error
+open Globals
 
 (* PASS 1 begin *)
 
@@ -692,12 +694,12 @@ let remove_extern_fields ctx t = match t with
 	| TClassDecl c ->
 		if not (Common.defined ctx.com Define.DocGen) then begin
 			c.cl_ordered_fields <- List.filter (fun f ->
-				let b = Codegen.is_removable_field ctx f in
+				let b = is_removable_field ctx f in
 				if b then c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
 				not b
 			) c.cl_ordered_fields;
 			c.cl_ordered_statics <- List.filter (fun f ->
-				let b = Codegen.is_removable_field ctx f in
+				let b = is_removable_field ctx f in
 				if b then c.cl_statics <- PMap.remove f.cf_name c.cl_statics;
 				not b
 			) c.cl_ordered_statics;
@@ -945,7 +947,7 @@ let check_cs_events com t = match t with
 						try
 							type_eq EqStrict m.cf_type tmeth
 						with Unify_error el ->
-							List.iter (fun e -> com.error (Typecore.unify_error_msg (print_context()) e) m.cf_pos) el
+							List.iter (fun e -> com.error (unify_error_msg (print_context()) e) m.cf_pos) el
 					end;
 
 					(*
@@ -1029,10 +1031,10 @@ let run_expression_filters ctx filters t =
 		ctx.curclass <- c;
 		let rec process_field f =
 			(match f.cf_expr with
-			| Some e when not (Codegen.is_removable_field ctx f) ->
-				Codegen.AbstractCast.cast_stack := f :: !Codegen.AbstractCast.cast_stack;
+			| Some e when not (is_removable_field ctx f) ->
+				AbstractCast.cast_stack := f :: !AbstractCast.cast_stack;
 				f.cf_expr <- Some (run e);
-				Codegen.AbstractCast.cast_stack := List.tl !Codegen.AbstractCast.cast_stack;
+				AbstractCast.cast_stack := List.tl !AbstractCast.cast_stack;
 			| _ -> ());
 			List.iter process_field f.cf_overloads
 		in
@@ -1079,7 +1081,7 @@ let run com tctx main =
 	let new_types = List.filter (fun t -> not (is_cached t)) com.types in
 	(* PASS 1: general expression filters *)
 	let filters = [
-		Codegen.AbstractCast.handle_abstract_casts tctx;
+		AbstractCast.handle_abstract_casts tctx;
 		Optimizer.inline_constructors tctx;
 		check_local_vars_init;
 		Optimizer.reduce_expression tctx;

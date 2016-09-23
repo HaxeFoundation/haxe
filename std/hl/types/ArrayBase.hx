@@ -33,6 +33,10 @@ class ArrayAccess {
 		throw "Not implemented";
 	}
 
+	public function blit( pos : Int, src : ArrayAccess, srcpos : Int, len : Int ) : Void {
+		throw "Not implemented";		
+	}
+
 }
 
 @:keep
@@ -110,8 +114,8 @@ class ArrayBase extends ArrayAccess {
 		return a;
 	}
 
-	public static function allocI16( bytes : BytesAccess<I16>, length : Int ) @:privateAccess {
-		var a : ArrayI16 = untyped $new(ArrayI16);
+	public static function allocUI16( bytes : BytesAccess<UI16>, length : Int ) @:privateAccess {
+		var a : ArrayUI16 = untyped $new(ArrayUI16);
 		a.length = length;
 		a.bytes = bytes;
 		a.size = length;
@@ -215,6 +219,12 @@ class BasicIterator<T> {
 		length--;
 		(bytes:Bytes).blit(0, bytes, 1 << bytes.sizeBits, length << bytes.sizeBits);
 		return v;
+	}
+	
+	override function blit( pos : Int, src : ArrayAccess, srcpos : Int, len : Int ) : Void {
+		var src = (cast src : ArrayBasic<T>);
+		if( pos < 0 || srcpos < 0 || len < 0 || pos + len > length || srcpos + len > src.length ) throw haxe.io.Error.OutsideBounds;
+		(bytes:Bytes).blit(pos << bytes.sizeBits,src.bytes,srcpos<<bytes.sizeBits,len<<bytes.sizeBits);
 	}
 
 	override function slice( pos : Int, ?end : Int ) : ArrayBasic<T> {
@@ -388,6 +398,6 @@ class BasicIterator<T> {
 }
 
 typedef ArrayI32 = ArrayBasic<Int>;
-typedef ArrayI16 = ArrayBasic<I16>;
+typedef ArrayUI16 = ArrayBasic<UI16>;
 typedef ArrayF32 = ArrayBasic<F32>;
 typedef ArrayF64 = ArrayBasic<Float>;

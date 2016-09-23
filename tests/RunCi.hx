@@ -897,7 +897,7 @@ class RunCi {
 					case Cpp:
 						getCppDependencies();
 						runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M32"].concat(args));
-						runCpp("bin/cpp/Test-debug", []);
+						runCpp("bin/cpp/TestMain-debug", []);
 
 						switch (ci) {
 							case AppVeyor:
@@ -905,7 +905,7 @@ class RunCi {
 							case _:
 								runCommand("rm", ["-rf", "cpp"]);
 								runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M64"].concat(args));
-								runCpp("bin/cpp/Test-debug", []);
+								runCpp("bin/cpp/TestMain-debug", []);
 
 								runCommand("haxe", ["compile-cppia-host.hxml"]);
 								runCommand("haxe", ["compile-cppia.hxml"]);
@@ -945,7 +945,7 @@ class RunCi {
 								}
 								FileSystem.rename("bin/unit.js", output);
 								FileSystem.rename("bin/unit.js.map", output + ".map");
-								runCommand("node", ["-e", "var unit = require('./" + output + "').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
+								runCommand("node", ["-e", "require('./" + output + "').unit.TestMain.nodejsMain();"]);
 								output;
 							}
 						];
@@ -988,10 +988,10 @@ class RunCi {
 					case Java:
 						getJavaDependencies();
 						runCommand("haxe", ["compile-java.hxml"].concat(args));
-						runCommand("java", ["-jar", "bin/java/Test-Debug.jar"]);
+						runCommand("java", ["-jar", "bin/java/TestMain-Debug.jar"]);
 
 						runCommand("haxe", ["compile-java.hxml","-dce","no"].concat(args));
-						runCommand("java", ["-jar", "bin/java/Test-Debug.jar"]);
+						runCommand("java", ["-jar", "bin/java/TestMain-Debug.jar"]);
 
 						changeDirectory(sysDir);
 						runCommand("haxe", ["compile-java.hxml"]);
@@ -1028,14 +1028,14 @@ class RunCi {
 						{
 							var extras = fastcast.concat(erasegenerics).concat(noroot);
 							runCommand("haxe", ['compile-cs$compl.hxml'].concat(extras));
-							runCs("bin/cs/bin/Test-Debug.exe");
+							runCs("bin/cs/bin/TestMain-Debug.exe");
 
 							runCommand("haxe", ['compile-cs-unsafe$compl.hxml'].concat(extras));
-							runCs("bin/cs_unsafe/bin/Test-Debug.exe");
+							runCs("bin/cs_unsafe/bin/TestMain-Debug.exe");
 						}
 
 						runCommand("haxe", ['compile-cs$compl.hxml','-dce','no']);
-						runCs("bin/cs/bin/Test-Debug.exe");
+						runCs("bin/cs/bin/TestMain-Debug.exe");
 
 						changeDirectory(sysDir);
 						runCommand("haxe", ["compile-cs.hxml",'-D','fast_cast']);

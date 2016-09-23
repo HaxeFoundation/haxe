@@ -43,7 +43,7 @@ private typedef VectorData<T> = #if flash10
 	A Vector is a storage of fixed size. It can be faster than Array on some
 	targets, and is never slower.
 
-	@see http://haxe.org/manual/std-vector.html
+	@see https://haxe.org/manual/std-vector.html
 **/
 abstract Vector<T>(VectorData<T>) {
 	/**

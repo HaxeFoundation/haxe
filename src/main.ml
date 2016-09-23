@@ -43,12 +43,12 @@
 *)
 
 open Printf
-open Ast
 open Genswf
 open Common
 open Common.DisplayMode
 open Type
 open Server
+open Globals
 
 exception Abort
 
@@ -56,7 +56,7 @@ let executable_path() =
 	Extc.executable_path()
 
 let format msg p =
-	if p = Ast.null_pos then
+	if p = null_pos then
 		msg
 	else begin
 		let error_printer file line = sprintf "%s:%d:" file line in
@@ -110,7 +110,7 @@ let expand_env ?(h=None) path  =
 
 let add_libs com libs =
 	let call_haxelib() =
-		let t = Common.timer "haxelib" in
+		let t = Common.timer ["haxelib"] in
 		let cmd = "haxelib path " ^ String.concat " " libs in
 		let pin, pout, perr = Unix.open_process_full cmd (Unix.environment()) in
 		let lines = Std.input_list pin in
@@ -126,15 +126,15 @@ let add_libs com libs =
 	match libs with
 	| [] -> []
 	| _ ->
-		let lines = match !global_cache with
-			| Some cache ->
+		let lines = match CompilationServer.get() with
+			| Some cs ->
 				(try
 					(* if we are compiling, really call haxelib since library path might have changed *)
 					if not com.display.dms_display then raise Not_found;
-					Hashtbl.find cache.c_haxelib libs
+					CompilationServer.find_haxelib cs libs
 				with Not_found ->
 					let lines = call_haxelib() in
-					Hashtbl.replace cache.c_haxelib libs lines;
+					CompilationServer.cache_haxelib cs libs lines;
 					lines)
 			| _ -> call_haxelib()
 		in
@@ -159,7 +159,7 @@ let run_command ctx cmd =
 	let h = Hashtbl.create 0 in
 	Hashtbl.add h "__file__" ctx.com.file;
 	Hashtbl.add h "__platform__" (platform_name ctx.com.platform);
-	let t = Common.timer "command" in
+	let t = Common.timer ["command"] in
 	let cmd = expand_env ~h:(Some h) cmd in
 	let len = String.length cmd in
 	if len > 3 && String.sub cmd 0 3 = "cd " then begin
@@ -281,7 +281,7 @@ module Initialize = struct
 				"php"
 			| Php7 ->
 				add_std "php7";
-				"php"
+				"php7"
 			| Cpp ->
 				Common.define_value com Define.HxcppApiLevel "330";
 				add_std "cpp";
@@ -320,15 +320,20 @@ let generate tctx ext xml_out interp swf_header =
 	if file_extension com.file = ext then delete_file com.file;
 	if com.platform = Flash || com.platform = Cpp then List.iter (Codegen.fix_overrides com) com.types;
 	if Common.defined com Define.Dump then Codegen.Dump.dump_types com;
-	if Common.defined com Define.DumpDependencies then Codegen.Dump.dump_dependencies com;
+	if Common.defined com Define.DumpDependencies then begin
+		Codegen.Dump.dump_dependencies com;
+		if not tctx.Typecore.in_macro then match tctx.Typecore.g.Typecore.macros with
+			| None -> ()
+			| Some(_,ctx) -> print_endline "generate"; Codegen.Dump.dump_dependencies ~target_override:(Some "macro") ctx.Typecore.com
+	end;
 	begin match com.platform with
 		| Neko when interp -> ()
 		| Cpp when Common.defined com Define.Cppia -> ()
-		| Cpp | Cs | Java | Php -> Common.mkdir_from_path (com.file ^ "/.")
+		| Cpp | Cs | Java | Php | Php7 -> Common.mkdir_from_path (com.file ^ "/.")
 		| _ -> Common.mkdir_from_path com.file
 	end;
 	if interp then begin
-		let ctx = Interp.create com (Typer.make_macro_api tctx Ast.null_pos) in
+		let ctx = Interp.create com (Typer.make_macro_api tctx null_pos) in
 		Interp.add_types ctx com.types (fun t -> ());
 		(match com.main with
 		| None -> ()
@@ -365,7 +370,7 @@ let generate tctx ext xml_out interp swf_header =
 			assert false
 		in
 		Common.log com ("Generating " ^ name ^ ": " ^ com.file);
-		let t = Common.timer ("generate " ^ name) in
+		let t = Common.timer ["generate";name] in
 		generate com;
 		t()
 	end
@@ -425,7 +430,7 @@ let rec process_params create pl =
 			(try Unix.chdir dir with _ -> raise (Arg.Bad ("Invalid directory: " ^ dir)));
 			loop acc l
 		| "--connect" :: hp :: l ->
-			(match !global_cache with
+			(match CompilationServer.get() with
 			| None ->
 				let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
 				do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l)
@@ -479,9 +484,9 @@ try
 	Common.define_value com Define.Dce "std";
 	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
 	com.error <- error ctx;
-	if !global_cache <> None then com.run_command <- run_command ctx;
+	if CompilationServer.runs() then com.run_command <- run_command ctx;
 	Parser.display_error := (fun e p -> com.error (Parser.error_msg e) p);
-	Parser.use_doc := !Common.display_default <> DMNone || (!global_cache <> None);
+	Parser.use_doc := !Common.display_default <> DMNone || (CompilationServer.runs());
 	com.class_path <- get_std_class_paths ();
 	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path;
 	let define f = Arg.Unit (fun () -> Common.define com f) in
@@ -517,7 +522,7 @@ try
 		("-php7",Arg.String (fun dir ->
 			classes := (["php7"],"Boot") :: !classes;
 			Initialize.set_platform com Php7 dir;
-		),"<directory> : generate code into target directory");
+		),"<directory> : generate PHP7 code into target directory");
 		("-cpp",Arg.String (fun dir ->
 			Initialize.set_platform com Cpp dir;
 		),"<directory> : generate C++ code into target directory");
@@ -730,7 +735,7 @@ try
 			assert false
 		),"<dir> : set current working directory");
 		("-version",Arg.Unit (fun() ->
-			message ctx Globals.s_version Ast.null_pos;
+			message ctx Globals.s_version null_pos;
 			did_something := true;
 		),": print version and exit");
 		("--help-defines", Arg.Unit (fun() ->
@@ -750,7 +755,7 @@ try
 			did_something := true
 		),": print help for all compiler specific defines");
 		("--help-metas", Arg.Unit (fun() ->
-			let all,max_length = MetaInfo.get_documentation_list() in
+			let all,max_length = Meta.get_documentation_list() in
 			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
 			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
 			did_something := true
@@ -811,12 +816,12 @@ try
 		ctx.setup();
 		Common.log com ("Classpath : " ^ (String.concat ";" com.class_path));
 		Common.log com ("Defines : " ^ (String.concat ";" (PMap.foldi (fun k v acc -> (match v with "1" -> k | _ -> k ^ "=" ^ v) :: acc) com.defines [])));
-		let t = Common.timer "typing" in
+		let t = Common.timer ["typing"] in
 		Typecore.type_expr_ref := (fun ctx e with_type -> Typer.type_expr ctx e with_type);
 		let tctx = Typer.create com in
 		List.iter (Typer.call_init_macro tctx) (List.rev !config_macros);
 		List.iter (Typer.eval tctx) !evals;
-		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath Ast.null_pos)) (List.rev !classes);
+		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev !classes);
 		Typer.finalize tctx;
 		t();
 		if not ctx.com.display.dms_display && ctx.has_error then raise Abort;
@@ -824,7 +829,7 @@ try
 			if ctx.has_next || ctx.has_error then raise Abort;
 			failwith "No completion point was found";
 		end;
-		let t = Common.timer "filters" in
+		let t = Common.timer ["filters"] in
 		let main, types, modules = Typer.generate tctx in
 		com.main <- main;
 		com.types <- types;
@@ -856,9 +861,7 @@ try
 with
 	| Abort ->
 		()
-	| Ast.Error (m,p) ->
-		error ctx m p
-	| Typecore.Fatal_error (m,p) ->
+	| Error.Fatal_error (m,p) ->
 		error ctx m p
 	| Common.Abort (m,p) ->
 		error ctx m p
@@ -871,23 +874,23 @@ with
 			ctx.has_error <- false;
 			ctx.messages <- [];
 		end else begin
-			error ctx (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (Ast.s_type_path m) ) p;
+			error ctx (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m) ) p;
 			List.iter (error ctx "    referenced here") (List.rev pl);
 		end
-	| Typecore.Error (m,p) ->
-		error ctx (Typecore.error_msg m) p
+	| Error.Error (m,p) ->
+		error ctx (Error.error_msg m) p
 	| Interp.Error (msg,p :: l) ->
 		message ctx msg p;
 		List.iter (message ctx "Called from") l;
-		error ctx "Aborted" Ast.null_pos;
+		error ctx "Aborted" null_pos;
 	| Typeload.Generic_Exception(m,p) ->
 		error ctx m p
 	| Arg.Bad msg ->
-		error ctx ("Error: " ^ msg) Ast.null_pos
+		error ctx ("Error: " ^ msg) null_pos
 	| Failure msg when not (is_debug_run()) ->
-		error ctx ("Error: " ^ msg) Ast.null_pos
+		error ctx ("Error: " ^ msg) null_pos
 	| Arg.Help msg ->
-		message ctx msg Ast.null_pos
+		message ctx msg null_pos
 	| Display.DisplayPackage pack ->
 		raise (DisplayOutput.Completion (String.concat "." pack))
 	| Display.DisplayFields fields ->
@@ -915,11 +918,14 @@ with
 		raise (DisplayOutput.Completion (DisplayOutput.print_toplevel il))
 	| Parser.TypePath (p,c,is_import) ->
 		let fields =
-			match c with
-			| None ->
-				DisplayOutput.TypePathHandler.complete_type_path com p
-			| Some (c,cur_package) ->
-				DisplayOutput.TypePathHandler.complete_type_path_inner com p c cur_package is_import
+			try begin match c with
+				| None ->
+					DisplayOutput.TypePathHandler.complete_type_path com p
+				| Some (c,cur_package) ->
+					DisplayOutput.TypePathHandler.complete_type_path_inner com p c cur_package is_import
+			end with Common.Abort(msg,p) ->
+				error ctx msg p;
+				None
 		in
 		Option.may (fun fields -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))) fields
 	| Display.ModuleSymbols s | Display.Diagnostics s | Display.Statistics s | Display.Metadata s ->
@@ -927,11 +933,11 @@ with
 	| Interp.Sys_exit i ->
 		ctx.flush();
 		exit i
-	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || !global_cache <> None with _ -> true) && not (is_debug_run()) ->
-		error ctx (Printexc.to_string e) Ast.null_pos
+	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not (is_debug_run()) ->
+		error ctx (Printexc.to_string e) null_pos
 
 ;;
-let other = Common.timer "other" in
+let other = Common.timer ["other"] in
 Sys.catch_break true;
 let args = List.tl (Array.to_list Sys.argv) in
 (try

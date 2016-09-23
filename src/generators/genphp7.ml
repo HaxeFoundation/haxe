@@ -7,6 +7,7 @@ open Ast
 open Type
 open Common
 open Meta
+open Globals
 
 let debug = ref false
 
@@ -2039,6 +2040,7 @@ class class_builder ctx (cls:tclass) =
 								epos = cls.cl_pos;
 								etype = get_void ctx;
 							};
+							cf_expr_unoptimized = None;
 							cf_overloads = [];
 						}
 		(**

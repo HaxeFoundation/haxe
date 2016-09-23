@@ -18,6 +18,7 @@
  *)
 
 open Ast
+open Globals
 
 type path = string list * string
 
@@ -44,6 +45,12 @@ and method_kind =
 	| MethInline
 	| MethDynamic
 	| MethMacro
+
+type module_check_policy =
+	| NoCheckFileTimeModification
+	| CheckFileContentModification
+	| NoCheckDependencies
+	| NoCheckShadowing
 
 type t =
 	| TMono of t option ref
@@ -141,7 +148,7 @@ and tfield_access =
 and texpr = {
 	eexpr : texpr_expr;
 	etype : t;
-	epos : Ast.pos;
+	epos : pos;
 }
 
 and tclass_field = {
@@ -155,6 +162,7 @@ and tclass_field = {
 	mutable cf_kind : field_kind;
 	mutable cf_params : type_params;
 	mutable cf_expr : texpr option;
+	mutable cf_expr_unoptimized : tfunc option;
 	mutable cf_overloads : tclass_field list;
 }
 
@@ -173,8 +181,8 @@ and metadata = Ast.metadata
 and tinfos = {
 	mt_path : path;
 	mt_module : module_def;
-	mt_pos : Ast.pos;
-	mt_name_pos : Ast.pos;
+	mt_pos : pos;
+	mt_name_pos : pos;
 	mt_private : bool;
 	mt_doc : Ast.documentation;
 	mutable mt_meta : metadata;
@@ -184,8 +192,8 @@ and tinfos = {
 and tclass = {
 	mutable cl_path : path;
 	mutable cl_module : module_def;
-	mutable cl_pos : Ast.pos;
-	mutable cl_name_pos : Ast.pos;
+	mutable cl_pos : pos;
+	mutable cl_name_pos : pos;
 	mutable cl_private : bool;
 	mutable cl_doc : Ast.documentation;
 	mutable cl_meta : metadata;
@@ -213,8 +221,8 @@ and tclass = {
 and tenum_field = {
 	ef_name : string;
 	ef_type : t;
-	ef_pos : Ast.pos;
-	ef_name_pos : Ast.pos;
+	ef_pos : pos;
+	ef_name_pos : pos;
 	ef_doc : Ast.documentation;
 	ef_index : int;
 	ef_params : type_params;
@@ -224,8 +232,8 @@ and tenum_field = {
 and tenum = {
 	mutable e_path : path;
 	e_module : module_def;
-	e_pos : Ast.pos;
-	e_name_pos : Ast.pos;
+	e_pos : pos;
+	e_name_pos : pos;
 	e_private : bool;
 	e_doc : Ast.documentation;
 	mutable e_meta : metadata;
@@ -240,8 +248,8 @@ and tenum = {
 and tdef = {
 	t_path : path;
 	t_module : module_def;
-	t_pos : Ast.pos;
-	t_name_pos : Ast.pos;
+	t_pos : pos;
+	t_name_pos : pos;
 	t_private : bool;
 	t_doc : Ast.documentation;
 	mutable t_meta : metadata;
@@ -253,8 +261,8 @@ and tdef = {
 and tabstract = {
 	mutable a_path : path;
 	a_module : module_def;
-	a_pos : Ast.pos;
-	a_name_pos : Ast.pos;
+	a_pos : pos;
+	a_name_pos : pos;
 	a_private : bool;
 	a_doc : Ast.documentation;
 	mutable a_meta : metadata;
@@ -288,8 +296,9 @@ and module_def = {
 and module_def_extra = {
 	m_file : string;
 	m_sign : string;
+	mutable m_check_policy : module_check_policy list;
 	mutable m_time : float;
-	mutable m_dirty : bool;
+	mutable m_dirty : module_def option;
 	mutable m_added : int;
 	mutable m_mark : int;
 	mutable m_deps : (int,module_def) PMap.t;
@@ -347,6 +356,9 @@ let mk_mono() = TMono (ref None)
 
 let rec t_dynamic = TDynamic t_dynamic
 
+let not_opened = ref Closed
+let mk_anon fl = TAnon { a_fields = fl; a_status = not_opened; }
+
 (* We use this for display purposes because otherwise we never see the Dynamic type that
    is defined in StdTypes.hx. This is set each time a typer is created, but this is fine
    because Dynamic is the same in all contexts. If this ever changes we'll have to review
@@ -385,11 +397,11 @@ let mk_class m path pos name_pos =
 		cl_restore = (fun() -> ());
 	}
 
-let module_extra file sign time kind =
+let module_extra file sign time kind policy =
 	{
 		m_file = file;
 		m_sign = sign;
-		m_dirty = false;
+		m_dirty = None;
 		m_added = 0;
 		m_mark = 0;
 		m_time = time;
@@ -400,6 +412,7 @@ let module_extra file sign time kind =
 		m_macro_calls = [];
 		m_if_feature = [];
 		m_features = Hashtbl.create 0;
+		m_check_policy = policy;
 	}
 
 
@@ -413,6 +426,7 @@ let mk_field name t p name_pos = {
 	cf_public = true;
 	cf_kind = Var { v_read = AccNormal; v_write = AccNormal };
 	cf_expr = None;
+	cf_expr_unoptimized = None;
 	cf_params = [];
 	cf_overloads = [];
 }
@@ -421,15 +435,15 @@ let null_module = {
 		m_id = alloc_mid();
 		m_path = [] , "";
 		m_types = [];
-		m_extra = module_extra "" "" 0. MFake;
+		m_extra = module_extra "" "" 0. MFake [];
 	}
 
 let null_class =
-	let c = mk_class null_module ([],"") Ast.null_pos Ast.null_pos in
+	let c = mk_class null_module ([],"") null_pos null_pos in
 	c.cl_private <- true;
 	c
 
-let null_field = mk_field "" t_dynamic Ast.null_pos Ast.null_pos
+let null_field = mk_field "" t_dynamic null_pos null_pos
 
 let null_abstract = {
 	a_path = ([],"");
@@ -890,15 +904,15 @@ let rec s_type ctx t =
 		| None -> Printf.sprintf "Unknown<%d>" (try List.assq t (!ctx) with Not_found -> let n = List.length !ctx in ctx := (t,n) :: !ctx; n)
 		| Some t -> s_type ctx t)
 	| TEnum (e,tl) ->
-		Ast.s_type_path e.e_path ^ s_type_params ctx tl
+		s_type_path e.e_path ^ s_type_params ctx tl
 	| TInst (c,tl) ->
 		(match c.cl_kind with
 		| KExpr e -> Ast.s_expr e
-		| _ -> Ast.s_type_path c.cl_path ^ s_type_params ctx tl)
+		| _ -> s_type_path c.cl_path ^ s_type_params ctx tl)
 	| TType (t,tl) ->
-		Ast.s_type_path t.t_path ^ s_type_params ctx tl
+		s_type_path t.t_path ^ s_type_params ctx tl
 	| TAbstract (a,tl) ->
-		Ast.s_type_path a.a_path ^ s_type_params ctx tl
+		s_type_path a.a_path ^ s_type_params ctx tl
 	| TFun ([],t) ->
 		"Void -> " ^ s_fun ctx t false
 	| TFun (l,t) ->
@@ -1246,6 +1260,9 @@ module Printer = struct
 	let s_type =
 		s_type (print_context())
 
+	let s_pair s1 s2 =
+		Printf.sprintf "(%s,%s)" s1 s2
+
 	let s_record_field name value =
 		Printf.sprintf "%s = %s;" name value
 
@@ -1412,7 +1429,7 @@ module Printer = struct
 			"m_file",me.m_file;
 			"m_sign",me.m_sign;
 			"m_time",string_of_float me.m_time;
-			"m_dirty",string_of_bool me.m_dirty;
+			"m_dirty",s_opt (fun m -> s_type_path m.m_path) me.m_dirty;
 			"m_added",string_of_int me.m_added;
 			"m_mark",string_of_int me.m_mark;
 			"m_deps",s_pmap string_of_int (fun m -> snd m.m_path) me.m_deps;
@@ -1429,6 +1446,33 @@ module Printer = struct
 			"m_id",string_of_int m.m_id;
 			"m_path",s_type_path m.m_path;
 			"m_extra",s_module_def_extra "\t" m.m_extra
+		]
+
+	let s_type_path tp =
+		s_record_fields "" [
+			"tpackage",s_list "." (fun s -> s) tp.tpackage;
+			"tname",tp.tname;
+			"tparams","";
+			"tsub",s_opt (fun s -> s) tp.tsub;
+		]
+
+	let s_class_flag = function
+		| HInterface -> "HInterface"
+		| HExtern -> "HExtern"
+		| HPrivate -> "HPrivate"
+		| HExtends tp -> "HExtends " ^ (s_type_path (fst tp))
+		| HImplements tp -> "HImplements " ^ (s_type_path (fst tp))
+
+	let s_placed f (x,p) =
+		s_pair (f x) (s_pos p)
+
+	let s_class_field cff =
+		s_record_fields "" [
+			"cff_name",s_placed (fun s -> s) cff.cff_name;
+			"cff_doc",s_opt (fun s -> s) cff.cff_doc;
+			"cff_pos",s_pos cff.cff_pos;
+			"cff_meta",s_metadata cff.cff_meta;
+			"cff_access",s_list ", " Ast.s_access cff.cff_access;
 		]
 end
 
@@ -2149,74 +2193,6 @@ and unify_with_access t1 f2 =
 	| Method MethNormal | Method MethInline | Var { v_write = AccNo } | Var { v_write = AccNever } -> unify t1 f2.cf_type
 	(* read/write *)
 	| _ -> with_variance (type_eq EqBothDynamic) t1 f2.cf_type
-
-module Abstract = struct
-	open Ast
-
-	let find_to ab pl b =
-		if follow b == t_dynamic then
-			List.find (fun (t,_) -> follow t == t_dynamic) ab.a_to_field
-		else if List.exists (unify_to ab pl ~allow_transitive_cast:false b) ab.a_to then
-			raise Not_found (* legacy compatibility *)
-		else
-			List.find (unify_to_field ab pl b) ab.a_to_field
-
-	let find_from ab pl a b =
-		if follow a == t_dynamic then
-			List.find (fun (t,_) -> follow t == t_dynamic) ab.a_from_field
-		else if List.exists (unify_from ab pl a ~allow_transitive_cast:false b) ab.a_from then
-			raise Not_found (* legacy compatibility *)
-		else
-			List.find (unify_from_field ab pl a b) ab.a_from_field
-
-	let underlying_type_stack = ref []
-
-	let rec get_underlying_type a pl =
-		let maybe_recurse t =
-			underlying_type_stack := (TAbstract(a,pl)) :: !underlying_type_stack;
-			let rec loop t = match t with
-				| TMono r ->
-					(match !r with
-					| Some t -> loop t
-					| _ -> t)
-				| TLazy f ->
-					loop (!f())
-				| TType({t_path=([],"Null")} as tn,[t1]) ->
-					TType(tn,[loop t1])
-				| TType (t,tl) ->
-					loop (apply_params t.t_params tl t.t_type)
-				| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
-					if List.exists (fast_eq t) !underlying_type_stack then begin
-						let pctx = print_context() in
-						let s = String.concat " -> " (List.map (fun t -> s_type pctx t) (List.rev (t :: !underlying_type_stack))) in
-						underlying_type_stack := [];
-						raise (Error("Abstract chain detected: " ^ s,a.a_pos))
-					end;
-					get_underlying_type a tl
-				| _ ->
-					t
-			in
-			let t = loop t in
-			underlying_type_stack := List.tl !underlying_type_stack;
-			t
-		in
-		try
-			if not (Meta.has Meta.MultiType a.a_meta) then raise Not_found;
-			let m = mk_mono() in
-			let _ = find_to a pl m in
-			maybe_recurse (follow m)
-		with Not_found ->
-			if Meta.has Meta.CoreType a.a_meta then
-				t_dynamic
-			else
-				maybe_recurse (apply_params a.a_params pl a.a_this)
-
-	let rec follow_with_abstracts t = match follow t with
-		| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
-			follow_with_abstracts (get_underlying_type a tl)
-		| t ->
-			t
-end
 
 (* ======= Mapping and iterating ======= *)
 

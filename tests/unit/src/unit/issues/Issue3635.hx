@@ -17,7 +17,7 @@ class Issue3635 extends Test {
 		dB.key = { x: 10 };
 		dB = { key: b };
 
-		t(unit.TestType.typeError(dA = { key: { y: 120 } }));
-		t(unit.TestType.typeError(dB = { key: { y: 120 } }));
+		t(unit.HelperMacros.typeError(dA = { key: { y: 120 } }));
+		t(unit.HelperMacros.typeError(dB = { key: { y: 120 } }));
 	}
 }

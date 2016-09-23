@@ -35,12 +35,11 @@ class String {
 
 	@:keep
 	static function __index(s:Dynamic, k:Dynamic) : Dynamic {
-		if (k == "length") return untyped __lua__("#s");
+		if (k == "length") return NativeStringTools.len(s);
 		else if (Reflect.hasField(untyped String.prototype, k)) return untyped String.prototype[k];
 		else if (__oldindex != null) return  __oldindex[k];
 		else return null;
 	}
-
 
 	public function toUpperCase() : String return NativeStringTools.upper(this);
 	public function toLowerCase() : String return NativeStringTools.lower(this);
@@ -125,5 +124,6 @@ class String {
 	public inline static function fromCharCode( code : Int ) : String {
 		return NativeStringTools.char(code);
 	}
+
 }
 

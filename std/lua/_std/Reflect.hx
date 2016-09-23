@@ -20,6 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 import lua.Lua;
+import lua.TableTools;
 import lua.Boot;
 @:coreApi class Reflect {
 
@@ -81,10 +82,10 @@ import lua.Boot;
 			}
 			return if (self_arg){
 				// call with o as leading self param
-				func(o, lua.Table.unpack(new_args, 1, Boot.tableMaxN(new_args)));
+				func(o, lua.TableTools.unpack(new_args, 1, TableTools.maxn(new_args)));
 			} else {
 				// call with no self param
-				func(lua.Table.unpack(new_args, 1,  Boot.tableMaxN(new_args)));
+				func(lua.TableTools.unpack(new_args, 1,  TableTools.maxn(new_args)));
 			}
 		}
 	}

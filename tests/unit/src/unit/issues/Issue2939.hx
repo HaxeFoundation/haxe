@@ -12,6 +12,6 @@ class Issue2939 extends Test {
 	function test() {
 		eq(1, a);
 		eq(2, b);
-		t(unit.TestType.typeError(c));
+		t(unit.HelperMacros.typeError(c));
 	}
 }

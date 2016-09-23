@@ -1,4 +1,4 @@
 compile-each.hxml
--main unit.Test
+-main unit.TestMain
 -cpp bin/cpp
 -D HXCPP_NO_DEBUG_LINK

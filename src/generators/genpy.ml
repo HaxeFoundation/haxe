@@ -17,6 +17,7 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
+open Globals
 open Ast
 open Type
 open Common
@@ -34,7 +35,7 @@ module Utils = struct
 				| _ -> (t_infos mt).mt_path = path
 			) com.types
 		with Not_found ->
-			error (Printf.sprintf "Could not find type %s\n" (s_type_path path)) null_pos
+			abort (Printf.sprintf "Could not find type %s\n" (s_type_path path)) null_pos
 
 	let mk_static_field c cf p =
 			let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
@@ -1092,11 +1093,11 @@ module Printer = struct
 		let had_var_args = ref false in
 		let had_kw_args = ref false in
 		let sl = List.map (fun (v,cto) ->
-			let check_err () = if !had_var_args || !had_kw_args then error "Arguments after KwArgs/VarArgs are not allowed" p in
+			let check_err () = if !had_var_args || !had_kw_args then abort "Arguments after KwArgs/VarArgs are not allowed" p in
 			let name = handle_keywords v.v_name in
 			match follow v.v_type with
 				| TAbstract({a_path = ["python"],"KwArgs"},_) ->
-					if !had_kw_args then error "Arguments after KwArgs are not allowed" p;
+					if !had_kw_args then abort "Arguments after KwArgs are not allowed" p;
 					had_kw_args := true;
 					"**" ^ name
 				| TAbstract({a_path = ["python"],"VarArgs"},_) ->
@@ -1346,7 +1347,7 @@ module Printer = struct
 			| TWhile(econd,e1,NormalWhile) ->
 				Printf.sprintf "while %s:\n%s    %s" (print_expr pctx (remove_outer_parens econd)) indent (print_expr_indented e1)
 			| TWhile(econd,e1,DoWhile) ->
-				error "Currently not supported" e.epos
+				abort "Currently not supported" e.epos
 			| TTry(e1,catches) ->
 				print_try pctx e1 catches
 			| TReturn eo ->
@@ -1510,7 +1511,7 @@ module Printer = struct
 				let i = ref 0 in
 				let err msg =
 					let pos = { ecode.epos with pmin = ecode.epos.pmin + !i } in
-					error msg pos
+					abort msg pos
 				in
 				let regex = Str.regexp "[{}]" in
 				let rec loop m = match m with
@@ -2347,7 +2348,7 @@ module Generator = struct
 					| [(EConst(String(module_name)), _); (EConst(String(object_name)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("true")),_)),_)] ->
 						IObject (module_name,object_name), true
 					| _ ->
-						error "Unsupported @:pythonImport format" mp
+						abort "Unsupported @:pythonImport format" mp
 				in
 
 				let import = match import_type with

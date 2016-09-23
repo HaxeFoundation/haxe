@@ -17,6 +17,7 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
+open Globals
 open Ast
 open Type
 open Common
@@ -159,7 +160,7 @@ module BasicBlock = struct
 		bb
 
 	let in_scope bb bb' = match bb'.bb_scopes with
-		| [] -> error (Printf.sprintf "Scope-less block (kind: %s)" (s_block_kind bb'.bb_kind)) bb'.bb_pos
+		| [] -> abort (Printf.sprintf "Scope-less block (kind: %s)" (s_block_kind bb'.bb_kind)) bb'.bb_pos
 		| scope :: _ -> List.mem scope bb.bb_scopes
 end
 

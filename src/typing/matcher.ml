@@ -17,9 +17,11 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
+open Globals
 open Ast
 open Type
 open Common
+open Error
 
 exception Internal_match_failure
 
@@ -476,7 +478,7 @@ module Case = struct
 				None
 			| Some e,WithType t ->
 				let e = type_expr ctx e (WithType (map t)) in
-				let e = Codegen.AbstractCast.cast_or_unify ctx (map t) e e.epos in
+				let e = AbstractCast.cast_or_unify ctx (map t) e e.epos in
 				Some e
 			| Some e,_ ->
 				let e = type_expr ctx e with_type in

@@ -1,4 +1,4 @@
-open Ast
+open Globals
 open Common
 open Common.DisplayMode
 open Type
@@ -20,7 +20,7 @@ let get_timer_fields start_time =
 	let fields = [("@TOTAL", FKTimer (Printf.sprintf "%.3fs" (get_time() -. start_time)), "")] in
 	if !tot > 0. then
 		Hashtbl.fold (fun _ t acc ->
-			("@TIME " ^ t.name, FKTimer (Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot)), "") :: acc
+			("@TIME " ^ (String.concat "." t.id), FKTimer (Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot)), "") :: acc
 		) Common.htimers fields
 	else
 		fields
@@ -45,7 +45,7 @@ let print_fields fields =
 			| FKPackage -> "package", ""
 			| FKModule -> "type", ""
 			| FKMetadata -> "metadata", ""
-			| FKTimer s -> "", s
+			| FKTimer s -> "timer", s
 		in
 		Buffer.add_string b (Printf.sprintf "<i n=\"%s\" k=\"%s\"><t>%s</t><d>%s</d></i>\n" n s_kind (htmlescape t) (htmlescape d))
 	) (List.sort (fun (a,ak,_) (b,bk,_) -> compare (display_field_kind_index ak,a) (display_field_kind_index bk,b)) fields);
@@ -121,7 +121,6 @@ let print_positions pl =
 	Buffer.add_string b "</list>";
 	Buffer.contents b
 
-
 let display_memory com =
 	let verbose = com.verbose in
 	let print = print_endline in
@@ -141,14 +140,14 @@ let display_memory com =
 	let mem = Gc.stat() in
 	print ("Total Allocated Memory " ^ fmt_size (mem.Gc.heap_words * (Sys.word_size asr 8)));
 	print ("Free Memory " ^ fmt_size (mem.Gc.free_words * (Sys.word_size asr 8)));
-	(match !global_cache with
+	(match CompilationServer.get() with
 	| None ->
 		print "No cache found";
-	| Some c ->
+	| Some {CompilationServer.cache = c} ->
 		print ("Total cache size " ^ size c);
-		print ("  haxelib " ^ size c.c_haxelib);
-		print ("  parsed ast " ^ size c.c_files ^ " (" ^ string_of_int (Hashtbl.length c.c_files) ^ " files stored)");
-		print ("  typed modules " ^ size c.c_modules ^ " (" ^ string_of_int (Hashtbl.length c.c_modules) ^ " modules stored)");
+		print ("  haxelib " ^ size c.CompilationServer.c_haxelib);
+		print ("  parsed ast " ^ size c.CompilationServer.c_files ^ " (" ^ string_of_int (Hashtbl.length c.CompilationServer.c_files) ^ " files stored)");
+		print ("  typed modules " ^ size c.CompilationServer.c_modules ^ " (" ^ string_of_int (Hashtbl.length c.CompilationServer.c_modules) ^ " modules stored)");
 		let rec scan_module_deps m h =
 			if Hashtbl.mem h m.m_id then
 				()
@@ -157,7 +156,7 @@ let display_memory com =
 				PMap.iter (fun _ m -> scan_module_deps m h) m.m_extra.m_deps
 			end
 		in
-		let all_modules = Hashtbl.fold (fun _ m acc -> PMap.add m.m_id m acc) c.c_modules PMap.empty in
+		let all_modules = Hashtbl.fold (fun _ m acc -> PMap.add m.m_id m acc) c.CompilationServer.c_modules PMap.empty in
 		let modules = Hashtbl.fold (fun (path,key) m acc ->
 			let mdeps = Hashtbl.create 0 in
 			scan_module_deps m mdeps;
@@ -184,7 +183,7 @@ let display_memory com =
 			let chk = Obj.repr Common.memory_marker :: PMap.fold (fun m acc -> Obj.repr m :: acc) !out [] in
 			let inf = Objsize.objsize m !deps chk in
 			(m,Objsize.size_with_headers inf, (inf.Objsize.reached,!deps,!out)) :: acc
-		) c.c_modules [] in
+		) c.CompilationServer.c_modules [] in
 		let cur_key = ref "" and tcount = ref 0 and mcount = ref 0 in
 		List.iter (fun (m,size,(reached,deps,out)) ->
 			let key = m.m_extra.m_sign in
@@ -195,7 +194,7 @@ let display_memory com =
 			let sign md =
 				if md.m_extra.m_sign = key then "" else "(" ^ (try Digest.to_hex md.m_extra.m_sign with _ -> "???" ^ md.m_extra.m_sign) ^ ")"
 			in
-			print (Printf.sprintf "    %s : %s" (Ast.s_type_path m.m_path) (fmt_size size));
+			print (Printf.sprintf "    %s : %s" (s_type_path m.m_path) (fmt_size size));
 			(if reached then try
 				incr mcount;
 				let lcount = ref 0 in
@@ -210,14 +209,14 @@ let display_memory com =
 				in
 				if (Objsize.objsize m deps [Obj.repr Common.memory_marker]).Objsize.reached then leak "common";
 				PMap.iter (fun _ md ->
-					if (Objsize.objsize m deps [Obj.repr md]).Objsize.reached then leak (Ast.s_type_path md.m_path ^ sign md);
+					if (Objsize.objsize m deps [Obj.repr md]).Objsize.reached then leak (s_type_path md.m_path ^ sign md);
 				) out;
 			with Exit ->
 				());
 			if verbose then begin
 				print (Printf.sprintf "      %d total deps" (List.length deps));
 				PMap.iter (fun _ md ->
-					print (Printf.sprintf "      dep %s%s" (Ast.s_type_path md.m_path) (sign md));
+					print (Printf.sprintf "      dep %s%s" (s_type_path md.m_path) (sign md));
 				) m.m_extra.m_deps;
 			end;
 			flush stdout
@@ -317,7 +316,7 @@ module TypePathHandler = struct
 	let complete_type_path com p =
 		let packs, modules = read_type_path com p in
 		if packs = [] && modules = [] then
-			(error ("No classes found in " ^ String.concat "." p) Ast.null_pos)
+			(abort ("No classes found in " ^ String.concat "." p) null_pos)
 		else
 			let packs = List.map (fun n -> n,Display.FKPackage,"") packs in
 			let modules = List.map (fun n -> n,Display.FKModule,"") modules in
@@ -333,7 +332,7 @@ module TypePathHandler = struct
 			let ctx = Typer.create com in
 			let rec lookup p =
 				try
-					Typeload.load_module ctx (p,s_module) Ast.null_pos
+					Typeload.load_module ctx (p,s_module) null_pos
 				with e ->
 					if cur_package then
 						match List.rev p with
@@ -375,7 +374,7 @@ module TypePathHandler = struct
 			in
 			Some fields
 		with _ ->
-			error ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos
+			abort ("Could not load module " ^ (s_type_path (p,c))) null_pos
 end
 
 (* New JSON stuff *)
@@ -690,9 +689,9 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		Common.define_value com Define.Display (if smode <> "" then smode else "1");
 		Parser.use_doc := true;
 		Parser.resume_display := {
-			Ast.pfile = Path.unique_full_path file;
-			Ast.pmin = pos;
-			Ast.pmax = pos;
+			pfile = Path.unique_full_path file;
+			pmin = pos;
+			pmax = pos;
 		}
 
 let process_display_file com classes =
@@ -708,7 +707,7 @@ let process_display_file com classes =
 					(try
 						let path = Path.parse_type_path path in
 						(match loop l with
-						| Some x as r when String.length (Ast.s_type_path x) < String.length (Ast.s_type_path path) -> r
+						| Some x as r when String.length (s_type_path x) < String.length (s_type_path path) -> r
 						| _ -> Some path)
 					with _ -> loop l)
 				end else
@@ -724,7 +723,7 @@ let process_display_file com classes =
 				classes := [];
 				com.main_class <- None;
 			end;
-			let real = Path.get_real_path (!Parser.resume_display).Ast.pfile in
+			let real = Path.get_real_path (!Parser.resume_display).pfile in
 			(match get_module_path_from_file_path com real with
 			| Some path ->
 				if com.display.dms_kind = DMPackage then raise (DisplayPackage (fst path));
@@ -737,7 +736,7 @@ let process_display_file com classes =
 				failwith "Display file was not found in class path"
 			);
 			Common.log com ("Display file : " ^ real);
-			Common.log com ("Classes found : ["  ^ (String.concat "," (List.map Ast.s_type_path !classes)) ^ "]")
+			Common.log com ("Classes found : ["  ^ (String.concat "," (List.map s_type_path !classes)) ^ "]")
 
 let process_global_display_mode com tctx = match com.display.dms_kind with
 	| DMUsage with_definition ->
@@ -768,20 +767,17 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 		raise (Statistics (StatisticsPrinter.print_statistics stats))
 	| DMModuleSymbols filter ->
 		let symbols = com.shared.shared_display_information.document_symbols in
-		let symbols = match !global_cache with
+		let symbols = match CompilationServer.get() with
 			| None -> symbols
-			| Some cache ->
-				let rec loop acc com =
-					let com_sign = get_signature com in
-					let acc = Hashtbl.fold (fun (file,sign) (_,data) acc ->
-						if (filter <> None || is_display_file file) && com_sign = sign then
-							(file,DocumentSymbols.collect_module_symbols data) :: acc
-						else
-							acc
-					) cache.c_files acc in
-					match com.get_macros() with None -> acc | Some com -> loop acc com
-				in
-				loop symbols com
+			| Some cs ->
+				let l = CompilationServer.get_context_files cs ((get_signature com) :: (match com.get_macros() with None -> [] | Some com -> [get_signature com])) in
+				List.fold_left (fun acc (file,data) ->
+					print_endline (Printf.sprintf "%s %b" file (is_display_file file));
+					if (filter <> None || is_display_file file) then
+						(file,DocumentSymbols.collect_module_symbols data) :: acc
+					else
+						acc
+				) symbols l
 		in
 		raise (ModuleSymbols(ModuleSymbolsPrinter.print_module_symbols com symbols filter))
 	| _ -> ()

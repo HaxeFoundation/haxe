@@ -1,4 +1,4 @@
 compile-each.hxml
 -D neko_v2
--main unit.Test
+-main unit.TestMain
 -neko bin/unit.n

@@ -26,7 +26,7 @@ package haxe;
 	Use `-D haxeJSON` to force usage of the Haxe implementation even if a native API is found:
 	This will provide extra encoding features such as enums (replaced by their index) and StringMaps.
 
-	@see http://haxe.org/manual/std-Json.html
+	@see https://haxe.org/manual/std-Json.html
 **/
 class Json {
 
@@ -38,7 +38,7 @@ class Json {
 
 		If given `text` is not valid JSON, an exception will be thrown.
 
-		@see http://haxe.org/manual/std-Json-parsing.html
+		@see https://haxe.org/manual/std-Json-parsing.html
 	**/
 	public static inline function parse( text : String ) : Dynamic {
 		return haxe.format.JsonParser.parse(text);
@@ -54,7 +54,7 @@ class Json {
 		If `space` is given and is not null, the result will be pretty-printed.
 		Successive levels will be indented by this string.
 
-		@see http://haxe.org/manual/std-Json-encoding.html
+		@see https://haxe.org/manual/std-Json-encoding.html
 	**/
 	public static inline function stringify( value : Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic, ?space : String ) : String {
 		return haxe.format.JsonPrinter.print(value, replacer, space);

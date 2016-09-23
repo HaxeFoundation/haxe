@@ -31,11 +31,11 @@ package hl.types;
 	}
 
 	@:extern @:arrayAccess public inline function getUI8( pos : Int ) : Int {
-		return untyped $bgeti8(this,pos);
+		return untyped $bgetui8(this,pos);
 	}
 
 	@:extern @:arrayAccess public inline function setUI8( pos : Int, value : Int ) : Int {
-		untyped $bseti8(this,pos,value);
+		untyped $bsetui8(this,pos,value);
 		return value;
 	}
 
@@ -44,12 +44,11 @@ package hl.types;
 	}
 
 	public inline function getUI16( pos : Int ) : Int {
-		return getUI8(pos) | (getUI8(pos+1) << 8);
+		return untyped $bgetui16(this, pos);
 	}
 
 	public inline function setUI16( pos : Int, v : Int ) {
-		setUI8(pos, v);
-		setUI8(pos + 1, v>>8);
+		untyped $bsetui16(this,pos,v);
 	}
 
 	@:extern public inline function getF32( pos : Int ) : F32 {

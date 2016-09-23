@@ -20,6 +20,7 @@
 open Ast
 open Common
 open Type
+open Globals
 
 type dce = {
 	com : context;
@@ -176,8 +177,8 @@ and mark_t dce p t =
 			List.iter (mark_t dce p) pl
 		| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
 			begin try
-				mark_t dce p (snd (Codegen.AbstractCast.find_multitype_specialization dce.com a pl p))
-			with Typecore.Error _ ->
+				mark_t dce p (snd (Typecore.AbstractCast.find_multitype_specialization dce.com a pl p))
+			with Error.Error _ ->
 				()
 			end
 		| TAbstract(a,pl) ->

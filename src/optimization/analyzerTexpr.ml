@@ -20,6 +20,8 @@
 open Ast
 open Type
 open Common
+open OptimizerTexpr
+open Globals
 
 let s_expr_pretty e = s_expr_pretty false "" false (s_type (print_context())) e
 
@@ -374,7 +376,7 @@ module InterferenceReport = struct
 			(* fields *)
 			| TField(e1,fa) ->
 				loop e1;
-				if not (Optimizer.is_read_only_field_access e1 fa) then set_field_read ir (field_name fa);
+				if not (is_read_only_field_access e1 fa) then set_field_read ir (field_name fa);
 			| TBinop(OpAssign,{eexpr = TField(e1,fa)},e2) ->
 				set_field_write ir (field_name fa);
 				loop e1;
@@ -548,7 +550,7 @@ module Fusion = struct
 			false
 
 	let use_assign_op com op e1 e2 =
-		is_assign_op op && target_handles_assign_ops com && Texpr.equal e1 e2 && not (Optimizer.has_side_effect e1) && match com.platform with
+		is_assign_op op && target_handles_assign_ops com && Texpr.equal e1 e2 && not (has_side_effect e1) && match com.platform with
 			| Cs when is_null e1.etype || is_null e2.etype -> false (* C# hates OpAssignOp on Null<T> *)
 			| _ -> true
 
@@ -674,11 +676,16 @@ module Fusion = struct
 							let e2 = replace e2 in
 							e2,el
 						| Php | Cpp  when not (Common.defined com Define.Cppia) ->
-							let e2 = match e1.eexpr with
-								(* PHP doesn't like call()() expressions. *)
-								| TCall _ when com.platform = Php -> explore e2
-								| _ -> replace e2
+							let is_php_safe e1 =
+								let rec loop e = match e.eexpr with
+									| TCall _ -> raise Exit
+									| TCast(e1,_) | TParenthesis e1 | TMeta(_,e1) -> loop e1
+									| _ -> ()
+								in
+								try loop e1; true with Exit -> false
 							in
+							(* PHP doesn't like call()() expressions. *)
+							let e2 = if com.platform = Php && not (is_php_safe e1) then explore e2 else replace e2 in
 							let el = handle_el el in
 							e2,el
 						| _ ->
@@ -710,8 +717,9 @@ module Fusion = struct
 						| TLocal v2 when v1 == v2 && not !blocked ->
 							found := true;
 							if type_change_ok com v1.v_type e1.etype then e1 else mk (TCast(e1,None)) v1.v_type e.epos
-						| TLocal v when has_var_write ir v ->
-							raise Exit
+						| TLocal v ->
+							if has_var_write ir v || ((v.v_capture || is_ref_type v.v_type) && (has_state_write ir)) then raise Exit;
+							e
 						| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
 							let e2 = replace e2 in
 							if not !found && has_var_read ir v then raise Exit;
@@ -725,7 +733,7 @@ module Fusion = struct
 						(* fields *)
 						| TField(e1,fa) ->
 							let e1 = replace e1 in
-							if not !found && not (Optimizer.is_read_only_field_access e1 fa) && (has_field_write ir (field_name fa) || has_state_write ir) then raise Exit;
+							if not !found && not (is_read_only_field_access e1 fa) && (has_field_write ir (field_name fa) || has_state_write ir) then raise Exit;
 							{e with eexpr = TField(e1,fa)}
 						| TBinop(OpAssign,({eexpr = TField(e1,fa)} as ef),e2) ->
 							let e1 = replace e1 in
@@ -774,7 +782,7 @@ module Fusion = struct
 							let e3 = replace e3 in
 							if not !found && has_state_read ir then raise Exit;
 							{e with eexpr = TBinop(OpAssign,{ea with eexpr = TArray(e1,e2)},e3)}
-						| TBinop(op,e1,e2) when not (target_handles_side_effect_order com) ->
+						| TBinop(op,e1,e2) when (match com.platform with Cpp | Php -> true | _ -> false) ->
 							let e1 = replace e1 in
 							let temp_found = !found in
 							found := false;
@@ -882,13 +890,13 @@ end
 module Cleanup = struct
 	let apply com e =
 		let if_or_op e e1 e2 e3 = match (Texpr.skip e1).eexpr,(Texpr.skip e3).eexpr with
-			| TUnop(Not,Prefix,e1),TConst (TBool true) -> Optimizer.optimize_binop {e with eexpr = TBinop(OpBoolOr,e1,e2)} OpBoolOr e1 e2
-			| _,TConst (TBool false) -> Optimizer.optimize_binop {e with eexpr = TBinop(OpBoolAnd,e1,e2)} OpBoolAnd e1 e2
+			| TUnop(Not,Prefix,e1),TConst (TBool true) -> optimize_binop {e with eexpr = TBinop(OpBoolOr,e1,e2)} OpBoolOr e1 e2
+			| _,TConst (TBool false) -> optimize_binop {e with eexpr = TBinop(OpBoolAnd,e1,e2)} OpBoolAnd e1 e2
 			| _,TBlock [] -> {e with eexpr = TIf(e1,e2,None)}
 			| _ -> match (Texpr.skip e2).eexpr with
 				| TBlock [] when com.platform <> Cs ->
 					let e1' = mk (TUnop(Not,Prefix,e1)) e1.etype e1.epos in
-					let e1' = Optimizer.optimize_unop e1' Not Prefix e1 in
+					let e1' = optimize_unop e1' Not Prefix e1 in
 					{e with eexpr = TIf(e1',e3,None)}
 				| _ ->
 					{e with eexpr = TIf(e1,e2,Some e3)}
@@ -942,9 +950,6 @@ module Cleanup = struct
 				Type.map_expr loop e
 		in
 		loop e
-
-	let rec reduce_control_flow ctx e =
-		Type.map_expr (reduce_control_flow ctx) (Optimizer.reduce_control_flow ctx e)
 end
 
 module Purity = struct
@@ -1067,9 +1072,7 @@ module Purity = struct
 						begin match node.pn_purity with
 							| Impure -> taint_raise node
 							| Pure -> raise Exit
-							| _ ->
-								loop e;
-								node.pn_purity <- Pure;
+							| _ -> loop e
 						end
 					with Exit ->
 						()
@@ -1087,14 +1090,16 @@ module Purity = struct
 					apply_to_class com c
 				with Purity_conflict(impure,p) ->
 					com.error "Impure field overrides/implements field which was explicitly marked as @:pure" impure.pn_field.cf_pos;
-					error "Pure field is here" p;
+					Error.error "Pure field is here" p;
 				end
 			| _ -> ()
 		) com.types;
 		Hashtbl.fold (fun _ node acc ->
-			if node.pn_purity = Pure then begin
+			match node.pn_purity with
+			| Pure | MaybePure ->
 				node.pn_field.cf_meta <- (Meta.Pure,[EConst(Ident "true"),node.pn_field.cf_pos],node.pn_field.cf_pos) :: node.pn_field.cf_meta;
 				node.pn_field :: acc
-			end else acc
+			| _ ->
+				acc
 		) node_lut [];
 end

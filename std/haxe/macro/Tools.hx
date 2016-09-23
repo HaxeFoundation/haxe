@@ -32,7 +32,7 @@ package haxe.macro;
 	- `haxe.macro.TypedExprTools`
 	- `haxe.macro.PositionTools`
   
-  @see <http://haxe.org/manual/lf-static-extension.html>
+  @see <https://haxe.org/manual/lf-static-extension.html>
 **/
 @:dox(hide)
 typedef TExprTools = ExprTools;

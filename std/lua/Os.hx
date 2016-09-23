@@ -28,7 +28,13 @@ extern class Os {
 		which is system-dependent. If command is absent, then it returns 
 		nonzero if a shell is available and zero otherwise.
 	**/
-	public static function execute(?command:String) : Bool;
+#if (lua_ver < 5.2)
+	public static function execute(?command:String) : Int;
+#elseif (lua_ver >= 5.2)
+	public static function execute(?command:String) : OsExecute;
+#else 
+	public static function execute(?command:String) : Dynamic;
+#end
 
 	/**
 		Calls the C function exit, with an optional code, to terminate the host program. 
@@ -107,4 +113,10 @@ typedef DateType = {
 	wday  : Int,
 	yday  : Int,
 	day   : Int,
+}
+
+@:multiReturn extern class OsExecute {
+	var success : Bool;
+	var output  : String;
+	var status  : Int;
 }

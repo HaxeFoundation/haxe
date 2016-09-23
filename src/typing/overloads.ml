@@ -1,4 +1,3 @@
-open Ast
 open Type
 
 let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
@@ -65,18 +64,6 @@ let rec get_overloads c i =
 			ret @ ( List.map (fun (t,f) -> apply_params c.cl_params tl t, f) (get_overloads c i) )
 	in
 	ret @ (List.filter (fun (t,f) -> not (List.exists (fun (t2,f2) -> same_overload_args t t2 f f2) ret)) rsup)
-
-
-let check_overloads ctx c =
-	(* check if field with same signature was declared more than once *)
-	List.iter (fun f ->
-		if Meta.has Meta.Overload f.cf_meta then
-			List.iter (fun f2 ->
-				try
-					ignore (List.find (fun f3 -> f3 != f2 && same_overload_args f2.cf_type f3.cf_type f2 f3) (f :: f.cf_overloads));
-					Typecore.display_error ctx ("Another overloaded field of same signature was already declared : " ^ f2.cf_name) f2.cf_pos
-				with | Not_found -> ()
-		) (f :: f.cf_overloads)) (c.cl_ordered_fields @ c.cl_ordered_statics)
 
 (** Overload resolution **)
 module Resolution =

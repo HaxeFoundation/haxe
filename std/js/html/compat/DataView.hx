@@ -32,12 +32,19 @@ class DataView {
 	var offset : Int;
 	var length : Int;
 
+	public var byteLength(default,null):Int;
+	public var byteOffset(default,null):Int;
+	public var buffer(default,null):ArrayBuffer;
+
 	public function new( buffer : ArrayBuffer, ?byteOffset : Int, ?byteLength : Int ) : Void {
 		this.buf = buffer;
 		this.offset = byteOffset == null ? 0 : byteOffset;
 		this.length = byteLength == null ? buffer.byteLength - this.offset : byteLength;
 		if( offset < 0 || length < 0 || offset+length > buffer.byteLength )
 			throw OutsideBounds;
+		this.byteLength = length;
+		this.byteOffset = offset;
+		this.buffer = buf;
 	}
 
 	public function getInt8( byteOffset : Int ) : Int {

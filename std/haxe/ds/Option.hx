@@ -26,7 +26,7 @@ package haxe.ds;
 	An Option is a wrapper type which can either have a value (Some) or not a
 	value (None).
 
-	@see http://haxe.org/manual/std-Option.html
+	@see https://haxe.org/manual/std-Option.html
 **/
 enum Option<T> {
 	Some(v:T);

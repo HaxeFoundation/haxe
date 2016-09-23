@@ -37,7 +37,7 @@ class Std {
 			return true;
 		case HF64:
 			switch( hl.types.Type.getDynamic(v).kind ) {
-			case HI8, HI16, HI32:
+			case HUI8, HUI16, HI32:
 				return true;
 			default:
 			}
@@ -86,17 +86,17 @@ class Std {
 		if( tb == hl.types.Type.get("") )
 			return a + (b : String);
 		switch(ta.kind) {
-		case HI8, HI16, HI32:
+		case HUI8, HUI16, HI32:
 			var a : Int = a;
 			switch( tb.kind ) {
-			case HI8, HI16, HI32: return a + (b:Int);
+			case HUI8, HUI16, HI32: return a + (b:Int);
 			case HF32, HF64: return a + (b:Float);
 			default:
 			}
 		case HF32, HF64:
 			var a : Float = a;
 			switch( tb.kind ) {
-			case HI8, HI16, HI32: return a + (b:Int);
+			case HUI8, HUI16, HI32: return a + (b:Int);
 			case HF32, HF64: return a + (b:Float);
 			default:
 			}

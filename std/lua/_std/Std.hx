@@ -38,8 +38,8 @@ import lua.NativeStringTools;
 		return untyped lua.Boot.__string_rec(s);
 	}
 
-	public static inline function int( x : Float ) : Int {
-		return x > 0 ? Math.floor(x) : Math.ceil(x);
+	public static function int( x : Float ) : Int {
+		return lua.Boot.clamp(x);
 	}
 
 	public static function parseInt( x : String ) : Null<Int> {

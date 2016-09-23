@@ -111,3 +111,38 @@ let add_trailing_slash p =
 	else match p.[l-1] with
 		| '\\' | '/' -> p
 		| _ -> p ^ "/"
+
+let rec remove_trailing_slash p =
+	let l = String.length p in
+	if l = 0 then
+		"./"
+	else match p.[l-1] with
+		| '\\' | '/' -> remove_trailing_slash (String.sub p 0 (l - 1))
+		| _ -> p
+
+open Globals
+
+let find_directories target recursive paths =
+	let target_dirs = List.map platform_name platforms in
+	let rec loop acc dir =
+		try
+			let entries = Sys.readdir dir in
+			Array.fold_left (fun acc file ->
+				match file with
+					| "." | ".." ->
+						acc
+					| _ when Sys.is_directory (dir ^ file) && file.[0] >= 'a' && file.[0] <= 'z' ->
+						if List.mem file target_dirs && file <> target then
+							acc
+						else begin
+							let full = (dir ^ file) in
+							if recursive then loop (full :: acc) (full ^ "/")
+							else full :: acc
+						end
+					| _ ->
+						acc
+			) acc entries;
+		with Sys_error _ ->
+			acc
+	in
+	List.fold_left (fun acc dir -> loop acc dir) [] paths

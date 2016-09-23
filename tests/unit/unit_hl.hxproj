@@ -43,7 +43,7 @@
     <hidden path="obj" />
   </hiddenPaths>
   <!-- Executed before build -->
-  <preBuildCommand>haxe compile-hl.hxml -D interp -D fail_eager -D dump</preBuildCommand>
+  <preBuildCommand>haxe compile-hl.hxml -D fail_eager -D dump</preBuildCommand>
   <!-- Executed after build -->
   <postBuildCommand alwaysRun="False" />
   <!-- Other project options -->

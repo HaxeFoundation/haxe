@@ -27,7 +27,7 @@
 
 	See `Type` for the Haxe Reflection API.
 
-	@see http://haxe.org/manual/types-enum-instance.html
+	@see https://haxe.org/manual/types-enum-instance.html
 **/
 @:coreType @:runtimeValue abstract Enum<T> {
 }

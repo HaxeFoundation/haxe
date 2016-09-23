@@ -28,6 +28,7 @@ extern class FileHandle extends UserData {
 	public function flush() : Void;
 	public function read(arg : Rest<EitherType<ReadArgument,Int>>) : String;
 	public function close() : Void;
+
 	public function write(str : String) : Void;
 
 	@:overload(function () : Int {})

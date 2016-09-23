@@ -17,6 +17,7 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
+open Globals
 open Ast
 open Type
 open Common
@@ -25,6 +26,7 @@ open AnalyzerTypes
 open AnalyzerTypes.BasicBlock
 open AnalyzerTypes.Graph
 open AnalyzerTexpr
+open OptimizerTexpr
 
 (*
 	Transforms an expression to a graph, and a graph back to an expression. This module relies on TexprFilter being
@@ -80,10 +82,14 @@ let rec func ctx bb tf t p =
 		g.g_unreachable
 	in
 	let check_unbound_call v el =
-		if is_unbound_call_that_might_have_side_effects v el then ctx.has_unbound <- true
+		if v.v_name = "$ref" then begin match el with
+			| [{eexpr = TLocal v}] -> v.v_capture <- true
+			| _ -> ()
+		end;
+		if is_unbound_call_that_might_have_side_effects v el then ctx.has_unbound <- true;
 	in
 	let no_void t p =
-		if ExtType.is_void (follow t) then error "Cannot use Void as value" p
+		if ExtType.is_void (follow t) then Error.error "Cannot use Void as value" p
 	in
 	let rec value' bb e = match e.eexpr with
 		| TLocal v ->
@@ -168,13 +174,13 @@ let rec func ctx bb tf t p =
 			let bb = block_element bb e in
 			bb,mk (TConst TNull) t_dynamic e.epos
 		| TVar _ | TFor _ | TWhile _ ->
-			error "Cannot use this expression as value" e.epos
+			Error.error "Cannot use this expression as value" e.epos
 	and value bb e =
 		let bb,e = value' bb e in
 		no_void e.etype e.epos;
 		bb,e
 	and ordered_value_list bb el =
-		let might_be_affected,collect_modified_locals = Optimizer.create_affection_checker() in
+		let might_be_affected,collect_modified_locals = create_affection_checker() in
 		let rec can_be_optimized e = match e.eexpr with
 			| TBinop _ | TArray _ | TCall _ -> true
 			| TParenthesis e1 -> can_be_optimized e1
@@ -182,9 +188,9 @@ let rec func ctx bb tf t p =
 		in
 		let _,el = List.fold_left (fun (had_side_effect,acc) e ->
 			if had_side_effect then
-				(true,(might_be_affected e || Optimizer.has_side_effect e,can_be_optimized e,e) :: acc)
+				(true,(might_be_affected e || has_side_effect e,can_be_optimized e,e) :: acc)
 			else begin
-				let had_side_effect = Optimizer.has_side_effect e in
+				let had_side_effect = has_side_effect e in
 				if had_side_effect then collect_modified_locals e;
 				let opt = can_be_optimized e in
 				(had_side_effect || opt,(false,opt,e) :: acc)
@@ -221,7 +227,7 @@ let rec func ctx bb tf t p =
 		let fl,e = loop [] e in
 		let v = alloc_var ctx.temp_var_name e.etype e.epos in
 		begin match ctx.com.platform with
-			| Cpp when sequential && not (Common.defined ctx.com Define.Cppia) -> ()
+			| Globals.Cpp when sequential && not (Common.defined ctx.com Define.Cppia) -> ()
 			| _ -> v.v_meta <- [Meta.CompilerGenerated,[],e.epos];
 		end;
 		let bb = declare_var_and_assign bb v e e.epos in
@@ -378,7 +384,7 @@ let rec func ctx bb tf t p =
 				bb_next
 			end
 		| TSwitch(e1,cases,edef) ->
-			let is_exhaustive = edef <> None || Optimizer.is_exhaustive e1 in
+			let is_exhaustive = edef <> None || is_exhaustive e1 in
 			let bb,e1 = bind_to_temp bb false e1 in
 			add_texpr bb (wrap_meta ":cond-branch" e1);
 			let reachable = ref [] in
@@ -653,7 +659,7 @@ let rec block_to_texpr_el ctx bb =
 					| SEIfThen(bb_then,bb_next,p) -> Some bb_next,TIf(e1,block bb_then,None),ctx.com.basic.tvoid,p
 					| SEIfThenElse(bb_then,bb_else,bb_next,t,p) -> Some bb_next,TIf(e1,block bb_then,Some (block bb_else)),t,p
 					| SESwitch(bbl,bo,bb_next,p) -> Some bb_next,TSwitch(e1,List.map (fun (el,bb) -> el,block bb) bbl,Option.map block bo),ctx.com.basic.tvoid,p
-					| _ -> error (Printf.sprintf "Invalid node exit: %s" (s_expr_pretty e1)) bb.bb_pos
+					| _ -> abort (Printf.sprintf "Invalid node exit: %s" (s_expr_pretty e1)) bb.bb_pos
 				in
 				bb_next,(mk e1_def t p) :: el
 			| [],_ ->

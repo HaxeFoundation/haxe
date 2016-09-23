@@ -30,7 +30,7 @@ private typedef MetaObject = {
 /**
 	An API to access classes and enums metadata at runtime.
 
-	@see <http://haxe.org/manual/cr-rtti.html>
+	@see <https://haxe.org/manual/cr-rtti.html>
 **/
 class Meta {
 

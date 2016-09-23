@@ -19,12 +19,13 @@
 
 open Ast
 open Type
+open Globals
 
 type package_rule =
 	| Forbidden
 	| Remap of string
 
-type pos = Ast.pos
+type pos = Globals.pos
 
 type basic_types = {
 	mutable tvoid : t;
@@ -42,20 +43,6 @@ type stats = {
 	s_methods_typed : int ref;
 	s_macros_called : int ref;
 }
-
-type platform =
-	| Cross
-	| Js
-	| Lua
-	| Neko
-	| Flash
-	| Php
-	| Cpp
-	| Cs
-	| Java
-	| Python
-	| Hl
-	| Php7
 
 (**
 	The capture policy tells which handling we make of captured locals
@@ -303,17 +290,148 @@ type context = {
 	memory_marker : float array;
 }
 
-exception Abort of string * Ast.pos
+exception Abort of string * pos
 
 let display_default = ref DisplayMode.DMNone
 
-type cache = {
-	mutable c_haxelib : (string list, string list) Hashtbl.t;
-	mutable c_files : ((string * string), float * Ast.package) Hashtbl.t;
-	mutable c_modules : (path * string, module_def) Hashtbl.t;
-}
+let get_signature com =
+	match com.defines_signature with
+	| Some s -> s
+	| None ->
+		let defines = PMap.foldi (fun k v acc ->
+			(* don't make much difference between these special compilation flags *)
+			match String.concat "_" (ExtString.String.nsplit k "-") with
+			(* If we add something here that might be used in conditional compilation it should be added to
+			   Parser.parse_macro_ident as well (issue #5682). *)
+			| "display" | "use_rtti_doc" | "macro_times" | "display_details" | "no_copt" | "display_stdin" -> acc
+			| _ -> (k ^ "=" ^ v) :: acc
+		) com.defines [] in
+		let str = String.concat "@" (List.sort compare defines) in
+		let s = Digest.string str in
+		com.defines_signature <- Some s;
+		s
 
-let global_cache : cache option ref = ref None
+module CompilationServer = struct
+	type cache = {
+		c_haxelib : (string list, string list) Hashtbl.t;
+		c_files : ((string * string), float * Ast.package) Hashtbl.t;
+		c_modules : (path * string, module_def) Hashtbl.t;
+		c_directories : (string, (string * float ref) list) Hashtbl.t;
+	}
+
+	type t = {
+		cache : cache;
+		mutable signs : (string * string) list;
+	}
+
+	type context_options =
+		| NormalContext
+		| MacroContext
+		| NormalAndMacroContext
+
+	let instance : t option ref = ref None
+
+	let create_cache () = {
+		c_haxelib = Hashtbl.create 0;
+		c_files = Hashtbl.create 0;
+		c_modules = Hashtbl.create 0;
+		c_directories = Hashtbl.create 0;
+	}
+
+	let create () =
+		let cs = {
+			cache = create_cache();
+			signs = [];
+		} in
+		instance := Some cs;
+		cs
+
+	let get () =
+		!instance
+
+	let runs () =
+		!instance <> None
+
+	let get_context_files cs signs =
+		Hashtbl.fold (fun (file,sign) (_,data) acc ->
+			if (List.mem sign signs) then (file,data) :: acc
+			else acc
+		) cs.cache.c_files []
+
+	(* signatures *)
+
+	let get_sign cs sign =
+		List.assoc sign cs.signs
+
+	let add_sign cs sign =
+		let i = string_of_int (List.length cs.signs) in
+		cs.signs <- (sign,i) :: cs.signs;
+		i
+
+	(* modules *)
+
+	let find_module cs key =
+		Hashtbl.find cs.cache.c_modules key
+
+	let cache_module cs key value =
+		Hashtbl.replace cs.cache.c_modules key value
+
+	let taint_modules cs file =
+		Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- Some m) cs.cache.c_modules
+
+	(* files *)
+
+	let find_file cs key =
+		Hashtbl.find cs.cache.c_files key
+
+	let cache_file cs key value =
+		Hashtbl.replace cs.cache.c_files key value
+
+	let remove_file cs key =
+		Hashtbl.remove cs.cache.c_files key
+
+	let remove_files cs file =
+		List.iter (fun (sign,_) -> remove_file cs (sign,file)) cs.signs
+
+	(* haxelibs *)
+
+	let find_haxelib cs key =
+		Hashtbl.find cs.cache.c_haxelib key
+
+	let cache_haxelib cs key value =
+		Hashtbl.replace cs.cache.c_haxelib key value
+
+	(* directories *)
+
+	let find_directories cs key =
+		Hashtbl.find cs.cache.c_directories key
+
+	let add_directories cs key value =
+		Hashtbl.replace cs.cache.c_directories key value
+
+	let remove_directory cs key value =
+		try
+			let current = find_directories cs key in
+			Hashtbl.replace cs.cache.c_directories key (List.filter (fun (s,_) -> s <> value) current);
+		with Not_found ->
+			()
+
+	let has_directory cs key value =
+		try
+			List.mem_assoc value (find_directories cs key)
+		with Not_found ->
+			false
+
+	let add_directory cs key value =
+		try
+			let current = find_directories cs key in
+			add_directories cs key (value :: current)
+		with Not_found ->
+			add_directories cs key [value]
+
+	let clear_directories cs key =
+		Hashtbl.remove cs.cache.c_directories key
+end
 
 module Define = struct
 
@@ -503,286 +621,19 @@ module Define = struct
 		| Last -> assert false
 end
 
-let platforms = [
-	Js;
-	Lua;
-	Neko;
-	Flash;
-	Php;
-	Php7;
-	Cpp;
-	Cs;
-	Java;
-	Python;
-	Hl;
-]
-
-let platform_name = function
-	| Cross -> "cross"
+let short_platform_name = function
+	| Cross -> "x"
 	| Js -> "js"
 	| Lua -> "lua"
-	| Neko -> "neko"
-	| Flash -> "flash"
+	| Neko -> "n"
+	| Flash -> "swf"
 	| Php -> "php"
 	| Php7 -> "php7"
 	| Cpp -> "cpp"
 	| Cs -> "cs"
-	| Java -> "java"
-	| Python -> "python"
+	| Java -> "jav"
+	| Python -> "py"
 	| Hl -> "hl"
-
-module MetaInfo = struct
-	open Meta
-	type meta_usage =
-		| TClass
-		| TClassField
-		| TAbstract
-		| TAbstractField
-		| TEnum
-		| TTypedef
-		| TAnyField
-		| TExpr
-		| TTypeParameter
-
-	type meta_parameter =
-		| HasParam of string
-		| Platform of platform
-		| Platforms of platform list
-		| UsedOn of meta_usage
-		| UsedOnEither of meta_usage list
-		| Internal
-
-	let to_string = function
-		| Abi -> ":abi",("Function ABI/calling convention",[Platforms [Cpp]])
-		| Abstract -> ":abstract",("Sets the underlying class implementation as 'abstract'",[Platforms [Java;Cs]])
-		| Access -> ":access",("Forces private access to package, type or field",[HasParam "Target path";UsedOnEither [TClass;TClassField]])
-		| Accessor -> ":accessor",("Used internally by DCE to mark property accessors",[UsedOn TClassField;Internal])
-		| Allow -> ":allow",("Allows private access from package, type or field",[HasParam "Target path";UsedOnEither [TClass;TClassField]])
-		| Analyzer -> ":analyzer",("Used to configure the static analyzer",[])
-		| Annotation -> ":annotation",("Annotation (@interface) definitions on -java-lib imports will be annotated with this metadata. Has no effect on types compiled by Haxe",[Platform Java; UsedOn TClass])
-		| ArrayAccess -> ":arrayAccess",("Allows [] access on an abstract",[UsedOnEither [TAbstract;TAbstractField]])
-		| Ast -> ":ast",("Internally used to pass the AST source into the typed AST",[Internal])
-		| AstSource -> ":astSource",("Filled by the compiler with the parsed expression of the field",[UsedOn TClassField])
-		| AutoBuild -> ":autoBuild",("Extends @:build metadata to all extending and implementing classes",[HasParam "Build macro call";UsedOn TClass])
-		| Bind -> ":bind",("Override Swf class declaration",[Platform Flash;UsedOn TClass])
-		| Bitmap -> ":bitmap",("Embeds given bitmap data into the class (must extend flash.display.BitmapData)",[HasParam "Bitmap file path";UsedOn TClass;Platform Flash])
-		| BridgeProperties -> ":bridgeProperties",("Creates native property bridges for all Haxe properties in this class",[UsedOn TClass;Platform Cs])
-		| Build -> ":build",("Builds a class or enum from a macro",[HasParam "Build macro call";UsedOnEither [TClass;TEnum]])
-		| BuildXml -> ":buildXml",("Specify xml data to be injected into Build.xml",[Platform Cpp])
-		| Callable -> ":callable",("Abstract forwards call to its underlying type",[UsedOn TAbstract])
-		| Class -> ":class",("Used internally to annotate an enum that will be generated as a class",[Platforms [Java;Cs]; UsedOn TEnum; Internal])
-		| ClassCode -> ":classCode",("Used to inject platform-native code into a class",[Platforms [Java;Cs]; UsedOn TClass])
-		| Commutative -> ":commutative",("Declares an abstract operator as commutative",[UsedOn TAbstractField])
-		| CompilerGenerated -> ":compilerGenerated",("Marks a field as generated by the compiler. Shouldn't be used by the end user",[Platforms [Java;Cs]])
-		| Const -> ":const",("Allows a type parameter to accept expression values",[UsedOn TTypeParameter])
-		| CoreApi -> ":coreApi",("Identifies this class as a core api class (forces Api check)",[UsedOnEither [TClass;TEnum;TTypedef;TAbstract]])
-		| CoreType -> ":coreType",("Identifies an abstract as core type so that it requires no implementation",[UsedOn TAbstract])
-		| CppFileCode -> ":cppFileCode",("Code to be injected into generated cpp file",[Platform Cpp])
-		| CppInclude -> ":cppInclude",("File to be included in generated cpp file",[Platform Cpp])
-		| CppNamespaceCode -> ":cppNamespaceCode",("",[Platform Cpp])
-		| CsNative -> ":csNative",("Automatically added by -net-lib on classes generated from .NET DLL files",[Platform Cs; UsedOnEither[TClass;TEnum]; Internal])
-		| Dce -> ":dce",("Forces dead code elimination even when -dce full is not specified",[UsedOnEither [TClass;TEnum]])
-		| Debug -> ":debug",("Forces debug information to be generated into the Swf even without -debug",[UsedOnEither [TClass;TClassField]; Platform Flash])
-		| Decl -> ":decl",("",[Platform Cpp])
-		| DefParam -> ":defParam",("Default function argument value loaded from the SWF and used for documentation in Genxml",[Platform Flash;Internal])
-		| Delegate -> ":delegate",("Automatically added by -net-lib on delegates",[Platform Cs; UsedOn TAbstract])
-		| Depend -> ":depend",("",[Platform Cpp])
-		| Deprecated -> ":deprecated",("Mark a type or field as deprecated",[])
-		| DirectlyUsed -> ":directlyUsed",("Marks types that are directly referenced by non-extern code",[Internal])
-		| DynamicObject -> ":dynamicObject",("Used internally to identify the Dynamic Object implementation",[Platforms [Java;Cs]; UsedOn TClass; Internal])
-		| Eager -> ":eager",("Forces typedefs to be followed early",[UsedOn TTypedef])
-		| Enum -> ":enum",("Defines finite value sets to abstract definitions",[UsedOn TAbstract])
-		| EnumConstructorParam -> ":enumConstructorParam",("Used internally to annotate GADT type parameters",[UsedOn TClass; Internal])
-		| Event -> ":event",("Automatically added by -net-lib on events. Has no effect on types compiled by Haxe",[Platform Cs; UsedOn TClassField])
-		| Exhaustive -> ":exhaustive",("",[Internal])
-		| Expose -> ":expose",("Makes the class available on the window object",[HasParam "?Name=Class path";UsedOn TClass;Platform Js])
-		| Extern -> ":extern",("Marks the field as extern so it is not generated",[UsedOn TClassField])
-		| FakeEnum -> ":fakeEnum",("Treat enum as collection of values of the specified type",[HasParam "Type name";UsedOn TEnum])
-		| File -> ":file",("Includes a given binary file into the target Swf and associates it with the class (must extend flash.utils.ByteArray)",[HasParam "File path";UsedOn TClass;Platform Flash])
-		| FileXml -> ":fileXml",("Include xml attribute snippet in Build.xml entry for file",[UsedOn TClass;Platform Cpp])
-		| Final -> ":final",("Prevents a class from being extended",[UsedOn TClass])
-		| Fixed -> ":fixed",("Delcares an anonymous object to have fixed fields",[ (*UsedOn TObjectDecl(_)*)])
-		| FlatEnum -> ":flatEnum",("Internally used to mark an enum as being flat, i.e. having no function constructors",[UsedOn TEnum; Internal])
-		| Font -> ":font",("Embeds the given TrueType font into the class (must extend flash.text.Font)",[HasParam "TTF path";HasParam "Range String";UsedOn TClass])
-		| Forward -> ":forward",("Forwards field access to underlying type",[HasParam "List of field names";UsedOn TAbstract])
-		| ForwardStatics -> ":forwardStatics",("Forwards static field access to underlying type",[HasParam "List of field names";UsedOn TAbstract])
-		| From -> ":from",("Specifies that the field of the abstract is a cast operation from the type identified in the function",[UsedOn TAbstractField])
-		| FunctionCode -> ":functionCode",("Used to inject platform-native code into a function",[Platforms [Cpp;Java;Cs]])
-		| FunctionTailCode -> ":functionTailCode",("",[Platform Cpp])
-		| Generic -> ":generic",("Marks a class or class field as generic so each type parameter combination generates its own type/field",[UsedOnEither [TClass;TClassField]])
-		| GenericBuild -> ":genericBuild",("Builds instances of a type using the specified macro",[UsedOn TClass])
-		| GenericInstance -> ":genericInstance",("Internally used to mark instances of @:generic methods",[UsedOn TClassField;Internal])
-		| Getter -> ":getter",("Generates a native getter function on the given field",[HasParam "Class field name";UsedOn TClassField;Platform Flash])
-		| Hack -> ":hack",("Allows extending classes marked as @:final",[UsedOn TClass])
-		| HasUntyped -> (":has_untyped",("Used by the typer to mark fields that have untyped expressions",[Internal]))
-		| HaxeGeneric -> ":haxeGeneric",("Used internally to annotate non-native generic classes",[Platform Cs; UsedOnEither[TClass;TEnum]; Internal])
-		| HeaderClassCode -> ":headerClassCode",("Code to be injected into the generated class, in the header",[Platform Cpp])
-		| HeaderCode -> ":headerCode",("Code to be injected into the generated header file",[Platform Cpp])
-		| HeaderInclude -> ":headerInclude",("File to be included in generated header file",[Platform Cpp])
-		| HeaderNamespaceCode -> ":headerNamespaceCode",("",[Platform Cpp])
-		| HxGen -> ":hxGen",("Annotates that an extern class was generated by Haxe",[Platforms [Java;Cs]; UsedOnEither [TClass;TEnum]])
-		| IfFeature -> ":ifFeature",("Causes a field to be kept by DCE if the given feature is part of the compilation",[HasParam "Feature name";UsedOn TClassField])
-		| Impl -> ":impl",("Used internally to mark abstract implementation fields",[UsedOn TAbstractField; Internal])
-		| PythonImport -> ":pythonImport",("Generates python import statement for extern classes",[Platforms [Python]; UsedOn TClass])
-		| ImplicitCast -> ":implicitCast",("Generated automatically on the AST when an implicit abstract cast happens",[Internal; UsedOn TExpr])
-		| Include -> ":include",("",[Platform Cpp])
-		| InitPackage -> ":initPackage",("Some weird thing for Genjs we want to remove someday",[Internal; Platform Js])
-		| InlineConstructorVariable -> ":inlineConstructorVariable",("Internally used to mark variables that come from inlined constructors",[Internal])
-		| Meta.Internal -> ":internal",("Generates the annotated field/class with 'internal' access",[Platforms [Java;Cs]; UsedOnEither[TClass;TEnum;TClassField]])
-		| IsVar -> ":isVar",("Forces a physical field to be generated for properties that otherwise would not require one",[UsedOn TClassField])
-		| JavaCanonical -> ":javaCanonical",("Used by the Java target to annotate the canonical path of the type",[HasParam "Output type package";HasParam "Output type name";UsedOnEither [TClass;TEnum]; Platform Java])
-		| JavaNative -> ":javaNative",("Automatically added by -java-lib on classes generated from JAR/class files",[Platform Java; UsedOnEither[TClass;TEnum]; Internal])
-		| JsRequire -> ":jsRequire",("Generate javascript module require expression for given extern",[Platform Js; UsedOn TClass])
-		| LuaRequire -> ":luaRequire",("Generate lua module require expression for given extern",[Platform Lua; UsedOn TClass])
-		| Keep -> ":keep",("Causes a field or type to be kept by DCE",[])
-		| KeepInit -> ":keepInit",("Causes a class to be kept by DCE even if all its field are removed",[UsedOn TClass])
-		| KeepSub -> ":keepSub",("Extends @:keep metadata to all implementing and extending classes",[UsedOn TClass])
-		| LibType -> ":libType",("Used by -net-lib and -java-lib to mark a class that shouldn't be checked (overrides, interfaces, etc) by the type loader",[Internal; UsedOn TClass; Platforms [Java;Cs]])
-		| Meta -> ":meta",("Internally used to mark a class field as being the metadata field",[])
-		| Macro -> ":macro",("(deprecated)",[])
-		| MaybeUsed -> ":maybeUsed",("Internally used by DCE to mark fields that might be kept",[Internal])
-		| MergeBlock -> ":mergeBlock",("Merge the annotated block into the current scope",[UsedOn TExpr])
-		| MultiReturn -> ":multiReturn",("Annotates an extern class as the result of multi-return function",[UsedOn TClass; Platform Lua])
-		| MultiType -> ":multiType",("Specifies that an abstract chooses its this-type from its @:to functions",[UsedOn TAbstract; HasParam "Relevant type parameters"])
-		| Native -> ":native",("Rewrites the path of a class or enum during generation",[HasParam "Output type path";UsedOnEither [TClass;TEnum]])
-		| NativeChildren -> ":nativeChildren",("Annotates that all children from a type should be treated as if it were an extern definition - platform native",[Platforms [Java;Cs]; UsedOn TClass])
-		| NativeGen -> ":nativeGen",("Annotates that a type should be treated as if it were an extern definition - platform native",[Platforms [Java;Cs;Python]; UsedOnEither[TClass;TEnum]])
-		| NativeGeneric -> ":nativeGeneric",("Used internally to annotate native generic classes",[Platform Cs; UsedOnEither[TClass;TEnum]; Internal])
-		| NativeProperty -> ":nativeProperty",("Use native properties which will execute even with dynamic usage",[Platform Cpp])
-		| NativeStaticExtension -> ":nativeStaticExtension",("Converts static function syntax into member call",[Platform Cpp])
-		| NoCompletion -> ":noCompletion",("Prevents the compiler from suggesting completion on this field",[UsedOn TClassField])
-		| NoDebug -> ":noDebug",("Does not generate debug information into the Swf even if -debug is set",[UsedOnEither [TClass;TClassField];Platform Flash])
-		| NoDoc -> ":noDoc",("Prevents a type from being included in documentation generation",[])
-		| NoExpr -> ":noExpr",("Internally used to mark abstract fields which have no expression by design",[Internal])
-		| NoImportGlobal -> ":noImportGlobal",("Prevents a static field from being imported with import Class.*",[UsedOn TAnyField])
-		| NonVirtual -> ":nonVirtual",("Declares function to be non-virtual in cpp",[Platform Cpp])
-		| NoPackageRestrict -> ":noPackageRestrict",("Allows a module to be accessed across all targets if found on its first type",[Internal])
-		| NoPrivateAccess -> ":noPrivateAccess",("Disallow private access to anything for the annotated expression",[UsedOn TExpr])
-		| NoStack -> ":noStack",("",[Platform Cpp])
-		| NotNull -> ":notNull",("Declares an abstract type as not accepting null values",[UsedOn TAbstract])
-		| NoUsing -> ":noUsing",("Prevents a field from being used with 'using'",[UsedOn TClassField])
-		| Ns -> ":ns",("Internally used by the Swf generator to handle namespaces",[Platform Flash])
-		| Objc -> ":objc",("Declares a class or interface that is used to interoperate with Objective-C code",[Platform Cpp;UsedOn TClass])
-		| ObjcProtocol -> ":objcProtocol",("Associates an interface with, or describes a function in, a native Objective-C protocol.",[Platform Cpp;UsedOnEither [TClass;TClassField] ])
-		| Op -> ":op",("Declares an abstract field as being an operator overload",[HasParam "The operation";UsedOn TAbstractField])
-		| Optional -> ":optional",("Marks the field of a structure as optional",[UsedOn TClassField])
-		| Overload -> ":overload",("Allows the field to be called with different argument types",[HasParam "Function specification (no expression)";UsedOn TClassField])
-		| PhpConstants -> ":phpConstants",("Marks the static fields of a class as PHP constants, without $",[Platform Php;UsedOn TClass])
-		| PhpGlobal -> ":phpGlobal",("Puts the static fields of a class in the global PHP namespace",[Platform Php;UsedOn TClass])
-		| PhpClassConst -> ":phpClassConst",("Generate the static var of an extern class as PHP class constant",[Platform Php7;UsedOn TClassField])
-		| Public -> ":public",("Marks a class field as being public",[UsedOn TClassField;Internal])
-		| PublicFields -> ":publicFields",("Forces all class fields of inheriting classes to be public",[UsedOn TClass])
-		| QuotedField -> ":quotedField",("Used internally to mark structure fields which are quoted in syntax",[Internal])
-		| PrivateAccess -> ":privateAccess",("Allow private access to anything for the annotated expression",[UsedOn TExpr])
-		| Protected -> ":protected",("Marks a class field as being protected",[UsedOn TClassField;Platforms [Cs;Java;Flash]])
-		| Property -> ":property",("Marks a property field to be compiled as a native C# property",[UsedOn TClassField;Platform Cs])
-		| Pure -> ":pure",("Marks a class field, class or expression as pure (side-effect free)",[UsedOnEither [TClass;TClassField;TExpr]])
-		| ReadOnly -> ":readOnly",("Generates a field with the 'readonly' native keyword",[Platform Cs; UsedOn TClassField])
-		| RealPath -> ":realPath",("Internally used on @:native types to retain original path information",[Internal])
-		| Remove -> ":remove",("Causes an interface to be removed from all implementing classes before generation",[UsedOn TClass])
-		| Require -> ":require",("Allows access to a field only if the specified compiler flag is set",[HasParam "Compiler flag to check";UsedOn TClassField])
-		| RequiresAssign -> ":requiresAssign",("Used internally to mark certain abstract operator overloads",[Internal])
-		| Resolve -> ":resolve",("Abstract fields marked with this metadata can be used to resolve unknown fields",[UsedOn TClassField])
-		| Rtti -> ":rtti",("Adds runtime type informations",[UsedOn TClass])
-		| Runtime -> ":runtime",("?",[])
-		| RuntimeValue -> ":runtimeValue",("Marks an abstract as being a runtime value",[UsedOn TAbstract])
-		| Scalar -> ":scalar",("Used by hxcpp to mark a custom coreType abstract",[UsedOn TAbstract; Platform Cpp])
-		| SelfCall -> ":selfCall",("Translates method calls into calling object directly",[UsedOn TClassField; Platform Js])
-		| Setter -> ":setter",("Generates a native setter function on the given field",[HasParam "Class field name";UsedOn TClassField;Platform Flash])
-		| StackOnly -> ":stackOnly",("Instances of this type can only appear on the stack",[Platform Cpp])
-		| StoredTypedExpr -> ":storedTypedExpr",("Used internally to reference a typed expression returned from a macro",[Internal])
-		| SkipCtor -> ":skipCtor",("Used internally to generate a constructor as if it were a native type (no __hx_ctor)",[Platforms [Java;Cs]; Internal])
-		| SkipReflection -> ":skipReflection",("Used internally to annotate a field that shouldn't have its reflection data generated",[Platforms [Java;Cs]; UsedOn TClassField; Internal])
-		| Sound -> ":sound",( "Includes a given .wav or .mp3 file into the target Swf and associates it with the class (must extend flash.media.Sound)",[HasParam "File path";UsedOn TClass;Platform Flash])
-		| SourceFile -> ":sourceFile",("Source code filename for external class",[Platform Cpp])
-		| Strict -> ":strict",("Used to declare a native C# attribute or a native Java metadata. Is type checked",[Platforms [Java;Cs]])
-		| Struct -> ":struct",("Marks a class definition as a struct",[Platform Cs; UsedOn TClass])
-		| StructAccess -> ":structAccess",("Marks an extern class as using struct access('.') not pointer('->')",[Platform Cpp; UsedOn TClass])
-		| StructInit -> ":structInit",("Allows to initialize the class with a structure that matches constructor parameters",[UsedOn TClass])
-		| SuppressWarnings -> ":suppressWarnings",("Adds a SuppressWarnings annotation for the generated Java class",[Platform Java; UsedOn TClass])
-		| TemplatedCall -> ":templatedCall",("Indicates that the first parameter of static call should be treated as a template arguement",[Platform Cpp; UsedOn TClassField])
-		| Throws -> ":throws",("Adds a 'throws' declaration to the generated function",[HasParam "Type as String"; Platform Java; UsedOn TClassField])
-		| This -> ":this",("Internally used to pass a 'this' expression to macros",[Internal; UsedOn TExpr])
-		| To -> ":to",("Specifies that the field of the abstract is a cast operation to the type identified in the function",[UsedOn TAbstractField])
-		| ToString -> ":toString",("Internally used",[Internal])
-		| Transient -> ":transient",("Adds the 'transient' flag to the class field",[Platform Java; UsedOn TClassField])
-		| ValueUsed -> ":valueUsed",("Internally used by DCE to mark an abstract value as used",[Internal])
-		| Volatile -> ":volatile",("",[Platforms [Java;Cs]])
-		| Unbound -> ":unbound", ("Compiler internal to denote unbounded global variable",[Internal])
-		| UnifyMinDynamic -> ":unifyMinDynamic",("Allows a collection of types to unify to Dynamic",[UsedOn TClassField])
-		| Unreflective -> ":unreflective",("",[Platform Cpp])
-		| Unsafe -> ":unsafe",("Declares a class, or a method with the C#'s 'unsafe' flag",[Platform Cs; UsedOnEither [TClass;TClassField]])
-		| Usage -> ":usage",("Internal metadata used to mark a symbol for which usage request was invoked",[Internal])
-		| Used -> ":used",("Internally used by DCE to mark a class or field as used",[Internal])
-		| UserVariable -> ":userVariable",("Internally used to mark variables that come from user code",[Internal])
-		| Value -> ":value",("Used to store default values for fields and function arguments",[UsedOn TClassField])
-		| Void -> ":void",("Use Cpp native 'void' return type",[Platform Cpp])
-		| Last -> assert false
-		(* do not put any custom metadata after Last *)
-		| Dollar s -> "$" ^ s,("",[])
-		| Custom s -> s,("",[])
-
-	let hmeta =
-		let h = Hashtbl.create 0 in
-		let rec loop i =
-			let m = Obj.magic i in
-			if m <> Last then begin
-				Hashtbl.add h (fst (to_string m)) m;
-				loop (i + 1);
-			end;
-		in
-		loop 0;
-		h
-
-	let parse s = try Hashtbl.find hmeta (":" ^ s) with Not_found -> Custom (":" ^ s)
-
-	let from_string s =
-		if s = "" then Custom "" else match s.[0] with
-		| ':' -> (try Hashtbl.find hmeta s with Not_found -> Custom s)
-		| '$' -> Dollar (String.sub s 1 (String.length s - 1))
-		| _ -> Custom s
-
-	let get_documentation d =
-		let t, (doc,flags) = to_string d in
-		if not (List.mem Internal flags) then begin
-			let params = ref [] and used = ref [] and pfs = ref [] in
-			List.iter (function
-				| HasParam s -> params := s :: !params
-				| Platform f -> pfs := f :: !pfs
-				| Platforms fl -> pfs := fl @ !pfs
-				| UsedOn u -> used := u :: !used
-				| UsedOnEither ul -> used := ul @ !used
-				| Internal -> assert false
-			) flags;
-			let params = (match List.rev !params with
-				| [] -> ""
-				| l -> "(" ^ String.concat "," l ^ ")"
-			) in
-			let pfs = (match List.rev !pfs with
-				| [] -> ""
-				| [p] -> " (" ^ platform_name p ^ " only)"
-				| pl -> " (for " ^ String.concat "," (List.map platform_name pl) ^ ")"
-			) in
-			let str = "@" ^ t in
-			Some (str,params ^ doc ^ pfs)
-		end else
-			None
-
-	let get_documentation_list () =
-		let m = ref 0 in
-		let rec loop i =
-			let d = Obj.magic i in
-			if d <> Meta.Last then begin match get_documentation d with
-				| None -> loop (i + 1)
-				| Some (str,desc) ->
-					if String.length str > !m then m := String.length str;
-						(str,desc) :: loop (i + 1)
-			end else
-				[]
-		in
-		let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop 0) in
-		all,!m
-end
 
 let stats =
 	{
@@ -996,23 +847,7 @@ let clone com =
 		};
 	}
 
-let file_time file =
-	try (Unix.stat file).Unix.st_mtime with _ -> 0.
-
-let get_signature com =
-	match com.defines_signature with
-	| Some s -> s
-	| None ->
-		let defines = PMap.foldi (fun k v acc ->
-			(* don't make much difference between these special compilation flags *)
-			match String.concat "_" (ExtString.String.nsplit k "-") with
-			| "display" | "use_rtti_doc" | "macro_times" | "display_details" | "no_copt" -> acc
-			| _ -> (k ^ "=" ^ v) :: acc
-		) com.defines [] in
-		let str = String.concat "@" (List.sort compare defines) in
-		let s = Digest.string str in
-		com.defines_signature <- Some s;
-		s
+let file_time file = Extc.filetime file
 
 let file_extension file =
 	match List.rev (ExtString.String.nsplit file ".") with
@@ -1100,7 +935,7 @@ let has_dce com =
 	and we wouldn't need to generate unnecessary imports in dce=no, but that's good enough for now.
 *)
 let is_directly_used com meta =
-	not (has_dce com) || Ast.Meta.has Ast.Meta.DirectlyUsed meta
+	not (has_dce com) || Meta.has Meta.DirectlyUsed meta
 
 let rec has_feature com f =
 	try
@@ -1113,9 +948,9 @@ let rec has_feature com f =
 		| meth :: cl :: pack ->
 			let r = (try
 				let path = List.rev pack, cl in
-				(match List.find (fun t -> t_path t = path && not (Ast.Meta.has Ast.Meta.RealPath (t_infos t).mt_meta)) com.types with
-				| t when meth = "*" -> (match t with TAbstractDecl a -> Ast.Meta.has Ast.Meta.ValueUsed a.a_meta | _ ->
-					Ast.Meta.has Ast.Meta.Used (t_infos t).mt_meta)
+				(match List.find (fun t -> t_path t = path && not (Meta.has Meta.RealPath (t_infos t).mt_meta)) com.types with
+				| t when meth = "*" -> (match t with TAbstractDecl a -> Meta.has Meta.ValueUsed a.a_meta | _ ->
+					Meta.has Meta.Used (t_infos t).mt_meta)
 				| TClassDecl ({cl_extern = true} as c) when com.platform <> Js || cl <> "Array" && cl <> "Math" ->
 					Meta.has Meta.Used (try PMap.find meth c.cl_statics with Not_found -> PMap.find meth c.cl_fields).cf_meta
 				| TClassDecl c ->
@@ -1135,7 +970,7 @@ let allow_package ctx s =
 	with Not_found ->
 		()
 
-let error msg p = raise (Abort (msg,p))
+let abort msg p = raise (Abort (msg,p))
 
 let platform ctx p = ctx.platform = p
 
@@ -1205,22 +1040,25 @@ let mem_size v =
 (* ------------------------- TIMERS ----------------------------- *)
 
 type timer_infos = {
-	name : string;
+	id : string list;
 	mutable start : float list;
 	mutable total : float;
+	mutable calls : int;
 }
 
 let get_time = Extc.time
 let htimers = Hashtbl.create 0
 
-let new_timer name =
+let new_timer id =
+	let key = String.concat "." id in
 	try
-		let t = Hashtbl.find htimers name in
+		let t = Hashtbl.find htimers key in
 		t.start <- get_time() :: t.start;
+		t.calls <- t.calls + 1;
 		t
 	with Not_found ->
-		let t = { name = name; start = [get_time()]; total = 0.; } in
-		Hashtbl.add htimers name t;
+		let t = { id = id; start = [get_time()]; total = 0.; calls = 1; } in
+		Hashtbl.add htimers key t;
 		t
 
 let curtime = ref []
@@ -1235,15 +1073,15 @@ let close t =
 	t.total <- t.total +. dt;
 	let rec loop() =
 		match !curtime with
-		| [] -> failwith ("Timer " ^ t.name ^ " closed while not active")
+		| [] -> failwith ("Timer " ^ (String.concat "." t.id) ^ " closed while not active")
 		| tt :: l -> curtime := l; if t != tt then loop()
 	in
 	loop();
 	(* because of rounding errors while adding small times, we need to make sure that we don't have start > now *)
 	List.iter (fun ct -> ct.start <- List.map (fun t -> let s = t +. dt in if s > now then now else s) ct.start) !curtime
 
-let timer name =
-	let t = new_timer name in
+let timer id =
+	let t = new_timer id in
 	curtime := t :: !curtime;
 	(function() -> close t)
 
@@ -1253,7 +1091,6 @@ let rec close_times() =
 	| t :: _ -> close t; close_times()
 
 ;;
-Ast.Meta.to_string_ref := fun m -> fst (MetaInfo.to_string m)
 
 (*  Taken from OCaml source typing/oprint.ml
 
@@ -1287,59 +1124,15 @@ let add_diagnostics_message com s p sev =
 	let di = com.shared.shared_display_information in
 	di.diagnostics_messages <- (s,p,sev) :: di.diagnostics_messages
 
-(*
-	PurityState represents whether or not something has a side-effect. Unless otherwise stated
-	by using `@:pure` (equivalent to `@:pure(true)`) or `@:pure(false)`, fields are originally
-	supposed to be "maybe pure". Once all types and fields are known, this is refined by
-	AnalyzerTexpr.Purity.
+open Printer
 
-	There's a special case for fields that override a parent class field or implement an
-	interface field: If the overridden/implemented field is explicitly marked as pure,
-	the type loader marks the overriding/implementing as "expected pure". If during purity
-	inference this assumption does not hold, an error is shown.
-*)
-module PurityState = struct
-	type t =
-		| Pure
-		| Impure
-		| MaybePure
-		| ExpectPure of pos
-
-	let get_purity_from_meta meta =
-		try
-			begin match Meta.get Meta.Pure meta with
-			| (_,[EConst(Ident s),p],_) ->
-				begin match s with
-				| "true" -> Pure
-				| "false" -> Impure
-				| "expect" -> ExpectPure p
-				| _ -> error ("Unsupported purity value " ^ s ^ ", expected true or false") p
-				end
-			| (_,[],_) ->
-				Pure
-			| (_,_,p) ->
-				error "Unsupported purity value" p
-			end
-		with Not_found ->
-			MaybePure
-
-	let get_purity c cf = match get_purity_from_meta cf.cf_meta with
-		| Pure -> Pure
-		| Impure -> Impure
-		| ExpectPure p -> ExpectPure p
-		| _ -> get_purity_from_meta c.cl_meta
-
-	let is_pure c cf = get_purity c cf = Pure
-
-	let is_pure_field_access fa = match fa with
-		| FInstance(c,_,cf) | FClosure(Some(c,_),cf) | FStatic(c,cf) -> is_pure c cf
-		| FAnon cf | FClosure(None,cf) -> (get_purity_from_meta cf.cf_meta = Pure)
-		| FEnum _ -> true
-		| FDynamic _ -> false
-
-	let to_string = function
-		| Pure -> "pure"
-		| Impure -> "impure"
-		| MaybePure -> "maybe"
-		| ExpectPure _ -> "expect"
-end
+let dump_context com = s_record_fields "" [
+	"version",string_of_int com.version;
+	"args",s_list ", " (fun s -> s) com.args;
+	"debug",string_of_bool com.debug;
+	"platform",platform_name com.platform;
+	"std_path",s_list ", " (fun s -> s) com.std_path;
+	"class_path",s_list ", " (fun s -> s) com.class_path;
+	"defines",s_pmap (fun s -> s) (fun s -> s) com.defines;
+	"defines_signature",s_opt (fun s -> Digest.to_hex s) com.defines_signature;
+]

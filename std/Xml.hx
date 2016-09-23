@@ -23,7 +23,7 @@
 /**
 	Xml node types.
 
-	@see http://haxe.org/manual/std-Xml.html
+	@see https://haxe.org/manual/std-Xml.html
 **/
 @:enum abstract XmlType(Int) {
 	/**
@@ -59,7 +59,7 @@
 /**
 	Crossplatform Xml API.
 
-	@see http://haxe.org/manual/std-Xml.html
+	@see https://haxe.org/manual/std-Xml.html
 **/
 class Xml {
 	/**
