@@ -210,6 +210,8 @@ let rec wait_loop process_params verbose accept =
 						let time' = (Unix.stat (Path.remove_trailing_slash dir)).Unix.st_mtime in
 						if !time < time' then (time := time'; true) else false
 					with Unix.Unix_error _ ->
+						CompilationServer.remove_directory cs sign dir;
+						if verbose then print_endline (Printf.sprintf "%sremoved directory %s" (sign_string ctx.Typecore.com) dir);
 						false
 				) (CompilationServer.find_directories cs sign)
 			with Not_found ->

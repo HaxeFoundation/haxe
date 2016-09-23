@@ -409,6 +409,13 @@ module CompilationServer = struct
 	let add_directories cs key value =
 		Hashtbl.replace cs.cache.c_directories key value
 
+	let remove_directory cs key value =
+		try
+			let current = find_directories cs key in
+			Hashtbl.replace cs.cache.c_directories key (List.filter (fun (s,_) -> s <> value) current);
+		with Not_found ->
+			()
+
 	let clear_directories cs key =
 		Hashtbl.remove cs.cache.c_directories key
 end
