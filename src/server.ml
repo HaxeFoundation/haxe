@@ -370,6 +370,8 @@ let rec wait_loop process_params verbose accept =
 		in
 		try
 			let m = CompilationServer.find_module cs (mpath,sign) in
+			(* force reloading of display file *)
+			if m.m_extra.m_file = (!Parser.resume_display).pfile then raise Not_found;
 			let tcheck = Common.timer ["server";"module cache";"check"] in
 			begin match check m with
 			| None -> ()
@@ -425,8 +427,6 @@ let rec wait_loop process_params verbose accept =
 					let fkey = (file,get_signature ctx.com) in
 					(* force parsing again : if the completion point have been changed *)
 					CompilationServer.remove_file cs fkey;
-					(* force module reloading (if cached) *)
-					CompilationServer.taint_modules cs file;
 				end
 			);
 			ctx.com.print <- (fun str -> write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit str "\n") ^ "\n"));
