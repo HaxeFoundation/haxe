@@ -922,7 +922,7 @@ and gen_expr ?(local=true) ctx e = begin
 		end;
 		bend();
 		newline ctx;
-		println ctx " elseif _hx_result ~= _hx_expected_result then return _hx_result end;";
+		print ctx " elseif _hx_result ~= _hx_expected_result then return _hx_result end";
 	| TSwitch (e,cases,def) ->
 		List.iteri (fun cnt (el,e2) ->
 		    if cnt == 0 then spr ctx "if "
