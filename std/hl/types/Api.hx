@@ -34,4 +34,6 @@ extern class Api {
 	@:hlNative("std", "value_cast") static function safeCast( v : Dynamic, t : Type ) : Dynamic;
 	@:hlNative("std", "make_var_args") static function makeVarArgs( v : NativeArray<Dynamic> -> Dynamic ) : haxe.Constraints.Function;
 	@:hlNative("std", "get_virtual_value") static function getVirtualValue( v : Dynamic ) : Dynamic;
+	@:hlNative("std", "set_error_handler") static function setErrorHandler( v : Dynamic -> Void ) : Void;
+	
 }
