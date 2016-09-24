@@ -494,7 +494,7 @@ private class HxString {
 		if (index < 0 || index >= str.length) {
 			return '';
 		} else {
-			return untyped __php__("$str[$index]");
+			return (str:NativeString)[index];
 		}
 	}
 
@@ -502,7 +502,7 @@ private class HxString {
 		if (index < 0 || index >= str.length) {
 			return null;
 		} else {
-			return Global.ord(untyped __php__("$str[$index]"));
+			return Global.ord((str:NativeString)[index]);
 		}
 	}
 

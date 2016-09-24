@@ -139,6 +139,15 @@ let add_php_prefix ctx type_path =
 		| (pack, name) -> ((get_php_prefix ctx) @ pack, name)
 
 (**
+	If `expr` is a TCast returns underlying expression (recursively bypassing nested casts).
+	Otherwise returns `expr` as is.
+*)
+let rec reveal_casts expr =
+	match expr.eexpr with
+		| TCast (e, _) -> reveal_casts e
+		| _ -> expr
+
+(**
 	@return Error message with position information
 *)
 let error_message pos message = (Lexer.get_error_pos (Printf.sprintf "%s:%d:") pos) ^ ": " ^ message
@@ -1563,8 +1572,10 @@ class virtual type_builder ctx wrapper =
 		method private write_expr_field expr access =
 			let write_access access_str field_str =
 				let access_str = ref access_str in
-				(match expr.eexpr with
+				let expr_without_casts = reveal_casts expr in
+				(match expr_without_casts.eexpr with
 					| TNew _ -> self#write_expr (parenthesis expr)
+					| TObjectDecl _ -> self#write_expr (parenthesis expr)
 					| TConst TSuper ->
 						self#write "parent";
 						access_str := "::"
