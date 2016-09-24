@@ -1574,7 +1574,8 @@ class virtual type_builder ctx wrapper =
 				let access_str = ref access_str in
 				let expr_without_casts = reveal_casts expr in
 				(match expr_without_casts.eexpr with
-					| TNew _ -> self#write_expr (parenthesis expr)
+					| TNew _
+					| TArrayDecl _
 					| TObjectDecl _ -> self#write_expr (parenthesis expr)
 					| TConst TSuper ->
 						self#write "parent";
@@ -1701,6 +1702,7 @@ class virtual type_builder ctx wrapper =
 		method private write_expr_call target_expr args =
 			(match target_expr.eexpr with
 				| TConst TSuper -> self#write "parent::__construct"
+				| TField (expr, FClosure (_,_)) -> self#write_expr (parenthesis target_expr)
 				| _ -> self#write_expr target_expr
 			);
 			self#write "(";
