@@ -2723,7 +2723,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 	} in
 	ctx.m <- old;
 	Hashtbl.add ctx.defined_funs fidx ();
-	let f = if ctx.optimize then Hlopt.optimize ctx.dump_out f else f in
+	(*let f = if ctx.optimize then Hlopt.optimize ctx.dump_out f else f in*)
 	DynArray.add ctx.cfunctions f;
 	capt
 
@@ -2853,14 +2853,7 @@ let generate_static_init ctx =
 
 				(match c.cl_constructor with
 				| None -> ()
-				| Some f ->
-					(* set __constructor__ *)
-					let r = alloc_tmp ctx (match to_type ctx f.cf_type with
-						| HFun (args,ret) -> HFun (class_type ctx c (List.map snd c.cl_params) false :: args, ret)
-						| _ -> assert false
-					) in
-					op ctx (OStaticClosure (r, alloc_fid ctx c f));
-					op ctx (OSetField (rc,index "__constructor__",r)));
+				| Some f -> op ctx (OSetMethod (rc,index "__constructor__",alloc_fid ctx c f)));
 
 				let gather_implements() =
 					let classes = ref [] in
@@ -2892,9 +2885,7 @@ let generate_static_init ctx =
 				List.iter (fun f ->
 					match f.cf_kind with
 					| Method _ when not (is_extern_field f) ->
-						let cl = alloc_tmp ctx (to_type ctx f.cf_type) in
-						op ctx (OStaticClosure (cl, alloc_fid ctx c f));
-						op ctx (OSetField (rc,index f.cf_name,cl));
+						op ctx (OSetMethod (rc,index f.cf_name,alloc_fid ctx c f));
 					| _ ->
 						()
 				) c.cl_ordered_statics;

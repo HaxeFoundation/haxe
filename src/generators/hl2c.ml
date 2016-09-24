@@ -226,7 +226,7 @@ let write_c version file (code:code) =
 	Array.iter (fun f ->
 		Array.iteri (fun i op ->
 			match op with
-			| OStaticClosure (_,fid) ->
+			| OStaticClosure (_,fid) | OSetMethod (_,_,fid) ->
 				Hashtbl.replace used_closures fid ()
 			| OBytes (_,sid) ->
 				Hashtbl.replace bytes_strings sid ()
@@ -925,6 +925,9 @@ let write_c version file (code:code) =
 					assert false)
 			| OStaticClosure (r,fid) ->
 				sexpr "%s = &cl$%d" (reg r) fid
+			| OSetMethod (o,f,fid) ->
+				let name, t = resolve_field (match rtype o with HObj o -> o | _ -> assert false) f in
+				sexpr "%s->%s = (%s)&cl$%d" (reg o) (ident name) (ctype t) fid
 			| OInstanceClosure (r,fid,ptr) ->
 				let args, t = tfuns.(fid) in
 				sexpr "%s = hl_alloc_closure_ptr(%s,%s,%s)" (reg r) (type_value (HFun (args,t))) funnames.(fid) (reg ptr)

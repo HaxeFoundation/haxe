@@ -91,6 +91,8 @@ let opcode_fx frw op =
 		write d
 	| OSetGlobal (_,a) ->
 		read a;
+	| OSetMethod (o,_,_) ->
+		read o;
 	| OField (d,a,_) | ODynGet (d,a,_) ->
 		read a; write d
 	| OSetField (a,_,b) | ODynSet (a,_,b)->

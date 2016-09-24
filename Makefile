@@ -175,7 +175,7 @@ src/generators/genpy.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/global
 
 src/generators/genswf.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/generators/genswf9.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
-src/generators/hlinterp.$(MODULE_EXT): src/context/common.$(MODULE_EXT) src/generators/hlcode.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT)
+src/generators/hlinterp.$(MODULE_EXT): src/context/common.$(MODULE_EXT) src/generators/hlcode.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT) src/generators/hlopt.$(MODULE_EXT)
 
 src/generators/hl2c.$(MODULE_EXT): src/generators/hlcode.$(MODULE_EXT)
 

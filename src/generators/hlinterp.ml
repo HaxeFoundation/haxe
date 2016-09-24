@@ -823,6 +823,11 @@ let interp code =
 					check_obj rv o fid;
 					v.ofields.(fid) <- rv
 				| _ -> assert false)
+			| OSetMethod (o,fid,mid) ->
+				let o = get o in
+				(match o with
+				| VObj v -> v.ofields.(fid) <- VClosure (functions.(mid),None)
+				| _ -> assert false)
 			| OCallMethod (r,m,rl) ->
 				(match get (List.hd rl) with
 				| VObj v -> set r (fcall v.oproto.pmethods.(m) (List.map get rl))
@@ -1082,6 +1087,11 @@ let interp code =
 		match v with
 		| VVirtual v -> v.vvalue
 		| _ -> v
+	in
+	let make_stack (f,pos) =
+		let pos = !pos - 1 in
+		let file, line = (try let fid, line = f.debug.(pos) in code.debugfiles.(fid), line with _ -> "???", 0) in
+		Printf.sprintf "%s:%d: Called from fun(%d)@x%x" file line f.findex pos
 	in
 	let load_native lib name t =
 		let unresolved() = (fun args -> error ("Unresolved native " ^ lib ^ "@" ^ name)) in
@@ -1685,6 +1695,10 @@ let interp code =
 					String.fill a (int pos) (int len) (char_of_int ((int v) land 0xFF));
 					VUndef
 				| _ -> assert false)
+			| "exception_stack" ->
+				(function
+				| [] -> VArray (Array.map (fun e -> VBytes (caml_to_hl (make_stack e))) (Array.of_list (List.rev !exc_stack)),HBytes)
+				| _ -> assert false)
 			| "date_new" ->
 				(function
 				| [VInt y; VInt mo; VInt d; VInt h; VInt m; VInt s] ->
@@ -1840,11 +1854,7 @@ let interp code =
 	Array.iter (fun (lib,name,t,idx) -> functions.(idx) <- load_native code.strings.(lib) code.strings.(name) t) code.natives;
 	Array.iter (fun fd -> functions.(fd.findex) <- FFun fd) code.functions;
 	let get_stack st =
-		String.concat "\n" (List.map (fun (f,pos) ->
-			let pos = !pos - 1 in
-			let file, line = (try let fid, line = f.debug.(pos) in code.debugfiles.(fid), line with _ -> "???", 0) in
-			Printf.sprintf "%s:%d: Called from fun(%d)@x%x" file line f.findex pos
-		) st)
+		String.concat "\n" (List.map make_stack st)
 	in
 	match functions.(code.entrypoint) with
 	| FFun f when f.ftype = HFun([],HVoid) ->
@@ -2054,6 +2064,8 @@ let check code =
 				reg r (tfield 0 fid false)
 			| OStaticClosure (r,f) ->
 				reg r ftypes.(f)
+			| OSetMethod (o,f,fid) ->
+				check ftypes.(fid) (tfield o f false)			
 			| OVirtualClosure (r,o,fid) ->
 				(match rtype o with
 				| HObj _ ->
@@ -2507,6 +2519,7 @@ let make_spec (code:code) (f:fundecl) =
 			| OCallThis (d,fid,rl) -> args.(d) <- make_call (SMethod fid) (List.map (fun r -> args.(r)) (0 :: rl))
 			| OCallClosure (d,r,rl) -> args.(d) <- make_call (SClosure args.(r)) (List.map (fun r -> args.(r)) rl)
 			| OStaticClosure (d,fid) -> args.(d) <- SFun (fid,None)
+			| OSetMethod (o,f,fid) -> semit (SFieldSet (args.(o),f,SFun(fid,None)))
 			| OInstanceClosure (d,fid,r) -> args.(d) <- SFun (fid,Some args.(r))
 			| OVirtualClosure (d,r,index) -> args.(d) <- SMeth (args.(r),index)
 			| OGetGlobal (d,g) -> args.(d) <- SGlobal g
