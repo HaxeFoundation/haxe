@@ -5047,11 +5047,11 @@ let decode_type_def v =
 		let flags = if isExtern then [HExtern] else [] in
 		let is_interface = (match interf with VNull | VBool false -> false | VBool true -> true | _ -> raise Invalid_expr ) in
 		let interfaces = (match opt (fun v -> List.map decode_path (dec_array v)) impl with Some l -> l | _ -> [] ) in
+		let flags = (match opt decode_path ext with None -> flags | Some t -> HExtends t :: flags) in
 		let flags = if is_interface then begin
 				let flags = HInterface :: flags in
 				List.map (fun t -> HExtends t) interfaces @ flags
 			end else begin
-				let flags = (match opt decode_path ext with None -> flags | Some t -> HExtends t :: flags) in
 				List.map (fun t -> HImplements t) interfaces @ flags
 			end
 		in
