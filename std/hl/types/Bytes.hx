@@ -75,7 +75,7 @@ package hl.types;
 	static function alloc( size : Int ) : Bytes {
 		return null;
 	}
-	
+
 	@:hlNative("std","parse_int")
 	public function parseInt( pos : Int, size : Int ) : Null<Int> {
 		return null;
@@ -106,6 +106,15 @@ package hl.types;
 
 	@:hlNative("std","bsort_f64")
 	public function sortF64( pos : Int, length : Int, f : Float->Float->Int ) : Void {
+	}
+
+
+	/**
+		Please note that you need to retain the original unoffset'ed Bytes so it does not get garbage collected, unless the pointer was not GC allocated.
+	**/
+	@:hlNative("std","bytes_offset")
+	public function offset( pos : Int ) : hl.types.Bytes {
+		return null;
 	}
 
 	public function sub( pos : Int, size : Int ) {
