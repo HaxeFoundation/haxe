@@ -21,12 +21,23 @@
  */
 import hl.Boot;
 
+private typedef Rand = hl.types.NativeAbstract<"hl_random">;
+
 @:coreApi
 class Std {
 
-	@:hlNative("std","random")
+	static var rnd : Rand;
+
+	static function __init__() : Void {
+		rnd = rnd_sys();
+	}
+	
+	@:hlNative("std","rnd_init_system") static function rnd_sys() : Rand { return null; }
+	@:hlNative("std","rnd_int") static function rnd_int( r : Rand ) : Int { return 0; }
+	@:hlNative("std","rnd_float") static function rnd_float( r : Rand ) : Float { return 0.; }
+
 	public static function random( x : Int ) : Int {
-		return 0;
+		return x <= 0 ? 0 : (rnd_int(rnd) & 0x3FFFFFFF) % x;
 	}
 
 	public static function is( v : Dynamic, t : Dynamic ) : Bool {

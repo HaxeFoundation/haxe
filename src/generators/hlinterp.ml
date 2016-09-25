@@ -46,6 +46,7 @@ and vabstract =
 	| AHashInt of (int32, value) Hashtbl.t
 	| AHashObject of (value * value) list ref
 	| AReg of regexp
+	| ARandom
 
 and vfunction =
 	| FFun of fundecl
@@ -1753,10 +1754,18 @@ let interp code =
 					regs.(pos) <- to_int (String.length str);
 					VBytes (caml_to_hl str)
 				| _ -> assert false)
-			| "random" ->
+			| "rnd_init_system" ->
 				(function
-				| [VInt max] -> VInt (if max <= 0l then 0l else Random.int32 max)
+				| [] -> Random.self_init(); VAbstract ARandom
 				| _ -> assert false)
+			| "rnd_int" ->
+				(function
+				| [VAbstract ARandom] -> VInt (Int32.of_int (Random.bits()))
+				| _ -> assert false)
+			| "rnd_float" ->
+				(function
+				| [VAbstract ARandom] -> VFloat (Random.float 1.)
+				| _ -> assert false)				
 			| "regexp_new_options" ->
 				(function
 				| [VBytes str; VBytes opt] ->

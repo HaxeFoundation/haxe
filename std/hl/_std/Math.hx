@@ -45,6 +45,8 @@ class Math {
 	@:hlNative("std","math_pow") public static function pow( v : Float, exp : Float ) : Float 				return 0.;
 	@:hlNative("std","math_atan2") public static function atan2( y : Float, x : Float ) : Float 			return 0.;
 
+	public static function random() : Float return @:privateAccess Std.rnd_float(Std.rnd);
+
 	public static function min( a : Float, b : Float ) : Float 			return a < b || isNaN(a) ? a : b;
 	public static function max( a : Float, b : Float ) : Float 			return a < b || isNaN(b) ? b : a;
 
@@ -52,8 +54,6 @@ class Math {
 	public static var NaN(default,null) : Float;
 	public static var POSITIVE_INFINITY(default,null) : Float;
 	public static var NEGATIVE_INFINITY(default,null) : Float;
-
-	public static function random():Float return 0.15; // I rolled a D20
 
 	static function __init__() : Void {
 		PI = 3.1415926535897932384626433832795;
