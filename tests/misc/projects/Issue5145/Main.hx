@@ -31,6 +31,27 @@ class Main {
                     Context.error("Number of extended interfaces must be 3",Context.currentPos());
             case _:
         }
+
+        var td = macro class IE {};
+        var ia = macro : Main.IA;
+        var ib = macro : Main.IB;
+        var ic = macro : Main.IC;
+
+        var ia_tpath = switch ia {
+            case TPath(tp):tp;
+            case _:Context.error("must be TPath",Context.currentPos());
+        }
+        td.kind = TDClass(ia_tpath,[ib,ic].map(get_type_path),true);
+        Context.defineType(td);
+
+        var t = Context.getType("IE");
+        switch t {
+            case TInst(_.get()=>tt,_):
+                if (tt.interfaces.length != 3)
+                    Context.error("Number of extended interfaces must be 3",Context.currentPos());
+            case _:
+        }
+
         return macro null;
     }
 }
