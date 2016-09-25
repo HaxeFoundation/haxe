@@ -52,6 +52,18 @@ class Main {
             case _:
         }
 
+        var reification = macro interface IF extends Main.IA extends Main.IB {
+
+        };
+        Context.defineType(reification);
+        var t = Context.getType("IF");
+        switch t {
+            case TInst(_.get()=>tt,_):
+                if (tt.interfaces.length != 2){
+                    Context.error("Number of extended interfaces must be 2",Context.currentPos());
+                }
+            case _:
+        }
         return macro null;
     }
 }
