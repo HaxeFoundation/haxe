@@ -1303,8 +1303,7 @@ let strip_file ctx file = (match Common.defined ctx Common.Define.AbsolutePath w
 ;;
 
 let hx_stack_push ctx output clazz func_name pos gc_stack =
-   if gc_stack then
-      output ("HX_STACK_CTX\n");
+   let has_stackframe = ref false in
    if ctx.ctx_debug_level > 0 then begin
       let stripped_file = strip_file ctx.ctx_common pos.pfile in
       let esc_file = (Ast.s_escape stripped_file) in
@@ -1326,9 +1325,12 @@ let hx_stack_push ctx output clazz func_name pos gc_stack =
          out_top ("namespace { HX_DEFINE_STACK_FRAME(" ^ varName ^ ",\"" ^ clazz ^ "\",\"" ^ func_name ^ "\"," ^ hash_class_func ^ ",\"" ^
                  full_name ^ "\",\"" ^ esc_file ^ "\"," ^
                  lineName ^  "," ^ hash_file ^ ")\n}\n");
-         output ("HX_STACKFRAME(&" ^ varName ^ ")\n");
+         output ( (if gc_stack then "HX_GC_STACKFRAME" else "HX_STACKFRAME") ^ "(&" ^ varName ^ ")\n");
+         has_stackframe := true;
       end
    end;
+   if gc_stack && not !has_stackframe then
+      output ("HX_JUST_GC_STACKFRAME\n");
 ;;
 
 
@@ -3178,7 +3180,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          out " ]"
 
       | CppCall(FuncNew( TCppInst klass), args) ->
-         out ((cpp_class_path_of klass) ^ "_obj::__alloc( _hx_stack_ctx");
+         out ((cpp_class_path_of klass) ^ "_obj::__alloc( HX_GC_CTX");
          List.iter (fun arg -> out ","; gen arg ) args;
          out (")")
 
