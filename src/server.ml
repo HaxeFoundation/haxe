@@ -450,13 +450,13 @@ let rec wait_loop process_params verbose accept =
 					CompilationServer.remove_file cs fkey;
 				end;
 				try
-					if (Hashtbl.find arguments sign) <> ctx.com.args then begin
+					if (Hashtbl.find arguments sign) <> ctx.com.class_path then begin
 						if verbose then print_endline (Printf.sprintf "%sclass paths changed, resetting directories" (sign_string ctx.com));
-						Hashtbl.replace arguments sign ctx.com.args;
+						Hashtbl.replace arguments sign ctx.com.class_path;
 						CompilationServer.clear_directories cs sign;
 					end;
 				with Not_found ->
-					Hashtbl.add arguments sign ctx.com.args;
+					Hashtbl.add arguments sign ctx.com.class_path;
 					()
 			);
 			ctx.com.print <- (fun str -> write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit str "\n") ^ "\n"));
