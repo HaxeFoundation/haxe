@@ -1463,6 +1463,7 @@ and tcpp_expr_expr =
    | CppEnumField of tenum * tenum_field
    | CppCall of tcppfuncloc * tcppexpr list
    | CppFunctionAddress of tclass * tclass_field
+   | CppAddressOf of tcppexpr
    | CppArray of tcpparrayloc
    | CppCrement of  tcppcrementop * Ast.unop_flag * tcpplvalue
    | CppSet of tcpplvalue * tcppexpr
@@ -1540,6 +1541,7 @@ let rec s_tcpp = function
    | CppCall (FuncGlobal _,_) -> "CppCallGlobal"
    | CppCall (FuncFromStaticFunction,_) -> "CppCallFromStaticFunction"
 
+   | CppAddressOf _  -> "CppAddressOf"
    | CppFunctionAddress  _ -> "CppFunctionAddress"
    | CppArray  _ -> "CppArray"
    | CppCrement  _ -> "CppCrement"
@@ -2549,6 +2551,10 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                |  CppFunction( FuncInstance(obj, false, member), args ) when return_type=TCppVoid && is_array_splice_call obj member ->
                      CppCall( FuncInstance(obj, false, {member with cf_name="removeRange"}), retypedArgs), TCppVoid
 
+               |  CppFunction( FuncStatic(obj, false, member), _ ) when member.cf_name = "hx::AddressOf" ->
+                    let arg = retype TCppUnchanged (List.hd args) in
+                    CppAddressOf(arg), TCppRawPointer("", arg.cpptype)
+
                |  CppFunction( FuncStatic(obj, false, member), returnType ) when cpp_is_templated_call ctx member ->
                      (match retypedArgs with
                      | {cppexpr = CppClassOf(path,native) }::rest ->
@@ -3267,6 +3273,9 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
             gen arg;
             ) !argsRef;
          out (")" ^ !closeCall);
+
+      | CppAddressOf(e) ->
+         out ("&("); gen e; out ")";
 
       | CppFunctionAddress(klass, member) ->
          let signature = ctx_function_signature ctx false member.cf_type "" in
@@ -5017,7 +5026,7 @@ let generate_protocol_delegate ctx class_def output =
          let nativeName = get_meta_string field.cf_meta Meta.ObjcProtocol in
          let fieldName,argNames = if nativeName<>"" then begin
             let parts = ExtString.String.nsplit nativeName ":" in
-            List.hd parts, List.tl parts
+            List.hd parts, parts
          end else
             field.cf_name, List.map (fun (n,_,_) -> n ) args
          in
