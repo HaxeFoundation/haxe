@@ -436,7 +436,7 @@ class Http {
 				sock = new php.net.SslSocket();
 				#elseif java
 				sock = new java.net.SslSocket();
-				#elseif (!no_ssl && (hxssl || cpp || (neko && !(macro || interp))))
+				#elseif (!no_ssl && (hxssl || hl || cpp || (neko && !(macro || interp))))
 				sock = new sys.ssl.Socket();
 				#else
 				throw "Https is only supported with -lib hxssl";
