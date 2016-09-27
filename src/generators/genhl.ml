@@ -255,9 +255,9 @@ let rec unsigned t =
 	| TAbstract ({ a_path = [],"UInt" },_) -> true
 	| TAbstract (a,pl) -> unsigned (Abstract.get_underlying_type a pl)
 	| _ -> false
-	
+
 let unsigned_op e1 e2 =
-	let is_unsigned e = 
+	let is_unsigned e =
 		match e.eexpr with
 		| TConst (TInt _) -> true
 		| _ -> unsigned e.etype
@@ -1090,22 +1090,26 @@ and get_access ctx e =
 	| TParenthesis e ->
 		get_access ctx e
 	| TArray (a,i) ->
-		(match follow a.etype with
-		| TInst({ cl_path = [],"Array" },[t]) ->
-			let a = eval_null_check ctx a in
-			hold ctx a;
-			let i = eval_to ctx i HI32 in
-			free ctx a;
-			let t = to_type ctx t in
-			AArray (a,(t,t),i)
-		| _ ->
-			let a = eval_to ctx a (class_type ctx ctx.array_impl.adyn [] false) in
-			op ctx (ONullCheck a);
-			hold ctx a;
-			let i = eval_to ctx i HI32 in
-			free ctx a;
-			AArray (a,(HDyn,to_type ctx e.etype),i)
-		)
+		let rec loop t =
+			match follow t with
+			| TInst({ cl_path = [],"Array" },[t]) ->
+				let a = eval_null_check ctx a in
+				hold ctx a;
+				let i = eval_to ctx i HI32 in
+				free ctx a;
+				let t = to_type ctx t in
+				AArray (a,(t,t),i)
+			| TAbstract (a,pl) ->
+				loop (Abstract.get_underlying_type a pl)
+			| _ ->
+				let a = eval_to ctx a (class_type ctx ctx.array_impl.adyn [] false) in
+				op ctx (ONullCheck a);
+				hold ctx a;
+				let i = eval_to ctx i HI32 in
+				free ctx a;
+				AArray (a,(HDyn,to_type ctx e.etype),i)
+		in
+		loop a.etype
 	| _ ->
 		ANone
 
@@ -2174,7 +2178,7 @@ and eval_expr ctx e =
 			(* if called, a HDyn method will return HDyn, not its usual return type *)
 			let r = alloc_tmp ctx t in
 			op ctx (OMov (r,rv));
-			r			
+			r
 		| _ ->
 			cast_to ~force:true ctx rv t e.epos)
 	| TArrayDecl el ->
@@ -2524,7 +2528,7 @@ and build_capture_vars ctx f =
 	let cvars = Array.of_list (PMap.fold (fun v acc -> if PMap.mem v.v_id !ignored_vars then acc else v :: acc) !used_vars []) in
 	Array.sort (fun v1 v2 -> v1.v_id - v2.v_id) cvars;
 	let indexes = ref PMap.empty in
-	let v0t = (if Array.length cvars = 1 then to_type ctx cvars.(0).v_type else HDyn) in 
+	let v0t = (if Array.length cvars = 1 then to_type ctx cvars.(0).v_type else HDyn) in
 	let ct, group = (match Array.length cvars with
 		| 0 -> HVoid, false
 		| 1 when is_nullable v0t -> v0t, false
@@ -2609,7 +2613,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 
 	let rcapt = match has_captured_vars && cparent <> None with
 		| true when capt.c_group ->
-			let r = alloc_tmp ctx capt.c_type in 
+			let r = alloc_tmp ctx capt.c_type in
 			hold ctx r;
 			Some r
 		| true ->
@@ -2624,7 +2628,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 	) f.tf_args in
 
 	if has_captured_vars then ctx.m.mcaptreg <- (match rcapt with
-		| None when not capt.c_group -> 
+		| None when not capt.c_group ->
 			-1
 		| None ->
 			let r = alloc_tmp ctx capt.c_type in
