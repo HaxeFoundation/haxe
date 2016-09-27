@@ -730,8 +730,11 @@ let free ctx r =
 	if !last then a.a_all <- loop a.a_all
 
 let op ctx o =
-	DynArray.add ctx.m.mdebug ctx.m.mcurpos;
-	DynArray.add ctx.m.mops o
+	match o with
+	| OMov (a,b) when a = b -> ()
+	| _ ->
+		DynArray.add ctx.m.mdebug ctx.m.mcurpos;
+		DynArray.add ctx.m.mops o
 
 let jump ctx f =
 	let pos = current_pos ctx in
@@ -1006,10 +1009,12 @@ and unsafe_cast_to ctx (r:reg) (t:ttype) p =
 		cast_to ctx r t p
 	| HDyn when is_array_type t ->
 		cast_to ctx r t p
-	| HDyn when (match t with HVirtual _ -> true | _ -> false) ->
+	| (HDyn | HObj _) when (match t with HVirtual _ -> true | _ -> false) ->
 		cast_to ctx r t p
 	| HObj _ when is_array_type rt && is_array_type t ->
 		cast_to ctx r t p
+	| HVirtual _ when (match t with HObj _ | HVirtual _ -> true | _ -> false) ->
+		cast_to ~force:true ctx r t p
 	| _ ->
 		if is_dynamic (rtype ctx r) && is_dynamic t then
 			let r2 = alloc_tmp ctx t in
