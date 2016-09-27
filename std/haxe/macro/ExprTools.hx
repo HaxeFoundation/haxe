@@ -215,12 +215,13 @@ class ExprTools {
 		Returns the value `e` represents.
 
 		Supported expressions are:
-			- `Int`, `Float` and `String` literals
-			- identifiers `true`, `false` and `null`
-			- structure declarations if all their fields are values
-			- array declarations if all their elements are values
-			- unary operators `-`, `!` and `~` if the operand is a value
-			- binary operators except `=>`, `...` and assignments
+
+		 - `Int`, `Float` and `String` literals
+		 - identifiers `true`, `false` and `null`
+		 - structure declarations if all their fields are values
+		 - array declarations if all their elements are values
+		 - unary operators `-`, `!` and `~` if the operand is a value
+		 - binary operators except `=>`, `...` and assignments
 
 		Parentheses, metadata and the `untyped` keyword are ignored.
 
