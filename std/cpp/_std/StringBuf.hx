@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,37 +19,48 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+import cpp.NativeString;
+using cpp.NativeArray;
+
 @:coreApi
 class StringBuf {
-
 	private var b : Array<String>;
-
 	public var length(get,never) : Int;
+	var charBuf:Array<cpp.Char>;
 
 	public function new() : Void {
 		b = new Array();
 	}
 
+   private function flush() : Void{
+      b.push( NativeString.fromGcPointer( charBuf.address(0), charBuf.length ) );
+      charBuf = null;
+   }
 	function get_length() : Int {
+		if (charBuf!=null) flush();
 		var len = 0;
 		for(s in b)
 			len += s==null ? 4 : s.length;
 		return len;
 	}
 
-	public function add<T>( x : T ) : Void {
+	public inline function add<T>( x : T ) : Void {
+		if (charBuf!=null) flush();
 		b.push(Std.string(x));
 	}
 
-	public inline function addSub( s : String, pos : Int, ?len : Int ) : Void {
+	public #if !cppia inline #end function addSub( s : String, pos : Int, ?len : Int ) : Void {
+		if (charBuf!=null) flush();
 		b.push(s.substr(pos,len));
 	}
 
-	public inline function addChar( c : Int ) : Void untyped {
-		b.push(String.fromCharCode(c));
+	public #if !cppia inline #end function addChar( c : Int ) : Void {
+		if (charBuf==null) charBuf = new Array<cpp.Char>();
+		charBuf.push(c);
 	}
 
-	public inline function toString() : String {
+	public #if !cppia inline #end function toString() : String {
+		if (charBuf!=null) flush();
 		return b.join("");
 	}
 

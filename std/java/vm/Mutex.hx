@@ -1,9 +1,30 @@
-package java.vm;
+/*
+ * Copyright (C)2005-2016 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+ package java.vm;
+import java.util.concurrent.locks.ReentrantLock;
 
 @:native('haxe.java.vm.Mutex') class Mutex
 {
-	@:private var owner:java.lang.Thread;
-	@:private var lockCount:Int = 0;
+	@:private var lock:ReentrantLock;
 
 	/**
 		Creates a mutex, which can be used to acquire a temporary lock to access some resource.
@@ -11,7 +32,7 @@ package java.vm;
 	**/
 	public function new()
 	{
-
+		this.lock = new ReentrantLock();
 	}
 
 	/**
@@ -19,22 +40,7 @@ package java.vm;
 	**/
 	public function tryAcquire():Bool
 	{
-		var ret = false, cur = java.lang.Thread.currentThread();
-		untyped __lock__(this, {
-			var expr = null;
-			if (owner == null)
-			{
-				ret = true;
-				if(lockCount != 0) throw "assert";
-				lockCount = 1;
-				owner = cur;
-			} else if (owner == cur) {
-				ret = true;
-				owner = cur;
-				lockCount++;
-			}
-		});
-		return ret;
+		return this.lock.tryLock();
 	}
 
 	/**
@@ -43,22 +49,7 @@ package java.vm;
 	**/
 	public function acquire():Void
 	{
-		var cur = java.lang.Thread.currentThread();
-		untyped __lock__(this, {
-			var expr = null;
-			if (owner == null)
-			{
-				owner = cur;
-				if (lockCount != 0) throw "assert";
-				lockCount = 1;
-			} else if (owner == cur) {
-				lockCount++;
-			} else {
-				try { untyped this.wait(); } catch(e:Dynamic) { throw e; }
-				lockCount = 1;
-				owner = cur;
-			}
-		});
+		this.lock.lock();
 	}
 
 	/**
@@ -66,17 +57,6 @@ package java.vm;
 	**/
 	public function release():Void
 	{
-		var cur = java.lang.Thread.currentThread();
-		untyped __lock__(this, {
-			var expr = null;
-			if (owner != cur) {
-				throw "This mutex isn't owned by the current thread!";
-			}
-			if (--lockCount == 0)
-			{
-				this.owner = null;
-				untyped this.notify();
-			}
-		});
+		this.lock.unlock();
 	}
 }

@@ -25,7 +25,7 @@
 ; Installer details
 VIAddVersionKey "CompanyName" "Haxe Foundation"
 VIAddVersionKey "ProductName" "Haxe Installer"
-VIAddVersionKey "LegalCopyright" "Haxe Foundation 2005-2013"
+VIAddVersionKey "LegalCopyright" "Haxe Foundation 2005-2016"
 VIAddVersionKey "FileDescription" "Haxe Installer"
 VIAddVersionKey "ProductVersion" "${VERSION}.0"
 VIAddVersionKey "FileVersion" "${VERSION}.0"
@@ -122,6 +122,7 @@ Section "Haxe ${VERSION}" Main
 	SectionIn 1 2 RO
 	SetOverwrite on
 
+	RMDir /r /REBOOTOK "$INSTDIR\haxe\std"
 	SetOutPath "$INSTDIR\haxe"
 
 	File /r /x .svn /x *.db /x Exceptions.log /x .local /x .multi /x *.pdb /x *.vshost.exe /x *.vshost.exe.config /x *.vshost.exe.manifest "resources\haxe\*.*"

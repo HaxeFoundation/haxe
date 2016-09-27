@@ -8,6 +8,8 @@ M haxe.test.MyClass
 C haxe.test.MyClass
 M haxe.test.TEnum
 E haxe.test.TEnum
+M haxe.test.TEnumWithValue
+E haxe.test.TEnumWithValue
 M haxe.test.Base
 C haxe.test.Base
 M haxe.test.Generic1
@@ -16,6 +18,8 @@ M haxe.test.GenericHelper
 C haxe.test.GenericHelper
 M haxe.test.StaticAndInstanceClash
 C haxe.test.StaticAndInstanceClash
+M NoPackage
+C NoPackage
 end modules
 begin defines
 dll

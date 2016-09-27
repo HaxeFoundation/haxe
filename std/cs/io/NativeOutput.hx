@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,8 @@ import haxe.io.Output;
 
 class NativeOutput extends Output
 {
-	var canSeek(get_canSeek, null):Bool;
+	var canSeek(get,never):Bool;
+
 	var stream:cs.system.io.Stream;
 	public function new(stream)
 	{
@@ -55,7 +56,7 @@ class NativeOutput extends Output
 		stream.SetLength(haxe.Int64.add(stream.Length, cast(nbytes, Int64)));
 	}
 
-	private function get_canSeek():Bool
+	private inline function get_canSeek():Bool
 	{
 		return stream.CanSeek;
 	}

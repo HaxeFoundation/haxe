@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,45 +21,96 @@
  */
 package haxe.ds;
 
-@:coreApi class StringMap<T> implements Map.IMap<String,T> {
+@:coreApi class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 
-	private var h :flash.utils.Dictionary;
+	private var h : Dynamic;
+	private var rh : Dynamic;
+	static var reserved = { };
 
 	public function new() : Void {
-		h = new flash.utils.Dictionary();
+		h = {};
 	}
 
-	public function set( key : String, value : T ) : Void {
-		untyped h["$"+key] = value;
+	inline function isReserved(key:String) : Bool {
+		return untyped __in__(key,reserved);
 	}
 
-	public function get( key : String ) : Null<T> {
-		return untyped h["$"+key];
+	public inline function set( key : String, value : T ) : Void {
+		if( isReserved(key) )
+			setReserved(key, value);
+		else
+			untyped h[key] = value;
+	}
+
+	public inline function get( key : String ) : Null<T> {
+		if( isReserved(key) )
+			return getReserved(key);
+		return untyped h[key];
 	}
 
 	public inline function exists( key : String ) : Bool {
-		return untyped __in__("$"+key,h);
+		if( isReserved(key) )
+			return existsReserved(key);
+		return untyped __in__(key,h);
+	}
+
+	function setReserved( key : String, value : T ) : Void {
+		if( rh == null ) rh = {};
+		untyped rh["$"+key] = value;
+	}
+
+	function getReserved( key : String ) : Null<T> {
+		return rh == null ? null : untyped rh["$"+key];
+	}
+
+	function existsReserved( key : String ) : Bool {
+		if( rh == null ) return false;
+		return untyped __in__("$"+key,rh);
 	}
 
 	public function remove( key : String ) : Bool {
-		key = "$"+key;
-		if( untyped !h.hasOwnProperty(key) ) return false;
-		untyped __delete__(h,key);
-		return true;
+		if( isReserved(key) ) {
+			key = "$" + key;
+			if( rh == null || !untyped __in__(key,rh) ) return false;
+			untyped __delete__(rh,key);
+			return true;
+		} else {
+			if( !untyped __in__(key,h) )
+				return false;
+			untyped __delete__(h,key);
+			return true;
+		}
 	}
 
+	#if as3
+
+	// unoptimized version
+
 	public function keys() : Iterator<String> {
-		return untyped (__hkeys__(h)).iterator();
+		var out : Array<String> = untyped __keys__(h);
+		if( rh != null ) out = out.concat(untyped __hkeys__(rh));
+		return out.iterator();
 	}
 
 	public function iterator() : Iterator<T> {
 		return untyped {
-			ref : h,
-			it : __keys__(h).iterator(),
+			it : keys(),
 			hasNext : function() { return __this__.it.hasNext(); },
-			next : function() { var i : Dynamic = __this__.it.next(); return __this__.ref[i]; }
+			next : function() { return get(__this__.it.next()); }
 		};
 	}
+
+	#else
+
+	public inline function keys() : Iterator<String> {
+		return new StringMapKeysIterator(h, rh);
+	}
+
+	public inline function iterator() : Iterator<T> {
+		return new StringMapValuesIterator<T>(h, rh);
+	}
+
+	#end
 
 	public function toString() : String {
 		var s = new StringBuf();
@@ -77,3 +128,82 @@ package haxe.ds;
 	}
 
 }
+
+#if !as3
+
+// this version uses __has_next__/__forin__ special SWF opcodes for iteration with no allocation
+
+@:allow(haxe.ds.StringMap)
+private class StringMapKeysIterator {
+	var h:Dynamic;
+	var rh:Dynamic;
+	var index : Int;
+	var nextIndex : Int;
+	var isReserved : Bool;
+
+	inline function new(h:Dynamic, rh:Dynamic):Void {
+		this.h = h;
+		this.rh = rh;
+		this.index = 0;
+		isReserved = false;
+		hasNext();
+	}
+
+	public inline function hasNext():Bool {
+		var h = h, index = index; // tmp vars required for __has_next
+		var n = untyped __has_next__(h, index);
+		if( !n && rh != null ) {
+			h = this.h = rh;
+			index = this.index = 0;
+			rh = null;
+			isReserved = true;
+			n = untyped __has_next__(h, index);
+		}
+		this.nextIndex = index; // store next index
+		return n;
+	}
+
+	public inline function next():String {
+		var r : String = untyped __forin__(h, nextIndex);
+		index = nextIndex;
+		if( isReserved ) r = r.substr(1);
+		return r;
+	}
+
+}
+
+@:allow(haxe.ds.StringMap)
+private class StringMapValuesIterator<T> {
+	var h:Dynamic;
+	var rh:Dynamic;
+	var index : Int;
+	var nextIndex : Int;
+
+	inline function new(h:Dynamic, rh:Dynamic):Void {
+		this.h = h;
+		this.rh = rh;
+		this.index = 0;
+		hasNext();
+	}
+
+	public inline function hasNext():Bool {
+		var h = h, index = index; // tmp vars required for __has_next
+		var n = untyped __has_next__(h, index);
+		if( !n && rh != null ) {
+			h = this.h = rh;
+			index = this.index = 0;
+			rh = null;
+			n = untyped __has_next__(h, index);
+		}
+		this.nextIndex = index; // store next index
+		return n;
+	}
+
+	public inline function next():T {
+		var r = untyped __foreach__(h, nextIndex);
+		index = nextIndex;
+		return r;
+	}
+
+}
+#end

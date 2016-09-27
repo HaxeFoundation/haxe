@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,13 +21,17 @@
  */
 package cs.internal;
 import cs.Lib;
+import cs.Lib.*;
 import cs.NativeArray;
-import cs.NativeArray;
+import cs.StdTypes;
 import cs.system.Activator;
 import cs.system.IConvertible;
+import cs.system.IComparable;
 import cs.system.reflection.MethodBase;
 import cs.system.reflection.MethodInfo;
+import cs.system.reflection.*;
 import cs.system.Type;
+import cs.system.Object;
 
 /**
  This class is meant for internal compiler use only. It provides the Haxe runtime
@@ -36,6 +40,7 @@ import cs.system.Type;
 
 @:nativeGen
 @:native('haxe.lang.Runtime')
+@:access(String)
 @:classCode('
 	public static object getField(haxe.lang.HxObject obj, string field, int fieldHash, bool throwErrors)
 	{
@@ -66,398 +71,362 @@ import cs.system.Type;
 ')
 @:keep class Runtime
 {
-	public static var undefined(default, never):Dynamic = { };
+	@:readOnly public static var undefined(default, never):Dynamic = new cs.system.Object();
 
-	@:functionCode('
-		return new haxe.lang.Closure(obj, field, hash);
-	')
 	public static function closure(obj:Dynamic, hash:Int, field:String):Dynamic
 	{
-		return null;
+		return new cs.internal.Function.Closure(obj, field, hash);
 	}
 
-	@:functionCode('
-			if (System.Object.ReferenceEquals(v1, v2))
-				return true;
-			if (v1 == null || v2 == null)
-				return false;
-
-			System.IConvertible v1c = v1 as System.IConvertible;
-
-			if (v1c != null)
-			{
-				System.IConvertible v2c = v2 as System.IConvertible;
-
-				if (v2c == null)
-				{
-					return false;
-				}
-
-				System.TypeCode t1 = v1c.GetTypeCode();
-				System.TypeCode t2 = v2c.GetTypeCode();
-				if (t1 == t2)
-					return v1c.Equals(v2c);
-
-				if (t1 == System.TypeCode.String || t2 == System.TypeCode.String)
-					return false;
-
-				switch(t1)
-				{
-					case System.TypeCode.Decimal:
-						return v1c.ToDecimal(null) == v2c.ToDecimal(null);
-					case System.TypeCode.Int64:
-					case System.TypeCode.UInt64:
-						if (t2 == System.TypeCode.Decimal)
-							return v1c.ToDecimal(null) == v2c.ToDecimal(null);
-						else
-							return v1c.ToUInt64(null) == v2c.ToUInt64(null);
-					default:
-						switch(t2)
-						{
-							case System.TypeCode.Decimal:
-								return v1c.ToDecimal(null) == v2c.ToDecimal(null);
-							case System.TypeCode.Int64:
-							case System.TypeCode.UInt64:
-								if (t2 == System.TypeCode.Decimal)
-									return v1c.ToDecimal(null) == v2c.ToDecimal(null);
-								else
-									return v1c.ToUInt64(null) == v2c.ToUInt64(null);
-							default:
-								return v1c.ToDouble(null) == v2c.ToDouble(null);
-						}
-				}
-			}
-
-			System.ValueType v1v = v1 as System.ValueType;
-			if (v1v != null)
-			{
-				return v1.Equals(v2);
-			} else {
-				System.Type v1t = v1 as System.Type;
-				if (v1t != null)
-				{
-					System.Type v2t = v2 as System.Type;
-					if (v2t != null)
-						return typeEq(v1t, v2t);
-					return false;
-				}
-			}
-
-			return false;
-	')
 	public static function eq(v1:Dynamic, v2:Dynamic):Bool
 	{
+		if (Object.ReferenceEquals(v1, v2))
+			return true;
+		if (Object.ReferenceEquals(v1,null) || Object.ReferenceEquals(v2,null))
+			return false;
+
+		var v1c = Lib.as(v1, IConvertible);
+		if (v1c != null)
+		{
+			var v2c = Lib.as(v2, IConvertible);
+			if (v2c == null)
+			{
+				return false;
+			}
+
+			var t1 = v1c.GetTypeCode(),
+					t2 = v2c.GetTypeCode();
+			if (t1 == t2)
+				return Object._Equals(v1c,v2c);
+
+			if (t1 == cs.system.TypeCode.String || t2 == cs.system.TypeCode.String)
+				return false;
+
+			switch [t1,t2]
+			{
+				case [Decimal, _] | [_, Decimal]:
+					return v1c.ToDecimal(null) == v2c.ToDecimal(null);
+				case [Int64, _] | [_, Int64]:
+					return v1c.ToInt64(null) == v2c.ToInt64(null);
+				case [UInt64 | DateTime, _] | [_, UInt64 | DateTime]:
+					return v1c.ToUInt64(null) == v2c.ToUInt64(null);
+				case [Double | Single, _] | [_, Double | Single]:
+					return v1c.ToDouble(null) == v2c.ToDouble(null);
+				case _:
+					return v1c.ToInt32(null) == v2c.ToInt32(null);
+			}
+		}
+
+		var v1v = Lib.as(v1, cs.system.ValueType);
+		if (v1v != null)
+		{
+			return v1.Equals(v2);
+#if !erase_generics
+		} else {
+			var v1t = Lib.as(v1, Type);
+			if (v1t != null)
+			{
+				var v2t = Lib.as(v2, Type);
+				if (v2t != null)
+					return typeEq(v1t, v2t);
+				return false;
+			}
+#end
+		}
+
 		return false;
 	}
 
-	@:functionCode('
-			if (v1 is System.Type)
-				return typeEq(v1 as System.Type, v2 as System.Type);
-			return System.Object.ReferenceEquals(v1, v2);
-	')
 	public static function refEq(v1: { }, v2: { } ):Bool
 	{
-		return false;
+#if !erase_generics
+		if (Std.is(v1, Type))
+			return typeEq(Lib.as(v1,Type), Lib.as(v2,Type));
+#end
+		return Object.ReferenceEquals(v1,v2);
 	}
 
-	@:functionCode('
-		return (obj == null) ? 0.0 : (obj is double) ? (double)obj : ((System.IConvertible) obj).ToDouble(null);
-	')
 	public static function toDouble(obj:Dynamic):Float
 	{
-		return 0.0;
+		return (obj == null) ? .0 : Std.is(obj,Float) ? cast obj : Lib.as(obj,IConvertible).ToDouble(null);
 	}
 
-	@:functionCode('
-		return (obj == null) ? 0 : (obj is int) ? (int)obj : ((System.IConvertible) obj).ToInt32(null);
-	')
 	public static function toInt(obj:Dynamic):Int
 	{
-		return 0;
+		return (obj == null) ? 0 : Std.is(obj,Int) ? cast obj : Lib.as(obj,IConvertible).ToInt32(null);
 	}
 
-	@:functionCode('
-			System.IConvertible cv1 = obj as System.IConvertible;
-			if (cv1 != null)
-			{
-                switch (cv1.GetTypeCode())
-                {
-                    case System.TypeCode.Double:
-                        double d = (double)obj;
+#if erase_generics
+	public static function toLong(obj:Dynamic):Int64
+	{
+		return (obj == null) ? 0 : Std.is(obj,Int64) ? cast obj : Lib.as(obj,IConvertible).ToInt64(null);
+	}
+#end
 
-				        return d >= int.MinValue && d <= int.MaxValue && d == ( (int)d );
-                    case System.TypeCode.UInt32:
-                    case System.TypeCode.Int32:
-                        return true;
-                    default:
-                        return false;
-                }
-
-			}
-			return false;
-	')
 	public static function isInt(obj:Dynamic):Bool
 	{
+		var cv1 = Lib.as(obj, IConvertible);
+		if (cv1 != null)
+		{
+			switch (cv1.GetTypeCode())
+			{
+				case Double:
+					var d:Float = cast obj;
+					return d >= cs.system.Int32.MinValue && d <= cs.system.Int32.MaxValue && d == ( cast(d,Int) );
+				case UInt32, Int32:
+					return true;
+				default:
+					return false;
+			}
+		}
 		return false;
 	}
 
-	@:functionCode('
-			System.IConvertible cv1 = obj as System.IConvertible;
-			if (cv1 != null)
-			{
-                switch (cv1.GetTypeCode())
-                {
-                    case System.TypeCode.Double:
-                        double d = (double)obj;
-
-				        return d >= uint.MinValue && d <= uint.MaxValue && d == ( (uint)d );
-                    case System.TypeCode.UInt32:
-                        return true;
-                    default:
-                        return false;
-                }
-
-			}
-			return false;
-	')
 	public static function isUInt(obj:Dynamic):Bool
 	{
+		var cv1 = Lib.as(obj, IConvertible);
+		if (cv1 != null)
+		{
+			switch (cv1.GetTypeCode())
+			{
+				case Double:
+					var d:Float = cast obj;
+					return d >= cs.system.UInt32.MinValue && d <= cs.system.UInt32.MaxValue && d == ( cast(d,UInt) );
+				case UInt32:
+					return true;
+				default:
+					return false;
+			}
+
+		}
 		return false;
 	}
 
-	@:functionCode('
-			if (v1 == v2) return 0;
-			if (v1 == null) return -1;
-			if (v2 == null) return 1;
-			System.IConvertible cv1 = v1 as System.IConvertible;
-			if (cv1 != null)
-			{
-				System.IConvertible cv2 = v2 as System.IConvertible;
-
-				if (cv2 == null)
-				{
-					throw new System.ArgumentException("Cannot compare " + v1.GetType().ToString() + " and " + v2.GetType().ToString());
-				}
-
-				switch(cv1.GetTypeCode())
-				{
-					case System.TypeCode.String:
-						if (cv2.GetTypeCode() != System.TypeCode.String)
-							throw new System.ArgumentException("Cannot compare " + v1.GetType().ToString() + " and " + v2.GetType().ToString());
-						string s1 = v1 as string;
-						string s2 = v2 as string;
-						int i =0;
-						int l1 = s1.Length;
-						int l2 = s2.Length;
-						bool active = true;
-						while(active)
-						{
-							char h1; char h2;
-							if (i >= l1)
-							{
-								h1 = (char) 0;
-								active = false;
-							} else {
-								h1 = s1[i];
-							}
-
-							if (i >= l2)
-							{
-								h2 = (char) 0;
-								active = false;
-							} else {
-								h2 = s2[i];
-							}
-
-							int v = h1 - h2;
-							if (v > 0)
-								return 1;
-							else if (v < 0)
-								return -1;
-
-							i++;
-						}
-						return 0;
-					case System.TypeCode.Double:
-					double d1 = (double) v1;
-					double d2 = cv2.ToDouble(null);
-
-          return (d1 < d2) ? -1 : (d1 > d2) ? 1 : 0;
-					default:
-            double d1d = cv1.ToDouble(null);
-            double d2d = cv2.ToDouble(null);
-            return (d1d < d2d) ? -1 : (d1d > d2d) ? 1 : 0;
-				}
-			}
-
-			System.IComparable c1 = v1 as System.IComparable;
-			System.IComparable c2 = v2 as System.IComparable;
-
-			if (c1 == null || c2 == null)
-			{
-				if (c1 == c2)
-					return 0;
-
-				throw new System.ArgumentException("Cannot compare " + v1.GetType().ToString() + " and " + v2.GetType().ToString());
-			}
-
-			return c1.CompareTo(c2);
-	')
 	public static function compare(v1:Dynamic, v2:Dynamic):Int
 	{
-		return 0;
-	}
+		if (Object.ReferenceEquals(v1,v2)) return 0;
+		if (Object.ReferenceEquals(v1,null)) return -1;
+		if (Object.ReferenceEquals(v2,null)) return 1;
 
-	@:functionCode('
-			if (v1 is string || v2 is string)
-				return Std.@string(v1) + Std.@string(v2);
+		var cv1 = Lib.as(v1, IConvertible);
+		if (cv1 != null)
+		{
+			var cv2 = Lib.as(v2, IConvertible);
 
-			System.IConvertible cv1 = v1 as System.IConvertible;
-			if (cv1 != null)
+			if (cv2 == null)
 			{
-				System.IConvertible cv2 = v2 as System.IConvertible;
-
-				if (cv2 == null)
-				{
-					throw new System.ArgumentException("Cannot dynamically add " + v1.GetType().ToString() + " and " + v2.GetType().ToString());
-				}
-
-				return cv1.ToDouble(null) + cv2.ToDouble(null);
+				throw new cs.system.ArgumentException("Cannot compare " + getNativeType(v1).ToString() + " and " + getNativeType(v2).ToString());
 			}
 
-			throw new System.ArgumentException("Cannot dynamically add " + v1 + " and " + v2);
-	')
-	public static function plus(v1:Dynamic, v2:Dynamic):Dynamic
-	{
-		return null;
+			switch(cv1.GetTypeCode())
+			{
+				case cs.system.TypeCode.String:
+					if (cv2.GetTypeCode() != cs.system.TypeCode.String)
+						throw new cs.system.ArgumentException("Cannot compare " + getNativeType(v1).ToString() + " and " + getNativeType(v2).ToString());
+					var s1 = Lib.as(v1,String);
+					var s2 = Lib.as(v2,String);
+					return String.Compare(s1,s2, cs.system.StringComparison.Ordinal);
+				case cs.system.TypeCode.Double:
+					var d1:Float = cast v1,
+							d2:Float = cv2.ToDouble(null);
+					return (d1 < d2) ? -1 : (d1 > d2) ? 1 : 0;
+				default:
+					var d1d = cv1.ToDouble(null);
+					var d2d = cv2.ToDouble(null);
+					return (d1d < d2d) ? -1 : (d1d > d2d) ? 1 : 0;
+			}
+		}
+
+		var c1 = Lib.as(v1, IComparable);
+		var c2 = Lib.as(v2, IComparable);
+
+		if (c1 == null || c2 == null)
+		{
+			throw new cs.system.ArgumentException("Cannot compare " + getNativeType(v1).ToString() + " and " + getNativeType(v2).ToString());
+		}
+
+		return c1.CompareTo(c2);
 	}
 
-	@:functionCode('
+	public static function plus(v1:Dynamic, v2:Dynamic):Dynamic
+	{
+		if (Std.is(v1,String) || Std.is(v2,String))
+			return Std.string(v1) + Std.string(v2);
 
+		if (v1 == null)
+		{
+			if (v2 == null) return null;
+			v1 = 0;
+		} else if (v2 == null) v2 = 0;
+
+		var cv1 = Lib.as(v1, IConvertible);
+		if (cv1 != null)
+		{
+			var cv2 = Lib.as(v2, IConvertible);
+			if (cv2 == null)
+			{
+				throw new cs.system.ArgumentException("Cannot dynamically add " + cs.Lib.getNativeType(v1).ToString() + " and " + cs.Lib.getNativeType(v2).ToString());
+			}
+			return cv1.ToDouble(null) + cv2.ToDouble(null);
+		}
+
+		throw new cs.system.ArgumentException("Cannot dynamically add " + v1 + " and " + v2);
+	}
+
+	public static function slowGetField(obj:Dynamic, field:String, throwErrors:Bool):Dynamic
+	{
 		if (obj == null)
 			if (throwErrors)
-				throw new System.NullReferenceException("Cannot access field \'" + field + "\' of null.");
+				throw new cs.system.NullReferenceException("Cannot access field \'" + field + "\' of null.");
 			else
 				return null;
 
-		System.Type t = obj as System.Type;
-		System.Reflection.BindingFlags bf;
-        if (t == null)
-		{
-			string s = obj as string;
-			if (s != null)
-				return haxe.lang.StringRefl.handleGetField(s, field, throwErrors);
-			t = obj.GetType();
-			bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.FlattenHierarchy;
-		} else {
-			if (obj == typeof(string) && field.Equals("fromCharCode"))
-				return new haxe.lang.Closure(typeof(haxe.lang.StringExt), field, 0);
+		var t = Lib.as(obj, cs.system.Type);
+		var bf =
+			if (t == null)
+			{
+				var s = Lib.as(obj, String);
+				if (s != null)
+					return cs.internal.StringExt.StringRefl.handleGetField(s, field, throwErrors);
+				t = obj.GetType();
+				new cs.Flags(BindingFlags.Instance) | BindingFlags.Public | BindingFlags.FlattenHierarchy;
+			} else {
+				if (t == Lib.toNativeType(String) && field == "fromCharCode")
+					return new cs.internal.Function.Closure(StringExt, field, 0);
 
-			obj = null;
-			bf = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public;
-		}
+				obj = null;
+				new cs.Flags(BindingFlags.Static) | BindingFlags.Public;
+			}
 
-		System.Reflection.FieldInfo f = t.GetField(field, bf);
+		var f = t.GetField(field, bf);
 		if (f != null)
 		{
-			return haxe.lang.Runtime.unbox(f.GetValue(obj));
-		} else {
-			System.Reflection.PropertyInfo prop = t.GetProperty(field, bf);
+			return unbox(f.GetValue(obj));
+		}
+		else
+		{
+			var prop = t.GetProperty(field, bf);
 			if (prop == null)
 			{
-				System.Reflection.MemberInfo[] m = t.GetMember(field, bf);
+				var m = t.GetMember(field, bf);
+				if (m.length == 0 && (field == "__get" || field == "__set"))
+					m = t.GetMember(field == "__get" ? "get_Item" : "set_Item", bf);
+
 				if (m.Length > 0)
 				{
-					return new haxe.lang.Closure(obj != null ? obj : t, field, 0);
-				} else {
+					return new cs.internal.Function.Closure(obj != null ? obj : t, field, 0);
+				}
+				else
+				{
+					// COM object handling
+					if (t.IsCOMObject)
+					{
+						try
+						{
+							return t.InvokeMember(field, BindingFlags.GetProperty, null, obj, new cs.NativeArray(0));
+						}
+						catch (e:cs.system.Exception)
+						{
+							//Closures of COM objects not supported currently
+						}
+					}
+
 					if (throwErrors)
-						throw HaxeException.wrap("Cannot access field \'" + field + "\'.");
+						throw "Cannot access field \'" + field + "\'.";
 					else
 						return null;
 				}
 			}
-			return haxe.lang.Runtime.unbox(prop.GetValue(obj, null));
+			return unbox(prop.GetValue(obj, null));
 		}
-
-	')
-	public static function slowGetField(obj:Dynamic, field:String, throwErrors:Bool):Dynamic
-	{
-		return null;
 	}
 
-	@:functionCode('
-		if (obj == null) return false;
-		System.Type t = obj as System.Type;
-		System.Reflection.BindingFlags bf;
-        if (t == null)
-		{
-			string s = obj as string;
-			if (s != null)
-				return haxe.lang.StringRefl.handleGetField(s, field, false) != null;
-			t = obj.GetType();
-			bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.FlattenHierarchy;
-		} else {
-			if (t == typeof(string))
-				return field.Equals("fromCharCode");
-			obj = null;
-			bf = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public;
-		}
-
-		System.Reflection.MemberInfo[] mi = t.GetMember(field, bf);
-		return mi != null && mi.Length > 0;
-	')
 	public static function slowHasField(obj:Dynamic, field:String):Bool
 	{
-		return false;
+		if (obj == null) return false;
+		var t = Lib.as(obj, cs.system.Type);
+		var bf =
+			if (t == null) {
+				var s = Lib.as(obj, String);
+				if (s != null)
+					return cs.internal.StringExt.StringRefl.handleGetField(s, field, false) != null;
+				t = obj.GetType();
+				new cs.Flags(BindingFlags.Instance) | BindingFlags.Public | BindingFlags.FlattenHierarchy;
+			} else {
+				if (t == Lib.toNativeType(String))
+					return field == "fromCharCode";
+				obj = null;
+				new cs.Flags(BindingFlags.Static) | BindingFlags.Public;
+			}
+		var mi = t.GetMember(field, bf);
+		return mi != null && mi.length > 0;
 	}
 
-	@:functionCode('
+	public static function slowSetField(obj:Dynamic, field:String, value:Dynamic):Dynamic
+	{
 		if (obj == null)
-			throw new System.NullReferenceException("Cannot access field \'" + field + "\' of null.");
+			throw new cs.system.NullReferenceException("Cannot access field \'" + field + "\' of null.");
 
-		System.Type t = obj as System.Type;
-		System.Reflection.BindingFlags bf;
-        if (t == null)
-		{
-			t = obj.GetType();
-			bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.FlattenHierarchy;
-		} else {
-			obj = null;
-			bf = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public;
-		}
+		var t = Lib.as(obj, cs.system.Type);
+		var bf =
+			if (t == null)
+			{
+				t = obj.GetType();
+				new cs.Flags(BindingFlags.Instance) | BindingFlags.Public | BindingFlags.FlattenHierarchy;
+			} else {
+				obj = null;
+				new cs.Flags(BindingFlags.Static) | BindingFlags.Public;
+			}
 
-		System.Reflection.FieldInfo f = t.GetField(field, bf);
+		var f = t.GetField(field, bf);
 		if (f != null)
 		{
 			if (f.FieldType.ToString().StartsWith("haxe.lang.Null"))
 			{
-				@value = haxe.lang.Runtime.mkNullable(@value, f.FieldType);
+				value = mkNullable(value, f.FieldType);
+			}
+			if (value != null && Object.ReferenceEquals(Lib.toNativeType(cs.system.Double), Lib.getNativeType(value)) && !Object.ReferenceEquals(t, f.FieldType))
+			{
+				var ic = Lib.as(value, IConvertible);
+				value = ic.ToType(f.FieldType, null);
 			}
 
-			f.SetValue(obj, @value);
-			return @value;
-		} else {
-			System.Reflection.PropertyInfo prop = t.GetProperty(field, bf);
+			f.SetValue(obj, value);
+			return value;
+		}
+		else
+		{
+			var prop = t.GetProperty(field, bf);
 			if (prop == null)
 			{
-				throw haxe.lang.HaxeException.wrap("Field \'" + field + "\' not found for writing from Class " + t);
+				// COM object handling
+				if (t.IsCOMObject)
+				{
+					try
+					{
+						return t.InvokeMember(field, BindingFlags.SetProperty, null, obj, cs.NativeArray.make(value));
+					}
+					catch (e:cs.system.Exception)
+					{
+						//Closures of COM objects not supported currently
+					}
+				}
+				throw "Field \'" + field + "\' not found for writing from Class " + t;
 			}
 
 			if (prop.PropertyType.ToString().StartsWith("haxe.lang.Null"))
 			{
-				@value = haxe.lang.Runtime.mkNullable(@value, prop.PropertyType);
+				value = mkNullable(value, prop.PropertyType);
 			}
-			prop.SetValue(obj, @value, null);
+			if (Object.ReferenceEquals(Lib.toNativeType(cs.system.Double), Lib.getNativeType(value)) && !Object.ReferenceEquals(t, f.FieldType))
+			{
+				var ic = Lib.as(value, IConvertible);
+				value = ic.ToType(f.FieldType, null);
+			}
+			prop.SetValue(obj, value, null);
 
-			return @value;
+			return value;
 		}
-
-	')
-	public static function slowSetField(obj:Dynamic, field:String, value:Dynamic):Dynamic
-	{
-		//not implemented yet;
-		throw "Not implemented";
-		return null;
 	}
 
 	public static function callMethod(obj:Dynamic, methods:NativeArray<MethodBase>, methodLength:Int, args:Array<Dynamic>):Dynamic
@@ -465,14 +434,14 @@ import cs.system.Type;
 		if (methodLength == 0) throw "No available methods";
 		var length = args.length;
 		var oargs:NativeArray<Dynamic> = new NativeArray(length);
-		var ts:NativeArray<cs.system.Type> = new NativeArray(length);
+		var ts:NativeArray<Type> = new NativeArray(length);
 		var rates:NativeArray<Int> = new NativeArray(methods.Length);
 
 		for (i in 0...length)
 		{
 			oargs[i] = args[i];
 			if (args[i] != null)
-				ts[i] = Lib.nativeType(args[i]);
+				ts[i] = Lib.getNativeType(args[i]);
 		}
 
 		var last = 0;
@@ -491,7 +460,7 @@ import cs.system.Type;
 					{
 						var param = params[i].ParameterType;
 						var strParam = param + "";
-						if (param.IsAssignableFrom(ts[i]))
+						if (param.IsAssignableFrom(ts[i]) || (ts[i] == null && !param.IsValueType))
 						{
 							//if it is directly assignable, we'll give it top rate
 							continue;
@@ -527,7 +496,7 @@ import cs.system.Type;
 		if (methodLength == 0)
 			throw "Invalid calling parameters for method " + methods[0].Name;
 
-		var best = Math.POSITIVE_INFINITY;
+		var best = cs.system.Double.PositiveInfinity;
 		var bestMethod = 0;
 		for(i in 0...methodLength)
 		{
@@ -543,16 +512,17 @@ import cs.system.Type;
 		for (i in 0...params.Length)
 		{
 			var param = params[i].ParameterType;
-			var strParam = param + "";
+			var strParam = param + "",
+					arg = oargs[i];
 			if (StringTools.startsWith(strParam, "haxe.lang.Null"))
 			{
-				oargs[i] = mkNullable(oargs[i], param);
+				oargs[i] = mkNullable(arg, param);
 			} else if (cast(untyped __typeof__(IConvertible), Type).IsAssignableFrom(param)) {
-				if (oargs[i] == null) {
+				if (arg == null) {
 					if (param.IsValueType)
 						oargs[i] = Activator.CreateInstance(param);
-				} else {
-					oargs[i] = cast(oargs[i], IConvertible).ToType(param, null);
+				} else if (!cs.Lib.getNativeType(arg).IsAssignableFrom(param)) {
+					oargs[i] = cast(arg, IConvertible).ToType(param, null);
 				}
 			}
 		}
@@ -583,7 +553,7 @@ import cs.system.Type;
 
 	public static function unbox(dyn:Dynamic):Dynamic
 	{
-		if (dyn != null && untyped (Lib.nativeType(dyn) + "").StartsWith("haxe.lang.Null"))
+		if (dyn != null && untyped (Lib.getNativeType(dyn) + "").StartsWith("haxe.lang.Null"))
 		{
 			return dyn.toDynamic();
 		} else {
@@ -591,130 +561,195 @@ import cs.system.Type;
 		}
 	}
 
+#if !erase_generics
 	@:functionCode('
 		if (nullableType.ContainsGenericParameters)
 			return haxe.lang.Null<object>.ofDynamic<object>(obj);
 		return nullableType.GetMethod("_ofDynamic").Invoke(null, new object[] { obj });
 	')
-	public static function mkNullable(obj:Dynamic, nullableType:cs.system.Type):Dynamic
+	public static function mkNullable(obj:Dynamic, nullableType:Type):Dynamic
 	{
 		return null;
 	}
+#else
+	public static function mkNullable(obj:Dynamic, nullable:Type):Dynamic
+	{
+		return obj; //do nothing
+	}
+#end
 
-	@:functionCode('
-		if (field == "toString")
+	// @:functionCode('
+	// 	if (field == "toString")
+	// 	{
+	// 		if (args == null)
+	// 			return obj.ToString();
+	// 		field = "ToString";
+	// 	}
+	// 	if (args == null) args = new Array<object>();
+
+	// 	System.Reflection.BindingFlags bf;
+	// 	System.Type t = obj as System.Type;
+	// 	if (t == null)
+	// 	{
+	// 		string s = obj as string;
+	// 		if (s != null)
+	// 			return haxe.lang.StringRefl.handleCallField(s, field, args);
+	// 		t = obj.GetType();
+	// 		bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.FlattenHierarchy;
+	// 	} else {
+	// 		if (t == typeof(string) && field.Equals("fromCharCode"))
+	// 			return haxe.lang.StringExt.fromCharCode(toInt(args[0]));
+	// 		obj = null;
+	// 		bf = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public;
+	// 	}
+
+	// 	System.Reflection.MethodInfo[] mis = t.GetMethods(bf);
+	// 	int last = 0;
+	// 	for (int i = 0; i < mis.Length; i++)
+	// 	{
+	// 		string name = mis[i].Name;
+	// 		if (name.Equals(field))
+	// 		{
+	// 			mis[last++] = mis[i];
+	// 		}
+	// 	}
+
+	// 	if (last == 0 && (field == "__get" || field == "__set"))
+	// 	{
+	// 		field = field == "__get" ? "get_Item" : "set_Item";
+	// 		for (int i = 0; i < mis.Length; i++)
+	// 		{
+	// 			string name = mis[i].Name;
+	// 			if (name.Equals(field))
+	// 			{
+	// 				mis[last++] = mis[i];
+	// 			}
+	// 		}
+	// 	}
+
+	// 	if (last == 0 && t.IsCOMObject)
+	// 	{
+	// 		object[] oargs = new object[arrLen(args)];
+	// 		for (int i = 0; i < oargs.Length; i++)
+	// 		{
+	// 			oargs[i] = args[i];
+	// 		}
+	// 		return t.InvokeMember(field, System.Reflection.BindingFlags.InvokeMethod, null, obj, oargs);
+	// 	}
+
+	// 	if (last == 0)
+	// 	{
+	// 		throw haxe.lang.HaxeException.wrap("Method \'" + field + "\' not found on type " + t);
+	// 	}
+
+	// 	return haxe.lang.Runtime.callMethod(obj, mis, last, args);
+	// ')
+	public static function slowCallField(obj:Dynamic, field:String, args:Array<Dynamic>):Dynamic
+	{
+		if (field == "toString" && (args == null || args.length == 0))
 		{
-			if (args == null)
-				return obj.ToString();
-			field = "ToString";
+			return obj.ToString();
 		}
-		if (args == null) args = new Array<object>();
+		if (args == null) args = [];
 
-		System.Reflection.BindingFlags bf;
-		System.Type t = obj as System.Type;
+		var bf:BindingFlags;
+		var t = Lib.as(obj,cs.system.Type);
 		if (t == null)
 		{
-			string s = obj as string;
+			var s = Lib.as(obj,String);
 			if (s != null)
-				return haxe.lang.StringRefl.handleCallField(s, field, args);
-			t = obj.GetType();
-			bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.FlattenHierarchy;
+				return cs.internal.StringExt.StringRefl.handleCallField(untyped s, untyped field, args);
+			t = untyped obj.GetType();
+			bf = new Flags(BindingFlags.Instance) | BindingFlags.Public | BindingFlags.FlattenHierarchy;
 		} else {
-			if (t == typeof(string) && field.Equals("fromCharCode"))
-				return haxe.lang.StringExt.fromCharCode(toInt(args[0]));
+			if (t == Lib.toNativeType(String) && field == 'fromCharCode')
+				return cs.internal.StringExt.fromCharCode(toInt(args[0]));
 			obj = null;
-			bf = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public;
+			bf = new Flags(BindingFlags.Static) | BindingFlags.Public;
 		}
 
-		System.Reflection.MethodInfo[] mis = t.GetMethods(bf);
-		int last = 0;
-		for (int i = 0; i < mis.Length; i++)
+		var mis:NativeArray<MethodBase> = untyped t.GetMethods(bf);
+		var last = 0;
+		for (i in 0...mis.Length)
 		{
-			if (mis[i].Name.Equals(field))
-			{
+			var name = mis[i].Name;
+			if (name == field)
 				mis[last++] = mis[i];
+		}
+
+		if (last == 0 && (field == "__get" || field == "__set"))
+		{
+			field = field == "__get" ? "get_Item" : "set_Item";
+			for (i in 0...mis.Length)
+			{
+				var name = mis[i].Name;
+				if (name == field)
+				{
+					mis[last++] = mis[i];
+				}
 			}
+		}
+
+		if (last == 0 && t.IsCOMObject)
+		{
+			var oargs = new NativeArray(args.length);
+			for (i in 0...oargs.Length)
+			{
+				oargs[i] = args[i];
+			}
+			return t.InvokeMember(field, BindingFlags.InvokeMethod, null, obj, oargs);
 		}
 
 		if (last == 0)
 		{
-			throw haxe.lang.HaxeException.wrap("Method \'" + field + "\' not found on type " + t);
+			throw 'Method "$field" not found on type $t';
 		}
 
-		return haxe.lang.Runtime.callMethod(obj, mis, last, args);
-	')
-	public static function slowCallField(obj:Dynamic, field:String, args:Array<Dynamic>):Dynamic
-	{
-		throw "not implemented";
-		return null;
+		return Runtime.callMethod(obj, mis, last, args);
 	}
 
-	@:functionCode('
-		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
-		if (hxObj != null)
-			return hxObj.__hx_invokeField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, args);
-
-		return slowCallField(obj, field, args);
-	')
 	public static function callField(obj:Dynamic, field:String, fieldHash:Int, args:Array<Dynamic>):Dynamic
 	{
-		return null;
+		var hxObj = Lib.as(obj, HxObject);
+		if (hxObj != null)
+			return untyped hxObj.__hx_invokeField(field, (fieldHash == 0) ? FieldLookup.hash(field) : fieldHash, args);
+		return slowCallField(obj, field, args);
 	}
 
-	@:functionCode('
-
-		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
-		if (hxObj != null)
-			return hxObj.__hx_getField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, throwErrors, false, false);
-
-		return slowGetField(obj, field, throwErrors);
-
-	')
 	public static function getField(obj:Dynamic, field:String, fieldHash:Int, throwErrors:Bool):Dynamic
 	{
-		return null;
+		var hxObj = Lib.as(obj, HxObject);
+		if (hxObj != null)
+			return untyped hxObj.__hx_getField(field, (fieldHash == 0) ? FieldLookup.hash(field) : fieldHash, throwErrors, false, false);
+
+		return slowGetField(obj, field, throwErrors);
 	}
 
-	@:functionCode('
-
-		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
-		if (hxObj != null)
-			return hxObj.__hx_getField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, throwErrors, false);
-
-		return toDouble(slowGetField(obj, field, throwErrors));
-
-	')
 	public static function getField_f(obj:Dynamic, field:String, fieldHash:Int, throwErrors:Bool):Float
 	{
-		return 0.0;
+		var hxObj = Lib.as(obj, HxObject);
+		if (hxObj != null)
+			return untyped hxObj.__hx_getField_f(field, (fieldHash == 0) ? FieldLookup.hash(field) : fieldHash, throwErrors, false);
+
+		return toDouble(slowGetField(obj, field, throwErrors));
 	}
 
-	@:functionCode('
-
-		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
-		if (hxObj != null)
-			return hxObj.__hx_setField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value, false);
-
-		return slowSetField(obj, field, value);
-
-	')
 	public static function setField(obj:Dynamic, field:String, fieldHash:Int, value:Dynamic):Dynamic
 	{
-		return null;
+		var hxObj = Lib.as(obj, HxObject);
+		if (hxObj != null)
+			return untyped hxObj.__hx_setField(field, (fieldHash == 0) ? FieldLookup.hash(field) : fieldHash, value, false);
+
+		return slowSetField(obj, field, value);
 	}
 
-	@:functionCode('
-
-		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
-		if (hxObj != null)
-			return hxObj.__hx_setField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value, false);
-
-		return toDouble(slowSetField(obj, field, value));
-
-	')
 	public static function setField_f(obj:Dynamic, field:String, fieldHash:Int, value:Float):Float
 	{
-		return 0.0;
+		var hxObj = Lib.as(obj, HxObject);
+		if (hxObj != null)
+			return untyped hxObj.__hx_setField_f(field, (fieldHash == 0) ? FieldLookup.hash(field) : fieldHash, value, false);
+
+		return toDouble(slowSetField(obj, field, value));
 	}
 
 	public static function toString(obj:Dynamic):String
@@ -730,19 +765,48 @@ import cs.system.Type;
 		return untyped obj.ToString();
 	}
 
-	@:functionCode('
-			if (t1 == null || t2 == null)
-				return t1 == t2;
-			string n1 = Type.getClassName(t1);
-			string n2 = Type.getClassName(t2);
-			return n1.Equals(n2);
-	')
-	public static function typeEq(t1:cs.system.Type, t2:cs.system.Type):Bool
+#if erase_generics
+	inline
+#end
+	public static function typeEq(t1:Type, t2:Type):Bool
 	{
-		return false;
+		if (t1 == null || t2 == null)
+			return t1 == t2;
+#if !erase_generics
+		var t1i = t1.IsInterface,
+		    t2i = t2.IsInterface;
+		if (t1i != t2i)
+		{
+			if (t1i)
+			{
+				var g = getGenericAttr(t1);
+				if (g != null)
+					t1 = g.generic;
+			} else {
+				var g = getGenericAttr(t2);
+				if (g != null)
+					t2 = g.generic;
+			}
+		}
+
+#end
+		if (t1.GetGenericArguments().Length > 0) t1 = t1.GetGenericTypeDefinition();
+		if (t2.GetGenericArguments().Length > 0) t2 = t2.GetGenericTypeDefinition();
+		return Object.ReferenceEquals(t1,t2);
 	}
 
 
+#if !erase_generics
+	public static function getGenericAttr(t:cs.system.Type):cs.internal.HxObject.GenericInterface
+	{
+		for (attr in t.GetCustomAttributes(true))
+			if (Std.is(attr,cs.internal.HxObject.GenericInterface))
+				return cast attr;
+		return null;
+	}
+#end
+
+#if !erase_generics
 	@:functionCode('
 		if (obj is To)
 			return (To) obj;
@@ -763,6 +827,7 @@ import cs.system.Type;
 	{
 		return null;
 	}
+#end
 
 	@:functionCode('
 		return (s1 == null ? "null" : s1) + (s2 == null ? "null" : s2);
@@ -772,12 +837,9 @@ import cs.system.Type;
 		return null;
 	}
 
-	@:functionCode('
-		return dyn == null ? false : ((bool) dyn);
-	')
 	public static function toBool(dyn:Dynamic):Bool
 	{
-		return false;
+		return if (dyn == null) false else untyped __cs__("(bool){0}", dyn);
 	}
 
 
@@ -796,7 +858,8 @@ import cs.system.Type;
 	}*/
 }
 
-@:keep @:native("haxe.lang.EmptyObject") private enum EmptyObject
+@:nativeGen
+@:keep @:native("haxe.lang.EmptyObject") enum EmptyObject
 {
 	EMPTY;
 }

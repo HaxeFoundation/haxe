@@ -1,12 +1,12 @@
 package flash.security;
 
 extern class X500DistinguishedName {
-	var commonName(default,null) : String;
-	var countryName(default,null) : String;
-	var localityName(default,null) : String;
-	var organizationName(default,null) : String;
-	var organizationalUnitName(default,null) : String;
-	var stateOrProvinceName(default,null) : String;
+	var commonName(default,never) : String;
+	var countryName(default,never) : String;
+	var localityName(default,never) : String;
+	var organizationName(default,never) : String;
+	var organizationalUnitName(default,never) : String;
+	var stateOrProvinceName(default,never) : String;
 	function new() : Void;
 	function toString() : String;
 }

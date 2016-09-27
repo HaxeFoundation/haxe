@@ -2,9 +2,9 @@ package flash.display;
 
 extern class DisplayObjectContainer extends InteractiveObject {
 	var mouseChildren : Bool;
-	var numChildren(default,null) : Int;
+	var numChildren(default,never) : Int;
 	var tabChildren : Bool;
-	var textSnapshot(default,null) : flash.text.TextSnapshot;
+	var textSnapshot(default,never) : flash.text.TextSnapshot;
 	function new() : Void;
 	function addChild(child : DisplayObject) : DisplayObject;
 	function addChildAt(child : DisplayObject, index : Int) : DisplayObject;

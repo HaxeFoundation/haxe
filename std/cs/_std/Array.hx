@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,40 +21,51 @@
  */
 import cs.NativeArray;
 
-@:classCode('
-	public Array(T[] native)
-	{
-		this.__a = native;
-		this.length = native.Length;
-	}
-')
-@:final @:coreApi class Array<T> implements ArrayAccess<T> {
+#if core_api_serialize
+@:meta(System.Serializable)
+#end
+@:final class Array<T> implements ArrayAccess<T> {
 
 	public var length(default,null) : Int;
 
 	private var __a:NativeArray<T>;
 
-	@:functionCode('
-			return new Array<X>(native);
-	')
-	private static function ofNative<X>(native:NativeArray<X>):Array<X>
+#if erase_generics
+	inline private static function ofNative<X>(native:NativeArray<Dynamic>):Array<X>
 	{
-		return null;
+		return new Array(native);
+	}
+#else
+	inline private static function ofNative<X>(native:NativeArray<X>):Array<X>
+	{
+		return new Array(native);
+	}
+#end
+
+	inline private static function alloc<Y>(size:Int):Array<Y>
+	{
+		return new Array(new NativeArray(size));
 	}
 
-	@:functionCode('
-			return new Array<Y>(new Y[size]);
-	')
-	private static function alloc<Y>(size:Int):Array<Y>
-	{
-		return null;
-	}
-
-	public function new() : Void
+	@:overload public function new() : Void
 	{
 		this.length = 0;
 		this.__a = new NativeArray(0);
 	}
+
+#if erase_generics
+	@:overload private function new(native:NativeArray<Dynamic>)
+	{
+		this.length = native.Length;
+		this.__a = untyped native;
+	}
+#else
+	@:overload private function new(native:NativeArray<T>)
+	{
+		this.length = native.Length;
+		this.__a = native;
+	}
+#end
 
 	public function concat( a : Array<T> ) : Array<T>
 	{
@@ -92,7 +103,11 @@ import cs.NativeArray;
 			i += len;
 			if (i < 0) i = 0;
 		}
-		return cs.system.Array._IndexOf(__a, x, i, len - i);
+		else if (i >= len)
+		{
+			return -1;
+		}
+		return cs.system.Array.IndexOf(__a, x, i, len - i);
 	}
 
 	public function lastIndexOf( x : T, ?fromIndex:Int ) : Int
@@ -223,23 +238,23 @@ import cs.NativeArray;
 
 	private function quicksort( lo : Int, hi : Int, f : T -> T -> Int ) : Void
 	{
-        var buf = __a;
+		var buf = __a;
 		var i = lo, j = hi;
-        var p = buf[(i + j) >> 1];
+		var p = buf[(i + j) >> 1];
 		while ( i <= j )
 		{
-			while ( f(buf[i], p) < 0 ) i++;
-            while ( f(buf[j], p) > 0 ) j--;
+			while ( i < hi && f(buf[i], p) < 0 ) i++;
+			while ( j > lo && f(buf[j], p) > 0 ) j--;
 			if ( i <= j )
 			{
-                var t = buf[i];
-                buf[i++] = buf[j];
-                buf[j--] = t;
-            }
+				var t = buf[i];
+				buf[i++] = buf[j];
+				buf[j--] = t;
+			}
 		}
 
 		if( lo < j ) quicksort( lo, j, f );
-        if( i < hi ) quicksort( i, hi, f );
+		if( i < hi ) quicksort( i, hi, f );
 	}
 
 	public function splice( pos : Int, len : Int ) : Array<T>
@@ -415,12 +430,7 @@ import cs.NativeArray;
 
 	private function __get(idx:Int):T
 	{
-		var __a = __a;
-		var idx:UInt = idx;
-		if (idx >= length)
-			return null;
-
-		return __a[idx];
+		return if ((cast idx : UInt) >= length) null else __a[idx];
 	}
 
 	private function __set(idx:Int, v:T):T

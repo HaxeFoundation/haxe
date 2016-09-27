@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,8 @@
  */
 package java.internal;
 import java.internal.IEquatable;
+import haxe.ds.Vector;
+
 private typedef StdType = Type;
 
 @:native('haxe.lang.HxObject')
@@ -31,14 +33,13 @@ private class HxObject implements IHxObject
 
 @:native('haxe.lang.IHxObject')
 @:keep
-private interface IHxObject
+interface IHxObject
 {
 }
 
 @:native('haxe.lang.DynamicObject')
-@:replaceReflection
 @:keep
-private class DynamicObject extends HxObject implements Dynamic
+class DynamicObject extends HxObject implements Dynamic
 {
 	@:skipReflection public function toString():String
 	{
@@ -64,26 +65,49 @@ private class DynamicObject extends HxObject implements Dynamic
 	}
 }
 
-@:native('haxe.lang.Enum')
-//@:skipCtor
-@:nativeGen
-@:keep
-private class Enum
+@:keep @:native('haxe.lang.Enum') @:nativeGen
+class HxEnum
 {
-	@:readOnly private var index:Int;
-	@:readOnly private var params:Array<{}>;
+	@:readOnly private var index(default,never):Int;
 
-	public function new(index:Int, params:Array<{}>)
+	public function new(index:Int)
 	{
-		this.index = index;
-		this.params = params;
+		untyped this.index = index;
 	}
-	@:final public function getTag():String
+
+	public function getTag():String
 	{
-		var cl:Dynamic = StdType.getEnum(cast this);
-		return cl.constructs[index];
+		return throw 'Not Implemented';
 	}
+
+	public function getParams():Array<{}>
+	{
+		return [];
+	}
+
 	public function toString():String
+	{
+		return getTag();
+	}
+}
+
+@:keep @:native('haxe.lang.ParamEnum') @:nativeGen
+private class ParamEnum extends HxEnum
+{
+	@:readOnly private var params(default,never):Vector<Dynamic>;
+
+	public function new(index:Int, params:Vector<Dynamic>)
+	{
+		super(index);
+		untyped this.params = params;
+	}
+
+	override public function getParams():Array<{}>
+	{
+		return params == null ? [] : cast params.toArray();
+	}
+
+	override public function toString():String
 	{
 		if (params == null || params.length == 0) return getTag();
 		var ret = new StringBuf();
@@ -100,11 +124,12 @@ private class Enum
 		ret.add(")");
 		return ret.toString();
 	}
+
 	public function equals(obj:Dynamic)
 	{
 		if (obj == this) //we cannot use == as .Equals !
 			return true;
-		var obj:Enum = cast obj;
+		var obj:ParamEnum = Std.is(obj,ParamEnum) ? cast obj : null;
 		var ret = obj != null && Std.is(obj, StdType.getEnum(cast this)) && obj.index == this.index;
 		if (!ret)
 			return false;
@@ -128,7 +153,7 @@ private class Enum
 		{
 			h = h * 31;
 			if (p != null)
-				h += untyped p.hashCode();
+				untyped h += p.hashCode();
 		}
 		h += index;
 		return h;

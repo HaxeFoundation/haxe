@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,18 +20,18 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla\SpeechRecognitionEvent.webidl line 13:0. Do not edit!
+
 package js.html;
 
 @:native("SpeechRecognitionEvent")
 extern class SpeechRecognitionEvent extends Event
 {
-	var result(default,null) : SpeechRecognitionResult;
-
-	var resultHistory(default,null) : SpeechRecognitionResultList;
-
 	var resultIndex(default,null) : Int;
-
-	function new( type : String, canBubble : Bool = true, cancelable : Bool = true ) : Void;
-
+	var results(default,null) : SpeechRecognitionResultList;
+	var interpretation(default,null) : Dynamic;
+	var emma(default,null) : HTMLDocument;
+	
+	/** @throws DOMError */
+	function new( type : String, ?eventInitDict : SpeechRecognitionEventInit ) : Void;
 }

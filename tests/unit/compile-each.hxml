@@ -1,6 +1,10 @@
 -D macro-times
 -debug
--cp ..
--resource res1.txt
--resource res2.bin
+-cp src
+-cp "C:\Program Files\The Haxe Effect\src/dev/null"
+-resource res1.txt@re/s?!%[]))("'1.txt
+-resource res2.bin@re/s?!%[]))("'1.bin
 -dce full
+-D analyzer
+-D analyzer-code-motion
+-D analyzer-user-var-fusion

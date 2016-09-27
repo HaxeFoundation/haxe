@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,34 +21,34 @@
  */
 package sys.net;
 
+import cpp.NativeSocket;
+
 @:coreApi
 class Host {
+
+	public var host(default,null) : String;
 
 	public var ip(default,null) : Int;
 
 	public function new( name : String ) : Void {
-		ip = host_resolve(name);
+		host = name;
+		ip = NativeSocket.host_resolve(name);
 	}
 
 	public function toString() : String {
-		return new String(host_to_string(ip));
+		return NativeSocket.host_to_string(ip);
 	}
 
 	public function reverse() : String {
-		return new String(host_reverse(ip));
+		return NativeSocket.host_reverse(ip);
 	}
 
 	public static function localhost() : String {
-		return new String(host_local());
+		return NativeSocket.host_local();
 	}
 
 	static function __init__() : Void {
-		cpp.Lib.load("std","socket_init",0)();
+		NativeSocket.socket_init();
 	}
-
-	private static var host_resolve = cpp.Lib.load("std","host_resolve",1);
-	private static var host_reverse = cpp.Lib.load("std","host_reverse",1);
-	private static var host_to_string = cpp.Lib.load("std","host_to_string",1);
-	private static var host_local = cpp.Lib.load("std","host_local",0);
 
 }

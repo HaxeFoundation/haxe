@@ -1,0 +1,5 @@
+package unit;
+
+interface MyInterface
+{
+}

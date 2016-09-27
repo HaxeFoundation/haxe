@@ -1,0 +1,15 @@
+cs.Boot
+-dce no
+-cs bin/haxeboot
+--next
+-net-lib bin/haxeboot/bin/haxeboot.dll
+-dce no
+-D dll_import
+Lib1
+-cs bin/lib1
+--next
+-net-lib bin/haxeboot/bin/haxeboot.dll
+-dce no
+-D dll_import
+-main Main
+-cs bin/main

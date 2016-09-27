@@ -1,0 +1,13 @@
+compile-each.hxml
+-main Main
+-cs bin/cs
+
+--next
+compile-each.hxml
+-main TestArguments
+-cs bin/cs
+
+--next
+compile-each.hxml
+-main ExitCode
+-cs bin/cs

@@ -14,14 +14,15 @@ compile-java-runner.hxml
 
 # targets
 
---next compile-flash8.hxml
 --next compile-flash9.hxml
 --next compile-js.hxml
+--next compile-lua.hxml
 --next compile-neko.hxml
 --next compile-php.hxml
 --next compile-as3.hxml
 --next compile-cpp.hxml
 --next compile-java.hxml
 --next compile-cs.hxml
+--next compile-python.hxml
 --next compile-macro.hxml
 --next compile-cs-unsafe.hxml

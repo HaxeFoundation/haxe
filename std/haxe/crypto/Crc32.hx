@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,14 +21,17 @@
  */
 package haxe.crypto;
 
+/**
+    Calculates the Crc32 of the given Bytes.
+*/
 class Crc32 {
 
 	var crc : Int;
-	
+
 	public function new() {
 		crc = 0xFFFFFFFF;
 	}
-	
+
 	public function byte( b : Int ) {
 		var tmp = (crc ^ b) & 0xFF;
 		for( j in 0...8 ) {
@@ -39,7 +42,7 @@ class Crc32 {
 		}
 		crc = (crc >>> 8) ^ tmp;
 	}
-	
+
 	public function update( b : haxe.io.Bytes, pos, len ) {
 		var b = b.getData();
 		for( i in pos...pos+len ) {
@@ -53,11 +56,11 @@ class Crc32 {
 			crc = (crc >>> 8) ^ tmp;
 		}
 	}
-	
+
 	public function get() {
 		return crc ^ 0xFFFFFFFF;
 	}
-	
+
 	/**
 		Calculates the CRC32 of the given data bytes
 	**/

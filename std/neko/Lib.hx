@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,11 @@
  */
 package neko;
 
+/**
+	Platform-specific Neko Library. Provides some platform-specific functions 
+	for the Neko target, such as conversion from Haxe types to native types 
+	and vice-versa.
+**/
 class Lib {
 
 	/**
@@ -69,14 +74,14 @@ class Lib {
 	}
 
 	/**
-		Unserialize a string using native Neko serialization. See [serialize].
+		Unserialize a string using native Neko serialization. See `serialize`.
 	**/
 	public static function unserialize( s : haxe.io.Bytes ) : Dynamic {
 		return untyped __unserialize(s.getData(),__dollar__loader);
 	}
 
 	/**
-		Unserialize a string using native Neko serialization. See [serialize].
+		Unserialize a string using native Neko serialization. See `serialize`.
 		This function assume that all the serialized data was serialized with current
 		module, even if the module name was different. This can happen if you are unserializing
 		some data into mod_neko that was serialized on a different server using a different
@@ -122,7 +127,7 @@ class Lib {
 	}
 
 	/**
-		Converts a Neko value to its Haxe equivalent. Used to unwrap String and Arrays Objects into raw Neko values.
+		Converts a Haxe value to its Neko equivalent. Used to unwrap String and Arrays Objects into raw Neko values.
 	**/
 	public static function haxeToNeko( v : Dynamic ) : Dynamic untyped {
 		switch( __dollar__typeof(v) ) {

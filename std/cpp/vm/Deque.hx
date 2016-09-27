@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -33,7 +33,7 @@ class Deque<T> {
 	public function push( i : T ) {
 		untyped __global__.__hxcpp_deque_push(q,i);
 	}
-	public function pop( block : Bool ) : T {
+	public function pop( block : Bool ) : Null<T> {
 		return untyped __global__.__hxcpp_deque_pop(q,block);
 	}
 }

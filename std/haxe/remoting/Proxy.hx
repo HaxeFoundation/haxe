@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +22,7 @@
 package haxe.remoting;
 
 /**
-	This class is magic. When you extend it with a class C, it will automaticaly
+	When you extend it with a class C, it will automatically
 	create a stub class with all public methods forwarding remoting messages over
 	the connection.
 **/

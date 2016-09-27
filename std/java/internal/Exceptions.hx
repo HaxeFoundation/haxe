@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,17 +24,22 @@ import java.lang.Throwable;
 import java.lang.RuntimeException;
 import java.lang.Exception;
 
-@:allow(haxe.CallStack)
-@:allow(java.lang.RuntimeException)
 @:native("haxe.lang.Exceptions")
 class Exceptions {
-	private static var exception = new java.lang.ThreadLocal<java.lang.RuntimeException>();
+	private static var exception = new java.lang.ThreadLocal<java.lang.Throwable>();
 
-	private static function currentException() {
+	@:keep private static function setException(exc:Throwable)
+	{
+		exception.set(exc);
+	}
+
+	public static function currentException()
+	{
 		return exception.get();
 	}
 }
 
+@:classCode("public static final long serialVersionUID = 5956463319488556322L;")
 @:nativeGen @:keep @:native("haxe.lang.HaxeException") private class HaxeException extends RuntimeException
 {
 	private var obj:Dynamic;
@@ -57,9 +62,25 @@ class Exceptions {
 		return obj;
 	}
 
+#if !debug
+	@:overload override public function fillInStackTrace():Throwable
+	{
+		return this;
+	}
+#end
+
 	@:overload override public function toString():String
 	{
 		return "Haxe Exception: " + obj;
+	}
+	
+	@:overload override public function getMessage():String
+	{
+		return switch (super.getMessage())
+		{
+			case null: Std.string(obj);
+			case message: message;
+		}
 	}
 
 	public static function wrap(obj:Dynamic):RuntimeException
@@ -70,10 +91,9 @@ class Exceptions {
 		else if (Std.is(obj, String))
 			ret = new HaxeException(obj, obj, null);
  		else if (Std.is(obj, Throwable))
-			ret = new HaxeException(obj, null, obj);
+			ret = new HaxeException(obj, Std.string(obj), obj);
 		else
-			ret = new HaxeException(obj, null, null);
-		Exceptions.exception.set( ret );
+			ret = new HaxeException(obj, Std.string(obj), null);
 		return ret;
 	}
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,11 @@
  */
 package php;
 
+/**
+	Platform-specific PHP Library. Provides some platform-specific functions 
+	for the PHP target, such as conversion from Haxe types to native types 
+	and vice-versa.
+**/
 class Lib {
 	/**
 		Print the specified value on the default output.
@@ -30,32 +35,41 @@ class Lib {
 	}
 
 	/**
-		Print the specified value on the default output followed by a newline character.
+		Print the specified value on the default output followed by 
+		a newline character.
 	**/
 	public static function println( v : Dynamic ) : Void {
 		print(v);
 		print("\n");
 	}
 
+	/**
+		Displays structured information about one or more expressions 
+		that includes its type and value. Arrays and objects are 
+		explored recursively with values indented to show structure.
+	*/
 	public static function dump(v : Dynamic) : Void {
 		untyped __call__("var_dump", v);
 	}
 
 	/**
-		Serialize using native PHP serialization. This will return a Binary string that can be
-		stored for long term usage.
+		Serialize using native PHP serialization. This will return a binary 
+		`String` that can be stored for long term usage.
 	**/
 	public static function serialize( v : Dynamic ) : String {
 		return untyped __call__("serialize", v);
 	}
 
 	/**
-		Unserialize a string using native PHP serialization. See [serialize].
+		Unserialize a `String` using native PHP serialization. See `php.Lib.serialize()`.
 	**/
 	public static function unserialize( s : String ) : Dynamic {
 		return untyped __call__("unserialize", s);
 	}
 
+	/**
+		Find out whether an extension is loaded.
+	*/
 	public static function extensionLoaded(name : String) {
 		return untyped __call__("extension_loaded", name);
 	}
@@ -64,6 +78,9 @@ class Lib {
 		return untyped __php__("(0 == strncasecmp(PHP_SAPI, 'cli', 3))");
 	}
 
+	/**
+		Output file content from the given file name.
+	*/
 	public static function printFile(file : String) {
 		return untyped __call__("fpassthru", __call__("fopen", file,  "r"));
 	}
@@ -76,7 +93,7 @@ class Lib {
 		return untyped __call__("new _hx_array", a);
 	}
 
-	public static function hashOfAssociativeArray<T>(arr : NativeArray) : haxe.ds.StringMap<T> {
+	public static function hashOfAssociativeArray<T>(arr : NativeArray) : Map<String,T> {
 		var h = new haxe.ds.StringMap<T>();
 		untyped h.h = arr;
 		return h;
@@ -99,7 +116,7 @@ class Lib {
 
 	/**
 	 * See the documentation for the equivalent PHP function for details on usage:
-	 * http://php.net/manual/en/function.mail.php
+	 * <http://php.net/manual/en/function.mail.php>
 	 * @param	to
 	 * @param	subject
 	 * @param	message
@@ -160,17 +177,17 @@ class Lib {
  		//Calling this function will put all types present in the specified types in the $_hx_types_array
  		_hx_build_paths($pathToLib, $_hx_types_array, array(), $prefix);
 
- 		for($i=0;$i<count($_hx_types_array);$i++) {
+ 		foreach($_hx_types_array as $val) {
  			//For every type that has been found, create its description
  			$t = null;
- 			if($_hx_types_array[$i]['type'] == 0) {
- 				$t = new _hx_class($_hx_types_array[$i]['phpname'], $_hx_types_array[$i]['qname'], $_hx_types_array[$i]['path']);
- 			} else if($_hx_types_array[$i]['type'] == 1) {
- 				$t = new _hx_enum($_hx_types_array[$i]['phpname'], $_hx_types_array[$i]['qname'], $_hx_types_array[$i]['path']);
- 			} else if($_hx_types_array[$i]['type'] == 2) {
- 				$t = new _hx_interface($_hx_types_array[$i]['phpname'], $_hx_types_array[$i]['qname'], $_hx_types_array[$i]['path']);
- 			} else if($_hx_types_array[$i]['type'] == 3) {
- 				$t = new _hx_class($_hx_types_array[$i]['name'], $_hx_types_array[$i]['qname'], $_hx_types_array[$i]['path']);
+ 			if($val['type'] == 0) {
+ 				$t = new _hx_class($val['phpname'], $val['qname'], $val['path']);
+ 			} else if($val['type'] == 1) {
+ 				$t = new _hx_enum($val['phpname'], $val['qname'], $val['path']);
+ 			} else if($val['type'] == 2) {
+ 				$t = new _hx_interface($val['phpname'], $val['qname'], $val['path']);
+ 			} else if($val['type'] == 3) {
+ 				$t = new _hx_class($val['name'], $val['qname'], $val['path']);
  			}
  			//Register the type
  			if(!array_key_exists($t->__qname__, php_Boot::$qtypes)) {

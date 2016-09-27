@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +22,7 @@
 package haxe.crypto;
 
 /**
-	Allows to encode/decode String and bytes using a power of two base dictionnary.
+	Allows to encode/decode String and bytes using a power of two base dictionary.
 **/
 class BaseCode {
 
@@ -42,7 +42,7 @@ class BaseCode {
 	}
 
 	public function encodeBytes( b : haxe.io.Bytes ) : haxe.io.Bytes {
-		#if neko
+		#if (neko && !interp)
 		return haxe.io.Bytes.ofData( base_encode(b.getData(),base.getData()) );
 		#else
 		var nbits = this.nbits;
@@ -79,7 +79,7 @@ class BaseCode {
 	}
 
 	public function decodeBytes( b : haxe.io.Bytes ) : haxe.io.Bytes {
-		#if neko
+		#if (neko && !interp)
 		return haxe.io.Bytes.ofData( base_decode(b.getData(),base.getData()) );
 		#else
 		var nbits = this.nbits;
@@ -109,7 +109,7 @@ class BaseCode {
 	}
 
 	public function encodeString( s : String ) {
-		#if neko
+		#if (neko && !interp)
 		return neko.NativeString.toString( base_encode(neko.NativeString.ofString(s),base.getData()) );
 		#else
 		return encodeBytes(haxe.io.Bytes.ofString(s)).toString();
@@ -117,7 +117,7 @@ class BaseCode {
 	}
 
 	public function decodeString( s : String ) {
-		#if neko
+		#if (neko && !interp)
 		return neko.NativeString.toString( base_decode(neko.NativeString.ofString(s),base.getData()) );
 		#else
 		return decodeBytes(haxe.io.Bytes.ofString(s)).toString();

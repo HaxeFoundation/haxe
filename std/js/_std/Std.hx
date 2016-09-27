@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,19 +27,21 @@ import js.Boot;
 	public static inline function is( v : Dynamic, t : Dynamic ) : Bool {
 		return untyped js.Boot.__instanceof(v,t);
 	}
-	
+
 	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
 		return untyped __instanceof__(value, c) ? cast value : null;
 	}
 
+	@:pure
 	public static function string( s : Dynamic ) : String {
 		return untyped js.Boot.__string_rec(s,"");
 	}
 
 	public static inline function int( x : Float ) : Int {
-		return cast(x) | 0;
+		return (cast x) | 0;
 	}
 
+	@:pure
 	public static function parseInt( x : String ) : Null<Int> {
 		var v = untyped __js__("parseInt")(x, 10);
 		// parse again if hexadecimal
@@ -50,12 +52,12 @@ import js.Boot;
 		return cast v;
 	}
 
-	public static function parseFloat( x : String ) : Float {
+	public static inline function parseFloat( x : String ) : Float {
 		return untyped __js__("parseFloat")(x);
 	}
 
 	public static function random( x : Int ) : Int {
-		return untyped x <= 0 ? 0 : Math.floor(Math.random()*x);
+		return x <= 0 ? 0 : Math.floor(Math.random()*x);
 	}
 
 	static function __init__() : Void untyped {
@@ -91,7 +93,7 @@ import js.Boot;
 			var Void = __feature__("Type.resolveEnum", $hxClasses["Void"] = { __ename__ : ["Void"] }, { __ename__ : ["Void"] });
 		});
 
-#if !js_es5
+#if (js_es < 5)
 		__feature__("Array.map",
 			if( Array.prototype.map == null )
 				Array.prototype.map = function(f) {

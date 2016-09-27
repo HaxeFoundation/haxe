@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,18 +22,43 @@
 package haxe.unit;
 import Reflect;
 
+/**
+	This class runs unit test cases and prints the result.
+	
+	```haxe
+	var r = new haxe.unit.TestRunner();
+	r.add(new MyTestCase());
+	// add other TestCases here
+	
+	// finally, run the tests
+	r.run();
+	```
+	
+	@see <https://haxe.org/manual/std-unit-testing.html>
+**/
 class TestRunner {
+	/**
+		The unit test results. Available after the `run()` is called.
+	**/
 	public var result(default, null) : TestResult;
+
 	var cases  : List<TestCase>;
 
-#if flash9
+#if flash
 	static var tf : flash.text.TextField = null;
-#elseif flash
-	static var tf : flash.TextField = null;
 #end
 
+	/**
+		Prints the given object/value.
+		
+		 * Flash outputs the result in a new `TextField` on stage.
+		 * JavaScript outputs the result using `console.log`.
+		 * Other targets use native `print` to output the result.
+
+		This function is `dynamic` so it can be overriden in custom setups.
+	**/
 	public static dynamic function print( v : Dynamic ) untyped {
-		#if flash9
+		#if flash
 			if( tf == null ) {
 				tf = new flash.text.TextField();
 				tf.selectable = false;
@@ -42,21 +67,6 @@ class TestRunner {
 				flash.Lib.current.addChild(tf);
 			}
 			tf.appendText(v);
-		#elseif flash
-			var root = flash.Lib.current;
-			if( tf == null ) {
-				root.createTextField("__tf",1048500,0,0,flash.Stage.width,flash.Stage.height+30);
-				tf = root.__tf;
-				tf.selectable = false;
-				tf.wordWrap = true;
-			}
-			var s = flash.Boot.__string_rec(v,"");
-			tf.text += s;
-			while( tf.textHeight > flash.Stage.height ) {
-				var lines = tf.text.split("\r");
-				lines.shift();
-				tf.text = lines.join("\n");
-			}
 		#elseif neko
 			__dollar__print(v);
 		#elseif php
@@ -66,11 +76,11 @@ class TestRunner {
 		#elseif js
 			var msg = js.Boot.__string_rec(v,"");
 			var d;
-            if( __js__("typeof")(document) != "undefined"
-                    && (d = document.getElementById("haxe:trace")) != null ) {
-                msg = msg.split("\n").join("<br/>");
-                d.innerHTML += StringTools.htmlEscape(msg)+"<br/>";
-            }
+			if( __js__("typeof")(document) != "undefined"
+				&& (d = document.getElementById("haxe:trace")) != null ) {
+				msg = StringTools.htmlEscape(msg).split("\n").join("<br/>");
+				d.innerHTML += msg+"<br/>";
+			}
 			else if (  __js__("typeof process") != "undefined"
 					&& __js__("process").stdout != null
 					&& __js__("process").stdout.write != null)
@@ -84,6 +94,10 @@ class TestRunner {
 		#elseif java
 			var str:String = v;
 			untyped __java__("java.lang.System.out.print(str)");
+		#elseif python
+			python.Lib.print(v);
+		#elseif (hl || lua)
+			Sys.print(Std.string(v));
 		#end
 	}
 
@@ -96,10 +110,18 @@ class TestRunner {
 		cases = new List();
 	}
 
+	/**
+		Add TestCase instances to the unit test.
+	**/
 	public function add( c:TestCase ) : Void{
 		cases.add(c);
 	}
 
+	/**
+		Runs the unit tests and prints the results.
+		
+		@return `true` if the unit test succesfully executed the test cases.
+	**/
 	public function run() : Bool {
 		result = new TestResult();
 		for ( c in cases ){

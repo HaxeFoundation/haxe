@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,25 +23,25 @@
  /**
 	The Date class provides a basic structure for date and time related
 	information. Date instances can be created by
-	
+
 	- `new Date()` for a specific date,
 	- `Date.now()` to obtain information about the current time,
 	- `Date.fromTime()` with a given timestamp or
 	- `Date.fromString()` by parsing from a String.
-	
-	There is some extra functions available in the `DateTools` class.
-	
-	In the context of haxe dates, a timestamp is defined as the number of
+
+	There are some extra functions available in the `DateTools` class.
+
+	In the context of Haxe dates, a timestamp is defined as the number of
 	milliseconds elapsed since 1st January 1970.
 **/
 extern class Date
 {
 	/**
 		Creates a new date object from the given arguments.
-		
+
 		The behaviour of a Date instance is only consistent across platforms if
 		the the arguments describe a valid date.
-		
+
 		- month: 0 to 11
 		- day: 1 to 31
 		- hour: 0 to 23
@@ -51,8 +51,8 @@ extern class Date
 	function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void;
 
 	/**
-		Returns the timestamp of the date. It might only have a per-second
-		precision depending on the platforms.
+		Returns the timestamp (in milliseconds) of the date. It might
+		only have a per-second precision depending on the platforms.
 	**/
 	function getTime() : Float;
 
@@ -111,11 +111,11 @@ extern class Date
 	/**
 		Returns a Date from a formated string `s`, with the following accepted
 		formats:
-		
+
 		- `"YYYY-MM-DD hh:mm:ss"`
 		- `"YYYY-MM-DD"`
 		- `"hh:mm:ss"`
-		
+
 		The first two formats are expressed in local time, the third in UTC
 		Epoch.
 	**/
@@ -124,17 +124,13 @@ extern class Date
 
 #if flash
 	private static function __init__() : Void untyped {
-		var d #if !swf_mark : Dynamic #end = Date;
+		var d : Dynamic = Date;
 		d.now = function() {
 			return __new__(Date);
 		};
 		d.fromTime = function(t){
 			var d : Date = __new__(Date);
-			#if flash9
 			d.setTime(t);
-			#else
-			d["setTime"]( t );
-			#end
 			return d;
 		};
 		d.fromString = function(s : String) {
@@ -142,17 +138,10 @@ extern class Date
 			case 8: // hh:mm:ss
 				var k = s.split(":");
 				var d : Date = __new__(Date);
-				#if flash9
 				d.setTime(0);
 				d.setUTCHours(k[0]);
 				d.setUTCMinutes(k[1]);
 				d.setUTCSeconds(k[2]);
-				#else
-				d["setTime"](0);
-				d["setUTCHours"](k[0]);
-				d["setUTCMinutes"](k[1]);
-				d["setUTCSeconds"](k[2]);
-				#end
 				return d;
 			case 10: // YYYY-MM-DD
 				var k = s.split("-");
@@ -180,11 +169,6 @@ extern class Date
 				+":"+(if( mi < 10 ) "0"+mi else ""+mi)
 				+":"+(if( s < 10 ) "0"+s else ""+s);
 		};
-		#if flash9
-		#elseif flash
-		d.prototype[__unprotect__("__class__")] = d;
-		d[__unprotect__("__name__")] = ["Date"];
-		#end
 	}
 #end
 }

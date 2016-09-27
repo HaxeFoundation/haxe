@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,26 +19,19 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package;
-import cs.system.Random;
-
 @:coreApi @:nativeGen class Math
 {
-	public static inline function __init__():Void
-	{
-		PI = cs.system.Math.PI;
-		NaN = untyped __cs__("double.NaN");
-		NEGATIVE_INFINITY = untyped __cs__("double.NegativeInfinity");
-		POSITIVE_INFINITY = untyped __cs__("double.PositiveInfinity");
-		rand = new Random();
+	@:readOnly
+	private static var rand = new cs.system.Random();
 
-	}
-
-	private static var rand:Random;
-	public static var PI(default, null) : Float;
-	public static var NaN(default,null) : Float;
-	public static var NEGATIVE_INFINITY(default,null) : Float;
-	public static var POSITIVE_INFINITY(default,null) : Float;
+	@:readOnly
+	public static var PI(default,null) = cs.system.Math.PI;
+	@:readOnly
+	public static var NaN(default,null) = cs.system.Double.NaN;
+	@:readOnly
+	public static var NEGATIVE_INFINITY(default,null) = cs.system.Double.NegativeInfinity;
+	@:readOnly
+	public static var POSITIVE_INFINITY(default,null) = cs.system.Double.PositiveInfinity;
 
 	public static inline function abs(v:Float):Float
 	{
@@ -92,7 +85,7 @@ import cs.system.Random;
 
 	public static inline function fround(v:Float):Float
 	{
-		return cs.system.Math.Round(v);
+		return cs.system.Math.Floor(v + 0.5);
 	}
 
 	public static inline function ffloor(v:Float):Float
@@ -153,13 +146,13 @@ import cs.system.Random;
 		return rand.NextDouble();
 	}
 
-	public static function isFinite( f : Float ) : Bool
+	public static inline function isFinite( f : Float ) : Bool
 	{
-		return untyped __cs__("!double.IsInfinity(f) && !double.IsNaN(f)");
+		return !cs.system.Double.IsInfinity(f) && !cs.system.Double.IsNaN(f);
 	}
 
-	public static function isNaN( f : Float ) : Bool
+	public static inline function isNaN( f : Float ) : Bool
 	{
-		return untyped __cs__("double.IsNaN(f)");
+		return cs.system.Double.IsNaN(f);
 	}
 }

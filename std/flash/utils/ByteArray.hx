@@ -1,7 +1,7 @@
 package flash.utils;
 
 extern class ByteArray implements IDataOutput2 implements IDataInput2 implements ArrayAccess<Int> {
-	var bytesAvailable(default,null) : UInt;
+	var bytesAvailable(default,never) : UInt;
 	var endian : Endian;
 	var length : UInt;
 	var objectEncoding : UInt;

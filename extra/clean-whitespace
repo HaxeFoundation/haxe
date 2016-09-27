@@ -1,0 +1,6 @@
+#!/bin/sh
+#
+# Remove trailing whitespace from Haxe files
+
+# Exclude generated js.html.* for now
+find  -path ./std/js/html -prune -o -name '*.hx' -print0 | xargs -0 perl -pi -e "s/[ \t]+$//"

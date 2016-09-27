@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -37,7 +37,7 @@ import sys.db.Connection;
 		if (params.socket !=null)
 			dsn+="unix_socket="+params.socket+";";
 		else{
-			dsn+="host="+params.host+";"; 
+			dsn+="host="+params.host+";";
 			if (params.port!=null)
 				dsn+='port='+params.port+";";
 		}

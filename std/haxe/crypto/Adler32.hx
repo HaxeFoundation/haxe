@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,9 @@
  */
 package haxe.crypto;
 
+/**
+    Calculates the Adler32 of the given Bytes.
+*/
 class Adler32 {
 
 	var a1 : Int;
@@ -53,7 +56,7 @@ class Adler32 {
 	public function toString() {
 		return StringTools.hex(a2,8) + StringTools.hex(a1,8);
 	}
-	
+
 	public static function read( i : haxe.io.Input ) {
 		var a = new Adler32();
 		var a2a = i.readByte();
@@ -70,6 +73,6 @@ class Adler32 {
 		a.update(b,0,b.length);
 		return a.get();
 	}
-	
+
 
 }

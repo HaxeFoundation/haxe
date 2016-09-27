@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,7 +23,7 @@ package haxe.ds;
 
 import java.NativeArray;
 
-@:coreApi class ObjectMap<K:{}, V> implements Map.IMap<K,V>
+@:coreApi class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K,V>
 {
 	@:extern private static inline var HASH_UPPER = 0.77;
 	@:extern private static inline var FLAG_EMPTY = 0;
@@ -79,14 +79,17 @@ import java.NativeArray;
 			k = hash(key);
 			var i = k & mask, nProbes = 0;
 
+			var delKey = -1;
 			//for speed up
-			if (isEither(hashes[i])) {
+			if (isEmpty(hashes[i])) {
 				x = i;
 			} else {
 				//var inc = getInc(k, mask);
 				var last = i, flag;
-				while(! (isEither(flag = hashes[i]) || (flag == k && untyped keys[i].equals(key))) )
+				while(! (isEmpty(flag = hashes[i]) || (flag == k && untyped keys[i].equals(key))) )
 				{
+					if (isDel(flag) && delKey == -1)
+						delKey = i;
 					i = (i + ++nProbes) & mask;
 #if DEBUG_HASHTBL
 					probeTimes++;
@@ -94,7 +97,11 @@ import java.NativeArray;
 						throw "assert";
 #end
 				}
-				x = i;
+
+				if (isEmpty(flag) && delKey != -1)
+					x = delKey;
+				else
+					x = i;
 			}
 
 #if DEBUG_HASHTBL

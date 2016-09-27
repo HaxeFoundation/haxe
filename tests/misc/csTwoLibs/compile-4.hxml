@@ -1,0 +1,21 @@
+cs.Boot
+-dce no
+-cs bin/haxeboot
+-D erase_generics
+-D no_root
+--next
+-net-lib bin/haxeboot/bin/haxeboot.dll
+-dce no
+-D dll_import
+-D erase_generics
+-D no_root
+Lib1
+-cs bin/lib1
+--next
+-net-lib bin/haxeboot/bin/haxeboot.dll
+-dce no
+-D dll_import
+-D erase_generics
+-D no_root
+-main Main
+-cs bin/main

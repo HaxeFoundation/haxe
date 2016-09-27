@@ -1,5 +1,0 @@
-package unit;
-
-interface MyInterface 
-{
-}

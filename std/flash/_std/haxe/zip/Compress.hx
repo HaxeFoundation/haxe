@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -38,7 +38,7 @@ class Compress {
 	public function close() : Void {
 	}
 
-	public static function run( s : haxe.io.Bytes, level : Int ) : haxe.io.Bytes {		
+	public static function run( s : haxe.io.Bytes, level : Int ) : haxe.io.Bytes {
 		if( s.length == 0 ) {
 			// Flash returns 0 bytes for 0 length compress (which can't be decoded on other platforms...)
 			var b = haxe.io.Bytes.alloc(8);

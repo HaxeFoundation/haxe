@@ -1,112 +1,124 @@
 /*
- * Copyright (c)2005-2013, Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * Redistributions of source code must retain the above copyright notice, this
- * list of conditions and the following disclaimer.
- * Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- * Neither the name of the Haxe Foundation nor the names of its contributors
- * may be used to endorse or promote products derived from this software without
- * specific prior written permission.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  */
 
 package haxe.xml;
 
+/**
+	This class provides utility methods to convert Xml instances to 
+	String representation.
+**/
 class Printer {
-	
-	static public function print(xml:Xml) {
-		var printer = new Printer();
+	/**
+		Convert `Xml` to string representation.
+		
+		Set `pretty` to `true` to prettify the result.
+	**/
+	static public function print(xml:Xml, ?pretty = false) {
+		var printer = new Printer(pretty);
 		printer.writeNode(xml, "");
 		return printer.output.toString();
 	}
-	
+
 	var output:StringBuf;
-	
-	function new() {
+	var pretty:Bool;
+
+	function new(pretty) {
 		output = new StringBuf();
+		this.pretty = pretty;
 	}
-	
+
 	function writeNode(value:Xml, tabs:String) {
 		switch (value.nodeType) {
-			case Xml.CData:
+			case CData:
 				write(tabs + "<![CDATA[");
 				write(StringTools.trim(value.nodeValue));
 				write("]]>");
 				newline();
-			case Xml.Comment:
+			case Comment:
 				var commentContent:String = value.nodeValue;
 				commentContent = ~/[\n\r\t]+/g.replace(commentContent, "");
+				commentContent = "<!--" + commentContent + "-->";
 				write(tabs);
 				write(StringTools.trim(commentContent));
 				newline();
-			case Xml.Document:
+			case Document:
 				for (child in value) {
 					writeNode(child, tabs);
 				}
-			case Xml.Element:
+			case Element:
 				write(tabs + "<");
 				write(value.nodeName);
 				for (attribute in value.attributes()) {
 					write(" " + attribute + "=\"");
-					write(value.get(attribute));
+					write(StringTools.htmlEscape(value.get(attribute), true));
 					write("\"");
 				}
 				if (hasChildren(value)) {
 					write(">");
 					newline();
 					for (child in value) {
-						writeNode(child, tabs + "\t");
+						writeNode(child, pretty ? tabs + "\t" : tabs);
 					}
 					write(tabs + "</");
 					write(value.nodeName);
 					write(">");
 					newline();
 				} else {
-					write(" />");
+					write("/>");
 					newline();
 				}
-		case Xml.PCData:
-			var nodeValue:String = StringTools.trim(value.nodeValue);
+			case PCData:
+				var nodeValue:String = value.nodeValue;
 				if (nodeValue.length != 0) {
-					write(tabs + nodeValue);
+					write(tabs + StringTools.htmlEscape(nodeValue));
 					newline();
 				}
-			}
+			case ProcessingInstruction:
+				write("<?" + value.nodeValue + "?>");
+			case DocType:
+				write("<!DOCTYPE " + value.nodeValue + ">");
+		}
 	}
-	
+
 	inline function write(input:String) {
 		output.add(input);
 	}
-	
+
 	inline function newline() {
-		output.add("\n");
+		if (pretty) {
+			output.add("\n");
+		}
 	}
-	
+
 	function hasChildren(value:Xml):Bool {
 		for (child in value) {
 			switch (child.nodeType) {
-				case Xml.Element:
+				case Element, PCData:
 					return true;
-				case Xml.CData, Xml.Comment, Xml.PCData:
+				case CData, Comment:
 					if (StringTools.ltrim(child.nodeValue).length != 0) {
 						return true;
 					}
+				case _:
 			}
 		}
 		return false;

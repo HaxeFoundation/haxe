@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -112,6 +112,8 @@ class File {
 			r = read(srcPath);
 			w = write(dstPath);
 			w.writeInput(r);
+			r.close();
+			w.close();
 		}
 
 		catch (e:Dynamic)

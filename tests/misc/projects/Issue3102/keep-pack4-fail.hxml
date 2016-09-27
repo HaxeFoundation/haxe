@@ -1,0 +1,2 @@
+compile2-each.hxml
+--macro keep('pack1.pack2.pack3')

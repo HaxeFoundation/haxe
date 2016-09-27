@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,9 +22,11 @@
 package cs;
 
 /**
-	This type represents "out" types for C# function parameters. 
+	This type represents "out" types for C# function parameters.
 	It only has effect on function parameters, and conversion to/from the referenced type is automatic.
-	
+
 	Note: Using this type should be considered a bad practice unless overriding a native function is needed.
 **/
+@:analyzer(no_simplification)
+@:analyzer(no_local_dce)
 typedef Out<T> = T;

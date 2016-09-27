@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,13 +22,13 @@
 package haxe.io;
 
 class BytesInput extends Input {
-	var b : BytesData;
-	#if !flash9
+	var b : #if js js.html.Uint8Array #elseif hl hl.types.Bytes #else BytesData #end;
+	#if !flash
 	var pos : Int;
 	var len : Int;
 	var totlen : Int;
 	#end
-	
+
 	/** The current position in the stream in bytes. */
 	public var position(get,set) : Int;
 
@@ -39,7 +39,7 @@ class BytesInput extends Input {
 		if( pos == null ) pos = 0;
 		if( len == null ) len = b.length - pos;
 		if( pos < 0 || len < 0 || pos + len > b.length ) throw Error.OutsideBounds;
-		#if flash9
+		#if flash
 		var ba = b.getData();
 		ba.position = pos;
 		if( len != ba.bytesAvailable ) {
@@ -50,15 +50,18 @@ class BytesInput extends Input {
 			this.b = ba;
 		this.b.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		#else
-		this.b = b.getData();
+		this.b = #if (js || hl) @:privateAccess b.b #else b.getData() #end;
 		this.pos = pos;
 		this.len = len;
 		this.totlen = len;
 		#end
+		#if python
+		bigEndian = false;
+		#end
 	}
-	
+
 	inline function get_position() : Int {
-		#if flash9
+		#if flash
 		return b.position;
 		#else
 		return pos;
@@ -66,23 +69,26 @@ class BytesInput extends Input {
 	}
 
 	inline function get_length() : Int {
-		#if flash9
+		#if flash
 		return b.length;
 		#else
 		return totlen;
 		#end
 	}
-	
+
 	function set_position( p : Int ) : Int {
-		#if flash9
+		if( p < 0 ) p = 0;
+		else if( p > length ) p = length;
+		#if flash
 		return b.position = p;
 		#else
+		len = totlen - p;
 		return pos = p;
 		#end
 	}
-	
+
 	public override function readByte() : Int {
-		#if flash9
+		#if flash
 			return try b.readUnsignedByte() catch( e : Dynamic ) throw new Eof();
 		#else
 			if( this.len == 0 )
@@ -91,7 +97,7 @@ class BytesInput extends Input {
 			#if neko
 			return untyped __dollar__sget(b,pos++);
 			#elseif php
-			return untyped __call__("ord", b[pos++]);
+			return b.get(pos++);
 			#elseif cpp
 			return untyped b[pos++];
 			#elseif java
@@ -107,7 +113,7 @@ class BytesInput extends Input {
 			if( pos < 0 || len < 0 || pos + len > buf.length )
 				throw Error.OutsideBounds;
 		#end
-		#if flash9
+		#if flash
 			var avail : Int = b.bytesAvailable;
 			if( len > avail && avail > 0 ) len = avail;
 			try b.readBytes(buf.getData(),pos,len) catch( e : Dynamic ) throw new Eof();
@@ -135,10 +141,12 @@ class BytesInput extends Input {
 			#if neko
 			try untyped __dollar__sblit(buf.getData(),pos,b,this.pos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
 			#elseif php
-			untyped __php__("$buf->b = substr($buf->b, 0, $pos) . substr($this->b, $this->pos, $len) . substr($buf->b, $pos+$len)");
+			buf.getData().blit(pos, b, this.pos, len);
+			#elseif hl
+			@:privateAccess buf.b.blit(pos, b, this.pos, len);
 			#else
 			var b1 = b;
-			var b2 = buf.getData();
+			var b2 = #if js @:privateAccess buf.b #else buf.getData() #end;
 			for( i in 0...len )
 				b2[pos+i] = b1[this.pos+i];
 			#end
@@ -148,37 +156,45 @@ class BytesInput extends Input {
 		return len;
 	}
 
-	#if flash9
+	#if flash
+	@:dox(hide)
 	override function set_bigEndian(e) {
 		bigEndian = e;
 		b.endian = e ? flash.utils.Endian.BIG_ENDIAN : flash.utils.Endian.LITTLE_ENDIAN;
 		return e;
 	}
 
+	@:dox(hide)
 	override function readFloat() {
 		return try b.readFloat() catch( e : Dynamic ) throw new Eof();
 	}
 
+	@:dox(hide)
 	override function readDouble() {
 		return try b.readDouble() catch( e : Dynamic ) throw new Eof();
 	}
 
+	@:dox(hide)
 	override function readInt8() {
 		return try b.readByte() catch( e : Dynamic ) throw new Eof();
 	}
 
+	@:dox(hide)
 	override function readInt16() {
 		return try b.readShort() catch( e : Dynamic ) throw new Eof();
 	}
 
+	@:dox(hide)
 	override function readUInt16() : Int {
 		return try b.readUnsignedShort() catch( e : Dynamic ) throw new Eof();
 	}
 
+	@:dox(hide)
 	override function readInt32() : Int {
 		return try b.readInt() catch( e : Dynamic ) throw new Eof();
 	}
 
+	@:dox(hide)
 	override function readString( len : Int ) {
 		return try b.readUTFBytes(len) catch( e : Dynamic ) throw new Eof();
 	}

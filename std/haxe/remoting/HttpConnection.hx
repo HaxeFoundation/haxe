@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,9 @@
  */
 package haxe.remoting;
 
+/**
+    Allows a synchronous connection to the given URL which should link to a Haxe server application.
+*/
 class HttpConnection implements Connection implements Dynamic<Connection> {
 
 	public static var TIMEOUT = 10.;
@@ -42,7 +45,7 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 	public function call( params : Array<Dynamic> ) : Dynamic {
 		var data = null;
 		var h = new haxe.Http(__url);
-		#if js
+		#if (js && !nodejs)
 			h.async = false;
 		#end
 		#if (neko && no_remoting_shutdown)
@@ -65,7 +68,7 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 		return new haxe.Unserializer(data).unserialize();
 	}
 
-	#if (js || neko || php)
+	#if !flash
 
 	public static function urlConnect( url : String ) {
 		return new HttpConnection(url,[]);

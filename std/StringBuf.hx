@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,18 +22,18 @@
 /**
 	A String buffer is an efficient way to build a big string by appending small
 	elements together.
-	
+
 	Its cross-platform implementation uses String concatenation internally, but
 	StringBuf may be optimized for different targets.
-	
+
 	Unlike String, an instance of StringBuf is not immutable in the sense that
 	it can be passed as argument to functions which modify it by appending more
 	values. However, the internal buffer cannot be modified.
 **/
 class StringBuf {
 
-	var b:String = "";
-	
+	var b:String;
+
 	/**
 		The length of `this` StringBuf in characters.
 	**/
@@ -41,10 +41,12 @@ class StringBuf {
 
 	/**
 		Creates a new StringBuf instance.
-		
+
 		This may involve initialization of the internal buffer.
 	**/
-	public function new() {}
+	public inline function new() {
+		b = "";
+	}
 
 	inline function get_length() : Int {
 		return b.length;
@@ -52,11 +54,11 @@ class StringBuf {
 
 	/**
 		Appends the representation of `x` to `this` StringBuf.
-		
+
 		The exact representation of `x` may vary per platform. To get more
 		consistent behavior, this function should be called with
 		Std.string(x).
-		
+
 		If `x` is null, the String "null" is appended.
 	**/
 	public inline function add<T>( x : T ) : Void {
@@ -65,7 +67,7 @@ class StringBuf {
 
 	/**
 		Appends the character identified by `c` to `this` StringBuf.
-		
+
 		If `c` is negative or has another invalid value, the result is
 		unspecified.
 	**/
@@ -75,13 +77,13 @@ class StringBuf {
 
 	/**
 		Appends a substring of `s` to `this` StringBuf.
-		
+
 		This function expects `pos` and `len` to describe a valid substring of
 		`s`, or else the result is unspecified. To get more robust behavior,
 		`this.add(s.substr(pos,len))` can be used instead.
-		
+
 		If `s` or `pos` are null, the result is unspecified.
-		
+
 		If `len` is omitted or null, the substring ranges from `pos` to the end
 		of `s`.
 	**/
@@ -91,7 +93,7 @@ class StringBuf {
 
 	/**
 		Returns the content of `this` StringBuf as String.
-		
+
 		The buffer is not emptied by this operation.
 	**/
 	public inline function toString() : String {

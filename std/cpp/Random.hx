@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,24 +26,19 @@ class Random {
 	var r : Dynamic;
 
 	public function new() {
-		r = random_new();
+		r = cpp.NativeRandom.random_new();
 	}
 
 	public function setSeed( s : Int ) {
-		random_set_seed(r,s);
+		cpp.NativeRandom.random_set_seed(r,s);
 	}
 
 	public function int( max : Int ) : Int {
-		return random_int(r,max);
+		return cpp.NativeRandom.random_int(r,max);
 	}
 
 	public function float() : Float {
-		return random_float(r);
+		return cpp.NativeRandom.random_float(r);
 	}
-
-	static var random_new = Lib.load("std","random_new",0);
-	static var random_set_seed = Lib.load("std","random_set_seed",2);
-	static var random_int = Lib.load("std","random_int",2);
-	static var random_float = Lib.load("std","random_float",1);
 
 }

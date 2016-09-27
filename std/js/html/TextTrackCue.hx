@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,47 +20,19 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla\TextTrackCue.webidl line 13:0. Do not edit!
+
 package js.html;
 
 @:native("TextTrackCue")
 extern class TextTrackCue extends EventTarget
 {
-	/** Setter throws DOMException. */
-	var align : String;
-
-	var endTime : Float;
-
-	var id : String;
-
-	/** Setter throws DOMException. */
-	var line : Int;
-
-	var onenter : EventListener;
-
-	var onexit : EventListener;
-
-	var pauseOnExit : Bool;
-
-	/** Setter throws DOMException. */
-	var position : Int;
-
-	/** Setter throws DOMException. */
-	var size : Int;
-
-	var snapToLines : Bool;
-
-	var startTime : Float;
-
-	var text : String;
-
 	var track(default,null) : TextTrack;
-
-	/** Setter throws DOMException. */
-	var vertical : String;
-
-	function new( startTime : Float, endTime : Float, text : String ) : Void;
-
-	function getCueAsHTML() : DocumentFragment;
-
+	var id : String;
+	var startTime : Float;
+	var endTime : Float;
+	var pauseOnExit : Bool;
+	var onenter : haxe.Constraints.Function;
+	var onexit : haxe.Constraints.Function;
+	
 }

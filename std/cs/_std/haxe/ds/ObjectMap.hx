@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,7 +23,7 @@ package haxe.ds;
 
 import cs.NativeArray;
 
-@:coreApi class ObjectMap<K:{}, V> implements Map.IMap<K,V>
+@:coreApi class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K,V>
 {
 	@:extern private static inline var HASH_UPPER = 0.77;
 	@:extern private static inline var FLAG_EMPTY = 0;
@@ -46,8 +46,10 @@ import cs.NativeArray;
 	private var nOccupied:Int;
 	private var upperBound:Int;
 
+#if !no_map_cache
 	private var cachedKey:K;
 	private var cachedIndex:Int;
+#end
 
 #if DEBUG_HASHTBL
 	private var totalProbes:Int;
@@ -58,7 +60,9 @@ import cs.NativeArray;
 
 	public function new() : Void
 	{
+#if !no_map_cache
 		cachedIndex = -1;
+#end
 	}
 
 	public function set( key : K, value : V ) : Void
@@ -79,14 +83,17 @@ import cs.NativeArray;
 			k = hash(key);
 			var i = k & mask, nProbes = 0;
 
+			var delKey = -1;
 			//for speed up
-			if (isEither(hashes[i])) {
+			if (isEmpty(hashes[i])) {
 				x = i;
 			} else {
 				//var inc = getInc(k, mask);
 				var last = i, flag;
-				while(! (isEither(flag = hashes[i]) || (flag == k && _keys[i] == key)) )
+				while(! (isEmpty(flag = hashes[i]) || (flag == k && _keys[i] == key)) )
 				{
+					if (isDel(flag) && delKey == -1)
+						delKey = i;
 					i = (i + ++nProbes) & mask;
 #if DEBUG_HASHTBL
 					probeTimes++;
@@ -94,7 +101,11 @@ import cs.NativeArray;
 						throw "assert";
 #end
 				}
-				x = i;
+
+				if (isEmpty(flag) && delKey != -1)
+					x = delKey;
+				else
+					x = i;
 			}
 
 #if DEBUG_HASHTBL
@@ -122,8 +133,10 @@ import cs.NativeArray;
 			vals[x] = value;
 		}
 
+#if !no_map_cache
 		cachedIndex = x;
 		cachedKey = key;
+#end
 	}
 
 	@:final private function lookup( key : K ) : Int
@@ -188,9 +201,11 @@ import cs.NativeArray;
 
 		if (j != 0)
 		{ //rehashing is required
+#if !no_map_cache
 			//resetting cache
 			cachedKey = null;
 			cachedIndex = -1;
+#end
 
 			j = -1;
 			var nBuckets = nBuckets, _keys = _keys, vals = vals, hashes = hashes;
@@ -263,16 +278,20 @@ import cs.NativeArray;
 	public function get( key : K ) : Null<V>
 	{
 		var idx = -1;
+#if !no_map_cache
 		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
 		{
 			return vals[idx];
 		}
+#end
 
 		idx = lookup(key);
 		if (idx != -1)
 		{
+#if !no_map_cache
 			cachedKey = key;
 			cachedIndex = idx;
+#end
 
 			return vals[idx];
 		}
@@ -283,16 +302,20 @@ import cs.NativeArray;
 	private function getDefault( key : K, def : V ) : V
 	{
 		var idx = -1;
+#if !no_map_cache
 		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
 		{
 			return vals[idx];
 		}
+#end
 
 		idx = lookup(key);
 		if (idx != -1)
 		{
+#if !no_map_cache
 			cachedKey = key;
 			cachedIndex = idx;
+#end
 
 			return vals[idx];
 		}
@@ -303,16 +326,20 @@ import cs.NativeArray;
 	public function exists( key : K ) : Bool
 	{
 		var idx = -1;
+#if !no_map_cache
 		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
 		{
 			return true;
 		}
+#end
 
 		idx = lookup(key);
 		if (idx != -1)
 		{
+#if !no_map_cache
 			cachedKey = key;
 			cachedIndex = idx;
+#end
 
 			return true;
 		}
@@ -323,7 +350,9 @@ import cs.NativeArray;
 	public function remove( key : K ) : Bool
 	{
 		var idx = -1;
+#if !no_map_cache
 		if (! (cachedKey == key && ( (idx = cachedIndex) != -1 )))
+#end
 		{
 			idx = lookup(key);
 		}
@@ -332,8 +361,10 @@ import cs.NativeArray;
 		{
 			return false;
 		} else {
+#if !no_map_cache
 			if (cachedKey == key)
 				cachedIndex = -1;
+#end
 
 			hashes[idx] = FLAG_DEL;
 			_keys[idx] = null;
@@ -350,29 +381,7 @@ import cs.NativeArray;
 	**/
 	public function keys() : Iterator<K>
 	{
-		var i = 0;
-		var len = nBuckets;
-		return {
-			hasNext: function() {
-				for (j in i...len)
-				{
-					if (!isEither(hashes[j]))
-					{
-						i = j;
-						return true;
-					}
-				}
-				return false;
-			},
-			next: function() {
-				var ret = _keys[i];
-				cachedIndex = i;
-				cachedKey = ret;
-
-				i = i + 1;
-				return ret;
-			}
-		};
+		return new ObjectMapKeyIterator(this);
 	}
 
 	/**
@@ -381,26 +390,7 @@ import cs.NativeArray;
 	**/
 	public function iterator() : Iterator<V>
 	{
-		var i = 0;
-		var len = nBuckets;
-		return {
-			hasNext: function() {
-				for (j in i...len)
-				{
-					if (!isEither(hashes[j]))
-					{
-						i = j;
-						return true;
-					}
-				}
-				return false;
-			},
-			next: function() {
-				var ret = vals[i];
-				i = i + 1;
-				return ret;
-			}
-		};
+		return new ObjectMapValueIterator(this);
 	}
 
 	/**
@@ -482,6 +472,77 @@ import cs.NativeArray;
 #if DEBUG_HASHTBL
 		if (!x) throw "assert failed";
 #end
+	}
+}
+
+@:access(haxe.ds.ObjectMap)
+@:final
+private class ObjectMapKeyIterator<T:{},V> {
+	var m:ObjectMap<T,V>;
+	var i:Int;
+	var len:Int;
+
+	public function new(m:ObjectMap<T,V>) {
+		this.i = 0;
+		this.m = m;
+		this.len = m.nBuckets;
+	}
+
+	public function hasNext():Bool {
+		for (j in i...len)
+		{
+			if (!ObjectMap.isEither(m.hashes[j]))
+			{
+				i = j;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public function next() : T {
+		var ret = m._keys[i];
+
+#if !no_map_cache
+		m.cachedIndex = i;
+		m.cachedKey = ret;
+#end
+
+		i = i + 1;
+		return ret;
+	}
+}
+
+@:access(haxe.ds.ObjectMap)
+@:final
+private class ObjectMapValueIterator<K:{},T> {
+	var m:ObjectMap<K,T>;
+	var i:Int;
+	var len:Int;
+
+	public function new(m:ObjectMap<K,T>)
+	{
+		this.i = 0;
+		this.m = m;
+		this.len = m.nBuckets;
+	}
+
+	public function hasNext() : Bool {
+		for (j in i...len)
+		{
+			if (!ObjectMap.isEither(m.hashes[j]))
+			{
+				i = j;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public inline function next():T {
+		var ret = m.vals[i];
+		i = i + 1;
+		return ret;
 	}
 }
 

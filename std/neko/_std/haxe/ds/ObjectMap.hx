@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of h software and associated documentation files (the "Software"),
@@ -22,23 +22,23 @@
 package haxe.ds;
 
 @:coreApi
-class ObjectMap<K:{},V> implements Map.IMap<K,V> {
+class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K,V> {
 
 	static var count = 0;
-	
+
 	static inline function assignId(obj: { } ):Int {
 		var newId = count++;
 		untyped obj.__id__ = newId;
 		return newId;
 	}
-	
+
 	static inline function getId(obj: { } ):Int {
 		return untyped obj.__id__;
 	}
-	
+
 	var h : { };
 	var k : { };
-	
+
 	public function new() : Void {
 		h = untyped __dollar__hnew(0);
 		k = untyped __dollar__hnew(0);

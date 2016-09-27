@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,22 +20,18 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla\DOMImplementation.webidl line 16:0. Do not edit!
+
 package js.html;
 
-/** Provides methods which are not dependent on any particular DOM instances. Returned by <code><a title="En/DOM/Document.implementation" class="internal" rel="internal" href="https://developer.mozilla.org/en/DOM/document.implementation">document.implementation</a></code>.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/DOMImplementation">MDN</a>. */
 @:native("DOMImplementation")
 extern class DOMImplementation
 {
-	function createCSSStyleSheet( title : String, media : String ) : CSSStyleSheet;
-
-	function createDocument( ?namespaceURI : String, ?qualifiedName : String, ?doctype : DocumentType ) : Document;
-
-	function createDocumentType( ?qualifiedName : String, ?publicId : String, ?systemId : String ) : DocumentType;
-
-	function createHTMLDocument( title : String ) : Document;
-
-	function hasFeature( feature : String, ?version : String ) : Bool;
-
+	function hasFeature( feature : String, version : String ) : Bool;
+	/** @throws DOMError */
+	function createDocumentType( qualifiedName : String, publicId : String, systemId : String ) : DocumentType;
+	/** @throws DOMError */
+	function createDocument( namespace_ : String, qualifiedName : String, ?doctype : DocumentType ) : HTMLDocument;
+	/** @throws DOMError */
+	function createHTMLDocument( ?title : String ) : HTMLDocument;
 }

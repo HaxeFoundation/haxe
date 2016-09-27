@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -49,6 +49,7 @@ class ExampleJSGenerator {
 		return switch(t) {
 			case TInst(c, _): getPath(c.get());
 			case TEnum(e, _): getPath(e.get());
+			case TAbstract(a, _): getPath(a.get());
 			default: throw "assert";
 		};
 	}

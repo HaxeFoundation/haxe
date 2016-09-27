@@ -1,7 +1,7 @@
 package flash.geom;
 
 @:require(flash10) extern class Matrix3D {
-	var determinant(default,null) : Float;
+	var determinant(default,never) : Float;
 	var position : Vector3D;
 	var rawData : flash.Vector<Float>;
 	function new(?v : flash.Vector<Float>) : Void;

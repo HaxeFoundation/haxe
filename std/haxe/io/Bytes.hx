@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,10 @@
  */
 package haxe.io;
 
+#if cpp
+using cpp.NativeArray;
+#end
+
 class Bytes {
 
 	public var length(default,null) : Int;
@@ -29,19 +33,24 @@ class Bytes {
 	function new(length,b) {
 		this.length = length;
 		this.b = b;
+		#if flash
+		b.endian = flash.utils.Endian.LITTLE_ENDIAN;
+		#end
 	}
 
 	public inline function get( pos : Int ) : Int {
 		#if neko
-		return untyped __dollar__sget(b,pos);
-		#elseif flash9
+		return untyped $sget(b,pos);
+		#elseif flash
 		return b[pos];
 		#elseif php
-		return untyped __call__("ord", b[pos]);
+		return b.get(pos);
 		#elseif cpp
 		return untyped b[pos];
 		#elseif java
 		return untyped b[pos] & 0xFF;
+		#elseif python
+		return python.Syntax.arrayAccess(b, pos);
 		#else
 		return b[pos];
 		#end
@@ -49,17 +58,19 @@ class Bytes {
 
 	public inline function set( pos : Int, v : Int ) : Void {
 		#if neko
-		untyped __dollar__sset(b,pos,v);
-		#elseif flash9
+		untyped $sset(b,pos,v);
+		#elseif flash
 		b[pos] = v;
 		#elseif php
-		b[pos] = untyped __call__("chr", v);
+		b.set(pos, v);
 		#elseif cpp
 		untyped b[pos] = v;
 		#elseif java
 		b[pos] = cast v;
 		#elseif cs
 		b[pos] = cast v;
+		#elseif python
+		python.Syntax.arraySet(b, pos, v & 0xFF);
 		#else
 		b[pos] = v & 0xFF;
 		#end
@@ -70,16 +81,20 @@ class Bytes {
 		if( pos < 0 || srcpos < 0 || len < 0 || pos + len > length || srcpos + len > src.length ) throw Error.OutsideBounds;
 		#end
 		#if neko
-		try untyped __dollar__sblit(b,pos,src.b,srcpos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
+		try untyped $sblit(b,pos,src.b,srcpos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
 		#elseif php
-		b = untyped __php__("substr($this->b, 0, $pos) . substr($src->b, $srcpos, $len) . substr($this->b, $pos+$len)"); //__call__("substr", b, 0, pos)+__call__("substr", src.b, srcpos, len)+__call__("substr", b, pos+len);
-		#elseif flash9
+		b.blit(pos, src.b, srcpos, len);
+		#elseif flash
 		b.position = pos;
 		if( len > 0 ) b.writeBytes(src.b,srcpos,len);
 		#elseif java
 		java.lang.System.arraycopy(src.b, srcpos, b, pos, len);
 		#elseif cs
 		cs.system.Array.Copy(src.b, srcpos, b, pos, len);
+		#elseif python
+		python.Syntax.pythonCode("self.b[{0}:{0}+{1}] = src.b[srcpos:srcpos+{1}]", pos, len);
+		#elseif cpp
+		b.blit(pos, src.b, srcpos, len);
 		#else
 		var b1 = b;
 		var b2 = src.b;
@@ -95,18 +110,20 @@ class Bytes {
 			b1[i+pos] = b2[i+srcpos];
 		#end
 	}
-	
+
 	public function fill( pos : Int, len : Int, value : Int ) {
-		#if flash9
+		#if flash
 		var v4 = value&0xFF;
 		v4 |= v4<<8;
 		v4 |= v4<<16;
 		b.position = pos;
 		for( i in 0...len>>2 )
-			b.writeUnsignedInt(v4);		
+			b.writeUnsignedInt(v4);
 		pos += len&~3;
 		for( i in 0...len&3 )
 			set(pos++,value);
+		#elseif cpp
+		untyped __global__.__hxcpp_memory_memset(b,pos,len,value);
 		#else
 		for( i in 0...len )
 			set(pos++, value);
@@ -119,13 +136,13 @@ class Bytes {
 		#end
 		#if neko
 		return try new Bytes(len,untyped __dollar__ssub(b,pos,len)) catch( e : Dynamic ) throw Error.OutsideBounds;
-		#elseif flash9
+		#elseif flash
 		b.position = pos;
 		var b2 = new flash.utils.ByteArray();
 		b.readBytes(b2,0,len);
 		return new Bytes(len,b2);
 		#elseif php
-		return new Bytes(len, untyped __call__("substr", b, pos, len));
+		return new Bytes(len, b.sub(pos, len));
 		#elseif java
 		var newarr = new java.NativeArray(len);
 		java.lang.System.arraycopy(b, pos, newarr, 0, len);
@@ -134,6 +151,8 @@ class Bytes {
 		var newarr = new cs.NativeArray(len);
 		cs.system.Array.Copy(b, pos, newarr, 0, len);
 		return new Bytes(len, newarr);
+		#elseif python
+		return new Bytes(len, python.Syntax.arrayAccess(b, pos, pos+len) );
 		#else
 		return new Bytes(len,b.slice(pos,pos+len));
 		#end
@@ -142,52 +161,213 @@ class Bytes {
 	public function compare( other : Bytes ) : Int {
 		#if neko
 		return untyped __dollar__compare(b,other.b);
-		#elseif flash9
+		#elseif flash
 		var len = (length < other.length) ? length : other.length;
 		var b1 = b;
 		var b2 = other.b;
 		b1.position = 0;
 		b2.position = 0;
+		b1.endian = flash.utils.Endian.BIG_ENDIAN;
+		b2.endian = flash.utils.Endian.BIG_ENDIAN;
 		for( i in 0...len>>2 )
 			if( b1.readUnsignedInt() != b2.readUnsignedInt() ) {
 				b1.position -= 4;
 				b2.position -= 4;
-				return b1.readUnsignedInt() - b2.readUnsignedInt();
+				var d = b1.readUnsignedInt() - b2.readUnsignedInt();
+				b1.endian = flash.utils.Endian.LITTLE_ENDIAN;
+				b2.endian = flash.utils.Endian.LITTLE_ENDIAN;
+				return d;
 			}
 		for( i in 0...len & 3 )
-			if( b1.readUnsignedByte() != b2.readUnsignedByte() )
+			if( b1.readUnsignedByte() != b2.readUnsignedByte() ) {
+				b1.endian = flash.utils.Endian.LITTLE_ENDIAN;
+				b2.endian = flash.utils.Endian.LITTLE_ENDIAN;
 				return b1[b1.position-1] - b2[b2.position-1];
+			}
+		b1.endian = flash.utils.Endian.LITTLE_ENDIAN;
+		b2.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		return length - other.length;
 		#elseif php
-		return untyped __php__("$this->b < $other->b ? -1 : ($this->b == $other->b ? 0 : 1)");
+		return b.compare(other.b);
 		//#elseif cs
 		//TODO: memcmp if unsafe flag is on
+		#elseif cpp
+		return b.memcmp(other.b);
 		#else
 		var b1 = b;
 		var b2 = other.b;
 		var len = (length < other.length) ? length : other.length;
 		for( i in 0...len )
 			if( b1[i] != b2[i] )
-				#if cpp
 				return untyped b1[i] - untyped b2[i];
-				#else
-				return untyped b1[i] - untyped b2[i];
-				#end
 		return length - other.length;
 		#end
 	}
 
-	public function readString( pos : Int, len : Int ) : String {
+
+	/**
+		Returns the IEEE double precision value at given position (in low endian encoding).
+		Result is unspecified if reading outside of the bounds
+	**/
+	#if (neko_v21 || (cpp && !cppia) || flash) inline #end
+	public function getDouble( pos : Int ) : Float {
+		#if neko_v21
+		return untyped $sgetd(b, pos, false);
+		#elseif flash
+		b.position = pos;
+		return b.readDouble();
+		#elseif cpp
+		if( pos < 0 || pos + 8 > length ) throw Error.OutsideBounds;
+		return untyped __global__.__hxcpp_memory_get_double(b,pos);
+		#else
+		return FPHelper.i64ToDouble(getInt32(pos),getInt32(pos+4));
+		#end
+	}
+
+	/**
+		Returns the IEEE single precision value at given position (in low endian encoding).
+		Result is unspecified if reading outside of the bounds
+	**/
+	#if (neko_v21 || (cpp && !cppia) || flash) inline #end
+	public function getFloat( pos : Int ) : Float {
+		#if neko_v21
+		return untyped $sgetf(b, pos, false);
+		#elseif flash
+		b.position = pos;
+		return b.readFloat();
+		#elseif cpp
+		if( pos < 0 || pos + 4 > length ) throw Error.OutsideBounds;
+		return untyped __global__.__hxcpp_memory_get_float(b,pos);
+		#else
+		var b = new haxe.io.BytesInput(this,pos,4);
+		return b.readFloat();
+		#end
+	}
+
+	/**
+		Store the IEEE double precision value at given position in low endian encoding.
+		Result is unspecified if writing outside of the bounds.
+	**/
+	#if (neko_v21 || flash) inline #end
+	public function setDouble( pos : Int, v : Float ) : Void {
+		#if neko_v21
+		untyped $ssetd(b, pos, v, false);
+		#elseif neko
+		untyped $sblit(b, pos, FPHelper._double_bytes(v,false), 0, 8);
+		#elseif flash
+		b.position = pos;
+		b.writeDouble(v);
+		#elseif cpp
+		if( pos < 0 || pos + 8 > length ) throw Error.OutsideBounds;
+		untyped __global__.__hxcpp_memory_set_double(b,pos,v);
+		#else
+		var i = FPHelper.doubleToI64(v);
+		setInt32(pos, i.low);
+		setInt32(pos + 4, i.high);
+		#end
+	}
+
+	/**
+		Store the IEEE single precision value at given position in low endian encoding.
+		Result is unspecified if writing outside of the bounds.
+	**/
+	#if (neko_v21 || flash) inline #end
+	public function setFloat( pos : Int, v : Float ) : Void {
+		#if neko_v21
+		untyped $ssetf(b, pos, v, false);
+		#elseif neko
+		untyped $sblit(b, pos, FPHelper._float_bytes(v,false), 0, 4);
+		#elseif flash
+		b.position = pos;
+		b.writeFloat(v);
+		#elseif cpp
+		if( pos < 0 || pos + 4 > length ) throw Error.OutsideBounds;
+		untyped __global__.__hxcpp_memory_set_float(b,pos,v);
+		#else
+		setInt32(pos, FPHelper.floatToI32(v));
+		#end
+	}
+
+	/**
+		Returns the 16 bit unsigned integer at given position (in low endian encoding).
+	**/
+	public inline function getUInt16( pos : Int ) : Int {
+		#if neko_v21
+		return untyped $sget16(b, pos, false);
+		#else
+		return get(pos) | (get(pos + 1) << 8);
+		#end
+	}
+
+	/**
+		Store the 16 bit unsigned integer at given position (in low endian encoding).
+	**/
+	public inline function setUInt16( pos : Int, v : Int ) : Void {
+		#if neko_v21
+		untyped $sset16(b, pos, v, false);
+		#else
+		set(pos, v);
+		set(pos + 1, v >> 8);
+		#end
+	}
+
+	/**
+		Returns the 32 bit integer at given position (in low endian encoding).
+	**/
+	public inline function getInt32( pos : Int ) : Int {
+		#if neko_v21
+		return untyped $sget32(b, pos, false);
+		#elseif (php || python)
+		var v = get(pos) | (get(pos + 1) << 8) | (get(pos + 2) << 16) | (get(pos+3) << 24);
+		return if( v & 0x80000000 != 0 ) v | 0x80000000 else v;
+		#elseif lua
+		var v = get(pos) | (get(pos + 1) << 8) | (get(pos + 2) << 16) | (get(pos+3) << 24);
+		return lua.Boot.clamp(if( v & 0x80000000 != 0 ) v | 0x80000000 else v);
+		#else
+		return get(pos) | (get(pos + 1) << 8) | (get(pos + 2) << 16) | (get(pos+3) << 24);
+		#end
+	}
+
+	/**
+		Returns the 64 bit integer at given position (in low endian encoding).
+	**/
+	public inline function getInt64( pos : Int ) : haxe.Int64 {
+		return haxe.Int64.make(getInt32(pos+4),getInt32(pos));
+	}
+
+	/**
+		Store the 32 bit integer at given position (in low endian encoding).
+	**/
+	public inline function setInt32( pos : Int, v : Int ) : Void {
+		#if neko_v21
+		untyped $sset32(b, pos, v, false);
+		#else
+		set(pos, v);
+		set(pos + 1, v >> 8);
+		set(pos + 2, v >> 16);
+		set(pos + 3, v >>> 24);
+		#end
+	}
+
+	/**
+		Store the 64 bit integer at given position (in low endian encoding).
+	**/
+	public inline function setInt64( pos : Int, v : haxe.Int64 ) : Void {
+		setInt32(pos, v.low);
+		setInt32(pos + 4, v.high);
+	}
+
+	public function getString( pos : Int, len : Int ) : String {
 		#if !neko
 		if( pos < 0 || len < 0 || pos + len > length ) throw Error.OutsideBounds;
 		#end
 		#if neko
 		return try new String(untyped __dollar__ssub(b,pos,len)) catch( e : Dynamic ) throw Error.OutsideBounds;
-		#elseif flash9
+		#elseif flash
 		b.position = pos;
 		return b.readUTFBytes(len);
 		#elseif php
-		return untyped __call__("substr", b, pos, len);
+		return b.getString(pos, len);
 		#elseif cpp
 		var result:String="";
 		untyped __global__.__hxcpp_string_of_bytes(b,result,pos,len);
@@ -198,13 +378,19 @@ class Bytes {
 		try
 			return new String(b, pos, len, "UTF-8")
 		catch (e:Dynamic) throw e;
+		#elseif python
+		return python.Syntax.pythonCode("self.b[{0}:{0}+{1}].decode('UTF-8','replace')", pos, len);
+		#elseif lua
+		var begin = cast(Math.min(pos,b.length),Int);
+		var end = cast(Math.min(pos+len,b.length),Int);
+		return [for (i in begin...end) String.fromCharCode(b[i])].join("");
 		#else
 		var s = "";
 		var b = b;
 		var fcc = String.fromCharCode;
 		var i = pos;
 		var max = pos+len;
-		// utf8-encode
+		// utf8-decode and utf16-encode
 		while( i < max ) {
 			var c = b[i++];
 			if( c < 0x80 ) {
@@ -218,21 +404,30 @@ class Bytes {
 			} else {
 				var c2 = b[i++];
 				var c3 = b[i++];
-				s += fcc( ((c & 0x0F) << 18) | ((c2 & 0x7F) << 12) | ((c3 << 6) & 0x7F) | (b[i++] & 0x7F) );
+				var u = ((c & 0x0F) << 18) | ((c2 & 0x7F) << 12) | ((c3 & 0x7F) << 6) | (b[i++] & 0x7F);
+				// surrogate pair
+				s += fcc( (u >> 10) + 0xD7C0 );
+				s += fcc( (u & 0x3FF) | 0xDC00 );
 			}
 		}
 		return s;
 		#end
 	}
 
+	@:deprecated("readString is deprecated, use getString instead")
+	@:noCompletion
+	public inline function readString(pos:Int, len:Int):String {
+		return getString(pos, len);
+	}
+
 	public function toString() : String {
 		#if neko
 		return new String(untyped __dollar__ssub(b,0,length));
-		#elseif flash9
+		#elseif flash
 		b.position = 0;
 		return b.readUTFBytes(length);
 		#elseif php
-		return cast b;
+		return b.toString();
 		#elseif cs
 		return cs.system.text.Encoding.UTF8.GetString(b, 0, length);
 		#elseif java
@@ -242,7 +437,7 @@ class Bytes {
 		}
 		catch (e:Dynamic) throw e;
 		#else
-		return readString(0,length);
+		return getString(0,length);
 		#end
 	}
 
@@ -267,20 +462,22 @@ class Bytes {
 	public static function alloc( length : Int ) : Bytes {
 		#if neko
 		return new Bytes(length,untyped __dollar__smake(length));
-		#elseif flash9
+		#elseif flash
 		var b = new flash.utils.ByteArray();
 		b.length = length;
 		return new Bytes(length,b);
 		#elseif php
-		return new Bytes(length, untyped __call__("str_repeat", __call__("chr", 0), length));
+		return new Bytes(length, BytesData.alloc(length));
 		#elseif cpp
 		var a = new BytesData();
-		if (length>0) a[length-1] = untyped 0;
+		if (length>0) cpp.NativeArray.setSize(a, length);
 		return new Bytes(length, a);
 		#elseif cs
 		return new Bytes(length, new cs.NativeArray(length));
 		#elseif java
 		return new Bytes(length, new java.NativeArray(length));
+		#elseif python
+		return new Bytes(length, new python.Bytearray(length));
 		#else
 		var a = new Array();
 		for( i in 0...length )
@@ -289,16 +486,17 @@ class Bytes {
 		#end
 	}
 
+	@:pure
 	public static function ofString( s : String ) : Bytes {
 		#if neko
 		return new Bytes(s.length,untyped __dollar__ssub(s.__s,0,s.length));
-		#elseif flash9
+		#elseif flash
 		var b = new flash.utils.ByteArray();
 		b.writeUTFBytes(s);
 		return new Bytes(b.length,b);
 		#elseif php
-		return new Bytes(untyped __call__("strlen", s), cast s);
-//		return ofData(untyped __call__("new _hx_array", __call__("array_values", __call__("unpack", "C*",  s))));
+		var x = BytesData.ofString(s);
+		return new Bytes(x.length, x);
 		#elseif cpp
 		var a = new BytesData();
 		untyped __global__.__hxcpp_bytes_of_string(a,s);
@@ -313,11 +511,23 @@ class Bytes {
 			return new Bytes(b.length, b);
 		}
 		catch (e:Dynamic) throw e;
+
+		#elseif python
+			var b:BytesData = new python.Bytearray(s, "UTF-8");
+			return new Bytes(b.length, b);
+
+		#elseif lua
+			var bytes = [for (c in 0...s.length) StringTools.fastCodeAt(s,c)];
+			return new Bytes(bytes.length, bytes);
 		#else
 		var a = new Array();
-		// utf8-decode
-		for( i in 0...s.length ) {
-			var c : Int = StringTools.fastCodeAt(s,i);
+		// utf16-decode and utf8-encode
+		var i = 0;
+		while( i < s.length ) {
+			var c : Int = StringTools.fastCodeAt(s,i++);
+			// surrogate pair
+			if( 0xD800 <= c && c <= 0xDBFF )
+			       c = (c - 0xD7C0 << 10) | (StringTools.fastCodeAt(s,i++) & 0x3FF);
 			if( c <= 0x7F )
 				a.push(c);
 			else if( c <= 0x7FF ) {
@@ -339,12 +549,12 @@ class Bytes {
 	}
 
 	public static function ofData( b : BytesData ) {
-		#if flash9
+		#if flash
 		return new Bytes(b.length,b);
 		#elseif neko
 		return new Bytes(untyped __dollar__ssize(b),b);
 		#elseif php
-		return new Bytes(untyped __call__("strlen", b), b);
+		return new Bytes(b.length, b);
 		#elseif cs
 		return new Bytes(b.Length,b);
 		#else
@@ -359,12 +569,12 @@ class Bytes {
 	public inline static function fastGet( b : BytesData, pos : Int ) : Int {
 		#if neko
 		return untyped __dollar__sget(b,pos);
-		#elseif flash9
+		#elseif flash
 		return b[pos];
 		#elseif php
-		return untyped __call__("ord", b[pos]);
+		return b.get(pos);
 		#elseif cpp
-		return untyped b[pos];
+		return untyped b.unsafeGet(pos);
 		#elseif java
 		return untyped b[pos] & 0xFF;
 		#else

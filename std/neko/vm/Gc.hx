@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,17 +21,25 @@
  */
 package neko.vm;
 
+/**
+	Neko garbage collector utility.
+*/
 class Gc {
-
+	/**
+		Run the Neko garbage collector.
+	*/
 	public static function run( major : Bool ) {
 		_run(major);
 	}
 
+	/**
+		Return the size of the GC heap and the among of free space, 
+		in bytes.
+	*/
 	public static function stats() : { heap : Int, free : Int } {
 		return _stats();
 	}
 
 	static var _run = neko.Lib.load("std","run_gc",1);
 	static var _stats = neko.Lib.load("std","gc_stats",0);
-
 }

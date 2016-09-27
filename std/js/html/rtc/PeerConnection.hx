@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,64 +20,59 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla\RTCPeerConnection.webidl line 105:0. Do not edit!
+
 package js.html.rtc;
 
 @:native("RTCPeerConnection")
 extern class PeerConnection extends js.html.EventTarget
 {
-	var iceState(default,null) : String;
-
-	/** Getter throws DOMException. */
+	/** @throws DOMError */
+	static function generateCertificate( keygenAlgorithm : haxe.extern.EitherType<Dynamic,String> ) : Promise<Certificate>;
 	var localDescription(default,null) : SessionDescription;
-
-	var localStreams(default,null) : MediaStreamList;
-
-	var onaddstream : js.html.EventListener;
-
-	var ondatachannel : js.html.EventListener;
-
-	var onicecandidate : js.html.EventListener;
-
-	var onicechange : js.html.EventListener;
-
-	var onnegotiationneeded : js.html.EventListener;
-
-	var onopen : js.html.EventListener;
-
-	var onremovestream : js.html.EventListener;
-
-	var onstatechange : js.html.EventListener;
-
-	var readyState(default,null) : String;
-
-	/** Getter throws DOMException. */
 	var remoteDescription(default,null) : SessionDescription;
-
-	var remoteStreams(default,null) : MediaStreamList;
-
-	function new( rtcIceServers : Dynamic, ?mediaConstraints : Dynamic ) : Void;
-
-	function addIceCandidate( candidate : IceCandidate ) : Void;
-
-	function addStream( stream : MediaStream, ?mediaConstraints : Dynamic ) : Void;
-
+	var signalingState(default,null) : SignalingState;
+	var canTrickleIceCandidates(default,null) : Bool;
+	var iceGatheringState(default,null) : IceGatheringState;
+	var iceConnectionState(default,null) : IceConnectionState;
+	var peerIdentity(default,null) : Promise<IdentityAssertion>;
+	var idpLoginUrl(default,null) : String;
+	var onnegotiationneeded : haxe.Constraints.Function;
+	var onicecandidate : haxe.Constraints.Function;
+	var onsignalingstatechange : haxe.Constraints.Function;
+	var onaddstream : haxe.Constraints.Function;
+	var onaddtrack : haxe.Constraints.Function;
+	var ontrack : haxe.Constraints.Function;
+	var onremovestream : haxe.Constraints.Function;
+	var oniceconnectionstatechange : haxe.Constraints.Function;
+	var ondatachannel : haxe.Constraints.Function;
+	
+	/** @throws DOMError */
+	function new( ?configuration : Configuration, ?constraints : Dynamic ) : Void;
+	function setIdentityProvider( provider : String, ?protocol : String, ?username : String ) : Void;
+	function getIdentityAssertion() : Promise<String>;
+	@:overload( function( ?options : OfferOptions ) : Promise<SessionDescription> {} )
+	function createOffer( successCallback : SessionDescription -> Void, failureCallback : js.html.DOMError -> Void, ?options : OfferOptions ) : Promise<Void>;
+	@:overload( function( ?options : AnswerOptions ) : Promise<SessionDescription> {} )
+	function createAnswer( successCallback : SessionDescription -> Void, failureCallback : js.html.DOMError -> Void ) : Promise<Void>;
+	@:overload( function( description : SessionDescription ) : Promise<Void> {} )
+	function setLocalDescription( description : SessionDescription, successCallback : Void -> Void, failureCallback : js.html.DOMError -> Void ) : Promise<Void>;
+	@:overload( function( description : SessionDescription ) : Promise<Void> {} )
+	function setRemoteDescription( description : SessionDescription, successCallback : Void -> Void, failureCallback : js.html.DOMError -> Void ) : Promise<Void>;
+	@:overload( function( candidate : IceCandidate ) : Promise<Void> {} )
+	function addIceCandidate( candidate : IceCandidate, successCallback : Void -> Void, failureCallback : js.html.DOMError -> Void ) : Promise<Void>;
+	function getConfiguration() : Configuration;
+	function getLocalStreams() : Array<js.html.MediaStream>;
+	function getRemoteStreams() : Array<js.html.MediaStream>;
+	function getStreamById( streamId : String ) : js.html.MediaStream;
+	function addStream( stream : js.html.MediaStream ) : Void;
+	function removeStream( stream : js.html.MediaStream ) : Void;
+	function addTrack( track : js.html.MediaStreamTrack, stream : js.html.MediaStream, moreStreams : haxe.extern.Rest<js.html.MediaStream> ) : RtpSender;
+	function removeTrack( sender : RtpSender ) : Void;
+	function getSenders() : Array<RtpSender>;
+	function getReceivers() : Array<RtpReceiver>;
 	function close() : Void;
-
-	function createAnswer( successCallback : SessionDescriptionCallback, failureCallback : ErrorCallback, ?mediaConstraints : Dynamic ) : Void;
-
-	function createDataChannel( label : String, ?options : Dynamic ) : DataChannel;
-
-	function createOffer( successCallback : SessionDescriptionCallback, failureCallback : ErrorCallback, ?mediaConstraints : Dynamic ) : Void;
-
-	function getStats( successCallback : StatsCallback, selector : MediaStreamTrack ) : Void;
-
-	function removeStream( stream : MediaStream ) : Void;
-
-	function setLocalDescription( description : SessionDescription, successCallback : js.html.VoidCallback, failureCallback : ErrorCallback ) : Void;
-
-	function setRemoteDescription( description : SessionDescription, successCallback : js.html.VoidCallback, failureCallback : ErrorCallback ) : Void;
-
-	function updateIce( ?configuration : Dynamic, ?mediaConstraints : Dynamic ) : Void;
-
+	@:overload( function( ?selector : js.html.MediaStreamTrack ) : Promise<StatsReport> {} )
+	function getStats( selector : js.html.MediaStreamTrack, successCallback : StatsReport -> Void, failureCallback : js.html.DOMError -> Void ) : Promise<Void>;
+	function createDataChannel( label : String, ?dataChannelDict : DataChannelInit ) : Dynamic/*MISSING RTCDataChannel*/;
 }

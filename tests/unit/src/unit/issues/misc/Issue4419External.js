@@ -1,0 +1,1 @@
+var Issue4419External = function() { };

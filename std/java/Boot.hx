@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,7 +24,8 @@ import java.internal.Exceptions;
 import java.internal.Function;
 import java.internal.HxObject;
 import java.internal.Runtime;
-import java.internal.Iterator;
+// TODO (see Gencommon.IteratorsInterfaceModf)
+//import java.internal.Iterator;
 import java.Lib;
 //import java.internal.StringExt;
 import java.StdTypes;
@@ -45,6 +46,7 @@ import java.lang.Throwable;
 import java.internal.StringExt;
 import java.internal.FieldLookup;
 
+@:dox(hide)
 extern class Boot
 {
 

@@ -1,0 +1,2 @@
+class SomeType {}
+enum OtherType {}

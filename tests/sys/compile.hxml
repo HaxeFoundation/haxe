@@ -1,0 +1,10 @@
+# This is not run by CIs, just for convenience when testing manually.
+# Note that compile-macro.hxml is not included.
+
+--next compile-neko.hxml
+--next compile-python.hxml
+--next compile-cpp.hxml
+--next compile-cs.hxml
+--next compile-java.hxml
+--next compile-php.hxml
+--next compile-hl.hxml

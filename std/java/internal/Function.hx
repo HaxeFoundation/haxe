@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,7 +29,7 @@ import java.internal.Runtime;
  *
  * @author waneck
  */
-@:abstract @:nativeGen @:native("haxe.lang.Function") @:keep private class Function
+@:abstract @:nativeGen @:native("haxe.lang.Function") @:keep class Function
 {
 	function new(arity:Int, type:Int)
 	{
@@ -42,7 +42,6 @@ import java.internal.Runtime;
 	public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
 	{
 		throw "Abstract implementation";
-		return null;
 	}
 }
 
@@ -77,5 +76,19 @@ import java.internal.Runtime;
 	override public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
 	{
 		return Runtime.callField(obj, field, dynArgs);
+	}
+
+	public function equals(obj:Dynamic):Bool
+	{
+		if (obj == null)
+			return false;
+
+		var c:Closure = cast obj;
+		return (c.obj == this.obj && c.field == this.field);
+	}
+
+	public function hashCode():Int
+	{
+		return obj.hashCode() ^ untyped field.hashCode();
 	}
 }

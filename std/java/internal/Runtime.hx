@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -143,6 +143,11 @@ package java.internal;
 		return 0;
 	}
 
+	public static function toLong(obj:Dynamic):haxe.Int64
+	{
+		return obj == null ? 0 : (obj : java.lang.Number).longValue();
+	}
+
 	@:functionCode('
 		if (obj != null && obj instanceof java.lang.Number)
 		{
@@ -156,18 +161,18 @@ package java.internal;
 		return false;
 	}
 
-	@:functionCode('
-		if (obj != null && obj instanceof java.lang.Number)
-		{
-			java.lang.Number n = (java.lang.Number) obj;
+	@:overload public static function isInt(obj:Dynamic):Bool
+	{
+		if (Std.is(obj, java.lang.Number)) {
+			var n:java.lang.Number = obj;
 			return n.doubleValue() == n.intValue();
 		} else {
 			return false;
 		}
-	')
-	public static function isInt(obj:Dynamic):Bool
-	{
-		return false;
+	}
+
+	@:overload public static function isInt(num:java.lang.Number):Bool {
+		return num != null && num.doubleValue() == num.intValue();
 	}
 
 	@:functionCode('
@@ -406,6 +411,9 @@ package java.internal;
 			{
 				cls[i] = java.lang.Number.class;
 				isNum = hasNumber = true;
+			} else if (o instanceof java.lang.Boolean) {
+				cls[i] = java.lang.Boolean.class;
+				isNum = true;
 			}
 
 			msl = realMsl;
@@ -565,18 +573,18 @@ package java.internal;
 		if (obj == null)
 			return null;
 
-		if (isInt(obj))
-			return (cast(obj, Int)) + "";
+		if (Std.is(obj, java.lang.Number) && !Std.is(obj, java.lang.Integer.IntegerClass) && isInt( (obj : java.lang.Number) ))
+			return java.lang.Integer._toString(toInt(obj));
 		return untyped obj.toString();
 	}
 
 	public static function isFinite(v:Float):Bool
 	{
-		return (v == v) && !java.lang.Double._isInfinite(v);
+		return (v == v) && !java.lang.Double.DoubleClass._isInfinite(v);
 	}
 }
 
-@:keep @:native("haxe.lang.EmptyObject") private enum EmptyObject
+@:keep @:native("haxe.lang.EmptyObject") enum EmptyObject
 {
 	EMPTY;
 }

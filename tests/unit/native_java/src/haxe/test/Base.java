@@ -58,7 +58,29 @@ public class Base
 		return b;
 	}
 
+	public static int throwsTest() throws java.io.IOException
+	{
+		return 5;
+	}
+
+	public static int throwsTest(float someArg) throws java.lang.Throwable
+	{
+		return (int) someArg;
+	}
+
+	public int throwsMemberTest() throws java.lang.Throwable
+	{
+		return 6;
+	}
+
+	public int throwsMemberTest(boolean someArg) throws java.io.IOException
+	{
+		return 10;
+	}
+
 	public int varNameClash;
+
+	public int varNameClash2;
 
 	public static class InnerClass extends Base
 	{
@@ -80,6 +102,11 @@ public class Base
 			return oiface.someOverloadedMethod(42);
 		}
 
+		public int varNameClash2()
+		{
+			return 1;
+		}
+
 		public static class InnerInnerClass extends InnerClass2
 		{
 
@@ -91,8 +118,14 @@ public class Base
 			}
 		}
 	}
+	
+	public static interface VarNameClash
+	{
+		int varNameClash2();
+		double varNameClash2(int i);
+	}
 
-	public static class InnerClass2 extends InnerClass implements OverloadInterface1, OverloadInterface2
+	public static class InnerClass2 extends InnerClass implements OverloadInterface1, OverloadInterface2, VarNameClash
 	{
 		public void someOverloadedMethod(String a1)
 		{
@@ -102,6 +135,18 @@ public class Base
 		public int someOverloadedMethod(int a1)
 		{
 			return a1;
+		}
+
+		public double varNameClash2(int i)
+		{
+			return i * 1.1;
+		}
+	}
+
+	public static class _InnerClass3_
+	{
+		public static class InnerClass4_
+		{
 		}
 	}
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,59 +20,35 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla\Console.webidl line 12:0. Do not edit!
+
 package js.html;
 
-/** <p>Beginning with Firefox 4, the old <a title="en/Error Console" rel="internal" href="https://developer.mozilla.org/en/Error_Console">Error Console</a> has been deprecated in favor of the new, improved Web&nbsp;Console. The Web Console is something of a heads-up display for the web, letting you view error messages and other logged information. In addition, there are methods you can call to output information to the console, making it a useful debugging aid, and you can evaluate JavaScript on the fly.</p>
-<p><a title="webconsole.png" rel="internal" href="https://developer.mozilla.org/@api/deki/files/4748/=webconsole.png"><img alt="webconsole.png" class="internal default" src="https://developer.mozilla.org/@api/deki/files/4748/=webconsole.png"></a></p>
-<p>The Web Console won't replace more advanced debugging tools like <a class="external" title="http://getfirebug.com/" rel="external" href="http://getfirebug.com/" target="_blank">Firebug</a>; what it does give you, however, is a way to let remote users of your site or web application gather and report console logs and other information to you. It also provides a lightweight way to debug content if you don't happen to have Firebug installed when something goes wrong.</p>
-<div class="note"><strong>Note:</strong> The Error Console is still available; you can re-enable it by changing the <code>devtools.errorconsole.enabled</code> preference to <code>true</code> and restarting the browser.</div><br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/Using_the_Web_Console">MDN</a>. */
 @:native("Console")
 extern class Console
 {
-	var memory(default,null) : MemoryInfo;
-
-	var profiles(default,null) : Array<js.html.ScriptProfile>;
-
-	function assert( condition : Bool , ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
-
-	function clear(?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
-
-	function count(?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
-
-	function debug(?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
-
-	function dir(?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
-
-	function dirxml(?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
-
-	function error(?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
-
-	function group(?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
-
-	function groupCollapsed(?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
-
-	function groupEnd() : Void;
-
-	function info(?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
-
-	function log(?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
-
-	function markTimeline(?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
-
-	function profile( title : String ) : Void;
-
-	function profileEnd( title : String ) : Void;
-
-	function time( title : String ) : Void;
-
-	function timeEnd( title : String , ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
-
-	function timeStamp(?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
-
-	function trace(?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
-
-	function warn(?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
-
+	function log( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function info( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function warn( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function error( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function exception( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function debug( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function table( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function trace() : Void;
+	function dir( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function dirxml( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function group( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function groupCollapsed( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function groupEnd( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function time( ?time : Dynamic ) : Void;
+	function timeEnd( ?time : Dynamic ) : Void;
+	function timeStamp( ?data : Dynamic ) : Void;
+	function profile( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function profileEnd( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function assert( condition : Bool, data : haxe.extern.Rest<Dynamic> ) : Void;
+	function count( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function clear() : Void;
+	function markTimeline() : Void;
+	function timeline() : Void;
+	function timelineEnd() : Void;
 }

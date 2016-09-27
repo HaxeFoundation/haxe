@@ -1,17 +1,318 @@
-2014-??-??: 3.1.1
+2016-??-??: 3.3.0-RC2
+
+	New features:
+
+	all : added Any type (#5500)
+
+	General improvements and optimizations:
+
+	js : updated jQuery extern (js.jquery.*) for jQuery 1.12.4 / 3.1.0 support.
+	js : jQuery extern (js.jquery.*) now includes deprecated fields marked with @:deprecated.
+
+2016-05-27: 3.3.0-RC1
+
+	New features:
+
+	all : support @:resolve on abstracts (#3753)
+	all : support extern abstracts and extern @:enum abstracts (#4862)
+	all : support completion on { if the expected type is a structure (#3907)
+	all : support (expr is Type) with mandatory parentheses (#2976)
+	all : allowed passing package dot-paths on command line (#4227)
+	all : support import.hx modules that define per-directory import/using directives (#1138)
+	all : support parsing of postfix ! operator (can be used by abstract operator overloading and macros) (#4284)
+	all : support parsing of ||= and &&= operators (can be used by abstract operator overloading and macros) (#4427)
+	all : support @:structInit classes (#4526)
+	all : reworked static analyzer and enabled it by default
+	flash : update flash externs to version 21
+	hl : added HL target (interpreter and C output)
+	lua: added lua target
+	js : introduced new jQuery extern (js.jquery.*) for jQuery 1.12.4 / 2.2.4 support. (#4377)
+	js : introduced new SWFObject extern (js.swfobject.SWFObject) for SWFObject 2.3.20130521 (#4451)
+	js : added js.Lib.rethrow (#4551)
+	cs/java : added -D fast_cast as an experimental feature to cleanup casts
+
+	Bugfixes:
+
+	all : properly disallowed assigning methods to structures with read-accessors (#3975)
+	all : fixed a bug related to abstract + Int/Float and implicit casts (#4122)
+	all : disallowed duplicate type parameter names (#4293)
+	all : made UInt's >>> behave like >> (#2736)
+	all : fixed various type loading issues
+	all : fixed code generation problems with `inline` (#1827)
+	php/as3 : support run-time metadata on interfaces (#2042)
+	php : fixed argument passing to closures (#2587)
+	neko/cpp : fixed various sys.Filesystem issues with Windows drive paths (#3266)
+	as3 : fixed problem with covariant return types (#4222)
+	as3 : fixed rare problem with static initialization order (#3563)
+	python : fixed various reflection problems
+
+	General improvements and optimizations:
+
+	all : added support for determining minimal types in Map literals (#4196)
+	all : allowed @:native on abstracts to set the name of the implementation class (#4158)
+	all : allowed creating closures on abstract inline methods (#4165)
+	all : type parameter declarations can now have metadata (#3836)
+	all : optimize Math.ceil/floor on constant arguments (#4223)
+	all : allowed extern classes to have field names being used for both static and instance (#4376)
+	all : added haxe.Constraints.Constructible (#4761)
+	all : rewrote pattern matcher to improve output in many cases (#4940)
+	python : use spaces instead of tabs to indent the output (#4299)
+	cpp : reworked backend to improve overall code output quality and fix various issues
+	swf : added scene-tag to allow creating accessible SWF files
+
+	Standard Library:
+
+	all : added Lambda.flatten and Lambda.flatMap (#3553)
+	all : added haxe.Constraints.Constructible (#4761)
+	sys : proper quoting/escaping (can be opt-out) for Sys.command and sys.io.Process (#3603)
+	js : added position parameter to haxe.macro.Compiler.includeFile
+	js : removed -D embed-js (#4074)
+	js : updated HTML externs
+
+	Macro features and changes:
+
+	macro : added overloads field to ClassField (#3460)
+	macro : added Context.getLocalImports (#3560)
+	macro : added Context.onAfterTyping (#4714)
+	macro : added Context.resolveType
+
+2015-10-11: 3.2.1
+
+	Bugfixes:
+
+	cs/java : fixed `-dce no` issues
+	cs/java : fixed how KExpr type parameters are generated
+	cs : fixed enum creation by reflection problem
+	cpp : do not rely in reflection to make interfaces work for non-first interface parents
+	cpp : fixed setting of static variables via reflection when class has no member variables
+	cpp : make sure StringMap's h field is kept if we use StringMap
+	js : Avoid the use of `eval`/`Function` to get the top-level defined type/var to not break ContentSecurityPolicy
+
+2015-05-12: 3.2.0
+
+	New features:
+
+	all : added @:noPrivateAccess to re-enable access restrictions within @:privateAccess
+	cpp : some support for @:nativeGen metadata
+
+	Bugfixes:
+
+	all : fixed detection of @:generic classes with constructor constraints
+	all : fixed variable initialization check issue in loop condition
+	all : fixed pattern matching on @:enum abstracts via field access (#4084)
+	all : fixed missing implicit casts in Map literals (#4100)
+	all : fixed various minor issues in haxe.xml.Parser
+	all : fixed class path issue when HAXE_STD_PATH is set (#4163)
+	js : fixed DCE issue related to printing enums (#4197)
+	js : fixed various issues with the new Bytes implementation
+	php : fixed EOF handling in FileInput.readByte (#4082)
+	cs/java : fixed Math.fround implementation (#4177)
+	cs/java : fixed some cases of Std.parseInt failing (#4132)
+	cpp : fixed compilation without -main (#4199)
+
+	General improvements and optimizations:
+
+	all : --macro keep no longer causes types to be included for compilation
+	php : support interpolation in __php__ code
+	js : added variable number of arguments support in js.html.* classes
+	js : refined new HTML externs
+
+	Macro features and changes:
+
+	macro : [breaking] synced FClosure and FInstance with the compiler updates
+
+2015-03-15: 3.2.0-RC1
+
+	This release removes support for Flash 8 target
+
+	New features:
+
+	all : added --display mode for toplevel completion
+	all : added --display mode for position and usage information
+	all : allowed @:callable on abstracts to forward calls to their underlying type
+	all : allowed pattern matching on getters
+	all : allowed @:native on class fields
+	all : added static analyzer with constant propagation
+	all : added Haxe-based XML implementation
+	python : added python target
+	flash : flash player 12-14 support
+	js : added @:jsRequire and js.Lib.require
+	js : support haxe.CallStack.exceptionStack
+	cs : added @:bridgeProperties
+	cs : added -D erase_generics
+	cs : added -D dll_import to import haxe-generated dlls
+	java/cs : added `sys.db` package
+	java/cs : clean unused files in output folder, unless `-D keep_old_output` is defined
+	java/cs : added `-c-arg` to add C#/Java compiler arguments
+	cpp : inititial implementation of cppia scripting
+
+	Bugfixes:
+
+	all : fixed nullability of abstracts over functions
+	all : fixed some equality checks between UInt and Int
+	all : fixed rare issue with abstract casts
+	all : fixed some internal code which relied on unspecified evaluation order
+	all : fixed exhaustiveness checks involving guards
+	all : fixed issue involving recursively constrained type parameters and @:generic
+	all : fixed type inference issue in map literals
+	all : fixed type inference issue when calling abstract method from within the abstract
+	all : fixed several abstract variance issues
+	all : fixed DCE issues with interface properties
+	all : fixed variance issue with function variables and dynamic methods on interfaces
+	all : fixed pattern matching on empty arrays that are typed as Dynamic
+	all : fixed various @:generic issues
+	all : fixed default cases on @:enum abstract being omitted
+	all : fixed various expression positions
+	all : disallowed break/continue in closures in loops
+	all : disallowed inline functions in value places
+	all : fixed parsing of cast followed by parentheses
+	all : fixed resource naming in case of invalid file system characters
+	all : fixed issue with inlined array declarations with field access
+	cpp : fixed issue with the side-effect handler
+	cpp : fixed issue with NativeArray in --no-inline mode
+	php : fixed issue with invalid references for closures in for-loops
+	php : fixed Reflect.compare and string comparison for numeric strings
+	cs/java : fixed various issues with -java-lib and -net-lib.
+	cs/java : added @:libType to skip checking on -java-lib / -net-lib types
+	cs/java : compilation server now works with C#/Java [experimental support]
+	cs : fixed Type.enumIndex / switch on C# native enums
+	cs : fixed reflection on COM types
+	java : fixed sys.net.Socket server implementation
+	spod : various fixes - working now on cpp, java, neko, php and c#
+	cpp : improved boot order, with enums constants first
+
+	General improvements and optimizations:
+
+	all : disallowed using `super` in value positions
+	all : check exhaustiveness of explicit Null types
+	all : resolve unqualified identifiers to @:enum abstract constructors
+	all : determine @:generic type parameters from constructor call if possible
+	all : properly disallowed field redefinition in extending interface
+	all : properly disallowed leading zeroes for Int and Float literals
+	all : allowed variance on interface variables
+	all : allowed pattern matching on arrays if they are typed as Dynamic
+	all : allowed pattern matching on fields of parent classes
+	all : -D doc-gen no longer implies -dce no
+	all : allowed matching against null on any enum instance
+	flash/js: optimized haxe.ds.StringMap
+	neko : create output directory if it does not exist
+	js : inline Math methods and fields
+	cs/java : optimized Reflect.fields on dynamic structures
+	cs/java : haxe will now clear output directory of old files (use -D keep-old-output to keep them)
+	cs : optimized field lookup structure
+	cs : optimized casting of parametrized types
+	cs : beautify c# code output
+	cs : added `cs.Flags` to manipulate C# enums that can be also flags
+	xml : improved documentation generation and fixed missing entity escaping
+	cpp : property access via Dynamic variables now requires property to be declared with @:nativeProperty
+	cpp : allow injection of code from relative paths using @:sourceFile and @:cppInclude
+	cpp : stronger typing of native functions via cpp.Function + cpp.Callable
+	cpp : moved 'Class' implementation to hx namespace to improve objective C interaction
+	cpp : added file_extension define to change the output filename extension (eg, ".mm")
+	cpp : added pre-calculated hashes to string constants to allow faster lookups
+	cpp : map implementation allows strongly typed interactions in some cases (avoids boxing)
+	cpp : added native WeakMap implementation
+	cpp : put each resource into own cpp file to allow more data/smaller files
+
+	Standard Library:
+
+	all : added typed arrays to haxe.io package
+	all : added haxe.ds.Either
+	all : added haxe.extern.Rest type for representing "rest" arguments in extern method signatures
+	all : added haxe.extern.EitherType abstract type for dealing with externs for dynamic targets
+	all : added haxe.DynamicAccess type for working with dynamic anonymous structures using a Map-like interface
+	all : [breaking] changed haxe.ds.Vector.get to return T instead of Null<T>
+	all : added haxe.macro.Compiler.addGlobalMetadata
+	all : changed haxe.Int64 to be an abstract type instead of a class
+	js : updated HTML externs
+
+	Macro features and changes:
+
+	macro : added Context.getLocalTVars
+	macro : added TypedExprTools.iter
+	macro : added Context.getCallArguments
+	macro : changed @:genericBuild macros to prefer ComplexType returns
+	macro : [breaking] extended TAnonymous structures now have AExtend status instead of AClosed
+	macro : added Context.getDefines
+	macro : fixed file_seek from end (position was inversed)
+	macro : added Context.storeTypedExpr
+	macro : allowed type name reification
+
+	Deprecations:
+
+	all : deprecated structurally extending classes and interfaces
+	sys : Sys.command shell special chars (&|<>#;*?(){}$) are now properly escaped
+	java/cs : Lib.nativeType is now renamed to Lib.getNativeType
+
+2014-04-13: 3.1.3
+
+	Bugfixes:
+
+	all : fixed handling of abstract variance
+	flash : ensure correct endianess in haxe.io.BytesBuffer
+	cpp : fixed issue involving class paths with spaces
+	php : fixed >>>
+	macro : fixed haxe.macro.Compiler.keep
+
+	General improvements and optimizations:
+
+	all : give @:deprecated warnings by default, allow -D no-deprecation-warnings
+	cpp : optimized Vector implementation
+
+	Standard Library:
+
+	all : renamed Bytes.readDouble/Float to getDouble/Float to avoid inheritance issues
+	all : deprecated Bytes.readString in favor of getString
+	all : added pretty-printing to haxe.format.JsonPrinter (and haxe.Json)
+
+2014-03-29: 3.1.2
+
+	Bugfixes:
+
+	all : disallowed spaces between >>, >>>, >>= and >>>=
+	all : fix branching issue when switching on Dynamic values with only one case
+	all : added missing abstract cast call when checking for equality
+	all : fixed member fields initializations on parent classes that have no constructor
+	all : fixed toString usage of abstracts which are argument to Std.string
+	flash : avoid rare FP 12 PPAPI JIT crash
+	cpp : fixed bug in side-effect handler which caused incorrect behavior of while loops
+	js : fixed missing print function for enum values with DCE
+	macro : make sure member field initializations are respected
+
+	General improvements and optimizations:
+
+	all : cached file exist checks to speed up compilations with a lot of class paths
+	all : improved completion related to super class fields
+	all : allowed iterating on abstract which have get_length and @:arrayAccess fields
+	js : improved Type.allEnums implementation to avoid issues with obfuscation
+
+	Standard Library:
+
+	all : added haxe.io.Bytes.readDouble/Float
+	all : added haxe.io.BytesBuffer.addString/Float/Double
+
+2014-03-15: 3.1.1
+
+	New features:
+
+	all : added -D deprecation-warnings
+	all : allowed \u escape sequences in strings
+	cs : implemented haxe.CallStack
 
 	Bugfixes:
 
 	all : fixed wrong handling of "" and null in haxe.io.Path.join
 	all : fixed invalid cast-to-self generation on some abstracts
 	all : removed @:to Dynamic from UInt to avoid issues in the Map selection algorithm
+	all : fixed various issues with UInt
+	all : fixed position setter in haxe.io.BytesInput
 	all : fixed various issues with member/static extension macros
-	all : disallowed member field initialization of classes without constructors
-	all : added -D deprecation-warnings
 	flash : fixed invalid override involving single-constraint type parameters
-	flash8: fixed various bugs
-	js : disable Std.string optimization of basic type to avoid problems with null values
+	flash8 : fixed various bugs
+	js : fixed a problem with Std.string(null) being optimized incorrectly
 	js : fixed custom generators
+	cpp : dealt with string literals that are too long for MSVC
+	cs : fixed various issues with -net-lib
 
 2014-03-04: 3.1.0
 
@@ -546,7 +847,7 @@
 	php: minor optimization (removed foreach from std code)
 	php: implemented haxe.Stack
 	php: changed exception handler to use Haxe call stack
-	php: changed special vars to use the » prefix instead of __
+	php: changed special vars to use the '\xBB' prefix instead of __
 	php: fixed use of reserved keywords for var names
 	php: List iterator is now class based (faster)
 	php: fixed behavior of class variables having assigned functions
@@ -563,7 +864,7 @@
 	resolve environment variable in -cmd commands
 	added flash.Vector.indexOf and lastIndexOf
 	fixed bug in interfaces that define the method toString (Haxe/PHP)
-	fixed bug in haxe.io.BytesInput.readBytes in Flash9 (was throwing Eof if full buffer can't be readed)
+	fixed bug in haxe.io.BytesInput.readBytes in Flash9 (was throwing Eof if full buffer can't be read)
 	fixed implements/extends special classes when they are imported
 	StringBuf now uses an array for JS implementation (around same on FF, faster on IE)
 	fixed assignment of field length in anonym objects (Haxe/PHP)
@@ -1226,7 +1527,7 @@
 	fixed infinite loop in neko EReg split/replace and epsilon matching
 	added neko native serialization support
 	fixed syntax for multiple constraints in type parameter
-	added recursive type parameters contraints (T : C<T> constraints)
+	added recursive type parameters constraints (T : C<T> constraints)
 	updated Xml handling
 
 2006-04-17: beta 5

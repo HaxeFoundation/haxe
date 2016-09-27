@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,7 +32,7 @@ class Web {
 	/**
 		Returns the GET and POST parameters.
 	**/
-	public static function getParams() {
+	public static function getParams() : Map<String,String> {
 		#if force_std_separator
 		var a : NativeArray = untyped __php__("$_POST");
 		if(untyped __call__("get_magic_quotes_gpc"))
@@ -57,8 +57,8 @@ class Web {
 
 	/**
 		Returns an Array of Strings built using GET / POST values.
-		If you have in your URL the parameters [a[]=foo;a[]=hello;a[5]=bar;a[3]=baz] then
-		[php.Web.getParamValues("a")] will return [["foo","hello",null,"baz",null,"bar"]]
+		If you have in your URL the parameters `a[]=foo;a[]=hello;a[5]=bar;a[3]=baz` then
+		`php.Web.getParamValues("a")` will return `["foo","hello",null,"baz",null,"bar"]`.
 	**/
 	public static function getParamValues( param : String ) : Array<String> {
 		var reg = new EReg("^"+param+"(\\[|%5B)([0-9]*?)(\\]|%5D)=(.*?)$", "");
@@ -97,7 +97,7 @@ class Web {
 	}
 
 	/**
-		Returns the local server host name
+		Returns the local server host name.
 	**/
 	public static inline function getHostName() : String {
 		return untyped __php__("$_SERVER['SERVER_NAME']");
@@ -111,7 +111,7 @@ class Web {
 	}
 
 	/**
-		Returns the original request URL (before any server internal redirections)
+		Returns the original request URL (before any server internal redirections).
 	**/
 	public static function getURI() : String {
 		var s : String = untyped __php__("$_SERVER['REQUEST_URI']");
@@ -119,7 +119,7 @@ class Web {
 	}
 
 	/**
-		Tell the client to redirect to the given url ("Location" header)
+		Tell the client to redirect to the given url ("Location" header).
 	**/
 	public static function redirect( url : String ) {
 		untyped __call__('header', "Location: " + url);
@@ -134,7 +134,7 @@ class Web {
 	}
 
 	/**
-		Set the HTTP return code. Same remark as setHeader.
+		Set the HTTP return code. Same remark as `php.Web.setHeader()`.
 		See status code explanation here: http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html
 	**/
 	public static function setReturnCode( r : Int ) {
@@ -142,7 +142,7 @@ class Web {
 		switch(r) {
 			case 100: code = "100 Continue";
 			case 101: code = "101 Switching Protocols";
-			case 200: code = "200 Continue";
+			case 200: code = "200 OK";
 			case 201: code = "201 Created";
 			case 202: code = "202 Accepted";
 			case 203: code = "203 Non-Authoritative Information";
@@ -220,7 +220,7 @@ class Web {
 	}
 
 	/**
-		Returns all the GET parameters String
+		Returns all the GET parameters `String`
 	**/
 	public static function getParamsString() : String {
 		if(untyped __call__("isset", __var__("_SERVER", "QUERY_STRING")))
@@ -234,8 +234,8 @@ class Web {
 		being application/x-www-form-urlencoded and is stored into
 		the getParams hashtable. POST Data is maximimized to 256K
 		unless the content type is multipart/form-data. In that
-		case, you will have to use [getMultipart] or [parseMultipart]
-		methods.
+		case, you will have to use `php.Web.getMultipart()` or
+		`php.Web.parseMultipart()` methods.
 	**/
 	public static function getPostData() {
 		var h = untyped __call__("fopen", "php://input", "r");
@@ -253,15 +253,16 @@ class Web {
 
 	/**
 		Returns an hashtable of all Cookies sent by the client.
-		Modifying the hashtable will not modify the cookie, use setCookie instead.
+		Modifying the hashtable will not modify the cookie, use `php.Web.setCookie()` 
+		instead.
 	**/
-	public static function getCookies():haxe.ds.StringMap<String> {
+	public static function getCookies():Map<String,String> {
 		return Lib.hashOfAssociativeArray(untyped __php__("$_COOKIE"));
 	}
 
 
 	/**
-		Set a Cookie value in the HTTP headers. Same remark as setHeader.
+		Set a Cookie value in the HTTP headers. Same remark as `php.Web.setHeader()`.
 	**/
 	public static function setCookie( key : String, value : String, ?expire: Date, ?domain: String, ?path: String, ?secure: Bool, ?httpOnly: Bool ) {
 		var t = expire == null ? 0 : Std.int(expire.getTime()/1000.0);
@@ -292,7 +293,7 @@ class Web {
 		Get the multipart parameters as an hashtable. The data
 		cannot exceed the maximum size specified.
 	**/
-	public static function getMultipart( maxSize : Int ) : haxe.ds.StringMap<String> {
+	public static function getMultipart( maxSize : Int ) : Map<String,String> {
 		var h = new haxe.ds.StringMap();
 		var buf : StringBuf = null;
 		var curname = null;
@@ -316,9 +317,9 @@ class Web {
 	}
 
 	/**
-		Parse the multipart data. Call [onPart] when a new part is found
+		Parse the multipart data. Call `onPart` when a new part is found
 		with the part name and the filename if present
-		and [onData] when some part data is readed. You can this way
+		and `onData` when some part data is read. You can this way
 		directly save the data on hard drive in the case of a file upload.
 	**/
 	public static function parseMultipart( onPart : String -> String -> Void, onData : Bytes -> Int -> Int -> Void ) : Void {

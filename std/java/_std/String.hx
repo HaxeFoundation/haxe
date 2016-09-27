@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -52,6 +52,7 @@
 
 	private function codePointAt( idx : Int ) : Int;
 
+	@:overload(function() : haxe.io.BytesData { })
 	private function getBytes(encoding:String) : haxe.io.BytesData;
 
 	static function fromCharCode( code : Int ) : String;

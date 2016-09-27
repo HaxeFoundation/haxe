@@ -1,20 +1,21 @@
 package flash.media;
 
 extern class AVStream extends flash.events.EventDispatcher {
-	var backBufferLength(default,null) : Float;
-	var backBufferTime(null,default) : Float;
-	var bufferLength(default,null) : Float;
-	var bufferTime(null,default) : Float;
-	var captionStyle(null,default) : AVCaptionStyle;
+	var backBufferLength(default,never) : Float;
+	var backBufferTime(never,default) : Float;
+	var bufferLength(default,never) : Float;
+	var bufferTime(never,default) : Float;
+	var captionStyle(never,default) : AVCaptionStyle;
 	var captionsEnabled : Bool;
-	var currentFPS(default,null) : Float;
-	var decoderType(default,null) : String;
-	var droppedFrames(default,null) : Int;
-	var frameTime(default,null) : Float;
-	var initialBufferTime(null,default) : Float;
-	var playState(default,null) : AVPlayState;
-	var renderType(default,null) : String;
-	var time(default,null) : Float;
+	var clientLivePoint(default,never) : Float;
+	var currentFPS(default,never) : Float;
+	var decoderType(default,never) : String;
+	var droppedFrames(default,never) : Int;
+	var frameTime(default,never) : Float;
+	var initialBufferTime(never,default) : Float;
+	var playState(default,never) : AVPlayState;
+	var renderType(default,never) : String;
+	var time(default,never) : Float;
 	var useHardwareDecoder : Bool;
 	var volume : Float;
 	function new(source : AVSource) : Void;
@@ -25,11 +26,12 @@ extern class AVStream extends flash.events.EventDispatcher {
 	function resume() : Bool;
 	function rewind(rate : Float) : AVResult;
 	function seek(offset : Float, inBufferSeek : Bool = true) : AVResult;
+	function seekToKeyFrame(offset : Float, inBufferSeek : Bool = true) : AVResult;
 	function seekToLivePoint() : AVResult;
 	function seekToLocalTime(periodIndex : Int, time : Float) : AVResult;
 	function setPlaySpeed(speed : Float, reserved : Float) : Void;
 	function step(frames : Int) : AVResult;
-	static var HARDWARE : String;
-	static var SOFTWARE : String;
-	static var UNDEFINED : String;
+	static var HARDWARE(default,never) : String;
+	static var SOFTWARE(default,never) : String;
+	static var UNDEFINED(default,never) : String;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,6 +22,9 @@
 /**
 	An Array is a storage for values. You can access it using indexes or
 	with its API.
+
+	@see https://haxe.org/manual/std-Array.html
+	@see https://haxe.org/manual/lf-array-comprehension.html
 **/
 extern class Array<T> {
 
@@ -121,11 +124,11 @@ extern class Array<T> {
 		`this` Array.
 
 		If `pos` or `end` are negative, their offsets are calculated from the
-		end	of `this` Array by `this.length + pos` and `this.length + end`
+		end of `this` Array by `this.length + pos` and `this.length + end`
 		respectively. If this yields a negative value, 0 is used instead.
 
-		If `pos` exceeds `this.length` or if `end` exceeds or equals `pos`,
-		the result is `[]`.
+		If `pos` exceeds `this.length` or if `end` is less than or equals
+		`pos`, the result is `[]`.
 	**/
 	function slice( pos : Int, ?end : Int ) : Array<T>;
 
@@ -138,7 +141,7 @@ extern class Array<T> {
 
 		The sort operation is not guaranteed to be stable, which means that the
 		order of equal elements may not be retained. For a stable Array sorting
-		algorithm, `haxe.ds.sort.MergeSort.sort()` can be used instead.
+		algorithm, `haxe.ds.ArraySort.sort()` can be used instead.
 
 		If `f` is null, the result is unspecified.
 	**/
@@ -173,7 +176,7 @@ extern class Array<T> {
 
 		The result will include the individual elements' String representations
 		separated by comma. The enclosing [ ] may be missing on some platforms,
-		use Std.string() to get a String representation that is consistent
+		use `Std.string()` to get a String representation that is consistent
 		across platforms.
 	**/
 	function toString() : String;

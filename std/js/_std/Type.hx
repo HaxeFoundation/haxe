@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 enum ValueType {
 	TNull;
 	TInt;
@@ -33,10 +34,8 @@ enum ValueType {
 
 @:coreApi class Type {
 
-	public static function getClass<T>( o : T ) : Class<T> untyped {
-		if( o == null )
-			return null;
-		return js.Boot.getClass(o);
+	public static inline function getClass<T>( o : T ) : Class<T> {
+		return if (o == null) null else @:privateAccess js.Boot.getClass(o);
 	}
 
 	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped {
@@ -52,6 +51,8 @@ enum ValueType {
 
 	public static function getClassName( c : Class<Dynamic> ) : String {
 		var a : Array<String> = untyped c.__name__;
+		if (a == null)
+			return null;
 		return a.join(".");
 	}
 
@@ -96,10 +97,21 @@ enum ValueType {
 			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6]);
 		case 8:
 			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7]);
+		case 9:
+			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8]);
+		case 10:
+			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9]);
+		case 11:
+			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10]);
+		case 12:
+			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11]);
+		case 13:
+			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11],args[12]);
+		case 14:
+			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11],args[12],args[13]);
 		default:
 			throw "Too many arguments";
 		}
-		return null;
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped {
@@ -108,7 +120,7 @@ enum ValueType {
 	}
 
 	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T {
-		var f = Reflect.field(e,constr);
+		var f:Dynamic = Reflect.field(e,constr);
 		if( f == null ) throw "No such constructor "+constr;
 		if( Reflect.isFunction(f) ) {
 			if( params == null ) throw "Constructor "+constr+" need parameters";
@@ -139,13 +151,13 @@ enum ValueType {
 		a.remove("__interfaces__");
 		a.remove("__properties__");
 		a.remove("__super__");
+		a.remove("__meta__");
 		a.remove("prototype");
 		return a;
 	}
 
-	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
-		var a : Array<String> = untyped e.__constructs__;
-		return a.copy();
+	public static inline function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
+		return ((cast e).__constructs__ : Array<String>).copy();
 	}
 
 	public static function typeof( v : Dynamic ) : ValueType untyped {
@@ -208,15 +220,8 @@ enum ValueType {
 		return untyped e[1];
 	}
 
-	public static function allEnums<T>( e : Enum<T> ) : Array<T> {
-		var all = [];
-		var cst : Array<String> = untyped e.__constructs__;
-		for( c in cst ) {
-			var v = Reflect.field(e,c);
-			if( !Reflect.isFunction(v) )
-				all.push(v);
-		}
-		return all;
+	public inline static function allEnums<T>( e : Enum<T> ) : Array<T> {
+		return untyped __define_feature__("Type.allEnums", e.__empty_constructs__);
 	}
 
 }

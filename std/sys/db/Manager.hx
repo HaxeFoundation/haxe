@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,6 +22,7 @@
 package sys.db;
 import Reflect;
 import sys.db.Connection;
+import sys.db.RecordInfos;
 
 /**
 	Record Manager : the persistent object database manager. See the tutorial on
@@ -124,14 +125,31 @@ class Manager<T : Object> {
 		return v;
 	}
 
+	static function getFieldName(field:RecordField):String
+	{
+		return switch (field.t) {
+			case DData | DEnum(_):
+				"data_" + field.name;
+			case _:
+				field.name;
+		}
+	}
+
 	function doInsert( x : T ) {
 		unmake(x);
 		var s = new StringBuf();
 		var fields = new List();
 		var values = new List();
+		var cache = Reflect.field(x,cache_field);
+		if (cache == null)
+		{
+			Reflect.setField(x,cache_field,cache = {});
+		}
+
 		for( f in table_infos.fields ) {
-			var name = f.name;
-			var v = Reflect.field(x,name);
+			var name = f.name,
+			    fieldName = getFieldName(f);
+			var v:Dynamic = Reflect.field(x,fieldName);
 			if( v != null ) {
 				fields.add(quoteField(name));
 				switch( f.t ) {
@@ -143,34 +161,41 @@ class Manager<T : Object> {
 				// if the field is not defined, give it a default value on insert
 				switch( f.t ) {
 				case DUInt, DTinyInt, DInt, DSingle, DFloat, DFlags(_), DBigInt, DTinyUInt, DSmallInt, DSmallUInt, DMediumInt, DMediumUInt, DEnum(_):
-					Reflect.setField(x, name, 0);
+					Reflect.setField(x, fieldName, 0);
 				case DBool:
-					Reflect.setField(x, name, false);
+					Reflect.setField(x, fieldName, false);
 				case DTinyText, DText, DString(_), DSmallText, DSerialized:
-					Reflect.setField(x, name, "");
+					Reflect.setField(x, fieldName, "");
 				case DSmallBinary, DNekoSerialized, DLongBinary, DBytes(_), DBinary:
-					Reflect.setField(x, name, haxe.io.Bytes.alloc(0));
+					Reflect.setField(x, fieldName, haxe.io.Bytes.alloc(0));
 				case DDate, DDateTime, DTimeStamp:
 					// default date might depend on database
 				case DId, DUId, DBigId, DNull, DInterval, DEncoded, DData:
 					// no default value for these
 				}
 			}
+
+			Reflect.setField(cache, name, v);
 		}
 		s.add("INSERT INTO ");
 		s.add(table_name);
-		s.add(" (");
-		s.add(fields.join(","));
-		s.add(") VALUES (");
-		var first = true;
-		for( v in values ) {
-			if( first )
-				first = false;
-			else
-				s.add(", ");
-			getCnx().addValue(s,v);
+		if (fields.length > 0 || cnx.dbName() != "SQLite")
+		{
+			s.add(" (");
+			s.add(fields.join(","));
+			s.add(") VALUES (");
+			var first = true;
+			for( v in values ) {
+				if( first )
+					first = false;
+				else
+					s.add(", ");
+				getCnx().addValue(s,v);
+			}
+			s.add(")");
+		} else {
+			s.add(" DEFAULT VALUES");
 		}
-		s.add(")");
 		unsafeExecute(s.toString());
 		untyped x._lock = true;
 		// table with one key not defined : suppose autoincrement
@@ -194,6 +219,13 @@ class Manager<T : Object> {
 	function doUpdate( x : T ) {
 		if( untyped !x._lock )
 			throw "Cannot update a not locked object";
+		var upd = getUpdateStatement(x);
+		if (upd == null) return;
+		unsafeExecute(upd);
+	}
+
+	function getUpdateStatement( x : T ):Null<String>
+	{
 		unmake(x);
 		var s = new StringBuf();
 		s.add("UPDATE ");
@@ -202,11 +234,17 @@ class Manager<T : Object> {
 		var cache = Reflect.field(x,cache_field);
 		var mod = false;
 		for( f in table_infos.fields ) {
-			var name = f.name;
-			var v : Dynamic = Reflect.field(x,name);
+			if (table_keys.indexOf(f.name) >= 0)
+				continue;
+			var name = f.name,
+			    fieldName = getFieldName(f);
+			var v : Dynamic = Reflect.field(x,fieldName);
 			var vc : Dynamic = Reflect.field(cache,name);
-			if( v != vc && (!isBinary(f.t) || hasBinaryChanged(v,vc)) ) {
+			if( cache == null || v != vc ) {
 				switch( f.t ) {
+				case DSmallBinary, DNekoSerialized, DLongBinary, DBytes(_), DBinary:
+					if ( !hasBinaryChanged(v,vc) )
+						continue;
 				case DData:
 					v = doUpdateCache(x, name, v);
 					if( !hasBinaryChanged(v,vc) )
@@ -220,14 +258,15 @@ class Manager<T : Object> {
 				s.add(quoteField(name));
 				s.add(" = ");
 				getCnx().addValue(s,v);
-				Reflect.setField(cache,name,v);
+				if ( cache != null )
+					Reflect.setField(cache,name,v);
 			}
 		}
 		if( !mod )
-			return;
+			return null;
 		s.add(" WHERE ");
 		addKeys(s,x);
-		unsafeExecute(s.toString());
+		return s.toString();
 	}
 
 	function doDelete( x : T ) {
@@ -304,16 +343,68 @@ class Manager<T : Object> {
 
 	/* ---------------------------- INTERNAL API -------------------------- */
 
+	function normalizeCache(x:CacheType<T>)
+	{
+		for (f in Reflect.fields(x) )
+		{
+			var val:Dynamic = Reflect.field(x,f), info = table_infos.hfields.get(f);
+			if (info != null)
+			{
+				if (val != null) switch (info.t) {
+					case DDate, DDateTime if (!Std.is(val,Date)):
+						if (Std.is(val,Float))
+						{
+							val = Date.fromTime(val);
+						} else {
+							var v = val + "";
+							var index = v.indexOf('.');
+							if (index >= 0)
+								v = v.substr(0,index);
+							val = Date.fromString(v);
+						}
+					case DSmallBinary, DLongBinary, DBinary, DBytes(_), DData if (Std.is(val, String)):
+						val = haxe.io.Bytes.ofString(val);
+					case DString(_) | DTinyText | DSmallText | DText if(!Std.is(val,String)):
+						val = val + "";
+#if (cs && erase_generics)
+					// on C#, SQLite Ints are returned as Int64
+					case DInt if (!Std.is(val,Int)):
+						val = cast(val,Int);
+#end
+					case DBool if (!Std.is(val,Bool)):
+						if (Std.is(val,Int))
+							val = val != 0;
+						else if (Std.is(val, String)) switch (val.toLowerCase()) {
+							case "1", "true": val = true;
+							case "0", "false": val = false;
+						}
+					case DFloat if (Std.is(val,String)):
+						val = Std.parseFloat(val);
+					case _:
+				}
+				Reflect.setField(x, f, val);
+			}
+		}
+	}
+
 	function cacheObject( x : T, lock : Bool ) {
 		#if neko
 		var o = untyped __dollar__new(x);
 		untyped __dollar__objsetproto(o, class_proto.prototype);
 		#else
 		var o : T = Type.createEmptyInstance(cast class_proto);
-		for( f in Reflect.fields(x) )
-			Reflect.setField(o, f, Reflect.field(x, f));
 		untyped o._manager = this;
 		#end
+		normalizeCache(x);
+		for (f in Reflect.fields(x) )
+		{
+			var val:Dynamic = Reflect.field(x,f), info = table_infos.hfields.get(f);
+			if (info != null)
+			{
+				var fieldName = getFieldName(info);
+				Reflect.setField(o, fieldName, val);
+			}
+		}
 		Reflect.setField(o,cache_field,x);
 		addToCache(o);
 		untyped o._lock = lock;
@@ -355,9 +446,11 @@ class Manager<T : Object> {
 			lock = true;
 			sql += getLockMode();
 		}
-		var r = unsafeExecute(sql).next();
+		var r = unsafeExecute(sql);
+		var r = r.hasNext() ? r.next() : null;
 		if( r == null )
 			return null;
+		normalizeCache(r);
 		var c = getFromCache(r,lock);
 		if( c != null )
 			return c;
@@ -374,6 +467,7 @@ class Manager<T : Object> {
 		var l = unsafeExecute(sql).results();
 		var l2 = new List<T>();
 		for( x in l ) {
+			normalizeCache(x);
 			var c = getFromCache(x,lock);
 			if( c != null )
 				l2.add(c);
@@ -431,6 +525,11 @@ class Manager<T : Object> {
 	}
 
 	public static function nullCompare( a : String, b : String, eq : Bool ) {
+		if (a == null || a == 'NULL') {
+			return eq ? '$b IS NULL' : '$b IS NOT NULL';
+		} else if (b == null || b == 'NULL') {
+			return eq ? '$a IS NULL' : '$a IS NOT NULL';
+		}
 		// we can't use a null-safe operator here
 		if( cnx.dbName() != "MySQL" )
 			return a + (eq ? " = " : " != ") + b;
@@ -457,7 +556,7 @@ class Manager<T : Object> {
 				}
 			}
 		if( first )
-			s.add("1");
+			s.add("TRUE");
 	}
 
 	/* --------------------------- MISC API  ------------------------------ */
@@ -513,6 +612,7 @@ class Manager<T : Object> {
 		var lock = r.lock;
 		if( manager == null || manager.table_keys == null ) throw ("Invalid manager for relation "+table_name+":"+r.prop);
 		if( manager.table_keys.length != 1 ) throw ("Relation " + r.prop + "(" + r.key + ") on a multiple key table");
+#if neko
 		Reflect.setField(class_proto.prototype,"get_"+r.prop,function() {
 			var othis = untyped __this__;
 			var f = Reflect.field(othis,hprop);
@@ -536,6 +636,7 @@ class Manager<T : Object> {
 			Reflect.setField(othis,hkey,Reflect.field(f,manager.table_keys[0]));
 			return f;
 		});
+#end
 	}
 
 	#if !neko
@@ -543,18 +644,19 @@ class Manager<T : Object> {
 	function __get( x : Dynamic, prop : String, key : String, lock ) {
 		var v = Reflect.field(x,prop);
 		if( v != null )
-			return v.value;
+			return v;
 		var y = unsafeGet(Reflect.field(x, key), lock);
-		Reflect.setField(x,prop,{ value : y });
+		Reflect.setField(x,prop,v);
 		return y;
 	}
 
 	function __set( x : Dynamic, prop : String, key : String, v : T ) {
-		Reflect.setField(x,prop,{ value : v });
+		Reflect.setField(x,prop,v);
 		if( v == null )
 			Reflect.setField(x,key,null);
 		else
 			Reflect.setField(x,key,Reflect.field(v,table_keys[0]));
+		return v;
 	}
 
 	#end
@@ -580,11 +682,11 @@ class Manager<T : Object> {
 		return s.toString();
 	}
 
-	function addToCache( x : T ) {
+	function addToCache( x : CacheType<T> ) {
 		object_cache.set(makeCacheKey(x),x);
 	}
 
-	function removeFromCache( x : T ) {
+	function removeFromCache( x : CacheType<T> ) {
 		object_cache.remove(makeCacheKey(x));
 	}
 
@@ -592,14 +694,18 @@ class Manager<T : Object> {
 		return cast object_cache.get(key);
 	}
 
-	function getFromCache( x : T, lock : Bool ) : T {
+	function getFromCache( x : CacheType<T>, lock : Bool ) : T {
 		var c : Dynamic = object_cache.get(makeCacheKey(x));
 		if( c != null && lock && !c._lock ) {
 			// synchronize the fields since our result is up-to-date !
 			for( f in Reflect.fields(c) )
 				Reflect.deleteField(c,f);
-			for( f in Reflect.fields(x) )
-				Reflect.setField(c,f,Reflect.field(x,f));
+			for (f in table_infos.fields)
+			{
+				var name = f.name,
+				    fieldName = getFieldName(f);
+				Reflect.setField(c,fieldName,Reflect.field(x,name));
+			}
 			// mark as locked
 			c._lock = true;
 			// restore our manager
@@ -617,6 +723,10 @@ class Manager<T : Object> {
 	/* ---------------------------- QUOTES -------------------------- */
 
 	public static function quoteAny( v : Dynamic ) {
+		if (v == null) {
+			return 'NULL';
+		}
+
 		var s = new StringBuf();
 		cnx.addValue(s, v);
 		return s.toString();
@@ -635,4 +745,8 @@ class Manager<T : Object> {
 		return v + " IN (" + b.toString() + ")";
 	}
 
+	// We need Bytes.toString to not be DCE'd. See #1937
+	@:keep static function __depends() { return haxe.io.Bytes.alloc(0).toString(); }
 }
+
+private typedef CacheType<T> = Dynamic;

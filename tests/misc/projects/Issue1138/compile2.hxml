@@ -1,0 +1,4 @@
+-cp src1
+-cp src2
+-main p2.C2
+--interp

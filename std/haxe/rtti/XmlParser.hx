@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,6 +23,12 @@ package haxe.rtti;
 import haxe.rtti.CType;
 import haxe.xml.Fast;
 
+/**
+	XmlParser processes the runtime type information (RTTI) which
+	is stored as a XML string in a static field `__rtti`.
+	
+	@see <https://haxe.org/manual/cr-rtti.html>
+**/
 class XmlParser {
 
 	public var root : TypeRoot;
@@ -91,12 +97,12 @@ class XmlParser {
 			f1.set = RMethod;
 			return true;
 		}
-		return false;
+		return Type.enumEq(f1.get, f2.get) && Type.enumEq(f1.set, f2.set);
 	}
 
 	function mergeDoc( f1 : ClassField, f2 : ClassField ) {
 		if( f1.doc == null )
-			f2.doc = f2.doc;
+			f1.doc = f2.doc;
 		else if( f2.doc == null )
 			f2.doc = f1.doc;
 		return true;
@@ -333,7 +339,7 @@ class XmlParser {
 		}
 		return ml;
 	}
-	
+
 	function xoverloads( x : Fast ) : List<ClassField> {
 		var l = new List();
 		for ( m in x.elements ) {
@@ -393,7 +399,7 @@ class XmlParser {
 		};
 	}
 
-	function xclassfield( x : Fast, ?defPublic ) : ClassField {
+	function xclassfield( x : Fast, ?defPublic = false ) : ClassField {
 		var e = x.elements;
 		var t = xtype(e.next());
 		var doc = null;
@@ -415,10 +421,11 @@ class XmlParser {
 			doc : doc,
 			get : if( x.has.get ) mkRights(x.att.get) else RNormal,
 			set : if( x.has.set ) mkRights(x.att.set) else RNormal,
-			params : if( x.has.params ) mkTypeParams(x.att.params) else null,
+			params : if( x.has.params ) mkTypeParams(x.att.params) else [],
 			platforms : defplat(),
 			meta : meta,
-			overloads: overloads
+			overloads: overloads,
+			expr : if( x.has.expr ) x.att.expr else null
 		};
 	}
 

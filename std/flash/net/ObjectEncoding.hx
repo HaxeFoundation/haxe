@@ -1,8 +1,8 @@
 package flash.net;
 
 extern class ObjectEncoding {
-	static var AMF0 : UInt;
-	static var AMF3 : UInt;
-	static var DEFAULT : UInt;
+	static var AMF0(default,never) : UInt;
+	static var AMF3(default,never) : UInt;
+	static var DEFAULT(default,never) : UInt;
 	static var dynamicPropertyWriter : IDynamicPropertyWriter;
 }

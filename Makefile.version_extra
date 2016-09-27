@@ -1,0 +1,11 @@
+# A hack to print the content of version.ml consistently across Windows (cygwin / command prompt) and Unix.
+# The hack: http://stackoverflow.com/a/7284135/267998
+# The issue: https://github.com/HaxeFoundation/haxe/commit/4f8f6a99ddf810ea045492cdd6d40c55abc03e15#commitcomment-10660400
+
+all: ;
+
+ifneq ($(ADD_REVISION),0)
+	$(info let version_extra = Some "(git build $(BRANCH) @ $(COMMIT_SHA))")
+else
+	$(info let version_extra = None)
+endif

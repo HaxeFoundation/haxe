@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -40,10 +40,10 @@ abstract Ucs2(String) {
 	@:extern inline function get_length() {
 		return this.length;
 	}
-	
+
 	/**
 		Returns a Ucs2 where all characters of `this` Ucs2 are upper case.
-		
+
 		Affects the characters `a-z`. Other characters remain unchanged.
 	**/
 	@:extern public inline function toUpperCase() : Ucs2 {
@@ -52,7 +52,7 @@ abstract Ucs2(String) {
 
 	/**
 		Returns a Ucs2 where all characters of `this` Ucs2 are lower case.
-		
+
 		Affects the characters `A-Z`. Other characters remain unchanged.
 	**/
 	@:extern public inline function toLowerCase() : Ucs2 {
@@ -61,7 +61,7 @@ abstract Ucs2(String) {
 
 	/**
 		Returns the character at position `index` of `this` Ucs2.
-		
+
 		If `index` is negative or exceeds `this.length`, the empty Ucs2 ""
 		is returned.
 	**/
@@ -71,9 +71,9 @@ abstract Ucs2(String) {
 
 	/**
 		Returns the character code at position `index` of `this` Ucs2.
-		
+
 		If `index` is negative or exceeds `this.length`, null is returned.
-		
+
 		To obtain the character code of a single character, "x".code can be used
 		instead to @:extern public inline the character code at compile time. Note that this
 		only works on Ucs2 literals of length 1.
@@ -85,12 +85,12 @@ abstract Ucs2(String) {
 	/**
 		Returns the position of the leftmost occurence of `str` within `this`
 		Ucs2.
-		
+
 		If `startIndex` is given, the search is performed within the substring
 		of `this` Ucs2 starting from `startIndex`. Otherwise the search is
 		performed within `this` Ucs2. In either case, the returned position
 		is relative to the beginning of `this` Ucs2.
-		
+
 		If `str` cannot be found, -1 is returned.
 	**/
 	@:extern public inline function indexOf( str : Ucs2, ?startIndex : Int ) : Int {
@@ -100,12 +100,12 @@ abstract Ucs2(String) {
 	/**
 		Returns the position of the rightmost occurence of `str` within `this`
 		Ucs2.
-		
+
 		If `startIndex` is given, the search is performed within the substring
 		of `this` Ucs2 from 0 to `startIndex`. Otherwise the search is
 		performed within `this` Ucs2. In either case, the returned position
 		is relative to the beginning of `this` Ucs2.
-		
+
 		If `str` cannot be found, -1 is returned.
 	**/
 	@:extern public inline function lastIndexOf( str : Ucs2, ?startIndex : Int ) : Int {
@@ -114,21 +114,21 @@ abstract Ucs2(String) {
 
 	/**
 		Splits `this` Ucs2 at each occurence of `delimiter`.
-		
+
 		If `this` Ucs2 is the empty Ucs2 "", the result is not consistent
 		across targets and may either be `[]` (on Js, Cpp) or `[""]`.
-		
+
 		If `delimiter` is the empty Ucs2 "", `this` Ucs2 is split into an
 		Array of `this.length` elements, where the elements correspond to the
 		characters of `this` Ucs2.
-		
+
 		If `delimiter` is not found within `this` Ucs2, the result is an Array
 		with one element, which equals `this` Ucs2.
-		
+
 		If `delimiter` is null, the result is unspecified.
-		
+
 		Otherwise, `this` Ucs2 is split into parts at each occurence of
-		`delimiter`. If `this` Ucs2 starts (or ends) with [delimiter}, the
+		`delimiter`. If `this` Ucs2 starts (or ends) with `delimiter`, the
 		result Array contains a leading (or trailing) empty Ucs2 "" element.
 		Two subsequent delimiters also result in an empty Ucs2 "" element.
 	**/
@@ -138,17 +138,17 @@ abstract Ucs2(String) {
 
 	/**
 		Returns `len` characters of `this` Ucs2, starting at position `pos`.
-		
+
 		If `len` is omitted, all characters from position `pos` to the end of
 		`this` Ucs2 are included.
-		
+
 		If `pos` is negative, its value is calculated from the end of `this`
 		Ucs2 by `this.length + pos`. If this yields a negative value, 0 is
 		used instead.
-		
+
 		If the calculated position + `len` exceeds `this.length`, the characters
 		from that position to the end of `this` Ucs2 are returned.
-		
+
 		If `len` is negative, the result is unspecified.
 	**/
 	@:extern public inline function substr( pos : Int, ?len : Int ) : Ucs2 {
@@ -157,14 +157,14 @@ abstract Ucs2(String) {
 
 	/**
 		Returns the part of `this` Ucs2 from `startIndex` to `endIndex`.
-		
+
 		If `startIndex` or `endIndex` are negative, 0 is used instead.
-		
+
 		If `startIndex` exceeds `endIndex`, they are swapped.
-		
+
 		If the (possibly swapped) `endIndex` is omitted or exceeds
 		`this.length`, `this.length` is used instead.
-		
+
 		If the (possibly swapped) `startIndex` exceeds `this.length`, the empty
 		Ucs2 "" is returned.
 	**/
@@ -181,12 +181,12 @@ abstract Ucs2(String) {
 
 	/**
 		Returns the Ucs2 corresponding to the character code `code`.
-		
+
 		If `code` is negative or has another invalid value, the result is
 		unspecified.
 	**/
 	@:extern public static inline function fromCharCode( code : Int ) : Ucs2 {
 		return new Ucs2(String.fromCharCode(code));
 	}
-	
+
 }

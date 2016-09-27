@@ -1,0 +1,2 @@
+@:bla
+abstract A(Int) { }

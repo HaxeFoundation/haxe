@@ -1,0 +1,1 @@
+typedef OnTypedef<T, T> = Int;

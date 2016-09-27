@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,10 @@
  */
 package flash;
 
+/**
+	Platform-specific Flash Library. Provides some platform-specific 
+	functions for the Flash target.
+**/
 class Lib {
 
 	public static var current : flash.display.MovieClip;
@@ -64,6 +68,10 @@ class Lib {
 	public static function trace( arg : Dynamic ) {
 		untyped __global__["trace"](arg);
 	}
+	
+	public static function describeType( value : Dynamic ) : flash.xml.XML {
+		return untyped __global__["flash.utils.describeType"](value);
+	}
 
 	public static function attach( name : String ) : flash.display.MovieClip {
 		var cl = untyped __as__(__global__["flash.utils.getDefinitionByName"](name),Class);
@@ -73,7 +81,7 @@ class Lib {
 	public inline static function as<T>( v : Dynamic, c : Class<T> ) : Null<T> {
 		return untyped __as__(v,c);
 	}
-	
+
 	public static function redirectTraces() {
 		if (flash.external.ExternalInterface.available)
 			haxe.Log.trace = traceToConsole;

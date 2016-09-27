@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,66 +21,128 @@
  */
 package haxe.ds;
 
-@:coreApi class StringMap<T> implements Map.IMap<String,T> {
+private class StringMapIterator<T> {
+	var map : StringMap<T>;
+	var keys : Array<String>;
+	var index : Int;
+	var count : Int;
+	public inline function new(map:StringMap<T>, keys:Array<String>) {
+		this.map = map;
+		this.keys = keys;
+		this.index = 0;
+		this.count = keys.length;
+	}
+	public inline function hasNext() {
+		return index < count;
+	}
+	public inline function next() {
+		return map.get(keys[index++]);
+	}
+}
+
+@:coreApi class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 
 	private var h : Dynamic;
+	private var rh : Dynamic;
 
-	public function new() : Void {
+	public inline function new() : Void {
 		h = {};
 	}
 
-	public function set( key : String, value : T ) : Void {
-		untyped h["$"+key] = value;
+	inline function isReserved(key:String) : Bool {
+		return untyped __js__("__map_reserved")[key] != null;
 	}
 
-	public function get( key : String ) : Null<T> {
-		return untyped h["$"+key];
+	public inline function set( key : String, value : T ) : Void {
+		if( isReserved(key) )
+			setReserved(key, value);
+		else
+			h[cast key] = value;
 	}
 
-	public function exists( key : String ) : Bool {
-		return untyped h.hasOwnProperty("$"+key);
+	public inline function get( key : String ) : Null<T> {
+		if( isReserved(key) )
+			return getReserved(key);
+		return h[cast key];
+	}
+
+	public inline function exists( key : String ) : Bool {
+		if( isReserved(key) )
+			return existsReserved(key);
+		return h.hasOwnProperty(key);
+	}
+
+	function setReserved( key : String, value : T ) : Void {
+		if( rh == null ) rh = {};
+		rh[cast "$"+key] = value;
+	}
+
+	function getReserved( key : String ) : Null<T> {
+		return rh == null ? null : rh[cast "$"+key];
+	}
+
+	function existsReserved( key : String ) : Bool {
+		if( rh == null ) return false;
+		return untyped rh.hasOwnProperty("$"+key);
 	}
 
 	public function remove( key : String ) : Bool {
-		key = "$"+key;
-		if( untyped !h.hasOwnProperty(key) ) return false;
-		untyped __js__("delete")(h[key]);
-		return true;
+		if( isReserved(key) ) {
+			key = "$" + key;
+			if( rh == null || !rh.hasOwnProperty(key) ) return false;
+			untyped __js__("delete")(rh[key]);
+			return true;
+		} else {
+			if( !h.hasOwnProperty(key) )
+				return false;
+			untyped __js__("delete")(h[key]);
+			return true;
+		}
 	}
 
 	public function keys() : Iterator<String> {
-		var a = [];
+		return arrayKeys().iterator();
+	}
+	
+	function arrayKeys() : Array<String> {
+		var out = [];
 		untyped {
 			__js__("for( var key in this.h ) {");
 				if( h.hasOwnProperty(key) )
-					a.push(key.substr(1));
+					out.push(key);
 			__js__("}");
 		}
-		return a.iterator();
+		if( rh != null ) untyped {
+			__js__("for( var key in this.rh ) {");
+				if( key.charCodeAt(0) == "$".code )
+					out.push(key.substr(1));
+			__js__("}");
+		}
+		return out;
 	}
 
-	public function iterator() : Iterator<T> {
-		return untyped {
-			ref : h,
-			it : keys(),
-			hasNext : function() { return __this__.it.hasNext(); },
-			next : function() { var i = __this__.it.next(); return __this__.ref["$"+i]; }
-		};
+	public inline function iterator() : Iterator<T> {
+		return new StringMapIterator(this, arrayKeys());
 	}
 
 	public function toString() : String {
 		var s = new StringBuf();
 		s.add("{");
-		var it = keys();
-		for( i in it ) {
-			s.add(i);
+		var keys = arrayKeys();
+		for( i in 0...keys.length ) {
+			var k = keys[i];
+			s.add(k);
 			s.add(" => ");
-			s.add(Std.string(get(i)));
-			if( it.hasNext() )
+			s.add(Std.string(get(k)));
+			if( i < keys.length-1 )
 				s.add(", ");
 		}
 		s.add("}");
 		return s.toString();
+	}
+
+	static function __init__() : Void {
+		untyped __js__("var __map_reserved = {}");
 	}
 
 }

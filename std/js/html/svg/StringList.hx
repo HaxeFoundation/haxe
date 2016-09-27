@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,30 +20,27 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla\SVGStringList.webidl line 15:0. Do not edit!
+
 package js.html.svg;
 
-/** <p>The <code>SVGStringList</code> defines a list of <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/DOMString">DOMString</a></code>
- objects.</p>
-<p>An <code>SVGStringList</code> object can be designated as read only, which means that attempts to modify the object will result in an exception being thrown.</p><br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/SVGStringList">MDN</a>. */
 @:native("SVGStringList")
-extern class StringList
+extern class StringList implements ArrayAccess<String>
 {
+	var length(default,null) : Int;
 	var numberOfItems(default,null) : Int;
-
-	function appendItem( item : String ) : String;
-
+	
 	function clear() : Void;
-
+	/** @throws DOMError */
+	function initialize( newItem : String ) : String;
+	/** @throws DOMError */
 	function getItem( index : Int ) : String;
-
-	function initialize( item : String ) : String;
-
-	function insertItemBefore( item : String, index : Int ) : String;
-
+	/** @throws DOMError */
+	function insertItemBefore( newItem : String, index : Int ) : String;
+	/** @throws DOMError */
+	function replaceItem( newItem : String, index : Int ) : String;
+	/** @throws DOMError */
 	function removeItem( index : Int ) : String;
-
-	function replaceItem( item : String, index : Int ) : String;
-
+	/** @throws DOMError */
+	function appendItem( newItem : String ) : String;
 }

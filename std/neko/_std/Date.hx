@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -62,7 +62,7 @@ import neko.Lib;
 		return Std.parseInt( new String(date_format(__t,untyped "%w".__s)) );
 	}
 
-	public function toString():String {
+	@:keep public function toString():String {
 		return new String(date_format(__t,null));
 	}
 
@@ -98,7 +98,7 @@ import neko.Lib;
 	static var int32_to_float = Lib.load("std","int32_to_float",1);
 	static var int32_add = Lib.load("std","int32_add",2);
 	static var int32_shl = Lib.load("std","int32_shl",2);
-	static function __string() : String { return untyped "Date".__s; }
+	@:keep static function __string() : String { return untyped "Date".__s; }
 
 }
 

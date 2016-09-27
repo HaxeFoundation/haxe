@@ -1,15 +1,15 @@
 package flash.net.drm;
 
 extern class DRMVoucher {
-	var licenseID(default,null) : String;
-	var offlineLeaseEndDate(default,null) : Date;
-	var offlineLeaseStartDate(default,null) : Date;
-	var playbackTimeWindow(default,null) : DRMPlaybackTimeWindow;
-	var policies(default,null) : Dynamic;
-	var policyID(default,null) : String;
-	var serverURL(default,null) : String;
-	var voucherEndDate(default,null) : Date;
-	var voucherStartDate(default,null) : Date;
+	var licenseID(default,never) : String;
+	var offlineLeaseEndDate(default,never) : Date;
+	var offlineLeaseStartDate(default,never) : Date;
+	var playbackTimeWindow(default,never) : DRMPlaybackTimeWindow;
+	var policies(default,never) : Dynamic;
+	var policyID(default,never) : String;
+	var serverURL(default,never) : String;
+	var voucherEndDate(default,never) : Date;
+	var voucherStartDate(default,never) : Date;
 	function new() : Void;
 	function toByteArray() : flash.utils.ByteArray;
 }

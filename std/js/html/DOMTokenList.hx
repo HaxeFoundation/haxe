@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,27 +20,23 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla\DOMTokenList.webidl line 15:0. Do not edit!
+
 package js.html;
 
-/** This type represents a set of space-separated tokens. Commonly returned by <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/element.classList">HTMLElement.classList</a></code>
-, HTMLLinkElement.relList, HTMLAnchorElement.relList or HTMLAreaElement.relList. It is indexed beginning with 0 as with JavaScript arrays. DOMTokenList is always case-sensitive.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/DOMTokenList">MDN</a>. */
 @:native("DOMTokenList")
 extern class DOMTokenList implements ArrayAccess<String>
 {
 	var length(default,null) : Int;
-
-	function add( tokens : String ) : Void;
-
-	function contains( token : String ) : Bool;
-
+	var value : String;
+	
 	function item( index : Int ) : String;
-
-	function remove( tokens : String ) : Void;
-
-	function toString() : String;
-
+	/** @throws DOMError */
+	function contains( token : String ) : Bool;
+	/** @throws DOMError */
+	function add( tokens : haxe.extern.Rest<String> ) : Void;
+	/** @throws DOMError */
+	function remove( tokens : haxe.extern.Rest<String> ) : Void;
+	/** @throws DOMError */
 	function toggle( token : String, ?force : Bool ) : Bool;
-
 }

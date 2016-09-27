@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,8 +23,8 @@
 /**
 	The DateTools class contains some extra functionalities for handling `Date`
 	instances and timestamps.
-	
-	In the context of haxe dates, a timestamp is defined as the number of
+
+	In the context of Haxe dates, a timestamp is defined as the number of
 	milliseconds elapsed since 1st January 1970.
 **/
 class DateTools {
@@ -45,6 +45,8 @@ class DateTools {
 				__format(d,"%m/%d/%y");
 			case "e":
 				untyped Std.string(d.getDate());
+			case "F":
+				__format(d,"%Y-%m-%d");
 			case "H","k":
 				untyped StringTools.lpad(Std.string(d.getHours()),if( e == "H" ) "0" else " ",2);
 			case "I","l":
@@ -110,6 +112,20 @@ class DateTools {
 		support in Flash and JS for day and months names (due to lack of proper
 		internationalization API). On Haxe/Neko/Windows, some formats are not
 		supported.
+
+		```haxe
+		var t = DateTools.format(Date.now(), "%Y-%m-%d_%H:%M:%S"); 
+		// 2016-07-08_14:44:05
+
+		var t = DateTools.format(Date.now(), "%r"); 
+		// 02:44:05 PM
+
+		var t = DateTools.format(Date.now(), "%T"); 
+		// 14:44:05
+
+		var t = DateTools.format(Date.now(), "%F"); 
+		// 2016-07-08
+		```
 	**/
 	public static function format( d : Date, f : String ) : String {
 		#if (neko && !(macro || interp))
@@ -123,7 +139,7 @@ class DateTools {
 
 	/**
 		Returns the result of adding timestamp `t` to Date `d`.
-		
+
 		This is a convenience function for calling
 		`Date.fromTime(d.getTime() + t)`.
 	**/
@@ -135,7 +151,7 @@ class DateTools {
 
 	/**
 		Returns the number of days in the month of Date `d`.
-		
+
 		This method handles leap years.
 	**/
 	public static function getMonthDays( d : Date ) : Int {
@@ -159,7 +175,7 @@ class DateTools {
 	/**
 		Converts a number of minutes to a timestamp.
 	**/
-	public static inline function minutes( n : Float ) : Float {
+	#if as3 @:extern #end public static inline function minutes( n : Float ) : Float {
 		return n * 60.0 * 1000.0;
 	}
 
@@ -199,13 +215,13 @@ class DateTools {
 	public static function make( o : { ms : Float, seconds : Int, minutes : Int, hours : Int, days : Int } ) {
 		return o.ms + 1000.0 * (o.seconds + 60.0 * (o.minutes + 60.0 * (o.hours + 24.0 * o.days)));
 	}
-	
-	#if (js || flash || php || cpp)
+
+	#if (js || flash || php || cpp || python)
 	/**
 		Retrieve Unix timestamp value from Date components. Takes same argument sequence as the Date constructor.
 	**/
 	public static #if (js || flash || php) inline #end function makeUtc(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ):Float {
-	    #if (js || flash)
+	    #if (js || flash || python)
 		   return untyped Date.UTC(year, month, day, hour, min, sec);
 		#elseif php
 		   return untyped __call__("gmmktime", hour, min, sec, month + 1, day, year) * 1000;

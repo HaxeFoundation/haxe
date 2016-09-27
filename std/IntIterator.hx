@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,14 +22,16 @@
 
  /**
 	IntIterator is used for implementing interval iterations.
-	
-	It is usually not used explicitly, but through it's special syntax:
+
+	It is usually not used explicitly, but through its special syntax:
 	`min...max`
-		
+
 	While it is possible to assign an instance of IntIterator to a variable or
 	field, it is worth noting that IntIterator does not reset after being used
 	in a for-loop. Subsequent uses of the same instance will then have no
 	effect.
+
+	@see https://haxe.org/manual/lf-iterators.html
 **/
 class IntIterator {
 
@@ -38,10 +40,10 @@ class IntIterator {
 
 	/**
 		Iterates from `min` (inclusive) to `max` (exclusive).
-		
+
 		If `max <= min`, the iterator will not act as a countdown.
 	**/
-	public function new( min : Int, max : Int ) {
+	public inline function new( min : Int, max : Int ) {
 		this.min = min;
 		this.max = max;
 	}
@@ -49,16 +51,16 @@ class IntIterator {
 	/**
 		Returns true if the iterator has other items, false otherwise.
 	**/
-	public function hasNext() {
+	public inline function hasNext() {
 		return min < max;
 	}
 
 	/**
 		Moves to the next item of the iterator.
-		
+
 		If this is called while hasNext() is false, the result is unspecified.
 	**/
-	public function next() {
+	public inline function next() {
 		return min++;
 	}
 

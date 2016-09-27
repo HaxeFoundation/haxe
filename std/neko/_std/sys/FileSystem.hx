@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,7 +31,7 @@ private enum FileKind {
 class FileSystem {
 
 	public static function exists( path : String ) : Bool {
-		return sys_exists(untyped (haxe.io.Path.removeTrailingSlashes(path)).__s);
+		return sys_exists(untyped (makeCompatiblePath(path)).__s);
 	}
 
 	public static function rename( path : String, newPath : String ) : Void {
@@ -39,7 +39,7 @@ class FileSystem {
 	}
 
 	public static function stat( path : String ) : FileStat {
-		var s : FileStat = sys_stat(untyped path.__s);
+		var s : FileStat = sys_stat(untyped (makeCompatiblePath(path)).__s);
 		s.atime = untyped Date.new1(s.atime);
 		s.mtime = untyped Date.new1(s.mtime);
 		s.ctime = untyped Date.new1(s.ctime);
@@ -50,8 +50,13 @@ class FileSystem {
 		return new String(file_full_path(untyped relPath.__s));
 	}
 
+	public static function absolutePath ( relPath : String ) : String {
+		if (haxe.io.Path.isAbsolute(relPath)) return relPath;
+		return haxe.io.Path.join([Sys.getCwd(), relPath]);
+	}
+
 	static function kind( path : String ) : FileKind {
-		var k = new String(sys_file_type(untyped (haxe.io.Path.removeTrailingSlashes(path)).__s));
+		var k = new String(sys_file_type(untyped (makeCompatiblePath(path)).__s));
 		return switch(k) {
 		case "file": kfile;
 		case "dir": kdir;
@@ -59,14 +64,18 @@ class FileSystem {
 		}
 	}
 
-	public static function isDirectory( path : String ) : Bool {
+	public static inline function isDirectory( path : String ) : Bool {
 		return kind(path) == kdir;
 	}
 
 	public static function createDirectory( path : String ) : Void {
 		var path = haxe.io.Path.addTrailingSlash(path);
-		var parts = [while ((path = haxe.io.Path.directory(path)) != "") path];
-		parts.reverse();
+		var _p = null;
+		var parts = [];
+		while (path != (_p = haxe.io.Path.directory(path))) {
+			parts.unshift(path);
+			path = _p;
+		}
 		for (part in parts) {
 			if (part.charCodeAt(part.length - 1) != ":".code && !exists(part))
 				sys_create_dir( untyped part.__s, 493 );
@@ -89,6 +98,14 @@ class FileSystem {
 			l = l[1];
 		}
 		return a;
+	}
+
+	private static inline function makeCompatiblePath(path:String):String {
+		return if (path.charCodeAt(1) == ":".code && path.length <= 3) {
+			haxe.io.Path.addTrailingSlash(path);
+		} else {
+			haxe.io.Path.removeTrailingSlashes(path);
+		}
 	}
 
 	private static var sys_exists = neko.Lib.load("std","sys_exists",1);

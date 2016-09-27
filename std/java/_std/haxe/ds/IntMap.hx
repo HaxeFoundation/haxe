@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,7 +31,7 @@ import java.NativeArray;
  * (https://jonasmalaco.com/fossil/test/jonas-haxe/artifact/887b53126e237d6c68951111d594033403889304)
  */
 
-@:coreApi class IntMap<T> implements Map.IMap<Int,T>
+@:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T>
 {
 	private static inline var HASH_UPPER = 0.7;
 
@@ -70,14 +70,17 @@ import java.NativeArray;
 			var k = hash(key);
 			var i = k & mask;
 
+			var delKey = -1;
 			//for speed up
 			if (flagIsEmpty(flags, i)) {
 				x = i;
 			} else {
 				var inc = getInc(k, mask);
 				var last = i;
-				while (! (isEither(flags, i) || _keys[i] == key) )
+				while (! (flagIsEmpty(flags, i) || _keys[i] == key) )
 				{
+					if (flagIsDel(flags,i) && delKey == -1)
+						delKey = i;
 					i = (i + inc) & mask;
 #if DEBUG_HASHTBL
 					if (i == last)
@@ -86,7 +89,11 @@ import java.NativeArray;
 					}
 #end
 				}
-				x = i;
+
+				if (flagIsEmpty(flags, i) && delKey != -1)
+					x = delKey;
+				else
+					x = i;
 			}
 		}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,7 +25,9 @@ import haxe.macro.Expr;
 import haxe.macro.Type.VarAccess;
 #if macro
 import haxe.macro.Context;
+using haxe.macro.TypeTools;
 #end
+using Lambda;
 
 private typedef SqlFunction = {
 	var name : String;
@@ -120,8 +122,18 @@ class RecordMacros {
 		#end
 	}
 
-	public dynamic function resolveType( name : String ) : haxe.macro.Type {
+	public dynamic function resolveType( name : String, ?module : String ) : haxe.macro.Type {
 		#if macro
+		if (module != null)
+		{
+			var m = Context.getModule(module);
+			for (t in m)
+			{
+				if (t.toString() == name)
+					return t;
+			}
+		}
+
 		return Context.getType(name);
 		#else
 		throw "not implemented";
@@ -148,7 +160,7 @@ class RecordMacros {
 			var csup = cl.superClass;
 			while( csup != null ) {
 				if( csup.t.toString() == "sys.db.Object" )
-					return name;
+					return c;
 				csup = csup.t.get().superClass;
 			}
 		case TType(t, p):
@@ -193,12 +205,19 @@ class RecordMacros {
 			case "haxe.io.Bytes": DBinary;
 			default: throw "Unsupported Record Type " + name;
 			}
-		case TAbstract(a, _):
+		case TAbstract(a, p):
 			var name = a.toString();
 			return switch( name ) {
 			case "Int": DInt;
 			case "Float": DFloat;
 			case "Bool": DBool;
+			case _ if (!a.get().meta.has(':coreType')):
+				var a = a.get();
+#if macro
+				makeType(a.type.applyTypeParameters(a.params, p));
+#else
+				makeType(a.type);
+#end
 			default: throw "Unsupported Record Type " + name;
 			}
 		case TEnum(e, _):
@@ -274,6 +293,7 @@ class RecordMacros {
 			relations : [],
 			indexes : [],
 		};
+		g.cache.set(cname, i);
 		var c = c.get();
 		var fieldsPos = new haxe.ds.StringMap();
 		var fields = c.fields.get();
@@ -307,10 +327,12 @@ class RecordMacros {
 						isNull = false;
 						var t = makeRecord(f.type);
 						if( t == null ) error("Relation type should be a sys.db.Object", f.pos);
+						var mod = t.get().module;
 						var r = {
 							prop : f.name,
 							key : params.shift().i,
-							type : t,
+							type : t.toString(),
+							module : mod,
 							cascade : false,
 							lock : false,
 							isNull : isNull,
@@ -340,10 +362,20 @@ class RecordMacros {
 				isNull : isNull,
 			};
 			var isId = switch( fi.t ) {
-			case DId, DUId: true;
-			default: fi.name == "id";
+			case DId, DUId, DBigId: true;
+			default: i.key == null && fi.name == "id";
 			}
 			if( isId ) {
+				switch(fi.t)
+				{
+					case DInt:
+						fi.t = DId;
+					case DUInt:
+						fi.t = DUId;
+					case DBigInt:
+						fi.t = DBigId;
+					case _:
+				}
 				if( i.key == null ) i.key = [fi.name] else error("Multiple table id declaration", f.pos);
 			}
 			i.fields.push(fi);
@@ -351,18 +383,32 @@ class RecordMacros {
 		}
 		// create fields for undeclared relations keys :
 		for( r in i.relations ) {
+			var field = fields.find(function(f) return f.name == r.prop);
 			var f = i.hfields.get(r.key);
+			var relatedInf = getRecordInfos(makeRecord(resolveType(r.type, r.module)));
+			if (relatedInf.key.length > 1)
+				error('The relation ${r.prop} is invalid: Type ${r.type} has multiple keys, which is not supported',field.pos);
+			var relatedKey = relatedInf.key[0];
+			var relatedKeyType = switch(relatedInf.hfields.get(relatedKey).t)
+				{
+					case DId: DInt;
+					case DUId: DUInt;
+					case DBigId: DBigInt;
+					case t = DString(_): t;
+					case t: error('Unexpected id type $t for the relation. Use either SId, SInt, SUId, SUInt, SBigID, SBigInt or SString', field.pos);
+				}
+
 			if( f == null ) {
 				f = {
 					name : r.key,
-					t : DInt,
+					t : relatedKeyType,
 					isNull : r.isNull,
 				};
 				i.fields.push(f);
 				i.hfields.set(f.name, f);
 			} else {
 				var pos = fieldsPos.get(f.name);
-				if( f.t != DInt ) error("Relation key should be SInt", pos);
+				if( f.t != relatedKeyType) error("Relation source and field should have same type", pos);
 				if( f.isNull != r.isNull ) error("Relation and field should have same nullability", pos);
 			}
 		}
@@ -378,6 +424,20 @@ class RecordMacros {
 					i.key.push(id);
 				}
 				if( i.key.length == 0 ) error("Invalid :id", m.pos);
+				if (i.key.length == 1 )
+				{
+					var field = i.hfields.get(i.key[0]);
+					switch(field.t)
+					{
+						case DInt:
+							field.t = DId;
+						case DUInt:
+							field.t = DUId;
+						case DBigInt:
+							field.t = DBigId;
+						case _:
+					}
+				}
 			case ":index":
 				var idx = [];
 				for( p in m.params ) idx.push(makeIdent(p));
@@ -399,8 +459,7 @@ class RecordMacros {
 			}
 		// check primary key defined
 		if( i.key == null )
-			error("Table is missing unique id, use either SId or @:id", c.pos);
-		g.cache.set(cname, i);
+			error("Table is missing unique id, use either SId, SUId, SBigID or @:id", c.pos);
 		return i;
 	}
 
@@ -429,7 +488,7 @@ class RecordMacros {
 		return { expr : EBinop(OpAdd, sql, makeString(s,sql.pos)), pos : sql.pos };
 	}
 
-	function sqlQuoteValue( v : Expr, t : RecordType ) {
+	function sqlQuoteValue( v : Expr, t : RecordType, isNull : Bool ) {
 		switch( v.expr ) {
 		case EConst(c):
 			switch( c ) {
@@ -439,18 +498,18 @@ class RecordMacros {
 			case CIdent(n):
 				switch( n ) {
 				case "null": return { expr : EConst(CString("NULL")), pos : v.pos };
-				case "true": return { expr : EConst(CInt("1")), pos : v.pos };
-				case "false": return { expr : EConst(CInt("0")), pos : v.pos };
+				case "true": return { expr : EConst(CString("TRUE")), pos : v.pos };
+				case "false": return { expr : EConst(CString("FALSE")), pos : v.pos };
 				}
 			default:
 			}
 		default:
 		}
-		return { expr : ECall( { expr : EField(manager, "quoteAny"), pos : v.pos }, [ensureType(v,t)]), pos : v.pos }
+		return { expr : ECall( { expr : EField(manager, "quoteAny"), pos : v.pos }, [ensureType(v,t,isNull)]), pos : v.pos }
 	}
 
-	inline function sqlAddValue( sql : Expr, v : Expr, t : RecordType ) {
-		return { expr : EBinop(OpAdd, sql, sqlQuoteValue(v,t)), pos : sql.pos };
+	inline function sqlAddValue( sql : Expr, v : Expr, t : RecordType, isNull : Bool ) {
+		return { expr : EBinop(OpAdd, sql, sqlQuoteValue(v,t, isNull)), pos : sql.pos };
 	}
 
 	function unifyClass( t : RecordType ) {
@@ -566,7 +625,6 @@ class RecordMacros {
 									if( c == null ) {
 										if( n == "null" )
 											return { sql : sqlAddString(r1.sql, eq ? " IS NULL" : " IS NOT NULL"), t : DBool, n : false };
-										error("Unknown constructor " + n, e2.pos);
 									} else {
 										return { sql : makeOp(eq?" = ":" != ", r1.sql, { expr : EConst(CInt(Std.string(c.index))), pos : e2.pos }, pos), t : DBool, n : r1.n };
 									}
@@ -577,7 +635,17 @@ class RecordMacros {
 						default:
 						}
 						if( !ok )
-							error("Should be a constant constructor", e2.pos);
+						{
+							var epath = e.split('.');
+							var ename = epath.pop();
+							var etype = TPath({ name:ename, pack:epath });
+							if (r1.n) {
+								return { sql: macro $manager.nullCompare(${r1.sql}, { var tmp = @:pos(e2.pos) (${e2} : $etype); tmp == null ? null : (std.Type.enumIndex(tmp) + ''); }, ${eq ? macro true : macro false}), t : DBool, n: true };
+							} else {
+								var expr = macro { @:pos(e2.pos) var tmp : $etype = $e2; (tmp == null ? null : (std.Type.enumIndex(tmp) + '')); };
+								return { sql: makeOp(eq?" = ":" != ", r1.sql, expr, pos), t : DBool, n : r1.n };
+							}
+						}
 					default:
 					}
 				}
@@ -609,7 +677,7 @@ class RecordMacros {
 		var t = typeof(cond);
 		isNull = false;
 		var d = try makeType(t) catch( e : String ) try makeType(follow(t)) catch( e : String ) error("Unsupported type " + Std.string(t), cond.pos);
-		return { sql : sqlQuoteValue(cond, d), t : d, n : isNull };
+		return { sql : sqlQuoteValue(cond, d, isNull), t : d, n : isNull };
 	}
 
 	function getField( f : { field : String, expr : Expr } ) {
@@ -627,7 +695,7 @@ class RecordMacros {
 					var m = getManager(typeof(mpath),p);
 					var getid = { expr : ECall( { expr : EField(mpath, "unsafeGetId"), pos : p }, [f.expr]), pos : p };
 					f.field = r.key;
-					f.expr = ensureType(getid, m.inf.hfields.get(m.inf.key[0]).t);
+					f.expr = ensureType(getid, m.inf.hfields.get(m.inf.key[0]).t, r.isNull);
 					return inf.hfields.get(r.key);
 				}
 			error("No database field '" + f.field+"'", f.expr.pos);
@@ -650,7 +718,7 @@ class RecordMacros {
 				else
 					sql = sqlAddString(sql, " AND ");
 				sql = sqlAddString(sql, quoteField(fi.name) + (fi.isNull ? " <=> " : " = "));
-				sql = sqlAddValue(sql, f.expr, fi.t);
+				sql = sqlAddValue(sql, f.expr, fi.t, fi.isNull);
 				if( fields.exists(fi.name) )
 					error("Duplicate field " + fi.name, p);
 				else
@@ -743,7 +811,7 @@ class RecordMacros {
 			switch( c ) {
 			case CInt(s): return { sql : makeString(s, p), t : DInt, n : false };
 			case CFloat(s): return { sql : makeString(s, p), t : DFloat, n : false };
-			case CString(s): return { sql : sqlQuoteValue(cond, DText), t : DString(s.length), n : false };
+			case CString(s): return { sql : sqlQuoteValue(cond, DText, false), t : DString(s.length), n : false };
 			case CRegexp(_): error("Unsupported", p);
 			case CIdent(n):
 				if( n.charCodeAt(0) == "$".code ) {
@@ -756,9 +824,9 @@ class RecordMacros {
 				case "null":
 					return { sql : makeString("NULL", p), t : DNull, n : true };
 				case "true":
-					return { sql : makeString("1", p), t : DBool, n : false };
+					return { sql : makeString("TRUE", p), t : DBool, n : false };
 				case "false":
-					return { sql : makeString("0", p), t : DBool, n : false };
+					return { sql : makeString("FALSE", p), t : DBool, n : false };
 				}
 				return buildDefault(cond);
 			}
@@ -847,8 +915,12 @@ class RecordMacros {
 		return null;
 	}
 
-	function ensureType( e : Expr, rt : RecordType ) {
-		return { expr : ECheckType(e, convertType(rt)), pos : e.pos };
+	function ensureType( e : Expr, rt : RecordType, isNull : Bool ) {
+		var t = convertType(rt);
+		if (isNull) {
+			t = macro : Null<$t>;
+		}
+		return { expr : ECheckType(e, t), pos : e.pos };
 	}
 
 	function checkKeys( econd : Expr ) {
@@ -864,14 +936,14 @@ class RecordMacros {
 					else
 						error("Field " + f.field + " is not part of table key (" + inf.key.join(",") + ")", p);
 				}
-				f.expr = ensureType(f.expr, fi.t);
+				f.expr = ensureType(f.expr, fi.t, fi.isNull);
 			}
 			return econd;
 		default:
 			if( inf.key.length > 1 )
 				error("You can't use a single value on a table with multiple keys (" + inf.key.join(",") + ")", p);
 			var fi = inf.hfields.get(inf.key[0]);
-			return ensureType(econd, fi.t);
+			return ensureType(econd, fi.t, fi.isNull);
 		}
 	}
 
@@ -1117,7 +1189,7 @@ class RecordMacros {
 			return { expr : ECall({ expr : EField(em,"unsafeGet"), pos : pos },[econd,elock]), pos : pos };
 		}
 	}
-	
+
 	static function defaultTrue( e : Expr ) {
 		return switch( e.expr ) {
 		case EConst(CIdent("null")): { expr : EConst(CIdent("true")), pos : e.pos };
@@ -1158,7 +1230,7 @@ class RecordMacros {
 
 	static var isNeko = Context.defined("neko");
 
-	static function buildField( f : Field, fields : Array<Field>, ft : ComplexType, rt : ComplexType ) {
+	static function buildField( f : Field, fields : Array<Field>, ft : ComplexType, rt : ComplexType, isNull=false ) {
 		var p = switch( ft ) {
 		case TPath(p): p;
 		default: return;
@@ -1176,13 +1248,11 @@ class RecordMacros {
 			f.meta.push( { name : ":data", params : [], pos : f.pos } );
 			f.meta.push( { name : ":isVar", params : [], pos : f.pos } );
 			var meta = [ { name : ":hide", params : [], pos : pos } ];
-			var cache = "cache_" + f.name;
+			var cache = "cache_" + f.name,
+			    dataName = "data_" + f.name;
 			var ecache = { expr : EConst(CIdent(cache)), pos : pos };
-			var efield = { expr : EConst(CIdent(f.name)), pos : pos };
-			var fname = { expr : EConst(CString(f.name)), pos : pos };
-			// note : we need to store the data in the same field, which is typed as t while it is actually a haxe.io.Bytes
-			// this might cause some issues with static platforms.
-			// In that case maybe a special handling of SData field compilation to haxe.io.Bytes will be necessary
+			var efield = { expr : EConst(CIdent(dataName)), pos : pos };
+			var fname = { expr : EConst(CString(dataName)), pos : pos };
 			var get = {
 				args : [],
 				params : [],
@@ -1197,14 +1267,15 @@ class RecordMacros {
 				expr : macro { if( $ecache == null ) { $ecache = { v : _v }; $efield = cast {}; } else $ecache.v = _v; return _v; },
 			};
 			fields.push( { name : cache, pos : pos, meta : [meta[0], { name:":skip", params:[], pos:pos } ], access : [APrivate], doc : null, kind : FVar(macro : { v : $t }, null) } );
+			fields.push( { name : dataName, pos : pos, meta : [meta[0], { name:":skip", params:[], pos:pos } ], access : [APrivate], doc : null, kind : FVar(macro : Dynamic, null) } );
 			fields.push( { name : "get_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(get) } );
 			fields.push( { name : "set_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(set) } );
 		case "SEnum":
 			f.kind = FProp("dynamic", "dynamic", rt, null);
-			f.meta.push( { name : ":isVar", params : [], pos : f.pos } );
 			f.meta.push( { name : ":data", params : [], pos : f.pos } );
 			var meta = [ { name : ":hide", params : [], pos : pos } ];
-			var efield = { expr : EConst(CIdent(f.name)), pos : pos };
+			var dataName = "data_" + f.name;
+			var efield = { expr : EConst(CIdent(dataName)), pos : pos };
 			var eval = switch( t ) {
 			case TPath(p):
 				var pack = p.pack.copy();
@@ -1224,12 +1295,15 @@ class RecordMacros {
 				args : [{ name : "_v", opt : false, type : t, value : null }],
 				params : [],
 				ret : t,
-				expr : macro { $efield = _v == null ? null : cast Type.enumIndex(_v); return _v; },
+				expr : (Context.defined('cs') && !isNull) ?
+					macro { $efield = cast Type.enumIndex(_v); return _v; } :
+					macro { $efield = _v == null ? null : cast Type.enumIndex(_v); return _v; },
 			};
 			fields.push( { name : "get_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(get) } );
 			fields.push( { name : "set_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(set) } );
+			fields.push( { name : dataName, pos : pos, meta : [meta[0], { name:":skip", params:[], pos:pos } ], access : [APrivate], doc : null, kind : FVar(macro : Null<Int>, null) } );
 		case "SNull", "Null":
-			buildField(f, fields, t, rt);
+			buildField(f, fields, t, rt,true);
 		}
 	}
 
@@ -1245,68 +1319,70 @@ class RecordMacros {
 					skip = true;
 				case ":relation":
 					switch( f.kind ) {
-					case FVar(t, _):
-						f.kind = FProp("dynamic", "dynamic", t);
-						if( isNeko )
-							continue;
-						// create compile-time getter/setter for other platforms
-						var relKey = null;
-						var relParams = [];
-						var lock = false;
-						for( p in m.params )
-							switch( p.expr ) {
-							case EConst(c):
-								switch( c ) {
-								case CIdent(i):
-									relParams.push(i);
+						case FVar(t, _):
+							f.kind = FProp("dynamic", "dynamic", t);
+							if( isNeko )
+								continue;
+							// create compile-time getter/setter for other platforms
+							var relKey = null;
+							var relParams = [];
+							var lock = false;
+							for( p in m.params )
+								switch( p.expr ) {
+								case EConst(c):
+									switch( c ) {
+									case CIdent(i):
+										relParams.push(i);
+									default:
+									}
 								default:
 								}
-							default:
-							}
-						relKey = relParams.shift();
-						for( p in relParams )
-							if( p == "lock" )
-								lock = true;
-						// we will get an error later
-						if( relKey == null )
-							continue;
-						// generate get/set methods stubs
-						var pos = f.pos;
-						var ttype = t, tname;
-						while( true )
-							switch(ttype) {
-							case TPath(t):
-								if( t.params.length == 1 && (t.name == "Null" || t.name == "SNull") ) {
-									ttype = switch( t.params[0] ) {
-									case TPType(t): t;
-									default: throw "assert";
-									};
-									continue;
+							relKey = relParams.shift();
+							for( p in relParams )
+								if( p == "lock" )
+									lock = true;
+							// we will get an error later
+							if( relKey == null )
+								continue;
+							// generate get/set methods stubs
+							var pos = f.pos;
+							var ttype = t, tname;
+							while( true )
+								switch(ttype) {
+								case TPath(t):
+									if( t.params.length == 1 && (t.name == "Null" || t.name == "SNull") ) {
+										ttype = switch( t.params[0] ) {
+										case TPType(t): t;
+										default: throw "assert";
+										};
+										continue;
+									}
+									var p = t.pack.copy();
+									p.push(t.name);
+									if( t.sub != null ) p.push(t.sub);
+									tname = p.join(".");
+									break;
+								default:
+									Context.error("Relation type should be a type path", f.pos);
 								}
-								var p = t.pack.copy();
-								p.push(t.name);
-								if( t.sub != null ) p.push(t.sub);
-								tname = p.join(".");
-								break;
-							default:
-								Context.error("Relation type should be a type path", f.pos);
-							}
-						function e(expr) return { expr : expr, pos : pos };
-						var get = {
-							args : [],
-							params : [],
-							ret : t,
-							expr : Context.parse("return untyped "+tname+".manager.__get(this,'"+f.name+"','"+relKey+"',"+lock+")",pos),
-						};
-						var set = {
-							args : [{ name : "_v", opt : false, type : t, value : null }],
-							params : [],
-							ret : t,
-							expr : Context.parse("return untyped "+tname+".manager.__set(this,'"+f.name+"','"+relKey+"',_v)",pos),
-						};
-						var meta = [{ name : ":hide", params : [], pos : pos }];
-						fields.push({ name : "get_"+f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(get) });
-						fields.push({ name : "set_"+f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(set) });
+							function e(expr) return { expr : expr, pos : pos };
+							var get = {
+								args : [],
+								params : [],
+								ret : t,
+								expr : Context.parse("return untyped "+tname+".manager.__get(this,'"+f.name+"','"+relKey+"',"+lock+")",pos),
+							};
+							var set = {
+								args : [{ name : "_v", opt : false, type : t, value : null }],
+								params : [],
+								ret : t,
+								expr : Context.parse("return untyped "+tname+".manager.__set(this,'"+f.name+"','"+relKey+"',_v)",pos),
+							};
+							var meta = [{ name : ":hide", params : [], pos : pos }];
+							f.meta.push({ name: ":isVar", params : [], pos : pos });
+							fields.push({ name : "get_"+f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(get) });
+							fields.push({ name : "set_"+f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(set) });
+							fields.push({ name : relKey, pos : pos, meta : [{ name : ":skip", params : [], pos : pos }], access : [APrivate], doc : null, kind : FVar(macro : Dynamic) });
 					default:
 						Context.error("Invalid relation field type", f.pos);
 					}
@@ -1316,7 +1392,7 @@ class RecordMacros {
 			if( skip )
 				continue;
 			switch( f.kind ) {
-			case FVar(t, _):
+			case FVar(t, _) | FProp('default',_,t,_):
 				if( t != null )
 					buildField(f,fields,t,t);
 			default:
@@ -1326,6 +1402,17 @@ class RecordMacros {
 			var inst = Context.getLocalClass().get();
 			if( inst.meta.has(":skip") )
 				return fields;
+			if (!Context.defined('neko'))
+			{
+				var iname = { expr:EConst(CIdent(inst.name)), pos: inst.pos };
+				var getM = {
+					args : [],
+					params : [],
+					ret : macro : sys.db.Manager<Dynamic>,
+					expr : macro return $iname.manager
+				};
+				fields.push({ name: "__getManager", meta : [], access : [APrivate,AOverride], doc : null, kind : FFun(getM), pos : inst.pos });
+			}
 			var p = inst.pos;
 			var tinst = TPath( { pack : inst.pack, name : inst.name, sub : null, params : [] } );
 			var path = inst.pack.copy().concat([inst.name]).join(".");

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -46,6 +46,59 @@ extern private class S {
 	public static inline var ESCAPE			= 18;
 }
 
+class XmlParserException
+{
+	/**
+	 * the XML parsing error message
+	 */
+	public var message:String;
+	
+	/**
+	 * the line number at which the XML parsing error occured
+	 */
+	public var lineNumber:Int;
+	
+	/**
+	 * the character position in the reported line at which the parsing error occured
+	 */
+	public var positionAtLine:Int;
+	
+	/**
+	 * the character position in the XML string at which the parsing error occured
+	 */
+	public var position:Int;
+	
+	/**
+	 * the invalid XML string
+	 */
+	public var xml:String;
+	
+	public function new(message:String, xml:String, position:Int)
+	{
+		this.xml = xml;
+		this.message = message;
+		this.position = position;
+		lineNumber = 1;
+		positionAtLine = 0;
+		
+		for( i in 0...position)
+		{
+			var c = xml.fastCodeAt(i);
+			if (c == '\n'.code) {
+				lineNumber++;
+				positionAtLine = 0;
+			} else {
+				if (c != '\r'.code) positionAtLine++;
+			}
+		}
+	}
+	
+	public function toString():String
+	{
+		return Type.getClassName(Type.getClass(this)) + ": " + message + " at line " + lineNumber + " char " + positionAtLine;
+	}
+}
+
 class Parser
 {
 	static var escapes = {
@@ -55,18 +108,22 @@ class Parser
 		h.set("amp", "&");
 		h.set("quot", '"');
 		h.set("apos", "'");
-		h.set("nbsp", String.fromCharCode(160));
 		h;
 	}
-	
-	static public function parse(str:String)
+
+	/**
+	 * Parses the String into an XML Document. Set strict parsing to true in order to enable a strict check of XML attributes and entities.
+	 * 
+	 * @throws haxe.xml.XmlParserException
+	 */
+	static public function parse(str:String, strict = false)
 	{
 		var doc = Xml.createDocument();
-		doParse(str, 0, doc);
+		doParse(str, strict, 0, doc);
 		return doc;
 	}
-	
-	static function doParse(str:String, p:Int = 0, ?parent:Xml):Int
+
+	static function doParse(str:String, strict:Bool, p:Int = 0, ?parent:Xml):Int
 	{
 		var xml:Xml = null;
 		var state = S.BEGIN;
@@ -77,6 +134,13 @@ class Parser
 		var nbrackets = 0;
 		var c = str.fastCodeAt(p);
 		var buf = new StringBuf();
+		// need extra state because next is in use
+		var escapeNext = S.BEGIN;
+		var attrValQuote = -1;
+		inline function addChild(xml:Xml) {
+			parent.addChild(xml);
+			nsubs++;
+		}
 		while (!StringTools.isEof(c))
 		{
 			switch(state)
@@ -107,31 +171,23 @@ class Parser
 				case S.PCDATA:
 					if (c == '<'.code)
 					{
-						#if php
-						var child = Xml.createPCDataFromCustomParser(buf.toString() + str.substr(start, p - start));
-						#else
-						var child = Xml.createPCData(buf.toString() + str.substr(start, p - start));
-						#end
+						buf.addSub(str, start, p - start);
+						var child = Xml.createPCData(buf.toString());
 						buf = new StringBuf();
-						parent.addChild(child);
-						nsubs++;
+						addChild(child);
 						state = S.IGNORE_SPACES;
 						next = S.BEGIN_NODE;
-					}
-					#if !flash9
-					else if (c == '&'.code) {
+					} else if (c == '&'.code) {
 						buf.addSub(str, start, p - start);
 						state = S.ESCAPE;
-						next = S.PCDATA;
+						escapeNext = S.PCDATA;
 						start = p + 1;
 					}
-					#end
 				case S.CDATA:
 					if (c == ']'.code && str.fastCodeAt(p + 1) == ']'.code && str.fastCodeAt(p + 2) == '>'.code)
 					{
 						var child = Xml.createCData(str.substr(start, p - start));
-						parent.addChild(child);
-						nsubs++;
+						addChild(child);
 						p += 2;
 						state = S.BEGIN;
 					}
@@ -143,7 +199,7 @@ class Parser
 							{
 								p += 2;
 								if (str.substr(p, 6).toUpperCase() != "CDATA[")
-									throw("Expected <![CDATA[");
+									throw new XmlParserException("Expected <![CDATA[", str, p);
 								p += 5;
 								state = S.CDATA;
 								start = p + 1;
@@ -151,13 +207,13 @@ class Parser
 							else if (str.fastCodeAt(p + 1) == 'D'.code || str.fastCodeAt(p + 1) == 'd'.code)
 							{
 								if(str.substr(p + 2, 6).toUpperCase() != "OCTYPE")
-									throw("Expected <!DOCTYPE");
+									throw new XmlParserException("Expected <!DOCTYPE", str, p);
 								p += 8;
 								state = S.DOCTYPE;
 								start = p + 1;
 							}
 							else if( str.fastCodeAt(p + 1) != '-'.code || str.fastCodeAt(p + 2) != '-'.code )
-								throw("Expected <!--");
+								throw new XmlParserException("Expected <!--", str, p);
 							else
 							{
 								p += 2;
@@ -169,7 +225,7 @@ class Parser
 							start = p;
 						case '/'.code:
 							if( parent == null )
-								throw("Expected node name");
+								throw new XmlParserException("Expected node name", str, p);
 							start = p + 1;
 							state = S.IGNORE_SPACES;
 							next = S.CLOSE;
@@ -182,9 +238,9 @@ class Parser
 					if (!isValidChar(c))
 					{
 						if( p == start )
-							throw("Expected node name");
+							throw new XmlParserException("Expected node name", str, p);
 						xml = Xml.createElement(str.substr(start, p - start));
-						parent.addChild(xml);
+						addChild(xml);
 						state = S.IGNORE_SPACES;
 						next = S.BODY;
 						continue;
@@ -194,10 +250,8 @@ class Parser
 					{
 						case '/'.code:
 							state = S.WAIT_END;
-							nsubs++;
 						case '>'.code:
 							state = S.CHILDS;
-							nsubs++;
 						default:
 							state = S.ATTRIB_NAME;
 							start = p;
@@ -208,11 +262,11 @@ class Parser
 					{
 						var tmp;
 						if( start == p )
-							throw("Expected attribute name");
+							throw new XmlParserException("Expected attribute name", str, p);
 						tmp = str.substr(start,p-start);
 						aname = tmp;
 						if( xml.exists(aname) )
-							throw("Duplicate attribute");
+							throw new XmlParserException("Duplicate attribute [" + aname + "]", str, p);
 						state = S.IGNORE_SPACES;
 						next = S.EQUALS;
 						continue;
@@ -224,27 +278,39 @@ class Parser
 							state = S.IGNORE_SPACES;
 							next = S.ATTVAL_BEGIN;
 						default:
-							throw("Expected =");
+							throw new XmlParserException("Expected =", str, p);
 					}
 				case S.ATTVAL_BEGIN:
 					switch(c)
 					{
-						case '"'.code, '\''.code:
+						case '"'.code | '\''.code:
+							buf = new StringBuf();
 							state = S.ATTRIB_VAL;
-							start = p;
+							start = p + 1;
+							attrValQuote = c;
 						default:
-							throw("Expected \"");
+							throw new XmlParserException("Expected \"", str, p);
 					}
 				case S.ATTRIB_VAL:
-					if (c == str.fastCodeAt(start))
-					{
-						var val = str.substr(start+1,p-start-1);
-						xml.set(aname, val);
-						state = S.IGNORE_SPACES;
-						next = S.BODY;
+					switch (c) {
+						case '&'.code:
+							buf.addSub(str, start, p - start);
+							state = S.ESCAPE;
+							escapeNext = S.ATTRIB_VAL;
+							start = p + 1;
+						case '>'.code | '<'.code if( strict ):
+							// HTML allows these in attributes values
+							throw new XmlParserException("Invalid unescaped " + String.fromCharCode(c) + " in attribute value", str, p);
+						case _ if (c == attrValQuote):
+							buf.addSub(str, start, p - start);
+							var val = buf.toString();
+							buf = new StringBuf();
+							xml.set(aname, val);
+							state = S.IGNORE_SPACES;
+							next = S.BODY;
 					}
 				case S.CHILDS:
-					p = doParse(str, p, xml);
+					p = doParse(str, strict, p, xml);
 					start = p;
 					state = S.BEGIN;
 				case S.WAIT_END:
@@ -253,7 +319,7 @@ class Parser
 						case '>'.code:
 							state = S.BEGIN;
 						default :
-							throw("Expected >");
+							throw new XmlParserException("Expected >", str, p);
 					}
 				case S.WAIT_END_RET:
 					switch(c)
@@ -263,17 +329,17 @@ class Parser
 								parent.addChild(Xml.createPCData(""));
 							return p;
 						default :
-							throw("Expected >");
+							throw new XmlParserException("Expected >", str, p);
 					}
 				case S.CLOSE:
 					if (!isValidChar(c))
 					{
 						if( start == p )
-							throw("Expected node name");
+							throw new XmlParserException("Expected node name", str, p);
 
 						var v = str.substr(start,p - start);
 						if (v != parent.nodeName)
-							throw "Expected </" +parent.nodeName + ">";
+							throw new XmlParserException("Expected </" +parent.nodeName + ">", str, p);
 
 						state = S.IGNORE_SPACES;
 						next = S.WAIT_END_RET;
@@ -282,7 +348,7 @@ class Parser
 				case S.COMMENT:
 					if (c == '-'.code && str.fastCodeAt(p +1) == '-'.code && str.fastCodeAt(p + 2) == '>'.code)
 					{
-						parent.addChild(Xml.createComment(str.substr(start, p - start)));
+						addChild(Xml.createComment(str.substr(start, p - start)));
 						p += 2;
 						state = S.BEGIN;
 					}
@@ -293,7 +359,7 @@ class Parser
 						nbrackets--;
 					else if (c == '>'.code && nbrackets == 0)
 					{
-						parent.addChild(Xml.createDocType(str.substr(start, p - start)));
+						addChild(Xml.createDocType(str.substr(start, p - start)));
 						state = S.BEGIN;
 					}
 				case S.HEADER:
@@ -301,7 +367,7 @@ class Parser
 					{
 						p++;
 						var str = str.substr(start + 1, p - start - 2);
-						parent.addChild(Xml.createProcessingInstruction(str));
+						addChild(Xml.createProcessingInstruction(str));
 						state = S.BEGIN;
 					}
 				case S.ESCAPE:
@@ -309,37 +375,76 @@ class Parser
 					{
 						var s = str.substr(start, p - start);
 						if (s.fastCodeAt(0) == '#'.code) {
-							var i = s.fastCodeAt(1) == 'x'.code
+							var c = s.fastCodeAt(1) == 'x'.code
 								? Std.parseInt("0" +s.substr(1, s.length - 1))
 								: Std.parseInt(s.substr(1, s.length - 1));
-							buf.add(String.fromCharCode(i));
-						} else if (!escapes.exists(s))
+							#if (neko || cpp || php || lua)
+							if( c >= 128 ) {
+								// UTF8-encode it
+								if( c <= 0x7FF ) {
+									buf.addChar(0xC0 | (c >> 6));
+									buf.addChar(0x80 | (c & 63));
+								} else if( c <= 0xFFFF ) {
+									buf.addChar(0xE0 | (c >> 12));
+									buf.addChar(0x80 | ((c >> 6) & 63));
+									buf.addChar(0x80 | (c & 63));
+								} else if( c <= 0x10FFFF ) {
+									buf.addChar(0xF0 | (c >> 18));
+									buf.addChar(0x80 | ((c >> 12) & 63));
+									buf.addChar(0x80 | ((c >> 6) & 63));
+									buf.addChar(0x80 | (c & 63));
+								} else
+									throw new XmlParserException("Cannot encode UTF8-char " + c, str, p);
+							} else
+							#end
+							buf.addChar(c);
+						} else if (!escapes.exists(s)) {
+							if( strict )
+								throw new XmlParserException("Undefined entity: " + s, str, p);
 							buf.add('&$s;');
-						else
+						} else {
 							buf.add(escapes.get(s));
+						}
 						start = p + 1;
-						state = next;
+						state = escapeNext;
+					} else if (!isValidChar(c) && c != "#".code) {
+						if( strict )
+							throw new XmlParserException("Invalid character in entity: " + String.fromCharCode(c), str, p);
+						buf.addChar("&".code);
+						buf.addSub(str, start, p - start);
+						p--;
+						start = p + 1;
+						state = escapeNext;
 					}
 			}
 			c = str.fastCodeAt(++p);
 		}
-		
+
 		if (state == S.BEGIN)
 		{
 			start = p;
 			state = S.PCDATA;
 		}
-		
+
 		if (state == S.PCDATA)
 		{
-			if (p != start || nsubs == 0)
-				parent.addChild(Xml.createPCData(buf.toString() + str.substr(start, p - start)));
+			if (p != start || nsubs == 0) {
+				buf.addSub(str, start, p-start);
+				addChild(Xml.createPCData(buf.toString()));
+			}
 			return p;
 		}
-		
-		throw "Unexpected end";
+
+		if( !strict && state == S.ESCAPE && escapeNext == S.PCDATA ) {
+			buf.addChar("&".code);
+			buf.addSub(str, start, p - start);
+			addChild(Xml.createPCData(buf.toString()));
+			return p;
+		}
+
+		throw new XmlParserException("Unexpected end", str, p);
 	}
-	
+
 	static inline function isValidChar(c) {
 		return (c >= 'a'.code && c <= 'z'.code) || (c >= 'A'.code && c <= 'Z'.code) || (c >= '0'.code && c <= '9'.code) || c == ':'.code || c == '.'.code || c == '_'.code || c == '-'.code;
 	}

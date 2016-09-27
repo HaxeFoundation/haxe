@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -55,11 +55,22 @@ extern class FileSystem {
 
 	/**
 		Returns the full path of the file or directory specified by `relPath`,
-		which is relative to the current working directory.
+		which is relative to the current working directory. Symlinks will be
+		followed and the path will be normalized.
 
 		If `relPath` is null, the result is unspecified.
 	**/
 	static function fullPath( relPath : String ) : String;
+
+	/**
+		Returns the full path of the file or directory specified by `relPath`,
+		which is relative to the current working directory. The path doesn't
+		have to exist.
+
+		If `relPath` is null, the result is unspecified.
+	**/
+	//@:require(haxe_ver >= 3.2)
+	static function absolutePath( relPath : String ) : String;
 
 	/**
 		Tells if the file or directory specified by `path` is a directory.

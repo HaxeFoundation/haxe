@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,24 +22,62 @@
 package sys;
 
 /**
-	File informations, as given by [sys.FileSystem.stat]
+	File informations, as given by `sys.FileSystem.stat`.
 **/
 typedef FileStat = {
-	/** the user group id for the file **/
+
+	/**
+		The user group id for the file's owner.
+	**/
 	var gid : Int;
-	/** the user id for the file **/
+
+	/** 
+		The user id for the file's owner.
+	**/
 	var uid : Int;
-	/** the last access time for the file (when enabled by the file system) **/
+
+	/** 
+		The last access time for the file (when enabled by the file system).
+	**/
 	var atime : Date;
-	/** the last modification time for the file **/
+
+	/** 
+		The last modification time for the file.
+	**/
 	var mtime : Date;
-	/** the creation time for the file **/
+
+	/**
+		The creation time for the file (not all filesystems support this).
+	**/
 	var ctime : Date;
-	/** the size of the file **/
+
+	/** 
+		The size of the file, in bytes. 
+	**/
 	var size : Int;
+
+	/** 
+		The device on which stat resides.
+	**/
 	var dev : Int;
+
+	/** 
+		The inode number for stat.
+	**/
 	var ino : Int;
+
+	/** 
+		The number of hard links to stat.
+	**/
 	var nlink : Int;
+
+	/** 
+		The device type on which stat resides (special files only).
+	**/
 	var rdev : Int;
+
+	/** 
+		The permission bits of stat. The meaning of the bits is platform dependent.
+	**/
 	var mode : Int;
 }

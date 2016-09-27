@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,7 +25,7 @@ import java.NativeArray;
 import java.lang.ref.WeakReference;
 import java.lang.ref.ReferenceQueue;
 
-@:coreApi class WeakMap<K:{}, V> implements Map.IMap<K,V>
+@:coreApi class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K,V>
 {
 	@:extern private static inline var HASH_UPPER = 0.77;
 	@:extern private static inline var FLAG_EMPTY = 0;
@@ -66,6 +66,7 @@ import java.lang.ref.ReferenceQueue;
 		queue = new ReferenceQueue();
 	}
 
+	@:analyzer(ignore)
 	private function cleanupRefs():Void
 	{
 		var x:Dynamic = null, nOccupied = nOccupied;
@@ -120,14 +121,17 @@ import java.lang.ref.ReferenceQueue;
 			var site = x = nBuckets;
 			var i = k & mask, nProbes = 0;
 
+			var delKey = -1;
 			//for speed up
-			if (isEither(hashes[i])) {
+			if (isEmpty(hashes[i])) {
 				x = i;
 			} else {
 				//var inc = getInc(k, mask);
 				var last = i, flag;
-				while(! (isEither(flag = hashes[i]) || (flag == k && entries[i].keyEquals(key) )) )
+				while(! (isEmpty(flag = hashes[i]) || (flag == k && entries[i].keyEquals(key) )) )
 				{
+					if (delKey == -1 && isDel(flag))
+						delKey = i;
 					i = (i + ++nProbes) & mask;
 #if DEBUG_HASHTBL
 					probeTimes++;
@@ -135,7 +139,11 @@ import java.lang.ref.ReferenceQueue;
 						throw "assert";
 #end
 				}
-				x = i;
+
+				if (isEmpty(flag) && delKey != -1)
+					x = delKey;
+				else
+					x = i;
 			}
 
 #if DEBUG_HASHTBL
@@ -390,7 +398,7 @@ import java.lang.ref.ReferenceQueue;
 				{
 					if (!isEither(hashes[j]))
 					{
-						var entry = entries[i];
+						var entry = entries[j];
 						var last = entry.get();
 						if (last != null)
 						{

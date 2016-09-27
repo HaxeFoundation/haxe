@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,23 +29,23 @@
 extern class Std {
 
 	/**
-		Tells if a value v is of the type t. Returns false if v or t are null.
+		Tells if a value `v` is of the type `t`. Returns `false` if `v` or `t` are null.
 	**/
 	public static function is( v : Dynamic, t : Dynamic ) : Bool;
-	
+
 	/**
 		Checks if object `value` is an instance of class `c`.
-		
+
 		Compiles only if the class specified by `c` can be assigned to the type
 		of `value`.
-		
+
 		This method checks if a downcast is possible. That is, if the runtime
 		type of `value` is assignable to the class specified by `c`, `value` is
 		returned. Otherwise null is returned.
-		
+
 		This method is not guaranteed to work with interfaces or core types such
-		as String, Array and Date.
-		
+		as `String`, `Array` and `Date`.
+
 		If `value` is null, the result is null. If `c` is null, the result is
 		unspecified.
 	**/
@@ -74,7 +74,7 @@ extern class Std {
 	/**
 		Converts a `Float` to an `Int`, rounded towards 0.
 
-		If `x` is outside of the signed Int32 range, or is NaN, NEGATIVE_INFINITY or POSITIVE_INFINITY, the result is unspecified.
+		If `x` is outside of the signed Int32 range, or is `NaN`, `NEGATIVE_INFINITY` or `POSITIVE_INFINITY`, the result is unspecified.
 	**/
 	public static function int( x : Float ) : Int;
 
@@ -96,7 +96,7 @@ extern class Std {
 		Leading 0s that are not part of the 0x/0X hexadecimal notation are ignored, which means octal
 		notation is not supported.
 
-		If the input cannot be recognized, the result is null.
+		If the input cannot be recognized, the result is `null`.
 	**/
 	public static function parseInt( x : String ) : Null<Int>;
 
@@ -104,7 +104,7 @@ extern class Std {
 		Converts a `String` to a `Float`.
 
 		The parsing rules for `parseInt` apply here as well, with the exception of invalid input
-		resulting in a NaN value instead of null.
+		resulting in a `NaN` value instead of null.
 
 		Additionally, decimal notation may contain a single `.` to denote the start of the fractions.
 	**/

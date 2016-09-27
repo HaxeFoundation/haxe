@@ -1,0 +1,8 @@
+-main cpp.cppia.Host
+-D scriptable
+-D dll_export=bin/cppia.classes
+-debug
+-dce no
+-cpp bin/cppia
+-cp src
+--macro include("scripthost")

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -100,6 +100,13 @@ private class PDOConnection implements Connection {
 			pdo = untyped __call__("new PDO", dsn, user, password, arr);
 		}
 		dbname = dsn.split(':').shift();
+		switch(dbname.toLowerCase())
+		{
+			case "sqlite":
+				dbname = "SQLite";
+			case "mysql":
+				dbname = "MySQL";
+		}
 	}
 
 	public function close() {
@@ -190,6 +197,8 @@ private class TypeStrategy {
 				return untyped __call__("floatval", v);
 			case "date":
 				return Date.fromString(v);
+			case "blob":
+				return haxe.io.Bytes.ofString(v);
 			default:
 				return v;
 		}
@@ -208,18 +217,25 @@ private class PHPNativeStrategy extends TypeStrategy {
 			} else
 				return "string";
 		}
+		var pdo_type_str:Int = untyped __php__("PDO::PARAM_STR");
+		var pdo_type : Int = untyped data["pdo_type"];
+
 		var type : String = untyped data[KEY];
 		type = type.toLowerCase();
 		switch(type)
 		{
 			case "float", "decimal", "double", "newdecimal":
 				return "float";
-			case "date", "datetime":
+			case "date", "datetime", "timestamp":
 				return "date";
-			case "bool":
+			case "bool", "tinyint(1)":
 				return "bool";
-			case "int", "int24", "int32", "long", "longlong", "short":
+			case "int", "int24", "int32", "long", "longlong", "short", "tiny":
 				return "int";
+			case "blob" if (pdo_type == pdo_type_str):
+			 	return "string";
+			case "blob":
+				return "blob";
 			default:
 				return "string";
 		}

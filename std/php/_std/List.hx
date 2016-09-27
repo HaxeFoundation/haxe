@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,8 +21,8 @@
  */
 @:coreApi class List<T> implements php.IteratorAggregate<T> {
 
-	private var h : ArrayAccess<Dynamic>;
-	private var q : ArrayAccess<Dynamic>;
+	@:ifFeature("List.iterator") private var h : ArrayAccess<Dynamic>;
+	@:ifFeature("List.iterator") private var q : ArrayAccess<Dynamic>;
 
 	public var length(default,null) : Int;
 
@@ -97,7 +97,7 @@
 		return false;
 	}
 
-	public function iterator() : Iterator<T> {
+	public function iterator() : ListIterator<T> {
 		return untyped __call__("new _hx_list_iterator", this);
 	}
 
@@ -157,4 +157,9 @@
 	function getIterator() : Iterator<T> {
 		return iterator();
 	}
+}
+
+@:coreType private extern class ListIterator<T> {
+	function hasNext():Bool;
+	function next():T;
 }

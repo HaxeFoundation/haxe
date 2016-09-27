@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,23 +21,23 @@
  */
 package haxe.ds;
 
-@:coreApi class IntMap<T> implements Map.IMap<Int,T> {
+@:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 
 	private var h : Dynamic;
 
-	public function new() : Void {
+	public inline function new() : Void {
 		h = {};
 	}
 
-	public function set( key : Int, value : T ) : Void {
+	public inline function set( key : Int, value : T ) : Void {
 		untyped h[key] = value;
 	}
 
-	public function get( key : Int ) : Null<T> {
+	public inline function get( key : Int ) : Null<T> {
 		return untyped h[key];
 	}
 
-	public function exists( key : Int ) : Bool {
+	public inline function exists( key : Int ) : Bool {
 		return untyped h.hasOwnProperty(key);
 	}
 
@@ -49,12 +49,7 @@ package haxe.ds;
 
 	public function keys() : Iterator<Int> {
 		var a = [];
-		untyped {
-			__js__("for( var key in this.h ) {");
-				if( h.hasOwnProperty(key) )
-					a.push(key|0);
-			__js__("}");
-		}
+		untyped __js__("for( var key in {0} ) {1}", h, if( h.hasOwnProperty(key) ) a.push(key|0));
 		return a.iterator();
 	}
 

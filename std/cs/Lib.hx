@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,33 +28,27 @@ import cs.system.Type;
 **/
 class Lib
 {
-	@:keep private static var decimalSeparator:String;
+	private static var decimalSeparator:String;
 
 	/**
 		Changes the current culture settings to allow a consistent cross-target behavior.
 		Currently the only change made is in regard to the decimal separator, which is always set to "."
 	**/
-	@:functionCode('
-			System.Globalization.CultureInfo ci = new System.Globalization.CultureInfo(System.Threading.Thread.CurrentThread.CurrentCulture.Name, true);
-			decimalSeparator = ci.NumberFormat.NumberDecimalSeparator;
-            ci.NumberFormat.NumberDecimalSeparator = ".";
-            System.Threading.Thread.CurrentThread.CurrentCulture = ci;
-	')
-	@:keep public static function applyCultureChanges():Void
+	public static function applyCultureChanges():Void
 	{
-
+		var ci = new cs.system.globalization.CultureInfo(cs.system.threading.Thread.CurrentThread.CurrentCulture.Name, true);
+		decimalSeparator = ci.NumberFormat.NumberDecimalSeparator;
+		ci.NumberFormat.NumberDecimalSeparator = ".";
+		cs.system.threading.Thread.CurrentThread.CurrentCulture = ci;
 	}
 
 	/**
 		Reverts the culture changes to the default settings.
 	**/
-	@:functionCode('
-		System.Globalization.CultureInfo ci = new System.Globalization.CultureInfo(System.Threading.Thread.CurrentThread.CurrentCulture.Name, true);
-		System.Threading.Thread.CurrentThread.CurrentCulture = ci;
-	')
 	public static function revertDefaultCulture():Void
 	{
-
+		var ci = new cs.system.globalization.CultureInfo(cs.system.threading.Thread.CurrentThread.CurrentCulture.Name, true);
+		cs.system.threading.Thread.CurrentThread.CurrentCulture = ci;
 	}
 
 	/**
@@ -63,19 +57,26 @@ class Lib
 
 		If equalLengthRequired is true, the result might be a copy of an array with the correct size.
 	**/
-	public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
+	@:extern inline public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
+	{
+		var ret = new cs.NativeArray(arr.length);
+#if erase_generics
+		for (i in 0...arr.length)
+			ret[i] = arr[i];
+#else
+		p_nativeArray(arr,ret);
+#end
+		return ret;
+	}
+
+#if !erase_generics
+	static function p_nativeArray<T>(arr:Array<T>, ret:cs.system.Array):Void
 	{
 		var native:NativeArray<T> = untyped arr.__a;
 		var len = arr.length;
-		if (!equalLengthRequired || native.Length == len)
-		{
-			return native;
-		} else {
-			var ret = new NativeArray<T>(len);
-			cs.system.Array.Copy(native, 0, ret, 0, len);
-			return ret;
-		}
+		cs.system.Array.Copy(native, 0, ret, 0, len);
 	}
+#end
 
 	/**
 		Provides support for the "as" keyword in C#.
@@ -83,12 +84,10 @@ class Lib
 
 		This function will not work with Value Types (such as Int, Float, Bool...)
 	**/
-	@:functionCode('
-			throw new haxe.lang.HaxeException("This function cannot be accessed at runtime");
-	')
+	@:pure
 	@:extern public static inline function as<T>(obj:Dynamic, cl:Class<T>):T
 	{
-		return untyped __as__(obj, cl);
+		return untyped __as__(obj);
 	}
 
 	/**
@@ -114,29 +113,72 @@ class Lib
 	}
 
 	/**
-		Gets the native System.Type from the supplied object. Will throw an exception in case of null being passed.
+		Returns a System.Type equivalent to the Haxe Enum<> type.
 	**/
-	public static function nativeType(obj:Dynamic):Type
+	public static inline function toNativeEnum(cl:Enum<Dynamic>):Type
+	{
+		return untyped cl;
+	}
+
+	/**
+		Gets the native System.Type from the supplied object. Will throw an exception in case of null being passed.
+		[deprecated] - use `getNativeType` instead
+	**/
+	@:deprecated('The function `nativeType` is deprecated and will be removed in later versions. Please use `getNativeType` instead')
+	public static inline function nativeType(obj:Dynamic):Type
 	{
 		return untyped obj.GetType();
 	}
 
 	/**
-		Returns a Haxe Array of a native Array.
-		It won't copy the contents of the native array, so unless any operation triggers an array resize,
-		all changes made to the Haxe array will affect the native array argument.
+		Gets the native System.Type from the supplied object. Will throw an exception in case of null being passed.
 	**/
-	public static function array<T>(native:cs.NativeArray<T>):Array<T>
+	public static inline function getNativeType(obj:Dynamic):Type
 	{
-		return untyped Array.ofNative(native);
+		return untyped obj.GetType();
+	}
+
+#if erase_generics
+	inline private static function mkDynamic<T>(native:NativeArray<T>):NativeArray<Dynamic>
+	{
+		var ret = new cs.NativeArray<Dynamic>(native.Length);
+		for (i in 0...native.Length)
+			ret[i] = native[i];
+		return ret;
+	}
+#end
+
+	/**
+		Returns a Haxe Array of a native Array.
+		Unless `erase_generics` is defined, it won't copy the contents of the native array,
+		so unless any operation triggers an array resize, all changes made to the Haxe array
+		will affect the native array argument.
+	**/
+	inline public static function array<T>(native:cs.NativeArray<T>):Array<T>
+	{
+#if erase_generics
+		var dyn:NativeArray<Dynamic> = mkDynamic(native);
+		return @:privateAccess Array.ofNative(dyn);
+#else
+		return @:privateAccess Array.ofNative(native);
+#end
 	}
 
 	/**
 		Allocates a new Haxe Array with a predetermined size
 	**/
-	public static function arrayAlloc<T>(size:Int):Array<T>
+	inline public static function arrayAlloc<T>(size:Int):Array<T>
 	{
-		return untyped Array.alloc(size);
+		return @:privateAccess Array.alloc(size);
+	}
+
+	/**
+		Rethrow an exception. This is useful when manually filtering an exception in order
+		to keep the previous exception stack.
+	**/
+	@:extern inline public static function rethrow(e:Dynamic):Void
+	{
+		untyped __rethrow__();
 	}
 
 	/**
@@ -260,7 +302,7 @@ class Lib
 	**/
 	@:extern public static inline function pointerOfArray<T>(array:cs.NativeArray<T>):cs.Pointer<T>
 	{
-		return cast array;
+		return untyped __ptr__(array);
 	}
 
 	/**

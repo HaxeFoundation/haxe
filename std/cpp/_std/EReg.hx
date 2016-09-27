@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+@:buildXml('<include name="${HXCPP}/src/hx/libs/regexp/Build.xml"/>')
 @:coreApi class EReg {
 
 	var r : Dynamic;
@@ -30,11 +32,11 @@
 			global = a.length > 1;
 			if( global )
 				opt = a.join("");
-			this.r = regexp_new_options(r, opt);
+			this.r = _hx_regexp_new_options(r, opt);
 	}
 
 	public function match( s : String ) : Bool {
-			var p = regexp_match(r,s,0,s.length);
+			var p = _hx_regexp_match(r,s,0,s.length);
 			if( p )
 				last = s;
 			else
@@ -43,27 +45,27 @@
 	}
 
 	public function matched( n : Int ) : String {
-			var m = regexp_matched(r,n);
+			var m = _hx_regexp_matched(r,n);
 			return m;
 	}
 
 	public function matchedLeft() : String {
-			var p = regexp_matched_pos(r,0);
+			var p = _hx_regexp_matched_pos(r,0);
 			return last.substr(0,p.pos);
 	}
 
 	public function matchedRight() : String {
-			var p = regexp_matched_pos(r,0);
+			var p = _hx_regexp_matched_pos(r,0);
 			var sz = p.pos+p.len;
 			return last.substr(sz,last.length-sz);
 	}
 
 	public function matchedPos() : { pos : Int, len : Int } {
-			return regexp_matched_pos(r,0);
+			return _hx_regexp_matched_pos(r,0);
 	}
 
 	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
-			var p = regexp_match(r, s, pos, len < 0 ? s.length - pos : len);
+			var p = _hx_regexp_match(r, s, pos, len < 0 ? s.length - pos : len);
 			if (p)
 				last = s;
 			else
@@ -77,9 +79,9 @@
 			var a = new Array();
 			var first = true;
 			do {
-				if( !regexp_match(r,s,pos,len) )
+				if( !_hx_regexp_match(r,s,pos,len) )
 					break;
-				var p = regexp_matched_pos(r,0);
+				var p = _hx_regexp_matched_pos(r,0);
 				if( p.len == 0 && !first ) {
 					if( p.pos == s.length )
 						break;
@@ -102,9 +104,9 @@
 			var a = by.split("$");
 			var first = true;
 			do {
-				if( !regexp_match(r,s,pos,len) )
+				if( !_hx_regexp_match(r,s,pos,len) )
 					break;
-				var p = regexp_matched_pos(r,0);
+				var p = _hx_regexp_matched_pos(r,0);
 				if( p.len == 0 && !first ) {
 					if( p.pos == s.length )
 						break;
@@ -119,7 +121,7 @@
 					var c = k.charCodeAt(0);
 					// 1...9
 					if( c >= 49 && c <= 57 ) {
-						var p = try regexp_matched_pos(r,Std.int(c)-48) catch( e : String ) null;
+						var p = try _hx_regexp_matched_pos(r,Std.int(c)-48) catch( e : String ) null;
 						if( p == null ){
 							b.add("$");
 							b.add(k);
@@ -156,7 +158,7 @@
 				buf.add(s.substr(offset));
 				break;
 			}
-			var p = regexp_matched_pos(r,0);
+			var p = _hx_regexp_matched_pos(r,0);
 			buf.add(s.substr(offset, p.pos - offset));
 			buf.add(f(this));
 			if (p.len == 0) {
@@ -171,8 +173,16 @@
 		return buf.toString();
 	}
 
-	static var regexp_new_options : String -> String -> Dynamic = cpp.Lib.load("regexp","regexp_new_options",2);
-	static var regexp_match : Dynamic -> String -> Int -> Int -> Dynamic = cpp.Lib.load("regexp","regexp_match",4);
-	static var regexp_matched : Dynamic -> Int -> Dynamic = cpp.Lib.load("regexp","regexp_matched",2);
-	static var regexp_matched_pos : Dynamic -> Int -> { pos : Int, len : Int } = cpp.Lib.load("regexp","regexp_matched_pos",2);
+
+   @:extern @:native("_hx_regexp_new_options")
+	static function _hx_regexp_new_options(s:String, options:String) : Dynamic return null;
+
+   @:extern @:native("_hx_regexp_match")
+	static function _hx_regexp_match(handler: Dynamic, string:String, pos:Int, len:Int) : Bool return false;
+
+   @:extern @:native("_hx_regexp_matched")
+	static function _hx_regexp_matched(handle:Dynamic, pos:Int) : String return null;
+
+   @:extern @:native("_hx_regexp_matched_pos")
+	static function _hx_regexp_matched_pos(handle:Dynamic, match:Int) : {pos:Int, len:Int} return null;
 }

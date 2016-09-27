@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -42,7 +42,9 @@
 	static function floor(v:Float):Int;
 	static function ceil(v:Float):Int;
 	static function atan(v:Float):Float;
-	static function fround(v:Float):Float;
+	inline static function fround(v:Float):Float {
+		return ffloor(v + 0.5);
+	}
 	static function ffloor(v:Float):Float;
 	static function fceil(v:Float):Float;
 	static function asin(v:Float):Float;

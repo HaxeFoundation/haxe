@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,10 +22,10 @@
 package php;
 
 extern interface IteratorAggregate<T> {
-	/** 
-		This method is not public to not induce Haxe users to use it ;) 
+	/**
+		This method is not public to not induce Haxe users to use it ;)
 		Use iterator() instead.
-		The return type would be Aggregator that is unusable in Haxe 
+		The return type would be Aggregator that is unusable in Haxe
 	**/
-	private function getIterator() : Iterator<T>; // 
+	private function getIterator() : Iterator<T>; //
 }

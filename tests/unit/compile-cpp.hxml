@@ -1,4 +1,4 @@
 compile-each.hxml
--main unit.Test
--cpp cpp
--D NO_PRECOMPILED_HEADERS
+-main unit.TestMain
+-cpp bin/cpp
+-D HXCPP_NO_DEBUG_LINK

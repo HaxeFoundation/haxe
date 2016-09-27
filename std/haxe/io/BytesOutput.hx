@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,7 +23,7 @@ package haxe.io;
 
 class BytesOutput extends Output {
 
-	#if flash9
+	#if flash
 	var b : flash.utils.ByteArray;
 	#else
 	var b : BytesBuffer;
@@ -33,11 +33,14 @@ class BytesOutput extends Output {
 	public var length(get,never) : Int;
 
 	public function new() {
-		#if flash9
+		#if flash
 		b = new flash.utils.ByteArray();
 		b.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		#else
 		b = new BytesBuffer();
+		#end
+		#if python
+		bigEndian = false;
 		#end
 	}
 
@@ -46,7 +49,7 @@ class BytesOutput extends Output {
 	}
 
 	override function writeByte(c) {
-		#if flash9
+		#if flash
 		b.writeByte(c);
 		#else
 		b.addByte(c);
@@ -54,7 +57,7 @@ class BytesOutput extends Output {
 	}
 
 	override function writeBytes( buf : Bytes, pos, len ) : Int {
-		#if flash9
+		#if flash
 		if( pos < 0 || len < 0 || pos + len > buf.length ) throw Error.OutsideBounds;
 		b.writeBytes(buf.getData(),pos,len);
 		#else
@@ -63,55 +66,70 @@ class BytesOutput extends Output {
 		return len;
 	}
 
-	#if flash9
+	#if flash
 	// optimized operations
 
+	@:dox(hide)
 	override function set_bigEndian(e) {
 		bigEndian = e;
 		b.endian = e ? flash.utils.Endian.BIG_ENDIAN : flash.utils.Endian.LITTLE_ENDIAN;
 		return e;
 	}
 
+	@:dox(hide)
 	override function writeFloat( f : Float ) {
 		b.writeFloat(f);
 	}
 
+	@:dox(hide)
 	override function writeDouble( f : Float ) {
 		b.writeDouble(f);
 	}
 
+	@:dox(hide)
 	override function writeInt8( x : Int ) {
 		if( x < -0x80 || x >= 0x80 )
 			throw Error.Overflow;
 		b.writeByte(x);
 	}
 
+	@:dox(hide)
 	override function writeInt16( x : Int ) {
 		if( x < -0x8000 || x >= 0x8000 ) throw Error.Overflow;
 		b.writeShort(x);
 	}
 
+	@:dox(hide)
 	override function writeUInt16( x : Int ) {
 		if( x < 0 || x >= 0x10000 ) throw Error.Overflow;
 		b.writeShort(x);
 	}
 
+	@:dox(hide)
 	override function writeInt32( x : Int ) {
 		b.writeInt(x);
 	}
 
+	@:dox(hide)
 	override function prepare( size : Int ) {
 		if( size > 0 ) b[size-1] = b[size-1];
 	}
 
+	@:dox(hide)
 	override function writeString( s : String ) {
 		b.writeUTFBytes(s);
 	}
 
 	#end
 
+	/**
+		Returns the `Bytes` of this output.
+
+		This function should not be called more than once on a given
+		`BytesOutput` instance.
+	**/
 	public function getBytes() : Bytes {
-		#if flash9
+		#if flash
 		var bytes = b;
 		b = null;
 		return untyped new Bytes(bytes.length,bytes);

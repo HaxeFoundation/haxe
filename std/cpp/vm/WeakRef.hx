@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -36,16 +36,16 @@ class WeakRef<T>
       else
 			ref = untyped __global__.__hxcpp_weak_ref_create(inObject);
 	}
-	
-	
+
+
 	public function get():T
 	{
 		if (hardRef)
 			return ref;
-		
+
 		return  untyped __global__.__hxcpp_weak_ref_get(ref);
 	}
-	
+
 	public function set(inObject:T):T
 	{
 		if (hardRef)
@@ -54,7 +54,7 @@ class WeakRef<T>
 			ref = untyped __global__.__hxcpp_weak_ref_create(inObject);
 		return inObject;
 	}
-	
+
 	public function toString():String
 	{
 		return "WeakRef(" + get() + ")";

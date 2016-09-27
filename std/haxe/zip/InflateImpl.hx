@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -256,7 +256,7 @@ class InflateImpl {
 			var cmf = input.readByte();
 			var cm = cmf & 15;
 			var cinfo = cmf >> 4;
-			if( cm != 8 || cinfo != 7 ) throw "Invalid data";
+			if( cm != 8 ) throw "Invalid data";
 			var flg = input.readByte();
 			//var fcheck = flg & 31;
 			var fdict = flg & 32 != 0;

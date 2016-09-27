@@ -9,5 +9,5 @@ package flash.ui;
 	function new() : Void;
 	function clone() : ContextMenu;
 	function hideBuiltInItems() : Void;
-	@:require(flash10_1) static var isSupported(default,null) : Bool;
+	@:require(flash10_1) static var isSupported(default,never) : Bool;
 }

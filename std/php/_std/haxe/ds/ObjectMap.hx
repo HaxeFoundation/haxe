@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,25 +23,27 @@
 package haxe.ds;
 
 @:coreApi
-class ObjectMap <K:{ }, V> implements Map.IMap<K,V> {
+class ObjectMap <K:{ }, V> implements haxe.Constraints.IMap<K,V> {
 	static function getId(key: { } ):String {
 		return untyped __php__("spl_object_hash($key)");
 	}
-	
+
+	@:analyzer(no_simplification)
 	var h : ArrayAccess<V>;
+	@:analyzer(no_simplification)
 	var hk : ArrayAccess<K>;
-	
+
 	public function new():Void {
 		h = untyped __call__('array');
 		hk = untyped __call__('array');
 	}
-	
+
 	public function set(key:K, value:V):Void untyped {
 		var id = getId(key);
 		untyped h[id] = value;
 		untyped hk[id] = key;
 	}
-	
+
 	public function get(key:K):Null<V> {
 		var id = getId(key);
 		if (untyped __call__("array_key_exists", id, h))
@@ -49,11 +51,11 @@ class ObjectMap <K:{ }, V> implements Map.IMap<K,V> {
 		else
 			return null;
 	}
-	
+
 	public function exists(key:K):Bool {
 		return untyped __call__("array_key_exists", getId(key), h);
 	}
-	
+
 	public function remove( key : K ) : Bool {
 		var id = getId(key);
 		if (untyped __call__("array_key_exists", id, h)) {
@@ -63,15 +65,15 @@ class ObjectMap <K:{ }, V> implements Map.IMap<K,V> {
 		} else
 			return false;
 	}
-	
+
 	public inline function keys() : Iterator<K> {
 		return untyped __call__("new _hx_array_iterator", __call__("array_values", hk));
 	}
-	
+
 	public inline function iterator() : Iterator<V> {
 		return untyped __call__("new _hx_array_iterator", __call__("array_values", h));
 	}
-	
+
 	public function toString() : String {
 		var s = "{";
 		var it = keys();

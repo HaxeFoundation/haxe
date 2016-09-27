@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,7 +27,7 @@ package cs.internal;
  in modules (untested).
 **/
 
-@:keep @:abstract @:nativeGen @:native("haxe.lang.Function") private class Function
+@:keep @:abstract @:nativeGen @:native("haxe.lang.Function") class Function
 {
 	function new(arity:Int, type:Int)
 	{
@@ -40,7 +40,6 @@ package cs.internal;
 	public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
 	{
 		throw "Abstract implementation";
-		return null;
 	}
 }
 
@@ -77,5 +76,18 @@ package cs.internal;
 	override public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
 	{
 		return Runtime.callField(obj, field, hash, dynArgs);
+	}
+
+	public function Equals(obj:Dynamic):Bool
+	{
+		var c = cs.Lib.as(obj, Closure);
+		if (c == null)
+			return false;
+		return (c.obj == this.obj && c.field == this.field);
+	}
+
+	public function GetHashCode():Int
+	{
+		return obj.GetHashCode() ^ untyped field.GetHashCode();
 	}
 }

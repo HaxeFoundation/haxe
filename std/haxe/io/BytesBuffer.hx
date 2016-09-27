@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,7 +25,7 @@ class BytesBuffer {
 
 	#if neko
 	var b : Dynamic; // neko string buffer
-	#elseif flash9
+	#elseif flash
 	var b : flash.utils.ByteArray;
 	#elseif php
 	var b : String;
@@ -45,8 +45,9 @@ class BytesBuffer {
 	public function new() {
 		#if neko
 		b = untyped StringBuf.__make();
-		#elseif flash9
+		#elseif flash
 		b = new flash.utils.ByteArray();
+		b.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		#elseif php
 		b = "";
 		#elseif cpp
@@ -75,7 +76,7 @@ class BytesBuffer {
 	public inline function addByte( byte : Int ) {
 		#if neko
 		untyped StringBuf.__add_char(b,byte);
-		#elseif flash9
+		#elseif flash
 		b.writeByte(byte);
 		#elseif php
 		b += untyped __call__("chr", byte);
@@ -93,19 +94,66 @@ class BytesBuffer {
 	public inline function add( src : Bytes ) {
 		#if neko
 		untyped StringBuf.__add(b,src.getData());
-		#elseif flash9
+		#elseif flash
 		b.writeBytes(src.getData());
 		#elseif php
-		b += cast src.getData();
+		b += src.getData().toString();
 		#elseif cs
 		b.Write(src.getData(), 0, src.length);
 		#elseif java
 		b.write(src.getData(), 0, src.length);
+		#elseif js
+		var b1 = b;
+		var b2 = @:privateAccess src.b;
+		for( i in 0...src.length )
+			b.push(b2[i]);
 		#else
 		var b1 = b;
 		var b2 = src.getData();
 		for( i in 0...src.length )
 			b.push(b2[i]);
+		#end
+	}
+
+	public inline function addString( v : String ) {
+		#if neko
+		untyped StringBuf.__add(b, v.__s);
+		#elseif flash
+		b.writeUTFBytes(v);
+		#else
+		add(Bytes.ofString(v));
+		#end
+	}
+
+	public #if flash inline #end function addInt32( v : Int ) {
+		#if flash
+		b.writeUnsignedInt(v);
+		#else
+		addByte(v&0xFF);
+		addByte((v>>8)&0xFF);
+		addByte((v>>16)&0xFF);
+		addByte(v>>>24);
+		#end
+	}
+
+	public #if flash inline #end function addInt64( v : haxe.Int64 ) {
+		addInt32(v.low);
+		addInt32(v.high);
+	}
+
+	public inline function addFloat( v : Float ) {
+		#if flash
+		b.writeFloat(v);
+		#else
+		addInt32(FPHelper.floatToI32(v));
+		#end
+	}
+
+	public inline function addDouble( v : Float ) {
+		#if flash
+		b.writeDouble(v);
+		#else
+		addInt64(FPHelper.doubleToI64(v));
 		#end
 	}
 
@@ -115,14 +163,19 @@ class BytesBuffer {
 		#end
 		#if neko
 		try untyped StringBuf.__add_sub(b,src.getData(),pos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
-		#elseif flash9
+		#elseif flash
 		if( len > 0 ) b.writeBytes(src.getData(),pos,len);
 		#elseif php
-		b += untyped __call__("substr", src.b, pos, len);
+		b += src.getData().sub(pos, len).toString() ;
 		#elseif cs
 		b.Write(src.getData(), pos, len);
 		#elseif java
 		b.write(src.getData(), pos, len);
+		#elseif js
+		var b1 = b;
+		var b2 = @:privateAccess src.b;
+		for( i in pos...pos+len )
+			b.push(b2[i]);
 		#else
 		var b1 = b;
 		var b2 = src.getData();
@@ -139,17 +192,22 @@ class BytesBuffer {
 		#if neko
 		var str = StringBuf.__to_string(b);
 		var bytes = new Bytes(__dollar__ssize(str),str);
-		#elseif flash9
+		#elseif flash
 		var bytes = new Bytes(b.length,b);
 		b.position = 0;
 		#elseif php
-		var bytes = new Bytes(b.length, cast b);
+		var bytes = new Bytes(b.length, BytesData.ofString(b));
 		#elseif cs
 		var buf = b.GetBuffer();
 		var bytes = new Bytes(cast b.Length, buf);
 		#elseif java
 		var buf = b.toByteArray();
 		var bytes = new Bytes(buf.length, buf);
+		#elseif python
+		var buf = new python.Bytearray(b);
+		var bytes = new Bytes(buf.length, buf);
+		#elseif js
+		var bytes = new Bytes(new js.html.Uint8Array(b).buffer);
 		#else
 		var bytes = new Bytes(b.length,b);
 		#end

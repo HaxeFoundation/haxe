@@ -3,21 +3,29 @@
 *.cmx
 *.cmi
 *.cmxa
+*.cmo
+*.cmt
 *.a
 *.exe
 .*.swp
+/out
 
 /extra/hxclasses
 /extra/*.swf
 /extra/*.swc
+/extra/bintray.json
+/extra/git-archive-all
+/extra/deploy_key
+/extra/*_sec.gpg
+/extra/*_ssh
 
-/version.ml
+/src/version.ml
 /haxe
 /haxelib*
 /haxedoc*
 /lib
 
-/lexer.ml
+/src/syntax/lexer.ml
 /libs/xml-light/xml_lexer.ml
 /libs/xml-light/xml_parser.ml
 /libs/xml-light/xml_parser.mli
@@ -41,6 +49,7 @@
 /tests/unit/cs
 /tests/unit/cs_unsafe
 /tests/unit/dump
+/tests/unit/db.db3
 
 /tests/unit/native_java/obj
 /tests/unit/native_java/cmd
@@ -51,9 +60,32 @@
 /tests/unit/native_cs/native_cs.csproj
 /tests/unit/unit.js.map
 /tests/unit/unit.n
+/tests/unit/node_modules/
 
 /haxe.sublime*
 build.bat
+/.vscode
 tests/unit/compile.php.hxml
 /extra/*.xml
 tests/optimization/testopt.js
+tests/misc/pythonImport/native_python/__pycache__
+tests/unit/unit.py
+tests/unit/unit.py.res1.txt
+tests/unit/unit.py.res2.bin
+tests/sys/bin/
+tests/optimization/dump/
+tests/misc/projects/*/*.n
+tests/unit/bin/
+tests/*.n
+tests/misc/projects/Issue3756/cpp/
+tests/misc/projects/Issue4070/cpp/
+
+/*.manifest
+/tests/misc/eventLoop/cpp
+/tests/misc/eventLoop/eventLoop.js
+/tests/misc/eventLoop/eventLoop.n
+/tests/misc/eventLoop/eventLoop.swf
+/tests/misc/eventLoop/dump
+/tests/misc/eventLoop/eventLoop.py
+/tests/misc/eventLoop/php
+*.vscode/

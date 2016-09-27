@@ -3,6 +3,7 @@ namespace haxe.test
 
 public class Base
 {
+	~Base() { someString = null; }
 	//some haxe-specific keywords
 
 	public static readonly int inline = 42;
@@ -24,6 +25,36 @@ public class Base
 	public static int nameClash(Base t)
 	{
 		return -1;
+	}
+
+	public string prop 
+	{
+		get
+		{
+			return "SomeValue";
+		}
+	}
+
+	public int this[int i]
+	{
+		get { return i * 20; }
+	}
+
+	public int Issue4325 { get; protected set; }
+
+	public void setIssue4325(int val)
+	{
+		this.Issue4325 = val;
+	}
+
+	public int this[int i, int j]
+	{
+		get { return i * j; }
+	}
+
+	public int optional(int i=42)
+	{
+		return i * 10;
 	}
 
 	public virtual int nameClash()
@@ -58,6 +89,8 @@ public class Base
 
 	public class InnerClass : Base
 	{
+		~InnerClass() { privateField = 0; }
+
 		private int privateField = 42;
 
 		//protected override without explicit override tag
@@ -99,6 +132,35 @@ public class Base
 		{
 			return a1;
 		}
+	}
+}
+
+// Issue #3474
+
+public interface ITextFile
+{
+	string Property { get; }
+}
+
+public interface ITextBuffer : ITextFile
+{
+}
+
+public interface IEditableTextFile : ITextFile
+{
+	new string Property { get; set; }
+}
+
+public interface IEditableTextBuffer : IEditableTextFile, ITextBuffer
+{
+}
+
+public class lowerCaseClass
+{
+	public bool works;
+	public lowerCaseClass()
+	{
+		works = true;
 	}
 }
 

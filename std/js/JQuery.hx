@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,9 +21,10 @@
  */
 package js;
 
-import js.html.DOMWindow;
+import js.html.Window;
 import js.html.Element;
 
+@:deprecated("Use js.jquery.Event instead.")
 typedef JqEvent = {
 	var target : Element;
 	var currentTarget : Element;
@@ -62,30 +63,34 @@ typedef JqEvent = {
 	function stopPropagation() : Void;
 }
 
+@:deprecated("Use js.jquery.Helper instead.")
 extern class JQueryHelper {
 	@:overload(function(j:JQuery):JQuery{})
-	@:overload(function(j:DOMWindow):JQuery{})
-	@:overload(function(j:Element):JQuery{})
-	public static inline function J( html : String ) : JQuery {
-		return new JQuery(html);
-	}
-	
+	@:overload(function(j:Window):JQuery{})
+	@:overload(function(j:Element):JQuery { } )
+
+	public static inline function J( html : haxe.extern.EitherType<String,haxe.extern.EitherType<JQuery,haxe.extern.EitherType<Window,Element>>> ) : JQuery {
+        return new JQuery(cast html);
+    }
+
 	public static var JTHIS(get, null) : JQuery;
 
 	static inline function get_JTHIS() : JQuery {
-		return untyped __js__("$(this)");
+		return new JQuery(js.Lib.nativeThis);
 	}
 
 }
 
+@:deprecated("Use js.jquery.JQuery instead.")
 @:initPackage
 extern class JQuery implements ArrayAccess<Element> {
 
 	var context(default,null) : Element;
 	var length(default, null) : Int;
 
+	@:selfCall
 	@:overload(function(j:JQuery):Void{})
-	@:overload(function(j:DOMWindow):Void{})
+	@:overload(function(j:Window):Void{})
 	@:overload(function(j:Element):Void{})
 	function new( html : String ) : Void;
 
@@ -335,6 +340,7 @@ extern class JQuery implements ArrayAccess<Element> {
 
 	// JQuery 1.7+
 	@:overload(function(events:Dynamic<JqEvent->Void>):JQuery{})
+	@:overload(function(events : String, selector : String, callb : JqEvent -> Void ):JQuery{})
 	function on( events : String, callb : JqEvent -> Void ) : JQuery;
 
 	// queue
@@ -390,15 +396,15 @@ extern class JQuery implements ArrayAccess<Element> {
 	//static function is*, makeArray, map, merge, noop, now, param, proxy, sub, trim, type, unique
 
 	private static inline function get_cur() : JQuery {
-		return untyped $(__js__("this"));
+		return new js.JQuery(js.Lib.nativeThis);
 	}
 
 	private static function __init__() : Void untyped {
 		#if embed_js
-		if( untyped __js__("typeof($) == 'undefined'") )
-			haxe.macro.Compiler.includeFile("js/jquery-latest.min.js");
+		#error "Haxe no longer bundle third-party JS libraries. Please remove `-D embed-js`. You may download the JS files and use `haxe.macro.Compiler.includeFile`."
 		#end
 		var q : Dynamic = (untyped js.Browser.window).jQuery;
+		untyped __js__("var js = js || {}");
 		js.JQuery = q;
 		__feature__('js.JQuery.iterator',
 			q.fn.iterator = function() return { pos : 0, j : __this__, hasNext : function() return __this__.pos < __this__.j.length, next : function() return $(__this__.j[__this__.pos++]) }

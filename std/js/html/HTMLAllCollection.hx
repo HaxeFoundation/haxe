@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,18 +20,16 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla\HTMLAllCollection.webidl line 8:0. Do not edit!
+
 package js.html;
 
 @:native("HTMLAllCollection")
 extern class HTMLAllCollection implements ArrayAccess<Node>
 {
 	var length(default,null) : Int;
-
-	function item( index : Int ) : Node;
-
-	function namedItem( name : String ) : Node;
-
-	function tags( name : String ) : NodeList;
-
+	
+	@:overload( function( index : Int ) : Node {} )
+	function item( name : String ) : haxe.extern.EitherType<Node,HTMLCollection>;
+	function namedItem( name : String ) : haxe.extern.EitherType<Node,HTMLCollection>;
 }

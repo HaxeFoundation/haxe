@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,17 +23,41 @@ package haxe.io;
 
 #if neko
 	typedef BytesData =	neko.NativeString;
-#elseif flash9
+#elseif flash
 	typedef BytesData =	flash.utils.ByteArray;
 #elseif php
-	typedef BytesData =	php.NativeString;
+	typedef BytesData = php.BytesData;
 #elseif cpp
-	extern class Unsigned_char__ { }
-	typedef BytesData = Array<Unsigned_char__>;
+	typedef BytesData = Array< cpp.UInt8 >;
 #elseif java
 	typedef BytesData = java.NativeArray<java.StdTypes.Int8>;
 #elseif cs
 	typedef BytesData = cs.NativeArray<cs.StdTypes.UInt8>;
+#elseif python
+	typedef BytesData = python.Bytearray;
+#elseif js
+	typedef BytesData = js.html.ArrayBuffer;
+#elseif hl
+	class BytesDataImpl {
+		public var bytes : hl.types.Bytes;
+		public var length : Int;
+		public function new(b,length) {
+			this.bytes = b;
+			this.length = length;
+		}
+	}
+	@:forward(bytes,length)
+	abstract BytesDataAbstract(BytesDataImpl) {
+		public inline function new(b, length) {
+			this = new BytesDataImpl(b, length);
+		}
+		@:arrayAccess inline function get(i:Int) return this.bytes[i];
+		@:arrayAccess inline function set(i:Int,v:Int) return this.bytes[i] = v;
+		@:to inline function toBytes() : hl.types.Bytes {
+			return this == null ? null : this.bytes;
+		}
+	}
+	typedef BytesData = BytesDataAbstract;
 #else
 	typedef BytesData = Array<Int>;
 #end

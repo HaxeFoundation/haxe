@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 /**
-	This class gives you access to many base functionalities of system platforms. Looks in [sys] sub packages for more system APIs.
+	This class gives you access to many base functionalities of system platforms. Looks in `sys` sub packages for more system APIs.
 **/
 @:require(sys)
 extern class Sys {
@@ -31,7 +31,7 @@ extern class Sys {
 	static function print( v : Dynamic ) : Void;
 
 	/**
-		Print any value on the standard output, followed by a newline
+		Print any value on the standard output, followed by a newline.
 	**/
 	static function println( v : Dynamic ) : Void;
 
@@ -53,7 +53,7 @@ extern class Sys {
 	/**
 		Returns the whole environement variables.
 	**/
-	static function environment() : haxe.ds.StringMap<String>;
+	static function environment() : Map<String,String>;
 
 	/**
 		Suspend the current execution for the given time (in seconds).
@@ -61,7 +61,7 @@ extern class Sys {
 	static function sleep( seconds : Float ) : Void;
 
 	/**
-		Change the current time locale, which will affect [DateTools.format] date formating.
+		Change the current time locale, which will affect `DateTools.format` date formating.
 		Returns true if the locale was successfully changed
 	**/
 	static function setTimeLocale( loc : String ) : Bool;
@@ -83,9 +83,18 @@ extern class Sys {
 	static function systemName() : String;
 
 	/**
-		Run the given command with the list of arguments. The command output will be printed on the same output as the current process.
+		Run the given command. The command output will be printed on the same output as the current process.
 		The current process will block until the command terminates and it will return the command result (0 if there was no error).
-		Read the [sys.io.Process] api for a more complete way to start background processes.
+
+		Command arguments can be passed in two ways: 1. using `args`, 2. appending to `cmd` and leaving `args` as `null`.
+
+		 1. When using `args` to pass command arguments, each argument will be automatically quoted, and shell meta-characters will be escaped if needed.
+		`cmd` should be an executable name that can be located in the `PATH` environment variable, or a path to an executable.
+
+		 2. When `args` is not given or is `null`, command arguments can be appended to `cmd`. No automatic quoting/escaping will be performed. `cmd` should be formatted exactly as it would be when typed at the command line.
+		It can run executables, as well as shell commands that are not executables (e.g. on Windows: `dir`, `cd`, `echo` etc).
+
+		Read the `sys.io.Process` api for a more complete way to start background processes.
 	**/
 	static function command( cmd : String, ?args : Array<String> ) : Int;
 
@@ -107,15 +116,22 @@ extern class Sys {
 	/**
 		Returns the path to the current executable that we are running.
 	**/
-	static function executablePath() : String;
+	@:deprecated("Use programPath instead") static function executablePath() : String;
 
 	/**
-		Read a single input character from the standard input (without blocking) and returns it. Setting [echo] to true will also display it on the output.
+		Returns the absolute path to the current program file that we are running.
+		Concretely, for an executable binary, it returns the path to the binary.
+		For a script (e.g. a PHP file), it returns the path to the script.
+	**/
+	static function programPath() : String;
+
+	/**
+		Read a single input character from the standard input (without blocking) and returns it. Setting `echo` to true will also display it on the output.
 	**/
 	static function getChar( echo : Bool ) : Int;
 
 	/**
-		Returns the process standard input, from which you can read what user enters. Usually it will block until the user send a full input line. See [getChar] for an alternative.
+		Returns the process standard input, from which you can read what user enters. Usually it will block until the user send a full input line. See `getChar` for an alternative.
 	**/
 	static function stdin() : haxe.io.Input;
 

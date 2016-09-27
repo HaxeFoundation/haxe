@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,20 +24,20 @@ package haxe.ds;
 
 /**
 	ListSort provides a stable implementation of merge sort through its `sort`
-	method. It has a O(N.log(N)) complexity and does not require additional memory allocation
+	method. It has a O(N.log(N)) complexity and does not require additional memory allocation.
 **/
 class ListSort {
 
 	// Note : we prefer [inline] over [@:generic] here since we want to inline the comparison function as well
-	
+
 	/**
 		Sorts List `lst` according to the comparison function `cmp`, where
 		`cmp(x,y)` returns 0 if `x == y`, a positive Int if `x > y` and a
 		negative Int if `x < y`.
-		
+
 		This operation modifies List `a` in place and returns its head once modified.
 		The `prev` of the head is set to the tail of the sorted list.
-		
+
 		If `list` or `cmp` are null, the result is unspecified.
 	**/
 	public static inline function sort<T:{prev:T,next:T}>(list:T, cmp : T -> T -> Int) : T {
@@ -93,9 +93,9 @@ class ListSort {
 		return list;
 	}
 
-	
+
 	/**
-		Same as [sort] but on single linked list.
+		Same as `sort` but on single linked list.
 	**/
 	public static inline function sortSingleLinked<T:{next:T}>(list:T, cmp : T -> T -> Int) : T {
 		if( list == null )
@@ -146,5 +146,5 @@ class ListSort {
 		}
 		return list;
 	}
-	
+
 }

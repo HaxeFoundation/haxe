@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,10 +28,10 @@ enum LoaderHandle {
 }
 
 /**
-	Loaders can be used to dynamicly load Neko primitives stored in NDLL libraries.
+	Loaders can be used to dynamically load Neko primitives stored in NDLL libraries.
 
 
-	Loaders can be used to dynamicly load other Neko modules (.n bytecode files).
+	Loaders can be used to dynamically load other Neko modules (.n bytecode files).
 	Modules are referenced by names. To lookup the corresponding bytecode file, the
 	default loader first look in its cache, then eventually adds the .n extension
 	to the name and lookup the bytecode in its path.
@@ -54,8 +54,8 @@ class Loader {
 	}
 
 	/**
-		The default loader contains a search path in its [path] field. It's a
-		linked list of Neko strings that is a parsed version of the [NEKOPATH].
+		The default loader contains a search path in its `path` field. It's a
+		linked list of Neko strings that is a parsed version of the `NEKOPATH`.
 		This path is used to lookup for modules and libraries.
 	**/
 	public function getPath() {
@@ -69,7 +69,7 @@ class Loader {
 	}
 
 	/**
-		Adds a directory to the search path. See [getPath]
+		Adds a directory to the search path. See `getPath`.
 	**/
 	public function addPath( s : String ) {
 		untyped l.path = __dollar__array(s.__s,l.path);
@@ -79,10 +79,10 @@ class Loader {
 		The default loader contains a cache of already loaded modules. It's
 		ensuring that the same module does not get loaded twice when circular
 		references are occuring. The same module can eventually be loaded twice
-		but with different names, for example with two relatives paths reprensenting
+		but with different names, for example with two relative paths reprensenting
 		the same file, since the cache is done on a by-name basic.
 	**/
-	public function getCache() : haxe.ds.StringMap<Module> {
+	public function getCache() : Map<String,Module> {
 		var h = new haxe.ds.StringMap<Module>();
 		var cache = untyped l.cache;
 		for( f in Reflect.fields(cache) )
@@ -115,7 +115,7 @@ class Loader {
 	}
 
 	/**
-		Loads a neko primitive. By default, the name is of the form [library@method].
+		Loads a neko primitive. By default, the name is of the form `[library@method]`.
 		The primitive might not be used directly in Haxe since some of the Neko values
 		needs an object wrapper in Haxe.
 	**/
@@ -124,7 +124,7 @@ class Loader {
 	}
 
 	/**
-		Loads a Module with the given name. If [loader] is defined, this will be
+		Loads a Module with the given name. If `loader` is defined, this will be
 		this Module loader, else this loader will be inherited. When loaded this
 		way, the module is directly executed.
 	**/
@@ -143,7 +143,7 @@ class Loader {
 
 	/**
 		Creates a loader using two methods. This loader will not have an accessible cache or path,
-		although you can implement such mecanism in the methods body.
+		although you can implement such mechanism in the methods body.
 	**/
 	public static function make( loadPrim : String -> Int -> Dynamic, loadModule : String -> Loader -> Module ) {
 		var l = {

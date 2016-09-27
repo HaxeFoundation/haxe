@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -35,7 +35,8 @@
 	}
 
 	public static function getEnv( s : String ) : String {
-		return untyped __call__("getenv", s);
+		var ret:Dynamic = untyped __call__("getenv", s);
+		return ret == false ? null : ret;
 	}
 
 	public static function putEnv( s : String, v : String ) : Void {
@@ -69,25 +70,17 @@
 			return s;
 	}
 
-	static function escapeArgument( arg : String ) : String {
-		var ok = true;
-		for( i in 0...arg.length )
-			switch( arg.charCodeAt(i) ) {
-			case 32, 34: // [space] "
-				ok = false;
-			case 0, 13, 10: // [eof] [cr] [lf]
-				arg = arg.substr(0,i);
-			}
-		if( ok )
-			return arg;
-		return '"'+arg.split('"').join('\\"')+'"';
-	}
-
 	public static function command( cmd : String, ?args : Array<String> ) : Int {
-		if( args != null ) {
-			cmd = escapeArgument(cmd);
-			for( a in args )
-				cmd += " "+escapeArgument(a);
+		if (args != null) {
+			switch (systemName()) {
+				case "Windows":
+					cmd = [
+						for (a in [StringTools.replace(cmd, "/", "\\")].concat(args))
+						StringTools.quoteWinArg(a, true)
+					].join(" ");
+				case _:
+					cmd = [cmd].concat(args).map(StringTools.quoteUnixArg).join(" ");
+			}
 		}
 		var result = 0;
 		untyped __call__("system", cmd, result);
@@ -106,11 +99,17 @@
 		return untyped __call__("microtime", true) - __php__("$_SERVER['REQUEST_TIME']");
 	}
 
-	public static function executablePath() : String {
+	@:deprecated("Use programPath instead") public static function executablePath() : String {
 		return untyped __php__("$_SERVER['SCRIPT_FILENAME']");
 	}
 
-	public static function environment() : haxe.ds.StringMap<String> {
+	// It has to be initialized before any call to Sys.setCwd()...
+	static var _programPath = sys.FileSystem.fullPath(untyped __php__("$_SERVER['SCRIPT_FILENAME']"));
+	public static function programPath() : String {
+		return _programPath;
+	}
+
+	public static function environment() : Map<String,String> {
 		return php.Lib.hashOfAssociativeArray(untyped __php__("$_SERVER"));
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -40,6 +40,10 @@ typedef JSGenApi = {
 	function setTypeAccessor( callb : Type -> String ) : Void;
 	/** tells if the given identifier is a JS keyword **/
 	function isKeyword( ident : String ) : Bool;
+	/** add a feature **/
+	function addFeature( f : String ) : Bool;
+	/** check if a feature is used **/
+	function hasFeature( f : String ) : Bool;
 	/** quote and escape the given string constant **/
 	function quoteString( s : String ) : String;
 	/** create the metadata expression for the given type **/

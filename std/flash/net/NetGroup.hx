@@ -1,11 +1,11 @@
 package flash.net;
 
 @:require(flash10_1) extern class NetGroup extends flash.events.EventDispatcher {
-	var estimatedMemberCount(default,null) : Float;
-	var info(default,null) : NetGroupInfo;
-	var localCoverageFrom(default,null) : String;
-	var localCoverageTo(default,null) : String;
-	var neighborCount(default,null) : Float;
+	var estimatedMemberCount(default,never) : Float;
+	var info(default,never) : NetGroupInfo;
+	var localCoverageFrom(default,never) : String;
+	var localCoverageTo(default,never) : String;
+	var neighborCount(default,never) : Float;
 	var receiveMode : String;
 	var replicationStrategy : String;
 	function new(connection : NetConnection, groupspec : String) : Void;

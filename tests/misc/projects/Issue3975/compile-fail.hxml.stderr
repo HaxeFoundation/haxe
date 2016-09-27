@@ -1,0 +1,2 @@
+Main.hx:4: characters 2-54 : Array<String> should be { pop : Void -> Void }
+Main.hx:4: characters 2-54 : Field pop is method but should be (get,never)

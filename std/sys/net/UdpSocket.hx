@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,7 +25,7 @@ package sys.net;
 	A UDP socket class
 **/
 class UdpSocket extends Socket {
-	
+
 	public function new() {
 		throw "Not available on this platform";
 		super();
@@ -37,7 +37,7 @@ class UdpSocket extends Socket {
 	public function sendTo( buf : haxe.io.Bytes, pos : Int, len : Int, addr : Address ) : Int {
 		return 0;
 	}
-	
+
 	/**
 		Reads data from any incoming address and store the receiver address into the address parameter.
 	**/

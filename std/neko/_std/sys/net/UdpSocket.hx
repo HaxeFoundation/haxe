@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,9 +25,9 @@ import haxe.io.Error;
 @:coreApi
 class UdpSocket extends Socket {
 
-	public function new() : Void {
+	private override function init() : Void {
 		__s = Socket.socket_new(true);
-		super();
+		super.init();
 	}
 
 	public function sendTo( buf : haxe.io.Bytes, pos : Int, len : Int, addr : Address ) : Int {
@@ -40,7 +40,7 @@ class UdpSocket extends Socket {
 				throw Custom(e);
 		}
 	}
-	
+
 	public function readFrom( buf : haxe.io.Bytes, pos : Int, len : Int, addr : Address ) : Int {
 		var r;
 		try {
@@ -55,8 +55,8 @@ class UdpSocket extends Socket {
 			throw new haxe.io.Eof();
 		return r;
 	}
-	
+
 	static var socket_recv_from = neko.Lib.loadLazy("std", "socket_recv_from", 5);
 	static var socket_send_to = neko.Lib.loadLazy("std", "socket_send_to", 5);
-	
+
 }

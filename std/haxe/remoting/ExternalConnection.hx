@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -45,13 +45,9 @@ class ExternalConnection implements Connection implements Dynamic<Connection> {
 		connections.remove(__data.name);
 	}
 
-	#if flash9
+	#if flash
 	static function escapeString( s : String ) {
 		return s.split("\\").join("\\\\");
-	}
-	#elseif flash
-	static function escapeString( s : String ) {
-		return s.split("\\").join("\\\\").split("&").join("&amp;");
 	}
 	#else
 	static inline function escapeString(s) {
@@ -65,7 +61,11 @@ class ExternalConnection implements Connection implements Dynamic<Connection> {
 		var params = escapeString(s.toString());
 		var data = null;
 		#if flash
-			data = flash.external.ExternalInterface.call("haxe.remoting.ExternalConnection.doCall",__data.name,__path.join("."),params);
+			#if js-unflatten
+				data = flash.external.ExternalInterface.call("haxe.remoting.ExternalConnection.doCall",__data.name,__path.join("."),params);
+			#else
+				data = flash.external.ExternalInterface.call("haxe_remoting_ExternalConnection.doCall",__data.name,__path.join("."),params);
+			#end
 		#elseif js
 			var fobj : Dynamic = (untyped js.Browser.document)[cast __data.flash]; // FIXME(bruno): Why is this necessary?
 			if( fobj == null ) fobj = js.Browser.document.getElementById(__data.flash);
@@ -123,11 +123,7 @@ class ExternalConnection implements Connection implements Dynamic<Connection> {
 	public static function jsConnect( name : String, ?ctx : Context ) {
 		if( !flash.external.ExternalInterface.available )
 			throw "External Interface not available";
-		#if flash9
 		try flash.external.ExternalInterface.addCallback("externalRemotingCall",doCall) catch( e : Dynamic ) {};
-		#else
-		flash.external.ExternalInterface.addCallback("externalRemotingCall",null,doCall);
-		#end
 		var cnx = new ExternalConnection({ name : name, ctx : ctx },[]);
 		connections.set(name,cnx);
 		return cnx;

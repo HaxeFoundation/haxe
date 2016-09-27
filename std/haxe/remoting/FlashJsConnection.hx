@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -90,7 +90,7 @@ class FlashJsConnection #if flash implements AsyncConnection implements Dynamic<
 	static var connections = new haxe.ds.StringMap<FlashJsConnection>();
 
 	static function escapeString( s : String ) {
-		#if flash9
+		#if flash
 		return s.split("\\").join("\\\\");
 		#else
 		return s.split("\\").join("\\\\").split("&").join("&amp;");
@@ -120,11 +120,7 @@ class FlashJsConnection #if flash implements AsyncConnection implements Dynamic<
 	public static function connect( name : String, objId : String, ?ctx : Context ) {
 		if( !flash.external.ExternalInterface.available )
 			throw "External Interface not available";
-		#if flash9
 		try flash.external.ExternalInterface.addCallback("flashJsRemotingCall",doCall) catch( e : Dynamic ) {};
-		#else
-		flash.external.ExternalInterface.addCallback("flashJsRemotingCall",null,doCall);
-		#end
 		var cnx = new FlashJsConnection({
 			id : objId,
 			name : name,

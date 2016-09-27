@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,16 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla\TextTrackList.webidl line 13:0. Do not edit!
+
 package js.html;
 
 @:native("TextTrackList")
 extern class TextTrackList extends EventTarget implements ArrayAccess<TextTrack>
 {
 	var length(default,null) : Int;
-
-	var onaddtrack : EventListener;
-
-	function item( index : Int ) : TextTrack;
-
+	var onchange : haxe.Constraints.Function;
+	var onaddtrack : haxe.Constraints.Function;
+	var onremovetrack : haxe.Constraints.Function;
+	
+	function getTrackById( id : String ) : TextTrack;
 }

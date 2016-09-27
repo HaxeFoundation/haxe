@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,7 +24,7 @@ import cs.system.text.regularexpressions.Match;
 import cs.system.text.regularexpressions.RegexOptions;
 import cs.system.text.regularexpressions.*;
 
-class EReg {
+@:coreApi @:final class EReg {
 
 	private var regex : Regex;
 	private var m : Match;
@@ -42,8 +42,10 @@ class EReg {
 					isGlobal = true;
 				case 'm'.code:
 					opts |= cast(Multiline, Int);
+#if (!unity && !unity_std_target)
 				case 'c'.code:
 					opts |= cast(Compiled, Int);
+#end
 			}
 		}
 

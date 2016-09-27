@@ -1,6 +1,12 @@
+# To rebuild Flash externs (quoting ncannasse):
+# - Remove haxe/std/flash/DIR where DIR is all directories except _std
+# - Place library.swf (extracted from playerglobal.swc) next to extract.hxml
+# - Run haxe extract.hxml
+# - Restore removed haxe/std/flash/DIR directories
+# - Copy directories from hxclasses/flash to haxe/std/flash, overwriting restored ones
 -debug
 -swf-lib library.swf
 -swf test.swf
--swf-version 11.8
---macro patchTypes("../doc/extract.patch")
+-swf-version 15
+--macro patchTypes("../extra/extract.patch")
 --gen-hx-classes
