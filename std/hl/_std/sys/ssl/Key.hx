@@ -1,4 +1,5 @@
 package sys.ssl;
+import sys.ssl.Lib;
 
 @:noDoc
 typedef KeyPtr = hl.types.NativeAbstract<"hl_ssl_pkey">;

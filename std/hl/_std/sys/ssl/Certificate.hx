@@ -1,4 +1,5 @@
 package sys.ssl;
+import sys.ssl.Lib;
 
 private typedef CertificatePtr = hl.types.NativeAbstract<"hl_ssl_cert">;
 

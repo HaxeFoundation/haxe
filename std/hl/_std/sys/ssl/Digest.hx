@@ -1,4 +1,5 @@
 package sys.ssl;
+import sys.ssl.Lib;
 
 @:coreApi
 class Digest {
