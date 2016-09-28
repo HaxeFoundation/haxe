@@ -21,6 +21,10 @@
  */
 package haxe.web;
 
+#if (!neko && !php && !js)
+#error "Not supported on this target"
+#end
+
 class Request {
 
 	/**
