@@ -781,3 +781,17 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 		in
 		raise (ModuleSymbols(ModuleSymbolsPrinter.print_module_symbols com symbols filter))
 	| _ -> ()
+
+let find_doc t =
+	let doc = match follow t with
+		| TAnon an ->
+			begin match !(an.a_status) with
+				| Statics c -> c.cl_doc
+				| EnumStatics en -> en.e_doc
+				| AbstractStatics a -> a.a_doc
+				| _ -> None
+			end
+		| _ ->
+			None
+	in
+	doc

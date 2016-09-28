@@ -897,6 +897,7 @@ with
 		in
 		raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))
 	| Display.DisplayType (t,p,doc) ->
+		let doc = match doc with Some _ -> doc | None -> DisplayOutput.find_doc t in
 		raise (DisplayOutput.Completion (DisplayOutput.print_type t p doc))
 	| Display.DisplaySignatures(tl,display_arg) ->
 		if ctx.com.display.dms_kind = DMSignature then
