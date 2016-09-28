@@ -2507,7 +2507,7 @@ module TExprToExpr = struct
 		| TField (e,f) -> EField (convert_expr e, field_name f)
 		| TTypeExpr t -> fst (mk_path (full_type_path t) e.epos)
 		| TParenthesis e -> EParenthesis (convert_expr e)
-		| TObjectDecl fl -> EObjectDecl (List.map (fun (f,e) -> f, convert_expr e) fl)
+		| TObjectDecl fl -> EObjectDecl (List.map (fun (f,e) -> (f,null_pos), convert_expr e) fl)
 		| TArrayDecl el -> EArrayDecl (List.map convert_expr el)
 		| TCall (e,el) -> ECall (convert_expr e,List.map convert_expr el)
 		| TNew (c,pl,el) -> ENew ((match (try convert_type (TInst (c,pl)) with Exit -> convert_type (TInst (c,[]))) with CTPath p -> p,null_pos | _ -> assert false),List.map convert_expr el)

@@ -56,13 +56,13 @@ let build_call_ref : (typer -> access_kind -> expr list -> with_type -> pos -> t
 let mk_infos ctx p params =
 	let file = if ctx.in_macro then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else Filename.basename p.pfile in
 	(EObjectDecl (
-		("fileName" , (EConst (String file) , p)) ::
-		("lineNumber" , (EConst (Int (string_of_int (Lexer.get_error_line p))),p)) ::
-		("className" , (EConst (String (s_type_path ctx.curclass.cl_path)),p)) ::
+		(("fileName",null_pos) , (EConst (String file) , p)) ::
+		(("lineNumber",null_pos) , (EConst (Int (string_of_int (Lexer.get_error_line p))),p)) ::
+		(("className",null_pos) , (EConst (String (s_type_path ctx.curclass.cl_path)),p)) ::
 		if ctx.curfield.cf_name = "" then
 			params
 		else
-			("methodName", (EConst (String ctx.curfield.cf_name),p)) :: params
+			(("methodName",null_pos), (EConst (String ctx.curfield.cf_name),p)) :: params
 	) ,p)
 
 let check_assign ctx e =
@@ -2906,7 +2906,7 @@ and type_object_decl ctx fl with_type p =
 	let type_fields field_map =
 		let fields = ref PMap.empty in
 		let extra_fields = ref [] in
-		let fl = List.map (fun (n,e) ->
+		let fl = List.map (fun ((n,pn),e) ->
 			let n,is_quoted,is_valid = Parser.unquote_ident n in
 			if PMap.mem n !fields then error ("Duplicate field in object declaration : " ^ n) p;
 			let e = try
@@ -2941,7 +2941,7 @@ and type_object_decl ctx fl with_type p =
 	in
 	(match a with
 	| ODKPlain ->
-		let rec loop (l,acc) (f,e) =
+		let rec loop (l,acc) ((f,pf),e) =
 			let f,is_quoted,is_valid = Parser.unquote_ident f in
 			if PMap.mem f acc then error ("Duplicate field in object declaration : " ^ f) p;
 			let e = type_expr ctx e Value in
@@ -4099,7 +4099,7 @@ and type_call ctx e el (with_type:with_type) p =
 			null ctx.t.tvoid p
 		else
 		let mk_to_string_meta e = EMeta((Meta.ToString,[],pos e),e),pos e in
-		let params = (match el with [] -> [] | _ -> ["customParams",(EArrayDecl (List.map mk_to_string_meta el) , p)]) in
+		let params = (match el with [] -> [] | _ -> [("customParams",null_pos),(EArrayDecl (List.map mk_to_string_meta el) , p)]) in
 		let infos = mk_infos ctx p params in
 		if (platform ctx.com Js || platform ctx.com Python) && el = [] && has_dce ctx.com then
 			let e = type_expr ctx e Value in
