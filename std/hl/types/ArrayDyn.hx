@@ -61,6 +61,10 @@ class ArrayDyn extends ArrayAccess {
 		array.setDyn(pos, value);
 	}
 
+	override function blit( pos : Int, src : ArrayAccess, srcpos : Int, len : Int ) : Void {
+		array.blit(pos, src, srcpos, len);
+	}
+
 	public function concat( a : ArrayDyn ) : ArrayDyn {
 		var a1 = array;
 		var a2 = a.array;
