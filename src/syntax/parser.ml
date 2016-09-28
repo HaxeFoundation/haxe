@@ -994,7 +994,8 @@ and parse_complex_type_next (t : type_hint) = parser
 and parse_type_anonymous opt = parser
 	| [< '(Question,_) when not opt; s >] -> parse_type_anonymous true s
 	| [< name, p1 = ident; t = parse_type_hint_with_pos; s >] ->
-		let next p2 acc =
+		let p2 = pos (last_token s) in
+		let next acc =
 			{
 				cff_name = name,p1;
 				cff_meta = if opt then [Meta.Optional,[],null_pos] else [];
@@ -1005,11 +1006,11 @@ and parse_type_anonymous opt = parser
 			} :: acc
 		in
 		match s with parser
-		| [< '(BrClose,p2) >] -> next p2 [],p2
+		| [< '(BrClose,p2) >] -> next [],p2
 		| [< '(Comma,p2) >] ->
 			(match s with parser
-			| [< '(BrClose,p2) >] -> next p2 [],p2
-			| [< l,p2 = parse_type_anonymous false >] -> next p2 l,punion p1 p2
+			| [< '(BrClose,p2) >] -> next [],p2
+			| [< l,p2 = parse_type_anonymous false >] -> next l,punion p1 p2
 			| [< >] -> serror());
 		| [< >] -> serror()
 

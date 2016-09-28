@@ -2910,7 +2910,13 @@ and type_object_decl ctx fl with_type p =
 			let n,is_quoted,is_valid = Parser.unquote_ident n in
 			if PMap.mem n !fields then error ("Duplicate field in object declaration : " ^ n) p;
 			let e = try
-				let t = (match !dynamic_parameter with Some t -> t | None -> (PMap.find n field_map).cf_type) in
+				let t = match !dynamic_parameter with
+					| Some t -> t
+					| None ->
+						let cf = PMap.find n field_map in
+						if ctx.in_display && Display.is_display_position pn then Display.DisplayEmitter.display_field ctx.com.display cf pn;
+						cf.cf_type
+				in
 				let e = type_expr ctx e (WithType t) in
 				let e = AbstractCast.cast_or_unify ctx t e p in
 				(try type_eq EqStrict e.etype t; e with Unify_error _ -> mk (TCast (e,None)) t e.epos)
@@ -2921,7 +2927,7 @@ and type_object_decl ctx fl with_type p =
 			in
 			if is_valid then begin
 				if String.length n > 0 && n.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
-				let cf = mk_field n e.etype e.epos null_pos in (* TODO: use field pos if we have it *)
+				let cf = mk_field n e.etype (punion pn e.epos) pn in
 				fields := PMap.add n cf !fields;
 			end;
 			let e = if is_quoted then wrap_quoted_meta e else e in
@@ -2946,7 +2952,8 @@ and type_object_decl ctx fl with_type p =
 			if PMap.mem f acc then error ("Duplicate field in object declaration : " ^ f) p;
 			let e = type_expr ctx e Value in
 			(match follow e.etype with TAbstract({a_path=[],"Void"},_) -> error "Fields of type Void are not allowed in structures" e.epos | _ -> ());
-			let cf = mk_field f e.etype e.epos null_pos in
+			let cf = mk_field f e.etype (punion pf e.epos) pf in
+			if ctx.in_display && Display.is_display_position pf then Display.DisplayEmitter.display_field ctx.com.display cf pf;
 			let e = if is_quoted then wrap_quoted_meta e else e in
 			((f,e) :: l, if is_valid then begin
 				if String.length f > 0 && f.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
