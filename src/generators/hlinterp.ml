@@ -592,7 +592,7 @@ let interp code =
 			String.set b (p+3) (char_of_int (Int32.to_int (Int32.shift_right_logical v 24)));
 		with _ ->
 			error "Set outside of bytes bounds"
-		
+
 	and get_i32 b p =
 		let i = int_of_char (String.get b p) in
 		let j = int_of_char (String.get b (p + 1)) in
@@ -1132,6 +1132,8 @@ let interp code =
 				| [VBytes dst; VInt dp; VBytes src; VInt sp; VInt len] ->
 					String.blit src (int sp) dst (int dp) (int len);
 					VUndef
+				| [(VBytes _ | VNull); VInt _; (VBytes _ | VNull); VInt _; VInt len] ->
+					if len = 0l then VUndef else error "bytes_blit to NULL bytes";
 				| _ -> assert false)
 			| "bsort_i32" ->
 				(function
@@ -1765,7 +1767,7 @@ let interp code =
 			| "rnd_float" ->
 				(function
 				| [VAbstract ARandom] -> VFloat (Random.float 1.)
-				| _ -> assert false)				
+				| _ -> assert false)
 			| "regexp_new_options" ->
 				(function
 				| [VBytes str; VBytes opt] ->
@@ -2074,7 +2076,7 @@ let check code =
 			| OStaticClosure (r,f) ->
 				reg r ftypes.(f)
 			| OSetMethod (o,f,fid) ->
-				check ftypes.(fid) (tfield o f false)			
+				check ftypes.(fid) (tfield o f false)
 			| OVirtualClosure (r,o,fid) ->
 				(match rtype o with
 				| HObj _ ->
@@ -2256,11 +2258,11 @@ type svalue =
 	| SEnumField of svalue * int * int
 	| SUnion of svalue list
 	| SRef of int
-	| SRefResult of string 
+	| SRefResult of string
 	| SUnreach
 	| SExc
 	| SDelayed of string * svalue list option ref
-	
+
 type call_spec =
 	| SFid of int
 	| SMethod of int
@@ -2349,7 +2351,7 @@ let spec_iter fs fv = function
 	| SNew _ ->
 		()
 
-let rec svalue_same a b = 
+let rec svalue_same a b =
 	let vsame = svalue_same in
 	match a, b with
 	| SType t1, SType t2 -> tsame t1 t2
@@ -2388,7 +2390,7 @@ let rec spec_string s =
 		Printf.sprintf "j%s(%s)" s (sval v)
 	| SJComp (s,a,b) ->
 		Printf.sprintf "jump(%s %s %s)" (sval a) s (sval b)
-	| SJump -> 
+	| SJump ->
 		"jump"
 	| SRet v ->
 		"ret " ^ sval v
@@ -2404,11 +2406,11 @@ let rec spec_string s =
 		Printf.sprintf "*%s = %s" (sval r) (sval v)
 	| SStoreResult (r,s) ->
 		r ^ " <- " ^ spec_string s
-	| SNew (t,idx) -> 
+	| SNew (t,idx) ->
 		Printf.sprintf "new %s(%d)" (tstr t) idx
 	| SVal v ->
 		sval v
-		
+
 let make_spec (code:code) (f:fundecl) =
 	let op = Array.get f.code in
 	let out_spec = ref [] in
@@ -2418,11 +2420,11 @@ let make_spec (code:code) (f:fundecl) =
 		let d = Digest.to_hex (Digest.string str) in
 		String.sub d 0 4
 	in
-	
-	let rec semit s = 
+
+	let rec semit s =
 		let rec loop_spec s =
 			spec_iter loop_spec loop_val s
-		
+
 		and loop_val v =
 			match v with
 			| SDelayed (r,used) ->
@@ -2443,14 +2445,14 @@ let make_spec (code:code) (f:fundecl) =
 	in
 
 	let big_unions = Hashtbl.create 0 in
-	
+
 	let block_args = Hashtbl.create 0 in
 	let rec get_args b =
 		try
 			Hashtbl.find block_args b.bstart
 		with Not_found ->
 			assert false
-	
+
 	and calc_spec b =
 		let bprev = List.filter (fun b2 -> b2.bstart < b.bstart) b.bprev in
 		let args = (match bprev with
@@ -2470,7 +2472,7 @@ let make_spec (code:code) (f:fundecl) =
 							let l2 = (match args2.(i) with SUnion l -> l | v -> [v]) in
 							let l = l1 @ List.filter (fun v -> not (List.exists (svalue_same v) l1)) l2 in
 							if List.length l > 10 then begin
-								(try 
+								(try
 									let ident, used = Hashtbl.find big_unions l in
 									args.(i) <- SDelayed (ident, used);
 								with Not_found ->
@@ -2562,8 +2564,8 @@ let make_spec (code:code) (f:fundecl) =
 			| OLabel _ -> ()
 			| ORet r ->
 				semit (SRet (if f.regs.(r) = HVoid then SUndef else args.(r)));
-				if i < b.bend then for i = 0 to Array.length args - 1 do args.(i) <- SUnreach done				
-			| OThrow r | ORethrow r -> 
+				if i < b.bend then for i = 0 to Array.length args - 1 do args.(i) <- SUnreach done
+			| OThrow r | ORethrow r ->
 				semit (SThrow args.(r));
 				if i < b.bend then for i = 0 to Array.length args - 1 do args.(i) <- SUnreach done
 			| OSwitch (r,_,_) -> semit (SSwitch args.(r))
@@ -2589,11 +2591,11 @@ let make_spec (code:code) (f:fundecl) =
 			| OGetType (d,r) -> args.(d) <- SConv ("type",args.(r))
 			| OGetTID (d,r) -> args.(d) <- SConv ("tid",args.(r))
 			| ORef (d,r) -> args.(d) <- SRef r
-			| OUnref (d,r) -> 
+			| OUnref (d,r) ->
 				(match args.(r) with
 				| SRef r -> args.(d) <- args.(r)
 				| _ -> args.(d) <- SConv ("unref",args.(r)))
-			| OSetref (r,v) -> 
+			| OSetref (r,v) ->
 				(match args.(r) with
 				| SRef r -> args.(r) <- args.(v)
 				| _ -> ());
