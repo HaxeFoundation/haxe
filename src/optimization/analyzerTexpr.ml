@@ -778,7 +778,7 @@ module Fusion = struct
 							{e with eexpr = TObjectDecl (List.map2 (fun (s,_) e -> s,e) fl el)}
 						| TArrayDecl el ->
 							let el = handle_el el in
-							if not !found && (has_state_write ir || has_any_field_write ir) then raise Exit;
+							(*if not !found && (has_state_write ir || has_any_field_write ir) then raise Exit;*)
 							{e with eexpr = TArrayDecl el}
 						| TBinop(OpAssign,({eexpr = TArray(e1,e2)} as ea),e3) ->
 							let e1 = replace e1 in
