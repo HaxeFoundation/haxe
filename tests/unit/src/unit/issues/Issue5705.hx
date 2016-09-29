@@ -1,6 +1,6 @@
 package unit.issues;
 
-class Main extends Test {
+class Issue5705 extends Test {
 	static function foo(baseClass:BaseClass_):Int {
 		return cast(baseClass, IInterface).z;
 	}
