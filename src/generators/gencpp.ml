@@ -2885,7 +2885,8 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             else (match return_type with
             | TCppNativePointer(klass) -> CppCastNative(baseCpp), return_type
             | TCppVoid -> baseCpp.cppexpr, TCppVoid
-            | TCppInterface _
+            | TCppInterface _ ->
+                  baseCpp.cppexpr, return_type
             | TCppDynamic ->
                   baseCpp.cppexpr, baseCpp.cpptype
             | _ ->
