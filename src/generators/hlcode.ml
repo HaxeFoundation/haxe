@@ -57,6 +57,8 @@ and class_proto = {
 	mutable pfields : (string * string index * ttype) array;
 	mutable pindex : (string, int * ttype) PMap.t;
 	mutable pfunctions : (string, int) PMap.t;
+	mutable pinterfaces : (ttype, int) PMap.t;
+	mutable pninterfaces : int;
 }
 
 and enum_proto = {
@@ -230,6 +232,8 @@ let null_proto =
 		pnfields = 0;
 		pindex = PMap.empty;
 		pfunctions = PMap.empty;
+		pinterfaces = PMap.empty;
+		pninterfaces = 0;
 	}
 
 let list_iteri f l =
@@ -315,7 +319,7 @@ let rec safe_cast t1 t2 =
 		List.for_all2 (fun t1 t2 -> safe_cast t2 t1 || (t1 = HDyn && is_dynamic t2)) args1 args2 && safe_cast t1 t2
 	| _ ->
 		tsame t1 t2
-		
+
 let hl_hash b =
 	let h = ref Int32.zero in
 	let rec loop i =
