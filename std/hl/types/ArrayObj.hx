@@ -187,6 +187,12 @@ class ArrayObj<T> extends ArrayBase {
 		return -1;
 	}
 
+	override function blit( pos : Int, src : ArrayBase.ArrayAccess, srcpos : Int, len : Int ) : Void {
+		var src = (cast src : ArrayObj<T>);
+		if( pos < 0 || srcpos < 0 || len < 0 || pos + len > length || srcpos + len > src.length ) throw haxe.io.Error.OutsideBounds;
+		array.blit(pos, src.array, srcpos, len);
+	}
+
 	public function lastIndexOf( x : T, ?fromIndex:Int ) : Int {
 		var len = length;
 		var i:Int = fromIndex != null ? fromIndex : len - 1;

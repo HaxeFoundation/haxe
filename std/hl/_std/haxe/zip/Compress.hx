@@ -21,54 +21,49 @@
  */
 package haxe.zip;
 
-private typedef Inflater = hl.types.NativeAbstract<"fmt_zip">;
+private typedef Deflater = hl.types.NativeAbstract<"fmt_zip">;
 
 @:coreApi @:hlNative("fmt")
-class Uncompress {
+class Compress {
 
-	var s : Inflater;
+	var s : Deflater;
 
-	public function new( ?windowBits : Int ) : Void {
-		s = inflate_init(windowBits);
+	public function new( level : Int ) : Void {
+		s = deflate_init(level);
 	}
 
 	public function execute( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
 		var read = 0, write = 0;
-		var done = inflate_buffer(s,src.getData(),srcPos,src.length,dst.getData(),dstPos,dst.length,read,write);
+		var done = deflate_buffer(s,src.getData(),srcPos,src.length,dst.getData(),dstPos,dst.length,read,write);
 		return { done : done, read : read, write : write };
 	}
 
 	public function setFlushMode( f : FlushMode ) : Void {
-		zip_flush_mode(s,f.getIndex());
+		@:privateAccess Uncompress.zip_flush_mode(cast s,f.getIndex());
 	}
 
 	public function close() : Void {
-		zip_end(s);
+		@:privateAccess Uncompress.zip_end(cast s);
 	}
 
-	public static function run( src : haxe.io.Bytes, ?bufsize : Int ) : haxe.io.Bytes {
-		var u = new Uncompress(null);
-		if( bufsize == null ) bufsize = 1 << 16; // 64K
-		var tmp = haxe.io.Bytes.alloc(bufsize);
-		var b = new haxe.io.BytesBuffer();
-		var pos = 0;
-		u.setFlushMode(FlushMode.SYNC);
-		while( true ) {
-			var r = u.execute(src,pos,tmp,0);
-			b.addBytes(tmp,0,r.write);
-			pos += r.read;
-			if( r.done )
-				break;
-		}
-		u.close();
-		return b.getBytes();
+	public static function run( s : haxe.io.Bytes, level : Int ) : haxe.io.Bytes {
+		var c = new Compress(level);
+		c.setFlushMode(FlushMode.FINISH);
+		var out = haxe.io.Bytes.alloc(deflate_bound(c.s,s.length));
+		var r = c.execute(s,0,out,0);
+		c.close();
+		if( !r.done || r.read != s.length )
+			throw "Compression failed";
+		if( r.write < out.length*0.66 )
+			return out.sub(0, r.write);
+		@:privateAccess out.length = r.write;
+		return out;
 	}
 
-	static function inflate_init( bits : Int ) : Inflater { return null; }
-	static function inflate_buffer( i : Inflater, bytes : hl.types.Bytes, bytesPos : Int, bytesLen : Int, dst : hl.types.Bytes, dstPos : Int, dstLen : Int, read : hl.types.Ref<Int>, write : hl.types.Ref<Int>) : Bool {
+	static function deflate_init( level : Int ) : Deflater { return null; }
+	static function deflate_buffer( i : Deflater, bytes : hl.types.Bytes, bytesPos : Int, bytesLen : Int, dst : hl.types.Bytes, dstPos : Int, dstLen : Int, read : hl.types.Ref<Int>, write : hl.types.Ref<Int>) : Bool {
 		return false;
 	}
-	static function zip_end( i : Inflater ) : Void { }
-	static function zip_flush_mode( i : Inflater, flush : Int ) : Void {}
+	static function deflate_bound( i : Deflater, length : Int ) : Int { return 0; }
 
 }

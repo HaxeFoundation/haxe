@@ -229,7 +229,7 @@ class TestJs {
 
 	@:js('
 		var map = new haxe_ds_StringMap();
-		if(__map_reserved.some != null) {map.setReserved("some",2);} else {map.h["some"] = 2;}
+		if(__map_reserved["some"] != null) {map.setReserved("some",2);} else {map.h["some"] = 2;}
 		TestJs["use"](2);
 	')
 	static function testIssue4731() {

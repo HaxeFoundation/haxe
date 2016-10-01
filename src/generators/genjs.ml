@@ -490,9 +490,9 @@ and gen_expr ctx e =
 	(match e.eexpr with
 	| TConst c -> gen_constant ctx e.epos c
 	| TLocal v -> spr ctx (ident v.v_name)
-	| TArray (e1,{ eexpr = TConst (TString s) }) when valid_js_ident s && (match e1.eexpr with TConst (TInt _|TFloat _) -> false | _ -> true) ->
+	(*| TArray (e1,{ eexpr = TConst (TString s) }) when valid_js_ident s && (match e1.eexpr with TConst (TInt _|TFloat _) -> false | _ -> true) ->
 		gen_value ctx (add_objectdecl_parens e1);
-		spr ctx (field s)
+		spr ctx (field s)*)
 	| TArray (e1,e2) ->
 		gen_value ctx (add_objectdecl_parens e1);
 		spr ctx "[";

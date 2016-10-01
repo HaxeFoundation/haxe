@@ -46,6 +46,7 @@ and vabstract =
 	| AHashInt of (int32, value) Hashtbl.t
 	| AHashObject of (value * value) list ref
 	| AReg of regexp
+	| ARandom
 
 and vfunction =
 	| FFun of fundecl
@@ -591,7 +592,7 @@ let interp code =
 			String.set b (p+3) (char_of_int (Int32.to_int (Int32.shift_right_logical v 24)));
 		with _ ->
 			error "Set outside of bytes bounds"
-		
+
 	and get_i32 b p =
 		let i = int_of_char (String.get b p) in
 		let j = int_of_char (String.get b (p + 1)) in
@@ -822,6 +823,11 @@ let interp code =
 					let rv = get r in
 					check_obj rv o fid;
 					v.ofields.(fid) <- rv
+				| _ -> assert false)
+			| OSetMethod (o,fid,mid) ->
+				let o = get o in
+				(match o with
+				| VObj v -> v.ofields.(fid) <- VClosure (functions.(mid),None)
 				| _ -> assert false)
 			| OCallMethod (r,m,rl) ->
 				(match get (List.hd rl) with
@@ -1083,6 +1089,11 @@ let interp code =
 		| VVirtual v -> v.vvalue
 		| _ -> v
 	in
+	let make_stack (f,pos) =
+		let pos = !pos - 1 in
+		let file, line = (try let fid, line = f.debug.(pos) in code.debugfiles.(fid), line with _ -> "???", 0) in
+		Printf.sprintf "%s:%d: Called from fun(%d)@x%x" file line f.findex pos
+	in
 	let load_native lib name t =
 		let unresolved() = (fun args -> error ("Unresolved native " ^ lib ^ "@" ^ name)) in
 		let f = (match lib with
@@ -1121,6 +1132,8 @@ let interp code =
 				| [VBytes dst; VInt dp; VBytes src; VInt sp; VInt len] ->
 					String.blit src (int sp) dst (int dp) (int len);
 					VUndef
+				| [(VBytes _ | VNull); VInt _; (VBytes _ | VNull); VInt _; VInt len] ->
+					if len = 0l then VUndef else error "bytes_blit to NULL bytes";
 				| _ -> assert false)
 			| "bsort_i32" ->
 				(function
@@ -1685,6 +1698,10 @@ let interp code =
 					String.fill a (int pos) (int len) (char_of_int ((int v) land 0xFF));
 					VUndef
 				| _ -> assert false)
+			| "exception_stack" ->
+				(function
+				| [] -> VArray (Array.map (fun e -> VBytes (caml_to_hl (make_stack e))) (Array.of_list (List.rev !exc_stack)),HBytes)
+				| _ -> assert false)
 			| "date_new" ->
 				(function
 				| [VInt y; VInt mo; VInt d; VInt h; VInt m; VInt s] ->
@@ -1739,9 +1756,17 @@ let interp code =
 					regs.(pos) <- to_int (String.length str);
 					VBytes (caml_to_hl str)
 				| _ -> assert false)
-			| "random" ->
+			| "rnd_init_system" ->
 				(function
-				| [VInt max] -> VInt (if max <= 0l then 0l else Random.int32 max)
+				| [] -> Random.self_init(); VAbstract ARandom
+				| _ -> assert false)
+			| "rnd_int" ->
+				(function
+				| [VAbstract ARandom] -> VInt (Int32.of_int (Random.bits()))
+				| _ -> assert false)
+			| "rnd_float" ->
+				(function
+				| [VAbstract ARandom] -> VFloat (Random.float 1.)
 				| _ -> assert false)
 			| "regexp_new_options" ->
 				(function
@@ -1840,11 +1865,7 @@ let interp code =
 	Array.iter (fun (lib,name,t,idx) -> functions.(idx) <- load_native code.strings.(lib) code.strings.(name) t) code.natives;
 	Array.iter (fun fd -> functions.(fd.findex) <- FFun fd) code.functions;
 	let get_stack st =
-		String.concat "\n" (List.map (fun (f,pos) ->
-			let pos = !pos - 1 in
-			let file, line = (try let fid, line = f.debug.(pos) in code.debugfiles.(fid), line with _ -> "???", 0) in
-			Printf.sprintf "%s:%d: Called from fun(%d)@x%x" file line f.findex pos
-		) st)
+		String.concat "\n" (List.map make_stack st)
 	in
 	match functions.(code.entrypoint) with
 	| FFun f when f.ftype = HFun([],HVoid) ->
@@ -2054,6 +2075,8 @@ let check code =
 				reg r (tfield 0 fid false)
 			| OStaticClosure (r,f) ->
 				reg r ftypes.(f)
+			| OSetMethod (o,f,fid) ->
+				check ftypes.(fid) (tfield o f false)
 			| OVirtualClosure (r,o,fid) ->
 				(match rtype o with
 				| HObj _ ->
@@ -2235,11 +2258,11 @@ type svalue =
 	| SEnumField of svalue * int * int
 	| SUnion of svalue list
 	| SRef of int
-	| SRefResult of string 
+	| SRefResult of string
 	| SUnreach
 	| SExc
 	| SDelayed of string * svalue list option ref
-	
+
 type call_spec =
 	| SFid of int
 	| SMethod of int
@@ -2328,7 +2351,7 @@ let spec_iter fs fv = function
 	| SNew _ ->
 		()
 
-let rec svalue_same a b = 
+let rec svalue_same a b =
 	let vsame = svalue_same in
 	match a, b with
 	| SType t1, SType t2 -> tsame t1 t2
@@ -2367,7 +2390,7 @@ let rec spec_string s =
 		Printf.sprintf "j%s(%s)" s (sval v)
 	| SJComp (s,a,b) ->
 		Printf.sprintf "jump(%s %s %s)" (sval a) s (sval b)
-	| SJump -> 
+	| SJump ->
 		"jump"
 	| SRet v ->
 		"ret " ^ sval v
@@ -2383,11 +2406,11 @@ let rec spec_string s =
 		Printf.sprintf "*%s = %s" (sval r) (sval v)
 	| SStoreResult (r,s) ->
 		r ^ " <- " ^ spec_string s
-	| SNew (t,idx) -> 
+	| SNew (t,idx) ->
 		Printf.sprintf "new %s(%d)" (tstr t) idx
 	| SVal v ->
 		sval v
-		
+
 let make_spec (code:code) (f:fundecl) =
 	let op = Array.get f.code in
 	let out_spec = ref [] in
@@ -2397,11 +2420,11 @@ let make_spec (code:code) (f:fundecl) =
 		let d = Digest.to_hex (Digest.string str) in
 		String.sub d 0 4
 	in
-	
-	let rec semit s = 
+
+	let rec semit s =
 		let rec loop_spec s =
 			spec_iter loop_spec loop_val s
-		
+
 		and loop_val v =
 			match v with
 			| SDelayed (r,used) ->
@@ -2422,14 +2445,14 @@ let make_spec (code:code) (f:fundecl) =
 	in
 
 	let big_unions = Hashtbl.create 0 in
-	
+
 	let block_args = Hashtbl.create 0 in
 	let rec get_args b =
 		try
 			Hashtbl.find block_args b.bstart
 		with Not_found ->
 			assert false
-	
+
 	and calc_spec b =
 		let bprev = List.filter (fun b2 -> b2.bstart < b.bstart) b.bprev in
 		let args = (match bprev with
@@ -2449,7 +2472,7 @@ let make_spec (code:code) (f:fundecl) =
 							let l2 = (match args2.(i) with SUnion l -> l | v -> [v]) in
 							let l = l1 @ List.filter (fun v -> not (List.exists (svalue_same v) l1)) l2 in
 							if List.length l > 10 then begin
-								(try 
+								(try
 									let ident, used = Hashtbl.find big_unions l in
 									args.(i) <- SDelayed (ident, used);
 								with Not_found ->
@@ -2507,6 +2530,7 @@ let make_spec (code:code) (f:fundecl) =
 			| OCallThis (d,fid,rl) -> args.(d) <- make_call (SMethod fid) (List.map (fun r -> args.(r)) (0 :: rl))
 			| OCallClosure (d,r,rl) -> args.(d) <- make_call (SClosure args.(r)) (List.map (fun r -> args.(r)) rl)
 			| OStaticClosure (d,fid) -> args.(d) <- SFun (fid,None)
+			| OSetMethod (o,f,fid) -> semit (SFieldSet (args.(o),f,SFun(fid,None)))
 			| OInstanceClosure (d,fid,r) -> args.(d) <- SFun (fid,Some args.(r))
 			| OVirtualClosure (d,r,index) -> args.(d) <- SMeth (args.(r),index)
 			| OGetGlobal (d,g) -> args.(d) <- SGlobal g
@@ -2540,8 +2564,8 @@ let make_spec (code:code) (f:fundecl) =
 			| OLabel _ -> ()
 			| ORet r ->
 				semit (SRet (if f.regs.(r) = HVoid then SUndef else args.(r)));
-				if i < b.bend then for i = 0 to Array.length args - 1 do args.(i) <- SUnreach done				
-			| OThrow r | ORethrow r -> 
+				if i < b.bend then for i = 0 to Array.length args - 1 do args.(i) <- SUnreach done
+			| OThrow r | ORethrow r ->
 				semit (SThrow args.(r));
 				if i < b.bend then for i = 0 to Array.length args - 1 do args.(i) <- SUnreach done
 			| OSwitch (r,_,_) -> semit (SSwitch args.(r))
@@ -2567,11 +2591,11 @@ let make_spec (code:code) (f:fundecl) =
 			| OGetType (d,r) -> args.(d) <- SConv ("type",args.(r))
 			| OGetTID (d,r) -> args.(d) <- SConv ("tid",args.(r))
 			| ORef (d,r) -> args.(d) <- SRef r
-			| OUnref (d,r) -> 
+			| OUnref (d,r) ->
 				(match args.(r) with
 				| SRef r -> args.(d) <- args.(r)
 				| _ -> args.(d) <- SConv ("unref",args.(r)))
-			| OSetref (r,v) -> 
+			| OSetref (r,v) ->
 				(match args.(r) with
 				| SRef r -> args.(r) <- args.(v)
 				| _ -> ());

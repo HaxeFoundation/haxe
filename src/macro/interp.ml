@@ -2340,9 +2340,9 @@ let macro_lib =
 					| VFloat f -> haxe_float f p
 					| VAbstract (APos p) ->
 						(Ast.EObjectDecl (
-							("fileName" , (Ast.EConst (Ast.String p.Globals.pfile) , p)) ::
-							("lineNumber" , (Ast.EConst (Ast.Int (string_of_int (Lexer.get_error_line p))),p)) ::
-							("className" , (Ast.EConst (Ast.String ("")),p)) ::
+							(("fileName",Globals.null_pos) , (Ast.EConst (Ast.String p.Globals.pfile) , p)) ::
+							(("lineNumber",Globals.null_pos) , (Ast.EConst (Ast.Int (string_of_int (Lexer.get_error_line p))),p)) ::
+							(("className",Globals.null_pos) , (Ast.EConst (Ast.String ("")),p)) ::
 							[]
 						), p)
 					| VString _ | VArray _ | VAbstract _ | VFunction _ | VClosure _ as v -> error v
@@ -2353,7 +2353,7 @@ let macro_lib =
 							| Some (VAbstract (ATDecl t)) ->
 								make_path t
 							| _ ->
-								let fields = List.fold_left (fun acc (fid,v) -> (field_name ctx fid, loop v) :: acc) [] (Array.to_list o.ofields) in
+								let fields = List.fold_left (fun acc (fid,v) -> ((field_name ctx fid,Globals.null_pos), loop v) :: acc) [] (Array.to_list o.ofields) in
 								(Ast.EObjectDecl fields, p))
 						| Some proto ->
 							match get_field_opt proto h_enum, get_field_opt o h_a, get_field_opt o h_s, get_field_opt o h_length with
@@ -4104,8 +4104,9 @@ and encode_expr e =
 			| EParenthesis e ->
 				4, [loop e]
 			| EObjectDecl fl ->
-				5, [enc_array (List.map (fun (f,e) -> enc_obj [
+				5, [enc_array (List.map (fun ((f,p),e) -> enc_obj [
 					"field",enc_string f;
+					"name_pos",encode_pos p;
 					"expr",loop e;
 				]) fl)]
 			| EArrayDecl el ->
@@ -4231,6 +4232,16 @@ let decode_enum_with_pos v =
 
 let dec_bool = function
 	| VBool b -> b
+	| _ -> raise Invalid_expr
+
+let dec_bool_or_null = function
+	| VBool b -> b
+	| VNull -> false
+	| _ -> raise Invalid_expr
+
+let dec_bool_or_null = function
+	| VBool b -> b
+	| VNull -> false
 	| _ -> raise Invalid_expr
 
 let dec_string v =
@@ -4419,7 +4430,7 @@ let rec decode_expr v =
 			EParenthesis (loop e)
 		| 5, [a] ->
 			EObjectDecl (List.map (fun o ->
-				(dec_string (field o "field"), loop (field o "expr"))
+				(decode_placed_name (field o "name_pos") (field o "field")),loop (field o "expr")
 			) (dec_array a))
 		| 6, [a] ->
 			EArrayDecl (List.map loop (dec_array a))

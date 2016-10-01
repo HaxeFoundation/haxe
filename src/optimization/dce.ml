@@ -28,6 +28,7 @@ type dce = {
 	std_dirs : string list;
 	debug : bool;
 	follow_expr : dce -> texpr -> unit;
+	dependent_types : (string list * string,module_type list) Hashtbl.t;
 	mutable curclass : tclass;
 	mutable added_fields : (tclass * tclass_field * bool) list;
 	mutable marked_fields : tclass_field list;
@@ -205,6 +206,13 @@ let mark_mt dce mt = match mt with
 
 (* find all dependent fields by checking implementing/subclassing types *)
 let rec mark_dependent_fields dce csup n stat =
+	let dependent = try
+		Hashtbl.find dce.dependent_types csup.cl_path
+	with Not_found ->
+		let cl = List.filter (fun mt -> match mt with TClassDecl c -> is_parent csup c | _ -> false) dce.com.types in
+		Hashtbl.add dce.dependent_types csup.cl_path cl;
+		cl
+	in
 	List.iter (fun mt -> match mt with
 		| TClassDecl c when is_parent csup c ->
 			let rec loop c =
@@ -224,7 +232,7 @@ let rec mark_dependent_fields dce csup n stat =
 			in
 			loop c
 		| _ -> ()
-	) dce.com.types
+	) dependent
 
 (* expr and field evaluation *)
 
@@ -571,6 +579,7 @@ let run com main full =
 	let dce = {
 		com = com;
 		full = full;
+		dependent_types = Hashtbl.create 0;
 		std_dirs = if full then [] else List.map Path.unique_full_path com.std_path;
 		debug = Common.defined com Define.DceDebug;
 		added_fields = [];

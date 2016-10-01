@@ -47,7 +47,7 @@ let transform_abstract_field com this_t a_t a f =
 		let meta = if Meta.has Meta.MultiType a.a_meta then begin
 			if List.mem AInline f.cff_access then error "MultiType constructors cannot be inline" f.cff_pos;
 			if fu.f_expr <> None then error "MultiType constructors cannot have a body" f.cff_pos;
-			(Meta.Extern,[],f.cff_pos) :: meta
+			(Meta.Extern,[],null_pos) :: meta
 		end else
 			meta
 		in
@@ -216,7 +216,7 @@ let module_pass_1 ctx m tdecls loadp =
 				let this_t = loop d.d_flags in
 				let fields = List.map (transform_abstract_field com this_t a_t a) fields in
 				let meta = ref [] in
-				if has_meta Meta.Dce a.a_meta then meta := (Meta.Dce,[],p) :: !meta;
+				if has_meta Meta.Dce a.a_meta then meta := (Meta.Dce,[],null_pos) :: !meta;
 				let acc = make_decl acc (EClass { d_name = (fst d.d_name) ^ "_Impl_",snd d.d_name; d_flags = [HPrivate]; d_data = fields; d_doc = None; d_params = []; d_meta = !meta },p) in
 				(match !decls with
 				| (TClassDecl c,_) :: _ ->
@@ -420,7 +420,7 @@ let requires_value_meta com co =
 
 let generate_value_meta com co cf args =
 	if requires_value_meta com co then begin
-		let values = List.fold_left (fun acc ((name,_),_,_,_,eo) -> match eo with Some e -> (name,e) :: acc | _ -> acc) [] args in
+		let values = List.fold_left (fun acc ((name,p),_,_,_,eo) -> match eo with Some e -> ((name,p),e) :: acc | _ -> acc) [] args in
 		match values with
 			| [] -> ()
 			| _ -> cf.cf_meta <- ((Meta.Value,[EObjectDecl values,cf.cf_pos],null_pos) :: cf.cf_meta)
@@ -1128,7 +1128,7 @@ let field_to_type_path ctx e =
 	loop e [] []
 
 let handle_fields ctx fields_to_check with_type_expr =
-	List.map (fun (name,expr) ->
+	List.map (fun ((name,_),expr) ->
 		let pos = snd expr in
 		let field = (EField(with_type_expr,name), pos) in
 		let fieldexpr = (EConst(Ident name),pos) in

@@ -664,6 +664,13 @@ and gen_expr ?(local=true) ctx e = begin
 		(match c.cl_constructor with
 		| Some cf when Meta.has Meta.SelfCall cf.cf_meta ->
 			print ctx "%s" (ctx.type_accessor (TClassDecl c));
+		| Some cf when Meta.has Meta.Native cf.cf_meta ->
+			let _, args, mp = Meta.get Meta.Native cf.cf_meta in
+			(match args with
+			| [( EConst(String s),_)] ->
+				print ctx "%s.%s" (ctx.type_accessor (TClassDecl c)) s;
+			| _ ->
+				print ctx "%s.new" (ctx.type_accessor (TClassDecl c)));
 		| _ -> print ctx "%s.new" (ctx.type_accessor (TClassDecl c)));
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;
@@ -922,7 +929,7 @@ and gen_expr ?(local=true) ctx e = begin
 		end;
 		bend();
 		newline ctx;
-		println ctx " elseif _hx_result ~= _hx_expected_result then return _hx_result end;";
+		print ctx " elseif _hx_result ~= _hx_expected_result then return _hx_result end";
 	| TSwitch (e,cases,def) ->
 		List.iteri (fun cnt (el,e2) ->
 		    if cnt == 0 then spr ctx "if "

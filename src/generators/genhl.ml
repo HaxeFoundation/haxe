@@ -255,9 +255,9 @@ let rec unsigned t =
 	| TAbstract ({ a_path = [],"UInt" },_) -> true
 	| TAbstract (a,pl) -> unsigned (Abstract.get_underlying_type a pl)
 	| _ -> false
-	
+
 let unsigned_op e1 e2 =
-	let is_unsigned e = 
+	let is_unsigned e =
 		match e.eexpr with
 		| TConst (TInt _) -> true
 		| _ -> unsigned e.etype
@@ -501,6 +501,8 @@ and class_type ?(tref=None) ctx c pl statics =
 			pvirtuals = [||];
 			pfunctions = PMap.empty;
 			pnfields = -1;
+			pinterfaces = PMap.empty;
+			pninterfaces = 0;
 		} in
 		let t = HObj p in
 		(match tref with
@@ -522,6 +524,8 @@ and class_type ?(tref=None) ctx c pl statics =
 				if psup.pnfields < 0 then assert false;
 				p.psuper <- Some psup;
 				p.pfunctions <- psup.pfunctions;
+				p.pinterfaces <- psup.pinterfaces;
+				p.pninterfaces <- psup.pninterfaces;
 				psup.pnfields, psup.pvirtuals
 			| _ -> assert false
 		) in
@@ -558,12 +562,29 @@ and class_type ?(tref=None) ctx c pl statics =
 					Array.set p.pfields fid (f.cf_name, alloc_string ctx f.cf_name, t)
 				) :: !todo;
 		) (if statics then c.cl_ordered_statics else c.cl_ordered_fields);
-		if not statics then (try
-			let cf = PMap.find "toString" c.cl_fields in
-			if List.memq cf c.cl_overrides || PMap.mem "__string" c.cl_fields || not (is_to_string cf.cf_type) then raise Not_found;
-			DynArray.add pa { fname = "__string"; fid = alloc_string ctx "__string"; fmethod = alloc_fun_path ctx c.cl_path "__string"; fvirtual = None; }
-		with Not_found ->
-			());
+		if not statics then begin
+			(* add interfaces *)
+			List.iter (fun (i,pl) ->
+				let index = p.pninterfaces in
+				p.pinterfaces <- PMap.add (to_type ctx (TInst (i,pl))) index p.pinterfaces;
+				p.pninterfaces <- index + 1;
+				if index = 0 then begin
+					(* first interface : create field to store them *)
+					let fid = DynArray.length fa in
+					let t = HArray in
+					let name = "__interfaces__" in
+					p.pindex <- PMap.add name (fid + start_field, t) p.pindex;
+					DynArray.add fa (name, alloc_string ctx name, t);
+				end;
+			) c.cl_implements;
+			(* check toString *)
+			(try
+				let cf = PMap.find "toString" c.cl_fields in
+				if List.memq cf c.cl_overrides || PMap.mem "__string" c.cl_fields || not (is_to_string cf.cf_type) then raise Not_found;
+				DynArray.add pa { fname = "__string"; fid = alloc_string ctx "__string"; fmethod = alloc_fun_path ctx c.cl_path "__string"; fvirtual = None; }
+			with Not_found ->
+				());
+		end;
 		p.pnfields <- DynArray.length fa + start_field;
 		p.pfields <- DynArray.to_array fa;
 		p.pproto <- DynArray.to_array pa;
@@ -617,6 +638,8 @@ and enum_class ctx e =
 			pvirtuals = [||];
 			pfunctions = PMap.empty;
 			pnfields = -1;
+			pinterfaces = PMap.empty;
+			pninterfaces = 0;
 		} in
 		let t = HObj p in
 		ctx.cached_types <- PMap.add cpath t ctx.cached_types;
@@ -730,8 +753,11 @@ let free ctx r =
 	if !last then a.a_all <- loop a.a_all
 
 let op ctx o =
-	DynArray.add ctx.m.mdebug ctx.m.mcurpos;
-	DynArray.add ctx.m.mops o
+	match o with
+	| OMov (a,b) when a = b -> ()
+	| _ ->
+		DynArray.add ctx.m.mdebug ctx.m.mcurpos;
+		DynArray.add ctx.m.mops o
 
 let jump ctx f =
 	let pos = current_pos ctx in
@@ -919,7 +945,30 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		op ctx (OJAlways 1);
 		op ctx (OCall1 (out,alloc_fun_path ctx ([],"Std") "string",r));
 		out
-	| (HObj _ | HDynObj | HDyn) , HVirtual _ ->
+	| HObj o, HVirtual _ ->
+		let out = alloc_tmp ctx t in
+		(try
+			let index = PMap.find t o.pinterfaces in
+			(* memoisation *)
+			let arr = alloc_tmp ctx HArray in
+			let fid, _ = get_index "__interfaces__" o in
+			let jnull = jump ctx (fun d -> OJNotNull (r,d)) in
+			op ctx (ONull out);
+			let jend = jump ctx (fun d -> OJAlways d) in
+			jnull();
+			op ctx (OField (arr, r, fid));
+			let rindex = reg_int ctx index in
+			op ctx (OGetArray (out, arr, rindex));
+			let j = jump ctx (fun d -> OJNotNull (out,d)) in
+			op ctx (OToVirtual (out,r));
+			op ctx (OSetArray (arr, rindex, out));
+			jend();
+			j();
+		with Not_found ->
+			(* not an interface *)
+			op ctx (OToVirtual (out,r)));
+		out
+	| (HDynObj | HDyn) , HVirtual _ ->
 		let out = alloc_tmp ctx t in
 		op ctx (OToVirtual (out,r));
 		out
@@ -1006,10 +1055,12 @@ and unsafe_cast_to ctx (r:reg) (t:ttype) p =
 		cast_to ctx r t p
 	| HDyn when is_array_type t ->
 		cast_to ctx r t p
-	| HDyn when (match t with HVirtual _ -> true | _ -> false) ->
+	| (HDyn | HObj _) when (match t with HVirtual _ -> true | _ -> false) ->
 		cast_to ctx r t p
 	| HObj _ when is_array_type rt && is_array_type t ->
 		cast_to ctx r t p
+	| HVirtual _ when (match t with HObj _ | HVirtual _ -> true | _ -> false) ->
+		cast_to ~force:true ctx r t p
 	| _ ->
 		if is_dynamic (rtype ctx r) && is_dynamic t then
 			let r2 = alloc_tmp ctx t in
@@ -1090,22 +1141,26 @@ and get_access ctx e =
 	| TParenthesis e ->
 		get_access ctx e
 	| TArray (a,i) ->
-		(match follow a.etype with
-		| TInst({ cl_path = [],"Array" },[t]) ->
-			let a = eval_null_check ctx a in
-			hold ctx a;
-			let i = eval_to ctx i HI32 in
-			free ctx a;
-			let t = to_type ctx t in
-			AArray (a,(t,t),i)
-		| _ ->
-			let a = eval_to ctx a (class_type ctx ctx.array_impl.adyn [] false) in
-			op ctx (ONullCheck a);
-			hold ctx a;
-			let i = eval_to ctx i HI32 in
-			free ctx a;
-			AArray (a,(HDyn,to_type ctx e.etype),i)
-		)
+		let rec loop t =
+			match follow t with
+			| TInst({ cl_path = [],"Array" },[t]) ->
+				let a = eval_null_check ctx a in
+				hold ctx a;
+				let i = eval_to ctx i HI32 in
+				free ctx a;
+				let t = to_type ctx t in
+				AArray (a,(t,t),i)
+			| TAbstract (a,pl) ->
+				loop (Abstract.get_underlying_type a pl)
+			| _ ->
+				let a = eval_to ctx a (class_type ctx ctx.array_impl.adyn [] false) in
+				op ctx (ONullCheck a);
+				hold ctx a;
+				let i = eval_to ctx i HI32 in
+				free ctx a;
+				AArray (a,(HDyn,to_type ctx e.etype),i)
+		in
+		loop a.etype
 	| _ ->
 		ANone
 
@@ -1808,7 +1863,7 @@ and eval_expr ctx e =
 		op ctx (ONew r);
 		hold ctx r;
 		(match c.cl_constructor with
-		| None -> ()
+		| None -> if c.cl_implements <> [] then assert false
 		| Some { cf_expr = None } -> abort (s_type_path c.cl_path ^ " does not have a constructor") e.epos
 		| Some ({ cf_expr = Some cexpr } as constr) ->
 			let rl = eval_args ctx el (to_type ctx cexpr.etype) e.epos in
@@ -2174,7 +2229,7 @@ and eval_expr ctx e =
 			(* if called, a HDyn method will return HDyn, not its usual return type *)
 			let r = alloc_tmp ctx t in
 			op ctx (OMov (r,rv));
-			r			
+			r
 		| _ ->
 			cast_to ~force:true ctx rv t e.epos)
 	| TArrayDecl el ->
@@ -2524,7 +2579,7 @@ and build_capture_vars ctx f =
 	let cvars = Array.of_list (PMap.fold (fun v acc -> if PMap.mem v.v_id !ignored_vars then acc else v :: acc) !used_vars []) in
 	Array.sort (fun v1 v2 -> v1.v_id - v2.v_id) cvars;
 	let indexes = ref PMap.empty in
-	let v0t = (if Array.length cvars = 1 then to_type ctx cvars.(0).v_type else HDyn) in 
+	let v0t = (if Array.length cvars = 1 then to_type ctx cvars.(0).v_type else HDyn) in
 	let ct, group = (match Array.length cvars with
 		| 0 -> HVoid, false
 		| 1 when is_nullable v0t -> v0t, false
@@ -2609,7 +2664,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 
 	let rcapt = match has_captured_vars && cparent <> None with
 		| true when capt.c_group ->
-			let r = alloc_tmp ctx capt.c_type in 
+			let r = alloc_tmp ctx capt.c_type in
 			hold ctx r;
 			Some r
 		| true ->
@@ -2624,7 +2679,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 	) f.tf_args in
 
 	if has_captured_vars then ctx.m.mcaptreg <- (match rcapt with
-		| None when not capt.c_group -> 
+		| None when not capt.c_group ->
 			-1
 		| None ->
 			let r = alloc_tmp ctx capt.c_type in
@@ -2723,7 +2778,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 	} in
 	ctx.m <- old;
 	Hashtbl.add ctx.defined_funs fidx ();
-	let f = if ctx.optimize then Hlopt.optimize ctx.dump_out f else f in
+	(*let f = if ctx.optimize then Hlopt.optimize ctx.dump_out f else f in*)
 	DynArray.add ctx.cfunctions f;
 	capt
 
@@ -2761,6 +2816,12 @@ let rec generate_member ctx c f =
 	| Var _ -> ()
 	| Method m ->
 		let gen_content = if f.cf_name <> "new" then None else Some (fun() ->
+
+			let o = (match class_type ctx c (List.map snd c.cl_params) false with
+				| HObj o -> o
+				| _ -> assert false
+			) in
+
 			(*
 				init dynamic functions
 			*)
@@ -2768,16 +2829,25 @@ let rec generate_member ctx c f =
 				match f.cf_kind with
 				| Method MethDynamic ->
 					let r = alloc_tmp ctx (to_type ctx f.cf_type) in
-					let fid = (match class_type ctx c (List.map snd c.cl_params) false with
-						| HObj o -> (try fst (get_index f.cf_name o) with Not_found -> assert false)
-						| _ -> assert false
-					) in
+					let fid = (try fst (get_index f.cf_name o) with Not_found -> assert false) in
 					op ctx (OGetThis (r,fid));
 					op ctx (OJNotNull (r,2));
 					op ctx (OInstanceClosure (r,alloc_fid ctx c f,0));
 					op ctx (OSetThis (fid,r));
 				| _ -> ()
 			) c.cl_ordered_fields;
+			(* init interfaces *)
+			if c.cl_implements <> [] then begin
+				let fid, _ = (try get_index "__interfaces__" o with Not_found -> assert false) in
+				let arr = alloc_tmp ctx HArray in
+				op ctx (OGetThis (arr, fid));
+				let j = jump ctx (fun d -> OJNotNull (arr,d)) in
+				let rt = alloc_tmp ctx HType in
+				op ctx (OType (rt, HDyn));
+				op ctx (OCall2 (arr,alloc_std ctx "alloc_array" [HType;HI32] HArray, rt,reg_int ctx o.pninterfaces));
+				op ctx (OSetThis (fid, arr));
+				j();
+			end;
 		) in
 		ignore(make_fun ?gen_content ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> abort "Missing function body" f.cf_pos) (Some c) None);
 		if f.cf_name = "toString" && not (List.memq f c.cl_overrides) && not (PMap.mem "__string" c.cl_fields) && is_to_string f.cf_type then begin
@@ -2853,14 +2923,7 @@ let generate_static_init ctx =
 
 				(match c.cl_constructor with
 				| None -> ()
-				| Some f ->
-					(* set __constructor__ *)
-					let r = alloc_tmp ctx (match to_type ctx f.cf_type with
-						| HFun (args,ret) -> HFun (class_type ctx c (List.map snd c.cl_params) false :: args, ret)
-						| _ -> assert false
-					) in
-					op ctx (OStaticClosure (r, alloc_fid ctx c f));
-					op ctx (OSetField (rc,index "__constructor__",r)));
+				| Some f -> op ctx (OSetMethod (rc,index "__constructor__",alloc_fid ctx c f)));
 
 				let gather_implements() =
 					let classes = ref [] in
@@ -2892,9 +2955,7 @@ let generate_static_init ctx =
 				List.iter (fun f ->
 					match f.cf_kind with
 					| Method _ when not (is_extern_field f) ->
-						let cl = alloc_tmp ctx (to_type ctx f.cf_type) in
-						op ctx (OStaticClosure (cl, alloc_fid ctx c f));
-						op ctx (OSetField (rc,index f.cf_name,cl));
+						op ctx (OSetMethod (rc,index f.cf_name,alloc_fid ctx c f));
 					| _ ->
 						()
 				) c.cl_ordered_statics;

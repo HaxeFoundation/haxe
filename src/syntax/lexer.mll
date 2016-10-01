@@ -156,7 +156,7 @@ let find_line p f =
 	in
 	if p >= f.llast then begin
 		let lp, line = Array.unsafe_get f.lalines f.llastindex in
-		let lp2, _ = Array.unsafe_get f.lalines (f.llastindex + 1) in
+		let lp2 = if f.llastindex = Array.length f.lalines - 1 then max_int else fst(Array.unsafe_get f.lalines (f.llastindex + 1)) in
 		if p >= lp && p < lp2 then line, p - lp else loop 0 (Array.length f.lalines)
 	end else
 		loop 0 (Array.length f.lalines)

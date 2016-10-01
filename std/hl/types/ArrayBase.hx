@@ -34,7 +34,7 @@ class ArrayAccess {
 	}
 
 	public function blit( pos : Int, src : ArrayAccess, srcpos : Int, len : Int ) : Void {
-		throw "Not implemented";		
+		throw "Not implemented";
 	}
 
 }
@@ -43,6 +43,7 @@ class ArrayAccess {
 class ArrayBase extends ArrayAccess {
 
 	public var length(default,null) : Int;
+
 
 	public function pushDyn( v : Dynamic ) : Int {
 		throw "Not implemented";
@@ -164,7 +165,7 @@ class BasicIterator<T> {
 
 	public function new() {
 		size = length = 0;
-		bytes = new Bytes(0);
+		bytes = null;
 	}
 
 	public function concat( a : ArrayBasic<T> ) : ArrayBasic<T> {
@@ -220,7 +221,7 @@ class BasicIterator<T> {
 		(bytes:Bytes).blit(0, bytes, 1 << bytes.sizeBits, length << bytes.sizeBits);
 		return v;
 	}
-	
+
 	override function blit( pos : Int, src : ArrayAccess, srcpos : Int, len : Int ) : Void {
 		var src = (cast src : ArrayBasic<T>);
 		if( pos < 0 || srcpos < 0 || len < 0 || pos + len > length || srcpos + len > src.length ) throw haxe.io.Error.OutsideBounds;
@@ -260,8 +261,28 @@ class BasicIterator<T> {
 	}
 
 	override function splice( pos : Int, len : Int ) : ArrayBasic<T> {
-		throw "TODO";
-		return null;
+		if( len < 0 )
+			return new ArrayBasic<T>();
+		if( pos < 0 ){
+			pos = this.length + pos;
+			if( pos < 0 ) pos = 0;
+		}
+		if( pos > this.length ) {
+			pos = 0;
+			len = 0;
+		} else if( pos + len > this.length ) {
+			len = this.length - pos;
+			if( len < 0 ) len = 0;
+		}
+		if( len == 0 )
+			return new ArrayBasic<T>();
+		var ret = new ArrayBasic<T>();
+		ret.bytes = (bytes:Bytes).sub(pos << bytes.sizeBits, len << bytes.sizeBits);
+		ret.size = ret.length = len;
+		var end = pos + len;
+		(bytes:Bytes).blit(pos << bytes.sizeBits, bytes, end << bytes.sizeBits, (length - end) << bytes.sizeBits);
+		length -= len;
+		return ret;
 	}
 
 	override function toString() : String {

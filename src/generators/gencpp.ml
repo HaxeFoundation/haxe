@@ -1303,8 +1303,7 @@ let strip_file ctx file = (match Common.defined ctx Common.Define.AbsolutePath w
 ;;
 
 let hx_stack_push ctx output clazz func_name pos gc_stack =
-   if gc_stack then
-      output ("HX_STACK_CTX\n");
+   let has_stackframe = ref false in
    if ctx.ctx_debug_level > 0 then begin
       let stripped_file = strip_file ctx.ctx_common pos.pfile in
       let esc_file = (Ast.s_escape stripped_file) in
@@ -1326,9 +1325,12 @@ let hx_stack_push ctx output clazz func_name pos gc_stack =
          out_top ("namespace { HX_DEFINE_STACK_FRAME(" ^ varName ^ ",\"" ^ clazz ^ "\",\"" ^ func_name ^ "\"," ^ hash_class_func ^ ",\"" ^
                  full_name ^ "\",\"" ^ esc_file ^ "\"," ^
                  lineName ^  "," ^ hash_file ^ ")\n}\n");
-         output ("HX_STACKFRAME(&" ^ varName ^ ")\n");
+         output ( (if gc_stack then "HX_GC_STACKFRAME" else "HX_STACKFRAME") ^ "(&" ^ varName ^ ")\n");
+         has_stackframe := true;
       end
    end;
+   if gc_stack && not !has_stackframe then
+      output ("HX_JUST_GC_STACKFRAME\n");
 ;;
 
 
@@ -1461,6 +1463,7 @@ and tcpp_expr_expr =
    | CppEnumField of tenum * tenum_field
    | CppCall of tcppfuncloc * tcppexpr list
    | CppFunctionAddress of tclass * tclass_field
+   | CppAddressOf of tcppexpr
    | CppArray of tcpparrayloc
    | CppCrement of  tcppcrementop * Ast.unop_flag * tcpplvalue
    | CppSet of tcpplvalue * tcppexpr
@@ -1538,6 +1541,7 @@ let rec s_tcpp = function
    | CppCall (FuncGlobal _,_) -> "CppCallGlobal"
    | CppCall (FuncFromStaticFunction,_) -> "CppCallFromStaticFunction"
 
+   | CppAddressOf _  -> "CppAddressOf"
    | CppFunctionAddress  _ -> "CppFunctionAddress"
    | CppArray  _ -> "CppArray"
    | CppCrement  _ -> "CppCrement"
@@ -2547,6 +2551,10 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                |  CppFunction( FuncInstance(obj, false, member), args ) when return_type=TCppVoid && is_array_splice_call obj member ->
                      CppCall( FuncInstance(obj, false, {member with cf_name="removeRange"}), retypedArgs), TCppVoid
 
+               |  CppFunction( FuncStatic(obj, false, member), _ ) when member.cf_name = "hx::AddressOf" ->
+                    let arg = retype TCppUnchanged (List.hd args) in
+                    CppAddressOf(arg), TCppRawPointer("", arg.cpptype)
+
                |  CppFunction( FuncStatic(obj, false, member), returnType ) when cpp_is_templated_call ctx member ->
                      (match retypedArgs with
                      | {cppexpr = CppClassOf(path,native) }::rest ->
@@ -2877,7 +2885,8 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             else (match return_type with
             | TCppNativePointer(klass) -> CppCastNative(baseCpp), return_type
             | TCppVoid -> baseCpp.cppexpr, TCppVoid
-            | TCppInterface _
+            | TCppInterface _ ->
+                  baseCpp.cppexpr, return_type
             | TCppDynamic ->
                   baseCpp.cppexpr, baseCpp.cpptype
             | _ ->
@@ -3178,7 +3187,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          out " ]"
 
       | CppCall(FuncNew( TCppInst klass), args) ->
-         out ((cpp_class_path_of klass) ^ "_obj::__alloc( _hx_stack_ctx");
+         out ((cpp_class_path_of klass) ^ "_obj::__alloc( HX_GC_CTX");
          List.iter (fun arg -> out ","; gen arg ) args;
          out (")")
 
@@ -3265,6 +3274,9 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
             gen arg;
             ) !argsRef;
          out (")" ^ !closeCall);
+
+      | CppAddressOf(e) ->
+         out ("&("); gen e; out ")";
 
       | CppFunctionAddress(klass, member) ->
          let signature = ctx_function_signature ctx false member.cf_type "" in
@@ -5015,7 +5027,7 @@ let generate_protocol_delegate ctx class_def output =
          let nativeName = get_meta_string field.cf_meta Meta.ObjcProtocol in
          let fieldName,argNames = if nativeName<>"" then begin
             let parts = ExtString.String.nsplit nativeName ":" in
-            List.hd parts, List.tl parts
+            List.hd parts, parts
          end else
             field.cf_name, List.map (fun (n,_,_) -> n ) args
          in
@@ -6150,9 +6162,10 @@ let write_build_data common_ctx filename classes main_deps boot_deps build_extra
    output_string buildfile "</files>\n";
    output_string buildfile "<files id=\"__resources__\">\n";
    let idx = ref 0 in
+   let ext = source_file_extension common_ctx in
    Hashtbl.iter (fun _ data ->
       let id = "__res_" ^ (string_of_int !idx) in
-      output_string buildfile ("<file name=\"src/resources/" ^ id ^ ".cpp\" tags=\"optim-none\" />\n");
+      output_string buildfile ("<file name=\"src/resources/" ^ id ^ ext ^ "\" tags=\"optim-none\" />\n");
       incr idx;
    ) common_ctx.resources;
    output_string buildfile "</files>\n";

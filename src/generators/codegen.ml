@@ -108,7 +108,7 @@ let rec type_constant_value com (e,p) =
 	| EParenthesis e ->
 		type_constant_value com e
 	| EObjectDecl el ->
-		mk (TObjectDecl (List.map (fun (n,e) -> n, type_constant_value com e) el)) (TAnon { a_fields = PMap.empty; a_status = ref Closed }) p
+		mk (TObjectDecl (List.map (fun ((n,_),e) -> n, type_constant_value com e) el)) (TAnon { a_fields = PMap.empty; a_status = ref Closed }) p
 	| EArrayDecl el ->
 		mk (TArrayDecl (List.map (type_constant_value com) el)) (com.basic.tarray t_dynamic) p
 	| _ ->

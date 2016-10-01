@@ -81,7 +81,7 @@ class FileSystem {
 	}
 
 	public inline static function readDirectory( path : String ) : Array<String> {
-		var parts : Table<Dynamic, Dynamic> = Table.pack(Lfs.dir(path));
+		var parts : Table<Dynamic, Dynamic> = lua.TableTools.pack(Lfs.dir(path));
 		var itr = function(){
 			var res = parts[1](parts[2]);
 			while(res == "." || res == ".."){

@@ -1078,7 +1078,7 @@ class RunCi {
 						if (!success)
 							fail();
 					case Hl:
-						runCommand("haxe", ["compile-hl.hxml"], false, true);
+						runCommand("haxe", ["compile-hl.hxml"]);
 					case ThirdParty:
 						getPhpDependencies();
 						getPhp7Dependencies();
