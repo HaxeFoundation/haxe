@@ -34,6 +34,7 @@ extern class Threading {
 	public static function settrace(func:Dynamic):Void;
 	public static function setprofile(func:Dynamic):Void;
 	public static function stack_size(?size:Int):Int;
+	public static function local():Dynamic;
 	public static var TIMEOUT_MAX:Float;
 	
 }
