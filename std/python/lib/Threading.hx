@@ -19,25 +19,21 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package python.lib.threading;
+package python.lib;
 
-typedef ThreadOptions = {
-	@:optional var group : Dynamic;
-	@:optional var target : Dynamic;
-	@:optional var name : String;
-	@:optional var args : Tuple<Dynamic>;
-	@:optional var kwargs : KwArgs<Dynamic>;
-	@:optional var daemon : Dynamic;
-}
+import python.lib.threading.Thread;
 
-@:pythonImport("threading", "Thread")
-extern class Thread {
-  public var name:String;
-  public var ident:Int;
-  public var daemon:Bool;
-  public function new (?options:KwArgs<ThreadOptions>):Void;
-  public function start():Void;
-  public function run():Void;
-  public function join(timeout:Float):Void;
-  public function is_alive():Bool;
+@:pythonImport("threading")
+extern class Threading {
+
+	public static function active_count():Int;
+	public static function current_thread():Thread;
+	public static function get_ident():Int;
+	public static function enumerate():Array<Thread>;
+	public static function main_thread():Thread;
+	public static function settrace(func:Dynamic):Void;
+	public static function setprofile(func:Dynamic):Void;
+	public static function stack_size(?size:Int):Int;
+	public static var TIMEOUT_MAX:Float;
+	
 }
