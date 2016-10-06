@@ -26,7 +26,7 @@ typedef ThreadOptions = {
 	@:optional var target : Dynamic;
 	@:optional var name : String;
 	@:optional var args : Tuple<Dynamic>;
-	@:optional var kwargs : KwArgs<Dynamic>;
+	@:optional var kwargs : Dict<String,Dynamic>;
 	@:optional var daemon : Dynamic;
 }
 
