@@ -24,6 +24,6 @@ package python.lib.threading;
 @:pythonImport("threading", "Lock")
 extern class Lock {
   public function new():Void;
-  public function acquire(blocking:Bool, timeout:Float):Bool;
+  public function acquire(?blocking:Bool, ?timeout:Float):Bool;
   public function release():Void;
 }

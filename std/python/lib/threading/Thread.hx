@@ -38,6 +38,6 @@ extern class Thread {
   public function new (?options:KwArgs<ThreadOptions>):Void;
   public function start():Void;
   public function run():Void;
-  public function join(timeout:Float):Void;
+  public function join(?timeout:Float):Void;
   public function is_alive():Bool;
 }
