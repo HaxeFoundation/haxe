@@ -32,10 +32,12 @@ import haxe.io.Eof;
 
 class FileInput extends haxe.io.Input {
 	var f:FileHandle;
+	var _eof:Bool;
 
 	public function new(f:FileHandle){
 		this.bigEndian = Boot.platformBigEndian;
 		this.f = f;
+		this._eof = false;
 	}
 
 	inline public function seek( p : Int, pos : FileSeek ) : Void {
@@ -44,6 +46,7 @@ class FileInput extends haxe.io.Input {
 			case SeekCur   : "cur";
 			case SeekEnd   : "end";
 		}
+		_eof = false;
 		return f.seek(arg, p);
 	}
 
@@ -52,12 +55,15 @@ class FileInput extends haxe.io.Input {
 	}
 
 	inline public function eof() : Bool {
-		return f.read(0) == null;
+		return _eof;
 	}
 
 	override inline public function readByte() : Int {
 		var byte = f.read(1);
-		if (byte == null) throw new haxe.io.Eof();
+		if (byte == null) {
+			_eof = true;
+			throw new haxe.io.Eof();
+		}
 		return NativeStringTools.byte(byte);
 	}
 
@@ -75,7 +81,7 @@ class FileInput extends haxe.io.Input {
 				if (len == 0) break;
 				total.addBytes(buf,0,len);
 			}
-		} catch( e : Eof ) { }
+		} catch( e : Eof ) _eof = true;
 		return total.getBytes();
 	}
 

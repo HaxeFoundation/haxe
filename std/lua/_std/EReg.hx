@@ -51,6 +51,7 @@ class EReg {
 	}
 
 	public function match( s : String ) : Bool {
+		if (s == null) return false;
 		this.m = lua.TableTools.pack(r.exec(s));
 		this.s = s;
 		return  m[1] != null;

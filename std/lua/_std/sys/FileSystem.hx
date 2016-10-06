@@ -21,12 +21,12 @@
  */
 package sys;
 
-import lua.lib.lfs.Lfs;
 import lua.Io;
 import lua.Os;
 import lua.Lib;
 import lua.Table;
 import haxe.io.Path;
+typedef LFileSystem = lua.lib.luv.fs.FileSystem;
 
 class FileSystem {
 	public static function exists( path : String ) : Bool {
@@ -49,23 +49,20 @@ class FileSystem {
 	}
 
 	public inline static function stat( path : String ) : FileStat {
-		// the lua lfs attributes command uses a string for "mode".
-		// we just need to patch it.
-
-		var attr : sys.FileStat = cast Lfs.attributes(path);
-		var lfs_mode : String = cast(attr.mode, String);
-		var mode = switch(lfs_mode){
-			case "file"         : 0x0100000;
-			case "directory"    : 0x0040000;
-			case "link"         : 0x0120000;
-			case "socket"       : 0x0140000;
-			case "named pipe"   : 0x0010000;
-			case "char device"  : 0x0020000;
-			case "block device" : 0x0060000;
-			default             : 0x0000000;
-		}
-		attr.mode = mode;
-		return attr;
+		var l =  LFileSystem.stat(path);
+		return {
+			gid   : l.gid,
+			uid   : l.uid,
+			rdev  : l.rdev,
+			size  : l.size,
+			nlink : l.nlink,
+			mtime : Date.fromTime(l.mtime.sec + l.mtime.nsec/1000000),
+			mode  : l.mode,
+			ino   : l.ino,
+			dev   : l.dev,
+			ctime : Date.fromTime(l.ctime.sec + l.ctime.nsec/1000000),
+			atime : Date.fromTime(l.atime.sec + l.atime.nsec/1000000)
+		};
 	}
 
 	public inline static function fullPath( relPath : String ) : String {
@@ -73,8 +70,7 @@ class FileSystem {
 	}
 
 	public inline static function absolutePath( relPath : String ) : String {
-		if (relPath == null) return null;
-		var pwd = Lfs.currentdir().status;
+		var pwd = lua.lib.luv.Misc.cwd();
 		if (pwd == null) return relPath;
 		return Path.join([pwd, relPath]);
 	}
@@ -87,29 +83,35 @@ class FileSystem {
 	}
 
 	public inline static function readDirectory( path : String ) : Array<String> {
-		var parts : Table<Dynamic, Dynamic> = lua.TableTools.pack(Lfs.dir(path));
-		var itr = function(){
-			var res = parts[1](parts[2]);
-			while(res == "." || res == ".."){
-				res = parts[1](parts[2]);
-			}
-			return res;
-		}
+		var scandir = LFileSystem.scandir(path);
+
+		var itr = function() return LFileSystem.scandir_next(scandir).name;
 		return lua.Lib.fillArray(itr);
 	}
 
 	public inline static function isDirectory( path : String ) : Bool {
-		return  Lfs.attributes(path, "mode") ==  "directory";
+		return  LFileSystem.stat(path).type ==  "directory";
 	}
 
 	public inline static function deleteDirectory( path : String ) : Void {
-		var ret = Lfs.rmdir(path);
+		var ret = LFileSystem.rmdir(path);
 		if (ret.status == null){
 			throw ret.message;
 		}
 	}
 
 	public inline static function createDirectory( path : String ) : Void {
-	   Lfs.mkdir(path);
+
+		var path = haxe.io.Path.addTrailingSlash(path);
+		var _p = null;
+		var parts = [];
+		while (path != (_p = haxe.io.Path.directory(path))) {
+			parts.unshift(path);
+			path = _p;
+		}
+		for (part in parts) {
+			if (part.charCodeAt(part.length - 1) != ":".code && !exists(part) && !LFileSystem.mkdir( part, 511 ))
+				throw "Could not create directory:" + part;
+		}
 	}
 }

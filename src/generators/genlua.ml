@@ -1956,7 +1956,8 @@ let generate com =
 	    println ctx "    end";
 	    println ctx "  end";
 	    println ctx "  if v > 2251798999999999 then v = v*2 end;";
-	    println ctx "  return _hx_bit_raw.band(v, 2147483647 ) - _hx_bit_raw.band(v, 2147483648)";
+	    println ctx "  if (v ~= v or v == _G.math.huge or v == -_G.math.huge) then return nil end";
+	    println ctx "  return _hx_bit_raw.band(v, 2147483647.0 ) - _hx_bit_raw.band(v, 2147483648.0)";
 	    println ctx "end";
 	    println ctx "if type(jit) == 'table' then";
 	    println ctx "  _hx_bit = setmetatable({},{__index = function(t,k) return function(...) return _hx_bit_clamp(rawget(_hx_bit_raw,k)(...)) end end})";

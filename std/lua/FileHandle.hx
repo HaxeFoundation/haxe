@@ -32,6 +32,7 @@ extern class FileHandle extends UserData {
 	public function write(str : String) : Void;
 
 	@:overload(function () : Int {})
+	@:overload(function (arg : String) : Int {})
 	public function seek(arg : String, pos : Int) : Void;
 }
 
