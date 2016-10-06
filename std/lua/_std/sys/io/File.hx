@@ -40,6 +40,7 @@ class File {
 	}
 
 	public static function copy( srcPath : String, dstPath : String ) : Void {
+		// TODO : escape paths
 		Os.execute('copy $srcPath $dstPath');
 	}
 
