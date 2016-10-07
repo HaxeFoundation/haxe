@@ -58,7 +58,6 @@ and class_proto = {
 	mutable pindex : (string, int * ttype) PMap.t;
 	mutable pfunctions : (string, int) PMap.t;
 	mutable pinterfaces : (ttype, int) PMap.t;
-	mutable pninterfaces : int;
 }
 
 and enum_proto = {
@@ -233,7 +232,6 @@ let null_proto =
 		pindex = PMap.empty;
 		pfunctions = PMap.empty;
 		pinterfaces = PMap.empty;
-		pninterfaces = 0;
 	}
 
 let list_iteri f l =
