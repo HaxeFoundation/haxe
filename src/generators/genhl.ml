@@ -567,7 +567,7 @@ and class_type ?(tref=None) ctx c pl statics =
 			List.iter (fun (i,pl) ->
 				let fid = DynArray.length fa in
 				let t = to_type ctx (TInst (i,pl)) in
-				p.pinterfaces <- PMap.add t fid p.pinterfaces;
+				p.pinterfaces <- PMap.add t (fid + start_field) p.pinterfaces;
 				DynArray.add fa ("", 0, t);
 			) c.cl_implements;
 			(* check toString *)
