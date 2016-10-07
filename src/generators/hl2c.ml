@@ -251,6 +251,13 @@ let write_c version file (code:code) =
 
 	line "";
 	line "// Types implementation";
+
+	let unamed_field fid = "$_f" ^ string_of_int fid in
+
+	let obj_field fid name =
+		if name = "" then unamed_field fid else ident name
+	in
+
 	Array.iter (fun t ->
 		match t with
 		| HObj o ->
@@ -261,8 +268,13 @@ let write_c version file (code:code) =
 				(match o.psuper with
 				| None -> expr ("hl_type *$type");
 				| Some c -> loop c);
-				Array.iter (fun (n,_,t) ->
-					expr (var_type n t)
+				Array.iteri (fun i (n,_,t) ->
+					let rec abs_index p v =
+						match p with
+						| None -> v
+						| Some o -> abs_index o.psuper (Array.length o.pfields + v)
+					in
+					expr (var_type (if n = "" then unamed_field (abs_index o.psuper i) else n) t)
 				) o.pfields;
 			in
 			loop o;
@@ -682,7 +694,7 @@ let write_c version file (code:code) =
 			match rtype obj with
 			| HObj o ->
 				let name, t = resolve_field o fid in
-				sexpr "%s->%s = %s" (reg obj) (ident name) (rcast v t)
+				sexpr "%s->%s = %s" (reg obj) (obj_field fid name) (rcast v t)
 			| HVirtual vp ->
 				let name, nid, t = vp.vfields.(fid) in
 				let dset = sprintf "hl_dyn_set%s(%s->value,%ld/*%s*/%s,%s)" (dyn_prefix t) (reg obj) (hash nid) name (type_value_opt (rtype v)) (reg v) in
@@ -697,7 +709,7 @@ let write_c version file (code:code) =
 			match rtype obj with
 			| HObj o ->
 				let name, t = resolve_field o fid in
-				sexpr "%s%s->%s" (rassign r t) (reg obj) (ident name)
+				sexpr "%s%s->%s" (rassign r t) (reg obj) (obj_field fid name)
 			| HVirtual v ->
 				let name, nid, t = v.vfields.(fid) in
 				let dget = sprintf "(%s)hl_dyn_get%s(%s->value,%ld/*%s*/%s)" (ctype t) (dyn_prefix t) (reg obj) (hash nid) name (type_value_opt t) in
