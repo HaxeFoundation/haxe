@@ -1953,7 +1953,11 @@ let configure gen =
 								| _ -> ()
 				with | Not_found -> ()
 				);
-				write w "main();";
+				(match gen.gcon.main with
+					| Some(expr) ->
+						expr_s w expr
+					| None ->
+						write w "main();");
 				end_block w;
 				newline w
 			| _ -> ()

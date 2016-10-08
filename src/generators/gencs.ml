@@ -2411,8 +2411,12 @@ let configure gen =
 					write w "public static void Main() ";
 					begin_block w;
 					(if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "global::cs.Boot.init();"; newline w);
-					expr_s w { eexpr = TTypeExpr(TClassDecl cl); etype = t_dynamic; epos = null_pos };
-					write w ".main();";
+					(match gen.gcon.main with
+						| None ->
+							expr_s w { eexpr = TTypeExpr(TClassDecl cl); etype = t_dynamic; epos = null_pos };
+							write w ".main();"
+						| Some expr ->
+							expr_s w expr);
 					end_block w;
 					end_block w;
 					newline w;
@@ -2452,7 +2456,11 @@ let configure gen =
 			write w "public static void Main()";
 			begin_block w;
 			(if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "global::cs.Boot.init();"; newline w);
-			write w "main();";
+			(match gen.gcon.main with
+				| None ->
+					write w "main();";
+				| Some expr ->
+						expr_s w expr);
 			end_block w
 		end;
 
