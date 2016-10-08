@@ -3088,6 +3088,7 @@ struct
 
 					let pos = func_expr.epos in
 					{ fexpr with
+						etype = hx_current.etype;
 						eexpr = TIf(
 							{
 								eexpr = TBinop(OpNotEq, hx_current, null (TInst(cls,[])) pos);
