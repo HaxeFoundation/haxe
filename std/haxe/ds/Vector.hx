@@ -179,7 +179,7 @@ abstract Vector<T>(VectorData<T>) {
 	/**
 		Creates a new Array, copy the content from the Vector to it, and returns it.
 	**/
-	public #if (flash || cpp || js) inline #end function toArray():Array<T> {
+	public #if (flash || cpp || js || java) inline #end function toArray():Array<T> {
 		#if cpp
 			return this.copy();
 		#elseif python
