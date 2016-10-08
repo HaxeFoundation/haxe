@@ -1955,7 +1955,7 @@ let configure gen =
 				);
 				(match gen.gcon.main with
 					| Some(expr) ->
-						expr_s w expr
+						expr_s w (mk_block expr)
 					| None ->
 						write w "main();");
 				end_block w;

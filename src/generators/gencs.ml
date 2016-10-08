@@ -2416,7 +2416,7 @@ let configure gen =
 							expr_s w { eexpr = TTypeExpr(TClassDecl cl); etype = t_dynamic; epos = null_pos };
 							write w ".main();"
 						| Some expr ->
-							expr_s w expr);
+							expr_s w (mk_block expr));
 					end_block w;
 					end_block w;
 					newline w;
@@ -2460,7 +2460,7 @@ let configure gen =
 				| None ->
 					write w "main();";
 				| Some expr ->
-						expr_s w expr);
+						expr_s w (mk_block expr));
 			end_block w
 		end;
 
