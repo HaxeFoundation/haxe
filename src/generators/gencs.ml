@@ -1580,12 +1580,20 @@ let configure gen =
 					) el;
 					end_block w
 				| TIf (econd, e1, Some(eelse)) when was_in_value ->
+					let base = t_s e.etype in
 					write w "( ";
 					expr_s w (mk_paren econd);
 					write w " ? ";
-					expr_s w (mk_paren e1);
+					if t_s e1.etype <> base then
+						expr_s w (mk_cast e.etype e1)
+					else
+						expr_s w (mk_paren e1);
+
 					write w " : ";
-					expr_s w (mk_paren eelse);
+					if t_s eelse.etype <> base then
+						expr_s w (mk_cast e.etype eelse)
+					else
+						expr_s w (mk_paren eelse);
 					write w " )";
 				| TIf (econd, e1, eelse) ->
 					write w "if ";
