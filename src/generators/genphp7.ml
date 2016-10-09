@@ -59,6 +59,10 @@ let hxanon_type_path = (["php7"; "_Boot"], "HxAnon")
 *)
 let hxclosure_type_path = (["php7"; "_Boot"], "HxClosure")
 (**
+	Type path for special PHP extern class to support specific language expressions
+*)
+let php_type_path = (["php7"], "PHP")
+(**
 	Special abstract which enables passing function arguments and return value by reference
 *)
 let ref_type_path = (["php7"], "Ref")
@@ -196,6 +200,14 @@ let is_float expr = match follow expr.etype with TAbstract ({ a_path = ([], "Flo
 	Check if specified expression is of String type
 *)
 let is_string expr = match follow expr.etype with TInst ({ cl_path = ([], "String") }, _) -> true | _ -> false
+
+(**
+	Check if `expr` is an access to a method of special `php7.PHP` class
+*)
+let is_lang_extern expr =
+	match expr.eexpr with
+		| TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = path }) }, _) when path = php_type_path -> true
+		| _ -> false
 
 (**
 	Check if `expr1` and `expr2` can be reliably checked for equality only with `Boot.equal()`
@@ -466,6 +478,26 @@ let is_concatenation expr =
 	Check if provided expression is a binary operation
 *)
 let is_binop expr = match expr.eexpr with TBinop _ -> true | _ -> false
+
+(**
+	Check if provided expression is an assignment binary operation
+*)
+let is_binop_assign expr =
+	match expr.eexpr with
+		| TBinop (operation, _, _) ->
+			(match operation with
+				| OpAssign | OpAssignOp _ -> true
+				| _ -> false
+			)
+		| _ -> false
+
+(**
+	Check if specified expression is field access or array access
+*)
+let is_access expr =
+	match expr.eexpr with
+		| TField _ | TArray _ -> true
+		| _ -> false
 
 (**
 	Indicates if `expr` is actually a call to Haxe->PHP magic function
@@ -936,6 +968,13 @@ class virtual type_builder ctx wrapper =
 				| _ :: { eexpr = TSwitch _ } :: _ -> true
 				| _ -> false
 		(**
+			Returns parent expression.
+		*)
+		method private parent_expr =
+			match expr_hierarchy with
+				| _ :: expr :: _ -> Some expr
+				| _ -> None
+		(**
 			Position of currently generated code in source hx files
 		*)
 		method private pos =
@@ -1086,6 +1125,7 @@ class virtual type_builder ctx wrapper =
 				| TArrayDecl exprs -> self#write_expr_array_decl exprs
 				| TCall ({ eexpr = TLocal { v_name = name }}, args) when is_magic expr -> self#write_expr_magic name args
 				| TCall ({ eexpr = TField (expr, access) }, args) when is_string expr -> self#write_expr_call_string expr access args
+				| TCall (expr, args) when is_lang_extern expr -> self#write_expr_call_lang_extern expr args
 				| TCall (target, args) when is_var_field_access target -> self#write_expr_call (parenthesis target) args
 				| TCall (target, args) -> self#write_expr_call target args
 				| TNew (_, _, args) when is_string expr -> write_args buffer self#write_expr args
@@ -1696,6 +1736,82 @@ class virtual type_builder ctx wrapper =
 					self#indent_less;
 					self#write_indentation;
 					self#write "])"
+		(**
+			Write language specific expression declared in `php7.PHP` extern
+		*)
+		method private write_expr_call_lang_extern expr args =
+			let name = match expr.eexpr with
+				| TField (_, FStatic (_, { cf_name = name })) -> name
+				| _ -> fail self#pos __POS__
+			in
+			match name with
+				| "int" | "float"
+				| "string" | "bool"
+				| "object" | "array" ->
+					(match args with
+						| expr :: [] ->
+							let add_parentheses = match self#parent_expr with Some e -> is_access e | None -> false
+							and expr = match expr.eexpr with
+								| TLocal e -> expr
+								| _ -> parenthesis expr
+							in
+							if add_parentheses then self#write "(";
+							self#write ("(" ^ name ^")");
+							self#write_expr expr;
+							if add_parentheses then self#write ")"
+						| _ -> fail self#pos __POS__
+					)
+				| "equal" ->
+					(match args with
+						| val_expr1 :: val_expr2 :: [] ->
+							self#write "(";
+							self#write_expr val_expr1;
+							self#write " == ";
+							self#write_expr val_expr2;
+							self#write ")"
+						| _ -> fail self#pos __POS__
+					)
+				| "instanceof" ->
+					(match args with
+						| val_expr :: type_expr :: [] ->
+							(match type_expr.eexpr with
+								| TTypeExpr (TClassDecl tcls) ->
+									let val_expr = match val_expr.eexpr with
+										| TLocal e -> val_expr
+										| _ -> parenthesis val_expr
+									in
+									self#write_expr val_expr;
+									self#write " instanceof ";
+									self#write (self#use_t (TInst (tcls, [])))
+								| _ ->
+									Printf.printf "%s" (error_message self#pos "PHP.instanceof() only accepts class or interface name for second argument.");
+									exit 1;
+							)
+						| _ -> fail self#pos __POS__
+					)
+				| "foreach" ->
+					(match args with
+						| collection_expr :: { eexpr = TFunction fn } :: [] ->
+							let (key_name, value_name) = match fn.tf_args with
+								| ({ v_name = key_name }, _) :: ({ v_name = value_name }, _) :: [] -> (key_name, value_name)
+								| _ -> fail self#pos __POS__
+							and add_parentheses =
+								match collection_expr.eexpr with
+									| TLocal _ -> false
+									| _ -> true
+							in
+							self#write "foreach (";
+							if add_parentheses then self#write "(";
+							self#write_expr collection_expr;
+							if add_parentheses then self#write ")";
+							self#write (" as $" ^ key_name ^ " => $" ^ value_name ^ ") ");
+							self#write_as_block fn.tf_expr
+						| _ ->
+							Printf.printf "%s" (error_message self#pos "PHP.foreach() only accepts anonymous function declaration for second argument.");
+							exit 1;
+					)
+				| _ -> fail self#pos __POS__
+
 		(**
 			Writes TCall to output buffer
 		*)
