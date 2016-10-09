@@ -1787,6 +1787,15 @@ class virtual type_builder ctx wrapper =
 			match args with
 				| val_expr :: type_expr :: [] ->
 					(match type_expr.eexpr with
+						| TLocal _ ->
+							let val_expr = match val_expr.eexpr with
+								| TLocal e -> val_expr
+								| _ -> parenthesis val_expr
+							in
+							self#write_expr val_expr;
+							self#write " instanceof ";
+							self#write_expr type_expr;
+							self#write "->phpClassName"
 						| TTypeExpr (TClassDecl tcls) ->
 							let val_expr = match val_expr.eexpr with
 								| TLocal e -> val_expr
@@ -1796,7 +1805,7 @@ class virtual type_builder ctx wrapper =
 							self#write " instanceof ";
 							self#write (self#use_t (TInst (tcls, [])))
 						| _ ->
-							Printf.printf "%s" (error_message self#pos "PHP.instanceof() only accepts class or interface name for second argument.");
+							Printf.printf "%s" (error_message self#pos "PHP.instanceof() only accepts local variable or class or interface name for second argument.");
 							exit 1;
 					)
 				| _ -> fail self#pos __POS__
