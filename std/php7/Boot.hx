@@ -23,8 +23,12 @@ package php7;
 
 import haxe.PosInfos;
 
-using StringTools;
 using php7.Global;
+
+@:native('php7.Boot')
+private extern class BootForPrefix {
+	@:phpClassConst static var PHP_PREFIX : String;
+}
 
 /**
 	Various Haxe->PHP compatibility utilities
@@ -68,8 +72,8 @@ class Boot {
 		Returns root namespace based on a value of `--php-prefix` compiler flag.
 		Returns empty string if no `--php-prefix` provided.
 	**/
-	public static function getPrefix() : String {
-		return untyped __php__("self::PHP_PREFIX");
+	public static inline function getPrefix() : String {
+		return BootForPrefix.PHP_PREFIX;
 	}
 
 	/**
