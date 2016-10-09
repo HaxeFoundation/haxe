@@ -21,6 +21,26 @@
  */
 package hl;
 
+typedef SentinelHandle = hl.types.NativeAbstract<"ui_sentinel">;
+
+abstract Sentinel(SentinelHandle) {
+
+	public function new( timeout, callback ) {
+		this = create_sentinel(timeout,callback);
+	}
+
+	public function tick() {
+		_tick(this);
+	}
+
+	@:hlNative("ui", "ui_start_sentinel") static function create_sentinel( timeout : Float, callb : Void -> Void ) : SentinelHandle {
+		return null;
+	}
+
+	@:hlNative("ui","ui_sentinel_tick") static function _tick( h : SentinelHandle ) : Void {}
+
+}
+
 typedef WinHandle = hl.types.NativeAbstract<"ui_window">;
 
 class Window {
@@ -38,8 +58,8 @@ class Window {
 	public function destroy() {
 		win_destroy(h);
 	}
-	
-	
+
+
 	@:hlNative("ui","ui_win_destroy")
 	static function win_destroy( win : WinHandle ) : Void {
 	}
@@ -52,41 +72,41 @@ class Window {
 	static function win_set_enable( win : WinHandle, enable : Bool ) : Void {
 	}
 
-	
+
 }
 
 class Button extends Window {
-	
+
 	public function new( parent : Window, text : String ) {
 		h = button_new(parent.h, @:privateAccess text.bytes, function() this.onClick());
 	}
-	
+
 	public dynamic function onClick() {
 	}
-	
+
 	@:hlNative("ui", "ui_button_new")
 	static function button_new( parent : WinHandle, text : hl.types.Bytes, onClick : Void -> Void ) : WinHandle {
 		return null;
 	}
-	
+
 }
 
 class WinLog extends Window {
-	
+
 	public function new( title : String, width, height ) {
 		h = winlog_new(@:privateAccess title.bytes,width, height);
 	}
-	
+
 	public function setTextContent( text : String, autoScroll = false ) {
 		winlog_set_text(h, @:privateAccess text.bytes,autoScroll);
 	}
 
-	
+
 	@:hlNative("ui","ui_winlog_new")
 	static function winlog_new( text : hl.types.Bytes, width : Int, height : Int ) : WinHandle {
 		return null;
 	}
-	
+
 	@:hlNative("ui","ui_winlog_set_text")
 	static function winlog_set_text( win : WinHandle, text : hl.types.Bytes, autoScroll : Bool ) : Void {
 	}
@@ -119,11 +139,11 @@ class UI {
 	static function _dialog( title : hl.types.Bytes, text : hl.types.Bytes, flags : Int ) : Int {
 		return 0;
 	}
-	
+
 	public static function dialog( title : String, text : String, flags : haxe.EnumFlags<DialogFlags> ) {
 		@:privateAccess _dialog(title.bytes,text.bytes,flags.toInt());
 	}
-	
+
 	@:hlNative("ui","ui_loop")
 	public static function loop( blocking : Bool ) : LoopResult {
 		return Quit;
