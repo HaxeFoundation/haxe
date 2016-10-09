@@ -378,9 +378,13 @@ let get_full_type_name ?escape ?omit_first_slash (type_path:path) =
 *)
 let rec is_native_exception (target:Type.t) =
 	match follow target with
-		| TInst ({ cl_extern = true }, _) -> true
 		| TInst ({ cl_path = path }, _) when path = native_exception_path -> true
-		| TInst ({ cl_super = Some (parent, params) ; cl_implements = interfaces }, _) ->
+		| TInst ({ cl_super = parent ; cl_implements = interfaces ; cl_path = path }, _) ->
+			let (parent, params) =
+				match parent with
+					| Some (parent, params) -> (Some parent, params)
+					| None -> (None, [])
+			in
 			let found = ref false in
 			List.iter
 				(fun (cls, params) ->
@@ -391,7 +395,10 @@ let rec is_native_exception (target:Type.t) =
 			if !found then
 				true
 			else
-				is_native_exception (TInst (parent, params))
+				(match parent with
+					| Some parent -> is_native_exception (TInst (parent, params))
+					| None -> false
+				)
 		| _ -> false
 
 (**
