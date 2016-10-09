@@ -9901,7 +9901,7 @@ struct
 									(* different return types are the trickiest cases to deal with *)
 									(* check for covariant return type *)
 									let is_covariant = match follow r1, follow r2 with
-										| _, TDynamic _ -> true
+										| _, TDynamic _ -> false
 										| r1, r2 -> try
 											unify r1 r2;
 											true
