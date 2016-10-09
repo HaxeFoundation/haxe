@@ -1540,7 +1540,6 @@ let rec s_tcpp = function
    | CppCall (FuncInternal _,_) -> "CppCallInternal"
    | CppCall (FuncGlobal _,_) -> "CppCallGlobal"
    | CppCall (FuncFromStaticFunction,_) -> "CppCallFromStaticFunction"
-
    | CppAddressOf _  -> "CppAddressOf"
    | CppFunctionAddress  _ -> "CppFunctionAddress"
    | CppArray  _ -> "CppArray"
@@ -2550,11 +2549,9 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                      retypedFunc.cppexpr, retypedFunc.cpptype
                |  CppFunction( FuncInstance(obj, false, member), args ) when return_type=TCppVoid && is_array_splice_call obj member ->
                      CppCall( FuncInstance(obj, false, {member with cf_name="removeRange"}), retypedArgs), TCppVoid
-
                |  CppFunction( FuncStatic(obj, false, member), _ ) when member.cf_name = "hx::AddressOf" ->
                     let arg = retype TCppUnchanged (List.hd args) in
                     CppAddressOf(arg), TCppRawPointer("", arg.cpptype)
-
                |  CppFunction( FuncStatic(obj, false, member), returnType ) when cpp_is_templated_call ctx member ->
                      (match retypedArgs with
                      | {cppexpr = CppClassOf(path,native) }::rest ->
@@ -3274,10 +3271,8 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
             gen arg;
             ) !argsRef;
          out (")" ^ !closeCall);
-
       | CppAddressOf(e) ->
          out ("&("); gen e; out ")";
-
       | CppFunctionAddress(klass, member) ->
          let signature = ctx_function_signature ctx false member.cf_type "" in
          let name = cpp_member_name_of member in
@@ -3831,7 +3826,7 @@ let gen_cpp_function_body ctx clazz is_static func_name function_def head_code t
       if ctx.ctx_debug_level >0 then begin
          hx_stack_push ctx output_i dot_name func_name function_def.tf_expr.epos gc_stack;
          if (not is_static)
-            then output_i ("HX_STACK_THIS(this)\n");
+            then output_i ("HX_STACK_THIS(" ^ (if ctx.ctx_real_this_ptr then "this" else "__this") ^")\n");
          List.iter (fun (v,_) -> if not (cpp_no_debug_synbol ctx v) then
               output_i ("HX_STACK_ARG(" ^ (cpp_var_name_of v) ^ ",\"" ^ v.v_name ^"\")\n") ) function_def.tf_args;
       end;
@@ -5165,27 +5160,42 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let isContainer = if (has_gc_references common_ctx class_def) then "true" else "false" in
    let inlineContructor = can_inline_constructor common_ctx class_def in
 
-   let outputConstructor out isHeader =
+   let outputConstructor ctx out isHeader =
       let classScope = if isHeader then "" else class_name ^ "::" in
       out (ptr_name ^ " " ^ classScope ^ "__new(" ^constructor_type_args ^") {\n");
-      out ("\t" ^ ptr_name ^ " _hx_result = new " ^ class_name ^ "();\n");
-      out ("\t_hx_result->__construct(" ^ constructor_args ^ ");\n");
-      out ("\treturn _hx_result;\n");
+      out ("\t" ^ ptr_name ^ " __this = new " ^ class_name ^ "();\n");
+         out ("\t__this->__construct(" ^ constructor_args ^ ");\n");
+      out ("\treturn __this;\n");
       out ("}\n\n");
 
-      out (ptr_name ^ " " ^ classScope ^ "__alloc(hx::ImmixAllocator *_hx_alloc" ^ (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^") {\n");
-      out ("\t" ^ class_name ^ " *_hx_result = (" ^ class_name ^ "*)(hx::ImmixAllocator::alloc(_hx_alloc, sizeof(" ^ class_name ^ "), " ^ isContainer ^", " ^ gcName ^ "));\n");
-      out ("\t*(void **)_hx_result = " ^ class_name ^ "::_hx_vtable;\n");
+      out ((if isHeader then "static " else "") ^ ptr_name ^ " " ^ classScope ^ "__alloc(hx::ImmixAllocator *_hx_alloc" ^ (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^") {\n");
+      out ("\t" ^ class_name ^ " *__this = (" ^ class_name ^ "*)(hx::ImmixAllocator::alloc(_hx_alloc, sizeof(" ^ class_name ^ "), " ^ isContainer ^", " ^ gcName ^ "));\n");
+      out ("\t*(void **)__this = " ^ class_name ^ "::_hx_vtable;\n");
       let rec dump_dynamic class_def =
          if has_dynamic_member_functions class_def then
-            out ("\t" ^ (join_class_path_remap class_def.cl_path "::") ^ "_obj::__alloc_dynamic_functions(_hx_alloc,_hx_result);\n")
+            out ("\t" ^ (join_class_path_remap class_def.cl_path "::") ^ "_obj::__alloc_dynamic_functions(_hx_alloc,__this);\n")
          else match class_def.cl_super with
          | Some super -> dump_dynamic (fst super)
          | _ -> ()
       in
       dump_dynamic class_def;
-      out ("\t_hx_result->__construct(" ^ constructor_args ^ ");\n");
-      out ("\treturn _hx_result;\n");
+
+      if isHeader then begin
+        match class_def.cl_constructor with
+         | Some ( { cf_expr = Some ( { eexpr = TFunction(function_def) } ) } as definition ) ->
+            let old_debug = ctx.ctx_debug_level in
+            if has_meta_key definition.cf_meta Meta.NoDebug then
+               ctx.ctx_debug_level <- 0;
+            ctx.ctx_real_this_ptr <- false;
+            gen_cpp_function_body ctx class_def false "new" function_def "" "";
+            out "\n";
+
+            ctx.ctx_debug_level <- old_debug;
+         | _ -> ()
+      end else
+         out ("\t__this->__construct(" ^ constructor_args ^ ");\n");
+
+      out ("\treturn __this;\n");
       out ("}\n\n");
    in
 
@@ -5365,7 +5375,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    end;
 
    if (not class_def.cl_interface) && not nativeGen && not inlineContructor then
-      outputConstructor output_cpp false;
+      outputConstructor ctx output_cpp false;
 
 
    (* Initialise non-static variables *)
@@ -5951,7 +5961,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       output_h ("\t\t\t{ return hx::Object::operator new(inSize+extra," ^ isContainer ^ "," ^ gcName ^ "); }\n" );
       if inlineContructor then begin
          output_h "\n";
-         outputConstructor (fun str -> output_h ("\t\t" ^ str) ) true
+         outputConstructor ctx (fun str -> output_h ("\t\t" ^ str) ) true
       end else begin
          output_h ("\t\tstatic " ^ptr_name^ " __new(" ^constructor_type_args ^");\n");
          output_h ("\t\tstatic " ^ptr_name^ " __alloc(hx::ImmixAllocator *_hx_alloc" ^ (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^");\n");
