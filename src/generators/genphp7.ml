@@ -1747,71 +1747,82 @@ class virtual type_builder ctx wrapper =
 			match name with
 				| "int" | "float"
 				| "string" | "bool"
-				| "object" | "array" ->
-					(match args with
-						| expr :: [] ->
-							let add_parentheses = match self#parent_expr with Some e -> is_access e | None -> false
-							and expr = match expr.eexpr with
-								| TLocal e -> expr
-								| _ -> parenthesis expr
+				| "object" | "array" -> self#write_expr_lang_cast name args
+				| "equal" -> self#write_expr_lang_equal args
+				| "instanceof" -> self#write_expr_lang_instanceof args
+				| "foreach" -> self#write_expr_lang_foreach args
+				| _ -> fail self#pos __POS__
+		(**
+			Writes native php type conversion to output buffer (e.g. `php7.PHP.int()`)
+		*)
+		method private write_expr_lang_cast type_name args =
+			match args with
+				| expr :: [] ->
+					let add_parentheses = match self#parent_expr with Some e -> is_access e | None -> false
+					and expr = match expr.eexpr with
+						| TLocal e -> expr
+						| _ -> parenthesis expr
+					in
+					if add_parentheses then self#write "(";
+					self#write ("(" ^ type_name ^")");
+					self#write_expr expr;
+					if add_parentheses then self#write ")"
+				| _ -> fail self#pos __POS__
+		(**
+			Generates non-strict equality to output buffer (for `php7.PHP.equal()`)
+		*)
+		method private write_expr_lang_equal args =
+			match args with
+				| val_expr1 :: val_expr2 :: [] ->
+					self#write "(";
+					self#write_expr val_expr1;
+					self#write " == ";
+					self#write_expr val_expr2;
+					self#write ")"
+				| _ -> fail self#pos __POS__
+		(**
+			Writes `instanceof` expression to output buffer (for `php7.PHP.instanceof()`)
+		*)
+		method private write_expr_lang_instanceof args =
+			match args with
+				| val_expr :: type_expr :: [] ->
+					(match type_expr.eexpr with
+						| TTypeExpr (TClassDecl tcls) ->
+							let val_expr = match val_expr.eexpr with
+								| TLocal e -> val_expr
+								| _ -> parenthesis val_expr
 							in
-							if add_parentheses then self#write "(";
-							self#write ("(" ^ name ^")");
-							self#write_expr expr;
-							if add_parentheses then self#write ")"
-						| _ -> fail self#pos __POS__
-					)
-				| "equal" ->
-					(match args with
-						| val_expr1 :: val_expr2 :: [] ->
-							self#write "(";
-							self#write_expr val_expr1;
-							self#write " == ";
-							self#write_expr val_expr2;
-							self#write ")"
-						| _ -> fail self#pos __POS__
-					)
-				| "instanceof" ->
-					(match args with
-						| val_expr :: type_expr :: [] ->
-							(match type_expr.eexpr with
-								| TTypeExpr (TClassDecl tcls) ->
-									let val_expr = match val_expr.eexpr with
-										| TLocal e -> val_expr
-										| _ -> parenthesis val_expr
-									in
-									self#write_expr val_expr;
-									self#write " instanceof ";
-									self#write (self#use_t (TInst (tcls, [])))
-								| _ ->
-									Printf.printf "%s" (error_message self#pos "PHP.instanceof() only accepts class or interface name for second argument.");
-									exit 1;
-							)
-						| _ -> fail self#pos __POS__
-					)
-				| "foreach" ->
-					(match args with
-						| collection_expr :: { eexpr = TFunction fn } :: [] ->
-							let (key_name, value_name) = match fn.tf_args with
-								| ({ v_name = key_name }, _) :: ({ v_name = value_name }, _) :: [] -> (key_name, value_name)
-								| _ -> fail self#pos __POS__
-							and add_parentheses =
-								match collection_expr.eexpr with
-									| TLocal _ -> false
-									| _ -> true
-							in
-							self#write "foreach (";
-							if add_parentheses then self#write "(";
-							self#write_expr collection_expr;
-							if add_parentheses then self#write ")";
-							self#write (" as $" ^ key_name ^ " => $" ^ value_name ^ ") ");
-							self#write_as_block fn.tf_expr
+							self#write_expr val_expr;
+							self#write " instanceof ";
+							self#write (self#use_t (TInst (tcls, [])))
 						| _ ->
-							Printf.printf "%s" (error_message self#pos "PHP.foreach() only accepts anonymous function declaration for second argument.");
+							Printf.printf "%s" (error_message self#pos "PHP.instanceof() only accepts class or interface name for second argument.");
 							exit 1;
 					)
 				| _ -> fail self#pos __POS__
-
+		(**
+			Writes `foreach` expression to output buffer (for `php7.PHP.foreach()`)
+		*)
+		method private write_expr_lang_foreach args =
+			match args with
+				| collection_expr :: { eexpr = TFunction fn } :: [] ->
+					let (key_name, value_name) = match fn.tf_args with
+						| ({ v_name = key_name }, _) :: ({ v_name = value_name }, _) :: [] -> (key_name, value_name)
+						| _ -> fail self#pos __POS__
+					and add_parentheses =
+						match collection_expr.eexpr with
+							| TLocal _ -> false
+							| _ -> true
+					in
+					self#write "foreach (";
+					if add_parentheses then self#write "(";
+					self#write_expr collection_expr;
+					if add_parentheses then self#write ")";
+					self#write (" as $" ^ key_name ^ " => $" ^ value_name ^ ") ");
+					self#write_as_block fn.tf_expr
+				| _ ->
+					Printf.printf "%s" (error_message self#pos "PHP.foreach() only accepts anonymous function declaration for second argument.");
+					exit 1;
 		(**
 			Writes TCall to output buffer
 		*)
