@@ -97,10 +97,14 @@ class source_writer common_ctx write_header_func write_func close_func =
    val mutable indent = ""
    val mutable indents = []
    val mutable just_finished_block = false
-   val mutable has_big_closures = false
+   val mutable headerLines  = Hashtbl.create 0
    method close = close_func(); ()
    method write x = write_func x; just_finished_block <- false
    method write_h x = write_header_func x; ()
+   method write_h_unique x = if not (Hashtbl.mem headerLines x) then begin
+      Hashtbl.add headerLines x ();
+      this#write_h x;
+      end
    method indent_one = this#write indent_str
 
    method push_indent = indents <- indent_str::indents; indent <- String.concat "" indents
@@ -113,11 +117,7 @@ class source_writer common_ctx write_header_func write_func close_func =
    method end_block = this#pop_indent; this#write_i "}\n"; just_finished_block <- true
    method end_block_line = this#pop_indent; this#write_i "}"; just_finished_block <- true
    method terminate_line = this#write (if just_finished_block then "" else ";\n")
-   method add_big_closures = if not has_big_closures then begin
-     this#write_h "#include <hx/MacrosJumbo.h>\n";
-     has_big_closures <- true
-   end
-
+   method add_big_closures = this#write_h_unique "#include <hx/MacrosJumbo.h>\n";
 
    method add_include class_path =
       ( match class_path with
@@ -218,6 +218,7 @@ type context =
    ctx_output : string -> unit;
    ctx_writer : source_writer;
    ctx_file_id : int ref;
+   ctx_is_header : bool;
 
    ctx_interface_slot : (string,int) Hashtbl.t ref;
    ctx_interface_slot_count : int ref;
@@ -233,6 +234,7 @@ let result =
    ctx_common = common_ctx;
    ctx_writer = null_file;
    ctx_file_id = ref (-1);
+   ctx_is_header = false;
    ctx_output = (null_file#write);
    ctx_interface_slot = ref (Hashtbl.create 0);
    ctx_interface_slot_count = ref 2;
@@ -244,10 +246,11 @@ let result =
 result
 
 
-let file_context ctx writer debug =
+let file_context ctx writer debug header =
    { ctx with
       ctx_writer = writer;
       ctx_output = (writer#write);
+      ctx_is_header = header;
       ctx_file_id = ref (-1);
    }
 ;;
@@ -981,6 +984,10 @@ let gen_hash seed str =
    Printf.sprintf "0x%08lx" (gen_hash32 seed str)
 ;;
 
+let gen_hash_small seed str =
+   Printf.sprintf "%08lx" (gen_hash32 seed str)
+;;
+
 let gen_string_hash str =
    let h = gen_hash32 0 str in
    Printf.sprintf "\"\\x%02lx\",\"\\x%02lx\",\"\\x%02lx\",\"\\x%02lx\""
@@ -1317,14 +1324,16 @@ let hx_stack_push ctx output clazz func_name pos gc_stack =
          let hash_class_func = gen_hash 0 (clazz^"."^func_name) in
          let hash_file = gen_hash 0 stripped_file in
 
-         let out_top = ctx.ctx_writer#write_h in
          let lineName  = (string_of_int (Lexer.get_error_line pos) ) in
          incr ctx.ctx_file_id;
-         let id = string_of_int( !(ctx.ctx_file_id) ) in
-         let varName = "_hx_pos_" ^func_name ^ "_" ^ id in
-         out_top ("namespace { HX_DEFINE_STACK_FRAME(" ^ varName ^ ",\"" ^ clazz ^ "\",\"" ^ func_name ^ "\"," ^ hash_class_func ^ ",\"" ^
-                 full_name ^ "\",\"" ^ esc_file ^ "\"," ^
-                 lineName ^  "," ^ hash_file ^ ")\n}\n");
+         let classId = gen_hash_small 0 clazz in
+         let varName = "_hx_pos_" ^ classId ^ "_" ^ lineName ^ "_" ^func_name in
+         let decl = ( varName ^ ",\"" ^ clazz ^ "\",\"" ^ func_name ^ "\"," ^ hash_class_func ^ ",\"" ^
+                 full_name ^ "\",\"" ^ esc_file ^ "\"," ^ lineName ^  "," ^ hash_file ) in
+         if ctx.ctx_is_header then
+            ctx.ctx_writer#write_h_unique ("HX_DECLARE_STACK_FRAME" ^ "(" ^ varName ^ ")\n")
+         else
+            ctx.ctx_writer#write_h_unique ("HX_DEFINE_STACK_FRAME" ^ "(" ^ decl ^ ")\n");
          output ( (if gc_stack then "HX_GC_STACKFRAME" else "HX_STACKFRAME") ^ "(&" ^ varName ^ ")\n");
          has_stackframe := true;
       end
@@ -3057,6 +3066,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
    let cppTree =  retype_expression ctx TCppVoid function_args tree forInjection in
    let label_name i = Printf.sprintf "_hx_goto_%i" i in
+   let class_hash = gen_hash_small 0 class_name in
 
    let rec gen_with_injection injection expr =
       (match expr.cppexpr with
@@ -3236,7 +3246,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          | FuncEnumConstruct(enum,field) ->
             out ((string_of_path enum.e_path) ^ "::" ^ (cpp_enum_name_of field));
 
-         | FuncSuperConstruct -> out "super::__construct"
+         | FuncSuperConstruct -> out ((if not ctx.ctx_real_this_ptr then "__this->" else "") ^  "super::__construct")
 
          | FuncSuper(this,field) ->
               out ( (if this==ThisReal then "this->" else "__->") ^ "super::" ^ (cpp_member_name_of field) )
@@ -3416,7 +3426,8 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          let arrayType = match expr.cpptype with TCppScalarArray(value) -> value | _ -> assert  false in
          let typeName = tcpp_to_string arrayType in
          incr ctx.ctx_file_id;
-         let id = "_hx_array_data_" ^ string_of_int( !(ctx.ctx_file_id) ) in
+
+         let id = "_hx_array_data_" ^ class_hash ^ "_" ^ string_of_int( !(ctx.ctx_file_id) ) in
 
          let out_top = ctx.ctx_writer#write_h in
          out_top ("static const " ^ typeName ^ " " ^ id ^ "[] = {\n\t");
@@ -4181,7 +4192,7 @@ let path_of_string path =
    These are used for "#include"ing the appropriate header files,
    or for building the dependencies in the Build.xml file
 *)
-let find_referenced_types_flags ctx obj super_deps constructor_deps header_only for_depends include_super_args =
+let find_referenced_types_flags ctx obj field_name super_deps constructor_deps header_only for_depends include_super_args =
    let types = ref PMap.empty in
    let rec add_type_flag isNative in_path =
       if ( not (PMap.mem in_path !types)) then begin
@@ -4313,6 +4324,11 @@ let find_referenced_types_flags ctx obj super_deps constructor_deps header_only 
       let fields = List.append class_def.cl_ordered_fields class_def.cl_ordered_statics in
       let fields_and_constructor = List.append fields
          (match class_def.cl_constructor with | Some expr -> [expr] | _ -> [] ) in
+      let fields_and_constructor =
+         if field_name="*" then
+            fields_and_constructor
+         else
+            List.filter (fun f -> f.cf_name=field_name) fields_and_constructor in
       List.iter visit_field fields_and_constructor;
       if (include_super_args) then
          List.iter visit_field (List.map (fun (a,_,_) -> a ) (all_virtual_functions class_def ));
@@ -4350,10 +4366,10 @@ let find_referenced_types_flags ctx obj super_deps constructor_deps header_only 
    let deps = List.sort inc_cmp (List.filter (fun path -> (include_class_header path) ) (pmap_keys !types)) in
    let flags = List.map (fun dep -> PMap.find dep !types) deps in
    deps, flags
-   ;;
+;;
 
 let find_referenced_types ctx obj super_deps constructor_deps header_only for_depends include_super_args =
-  let deps,_ = find_referenced_types_flags ctx obj super_deps constructor_deps header_only for_depends include_super_args in
+  let deps,_ = find_referenced_types_flags ctx obj "*" super_deps constructor_deps header_only for_depends include_super_args in
   deps
 ;;
 
@@ -4402,7 +4418,7 @@ let generate_main ctx super_deps class_def =
 
       generate_main_footer1 output_main;
 
-      let ctx = file_context ctx cpp_file 1 in
+      let ctx = file_context ctx cpp_file 1 false in
       gen_cpp_init ctx "hxcpp" "__hxcpp_main" "" main_expression;
 
 
@@ -4566,14 +4582,14 @@ let generate_enum_files baseCtx enum_def super_deps meta =
    let debug = if (has_meta_key enum_def.e_meta Meta.NoDebug) || ( Common.defined  common_ctx Define.NoDebug)
       then 0 else 1 in
 
-   let ctx = file_context baseCtx cpp_file debug in
+   let ctx = file_context baseCtx cpp_file debug false in
 
    if (debug>1) then
       print_endline ("Found enum definition:" ^ (join_class_path  class_path "::" ));
 
    cpp_file#write_h "#include <hxcpp.h>\n\n";
 
-   let referenced,flags = find_referenced_types_flags ctx (TEnumDecl enum_def) super_deps (Hashtbl.create 0) false false false in
+   let referenced,flags = find_referenced_types_flags ctx (TEnumDecl enum_def) "*" super_deps (Hashtbl.create 0) false false false in
    List.iter (add_include cpp_file) referenced;
 
    gen_open_namespace output_cpp class_path;
@@ -4700,7 +4716,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
    output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
    (match meta with
       | Some expr ->
-         let ctx = file_context ctx cpp_file 1 in
+         let ctx = file_context ctx cpp_file 1 false in
          gen_cpp_init ctx class_name "boot" "__mClass->__meta__ = " expr
       | _ -> () );
    PMap.iter (fun _ constructor ->
@@ -4725,7 +4741,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
    let output_h = (h_file#write) in
    let def_string = join_class_path class_path "_"  in
 
-   let ctx = file_context baseCtx h_file debug in
+   let ctx = file_context baseCtx h_file debug true in
 
    begin_header_file (h_file#write_h) def_string false;
 
@@ -4978,9 +4994,29 @@ let constructor_arg_var_list class_def ctx =
    | _ -> []
 ;;
 
-let can_inline_constructor ctx class_def =
+let can_inline_constructor ctx class_def super_deps constructor_deps =
    match class_def.cl_constructor with
-   | Some definition -> false
+   | Some { cf_expr= Some super_func } ->
+       let is_simple = ref true in
+       let rec check_simple e =
+          (match e.eexpr with
+          | TReturn _ -> is_simple := false
+          | TArrayDecl e when List.length e > 0 -> is_simple := false
+          | _ -> ()
+          );
+          if !is_simple then Type.iter check_simple e
+       in
+       check_simple super_func;
+       !is_simple && (
+          let rec known_classes class_def so_far = match class_def.cl_super with
+          | Some super -> known_classes (fst super) ((fst super).cl_path ::  so_far)
+          | _ -> so_far in
+          let allowed = known_classes class_def [class_def.cl_path] in
+          (* Check to see if all the types required by the constructor are already in the header *)
+          (* This is quite restrictive, since most classes are forward-declared *)
+          let deps,_ = find_referenced_types_flags ctx (TClassDecl class_def) "new" super_deps constructor_deps false false true in
+          List.for_all (fun dep ->  List.mem dep allowed ) deps
+       )
    | _ -> true
 ;;
 
@@ -5158,7 +5194,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let constructor_args = String.concat "," constructor_var_list in
 
    let isContainer = if (has_gc_references common_ctx class_def) then "true" else "false" in
-   let inlineContructor = can_inline_constructor common_ctx class_def in
 
    let outputConstructor ctx out isHeader =
       let classScope = if isHeader then "" else class_name ^ "::" in
@@ -5168,8 +5203,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       out ("\treturn __this;\n");
       out ("}\n\n");
 
-      out ((if isHeader then "static " else "") ^ ptr_name ^ " " ^ classScope ^ "__alloc(hx::ImmixAllocator *_hx_alloc" ^ (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^") {\n");
-      out ("\t" ^ class_name ^ " *__this = (" ^ class_name ^ "*)(hx::ImmixAllocator::alloc(_hx_alloc, sizeof(" ^ class_name ^ "), " ^ isContainer ^", " ^ gcName ^ "));\n");
+      out ((if isHeader then "static " else "") ^ ptr_name ^ " " ^ classScope ^ "__alloc(hx::GcAllocator *_hx_alloc" ^ (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^") {\n");
+      out ("\t" ^ class_name ^ " *__this = (" ^ class_name ^ "*)(hx::GcAllocator::alloc(_hx_alloc, sizeof(" ^ class_name ^ "), " ^ isContainer ^", " ^ gcName ^ "));\n");
       out ("\t*(void **)__this = " ^ class_name ^ "::_hx_vtable;\n");
       let rec dump_dynamic class_def =
          if has_dynamic_member_functions class_def then
@@ -5202,15 +5237,19 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    (* State *)
    let header_glue = ref [] in
 
+
+   let cpp_file = new_placed_cpp_file baseCtx.ctx_common class_path in
+   let cpp_ctx = file_context baseCtx cpp_file debug false in
+
+   let inlineContructor = can_inline_constructor cpp_ctx class_def super_deps constructor_deps in
+
  (*
    Generate cpp code
  *)
  let generate_class_cpp () =
-
    (*let cpp_file = new_cpp_file common_ctx.file class_path in*)
-   let cpp_file = new_placed_cpp_file baseCtx.ctx_common class_path in
+   let ctx = cpp_ctx in
    let output_cpp = (cpp_file#write) in
-   let ctx = file_context baseCtx cpp_file debug in
 
    let class_super_name = (match class_def.cl_super with
       | Some (klass, params) -> (tcpp_to_string_suffix "_obj" (cpp_instance_type ctx klass params) )
@@ -5222,6 +5261,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    let all_referenced = find_referenced_types ctx (TClassDecl class_def) super_deps constructor_deps false false scriptable in
    List.iter ( add_include cpp_file  ) all_referenced;
+
 
    if (scriptable) then
       cpp_file#write_h "#include <hx/Scriptable.h>\n";
@@ -5336,7 +5376,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    (match class_def.cl_init with
    | Some expression ->
-      let ctx = file_context baseCtx cpp_file debug in
+      let ctx = file_context baseCtx cpp_file debug false in
       output_cpp ("void " ^ class_name^ "::__init__()");
       gen_cpp_init ctx (cpp_class_name class_def) "__init__" "" (mk_block expression);
       output_cpp "\n\n";
@@ -5353,7 +5393,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    output_cpp "\n";
 
    if (List.length dynamic_functions > 0) then begin
-      output_cpp ("void " ^ class_name ^ "::__alloc_dynamic_functions(hx::ImmixAllocator *_hx_alloc," ^ class_name ^ " *_hx_obj) {\n");
+      output_cpp ("void " ^ class_name ^ "::__alloc_dynamic_functions(hx::GcAllocator *_hx_alloc," ^ class_name ^ " *_hx_obj) {\n");
       List.iter (fun name ->
              output_cpp ("\tif (!_hx_obj->" ^ name ^".mPtr) _hx_obj->" ^ name ^ " = new __default_" ^ name ^ "(_hx_obj);\n")
          ) dynamic_functions;
@@ -5874,8 +5914,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       then 0 else 1 in
 
    let h_file = new_header_file common_ctx common_ctx.file class_path in
-   let ctx = file_context baseCtx h_file debug in
-
+   let ctx = file_context baseCtx h_file debug true in
 
 
    let parent,super = match class_def.cl_super with
@@ -5907,10 +5946,10 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       h_file#add_include (if include_file="" then interface.cl_path else path_of_string include_file) )
       (real_interfaces class_def.cl_implements);
 
-   (* Only need to foreward-declare classes that are mentioned in the header file
+   (* Only need to forward-declare classes that are mentioned in the header file
       (ie, not the implementation)  *)
-   let referenced,flags = find_referenced_types_flags ctx (TClassDecl class_def) super_deps (Hashtbl.create 0) true false scriptable in
-   List.iter2 ( fun r f -> gen_forward_decl h_file r f ) referenced flags;
+   let header_referenced,header_flags = find_referenced_types_flags ctx (TClassDecl class_def) "*" super_deps (Hashtbl.create 0) true false scriptable in
+   List.iter2 ( fun r f -> gen_forward_decl h_file r f ) header_referenced header_flags;
    output_h "\n";
 
    output_h ( get_class_code class_def Meta.HeaderCode );
@@ -5964,13 +6003,13 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          outputConstructor ctx (fun str -> output_h ("\t\t" ^ str) ) true
       end else begin
          output_h ("\t\tstatic " ^ptr_name^ " __new(" ^constructor_type_args ^");\n");
-         output_h ("\t\tstatic " ^ptr_name^ " __alloc(hx::ImmixAllocator *_hx_alloc" ^ (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^");\n");
+         output_h ("\t\tstatic " ^ptr_name^ " __alloc(hx::GcAllocator *_hx_alloc" ^ (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^");\n");
       end;
       output_h ("\t\tstatic void * _hx_vtable;\n");
       output_h ("\t\tstatic Dynamic __CreateEmpty();\n");
       output_h ("\t\tstatic Dynamic __Create(hx::DynamicArray inArgs);\n");
       if (List.length dynamic_functions > 0) then
-         output_h ("\t\tstatic void __alloc_dynamic_functions(hx::ImmixAllocator *_hx_alloc," ^ class_name ^ " *_hx_obj);\n");
+         output_h ("\t\tstatic void __alloc_dynamic_functions(hx::GcAllocator *_hx_alloc," ^ class_name ^ " *_hx_obj);\n");
       if (scriptable) then
          output_h ("\t\tstatic hx::ScriptFunction __script_construct;\n");
       output_h ("\t\t//~" ^ class_name ^ "();\n\n");
