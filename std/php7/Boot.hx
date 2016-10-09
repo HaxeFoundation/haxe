@@ -260,7 +260,7 @@ class Boot {
 			return value;
 		}
 		if (value.is_int() || value.is_float()) {
-			return untyped __php__("(string)$value");
+			return PHP.string(value);
 		}
 		if (value.is_bool()) {
 			return value ? 'true' : 'false';
@@ -276,7 +276,7 @@ class Boot {
 			if (value.method_exists('__toString')) {
 				return value.__toString();
 			}
-			if (untyped __php__("$value instanceof \\StdClass")) {
+			if (PHP.instanceof(value, StdClass)) {
 				if (value.toString.isset() && value.toString.is_callable()) {
 					return value.toString();
 				}
@@ -287,11 +287,10 @@ class Boot {
 				}
 				return '{ ' + Global.implode(', ', result) + ' }';
 			}
-			if (untyped __php__("$value instanceof \\Closure")) {
+			if (PHP.instanceof(value, HxClosure) || PHP.instanceof(value, Closure)) {
 				return '<function>';
 			}
-			var hxClassPhpName = (cast HxClass:HxClass).phpClassName;
-			if (untyped __php__("$value instanceof $hxClassPhpName")) {
+			if (PHP.instanceof(value, HxClass)) {
 				return '[class ' + getClassName((value:HxClass).phpClassName) + ']';
 			} else {
 				return '[object ' + getClassName(Global.get_class(value)) + ']';
@@ -316,7 +315,7 @@ class Boot {
 	**/
 	public static function equal( left:Dynamic, right:Dynamic ) : Bool {
 		if (isNumber(left) && isNumber(right)) {
-			return untyped __php__("$left == $right");
+			return PHP.equal(left, right);
 		}
 		return left == right;
 	}
@@ -341,8 +340,7 @@ class Boot {
 				return value.is_array();
 			case 'Enum':
 				if (value.is_object()) {
-					var hxClass : HxClass = cast HxClass;
-					if (untyped __php__("$value instanceof $hxClass->phpClassName")) {
+					if (PHP.instanceof(value, HxClass)) {
 						var valuePhpClass = (cast value:HxClass).phpClassName;
 						var enumPhpClass = (cast HxEnum:HxClass).phpClassName;
 						return Global.is_subclass_of(valuePhpClass, enumPhpClass);
@@ -350,7 +348,8 @@ class Boot {
 				}
 			case _:
 				if (value.is_object()) {
-					return untyped __php__("$value instanceof $phpType");
+					var type:Class<Dynamic> = cast type;
+					return PHP.instanceof(value, type);
 				}
 		}
 		return false;
@@ -360,16 +359,14 @@ class Boot {
 		Check if `value` is a `Class<T>`
 	**/
 	public static function isClass(value:Dynamic) : Bool {
-		var hxClass : HxClass = cast HxClass;
-		return untyped __php__("$value instanceof $hxClass->phpClassName");
+		return PHP.instanceof(value, HxClass);
 	}
 
 	/**
 		Check if `value` is an enum constructor instance
 	**/
 	public static function isEnumValue(value:Dynamic) : Bool {
-		var hxEnum : HxClass = cast HxEnum;
-		return untyped __php__("$value instanceof $hxEnum->phpClassName");
+		return PHP.instanceof(value, HxEnum);
 	}
 
 	/**
@@ -384,17 +381,6 @@ class Boot {
 			return (left >> right) & (0x7fffffff >> (right - 1));
 		}
 	}
-
-	// /**
-	// 	Access fields of dynamic things
-	//  */
-	// public static function dynamicFieldAccess( target:Dynamic, field:String ) : Dynamic {
-	// 	if (field == 'length' && untyped __call__("is_string", target)) {
-	// 		return untyped __call__("strlen", $target);
-	// 	} else {
-	// 		return untyped __php__("$target->$field");
-	// 	}
-	// }
 }
 
 
@@ -441,7 +427,7 @@ private class HxEnum {
 
 		var instance = singletons.get(key);
 		if (instance == null) {
-			instance = untyped __php__("new $enumClass($tag, $index)");
+			instance = PHP.construct(enumClass, tag, index);
 			singletons.set(key, instance);
 		}
 
@@ -608,7 +594,7 @@ private class HxDynamicStr {
 			case 'charCodeAt':  return HxString.charCodeAt.bind(str);
 		}
 		/** Force invalid field access error */
-		return untyped __php__("$this->str->$field");
+		return PHP.getField(str, field);
 	}
 
 	function __call( method:String, args:NativeArray ) : Dynamic {
@@ -626,9 +612,7 @@ private class HxDynamicStr {
 private class HxAnon extends StdClass {
 
 	public function new( fields:NativeArray ) {
-		untyped __php__("foreach ($fields as $name => $value) {
-			$this->$name = $value;
-		}");
+		PHP.foreach(fields, function(name, value) PHP.setField(this, name, value));
 	}
 
 	function __get( name:String ) {
@@ -670,13 +654,12 @@ private class HxClosure {
 		if (eThis == null) {
 			eThis = target;
 		}
-		if (untyped __php__("$eThis instanceof \\StdClass")) {
-			var hxAnon = (cast HxAnon:HxClass).phpClassName;
-			if (untyped __php__("$eThis instanceof $hxAnon")) {
-				return untyped __php__("$eThis->{$this->func}");
+		if (PHP.instanceof(eThis, StdClass)) {
+			if (PHP.instanceof(eThis, HxAnon)) {
+				return PHP.getField(eThis, func);
 			}
 		}
-		return untyped __php__("[$eThis, func]");
+		return PHP.arrayDecl(eThis, func);
 	}
 
 	/**

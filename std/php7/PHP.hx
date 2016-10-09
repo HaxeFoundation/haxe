@@ -1,5 +1,7 @@
 package php7;
 
+import haxe.extern.Rest;
+
 /**
     Special extern class to support PHP language specifics.
     Don't use these functions unless you are really sure what you are doing.
@@ -45,10 +47,7 @@ extern class PHP {
         Ggenerates `$value instanceof $phpClassName`.
         `type` only accepts direct class names. That means `Type.resolveClass('MyClass')` is not allowed, but `MyClass` is.
     **/
-    static function instanceof( value:Dynamic,  type:Class<Dynamic> ) : Bool;// return _instanceof(value, type);
-    //This trick is required to make compiler assign expressions to variables.
-    //Otherwise PHP will complain if `type` or `value` are not variables, but some another expressions.
-    // static private function _instanceof( value:Dynamic,  type:Class<Dynamic> ) : Bool;
+    static function instanceof( value:Dynamic,  type:Class<Dynamic> ) : Bool;
 
     /**
         ```
@@ -62,4 +61,30 @@ extern class PHP {
         ```
     **/
     static function foreach<TKey,TValue>( collection:Dynamic, body:TKey->TValue->Void ) : Void;
+
+    /**
+        Generates `new $className($arg1, ...$argN)`
+    **/
+    static function construct( className:String, args:Rest<Dynamic>) : Dynamic;
+
+    /**
+        Generates instance field access for reading on `object`
+    **/
+    static function getField( object:Dynamic, fieldName:String ) : Dynamic;
+
+    /**
+        Generates instance field access for writing on `object`
+    **/
+    static function setField( object:Dynamic, fieldName:String, value:Dynamic ) : Void;
+
+    /**
+        ```
+        PHP.arrayDecl(arg1, arg2, arg3);
+        ```
+        Generates native array declaration:
+        ```
+        [$arg1, $arg2, $arg3]
+        ```
+    **/
+    static function arrayDecl( args:Rest<Dynamic> ) : NativeIndexedArray<Dynamic>;
 }

@@ -1751,7 +1751,53 @@ class virtual type_builder ctx wrapper =
 				| "equal" -> self#write_expr_lang_equal args
 				| "instanceof" -> self#write_expr_lang_instanceof args
 				| "foreach" -> self#write_expr_lang_foreach args
+				| "construct" -> self#write_expr_lang_construct args
+				| "getField" -> self#write_expr_lang_get_field args
+				| "setField" -> self#write_expr_lang_set_field args
+				| "arrayDecl" -> self#write_expr_lang_array_decl args
 				| _ -> fail self#pos __POS__
+		(**
+			Writes native array declaration (for `php7.PHP.arrayDecl()`)
+		*)
+		method private write_expr_lang_array_decl args =
+			self#write "[";
+			write_args buffer (fun e -> self#write_expr e) args;
+			self#write "]"
+		(**
+			Writes field access for reading (for `php7.PHP.getField()`)
+		*)
+		method private write_expr_lang_get_field args =
+			match args with
+				| obj_expr :: field_expr :: [] ->
+					self#write_expr obj_expr;
+					self#write "->";
+					self#write_expr field_expr
+				| _ -> fail self#pos __POS__
+		(**
+			Writes field access for writing (for `php7.PHP.setField()`)
+		*)
+		method private write_expr_lang_set_field args =
+			match args with
+				| obj_expr :: field_expr :: value_expr :: [] ->
+					self#write_expr obj_expr;
+					self#write "->";
+					self#write_expr field_expr;
+					self#write " = ";
+					self#write_expr value_expr
+				| _ -> fail self#pos __POS__
+		(**
+			Writes `new` expression with class name taken local variable (for `php7.PHP.construct()`)
+		*)
+		method private write_expr_lang_construct args =
+			let (class_expr, args) = match args with
+				| class_expr :: args -> (class_expr, args)
+				| _ -> fail self#pos __POS__
+			in
+			self#write "new ";
+			self#write_expr class_expr;
+			self#write "(";
+			write_args buffer (fun e -> self#write_expr e) args;
+			self#write ")"
 		(**
 			Writes native php type conversion to output buffer (e.g. `php7.PHP.int()`)
 		*)
@@ -1787,15 +1833,6 @@ class virtual type_builder ctx wrapper =
 			match args with
 				| val_expr :: type_expr :: [] ->
 					(match type_expr.eexpr with
-						| TLocal _ ->
-							let val_expr = match val_expr.eexpr with
-								| TLocal e -> val_expr
-								| _ -> parenthesis val_expr
-							in
-							self#write_expr val_expr;
-							self#write " instanceof ";
-							self#write_expr type_expr;
-							self#write "->phpClassName"
 						| TTypeExpr (TClassDecl tcls) ->
 							let val_expr = match val_expr.eexpr with
 								| TLocal e -> val_expr
@@ -1805,8 +1842,17 @@ class virtual type_builder ctx wrapper =
 							self#write " instanceof ";
 							self#write (self#use_t (TInst (tcls, [])))
 						| _ ->
+							let val_expr = match val_expr.eexpr with
+								| TLocal e -> val_expr
+								| _ -> parenthesis val_expr
+							in
+							self#write_expr val_expr;
+							self#write " instanceof ";
+							self#write_expr type_expr;
+							self#write "->phpClassName"
+						(*| _ ->
 							Printf.printf "%s" (error_message self#pos "PHP.instanceof() only accepts local variable or class or interface name for second argument.");
-							exit 1;
+							exit 1;*)
 					)
 				| _ -> fail self#pos __POS__
 		(**
