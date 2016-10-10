@@ -142,7 +142,7 @@ type callstack = {
 }
 
 type context = {
-	mutable gen : Genneko.context;
+	gen : Genneko.context;
 	types : (Type.path,int) Hashtbl.t;
 	prototypes : (string list, vobject) Hashtbl.t;
 	fields_cache : (int,string) Hashtbl.t;
@@ -3723,23 +3723,7 @@ let create com api =
 	List.iter (fun e -> ignore((eval ctx e)())) (Genneko.header());
 	ctx
 
-let clear ctx com =
-	Hashtbl.clear ctx.types;
-	Hashtbl.clear ctx.prototypes;
-	ctx.gen <- Genneko.new_context com 2 true;
-	ctx.locals_map <- PMap.empty;
-	ctx.locals_count <- 0;
-	ctx.locals_barrier <- 0;
-	ctx.locals_env <- DynArray.create();
-	ctx.globals <- PMap.empty;
-	ctx.callstack <- [];
-	ctx.callsize <- 0;
-	ctx.stack <- DynArray.create();
-	ctx.exc <- [];
-	ctx.vthis <- VNull;
-	ctx.venv <- [||];
-	select ctx;
-	List.iter (fun e -> ignore((eval ctx e)())) (Genneko.header())
+
 
 let do_reuse ctx api =
 	ctx.is_reused <- false;
