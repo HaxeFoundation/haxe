@@ -5110,9 +5110,16 @@ let decode_type_def v =
 		ETypedef (mk (if isExtern then [EExtern] else []) (CTAnonymous fields,Globals.null_pos))
 	| 2, [ext;impl;interf] ->
 		let flags = if isExtern then [HExtern] else [] in
-		let flags = (match interf with VNull | VBool false -> flags | VBool true -> HInterface :: flags | _ -> raise Invalid_expr) in
+		let is_interface = (match interf with VNull | VBool false -> false | VBool true -> true | _ -> raise Invalid_expr ) in
+		let interfaces = (match opt (fun v -> List.map decode_path (dec_array v)) impl with Some l -> l | _ -> [] ) in
 		let flags = (match opt decode_path ext with None -> flags | Some t -> HExtends t :: flags) in
-		let flags = (match opt (fun v -> List.map decode_path (dec_array v)) impl with None -> flags | Some l -> List.map (fun t -> HImplements t) l @ flags) in
+		let flags = if is_interface then begin
+				let flags = HInterface :: flags in
+				List.map (fun t -> HExtends t) interfaces @ flags
+			end else begin
+				List.map (fun t -> HImplements t) interfaces @ flags
+			end
+		in
 		EClass (mk flags fields)
 	| 3, [t] ->
 		ETypedef (mk (if isExtern then [EExtern] else []) (decode_ctype t))
