@@ -1366,6 +1366,7 @@ type tcpp =
    | TCppStar of tcpp
    | TCppVoidStar
    | TCppVarArg
+   | TCppAutoCast
    | TCppDynamicArray
    | TCppObjectArray of tcpp
    | TCppWrapped of tcpp
@@ -1598,6 +1599,7 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
    | TCppVoidStar -> "void *"
    | TCppRest _ -> "vaarg_list"
    | TCppVarArg -> "vararg"
+   | TCppAutoCast -> "::cpp::AutoCast"
    | TCppVariant -> "::cpp::Variant"
    | TCppEnum(enum) -> " ::" ^ (join_class_path_remap enum.e_path "::") ^ suffix
    | TCppScalar(scalar) -> scalar
@@ -1792,6 +1794,7 @@ let rec cpp_type_of ctx haxe_type =
       | (["cpp"], "UInt32"),_ -> TCppScalar("unsigned int")
       | (["cpp"], "UInt64"),_ -> TCppScalar("::cpp::UInt64")
       | (["cpp"], "VarArg"),_ -> TCppVarArg
+      | (["cpp"], "AutoCast"),_ -> TCppAutoCast
 
       | ([],"String"), [] ->
          TCppString
@@ -2015,6 +2018,7 @@ let cpp_variant_type_of t = match t with
    | TCppNativePointer _
    | TCppPointer _
    | TCppRawPointer _
+   | TCppAutoCast
    | TCppVarArg
    | TCppVoidStar -> TCppVoidStar
    | TCppScalar "Int"
@@ -2944,9 +2948,10 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
          | _ -> cppExpr
       end else match cppExpr.cpptype, return_type with
          | _, TCppUnchanged -> cppExpr
+         | TCppAutoCast, _
          | TCppObjC(_), TCppDynamic
          | TCppObjCBlock(_), TCppDynamic
-              -> mk_cppexpr (CppCast(cppExpr,TCppDynamic)) return_type
+              -> mk_cppexpr (CppCast(cppExpr,return_type)) return_type
          | TCppReference(TCppDynamic), TCppReference(_) -> cppExpr
          | TCppReference(TCppDynamic),  t ->
              mk_cppexpr retypedExpr (TCppReference(t))
