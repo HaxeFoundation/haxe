@@ -4855,7 +4855,7 @@ and flush_macro_context mint ctx =
 	(* if one of the type we are using has been modified, we need to create a new macro context from scratch *)
 	let mint = if not (Interp.can_reuse mint types) then begin
 		let com2 = mctx.com in
-		let mint = Interp.create com2 (make_macro_api ctx Ast.null_pos) in
+		let mint = Interp.create com2 (make_macro_api ctx Globals.null_pos) in
 		let macro = ((fun() -> Interp.select mint), mctx) in
 		ctx.g.macros <- Some macro;
 		mctx.g.macros <- Some macro;
