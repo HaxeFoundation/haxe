@@ -1326,7 +1326,7 @@ let hx_stack_push ctx output clazz func_name pos gc_stack =
 
          let lineName  = (string_of_int (Lexer.get_error_line pos) ) in
          incr ctx.ctx_file_id;
-         let classId = gen_hash_small 0 clazz in
+         let classId = gen_hash_small 0 (clazz ^ "." ^ stripped_file) in
          let varName = "_hx_pos_" ^ classId ^ "_" ^ lineName ^ "_" ^func_name in
          let decl = ( varName ^ ",\"" ^ clazz ^ "\",\"" ^ func_name ^ "\"," ^ hash_class_func ^ ",\"" ^
                  full_name ^ "\",\"" ^ esc_file ^ "\"," ^ lineName ^  "," ^ hash_file ) in
