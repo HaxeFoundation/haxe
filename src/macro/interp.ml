@@ -302,6 +302,9 @@ and h_class = hash "__class__"
 let exc v =
 	raise (Runtime v)
 
+let select ctx =
+	get_ctx_ref := (fun() -> ctx)
+
 let s_value_kind = function
 	| VNull -> "VNull"
 	| VBool _ -> "VBool"
@@ -472,13 +475,17 @@ let rec get_field_opt o fid =
 
 let catch_errors ctx ?(final=(fun() -> ())) f =
 	let n = DynArray.length ctx.stack in
+	let prev = get_ctx() in (* switch context in case we have an older one, see #5676 *)
+	select ctx;
 	try
 		let v = f() in
 		final();
+		select prev;
 		Some v
 	with Runtime v ->
 		pop ctx (DynArray.length ctx.stack - n);
 		final();
+		select prev;
 		let rec loop o =
 			if o == ctx.error_proto then true else match o.oproto with None -> false | Some p -> loop p
 		in
@@ -495,6 +502,7 @@ let catch_errors ctx ?(final=(fun() -> ())) f =
 	| Abort ->
 		pop ctx (DynArray.length ctx.stack - n);
 		final();
+		select prev;
 		None
 
 let make_library fl =
@@ -3648,9 +3656,6 @@ let rec compare ctx a b =
 		if la == lb && fa == fb then CEq else CUndef
 	| _ ->
 		CUndef
-
-let select ctx =
-	get_ctx_ref := (fun() -> ctx)
 
 let value_match_failure s expected actual =
 	let sl = String.concat ", " in
