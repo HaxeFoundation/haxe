@@ -89,6 +89,17 @@ let verbatim_include file =
       ("#include \"" ^ file ^ "\"\n")
 ;;
 
+let hash64 s =
+   String.sub (Digest.to_hex (Digest.string s)) 0 16
+;;
+
+let guarded_include file =
+   let guard_name = "INCLUDED_" ^ (hash64 file) in
+   "#ifndef " ^ guard_name ^ "\n" ^
+   "#define " ^ guard_name ^ "\n" ^
+   (verbatim_include file) ^
+   "#endif\n";
+
 
 
 class source_writer common_ctx write_header_func write_func close_func =
@@ -121,7 +132,7 @@ class source_writer common_ctx write_header_func write_func close_func =
 
    method add_include class_path =
       ( match class_path with
-         | (["@verbatim"],file) -> this#write_h (verbatim_include file)
+         | (["@verbatim"],file) -> this#write_h_unique (guarded_include file)
          | _ ->
             let prefix = if should_prefix_include class_path then "" else get_include_prefix common_ctx true in
             this#write_h ("#ifndef INCLUDED_" ^ (join_class_path class_path "_") ^ "\n");
@@ -503,7 +514,8 @@ let gen_forward_decl writer class_path isNative =
    begin
       let output = writer#write in
       match class_path with
-      | (["@verbatim"],file) -> writer#write (verbatim_include file)
+      | (["@verbatim"],file) ->
+          writer#write (guarded_include file)
       | _ ->
          let name = fst (remap_class_path class_path) in
          output ((if isNative then "HX_DECLARE_NATIVE" else "HX_DECLARE_CLASS") ^ list_num name  ^ "(");
@@ -1326,7 +1338,7 @@ let hx_stack_push ctx output clazz func_name pos gc_stack =
 
          let lineName  = (string_of_int (Lexer.get_error_line pos) ) in
          incr ctx.ctx_file_id;
-         let classId = gen_hash_small 0 (clazz ^ "." ^ stripped_file) in
+         let classId = hash64 (clazz ^ "." ^ stripped_file) in
          let varName = "_hx_pos_" ^ classId ^ "_" ^ lineName ^ "_" ^func_name in
          let decl = ( varName ^ ",\"" ^ clazz ^ "\",\"" ^ func_name ^ "\"," ^ hash_class_func ^ ",\"" ^
                  full_name ^ "\",\"" ^ esc_file ^ "\"," ^ lineName ^  "," ^ hash_file ) in
