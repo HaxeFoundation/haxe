@@ -190,7 +190,7 @@ class HostClasses
       externs.set("haxe._Int32.Int32_Impl_",true);
       externs.set("haxe._Int32.___Int32",true);
       // Hidded in implementation classes
-      externs.set("sys.db.RecordType",true);
+      //externs.set("sys.db.RecordType",true);
       externs.set("sys.db._Sqlite.SqliteConnection",true);
       externs.set("sys.db._Sqlite.SqliteResultSet",true);
       externs.set("sys.db._Mysql.MysqlConnection",true);
