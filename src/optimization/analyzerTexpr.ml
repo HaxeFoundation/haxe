@@ -711,8 +711,6 @@ module Fusion = struct
 							in
 							if not !found then raise Exit;
 							{e with eexpr = TSwitch(e1,cases,edef)}
-						| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
-							e
 						(* locals *)
 						| TLocal v2 when v1 == v2 && not !blocked ->
 							found := true;
@@ -769,7 +767,10 @@ module Fusion = struct
 							if not !found && (has_state_write ir || has_any_field_write ir) then raise Exit;
 							{e with eexpr = TCall(ef,el)}
 						| TCall(e1,el) ->
-							let e1,el = handle_call e1 el in
+							let e1,el = match e1.eexpr with
+								| TLocal v when is_really_unbound v -> e1,el
+								| _ -> handle_call e1 el
+							in
 							if not !found && (((has_state_read ir || has_any_field_read ir)) || has_state_write ir || has_any_field_write ir) then raise Exit;
 							{e with eexpr = TCall(e1,el)}
 						| TObjectDecl fl ->
