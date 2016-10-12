@@ -10,6 +10,25 @@ class Metadata extends DisplayTestCase {
 	}
 
 	/**
+	@{-1-}:{-2-}
+	class Some { }
+	**/
+	function testCompletion2() {
+		eq(true, hasPath(fields(pos(1)), "@:generic"));
+		eq(true, hasPath(fields(pos(2)), "@:generic"));
+	}
+
+	/**
+	@{-1-}:{-2-}gen{-3-}oric
+	class Some { }
+	**/
+	function testCompletion3() {
+		eq(true, hasPath(fields(pos(1)), "@:generic"));
+		eq(true, hasPath(fields(pos(2)), "@:generic"));
+		eq(true, hasPath(fields(pos(3)), "@:generic"));
+	}
+
+	/**
 	@:gen{-1-}eric
 	class Some { }
 	**/
