@@ -1290,10 +1290,15 @@ and parse_function p1 inl = parser
 
 and expr = parser
 	| [< (name,params,p) = parse_meta_entry; s >] ->
-		(try
+		begin try
 			make_meta name params (secure_expr s) p
-		with Display e ->
-			display (make_meta name params e p))
+		with
+		| Display e ->
+			display (make_meta name params e p)
+		| Stream.Failure | Stream.Error _ when Path.unique_full_path p.pfile = (!resume_display).pfile ->
+			let e = EConst (Ident "null"),p in
+			display (make_meta name params e p)
+		end
 	| [< '(BrOpen,p1); s >] ->
 		if is_resuming p1 then display (EDisplay ((EObjectDecl [],p1),false),p1);
 		(match s with parser
