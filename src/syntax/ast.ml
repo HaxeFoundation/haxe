@@ -528,58 +528,132 @@ let map_expr loop (e,p) =
 		| TPExpr e -> TPExpr (loop e)
 	and cfield f =
 		{ f with cff_kind = (match f.cff_kind with
-			| FVar (t,e) -> FVar (opt type_hint t, opt loop e)
+			| FVar (t,e) ->
+				let t = opt type_hint t in
+				let e = opt loop e in
+				FVar (t,e)
 			| FFun f -> FFun (func f)
-			| FProp (get,set,t,e) -> FProp (get,set,opt type_hint t,opt loop e))
+			| FProp (get,set,t,e) ->
+				let t = opt type_hint t in
+				let e = opt loop e in
+				FProp (get,set,t,e))
 		}
 	and type_hint (t,p) = (match t with
 		| CTPath t -> CTPath { t with tparams = List.map tparam t.tparams }
-		| CTFunction (cl,c) -> CTFunction (List.map type_hint cl, type_hint c)
+		| CTFunction (cl,c) ->
+			let cl = List.map type_hint cl in
+			let c = type_hint c in
+			CTFunction (cl,c)
 		| CTAnonymous fl -> CTAnonymous (List.map cfield fl)
 		| CTParent t -> CTParent (type_hint t)
-		| CTExtend (tl,fl) -> CTExtend (List.map tpath tl, List.map cfield fl)
+		| CTExtend (tl,fl) ->
+			let tl = List.map tpath tl in
+			let fl = List.map cfield fl in
+			CTExtend (tl,fl)
 		| CTOptional t -> CTOptional (type_hint t)),p
 	and tparamdecl t =
-		{ tp_name = t.tp_name; tp_constraints = List.map type_hint t.tp_constraints; tp_params = List.map tparamdecl t.tp_params; tp_meta = t.tp_meta }
+		let constraints = List.map type_hint t.tp_constraints in
+		let params = List.map tparamdecl t.tp_params in
+		{ tp_name = t.tp_name; tp_constraints = constraints; tp_params = params; tp_meta = t.tp_meta }
 	and func f =
+		let params = List.map tparamdecl f.f_params in
+		let args = List.map (fun (n,o,m,t,e) ->
+			let t = opt type_hint t in
+			let e = opt loop e in
+			n,o,m,t,e
+		) f.f_args in
+		let t = opt type_hint f.f_type in
+		let e = opt loop f.f_expr in
 		{
-			f_params = List.map tparamdecl f.f_params;
-			f_args = List.map (fun (n,o,m,t,e) -> n,o,m,opt type_hint t,opt loop e) f.f_args;
-			f_type = opt type_hint f.f_type;
-			f_expr = opt loop f.f_expr;
+			f_params = params;
+			f_args = args;
+			f_type = t;
+			f_expr = e;
 		}
 	and tpath (t,p) = { t with tparams = List.map tparam t.tparams },p
 	in
 	let e = (match e with
 	| EConst _ -> e
-	| EArray (e1,e2) -> EArray (loop e1, loop e2)
-	| EBinop (op,e1,e2) -> EBinop (op,loop e1, loop e2)
+	| EArray (e1,e2) ->
+		let e1 = loop e1 in
+		let e2 = loop e2 in
+		EArray (e1,e2)
+	| EBinop (op,e1,e2) ->
+		let e1 = loop e1 in
+		let e2 = loop e2 in
+		EBinop (op,e1,e2)
 	| EField (e,f) -> EField (loop e, f)
 	| EParenthesis e -> EParenthesis (loop e)
 	| EObjectDecl fl -> EObjectDecl (List.map (fun ((f,p),e) -> (f,p),loop e) fl)
 	| EArrayDecl el -> EArrayDecl (List.map loop el)
-	| ECall (e,el) -> ECall (loop e, List.map loop el)
-	| ENew (t,el) -> ENew (tpath t,List.map loop el)
+	| ECall (e,el) ->
+		let e = loop e in
+		let el = List.map loop el in
+		ECall (e,el)
+	| ENew (t,el) ->
+		let t = tpath t in
+		let el = List.map loop el in
+		ENew (t,el)
 	| EUnop (op,f,e) -> EUnop (op,f,loop e)
-	| EVars vl -> EVars (List.map (fun (n,t,eo) -> n,opt type_hint t,opt loop eo) vl)
+	| EVars vl ->
+		EVars (List.map (fun (n,t,eo) ->
+			let t = opt type_hint t in
+			let eo = opt loop eo in
+			n,t,eo
+		) vl)
 	| EFunction (n,f) -> EFunction (n,func f)
 	| EBlock el -> EBlock (List.map loop el)
-	| EFor (e1,e2) -> EFor (loop e1, loop e2)
-	| EIn (e1,e2) -> EIn (loop e1, loop e2)
-	| EIf (e,e1,e2) -> EIf (loop e, loop e1, opt loop e2)
-	| EWhile (econd,e,f) -> EWhile (loop econd, loop e, f)
-	| ESwitch (e,cases,def) -> ESwitch (loop e, List.map (fun (el,eg,e,p) -> List.map loop el, opt loop eg, opt loop e, p) cases, opt (fun (eo,p) -> opt loop eo,p) def)
-	| ETry (e,catches) -> ETry (loop e, List.map (fun (n,t,e,p) -> n,type_hint t,loop e,p) catches)
+	| EFor (e1,e2) ->
+		let e1 = loop e1 in
+		let e2 = loop e2 in
+		EFor (e1,e2)
+	| EIn (e1,e2) ->
+		let e1 = loop e1 in
+		let e2 = loop e2 in
+		EIn (e1,e2)
+	| EIf (e,e1,e2) ->
+		let e = loop e in
+		let e1 = loop e1 in
+		let e2 = opt loop e2 in
+		EIf (e,e1,e2)
+	| EWhile (econd,e,f) ->
+		let econd = loop econd in
+		let e = loop e in
+		EWhile (econd,e,f)
+	| ESwitch (e,cases,def) ->
+		let e = loop e in
+		let cases = List.map (fun (el,eg,e,p) ->
+			let el = List.map loop el in
+			let eg = opt loop eg in
+			let e = opt loop e in
+			el,eg,e,p
+		) cases in
+		let def = opt (fun (eo,p) -> opt loop eo,p) def in
+		ESwitch (e, cases, def)
+	| ETry (e,catches) ->
+		let e = loop e in
+		let catches = List.map (fun (n,t,e,p) -> n,type_hint t,loop e,p) catches in
+		ETry (e,catches)
 	| EReturn e -> EReturn (opt loop e)
 	| EBreak -> EBreak
 	| EContinue -> EContinue
 	| EUntyped e -> EUntyped (loop e)
 	| EThrow e -> EThrow (loop e)
-	| ECast (e,t) -> ECast (loop e,opt type_hint t)
+	| ECast (e,t) ->
+		let e = loop e in
+		let t = opt type_hint t in
+		ECast (e,t)
 	| EDisplay (e,f) -> EDisplay (loop e,f)
 	| EDisplayNew t -> EDisplayNew (tpath t)
-	| ETernary (e1,e2,e3) -> ETernary (loop e1,loop e2,loop e3)
-	| ECheckType (e,t) -> ECheckType (loop e, type_hint t)
+	| ETernary (e1,e2,e3) ->
+		let e1 = loop e1 in
+		let e2 = loop e2 in
+		let e3 = loop e3 in
+		ETernary (e1,e2,e3)
+	| ECheckType (e,t) ->
+		let e = loop e in
+		let t = type_hint t in
+		ECheckType (e,t)
 	| EMeta (m,e) -> EMeta(m, loop e)
 	) in
 	(e,p)
