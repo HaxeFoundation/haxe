@@ -1112,7 +1112,7 @@ class RunCi {
 
 		changeDirectory(unitDir);
 
-		haxelibInstallGit("Simn", "hxparse", "development", "src");
+		haxelibInstallGit("Simn", "hxparse", "master", "src");
 		haxelibInstallGit("Simn", "hxtemplo");
 
 		var buildArgs = [
