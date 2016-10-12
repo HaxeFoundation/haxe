@@ -6,7 +6,7 @@ import haxe.extern.Rest;
     Special extern class to support PHP language specifics.
     Don't use these functions unless you are really sure what you are doing.
 **/
-extern class PHP {
+extern class Syntax {
     /**
         `==` operator in Haxe uses strict equality check.
         This method allows to compare values with non-strict equality check.

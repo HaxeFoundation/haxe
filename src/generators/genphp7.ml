@@ -61,7 +61,7 @@ let hxclosure_type_path = (["php7"; "_Boot"], "HxClosure")
 (**
 	Type path for special PHP extern class to support specific language expressions
 *)
-let php_type_path = (["php7"], "PHP")
+let syntax_type_path = (["php7"], "Syntax")
 (**
 	Special abstract which enables passing function arguments and return value by reference
 *)
@@ -206,7 +206,7 @@ let is_string expr = match follow expr.etype with TInst ({ cl_path = ([], "Strin
 *)
 let is_lang_extern expr =
 	match expr.eexpr with
-		| TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = path }) }, _) when path = php_type_path -> true
+		| TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = path }) }, _) when path = syntax_type_path -> true
 		| _ -> false
 
 (**
