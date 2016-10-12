@@ -185,6 +185,7 @@ let new_source_file common_ctx base_dir sub_dir extension class_path =
             | [] -> base_dir ^ "/include/" ^ (get_include_prefix common_ctx false)
             | path -> base_dir ^ "/include/" ^ include_prefix ^ ( String.concat "/" path )
          in
+         make_class_directories base_dir (["include";include_prefix]@(fst class_path));
          dir
       end else begin
          make_class_directories base_dir ( sub_dir :: (fst class_path));
