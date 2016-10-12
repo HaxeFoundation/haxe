@@ -1675,7 +1675,7 @@ let parse ctx code =
 			| _ -> error Unimplemented (snd tk))
 		| Sharp "line" ->
 			let line = (match next_token() with
-				| (Const (Int s),_) -> int_of_string s
+				| (Const (Int s),p) -> (try int_of_string s with _ -> error (Custom ("Could not parse ridiculous line number " ^ s)) p)
 				| (t,p) -> error (Unexpected t) p
 			) in
 			!(Lexer.cur).Lexer.lline <- line - 1;
