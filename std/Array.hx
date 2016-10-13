@@ -276,8 +276,7 @@ extern class Array<T> {
 	**/
 	@:runtime inline function map<S>( f : T -> S ) : Array<S> {
 		#if cpp
-		var result = [];
-		cpp.NativeArray.setSize(result, length);
+		var result = cpp.NativeArray.create(length);
 		for (i in 0...length) cpp.NativeArray.unsafeSet(result, i, f(cpp.NativeArray.unsafeGet(this, i)));
 		return result;
 		#else
