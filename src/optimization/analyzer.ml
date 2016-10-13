@@ -1241,9 +1241,7 @@ module Run = struct
 			| Some f -> process_field false f;
 		end;
 		begin match c.cl_init with
-			| None ->
-				()
-			| Some e ->
+			| Some e when not (Common.defined ctx.Typecore.com Define.As3) ->
 				let tf = { tf_args = []; tf_type = e.etype; tf_expr = e; } in
 				let e = mk (TFunction tf) (tfun [] e.etype) e.epos in
 				let actx = create_analyzer_context ctx.Typecore.com {config with optimize = false} e in
@@ -1253,6 +1251,8 @@ module Run = struct
 					| _ -> assert false
 				in
 				c.cl_init <- Some e
+			| _ ->
+				()
 		end
 
 	let run_on_type ctx config t =

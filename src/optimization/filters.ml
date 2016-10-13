@@ -807,6 +807,7 @@ let add_field_inits ctx t =
 		let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) c.cl_pos in
 		(* TODO: we have to find a variable name which is not used in any of the functions *)
 		let v = alloc_var "_g" ethis.etype ethis.epos in
+		v.v_capture <- true; (* IF we use it it's gonna be a captured var *)
 		let need_this = ref false in
 		let inits,fields = List.fold_left (fun (inits,fields) cf ->
 			match cf.cf_kind,cf.cf_expr with

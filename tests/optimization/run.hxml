@@ -1,5 +1,6 @@
 -cp src
 -D analyzer-user-var-fusion
+-D analyzer-no-op-reconstruction
 --each
 
 -main TestAnalyzer
