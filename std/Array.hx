@@ -275,7 +275,14 @@ extern class Array<T> {
 		If `f` is null, the result is unspecified.
 	**/
 	@:runtime inline function map<S>( f : T -> S ) : Array<S> {
+		#if cpp
+		var result = [];
+		cpp.NativeArray.setSize(result, length);
+		for (i in 0...length) cpp.NativeArray.unsafeSet(result, i, f(cpp.NativeArray.unsafeGet(this, i)));
+		return result;
+		#else
 		return [for (v in this) f(v)];
+		#end
 	}
 
 	/**
