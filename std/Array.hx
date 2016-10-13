@@ -274,7 +274,9 @@ extern class Array<T> {
 
 		If `f` is null, the result is unspecified.
 	**/
-	function map<S>( f : T -> S ) : Array<S>;
+	@:runtime inline function map<S>( f : T -> S ) : Array<S> {
+		return [for (v in this) f(v)];
+	}
 
 	/**
 		Returns an Array containing those elements of `this` for which `f`
@@ -284,5 +286,7 @@ extern class Array<T> {
 
 		If `f` is null, the result is unspecified.
 	**/
-	function filter( f : T -> Bool ) : Array<T>;
+	@:runtime inline function filter( f : T -> Bool ) : Array<T> {
+		return [for (v in this) if (f(v)) v];
+	}
 }
