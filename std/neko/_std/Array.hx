@@ -269,14 +269,16 @@
 		return ret;
 	}
 
-	public function map<S>( f : T -> S ) : Array<S> {
-		var ret = [];
-		for (elt in this)
-			ret.push(f(elt));
+	public inline function map<S>( f : T -> S ) : Array<S> {
+		var l = length;
+		var ret = new1(neko.NativeArray.alloc(l), l);
+		for (i in 0...l) {
+			ret[i] = f(this[i]);
+		}
 		return ret;
 	}
 
-	public function filter( f : T -> Bool ) : Array<T> {
+	public inline function filter( f : T -> Bool ) : Array<T> {
 		var ret = [];
 		for (elt in this)
 			if (f(elt))
