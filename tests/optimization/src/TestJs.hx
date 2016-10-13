@@ -83,7 +83,11 @@ class TestJs {
 		}) {}
 	}
 
+	#if analyzer_no_op_reconstruction
+	@:js("var a = [1,2,3];var _g = 0;while(_g < a.length) {var v = a[_g];_g = _g + 1;console.log(v + 2);}")
+	#else
 	@:js("var a = [1,2,3];var _g = 0;while(_g < a.length) {var v = a[_g];++_g;console.log(v + 2);}")
+	#end
 	static function testInlineFunctionWithAnonymousCallback() {
 		var a = [1,2,3];
 		inline function forEach(f) for (v in a) f(v);
@@ -265,12 +269,21 @@ class TestJs {
 		});
 	}
 
+	#if analyzer_no_op_reconstruction
+	@:js('
+		var x = TestJs.getInt();
+		var tmp = x;
+		x = x + 1;
+		TestJs.call(tmp,TestJs.getInt());
+	')
+	#else
 	@:js('
 		var x = TestJs.getInt();
 		var tmp = x;
 		++x;
 		TestJs.call(tmp,TestJs.getInt());
 	')
+	#end
 	static function testMightBeAffected3() {
 		var x = getInt();
 		call(x, {
@@ -476,32 +489,63 @@ class TestJs {
 		inlineCall(stringField, use(null));
 	}
 
+	#if analyzer_no_op_reconstruction
+	@:js('
+		var a = TestJs.getArray();
+		var tmp = a[0];
+		a[0] = tmp + 1;
+		var tmp1 = a[1];
+		a[1] = tmp1 + 1;
+		TestJs.call(tmp1,tmp);
+	')
+	#else
 	@:js('
 		var a = TestJs.getArray();
 		var d1 = a[0]++;
 		TestJs.call(a[1]++,d1);
 	')
+	#end
 	static function testInlineRebuilding3() {
 		var a = getArray();
 		inlineCall(a[0]++, a[1]++);
 	}
 
+	#if analyzer_no_op_reconstruction
+	@:js('
+		var a = TestJs.getArray();
+		a[0] = 1;
+		var d1 = a[0];
+		a[1] = 2;
+		TestJs.call(a[1],d1);
+	')
+	#else
 	@:js('
 		var a = TestJs.getArray();
 		a[0] = 1;
 		a[1] = 2;
 		TestJs.call(2,1);
 	')
+	#end
 	static function testInlineRebuilding4() {
 		var a = getArray();
 		inlineCall(a[0] = 1, a[1] = 2);
 	}
 
+	#if analyzer_no_op_reconstruction
+	@:js('
+		var a = TestJs.getArray();
+		a[0] = a[0] + 1;
+		var d1 = a[0];
+		a[1] = a[1] + 1;
+		TestJs.call(a[1],d1);
+	')
+	#else
 	@:js('
 		var a = TestJs.getArray();
 		var d1 = a[0] += 1;
 		TestJs.call(a[1] += 1,d1);
 	')
+	#end
 	static function testInlineRebuilding5() {
 		var a = getArray();
 		inlineCall(a[0] += 1, a[1] += 1);
@@ -543,21 +587,46 @@ class TestJs {
 		inlineCall(inlineCall(call(1, 2), stringField), inlineCall(stringField, call(5, 6)));
 	}
 
+	#if analyzer_no_op_reconstruction
+	@:js('
+		var i = TestJs.getInt();
+		var a = TestJs.getArray();
+		var tmp = i;
+		i = i + 1;
+		var tmp1 = i;
+		i = i + 1;
+		a[tmp] = tmp1;
+	')
+	#else
 	@:js('
 		var i = TestJs.getInt();
 		var a = TestJs.getArray();
 		a[i++] = i++;
 	')
+	#end
 	static function testAssignmentSideEffect() {
 		var i = getInt();
 		var a = getArray();
 		a[i++] = i++;
 	}
 
+	#if analyzer_no_op_reconstruction
+	@:js('
+		var i = 5;
+		while(true) {
+			i = i - 1;
+			if(!(i >= 0)) {
+				break;
+			}
+			TestJs["use"](i);
+		}
+	')
+	#else
 	@:js('
 		var i = 5;
 		while(--i >= 0) TestJs["use"](i);
 	')
+	#end
 	static function testPrefixRebuilding() {
 		var i:Int = 5;
 		while (--i >= 0) use(i);

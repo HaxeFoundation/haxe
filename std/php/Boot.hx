@@ -798,7 +798,8 @@ class _hx_type {
 
 	public function __set($n, $v) {
 		if(($r = $this->__rfl__())==null) return null;
-		return $r->setStaticPropertyValue($n, $v);
+		$cls = $this->__tname__;
+		$cls::${$n} = $v;
 	}
 
 	public function __isset($n) {

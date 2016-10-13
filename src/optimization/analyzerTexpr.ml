@@ -204,9 +204,6 @@ let dynarray_mapi f d =
 
 	The following expressions are removed from the AST after `apply` has run:
 	- OpBoolAnd and OpBoolOr binary operations are rewritten to TIf
-	- OpAssignOp on a variable is rewritten to OpAssign
-	- Prefix increment/decrement operations are rewritten to OpAssign
-	- Postfix increment/decrement operations are rewritten to a TBlock with OpAssign and OpAdd/OpSub
 	- `do {} while(true)` is rewritten to `while(true) {}`
 	- TWhile expressions are rewritten to `while (true)` with appropriate conditional TBreak
 	- TFor is rewritten to TWhile
@@ -222,21 +219,6 @@ module TexprFilter = struct
 				e1,mk (TConst (TBool(false))) com.basic.tbool e.epos
 			in
 			loop (mk (TIf(e_if,e_then,Some e_else)) e.etype e.epos)
-		| TBinop(OpAssignOp op,({eexpr = TLocal _} as e1),e2) ->
-			let e = {e with eexpr = TBinop(op,e1,e2)} in
-			loop {e with eexpr = TBinop(OpAssign,e1,e)}
-		| TUnop((Increment | Decrement as op),flag,({eexpr = TLocal _} as e1)) ->
-			let e_one = mk (TConst (TInt (Int32.of_int 1))) com.basic.tint e1.epos in
-			let e = {e with eexpr = TBinop(OpAssignOp (if op = Increment then OpAdd else OpSub),e1,e_one)} in
-			let e = if flag = Prefix then
-				e
-			else
-				mk (TBlock [
-					{e with eexpr = TBinop(OpAssignOp (if op = Increment then OpAdd else OpSub),e1,e_one)};
-					{e with eexpr = TBinop((if op = Increment then OpSub else OpAdd),e1,e_one)};
-				]) e.etype e.epos
-			in
-			loop e
 		| TWhile(e1,e2,DoWhile) when is_true_expr e1 ->
 			loop {e with eexpr = TWhile(e1,e2,NormalWhile)}
 		| TWhile(e1,e2,flag) when not (is_true_expr e1) ->
@@ -497,6 +479,13 @@ class fusion_state = object(self)
 			| TBinop(OpAssign,{eexpr = TLocal v},e2) ->
 				self#inc_writes v;
 				loop e2
+			|  TBinop(OpAssignOp _,{eexpr = TLocal v},e2) ->
+				self#inc_writes v;
+				self#inc_reads v;
+				loop e2
+			| TUnop((Increment | Decrement),_,{eexpr = TLocal v}) ->
+				self#inc_writes v;
+				self#inc_reads v;
 			| _ ->
 				Type.iter loop e
 		in
@@ -614,6 +603,11 @@ module Fusion = struct
 			end;
 			b
 		in
+		let is_this e = match e.eexpr with
+			| TConst (TThis | TSuper) -> true
+			(*| TTypeExpr _ -> true*)
+			| _ -> false
+		in
 		let rec fuse acc el = match el with
 			| ({eexpr = TVar(v1,None)} as e1) :: {eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)} :: el when v1 == v2 ->
 				state#changed;
@@ -637,6 +631,16 @@ module Fusion = struct
 				end
 			| {eexpr = TVar(v1,Some e1)} :: el when config.optimize && config.local_dce && state#get_reads v1 = 0 && state#get_writes v1 = 0 ->
 				fuse acc (e1 :: el)
+			| ({eexpr = TVar(v1,Some e1)}) :: el when not v1.v_capture && is_this e1 && state#get_writes v1 = 0 ->
+				let rec replace e = match e.eexpr with
+					| TLocal v2 when v1 == v2 ->
+						state#changed;
+						if type_change_ok com v1.v_type e1.etype then e1 else mk (TCast(e1,None)) v1.v_type e.epos;
+					| _ ->
+						Type.map_expr replace e
+				in
+				let el = List.map replace el in
+				fuse acc el
 			| ({eexpr = TVar(v1,Some e1)} as ev) :: el when can_be_fused v1 e1 ->
 				let found = ref false in
 				let blocked = ref false in
@@ -821,7 +825,7 @@ module Fusion = struct
 					if config.fusion_debug then print_endline (Printf.sprintf "NO: %s" (Printexc.get_backtrace()));
 					fuse (ev :: acc) el
 				end
-			| {eexpr = TUnop((Increment | Decrement as op,Prefix,({eexpr = TLocal v} as ev)))} as e1 :: e2 :: el ->
+			(*| {eexpr = TUnop((Increment | Decrement as op,Prefix,({eexpr = TLocal v} as ev)))} as e1 :: e2 :: el ->
 				begin try
 					let e2,f = match e2.eexpr with
 						| TReturn (Some e2) -> e2,(fun e -> {e2 with eexpr = TReturn (Some e)})
@@ -863,7 +867,7 @@ module Fusion = struct
 				fuse acc ({e with eexpr = TBinop(OpAssignOp op,e1,e3)} :: el)
 			| {eexpr = TBinop(OpAssignOp _,e1,_)} as eop :: ({eexpr = TVar(v,Some e2)} as evar) :: el when Texpr.equal e1 e2 ->
 				state#changed;
-				fuse ({evar with eexpr = TVar(v,Some eop)} :: acc) el
+				fuse ({evar with eexpr = TVar(v,Some eop)} :: acc) el*)
 			| e1 :: el ->
 				fuse (e1 :: acc) el
 			| [] ->

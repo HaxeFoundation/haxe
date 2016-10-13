@@ -91,11 +91,12 @@ let rec func ctx bb tf t p =
 	let no_void t p =
 		if ExtType.is_void (follow t) then Error.error "Cannot use Void as value" p
 	in
+	let e_one p =
+		mk (TConst (TInt (Int32.of_int 1))) ctx.com.basic.tint p
+	in
 	let rec value' bb e = match e.eexpr with
 		| TLocal v ->
 			bb,e
-		| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
-			block_element bb e,e1
 		| TBlock [e1] ->
 			value bb e1
 		| TBlock _ | TIf _ | TSwitch _ | TTry _ ->
@@ -105,14 +106,12 @@ let rec func ctx bb tf t p =
 			bb,e
 		| TCall(e1,el) ->
 			call bb e e1 el
-		| TBinop(OpAssignOp op,({eexpr = TArray(e1,e2)} as ea),e3) ->
-			array_assign_op bb op e ea e1 e2 e3
-		| TBinop(OpAssignOp op,({eexpr = TField(e1,fa)} as ef),e2) ->
-			field_assign_op bb op e ef e1 fa e2
-		| TBinop((OpAssign | OpAssignOp _) as op,e1,e2) ->
-			let bb,e1 = value bb e1 in
-			let bb,e2 = value bb e2 in
-			bb,{e with eexpr = TBinop(op,e1,e2)}
+		| TBinop(OpAssignOp op,e1,e2) ->
+			assign_op bb op e e1 e2 false
+		| TUnop((Increment | Decrement) as op,flag,e1) ->
+			assign_op bb (if op = Increment then OpAdd else OpSub) e e1 (e_one e1.epos) (flag = Postfix)
+        | TBinop(OpAssign,e1,e2) ->
+			assign bb e e1 e2
 		| TBinop(op,e1,e2) ->
 			let bb,e1,e2 = match ordered_value_list bb [e1;e2] with
 				| bb,[e1;e2] -> bb,e1,e2
@@ -294,23 +293,57 @@ let rec func ctx bb tf t p =
 			match el with
 				| e1 :: el -> bb,{e with eexpr = TCall(e1,el)}
 				| _ -> assert false
-	and array_assign_op bb op e ea e1 e2 e3 =
-		let bb,e1 = bind_to_temp bb false e1 in
-		let bb,e2 = bind_to_temp bb false e2 in
-		let ea = {ea with eexpr = TArray(e1,e2)} in
-		let bb,e4 = bind_to_temp bb false ea in
-		let bb,e3 = bind_to_temp bb false e3 in
-		let eop = {e with eexpr = TBinop(op,e4,e3)} in
-		add_texpr bb {e with eexpr = TBinop(OpAssign,ea,eop)};
-		bb,ea
-	and field_assign_op bb op e ef e1 fa e2 =
-		let bb,e1 = bind_to_temp bb false e1 in
-		let ef = {ef with eexpr = TField(e1,fa)} in
-		let bb,e3 = bind_to_temp bb false ef in
-		let bb,e2 = bind_to_temp bb false e2 in
-		let eop = {e with eexpr = TBinop(op,e3,e2)} in
-		add_texpr bb {e with eexpr = TBinop(OpAssign,ef,eop)};
-		bb,ef
+	and assign_op bb op e e1 e2 postfix =
+		let rhs e1 e2 = {e with eexpr = TBinop(op,e1,e2)} in
+		match e1.eexpr with
+		| TLocal _ ->
+			let bb,ev = if postfix then bind_to_temp bb false e1 else bb,e1 in
+			let bb,e2 = value bb e2 in
+			let e_op = rhs e1 e2 in
+			add_texpr bb {e with eexpr = TBinop(OpAssign,e1,e_op)};
+			bb,ev
+		| TField(e3,fa) ->
+			let bb,e3 = bind_to_temp bb false e3 in
+			let ef = {e1 with eexpr = TField(e3,fa)} in
+			let bb,ef' = bind_to_temp bb false ef in
+			let bb,e2 = bind_to_temp bb false e2 in
+			let eop = rhs ef' e2 in
+			add_texpr bb {e with eexpr = TBinop(OpAssign,ef,eop)};
+			bb,(if postfix then ef' else ef)
+		| TArray(e3,e4) ->
+			let bb,e3 = bind_to_temp bb false e3 in
+			let bb,e4 = bind_to_temp bb false e4 in
+			let ea = {e1 with eexpr = TArray(e3,e4)} in
+			let bb,ea' = bind_to_temp bb false ea in
+			let bb,e2 = bind_to_temp bb false e2 in
+			let eop = rhs ea' e2 in
+			add_texpr bb {e with eexpr = TBinop(OpAssign,ea,eop)};
+			bb,(if postfix then ea' else ea)
+		| _ ->
+			assert false
+	and assign bb e e1 e2 =
+		match e1.eexpr with
+		| TLocal _ ->
+			let bb,e2 = value bb e2 in
+			add_texpr bb {e with eexpr = TBinop(OpAssign,e1,e2)};
+			bb,e1
+		| TField(e3,fa) ->
+			let bb,e3 = bind_to_temp bb false e3 in
+			let bb,e2 = value bb e2 in
+			let ef = {e1 with eexpr = TField(e3,fa)} in
+			add_texpr bb {e with eexpr = TBinop(OpAssign,ef,e2)};
+			bb,ef
+		| TArray(e3,e4) ->
+			let bb,e3 = bind_to_temp bb false e3 in
+			let bb,e4 = bind_to_temp bb false e4 in
+			let bb,e2 = value bb e2 in
+			let ea = {e1 with eexpr = TArray(e3,e4)} in
+			add_texpr bb {e with eexpr = TBinop(OpAssign,ea,e2)};
+			bb,ea
+		| _ ->
+			(* this is probably some shit like `Int = ...` in the neko std lib. Just add it and forget about it. *)
+			add_texpr bb e;
+			bb,e1
 	and block_element bb e = match e.eexpr with
 		(* variables *)
 		| TVar(v,None) ->
@@ -318,17 +351,6 @@ let rec func ctx bb tf t p =
 			bb
 		| TVar(v,Some e1) ->
 			declare_var_and_assign bb v e1 e.epos
-		| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
-			let assign e =
-				mk (TBinop(OpAssign,e1,e)) e.etype e.epos
-			in
-			begin try
-				block_element_value bb e2 assign
-			with Exit ->
-				let bb,e2 = value bb e2 in
-				add_texpr bb {e with eexpr = TBinop(OpAssign,e1,e2)};
-				bb
-			end
 		(* branching *)
 		| TMeta((Meta.MergeBlock,_,_),{eexpr = TBlock el}) ->
 			block_el bb el
@@ -546,32 +568,17 @@ let rec func ctx bb tf t p =
 			let b,e1 = value bb e1 in
 			add_texpr bb {e with eexpr = TCast(e1,Some mt)};
 			bb
-		| TBinop(OpAssignOp op,({eexpr = TArray(e1,e2)} as ea),e3) ->
-			let bb,_ = array_assign_op bb op e ea e1 e2 e3 in
-			bb
-		| TBinop(OpAssignOp op,({eexpr = TField(e1,fa)} as ef),e2) ->
-			let bb,_ = field_assign_op bb op e ef e1 fa e2 in
-			bb
-		| TBinop(OpAssign,({eexpr = TArray(e1,e2)} as ea),e3) ->
-			let bb,e1,e2,e3 = match ordered_value_list bb [e1;e2;e3] with
-				| bb,[e1;e2;e3] -> bb,e1,e2,e3
-				| _ -> assert false
-			in
-			add_texpr bb {e with eexpr = TBinop(OpAssign,{ea with eexpr = TArray(e1,e2)},e3)};
-			bb
-		| TBinop((OpAssign | OpAssignOp _ as op),e1,e2) ->
-			let bb,e1 = value bb e1 in
-			let bb,e2 = value bb e2 in
-			add_texpr bb {e with eexpr = TBinop(op,e1,e2)};
-			bb
-		| TUnop((Increment | Decrement as op),flag,e1) ->
-			let bb,e1 = value bb e1 in
-			add_texpr bb {e with eexpr = TUnop(op,flag,e1)};
-			bb
+		(* assignments *)
+		| TBinop(OpAssignOp op,e1,e2) ->
+			fst (assign_op bb op e e1 e2 false)
+		| TUnop((Increment | Decrement) as op,flag,e1) ->
+			fst (assign_op bb (if op = Increment then OpAdd else OpSub) e e1 (e_one e1.epos) (flag = Postfix))
+		| TBinop(OpAssign,e1,e2) ->
+			fst (assign bb e e1 e2)
+		(* no-side-effect *)
 		| TLocal _ when not ctx.config.AnalyzerConfig.local_dce ->
 			add_texpr bb e;
 			bb
-		(* no-side-effect *)
 		| TEnumParameter _ | TFunction _ | TConst _ | TTypeExpr _ | TLocal _ ->
 			bb
 		(* no-side-effect composites *)
@@ -689,7 +696,7 @@ and func ctx i =
 			let eo = Option.map loop eo in
 			let v' = get_var_origin ctx.graph v in
 			{e with eexpr = TVar(v',eo)}
-		| TBinop(OpAssign,e1,({eexpr = TBinop(op,e2,e3)} as e4)) when target_handles_assign_ops ctx.com ->
+		(*| TBinop(OpAssign,e1,({eexpr = TBinop(op,e2,e3)} as e4)) when target_handles_assign_ops ctx.com ->
 			let e1 = loop e1 in
 			let e2 = loop e2 in
 			let e3 = loop e3 in
@@ -710,7 +717,7 @@ and func ctx i =
 					end
 				| _ ->
 					{e with eexpr = TBinop(OpAssign,e1,{e4 with eexpr = TBinop(op,e2,e3)})}
-			end
+			end*)
 		| TCall({eexpr = TConst (TString "fun")},[{eexpr = TConst (TInt i32)}]) ->
 			func ctx (Int32.to_int i32)
 		| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
