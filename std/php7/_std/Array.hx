@@ -23,9 +23,9 @@ import php7.NativeIndexedArray;
 
 using php7.Global;
 
-// @:coreApi
+@:coreApi
 @:final
-class Array<T> implements php7.ArrayAccess<Int,T> {
+class Array<T> implements ArrayAccess<Int,T> {
 	public var length(default, null):Int;
 	var arr:NativeIndexedArray<T>;
 
@@ -70,7 +70,7 @@ class Array<T> implements php7.ArrayAccess<Int,T> {
 		Global.array_splice(arr, pos, 0, x);
 	}
 
-	public inline function iterator() : ArrayIterator<T> {
+	public inline function iterator() : Iterator<T> {
 		return new ArrayIterator(this);
 	}
 
@@ -154,17 +154,17 @@ class Array<T> implements php7.ArrayAccess<Int,T> {
 	}
 
 	@:noCompletion
-	public function offsetExists( offset:Int ) : Bool {
+	function offsetExists( offset:Int ) : Bool {
 		return offset < length;
 	}
 
 	@:noCompletion
-	public function offsetGet( offset:Int ) : T {
+	function offsetGet( offset:Int ) : T {
 		return arr[offset];
 	}
 
 	@:noCompletion
-	public function offsetSet( offset:Int, value:T ) : Void {
+	function offsetSet( offset:Int, value:T ) : Void {
 		if (length <= offset) {
 			arr = Global.array_merge(arr, Global.array_fill(0, offset + 1 - length, null));
 		}
@@ -172,7 +172,7 @@ class Array<T> implements php7.ArrayAccess<Int,T> {
 	}
 
 	@:noCompletion
-	public function offsetUnset( offset:Int ) : Void {
+	function offsetUnset( offset:Int ) : Void {
 		if (offset >= 0 && offset < length ) {
 			Global.array_splice(arr, offset, 1);
 			length--;
@@ -204,4 +204,16 @@ private class ArrayIterator<T> {
 	public inline function next():T {
 		return arr[idx++];
 	}
+}
+
+
+/**
+	This one is required for `Array`
+**/
+@:native('ArrayAccess')
+private extern interface ArrayAccess<K,V> {
+	private function offsetExists( offset:K ) : Bool;
+	private function offsetGet( offset:K ) : V;
+	private function offsetSet( offset:K, value:V ) : Void;
+	private function offsetUnset( offset:K ) : Void;
 }
