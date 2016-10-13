@@ -407,18 +407,20 @@ import java.NativeArray;
 		return new ArrayIterator<T>(this);
 	}
 
-	public function map<S>( f : T -> S ) : Array<S> {
-		var ret = [];
-		for (elt in this)
-			ret.push(f(elt));
+	public inline function map<S>( f : T -> S ) : Array<S> {
+		var ret = alloc(length);
+		for (i in 0...length)
+			ret.__set(i, f(__get(i)));
 		return ret;
 	}
 
-	public function filter( f : T -> Bool ) : Array<T> {
+	public inline function filter( f : T -> Bool ) : Array<T> {
 		var ret = [];
-		for (elt in this)
+		for (i in 0...length) {
+			var elt = __get(i);
 			if (f(elt))
 				ret.push(elt);
+		}
 		return ret;
 	}
 
