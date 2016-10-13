@@ -2578,6 +2578,14 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                |  CppFunction( FuncStatic(obj, false, member), _ ) when member.cf_name = "hx::AddressOf" ->
                     let arg = retype TCppUnchanged (List.hd args) in
                     CppAddressOf(arg), TCppRawPointer("", arg.cpptype)
+               |  CppFunction( FuncStatic(obj, false, member), _ ) when member.cf_name = "_hx_create_array_length" ->
+                    (* gc_stack - not needed yet *)
+                    (match return_type with
+                    | TCppObjectArray _
+                    | TCppScalarArray _ -> CppCall( FuncNew(return_type), retypedArgs), return_type
+                    | _ -> CppCall( FuncNew(TCppDynamicArray), retypedArgs), return_type
+                    )
+
                |  CppFunction( FuncStatic(obj, false, member), returnType ) when cpp_is_templated_call ctx member ->
                      (match retypedArgs with
                      | {cppexpr = CppClassOf(path,native) }::rest ->

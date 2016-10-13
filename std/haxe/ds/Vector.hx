@@ -69,8 +69,7 @@ abstract Vector<T>(VectorData<T>) {
 		#elseif java
 			this = new java.NativeArray(length);
 		#elseif cpp
-			this = new Array<T>();
-			this.setSize(length);
+			this = NativeArray.create(length);
 		#elseif python
 			this = python.Syntax.pythonCode("[{0}]*{1}", null, length);
 		#elseif lua
