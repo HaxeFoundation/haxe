@@ -64,7 +64,11 @@ extern class Array<T> {
 		return (cast this).slice();
 	}
 
-	function map<S>(f:T->S):Array<S>;
+	@:runtime inline function map<S>(f:T->S):Array<S> {
+		var a:Array<S> = untyped __new__(Array, length);
+		for (i in 0...length) a[i] = f(this[i]);
+		return a;
+	}
 	function filter(f:T->Bool):Array<T>;
 
 	@:runtime inline function iterator() : Iterator<T> {
