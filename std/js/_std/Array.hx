@@ -69,7 +69,9 @@ extern class Array<T> {
 		for (i in 0...length) a[i] = f(this[i]);
 		return a;
 	}
-	function filter(f:T->Bool):Array<T>;
+	@:runtime inline function filter(f:T->Bool):Array<T> {
+		return [for (v in this) if (f(v)) v];
+	}
 
 	@:runtime inline function iterator() : Iterator<T> {
 		return @:privateAccess HxOverrides.iter(this);
