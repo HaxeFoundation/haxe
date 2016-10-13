@@ -523,12 +523,26 @@ let is_magic expr =
 	| _ -> false
 
 (**
+	Adds `return` expression to block if it does not have one already
+*)
+let ensure_return_in_block block_expr =
+	match block_expr.eexpr with
+		| TBlock [] -> fail block_expr.epos __POS__
+		| TBlock exprs ->
+			let reversed = List.rev exprs in
+			let last_expr = List.hd reversed in
+			let return_expr = { last_expr with eexpr = TReturn (Some last_expr) } in
+			let reversed = return_expr::(List.tl reversed) in
+			{ block_expr with eexpr = TBlock (List.rev reversed) }
+		| _ -> fail block_expr.epos __POS__
+
+(**
 	PHP DocBlock types
 *)
 type doc_type =
 	| DocVar of string * (string option) (* (type name, description) *)
 	| DocMethod of (string * bool * t) list * t * (string option) (* (arguments, return type, description) *)
-	| DocClass of string option
+| DocClass of string option
 
 (**
 	Common interface for module_type instances
@@ -1299,8 +1313,37 @@ class virtual type_builder ctx wrapper =
 			Writes TBlock to output buffer
 		*)
 		method private write_expr_block block_expr =
-			let inline_block = self#parent_expr_is_block in
-			self#write_as_block ~inline:inline_block block_expr
+			(* Check if parent expr could not contain blocks in PHP, adn this block needs to be wrapped in a closure. *)
+			let needs_closure = match self#parent_expr with
+				| None -> false
+				| Some e ->
+					match e.eexpr with
+						| TIf (_, _, _) -> false
+						| TWhile (_, _, _) -> false
+						| TTry (_, _) -> false
+						| TFor (_, _, _) -> false
+						| TFunction _ -> false
+						| TBlock _ -> false
+						| TSwitch (_, _, _) -> false
+						| _ -> true
+			in
+			if needs_closure then
+				begin
+					self#write "(";
+					self#write_expr {
+						block_expr with eexpr = TFunction {
+							tf_args = [];
+							tf_type = block_expr.etype;
+							tf_expr = ensure_return_in_block block_expr;
+						}
+					};
+					self#write ")()"
+				end
+			else
+				begin
+					let inline_block = self#parent_expr_is_block in
+					self#write_as_block ~inline:inline_block block_expr
+				end
 		(**
 			Emulates TBlock for parent expression and writes `expr` as inlined block
 		*)
