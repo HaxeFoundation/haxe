@@ -91,6 +91,10 @@ let rec func ctx bb tf t p =
 	let no_void t p =
 		if ExtType.is_void (follow t) then Error.error "Cannot use Void as value" p
 	in
+	let push_name s =
+		ctx.name_stack <- s :: ctx.name_stack;
+		(fun () -> ctx.name_stack <- List.tl ctx.name_stack)
+	in
 	let rec value' bb e = match e.eexpr with
 		| TLocal v ->
 			bb,e
@@ -225,7 +229,14 @@ let rec func ctx bb tf t p =
 				fl,e
 		in
 		let fl,e = loop [] e in
-		let v = alloc_var ctx.temp_var_name e.etype e.epos in
+		let rec loop e = match e.eexpr with
+			| TLocal v -> v.v_name
+			| TArray(e1,_) | TField(e1,_) | TParenthesis e1 | TCast(e1,None) | TMeta(_,e1) -> loop e1
+			| _ -> match ctx.name_stack with
+				| s :: _ -> s
+				| [] -> ctx.temp_var_name
+		in
+		let v = alloc_var (loop e) e.etype e.epos in
 		begin match ctx.com.platform with
 			| Globals.Cpp when sequential && not (Common.defined ctx.com Define.Cppia) -> ()
 			| _ -> v.v_meta <- [Meta.CompilerGenerated,[],e.epos];
@@ -264,13 +275,16 @@ let rec func ctx bb tf t p =
 			end;
 			mk (TBinop(OpAssign,ev,e)) ev.etype ev.epos
 		in
-		begin try
+		let close = push_name v.v_name in
+		let bb = try
 			block_element_plus bb (map_values assign e) (fun e -> mk (TVar(v,Some e)) ctx.com.basic.tvoid ev.epos)
 		with Exit ->
 			let bb,e = value bb e in
 			add_texpr bb (mk (TVar(v,Some e)) ctx.com.basic.tvoid ev.epos);
 			bb
-		end
+		in
+		close();
+		bb
 	and block_element_plus bb (e,efinal) f =
 		let bb = block_element bb e in
 		let bb = match efinal with
@@ -322,13 +336,16 @@ let rec func ctx bb tf t p =
 			let assign e =
 				mk (TBinop(OpAssign,e1,e)) e.etype e.epos
 			in
-			begin try
+			let close = push_name v.v_name in
+			let bb = try
 				block_element_value bb e2 assign
 			with Exit ->
 				let bb,e2 = value bb e2 in
 				add_texpr bb {e with eexpr = TBinop(OpAssign,e1,e2)};
 				bb
-			end
+			in
+			close();
+			bb
 		(* branching *)
 		| TMeta((Meta.MergeBlock,_,_),{eexpr = TBlock el}) ->
 			block_el bb el

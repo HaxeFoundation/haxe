@@ -259,7 +259,7 @@ module TexprFilter = struct
 			let e = mk (TWhile(Codegen.mk_parent e_true,e_block,NormalWhile)) e.etype p in
 			loop e
 		| TFor(v,e1,e2) ->
-			let v' = alloc_var "tmp" e1.etype e1.epos in
+			let v' = alloc_var v.v_name e1.etype e1.epos in
 			let ev' = mk (TLocal v') e1.etype e1.epos in
 			let t1 = (Abstract.follow_with_abstracts e1.etype) in
 			let ehasnext = mk (TField(ev',quick_field t1 "hasNext")) (tfun [] com.basic.tbool) e1.epos in

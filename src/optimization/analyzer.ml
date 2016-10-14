@@ -1122,6 +1122,7 @@ module Run = struct
 			loop_counter = 0;
 			loop_stack = [];
 			debug_exprs = [];
+			name_stack = [];
 		} in
 		ctx
 
