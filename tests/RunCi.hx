@@ -186,6 +186,7 @@ class RunCi {
 				File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
 				runCommand(Sys.getEnv("HOME") + "/flashplayerdebugger", ["-v"]);
 			case "Mac":
+				runCommand("brew", ["tap", "caskroom/versions"]);
 				runCommand("brew", ["cask", "install", "flash-player-debugger"]);
 				var dir = Path.directory(mmcfgPath);
 				runCommand("sudo", ["mkdir", "-p", dir]);
