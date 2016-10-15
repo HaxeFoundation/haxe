@@ -2154,7 +2154,10 @@ class virtual type_builder ctx wrapper =
 			Write TEnumParameter expression to output buffer
 		*)
 		method private write_expr_enum_parameter expr constructor index =
-			self#write_expr expr;
+			(match expr.eexpr with
+				| TConst TNull -> self#write "(null)"
+				| _ -> self#write_expr expr
+			);
 			self#write ("->params[" ^ (string_of_int index) ^ "]")
 		(**
 			Writes argument for function declarations or calls
