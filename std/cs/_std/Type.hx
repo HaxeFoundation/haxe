@@ -52,8 +52,10 @@ enum ValueType {
 
 	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped
 	{
-		if (Std.is(o, cs.system.Enum) || Std.is(o,HxEnum))
+		if (Std.is(o, cs.system.Enum))
 			return untyped o.GetType();
+		else if (Std.is(o,HxEnum))
+			return (untyped o.GetType() : cs.system.Type).BaseType; // enum constructors are subclasses of an enum type
 		return null;
 	}
 
@@ -273,8 +275,10 @@ enum ValueType {
 		}
 
 		t = v.GetType();
-		if (t.IsEnum || Std.is(v, HxEnum))
+		if (t.IsEnum)
 			return ValueType.TEnum(cast t);
+		if (Std.is(v, HxEnum))
+			return ValueType.TEnum(cast t.BaseType); // enum constructors are subclasses of an enum type
 		if (t.IsValueType) {
 			var vc:cs.system.IConvertible = cast v;
 			if (vc != null) {
@@ -309,6 +313,7 @@ enum ValueType {
 		}
 	}
 
+	@:ifFeature("has_enum")
 	public static function enumEq<T>( a : T, b : T ) : Bool
 	{
 		if (a == null)

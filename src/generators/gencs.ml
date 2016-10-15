@@ -743,16 +743,24 @@ let configure gen =
 		List.rev ns,params
 	in
 
-	let change_ns_params md params ns = if no_root then match ns with
-			| [] when is_hxgen md -> ["haxe";"root"], params
-			| [s] when (t_infos md).mt_private && is_hxgen md -> ["haxe";"root";s], params
+	let change_ns_params md params ns = if no_root then (
+		let needs_root md = is_hxgen md || match md with
+			| TClassDecl cl when (Meta.has Meta.Enum cl.cl_meta) && (Meta.has Meta.CompilerGenerated cl.cl_meta) ->
+				(* this will match our compiler-generated enum constructor classes *)
+				true
+			| _ ->
+				false
+		in
+		match ns with
+			| [] when needs_root md -> ["haxe";"root"], params
+			| [s] when (t_infos md).mt_private && needs_root md -> ["haxe";"root";s], params
 			| [] -> (match md with
 				| TClassDecl { cl_path = ([],"Std" | [],"Math") } -> ["haxe";"root"], params
 				| TClassDecl { cl_meta = m } when Meta.has Meta.Enum m -> ["haxe";"root"], params
 				| _ -> [], params)
 			| ns when params = [] -> List.map change_id ns, params
 			| ns ->
-				change_ns_params_root md ns params
+				change_ns_params_root md ns params)
 		else if params = [] then
 			List.map change_id ns, params
 		else
@@ -2750,8 +2758,7 @@ let configure gen =
 	ClosuresToClass.configure gen closure_t;
 
 	let enum_base = (get_cl (get_type gen (["haxe";"lang"],"Enum")) ) in
-	let param_enum_base = (get_cl (get_type gen (["haxe";"lang"],"ParamEnum")) ) in
-	EnumToClass.configure gen (Some (fun e -> mk_cast gen.gcon.basic.tint e)) true true enum_base param_enum_base;
+	EnumToClass2.configure gen enum_base;
 
 	InterfaceVarsDeleteModf.configure gen;
 	InterfaceProps.configure gen;
