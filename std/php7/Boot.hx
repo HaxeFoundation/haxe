@@ -177,7 +177,8 @@ class Boot {
 					| "include_once" | "instanceof" | "insteadof" | "interface" | "isset" | "list" | "namespace" | "new" | "or"
 					| "print" | "private" | "protected" | "public" | "require" | "require_once" | "return" | "static" | "switch"
 					| "throw" | "trait" | "try" | "unset" | "use" | "var" | "while" | "xor" | "yield" | "__class__" | "__dir__"
-					| "__file__" | "__function__" | "__line__" | "__method__" | "__trait__" | "__namespace__":
+					| "__file__" | "__function__" | "__line__" | "__method__" | "__trait__" | "__namespace__" | "int" | "float"
+					| "bool" | "string" | "true" | "false" | "null" | "parent" :
 						part += '_hx';
 				case _:
 			}
