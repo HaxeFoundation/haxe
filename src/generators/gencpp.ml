@@ -4807,10 +4807,12 @@ let generate_enum_files baseCtx enum_def super_deps meta =
    gen_close_namespace output_h class_path;
 
    end_header_file output_h def_string;
-   h_file#close;
-   let depend_referenced = find_referenced_types ctx (TEnumDecl enum_def) super_deps (Hashtbl.create 0) false true false in
-   depend_referenced;;
+   h_file#close
+;;
 
+let generate_enum_deps ctx enum_def super_deps =
+   find_referenced_types ctx (TEnumDecl enum_def) super_deps (Hashtbl.create 0) false true false
+;;
 
 let list_iteri func in_list =
    let idx = ref 0 in
@@ -6121,8 +6123,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    end_header_file output_h def_string;
    h_file#close;
-   let depend_referenced = find_referenced_types ctx (TClassDecl class_def) super_deps constructor_deps false true false in
-   depend_referenced
 
   in
 
@@ -6132,7 +6132,9 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
   generate_class_header ()
 ;;
 
-
+let generate_class_deps ctx class_def super_deps constructor_deps =
+   find_referenced_types ctx (TClassDecl class_def) super_deps constructor_deps false true false
+;;
 
 
 
@@ -7230,6 +7232,7 @@ let generate_source ctx =
    let constructor_deps = create_constructor_dependencies common_ctx in
    let main_deps = ref [] in
    let extern_src = ref [] in
+   let jobs = ref [] in
    let build_xml = ref "" in
    let scriptable = (Common.defined common_ctx Define.Scriptable) in
 
@@ -7259,7 +7262,8 @@ let generate_source ctx =
                boot_classes := class_def.cl_path ::  !boot_classes
             else if not (has_meta_key class_def.cl_meta Meta.NativeGen) then
                nonboot_classes := class_def.cl_path ::  !nonboot_classes;
-            let deps = generate_class_files ctx super_deps constructor_deps class_def scriptable in
+            jobs := (fun () -> generate_class_files ctx super_deps constructor_deps class_def scriptable ) :: !jobs;
+            let deps = generate_class_deps ctx class_def super_deps constructor_deps in
             if not (class_def.cl_interface && (is_native_gen_class class_def)) then
                exe_classes := (class_def.cl_path, deps, object_def)  ::  !exe_classes;
          end
@@ -7274,12 +7278,15 @@ let generate_source ctx =
             if (enum_def.e_extern) then
                (if (debug>1) then print_endline ("external enum " ^ name ));
             boot_enums := enum_def.e_path :: !boot_enums;
-            let deps = generate_enum_files ctx enum_def super_deps meta in
+            jobs := (fun () -> generate_enum_files ctx enum_def super_deps meta ) :: !jobs;
+            let deps = generate_enum_deps ctx enum_def super_deps in
             exe_classes := (enum_def.e_path, deps, object_def) :: !exe_classes;
          end
       | TTypeDecl _ | TAbstractDecl _ -> (* already done *) ()
       );
    ) common_ctx.types;
+
+   List.iter (fun job -> job () ) !jobs;
 
 
    (match common_ctx.main with
