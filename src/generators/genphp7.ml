@@ -1782,7 +1782,9 @@ class virtual type_builder ctx wrapper =
 					)
 				| (_, FStatic (_, ({ cf_name = name; cf_kind = Method _ } as field))) -> self#write_expr_field_static expr field
 				| (_, FAnon { cf_name = name }) -> write_access "->" name
-				| (_, FDynamic field_name) -> self#write_expr_field_dynamic expr field_name
+				| (_, FDynamic field_name) ->
+					let written_as_probable_string = self#write_expr_field_if_string expr field_name in
+					if not written_as_probable_string then write_access "->" field_name
 				| (_, FClosure (tcls, field)) -> self#write_expr_field_closure tcls field expr
 				| (_, FEnum (_, field)) ->
 					write_access "::" field.ef_name;
@@ -1790,7 +1792,7 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes field access on Dynamic expression to output buffer
 		*)
-		method private write_expr_field_dynamic expr field_name =
+		method private write_expr_field_if_string expr field_name =
 			(* Special case for String fields *)
 			match field_name with
 				| "length"
@@ -1806,10 +1808,10 @@ class virtual type_builder ctx wrapper =
 				| "charCodeAt" ->
 					self#write ((self#use hxdynamicstr_type_path) ^ "::wrap(");
 					self#write_expr expr;
-					self#write (")->" ^ field_name)
+					self#write (")->" ^ field_name);
+					true
 				| _ ->
-					self#write_expr expr;
-					self#write ("->" ^ field_name)
+					false
 		(**
 			Convert field access expressions for strings to native PHP string functions and write to output buffer
 		*)
