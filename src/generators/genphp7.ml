@@ -236,6 +236,24 @@ let get_void ctx : Type.t =
 				| None -> fail dummy_pos __POS__
 
 (**
+	@return `tclass` instance for `php7.Boot`
+*)
+let boot = ref None
+let get_boot ctx : tclass =
+	match !boot with
+		| Some value -> value
+		| None ->
+			let find com_type =
+				match com_type with
+					| TClassDecl ({ cl_path = path } as cls) when path = boot_type_path -> boot := Some cls;
+					| _ -> ()
+			in
+			List.iter find ctx.types;
+			match !boot with
+				| Some value -> value
+				| None -> fail dummy_pos __POS__
+
+(**
 	@return `expr` wrapped in parenthesis
 *)
 let parenthesis expr = {eexpr = TParenthesis expr; etype = expr.etype; epos = expr.epos}
@@ -259,6 +277,24 @@ let need_parenthesis_for_binop current parent =
 			| (OpDiv, OpAdd) -> false
 			| (OpDiv, OpSub) -> false
 			| _ -> true
+
+(**
+	Check if specified expression may require dereferencing if used as "temporary expression"
+*)
+let needs_dereferencing expr =
+	let rec is_create target_expr =
+		match target_expr.eexpr with
+			| TParenthesis e -> is_create e
+			| TCast (e, _) -> is_create e
+			| TNew _ -> true
+			| TArrayDecl _ -> true
+			| TObjectDecl _ -> true
+			| _ -> false
+	in
+	match expr.eexpr with
+		| TField (target_expr, _) -> is_create target_expr
+		| TArray (target_expr, _) -> is_create target_expr
+		| _ -> false
 
 (**
 	@return (arguments_list, return_type)
@@ -1003,6 +1039,56 @@ class virtual type_builder ctx wrapper =
 				| { epos = pos } :: _ -> pos
 				| _ -> dummy_pos
 		(**
+			Add a function call to "dereference" part of expression to avoid "Cannot use temporary expression in write context"
+			erro in expressions like:
+			```
+			new MyClass().fieldName = 'value';
+			```
+		*)
+		method private dereference expr =
+			let boot_cls = get_boot ctx in
+			let deref_field = PMap.find "deref" boot_cls.cl_statics in
+			match expr.eexpr with
+				| TField (target_expr, access) ->
+					{
+						expr with eexpr = TField (
+							{
+								target_expr with eexpr = TCall (
+									{
+										target_expr with eexpr = TField (
+											{
+												target_expr with eexpr = TTypeExpr (TClassDecl boot_cls)
+											},
+											FStatic (boot_cls, deref_field)
+										)
+									},
+									[ target_expr ]
+								)
+							},
+							access
+						)
+					}
+				| TArray (target_expr, access_expr) ->
+					{
+						expr with eexpr = TArray (
+							{
+								target_expr with eexpr = TCall (
+									{
+										target_expr with eexpr = TField (
+											{
+												target_expr with eexpr = TTypeExpr (TClassDecl boot_cls)
+											},
+											FStatic (boot_cls, deref_field)
+										)
+									},
+									[ target_expr ]
+								)
+							},
+							access_expr
+						)
+					}
+				| _ -> fail self#pos __POS__
+		(**
 			Writes specified string to output buffer
 		*)
 		method private write str =
@@ -1133,6 +1219,8 @@ class virtual type_builder ctx wrapper =
 					vars#used var.v_name;
 					self#write ("$" ^ var.v_name)
 				| TArray (target, index) -> self#write_expr_array_access target index
+				| TBinop (operation, expr1, expr2) when needs_dereferencing expr1 ->
+					self#write_expr { expr with eexpr = TBinop (operation, self#dereference expr1, expr2) }
 				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2
 				| TField (fexpr, access) when is_php_global expr -> self#write_expr_php_global expr
 				| TField (fexpr, access) when is_php_class_const expr -> self#write_expr_php_class_const expr
@@ -1151,6 +1239,8 @@ class virtual type_builder ctx wrapper =
 				| TCall (target, args) -> self#write_expr_call target args
 				| TNew (_, _, args) when is_string expr -> write_args buffer self#write_expr args
 				| TNew (tcls, _, args) -> self#write_expr_new tcls args
+				| TUnop (operation, flag, target_expr) when needs_dereferencing target_expr ->
+					self#write_expr { expr with eexpr = TUnop (operation, flag, self#dereference target_expr) }
 				| TUnop (operation, flag, expr) -> self#write_expr_unop operation flag expr
 				| TFunction fn -> self#write_expr_function fn
 				| TVar (var, expr) -> self#write_expr_var var expr
@@ -1807,14 +1897,14 @@ class virtual type_builder ctx wrapper =
 				| "arrayDecl" -> self#write_expr_lang_array_decl args
 				| _ -> fail self#pos __POS__
 		(**
-			Writes native array declaration (for `php7.PHP.arrayDecl()`)
+			Writes native array declaration (for `php7.Syntax.arrayDecl()`)
 		*)
 		method private write_expr_lang_array_decl args =
 			self#write "[";
 			write_args buffer (fun e -> self#write_expr e) args;
 			self#write "]"
 		(**
-			Writes field access for reading (for `php7.PHP.getField()`)
+			Writes field access for reading (for `php7.Syntax.getField()`)
 		*)
 		method private write_expr_lang_get_field args =
 			match args with
@@ -1824,7 +1914,7 @@ class virtual type_builder ctx wrapper =
 					self#write_expr field_expr
 				| _ -> fail self#pos __POS__
 		(**
-			Writes field access for writing (for `php7.PHP.setField()`)
+			Writes field access for writing (for `php7.Syntax.setField()`)
 		*)
 		method private write_expr_lang_set_field args =
 			match args with
@@ -1836,7 +1926,7 @@ class virtual type_builder ctx wrapper =
 					self#write_expr value_expr
 				| _ -> fail self#pos __POS__
 		(**
-			Writes `new` expression with class name taken local variable (for `php7.PHP.construct()`)
+			Writes `new` expression with class name taken local variable (for `php7.Syntax.construct()`)
 		*)
 		method private write_expr_lang_construct args =
 			let (class_expr, args) = match args with
@@ -1849,7 +1939,7 @@ class virtual type_builder ctx wrapper =
 			write_args buffer (fun e -> self#write_expr e) args;
 			self#write ")"
 		(**
-			Writes native php type conversion to output buffer (e.g. `php7.PHP.int()`)
+			Writes native php type conversion to output buffer (e.g. `php7.Syntax.int()`)
 		*)
 		method private write_expr_lang_cast type_name args =
 			match args with
@@ -1865,7 +1955,7 @@ class virtual type_builder ctx wrapper =
 					if add_parentheses then self#write ")"
 				| _ -> fail self#pos __POS__
 		(**
-			Generates non-strict equality to output buffer (for `php7.PHP.equal()`)
+			Generates non-strict equality to output buffer (for `php7.Syntax.equal()`)
 		*)
 		method private write_expr_lang_equal args =
 			match args with
@@ -1877,7 +1967,7 @@ class virtual type_builder ctx wrapper =
 					self#write ")"
 				| _ -> fail self#pos __POS__
 		(**
-			Writes `instanceof` expression to output buffer (for `php7.PHP.instanceof()`)
+			Writes `instanceof` expression to output buffer (for `php7.Syntax.instanceof()`)
 		*)
 		method private write_expr_lang_instanceof args =
 			match args with
@@ -1906,7 +1996,7 @@ class virtual type_builder ctx wrapper =
 					)
 				| _ -> fail self#pos __POS__
 		(**
-			Writes `foreach` expression to output buffer (for `php7.PHP.foreach()`)
+			Writes `foreach` expression to output buffer (for `php7.Syntax.foreach()`)
 		*)
 		method private write_expr_lang_foreach args =
 			match args with

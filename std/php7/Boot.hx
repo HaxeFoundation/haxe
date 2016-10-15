@@ -385,6 +385,16 @@ class Boot {
 			return (left >> right) & (0x7fffffff >> (right - 1));
 		}
 	}
+
+	/**
+		Helper method to avoid "Cannot use temporary expression in write context" error for expressions like this:
+		```
+		(new MyClass()).fieldName = 'value';
+		```
+	**/
+	static public function deref( value:Dynamic ) : Dynamic {
+		return value;
+	}
 }
 
 
