@@ -2024,6 +2024,7 @@ class virtual type_builder ctx wrapper =
 			Writes TCall to output buffer
 		*)
 		method private write_expr_call target_expr args =
+			let target_expr = reveal_casts target_expr in
 			(match target_expr.eexpr with
 				| TConst TSuper -> self#write "parent::__construct"
 				| TField (expr, FClosure (_,_)) -> self#write_expr (parenthesis target_expr)
