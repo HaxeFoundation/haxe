@@ -107,7 +107,7 @@ private class NodeListAccess implements Dynamic<List<Fast>> {
 }
 
 /**
-	The `haxe.xml.Fast` API helps providing a fast dot-syntax access to the 
+	The `haxe.xml.Fast` API helps providing a fast dot-syntax access to the
 	most common `Xml` methods.
 **/
 class Fast {
@@ -122,8 +122,8 @@ class Fast {
 	public var name(get,null) : String;
 
 	/**
-		The inner PCDATA or CDATA of the node. 
-		
+		The inner PCDATA or CDATA of the node.
+
 		An exception is thrown if there is no data or if there not only data
 		but also other nodes.
 	**/
@@ -135,11 +135,11 @@ class Fast {
 	public var innerHTML(get,null) : String;
 
 	/**
-		Access to the first sub element with the given name. 
-		
+		Access to the first sub element with the given name.
+
 		An exception is thrown if the element doesn't exists.
 		Use `hasNode` to check the existence of a node.
-		
+
 		```haxe
 		var fast = new haxe.xml.Fast(Xml.parse("<user><name>John</name></user>"));
 		var user = fast.node.user;
@@ -147,7 +147,7 @@ class Fast {
 		trace(name.innerData); // John
 
 		// Uncaught Error: Document is missing element password
-		var password = user.node.password; 
+		var password = user.node.password;
 		```
 	**/
 	public var node(default,null) : NodeAccess;
@@ -170,11 +170,11 @@ class Fast {
 	public var nodes(default,null) : NodeListAccess;
 
 	/**
-		Access to a given attribute. 
-		
+		Access to a given attribute.
+
 		An exception is thrown if the attribute doesn't exists.
 		Use `has` to check the existence of an attribute.
-		
+
 		```haxe
 		var f = new haxe.xml.Fast(Xml.parse("<user name='Mark'></user>"));
 		var user = f.node.user;
@@ -192,7 +192,7 @@ class Fast {
 
 	/**
 		Check the existence of a sub node with the given name.
-		
+
 		```haxe
 		var f = new haxe.xml.Fast(Xml.parse("<user><age>31</age></user>"));
 		var user = f.node.user;
@@ -228,12 +228,14 @@ class Fast {
 		if( !it.hasNext() )
 			throw name+" does not have data";
 		var v = it.next();
-		var n = it.next();
-		if( n != null ) {
+		if( it.hasNext() ) {
+			var n = it.next();
 			// handle <spaces>CDATA<spaces>
 			if( v.nodeType == Xml.PCData && n.nodeType == Xml.CData && StringTools.trim(v.nodeValue) == "" ) {
+				if( !it.hasNext() )
+					return n.nodeValue;
 				var n2 = it.next();
-				if( n2 == null || (n2.nodeType == Xml.PCData && StringTools.trim(n2.nodeValue) == "" && it.next() == null) )
+				if( n2.nodeType == Xml.PCData && StringTools.trim(n2.nodeValue) == "" && !it.hasNext() )
 					return n.nodeValue;
 			}
 			throw name+" does not only have data";

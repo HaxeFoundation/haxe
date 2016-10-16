@@ -91,6 +91,7 @@ class DisplayTestContext {
 		var stderr = proc.stderr.readAll();
 		var stdout = proc.stdout.readAll();
 		var exit = proc.exitCode();
+		proc.close();
 		var success = exit == 0;
 		var s = stderr.toString();
 		if (!success || s == "") {

@@ -22,6 +22,7 @@
 package sys.db;
 import sys.db.RecordInfos;
 
+@:deprecated("This class will be removed soon, please install the record-macros library")
 class TableCreate {
 
 	static function autoInc( dbName ) {

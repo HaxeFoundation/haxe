@@ -468,13 +468,24 @@ let write_c version file (code:code) =
 		| HF64 -> 3
 		| _ -> 4
 	in
-	Array.iter (fun (args,t) ->
+	let add_fun args t =
 		let nargs = List.length args in
 		let kargs = List.map type_kind args in
 		let kt = type_kind t in
 		let h = try Hashtbl.find funByArgs nargs with Not_found -> let h = Hashtbl.create 0 in Hashtbl.add funByArgs nargs h; h in
 		Hashtbl.replace h (kargs,kt) ()
-	) tfuns;
+	in
+	Array.iter (fun f ->
+		Array.iter (fun op ->
+			match op with
+			| OSafeCast (dst,_) | ODynGet (dst,_,_) ->
+				(match f.regs.(dst) with
+				| HFun (args, t) -> add_fun args t
+				| _ -> ())
+			| _ -> ()
+		) f.code
+	) code.functions;
+	Array.iter (fun (args,t) -> add_fun args t) tfuns;
 	let argsCounts = List.sort compare (Hashtbl.fold (fun i _ acc -> i :: acc) funByArgs []) in
 	sexpr "static int TKIND[] = {%s}" (String.concat "," (List.map (fun t -> string_of_int (type_kind_id (type_kind t))) core_types));
 	line "";
@@ -1179,7 +1190,7 @@ let write_c version file (code:code) =
 			()
 	) all_types;
 	Array.iteri (fun i t ->
-		if is_ptr t then sexpr "hl_add_root(&global$%d)" i;
+		if is_ptr t then sexpr "hl_add_root((void**)&global$%d)" i;
 	) code.globals;
 	sexpr "%s()" funnames.(code.entrypoint);
 	unblock();

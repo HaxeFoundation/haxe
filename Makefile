@@ -274,7 +274,7 @@ package_unix:
 package_bin: package_$(PLATFORM)
 
 install_dox:
-	haxelib git hxparse https://github.com/Simn/hxparse development src
+	haxelib git hxparse https://github.com/Simn/hxparse master src
 	haxelib git hxtemplo https://github.com/Simn/hxtemplo
 	haxelib git hxargs https://github.com/Simn/hxargs
 	haxelib git markdown https://github.com/dpeek/haxe-markdown master src

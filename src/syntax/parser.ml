@@ -505,7 +505,12 @@ let reify in_macro =
 			List.iter (function
 				| HExtern | HPrivate -> ()
 				| HInterface -> interf := true;
-				| HExtends t -> ext := Some (to_tpath t p)
+				| HExtends t -> ext := (match !ext with
+					| None -> Some (to_tpath t p)
+					| Some _ -> begin
+						impl := (to_tpath t p) :: !impl;
+						!ext
+					  end)
 				| HImplements i-> impl := (to_tpath i p) :: !impl
 			) d.d_flags;
 			to_obj [
@@ -681,7 +686,7 @@ and parse_type_decl s =
 and parse_class doc meta cflags need_name s =
 	let opt_name = if need_name then type_name else (fun s -> match popt type_name s with None -> "",null_pos | Some n -> n) in
 	match s with parser
-	| [< n , p1 = parse_class_flags; name = opt_name; tl = parse_constraint_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl, p2 = parse_class_fields (not need_name) p1 >] ->
+	| [< n , p1 = parse_class_flags; name = opt_name; tl = parse_constraint_params; hl = plist parse_class_herit; '(BrOpen,_); fl, p2 = parse_class_fields (not need_name) p1 >] ->
 		(EClass {
 			d_name = name;
 			d_doc = doc;
@@ -877,8 +882,9 @@ and meta_name p1 = parser
 	| [< '(Const (Ident i),p) when p.pmin = p1.pmax >] -> (Meta.Custom i), p
 	| [< '(Kwd k,p) when p.pmin = p1.pmax >] -> (Meta.Custom (s_keyword k)),p
 	| [< '(DblDot,p) when p.pmin = p1.pmax; s >] -> match s with parser
-		| [< '(Const (Ident i),p) >] -> (Meta.parse i), p
-		| [< '(Kwd k,p) >] -> (Meta.parse (s_keyword k)),p
+		| [< '(Const (Ident i),p1) when p1.pmin = p.pmax >] -> (Meta.parse i),punion p p1
+		| [< '(Kwd k,p1) when p1.pmin = p.pmax >] -> (Meta.parse (s_keyword k)),punion p p1
+		| [< >] -> if is_resuming p then Meta.Last,p else raise Stream.Failure
 
 and parse_enum_flags = parser
 	| [< '(Kwd Enum,p) >] -> [] , p
@@ -1284,10 +1290,15 @@ and parse_function p1 inl = parser
 
 and expr = parser
 	| [< (name,params,p) = parse_meta_entry; s >] ->
-		(try
+		begin try
 			make_meta name params (secure_expr s) p
-		with Display e ->
-			display (make_meta name params e p))
+		with
+		| Display e ->
+			display (make_meta name params e p)
+		| Stream.Failure | Stream.Error _ when Path.unique_full_path p.pfile = (!resume_display).pfile ->
+			let e = EConst (Ident "null"),p in
+			display (make_meta name params e p)
+		end
 	| [< '(BrOpen,p1); s >] ->
 		if is_resuming p1 then display (EDisplay ((EObjectDecl [],p1),false),p1);
 		(match s with parser
@@ -1664,7 +1675,7 @@ let parse ctx code =
 			| _ -> error Unimplemented (snd tk))
 		| Sharp "line" ->
 			let line = (match next_token() with
-				| (Const (Int s),_) -> int_of_string s
+				| (Const (Int s),p) -> (try int_of_string s with _ -> error (Custom ("Could not parse ridiculous line number " ^ s)) p)
 				| (t,p) -> error (Unexpected t) p
 			) in
 			!(Lexer.cur).Lexer.lline <- line - 1;

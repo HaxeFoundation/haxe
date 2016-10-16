@@ -19,59 +19,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package sys.db;
+package cpp;
 
-/**
-	Record Object : the persistent object base type. See the tutorial on Haxe
-	website to learn how to use Record.
-**/
-@:keepSub
-@:autoBuild(sys.db.RecordMacros.macroBuild()) @:skipFields
-@:deprecated("This class will be removed soon, please install the record-macros library")
-class Object {
-
-	var _lock(default,never) : Bool;
-	var _manager(default,never) : sys.db.Manager<Dynamic>;
-#if !neko
-	@:keep var __cache__:Dynamic;
-#end
-
-	public function new() {
-		#if !neko
-		if( _manager == null ) untyped _manager = __getManager();
-		#end
-	}
-
-#if !neko
-	private function __getManager():sys.db.Manager<Dynamic>
-	{
-		var cls:Dynamic = Type.getClass(this);
-		return cls.manager;
-	}
-#end
-
-	public function insert() {
-		untyped _manager.doInsert(this);
-	}
-
-	public function update() {
-		untyped _manager.doUpdate(this);
-	}
-
-	public function lock() {
-		untyped _manager.doLock(this);
-	}
-
-	public function delete() {
-		untyped _manager.doDelete(this);
-	}
-
-	public function isLocked() {
-		return _lock;
-	}
-
-	public function toString() : String {
-		return untyped _manager.objectToString(this);
-	}
-
-}
+extern class AutoCast { }

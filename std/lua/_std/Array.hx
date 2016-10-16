@@ -44,8 +44,9 @@ class Array<T> {
 		return this.length == 0 ? null : this[this.length-- -1];
 	}
 	public function push(x : T) : Int {
-		this[this.length++] = x;
-		return this.length;
+		this[length] = x;
+		length++;
+		return length;
 	}
 	public function reverse() : Void {
 		var tmp:T;

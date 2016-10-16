@@ -267,9 +267,9 @@ class TestJs {
 
 	@:js('
 		var x = TestJs.getInt();
-		var tmp = x;
+		var x1 = x;
 		++x;
-		TestJs.call(tmp,TestJs.getInt());
+		TestJs.call(x1,TestJs.getInt());
 	')
 	static function testMightBeAffected3() {
 		var x = getInt();

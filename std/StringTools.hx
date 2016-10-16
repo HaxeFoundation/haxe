@@ -86,8 +86,8 @@ class StringTools {
 					ret.addChar('('.code);
 				case ['2'.code, '9'.code]:
 					ret.addChar(')'.code);
-				case ['7'.code, 'E'.code]:
-					ret.addChar('-'.code);
+				case ['7'.code, 'E'.code] | ['7'.code, 'e'.code]:
+					ret.addChar('~'.code);
 				case _:
 					ret.addChar('%'.code);
 					ret.addChar(cast c1);

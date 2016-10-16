@@ -3633,6 +3633,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let e = AbstractCast.cast_or_unify ctx t e p in
 		if e.etype == t then e else mk (TCast (e,None)) t p
 	| EMeta (m,e1) ->
+		if ctx.is_display_file then Display.DisplayEmitter.check_display_metadata ctx [m];
 		let old = ctx.meta in
 		ctx.meta <- m :: ctx.meta;
 		let e () = type_expr ctx e1 with_type in
@@ -4854,7 +4855,11 @@ and flush_macro_context mint ctx =
 	mctx.com.Common.modules <- modules;
 	(* if one of the type we are using has been modified, we need to create a new macro context from scratch *)
 	let mint = if not (Interp.can_reuse mint types) then begin
-		Interp.clear mint mctx.com;
+		let com2 = mctx.com in
+		let mint = Interp.create com2 (make_macro_api ctx Globals.null_pos) in
+		let macro = ((fun() -> Interp.select mint), mctx) in
+		ctx.g.macros <- Some macro;
+		mctx.g.macros <- Some macro;
 		init_macro_interp ctx mctx mint;
 		mint
 	end else mint in

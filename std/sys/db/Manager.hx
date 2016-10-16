@@ -29,6 +29,7 @@ import sys.db.RecordInfos;
 	Haxe website to learn how to use Record.
 **/
 #if !macro @:build(sys.db.RecordMacros.addRtti()) #end
+@:deprecated("This class will be removed soon, please install the record-macros library")
 class Manager<T : Object> {
 
 	/* ----------------------------- STATICS ------------------------------ */

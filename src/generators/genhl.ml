@@ -1120,7 +1120,13 @@ and get_access ctx e =
 			let last_def = loop c in
 			AInstanceFun (ethis, alloc_fid ctx (resolve_class ctx last_def pl false) f)
 		| (FInstance (cdef,pl,f) | FClosure (Some (cdef,pl), f)), _ ->
-			let cdef, pl = if cdef.cl_interface then (match follow ethis.etype with TInst (c,pl) -> c,pl | _ -> assert false) else cdef,pl in
+			let rec loop t =
+				match follow t with
+				| TInst (c,pl) -> c, pl
+				| TAbstract (a,pl) -> loop (Abstract.get_underlying_type a pl)
+				| _ -> abort (s_type (print_context()) ethis.etype ^ " hl type should be interface") ethis.epos
+			in
+			let cdef, pl = if cdef.cl_interface then loop ethis.etype else cdef,pl in
 			object_access ctx ethis (class_type ctx cdef pl false) f
 		| (FAnon f | FClosure(None,f)), _ ->
 			object_access ctx ethis (to_type ctx ethis.etype) f

@@ -167,4 +167,9 @@ package hl.types;
 	public static function ofValue( v : Dynamic, length : Ref<Int> ) : Bytes {
 		return null;
 	}
+
+	@:from
+	public static inline function fromBytes( bytes : haxe.io.Bytes ) {
+		return @:privateAccess bytes.b;
+	}
 }
