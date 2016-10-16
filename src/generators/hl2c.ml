@@ -1190,7 +1190,7 @@ let write_c version file (code:code) =
 			()
 	) all_types;
 	Array.iteri (fun i t ->
-		if is_ptr t then sexpr "hl_add_root(&global$%d)" i;
+		if is_ptr t then sexpr "hl_add_root((void**)&global$%d)" i;
 	) code.globals;
 	sexpr "%s()" funnames.(code.entrypoint);
 	unblock();
