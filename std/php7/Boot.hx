@@ -193,7 +193,7 @@ class Boot {
 		@param type `this` for instance methods; full php class name for static methods
 		@param func Method name
 	**/
-	public static function closure( target:Dynamic, func:Dynamic ) : HxClosure {
+	public static inline function closure( target:Dynamic, func:Dynamic ) : HxClosure {
 		return new HxClosure(target, func);
 	}
 
