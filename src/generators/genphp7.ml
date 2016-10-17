@@ -1925,8 +1925,9 @@ class virtual type_builder ctx wrapper =
 			match args with
 				| obj_expr :: field_expr :: [] ->
 					self#write_expr obj_expr;
-					self#write "->";
-					self#write_expr field_expr
+					self#write "->{";
+					self#write_expr field_expr;
+					self#write "}"
 				| _ -> fail self#pos __POS__
 		(**
 			Writes field access for writing (for `php7.Syntax.setField()`)
@@ -1935,9 +1936,9 @@ class virtual type_builder ctx wrapper =
 			match args with
 				| obj_expr :: field_expr :: value_expr :: [] ->
 					self#write_expr obj_expr;
-					self#write "->";
+					self#write "->{";
 					self#write_expr field_expr;
-					self#write " = ";
+					self#write "} = ";
 					self#write_expr value_expr
 				| _ -> fail self#pos __POS__
 		(**
