@@ -21,6 +21,7 @@
  */
 
 import php7.Boot;
+import php7.Syntax;
 import haxe.Constraints;
 
 using php7.Global;
@@ -32,11 +33,16 @@ using php7.Global;
 	}
 
 	public static function field( o : Dynamic, field : String ) : Dynamic {
-		if (hasField(o, field)) {
-			return untyped __php__("$o->$field");
-		} else {
-			return null;
+		if (!o.is_object()) return null;
+
+		if (o.property_exists(field)) {
+			return Syntax.getField(o, field);
 		}
+		if (o.method_exists(field)) {
+			return Boot.closure(o, field);
+		}
+
+		return null;
 	}
 
 	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
@@ -90,7 +96,7 @@ using php7.Global;
 			return true;
 		} else {
 			var hxClosure = Boot.getHaxeName(Boot.closureHxClass());
-			var phpClosure = Boot.getPhpName(hxClosure); 
+			var phpClosure = Boot.getPhpName(hxClosure);
 			return untyped __php__("$f instanceof $phpClosure");
 		}
 	}
