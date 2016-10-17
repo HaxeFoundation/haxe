@@ -1017,12 +1017,25 @@ class virtual type_builder ctx wrapper =
 			Indicates whether current expression nesting level is a top level of a block
 		*)
 		method private parent_expr_is_block =
+			let rec expr_is_block expr parents =
+				match expr.eexpr with
+					| TBlock _ -> true
+					| TIf (_, if_expr, Some else_expr) ->
+						if (expr_is_block if_expr []) || (expr_is_block else_expr []) then
+							true
+						else
+							(match parents with
+								| parent :: rest -> expr_is_block parent rest
+								| [] -> false
+							)
+					| TIf (_, _, None) -> true
+					| TTry _ -> true
+					| TWhile _ -> true
+					| TSwitch _ -> true
+					| _ -> false
+			in
 			match expr_hierarchy with
-				| _ :: { eexpr = TBlock _ } :: _ -> true
-				| _ :: { eexpr = TIf _ } :: _ -> true
-				| _ :: { eexpr = TTry _ } :: _ -> true
-				| _ :: { eexpr = TWhile _ } :: _ -> true
-				| _ :: { eexpr = TSwitch _ } :: _ -> true
+				| _ :: parent :: rest -> expr_is_block parent rest
 				| _ -> false
 		(**
 			Returns parent expression.
@@ -2060,6 +2073,8 @@ class virtual type_builder ctx wrapper =
 			Writes ternary operator expressions to output buffer
 		*)
 		method private write_expr_ternary condition if_expr (else_expr:texpr) pos =
+			let parent_is_if = match self#parent_expr with Some { eexpr = TIf _ } -> true | _ -> false in
+			if parent_is_if then self#write "(";
 			(match condition.eexpr with
 				| TParenthesis expr -> self#write_expr expr;
 				| _ -> self#write_expr else_expr
@@ -2067,7 +2082,8 @@ class virtual type_builder ctx wrapper =
 			self#write " ? ";
 			self#write_expr if_expr;
 			self#write " : ";
-			self#write_expr else_expr
+			self#write_expr else_expr;
+			if parent_is_if then self#write ")"
 		(**
 			Writes "if...else..." expression to output buffer
 		*)
