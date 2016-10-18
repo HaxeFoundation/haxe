@@ -259,7 +259,7 @@ module TexprFilter = struct
 			let e = mk (TWhile(Codegen.mk_parent e_true,e_block,NormalWhile)) e.etype p in
 			loop e
 		| TFor(v,e1,e2) ->
-			let v' = alloc_var "tmp" e1.etype e1.epos in
+			let v' = alloc_var v.v_name e1.etype e1.epos in
 			let ev' = mk (TLocal v') e1.etype e1.epos in
 			let t1 = (Abstract.follow_with_abstracts e1.etype) in
 			let ehasnext = mk (TField(ev',quick_field t1 "hasNext")) (tfun [] com.basic.tbool) e1.epos in
@@ -711,8 +711,6 @@ module Fusion = struct
 							in
 							if not !found then raise Exit;
 							{e with eexpr = TSwitch(e1,cases,edef)}
-						| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
-							e
 						(* locals *)
 						| TLocal v2 when v1 == v2 && not !blocked ->
 							found := true;
@@ -769,13 +767,20 @@ module Fusion = struct
 							if not !found && (has_state_write ir || has_any_field_write ir) then raise Exit;
 							{e with eexpr = TCall(ef,el)}
 						| TCall(e1,el) ->
-							let e1,el = handle_call e1 el in
+							let e1,el = match e1.eexpr with
+								| TLocal v when is_really_unbound v -> e1,el
+								| _ -> handle_call e1 el
+							in
 							if not !found && (((has_state_read ir || has_any_field_read ir)) || has_state_write ir || has_any_field_write ir) then raise Exit;
 							{e with eexpr = TCall(e1,el)}
 						| TObjectDecl fl ->
 							let el = handle_el (List.map snd fl) in
 							if not !found && (has_state_write ir || has_any_field_write ir) then raise Exit;
 							{e with eexpr = TObjectDecl (List.map2 (fun (s,_) e -> s,e) fl el)}
+						| TArrayDecl el ->
+							let el = handle_el el in
+							(*if not !found && (has_state_write ir || has_any_field_write ir) then raise Exit;*)
+							{e with eexpr = TArrayDecl el}
 						| TBinop(OpAssign,({eexpr = TArray(e1,e2)} as ea),e3) ->
 							let e1 = replace e1 in
 							let e2 = replace e2 in

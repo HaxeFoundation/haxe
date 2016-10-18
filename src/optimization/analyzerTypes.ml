@@ -523,4 +523,5 @@ type analyzer_context = {
 	mutable loop_counter : int;
 	mutable loop_stack : int list;
 	mutable debug_exprs : (string * texpr) list;
+	mutable name_stack : string list;
 }

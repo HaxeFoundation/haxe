@@ -44,9 +44,12 @@ let c_kwds = [
 "void";"volatile";"while";
 (* MS specific *)
 "__asm";"dllimport2";"__int8";"naked2";"__based1";"__except";"__int16";"__stdcall";"__cdecl";"__fastcall";"__int32";
-"thread2";"__declspec";"__finally";"__int64";"__try";"dllexport2";"__inline";"__leave";
+"thread2";"__declspec";"__finally";"__int64";"__try";"dllexport2";"__inline";"__leave";"asm";
 (* reserved by HLC *)
-"t"
+"t";
+(* C11 *)
+"_Alignas";"_Alignof";"_Atomic";"_Bool";"_Complex";"_Generic";"_Imaginary";"_Noreturn";"_Static_assert";"_Thread_local";"_Pragma";
+"inline";"restrict"
 ]
 
 let s_comp = function
@@ -112,7 +115,10 @@ let write_c version file (code:code) =
 
 	let ident i = if Hashtbl.mem keywords i then "_" ^ i else i in
 
-	let tname str = String.concat "__" (ExtString.String.nsplit str ".") in
+	let tname str =
+		let n = String.concat "__" (ExtString.String.nsplit str ".") in
+		if Hashtbl.mem keywords ("_" ^ n) then "__" ^ n else n
+	in
 
 	let is_gc_ptr = function
 		| HVoid | HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool | HType | HRef _ -> false
@@ -251,6 +257,13 @@ let write_c version file (code:code) =
 
 	line "";
 	line "// Types implementation";
+
+	let unamed_field fid = "$_f" ^ string_of_int fid in
+
+	let obj_field fid name =
+		if name = "" then unamed_field fid else ident name
+	in
+
 	Array.iter (fun t ->
 		match t with
 		| HObj o ->
@@ -261,8 +274,13 @@ let write_c version file (code:code) =
 				(match o.psuper with
 				| None -> expr ("hl_type *$type");
 				| Some c -> loop c);
-				Array.iter (fun (n,_,t) ->
-					expr (var_type n t)
+				Array.iteri (fun i (n,_,t) ->
+					let rec abs_index p v =
+						match p with
+						| None -> v
+						| Some o -> abs_index o.psuper (Array.length o.pfields + v)
+					in
+					expr (var_type (if n = "" then unamed_field (abs_index o.psuper i) else n) t)
 				) o.pfields;
 			in
 			loop o;
@@ -456,13 +474,24 @@ let write_c version file (code:code) =
 		| HF64 -> 3
 		| _ -> 4
 	in
-	Array.iter (fun (args,t) ->
+	let add_fun args t =
 		let nargs = List.length args in
 		let kargs = List.map type_kind args in
 		let kt = type_kind t in
 		let h = try Hashtbl.find funByArgs nargs with Not_found -> let h = Hashtbl.create 0 in Hashtbl.add funByArgs nargs h; h in
 		Hashtbl.replace h (kargs,kt) ()
-	) tfuns;
+	in
+	Array.iter (fun f ->
+		Array.iter (fun op ->
+			match op with
+			| OSafeCast (dst,_) | ODynGet (dst,_,_) ->
+				(match f.regs.(dst) with
+				| HFun (args, t) -> add_fun args t
+				| _ -> ())
+			| _ -> ()
+		) f.code
+	) code.functions;
+	Array.iter (fun (args,t) -> add_fun args t) tfuns;
 	let argsCounts = List.sort compare (Hashtbl.fold (fun i _ acc -> i :: acc) funByArgs []) in
 	sexpr "static int TKIND[] = {%s}" (String.concat "," (List.map (fun t -> string_of_int (type_kind_id (type_kind t))) core_types));
 	line "";
@@ -682,7 +711,7 @@ let write_c version file (code:code) =
 			match rtype obj with
 			| HObj o ->
 				let name, t = resolve_field o fid in
-				sexpr "%s->%s = %s" (reg obj) (ident name) (rcast v t)
+				sexpr "%s->%s = %s" (reg obj) (obj_field fid name) (rcast v t)
 			| HVirtual vp ->
 				let name, nid, t = vp.vfields.(fid) in
 				let dset = sprintf "hl_dyn_set%s(%s->value,%ld/*%s*/%s,%s)" (dyn_prefix t) (reg obj) (hash nid) name (type_value_opt (rtype v)) (reg v) in
@@ -697,7 +726,7 @@ let write_c version file (code:code) =
 			match rtype obj with
 			| HObj o ->
 				let name, t = resolve_field o fid in
-				sexpr "%s%s->%s" (rassign r t) (reg obj) (ident name)
+				sexpr "%s%s->%s" (rassign r t) (reg obj) (obj_field fid name)
 			| HVirtual v ->
 				let name, nid, t = v.vfields.(fid) in
 				let dget = sprintf "(%s)hl_dyn_get%s(%s->value,%ld/*%s*/%s)" (ctype t) (dyn_prefix t) (reg obj) (hash nid) name (type_value_opt t) in
@@ -1167,7 +1196,7 @@ let write_c version file (code:code) =
 			()
 	) all_types;
 	Array.iteri (fun i t ->
-		if is_ptr t then sexpr "hl_add_root(&global$%d)" i;
+		if is_ptr t then sexpr "hl_add_root((void**)&global$%d)" i;
 	) code.globals;
 	sexpr "%s()" funnames.(code.entrypoint);
 	unblock();

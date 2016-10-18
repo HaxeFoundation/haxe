@@ -23,6 +23,18 @@
 
 extern class NativeArray {
 
+   #if cppia
+   public static inline function create<T>(length:Int):Array<T>
+   {
+      var result = new Array<T>();
+      NativeArray.setSize(result,length);
+      return result;
+   }
+   #else
+   @:native("_hx_create_array_length")
+   public static function create<T>(length:Int):Array<T>;
+   #end
+
 	public static inline function blit<T>( ioDestArray:Array<T>,
 		inDestElement:Int, inSourceArray:Array<T>,
 		inSourceElement:Int, inElementCount:Int ): Void  {
@@ -48,7 +60,7 @@ extern class NativeArray {
 
 	public static inline function setData<T>( inArray:Array<T>,inData:Pointer<T>,inElementCount:Int ) : Void {
       untyped inArray.setData(inData.raw,inElementCount);
-   }
+      }
 	public static inline function setUnmanagedData<T>( inArray:Array<T>,inData:ConstPointer<T>,inElementCount:Int ) : Void {
       untyped inArray.setUnmanagedData(inData.raw,inElementCount);
    }

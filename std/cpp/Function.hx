@@ -30,19 +30,17 @@ extern class Function<T,ABI:cpp.abi.Abi>
 	public var call(default,null):T;
 
    @:native("::cpp::Function_obj::getProcAddress")
-   static function nativeGetProcAddress<T,ABI:cpp.abi.Abi>(inModule:String, inFunction:String) : Function<T,ABI>;
-   public static function getProcAddress<T,ABI:cpp.abi.Abi>(inModule:String, inFunction:String) : Function<T,ABI>
+   static function nativeGetProcAddress<T,ABI:cpp.abi.Abi>(inModule:String, inFunction:String) : AutoCast;
+   inline public static function getProcAddress<T,ABI:cpp.abi.Abi>(inModule:String, inFunction:String) : Function<T,ABI>
    {
-      var autoCast = nativeGetProcAddress(inModule, inFunction);
-      return autoCast;
+      return cast nativeGetProcAddress(inModule, inFunction);
    }
 
    @:native("::cpp::Function_obj::fromStaticFunction")
-   static function nativeFromStaticFunction<T>(inStaticFunction:T) : Callable<T>;
+   static function nativeFromStaticFunction<T>(inStaticFunction:T) : AutoCast;
    inline public static function fromStaticFunction<T>(inStaticFunction:T) : Callable<T>
    {
-      var autoCast = nativeFromStaticFunction(inStaticFunction);
-      return autoCast;
+      return cast nativeFromStaticFunction(inStaticFunction);
    }
 
 	public function lt(inOther:Function<T,ABI>):Bool;

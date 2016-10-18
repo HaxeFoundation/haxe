@@ -36,6 +36,7 @@ private typedef SqlFunction = {
 	var sql : String;
 }
 
+@:deprecated("This class will be removed soon, please install the record-macros library")
 class RecordMacros {
 
 	static var GLOBAL = null;

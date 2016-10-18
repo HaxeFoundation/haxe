@@ -142,7 +142,7 @@ class CallStack {
 			return []; // Unsupported
 		#end
 	}
-	
+
 	#if hl
 	@:hlNative("std", "exception_stack") static function _getExceptionStack() : hl.types.NativeArray<hl.types.Bytes> { return null; }
 	#end
@@ -362,9 +362,13 @@ class CallStack {
 			return stack;
 		#elseif hl
 			var stack = [];
+			var r = ~/^([A-Za-z0-9.$_]+)\.([A-Za-z0-9_]+)\((.+):([0-9]+)\)$/;
 			for( i in 0...s.length-1 ) {
 				var str = @:privateAccess String.fromUCS2(s[i]);
-				stack.push(Module(str));
+				if( r.match(str) )
+					stack.push(FilePos(Method(r.matched(1), r.matched(2)), r.matched(3), Std.parseInt(r.matched(4))));
+				else
+					stack.push(Module(str));
 			}
 			return stack;
 		#else

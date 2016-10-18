@@ -186,6 +186,7 @@ class RunCi {
 				File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
 				runCommand(Sys.getEnv("HOME") + "/flashplayerdebugger", ["-v"]);
 			case "Mac":
+				runCommand("brew", ["tap", "caskroom/versions"]);
 				runCommand("brew", ["cask", "install", "flash-player-debugger"]);
 				var dir = Path.directory(mmcfgPath);
 				runCommand("sudo", ["mkdir", "-p", dir]);
@@ -420,6 +421,21 @@ class RunCi {
 
 		gotCppDependencies = true;
 	}
+
+	static var gotSpodDependencies = false;
+  static function getSpodDependencies() {
+		if (gotSpodDependencies ) return;
+
+		//install and build hxcpp
+		try {
+			getHaxelibPath("record-macros");
+			infoMsg('record-macros has already been installed.');
+		} catch(e:Dynamic) {
+			haxelibInstallGit("HaxeFoundation", "record-macros", true);
+		}
+
+		gotSpodDependencies = true;
+  }
 
 	static function getJavaDependencies() {
 		haxelibInstallGit("HaxeFoundation", "hxjava", true);
@@ -821,6 +837,7 @@ class RunCi {
 						runCommand("haxe", ["compile-macro.hxml"]);
 						runCommand("haxe", ["compile-each.hxml", "--run", "Main"]);
 					case Neko:
+						getSpodDependencies();
 						runCommand("haxe", ["compile-neko.hxml", "-D", "dump", "-D", "dump_ignore_var_ids"].concat(args));
 						runCommand("neko", ["bin/unit.n"]);
 
@@ -828,6 +845,7 @@ class RunCi {
 						runCommand("haxe", ["compile-neko.hxml"]);
 						runCommand("neko", ["bin/neko/sys.n"]);
 					case Php:
+						getSpodDependencies();
 						getPhpDependencies();
 						runCommand("haxe", ["compile-php.hxml"].concat(args));
 						runCommand("php", ["bin/php/index.php"]);
@@ -860,6 +878,7 @@ class RunCi {
 						runCommand("lua", ["bin/unit.lua"]);
 					case Cpp:
 						getCppDependencies();
+						getSpodDependencies();
 						runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M32"].concat(args));
 						runCpp("bin/cpp/TestMain-debug", []);
 
@@ -950,6 +969,7 @@ class RunCi {
 						changeDirectory(optDir);
 						runCommand("haxe", ["run.hxml"]);
 					case Java:
+						getSpodDependencies();
 						getJavaDependencies();
 						runCommand("haxe", ["compile-java.hxml"].concat(args));
 						runCommand("java", ["-jar", "bin/java/TestMain-Debug.jar"]);
@@ -977,6 +997,7 @@ class RunCi {
 						}
 
 					case Cs:
+						getSpodDependencies();
 						getCsDependencies();
 
 						var compl = switch [ci, systemName] {
@@ -1042,7 +1063,7 @@ class RunCi {
 						if (!success)
 							fail();
 					case Hl:
-						runCommand("haxe", ["compile-hl.hxml"], false, true);
+						runCommand("haxe", ["compile-hl.hxml"]);
 					case ThirdParty:
 						getPhpDependencies();
 						getJavaDependencies();
@@ -1092,7 +1113,7 @@ class RunCi {
 
 		changeDirectory(unitDir);
 
-		haxelibInstallGit("Simn", "hxparse", "development", "src");
+		haxelibInstallGit("Simn", "hxparse", "master", "src");
 		haxelibInstallGit("Simn", "hxtemplo");
 
 		var buildArgs = [

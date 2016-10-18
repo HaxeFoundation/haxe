@@ -197,6 +197,17 @@ module DisplayEmitter = struct
 			raise (DisplayFields all)
 		| _ ->
 			()
+
+	let check_display_metadata ctx meta =
+		List.iter (fun (meta,args,p) ->
+			if is_display_position p then display_meta ctx.com.display meta;
+			List.iter (fun e ->
+				if is_display_position (pos e) then begin
+					let e = ExprPreprocessing.process_expr ctx.com e in
+					delay ctx PTypeField (fun _ -> ignore(type_expr ctx e Value));
+				end
+			) args
+		) meta
 end
 
 module DocumentSymbols = struct

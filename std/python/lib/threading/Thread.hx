@@ -21,6 +21,23 @@
  */
 package python.lib.threading;
 
+typedef ThreadOptions = {
+	@:optional var group : Dynamic;
+	@:optional var target : Dynamic;
+	@:optional var name : String;
+	@:optional var args : Tuple<Dynamic>;
+	@:optional var kwargs : Dict<String,Dynamic>;
+	@:optional var daemon : Dynamic;
+}
+
 @:pythonImport("threading", "Thread")
 extern class Thread {
+  public var name:String;
+  public var ident:Int;
+  public var daemon:Bool;
+  public function new (?options:KwArgs<ThreadOptions>):Void;
+  public function start():Void;
+  public function run():Void;
+  public function join(?timeout:Float):Void;
+  public function is_alive():Bool;
 }

@@ -142,7 +142,7 @@ type callstack = {
 }
 
 type context = {
-	mutable gen : Genneko.context;
+	gen : Genneko.context;
 	types : (Type.path,int) Hashtbl.t;
 	prototypes : (string list, vobject) Hashtbl.t;
 	fields_cache : (int,string) Hashtbl.t;
@@ -301,6 +301,9 @@ and h_class = hash "__class__"
 
 let exc v =
 	raise (Runtime v)
+
+let select ctx =
+	get_ctx_ref := (fun() -> ctx)
 
 let s_value_kind = function
 	| VNull -> "VNull"
@@ -472,13 +475,17 @@ let rec get_field_opt o fid =
 
 let catch_errors ctx ?(final=(fun() -> ())) f =
 	let n = DynArray.length ctx.stack in
+	let prev = get_ctx() in (* switch context in case we have an older one, see #5676 *)
+	select ctx;
 	try
 		let v = f() in
 		final();
+		select prev;
 		Some v
 	with Runtime v ->
 		pop ctx (DynArray.length ctx.stack - n);
 		final();
+		select prev;
 		let rec loop o =
 			if o == ctx.error_proto then true else match o.oproto with None -> false | Some p -> loop p
 		in
@@ -495,6 +502,7 @@ let catch_errors ctx ?(final=(fun() -> ())) f =
 	| Abort ->
 		pop ctx (DynArray.length ctx.stack - n);
 		final();
+		select prev;
 		None
 
 let make_library fl =
@@ -2340,9 +2348,9 @@ let macro_lib =
 					| VFloat f -> haxe_float f p
 					| VAbstract (APos p) ->
 						(Ast.EObjectDecl (
-							("fileName" , (Ast.EConst (Ast.String p.Globals.pfile) , p)) ::
-							("lineNumber" , (Ast.EConst (Ast.Int (string_of_int (Lexer.get_error_line p))),p)) ::
-							("className" , (Ast.EConst (Ast.String ("")),p)) ::
+							(("fileName",Globals.null_pos) , (Ast.EConst (Ast.String p.Globals.pfile) , p)) ::
+							(("lineNumber",Globals.null_pos) , (Ast.EConst (Ast.Int (string_of_int (Lexer.get_error_line p))),p)) ::
+							(("className",Globals.null_pos) , (Ast.EConst (Ast.String ("")),p)) ::
 							[]
 						), p)
 					| VString _ | VArray _ | VAbstract _ | VFunction _ | VClosure _ as v -> error v
@@ -2353,7 +2361,7 @@ let macro_lib =
 							| Some (VAbstract (ATDecl t)) ->
 								make_path t
 							| _ ->
-								let fields = List.fold_left (fun acc (fid,v) -> (field_name ctx fid, loop v) :: acc) [] (Array.to_list o.ofields) in
+								let fields = List.fold_left (fun acc (fid,v) -> ((field_name ctx fid,Globals.null_pos), loop v) :: acc) [] (Array.to_list o.ofields) in
 								(Ast.EObjectDecl fields, p))
 						| Some proto ->
 							match get_field_opt proto h_enum, get_field_opt o h_a, get_field_opt o h_s, get_field_opt o h_length with
@@ -3649,9 +3657,6 @@ let rec compare ctx a b =
 	| _ ->
 		CUndef
 
-let select ctx =
-	get_ctx_ref := (fun() -> ctx)
-
 let value_match_failure s expected actual =
 	let sl = String.concat ", " in
 	let slv l = sl (List.map s_value_kind l) in
@@ -3723,23 +3728,7 @@ let create com api =
 	List.iter (fun e -> ignore((eval ctx e)())) (Genneko.header());
 	ctx
 
-let clear ctx com =
-	Hashtbl.clear ctx.types;
-	Hashtbl.clear ctx.prototypes;
-	ctx.gen <- Genneko.new_context com 2 true;
-	ctx.locals_map <- PMap.empty;
-	ctx.locals_count <- 0;
-	ctx.locals_barrier <- 0;
-	ctx.locals_env <- DynArray.create();
-	ctx.globals <- PMap.empty;
-	ctx.callstack <- [];
-	ctx.callsize <- 0;
-	ctx.stack <- DynArray.create();
-	ctx.exc <- [];
-	ctx.vthis <- VNull;
-	ctx.venv <- [||];
-	select ctx;
-	List.iter (fun e -> ignore((eval ctx e)())) (Genneko.header())
+
 
 let do_reuse ctx api =
 	ctx.is_reused <- false;
@@ -4104,8 +4093,9 @@ and encode_expr e =
 			| EParenthesis e ->
 				4, [loop e]
 			| EObjectDecl fl ->
-				5, [enc_array (List.map (fun (f,e) -> enc_obj [
+				5, [enc_array (List.map (fun ((f,p),e) -> enc_obj [
 					"field",enc_string f;
+					"name_pos",encode_pos p;
 					"expr",loop e;
 				]) fl)]
 			| EArrayDecl el ->
@@ -4231,6 +4221,16 @@ let decode_enum_with_pos v =
 
 let dec_bool = function
 	| VBool b -> b
+	| _ -> raise Invalid_expr
+
+let dec_bool_or_null = function
+	| VBool b -> b
+	| VNull -> false
+	| _ -> raise Invalid_expr
+
+let dec_bool_or_null = function
+	| VBool b -> b
+	| VNull -> false
 	| _ -> raise Invalid_expr
 
 let dec_string v =
@@ -4419,7 +4419,7 @@ let rec decode_expr v =
 			EParenthesis (loop e)
 		| 5, [a] ->
 			EObjectDecl (List.map (fun o ->
-				(dec_string (field o "field"), loop (field o "expr"))
+				(decode_placed_name (field o "name_pos") (field o "field")),loop (field o "expr")
 			) (dec_array a))
 		| 6, [a] ->
 			EArrayDecl (List.map loop (dec_array a))
@@ -5115,9 +5115,16 @@ let decode_type_def v =
 		ETypedef (mk (if isExtern then [EExtern] else []) (CTAnonymous fields,Globals.null_pos))
 	| 2, [ext;impl;interf] ->
 		let flags = if isExtern then [HExtern] else [] in
-		let flags = (match interf with VNull | VBool false -> flags | VBool true -> HInterface :: flags | _ -> raise Invalid_expr) in
+		let is_interface = (match interf with VNull | VBool false -> false | VBool true -> true | _ -> raise Invalid_expr ) in
+		let interfaces = (match opt (fun v -> List.map decode_path (dec_array v)) impl with Some l -> l | _ -> [] ) in
 		let flags = (match opt decode_path ext with None -> flags | Some t -> HExtends t :: flags) in
-		let flags = (match opt (fun v -> List.map decode_path (dec_array v)) impl with None -> flags | Some l -> List.map (fun t -> HImplements t) l @ flags) in
+		let flags = if is_interface then begin
+				let flags = HInterface :: flags in
+				List.map (fun t -> HExtends t) interfaces @ flags
+			end else begin
+				List.map (fun t -> HImplements t) interfaces @ flags
+			end
+		in
 		EClass (mk flags fields)
 	| 3, [t] ->
 		ETypedef (mk (if isExtern then [EExtern] else []) (decode_ctype t))

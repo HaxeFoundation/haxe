@@ -664,6 +664,13 @@ and gen_expr ?(local=true) ctx e = begin
 		(match c.cl_constructor with
 		| Some cf when Meta.has Meta.SelfCall cf.cf_meta ->
 			print ctx "%s" (ctx.type_accessor (TClassDecl c));
+		| Some cf when Meta.has Meta.Native cf.cf_meta ->
+			let _, args, mp = Meta.get Meta.Native cf.cf_meta in
+			(match args with
+			| [( EConst(String s),_)] ->
+				print ctx "%s.%s" (ctx.type_accessor (TClassDecl c)) s;
+			| _ ->
+				print ctx "%s.new" (ctx.type_accessor (TClassDecl c)));
 		| _ -> print ctx "%s.new" (ctx.type_accessor (TClassDecl c)));
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;

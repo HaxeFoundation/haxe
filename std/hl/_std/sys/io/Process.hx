@@ -44,7 +44,7 @@ private class Stdin extends haxe.io.Output {
 	}
 
 	public override function writeBytes( buf : haxe.io.Bytes, pos : Int, len : Int ) : Int {
-		var v = _stdin_write(p, buf.getData().b, pos, len);
+		var v = _stdin_write(p, buf.getData().bytes, pos, len);
 		if( v < 0 ) throw new haxe.io.Eof();
 		return v;
 	}
@@ -73,7 +73,7 @@ private class Stdout extends haxe.io.Input {
 	}
 
 	public override function readBytes( str : haxe.io.Bytes, pos : Int, len : Int ) : Int {
-		var v = out ? _stdout_read(p,str.getData().b,pos,len) : _stderr_read(p,str.getData().b,pos,len);
+		var v = out ? _stdout_read(p,str.getData().bytes,pos,len) : _stderr_read(p,str.getData().bytes,pos,len);
 		if( v < 0 ) throw new haxe.io.Eof();
 		return v;
 	}

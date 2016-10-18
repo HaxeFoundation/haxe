@@ -119,12 +119,12 @@ class Mandelbrot
       return val.i*val.i + val.j*val.j;
    }
 
-   public static function complexAdd(val0:Complex, val1:Complex)
+   public inline static function complexAdd(val0:Complex, val1:Complex)
    {
       return createComplex( val0.i + val1.i, val0.j + val1.j );
    }
 
-   public static function complexSquare(val:Complex)
+   public inline static function complexSquare(val:Complex)
    {
       return createComplex(  val.i*val.i - val.j*val.j, 2.0 * val.i * val.j );
    }

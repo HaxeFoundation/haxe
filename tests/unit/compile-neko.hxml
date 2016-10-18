@@ -2,3 +2,4 @@ compile-each.hxml
 -D neko_v2
 -main unit.TestMain
 -neko bin/unit.n
+-lib record-macros

@@ -17,10 +17,10 @@ let htmlescape s =
 let get_timer_fields start_time =
 	let tot = ref 0. in
 	Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
-	let fields = [("@TOTAL", FKTimer (Printf.sprintf "%.3fs" (get_time() -. start_time)), "")] in
+	let fields = [("@TOTAL", Printf.sprintf "%.3fs" (get_time() -. start_time))] in
 	if !tot > 0. then
 		Hashtbl.fold (fun _ t acc ->
-			("@TIME " ^ (String.concat "." t.id), FKTimer (Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot)), "") :: acc
+			((String.concat "." t.id),(Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot))) :: acc
 		) Common.htimers fields
 	else
 		fields
@@ -78,6 +78,8 @@ let print_toplevel il =
 			Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s>%s</i>\n" (s_type_path infos.mt_path) (s_doc infos.mt_doc) (snd infos.mt_path));
 		| IdentifierType.ITPackage s ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
+		| IdentifierType.ITTimer s ->
+			Buffer.add_string b (Printf.sprintf "<i k=\"timer\">%s</i>\n" s)
 	) il;
 	Buffer.add_string b "</il>";
 	Buffer.contents b
@@ -781,3 +783,17 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 		in
 		raise (ModuleSymbols(ModuleSymbolsPrinter.print_module_symbols com symbols filter))
 	| _ -> ()
+
+let find_doc t =
+	let doc = match follow t with
+		| TAnon an ->
+			begin match !(an.a_status) with
+				| Statics c -> c.cl_doc
+				| EnumStatics en -> en.e_doc
+				| AbstractStatics a -> a.a_doc
+				| _ -> None
+			end
+		| _ ->
+			None
+	in
+	doc

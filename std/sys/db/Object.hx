@@ -27,6 +27,7 @@ package sys.db;
 **/
 @:keepSub
 @:autoBuild(sys.db.RecordMacros.macroBuild()) @:skipFields
+@:deprecated("This class will be removed soon, please install the record-macros library")
 class Object {
 
 	var _lock(default,never) : Bool;

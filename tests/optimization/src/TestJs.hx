@@ -229,7 +229,7 @@ class TestJs {
 
 	@:js('
 		var map = new haxe_ds_StringMap();
-		if(__map_reserved.some != null) {map.setReserved("some",2);} else {map.h["some"] = 2;}
+		if(__map_reserved["some"] != null) {map.setReserved("some",2);} else {map.h["some"] = 2;}
 		TestJs["use"](2);
 	')
 	static function testIssue4731() {
@@ -267,9 +267,9 @@ class TestJs {
 
 	@:js('
 		var x = TestJs.getInt();
-		var tmp = x;
+		var x1 = x;
 		++x;
-		TestJs.call(tmp,TestJs.getInt());
+		TestJs.call(x1,TestJs.getInt());
 	')
 	static function testMightBeAffected3() {
 		var x = getInt();

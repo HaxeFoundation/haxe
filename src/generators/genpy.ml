@@ -1321,7 +1321,7 @@ module Printer = struct
 				print_call pctx e1 el e
 			| TNew(c,_,el) ->
 				let id = print_base_type (t_infos (TClassDecl c)) in
-				Printf.sprintf "%s(%s)" id (print_exprs pctx ", " el)
+				Printf.sprintf "%s(%s)" id (print_call_args pctx e el)
 			| TUnop(Not,Prefix,e1) ->
 				Printf.sprintf "(%s%s)" (print_unop Not) (print_expr pctx e1)
 			| TUnop(op,Prefix,e1) ->
