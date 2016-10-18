@@ -26,7 +26,11 @@ extern enum Position {
 }
 #else
 /**
-	Represents a position in a file.
+	Represents the position of where a given type, field, function or variable
+	is defined. This is used by the compiler to display for example errors 
+	or to provide code completion information.
+	
+	@see https://haxe.org/manual/cr-completion-position.html
 **/
 typedef Position = {
 	/**
@@ -74,7 +78,8 @@ enum Constant {
 	/**
 		Represents a regular expression literal.
 
-		Example: `~/haxe/i`
+		Example: `~/haxe/i`:
+		
 		 * The first argument _haxe_ is a string with regular expression pattern.
 		 * The second argument _i_ is a string with regular expression flags.
 
@@ -263,7 +268,7 @@ typedef Expr = {
 
 /**
 	Represents a AST node identical to `Expr`, but it allows constraining the
-	type of accepted expressions.
+	type of accepted expressions. 
 	@see https://haxe.org/manual/macro-ExprOf.html
 **/
 typedef ExprOf<T> = Expr;
@@ -296,18 +301,22 @@ typedef Case = {
 typedef Var = {
 	/**
 		The name of the variable.
+		
+		Haxe variable names start with an underscore `_`, a dollar `$`, a lower-case
+		character `a-z` or an upper-case character `A-Z`. After that, any combination 
+		and number of `_`, `A-Z`, `a-z` and `0-9` may follow.
 	**/
-	name : String,
+	var name : String;
 
 	/**
 		The type-hint of the variable, if available.
 	**/
-	type : Null<ComplexType>,
+	var type : Null<ComplexType>;
 
 	/**
 		The expression of the variable, if available.
 	**/
-	expr : Null<Expr>
+	var expr : Null<Expr>;
 }
 
 /**
@@ -318,17 +327,17 @@ typedef Catch = {
 	/**
 		The name of the catch variable.
 	**/
-	name : String,
+	var name : String;
 
 	/**
 		The type of the catch.
 	**/
-	type : ComplexType,
+	var type : ComplexType;
 
 	/**
 		The expression of the catch.
 	**/
-	expr : Expr
+	var expr : Expr;
 }
 
 /**
@@ -539,6 +548,9 @@ enum ComplexType {
 
 /**
 	Represents a type path in the AST.
+
+	Haxe type paths can only contain underscores `_` or lower-case
+	characters `a-z`.
 **/
 typedef TypePath = {
 	/**
@@ -602,7 +614,7 @@ typedef TypeParamDecl = {
 	@:optional var params : Array<TypeParamDecl>;
 
 	/**
-		The metadata of the type parameter.
+		The metadata of the type parameter, which is an array of `MetadataEntry`.
 	**/
 	@:optional var meta : Metadata;
 }
@@ -638,6 +650,10 @@ typedef Function = {
 typedef FunctionArg = {
 	/**
 		The name of the function argument.
+		
+		Haxe function argument names start with an underscore `_`, a dollar `$`, 
+		a lower-case character `a-z` or an upper-case character `A-Z`. After that, 
+		any combination and number of `_`, `A-Z`, `a-z` and `0-9` may follow.
 	**/
 	var name : String;
 
@@ -657,33 +673,38 @@ typedef FunctionArg = {
 	@:optional var value : Null<Expr>;
 
 	/**
-		The metadata of the function argument.
+		The metadata of the function argument, which is an array of `MetadataEntry`.
 	**/
 	@:optional var meta : Metadata;
 }
 
 /**
-	Represents a metadata entry in the AST.
+	Represents a metadata entry in the AST. 
+	
+	Example:
+	
+	 * `@:name(param,param)` This kind of metadata is known as compile-time metadata.
+	 * `@name(param,param)` This kind of metadata is known as run-time metadata.
 **/
 typedef MetadataEntry = {
 	/**
 		The name of the metadata entry.
 	**/
-	name : String,
+	var name : String;
 
 	/**
-		The optional parameters of the metadata entry.
+		The optional parameters of the metadata entry
 	**/
-	?params : Array<Expr>,
+	@:optional var params : Array<Expr>;
 
 	/**
 		The position of the metadata entry.
 	**/
-	pos : Position
+	var pos : Position;
 }
 
 /**
-	Represents metadata in the AST.
+	An array of `MetadataEntry`. Represents metadata in the AST.
 **/
 typedef Metadata = Array<MetadataEntry>;
 
@@ -693,6 +714,10 @@ typedef Metadata = Array<MetadataEntry>;
 typedef Field = {
 	/**
 		The name of the field.
+		
+		Haxe field names start with an underscore `_`, a dollar `$`, a lower-case
+		character `a-z` or an upper-case character `A-Z`. After that, any combination 
+		and number of `_`, `A-Z`, `a-z` and `0-9` may follow.
 	**/
 	var name : String;
 
@@ -700,16 +725,32 @@ typedef Field = {
 		The documentation of the field, if available. If the field has no
 		documentation, the value is `null`.
 	**/
-	@:optional var doc : Null<String>;
+	@:optional var doc : String;
 
 	/**
 		The access modifiers of the field. By default fields have private access.
+		
+		 * `Access.APublic` Public access modifier, grants access from anywhere.
+		 * `Access.APrivate` Private access modifier, grants access to class and its 
+		    sub-classes only.
+		 * `Access.AStatic` Static access modifier.
+		 * `Access.AOverride` Override access modifier.
+		 * `Access.ADynamic` Dynamic (re-)bindable access modifier.
+		 * `Access.AInline` Inline access modifier. Allows expressions to be directly 
+		    inserted inplace of calls to them.
+		 * `Access.AMacro` for Macros access modifier. 
+		
 		@see https://haxe.org/manual/class-field-access-modifier.html
+		
 	**/
 	@:optional var access : Array<Access>;
 
 	/**
-		The kind of the field.
+		The kind is the type of the field. 
+		
+		 * `FieldType.FVar` for a variable.
+		 * `FieldType.FFun` for a function.
+		 * `FieldType.FProp` for a property with getter and setter.
 	**/
 	var kind : FieldType;
 
@@ -719,7 +760,7 @@ typedef Field = {
 	var pos : Position;
 
 	/**
-		The optional metadata of the field.
+		The optional metadata of the field, which is an array of `MetadataEntry`.
 	**/
 	@:optional var meta : Metadata;
 }
@@ -744,18 +785,23 @@ enum Access {
 	APrivate;
 
 	/**
-		Static access modifier.
+		Static access modifier. Static fields are used "on the class" whereas 
+		non-static fields are used "on a class instance".
+		@see https://haxe.org/manual/class-field-static.html
 	**/
 	AStatic;
 
 	/**
-		Override access modifier.
+		Override access modifier. The access modifier override is required when a
+		field is declared which also exists on a parent class.  
+		This modifier is only allowed on method fields.
 		@see https://haxe.org/manual/class-field-override.html
 	**/
 	AOverride;
 
 	/**
 		Dynamic (re-)bindable access modifier.
+		Dynamic fields cannot be inline. 
 		@see https://haxe.org/manual/class-field-dynamic.html
 	**/
 	ADynamic;
@@ -805,6 +851,10 @@ typedef TypeDefinition = {
 
 	/**
 		The name of the type definition.
+		
+		Haxe type names start with an underscore `_` or an upper-case
+		character `A-Z`. After that, any combination and number of `_`, `A-Z`, `a-z` 
+		and `0-9` may follow.
 	**/
 	var name : String;
 
@@ -814,7 +864,8 @@ typedef TypeDefinition = {
 	var pos : Position;
 
 	/**
-		The optional metadata of the type definition.
+		The optional metadata of the type definition, which is an array of
+		`MetadataEntry`.
 	**/
 	@:optional var meta : Metadata;
 
