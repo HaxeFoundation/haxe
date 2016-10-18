@@ -1661,8 +1661,8 @@ class virtual type_builder ctx wrapper =
 					self#write_expr expr;
 					self#write ")"
 				end
-			and write_boot_method method_name =
-				self#write ((self#use boot_type_path) ^ "::" ^ method_name ^ "(");
+			and write_method method_name =
+				self#write (method_name ^ "(");
 				self#write_expr expr1;
 				self#write ", ";
 				self#write_expr expr2;
@@ -1693,14 +1693,14 @@ class virtual type_builder ctx wrapper =
 				| OpAssign -> write_binop " = "
 				| OpEq ->
 					if need_boot_equal expr1 expr2 then
-						write_boot_method "equal"
+						write_method ((self#use boot_type_path) ^ "::equal")
 					else
 						write_binop " === "
 				| OpNotEq ->
 					if need_boot_equal expr1 expr2 then
 						begin
 							self#write "!";
-							write_boot_method "equal"
+							write_method ((self#use boot_type_path) ^ "::equal")
 						end
 					else
 						write_binop " !== "
@@ -1715,8 +1715,12 @@ class virtual type_builder ctx wrapper =
 				| OpBoolOr -> write_binop " || "
 				| OpShl  -> write_binop " << "
 				| OpShr -> write_binop " >> "
-				| OpMod -> write_binop " % "
-				| OpUShr -> write_boot_method "shiftRightUnsigned"
+				| OpMod ->
+					if is_int expr1 && is_int expr2 then
+						write_binop " % "
+					else
+						write_method "fmod"
+				| OpUShr -> write_method ((self#use boot_type_path) ^ "::shiftRightUnsigned")
 				| OpAssignOp OpAdd ->
 					if (is_string expr1) then
 						begin
@@ -1734,11 +1738,15 @@ class virtual type_builder ctx wrapper =
 				| OpAssignOp OpXor -> write_binop " ^= "
 				| OpAssignOp OpShl  -> write_binop " <<= "
 				| OpAssignOp OpShr -> write_binop " >>= "
-				| OpAssignOp OpMod -> write_binop " %= "
+				| OpAssignOp OpMod ->
+					if is_int expr1 && is_int expr2 then
+						write_binop " %= "
+					else
+						write_method "fmod"
 				| OpAssignOp OpUShr ->
 					self#write_expr expr1;
 					self#write " = ";
-					write_boot_method "shiftRightUnsigned"
+					write_method ((self#use boot_type_path) ^ "::shiftRightUnsigned")
 				| _ -> fail self#pos __POS__
 		(**
 			Writes TUnOp to output buffer
