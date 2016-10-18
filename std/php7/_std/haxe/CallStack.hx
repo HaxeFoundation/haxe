@@ -80,9 +80,13 @@ class CallStack {
 		//Reduce exception stack to the place where exception was caught
 		var currentTrace = Global.debug_backtrace(Const.DEBUG_BACKTRACE_IGNORE_ARGS);
 		var count = Global.count(currentTrace);
+
 		for (i in -(count - 1)...1) {
 			var exceptionEntry:NativeAssocArray<Dynamic> = Global.end(lastExceptionTrace);
-			if (currentTrace[-i]['file'] == exceptionEntry['file'] && currentTrace[-i]['line'] == exceptionEntry['line']) {
+
+			if(!Global.isset(exceptionEntry['file'])) {
+				Global.array_pop(lastExceptionTrace);
+			} else if (currentTrace[-i]['file'] == exceptionEntry['file'] && currentTrace[-i]['line'] == exceptionEntry['line']) {
 				Global.array_pop(lastExceptionTrace);
 			} else {
 				break;
@@ -107,11 +111,17 @@ class CallStack {
 	static function makeStack (native:NativeTrace) : Array<StackItem> {
 		var result = [];
 		var count = Global.count(native);
+
 		for (i in 0...count) {
 			var entry = native[i];
 			var item = null;
+
 			if (i + 1 < count) {
 				var next = native[i + 1];
+
+				if(!Global.isset(next['function'])) next['function'] = '';
+				if(!Global.isset(next['class'])) next['class'] = '';
+
 				if ((next['function']:String).indexOf('{closure}') >= 0) {
 					item = LocalFunction();
 				} else if ((next['class']:String).length > 0 && (next['function']:String).length > 0) {
@@ -119,7 +129,11 @@ class CallStack {
 					item = Method(cls, next['function']);
 				}
 			}
-			result.push(FilePos(item, entry['file'], entry['line']));
+			if (Global.isset(entry['file'])) {
+				result.push(FilePos(item, entry['file'], entry['line']));
+			} else if (item != null) {
+				result.push(item);
+			}
 		}
 
 		return result;
