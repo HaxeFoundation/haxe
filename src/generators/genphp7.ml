@@ -1917,7 +1917,9 @@ class virtual type_builder ctx wrapper =
 				| "construct" -> self#write_expr_lang_construct args
 				| "getField" -> self#write_expr_lang_get_field args
 				| "setField" -> self#write_expr_lang_set_field args
+				| "call" -> self#write_expr_lang_call args
 				| "arrayDecl" -> self#write_expr_lang_array_decl args
+				| "keepVar" -> ()
 				| _ -> fail self#pos __POS__
 		(**
 			Writes native array declaration (for `php7.Syntax.arrayDecl()`)
@@ -1926,6 +1928,19 @@ class virtual type_builder ctx wrapper =
 			self#write "[";
 			write_args buffer (fun e -> self#write_expr e) args;
 			self#write "]"
+		(**
+			Writes a call to instance method (for `php7.Syntax.call()`)
+		*)
+		method private write_expr_lang_call args =
+			match args with
+				| obj_expr :: method_expr :: args ->
+					self#write_expr obj_expr;
+					self#write "->{";
+					self#write_expr method_expr;
+					self#write "}(";
+					write_args buffer (fun e -> self#write_expr e) args;
+					self#write ")"
+				| _ -> fail self#pos __POS__
 		(**
 			Writes field access for reading (for `php7.Syntax.getField()`)
 		*)

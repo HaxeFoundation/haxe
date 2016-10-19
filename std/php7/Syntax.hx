@@ -78,6 +78,11 @@ extern class Syntax {
     static function setField( object:Dynamic, fieldName:String, value:Dynamic ) : Void;
 
     /**
+        Generates a call to instance method: `$object->{$methodName}(<args>)`
+    **/
+    static function call( object:Dynamic, methodName:String, args:Rest<Dynamic> ) : Dynamic;
+
+    /**
         ```
         PHP.arrayDecl(arg1, arg2, arg3);
         ```
@@ -87,4 +92,9 @@ extern class Syntax {
         ```
     **/
     static function arrayDecl( args:Rest<Dynamic> ) : NativeIndexedArray<Dynamic>;
+
+    /**
+        Don't let compiler to optimize away local var passed to this method.
+    **/
+    static function keepVar( localVar:Dynamic ) : Void;
 }
