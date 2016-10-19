@@ -22,6 +22,7 @@
 
 import php7.Boot;
 import php7.Syntax;
+import php7.Closure;
 import haxe.Constraints;
 
 using php7.Global;
@@ -46,15 +47,15 @@ using php7.Global;
 	}
 
 	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
-		return untyped __php__("$o->$field = $value");
+		Syntax.setField(o, field, value);
 	}
 
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic {
 		if (o.is_object()) {
-			if (Boot.hasGetter(o.get_class(), field)) {
-				return untyped __php__("$o->{'get_$field'}()");
+			if (Boot.hasGetter(Global.get_class(o), field)) {
+				return Syntax.call(o, 'get_$field');
 			} else {
-				return untyped __php__("$o->$field");
+				return Syntax.getField(o, field);
 			}
 		}
 		if (o.is_string() && field == 'length') {
@@ -65,39 +66,39 @@ using php7.Global;
 
 	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void {
 		if (o.is_object()) {
-			if (Boot.hasSetter(o.get_class(), field)) {
-				untyped __php__("$o->{'set_$field'}($value)");
+			if (Boot.hasSetter(Global.get_class(o), field)) {
+				Syntax.call(o, 'set_$field', value);
 			} else {
-				untyped __php__("$o->$field = $value");
+				Syntax.setField(o, field, value);
 			}
 		}
 	}
 
 	public static function callMethod( o : Dynamic, func : Function, args : Array<Dynamic> ) : Dynamic {
-		if (untyped __php__("$func instanceof \\Closure")) {
+		if (Syntax.instanceof(func, Closure)) {
 			if (o != null) {
-				func = untyped func.bindTo(o);
+				func = cast cast(func, Closure).bindTo(o);
 			}
 			return Global.call_user_func_array(func, @:privateAccess args.arr);
 		} else {
-			return untyped func.callWith(o, @:privateAccess args.arr);
+			return Boot.castClosure(func).callWith(o, @:privateAccess args.arr);
 		}
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> {
-		if (untyped __php__("$o instanceof \\StdClass")) {
+		if (Syntax.instanceof(o, php7.StdClass)) {
 			return @:privateAccess Array.wrap(Global.get_object_vars(o).array_keys());
 		}
 		return [];
 	}
 
 	public static function isFunction( f : Dynamic ) : Bool {
-		if (untyped __php__("$f instanceof \\Closure")) {
+		if (Syntax.instanceof(f, Closure)) {
 			return true;
 		} else {
-			var hxClosure = Boot.getHaxeName(Boot.closureHxClass());
-			var phpClosure = Boot.getPhpName(hxClosure);
-			return untyped __php__("$f instanceof $phpClosure");
+			var hxClosure : Class<Dynamic> = cast Boot.closureHxClass();
+			Syntax.keepVar(hxClosure);
+			return Syntax.instanceof(f, hxClosure);
 		}
 	}
 
@@ -111,8 +112,8 @@ using php7.Global;
 	}
 
 	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool {
-		var hxClosure = Boot.closureHxClass().phpClassName;
-		if (untyped __php__("$f1 instanceof $hxClosure && $f2 instanceof $hxClosure")) {
+		var hxClosure : Class<Dynamic> = cast Boot.closureHxClass();
+		if (Syntax.instanceof(f1, hxClosure) && Syntax.instanceof(f2, hxClosure)) {
 			return f1.equals(f2);
 		} else {
 			return f1 == f2;
@@ -120,22 +121,20 @@ using php7.Global;
 	}
 
 	public static function isObject( v : Dynamic ) : Bool {
-		var hxEnum = cast Enum;
-		if (untyped __php__("$v instanceof $hxEnum->phpClassName")) {
+		if (Boot.isEnumValue(v)) {
 			return false;
 		} else {
 			return v.is_object() || v.is_string();
 		}
 	}
 
-	public static function isEnumValue( v : Dynamic ) : Bool {
-		var hxEnum = cast Enum;
-		return untyped __php__("$v instanceof $hxEnum->phpClassName");
+	public static inline function isEnumValue( v : Dynamic ) : Bool {
+		return Boot.isEnumValue(v);
 	}
 
 	public static function deleteField( o : Dynamic, field : String ) : Bool {
 		if (hasField(o, field)) {
-			untyped __php__("unset($o->$field)");
+			untyped Global.unset(Syntax.getField(o, field));
 			return true;
 		} else {
 			return false;
@@ -146,7 +145,8 @@ using php7.Global;
 		if (Global.is_object(o)) {
 			var fields = Global.get_object_vars(cast o);
 			var hxAnon = Boot.getHxAnon().phpClassName;
-			return untyped __php__("new $hxAnon($fields)");
+			Syntax.keepVar(hxAnon);
+			return Syntax.construct(hxAnon, fields);
 		} else {
 			return null;
 		}
