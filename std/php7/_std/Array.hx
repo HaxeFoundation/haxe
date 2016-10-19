@@ -20,6 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 import php7.NativeIndexedArray;
+import php7.Ref;
+import php7.Syntax;
 
 using php7.Global;
 
@@ -34,15 +36,15 @@ class Array<T> implements ArrayAccess<Int,T> {
 		length = 0;
 	}
 
-	public inline function concat(a:Array<T>):Array<T> {
+	public function concat(a:Array<T>):Array<T> {
 		return wrap(Global.array_merge(arr, a.arr));
 	}
 
-	public inline function copy():Array<T> {
+	public function copy():Array<T> {
 		return wrap(arr);
 	}
 
-	public inline function filter(f:T->Bool):Array<T> {
+	public function filter(f:T->Bool):Array<T> {
 		return wrap(Global.array_filter(arr, f));
 	}
 
@@ -65,16 +67,16 @@ class Array<T> implements ArrayAccess<Int,T> {
 		return -1;
 	}
 
-	public inline function insert(pos:Int, x:T):Void {
+	public function insert(pos:Int, x:T):Void {
 		length++;
 		Global.array_splice(arr, pos, 0, x);
 	}
 
-	public inline function iterator() : Iterator<T> {
+	public function iterator() : Iterator<T> {
 		return new ArrayIterator(this);
 	}
 
-	public inline function join(sep:String):String {
+	public function join(sep:String):String {
 		return Global.implode(sep, arr);
 	}
 
@@ -89,7 +91,7 @@ class Array<T> implements ArrayAccess<Int,T> {
 		return -1;
 	}
 
-	public inline function map<S>(f:T->S):Array<S> {
+	public function map<S>(f:T->S):Array<S> {
 		return wrap(Global.array_map(f, arr));
 	}
 
@@ -98,7 +100,7 @@ class Array<T> implements ArrayAccess<Int,T> {
 		return Global.array_pop(arr);
 	}
 
-	public inline function push(x:T):Int {
+	public function push(x:T):Int {
 		return length = Global.array_push(arr, x);
 	}
 
@@ -113,7 +115,7 @@ class Array<T> implements ArrayAccess<Int,T> {
 		return false;
 	}
 
-	public inline function reverse():Void {
+	public function reverse():Void {
 		arr = Global.array_reverse(arr);
 	}
 
@@ -137,15 +139,16 @@ class Array<T> implements ArrayAccess<Int,T> {
 		}
 	}
 
-	public inline function sort(f:T->T->Int):Void {
+	public function sort(f:T->T->Int):Void {
 		arr.usort(f);
 	}
 
-	public inline function splice(pos:Int, len:Int):Array<T> {
+	public function splice(pos:Int, len:Int):Array<T> {
+		Syntax.keepVar(arr);
 		return wrap(Global.array_splice(arr, pos, len));
 	}
 
-	public inline function unshift(x:T):Void {
+	public function unshift(x:T):Void {
 		length = Global.array_unshift(arr, x);
 	}
 
@@ -159,8 +162,12 @@ class Array<T> implements ArrayAccess<Int,T> {
 	}
 
 	@:noCompletion
-	function offsetGet( offset:Int ) : T {
-		return arr[offset];
+	function offsetGet( offset:Int ) : Ref<T> {
+		try {
+			return arr[offset];
+		} catch(e:Dynamic) {
+			return null;
+		}
 	}
 
 	@:noCompletion

@@ -1333,18 +1333,25 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write_expr_array_access target index =
 			self#write_expr target;
-			(match follow target.etype with
-				| TInst ({ cl_path = path }, _) when path = array_type_path ->
-					(match expr_hierarchy with
-						| _ :: { eexpr = TBinop (OpAssign, { eexpr = TArray (t, i) }, _) } :: _ when t == target -> ()
-						| _ :: { eexpr = TBinop (OpAssignOp _, { eexpr = TArray (t, i) }, _) } :: _ when t == target -> ()
-						| _ -> self#write "->arr" (* inline array index read *)
-					)
-				| _ -> ()
-			);
 			self#write "[";
 			self#write_expr index;
 			self#write "]"
+			(*let write_index left_bracket right_bracket =
+				self#write left_bracket;
+				self#write_expr index;
+				self#write right_bracket
+			in
+			self#write_expr target;
+			match follow target.etype with
+				| TInst ({ cl_path = path }, _) when path = array_type_path ->
+					(match expr_hierarchy with
+						| _ :: { eexpr = TBinop (OpAssign, { eexpr = TArray (t, i) }, _) } :: _ when t == target -> write_index "[" "]"
+						| _ :: { eexpr = TBinop (OpAssignOp _, { eexpr = TArray (t, i) }, _) } :: _ when t == target -> write_index "[" "]"
+						| _ ->
+							self#write "->offsetGet";
+							write_index "(" ")"
+					)
+				| _ -> write_index "[" "]"*)
 		(**
 			Writes TVar to output buffer
 		*)
@@ -1382,7 +1389,8 @@ class virtual type_builder ctx wrapper =
 			Writes method declaration (except visibility and `static` keywords) to output buffer
 		*)
 		method private write_method_function_declaration name func write_arg =
-			self#write ("function " ^ name ^ " (");
+			let by_ref = if is_ref func.tf_type then "&" else "" in
+			self#write ("function " ^ by_ref ^ name ^ " (");
 			write_args buffer write_arg func.tf_args;
 			self#write ")";
 			self#indent 1;
