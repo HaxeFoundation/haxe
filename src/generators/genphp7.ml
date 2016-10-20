@@ -327,7 +327,7 @@ let is_var_field_access expr =
 	match expr.eexpr with
 		| TField (_, FStatic (_, { cf_kind = Var _ })) -> true
 		| TField (_, FInstance (_, _, { cf_kind = Var _ })) -> true
-		| TField (_, FAnon _) -> true
+		| TField (_, FAnon { cf_kind = Var _ }) -> true
 		| _ -> false
 
 (**
@@ -1927,7 +1927,17 @@ class virtual type_builder ctx wrapper =
 				| "setField" -> self#write_expr_lang_set_field args
 				| "call" -> self#write_expr_lang_call args
 				| "arrayDecl" -> self#write_expr_lang_array_decl args
+				| "splat" -> self#write_expr_lang_splat args
 				| "keepVar" -> ()
+				| _ -> fail self#pos __POS__
+		(**
+			Writes splat operator (for `php7.Syntax.splat()`)
+		*)
+		method private write_expr_lang_splat args =
+			match args with
+				| [ args_expr ] ->
+					self#write "...";
+					self#write_expr args_expr
 				| _ -> fail self#pos __POS__
 		(**
 			Writes native array declaration (for `php7.Syntax.arrayDecl()`)

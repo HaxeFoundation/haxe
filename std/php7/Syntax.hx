@@ -1,6 +1,7 @@
 package php7;
 
 import haxe.extern.Rest;
+import haxe.extern.EitherType;
 
 /**
     Special extern class to support PHP language specifics.
@@ -97,4 +98,6 @@ extern class Syntax {
         Don't let compiler to optimize away local var passed to this method.
     **/
     static function keepVar( localVar:Dynamic ) : Void;
+
+    static function splat( args:EitherType<NativeArray, Traversable> ) : Rest<Dynamic>;
 }

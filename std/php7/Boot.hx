@@ -640,6 +640,12 @@ private class HxAnon extends StdClass {
 	function __get( name:String ) {
 		return null;
 	}
+
+	function __call( name:String, args:NativeArray ) : Dynamic {
+		var method = Syntax.getField(this, name);
+		Syntax.keepVar(method);
+		return method(Syntax.splat(args));
+	}
 }
 
 /**
