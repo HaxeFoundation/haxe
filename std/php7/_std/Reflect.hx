@@ -75,7 +75,7 @@ using php7.Global;
 	}
 
 	public static function callMethod( o : Dynamic, func : Function, args : Array<Dynamic> ) : Dynamic {
-		if (Syntax.instanceof(cast func, Closure)) {
+		if (Syntax.instanceof(func, Closure)) {
 			if (o != null) {
 				func = cast cast(func, Closure).bindTo(o);
 			}
