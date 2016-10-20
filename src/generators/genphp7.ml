@@ -1898,7 +1898,7 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write_expr_object_declaration fields =
 			match fields with
-				| [] ->  self#write "new \\StdClass()"
+				| [] ->  self#write ("new " ^ (self#use hxanon_type_path) ^ "()")
 				| _ ->
 					self#write ("new " ^ (self#use hxanon_type_path)  ^ "([\n");
 					self#indent_more;

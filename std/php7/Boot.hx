@@ -633,8 +633,10 @@ private class HxDynamicStr {
 @:dox(hide)
 private class HxAnon extends StdClass {
 
-	public function new( fields:NativeArray ) {
-		Syntax.foreach(fields, function(name, value) Syntax.setField(this, name, value));
+	public function new( fields:NativeArray = null ) {
+		if (fields != null) {
+			Syntax.foreach(fields, function(name, value) Syntax.setField(this, name, value));
+		}
 	}
 
 	function __get( name:String ) {
