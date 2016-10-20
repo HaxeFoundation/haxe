@@ -24,7 +24,7 @@ package php7;
 @:forward
 abstract NativeIndexedArray<T>(NativeArray) from NativeArray to NativeArray {
 	public inline function new()
-		this = untyped __php__("[]");
+		this = Syntax.arrayDecl();
 
 	@:arrayAccess
 	inline function get(idx:Int):T

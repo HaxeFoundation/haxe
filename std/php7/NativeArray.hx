@@ -23,13 +23,12 @@ package php7;
 
 using php7.Global;
 
-
 /**
 	Native PHP array.
 **/
 @:coreType @:runtimeValue abstract NativeArray {
 	public inline function new()
-		this = untyped __php__("[]");
+		this = Syntax.arrayDecl();
 
 	@:arrayAccess function get(key:Scalar):Dynamic;
 	@:arrayAccess function set(key:Scalar, val:Dynamic):Dynamic;
