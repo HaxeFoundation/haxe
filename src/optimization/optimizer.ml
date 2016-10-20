@@ -1278,7 +1278,16 @@ let inline_constructors ctx e =
 			find_locals e2
 		| TField({eexpr = TLocal v},fa) when v.v_id < 0 ->
 			begin match extract_field fa with
-			| Some {cf_kind = Var _} -> ()
+			| Some ({cf_kind = Var _} as cf) ->
+				(* Arrays are not supposed to have public var fields, besides "length" (which we handle when inlining),
+				   however, its inlined methods may generate access to private implementation fields (such as internal
+				   native array), in this case we have to cancel inlining.
+				*)
+				if cf.cf_name <> "length" then
+					begin match (IntMap.find v.v_id !vars).ii_kind with
+					| IKArray _ -> cancel v e.epos
+					| _ -> ()
+					end
 			| _ -> cancel v e.epos
 			end
 		| TArray({eexpr = TLocal v},{eexpr = TConst (TInt i)}) when v.v_id < 0 ->

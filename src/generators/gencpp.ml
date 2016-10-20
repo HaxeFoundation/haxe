@@ -1680,8 +1680,8 @@ and cpp_class_path_of klass =
 
 
 let cpp_const_type cval = match cval with
-   | TInt i -> CppInt(i) , TCppScalar("Int")
-   | TBool b -> CppBool(b) , TCppScalar("Bool")
+   | TInt i -> CppInt(i) , TCppScalar("int")
+   | TBool b -> CppBool(b) , TCppScalar("bool")
    | TFloat f -> CppFloat(f) , TCppScalar("Float")
    | TString s -> CppString(s) , TCppString
    | _ -> (* TNull, TThis & TSuper should already be handled *)
@@ -1788,9 +1788,9 @@ let rec cpp_type_of ctx haxe_type =
       match path,params with
       | ([],"Void"),_ -> TCppVoid
       | ([],"void"),_ -> TCppVoid (* for old code with @:void *)
-      | ([],"Bool"),_ -> TCppScalar("Bool")
+      | ([],"Bool"),_ -> TCppScalar("bool")
       | ([],"Float"),_ -> TCppScalar("Float")
-      | ([],"Int"),_ -> TCppScalar("Int")
+      | ([],"Int"),_ -> TCppScalar("int")
       | ([], "EnumValue"),_ -> TCppObject
       | ([], "Class"),_ -> TCppClass
       | ([], "Enum"),_  -> TCppClass
@@ -2035,11 +2035,11 @@ let cpp_variant_type_of t = match t with
    | TCppVarArg
    | TCppVoidStar -> TCppVoidStar
    | TCppScalar "Int"
-   | TCppScalar "Bool"
+   | TCppScalar "bool"
    | TCppScalar "Float"  -> t
    | TCppScalar "double"
    | TCppScalar "float" -> TCppScalar("Float")
-   | TCppScalar _  -> TCppScalar("Int")
+   | TCppScalar _  -> TCppScalar("int")
    | TCppVariant -> TCppVariant
 ;;
 
@@ -2058,6 +2058,8 @@ let cpp_base_type_of t =
    | TCppDynamic -> "Object"
    | TCppString -> "String"
    | TCppVoidStar -> "Pointer"
+   | TCppScalar "int"  -> "Int"
+   | TCppScalar "bool"  -> "Bool"
    | TCppScalar x  -> x
    | _  -> "Object"
 ;;
@@ -2513,11 +2515,11 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                if obj.cpptype=TCppNull then
                   CppNullAccess, TCppDynamic
                else if fieldName="cca" && obj.cpptype=TCppString then
-                  CppFunction( FuncInternal(obj,"cca","."), TCppScalar("Int")), TCppDynamic
+                  CppFunction( FuncInternal(obj,"cca","."), TCppScalar("int")), TCppDynamic
                else if fieldName="__s" && obj.cpptype=TCppString then
                   CppVar( VarInternal(obj,".","__s")), TCppPointer("ConstPointer", TCppScalar("char"))
                else if fieldName="__Index" then
-                  CppEnumIndex(obj), TCppScalar("Int")
+                  CppEnumIndex(obj), TCppScalar("int")
                else if is_internal_member fieldName || cpp_is_real_array obj then begin
                   let cppType = cpp_return_type ctx expr.etype in
                   if obj.cpptype=TCppString then
@@ -2687,7 +2689,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
 
          | TArray (e1,e2) ->
             let retypedObj = retype TCppDynamic e1 in
-            let retypedIdx = retype (TCppScalar("Int")) e2 in
+            let retypedIdx = retype (TCppScalar("int")) e2 in
             let arrayExpr, elemType = (match retypedObj.cpptype with
               | TCppScalarArray scalar ->
                  CppArray( ArrayTyped(retypedObj,retypedIdx) ), scalar
@@ -2760,8 +2762,8 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
 
          | TUnop (op,pre,e1) ->
             let targetType = match op with
-            | Not -> TCppScalar("Bool")
-            | NegBits -> TCppScalar("Int")
+            | Not -> TCppScalar("bool")
+            | NegBits -> TCppScalar("int")
             | _ -> cpp_type_of e1.etype
             in
 
@@ -2783,7 +2785,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             CppFor(v,init,block), TCppVoid
 
          | TWhile (e1,e2,flag) ->
-            let condition = retype (TCppScalar("Bool")) e1 in
+            let condition = retype (TCppScalar("bool")) e1 in
             let close = begin_loop() in
             let block = retype TCppVoid (mk_block e2) in
             CppWhile(condition, block, flag, close()), TCppVoid
@@ -2838,7 +2840,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             CppVarDecl(v, init), varType
 
          | TIf (ec,e1,e2) ->
-            let ec = retype (TCppScalar("Bool")) ec in
+            let ec = retype (TCppScalar("bool")) ec in
             let blockify =  if return_type!=TCppVoid then fun e -> e else mk_block in
             let e1 = retype return_type (blockify e1) in
             let e2 = match e2 with None->None | Some e -> Some (retype return_type (blockify e))
@@ -2854,7 +2856,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             let condition = retype conditionType condition in
             let cppDef = match def with None -> None | Some e -> Some (retype TCppVoid (mk_block e)) in
             (try
-               (match conditionType with TCppScalar("Int") | TCppScalar("Bool") -> () | _ -> raise Not_found );
+               (match conditionType with TCppScalar("int") | TCppScalar("bool") -> () | _ -> raise Not_found );
                let cases = List.map (fun (el,e2) ->
                   (List.map const_int_of el), (retype TCppVoid (mk_block e2)) ) cases in
                CppIntSwitch(condition, cases, cppDef), TCppVoid
@@ -3399,6 +3401,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
       | CppClassOf (path,native) ->
          let path = "::" ^ (join_class_path_remap (path) "::" ) in
+         let path = match path with
+         | "::Int" -> "int"
+         | "::Bool" -> "bool"
+         | x -> x in
          if (native) then
             out "null()"
          else if (path="::Array") then
@@ -5002,6 +5008,8 @@ let script_signature t optional = match script_type t optional with
 
 let script_size_type t optional = match script_type t optional with
    | "Object" -> "void *"
+   | "Int" -> "int"
+   | "Bool" -> "bool"
    | x -> x
 ;;
 

@@ -44,9 +44,12 @@ let c_kwds = [
 "void";"volatile";"while";
 (* MS specific *)
 "__asm";"dllimport2";"__int8";"naked2";"__based1";"__except";"__int16";"__stdcall";"__cdecl";"__fastcall";"__int32";
-"thread2";"__declspec";"__finally";"__int64";"__try";"dllexport2";"__inline";"__leave";
+"thread2";"__declspec";"__finally";"__int64";"__try";"dllexport2";"__inline";"__leave";"asm";
 (* reserved by HLC *)
-"t"
+"t";
+(* C11 *)
+"_Alignas";"_Alignof";"_Atomic";"_Bool";"_Complex";"_Generic";"_Imaginary";"_Noreturn";"_Static_assert";"_Thread_local";"_Pragma";
+"inline";"restrict"
 ]
 
 let s_comp = function
@@ -112,7 +115,10 @@ let write_c version file (code:code) =
 
 	let ident i = if Hashtbl.mem keywords i then "_" ^ i else i in
 
-	let tname str = String.concat "__" (ExtString.String.nsplit str ".") in
+	let tname str =
+		let n = String.concat "__" (ExtString.String.nsplit str ".") in
+		if Hashtbl.mem keywords ("_" ^ n) then "__" ^ n else n
+	in
 
 	let is_gc_ptr = function
 		| HVoid | HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool | HType | HRef _ -> false

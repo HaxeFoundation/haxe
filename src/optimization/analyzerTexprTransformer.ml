@@ -205,7 +205,7 @@ let rec func ctx bb tf t p =
 			bb,(value :: acc)
 		) (bb,[]) el in
 		bb,List.rev values
-	and bind_to_temp bb sequential e =
+	and bind_to_temp ?(v=None) bb sequential e =
 		let is_probably_not_affected e e1 fa = match fa with
 			| FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf) when cf.cf_kind = Method MethNormal -> true
 			| FStatic(_,{cf_kind = Method MethDynamic}) -> false
@@ -236,7 +236,7 @@ let rec func ctx bb tf t p =
 				| s :: _ -> s
 				| [] -> ctx.temp_var_name
 		in
-		let v = alloc_var (loop e) e.etype e.epos in
+		let v = match v with Some v -> v | None -> alloc_var (loop e) e.etype e.epos in
 		begin match ctx.com.platform with
 			| Globals.Cpp when sequential && not (Common.defined ctx.com Define.Cppia) -> ()
 			| _ -> v.v_meta <- [Meta.CompilerGenerated,[],e.epos];
@@ -296,18 +296,25 @@ let rec func ctx bb tf t p =
 		let e,efinal = map_values f e in
 		block_element_plus bb (e,efinal) f
 	and call bb e e1 el =
+		let bb = ref bb in
 		let check e t = match e.eexpr with
 			| TLocal v when is_ref_type t ->
 				v.v_capture <- true;
 				e
 			| _ ->
-				e
+				if is_asvar_type t then begin
+					let v = alloc_var "tmp" t e.epos in
+					let bb',e = bind_to_temp ~v:(Some v) !bb false e in
+					bb := bb';
+					e
+				end else
+					e
 		in
 		let el = Codegen.UnificationCallback.check_call check el e1.etype in
-			let bb,el = ordered_value_list bb (e1 :: el) in
-			match el with
-				| e1 :: el -> bb,{e with eexpr = TCall(e1,el)}
-				| _ -> assert false
+		let bb,el = ordered_value_list !bb (e1 :: el) in
+		match el with
+			| e1 :: el -> bb,{e with eexpr = TCall(e1,el)}
+			| _ -> assert false
 	and array_assign_op bb op e ea e1 e2 e3 =
 		let bb,e1 = bind_to_temp bb false e1 in
 		let bb,e2 = bind_to_temp bb false e2 in
