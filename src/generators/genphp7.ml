@@ -1966,9 +1966,8 @@ class virtual type_builder ctx wrapper =
 			match args with
 				| obj_expr :: field_expr :: [] ->
 					self#write_expr obj_expr;
-					self#write "->{";
-					self#write_expr field_expr;
-					self#write "}"
+					self#write "->";
+					self#write_expr field_expr
 				| _ -> fail self#pos __POS__
 		(**
 			Writes field access for writing (for `php7.Syntax.setField()`)
@@ -1977,9 +1976,9 @@ class virtual type_builder ctx wrapper =
 			match args with
 				| obj_expr :: field_expr :: value_expr :: [] ->
 					self#write_expr obj_expr;
-					self#write "->{";
+					self#write "->";
 					self#write_expr field_expr;
-					self#write "} = ";
+					self#write " = ";
 					self#write_expr value_expr
 				| _ -> fail self#pos __POS__
 		(**
@@ -2029,22 +2028,12 @@ class virtual type_builder ctx wrapper =
 		method private write_expr_lang_instanceof args =
 			match args with
 				| val_expr :: type_expr :: [] ->
+					self#write_expr val_expr;
+					self#write " instanceof ";
 					(match type_expr.eexpr with
 						| TTypeExpr (TClassDecl tcls) ->
-							let val_expr = match val_expr.eexpr with
-								| TLocal e -> val_expr
-								| _ -> parenthesis val_expr
-							in
-							self#write_expr val_expr;
-							self#write " instanceof ";
 							self#write (self#use_t (TInst (tcls, [])))
 						| _ ->
-							let val_expr = match val_expr.eexpr with
-								| TLocal e -> val_expr
-								| _ -> parenthesis val_expr
-							in
-							self#write_expr val_expr;
-							self#write " instanceof ";
 							self#write_expr type_expr;
 							self#write "->phpClassName"
 						(*| _ ->

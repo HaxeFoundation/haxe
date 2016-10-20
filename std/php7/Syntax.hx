@@ -1,6 +1,7 @@
 package php7;
 
 import haxe.extern.Rest;
+import haxe.extern.AsVar;
 import haxe.extern.EitherType;
 
 /**
@@ -48,7 +49,7 @@ extern class Syntax {
         Ggenerates `$value instanceof $phpClassName`.
         `type` only accepts direct class names. That means `Type.resolveClass('MyClass')` is not allowed, but `MyClass` is.
     **/
-    static function instanceof( value:Dynamic,  type:Class<Dynamic> ) : Bool;
+    static function instanceof( value:AsVar<Dynamic>,  type:AsVar<Class<Dynamic>> ) : Bool;
 
     /**
         ```
@@ -66,22 +67,22 @@ extern class Syntax {
     /**
         Generates `new $className($arg1, ...$argN)`
     **/
-    static function construct( className:String, args:Rest<Dynamic>) : Dynamic;
+    static function construct( className:AsVar<String>, args:Rest<Dynamic>) : Dynamic;
 
     /**
         Generates instance field access for reading on `object`
     **/
-    static function getField( object:Dynamic, fieldName:String ) : Dynamic;
+    static function getField( object:AsVar<Dynamic>, fieldName:AsVar<String> ) : Dynamic;
 
     /**
         Generates instance field access for writing on `object`
     **/
-    static function setField( object:Dynamic, fieldName:String, value:Dynamic ) : Void;
+    static function setField( object:AsVar<Dynamic>, fieldName:AsVar<String>, value:Dynamic ) : Void;
 
     /**
         Generates a call to instance method: `$object->{$methodName}(<args>)`
     **/
-    static function call( object:Dynamic, methodName:String, args:Rest<Dynamic> ) : Dynamic;
+    static function call( object:AsVar<Dynamic>, methodName:AsVar<String>, args:Rest<Dynamic> ) : Dynamic;
 
     /**
         ```

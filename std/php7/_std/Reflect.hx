@@ -75,7 +75,7 @@ using php7.Global;
 	}
 
 	public static function callMethod( o : Dynamic, func : Function, args : Array<Dynamic> ) : Dynamic {
-		if (Syntax.instanceof(func, Closure)) {
+		if (Syntax.instanceof(cast func, Closure)) {
 			if (o != null) {
 				func = cast cast(func, Closure).bindTo(o);
 			}
@@ -96,9 +96,7 @@ using php7.Global;
 		if (Syntax.instanceof(f, Closure)) {
 			return true;
 		} else {
-			var hxClosure : Class<Dynamic> = cast Boot.closureHxClass();
-			Syntax.keepVar(hxClosure);
-			return Syntax.instanceof(f, hxClosure);
+			return Syntax.instanceof(f, cast Boot.closureHxClass());
 		}
 	}
 
@@ -145,7 +143,6 @@ using php7.Global;
 		if (Global.is_object(o)) {
 			var fields = Global.get_object_vars(cast o);
 			var hxAnon = Boot.getHxAnon().phpClassName;
-			Syntax.keepVar(hxAnon);
 			return Syntax.construct(hxAnon, fields);
 		} else {
 			return null;
