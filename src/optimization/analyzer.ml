@@ -458,8 +458,9 @@ module ConstPropagation = DataFlow(struct
 				if not (type_change_ok ctx.com e'.etype e.etype) then raise Not_found;
 				e'
 		in
+		let is_special_var v = v.v_capture || is_asvar_type v.v_type in
 		let rec commit e = match e.eexpr with
-			| TLocal v when not v.v_capture ->
+			| TLocal v when not (is_special_var v) ->
 				begin try
 					inline e v.v_id
 				with Not_found ->

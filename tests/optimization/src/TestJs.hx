@@ -588,4 +588,25 @@ class TestJs {
         var v = Type.typeof(o).match(TClass(String));
         use(v);
 	}
+
+	@:js('
+		var tmp = "foo";
+		Extern.test(tmp);
+		var tmp1 = "bar";
+		Extern.test(tmp1);
+		var closure = Extern.test;
+		var tmp2 = "baz";
+		closure(tmp2);
+	')
+	static function testAsVar() {
+		Extern.test("foo");
+		var x = "bar";
+		Extern.test(x);
+		var closure = Extern.test;
+		closure("baz");
+	}
+}
+
+extern class Extern {
+	static public function test(e:haxe.extern.AsVar<String>):Void;
 }
