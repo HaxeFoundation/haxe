@@ -297,17 +297,17 @@ typedef Var = {
 	/**
 		The name of the variable.
 	**/
-	name : String,
+	var name : String;
 
 	/**
 		The type-hint of the variable, if available.
 	**/
-	type : Null<ComplexType>,
+	var type : Null<ComplexType>;
 
 	/**
 		The expression of the variable, if available.
 	**/
-	expr : Null<Expr>
+	var expr : Null<Expr>;
 }
 
 /**
@@ -318,17 +318,17 @@ typedef Catch = {
 	/**
 		The name of the catch variable.
 	**/
-	name : String,
+	var name : String;
 
 	/**
 		The type of the catch.
 	**/
-	type : ComplexType,
+	var type : ComplexType;
 
 	/**
 		The expression of the catch.
 	**/
-	expr : Expr
+	var expr : Expr;
 }
 
 /**
@@ -669,17 +669,17 @@ typedef MetadataEntry = {
 	/**
 		The name of the metadata entry.
 	**/
-	name : String,
+	var name : String;
 
 	/**
 		The optional parameters of the metadata entry.
 	**/
-	?params : Array<Expr>,
+	@:optional var params : Array<Expr>;
 
 	/**
 		The position of the metadata entry.
 	**/
-	pos : Position
+	var pos : Position;
 }
 
 /**
