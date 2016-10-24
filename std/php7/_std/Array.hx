@@ -77,7 +77,7 @@ class Array<T> implements ArrayAccess<Int,T> {
 	}
 
 	public function join(sep:String):String {
-		return Global.implode(sep, arr);
+		return Global.implode(sep, Global.array_map('strval', arr));
 	}
 
 	public function lastIndexOf(x:T, ?fromIndex:Int):Int {

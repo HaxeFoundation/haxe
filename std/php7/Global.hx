@@ -153,7 +153,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.array-map.php
 	**/
-	static function array_map( callback:Dynamic->Dynamic, array:Rest<NativeArray> ) : NativeArray ;
+	static function array_map( callback:EitherType<Dynamic->Dynamic, String>, array:Rest<NativeArray> ) : NativeArray ;
 
 	/**
 		@see http://php.net/manual/en/function.array-merge.php
