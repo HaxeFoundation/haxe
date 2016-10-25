@@ -366,6 +366,11 @@ extern class Global {
 	static function str_repeat( input:String, multiplier:Int ) : String;
 
 	/**
+		@see http://php.net/manual/en/function.str-replace.php
+	**/
+	static function str_replace( search:EitherType<String,NativeArray>, replace:EitherType<String,NativeArray>, subject:EitherType<String,NativeArray>, ?count:Int ) : EitherType<String,NativeArray>;
+
+	/**
 		@see http://php.net/manual/en/function.explode.php
 	**/
 	static function explode( delimiter:String, string:String, ?limit:Int ) : EitherType<Bool,NativeIndexedArray<String>>;
@@ -590,10 +595,20 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.preg-match.php
 	**/
-	static function preg_match( pattern:String, subject:String, ?matches:Ref<NativeIndexedArray<String>>, ?flags:Int, ?offset:Int ) : EitherType<Bool,Int> ;
+	static function preg_match( pattern:String, subject:String, ?matches:NativeArray, ?flags:Int, ?offset:Int ) : EitherType<Bool,Int> ;
 
 	/**
 		@see http://php.net/manual/en/function.preg-match-all.php
 	**/
-	static function preg_match_all( pattern:String, subject:String, ?matches:Ref<NativeIndexedArray<String>>, ?flags:Int, ?offset:Int ) : EitherType<Bool,Int> ;
+	static function preg_match_all( pattern:String, subject:String, ?matches:NativeArray, ?flags:Int, ?offset:Int ) : EitherType<Bool,Int> ;
+
+	/**
+		@see http://php.net/manual/en/function.preg-split.php
+	**/
+	static function preg_split( pattern:String, subject:String, limit:Int = -1, flags:Int = 0 ) : EitherType<Bool,NativeArray> ;
+
+	/**
+		@see http://php.net/manual/en/function.preg-replace.php
+	**/
+	static function preg_replace( pattern:EitherType<String,NativeArray>, replacement:EitherType<String,NativeArray>, subject:EitherType<String,NativeArray>, limit:Int = -1, ?count:Int ) : EitherType<String,NativeArray> ;
 }

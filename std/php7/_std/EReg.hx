@@ -19,6 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import haxe.extern.EitherType;
+import php7.*;
+
 @:coreApi @:final class EReg {
 
 	var r : Dynamic;
@@ -27,80 +31,90 @@
 	var pattern : String;
 	var options : String;
 	var re : String;
-	var matches : ArrayAccess<Dynamic>;
+	var matches : NativeIndexedArray<NativeIndexedArray<EitherType<Int,String>>>;
 
 	public function new( r : String, opt : String ) : Void {
 		this.pattern = r;
 		var a = opt.split("g");
 		global = a.length > 1;
-		if( global )
+		if (global) {
 			opt = a.join("");
+		}
 		this.options = opt;
-		this.re = untyped __php__("'\"' . str_replace('\"','\\\\\"',$r) . '\"' . $opt");
+		this.re = '"' + Global.str_replace('"', '\\\\', r) + '"' + opt;
 	}
 
 	public function match( s : String ) : Bool {
-		var p : Int = untyped __call__("preg_match", re, s, matches, __php__("PREG_OFFSET_CAPTURE"));
+		var p : Int = Global.preg_match(re, s, matches, Const.PREG_OFFSET_CAPTURE);
 
-		if(p > 0)
+		if (p > 0) {
 			last = s;
-		else
+		} else {
 			last = null;
+		}
 		return p > 0;
 	}
 
 	public function matched( n : Int ) : String {
-		if (matches == null ||  n < 0 ) throw "EReg::matched";
+		if (matches == null ||  n < 0) throw "EReg::matched";
 		// we can't differenciate between optional groups at the end of a match
 		// that have not been matched and invalid groups
-		if( n >= untyped __call__("count", matches)) return null;
-		if(untyped __php__("$this->matches[$n][1] < 0")) return null;
-		return untyped __php__("$this->matches[$n][0]");
+		if (n >= Global.count(matches)) return null;
+		if ((matches[n][1]:Int) < 0) return null;
+		return matches[n][0];
 	}
 
 	public function matchedLeft() : String {
-		if( untyped __call__("count", matches) == 0 ) throw "No string matched";
-		return last.substr(0, untyped __php__("$this->matches[0][1]"));
+		if (Global.count(matches) == 0) throw "No string matched";
+		return last.substr(0, matches[0][1]);
 	}
 
 	public function matchedRight() : String {
-		if( untyped __call__("count", matches) == 0 ) throw "No string matched";
-		var x : Int = untyped __php__("$this->matches[0][1]") + __call__("strlen",__php__("$this->matches[0][0]"));
+		if (Global.count(matches) == 0) throw "No string matched";
+		var x : Int = (matches[0][1]:Int) + Global.strlen(matches[0][0]);
 		return last.substr(x);
 	}
 
 	public function matchedPos() : { pos : Int, len : Int } {
-		return untyped { pos : __php__("$this->matches[0][1]"), len : __call__("strlen",__php__("$this->matches[0][0]")) };
+		return {
+			pos : matches[0][1],
+			len : Global.strlen(matches[0][0])
+		};
 	}
 
 	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
-		var p : Int = untyped __call__("preg_match", re, len < 0 ? s : s.substr(0,pos + len), matches, __php__("PREG_OFFSET_CAPTURE"), pos);
+		var subject = len < 0 ? s : s.substr(0,pos + len);
+		var p : Int = Global.preg_match(re, subject, matches, Const.PREG_OFFSET_CAPTURE, pos);
 		if(p > 0) {
 			last = s;
 		}
-		else
+		else {
 			last = null;
+		}
 		return p > 0;
 	}
 
 	public function split( s : String ) : Array<String> {
-		return untyped __php__("new _hx_array(preg_split($this->re, $s, $this->{\"global\"} ? -1 : 2))");
+		var parts:NativeArray = Global.preg_split(re, s, (global ? -1 : 2));
+		return @:privateAccess Array.wrap(parts);
 	}
 
 	public function replace( s : String, by : String ) : String {
-		by = untyped __call__("str_replace", "\\$", "\\\\$", by);
-		by = untyped __call__("str_replace", "$$", "\\$", by);
-		untyped __php__("if(!preg_match('/\\\\([^?].*?\\\\)/', $this->re)) $by = preg_replace('/\\$(\\d+)/', '\\\\\\$\\1', $by)");
-		return untyped __call__("preg_replace", re, by, s, global ? -1 : 1);
+		by = Global.str_replace("\\$", "\\\\$", by);
+		by = Global.str_replace("$$", "\\$", by);
+		if (Global.preg_match('/\\\\([^?].*?\\\\)/', re)) {
+			by = Global.preg_replace('/\\$(\\d+)/', '\\\\\\$\\1', by);
+		}
+		return Global.preg_replace(re, by, s, global ? -1 : 1);
 	}
 
 	public function map( s : String, f : EReg -> String ) : String {
 		var offset = 0;
 		var buf = new StringBuf();
 		do {
-			if (offset >= s.length)
+			if (offset >= s.length) {
 				break;
-			else if (!matchSub(s, offset)) {
+			} else if (!matchSub(s, offset)) {
 				buf.add(s.substr(offset));
 				break;
 			}
@@ -111,11 +125,13 @@
 				buf.add(s.substr(p.pos, 1));
 				offset = p.pos + 1;
 			}
-			else
+			else {
 				offset = p.pos + p.len;
+			}
 		} while (global);
-		if (!global && offset > 0 && offset < s.length)
+		if (!global && offset > 0 && offset < s.length) {
 			buf.add(s.substr(offset));
+		}
 		return buf.toString();
 	}
 }

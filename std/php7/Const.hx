@@ -109,4 +109,10 @@ extern class Const {
 	static var PREG_PATTERN_ORDER : Int;
 	static var PREG_SET_ORDER : Int;
 	static var PREG_OFFSET_CAPTURE : Int;
+	/**
+		@see http://php.net/manual/en/function.preg-split.php
+	**/
+	static var PREG_SPLIT_NO_EMPTY : Int;
+	static var PREG_SPLIT_DELIM_CAPTURE : Int;
+	static var PREG_SPLIT_OFFSET_CAPTURE : Int;
 }
