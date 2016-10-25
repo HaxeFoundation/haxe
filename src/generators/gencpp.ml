@@ -848,11 +848,6 @@ and cant_be_null haxe_type =
    is_numeric (type_string haxe_type) || (type_has_meta_key haxe_type Meta.NotNull )
 ;;
 
-let is_object type_string =
-   not (is_numeric type_string || type_string="::String");
-;;
-
-
 
 
 let is_array haxe_type =
@@ -2270,6 +2265,27 @@ let cpp_enum_name_of field =
       keyword_remap field.ef_name
 ;;
 
+let is_gc_element ctx member_type =
+  Common.defined ctx.ctx_common Define.HxcppGcGenerational &&
+  match member_type with
+   | TCppDynamic
+   | TCppObject
+   | TCppObjectPtr
+   | TCppEnum _
+   | TCppString
+   | TCppFunction _
+   | TCppDynamicArray
+   | TCppObjectArray _
+   | TCppWrapped _
+   | TCppScalarArray _
+   | TCppInst _
+   | TCppInterface _ 
+   | TCppClass
+       -> true
+   | _ -> false
+
+;;
+
 
 
 let retype_expression ctx request_type function_args expression_tree forInjection =
@@ -2304,9 +2320,15 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
 
    let rec to_lvalue value =
       match value.cppexpr with
-      | CppVar varloc -> CppVarRef(varloc)
-      | CppArray arrayloc -> CppArrayRef(arrayloc)
-      | CppDynamicField(expr, name) -> CppDynamicRef(expr,name)
+      | CppVar( VarClosure(var) as varloc) when is_gc_element ctx (cpp_type_of ctx var.v_type) ->
+           CppVarRef(varloc), true
+      | CppVar( VarThis(member) as varloc) when is_gc_element ctx (cpp_type_of ctx member.cf_type) ->
+           CppVarRef(varloc), true
+      | CppVar( VarInstance(obj,member,_,"->") as varloc) when is_gc_element ctx (cpp_type_of ctx member.cf_type) ->
+           CppVarRef(varloc), true
+      | CppVar varloc -> CppVarRef(varloc), false
+      | CppArray arrayloc -> CppArrayRef(arrayloc), false
+      | CppDynamicField(expr, name) -> CppDynamicRef(expr,name), false
       | CppTCast(cppExpr,_)
       | CppCast(cppExpr,_)
       | CppCastStatic(cppExpr,_)
@@ -2314,7 +2336,8 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
       | CppCastObjCBlock(cppExpr,_,_)
       | CppCastScalar(cppExpr,_) -> to_lvalue cppExpr
       | CppCastVariant(cppExpr) -> to_lvalue cppExpr
-      | CppGlobal(name) -> CppGlobalRef(name)
+      | CppGlobal(name) -> CppGlobalRef(name), false
+
       | _ -> abort ("Could not convert expression to l-value (" ^ s_tcpp value.cppexpr ^ ")") value.cpppos
    in
 
@@ -2730,9 +2753,13 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             let e2_null = e2.cpptype=TCppNull in
             let reference = match op with
                | OpAssign ->
-                  CppSet(to_lvalue e1, e2)
+                  let lvalue, gc = to_lvalue e1 in
+                  if gc then gc_stack := true;
+                  CppSet(lvalue, e2)
                | OpAssignOp op ->
-                  CppModify(op, to_lvalue e1, e2)
+                  let lvalue, gc = to_lvalue e1 in
+                  if gc then gc_stack := true;
+                  CppModify(op, lvalue, e2)
                | OpEq when    e1_null && e2_null-> CppBool(true)
                | OpGte when   e1_null && e2_null-> CppBool(true)
                | OpLte when   e1_null && e2_null-> CppBool(true)
@@ -2769,8 +2796,14 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
 
             let e1 = retype targetType e1 in
             let reference = match op with
-               | Increment -> CppCrement( CppIncrement, pre, to_lvalue e1)
-               | Decrement -> CppCrement( CppDecrement, pre, to_lvalue e1)
+               | Increment ->
+                   let lvalue, gc = to_lvalue e1 in
+                   if gc then gc_stack := true;
+                   CppCrement( CppIncrement, pre, lvalue)
+               | Decrement ->
+                   let lvalue, gc = to_lvalue e1 in
+                   if gc then gc_stack := true;
+                   CppCrement( CppDecrement, pre, lvalue)
                | Neg -> CppUnop(CppNeg,e1)
                | Not -> CppUnop(CppNot,e1)
                | NegBits -> CppUnop(CppNegBits,e1)
@@ -3048,7 +3081,6 @@ let cpp_is_const_scalar_array arrayType expressions =
 
 
 
-
 (* Generate prototype text, including allowing default values to be null *)
 let cpp_arg_string ctx tvar default_val prefix =
    let t,n = cpp_arg_type_name ctx tvar default_val prefix in
@@ -3222,7 +3254,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          out " ]"
 
       | CppCall(FuncNew( TCppInst klass), args) ->
-         out ((cpp_class_path_of klass) ^ "_obj::__alloc( HX_GC_CTX");
+         out ((cpp_class_path_of klass) ^ "_obj::__alloc( HX_CTX ");
          List.iter (fun arg -> out ","; gen arg ) args;
          out (")")
 
@@ -3360,18 +3392,31 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       | CppSet(lvalue,rvalue) ->
          let close = if expr.cpptype=TCppVoid then "" else (out "("; ")" ) in
          (match lvalue with
+         | CppVarRef( VarClosure(var)) when is_gc_element ctx (cpp_type_of ctx var.v_type) ->
+              out ("this->_hx_set_" ^ (cpp_var_name_of var) ^ "(HX_CTX, "); gen rvalue; out ")"
+
+         | CppVarRef( VarThis(member)) when is_gc_element ctx (cpp_type_of ctx member.cf_type) ->
+              out ("this->_hx_set_" ^ (cpp_member_name_of member) ^ "(HX_CTX, "); gen rvalue; out ")"
+
+         | CppVarRef( VarInstance(obj,member,_,"->")) when is_gc_element ctx (cpp_type_of ctx member.cf_type) ->
+              gen obj; out ("->_hx_set_" ^ (cpp_member_name_of member) ^ "(HX_CTX, "); gen rvalue; out ")"
+         | CppVarRef( VarInternal(obj,operator,member) ) ->
+              gen obj; out (operator ^ member)
+
          | CppVarRef varLoc ->
-              gen_val_loc varLoc; out " = "; gen rvalue;
+              gen_val_loc varLoc true; out " = "; gen rvalue;
+
 
          | CppArrayRef arrayLoc -> (match arrayLoc with
+            | ArrayObject(arrayObj, index, _) when (is_gc_element ctx TCppDynamic) ->
+               gen arrayObj; out "->setCtx( HX_CTX, "; gen index; out ","; gen rvalue; out ")"
             | ArrayObject(arrayObj, index, _)
-            | ArrayTyped(arrayObj, index) ->
+            | ArrayTyped(arrayObj, index)
+            | ArrayRawPointer(arrayObj, index) ->
                gen arrayObj; out "["; gen index; out "] = "; gen rvalue
             | ArrayPointer(arrayObj, index) ->
                gen arrayObj; out ".ptr["; gen index; out "] = "; gen rvalue
-            | ArrayRawPointer(arrayObj, index) ->
-               gen arrayObj; out "["; gen index; out "] = "; gen rvalue
-            | ArrayVirtual(arrayObj, index) ->
+            | ArrayVirtual(arrayObj, index)  ->
                gen arrayObj; out "->set("; gen index; out ","; gen rvalue; out ")"
 
             | ArrayDynamic(arrayObj, index) ->
@@ -3413,7 +3458,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
             out ("hx::ClassOf< " ^ path ^ " >()")
 
       | CppVar(loc) ->
-         gen_val_loc loc;
+         gen_val_loc loc false;
 
 
       | CppClosure closure ->
@@ -3730,9 +3775,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
    and gen_lvalue lvalue =
       match lvalue with
       | CppVarRef varLoc ->
-           gen_val_loc varLoc
+           gen_val_loc varLoc true
       | CppArrayRef arrayLoc -> (match arrayLoc with
-         | ArrayObject(arrayObj, index, _)
+         | ArrayObject(arrayObj, index, _) ->
+            out "hx::IndexRef("; gen arrayObj; out ".mPtr,"; gen index; out ")";
          | ArrayTyped(arrayObj, index) ->
             gen arrayObj; out "["; gen index; out "]";
          | ArrayPointer(arrayObj, index) ->
@@ -3753,9 +3799,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          in
          out "hx::FieldRef(("; gen expr ; out (")" ^ objPtr ^ "," ^ strq name ^ ")")
 
-   and gen_val_loc loc =
+   and gen_val_loc loc lvalue =
       match loc with
-      | VarClosure(var) -> out (cpp_var_name_of var)
+      | VarClosure(var) ->
+          out ("this->" ^ (cpp_var_name_of var))
       | VarLocal(local) -> out (cpp_var_name_of local)
       | VarStatic(clazz,objc,member) ->
           let rename = get_meta_string member.cf_meta Meta.Native in
@@ -3765,7 +3812,8 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
              (out ( (join_class_path_remap clazz.cl_path "::") ); out ("." ^ (cpp_member_name_of member)))
           else
              (out (cpp_class_name clazz ); out ("::" ^ (cpp_member_name_of member)))
-      | VarThis(member) -> out ("this->" ^ (cpp_member_name_of member))
+      | VarThis(member) ->
+         out ("this->" ^ (cpp_member_name_of member))
       | VarInstance(obj,member,_,operator) ->
          gen obj; out (operator ^ (cpp_member_name_of member))
       | VarInternal(obj,operator,member) ->
@@ -4156,6 +4204,8 @@ let gen_member_def ctx class_def is_static is_interface field =
          if ( is_dynamic_haxe_method field ) then begin
             if ( doDynamic ) then begin
                output ("::Dynamic " ^ remap_name ^ ";\n");
+               if (not is_static) && (is_gc_element ctx TCppDynamic) then
+                  output ("\t\tinline ::Dynamic _hx_set_" ^ remap_name ^ "(hx::Ctx *_hx_ctx,::Dynamic _hx_v) { HX_OBJ_WB(this,_hx_v) return " ^ remap_name ^ "=_hx_v; }\n");
                output (if is_static then "\t\tstatic " else "\t\t");
                output ("inline ::Dynamic &" ^ remap_name ^ "_dyn() " ^ "{return " ^ remap_name^ "; }\n")
             end
@@ -4192,6 +4242,8 @@ let gen_member_def ctx class_def is_static is_interface field =
             abort ("Variables of type " ^ tcppStr ^ " may not be used as members") field.cf_pos;
 
          output (tcppStr ^ " " ^ remap_name ^ ";\n" );
+         if not is_static && (is_gc_element ctx tcpp) then
+            output ("\t\tinline " ^ tcppStr ^ " _hx_set_" ^ remap_name ^ "(hx::Ctx *_hx_ctx," ^ tcppStr ^ " _hx_v) { HX_OBJ_WB(this,_hx_v) return " ^ remap_name ^ "=_hx_v; }\n");
 
          (* Add a "dyn" function for variable to unify variable/function access *)
          (match follow field.cf_type with
@@ -5239,12 +5291,12 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       out ("\treturn __this;\n");
       out ("}\n\n");
 
-      out ((if isHeader then "static " else "") ^ ptr_name ^ " " ^ classScope ^ "__alloc(hx::GcAllocator *_hx_alloc" ^ (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^") {\n");
-      out ("\t" ^ class_name ^ " *__this = (" ^ class_name ^ "*)(hx::GcAllocator::alloc(_hx_alloc, sizeof(" ^ class_name ^ "), " ^ isContainer ^", " ^ gcName ^ "));\n");
+      out ((if isHeader then "static " else "") ^ ptr_name ^ " " ^ classScope ^ "__alloc(hx::Ctx *_hx_ctx" ^ (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^") {\n");
+      out ("\t" ^ class_name ^ " *__this = (" ^ class_name ^ "*)(hx::Ctx::alloc(_hx_ctx, sizeof(" ^ class_name ^ "), " ^ isContainer ^", " ^ gcName ^ "));\n");
       out ("\t*(void **)__this = " ^ class_name ^ "::_hx_vtable;\n");
       let rec dump_dynamic class_def =
          if has_dynamic_member_functions class_def then
-            out ("\t" ^ (join_class_path_remap class_def.cl_path "::") ^ "_obj::__alloc_dynamic_functions(_hx_alloc,__this);\n")
+            out ("\t" ^ (join_class_path_remap class_def.cl_path "::") ^ "_obj::__alloc_dynamic_functions(_hx_ctx,__this);\n")
          else match class_def.cl_super with
          | Some super -> dump_dynamic (fst super)
          | _ -> ()
@@ -5429,7 +5481,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    output_cpp "\n";
 
    if (List.length dynamic_functions > 0) then begin
-      output_cpp ("void " ^ class_name ^ "::__alloc_dynamic_functions(hx::GcAllocator *_hx_alloc," ^ class_name ^ " *_hx_obj) {\n");
+      output_cpp ("void " ^ class_name ^ "::__alloc_dynamic_functions(hx::Ctx *_hx_ctx," ^ class_name ^ " *_hx_obj) {\n");
       List.iter (fun name ->
              output_cpp ("\tif (!_hx_obj->" ^ name ^".mPtr) _hx_obj->" ^ name ^ " = new __default_" ^ name ^ "(_hx_obj);\n")
          ) dynamic_functions;
@@ -5438,7 +5490,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
           let rec find_super class_def =
              if has_dynamic_member_functions class_def then begin
                 let super_name = (join_class_path_remap class_def.cl_path "::" ) ^ "_obj" in
-                output_cpp ("\t" ^ super_name ^ "::__alloc_dynamic_functions(_hx_alloc,_hx_obj);\n")
+                output_cpp ("\t" ^ super_name ^ "::__alloc_dynamic_functions(_hx_ctx,_hx_obj);\n")
              end else
                 match class_def.cl_super with
                 | Some super -> find_super (fst super)
@@ -5575,9 +5627,11 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          output_cpp ("hx::Val " ^ class_name ^ "::__SetField(const ::String &inName,const hx::Val &inValue,hx::PropertyAccess inCallProp)\n{\n");
 
          let set_field_dat = List.map (fun f ->
-            let default_action =
-               (keyword_remap f.cf_name) ^ "=inValue.Cast< " ^ (ctx_type_string ctx f.cf_type) ^ " >();" ^
-                  " return inValue;" in
+            let default_action = if is_gc_element ctx (cpp_type_of ctx f.cf_type) then
+                  "_hx_set_" ^ (keyword_remap f.cf_name) ^ "(HX_CTX_GET,inValue.Cast< " ^ (ctx_type_string ctx f.cf_type) ^ " >());" ^ " return inValue;"
+               else
+                  (keyword_remap f.cf_name) ^ "=inValue.Cast< " ^ (ctx_type_string ctx f.cf_type) ^ " >();" ^ " return inValue;"
+            in
             (f.cf_name, String.length f.cf_name,
                (match f.cf_kind with
                | Var { v_write = AccCall } -> "if (" ^ (checkPropCall f) ^ ") return hx::Val( " ^ (keyword_remap ("set_" ^ f.cf_name)) ^ "(inValue) );"
@@ -6039,13 +6093,13 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          outputConstructor ctx (fun str -> output_h ("\t\t" ^ str) ) true
       end else begin
          output_h ("\t\tstatic " ^ptr_name^ " __new(" ^constructor_type_args ^");\n");
-         output_h ("\t\tstatic " ^ptr_name^ " __alloc(hx::GcAllocator *_hx_alloc" ^ (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^");\n");
+         output_h ("\t\tstatic " ^ptr_name^ " __alloc(hx::Ctx *_hx_ctx" ^ (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^");\n");
       end;
       output_h ("\t\tstatic void * _hx_vtable;\n");
       output_h ("\t\tstatic Dynamic __CreateEmpty();\n");
       output_h ("\t\tstatic Dynamic __Create(hx::DynamicArray inArgs);\n");
       if (List.length dynamic_functions > 0) then
-         output_h ("\t\tstatic void __alloc_dynamic_functions(hx::GcAllocator *_hx_alloc," ^ class_name ^ " *_hx_obj);\n");
+         output_h ("\t\tstatic void __alloc_dynamic_functions(hx::Ctx *_hx_alloc," ^ class_name ^ " *_hx_obj);\n");
       if (scriptable) then
          output_h ("\t\tstatic hx::ScriptFunction __script_construct;\n");
       output_h ("\t\t//~" ^ class_name ^ "();\n\n");
