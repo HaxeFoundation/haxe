@@ -594,6 +594,10 @@ class virtual type_wrapper (type_path:path) (meta:metadata) (needs_generation:bo
 		*)
 		method virtual needs_initialization : bool
 		(**
+			Returns hx source file name where this type was declared
+		*)
+		method virtual get_source_file : string
+		(**
 			Returns expression of a user-defined static __init__ method
 			@see http://old.haxe.org/doc/advanced/magic#initialization-magic
 		*)
@@ -640,6 +644,10 @@ class class_wrapper (cls) =
 			@see http://old.haxe.org/doc/advanced/magic#initialization-magic
 		*)
 		method get_magic_init = cls.cl_init
+		(**
+			Returns hx source file name where this type was declared
+		*)
+		method get_source_file = cls.cl_pos.pfile
 	end
 
 (**
@@ -652,6 +660,10 @@ class enum_wrapper (enm) =
 			Indicates if class initialization method should be executed upon class loaded
 		*)
 		method needs_initialization = false
+		(**
+			Returns hx source file name where this type was declared
+		*)
+		method get_source_file = enm.e_pos.pfile
 	end
 
 (**
@@ -664,6 +676,10 @@ class typedef_wrapper (tdef) =
 			Indicates if class initialization method should be executed upon class loaded
 		*)
 		method needs_initialization = false
+		(**
+			Returns hx source file name where this type was declared
+		*)
+		method get_source_file = tdef.t_pos.pfile
 	end
 
 (**
@@ -676,6 +692,10 @@ class abstract_wrapper (abstr) =
 			Indicates if class initialization method should be executed upon class loaded
 		*)
 		method needs_initialization = false
+		(**
+			Returns hx source file name where this type was declared
+		*)
+		method get_source_file = abstr.a_pos.pfile
 	end
 
 (**
@@ -757,6 +777,25 @@ let clear_wrappers () =
 	Hashtbl.clear enums;
 	Hashtbl.clear typedefs;
 	Hashtbl.clear abstracts
+
+(**
+	Check if specified type name is used in specified namespace
+*)
+let namespaces_types_cache = Hashtbl.create 512
+let type_name_used_in_namespace ctx name namespace =
+	let types = Hashtbl.find_all namespaces_types_cache namespace in
+	match types with
+		| [] ->
+			List.iter
+				(fun ctx_type ->
+					let wrapper = get_wrapper ctx_type in
+					Hashtbl.add namespaces_types_cache wrapper#get_namespace wrapper#get_name
+				)
+				ctx.types;
+			let types = Hashtbl.find_all namespaces_types_cache namespace in
+			List.mem name types
+		| _ ->
+			List.mem name types
 
 (**
 	Class to simplify collecting lists of declared and used local vars.
@@ -852,6 +891,10 @@ class virtual type_builder ctx wrapper =
 		method get_type_path : path =
 			match wrapper#get_type_path with
 				| (path, name) -> (get_real_path path, get_real_name name)
+		(**
+			Returns hx source file name where this type was declared
+		*)
+		method get_source_file : string = wrapper#get_source_file
 		(**
 			Writes type declaration line to output buffer.
 			E.g. "class SomeClass extends Another implements IFace"
@@ -966,11 +1009,14 @@ class virtual type_builder ctx wrapper =
 							alias := get_alias_next_part () ^ !alias;
 						while not !added do
 							try
-								let used_type = Hashtbl.find use_table !alias in
-								if used_type = type_path then
-									added := true
+								if (get_module_path type_path) <> wrapper#get_namespace && type_name_used_in_namespace ctx !alias wrapper#get_namespace then
+									alias := get_alias_next_part () ^ !alias
 								else
-									alias := get_alias_next_part () ^ !alias;
+									let used_type = Hashtbl.find use_table !alias in
+									if used_type = type_path then
+										added := true
+									else
+										alias := get_alias_next_part () ^ !alias;
 							with
 								| Not_found ->
 									Hashtbl.add use_table !alias type_path;
@@ -1143,11 +1189,12 @@ class virtual type_builder ctx wrapper =
 		method private write_use =
 			self#indent 0;
 			let write alias type_path =
-				if get_type_name type_path = alias then
-					self#write_statement ("use " ^ (get_full_type_name type_path))
-				else
-					let full_name = get_full_type_name type_path in
-					self#write_statement ("use " ^ full_name ^ " as " ^ alias)
+				if (get_module_path type_path) <> wrapper#get_namespace then
+					if get_type_name type_path = alias then
+						self#write_statement ("use " ^ (get_full_type_name type_path))
+					else
+						let full_name = get_full_type_name type_path in
+						self#write_statement ("use " ^ full_name ^ " as " ^ alias)
 			in
 			Hashtbl.iter write use_table
 		(**
@@ -2762,6 +2809,7 @@ class generator (com:context) =
 			let filename = (create_dir_recursive (build_dir :: namespace)) ^ "/" ^ name ^ ".php" in
 			let channel = open_out filename in
 			output_string channel contents;
+			output_string channel ("\n//Haxe source file: " ^ builder#get_source_file ^ "\n");
 			close_out channel;
 			if builder#get_type_path = boot_type_path then
 				boot <- Some (builder, filename)
