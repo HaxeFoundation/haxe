@@ -144,8 +144,9 @@ class Array<T> implements ArrayAccess<Int,T> {
 	}
 
 	public function splice(pos:Int, len:Int):Array<T> {
-		Syntax.keepVar(arr);
-		return wrap(Global.array_splice(arr, pos, len));
+		var result = wrap(Global.array_splice(arr, pos, len));
+		length -= result.length;
+		return result;
 	}
 
 	public function unshift(x:T):Void {
