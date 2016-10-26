@@ -55,14 +55,14 @@ import php7.NativeIndexedArray;
 		See `Map.exists`
 	**/
 	public inline function exists( key : Int ) : Bool {
-		return Global.isset(data[key]);
+		return Global.array_key_exists(key, data);
 	}
 
 	/**
 		See `Map.remove`
 	**/
 	public function remove( key : Int ) : Bool {
-		if (Global.isset(data[key])) {
+		if (Global.array_key_exists(key, data)) {
 			Global.unset(data[key]);
 			return true;
 		}
