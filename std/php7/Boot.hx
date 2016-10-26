@@ -322,9 +322,20 @@ class Boot {
 	**/
 	public static function equal( left:Dynamic, right:Dynamic ) : Bool {
 		if (isNumber(left) && isNumber(right)) {
-			return Syntax.equal(left, right);
+			return Syntax.binop(left, '==', right);
 		}
-		return Syntax.strictEqual(left, right);
+		return Syntax.binop(left, '===', right);
+	}
+
+	/**
+		Concat `left` and `right` if both are strings or string and null.
+		Otherwise return sum of `left` and `right`.
+	**/
+	public static function addOrConcat( left:Dynamic, right:Dynamic ) : Dynamic {
+		if ((left.is_string() || left == null) && (right.is_string() || right == null)) {
+			return (left:String) + (right:String);
+		}
+		return Syntax.binop(left, '+', right);
 	}
 
 	/**
@@ -537,7 +548,11 @@ private class HxString {
 	}
 
 	public static function substr( str:String, pos:Int, ?len:Int ) : String {
-		if (pos < -str.length) pos = 0;
+		if (pos < -str.length) {
+			pos = 0;
+		} else if (pos >= str.length) {
+			return '';
+		}
 		if (len == null) {
 			return Global.substr(str, pos);
 		} else {

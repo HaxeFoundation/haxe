@@ -10,14 +10,10 @@ import haxe.extern.EitherType;
 **/
 extern class Syntax {
     /**
-        This method allows to force non-strict equality check.
+        This method allows to force specified binary operation for `left` and `right` values.
+        `operator` must be a constant string like "+" or "==".
     **/
-    static function equal( value1:Dynamic, value2:Dynamic ) : Bool;
-
-    /**
-        This method allows to force strict equality check.
-    **/
-    static function strictEqual( value1:Dynamic, value2:Dynamic ) : Bool;
+    static function binop( left:Dynamic, operator:String, right:Dynamic ) : Dynamic;
 
     /**
         Generates `(int)$value`

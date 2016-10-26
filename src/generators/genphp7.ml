@@ -164,6 +164,13 @@ let fail hxpos mlpos =
 			assert false
 
 (**
+	Print compilation error message and abort compilation process.
+*)
+let error_and_exit pos message =
+	Printf.printf "%s" (error_message pos message);
+	exit 1
+
+(**
 	Check if `target` is a `Dynamic` type
 *)
 let rec is_dynamic_type (target:Type.t) = match follow target with TDynamic _ -> true | _ -> false
@@ -1754,6 +1761,8 @@ class virtual type_builder ctx wrapper =
 				| OpAdd ->
 					if (is_string expr1) || (is_string expr2) then
 						write_binop ~writer:write_for_concat " . "
+					else if (is_unknown_type expr1.etype) && (is_unknown_type expr2.etype) then
+						write_method ((self#use boot_type_path) ^ "::addOrConcat")
 					else
 						write_binop " + "
 				| OpMult -> write_binop " * "
@@ -1796,6 +1805,12 @@ class virtual type_builder ctx wrapper =
 							self#write_expr expr1;
 							self#write " = ";
 							write_binop ~writer:write_for_concat " . "
+						end
+					else if (is_unknown_type expr1.etype) && (is_unknown_type expr2.etype) then
+						begin
+							self#write_expr expr1;
+							self#write " = ";
+							write_method ((self#use boot_type_path) ^ "::addOrConcat")
 						end
 					else
 						write_binop " += "
@@ -1980,8 +1995,7 @@ class virtual type_builder ctx wrapper =
 				| "int" | "float"
 				| "string" | "bool"
 				| "object" | "array" -> self#write_expr_lang_cast name args
-				| "equal" -> self#write_expr_lang_equal false args
-				| "strictEqual" -> self#write_expr_lang_equal true args
+				| "binop" -> self#write_expr_lang_binop args
 				| "instanceof" -> self#write_expr_lang_instanceof args
 				| "foreach" -> self#write_expr_lang_foreach args
 				| "construct" -> self#write_expr_lang_construct args
@@ -2073,12 +2087,15 @@ class virtual type_builder ctx wrapper =
 					if add_parentheses then self#write ")"
 				| _ -> fail self#pos __POS__
 		(**
-			Generates non-strict equality to output buffer (for `php7.Syntax.equal()`)
+			Generates binary operation to output buffer (for `php7.Syntax.binop()`)
 		*)
-		method private write_expr_lang_equal strict args =
-			let operator = if strict then "===" else "==" in
+		method private write_expr_lang_binop args =
 			match args with
-				| val_expr1 :: val_expr2 :: [] ->
+				| val_expr1 :: operator_expr :: val_expr2 :: [] ->
+					let operator = match operator_expr.eexpr with
+						| TConst (TString operator) -> operator
+						| _ -> error_and_exit self#pos "Second argument for php7.Syntax.binop() must be a constant string"
+					in
 					self#write "(";
 					self#write_expr val_expr1;
 					self#write (" " ^ operator ^ " ");
@@ -2125,8 +2142,7 @@ class virtual type_builder ctx wrapper =
 					self#write (" as $" ^ key_name ^ " => $" ^ value_name ^ ") ");
 					self#write_as_block fn.tf_expr
 				| _ ->
-					Printf.printf "%s" (error_message self#pos "PHP.foreach() only accepts anonymous function declaration for second argument.");
-					exit 1;
+					error_and_exit self#pos "PHP.foreach() only accepts anonymous function declaration for second argument."
 		(**
 			Writes TCall to output buffer
 		*)
