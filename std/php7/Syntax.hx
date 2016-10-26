@@ -10,10 +10,14 @@ import haxe.extern.EitherType;
 **/
 extern class Syntax {
     /**
-        `==` operator in Haxe uses strict equality check.
-        This method allows to compare values with non-strict equality check.
+        This method allows to force non-strict equality check.
     **/
     static function equal( value1:Dynamic, value2:Dynamic ) : Bool;
+
+    /**
+        This method allows to force strict equality check.
+    **/
+    static function strictEqual( value1:Dynamic, value2:Dynamic ) : Bool;
 
     /**
         Generates `(int)$value`

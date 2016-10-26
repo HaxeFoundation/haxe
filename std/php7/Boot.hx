@@ -25,11 +25,6 @@ import haxe.PosInfos;
 
 using php7.Global;
 
-@:native('php7.Boot')
-private extern class BootForPrefix {
-	@:phpClassConst static var PHP_PREFIX : String;
-}
-
 /**
 	Various Haxe->PHP compatibility utilities
 **/
@@ -73,7 +68,7 @@ class Boot {
 		Returns empty string if no `--php-prefix` provided.
 	**/
 	public static inline function getPrefix() : String {
-		return BootForPrefix.PHP_PREFIX;
+		return untyped __php__('self::PHP_PREFIX');
 	}
 
 	/**
@@ -329,7 +324,7 @@ class Boot {
 		if (isNumber(left) && isNumber(right)) {
 			return Syntax.equal(left, right);
 		}
-		return left == right;
+		return Syntax.strictEqual(left, right);
 	}
 
 	/**

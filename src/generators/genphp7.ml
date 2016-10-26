@@ -210,12 +210,26 @@ let is_lang_extern expr =
 		| _ -> false
 
 (**
+	Check if specified type is actually a generic parameter
+*)
+let is_generic_parameter (target:Type.t) =
+	match follow target with
+		| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
+		| _ -> false
+
+(**
+	Check if `target` type cannot be clarified on compilation
+*)
+let is_unknown_type (target:Type.t) = is_dynamic_type target || is_generic_parameter target
+
+(**
 	Check if `expr1` and `expr2` can be reliably checked for equality only with `Boot.equal()`
 *)
 let need_boot_equal expr1 expr2 =
-	(is_int expr1 && (is_float expr2 || is_dynamic expr2))
-	|| (is_float expr1 && (is_int expr2 || is_dynamic expr2))
-	|| (is_dynamic expr1 && (is_int expr2 || is_float expr2))
+	(is_int expr1 && (is_float expr2 || is_unknown_type expr2.etype))
+	|| (is_float expr1 && (is_int expr2 || is_unknown_type expr2.etype))
+	|| (is_unknown_type expr1.etype && (is_int expr2 || is_float expr2))
+	|| (is_unknown_type expr1.etype && is_unknown_type expr2.etype)
 
 (**
 	@return `Type.t` instance for `Void`
@@ -1966,7 +1980,8 @@ class virtual type_builder ctx wrapper =
 				| "int" | "float"
 				| "string" | "bool"
 				| "object" | "array" -> self#write_expr_lang_cast name args
-				| "equal" -> self#write_expr_lang_equal args
+				| "equal" -> self#write_expr_lang_equal false args
+				| "strictEqual" -> self#write_expr_lang_equal true args
 				| "instanceof" -> self#write_expr_lang_instanceof args
 				| "foreach" -> self#write_expr_lang_foreach args
 				| "construct" -> self#write_expr_lang_construct args
@@ -2060,12 +2075,13 @@ class virtual type_builder ctx wrapper =
 		(**
 			Generates non-strict equality to output buffer (for `php7.Syntax.equal()`)
 		*)
-		method private write_expr_lang_equal args =
+		method private write_expr_lang_equal strict args =
+			let operator = if strict then "===" else "==" in
 			match args with
 				| val_expr1 :: val_expr2 :: [] ->
 					self#write "(";
 					self#write_expr val_expr1;
-					self#write " == ";
+					self#write (" " ^ operator ^ " ");
 					self#write_expr val_expr2;
 					self#write ")"
 				| _ -> fail self#pos __POS__
