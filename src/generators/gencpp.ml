@@ -2387,7 +2387,10 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             end else begin
                (*print_endline ("Missing tvar " ^ tvar.v_name);*)
                Hashtbl.replace !undeclared name tvar;
-               CppVar(VarClosure(tvar)), cpp_type_of tvar.v_type
+               if tvar.v_capture then
+                  CppVar(VarClosure(tvar)), cpp_type_of tvar.v_type
+               else
+                  CppGlobal(name), cpp_type_of tvar.v_type
             end
 
          | TBreak ->
@@ -3802,7 +3805,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
    and gen_val_loc loc lvalue =
       match loc with
       | VarClosure(var) ->
-          out ("this->" ^ (cpp_var_name_of var))
+          out (cpp_var_name_of var)
       | VarLocal(local) -> out (cpp_var_name_of local)
       | VarStatic(clazz,objc,member) ->
           let rename = get_meta_string member.cf_meta Meta.Native in
