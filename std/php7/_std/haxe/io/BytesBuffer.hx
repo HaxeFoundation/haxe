@@ -66,8 +66,11 @@ class BytesBuffer {
 	}
 
 	public inline function addBytes( src : Bytes, pos : Int, len : Int ) {
-		if( pos < 0 || len < 0 || pos + len > src.length ) throw Error.OutsideBounds;
-		Syntax.binop(b, '.=', src.getData().sub(pos, len));
+		if( pos < 0 || len < 0 || pos + len > src.length ) {
+			throw Error.OutsideBounds;
+		} else {
+			Syntax.binop(b, '.=', src.getData().sub(pos, len).toString());
+		}
 	}
 
 	/**

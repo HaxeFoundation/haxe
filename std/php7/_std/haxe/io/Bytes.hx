@@ -41,7 +41,11 @@ class Bytes {
 	}
 
 	public inline function blit( pos : Int, src : Bytes, srcpos : Int, len : Int ) : Void {
-		b.blit(pos, src.b, srcpos, len);
+		if( pos < 0 || srcpos < 0 || len < 0 || pos + len > length || srcpos + len > src.length ) {
+			throw Error.OutsideBounds;
+		} else {
+			b.blit(pos, src.b, srcpos, len);
+		}
 	}
 
 	public function fill( pos : Int, len : Int, value : Int ) {
@@ -49,7 +53,11 @@ class Bytes {
 	}
 
 	public inline function sub( pos : Int, len : Int ) : Bytes {
-		return new Bytes(len, b.sub(pos, len));
+		if( pos < 0 || len < 0 || pos + len > length ) {
+			throw Error.OutsideBounds;
+		} else {
+			return new Bytes(len, b.sub(pos, len));
+		}
 	}
 
 	public inline function compare( other : Bytes ) : Int {
@@ -139,8 +147,12 @@ class Bytes {
 		setInt32(pos + 4, v.high);
 	}
 
-	public function getString( pos : Int, len : Int ) : String {
-		return b.getString(pos, len);
+	public inline function getString( pos : Int, len : Int ) : String {
+		if( pos < 0 || len < 0 || pos + len > length ) {
+			throw Error.OutsideBounds;
+		} else {
+			return b.getString(pos, len);
+		}
 	}
 
 	@:deprecated("readString is deprecated, use getString instead")

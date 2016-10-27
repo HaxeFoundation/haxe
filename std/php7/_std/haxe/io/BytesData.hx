@@ -23,7 +23,12 @@ package haxe.io;
 
 import php7.*;
 
-abstract BytesData(NativeString) from NativeString to NativeString from String to String {
+private class Container {
+	public var s:NativeString;
+	public inline function new(s:NativeString) this.s = s;
+}
+
+abstract BytesData(Container) from Container to Container {
 
 	public var length (get,never):Int;
 
@@ -33,31 +38,51 @@ abstract BytesData(NativeString) from NativeString to NativeString from String t
 
 	@:arrayAccess
 	public inline function get (pos:Int):Int {
-		return Global.ord(this[pos]);
+		return Global.ord(this.s[pos]);
 	}
 
 	@:arrayAccess
 	public inline function set (index:Int, val:Int):Void {
-		this[index] = Global.chr(val);
+		this.s = Global.substr_replace(this.s, Global.chr(val), index, 1);
 	}
 
 	public inline function compare (other:BytesData):Int {
-		return Syntax.binop(this, '<=>', other);
+		return Syntax.binop(this.s, '<=>', (other:Container).s);
 	}
 
 	public inline function getString (pos:Int, len:Int):String {
-		return Global.substr(this, pos, len);
+		return Global.substr(this.s, pos, len);
 	}
 
 	public inline function sub (pos:Int, len:Int):BytesData {
-		return (Global.substr(this, pos, len):String);
+		return (Global.substr(this.s, pos, len):String);
 	}
 
 	public inline function blit (pos : Int, src : BytesData, srcpos : Int, len : Int):Void {
-		this = Syntax.binop(Syntax.binop(Global.substr(this, 0, pos), '.', Global.substr(src, srcpos, len)), '.', Global.substr(this, pos + len));
+		this.s = Syntax.binop(Syntax.binop(Global.substr(this.s, 0, pos), '.', Global.substr(src, srcpos, len)), '.', Global.substr(this.s, pos + len));
 	}
 
 	inline function get_length ():Int {
-		return Global.strlen(this);
+		return Global.strlen(this.s);
+	}
+
+	@:from
+	static inline function fromNativeString (s:NativeString):BytesData {
+		return new Container(s);
+	}
+
+	@:to
+	public inline function toNativeString ():NativeString {
+		return this.s;
+	}
+
+	@:from
+	static inline function fromString (s:String):BytesData {
+		return new Container(s);
+	}
+
+	@:to
+	public inline function toString ():String {
+		return this.s;
 	}
 }
