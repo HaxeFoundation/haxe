@@ -12,6 +12,24 @@ open Globals
 let debug = ref false
 
 (**
+	Escape string for constant strings generation.
+	Copy-pasted from genphp.
+*)
+let escape_bin s =
+	let b = Buffer.create 0 in
+	for i = 0 to String.length s - 1 do
+		match Char.code (String.unsafe_get s i) with
+		| c when c = Char.code('\\') || c = Char.code('"') || c = Char.code('$') ->
+			Buffer.add_string b "\\";
+			Buffer.add_char b (Char.chr c)
+		| c when c < 32 ->
+			Buffer.add_string b (Printf.sprintf "\\x%.2X" c)
+		| c ->
+			Buffer.add_char b (Char.chr c)
+	done;
+	Buffer.contents b
+
+(**
 	Get list of keys in Hashtbl
 *)
 let hashtbl_keys tbl = Hashtbl.fold (fun key _ lst -> key :: lst) tbl []
@@ -156,6 +174,9 @@ let rec reveal_casts expr =
 *)
 let error_message pos message = (Lexer.get_error_pos (Printf.sprintf "%s:%d:") pos) ^ ": " ^ message
 
+(**
+	Terminates compiler process and prints user-friendly instructions about filing an issue in compiler repo.
+*)
 let fail hxpos mlpos =
 	match mlpos with
 		| (file, line, _, _) ->
@@ -1374,7 +1395,7 @@ class virtual type_builder ctx wrapper =
 			match const with
 				| TInt value -> self#write (Int32.to_string value)
 				| TFloat str -> self#write str
-				| TString str -> self#write ("\"" ^ (String.escaped str) ^ "\"")
+				| TString str -> self#write ("\"" ^ (escape_bin str) ^ "\"")
 				| TBool value -> self#write (if value then "true" else "false")
 				| TNull -> self#write "null"
 				| TThis -> self#write "$this"
@@ -2096,11 +2117,9 @@ class virtual type_builder ctx wrapper =
 						| TConst (TString operator) -> operator
 						| _ -> error_and_exit self#pos "Second argument for php7.Syntax.binop() must be a constant string"
 					in
-					self#write "(";
 					self#write_expr val_expr1;
 					self#write (" " ^ operator ^ " ");
 					self#write_expr val_expr2;
-					self#write ")"
 				| _ -> fail self#pos __POS__
 		(**
 			Writes `instanceof` expression to output buffer (for `php7.Syntax.instanceof()`)

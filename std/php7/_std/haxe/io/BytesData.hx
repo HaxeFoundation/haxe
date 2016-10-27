@@ -19,69 +19,45 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package php7;
+package haxe.io;
 
-private class Wrapper {
-	public var s : NativeString;
-	public inline function new (s:NativeString) {
-		this.s = s;
-	}
-}
+import php7.*;
 
-abstract BytesData(Wrapper) {
+abstract BytesData(NativeString) from NativeString to NativeString from String to String {
 
-	public var length(get,never):Int;
-	inline function get_length() return Global.strlen(str);
+	public var length (get,never):Int;
 
-	var str (get,set):NativeString;
-	inline function get_str() return this.s;
-	inline function set_str(v) return this.s = v;
-
-	inline function new (x:Wrapper) this = x;
-
-	static inline function wrap (s:NativeString):Wrapper {
-		return new Wrapper(s);
+	public static inline function alloc (length:Int):BytesData {
+		return Global.str_repeat(Global.chr(0), length);
 	}
 
-	static inline function ofNativeString (s:NativeString) {
-		return new BytesData( wrap(s));
-	}
-
+	@:arrayAccess
 	public inline function get (pos:Int):Int {
-		return Global.ord(str[pos]);
+		return Global.ord(this[pos]);
 	}
- 
+
+	@:arrayAccess
 	public inline function set (index:Int, val:Int):Void {
-		str[index] = Global.chr(val);
+		this[index] = Global.chr(val);
 	}
 
 	public inline function compare (other:BytesData):Int {
-		return Global.strcmp(str, other.str);
-	}
-
-	public inline function copy ():BytesData {
-		return ofNativeString(str);
+		return Syntax.binop(this, '<=>', other);
 	}
 
 	public inline function getString (pos:Int, len:Int):String {
-		return Global.substr(str, pos, len);
+		return Global.substr(this, pos, len);
 	}
 
 	public inline function sub (pos:Int, len:Int):BytesData {
-		return ofString(Global.substr(str, pos, len));
+		return (Global.substr(this, pos, len):String);
 	}
 
 	public inline function blit (pos : Int, src : BytesData, srcpos : Int, len : Int):Void {
-		str = (Global.substr(str, 0, pos):String) + (Global.substr(src.str, srcpos, len):String) + (Global.substr(str, pos + len):String);
+		this = Syntax.binop(Syntax.binop(Global.substr(this, 0, pos), '.', Global.substr(src, srcpos, len)), '.', Global.substr(this, pos + len));
 	}
 
-	public inline function toString():String return str;
-
-	public static inline function ofString (s:String) {
-		return ofNativeString(s);
-	}
-
-	public static inline function alloc (length:Int) {
-		return ofNativeString(Global.str_repeat(Global.chr(0), length));
+	inline function get_length ():Int {
+		return Global.strlen(this);
 	}
 }

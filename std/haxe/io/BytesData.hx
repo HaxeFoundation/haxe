@@ -28,7 +28,7 @@ package haxe.io;
 #elseif php
 	typedef BytesData = php.BytesData;
 #elseif php7
-	typedef BytesData = php7.BytesData;
+	typedef BytesData = php7.NativeString;
 #elseif cpp
 	typedef BytesData = Array< cpp.UInt8 >;
 #elseif java

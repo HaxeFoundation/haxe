@@ -611,4 +611,19 @@ extern class Global {
 		@see http://php.net/manual/en/function.preg-replace.php
 	**/
 	static function preg_replace( pattern:EitherType<String,NativeArray>, replacement:EitherType<String,NativeArray>, subject:EitherType<String,NativeArray>, limit:Int = -1, ?count:Int ) : EitherType<String,NativeArray> ;
+
+	/**
+		@see http://php.net/manual/en/function.md5.php
+	**/
+	static function md5( str:String, raw_output:Bool = false ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.sha1.php
+	**/
+	static function sha1( str:String, raw_output:Bool = false ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.hash.php
+	**/
+	static function hash( algo:String, str:String, raw_output:Bool = false ) : String;
 }
