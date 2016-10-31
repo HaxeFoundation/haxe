@@ -455,6 +455,8 @@ let interp code =
 			VDyn (v,HBool)
 		| _, HDyn ->
 			make_dyn v t
+		| _, HRef t2 when t = t2 ->
+			VRef ([|v|],0,t)
 		| HFun (args1,t1), HFun (args2,t2) when List.length args1 = List.length args2 ->
 			(match v with
 			| VClosure (fn,farg) ->

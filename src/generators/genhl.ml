@@ -100,6 +100,7 @@ type context = {
 	base_enum : tclass;
 	core_type : tclass;
 	core_enum : tclass;
+	ref_abstract : tabstract;
 	cdebug_files : (string, string) lookup;
 }
 
@@ -334,7 +335,10 @@ let rec to_type ?tref ctx t =
 	| TLazy f ->
 		to_type ?tref ctx (!f())
 	| TFun (args, ret) ->
-		HFun (List.map (fun (_,o,t) -> to_type ctx (if o then ctx.com.basic.tnull t else t)) args, to_type ctx ret)
+		HFun (List.map (fun (_,o,t) ->
+			let pt = to_type ctx t in
+			if o && not (is_nullable pt) then HRef pt else pt
+		) args, to_type ctx ret)
 	| TAnon a when (match !(a.a_status) with Statics _ | EnumStatics _ -> true | _ -> false) ->
 		(match !(a.a_status) with
 		| Statics c ->
@@ -1042,6 +1046,14 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		let out = alloc_tmp ctx t in
 		op ctx (OSafeCast (out, r));
 		out
+	| _, HRef t2 ->
+		let r = cast_to ctx r t2 p in
+		let r2 = alloc_tmp ctx t2 in
+		op ctx (OMov (r2, r));
+		hold ctx r2; (* retain *)
+		let out = alloc_tmp ctx t in
+		op ctx (ORef (out,r2));
+		out
 	| _ ->
 		if force then
 			let out = alloc_tmp ctx t in
@@ -1270,7 +1282,14 @@ and jump_expr ctx e jcond =
 
 and eval_args ctx el t p =
 	let rl = List.map2 (fun e t ->
-		let r = eval_to ctx e t in
+		let r = (match e.eexpr, t with
+		| TConst TNull, HRef _ ->
+			let r = alloc_tmp ctx t in
+			op ctx (ONull r);
+			r
+		| _ ->
+			eval_to ctx e t
+		) in
 		hold ctx r;
 		r
 	) el (match t with HFun (args,_) -> args | HDyn -> List.map (fun _ -> HDyn) el | _ -> assert false) in
@@ -2302,8 +2321,8 @@ and eval_expr ctx e =
 			if tmp <> r then begin
 				let re = alloc_tmp ctx HBool in
 				op ctx (OBool (re,true));
-				let ren = alloc_tmp ctx (HNull HBool) in
-				op ctx (OToDyn (ren, re));
+				let ren = alloc_tmp ctx (HRef HBool) in
+				op ctx (ORef (ren, re));
 				op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayDyn") "alloc", tmp, ren));
 			end;
 		);
@@ -2696,7 +2715,8 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 	in
 
 	let args = List.map (fun (v,o) ->
-		let r = alloc_var ctx (if o = None then v else { v with v_type = ctx.com.basic.tnull v.v_type }) true in
+		let t = to_type ctx v.v_type in
+		let r = alloc_var ctx (if o = None then v else { v with v_type = if not (is_nullable t) then TAbstract(ctx.ref_abstract,[v.v_type]) else v.v_type }) true in
 		rtype ctx r
 	) f.tf_args in
 
@@ -2713,8 +2733,37 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 
 	List.iter (fun (v, o) ->
 		let r = alloc_var ctx v false in
+		let vt = to_type ctx v.v_type in
 		(match o with
 		| None | Some TNull -> ()
+		| Some c when not (is_nullable vt) ->
+			(* if optional but not null, turn into a not nullable here *)
+			let j = jump ctx (fun n -> OJNotNull (r,n)) in
+			let t = alloc_tmp ctx vt in
+			(match vt with
+			| HUI8 | HUI16 | HI32 ->
+				(match c with
+				| TInt i -> op ctx (OInt (t,alloc_i32 ctx i))
+				| TFloat s -> op ctx (OInt (t,alloc_i32 ctx  (Int32.of_float (float_of_string s))))
+				| _ -> assert false)
+			| HF32 | HF64 ->
+				(match c with
+				| TInt i -> op ctx (OFloat (t,alloc_float ctx (Int32.to_float i)))
+				| TFloat s -> op ctx (OFloat (t,alloc_float ctx  (float_of_string s)))
+				| _ -> assert false)
+			| HBool ->
+				(match c with
+				| TBool b -> op ctx (OBool (t,b))
+				| _ -> assert false)
+			| _ ->
+				assert false);
+			let jend = jump ctx (fun n -> OJAlways n) in
+			j();
+			op ctx (OUnref (t,r));
+			jend();
+			Hashtbl.replace ctx.m.mvars v.v_id t;
+			free ctx r;
+			hold ctx t
 		| Some c ->
 			let j = jump ctx (fun n -> OJNotNull (r,n)) in
 			(match c with
@@ -2748,15 +2797,6 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 				op ctx (OSetField (r,1,reg_int ctx len));
 			);
 			j();
-			(* if optional but not null, turn into a not nullable here *)
-			let vt = to_type ctx v.v_type in
-			if not (is_nullable vt) then begin
-				let t = alloc_tmp ctx vt in
-				Hashtbl.replace ctx.m.mvars v.v_id t;
-				op ctx (OSafeCast (t,r));
-				free ctx r;
-				hold ctx t;
-			end;
 		);
 		(match captured_index ctx v with
 		| None -> ()
@@ -3368,14 +3408,21 @@ let write_code ch code debug =
 (* --------------------------------------------------------------------------------------------------------------------- *)
 
 let generate com =
-	let get_class name =
+	let get_type name =
 		try
-			match List.find (fun t -> (t_infos t).mt_path = (["hl";"types"],name)) com.types with
-			| TClassDecl c -> c
-			| _ -> assert false
-		with
-			Not_found ->
-				failwith ("hl class " ^ name ^ " not found")
+			List.find (fun t -> (t_infos t).mt_path = (["hl";"types"],name)) com.types
+		with Not_found ->
+			failwith ("hl type " ^ name ^ " not found")
+	in
+	let get_class name =
+		match get_type name with
+		| TClassDecl c -> c
+		| _ -> assert false
+	in
+	let get_abstract name =
+		match get_type name with
+		| TAbstractDecl a -> a
+		| _ -> assert false
 	in
 	let dump = Common.defined com Define.Dump in
 	let ctx = {
@@ -3409,6 +3456,7 @@ let generate com =
 		base_type = get_class "BaseType";
 		core_type = get_class "CoreType";
 		core_enum = get_class "CoreEnum";
+		ref_abstract = get_abstract "Ref";
 		anons_cache = [];
 		rec_cache = [];
 		method_wrappers = PMap.empty;
