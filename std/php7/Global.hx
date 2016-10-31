@@ -631,4 +631,14 @@ extern class Global {
 		@see http://php.net/manual/en/function.hash.php
 	**/
 	static function hash( algo:String, str:String, raw_output:Bool = false ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.pack.php
+	**/
+	static function pack( format:String, args:Rest<Dynamic> ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.unpack.php
+	**/
+	static function unpack( format:String, data:String ) : NativeArray;
 }

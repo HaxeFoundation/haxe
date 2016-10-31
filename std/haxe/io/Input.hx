@@ -280,7 +280,7 @@ class Input {
 		var ch2 = readByte();
 		var ch3 = readByte();
 		var ch4 = readByte();
-#if (php || python)
+#if (php || php7 || python)
 		// php will overflow integers.  Convert them back to signed 32-bit ints.
 		var n = bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
 		if (n & 0x80000000 != 0)
