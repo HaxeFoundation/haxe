@@ -1066,8 +1066,12 @@ let write_c version file (code:code) =
 			| OSetArray (arr,idx,v) ->
 				sexpr "((%s*)(%s + 1))[%s] = %s" (ctype (rtype v)) (reg arr) (reg idx) (reg v)
 			| OSafeCast (r,v) ->
+				let tsrc = rtype v in
 				let t = rtype r in
-				sexpr "%s = (%s)hl_dyn_cast%s(&%s,%s%s)" (reg r) (ctype t) (dyn_prefix t) (reg v) (type_value (rtype v)) (type_value_opt t)
+				if tsrc = HNull t then
+					sexpr "%s = %s ? %s%s : 0" (reg r) (reg v) (reg v) (dyn_value_field t)
+				else
+					sexpr "%s = (%s)hl_dyn_cast%s(&%s,%s%s)" (reg r) (ctype t) (dyn_prefix t) (reg v) (type_value (rtype v)) (type_value_opt t)
 			| OUnsafeCast (r,v) ->
 				sexpr "%s = (%s)%s" (reg r) (ctype (rtype r)) (reg v)
 			| OArraySize (r,a) ->
