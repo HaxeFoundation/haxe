@@ -41,7 +41,7 @@ import php7.*;
 			opt = a.join("");
 		}
 		this.options = opt;
-		this.re = '"' + Global.str_replace('"', '\\\\', r) + '"' + opt;
+		this.re = '"' + Global.str_replace('"', '\\"', r) + '"' + opt;
 	}
 
 	public function match( s : String ) : Bool {
