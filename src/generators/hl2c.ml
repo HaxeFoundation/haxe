@@ -1148,6 +1148,8 @@ let write_c version file (code:code) =
 				if b then decr trap_depth;
 			| ODump r ->
 				todo()
+			| ONop _ ->
+				()
 		) f.code;
 		unblock();
 		line "}";

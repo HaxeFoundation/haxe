@@ -3175,7 +3175,7 @@ let write_code ch code debug =
 		let oid = Obj.tag o in
 
 		match op with
-		| OLabel _ ->
+		| OLabel _ | ONop _ ->
 			byte oid
 		| OCall2 (r,g,a,b) ->
 			byte oid;

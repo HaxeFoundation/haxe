@@ -1050,6 +1050,8 @@ let interp code =
 				traps := List.tl !traps
 			| ODump r ->
 				print_endline (vstr_d (get r));
+			| ONop _ ->
+				()
 			);
 			loop()
 		in
@@ -2215,6 +2217,8 @@ let check code =
 				()
 			| ODump r ->
 				ignore(rtype r);
+			| ONop _ ->
+				()
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in
@@ -2607,7 +2611,7 @@ let make_spec (code:code) (f:fundecl) =
 			| OEnumIndex (d,r) -> args.(d) <- SConv ("index",args.(r))
 			| OEnumField (d,r,fid,cid) -> args.(d) <- SEnumField (args.(r),fid,cid)
 			| OSetEnumField (e,fid,r) -> semit (SSetEnumField (args.(e),fid,args.(r)))
-			| ODump _ -> ()
+			| ODump _ | ONop _ -> ()
 		done;
 		Hashtbl.add block_args b.bstart args
 	in
