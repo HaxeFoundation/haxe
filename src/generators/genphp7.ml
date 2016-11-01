@@ -864,20 +864,32 @@ class local_vars =
 			declared_locals <- (Hashtbl.create 100) :: declared_locals
 		(**
 			This method should be called right after leaving a scope.
-			@return List of vars names used in finished scope, but declared in higher scopes
+			@return List of vars names used in finished scope, but declared in higher scopes.
+					And list of vars names declared in finished scope.
 		*)
-		method pop : string list =
+		method pop : string list * string list =
 			match used_locals with
 				| [] -> assert false
 				| used :: rest_used ->
 					match declared_locals with
 						| [] -> assert false
 						| declared :: rest_declared ->
-							let higher_vars = diff_lists (hashtbl_keys used) (hashtbl_keys declared) in
+							let higher_vars = diff_lists (hashtbl_keys used) (hashtbl_keys declared)
+							and declared_vars = hashtbl_keys declared in
 							used_locals <- rest_used;
 							declared_locals <- rest_declared;
 							List.iter self#used higher_vars;
-							higher_vars
+							(higher_vars, declared_vars)
+		(**
+			This method should be called right after leaving a scope.
+			@return List of vars names used in finished scope, but declared in higher scopes
+		*)
+		method pop_used : string list = match self#pop with (higher_vars, _) -> higher_vars
+		(**
+			This method should be called right after leaving a scope.
+			@return List of vars names declared in finished scope
+		*)
+		method pop_declared : string list = match self#pop with (_, declared_vars) -> declared_vars
 		(**
 			Specify local var name declared in current scope
 		*)
@@ -892,7 +904,6 @@ class local_vars =
 			match used_locals with
 				| [] -> assert false
 				| current :: _ -> Hashtbl.replace current name name
-
 	end
 
 (**
@@ -1501,7 +1512,7 @@ class virtual type_builder ctx wrapper =
 			let body = Buffer.contents buffer in
 			buffer <- original_buffer;
 			(* Use captured local vars *)
-			let used_vars = vars#pop in
+			let used_vars = vars#pop_used in
 			self#write " ";
 			if List.length used_vars > 0 then begin
 				self#write " use (";
@@ -1556,9 +1567,11 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes "{ <expressions> }" to output buffer
 		*)
-		method private write_as_block ?inline expr =
-			let exprs = match expr.eexpr with TBlock exprs -> exprs | _ -> [expr] in
+		method private write_as_block ?inline ?unset_locals expr =
+			let unset_locals = match unset_locals with Some true -> true | _ -> false
+			and exprs = match expr.eexpr with TBlock exprs -> exprs | _ -> [expr] in
 			let write_body () =
+				if unset_locals then vars#dive;
 				let write_expr expr =
 					self#write_expr expr;
 					match expr.eexpr with
@@ -1569,11 +1582,21 @@ class virtual type_builder ctx wrapper =
 					self#write_indentation;
 					write_expr expr
 				in
-				match exprs with
+				(match exprs with
 					| [] -> ()
 					| first :: rest ->
 						write_expr first; (* write first expression without indentation in case of block inlining *)
 						List.iter write_expr_with_indent rest
+				);
+				if unset_locals then
+					begin
+						let locals = vars#pop_declared in
+						if List.length locals > 0 then
+							begin
+								self#write_indentation;
+								self#write ("unset($" ^ (String.concat ", $" locals) ^ ");\n")
+							end
+					end
 			in
 			match inline with
 				| Some true -> write_body ()
@@ -2253,10 +2276,10 @@ class virtual type_builder ctx wrapper =
 					self#write "while ";
 					self#write_expr condition;
 					self#write " ";
-					self#write_as_block expr
+					self#write_as_block ~unset_locals:true expr
 				| DoWhile ->
 					self#write "do ";
-					self#write_as_block expr;
+					self#write_as_block ~unset_locals:true expr;
 					self#write " while ";
 					self#write_expr condition
 		(**
