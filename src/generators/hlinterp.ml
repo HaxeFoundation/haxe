@@ -455,6 +455,8 @@ let interp code =
 			VDyn (v,HBool)
 		| _, HDyn ->
 			make_dyn v t
+		| _, HRef t2 when t = t2 ->
+			VRef ([|v|],0,t)
 		| HFun (args1,t1), HFun (args2,t2) when List.length args1 = List.length args2 ->
 			(match v with
 			| VClosure (fn,farg) ->
@@ -1048,6 +1050,8 @@ let interp code =
 				traps := List.tl !traps
 			| ODump r ->
 				print_endline (vstr_d (get r));
+			| ONop _ ->
+				()
 			);
 			loop()
 		in
@@ -2213,6 +2217,8 @@ let check code =
 				()
 			| ODump r ->
 				ignore(rtype r);
+			| ONop _ ->
+				()
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in
@@ -2605,7 +2611,7 @@ let make_spec (code:code) (f:fundecl) =
 			| OEnumIndex (d,r) -> args.(d) <- SConv ("index",args.(r))
 			| OEnumField (d,r,fid,cid) -> args.(d) <- SEnumField (args.(r),fid,cid)
 			| OSetEnumField (e,fid,r) -> semit (SSetEnumField (args.(e),fid,args.(r)))
-			| ODump _ -> ()
+			| ODump _ | ONop _ -> ()
 		done;
 		Hashtbl.add block_args b.bstart args
 	in

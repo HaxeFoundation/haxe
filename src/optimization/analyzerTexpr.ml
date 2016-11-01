@@ -918,7 +918,7 @@ module Cleanup = struct
 				let e2 = loop e2 in
 				let e3 = loop e3 in
 				if_or_op e e1 e2 e3;
-			| TUnop((Increment | Decrement),_,({eexpr = TConst _} as e1)) ->
+			| TUnop((Increment | Decrement),_,e1) when (match (Texpr.skip e1).eexpr with TConst _ -> true | _ -> false) ->
 				loop e1
 			| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
 				e
