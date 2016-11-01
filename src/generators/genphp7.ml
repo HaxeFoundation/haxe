@@ -363,13 +363,13 @@ let is_sure_scalar (target:Type.t) =
 		| _ -> false
 
 (**
-	Indicates if `expr` is an access to a `var` field.
+	Indicates if `expr` is guaranteed to be an access to a `var` field.
 *)
-let is_var_field_access expr =
+let is_sure_var_field_access expr =
 	match expr.eexpr with
 		| TField (_, FStatic (_, { cf_kind = Var _ })) -> true
 		| TField (_, FInstance (_, _, { cf_kind = Var _ })) -> true
-		| TField (_, FAnon { cf_kind = Var _ }) -> true
+		(* | TField (_, FAnon { cf_kind = Var _ }) -> true *) (* Sometimes we get anon access to non-anonymous objects *)
 		| _ -> false
 
 (**
@@ -1348,7 +1348,7 @@ class virtual type_builder ctx wrapper =
 				| TCall ({ eexpr = TLocal { v_name = name }}, args) when is_magic expr -> self#write_expr_magic name args
 				| TCall ({ eexpr = TField (expr, access) }, args) when is_string expr -> self#write_expr_call_string expr access args
 				| TCall (expr, args) when is_lang_extern expr -> self#write_expr_call_lang_extern expr args
-				| TCall (target, args) when is_var_field_access target -> self#write_expr_call (parenthesis target) args
+				| TCall (target, args) when is_sure_var_field_access target -> self#write_expr_call (parenthesis target) args
 				| TCall (target, args) -> self#write_expr_call target args
 				| TNew (_, _, args) when is_string expr -> write_args buffer self#write_expr args
 				| TNew (tcls, _, args) -> self#write_expr_new tcls args
