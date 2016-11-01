@@ -205,7 +205,6 @@ enum ValueType {
 		var methods = new NativeArray();
 		for (m in reflection.getMethods(untyped __php__('\\ReflectionMethod::IS_STATIC'))) {
 			var name = (m:ReflectionMethod).getName();
-			trace(name);
 			if (!isServiceFieldName(name)) {
 				methods.array_push(name);
 			}
@@ -214,7 +213,6 @@ enum ValueType {
 		var properties = new NativeArray();
 		for (p in reflection.getProperties(untyped __php__('\\ReflectionProperty::IS_STATIC'))) {
 			var name = (p:ReflectionProperty).getName();
-			trace(name);
 			if (!isServiceFieldName(name)) {
 				properties.array_push(name);
 			}
