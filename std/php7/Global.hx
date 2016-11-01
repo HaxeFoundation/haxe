@@ -641,4 +641,49 @@ extern class Global {
 		@see http://php.net/manual/en/function.unpack.php
 	**/
 	static function unpack( format:String, data:String ) : NativeArray;
+
+	/**
+		@see http://php.net/manual/en/function.urlencode.php
+	**/
+	static function urlencode( str:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.urldecode.php
+	**/
+	static function urldecode( str:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.rawurlencode.php
+	**/
+	static function rawurlencode( str:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.rawurldecode.php
+	**/
+	static function rawurldecode( str:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.htmlspecialchars.php
+	**/
+	static function htmlspecialchars( string:String, ?flags:Int, ?encoding:String, double_encode:Bool = true ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.htmlspecialchars_decode.php
+	**/
+	static function htmlspecialchars_decode( string:String, ?flags:Int ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.str-pad.php
+	**/
+	static function str_pad( input:String, pad_length:Int, pad_String:String = ' ', ?pad_type:Int ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.dechex.php
+	**/
+	static function dechex( number:Int ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.hexdec.php
+	**/
+	static function hexdec( hex_string:String ) : Int;
 }

@@ -115,4 +115,23 @@ extern class Const {
 	static var PREG_SPLIT_NO_EMPTY : Int;
 	static var PREG_SPLIT_DELIM_CAPTURE : Int;
 	static var PREG_SPLIT_OFFSET_CAPTURE : Int;
+	/**
+		@see http://php.net/manual/en/function.htmlspecialchars.php
+	**/
+	static var ENT_COMPAT : Int;
+	static var ENT_QUOTES : Int;
+	static var ENT_NOQUOTES : Int;
+	static var ENT_IGNORE : Int;
+	static var ENT_SUBSTITUTE : Int;
+	static var ENT_DISALLOWED : Int;
+	static var ENT_HTML401 : Int;
+	static var ENT_XML1 : Int;
+	static var ENT_XHTML : Int;
+	static var ENT_HTML5 : Int;
+	/**
+		@see http://php.net/manual/en/function.str-pad.php
+	**/
+	static var STR_PAD_RIGHT : Int;
+	static var STR_PAD_LEFT : Int;
+	static var STR_PAD_BOTH : Int;
 }
