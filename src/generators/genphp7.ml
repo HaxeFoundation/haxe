@@ -1571,7 +1571,6 @@ class virtual type_builder ctx wrapper =
 			let unset_locals = match unset_locals with Some true -> true | _ -> false
 			and exprs = match expr.eexpr with TBlock exprs -> exprs | _ -> [expr] in
 			let write_body () =
-				if unset_locals then vars#dive;
 				let write_expr expr =
 					self#write_expr expr;
 					match expr.eexpr with
@@ -1582,21 +1581,30 @@ class virtual type_builder ctx wrapper =
 					self#write_indentation;
 					write_expr expr
 				in
-				(match exprs with
-					| [] -> ()
-					| first :: rest ->
-						write_expr first; (* write first expression without indentation in case of block inlining *)
-						List.iter write_expr_with_indent rest
-				);
+				let write_exprs () =
+					match exprs with
+						| [] -> ()
+						| first :: rest ->
+							write_expr first; (* write first expression without indentation in case of block inlining *)
+							List.iter write_expr_with_indent rest
+				in
 				if unset_locals then
 					begin
+						let original_buffer = buffer in
+						buffer <- Buffer.create 256;
+						vars#dive;
+						write_exprs();
+						let body = Buffer.contents buffer in
+						buffer <- original_buffer;
 						let locals = vars#pop_declared in
-						if List.length locals > 0 then
-							begin
-								self#write_indentation;
-								self#write ("unset($" ^ (String.concat ", $" locals) ^ ");\n")
-							end
+						if List.length locals > 0 then begin
+							self#write ("unset($" ^ (String.concat ", $" locals) ^ ");\n");
+							self#write_indentation
+						end;
+						self#write body
 					end
+				else
+					write_exprs()
 			in
 			match inline with
 				| Some true -> write_body ()
