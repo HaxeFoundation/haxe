@@ -96,7 +96,7 @@ import php7.*;
 	}
 
 	public static inline function isEof( c : Int ) : Bool {
-		return Syntax.binop((c), '===', 0);
+		return c == 0;
 	}
 
 	/**
