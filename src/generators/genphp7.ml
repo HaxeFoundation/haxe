@@ -522,7 +522,7 @@ let is_var_with_nonconstant_expr (field:tclass_field) =
 (**
 	@return New TBlock expression which is composed of setting default values for optional arguments and function body.
 *)
-(*let inject_defaults ctx (func:tfunc) = func.tf_expr
+let inject_defaults (ctx:Common.context) (func:tfunc) =
 	let rec inject args body_exprs =
 		match args with
 			| [] -> body_exprs
@@ -541,7 +541,7 @@ let is_var_with_nonconstant_expr (field:tclass_field) =
 		eexpr = TBlock exprs;
 		etype = follow func.tf_expr.etype;
 		epos  = func.tf_expr.epos;
-	}*)
+	}
 
 (**
 	Check if `expr` is a constant string
@@ -1498,7 +1498,7 @@ class virtual type_builder ctx wrapper =
 			self#write_line "{";
 			self#indent_more;
 			self#write_instance_initialization;
-			self#write_fake_block func.tf_expr;
+			self#write_fake_block (inject_defaults ctx func);
 			self#indent_less;
 			self#write_indentation;
 			self#write "}"
@@ -1513,7 +1513,7 @@ class virtual type_builder ctx wrapper =
 			self#indent 1;
 			self#write "\n";
 			self#write_indentation;
-			self#write_expr func.tf_expr
+			self#write_expr (inject_defaults ctx func)
 		(**
 			Writes closure declaration to output buffer
 		*)
@@ -1525,7 +1525,7 @@ class virtual type_builder ctx wrapper =
 			(* Generate closure body to separate buffer *)
 			let original_buffer = buffer in
 			buffer <- Buffer.create 256;
-			self#write_expr func.tf_expr;
+			self#write_expr (inject_defaults ctx func);
 			let body = Buffer.contents buffer in
 			buffer <- original_buffer;
 			(* Use captured local vars *)
@@ -2839,7 +2839,7 @@ class class_builder ctx (cls:tclass) =
 				self#write (") { return $this->" ^ field.cf_name ^"(");
 				write_args buffer (self#write_arg false) args;
 				self#write "); };\n";*)
-				self#write_statement ("$this->" ^ field.cf_name ^ " = " ^ default_field);
+				self#write_statement ("if ($this->" ^ field.cf_name ^ " === null) $this->" ^ field.cf_name ^ " = " ^ default_field);
 				self#indent_less;
 				self#write_line "}"
 			in
