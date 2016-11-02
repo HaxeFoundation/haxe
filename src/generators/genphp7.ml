@@ -1364,8 +1364,8 @@ class virtual type_builder ctx wrapper =
 				| TSwitch (switch, cases, default ) -> self#write_expr_switch switch cases default
 				| TTry (try_expr, catches) -> self#write_expr_try_catch try_expr catches
 				| TReturn expr -> self#write_expr_return expr
-				| TBreak -> self#write "break"
-				| TContinue -> self#write "continue"
+				| TBreak -> self#write_expr_loop_flow "break"
+				| TContinue -> self#write_expr_loop_flow "continue"
 				| TThrow expr -> self#write_expr_throw expr
 				| TCast (expr, mtype) -> self#write_expr_cast expr mtype
 				| TMeta (_, expr) -> self#write_expr expr
@@ -1399,6 +1399,23 @@ class virtual type_builder ctx wrapper =
 			self#write_hx_init_body;
 			self#indent 1;
 			self#write_line "}"
+		(**
+			Writes `continue N` or `break N` with required N depending on nearest parent loop and amount of `switch` between loop and
+			`continue/break`
+		*)
+		method private write_expr_loop_flow word =
+			let rec count_N parent_exprs count =
+				match parent_exprs with
+					| [] -> count
+					| { eexpr = TWhile _ } :: _ -> count
+					| { eexpr = TSwitch _ } :: rest -> count_N rest (count + 1)
+					| _ :: rest -> count_N rest count
+			in
+			let count = count_N expr_hierarchy 1 in
+			if count > 1 then
+				self#write (word ^ " " ^ (string_of_int count))
+			else
+				self#write word
 		(**
 			Writes TConst to output buffer
 		*)
