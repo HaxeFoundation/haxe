@@ -30,8 +30,8 @@ class Lib {
 	/**
 		Print the specified value on the default output.
 	**/
-	public static function print( v : Dynamic ) : Void {
-		untyped __call__("echo", Std.string(v));
+	public static inline function print( v : Dynamic ) : Void {
+		Global.echo(Std.string(v));
 	}
 
 	/**
@@ -48,41 +48,41 @@ class Lib {
 		that includes its type and value. Arrays and objects are
 		explored recursively with values indented to show structure.
 	*/
-	public static function dump(v : Dynamic) : Void {
-		untyped __call__("var_dump", v);
+	public static inline function dump(v : Dynamic) : Void {
+		Global.var_dump(v);
 	}
 
 	/**
 		Serialize using native PHP serialization. This will return a binary
 		`String` that can be stored for long term usage.
 	**/
-	public static function serialize( v : Dynamic ) : String {
-		return untyped __call__("serialize", v);
+	public static inline function serialize( v : Dynamic ) : String {
+		return Global.serialize(v);
 	}
 
 	/**
 		Unserialize a `String` using native PHP serialization. See `php.Lib.serialize()`.
 	**/
-	public static function unserialize( s : String ) : Dynamic {
-		return untyped __call__("unserialize", s);
+	public static inline function unserialize( s : String ) : Dynamic {
+		return Global.unserialize(s);
 	}
 
 	/**
 		Find out whether an extension is loaded.
 	*/
-	public static function extensionLoaded(name : String) {
-		return untyped __call__("extension_loaded", name);
+	public static inline function extensionLoaded(name : String) {
+		return Global.extension_loaded(name);
 	}
 
-	public static function isCli() : Bool {
-		return untyped __php__("(0 == strncasecmp(PHP_SAPI, 'cli', 3))");
+	public static inline function isCli() : Bool {
+		return 0 == Global.strncasecmp(Const.PHP_SAPI, 'cli', 3);
 	}
 
 	/**
 		Output file content from the given file name.
 	*/
-	public static function printFile(file : String) {
-		return untyped __call__("fpassthru", __call__("fopen", file,  "r"));
+	public static inline function printFile(file : String) {
+		return Global.fpassthru(Global.fopen(file,  "r"));
 	}
 
 	public static inline function toPhpArray(a : Array<Dynamic>) : NativeArray {
@@ -101,16 +101,16 @@ class Lib {
 		return result;
 	}
 
-	public static function associativeArrayOfHash(hash : haxe.ds.StringMap<Dynamic>) : NativeArray {
-		throw "Not implemented";
+	public static inline function associativeArrayOfHash(hash : haxe.ds.StringMap<Dynamic>) : NativeArray {
+		return @:privateAccess hash.data;
 	}
 
-	public static function objectOfAssociativeArray(arr : NativeArray) : Dynamic {
-		throw "Not implemented";
+	public static inline function objectOfAssociativeArray(arr : NativeArray) : Dynamic {
+		return Boot.createAnon(arr);
 	}
 
-	public static function associativeArrayOfObject(ob : Dynamic) : NativeArray {
-		throw "Not implemented";
+	public static inline function associativeArrayOfObject(ob : Dynamic) : NativeArray {
+		return Syntax.array(ob);
 	}
 
 	/**

@@ -686,4 +686,34 @@ extern class Global {
 		@see http://php.net/manual/en/function.hexdec.php
 	**/
 	static function hexdec( hex_string:String ) : Int;
+
+	/**
+		@see http://php.net/manual/en/function.serialize.php
+	**/
+	static function serialize( value:Dynamic ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.unserialize.php
+	**/
+	static function unserialize( str:String, ?options:NativeArray ) : Dynamic;
+
+	/**
+		@see http://php.net/manual/en/function.extension-loaded.php
+	**/
+	static function extension_loaded( name:String ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.strncasecmp.php
+	**/
+	static function strncasecmp( str1:String, str2:String, len:Int ) : Int;
+
+	/**
+		@see http://php.net/manual/en/function.strcasecmp.php
+	**/
+	static function strcasecmp( str1:String, str2:String ) : Int;
+
+	/**
+		@see http://php.net/manual/en/function.fpassthru.php
+	**/
+	static function fpassthru( handle:Resource ) : Int;
 }

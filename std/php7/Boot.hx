@@ -409,6 +409,10 @@ class Boot {
 	static public function deref( value:Dynamic ) : Dynamic {
 		return value;
 	}
+
+	static public inline function createAnon( data:NativeArray ) : Dynamic {
+		return new HxAnon(data);
+	}
 }
 
 
