@@ -78,6 +78,8 @@ let print_toplevel il =
 			Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s>%s</i>\n" (s_type_path infos.mt_path) (s_doc infos.mt_doc) (snd infos.mt_path));
 		| IdentifierType.ITPackage s ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
+		| IdentifierType.ITLiteral s ->
+			Buffer.add_string b (Printf.sprintf "<i k=\"literal\">%s</i>\n" s)
 		| IdentifierType.ITTimer s ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"timer\">%s</i>\n" s)
 	) il;

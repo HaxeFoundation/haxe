@@ -207,6 +207,7 @@ module IdentifierType = struct
 		| ITGlobal of module_type * string * Type.t
 		| ITType of module_type
 		| ITPackage of string
+		| ITLiteral of string
 		| ITTimer of string
 
 	let get_name = function
@@ -216,6 +217,7 @@ module IdentifierType = struct
 		| ITGlobal(_,s,_) -> s
 		| ITType mt -> snd (t_infos mt).mt_path
 		| ITPackage s -> s
+		| ITLiteral s -> s
 		| ITTimer s -> s
 end
 

@@ -847,6 +847,11 @@ module ToplevelCollector = struct
 				with Not_found ->
 					()
 			) ctx.m.module_globals;
+
+			(* literals *)
+			DynArray.add acc (ITLiteral "null");
+			DynArray.add acc (ITLiteral "true");
+			DynArray.add acc (ITLiteral "false");
 		end;
 
 		let module_types = ref [] in
