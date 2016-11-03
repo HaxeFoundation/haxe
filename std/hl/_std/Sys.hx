@@ -71,7 +71,7 @@ class Sys {
 	}
 
 	public static function getEnv( s : String ) : String {
-		var v = get_env(getPath(s.bytes));
+		var v = get_env(getPath(s));
 		if( v == null )
 			return null;
 		return makePath(v);
