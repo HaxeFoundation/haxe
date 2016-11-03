@@ -638,6 +638,11 @@ extern class Global {
 	static function rmdir( dirname:String, ?context:Resource ) : Bool;
 
 	/**
+		@see http://php.net/manual/en/function.dirname.php
+	**/
+	static function dirname( path:String, levels:Int = 1 ) : String;
+
+	/**
 		@see http://php.net/manual/en/function.opendir.php
 	**/
 	static function opendir( path:String, ?context:Resource ) : EitherType<Resource,Bool>;

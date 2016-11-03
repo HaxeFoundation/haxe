@@ -30,6 +30,19 @@ let escape_bin s =
 	Buffer.contents b
 
 (**
+	Write resources passed to compiler via `-resource` flag
+	Copy-pasted from genphp
+*)
+let write_resource dir name data =
+	let rdir = dir ^ "/res" in
+	if not (Sys.file_exists dir) then Unix.mkdir dir 0o755;
+	if not (Sys.file_exists rdir) then Unix.mkdir rdir 0o755;
+	let name = Codegen.escape_res_name name false in
+	let ch = open_out_bin (rdir ^ "/" ^ name) in
+	output_string ch data;
+	close_out ch
+
+(**
 	Get list of keys in Hashtbl
 *)
 let hashtbl_keys tbl = Hashtbl.fold (fun key _ lst -> key :: lst) tbl []
@@ -3010,5 +3023,9 @@ let generate (com:context) =
 	in
 	List.iter generate com.types;
 	gen#finalize;
-	(* gen#generate_magic_init; *)
+	Hashtbl.iter
+		(fun name data ->
+			write_resource com.file name data
+		)
+		com.resources;
 	clear_wrappers ();
