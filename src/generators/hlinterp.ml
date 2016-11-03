@@ -2042,8 +2042,7 @@ let check code =
 				ignore(rtype r);
 				can_jump delta
 			| OJUGte (a,b,delta) | OJULt (a,b,delta) | OJSGte (a,b,delta) | OJSLt (a,b,delta) | OJSGt (a,b,delta) | OJSLte (a,b,delta) ->
-				reg a (rtype b);
-				reg b (rtype a);
+				if not (safe_cast (rtype a) (rtype b)) then reg b (rtype a);
 				can_jump delta
 			| OJEq (a,b,delta) | OJNotEq (a,b,delta) ->
 				(match rtype a, rtype b with
