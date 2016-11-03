@@ -2073,6 +2073,7 @@ class virtual type_builder ctx wrapper =
 				| "call" -> self#write_expr_lang_call args
 				| "arrayDecl" -> self#write_expr_lang_array_decl args
 				| "splat" -> self#write_expr_lang_splat args
+				| "suppress" -> self#write_expr_lang_suppress args
 				| "keepVar" -> ()
 				| _ -> fail self#pos __POS__
 		(**
@@ -2082,6 +2083,15 @@ class virtual type_builder ctx wrapper =
 			match args with
 				| [ args_expr ] ->
 					self#write "...";
+					self#write_expr args_expr
+				| _ -> fail self#pos __POS__
+		(**
+			Writes error suppression operator (for `php7.Syntax.suppress()`)
+		*)
+		method private write_expr_lang_suppress args =
+			match args with
+				| [ args_expr ] ->
+					self#write "@";
 					self#write_expr args_expr
 				| _ -> fail self#pos __POS__
 		(**

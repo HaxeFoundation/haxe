@@ -100,5 +100,13 @@ extern class Syntax {
     **/
     static function keepVar( localVar:Dynamic ) : Void;
 
+    /**
+        Adds `...` operator before `args`
+    **/
     static function splat( args:EitherType<NativeArray, Traversable> ) : Rest<Dynamic>;
+
+    /**
+        Add errors suppression operator `@` before `expression`
+    **/
+    static function suppress<T>( expression:T ) : T;
 }

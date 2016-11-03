@@ -598,6 +598,76 @@ extern class Global {
 	static function fgetc( handle:Resource ) : EitherType<Bool,String>;
 
 	/**
+		@see http://php.net/manual/en/function.file-exists.php
+	**/
+	static function file_exists( filename:String ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.fstat.php
+	**/
+	static function fstat( handle:Resource ) : NativeArray;
+
+	/**
+		@see http://php.net/manual/en/function.stat.php
+	**/
+	static function stat( filename:String ) : EitherType<NativeArray,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.realpath.php
+	**/
+	static function realpath( path:String ) : EitherType<String,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.filetype.php
+	**/
+	static function filetype( filename:String ) : EitherType<String,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.mkdir.php
+	**/
+	static function mkdir( pathname:String, mode:Int = 511, recursive:Bool = false, ?context:Resource ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.unlink.php
+	**/
+	static function unlink( filename:String, ?context:Resource ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.rmdir.php
+	**/
+	static function rmdir( dirname:String, ?context:Resource ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.opendir.php
+	**/
+	static function opendir( path:String, ?context:Resource ) : EitherType<Resource,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.closedir.php
+	**/
+	static function closedir( dir_handle:Resource ) : Void;
+
+	/**
+		@see http://php.net/manual/en/function.readdir.php
+	**/
+	static function readdir( ?dir_handle:Resource ) : EitherType<String,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.rewinddir.php
+	**/
+	static function rewinddir( ?dir_handle:Resource ) : Void;
+
+	/**
+		@see http://php.net/manual/en/function.is-dir.php
+	**/
+	static function is_dir( filename:String ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.rename.php
+	**/
+	static function rename( oldname:String, newname:String, ?context:Resource ) : Bool;
+
+	/**
 		@see http://php.net/manual/en/function.preg-match.php
 	**/
 	static function preg_match( pattern:String, subject:String, ?matches:NativeArray, ?flags:Int, ?offset:Int ) : EitherType<Bool,Int> ;
