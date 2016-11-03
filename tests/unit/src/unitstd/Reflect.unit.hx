@@ -102,9 +102,19 @@ Reflect.compareMethods(y,z) == false;
 Reflect.compareMethods(x,x) == true;
 Reflect.compareMethods(y,y) == true;
 Reflect.compareMethods(z,z) == true;
-//Reflect.compareMethods(x,null) == false;
-//Reflect.compareMethods(null,x) == false;
-//Reflect.compareMethods(null,null) == false; // varies
+
+Reflect.compareMethods(x,null) == false;
+Reflect.compareMethods(null,x) == false;
+
+// compareMethods with closures
+var a = [1];
+var b = [2];
+var v : Dynamic = a.push;
+Reflect.compareMethods(a.push, a.push) == true;
+Reflect.compareMethods(a.push, a.pop) == false;
+Reflect.compareMethods(a.push, b.push) == false;
+Reflect.compareMethods(a.push, v) == true;
+Reflect.compareMethods(b.push, v) == false;
 
 // isObject
 Reflect.isObject({}) == true;
