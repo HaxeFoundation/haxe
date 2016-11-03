@@ -21,80 +21,91 @@
  */
 package haxe;
 
-import php7.NativeArray;
-import php7.Lib;
+import php7.*;
+import haxe.format.JsonPrinter;
 
 @:coreApi
 class Json {
 
 	public static inline function parse( text : String ) : Dynamic {
-		#if !haxeJSON
-		return phpJsonDecode(text);
+		#if haxeJSON
+			return haxe.format.JsonParser.parse(text);
 		#else
-		return haxe.format.JsonParser.parse(text);
+			return phpJsonDecode(text);
 		#end
 	}
 
 	public static inline function stringify( value : Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic, ?space:String ) : String {
-		#if !haxeJSON
-		return phpJsonEncode(value, replacer, space);
+		#if haxeJSON
+			return JsonPrinter.print(value, replacer, space);
 		#else
-		return haxe.format.JsonPrinter.print(value, replacer, space);
+			return phpJsonEncode(value, replacer, space);
 		#end
 	}
 
 	static function phpJsonDecode(json:String):Dynamic {
-		var val = untyped __call__("json_decode", json);
-		return convertAfterDecode(val);
+		var value = Global.json_decode(json);
+		return convertAfterDecode(value);
 	}
 
-	static function convertAfterDecode(val:Dynamic):Dynamic {
-		var arr:NativeArray;
-		if (untyped __call__("is_object", val)) {
-			arr = phpMapArray(Lib.associativeArrayOfObject(val), convertAfterDecode);
-			return untyped __call__("_hx_anonymous", arr);
+	static function convertAfterDecode(value:Dynamic):Dynamic {
+		if (Global.is_object(value)) {
+			var result = new NativeAssocArray();
+			var data = Syntax.array(value);
+			Syntax.foreach(data, function(fieldName:String, fieldValue:Dynamic) {
+				result[fieldName] = convertAfterDecode(fieldValue);
+			});
+
+			return Boot.createAnon(result);
 		}
-		else if (untyped __call__("is_array", val)) {
-			arr = phpMapArray(val, convertAfterDecode);
-			return Lib.toHaxeArray(arr);
+
+		if (Global.is_array(value)) {
+			var result = new NativeIndexedArray();
+			Syntax.foreach(value, function(index:Int, item:Dynamic) {
+				result[index] = convertAfterDecode(item);
+			});
+
+			return @:privateAccess Array.wrap(result);
 		}
-		else
-			return val;
+
+		return value;
 	}
 
-	static function phpJsonEncode(val:Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic, ?space:String):String {
-		if(null != replacer || null != space)
-			return haxe.format.JsonPrinter.print(val, replacer, space);
-		var json = untyped __call__("json_encode", convertBeforeEncode(val));
-		if (untyped __physeq__(json, false))
-			return throw "invalid json";
-		else
-			return json;
-	}
-
-	static function convertBeforeEncode(val:Dynamic):Dynamic {
-		var arr:NativeArray;
-		if (untyped __call__("is_object", val)) {
-			switch (untyped __call__("get_class", val)) {
-				case "_hx_anonymous", "stdClass" : arr = Lib.associativeArrayOfObject(val);
-				case "_hx_array" : arr = Lib.toPhpArray(val);
-				case "Date" : return Std.string(val); //.split(" ").join("T"); //better with "T"?
-				case "HList" : arr = Lib.toPhpArray(Lambda.array(val)); //convert List to array?
-				case "_hx_enum" : return Type.enumIndex(val);
-				case "StringMap", "IntMap" : arr = Lib.associativeArrayOfHash(val);
-				default : arr = Lib.associativeArrayOfObject(val);
-			}
+	static function phpJsonEncode(value:Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic, ?space:String):String {
+		if(null != replacer || null != space) {
+			return JsonPrinter.print(value, replacer, space);
 		}
-		else if (untyped __call__("is_array", val)) arr = val;
-		else {
-			if (untyped __call__("is_float",val) && !__call__("is_finite",val)) val = null;
-			return val;
+
+		var json = Global.json_encode(convertBeforeEncode(value));
+		if (Global.json_last_error() != Const.JSON_ERROR_NONE) {
+			return throw Global.json_last_error_msg();
 		}
-		return phpMapArray(arr, convertBeforeEncode);
+		return json;
 	}
 
-	inline static function phpMapArray(arr:NativeArray, func:Dynamic->Dynamic):NativeArray {
-		return untyped __call__("array_map", func, arr);
-	}
+	static function convertBeforeEncode(value:Dynamic):Dynamic {
+		if (Syntax.instanceof(value, Array)) {
+			var result = new NativeIndexedArray();
+			Syntax.foreach(value.arr, function(index:Int, item:Dynamic) {
+				result[index] = convertBeforeEncode(item);
+			});
 
+			return result;
+		}
+
+		if (Global.is_object(value)) {
+			var result = new NativeAssocArray();
+			Syntax.foreach(value, function(fieldName:String, fieldValue:Dynamic) {
+				result[fieldName] = convertBeforeEncode(fieldValue);
+			});
+
+			return result;
+		}
+
+		if (Global.is_float(value) && !Global.is_finite(value)) {
+			return null;
+		}
+
+		return value;
+	}
 }

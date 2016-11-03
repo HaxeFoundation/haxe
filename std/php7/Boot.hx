@@ -124,7 +124,7 @@ class Boot {
 	/**
 		Returns Class<HxAnon>
 	**/
-	public static function getHxAnon() : HxClass {
+	public static inline function getHxAnon() : HxClass {
 		return cast HxAnon;
 	}
 

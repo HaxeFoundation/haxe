@@ -137,4 +137,28 @@ extern class Const {
 	static var STR_PAD_RIGHT : Int;
 	static var STR_PAD_LEFT : Int;
 	static var STR_PAD_BOTH : Int;
+	/**
+		@see http://php.net/manual/en/json.constants.php
+	**/
+	static var JSON_ERROR_NONE : Int;
+	static var JSON_ERROR_DEPTH : Int;
+	static var JSON_ERROR_STATE_MISMATCH : Int;
+	static var JSON_ERROR_CTRL_CHAR : Int;
+	static var JSON_ERROR_SYNTAX : Int;
+	static var JSON_ERROR_UTF8 : Int;
+	static var JSON_ERROR_RECURSION : Int;
+	static var JSON_ERROR_INF_OR_NAN : Int;
+	static var JSON_ERROR_UNSUPPORTED_TYPE : Int;
+	static var JSON_HEX_TAG : Int;
+	static var JSON_HEX_AMP : Int;
+	static var JSON_HEX_APOS : Int;
+	static var JSON_HEX_QUOT : Int;
+	static var JSON_FORCE_OBJECT : Int;
+	static var JSON_NUMERIC_CHECK : Int;
+	static var JSON_BIGINT_AS_STRING : Int;
+	static var JSON_PRETTY_PRINT : Int;
+	static var JSON_UNESCAPED_SLASHES : Int;
+	static var JSON_UNESCAPED_UNICODE : Int;
+	static var JSON_PARTIAL_OUTPUT_ON_ERROR : Int;
+	static var JSON_PRESERVE_ZERO_FRACTION : Int;
 }

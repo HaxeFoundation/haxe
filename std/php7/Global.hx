@@ -716,4 +716,24 @@ extern class Global {
 		@see http://php.net/manual/en/function.fpassthru.php
 	**/
 	static function fpassthru( handle:Resource ) : Int;
+
+	/**
+		@see http://php.net/manual/en/function.json-encode.php
+	**/
+	static function json_encode( value:Dynamic, options:Int = 0, depth:Int = 512 ) : EitherType<String,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.json-decode.php
+	**/
+	static function json_decode( json:String, assoc:Bool = false, depth:Int = 512, options:Int = 512 ) : Dynamic;
+
+	/**
+		@see http://php.net/manual/en/function.json-last-error.php
+	**/
+	static function json_last_error() : Int;
+
+	/**
+		@see http://php.net/manual/en/function.json-last-error-msg.php
+	**/
+	static function json_last_error_msg() : EitherType<String,Bool>;
 }

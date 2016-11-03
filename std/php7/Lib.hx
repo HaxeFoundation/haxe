@@ -21,6 +21,8 @@
  */
 package php7;
 
+import haxe.ds.StringMap;
+
 /**
 	Platform-specific PHP Library. Provides some platform-specific functions
 	for the PHP target, such as conversion from Haxe types to native types
@@ -94,10 +96,8 @@ class Lib {
 	}
 
 	public static function hashOfAssociativeArray<T>(arr : NativeAssocArray<T>) : Map<String,T> {
-		var result = new Map();
-		for (key in Global.array_keys(arr)) {
-			result.set(key, arr[key]);
-		}
+		var result = new StringMap();
+		@:privateAccess result.data = arr;
 		return result;
 	}
 
