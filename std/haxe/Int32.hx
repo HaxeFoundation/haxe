@@ -67,7 +67,7 @@ abstract Int32(Int) from Int to Int {
 
 	@:op(A - B) public static function floatSub(a:Float, b:Int32):Float;
 
-	#if (as3 || js || php || python || lua)
+	#if (as3 || js || php || php7 || python || lua)
 
 	#if js
 	// on JS we want to try using Math.imul, but we have to assign that function to Int32.mul only once,
@@ -192,7 +192,7 @@ abstract Int32(Int) from Int to Int {
 	@:op(A >>> B) private static function ushrInt(a:Int32, b:Int):Int32;
 	@:op(A >>> B) private static function intUshr(a:Int, b:Int32):Int32;
 
-	#if (php || python || lua)
+	#if (php || php7 || python || lua)
 
 	// PHP may be 64-bit, so shifts must be clamped
 	@:op(A << B) private static inline function shl(a:Int32, b:Int32):Int32
@@ -225,7 +225,7 @@ abstract Int32(Int) from Int to Int {
 		return b < 0 ? -1 : (a - b);
 	}
 
-	#if php
+	#if (php || php7)
 	static var extraBits : Int = untyped __php__("PHP_INT_SIZE") * 8 - 32;
 	#end
 
@@ -234,7 +234,7 @@ abstract Int32(Int) from Int to Int {
 		// force to-int conversion on platforms that require it
 		#if (as3 || js)
 		return x | 0;
-		#elseif php
+		#elseif (php || php7)
 		// we might be on 64-bit php, so sign extend from 32-bit
 		return (x << extraBits) >> extraBits;
 		#elseif python
