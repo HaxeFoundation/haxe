@@ -454,7 +454,7 @@ private typedef __Int64 = ___Int64;
 
 private class ___Int64 {
 	public var high : Int32;
-	public var low : Int32; 
+	public var low : Int32;
 
 	public inline function new( high, low ) {
 		this.high = high;
@@ -466,6 +466,7 @@ private class ___Int64 {
 		when tracing or calling Std.string. This tends not to happen when
 		toString is only in the abstract.
 	**/
+	#if php7 @:keep #end
 	public function toString() : String
 		return Int64.toStr( cast this );
 }
