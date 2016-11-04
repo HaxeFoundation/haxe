@@ -515,6 +515,7 @@ and gen_expr ctx e =
 	| TField (x,FClosure (Some ({cl_path=[],"Array"},_), {cf_name="push"})) ->
 		(* see https://github.com/HaxeFoundation/haxe/issues/1997 *)
 		add_feature ctx "use.$arrayPushClosure";
+		add_feature ctx "use.$bind";
 		print ctx "$arrayPushClosure(";
 		gen_value ctx x;
 		print ctx ")"
@@ -1488,9 +1489,7 @@ let generate com =
 		newline ctx;
 	end;
 	if has_feature ctx "use.$arrayPushClosure" then begin
-		print ctx "function $arrayPushClosure(a) {";
-		print ctx " return function(x) { a.push(x); }; ";
-		print ctx "}";
+		print ctx "function $arrayPushClosure(a) { return $bind(a,function(x) { return this.push(x); }); }";
 		newline ctx
 	end;
 	List.iter (gen_block_element ~after:true ctx) (List.rev ctx.inits);
