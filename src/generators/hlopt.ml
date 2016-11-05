@@ -29,6 +29,7 @@ type reg_state = {
 	mutable rindex : int;
 	mutable ralias : reg_state;
 	mutable rbind : reg_state list;
+	mutable rnullcheck : bool;
 }
 
 type block = {
@@ -480,6 +481,8 @@ let optimize dump (f:fundecl) =
 	let old_code = match dump with None -> f.code | Some _ -> Array.copy f.code in
 	let op index = f.code.(index) in
 	let set_op index op = f.code.(index) <- op in
+	let nop_count = ref 0 in
+	let set_nop index r = f.code.(index) <- (ONop r); incr nop_count in
 	let write str = match dump with None -> () | Some ch -> IO.nwrite ch (str ^ "\n") in
 
 	let blocks_pos, root = code_graph f in
@@ -487,7 +490,7 @@ let optimize dump (f:fundecl) =
 	let read_counts = Array.make nregs 0 in
 	let read_count r = read_counts.(r) <- read_counts.(r) + 1 in
 	let empty_state() = Array.init nregs (fun i ->
-		let r = { rindex = i; ralias = Obj.magic 0; rbind = [] } in
+		let r = { rindex = i; ralias = Obj.magic 0; rbind = []; rnullcheck = false } in
 		r.ralias <- r;
 		r
 	) in
@@ -518,6 +521,7 @@ let optimize dump (f:fundecl) =
 					let sold = s.(i) and snew = s2.(i) in
 					snew.ralias <- s2.(sold.ralias.rindex);
 					snew.rbind <- List.map (fun b -> s2.(b.rindex)) sold.rbind;
+					snew.rnullcheck <- sold.rnullcheck;
 				done;
 				s2
 			) in
@@ -530,6 +534,7 @@ let optimize dump (f:fundecl) =
 				for i = 0 to nregs - 1 do
 					let s1 = s.(i) and s2 = s2.(i) in
 					s1.rbind <- List.filter (fun s -> s.ralias == s1) s1.rbind;
+					s1.rnullcheck <- s1.rnullcheck && s2.rnullcheck;
 					(match s2.rbind with
 					| [] -> ()
 					| l -> s1.rbind <- List.fold_left (fun acc sb2 -> let s = s.(sb2.rindex) in if s.ralias == s1 && not (List.memq s s1.rbind) then s :: acc else acc) s1.rbind s2.rbind)
@@ -542,10 +547,14 @@ let optimize dump (f:fundecl) =
 			r.ralias <- r
 		in
 		let rec loop i =
+			let do_read r =
+				read_count r
+			in
 			let do_write r =
 				let s = state.(r) in
 				List.iter (fun s2 -> s2.ralias <- s2) s.rbind;
 				s.rbind <- [];
+				s.rnullcheck <- false;
 				undef s
 			in
 			if i > b.bend then () else
@@ -561,17 +570,21 @@ let optimize dump (f:fundecl) =
 			set_op i op;
 			(match op with
 			| OMov (d, v) when d = v ->
-				set_op i (ONop 0)
+				set_nop i "mov"
 			| OMov (d, v) ->
 				let sv = state.(v) in
 				let sd = state.(d) in
+				do_read v;
 				do_write d;
 				sd.ralias <- sv;
+				sd.rnullcheck <- sv.rnullcheck;
 				if not (List.memq sd sv.rbind) then sv.rbind <- sd :: sv.rbind;
-				read_count v
+			| ONullCheck r ->
+				let s = state.(r) in
+				if s.rnullcheck then set_nop i "nullcheck" else begin do_read r; s.rnullcheck <- true; end;
 			| _ ->
 				opcode_fx (fun r read ->
-					if read then read_count r else do_write r
+					if read then do_read r else do_write r
 				) op
 			);
 			loop (i + 1)
@@ -600,7 +613,7 @@ let optimize dump (f:fundecl) =
 			let n = read_counts.(r) in
 			if n = 0 then todo := true;
 			read_counts.(r) <- n;
-			set_op i (ONop 0)
+			set_nop i "unused"
 		| _ -> ());
 		loop (i - 1)
 		end
@@ -634,4 +647,57 @@ let optimize dump (f:fundecl) =
 		write "";
 		write "";
 	end;
-	f
+
+	(* remap *)
+
+	let code = ref f.code in
+	let regs = ref f.regs in
+	let debug = ref f.debug in
+
+	if !nop_count > 0 then begin
+		let new_pos = Array.make (Array.length f.code) 0 in
+		let jumps = ref [] in
+		let out_pos = ref 0 in
+		let out_code = Array.make (Array.length f.code - !nop_count) (ONop "") in
+		let new_debug = Array.make (Array.length f.code - !nop_count) (0,0) in
+		Array.iteri (fun i op ->
+			Array.unsafe_set new_pos i !out_pos;
+			match op with
+			| ONop _ -> ()
+			| _ ->
+				(match op with
+				| OJTrue _ | OJFalse _ | OJNull _ | OJNotNull _  | OJSLt _ | OJSGte _ | OJSGt _ | OJSLte _ | OJULt _ | OJUGte _ | OJEq _ | OJNotEq _ | OJAlways _ | OSwitch _  | OTrap _ ->
+					jumps := i :: !jumps
+				| _ -> ());
+				out_code.(!out_pos) <- op;
+				new_debug.(!out_pos) <- f.debug.(i);
+				incr out_pos
+		) f.code;
+		List.iter (fun j ->
+			let pos d =
+				new_pos.(j + 1 + d) - new_pos.(j + 1)
+			in
+			let op = (match f.code.(j) with
+			| OJTrue (r,d) -> OJTrue (r,pos d)
+			| OJFalse (r,d) -> OJFalse (r,pos d)
+			| OJNull (r,d) -> OJNull (r, pos d)
+			| OJNotNull (r,d) -> OJNotNull (r, pos d)
+			| OJSLt (a,b,d) -> OJSLt (a,b,pos d)
+			| OJSGte (a,b,d) -> OJSGte (a,b,pos d)
+			| OJSLte (a,b,d) -> OJSLte (a,b,pos d)
+			| OJSGt (a,b,d) -> OJSGt (a,b,pos d)
+			| OJULt (a,b,d) -> OJULt (a,b,pos d)
+			| OJUGte (a,b,d) -> OJUGte (a,b,pos d)
+			| OJEq (a,b,d) -> OJEq (a,b,pos d)
+			| OJNotEq (a,b,d) -> OJNotEq (a,b,pos d)
+			| OJAlways d -> OJAlways (pos d)
+			| OSwitch (r,cases,send) -> OSwitch (r, Array.map pos cases, pos send)
+			| OTrap (r,d) -> OTrap (r,pos d)
+			| _ -> assert false) in
+			out_code.(new_pos.(j)) <- op
+		) !jumps;
+		code := out_code;
+		debug := new_debug;
+	end;
+
+	{ f with code = !code; regs = !regs; debug = !debug }

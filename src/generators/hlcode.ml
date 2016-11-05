@@ -196,7 +196,7 @@ type opcode =
 	| OSetEnumField of reg * int * reg
 	(* misc *)
 	| ODump of reg
-	| ONop of unused
+	| ONop of string
 
 type fundecl = {
 	fpath : string * string;
@@ -564,7 +564,7 @@ let ostr fstr o =
 	| OTrap (r,i) -> Printf.sprintf "trap %d, %d" r i
 	| OEndTrap b -> Printf.sprintf "endtrap %b" b
 	| ODump r -> Printf.sprintf "dump %d" r
-	| ONop _ -> "nop"
+	| ONop s -> if s = "" then "nop" else "nop " ^ s
 
 let fundecl_name f = if snd f.fpath = "" then "fun$" ^ (string_of_int f.findex) else (fst f.fpath) ^ "." ^ (snd f.fpath)
 
