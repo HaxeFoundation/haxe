@@ -565,6 +565,7 @@ let optimize dump (f:fundecl) =
 			if dstate then print_state i state;
 			(match op with
 			| OIncr r | ODecr r | ORef (_,r) ->  do_write r
+			| OCallClosure (_,r,_) when f.regs.(r) = HDyn && (match f.regs.(state.(r).ralias.rindex) with HFun (_,rt) -> not (is_dynamic rt) | HDyn -> false | _ -> true) -> do_write r (* Issue3218.hx *)
 			| _ -> ());
 			let op = opcode_map (fun r ->
 				let s = state.(r) in
