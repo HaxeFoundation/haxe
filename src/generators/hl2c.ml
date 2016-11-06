@@ -757,7 +757,7 @@ let write_c version file (code:code) =
 			let il = List.rev_map (fun s -> prefix ^ s) il in
 			sexpr "%s %s" s (String.concat ", " il)
 		) var_map;
-		let output_options = Array.make (Array.length f.code) [] in
+		let output_options = Array.make (Array.length f.code + 1) [] in
 		let output_at i oo = output_options.(i) <- oo :: output_options.(i) in
 		let output_at2 i ool = List.iter (output_at i) ool in
 		let has_label i = List.exists (function OOLabel -> true | _ -> false) output_options.(i) in
@@ -778,8 +778,8 @@ let write_c version file (code:code) =
 			sexpr "hl_trap_ctx trap$%d" i;
 		done;
 
-		Array.iteri (fun i op ->
-			(match output_options.(i) with
+		let flush_options i =
+			match output_options.(i) with
 			| [] -> ()
 			| opts ->
 				(* put label after } *)
@@ -793,7 +793,11 @@ let write_c version file (code:code) =
 					| OODecreaseIndent -> unblock()
 					| OOBeginBlock ->  line "{"
 					| OOEndBlock -> line "}"
-				) opts);
+				) opts
+		in
+
+		Array.iteri (fun i op ->
+			flush_options i;
 			let label delta =
 				let addr = delta + i + 1 in
 				let label = label addr in
@@ -1137,7 +1141,11 @@ let write_c version file (code:code) =
 				block();
 				output_at2 (i + 1) [OODefault;OOIncreaseIndent];
 				Array.iteri (fun k delta -> output_at2 (delta + i + 1) [OODecreaseIndent;OOCase k;OOIncreaseIndent]) idx;
-				output_at2 (i + 1 + eend) [OODecreaseIndent;OODecreaseIndent;OOEndBlock];
+				let pend = i+1+eend in
+				(* insert at end if we have another switch case here *)
+				let old = output_options.(pend) in
+				output_options.(pend) <- [];
+				output_at2 pend ([OODecreaseIndent;OODecreaseIndent;OOEndBlock] @ List.rev old);
 			| ONullCheck r ->
 				sexpr "if( %s == NULL ) hl_null_access()" (reg r)
 			| OTrap (r,d) ->
@@ -1151,6 +1159,7 @@ let write_c version file (code:code) =
 			| ONop _ ->
 				()
 		) f.code;
+		flush_options (Array.length f.code);
 		unblock();
 		line "}";
 		line "";

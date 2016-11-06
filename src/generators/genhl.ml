@@ -2840,7 +2840,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 	} in
 	ctx.m <- old;
 	Hashtbl.add ctx.defined_funs fidx ();
-	(*let f = if ctx.optimize then Hlopt.optimize ctx.dump_out f else f in*)
+	let f = if ctx.optimize then Hlopt.optimize ctx.dump_out f else f in
 	DynArray.add ctx.cfunctions f;
 	capt
 
