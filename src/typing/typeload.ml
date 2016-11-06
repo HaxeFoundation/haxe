@@ -1443,14 +1443,13 @@ module Inheritance = struct
 		(* Pass 1: Check and set relations *)
 		let check_herit t is_extends =
 			if is_extends then begin
-				let extern_multiple_extend = c.cl_super <> None && c.cl_extern in
-				if c.cl_super <> None && not c.cl_extern then error "Cannot extend several classes" p;
+				let extern_multiple_extends = match c.cl_super,c.cl_extern with None,_ -> false | Some _,true -> true | Some _,false -> error "Cannot extend several classes" p in
 				let csup,params = check_extends ctx c t p in
-				if c.cl_interface || extern_multiple_extend then begin
-					if not csup.cl_interface && not extern_multiple_extend then error "Cannot extend by using a class" p;
-					if csup.cl_interface && extern_multiple_extend then error "Cannot extend by using an interface" p;
+				if c.cl_interface || extern_multiple_extends then begin
+					if not csup.cl_interface && not extern_multiple_extends then error "Cannot extend by using a class" p;
+					if csup.cl_interface && extern_multiple_extends then error "Cannot extend by using an interface" p;
 					c.cl_implements <- (csup,params) :: c.cl_implements;
-					if extern_multiple_extend then begin
+					if extern_multiple_extends then begin
 						PMap.iter (fun id f ->
 							c.cl_fields <- PMap.add id f c.cl_fields;
 						) csup.cl_fields
