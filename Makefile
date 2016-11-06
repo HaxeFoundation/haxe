@@ -258,8 +258,8 @@ package_src:
 	mkdir -p $(PACKAGE_OUT_DIR)
 	# use git-archive-all since we have submodules
 	# https://github.com/Kentzo/git-archive-all
-	curl -s https://raw.githubusercontent.com/Kentzo/git-archive-all/1.12/git-archive-all -o extra/git-archive-all
-	python extra/git-archive-all $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_src$(PACKAGE_SRC_EXTENSION)
+	curl -s https://raw.githubusercontent.com/Kentzo/git-archive-all/1.15/git_archive_all.py -o extra/git_archive_all.py
+	python extra/git_archive_all.py $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_src$(PACKAGE_SRC_EXTENSION)
 
 package_unix:
 	mkdir -p $(PACKAGE_OUT_DIR)
