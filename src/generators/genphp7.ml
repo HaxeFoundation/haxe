@@ -2066,6 +2066,21 @@ class virtual type_builder ctx wrapper =
 					self#write_indentation;
 					self#write "])"
 		(**
+			Writes specified type to output buffer depending on type of expression.
+		*)
+		method private write_type type_expr =
+			match type_expr.eexpr with
+				| TTypeExpr (TClassDecl tcls) ->
+					self#write (self#use_t (TInst (tcls, [])))
+				| _ ->
+					if is_string type_expr then
+						self#write_expr type_expr
+					else begin
+						self#write "(";
+						self#write_expr type_expr;
+						self#write "->phpClassName)";
+					end
+		(**
 			Write language specific expression declared in `php7.PHP` extern
 		*)
 		method private write_expr_call_lang_extern expr args =
@@ -2083,8 +2098,10 @@ class virtual type_builder ctx wrapper =
 				| "construct" -> self#write_expr_lang_construct args
 				| "getField" -> self#write_expr_lang_get_field args
 				| "setField" -> self#write_expr_lang_set_field args
+				| "getStaticField" -> self#write_expr_lang_get_static_field args
+				| "setStaticField" -> self#write_expr_lang_set_static_field args
 				| "call" -> self#write_expr_lang_call args
-				| "staticCall" -> self#write_expr_lang_staticCall args
+				| "staticCall" -> self#write_expr_lang_static_call args
 				| "arrayDecl" -> self#write_expr_lang_array_decl args
 				| "splat" -> self#write_expr_lang_splat args
 				| "suppress" -> self#write_expr_lang_suppress args
@@ -2131,21 +2148,10 @@ class virtual type_builder ctx wrapper =
 		(**
 			Writes a call to a static method (for `php7.Syntax.staticCall()`)
 		*)
-		method private write_expr_lang_staticCall args =
+		method private write_expr_lang_static_call args =
 			match args with
 				| type_expr :: method_expr :: args ->
-					(match type_expr.eexpr with
-						| TTypeExpr (TClassDecl tcls) ->
-							self#write (self#use_t (TInst (tcls, [])))
-						| _ ->
-							if is_string type_expr then
-								self#write_expr type_expr
-							else begin
-								self#write "(";
-								self#write_expr type_expr;
-								self#write "->phpClassName)";
-							end
-					);
+					self#write_type type_expr;
 					self#write "::{";
 					self#write_expr method_expr;
 					self#write "}(";
@@ -2159,8 +2165,9 @@ class virtual type_builder ctx wrapper =
 			match args with
 				| obj_expr :: field_expr :: [] ->
 					self#write_expr obj_expr;
-					self#write "->";
-					self#write_expr field_expr
+					self#write "->{";
+					self#write_expr field_expr;
+					self#write "}"
 				| _ -> fail self#pos __POS__
 		(**
 			Writes field access for writing (for `php7.Syntax.setField()`)
@@ -2169,8 +2176,33 @@ class virtual type_builder ctx wrapper =
 			match args with
 				| obj_expr :: field_expr :: value_expr :: [] ->
 					self#write_expr obj_expr;
-					self#write "->";
+					self#write "->{";
 					self#write_expr field_expr;
+					self#write "}";
+					self#write " = ";
+					self#write_expr value_expr
+				| _ -> fail self#pos __POS__
+		(**
+			Writes static field access for reading (for `php7.Syntax.getStaticField()`)
+		*)
+		method private write_expr_lang_get_static_field args =
+			match args with
+				| type_expr :: field_expr :: [] ->
+					self#write_type type_expr;
+					self#write "::${";
+					self#write_expr field_expr;
+					self#write "}"
+				| _ -> fail self#pos __POS__
+		(**
+			Writes static field access for writing (for `php7.Syntax.setField()`)
+		*)
+		method private write_expr_lang_set_static_field args =
+			match args with
+				| type_expr :: field_expr :: value_expr :: [] ->
+					self#write_expr type_expr;
+					self#write "::${";
+					self#write_expr field_expr;
+					self#write "}";
 					self#write " = ";
 					self#write_expr value_expr
 				| _ -> fail self#pos __POS__

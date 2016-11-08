@@ -94,7 +94,7 @@ class Boot {
 		do {
 			has = Global.isset(getters[phpClassName][property]);
 			phpClassName = Global.get_parent_class(phpClassName);
-		} while (!has && phpClassName != false);
+		} while (!has && phpClassName != false && Global.class_exists(phpClassName));
 
 		return has;
 	}
@@ -108,7 +108,7 @@ class Boot {
 		do {
 			has = Global.isset(setters[phpClassName][property]);
 			phpClassName = Global.get_parent_class(phpClassName);
-		} while (!has && phpClassName != false );
+		} while (!has && phpClassName != false && Global.class_exists(phpClassName));
 
 		return has;
 	}
@@ -449,6 +449,28 @@ private class HxClass {
 	function __call( method:String, args:NativeArray ) : Dynamic {
 		var callback = phpClassName + '::' + method;
 		return Global.call_user_func_array(callback, args);
+	}
+
+	/**
+		Magic method to get static vars of this class, when `HxClass` instance is in a `Dynamic` variable.
+	**/
+	function __get( property:String ) : Dynamic {
+		if (Boot.hasGetter(phpClassName, property)) {
+			return Syntax.staticCall(phpClassName, 'get_$property');
+		} else {
+			return Syntax.getStaticField(phpClassName, property);
+		}
+	}
+
+	/**
+		Magic method to set static vars of this class, when `HxClass` instance is in a `Dynamic` variable.
+	**/
+	function __set( property:String, value:Dynamic ) : Void {
+		if (Boot.hasGetter(phpClassName, property)) {
+			Syntax.staticCall(phpClassName, 'set_$property', value);
+		} else {
+			Syntax.setStaticField(phpClassName, property, value);
+		}
 	}
 }
 

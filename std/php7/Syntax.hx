@@ -80,6 +80,16 @@ extern class Syntax {
     static function setField<T>( object:AsVar<T>, fieldName:AsVar<String>, value:Dynamic ) : Void;
 
     /**
+        Generates static field access for reading on `className`
+    **/
+    static function getStaticField( className:AsVar<EitherType<Class<Dynamic>,String>>, fieldName:AsVar<String> ) : Dynamic;
+
+    /**
+        Generates static field access for writing on `object`
+    **/
+    static function setStaticField( object:AsVar<EitherType<Class<Dynamic>,String>>, fieldName:AsVar<String>, value:Dynamic ) : Void;
+
+    /**
         Generates a call to instance method: `$object->{$methodName}(<args>)`
     **/
     static function call<T>( object:AsVar<T>, methodName:AsVar<String>, args:Rest<Dynamic> ) : Dynamic;
