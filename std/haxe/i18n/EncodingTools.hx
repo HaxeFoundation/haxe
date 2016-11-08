@@ -34,19 +34,41 @@ class EncodingTools {
 	}
 
 
-	public static inline function ucs2ToUtf16 (s:Ucs2):Utf16 {
+	
+	public static function ucs2ToUtf16 (s:Ucs2):Utf16 {
+		// every ucs2 character is a valid utf16 character
 		return Utf16.fromBytes(s.toBytes());
 	}
+	
 
-	public static inline function utf16ToUcs2 (s:Utf16):Ucs2 {
-		return throw "not implemented";
+	/*
+	 *	Can throw surrogate errors
+	*/
+	
+	
+	public static function utf16ToUcs2 (s:Utf16):Ucs2 {
+		return Ucs2.fromBytes(s.toBytes()); 
+	}
+	
 
-		//return Utf16.fromBytes(s.toBytes());
+
+	
+	public static function ucs2ToUtf8 (s:Ucs2):Utf8 {
+		return Utf8.fromBytes(ucs2ToUtf8ByteAccess(s).toBytes());
+	}
+	
+
+	public static inline function utf8ToUcs2 (s:Utf8):Ucs2 {
+		// TODO this could be done without creating Bytes via fromByteAccess
+		return Ucs2.fromBytes(utf8ToUcs2ByteAccess(s).toBytes());
 	}
 
+	public static inline function utf16ToUtf8 (s:Utf16):Utf8 {
+		return Utf8.wrapAsUtf8(Encoding.convertUTF16toUTF8(Utf16.asByteAccess(s), StrictConversion));
+	}
 
-	public static inline function ucs2ToUtf8 (s:Ucs2):Utf8 {
-		return Utf8.fromBytes(ucs2ToUtf8ByteAccess(s).toBytes());
+	public static inline function utf8ToUtf16 (s:Utf8):Utf16 {
+		return Utf16.wrapAsUtf16(Encoding.convertUTF8toUTF16(Utf8.asByteAccess(s), StrictConversion));
 	}
 
 	public static function ucs2ToUtf8ByteAccess (s:Ucs2):ByteAccess {
@@ -106,20 +128,7 @@ class EncodingTools {
 		return bytes;
 	}
 
-	public static inline function utf8ToUcs2 (s:Utf8):Ucs2 {
-		// TODO this could be done without creating Bytes via fromByteAccess
-		return Ucs2.fromBytes(utf8ToUcs2ByteAccess(s).toBytes());
-	}
-
-	public static inline function utf16ToUtf8 (s:Utf16):Utf8 {
-		return Utf8.wrapAsUtf8(Encoding.convertUTF16toUTF8(Utf16.asByteAccess(s), StrictConversion));
-
-	}
-
-	public static inline function utf8ToUtf16 (s:Utf8):Utf16 {
-		return Utf16.wrapAsUtf16(Encoding.convertUTF8toUTF16(Utf8.asByteAccess(s), StrictConversion));
-
-	}
+	
 
 	/*
 	  Converts the ucs-2 charater `ucs2` into utf-8 bytes which are written

@@ -105,14 +105,13 @@ class UnitBuilder {
 		var e = switch [isAbstract(e1) && isAbstract(e2), isFloat(e1) || isFloat(e2), e2.expr] {
 			case [_, _, EField( { expr:EConst(CIdent("Math" | "math")) }, "POSITIVE_INFINITY" | "NEGATIVE_INFINITY")] if (Context.defined("cpp") || Context.defined("php")):
 				macro t($e1 == $e2);
-
 			case [_,true, _]:
 				macro feq($e1, $e2);
 			case [true, _, _]:
 				macro eqAbstract($e1 == $e2, $e1, $e2);
 			case _:
-
 				macro eq($e1, $e2);
+				
 		}
 		return {
 			expr: e.expr,

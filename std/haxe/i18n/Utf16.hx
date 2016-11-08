@@ -53,6 +53,14 @@ abstract Utf16(String) {
 		return new Utf16(this.toLowerCase());
 	}
 
+	public function isValidUcs2 ():Bool {
+		for (i in 0...this.length) {
+			var code = charCodeAt(i);
+			if (EncodingTools.getUtf16CodeSize(code) == 4) return false;
+		}
+		return true;
+	}
+
 	/*@:extern inline*/
 	public function charAt(index : Int) : Utf16 {
 		return new Utf16(this.charAt(index));
@@ -108,7 +116,7 @@ abstract Utf16(String) {
 
 	/*@:extern inline*/
 	public static function fromBytes( bytes : haxe.io.Bytes ) : Utf16 {
-		throw "not implemented";
+		return wrapAsUtf16(ByteAccess.fromBytes(bytes));
 	}
 
 	/*@:extern inline*/
@@ -549,6 +557,7 @@ abstract Utf16(ByteAccess) {
 	/*@:extern inline*/
 	public static  function fromCharCode( code : Int ) : Utf16
 	{
+		
 		return wrapAsUtf16(EncodingTools.charCodeToUtf16Bytes(code));
 	}
 
@@ -565,7 +574,7 @@ abstract Utf16(ByteAccess) {
  		return wrapAsUtf16(ByteAccess.ofData(python.NativeStringTools.encode(s, "utf-16be")));
 		#elseif (neko || cpp || php)
 		return EncodingTools.utf8ToUtf16(new Utf8(s));
- 		#elseif (js)
+ 		#elseif (js || flash)
  		return EncodingTools.ucs2ToUtf16( new Ucs2(s));
  		#else
 

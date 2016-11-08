@@ -29,72 +29,66 @@ package haxe.i18n;
 @:allow(haxe.i18n)
 abstract Ucs2(String) {
 
-	@:extern public var length(get,never) : Int;
+	public var length(get,never) : Int;
 
-	/*@:extern inline*/
 	public function new(str:String) : Void {
 		this = str;
 	}
 
-	/*@:extern inline*/ function get_length():Int {
+	function get_length():Int {
 		return this.length;
 	}
 
-	/*@:extern inline*/
 	public function toUpperCase() : Ucs2 {
 		return new Ucs2(this.toUpperCase());
 	}
 
-	/*@:extern inline*/
 	public function toLowerCase() : Ucs2 {
 		return new Ucs2(this.toLowerCase());
 	}
 
-	/*@:extern inline*/
 	public function charAt(index : Int) : Ucs2 {
 		return new Ucs2(this.charAt(index));
 	}
 
-	/*@:extern inline*/
 	public function charCodeAt( index : Int) : Null<Int> {
 		return this.charCodeAt(index);
 	}
 
-	/*@:extern inline*/
 	public function indexOf( str : Ucs2, ?startIndex : Int ) : Int {
 		return this.indexOf(str.toNativeString(),startIndex);
 	}
 
-	/*@:extern inline*/
 	public function lastIndexOf( str : Ucs2, ?startIndex : Int ) : Int {
-		return this.lastIndexOf(str.toNativeString(),startIndex);
+		if (startIndex == null) { // required for flash
+			return this.lastIndexOf(str.toNativeString());
+		}
+		return this.lastIndexOf(str.toNativeString(), startIndex);
+		
 	}
 
-	/*@:extern inline*/
 	public function split( delimiter : Ucs2 ) : Array<Ucs2> {
 		return cast this.split(delimiter.toNativeString());
 	}
 
-	/*@:extern inline*/
 	public function substr( pos : Int, ?len : Int ) : Ucs2 {
+		if (len == null) return new Ucs2(this.substr(pos)); // required for flash
 		return new Ucs2(this.substr(pos,len));
 	}
 
-	/*@:extern inline*/
 	public function substring( startIndex : Int, ?endIndex : Int ) : Ucs2 {
+		if (endIndex == null) return new Ucs2(this.substring(startIndex));
 		return new Ucs2(this.substring(startIndex,endIndex));
 	}
 
-	/*@:extern inline*/
 	public function toNativeString() : String {
 		return this;
 	}
 
-	@:extern public static inline function fromCharCode( code : Int ) : Ucs2 {
+	public static inline function fromCharCode( code : Int ) : Ucs2 {
 		return new Ucs2(String.fromCharCode(code));
 	}
 
-	/*@:extern inline*/
 	public function toBytes(  ) : haxe.io.Bytes {
 		var b = haxe.io.Bytes.alloc(length*2);
 		for (i in 0...length) {
@@ -106,7 +100,7 @@ abstract Ucs2(String) {
 		return b;
 	}
 
-	@:extern public static inline function fromBytes( bytes : haxe.io.Bytes ) : Ucs2 {
+	public static inline function fromBytes( bytes : haxe.io.Bytes ) : Ucs2 {
 
 		var i = 0;
 		var res = "";
@@ -119,22 +113,41 @@ abstract Ucs2(String) {
 		return new Ucs2(res);
 	}
 
-	@:op(A == B) inline function opEq (other:Ucs2):Bool {
+
+	@:op(A == B) inline function opEq (other:Ucs2) {
 		return this == other.toNativeString();
 	}
 
-	@:op(A != B) inline function opNotEq (other:Ucs2):Bool {
+	@:op(A + B) inline function opAdd (other:Ucs2) {
+		return fromNativeString(this + other.toNativeString());
+	}
+
+	@:op(A != B) inline function opNotEq (other:Ucs2) {
 		return !opEq(other);
 	}
 
-	/*@:extern inline*/
 	public function toUtf8() : Utf8 {
 		return EncodingTools.ucs2ToUtf8(new Ucs2(this));
 	}
 
-	@:extern public static inline function fromNativeString (str:String):Ucs2 {
+	public static function wrapAsUcs2(s:String) return new Ucs2(s);
+
+	public function toUtf16() : Utf16 {
+		return EncodingTools.ucs2ToUtf16(wrapAsUcs2(this));
+	}
+
+	public static inline function fromNativeString (str:String):Ucs2 {
 		return new Ucs2(str);
 	}
+
+	public function toByteString ():String {
+		var res = [];
+		for (i in 0...length) {
+			res.push(charCodeAt(i));
+		}
+		return res.join(",");
+	}
+
 
 }
 #else
@@ -145,28 +158,53 @@ import haxe.i18n.ByteAccess;
 @:allow(haxe.i18n)
 abstract Ucs2(ByteAccess) {
 
-	@:extern public var length(get,never) : Int;
+	public var length(get,never) : Int;
 
-
-	/*@:extern inline*/
-	public function new(str:String) : Void {
-		this = asByteAccess(fromNativeString(str));
+	public static inline function fromNativeString (str:String):Ucs2 {
+		#if (js || flash)
+			throw "assert"
+		#elseif (neko || cpp || python || php)
+			var bytes = ByteAccess.fromBytes(haxe.io.Bytes.ofString(str));
+			//trace(bytes);
+			var ucs2Bytes = EncodingTools.utf8ByteAccessToUcs2ByteAccess(bytes);
+			//trace(ucs2Bytes);
+			return Ucs2.wrapAsUcs2(ucs2Bytes);
+		#elseif (java || cs)
+			return new Utf16(str).toUcs2();
+		#elseif cs
+			return throw "not implemented";
+		#end
 	}
 
-	/*@:extern inline*/ function get_length():Int {
+	public static function asByteAccess( s:Ucs2 ) : ByteAccess {
+		return cast s;
+	}
+
+	public function toByteString () {
+		return ByteAccess.fromBytes(toBytes()).toString();
+	}
+
+	
+
+
+	public function new(str:String)  {
+		this = haxe.i18n.Ucs2.asByteAccess(haxe.i18n.Ucs2.fromNativeString(str));
+	}
+
+function get_length():Int {
 		return this.length >> 1;
 	}
 
-	@:extern static inline function isUpperCaseLetter (bytes:Int) {
+	static inline function isUpperCaseLetter (bytes:Int) {
 
 		return bytes >= 0x0041 && bytes <= 0x005A;
 	}
 
-	@:extern static inline function isLowerCaseLetter (bytes:Int) {
+	static inline function isLowerCaseLetter (bytes:Int) {
 		return bytes >= 0x0061 && bytes <= 0x007A;
 	}
 
-	@:extern static inline function toLowerCaseLetter (bytes:Int):Int {
+	static inline function toLowerCaseLetter (bytes:Int):Int {
 		return if (isUpperCaseLetter(bytes)) {
 			bytes + 0x0020;
 		} else {
@@ -174,7 +212,7 @@ abstract Ucs2(ByteAccess) {
 		}
 	}
 
-	@:extern static inline function toUpperCaseLetter (bytes:Int) {
+	static inline function toUpperCaseLetter (bytes:Int) {
 		return if (isLowerCaseLetter(bytes)) {
 			bytes - 0x0020;
 		} else {
@@ -182,7 +220,6 @@ abstract Ucs2(ByteAccess) {
 		}
 	}
 
-	/*@:extern inline*/
 	public function toUpperCase() : Ucs2 {
 		var buffer = new ByteAccessBuffer();
 		var i = 0;
@@ -205,7 +242,6 @@ abstract Ucs2(ByteAccess) {
 		return Ucs2.wrapAsUcs2(buffer.getByteAccess());
 	}
 
-	/*@:extern inline*/
 	public function toLowerCase() : Ucs2 {
 		var buffer = new ByteAccessBuffer();
 		var i = 0;
@@ -221,7 +257,6 @@ abstract Ucs2(ByteAccess) {
 		return Ucs2.wrapAsUcs2(buffer.getByteAccess());
 	}
 
-	/*@:extern inline*/
 	public function charAt(index : Int) : Ucs2 {
 		if (index < 0 || index >= wrapAsUcs2(this).length) {
 			return new Ucs2("");
@@ -233,7 +268,6 @@ abstract Ucs2(ByteAccess) {
 		return Ucs2.wrapAsUcs2(b);
 	}
 
-	/*@:extern inline*/
 	public function charCodeAt( index : Int) : Null<Int> {
 		if (index < 0 || index >= wrapAsUcs2(this).length) {
 			return null;
@@ -241,7 +275,6 @@ abstract Ucs2(ByteAccess) {
 		return (this.get(index << 1) << 8) | this.get((index << 1) + 1);
 	}
 
-	/*@:extern inline*/
 	public function indexOf( str : Ucs2, ?startIndex : Int ) : Int {
 		var res = -1;
 		var str = asByteAccess(str);
@@ -302,7 +335,6 @@ abstract Ucs2(ByteAccess) {
 		return res;
 	}
 
-	/*@:extern inline*/
 	public function split( delimiter : Ucs2 ) : Array<Ucs2> {
 		var delimiter = asByteAccess(delimiter);
 		var delimiterLen = delimiter.length;
@@ -348,7 +380,6 @@ abstract Ucs2(ByteAccess) {
 		return res;
 	}
 
-	/*@:extern inline*/
 	public function substr( pos : Int, ?len : Int ) : Ucs2 {
 		return if (len == null) {
 			if (pos < 0) {
@@ -361,12 +392,15 @@ abstract Ucs2(ByteAccess) {
 
 
 		} else {
-			substring(pos, pos + len);
+			if (len < 0) {
+				substring(pos, wrapAsUcs2(this).length + len);
+			} else {
+				substring(pos, pos + len);
+			}
 		}
 	}
 
 
-	/*@:extern inline*/
 	public function substring( startIndex : Int, ?endIndex : Int ) : Ucs2 {
 		var b = this;
 
@@ -393,18 +427,20 @@ abstract Ucs2(ByteAccess) {
 
 		return wrapAsUcs2(b.sub(startIndex * 2, endIndex * 2 - startIndex * 2));
 	}
-
-	/*@:extern inline*/
+	// private helpers
+	static inline function wrapAsUcs2 (bytes:ByteAccess):Ucs2 {
+		return cast bytes;
+	}
 	public function toNativeString() : String {
 		// Ucs2 to Utf8
 		return EncodingTools.ucs2ToUtf8(wrapAsUcs2(this)).toNativeString();
 	}
 
-	@:extern static inline function getCodeSize (code:Int):Int {
+	static inline function getCodeSize (code:Int):Int {
 		return if (code <= 0xFFFF) 2 else 4;
 	}
 
-	@:extern public static inline function fromCharCode( code : Int ) : Ucs2 {
+	public static inline function fromCharCode( code : Int ) : Ucs2 {
 		var size = getCodeSize(code);
 		var bytes = ByteAccess.alloc(size);
 		switch size {
@@ -419,55 +455,37 @@ abstract Ucs2(ByteAccess) {
 		return wrapAsUcs2(bytes);
 	}
 
-
-	/*@:extern inline*/
 	public function toBytes(  ) : haxe.io.Bytes {
 		return this.copy().toBytes();
 	}
 
-	@:extern public static inline function fromBytes( bytes : haxe.io.Bytes ) : Ucs2 {
+	public static inline function fromBytes( bytes : haxe.io.Bytes ) : Ucs2 {
 		return wrapAsUcs2(ByteAccess.fromBytes(bytes).copy());
 	}
 
-	/*@:extern inline*/
 	public function toUtf8() : Utf8 {
 		return EncodingTools.ucs2ToUtf8(wrapAsUcs2(this));
 	}
 
-	// operators
+	public function toUtf16() : Utf16 {
+		return EncodingTools.ucs2ToUtf16(wrapAsUcs2(this));
+	}
 
-	@:op(A == B) /*@:extern inline*/ function opEq (other:Ucs2) {
+	
+	@:op(A == B) inline function opEq (other:Ucs2) {
 		return this.equal(asByteAccess(other));
 	}
 
-	@:op(A != B) /*@:extern inline*/ function opNotEq (other:Ucs2) {
+	@:op(A + B) inline function opAdd (other:Ucs2) {
+		return wrapAsUcs2(this.append(asByteAccess(other)));
+	}
+
+	@:op(A != B) inline function opNotEq (other:Ucs2) {
 		return !opEq(other);
 	}
+	
 
-	// private helpers
-	@:extern static inline function wrapAsUcs2 (bytes:ByteAccess):Ucs2 {
-		return cast bytes;
-	}
-
-	@:extern static inline function asByteAccess( s:Ucs2 ) : ByteAccess {
-		return cast s;
-	}
-
-	@:extern public static inline function fromNativeString (str:String):Ucs2 {
-		#if (js || flash)
-			throw "assert"
-		#elseif (neko || cpp || python || php)
-			var bytes = ByteAccess.fromBytes(haxe.io.Bytes.ofString(str));
-			//trace(bytes);
-			var ucs2Bytes = EncodingTools.utf8ByteAccessToUcs2ByteAccess(bytes);
-			//trace(ucs2Bytes);
-			return Ucs2.wrapAsUcs2(ucs2Bytes);
-		#elseif java
-			return new Ucs2(str);
-		#elseif cs
-			return throw "not implemented";
-		#end
-	}
+	
 }
 
 #end

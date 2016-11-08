@@ -31,12 +31,12 @@ abstract Utf8(ByteAccess) {
 
 	@:extern public var length(get,never) : Int;
 
-	/*@:extern inline*/
+	
 	public function new(str:String) : Void {
 		this = asByteAccess(Utf8.fromNativeString(str));
 	}
 
-	/*@:extern inline*/
+	
 	public function toUpperCase() : Utf8 {
 		var res = ByteAccess.alloc(this.length);
 		var i = 0;
@@ -50,7 +50,7 @@ abstract Utf8(ByteAccess) {
 		return wrapAsUtf8(res);
 	}
 
-	/*@:extern inline*/
+	
 	public function toLowerCase() : Utf8 {
 		var res = ByteAccess.alloc(this.length);
 		var i = 0;
@@ -64,7 +64,7 @@ abstract Utf8(ByteAccess) {
 		return wrapAsUtf8(res);
 	}
 
-	/*@:extern inline*/
+	
 	public function charAt(index : Int) : Utf8 {
 		var res = null;
 		var pos = 0;
@@ -83,7 +83,7 @@ abstract Utf8(ByteAccess) {
 		return res == null ? empty() : res;
 	}
 
-	/*@:extern inline*/
+	
 	public function charCodeAt( index : Int) : Null<Int> {
 		var pos = 0;
 		var i = 0;
@@ -102,7 +102,7 @@ abstract Utf8(ByteAccess) {
 		return r;
 	}
 
-	/*@:extern inline*/
+	
 	public function indexOf( str : Utf8, ?startIndex : Int ) : Int
 	{
 
@@ -169,7 +169,7 @@ abstract Utf8(ByteAccess) {
 		return wrapAsUtf8(res);
 	}
 
-	/*@:extern inline*/
+	
 	public function lastIndexOf( str : Utf8, ?startIndex : Int ) : Int {
 		var rev = wrapAsUtf8(this).reverse();
 		var strRev = str.reverse();
@@ -181,7 +181,7 @@ abstract Utf8(ByteAccess) {
 
 	}
 
-	/*@:extern inline*/
+	
 	public function split( delimiter : Utf8 ) : Array<Utf8>
 	{
 		var buf = new ByteAccessBuffer();
@@ -244,7 +244,7 @@ abstract Utf8(ByteAccess) {
 		}
 		return res;
 	}
-	/*@:extern inline*/
+	
 	public function substr( pos : Int, ?len : Int ) : Utf8 {
 
 		if (pos < 0) {
@@ -284,7 +284,7 @@ abstract Utf8(ByteAccess) {
 		return wrapAsUtf8(buf.getByteAccess());
 	}
 
-	/*@:extern inline*/
+	
 	public function substring( startIndex : Int, ?endIndex : Int ) : Utf8 {
 		return if (endIndex == null) {
 			substr(startIndex, null);
@@ -293,21 +293,11 @@ abstract Utf8(ByteAccess) {
 		} else empty();
 	}
 
-	@:op(A + B) inline function opAdd (other:Utf8) {
-		return wrapAsUtf8(this.append(asByteAccess(other)));
-	}
-
-	@:op(A == B) public function opEq (other:Utf8) {
-		return this.equal(asByteAccess(other));
-	}
-
-	@:op(A != B) inline function opNotEq (other:Utf8) {
-		return !opEq(other);
-	}
+	
 
 	// private helpers
 
-	/*@:extern inline*/ function get_length() {
+	 function get_length() {
 		var len = 0;
 		var index = 0;
 		while (index < this.length) {
@@ -318,7 +308,7 @@ abstract Utf8(ByteAccess) {
 		return len;
 	}
 
-	/*@:extern inline*/
+	
 	static function getCharSize (start:Int):Int {
 		return if (start < 0x80) 1
 		else if ((start & 0xE0) == 0xE0) 3
@@ -326,19 +316,19 @@ abstract Utf8(ByteAccess) {
 		else throw "invalid utf8";
 	}
 
-	/*@:extern inline*/
+	
 	static function isUpperCaseLetter (bytes:ByteAccess, pos:Int, size:Int) {
 		var b = bytes.fastGet(pos);
 		return b >= 0x41 && b <= 0x5A;
 	}
 
-	/*@:extern inline*/
+	
 	static function isLowerCaseLetter (bytes:ByteAccess, pos:Int, size:Int) {
 		var b = bytes.fastGet(pos);
 		return b >= 0x61 && b <= 0x7A;
 	}
 
-	/*@:extern inline*/
+	
 	static function toLowerCaseLetter (bytes:ByteAccess, target:ByteAccess, pos:Int, size:Int) {
 		if (isUpperCaseLetter(bytes, pos, size)) {
 			target.set(pos, bytes.fastGet(pos)+0x20);
@@ -349,7 +339,7 @@ abstract Utf8(ByteAccess) {
 		}
 	}
 
-	/*@:extern inline*/
+	
 	static function toUpperCaseLetter (bytes:ByteAccess, target:ByteAccess, pos:Int, size:Int) {
 		if (isLowerCaseLetter(bytes, pos, size)) {
 			target.set(pos, bytes.fastGet(pos)-0x20);
@@ -360,12 +350,12 @@ abstract Utf8(ByteAccess) {
 		}
 	}
 
-	/*@:extern inline*/
+	
 	static function empty () {
 		return new Utf8("");
 	}
 
-	/*@:extern inline*/
+	
 	static function getCharCode ( b:ByteAccess, pos:Int, size:Int):Int {
 		return switch size {
 			case 1: b.fastGet(pos);
@@ -375,7 +365,7 @@ abstract Utf8(ByteAccess) {
 		}
 	}
 
-	/*@:extern inline*/
+	
 	static function compareChar ( b1:ByteAccess, pos1:Int, b2:ByteAccess, pos2:Int, size:Int):Int {
 		var c1 = getCharCode(b1, pos1, size);
 		var c2 = getCharCode(b2, pos2, size);
@@ -383,14 +373,14 @@ abstract Utf8(ByteAccess) {
 		return c1 - c2;
 	}
 
-	/*@:extern inline*/
+	
 	static function pushCharCode (bytes:ByteAccess, buf:ByteAccessBuffer, pos:Int, size:Int) {
 		for (i in 0...size) {
 			buf.addByte(bytes.fastGet(pos+i));
 		}
 	}
 
-	/*@:extern inline*/
+	
 	static function getCodeSize (code:Int):Int {
 		return if (code <= 0x7F) {
 			1;
@@ -409,17 +399,17 @@ abstract Utf8(ByteAccess) {
 		return this.toString();
 	}
 
-	/*@:extern inline*/
+	
 	public static function asByteAccess (s:Utf8):ByteAccess {
 		return cast s;
 	}
 
-	/*@:extern inline*/
+	
 	public static function wrapAsUtf8 (bytes:ByteAccess):Utf8 {
 		return cast bytes;
 	}
 
-	/*@:extern inline*/
+	
 	public static function fromCharCode( code : Int ) : Utf8
 	{
 		var size = getCodeSize(code);
@@ -444,17 +434,16 @@ abstract Utf8(ByteAccess) {
 		return wrapAsUtf8(bytes);
 	}
 
-	/*@:extern inline*/
 	public static function fromBytes( bytes : haxe.io.Bytes ) : Utf8 {
 		return wrapAsUtf8(ByteAccess.fromBytes(bytes).copy());
 	}
 
-	/*@:extern inline*/
+	
 	public static function fromNativeString (s:String):Utf8 {
 
  		#if python
  		return wrapAsUtf8(ByteAccess.ofData(python.NativeStringTools.encode(s, "utf-8")));
- 		#elseif js
+ 		#elseif (js || flash)
  		return EncodingTools.ucs2ToUtf8( new Ucs2(s));
  		#else
 
@@ -462,23 +451,35 @@ abstract Utf8(ByteAccess) {
  		#end
  	}
 
- 	/*@:extern inline*/
+ 	
 	public function toNativeString() : String {
 		return this.getString(0, this.length);
 	}
 
- 	/*@:extern inline*/
+ 	
 	public function toUcs2() : Ucs2 {
 		return EncodingTools.utf8ToUcs2(wrapAsUtf8(this));
 	}
 
-	/*@:extern inline*/
+	
  	public function toUtf16 ():Utf16 {
 		return EncodingTools.utf8ToUtf16(wrapAsUtf8(this));
 	}
 
-	/*@:extern inline*/
+	
 	public function toBytes() : haxe.io.Bytes {
 		return this.copy().toBytes();
+	}
+
+	@:op(A + B) inline function opAdd (other:Utf8) {
+		return wrapAsUtf8(this.append(asByteAccess(other)));
+	}
+
+	@:op(A == B) public function opEq (other:Utf8) {
+		return this.equal(asByteAccess(other));
+	}
+
+	@:op(A != B) inline function opNotEq (other:Utf8) {
+		return !opEq(other);
 	}
 }
