@@ -20,13 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import php7.Global;
-import php7.Boot;
-import php7.reflection.ReflectionClass;
-import php7.reflection.ReflectionMethod;
-import php7.reflection.ReflectionProperty;
-import php7.NativeArray;
-import php7.NativeIndexedArray;
+import php7.*;
+import php7.reflection.*;
 import haxe.extern.EitherType;
 
 using php7.Global;
@@ -106,8 +101,8 @@ enum ValueType {
 
 		var phpName = getPhpName(cl);
 		if (phpName == null) return null;
-
-		return untyped __php__("new $phpName(...$args->arr)");
+		var nativeArgs:NativeArray = @:privateAccess args.arr;
+		return Syntax.construct(phpName, Syntax.splat(nativeArgs));
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T {
@@ -127,10 +122,20 @@ enum ValueType {
 		var phpName = getPhpName(e);
 		if (phpName == null) return null;
 
+		if (!Global.in_array(constr, Syntax.staticCall(phpName, "__hx__list"))) {
+			throw 'No such constructor $constr';
+		}
+
+		var paramsCounts:NativeAssocArray<Int> = Syntax.staticCall(phpName, "__hx__paramsCount");
+		if ((params == null && paramsCounts[constr] != 0) || params.length != paramsCounts[constr]) {
+			throw 'Provided parameters count does not match expected parameters count';
+		}
+
 		if (params == null) {
-			return untyped __php__("$phpName::$constr()");
+			return Syntax.staticCall(phpName, constr);
 		} else {
-			return untyped __php__("$phpName::$constr(...$params->arr)");
+			var nativeArgs:NativeArray = @:privateAccess params.arr;
+			return Syntax.staticCall(phpName, constr, Syntax.splat(nativeArgs));
 		}
 	}
 
@@ -140,13 +145,22 @@ enum ValueType {
 		var phpName = getPhpName(e);
 		if (phpName == null) return null;
 
-		var constr = untyped __php__("$phpName::__hx__list()[$index]");
-		if (constr == null) return null;
+		var constructors:NativeIndexedArray<String> = Syntax.staticCall(phpName, "__hx__list");
+		if (index < 0 || index >= Global.count(constructors)) {
+			throw '$index is not a valid enum constructor index';
+		}
+
+		var constr = constructors[index];
+		var paramsCounts:NativeAssocArray<Int> = Syntax.staticCall(phpName, "__hx__paramsCount");
+		if ((params == null && paramsCounts[constr] != 0) || params.length != paramsCounts[constr]) {
+			throw 'Provided parameters count does not match expected parameters count';
+		}
 
 		if (params == null) {
-			return untyped __php__("$phpName::$constr()");
+			return Syntax.staticCall(phpName, constr);
 		} else {
-			return untyped __php__("$phpName::$constr(...$params->arr)");
+			var nativeArgs:NativeArray = @:privateAccess params.arr;
+			return Syntax.staticCall(phpName, constr, Syntax.splat(nativeArgs));
 		}
 	}
 
@@ -203,7 +217,7 @@ enum ValueType {
 		var reflection = new ReflectionClass(phpName);
 
 		var methods = new NativeArray();
-		for (m in reflection.getMethods(untyped __php__('\\ReflectionMethod::IS_STATIC'))) {
+		for (m in reflection.getMethods(ReflectionMethod.IS_STATIC)) {
 			var name = (m:ReflectionMethod).getName();
 			if (!isServiceFieldName(name)) {
 				methods.array_push(name);
@@ -211,7 +225,7 @@ enum ValueType {
 		}
 
 		var properties = new NativeArray();
-		for (p in reflection.getProperties(untyped __php__('\\ReflectionProperty::IS_STATIC'))) {
+		for (p in reflection.getProperties(ReflectionProperty.IS_STATIC)) {
 			var name = (p:ReflectionProperty).getName();
 			if (!isServiceFieldName(name)) {
 				properties.array_push(name);
@@ -234,7 +248,7 @@ enum ValueType {
 
 		if (v.is_object()) {
 			if (Reflect.isFunction(v)) return TFunction;
-			if (untyped __php__("$v instanceof \\StdClass")) return TObject;
+			if (Syntax.instanceof(v, StdClass)) return TObject;
 			if (Boot.isClass(v)) return TObject;
 
 			var hxClass = Boot.getClass(Global.get_class(v));

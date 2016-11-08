@@ -2084,6 +2084,7 @@ class virtual type_builder ctx wrapper =
 				| "getField" -> self#write_expr_lang_get_field args
 				| "setField" -> self#write_expr_lang_set_field args
 				| "call" -> self#write_expr_lang_call args
+				| "staticCall" -> self#write_expr_lang_staticCall args
 				| "arrayDecl" -> self#write_expr_lang_array_decl args
 				| "splat" -> self#write_expr_lang_splat args
 				| "suppress" -> self#write_expr_lang_suppress args
@@ -2122,6 +2123,30 @@ class virtual type_builder ctx wrapper =
 				| obj_expr :: method_expr :: args ->
 					self#write_expr obj_expr;
 					self#write "->{";
+					self#write_expr method_expr;
+					self#write "}(";
+					write_args buffer (fun e -> self#write_expr e) args;
+					self#write ")"
+				| _ -> fail self#pos __POS__
+		(**
+			Writes a call to a static method (for `php7.Syntax.staticCall()`)
+		*)
+		method private write_expr_lang_staticCall args =
+			match args with
+				| type_expr :: method_expr :: args ->
+					(match type_expr.eexpr with
+						| TTypeExpr (TClassDecl tcls) ->
+							self#write (self#use_t (TInst (tcls, [])))
+						| _ ->
+							if is_string type_expr then
+								self#write_expr type_expr
+							else begin
+								self#write "(";
+								self#write_expr type_expr;
+								self#write "->phpClassName)";
+							end
+					);
+					self#write "::{";
 					self#write_expr method_expr;
 					self#write "}(";
 					write_args buffer (fun e -> self#write_expr e) args;
@@ -2205,10 +2230,7 @@ class virtual type_builder ctx wrapper =
 							self#write (self#use_t (TInst (tcls, [])))
 						| _ ->
 							self#write_expr type_expr;
-							self#write "->phpClassName"
-						(*| _ ->
-							Printf.printf "%s" (error_message self#pos "PHP.instanceof() only accepts local variable or class or interface name for second argument.");
-							exit 1;*)
+							if not (is_string type_expr) then self#write "->phpClassName"
 					)
 				| _ -> fail self#pos __POS__
 		(**
@@ -2461,6 +2483,7 @@ class enum_builder ctx (enm:tenum) =
 			Writes special methods for reflection
 		*)
 		method private write_reflection =
+			(* __hx__list *)
 			self#write_empty_lines;
 			self#indent 1;
 			self#write_line "/**";
@@ -2476,6 +2499,29 @@ class enum_builder ctx (enm:tenum) =
 			PMap.iter
 				(fun name field ->
 					self#write_line ((string_of_int field.ef_index) ^ " => '" ^ name ^ "',")
+				)
+				enm.e_constrs;
+			self#indent_less;
+			self#write_statement "]";
+			self#indent_less;
+			self#write_line "}";
+			(* __hx__paramsCount *)
+			self#write_empty_lines;
+			self#indent 1;
+			self#write_line "/**";
+			self#write_line " * Returns array of (constructorName => parametersCount)";
+			self#write_line " *";
+			self#write_line " * @return int[]";
+			self#write_line " */";
+			self#write_line "static public function __hx__paramsCount ()";
+			self#write_line "{";
+			self#indent_more;
+			self#write_line "return [";
+			self#indent_more;
+			PMap.iter
+				(fun name field ->
+					let count = List.length field.ef_params in
+					self#write_line ("'" ^ field.ef_name ^ "' => '" ^ (string_of_int count) ^ "',")
 				)
 				enm.e_constrs;
 			self#indent_less;

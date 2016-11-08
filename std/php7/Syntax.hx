@@ -83,6 +83,10 @@ extern class Syntax {
         Generates a call to instance method: `$object->{$methodName}(<args>)`
     **/
     static function call<T>( object:AsVar<T>, methodName:AsVar<String>, args:Rest<Dynamic> ) : Dynamic;
+    /**
+        Generates a call to static method: `$className::{$methodName}(<args>)`
+    **/
+    static function staticCall( className:AsVar<EitherType<Class<Dynamic>,String>>, methodName:AsVar<String>, args:Rest<Dynamic> ) : Dynamic;
 
     /**
         ```
