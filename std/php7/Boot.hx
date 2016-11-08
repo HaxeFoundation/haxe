@@ -363,7 +363,15 @@ class Boot {
 			case 'Dynamic':
 				return true;
 			case 'Int':
-				return value.is_int() || (value.is_float() && Syntax.int(value) == value);
+				return (
+						value.is_int()
+						|| (
+							value.is_float()
+							&& Syntax.binop(Syntax.int(value), '==', value)
+							&& !Global.is_nan(value)
+						)
+					)
+					&& Global.abs(value) <= 2147483648;
 			case 'Float':
 				return value.is_float() || value.is_int();
 			case 'Bool':

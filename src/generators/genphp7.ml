@@ -1122,6 +1122,7 @@ class virtual type_builder ctx wrapper =
 						| ([],"Float") -> "float"
 						| ([],"Bool") -> "bool"
 						| ([],"Void") -> "void"
+						| ([],"Enum") -> self#use hxclass_type_path
 						| ([], "Class") -> self#use hxclass_type_path
 						| _ when Meta.has Meta.CoreType abstr.a_meta -> "mixed"
 						| _ -> self#use_t abstr.a_this
