@@ -155,6 +155,17 @@ class Boot {
 		Returns original Haxe fully qualified class name for this type (if exists)
 	**/
 	public static function getHaxeName( hxClass:HxClass) : Null<String> {
+		switch (hxClass.phpClassName) {
+			case 'Int': return 'Int';
+			case 'String': return 'String';
+			case 'Bool': return 'Bool';
+			case 'Float': return 'Float';
+			case 'Class': return 'Class';
+			case 'Enum': return 'Enum';
+			case 'Dynamic': return 'Dynamic';
+			case _:
+		}
+
 		inline function exists() return Global.isset(aliases[hxClass.phpClassName]);
 
 		if (exists()) {
@@ -178,7 +189,7 @@ class Boot {
 
 		var haxeParts = haxeName.split('.');
 		for (part in haxeParts) {
-			switch (part) {
+			switch (part.toLowerCase()) {
 				case "__halt_compiler" | "abstract" | "and" | "array" | "as" | "break" | "callable" | "case" | "catch" | "class"
 					| "clone" | "const" | "continue" | "declare" | "default" | "die" | "do" | "echo" | "else" | "elseif" | "empty"
 					| "enddeclare" | "endfor" | "endforeach" | "endif" | "endswitch" | "endwhile" | "eval" | "exit" | "extends"
