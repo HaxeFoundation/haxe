@@ -13,7 +13,7 @@ import js.html.compat.ArrayBuffer;
 #else
 class Issue4138 extends unit.Test
 {
-	#if js
+	#if (js && !nodejs)
 	public function test()
 	{
 		var NativeArrayBuffer = untyped Function("return typeof ArrayBuffer != 'undefined' ? ArrayBuffer : null")();

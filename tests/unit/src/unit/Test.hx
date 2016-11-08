@@ -236,7 +236,11 @@ class Test {
 			if (js.Browser.supported) {
 				untyped js.Browser.window.success = success;
 			}
+			#if nodejs
+			(untyped process).exit(Test.success ? 0 : 1);
 			#end
+			#end
+			
 
 			if (success) {
 				report("TIME: " + (haxe.Timer.stamp() - startStamp));
