@@ -297,7 +297,7 @@ abstract Utf8(ByteAccess) {
 		return wrapAsUtf8(this.append(asByteAccess(other)));
 	}
 
-	@:op(A == B) public inline function opEq (other:Utf8) {
+	@:op(A == B) public function opEq (other:Utf8) {
 		return this.equal(asByteAccess(other));
 	}
 
@@ -403,6 +403,10 @@ abstract Utf8(ByteAccess) {
 		} else {
 			throw "invalid code " + code;
 		}
+	}
+
+	public function toByteString ():String {
+		return this.toString();
 	}
 
 	/*@:extern inline*/

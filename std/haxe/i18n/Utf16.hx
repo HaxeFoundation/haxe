@@ -102,7 +102,8 @@ abstract Utf16(String) {
 
 	/*@:extern inline*/
 	public static function fromCharCode( code : Int ) : Utf16 {
-		return new Utf16(String.fromCharCode(code));
+
+		return wrapAsUtf16(EncodingTools.charCodeToUtf16Bytes(code));
 	}
 
 	/*@:extern inline*/
@@ -140,7 +141,9 @@ abstract Utf16(String) {
 		return EncodingTools.utf16ToUcs2(new Utf16(this));
 	}
 
-
+	public function toByteString () {
+		return ByteAccess.fromBytes(toBytes()).toString();
+	}
 
 
 	/*@:extern inline*/
@@ -227,6 +230,10 @@ abstract Utf16(ByteAccess) {
 			i += size;
 		}
 		return res == null ? empty() : res;
+	}
+
+	public function toByteString () {
+		return this.toString();
 	}
 	/*@:extern inline*/
 	public function charCodeAt( index : Int) : Null<Int> {
@@ -531,10 +538,6 @@ abstract Utf16(ByteAccess) {
 		}
 	}
 
-	@:extern static inline function getCodeSize (code:Int):Int {
-		return if (code <= 0xFFFF) 2 else 4;
-	}
-
 	@:extern public static inline function asByteAccess (s:Utf16):ByteAccess {
 		return cast s;
 	}
@@ -546,23 +549,7 @@ abstract Utf16(ByteAccess) {
 	/*@:extern inline*/
 	public static  function fromCharCode( code : Int ) : Utf16
 	{
-		var size = getCodeSize(code);
-		var bytes = ByteAccess.alloc(size);
-		switch size {
-			case 2:
-				bytes.set(0, code & 0xFF00);
-				bytes.set(1, code & 0x00FF);
-			case 4:
-				var c1 = (code >> 10) + 0xD7C0;
-				var c2 = (code & 0x3FF) | 0xDC00;
-
-				bytes.set(0, (c1 & 0xFF00) >> 8);
-				bytes.set(1, (c1 & 0xFF));
-				bytes.set(2, (c2 & 0xFF00) >> 8);
-				bytes.set(3, (c2 & 0xFF));
-			case _: throw "invalid char code";
-		}
-		return wrapAsUtf16(bytes);
+		return wrapAsUtf16(EncodingTools.charCodeToUtf16Bytes(code));
 	}
 
 	/*@:extern inline*/
@@ -576,9 +563,12 @@ abstract Utf16(ByteAccess) {
 
  		#if python
  		return wrapAsUtf16(ByteAccess.ofData(python.NativeStringTools.encode(s, "utf-16be")));
- 		#elseif js
+		#elseif (neko || cpp || php)
+		return EncodingTools.utf8ToUtf16(new Utf8(s));
+ 		#elseif (js)
  		return EncodingTools.ucs2ToUtf16( new Ucs2(s));
  		#else
+
 
  		return wrapAsUtf16(ByteAccess.fromBytes(haxe.io.Bytes.ofString(s)));
  		#end

@@ -148,8 +148,9 @@ class Encoding {
         var target = new ByteAccessBuffer();
 
         var i = 0;
-
-        while (i < source.length) {
+        
+        if (source.length % 2 == 1) throw "invalid source length " + source.length;
+        while (i < source.length) { 
             var bytesToWrite:Int = 0;
             var byteMask:Int = 0xBF;
             var byteMark:Int = 0x80;
@@ -211,6 +212,7 @@ class Encoding {
                     target.addByte( (   (ch) | firstByteMark[bytesToWrite]) );
             }
         }
+        
         return target.getByteAccess();
     }
 

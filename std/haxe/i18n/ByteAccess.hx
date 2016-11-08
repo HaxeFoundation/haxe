@@ -47,6 +47,15 @@ abstract ByteAccess(Uint8Array) {
 		return fromUint8Array(Uint8ArrayTools.sub(this, pos, len));
 	}
 
+	public function toString ():String {
+		var res = [];
+		for (i in 0...length) {
+			
+			res.push(fastGet(i));
+		}
+		return res.join(",");
+	}
+
 
 	public inline function fastGet (pos:Int):Int {
 		return Uint8ArrayTools.fastGet(this, pos);
@@ -129,7 +138,11 @@ abstract ByteAccess(BytesData) {
 		return (get(pos) << 24) | (get(pos+1) << 16) | (get(pos+2) << 8) | get(pos+3);
 	}
 	public inline function getInt16( pos : Int ) : Int {
-		return (get(pos) << 8) | get(pos+1);
+		var upper = get(pos) << 8;
+		var lower =  get(pos+1);
+		//if (upper == null) throw "upper is null";
+		//if (lower == null) throw "lower is null";
+		return upper | lower;
 	}
 
 	public inline function set( pos : Int, v : Int ) : Void {
@@ -160,7 +173,7 @@ abstract ByteAccess(BytesData) {
 
 	}
 
-	@:op(a == b) inline function opEq (other: ByteAccess) {
+	@:op(a == b) function opEq (other: ByteAccess) {
 		return asByteAccess().equal(other);
 	}
 
@@ -175,12 +188,23 @@ abstract ByteAccess(BytesData) {
 	public function equal (other:ByteAccess) {
 		var a = fromBytesData(this);
 		var b = other;
+		
 		if (a.length != b.length) return false;
 
 		for (i in 0...a.length) {
 			if (a.fastGet(i) != b.fastGet(i)) return false;
 		}
 		return true;
+	}
+
+	public function toString ():String {
+		var a = fromBytesData(this);
+		var res = [];
+		for (i in 0...a.length) {
+			
+			res.push(a.fastGet(i));
+		}
+		return res.join(",");
 	}
 
 	public inline function getString( pos : Int, len : Int ) : String {

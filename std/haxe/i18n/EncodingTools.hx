@@ -61,6 +61,30 @@ class EncodingTools {
 		return bytes;
 	}
 
+	public static inline function getUtf16CodeSize (code:Int):Int {
+		return if (code <= 0xFFFF) 2 else 4;
+	}
+
+	public static function charCodeToUtf16Bytes (code:Int):ByteAccess {
+		var size = getUtf16CodeSize(code);
+		var bytes = ByteAccess.alloc(size);
+		switch size {
+			case 2:
+				bytes.set(0, code & 0xFF00);
+				bytes.set(1, code & 0x00FF);
+			case 4:
+				var c1 = (code >> 10) + 0xD7C0;
+				var c2 = (code & 0x3FF) | 0xDC00;
+
+				bytes.set(0, (c1 & 0xFF00) >> 8);
+				bytes.set(1, (c1 & 0xFF));
+				bytes.set(2, (c2 & 0xFF00) >> 8);
+				bytes.set(3, (c2 & 0xFF));
+			case _: throw "invalid char code";
+		}
+		return bytes;
+	}
+
 	public static inline function utf8ToUcs2ByteAccess (s:Utf8):ByteAccess {
 		return utf8ByteAccessToUcs2ByteAccess(Utf8.asByteAccess(s));
 	}

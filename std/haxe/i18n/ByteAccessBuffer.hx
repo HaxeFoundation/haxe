@@ -36,7 +36,8 @@ import haxe.io.BytesBuffer;
 	}
 
 	public inline function getByteAccess ():ByteAccess {
-		return ByteAccess.fromBytes(this.getBytes());
+		var b = this.getBytes();
+		return ByteAccess.fromBytes(b);
 	}
 
 }

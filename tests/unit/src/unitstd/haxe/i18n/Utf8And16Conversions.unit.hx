@@ -6,7 +6,16 @@ var charUtf16 = function (i) return haxe.i18n.Utf16.fromCharCode(i);
 
 // 3 bytes utf-8
 
+trace(wrapUtf8("\u{4E00}").toByteString());
+
+
+trace(wrapUtf16("\u{4E00}").toUtf8().toByteString());
+
+var x = wrapUtf16("\u{4E00}");
+
+
 wrapUtf8("\u{4E00}") == wrapUtf16("\u{4E00}").toUtf8();
+
 wrapUtf8("\u{4E00}") == wrapUtf16("\u{4E00}").toUtf8();
 
 
@@ -19,6 +28,11 @@ wrapUtf16("ä").toUtf8() == wrapUtf8("ä");
 //"\u{1D11E}" // 𝄞
 
 var violine = 0x1D11E;
+
+
+trace(charUtf16(violine).toByteString());
+trace(charUtf16(violine).toUtf8().toByteString());
+trace(charUtf8(violine).toByteString());
 
 charUtf16(violine).toUtf8() == charUtf8(violine);
 
