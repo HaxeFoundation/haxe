@@ -87,7 +87,7 @@ extern class Date
 	function getDate() : Int;
 
 	/**
-		Returns the day of the week of `this` Date (0-6 range).
+		Returns the day of the week of `this` Date (0-6 range) where `0` is Sunday.
 	**/
 	function getDay() : Int;
 
