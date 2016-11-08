@@ -89,14 +89,28 @@ class Boot {
 		Check if specified property has getter
 	**/
 	public static function hasGetter( phpClassName:String, property:String ) : Bool {
-		return Global.isset(getters[phpClassName][property]);
+		var has = false;
+		var phpClassName:haxe.extern.EitherType<Bool,String> = phpClassName;
+		do {
+			has = Global.isset(getters[phpClassName][property]);
+			phpClassName = Global.get_parent_class(phpClassName);
+		} while (!has && phpClassName != false);
+
+		return has;
 	}
 
 	/**
 		Check if specified property has setter
 	**/
 	public static function hasSetter( phpClassName:String, property:String ) : Bool {
-		return Global.isset(setters[phpClassName][property]);
+		var has = false;
+		var phpClassName:haxe.extern.EitherType<Bool,String> = phpClassName;
+		do {
+			has = Global.isset(setters[phpClassName][property]);
+			phpClassName = Global.get_parent_class(phpClassName);
+		} while (!has && phpClassName != false );
+
+		return has;
 	}
 
 	/**
