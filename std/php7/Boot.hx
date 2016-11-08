@@ -356,12 +356,14 @@ class Boot {
 		`Std.is()` implementation
 	**/
 	public static function is( value:Dynamic, type:HxClass ) : Bool {
+		if (type == null) return false;
+
 		var phpType = type.phpClassName;
 		switch (phpType) {
 			case 'Dynamic':
 				return true;
 			case 'Int':
-				return value.is_int();
+				return value.is_int() || (value.is_float() && Syntax.int(value) == value);
 			case 'Float':
 				return value.is_float() || value.is_int();
 			case 'Bool':
@@ -466,7 +468,7 @@ private class HxClass {
 		Magic method to set static vars of this class, when `HxClass` instance is in a `Dynamic` variable.
 	**/
 	function __set( property:String, value:Dynamic ) : Void {
-		if (Boot.hasGetter(phpClassName, property)) {
+		if (Boot.hasSetter(phpClassName, property)) {
 			Syntax.staticCall(phpClassName, 'set_$property', value);
 		} else {
 			Syntax.setStaticField(phpClassName, property, value);
