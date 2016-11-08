@@ -2520,8 +2520,12 @@ class enum_builder ctx (enm:tenum) =
 			self#indent_more;
 			PMap.iter
 				(fun name field ->
-					let count = List.length field.ef_params in
-					self#write_line ("'" ^ field.ef_name ^ "' => '" ^ (string_of_int count) ^ "',")
+					let count = match follow field.ef_type with
+						| TFun (params, _) -> List.length params
+						| TEnum _ -> 0
+						| _ -> fail field.ef_pos __POS__
+					in
+					self#write_line ("'" ^ name ^ "' => " ^ (string_of_int count) ^ ",")
 				)
 				enm.e_constrs;
 			self#indent_less;

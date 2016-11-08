@@ -127,7 +127,7 @@ enum ValueType {
 		}
 
 		var paramsCounts:NativeAssocArray<Int> = Syntax.staticCall(phpName, "__hx__paramsCount");
-		if ((params == null && paramsCounts[constr] != 0) || params.length != paramsCounts[constr]) {
+		if ((params == null && paramsCounts[constr] != 0) || (params != null && params.length != paramsCounts[constr])) {
 			throw 'Provided parameters count does not match expected parameters count';
 		}
 
