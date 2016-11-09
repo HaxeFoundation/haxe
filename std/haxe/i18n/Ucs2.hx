@@ -448,23 +448,8 @@ function get_length():Int {
 		return EncodingTools.ucs2ToUtf8(fromByteAccess(this)).toNativeString();
 	}
 
-	static inline function getCodeSize (code:Int):Int {
-		return if (code <= 0xFFFF) 2 else 4;
-	}
-
 	public static inline function fromCharCode( code : Int ) : Ucs2 {
-		var size = getCodeSize(code);
-		var bytes = ByteAccess.alloc(size);
-		switch size {
-			case 2:
-				bytes.set(0, code & 0xFF00);
-				bytes.set(1, code & 0x00FF);
-			case 4:
-				throw "no surrogate pairs allowed";
-
-			case _: throw "invalid char code";
-		}
-		return fromByteAccess(bytes);
+		return fromByteAccess(EncodingTools.charCodeToUcs2ByteAccess(code));
 	}
 
 	public function toBytes(  ) : haxe.io.Bytes {

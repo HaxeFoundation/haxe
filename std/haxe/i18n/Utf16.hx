@@ -99,7 +99,7 @@ abstract Utf16(String) {
 
 	public static function fromCharCode( code : Int ) : Utf16 {
 
-		return fromByteAccess(EncodingTools.charCodeToUtf16Bytes(code));
+		return fromByteAccess(EncodingTools.charCodeToUtf16ByteAccess(code));
 	}
 
 	public static function fromBytes( bytes : haxe.io.Bytes ) : Utf16 {
@@ -560,9 +560,9 @@ abstract Utf16(ByteAccess) {
 		return cast bytes;
 	}
 
-	public static  function fromCharCode( code : Int ) : Utf16
+	public static function fromCharCode( code : Int ) : Utf16
 	{
-		return fromByteAccess(EncodingTools.charCodeToUtf16Bytes(code));
+		return fromByteAccess(EncodingTools.charCodeToUtf16ByteAccess(code));
 	}
 
 	public static function fromBytes( bytes : haxe.io.Bytes ) : Utf16 {

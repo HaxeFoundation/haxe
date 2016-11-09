@@ -37,3 +37,31 @@ test-php:
 test-hl:
 	cd ../tests/unit && haxe-i18n compile-hl.hxml
 	cd ../tests/unit && hl bin/unit.hl 
+
+check-cpp:
+	haxe-i18n -main Check -cpp bin/cpp -debug -dce no
+	bin/cpp/Check-debug
+
+check-neko:
+	haxe-i18n -main Check -neko bin/check.n -debug -dce no
+	neko bin/check.n
+
+check-java:
+	haxe-i18n -main Check -java bin/java -debug -dce no
+	java -jar bin/java/Check-Debug.jar
+
+check-lua:
+	haxe-i18n -main Check -lua bin/check.lua -debug -dce no
+	lua bin/check.lua
+
+check-python:
+	haxe-i18n -main Check -python bin/check.py -debug  -dce no
+	python3 bin/check.py
+
+check-php:
+	haxe-i18n -main Check -php bin/php -debug -dce no
+	php bin/php/index.php
+
+check-js:
+	haxe-i18n -main Check -js bin/check.js -debug -D nodejs -dce no
+	node bin/check.js

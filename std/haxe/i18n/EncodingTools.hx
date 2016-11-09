@@ -64,9 +64,6 @@ class EncodingTools {
 	}
 
 	public static inline function utf16ToUtf8 (s:Utf16):Utf8 {
-		$type(s);
-		$type(Utf16.asByteAccess);
-		$type(Encoding.convertUTF16toUTF8);
 		return Utf8.fromByteAccess(Encoding.convertUTF16toUTF8(Utf16.asByteAccess(s), StrictConversion));
 	}
 
@@ -90,21 +87,35 @@ class EncodingTools {
 		return if (code <= 0xFFFF) 2 else 4;
 	}
 
-	public static function charCodeToUtf16Bytes (code:Int):ByteAccess {
+	public static function charCodeToUtf16ByteAccess (code:Int):ByteAccess {
 		var size = getUtf16CodeSize(code);
 		var bytes = ByteAccess.alloc(size);
 		switch size {
 			case 2:
-				bytes.set(0, code & 0xFF00);
+				bytes.set(0, (code & 0xFF00) >> 8);
 				bytes.set(1, code & 0x00FF);
 			case 4:
 				var c1 = (code >> 10) + 0xD7C0;
 				var c2 = (code & 0x3FF) | 0xDC00;
-
 				bytes.set(0, (c1 & 0xFF00) >> 8);
 				bytes.set(1, (c1 & 0xFF));
 				bytes.set(2, (c2 & 0xFF00) >> 8);
 				bytes.set(3, (c2 & 0xFF));
+			case _: throw "invalid char code";
+		}
+		return bytes;
+	}
+
+	public static function charCodeToUcs2ByteAccess (code:Int):ByteAccess {
+		var size = getUtf16CodeSize(code);
+		var bytes = ByteAccess.alloc(size);
+		switch size {
+			case 2:
+				bytes.set(0, (code & 0xFF00) >> 8);
+				bytes.set(1, code & 0x00FF);
+			case 4:
+				throw "no surrogate pairs allowed";
+
 			case _: throw "invalid char code";
 		}
 		return bytes;

@@ -21,6 +21,7 @@
  */
 package haxe.i18n;
 
+/*
 #if (lua)
 
 @:allow(haxe.i18n)
@@ -162,7 +163,7 @@ abstract Utf8(String) {
 
 }
 #else
-
+*/
 import haxe.io.Bytes;
 
 /**
@@ -606,7 +607,6 @@ abstract Utf8(ByteAccess) {
  		#elseif (js || flash)
  		return EncodingTools.ucs2ToUtf8( new Ucs2(s));
  		#else
-
  		return fromByteAccess(ByteAccess.fromBytes(Bytes.ofString(s)));
  		#end
  	}
@@ -673,4 +673,4 @@ abstract Utf8(ByteAccess) {
 	}
 }
 
-#end
+//#end
