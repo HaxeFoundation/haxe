@@ -86,7 +86,7 @@ using php7.Global;
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> {
-		if (Syntax.instanceof(o, php7.StdClass)) {
+		if (Global.is_object(o)) {
 			return @:privateAccess Array.wrap(Global.get_object_vars(o).array_keys());
 		}
 		return [];

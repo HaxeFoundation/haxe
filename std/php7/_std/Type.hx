@@ -287,12 +287,14 @@ enum ValueType {
 					if (!enumEq(aParams[i], bParams[i])) {
 						return false;
 					}
+					continue;
 				}
 				//functions
 				if (Reflect.isFunction(aParams[i])) {
 					if (!Reflect.compareMethods(aParams[i], bParams[i])) {
 						return false;
 					}
+					continue;
 				}
 				//everything else
 				if (aParams[i] != bParams[i]) {

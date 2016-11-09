@@ -377,7 +377,7 @@ class Serializer {
 				#end
 			default:
 				if( useCache ) cache.pop();
-				if( #if flash try v.hxSerialize != null catch( e : Dynamic ) false #elseif (cs || java || python) Reflect.hasField(v, "hxSerialize") #else v.hxSerialize != null #end  ) {
+				if( #if flash try v.hxSerialize != null catch( e : Dynamic ) false #elseif (cs || java || python) Reflect.hasField(v, "hxSerialize") #elseif php7 php7.Global.method_exists(v, 'hxSerialize') #else v.hxSerialize != null #end  ) {
 					buf.add("C");
 					serializeString(Type.getClassName(c));
 					if( useCache ) cache.push(v);
@@ -476,8 +476,13 @@ class Serializer {
 				buf.add(0);
 			else {
 				buf.add(l);
-				for( i in 0...l )
+				for( i in 0...l ) {
+					#if php
 					serialize(untyped __field__(v, __php__("params"), i));
+					#elseif php7
+					serialize(v.params[i]);
+					#end
+				}
 			}
 			#elseif (java || cs || python || hl)
 			if( useEnumIndex ) {
