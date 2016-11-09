@@ -130,22 +130,38 @@ abstract Ucs2(String) {
 		return EncodingTools.ucs2ToUtf8(new Ucs2(this));
 	}
 
-	public static function wrapAsUcs2(s:String) return new Ucs2(s);
+	public static function fromByteAccess(s:ByteAccess) {
+		return ByteAccess.fromBytes(s.toBytes());
+	}
 
 	public function toUtf16() : Utf16 {
-		return EncodingTools.ucs2ToUtf16(wrapAsUcs2(this));
+		return EncodingTools.ucs2ToUtf16(new Ucs2(this));
 	}
 
 	public static inline function fromNativeString (str:String):Ucs2 {
 		return new Ucs2(str);
 	}
 
-	public function toByteString ():String {
+	public function toCodeArray ():Array<Int> {
 		var res = [];
 		for (i in 0...length) {
 			res.push(charCodeAt(i));
 		}
-		return res.join(",");
+		return res;
+	}
+
+	@:op(A > B) inline function opGreaterThan (other:Ucs2) {
+		return this > other.toNativeString();
+	}
+	@:op(A < B) inline function opLessThan (other:Ucs2) {
+		return this < other.toNativeString();
+	}
+	@:op(A <= B) inline function opLessThanOrEq (other:Ucs2) {
+		return this <= other.toNativeString();
+	}
+
+	@:op(A >= B) inline function opGreaterThanOrEq (other:Ucs2) {
+		return this >= other.toNativeString();
 	}
 
 
@@ -164,15 +180,16 @@ abstract Ucs2(ByteAccess) {
 		#if (js || flash)
 			throw "assert"
 		#elseif (neko || cpp || python || php)
+
 			var bytes = ByteAccess.fromBytes(haxe.io.Bytes.ofString(str));
 			//trace(bytes);
 			var ucs2Bytes = EncodingTools.utf8ByteAccessToUcs2ByteAccess(bytes);
 			//trace(ucs2Bytes);
-			return Ucs2.wrapAsUcs2(ucs2Bytes);
+			return Ucs2.fromByteAccess(ucs2Bytes);
 		#elseif (java || cs)
 			return new Utf16(str).toUcs2();
-		#elseif cs
-			return throw "not implemented";
+		#elseif lua
+			return new Utf8(str).toUcs2();
 		#end
 	}
 
@@ -180,7 +197,7 @@ abstract Ucs2(ByteAccess) {
 		return cast s;
 	}
 
-	public function toByteString () {
+	public function toCodeArray () {
 		return ByteAccess.fromBytes(toBytes()).toString();
 	}
 
@@ -239,7 +256,7 @@ function get_length():Int {
 			buffer.addByte(newByte2);
 		}
 
-		return Ucs2.wrapAsUcs2(buffer.getByteAccess());
+		return Ucs2.fromByteAccess(buffer.getByteAccess());
 	}
 
 	public function toLowerCase() : Ucs2 {
@@ -254,22 +271,22 @@ function get_length():Int {
 			buffer.addByte(newBytes & 0x00FF);
 		}
 
-		return Ucs2.wrapAsUcs2(buffer.getByteAccess());
+		return Ucs2.fromByteAccess(buffer.getByteAccess());
 	}
 
 	public function charAt(index : Int) : Ucs2 {
-		if (index < 0 || index >= wrapAsUcs2(this).length) {
+		if (index < 0 || index >= fromByteAccess(this).length) {
 			return new Ucs2("");
 		}
 		var b = ByteAccess.alloc(2);
 		b.set(0, this.get(index * 2));
 		b.set(1, this.get(index * 2 + 1));
 
-		return Ucs2.wrapAsUcs2(b);
+		return Ucs2.fromByteAccess(b);
 	}
 
 	public function charCodeAt( index : Int) : Null<Int> {
-		if (index < 0 || index >= wrapAsUcs2(this).length) {
+		if (index < 0 || index >= fromByteAccess(this).length) {
 			return null;
 		}
 		return (this.get(index << 1) << 8) | this.get((index << 1) + 1);
@@ -363,7 +380,7 @@ function get_length():Int {
 
 			if (pos == delimiterLen) {
 				pos = 0;
-				res.push(Ucs2.wrapAsUcs2(buffer.getByteAccess()));
+				res.push(Ucs2.fromByteAccess(buffer.getByteAccess()));
 				buffer.reset();
 				tempBuffer.reset();
 			}
@@ -373,7 +390,7 @@ function get_length():Int {
 			buffer.addBuffer(tempBuffer);
 		}
 		if (buffer.length > 0) {
-			res.push(Ucs2.wrapAsUcs2(buffer.getByteAccess()));
+			res.push(Ucs2.fromByteAccess(buffer.getByteAccess()));
 		} else {
 			res.push(new Ucs2(""));
 		}
@@ -383,7 +400,7 @@ function get_length():Int {
 	public function substr( pos : Int, ?len : Int ) : Ucs2 {
 		return if (len == null) {
 			if (pos < 0) {
-				var newPos = wrapAsUcs2(this).length + pos;
+				var newPos = fromByteAccess(this).length + pos;
 				if (newPos < 0) newPos = 0;
 				substring(newPos);
 			} else {
@@ -391,7 +408,7 @@ function get_length():Int {
 			}
 		} else {
 			if (len < 0) {
-				substring(pos, wrapAsUcs2(this).length + len);
+				substring(pos, fromByteAccess(this).length + len);
 			} else {
 				substring(pos, pos + len);
 			}
@@ -401,31 +418,34 @@ function get_length():Int {
 
 	public function substring( startIndex : Int, ?endIndex : Int ) : Ucs2 {
 		
-
+		var startIndex:Null<Int> = startIndex;
 		if (startIndex < 0) startIndex = 0;
 		if (endIndex != null && endIndex < 0) endIndex = 0;
 		
-		var len = wrapAsUcs2(this).length;
+		var len = fromByteAccess(this).length;
+		
+		if (endIndex == null) endIndex = len;
+
  		if (startIndex > endIndex) {
 			var x = startIndex;
 			startIndex = endIndex;
 			endIndex = x;
 		}
-
+		
+		
 		if (endIndex == null || endIndex > len) endIndex = len;
 
 		if (startIndex == null || startIndex > len) return new Ucs2("");
 		
-		
-		return wrapAsUcs2(this.sub(startIndex * 2, endIndex * 2 - startIndex * 2));
+		return fromByteAccess(this.sub(startIndex * 2, endIndex * 2 - startIndex * 2));
 	}
 	// private helpers
-	static inline function wrapAsUcs2 (bytes:ByteAccess):Ucs2 {
+	static inline function fromByteAccess (bytes:ByteAccess):Ucs2 {
 		return cast bytes;
 	}
 	public function toNativeString() : String {
 		// Ucs2 to Utf8
-		return EncodingTools.ucs2ToUtf8(wrapAsUcs2(this)).toNativeString();
+		return EncodingTools.ucs2ToUtf8(fromByteAccess(this)).toNativeString();
 	}
 
 	static inline function getCodeSize (code:Int):Int {
@@ -444,7 +464,7 @@ function get_length():Int {
 
 			case _: throw "invalid char code";
 		}
-		return wrapAsUcs2(bytes);
+		return fromByteAccess(bytes);
 	}
 
 	public function toBytes(  ) : haxe.io.Bytes {
@@ -452,15 +472,15 @@ function get_length():Int {
 	}
 
 	public static inline function fromBytes( bytes : haxe.io.Bytes ) : Ucs2 {
-		return wrapAsUcs2(ByteAccess.fromBytes(bytes).copy());
+		return fromByteAccess(ByteAccess.fromBytes(bytes).copy());
 	}
 
 	public function toUtf8() : Utf8 {
-		return EncodingTools.ucs2ToUtf8(wrapAsUcs2(this));
+		return EncodingTools.ucs2ToUtf8(fromByteAccess(this));
 	}
 
 	public function toUtf16() : Utf16 {
-		return EncodingTools.ucs2ToUtf16(wrapAsUcs2(this));
+		return EncodingTools.ucs2ToUtf16(fromByteAccess(this));
 	}
 
 	
@@ -469,13 +489,42 @@ function get_length():Int {
 	}
 
 	@:op(A + B) inline function opAdd (other:Ucs2) {
-		return wrapAsUcs2(this.append(asByteAccess(other)));
+		return fromByteAccess(this.append(asByteAccess(other)));
 	}
 
 	@:op(A != B) inline function opNotEq (other:Ucs2) {
 		return !opEq(other);
 	}
 	
+
+	function compare (other:Ucs2):Int {
+		var len1 = length;
+		var len2 = other.length;
+		var min = Std.int(Math.min(len1, len2));
+		for (i in 0...min) {
+			var a = charCodeAt(i);
+			var b = other.charCodeAt(i);
+			if (a < b) return -1;
+			if (a > b) return 1;
+		}
+		if (len1 < len2) return -1;
+		if (len1 > len2) return 1;
+		return 0;
+	}
+
+	@:op(A > B) inline function opGreaterThan (other:Ucs2) {
+		return compare(other) == 1;
+	}
+	@:op(A < B) inline function opLessThan (other:Ucs2) {
+		return compare(other) == -1;
+	}
+	@:op(A <= B) inline function opLessThanOrEq (other:Ucs2) {
+		return compare(other) <= 0;
+	}
+
+	@:op(A >= B) inline function opGreaterThanOrEq (other:Ucs2) {
+		return compare(other) >= 0;
+	}
 
 	
 }

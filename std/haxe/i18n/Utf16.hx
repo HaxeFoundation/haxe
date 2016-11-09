@@ -30,25 +30,21 @@ import haxe.io.Bytes;
 import haxe.io.BytesData;
 abstract Utf16(String) {
 
-	/*@:extern */
+	/**/
 	public var length(get,never) : Int;
 
-	/*@:extern inline*/
 	public function new(str:String) : Void {
 		this = str;
 	}
 
-	/*@:extern inline*/
-	function get_length() {
+		function get_length() {
 		return this.length;
 	}
 
-	/*@:extern inline*/
 	public function toUpperCase() : Utf16 {
 		return new Utf16(this.toUpperCase());
 	}
 
-	/*@:extern inline*/
 	public function toLowerCase() : Utf16 {
 		return new Utf16(this.toLowerCase());
 	}
@@ -61,37 +57,30 @@ abstract Utf16(String) {
 		return true;
 	}
 
-	/*@:extern inline*/
 	public function charAt(index : Int) : Utf16 {
 		return new Utf16(this.charAt(index));
 	}
 
-	/*@:extern inline*/
 	public function charCodeAt( index : Int) : Null<Int> {
 		return this.charCodeAt(index);
 	}
 
-	/*@:extern inline*/
 	public function indexOf( str : Utf16, ?startIndex : Int ) : Int {
 		return this.indexOf(str.toNativeString(),startIndex);
 	}
 
-	/*@:extern inline*/
 	public function lastIndexOf( str : Utf16, ?startIndex : Int ) : Int {
 		return this.lastIndexOf(str.toNativeString(),startIndex);
 	}
 
-	/*@:extern inline*/
 	public function split( delimiter : Utf16 ) : Array<Utf16> {
 		return cast this.split(delimiter.toNativeString());
 	}
 
-	/*@:extern inline*/
 	public function substr( pos : Int, ?len : Int ) : Utf16 {
 		return new Utf16(this.substr(pos,len));
 	}
 
-	/*@:extern inline*/
 	public function substring( startIndex : Int, ?endIndex : Int ) : Utf16 {
 		return new Utf16(this.substring(startIndex,endIndex));
 	}
@@ -108,32 +97,28 @@ abstract Utf16(String) {
 		return !opEq(other);
 	}
 
-	/*@:extern inline*/
 	public static function fromCharCode( code : Int ) : Utf16 {
 
-		return wrapAsUtf16(EncodingTools.charCodeToUtf16Bytes(code));
+		return fromByteAccess(EncodingTools.charCodeToUtf16Bytes(code));
 	}
 
-	/*@:extern inline*/
 	public static function fromBytes( bytes : haxe.io.Bytes ) : Utf16 {
-		return wrapAsUtf16(ByteAccess.fromBytes(bytes));
+		return fromByteAccess(ByteAccess.fromBytes(bytes));
 	}
 
-	/*@:extern inline*/
 	public static function fromNativeString (s:String):Utf16 {
 		return new Utf16(s);
 	}
 
-	/*@:extern inline*/
 	public function toNativeString() : String {
 		return this;
 	}
 
-	@:extern public static inline function asByteAccess (s:Utf16):ByteAccess {
+	public static inline function asByteAccess (s:Utf16):ByteAccess {
 		return ByteAccess.fromBytes(s.toBytes());
 	}
 
-	@:extern public static inline function wrapAsUtf16 (bytes:ByteAccess):Utf16 {
+	public static inline function fromByteAccess (bytes:ByteAccess):Utf16 {
 		#if cs
 		return new Utf16(cs.system.text.Encoding.BigEndianUnicode.GetString(bytes.asBytesData(), 0, bytes.asBytesData().length));
 		#elseif java
@@ -144,22 +129,19 @@ abstract Utf16(String) {
 
 	}
 
-	/*@:extern inline*/
 	public function toUcs2() : Ucs2 {
 		return EncodingTools.utf16ToUcs2(new Utf16(this));
 	}
 
-	public function toByteString () {
+	public function toCodeArray () {
 		return ByteAccess.fromBytes(toBytes()).toString();
 	}
 
 
-	/*@:extern inline*/
- 	public function toUtf8 ():Utf8 {
+	 	public function toUtf8 ():Utf8 {
 		return EncodingTools.utf16ToUtf8(new Utf16(this));
 	}
 
-	/*@:extern inline*/
 	public function toBytes(  ) : haxe.io.Bytes {
 		#if cs
 		var b = cs.system.text.Encoding.BigEndianUnicode.GetBytes(this);
@@ -173,6 +155,20 @@ abstract Utf16(String) {
 		catch (e:Dynamic) throw e;
 		#end
 	}
+
+	@:op(A > B) inline function opGreaterThan (other:Utf16) {
+		return this > other.toNativeString();
+	}
+	@:op(A < B) inline function opLessThan (other:Utf16) {
+		return this < other.toNativeString();
+	}
+	@:op(A <= B) inline function opLessThanOrEq (other:Utf16) {
+		return this <= other.toNativeString();
+	}
+
+	@:op(A >= B) inline function opGreaterThanOrEq (other:Utf16) {
+		return this >= other.toNativeString();
+	}
 }
 
 #else
@@ -181,15 +177,12 @@ abstract Utf16(String) {
 @:allow(haxe.i18n)
 abstract Utf16(ByteAccess) {
 
-	/*@:extern*/
 	public var length(get,never) : Int;
 
-	/*@:extern inline*/
 	public function new(str:String) : Void {
 		this = asByteAccess(Utf16.fromNativeString(str));
 	}
 
-	/*@:extern inline*/
 	public function toUpperCase() : Utf16 {
 		var res = ByteAccess.alloc(this.length);
 		var i = 0;
@@ -199,9 +192,8 @@ abstract Utf16(ByteAccess) {
 			toUpperCaseLetter(this, res, i, size);
 			i += size;
 		}
-		return wrapAsUtf16(res);
+		return fromByteAccess(res);
 	}
-	/*@:extern inline*/
 	public function toLowerCase() : Utf16 {
 		var res = ByteAccess.alloc(this.length);
 		var i = 0;
@@ -212,7 +204,7 @@ abstract Utf16(ByteAccess) {
 
 			i += size;
 		}
-		return wrapAsUtf16(res);
+		return fromByteAccess(res);
 	}
 
 	inline function getNext2Bytes (pos:Int) {
@@ -221,7 +213,6 @@ abstract Utf16(ByteAccess) {
 		return (b1 << 8) | b2;
 	}
 
-	/*@:extern inline*/
 	public function charAt(index : Int) : Utf16 {
 		var res = null;
 		var pos = 0;
@@ -230,7 +221,7 @@ abstract Utf16(ByteAccess) {
 			var b = getNext2Bytes(i);
 			var size = getCharSize(b);
 			if (pos == index) {
-				res = Utf16.wrapAsUtf16(this.sub(i, size));
+				res = Utf16.fromByteAccess(this.sub(i, size));
 				break;
 			}
 
@@ -240,10 +231,14 @@ abstract Utf16(ByteAccess) {
 		return res == null ? empty() : res;
 	}
 
-	public function toByteString () {
-		return this.toString();
+	public function toCodeArray () {
+		var res = [];
+		for (i in 0...length) {
+			res.push(charCodeAt(i));
+		}
+		return res;
 	}
-	/*@:extern inline*/
+
 	public function charCodeAt( index : Int) : Null<Int> {
 		var pos = 0;
 		var i = 0;
@@ -261,7 +256,6 @@ abstract Utf16(ByteAccess) {
 		}
 		return r;
 	}
-	/*@:extern inline*/
 	public function indexOf( str : Utf16, ?startIndex : Int ) : Int
 	{
 
@@ -325,20 +319,18 @@ abstract Utf16(ByteAccess) {
 			}
 			i += size;
 		}
-		return wrapAsUtf16(res);
+		return fromByteAccess(res);
 	}
-	/*@:extern inline*/
 	public function lastIndexOf( str : Utf16, ?startIndex : Int ) : Int {
-		var rev = wrapAsUtf16(this).reverse();
+		var rev = fromByteAccess(this).reverse();
 		var strRev = str.reverse();
-		var thisLength = wrapAsUtf16(this).length;
+		var thisLength = fromByteAccess(this).length;
 		var sIndex = startIndex != null ? (thisLength - 1) - startIndex - (strRev.length - 1) : null;
 		var i = rev.indexOf(strRev, sIndex);
 		var res = i > -1 ? ((thisLength - 1) - (i + strRev.length - 1)) : i;
 		return res;
 
 	}
-	/*@:extern inline*/
 	public function split( delimiter : Utf16 ) : Array<Utf16>
 	{
 		var buf = new ByteAccessBuffer();
@@ -378,7 +370,7 @@ abstract Utf16(ByteAccess) {
 			i+=size;
 			if (pos == len) {
 				if (buf.length > 0) {
-					res.push(wrapAsUtf16(buf.getByteAccess()));
+					res.push(fromByteAccess(buf.getByteAccess()));
 					buf.reset();
 				} else {
 					res.push(empty());
@@ -395,25 +387,26 @@ abstract Utf16(ByteAccess) {
 			buf.addBuffer(tmpBuf);
 		}
 		if (buf.length > 0) {
-			res.push(wrapAsUtf16(buf.getByteAccess()));
+			res.push(fromByteAccess(buf.getByteAccess()));
 		} else {
 			res.push(empty());
 		}
 		return res;
 	}
-	/*@:extern inline*/
 	public function substr( pos : Int, ?len : Int ) : Utf16 {
 
 		if (pos < 0) {
-			var thisLength = wrapAsUtf16(this).length;
+			var thisLength = fromByteAccess(this).length;
 			pos = thisLength + pos;
 			if (pos < 0) pos = 0;
 		}
 
-		if (len != null && len <= 0) {
-
-			return empty();
+		if (len != null && len < 0) {
+			len = fromByteAccess(this).length + len;
+			if (len < 0) len = 0;
 		}
+
+		if (len == 0) return empty();
 
 		//trace("pos: " + pos, "len: " + len);
 
@@ -443,16 +436,29 @@ abstract Utf16(ByteAccess) {
 			cur++;
 		}
 		//trace(buf);
-		return wrapAsUtf16(buf.getByteAccess());
+		return fromByteAccess(buf.getByteAccess());
 	}
 
-	/*@:extern inline*/
 	public function substring( startIndex : Int, ?endIndex : Int ) : Utf16 {
-		return if (endIndex == null) {
-			substr(startIndex, null);
-		} else if (endIndex > startIndex) {
-			substr(startIndex, endIndex - startIndex);
-		} else empty();
+		var startIndex:Null<Int> = startIndex;
+		if (startIndex < 0) startIndex = 0;
+		if (endIndex != null && endIndex < 0) endIndex = 0;
+		
+		var len = fromByteAccess(this).length;
+
+		if (endIndex == null) endIndex = len;
+
+ 		if (startIndex > endIndex) {
+			var x = startIndex;
+			startIndex = endIndex;
+			endIndex = x;
+		}
+
+		if (endIndex == null || endIndex > len) endIndex = len;
+
+		if (startIndex == null || startIndex > len) return new Utf16("");
+		
+		return substr(startIndex, endIndex - startIndex);
 	}
 
 	@:op(A == B) inline function opEq (other:Utf16) {
@@ -460,7 +466,7 @@ abstract Utf16(ByteAccess) {
 	}
 
 	@:op(A + B) inline function opAdd (other:Utf16) {
-		return wrapAsUtf16(this.append(asByteAccess(other)));
+		return fromByteAccess(this.append(asByteAccess(other)));
 	}
 
 	@:op(A != B) inline function opNotEq (other:Utf16) {
@@ -469,7 +475,7 @@ abstract Utf16(ByteAccess) {
 
 	// private helpers
 
-	/*@:extern inline*/ function get_length() {
+	function get_length() {
 		var len = 0;
 		var index = 0;
 		while (index < this.length) {
@@ -481,24 +487,24 @@ abstract Utf16(ByteAccess) {
 		return len;
 	}
 
-	@:extern static inline function getCharSize (start2Bytes:Int):Int {
+	static inline function getCharSize (start2Bytes:Int):Int {
 		return if (EncodingTools.isHighSurrogate(start2Bytes)) 4
 		else 2;
 	}
 
-	@:extern static inline function isUpperCaseLetter (bytes:ByteAccess, pos:Int, size:Int) {
+	static inline function isUpperCaseLetter (bytes:ByteAccess, pos:Int, size:Int) {
 		var b1 = bytes.fastGet(pos);
 		var b2 = bytes.fastGet(pos+1);
 		return b1 == 0x00 && b2 >= 0x41 && b2 <= 0x5A;
 	}
 
-	@:extern static inline function isLowerCaseLetter (bytes:ByteAccess, pos:Int, size:Int) {
+	static inline function isLowerCaseLetter (bytes:ByteAccess, pos:Int, size:Int) {
 		var b1 = bytes.fastGet(pos);
 		var b2 = bytes.fastGet(pos+1);
 		return b1 == 0x00 && b2 >= 0x61 && b2 <= 0x7A;
 	}
 
-	@:extern static inline function toLowerCaseLetter (bytes:ByteAccess, target:ByteAccess, pos:Int, size:Int) {
+	static inline function toLowerCaseLetter (bytes:ByteAccess, target:ByteAccess, pos:Int, size:Int) {
 		if (isUpperCaseLetter(bytes, pos, size)) {
 			target.set(pos, bytes.fastGet(pos));
 			target.set(pos+1, bytes.fastGet(pos+1)+0x20);
@@ -509,7 +515,7 @@ abstract Utf16(ByteAccess) {
 		}
 	}
 
-	@:extern static inline function toUpperCaseLetter (bytes:ByteAccess, target:ByteAccess, pos:Int, size:Int) {
+	static inline function toUpperCaseLetter (bytes:ByteAccess, target:ByteAccess, pos:Int, size:Int) {
 		if (isLowerCaseLetter(bytes, pos, size)) {
 			target.set(pos, bytes.fastGet(pos));
 			target.set(pos+1, bytes.fastGet(pos+1)-0x20);
@@ -520,11 +526,11 @@ abstract Utf16(ByteAccess) {
 		}
 	}
 
-	@:extern static inline function empty () {
+	static inline function empty () {
 		return new Utf16("");
 	}
 
-	@:extern static inline function getCharCode ( b:ByteAccess, pos:Int, size:Int):Int {
+	static inline function getCharCode ( b:ByteAccess, pos:Int, size:Int):Int {
 		return switch size {
 
 			case 2: b.getInt16(pos);
@@ -533,74 +539,92 @@ abstract Utf16(ByteAccess) {
 		}
 	}
 
-	@:extern static inline function compareChar ( b1:ByteAccess, pos1:Int, b2:ByteAccess, pos2:Int, size:Int):Int {
+	static inline function compareChar ( b1:ByteAccess, pos1:Int, b2:ByteAccess, pos2:Int, size:Int):Int {
 		var c1 = getCharCode(b1, pos1, size);
 		var c2 = getCharCode(b2, pos2, size);
 
 		return c1 - c2;
 	}
 
-	@:extern static inline function pushCharCode (bytes:ByteAccess, buf:ByteAccessBuffer, pos:Int, size:Int) {
+	static inline function pushCharCode (bytes:ByteAccess, buf:ByteAccessBuffer, pos:Int, size:Int) {
 		for (i in 0...size) {
 			buf.addByte(bytes.fastGet(pos+i));
 		}
 	}
 
-	@:extern public static inline function asByteAccess (s:Utf16):ByteAccess {
+	public static inline function asByteAccess (s:Utf16):ByteAccess {
 		return cast s;
 	}
 
-	@:extern public static inline function wrapAsUtf16 (bytes:ByteAccess):Utf16 {
+	public static inline function fromByteAccess (bytes:ByteAccess):Utf16 {
 		return cast bytes;
 	}
 
-	/*@:extern inline*/
 	public static  function fromCharCode( code : Int ) : Utf16
 	{
-		
-		return wrapAsUtf16(EncodingTools.charCodeToUtf16Bytes(code));
+		return fromByteAccess(EncodingTools.charCodeToUtf16Bytes(code));
 	}
 
-	/*@:extern inline*/
 	public static function fromBytes( bytes : haxe.io.Bytes ) : Utf16 {
-		return wrapAsUtf16(ByteAccess.fromBytes(bytes).copy());
+		return fromByteAccess(ByteAccess.fromBytes(bytes).copy());
 	}
 
 
-	/*@:extern inline*/
 	public static function fromNativeString (s:String):Utf16 {
-
  		#if python
- 		return wrapAsUtf16(ByteAccess.ofData(python.NativeStringTools.encode(s, "utf-16be")));
+ 		return fromByteAccess(ByteAccess.ofData(python.NativeStringTools.encode(s, "utf-16be")));
 		#elseif (neko || cpp || php)
 		return EncodingTools.utf8ToUtf16(new Utf8(s));
  		#elseif (js || flash)
  		return EncodingTools.ucs2ToUtf16( new Ucs2(s));
  		#else
-
-
- 		return wrapAsUtf16(ByteAccess.fromBytes(haxe.io.Bytes.ofString(s)));
+ 		return fromByteAccess(ByteAccess.fromBytes(haxe.io.Bytes.ofString(s)));
  		#end
  	}
 
- 	/*@:extern inline*/
-	public function toNativeString() : String {
+ 	public function toNativeString() : String {
 		return this.getString(0, this.length);
 	}
 
- 	/*@:extern inline*/
-	public function toUcs2() : Ucs2 {
-		return EncodingTools.utf16ToUcs2(wrapAsUtf16(this));
+ 	public function toUcs2() : Ucs2 {
+		return EncodingTools.utf16ToUcs2(fromByteAccess(this));
 	}
 
-	/*@:extern inline*/
- 	public function toUtf8 ():Utf8 {
-		return EncodingTools.utf16ToUtf8(wrapAsUtf16(this));
+	public function toUtf8 ():Utf8 {
+		return EncodingTools.utf16ToUtf8(fromByteAccess(this));
 	}
 
-	/*@:extern inline*/
 	public function toBytes() : haxe.io.Bytes {
 		return this.copy().toBytes();
+	}
+
+	function compare (other:Utf16):Int {
+		var len1 = length;
+		var len2 = other.length;
+		var min = Std.int(Math.min(len1, len2));
+		for (i in 0...min) {
+			var a = charCodeAt(i);
+			var b = other.charCodeAt(i);
+			if (a < b) return -1;
+			if (a > b) return 1;
+		}
+		if (len1 < len2) return -1;
+		if (len1 > len2) return 1;
+		return 0;
+	}
+
+	@:op(A > B) inline function opGreaterThan (other:Utf16) {
+		return compare(other) == 1;
+	}
+	@:op(A < B) inline function opLessThan (other:Utf16) {
+		return compare(other) == -1;
+	}
+	@:op(A <= B) inline function opLessThanOrEq (other:Utf16) {
+		return compare(other) <= 0;
+	}
+
+	@:op(A >= B) inline function opGreaterThanOrEq (other:Utf16) {
+		return compare(other) >= 0;
 	}
 }
 

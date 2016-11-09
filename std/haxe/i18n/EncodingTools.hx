@@ -64,11 +64,14 @@ class EncodingTools {
 	}
 
 	public static inline function utf16ToUtf8 (s:Utf16):Utf8 {
-		return Utf8.wrapAsUtf8(Encoding.convertUTF16toUTF8(Utf16.asByteAccess(s), StrictConversion));
+		$type(s);
+		$type(Utf16.asByteAccess);
+		$type(Encoding.convertUTF16toUTF8);
+		return Utf8.fromByteAccess(Encoding.convertUTF16toUTF8(Utf16.asByteAccess(s), StrictConversion));
 	}
 
 	public static inline function utf8ToUtf16 (s:Utf8):Utf16 {
-		return Utf16.wrapAsUtf16(Encoding.convertUTF8toUTF16(Utf8.asByteAccess(s), StrictConversion));
+		return Utf16.fromByteAccess(Encoding.convertUTF8toUTF16(Utf8.asByteAccess(s), StrictConversion));
 	}
 
 	public static function ucs2ToUtf8ByteAccess (s:Ucs2):ByteAccess {

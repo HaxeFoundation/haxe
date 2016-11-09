@@ -1,8 +1,8 @@
 // new
 
-var wrap = function (s) return new haxe.i18n.Ucs2(s);
+var wrap = function (s) return new haxe.i18n.Utf8(s);
 
-var arrEq = function (a:Array<haxe.i18n.Ucs2>, b:Array<haxe.i18n.Ucs2>) {
+var arrEq = function (a:Array<haxe.i18n.Utf8>, b:Array<haxe.i18n.Utf8>) {
 	t(a.length == b.length);
 	for (i in 0...a.length) {
 		var a1 = a[i];
@@ -11,7 +11,7 @@ var arrEq = function (a:Array<haxe.i18n.Ucs2>, b:Array<haxe.i18n.Ucs2>) {
 	}
 }
 
-var eq1 = function (a:haxe.i18n.Ucs2, b:haxe.i18n.Ucs2, ?pos:haxe.PosInfos) {
+var eq1 = function (a:haxe.i18n.Utf8, b:haxe.i18n.Utf8, ?pos:haxe.PosInfos) {
 	eqAbstract(a == b, a.toCodeArray(), b.toCodeArray(), pos);
 }
 
@@ -23,6 +23,7 @@ t(!(wrap("foo") != wrap("foo")));
 //trace(wrap("foo"));
 //trace(wrap("foo").toLowerCase());
 //trace(wrap("FOO"));
+
 
 eq1(wrap("foo"), wrap("foo"));
 
@@ -153,7 +154,7 @@ arrEq(s.split(wrap("xx")),[wrap("xfooxfoo"),wrap("barxbar"),wrap("")]);
 
 
 var s = wrap("xfooxfooxxbarxbarxx");
-eq1(s.substr(0),new haxe.i18n.Ucs2("xfooxfooxxbarxbarxx"));
+eq1(s.substr(0),new haxe.i18n.Utf8("xfooxfooxxbarxbarxx"));
 eq1(s.substr(1), wrap("fooxfooxxbarxbarxx"));
 eq1(s.substr(19),  wrap(""));
 eq1(s.substr(18), wrap("x"));
@@ -207,7 +208,7 @@ eq1(s.substring(100, 0), wrap("xfooxfooxxbarxbarxx"));
 eq1(s.substring(120, 100), wrap(""));
 
 // fromCharCode
-eq1(haxe.i18n.Ucs2.fromCharCode(65), wrap("A"));
+eq1(haxe.i18n.Utf8.fromCharCode(65), wrap("A"));
 
 // ensure int strings compared as strings, not parsed ints (issue #3734)
 (wrap("3") > wrap("11")) == true;
