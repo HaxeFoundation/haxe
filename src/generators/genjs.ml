@@ -514,10 +514,11 @@ and gen_expr ctx e =
 		print ctx ")";
 	| TField (x,FClosure (Some ({cl_path=[],"Array"},_), {cf_name="push"})) ->
 		(* see https://github.com/HaxeFoundation/haxe/issues/1997 *)
-		add_feature ctx "use.$arrayPushClosure";
-		print ctx "$arrayPushClosure(";
+		add_feature ctx "use.$arrayPush";
+		add_feature ctx "use.$bind";
+		print ctx "$bind(";
 		gen_value ctx x;
-		print ctx ")"
+		print ctx ",$arrayPush)"
 	| TField (x,FClosure (_,f)) ->
 		add_feature ctx "use.$bind";
 		(match x.eexpr with
@@ -1487,10 +1488,8 @@ let generate com =
 		print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }";
 		newline ctx;
 	end;
-	if has_feature ctx "use.$arrayPushClosure" then begin
-		print ctx "function $arrayPushClosure(a) {";
-		print ctx " return function(x) { a.push(x); }; ";
-		print ctx "}";
+	if has_feature ctx "use.$arrayPush" then begin
+		print ctx "function $arrayPush(x) { this.push(x); }";
 		newline ctx
 	end;
 	List.iter (gen_block_element ~after:true ctx) (List.rev ctx.inits);

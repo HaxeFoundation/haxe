@@ -1894,7 +1894,7 @@ let check code =
 			failwith (Printf.sprintf "\n%s:%d: Check failure at %d@x%x - %s" code.debugfiles.(dfile) dline f.findex (!pos) msg)
 		in
 		let targs, tret = (match f.ftype with HFun (args,ret) -> args, ret | _ -> assert false) in
-		let rtype i = f.regs.(i) in
+		let rtype i = try f.regs.(i) with _ -> HObj { null_proto with pname = "OUT_OF_BOUNDS:" ^ string_of_int i } in
 		let check t1 t2 =
 			if not (safe_cast t1 t2) then error (tstr t1 ^ " should be " ^ tstr t2)
 		in
@@ -2042,8 +2042,7 @@ let check code =
 				ignore(rtype r);
 				can_jump delta
 			| OJUGte (a,b,delta) | OJULt (a,b,delta) | OJSGte (a,b,delta) | OJSLt (a,b,delta) | OJSGt (a,b,delta) | OJSLte (a,b,delta) ->
-				reg a (rtype b);
-				reg b (rtype a);
+				if not (safe_cast (rtype a) (rtype b)) then reg b (rtype a);
 				can_jump delta
 			| OJEq (a,b,delta) | OJNotEq (a,b,delta) ->
 				(match rtype a, rtype b with
@@ -2167,7 +2166,7 @@ let check code =
 				| HVirtual _ -> ()
 				| _ -> reg r (HVirtual {vfields=[||];vindex=PMap.empty;}));
 				(match rtype v with
-				| HObj _ | HDynObj | HDyn -> ()
+				| HObj _ | HDynObj | HDyn | HVirtual _ -> ()
 				| _ -> reg v HDynObj)
 			| ODynGet (v,r,f) | ODynSet (r,f,v) ->
 				ignore(code.strings.(f));
@@ -2207,7 +2206,7 @@ let check code =
 			| OSwitch (r,idx,eend) ->
 				reg r HI32;
 				Array.iter can_jump idx;
-				can_jump eend
+				if eend + 1 + i <> Array.length f.code then can_jump eend
 			| ONullCheck r ->
 				ignore(rtype r)
 			| OTrap (r, idx) ->

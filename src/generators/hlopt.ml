@@ -29,6 +29,7 @@ type reg_state = {
 	mutable rindex : int;
 	mutable ralias : reg_state;
 	mutable rbind : reg_state list;
+	mutable rnullcheck : bool;
 }
 
 type block = {
@@ -122,8 +123,8 @@ let opcode_fx frw op =
 		read a; write d
 	| ORet r | OThrow r  | ORethrow r | OSwitch (r,_,_) | ONullCheck r ->
 		read r
-	| OTrap _ ->
-		()
+	| OTrap (r,_) ->
+		write r
 	| OEndTrap _ ->
 		() (* ??? *)
 	| OGetUI8 (d,a,b) | OGetUI16 (d,a,b) | OGetI32 (d,a,b) | OGetF32 (d,a,b) | OGetF64 (d,a,b) | OGetArray (d,a,b) ->
@@ -217,10 +218,8 @@ let opcode_map read write op =
 		let a = read a and b = read b in
 		OXor (write d, a, b)
 	| OIncr a ->
-		let a = read a in
 		OIncr (write a)
 	| ODecr a ->
-		let a = read a in
 		ODecr (write a)
 	| OCall0 (d,f) ->
 		OCall0 (write d, f)
@@ -252,6 +251,7 @@ let opcode_map read write op =
 		let rl = List.map read rl in
 		OCallThis (write d, f, rl)
 	| OCallClosure (d,f,rl) ->
+		let f = read f in
 		let rl = List.map read rl in
 		OCallClosure (write d, f, rl)
 	| OStaticClosure (d,f) ->
@@ -339,8 +339,8 @@ let opcode_map read write op =
 		OSwitch (read r, cases, def)
 	| ONullCheck r ->
 		ONullCheck (read r)
-	| OTrap _ ->
-		op
+	| OTrap (r,d) ->
+		OTrap (write r, d)
 	| OEndTrap _ ->
 		op (* ??? *)
 	| OGetUI8 (d,a,b) ->
@@ -480,14 +480,19 @@ let optimize dump (f:fundecl) =
 	let old_code = match dump with None -> f.code | Some _ -> Array.copy f.code in
 	let op index = f.code.(index) in
 	let set_op index op = f.code.(index) <- op in
+	let nop_count = ref 0 in
+	let set_nop index r = f.code.(index) <- (ONop r); incr nop_count in
 	let write str = match dump with None -> () | Some ch -> IO.nwrite ch (str ^ "\n") in
 
 	let blocks_pos, root = code_graph f in
 
 	let read_counts = Array.make nregs 0 in
+	let write_counts = Array.make nregs 0 in
 	let read_count r = read_counts.(r) <- read_counts.(r) + 1 in
+	let write_count r = write_counts.(r) <- write_counts.(r) + 1 in
+
 	let empty_state() = Array.init nregs (fun i ->
-		let r = { rindex = i; ralias = Obj.magic 0; rbind = [] } in
+		let r = { rindex = i; ralias = Obj.magic 0; rbind = []; rnullcheck = false } in
 		r.ralias <- r;
 		r
 	) in
@@ -518,6 +523,7 @@ let optimize dump (f:fundecl) =
 					let sold = s.(i) and snew = s2.(i) in
 					snew.ralias <- s2.(sold.ralias.rindex);
 					snew.rbind <- List.map (fun b -> s2.(b.rindex)) sold.rbind;
+					snew.rnullcheck <- sold.rnullcheck;
 				done;
 				s2
 			) in
@@ -530,6 +536,7 @@ let optimize dump (f:fundecl) =
 				for i = 0 to nregs - 1 do
 					let s1 = s.(i) and s2 = s2.(i) in
 					s1.rbind <- List.filter (fun s -> s.ralias == s1) s1.rbind;
+					s1.rnullcheck <- s1.rnullcheck && s2.rnullcheck;
 					(match s2.rbind with
 					| [] -> ()
 					| l -> s1.rbind <- List.fold_left (fun acc sb2 -> let s = s.(sb2.rindex) in if s.ralias == s1 && not (List.memq s s1.rbind) then s :: acc else acc) s1.rbind s2.rbind)
@@ -542,10 +549,15 @@ let optimize dump (f:fundecl) =
 			r.ralias <- r
 		in
 		let rec loop i =
+			let do_read r =
+				read_count r
+			in
 			let do_write r =
 				let s = state.(r) in
 				List.iter (fun s2 -> s2.ralias <- s2) s.rbind;
 				s.rbind <- [];
+				s.rnullcheck <- false;
+				write_count r;
 				undef s
 			in
 			if i > b.bend then () else
@@ -553,6 +565,7 @@ let optimize dump (f:fundecl) =
 			if dstate then print_state i state;
 			(match op with
 			| OIncr r | ODecr r | ORef (_,r) ->  do_write r
+			| OCallClosure (_,r,_) when f.regs.(r) = HDyn && (match f.regs.(state.(r).ralias.rindex) with HFun (_,rt) -> not (is_dynamic rt) | HDyn -> false | _ -> true) -> do_write r (* Issue3218.hx *)
 			| _ -> ());
 			let op = opcode_map (fun r ->
 				let s = state.(r) in
@@ -561,17 +574,21 @@ let optimize dump (f:fundecl) =
 			set_op i op;
 			(match op with
 			| OMov (d, v) when d = v ->
-				set_op i (ONop 0)
+				set_nop i "mov"
 			| OMov (d, v) ->
 				let sv = state.(v) in
 				let sd = state.(d) in
+				do_read v;
 				do_write d;
 				sd.ralias <- sv;
+				sd.rnullcheck <- sv.rnullcheck;
 				if not (List.memq sd sv.rbind) then sv.rbind <- sd :: sv.rbind;
-				read_count v
+			| ONullCheck r ->
+				let s = state.(r) in
+				if s.rnullcheck then set_nop i "nullcheck" else begin do_read r; s.rnullcheck <- true; end;
 			| _ ->
 				opcode_fx (fun r read ->
-					if read then read_count r else do_write r
+					if read then do_read r else do_write r
 				) op
 			);
 			loop (i + 1)
@@ -590,6 +607,21 @@ let optimize dump (f:fundecl) =
 	in
 	propagate root;
 
+	(* unreachable code *)
+
+	let rec loop i =
+		if i = Array.length f.code then () else
+		try
+			let b = Hashtbl.find blocks_pos i in
+			loop (b.bend + 1)
+		with Not_found ->
+			(match op i with
+			| OEndTrap true -> ()
+			| _ -> set_nop i "unreach");
+			loop (i + 1)
+	in
+	loop 0;
+
 	(* nop *)
 
 	let todo = ref true in
@@ -597,10 +629,11 @@ let optimize dump (f:fundecl) =
 		if i < 0 then () else begin
 		(match op i with
 		| OMov (d,r) when read_counts.(d) = 0 ->
-			let n = read_counts.(r) in
+			let n = read_counts.(r) - 1 in
 			if n = 0 then todo := true;
 			read_counts.(r) <- n;
-			set_op i (ONop 0)
+			write_counts.(d) <- write_counts.(d) - 1;
+			set_nop i "unused"
 		| _ -> ());
 		loop (i - 1)
 		end
@@ -609,6 +642,20 @@ let optimize dump (f:fundecl) =
 		todo := false;
 		loop (Array.length f.code - 1);
 	done;
+
+	(* reg map *)
+
+	let used_regs = ref 0 in
+	let reg_map = read_counts in
+	let nargs = (match f.ftype with HFun (args,_) -> List.length args | _ -> assert false) in
+	for i=0 to nregs-1 do
+		if read_counts.(i) > 0 || write_counts.(i) > 0 || i < nargs then begin
+			reg_map.(i) <- !used_regs;
+			incr used_regs;
+		end else
+			reg_map.(i) <- -1;
+	done;
+	let reg_remap = !used_regs <> nregs in
 
 	(* done *)
 	if dump <> None then begin
@@ -629,9 +676,76 @@ let optimize dump (f:fundecl) =
 			write (Printf.sprintf "\t@%-3X %-20s %s" i (ostr string_of_int old) (if opcode_eq old op then "" else ostr string_of_int op));
 			loop (i + 1) block
 		in
-		write (fundecl_name f);
+		write (Printf.sprintf "%s@%d" (fundecl_name f) f.findex);
+		if reg_remap then begin
+			for i=0 to nregs-1 do
+				write (Printf.sprintf "\tr%-2d %-10s%s" i (tstr f.regs.(i)) (if reg_map.(i) < 0 then " unused" else if reg_map.(i) = i then "" else Printf.sprintf " r%-2d" reg_map.(i)))
+			done;
+		end;
 		loop 0 root;
 		write "";
 		write "";
 	end;
-	f
+
+	(* remap *)
+
+	let code = ref f.code in
+	let regs = ref f.regs in
+	let debug = ref f.debug in
+
+	if !nop_count > 0 || reg_remap then begin
+		let new_pos = Array.make (Array.length f.code) 0 in
+		let jumps = ref [] in
+		let out_pos = ref 0 in
+		let out_code = Array.make (Array.length f.code - !nop_count) (ONop "") in
+		let new_debug = Array.make (Array.length f.code - !nop_count) (0,0) in
+		Array.iteri (fun i op ->
+			Array.unsafe_set new_pos i !out_pos;
+			match op with
+			| ONop _ -> ()
+			| _ ->
+				(match op with
+				| OJTrue _ | OJFalse _ | OJNull _ | OJNotNull _  | OJSLt _ | OJSGte _ | OJSGt _ | OJSLte _ | OJULt _ | OJUGte _ | OJEq _ | OJNotEq _ | OJAlways _ | OSwitch _  | OTrap _ ->
+					jumps := i :: !jumps
+				| _ -> ());
+				let op = if reg_remap then opcode_map (fun r -> reg_map.(r)) (fun r -> reg_map.(r)) op else op in
+				out_code.(!out_pos) <- op;
+				new_debug.(!out_pos) <- f.debug.(i);
+				incr out_pos
+		) f.code;
+		List.iter (fun j ->
+			let pos d =
+				new_pos.(j + 1 + d) - new_pos.(j + 1)
+			in
+			let p = new_pos.(j) in
+			out_code.(p) <- (match out_code.(p) with
+			| OJTrue (r,d) -> OJTrue (r,pos d)
+			| OJFalse (r,d) -> OJFalse (r,pos d)
+			| OJNull (r,d) -> OJNull (r, pos d)
+			| OJNotNull (r,d) -> OJNotNull (r, pos d)
+			| OJSLt (a,b,d) -> OJSLt (a,b,pos d)
+			| OJSGte (a,b,d) -> OJSGte (a,b,pos d)
+			| OJSLte (a,b,d) -> OJSLte (a,b,pos d)
+			| OJSGt (a,b,d) -> OJSGt (a,b,pos d)
+			| OJULt (a,b,d) -> OJULt (a,b,pos d)
+			| OJUGte (a,b,d) -> OJUGte (a,b,pos d)
+			| OJEq (a,b,d) -> OJEq (a,b,pos d)
+			| OJNotEq (a,b,d) -> OJNotEq (a,b,pos d)
+			| OJAlways d -> OJAlways (pos d)
+			| OSwitch (r,cases,send) -> OSwitch (r, Array.map pos cases, pos send)
+			| OTrap (r,d) -> OTrap (r,pos d)
+			| _ -> assert false)
+		) !jumps;
+		code := out_code;
+		debug := new_debug;
+		if reg_remap then begin
+			let new_regs = Array.make !used_regs HVoid in
+			for i=0 to nregs-1 do
+				let p = reg_map.(i) in
+				if p >= 0 then new_regs.(p) <- f.regs.(i)
+			done;
+			regs := new_regs;
+		end;
+	end;
+
+	{ f with code = !code; regs = !regs; debug = !debug }

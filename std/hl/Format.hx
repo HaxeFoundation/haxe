@@ -42,7 +42,7 @@ package hl;
 class Format {
 
 	/**
-		Decode JPG data into the target buffer.		
+		Decode JPG data into the target buffer.
 	**/
 	@:hlNative("fmt","jpg_decode")
 	public static function decodeJPG( src : hl.types.Bytes, srcLen : Int, dst : hl.types.Bytes, width : Int, height : Int, stride : Int, format : PixelFormat, flags : Int ) : Bool {
@@ -50,8 +50,16 @@ class Format {
 	}
 
 	/**
+		Decode PNG data into the target buffer.
+	**/
+	@:hlNative("fmt","png_decode")
+	public static function decodePNG( src : hl.types.Bytes, srcLen : Int, dst : hl.types.Bytes, width : Int, height : Int, stride : Int, format : PixelFormat, flags : Int ) : Bool {
+		return false;
+	}
+
+	/**
 		Upscale/downscale an image.
-		Currently supported flag bits: 1 = bilinear filtering		
+		Currently supported flag bits: 1 = bilinear filtering
 	**/
 	@:hlNative("fmt","img_scale")
 	public static function scaleImage( out : hl.types.Bytes, outPos : Int,  outStride : Int, outWidth : Int, outHeight : Int, _in : hl.types.Bytes, inPos : Int,  inStride : Int, inWidth : Int, inHeight : Int, flags : Int ) {
