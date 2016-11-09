@@ -15,12 +15,9 @@ var eq1 = function (a:haxe.i18n.Ucs2, b:haxe.i18n.Ucs2, ?pos:haxe.PosInfos) {
 	eqAbstract(a == b, a.toByteString(), b.toByteString(), pos);
 }
 
-var str = wrap("foo");
-var str2 = str;
-// substr
-
-
-str == str2;
+eq1(wrap("foo"), wrap("foo"));
+t(wrap("foo") == wrap("foo"));
+t(!(wrap("foo") != wrap("foo")));
 
 
 //trace(wrap("foo"));

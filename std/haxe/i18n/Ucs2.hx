@@ -77,7 +77,20 @@ abstract Ucs2(String) {
 	}
 
 	public function substring( startIndex : Int, ?endIndex : Int ) : Ucs2 {
-		if (endIndex == null) return new Ucs2(this.substring(startIndex));
+		if (startIndex < 0) startIndex = 0;
+		if (endIndex != null && endIndex < 0) endIndex = 0;
+		
+		var len = wrapAsUcs2(this).length;
+ 		if (startIndex > endIndex) {
+			var x = startIndex;
+			startIndex = endIndex;
+			endIndex = x;
+		}
+
+		if (endIndex == null || endIndex > len) endIndex = len;
+
+		if (startIndex == null || startIndex > len) return new Ucs2("");
+		
 		return new Ucs2(this.substring(startIndex,endIndex));
 	}
 
@@ -402,30 +415,24 @@ function get_length():Int {
 
 
 	public function substring( startIndex : Int, ?endIndex : Int ) : Ucs2 {
-		var b = this;
-
-
+		
 
 		if (startIndex < 0) startIndex = 0;
-
-
-		if (endIndex == null) {
-			endIndex = wrapAsUcs2(this).length;
-		}
-		else if (endIndex < 0) {
-			endIndex = 0;
-		} else if (endIndex > wrapAsUcs2(this).length) {
-			endIndex = wrapAsUcs2(this).length;
-		}
-
-
-		if (startIndex > endIndex) {
+		if (endIndex != null && endIndex < 0) endIndex = 0;
+		
+		var len = wrapAsUcs2(this).length;
+ 		if (startIndex > endIndex) {
 			var x = startIndex;
 			startIndex = endIndex;
 			endIndex = x;
 		}
 
-		return wrapAsUcs2(b.sub(startIndex * 2, endIndex * 2 - startIndex * 2));
+		if (endIndex == null || endIndex > len) endIndex = len;
+
+		if (startIndex == null || startIndex > len) return new Ucs2("");
+		
+		
+		return wrapAsUcs2(this.sub(startIndex * 2, endIndex * 2 - startIndex * 2));
 	}
 	// private helpers
 	static inline function wrapAsUcs2 (bytes:ByteAccess):Ucs2 {
