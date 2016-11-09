@@ -1122,8 +1122,8 @@ class virtual type_builder ctx wrapper =
 						| ([],"Float") -> "float"
 						| ([],"Bool") -> "bool"
 						| ([],"Void") -> "void"
-						| ([],"Enum") -> self#use hxclass_type_path
-						| ([], "Class") -> self#use hxclass_type_path
+						| ([],"Enum") -> "Enum"
+						| ([], "Class") -> "Class"
 						| _ when Meta.has Meta.CoreType abstr.a_meta -> "mixed"
 						| _ -> self#use_t abstr.a_this
 		(**
@@ -1805,6 +1805,8 @@ class virtual type_builder ctx wrapper =
 							| "bool" -> "'Bool'"
 							| "string" -> "'String'"
 							| "mixed" -> "'Dynamic'"
+							| "Enum" -> "'Enum'"
+							| "Class" -> "'Class'"
 							| name -> name ^ "::class"
 					in
 					self#write ((self#use boot_type_path) ^ "::getClass(" ^ class_name ^ ")")

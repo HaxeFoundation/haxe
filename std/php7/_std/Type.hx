@@ -73,25 +73,32 @@ enum ValueType {
 
 	public static function resolveClass( name : String ) : Class<Dynamic> {
 		if (name == null) return null;
-		if (name == 'String') return String;
+		switch(name) {
+			case 'Dynamic': return cast Dynamic;
+			case 'Int': return cast Int;
+			case 'Float': return cast Float;
+			case 'Bool':  return cast Bool;
+			case 'String': return String;
+			case 'Class': return cast Class;
+			case 'Enum': return cast Enum;
+		}
 
 		var phpClass = Boot.getPhpName(name);
-		if (!Global.class_exists(phpClass)) return null;
+		if (!Global.class_exists(phpClass) && !Global.interface_exists(phpClass)) return null;
 
 		var hxClass = Boot.getClass(phpClass);
-		if (Boot.is(hxClass, Boot.getClass('Enum'))) return null;
 
 		return cast hxClass;
 	}
 
 	public static function resolveEnum( name : String ) : Enum<Dynamic> {
 		if (name == null) return null;
+		if (name == 'Bool') return cast Bool;
 
 		var phpClass = Boot.getPhpName(name);
 		if (!Global.class_exists(phpClass)) return null;
 
 		var hxClass = Boot.getClass(phpClass);
-		if (!Boot.is(hxClass, Boot.getClass('Enum'))) return null;
 
 		return cast hxClass;
 	}

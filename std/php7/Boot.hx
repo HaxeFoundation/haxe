@@ -391,13 +391,12 @@ class Boot {
 				return value.is_string();
 			case 'php7\\NativeArray':
 				return value.is_array();
-			case 'Enum':
-				if (value.is_object()) {
-					if (Syntax.instanceof(value, HxClass)) {
-						var valuePhpClass = (cast value:HxClass).phpClassName;
-						var enumPhpClass = (cast HxEnum:HxClass).phpClassName;
-						return Global.is_subclass_of(valuePhpClass, enumPhpClass);
-					}
+			case 'Enum', 'Class':
+				if (Syntax.instanceof(value, HxClass)) {
+					var valuePhpClass = (cast value:HxClass).phpClassName;
+					var enumPhpClass = (cast HxEnum:HxClass).phpClassName;
+					var isEnumType = Global.is_subclass_of(valuePhpClass, enumPhpClass);
+					return (phpType == 'Enum' ? isEnumType : !isEnumType);
 				}
 			case _:
 				if (value.is_object()) {
