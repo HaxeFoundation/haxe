@@ -77,20 +77,7 @@ abstract Ucs2(String) {
 	}
 
 	public function substring( startIndex : Int, ?endIndex : Int ) : Ucs2 {
-		if (startIndex < 0) startIndex = 0;
-		if (endIndex != null && endIndex < 0) endIndex = 0;
-		
-		var len = wrapAsUcs2(this).length;
- 		if (startIndex > endIndex) {
-			var x = startIndex;
-			startIndex = endIndex;
-			endIndex = x;
-		}
-
-		if (endIndex == null || endIndex > len) endIndex = len;
-
-		if (startIndex == null || startIndex > len) return new Ucs2("");
-		
+		if (endIndex == null) return new Ucs2(this.substring(startIndex));
 		return new Ucs2(this.substring(startIndex,endIndex));
 	}
 
@@ -402,8 +389,6 @@ function get_length():Int {
 			} else {
 				substring(pos);
 			}
-
-
 		} else {
 			if (len < 0) {
 				substring(pos, wrapAsUcs2(this).length + len);
