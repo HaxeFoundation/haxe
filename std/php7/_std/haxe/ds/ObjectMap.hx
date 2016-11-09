@@ -22,56 +22,49 @@
 
 package haxe.ds;
 
+import php7.*;
+
 @:coreApi
 class ObjectMap <K:{ }, V> implements haxe.Constraints.IMap<K,V> {
-	static function getId(key: { } ):String {
-		return untyped __php__("spl_object_hash($key)");
-	}
-
-	@:analyzer(no_simplification)
-	var h : ArrayAccess<V>;
-	@:analyzer(no_simplification)
-	var hk : ArrayAccess<K>;
+	var _keys:NativeAssocArray<K>;
+	var _values:NativeAssocArray<V>;
 
 	public function new():Void {
-		h = untyped __call__('array');
-		hk = untyped __call__('array');
+		_keys = new NativeAssocArray();
+		_values = new NativeAssocArray();
 	}
 
 	public function set(key:K, value:V):Void untyped {
-		var id = getId(key);
-		untyped h[id] = value;
-		untyped hk[id] = key;
+		var id = Global.spl_object_hash(key);
+		_keys[id] = key;
+		_values[id] = value;
 	}
 
 	public function get(key:K):Null<V> {
-		var id = getId(key);
-		if (untyped __call__("array_key_exists", id, h))
-			return untyped h[id];
-		else
-			return null;
+		var id = Global.spl_object_hash(key);
+		return Global.isset(_values[id]) ? _values[id] : null;
 	}
 
 	public function exists(key:K):Bool {
-		return untyped __call__("array_key_exists", getId(key), h);
+		return Global.array_key_exists(Global.spl_object_hash(key), _values);
 	}
 
 	public function remove( key : K ) : Bool {
-		var id = getId(key);
-		if (untyped __call__("array_key_exists", id, h)) {
-			untyped __call__("unset", h[id]);
-			untyped __call__("unset", hk[id]);
+		var id = Global.spl_object_hash(key);
+		if (Global.array_key_exists(id, _values)) {
+			Global.unset(_keys[id], _values[id]);
 			return true;
-		} else
+		} else {
 			return false;
+		}
 	}
 
 	public inline function keys() : Iterator<K> {
-		return untyped __call__("new _hx_array_iterator", __call__("array_values", hk));
+		return _keys.iterator();
 	}
 
 	public inline function iterator() : Iterator<V> {
-		return untyped __call__("new _hx_array_iterator", __call__("array_values", h));
+		return _values.iterator();
 	}
 
 	public function toString() : String {

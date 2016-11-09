@@ -816,4 +816,9 @@ extern class Global {
 		@see http://php.net/manual/en/function.json-last-error-msg.php
 	**/
 	static function json_last_error_msg() : EitherType<String,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.spl-object-hash.php
+	**/
+	static function spl_object_hash( obj:{} ) : String;
 }
