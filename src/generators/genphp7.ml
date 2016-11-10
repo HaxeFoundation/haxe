@@ -2803,13 +2803,13 @@ class class_builder ctx (cls:tclass) =
 			self#write_toString_if_required
 		method private write_toString_if_required =
 			if PMap.exists "toString" cls.cl_fields then
-				if (not (PMap.exists "__toString" cls.cl_statics)) && (not (PMap.exists "__toString" cls.cl_fields)) then
+				if (not cls.cl_interface) && (not (PMap.exists "__toString" cls.cl_statics)) && (not (PMap.exists "__toString" cls.cl_fields)) then
 					begin
 						self#write_empty_lines;
 						self#indent 1;
 						self#write_line "public function __toString() {";
 						self#indent_more;
-						self#write_line "return $this.toString();";
+						self#write_line "return $this->toString();";
 						self#indent_less;
 						self#write_line "}"
 					end
