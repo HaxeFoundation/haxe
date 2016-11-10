@@ -46,7 +46,7 @@ class Meta {
 	private static function isInterface(t:Dynamic):Bool {
 		#if java
 			return java.Lib.toNativeType(t).isInterface();
-		#elseif cs
+	#elseif cs
 			return cs.Lib.toNativeType(t).IsInterface;
 		#elseif (flash && as3)
 			return untyped flash.Lib.describeType(t).factory.extendsClass.length() == 0;
@@ -75,6 +75,8 @@ class Meta {
 #elseif hl
 		var t : hl.types.BaseType = t;
 		return t.__meta__;
+#elseif php7
+		return php7.Boot.getMeta(t.phpClassName);
 #else
 		return untyped t.__meta__;
 #end

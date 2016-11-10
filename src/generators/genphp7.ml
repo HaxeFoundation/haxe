@@ -628,6 +628,14 @@ let ensure_return_in_block block_expr =
 		| _ -> fail block_expr.epos __POS__
 
 (**
+	Check if specified type has rtti meta
+*)
+let has_rtti_meta ctx mtype =
+	match Codegen.build_metadata ctx mtype with
+		| None -> false
+		| Some _ -> true
+
+(**
 	PHP DocBlock types
 *)
 type doc_type =
@@ -652,6 +660,10 @@ class virtual type_wrapper (type_path:path) (meta:metadata) (needs_generation:bo
 			Returns hx source file name where this type was declared
 		*)
 		method virtual get_source_file : string
+		(**
+			Returns `Type.module_type` instance for this type
+		*)
+		method virtual get_module_type : module_type
 		(**
 			Returns expression of a user-defined static __init__ method
 			@see http://old.haxe.org/doc/advanced/magic#initialization-magic
@@ -681,19 +693,24 @@ class class_wrapper (cls) =
 			Indicates if class initialization method should be executed upon class loaded
 		*)
 		method needs_initialization =
-			match cls.cl_init with
-				| Some _ -> true
-				| None ->
-					let needs = ref false in
-					PMap.iter
-						(fun _ field ->
-							(* Check static vars with non-constant expressions *)
-							if not !needs then needs := is_var_with_nonconstant_expr field;
-							(* Check static dynamic functions *)
-							if not !needs then needs := is_dynamic_method field
-						)
-						cls.cl_statics;
-					!needs
+			(* Interfaces may need initialization only for RTTI meta data.
+				But that meta is written in `class_wrapper#write_rtti_meta` *)
+			if cls.cl_interface then
+				false
+			else
+				match cls.cl_init with
+					| Some _ -> true
+					| None ->
+						let needs = ref false in
+						PMap.iter
+							(fun _ field ->
+								(* Check static vars with non-constant expressions *)
+								if not !needs then needs := is_var_with_nonconstant_expr field;
+								(* Check static dynamic functions *)
+								if not !needs then needs := is_dynamic_method field
+							)
+							cls.cl_statics;
+						!needs
 		(**
 			Returns expression of a user-defined static __init__ method
 			@see http://old.haxe.org/doc/advanced/magic#initialization-magic
@@ -703,6 +720,10 @@ class class_wrapper (cls) =
 			Returns hx source file name where this type was declared
 		*)
 		method get_source_file = cls.cl_pos.pfile
+		(**
+			Returns `Type.module_type` instance for this type
+		*)
+		method get_module_type = TClassDecl cls
 	end
 
 (**
@@ -719,6 +740,10 @@ class enum_wrapper (enm) =
 			Returns hx source file name where this type was declared
 		*)
 		method get_source_file = enm.e_pos.pfile
+		(**
+			Returns `Type.module_type` instance for this type
+		*)
+		method get_module_type = TEnumDecl enm
 	end
 
 (**
@@ -735,6 +760,10 @@ class typedef_wrapper (tdef) =
 			Returns hx source file name where this type was declared
 		*)
 		method get_source_file = tdef.t_pos.pfile
+		(**
+			Returns `Type.module_type` instance for this type
+		*)
+		method get_module_type = TTypeDecl tdef
 	end
 
 (**
@@ -751,6 +780,10 @@ class abstract_wrapper (abstr) =
 			Returns hx source file name where this type was declared
 		*)
 		method get_source_file = abstr.a_pos.pfile
+		(**
+			Returns `Type.module_type` instance for this type
+		*)
+		method get_module_type = TAbstractDecl abstr
 	end
 
 (**
@@ -1031,6 +1064,7 @@ class virtual type_builder ctx wrapper =
 				(*let php_class = get_full_type_name ~escape:true ~omit_first_slash:true (add_php_prefix ctx self#get_type_path)*)
 				let haxe_class = match wrapper#get_type_path with (path, name) -> String.concat "." (path @ [name]) in
 				self#write_statement (boot_class ^ "::registerClass(" ^ (self#get_name) ^ "::class, '" ^ haxe_class ^ "')");
+				self#write_rtti_meta;
 				self#write_pre_hx_init;
 				(* Current class initialization *)
 				if wrapper#needs_initialization && boot_type_path <> self#get_type_path then
@@ -1335,6 +1369,17 @@ class virtual type_builder ctx wrapper =
 			if List.length args > 0 then self#write_line " * ";
 			self#write_line (" * @return " ^ (self#use_t return_type));
 			self#write_line " */"
+		(**
+			Writes rtti meta to output buffer
+		*)
+		method write_rtti_meta =
+			match Codegen.build_metadata ctx wrapper#get_module_type with
+				| None -> ()
+				| Some meta_expr ->
+					let boot_class = self#use boot_type_path in
+					self#write (boot_class ^ "::registerMeta(" ^ (self#get_name) ^ "::class, ");
+					self#write_expr meta_expr;
+					self#write ");\n"
 		(**
 			Writes expression to output buffer
 		*)
@@ -2586,7 +2631,7 @@ class enum_builder ctx (enm:tenum) =
 *)
 class class_builder ctx (cls:tclass) =
 	object (self)
-		inherit type_builder ctx (get_wrapper (TClassDecl cls))
+		inherit type_builder ctx (get_wrapper (TClassDecl cls)) as super
 		(**
 			Indicates if type should be declared as `final`
 		*)
@@ -2811,7 +2856,9 @@ class class_builder ctx (cls:tclass) =
 					self#write ("self::$" ^ field.cf_name ^ " = ");
 					self#write_expr expr
 				in
-				if is_var_with_nonconstant_expr field then begin
+				(* Do not generate fields for RTTI meta, because this generator uses another way to store it *)
+				let is_auto_meta_var = field.cf_name = "__meta__" && (has_rtti_meta ctx wrapper#get_module_type) in
+				if (is_var_with_nonconstant_expr field) && (not is_auto_meta_var) then begin
 					(match field.cf_expr with
 						| None -> ()
 						(* There can be not-inlined blocks when compiling with `-debug` *)
@@ -2839,7 +2886,10 @@ class class_builder ctx (cls:tclass) =
 		method private write_field is_static field =
 			match field.cf_kind with
 				| Var { v_read = AccInline; v_write = AccNever } -> self#write_const field
-				| Var _ -> self#write_var field is_static
+				| Var _ ->
+					(* Do not generate fields for RTTI meta, because this generator uses another way to store it *)
+					let is_auto_meta_var = is_static && field.cf_name = "__meta__" && (has_rtti_meta ctx wrapper#get_module_type) in
+					if not is_auto_meta_var then self#write_var field is_static;
 				| Method MethMacro -> ()
 				| Method MethDynamic when is_static -> ()
 				| Method MethDynamic -> self#write_dynamic_method field
@@ -2936,17 +2986,10 @@ class class_builder ctx (cls:tclass) =
 		*)
 		method private write_instance_initialization =
 			let init_dynamic_method field =
-				(*let (args, _) = get_function_signature field*)
 				let default_field = "$this->__hx__default__" ^ field.cf_name in
 				self#write_line ("if (!" ^ default_field ^ ") {");
 				self#indent_more;
-				(*self#write_indentation;*)
 				self#write_statement (default_field ^ " = new " ^ (self#use hxclosure_type_path) ^ "($this, '" ^ field.cf_name ^ "')");
-				(*self#write (default_field ^ " = function (");
-				write_args buffer (self#write_arg true) args;
-				self#write (") { return $this->" ^ field.cf_name ^"(");
-				write_args buffer (self#write_arg false) args;
-				self#write "); };\n";*)
 				self#write_statement ("if ($this->" ^ field.cf_name ^ " === null) $this->" ^ field.cf_name ^ " = " ^ default_field);
 				self#indent_less;
 				self#write_line "}"

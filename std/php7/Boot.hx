@@ -26,7 +26,8 @@ import haxe.PosInfos;
 using php7.Global;
 
 /**
-	Various Haxe->PHP compatibility utilities
+	Various Haxe->PHP compatibility utilities.
+	You should not use this class directly.
 **/
 @:keep
 @:dox(hide)
@@ -39,6 +40,8 @@ class Boot {
 	@:protected static var getters = new NativeAssocArray<NativeAssocArray<Bool>>();
 	/** List of setters (for Reflect) */
 	@:protected static var setters = new NativeAssocArray<NativeAssocArray<Bool>>();
+	/** Metadata storage */
+	@:protected static var meta = new NativeAssocArray<{}>();
 
 	/**
 		Initialization stuff.
@@ -89,6 +92,8 @@ class Boot {
 		Check if specified property has getter
 	**/
 	public static function hasGetter( phpClassName:String, property:String ) : Bool {
+		ensureLoaded(phpClassName);
+
 		var has = false;
 		var phpClassName:haxe.extern.EitherType<Bool,String> = phpClassName;
 		do {
@@ -103,6 +108,8 @@ class Boot {
 		Check if specified property has setter
 	**/
 	public static function hasSetter( phpClassName:String, property:String ) : Bool {
+		ensureLoaded(phpClassName);
+
 		var has = false;
 		var phpClassName:haxe.extern.EitherType<Bool,String> = phpClassName;
 		do {
@@ -111,6 +118,21 @@ class Boot {
 		} while (!has && phpClassName != false && Global.class_exists(phpClassName));
 
 		return has;
+	}
+
+	/**
+		Save metadata for specified class
+	**/
+	public static function registerMeta( phpClassName:String, data:Dynamic ) : Void {
+		meta[phpClassName] = data;
+	}
+
+	/**
+		Retrieve metadata for specified class
+	**/
+	public static function getMeta( phpClassName:String ) : Null<Dynamic> {
+		ensureLoaded(phpClassName);
+		return Global.isset(meta[phpClassName]) ? meta[phpClassName] : null;
 	}
 
 	/**
@@ -444,8 +466,18 @@ class Boot {
 		return value;
 	}
 
+	/**
+		Create Haxe-compatible anonymous structure of `data` associative array
+	**/
 	static public inline function createAnon( data:NativeArray ) : Dynamic {
 		return new HxAnon(data);
+	}
+
+	/**
+		Make sure specified class is loaded
+	**/
+	static public inline function ensureLoaded(phpClassName:String ) : Bool {
+		return Global.class_exists(phpClassName) || Global.interface_exists(phpClassName);
 	}
 }
 
