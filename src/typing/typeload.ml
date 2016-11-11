@@ -1368,7 +1368,7 @@ module Inheritance = struct
 							display_error ctx (error_msg (Unify l)) p;
 						end
 			with
-				| Not_found when not c.cl_interface ->
+				| Not_found when not c.cl_interface && not c.cl_extern ->
 					let msg = if !is_overload then
 						let ctx = print_context() in
 						let args = match follow f.cf_type with | TFun(args,_) -> String.concat ", " (List.map (fun (n,o,t) -> (if o then "?" else "") ^ n ^ " : " ^ (s_type ctx t)) args) | _ -> assert false in
@@ -1449,11 +1449,6 @@ module Inheritance = struct
 					if not csup.cl_interface && not extern_multiple_extends then error "Cannot extend by using a class" p;
 					if csup.cl_interface && extern_multiple_extends then error "Cannot extend by using an interface" p;
 					c.cl_implements <- (csup,params) :: c.cl_implements;
-					if extern_multiple_extends then begin
-						PMap.iter (fun id f ->
-							c.cl_fields <- PMap.add id f c.cl_fields;
-						) csup.cl_fields
-					end;
 					if not !has_interf then begin
 						if not is_lib then delay ctx PForce (fun() -> check_interfaces ctx c);
 						has_interf := true;

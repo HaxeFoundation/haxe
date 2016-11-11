@@ -774,6 +774,8 @@ let field_type f =
 
 let rec raw_class_field build_type c tl i =
 	let apply = apply_params c.cl_params tl in
+	let apply_class c tl = let c2 , t , f = raw_class_field build_type c (List.map apply tl) i in
+		c2, apply_params c.cl_params tl t , f in
 	try
 		let f = PMap.find i c.cl_fields in
 		Some (c,tl), build_type f , f
@@ -785,8 +787,19 @@ let rec raw_class_field build_type c tl i =
 		| None ->
 			raise Not_found
 		| Some (c,tl) ->
-			let c2 , t , f = raw_class_field build_type c (List.map apply tl) i in
-			c2, apply_params c.cl_params tl t , f
+			apply_class c tl
+	with Not_found -> try
+		if c.cl_interface || not c.cl_extern then raise Not_found;
+		let rec loop = function
+			| [] ->
+				raise Not_found
+			| (c,tl) :: l ->
+				try
+					apply_class c tl
+				with
+					Not_found -> loop l
+		in
+		loop (List.filter (fun (c,_) -> not c.cl_interface) c.cl_implements)
 	with Not_found ->
 		match c.cl_kind with
 		| KTypeParameter tl ->
