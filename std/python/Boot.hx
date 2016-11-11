@@ -283,41 +283,114 @@ class Boot {
 		return if (UBuiltins.hasattr(o, field)) UBuiltins.getattr(o, field) else null;
 	}
 
+	static var closures:python.Dict<String, haxe.Constraints.Function> = new python.Dict();
+
+	static function getClosure (funId:String, o:Dynamic,  or : Void->Dynamic) {
+		var hash = UBuiltins.str(UBuiltins.id(o)) + "_" + funId;
+		var closure = closures.get(hash);
+		if (closure == null) {
+			var res = or();
+			closures.set(hash, res);
+			return res;
+		}
+		return closure;
+	}
+
 	static function field( o : Dynamic, field : String ) : Dynamic {
 		if (field == null) return null;
 
 		switch (field) {
-			case "length" if (isString(o)): return StringImpl.get_length(o);
-			case "toLowerCase" if (isString(o)): return StringImpl.toLowerCase.bind(o);
-			case "toUpperCase" if (isString(o)): return StringImpl.toUpperCase.bind(o);
-			case "charAt" if (isString(o)): return StringImpl.charAt.bind(o);
-			case "charCodeAt" if (isString(o)): return StringImpl.charCodeAt.bind(o);
-			case "indexOf" if (isString(o)): return StringImpl.indexOf.bind(o);
-			case "lastIndexOf" if (isString(o)): return StringImpl.lastIndexOf.bind(o);
-			case "split" if (isString(o)): return StringImpl.split.bind(o);
-			case "substr" if (isString(o)): return StringImpl.substr.bind(o);
-			case "substring" if (isString(o)): return StringImpl.substring.bind(o);
-			case "toString" if (isString(o)): return StringImpl.toString.bind(o);
-			case "length" if (isArray(o)): return ArrayImpl.get_length(o);
-			case "map" if (isArray(o)): return ArrayImpl.map.bind(o);
-			case "filter" if (isArray(o)): return ArrayImpl.filter.bind(o);
-			case "concat" if (isArray(o)): return ArrayImpl.concat.bind(o);
-			case "copy" if (isArray(o)): return function () return ArrayImpl.copy(o);
-			case "iterator" if (isArray(o)): return ArrayImpl.iterator.bind(o);
-			case "insert" if (isArray(o)): return ArrayImpl.insert.bind(o);
-			case "join" if (isArray(o)): return function (sep) return ArrayImpl.join(o, sep);
-			case "toString" if (isArray(o)): return ArrayImpl.toString.bind(o);
-			case "pop" if (isArray(o)): return ArrayImpl.pop.bind(o);
-			case "push" if (isArray(o)): return ArrayImpl.push.bind(o);
-			case "unshift" if (isArray(o)): return ArrayImpl.unshift.bind(o);
-			case "indexOf" if (isArray(o)): return ArrayImpl.indexOf.bind(o);
-			case "lastIndexOf" if (isArray(o)): return ArrayImpl.lastIndexOf.bind(o);
-			case "remove" if (isArray(o)): return ArrayImpl.remove.bind(o);
-			case "reverse" if (isArray(o)): return ArrayImpl.reverse.bind(o);
-			case "shift" if (isArray(o)): return ArrayImpl.shift.bind(o);
-			case "slice" if (isArray(o)): return ArrayImpl.slice.bind(o);
-			case "sort" if (isArray(o)): return ArrayImpl.sort.bind(o);
-			case "splice" if (isArray(o)): return ArrayImpl.splice.bind(o);
+			case "length" if (isString(o)): 
+				var lazy = function () return StringImpl.get_length(o);
+				return getClosure("String"+field, o, lazy);
+			case "toLowerCase" if (isString(o)): 
+				var lazy = function () return StringImpl.toLowerCase.bind(o);
+				return getClosure("String"+field, o, lazy);
+			case "toUpperCase" if (isString(o)): 
+				var lazy = function () return StringImpl.toUpperCase.bind(o);
+				return getClosure("String"+field, o, lazy);
+			case "charAt" if (isString(o)): 
+				var lazy = function () return StringImpl.charAt.bind(o);
+				return getClosure("String"+field, o, lazy);
+			case "charCodeAt" if (isString(o)): 
+				var lazy = function () return StringImpl.charCodeAt.bind(o);
+				return getClosure("String"+field, o, lazy);
+			case "indexOf" if (isString(o)): 
+				var lazy = function () return StringImpl.indexOf.bind(o);
+				return getClosure("String"+field, o, lazy);
+			case "lastIndexOf" if (isString(o)): 
+				var lazy = function () return StringImpl.lastIndexOf.bind(o);
+				return getClosure("String"+field, o, lazy);
+			case "split" if (isString(o)): 
+				var lazy = function () return StringImpl.split.bind(o);
+				return getClosure("String"+field, o, lazy);
+			case "substr" if (isString(o)): 
+				var lazy = function () return StringImpl.substr.bind(o);
+				return getClosure("String"+field, o, lazy);
+			case "substring" if (isString(o)): 
+				var lazy = function () return StringImpl.substring.bind(o);
+				return getClosure("String"+field, o, lazy);
+			case "toString" if (isString(o)): 
+				var lazy = function () return StringImpl.toString.bind(o);
+				return getClosure("String"+field, o, lazy);
+			case "length" if (isArray(o)): 
+				var lazy = function () return ArrayImpl.get_length(o);
+				return getClosure("Array"+field, o, lazy);
+			case "map" if (isArray(o)): 
+				var lazy = function () return ArrayImpl.map.bind(o);
+				return getClosure("Array"+field, o, lazy);
+			case "filter" if (isArray(o)): 
+				var lazy = function () return ArrayImpl.filter.bind(o);
+				return getClosure("Array"+field, o, lazy);
+			case "concat" if (isArray(o)): 
+				var lazy = function () return ArrayImpl.concat.bind(o);
+				return getClosure("Array"+field, o, lazy);
+			case "copy" if (isArray(o)): 
+				return function () return ArrayImpl.copy(o);
+			case "iterator" if (isArray(o)): 
+				var lazy = function () return ArrayImpl.iterator.bind(o);
+				return getClosure("Array"+field, o, lazy);
+			case "insert" if (isArray(o)): 
+				var lazy = function () return ArrayImpl.insert.bind(o);
+				return getClosure("Array"+field, o, lazy);
+			case "join" if (isArray(o)): 
+				return function (sep) return ArrayImpl.join(o, sep);
+			case "toString" if (isArray(o)): 
+				var lazy = function () return ArrayImpl.toString.bind(o);
+				return getClosure("Array"+field, o, lazy);
+			case "pop" if (isArray(o)): 
+				var lazy = function () return ArrayImpl.pop.bind(o);
+				return getClosure("Array"+field, o, lazy);
+			case "push" if (isArray(o)): 
+				var lazy = function () return ArrayImpl.push.bind(o);
+				return getClosure("Array"+field, o, lazy);
+			case "unshift" if (isArray(o)): 
+				var lazy = function () return ArrayImpl.unshift.bind(o);
+				return getClosure("Array"+field, o, lazy);
+			case "indexOf" if (isArray(o)): 
+				var lazy = function () return ArrayImpl.indexOf.bind(o);
+				return getClosure("Array"+field, o, lazy);
+			case "lastIndexOf" if (isArray(o)): 
+				var lazy = function () return ArrayImpl.lastIndexOf.bind(o);
+				return getClosure("Array"+field, o, lazy);
+			case "remove" if (isArray(o)): 
+				var lazy = function () return ArrayImpl.remove.bind(o);
+				return getClosure("Array"+field, o, lazy);
+			case "reverse" if (isArray(o)): 
+				var lazy = function () return ArrayImpl.reverse.bind(o);
+				return getClosure("Array"+field, o, lazy);
+			case "shift" if (isArray(o)): 
+				var lazy = function () return ArrayImpl.shift.bind(o);
+				return getClosure("Array"+field, o, lazy);
+			case "slice" if (isArray(o)): 
+				var lazy = function () return ArrayImpl.slice.bind(o);
+				return getClosure("Array"+field, o, lazy);
+			case "sort" if (isArray(o)): 
+				var lazy = function () return ArrayImpl.sort.bind(o);
+				return getClosure("Array"+field, o, lazy);
+			case "splice" if (isArray(o)): 
+				var lazy = function () return ArrayImpl.splice.bind(o);
+				return getClosure("Array"+field, o, lazy);
 		}
 
 
