@@ -283,14 +283,19 @@ class Boot {
 		return if (UBuiltins.hasattr(o, field)) UBuiltins.getattr(o, field) else null;
 	}
 
-	static var closures:python.Dict<String, haxe.Constraints.Function> = new python.Dict();
+	static var closures:Dynamic;
 
 	static function getClosure (funId:String, o:Dynamic,  or : Void->Dynamic) {
+		
+		if (closures == null) {
+			python.Syntax.pythonCode("import weakref");
+			closures = python.Syntax.pythonCode("weakref.WeakValueDictionary()");
+		}
 		var hash = UBuiltins.str(UBuiltins.id(o)) + "_" + funId;
-		var closure = closures.get(hash);
+		var closure = python.Syntax.callField(closures, "get", hash);
 		if (closure == null) {
 			var res = or();
-			closures.set(hash, res);
+			python.Syntax.arraySet(closures, hash, res);
 			return res;
 		}
 		return closure;
@@ -301,8 +306,7 @@ class Boot {
 
 		switch (field) {
 			case "length" if (isString(o)): 
-				var lazy = function () return StringImpl.get_length(o);
-				return getClosure("String"+field, o, lazy);
+				return StringImpl.get_length(o);
 			case "toLowerCase" if (isString(o)): 
 				var lazy = function () return StringImpl.toLowerCase.bind(o);
 				return getClosure("String"+field, o, lazy);
@@ -334,8 +338,7 @@ class Boot {
 				var lazy = function () return StringImpl.toString.bind(o);
 				return getClosure("String"+field, o, lazy);
 			case "length" if (isArray(o)): 
-				var lazy = function () return ArrayImpl.get_length(o);
-				return getClosure("Array"+field, o, lazy);
+				return ArrayImpl.get_length(o);
 			case "map" if (isArray(o)): 
 				var lazy = function () return ArrayImpl.map.bind(o);
 				return getClosure("Array"+field, o, lazy);
