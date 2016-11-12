@@ -74,6 +74,7 @@ tests/unit/unit.py
 tests/unit/unit.py.res1.txt
 tests/unit/unit.py.res2.bin
 tests/sys/bin/
+/tests/sys/dump/
 tests/optimization/dump/
 tests/misc/projects/*/*.n
 tests/unit/bin/

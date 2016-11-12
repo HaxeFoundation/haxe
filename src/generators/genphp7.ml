@@ -2499,7 +2499,7 @@ class virtual type_builder ctx wrapper =
 					false
 				else
 					match (if_expr.eexpr, else_expr) with
-						| (TBlock _, _) | (_, Some { eexpr=TBlock _ }) -> fail self#pos __POS__
+						| (TBlock _, _) | (_, Some { eexpr=TBlock _ }) -> false
 						| _ -> true
 			in
 			if is_ternary then

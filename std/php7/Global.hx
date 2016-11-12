@@ -1,7 +1,6 @@
 package php7;
 
-import haxe.extern.EitherType;
-import haxe.extern.Rest;
+import haxe.extern.*;
 
 /**
 	This class contains externs for native PHP functions defined in global namespace.
@@ -585,7 +584,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.system.php
 	**/
-	static function system( command:String, ?return_var:Ref<Int> ) : EitherType<String,Bool>;
+	static function system( command:String, ?return_var:AsVar<Int> ) : EitherType<String,Bool>;
 
 	/**
 		@see http://php.net/manual/en/function.microtime.php
