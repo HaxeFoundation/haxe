@@ -67,7 +67,7 @@ class Array<T> implements ArrayAccess<Int,T> {
 
 	public function insert(pos:Int, x:T):Void {
 		length++;
-		Global.array_splice(arr, pos, 0, x);
+		Global.array_splice(arr, pos, 0, Syntax.arrayDecl(x));
 	}
 
 	@:keep
