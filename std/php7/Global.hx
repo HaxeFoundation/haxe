@@ -821,4 +821,34 @@ extern class Global {
 		@see http://php.net/manual/en/function.spl-object-hash.php
 	**/
 	static function spl_object_hash( obj:{} ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.utf8-encode.php
+	**/
+	static function utf8_encode( data:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.utf8-decode.php
+	**/
+	static function utf8_decode( data:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.mb-convert-encoding.php
+	**/
+	static function mb_convert_encoding( str:String, to_encoding:String, ?from_encoding:Dynamic ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.mb-check-encoding.php
+	**/
+	static function mb_check_encoding( str:String = null, ?encoding:String ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.mb-strlen.php
+	**/
+	static function mb_strlen( str:String, ?encoding:String ) : EitherType<Int,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.mb-substr.php
+	**/
+	static function mb_substr( str:String, start:Int, length:Int = null, ?encoding:String ) : String;
 }
