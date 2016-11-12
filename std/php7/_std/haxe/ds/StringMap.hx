@@ -56,7 +56,7 @@ import haxe.Constraints;
 	}
 
 	public inline function keys() : Iterator<String> {
-		return Global.array_keys(data).iterator();
+		return Global.array_map('strval', Global.array_keys(data)).iterator();
 	}
 
 	public inline function iterator() : Iterator<T> {
