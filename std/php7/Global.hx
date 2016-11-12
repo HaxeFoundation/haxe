@@ -598,9 +598,34 @@ extern class Global {
 	static function fopen( filename:String, mode:String, use_include_path:Bool = false, ?context:Resource ) : EitherType<Bool,Resource>;
 
 	/**
+		@see http://php.net/manual/en/function.fclose.php
+	**/
+	static function fclose( handle:Resource ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.feof.php
+	**/
+	static function feof( handle:Resource ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.rewind.php
+	**/
+	static function rewind( handle:Resource ) : Bool;
+
+	/**
 		@see http://php.net/manual/en/function.fgetc.php
 	**/
 	static function fgetc( handle:Resource ) : EitherType<Bool,String>;
+
+	/**
+		@see http://php.net/manual/en/function.fwrite.php
+	**/
+	static function fwrite( handle:Resource, string:String, ?length:Int ) : EitherType<Int,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.fread.php
+	**/
+	static function fread( handle:Resource, length:Int ) : EitherType<Bool,String>;
 
 	/**
 		@see http://php.net/manual/en/function.file-exists.php
@@ -851,4 +876,24 @@ extern class Global {
 		@see http://php.net/manual/en/function.mb-substr.php
 	**/
 	static function mb_substr( str:String, start:Int, length:Int = null, ?encoding:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.proc-open.php
+	**/
+	static function proc_open( cmd:String, descriptorspec:NativeArray, pipes:NativeArray, ?cwd:String, ?env:NativeArray, ?other_options:NativeArray ) : EitherType<Resource,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.proc-get-status.php
+	**/
+	static function proc_get_status( process:Resource ) : NativeArray;
+
+	/**
+		@see http://php.net/manual/en/function.proc-close.php
+	**/
+	static function proc_close( process:Resource ) : Int;
+
+	/**
+		@see http://php.net/manual/en/function.proc-terminate.php
+	**/
+	static function proc_terminate( process:Resource, signal:Int = 15 ) : Bool;
 }

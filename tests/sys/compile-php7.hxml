@@ -1,6 +1,6 @@
 compile-each.hxml
 -main Main
--php bin/php7/Main
+-php7 bin/php7/Main
 
 --next
 compile-each.hxml
