@@ -1219,6 +1219,24 @@ class virtual type_builder ctx wrapper =
 				| _ :: expr :: _ -> Some expr
 				| _ -> None
 		(**
+			Indicates if parent expression is a call (bypasses casts and metas)
+		*)
+		method private parent_expr_is_call =
+			let rec expr_is_call expr parents =
+				match expr.eexpr with
+					| TCast _
+					| TMeta _ ->
+						(match parents with
+							| parent :: rest -> expr_is_call parent rest
+							| [] -> false
+						)
+					| TCall _ -> true
+					| _ -> false
+			in
+			match expr_hierarchy with
+				| _ :: parent :: rest -> expr_is_call parent rest
+				| _ -> false
+		(**
 			Position of currently generated code in source hx files
 		*)
 		method private pos =
@@ -2065,8 +2083,25 @@ class virtual type_builder ctx wrapper =
 					if not written_as_probable_string then write_access "->" field_name
 				| (_, FClosure (tcls, field)) -> self#write_expr_field_closure tcls field expr
 				| (_, FEnum (_, field)) ->
-					write_access "::" field.ef_name;
-					if not (is_enum_constructor_with_args field) then self#write "()"
+					if is_enum_constructor_with_args field then
+						if not self#parent_expr_is_call then
+							begin
+								self#write (self#use boot_type_path ^ "::closure(");
+								self#write_expr expr;
+								(match (reveal_expr expr).eexpr with
+									| TTypeExpr _ -> self#write "::class"
+									| _ -> self#write "->phpClassName"
+								);
+								self#write (", '" ^ field.ef_name ^ "')")
+							end
+						else
+							write_access "::" field.ef_name
+					else
+						begin
+							write_access "::" field.ef_name;
+							self#write "()"
+						end
+
 		(**
 			Writes field access on Dynamic expression to output buffer
 		*)
