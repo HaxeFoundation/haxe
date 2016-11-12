@@ -1870,6 +1870,13 @@ class virtual type_builder ctx wrapper =
 			Writes binary operation to output buffer
 		*)
 		method private write_expr_binop operation expr1 expr2 =
+			let write_method method_name =
+				self#write (method_name ^ "(");
+				self#write_expr expr1;
+				self#write ", ";
+				self#write_expr expr2;
+				self#write ")"
+			in
 			let write_for_concat expr =
 				if (is_constant_string expr) || (is_concatenation expr) || (not (is_string expr)) then
 					self#write_expr expr
@@ -1878,12 +1885,6 @@ class virtual type_builder ctx wrapper =
 					self#write_expr expr;
 					self#write "??'null')"
 				end
-			and write_method method_name =
-				self#write (method_name ^ "(");
-				self#write_expr expr1;
-				self#write ", ";
-				self#write_expr expr2;
-				self#write ")"
 			and write_binop ?writer ?right_writer str =
 				let write_left = match writer with None -> self#write_expr | Some writer -> writer in
 				let write_right = match right_writer with None -> write_left | Some writer -> writer
@@ -1897,6 +1898,15 @@ class virtual type_builder ctx wrapper =
 				self#write str;
 				write_right expr2;
 				if need_parenthesis then self#write ")"
+			and compare_strings op =
+				write_method "strcmp";
+				self#write (op ^ "0")
+			in
+			let compare op =
+				if is_string expr1 && is_string expr2 then
+						compare_strings op
+					else
+						write_binop op
 			in
 			match operation with
 				| OpAdd ->
@@ -1923,10 +1933,10 @@ class virtual type_builder ctx wrapper =
 						end
 					else
 						write_binop " !== "
-				| OpGt -> write_binop " > "
-				| OpGte -> write_binop " >= "
-				| OpLt -> write_binop " < "
-				| OpLte -> write_binop " <= "
+				| OpGt -> compare " > "
+				| OpGte -> compare " >= "
+				| OpLt -> compare " < "
+				| OpLte -> compare " <= "
 				| OpAnd -> write_binop " & "
 				| OpOr -> write_binop " | "
 				| OpXor -> write_binop " ^ "
