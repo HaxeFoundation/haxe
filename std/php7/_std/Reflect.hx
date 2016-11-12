@@ -30,7 +30,15 @@ using php7.Global;
 @:coreApi class Reflect {
 
 	public static function hasField( o : Dynamic, field : String ) : Bool {
-		return o.is_object() && o.property_exists(field);
+		if (!o.is_object()) return false;
+		if (o.property_exists(field)) return true;
+
+		if (Syntax.instanceof(o, cast Boot.getHxClass())) {
+			if (Global.property_exists(o.phpClassName, field)) return true;
+			return Global.method_exists(o.phpClassName, field);
+		}
+
+		return false;
 	}
 
 	public static function field( o : Dynamic, field : String ) : Dynamic {
