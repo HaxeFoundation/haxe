@@ -54,6 +54,8 @@ using php7.Global;
 		if (o.is_object()) {
 			if (Boot.hasGetter(Global.get_class(o), field)) {
 				return Syntax.call(o, 'get_$field');
+			} else if (Global.method_exists(o, field)) {
+				return Boot.closure(o, field);
 			} else {
 				return Syntax.getField(o, field);
 			}
