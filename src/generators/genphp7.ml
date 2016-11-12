@@ -565,6 +565,14 @@ let is_constant_string expr =
 		| _ -> false
 
 (**
+	Check if `expr` is a constant
+*)
+let is_constant expr =
+	match expr.eexpr with
+		| TConst _ -> true
+		| _ -> false
+
+(**
 	Check if `expr` is a concatenation
 *)
 let is_concatenation expr =
@@ -1878,7 +1886,7 @@ class virtual type_builder ctx wrapper =
 				self#write ")"
 			in
 			let write_for_concat expr =
-				if (is_constant_string expr) || (is_concatenation expr) || (not (is_string expr)) then
+				if (is_constant expr) || (is_concatenation expr) then
 					self#write_expr expr
 				else begin
 					self#write "(";
