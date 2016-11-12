@@ -353,13 +353,6 @@ class Boot {
 		throw "Unable to stringify value";
 	}
 
-	/**
-		If `value` is `null` returns `"null"`. Otherwise returns `value`.
-	**/
-	public static function stringOrNull( value:Null<String> ) : String {
-		return (value == null ? 'null' : value);
-	}
-
 	static public inline function isNumber( value:Dynamic ) {
 		return value.is_int() || value.is_float();
 	}

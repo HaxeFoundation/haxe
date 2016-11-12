@@ -466,7 +466,6 @@ private class ___Int64 {
 		when tracing or calling Std.string. This tends not to happen when
 		toString is only in the abstract.
 	**/
-	#if php7 @:keep #end
 	public function toString() : String
 		return Int64.toStr( cast this );
 }

@@ -1874,9 +1874,9 @@ class virtual type_builder ctx wrapper =
 				if (is_constant_string expr) || (is_concatenation expr) || (not (is_string expr)) then
 					self#write_expr expr
 				else begin
-					self#write ((self#use boot_type_path) ^ "::stringOrNull(");
+					self#write "(";
 					self#write_expr expr;
-					self#write ")"
+					self#write "??'null')"
 				end
 			and write_method method_name =
 				self#write (method_name ^ "(");

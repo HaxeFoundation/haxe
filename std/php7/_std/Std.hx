@@ -35,7 +35,7 @@ import php7.Const;
 		return Std.is(value, c) ? cast value : null;
 	}
 
-	public static inline function string( s : Dynamic ) : String {
+	public static function string( s : Dynamic ) : String {
 		return Boot.stringify(s);
 	}
 
