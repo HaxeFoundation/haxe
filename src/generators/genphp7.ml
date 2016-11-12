@@ -176,9 +176,10 @@ let add_php_prefix ctx type_path =
 	If `expr` is a TCast returns underlying expression (recursively bypassing nested casts).
 	Otherwise returns `expr` as is.
 *)
-let rec reveal_casts expr =
+let rec reveal_expr expr =
 	match expr.eexpr with
-		| TCast (e, _) -> reveal_casts e
+		| TCast (e, _) -> reveal_expr e
+		| TMeta (_, e) -> reveal_expr e
 		| _ -> expr
 
 (**
@@ -378,7 +379,7 @@ let is_sure_scalar (target:Type.t) =
 	Indicates if `expr` is guaranteed to be an access to a `var` field.
 *)
 let is_sure_var_field_access expr =
-	match expr.eexpr with
+	match (reveal_expr expr).eexpr with
 		| TField (_, FStatic (_, { cf_kind = Var _ })) -> true
 		| TField (_, FInstance (_, _, { cf_kind = Var _ })) -> true
 		(* | TField (_, FAnon { cf_kind = Var _ }) -> true *) (* Sometimes we get anon access to non-anonymous objects *)
@@ -2023,7 +2024,7 @@ class virtual type_builder ctx wrapper =
 		method private write_expr_field expr access =
 			let write_access access_str field_str =
 				let access_str = ref access_str in
-				let expr_without_casts = reveal_casts expr in
+				let expr_without_casts = reveal_expr expr in
 				(match expr_without_casts.eexpr with
 					| TNew _
 					| TArrayDecl _
@@ -2042,7 +2043,7 @@ class virtual type_builder ctx wrapper =
 					self#write ")"
 				| (_, FInstance (_, _, { cf_name = name })) -> write_access "->" name
 				| (_, FStatic (_, { cf_name = name; cf_kind = Var _ })) ->
-					(match (reveal_casts expr).eexpr with
+					(match (reveal_expr expr).eexpr with
 						| TTypeExpr _ -> write_access "::" ("$" ^ name)
 						| _ -> write_access "->" name
 					)
@@ -2108,7 +2109,7 @@ class virtual type_builder ctx wrapper =
 					| TTypeExpr (TClassDecl { cl_path = ([], "String") }) -> self#write (self#use hxstring_type_path)
 					| _ -> self#write_expr expr
 			and operator =
-				match (reveal_casts expr).eexpr with
+				match (reveal_expr expr).eexpr with
 					| TTypeExpr _ -> "::"
 					| _ -> "->"
 			in
@@ -2385,7 +2386,7 @@ class virtual type_builder ctx wrapper =
 			Writes TCall to output buffer
 		*)
 		method private write_expr_call target_expr args =
-			let target_expr = reveal_casts target_expr in
+			let target_expr = reveal_expr target_expr in
 			(match target_expr.eexpr with
 				| TConst TSuper -> self#write "parent::__construct"
 				| TField (expr, FClosure (_,_)) -> self#write_expr (parenthesis target_expr)
