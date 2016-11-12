@@ -2100,18 +2100,22 @@ class virtual type_builder ctx wrapper =
 				match expr.eexpr with
 					| TTypeExpr (TClassDecl { cl_path = ([], "String") }) -> self#write (self#use hxstring_type_path)
 					| _ -> self#write_expr expr
+			and operator =
+				match (reveal_casts expr).eexpr with
+					| TTypeExpr _ -> "::"
+					| _ -> "->"
 			in
 			match expr_hierarchy with
 				| _ :: { eexpr = TCall ({ eexpr = TField (e, FStatic (_, f)) }, _) } :: _ when e == expr && f == field ->
 					write_expr ();
-					self#write ("::" ^ field.cf_name)
+					self#write (operator ^ field.cf_name)
 				| _ ->
 					let (args, return_type) = get_function_signature field  in
 					self#write "function(";
 					write_args buffer (self#write_arg true) args;
 					self#write ") { return ";
 					write_expr ();
-					self#write ("::" ^ field.cf_name ^ "(");
+					self#write (operator ^ field.cf_name ^ "(");
 					write_args buffer (self#write_arg false) args;
 					self#write "); }"
 		(**
