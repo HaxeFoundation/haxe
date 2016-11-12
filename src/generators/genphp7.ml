@@ -2027,7 +2027,9 @@ class virtual type_builder ctx wrapper =
 							write_access "::" ("$" ^ name)
 					)
 				| (_, FStatic (_, ({ cf_name = name; cf_kind = Method _ } as field))) -> self#write_expr_field_static expr field
-				| (_, FAnon { cf_name = name }) -> write_access "->" name
+				| (_, FAnon { cf_name = field_name }) ->
+					let written_as_probable_string = self#write_expr_field_if_string expr field_name in
+					if not written_as_probable_string then write_access "->" field_name
 				| (_, FDynamic field_name) ->
 					let written_as_probable_string = self#write_expr_field_if_string expr field_name in
 					if not written_as_probable_string then write_access "->" field_name
