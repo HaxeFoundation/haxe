@@ -38,7 +38,7 @@ class BytesBuffer {
 	}
 
 	public inline function add( src : Bytes ) {
-		Syntax.binop(b, '.=', src.getData());
+		Syntax.binop(b, '.=', src.getData().toNativeString());
 	}
 
 	public inline function addString( v : String ) {
