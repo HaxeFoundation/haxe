@@ -42,8 +42,9 @@ enum ValueType {
 
 	public static function getClass<T>( o : T ) : Class<T> {
 		if(Global.is_object(o) && !Boot.isClass(o) && !Boot.isEnumValue(o)) {
-			return cast Boot.getClass(Global.get_class(cast o));
-		} else if(Boot.is(o, cast String)) {
+			var cls = Boot.getClass(Global.get_class(cast o));
+			return (cls == Boot.getHxAnon() ? null : cast cls);
+		} else if(Global.is_string(o)) {
 			return cast String;
 		} else {
 			return null;
@@ -159,7 +160,7 @@ enum ValueType {
 
 		var constr = constructors[index];
 		var paramsCounts:NativeAssocArray<Int> = Syntax.staticCall(phpName, "__hx__paramsCount");
-		if ((params == null && paramsCounts[constr] != 0) || params.length != paramsCounts[constr]) {
+		if ((params == null && paramsCounts[constr] != 0) || (params != null && params.length != paramsCounts[constr])) {
 			throw 'Provided parameters count does not match expected parameters count';
 		}
 
@@ -225,21 +226,23 @@ enum ValueType {
 
 		var methods = new NativeArray();
 		for (m in reflection.getMethods(ReflectionMethod.IS_STATIC)) {
-			var name = (m:ReflectionMethod).getName();
-			if (!isServiceFieldName(name)) {
+			//TODO: report an issue on invalid type inference for iteration over `NativeIndexedArray`
+			var m:ReflectionMethod = m;
+			var name = m.getName();
+			if (!isServiceFieldName(name) && phpName == m.getDeclaringClass().getName()) {
 				methods.array_push(name);
 			}
 		}
 
 		var properties = new NativeArray();
 		for (p in reflection.getProperties(ReflectionProperty.IS_STATIC)) {
-			var name = (p:ReflectionProperty).getName();
-			if (!isServiceFieldName(name)) {
+			var p:ReflectionMethod = p;
+			var name = p.getName();
+			if (!isServiceFieldName(name) && phpName == p.getDeclaringClass().getName()) {
 				properties.array_push(name);
 			}
 		}
 		properties = Global.array_diff(properties, methods);
-
 		var fields = Global.array_merge(properties, methods);
 
 		return @:privateAccess Array.wrap(fields);
