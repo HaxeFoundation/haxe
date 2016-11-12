@@ -19,9 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-import php7.NativeIndexedArray;
-import php7.Ref;
-import php7.Syntax;
+import php7.*;
 
 using php7.Global;
 
@@ -72,6 +70,7 @@ class Array<T> implements ArrayAccess<Int,T> {
 		Global.array_splice(arr, pos, 0, x);
 	}
 
+	@:keep
 	public function iterator() : Iterator<T> {
 		return new ArrayIterator(this);
 	}
@@ -197,7 +196,6 @@ class Array<T> implements ArrayAccess<Int,T> {
 	}
 }
 
-
 private class ArrayIterator<T> {
 	var idx:Int;
 	var arr:Array<T>;
@@ -213,6 +211,14 @@ private class ArrayIterator<T> {
 
 	public inline function next():T {
 		return arr[idx++];
+	}
+
+	@:keep
+	function __get(method:String) {
+		return switch(method) {
+			case 'hasNext', 'next': Boot.closure(this, method);
+			case _: null;
+		}
 	}
 }
 
