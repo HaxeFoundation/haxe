@@ -99,7 +99,7 @@ class TestReflect extends Test {
 			f( t == null );
 			if( name == u("Enum") ) {
 				// neither an enum or a class
-			} else if( t == MyEnum ) {
+			} else if( t == MyEnum || t == Bool ) {
 				eq( Type.getEnumName(t), name );
 				eq( Type.resolveEnum(name), t );
 			} else {
