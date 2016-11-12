@@ -42,7 +42,7 @@ private typedef NativeString = String;
 			if ( index >= me.length() || index < 0 )
 				return null;
 			else
-				return me.codePointAt(index);
+				return (int) me.charAt(index);
 	')
 	public static function charCodeAt(me:NativeString, index:Int):Null<Int>
 	{
