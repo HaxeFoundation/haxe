@@ -1,4 +1,3 @@
-
 (**
 	Compatible with PHP 7+
 *)
@@ -562,6 +561,14 @@ let inject_defaults (ctx:Common.context) (func:tfunc) =
 let is_constant_string expr =
 	match expr.eexpr with
 		| TConst (TString _) -> true
+		| _ -> false
+
+(**
+	Check if `expr` is a constant null
+*)
+let is_constant_null expr =
+	match expr.eexpr with
+		| TConst TNull -> true
 		| _ -> false
 
 (**
@@ -1886,7 +1893,7 @@ class virtual type_builder ctx wrapper =
 				self#write ")"
 			in
 			let write_for_concat expr =
-				if (is_constant expr) || (is_concatenation expr) then
+				if ((is_constant expr) && not (is_constant_null expr)) || (is_concatenation expr) then
 					self#write_expr expr
 				else begin
 					self#write "(";
