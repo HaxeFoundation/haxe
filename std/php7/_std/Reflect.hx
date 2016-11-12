@@ -163,7 +163,7 @@ using php7.Global;
 	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
 		return function () {
-			return Global.call_user_func_array(f, Global.func_get_args());
+			return Global.call_user_func(f, @:privateAccess Array.wrap(Global.func_get_args()));
 		}
 	}
 
