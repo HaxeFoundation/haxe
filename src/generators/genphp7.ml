@@ -3008,11 +3008,14 @@ class class_builder ctx (cls:tclass) =
 			List.iter (fun (arg_name, _, _) -> vars#declared arg_name) args;
 			self#write_doc (DocMethod (args, return_type, field.cf_doc));
 			self#write_indentation;
-			self#write ((get_visibility field.cf_meta) ^ " function ");
+			self#write ((get_visibility field.cf_meta) ^ " function " ^ field.cf_name);
 			(match field.cf_expr with
-				| None -> () (* interface *)
-				| Some { eexpr = TFunction fn } ->
-					self#write (field.cf_name ^ " (");
+				| None -> (* interface *)
+					self#write " (";
+					write_args buffer (self#write_arg true) args;
+					self#write ");\n";
+				| Some { eexpr = TFunction fn } -> (* normal class *)
+					self#write " (";
 					write_args buffer self#write_function_arg fn.tf_args;
 					self#write ")\n";
 					self#write_line "{";
@@ -3023,11 +3026,11 @@ class class_builder ctx (cls:tclass) =
 					self#write ("if (" ^ field_access ^ " !== " ^ default_value ^ ") return call_user_func_array(" ^ field_access ^ ", func_get_args());\n");
 					self#write_fake_block fn.tf_expr;
 					self#indent_less;
-					self#write_line "}"
+					self#write_line "}";
+					(* Don't forget to create a field for default value *)
+					self#write_statement ("protected $__hx__default__" ^ field.cf_name)
 				| _ -> fail field.cf_pos __POS__
 			);
-			(* Don't forget to create a field for default value *)
-			self#write_statement ("protected $__hx__default__" ^ field.cf_name)
 		(**
 			Writes initialization code for instances of this class
 		*)
