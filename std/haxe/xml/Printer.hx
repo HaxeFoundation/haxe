@@ -94,8 +94,10 @@ class Printer {
 				}
 			case ProcessingInstruction:
 				write("<?" + value.nodeValue + "?>");
+				newline();
 			case DocType:
 				write("<!DOCTYPE " + value.nodeValue + ">");
+				newline();
 		}
 	}
 
