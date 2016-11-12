@@ -45,7 +45,7 @@ class Array<T> implements ArrayAccess<Int,T> {
 	}
 
 	public function filter(f:T->Bool):Array<T> {
-		return wrap(Global.array_filter(arr, f));
+		return wrap(Global.array_values(Global.array_filter(arr, f)));
 	}
 
 	public function indexOf(x:T, ?fromIndex:Int):Int {
