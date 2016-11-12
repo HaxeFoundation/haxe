@@ -41,11 +41,11 @@ import php7.*;
 	}
 
 	public static function startsWith( s : String, start : String ) : Bool {
-		return Global.strpos(s, start) == 0;
+		return start == '' || Global.strpos(s, start) == 0;
 	}
 
 	public static function endsWith( s : String, end : String ) : Bool {
-		return Global.strpos(s, end, -1) == s.length - end.length;
+		return end == '' || Global.substr(s, -end.length) == end;
 	}
 
 	public static function isSpace( s : String, pos : Int ) : Bool {
@@ -77,7 +77,10 @@ import php7.*;
 		return Global.str_pad(s, padLength, c, Const.STR_PAD_LEFT);
 	}
 
-	public inline static function replace( s : String, sub : String, by : String ) : String {
+	public static function replace( s : String, sub : String, by : String ) : String {
+		if (sub == '') {
+			return Global.implode(by, Global.str_split(s));
+		}
 		return Global.str_replace(sub, by, s);
 	}
 
