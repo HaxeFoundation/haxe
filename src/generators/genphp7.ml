@@ -2016,7 +2016,11 @@ class virtual type_builder ctx wrapper =
 					self#write_expr expr;
 					self#write ")"
 				| (_, FInstance (_, _, { cf_name = name })) -> write_access "->" name
-				| (_, FStatic (_, { cf_name = name; cf_kind = Var _ })) -> write_access "::" ("$" ^ name)
+				| (_, FStatic (_, { cf_name = name; cf_kind = Var _ })) ->
+					(match (reveal_casts expr).eexpr with
+						| TTypeExpr _ -> write_access "::" ("$" ^ name)
+						| _ -> write_access "->" name
+					)
 				| (_, FStatic (_, { cf_name = name; cf_kind = Method MethDynamic })) ->
 					(match expr_hierarchy with
 						| _ :: { eexpr = TCall ({ eexpr = TField (e, a) }, _) } :: _ when a == access ->
