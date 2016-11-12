@@ -102,8 +102,8 @@ import php7.*;
 	public function replace( s : String, by : String ) : String {
 		by = Global.str_replace("\\$", "\\\\$", by);
 		by = Global.str_replace("$$", "\\$", by);
-		if (Global.preg_match('/\\\\([^?].*?\\\\)/', re)) {
-			by = Global.preg_replace('/\\$(\\d+)/', '\\\\\\$\\1', by);
+		if (!Global.preg_match('/\\\\([^?].*?\\\\)/', re)) {
+			by = Global.preg_replace('/\\$(\\d+)/', '\\$\\1', by);
 		}
 		return Global.preg_replace(re, by, s, global ? -1 : 1);
 	}
