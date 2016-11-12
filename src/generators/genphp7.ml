@@ -386,6 +386,15 @@ let is_sure_var_field_access expr =
 		| _ -> false
 
 (**
+	Check if specified unary operation modifies value in place
+*)
+let is_modifying_unop op =
+	match op with
+		| Increment
+		| Decrement -> true
+		| _ -> false
+
+(**
 	Indicates whether `expr` is a field access which should be generated as global namespace function
 *)
 let is_php_global expr =
@@ -1553,26 +1562,39 @@ class virtual type_builder ctx wrapper =
 			Writes TArray to output buffer
 		*)
 		method private write_expr_array_access target index =
-			self#write_expr target;
+			(*self#write_expr target;
 			self#write "[";
 			self#write_expr index;
-			self#write "]"
-			(*let write_index left_bracket right_bracket =
+			self#write "]"*)
+			let write_index left_bracket right_bracket =
 				self#write left_bracket;
 				self#write_expr index;
 				self#write right_bracket
 			in
-			self#write_expr target;
 			match follow target.etype with
 				| TInst ({ cl_path = path }, _) when path = array_type_path ->
-					(match expr_hierarchy with
-						| _ :: { eexpr = TBinop (OpAssign, { eexpr = TArray (t, i) }, _) } :: _ when t == target -> write_index "[" "]"
-						| _ :: { eexpr = TBinop (OpAssignOp _, { eexpr = TArray (t, i) }, _) } :: _ when t == target -> write_index "[" "]"
+					(match self#parent_expr with
+						| Some { eexpr = TBinop (OpAssign, { eexpr = TArray (t, i) }, _) } when t == target ->
+							self#write_expr target;
+							write_index "[" "]"
+						| Some { eexpr = TBinop (OpAssignOp _, { eexpr = TArray (t, i) }, _) } when t == target ->
+							self#write_expr target;
+							write_index "[" "]"
+						| Some { eexpr = TUnop (op, _, { eexpr = TArray (t, i) }) } when t == target && is_modifying_unop op ->
+							self#write_expr target;
+							write_index "[" "]"
+						| Some { eexpr = TField ({ eexpr = TArray (t, i) }, _) } ->
+							self#write_expr target;
+							write_index "[" "]"
 						| _ ->
-							self#write "->offsetGet";
-							write_index "(" ")"
+							self#write "(";
+							self#write_expr target;
+							self#write "->arr";
+							write_index "[" "] ?? null)"
 					)
-				| _ -> write_index "[" "]"*)
+				| _ ->
+					self#write_expr target;
+					write_index "[" "]"
 		(**
 			Writes TVar to output buffer
 		*)
