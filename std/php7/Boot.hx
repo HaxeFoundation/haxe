@@ -165,6 +165,13 @@ class Boot {
 	}
 
 	/**
+		Returns Class<HxClass>
+	**/
+	public static inline function getHxClass() : HxClass {
+		return cast HxClass;
+	}
+
+	/**
 		Returns either Haxe class name for specified `phpClassName` or (if no such Haxe class registered) `phpClassName`.
 	**/
 	public static function getClassName( phpClassName:String ) : String {

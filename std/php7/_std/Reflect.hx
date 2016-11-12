@@ -43,6 +43,15 @@ using php7.Global;
 			return Boot.closure(o, field);
 		}
 
+		if (Syntax.instanceof(o, cast Boot.getHxClass())) {
+			if (Global.property_exists(o.phpClassName, field)) {
+				return Syntax.getField(o, field);
+			}
+			if (Global.method_exists(o.phpClassName, field)) {
+				return Boot.closure(o.phpClassName, field);
+			}
+		}
+
 		return null;
 	}
 
