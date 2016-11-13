@@ -879,12 +879,12 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.proc-open.php
 	**/
-	static function proc_open( cmd:String, descriptorspec:NativeArray, pipes:NativeArray, ?cwd:String, ?env:NativeArray, ?other_options:NativeArray ) : EitherType<Resource,Bool>;
+	static function proc_open( cmd:String, descriptorspec:NativeArray, pipes:NativeIndexedArray<Resource>, ?cwd:String, ?env:NativeArray, ?other_options:NativeArray ) : EitherType<Resource,Bool>;
 
 	/**
 		@see http://php.net/manual/en/function.proc-get-status.php
 	**/
-	static function proc_get_status( process:Resource ) : NativeArray;
+	static function proc_get_status( process:Resource ) : EitherType<Bool,NativeAssocArray<Scalar>>;
 
 	/**
 		@see http://php.net/manual/en/function.proc-close.php
@@ -895,4 +895,9 @@ extern class Global {
 		@see http://php.net/manual/en/function.proc-terminate.php
 	**/
 	static function proc_terminate( process:Resource, signal:Int = 15 ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.stream-select.php
+	**/
+	static function stream_select( read:NativeArray, write:NativeArray, except:NativeArray, tv_sec:Int, tv_usec:Int = 0 ) : Bool;
 }

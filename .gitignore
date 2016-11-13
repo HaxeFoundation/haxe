@@ -91,3 +91,5 @@ tests/misc/projects/Issue4070/cpp/
 /tests/misc/eventLoop/eventLoop.py
 /tests/misc/eventLoop/php
 *.vscode/
+
+/tests/sys/temp
