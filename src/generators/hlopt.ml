@@ -21,6 +21,11 @@
  *)
 open Hlcode
 
+module ISet = Set.Make(struct
+	let compare = Pervasives.compare
+	type t = int
+end)
+
 type cur_value =
 	| VUndef
 	| VReg of int
@@ -39,6 +44,9 @@ type block = {
 	mutable bprev : block list;
 	mutable bloop : bool;
 	mutable bstate : reg_state array option;
+	mutable bneed : ISet.t;
+	mutable bneed_all : ISet.t option;
+	mutable bwrite : (int, int) PMap.t;
 }
 
 type control =
@@ -441,6 +449,9 @@ let code_graph (f:fundecl) =
 				bprev = [];
 				bloop = false;
 				bstate = None;
+				bneed = ISet.empty;
+				bwrite = PMap.empty;
+				bneed_all = None;
 			} in
 			Hashtbl.add blocks_pos pos b;
 			let rec loop i =
@@ -488,6 +499,27 @@ let optimize dump (f:fundecl) =
 
 	let read_counts = Array.make nregs 0 in
 	let write_counts = Array.make nregs 0 in
+	let last_write = Array.make nregs (-1) in
+
+	let bit_regs = 30 in
+	let stride = (nregs + bit_regs - 1) / bit_regs in
+	let live_bits = Array.make (Array.length f.code * stride) 0 in
+
+	let set_live r min max =
+		let offset = r / bit_regs in
+		let mask = 1 lsl (r - offset * bit_regs) in
+		if min < 0 || max >= Array.length f.code then assert false;
+		for i=min to max do
+			let p = i * stride + offset in
+			Array.unsafe_set live_bits p ((Array.unsafe_get live_bits p) lor mask);
+		done;
+	in
+	let is_live r i =
+		let offset = r / bit_regs in
+		let mask = 1 lsl (r - offset * bit_regs) in
+		live_bits.(i * stride + offset) land mask <> 0
+	in
+
 	let read_count r = read_counts.(r) <- read_counts.(r) + 1 in
 	let write_count r = write_counts.(r) <- write_counts.(r) + 1 in
 
@@ -544,12 +576,19 @@ let optimize dump (f:fundecl) =
 			) l;
 			s
 		in
-		let undef r =
+		let unalias r =
 			r.ralias.rbind <- List.filter (fun r2 -> r2 != r) r.ralias.rbind;
 			r.ralias <- r
 		in
 		let rec loop i =
 			let do_read r =
+				let w = last_write.(r) in
+				if w < b.bstart || w > i then begin
+					last_write.(r) <- i;
+					set_live r b.bstart i;
+					b.bneed <- ISet.add r b.bneed;
+				end else
+					set_live r (w + 1) i;
 				read_count r
 			in
 			let do_write r =
@@ -557,15 +596,17 @@ let optimize dump (f:fundecl) =
 				List.iter (fun s2 -> s2.ralias <- s2) s.rbind;
 				s.rbind <- [];
 				s.rnullcheck <- false;
+				last_write.(r) <- i;
+				b.bwrite <- PMap.add r i b.bwrite;
 				write_count r;
-				undef s
+				unalias s
 			in
 			if i > b.bend then () else
 			let op = op i in
 			if dstate then print_state i state;
 			(match op with
-			| OIncr r | ODecr r | ORef (_,r) ->  do_write r
-			| OCallClosure (_,r,_) when f.regs.(r) = HDyn && (match f.regs.(state.(r).ralias.rindex) with HFun (_,rt) -> not (is_dynamic rt) | HDyn -> false | _ -> true) -> do_write r (* Issue3218.hx *)
+			| OIncr r | ODecr r | ORef (_,r) -> unalias state.(r)
+			| OCallClosure (_,r,_) when f.regs.(r) = HDyn && (match f.regs.(state.(r).ralias.rindex) with HFun (_,rt) -> not (is_dynamic rt) | HDyn -> false | _ -> true) -> unalias state.(r) (* Issue3218.hx *)
 			| _ -> ());
 			let op = opcode_map (fun r ->
 				let s = state.(r) in
@@ -583,6 +624,9 @@ let optimize dump (f:fundecl) =
 				sd.ralias <- sv;
 				sd.rnullcheck <- sv.rnullcheck;
 				if not (List.memq sd sv.rbind) then sv.rbind <- sd :: sv.rbind;
+			| OIncr r | ODecr r ->
+				do_read r;
+				do_write r;
 			| ONullCheck r ->
 				let s = state.(r) in
 				if s.rnullcheck then set_nop i "nullcheck" else begin do_read r; s.rnullcheck <- true; end;
@@ -622,25 +666,58 @@ let optimize dump (f:fundecl) =
 	in
 	loop 0;
 
+	(* liveness *)
+
+	let rec live b =
+		match b.bneed_all with
+		| Some a -> a
+		| None ->
+			let need_sub = List.fold_left (fun acc b2 ->
+				(* loop : first pass does not recurse, second pass uses cache *)
+				if b2.bloop && b2.bstart < b.bstart then (match b2.bneed_all with None -> acc | Some s -> ISet.union acc s) else
+				ISet.union acc (live b2)
+			) ISet.empty b.bnext in
+			let need_sub = ISet.filter (fun r ->
+				try
+					let w = PMap.find r b.bwrite in
+					set_live r (w + 1) b.bend;
+					false
+				with Not_found ->
+					set_live r b.bstart b.bend;
+					true
+			) need_sub in
+			let need = ISet.union b.bneed need_sub in
+			b.bneed_all <- Some need;
+			if b.bloop then begin
+				(*
+					if we are a loop, we need a second pass to perform fixed point
+					first clear the cache within the loop from backward
+					then rebuild the cache to make sure liveness ranges are correctly set
+				*)
+				let rec clear b2 =
+					match b2.bneed_all with
+					| Some _ when b2.bstart > b.bstart ->
+						b2.bneed_all <- None;
+						List.iter clear b2.bprev
+					| _ -> ()
+				in
+				List.iter (fun b2 -> if b2.bstart > b.bstart then clear b2) b.bprev;
+				List.iter (fun b -> ignore(live b)) b.bnext;
+			end;
+			need
+	in
+	ignore(live root);
+
 	(* nop *)
 
-	let todo = ref true in
-	let rec loop i =
-		if i < 0 then () else begin
+	for i=0 to Array.length f.code - 1 do
 		(match op i with
-		| OMov (d,r) when read_counts.(d) = 0 ->
+		| OMov (d,r) when not (is_live d (i + 1)) ->
 			let n = read_counts.(r) - 1 in
-			if n = 0 then todo := true;
 			read_counts.(r) <- n;
 			write_counts.(d) <- write_counts.(d) - 1;
 			set_nop i "unused"
 		| _ -> ());
-		loop (i - 1)
-		end
-	in
-	while !todo do
-		todo := false;
-		loop (Array.length f.code - 1);
 	done;
 
 	(* reg map *)
@@ -662,18 +739,26 @@ let optimize dump (f:fundecl) =
 		let rec loop i block =
 			if i = Array.length f.code then () else
 			let block = try
-				let nblock = Hashtbl.find blocks_pos i in
+				let b = Hashtbl.find blocks_pos i in
 				write (Printf.sprintf "\t----- [%s] (%X)"
-					(String.concat "," (List.map (fun b -> Printf.sprintf "%X" b.bstart) nblock.bnext))
-					nblock.bend
+					(String.concat "," (List.map (fun b -> Printf.sprintf "%X" b.bstart) b.bnext))
+					b.bend
 				);
-				nblock
+				let need = String.concat "," (List.map string_of_int (ISet.elements b.bneed)) in
+				let wr = String.concat " " (List.rev (PMap.foldi (fun r p acc -> Printf.sprintf "r%d:%X" r p :: acc) b.bwrite [])) in
+				write ("\tNEED=" ^ need ^ "\tWRITE=" ^ wr);
+				b
 			with Not_found ->
 				block
 			in
 			let old = old_code.(i) in
 			let op = op i in
-			write (Printf.sprintf "\t@%-3X %-20s %s" i (ostr string_of_int old) (if opcode_eq old op then "" else ostr string_of_int op));
+			let rec live_loop r l =
+				if r = nregs then List.rev l else
+				live_loop (r + 1) (if is_live r i then r :: l else l)
+			in
+			let live = "LIVE=" ^ String.concat "," (List.map string_of_int (live_loop 0 [])) in
+			write (Printf.sprintf "\t@%-3X %-20s %-20s%s" i (ostr string_of_int old) (if opcode_eq old op then "" else ostr string_of_int op) live);
 			loop (i + 1) block
 		in
 		write (Printf.sprintf "%s@%d" (fundecl_name f) f.findex);
@@ -685,6 +770,7 @@ let optimize dump (f:fundecl) =
 		loop 0 root;
 		write "";
 		write "";
+		(match dump with None -> () | Some ch -> IO.flush ch);
 	end;
 
 	(* remap *)
