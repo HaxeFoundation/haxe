@@ -88,6 +88,8 @@ class TestArguments extends haxe.unit.TestCase {
 		"bin/python/TestArguments.py";
 	#elseif php
 		"bin/php/TestArguments/index.php";
+	#elseif php7
+		"bin/php7/TestArguments/index.php";
 	#elseif lua
 		"bin/lua/TestArguments.lua";
 	#else

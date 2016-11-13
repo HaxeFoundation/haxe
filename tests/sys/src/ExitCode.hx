@@ -31,6 +31,8 @@ class ExitCode {
 		"bin/python/ExitCode.py";
 	#elseif php
 		"bin/php/ExitCode/index.php";
+	#elseif php7
+		"bin/php7/ExitCode/index.php";
 	#elseif lua
 		"bin/lua/ExitCode.lua";
 	#else

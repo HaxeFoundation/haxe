@@ -121,7 +121,7 @@ class TestCommandBase extends haxe.unit.TestCase {
 					run(python.lib.Sys.executable, [bin].concat(args));
 				#elseif neko
 					run("neko", [bin].concat(args));
-				#elseif php
+				#elseif (php || php7)
 					run(untyped __php__("defined('PHP_BINARY') ? PHP_BINARY : 'php'"), [bin].concat(args));
 				#elseif lua
 					switch(Sys.getEnv("LUA")){
