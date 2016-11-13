@@ -900,4 +900,14 @@ extern class Global {
 		@see http://php.net/manual/en/function.stream-select.php
 	**/
 	static function stream_select( read:NativeArray, write:NativeArray, except:NativeArray, tv_sec:Int, tv_usec:Int = 0 ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.ini-get.php
+	**/
+	static function ini_get( var_name:String ) : EitherType<Bool,String>;
+
+	/**
+		@see http://php.net/manual/en/function.ini-set.php
+	**/
+	static function ini_set( var_name:String, newvalue:String ) : EitherType<Bool,String>;
 }
