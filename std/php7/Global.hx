@@ -584,7 +584,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.system.php
 	**/
-	static function system( command:String, ?return_var:AsVar<Int> ) : EitherType<String,Bool>;
+	static function system( command:String, ?return_var:Ref<Int> ) : EitherType<String,Bool>;
 
 	/**
 		@see http://php.net/manual/en/function.microtime.php

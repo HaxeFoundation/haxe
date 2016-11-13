@@ -20,10 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import php7.Global;
-import php7.Const;
-import php7.SuperGlobal;
-import php7.NativeAssocArray;
+import php7.*;
 import sys.io.FileOutput;
 import sys.io.FileInput;
 
@@ -93,6 +90,7 @@ import sys.io.FileInput;
 			}
 		}
 		var result = 0;
+		result = Boot.deref(result);
 		Global.system(cmd, result);
 		return result;
 	}
