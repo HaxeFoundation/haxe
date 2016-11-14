@@ -351,6 +351,70 @@ and is_const_string e = match e.eexpr with
 	| TConst(TString(_)) -> true
 	| _ -> false
 
+and expr_field dce e fa is_call_expr =
+	let do_default = fun () ->
+		let n = field_name fa in
+			(match fa with
+			| FAnon cf ->
+				if Meta.has Meta.Optional cf.cf_meta then begin
+					check_and_add_feature dce "anon_optional_read";
+					check_and_add_feature dce ("anon_optional_read." ^ n);
+				end else begin
+					check_and_add_feature dce "anon_read";
+					check_and_add_feature dce ("anon_read." ^ n);
+				end
+			| FDynamic _ ->
+				check_and_add_feature dce "dynamic_read";
+				check_and_add_feature dce ("dynamic_read." ^ n);
+			| _ -> ());
+			begin match follow e.etype with
+				| TInst(c,_) ->
+					mark_class dce c;
+					field dce c n false;
+				| TAnon a ->
+					(match !(a.a_status) with
+					| Statics c ->
+						mark_class dce c;
+						field dce c n true;
+					| _ -> ())
+
+
+				| _ -> ()
+			end
+	in
+	let mark_instance_field_access c cf =
+		if (not is_call_expr && dce.com.platform = Python) then begin
+			if c.cl_path = ([], "Array") then begin
+				check_and_add_feature dce "closure_Array";
+				check_and_add_feature dce ("python.internal.ArrayImpl." ^ cf.cf_name);
+				check_and_add_feature dce ("python.internal.ArrayImpl")
+			end
+			else if c.cl_path = ([], "String") then begin
+				check_and_add_feature dce "closure_String";
+				check_and_add_feature dce ("python.internal.StringImpl." ^ cf.cf_name);
+				check_and_add_feature dce ("python.internal.StringImpl")
+			end
+		end;
+	in
+	begin match fa with
+		| FStatic(c,cf) ->
+			mark_class dce c;
+			mark_field dce c cf true;
+		| FInstance(c,_,cf) ->
+			(*mark_instance_field_access c cf;*)
+			mark_class dce c;
+			mark_field dce c cf false
+		| FClosure (Some(c, _), cf) ->
+		 	mark_instance_field_access c cf;
+			do_default()
+		| FClosure _ ->
+			do_default()
+		| _ ->
+			do_default()
+	end;
+	expr dce e;
+
+
 and expr dce e =
 	mark_t dce e.epos e.etype;
 	match e.eexpr with
@@ -485,46 +549,12 @@ and expr dce e =
 		check_and_add_feature dce "binop_>>>";
 		expr dce e1;
 		expr dce e2;
+	| TCall(({ eexpr = TField(ef, fa) } as e2), el ) ->
+		mark_t dce e2.epos e2.etype;
+		expr_field dce ef fa true;
+		List.iter (expr dce) el;
 	| TField(e,fa) ->
-		begin match fa with
-			| FStatic(c,cf) ->
-				mark_class dce c;
-				mark_field dce c cf true;
-			| FInstance(c,_,cf) ->
-				mark_class dce c;
-				mark_field dce c cf false;
-			| _ ->
-
-				let n = field_name fa in
-				(match fa with
-				| FAnon cf ->
-					if Meta.has Meta.Optional cf.cf_meta then begin
-						check_and_add_feature dce "anon_optional_read";
-						check_and_add_feature dce ("anon_optional_read." ^ n);
-					end else begin
-						check_and_add_feature dce "anon_read";
-						check_and_add_feature dce ("anon_read." ^ n);
-					end
-				| FDynamic _ ->
-					check_and_add_feature dce "dynamic_read";
-					check_and_add_feature dce ("dynamic_read." ^ n);
-				| _ -> ());
-				begin match follow e.etype with
-					| TInst(c,_) ->
-						mark_class dce c;
-						field dce c n false;
-					| TAnon a ->
-						(match !(a.a_status) with
-						| Statics c ->
-							mark_class dce c;
-							field dce c n true;
-						| _ -> ())
-
-
-					| _ -> ()
-				end;
-		end;
-		expr dce e;
+		expr_field dce e fa false;
 	| TThrow e ->
 		check_and_add_feature dce "has_throw";
 		expr dce e;
