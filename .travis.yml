@@ -63,6 +63,7 @@ install_linux: &install_linux
 
 install_osx: &install_osx
   # Install haxe dependencies
+  - brew uninstall --force brew-cask # https://github.com/caskroom/homebrew-cask/pull/15381
   - travis_retry brew update
   - travis_retry brew install ocaml camlp4;
   # Install neko
