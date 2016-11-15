@@ -1048,8 +1048,6 @@ let interp code =
 				traps := (r,target) :: !traps
 			| OEndTrap _ ->
 				traps := List.tl !traps
-			| ODump r ->
-				print_endline (vstr_d (get r));
 			| ONop _ ->
 				()
 			);
@@ -2214,8 +2212,6 @@ let check code =
 				can_jump idx
 			| OEndTrap _ ->
 				()
-			| ODump r ->
-				ignore(rtype r);
 			| ONop _ ->
 				()
 		) f.code
@@ -2610,7 +2606,7 @@ let make_spec (code:code) (f:fundecl) =
 			| OEnumIndex (d,r) -> args.(d) <- SConv ("index",args.(r))
 			| OEnumField (d,r,fid,cid) -> args.(d) <- SEnumField (args.(r),fid,cid)
 			| OSetEnumField (e,fid,r) -> semit (SSetEnumField (args.(e),fid,args.(r)))
-			| ODump _ | ONop _ -> ()
+			| ONop _ -> ()
 		done;
 		Hashtbl.add block_args b.bstart args
 	in

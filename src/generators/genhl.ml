@@ -1710,9 +1710,6 @@ and eval_expr ctx e =
 			let r = alloc_tmp ctx HI32 in
 			op ctx (OGetTID (r,eval_to ctx v HType));
 			r
-		| "$dump", [v] ->
-			op ctx (ODump (eval_expr ctx v));
-			alloc_tmp ctx HVoid
 		| "$resources", [] ->
 			let tdef = (try List.find (fun t -> (t_infos t).mt_path = (["haxe";"_Resource"],"ResourceContent")) ctx.com.types with Not_found -> assert false) in
 			let t = class_type ctx (match tdef with TClassDecl c -> c | _ -> assert false) [] false in

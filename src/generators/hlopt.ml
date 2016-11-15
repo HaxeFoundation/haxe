@@ -151,8 +151,6 @@ let opcode_fx frw op =
 		write d
 	| OSetEnumField (a,_,b) ->
 		read a; read b
-	| ODump r ->
-		read r
 	| ONop _ ->
 		()
 
@@ -422,8 +420,6 @@ let opcode_map read write op =
 		OMakeEnum (write d, e, rl)
 	| OSetEnumField (a,f,b) ->
 		OSetEnumField (read a, f, read b)
-	| ODump r ->
-		ODump (read r)
 	| ONop _ ->
 		op
 
