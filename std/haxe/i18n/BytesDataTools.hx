@@ -9,7 +9,7 @@ using cpp.NativeArray;
 
 class BytesDataTools {
 
-	#if (!js)
+	#if (!(js))
 
 	public static function alloc( length : Int ) : BytesData {
 		#if neko
@@ -30,6 +30,10 @@ class BytesDataTools {
 		return new java.NativeArray(length);
 		#elseif python
 		return new python.Bytearray(length);
+		#elseif hl
+		var b = new hl.types.Bytes(length);
+		b.fill(0, length, 0);
+		return new BytesData(b,length);
 		#else
 		var a = new Array();
 		for( i in 0...length )
@@ -52,6 +56,8 @@ class BytesDataTools {
 		return untyped b[pos] & 0xFF;
 		#elseif python
 		return python.Syntax.arrayAccess(b, pos);
+		#elseif hl
+		return if ((pos:UInt) >= (getLength(b) : UInt)) 0 else b[pos];
 		#else
 		return b[pos];
 		#end
@@ -76,6 +82,8 @@ class BytesDataTools {
 		python.Syntax.pythonCode("b[{0}:{0}+{1}] = src[srcpos:srcpos+{1}]", pos, len);
 		#elseif cpp
 		b.blit(pos, src, srcpos, len);
+		#elseif hl
+		b.bytes.blit(pos, src.bytes, srcpos, len);
 		#else
 		var b1 = b;
 		var b2 = src;
@@ -107,6 +115,8 @@ class BytesDataTools {
 		b[pos] = cast v;
 		#elseif python
 		python.Syntax.arraySet(b, pos, v & 0xFF);
+		#elseif hl
+		b[pos] = v;
 		#else
 		b[pos] = v & 0xFF;
 		#end
@@ -121,6 +131,10 @@ class BytesDataTools {
 		return b.length;
 		#elseif cs
 		return b.Length;
+		#elseif hl
+		return b.length;
+		#elseif lua
+		return b.length;
 		#else
 		return untyped b.length;
 		#end
@@ -150,6 +164,8 @@ class BytesDataTools {
 		return newarr;
 		#elseif python
 		return python.Syntax.arrayAccess(b, pos, pos+len);
+		#elseif hl
+		return new BytesData(b.bytes.sub(pos, len), len);
 		#else
 		return b.slice(pos,pos+len);
 		#end
@@ -178,6 +194,15 @@ class BytesDataTools {
 		catch (e:Dynamic) throw e;
 		#elseif python
 		return python.Syntax.pythonCode("b[{0}:{0}+{1}].decode('UTF-8','replace')", pos, len);
+		#elseif lua
+		var begin = cast(Math.min(pos, getLength(b)),Int);
+		var end = cast(Math.min(pos+len,getLength(b)),Int);
+		return [for (i in begin...end) String.fromCharCode(b[i])].join("");
+		#elseif hl
+		var b1 = new hl.types.Bytes(len + 1);
+		b1.blit(0, b, pos, len);
+		b1[len] = 0;
+		return @:privateAccess String.fromUTF8(b1);
 		#else
 		var s = "";
 		var b = b;

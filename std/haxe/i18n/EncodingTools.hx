@@ -12,8 +12,8 @@ import haxe.i18n.Encoding;
 
 class EncodingTools {
 
-	public static inline var minHighSurrogate : Int = 0xD800;
-	public static inline var maxHighSurrogate : Int = 0xDBFF;
+	/*
+	
 
 	public static inline var minLowSurrogate : Int = 0xDC00;
 	public static inline var maxLowSurrogate : Int = 0xDFFF;
@@ -21,9 +21,7 @@ class EncodingTools {
 	public static inline var minCodePoint : Int = 0x0000;
 	public static inline var maxCodePoint : Int = 0x10FFFF;
 
-	public static inline function isHighSurrogate(code : Int) : Bool {
-		return minHighSurrogate <= code && code <= maxHighSurrogate;
-	}
+	
 
 	public static inline function isLowSurrogate(code : Int) : Bool {
 		return minLowSurrogate <= code && code <= maxLowSurrogate;
@@ -32,11 +30,19 @@ class EncodingTools {
 	public static inline function isScalar(code : Int) : Bool {
 		return minCodePoint <= code && code <= maxCodePoint && !isHighSurrogate(code) && !isLowSurrogate(code);
 	}
+	*/
 
+	public static inline var minHighSurrogate : Int = 0xD800;
+	public static inline var maxHighSurrogate : Int = 0xDBFF;
+
+	public static inline function isHighSurrogate(code : Int) : Bool {
+		return minHighSurrogate <= code && code <= maxHighSurrogate;
+	}
 
 	
 	public static function ucs2ToUtf16 (s:Ucs2):Utf16 {
 		// every ucs2 character is a valid utf16 character
+		// TODO: this could be a no op, we can reuse the same bytes
 		return Utf16.fromBytes(s.toBytes());
 	}
 	
@@ -50,14 +56,11 @@ class EncodingTools {
 		return Ucs2.fromBytes(s.toBytes()); 
 	}
 	
-
-
-	
 	public static function ucs2ToUtf8 (s:Ucs2):Utf8 {
 		return Utf8.fromBytes(ucs2ToUtf8ByteAccess(s).toBytes());
 	}
-	
 
+	
 	public static inline function utf8ToUcs2 (s:Utf8):Ucs2 {
 		// TODO this could be done without creating Bytes via fromByteAccess
 		return Ucs2.fromBytes(utf8ToUcs2ByteAccess(s).toBytes());
@@ -183,31 +186,32 @@ class EncodingTools {
        	It returns the number of bytes which the utf-8 character takes.
 	*/
 	static function charUtf8ToUcs2 (input:ByteAccess, start:Int, buf:ByteAccessBuffer):Int {
-	    if (input.get(start) < 0x80) {
+		var first = input.fastGet(start); 
+	    if (first < 0x80) {
 			/* One byte (ASCII) case. */
 			buf.addByte(0);
-			buf.addByte( input.get(start) );
+			buf.addByte( first );
 
 			return 1;
 	    }
-	    if ((input.get(start) & 0xE0) == 0xE0) {
+	    if ((first & 0xE0) == 0xE0) {
 			/* Three byte case. */
-	        if (input.get(start+1) < 0x80 || input.get(start+1) > 0xBF ||
-		    	input.get(start+2) < 0x80 || input.get(start+2) > 0xBF) {
+	        if (input.fastGet(start+1) < 0x80 || input.fastGet(start+1) > 0xBF ||
+		    	input.fastGet(start+2) < 0x80 || input.fastGet(start+2) > 0xBF) {
 	            return throw UnicodeError.BadUtf8Input;
 			}
 
-			var val = ((input.get(start) & 0x0F) << 12) | ((input.get(start+1) & 0x3F) << 6) | (input.get(start+2) & 0x3F);
+			var val = ((first & 0x0F) << 12) | ((input.fastGet(start+1) & 0x3F) << 6) | (input.fastGet(start+2) & 0x3F);
 			buf.addByte( (val & 0xFF00) >> 8 );
 			buf.addByte( val & 0x00FF );
 	        return 3;
 	    }
-	    if ((input.get(start) & 0xC0) == 0xC0) {
+	    if ((first & 0xC0) == 0xC0) {
 			/* Two byte case. */
-	        if (input.get(start+1) < 0x80 || input.get(start+1) > 0xBF) {
+	        if (input.fastGet(start+1) < 0x80 || input.fastGet(start+1) > 0xBF) {
 	            return throw UnicodeError.BadUtf8Input;
 			}
-			var val = ((input.get(start) & 0x1F)<<6) | (input.get(start+1) & 0x3F);
+			var val = ((first & 0x1F)<<6) | (input.fastGet(start+1) & 0x3F);
 			buf.addByte( (val & 0xFF00) >> 8 );
 			buf.addByte( (val & 0x00FF) );
 			return 2;

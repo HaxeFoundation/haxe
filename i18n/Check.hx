@@ -5,33 +5,58 @@ import haxe.i18n.Ucs2;
 class Check {
 
 	static function main () {
-		haxe.Log.trace;
-		var vioCode = 0x4E00;
-		var violine = "\u{4E00}";
 
-		trace(violine.length);
+
+		haxe.Log.trace;
+
+		
+
+
+		//var x = new Utf8("foofoofoobarbar");
+		//trace(x.lastIndexOf(new Utf8("r")));
+		//trace(x.indexOf(new Utf8("r")));
+
+		//trace(x.lastIndexOf(new Utf8("bar")));
+
+
+		//var r = [1,2];
+		//trace(r);
+		//trace(r.length);
+		//r.push(1);
+		//trace(r);
+		//trace(r.length);
+//
+		//showCode(0x1D11E, "\u{1D11E}"); // 𝄞
+		//showCode(0x4E00, "\u{4E00}");//一
+
+		
+	}
+
+	static function showCode (code:Int, nativeString:String) {
+
+		
 
 		var codes = [];
-		for (i in 0...violine.length) {
-			var code = violine.charCodeAt(i);
+		for (i in 0...nativeString.length) {
+			var code = nativeString.charCodeAt(i);
 			codes.push(code);
 		}
 
-		trace(codes);
-		trace(codes.map(function (x) return StringTools.hex(x) ));
+		trace("---------------------------------------");
+		trace("length:     " + nativeString.length);
+		trace("codes:      " + codes);
+		trace("hex-codes:  " + codes.map(function (x) return StringTools.hex(x) ));
 		
-		trace(violine);
 		
-
-		trace("native");
-		trace(Bytes.ofString(violine).toHex());
-		trace(StringTools.hex(vioCode));
-		trace("utf-8");
-		trace(Utf8.fromCharCode(vioCode).toBytes().toHex());
-		trace("utf-16");
-		trace(Utf8.fromCharCode(vioCode).toUtf16().toBytes().toHex());
-		trace(Utf16.fromCharCode(vioCode).toBytes().toHex());
-		trace("ucs2-16");
-		trace(Ucs2.fromCharCode(vioCode).toBytes().toHex());
+		trace("code hex:   " + StringTools.hex(code));
+		trace("native str: " + nativeString);
+		trace("native hex: " + Bytes.ofString(nativeString).toHex());
+		trace("utf-8:      " + Utf8.fromCharCode(code).toBytes().toHex());
+		trace("utf-16:     " + Utf16.fromCharCode(code).toBytes().toHex());
+		if (code <= 0xFFFF) {
+		trace("ucs-2:      " + Ucs2.fromCharCode(code).toBytes().toHex());
+		} else {
+		trace("ucs-2:      no representation");
+		}
 	}
 }

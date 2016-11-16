@@ -50,12 +50,16 @@ check-java:
 	haxe-i18n -main Check -java bin/java -debug -dce no
 	java -jar bin/java/Check-Debug.jar
 
+check-cs:
+	haxe-i18n -main Check -cs bin/cs -debug -dce no
+	bin/cs/bin/Check-Debug.exe
+
 check-lua:
-	haxe-i18n -main Check -lua bin/check.lua -debug -dce no
-	lua bin/check.lua
+	haxe-i18n -main Check -lua bin/check.lua
+	luajit bin/check.lua
 
 check-python:
-	haxe-i18n -main Check -python bin/check.py -debug  -dce no
+	haxe-i18n -main Check -python bin/check.py -debug  -dce no -D analyzer-code-motion
 	python3 bin/check.py
 
 check-php:
@@ -65,3 +69,11 @@ check-php:
 check-js:
 	haxe-i18n -main Check -js bin/check.js -debug -D nodejs -dce no
 	node bin/check.js
+
+check-swf:
+	haxe-i18n -main Check -swf bin/check.swf -debug -dce no 
+	flashplayerdebugger bin/check.swf
+
+check-hl:
+	haxe-i18n -main Check -hl bin/check.hl -debug -dce no
+	hl bin/check.hl

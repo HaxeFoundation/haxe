@@ -24,7 +24,7 @@ package haxe.i18n;
 /**
 	Cross platform UCS2 string API.
 **/
-#if (flash || js)
+#if (flash || js || hl)
 
 @:allow(haxe.i18n)
 abstract Ucs2(String) {
@@ -53,6 +53,10 @@ abstract Ucs2(String) {
 
 	public function charCodeAt( index : Int) : Null<Int> {
 		return this.charCodeAt(index);
+	}
+
+	public inline function fastCodeAt( index : Int) : Int {
+		return StringTools.fastCodeAt(this, index);
 	}
 
 	public function indexOf( str : Ucs2, ?startIndex : Int ) : Int {
@@ -142,11 +146,16 @@ abstract Ucs2(String) {
 		return new Ucs2(str);
 	}
 
+	inline function eachCode ( f : Int -> Void) {
+		for (i in 0...length) {
+			var code = fastCodeAt(i);
+			f(code);
+		}
+	}
+
 	public function toCodeArray ():Array<Int> {
 		var res = [];
-		for (i in 0...length) {
-			res.push(charCodeAt(i));
-		}
+		eachCode(function (c) res.push(c));
 		return res;
 	}
 
@@ -177,9 +186,9 @@ abstract Ucs2(ByteAccess) {
 	public var length(get,never) : Int;
 
 	public static inline function fromNativeString (str:String):Ucs2 {
-		#if (js || flash)
+		#if (js || flash || hl)
 			throw "assert"
-		#elseif (neko || cpp || python || php)
+		#elseif (neko || cpp || python || php || lua)
 
 			var bytes = ByteAccess.fromBytes(haxe.io.Bytes.ofString(str));
 			//trace(bytes);
@@ -188,8 +197,6 @@ abstract Ucs2(ByteAccess) {
 			return Ucs2.fromByteAccess(ucs2Bytes);
 		#elseif (java || cs)
 			return new Utf16(str).toUcs2();
-		#elseif lua
-			return new Utf8(str).toUcs2();
 		#end
 	}
 
@@ -197,8 +204,17 @@ abstract Ucs2(ByteAccess) {
 		return cast s;
 	}
 
+	inline function eachCode ( f : Int -> Void) {
+		for (i in 0...length) {
+			var code = fastCodeAt(i);
+			f(code);
+		}
+	}
+
 	public function toCodeArray () {
-		return ByteAccess.fromBytes(toBytes()).toString();
+		var res = [];
+		eachCode(function (c) res.push(c));
+		return res;
 	}
 
 	
@@ -208,7 +224,7 @@ abstract Ucs2(ByteAccess) {
 		this = haxe.i18n.Ucs2.asByteAccess(haxe.i18n.Ucs2.fromNativeString(str));
 	}
 
-function get_length():Int {
+	function get_length():Int {
 		return this.length >> 1;
 	}
 
@@ -289,6 +305,10 @@ function get_length():Int {
 		if (index < 0 || index >= fromByteAccess(this).length) {
 			return null;
 		}
+		return fastCodeAt(index);
+	}
+
+	inline function fastCodeAt( index : Int) : Int {
 		return (this.get(index << 1) << 8) | this.get((index << 1) + 1);
 	}
 

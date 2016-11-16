@@ -25,7 +25,7 @@ package haxe.i18n;
 	Cross platform Utf16 string API.
 **/
 
-#if (java || cs)
+#if false
 import haxe.io.Bytes;
 import haxe.io.BytesData;
 abstract Utf16(String) {
@@ -63,6 +63,10 @@ abstract Utf16(String) {
 
 	public function charCodeAt( index : Int) : Null<Int> {
 		return this.charCodeAt(index);
+	}
+
+	public inline function fastCodeAt( index : Int) : Int {
+		return StringTools.fastCodeAt(this, index);
 	}
 
 	public function indexOf( str : Utf16, ?startIndex : Int ) : Int {
@@ -133,12 +137,22 @@ abstract Utf16(String) {
 		return EncodingTools.utf16ToUcs2(new Utf16(this));
 	}
 
+	inline function eachCode ( f : Int -> Void) {
+		for (i in 0...length) {
+			var code = fastCodeAt(i);
+			f(code);
+		}
+	}
+
 	public function toCodeArray () {
-		return ByteAccess.fromBytes(toBytes()).toString();
+
+		var res = [];
+		eachCode(function (c) res.push(c));
+		return res;
 	}
 
 
-	 	public function toUtf8 ():Utf8 {
+	public function toUtf8 ():Utf8 {
 		return EncodingTools.utf16ToUtf8(new Utf16(this));
 	}
 
@@ -233,29 +247,42 @@ abstract Utf16(ByteAccess) {
 
 	public function toCodeArray () {
 		var res = [];
-		for (i in 0...length) {
-			res.push(charCodeAt(i));
-		}
+		eachCode(function (c) res.push(c));
 		return res;
 	}
 
 	public function charCodeAt( index : Int) : Null<Int> {
+		var len = this.length;
+		if (index < 0 || index >= len) return null;
+
 		var pos = 0;
 		var i = 0;
-		var r:Null<Int> = null;
-		while (r == null && i < this.length) {
+		while (i < len) {
 
 			var b = this.fastGet(i);
 			var size = getCharSize(b);
 			if (pos == index) {
-				r = getCharCode(this, i, size);
+				return getCharCode(this, i, size);
 			} else {
 				pos++;
 				i += size;
 			}
 		}
-		return r;
+		return null;
 	}
+
+
+	inline function eachCode ( f : Int -> Void) {
+		var i = 0;
+		while (i < this.length) {
+			var b = this.fastGet(i);
+			var size = getCharSize(b);
+			var code = getCharCode(this, i, size);
+			f(code);
+			i += size;
+		}
+	}
+
 	public function indexOf( str : Utf16, ?startIndex : Int ) : Int
 	{
 
@@ -488,8 +515,7 @@ abstract Utf16(ByteAccess) {
 	}
 
 	static inline function getCharSize (start2Bytes:Int):Int {
-		return if (EncodingTools.isHighSurrogate(start2Bytes)) 4
-		else 2;
+		return if (EncodingTools.isHighSurrogate(start2Bytes)) 4 else 2;
 	}
 
 	static inline function isUpperCaseLetter (bytes:ByteAccess, pos:Int, size:Int) {
@@ -575,10 +601,11 @@ abstract Utf16(ByteAccess) {
  		return fromByteAccess(ByteAccess.ofData(python.NativeStringTools.encode(s, "utf-16be")));
 		#elseif (neko || cpp || php)
 		return EncodingTools.utf8ToUtf16(new Utf8(s));
- 		#elseif (js || flash)
+ 		#elseif (js || flash || hl)
  		return EncodingTools.ucs2ToUtf16( new Ucs2(s));
  		#else
- 		return fromByteAccess(ByteAccess.fromBytes(haxe.io.Bytes.ofString(s)));
+		var utf8Bytes = haxe.io.Bytes.ofString(s);
+		return Utf8.fromByteAccess(ByteAccess.fromBytes(utf8Bytes)).toUtf16();
  		#end
  	}
 
