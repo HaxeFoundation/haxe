@@ -182,9 +182,10 @@ class RunCi {
 					"libxt6:i386", "libxcursor1:i386", "libnss3:i386", "libgtk2.0-0:i386"
 				]);
 				runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/11/flashplayer_11_sa_debug.i386.tar.gz"], true);
-				runCommand("tar", ["-xf", "flashplayer_11_sa_debug.i386.tar.gz", "-C", Sys.getEnv("HOME")]);
+				runCommand("tar", ["-xf", "flashplayer_11_sa_debug.i386.tar.gz"]);
+				FileSystem.deleteFile("flashplayer_11_sa_debug.i386.tar.gz");
 				File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
-				runCommand(Sys.getEnv("HOME") + "/flashplayerdebugger", ["-v"]);
+				runCommand("./flashplayerdebugger", ["-v"]);
 			case "Mac":
 				runCommand("brew", ["tap", "caskroom/versions"]);
 				runCommand("brew", ["cask", "install", "flash-player-debugger"]);
@@ -203,9 +204,10 @@ class RunCi {
 	static function runFlash(swf:String):Bool {
 		swf = FileSystem.fullPath(swf);
 		Sys.println('going to run $swf');
+		var p = null;
 		switch (systemName) {
 			case "Linux":
-				new Process(Sys.getEnv("HOME") + "/flashplayerdebugger", [swf]);
+				p = new Process("./flashplayerdebugger", [swf]);
 			case "Mac":
 				Sys.command("open", ["-a", "/Applications/Flash Player Debugger.app", swf]);
 		}
@@ -238,12 +240,14 @@ class RunCi {
 				line = traceProcess.stdout.readLine();
 				Sys.println(line);
 				if (line.indexOf("SUCCESS: ") >= 0) {
+					if (p != null) p.kill();
 					return line.indexOf("SUCCESS: true") >= 0;
 				}
 			} catch (e:haxe.io.Eof) {
 				break;
 			}
 		}
+		if (p != null) p.kill();
 		return false;
 	}
 
