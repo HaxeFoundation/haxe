@@ -257,4 +257,38 @@ extern class Const {
 	static var MYSQLI_TRANS_START_READ_ONLY : Int;
 	static var MYSQLI_TRANS_START_READ_WRITE : Int;
 	static var MYSQLI_TRANS_START_CONSISTENT_SNAPSHOT : Int;
+	/**
+		@see http://php.net/manual/en/sqlite.constants.php
+	**/
+	static var SQLITE_ASSOC : Int;
+	static var SQLITE_BOTH : Int;
+	static var SQLITE_NUM : Int;
+	static var SQLITE_OK : Int;
+	static var SQLITE_ERROR : Int;
+	static var SQLITE_INTERNAL : Int;
+	static var SQLITE_PERM : Int;
+	static var SQLITE_ABORT : Int;
+	static var SQLITE_BUSY : Int;
+	static var SQLITE_LOCKED : Int;
+	static var SQLITE_NOMEM : Int;
+	static var SQLITE_READONLY : Int;
+	static var SQLITE_INTERRUPT : Int;
+	static var SQLITE_IOERR : Int;
+	static var SQLITE_NOTADB : Int;
+	static var SQLITE_CORRUPT : Int;
+	static var SQLITE_FORMAT : Int;
+	static var SQLITE_NOTFOUND : Int;
+	static var SQLITE_FULL : Int;
+	static var SQLITE_CANTOPEN : Int;
+	static var SQLITE_PROTOCOL : Int;
+	static var SQLITE_EMPTY : Int;
+	static var SQLITE_SCHEMA : Int;
+	static var SQLITE_TOOBIG : Int;
+	static var SQLITE_CONSTRAINT : Int;
+	static var SQLITE_MISMATCH : Int;
+	static var SQLITE_MISUSE : Int;
+	static var SQLITE_NOLFS : Int;
+	static var SQLITE_AUTH : Int;
+	static var SQLITE_ROW : Int;
+	static var SQLITE_DONE : Int;
 }
