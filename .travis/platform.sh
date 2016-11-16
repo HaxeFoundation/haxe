@@ -1,5 +1,5 @@
 if [ -z "${PLATFORM:-}" ]; then
-  PLATFORM=$TRAVIS_OS_NAME;
+  PLATFORM=${TRAVIS_OS_NAME:-};
 fi
 
 if [ "$PLATFORM" == "osx" ]; then

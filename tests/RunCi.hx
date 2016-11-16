@@ -460,7 +460,7 @@ class RunCi {
 
 	static function getLuaDependencies(jit = false, lua_version = "lua5.2", luarocks_version = "2.3.0") {
 		switch (systemName){
-			case "Linux": requireAptPackages(["libpcre3-dev"]);
+			case "Linux": requireAptPackages(["libpcre3-dev", "libreadline6-dev", "python-pip"]);
 			case "Mac": runCommand("brew", ["install", "pcre"]);
 		}
 
@@ -472,6 +472,7 @@ class RunCi {
 
 		// we need to cd back into the build directory to do some work
 		var build_dir = Sys.getEnv("TRAVIS_BUILD_DIR");
+		if (build_dir == null) Sys.putEnv("TRAVIS_BUILD_DIR", build_dir = FileSystem.absolutePath("../..")); // If no env, assume local run from tests folder
 		changeDirectory(build_dir);
 
 		// luarocks needs to be in the path

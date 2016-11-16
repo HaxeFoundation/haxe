@@ -18,7 +18,7 @@ LUA_HOME_DIR=$TRAVIS_BUILD_DIR/install/lua
 
 LR_HOME_DIR=$TRAVIS_BUILD_DIR/install/luarocks
 
-mkdir $HOME/.lua
+mkdir -p $HOME/.lua
 
 LUAJIT="no"
 
@@ -77,7 +77,9 @@ else
   make $PLATFORM
   make INSTALL_TOP="$LUA_HOME_DIR" install;
 
+  unlink $HOME/.lua/lua
   ln -s $LUA_HOME_DIR/bin/lua $HOME/.lua/lua
+  unlink $HOME/.lua/luac
   ln -s $LUA_HOME_DIR/bin/luac $HOME/.lua/luac;
 
 fi
@@ -106,6 +108,7 @@ fi
 
 make build && make install
 
+unlink $HOME/.lua/luarocks
 ln -s $LR_HOME_DIR/bin/luarocks $HOME/.lua/luarocks
 
 cd $TRAVIS_BUILD_DIR
