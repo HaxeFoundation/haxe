@@ -1054,8 +1054,9 @@ class RunCi {
 						} else {
 							var flexVersion = "4.14.1";
 							runCommand("wget", ['http://archive.apache.org/dist/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz'], true);
-							runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz', "-C", Sys.getEnv("HOME")]);
-							var flexsdkPath = Sys.getEnv("HOME") + '/apache-flex-sdk-${flexVersion}-bin';
+							runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz']);
+							FileSystem.deleteFile('apache-flex-sdk-${flexVersion}-bin.tar.gz');
+							var flexsdkPath = Sys.getCwd() + '/apache-flex-sdk-${flexVersion}-bin';
 							addToPATH(flexsdkPath + "/bin");
 							var playerglobalswcFolder = flexsdkPath + "/player";
 							FileSystem.createDirectory(playerglobalswcFolder + "/11.1");
