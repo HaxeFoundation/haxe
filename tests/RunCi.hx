@@ -165,6 +165,17 @@ class RunCi {
 		Sys.setCwd(path);
 	}
 
+	static function removeDirectory(path:String) {
+		if (FileSystem.isDirectory(path)) {
+			for (entry in FileSystem.readDirectory(path)) {
+				removeDirectory(Path.join([path, entry]));
+			}
+			FileSystem.deleteDirectory(path);
+		} else if (FileSystem.exists(path)) {
+			FileSystem.deleteFile(path);
+		}
+	}
+
 	static function setupFlashPlayerDebugger():Void {
 		var mmcfgPath = switch (systemName) {
 			case "Linux":
@@ -989,6 +1000,7 @@ class RunCi {
 
 						infoMsg("Testing java-lib extras");
 						changeDirectory('$unitDir/bin');
+						if (FileSystem.exists("java-lib-tests")) removeDirectory("java-lib-tests");
 						runCommand("git", ["clone", "https://github.com/waneck/java-lib-tests.git", "--depth", "1"], true);
 						for (dir in FileSystem.readDirectory('java-lib-tests'))
 						{
