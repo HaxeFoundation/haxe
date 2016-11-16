@@ -582,6 +582,7 @@ class RunCi {
 					var pypyVersion = "pypy3-2.4.0-linux64";
 					runCommand("wget", ['https://bitbucket.org/pypy/pypy/downloads/${pypyVersion}.tar.bz2'], true);
 					runCommand("tar", ["-xf", '${pypyVersion}.tar.bz2']);
+					FileSystem.deleteFile('${pypyVersion}.tar.bz2');
 					pypy = FileSystem.fullPath('${pypyVersion}/bin/pypy3');
 				}
 				runCommand(pypy, ["-V"]);
@@ -681,7 +682,7 @@ class RunCi {
 			ver.push("0");
 		}
 		ver.join(".");
-	}
+	};
 
 	static function deploy():Void {
 		if (
