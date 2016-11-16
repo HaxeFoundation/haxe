@@ -32,6 +32,7 @@ extern class Mysqli {
 
     function new( ?host:String, ?username:String, ?passwd:String, dbname:String = "", ?port:Int, ?socket:String ) : Void;
     function autocommit( mode:Bool ) : Bool;
+    function begin_transaction( ?flags:Int, ?name:String ) : Bool;
     function change_user( user:String, password:String, database:String ) : Bool;
     function character_set_name() : String;
     function close() : Bool;

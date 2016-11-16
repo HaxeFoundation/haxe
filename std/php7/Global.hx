@@ -910,4 +910,14 @@ extern class Global {
 		@see http://php.net/manual/en/function.ini-set.php
 	**/
 	static function ini_set( var_name:String, newvalue:String ) : EitherType<Bool,String>;
+
+	/**
+		@see http://php.net/manual/en/function.sqlite-error-string.php
+	**/
+	static function sqlite_error_string( error_code:Int ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.sqlite-escape-string.php
+	**/
+	static function sqlite_escape_string( item:String ) : String;
 }

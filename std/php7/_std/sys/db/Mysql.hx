@@ -36,20 +36,35 @@ import sys.db.*;
 			database : String
 		}
 	) : Connection {
-		if (params.port == null) params.port = Std.parseInt(Global.ini_get('mysqli.default_port'));
-		if (params.socket == null) params.socket = Global.ini_get('mysqli.default_socket');
-
-		return new MysqlConnection(params.host, params.user, params.pass, params.database, params.port, params.socket);
+		return new MysqlConnection(params);
 	}
 }
 
-private class MysqlConnection extends Mysqli implements Connection {
+private class MysqlConnection implements Connection {
+	var db : Mysqli;
+
+	public function new(
+		params : {
+			host : String,
+			?port : Int,
+			user : String,
+			pass : String,
+			?socket : String,
+			database : String
+		}
+	) : Void {
+		if (params.port == null) params.port = Std.parseInt(Global.ini_get('mysqli.default_port'));
+		if (params.socket == null) params.socket = Global.ini_get('mysqli.default_socket');
+
+		db = new Mysqli(params.host, params.user, params.pass, params.database, params.port, params.socket);
+	}
+
 	public function request( s : String ) : ResultSet {
-		var result = query(s);
+		var result = db.query(s);
 		if (result == false) throw 'Failed to perform db query';
 		if (result == true) return null;
 
-		return new MysqlResult(result);
+		return new MysqlResultSet(result);
 	}
 
 	public function close() : Void {
@@ -57,11 +72,11 @@ private class MysqlConnection extends Mysqli implements Connection {
 	}
 
 	public function escape( s : String ) : String {
-		return real_escape_string(s);
+		return db.escape_string(s);
 	}
 
 	public function quote( s : String ) : String {
-		return "'" + real_escape_string(s) + "'";
+		return "'" + db.escape_string(s) + "'";
 	}
 
 	public function addValue( s : StringBuf, v : Dynamic ) : Void {
@@ -75,27 +90,25 @@ private class MysqlConnection extends Mysqli implements Connection {
 	}
 
 	public function lastInsertId() : Int {
-		return insert_id;
+		return db.insert_id;
 	}
 
 	public function dbName() : String {
-		var result = query('SELECT DATABASE()');
-		if (!result) throw 'Failed to get database name';
-		return result.fetch_row()[0];
+		return 'MySQL';
 	}
 
 	public function startTransaction() : Void {
-		var success = begin_transaction();
+		var success = db.begin_transaction();
 		if (!success) throw 'Failed to start transaction';
 	}
 
 	public function commit() : Void {
-		var success = commit();
+		var success = db.commit();
 		if (!success) throw 'Failed to commit transaction';
 	}
 
 	public function rollback() : Void {
-		var success = rollback();
+		var success = db.rollback();
 		if (!success) throw 'Failed to rollback transaction';
 	}
 
@@ -125,13 +138,11 @@ private class MysqlResultSet implements ResultSet {
 	}
 
 	public function results() : List<Dynamic> {
-		var result = new List();
+		var list = new List();
 
 		result.data_seek(0);
 		var row = result.fetch_object(hxAnonClassName);
-		while (row != null) {
-			list.add(row);
-		}
+		while (row != null) list.add(row);
 
 		return list;
 	}
@@ -155,7 +166,7 @@ private class MysqlResultSet implements ResultSet {
 	}
 
 	function fetchNext() {
-		nextRow = result.fetch_assoc();
+		fetchedRow = result.fetch_assoc();
 	}
 
 	function withdrawFetched() : Dynamic {

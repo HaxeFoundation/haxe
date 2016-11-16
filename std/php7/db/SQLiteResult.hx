@@ -19,6 +19,6 @@ extern class SQLiteResult {
     function rewind() : Bool;
     function prev() : Bool;
     function hasPrev() : Bool;
-    function numRows() : Bool;
     function numRows() : Int;
+    function seek( rownum:Int ) : Bool;
 }
