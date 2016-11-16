@@ -191,8 +191,9 @@ abstract Ucs2(ByteAccess) {
 		#elseif (neko || cpp || python || php || lua)
 
 			var bytes = ByteAccess.fromBytes(haxe.io.Bytes.ofString(str));
+			var reader = new ByteReader(bytes, 0);
 			//trace(bytes);
-			var ucs2Bytes = EncodingTools.utf8ByteAccessToUcs2ByteAccess(bytes);
+			var ucs2Bytes = EncodingTools.utf8ByteAccessToUcs2ByteAccess(reader);
 			//trace(ucs2Bytes);
 			return Ucs2.fromByteAccess(ucs2Bytes);
 		#elseif (java || cs)

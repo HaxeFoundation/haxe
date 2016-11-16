@@ -217,7 +217,7 @@ class Encoding {
     }
 
 
-    public static function convertUTF8toUTF16 (source:ByteAccess, flags:ConversionFlags):ByteAccess {
+    public static function convertUTF8toUTF16 (source:ByteReader, flags:ConversionFlags):ByteAccess {
 
 
         var target = new ByteAccessBuffer();
@@ -227,7 +227,7 @@ class Encoding {
         while (i < source.length) {
 
             var ch = 0;
-            var extraBytesToRead:Int = trailingBytesForUTF8[source.get(i)];
+            var extraBytesToRead:Int = trailingBytesForUTF8[source.fastGet(i)];
 
 
 
@@ -244,12 +244,12 @@ class Encoding {
              */
 
             var j = i;
-            if (extraBytesToRead >= 5) { ch += source.get(j++); ch <<= 6;} /* remember, illegal UTF-8 */
-            if (extraBytesToRead >= 4) { ch += source.get(j++); ch <<= 6;} /* remember, illegal UTF-8 */
-            if (extraBytesToRead >= 3) { ch += source.get(j++); ch <<= 6;}
-            if (extraBytesToRead >= 2) { ch += source.get(j++); ch <<= 6;}
-            if (extraBytesToRead >= 1) { ch += source.get(j++); ch <<= 6;}
-            if (extraBytesToRead >= 0) { ch += source.get(j++); }
+            if (extraBytesToRead >= 5) { ch += source.fastGet(j++); ch <<= 6;} /* remember, illegal UTF-8 */
+            if (extraBytesToRead >= 4) { ch += source.fastGet(j++); ch <<= 6;} /* remember, illegal UTF-8 */
+            if (extraBytesToRead >= 3) { ch += source.fastGet(j++); ch <<= 6;}
+            if (extraBytesToRead >= 2) { ch += source.fastGet(j++); ch <<= 6;}
+            if (extraBytesToRead >= 1) { ch += source.fastGet(j++); ch <<= 6;}
+            if (extraBytesToRead >= 0) { ch += source.fastGet(j++); }
 
             ch -= offsetsFromUTF8[extraBytesToRead];
 
@@ -293,22 +293,22 @@ class Encoding {
      * definition of UTF-8 goes up to 4-byte sequences.
      */
 
-    static function  isLegalUTF8( source:ByteAccess, pos:Int, length:Int):Bool {
+    static function  isLegalUTF8( source:ByteReader, pos:Int, length:Int):Bool {
 
-        var ch0 = source.get(pos);
+        var ch0 = source.fastGet(pos);
 
         inline function case4 () {
-            var ch3 = source.get(pos+3);
+            var ch3 = source.fastGet(pos+3);
             return if (ch3 < 0x80 || ch3 > 0xBF) false else true;
         }
 
         inline function case3 () {
-            var ch2 = source.get(pos+2);
+            var ch2 = source.fastGet(pos+2);
             return if (ch2 < 0x80 || ch2 > 0xBF) false else true;
         }
 
         inline function case2 () {
-            var ch1 = source.get(pos+1);
+            var ch1 = source.fastGet(pos+1);
             return if (ch1 < 0x80 || ch1 > 0xBF) {
                 false;
             } else switch (ch0) {

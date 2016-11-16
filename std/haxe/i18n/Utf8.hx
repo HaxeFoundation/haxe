@@ -142,7 +142,7 @@ abstract Utf8(String) {
 		return res;
 	}
 
-	public static inline function asByteAccess (s:Utf8):ByteAccess {
+	public static inline function impl (s:Utf8):ByteAccess {
 		return ByteAccess.fromBytes(s.toBytes());
 	}
 
@@ -213,15 +213,21 @@ abstract Utf8Impl(Utf8ImplData) {
 	}
 }
 */
+/*
+typedef Utf8Impl = {
+	bytes : ByteAccess,
+	stringLength : Int
+}
+*/
 
+typedef Utf8Impl = ByteAccess;
 
-@:allow(haxe.i18n)
-abstract Utf8(ByteAccess) {
+abstract Utf8(Utf8Impl) {
 
 	public var length(get,never) : Int;
 	
 	public function new(str:String) : Void {
-		this = asByteAccess(Utf8.fromNativeString(str));
+		this = Helper.nativeStringToByteAccess(str);
 	}
 	
 	public function toUpperCase() : Utf8 {
@@ -245,16 +251,16 @@ abstract Utf8(ByteAccess) {
 	
 	public function indexOf( str : Utf8, ?startIndex : Int ) : Int
 	{
-		 return Helper.indexOf(this, asByteAccess(str), str.length, startIndex);
+		 return Helper.indexOf(this, str.impl(), str.length, startIndex);
 	}
 
 	public function lastIndexOf( str : Utf8, ?startIndex : Int ) : Int {
-		return Helper.lastIndexOf(this, asByteAccess(str), str.length, startIndex);
+		return Helper.lastIndexOf(this, str.impl(), str.length, startIndex);
 	}
 
 	public function split( delimiter : Utf8 ) : Array<Utf8>
 	{
-		return Helper.split(this, asByteAccess(delimiter), delimiter.length, function (b,s) return fromByteAccessAndSize(b,s));
+		return Helper.split(this, delimiter.impl(), delimiter.length, function (b,s) return fromByteAccessAndSize(b,s));
 	}
 	
 	@:analyzer(no_code_motion) public function substr( pos : Int, ?len : Int ) : Utf8 {
@@ -273,11 +279,11 @@ abstract Utf8(ByteAccess) {
 	}
 
 	@:op(A + B) inline function opAdd (other:Utf8) {
-		return fromByteAccess(this.append(asByteAccess(other)));
+		return fromImpl(this.append(other.impl()));
 	}
 
 	@:op(A == B) public function opEq (other:Utf8) {
-		return this.equal(asByteAccess(other));
+		return this.equal(other.impl());
 	}
 
 	@:op(A != B) inline function opNotEq (other:Utf8) {
@@ -301,7 +307,7 @@ abstract Utf8(ByteAccess) {
 	// additional public api
 
 	public static function fromBytes( bytes : haxe.io.Bytes ) : Utf8 {
-		return fromByteAccess(ByteAccess.fromBytes(bytes).copy());
+		return fromImpl(ByteAccess.fromBytes(bytes).copy());
 	}
 
 	public function toNativeString() : String {
@@ -309,11 +315,11 @@ abstract Utf8(ByteAccess) {
 	}
  	
 	public function toUcs2() : Ucs2 {
-		return EncodingTools.utf8ToUcs2(fromByteAccess(this));
+		return EncodingTools.utf8ToUcs2(fromImpl(this));
 	}
 	
  	public function toUtf16 ():Utf16 {
-		return EncodingTools.utf8ToUtf16(fromByteAccess(this));
+		return EncodingTools.utf8ToUtf16(fromImpl(this));
 	}
 	
 	public function toBytes() : haxe.io.Bytes {
@@ -327,7 +333,7 @@ abstract Utf8(ByteAccess) {
 	// private api
 
 	static inline function fromByteAccessAndSize (ba:ByteAccess, size:Int) {
-		return fromByteAccess(ba);
+		return fromImpl(ba);
 	}
 
 	function get_length() {
@@ -338,20 +344,24 @@ abstract Utf8(ByteAccess) {
 		return new Utf8("");
 	}
 	
-	static function asByteAccess (s:Utf8):ByteAccess {
-		return cast s;
+	function impl ():Utf8Impl {
+		return this;
+	}
+
+	public static function fromByteAccess (ba:ByteAccess) {
+		return fromImpl(ba);
+	}
+
+	public function getByteReader ():ByteReader {
+		return new ByteReader(this, 0);
 	}
 	
-	static inline function fromByteAccess (bytes:ByteAccess):Utf8 {
+	static inline function fromImpl (bytes:Utf8Impl):Utf8 {
 		return cast bytes;
 	}
 	
-	static function fromNativeString (s:String):Utf8 {
-		return fromByteAccess(Helper.nativeStringToByteAccess(s));
- 	}
-
 	function compare (other:Utf8):Int {
-		return Helper.compare(this, length, asByteAccess(other), other.length);
+		return Helper.compare(this, length, other.impl(), other.length);
 	}
 }
 
