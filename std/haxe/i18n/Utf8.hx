@@ -213,36 +213,36 @@ abstract Utf8Impl(Utf8ImplData) {
 	}
 }
 */
-/*
-typedef Utf8Impl = {
-	bytes : ByteAccess,
-	stringLength : Int
-}
-*/
 
-typedef Utf8Impl = ByteAccess;
+typedef Utf8Impl = {
+	b : ByteAccess,
+	length : Int
+}
+
+
+//typedef Utf8Impl = ByteAccess;
 
 abstract Utf8(Utf8Impl) {
 
 	public var length(get,never) : Int;
 	
 	public function new(str:String) : Void {
-		this = Helper.nativeStringToByteAccess(str);
+		this = Helper.nativeStringToImpl(str);
 	}
 	
 	public function toUpperCase() : Utf8 {
-		var ba = Helper.toUpperCase(this, length);
-		return fromByteAccessAndSize(ba, length);
+		var impl = Helper.toUpperCase(this);
+		return fromImpl(impl);
 	}
 	
 	public function toLowerCase() : Utf8 {
-		var ba = Helper.toLowerCase(this, length);
-		return fromByteAccessAndSize(ba, length);
+		var impl = Helper.toLowerCase(this);
+		return fromImpl(impl);
 	}
 	
 	public function charAt(index : Int) : Utf8 {
-		var ba = Helper.charAt(this, index);
-		return fromByteAccessAndSize(ba, 1);
+		var impl = Helper.charAt(this, index);
+		return fromImpl(impl);
 	}
 
 	public function charCodeAt( index : Int) : Null<Int> {
@@ -251,39 +251,39 @@ abstract Utf8(Utf8Impl) {
 	
 	public function indexOf( str : Utf8, ?startIndex : Int ) : Int
 	{
-		 return Helper.indexOf(this, str.impl(), str.length, startIndex);
+		 return Helper.indexOf(this, str.impl(), startIndex);
 	}
 
 	public function lastIndexOf( str : Utf8, ?startIndex : Int ) : Int {
-		return Helper.lastIndexOf(this, str.impl(), str.length, startIndex);
+		return Helper.lastIndexOf(this, str.impl(), startIndex);
 	}
 
 	public function split( delimiter : Utf8 ) : Array<Utf8>
 	{
-		return Helper.split(this, delimiter.impl(), delimiter.length, function (b,s) return fromByteAccessAndSize(b,s));
+		return Helper.split(this, delimiter.impl());
 	}
 	
 	@:analyzer(no_code_motion) public function substr( pos : Int, ?len : Int ) : Utf8 {
 
-		return Helper.substr(this, pos, function (b,s) return fromByteAccessAndSize(b,s), len);
+		return fromImpl(Helper.substr(this, pos, len));
 	}
 	
 	public function substring( startIndex : Int, ?endIndex : Int ) : Utf8 {
-		return Helper.substring(this, length, startIndex, function (b,s) return fromByteAccessAndSize(b,s), endIndex);
+		return fromImpl(Helper.substring(this, startIndex, endIndex));
 	}
 	
 	public static function fromCharCode( code : Int ) : Utf8
 	{
 		var ba = Helper.fromCharCode(code);
-		return fromByteAccessAndSize(ba, 1);
+		return fromImpl(ba);
 	}
 
 	@:op(A + B) inline function opAdd (other:Utf8) {
-		return fromImpl(this.append(other.impl()));
+		return fromImpl(Helper.append(this, other.impl()));
 	}
 
 	@:op(A == B) public function opEq (other:Utf8) {
-		return this.equal(other.impl());
+		return Helper.equal(this, other.impl());
 	}
 
 	@:op(A != B) inline function opNotEq (other:Utf8) {
@@ -307,11 +307,11 @@ abstract Utf8(Utf8Impl) {
 	// additional public api
 
 	public static function fromBytes( bytes : haxe.io.Bytes ) : Utf8 {
-		return fromImpl(ByteAccess.fromBytes(bytes).copy());
+		return fromByteAccess(ByteAccess.fromBytes(bytes).copy());
 	}
 
 	public function toNativeString() : String {
-		return this.getString(0, this.length);
+		return this.b.getString(0, this.length);
 	}
  	
 	public function toUcs2() : Ucs2 {
@@ -323,21 +323,28 @@ abstract Utf8(Utf8Impl) {
 	}
 	
 	public function toBytes() : haxe.io.Bytes {
-		return this.copy().toBytes();
+		return this.b.copy().toBytes();
 	}
 
 	public function toCodeArray ():Array<Int> {
 		return Helper.toCodeArray(this);
 	}
 
-	// private api
-
-	static inline function fromByteAccessAndSize (ba:ByteAccess, size:Int) {
-		return fromImpl(ba);
+	public static function fromByteAccess (ba:ByteAccess) {
+		// requires validation
+		var len = Helper.calcLength(ba);
+		return fromImpl({ length : len, b : ba});
 	}
 
+	// private api
+
+/*
+	static inline function fromByteAccessWithSize (ba:ByteAccess, size:Int) {
+		return fromImpl({ length : size, b : ba});
+	}
+*/
 	function get_length() {
-		 return Helper.getLength(this);
+		return this.length;
 	}
 
 	static function empty () {
@@ -348,20 +355,18 @@ abstract Utf8(Utf8Impl) {
 		return this;
 	}
 
-	public static function fromByteAccess (ba:ByteAccess) {
-		return fromImpl(ba);
-	}
+	
 
 	public function getByteReader ():ByteReader {
-		return new ByteReader(this, 0);
+		return new ByteReader(this.b, 0);
 	}
 	
-	static inline function fromImpl (bytes:Utf8Impl):Utf8 {
-		return cast bytes;
+	static inline function fromImpl (impl:Utf8Impl):Utf8 {
+		return cast impl;
 	}
 	
 	function compare (other:Utf8):Int {
-		return Helper.compare(this, length, other.impl(), other.length);
+		return Helper.compare(this, other.impl());
 	}
 }
 
