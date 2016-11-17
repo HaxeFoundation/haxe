@@ -282,6 +282,17 @@ class Encoding {
     }
 
 
+    public static function isLegalUtf8String(source:ByteReader):Bool {
+        var i = 0;
+
+        while (i < source.length) {
+            var length = trailingBytesForUTF8[source.fastGet(i)] + 1;
+            if (i + length > source.length || !isLegalUTF8(source, i, length))
+                return false;
+            i += length;
+        }
+        return true;
+    }
     /*
      * Utility routine to tell whether a sequence of bytes is legal UTF-8.
      * This must be called with the length pre-determined by the first byte.

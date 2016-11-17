@@ -52,6 +52,37 @@ class Utf8Tools {
 		}
 	}
 
+	static inline function append (ba:Utf8Impl, other:Utf8Impl):Utf8Impl {
+		return {
+			length : ba.length + other.length,
+			b : ba.b.append(other.b)
+		}
+	}
+
+	static inline function equal (ba:Utf8Impl, other:Utf8Impl):Bool {
+		return ba.length == other.length && ba.b.equal(other.b);
+	}
+
+	static inline function toBytes(impl:Utf8Impl) : haxe.io.Bytes {
+		return impl.b.copy().toBytes();
+	}
+
+	static function fromByteAccess (ba:ByteAccess):Utf8Impl {
+		if (!Encoding.isLegalUtf8String(new ByteReader(ba, 0))) {
+			throw "illegal utf8";
+		}
+		var len = calcLength(ba);
+		return { length : len, b : ba};
+	}
+
+	static inline function getByteReader (impl:Utf8Impl):ByteReader {
+		return new ByteReader(impl.b, 0);
+	}
+
+	public static inline function toNativeString(impl:Utf8Impl) : String {
+		return impl.b.getString(0, impl.length);
+	}
+
 	static function calcLength(ba:ByteAccess) {
 		var len = 0;
 		var index = 0;
@@ -149,16 +180,11 @@ class Utf8Tools {
 			pos++;
 			i += size;
 		}
-		return res == null ? empty() : res;
+		return res == null ? empty : res;
 	}
 
-	static var emptyImpl = { b : ByteAccess.alloc(0), length : 0};
+	static var empty = { b : ByteAccess.alloc(0), length : 0};
 
-	static function empty () {
-		return emptyImpl;
-	}
-
-	
 	static inline function eachCode ( ba:Utf8Impl, f : Int -> Void) {
 		var i = 0;
 		while (i < byteLength(ba)) {
@@ -353,7 +379,7 @@ class Utf8Tools {
 					bufLen = 0;
 					buf.reset();
 				} else {
-					res.push(Utf8.fromImpl(empty()));
+					res.push(Utf8.fromImpl(empty));
 				}
 				tmpBuf.reset();
 				tmpBufLen = 0;
@@ -371,13 +397,13 @@ class Utf8Tools {
 		if (buf.length > 0) {
 			res.push(Utf8.fromImpl(mkImplFromBuffer(buf, bufLen)));
 		} else {
-			res.push(Utf8.fromImpl(empty()));
+			res.push(Utf8.fromImpl(empty));
 		}
 		return res;
 	}
 	
-	
-	@:analyzer(no_code_motion) static inline function substr<T>( ba:Utf8Impl, pos : Int, ?len : Int ) : Utf8Impl {
+	@:analyzer(no_code_motion) // see https://github.com/HaxeFoundation/haxe/issues/5826
+	static function substr<T>( ba:Utf8Impl, pos : Int, ?len : Int ) : Utf8Impl {
 
 		var lenIsNull = len == null;
 		if (pos < 0) {
@@ -391,7 +417,7 @@ class Utf8Tools {
 			if (len < 0) len = 0;
 		}
 
-		if (len == 0) return empty();
+		if (len == 0) return empty;
 
 		var buf = new ByteAccessBuffer();
 
@@ -443,7 +469,7 @@ class Utf8Tools {
 
 		if (endIndex == null || endIndex > len) endIndex = len;
 
-		if (startIndex == null || startIndex > len) return empty();
+		if (startIndex == null || startIndex > len) return empty;
 		
 		return substr(ba, startIndex, endIndex - startIndex);
 	}
@@ -480,7 +506,6 @@ class Utf8Tools {
 		return res;
 	}
 
-
 	static function getCodeSize (code:Int):Int {
 		return if (code <= 0x7F) {
 			1;
@@ -495,15 +520,15 @@ class Utf8Tools {
 		}
 	}
 
-	
-
 	static function nativeStringToByteAccess (s:String):ByteAccess {
 
  		#if python
+		// strings are utf-32
  		return ByteAccess.ofData(python.NativeStringTools.encode(s, "utf-8"));
  		#elseif (js || flash)
 		return EncodingTools.ucs2ToUtf8ByteAccess( new Ucs2(s));
  		#else
+		// strings are encoded as utf8 on other platforms
  		return ByteAccess.fromBytes(Bytes.ofString(s));
  		#end
  	}
@@ -524,93 +549,6 @@ class Utf8Tools {
 	}
 
 
-	static inline function append (ba:Utf8Impl, other:Utf8Impl):Utf8Impl {
-		return {
-			length : ba.length + other.length,
-			b : ba.b.append(other.b)
-		}
-	}
-
-	static inline function equal (ba:Utf8Impl, other:Utf8Impl):Bool {
-		return ba.length == other.length && ba.b.equal(other.b);
-	}
-
-	/*
-	
-	inline function getByteLength() {
-		return this.length;
-	}
-
-	// private helpers
-
-	
-	public static function asByteAccess (s:Utf8):ByteAccess {
-		return cast s;
-	}
-
-	
-	public static function fromByteAccess (bytes:ByteAccess):Utf8 {
-		return cast bytes;
-	}
-
 	
 
-	public static function fromBytes( bytes : haxe.io.Bytes ) : Utf8 {
-		return fromByteAccess(ByteAccess.fromBytes(bytes).copy());
-	}
-
-
-	
-	public static function fromNativeString (s:String):Utf8 {
-		return fromByteAccess(nativeStringToByteAccess(s));
- 	}
-
- 	
-	public function toNativeString() : String {
-		return this.getString(0, this.length);
-	}
-
- 	
-	public function toUcs2() : Ucs2 {
-		return EncodingTools.utf8ToUcs2(fromByteAccess(this));
-	}
-
-	
- 	public function toUtf16 ():Utf16 {
-		return EncodingTools.utf8ToUtf16(fromByteAccess(this));
-	}
-
-	
-	public function toBytes() : haxe.io.Bytes {
-		return this.copy().toBytes();
-	}
-
-	@:op(A + B) inline function opAdd (other:Utf8) {
-		return fromByteAccess(this.append(asByteAccess(other)));
-	}
-
-	@:op(A == B) public function opEq (other:Utf8) {
-		return this.equal(asByteAccess(other));
-	}
-
-	@:op(A != B) inline function opNotEq (other:Utf8) {
-		return !opEq(other);
-	}
-
-	
-
-	@:op(A > B) inline function opGreaterThan (other:Utf8) {
-		return compare(other) == 1;
-	}
-	@:op(A < B) inline function opLessThan (other:Utf8) {
-		return compare(other) == -1;
-	}
-	@:op(A <= B) inline function opLessThanOrEq (other:Utf8) {
-		return compare(other) <= 0;
-	}
-
-	@:op(A >= B) inline function opGreaterThanOrEq (other:Utf8) {
-		return compare(other) >= 0;
-	}
-	*/
 }
