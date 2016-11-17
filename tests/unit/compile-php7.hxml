@@ -1,4 +1,5 @@
 compile-each.hxml
 -main unit.TestMain
+-lib record-macros
 -php7 bin/php7
 -D dump=pretty

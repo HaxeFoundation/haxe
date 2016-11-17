@@ -103,8 +103,8 @@ class TestMain {
 		#end
 
 		// SPOD tests
-		#if ( (neko || ((php || php7) && (travis || appveyor || php_sqlite)) || java || cpp || (cs && (travis || appveyor))) && !macro && !interp)
-		#if ( (travis || appveyor) && !(cpp || cs) )
+		#if (php7 || ( (neko || ((php || php7) && (travis || appveyor || php_sqlite)) || java || cpp || (cs && (travis || appveyor))) && !macro && !interp))
+		#if ( (travis || appveyor || php7 || php) && !(cpp || cs) )
 		classes.push(new TestSpod(sys.db.Mysql.connect({
 			host : "127.0.0.1",
 			user : "travis",

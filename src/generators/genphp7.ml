@@ -2397,9 +2397,11 @@ class virtual type_builder ctx wrapper =
 						| TConst (TString operator) -> operator
 						| _ -> error_and_exit self#pos "Second argument for php7.Syntax.binop() must be a constant string"
 					in
+					self#write "(";
 					self#write_expr val_expr1;
 					self#write (" " ^ operator ^ " ");
 					self#write_expr val_expr2;
+					self#write ")"
 				| _ -> fail self#pos __POS__
 		(**
 			Writes `instanceof` expression to output buffer (for `php7.Syntax.instanceof()`)
