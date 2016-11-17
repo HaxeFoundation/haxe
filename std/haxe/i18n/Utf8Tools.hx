@@ -6,6 +6,8 @@ import haxe.io.Bytes;
 @:allow(haxe.i18n)
 class Utf8Tools {
 
+	// implementation specific
+
 	static inline function fastGet (ba:Utf8Impl, pos:Int) {
 		return ba.b.fastGet(pos);
 	}
@@ -83,6 +85,10 @@ class Utf8Tools {
 		return impl.b.getString(0, impl.length);
 	}
 
+	// end implementation specific
+
+	// helper functions
+
 	static function calcLength(ba:ByteAccess) {
 		var len = 0;
 		var index = 0;
@@ -101,22 +107,6 @@ class Utf8Tools {
 		else throw "invalid utf8";
 	}
 
-	
-	static function toUpperCase(ba:Utf8Impl) : Utf8Impl {
-		var res = alloc(byteLength(ba), strLength(ba));
-		var i = 0;
-		while (i < byteLength(ba)) {
-			var b = fastGet(ba, i);
-			var size = getCharSize(b);
-			toUpperCaseLetter(ba, res, i, size);
-
-			i += size;
-		}
-		return res;
-	}
-
-
-	
 	static function isUpperCaseLetter (bytes:Utf8Impl, pos:Int, size:Int) {
 		var b = fastGet(bytes, pos);
 		return b >= 0x41 && b <= 0x5A;
@@ -138,7 +128,6 @@ class Utf8Tools {
 			}
 		}
 	}
-
 	
 	static function toUpperCaseLetter (bytes:Utf8Impl, target:Utf8Impl, pos:Int, size:Int) {
 		if (isLowerCaseLetter(bytes, pos, size)) {
@@ -148,39 +137,6 @@ class Utf8Tools {
 				set(target, pos+i, fastGet(bytes, pos+i));
 			}
 		}
-	}
-
-	
-	static function toLowerCase(ba:Utf8Impl) : Utf8Impl {
-		var res = alloc(byteLength(ba), strLength(ba));
-		var i = 0;
-		while (i < byteLength(ba)) {
-			var b = fastGet(ba, i);
-			var size = getCharSize(b);
-			toLowerCaseLetter(ba, res, i, size);
-
-			i += size;
-		}
-		return res;
-	}
-
-	
-	static function charAt(ba:Utf8Impl, index : Int) : Utf8Impl {
-		var res = null;
-		var pos = 0;
-		var i = 0;
-		while (i < byteLength(ba)) {
-			var b = fastGet(ba, i);
-			var size = getCharSize(b);
-			if (pos == index) {
-				res = sub(ba, i, size, 1);
-				break;
-			}
-
-			pos++;
-			i += size;
-		}
-		return res == null ? empty : res;
 	}
 
 	static var empty = { b : ByteAccess.alloc(0), length : 0};
@@ -205,7 +161,92 @@ class Utf8Tools {
 			case _: throw "invalid byte sequence";
 		}
 	}
+
+	static function compareChar ( b1:Utf8Impl, pos1:Int, b2:Utf8Impl, pos2:Int, size:Int):Int {
+		var c1 = getCharCode(b1, pos1, size);
+		var c2 = getCharCode(b2, pos2, size);
+
+		return c1 - c2;
+	}
+
+	static function pushCharCode (bytes:Utf8Impl, buf:ByteAccessBuffer, pos:Int, size:Int) {
+		for (i in 0...size) {
+			buf.addByte(fastGet(bytes, pos+i));
+		}
+	}
 	
+	static function getCodeSize (code:Int):Int {
+		return if (code <= 0x7F) {
+			1;
+		} else if (code <= 0x7FF) {
+			2;
+		} else if (code <= 0xFFFF) {
+			3;
+		} else if (code <= 0x10FFFF) {
+			4;
+		} else {
+			throw "invalid code " + code;
+		}
+	}
+
+	static function nativeStringToByteAccess (s:String):ByteAccess {
+ 		#if python
+		// strings are utf-32
+ 		return ByteAccess.ofData(python.NativeStringTools.encode(s, "utf-8"));
+ 		#elseif (js || flash)
+		return EncodingTools.ucs2ToUtf8ByteAccess( new Ucs2(s));
+ 		#else
+		// strings are encoded as utf8 on other platforms
+ 		return ByteAccess.fromBytes(Bytes.ofString(s));
+ 		#end
+ 	}
+
+	// string functions
+
+	static function toUpperCase(ba:Utf8Impl) : Utf8Impl {
+		var res = alloc(byteLength(ba), strLength(ba));
+		var i = 0;
+		while (i < byteLength(ba)) {
+			var b = fastGet(ba, i);
+			var size = getCharSize(b);
+			toUpperCaseLetter(ba, res, i, size);
+
+			i += size;
+		}
+		return res;
+	}
+
+	static function toLowerCase(ba:Utf8Impl) : Utf8Impl {
+		var res = alloc(byteLength(ba), strLength(ba));
+		var i = 0;
+		while (i < byteLength(ba)) {
+			var b = fastGet(ba, i);
+			var size = getCharSize(b);
+			toLowerCaseLetter(ba, res, i, size);
+
+			i += size;
+		}
+		return res;
+	}
+	
+	static function charAt(ba:Utf8Impl, index : Int) : Utf8Impl {
+		var res = null;
+		var pos = 0;
+		var i = 0;
+		while (i < byteLength(ba)) {
+			var b = fastGet(ba, i);
+			var size = getCharSize(b);
+			if (pos == index) {
+				res = sub(ba, i, size, 1);
+				break;
+			}
+
+			pos++;
+			i += size;
+		}
+		return res == null ? empty : res;
+	}
+
 	static function charCodeAt( ba:Utf8Impl, index : Int) : Null<Int> {
 		var pos = 0;
 		var i = 0;
@@ -224,7 +265,6 @@ class Utf8Tools {
 		return r;
 	}
 
-	
 	static function indexOf( ba:Utf8Impl, str : Utf8Impl, ?startIndex : Int ) : Int
 	{
 		var strLen = strLength(str);
@@ -267,30 +307,16 @@ class Utf8Tools {
 			if (pos == 0) {
 				posFull++;
 			}
-
-
 		}
 		return res;
 	}
 
-
-	static function compareChar ( b1:Utf8Impl, pos1:Int, b2:Utf8Impl, pos2:Int, size:Int):Int {
-		var c1 = getCharCode(b1, pos1, size);
-		var c2 = getCharCode(b2, pos2, size);
-
-		return c1 - c2;
-	}
-	
-
 	@:analyzer(no_code_motion) static function lastIndexOf( ba:Utf8Impl, str : Utf8Impl, ?startIndex : Int ) : Int {
-		var strLen = strLength(str);
 		var startIndexIsNull = startIndex == null;
-		var other = str;
 		var res = -1;
-		var len = strLen; // O(n)
+		var len = strLength(str); // O(n)
 		var pos = 0;
 		var posFull = 0;
-		var byteLength = byteLength(ba);
 		
 		// byte iteration variables
 		var i = 0;
@@ -298,7 +324,7 @@ class Utf8Tools {
 		
 		var iNext = 0;
 		
-		while (i < byteLength && (startIndexIsNull || posFull < startIndex + 1)) {
+		while (i < byteLength(ba) && (startIndexIsNull || posFull < startIndex + 1)) {
 			var size = getCharSize(fastGet(ba, i));
 			if (compareChar(ba, i, str, j, size) == 0) {
 				if (j == 0) {
@@ -446,13 +472,6 @@ class Utf8Tools {
 		return mkImplFromBuffer(buf, newSize);
 	}
 
-	
-	static function pushCharCode (bytes:Utf8Impl, buf:ByteAccessBuffer, pos:Int, size:Int) {
-		for (i in 0...size) {
-			buf.addByte(fastGet(bytes, pos+i));
-		}
-	}
-
 	@:analyzer(no_code_motion) static inline function substring<T>( ba:Utf8Impl, startIndex : Int, ?endIndex : Int ) : Utf8Impl {
 		var len = strLength(ba);
 		var endIndexIsNull = endIndex == null; 
@@ -506,32 +525,8 @@ class Utf8Tools {
 		return res;
 	}
 
-	static function getCodeSize (code:Int):Int {
-		return if (code <= 0x7F) {
-			1;
-		} else if (code <= 0x7FF) {
-			2;
-		} else if (code <= 0xFFFF) {
-			3;
-		} else if (code <= 0x10FFFF) {
-			4;
-		} else {
-			throw "invalid code " + code;
-		}
-	}
 
-	static function nativeStringToByteAccess (s:String):ByteAccess {
-
- 		#if python
-		// strings are utf-32
- 		return ByteAccess.ofData(python.NativeStringTools.encode(s, "utf-8"));
- 		#elseif (js || flash)
-		return EncodingTools.ucs2ToUtf8ByteAccess( new Ucs2(s));
- 		#else
-		// strings are encoded as utf8 on other platforms
- 		return ByteAccess.fromBytes(Bytes.ofString(s));
- 		#end
- 	}
+	
 
 	 static function compare (ba:Utf8Impl, other:Utf8Impl):Int {
 		var len1 = strLength(ba);
