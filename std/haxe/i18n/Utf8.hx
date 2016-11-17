@@ -22,7 +22,7 @@
 package haxe.i18n;
 
 import haxe.io.Bytes;
-import haxe.i18n.Utf8Tools as Tools;
+import haxe.i18n.Utf8Tools;
 
 
 typedef Utf8Impl = {
@@ -35,55 +35,55 @@ abstract Utf8(Utf8Impl) {
 	public var length(get,never) : Int;
 	
 	public inline function new(str:String) : Void {
-		this = Tools.nativeStringToImpl(str);
+		this = Utf8Tools.nativeStringToImpl(str);
 	}
 	
 	public inline function toUpperCase() : Utf8 {
-		return fromImpl(Tools.toUpperCase(this));
+		return fromImpl(Utf8Tools.toUpperCase(this));
 	}
 	
 	public inline function toLowerCase() : Utf8 {
-		return fromImpl(Tools.toLowerCase(this));
+		return fromImpl(Utf8Tools.toLowerCase(this));
 	}
 	
 	public inline function charAt(index : Int) : Utf8 {
-		return fromImpl(Tools.charAt(this, index));
+		return fromImpl(Utf8Tools.charAt(this, index));
 	}
 
 	public inline function charCodeAt( index : Int) : Null<Int> {
-		return Tools.charCodeAt(this, index);
+		return Utf8Tools.charCodeAt(this, index);
 	}
 	
 	public inline function indexOf( str : Utf8, ?startIndex : Int ) : Int {
-		 return Tools.indexOf(this, str.impl(), startIndex);
+		 return Utf8Tools.indexOf(this, str.impl(), startIndex);
 	}
 
 	public inline function lastIndexOf( str : Utf8, ?startIndex : Int ) : Int {
-		return Tools.lastIndexOf(this, str.impl(), startIndex);
+		return Utf8Tools.lastIndexOf(this, str.impl(), startIndex);
 	}
 
 	public function split( delimiter : Utf8 ) : Array<Utf8> {
-		return Tools.split(this, delimiter.impl());
+		return Utf8Tools.split(this, delimiter.impl());
 	}
 	
 	public inline function substr( pos : Int, ?len : Int ) : Utf8 {
-		return fromImpl(Tools.substr(this, pos, len));
+		return fromImpl(Utf8Tools.substr(this, pos, len));
 	}
 	
 	public inline function substring( startIndex : Int, ?endIndex : Int ) : Utf8 {
-		return fromImpl(Tools.substring(this, startIndex, endIndex));
+		return fromImpl(Utf8Tools.substring(this, startIndex, endIndex));
 	}
 	
 	public static inline function fromCharCode( code : Int ) : Utf8 {
-		return fromImpl(Tools.fromCharCode(code));
+		return fromImpl(Utf8Tools.fromCharCode(code));
 	}
 
 	@:op(A + B) inline function opAdd (other:Utf8) {
-		return fromImpl(Tools.append(this, other.impl()));
+		return fromImpl(Utf8Tools.append(this, other.impl()));
 	}
 
 	@:op(A == B) inline function opEq (other:Utf8) {
-		return Tools.equal(this, other.impl());
+		return Utf8Tools.equal(this, other.impl());
 	}
 
 	@:op(A != B) inline function opNotEq (other:Utf8) {
@@ -111,41 +111,41 @@ abstract Utf8(Utf8Impl) {
 	}
 
 	public inline function toNativeString() : String {
-		return Tools.toNativeString(this);
+		return Utf8Tools.toNativeString(this);
 	}
  	
 	public inline function toUcs2() : Ucs2 {
-		return EncodingTools.utf8ToUcs2(fromImpl(this));
+		return EncodingUtf8Tools.utf8ToUcs2(fromImpl(this));
 	}
 	
  	public inline function toUtf16 ():Utf16 {
-		return EncodingTools.utf8ToUtf16(fromImpl(this));
+		return EncodingUtf8Tools.utf8ToUtf16(fromImpl(this));
 	}
 	
 	public inline function toBytes() : haxe.io.Bytes {
-		return Tools.toBytes(this);
+		return Utf8Tools.toBytes(this);
 	}
 
 	public inline function toCodeArray ():Array<Int> {
-		return Tools.toCodeArray(this);
+		return Utf8Tools.toCodeArray(this);
 	}
 
 	public static inline function fromByteAccess (ba:ByteAccess) {
-		return fromImpl(Tools.fromByteAccess(ba));
+		return fromImpl(Utf8Tools.fromByteAccess(ba));
 	}
 
 	public inline function getByteReader ():ByteReader {
-		return Tools.getByteReader(this);
+		return Utf8Tools.getByteReader(this);
 	}
 
 	// private api
 
 	inline function get_length() {
-		return Tools.strLength(this);
+		return Utf8Tools.strLength(this);
 	}
 
 	inline function compare (other:Utf8):Int {
-		return Tools.compare(this, other.impl());
+		return Utf8Tools.compare(this, other.impl());
 	}
 
 	// wrap and unwrap
