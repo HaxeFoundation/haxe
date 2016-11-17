@@ -101,9 +101,17 @@ let ref_type_path = (["php7"], "Ref")
 *)
 let array_type_path = ([], "Array")
 (**
+	Type path of the implementation class for `Array<T>`
+*)
+let native_array_type_path = (["php7"], "NativeArray")
+(**
 	Type path of the `Void`
 *)
 let void_type_path = ([], "Void")
+(**
+	Type path of the `Bool`
+*)
+let bool_type_path = ([], "Bool")
 
 (**
 	Stub to use when you need a `Ast.pos` instance, but don't have one
@@ -126,6 +134,21 @@ let is_keyword str =
 		| "bool" | "string" | "true" | "false" | "null" | "parent"
 			-> true
 		| _ -> false
+
+(**
+	Check if specified type is Void
+*)
+let is_void_type t = match follow t with TAbstract ({ a_path = void_type_path }, _) -> true | _ -> false
+
+(**
+	Check if specified type is Bool
+*)
+let is_bool_type t = match follow t with TAbstract ({ a_path = bool_type_path }, _) -> true | _ -> false
+
+(**
+	Check if specified type is php7.NativeArray
+*)
+let is_native_array_type t = match follow t with TAbstract ({ a_path = native_array_type_path }, _) -> true | _ -> false
 
 (**
 	If `name` is not a reserved word in PHP then `name` is returned as-is.
@@ -238,9 +261,14 @@ let is_int expr = match follow expr.etype with TAbstract ({ a_path = ([], "Int")
 let is_float expr = match follow expr.etype with TAbstract ({ a_path = ([], "Float") }, _) -> true | _ -> false
 
 (**
+	Check if specified type is String
+*)
+let is_string_type t = match follow t with TInst ({ cl_path = ([], "String") }, _) -> true | _ -> false
+
+(**
 	Check if specified expression is of String type
 *)
-let is_string expr = match follow expr.etype with TInst ({ cl_path = ([], "String") }, _) -> true | _ -> false
+let is_string expr = is_string_type expr.etype
 
 (**
 	Check if `expr` is an access to a method of special `php7.PHP` class
@@ -670,6 +698,25 @@ let is_real_var field =
 		match field.cf_kind with
 			| Var { v_read = read; v_write = write } -> read = AccNormal || write = AccNormal
 			| _ -> false
+
+(**
+	Check if user-defined field has the same name as one of php magic methods, but with not compatible signature.
+*)
+let field_needs_rename field =
+	match field.cf_kind with
+		| Method _ ->
+			let (args, return_type) = get_function_signature field in
+			(match (field.cf_name, args) with
+				| ("__construct", _) -> true
+				| ("__destruct", args) -> is_void_type return_type && (match args with [] -> false | _ -> true)
+				| ("__get", [(_, _, arg_type)]) -> is_string_type arg_type && not (is_void_type return_type)
+				| ("__set", [(_, _, arg1_type); _]) -> is_string_type arg1_type && is_void_type return_type
+				| ("__isset", [(_, _, arg_type)]) -> is_string_type arg_type && not (is_bool_type return_type)
+				| ("__call", [(_, _, arg1_type); (_, _, arg2_type)]) -> is_string_type arg1_type && is_native_array_type arg2_type
+				| ("__callStatic", [(_, _, arg1_type); (_, _, arg2_type)]) -> is_string_type arg1_type && is_native_array_type arg2_type
+				| _ -> false
+			)
+		| Var _ -> false
 
 (**
 	PHP DocBlock types
