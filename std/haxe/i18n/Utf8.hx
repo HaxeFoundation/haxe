@@ -134,8 +134,8 @@ abstract Utf8(Utf8Impl) {
 		return fromImpl(Utf8Tools.fromByteAccess(ba));
 	}
 
-	public inline function getByteReader ():ByteReader {
-		return Utf8Tools.getByteReader(this);
+	public inline function getReader ():Utf8Reader {
+		return new Utf8Reader(this.b);
 	}
 
 	// private api

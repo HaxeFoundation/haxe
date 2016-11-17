@@ -70,16 +70,14 @@ class Utf8Tools {
 	}
 
 	static function fromByteAccess (ba:ByteAccess):Utf8Impl {
-		if (!Encoding.isLegalUtf8String(new ByteReader(ba, 0))) {
+		if (!Encoding.isLegalUtf8String(new Utf8Reader(ba))) {
 			throw "illegal utf8";
 		}
 		var len = calcLength(ba);
 		return { length : len, b : ba};
 	}
 
-	static inline function getByteReader (impl:Utf8Impl):ByteReader {
-		return new ByteReader(impl.b, 0);
-	}
+	
 
 	public static inline function toNativeString(impl:Utf8Impl) : String {
 		return impl.b.getString(0, impl.length);

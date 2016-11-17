@@ -189,9 +189,8 @@ abstract Ucs2(ByteAccess) {
 		#if (js || flash || hl)
 			throw "assert"
 		#elseif (neko || cpp || python || php || lua)
-
-			var bytes = ByteAccess.fromBytes(haxe.io.Bytes.ofString(str));
-			var reader = new ByteReader(bytes, 0);
+			var reader = new Utf8(str).getReader();
+			
 			//trace(bytes);
 			var ucs2Bytes = EncodingTools.utf8ByteAccessToUcs2ByteAccess(reader);
 			//trace(ucs2Bytes);

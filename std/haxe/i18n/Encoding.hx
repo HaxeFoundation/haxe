@@ -143,7 +143,7 @@ class Encoding {
     ];
 
 
-    public static function convertUTF16toUTF8 (source:ByteAccess, flags:ConversionFlags):ByteAccess {
+    public static function convertUTF16toUTF8 (source:Utf16Reader, flags:ConversionFlags):ByteAccess {
 
         var target = new ByteAccessBuffer();
 
@@ -217,7 +217,7 @@ class Encoding {
     }
 
 
-    public static function convertUTF8toUTF16 (source:ByteReader, flags:ConversionFlags):ByteAccess {
+    public static function convertUTF8toUTF16 (source:Utf8Reader, flags:ConversionFlags):ByteAccess {
 
 
         var target = new ByteAccessBuffer();
@@ -282,7 +282,7 @@ class Encoding {
     }
 
 
-    public static function isLegalUtf8String(source:ByteReader):Bool {
+    public static function isLegalUtf8String(source:Utf8Reader):Bool {
         var i = 0;
 
         while (i < source.length) {
@@ -304,7 +304,7 @@ class Encoding {
      * definition of UTF-8 goes up to 4-byte sequences.
      */
 
-    static function  isLegalUTF8( source:ByteReader, pos:Int, length:Int):Bool {
+    static function  isLegalUTF8( source:Utf8Reader, pos:Int, length:Int):Bool {
 
         var ch0 = source.fastGet(pos);
 

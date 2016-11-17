@@ -67,11 +67,11 @@ class EncodingTools {
 	}
 
 	public static inline function utf16ToUtf8 (s:Utf16):Utf8 {
-		return Utf8.fromByteAccess(Encoding.convertUTF16toUTF8(Utf16.asByteAccess(s), StrictConversion));
+		return Utf8.fromByteAccess(Encoding.convertUTF16toUTF8(s.getReader(), StrictConversion));
 	}
 
 	public static inline function utf8ToUtf16 (s:Utf8):Utf16 {
-		return Utf16.fromByteAccess(Encoding.convertUTF8toUTF16(s.getByteReader(), StrictConversion));
+		return Utf16.fromByteAccess(Encoding.convertUTF8toUTF16(s.getReader(), StrictConversion));
 	}
 
 	public static function ucs2ToUtf8ByteAccess (s:Ucs2):ByteAccess {
@@ -125,10 +125,10 @@ class EncodingTools {
 	}
 
 	public static inline function utf8ToUcs2ByteAccess (s:Utf8):ByteAccess {
-		return utf8ByteAccessToUcs2ByteAccess(s.getByteReader());
+		return utf8ByteAccessToUcs2ByteAccess(s.getReader());
 	}
 
-	public static function utf8ByteAccessToUcs2ByteAccess (b:ByteReader):ByteAccess {
+	public static function utf8ByteAccessToUcs2ByteAccess (b:Utf8Reader):ByteAccess {
 		var buf = new ByteAccessBuffer();
 
 		var index = 0;
@@ -185,7 +185,7 @@ class EncodingTools {
        	pushes the generated ucs-2 bytes into the buffer `buf`.
        	It returns the number of bytes which the utf-8 character takes.
 	*/
-	static function charUtf8ToUcs2 (input:ByteReader, start:Int, buf:ByteAccessBuffer):Int {
+	static function charUtf8ToUcs2 (input:Utf8Reader, start:Int, buf:ByteAccessBuffer):Int {
 		var first = input.fastGet(start); 
 	    if (first < 0x80) {
 			/* One byte (ASCII) case. */
