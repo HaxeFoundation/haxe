@@ -134,8 +134,8 @@ abstract Ucs2(String) {
 		return EncodingTools.ucs2ToUtf8(new Ucs2(this));
 	}
 
-	public static function fromByteAccess(s:ByteAccess) {
-		return ByteAccess.fromBytes(s.toBytes());
+	public static function fromByteAccess(s:ByteAccess):Ucs2 {
+		return fromBytes(s.toBytes());
 	}
 
 	public function toUtf16() : Utf16 {

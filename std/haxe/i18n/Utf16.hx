@@ -151,7 +151,6 @@ abstract Utf16(String) {
 		return res;
 	}
 
-
 	public function toUtf8 ():Utf8 {
 		return EncodingTools.utf16ToUtf8(new Utf16(this));
 	}
@@ -211,26 +210,18 @@ abstract Utf16(ByteAccess) {
 		return fromImpl(Utf16Tools.charAt(this, index));
 	}
 
-	public function toCodeArray () {
-		return Utf16Tools.toCodeArray(this);
-	}
-
 	public function charCodeAt( index : Int) : Null<Int> {
 		return Utf16Tools.charCodeAt(this, index);
 	}
 
-	inline function eachCode ( f : Int -> Void) {
-		Utf16Tools.eachCode(this, f);
-	}
-
-	public function indexOf( str : Utf16, ?startIndex : Int ) : Int
-	{
+	public function indexOf( str : Utf16, ?startIndex : Int ) : Int {
 		return Utf16Tools.indexOf(this, str.impl(), startIndex);
 	}
 
 	public function lastIndexOf( str : Utf16, ?startIndex : Int ) : Int {
 		return Utf16Tools.lastIndexOf(this, str.impl(), startIndex);
 	}
+
 	public function split( delimiter : Utf16 ) : Array<Utf16> {
 		return Utf16Tools.split(this, delimiter.impl());
 	}
@@ -243,6 +234,14 @@ abstract Utf16(ByteAccess) {
 		return fromImpl(Utf16Tools.substring(this, startIndex, endIndex));
 	}
 
+	public static function fromCharCode( code : Int ) : Utf16 {
+		return fromImpl(Utf16Tools.fromCharCode(code));
+	}
+
+	@:op(A + B) inline function opAdd (other:Utf16):Utf16 {
+		return fromImpl(Utf16Tools.append(this, other.impl()));
+	}
+
 	@:op(A == B) inline function opEq (other:Utf16) {
 		return Utf16Tools.equal(this, other.impl());
 	}
@@ -251,9 +250,51 @@ abstract Utf16(ByteAccess) {
 		return !opEq(other);
 	}
 
-	@:op(A + B) inline function opAdd (other:Utf16) {
-		return Utf16Tools.append(this, other.impl());
+	@:op(A > B) inline function opGreaterThan (other:Utf16) {
+		return compare(other) == 1;
 	}
+	@:op(A < B) inline function opLessThan (other:Utf16) {
+		return compare(other) == -1;
+	}
+	@:op(A <= B) inline function opLessThanOrEq (other:Utf16) {
+		return compare(other) <= 0;
+	}
+
+	@:op(A >= B) inline function opGreaterThanOrEq (other:Utf16) {
+		return compare(other) >= 0;
+	}
+
+	// additional public api
+
+	public static function fromBytes( bytes : haxe.io.Bytes ) : Utf16 {
+		return fromByteAccess(ByteAccess.fromBytes(bytes));
+	}
+
+	public function toNativeString() : String {
+		return this.getString(0, this.length);
+	}
+
+	public function toUcs2() : Ucs2 {
+		return EncodingTools.utf16ToUcs2(fromImpl(this));
+	}
+
+	public function toUtf8 ():Utf8 {
+		return EncodingTools.utf16ToUtf8(fromImpl(this));
+	}
+
+	public function toBytes() : haxe.io.Bytes {
+		return this.copy().toBytes();
+	}
+
+	public function toCodeArray () {
+		return Utf16Tools.toCodeArray(this);
+	}
+	
+	public static inline function fromByteAccess (ba:ByteAccess) {
+		return fromImpl(Utf16Tools.fromByteAccess(ba));
+	}
+
+	
 
 	public inline function getReader ():Utf16Reader
 	{
@@ -270,30 +311,15 @@ abstract Utf16(ByteAccess) {
 		return if (EncodingTools.isHighSurrogate(start2Bytes)) 4 else 2;
 	}
 
-	public static inline function fromByteAccess (bytes:ByteAccess):Utf16 {
-		return cast bytes;
-	}
+	
 
-	public static function fromCharCode( code : Int ) : Utf16
-	{
-		return fromImpl(Utf16Tools.fromCharCode(code));
-	}
+	
 
-	public static function fromBytes( bytes : haxe.io.Bytes ) : Utf16 {
-		return fromByteAccess(ByteAccess.fromBytes(bytes).copy());
-	}
+	
 
- 	public function toNativeString() : String {
-		return this.getString(0, this.length);
-	}
+ 	
 
- 	public function toUcs2() : Ucs2 {
-		return EncodingTools.utf16ToUcs2(fromByteAccess(this));
-	}
-
-	public function toUtf8 ():Utf8 {
-		return EncodingTools.utf16ToUtf8(fromByteAccess(this));
-	}
+ 	
 
 	static function fromImpl (impl:Utf16Impl):Utf16 {
 		return cast impl;
@@ -303,27 +329,13 @@ abstract Utf16(ByteAccess) {
 		return this;
 	}
 
-	public function toBytes() : haxe.io.Bytes {
-		return this.copy().toBytes();
-	}
+	
 
 	inline function compare (other:Utf16):Int {
 		return Utf16Tools.compare(this, other.impl());
 	}
 
-	@:op(A > B) inline function opGreaterThan (other:Utf16) {
-		return compare(other) == 1;
-	}
-	@:op(A < B) inline function opLessThan (other:Utf16) {
-		return compare(other) == -1;
-	}
-	@:op(A <= B) inline function opLessThanOrEq (other:Utf16) {
-		return compare(other) <= 0;
-	}
-
-	@:op(A >= B) inline function opGreaterThanOrEq (other:Utf16) {
-		return compare(other) >= 0;
-	}
+	
 }
 
 #end

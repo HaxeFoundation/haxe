@@ -216,9 +216,20 @@ class Encoding {
         return target.getByteAccess();
     }
 
+    
 
-    public static function convertUTF8toUTF16 (source:Utf8Reader, flags:ConversionFlags):ByteAccess {
+    public static function convertUtf8toUtf16 (source:Utf8Reader, flags:ConversionFlags):ByteAccess {
+        return convertUtf8toUtf16OrUcs2(source, flags, false);
+    }
+    public static function convertUtf8toUcs2 (source:Utf8Reader, flags:ConversionFlags):ByteAccess {
+        return convertUtf8toUtf16OrUcs2(source, flags, true);
+    }
 
+    public static function getUtf8CharSize (first) {
+        return trailingBytesForUTF8[first]+1;
+    }
+
+    public static function convertUtf8toUtf16OrUcs2 (source:Utf8Reader, flags:ConversionFlags, toUcs2:Bool):ByteAccess {
 
         var target = new ByteAccessBuffer();
 
@@ -236,7 +247,6 @@ class Encoding {
             }
             /* Do this check whether lenient or strict */
             if (!isLegalUTF8(source, i, extraBytesToRead+1)) {
-                trace("here");
                 throw SourceIllegal(i);
             }
             /*
@@ -271,10 +281,14 @@ class Encoding {
                     target.addInt16BigEndian(UNI_REPLACEMENT_CHAR);
                 }
             } else {
-                /* target is a character in range 0xFFFF - 0x10FFFF. */
-                ch -= halfBase;
-                target.addInt16BigEndian(((ch >> halfShift) + UNI_SUR_HIGH_START));
-                target.addInt16BigEndian(((ch & halfMask) + UNI_SUR_LOW_START));
+                if (toUcs2) {
+                    throw SourceIllegal(i);
+                } else {
+                    /* target is a character in range 0xFFFF - 0x10FFFF. */
+                    ch -= halfBase;
+                    target.addInt16BigEndian(((ch >> halfShift) + UNI_SUR_HIGH_START));
+                    target.addInt16BigEndian(((ch & halfMask) + UNI_SUR_LOW_START));
+                }
             }
             i+=extraBytesToRead+1;
         }
@@ -304,7 +318,7 @@ class Encoding {
      * definition of UTF-8 goes up to 4-byte sequences.
      */
 
-    static function  isLegalUTF8( source:Utf8Reader, pos:Int, length:Int):Bool {
+    static function isLegalUTF8( source:Utf8Reader, pos:Int, length:Int):Bool {
 
         var ch0 = source.fastGet(pos);
 

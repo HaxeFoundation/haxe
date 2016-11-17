@@ -31,6 +31,7 @@ charUtf16(violine).toUtf8() == charUtf8(violine);
 // 1 byte utf-8
 wrapUtf16("a").toUtf8() == wrapUtf8("a");
 
+
 // check combination
 (wrapUtf16("1")+charUtf16(violine)+wrapUtf16("aä\u{4E00}€")).toUtf8() == wrapUtf8("1")+charUtf8(violine)+wrapUtf8("aä\u{4E00}€");
 

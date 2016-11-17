@@ -39,7 +39,7 @@ class Utf8Tools {
 		}
 	}
 
-	static inline function alloc (size:Int, strLength:Int) {
+	static inline function allocImpl (size:Int, strLength:Int) {
 		return {
 			b : ByteAccess.alloc(size),
 			length : strLength
@@ -99,10 +99,8 @@ class Utf8Tools {
 	}
 
 	static function getCharSize (start:Int):Int {
-		return if (start < 0x80) 1
-		else if ((start & 0xE0) == 0xE0) 3
-		else if ((start & 0xC0) == 0xC0) 2
-		else throw "invalid utf8";
+		return Encoding.getUtf8CharSize(start);
+		
 	}
 
 	static function isUpperCaseLetter (bytes:Utf8Impl, pos:Int, size:Int) {
@@ -137,7 +135,7 @@ class Utf8Tools {
 		}
 	}
 
-	static var empty = { b : ByteAccess.alloc(0), length : 0};
+	static var empty = allocImpl(0, 0);
 
 	static inline function eachCode ( ba:Utf8Impl, f : Int -> Void) {
 		var i = 0;
@@ -202,7 +200,7 @@ class Utf8Tools {
 	// string functions
 
 	static function toUpperCase(ba:Utf8Impl) : Utf8Impl {
-		var res = alloc(byteLength(ba), strLength(ba));
+		var res = allocImpl(byteLength(ba), strLength(ba));
 		var i = 0;
 		while (i < byteLength(ba)) {
 			var b = fastGet(ba, i);
@@ -215,7 +213,7 @@ class Utf8Tools {
 	}
 
 	static function toLowerCase(ba:Utf8Impl) : Utf8Impl {
-		var res = alloc(byteLength(ba), strLength(ba));
+		var res = allocImpl(byteLength(ba), strLength(ba));
 		var i = 0;
 		while (i < byteLength(ba)) {
 			var b = fastGet(ba, i);
@@ -495,7 +493,7 @@ class Utf8Tools {
 	static function fromCharCode( code : Int ) : Utf8Impl
 	{
 		var size = getCodeSize(code);
-		var bytes = alloc(size, 1);
+		var bytes = allocImpl(size, 1);
 		switch size {
 			case 1:
 				set(bytes, 0, code);

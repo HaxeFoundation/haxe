@@ -63,7 +63,7 @@ class EncodingTools {
 	
 	public static inline function utf8ToUcs2 (s:Utf8):Ucs2 {
 		// TODO this could be done without creating Bytes via fromByteAccess
-		return Ucs2.fromBytes(utf8ToUcs2ByteAccess(s).toBytes());
+		return Ucs2.fromByteAccess(Encoding.convertUtf8toUcs2(s.getReader(), StrictConversion));
 	}
 
 	public static inline function utf16ToUtf8 (s:Utf16):Utf8 {
@@ -71,7 +71,7 @@ class EncodingTools {
 	}
 
 	public static inline function utf8ToUtf16 (s:Utf8):Utf16 {
-		return Utf16.fromByteAccess(Encoding.convertUTF8toUTF16(s.getReader(), StrictConversion));
+		return Utf16.fromByteAccess(Encoding.convertUtf8toUtf16(s.getReader(), StrictConversion));
 	}
 
 	public static function ucs2ToUtf8ByteAccess (s:Ucs2):ByteAccess {
