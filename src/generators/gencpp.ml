@@ -1617,7 +1617,7 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
    | TCppRawPointer(constName,valueType) -> constName ^ (tcpp_to_string valueType) ^ "*"
    | TCppFunction(argTypes,retType,abi) ->
         let args = (String.concat "," (List.map tcpp_to_string argTypes)) in
-        "::cpp::Function< " ^ abi ^ " " ^ (tcpp_to_string retType) ^ "(" ^ args ^ ") >"
+        "::cpp::Function< " ^ (tcpp_to_string retType) ^ " " ^ abi ^ " (" ^ args ^ ") >"
    | TCppObjCBlock(argTypes,retType) ->
         (tcpp_objc_block_struct argTypes retType) ^ "::t"
    | TCppDynamicArray -> "::cpp::VirtualArray" ^ suffix
@@ -2241,10 +2241,11 @@ let cpp_template_param path native =
    let path = "::" ^ (join_class_path_remap (path) "::" ) in
    if (native) then
       path
-   else if (path="::Array") then
-      "hx::ArrayBase"
-   else
-      path
+   else match path with
+   | "::Array" -> "hx::ArrayBase"
+   | "::Int" -> "int"
+   | "::Bool" -> "bool"
+   | x -> x
 ;;
 
 
@@ -2506,7 +2507,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                  )
                end
 
-            | FStatic ( _, ({cf_name="::cpp::Function_obj::fromStaticFunction"} as member) ) ->
+            | FStatic ( _, ({cf_name="nativeFromStaticFunction"} as member) ) ->
                let funcReturn = cpp_member_return_type ctx member in
                let exprType = cpp_type_of member.cf_type in
                CppFunction( FuncFromStaticFunction, funcReturn ), exprType
