@@ -34,7 +34,7 @@ type value =
 	| VArray of value array * ttype
 	| VUndef
 	| VType of ttype
-	| VRef of value array * int * ttype
+	| VRef of value array ref * int * ttype
 	| VVirtual of vvirtual
 	| VDynObj of vdynobj
 	| VEnum of int * value array
@@ -115,6 +115,7 @@ let rec is_compatible v t =
 	| VInt _, (HUI8 | HUI16 | HI32) -> true
 	| VFloat _, (HF32 | HF64) -> true
 	| VBool _, HBool -> true
+	| _, HVoid -> true
 	| VNull, t -> is_nullable t
 	| VObj o, HObj _ -> safe_cast (HObj o.oproto.pclass) t
 	| VClosure _, HFun _ -> safe_cast (match get_type v with None -> assert false | Some t -> t) t
@@ -122,7 +123,6 @@ let rec is_compatible v t =
 	| VDyn (_,t1), HNull t2 -> tsame t1 t2
 	| v, HNull t -> is_compatible v t
 	| v, HDyn -> v_dynamic v
-	| VUndef, HVoid -> true
 	| VType _, HType -> true
 	| VArray _, HArray -> true
 	| VDynObj _, HDynObj -> true
@@ -141,7 +141,7 @@ type cast =
 	| CUnDyn of ttype
 	| CCast of ttype * ttype
 
-let interp code =
+let interp code debug =
 
 	let globals = Array.map default code.globals in
 	let functions = Array.create (Array.length code.functions + Array.length code.natives) (FNativeFun ("",(fun _ -> assert false),HDyn)) in
@@ -206,6 +206,16 @@ let interp code =
 		hl_to_caml (String.sub str pos len ^ "\x00\x00")
 	in
 
+	let cached_strings = Hashtbl.create 0 in
+	let cached_string idx =
+		try
+			Hashtbl.find cached_strings idx
+		with Not_found ->
+			let s = caml_to_hl code.strings.(idx) in
+			Hashtbl.add cached_strings idx s;
+			s
+	in
+
 	let error msg = raise (Runtime_error msg) in
 	let throw v = exc_stack := []; raise (InterpThrow v) in
 	let throw_msg msg = throw (VDyn (VBytes (caml_to_hl msg),HBytes)) in
@@ -248,6 +258,10 @@ let interp code =
 			None
 	in
 
+	let stack_regs = ref [||] in
+	let stack_pos = ref 0 in
+	let stack_size = ref 0 in
+
 	let invalid_comparison = 255 in
 
 	let rec vstr_d v =
@@ -270,7 +284,7 @@ let interp code =
 		| VArray (a,t) -> "array<" ^ tstr t ^ ">(" ^ String.concat "," (Array.to_list (Array.map vstr_d a)) ^ ")"
 		| VUndef -> "undef"
 		| VType t -> "type(" ^ tstr t ^ ")"
-		| VRef (regs,i,_) -> "ref(" ^ vstr_d regs.(i) ^ ")"
+		| VRef (regs,i,_) -> "ref(" ^ vstr_d (!regs).(i) ^ ")"
 		| VVirtual v -> "virtual(" ^ vstr_d v.vvalue ^ ")"
 		| VDynObj d -> "dynobj(" ^ String.concat "," (Hashtbl.fold (fun f i acc -> (f^":"^vstr_d d.dvalues.(i)) :: acc) d.dfields []) ^ ")"
 		| VEnum (i,vals) -> "enum#" ^ string_of_int i  ^ "(" ^ String.concat "," (Array.to_list (Array.map vstr_d vals)) ^ ")"
@@ -297,7 +311,7 @@ let interp code =
 		| VArray (a,t) -> "[" ^ String.concat ", " (Array.to_list (Array.map (fun v -> vstr v t) a)) ^ "]"
 		| VUndef -> "undef"
 		| VType t -> tstr t
-		| VRef (regs,i,t) -> "*" ^ (vstr regs.(i) t)
+		| VRef (regs,i,t) -> "*" ^ (vstr (!regs).(i) t)
 		| VVirtual v -> vstr v.vvalue HDyn
 		| VDynObj d ->
 			(try
@@ -456,7 +470,7 @@ let interp code =
 		| _, HDyn ->
 			make_dyn v t
 		| _, HRef t2 when t = t2 ->
-			VRef ([|v|],0,t)
+			VRef (ref [|v|],0,t)
 		| HFun (args1,t1), HFun (args2,t2) when List.length args1 = List.length args2 ->
 			(match v with
 			| VClosure (fn,farg) ->
@@ -649,22 +663,31 @@ let interp code =
 			throw_msg ("Invalid ToVirtual " ^ vstr_d v ^ " : " ^ tstr (HVirtual vp))
 
 	and call f args =
-		let regs = Array.create (Array.length f.regs) VUndef in
-		let pos = ref 1 in
 
+		let spos = !stack_pos in
+		if spos + Array.length f.regs > !stack_size then begin
+			let nsize = spos + Array.length f.regs + 256 in
+			let nstack = Array.make nsize VUndef in
+			Array.blit !stack_regs 0 nstack 0 !stack_pos;
+			stack_regs := nstack;
+			stack_size := nsize;
+		end;
+		stack_pos := spos + Array.length f.regs;
+
+		let pos = ref 1 in
 		stack := (f,pos) :: !stack;
 		let fret = (match f.ftype with
 			| HFun (fargs,fret) ->
-				if List.length fargs <> List.length args then error (Printf.sprintf "Invalid args: (%s) should be (%s)" (String.concat "," (List.map vstr_d args)) (String.concat "," (List.map tstr fargs)));
+				if debug && List.length fargs <> List.length args then error (Printf.sprintf "Invalid args: (%s) should be (%s)" (String.concat "," (List.map vstr_d args)) (String.concat "," (List.map tstr fargs)));
 				fret
 			| _ -> assert false
 		) in
-		let rtype i = f.regs.(i) in
+		let rtype i = Array.unsafe_get f.regs i in
 		let check v t id =
-			if not (is_compatible v t) then error (Printf.sprintf "Can't set %s(%s) with %s" (id()) (tstr t) (vstr_d v));
+			if debug && not (is_compatible v t) then error (Printf.sprintf "Can't set %s(%s) with %s" (id()) (tstr t) (vstr_d v))
 		in
 		let check_obj v o fid =
-			match o with
+			if debug then match o with
 			| VObj o ->
 				let _, fields = get_proto o.oproto.pclass in
 				check v fields.(fid) (fun() -> "obj field")
@@ -676,21 +699,21 @@ let interp code =
 		in
 		let set r v =
 			check v (rtype r) (fun() -> "register " ^ string_of_int r);
-			Array.unsafe_set regs r v
+			Array.unsafe_set !stack_regs (r + spos) v
 		in
 		list_iteri set args;
-		let get r = Array.unsafe_get regs r in
+		let get r = Array.unsafe_get !stack_regs (r + spos) in
 		let global g = Array.unsafe_get globals g in
 		let traps = ref [] in
 		let numop iop fop a b =
 			match rtype a with
 			(* todo : sign-extend and mask after result for HUI8/16 *)
 			| HUI8 | HUI16 | HI32 ->
-				(match regs.(a), regs.(b) with
+				(match get a, get b with
 				| VInt a, VInt b -> VInt (iop a b)
 				| _ -> assert false)
 			| HF32 | HF64 ->
-				(match regs.(a), regs.(b) with
+				(match get a, get b with
 				| VFloat a, VFloat b -> VFloat (fop a b)
 				| _ -> assert false)
 			| _ ->
@@ -700,7 +723,7 @@ let interp code =
 			match rtype a with
 			(* todo : sign-extend and mask after result for HUI8/16 *)
 			| HUI8 | HUI16 | HI32 ->
-				(match regs.(a), regs.(b) with
+				(match get a, get b with
 				| VInt a, VInt b -> VInt (f a b)
 				| _ -> assert false)
 			| _ ->
@@ -709,7 +732,7 @@ let interp code =
 		let iunop iop r =
 			match rtype r with
 			| HUI8 | HUI16 | HI32 ->
-				(match regs.(r) with
+				(match get r with
 				| VInt a -> VInt (iop a)
 				| _ -> assert false)
 			| _ ->
@@ -733,13 +756,13 @@ let interp code =
 			if v < 0l then Int32.to_float v +. 4294967296. else Int32.to_float v
 		in
 		let rec loop() =
-			let op = f.code.(!pos) in
+			let op = Array.unsafe_get f.code (!pos) in
 			incr pos;
 			(match op with
 			| OMov (a,b) -> set a (get b)
 			| OInt (r,i) -> set r (VInt code.ints.(i))
 			| OFloat (r,i) -> set r (VFloat (Array.unsafe_get code.floats i))
-			| OString (r,s) -> set r (VBytes (caml_to_hl code.strings.(s)))
+			| OString (r,s) -> set r (VBytes (cached_string s))
 			| OBytes (r,s) -> set r (VBytes (code.strings.(s) ^ "\x00"))
 			| OBool (r,b) -> set r (VBool b)
 			| ONull r -> set r VNull
@@ -773,7 +796,7 @@ let interp code =
 				Array.unsafe_set globals g v
 			| OJTrue (r,i) -> if get r = VBool true then pos := !pos + i
 			| OJFalse (r,i) -> if get r = VBool false then pos := !pos + i
-			| ORet r -> raise (Return regs.(r))
+			| ORet r -> raise (Return (get r))
 			| OJNull (r,i) -> if get r == VNull then pos := !pos + i
 			| OJNotNull (r,i) -> if get r != VNull then pos := !pos + i
 			| OJSLt (a,b,i) -> if vcompare a b (<) then pos := !pos + i
@@ -991,17 +1014,17 @@ let interp code =
 						| HNull _ -> 18)))
 					| _ -> assert false);
 			| ORef (r,v) ->
-				set r (VRef (regs,v,rtype v))
+				set r (VRef (stack_regs,v + spos,rtype v))
 			| OUnref (v,r) ->
 				set v (match get r with
-				| VRef (regs,i,_) -> Array.unsafe_get regs i
+				| VRef (regs,i,_) -> Array.unsafe_get (!regs) i
 				| _ -> assert false)
 			| OSetref (r,v) ->
 				(match get r with
 				| VRef (regs,i,t) ->
 					let v = get v in
 					check v t (fun() -> "ref");
-					Array.unsafe_set regs i v
+					Array.unsafe_set (!regs) i v
 				| _ -> assert false)
 			| OToVirtual (r,rv) ->
 				set r (to_virtual (get rv) (match rtype r with HVirtual vp -> vp | _ -> assert false))
@@ -1060,6 +1083,7 @@ let interp code =
 				| Return v ->
 					check v fret (fun() -> "return value");
 					stack := List.tl !stack;
+					stack_pos := spos;
 					v
 				| InterpThrow v ->
 					match !traps with
@@ -1071,6 +1095,7 @@ let interp code =
 						traps := tl;
 						exc_stack := (f,ref !pos) :: !exc_stack;
 						pos := target;
+						stack_pos := spos + Array.length f.regs;
 						set r v;
 						exec()
 		in
@@ -1161,21 +1186,21 @@ let interp code =
 				(function
 				| [VInt v; VRef (regs,i,_)] ->
 					let str = Int32.to_string v in
-					regs.(i) <- to_int (String.length str);
+					(!regs).(i) <- to_int (String.length str);
 					VBytes (caml_to_hl str)
 				| _ -> assert false);
 			| "ftos" ->
 				(function
 				| [VFloat _ as v; VRef (regs,i,_)] ->
 					let str = vstr v HF64 in
-					regs.(i) <- to_int (String.length str);
+					(!regs).(i) <- to_int (String.length str);
 					VBytes (caml_to_hl str)
 				| _ -> assert false);
 			| "value_to_string" ->
 				(function
 				| [v; VRef (regs,i,_)] ->
 					let str = caml_to_hl (vstr v HDyn) in
-					regs.(i) <- to_int ((String.length str) lsr 1 - 1);
+					(!regs).(i) <- to_int ((String.length str) lsr 1 - 1);
 					VBytes str
 				| _ -> assert false);
 			| "math_isnan" -> (function [VFloat f] -> VBool (classify_float f = FP_nan) | _ -> assert false)
@@ -1368,7 +1393,7 @@ let interp code =
 				| _ -> assert false)
 			| "sys_time" ->
 				(function
-				| [] -> VFloat (Unix.time())
+				| [] -> VFloat (Unix.gettimeofday())
 				| _ -> assert false)
 			| "sys_exit" ->
 				(function
@@ -1570,7 +1595,7 @@ let interp code =
 				| [VBytes s; VInt pos; VRef (regs,idx,HI32)] ->
 					let s = String.sub s (int pos) (String.length s - (int pos)) in
 					let u16 = caml_to_hl (try String.sub s 0 (String.index s '\000') with Not_found -> assert false) in
-					regs.(idx) <- to_int (String.length u16 - 2);
+					(!regs).(idx) <- to_int (String.length u16 - 2);
 					VBytes u16
 				| _ -> assert false)
 			| "utf16_to_utf8" ->
@@ -1578,7 +1603,7 @@ let interp code =
 				| [VBytes s; VInt pos; VRef (regs,idx,HI32)] ->
 					let s = String.sub s (int pos) (String.length s - (int pos)) in
 					let u8 = hl_to_caml s in
-					regs.(idx) <- to_int (String.length u8);
+					(!regs).(idx) <- to_int (String.length u8);
 					VBytes (u8 ^ "\x00")
 				| _ -> assert false)
 			| "ucs2_upper" ->
@@ -1627,7 +1652,7 @@ let interp code =
 					done;
 					utf16_add buf 0;
 					let str = Buffer.contents buf in
-					regs.(idx) <- to_int (String.length str lsr 1 - 1);
+					(!regs).(idx) <- to_int (String.length str lsr 1 - 1);
 					VBytes str
 				| _ -> assert false)
 			| "url_decode" ->
@@ -1665,7 +1690,7 @@ let interp code =
 					in
 					loop 0;
 					let str = Buffer.contents b in
-					regs.(idx) <- to_int (UTF8.length str);
+					(!regs).(idx) <- to_int (UTF8.length str);
 					VBytes (caml_to_hl str)
 				| _ -> assert false)
 			| "call_method" ->
@@ -1738,7 +1763,7 @@ let interp code =
 					let set r v =
 						match r with
 						| VNull -> ()
-						| VRef (regs,pos,HI32) -> regs.(pos) <- to_int v
+						| VRef (regs,pos,HI32) -> (!regs).(pos) <- to_int v
 						| _ -> assert false
 					in
 					set year (d.tm_year + 1900);
@@ -1755,7 +1780,7 @@ let interp code =
 				| [VInt d; VRef (regs,pos,HI32)] ->
 					let t = date d in
 					let str = Printf.sprintf "%.4d-%.2d-%.2d %.2d:%.2d:%.2d" (t.tm_year + 1900) (t.tm_mon + 1) t.tm_mday t.tm_hour t.tm_min t.tm_sec in
-					regs.(pos) <- to_int (String.length str);
+					(!regs).(pos) <- to_int (String.length str);
 					VBytes (caml_to_hl str)
 				| _ -> assert false)
 			| "rnd_init_system" ->
@@ -1850,7 +1875,7 @@ let interp code =
 					let n = int n in
 					(match (try r.r_groups.(n) with _ -> failwith ("Invalid group " ^ string_of_int n)) with
 					| None -> to_int (-1)
-					| Some (pos,pend) -> regs.(rlen) <- to_int (pend - pos); to_int pos)
+					| Some (pos,pend) -> (!regs).(rlen) <- to_int (pend - pos); to_int pos)
 				| [VAbstract (AReg r); VInt n; VNull] ->
 					let n = int n in
 					(match (try r.r_groups.(n) with _ -> failwith ("Invalid group " ^ string_of_int n)) with
