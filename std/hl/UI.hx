@@ -21,7 +21,7 @@
  */
 package hl;
 
-typedef SentinelHandle = hl.types.NativeAbstract<"ui_sentinel">;
+typedef SentinelHandle = hl.Abstract<"ui_sentinel">;
 
 abstract Sentinel(SentinelHandle) {
 
@@ -41,7 +41,7 @@ abstract Sentinel(SentinelHandle) {
 
 }
 
-typedef WinHandle = hl.types.NativeAbstract<"ui_window">;
+typedef WinHandle = hl.Abstract<"ui_window">;
 
 class Window {
 

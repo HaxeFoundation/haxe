@@ -75,7 +75,7 @@ class Std {
 
 	@:keep public static function string( s : Dynamic ) : String {
 		var len = 0;
-		var bytes = hl.Bytes.ofValue(s,new hl.Ref(len));
+		var bytes = hl.Bytes.fromValue(s,new hl.Ref(len));
 		return @:privateAccess String.__alloc__(bytes,len);
 	}
 

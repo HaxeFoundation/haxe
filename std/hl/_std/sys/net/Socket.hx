@@ -22,7 +22,7 @@
 package sys.net;
 import haxe.io.Error;
 
-private typedef SocketHandle = hl.types.NativeAbstract<"hl_socket">;
+private typedef SocketHandle = hl.Abstract<"hl_socket">;
 
 private class SocketOutput extends haxe.io.Output {
 
@@ -206,8 +206,8 @@ class Socket {
 	@:hlNative("std", "socket_listen") static function socket_listen( s : SocketHandle, count : Int ) : Bool { return true; }
 	@:hlNative("std", "socket_bind") static function socket_bind( s : SocketHandle, host : Int, port : Int ) : Bool { return true; }
 	@:hlNative("std", "socket_accept") static function socket_accept( s : SocketHandle ) : SocketHandle { return null; }
-	@:hlNative("std", "socket_peer") static function socket_peer( s : SocketHandle, host : hl.types.Ref<Int>, port : hl.types.Ref<Int> ) : Bool { return true; }
-	@:hlNative("std", "socket_host") static function socket_host( s : SocketHandle, host : hl.types.Ref<Int>, port : hl.types.Ref<Int> ) : Bool { return true; }
+	@:hlNative("std", "socket_peer") static function socket_peer( s : SocketHandle, host : hl.Ref<Int>, port : hl.Ref<Int> ) : Bool { return true; }
+	@:hlNative("std", "socket_host") static function socket_host( s : SocketHandle, host : hl.Ref<Int>, port : hl.Ref<Int> ) : Bool { return true; }
 	@:hlNative("std", "socket_set_timeout") static function socket_set_timeout( s : SocketHandle, timeout : Float ) : Bool { return true; }
 	@:hlNative("std", "socket_shutdown") static function socket_shutdown( s : SocketHandle, read : Bool, write : Bool ) : Bool { return true; }
 	@:hlNative("std", "socket_set_blocking") static function socket_set_blocking( s : SocketHandle, b : Bool ) : Bool { return true; }

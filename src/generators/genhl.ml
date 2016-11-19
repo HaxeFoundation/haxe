@@ -1666,6 +1666,16 @@ and eval_expr ctx e =
 			let r = eval_to ctx value et in
 			op ctx (OSetArray (arr, pos, r));
 			r
+		| "$abytes", [a] ->
+			(match follow a.etype with
+			| TInst ({ cl_path = [], "Array" },[t]) when is_number (to_type ctx t) ->
+				let a = eval_expr ctx a in
+				let r = alloc_tmp ctx HBytes in
+				op ctx (ONullCheck a);
+				op ctx (OField (r,a,1));
+				r
+			| t ->
+				abort ("Invalid array type " ^ s_type (print_context()) t) a.epos)
 		| "$ref", [v] ->
 			(match v.eexpr with
 			| TLocal v ->

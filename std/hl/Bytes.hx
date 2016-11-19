@@ -164,8 +164,15 @@ package hl;
 	}
 
 	@:hlNative("std","value_to_string")
-	public static function ofValue( v : Dynamic, length : Ref<Int> ) : Bytes {
+	public static function fromValue( v : Dynamic, length : Ref<Int> ) : Bytes {
 		return null;
+	}
+
+	/**
+		Get the bytes reference from an array of basic types (no copy occurs)
+	**/
+	@:extern public static inline function getArray<T>( a : Array<T> ) : Bytes {
+		return untyped $abytes(a);
 	}
 
 	@:from

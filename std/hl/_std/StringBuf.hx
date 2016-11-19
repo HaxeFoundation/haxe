@@ -53,7 +53,7 @@
 
 	public function add<T>( x : T ) : Void {
 		var slen = 0;
-		var sbytes = hl.Bytes.ofValue(x, new hl.Ref(slen));
+		var sbytes = hl.Bytes.fromValue(x, new hl.Ref(slen));
 		__add(sbytes, 0, slen<<1);
 	}
 
