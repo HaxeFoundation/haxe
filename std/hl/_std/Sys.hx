@@ -38,10 +38,10 @@ class Sys {
 	static function __init__() : Void {
 		utf8Path = sys_utf8_path();
 	}
-	static function getPath( s : String ) : hl.types.Bytes {
+	static function getPath( s : String ) : hl.Bytes {
 		return utf8Path ? s.bytes.utf16ToUtf8(0, null) : s.bytes;
 	}
-	static function makePath( b : hl.types.Bytes ) : String {
+	static function makePath( b : hl.Bytes ) : String {
 		return utf8Path ? String.fromUTF8(b) : String.fromUCS2(b);
 	}
 
@@ -146,19 +146,19 @@ class Sys {
 	@:hlNative("std", "sys_cpu_time") public static function cpuTime() : Float { return 0.; };
 	@:hlNative("std", "sys_get_char") public static function getChar( echo : Bool ) : Int { return 0; }
 
-	@:hlNative("std","sys_print") static function sys_print( v : hl.types.Bytes ) : Void {};
+	@:hlNative("std","sys_print") static function sys_print( v : hl.Bytes ) : Void {};
 	@:hlNative("std", "file_stdin") static function file_stdin() : sys.io.File.FileHandle { return null; }
 	@:hlNative("std", "file_stdout") static function file_stdout() : sys.io.File.FileHandle { return null; }
 	@:hlNative("std", "file_stderr") static function file_stderr() : sys.io.File.FileHandle { return null; }
-	@:hlNative("std", "sys_args") static function sys_args() : hl.types.NativeArray<hl.types.Bytes> { return null; }
-	@:hlNative("std", "sys_get_env") static function get_env( key : hl.types.Bytes ) : hl.types.Bytes { return null; }
-	@:hlNative("std", "sys_put_env") static function put_env( key : hl.types.Bytes, val : hl.types.Bytes ) : Bool { return false; }
-	@:hlNative("std", "sys_env") static function sys_env() : hl.types.NativeArray<hl.types.Bytes> { return null; }
-	@:hlNative("std", "sys_set_time_locale") static function set_time_locale( loc : hl.types.Bytes ) : Bool { return true; }
-	@:hlNative("std", "sys_get_cwd") static function get_cwd() : hl.types.Bytes { return null; }
-	@:hlNative("std", "sys_set_cwd") static function set_cwd( path : hl.types.Bytes ) : Bool { return true; }
-	@:hlNative("std", "sys_command") static function sys_command( cmd : hl.types.Bytes ) : Int { return 0; }
-	@:hlNative("std", "sys_exe_path") static function sys_exe_path() : hl.types.Bytes { return null; }
-	@:hlNative("std", "sys_string") static function sys_string() : hl.types.Bytes { return null; }
+	@:hlNative("std", "sys_args") static function sys_args() : hl.NativeArray<hl.Bytes> { return null; }
+	@:hlNative("std", "sys_get_env") static function get_env( key : hl.Bytes ) : hl.Bytes { return null; }
+	@:hlNative("std", "sys_put_env") static function put_env( key : hl.Bytes, val : hl.Bytes ) : Bool { return false; }
+	@:hlNative("std", "sys_env") static function sys_env() : hl.NativeArray<hl.Bytes> { return null; }
+	@:hlNative("std", "sys_set_time_locale") static function set_time_locale( loc : hl.Bytes ) : Bool { return true; }
+	@:hlNative("std", "sys_get_cwd") static function get_cwd() : hl.Bytes { return null; }
+	@:hlNative("std", "sys_set_cwd") static function set_cwd( path : hl.Bytes ) : Bool { return true; }
+	@:hlNative("std", "sys_command") static function sys_command( cmd : hl.Bytes ) : Int { return 0; }
+	@:hlNative("std", "sys_exe_path") static function sys_exe_path() : hl.Bytes { return null; }
+	@:hlNative("std", "sys_string") static function sys_string() : hl.Bytes { return null; }
 
 }

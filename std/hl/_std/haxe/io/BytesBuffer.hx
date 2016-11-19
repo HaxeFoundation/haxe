@@ -24,7 +24,7 @@ package haxe.io;
 @:coreApi
 class BytesBuffer {
 
-	var b : hl.types.Bytes;
+	var b : hl.Bytes;
 	var pos : Int;
 	var size : Int;
 
@@ -33,7 +33,7 @@ class BytesBuffer {
 	public function new() {
 		pos = 0;
 		size = 16; // ensure increment of 8
-		b = new hl.types.Bytes(size);
+		b = new hl.Bytes(size);
 	}
 
 	inline function get_length() : Int {
@@ -48,13 +48,13 @@ class BytesBuffer {
 	function __expand( req : Int ) : Void {
 		var nsize = (size * 3) >> 1;
 		if( nsize < req ) nsize = req;
-		var b2 = new hl.types.Bytes(nsize);
+		var b2 = new hl.Bytes(nsize);
 		b2.blit(0, b, 0, pos);
 		b = b2;
 		size = nsize;
 	}
 
-	function __add( b : hl.types.Bytes, bpos : Int, blen : Int ) : Void {
+	function __add( b : hl.Bytes, bpos : Int, blen : Int ) : Void {
 		if( pos + blen > size ) __expand(pos+blen);
 		this.b.blit(pos, b, bpos, blen);
 		pos += blen;

@@ -25,10 +25,10 @@ package haxe.ds;
 @:coreApi
 class ObjectMap<K:{},T> implements haxe.Constraints.IMap<K,T> {
 
-	var h : hl.types.NativeObjectMap;
+	var h : hl.types.ObjectMap;
 
 	public function new() : Void {
-		h = new hl.types.NativeObjectMap();
+		h = new hl.types.ObjectMap();
 	}
 
 	public function set( key : K, value : T ) : Void {
@@ -48,7 +48,7 @@ class ObjectMap<K:{},T> implements haxe.Constraints.IMap<K,T> {
 	}
 
 	public function keys() : Iterator<K> {
-		return new hl.types.NativeArray.NativeArrayIterator<K>(cast h.keysArray());
+		return new hl.NativeArray.NativeArrayIterator<K>(cast h.keysArray());
 	}
 
 	public function iterator() : Iterator<T> {

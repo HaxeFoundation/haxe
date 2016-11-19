@@ -108,7 +108,7 @@ class ArrayBase extends ArrayAccess {
 	}
 
 	public static function allocI32( bytes : BytesAccess<Int>, length : Int ) @:privateAccess {
-		var a : ArrayBasic.ArrayI32 = untyped $new(ArrayBasic.ArrayI32);
+		var a : ArrayBytes.ArrayI32 = untyped $new(ArrayBytes.ArrayI32);
 		a.length = length;
 		a.bytes = bytes;
 		a.size = length;
@@ -116,7 +116,7 @@ class ArrayBase extends ArrayAccess {
 	}
 
 	public static function allocUI16( bytes : BytesAccess<UI16>, length : Int ) @:privateAccess {
-		var a : ArrayBasic.ArrayUI16 = untyped $new(ArrayBasic.ArrayUI16);
+		var a : ArrayBytes.ArrayUI16 = untyped $new(ArrayBytes.ArrayUI16);
 		a.length = length;
 		a.bytes = bytes;
 		a.size = length;
@@ -124,7 +124,7 @@ class ArrayBase extends ArrayAccess {
 	}
 
 	public static function allocF32( bytes : BytesAccess<F32>, length : Int ) @:privateAccess {
-		var a : ArrayBasic.ArrayF32 = untyped $new(ArrayBasic.ArrayF32);
+		var a : ArrayBytes.ArrayF32 = untyped $new(ArrayBytes.ArrayF32);
 		a.length = length;
 		a.bytes = bytes;
 		a.size = length;
@@ -132,7 +132,7 @@ class ArrayBase extends ArrayAccess {
 	}
 
 	public static function allocF64( bytes : BytesAccess<Float>, length : Int ) @:privateAccess {
-		var a : ArrayBasic.ArrayF64 = untyped $new(ArrayBasic.ArrayF64);
+		var a : ArrayBytes.ArrayF64 = untyped $new(ArrayBytes.ArrayF64);
 		a.length = length;
 		a.bytes = bytes;
 		a.size = length;

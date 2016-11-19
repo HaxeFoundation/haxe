@@ -19,33 +19,60 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package hl.types;
+package hl;
 
-@:coreType abstract BytesAccess<T> from Bytes to Bytes {
+@:generic class NativeArrayIterator<T> {
+	var arr : NativeArray<T>;
+	var pos : Int;
+	var length : Int;
 
-	public var sizeBits(get, never) : Int;
-	public var nullValue(get, never) : T;
-
-
-	@:extern inline function get_sizeBits() {
-		return untyped $bytes_sizebits(this);
+	public inline function new(arr:NativeArray<T>) {
+		this.arr = arr;
+		pos = 0;
+		length = arr.length;
 	}
 
-	@:extern inline function get_nullValue() {
-		return untyped $bytes_nullvalue(this);
+	public inline function hasNext() {
+		return pos < length;
 	}
 
-	@:extern public inline function blit( pos : Int, src : BytesAccess<T>, srcPos : Int, len : Int ) : Void {
-		(this:Bytes).blit(pos << sizeBits, src, srcPos << sizeBits, len << sizeBits);
+	public inline function next() {
+		return arr[pos++];
+	}
+}
+
+@:coreType abstract NativeArray<T> {
+
+	public var length(get,never):Int;
+
+	@:extern public inline function new( length : Int ) {
+		this = untyped $aalloc(length);
 	}
 
-	@:extern @:arrayAccess public inline function get( pos : Int ) : T {
-		return untyped $bget(this,pos);
+	@:extern inline function get_length() : Int {
+		return untyped $asize(this);
 	}
 
-	@:extern @:arrayAccess public inline function set( pos : Int, value : T ) : T {
-		untyped $bset(this,pos,value);
+	@:extern @:arrayAccess inline function get( pos : Int ) : T {
+		return untyped ($aget(this,pos):T);
+	}
+
+	@:extern @:arrayAccess inline function set( pos : Int, value : T ) : T {
+		untyped $aset(this,pos,value);
 		return value;
+	}
+
+	@:extern public inline function sub( pos : Int, len : Int ) {
+		var n = new NativeArray<T>(len);
+		n.blit(0, this, pos, len);
+		return n;
+	}
+
+	@:hlNative("std","array_type") public function getType() : Type {
+		return null;
+	}
+
+ 	@:hlNative("std","array_blit") public function blit( pos : Int, src : NativeArray<T>, srcPos : Int, srcLen : Int ) : Void {
 	}
 
 }

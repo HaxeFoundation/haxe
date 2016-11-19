@@ -25,9 +25,9 @@ package haxe.io;
 class Bytes {
 
 	public var length(default,null) : Int;
-	var b : hl.types.Bytes;
+	var b : hl.Bytes;
 
-	function new(b:hl.types.Bytes,length:Int) : Void {
+	function new(b:hl.Bytes,length:Int) : Void {
 		this.b = b;
 		this.length = length;
 	}
@@ -118,7 +118,7 @@ class Bytes {
 	public function getString( pos : Int, len : Int ) : String {
 		if( pos < 0 || len < 0 || pos + len > length ) throw Error.OutsideBounds;
 
-		var b = new hl.types.Bytes(len + 1);
+		var b = new hl.Bytes(len + 1);
 		b.blit(0, this.b, pos, len);
 		b[len] = 0;
 		return @:privateAccess String.fromUTF8(b);
@@ -153,7 +153,7 @@ class Bytes {
 	}
 
 	public static function alloc( length : Int ) : Bytes {
-		var b = new hl.types.Bytes(length);
+		var b = new hl.Bytes(length);
 		b.fill(0, length, 0);
 		return new Bytes(b,length);
 	}

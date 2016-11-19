@@ -56,7 +56,7 @@ private class SocketOutput extends haxe.io.Output {
 
 
 	@:hlNative("std","socket_send_char") static function socket_send_char( s : SocketHandle, c : Int ) : Int { return 0; }
-	@:hlNative("std","socket_send") static function socket_send( s : SocketHandle, bytes : hl.types.Bytes, pos : Int, len : Int ) : Int { return 0; }
+	@:hlNative("std","socket_send") static function socket_send( s : SocketHandle, bytes : hl.Bytes, pos : Int, len : Int ) : Int { return 0; }
 
 }
 
@@ -91,7 +91,7 @@ private class SocketInput extends haxe.io.Input {
 		sock.close();
 	}
 
-	@:hlNative("std","socket_recv") static function socket_recv( s : SocketHandle, bytes : hl.types.Bytes, pos : Int, len : Int ) : Int { return 0; }
+	@:hlNative("std","socket_recv") static function socket_recv( s : SocketHandle, bytes : hl.Bytes, pos : Int, len : Int ) : Int { return 0; }
 	@:hlNative("std","socket_recv_char") static function socket_recv_char( s : SocketHandle ) : Int { return 0; }
 
 }

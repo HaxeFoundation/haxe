@@ -25,7 +25,7 @@ class FPHelper {
 
 	// note : this is not thread safe, use TLS when available
 	static var i64tmp = Int64.ofInt(0);
-	static var helper = new hl.types.Bytes(8);
+	static var helper = new hl.Bytes(8);
 
 	public static function i32ToFloat( i : Int ) : Single {
 		helper.setI32(0,i);

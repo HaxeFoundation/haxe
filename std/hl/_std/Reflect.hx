@@ -26,18 +26,18 @@ class Reflect {
 	public static function hasField( o : Dynamic, field : String ) : Bool {
 		if( field == null ) return false;
 		var hash = @:privateAccess field.bytes.hash();
-		return hl.types.Api.hasField(o,hash);
+		return hl.Api.hasField(o,hash);
 	}
 
 	public static function field( o : Dynamic, field : String ) : Dynamic {
 		if( field == null ) return null;
 		var hash = @:privateAccess field.bytes.hash();
-		return hl.types.Api.getField(o,hash);
+		return hl.Api.getField(o,hash);
 	}
 
 	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
 		var hash = @:privateAccess field.bytes.hash();
-		hl.types.Api.setField(o,hash,value);
+		hl.Api.setField(o,hash,value);
 	}
 
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic {
@@ -59,11 +59,11 @@ class Reflect {
 		var args : hl.types.ArrayDyn = cast args;
 		var count = args.length;
 
-		var ft = hl.types.Type.getDynamic(func);
+		var ft = hl.Type.getDynamic(func);
 		if( ft.kind != HFun )
 			throw "Invalid function " + func;
 		var need = ft.getArgsCount();
-		var cval = hl.types.Api.getClosureValue(func);
+		var cval = hl.Api.getClosureValue(func);
 		var isClosure = cval != null && need >= 0;
 		if( o == null )
 			o = cval;
@@ -72,20 +72,20 @@ class Reflect {
 		var nargs = o == null ? count : count + 1;
 		if( isClosure ) need++;
 		if( nargs < need ) nargs = need;
-		var a = new hl.types.NativeArray<Dynamic>(nargs);
+		var a = new hl.NativeArray<Dynamic>(nargs);
 		if( o == null || need < 0 ) {
 			for( i in 0...count )
 				a[i] = args.getDyn(i);
 		} else {
-			func = hl.types.Api.noClosure(func);
+			func = hl.Api.noClosure(func);
 			a[0] = o;
 			for( i in 0...count )
 				a[i+1] = args.getDyn(i);
 		}
-		return hl.types.Api.callMethod(func,a);
+		return hl.Api.callMethod(func,a);
 	}
 
-	@:hlNative("std","obj_fields") static function getObjectFields( v : Dynamic ) : hl.types.NativeArray<hl.types.Bytes> {
+	@:hlNative("std","obj_fields") static function getObjectFields( v : Dynamic ) : hl.NativeArray<hl.Bytes> {
 		return null;
 	}
 
@@ -96,7 +96,7 @@ class Reflect {
 	}
 
 	public static inline function isFunction( f : Dynamic ) : Bool {
-		return hl.types.Type.getDynamic(f).kind == HFun;
+		return hl.Type.getDynamic(f).kind == HFun;
 	}
 
 	@:hlNative("std","dyn_compare")
@@ -110,17 +110,17 @@ class Reflect {
 	}
 
 	public static function isObject( v : Dynamic ) : Bool {
-		var t = hl.types.Type.getDynamic(v);
+		var t = hl.Type.getDynamic(v);
 		return switch( t.kind ) { case HObj, HDynObj, HVirtual: true; default: false; }
 	}
 
 	public static function isEnumValue( v : Dynamic ) : Bool {
-		var t = hl.types.Type.getDynamic(v);
+		var t = hl.Type.getDynamic(v);
 		return t.kind == HEnum;
 	}
 
 	public static function deleteField( o : Dynamic, field : String ) : Bool {
-		return hl.types.Api.deleteField(o,@:privateAccess field.bytes.hash());
+		return hl.Api.deleteField(o,@:privateAccess field.bytes.hash());
 	}
 
 	@:hlNative("std","obj_copy")
@@ -134,7 +134,7 @@ class Reflect {
 	}
 
 	static function _makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
-		return hl.types.Api.makeVarArgs(function(args:hl.types.NativeArray<Dynamic>) {
+		return hl.Api.makeVarArgs(function(args:hl.NativeArray<Dynamic>) {
 			var arr = hl.types.ArrayDyn.alloc(hl.types.ArrayObj.alloc(args), true);
 			return f(cast arr);
 		});

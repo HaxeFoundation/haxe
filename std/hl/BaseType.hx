@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package hl.types;
+package hl;
 
 @:keep
 class BaseType {
@@ -29,12 +29,12 @@ class BaseType {
 	public function check( v : Dynamic ) {
 		var t = Type.getDynamic(v);
 		if( t.kind == HVirtual ) {
-			var v2 = hl.types.Api.getVirtualValue(v);
+			var v2 = hl.Api.getVirtualValue(v);
 			if( v2 != null ) t = Type.getDynamic(v2);
 		}
 		if( __implementedBy__ == null ) {
 			if( t.safeCast(__type__) )
-				return true;		
+				return true;
 			return false;
 		}
 		for( i in __implementedBy__ )
@@ -53,14 +53,14 @@ class Class extends BaseType {
 @:keep
 class Enum extends BaseType {
 	public var __ename__ : String;
-	public var __emap__ : NativeBytesMap;
+	public var __emap__ : hl.types.BytesMap;
 	public var __constructs__ : Array<String>;
 	public var __evalues__ : NativeArray<Dynamic>;
 	function new(t,vals) @:privateAccess {
 		__type__ = t;
 		__evalues__ = vals;
 		__ename__ = t.getName();
-		__emap__ = new NativeBytesMap();
+		__emap__ = new hl.types.BytesMap();
 		__constructs__ = new Array();
 		var cl = t.getEnumFields();
 		for( i in 0...cl.length ) {

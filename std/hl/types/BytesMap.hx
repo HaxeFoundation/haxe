@@ -21,43 +21,43 @@
  */
 package hl.types;
 
-typedef NativeIntMapData = NativeAbstract<"hl_int_map">;
+typedef BytesMapData = Abstract<"hl_bytes_map">;
 
-abstract NativeIntMap(NativeIntMapData) {
+abstract BytesMap(BytesMapData) {
 
 	@:extern public inline function new() {
 		this = alloc();
 	}
-	
-	@:hlNative("std","hialloc") static function alloc() : NativeIntMapData {
+
+	@:hlNative("std","hballoc") static function alloc() : BytesMapData {
 		return null;
 	}
 
-	@:hlNative("std","hiset")
-	public function set( key : Int, value : Dynamic ) {
+	@:hlNative("std","hbset")
+	public function set( key : Bytes, value : Dynamic ) {
 	}
 
-	@:hlNative("std","hiexists")
-	public function exists( key : Int ) : Bool {
-		return false;
-	}
-	
-	@:hlNative("std","higet")
-	public function get( key : Int ) : Dynamic {
-		return null;
-	}
-
-	@:hlNative("std","hiremove")
-	public function remove( key : Int ) : Bool {
+	@:hlNative("std","hbexists")
+	public function exists( key : Bytes ) : Bool {
 		return false;
 	}
 
-	@:hlNative("std","hikeys")
-	public function keysArray() : NativeArray<Int> {
+	@:hlNative("std","hbget")
+	public function get( key : Bytes ) : Dynamic {
 		return null;
 	}
 
-	@:hlNative("std","hivalues")
+	@:hlNative("std","hbremove")
+	public function remove( key : Bytes ) : Bool {
+		return false;
+	}
+
+	@:hlNative("std","hbkeys")
+	public function keysArray() : NativeArray<Bytes> {
+		return null;
+	}
+
+	@:hlNative("std","hbvalues")
 	public function valuesArray() : NativeArray<Dynamic> {
 		return null;
 	}

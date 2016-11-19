@@ -19,6 +19,21 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package hl.types;
+package hl;
 
-@:coreType @:notNull @:runtimeValue abstract UI8 to Int from Int {}
+@:coreType abstract Ref<T> {
+
+	@:extern @:from public static inline function make<T>( v : T ) {
+		return new Ref<T>(v);
+	}
+
+	@:extern public inline function new( v : T ) {
+		this = untyped $ref(v);
+	}
+	@:extern public inline function get() : T {
+		return untyped $unref(this);
+	}
+	@:extern public inline function set( v : T ) : Void {
+		return untyped $setref(this,v);
+	}
+}

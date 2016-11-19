@@ -35,65 +35,65 @@ enum ValueType {
 @:coreApi
 class Type {
 
-	static var allTypes(get,never) : hl.types.NativeBytesMap;
-	static inline function get_allTypes() : hl.types.NativeBytesMap return untyped $allTypes();
+	static var allTypes(get,never) : hl.types.BytesMap;
+	static inline function get_allTypes() : hl.types.BytesMap return untyped $allTypes();
 
 	@:keep static function init() : Void {
-		untyped $allTypes(new hl.types.NativeBytesMap());
+		untyped $allTypes(new hl.types.BytesMap());
 	}
 
-	@:keep static function register( b : hl.types.Bytes, t : hl.types.BaseType ) : Void {
+	@:keep static function register( b : hl.Bytes, t : hl.BaseType ) : Void {
 		allTypes.set(b, t);
 	}
 
 	public static function getClass<T>( o : T ) : Class<T> {
-		var t = hl.types.Type.getDynamic(o);
+		var t = hl.Type.getDynamic(o);
 		if( t.kind == HObj )
 			return t.getGlobal();
 		return null;
 	}
 
 	public static function getEnum( o : EnumValue ) : Enum<Dynamic> {
-		var t = hl.types.Type.getDynamic(o);
+		var t = hl.Type.getDynamic(o);
 		if( t.kind == HEnum )
 			return t.getGlobal();
 		return null;
 	}
 
 	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> @:privateAccess {
-		var c : hl.types.BaseType.Class = cast c;
+		var c : hl.BaseType.Class = cast c;
 		var t = c.__type__.getSuper();
-		return t == hl.types.Type.get((null : Void)) ? null : t.getGlobal();
+		return t == hl.Type.get((null : Void)) ? null : t.getGlobal();
 	}
 
 	public static function getClassName( c : Class<Dynamic> ) : String {
-		var c : hl.types.BaseType.Class = cast c;
+		var c : hl.BaseType.Class = cast c;
 		return c.__name__;
 	}
 
 	public static function getEnumName( e : Enum<Dynamic> ) : String {
-		var e : hl.types.BaseType.Enum = cast e;
+		var e : hl.BaseType.Enum = cast e;
 		return e.__ename__;
 	}
 
 	public static function resolveClass( name : String ) : Class<Dynamic> {
-		var t : hl.types.BaseType = allTypes.get(@:privateAccess name.bytes);
-		if( t == null || !Std.is(t, hl.types.BaseType.Class) )
+		var t : hl.BaseType = allTypes.get(@:privateAccess name.bytes);
+		if( t == null || !Std.is(t, hl.BaseType.Class) )
 			return null;
 		return cast t;
 	}
 
 	public static function resolveEnum( name : String ) : Enum<Dynamic> {
-		var t : hl.types.BaseType = allTypes.get(@:privateAccess name.bytes);
-		if( t == null || !Std.is(t, hl.types.BaseType.Enum) )
+		var t : hl.BaseType = allTypes.get(@:privateAccess name.bytes);
+		if( t == null || !Std.is(t, hl.BaseType.Enum) )
 			return null;
 		return cast t;
 	}
 
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T {
-		var c : hl.types.BaseType.Class = cast cl;
+		var c : hl.BaseType.Class = cast cl;
 		var t = c.__type__;
-		if( t == hl.types.Type.get((null : hl.types.ArrayBase.ArrayAccess)) )
+		if( t == hl.Type.get((null : hl.types.ArrayBase.ArrayAccess)) )
 			return cast new Array<Dynamic>();
 		var o = t.allocObject();
 		if( c.__constructor__ != null ) Reflect.callMethod(o, c.__constructor__, args);
@@ -101,19 +101,19 @@ class Type {
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T {
-		var c : hl.types.BaseType.Class = cast cl;
+		var c : hl.BaseType.Class = cast cl;
 		return c.__type__.allocObject();
 	}
 
 	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T {
-		var en : hl.types.BaseType.Enum = cast e;
+		var en : hl.BaseType.Enum = cast e;
 		var idx : Null<Int> = en.__emap__.get(@:privateAccess constr.bytes);
 		if( idx == null ) throw "Unknown enum constructor " + en.__ename__ +"." + constr;
 		return createEnumIndex(e,idx,params);
 	}
 
 	public static function createEnumIndex<T>( e : Enum<T>, index : Int, ?params : Array<Dynamic> ) : T {
-		var e : hl.types.BaseType.Enum = cast e;
+		var e : hl.BaseType.Enum = cast e;
 		if( index < 0 || index >= e.__constructs__.length ) throw "Invalid enum index " + e.__ename__ +"." + index;
 		if( params == null || params.length == 0 ) {
 			var v = index >= e.__evalues__.length ? null : e.__evalues__[index];
@@ -124,7 +124,7 @@ class Type {
 		var aobj = Std.instance(@:privateAccess a.array, hl.types.ArrayObj);
 		var narr;
 		if( aobj == null ) {
-			narr = new hl.types.NativeArray<Dynamic>(a.length);
+			narr = new hl.NativeArray<Dynamic>(a.length);
 			for( i in 0...a.length )
 				narr[i] = @:privateAccess a.array.getDyn(i);
 		} else {
@@ -136,13 +136,13 @@ class Type {
 	}
 
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> @:privateAccess {
-		var c : hl.types.BaseType.Class = cast c;
+		var c : hl.BaseType.Class = cast c;
 		var fields = c.__type__.getInstanceFields();
 		return [for( f in fields ) String.fromUCS2(f)];
 	}
 
 	public static function getClassFields( c : Class<Dynamic> ) : Array<String> {
-		var c : hl.types.BaseType.Class = cast c;
+		var c : hl.BaseType.Class = cast c;
 		var fields = @:privateAccess Reflect.getObjectFields(c);
 		var fields = [for( f in fields ) @:privateAccess String.fromUCS2(f)];
 		fields.remove("__constructor__");
@@ -154,12 +154,12 @@ class Type {
 	}
 
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
-		var e : hl.types.BaseType.Enum = cast e;
+		var e : hl.BaseType.Enum = cast e;
 		return e.__constructs__.copy();
 	}
 
 	public static function typeof( v : Dynamic ) : ValueType {
-		var t = hl.types.Type.getDynamic(v);
+		var t = hl.Type.getDynamic(v);
 		switch( t.kind ) {
 		case HVoid:
 			return TNull;
@@ -181,7 +181,7 @@ class Type {
 		case HFun:
 			return TFunction;
 		case HVirtual:
-			var v = hl.types.Api.getVirtualValue(v);
+			var v = hl.Api.getVirtualValue(v);
 			if( v == null )
 				return TObject;
 			return typeof(v);
@@ -196,12 +196,12 @@ class Type {
 	}
 
 	public static function enumConstructor( e : EnumValue ) : String {
-		var en : hl.types.BaseType.Enum = cast getEnum(e);
+		var en : hl.BaseType.Enum = cast getEnum(e);
 		return en.__constructs__[Type.enumIndex(e)];
 	}
 
 	@:hlNative("std","enum_parameters")
-	static function _enumParameters( e : EnumValue ) : hl.types.NativeArray<Dynamic> {
+	static function _enumParameters( e : EnumValue ) : hl.NativeArray<Dynamic> {
 		return null;
 	}
 
@@ -215,7 +215,7 @@ class Type {
 	}
 
 	public static function allEnums<T>( e : Enum<T> ) : Array<T> {
-		var en : hl.types.BaseType.Enum = cast e;
+		var en : hl.BaseType.Enum = cast e;
 		var out = [];
 		for( i in 0...en.__evalues__.length ) {
 			var v = en.__evalues__[i];

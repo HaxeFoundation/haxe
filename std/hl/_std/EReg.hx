@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-private typedef ERegValue = hl.types.NativeAbstract<"ereg">;
+private typedef ERegValue = hl.Abstract<"ereg">;
 
 @:access(String)
 @:coreApi @:final class EReg {
@@ -184,15 +184,15 @@ private typedef ERegValue = hl.types.NativeAbstract<"ereg">;
 	}
 
 
-	@:hlNative("std", "regexp_new_options") static function regexp_new_options( bytes : hl.types.Bytes, options : hl.types.Bytes ) : ERegValue {
+	@:hlNative("std", "regexp_new_options") static function regexp_new_options( bytes : hl.Bytes, options : hl.Bytes ) : ERegValue {
 		return null;
 	}
 
-	@:hlNative("std", "regexp_match") static function regexp_match( r : ERegValue, str : hl.types.Bytes, pos : Int, size : Int ) : Bool {
+	@:hlNative("std", "regexp_match") static function regexp_match( r : ERegValue, str : hl.Bytes, pos : Int, size : Int ) : Bool {
 		return false;
 	}
 
-	@:hlNative("std", "regexp_matched_pos") static function regexp_matched_pos( r : ERegValue, n : Int, size : hl.types.Ref<Int> ) : Int {
+	@:hlNative("std", "regexp_matched_pos") static function regexp_matched_pos( r : ERegValue, n : Int, size : hl.Ref<Int> ) : Int {
 		return 0;
 	}
 

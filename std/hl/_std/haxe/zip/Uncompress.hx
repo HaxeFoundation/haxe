@@ -65,7 +65,7 @@ class Uncompress {
 	}
 
 	static function inflate_init( bits : Int ) : Inflater { return null; }
-	static function inflate_buffer( i : Inflater, bytes : hl.types.Bytes, bytesPos : Int, bytesLen : Int, dst : hl.types.Bytes, dstPos : Int, dstLen : Int, read : hl.types.Ref<Int>, write : hl.types.Ref<Int>) : Bool {
+	static function inflate_buffer( i : Inflater, bytes : hl.Bytes, bytesPos : Int, bytesLen : Int, dst : hl.Bytes, dstPos : Int, dstLen : Int, read : hl.types.Ref<Int>, write : hl.types.Ref<Int>) : Bool {
 		return false;
 	}
 	static function zip_end( i : Inflater ) : Void { }

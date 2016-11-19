@@ -144,7 +144,7 @@ class CallStack {
 	}
 
 	#if hl
-	@:hlNative("std", "exception_stack") static function _getExceptionStack() : hl.types.NativeArray<hl.types.Bytes> { return null; }
+	@:hlNative("std", "exception_stack") static function _getExceptionStack() : hl.NativeArray<hl.Bytes> { return null; }
 	#end
 
 	/**
@@ -257,7 +257,7 @@ class CallStack {
 	}
 
 	#if cpp @:noStack #end /* Do not mess up the exception stack */
-	private static function makeStack(s #if cs : cs.system.diagnostics.StackTrace #elseif hl : hl.types.NativeArray<hl.types.Bytes> #end) {
+	private static function makeStack(s #if cs : cs.system.diagnostics.StackTrace #elseif hl : hl.NativeArray<hl.Bytes> #end) {
 		#if neko
 			var a = new Array();
 			var l = untyped __dollar__asize(s);

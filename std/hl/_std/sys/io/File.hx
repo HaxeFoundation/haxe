@@ -21,7 +21,7 @@
  */
 package sys.io;
 
-typedef FileHandle = hl.types.NativeAbstract<"hl_fdesc">;
+typedef FileHandle = hl.Abstract<"hl_fdesc">;
 
 @:access(Sys)
 @:coreApi class File {
@@ -77,7 +77,7 @@ typedef FileHandle = hl.types.NativeAbstract<"hl_fdesc">;
 		d.close();
 	}
 
-	@:hlNative("std", "file_open") static function file_open( path : hl.types.Bytes, mode : Int, binary : Bool ) : FileHandle { return null; }
-	@:hlNative("std", "file_contents") static function file_contents( path : hl.types.Bytes, size : hl.types.Ref<Int> ) : hl.types.Bytes { return null; }
+	@:hlNative("std", "file_open") static function file_open( path : hl.Bytes, mode : Int, binary : Bool ) : FileHandle { return null; }
+	@:hlNative("std", "file_contents") static function file_contents( path : hl.Bytes, size : hl.Ref<Int> ) : hl.Bytes { return null; }
 
 }

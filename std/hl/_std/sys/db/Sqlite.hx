@@ -28,19 +28,19 @@ private typedef SqliteResultHandle = hl.types.NativeAbstract<"sqlite_result">;
 @:hlNative("sqlite")
 private class SqliteLib
 {
-	public static function connect( path : hl.types.Bytes ) : SqliteConnectionHandle { return null; }
+	public static function connect( path : hl.Bytes ) : SqliteConnectionHandle { return null; }
 	public static function close( c : SqliteConnectionHandle ) : Void { }
-	public static function request( c : SqliteConnectionHandle, sql : hl.types.Bytes ) : SqliteResultHandle { return null; }
+	public static function request( c : SqliteConnectionHandle, sql : hl.Bytes ) : SqliteResultHandle { return null; }
 	public static function last_id( c : SqliteConnectionHandle ) : Int { return 0; }
 	
-	public static function result_next( c : SqliteResultHandle ) : hl.types.NativeArray<Dynamic> { return null; }
+	public static function result_next( c : SqliteResultHandle ) : hl.NativeArray<Dynamic> { return null; }
 	
-	public static function result_get( c : SqliteResultHandle, n : Int ) : Null<hl.types.Bytes> { return null; }
+	public static function result_get( c : SqliteResultHandle, n : Int ) : Null<hl.Bytes> { return null; }
 	public static function result_get_int( c : SqliteResultHandle, n : Int ) : Null<Int> { return 0; }
 	public static function result_get_float( c : SqliteResultHandle, n : Int ) : Null<Float> { return .0; }
 	public static function result_get_length( c : SqliteResultHandle ) : Null<Int> { return 0; }
 	public static function result_get_nfields( c : SqliteResultHandle ) : Int { return 0; }
-	public static function result_get_fields( c : SqliteResultHandle ) : hl.types.NativeArray<hl.types.Bytes> { return null; }
+	public static function result_get_fields( c : SqliteResultHandle ) : hl.NativeArray<hl.Bytes> { return null; }
 }
 
 
@@ -206,7 +206,7 @@ private class SqliteResultSet implements ResultSet
 		{
 			var n : String = names[i];
 			var v : Dynamic = a[i];
-			if ( hl.types.Type.getDynamic(v).kind == hl.types.Type.TypeKind.HBytes )
+			if ( hl.Type.getDynamic(v).kind == hl.Type.TypeKind.HBytes )
 				Reflect.setField(o, n, String.fromUCS2(v));
 			else
 				Reflect.setField(o, n, v);

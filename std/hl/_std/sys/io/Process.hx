@@ -49,7 +49,7 @@ private class Stdin extends haxe.io.Output {
 		return v;
 	}
 
-	@:hlNative("std","process_stdin_write") static function _stdin_write( p : ProcessHandle, bytes : hl.types.Bytes, pos : Int, len : Int ) : Int { return 0; }
+	@:hlNative("std","process_stdin_write") static function _stdin_write( p : ProcessHandle, bytes : hl.Bytes, pos : Int, len : Int ) : Int { return 0; }
 	@:hlNative("std","process_stdin_close") static function _stdin_close( p : ProcessHandle ) : Void { }
 
 }
@@ -78,8 +78,8 @@ private class Stdout extends haxe.io.Input {
 		return v;
 	}
 
-	@:hlNative("std","process_stdout_read") static function _stdout_read( p : ProcessHandle, bytes : hl.types.Bytes, pos : Int, len : Int ) : Int { return 0; }
-	@:hlNative("std","process_stderr_read") static function _stderr_read( p : ProcessHandle, bytes : hl.types.Bytes, pos : Int, len : Int ) : Int { return 0; }
+	@:hlNative("std","process_stdout_read") static function _stdout_read( p : ProcessHandle, bytes : hl.Bytes, pos : Int, len : Int ) : Int { return 0; }
+	@:hlNative("std","process_stderr_read") static function _stderr_read( p : ProcessHandle, bytes : hl.Bytes, pos : Int, len : Int ) : Int { return 0; }
 
 }
 
@@ -95,7 +95,7 @@ private class Stdout extends haxe.io.Input {
 		@:privateAccess {
 			var aargs = null;
 			if( args != null ) {
-				aargs = new hl.types.NativeArray<hl.types.Bytes>(args.length);
+				aargs = new hl.NativeArray<hl.Bytes>(args.length);
 				for( i in 0...args.length )
 					aargs[i] = Sys.getPath(args[i]);
 			}
@@ -124,7 +124,7 @@ private class Stdout extends haxe.io.Input {
 		_kill(p);
 	}
 
-	@:hlNative("std","process_run")	static function _run( cmd : hl.types.Bytes, args : hl.types.NativeArray<hl.types.Bytes> ) : ProcessHandle { return null; }
+	@:hlNative("std","process_run")	static function _run( cmd : hl.Bytes, args : hl.NativeArray<hl.Bytes> ) : ProcessHandle { return null; }
 	@:hlNative("std", "process_exit") static function _exit( p : ProcessHandle ) : Int { return 0; }
 	@:hlNative("std", "process_pid") static function _pid( p : ProcessHandle ) : Int { return 0; }
 	@:hlNative("std","process_close") static function _close( p : ProcessHandle ) : Void { }

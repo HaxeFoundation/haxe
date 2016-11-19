@@ -19,6 +19,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package hl.types;
+package hl;
 
 @:coreType @:notNull @:runtimeValue abstract UI16 to Int from Int {}

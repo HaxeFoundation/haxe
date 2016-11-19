@@ -19,7 +19,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package hl.types;
+package hl;
 
-extern class NativeAbstract<Const> {
-}
+@:coreType @:notNull @:runtimeValue abstract UI8 to Int from Int {}

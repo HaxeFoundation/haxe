@@ -131,7 +131,7 @@ let is_extern_field f =
 
 let is_array_class name =
 	match name with
-	| "hl.types.ArrayDyn" | "hl.types.ArrayBasic_Int" | "hl.types.ArrayBasic_Float" | "hl.types.ArrayObj" -> true
+	| "hl.types.ArrayDyn" | "hl.types.ArrayBytes_Int" | "hl.types.ArrayBytes_Float" | "hl.types.ArrayObj" | "hl.types.ArrayBytes_Single" | "hl.types.ArrayBytes_hl_UI16" -> true
 	| _ -> false
 
 let is_array_type t =
@@ -387,7 +387,7 @@ let rec to_type ?tref ctx t =
 		HDyn
 	| TEnum (e,_) ->
 		enum_type ~tref ctx e
-	| TInst ({ cl_path = ["hl";"types"],"NativeAbstract" },[TInst({ cl_kind = KExpr (EConst (String name),_) },_)]) ->
+	| TInst ({ cl_path = ["hl"],"Abstract" },[TInst({ cl_kind = KExpr (EConst (String name),_) },_)]) ->
 		HAbstract (name, alloc_string ctx name)
 	| TInst (c,pl) ->
 		(match c.cl_kind with
@@ -415,12 +415,12 @@ let rec to_type ?tref ctx t =
 			| [], "Enum" ->
 				class_type ctx ctx.base_type [] false
 			| [], "EnumValue" -> HDyn
-			| ["hl";"types"], "Ref" -> HRef (to_type ctx (List.hd pl))
-			| ["hl";"types"], ("Bytes" | "BytesAccess") -> HBytes
-			| ["hl";"types"], "Type" -> HType
-			| ["hl";"types"], "UI16" -> HUI16
-			| ["hl";"types"], "UI8" -> HUI8
-			| ["hl";"types"], "NativeArray" -> HArray
+			| ["hl"], "Ref" -> HRef (to_type ctx (List.hd pl))
+			| ["hl"], ("Bytes" | "BytesAccess") -> HBytes
+			| ["hl"], "Type" -> HType
+			| ["hl"], "UI16" -> HUI16
+			| ["hl"], "UI8" -> HUI8
+			| ["hl"], "NativeArray" -> HArray
 			| _ -> failwith ("Unknown core type " ^ s_type_path a.a_path))
 		else
 			to_type ?tref ctx (Abstract.get_underlying_type a pl)
@@ -1492,7 +1492,7 @@ and eval_expr ctx e =
 			r
 		| "$bytes_sizebits", [eb] ->
 			(match follow eb.etype with
-			| TAbstract({a_path = ["hl";"types"],"BytesAccess"},[t]) ->
+			| TAbstract({a_path = ["hl"],"BytesAccess"},[t]) ->
 				reg_int ctx (match to_type ctx t with
 				| HUI8 -> 0
 				| HUI16 -> 1
@@ -1504,7 +1504,7 @@ and eval_expr ctx e =
 				abort "Invalid BytesAccess" eb.epos);
 		| "$bytes_nullvalue", [eb] ->
 			(match follow eb.etype with
-			| TAbstract({a_path = ["hl";"types"],"BytesAccess"},[t]) ->
+			| TAbstract({a_path = ["hl"],"BytesAccess"},[t]) ->
 				let t = to_type ctx t in
 				let r = alloc_tmp ctx t in
 				(match t with
@@ -1519,7 +1519,7 @@ and eval_expr ctx e =
 				abort "Invalid BytesAccess" eb.epos);
 		| "$bget", [eb;pos] ->
 			(match follow eb.etype with
-			| TAbstract({a_path = ["hl";"types"],"BytesAccess"},[t]) ->
+			| TAbstract({a_path = ["hl"],"BytesAccess"},[t]) ->
 				let b = eval_to ctx eb HBytes in
 				hold ctx b;
 				let pos = eval_to ctx pos HI32 in
@@ -1552,7 +1552,7 @@ and eval_expr ctx e =
 				abort "Invalid BytesAccess" eb.epos);
 		| "$bset", [eb;pos;value] ->
 			(match follow eb.etype with
-			| TAbstract({a_path = ["hl";"types"],"BytesAccess"},[t]) ->
+			| TAbstract({a_path = ["hl"],"BytesAccess"},[t]) ->
 				let b = eval_to ctx eb HBytes in
 				hold ctx b;
 				let pos = eval_to ctx pos HI32 in
@@ -1640,7 +1640,7 @@ and eval_expr ctx e =
 			op ctx (OArraySize (r, eval_to ctx e HArray));
 			r
 		| "$aalloc", [esize] ->
-			let et = (match follow e.etype with TAbstract ({ a_path = ["hl";"types"],"NativeArray" },[t]) -> to_type ctx t | _ -> invalid()) in
+			let et = (match follow e.etype with TAbstract ({ a_path = ["hl"],"NativeArray" },[t]) -> to_type ctx t | _ -> invalid()) in
 			let size = eval_to ctx esize HI32 in
 			let a = alloc_tmp ctx HArray in
 			let rt = alloc_tmp ctx HType in
@@ -1651,7 +1651,7 @@ and eval_expr ctx e =
 			(*
 				read/write on arrays are unsafe : the type of NativeArray needs to be correcly set.
 			*)
-			let at = (match follow a.etype with TAbstract ({ a_path = ["hl";"types"],"NativeArray" },[t]) -> to_type ctx t | _ -> invalid()) in
+			let at = (match follow a.etype with TAbstract ({ a_path = ["hl"],"NativeArray" },[t]) -> to_type ctx t | _ -> invalid()) in
 			let arr = eval_to ctx a HArray in
 			hold ctx arr;
 			let pos = eval_to ctx pos HI32 in
@@ -1660,7 +1660,7 @@ and eval_expr ctx e =
 			op ctx (OGetArray (r, arr, pos));
 			cast_to ctx r (to_type ctx e.etype) e.epos
 		| "$aset", [a; pos; value] ->
-			let et = (match follow a.etype with TAbstract ({ a_path = ["hl";"types"],"NativeArray" },[t]) -> to_type ctx t | _ -> invalid()) in
+			let et = (match follow a.etype with TAbstract ({ a_path = ["hl"],"NativeArray" },[t]) -> to_type ctx t | _ -> invalid()) in
 			let arr = eval_to ctx a HArray in
 			let pos = eval_to ctx pos HI32 in
 			let r = eval_to ctx value et in
@@ -2453,7 +2453,7 @@ and eval_expr ctx e =
 					let r = type_value ctx ct ec.epos in
 					free ctx rtrap;
 					let rb = alloc_tmp ctx HBool in
-					op ctx (OCall2 (rb, alloc_fun_path ctx (["hl";"types"],"BaseType") "check",r,rtrap));
+					op ctx (OCall2 (rb, alloc_fun_path ctx (["hl"],"BaseType") "check",r,rtrap));
 					let jnext = jump ctx (fun n -> OJFalse (rb,n)) in
 					op ctx (OMov (rv, unsafe_cast_to ctx rtrap (to_type ctx v.v_type) ec.epos));
 					jnext
@@ -3058,7 +3058,7 @@ let generate_static_init ctx =
 				) e.e_names;
 
 				op ctx (OType (rt, (to_type ctx (TEnum (e,List.map snd e.e_params)))));
-				op ctx (OCall3 (alloc_tmp ctx HVoid, alloc_fun_path ctx (["hl";"types"],"Enum") "new",r,rt,avalues));
+				op ctx (OCall3 (alloc_tmp ctx HVoid, alloc_fun_path ctx (["hl"],"Enum") "new",r,rt,avalues));
 
 				(match Codegen.build_metadata ctx.com (TEnumDecl e) with
 				| None -> ()
@@ -3407,6 +3407,8 @@ let write_code ch code debug =
 let generate com =
 	let get_type name =
 		try
+			List.find (fun t -> (t_infos t).mt_path = (["hl"],name)) com.types
+		with Not_found -> try
 			List.find (fun t -> (t_infos t).mt_path = (["hl";"types"],name)) com.types
 		with Not_found ->
 			failwith ("hl type " ^ name ^ " not found")
@@ -3443,10 +3445,10 @@ let generate com =
 			abase = get_class "ArrayBase";
 			adyn = get_class "ArrayDyn";
 			aobj = get_class "ArrayObj";
-			aui16 = get_class "ArrayBasic_hl_types_UI16";
-			ai32 = get_class "ArrayBasic_Int";
-			af32 = get_class "ArrayBasic_Single";
-			af64 = get_class "ArrayBasic_Float";
+			aui16 = get_class "ArrayBytes_hl_UI16";
+			ai32 = get_class "ArrayBytes_Int";
+			af32 = get_class "ArrayBytes_Single";
+			af64 = get_class "ArrayBytes_Float";
 		};
 		base_class = get_class "Class";
 		base_enum = get_class "Enum";
@@ -3462,7 +3464,7 @@ let generate com =
 	let all_classes = Hashtbl.create 0 in
 	List.iter (fun t ->
 		match t with
-		| TClassDecl ({ cl_path = ["hl";"types"], ("BasicIterator"|"ArrayBasic") } as c) ->
+		| TClassDecl ({ cl_path = ["hl";"types"], ("BytesIterator"|"ArrayBytes") } as c) ->
 			c.cl_extern <- true
 		| TClassDecl c ->
 			let rec loop p f =

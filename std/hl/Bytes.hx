@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package hl.types;
+package hl;
 
 @:coreType abstract Bytes {
 
@@ -113,7 +113,7 @@ package hl.types;
 		Please note that you need to retain the original unoffset'ed Bytes so it does not get garbage collected, unless the pointer was not GC allocated.
 	**/
 	@:hlNative("std","bytes_offset")
-	public function offset( pos : Int ) : hl.types.Bytes {
+	public function offset( pos : Int ) : Bytes {
 		return null;
 	}
 
