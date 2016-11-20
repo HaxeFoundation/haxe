@@ -1735,3 +1735,39 @@ let parse ctx code =
 			Lexer.restore old;
 			cache := old_cache;
 			raise e
+
+let parse_string com s p error inlined =
+	let old = Lexer.save() in
+	let old_file = (try Some (Hashtbl.find Lexer.all_files p.pfile) with Not_found -> None) in
+	let old_display = !resume_display in
+	let old_de = !display_error in
+	let restore() =
+		(match old_file with
+		| None -> ()
+		| Some f -> Hashtbl.replace Lexer.all_files p.pfile f);
+		if not inlined then resume_display := old_display;
+		Lexer.restore old;
+		display_error := old_de
+	in
+	Lexer.init p.pfile true;
+	display_error := (fun e p -> raise (Error (e,p)));
+	if not inlined then resume_display := null_pos;
+	let pack, decls = try
+		parse com (Lexing.from_string s)
+	with Error (e,pe) ->
+		restore();
+		error (error_msg e) (if inlined then pe else p)
+	| Lexer.Error (e,pe) ->
+		restore();
+		error (Lexer.error_msg e) (if inlined then pe else p)
+	in
+	restore();
+	pack,decls
+
+let parse_expr_string com s p error inl =
+	let head = "class X{static function main() " in
+	let head = (if p.pmin > String.length head then head ^ String.make (p.pmin - String.length head) ' ' else head) in
+	let rec loop e = let e = Ast.map_expr loop e in (fst e,p) in
+	match parse_string com (head ^ s ^ ";}") p error inl with
+	| _,[EClass { d_data = [{ cff_name = "main",null_pos; cff_kind = FFun { f_expr = Some e } }]},_] -> if inl then e else loop e
+	| _ -> raise Exit

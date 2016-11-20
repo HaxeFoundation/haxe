@@ -329,13 +329,9 @@ let generate tctx ext xml_out interp swf_header =
 		| Cpp | Cs | Java | Php -> Common.mkdir_from_path (com.file ^ "/.")
 		| _ -> Common.mkdir_from_path com.file
 	end;
-	if interp then begin
-		let ctx = Interp.create com (Typer.make_macro_api tctx null_pos) in
-		Interp.add_types ctx com.types (fun t -> ());
-		(match com.main with
-		| None -> ()
-		| Some e -> ignore(Interp.eval_expr ctx e));
-	end else if com.platform = Cross then
+	if interp then
+		MacroContext.interpret tctx
+	else if com.platform = Cross then
 		()
 	else begin
 		let generate,name = match com.platform with
@@ -810,7 +806,7 @@ try
 		let t = Common.timer ["typing"] in
 		Typecore.type_expr_ref := (fun ctx e with_type -> Typer.type_expr ctx e with_type);
 		let tctx = Typer.create com in
-		List.iter (Typer.call_init_macro tctx) (List.rev !config_macros);
+		List.iter (MacroContext.call_init_macro tctx) (List.rev !config_macros);
 		List.iter (Typer.eval tctx) !evals;
 		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev !classes);
 		Typer.finalize tctx;
