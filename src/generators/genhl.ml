@@ -299,8 +299,8 @@ let make_debug ctx arr =
 	for i = 0 to DynArray.length arr - 1 do
 		let p = DynArray.unsafe_get arr i in
 		if p != !cur then begin
-			let file = if p.pfile == (!cur).pfile then !cur_file else lookup ctx.cdebug_files p.pfile (fun() -> get_relative_path p) in
-			let line = Lexer.get_error_line p in
+			let file = if p.pfile == (!cur).pfile then !cur_file else lookup ctx.cdebug_files p.pfile (fun() -> if ctx.is_macro then p.pfile else get_relative_path p) in
+			let line = if ctx.is_macro then p.pmin lor ((p.pmax - p.pmin) lsl 20) else Lexer.get_error_line p in
 			if line <> !cur_line || file <> !cur_file then begin
 				cur_file := file;
 				cur_line := line;
@@ -668,6 +668,9 @@ and class_global ?(resolve=true) ctx c =
 	let c = resolve_class ctx c (List.map snd c.cl_params) static in
 	let t = class_type ctx c [] static in
 	alloc_global ctx ("$" ^ s_type_path c.cl_path) t, t
+
+let resolve_class_global ctx cpath =
+	lookup ctx.cglobals ("$" ^ cpath) (fun() -> assert false)
 
 let alloc_std ctx name args ret =
 	let lib = "std" in

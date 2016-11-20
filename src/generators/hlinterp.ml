@@ -93,6 +93,7 @@ and regexp = {
 exception Return of value
 exception Runtime_error of string
 exception InterpThrow of value
+exception Sys_exit of int
 
 type context = {
 	mutable t_globals : value array;
@@ -103,6 +104,7 @@ type context = {
 	mutable stack_pos : int;
 	mutable fcall : vfunction -> value list -> value;
 	mutable code : code;
+	mutable on_error : value -> (fundecl * int ref) list -> unit;
 	checked : bool;
 	cached_protos : (int, vproto * ttype array) Hashtbl.t;
 	cached_strings : (int, string) Hashtbl.t;
@@ -611,8 +613,11 @@ let rec dyn_set_field ctx obj field v vt =
 
 let make_stack ctx (f,pos) =
 	let pos = !pos - 1 in
-	let file, line = (try let fid, line = f.debug.(pos) in ctx.code.debugfiles.(fid), line with _ -> "???", 0) in
-	Printf.sprintf "%s:%d: Called from fun(%d)@x%x" file line f.findex pos
+	try let fid, line = f.debug.(pos) in ctx.code.debugfiles.(fid), line with _ -> "???", 0
+
+let stack_frame ctx (f,pos) =
+	let file, line = make_stack ctx (f,pos) in
+	Printf.sprintf "%s:%d: Called from fun(%d)@x%x" file line f.findex (!pos - 1)
 
 let rec vstr ctx v t =
 	let vstr = vstr ctx in
@@ -883,7 +888,7 @@ let interp ctx f args =
 			| VClosure (f,None) -> set r (fcall f (List.map get rl))
 			| VClosure (f,Some arg) -> set r (fcall f (arg :: List.map get rl))
 			| VNull -> null_access()
-			| _ -> assert false)
+			| _ -> throw_msg ctx (vstr_d ctx (get v)))
 		| OStaticClosure (r, fid) ->
 			let f = get_function ctx fid in
 			set r (VClosure (f,None))
@@ -1117,16 +1122,13 @@ let call_fun ctx f args =
 			throw_msg ctx (Printexc.to_string e)
 
 let call_wrap ?(final=(fun()->())) ctx f args =
-	let get_stack st =
-		String.concat "\n" (List.map (make_stack ctx) st)
-	in
 	let old_st = ctx.call_stack in
 	let old_pos = ctx.stack_pos in
 	let restore() =
 		ctx.call_stack <- old_st;
 		ctx.stack_pos <- old_pos;
 	in
-	(try
+	try
 		let v = call_fun ctx f args in
 		final();
 		v
@@ -1134,12 +1136,14 @@ let call_wrap ?(final=(fun()->())) ctx f args =
 		| InterpThrow v ->
 			restore();
 			final();
-			failwith ("Uncaught exception " ^ vstr ctx v HDyn ^ "\n" ^ get_stack (List.rev ctx.error_stack))
+			ctx.on_error v (List.rev ctx.error_stack);
+			VNull
 		| Runtime_error msg ->
 			let stack = ctx.call_stack in
 			restore();
 			final();
-			failwith ("HL Interp error " ^ msg ^ "\n" ^ get_stack stack))
+			ctx.on_error (VBytes (caml_to_hl ("HL Interp error " ^ msg))) stack;
+			VNull
 
 (* ------------------------------- HL RUNTIME ---------------------------------------------- *)
 
@@ -1437,7 +1441,7 @@ let load_native ctx lib name t =
 			| _ -> assert false)
 		| "sys_exit" ->
 			(function
-			| [VInt code] -> exit (Int32.to_int code)
+			| [VInt code] -> raise (Sys_exit (Int32.to_int code))
 			| _ -> assert false)
 		| "sys_utf8_path" ->
 			(function
@@ -1767,7 +1771,7 @@ let load_native ctx lib name t =
 			| _ -> assert false)
 		| "exception_stack" ->
 			(function
-			| [] -> VArray (Array.map (fun e -> VBytes (caml_to_hl (make_stack ctx e))) (Array.of_list (List.rev ctx.error_stack)),HBytes)
+			| [] -> VArray (Array.map (fun e -> VBytes (caml_to_hl (stack_frame ctx e))) (Array.of_list (List.rev ctx.error_stack)),HBytes)
 			| _ -> assert false)
 		| "date_new" ->
 			(function
@@ -1953,9 +1957,14 @@ let create checked =
 		};
 		checked = checked;
 		fcall = (fun _ _ -> assert false);
+		on_error = (fun _ _ -> assert false);
 	} in
+	ctx.on_error <- (fun msg stack -> failwith (vstr ctx msg HDyn ^ "\n" ^ String.concat "\n" (List.map (stack_frame ctx) stack)));
 	ctx.fcall <- call_fun ctx;
 	ctx
+
+let set_error_handler ctx e =
+	ctx.on_error <- e
 
 let add_code ctx code =
 	(* expand global table *)

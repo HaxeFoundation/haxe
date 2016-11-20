@@ -75,6 +75,7 @@ type context = {
 
 exception Invalid_expr
 exception Abort
+exception Error of string * Globals.pos list
 
 let debug = true (* TODO !!! set to false for speed++ ! *)
 
@@ -86,6 +87,30 @@ let setup() =
 
 let select ctx =
 	get_ctx_ref := (fun() -> ctx)
+
+let error_handler ctx v stack =
+	let make_pos st =
+		let file, line = Hlinterp.make_stack ctx.interp st in
+		let low = line land 0xFFFFF in
+		{
+			Globals.pfile = file;
+			Globals.pmin = low;
+			Globals.pmax = low + (line lsr 20);
+		}
+	in
+	(*let rec loop o =
+		if o == ctx.error_proto then true else match o.oproto with None -> false | Some p -> loop p
+	in
+	(match v with
+	| VObject o when loop o ->
+		(match get_field o (hash "message"), get_field o (hash "pos") with
+		| VObject msg, VAbstract (APos pos) ->
+			(match get_field msg h_s with
+			| VString msg -> raise (Error.Error (Error.Custom msg,pos))
+			| _ -> ());
+		| _ -> ());
+	| _ -> ());*)
+	raise (Error (Hlinterp.vstr ctx.interp v Hlcode.HDyn,List.map make_pos stack))
 
 let create com api =
 	let ctx = {
@@ -99,6 +124,7 @@ let create com api =
 		has_error = false;
 	} in
 	select ctx;
+	Hlinterp.set_error_handler ctx.interp (error_handler ctx);
 	ctx
 
 let init ctx =
@@ -170,24 +196,11 @@ let catch_errors ctx ?(final=(fun() -> ())) f =
 		final();
 		select prev;
 		Some v
-	with Failure v ->
+	with Error _ as e ->
 		final();
 		select prev;
-		(*let rec loop o =
-			if o == ctx.error_proto then true else match o.oproto with None -> false | Some p -> loop p
-		in
-		(match v with
-		| VObject o when loop o ->
-			(match get_field o (hash "message"), get_field o (hash "pos") with
-			| VObject msg, VAbstract (APos pos) ->
-				(match get_field msg h_s with
-				| VString msg -> raise (Error.Error (Error.Custom msg,pos))
-				| _ -> ());
-			| _ -> ());
-		| _ -> ());
-		raise (Error (ctx.do_string v,List.map (fun s -> make_pos s.cpos) ctx.callstack))*)
-		assert false
-	| Abort ->
+		raise e
+	|  Abort ->
 		final();
 		select prev;
 		None
@@ -197,7 +210,15 @@ let call_path ctx cpath (f:string) args api =
 		None
 	else let old = ctx.curapi in
 	ctx.curapi <- api;
-	catch_errors ~final:(fun() -> ctx.curapi <- old) ctx (fun() -> assert false(*call_wrap ctx.interp f args*))
+	let gid = Genhl.resolve_class_global (match ctx.gen with None -> assert false | Some ctx -> ctx) (String.concat "." cpath) in
+	let gval = ctx.interp.Hlinterp.t_globals.(gid) in
+	let fval = Hlinterp.dyn_get_field ctx.interp gval f Hlcode.HDyn in
+	match fval with
+	| Hlinterp.VClosure (f,None) ->
+		catch_errors ~final:(fun() -> ctx.curapi <- old) ctx (fun() -> call_wrap ctx.interp f args)
+	| _ ->
+		prerr_endline (Hlinterp.vstr_d ctx.interp gval);
+		assert false
 
 let vnull = VNull
 let vbool b = VBool b

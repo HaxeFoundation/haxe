@@ -866,7 +866,7 @@ with
 		end
 	| Error.Error (m,p) ->
 		error ctx (Error.error_msg m) p
-	| Interp.Error (msg,p :: l) ->
+	| Interp.Error (msg,p :: l) | Hlmacro.Error (msg,p :: l) ->
 		message ctx msg p;
 		List.iter (message ctx "Called from") l;
 		error ctx "Aborted" null_pos;
@@ -925,7 +925,7 @@ with
 		Option.may (fun fields -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))) fields
 	| Display.ModuleSymbols s | Display.Diagnostics s | Display.Statistics s | Display.Metadata s ->
 		raise (DisplayOutput.Completion s)
-	| Interp.Sys_exit i ->
+	| Interp.Sys_exit i | Hlinterp.Sys_exit i ->
 		ctx.flush();
 		exit i
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not (is_debug_run()) ->
