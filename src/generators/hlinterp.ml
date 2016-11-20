@@ -1116,7 +1116,7 @@ let call_fun ctx f args =
 		| e ->
 			throw_msg ctx (Printexc.to_string e)
 
-let call_wrap ctx f args =
+let call_wrap ?(final=(fun()->())) ctx f args =
 	let get_stack st =
 		String.concat "\n" (List.map (make_stack ctx) st)
 	in
@@ -1127,14 +1127,18 @@ let call_wrap ctx f args =
 		ctx.stack_pos <- old_pos;
 	in
 	(try
-		call_fun ctx f args
+		let v = call_fun ctx f args in
+		final();
+		v
 	with
 		| InterpThrow v ->
 			restore();
+			final();
 			failwith ("Uncaught exception " ^ vstr ctx v HDyn ^ "\n" ^ get_stack (List.rev ctx.error_stack))
 		| Runtime_error msg ->
 			let stack = ctx.call_stack in
 			restore();
+			final();
 			failwith ("HL Interp error " ^ msg ^ "\n" ^ get_stack stack))
 
 (* ------------------------------- HL RUNTIME ---------------------------------------------- *)

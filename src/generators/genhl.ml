@@ -2938,7 +2938,7 @@ let generate_type ctx t =
 	| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
 		()
 
-let generate_static_init ctx =
+let generate_static_init ctx types main =
 	let exprs = ref [] in
 	let t_void = ctx.com.basic.tvoid in
 
@@ -3107,7 +3107,7 @@ let generate_static_init ctx =
 			| _ ->
 				()
 
-		) ctx.com.types;
+		) types;
 	in
 	(* init class statics *)
 	List.iter (fun t ->
@@ -3124,9 +3124,9 @@ let generate_static_init ctx =
 					()
 			) c.cl_ordered_statics;
 		| _ -> ()
-	) ctx.com.types;
+	) types;
 	(* call main() *)
-	(match ctx.com.main with
+	(match main with
 	| None -> ()
 	| Some e -> exprs := e :: !exprs);
 	let fid = alloc_function_name ctx "<entry>" in
@@ -3414,7 +3414,7 @@ let write_code ch code debug =
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
 
-let generate com =
+let create_context com dump =
 	let get_type name =
 		try
 			List.find (fun t -> (t_infos t).mt_path = (["hl"],name)) com.types
@@ -3433,7 +3433,6 @@ let generate com =
 		| TAbstractDecl a -> a
 		| _ -> assert false
 	in
-	let dump = Common.defined com Define.Dump in
 	let ctx = {
 		com = com;
 		optimize = not (Common.raw_defined com "hl-no-opt");
@@ -3471,7 +3470,11 @@ let generate com =
 		method_wrappers = PMap.empty;
 		cdebug_files = new_lookup();
 	} in
-	let all_classes = Hashtbl.create 0 in
+	ignore(alloc_string ctx "");
+	ignore(class_type ctx ctx.base_class [] false);
+	ctx
+
+let add_types ctx types =
 	List.iter (fun t ->
 		match t with
 		| TClassDecl ({ cl_path = ["hl";"types"], ("BytesIterator"|"ArrayBytes") } as c) ->
@@ -3486,7 +3489,6 @@ let generate com =
 					false
 			in
 			List.iter (fun f -> ignore(loop c.cl_super f)) c.cl_overrides;
-			Hashtbl.add all_classes c.cl_path c;
 			List.iter (fun (m,args,p) ->
 				if m = Meta.Custom ":hlNative" then
 					let lib, prefix = (match args with
@@ -3507,12 +3509,12 @@ let generate com =
 					) c.cl_ordered_statics
 			) c.cl_meta;
  		| _ -> ()
-	) com.types;
-	ignore(alloc_string ctx "");
-	ignore(class_type ctx ctx.base_class [] false);
-	List.iter (generate_type ctx) com.types;
-	let ep = generate_static_init ctx in
-	let code = {
+	) types;
+	List.iter (generate_type ctx) types
+
+let build_code ctx types main =
+	let ep = generate_static_init ctx types main in
+	{
 		version = 1;
 		entrypoint = ep;
 		strings = DynArray.to_array ctx.cstrings.arr;
@@ -3522,7 +3524,13 @@ let generate com =
 		natives = DynArray.to_array ctx.cnatives.arr;
 		functions = DynArray.to_array ctx.cfunctions;
 		debugfiles = DynArray.to_array ctx.cdebug_files.arr;
-	} in
+	}
+
+let generate com =
+	let dump = Common.defined com Define.Dump in
+	let ctx = create_context com dump in
+	add_types ctx com.types;
+	let code = build_code ctx com.types com.main in
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
 	if dump then begin
 		(match ctx.dump_out with None -> () | Some ch -> IO.close_out ch);

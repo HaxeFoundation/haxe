@@ -243,6 +243,12 @@ let to_int f = Int32.of_float (mod_float f 2147483648.0)
 let need_32_bits i = Int32.compare (Int32.logand (Int32.add i 0x40000000l) 0x80000000l) Int32.zero <> 0
 let best_int i = if need_32_bits i then VInt32 i else VInt (Int32.to_int i)
 
+let vnull = VNull
+let fun1 f = VFunction (Fun1 f)
+let vbool b = VBool b
+
+let setup() = ()
+
 let make_pos p =
 	let low = p.pline land 0xFFFFF in
 	{
@@ -301,6 +307,9 @@ and h_class = hash "__class__"
 
 let exc v =
 	raise (Runtime v)
+
+let exc_string str =
+	exc (VString str)
 
 let select ctx =
 	get_ctx_ref := (fun() -> ctx)
@@ -3570,6 +3579,9 @@ and call ctx vthis vfun pl p =
 	ctx.callsize <- oldsize;
 	pop ctx (DynArray.length ctx.stack - stackpos);
 	ret
+
+let eval_delayed ctx e =
+	eval ctx (Genneko.gen_expr ctx.gen e)
 
 (* ---------------------------------------------------------------------- *)
 (* OTHERS *)

@@ -63,7 +63,7 @@ MODULES=json version globals path context/meta syntax/ast display/displayTypes t
 	generators/genlua \
 	optimization/dce optimization/analyzerConfig optimization/analyzerTypes optimization/analyzerTexpr \
 	optimization/analyzerTexprTransformer optimization/analyzer \
-	optimization/filters macro/macroContext typing/typer typing/matcher display/displayOutput server main
+	optimization/filters macro/hlmacro macro/macroContext typing/typer typing/matcher display/displayOutput server main
 
 ADD_REVISION?=0
 
@@ -191,7 +191,9 @@ src/generators/genxml.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/context/meta.
 
 src/macro/interp.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/typing/error.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/generators/genneko.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/generators/genswf.$(MODULE_EXT) src/generators/genjava.$(MODULE_EXT) src/generators/gencs.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
 
-src/macro/macroContext.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/typing/error.$(MODULE_EXT) src/optimization/optimizerTexpr.$(MODULE_EXT) src/typing/overloads.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/typeload.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/optimization/optimizer.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/optimization/filters.$(MODULE_EXT) src/generators/genjs.$(MODULE_EXT) src/display/display.$(MODULE_EXT)
+src/macro/macroContext.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/typing/error.$(MODULE_EXT) src/optimization/optimizerTexpr.$(MODULE_EXT) src/typing/overloads.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/typeload.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/optimization/optimizer.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/optimization/filters.$(MODULE_EXT) src/generators/genjs.$(MODULE_EXT) src/display/display.$(MODULE_EXT) src/macro/hlmacro.$(MODULE_EXT)
+ 
+src/macro/hlmacro.$(MODULE_EXT): src/generators/hlinterp.$(MODULE_EXT) src/generators/genhl.$(MODULE_EXT)
 
 # optimization
 

@@ -26,6 +26,8 @@ let version_minor = (version mod 1000) / 100
 let version_revision = (version mod 100)
 let version_is_stable = version_minor land 1 = 0
 
+let macro_platform = ref Neko
+
 let is_windows = Sys.os_type = "Win32" || Sys.os_type = "Cygwin"
 
 let s_version =

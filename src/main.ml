@@ -324,7 +324,7 @@ let generate tctx ext xml_out interp swf_header =
 			| Some(_,ctx) -> print_endline "generate"; Codegen.Dump.dump_dependencies ~target_override:(Some "macro") ctx.Typecore.com
 	end;
 	begin match com.platform with
-		| Neko when interp -> ()
+		| Neko | Hl when interp -> ()
 		| Cpp when Common.defined com Define.Cppia -> ()
 		| Cpp | Cs | Java | Php -> Common.mkdir_from_path (com.file ^ "/.")
 		| _ -> Common.mkdir_from_path com.file
@@ -693,7 +693,7 @@ try
 		),"<package:target> : remap a package to another one");
 		("--interp", Arg.Unit (fun() ->
 			Common.define com Define.Interp;
-			Initialize.set_platform com Neko "";
+			Initialize.set_platform com (!Globals.macro_platform) "";
 			interp := true;
 		),": interpret the program using internal macro system");
 		("--macro", Arg.String (fun e ->
@@ -934,6 +934,7 @@ with
 ;;
 let other = Common.timer ["other"] in
 Sys.catch_break true;
+MacroContext.setup();
 let args = List.tl (Array.to_list Sys.argv) in
 (try
 	let server = Sys.getenv "HAXE_COMPILATION_SERVER" in

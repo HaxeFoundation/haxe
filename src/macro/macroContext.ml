@@ -25,6 +25,8 @@ open Typecore
 open Error
 open Globals
 
+(*module Interp = Hlmacro*)
+
 let macro_enable_cache = ref false
 let macro_interp_cache = ref None
 let delayed_macro_result = ref ((fun() -> assert false) : unit -> unit -> Interp.value)
@@ -151,9 +153,10 @@ let make_macro_api ctx p =
 		);
 		Interp.on_type_not_found = (fun f ->
 			ctx.com.load_extern_type <- ctx.com.load_extern_type @ [fun path p ->
-				match f (s_type_path path) with
-				| Interp.VNull -> None
-				| td ->
+				let td = f (s_type_path path) in
+				if td = Interp.vnull then
+					None
+				else
 					let (pack,name),tdef,p = Interp.decode_type_def td in
 					Some (name,(pack,[tdef,p]))
 			];
@@ -206,47 +209,47 @@ let make_macro_api ctx p =
 				let jsctx = Interp.enc_obj [
 					"outputFile", Interp.enc_string ctx.com.file;
 					"types", Interp.enc_array (List.map (fun t -> Interp.encode_type (type_of_module_type t)) ctx.com.types);
-					"main", (match ctx.com.main with None -> Interp.VNull | Some e -> Interp.encode_texpr e);
-					"generateValue", Interp.VFunction (Interp.Fun1 (fun v ->
+					"main", (match ctx.com.main with None -> Interp.vnull | Some e -> Interp.encode_texpr e);
+					"generateValue", Interp.fun1 (fun v ->
 						let e = Interp.decode_texpr v in
 						let str = Genjs.gen_single_expr js_ctx e false in
 						Interp.enc_string str
-					));
-					"isKeyword", Interp.VFunction (Interp.Fun1 (fun v ->
-						Interp.VBool (Hashtbl.mem Genjs.kwds (Interp.dec_string v))
-					));
-					"hasFeature", Interp.VFunction (Interp.Fun1 (fun v ->
-						Interp.VBool (Common.has_feature ctx.com (Interp.dec_string v))
-					));
-					"addFeature", Interp.VFunction (Interp.Fun1 (fun v ->
+					);
+					"isKeyword", Interp.fun1 (fun v ->
+						Interp.vbool (Hashtbl.mem Genjs.kwds (Interp.dec_string v))
+					);
+					"hasFeature", Interp.fun1 (fun v ->
+						Interp.vbool (Common.has_feature ctx.com (Interp.dec_string v))
+					);
+					"addFeature", Interp.fun1 (fun v ->
 						Common.add_feature ctx.com (Interp.dec_string v);
-						Interp.VNull
-					));
-					"quoteString", Interp.VFunction (Interp.Fun1 (fun v ->
+						Interp.vnull
+					);
+					"quoteString", Interp.fun1 (fun v ->
 						Interp.enc_string ("\"" ^ Ast.s_escape (Interp.dec_string v) ^ "\"")
-					));
-					"buildMetaData", Interp.VFunction (Interp.Fun1 (fun t ->
+					);
+					"buildMetaData", Interp.fun1 (fun t ->
 						match Codegen.build_metadata ctx.com (Interp.decode_tdecl t) with
-						| None -> Interp.VNull
+						| None -> Interp.vnull
 						| Some e -> Interp.encode_texpr e
-					));
-					"generateStatement", Interp.VFunction (Interp.Fun1 (fun v ->
+					);
+					"generateStatement", Interp.fun1 (fun v ->
 						let e = Interp.decode_texpr v in
 						let str = Genjs.gen_single_expr js_ctx e true in
 						Interp.enc_string str
-					));
-					"setTypeAccessor", Interp.VFunction (Interp.Fun1 (fun callb ->
+					);
+					"setTypeAccessor", Interp.fun1 (fun callb ->
 						js_ctx.Genjs.type_accessor <- (fun t ->
 							let v = Interp.encode_type (type_of_module_type t) in
-							let ret = Interp.call (Interp.get_ctx()) Interp.VNull callb [v] Nast.null_pos in
+							let ret = Interp.call (Interp.get_ctx()) Interp.vnull callb [v] Nast.null_pos in
 							Interp.dec_string ret
 						);
-						Interp.VNull
-					));
-					"setCurrentClass", Interp.VFunction (Interp.Fun1 (fun c ->
+						Interp.vnull
+					);
+					"setCurrentClass", Interp.fun1 (fun c ->
 						Genjs.set_current_class js_ctx (match Interp.decode_tdecl c with TClassDecl c -> c | _ -> assert false);
-						Interp.VNull
-					));
+						Interp.vnull
+					);
 				] in
 				let t = macro_timer ctx ["jsGenerator"] in
 				gen jsctx;
@@ -291,14 +294,14 @@ let make_macro_api ctx p =
 		);
 		Interp.get_build_fields = (fun() ->
 			match ctx.g.get_build_infos() with
-			| None -> Interp.VNull
+			| None -> Interp.vnull
 			| Some (_,_,fields) -> Interp.enc_array (List.map Interp.encode_field fields)
 		);
 		Interp.get_pattern_locals = (fun e t ->
 			!get_pattern_locals_ref ctx e t
 		);
 		Interp.define_type = (fun v ->
-			let m, tdef, pos = (try Interp.decode_type_def v with Interp.Invalid_expr -> Interp.exc (Interp.VString "Invalid type definition")) in
+			let m, tdef, pos = (try Interp.decode_type_def v with Interp.Invalid_expr -> Interp.exc_string "Invalid type definition") in
 			let add is_macro ctx =
 				let mnew = Typeload.type_module ctx m ctx.m.curmod.m_extra.m_file [tdef,pos] pos in
 				mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
@@ -314,7 +317,7 @@ let make_macro_api ctx p =
 		);
 		Interp.define_module = (fun m types imports usings ->
 			let types = List.map (fun v ->
-				let _, tdef, pos = (try Interp.decode_type_def v with Interp.Invalid_expr -> Interp.exc (Interp.VString "Invalid type definition")) in
+				let _, tdef, pos = (try Interp.decode_type_def v with Interp.Invalid_expr -> Interp.exc_string "Invalid type definition") in
 				tdef, pos
 			) types in
 			let pos = (match types with [] -> null_pos | (_,p) :: _ -> p) in
@@ -479,12 +482,13 @@ let get_macro_context ctx p =
 		List.iter (fun p -> com2.defines <- PMap.remove (Globals.platform_name p) com2.defines) Globals.platforms;
 		com2.defines_signature <- None;
 		com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
-		com2.class_path <- List.map (fun p -> p ^ "neko" ^ "/_std/") com2.std_path @ com2.class_path;
+		let name = platform_name !Globals.macro_platform in
+		com2.class_path <- List.map (fun p -> p ^ name ^ "/_std/") com2.std_path @ com2.class_path;
 		let to_remove = List.map (fun d -> fst (Define.infos d)) [Define.NoTraces] in
 		let to_remove = to_remove @ List.map (fun (_,d) -> "flash" ^ d) Common.flash_versions in
 		com2.defines <- PMap.foldi (fun k v acc -> if List.mem k to_remove then acc else PMap.add k v acc) com2.defines PMap.empty;
 		Common.define com2 Define.Macro;
-		Common.init_platform com2 Neko;
+		Common.init_platform com2 !Globals.macro_platform;
 		let mctx = ctx.g.do_create com2 in
 		mctx.is_display_file <- ctx.is_display_file;
 		create_macro_interp ctx mctx;
@@ -659,7 +663,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 				let e = ictx.Interp.curapi.Interp.type_macro_expr e in
 				begin match Interp.eval_expr ictx e with
 				| Some v -> v
-				| None -> Interp.VNull
+				| None -> Interp.vnull
 				end
 			| MAOther -> match Interp.eval_expr ictx et with
 				| None -> assert false
@@ -678,17 +682,16 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 				Some (match mode with
 				| MExpr | MDisplay -> Interp.decode_expr v
 				| MBuild ->
-					let fields = (match v with
-						| Interp.VNull ->
+					let fields = if v = Interp.vnull then
 							(match ctx.g.get_build_infos() with
 							| None -> assert false
 							| Some (_,_,fields) -> fields)
-						| _ ->
+						else
 							List.map Interp.decode_field (Interp.dec_array v)
-					) in
+					in
 					(EVars [("fields",null_pos),Some (CTAnonymous fields,p),None],p)
 				| MMacroType ->
-					let t = if v = Interp.VNull then
+					let t = if v = Interp.vnull then
 						mk_mono()
 					else try
 						let ct = Interp.decode_ctype v in
@@ -700,7 +703,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 					(EBlock [],p)
 				)
 			with Interp.Invalid_expr ->
-				if v = Interp.VNull then
+				if v = Interp.vnull then
 					error "Unexpected null value returned from macro" p
 				else
 					error "The macro didn't return a valid result" p
@@ -723,7 +726,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 				let mint = Interp.get_ctx() in
 				match call() with
 				| None -> (fun() -> raise Interp.Abort)
-				| Some e -> Interp.eval mint (Genneko.gen_expr mint.Interp.gen (type_expr ctx e Value))
+				| Some e -> Interp.eval_delayed mint (type_expr ctx e Value)
 			);
 		);
 		ctx.m.curmod.m_extra.m_time <- -1.; (* disable caching for modules having macro-in-macro *)
@@ -772,6 +775,8 @@ let interpret ctx =
 	match ctx.com.main with
 	| None -> ()
 	| Some e -> ignore(Interp.eval_expr mctx e)
+
+let setup = Interp.setup
 
 ;;
 load_macro_ref := load_macro;

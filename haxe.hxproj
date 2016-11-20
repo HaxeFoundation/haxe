@@ -408,6 +408,10 @@
     <hidden path="src\macro\macroContext.cmi" />
     <hidden path="src\macro\macroContext.cmx" />
     <hidden path="src\macro\macroContext.o" />
+    <hidden path="src\macro\hlmacro.cmi" />
+    <hidden path="src\macro\hlmacro.cmt" />
+    <hidden path="src\macro\hlmacro.cmx" />
+    <hidden path="src\macro\hlmacro.o" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand>make -j4 FD_OUTPUT=1 -f Makefile.win kill haxe</preBuildCommand>
