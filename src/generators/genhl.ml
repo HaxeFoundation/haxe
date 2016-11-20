@@ -3559,4 +3559,9 @@ let generate com =
 		close_out ch;
 	end;
 	t();
-	if Common.defined com Define.Interp then try ignore(Hlinterp.interp code true) with Failure msg -> abort msg null_pos
+	if Common.defined com Define.Interp then
+		try
+			let ctx = Hlinterp.create true in
+			Hlinterp.add_code ctx code;
+		with
+			Failure msg -> abort msg null_pos
