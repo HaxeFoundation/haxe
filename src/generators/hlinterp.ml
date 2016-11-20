@@ -2325,11 +2325,11 @@ let check code =
 	in
 	Array.iter (fun fd ->
 		if fd.findex >= Array.length ftypes then failwith ("Invalid function index " ^ string_of_int fd.findex);
-		if ftypes.(fd.findex) <> HVoid then failwith ("Duplicate function bind " ^ string_of_int fd.findex);
+		if ftypes.(fd.findex) <> HVoid then failwith ("Duplicate function bind " ^ string_of_int fd.findex ^ " " ^ fundecl_name fd);
 		ftypes.(fd.findex) <- fd.ftype;
 	) code.functions;
-	Array.iter (fun (_,_,t,idx) ->
-		if idx >= Array.length ftypes then failwith ("Invalid native function index " ^ string_of_int idx);
+	Array.iter (fun (lib,name,t,idx) ->
+		if idx >= Array.length ftypes then failwith ("Invalid native function index " ^ string_of_int idx ^ " for "^ code.strings.(lib) ^ "@" ^ code.strings.(name));
 		if ftypes.(idx) <> HVoid then failwith ("Duplicate native function bind " ^ string_of_int idx);
 		Hashtbl.add is_native_fun idx true;
 		ftypes.(idx) <- t

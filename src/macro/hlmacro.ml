@@ -16,6 +16,7 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
+open Globals
 open Type
 open Hlinterp
 
@@ -75,6 +76,8 @@ type context = {
 exception Invalid_expr
 exception Abort
 
+let debug = true (* TODO !!! set to false for speed++ ! *)
+
 let get_ctx_ref = ref (fun() -> assert false)
 let get_ctx() : context = (!get_ctx_ref)()
 
@@ -88,7 +91,7 @@ let create com api =
 	let ctx = {
 		com = com;
 		gen = None;
-		interp = Hlinterp.create true; (* TODO !!! set to false for speed++ ! *)
+		interp = Hlinterp.create debug;
 		curapi = api;
 		types = Hashtbl.create 0;
 		on_reused = [];
@@ -99,7 +102,7 @@ let create com api =
 	ctx
 
 let init ctx =
-	ctx.gen <- Some (Genhl.create_context ctx.com false)
+	if ctx.gen = None then ctx.gen <- Some (Genhl.create_context ctx.com true false)
 
 let set_error ctx e =
 	ctx.has_error <- e
@@ -123,7 +126,17 @@ let add_types ctx types ready =
 	| None -> assert false
 	| Some gen ->
 		Genhl.add_types gen types;
+		if debug then Genhl.check gen;
 		let code = Genhl.build_code gen types None in
+		if debug then begin
+			try
+				Hlinterp.check code
+			with Failure s ->
+				let ch = open_out_bin "hlcode.txt" in
+				Hlcode.dump (fun s -> output_string ch (s ^ "\n")) code;
+				close_out ch;
+				failwith s
+		end;
 		Hlinterp.add_code ctx.interp code
 
 let do_reuse ctx api =

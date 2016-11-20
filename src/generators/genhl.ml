@@ -87,6 +87,7 @@ type context = {
 	optimize : bool;
 	overrides : (string * path, bool) Hashtbl.t;
 	defined_funs : (int,unit) Hashtbl.t;
+	is_macro : bool;
 	mutable dump_out : (unit IO.output) option;
 	mutable cached_types : (path, ttype) PMap.t;
 	mutable m : method_context;
@@ -127,7 +128,7 @@ let is_to_string t =
 	| _ -> false
 
 let is_extern_field f =
-	Type.is_extern_field f || (match f.cf_kind with Method MethNormal -> List.exists (fun (m,_,_) -> m = Meta.Custom ":hlNative") f.cf_meta | _ -> false)
+	Type.is_extern_field f || (match f.cf_kind with Method MethNormal -> List.exists (fun (m,_,_) -> m = Meta.Custom ":hlNative") f.cf_meta | _ -> false) || Meta.has Meta.Extern f.cf_meta
 
 let is_array_class name =
 	match name with
@@ -224,7 +225,7 @@ let global_type ctx g =
 	DynArray.get ctx.cglobals.arr g
 
 let is_overriden ctx c f =
-	Hashtbl.mem ctx.overrides (f.cf_name,c.cl_path)
+	ctx.is_macro || Hashtbl.mem ctx.overrides (f.cf_name,c.cl_path)
 
 let alloc_float ctx f =
 	lookup ctx.cfloats f (fun() -> f)
@@ -2232,7 +2233,7 @@ and eval_expr ctx e =
 		r
 	| TThrow v ->
 		op ctx (OThrow (eval_to ctx v HDyn));
-		alloc_tmp ctx HVoid
+		alloc_tmp ctx HDyn
 	| TWhile (cond,eloop,NormalWhile) ->
 		let oldb = ctx.m.mbreaks and oldc = ctx.m.mcontinues in
 		ctx.m.mbreaks <- [];
@@ -2855,6 +2856,8 @@ let generate_static ctx c f =
 	match f.cf_kind with
 	| Var _ ->
 		()
+	| Method _ when Meta.has Meta.Extern f.cf_meta ->
+		()
 	| Method m ->
 		let add_native lib name =
 			ignore(lookup ctx.cnatives (name ^ "@" ^ lib) (fun() ->
@@ -2873,7 +2876,7 @@ let generate_static ctx c f =
 			| (Meta.Custom ":hlNative",_ ,p) :: _ ->
 				abort "Invalid @:hlNative decl" p
 			| [] ->
-				ignore(make_fun ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) None None)
+				ignore(make_fun ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> abort "Missing function body" f.cf_pos) None None)
 			| _ :: l ->
 				loop l
 		in
@@ -3129,7 +3132,7 @@ let generate_static_init ctx types main =
 	(match main with
 	| None -> ()
 	| Some e -> exprs := e :: !exprs);
-	let fid = alloc_function_name ctx "<entry>" in
+	let fid = lookup_alloc ctx.cfids () in
 	ignore(make_fun ~gen_content ctx ("","") fid { tf_expr = mk (TBlock (List.rev !exprs)) t_void null_pos; tf_args = []; tf_type = t_void } None None);
 	fid
 
@@ -3414,7 +3417,7 @@ let write_code ch code debug =
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
 
-let create_context com dump =
+let create_context com is_macro dump =
 	let get_type name =
 		try
 			List.find (fun t -> (t_infos t).mt_path = (["hl"],name)) com.types
@@ -3435,6 +3438,7 @@ let create_context com dump =
 	in
 	let ctx = {
 		com = com;
+		is_macro = is_macro;
 		optimize = not (Common.raw_defined com "hl-no-opt");
 		dump_out = if dump then Some (IO.output_channel (open_out_bin "dump/hlopt.txt")) else None;
 		m = method_context 0 HVoid null_capture false;
@@ -3488,7 +3492,7 @@ let add_types ctx types =
 				| _ ->
 					false
 			in
-			List.iter (fun f -> ignore(loop c.cl_super f)) c.cl_overrides;
+			if not ctx.is_macro then List.iter (fun f -> ignore(loop c.cl_super f)) c.cl_overrides;
 			List.iter (fun (m,args,p) ->
 				if m = Meta.Custom ":hlNative" then
 					let lib, prefix = (match args with
@@ -3526,9 +3530,14 @@ let build_code ctx types main =
 		debugfiles = DynArray.to_array ctx.cdebug_files.arr;
 	}
 
+let check ctx =
+	PMap.iter (fun (s,p) fid ->
+		if not (Hashtbl.mem ctx.defined_funs fid) then failwith (Printf.sprintf "Unresolved method %s:%s(@%d)" (s_type_path p) s fid)
+	) ctx.cfids.map
+
 let generate com =
 	let dump = Common.defined com Define.Dump in
-	let ctx = create_context com dump in
+	let ctx = create_context com false dump in
 	add_types ctx com.types;
 	let code = build_code ctx com.types com.main in
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
@@ -3550,9 +3559,7 @@ let generate com =
 		close_out ch;
 	end;
 	if Common.raw_defined com "hl-check" then begin
-		PMap.iter (fun (s,p) fid ->
-			if not (Hashtbl.mem ctx.defined_funs fid) then failwith (Printf.sprintf "Unresolved method %s:%s(@%d)" (s_type_path p) s fid)
-		) ctx.cfids.map;
+		check ctx;
 		Hlinterp.check code;
 	end;
 	let t = Common.timer ["write";"hl"] in
