@@ -373,7 +373,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			l.i_read <- l.i_read + (if !in_loop then 2 else 1);
 			(* never inline a function which contain a delayed macro because its bound
 				to its variables and not the calling method *)
-			if v.v_name = "__dollar__delay_call" then cancel_inlining := true;
+			if v.v_name = "$__delayed_call__" then cancel_inlining := true;
 			let e = { e with eexpr = TLocal l.i_subst } in
 			if l.i_abstract_this then mk (TCast(e,None)) v.v_type e.epos else e
 		| TConst TThis ->

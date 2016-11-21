@@ -51,6 +51,7 @@ and vabstract =
 	| AHashObject of (value * value) list ref
 	| AReg of regexp
 	| ARandom
+	| APos of Globals.pos
 
 and vfunction =
 	| FFun of fundecl
@@ -105,6 +106,7 @@ type context = {
 	mutable fcall : vfunction -> value list -> value;
 	mutable code : code;
 	mutable on_error : value -> (fundecl * int ref) list -> unit;
+	mutable resolve_macro_api : string -> (value list -> value) option;
 	checked : bool;
 	cached_protos : (int, vproto * ttype array) Hashtbl.t;
 	cached_strings : (int, string) Hashtbl.t;
@@ -617,7 +619,7 @@ let make_stack ctx (f,pos) =
 
 let stack_frame ctx (f,pos) =
 	let file, line = make_stack ctx (f,pos) in
-	Printf.sprintf "%s:%d: Called from fun(%d)@x%x" file line f.findex (!pos - 1)
+	Printf.sprintf "%s:%d: Called from fun@%d @x%X" file line f.findex (!pos - 1)
 
 let rec vstr ctx v t =
 	let vstr = vstr ctx in
@@ -668,6 +670,7 @@ let interp ctx f args =
 		Array.blit ctx.stack 0 nstack 0 ctx.stack_pos;
 		ctx.stack <- nstack;
 	end;
+	if ctx.checked then for i = 0 to Array.length f.regs - 1 do ctx.stack.(i + spos) <- VUndef; done;
 	ctx.stack_pos <- spos + Array.length f.regs;
 
 	let pos = ref 1 in
@@ -1926,8 +1929,17 @@ let load_native ctx lib name t =
 				| None -> to_int (-1)
 				| Some (pos,pend) -> to_int pos)
 			| _ -> assert false)
+		| "make_macro_pos" ->
+			(function
+			| [VBytes file;VInt min;VInt max] ->
+				VAbstract (APos { Globals.pfile = String.sub file 0 (String.length file - 1); pmin = Int32.to_int min; pmax = Int32.to_int max })
+			| _ -> assert false)
 		| _ ->
 			unresolved())
+	| "macro" ->
+		(match ctx.resolve_macro_api name with
+		| None -> unresolved()
+		| Some f -> f)
 	| _ ->
 		unresolved()
 	) in
@@ -1958,6 +1970,7 @@ let create checked =
 		checked = checked;
 		fcall = (fun _ _ -> assert false);
 		on_error = (fun _ _ -> assert false);
+		resolve_macro_api = (fun _ -> None);
 	} in
 	ctx.on_error <- (fun msg stack -> failwith (vstr ctx msg HDyn ^ "\n" ^ String.concat "\n" (List.map (stack_frame ctx) stack)));
 	ctx.fcall <- call_fun ctx;
@@ -1965,6 +1978,9 @@ let create checked =
 
 let set_error_handler ctx e =
 	ctx.on_error <- e
+
+let set_macro_api ctx f =
+	ctx.resolve_macro_api <- f
 
 let add_code ctx code =
 	(* expand global table *)
