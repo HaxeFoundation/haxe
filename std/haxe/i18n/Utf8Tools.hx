@@ -80,7 +80,7 @@ class Utf8Tools {
 	
 
 	public static inline function toNativeString(impl:Utf8Impl) : String {
-		return impl.b.getString(0, impl.length);
+		return impl.b.getString(0, impl.b.length);
 	}
 
 	// end implementation specific
@@ -154,6 +154,7 @@ class Utf8Tools {
 			case 1: fastGet(b, pos);
 			case 2: (fastGet(b, pos) << 8) | (fastGet(b, pos+1));
 			case 3: (fastGet(b, pos) << 16) | (fastGet(b, pos+1) << 8) | fastGet(b, pos+2);
+			case 4: (fastGet(b, pos) << 24) | (fastGet(b, pos+1) << 16) | (fastGet(b, pos+2) << 8)  | fastGet(b, pos+3);
 			case _: throw "invalid byte sequence";
 		}
 	}
@@ -391,8 +392,8 @@ class Utf8Tools {
 				}
 				for (k in 0...size) {
 					buf.addByte(fastGet(ba, i+k));
-					bufLen++;
 				}
+				bufLen++;
 			}
 			i+=size;
 			if (pos == len) {
@@ -468,7 +469,8 @@ class Utf8Tools {
 		return mkImplFromBuffer(buf, newSize);
 	}
 
-	@:analyzer(no_code_motion) static inline function substring<T>( ba:Utf8Impl, startIndex : Int, ?endIndex : Int ) : Utf8Impl {
+	static inline function substring<T>( ba:Utf8Impl, startIndex : Int, ?endIndex : Int ) : Utf8Impl {
+		var startIndex:Null<Int> = startIndex;
 		var len = strLength(ba);
 		var endIndexIsNull = endIndex == null; 
 		var startIndex:Null<Int> = startIndex;

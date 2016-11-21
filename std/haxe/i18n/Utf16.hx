@@ -187,11 +187,14 @@ abstract Utf16(String) {
 #else
 // bytes based implementation
 
-typedef Utf16Impl = ByteAccess;
+typedef Utf16Impl = {
+	b : ByteAccess,
+	length : Int
+}
 
 @:allow(haxe.i18n)
 @:access(haxe.i18n.Utf16Tools)
-abstract Utf16(ByteAccess) {
+abstract Utf16(Utf16Impl) {
 
 	public var length(get,never) : Int;
 
@@ -271,7 +274,7 @@ abstract Utf16(ByteAccess) {
 	}
 
 	public function toNativeString() : String {
-		return this.getString(0, this.length);
+		return Utf16Tools.toNativeString(this);//this.getString(0, this.length);
 	}
 
 	public function toUcs2() : Ucs2 {
@@ -283,7 +286,7 @@ abstract Utf16(ByteAccess) {
 	}
 
 	public function toBytes() : haxe.io.Bytes {
-		return this.copy().toBytes();
+		return Utf16Tools.toBytes(this);
 	}
 
 	public function toCodeArray () {
@@ -298,7 +301,7 @@ abstract Utf16(ByteAccess) {
 
 	public inline function getReader ():Utf16Reader
 	{
-		return new Utf16Reader(this);
+		return new Utf16Reader(this.b);
 	}
 
 	// private helpers
@@ -312,14 +315,6 @@ abstract Utf16(ByteAccess) {
 	}
 
 	
-
-	
-
-	
-
- 	
-
- 	
 
 	static function fromImpl (impl:Utf16Impl):Utf16 {
 		return cast impl;
