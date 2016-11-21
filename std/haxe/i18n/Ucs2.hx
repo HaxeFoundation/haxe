@@ -24,7 +24,7 @@ package haxe.i18n;
 /**
 	Cross platform UCS2 string API.
 **/
-#if (flash || js || hl)
+#if (flash || js || hl || java || cs)
 
 @:allow(haxe.i18n)
 abstract Ucs2(String) {
@@ -32,6 +32,11 @@ abstract Ucs2(String) {
 	public var length(get,never) : Int;
 
 	public inline function new(str:String) : Void {
+		#if (java || js || cs || flash)
+		// problem, java,js,java,cs have ucs2 apis but, the underlying string can actually
+		// contain utf16 characters (invalid in ucs2), should we validate them at this point?	
+		#end
+		
 		this = str;
 	}
 
@@ -60,19 +65,19 @@ abstract Ucs2(String) {
 	}
 
 	public inline function indexOf( str : Ucs2, ?startIndex : Int ) : Int {
-		return this.indexOf(str.toNativeString(),startIndex);
+		return this.indexOf(str.impl(),startIndex);
 	}
 
 	public inline function lastIndexOf( str : Ucs2, ?startIndex : Int ) : Int {
 		if (startIndex == null) { // required for flash
-			return this.lastIndexOf(str.toNativeString());
+			return this.lastIndexOf(str.impl());
 		}
-		return this.lastIndexOf(str.toNativeString(), startIndex);
+		return this.lastIndexOf(str.impl(), startIndex);
 		
 	}
 
 	public inline function split( delimiter : Ucs2 ) : Array<Ucs2> {
-		return cast this.split(delimiter.toNativeString());
+		return cast this.split(delimiter.impl());
 	}
 
 	public function substr( pos : Int, ?len : Int ) : Ucs2 {
@@ -84,7 +89,7 @@ abstract Ucs2(String) {
 		if (endIndex == null) return new Ucs2(this.substring(startIndex));
 		return new Ucs2(this.substring(startIndex,endIndex));
 	}
-
+	
 	public inline function toNativeString() : String {
 		return this;
 	}
@@ -120,11 +125,11 @@ abstract Ucs2(String) {
 	}
 
 	@:op(A == B) inline function opEq (other:Ucs2) {
-		return this == other.toNativeString();
+		return this == other.impl();
 	}
 
 	@:op(A + B) inline function opAdd (other:Ucs2) {
-		return fromNativeString(this + other.toNativeString());
+		return fromImpl(this + other.impl());
 	}
 
 	@:op(A != B) inline function opNotEq (other:Ucs2) {
@@ -132,15 +137,18 @@ abstract Ucs2(String) {
 	}
 
 	public inline function toUtf8() : Utf8 {
-		return EncodingTools.ucs2ToUtf8(new Ucs2(this));
+		return Utf8.fromByteAccess(Encoding.convertUcs2toUtf8(getReader(), StrictConversion));
 	}
 
 	public inline function toUtf16() : Utf16 {
-		return EncodingTools.ucs2ToUtf16(new Ucs2(this));
+		return Utf16.fromBytes(toBytes());
 	}
 
-	public static inline function fromNativeString (str:String):Ucs2 {
-		return new Ucs2(str);
+	static inline function fromImpl (str:String):Ucs2 {
+		return cast str;
+	}
+	inline function impl() : String {
+		return this;
 	}
 
 	inline function eachCode ( f : Int -> Void) {
@@ -148,6 +156,10 @@ abstract Ucs2(String) {
 			var code = fastCodeAt(i);
 			f(code);
 		}
+	}
+
+	public function getReader ():Ucs2Reader {
+		return new Ucs2Reader(ByteAccess.fromBytes(toBytes()));
 	}
 
 	public function toCodeArray ():Array<Int> {
@@ -157,46 +169,44 @@ abstract Ucs2(String) {
 	}
 
 	@:op(A > B) inline function opGreaterThan (other:Ucs2) {
-		return this > other.toNativeString();
+		return this > other.impl();
 	}
 
 	@:op(A < B) inline function opLessThan (other:Ucs2) {
-		return this < other.toNativeString();
+		return this < other.impl();
 	}
 
 	@:op(A <= B) inline function opLessThanOrEq (other:Ucs2) {
-		return this <= other.toNativeString();
+		return this <= other.impl();
 	}
 
 	@:op(A >= B) inline function opGreaterThanOrEq (other:Ucs2) {
-		return this >= other.toNativeString();
+		return this >= other.impl();
 	}
 
 
 }
 #else
 
-import haxe.i18n.EncodingTools;
 import haxe.i18n.ByteAccess;
+
+typedef Ucs2Impl = ByteAccess;
 
 @:allow(haxe.i18n)
 abstract Ucs2(ByteAccess) {
 
 	public var length(get,never) : Int;
 
-	public static inline function fromNativeString (str:String):Ucs2 {
-		#if (js || flash || hl)
-			#error "assert"
-		#elseif (neko || cpp || python || php || lua)
-			var reader = new Utf8(str).getReader();
-			
-			//trace(bytes);
-			var ucs2Bytes = EncodingTools.utf8ByteAccessToUcs2ByteAccess(reader);
-			//trace(ucs2Bytes);
-			return Ucs2.fromByteAccess(ucs2Bytes);
-		#elseif (java || cs)
-			return new Utf16(str).toUcs2();
-		#end
+	public inline function new(str:String)  {
+		this = haxe.i18n.Ucs2Tools.nativeStringToImpl(str); 
+	}
+
+	public function getReader ():Ucs2Reader {
+		return new Ucs2Reader(this);
+	}
+
+	inline function get_length():Int {
+		return Ucs2Tools.strLength(this);
 	}
 
 	public static function asByteAccess( s:Ucs2 ) : ByteAccess {
@@ -204,10 +214,7 @@ abstract Ucs2(ByteAccess) {
 	}
 
 	inline function eachCode ( f : Int -> Void) {
-		for (i in 0...length) {
-			var code = fastCodeAt(i);
-			f(code);
-		}
+		Ucs2Tools.eachCode(this, f);
 	}
 
 	public function toCodeArray () {
@@ -216,237 +223,61 @@ abstract Ucs2(ByteAccess) {
 		return res;
 	}
 
-	public function new(str:String)  {
-		this = haxe.i18n.Ucs2.asByteAccess(haxe.i18n.Ucs2.fromNativeString(str));
-	}
-
-	function get_length():Int {
-		return this.length >> 1;
-	}
-
-	static inline function isUpperCaseLetter (bytes:Int) {
-		return bytes >= 0x0041 && bytes <= 0x005A;
-	}
-
-	static inline function isLowerCaseLetter (bytes:Int) {
-		return bytes >= 0x0061 && bytes <= 0x007A;
-	}
-
-	static inline function toLowerCaseLetter (bytes:Int):Int {
-		return if (isUpperCaseLetter(bytes)) {
-			bytes + 0x0020;
-		} else {
-			bytes;
-		}
-	}
-
-	static inline function toUpperCaseLetter (bytes:Int) {
-		return if (isLowerCaseLetter(bytes)) {
-			bytes - 0x0020;
-		} else {
-			bytes;
-		}
-	}
-
 	public function toUpperCase() : Ucs2 {
-		var buffer = new ByteAccessBuffer();
-		var i = 0;
-		while (i < this.length) {
-			var b = this.getInt16(i);
-			i+=2;
-			buffer.addInt16BigEndian(toUpperCaseLetter( b));
-		}
-
-		return Ucs2.fromByteAccess(buffer.getByteAccess());
+		return fromImpl(Ucs2Tools.toUpperCase(this));
 	}
 
 	public function toLowerCase() : Ucs2 {
-		var buffer = new ByteAccessBuffer();
-		var i = 0;
-		while (i < this.length) {
-			var b = this.getInt16(i);
-			i+=2;
-			buffer.addInt16BigEndian(toLowerCaseLetter( b));
-		}
-
-		return Ucs2.fromByteAccess(buffer.getByteAccess());
+		return fromImpl(Ucs2Tools.toLowerCase(this));
 	}
 
-	public function charAt(index : Int) : Ucs2 {
-		if (index < 0 || index >= fromByteAccess(this).length) {
-			return new Ucs2("");
-		}
-		var b = ByteAccess.alloc(2);
-		b.set(0, this.get(index * 2));
-		b.set(1, this.get(index * 2 + 1));
+	static var empty = new Ucs2(""); 
 
-		return Ucs2.fromByteAccess(b);
+	public function charAt(index : Int) : Ucs2 {
+		return fromImpl(Ucs2Tools.charAt(this, index));
 	}
 
 	public function charCodeAt( index : Int) : Null<Int> {
-		if (index < 0 || index >= fromByteAccess(this).length) {
-			return null;
-		}
-		return fastCodeAt(index);
+		return Ucs2Tools.charCodeAt(this, index);
 	}
 
-	inline function fastCodeAt( index : Int) : Int {
-		return (this.get(index << 1) << 8) | this.get((index << 1) + 1);
+	public inline function indexOf( str : Ucs2, ?startIndex : Int ) : Int {
+		return Ucs2Tools.indexOf(this, str.impl(), startIndex);
 	}
 
-	public function indexOf( str : Ucs2, ?startIndex : Int ) : Int {
-		var res = -1;
-		var str = asByteAccess(str);
-		var strLen = str.length;
-
-		var len = this.length;
-		var sIndex = startIndex != null ? startIndex * 2 : 0;
-		var pos = 0;
-		var fullPos = sIndex;
-		var i = sIndex;
-		while (i < len) {
-
-			if (this.fastGet(i) == str.fastGet(pos)) {
-				pos++;
-			} else {
-				pos = 0;
-			}
-			fullPos++;
-			if (pos == strLen) {
-				res = (fullPos - strLen) >> 1;
-				break;
-			}
-			i++;
-		}
-		return res;
-	}
-
-	public function lastIndexOf( str : Ucs2, ?startIndex : Int ) : Int {
-		var str = asByteAccess(str);
-		var len = str.length;
-		var pos = len-1;
-	
-
-		var startIndex = startIndex == null ? this.length : ((startIndex) << 1)+len;
-
-		if (startIndex > this.length) {
-			startIndex = this.length;
-		}
-		var i = startIndex;
-		var res = -1;
-		var fullPos = startIndex;
-		while (--i > -1) {
-			if (this.fastGet(i) == str.fastGet(pos)) {
-				pos--;
-			} else {
-				pos = len-1;
-			}
-			fullPos--;
-			if (pos == -1) {
-				res = (fullPos) >> 1;
-				break;
-			}
-		}
-		return res;
+	public inline function lastIndexOf( str : Ucs2, ?startIndex : Int ) : Int {
+		return Ucs2Tools.lastIndexOf(this, str.impl(), startIndex);
 	}
 
 	public function split( delimiter : Ucs2 ) : Array<Ucs2> {
-		var delimiter = asByteAccess(delimiter);
-		var delimiterLen = delimiter.length;
-		var buffer = new ByteAccessBuffer();
-		var tempBuffer = new ByteAccessBuffer();
-
-		var res = [];
-		var pos = 0;
-
-		for ( i in 0...this.length) {
-
-			var b = this.fastGet(i);
-			var d = delimiter.fastGet(pos);
-
-			if (b == d) {
-				tempBuffer.addByte(b);
-				pos++;
-			} else {
-				if (pos > 0) {
-					buffer.addBuffer(tempBuffer);
-					tempBuffer.reset();
-				}
-				buffer.addByte(b);
-				pos = 0;
-			}
-
-			if (pos == delimiterLen) {
-				pos = 0;
-				res.push(Ucs2.fromByteAccess(buffer.getByteAccess()));
-				buffer.reset();
-				tempBuffer.reset();
-			}
-		}
-
-		if (pos != 0) {
-			buffer.addBuffer(tempBuffer);
-		}
-		if (buffer.length > 0) {
-			res.push(Ucs2.fromByteAccess(buffer.getByteAccess()));
-		} else {
-			res.push(new Ucs2(""));
-		}
-		return res;
+		return Ucs2Tools.split(this, delimiter.impl());
 	}
 
 	public function substr( pos : Int, ?len : Int ) : Ucs2 {
-		return if (len == null) {
-			if (pos < 0) {
-				var newPos = fromByteAccess(this).length + pos;
-				if (newPos < 0) newPos = 0;
-				substring(newPos);
-			} else {
-				substring(pos);
-			}
-		} else {
-			if (len < 0) {
-				substring(pos, fromByteAccess(this).length + len);
-			} else {
-				substring(pos, pos + len);
-			}
-		}
+		return fromImpl(Ucs2Tools.substr(this, pos, len));
 	}
 
 	public function substring( startIndex : Int, ?endIndex : Int ) : Ucs2 {
-		
-		var startIndex:Null<Int> = startIndex;
-		if (startIndex < 0) startIndex = 0;
-		if (endIndex != null && endIndex < 0) endIndex = 0;
-		
-		var len = fromByteAccess(this).length;
-		
-		if (endIndex == null) endIndex = len;
-
- 		if (startIndex > endIndex) {
-			var x = startIndex;
-			startIndex = endIndex;
-			endIndex = x;
-		}
-		
-		
-		if (endIndex == null || endIndex > len) endIndex = len;
-
-		if (startIndex == null || startIndex > len) return new Ucs2("");
-		
-		return fromByteAccess(this.sub(startIndex * 2, endIndex * 2 - startIndex * 2));
+		return fromImpl(Ucs2Tools.substring(this, startIndex, endIndex));
 	}
+
 	// private helpers
 	static inline function fromByteAccess (bytes:ByteAccess):Ucs2 {
 		return cast bytes;
 	}
+	static inline function fromImpl (impl:ByteAccess):Ucs2 {
+		return cast impl;
+	}
+	inline function impl ():ByteAccess {
+		return this;
+	}
+
 	public function toNativeString() : String {
-		// Ucs2 to Utf8
-		return EncodingTools.ucs2ToUtf8(fromByteAccess(this)).toNativeString();
+		return Ucs2Tools.toNativeString(this);
 	}
 
 	public static inline function fromCharCode( code : Int ) : Ucs2 {
-		return fromByteAccess(EncodingTools.charCodeToUcs2ByteAccess(code));
+		return fromImpl(Encoding.charCodeToUcs2ByteAccess(code));
 	}
 
 	public function toBytes(  ) : haxe.io.Bytes {
@@ -454,15 +285,15 @@ abstract Ucs2(ByteAccess) {
 	}
 
 	public static inline function fromBytes( bytes : haxe.io.Bytes ) : Ucs2 {
-		return fromByteAccess(ByteAccess.fromBytes(bytes).copy());
+		return fromImpl(ByteAccess.fromBytes(bytes).copy());
 	}
 
 	public function toUtf8() : Utf8 {
-		return EncodingTools.ucs2ToUtf8(fromByteAccess(this));
+		return Utf8.fromByteAccess(Encoding.convertUcs2toUtf8(getReader(), StrictConversion));
 	}
 
 	public function toUtf16() : Utf16 {
-		return EncodingTools.ucs2ToUtf16(fromByteAccess(this));
+		return Utf16.fromBytes(toBytes());
 	}
 
 	@:op(A == B) inline function opEq (other:Ucs2) {
@@ -472,28 +303,14 @@ abstract Ucs2(ByteAccess) {
 	@:op(A != B) inline function opNotEq (other:Ucs2) {
 		return !opEq(other);
 	}
-	
+
 	@:op(A + B) inline function opAdd (other:Ucs2) {
-		return fromByteAccess(this.append(asByteAccess(other)));
+		return fromImpl(this.append(asByteAccess(other)));
 	}
 
-	
-	
 
 	function compare (other:Ucs2):Int {
-		var len1 = length;
-		var len2 = other.length;
-		
-		var min = len1 < len2 ? len1 : len2;
-		for (i in 0...min) {
-			var a = charCodeAt(i);
-			var b = other.charCodeAt(i);
-			if (a < b) return -1;
-			if (a > b) return 1;
-		}
-		if (len1 < len2) return -1;
-		if (len1 > len2) return 1;
-		return 0;
+		return Ucs2Tools.compare(this, other.impl());
 	}
 
 	@:op(A > B) inline function opGreaterThan (other:Ucs2) {

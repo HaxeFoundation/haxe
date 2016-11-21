@@ -21,172 +21,6 @@
  */
 package haxe.i18n;
 
-/**
-	Cross platform Utf16 string API.
-**/
-
-#if false
-import haxe.io.Bytes;
-import haxe.io.BytesData;
-abstract Utf16(String) {
-
-	/**/
-	public var length(get,never) : Int;
-
-	public function new(str:String) : Void {
-		this = str;
-	}
-
-		function get_length() {
-		return this.length;
-	}
-
-	public function toUpperCase() : Utf16 {
-		return new Utf16(this.toUpperCase());
-	}
-
-	public function toLowerCase() : Utf16 {
-		return new Utf16(this.toLowerCase());
-	}
-
-	public function isValidUcs2 ():Bool {
-		for (i in 0...this.length) {
-			var code = charCodeAt(i);
-			if (EncodingTools.getUtf16CodeSize(code) == 4) return false;
-		}
-		return true;
-	}
-
-	public function charAt(index : Int) : Utf16 {
-		return new Utf16(this.charAt(index));
-	}
-
-	public function charCodeAt( index : Int) : Null<Int> {
-		return this.charCodeAt(index);
-	}
-
-	public inline function fastCodeAt( index : Int) : Int {
-		return StringTools.fastCodeAt(this, index);
-	}
-
-	public function indexOf( str : Utf16, ?startIndex : Int ) : Int {
-		return this.indexOf(str.toNativeString(),startIndex);
-	}
-
-	public function lastIndexOf( str : Utf16, ?startIndex : Int ) : Int {
-		return this.lastIndexOf(str.toNativeString(),startIndex);
-	}
-
-	public function split( delimiter : Utf16 ) : Array<Utf16> {
-		return cast this.split(delimiter.toNativeString());
-	}
-
-	public function substr( pos : Int, ?len : Int ) : Utf16 {
-		return new Utf16(this.substr(pos,len));
-	}
-
-	public function substring( startIndex : Int, ?endIndex : Int ) : Utf16 {
-		return new Utf16(this.substring(startIndex,endIndex));
-	}
-
-	@:op(A == B) inline function opEq (other:Utf16) {
-		return this == other.toNativeString();
-	}
-
-	@:op(A + B) inline function opAdd (other:Utf16) {
-		return fromNativeString(this + other.toNativeString());
-	}
-
-	@:op(A != B) inline function opNotEq (other:Utf16) {
-		return !opEq(other);
-	}
-
-	public static function fromCharCode( code : Int ) : Utf16 {
-
-		return fromByteAccess(EncodingTools.charCodeToUtf16ByteAccess(code));
-	}
-
-	public static function fromBytes( bytes : haxe.io.Bytes ) : Utf16 {
-		return fromByteAccess(ByteAccess.fromBytes(bytes));
-	}
-
-	public static function fromNativeString (s:String):Utf16 {
-		return new Utf16(s);
-	}
-
-	public function toNativeString() : String {
-		return this;
-	}
-
-	public static inline function asByteAccess (s:Utf16):ByteAccess {
-		return ByteAccess.fromBytes(s.toBytes());
-	}
-
-	public static inline function fromByteAccess (bytes:ByteAccess):Utf16 {
-		#if cs
-		return new Utf16(cs.system.text.Encoding.BigEndianUnicode.GetString(bytes.asBytesData(), 0, bytes.asBytesData().length));
-		#elseif java
-		try
-			return new Utf16(new String(bytes.asBytesData(), 0, bytes.asBytesData().length, "UTF-16BE"))
-		catch (e:Dynamic) throw e;
-		#end
-
-	}
-
-	public function toUcs2() : Ucs2 {
-		return EncodingTools.utf16ToUcs2(new Utf16(this));
-	}
-
-	inline function eachCode ( f : Int -> Void) {
-		for (i in 0...length) {
-			var code = fastCodeAt(i);
-			f(code);
-		}
-	}
-
-	public function toCodeArray () {
-
-		var res = [];
-		eachCode(function (c) res.push(c));
-		return res;
-	}
-
-	public function toUtf8 ():Utf8 {
-		return EncodingTools.utf16ToUtf8(new Utf16(this));
-	}
-
-	public function toBytes(  ) : haxe.io.Bytes {
-		#if cs
-		var b = cs.system.text.Encoding.BigEndianUnicode.GetBytes(this);
-		return Bytes.ofData(b);
-		#elseif java
-		try
-		{
-			var b:haxe.io.BytesData = untyped this.getBytes("UTF-16BE");
-			return Bytes.ofData(b);
-		}
-		catch (e:Dynamic) throw e;
-		#end
-	}
-
-	@:op(A > B) inline function opGreaterThan (other:Utf16) {
-		return this > other.toNativeString();
-	}
-	@:op(A < B) inline function opLessThan (other:Utf16) {
-		return this < other.toNativeString();
-	}
-	@:op(A <= B) inline function opLessThanOrEq (other:Utf16) {
-		return this <= other.toNativeString();
-	}
-
-	@:op(A >= B) inline function opGreaterThanOrEq (other:Utf16) {
-		return this >= other.toNativeString();
-	}
-}
-
-#else
-// bytes based implementation
-
 typedef Utf16Impl = {
 	b : ByteAccess,
 	length : Int
@@ -278,11 +112,11 @@ abstract Utf16(Utf16Impl) {
 	}
 
 	public inline function toUcs2() : Ucs2 {
-		return EncodingTools.utf16ToUcs2(fromImpl(this));
+		return Ucs2.fromBytes(toBytes());
 	}
 
 	public inline function toUtf8 ():Utf8 {
-		return EncodingTools.utf16ToUtf8(fromImpl(this));
+		return Utf8.fromByteAccess(Encoding.convertUtf16toUtf8(getReader(), StrictConversion));
 	}
 
 	public inline function toBytes() : haxe.io.Bytes {
@@ -297,8 +131,6 @@ abstract Utf16(Utf16Impl) {
 		return fromImpl(Utf16Tools.fromByteAccess(ba));
 	}
 
-	
-
 	public inline function getReader ():Utf16Reader
 	{
 		return new Utf16Reader(this.b);
@@ -309,11 +141,7 @@ abstract Utf16(Utf16Impl) {
 	inline function get_length() {
 		return Utf16Tools.strLength(this);
 	}
-
-	static inline function getCharSize (start2Bytes:Int):Int {
-		return if (EncodingTools.isHighSurrogate(start2Bytes)) 4 else 2;
-	}
-
+	
 	static inline function fromImpl (impl:Utf16Impl):Utf16 {
 		return cast impl;
 	}
@@ -327,5 +155,3 @@ abstract Utf16(Utf16Impl) {
 	}
 	
 }
-
-#end

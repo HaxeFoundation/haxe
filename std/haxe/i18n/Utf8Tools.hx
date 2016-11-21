@@ -187,15 +187,7 @@ class Utf8Tools {
 	}
 
 	static function nativeStringToByteAccess (s:String):ByteAccess {
- 		#if python
-		// strings are utf-32
- 		return ByteAccess.ofData(python.NativeStringTools.encode(s, "utf-8"));
- 		#elseif (js || flash)
-		return EncodingTools.ucs2ToUtf8ByteAccess( new Ucs2(s));
- 		#else
-		// strings are encoded as utf8 on other platforms
- 		return ByteAccess.fromBytes(Bytes.ofString(s));
- 		#end
+		return NativeStringTools.toUtf8(s);
  	}
 
 	// string functions

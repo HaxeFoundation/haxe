@@ -115,11 +115,11 @@ abstract Utf8(Utf8Impl) {
 	}
  	
 	public inline function toUcs2() : Ucs2 {
-		return EncodingTools.utf8ToUcs2(fromImpl(this));
+		return Ucs2.fromByteAccess(Encoding.convertUtf8toUcs2(getReader(), StrictConversion));
 	}
 	
  	public inline function toUtf16 ():Utf16 {
-		return EncodingTools.utf8ToUtf16(fromImpl(this));
+		return Utf16.fromByteAccess(Encoding.convertUtf8toUtf16(getReader(), StrictConversion));
 	}
 	
 	public inline function toBytes() : haxe.io.Bytes {

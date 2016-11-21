@@ -101,7 +101,7 @@ class Utf16Tools {
 	}
 
 	static inline function getCharSize (firstInt16:Int):Int {
-		return if (EncodingTools.isHighSurrogate(firstInt16)) 4 else 2;
+		return if (Encoding.isHighSurrogate(firstInt16)) 4 else 2;
 	}
 
 	static inline function isUpperCaseLetter (bytes:Utf16Impl, pos:Int, size:Int) {
@@ -163,16 +163,7 @@ class Utf16Tools {
 	}
 
 	public static function nativeStringToByteAccess (s:String):ByteAccess {
- 		#if python
- 		return ByteAccess.ofData(python.NativeStringTools.encode(s, "utf-16be"));
-		#elseif (neko || cpp || php)
-		return EncodingTools.utf8ToUtf16(new Utf8(s)).impl().b;
- 		#elseif (js || flash || hl)
- 		return EncodingTools.ucs2ToUtf16( new Ucs2(s)).impl().b;
- 		#else
-		var utf8Bytes = haxe.io.Bytes.ofString(s);
-		return Utf8.fromByteAccess(ByteAccess.fromBytes(utf8Bytes)).toUtf16().impl();
- 		#end
+		return NativeStringTools.toUtf16(s);
  	}
 
 	 // string functions
@@ -489,7 +480,7 @@ class Utf16Tools {
 	public static function fromCharCode( code : Int ) : Utf16Impl
 	{
 		return {
-			b : EncodingTools.charCodeToUtf16ByteAccess(code),
+			b : Encoding.charCodeToUtf16ByteAccess(code),
 			length : 1
 		}
 	}
