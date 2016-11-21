@@ -158,8 +158,9 @@ abstract Ucs2(String) {
 		}
 	}
 
-	public function getReader ():Ucs2Reader {
-		return new Ucs2Reader(ByteAccess.fromBytes(toBytes()));
+	public inline function getReader ():Ucs2Reader {
+		return new Ucs2Reader(this);
+		//return new Ucs2Reader(ByteAccess.fromBytes(toBytes()));
 	}
 
 	public function toCodeArray ():Array<Int> {
@@ -198,10 +199,10 @@ abstract Ucs2(ByteAccess) {
 	public var length(get,never) : Int;
 
 	public inline function new(str:String)  {
-		this = haxe.i18n.Ucs2Tools.nativeStringToImpl(str); 
+		this = NativeStringTools.toUcs2(str); 
 	}
 
-	public function getReader ():Ucs2Reader {
+	public inline function getReader ():Ucs2Reader {
 		return new Ucs2Reader(this);
 	}
 

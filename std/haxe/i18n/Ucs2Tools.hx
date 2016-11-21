@@ -27,14 +27,8 @@ import haxe.i18n.Ucs2.Ucs2Impl;
 @:allow(haxe.i18n)
 class Ucs2Tools {
 
-	//public var length(get,never) : Int;
-
 	static inline function strLength(impl:Ucs2Impl):Int {
 		return impl.length >> 1;
-	}
-
-	public static inline function nativeStringToImpl (str:String):Ucs2Impl {
-		return NativeStringTools.toUcs2(str);
 	}
 
 	static inline function isUpperCaseLetter (bytes:Int) {

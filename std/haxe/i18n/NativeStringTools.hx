@@ -18,6 +18,7 @@ class NativeStringTools {
 		var b = cs.system.text.Encoding.BigEndianUnicode.GetBytes(s);
 		return ByteAccess.ofData(b);
 		#else
+		// fallback utf8 to utf16
 		return Encoding.convertUtf8toUtf16(new Utf8Reader(toUtf8(s)), StrictConversion);
 		#end
 	}
@@ -28,6 +29,7 @@ class NativeStringTools {
 		var b = @:privateAccess s.bytes.sub(0, size);
 		return ByteAccess.ofData(new BytesData(b,size));
 		#else
+		// fallback utf8 to ucs2
 		return Encoding.convertUtf8toUcs2(new Utf8Reader(toUtf8(s)), StrictConversion);
 		#end
 	}
