@@ -5892,17 +5892,30 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       list_iteri dump_script_field functions;
       output_cpp ("};\n\n");
 
-      if (List.length new_sctipt_functions) > 0 then begin
-         let sigs = Hashtbl.create 0 in
+      let sigs = Hashtbl.create 0 in
+
+      let static_functions = (List.filter (fun f-> not (is_data_member f) ) reflect_static_fields) in
+      let all_script_functions = (List.map (fun (f,_,_)->f)  new_sctipt_functions) @ static_functions in
+
+      if (List.length all_script_functions) > 0 then begin
          List.iter (fun (f,_,_) ->
             let s = generate_script_function false f ("__s_" ^f.cf_name) (keyword_remap f.cf_name) in
             Hashtbl.add sigs f.cf_name s
          ) new_sctipt_functions;
 
+         let dump_script_static f =
+            let s = generate_script_function true f ("__s_" ^f.cf_name) (keyword_remap f.cf_name) in
+            Hashtbl.add sigs f.cf_name s
+         in
+         List.iter dump_script_static class_def.cl_ordered_statics;
+
          output_cpp "static hx::ScriptNamedFunction __scriptableFunctions[] = {\n";
-         List.iter (fun (f,_,_) ->
+         let dump_func f isStaticFlag = 
             let s = try Hashtbl.find sigs f.cf_name with Not_found -> "v" in
-            output_cpp ("  hx::ScriptNamedFunction(\"" ^ f.cf_name ^ "\",__s_" ^ f.cf_name ^ ",\"" ^ s ^ "\"),\n" ) ) new_sctipt_functions;
+            output_cpp ("  hx::ScriptNamedFunction(\"" ^ f.cf_name ^ "\",__s_" ^ f.cf_name ^ ",\"" ^ s ^ "\", " ^ isStaticFlag ^ " ),\n" )
+         in
+         List.iter (fun (f,_,_) -> dump_func f "false") new_sctipt_functions;
+         List.iter (fun f -> dump_func f "true") static_functions;
          output_cpp "  hx::ScriptNamedFunction(0,0,0) };\n";
       end else
          output_cpp "static hx::ScriptNamedFunction *__scriptableFunctions = 0;\n";
