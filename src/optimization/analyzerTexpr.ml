@@ -151,6 +151,7 @@ let is_unbound_call_that_might_have_side_effects v el = match v.v_name,el with
 
 let is_ref_type = function
 	| TType({t_path = ["cs"],("Ref" | "Out")},_) -> true
+	| TType({t_path = ["cpp"],("Reference")},_) -> true
 	| TAbstract({a_path=["hl";"types"],"Ref"},_) -> true
 	| _ -> false
 
