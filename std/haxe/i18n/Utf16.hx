@@ -202,42 +202,42 @@ abstract Utf16(Utf16Impl) {
 		this = Utf16Tools.nativeStringToImpl(str);
 	}
 
-	public function toUpperCase() : Utf16 {
+	public inline function toUpperCase() : Utf16 {
 		return fromImpl(Utf16Tools.toUpperCase(this));
 	}
-	public function toLowerCase() : Utf16 {
+	public inline function toLowerCase() : Utf16 {
 		return fromImpl(Utf16Tools.toLowerCase(this));
 	}
 
-	public function charAt(index : Int) : Utf16 {
+	public inline function charAt(index : Int) : Utf16 {
 		return fromImpl(Utf16Tools.charAt(this, index));
 	}
 
-	public function charCodeAt( index : Int) : Null<Int> {
+	public inline function charCodeAt( index : Int) : Null<Int> {
 		return Utf16Tools.charCodeAt(this, index);
 	}
 
-	public function indexOf( str : Utf16, ?startIndex : Int ) : Int {
+	public inline function indexOf( str : Utf16, ?startIndex : Int ) : Int {
 		return Utf16Tools.indexOf(this, str.impl(), startIndex);
 	}
 
-	public function lastIndexOf( str : Utf16, ?startIndex : Int ) : Int {
+	public inline function lastIndexOf( str : Utf16, ?startIndex : Int ) : Int {
 		return Utf16Tools.lastIndexOf(this, str.impl(), startIndex);
 	}
 
-	public function split( delimiter : Utf16 ) : Array<Utf16> {
+	public inline function split( delimiter : Utf16 ) : Array<Utf16> {
 		return Utf16Tools.split(this, delimiter.impl());
 	}
 
-	public function substr( pos : Int, ?len : Int ) : Utf16 {
+	public inline function substr( pos : Int, ?len : Int ) : Utf16 {
 		return fromImpl(Utf16Tools.substr(this, pos, len));
 	}
 
-	public function substring( startIndex : Int, ?endIndex : Int ) : Utf16 {
+	public inline function substring( startIndex : Int, ?endIndex : Int ) : Utf16 {
 		return fromImpl(Utf16Tools.substring(this, startIndex, endIndex));
 	}
 
-	public static function fromCharCode( code : Int ) : Utf16 {
+	public static inline function fromCharCode( code : Int ) : Utf16 {
 		return fromImpl(Utf16Tools.fromCharCode(code));
 	}
 
@@ -269,27 +269,27 @@ abstract Utf16(Utf16Impl) {
 
 	// additional public api
 
-	public static function fromBytes( bytes : haxe.io.Bytes ) : Utf16 {
+	public static inline function fromBytes( bytes : haxe.io.Bytes ) : Utf16 {
 		return fromByteAccess(ByteAccess.fromBytes(bytes));
 	}
 
-	public function toNativeString() : String {
+	public inline function toNativeString() : String {
 		return Utf16Tools.toNativeString(this);//this.getString(0, this.length);
 	}
 
-	public function toUcs2() : Ucs2 {
+	public inline function toUcs2() : Ucs2 {
 		return EncodingTools.utf16ToUcs2(fromImpl(this));
 	}
 
-	public function toUtf8 ():Utf8 {
+	public inline function toUtf8 ():Utf8 {
 		return EncodingTools.utf16ToUtf8(fromImpl(this));
 	}
 
-	public function toBytes() : haxe.io.Bytes {
+	public inline function toBytes() : haxe.io.Bytes {
 		return Utf16Tools.toBytes(this);
 	}
 
-	public function toCodeArray () {
+	public inline function toCodeArray () {
 		return Utf16Tools.toCodeArray(this);
 	}
 	
@@ -306,7 +306,7 @@ abstract Utf16(Utf16Impl) {
 
 	// private helpers
 
-	function get_length() {
+	inline function get_length() {
 		return Utf16Tools.strLength(this);
 	}
 
@@ -314,22 +314,17 @@ abstract Utf16(Utf16Impl) {
 		return if (EncodingTools.isHighSurrogate(start2Bytes)) 4 else 2;
 	}
 
-	
-
-	static function fromImpl (impl:Utf16Impl):Utf16 {
+	static inline function fromImpl (impl:Utf16Impl):Utf16 {
 		return cast impl;
 	}
 
-	function impl ():Utf16Impl {
+	inline function impl ():Utf16Impl {
 		return this;
 	}
-
-	
 
 	inline function compare (other:Utf16):Int {
 		return Utf16Tools.compare(this, other.impl());
 	}
-
 	
 }
 

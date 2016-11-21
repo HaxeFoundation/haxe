@@ -73,8 +73,7 @@ class Utf16Tools {
 	}
 
 	static inline function equal (impl:Utf16Impl, other:Utf16Impl) {
-		return true;
-		//return impl.length == other.length && impl.b.equal(other.b);
+		return impl.length == other.length && impl.b.equal(other.b);
 	}
 
 	static inline function append (impl:Utf16Impl, other:Utf16Impl) {
@@ -84,7 +83,7 @@ class Utf16Tools {
 		}
 	}
 
-	public static function toBytes(impl:Utf16Impl) : haxe.io.Bytes {
+	public static inline function toBytes(impl:Utf16Impl) : haxe.io.Bytes {
 		return impl.b.copy().toBytes();
 	}
 
@@ -202,8 +201,6 @@ class Utf16Tools {
 		}
 		return res;
 	}
-
-	
 
 	public static function charAt(impl:Utf16Impl, index : Int) : Utf16Impl {
 		var res = null;
