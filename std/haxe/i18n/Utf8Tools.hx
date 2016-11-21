@@ -515,24 +515,6 @@ class Utf8Tools {
 		return res;
 	}
 
-
-	
-
-	 static function compare (ba:Utf8Impl, other:Utf8Impl):Int {
-		var len1 = strLength(ba);
-		var len2 = strLength(other);
-		var min = len1 < len2 ? len1 : len2;
-		for (i in 0...min) {
-			var a = charCodeAt(ba, i);
-			var b = charCodeAt(other, i);
-			if (a < b) return -1;
-			if (a > b) return 1;
-		}
-		if (len1 < len2) return -1;
-		if (len1 > len2) return 1;
-		return 0;
-	}
-
 	static function compare (impl:Utf8Impl, other:Utf8Impl):Int {
 		var len1 = strLength(impl);
 		var len2 = strLength(other);
