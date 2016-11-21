@@ -38,7 +38,7 @@ class Utf16Tools {
 
 
 	static function nativeStringToImpl (s:String):Utf16Impl {
-		var ba = nativeStringToByteAccess(s);
+		var ba = NativeStringTools.toUtf16(s);
 		return {
 			b : ba,
 			length : calcLength(ba)
@@ -145,7 +145,7 @@ class Utf16Tools {
 
 			case 2: getInt16(b, pos);
 			case 4: getInt32(b, pos);
-			case _: throw "invalid byte sequence";
+			case _: throw "invalid size, 2 or 4 expected";
 		}
 	}
 
@@ -162,12 +162,7 @@ class Utf16Tools {
 		}
 	}
 
-	public static function nativeStringToByteAccess (s:String):ByteAccess {
-		return NativeStringTools.toUtf16(s);
- 	}
-
 	 // string functions
-
 
 	public static function toUpperCase(impl:Utf16Impl) : Utf16Impl {
 		var res = allocImpl(byteLength(impl), strLength(impl));
@@ -187,28 +182,24 @@ class Utf16Tools {
 			var b = getInt16(impl, i);
 			var size = getCharSize(b);
 			toLowerCaseLetter(impl, res, i, size);
-
 			i += size;
 		}
 		return res;
 	}
 
 	public static function charAt(impl:Utf16Impl, index : Int) : Utf16Impl {
-		var res = null;
 		var pos = 0;
 		var i = 0;
 		while (i < byteLength(impl)) {
 			var b = getInt16(impl, i);
 			var size = getCharSize(b);
 			if (pos == index) {
-				res = sub(impl, i, size, 1);
-				break;
+				return sub(impl, i, size, 1);
 			}
-
 			pos++;
 			i += size;
 		}
-		return res == null ? empty : res;
+		return empty;
 	}
 
 	public static function toCodeArray (impl:Utf16Impl) {
@@ -347,19 +338,17 @@ class Utf16Tools {
 		var tmpBufLen = 0; // store utf8 len
 
 		var res:Array<Utf16> = [];
-		var len = strLength(delimiter);
-		var str = delimiter;
+		var delimiterLen = strLength(delimiter);
 		var pos = 0;
 		var posFull = 0;
-		var byteLength = byteLength(impl);
 		// byte iteration variables
 		var i = 0;
 		var j = 0;
 		// iterate bytes
-		while (i < byteLength) {
+		while (i < byteLength(impl)) {
 			var size = getCharSize(getInt16(impl, i));
 
-			if (compareChar(impl, i, str, j, size) == 0) {
+			if (compareChar(impl, i, delimiter, j, size) == 0) {
 
 				pos++;
 				j+=size;
@@ -382,7 +371,7 @@ class Utf16Tools {
 				bufLen++;
 			}
 			i+=size;
-			if (pos == len) {
+			if (pos == delimiterLen) {
 				if (buf.length > 0) {
 					res.push(Utf16.fromImpl(mkImplFromBuffer(buf, bufLen)));
 					bufLen = 0;
@@ -497,11 +486,22 @@ class Utf16Tools {
 		var len1 = strLength(impl);
 		var len2 = strLength(other);
 		var min = len1 < len2 ? len1 : len2;
+
+		var p1 = 0;
+		var p2 = 0;
 		for (i in 0...min) {
-			var a = charCodeAt(impl, i);
-			var b = charCodeAt(other, i);
-			if (a < b) return -1;
-			if (a > b) return 1;
+			var b1 = getInt16(impl, p1);
+			var size1 = getCharSize(b1);
+			var code1 = getCharCode(impl, p1, size1);
+
+			var b2 = getInt16(other, p2);
+			var size2 = getCharSize(b2);
+			var code2 = getCharCode(other, p2, size2);
+
+			if (code1 < code2) return -1;
+			if (code1 > code2) return 1;
+			p1 += size1;
+			p2 += size2;
 		}
 		if (len1 < len2) return -1;
 		if (len1 > len2) return 1;

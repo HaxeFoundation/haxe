@@ -266,8 +266,8 @@ class Ucs2Tools {
 		
 		var min = len1 < len2 ? len1 : len2;
 		for (i in 0...min) {
-			var a = charCodeAt(impl, i);
-			var b = charCodeAt(other, i);
+			var a = fastCodeAt(impl, i);
+			var b = fastCodeAt(other, i);
 			if (a < b) return -1;
 			if (a > b) return 1;
 		}
