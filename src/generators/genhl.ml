@@ -1364,7 +1364,7 @@ and eval_expr ctx e =
 			make_string ctx s e.epos
 		| TThis | TSuper ->
 			0 (* first reg *)
-		| _ ->
+		| TNull ->
 			let r = alloc_tmp ctx (to_type ctx e.etype) in
 			op ctx (ONull r);
 			r)
@@ -2406,7 +2406,7 @@ and eval_expr ctx e =
 			let switch_pos = current_pos ctx in
 			(match def with
 			| None ->
-				if rt <> HVoid then op ctx (ONull r);
+				if rt <> HVoid then set_default ctx r;
 			| Some e ->
 				let re = eval_to ctx e rt in
 				if rt <> HVoid then op ctx (OMov (r,re)));
@@ -3581,7 +3581,7 @@ let generate com =
 	end;
 	if Common.raw_defined com "hl-check" then begin
 		check ctx;
-		Hlinterp.check code;
+		Hlinterp.check code false;
 	end;
 	let t = Common.timer ["write";"hl"] in
 	if file_extension com.file = "c" then

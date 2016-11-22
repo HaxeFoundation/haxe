@@ -118,12 +118,12 @@ let add_types ctx types ready =
 		let code = Genhl.build_code gen types None in
 		if debug then begin
 			try
-				Hlinterp.check code
-			with Failure s ->
+				Hlinterp.check code true
+			with Failure _ | Common.Abort _ as exn ->
 				let ch = open_out_bin "hlcode.txt" in
 				Hlcode.dump (fun s -> output_string ch (s ^ "\n")) code;
 				close_out ch;
-				failwith s
+				raise exn
 		end;
 		Hlinterp.add_code ctx.interp code
 
