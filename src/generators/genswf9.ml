@@ -1073,6 +1073,10 @@ let rec gen_expr_content ctx retval e =
 	| TNew ({ cl_path = [],"Array" },_,[]) ->
 		(* it seems that [] is 4 time faster than new Array() *)
 		write ctx (HArray 0)
+	| TNew ({ cl_path = ["flash"],"Vector" },[t],_) when (match follow t with TInst({ cl_kind = KTypeParameter _ },_) -> true | _ -> false) ->
+		write ctx (HString "Cannot create Vector without knowing runtime type");
+		write ctx HThrow;
+		no_value ctx retval
 	| TNew (c,tl,pl) ->
 		let id = type_id ctx (TInst (c,tl)) in
 		(match id with
