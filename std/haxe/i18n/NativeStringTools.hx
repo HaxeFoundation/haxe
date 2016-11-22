@@ -24,14 +24,9 @@ class NativeStringTools {
 	}
 
 	public static function toUcs2 (s:String):ByteAccess {
-		#if hl
-		var size = 0;
-		var b = @:privateAccess s.bytes.sub(0, size);
-		return ByteAccess.ofData(new BytesData(b,size));
-		#else
 		// fallback utf8 to ucs2
-		return Encoding.convertUtf8toUcs2(new Utf8Reader(toUtf8(s)), StrictConversion);
-		#end
+		return Encoding.convertUtf8toUcs2(new Utf8Reader(toUtf8(s)), StrictConversion, false);
+		
 	}
 
 	public static function toUtf8 (s:String):ByteAccess {

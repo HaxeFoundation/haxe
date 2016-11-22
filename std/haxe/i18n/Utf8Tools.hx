@@ -32,6 +32,7 @@ class Utf8Tools {
 	}
 
 	static inline function sub (ba:Utf8Impl, pos:Int, size:Int, newLen:Int):Utf8Impl {
+		if (newLen == 0 && size == 0) return empty;
 		var bytes = ba.b.sub(pos, size);
 		return {
 			b : bytes,
@@ -47,6 +48,8 @@ class Utf8Tools {
 	}
 
 	static function nativeStringToImpl (s:String):Utf8Impl {
+		if (s.length == 0) return empty;
+
 		var ba = nativeStringToByteAccess(s);
 		return {
 			b : ba,
@@ -55,6 +58,9 @@ class Utf8Tools {
 	}
 
 	static inline function append (ba:Utf8Impl, other:Utf8Impl):Utf8Impl {
+		if (other.length == 0) return ba;
+		if (ba.length == 0) return other;
+
 		return {
 			length : ba.length + other.length,
 			b : ba.b.append(other.b)
@@ -148,22 +154,15 @@ class Utf8Tools {
 		}
 	}
 
-
 	static function getCharCode ( b:Utf8Impl, pos:Int, size:Int):Int {
-		return switch size {
-			case 1: fastGet(b, pos);
-			case 2: (fastGet(b, pos) << 8) | (fastGet(b, pos+1));
-			case 3: (fastGet(b, pos) << 16) | (fastGet(b, pos+1) << 8) | fastGet(b, pos+2);
-			case 4: (fastGet(b, pos) << 24) | (fastGet(b, pos+1) << 16) | (fastGet(b, pos+2) << 8)  | fastGet(b, pos+3);
-			case _: throw "invalid byte sequence";
-		}
+		return Encoding.charCodeFromUtf8Bytes(b.b, pos, size);
 	}
 
-	static function compareChar ( b1:Utf8Impl, pos1:Int, b2:Utf8Impl, pos2:Int, size:Int):Int {
+	static function compareChar ( b1:Utf8Impl, pos1:Int, b2:Utf8Impl, pos2:Int, size:Int):Bool {
 		var c1 = getCharCode(b1, pos1, size);
 		var c2 = getCharCode(b2, pos2, size);
 
-		return c1 - c2;
+		return c1 == c2;
 	}
 
 	static function pushCharCode (bytes:Utf8Impl, buf:ByteAccessBuffer, pos:Int, size:Int) {
@@ -258,7 +257,6 @@ class Utf8Tools {
 	{
 		var strLen = strLength(str);
 		var res = -1;
-		var len = strLen; // O(n)
 		var pos = 0;
 		var posFull = 0;
 		var byteLength = byteLength(ba);
@@ -268,6 +266,7 @@ class Utf8Tools {
 
 		var startIndex = startIndex == null ? 0 : startIndex;
 
+		// move forward to startIndex
 		if (startIndex > 0) {
 			while (i < byteLength) {
 				var size = getCharSize(fastGet(ba, i));
@@ -279,17 +278,21 @@ class Utf8Tools {
 		// iterate bytes
 		while (i < byteLength) {
 			var size = getCharSize(fastGet(ba, i));
+			//trace(size);
+			var size2 = getCharSize(fastGet(str, j));
 
-			if (compareChar(ba, i, str, j, size) == 0) {
+			if (size == size2 && compareChar(ba, i, str, j, size)) {
 				pos++;
 				j+=size;
 			} else {
 				j = 0;
+				posFull += pos;
 				pos = 0;
 			}
 
 			i+=size;
-			if (pos == len) {
+			if (pos == strLen) {
+				//trace(posFull, strLen);
 				res = posFull;
 				break;
 			}
@@ -301,13 +304,14 @@ class Utf8Tools {
 	}
 
 	@:analyzer(no_code_motion) static function lastIndexOf( ba:Utf8Impl, str : Utf8Impl, ?startIndex : Int ) : Int {
+		
 		var startIndexIsNull = startIndex == null;
+		
 		var res = -1;
-		var len = strLength(str); // O(n)
+		var len = strLength(str);
 		var pos = 0;
 		var posFull = 0;
 		
-		// byte iteration variables
 		var i = 0;
 		var j = 0;
 		
@@ -315,24 +319,34 @@ class Utf8Tools {
 		
 		while (i < byteLength(ba) && (startIndexIsNull || posFull < startIndex + 1)) {
 			var size = getCharSize(fastGet(ba, i));
-			if (compareChar(ba, i, str, j, size) == 0) {
+			var size2 = getCharSize(fastGet(str, j));
+			if (size == size2 && compareChar(ba, i, str, j, size)) {
 				if (j == 0) {
-					// store the next position for next search
+					// store the next position character position in bytes for next search
 					iNext = i + size;
 				}
 				pos++;
 				j+=size;
 				
 			} else {
-				j = 0;
-				pos = 0;
+				if (j > 0) {
+					// restore next search position and continue
+					posFull++;
+					i = iNext;
+					j = 0;
+					pos = 0;
+					continue;
+				}
+				
 			}
 
 			i+=size;
 			if (pos == len) {
+				// store result
 				res = posFull;
+				// restore next search position and continue
 				posFull++;
-				i = iNext; // restore search position for next search
+				i = iNext;
 				j = 0;
 				pos = 0;
 				continue;
@@ -345,33 +359,32 @@ class Utf8Tools {
 	}
 
 	@:access(haxe.i18n.Utf8.fromImpl)
-	static inline function split( ba:Utf8Impl, delimiter : Utf8Impl ) : Array<Utf8>
+	static function split( str:Utf8Impl, delimiter : Utf8Impl ) : Array<Utf8>
 	{
 		var delimiterLen = strLength(delimiter);
 		var buf = new ByteAccessBuffer();
 		var tmpBuf = new ByteAccessBuffer();
 		var bufLen = 0; // store utf8 len
 		var tmpBufLen = 0; // store utf8 len
+
 		var res:Array<Utf8> = [];
-		var len = delimiterLen; // O(n)
-		var str = delimiter;
+		
 		var pos = 0;
 		var posFull = 0;
-		var byteLength = byteLength(ba);
 		// byte iteration variables
 		var i = 0;
 		var j = 0;
 		// iterate bytes
-		while (i < byteLength) {
-			var size = getCharSize(fastGet(ba, i));
-
-			if (compareChar(ba, i, str, j, size) == 0) {
+		while (i < byteLength(str)) {
+			var size = getCharSize(fastGet(str, i));
+			var size2 = getCharSize(fastGet(delimiter, j));
+			if (size == size2 && compareChar(str, i, delimiter, j, size)) {
 
 				pos++;
 				j+=size;
 				tmpBufLen++;
 				for (k in 0...size) {
-					tmpBuf.addByte(fastGet(ba, i+k));
+					tmpBuf.addByte(fastGet(str, i+k));
 				}
 			} else {
 				if (pos != 0) {
@@ -383,12 +396,12 @@ class Utf8Tools {
 					tmpBuf.reset();
 				}
 				for (k in 0...size) {
-					buf.addByte(fastGet(ba, i+k));
+					buf.addByte(fastGet(str, i+k));
 				}
 				bufLen++;
 			}
 			i+=size;
-			if (pos == len) {
+			if (pos == delimiterLen) {
 				if (buf.length > 0) {
 					res.push(Utf8.fromImpl(mkImplFromBuffer(buf, bufLen)));
 					bufLen = 0;
@@ -418,17 +431,18 @@ class Utf8Tools {
 	}
 	
 	@:analyzer(no_code_motion) // see https://github.com/HaxeFoundation/haxe/issues/5826
-	static function substr<T>( ba:Utf8Impl, pos : Int, ?len : Int ) : Utf8Impl {
+	static function substr<T>( str:Utf8Impl, pos : Int, ?len : Int ) : Utf8Impl {
 
 		var lenIsNull = len == null;
+		var byteLength = byteLength(str);
 		if (pos < 0) {
-			var thisLength = byteLength(ba);
+			var thisLength = strLength(str);
 			pos = thisLength + pos;
 			if (pos < 0) pos = 0;
 		}
 
 		if (!lenIsNull && len < 0) {
-			len = byteLength(ba) + len;
+			len = strLength(str) + len;
 			if (len < 0) len = 0;
 		}
 
@@ -436,16 +450,12 @@ class Utf8Tools {
 
 		var buf = new ByteAccessBuffer();
 
-		var str = ba;
-
 		var cur = 0;
-
-		var byteLength = byteLength(str);
+		
 		var i = 0;
 		var newSize = 0;
 		while (i < byteLength) {
 			var char = fastGet(str, i);
-			//if (char == null) throw "error";
 			var size = getCharSize(char);
 			if (cur >= pos && (lenIsNull || cur < pos + len))
 			{

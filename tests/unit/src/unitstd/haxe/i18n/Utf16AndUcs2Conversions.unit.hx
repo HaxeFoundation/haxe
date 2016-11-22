@@ -66,3 +66,10 @@ eqUcs2(
 	wrapUtf16("a").toUcs2(),
 	wrapUcs2("a")
 );
+
+eqUcs2(
+	wrapUtf16("𝄞").toUcs2(),
+	wrapUcs2("𝄞")
+);
+
+

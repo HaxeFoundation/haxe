@@ -63,7 +63,6 @@ class Utf16Tools {
 	}
 
 	public static inline function fromByteAccess (ba:ByteAccess):Utf16Impl {
-		// TODO validate, see Utf8Tools.fromByteAccess
 		var len = calcLength(ba);
 		return { length : len, b : ba};
 	}
@@ -144,7 +143,7 @@ class Utf16Tools {
 		return switch size {
 
 			case 2: getInt16(b, pos);
-			case 4: getInt32(b, pos);
+			case 4: Encoding.utf16surrogatePairToCharCode(getInt16(b, pos), getInt16(b, pos+2));
 			case _: throw "invalid size, 2 or 4 expected";
 		}
 	}
@@ -310,8 +309,14 @@ class Utf16Tools {
 				j+=size;
 				
 			} else {
-				j = 0;
-				pos = 0;
+				if (j > 0) {
+					// restore next search position and continue
+					posFull++;
+					i = iNext;
+					j = 0;
+					pos = 0;
+					continue;
+				}
 			}
 
 			i+=size;
@@ -332,13 +337,14 @@ class Utf16Tools {
 	
 	public static function split( impl:Utf16Impl, delimiter : Utf16Impl ) : Array<Utf16>
 	{
+		var delimiterLen = strLength(delimiter);
 		var buf = new ByteAccessBuffer();
 		var tmpBuf = new ByteAccessBuffer();
 		var bufLen = 0; // store utf8 len
 		var tmpBufLen = 0; // store utf8 len
 
 		var res:Array<Utf16> = [];
-		var delimiterLen = strLength(delimiter);
+		
 		var pos = 0;
 		var posFull = 0;
 		// byte iteration variables
@@ -347,8 +353,9 @@ class Utf16Tools {
 		// iterate bytes
 		while (i < byteLength(impl)) {
 			var size = getCharSize(getInt16(impl, i));
+			var size2 = getCharSize(getInt16(delimiter, j));
 
-			if (compareChar(impl, i, delimiter, j, size) == 0) {
+			if (size == size2 && compareChar(impl, i, delimiter, j, size) == 0) {
 
 				pos++;
 				j+=size;
@@ -400,16 +407,18 @@ class Utf16Tools {
 		return res;
 	}
 	
-	@:analyzer(no_code_motion) public static function substr( impl:Utf16Impl, pos : Int, ?len : Int ) : Utf16Impl {
+	@:analyzer(no_code_motion) public static function substr( str:Utf16Impl, pos : Int, ?len : Int ) : Utf16Impl {
 
+		var lenIsNull = len == null;
+		var byteLength = byteLength(str);
 		if (pos < 0) {
-			var thisLength = strLength(impl);
+			var thisLength = strLength(str);
 			pos = thisLength + pos;
 			if (pos < 0) pos = 0;
 		}
 
-		if (len != null && len < 0) {
-			len = strLength(impl) + len;
+		if (!lenIsNull && len < 0) {
+			len = strLength(str) + len;
 			if (len < 0) len = 0;
 		}
 
@@ -417,15 +426,12 @@ class Utf16Tools {
 
 		var buf = new ByteAccessBuffer();
 
-		var str = impl;
-
 		var cur = 0;
 
-		var byteLength = byteLength(str);
 		var i = 0;
 		var newSize = 0;
 		while (i < byteLength) {
-			var char = getInt16(impl, i);
+			var char = getInt16(str, i);
 			//if (char == null) throw "error";
 			var size = getCharSize(char);
 			if (cur >= pos && (len == null || cur < pos + len))

@@ -101,8 +101,12 @@ class Encoding {
     static inline var UNI_UTF16_BYTE_ORDER_MARK_SWAPPED:Int = 0xFFFE;
 
 
-	public static inline function isHighSurrogate(code : Int) : Bool {
-		return UNI_SUR_HIGH_START <= code && code <= UNI_SUR_HIGH_END;
+	public static inline function isHighSurrogate(codeHigh : Int) : Bool {
+		return UNI_SUR_HIGH_START <= codeHigh && codeHigh <= UNI_SUR_HIGH_END;
+	}
+
+    public static inline function isSurrogatePair(code : Int) : Bool {
+        return code > UNI_MAX_BMP && code <= UNI_MAX_UTF16;
 	}
 
     /* --------------------------------------------------------------------- */
@@ -156,17 +160,6 @@ class Encoding {
 				bytes.set(pos << 1, (val >> 8) & 0xFF );
 				bytes.set((pos << 1)+1, val & 0xFF); 
 			}, StrictConversion, false);
-		return bytes;
-	}
-
-	public static function charCodeToUcs2ByteAccess (code:Int):ByteAccess {
-		var bytes = ByteAccess.alloc(2);
-		
-		Encoding.writeUtf16CodeBytes(code, 0, 
-			function (pos, val) {
-				bytes.set(pos << 1, (val >> 8) & 0xFF );
-				bytes.set((pos << 1)+1, val & 0xFF); 
-			}, StrictConversion, true);
 		return bytes;
 	}
 
@@ -237,6 +230,11 @@ class Encoding {
 
 
 
+    public static inline function utf16surrogatePairToCharCode (ch1:Int, ch2:Int) {
+        return ((ch1 - UNI_SUR_HIGH_START) << halfShift)
+            + (ch2 - UNI_SUR_LOW_START) + halfBase;
+    }
+
     public static function convertUtf16toUtf8 (source:Utf16Reader, flags:ConversionFlags):ByteAccess {
 
         var target = new ByteAccessBuffer();
@@ -255,8 +253,7 @@ class Encoding {
                     var ch2 = source.getInt16(i);
                     /* If it's a low surrogate, convert to UTF32. */
                     if (ch2 >= UNI_SUR_LOW_START && ch2 <= UNI_SUR_LOW_END) {
-                        ch = ((ch - UNI_SUR_HIGH_START) << halfShift)
-                            + (ch2 - UNI_SUR_LOW_START) + halfBase;
+                        ch = utf16surrogatePairToCharCode(ch, ch2);
                         i+=2;
                     } else if (flags == StrictConversion) { /* it's an unpaired high surrogate */
                         /* i-=2;  return to the illegal value itself */
@@ -292,20 +289,47 @@ class Encoding {
         return target.getByteAccess();
     }
 
-    
-
     public static function convertUtf8toUtf16 (source:Utf8Reader, flags:ConversionFlags):ByteAccess {
         return convertUtf8toUtf16OrUcs2(source, flags, false);
     }
-    public static function convertUtf8toUcs2 (source:Utf8Reader, flags:ConversionFlags):ByteAccess {
-        return convertUtf8toUtf16OrUcs2(source, flags, true);
+
+    public static function convertUtf8toUcs2 (source:Utf8Reader, flags:ConversionFlags, strictUcs2:Bool):ByteAccess {
+        return convertUtf8toUtf16OrUcs2(source, flags, strictUcs2);
     }
 
     public static function getUtf8CharSize (first) {
         return trailingBytesForUTF8[first]+1;
     }
+    
 
-    public static function convertUtf8toUtf16OrUcs2 (source:Utf8Reader, flags:ConversionFlags, toUcs2:Bool):ByteAccess {
+    // asserts valid utf8 bytes
+    public static inline function charCodeFromUtf8Bytes (source:ByteAccess, pos:Int, size:Int) {
+        var extraBytesToRead:Int = size - 1;
+
+        var ch = 0;
+        switch (size) {
+            case 4:
+                ch += source.fastGet(pos++); ch <<= 6;
+                ch += source.fastGet(pos++); ch <<= 6;
+                ch += source.fastGet(pos++); ch <<= 6;
+                ch += source.fastGet(pos++);
+            case 3:
+                ch += source.fastGet(pos++); ch <<= 6;
+                ch += source.fastGet(pos++); ch <<= 6;
+                ch += source.fastGet(pos++);
+            case 2:
+                ch += source.fastGet(pos++); ch <<= 6;
+                ch += source.fastGet(pos++);
+            case 1:
+                ch += source.fastGet(pos++);
+            default:
+        }
+        ch -= offsetsFromUTF8[extraBytesToRead];
+        return ch;
+
+    } 
+
+    public static function convertUtf8toUtf16OrUcs2 (source:Utf8Reader, flags:ConversionFlags, strictUcs2:Bool):ByteAccess {
 
         var target = new ByteAccessBuffer();
 
@@ -340,7 +364,7 @@ class Encoding {
             ch -= offsetsFromUTF8[extraBytesToRead];
 
             
-            writeUtf16CodeBytes(ch, i, function (_, ch) target.addInt16BigEndian(ch), flags, toUcs2 );
+            writeUtf16CodeBytes(ch, i, function (_, ch) target.addInt16BigEndian(ch), flags, strictUcs2 );
             i+=extraBytesToRead+1;
         }
         return target.getByteAccess();
@@ -350,7 +374,7 @@ class Encoding {
 		return if (code <= UNI_MAX_BMP) 2 else 4;
 	}
 
-    public inline static function writeUtf16CodeBytes(ch:Int, pos:Int, addInt16:Int->Int->Void, flags:ConversionFlags, ucs2:Bool) {
+    public inline static function writeUtf16CodeBytes(ch:Int, pos:Int, addInt16:Int->Int->Void, flags:ConversionFlags, strictUcs2:Bool) {
         if (ch <= UNI_MAX_BMP) { /* Target is a character <= 0xFFFF */
             /* UTF-16 surrogate values are illegal in UTF-32 */
             if (ch >= UNI_SUR_HIGH_START && ch <= UNI_SUR_LOW_END) {
@@ -369,16 +393,22 @@ class Encoding {
                 addInt16(pos, UNI_REPLACEMENT_CHAR);
             }
         } else {
-            if (ucs2) {
+            if (strictUcs2) {
                 throw SourceIllegal(pos);
             } else {
-                /* target is a character in range 0xFFFF - 0x10FFFF. */
-                ch -= halfBase;
-                addInt16(pos, ((ch >> halfShift) + UNI_SUR_HIGH_START));
-                addInt16(pos+1, ((ch & halfMask) + UNI_SUR_LOW_START));
+                var s = codeToSurrogatePair(ch);
+                addInt16(pos, s.high);
+                addInt16(pos+1, s.low);
             }
         }
 
+    }
+
+    public inline static function codeToSurrogatePair (code:Int) {
+        var code = code - halfBase;
+        var high = ((code >> halfShift) + UNI_SUR_HIGH_START);
+        var low = ((code & halfMask) + UNI_SUR_LOW_START);
+        return { high : high, low : low };
     }
 
     public static function isLegalUtf8String(source:Utf8Reader):Bool {

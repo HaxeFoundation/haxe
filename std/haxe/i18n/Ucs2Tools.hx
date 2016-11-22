@@ -276,6 +276,13 @@ class Ucs2Tools {
 		return 0;
 	}
 	
+	static function isValid(impl:Ucs2Impl) {
+		for (i in 0...strLength(impl)) {
+			var code = fastCodeAt(impl, i);
+			if (Encoding.isHighSurrogate(code)) return false;
+		}
+		return true;
+	}
 	
 }
 

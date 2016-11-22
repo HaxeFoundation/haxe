@@ -115,7 +115,7 @@ abstract Utf8(Utf8Impl) {
 	}
  	
 	public inline function toUcs2() : Ucs2 {
-		return Ucs2.fromByteAccess(Encoding.convertUtf8toUcs2(getReader(), StrictConversion));
+		return Ucs2.fromByteAccess(Encoding.convertUtf8toUcs2(getReader(), StrictConversion, false));
 	}
 	
  	public inline function toUtf16 ():Utf16 {

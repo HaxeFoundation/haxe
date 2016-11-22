@@ -213,3 +213,23 @@ eq1(haxe.i18n.Ucs2.fromCharCode(65), wrap("A"));
 (wrap("3") > wrap("11")) == true;
 (wrap(" 3") < wrap("3")) == true;
 
+
+// ucs2 specific
+
+var violine = 0x1D11E; // 𝄞.code 
+
+wrap("𝄞").length == 2;
+
+
+eq1(wrap("𝄞"), haxe.i18n.Ucs2.fromCharCode(violine));  
+
+// ucs2 strings can store surrogate pairs, but they count as separate pairs
+
+wrap("𝄞").charCodeAt(0) == 0xD834;
+wrap("𝄞").charCodeAt(1) == 0xDD1E;
+
+var x = haxe.i18n.Ucs2.fromCharCode(violine);
+x.length == 2;
+x.isValid() == false;
+
+wrap("𝄞").isValid() == false;

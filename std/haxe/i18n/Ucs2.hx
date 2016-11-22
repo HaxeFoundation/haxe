@@ -95,6 +95,15 @@ abstract Ucs2(String) {
 	}
 
 	public static inline function fromCharCode( code : Int ) : Ucs2 {
+
+		// maybe split to surrogate pair and add both
+		if (Encoding.isSurrogatePair(code)) {
+			var surr = Encoding.codeToSurrogatePair(code);
+
+			return new Ucs2(String.fromCharCode(surr.high) + String.fromCharCode(surr.low));	
+		}
+
+
 		return new Ucs2(String.fromCharCode(code));
 	}
 
@@ -160,7 +169,6 @@ abstract Ucs2(String) {
 
 	public inline function getReader ():Ucs2Reader {
 		return new Ucs2Reader(this);
-		//return new Ucs2Reader(ByteAccess.fromBytes(toBytes()));
 	}
 
 	public function toCodeArray ():Array<Int> {
@@ -183,6 +191,14 @@ abstract Ucs2(String) {
 
 	@:op(A >= B) inline function opGreaterThanOrEq (other:Ucs2) {
 		return this >= other.impl();
+	}
+
+	public function isValid () {
+		for (i in 0...length) {
+			var code = fastCodeAt(i);
+			if (Encoding.isHighSurrogate(code)) return false;
+		}
+		return true;
 	}
 
 
@@ -238,6 +254,10 @@ abstract Ucs2(ByteAccess) {
 		return fromImpl(Ucs2Tools.charAt(this, index));
 	}
 
+	public function isValid ():Bool {
+		return Ucs2Tools.isValid(this);
+	}
+
 	public function charCodeAt( index : Int) : Null<Int> {
 		return Ucs2Tools.charCodeAt(this, index);
 	}
@@ -278,7 +298,7 @@ abstract Ucs2(ByteAccess) {
 	}
 
 	public static inline function fromCharCode( code : Int ) : Ucs2 {
-		return fromImpl(Encoding.charCodeToUcs2ByteAccess(code));
+		return fromImpl(Encoding.charCodeToUtf16ByteAccess(code));
 	}
 
 	public function toBytes(  ) : haxe.io.Bytes {
@@ -290,11 +310,12 @@ abstract Ucs2(ByteAccess) {
 	}
 
 	public function toUtf8() : Utf8 {
-		return Utf8.fromByteAccess(Encoding.convertUcs2toUtf8(getReader(), StrictConversion));
+		return toUtf16().toUtf8();
 	}
 
 	public function toUtf16() : Utf16 {
-		return Utf16.fromBytes(toBytes());
+		// we can reuse the same underlying byteaccess because ucs2 allows supplementary chars
+		return Utf16.fromByteAccess(this);
 	}
 
 	@:op(A == B) inline function opEq (other:Ucs2) {

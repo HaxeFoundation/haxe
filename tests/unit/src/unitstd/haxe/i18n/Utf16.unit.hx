@@ -214,3 +214,36 @@ eq1(haxe.i18n.Utf16.fromCharCode(65), wrap("A"));
 (wrap("3") > wrap("11")) == true;
 (wrap(" 3") < wrap("3")) == true;
 
+var violine = 0x1D11E; // 𝄞.code 
+
+var x = haxe.i18n.Utf16.fromCharCode(violine);
+x.length == 1;
+x.charCodeAt(0) == violine;
+var x = haxe.i18n.Ucs2.fromCharCode(violine);
+
+x.toUtf16().length == 1;
+
+wrap("𝄞").length == 1;
+
+eq1(wrap("𝄞"), haxe.i18n.Utf16.fromCharCode(violine));  
+
+arrEq(wrap("𝄞_𝄞_𝄞").split(wrap("_")), [wrap("𝄞"), wrap("𝄞"), wrap("𝄞")]);
+
+wrap("𝄞_𝄞_𝄞").lastIndexOf(wrap("𝄞_𝄞")) == 2;
+wrap("𝄞_𝄞_𝄞").indexOf(wrap("𝄞_𝄞")) == 0;
+wrap("𝄞_𝄞_𝄞aa").lastIndexOf(wrap("𝄞_𝄞")) == 2;
+t(wrap("𝄞a𝄞") < wrap("𝄞b𝄞"));
+t(wrap("𝄞a𝄞") <= wrap("𝄞b𝄞"));
+t(wrap("𝄞b𝄞") > wrap("𝄞a𝄞"));
+t(wrap("𝄞b𝄞") >= wrap("𝄞a𝄞"));
+
+eq1(wrap("𝄞b𝄞").substring(0, 2), wrap("𝄞b"));
+eq1(wrap("𝄞b𝄞").substr(0, 2), wrap("𝄞b"));
+eq1(wrap("𝄞b𝄞").substr(0, -1), wrap("𝄞b"));
+eq1(wrap("𝄞b𝄞").substr(0, 0), wrap(""));
+
+
+
+wrap("ऽ𝄞Éa").length == 4;
+
+wrap("ऽ𝄞ÉaऽÉ𝄞ÉÉ𝄞ÉÉ𝄞ÉÉ").lastIndexOf(wrap("É𝄞ÉÉ")) == 11;
