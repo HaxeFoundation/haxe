@@ -1384,6 +1384,7 @@ type tcpp =
    | TCppVariant
    | TCppCode of tcpp
    | TCppInst of tclass
+   | TCppInstGeneric of tclass * tcpp list
    | TCppInterface of tclass
    | TCppProtocol of tclass
    | TCppClass
@@ -1642,6 +1643,8 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
           "hx::Native< " ^ name ^ "* >";
    | TCppInst klass ->
         (cpp_class_path_of klass) ^ suffix
+   | TCppInstGeneric(klass,params) ->
+        (cpp_class_path_of klass) ^ suffix ^"<" ^ (String.concat "," (List.map tcpp_to_string params)) ^ ">"
    | TCppInterface klass when suffix="_obj" ->
         (cpp_class_path_of klass) ^ suffix
    | TCppInterface _ -> "::Dynamic"
@@ -1919,7 +1922,11 @@ let rec cpp_type_of ctx haxe_type =
          else if klass.cl_interface then
             TCppInterface(klass)
          else if klass.cl_extern && (not (is_internal_class klass.cl_path) ) then
-            TCppInst(klass)
+            if List.length params > 0 then
+                let convert p = cpp_type_of ctx p in
+                TCppInstGeneric(klass, (List.map convert params))
+            else
+                TCppInst(klass)
          else
             TCppInst(klass)
        )
