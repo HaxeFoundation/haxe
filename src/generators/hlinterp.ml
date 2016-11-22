@@ -1259,7 +1259,7 @@ let load_native ctx lib name t =
 		| "math_fceil" -> (function [VFloat f] -> VFloat (ceil f) | _ -> assert false)
 		| "math_fround" -> (function [VFloat f] -> VFloat (floor (f +. 0.5)) | _ -> assert false)
 		| "math_abs" -> (function [VFloat f] -> VFloat (abs_float f) | _ -> assert false)
-		| "math_sqrt" -> (function [VFloat f] -> VFloat (sqrt f) | _ -> assert false)
+		| "math_sqrt" -> (function [VFloat f] -> VFloat (if f < 0. then nan else sqrt f) | _ -> assert false)
 		| "math_cos" -> (function [VFloat f] -> VFloat (cos f) | _ -> assert false)
 		| "math_sin" -> (function [VFloat f] -> VFloat (sin f) | _ -> assert false)
 		| "math_tan" -> (function [VFloat f] -> VFloat (tan f) | _ -> assert false)

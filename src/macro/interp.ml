@@ -1096,7 +1096,7 @@ let std_lib =
 		"math_floor", Fun1 (fun v -> match v with VInt _ | VInt32 _ -> v | _ -> best_int (to_int (floor (num v))));
 		"math_round", Fun1 (fun v -> match v with VInt _ | VInt32 _ -> v | _ -> best_int (to_int (floor (num v +. 0.5))));
 		"math_pi", Fun0 (fun() -> VFloat (4.0 *. atan 1.0));
-		"math_sqrt", Fun1 (fun v -> VFloat (sqrt (num v)));
+		"math_sqrt", Fun1 (fun v -> let v = num v in VFloat (if v < 0. then nan else sqrt v));
 		"math_atan", Fun1 (fun v -> VFloat (atan (num v)));
 		"math_cos", Fun1 (fun v -> VFloat (cos (num v)));
 		"math_sin", Fun1 (fun v -> VFloat (sin (num v)));
