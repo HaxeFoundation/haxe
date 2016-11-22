@@ -2021,6 +2021,7 @@ let cpp_variant_type_of t = match t with
    | TCppObjCBlock _
    | TCppRest _
    | TCppInst _
+   | TCppInstGeneric _
    | TCppInterface _
    | TCppProtocol _
    | TCppCode _
