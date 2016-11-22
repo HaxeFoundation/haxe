@@ -47,7 +47,7 @@ class Boot {
 		Initialization stuff.
 		This method is called once before invoking any Haxe-generated user code.
 	**/
-	function __init__() {
+	static function __init__() {
 		if (!Global.defined('HAXE_CUSTOM_ERROR_HANDLER') || !Const.HAXE_CUSTOM_ERROR_HANDLER) {
 			var previousLevel = Global.error_reporting(Const.E_ALL);
 			var previousHandler = Global.set_error_handler(

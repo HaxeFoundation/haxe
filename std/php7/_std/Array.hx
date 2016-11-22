@@ -214,6 +214,7 @@ private class ArrayIterator<T> {
 	}
 
 	@:keep
+	@:phpMagic
 	function __get(method:String) {
 		return switch(method) {
 			case 'hasNext', 'next': Boot.closure(this, method);
