@@ -920,4 +920,9 @@ extern class Global {
 		@see http://php.net/manual/en/function.sqlite-escape-string.php
 	**/
 	static function sqlite_escape_string( item:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.set-time-limit.php
+	**/
+	static function set_time_limit( seconds:Int ) : Bool;
 }

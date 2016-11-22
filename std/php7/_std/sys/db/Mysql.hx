@@ -142,7 +142,10 @@ private class MysqlResultSet implements ResultSet {
 
 		result.data_seek(0);
 		var row = result.fetch_object(hxAnonClassName);
-		while (row != null) list.add(row);
+		while (row != null) {
+			list.add(row);
+			row = result.fetch_object(hxAnonClassName);
+		}
 
 		return list;
 	}
