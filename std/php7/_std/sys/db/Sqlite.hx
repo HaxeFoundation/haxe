@@ -22,7 +22,7 @@
 package sys.db;
 
 import php7.*;
-import php7.db.*;
+import php7.db.PDO;
 import sys.db.*;
 
 @:coreApi class Sqlite {
@@ -32,20 +32,15 @@ import sys.db.*;
 }
 
 private class SQLiteConnection implements Connection {
-	var db:SQLiteDatabase;
+	var db:PDO;
 
 	public function new( file:String ) {
-		db = new SQLiteDatabase(file);
-		if (db.lastError() != 0) {
-			throw Global.sqlite_error_string(db.lastError());
-		}
+		db = new PDO('sqlite:$file');
+		db.setAttribute(PDO.ATTR_ERRMODE, PDO.ERRMODE_EXCEPTION);
 	}
 
 	public function request( s : String ) : ResultSet {
-		var error:String = Boot.deref(null);
-		var result = db.query(s, Const.SQLITE_ASSOC, error);
-		if (result == false) throw error;
-
+		var result = db.query(s);
 		return new SQLiteResultSet(result);
 	}
 
@@ -54,11 +49,11 @@ private class SQLiteConnection implements Connection {
 	}
 
 	public function escape( s : String ) : String {
-		return Global.sqlite_escape_string(s);
+		return db.quote(s);
 	}
 
 	public function quote( s : String ) : String {
-		return "'" + Global.sqlite_escape_string(s) + "'";
+		return "'" + db.quote(s) + "'";
 	}
 
 	public function addValue( s : StringBuf, v : Dynamic ) : Void {
@@ -72,7 +67,7 @@ private class SQLiteConnection implements Connection {
 	}
 
 	public function lastInsertId() : Int {
-		return db.lastInsertRowid();
+		return Syntax.int(db.lastInsertId());
 	}
 
 	public function dbName() : String {
@@ -80,18 +75,15 @@ private class SQLiteConnection implements Connection {
 	}
 
 	public function startTransaction() : Void {
-		var success = db.queryExec('BEGIN TRANSACTION');
-		if (!success) throw 'Failed to start transaction';
+		db.beginTransaction();
 	}
 
 	public function commit() : Void {
-		var success = db.queryExec('COMMIT');
-		if (!success) throw 'Failed to commit transaction';
+		db.commit();
 	}
 
 	public function rollback() : Void {
-		var success = db.queryExec('ROLLBACK');
-		if (!success) throw 'Failed to rollback transaction';
+		db.rollBack();
 	}
 
 }
@@ -102,10 +94,10 @@ private class SQLiteResultSet implements ResultSet {
 	public var length(get,null) : Int;
 	public var nfields(get,null) : Int;
 
-	var result:SQLiteResult;
+	var result:PDOStatement;
 	var fetchedRow:NativeArray;
 
-	public function new( result:SQLiteResult ) {
+	public function new( result:PDOStatement ) {
 		this.result = result;
 	}
 
@@ -121,11 +113,8 @@ private class SQLiteResultSet implements ResultSet {
 
 	public function results() : List<Dynamic> {
 		var list = new List();
-
-		result.rewind();
-		var row = result.fetchObject(hxAnonClassName);
-		while (row) list.add(row);
-
+		var rows = result.fetchAll(PDO.FETCH_CLASS, hxAnonClassName);
+		Syntax.foreach(rows, function(_, row) list.add(row));
 		return list;
 	}
 
@@ -143,11 +132,11 @@ private class SQLiteResultSet implements ResultSet {
 	}
 
 	public function getFieldsNames() : Null<Array<String>> {
-		return [for (i in 0...result.numFields()) result.fieldName(i)];
+		return [for (i in 0...result.columnCount()) result.getColumnMeta(i)['name']];
 	}
 
 	function fetchNext() {
-		var next = result.fetch(Const.SQLITE_ASSOC);
+		var next:Dynamic = result.fetch(PDO.FETCH_ASSOC);
 		fetchedRow = (next == false ? fetchedRow = null : next);
 	}
 
@@ -156,6 +145,6 @@ private class SQLiteResultSet implements ResultSet {
 		return Boot.createAnon(fetchedRow);
 	}
 
-	function get_length() return result.numRows();
-	function get_nfields() return result.numFields();
+	function get_length() return result.rowCount();
+	function get_nfields() return result.columnCount();
 }
