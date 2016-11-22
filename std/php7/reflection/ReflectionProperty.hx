@@ -20,7 +20,7 @@ extern class ReflectionProperty implements Reflector {
     function getValue( ?object:{} ) : Dynamic;
     function isPrivate() : Bool;
     function isProtected() : Bool;
-    function is) : Bool;
+    function isPublic() : Bool;
     function isStatic() : Bool;
     function setAccessible ( accessible:Bool ) : Void;
     function setValue( object:{}, value:Dynamic ) : Void;
