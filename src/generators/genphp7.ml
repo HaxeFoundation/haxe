@@ -716,7 +716,7 @@ let field_needs_rename field =
 *)
 let field_name field =
 	if field_needs_rename field then
-		"__hx__renamed_" ^ field.cf_name
+		"__hx__renamed" ^ field.cf_name
 	else
 		field.cf_name
 
