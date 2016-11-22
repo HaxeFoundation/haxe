@@ -27,7 +27,7 @@ class Bytes {
 
 	var b:BytesData;
 
-	function new(length,b) {
+	function new(length:Int, b:BytesData) : Void {
 		this.length = length;
 		this.b = b;
 	}
@@ -48,7 +48,7 @@ class Bytes {
 		}
 	}
 
-	public function fill( pos : Int, len : Int, value : Int ) {
+	public function fill( pos : Int, len : Int, value : Int ) : Void {
 		for(i in pos...pos+len) b.set(i, value);
 	}
 
@@ -161,7 +161,7 @@ class Bytes {
 		return getString(pos, len);
 	}
 
-	public inline function toString() : String {
+	public function toString() : String {
 		return b;
 	}
 
@@ -191,7 +191,7 @@ class Bytes {
 		return new Bytes(s.length, s);
 	}
 
-	public static inline function ofData( b : BytesData ) {
+	public static inline function ofData( b : BytesData ) : Bytes {
 		return new Bytes(b.length, b);
 	}
 
