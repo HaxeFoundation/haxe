@@ -2376,8 +2376,8 @@ and eval_expr ctx e =
 			assert false)
 	| TMeta (_,e) ->
 		eval_expr ctx e
-	| TFor _ ->
-		assert false (* eliminated by analyzer *)
+	| TFor (v,it,loop) ->
+		eval_expr ctx (AnalyzerTexpr.TexprFilter.for_remap ctx.com v it loop e.epos)
 	| TSwitch (en,cases,def) ->
 		let rt = to_type ctx e.etype in
 		let r = alloc_tmp ctx rt in

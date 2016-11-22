@@ -235,6 +235,7 @@ class Context {
 	}
 
 	private static function sExpr( e : TypedExpr, pretty : Bool ) : String {
+		return null;
 	}
 
 #end

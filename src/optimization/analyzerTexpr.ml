@@ -217,6 +217,22 @@ let dynarray_mapi f d =
 	- TFor is rewritten to TWhile
 *)
 module TexprFilter = struct
+
+	let for_remap com v e1 e2 p =
+		let v' = alloc_var v.v_name e1.etype e1.epos in
+		let ev' = mk (TLocal v') e1.etype e1.epos in
+		let t1 = (Abstract.follow_with_abstracts e1.etype) in
+		let ehasnext = mk (TField(ev',quick_field t1 "hasNext")) (tfun [] com.basic.tbool) e1.epos in
+		let ehasnext = mk (TCall(ehasnext,[])) com.basic.tbool ehasnext.epos in
+		let enext = mk (TField(ev',quick_field t1 "next")) (tfun [] v.v_type) e1.epos in
+		let enext = mk (TCall(enext,[])) v.v_type e1.epos in
+		let eassign = mk (TVar(v,Some enext)) com.basic.tvoid p in
+		let ebody = Type.concat eassign e2 in
+		mk (TBlock [
+			mk (TVar (v',Some e1)) com.basic.tvoid e1.epos;
+			mk (TWhile((mk (TParenthesis ehasnext) ehasnext.etype ehasnext.epos),ebody,NormalWhile)) com.basic.tvoid e1.epos;
+		]) com.basic.tvoid p
+
 	let apply com e =
 		let rec loop e = match e.eexpr with
 		| TBinop(OpBoolAnd | OpBoolOr as op,e1,e2) ->
@@ -264,19 +280,7 @@ module TexprFilter = struct
 			let e = mk (TWhile(Codegen.mk_parent e_true,e_block,NormalWhile)) e.etype p in
 			loop e
 		| TFor(v,e1,e2) ->
-			let v' = alloc_var v.v_name e1.etype e1.epos in
-			let ev' = mk (TLocal v') e1.etype e1.epos in
-			let t1 = (Abstract.follow_with_abstracts e1.etype) in
-			let ehasnext = mk (TField(ev',quick_field t1 "hasNext")) (tfun [] com.basic.tbool) e1.epos in
-			let ehasnext = mk (TCall(ehasnext,[])) com.basic.tbool ehasnext.epos in
-			let enext = mk (TField(ev',quick_field t1 "next")) (tfun [] v.v_type) e1.epos in
-			let enext = mk (TCall(enext,[])) v.v_type e1.epos in
-			let eassign = mk (TVar(v,Some enext)) com.basic.tvoid e.epos in
-			let ebody = Type.concat eassign e2 in
-			let e = mk (TBlock [
-				mk (TVar (v',Some e1)) com.basic.tvoid e1.epos;
-				mk (TWhile((mk (TParenthesis ehasnext) ehasnext.etype ehasnext.epos),ebody,NormalWhile)) com.basic.tvoid e1.epos;
-			]) com.basic.tvoid e.epos in
+			let e = for_remap com v e1 e2 e.epos in
 			loop e
 		| _ ->
 			Type.map_expr loop e
