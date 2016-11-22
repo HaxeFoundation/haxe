@@ -52,6 +52,9 @@ and vabstract =
 	| AReg of regexp
 	| ARandom
 	| APos of Globals.pos
+	| ATDecl of Type.module_type
+	| AUnsafe of Obj.t
+	| ALazyType of ((unit -> Type.t) ref) * (unit -> value)
 
 and vfunction =
 	| FFun of fundecl

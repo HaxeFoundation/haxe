@@ -40,7 +40,8 @@ class Context {
 	public static function warning( msg : String, pos : Position ) : Void {
 	}
 
-	public static function resolvePath( file : String ) : Void {
+	public static function resolvePath( file : String ) : String {
+		return null;
 	}
 
 	public static function getClassPath() : Array<String> {
@@ -62,7 +63,12 @@ class Context {
 	}
 
 	public static function getLocalClass() : Null<Type.Ref<Type.ClassType>> {
-		return null;
+		var l = getLocalType();
+		if( l == null ) return null;
+		return switch( l ) {
+		case TInst(c,_): c;
+		default: null;
+		}
 	}
 
 	public static function getLocalModule() : String {
@@ -85,14 +91,18 @@ class Context {
 		return null;
 	}
 
+	private static function localVars(b:Bool) : Map<String,Dynamic> {
+		return null;
+	}
+
 	@:deprecated("Use Context.getLocalTVars() instead")
 	public static function getLocalVars() : Map<String,Type> {
-		return null;
+		return cast localVars(false);
 	}
 
 	@:require(haxe_ver >= 3.102)
 	public static function getLocalTVars() : Map<String,Type.TVar> {
-		return null;
+		return cast localVars(true);
 	}
 
 	public static function defined( s : String ) : Bool {
@@ -115,12 +125,16 @@ class Context {
 		return null;
 	}
 
-	public static function parse( expr : String, pos : Position ) : Expr {
+	static function doParse( expr : String, pos : Position, isInline : Bool ) : Expr {
 		return null;
 	}
 
+	public static function parse( expr : String, pos : Position ) : Expr {
+		return doParse(expr,pos,false);
+	}
+
 	public static function parseInlineString( expr : String, pos : Position ) : Expr {
-		return null;
+		return doParse(expr,pos,true);
 	}
 
 	public static function makeExpr( v : Dynamic, pos : Position ) : Expr {
@@ -215,6 +229,12 @@ class Context {
 	}
 
 	public static function onMacroContextReused( callb : Void -> Bool ) : Void {
+	}
+
+	private static function includeFile( file : String, position : String ) {
+	}
+
+	private static function sExpr( e : TypedExpr, pretty : Bool ) : String {
 	}
 
 #end

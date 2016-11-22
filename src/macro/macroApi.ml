@@ -98,8 +98,9 @@ module type InterpApi = sig
 
 	val encode_pos : Globals.pos -> value
 	val encode_enum : enum_index -> Globals.pos option -> int -> value list -> value
-	val encode_tdecl : Type.module_type -> value
 	val encode_string_map : ('a -> value) -> (string, 'a) PMap.t -> value
+
+	val encode_tdecl : Type.module_type -> value
 	val encode_lazytype : (unit -> Type.t) ref -> (unit -> value) -> value
 	val encode_unsafe : Obj.t -> value
 
@@ -117,7 +118,6 @@ module type InterpApi = sig
 	val decode_lazytype : value -> (unit -> Type.t) ref
 	val decode_unsafe : value -> Obj.t
 
-	val maybe_decode_pos : value -> Globals.pos
 	val decode_enum_with_pos : value -> (int * value list) * Globals.pos
 
 	val encode_ref : 'a -> ('a -> value) -> (unit -> string) -> value
@@ -526,6 +526,8 @@ let decode_import_mode t =
 	| _ -> raise Invalid_expr
 
 let decode_import t = (List.map (fun o -> ((dec_string (field o "name")), (decode_pos (field o "pos")))) (dec_array (field t "path")), decode_import_mode (field t "mode"))
+
+let maybe_decode_pos p = try decode_pos p with Invalid_expr -> Globals.null_pos
 
 let decode_placed_name vp v =
 	dec_string v,maybe_decode_pos vp
@@ -1365,7 +1367,7 @@ let rec make_const e =
 
 let macro_api ccom get_api =
 	[
-		"curpos", vfun0 (fun() ->
+		"current_pos", vfun0 (fun() ->
 			encode_pos (get_api()).pos
 		);
 		"error", vfun2 (fun msg p ->
@@ -1388,12 +1390,13 @@ let macro_api ccom get_api =
 		"class_path", vfun0 (fun() ->
 			enc_array (List.map enc_string (ccom()).class_path);
 		);
-		"resolve", vfun1 (fun file ->
+		"resolve_path", vfun1 (fun file ->
 			let file = dec_string file in
 			enc_string (try Common.find_file (ccom()) file with Not_found -> failwith ("File not found '" ^ file ^ "'"))
 		);
-		"define", vfun1 (fun s ->
-			Common.raw_define (ccom()) (dec_string s);
+		"define", vfun2 (fun s v ->
+			let v = if v = vnull then "" else "=" ^ (dec_string v) in
+			Common.raw_define (ccom()) ((dec_string s) ^ v);
 			vnull
 		);
 		"defined", vfun1 (fun s ->
@@ -1414,7 +1417,7 @@ let macro_api ccom get_api =
 		"get_module", vfun1 (fun s ->
 			enc_array (List.map encode_type ((get_api()).get_module (dec_string s)))
 		);
-		"after_typing", vfun1 (fun f ->
+		"on_after_typing", vfun1 (fun f ->
 			let f = prepare_callback f 1 in
 			(get_api()).after_typing (fun tl -> ignore(f [enc_array (List.map encode_module_type tl)]));
 			vnull
@@ -1424,7 +1427,7 @@ let macro_api ccom get_api =
 			(get_api()).on_generate (fun tl -> ignore(f [enc_array (List.map encode_type tl)]));
 			vnull
 		);
-		"after_generate", vfun1 (fun f ->
+		"on_after_generate", vfun1 (fun f ->
 			let f = prepare_callback f 0 in
 			(get_api()).after_generate (fun () -> ignore(f []));
 			vnull
@@ -1434,7 +1437,7 @@ let macro_api ccom get_api =
 			(get_api()).on_type_not_found (fun path -> f [enc_string path]);
 			vnull
 		);
-		"parse", vfun3 (fun s p b ->
+		"do_parse", vfun3 (fun s p b ->
 			let s = dec_string s in
 			if s = "" then raise Invalid_expr;
 			encode_expr ((get_api()).parse_string s (decode_pos p) (dec_bool b))
@@ -1445,7 +1448,7 @@ let macro_api ccom get_api =
 		"signature", vfun1 (fun v ->
 			enc_string (Digest.to_hex (value_signature v))
 		);
-		"to_complex", vfun1 (fun v ->
+		"to_complex_type", vfun1 (fun v ->
 			try	encode_ctype (TExprToExpr.convert_type' (decode_type v))
 			with Exit -> vnull
 		);
@@ -1488,11 +1491,11 @@ let macro_api ccom get_api =
 			(get_api()).meta_patch (dec_string m) (dec_string t) (opt dec_string f) (dec_bool s);
 			vnull
 		);
-		"add_global_metadata", vfun5 (fun s1 s2 b1 b2 b3 ->
+		"add_global_metadata_impl", vfun5 (fun s1 s2 b1 b2 b3 ->
 			(get_api()).add_global_metadata (dec_string s1) (dec_string s2) (dec_bool b1,dec_bool b2,dec_bool b3);
 			vnull
 		);
-		"custom_js", vfun1 (fun f ->
+		"set_custom_js_generator", vfun1 (fun f ->
 			let f = prepare_callback f 1 in
 			(get_api()).set_js_generator (fun js_ctx ->
 				let com = ccom() in
@@ -1548,7 +1551,7 @@ let macro_api ccom get_api =
 			let p = decode_pos p in
 			enc_obj ["min",vint p.Globals.pmin;"max",vint p.Globals.pmax;"file",enc_string p.Globals.pfile]
 		);
-		"make_pos", vfun3 (fun min max file ->
+		"make_position", vfun3 (fun min max file ->
 			encode_pos { Globals.pmin = dec_int min; Globals.pmax = dec_int max; Globals.pfile = dec_string file }
 		);
 		"add_resource", vfun2 (fun name data ->
@@ -1563,32 +1566,32 @@ let macro_api ccom get_api =
 		"get_resources", vfun0 (fun() ->
 			encode_string_map encode_bytes (Hashtbl.fold (fun k v acc -> PMap.add k v acc) (ccom()).resources PMap.empty)
 		);
-		"local_module", vfun0 (fun() ->
+		"get_local_module", vfun0 (fun() ->
 			let m = (get_api()).current_module() in
 			enc_string (s_type_path m.m_path);
 		);
-		"local_type", vfun0 (fun() ->
+		"get_local_type", vfun0 (fun() ->
 			match (get_api()).get_local_type() with
 			| None -> vnull
 			| Some t -> encode_type t
 		);
-		"expected_type", vfun0 (fun() ->
+		"get_expected_type", vfun0 (fun() ->
 			match (get_api()).get_expected_type() with
 			| None -> vnull
 			| Some t -> encode_type t
 		);
-		"call_arguments", vfun0 (fun() ->
+		"get_call_arguments", vfun0 (fun() ->
 			match (get_api()).get_call_arguments() with
 			| None -> vnull
 			| Some el -> enc_array (List.map encode_expr el)
 		);
-		"local_method", vfun0 (fun() ->
+		"get_local_method", vfun0 (fun() ->
 			enc_string ((get_api()).get_local_method())
 		);
-		"local_using", vfun0 (fun() ->
+		"get_local_using", vfun0 (fun() ->
 			enc_array (List.map encode_clref ((get_api()).get_local_using()))
 		);
-		"local_imports", vfun0 (fun() ->
+		"get_local_imports", vfun0 (fun() ->
 			enc_array (List.map encode_import ((get_api()).get_local_imports()))
 		);
 		"local_vars", vfun1 (fun as_var ->
@@ -1632,7 +1635,7 @@ let macro_api ccom get_api =
 			in
 			encode_type (if dec_opt_bool once then follow_once t else follow t)
 		);
-		"build_fields", vfun0 (fun() ->
+		"get_build_fields", vfun0 (fun() ->
 			(get_api()).get_build_fields()
 		);
 		"define_type", vfun1 (fun v ->
@@ -1683,11 +1686,11 @@ let macro_api ccom get_api =
 			| _ -> failwith "Unsupported platform");
 			vnull
 		);
-		"module_dependency", vfun2 (fun m file ->
+		"register_module_dependency", vfun2 (fun m file ->
 			(get_api()).module_dependency (dec_string m) (dec_string file) false;
 			vnull
 		);
-		"module_reuse_call", vfun2 (fun m mcall ->
+		"register_module_reuse_call", vfun2 (fun m mcall ->
 			(get_api()).module_dependency (dec_string m) (dec_string mcall) true;
 			vnull
 		);
@@ -1717,7 +1720,7 @@ let macro_api ccom get_api =
 			let loc = (get_api()).get_pattern_locals (decode_expr e) (decode_type t) in
 			encode_string_map (fun (v,_) -> encode_type v.v_type) loc
 		);
-		"macro_context_reused", vfun1 (fun c ->
+		"on_macro_context_reused", vfun1 (fun c ->
 			let c = prepare_callback c 0 in
 			(get_api()).on_reuse (fun() -> dec_bool (c []));
 			vnull

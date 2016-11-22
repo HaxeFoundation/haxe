@@ -25,6 +25,9 @@ import haxe.macro.Expr;
 /**
 	All these methods can be called for compiler configuration macros.
 **/
+#if hl
+@:hlNative("macro")
+#end
 class Compiler {
 	/**
 		A conditional compiler flag can be set command line using
@@ -44,22 +47,34 @@ class Compiler {
 		return macro $v{haxe.macro.Context.definedValue(key)};
 	}
 
-#if neko
+#if (neko || (macro && hl))
 
 	static var ident = ~/^[A-Za-z_][A-Za-z0-9_]*$/;
 	static var path = ~/^[A-Za-z_][A-Za-z0-9_.]*$/;
 
 	public static function allowPackage( v : String ) {
+		#if neko
 		load("allow_package", 1)(v);
+		#end
 	}
 
 	/**
 		Set a conditional compiler flag.
 	**/
 	public static function define( flag : String, ?value : String ) {
-		var v = flag + (value == null ? "" : "=" + value);
-		load("define", 1)(v);
+		#if neko
+		load("define", 2)(flag,value);
+		#end
 	}
+
+	#if !neko
+	private static function typePatch( cl : String, f : String, stat : Bool, t : String ) {
+	}
+	private static function metaPatch( meta : String, cl : String, f : String, stat : Bool ) {
+	}
+	private static function addGlobalMetadataImpl(pathFilter:String, meta:String, recursive:Bool, toTypes:Bool, toFields:Bool) {
+	}
+	#end
 
 	/**
 		Removes a (static) field from a given class by name.
@@ -67,8 +82,12 @@ class Compiler {
 	**/
 	public static function removeField( className : String, field : String, ?isStatic : Bool ) {
 		if( !path.match(className) ) throw "Invalid "+className;
-		if( !ident.match(field) ) throw "Invalid "+field;
-		load("type_patch",4)(className,field,isStatic == true,null);
+		if( !ident.match(field) ) throw "Invalid " + field;
+		#if neko
+		load("type_patch", 4)(className, field, isStatic == true, null);
+		#else
+		typePatch(className, field, isStatic == true, null);
+		#end
 	}
 
 	/**
@@ -78,7 +97,11 @@ class Compiler {
 	public static function setFieldType( className : String, field : String, type : String, ?isStatic : Bool ) {
 		if( !path.match(className) ) throw "Invalid "+className;
 		if( !ident.match((field.charAt(0) == "$") ? field.substr(1) : field) ) throw "Invalid "+field;
-		load("type_patch",4)(className,field,isStatic == true,type);
+		#if neko
+		load("type_patch", 4)(className, field, isStatic == true, type);
+		#else
+		typePatch(className, field, isStatic == true, type);
+		#end
 	}
 
 	/**
@@ -88,38 +111,57 @@ class Compiler {
 	public static function addMetadata( meta : String, className : String, ?field : String, ?isStatic : Bool ) {
 		if( !path.match(className) ) throw "Invalid "+className;
 		if( field != null && !ident.match(field) ) throw "Invalid "+field;
-		load("meta_patch",4)(meta,className,field,isStatic == true);
+		#if neko
+		load("meta_patch", 4)(meta, className, field, isStatic == true);
+		#else
+		metaPatch(meta, className, field, isStatic == true);
+		#end
 	}
 
 	public static function addClassPath( path : String ) {
-		load("add_class_path",1)(path);
+		#if neko
+		load("add_class_path", 1)(path);
+		#end
 	}
 
 	public static function getOutput() : String {
-		return load("get_output",0)();
+		#if neko
+		return load("get_output", 0)();
+		#else
+		return null;
+		#end
 	}
 
 	public static function setOutput( fileOrDir : String ) {
-		load("set_output",1)(fileOrDir);
+		#if neko
+		load("set_output", 1)(fileOrDir);
+		#end
 	}
 
 	public static function getDisplayPos() : Null<{ file : String, pos : Int }> {
-		return load("get_display_pos",0)();
+		#if neko
+		return load("get_display_pos", 0)();
+		#else
+		return null;
+		#end
 	}
 
 	/**
 		Adds a native library depending on the platform (e.g. `-swf-lib` for Flash).
 	**/
 	public static function addNativeLib( name : String ) {
-		load("add_native_lib",1)(name);
+		#if neko
+		load("add_native_lib", 1)(name);
+		#end
 	}
 
 	/**
 		Adds an argument to be passed to the native compiler (e.g. `-javac-arg` for Java).
 	 **/
-	public static function addNativeArg( argument : String )
-	{
-		load("add_native_arg",1)(argument);
+	public static function addNativeArg( argument : String ) {
+		#if neko
+		load("add_native_arg", 1)(argument);
+		#end
 	}
 
 	/**
@@ -342,23 +384,27 @@ class Compiler {
 		through `Context.getType`.
 	**/
 	public static function addGlobalMetadata(pathFilter:String, meta:String, ?recursive:Bool = true, ?toTypes:Bool = true, ?toFields:Bool = false) {
-		load("add_global_metadata",5)(pathFilter, meta, recursive, toTypes, toFields);
+		#if neko
+		load("add_global_metadata_impl", 5)(pathFilter, meta, recursive, toTypes, toFields);
+		#else
+		addGlobalMetadataImpl(pathFilter, meta, recursive, toTypes, toFields);
+		#end
 	}
 
 	/**
 		Change the default JS output by using a custom generator callback
 	**/
 	public static function setCustomJSGenerator( callb : JSGenApi -> Void ) {
-		load("custom_js",1)(callb);
-	}
-
-	static function load( f, nargs ) : Dynamic {
-		#if macro
-		return neko.Lib.load("macro", f, nargs);
-		#else
-		return Reflect.makeVarArgs(function(_) return throw "Can't be called outside of macro");
+		#if neko
+		load("set_custom_js_generator", 1)(callb);
 		#end
 	}
+
+	#if neko
+	static inline function load( f, nargs ) : Dynamic {
+		return @:privateAccess Context.load(f, nargs);
+	}
+	#end
 
 #end
 
@@ -376,12 +422,13 @@ class Compiler {
 				var p = Context.currentPos();
 				{ expr : EUntyped( { expr : ECall( { expr : EConst(CIdent("__js__")), pos : p }, [ { expr : EConst(CString(f)), pos : p } ]), pos : p } ), pos : p };
 			case Top | Closure:
-				load("include_file", 2)(file, position);
+				@:privateAccess Context.includeFile(file, position);
 				macro {};
 			case _:
 				Context.error("unknown includeFile position: " + position, Context.currentPos());
 		}
 	}
+
 	#end
 
 }

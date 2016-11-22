@@ -21,71 +21,31 @@ open Type
 open Ast
 open Hlcode
 open Hlinterp
+open MacroApi
 
 type value = Hlinterp.value
-
-type extern_api = {
-	pos : Globals.pos;
-	get_com : unit -> Common.context;
-	get_type : string -> Type.t option;
-	get_module : string -> Type.t list;
-	after_typing : (module_type list -> unit) -> unit;
-	on_generate : (Type.t list -> unit) -> unit;
-	after_generate : (unit -> unit) -> unit;
-	on_type_not_found : (string -> value) -> unit;
-	parse_string : string -> Globals.pos -> bool -> Ast.expr;
-	type_expr : Ast.expr -> Type.texpr;
-	resolve_type  : Ast.complex_type -> Globals.pos -> t;
-	type_macro_expr : Ast.expr -> Type.texpr;
-	store_typed_expr : Type.texpr -> Ast.expr;
-	allow_package : string -> unit;
-	type_patch : string -> string -> bool -> string option -> unit;
-	meta_patch : string -> string -> string option -> bool -> unit;
-	set_js_generator : (value -> unit) -> unit;
-	get_local_type : unit -> t option;
-	get_expected_type : unit -> t option;
-	get_call_arguments : unit -> Ast.expr list option;
-	get_local_method : unit -> string;
-	get_local_imports : unit -> Ast.import list;
-	get_local_using : unit -> tclass list;
-	get_local_vars : unit -> (string, Type.tvar) PMap.t;
-	get_build_fields : unit -> value;
-	get_pattern_locals : Ast.expr -> Type.t -> (string,Type.tvar * Globals.pos) PMap.t;
-	define_type : value -> unit;
-	define_module : string -> value list -> ((string * Globals.pos) list * Ast.import_mode) list -> Ast.type_path list -> unit;
-	module_dependency : string -> string -> bool -> unit;
-	current_module : unit -> module_def;
-	mutable current_macro_module : unit -> module_def;
-	delayed_macro : int -> (unit -> (unit -> value));
-	use_cache : unit -> bool;
-	format_string : string -> Globals.pos -> Ast.expr;
-	cast_or_unify : Type.t -> texpr -> Globals.pos -> Type.texpr;
-	add_global_metadata : string -> string -> (bool * bool * bool) -> unit;
-	add_module_check_policy : string list -> int list -> bool -> int -> unit;
-}
 
 type context = {
 	com : Common.context; (* macro one *)
 	mutable gen : Genhl.context option;
 	interp : Hlinterp.context;
 	types : (Type.path,int) Hashtbl.t;
-	mutable is_reused : bool;
-	mutable curapi : extern_api;
-	mutable on_reused : (unit -> bool) list;
+	mutable curapi : value MacroApi.compiler_api;
 	mutable has_error : bool;
 }
 
-exception Invalid_expr
-exception Abort
 exception Error of string * Globals.pos list
 
 let debug = true (* TODO !!! set to false for speed++ ! *)
 
-let resolve_macro_api_ref = ref (fun _ _ -> None)
 let get_ctx_ref = ref (fun() -> assert false)
 let get_ctx() : context = (!get_ctx_ref)()
+let macro_lib = Hashtbl.create 0
+let interp() = (get_ctx()).interp
 
-let setup() =
+let setup get_api =
+	let api = get_api (fun() -> (get_ctx()).curapi.get_com()) (fun() -> (get_ctx()).curapi) in
+	List.iter (fun (n,v) -> Hashtbl.replace macro_lib n (match v with VClosure (FNativeFun (_,v,_),None) -> v | _ -> assert false)) api;
 	Globals.macro_platform := Globals.Hl
 
 let select ctx =
@@ -122,13 +82,11 @@ let create com api =
 		interp = Hlinterp.create debug;
 		curapi = api;
 		types = Hashtbl.create 0;
-		on_reused = [];
-		is_reused = true;
 		has_error = false;
 	} in
 	select ctx;
 	Hlinterp.set_error_handler ctx.interp (error_handler ctx);
-	Hlinterp.set_macro_api ctx.interp ((!resolve_macro_api_ref) ctx);
+	Hlinterp.set_macro_api ctx.interp (fun name -> try Some (Hashtbl.find macro_lib name) with Not_found -> None);
 	ctx
 
 let init ctx =
@@ -170,7 +128,6 @@ let add_types ctx types ready =
 		Hlinterp.add_code ctx.interp code
 
 let do_reuse ctx api =
-	ctx.is_reused <- false;
 	ctx.curapi <- api
 
 let can_reuse ctx types =
@@ -181,16 +138,7 @@ let can_reuse ctx types =
 		with Not_found ->
 			false
 	in
-	if List.exists has_old_version types then
-		false
-	else if ctx.is_reused then
-		true
-	else if not (List.for_all (fun f -> f()) ctx.on_reused) then
-		false
-	else begin
-		ctx.is_reused <- true;
-		true;
-	end
+	not (List.exists has_old_version types)
 
 let catch_errors ctx ?(final=(fun() -> ())) f =
 	let prev = get_ctx() in (* switch context in case we have an older one, see #5676 *)
@@ -226,16 +174,39 @@ let call_path ctx cpath (f:string) args api =
 
 let vnull = VNull
 let vbool b = VBool b
-let fun1 f : value = assert false
+let vint i = VInt (Int32.of_int i)
+let vint32 i = VInt i
+let vfloat f = VFloat f
+
+let vfun0 f =
+	let callb args = match args with [] -> f() | _ -> assert false in
+	VClosure(FNativeFun ("fun0",callb,HVoid), None)
+
+let vfun1 f =
+	let callb args = match args with [a] -> f a | _ -> assert false in
+	VClosure(FNativeFun ("fun1",callb,HVoid), None)
+
+let vfun2 f =
+	let callb args = match args with [a;b] -> f a b | _ -> assert false in
+	VClosure(FNativeFun ("fun2",callb,HVoid), None)
+
+let vfun3 f =
+	let callb args = match args with [a;b;c] -> f a b c | _ -> assert false in
+	VClosure(FNativeFun ("fun3",callb,HVoid), None)
+
+let vfun4 f =
+	let callb args = match args with [a;b;c;d] -> f a b c d | _ -> assert false in
+	VClosure(FNativeFun ("fun4",callb,HVoid), None)
+
+let vfun5 f =
+	let callb args = match args with [a;b;c;d;e] -> f a b c d e | _ -> assert false in
+	VClosure(FNativeFun ("fun5",callb,HVoid), None)
 
 let exc_string msg =
-	Hlinterp.throw_msg (get_ctx()).interp msg
+	Hlinterp.throw_msg (interp()) msg
 
 let compiler_error msg pos =
 	assert false (* TODO : raise haxe.macro.Error(msg,pos) *)
-
-let call ctx _ callb args pos =
-	assert false
 
 let eval_expr ctx (e:texpr) =
 	assert false
@@ -243,20 +214,76 @@ let eval_expr ctx (e:texpr) =
 let eval_delayed _ _ =
 	assert false (* macro - in - macro *)
 
-let make_const e =
+let prepare_callback f n =
 	assert false
 
-let dec_string (e:value) : string = assert false
-let dec_array (e:value) = assert false
-let decode_type_def (td:value) = assert false
-let decode_tdecl (td:value) = assert false
-let decode_expr (e:value) : Ast.expr = assert false
-let decode_texpr (e:value) : texpr = assert false
-let decode_field (f:value) = assert false
-let decode_ctype (c:value) = assert false
-let decode_type (t:value) = assert false
+let encode_pos p = VAbstract (APos p)
 
-let enc_enum tag pl = VEnum (tag,Array.of_list pl)
+let decode_pos = function
+	| VAbstract (APos p) -> p
+	| _ -> raise Invalid_expr
+
+let encode_enum _ pos tag pl =
+	match pos with
+	| None -> VEnum (tag,Array.of_list pl)
+	| Some p -> VEnum (tag,Array.of_list (List.rev (encode_pos p :: List.rev pl)))
+
+let decode_enum = function
+	| VEnum (tag,arr) -> tag, Array.to_list arr
+	| _ -> raise Invalid_expr
+
+let decode_enum_with_pos = function
+	| VEnum (tag,arr) when Array.length arr > 0 ->
+		let rec loop i =
+			if i = Array.length arr - 1 then [] else arr.(i) :: loop (i + 1)
+		in
+		(tag, loop 0), decode_pos arr.(Array.length arr - 1)
+	| _ ->
+		raise Invalid_expr
+
+
+let encode_tdecl t = VAbstract (ATDecl t)
+let encode_unsafe o = VAbstract (AUnsafe o)
+
+let decode_unsafe = function
+	| VAbstract (AUnsafe v) -> v
+	| _ -> raise Invalid_expr
+
+let decode_tdecl = function
+	| VAbstract (ATDecl t) -> t
+	| _ -> raise Invalid_expr
+
+let dec_int = function
+	| VInt i -> Int32.to_int i
+	| _ -> raise Invalid_expr
+
+let dec_i32 = function
+	| VInt i -> i
+	| _ -> raise Invalid_expr
+
+let dec_bool = function
+	| VBool b -> b
+	| _ -> raise Invalid_expr
+
+let field o n =
+	match o with
+	| VDynObj _ | VVirtual _ | VObj _ -> Hlinterp.dyn_get_field (interp()) o n HDyn
+	| _ -> raise Invalid_expr
+
+let dec_string = function
+	| VObj { ofields = [|VBytes s;VInt _|] } -> Hlinterp.hl_to_caml s
+	| _ -> raise Invalid_expr
+
+let dec_array (e:value) = assert false
+
+let encode_lazytype f t = VAbstract (ALazyType (f,t))
+
+let decode_lazytype = function
+	| VAbstract (ALazyType (t,_)) -> t
+	| _ -> raise Invalid_expr
+
+let enc_obj fields =
+	assert false
 
 let enc_inst path fields =
 	let ctx = get_ctx() in
@@ -271,95 +298,110 @@ let enc_inst path fields =
 let enc_string s =
 	enc_inst ([],"String") [|VBytes (caml_to_hl s);VInt (Int32.of_int (String.length s))|]
 
-let enc_string s : value = assert false
-let enc_array ar : value = assert false
-let enc_obj fl : value = assert false
-let encode_type t : value = assert false
-let encode_expr e = assert false
-let encode_texpr e : value = assert false
-let encode_field f : value = assert false
+let enc_array vl =
+	let arr = Array.of_list vl in
+	enc_inst (["hl";"types"],"ArrayObj") [|VInt (Int32.of_int (Array.length arr));VArray (arr,HDyn)|]
 
+let encode_bytes s =
+	enc_inst (["haxe";"io"],"Bytes") [|VInt (Int32.of_int (String.length s)); VBytes s|]
 
-let resolve_macro_api ctx name =
-	match name with
-	| "make_expr" ->
-		Some (function
-		| [v;VAbstract (APos p)] ->
-			let error v = failwith ("Unsupported value " ^ vstr ctx.interp v Hlcode.HDyn) in
-			(*
-			let h_enum = hash "__enum__" and h_et = hash "__et__" and h_ct = hash "__ct__" in
-			let h_tag = hash "tag" and h_args = hash "args" in
-			let h_length = hash "length" in
-			let ctx = get_ctx() in
-			let make_path t =
-				let rec loop = function
-					| [] -> assert false
-					| [name] -> (Ast.EConst (Ast.Ident name),p)
-					| name :: l -> (Ast.EField (loop l,name),p)
-				in
-				let t = t_infos t in
-				loop (List.rev (if t.mt_module.m_path = t.mt_path then fst t.mt_path @ [snd t.mt_path] else fst t.mt_module.m_path @ [snd t.mt_module.m_path;snd t.mt_path]))
-			in*)
-			let rec loop = function
-				| VNull -> (Ast.EConst (Ast.Ident "null"),p)
-				| VBool b -> (Ast.EConst (Ast.Ident (if b then "true" else "false")),p)
-				| VInt i -> (Ast.EConst (Ast.Int (Int32.to_string i)),p)
-				| VFloat f ->
-					let std = (Ast.EConst (Ast.Ident "std"), p) in
-					let math = (Ast.EField (std, "Math"), p) in
-					if (f = infinity) then
-						(Ast.EField (math, "POSITIVE_INFINITY"), p)
-					else if (f = neg_infinity) then
-						(Ast.EField (math, "NEGATIVE_INFINITY"), p)
-					else if (f <> f) then
-						(Ast.EField (math, "NaN"), p)
-					else
-						(Ast.EConst (Ast.Float (Common.float_repres f)), p)
-				| VAbstract (APos p) ->
-					(Ast.EObjectDecl (
-						(("fileName",Globals.null_pos) , (Ast.EConst (Ast.String p.Globals.pfile) , p)) ::
-						(("lineNumber",Globals.null_pos) , (Ast.EConst (Ast.Int (string_of_int (Lexer.get_error_line p))),p)) ::
-						(("className",Globals.null_pos) , (Ast.EConst (Ast.String ("")),p)) ::
-						[]
-					), p)
-				| VObj { oproto = { pclass = { pname = "String" } }; ofields = [|VBytes content;VInt _|] } ->
-					(Ast.EConst (Ast.String (hl_to_caml content)),p)
-				| v ->
+let encode_string_map convert pmap =
+	let h = Hashtbl.create 0 in
+	PMap.iter (fun k v -> Hashtbl.add h k (convert v)) pmap;
+	enc_inst (["haxe";"ds"],"StringMap") [|VAbstract (AHashBytes h)|]
+
+let decode_bytes = function
+	| VObj { ofields = [|VInt _;VBytes s|] } -> s
+	| _ -> raise Invalid_expr
+
+let encode_ref v convert tostr =
+	enc_obj [
+		"get", vfun0 (fun() -> convert v);
+		"__string", vfun0 (fun() -> VBytes (caml_to_hl (tostr())));
+		"toString", vfun0 (fun() -> enc_string (tostr()));
+		"$", VAbstract (AUnsafe (Obj.repr v));
+	]
+
+let decode_ref v : 'a =
+	match field v "$" with
+	| VAbstract (AUnsafe t) -> Obj.obj t
+	| _ -> raise Invalid_expr
+
+let value_string v =
+	Hlinterp.vstr (get_ctx()).interp v HDyn
+
+let value_signature v =
+	failwith "signature() not supported in HL macros"
+
+let value_to_expr v p =
+	let ctx = get_ctx() in
+	let error v = failwith ("Unsupported value " ^ vstr ctx.interp v Hlcode.HDyn) in
+	(*
+	let h_enum = hash "__enum__" and h_et = hash "__et__" and h_ct = hash "__ct__" in
+	let h_tag = hash "tag" and h_args = hash "args" in
+	let h_length = hash "length" in
+	let make_path t =
+		let rec loop = function
+			| [] -> assert false
+			| [name] -> (Ast.EConst (Ast.Ident name),p)
+			| name :: l -> (Ast.EField (loop l,name),p)
+		in
+		let t = t_infos t in
+		loop (List.rev (if t.mt_module.m_path = t.mt_path then fst t.mt_path @ [snd t.mt_path] else fst t.mt_module.m_path @ [snd t.mt_module.m_path;snd t.mt_path]))
+	in*)
+	let rec loop = function
+		| VNull -> (Ast.EConst (Ast.Ident "null"),p)
+		| VBool b -> (Ast.EConst (Ast.Ident (if b then "true" else "false")),p)
+		| VInt i -> (Ast.EConst (Ast.Int (Int32.to_string i)),p)
+		| VFloat f ->
+			let std = (Ast.EConst (Ast.Ident "std"), p) in
+			let math = (Ast.EField (std, "Math"), p) in
+			if (f = infinity) then
+				(Ast.EField (math, "POSITIVE_INFINITY"), p)
+			else if (f = neg_infinity) then
+				(Ast.EField (math, "NEGATIVE_INFINITY"), p)
+			else if (f <> f) then
+				(Ast.EField (math, "NaN"), p)
+			else
+				(Ast.EConst (Ast.Float (Common.float_repres f)), p)
+		| VAbstract (APos p) ->
+			(Ast.EObjectDecl (
+				(("fileName",Globals.null_pos) , (Ast.EConst (Ast.String p.Globals.pfile) , p)) ::
+				(("lineNumber",Globals.null_pos) , (Ast.EConst (Ast.Int (string_of_int (Lexer.get_error_line p))),p)) ::
+				(("className",Globals.null_pos) , (Ast.EConst (Ast.String ("")),p)) ::
+				[]
+			), p)
+		| VObj { oproto = { pclass = { pname = "String" } }; ofields = [|VBytes content;VInt _|] } ->
+			(Ast.EConst (Ast.String (hl_to_caml content)),p)
+		| v ->
+			error v
+		(*
+		| VObject o as v ->
+			match o.oproto with
+			| None ->
+				(match get_field_opt o h_ct with
+				| Some (VAbstract (ATDecl t)) ->
+					make_path t
+				| _ ->
+					let fields = List.fold_left (fun acc (fid,v) -> ((field_name ctx fid,Globals.null_pos), loop v) :: acc) [] (Array.to_list o.ofields) in
+					(Ast.EObjectDecl fields, p))
+			| Some proto ->
+				match get_field_opt proto h_enum, get_field_opt o h_a, get_field_opt o h_s, get_field_opt o h_length with
+				| _, Some (VArray a), _, Some (VInt len) ->
+					(Ast.EArrayDecl (List.map loop (Array.to_list (Array.sub a 0 len))),p)
+				| Some (VObject en), _, _, _ ->
+					(match get_field en h_et, get_field o h_tag with
+					| VAbstract (ATDecl t), VString tag ->
+						let e = (Ast.EField (make_path t,tag),p) in
+						(match get_field_opt o h_args with
+						| Some (VArray args) ->
+							let args = List.map loop (Array.to_list args) in
+							(Ast.ECall (e,args),p)
+						| _ -> e)
+					| _ ->
+						error v)
+				| _ ->
 					error v
-				(*
-				| VObject o as v ->
-					match o.oproto with
-					| None ->
-						(match get_field_opt o h_ct with
-						| Some (VAbstract (ATDecl t)) ->
-							make_path t
-						| _ ->
-							let fields = List.fold_left (fun acc (fid,v) -> ((field_name ctx fid,Globals.null_pos), loop v) :: acc) [] (Array.to_list o.ofields) in
-							(Ast.EObjectDecl fields, p))
-					| Some proto ->
-						match get_field_opt proto h_enum, get_field_opt o h_a, get_field_opt o h_s, get_field_opt o h_length with
-						| _, Some (VArray a), _, Some (VInt len) ->
-							(Ast.EArrayDecl (List.map loop (Array.to_list (Array.sub a 0 len))),p)
-						| Some (VObject en), _, _, _ ->
-							(match get_field en h_et, get_field o h_tag with
-							| VAbstract (ATDecl t), VString tag ->
-								let e = (Ast.EField (make_path t,tag),p) in
-								(match get_field_opt o h_args with
-								| Some (VArray args) ->
-									let args = List.map loop (Array.to_list args) in
-									(Ast.ECall (e,args),p)
-								| _ -> e)
-							| _ ->
-								error v)
-						| _ ->
-							error v
-					*)
-			in
-			encode_expr (loop v)
-		| _ ->
-			assert false)
-	| _ ->
-		None
-
-;;
-resolve_macro_api_ref := resolve_macro_api
+			*)
+	in
+	loop v

@@ -3229,10 +3229,6 @@ let decode_pos = function
 	| VAbstract (APos p) -> p
 	| _ -> raise Invalid_expr
 
-let maybe_decode_pos v = match v with
-	| VAbstract (APos p) -> p
-	| _ -> Globals.null_pos
-
 let decode_enum v =
 	match field v "index", field v "args" with
 	| VInt i, VNull -> i, []

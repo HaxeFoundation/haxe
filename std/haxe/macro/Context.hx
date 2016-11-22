@@ -72,7 +72,7 @@ class Context {
 		file path. Otherwise it returns the absolute file path.
 	**/
 	public static function resolvePath( file : String ) {
-		return load("resolve",1)(file);
+		return load("resolve_path",1)(file);
 	}
 
 	/**
@@ -90,7 +90,7 @@ class Context {
 		Returns the position at which the macro was called.
 	**/
 	public static function currentPos() : Position {
-		return load("curpos", 0)();
+		return load("current_pos", 0)();
 	}
 
 	/**
@@ -104,7 +104,7 @@ class Context {
 	**/
 	@:require(haxe_ver >= 3.1)
 	public static function getExpectedType():Null<Type> {
-		return load("expected_type", 0)();
+		return load("get_expected_type", 0)();
 	}
 
 	/**
@@ -115,7 +115,7 @@ class Context {
 	**/
 	@:require(haxe_ver >= 3.2)
 	public static function getCallArguments():Null<Array<Expr>> {
-		return load("call_arguments", 0)();
+		return load("get_call_arguments", 0)();
 	}
 
 	/**
@@ -124,7 +124,7 @@ class Context {
 		If no such class exists, null is returned.
 	**/
 	public static function getLocalClass() : Null<Type.Ref<Type.ClassType>> {
-		var l : Type = load("local_type", 0)();
+		var l : Type = load("get_local_type", 0)();
 		if( l == null ) return null;
 		return switch( l ) {
 		case TInst(c,_): c;
@@ -136,7 +136,7 @@ class Context {
 		Returns the current module path in/on which the macro was called.
 	**/
 	public static function getLocalModule() : String {
-		return load("local_module", 0)();
+		return load("get_local_module", 0)();
 	}
 
 	/**
@@ -145,7 +145,7 @@ class Context {
 		If no such type exists, null is returned.
 	**/
 	public static function getLocalType() : Null<Type> {
-		return load("local_type", 0)();
+		return load("get_local_type", 0)();
 	}
 
 	/**
@@ -154,7 +154,7 @@ class Context {
 		If no such method exists, null is returned.
 	**/
 	public static function getLocalMethod() : Null<String> {
-		return load("local_method", 0)();
+		return load("get_local_method", 0)();
 	}
 
 	/**
@@ -164,7 +164,7 @@ class Context {
 		Modifying the returned array has no effect on the compiler.
 	**/
 	public static function getLocalUsing() :  Array<Type.Ref<Type.ClassType>> {
-		return load("local_using", 0)();
+		return load("get_local_using", 0)();
 	}
 
 	/**
@@ -173,7 +173,7 @@ class Context {
 		Modifying the returned array has no effect on the compiler.
 	**/
 	public static function getLocalImports() :  Array<ImportExpr> {
-		return load("local_imports", 0)();
+		return load("get_local_imports", 0)();
 	}
 
 	/**
@@ -269,7 +269,7 @@ class Context {
 		The provided `Position` `pos` is used for all generated inner AST nodes.
 	**/
 	public static function parse( expr : String, pos : Position ) : Expr {
-		return load("parse", 3)(expr, pos, false);
+		return load("do_parse", 3)(expr, pos, false);
 	}
 
 	/**
@@ -277,7 +277,7 @@ class Context {
 		String `expr`.
 	**/
 	public static function parseInlineString( expr : String, pos : Position ) : Expr {
-		return load("parse", 3)(expr, pos, true);
+		return load("do_parse", 3)(expr, pos, true);
 	}
 
 	/**
@@ -321,7 +321,7 @@ class Context {
 	**/
 	@:require(haxe_ver >= 3.1)
 	public static function onAfterGenerate( callback : Void -> Void ) {
-		load("after_generate",1)(callback);
+		load("on_after_generate",1)(callback);
 	}
 
 	/**
@@ -333,7 +333,7 @@ class Context {
 		will be called again with the new types as argument.
 	**/
 	public static function onAfterTyping( callback : Array<haxe.macro.Type.ModuleType> -> Void ) {
-		load("after_typing",1)(callback);
+		load("on_after_typing",1)(callback);
 	}
 
 	/**
@@ -387,7 +387,7 @@ class Context {
 		See `haxe.macro.TypeTools.toComplexType` for details.
 	**/
 	public static function toComplexType( t : Type ) : Null<ComplexType> {
-		return load("to_complex", 1)(t);
+		return load("to_complex_type", 1)(t);
 	}
 
 	/**
@@ -426,7 +426,7 @@ class Context {
 		Builds a `Position` from `inf`.
 	**/
 	public static function makePosition( inf : { min : Int, max : Int, file : String } ) : Position {
-		return load("make_pos",3)(inf.min,inf.max,inf.file);
+		return load("make_position",3)(inf.min,inf.max,inf.file);
 	}
 
 	/**
@@ -461,7 +461,7 @@ class Context {
 		This is only defined for `@:build/@:autoBuild` macros.
 	**/
 	public static function getBuildFields() : Array<Field> {
-		return load("build_fields", 0)();
+		return load("get_build_fields", 0)();
 	}
 
 	/**
@@ -550,7 +550,7 @@ class Context {
 		Has no effect if the compilation cache is not used.
 	**/
 	public static function registerModuleDependency( modulePath : String, externFile : String ) {
-		load("module_dependency", 2)(modulePath,externFile);
+		load("register_module_dependency", 2)(modulePath,externFile);
 	}
 
 	/**
@@ -567,7 +567,7 @@ class Context {
 		but calling this function will still trigger loading of given `modulePath`.
 	**/
 	public static function registerModuleReuseCall( modulePath : String, macroCall : String ) {
-		load("module_reuse_call", 2)(modulePath,macroCall);
+		load("register_module_reuse_call", 2)(modulePath,macroCall);
 	}
 
 	/**
@@ -576,7 +576,7 @@ class Context {
 		returns false, the macro context is discarded and another one is created.
 	**/
 	public static function onMacroContextReused( callb : Void -> Bool ) {
-		load("macro_context_reused", 1)(callb);
+		load("on_macro_context_reused", 1)(callb);
 	}
 
 	@:allow(haxe.macro.TypeTools)
@@ -588,6 +588,14 @@ class Context {
 		#else
 		return Reflect.makeVarArgs(function(_) return throw "Can't be called outside of macro");
 		#end
+	}
+
+	private static function includeFile( file : String, position : String ) {
+		load("include_file", 2)(file, position);
+	}
+
+	private static function sExpr( e : TypedExpr, pretty : Bool ) : String {
+		return haxe.macro.Context.load("s_expr", 2)(e, pretty);
 	}
 
 #end

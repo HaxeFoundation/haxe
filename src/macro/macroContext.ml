@@ -25,9 +25,8 @@ open Typecore
 open Error
 open Globals
 
-(* module Interp = Hlmacro *)
+module InterpImpl = Interp (* Hlmacro *)
 
-module InterpImpl = Interp
 module Interp = struct
 	module BuiltApi = MacroApi.MacroApiImpl(InterpImpl)
 	include InterpImpl
