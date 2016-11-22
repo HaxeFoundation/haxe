@@ -26,15 +26,15 @@ package php7;
 **/
 @:native('ErrorException')
 extern class ErrorException implements Throwable {
-	public function new (?message:String, ?code:Int, ?severety:Int, ?filename:String, ?lineno:Int, ?previous:Throwable) : Void;
+	function new (?message:String, ?code:Int, ?severety:Int, ?filename:String, ?lineno:Int, ?previous:Throwable) : Void;
 
-	@:final public function getSeverity() : Int;
-	@:final public function getPrevious() : Throwable;   // Returns previous Throwable
-    @:final public function getMessage() : String;       // message of the exception
-    @:final public function getCode() : Int;             // code of the exception
-    @:final public function getFile() : String;          // source filename
-    @:final public function getLine() : Int;             // source line
-    @:final public function getTrace() : NativeIndexedArray<NativeAssocArray<Dynamic>>;  // an array of the backtrace
-    @:final public function getTraceAsString() : String; // formated string of trace
-	public function __toString() : String;       // formated string for display
+	@:final function getSeverity() : Int;
+	@:final function getPrevious() : Throwable;   // Returns previous Throwable
+    @:final function getMessage() : String;       // message of the exception
+    @:final function getCode() : Int;             // code of the exception
+    @:final function getFile() : String;          // source filename
+    @:final function getLine() : Int;             // source line
+    @:final function getTrace() : NativeIndexedArray<NativeAssocArray<Dynamic>>;  // an array of the backtrace
+    @:final function getTraceAsString() : String; // formated string of trace
+	@:phpMagic function __toString() : String;       // formated string for display
 }

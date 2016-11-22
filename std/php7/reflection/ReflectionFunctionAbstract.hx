@@ -3,33 +3,33 @@ package php7.reflection;
 
 @:native('ReflectionFunctionAbstract')
 extern class ReflectionFunctionAbstract implements Reflector {
-    
-    public var name : String;
-    
-    public function getClosureScopeClass() : ReflectionClass;
-    public function getClosureThis() : Dynamic;
-    public function getDocComment() : String;
-    public function getEndLine() : Int;
-    // public function getExtension() : ReflectionExtension;
-    public function getExtensionName() : String;
-    public function getFileName() : String;
-    public function getName() : String;
-    public function getNamespaceName() : String;
-    public function getNumberOfParameters() : Int;
-    public function getNumberOfRequiredParameters() : Int;
-    // public function getParameters() : NativeIndexedArray<ReflectionParameter>;
-    // public function getReturnType() : ReflectionType;
-    public function getShortName() : String;
-    public function getStartLine() : Int;
-    public function getStaticVariables() : NativeAssocArray<Dynamic>;
-    public function hasReturnType() : Bool;
-    public function inNamespace() : Bool;
-    public function isClosure() : Bool;
-    public function isDeprecated() : Bool;
-    public function isGenerator() : Bool;
-    public function isInternal() : Bool;
-    public function isUserDefined() : Bool;
-    public function isVariadic() : Bool;
-    public function returnsReference() : Bool;
-    public function __toString() : String;
+
+    var name : String;
+
+    function getClosureScopeClass() : ReflectionClass;
+    function getClosureThis() : Dynamic;
+    function getDocComment() : String;
+    function getEndLine() : Int;
+    // function getExtension() : ReflectionExtension;
+    function getExtensionName() : String;
+    function getFileName() : String;
+    function getName() : String;
+    function getNamespaceName() : String;
+    function getNumberOfParameters() : Int;
+    function getNumberOfRequiredParameters() : Int;
+    // function getParameters() : NativeIndexedArray<ReflectionParameter>;
+    // function getReturnType() : ReflectionType;
+    function getShortName() : String;
+    function getStartLine() : Int;
+    function getStaticVariables() : NativeAssocArray<Dynamic>;
+    function hasReturnType() : Bool;
+    function inNamespace() : Bool;
+    function isClosure() : Bool;
+    function isDeprecated() : Bool;
+    function isGenerator() : Bool;
+    function isInternal() : Bool;
+    function isUserDefined() : Bool;
+    function isVariadic() : Bool;
+    function returnsReference() : Bool;
+    @:phpMagic function __toString() : String;
 }
