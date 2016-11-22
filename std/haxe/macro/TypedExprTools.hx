@@ -156,7 +156,7 @@ class TypedExprTools {
 
 	#if macro
 	static public function toString(t:TypedExpr, ?pretty = false):String {
-		return new String(haxe.macro.Context.load("s_expr", 2)(t, pretty));
+		return haxe.macro.Context.load("s_expr", 2)(t, pretty);
 	}
 	#end
 }

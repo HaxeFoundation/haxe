@@ -50,15 +50,15 @@ class Compiler {
 	static var path = ~/^[A-Za-z_][A-Za-z0-9_.]*$/;
 
 	public static function allowPackage( v : String ) {
-		untyped load("allow_package", 1)(v.__s);
+		load("allow_package", 1)(v);
 	}
 
 	/**
 		Set a conditional compiler flag.
 	**/
-	public static function define( flag : String, ?value : String ) untyped {
+	public static function define( flag : String, ?value : String ) {
 		var v = flag + (value == null ? "" : "=" + value);
-		load("define", 1)(v.__s);
+		load("define", 1)(v);
 	}
 
 	/**
@@ -68,7 +68,7 @@ class Compiler {
 	public static function removeField( className : String, field : String, ?isStatic : Bool ) {
 		if( !path.match(className) ) throw "Invalid "+className;
 		if( !ident.match(field) ) throw "Invalid "+field;
-		untyped load("type_patch",4)(className.__s,field.__s,isStatic == true,null);
+		load("type_patch",4)(className,field,isStatic == true,null);
 	}
 
 	/**
@@ -78,7 +78,7 @@ class Compiler {
 	public static function setFieldType( className : String, field : String, type : String, ?isStatic : Bool ) {
 		if( !path.match(className) ) throw "Invalid "+className;
 		if( !ident.match((field.charAt(0) == "$") ? field.substr(1) : field) ) throw "Invalid "+field;
-		untyped load("type_patch",4)(className.__s,field.__s,isStatic == true,type.__s);
+		load("type_patch",4)(className,field,isStatic == true,type);
 	}
 
 	/**
@@ -88,33 +88,30 @@ class Compiler {
 	public static function addMetadata( meta : String, className : String, ?field : String, ?isStatic : Bool ) {
 		if( !path.match(className) ) throw "Invalid "+className;
 		if( field != null && !ident.match(field) ) throw "Invalid "+field;
-		untyped load("meta_patch",4)(meta.__s,className.__s,(field == null)?null:field.__s,isStatic == true);
+		load("meta_patch",4)(meta,className,field,isStatic == true);
 	}
 
 	public static function addClassPath( path : String ) {
-		untyped load("add_class_path",1)(path.__s);
+		load("add_class_path",1)(path);
 	}
 
 	public static function getOutput() : String {
-		return new String(untyped load("get_output",0)());
+		return load("get_output",0)();
 	}
 
 	public static function setOutput( fileOrDir : String ) {
-		untyped load("set_output",1)(untyped fileOrDir.__s);
+		load("set_output",1)(fileOrDir);
 	}
 
 	public static function getDisplayPos() : Null<{ file : String, pos : Int }> {
-		var o = untyped load("get_display_pos",0)();
-		if( o != null )
-			o.file = new String(o.file);
-		return o;
+		return load("get_display_pos",0)();
 	}
 
 	/**
 		Adds a native library depending on the platform (e.g. `-swf-lib` for Flash).
 	**/
 	public static function addNativeLib( name : String ) {
-		untyped load("add_native_lib",1)(name.__s);
+		load("add_native_lib",1)(name);
 	}
 
 	/**
@@ -122,7 +119,7 @@ class Compiler {
 	 **/
 	public static function addNativeArg( argument : String )
 	{
-		untyped load("add_native_arg",1)(argument.__s);
+		load("add_native_arg",1)(argument);
 	}
 
 	/**
@@ -174,7 +171,7 @@ class Compiler {
 				continue;
 			found = true;
 			for( file in sys.FileSystem.readDirectory(path) ) {
-				if( StringTools.endsWith(file, ".hx") ) {
+				if( StringTools.endsWith(file, ".hx") && file.indexOf(".") < 0 ) {
 					var cl = prefix + file.substr(0, file.length - 3);
 					if( skip(cl) )
 						continue;
@@ -203,7 +200,7 @@ class Compiler {
 	/**
 		Exclude a specific class, enum, or all classes and enums in a
 		package from being generated. Excluded types become `extern`.
-		
+
 		@param rec If true, recursively excludes all sub-packages.
 	**/
 	public static function exclude( pack : String, ?rec = true ) {
@@ -345,7 +342,7 @@ class Compiler {
 		through `Context.getType`.
 	**/
 	public static function addGlobalMetadata(pathFilter:String, meta:String, ?recursive:Bool = true, ?toTypes:Bool = true, ?toFields:Bool = false) {
-		untyped load("add_global_metadata",5)(untyped pathFilter.__s, meta.__s, recursive, toTypes, toFields);
+		load("add_global_metadata",5)(pathFilter, meta, recursive, toTypes, toFields);
 	}
 
 	/**
@@ -379,7 +376,7 @@ class Compiler {
 				var p = Context.currentPos();
 				{ expr : EUntyped( { expr : ECall( { expr : EConst(CIdent("__js__")), pos : p }, [ { expr : EConst(CString(f)), pos : p } ]), pos : p } ), pos : p };
 			case Top | Closure:
-				load("include_file", 2)(untyped file.__s, untyped position.__s);
+				load("include_file", 2)(file, position);
 				macro {};
 			case _:
 				Context.error("unknown includeFile position: " + position, Context.currentPos());

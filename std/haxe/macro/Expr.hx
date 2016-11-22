@@ -22,7 +22,7 @@
 package haxe.macro;
 
 #if (macro && !doc_gen)
-extern enum Position {
+@:coreType abstract Position {
 }
 #else
 /**

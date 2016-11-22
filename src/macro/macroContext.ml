@@ -25,10 +25,20 @@ open Typecore
 open Error
 open Globals
 
-(*module Interp = Hlmacro*)
+(* module Interp = Hlmacro *)
+
+module InterpImpl = Interp
+module Interp = struct
+	module BuiltApi = MacroApi.MacroApiImpl(InterpImpl)
+	include InterpImpl
+	include BuiltApi
+end
 
 let macro_enable_cache = ref false
 let macro_interp_cache = ref None
+let macro_interp_on_reuse = ref []
+let macro_interp_reused = ref false
+
 let delayed_macro_result = ref ((fun() -> assert false) : unit -> unit -> Interp.value)
 let unify_call_args_ref = ref (fun _ _ _ _ _ _ _-> assert false)
 let unify_call_args a b c d e f g : (texpr list * t) = !unify_call_args_ref a b c d e f g
@@ -99,12 +109,12 @@ let load_macro_ref : (typer -> bool -> path -> string -> pos -> (typer * ((strin
 
 let make_macro_api ctx p =
 	let parse_expr_string s p inl =
-		typing_timer ctx false (fun() -> try Parser.parse_expr_string ctx.com s p error inl with Exit -> raise Interp.Invalid_expr)
+		typing_timer ctx false (fun() -> try Parser.parse_expr_string ctx.com s p error inl with Exit -> raise MacroApi.Invalid_expr)
 	in
 	{
-		Interp.pos = p;
-		Interp.get_com = (fun() -> ctx.com);
-		Interp.get_type = (fun s ->
+		MacroApi.pos = p;
+		MacroApi.get_com = (fun() -> ctx.com);
+		MacroApi.get_type = (fun s ->
 			typing_timer ctx true (fun() ->
 				let path = parse_path s in
 				let tp = match List.rev (fst path) with
@@ -120,38 +130,38 @@ let make_macro_api ctx p =
 					None
 			)
 		);
-		Interp.resolve_type = (fun t p ->
+		MacroApi.resolve_type = (fun t p ->
 			typing_timer ctx true (fun() -> Typeload.load_complex_type ctx false p (t,null_pos))
 		);
-		Interp.get_module = (fun s ->
+		MacroApi.get_module = (fun s ->
 			typing_timer ctx true (fun() ->
 				let path = parse_path s in
 				let m = List.map type_of_module_type (Typeload.load_module ctx path p).m_types in
 				m
 			)
 		);
-		Interp.after_typing = (fun f ->
+		MacroApi.after_typing = (fun f ->
 			Common.add_typing_filter ctx.com (fun tl ->
 				let t = macro_timer ctx ["afterTyping"] in
 				f tl;
 				t()
 			)
 		);
-		Interp.on_generate = (fun f ->
+		MacroApi.on_generate = (fun f ->
 			Common.add_filter ctx.com (fun() ->
 				let t = macro_timer ctx ["onGenerate"] in
 				f (List.map type_of_module_type ctx.com.types);
 				t()
 			)
 		);
-		Interp.after_generate = (fun f ->
+		MacroApi.after_generate = (fun f ->
 			Common.add_final_filter ctx.com (fun() ->
 				let t = macro_timer ctx ["afterGenerate"] in
 				f();
 				t()
 			)
 		);
-		Interp.on_type_not_found = (fun f ->
+		MacroApi.on_type_not_found = (fun f ->
 			ctx.com.load_extern_type <- ctx.com.load_extern_type @ [fun path p ->
 				let td = f (s_type_path path) in
 				if td = Interp.vnull then
@@ -161,11 +171,11 @@ let make_macro_api ctx p =
 					Some (name,(pack,[tdef,p]))
 			];
 		);
-		Interp.parse_string = parse_expr_string;
-		Interp.type_expr = (fun e ->
+		MacroApi.parse_string = parse_expr_string;
+		MacroApi.type_expr = (fun e ->
 			typing_timer ctx true (fun() -> type_expr ctx e Value)
 		);
-		Interp.type_macro_expr = (fun e ->
+		MacroApi.type_macro_expr = (fun e ->
 			let e = typing_timer ctx true (fun() -> type_expr ctx e Value) in
 			let rec loop e = match e.eexpr with
 				| TField(_,FStatic(c,({cf_kind = Method _} as cf))) -> ignore(!load_macro_ref ctx false c.cl_path cf.cf_name e.epos)
@@ -174,15 +184,15 @@ let make_macro_api ctx p =
 			loop e;
 			e
 		);
-		Interp.store_typed_expr = (fun te ->
+		MacroApi.store_typed_expr = (fun te ->
 			let p = te.epos in
 			let id = get_next_stored_typed_expr_id() in
 			ctx.com.stored_typed_exprs <- PMap.add id te ctx.com.stored_typed_exprs;
 			let eid = (EConst (Int (string_of_int id))), p in
 			(EMeta ((Meta.StoredTypedExpr,[],p), eid)), p
 		);
-		Interp.allow_package = (fun v -> Common.allow_package ctx.com v);
-		Interp.type_patch = (fun t f s v ->
+		MacroApi.allow_package = (fun v -> Common.allow_package ctx.com v);
+		MacroApi.type_patch = (fun t f s v ->
 			typing_timer ctx false (fun() ->
 				let v = (match v with None -> None | Some s ->
 					match Parser.parse_string ctx.com ("typedef T = " ^ s) null_pos error false with
@@ -195,7 +205,7 @@ let make_macro_api ctx p =
 				| Some _ -> tp.tp_type <- Option.map fst v
 			);
 		);
-		Interp.meta_patch = (fun m t f s ->
+		MacroApi.meta_patch = (fun m t f s ->
 			let m = (match Parser.parse_string ctx.com (m ^ " typedef T = T") null_pos error false with
 				| _,[ETypedef t,_] -> t.d_meta
 				| _ -> assert false
@@ -203,60 +213,15 @@ let make_macro_api ctx p =
 			let tp = get_type_patch ctx t (match f with None -> None | Some f -> Some (f,s)) in
 			tp.tp_meta <- tp.tp_meta @ m;
 		);
-		Interp.set_js_generator = (fun gen ->
+		MacroApi.set_js_generator = (fun gen ->
 			let js_ctx = Genjs.alloc_ctx ctx.com in
 			ctx.com.js_gen <- Some (fun() ->
-				let jsctx = Interp.enc_obj [
-					"outputFile", Interp.enc_string ctx.com.file;
-					"types", Interp.enc_array (List.map (fun t -> Interp.encode_type (type_of_module_type t)) ctx.com.types);
-					"main", (match ctx.com.main with None -> Interp.vnull | Some e -> Interp.encode_texpr e);
-					"generateValue", Interp.fun1 (fun v ->
-						let e = Interp.decode_texpr v in
-						let str = Genjs.gen_single_expr js_ctx e false in
-						Interp.enc_string str
-					);
-					"isKeyword", Interp.fun1 (fun v ->
-						Interp.vbool (Hashtbl.mem Genjs.kwds (Interp.dec_string v))
-					);
-					"hasFeature", Interp.fun1 (fun v ->
-						Interp.vbool (Common.has_feature ctx.com (Interp.dec_string v))
-					);
-					"addFeature", Interp.fun1 (fun v ->
-						Common.add_feature ctx.com (Interp.dec_string v);
-						Interp.vnull
-					);
-					"quoteString", Interp.fun1 (fun v ->
-						Interp.enc_string ("\"" ^ Ast.s_escape (Interp.dec_string v) ^ "\"")
-					);
-					"buildMetaData", Interp.fun1 (fun t ->
-						match Codegen.build_metadata ctx.com (Interp.decode_tdecl t) with
-						| None -> Interp.vnull
-						| Some e -> Interp.encode_texpr e
-					);
-					"generateStatement", Interp.fun1 (fun v ->
-						let e = Interp.decode_texpr v in
-						let str = Genjs.gen_single_expr js_ctx e true in
-						Interp.enc_string str
-					);
-					"setTypeAccessor", Interp.fun1 (fun callb ->
-						js_ctx.Genjs.type_accessor <- (fun t ->
-							let v = Interp.encode_type (type_of_module_type t) in
-							let ret = Interp.call (Interp.get_ctx()) Interp.vnull callb [v] Nast.null_pos in
-							Interp.dec_string ret
-						);
-						Interp.vnull
-					);
-					"setCurrentClass", Interp.fun1 (fun c ->
-						Genjs.set_current_class js_ctx (match Interp.decode_tdecl c with TClassDecl c -> c | _ -> assert false);
-						Interp.vnull
-					);
-				] in
 				let t = macro_timer ctx ["jsGenerator"] in
-				gen jsctx;
+				gen js_ctx;
 				t()
 			);
 		);
-		Interp.get_local_type = (fun() ->
+		MacroApi.get_local_type = (fun() ->
 			match ctx.g.get_build_infos() with
 			| Some (mt,tl,_) ->
 				Some (match mt with
@@ -270,38 +235,38 @@ let make_macro_api ctx p =
 				else
 					Some (TInst (ctx.curclass,[]))
 		);
-		Interp.get_expected_type = (fun() ->
+		MacroApi.get_expected_type = (fun() ->
 			match ctx.with_type_stack with
 				| (WithType t) :: _ -> Some t
 				| _ -> None
 		);
-		Interp.get_call_arguments = (fun() ->
+		MacroApi.get_call_arguments = (fun() ->
 			match ctx.call_argument_stack with
 				| [] -> None
 				| el :: _ -> Some el
 		);
-		Interp.get_local_method = (fun() ->
+		MacroApi.get_local_method = (fun() ->
 			ctx.curfield.cf_name;
 		);
-		Interp.get_local_using = (fun() ->
+		MacroApi.get_local_using = (fun() ->
 			List.map fst ctx.m.module_using;
 		);
-		Interp.get_local_imports = (fun() ->
+		MacroApi.get_local_imports = (fun() ->
 			ctx.m.module_imports;
 		);
-		Interp.get_local_vars = (fun () ->
+		MacroApi.get_local_vars = (fun () ->
 			ctx.locals;
 		);
-		Interp.get_build_fields = (fun() ->
+		MacroApi.get_build_fields = (fun() ->
 			match ctx.g.get_build_infos() with
 			| None -> Interp.vnull
 			| Some (_,_,fields) -> Interp.enc_array (List.map Interp.encode_field fields)
 		);
-		Interp.get_pattern_locals = (fun e t ->
+		MacroApi.get_pattern_locals = (fun e t ->
 			!get_pattern_locals_ref ctx e t
 		);
-		Interp.define_type = (fun v ->
-			let m, tdef, pos = (try Interp.decode_type_def v with Interp.Invalid_expr -> Interp.exc_string "Invalid type definition") in
+		MacroApi.define_type = (fun v ->
+			let m, tdef, pos = (try Interp.decode_type_def v with MacroApi.Invalid_expr -> Interp.exc_string "Invalid type definition") in
 			let add is_macro ctx =
 				let mnew = Typeload.type_module ctx m ctx.m.curmod.m_extra.m_file [tdef,pos] pos in
 				mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
@@ -315,9 +280,9 @@ let make_macro_api ctx p =
 			| _ ->
 				()
 		);
-		Interp.define_module = (fun m types imports usings ->
+		MacroApi.define_module = (fun m types imports usings ->
 			let types = List.map (fun v ->
-				let _, tdef, pos = (try Interp.decode_type_def v with Interp.Invalid_expr -> Interp.exc_string "Invalid type definition") in
+				let _, tdef, pos = (try Interp.decode_type_def v with MacroApi.Invalid_expr -> Interp.exc_string "Invalid type definition") in
 				tdef, pos
 			) types in
 			let pos = (match types with [] -> null_pos | (_,p) :: _ -> p) in
@@ -337,18 +302,18 @@ let make_macro_api ctx p =
 				add_dependency mnew ctx.m.curmod;
 			end
 		);
-		Interp.module_dependency = (fun mpath file ismacro ->
+		MacroApi.module_dependency = (fun mpath file ismacro ->
 			let m = typing_timer ctx false (fun() -> Typeload.load_module ctx (parse_path mpath) p) in
 			if ismacro then
 				m.m_extra.m_macro_calls <- file :: List.filter ((<>) file) m.m_extra.m_macro_calls
 			else
 				add_dependency m (create_fake_module ctx file);
 		);
-		Interp.current_module = (fun() ->
+		MacroApi.current_module = (fun() ->
 			ctx.m.curmod
 		);
-		Interp.current_macro_module = (fun () -> assert false);
-		Interp.delayed_macro = (fun i ->
+		MacroApi.current_macro_module = (fun () -> assert false);
+		MacroApi.delayed_macro = (fun i ->
 			let mctx = (match ctx.g.macros with None -> assert false | Some (_,mctx) -> mctx) in
 			let f = (try DynArray.get mctx.g.delayed_macros i with _ -> failwith "Delayed macro retrieve failure") in
 			f();
@@ -356,16 +321,16 @@ let make_macro_api ctx p =
 			delayed_macro_result := (fun() -> assert false);
 			ret
 		);
-		Interp.use_cache = (fun() ->
+		MacroApi.use_cache = (fun() ->
 			!macro_enable_cache
 		);
-		Interp.format_string = (fun s p ->
+		MacroApi.format_string = (fun s p ->
 			ctx.g.do_format_string ctx s p
 		);
-		Interp.cast_or_unify = (fun t e p ->
+		MacroApi.cast_or_unify = (fun t e p ->
 			AbstractCast.cast_or_unify_raise ctx t e p
 		);
-		Interp.add_global_metadata = (fun s1 s2 config ->
+		MacroApi.add_global_metadata = (fun s1 s2 config ->
 			let meta = (match Parser.parse_string ctx.com (s2 ^ " typedef T = T") null_pos error false with
 				| _,[ETypedef t,_] -> t.d_meta
 				| _ -> assert false
@@ -374,7 +339,7 @@ let make_macro_api ctx p =
 				ctx.g.global_metadata <- (ExtString.String.nsplit s1 ".",m,config) :: ctx.g.global_metadata;
 			) meta;
 		);
-		Interp.add_module_check_policy = (fun sl il b i ->
+		MacroApi.add_module_check_policy = (fun sl il b i ->
 			let add ctx =
 				ctx.g.module_check_policies <- (List.fold_left (fun acc s -> (ExtString.String.nsplit s ".",List.map Obj.magic il,b) :: acc) ctx.g.module_check_policies sl);
 				Hashtbl.iter (fun _ m -> m.m_extra.m_check_policy <- Typeload.get_policy ctx m.m_path) ctx.g.modules;
@@ -388,6 +353,9 @@ let make_macro_api ctx p =
 			| CompilationServer.MacroContext -> add_macro ctx
 			| CompilationServer.NormalAndMacroContext -> add ctx; add_macro ctx;
 		);
+		MacroApi.on_reuse = (fun f ->
+			macro_interp_on_reuse := f :: !macro_interp_on_reuse
+		);
 	}
 
 let rec init_macro_interp ctx mctx mint =
@@ -396,7 +364,11 @@ let rec init_macro_interp ctx mctx mint =
 	ignore(Typeload.load_module mctx (["haxe";"macro"],"Type") p);
 	flush_macro_context mint ctx;
 	Interp.init mint;
-	if !macro_enable_cache && not (Common.defined mctx.com Define.NoMacroCache) then macro_interp_cache := Some mint
+	if !macro_enable_cache && not (Common.defined mctx.com Define.NoMacroCache) then begin
+		macro_interp_cache := Some mint;
+		macro_interp_on_reuse := [];
+		macro_interp_reused := true;
+	end
 
 and flush_macro_context mint ctx =
 	let t = macro_timer ctx ["flush"] in
@@ -405,8 +377,18 @@ and flush_macro_context mint ctx =
 	let _, types, modules = ctx.g.do_generate mctx in
 	mctx.com.types <- types;
 	mctx.com.Common.modules <- modules;
+	let check_reuse() =
+		if !macro_interp_reused then
+			true
+		else if not (List.for_all (fun f -> f())  !macro_interp_on_reuse) then
+			false
+		else begin
+			macro_interp_reused := true;
+			true;
+		end
+	in
 	(* if one of the type we are using has been modified, we need to create a new macro context from scratch *)
-	let mint = if not (Interp.can_reuse mint types) then begin
+	let mint = if not (Interp.can_reuse mint types && check_reuse()) then begin
 		let com2 = mctx.com in
 		let mint = Interp.create com2 (make_macro_api ctx Globals.null_pos) in
 		let macro = ((fun() -> Interp.select mint), mctx) in
@@ -452,6 +434,7 @@ let create_macro_interp ctx mctx =
 			let mint = Interp.create com2 (make_macro_api ctx null_pos) in
 			mint, (fun() -> init_macro_interp ctx mctx mint)
 		| Some mint ->
+			macro_interp_reused := false;
 			Interp.do_reuse mint (make_macro_api ctx null_pos);
 			mint, (fun() -> ())
 	) in
@@ -507,7 +490,7 @@ let load_macro ctx display cpath f p =
 		if display then mctx.com.display <- ctx.com.display;
 		let m = (try Hashtbl.find ctx.g.types_module cpath with Not_found -> cpath) in
 		let mloaded = Typeload.load_module mctx m p in
-		api.Interp.current_macro_module <- (fun() -> mloaded);
+		api.MacroApi.current_macro_module <- (fun() -> mloaded);
 		mctx.m <- {
 			curmod = mloaded;
 			module_types = [];
@@ -660,7 +643,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			| MAExpr ->
 				Interp.encode_expr e
 			| MAFunction ->
-				let e = ictx.Interp.curapi.Interp.type_macro_expr e in
+				let e = ictx.Interp.curapi.MacroApi.type_macro_expr e in
 				begin match Interp.eval_expr ictx e with
 				| Some v -> v
 				| None -> Interp.vnull
@@ -696,13 +679,13 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 					else try
 						let ct = Interp.decode_ctype v in
 						Typeload.load_complex_type ctx false p ct;
-					with Interp.Invalid_expr ->
+					with MacroApi.Invalid_expr ->
 						Interp.decode_type v
 					in
 					ctx.ret <- t;
 					(EBlock [],p)
 				)
-			with Interp.Invalid_expr ->
+			with MacroApi.Invalid_expr ->
 				if v = Interp.vnull then
 					error "Unexpected null value returned from macro" p
 				else
@@ -725,14 +708,14 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			delayed_macro_result := (fun() ->
 				let mint = Interp.get_ctx() in
 				match call() with
-				| None -> (fun() -> raise Interp.Abort)
+				| None -> (fun() -> raise MacroApi.Abort)
 				| Some e -> Interp.eval_delayed mint (type_expr ctx e Value)
 			);
 		);
 		ctx.m.curmod.m_extra.m_time <- -1.; (* disable caching for modules having macro-in-macro *)
 		if Common.defined ctx.com Define.MacroDebug then
 			ctx.com.warning "Macro-in-macro call detected" p;
-		let e = (EConst (Ident "__dollar__delay_call"),p) in
+		let e = (EConst (Ident "$__delayed_call__"),p) in
 		Some (EUntyped (ECall (e,[EConst (Int (string_of_int pos)),p]),p),p)
 	end else
 		call()
@@ -776,7 +759,8 @@ let interpret ctx =
 	| None -> ()
 	| Some e -> ignore(Interp.eval_expr mctx e)
 
-let setup = Interp.setup
+let setup() =
+	Interp.setup Interp.macro_api
 
 ;;
 load_macro_ref := load_macro;

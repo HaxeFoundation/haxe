@@ -356,7 +356,7 @@ let reify in_macro =
 		let pmin = (EConst (Int (string_of_int p.pmin)),p) in
 		let pmax = (EConst (Int (string_of_int p.pmax)),p) in
 		if in_macro then
-			(EUntyped (ECall ((EConst (Ident "__dollar__mk_pos"),p),[file;pmin;pmax]),p),p)
+			(EUntyped (ECall ((EConst (Ident "$__mk_pos__"),p),[file;pmin;pmax]),p),p)
 		else
 			to_obj [("file",file);("min",pmin);("max",pmax)] p
 	and to_expr_array a p = match a with
@@ -370,7 +370,7 @@ let reify in_macro =
 		in
 		let loop e = to_expr e (snd e) in
 		match fst e with
-		| EConst (Ident n) when n.[0] = '$' && String.length n > 1 ->
+		| EConst (Ident n) when n.[0] = '$' && String.length n > 1 && n <> "$__mk_pos__" ->
 			to_string n p
 		| EConst c ->
 			expr "EConst" [to_const c p]
