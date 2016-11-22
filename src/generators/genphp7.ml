@@ -704,19 +704,21 @@ let is_real_var field =
 *)
 let field_needs_rename field =
 	match field.cf_kind with
-		| Method _ ->
-			let (args, return_type) = get_function_signature field in
-			(match (field.cf_name, args) with
-				| ("__construct", _) -> true
-				| ("__destruct", args) -> is_void_type return_type && (match args with [] -> false | _ -> true)
-				| ("__get", [(_, _, arg_type)]) -> is_string_type arg_type && not (is_void_type return_type)
-				| ("__set", [(_, _, arg1_type); _]) -> is_string_type arg1_type && is_void_type return_type
-				| ("__isset", [(_, _, arg_type)]) -> is_string_type arg_type && not (is_bool_type return_type)
-				| ("__call", [(_, _, arg1_type); (_, _, arg2_type)]) -> is_string_type arg1_type && is_native_array_type arg2_type
-				| ("__callStatic", [(_, _, arg1_type); (_, _, arg2_type)]) -> is_string_type arg1_type && is_native_array_type arg2_type
-				| _ -> false
-			)
 		| Var _ -> false
+		| Method _ ->
+			match field.cf_name with
+				| "__construct" | "__destruct" | "__call" | "__callStatic" | "__get" | "__set" | "__isset"
+				| "__unset" | "__sleep" | "__wakeup" | "__toString" | "__invoke" | "__set_state" | "__clone"
+				| "__debugInfo" -> not (Meta.has Meta.PhpMagic field.cf_meta)
+				| _ -> false
+(**
+	Get valid `field` name.
+*)
+let field_name field =
+	if field_needs_rename field then
+		"__hx__renamed_" ^ field.cf_name
+	else
+		field.cf_name
 
 (**
 	PHP DocBlock types
@@ -2128,25 +2130,25 @@ class virtual type_builder ctx wrapper =
 					self#write "strlen(";
 					self#write_expr expr;
 					self#write ")"
-				| (_, FInstance (_, _, { cf_name = name })) -> write_access "->" name
-				| (_, FStatic (_, { cf_name = name; cf_kind = Var _ })) ->
+				| (_, FInstance (_, _, field)) -> write_access "->" (field_name field)
+				| (_, FStatic (_, ({ cf_kind = Var _ } as field))) ->
 					(match (reveal_expr expr).eexpr with
-						| TTypeExpr _ -> write_access "::" ("$" ^ name)
-						| _ -> write_access "->" name
+						| TTypeExpr _ -> write_access "::" ("$" ^ (field_name field))
+						| _ -> write_access "->" (field_name field)
 					)
-				| (_, FStatic (_, { cf_name = name; cf_kind = Method MethDynamic })) ->
+				| (_, FStatic (_, ({ cf_kind = Method MethDynamic } as field))) ->
 					(match expr_hierarchy with
 						| _ :: { eexpr = TCall ({ eexpr = TField (e, a) }, _) } :: _ when a == access ->
 							self#write "(";
-							write_access "::" ("$" ^ name);
+							write_access "::" ("$" ^ (field_name field));
 							self#write ")"
 						| _ ->
-							write_access "::" ("$" ^ name)
+							write_access "::" ("$" ^ (field_name field))
 					)
-				| (_, FStatic (_, ({ cf_name = name; cf_kind = Method _ } as field))) -> self#write_expr_field_static expr field
-				| (_, FAnon { cf_name = field_name }) ->
-					let written_as_probable_string = self#write_expr_field_if_string expr field_name in
-					if not written_as_probable_string then write_access "->" field_name
+				| (_, FStatic (_, ({ cf_kind = Method _ } as field))) -> self#write_expr_field_static expr field
+				| (_, FAnon field) ->
+					let written_as_probable_string = self#write_expr_field_if_string expr (field_name field) in
+					if not written_as_probable_string then write_access "->" (field_name field)
 				| (_, FDynamic field_name) ->
 					let written_as_probable_string = self#write_expr_field_if_string expr field_name in
 					if not written_as_probable_string then write_access "->" field_name
@@ -2199,8 +2201,8 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write_expr_call_string expr access args =
 			match access with
-				| FInstance (_, _, { cf_name = method_name; cf_kind = Method _ }) ->
-					self#write ((self#use hxstring_type_path) ^ "::" ^ method_name ^ "(");
+				| FInstance (_, _, ({ cf_kind = Method _ } as field)) ->
+					self#write ((self#use hxstring_type_path) ^ "::" ^ (field_name field) ^ "(");
 					write_args buffer self#write_expr (expr :: args);
 					self#write ")"
 				| _ -> fail self#pos __POS__
@@ -2220,14 +2222,14 @@ class virtual type_builder ctx wrapper =
 			match expr_hierarchy with
 				| _ :: { eexpr = TCall ({ eexpr = TField (e, FStatic (_, f)) }, _) } :: _ when e == expr && f == field ->
 					write_expr ();
-					self#write (operator ^ field.cf_name)
+					self#write (operator ^ (field_name field))
 				| _ ->
 					let (args, return_type) = get_function_signature field  in
 					self#write "function(";
 					write_args buffer (self#write_arg true) args;
 					self#write ") { return ";
 					write_expr ();
-					self#write (operator ^ field.cf_name ^ "(");
+					self#write (operator ^ (field_name field) ^ "(");
 					write_args buffer (self#write_arg false) args;
 					self#write "); }"
 		(**
@@ -2238,7 +2240,7 @@ class virtual type_builder ctx wrapper =
 			match expr.eexpr with
 				| TTypeExpr mtype ->
 					let class_name = self#use_t (type_of_module_type mtype) in
-					self#write (new_closure ^ "(" ^ class_name ^ "::class, '" ^ field.cf_name ^ "')");
+					self#write (new_closure ^ "(" ^ class_name ^ "::class, '" ^ (field_name field) ^ "')");
 				| _ ->
 					self#write (new_closure ^ "(");
 					(match follow expr.etype with
@@ -2249,7 +2251,7 @@ class virtual type_builder ctx wrapper =
 						| _ ->
 							self#write_expr expr
 					);
-					self#write (", '" ^ field.cf_name ^ "')")
+					self#write (", '" ^ (field_name field) ^ "')")
 		(**
 			Write anonymous object declaration to output buffer
 		*)
@@ -2284,7 +2286,7 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write_expr_call_lang_extern expr args =
 			let name = match expr.eexpr with
-				| TField (_, FStatic (_, { cf_name = name })) -> name
+				| TField (_, FStatic (_, field)) -> field_name field
 				| _ -> fail self#pos __POS__
 			in
 			match name with
@@ -2506,7 +2508,7 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write_expr_php_global target_expr =
 			match target_expr.eexpr with
-				| TField (_, FStatic (_, field)) -> self#write field.cf_name
+				| TField (_, FStatic (_, field)) -> self#write (field_name field)
 				| _ -> fail self#pos __POS__
 		(**
 			Writes access to PHP class constant
@@ -2514,7 +2516,7 @@ class virtual type_builder ctx wrapper =
 		method private write_expr_php_class_const target_expr =
 			match target_expr.eexpr with
 				| TField (_, FStatic (ecls, field)) ->
-					self#write ((self#use_t (TInst (ecls, []))) ^ "::" ^ field.cf_name)
+					self#write ((self#use_t (TInst (ecls, []))) ^ "::" ^ (field_name field))
 				| _ -> fail self#pos __POS__
 		(**
 			Writes TNew to output buffer
@@ -2986,7 +2988,7 @@ class class_builder ctx (cls:tclass) =
 		method private write_hx_init_body =
 			(* `static dynamic function` initialization *)
 			let write_dynamic_method_initialization field =
-				let field_access = "self::$" ^ field.cf_name in
+				let field_access = "self::$" ^ (field_name field) in
 				self#write_indentation;
 				self#write (field_access ^ " = ");
 				(match field.cf_expr with
@@ -3006,7 +3008,7 @@ class class_builder ctx (cls:tclass) =
 			let write_var_initialization _ field =
 				let write_assign expr =
 					self#write_indentation;
-					self#write ("self::$" ^ field.cf_name ^ " = ");
+					self#write ("self::$" ^ (field_name field) ^ " = ");
 					self#write_expr expr
 				in
 				(* Do not generate fields for RTTI meta, because this generator uses another way to store it *)
@@ -3057,7 +3059,7 @@ class class_builder ctx (cls:tclass) =
 			self#write_indentation;
 			if is_static then self#write "static ";
 			let visibility = get_visibility field.cf_meta in
-			self#write (visibility ^ " $" ^ field.cf_name);
+			self#write (visibility ^ " $" ^ (field_name field));
 			match field.cf_expr with
 				| None -> self#write ";\n"
 				| Some expr ->
@@ -3074,7 +3076,7 @@ class class_builder ctx (cls:tclass) =
 			self#indent 1;
 			self#write_doc (DocVar (self#use_t field.cf_type, field.cf_doc));
 			self#write_indentation;
-			self#write ("const " ^ field.cf_name ^ " = ");
+			self#write ("const " ^ (field_name field) ^ " = ");
 			match field.cf_expr with
 				| None -> fail self#pos __POS__
 				| Some expr ->
@@ -3095,12 +3097,12 @@ class class_builder ctx (cls:tclass) =
 			self#write ((get_visibility field.cf_meta) ^ " ");
 			match field.cf_expr with
 				| None ->
-					self#write ("function " ^ field.cf_name ^ " (");
+					self#write ("function " ^ (field_name field) ^ " (");
 					write_args buffer (self#write_arg true) args;
 					self#write ")";
 					self#write " ;\n"
 				| Some { eexpr = TFunction fn } ->
-					let name = if field.cf_name = "new" then "__construct" else field.cf_name in
+					let name = if field.cf_name = "new" then "__construct" else (field_name field) in
 					self#write_expr_function ~name:name fn;
 					self#write "\n"
 				| _ -> fail field.cf_pos __POS__
@@ -3115,7 +3117,7 @@ class class_builder ctx (cls:tclass) =
 			List.iter (fun (arg_name, _, _) -> vars#declared arg_name) args;
 			self#write_doc (DocMethod (args, return_type, field.cf_doc));
 			self#write_indentation;
-			self#write ((get_visibility field.cf_meta) ^ " function " ^ field.cf_name);
+			self#write ((get_visibility field.cf_meta) ^ " function " ^ (field_name field));
 			(match field.cf_expr with
 				| None -> (* interface *)
 					self#write " (";
@@ -3128,14 +3130,14 @@ class class_builder ctx (cls:tclass) =
 					self#write_line "{";
 					self#indent_more;
 					self#write_indentation;
-					let field_access = "$this->" ^ field.cf_name
-					and default_value = "$this->__hx__default__" ^ field.cf_name in
+					let field_access = "$this->" ^ (field_name field)
+					and default_value = "$this->__hx__default__" ^ (field_name field) in
 					self#write ("if (" ^ field_access ^ " !== " ^ default_value ^ ") return call_user_func_array(" ^ field_access ^ ", func_get_args());\n");
 					self#write_fake_block fn.tf_expr;
 					self#indent_less;
 					self#write_line "}";
 					(* Don't forget to create a field for default value *)
-					self#write_statement ("protected $__hx__default__" ^ field.cf_name)
+					self#write_statement ("protected $__hx__default__" ^ (field_name field))
 				| _ -> fail field.cf_pos __POS__
 			);
 		(**
@@ -3143,11 +3145,12 @@ class class_builder ctx (cls:tclass) =
 		*)
 		method private write_instance_initialization =
 			let init_dynamic_method field =
-				let default_field = "$this->__hx__default__" ^ field.cf_name in
+				let field_name = field_name field in
+				let default_field = "$this->__hx__default__" ^ field_name in
 				self#write_line ("if (!" ^ default_field ^ ") {");
 				self#indent_more;
-				self#write_statement (default_field ^ " = new " ^ (self#use hxclosure_type_path) ^ "($this, '" ^ field.cf_name ^ "')");
-				self#write_statement ("if ($this->" ^ field.cf_name ^ " === null) $this->" ^ field.cf_name ^ " = " ^ default_field);
+				self#write_statement (default_field ^ " = new " ^ (self#use hxclosure_type_path) ^ "($this, '" ^ field_name ^ "')");
+				self#write_statement ("if ($this->" ^ field_name ^ " === null) $this->" ^ field_name ^ " = " ^ default_field);
 				self#indent_less;
 				self#write_line "}"
 			in

@@ -47,7 +47,7 @@ class Boot {
 		Initialization stuff.
 		This method is called once before invoking any Haxe-generated user code.
 	**/
-	static function __init__() {
+	function __init__() {
 		if (!Global.defined('HAXE_CUSTOM_ERROR_HANDLER') || !Const.HAXE_CUSTOM_ERROR_HANDLER) {
 			var previousLevel = Global.error_reporting(Const.E_ALL);
 			var previousHandler = Global.set_error_handler(
@@ -498,6 +498,7 @@ private class HxClass {
 	/**
 		Magic method to call static methods of this class, when `HxClass` instance is in a `Dynamic` variable.
 	**/
+	@:phpMagic
 	function __call( method:String, args:NativeArray ) : Dynamic {
 		var callback = phpClassName + '::' + method;
 		return Global.call_user_func_array(callback, args);
@@ -506,6 +507,7 @@ private class HxClass {
 	/**
 		Magic method to get static vars of this class, when `HxClass` instance is in a `Dynamic` variable.
 	**/
+	@:phpMagic
 	function __get( property:String ) : Dynamic {
 		if (Boot.hasGetter(phpClassName, property)) {
 			return Syntax.staticCall(phpClassName, 'get_$property');
@@ -517,6 +519,7 @@ private class HxClass {
 	/**
 		Magic method to set static vars of this class, when `HxClass` instance is in a `Dynamic` variable.
 	**/
+	@:phpMagic
 	function __set( property:String, value:Dynamic ) : Void {
 		if (Boot.hasSetter(phpClassName, property)) {
 			Syntax.staticCall(phpClassName, 'set_$property', value);
@@ -570,6 +573,7 @@ private class HxEnum {
 	/**
 		PHP magic method to get string representation of this `Class`
 	**/
+	@:phpMagic
 	public function __toString() : String {
 		var result = tag;
 		if (Global.count(params) > 0) {
@@ -703,6 +707,7 @@ private class HxDynamicStr {
 		this.str = str;
 	}
 
+	@:phpMagic
 	function __get( field:String ) : Dynamic {
 		switch (field) {
 			case 'length':      return str.length;
@@ -721,6 +726,7 @@ private class HxDynamicStr {
 		return Syntax.getField(str, field);
 	}
 
+	@:phpMagic
 	function __call( method:String, args:NativeArray ) : Dynamic {
 		Global.array_unshift(args, str);
 		return Global.call_user_func_array(hxString + '::' + method, args);
@@ -741,10 +747,12 @@ private class HxAnon extends StdClass {
 		}
 	}
 
+	@:phpMagic
 	function __get( name:String ) {
 		return null;
 	}
 
+	@:phpMagic
 	function __call( name:String, args:NativeArray ) : Dynamic {
 		var method = Syntax.getField(this, name);
 		Syntax.keepVar(method);
@@ -775,6 +783,7 @@ private class HxClosure {
 	/**
 		@see http://php.net/manual/en/language.oop5.magic.php#object.invoke
 	**/
+	@:phpMagic
 	public function __invoke() {
 		return Global.call_user_func_array(getCallback(), Global.func_get_args());
 	}

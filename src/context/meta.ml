@@ -118,6 +118,7 @@ type strict_meta =
 	| PhpConstants
 	| PhpGlobal
 	| PhpClassConst
+	| PhpMagic
 	| PrivateAccess
 	| Property
 	| Protected
@@ -310,6 +311,7 @@ let get_info = function
 	| PhpConstants -> ":phpConstants",("Marks the static fields of a class as PHP constants, without $",[Platform Php;UsedOn TClass])
 	| PhpGlobal -> ":phpGlobal",("Puts the static fields of a class in the global PHP namespace",[Platforms [Php;Php7];UsedOn TClass])
 	| PhpClassConst -> ":phpClassConst",("Generate static var of an extern class as a PHP class constant",[Platform Php7;UsedOn TClass])
+	| PhpMagic -> ":phpMagic",("Treat annotated field as special PHP magic field",[Platform Php7;UsedOn TClassField])
 	| Public -> ":public",("Marks a class field as being public",[UsedOn TClassField;UsedInternally])
 	| PublicFields -> ":publicFields",("Forces all class fields of inheriting classes to be public",[UsedOn TClass])
 	| QuotedField -> ":quotedField",("Used internally to mark structure fields which are quoted in syntax",[UsedInternally])
