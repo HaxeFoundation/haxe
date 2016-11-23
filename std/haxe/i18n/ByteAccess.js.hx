@@ -34,6 +34,13 @@ abstract ByteAccess(Uint8Array) {
 		Uint8ArrayTools.set(this, pos, v);
 	}
 
+	public inline function setInt32( pos : Int, v : Int ) : Void {
+		Uint8ArrayTools.set(this, pos, (v >> 24) & 0xFF );
+		Uint8ArrayTools.set(this, pos+1, (v >> 16) & 0xFF );
+		Uint8ArrayTools.set(this, pos+2, (v >> 8) & 0xFF );
+		Uint8ArrayTools.set(this, pos+3, v & 0xFF );
+	}
+
 	inline function getData():BytesData {
 		return Uint8ArrayTools.getData(this);
 	}
