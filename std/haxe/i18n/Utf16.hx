@@ -21,9 +21,9 @@
  */
 package haxe.i18n;
 
-typedef Utf16Impl = {
-	b : ByteAccess,
-	length : Int
+@:structInit class Utf16Impl {
+	public var b(default, null) : ByteAccess;
+	public var length(default,null) : Int;
 }
 
 @:allow(haxe.i18n)

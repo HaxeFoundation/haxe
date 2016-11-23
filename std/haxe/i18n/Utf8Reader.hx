@@ -1,20 +1,18 @@
 package haxe.i18n;
 
-class Utf8Reader {
-
-	var bytes : ByteAccess;
+abstract Utf8Reader(ByteAccess) {
 
 	public inline function new (bytes:ByteAccess) {
-		this.bytes = bytes;
+		this = bytes;
 	}
 
 	public var length(get, never):Int;
 
 	inline function get_length () {
-		return bytes.length;
+		return this.length;
 	}
 
 	public inline function fastGet (pos:Int) {
-		return bytes.fastGet(pos);
+		return this.fastGet(pos);
 	}
 }

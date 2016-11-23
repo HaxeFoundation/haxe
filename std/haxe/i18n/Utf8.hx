@@ -25,9 +25,9 @@ import haxe.io.Bytes;
 import haxe.i18n.Utf8Tools;
 
 
-typedef Utf8Impl = {
-	b : ByteAccess,
-	length : Int
+@:structInit class Utf8Impl {
+	public var b(default,null) : ByteAccess;
+	public var length(default,null) : Int;
 }
 
 abstract Utf8(Utf8Impl) {

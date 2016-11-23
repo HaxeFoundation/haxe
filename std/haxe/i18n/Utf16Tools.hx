@@ -20,7 +20,7 @@ class Utf16Tools {
 		return impl.length;//calcLength(impl);
 	}
 
-	static inline function mkImplFromBuffer(buf:ByteAccessBuffer, newSize:Int) {
+	static inline function mkImplFromBuffer(buf:ByteAccessBuffer, newSize:Int):Utf16Impl {
 		return {
 			b : buf.getByteAccess(),
 			length : newSize
@@ -44,7 +44,7 @@ class Utf16Tools {
 		}
 	}
 
-	static inline function allocImpl (size:Int, strLength:Int) {
+	static inline function allocImpl (size:Int, strLength:Int):Utf16Impl {
 		return {
 			b : ByteAccess.alloc(size),
 			length : strLength
@@ -61,12 +61,12 @@ class Utf16Tools {
 		return impl.b.getInt32(pos);
 	}
 
-	public static inline function fromByteAccess (ba:ByteAccess):Utf16Impl {
+	static inline function fromByteAccess (ba:ByteAccess):Utf16Impl {
 		var len = calcLength(ba);
 		return { length : len, b : ba};
 	}
 
-	public static function toNativeString(impl:Utf16Impl) : String {
+	static function toNativeString(impl:Utf16Impl) : String {
 		return impl.b.getString(0, impl.b.length);
 	}
 
@@ -74,7 +74,7 @@ class Utf16Tools {
 		return impl.length == other.length && impl.b.equal(other.b);
 	}
 
-	static inline function append (impl:Utf16Impl, other:Utf16Impl) {
+	static inline function append (impl:Utf16Impl, other:Utf16Impl):Utf16Impl {
 		if (other.length == 0) return impl;
 		if (impl.length == 0) return other;
 		return {
@@ -83,7 +83,7 @@ class Utf16Tools {
 		}
 	}
 
-	public static inline function toBytes(impl:Utf16Impl) : haxe.io.Bytes {
+	static inline function toBytes(impl:Utf16Impl) : haxe.io.Bytes {
 		return impl.b.copy().toBytes();
 	}
 
@@ -164,7 +164,7 @@ class Utf16Tools {
 
 	 // string functions
 
-	public static function toUpperCase(impl:Utf16Impl) : Utf16Impl {
+	static function toUpperCase(impl:Utf16Impl) : Utf16Impl {
 		var res = allocImpl(byteLength(impl), strLength(impl));
 		var i = 0;
 		while (i < byteLength(impl)) {
@@ -175,7 +175,7 @@ class Utf16Tools {
 		}
 		return res;
 	}
-	public static function toLowerCase(impl:Utf16Impl) : Utf16Impl {
+	static function toLowerCase(impl:Utf16Impl) : Utf16Impl {
 		var res = allocImpl(byteLength(impl), strLength(impl));
 		var i = 0;
 		while (i < byteLength(impl)) {
@@ -187,7 +187,7 @@ class Utf16Tools {
 		return res;
 	}
 
-	public static function charAt(impl:Utf16Impl, index : Int) : Utf16Impl {
+	static function charAt(impl:Utf16Impl, index : Int) : Utf16Impl {
 		var pos = 0;
 		var i = 0;
 		while (i < byteLength(impl)) {
@@ -202,7 +202,7 @@ class Utf16Tools {
 		return empty;
 	}
 
-	public static function toCodeArray (impl:Utf16Impl) {
+	static function toCodeArray (impl:Utf16Impl) {
 		var res = [];
 		eachCode(impl, function (c) res.push(c));
 		return res;
@@ -238,7 +238,7 @@ class Utf16Tools {
 		}
 	}
 
-	public static function indexOf( impl:Utf16Impl, str : Utf16Impl, ?startIndex : Int ) : Int
+	static function indexOf( impl:Utf16Impl, str : Utf16Impl, ?startIndex : Int ) : Int
 	{
 
 		var res = -1;
@@ -338,7 +338,7 @@ class Utf16Tools {
 		return res;
 	}
 	
-	public static function split( impl:Utf16Impl, delimiter : Utf16Impl ) : Array<Utf16>
+	static function split( impl:Utf16Impl, delimiter : Utf16Impl ) : Array<Utf16>
 	{
 		var delimiterLen = strLength(delimiter);
 		var buf = new ByteAccessBuffer();
@@ -452,7 +452,7 @@ class Utf16Tools {
 		return mkImplFromBuffer(buf, newSize);
 	}
 
-	public static function substring( impl:Utf16Impl, startIndex : Int, ?endIndex : Int ) : Utf16Impl {
+	static function substring( impl:Utf16Impl, startIndex : Int, ?endIndex : Int ) : Utf16Impl {
 		var startIndex:Null<Int> = startIndex;
 		var len = strLength(impl);
 		var endIndexIsNull = endIndex == null; 
@@ -475,21 +475,13 @@ class Utf16Tools {
 		return substr(impl, startIndex, endIndex - startIndex);
 	}
 
-	
-
-	public static function fromCharCode( code : Int ) : Utf16Impl
+	static function fromCharCode( code : Int ) : Utf16Impl
 	{
 		return {
 			b : Encoding.charCodeToUtf16ByteAccess(code),
 			length : 1
 		}
 	}
-/*
-	public static function fromBytes( bytes : haxe.io.Bytes ) : Utf16Impl {
-		return ByteAccess.fromBytes(bytes).copy();
-	}
-*/
-	
 
  	// string functions
 

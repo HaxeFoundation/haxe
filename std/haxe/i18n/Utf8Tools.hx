@@ -24,7 +24,7 @@ class Utf8Tools {
 		return ba.length;
 	}
 
-	static inline function mkImplFromBuffer(buf:ByteAccessBuffer, newSize:Int) {
+	static inline function mkImplFromBuffer(buf:ByteAccessBuffer, newSize:Int):Utf8Impl {
 		return {
 			b : buf.getByteAccess(),
 			length : newSize
@@ -40,7 +40,7 @@ class Utf8Tools {
 		}
 	}
 
-	static inline function allocImpl (size:Int, strLength:Int) {
+	static inline function allocImpl (size:Int, strLength:Int):Utf8Impl {
 		return {
 			b : ByteAccess.alloc(size),
 			length : strLength

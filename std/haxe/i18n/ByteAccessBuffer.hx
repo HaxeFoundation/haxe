@@ -1,7 +1,37 @@
 package haxe.i18n;
 
 import haxe.io.Bytes;
+
 import haxe.io.BytesBuffer;
+
+
+@:access(haxe.io.BytesBuffer)
+class BytesBufferTools {
+
+	public static function reset(buffer:BytesBuffer) {
+		#if neko
+		buffer.b = untyped StringBuf.__make();
+		#elseif flash
+		buffer.b = new flash.utils.ByteArray();
+		buffer.b.endian = flash.utils.Endian.LITTLE_ENDIAN;
+		#elseif php
+		buffer.b = "";
+		#elseif cpp
+		buffer.b = new haxe.io.BytesData();
+		#elseif cs
+		buffer.b = new cs.system.io.MemoryStream();
+		#elseif java
+		buffer.b = new java.io.ByteArrayOutputStream();
+		#elseif hl
+		buffer.b = new hl.types.Bytes(buffer.size);
+		buffer.pos = 0;
+		#else
+		buffer.b = new Array();
+		#end
+	}
+
+
+}
 
 // TODO write a faster ByteAccessBuffer without using BytesBuffer or by
 // adding addByteAccess and getByteAccess to BytesBuffer

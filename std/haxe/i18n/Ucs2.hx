@@ -32,11 +32,6 @@ abstract Ucs2(String) {
 	public var length(get,never) : Int;
 
 	public inline function new(str:String) : Void {
-		#if (java || js || cs || flash)
-		// problem, java,js,java,cs have ucs2 apis but, the underlying string can actually
-		// contain utf16 characters (invalid in ucs2), should we validate them at this point?	
-		#end
-		
 		this = str;
 	}
 
@@ -266,8 +261,6 @@ abstract Ucs2(ByteAccess) {
 	public function toLowerCase() : Ucs2 {
 		return fromImpl(Ucs2Tools.toLowerCase(this));
 	}
-
-	static var empty = new Ucs2(""); 
 
 	public function charAt(index : Int) : Ucs2 {
 		return fromImpl(Ucs2Tools.charAt(this, index));

@@ -65,6 +65,8 @@ import haxe.i18n.ByteAccessBuffer;
 //#endif
 //#include <assert.h>
 
+import haxe.ds.Vector;
+
 
 enum ConversionError {
     SourceExhausted;
@@ -118,7 +120,7 @@ class Encoding {
      * left as-is for anyone who may want to do such conversion, which was
      * allowed in earlier algorithms.
      */
-    static var trailingBytesForUTF8:Array<Int> = [
+    static var trailingBytesForUTF8:Vector<Int> = Vector.fromArrayCopy([
         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -127,7 +129,7 @@ class Encoding {
         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
         1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
         2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2, 3,3,3,3,3,3,3,3,4,4,4,4,5,5,5,5
-    ];
+    ]);
 
 
     /*
@@ -135,10 +137,10 @@ class Encoding {
      * This table contains as many values as there might be trailing bytes
      * in a UTF-8 sequence.
      */
-    static var offsetsFromUTF8:Array<Int> = [ // UNSIGNED LONG
+    static var offsetsFromUTF8:Vector<Int> = Vector.fromArrayCopy([ // UNSIGNED LONG
         0x00000000, 0x00003080, 0x000E2080,
         0x03C82080, 0xFA082080, 0x82082080
-    ];
+    ]);
 
     /*
      * Once the bits are split out into bytes of UTF-8, this is a mask OR-ed
@@ -147,9 +149,9 @@ class Encoding {
      * (I.e., one byte sequence, two byte... etc.). Remember that sequencs
      * for *legal* UTF-8 will be 4 or fewer bytes total.
      */
-    static var firstByteMark:Array<Int> = [
+    static var firstByteMark:Vector<Int> =  Vector.fromArrayCopy([
         0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC
-    ];
+    ]);
 
     public static function charCodeToUtf16ByteAccess (code:Int):ByteAccess {
 		var size = getUtf16CodeSize(code);
