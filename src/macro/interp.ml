@@ -3192,7 +3192,7 @@ let enc_hash h =
 		"h", VAbstract (AHash h);
 	]
 
-let enc_obj l = VObject (obj hash l)
+let enc_obj _ l = VObject (obj hash l)
 
 let encode_enum (i:enum_index) pos index pl =
 	let eindex : int = Obj.magic i in
@@ -3208,7 +3208,7 @@ let encode_enum (i:enum_index) pos index pl =
 		)
 
 let encode_ref v convert tostr =
-	enc_obj [
+	enc_obj O__Const [
 		"get", VFunction (Fun0 (fun() -> convert v));
 		"__string", VFunction (Fun0 (fun() -> VString (tostr())));
 		"toString", VFunction (Fun0 (fun() -> enc_string (tostr())));

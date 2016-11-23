@@ -1398,12 +1398,12 @@ and eval_expr ctx e =
 		before_return ctx;
 		let r = alloc_tmp ctx HVoid in
 		op ctx (ORet r);
-		r
+		alloc_tmp ctx HDyn
 	| TReturn (Some e) ->
 		let r = eval_to ctx e ctx.m.mret in
 		before_return ctx;
 		op ctx (ORet r);
-		alloc_tmp ctx HVoid
+		alloc_tmp ctx HDyn
 	| TParenthesis e ->
 		eval_expr ctx e
 	| TBlock el ->
@@ -2907,6 +2907,7 @@ let generate_static ctx c f =
 let rec generate_member ctx c f =
 	match f.cf_kind with
 	| Var _ -> ()
+	| _ when is_extern_field f -> ()
 	| Method m ->
 		let gen_content = if f.cf_name <> "new" then None else Some (fun() ->
 

@@ -254,7 +254,8 @@ class TypeTools {
 	}
 
 	#if !neko
-	private static function applyParams( typeParameters:Array<TypeParameter>, concreteTypes:Array<Type>, t:Type ) {
+	private static function applyParams( typeParameters:Array<TypeParameter>, concreteTypes:Array<Type>, t:Type ) : Type {
+		return null;
 	}
 	#end
 

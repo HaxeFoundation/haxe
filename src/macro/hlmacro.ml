@@ -233,13 +233,13 @@ let decode_enum = function
 	| _ -> raise Invalid_expr
 
 let decode_enum_with_pos = function
-	| VEnum (tag,arr) when Array.length arr > 0 ->
+	| VEnum (tag,arr) when Array.length arr > 0 && (match arr.(Array.length arr - 1) with VAbstract (APos _) -> true | _ -> false) ->
 		let rec loop i =
 			if i = Array.length arr - 1 then [] else arr.(i) :: loop (i + 1)
 		in
 		(tag, loop 0), decode_pos arr.(Array.length arr - 1)
-	| _ ->
-		raise Invalid_expr
+	| e ->
+		decode_enum e, Globals.null_pos
 
 
 let encode_tdecl t = VAbstract (ATDecl t)
@@ -274,7 +274,15 @@ let dec_string = function
 	| VObj { ofields = [|VBytes s;VInt _|] } -> Hlinterp.hl_to_caml s
 	| _ -> raise Invalid_expr
 
-let dec_array (e:value) = assert false
+let dec_array = function
+	| VObj { ofields = [|VInt len;VArray (arr,_)|] } ->
+		let len = Int32.to_int len in
+		let rec loop i =
+			if i = len then [] else arr.(i) :: loop (i+1)
+		in
+		loop 0
+	| v ->
+		raise Invalid_expr
 
 let encode_lazytype f t = VAbstract (ALazyType (f,t))
 
@@ -282,7 +290,7 @@ let decode_lazytype = function
 	| VAbstract (ALazyType (t,_)) -> t
 	| _ -> raise Invalid_expr
 
-let enc_obj fields =
+let enc_obj t fields =
 	assert false
 
 let enc_inst path fields =

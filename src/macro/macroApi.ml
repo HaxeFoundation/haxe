@@ -72,6 +72,54 @@ type enum_index =
 	| IAnonStatus
 	| IImportMode
 
+type obj_type =
+	(* make_const *)
+	| O__Const
+	(* Expr *)
+	| OImportExpr
+	| OImportExpr_path
+	| OTypePath
+	| OMetadataEntry
+	| OField
+	| OTypeParamDecl
+	| OFunction
+	| OFunctionArg
+	| OExprDef_fields
+	| OVar
+	| OCase
+	| OCatch
+	| OExprDef
+	(* Type *)
+	| OMetaAccess
+	| OTypeParameter
+	| OClassType
+	| OAbstractType
+	| OAnonType
+	| ODefType
+	| OEnumType
+	| OClassField
+	| OAbstractType_binops
+	| OAbstractType_unops
+	| OAbstractType_from
+	| OAbstractType_to
+	| OEnumField
+	| OClassType_superClass
+	| OClassType_interfaces
+	| OType_args
+	| OTVar
+	| OTVar_extra
+	| OTFunc
+	| OTFunc_args
+	| OFieldAccess_c
+	| OTypedExprDef
+	| OTypedExprDef_fields
+	| OTypedExprDef_cases
+	| OTypedExprDef_catches
+	| OJSGenApi
+	| OContext_getPosInfos
+	| OCompiler_getDisplayPos
+(* ---- ^^^^^ please exactly match the name of the typedef or use TypeName_field if it's a anonymous *)
+
 (**
 	Our access to the interpreter from the macro api
 **)
@@ -87,7 +135,7 @@ module type InterpApi = sig
 
 	val enc_array : value list -> value
 	val enc_string  : string -> value
-	val enc_obj : (string * value) list -> value
+	val enc_obj : obj_type -> (string * value) list -> value
 
 	val vfun0 : (unit -> value) -> value
 	val vfun1 : (value -> value) -> value
@@ -253,8 +301,8 @@ let encode_import (path,mode) =
 		| IAll -> 2,[]
 	in
 	let mode = encode_enum IImportMode tag pl in
-	enc_obj [
-		"path", enc_array (List.map (fun (name,p) -> enc_obj [ "pos", encode_pos p; "name", enc_string name]) path);
+	enc_obj OImportExpr [
+		"path", enc_array (List.map (fun (name,p) -> enc_obj OImportExpr_path [ "pos", encode_pos p; "name", enc_string name]) path);
 		"mode", mode
 	]
 
@@ -267,8 +315,8 @@ let rec encode_path (t,_) =
 		"name", enc_string t.tname;
 		"params", enc_array (List.map encode_tparam t.tparams);
 	] in
-	enc_obj (match t.tsub with
-		| None ->  fields
+	enc_obj OTypePath (match t.tsub with
+		| None -> fields
 		| Some s -> ("sub", enc_string s) :: fields)
 
 and encode_tparam = function
@@ -288,7 +336,7 @@ and encode_access a =
 	encode_enum IAccess tag []
 
 and encode_meta_entry (m,ml,p) =
-	enc_obj [
+	enc_obj OMetadataEntry [
 		"name", enc_string (Meta.to_string m);
 		"params", enc_array (List.map encode_expr ml);
 		"pos", encode_pos p;
@@ -303,7 +351,7 @@ and encode_field (f:class_field) =
 		| FFun f -> 1, [encode_fun f]
 		| FProp (get,set, t, e) -> 2, [encode_placed_name get; encode_placed_name set; null encode_ctype t; null encode_expr e]
 	in
-	enc_obj [
+	enc_obj OField [
 		"name",encode_placed_name f.cff_name;
 		"name_pos", encode_pos (pos f.cff_name);
 		"doc", null enc_string f.cff_doc;
@@ -331,7 +379,7 @@ and encode_ctype t =
 	encode_enum ~pos:(Some (pos t)) ICType tag pl
 
 and encode_tparam_decl tp =
-	enc_obj [
+	enc_obj OTypeParamDecl [
 		"name", encode_placed_name tp.tp_name;
 		"name_pos", encode_pos (pos tp.tp_name);
 		"params", enc_array (List.map encode_tparam_decl tp.tp_params);
@@ -340,10 +388,10 @@ and encode_tparam_decl tp =
 	]
 
 and encode_fun f =
-	enc_obj [
+	enc_obj OFunction [
 		"params", enc_array (List.map encode_tparam_decl f.f_params);
 		"args", enc_array (List.map (fun (n,opt,m,t,e) ->
-			enc_obj [
+			enc_obj OFunctionArg [
 				"name", encode_placed_name n;
 				"name_pos", encode_pos (pos n);
 				"opt", vbool opt;
@@ -370,7 +418,7 @@ and encode_expr e =
 			| EParenthesis e ->
 				4, [loop e]
 			| EObjectDecl fl ->
-				5, [enc_array (List.map (fun ((f,p),e) -> enc_obj [
+				5, [enc_array (List.map (fun ((f,p),e) -> enc_obj OExprDef_fields [
 					"field",enc_string f;
 					"name_pos",encode_pos p;
 					"expr",loop e;
@@ -385,7 +433,7 @@ and encode_expr e =
 				9, [encode_unop op; vbool (match flag with Prefix -> false | Postfix -> true); loop e]
 			| EVars vl ->
 				10, [enc_array (List.map (fun (v,t,eo) ->
-					enc_obj [
+					enc_obj OVar [
 						"name",encode_placed_name v;
 						"name_pos",encode_pos (pos v);
 						"type",null encode_ctype t;
@@ -406,7 +454,7 @@ and encode_expr e =
 				16, [loop econd;loop e;vbool (match flag with NormalWhile -> true | DoWhile -> false)]
 			| ESwitch (e,cases,eopt) ->
 				17, [loop e;enc_array (List.map (fun (ecl,eg,e,p) ->
-					enc_obj [
+					enc_obj OCase [
 						"values",enc_array (List.map loop ecl);
 						"guard",null loop eg;
 						"expr",null loop e;
@@ -415,7 +463,7 @@ and encode_expr e =
 				) cases);null (fun (e,_) -> encode_null_expr e) eopt]
 			| ETry (e,catches) ->
 				18, [loop e;enc_array (List.map (fun (v,t,e,p) ->
-					enc_obj [
+					enc_obj OCatch [
 						"name",encode_placed_name v;
 						"name_pos",encode_pos (pos v);
 						"type",encode_ctype t;
@@ -446,7 +494,7 @@ and encode_expr e =
 			| EMeta (m,e) ->
 				29, [encode_meta_entry m;loop e]
 		in
-		enc_obj [
+		enc_obj OExprDef [
 			"pos", encode_pos p;
 			"expr", encode_enum IExpr tag pl;
 		]
@@ -456,7 +504,7 @@ and encode_expr e =
 and encode_null_expr e =
 	match e with
 	| None ->
-		enc_obj ["pos", vnull;"expr",vnull]
+		enc_obj OExprDef ["pos", vnull;"expr",vnull]
 	| Some e ->
 		encode_expr e
 
@@ -731,7 +779,7 @@ let vopt f v = match v with
 
 let encode_meta m set =
 	let meta = ref m in
-	enc_obj [
+	enc_obj OMetaAccess [
 		"get", vfun0 (fun() ->
 			encode_meta_content (!meta)
 		);
@@ -760,9 +808,9 @@ let encode_meta m set =
 		);
 	]
 
-let rec encode_mtype t fields =
+let rec encode_mtype ot t fields =
 	let i = t_infos t in
-	enc_obj ([
+	enc_obj ot ([
 		"__t", 	encode_tdecl t;
 		"pack", enc_array (List.map enc_string (fst i.mt_path));
 		"name", enc_string (snd i.mt_path);
@@ -775,10 +823,10 @@ let rec encode_mtype t fields =
 	] @ fields)
 
 and encode_type_params tl =
-	enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) tl)
+	enc_array (List.map (fun (n,t) -> enc_obj OTypeParameter ["name",enc_string n;"t",encode_type t]) tl)
 
 and encode_tenum e =
-	encode_mtype (TEnumDecl e) [
+	encode_mtype OEnumType (TEnumDecl e) [
 		"isExtern", vbool e.e_extern;
 		"exclude", vfun0 (fun() -> e.e_extern <- true; vnull);
 		"constructs", encode_string_map encode_efield e.e_constrs;
@@ -786,19 +834,19 @@ and encode_tenum e =
 	]
 
 and encode_tabstract a =
-	encode_mtype (TAbstractDecl a) [
+	encode_mtype OAbstractType (TAbstractDecl a) [
 		"type", encode_type a.a_this;
 		"impl", (match a.a_impl with None -> vnull | Some c -> encode_clref c);
-		"binops", enc_array (List.map (fun (op,cf) -> enc_obj [ "op",encode_binop op; "field",encode_cfield cf]) a.a_ops);
-		"unops", enc_array (List.map (fun (op,postfix,cf) -> enc_obj [ "op",encode_unop op; "isPostfix",vbool (match postfix with Postfix -> true | Prefix -> false); "field",encode_cfield cf]) a.a_unops);
-		"from", enc_array ((List.map (fun t -> enc_obj [ "t",encode_type t; "field",vnull]) a.a_from) @ (List.map (fun (t,cf) -> enc_obj [ "t",encode_type t; "field",encode_cfield cf]) a.a_from_field));
-		"to", enc_array ((List.map (fun t -> enc_obj [ "t",encode_type t; "field",vnull]) a.a_to) @ (List.map (fun (t,cf) -> enc_obj [ "t",encode_type t; "field",encode_cfield cf]) a.a_to_field));
+		"binops", enc_array (List.map (fun (op,cf) -> enc_obj OAbstractType_binops [ "op",encode_binop op; "field",encode_cfield cf]) a.a_ops);
+		"unops", enc_array (List.map (fun (op,postfix,cf) -> enc_obj OAbstractType_unops [ "op",encode_unop op; "isPostfix",vbool (match postfix with Postfix -> true | Prefix -> false); "field",encode_cfield cf]) a.a_unops);
+		"from", enc_array ((List.map (fun t -> enc_obj OAbstractType_from [ "t",encode_type t; "field",vnull]) a.a_from) @ (List.map (fun (t,cf) -> enc_obj OAbstractType_from [ "t",encode_type t; "field",encode_cfield cf]) a.a_from_field));
+		"to", enc_array ((List.map (fun t -> enc_obj OAbstractType_to [ "t",encode_type t; "field",vnull]) a.a_to) @ (List.map (fun (t,cf) -> enc_obj OAbstractType_to [ "t",encode_type t; "field",encode_cfield cf]) a.a_to_field));
 		"array", enc_array (List.map encode_cfield a.a_array);
 		"resolve", (match a.a_resolve with None -> vnull | Some cf -> encode_cfref cf)
 	]
 
 and encode_efield f =
-	enc_obj [
+	enc_obj OEnumField [
 		"name", enc_string f.ef_name;
 		"type", encode_type f.ef_type;
 		"pos", encode_pos f.ef_pos;
@@ -810,7 +858,7 @@ and encode_efield f =
 	]
 
 and encode_cfield f =
-	enc_obj [
+	enc_obj OClassField [
 		"name", enc_string f.cf_name;
 		"type", (match f.cf_kind with Method _ -> encode_lazy_type f.cf_type | _ -> encode_type f.cf_type);
 		"isPublic", vbool f.cf_public;
@@ -868,16 +916,16 @@ and encode_class_kind k =
 
 and encode_tclass c =
 	ignore(c.cl_build());
-	encode_mtype (TClassDecl c) [
+	encode_mtype OClassType (TClassDecl c) [
 		"kind", encode_class_kind c.cl_kind;
 		"isExtern", vbool c.cl_extern;
 		"exclude", vfun0 (fun() -> c.cl_extern <- true; c.cl_init <- None; vnull);
 		"isInterface", vbool c.cl_interface;
 		"superClass", (match c.cl_super with
 			| None -> vnull
-			| Some (c,pl) -> enc_obj ["t",encode_clref c;"params",encode_tparams pl]
+			| Some (c,pl) -> enc_obj OClassType_superClass ["t",encode_clref c;"params",encode_tparams pl]
 		);
-		"interfaces", enc_array (List.map (fun (c,pl) -> enc_obj ["t",encode_clref c;"params",encode_tparams pl]) c.cl_implements);
+		"interfaces", enc_array (List.map (fun (c,pl) -> enc_obj OClassType_interfaces ["t",encode_clref c;"params",encode_tparams pl]) c.cl_implements);
 		"fields", encode_ref c.cl_ordered_fields (encode_array encode_cfield) (fun() -> "class fields");
 		"statics", encode_ref c.cl_ordered_statics (encode_array encode_cfield) (fun() -> "class fields");
 		"constructor", (match c.cl_constructor with None -> vnull | Some cf -> encode_cfref cf);
@@ -886,14 +934,14 @@ and encode_tclass c =
 	]
 
 and encode_ttype t =
-	encode_mtype (TTypeDecl t) [
+	encode_mtype ODefType (TTypeDecl t) [
 		"isExtern", vbool false;
 		"exclude", vfun0 (fun() -> vnull);
 		"type", encode_type t.t_type;
 	]
 
 and encode_tanon a =
-	enc_obj [
+	enc_obj OAnonType [
 		"fields", encode_pmap_array encode_cfield a.a_fields;
 		"status", encode_anon_status !(a.a_status);
 	]
@@ -940,7 +988,7 @@ and encode_type t =
 			3 , [encode_ref t encode_ttype (fun() -> s_type_path t.t_path); encode_tparams pl]
 		| TFun (pl,ret) ->
 			let pl = List.map (fun (n,o,t) ->
-				enc_obj [
+				enc_obj OType_args [
 					"name",enc_string n;
 					"opt",vbool o;
 					"t",encode_type t
@@ -1005,12 +1053,12 @@ and encode_tconst c =
 
 and encode_tvar v =
 	let f_extra (pl,e) =
-		enc_obj [
+		enc_obj OTVar_extra [
 			"params",encode_type_params pl;
 			"expr",vopt encode_texpr e
 		]
 	in
-	enc_obj [
+	enc_obj OTVar [
 		"id", vint v.v_id;
 		"name", enc_string v.v_name;
 		"t", encode_type v.v_type;
@@ -1030,9 +1078,9 @@ and encode_module_type mt =
 	encode_enum IModuleType tag pl
 
 and encode_tfunc func =
-	enc_obj [
+	enc_obj OTFunc [
 		"args",enc_array (List.map (fun (v,c) ->
-			enc_obj [
+			enc_obj OTFunc_args [
 				"v",encode_tvar v;
 				"value",match c with None -> vnull | Some c -> encode_tconst c
 			]
@@ -1043,7 +1091,7 @@ and encode_tfunc func =
 
 and encode_field_access fa =
 	let encode_instance c tl =
-		enc_obj [
+		enc_obj OFieldAccess_c [
 			"c",encode_clref c;
 			"params",encode_tparams tl
 		]
@@ -1069,7 +1117,7 @@ and encode_texpr e =
 			| TTypeExpr mt -> 5,[encode_module_type mt]
 			| TParenthesis e1 -> 6,[loop e1]
 			| TObjectDecl fl -> 7, [enc_array (List.map (fun (f,e) ->
-				enc_obj [
+				enc_obj OTypedExprDef_fields [
 					"name",enc_string f;
 					"expr",loop e;
 				]) fl)]
@@ -1085,13 +1133,13 @@ and encode_texpr e =
 			| TWhile(econd,e1,flag) -> 17,[loop econd;loop e1;vbool (flag = NormalWhile)]
 			| TSwitch(e1,cases,edef) -> 18,[
 				loop e1;
-				enc_array (List.map (fun (el,e) -> enc_obj ["values",encode_texpr_list el;"expr",loop e]) cases);
+				enc_array (List.map (fun (el,e) -> enc_obj OTypedExprDef_cases ["values",encode_texpr_list el;"expr",loop e]) cases);
 				vopt encode_texpr edef
 				]
 			| TTry(e1,catches) -> 19,[
 				loop e1;
 				enc_array (List.map (fun (v,e) ->
-					enc_obj [
+					enc_obj OTypedExprDef_catches [
 						"v",encode_tvar v;
 						"expr",loop e
 					]) catches
@@ -1104,7 +1152,7 @@ and encode_texpr e =
 			| TMeta(m,e1) -> 25,[encode_meta_entry m;loop e1]
 			| TEnumParameter(e1,ef,i) -> 26,[loop e1;encode_efield ef;vint i]
 		in
-		enc_obj [
+		enc_obj OTypedExprDef [
 			"pos", encode_pos e.epos;
 			"expr", encode_enum ITypedExpr tag pl;
 			"t", encode_type e.etype
@@ -1348,7 +1396,7 @@ let rec make_const e =
 	| TParenthesis e | TMeta(_,e) | TCast(e,None) ->
 		make_const e
 	| TObjectDecl el ->
-		enc_obj (List.map (fun (f,e) -> f, make_const e) el)
+		enc_obj O__Const (List.map (fun (f,e) -> f, make_const e) el)
 	| TArrayDecl al ->
 		enc_array (List.map make_const al)
 	| _ ->
@@ -1499,7 +1547,7 @@ let macro_api ccom get_api =
 			let f = prepare_callback f 1 in
 			(get_api()).set_js_generator (fun js_ctx ->
 				let com = ccom() in
-				let api = enc_obj [
+				let api = enc_obj OJSGenApi [
 					"outputFile", enc_string com.file;
 					"types", enc_array (List.map (fun t -> encode_type (type_of_module_type t)) com.types);
 					"main", (match com.main with None -> vnull | Some e -> encode_texpr e);
@@ -1549,7 +1597,7 @@ let macro_api ccom get_api =
 		);
 		"get_pos_infos", vfun1 (fun p ->
 			let p = decode_pos p in
-			enc_obj ["min",vint p.Globals.pmin;"max",vint p.Globals.pmax;"file",enc_string p.Globals.pfile]
+			enc_obj OContext_getPosInfos ["min",vint p.Globals.pmin;"max",vint p.Globals.pmax;"file",enc_string p.Globals.pfile]
 		);
 		"make_position", vfun3 (fun min max file ->
 			encode_pos { Globals.pmin = dec_int min; Globals.pmax = dec_int max; Globals.pfile = dec_string file }
@@ -1714,7 +1762,7 @@ let macro_api ccom get_api =
 			if p = Globals.null_pos then
 				vnull
 			else
-				enc_obj ["file",enc_string p.Globals.pfile;"pos",vint p.Globals.pmin]
+				enc_obj OCompiler_getDisplayPos ["file",enc_string p.Globals.pfile;"pos",vint p.Globals.pmin]
 		);
 		"pattern_locals", vfun2 (fun e t ->
 			let loc = (get_api()).get_pattern_locals (decode_expr e) (decode_type t) in
