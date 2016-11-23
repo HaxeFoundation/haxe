@@ -98,15 +98,13 @@ class Ucs2Tools {
 		var strLen = str.length;
 
 		var len = impl.length;
-		var sIndex = startIndex != null ? startIndex * 2 : 0;
+		var i = startIndex != null ? startIndex * 2 : 0;
 		var pos = 0;
-		var fullPos = sIndex;
-		var i = sIndex;
+		var fullPos = i;
 		while (i < len) {
-
 			if (impl.fastGet(i) == str.fastGet(pos)) {
 				pos++;
-			} else {
+			} else if (pos > 0) {
 				pos = 0;
 			}
 			fullPos++;
@@ -123,7 +121,6 @@ class Ucs2Tools {
 		var len = str.length;
 		var pos = len-1;
 	
-
 		var startIndex = startIndex == null ? impl.length : ((startIndex) << 1)+len;
 
 		if (startIndex > impl.length) {
@@ -132,11 +129,12 @@ class Ucs2Tools {
 		var i = startIndex;
 		var res = -1;
 		var fullPos = startIndex;
+		var lastPos = len - 1;
 		while (--i > -1) {
 			if (impl.fastGet(i) == str.fastGet(pos)) {
 				pos--;
-			} else {
-				pos = len-1;
+			} else if (pos < lastPos) {
+				pos = lastPos;
 			}
 			fullPos--;
 			if (pos == -1) {
