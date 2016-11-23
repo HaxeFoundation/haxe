@@ -210,7 +210,9 @@ private class MysqlResultSet implements ResultSet {
 	}
 
 	function correctType(value:String, type:Int):Scalar {
-		if (
+		if (value == null) {
+			return null;
+		} else if (
 			type == Const.MYSQLI_TYPE_BIT
 			|| type == Const.MYSQLI_TYPE_TINY
 			|| type == Const.MYSQLI_TYPE_SHORT
