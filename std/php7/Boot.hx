@@ -327,8 +327,11 @@ class Boot {
 			return value ? 'true' : 'false';
 		}
 		if (value.is_array()) {
-			var strings = Global.array_map(function (item) return stringify(item), value);
-			return '[' + Global.implode(',', strings) + ']';
+			var strings = Syntax.arrayDecl();
+			Syntax.foreach(value, function(key:Dynamic, item:Dynamic) {
+				Global.array_push(strings, (key:String) + ' => ' + stringify(item));
+			});
+			return '[' + Global.implode(', ', strings) + ']';
 		}
 		if (value.is_object()) {
 			if (value.method_exists('toString')) {

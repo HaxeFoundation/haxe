@@ -62,7 +62,7 @@ extern class Syntax {
         }
         ```
     **/
-    static function foreach<TCollection,TKey,TValue>( collection:AsVar<TCollection>, body:TKey->TValue->Void ) : Void;
+    static function foreach<TCollection,TKey,TValue>( collection:TCollection, body:TKey->TValue->Void ) : Void;
 
     /**
         Generates `new $className($arg1, ...$argN)`

@@ -154,7 +154,11 @@ class Array<T> implements ArrayAccess<Int,T> {
 	}
 
 	public function toString():String {
-		return php7.Boot.stringify(arr);
+		var strings = Syntax.arrayDecl();
+		Syntax.foreach(arr, function(index:Int, value:T) {
+			strings[index] = Boot.stringify(value);
+		});
+		return '[' + Global.implode(',', strings) + ']';
 	}
 
 	@:noCompletion

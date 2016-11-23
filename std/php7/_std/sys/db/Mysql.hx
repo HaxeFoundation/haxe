@@ -132,7 +132,7 @@ private class MysqlResultSet implements ResultSet {
 
 	public function hasNext() : Bool {
 		if (fetchedRow == null) fetchNext();
-		return fetchedRow == null;
+		return fetchedRow != null;
 	}
 
 	public function next() : Dynamic {
@@ -146,8 +146,9 @@ private class MysqlResultSet implements ResultSet {
 		result.data_seek(0);
 		var row = result.fetch_object(hxAnonClassName);
 		while (row != null) {
+			row = correctObjectTypes(row);
 			list.add(row);
-			row = correctObjectTypes(result.fetch_object(hxAnonClassName));
+			row = result.fetch_object(hxAnonClassName);
 		}
 
 		return list;
@@ -173,7 +174,7 @@ private class MysqlResultSet implements ResultSet {
 
 	function fetchNext() {
 		var row = result.fetch_assoc();
-		fetchedRow = correctArrayTypes(row);
+		if (row != null) fetchedRow = correctArrayTypes(row);
 	}
 
 	function withdrawFetched() : Dynamic {
