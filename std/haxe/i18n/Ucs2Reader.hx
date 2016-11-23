@@ -19,6 +19,7 @@ class Ucs2Reader {
 	public inline function getInt16 (pos:Int) {
 		return StringTools.fastCodeAt(s, pos);
 	}
+
 }
 
 #else

@@ -56,27 +56,27 @@ class Ucs2Tools {
 	}
 
 	static function toUpperCase(impl:Ucs2Impl) : Ucs2Impl {
-		var buffer = new ByteAccessBuffer();
+		var res = Ucs2Impl.alloc(impl.length);
 		var i = 0;
 		while (i < impl.length) {
 			var b = impl.getInt16(i);
+			res.setInt16(i, toUpperCaseLetter(b));
 			i+=2;
-			buffer.addInt16BigEndian(toUpperCaseLetter( b));
+			
 		}
-
-		return buffer.getByteAccess();
+		return res;
 	}
 
 	static function toLowerCase(impl:Ucs2Impl) : Ucs2Impl {
-		var buffer = new ByteAccessBuffer();
+		var res = Ucs2Impl.alloc(impl.length);
 		var i = 0;
 		while (i < impl.length) {
 			var b = impl.getInt16(i);
+			res.setInt16(i, toLowerCaseLetter(b));
 			i+=2;
-			buffer.addInt16BigEndian(toLowerCaseLetter( b));
 		}
 
-		return buffer.getByteAccess();
+		return res;
 	}
 
 

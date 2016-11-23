@@ -221,6 +221,7 @@ abstract Ucs2(String) {
 		return true;
 	}
 }
+
 #else
 
 import haxe.i18n.ByteAccess;
