@@ -53,7 +53,10 @@ private class SQLiteConnection implements Connection {
 	}
 
 	public function quote( s : String ) : String {
-		return "'" + db.quote(s) + "'";
+		if( s.indexOf("\000") >= 0 ) {
+			return "x'" + base16_encode(s) + "'";
+		}
+		return db.quote(s);
 	}
 
 	public function addValue( s : StringBuf, v : Dynamic ) : Void {
@@ -86,6 +89,11 @@ private class SQLiteConnection implements Connection {
 		db.rollBack();
 	}
 
+	function base16_encode(str : String) {
+		str = untyped __call__("unpack", "H"+(2 * str.length), str);
+		str = untyped __call__("chunk_split", (str:NativeString)[1]);
+		return str;
+	}
 }
 
 private class SQLiteResultSet implements ResultSet {
