@@ -22,8 +22,9 @@
 package sys.db;
 
 import php7.*;
-import php7.db.*;
 import sys.db.*;
+import php7.db.*;
+import php7.db.Mysqli_result;
 
 @:coreApi class Mysql {
 	public static function connect(
@@ -80,7 +81,8 @@ private class MysqlConnection implements Connection {
 	}
 
 	public function addValue( s : StringBuf, v : Dynamic ) : Void {
-		if (Global.is_int(v) || Global.is_null(v)) {
+		if (Global.is_int(v)
+		|| Global.is_null(v)) {
 			s.add(v);
 		} else if (Global.is_bool(v)) {
 			s.add(v ? 1 : 0);
@@ -121,7 +123,8 @@ private class MysqlResultSet implements ResultSet {
 	public var nfields(get,null) : Int;
 
 	var result:Mysqli_result;
-	var fetchedRow:NativeAssocArray<String>;
+	var fetchedRow:NativeAssocArray<Scalar>;
+	var fieldsInfo:NativeAssocArray<MysqliFieldInfo>;
 
 	public function new( result:Mysqli_result ) {
 		this.result = result;
@@ -144,7 +147,7 @@ private class MysqlResultSet implements ResultSet {
 		var row = result.fetch_object(hxAnonClassName);
 		while (row != null) {
 			list.add(row);
-			row = result.fetch_object(hxAnonClassName);
+			row = correctObjectTypes(result.fetch_object(hxAnonClassName));
 		}
 
 		return list;
@@ -169,12 +172,62 @@ private class MysqlResultSet implements ResultSet {
 	}
 
 	function fetchNext() {
-		fetchedRow = result.fetch_assoc();
+		var row = result.fetch_assoc();
+		fetchedRow = correctArrayTypes(row);
 	}
 
 	function withdrawFetched() : Dynamic {
 		if (fetchedRow == null) return null;
 		return Boot.createAnon(fetchedRow);
+	}
+
+	function correctArrayTypes(row:NativeAssocArray<String>):NativeAssocArray<Scalar> {
+		var fieldsInfo = getFieldsInfo();
+		Syntax.foreach(row, function(field:String, value:String) {
+			row[field] = correctType(value, fieldsInfo[field].type);
+		});
+		return cast row;
+	}
+
+	function correctObjectTypes(row:{}):{} {
+		var fieldsInfo = getFieldsInfo();
+		Syntax.foreach(row, function(field:String, value:String) {
+			value = correctType(value, fieldsInfo[field].type);
+			Syntax.setField(row, field, value);
+		});
+		return row;
+	}
+
+	inline function getFieldsInfo():NativeAssocArray<MysqliFieldInfo> {
+		if (fieldsInfo == null) {
+			fieldsInfo = cast Syntax.arrayDecl();
+			Syntax.foreach(result.fetch_fields(), function(_, info) {
+				fieldsInfo[info.name] = info;
+			});
+		}
+		return fieldsInfo;
+	}
+
+	function correctType(value:String, type:Int):Scalar {
+		if (
+			type == Const.MYSQLI_TYPE_BIT
+			|| type == Const.MYSQLI_TYPE_TINY
+			|| type == Const.MYSQLI_TYPE_SHORT
+			|| type == Const.MYSQLI_TYPE_LONG
+			|| type == Const.MYSQLI_TYPE_INT24
+			|| type == Const.MYSQLI_TYPE_CHAR
+		) {
+			return Syntax.int(value);
+		} else if (
+			type == Const.MYSQLI_TYPE_DECIMAL
+			|| type == Const.MYSQLI_TYPE_NEWDECIMAL
+			|| type == Const.MYSQLI_TYPE_FLOAT
+			|| type == Const.MYSQLI_TYPE_DOUBLE
+		) {
+			return Syntax.float(value);
+		} else {
+			return value;
+		}
 	}
 
 	function get_length() return result.num_rows;
