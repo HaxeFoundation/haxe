@@ -39,6 +39,13 @@ abstract ByteAccess(BytesData) {
 		BytesDataTools.set(this, pos+1, v & 0xFF );
 	}
 
+	public inline function setInt32( pos : Int, v : Int ) : Void {
+		BytesDataTools.set(this, pos, (v >> 24) & 0xFF );
+		BytesDataTools.set(this, pos+1, (v >> 16) & 0xFF );
+		BytesDataTools.set(this, pos+2, (v >> 8) & 0xFF );
+		BytesDataTools.set(this, pos+3, v & 0xFF );
+	}
+
 	inline function get_length ():Int {
 		return BytesDataTools.getLength(this);
 	}

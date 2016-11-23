@@ -44,15 +44,19 @@ class BytesBufferTools {
 
 
 
-	inline function asBytesBuffer ():BytesBuffer {
-		return this;
-	}
 
 	public inline function add (b:ByteAccess) {
 		this.add(b.toBytes());
 	}
 
 	public inline function addInt16BigEndian (i:Int) {
+		this.addByte((i >> 8) & 0xFF);
+		this.addByte(i & 0xFF);
+	}
+
+	public inline function addInt32BigEndian (i:Int) {
+		this.addByte((i >> 24) & 0xFF);
+		this.addByte((i >> 16) & 0xFF);
 		this.addByte((i >> 8) & 0xFF);
 		this.addByte(i & 0xFF);
 	}

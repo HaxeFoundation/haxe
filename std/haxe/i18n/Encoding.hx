@@ -153,6 +153,12 @@ class Encoding {
         0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC
     ]);
 
+    public static function charCodeToUtf32ByteAccess(code:Int) {
+        var bytes = ByteAccess.alloc(4);
+        bytes.setInt32(0, code);
+        return bytes;
+    }
+
     public static function charCodeToUtf16ByteAccess (code:Int):ByteAccess {
 		var size = getUtf16CodeSize(code);
 		var bytes = ByteAccess.alloc(size);
@@ -483,6 +489,183 @@ class Encoding {
                 case1() && case0();
             case _: false;
         }
+    }
+
+
+    static function findMaximalSubpartOfIllFormedUTF8Sequence(source:Utf8Reader, pos:Int) 
+    {
+        var sourceEnd = source.length;
+
+        
+        // assert(!isLegalUTF8Sequence(source, sourceEnd));
+
+        /*
+        * Unicode 6.3.0, D93b:
+        *
+        *   Maximal subpart of an ill-formed subsequence: The longest code unit
+        *   subsequence starting at an unconvertible offset that is either:
+        *   a. the initial subsequence of a well-formed code unit sequence, or
+        *   b. a subsequence of length one.
+        */
+
+        if (pos == sourceEnd)
+            return 0;
+
+        /*
+        * Perform case analysis.  See Unicode 6.3.0, Table 3-7. Well-Formed UTF-8
+        * Byte Sequences.
+        */
+
+        var b1 = source.fastGet(pos);
+        ++pos;
+
+        if (b1 >= 0xC2 && b1 <= 0xDF) {
+            /*
+            * First byte is valid, but we know that this code unit sequence is
+            * invalid, so the maximal subpart has to end after the first byte.
+            */
+            return 1;
+        }
+
+        if (pos == sourceEnd)
+            return 1;
+
+        var b2 = source.fastGet(pos);
+        ++pos;
+
+        if (b1 == 0xE0) {
+            return (b2 >= 0xA0 && b2 <= 0xBF) ? 2 : 1;
+        }
+        if (b1 >= 0xE1 && b1 <= 0xEC) {
+            return (b2 >= 0x80 && b2 <= 0xBF) ? 2 : 1;
+        }
+        if (b1 == 0xED) {
+            return (b2 >= 0x80 && b2 <= 0x9F) ? 2 : 1;
+        }
+        if (b1 >= 0xEE && b1 <= 0xEF) {
+            return (b2 >= 0x80 && b2 <= 0xBF) ? 2 : 1;
+        }
+        if (b1 == 0xF0) {
+            if (b2 >= 0x90 && b2 <= 0xBF) {
+            if (pos == sourceEnd)
+                return 2;
+
+            var b3 = source.fastGet(pos);
+            return (b3 >= 0x80 && b3 <= 0xBF) ? 3 : 2;
+            }
+            return 1;
+        }
+        if (b1 >= 0xF1 && b1 <= 0xF3) {
+            if (b2 >= 0x80 && b2 <= 0xBF) {
+            if (pos == sourceEnd)
+                return 2;
+
+            var b3 = source.fastGet(pos);
+            return (b3 >= 0x80 && b3 <= 0xBF) ? 3 : 2;
+            }
+            return 1;
+        }
+        if (b1 == 0xF4) {
+            if (b2 >= 0x80 && b2 <= 0x8F) {
+            if (pos == sourceEnd)
+                return 2;
+
+            var b3 = source.fastGet(pos);
+            return (b3 >= 0x80 && b3 <= 0xBF) ? 3 : 2;
+            }
+            return 1;
+        }
+
+        if ((b1 >= 0x80 && b1 <= 0xC1) || b1 >= 0xF5) throw "assert";
+        // assert((b1 >= 0x80 && b1 <= 0xC1) || b1 >= 0xF5);
+        /*
+        * There are no valid sequences that start with these bytes.  Maximal subpart
+        * is defined to have length 1 in these cases.
+        */
+        return 1;
+    }
+
+    static function convertUtf8toUtf32Impl(source:Utf8Reader, flags:ConversionFlags, inputIsPartial:Bool):ByteAccess 
+    {
+        var i = 0;
+        
+        var target = new ByteAccessBuffer(); 
+
+        while (i < source.length) {
+            var ch:Int = 0;
+            var extraBytesToRead = trailingBytesForUTF8[source.fastGet(i)];
+            if (extraBytesToRead >= source.length - i) {
+                if (flags == StrictConversion || inputIsPartial) {
+                    throw SourceExhausted;
+                } else {
+
+                    //result = sourceIllegal;
+
+                    /*
+                    * Replace the maximal subpart of ill-formed sequence with
+                    * replacement character.
+                    */
+                    i += findMaximalSubpartOfIllFormedUTF8Sequence(source, i);
+                    target.addInt32BigEndian(UNI_REPLACEMENT_CHAR);
+                    continue;
+                }
+            }
+
+            /* Do this check whether lenient or strict */
+            if (!isLegalUTF8(source, i, extraBytesToRead+1)) {
+                if (flags == StrictConversion) {
+                    /* Abort conversion. */
+                    throw SourceIllegal(i);
+                } else {
+                    /*
+                    * Replace the maximal subpart of ill-formed sequence with
+                    * replacement character.
+                    */
+                    i += findMaximalSubpartOfIllFormedUTF8Sequence(source, i);
+                    target.addInt32BigEndian(UNI_REPLACEMENT_CHAR);
+                    continue;
+                }
+            }
+            /*
+            * The cases all fall through. See "Note A" below.
+            */
+            if (extraBytesToRead >= 5) { ch += source.fastGet(i++); ch <<= 6;} /* remember, illegal UTF-8 */
+            if (extraBytesToRead >= 4) { ch += source.fastGet(i++); ch <<= 6;} /* remember, illegal UTF-8 */
+            if (extraBytesToRead >= 3) { ch += source.fastGet(i++); ch <<= 6;}
+            if (extraBytesToRead >= 2) { ch += source.fastGet(i++); ch <<= 6;}
+            if (extraBytesToRead >= 1) { ch += source.fastGet(i++); ch <<= 6;}
+            if (extraBytesToRead >= 0) { ch += source.fastGet(i++); }
+            
+            ch -= offsetsFromUTF8[extraBytesToRead];
+
+            if (ch <= UNI_MAX_LEGAL_UTF32) {
+                /*
+                * UTF-16 surrogate values are illegal in UTF-32, and anything
+                * over Plane 17 (> 0x10FFFF) is illegal.
+                */
+                if (ch >= UNI_SUR_HIGH_START && ch <= UNI_SUR_LOW_END) {
+                    if (flags == StrictConversion) {
+                        throw SourceIllegal(i);
+                    } else {
+                        target.addInt32BigEndian(UNI_REPLACEMENT_CHAR);
+                    }
+                } else {
+                    target.addInt32BigEndian(ch);
+                }
+            } else { /* i.e., ch > UNI_MAX_LEGAL_UTF32 */
+                throw SourceIllegal(i);
+            }
+        }
+        
+        return target.getByteAccess();
+    }
+
+    static function convertUtf8toUtf32Partial(source:Utf8Reader, flags:ConversionFlags):ByteAccess {
+        return convertUtf8toUtf32Impl(source, flags, /*InputIsPartial=*/true);
+    }
+
+    public static function convertUtf8toUtf32(source:Utf8Reader, flags:ConversionFlags):ByteAccess {
+        return convertUtf8toUtf32Impl(source,flags, /*InputIsPartial=*/false);
     }
 }
 
