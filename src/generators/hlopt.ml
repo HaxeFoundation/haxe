@@ -635,13 +635,18 @@ let optimize dump (f:fundecl) =
 		in
 		loop b.bstart;
 		b.bstate <- Some state;
-		List.iter (fun b2 -> if b2.bstart > b.bstart then ignore (get_state b2)) b.bnext
+		List.iter (fun b2 -> ignore (get_state b2)) b.bnext
 
 	and get_state b =
 		match b.bstate with
 		| None ->
-			propagate b;
-			get_state b
+			(* recurse before calculating *)
+			List.iter (fun b2 -> if b2.bstart < b.bstart then ignore(get_state b2)) b.bprev;
+			(match b.bstate with
+			| None ->
+				propagate b;
+				get_state b
+			| Some b -> b);
 		| Some state ->
 			state
 	in
@@ -742,7 +747,7 @@ let optimize dump (f:fundecl) =
 				);
 				let need = String.concat "," (List.map string_of_int (ISet.elements b.bneed)) in
 				let wr = String.concat " " (List.rev (PMap.foldi (fun r p acc -> Printf.sprintf "r%d:%X" r p :: acc) b.bwrite [])) in
-				write ("\tNEED=" ^ need ^ "\tWRITE=" ^ wr);
+				write ("\t" ^ (if b.bloop then "LOOP " else "") ^ "NEED=" ^ need ^ "\tWRITE=" ^ wr);
 				b
 			with Not_found ->
 				block
