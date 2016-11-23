@@ -23,7 +23,7 @@ eqUtf16(
 	wrapUcs2("\u{4E00}").toUtf16()
 );
 
-eqUtf16(	
+eqUtf16(
 	wrapUcs2("€").toUtf16(),
 	wrapUtf16("€")
 );

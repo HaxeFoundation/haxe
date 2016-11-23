@@ -4,7 +4,6 @@ import haxe.i18n.Utf16.Utf16Impl;
 
 class Utf16Tools {
 
-
 	static inline function fastGet (impl:Utf16Impl, pos:Int) {
 		return impl.b.fastGet(pos);
 	}
@@ -36,8 +35,8 @@ class Utf16Tools {
 		}
 	}
 
-
 	static function nativeStringToImpl (s:String):Utf16Impl {
+		if (s.length == 0) return empty;
 		var ba = NativeStringTools.toUtf16(s);
 		return {
 			b : ba,
@@ -76,6 +75,8 @@ class Utf16Tools {
 	}
 
 	static inline function append (impl:Utf16Impl, other:Utf16Impl) {
+		if (other.length == 0) return impl;
+		if (impl.length == 0) return other;
 		return {
 			length : impl.length + other.length,
 			b : impl.b.append(other.b)
@@ -262,8 +263,9 @@ class Utf16Tools {
 		// iterate bytes
 		while (i < byteLength) {
 			var size = getCharSize(getInt16(impl, i));
+			var size2 = getCharSize(getInt16(str, j));
 
-			if (compareChar(impl, i, str, j, size) == 0) {
+			if (size == size2 && compareChar(impl, i, str, j, size) == 0) {
 				pos++;
 				j+=size;
 			} else {
@@ -300,7 +302,8 @@ class Utf16Tools {
 		
 		while (i < byteLength(ba) && (startIndexIsNull || posFull < startIndex + 1)) {
 			var size = getCharSize(getInt16(ba, i));
-			if (compareChar(ba, i, str, j, size) == 0) {
+			var size2 = getCharSize(getInt16(str, j));
+			if (size == size2 && compareChar(ba, i, str, j, size) == 0) {
 				if (j == 0) {
 					// store the next position for next search
 					iNext = i + size;
@@ -407,7 +410,8 @@ class Utf16Tools {
 		return res;
 	}
 	
-	@:analyzer(no_code_motion) public static function substr( str:Utf16Impl, pos : Int, ?len : Int ) : Utf16Impl {
+	@:analyzer(no_code_motion) 
+	static function substr( str:Utf16Impl, pos : Int, ?len : Int ) : Utf16Impl {
 
 		var lenIsNull = len == null;
 		var byteLength = byteLength(str);
@@ -450,12 +454,13 @@ class Utf16Tools {
 
 	public static function substring( impl:Utf16Impl, startIndex : Int, ?endIndex : Int ) : Utf16Impl {
 		var startIndex:Null<Int> = startIndex;
-		if (startIndex < 0) startIndex = 0;
-		if (endIndex != null && endIndex < 0) endIndex = 0;
-		
 		var len = strLength(impl);
+		var endIndexIsNull = endIndex == null; 
 
-		if (endIndex == null) endIndex = len;
+		if (startIndex < 0) startIndex = 0;
+		if (!endIndexIsNull && endIndex < 0) endIndex = 0;
+		
+		if (endIndexIsNull) endIndex = len;
 
  		if (startIndex > endIndex) {
 			var x = startIndex;

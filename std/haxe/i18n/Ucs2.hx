@@ -95,16 +95,22 @@ abstract Ucs2(String) {
 	}
 
 	public static inline function fromCharCode( code : Int ) : Ucs2 {
+		return new Ucs2(nativeStringfromCharCode(code));
+	}
+
+	static inline function nativeStringfromCharCode( code : Int ) : String {
 
 		// maybe split to surrogate pair and add both
 		if (Encoding.isSurrogatePair(code)) {
+
 			var surr = Encoding.codeToSurrogatePair(code);
-
-			return new Ucs2(String.fromCharCode(surr.high) + String.fromCharCode(surr.low));	
+			#if hl
+			return String.fromCharCode(code);
+			#else
+			return String.fromCharCode(surr.high) + String.fromCharCode(surr.low);
+			#end	
 		}
-
-
-		return new Ucs2(String.fromCharCode(code));
+		return String.fromCharCode(code);
 	}
 
 	public function toBytes(  ) : haxe.io.Bytes {
@@ -126,9 +132,23 @@ abstract Ucs2(String) {
 		var i = 0;
 		var res = "";
 		while (i < bytes.length) {
-			var code = (bytes.fastGet(i) << 8) | bytes.fastGet(i+1);
-			res += String.fromCharCode(code);
-			i+=2;
+			var code1 = (bytes.fastGet(i) << 8) | bytes.fastGet(i+1);
+			// we allow surrogates in ucs2, but we treat them as individual chars with invalid codes
+			if (Encoding.isHighSurrogate(code1)) {
+				var code2 = (bytes.fastGet(i+2) << 8) | bytes.fastGet(i+3);
+				#if hl
+				var code = Encoding.utf16surrogatePairToCharCode(code1, code2); 
+				res += String.fromCharCode(code);
+				#else
+				// js, java, cs just allow String.fromCharCode for high and low surrogates
+				res += nativeStringfromCharCode(code1);
+				res += nativeStringfromCharCode(code2);
+				#end
+				i+=4;
+			} else {
+				res += nativeStringfromCharCode(code1);
+				i+=2;
+			}
 		}
 		return new Ucs2(res);
 	}
@@ -200,8 +220,6 @@ abstract Ucs2(String) {
 		}
 		return true;
 	}
-
-
 }
 #else
 

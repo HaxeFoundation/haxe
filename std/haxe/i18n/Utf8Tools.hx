@@ -446,6 +446,7 @@ class Utf8Tools {
 			if (len < 0) len = 0;
 		}
 
+		
 		if (len == 0) return empty;
 
 		var buf = new ByteAccessBuffer();
@@ -457,11 +458,11 @@ class Utf8Tools {
 		while (i < byteLength) {
 			var char = fastGet(str, i);
 			var size = getCharSize(char);
-			if (cur >= pos && (lenIsNull || cur < pos + len))
+			if (cur >= pos && (len == null || cur < pos + len))
 			{
 				newSize++;
 				pushCharCode(str, buf, i, size);
-			} else if (!lenIsNull && cur >= pos+len) {
+			} else if (len != null && cur >= pos+len) {
 				break;
 			}
 
@@ -475,7 +476,7 @@ class Utf8Tools {
 		var startIndex:Null<Int> = startIndex;
 		var len = strLength(ba);
 		var endIndexIsNull = endIndex == null; 
-		var startIndex:Null<Int> = startIndex;
+
 		if (startIndex < 0) startIndex = 0;
 		if (!endIndexIsNull && endIndex < 0) endIndex = 0;
 		
@@ -485,9 +486,9 @@ class Utf8Tools {
 			startIndex = endIndex;
 			endIndex = x;
 		}
-
+		
 		if (endIndex == null || endIndex > len) endIndex = len;
-
+		
 		if (startIndex == null || startIndex > len) return empty;
 		
 		return substr(ba, startIndex, endIndex - startIndex);

@@ -1,3 +1,7 @@
+test-1: test-neko test-js test-python test-php test-hl
+test-all: test-neko test-js test-python test-php test-java test-cs test-cpp test-hl
+test-static: test-java test-cs test-cpp
+
 test-neko:
 	cd ../tests/unit && haxe-i18n compile-neko.hxml
 	cd ../tests/unit && neko bin/unit.n

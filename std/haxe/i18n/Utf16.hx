@@ -112,7 +112,7 @@ abstract Utf16(Utf16Impl) {
 	}
 
 	public inline function toUcs2() : Ucs2 {
-		return Ucs2.fromBytes(toBytes());
+		return Ucs2.fromByteAccess(this.b);
 	}
 
 	public inline function toUtf8 ():Utf8 {

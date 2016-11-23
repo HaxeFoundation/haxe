@@ -2,16 +2,45 @@ import haxe.io.Bytes;
 import haxe.i18n.Utf8;
 import haxe.i18n.Utf16;
 import haxe.i18n.Ucs2;
+import haxe.i18n.ByteAccess;
+import haxe.i18n.ByteAccessBuffer;
+import haxe.i18n.BytesBufferTools;
+import haxe.i18n.Encoding;
+import haxe.i18n.NativeStringTools;
+
 class Check {
 
 	static function main () {
 
+		var eq1 = function (a:haxe.i18n.Utf8, b:haxe.i18n.Utf8, ?pos:haxe.PosInfos) {
+			$type(pos);
+			pos.customParams = [a.toCodeArray(), b.toCodeArray()];
+			haxe.Log.trace(a == b, pos);
+		}
 
 		haxe.Log.trace;
+		var wrap = function (s) return new haxe.i18n.Utf8(s);
+		wrap("ऽ𝄞Éa").length == 4;
 
+wrap("ऽ𝄞ÉaऽÉ𝄞ÉÉ𝄞ÉÉ𝄞ÉÉ").length == 15; 
+
+wrap("ऽ𝄞ÉaऽÉ𝄞ÉÉ𝄞ÉÉ𝄞ÉÉ").indexOf(wrap("É𝄞ÉÉ")) == 5;
+
+wrap("ऽ𝄞ÉaऽÉ𝄞ÉÉ𝄞ÉÉ𝄞ÉÉ").indexOf(wrap("É𝄞ÉÉ")) == 5;
+
+wrap("ऽ𝄞ÉaऽÉ𝄞ÉÉ𝄞ÉÉ𝄞ÉÉ").lastIndexOf(wrap("É𝄞ÉÉ")) == 11;
+wrap("ऽ𝄞ÉaऽÉ𝄞ÉÉ𝄞ÉÉ𝄞ÉÉ").lastIndexOf(wrap("É𝄞ÉÉ")) == 11;
+		eq1(wrap("ऽ𝄞ÉaऽÉ𝄞ÉÉ𝄞ÉÉ𝄞ÉÉ").substr(0, -1), wrap("ऽ𝄞ÉaऽÉ𝄞ÉÉ𝄞ÉÉ𝄞É"));
+		var s = wrap("ऽ𝄞Éoxfooxxbarxbarxx");
+		eq1(s.substring(0, 0), wrap(""));
+		eq1(s.substring(0, 1), wrap("ऽ"));
+		eq1(s.substring(1, 0), wrap("ऽ"));
+		eq1(s.substring(0, 2), wrap("ऽ𝄞"));
+		eq1(s.substring(2, 0), wrap("ऽ𝄞"));
+		trace(s.substring(-1, 0));
+		eq1(s.substring(-1, 0), wrap(""));
 		
-
-
+		
 		//var x = new Utf8("foofoofoobarbar");
 		//trace(x.lastIndexOf(new Utf8("r")));
 		//trace(x.indexOf(new Utf8("r")));
