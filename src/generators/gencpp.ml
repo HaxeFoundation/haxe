@@ -49,6 +49,9 @@ let join_class_path path separator =
    end else
       result;;
 
+let class_text path =
+   join_class_path path "::"
+;;
 
 (* The internal classes are implemented by the core hxcpp system, so the cpp
    classes should not be generated *)
@@ -92,6 +95,7 @@ let verbatim_include file =
 let hash64 s =
    String.sub (Digest.to_hex (Digest.string s)) 0 16
 ;;
+
 
 let guarded_include file =
    let guard_name = "INCLUDED_" ^ (hash64 file) in
@@ -226,6 +230,8 @@ type context =
    (* cached as required *)
    mutable ctx_file_info : (string,string) PMap.t ref;
 
+   ctx_type_ids : (string,Int32.t) Hashtbl.t;
+
    (* Per file *)
    ctx_output : string -> unit;
    ctx_writer : source_writer;
@@ -246,6 +252,7 @@ let result =
    ctx_common = common_ctx;
    ctx_writer = null_file;
    ctx_file_id = ref (-1);
+   ctx_type_ids = Hashtbl.create 0;
    ctx_is_header = false;
    ctx_output = (null_file#write);
    ctx_interface_slot = ref (Hashtbl.create 0);
@@ -5226,6 +5233,9 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       then 0 else 1 in
    let scriptable = inScriptable && not class_def.cl_private in
 
+   let classId = try Hashtbl.find baseCtx.ctx_type_ids (class_text class_def.cl_path) with Not_found -> Int32.of_int 0 in
+   let classIdTxt = Printf.sprintf "0x%08lx" classId in
+
    (* Config *)
    let implement_dynamic = implement_dynamic_here class_def in
    let override_iteration = (not nativeGen) && (has_new_gc_references baseCtx class_def) in
@@ -5413,6 +5423,35 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       output_cpp ("{\n\t" ^ ptr_name ^ " _hx_result = new " ^ class_name ^ "();\n");
       output_cpp ("\t_hx_result->__construct(" ^ (array_arg_list constructor_var_list) ^ ");\n");
       output_cpp ("\treturn _hx_result;\n}\n\n");
+
+      let rec addParent cls others = match cls.cl_super with
+      | Some (super,_) -> ( try (
+         let parentId = Hashtbl.find ctx.ctx_type_ids (class_text super.cl_path)  in
+         addParent super (parentId :: others);
+         ) with Not_found -> others )
+      | _ -> others
+      in
+      let implemented_classes = addParent class_def [classId ; (Int32.of_int 1)] in
+      let implemented_classes = List.sort compare implemented_classes in
+
+      output_cpp ("bool " ^ class_name ^ "::_hx_isInstanceOf(int inClassId) {\n");
+      let txt cId = Printf.sprintf "0x%08lx" cId in
+      let rec dump_classes indent classes = match classes with
+         | [] -> ()
+         | [c] -> output_cpp (indent ^ "return inClassId==(int)" ^ (txt c) ^ ";\n" )
+         | [c;c1] -> output_cpp (indent ^ "return inClassId==(int)" ^ (txt c) ^ " || inClassId==(int)" ^ (txt c1) ^ ";\n" )
+         | _ ->
+            let len = List.length classes in
+            let mid = List.nth classes (len / 2) in
+            let low,high = List.partition (fun e -> e<=mid) classes in
+            output_cpp (indent ^ "if (inClassId<=(int)" ^ (txt mid) ^ ") {\n");
+            dump_classes (indent ^ "\t") low;
+            output_cpp (indent ^ "} else {\n");
+            dump_classes (indent ^ "\t") high;
+            output_cpp (indent ^ "}\n");
+      in
+      dump_classes "\t" implemented_classes;
+      output_cpp ("}\n\n");
 
       if ( List.length implemented) > 0 then begin
             let alreadyGlued = Hashtbl.create 0 in
@@ -6120,6 +6159,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    if (not class_def.cl_interface && not nativeGen) then begin
       output_h ("\t\t" ^ class_name ^  "();\n");
       output_h "\n\tpublic:\n";
+      output_h ("\t\tenum { _hx_ClassId = " ^ classIdTxt ^ " };\n\n");
       output_h ("\t\tvoid __construct(" ^ constructor_type_args ^ ");\n");
       output_h ("\t\tinline void *operator new(size_t inSize, bool inContainer=" ^ isContainer ^",const char *inName=" ^ gcName ^ ")\n" );
       output_h ("\t\t\t{ return hx::Object::operator new(inSize,inContainer,inName); }\n" );
@@ -6177,6 +6217,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          output_h ("\n");
       end;
 
+      output_h ("\t\tbool _hx_isInstanceOf(int inClassId);\n");
       if ( (List.length implemented) > 0 ) then begin
          output_h "\t\tvoid *_hx_getInterface(int inHash);\n";
          output_h (String.concat "\n" !header_glue);
@@ -7272,7 +7313,7 @@ let generate_cppia ctx =
    ignore (script#stringId "");
    ignore (script#typeId "");
 
-      List.iter (fun object_def ->
+   List.iter (fun object_def ->
       (match object_def with
       | TClassDecl class_def when class_def.cl_extern  ->
          () (*if (gen_externs) then gen_extern_class common_ctx class_def;*)
@@ -7326,7 +7367,6 @@ let generate_source ctx =
    let boot_enums = ref [] in
    let nonboot_classes = ref [] in
    let init_classes = ref [] in
-   let class_text path = join_class_path path "::" in
    let super_deps = create_super_dependencies common_ctx in
    let constructor_deps = create_constructor_dependencies common_ctx in
    let main_deps = ref [] in
@@ -7334,6 +7374,7 @@ let generate_source ctx =
    let jobs = ref [] in
    let build_xml = ref "" in
    let scriptable = (Common.defined common_ctx Define.Scriptable) in
+   let existingIds = Hashtbl.create 0 in
 
    List.iter (fun object_def ->
       (* check if any @:objc class is referenced while '-D objc' is not defined
@@ -7354,6 +7395,17 @@ let generate_source ctx =
          if (is_internal || (is_macro class_def.cl_meta)) then
             ( if (debug>1) then print_endline (" internal class " ^ name ))
          else begin
+            let rec makeId class_name seed =
+               let id = gen_hash32 seed class_name in
+               (* reserve first 100 ids for runtime *)
+               if id < Int32.of_int 100 || Hashtbl.mem existingIds id then
+                  makeId class_name (seed+100) 
+               else begin
+                  Hashtbl.add existingIds id true;
+                  Hashtbl.add ctx.ctx_type_ids class_name id;
+               end in
+            makeId name 0;
+ 
             build_xml := !build_xml ^ (get_class_code class_def Meta.BuildXml);
             if (has_init_field class_def) then
                init_classes := class_def.cl_path ::  !init_classes;
