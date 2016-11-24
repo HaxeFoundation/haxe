@@ -118,6 +118,7 @@ type obj_type =
 	| OJSGenApi
 	| OContext_getPosInfos
 	| OCompiler_getDisplayPos
+	| ORef
 (* ---- ^^^^^ please exactly match the name of the typedef or use TypeName_field if it's a anonymous *)
 
 (**
@@ -204,6 +205,51 @@ let enum_name = function
 	| IFieldAccess -> "FieldAccess"
 	| IAnonStatus -> "AnonStatus"
 	| IImportMode -> "ImportMode"
+
+let proto_name = function
+	| O__Const -> assert false
+	| OImportExpr -> "ImportExpr", None
+	| OImportExpr_path -> "ImportExpr", Some "path"
+	| OTypePath -> "TypePath", None
+	| OMetadataEntry -> "MetadaEntry", None
+	| OField -> "Field", None
+	| OTypeParamDecl -> "TypeParamDecl", None
+	| OFunction -> "Function", None
+	| OFunctionArg -> "FunctionArg", None
+	| OExprDef_fields -> "ExprDef", Some "fields"
+	| OVar -> "Var", None
+	| OCase -> "Case", None
+	| OCatch -> "Catch", None
+	| OExprDef -> "ExprDef", None
+	| OMetaAccess -> "MetaAccess", None
+	| OTypeParameter -> "TypeParameter", None
+	| OClassType -> "ClassType", None
+	| OAbstractType -> "AbstracType", None
+	| OAnonType -> "AnonType", None
+	| ODefType -> "DefType", None
+	| OEnumType -> "EnumType", None
+	| OClassField -> "ClassField", None
+	| OAbstractType_binops -> "AbstractType", Some "binops"
+	| OAbstractType_unops -> "AbstractType", Some "unops"
+	| OAbstractType_from -> "AbstractType", Some "from"
+	| OAbstractType_to -> "AbstractType", Some "to"
+	| OEnumField -> "EnumField", None
+	| OClassType_superClass -> "ClassType", Some "superClass"
+	| OClassType_interfaces -> "ClassType", Some "interfaces"
+	| OType_args -> "Type", Some "args"
+	| OTVar -> "TVar", None
+	| OTVar_extra -> "TVar", Some "extra"
+	| OTFunc -> "TFunc", None
+	| OTFunc_args -> "TFunc", Some "args"
+	| OFieldAccess_c -> "FieldAccess", Some "c"
+	| OTypedExprDef -> "TypedExprDef", None
+	| OTypedExprDef_fields -> "TypedExprDef", Some "fields"
+	| OTypedExprDef_cases -> "TypedExprDef", Some "cases"
+	| OTypedExprDef_catches -> "TypedExprDef", Some "catches"
+	| OJSGenApi -> "JSGenApi", None
+	| OContext_getPosInfos -> "Context", Some "getPosInfos"
+	| OCompiler_getDisplayPos -> "Compiler", Some "getDisplayPos"
+	| ORef -> "Ref", None
 
 let all_enums =
 	let last = IImportMode in

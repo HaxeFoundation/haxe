@@ -74,7 +74,7 @@ and vvirtual = {
 	vtype : virtual_proto;
 	mutable vindexes : vfield array;
 	mutable vtable : value array;
-	vvalue : value;
+	mutable vvalue : value;
 }
 
 and vdynobj = {
@@ -643,7 +643,10 @@ let rec vstr ctx v t =
 	| VUndef -> "undef"
 	| VType t -> tstr t
 	| VRef (r,t) -> "*" ^ (vstr (get_ref ctx r) t)
-	| VVirtual v -> vstr v.vvalue HDyn
+	| VVirtual v ->
+		(match v.vvalue with
+		| VNull -> assert false
+		| _ -> vstr v.vvalue HDyn)
 	| VDynObj d ->
 		(try
 			let fid = Hashtbl.find d.dfields "__string" in
@@ -998,7 +1001,7 @@ let interp ctx f args =
 			set r (VType t)
 		| OGetType (r,v) ->
 			let v = get v in
-			let v = (match v with VVirtual v -> v.vvalue | _ -> v) in
+			let v = (match v with VVirtual { vvalue = VNull } -> assert false | VVirtual v -> v.vvalue | _ -> v) in
 			set r (VType (if v = VNull then HVoid else match get_type v with None -> assert false | Some t -> t));
 		| OGetTID (r,v) ->
 			set r (match get v with
@@ -1169,7 +1172,7 @@ let load_native ctx lib name t =
 	in
 	let no_virtual v =
 		match v with
-		| VVirtual v -> v.vvalue
+		| VVirtual v when v.vvalue <> VNull -> v.vvalue
 		| _ -> v
 	in
 	let set_ref = set_ref ctx in

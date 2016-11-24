@@ -30,6 +30,7 @@ type context = {
 	mutable gen : Genhl.context option;
 	interp : Hlinterp.context;
 	types : (Type.path,int) Hashtbl.t;
+	cached_protos : (obj_type, (virtual_proto * vfield array)) Hashtbl.t;
 	mutable curapi : value MacroApi.compiler_api;
 	mutable has_error : bool;
 }
@@ -83,6 +84,7 @@ let create com api =
 		curapi = api;
 		types = Hashtbl.create 0;
 		has_error = false;
+		cached_protos = Hashtbl.create 0;
 	} in
 	select ctx;
 	Hlinterp.set_error_handler ctx.interp (error_handler ctx);
@@ -291,7 +293,18 @@ let decode_lazytype = function
 	| _ -> raise Invalid_expr
 
 let enc_obj t fields =
-	assert false
+	let t, idx = try
+		Hashtbl.find (get_ctx()).cached_protos t
+	with Not_found ->
+		let name, field = proto_name t in
+		assert false
+	in
+	VVirtual {
+		vtype = t;
+		vindexes = idx;
+		vtable = Array.map snd (Array.of_list fields);
+		vvalue = VNull;
+	}
 
 let enc_inst path fields =
 	let ctx = get_ctx() in
@@ -323,7 +336,7 @@ let decode_bytes = function
 	| _ -> raise Invalid_expr
 
 let encode_ref v convert tostr =
-	enc_obj [
+	enc_obj ORef [
 		"get", vfun0 (fun() -> convert v);
 		"__string", vfun0 (fun() -> VBytes (caml_to_hl (tostr())));
 		"toString", vfun0 (fun() -> enc_string (tostr()));
