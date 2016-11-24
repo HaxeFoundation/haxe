@@ -482,6 +482,7 @@ module Define = struct
 		| JsClassic
 		| JsEs
 		| JsUnflatten
+		| JsSourceMap
 		| KeepOldOutput
 		| LoopUnrollMaxCost
 		| LuaVer
@@ -576,6 +577,7 @@ module Define = struct
 		| JsClassic -> ("js_classic","Don't use a function wrapper and strict mode in JS output")
 		| JsEs -> ("js_es","Generate JS compilant with given ES standard version (default 5)")
 		| JsUnflatten -> ("js_unflatten","Generate nested objects for packages and types")
+		| JsSourceMap -> ("js_source_map","Generate JavaScript source map even in non-debug mode")
 		| KeepOldOutput -> ("keep_old_output","Keep old source files in the output directory (for C#/Java)")
 		| LoopUnrollMaxCost -> ("loop_unroll_max_cost","Maximum cost (number of expressions * iterations) before loop unrolling is canceled (default 250)")
 		| LuaJit -> ("lua_jit","Enable the jit compiler for lua (version 5.2 only")
