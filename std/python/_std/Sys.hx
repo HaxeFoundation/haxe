@@ -107,8 +107,8 @@ class Sys {
 				python.lib.Subprocess.call([cmd].concat(args));
 	}
 
-	public static function cpuTime() : Float {
-		return python.lib.Time.clock();
+	public static inline function cpuTime() : Float {
+		return python.lib.Timeit.default_timer();
 	}
 
 	@:deprecated("Use programPath instead") public static function executablePath() : String {
