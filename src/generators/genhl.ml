@@ -3004,8 +3004,8 @@ let generate_static_init ctx types main =
 				op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx ([],"Type") "register",rname,rc));
 
 				(match c.cl_constructor with
-				| None -> ()
-				| Some f -> op ctx (OSetMethod (rc,index "__constructor__",alloc_fid ctx c f)));
+				| Some f when not (is_extern_field f) -> op ctx (OSetMethod (rc,index "__constructor__",alloc_fid ctx c f))
+				| _ -> ());
 
 				let gather_implements() =
 					let classes = ref [] in
