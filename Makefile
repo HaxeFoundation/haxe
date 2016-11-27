@@ -108,17 +108,13 @@ haxelib:
 
 tools: haxelib
 
-install:
-	rm -rf $(INSTALL_LIB_DIR)
+install: uninstall
 	mkdir -p $(INSTALL_BIN_DIR)
 	mkdir -p $(INSTALL_LIB_DIR)/lib
-	rm -rf $(INSTALL_STD_DIR)
 	cp -rf std $(INSTALL_STD_DIR)
 	cp -rf extra $(INSTALL_LIB_DIR)
-	rm -f $(INSTALL_BIN_DIR)/haxe
 	cp haxe $(INSTALL_LIB_DIR)
 	ln -s $(INSTALL_LIB_DIR)/haxe $(INSTALL_BIN_DIR)/haxe
-	rm -f $(INSTALL_BIN_DIR)/haxelib
 	cp haxelib $(INSTALL_LIB_DIR)
 	ln -s $(INSTALL_LIB_DIR)/haxelib $(INSTALL_BIN_DIR)/haxelib
 	chmod -R a+rx $(INSTALL_LIB_DIR)
@@ -131,7 +127,14 @@ install_tools: tools
 	chmod a+rx $(INSTALL_BIN_DIR)/haxelib
 
 uninstall:
-	rm -rf $(INSTALL_BIN_DIR)/haxe $(INSTALL_BIN_DIR)/haxelib $(INSTALL_LIB_DIR)
+	rm -rf $(INSTALL_BIN_DIR)/haxe $(INSTALL_BIN_DIR)/haxelib
+	if [ -d "$(INSTALL_LIB_DIR)/lib" ] && find "$(INSTALL_LIB_DIR)/lib" -mindepth 1 -print -quit | grep -q .; then \
+		echo "The local haxelib repo at $(INSTALL_LIB_DIR)/lib will not be removed. Remove it manually if you want."; \
+		find $(INSTALL_LIB_DIR)/ ! -name 'lib' -mindepth 1 -maxdepth 1 -exec rm -rf {} +; \
+	else \
+		rm -rf $(INSTALL_LIB_DIR); \
+	fi
+	
 
 # Modules
 
