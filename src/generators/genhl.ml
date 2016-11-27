@@ -95,6 +95,7 @@ type context = {
 	mutable method_wrappers : ((ttype * ttype), int) PMap.t;
 	mutable rec_cache : (Type.t * ttype option ref) list;
 	mutable cached_tuples : (ttype list, ttype) PMap.t;
+	macro_typedefs : (string, ttype) Hashtbl.t;
 	array_impl : array_impl;
 	base_class : tclass;
 	base_type : tclass;
@@ -345,6 +346,7 @@ let rec to_type ?tref ctx t =
 		) in
 		(match td.t_path with
 		| [], "Null" when not (is_nullable t) -> HNull t
+		| ["haxe";"macro"], name -> Hashtbl.replace ctx.macro_typedefs name t; t
 		| _ -> t)
 	| TLazy f ->
 		to_type ?tref ctx (!f())
@@ -3495,6 +3497,7 @@ let create_context com is_macro dump =
 		rec_cache = [];
 		method_wrappers = PMap.empty;
 		cdebug_files = new_lookup();
+		macro_typedefs = Hashtbl.create 0;
 	} in
 	ignore(alloc_string ctx "");
 	ignore(class_type ctx ctx.base_class [] false);

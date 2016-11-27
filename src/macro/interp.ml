@@ -3194,7 +3194,7 @@ let enc_hash h =
 
 let enc_obj _ l = VObject (obj hash l)
 
-let encode_enum (i:enum_index) pos index pl =
+let encode_enum (i:enum_type) pos index pl =
 	let eindex : int = Obj.magic i in
 	let edef = (get_ctx()).enums.(eindex) in
 	if pl = [] then

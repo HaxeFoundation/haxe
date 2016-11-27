@@ -31,6 +31,7 @@ type context = {
 	interp : Hlinterp.context;
 	types : (Type.path,int) Hashtbl.t;
 	cached_protos : (obj_type, (virtual_proto * vfield array)) Hashtbl.t;
+	cached_enums : (enum_type, ttype) Hashtbl.t;
 	mutable curapi : value MacroApi.compiler_api;
 	mutable has_error : bool;
 }
@@ -85,6 +86,7 @@ let create com api =
 		types = Hashtbl.create 0;
 		has_error = false;
 		cached_protos = Hashtbl.create 0;
+		cached_enums = Hashtbl.create 0;
 	} in
 	select ctx;
 	Hlinterp.set_error_handler ctx.interp (error_handler ctx);
@@ -225,7 +227,10 @@ let decode_pos = function
 	| VAbstract (APos p) -> p
 	| _ -> raise Invalid_expr
 
-let encode_enum _ pos tag pl =
+let last_enum_type = ref IExpr
+
+let encode_enum t pos tag pl =
+	last_enum_type := t;
 	match pos with
 	| None -> VEnum (tag,Array.of_list pl)
 	| Some p -> VEnum (tag,Array.of_list (List.rev (encode_pos p :: List.rev pl)))
@@ -293,14 +298,101 @@ let decode_lazytype = function
 	| _ -> raise Invalid_expr
 
 let enc_obj t fields =
-	let t, idx = try
-		Hashtbl.find (get_ctx()).cached_protos t
+	match t with
+	| OMetaAccess ->
+		let h = Hashtbl.create 0 in
+		let rec loop i = function
+			| [] -> ()
+			| (n,_) :: l ->
+				Hashtbl.add h n i;
+				loop (i + 1) l
+		in
+		loop 0 fields;
+		let values = Array.of_list (List.map snd fields) in
+		VDynObj {
+			dfields = h;
+			dvalues = values;
+			dtypes = Array.make (Array.length values) HDyn;
+			dvirtuals = [];
+		}
+	| _ ->
+	let ctx = get_ctx() in
+	let to_str (name,f) =
+		match f with
+		| None -> name
+		| Some f -> name ^ "." ^ f
+	in
+	let vp, idx = try
+		Hashtbl.find ctx.cached_protos t
 	with Not_found ->
 		let name, field = proto_name t in
-		assert false
+		let gen = (match ctx.gen with None -> assert false | Some gen -> gen) in
+		let vt = (try
+			let t = Hashtbl.find gen.Genhl.macro_typedefs name in
+			(match t, field with
+			| _, None -> t
+			| HVirtual v, Some f ->
+				let idx = (try PMap.find f v.vindex with Not_found -> failwith (name ^ " has no field definition " ^ f)) in
+				let _,_, t = v.vfields.(idx) in
+				(match t with
+				| HVirtual _ -> t
+				| _ -> failwith ("Unexpected type " ^ tstr t ^ " for definition " ^ to_str (name,field)))
+			| _ ->
+				assert false
+			)
+		with Not_found -> try
+			let t = PMap.find (["haxe";"macro"],name) gen.Genhl.cached_types in
+			(match t, field with
+			| HEnum e, Some f ->
+				let rec loop i =
+					if i = Array.length e.efields then raise Not_found;
+					let n, _, tl = e.efields.(i) in
+					if n = f then
+						tl.(0)
+					else
+						loop (i + 1)
+				in
+				loop 0
+			| _ ->
+				failwith ("Unexpected type " ^ tstr t ^ " for definition " ^ to_str (name,field)))
+		with Not_found ->
+			failwith ("Macro definition missing " ^ to_str (name,field))
+		) in
+		match vt with
+		| HVirtual vp ->
+			let vindexes = Array.map (fun (n,_,_) ->
+				let rec loop i = function
+					| [] -> VFNone
+					| (n2,_) :: _ when n = n2 -> VFIndex i
+					| _ :: l -> loop (i + 1) l
+				in
+				loop 0 fields
+			) vp.vfields in
+			Hashtbl.replace ctx.cached_protos t (vp, vindexes);
+			vp, vindexes
+		| _ ->
+			failwith (to_str (name,field) ^ " returned invalid type " ^ tstr vt)
 	in
+	if debug then begin
+		let farr = Array.of_list fields in
+		Array.iteri (fun i idx ->
+			let name, _ ,_ = vp.vfields.(i) in
+			match idx with
+			| VFNone ->
+				if List.mem_assoc name fields then failwith ("Field " ^ name ^ " is present in "  ^ to_str (proto_name t))
+			| VFIndex i when i >= Array.length farr ->
+				failwith ("Missing field " ^ name ^ " of "  ^ to_str (proto_name t))
+			| VFIndex i when fst farr.(i) <> name ->
+				failwith ("Field " ^ name ^ " of "  ^ to_str (proto_name t) ^ " is wrongly mapped on " ^ fst farr.(i))
+			| _ ->
+				()
+		) idx;
+		List.iter (fun (n,_) ->
+			if n <> "name_pos" && not (PMap.mem n vp.vindex) then failwith ("Field " ^ n ^ " has data but is not part of type " ^ to_str (proto_name t));
+		) fields;
+	end;
 	VVirtual {
-		vtype = t;
+		vtype = vp;
 		vindexes = idx;
 		vtable = Array.map snd (Array.of_list fields);
 		vvalue = VNull;
@@ -320,7 +412,26 @@ let enc_string s =
 	enc_inst ([],"String") [|VBytes (caml_to_hl s);VInt (Int32.of_int (String.length s))|]
 
 let enc_array vl =
-	let arr = Array.of_list vl in
+	let arr = Array.of_list (List.map (fun v ->
+		match v with
+		| VNull | VObj _ | VVirtual _ -> v
+		| VEnum _ ->
+			let ctx = get_ctx() in
+			let et = !last_enum_type in
+			let t = try
+				Hashtbl.find ctx.cached_enums et
+			with Not_found ->
+				let name = enum_name et in
+				let t = (match ctx.gen with
+				| None -> assert false
+				| Some gen -> try PMap.find (["haxe";"macro"],name) gen.Genhl.cached_types with Not_found -> failwith ("Missing enum type " ^ name)
+				) in
+				Hashtbl.replace ctx.cached_enums et t;
+				t
+			in
+			VDyn (v,t)
+		| _ -> failwith "Invalid array value"
+	) vl) in
 	enc_inst (["hl";"types"],"ArrayObj") [|VInt (Int32.of_int (Array.length arr));VArray (arr,HDyn)|]
 
 let encode_bytes s =
@@ -336,12 +447,27 @@ let decode_bytes = function
 	| _ -> raise Invalid_expr
 
 let encode_ref v convert tostr =
-	enc_obj ORef [
-		"get", vfun0 (fun() -> convert v);
-		"__string", vfun0 (fun() -> VBytes (caml_to_hl (tostr())));
-		"toString", vfun0 (fun() -> enc_string (tostr()));
-		"$", VAbstract (AUnsafe (Obj.repr v));
-	]
+	let h = Hashtbl.create 0 in
+	Hashtbl.add h "get" 0;
+	Hashtbl.add h "__string" 1;
+	Hashtbl.add h "toString" 2;
+	Hashtbl.add h "$" 3;
+	VDynObj {
+		dfields = h;
+		dvalues = [|
+			vfun0 (fun() -> convert v);
+			vfun0 (fun() -> VBytes (caml_to_hl (tostr())));
+			vfun0 (fun() -> enc_string (tostr()));
+			VAbstract (AUnsafe (Obj.repr v))
+		|];
+		dtypes = [|
+			HFun ([],HDyn);
+			HFun ([],HBytes);
+			HFun ([],HDyn);
+			HDyn;
+		|];
+		dvirtuals = [];
+	}
 
 let decode_ref v : 'a =
 	match field v "$" with

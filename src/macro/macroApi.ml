@@ -51,7 +51,7 @@ type 'value compiler_api = {
 }
 
 
-type enum_index =
+type enum_type =
 	| IExpr
 	| IBinop
 	| IUnop
@@ -88,7 +88,7 @@ type obj_type =
 	| OVar
 	| OCase
 	| OCatch
-	| OExprDef
+	| OExpr
 	(* Type *)
 	| OMetaAccess
 	| OTypeParameter
@@ -146,7 +146,7 @@ module type InterpApi = sig
 	val vfun5 : (value -> value -> value -> value -> value -> value) -> value
 
 	val encode_pos : Globals.pos -> value
-	val encode_enum : enum_index -> Globals.pos option -> int -> value list -> value
+	val encode_enum : enum_type -> Globals.pos option -> int -> value list -> value
 	val encode_string_map : ('a -> value) -> (string, 'a) PMap.t -> value
 
 	val encode_tdecl : Type.module_type -> value
@@ -211,7 +211,7 @@ let proto_name = function
 	| OImportExpr -> "ImportExpr", None
 	| OImportExpr_path -> "ImportExpr", Some "path"
 	| OTypePath -> "TypePath", None
-	| OMetadataEntry -> "MetadaEntry", None
+	| OMetadataEntry -> "MetadataEntry", None
 	| OField -> "Field", None
 	| OTypeParamDecl -> "TypeParamDecl", None
 	| OFunction -> "Function", None
@@ -220,7 +220,7 @@ let proto_name = function
 	| OVar -> "Var", None
 	| OCase -> "Case", None
 	| OCatch -> "Catch", None
-	| OExprDef -> "ExprDef", None
+	| OExpr -> "Expr", None
 	| OMetaAccess -> "MetaAccess", None
 	| OTypeParameter -> "TypeParameter", None
 	| OClassType -> "ClassType", None
@@ -254,7 +254,7 @@ let proto_name = function
 let all_enums =
 	let last = IImportMode in
 	let rec loop i =
-		let e : enum_index = Obj.magic i in
+		let e : enum_type = Obj.magic i in
 		if e = last then [e] else e :: loop (i + 1)
 	in
 	loop 0
@@ -540,7 +540,7 @@ and encode_expr e =
 			| EMeta (m,e) ->
 				29, [encode_meta_entry m;loop e]
 		in
-		enc_obj OExprDef [
+		enc_obj OExpr [
 			"pos", encode_pos p;
 			"expr", encode_enum IExpr tag pl;
 		]
@@ -550,7 +550,7 @@ and encode_expr e =
 and encode_null_expr e =
 	match e with
 	| None ->
-		enc_obj OExprDef ["pos", vnull;"expr",vnull]
+		enc_obj OExpr ["pos", vnull;"expr",vnull]
 	| Some e ->
 		encode_expr e
 

@@ -379,8 +379,13 @@ let rec to_virtual ctx v vp =
 			d.dvirtuals <- v :: d.dvirtuals;
 			VVirtual v
 		)
-	| VVirtual v ->
-		to_virtual ctx v.vvalue vp
+	| VVirtual vd ->
+		if vd.vtype == vp then
+			v
+		else if vd.vvalue = VNull then
+			assert false
+		else
+			to_virtual ctx vd.vvalue vp
 	| _ ->
 		throw_msg ctx ("Invalid ToVirtual " ^ vstr_d ctx v ^ " : " ^ tstr (HVirtual vp))
 
@@ -556,7 +561,16 @@ let rec dyn_get_field ctx obj field rt =
 		with Not_found ->
 			loop o.oproto.pclass)
 	| VVirtual vp ->
-		dyn_get_field ctx vp.vvalue field rt
+		(match vp.vvalue with
+		| VNull ->
+			(try
+				let idx = PMap.find field vp.vtype.vindex in
+				match vp.vindexes.(idx) with
+				| VFNone -> VNull
+				| VFIndex i -> vp.vtable.(i)
+			with Not_found ->
+				VNull)
+		| v -> dyn_get_field ctx v field rt)
 	| VNull ->
 		null_access()
 	| _ ->
@@ -624,6 +638,26 @@ let stack_frame ctx (f,pos) =
 	let file, line = make_stack ctx (f,pos) in
 	Printf.sprintf "%s:%d: Called from fun@%d @x%X" file line f.findex (!pos - 1)
 
+let virt_make_val v =
+	let hfields = Hashtbl.create 0 in
+	let ftypes = DynArray.create() in
+	let values = DynArray.create() in
+	Array.iteri (fun i idx ->
+		match idx with
+		| VFNone -> ()
+		| VFIndex k ->
+			let n, _, t = v.vtype.vfields.(i) in
+			Hashtbl.add hfields n (DynArray.length values);
+			DynArray.add values v.vtable.(k);
+			DynArray.add ftypes t;
+	) v.vindexes;
+	VDynObj {
+		dfields = hfields;
+		dtypes = DynArray.to_array ftypes;
+		dvalues = DynArray.to_array values;
+		dvirtuals = [v];
+	}
+
 let rec vstr ctx v t =
 	let vstr = vstr ctx in
 	match v with
@@ -645,8 +679,10 @@ let rec vstr ctx v t =
 	| VRef (r,t) -> "*" ^ (vstr (get_ref ctx r) t)
 	| VVirtual v ->
 		(match v.vvalue with
-		| VNull -> assert false
-		| _ -> vstr v.vvalue HDyn)
+		| VNull ->
+			vstr (virt_make_val v) HDyn
+		| _ ->
+			vstr v.vvalue HDyn)
 	| VDynObj d ->
 		(try
 			let fid = Hashtbl.find d.dfields "__string" in
@@ -662,7 +698,11 @@ let rec vstr ctx v t =
 			if Array.length pl = 0 then
 				n
 			else
-				n ^ "(" ^ String.concat "," (List.map2 vstr (Array.to_list vals) (Array.to_list pl)) ^ ")"
+				let rec loop i =
+					if i = Array.length pl then []
+					else let v = vals.(i) in vstr v pl.(i) :: loop (i + 1)
+				in
+				n ^ "(" ^ String.concat "," (loop 0) ^ ")"
 		| _ ->
 			assert false)
 	| VVarArgs _ -> "varargs"
