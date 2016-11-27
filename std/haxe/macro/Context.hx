@@ -71,7 +71,7 @@ class Context {
 		If a class path was declared relative, this method returns the relative
 		file path. Otherwise it returns the absolute file path.
 	**/
-	public static function resolvePath( file : String ) {
+	public static function resolvePath( file : String ) : String {
 		return load("resolve_path",1)(file);
 	}
 
@@ -163,7 +163,7 @@ class Context {
 
 		Modifying the returned array has no effect on the compiler.
 	**/
-	public static function getLocalUsing() :  Array<Type.Ref<Type.ClassType>> {
+	public static function getLocalUsing() : Array<Type.Ref<Type.ClassType>> {
 		return load("get_local_using", 0)();
 	}
 
@@ -172,7 +172,7 @@ class Context {
 
 		Modifying the returned array has no effect on the compiler.
 	**/
-	public static function getLocalImports() :  Array<ImportExpr> {
+	public static function getLocalImports() : Array<ImportExpr> {
 		return load("get_local_imports", 0)();
 	}
 
