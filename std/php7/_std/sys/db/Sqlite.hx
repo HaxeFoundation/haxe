@@ -49,7 +49,8 @@ private class SQLiteConnection implements Connection {
 	}
 
 	public function escape( s : String ) : String {
-		return db.quote(s);
+		var output = db.quote(s);
+		return output.length > 2 ? output.substr(1, output.length-2) : output;
 	}
 
 	public function quote( s : String ) : String {
@@ -91,22 +92,36 @@ private class SQLiteConnection implements Connection {
 
 	function base16_encode(str : String) {
 		str = untyped __call__("unpack", "H"+(2 * str.length), str);
-		str = untyped __call__("chunk_split", (str:NativeString)[1]);
+		str = untyped __call__("chunk_split", untyped str[1]);
 		return str;
 	}
+}
+
+class SqliteDebug {
+	static public var debug = false;
 }
 
 private class SQLiteResultSet implements ResultSet {
 	static var hxAnonClassName = Boot.getHxAnon().phpClassName;
 
 	public var length(get,null) : Int;
+	var _length:Int = 0;
 	public var nfields(get,null) : Int;
+	var _nfields:Int = 0;
 
+	var rows:NativeArray;
 	var result:PDOStatement;
 	var fetchedRow:NativeArray;
+	var fieldsInfo:NativeAssocArray<NativeArray>;
 
 	public function new( result:PDOStatement ) {
 		this.result = result;
+		try{
+			getFieldsInfo();
+		} catch(e:Dynamic) {
+			rows = result.fetchAll(PDO.FETCH_ASSOC);
+			getFieldsInfo();
+		}
 	}
 
 	public function hasNext() : Bool {
@@ -122,7 +137,7 @@ private class SQLiteResultSet implements ResultSet {
 	public function results() : List<Dynamic> {
 		var list = new List();
 		var rows = result.fetchAll(PDO.FETCH_CLASS, hxAnonClassName);
-		Syntax.foreach(rows, function(_, row) list.add(row));
+		Syntax.foreach(rows, function(_, row) list.add(correctObjectTypes(row)));
 		return list;
 	}
 
@@ -140,17 +155,56 @@ private class SQLiteResultSet implements ResultSet {
 	}
 
 	public function getFieldsNames() : Null<Array<String>> {
-		return [for (i in 0...result.columnCount()) result.getColumnMeta(i)['name']];
+		var fieldsInfo = getFieldsInfo();
+		return Global.array_keys(fieldsInfo);
 	}
 
 	function fetchNext() {
 		var next:Dynamic = result.fetch(PDO.FETCH_ASSOC);
-		fetchedRow = (next == false ? fetchedRow = null : next);
+		fetchedRow = (next == false ? null : correctArrayTypes(next));
 	}
 
 	function withdrawFetched() : Dynamic {
 		if (fetchedRow == null) return null;
 		return Boot.createAnon(fetchedRow);
+	}
+
+	function correctArrayTypes(row:NativeAssocArray<String>):NativeAssocArray<Scalar> {
+		var fieldsInfo = getFieldsInfo();
+		Syntax.foreach(row, function(field:String, value:String) {
+			row[field] = correctType(value, fieldsInfo[field]['native_type']);
+		});
+		return cast row;
+	}
+
+	function correctObjectTypes(row:{}):{} {
+		var fieldsInfo = getFieldsInfo();
+		Syntax.foreach(row, function(field:String, value:String) {
+			value = correctType(value, fieldsInfo[field]['native_type']);
+			Syntax.setField(row, field, value);
+		});
+		return row;
+	}
+
+	inline function getFieldsInfo():NativeAssocArray<NativeArray> {
+		if (fieldsInfo == null) {
+			fieldsInfo = cast Syntax.arrayDecl();
+			var columnCount = result.columnCount();
+			for(i in 0...columnCount) {
+				var info = result.getColumnMeta(i);
+				fieldsInfo[info['name']] = info;
+			}
+		}
+		return fieldsInfo;
+	}
+
+	function correctType(value:String, type:String):Scalar {
+		if (value == null) return null;
+		return switch(type) {
+			case "float", "decimal", "double", "newdecimal": Syntax.float(value);
+			case "bool": Syntax.bool(value);
+			default: value;
+		}
 	}
 
 	function get_length() return result.rowCount();

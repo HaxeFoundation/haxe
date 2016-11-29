@@ -210,9 +210,8 @@ private class MysqlResultSet implements ResultSet {
 	}
 
 	function correctType(value:String, type:Int):Scalar {
-		if (value == null) {
-			return null;
-		} else if (
+		if (value == null) return null;
+		if (
 			type == Const.MYSQLI_TYPE_BIT
 			|| type == Const.MYSQLI_TYPE_TINY
 			|| type == Const.MYSQLI_TYPE_SHORT
@@ -221,16 +220,16 @@ private class MysqlResultSet implements ResultSet {
 			|| type == Const.MYSQLI_TYPE_CHAR
 		) {
 			return Syntax.int(value);
-		} else if (
+		}
+		if (
 			type == Const.MYSQLI_TYPE_DECIMAL
 			|| type == Const.MYSQLI_TYPE_NEWDECIMAL
 			|| type == Const.MYSQLI_TYPE_FLOAT
 			|| type == Const.MYSQLI_TYPE_DOUBLE
 		) {
 			return Syntax.float(value);
-		} else {
-			return value;
 		}
+		return value;
 	}
 
 	function get_length() return result.num_rows;

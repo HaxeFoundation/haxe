@@ -747,6 +747,11 @@ extern class Global {
 	static function unpack( format:String, data:String ) : NativeArray;
 
 	/**
+		@see http://php.net/manual/en/function.chunk-split.php
+	**/
+	static function chunk_split( body:String, chunklen:Int = 76, end:String = "\r\n" ) : String;
+
+	/**
 		@see http://php.net/manual/en/function.urlencode.php
 	**/
 	static function urlencode( str:String ) : String;

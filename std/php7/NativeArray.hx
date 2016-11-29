@@ -30,8 +30,14 @@ using php7.Global;
 	public inline function new()
 		this = Syntax.arrayDecl();
 
-	@:arrayAccess function get(key:Scalar):Dynamic;
-	@:arrayAccess function set(key:Scalar, val:Dynamic):Dynamic;
+	@:arrayAccess function getByInt(key:Int):Dynamic;
+	@:arrayAccess function setByInt(key:Int, val:Dynamic):Dynamic;
+	@:arrayAccess function getByFloat(key:Float):Dynamic;
+	@:arrayAccess function setByFloat(key:Float, val:Dynamic):Dynamic;
+	@:arrayAccess function getByString(key:String):Dynamic;
+	@:arrayAccess function setByString(key:String, val:Dynamic):Dynamic;
+	@:arrayAccess function getByBool(key:Bool):Dynamic;
+	@:arrayAccess function setByBool(key:Bool, val:Dynamic):Dynamic;
 
 	public inline function iterator()
 		return new NativeArrayIterator(this);
