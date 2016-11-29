@@ -2180,7 +2180,7 @@ let cpp_var_debug_name_of v =
 
 
 let cpp_no_debug_synbol ctx var =
-   (has_meta_key var.v_meta Meta.CompilerGenerated) ||
+   (ctx.ctx_debug_level=0) || (has_meta_key var.v_meta Meta.CompilerGenerated) ||
       match cpp_type_of ctx var.v_type with
       | TCppStar _ | TCppReference _ -> true
       | TCppInst (class_def) when (has_meta_key class_def.cl_meta Meta.StructAccess) -> true
@@ -2249,6 +2249,7 @@ let cpp_is_templated_call ctx member =
 let cpp_is_static_extension ctx member =
    has_meta_key member.cf_meta Meta.NativeStaticExtension
 ;;
+
 
 let cpp_template_param path native =
    let path = "::" ^ (join_class_path_remap (path) "::" ) in
@@ -3949,9 +3950,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 (* } *)
 
 
-let gen_cpp_function_body ctx clazz is_static func_name function_def head_code tail_code =
+let gen_cpp_function_body ctx clazz is_static func_name function_def head_code tail_code no_debug =
    let output = ctx.ctx_output in
    let dot_name = join_class_path clazz.cl_path "." in
+   if no_debug then ctx.ctx_debug_level <- 0;
    let prologue = function gc_stack ->
       let spacer = "            \t" in
       let output_i = fun s -> output (spacer ^ s) in
@@ -4092,6 +4094,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
       let is_void = (cpp_type_of ctx function_def.tf_type ) = TCppVoid in
       let ret = if is_void  then "(void)" else "return " in
       let orig_debug = ctx.ctx_debug_level in
+      let no_debug = has_meta_key field.cf_meta Meta.NoDebug in
 
       if (not (is_dynamic_haxe_method field)) then begin
          (* The actual function definition *)
@@ -4110,7 +4113,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
             output ("\t" ^ ret ^ "::" ^ nativeImpl ^ "(" ^ (ctx_arg_list_name ctx function_def.tf_args "__o_") ^ ");\n");
             output "}\n\n";
          end else
-            gen_cpp_function_body ctx class_def is_static field.cf_name function_def code tail_code;
+            gen_cpp_function_body ctx class_def is_static field.cf_name function_def code tail_code no_debug;
 
          output "\n\n";
          let nonVirtual = has_meta_key field.cf_meta Meta.NonVirtual in
@@ -4128,7 +4131,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          output ("HX_BEGIN_DEFAULT_FUNC(" ^ func_name ^ "," ^ class_name ^ ")\n");
          output return_type;
          output (" _hx_run(" ^ (ctx_arg_list ctx function_def.tf_args "__o_") ^ ")");
-         gen_cpp_function_body ctx class_def is_static func_name function_def "" "";
+         gen_cpp_function_body ctx class_def is_static func_name function_def "" "" no_debug;
 
          output ("HX_END_LOCAL_FUNC" ^ nargs ^ "(" ^ ret ^ ")\n");
          output ("HX_END_DEFAULT_FUNC\n\n");
@@ -5355,7 +5358,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
             if has_meta_key definition.cf_meta Meta.NoDebug then
                ctx.ctx_debug_level <- 0;
             ctx.ctx_real_this_ptr <- false;
-            gen_cpp_function_body ctx class_def false "new" function_def "" "";
+            gen_cpp_function_body ctx class_def false "new" function_def "" "" (has_meta_key definition.cf_meta Meta.NoDebug);
             out "\n";
 
             ctx.ctx_debug_level <- old_debug;
@@ -5419,7 +5422,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
             if has_meta_key definition.cf_meta Meta.NoDebug then
                ctx.ctx_debug_level <- 0;
 
-            gen_cpp_function_body ctx class_def false "new" function_def "" "";
+            gen_cpp_function_body ctx class_def false "new" function_def "" "" (has_meta_key definition.cf_meta Meta.NoDebug);
             output_cpp "\n";
 
             ctx.ctx_debug_level <- old_debug;
