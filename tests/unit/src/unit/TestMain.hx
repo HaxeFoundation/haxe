@@ -103,19 +103,19 @@ class TestMain {
 		#end
 
 		// SPOD tests
-		// #if (php7 || ( (neko || ((php || php7) && (travis || appveyor || php_sqlite)) || java || cpp || (cs && (travis || appveyor))) && !macro && !interp))
-		// #if ( (travis || appveyor || php7 || php) && !(cpp || cs) )
-		// classes.push(new TestSpod(sys.db.Mysql.connect({
-		// 	host : "127.0.0.1",
-		// 	user : "travis",
-		// 	pass : "",
-		// 	port : 3306,
-		// 	database : "haxe_test" })));
-		// #end
+		#if (php7 || ( (neko || ((php || php7) && (travis || appveyor || php_sqlite)) || java || cpp || (cs && (travis || appveyor))) && !macro && !interp))
+		#if ( (travis || appveyor || php7 || php) && !(cpp || cs) )
+		classes.push(new TestSpod(sys.db.Mysql.connect({
+			host : "127.0.0.1",
+			user : "travis",
+			pass : "",
+			port : 3306,
+			database : "haxe_test" })));
+		#end
 		if (verbose)
 			logVerbose("Setup sqlite");
 		classes.push(new TestSpod(sys.db.Sqlite.open("db.db3")));
-		// #end
+		#end
 		TestIssues.addIssueClasses("src/unit/issues", "unit.issues");
 		TestIssues.addIssueClasses("src/unit/hxcpp_issues", "unit.hxcpp_issues");
 		var current = null;

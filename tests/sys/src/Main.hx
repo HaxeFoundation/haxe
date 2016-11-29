@@ -6,7 +6,6 @@ class Main {
 		runner.add(new io.TestFileInput());
 		runner.add(new io.TestProcess());
 		var code = runner.run() ? 0 : 1;
-		trace(runner.result.toString());
 		Sys.exit(code);
 	}
 }
