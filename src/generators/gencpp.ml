@@ -1437,9 +1437,14 @@ and tcppvarloc =
    | VarStatic of tclass * bool * tclass_field
    | VarInternal of tcppexpr * string * string
 
+and tcppinst =
+   | InstPtr
+   | InstObjC
+   | InstStruct
+
 and tcppfuncloc =
    | FuncThis of tclass_field
-   | FuncInstance of tcppexpr * bool * tclass_field
+   | FuncInstance of tcppexpr * tcppinst * tclass_field
    | FuncStatic of tclass * bool * tclass_field
    | FuncTemplate of tclass * tclass_field * path * bool
    | FuncInterface of tcppexpr * tclass * tclass_field
@@ -1552,8 +1557,9 @@ let rec s_tcpp = function
    | CppNullAccess -> "CppNullAccess"
 
    | CppCall (FuncThis _,_)  -> "CppCallThis"
-   | CppCall (FuncInstance (obj,objC,field),_) ->
-       (if objC then "CppCallObjCInstance" else "CppCallInstance(") ^ tcpp_to_string obj.cpptype ^ "," ^ field.cf_name ^ ")"
+   | CppCall (FuncInstance (obj,inst,field),_) ->
+       (match inst with InstObjC -> "CppCallObjCInstance(" | InstPtr-> "CppCallInstance(" | _ -> "CppCallStruct(") ^
+          tcpp_to_string obj.cpptype ^ "," ^ field.cf_name ^ ")"
    | CppCall (FuncInterface  _,_) -> "CppCallInterface"
    | CppCall (FuncStatic  (_,objC,_),_) -> if objC then "CppCallStaticObjC" else "CppCallStatic"
    | CppCall (FuncTemplate  _,_) -> "CppCallTemplate"
@@ -2442,15 +2448,19 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                   CppNullAccess, TCppDynamic
                else if retypedObj.cpptype=TCppDynamic && not clazz.cl_interface then begin
                   if is_internal_member member.cf_name then
-                    CppFunction( FuncInstance(retypedObj,false,member), funcReturn ), exprType
+                    CppFunction( FuncInstance(retypedObj,InstPtr,member), funcReturn ), exprType
                   else
                      CppDynamicField(retypedObj, member.cf_name), TCppVariant
                end else if cpp_is_struct_access retypedObj.cpptype then begin
+
                   match retypedObj.cppexpr with
                   | CppThis ThisReal ->
                       CppVar(VarThis(member)), exprType
-                  | _ ->
-                      CppVar( VarInstance(retypedObj,member,tcpp_to_string clazzType, ".") ), exprType
+                  | _ -> if (is_var_field member) then
+                         CppVar( VarInstance(retypedObj,member,tcpp_to_string clazzType, ".") ), exprType
+                     else
+                         CppFunction( FuncInstance(retypedObj,InstStruct,member), funcReturn ), exprType
+
                end else if is_var_field member then begin
 
                   let exprType = match retypedObj.cpptype, exprType with
@@ -2510,7 +2520,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                  | CppSuper this ->
                     CppFunction( FuncSuper(this,member), funcReturn ), exprType
                  | _ ->
-                    CppFunction( FuncInstance(retypedObj,is_objc,member), funcReturn ), exprType
+                    CppFunction( FuncInstance(retypedObj,(if is_objc then InstObjC else InstPtr),member), funcReturn ), exprType
                  )
                end
 
@@ -2611,9 +2621,9 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                   (* Not actually a TCall...*)
                   retypedFunc.cppexpr, retypedFunc.cpptype
 
-               | CppFunction( FuncInstance(obj, false, member), _ ) when return_type=TCppVoid && is_array_splice_call obj member ->
+               | CppFunction( FuncInstance(obj, InstPtr, member), _ ) when return_type=TCppVoid && is_array_splice_call obj member ->
                   let retypedArgs = List.map (retype TCppDynamic ) args in
-                  CppCall( FuncInstance(obj, false, {member with cf_name="removeRange"}), retypedArgs), TCppVoid
+                  CppCall( FuncInstance(obj, InstPtr, {member with cf_name="removeRange"}), retypedArgs), TCppVoid
 
                | CppFunction( FuncStatic(obj, false, member), _ ) when member.cf_name = "hx::AddressOf" ->
                     let arg = retype TCppUnchanged (List.hd args) in
@@ -2636,7 +2646,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                   | _ -> abort "First parameter of template function must be a Class" retypedFunc.cpppos
                   )
 
-               | CppFunction( FuncInstance(obj,false,member) as func, returnType ) when cpp_can_static_cast returnType cppType ->
+               | CppFunction( FuncInstance(obj,InstPtr,member) as func, returnType ) when cpp_can_static_cast returnType cppType ->
                   let retypedArgs = List.map (retype TCppDynamic ) args in
                   let call = mk_cppexpr (CppCall(func,retypedArgs)) returnType in
                   CppCastStatic(call, cppType), cppType
@@ -3222,8 +3232,8 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          (match func with
          | FuncThis(field) ->
               out ("this->" ^ (cpp_member_name_of field) ^ "_dyn()");
-         | FuncInstance(expr,objC,field) ->
-              gen expr; out ((if expr.cpptype=TCppString then "." else "->") ^ (cpp_member_name_of field) ^ "_dyn()");
+         | FuncInstance(expr,inst,field) ->
+              gen expr; out ((if expr.cpptype=TCppString || inst=InstStruct then "." else "->") ^ (cpp_member_name_of field) ^ "_dyn()");
          | FuncInterface(expr,_,field) ->
               gen expr;
               out ("->__Field(" ^ strq field.cf_name ^ ", hx::paccDynamic)")
@@ -3252,7 +3262,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          out ")";
 
       | CppCall(FuncStatic(_,true,field) as func, arg_list)
-      | CppCall(FuncInstance(_,true,field) as func, arg_list) ->
+      | CppCall(FuncInstance(_,InstObjC,field) as func, arg_list) ->
          out "[ ";
          (match func with
          | FuncStatic(cl,_,_) -> out (join_class_path_remap cl.cl_path "::")
@@ -3295,10 +3305,11 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          (match func with
          | FuncThis(field) ->
               out ("this->" ^ (cpp_member_name_of field) );
-         | FuncInstance(expr,_,field)
-         | FuncInterface(expr,_,field) ->
-              let operator = if expr.cpptype = TCppString then "." else "->" in
+         | FuncInstance(expr,inst,field) ->
+              let operator = if (expr.cpptype = TCppString || inst=InstStruct) then "." else "->" in
               gen expr; out (operator ^ (cpp_member_name_of field) );
+         | FuncInterface(expr,_,field) ->
+              gen expr; out ("->" ^ (cpp_member_name_of field) );
          | FuncStatic(clazz,false,field) when cpp_is_static_extension ctx field ->
             (match args with
             | fst :: remaining ->
