@@ -53,7 +53,7 @@ private class SQLiteConnection implements Connection {
 	}
 
 	public function quote( s : String ) : String {
-		return SQLite3.escapeString(s);
+		return "'" + SQLite3.escapeString(s) + "'";
 	}
 
 	public function addValue( s : StringBuf, v : Dynamic ) : Void {
