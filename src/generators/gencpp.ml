@@ -49,6 +49,9 @@ let join_class_path path separator =
    end else
       result;;
 
+let class_text path =
+   join_class_path path "::"
+;;
 
 (* The internal classes are implemented by the core hxcpp system, so the cpp
    classes should not be generated *)
@@ -92,6 +95,7 @@ let verbatim_include file =
 let hash64 s =
    String.sub (Digest.to_hex (Digest.string s)) 0 16
 ;;
+
 
 let guarded_include file =
    let guard_name = "INCLUDED_" ^ (hash64 file) in
@@ -226,6 +230,8 @@ type context =
    (* cached as required *)
    mutable ctx_file_info : (string,string) PMap.t ref;
 
+   ctx_type_ids : (string,Int32.t) Hashtbl.t;
+
    (* Per file *)
    ctx_output : string -> unit;
    ctx_writer : source_writer;
@@ -246,6 +252,7 @@ let result =
    ctx_common = common_ctx;
    ctx_writer = null_file;
    ctx_file_id = ref (-1);
+   ctx_type_ids = Hashtbl.create 0;
    ctx_is_header = false;
    ctx_output = (null_file#write);
    ctx_interface_slot = ref (Hashtbl.create 0);
@@ -1430,9 +1437,14 @@ and tcppvarloc =
    | VarStatic of tclass * bool * tclass_field
    | VarInternal of tcppexpr * string * string
 
+and tcppinst =
+   | InstPtr
+   | InstObjC
+   | InstStruct
+
 and tcppfuncloc =
    | FuncThis of tclass_field
-   | FuncInstance of tcppexpr * bool * tclass_field
+   | FuncInstance of tcppexpr * tcppinst * tclass_field
    | FuncStatic of tclass * bool * tclass_field
    | FuncTemplate of tclass * tclass_field * path * bool
    | FuncInterface of tcppexpr * tclass * tclass_field
@@ -1545,8 +1557,9 @@ let rec s_tcpp = function
    | CppNullAccess -> "CppNullAccess"
 
    | CppCall (FuncThis _,_)  -> "CppCallThis"
-   | CppCall (FuncInstance (obj,objC,field),_) ->
-       (if objC then "CppCallObjCInstance" else "CppCallInstance(") ^ tcpp_to_string obj.cpptype ^ "," ^ field.cf_name ^ ")"
+   | CppCall (FuncInstance (obj,inst,field),_) ->
+       (match inst with InstObjC -> "CppCallObjCInstance(" | InstPtr-> "CppCallInstance(" | _ -> "CppCallStruct(") ^
+          tcpp_to_string obj.cpptype ^ "," ^ field.cf_name ^ ")"
    | CppCall (FuncInterface  _,_) -> "CppCallInterface"
    | CppCall (FuncStatic  (_,objC,_),_) -> if objC then "CppCallStaticObjC" else "CppCallStatic"
    | CppCall (FuncTemplate  _,_) -> "CppCallTemplate"
@@ -1617,7 +1630,7 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
    | TCppRawPointer(constName,valueType) -> constName ^ (tcpp_to_string valueType) ^ "*"
    | TCppFunction(argTypes,retType,abi) ->
         let args = (String.concat "," (List.map tcpp_to_string argTypes)) in
-        "::cpp::Function< " ^ abi ^ " " ^ (tcpp_to_string retType) ^ "(" ^ args ^ ") >"
+        "::cpp::Function< " ^ (tcpp_to_string retType) ^ " " ^ abi ^ " (" ^ args ^ ") >"
    | TCppObjCBlock(argTypes,retType) ->
         (tcpp_objc_block_struct argTypes retType) ^ "::t"
    | TCppDynamicArray -> "::cpp::VirtualArray" ^ suffix
@@ -2167,7 +2180,7 @@ let cpp_var_debug_name_of v =
 
 
 let cpp_no_debug_synbol ctx var =
-   (has_meta_key var.v_meta Meta.CompilerGenerated) ||
+   (ctx.ctx_debug_level=0) || (has_meta_key var.v_meta Meta.CompilerGenerated) ||
       match cpp_type_of ctx var.v_type with
       | TCppStar _ | TCppReference _ -> true
       | TCppInst (class_def) when (has_meta_key class_def.cl_meta Meta.StructAccess) -> true
@@ -2237,14 +2250,16 @@ let cpp_is_static_extension ctx member =
    has_meta_key member.cf_meta Meta.NativeStaticExtension
 ;;
 
+
 let cpp_template_param path native =
    let path = "::" ^ (join_class_path_remap (path) "::" ) in
    if (native) then
       path
-   else if (path="::Array") then
-      "hx::ArrayBase"
-   else
-      path
+   else match path with
+   | "::Array" -> "hx::ArrayBase"
+   | "::Int" -> "int"
+   | "::Bool" -> "bool"
+   | x -> x
 ;;
 
 
@@ -2434,15 +2449,19 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                   CppNullAccess, TCppDynamic
                else if retypedObj.cpptype=TCppDynamic && not clazz.cl_interface then begin
                   if is_internal_member member.cf_name then
-                    CppFunction( FuncInstance(retypedObj,false,member), funcReturn ), exprType
+                    CppFunction( FuncInstance(retypedObj,InstPtr,member), funcReturn ), exprType
                   else
                      CppDynamicField(retypedObj, member.cf_name), TCppVariant
                end else if cpp_is_struct_access retypedObj.cpptype then begin
+
                   match retypedObj.cppexpr with
                   | CppThis ThisReal ->
                       CppVar(VarThis(member)), exprType
-                  | _ ->
-                      CppVar( VarInstance(retypedObj,member,tcpp_to_string clazzType, ".") ), exprType
+                  | _ -> if (is_var_field member) then
+                         CppVar( VarInstance(retypedObj,member,tcpp_to_string clazzType, ".") ), exprType
+                     else
+                         CppFunction( FuncInstance(retypedObj,InstStruct,member), funcReturn ), exprType
+
                end else if is_var_field member then begin
 
                   let exprType = match retypedObj.cpptype, exprType with
@@ -2502,11 +2521,11 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                  | CppSuper this ->
                     CppFunction( FuncSuper(this,member), funcReturn ), exprType
                  | _ ->
-                    CppFunction( FuncInstance(retypedObj,is_objc,member), funcReturn ), exprType
+                    CppFunction( FuncInstance(retypedObj,(if is_objc then InstObjC else InstPtr),member), funcReturn ), exprType
                  )
                end
 
-            | FStatic ( _, ({cf_name="::cpp::Function_obj::fromStaticFunction"} as member) ) ->
+            | FStatic ( _, ({cf_name="nativeFromStaticFunction"} as member) ) ->
                let funcReturn = cpp_member_return_type ctx member in
                let exprType = cpp_type_of member.cf_type in
                CppFunction( FuncFromStaticFunction, funcReturn ), exprType
@@ -2603,9 +2622,9 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                   (* Not actually a TCall...*)
                   retypedFunc.cppexpr, retypedFunc.cpptype
 
-               | CppFunction( FuncInstance(obj, false, member), _ ) when return_type=TCppVoid && is_array_splice_call obj member ->
+               | CppFunction( FuncInstance(obj, InstPtr, member), _ ) when return_type=TCppVoid && is_array_splice_call obj member ->
                   let retypedArgs = List.map (retype TCppDynamic ) args in
-                  CppCall( FuncInstance(obj, false, {member with cf_name="removeRange"}), retypedArgs), TCppVoid
+                  CppCall( FuncInstance(obj, InstPtr, {member with cf_name="removeRange"}), retypedArgs), TCppVoid
 
                | CppFunction( FuncStatic(obj, false, member), _ ) when member.cf_name = "hx::AddressOf" ->
                     let arg = retype TCppUnchanged (List.hd args) in
@@ -2628,7 +2647,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                   | _ -> abort "First parameter of template function must be a Class" retypedFunc.cpppos
                   )
 
-               | CppFunction( FuncInstance(obj,false,member) as func, returnType ) when cpp_can_static_cast returnType cppType ->
+               | CppFunction( FuncInstance(obj,InstPtr,member) as func, returnType ) when cpp_can_static_cast returnType cppType ->
                   let retypedArgs = List.map (retype TCppDynamic ) args in
                   let call = mk_cppexpr (CppCall(func,retypedArgs)) returnType in
                   CppCastStatic(call, cppType), cppType
@@ -3214,8 +3233,8 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          (match func with
          | FuncThis(field) ->
               out ("this->" ^ (cpp_member_name_of field) ^ "_dyn()");
-         | FuncInstance(expr,objC,field) ->
-              gen expr; out ((if expr.cpptype=TCppString then "." else "->") ^ (cpp_member_name_of field) ^ "_dyn()");
+         | FuncInstance(expr,inst,field) ->
+              gen expr; out ((if expr.cpptype=TCppString || inst=InstStruct then "." else "->") ^ (cpp_member_name_of field) ^ "_dyn()");
          | FuncInterface(expr,_,field) ->
               gen expr;
               out ("->__Field(" ^ strq field.cf_name ^ ", hx::paccDynamic)")
@@ -3244,7 +3263,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          out ")";
 
       | CppCall(FuncStatic(_,true,field) as func, arg_list)
-      | CppCall(FuncInstance(_,true,field) as func, arg_list) ->
+      | CppCall(FuncInstance(_,InstObjC,field) as func, arg_list) ->
          out "[ ";
          (match func with
          | FuncStatic(cl,_,_) -> out (join_class_path_remap cl.cl_path "::")
@@ -3287,10 +3306,11 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          (match func with
          | FuncThis(field) ->
               out ("this->" ^ (cpp_member_name_of field) );
-         | FuncInstance(expr,_,field)
-         | FuncInterface(expr,_,field) ->
-              let operator = if expr.cpptype = TCppString then "." else "->" in
+         | FuncInstance(expr,inst,field) ->
+              let operator = if (expr.cpptype = TCppString || inst=InstStruct) then "." else "->" in
               gen expr; out (operator ^ (cpp_member_name_of field) );
+         | FuncInterface(expr,_,field) ->
+              gen expr; out ("->" ^ (cpp_member_name_of field) );
          | FuncStatic(clazz,false,field) when cpp_is_static_extension ctx field ->
             (match args with
             | fst :: remaining ->
@@ -3930,9 +3950,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 (* } *)
 
 
-let gen_cpp_function_body ctx clazz is_static func_name function_def head_code tail_code =
+let gen_cpp_function_body ctx clazz is_static func_name function_def head_code tail_code no_debug =
    let output = ctx.ctx_output in
    let dot_name = join_class_path clazz.cl_path "." in
+   if no_debug then ctx.ctx_debug_level <- 0;
    let prologue = function gc_stack ->
       let spacer = "            \t" in
       let output_i = fun s -> output (spacer ^ s) in
@@ -4073,6 +4094,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
       let is_void = (cpp_type_of ctx function_def.tf_type ) = TCppVoid in
       let ret = if is_void  then "(void)" else "return " in
       let orig_debug = ctx.ctx_debug_level in
+      let no_debug = has_meta_key field.cf_meta Meta.NoDebug in
 
       if (not (is_dynamic_haxe_method field)) then begin
          (* The actual function definition *)
@@ -4091,7 +4113,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
             output ("\t" ^ ret ^ "::" ^ nativeImpl ^ "(" ^ (ctx_arg_list_name ctx function_def.tf_args "__o_") ^ ");\n");
             output "}\n\n";
          end else
-            gen_cpp_function_body ctx class_def is_static field.cf_name function_def code tail_code;
+            gen_cpp_function_body ctx class_def is_static field.cf_name function_def code tail_code no_debug;
 
          output "\n\n";
          let nonVirtual = has_meta_key field.cf_meta Meta.NonVirtual in
@@ -4109,7 +4131,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          output ("HX_BEGIN_DEFAULT_FUNC(" ^ func_name ^ "," ^ class_name ^ ")\n");
          output return_type;
          output (" _hx_run(" ^ (ctx_arg_list ctx function_def.tf_args "__o_") ^ ")");
-         gen_cpp_function_body ctx class_def is_static func_name function_def "" "";
+         gen_cpp_function_body ctx class_def is_static func_name function_def "" "" no_debug;
 
          output ("HX_END_LOCAL_FUNC" ^ nargs ^ "(" ^ ret ^ ")\n");
          output ("HX_END_DEFAULT_FUNC\n\n");
@@ -5225,6 +5247,9 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       then 0 else 1 in
    let scriptable = inScriptable && not class_def.cl_private in
 
+   let classId = try Hashtbl.find baseCtx.ctx_type_ids (class_text class_def.cl_path) with Not_found -> Int32.of_int 0 in
+   let classIdTxt = Printf.sprintf "0x%08lx" classId in
+
    (* Config *)
    let implement_dynamic = implement_dynamic_here class_def in
    let override_iteration = (not nativeGen) && (has_new_gc_references baseCtx class_def) in
@@ -5333,7 +5358,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
             if has_meta_key definition.cf_meta Meta.NoDebug then
                ctx.ctx_debug_level <- 0;
             ctx.ctx_real_this_ptr <- false;
-            gen_cpp_function_body ctx class_def false "new" function_def "" "";
+            gen_cpp_function_body ctx class_def false "new" function_def "" "" (has_meta_key definition.cf_meta Meta.NoDebug);
             out "\n";
 
             ctx.ctx_debug_level <- old_debug;
@@ -5397,7 +5422,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
             if has_meta_key definition.cf_meta Meta.NoDebug then
                ctx.ctx_debug_level <- 0;
 
-            gen_cpp_function_body ctx class_def false "new" function_def "" "";
+            gen_cpp_function_body ctx class_def false "new" function_def "" "" (has_meta_key definition.cf_meta Meta.NoDebug);
             output_cpp "\n";
 
             ctx.ctx_debug_level <- old_debug;
@@ -5412,6 +5437,35 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       output_cpp ("{\n\t" ^ ptr_name ^ " _hx_result = new " ^ class_name ^ "();\n");
       output_cpp ("\t_hx_result->__construct(" ^ (array_arg_list constructor_var_list) ^ ");\n");
       output_cpp ("\treturn _hx_result;\n}\n\n");
+
+      let rec addParent cls others = match cls.cl_super with
+      | Some (super,_) -> ( try (
+         let parentId = Hashtbl.find ctx.ctx_type_ids (class_text super.cl_path)  in
+         addParent super (parentId :: others);
+         ) with Not_found -> others )
+      | _ -> others
+      in
+      let implemented_classes = addParent class_def [classId ; (Int32.of_int 1)] in
+      let implemented_classes = List.sort compare implemented_classes in
+
+      output_cpp ("bool " ^ class_name ^ "::_hx_isInstanceOf(int inClassId) {\n");
+      let txt cId = Printf.sprintf "0x%08lx" cId in
+      let rec dump_classes indent classes = match classes with
+         | [] -> ()
+         | [c] -> output_cpp (indent ^ "return inClassId==(int)" ^ (txt c) ^ ";\n" )
+         | [c;c1] -> output_cpp (indent ^ "return inClassId==(int)" ^ (txt c) ^ " || inClassId==(int)" ^ (txt c1) ^ ";\n" )
+         | _ ->
+            let len = List.length classes in
+            let mid = List.nth classes (len / 2) in
+            let low,high = List.partition (fun e -> e<=mid) classes in
+            output_cpp (indent ^ "if (inClassId<=(int)" ^ (txt mid) ^ ") {\n");
+            dump_classes (indent ^ "\t") low;
+            output_cpp (indent ^ "} else {\n");
+            dump_classes (indent ^ "\t") high;
+            output_cpp (indent ^ "}\n");
+      in
+      dump_classes "\t" implemented_classes;
+      output_cpp ("}\n\n");
 
       if ( List.length implemented) > 0 then begin
             let alreadyGlued = Hashtbl.create 0 in
@@ -5784,7 +5838,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let generate_script_function isStatic field scriptName callName =
       match follow field.cf_type  with
       | TFun (args,return_type) ->
-         output_cpp ("\nstatic void " ^ scriptName ^ "(hx::CppiaCtx *ctx) {\n");
+         output_cpp ("\nstatic void CPPIA_CALL " ^ scriptName ^ "(hx::CppiaCtx *ctx) {\n");
          let ret = script_signature return_type false in
          if (ret<>"v") then output_cpp ("ctx->return" ^ (script_type return_type false) ^ "(");
          if class_def.cl_interface then begin
@@ -5891,17 +5945,30 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       list_iteri dump_script_field functions;
       output_cpp ("};\n\n");
 
-      if (List.length new_sctipt_functions) > 0 then begin
-         let sigs = Hashtbl.create 0 in
+      let sigs = Hashtbl.create 0 in
+
+      let static_functions = (List.filter (fun f-> not (is_data_member f) ) reflect_static_fields) in
+      let all_script_functions = (List.map (fun (f,_,_)->f)  new_sctipt_functions) @ static_functions in
+
+      if (List.length all_script_functions) > 0 then begin
          List.iter (fun (f,_,_) ->
             let s = generate_script_function false f ("__s_" ^f.cf_name) (keyword_remap f.cf_name) in
             Hashtbl.add sigs f.cf_name s
          ) new_sctipt_functions;
 
+         let dump_script_static f =
+            let s = generate_script_function true f ("__s_" ^f.cf_name) (keyword_remap f.cf_name) in
+            Hashtbl.add sigs f.cf_name s
+         in
+         List.iter dump_script_static class_def.cl_ordered_statics;
+
          output_cpp "static hx::ScriptNamedFunction __scriptableFunctions[] = {\n";
-         List.iter (fun (f,_,_) ->
+         let dump_func f isStaticFlag = 
             let s = try Hashtbl.find sigs f.cf_name with Not_found -> "v" in
-            output_cpp ("  hx::ScriptNamedFunction(\"" ^ f.cf_name ^ "\",__s_" ^ f.cf_name ^ ",\"" ^ s ^ "\"),\n" ) ) new_sctipt_functions;
+            output_cpp ("  hx::ScriptNamedFunction(\"" ^ f.cf_name ^ "\",__s_" ^ f.cf_name ^ ",\"" ^ s ^ "\", " ^ isStaticFlag ^ " ),\n" )
+         in
+         List.iter (fun (f,_,_) -> dump_func f "false") new_sctipt_functions;
+         List.iter (fun f -> dump_func f "true") static_functions;
          output_cpp "  hx::ScriptNamedFunction(0,0,0) };\n";
       end else
          output_cpp "static hx::ScriptNamedFunction *__scriptableFunctions = 0;\n";
@@ -6106,6 +6173,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    if (not class_def.cl_interface && not nativeGen) then begin
       output_h ("\t\t" ^ class_name ^  "();\n");
       output_h "\n\tpublic:\n";
+      output_h ("\t\tenum { _hx_ClassId = " ^ classIdTxt ^ " };\n\n");
       output_h ("\t\tvoid __construct(" ^ constructor_type_args ^ ");\n");
       output_h ("\t\tinline void *operator new(size_t inSize, bool inContainer=" ^ isContainer ^",const char *inName=" ^ gcName ^ ")\n" );
       output_h ("\t\t\t{ return hx::Object::operator new(inSize,inContainer,inName); }\n" );
@@ -6163,6 +6231,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          output_h ("\n");
       end;
 
+      output_h ("\t\tbool _hx_isInstanceOf(int inClassId);\n");
       if ( (List.length implemented) > 0 ) then begin
          output_h "\t\tvoid *_hx_getInterface(int inHash);\n";
          output_h (String.concat "\n" !header_glue);
@@ -7258,7 +7327,7 @@ let generate_cppia ctx =
    ignore (script#stringId "");
    ignore (script#typeId "");
 
-      List.iter (fun object_def ->
+   List.iter (fun object_def ->
       (match object_def with
       | TClassDecl class_def when class_def.cl_extern  ->
          () (*if (gen_externs) then gen_extern_class common_ctx class_def;*)
@@ -7312,7 +7381,6 @@ let generate_source ctx =
    let boot_enums = ref [] in
    let nonboot_classes = ref [] in
    let init_classes = ref [] in
-   let class_text path = join_class_path path "::" in
    let super_deps = create_super_dependencies common_ctx in
    let constructor_deps = create_constructor_dependencies common_ctx in
    let main_deps = ref [] in
@@ -7320,6 +7388,7 @@ let generate_source ctx =
    let jobs = ref [] in
    let build_xml = ref "" in
    let scriptable = (Common.defined common_ctx Define.Scriptable) in
+   let existingIds = Hashtbl.create 0 in
 
    List.iter (fun object_def ->
       (* check if any @:objc class is referenced while '-D objc' is not defined
@@ -7340,6 +7409,17 @@ let generate_source ctx =
          if (is_internal || (is_macro class_def.cl_meta)) then
             ( if (debug>1) then print_endline (" internal class " ^ name ))
          else begin
+            let rec makeId class_name seed =
+               let id = gen_hash32 seed class_name in
+               (* reserve first 100 ids for runtime *)
+               if id < Int32.of_int 100 || Hashtbl.mem existingIds id then
+                  makeId class_name (seed+100) 
+               else begin
+                  Hashtbl.add existingIds id true;
+                  Hashtbl.add ctx.ctx_type_ids class_name id;
+               end in
+            makeId name 0;
+ 
             build_xml := !build_xml ^ (get_class_code class_def Meta.BuildXml);
             if (has_init_field class_def) then
                init_classes := class_def.cl_path ::  !init_classes;

@@ -21,31 +21,49 @@
  */
 package hl.types;
 
-@:coreType abstract BytesAccess<T> from Bytes to Bytes {
+typedef ObjectMapData = Abstract<"hl_obj_map">;
 
-	public var sizeBits(get, never) : Int;
-	public var nullValue(get, never) : T;
+abstract ObjectMap(ObjectMapData) {
 
-
-	@:extern inline function get_sizeBits() {
-		return untyped $bytes_sizebits(this);
+	@:extern public inline function new() {
+		this = alloc();
 	}
 
-	@:extern inline function get_nullValue() {
-		return untyped $bytes_nullvalue(this);
+	@:hlNative("std","hoalloc") static function alloc() : ObjectMapData {
+		return null;
 	}
 
-	@:extern public inline function blit( pos : Int, src : BytesAccess<T>, srcPos : Int, len : Int ) : Void {
-		(this:Bytes).blit(pos << sizeBits, src, srcPos << sizeBits, len << sizeBits);
+	@:hlNative("std","hoset")
+	public function set( key : Dynamic, value : Dynamic ) {
 	}
 
-	@:extern @:arrayAccess public inline function get( pos : Int ) : T {
-		return untyped $bget(this,pos);
+	@:hlNative("std","hoexists")
+	public function exists( key : Dynamic ) : Bool {
+		return false;
 	}
 
-	@:extern @:arrayAccess public inline function set( pos : Int, value : T ) : T {
-		untyped $bset(this,pos,value);
-		return value;
+	@:hlNative("std","hoget")
+	public function get( key : Dynamic ) : Dynamic {
+		return null;
+	}
+
+	@:hlNative("std","horemove")
+	public function remove( key : Dynamic ) : Bool {
+		return false;
+	}
+
+	@:hlNative("std","hokeys")
+	public function keysArray() : NativeArray<Dynamic> {
+		return null;
+	}
+
+	@:hlNative("std","hovalues")
+	public function valuesArray() : NativeArray<Dynamic> {
+		return null;
+	}
+
+	@:extern public inline function iterator() {
+		return new NativeArray.NativeArrayIterator<Dynamic>(valuesArray());
 	}
 
 }

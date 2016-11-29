@@ -25,10 +25,10 @@ package haxe.ds;
 @:coreApi
 class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 
-	var h : hl.types.NativeIntMap;
+	var h : hl.types.IntMap;
 
 	public function new() : Void {
-		h = new hl.types.NativeIntMap();
+		h = new hl.types.IntMap();
 	}
 
 	public function set( key : Int, value : T ) : Void {
@@ -48,7 +48,7 @@ class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 	}
 
 	public function keys() : Iterator<Int> {
-		return new hl.types.NativeArray.NativeArrayIterator<Int>(h.keysArray());
+		return new hl.NativeArray.NativeArrayIterator<Int>(h.keysArray());
 	}
 
 	public function iterator() : Iterator<T> {

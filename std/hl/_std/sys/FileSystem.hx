@@ -102,14 +102,14 @@ class FileSystem {
 		}
 	}
 
-	@:hlNative("std", "sys_read_dir") static function sys_read_dir( path : hl.types.Bytes ) : hl.types.NativeArray<hl.types.Bytes> { return null; }
-	@:hlNative("std", "sys_create_dir") static function sys_create_dir( path : hl.types.Bytes, rights : Int ) : Bool { return false; }
-	@:hlNative("std", "sys_is_dir") static function sys_is_dir( path : hl.types.Bytes ) : Bool { return false; }
-	@:hlNative("std", "sys_stat") static function sys_stat( path : hl.types.Bytes ) : hl.types.NativeArray<Int> { return null; }
-	@:hlNative("std", "sys_rename") static function sys_rename( path : hl.types.Bytes, to : hl.types.Bytes ) : Bool { return true; }
-	@:hlNative("std", "sys_delete") static function sys_delete( path : hl.types.Bytes ) : Bool { return true; };
-	@:hlNative("std", "sys_full_path") static function sys_full_path( path : hl.types.Bytes ) : hl.types.Bytes { return null; }
-	@:hlNative("std", "sys_remove_dir") static function sys_remove_dir( path : hl.types.Bytes ) : Bool { return true; }
-	@:hlNative("std", "sys_exists") static function sys_exists( path : hl.types.Bytes ) : Bool { return true; }
+	@:hlNative("std", "sys_read_dir") static function sys_read_dir( path : hl.Bytes ) : hl.NativeArray<hl.Bytes> { return null; }
+	@:hlNative("std", "sys_create_dir") static function sys_create_dir( path : hl.Bytes, rights : Int ) : Bool { return false; }
+	@:hlNative("std", "sys_is_dir") static function sys_is_dir( path : hl.Bytes ) : Bool { return false; }
+	@:hlNative("std", "sys_stat") static function sys_stat( path : hl.Bytes ) : hl.NativeArray<Int> { return null; }
+	@:hlNative("std", "sys_rename") static function sys_rename( path : hl.Bytes, to : hl.Bytes ) : Bool { return true; }
+	@:hlNative("std", "sys_delete") static function sys_delete( path : hl.Bytes ) : Bool { return true; };
+	@:hlNative("std", "sys_full_path") static function sys_full_path( path : hl.Bytes ) : hl.Bytes { return null; }
+	@:hlNative("std", "sys_remove_dir") static function sys_remove_dir( path : hl.Bytes ) : Bool { return true; }
+	@:hlNative("std", "sys_exists") static function sys_exists( path : hl.Bytes ) : Bool { return true; }
 
 }

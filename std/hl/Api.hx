@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package hl.types;
+package hl;
 
 extern class Api {
 
@@ -35,5 +35,6 @@ extern class Api {
 	@:hlNative("std", "make_var_args") static function makeVarArgs( v : NativeArray<Dynamic> -> Dynamic ) : haxe.Constraints.Function;
 	@:hlNative("std", "get_virtual_value") static function getVirtualValue( v : Dynamic ) : Dynamic;
 	@:hlNative("std", "set_error_handler") static function setErrorHandler( v : Dynamic -> Void ) : Void;
+	@:hlNative("std", "breakpoint") static function breakPoint() : Void;
 	
 }

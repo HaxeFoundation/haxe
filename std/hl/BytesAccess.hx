@@ -19,21 +19,33 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package hl.types;
+package hl;
 
-@:coreType abstract Ref<T> {
+@:coreType abstract BytesAccess<T> from Bytes to Bytes {
 
-	@:extern @:from public static inline function make<T>( v : T ) {
-		return new Ref<T>(v);
+	public var sizeBits(get, never) : Int;
+	public var nullValue(get, never) : T;
+
+
+	@:extern inline function get_sizeBits() {
+		return untyped $bytes_sizebits(this);
 	}
 
-	@:extern public inline function new( v : T ) {
-		this = untyped $ref(v);
+	@:extern inline function get_nullValue() {
+		return untyped $bytes_nullvalue(this);
 	}
-	@:extern public inline function get() : T {
-		return untyped $unref(this);
+
+	@:extern public inline function blit( pos : Int, src : BytesAccess<T>, srcPos : Int, len : Int ) : Void {
+		(this:Bytes).blit(pos << sizeBits, src, srcPos << sizeBits, len << sizeBits);
 	}
-	@:extern public inline function set( v : T ) : Void {
-		return untyped $setref(this,v);
+
+	@:extern @:arrayAccess public inline function get( pos : Int ) : T {
+		return untyped $bget(this,pos);
 	}
+
+	@:extern @:arrayAccess public inline function set( pos : Int, value : T ) : T {
+		untyped $bset(this,pos,value);
+		return value;
+	}
+
 }

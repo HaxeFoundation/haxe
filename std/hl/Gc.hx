@@ -19,7 +19,20 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package hl.types;
+package hl;
 
-extern class NativeAbstract<Const> {
+class Gc {
+
+
+	public static function stats() {
+		var tot = 0., count = 0., mem = 0.;
+		_stats(tot, count, mem);
+		return { totalAllocated : tot, allocationCount : count, currentMemory : mem };
+	}
+
+	@:hlNative("std", "gc_profile") public static function activeProfileInfos( b : Bool ) : Void {}
+	@:hlNative("std", "gc_enable") public static function enable( b : Bool ) : Void {}
+	@:hlNative("std", "gc_major") public static function major() : Void {}
+	@:hlNative("std", "gc_stats") static function _stats( totalAllocated : hl.Ref<Float>, allocationCount : hl.Ref<Float>, currentMemory : hl.Ref<Float> ) : Void {}
+
 }

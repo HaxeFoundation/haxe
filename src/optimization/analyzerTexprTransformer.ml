@@ -480,37 +480,25 @@ let rec func ctx bb tf t p =
 			let close = begin_try bb_exc in
 			let bb_try_next = block bb_try e1 in
 			close();
-			let bb_next = if bb_exc.bb_incoming = [] then
-				let bb_next = if bb_try_next == g.g_unreachable then
-					g.g_unreachable
-				else begin
-					let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
-					add_cfg_edge bb_try_next bb_next CFGGoto;
-					close_node g bb_try_next;
-					bb_next
-				end in
-				set_syntax_edge bb (SESubBlock(bb_try,bb_next));
-				bb_next
-			else begin
-				let is_reachable = ref (not (bb_try_next == g.g_unreachable)) in
-				let catches = List.map (fun (v,e) ->
-					let bb_catch = create_node (BKCatch v) e.etype e.epos in
-					add_cfg_edge bb_exc bb_catch CFGGoto;
-					let bb_catch_next = block bb_catch e in
-					is_reachable := !is_reachable || (not (bb_catch_next == g.g_unreachable));
-					v,bb_catch,bb_catch_next
-				) catches in
-				let bb_next = if !is_reachable then create_node BKNormal bb.bb_type bb.bb_pos else g.g_unreachable in
-				let catches = List.map (fun (v,bb_catch,bb_catch_next) ->
-					if bb_catch_next != g.g_unreachable then add_cfg_edge bb_catch_next bb_next CFGGoto;
-					close_node g bb_catch_next;
-					v,bb_catch
-				) catches in
-				set_syntax_edge bb (SETry(bb_try,bb_exc,catches,bb_next,e.epos));
-				if bb_try_next != g.g_unreachable then add_cfg_edge bb_try_next bb_next CFGGoto;
-				close_node g bb_try_next;
-				bb_next
-			end in
+			(* We always want to keep catch-blocks, so let's add a pseudo CFG edge if it's unreachable. *)
+			if bb_exc.bb_incoming = [] then add_cfg_edge bb_try_next bb_exc CFGMaybeThrow;
+			let is_reachable = ref (not (bb_try_next == g.g_unreachable)) in
+			let catches = List.map (fun (v,e) ->
+				let bb_catch = create_node (BKCatch v) e.etype e.epos in
+				add_cfg_edge bb_exc bb_catch CFGGoto;
+				let bb_catch_next = block bb_catch e in
+				is_reachable := !is_reachable || (not (bb_catch_next == g.g_unreachable));
+				v,bb_catch,bb_catch_next
+			) catches in
+			let bb_next = if !is_reachable then create_node BKNormal bb.bb_type bb.bb_pos else g.g_unreachable in
+			let catches = List.map (fun (v,bb_catch,bb_catch_next) ->
+				if bb_catch_next != g.g_unreachable then add_cfg_edge bb_catch_next bb_next CFGGoto;
+				close_node g bb_catch_next;
+				v,bb_catch
+			) catches in
+			set_syntax_edge bb (SETry(bb_try,bb_exc,catches,bb_next,e.epos));
+			if bb_try_next != g.g_unreachable then add_cfg_edge bb_try_next bb_next CFGGoto;
+			close_node g bb_try_next;
             close_node g bb_exc;
             close_node g bb;
 			bb_next

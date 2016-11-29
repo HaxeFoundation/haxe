@@ -1154,8 +1154,6 @@ let write_c version file (code:code) =
 			| OEndTrap b ->
 				sexpr "hl_endtrap(trap$%d)" (!trap_depth - 1);
 				if b then decr trap_depth;
-			| ODump r ->
-				todo()
 			| ONop _ ->
 				()
 		) f.code;

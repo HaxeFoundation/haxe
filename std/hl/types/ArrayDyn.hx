@@ -190,7 +190,7 @@ class ArrayDyn extends ArrayAccess {
 			return array;
 		if( !allowReinterpret )
 			return null;
-		if( t == Type.get(new ArrayBasic.ArrayI32()) ) {
+		if( t == Type.get(new ArrayBytes.ArrayI32()) ) {
 			var a : BytesAccess<Int> = null;
 			a = new Bytes(array.length << a.sizeBits);
 			for( i in 0...array.length )
@@ -200,7 +200,7 @@ class ArrayDyn extends ArrayAccess {
 			allowReinterpret = false;
 			return arr;
 		}
-		if( t == Type.get(new ArrayBasic.ArrayF64()) ) {
+		if( t == Type.get(new ArrayBytes.ArrayF64()) ) {
 			var a : BytesAccess<Float> = null;
 			a = new Bytes(array.length << a.sizeBits);
 			for( i in 0...array.length )

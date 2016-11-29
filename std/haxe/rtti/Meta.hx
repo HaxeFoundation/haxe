@@ -73,7 +73,7 @@ class Meta {
 		}
 		return ret;
 #elseif hl
-		var t : hl.types.BaseType = t;
+		var t : hl.BaseType = t;
 		return t.__meta__;
 #elseif php7
 		return php7.Boot.getMeta(t.phpClassName);

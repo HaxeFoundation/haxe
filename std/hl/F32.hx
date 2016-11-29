@@ -21,9 +21,4 @@
  */
 package hl;
 
-import hl.types.ArrayDyn;
-import hl.BaseType;
-
-@:dox(hide)
-extern class Boot {
-}
+typedef F32 = Single;

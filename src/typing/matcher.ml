@@ -1339,7 +1339,7 @@ module TexprConverter = struct
 				let e_then = loop false params dt1 in
 				begin try
 					let e_else = loop false params dt2 in
-					mk (TIf(e,e_then,Some e_else)) e_then.etype (punion e_then.epos e_else.epos)
+					mk (TIf(e,e_then,Some e_else)) t_switch (punion e_then.epos e_else.epos)
 				with Not_exhaustive when with_type = NoValue ->
 					mk (TIf(e,e_then,None)) ctx.t.tvoid (punion e.epos e_then.epos)
 				end
@@ -1350,7 +1350,7 @@ module TexprConverter = struct
 					(fun () ->
 						let e_else = loop false params dt2 in
 						let e_op = mk (TBinop(OpEq,e,e_null)) ctx.t.tbool e.epos in
-						mk (TIf(e_op,e_then,Some e_else)) e_then.etype (punion e_then.epos e_else.epos)
+						mk (TIf(e_op,e_then,Some e_else)) t_switch (punion e_then.epos e_else.epos)
 					)
 				with Not_exhaustive ->
 					if toplevel then (fun () -> loop false params dt2)

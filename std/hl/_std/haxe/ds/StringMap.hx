@@ -23,11 +23,11 @@
 package haxe.ds;
 
 private class StringMapKeysIterator {
-	var arr : hl.types.NativeArray<hl.types.Bytes>;
+	var arr : hl.NativeArray<hl.Bytes>;
 	var pos : Int;
 	var length : Int;
 
-	public inline function new(h:hl.types.NativeBytesMap) {
+	public inline function new(h:hl.types.BytesMap) {
 		this.arr = h.keysArray();
 		pos = 0;
 		length = arr.length;
@@ -47,10 +47,10 @@ private class StringMapKeysIterator {
 @:coreApi
 class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 
-	var h : hl.types.NativeBytesMap;
+	var h : hl.types.BytesMap;
 
 	public function new() : Void {
-		h = new hl.types.NativeBytesMap();
+		h = new hl.types.BytesMap();
 	}
 
 	public function set( key : String, value : T ) : Void {

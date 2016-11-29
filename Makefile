@@ -59,11 +59,11 @@ MODULES=json version globals path context/meta syntax/ast display/displayTypes t
 	syntax/parser typing/abstract typing/typecore display/display optimization/optimizerTexpr \
 	optimization/optimizer typing/overloads typing/typeload generators/codegen generators/gencommon generators/genas3 \
 	generators/gencpp generators/genjs generators/genneko generators/genphp generators/genphp7 generators/genswf9 \
-	generators/genswf generators/genjava generators/gencs generators/genpy macro/interp generators/hlcode generators/hlopt generators/hlinterp generators/hl2c generators/genhl \
+	generators/genswf generators/genjava generators/gencs generators/genpy macro/macroApi macro/interp generators/hlcode generators/hlopt generators/hlinterp generators/hl2c \
 	generators/genlua \
 	optimization/dce optimization/analyzerConfig optimization/analyzerTypes optimization/analyzerTexpr \
-	optimization/analyzerTexprTransformer optimization/analyzer \
-	optimization/filters typing/typer typing/matcher display/displayOutput server main
+	optimization/analyzerTexprTransformer optimization/analyzer generators/genhl \
+	optimization/filters macro/hlmacro macro/macroContext typing/typer typing/matcher display/displayOutput server main
 
 ADD_REVISION?=0
 
@@ -108,17 +108,13 @@ haxelib:
 
 tools: haxelib
 
-install:
-	rm -rf $(INSTALL_LIB_DIR)
+install: uninstall
 	mkdir -p $(INSTALL_BIN_DIR)
 	mkdir -p $(INSTALL_LIB_DIR)/lib
-	rm -rf $(INSTALL_STD_DIR)
 	cp -rf std $(INSTALL_STD_DIR)
 	cp -rf extra $(INSTALL_LIB_DIR)
-	rm -f $(INSTALL_BIN_DIR)/haxe
 	cp haxe $(INSTALL_LIB_DIR)
 	ln -s $(INSTALL_LIB_DIR)/haxe $(INSTALL_BIN_DIR)/haxe
-	rm -f $(INSTALL_BIN_DIR)/haxelib
 	cp haxelib $(INSTALL_LIB_DIR)
 	ln -s $(INSTALL_LIB_DIR)/haxelib $(INSTALL_BIN_DIR)/haxelib
 	chmod -R a+rx $(INSTALL_LIB_DIR)
@@ -131,7 +127,14 @@ install_tools: tools
 	chmod a+rx $(INSTALL_BIN_DIR)/haxelib
 
 uninstall:
-	rm -rf $(INSTALL_BIN_DIR)/haxe $(INSTALL_BIN_DIR)/haxelib $(INSTALL_LIB_DIR)
+	rm -rf $(INSTALL_BIN_DIR)/haxe $(INSTALL_BIN_DIR)/haxelib
+	if [ -d "$(INSTALL_LIB_DIR)/lib" ] && find "$(INSTALL_LIB_DIR)/lib" -mindepth 1 -print -quit | grep -q .; then \
+		echo "The local haxelib repo at $(INSTALL_LIB_DIR)/lib will not be removed. Remove it manually if you want."; \
+		find $(INSTALL_LIB_DIR)/ ! -name 'lib' -mindepth 1 -maxdepth 1 -exec rm -rf {} +; \
+	else \
+		rm -rf $(INSTALL_LIB_DIR); \
+	fi
+
 
 # Modules
 
@@ -175,7 +178,7 @@ src/generators/genpy.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/global
 
 src/generators/genswf.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/generators/genswf9.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
-src/generators/hlinterp.$(MODULE_EXT): src/context/common.$(MODULE_EXT) src/generators/hlcode.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT) src/generators/hlopt.$(MODULE_EXT)
+src/generators/hlinterp.$(MODULE_EXT): src/context/common.$(MODULE_EXT) src/generators/hlcode.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT) src/generators/hlopt.$(MODULE_EXT) src/macro/macroApi.$(MODULE_EXT)
 
 src/generators/hl2c.$(MODULE_EXT): src/generators/hlcode.$(MODULE_EXT)
 
@@ -189,7 +192,13 @@ src/generators/genxml.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/context/meta.
 
 # macro
 
-src/macro/interp.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/typing/error.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/generators/genneko.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/generators/genswf.$(MODULE_EXT) src/generators/genjava.$(MODULE_EXT) src/generators/gencs.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
+src/macro/interp.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/typing/error.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/generators/genneko.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/generators/genswf.$(MODULE_EXT) src/generators/genjava.$(MODULE_EXT) src/generators/gencs.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT) src/macro/macroApi.$(MODULE_EXT)
+
+src/macro/macroContext.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/typing/error.$(MODULE_EXT) src/optimization/optimizerTexpr.$(MODULE_EXT) src/typing/overloads.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/typeload.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/optimization/optimizer.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/optimization/filters.$(MODULE_EXT) src/generators/genjs.$(MODULE_EXT) src/display/display.$(MODULE_EXT) src/macro/hlmacro.$(MODULE_EXT) src/macro/macroApi.$(MODULE_EXT)
+
+src/macro/hlmacro.$(MODULE_EXT): src/generators/hlinterp.$(MODULE_EXT) src/generators/genhl.$(MODULE_EXT) src/macro/macroApi.$(MODULE_EXT)
+
+src/macro/macroApi.$(MODULE_EXT): src/generators/genjs.$(MODULE_EXT) src/generators/gencs.$(MODULE_EXT) src/generators/genjava.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT)
 
 # optimization
 
@@ -236,7 +245,7 @@ src/typing/typecore.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/context
 
 src/typing/typeload.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/optimization/optimizerTexpr.$(MODULE_EXT) src/typing/overloads.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/optimization/optimizer.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/json.$(MODULE_EXT) src/display/display.$(MODULE_EXT)
 
-src/typing/typer.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/typing/error.$(MODULE_EXT) src/optimization/optimizerTexpr.$(MODULE_EXT) src/typing/overloads.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/typeload.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/optimization/optimizer.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/optimization/filters.$(MODULE_EXT) src/generators/genjs.$(MODULE_EXT) src/display/display.$(MODULE_EXT)
+src/typing/typer.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/typing/error.$(MODULE_EXT) src/optimization/optimizerTexpr.$(MODULE_EXT) src/typing/overloads.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/typeload.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/optimization/optimizer.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/optimization/filters.$(MODULE_EXT) src/generators/genjs.$(MODULE_EXT) src/display/display.$(MODULE_EXT) src/macro/macroContext.$(MODULE_EXT)
 
 # main
 

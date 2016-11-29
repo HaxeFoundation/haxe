@@ -663,6 +663,10 @@ and load_complex_type ctx allow_display p (t,pn) =
 				cf_overloads = [];
 			} in
 			init_meta_overloads ctx None cf;
+			if ctx.is_display_file then begin
+				Display.DisplayEmitter.check_display_metadata ctx cf.cf_meta;
+				Display.DisplayEmitter.maybe_display_field ctx (cf.cf_name_pos) cf;
+			end;
 			PMap.add n cf acc
 		in
 		mk_anon (List.fold_left loop PMap.empty l)
@@ -2128,10 +2132,6 @@ module ClassInitializer = struct
 			end
 		end
 
-	let check_field_display ctx p cf =
- 		if Display.is_display_position p then
-			Display.DisplayEmitter.display_field ctx.com.display cf p
-
 	let bind_var (ctx,cctx,fctx) cf e =
 		let c = cctx.tclass in
 		let p = cf.cf_pos in
@@ -2163,7 +2163,7 @@ module ClassInitializer = struct
 
 		match e with
 		| None ->
-			if fctx.is_display_field then check_field_display ctx (cf.cf_name_pos) cf;
+			if fctx.is_display_field then Display.DisplayEmitter.maybe_display_field ctx (cf.cf_name_pos) cf;
 		| Some e ->
 			if requires_value_meta ctx.com (Some c) then cf.cf_meta <- ((Meta.Value,[e],null_pos) :: cf.cf_meta);
 			let check_cast e =
@@ -2245,7 +2245,7 @@ module ClassInitializer = struct
 					let e = check_cast e in
 					cf.cf_expr <- Some e;
 					cf.cf_type <- t;
-					if fctx.is_display_field then check_field_display ctx (cf.cf_name_pos) cf;
+					if fctx.is_display_field then Display.DisplayEmitter.maybe_display_field ctx (cf.cf_name_pos) cf;
 				end;
 				t
 			) "bind_var" in
@@ -2554,7 +2554,7 @@ module ClassInitializer = struct
 							| _ -> c.cl_init <- Some e);
 						cf.cf_expr <- Some (mk (TFunction tf) t p);
 						cf.cf_type <- t;
-						if fctx.is_display_field then check_field_display ctx (cf.cf_name_pos) cf;
+						if fctx.is_display_field then Display.DisplayEmitter.maybe_display_field ctx (cf.cf_name_pos) cf;
 			end;
 			t
 		) "type_fun" in

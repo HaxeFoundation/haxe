@@ -21,7 +21,7 @@
  */
 import hl.Boot;
 
-private typedef Rand = hl.types.NativeAbstract<"hl_random">;
+private typedef Rand = hl.Abstract<"hl_random">;
 
 @:coreApi
 class Std {
@@ -31,7 +31,7 @@ class Std {
 	static function __init__() : Void {
 		rnd = rnd_sys();
 	}
-	
+
 	@:hlNative("std","rnd_init_system") static function rnd_sys() : Rand { return null; }
 	@:hlNative("std","rnd_int") static function rnd_int( r : Rand ) : Int { return 0; }
 	@:hlNative("std","rnd_float") static function rnd_float( r : Rand ) : Float { return 0.; }
@@ -41,19 +41,19 @@ class Std {
 	}
 
 	public static function is( v : Dynamic, t : Dynamic ) : Bool {
-		var t : hl.types.BaseType = t;
+		var t : hl.BaseType = t;
 		if( t == null ) return false;
 		switch( t.__type__.kind ) {
 		case HDyn:
 			return true;
 		case HF64:
-			switch( hl.types.Type.getDynamic(v).kind ) {
+			switch( hl.Type.getDynamic(v).kind ) {
 			case HUI8, HUI16, HI32:
 				return true;
 			default:
 			}
 		case HI32:
-			switch( hl.types.Type.getDynamic(v).kind ) {
+			switch( hl.Type.getDynamic(v).kind ) {
 			case HF32, HF64:
 				var v : Float = v;
 				return Std.int(v) == v;
@@ -65,7 +65,7 @@ class Std {
 	}
 
 	@:extern public inline static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
-		var t : hl.types.BaseType = cast c;
+		var t : hl.BaseType = cast c;
 		return t.check(value) ? cast value : null;
 	}
 
@@ -75,7 +75,7 @@ class Std {
 
 	@:keep public static function string( s : Dynamic ) : String {
 		var len = 0;
-		var bytes = hl.types.Bytes.ofValue(s,new hl.types.Ref(len));
+		var bytes = hl.Bytes.fromValue(s,new hl.Ref(len));
 		return @:privateAccess String.__alloc__(bytes,len);
 	}
 
@@ -90,11 +90,11 @@ class Std {
 	}
 
 	@:keep static function __add__( a : Dynamic, b : Dynamic ) : Dynamic {
-		var ta = hl.types.Type.getDynamic(a);
-		var tb = hl.types.Type.getDynamic(b);
-		if( ta == hl.types.Type.get("") )
+		var ta = hl.Type.getDynamic(a);
+		var tb = hl.Type.getDynamic(b);
+		if( ta == hl.Type.get("") )
 			return (a : String) + b;
-		if( tb == hl.types.Type.get("") )
+		if( tb == hl.Type.get("") )
 			return a + (b : String);
 		switch(ta.kind) {
 		case HUI8, HUI16, HI32:

@@ -23,9 +23,9 @@ package hl.types;
 
 @:keep
 @:generic
-class BasicIterator<T> {
+class BytesIterator<T> {
 	var pos : Int;
-	var a : ArrayBasic<T>;
+	var a : ArrayBytes<T>;
 	public function new(a) {
 		this.a = a;
 	}
@@ -38,9 +38,9 @@ class BasicIterator<T> {
 }
 
 @:keep
-@:generic class ArrayBasic<T> extends ArrayBase {
+@:generic class ArrayBytes<T> extends ArrayBase {
 
-	var bytes : hl.types.BytesAccess<T>;
+	var bytes : hl.BytesAccess<T>;
 	var size : Int;
 
 	public function new() {
@@ -48,8 +48,8 @@ class BasicIterator<T> {
 		bytes = null;
 	}
 
-	public function concat( a : ArrayBasic<T> ) : ArrayBasic<T> {
-		var ac = new ArrayBasic<T>();
+	public function concat( a : ArrayBytes<T> ) : ArrayBytes<T> {
+		var ac = new ArrayBytes<T>();
 		ac.length = ac.size = length + a.length;
 		ac.bytes = new Bytes(ac.length << bytes.sizeBits);
 		var offset = length << bytes.sizeBits;
@@ -103,12 +103,12 @@ class BasicIterator<T> {
 	}
 
 	override function blit( pos : Int, src : ArrayBase.ArrayAccess, srcpos : Int, len : Int ) : Void {
-		var src = (cast src : ArrayBasic<T>);
+		var src = (cast src : ArrayBytes<T>);
 		if( pos < 0 || srcpos < 0 || len < 0 || pos + len > length || srcpos + len > src.length ) throw haxe.io.Error.OutsideBounds;
 		(bytes:Bytes).blit(pos << bytes.sizeBits,src.bytes,srcpos<<bytes.sizeBits,len<<bytes.sizeBits);
 	}
 
-	override function slice( pos : Int, ?end : Int ) : ArrayBasic<T> {
+	override function slice( pos : Int, ?end : Int ) : ArrayBytes<T> {
 		if( pos < 0 ) {
 			pos = this.length + pos;
 			if( pos < 0 )
@@ -126,8 +126,8 @@ class BasicIterator<T> {
 		}
 		var len = pend - pos;
 		if( len < 0 )
-			return new ArrayBasic<T>();
-		var a = new ArrayBasic<T>();
+			return new ArrayBytes<T>();
+		var a = new ArrayBytes<T>();
 		a.length = a.size = len;
 		a.bytes = (bytes:Bytes).sub(pos << bytes.sizeBits, len << bytes.sizeBits);
 		return a;
@@ -140,9 +140,9 @@ class BasicIterator<T> {
 			(bytes:Bytes).sortF64(0, length, cast f);
 	}
 
-	override function splice( pos : Int, len : Int ) : ArrayBasic<T> {
+	override function splice( pos : Int, len : Int ) : ArrayBytes<T> {
 		if( len < 0 )
-			return new ArrayBasic<T>();
+			return new ArrayBytes<T>();
 		if( pos < 0 ){
 			pos = this.length + pos;
 			if( pos < 0 ) pos = 0;
@@ -155,8 +155,8 @@ class BasicIterator<T> {
 			if( len < 0 ) len = 0;
 		}
 		if( len == 0 )
-			return new ArrayBasic<T>();
-		var ret = new ArrayBasic<T>();
+			return new ArrayBytes<T>();
+		var ret = new ArrayBytes<T>();
 		ret.bytes = (bytes:Bytes).sub(pos << bytes.sizeBits, len << bytes.sizeBits);
 		ret.size = ret.length = len;
 		var end = pos + len;
@@ -197,7 +197,7 @@ class BasicIterator<T> {
 		if( idx < 0 )
 			return false;
 		length--;
-		(bytes : hl.types.Bytes).blit(idx<<bytes.sizeBits,bytes,(idx + 1)<<bytes.sizeBits,(length - idx)<<bytes.sizeBits);
+		(bytes : hl.Bytes).blit(idx<<bytes.sizeBits,bytes,(idx + 1)<<bytes.sizeBits,(length - idx)<<bytes.sizeBits);
 		return true;
 	}
 
@@ -228,8 +228,8 @@ class BasicIterator<T> {
 		return -1;
 	}
 
-	public function copy() : ArrayBasic<T> {
-		var a = new ArrayBasic<T>();
+	public function copy() : ArrayBytes<T> {
+		var a = new ArrayBytes<T>();
 		a.length = a.size = length;
 		a.bytes = new Bytes(length << bytes.sizeBits);
 		(a.bytes:Bytes).blit(0, bytes, 0, length << bytes.sizeBits);
@@ -237,7 +237,7 @@ class BasicIterator<T> {
 	}
 
 	public function iterator() : Iterator<T> {
-		return new BasicIterator(this);
+		return new BytesIterator(this);
 	}
 
 	public function map<S>( f : T -> S ) : ArrayDyn @:privateAccess {
@@ -248,8 +248,8 @@ class BasicIterator<T> {
 		return ArrayDyn.alloc(a,true);
 	}
 
-	public function filter( f : T -> Bool ) : ArrayBasic<T> {
-		var a = new ArrayBasic<T>();
+	public function filter( f : T -> Bool ) : ArrayBytes<T> {
+		var a = new ArrayBytes<T>();
 		for( i in 0...length ) {
 			var v = bytes[i];
 			if( f(v) ) a.push(v);
@@ -286,7 +286,7 @@ class BasicIterator<T> {
 		if( newlen > size ) {
 			var next = (size * 3) >> 1;
 			if( next < newlen ) next = newlen;
-			var bytes2 = new hl.types.Bytes(next << bytes.sizeBits);
+			var bytes2 = new hl.Bytes(next << bytes.sizeBits);
 			var bsize = length << bytes.sizeBits;
 			bytes2.blit(0, bytes, 0, bsize);
 			bytes2.fill(bsize, (next << bytes.sizeBits) - bsize, 0);
@@ -298,7 +298,7 @@ class BasicIterator<T> {
 
 }
 
-typedef ArrayI32 = ArrayBasic<Int>;
-typedef ArrayUI16 = ArrayBasic<UI16>;
-typedef ArrayF32 = ArrayBasic<F32>;
-typedef ArrayF64 = ArrayBasic<Float>;
+typedef ArrayI32 = ArrayBytes<Int>;
+typedef ArrayUI16 = ArrayBytes<UI16>;
+typedef ArrayF32 = ArrayBytes<F32>;
+typedef ArrayF64 = ArrayBytes<Float>;

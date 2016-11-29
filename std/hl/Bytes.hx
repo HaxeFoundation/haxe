@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package hl.types;
+package hl;
 
 @:coreType abstract Bytes {
 
@@ -113,7 +113,7 @@ package hl.types;
 		Please note that you need to retain the original unoffset'ed Bytes so it does not get garbage collected, unless the pointer was not GC allocated.
 	**/
 	@:hlNative("std","bytes_offset")
-	public function offset( pos : Int ) : hl.types.Bytes {
+	public function offset( pos : Int ) : Bytes {
 		return null;
 	}
 
@@ -164,8 +164,15 @@ package hl.types;
 	}
 
 	@:hlNative("std","value_to_string")
-	public static function ofValue( v : Dynamic, length : Ref<Int> ) : Bytes {
+	public static function fromValue( v : Dynamic, length : Ref<Int> ) : Bytes {
 		return null;
+	}
+
+	/**
+		Get the bytes reference from an array of basic types (no copy occurs)
+	**/
+	@:extern public static inline function getArray<T>( a : Array<T> ) : Bytes {
+		return untyped $abytes(a);
 	}
 
 	@:from

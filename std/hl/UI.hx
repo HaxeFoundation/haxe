@@ -21,7 +21,7 @@
  */
 package hl;
 
-typedef SentinelHandle = hl.types.NativeAbstract<"ui_sentinel">;
+typedef SentinelHandle = hl.Abstract<"ui_sentinel">;
 
 abstract Sentinel(SentinelHandle) {
 
@@ -41,7 +41,7 @@ abstract Sentinel(SentinelHandle) {
 
 }
 
-typedef WinHandle = hl.types.NativeAbstract<"ui_window">;
+typedef WinHandle = hl.Abstract<"ui_window">;
 
 class Window {
 
@@ -65,7 +65,7 @@ class Window {
 	}
 
 	@:hlNative("ui","ui_win_set_text")
-	static function win_set_text( win : WinHandle, text : hl.types.Bytes ) : Void {
+	static function win_set_text( win : WinHandle, text : hl.Bytes ) : Void {
 	}
 
 	@:hlNative("ui","ui_win_set_enable")
@@ -85,7 +85,7 @@ class Button extends Window {
 	}
 
 	@:hlNative("ui", "ui_button_new")
-	static function button_new( parent : WinHandle, text : hl.types.Bytes, onClick : Void -> Void ) : WinHandle {
+	static function button_new( parent : WinHandle, text : hl.Bytes, onClick : Void -> Void ) : WinHandle {
 		return null;
 	}
 
@@ -103,12 +103,12 @@ class WinLog extends Window {
 
 
 	@:hlNative("ui","ui_winlog_new")
-	static function winlog_new( text : hl.types.Bytes, width : Int, height : Int ) : WinHandle {
+	static function winlog_new( text : hl.Bytes, width : Int, height : Int ) : WinHandle {
 		return null;
 	}
 
 	@:hlNative("ui","ui_winlog_set_text")
-	static function winlog_set_text( win : WinHandle, text : hl.types.Bytes, autoScroll : Bool ) : Void {
+	static function winlog_set_text( win : WinHandle, text : hl.Bytes, autoScroll : Bool ) : Void {
 	}
 
 }
@@ -136,7 +136,7 @@ class UI {
 	}
 
 	@:hlNative("ui","ui_dialog")
-	static function _dialog( title : hl.types.Bytes, text : hl.types.Bytes, flags : Int ) : Int {
+	static function _dialog( title : hl.Bytes, text : hl.Bytes, flags : Int ) : Int {
 		return 0;
 	}
 

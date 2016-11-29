@@ -21,6 +21,8 @@
  */
  package cpp;
 
+import haxe.extern.AsVar;
+
 @:coreType
 extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
 {
@@ -42,7 +44,7 @@ extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
 
    public static function fromPointer<T>(inNativePointer:Dynamic) : Pointer<T>;
 
-   public static function addressOf<T>(inVariable:T) : Pointer<T>;
+   public static function addressOf<T>(inVariable:cpp.Reference<T>) : Pointer<T>;
 
    public static function endOf<T:{}>(inVariable:T) : Pointer<cpp.Void>;
 

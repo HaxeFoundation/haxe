@@ -145,7 +145,7 @@ let rec wait_loop process_params verbose accept =
 		in
 		Printf.sprintf "%2s,%3s: " sign_id (short_platform_name com.platform)
 	in
-	Typer.macro_enable_cache := true;
+	MacroContext.macro_enable_cache := true;
 	let current_stdin = ref None in
 	Typeload.parse_hook := (fun com2 file p ->
 		let ffile = Path.unique_full_path file in
@@ -311,7 +311,7 @@ let rec wait_loop process_params verbose accept =
 				| MCode -> check_module_shadowing com2 directories m
 				| MMacro when ctx.Typecore.in_macro -> check_module_shadowing com2 directories m
 				| MMacro ->
-					let _, mctx = Typer.get_macro_context ctx p in
+					let _, mctx = MacroContext.get_macro_context ctx p in
 					check_module_shadowing mctx.Typecore.com (get_changed_directories mctx) m
 			in
 			let has_policy policy = List.mem policy m.m_extra.m_check_policy in
@@ -384,7 +384,7 @@ let rec wait_loop process_params verbose accept =
 					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
 					if ctx.Typecore.in_macro || com2.display.dms_full_typing then
 						PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps;
-					List.iter (Typer.call_init_macro ctx) m.m_extra.m_macro_calls
+					List.iter (MacroContext.call_init_macro ctx) m.m_extra.m_macro_calls
 				)
 			end
 		in

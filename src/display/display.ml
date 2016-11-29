@@ -175,6 +175,9 @@ module DisplayEmitter = struct
 		| DMType -> raise (DisplayType (cf.cf_type,p,cf.cf_doc))
 		| _ -> ()
 
+	let maybe_display_field ctx p cf =
+		if is_display_position p then display_field ctx.com.display cf p
+
 	let display_enum_field dm ef p = match dm.dms_kind with
 		| DMPosition -> raise (DisplayPosition [p]);
 		| DMUsage _ -> ef.ef_meta <- (Meta.Usage,[],p) :: ef.ef_meta;

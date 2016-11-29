@@ -404,6 +404,18 @@
     <hidden path="src\typing\abstract.cmt" />
     <hidden path="src\typing\abstract.cmx" />
     <hidden path="src\typing\abstract.o" />
+    <hidden path="src\macro\macroContext.cmt" />
+    <hidden path="src\macro\macroContext.cmi" />
+    <hidden path="src\macro\macroContext.cmx" />
+    <hidden path="src\macro\macroContext.o" />
+    <hidden path="src\macro\hlmacro.cmi" />
+    <hidden path="src\macro\hlmacro.cmt" />
+    <hidden path="src\macro\hlmacro.cmx" />
+    <hidden path="src\macro\hlmacro.o" />
+    <hidden path="src\macro\macroApi.cmi" />
+    <hidden path="src\macro\macroApi.cmt" />
+    <hidden path="src\macro\macroApi.cmx" />
+    <hidden path="src\macro\macroApi.o" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand>make -j4 FD_OUTPUT=1 -f Makefile.win kill haxe</preBuildCommand>

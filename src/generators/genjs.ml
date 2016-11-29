@@ -41,7 +41,7 @@ type ctx = {
 	buf : Rbuffer.t;
 	chan : out_channel;
 	packages : (string list,unit) Hashtbl.t;
-	smap : sourcemap;
+	smap : sourcemap option;
 	js_modern : bool;
 	js_flatten : bool;
 	es_version : int;
@@ -138,10 +138,9 @@ let add_feature ctx = Common.add_feature ctx.com
 let unsupported p = abort "This expression cannot be compiled to Javascript" p
 
 
-let add_mapping ctx force e =
-	if not ctx.com.debug || e.epos.pmin < 0 then () else
+let add_mapping smap force e =
+	if e.epos.pmin < 0 then () else
 	let pos = e.epos in
-	let smap = ctx.smap in
 	let file = try
 		Hashtbl.find smap.sources_hash pos.pfile
 	with Not_found ->
@@ -201,21 +200,21 @@ let add_mapping ctx force e =
 	end
 
 let handle_newlines ctx str =
-	if ctx.com.debug then
+	Option.may (fun smap ->
 		let rec loop from =
 			try begin
 				let next = String.index_from str from '\n' + 1 in
-				Rbuffer.add_char ctx.smap.mappings ';';
-				ctx.smap.output_last_col <- 0;
-				ctx.smap.output_current_col <- 0;
-				ctx.smap.print_comma <- false;
-				Option.may (fun e -> add_mapping ctx true e) ctx.smap.current_expr;
+				Rbuffer.add_char smap.mappings ';';
+				smap.output_last_col <- 0;
+				smap.output_current_col <- 0;
+				smap.print_comma <- false;
+				Option.may (fun e -> add_mapping smap true e) smap.current_expr;
 				loop next
 			end with Not_found ->
-				ctx.smap.output_current_col <- ctx.smap.output_current_col + (String.length str - from);
+				smap.output_current_col <- smap.output_current_col + (String.length str - from);
 		in
 		loop 0
-	else ()
+	) ctx.smap
 
 let flush ctx =
 	Rbuffer.output_buffer ctx.chan ctx.buf;
@@ -233,11 +232,11 @@ let print ctx =
 		Rbuffer.add_string ctx.buf s
 	end)
 
-let write_mappings ctx =
+let write_mappings ctx smap =
 	let basefile = Filename.basename ctx.com.file in
 	print ctx "\n//# sourceMappingURL=%s.map" basefile;
 	let channel = open_out_bin (ctx.com.file ^ ".map") in
-	let sources = DynArray.to_list ctx.smap.sources in
+	let sources = DynArray.to_list smap.sources in
 	let to_url file =
 		ExtString.String.map (fun c -> if c == '\\' then '/' else c) (Path.get_full_path file)
 	in
@@ -255,7 +254,7 @@ let write_mappings ctx =
 	end;
 	output_string channel "\"names\":[],\n";
 	output_string channel "\"mappings\":\"";
-	Rbuffer.output_buffer channel ctx.smap.mappings;
+	Rbuffer.output_buffer channel smap.mappings;
 	output_string channel "\"\n";
 	output_string channel "}";
 	close_out channel
@@ -486,7 +485,7 @@ and add_objectdecl_parens e =
 	loop e
 
 and gen_expr ctx e =
-	add_mapping ctx false e;
+	Option.may (fun smap -> add_mapping smap false e) ctx.smap;
 	(match e.eexpr with
 	| TConst c -> gen_constant ctx e.epos c
 	| TLocal v -> spr ctx (ident v.v_name)
@@ -826,7 +825,7 @@ and gen_expr ctx e =
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
 		spr ctx ")");
-	ctx.smap.current_expr <- None;
+	Option.may (fun smap -> smap.current_expr <- None) ctx.smap
 
 
 and gen_block_element ?(after=false) ctx e =
@@ -850,7 +849,7 @@ and gen_block_element ?(after=false) ctx e =
 		if after then newline ctx
 
 and gen_value ctx e =
-	add_mapping ctx false e;
+	Option.may (fun smap -> add_mapping smap false e) ctx.smap;
 	let assign e =
 		mk (TBinop (Ast.OpAssign,
 			mk (TLocal (match ctx.in_value with None -> assert false | Some v -> v)) t_dynamic e.epos,
@@ -962,7 +961,7 @@ and gen_value ctx e =
 			List.map (fun (v,e) -> v, block (assign e)) catchs
 		)) e.etype e.epos);
 		v());
-	ctx.smap.current_expr <- None
+	Option.may (fun smap -> smap.current_expr <- None) ctx.smap
 
 
 let generate_package_create ctx (p,_) =
@@ -1258,23 +1257,29 @@ let set_current_class ctx c =
 	ctx.current <- c
 
 let alloc_ctx com =
+	let smap =
+		if com.debug || Common.defined com Define.JsSourceMap then
+			Some {
+				source_last_line = 0;
+				source_last_col = 0;
+				source_last_file = 0;
+				print_comma = false;
+				output_last_col = 0;
+				output_current_col = 0;
+				sources = DynArray.create();
+				sources_hash = Hashtbl.create 0;
+				mappings = Rbuffer.create 16;
+				current_expr = None;
+			}
+		else
+			None
+	in
 	let ctx = {
 		com = com;
 		buf = Rbuffer.create 16000;
 		chan = open_out_bin com.file;
 		packages = Hashtbl.create 0;
-		smap = {
-			source_last_line = 0;
-			source_last_col = 0;
-			source_last_file = 0;
-			print_comma = false;
-			output_last_col = 0;
-			output_current_col = 0;
-			sources = DynArray.create();
-			sources_hash = Hashtbl.create 0;
-			mappings = Rbuffer.create 16;
-			current_expr = None;
-		};
+		smap = smap;
 		js_modern = not (Common.defined com Define.JsClassic);
 		js_flatten = not (Common.defined com Define.JsUnflatten);
 		es_version = int_of_string (Common.defined_value com Define.JsEs);
@@ -1515,7 +1520,9 @@ let generate com =
 		) !toplevelExposed
 	);
 
-	if com.debug then write_mappings ctx else (try Sys.remove (com.file ^ ".map") with _ -> ());
+	(match ctx.smap with
+	| Some smap -> write_mappings ctx smap
+	| None -> try Sys.remove (com.file ^ ".map") with _ -> ());
 	flush ctx;
 	close_out ctx.chan)
 

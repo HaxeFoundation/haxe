@@ -21,7 +21,7 @@
  */
 package haxe.zip;
 
-private typedef Deflater = hl.types.NativeAbstract<"fmt_zip">;
+private typedef Deflater = hl.Abstract<"fmt_zip">;
 
 @:coreApi @:hlNative("fmt")
 class Compress {
@@ -61,7 +61,7 @@ class Compress {
 	}
 
 	static function deflate_init( level : Int ) : Deflater { return null; }
-	static function deflate_buffer( i : Deflater, bytes : hl.types.Bytes, bytesPos : Int, bytesLen : Int, dst : hl.types.Bytes, dstPos : Int, dstLen : Int, read : hl.types.Ref<Int>, write : hl.types.Ref<Int>) : Bool {
+	static function deflate_buffer( i : Deflater, bytes : hl.Bytes, bytesPos : Int, bytesLen : Int, dst : hl.Bytes, dstPos : Int, dstLen : Int, read : hl.Ref<Int>, write : hl.Ref<Int>) : Bool {
 		return false;
 	}
 	static function deflate_bound( i : Deflater, length : Int ) : Int { return 0; }

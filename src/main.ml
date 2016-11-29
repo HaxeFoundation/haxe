@@ -327,18 +327,14 @@ let generate tctx ext xml_out interp swf_header =
 			| Some(_,ctx) -> print_endline "generate"; Codegen.Dump.dump_dependencies ~target_override:(Some "macro") ctx.Typecore.com
 	end;
 	begin match com.platform with
-		| Neko when interp -> ()
+		| Neko | Hl when interp -> ()
 		| Cpp when Common.defined com Define.Cppia -> ()
 		| Cpp | Cs | Java | Php | Php7 -> Common.mkdir_from_path (com.file ^ "/.")
 		| _ -> Common.mkdir_from_path com.file
 	end;
-	if interp then begin
-		let ctx = Interp.create com (Typer.make_macro_api tctx null_pos) in
-		Interp.add_types ctx com.types (fun t -> ());
-		(match com.main with
-		| None -> ()
-		| Some e -> ignore(Interp.eval_expr ctx e));
-	end else if com.platform = Cross then
+	if interp then
+		MacroContext.interpret tctx
+	else if com.platform = Cross then
 		()
 	else begin
 		let generate,name = match com.platform with
@@ -706,7 +702,7 @@ try
 		),"<package:target> : remap a package to another one");
 		("--interp", Arg.Unit (fun() ->
 			Common.define com Define.Interp;
-			Initialize.set_platform com Neko "";
+			Initialize.set_platform com (!Globals.macro_platform) "";
 			interp := true;
 		),": interpret the program using internal macro system");
 		("--macro", Arg.String (fun e ->
@@ -819,7 +815,7 @@ try
 		let t = Common.timer ["typing"] in
 		Typecore.type_expr_ref := (fun ctx e with_type -> Typer.type_expr ctx e with_type);
 		let tctx = Typer.create com in
-		List.iter (Typer.call_init_macro tctx) (List.rev !config_macros);
+		List.iter (MacroContext.call_init_macro tctx) (List.rev !config_macros);
 		List.iter (Typer.eval tctx) !evals;
 		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev !classes);
 		Typer.finalize tctx;
@@ -879,7 +875,7 @@ with
 		end
 	| Error.Error (m,p) ->
 		error ctx (Error.error_msg m) p
-	| Interp.Error (msg,p :: l) ->
+	| Interp.Error (msg,p :: l) | Hlmacro.Error (msg,p :: l) ->
 		message ctx msg p;
 		List.iter (message ctx "Called from") l;
 		error ctx "Aborted" null_pos;
@@ -938,7 +934,7 @@ with
 		Option.may (fun fields -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))) fields
 	| Display.ModuleSymbols s | Display.Diagnostics s | Display.Statistics s | Display.Metadata s ->
 		raise (DisplayOutput.Completion s)
-	| Interp.Sys_exit i ->
+	| Interp.Sys_exit i | Hlinterp.Sys_exit i ->
 		ctx.flush();
 		exit i
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not (is_debug_run()) ->
@@ -947,6 +943,7 @@ with
 ;;
 let other = Common.timer ["other"] in
 Sys.catch_break true;
+MacroContext.setup();
 let args = List.tl (Array.to_list Sys.argv) in
 (try
 	let server = Sys.getenv "HAXE_COMPILATION_SERVER" in
