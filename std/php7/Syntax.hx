@@ -107,7 +107,7 @@ extern class Syntax {
         [$arg1, $arg2, $arg3]
         ```
     **/
-    static function arrayDecl( args:Rest<Dynamic> ) : NativeIndexedArray<Dynamic>;
+    static function arrayDecl<T>( args:Rest<T> ) : NativeIndexedArray<T>;
 
     /**
         Don't let compiler to optimize away local var passed to this method.

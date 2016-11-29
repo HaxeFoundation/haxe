@@ -22,7 +22,7 @@
 package sys.db;
 
 import php7.*;
-import php7.db.PDO;
+import php7.db.*;
 import sys.db.*;
 
 @:coreApi class Sqlite {
@@ -32,11 +32,11 @@ import sys.db.*;
 }
 
 private class SQLiteConnection implements Connection {
-	var db:PDO;
+	var db:SQLite3;
 
 	public function new( file:String ) {
-		db = new PDO('sqlite:$file');
-		db.setAttribute(PDO.ATTR_ERRMODE, PDO.ERRMODE_EXCEPTION);
+		db = new SQLite3('sqlite:$file');
+		db.enableExceptions(true);
 	}
 
 	public function request( s : String ) : ResultSet {
@@ -45,19 +45,15 @@ private class SQLiteConnection implements Connection {
 	}
 
 	public function close() : Void {
-		Global.unset(db);
+		db.close();
 	}
 
 	public function escape( s : String ) : String {
-		var output = db.quote(s);
-		return output.length > 2 ? output.substr(1, output.length-2) : output;
+		return SQLite3.escapeString(s);
 	}
 
 	public function quote( s : String ) : String {
-		if( s.indexOf("\000") >= 0 ) {
-			return "x'" + base16_encode(s) + "'";
-		}
-		return db.quote(s);
+		return SQLite3.escapeString(s);
 	}
 
 	public function addValue( s : StringBuf, v : Dynamic ) : Void {
@@ -71,7 +67,7 @@ private class SQLiteConnection implements Connection {
 	}
 
 	public function lastInsertId() : Int {
-		return Syntax.int(db.lastInsertId());
+		return Syntax.int(db.lastInsertRowID());
 	}
 
 	public function dbName() : String {
@@ -79,71 +75,58 @@ private class SQLiteConnection implements Connection {
 	}
 
 	public function startTransaction() : Void {
-		db.beginTransaction();
+		db.query('BEGIN TRANSACTION');
 	}
 
 	public function commit() : Void {
-		db.commit();
+		db.query('COMMIT');
 	}
 
 	public function rollback() : Void {
-		db.rollBack();
+		db.query('ROLLBACK');
 	}
-
-	function base16_encode(str : String) {
-		str = untyped __call__("unpack", "H"+(2 * str.length), str);
-		str = untyped __call__("chunk_split", untyped str[1]);
-		return str;
-	}
-}
-
-class SqliteDebug {
-	static public var debug = false;
 }
 
 private class SQLiteResultSet implements ResultSet {
-	static var hxAnonClassName = Boot.getHxAnon().phpClassName;
-
 	public var length(get,null) : Int;
-	var _length:Int = 0;
 	public var nfields(get,null) : Int;
-	var _nfields:Int = 0;
 
-	var rows:NativeArray;
-	var result:PDOStatement;
+	var _length : Int = 0;
+	var _nfields : Int = 0;
+
+	var loaded:Bool = false;
+	var currentIndex:Int = 0;
+	var rows:NativeIndexedArray<NativeAssocArray<Scalar>>;
+	var result:SQLite3Result;
 	var fetchedRow:NativeArray;
-	var fieldsInfo:NativeAssocArray<NativeArray>;
+	var fieldsInfo:NativeAssocArray<Int>;
 
-	public function new( result:PDOStatement ) {
+	public function new( result:SQLite3Result ) {
 		this.result = result;
-		try{
-			getFieldsInfo();
-		} catch(e:Dynamic) {
-			rows = result.fetchAll(PDO.FETCH_ASSOC);
-			getFieldsInfo();
-		}
 	}
 
 	public function hasNext() : Bool {
-		if (fetchedRow == null) fetchNext();
-		return fetchedRow == null;
+		if (!loaded) load();
+		return currentIndex < _nfields;
 	}
 
 	public function next() : Dynamic {
-		if (fetchedRow == null) fetchNext();
-		return withdrawFetched();
+		if (!loaded) load();
+		var next:Dynamic = rows[currentIndex++];
+		return Boot.createAnon(correctArrayTypes(next));
 	}
 
 	public function results() : List<Dynamic> {
+		if (!loaded) load();
 		var list = new List();
-		var rows = result.fetchAll(PDO.FETCH_CLASS, hxAnonClassName);
-		Syntax.foreach(rows, function(_, row) list.add(correctObjectTypes(row)));
+		Syntax.foreach(rows, function(_, row) list.add(Boot.createAnon(correctArrayTypes(row))));
 		return list;
 	}
 
 	public function getResult( n : Int ) : String {
-		if (fetchedRow == null) fetchNext();
-		return Global.array_values(fetchedRow)[n];
+		if (!loaded) load();
+		if (!hasNext()) return null;
+		return Global.array_values(rows[currentIndex])[n];
 	}
 
 	public function getIntResult( n : Int ) : Int {
@@ -159,54 +142,50 @@ private class SQLiteResultSet implements ResultSet {
 		return Global.array_keys(fieldsInfo);
 	}
 
-	function fetchNext() {
-		var next:Dynamic = result.fetch(PDO.FETCH_ASSOC);
-		fetchedRow = (next == false ? null : correctArrayTypes(next));
-	}
-
-	function withdrawFetched() : Dynamic {
-		if (fetchedRow == null) return null;
-		return Boot.createAnon(fetchedRow);
-	}
-
 	function correctArrayTypes(row:NativeAssocArray<String>):NativeAssocArray<Scalar> {
 		var fieldsInfo = getFieldsInfo();
 		Syntax.foreach(row, function(field:String, value:String) {
-			row[field] = correctType(value, fieldsInfo[field]['native_type']);
+			row[field] = correctType(value, fieldsInfo[field]);
 		});
 		return cast row;
 	}
 
-	function correctObjectTypes(row:{}):{} {
-		var fieldsInfo = getFieldsInfo();
-		Syntax.foreach(row, function(field:String, value:String) {
-			value = correctType(value, fieldsInfo[field]['native_type']);
-			Syntax.setField(row, field, value);
-		});
-		return row;
-	}
-
-	inline function getFieldsInfo():NativeAssocArray<NativeArray> {
+	inline function getFieldsInfo():NativeAssocArray<Int> {
 		if (fieldsInfo == null) {
 			fieldsInfo = cast Syntax.arrayDecl();
-			var columnCount = result.columnCount();
-			for(i in 0...columnCount) {
-				var info = result.getColumnMeta(i);
-				fieldsInfo[info['name']] = info;
+			for(i in 0...nfields) {
+				fieldsInfo[result.columnName(i)] = result.columnType(i);
 			}
 		}
 		return fieldsInfo;
 	}
 
-	function correctType(value:String, type:String):Scalar {
-		if (value == null) return null;
-		return switch(type) {
-			case "float", "decimal", "double", "newdecimal": Syntax.float(value);
-			case "bool": Syntax.bool(value);
-			default: value;
-		}
+	function load() {
+		loaded = true;
+		_nfields = result.numColumns();
+		getFieldsInfo();
+		fetchAll();
 	}
 
-	function get_length() return result.rowCount();
-	function get_nfields() return result.columnCount();
+	function correctType(value:String, type:Int):Scalar {
+		if (value == null) return null;
+		if (type == Const.SQLITE3_INTEGER) return Syntax.int(value);
+		if (type == Const.SQLITE3_FLOAT) return Syntax.float(value);
+		return value;
+	}
+
+	function fetchAll() {
+		rows = Syntax.arrayDecl();
+		var index = 0;
+		var row = result.fetchArray(Const.SQLITE3_ASSOC);
+		while(row != false) {
+			rows[index] = correctArrayTypes(row);
+			row = result.fetchArray(Const.SQLITE3_ASSOC);
+			index++;
+		}
+		_length = index;
+	}
+
+	function get_length() return _length;
+	function get_nfields() return _nfields;
 }
