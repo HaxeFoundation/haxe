@@ -30,8 +30,10 @@ addons: &addons
 install_linux: &install_linux
   # Install neko and haxe dependencies
   - sudo apt-get install -y
+      ocaml
       ocaml-native-compilers
-      camlp4
+      camlp4-extra
+      opam
       pkg-config
       libgc-dev
       libssl-dev
@@ -41,6 +43,9 @@ install_linux: &install_linux
       libmysqlclient-dev
       libsqlite3-dev
       libgtk2.0-dev
+  - opam init --auto-setup
+  - opam switch 4.02.3 -y
+  - eval `opam config env`
   # Install neko
   - travis_retry git clone https://github.com/HaxeFoundation/neko.git ~/neko
   - pushd ~/neko
@@ -128,6 +133,15 @@ matrix:
             g++-multilib
       install: *install_linux
 
+    - os: linux
+      env:
+        - TEST=php7
+      before_install:
+        - phpenv global "7.0"
+        # - sudo apt-get install php7-cli php7-mysql php7-sqlite -y || (sudo add-apt-repository ppa:ondrej/php -y && sudo apt-get update -y && sudo apt-get install  php7.0-cli php7.0-mysql php7.0-sqlite -y)
+        - php -v || true
+      install: *install_linux
+
     #######
     # osx #
     #######
@@ -146,6 +160,7 @@ script:
   - eval `ssh-agent -s` # for deployment to haxe.org
   - pushd tests
   -   mkdir ~/haxelib && haxelib setup ~/haxelib
+  -   haxelib install record-macros
   -   haxe -version
   -   haxe RunCi.hxml
   -   neko RunCi.n
