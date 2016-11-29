@@ -84,10 +84,10 @@ let map_values ?(allow_control_flow=true) f e =
 
 let can_throw e =
 	let rec loop e = match e.eexpr with
-		| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ -> ()
-		| TCall _ | TNew _ | TThrow _ | TCast _ | TField _ | TArray _ | TBinop _ | TObjectDecl _ | TArrayDecl _ | TUnop _
-		| TVar _ | TFor _ | TWhile _ | TReturn _ -> raise Exit
-		| TParenthesis _ | TMeta _  | TBreak | TContinue | TEnumParameter _ | TBlock _ | TIf _ | TSwitch _ | TTry _ -> Type.iter loop e
+		| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ | TBlock _ -> ()
+		| TCall _ | TNew _ | TThrow _ | TCast(_,Some _) -> raise Exit
+		| TField _ | TArray _ -> raise Exit (* sigh *)
+		| _ -> Type.iter loop e
 	in
 	try
 		loop e; false

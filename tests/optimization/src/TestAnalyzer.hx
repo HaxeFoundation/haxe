@@ -448,18 +448,17 @@ class TestAnalyzer extends TestBase {
 		assertEquals(1, a);
 	}
 
-	// No longer possible, see #5774
-	// function testTry1() {
-	// 	var a = 1;
-	// 	try {
+	function testTry1() {
+		var a = 1;
+		try {
 
-	// 	} catch(e:Dynamic) {
-	// 		assertEqualsConst(1, a);
-	// 		a = 2;
-	// 		assertEqualsConst(2, a);
-	// 	}
-	// 	assertEqualsConst(1, a);
-	// }
+		} catch(e:Dynamic) {
+			assertEqualsConst(1, a);
+			a = 2;
+			assertEqualsConst(2, a);
+		}
+		assertEqualsConst(1, a);
+	}
 
 	function testTry2() {
 		var a = 1;
@@ -504,32 +503,32 @@ class TestAnalyzer extends TestBase {
 		assertEqualsConst(1, a);
 	}
 
-	// function testTry5() {
-	// 	var a = 1;
-	// 	try {
-	// 		throws();
-	// 		a = 2;
-	// 		a = 1;
-	// 	} catch (e:Dynamic) {
+	function testTry5() {
+		var a = 1;
+		try {
+			throws();
+			a = 2;
+			a = 1;
+		} catch (e:Dynamic) {
 
-	// 	}
-	// 	assertEqualsConst(1, a);
-	// }
+		}
+		assertEqualsConst(1, a);
+	}
 
-	// function testTry6() {
-	// 	var a = 1;
-	// 	try {
-	// 		a = 2;
-	// 		throws();
-	// 		a = 1;
-	// 		a = 2;
-	// 	} catch (e:String) {
+	function testTry6() {
+		var a = 1;
+		try {
+			a = 2;
+			throws();
+			a = 1;
+			a = 2;
+		} catch (e:String) {
 
-	// 	} catch (e:Dynamic) {
+		} catch (e:Dynamic) {
 
-	// 	}
-	// 	assertEqualsConst(2, a);
-	// }
+		}
+		assertEqualsConst(2, a);
+	}
 
 	function testTry7() {
 		var a = 1;
