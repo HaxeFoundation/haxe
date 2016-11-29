@@ -2379,7 +2379,7 @@ and eval_expr ctx e =
 	| TMeta (_,e) ->
 		eval_expr ctx e
 	| TFor (v,it,loop) ->
-		eval_expr ctx (AnalyzerTexpr.TexprFilter.for_remap ctx.com v it loop e.epos)
+		eval_expr ctx (Codegen.for_remap ctx.com v it loop e.epos)
 	| TSwitch (en,cases,def) ->
 		let rt = to_type ctx e.etype in
 		let r = alloc_tmp ctx rt in
