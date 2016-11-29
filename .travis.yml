@@ -29,11 +29,11 @@ addons: &addons
 
 install_linux: &install_linux
   # Install neko and haxe dependencies
+  - wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin
   - sudo apt-get install -y
       ocaml
       ocaml-native-compilers
       camlp4-extra
-      opam
       pkg-config
       libgc-dev
       libssl-dev
