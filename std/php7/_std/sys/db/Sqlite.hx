@@ -107,7 +107,7 @@ private class SQLiteResultSet implements ResultSet {
 
 	public function hasNext() : Bool {
 		if (!loaded) load();
-		return currentIndex < _nfields;
+		return currentIndex < _length;
 	}
 
 	public function next() : Dynamic {
