@@ -3,4 +3,3 @@ compile-each.hxml
 -lib record-macros
 -php7 bin/php7
 -D dump=pretty
-#--macro include('php7')
