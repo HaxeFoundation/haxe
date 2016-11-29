@@ -16,6 +16,7 @@
 	js : updated jQuery extern (js.jquery.*) for jQuery 1.12.4 / 3.1.0 support.
 	js : jQuery extern (js.jquery.*) now includes deprecated fields marked with @:deprecated.
 	js : no longer rewrite `o["s"]` to `o.s` (#5724)
+	cpp : greatly improved ObjC output and integration options
 	lua : greatly improved code output quality
 
 	Bugfixes:
