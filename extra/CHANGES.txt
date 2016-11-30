@@ -1,3 +1,9 @@
+2016-??-??: 3.4.0-RC2
+
+	Bugfixes:
+
+	all : fixed top-down inference infinite recursion issue (#5848)
+
 2016-11-29: 3.4.0-RC1
 
 	New features:

@@ -4012,23 +4012,25 @@ and maybe_type_against_enum ctx f with_type p =
 	try
 		begin match with_type with
 		| WithType t ->
-			let rec loop t = match follow t with
+			let rec loop stack t = match follow t with
 				| TEnum (en,_) ->
 					en.e_path,en.e_names,TEnumDecl en
 				| TAbstract ({a_impl = Some c} as a,_) when has_meta Meta.Enum a.a_meta ->
 					a.a_path,List.map (fun cf -> cf.cf_name) c.cl_ordered_fields,TAbstractDecl a
 				| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					begin match get_abstract_froms a pl with
-						| [t] -> loop t
+						| [t2] ->
+							if (List.exists (fast_eq t) stack) then raise Exit;
+							loop (t :: stack) t2
 						| _ -> raise Exit
 					end
 				(* We might type against an enum constructor. *)
 				| TFun(_,tr) ->
-					loop tr
+					loop stack tr
 				| _ ->
 					raise Exit
 			in
-			let path,fields,mt = loop t in
+			let path,fields,mt = loop [] t in
 			let old = ctx.m.curmod.m_types in
 			let restore () = ctx.m.curmod.m_types <- old in
 			ctx.m.curmod.m_types <- ctx.m.curmod.m_types @ [mt];
