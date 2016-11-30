@@ -29,12 +29,11 @@ addons: &addons
 
 install_linux: &install_linux
   # Install neko and haxe dependencies
-  - sudo sh -c "echo 'deb http://download.opensuse.org/repositories/home:/ocaml/xUbuntu_12.04/ /' > /etc/apt/sources.list.d/ocaml.list"
-  - sudo apt-get update
   - sudo apt-get install -y
       ocaml
       ocaml-native-compilers
       camlp4-extra
+      opam
       pkg-config
       libgc-dev
       libssl-dev
