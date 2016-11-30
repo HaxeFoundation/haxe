@@ -21,39 +21,12 @@ open Ast
 open Type
 open Common
 open Typecore
+open OptimizerTexpr
+open Error
+open Globals
 
 (* ---------------------------------------------------------------------- *)
 (* API OPTIMIZATIONS *)
-
-let field_call_has_side_effect f e1 fa el =
-	begin match extract_field fa with
-		| Some cf when Meta.has Meta.Pure cf.cf_meta -> ()
-		| _ -> raise Exit
-	end;
-	f e1;
-	List.iter f el
-
-(* tells if an expression causes side effects. This does not account for potential null accesses (fields/arrays/ops) *)
-let has_side_effect e =
-	let rec loop e =
-		match e.eexpr with
-		| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ -> ()
-		| TCall ({ eexpr = TField(_,FStatic({ cl_path = ([],"Std") },{ cf_name = "string" })) },args) -> Type.iter loop e
-		| TCall({eexpr = TField(e1,fa)},el) -> field_call_has_side_effect loop e1 fa el
-		| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
-		| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
-		| TArray _ | TEnumParameter _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _ | TFor _
-		| TField _ | TIf _ | TTry _ | TSwitch _ | TArrayDecl _ | TBlock _ | TObjectDecl _ | TVar _ -> Type.iter loop e
-	in
-	try
-		loop e; false
-	with Exit ->
-		true
-
-let rec is_exhaustive e1 = match e1.eexpr with
-	| TMeta((Meta.Exhaustive,_,_),_) -> true
-	| TMeta(_, e1) | TParenthesis e1 -> is_exhaustive e1
-	| _ -> false
 
 let mk_untyped_call name p params =
 	{
@@ -231,39 +204,6 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 	| _ ->
 		api_inline2 ctx.com c field params p
 
-let rec is_affected_type t = match follow t with
-	| TAbstract({a_path = [],("Int" | "Float" | "Bool")},_) -> true
-	| TAbstract({a_path = ["haxe"],("Int64" | "Int32")},_) -> true
-	| TAbstract(a,tl) -> is_affected_type (Abstract.get_underlying_type a tl)
-	| TDynamic _ -> true (* sadly *)
-	| _ -> false
-
-let create_affection_checker () =
-	let modified_locals = Hashtbl.create 0 in
-	let rec might_be_affected e =
-		let rec loop e = match e.eexpr with
-			| TConst _ | TFunction _ | TTypeExpr _ -> ()
-			| TLocal v when Hashtbl.mem modified_locals v.v_id -> raise Exit
-			| TField _ when is_affected_type e.etype -> raise Exit
-			| _ -> Type.iter loop e
-		in
-		try
-			loop e;
-			false
-		with Exit ->
-			true
-	in
-	let rec collect_modified_locals e = match e.eexpr with
-		| TUnop((Increment | Decrement),_,{eexpr = TLocal v}) when is_affected_type v.v_type ->
-			Hashtbl.add modified_locals v.v_id true
-		| TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal v},e2) when is_affected_type v.v_type ->
-			collect_modified_locals e2;
-			Hashtbl.add modified_locals v.v_id true
-		| _ ->
-			Type.iter collect_modified_locals e
-	in
-	might_be_affected,collect_modified_locals
-
 (* ---------------------------------------------------------------------- *)
 (* INLINING *)
 
@@ -400,6 +340,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			had_side_effect := true;
 			l.i_force_temp <- true;
 		end;
+		if l.i_abstract_this then l.i_subst.v_extra <- Some ([],Some e);
 		l, e
 	) (ethis :: loop params f.tf_args true) ((vthis,None) :: f.tf_args) in
 	List.iter (fun (l,e) ->
@@ -432,7 +373,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			l.i_read <- l.i_read + (if !in_loop then 2 else 1);
 			(* never inline a function which contain a delayed macro because its bound
 				to its variables and not the calling method *)
-			if v.v_name = "__dollar__delay_call" then cancel_inlining := true;
+			if v.v_name = "$__delayed_call__" then cancel_inlining := true;
 			let e = { e with eexpr = TLocal l.i_subst } in
 			if l.i_abstract_this then mk (TCast(e,None)) v.v_type e.epos else e
 		| TConst TThis ->
@@ -668,6 +609,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			| _ -> e
 		in
 		let e = List.fold_left inline_meta e cf.cf_meta in
+		let e = Display.Diagnostics.secure_generated_code ctx e in
 		(* we need to replace type-parameters that were used in the expression *)
 		if not has_params then
 			Some e
@@ -943,8 +885,8 @@ let standard_precedence op =
 
 let rec need_parent e =
 	match e.eexpr with
-	| TConst _ | TLocal _ | TArray _ | TField _ | TEnumParameter _ | TParenthesis _ | TMeta _ | TCall _ | TNew _ | TTypeExpr _ | TObjectDecl _ | TArrayDecl _ -> false
-	| TCast (e,None) -> need_parent e
+	| TConst _ | TLocal _ | TArray _ | TField _ | TEnumParameter _ | TParenthesis _ | TCall _ | TNew _ | TTypeExpr _ | TObjectDecl _ | TArrayDecl _ -> false
+	| TCast (e,None) | TMeta(_,e) -> need_parent e
 	| TCast _ | TThrow _ | TReturn _ | TTry _ | TSwitch _ | TFor _ | TIf _ | TWhile _ | TBinop _ | TContinue | TBreak
 	| TBlock _ | TVar _ | TFunction _ | TUnop _ -> true
 
@@ -999,7 +941,7 @@ let sanitize_expr com e =
 			match ee.eexpr with
 			| TBinop (op2,_,_) -> if left then not (swap op2 op) else swap op op2
 			| TIf _ -> if left then not (swap (OpAssignOp OpAssign) op) else swap op (OpAssignOp OpAssign)
-			| TCast (e,None) -> loop e left
+			| TCast (e,None) | TMeta (_,e) -> loop e left
 			| _ -> false
 		in
 		let e1 = if loop e1 true then parent e1 else e1 in
@@ -1009,7 +951,7 @@ let sanitize_expr com e =
 		let rec loop ee =
 			match ee.eexpr with
 			| TBinop _ | TIf _ | TUnop _ -> parent e1
-			| TCast (e,None) -> loop e
+			| TCast (e,None) | TMeta (_, e) -> loop e
 			| _ -> e1
 		in
 		{ e with eexpr = TUnop (op,mode,loop e1)}
@@ -1090,181 +1032,6 @@ let rec sanitize com e =
 (* ---------------------------------------------------------------------- *)
 (* REDUCE *)
 
-let optimize_binop e op e1 e2 =
-	let is_float t =
-		match follow t with
-		| TAbstract({ a_path = [],"Float" },_) -> true
-		| _ -> false
-	in
-	let is_numeric t =
-		match follow t with
-		| TAbstract({ a_path = [],("Float"|"Int") },_) -> true
-		| _ -> false
-	in
-	let check_float op f1 f2 =
-		let f = op f1 f2 in
-		let fstr = float_repres f in
-		if (match classify_float f with FP_nan | FP_infinite -> false | _ -> float_of_string fstr = f) then { e with eexpr = TConst (TFloat fstr) } else e
-	in
-	(match e1.eexpr, e2.eexpr with
-	| TConst (TInt 0l) , _ when op = OpAdd && is_numeric e2.etype -> e2
-	| TConst (TInt 1l) , _ when op = OpMult -> e2
-	| TConst (TFloat v) , _ when op = OpAdd && float_of_string v = 0. && is_float e2.etype -> e2
-	| TConst (TFloat v) , _ when op = OpMult && float_of_string v = 1. && is_float e2.etype -> e2
-	| _ , TConst (TInt 0l) when (match op with OpAdd -> is_numeric e1.etype | OpSub | OpShr | OpShl -> true | _ -> false) -> e1 (* bits operations might cause overflow *)
-	| _ , TConst (TInt 1l) when op = OpMult -> e1
-	| _ , TConst (TFloat v) when (match op with OpAdd | OpSub -> float_of_string v = 0. && is_float e1.etype | _ -> false) -> e1 (* bits operations might cause overflow *)
-	| _ , TConst (TFloat v) when op = OpMult && float_of_string v = 1. && is_float e1.etype -> e1
-	| TConst TNull, TConst TNull ->
-		(match op with
-		| OpEq -> { e with eexpr = TConst (TBool true) }
-		| OpNotEq -> { e with eexpr = TConst (TBool false) }
-		| _ -> e)
-	| TFunction _, TConst TNull ->
-		(match op with
-		| OpEq -> { e with eexpr = TConst (TBool false) }
-		| OpNotEq -> { e with eexpr = TConst (TBool true) }
-		| _ -> e)
-	| TConst TNull, TFunction _ ->
-		(match op with
-		| OpEq -> { e with eexpr = TConst (TBool false) }
-		| OpNotEq -> { e with eexpr = TConst (TBool true) }
-		| _ -> e)
-	| TConst (TInt a), TConst (TInt b) ->
-		let opt f = try { e with eexpr = TConst (TInt (f a b)) } with Exit -> e in
-		let check_overflow f =
-			opt (fun a b ->
-				let v = f (Int64.of_int32 a) (Int64.of_int32 b) in
-				let iv = Int64.to_int32 v in
-				if Int64.compare (Int64.of_int32 iv) v <> 0 then raise Exit;
-				iv
-			)
-		in
-		let ebool t =
-			{ e with eexpr = TConst (TBool (t (Int32.compare a b) 0)) }
-		in
-		(match op with
-		| OpAdd -> check_overflow Int64.add
-		| OpSub -> check_overflow Int64.sub
-		| OpMult -> check_overflow Int64.mul
-		| OpDiv -> check_float ( /. ) (Int32.to_float a) (Int32.to_float b)
-		| OpAnd -> opt Int32.logand
-		| OpOr -> opt Int32.logor
-		| OpXor -> opt Int32.logxor
-		| OpShl -> opt (fun a b -> Int32.shift_left a (Int32.to_int b))
-		| OpShr -> opt (fun a b -> Int32.shift_right a (Int32.to_int b))
-		| OpUShr -> opt (fun a b -> Int32.shift_right_logical a (Int32.to_int b))
-		| OpEq -> ebool (=)
-		| OpNotEq -> ebool (<>)
-		| OpGt -> ebool (>)
-		| OpGte -> ebool (>=)
-		| OpLt -> ebool (<)
-		| OpLte -> ebool (<=)
-		| _ -> e)
-	| TConst ((TFloat _ | TInt _) as ca), TConst ((TFloat _ | TInt _) as cb) ->
-		let fa = (match ca with
-			| TFloat a -> float_of_string a
-			| TInt a -> Int32.to_float a
-			| _ -> assert false
-		) in
-		let fb = (match cb with
-			| TFloat b -> float_of_string b
-			| TInt b -> Int32.to_float b
-			| _ -> assert false
-		) in
-		let fop op = check_float op fa fb in
-		let ebool t =
-			{ e with eexpr = TConst (TBool (t (compare fa fb) 0)) }
-		in
-		(match op with
-		| OpAdd -> fop (+.)
-		| OpDiv -> fop (/.)
-		| OpSub -> fop (-.)
-		| OpMult -> fop ( *. )
-		| OpEq -> ebool (=)
-		| OpNotEq -> ebool (<>)
-		| OpGt -> ebool (>)
-		| OpGte -> ebool (>=)
-		| OpLt -> ebool (<)
-		| OpLte -> ebool (<=)
-		| _ -> e)
-	| TConst (TString ""),TConst (TString s) | TConst (TString s),TConst (TString "") when op = OpAdd ->
-		{e with eexpr = TConst (TString s)}
-	| TConst (TBool a), TConst (TBool b) ->
-		let ebool f =
-			{ e with eexpr = TConst (TBool (f a b)) }
-		in
-		(match op with
-		| OpEq -> ebool (=)
-		| OpNotEq -> ebool (<>)
-		| OpBoolAnd -> ebool (&&)
-		| OpBoolOr -> ebool (||)
-		| _ -> e)
-	| TConst a, TConst b when op = OpEq || op = OpNotEq ->
-		let ebool b =
-			{ e with eexpr = TConst (TBool (if op = OpEq then b else not b)) }
-		in
-		(match a, b with
-		| TInt a, TFloat b | TFloat b, TInt a -> ebool (Int32.to_float a = float_of_string b)
-		| _ -> ebool (a = b))
-	| TConst (TBool a), _ ->
-		(match op with
-		| OpBoolAnd -> if a then e2 else { e with eexpr = TConst (TBool false) }
-		| OpBoolOr -> if a then { e with eexpr = TConst (TBool true) } else e2
-		| _ -> e)
-	| _ , TConst (TBool a) ->
-		(match op with
-		| OpBoolAnd when a  -> e1
-		| OpBoolOr when not a -> e1
-		| _ -> e)
-	| TField (_,FEnum (e1,f1)), TField (_,FEnum (e2,f2)) when e1 == e2 ->
-		(match op with
-		| OpEq -> { e with eexpr = TConst (TBool (f1 == f2)) }
-		| OpNotEq -> { e with eexpr = TConst (TBool (f1 != f2)) }
-		| _ -> e)
-	| _, TCall ({ eexpr = TField (_,FEnum _) },_) | TCall ({ eexpr = TField (_,FEnum _) },_), _ ->
-		(match op with
-		| OpAssign -> e
-		| _ ->
-			error "You cannot directly compare enums with arguments. Use either 'switch' or 'Type.enumEq'" e.epos)
-	| _ ->
-		e)
-
-let optimize_unop e op flag esub =
-	let is_int t = match follow t with
-		| TAbstract({a_path = [],"Int"},_) -> true
-		| _ -> false
-	in
-	match op, esub.eexpr with
-		| Not, (TConst (TBool f) | TParenthesis({eexpr = TConst (TBool f)})) -> { e with eexpr = TConst (TBool (not f)) }
-		| Not, (TBinop(op,e1,e2) | TParenthesis({eexpr = TBinop(op,e1,e2)})) ->
-			begin
-				let is_int = is_int e1.etype && is_int e2.etype in
-				try
-					let op = match is_int, op with
-						| true, OpGt -> OpLte
-						| true, OpGte -> OpLt
-						| true, OpLt -> OpGte
-						| true, OpLte -> OpGt
-						| _, OpEq -> OpNotEq
-						| _, OpNotEq -> OpEq
-						| _ -> raise Exit
-					in
-					{e with eexpr = TBinop(op,e1,e2)}
-				with Exit ->
-					e
-			end
-		| Neg, TConst (TInt i) -> { e with eexpr = TConst (TInt (Int32.neg i)) }
-		| NegBits, TConst (TInt i) -> { e with eexpr = TConst (TInt (Int32.lognot i)) }
-		| Neg, TConst (TFloat f) ->
-			let v = 0. -. float_of_string f in
-			let vstr = float_repres v in
-			if float_of_string vstr = v then
-				{ e with eexpr = TConst (TFloat vstr) }
-			else
-				e
-		| _ -> e
-
 let reduce_control_flow ctx e = match e.eexpr with
 	| TIf ({ eexpr = TConst (TBool t) },e1,e2) ->
 		(if t then e1 else match e2 with None -> { e with eexpr = TBlock [] } | Some e -> e)
@@ -1305,7 +1072,7 @@ let rec reduce_loop ctx e =
 		| None -> reduce_expr ctx e
 		| Some e -> reduce_loop ctx e)
 	| TCall ({ eexpr = TFunction func } as ef,el) ->
-		let cf = mk_field "" ef.etype e.epos in
+		let cf = mk_field "" ef.etype e.epos null_pos in
 		let ethis = mk (TConst TThis) t_dynamic e.epos in
 		let rt = (match follow ef.etype with TFun (_,rt) -> rt | _ -> assert false) in
 		let inl = (try type_inline ctx cf func ethis el rt None e.epos ~self_calling_closure:true false with Error (Custom _,_) -> None) in
@@ -1437,6 +1204,7 @@ let inline_constructors ctx e =
 	let add_field_var v s t =
 		let ii = IntMap.find v.v_id !vars in
 		let v' = alloc_var (Printf.sprintf "%s_%s" v.v_name s) t v.v_pos in
+		v'.v_meta <- (Meta.InlineConstructorVariable,[],v.v_pos) :: v'.v_meta;
 		ii.ii_fields <- PMap.add s v' ii.ii_fields;
 		v'
 	in
@@ -1462,8 +1230,8 @@ let inline_constructors ctx e =
 						let ev = mk (TLocal v) v.v_type e.epos in
 						let el_init = List.fold_left (fun acc cf -> match cf.cf_kind,cf.cf_expr with
 							| Var _,Some e ->
-								let ef = mk (TField(ev,FInstance(c,tl,cf))) e.etype e.epos in
-								let e = mk (TBinop(OpAssign,ef,e)) e.etype e.epos in
+								let ef = mk (TField(ev,FInstance(c,tl,cf))) cf.cf_type e.epos in
+								let e = mk (TBinop(OpAssign,ef,e)) cf.cf_type e.epos in
 								e :: acc
 							| _ -> acc
 						) el_init c.cl_ordered_fields in
@@ -1510,7 +1278,16 @@ let inline_constructors ctx e =
 			find_locals e2
 		| TField({eexpr = TLocal v},fa) when v.v_id < 0 ->
 			begin match extract_field fa with
-			| Some {cf_kind = Var _} -> ()
+			| Some ({cf_kind = Var _} as cf) ->
+				(* Arrays are not supposed to have public var fields, besides "length" (which we handle when inlining),
+				   however, its inlined methods may generate access to private implementation fields (such as internal
+				   native array), in this case we have to cancel inlining.
+				*)
+				if cf.cf_name <> "length" then
+					begin match (IntMap.find v.v_id !vars).ii_kind with
+					| IKArray _ -> cancel v e.epos
+					| _ -> ()
+					end
 			| _ -> cancel v e.epos
 			end
 		| TArray({eexpr = TLocal v},{eexpr = TConst (TInt i)}) when v.v_id < 0 ->
@@ -1545,7 +1322,7 @@ let inline_constructors ctx e =
 		 try
 			let v = get_field_var v name in
 			let e1 = mk (TLocal v) t p in
-			{e with eexpr = TBinop(OpAssign,e1,e2)}
+			mk (TBinop(OpAssign,e1,e2)) e1.etype p
 		with Not_found ->
 			let v = add_field_var v name t in
 			mk (TVar(v,Some e2)) ctx.t.tvoid e.epos
@@ -1672,7 +1449,7 @@ let optimize_completion_expr e =
 			let el = List.fold_left (fun acc e ->
 				typing_side_effect := false;
 				let e = loop e in
-				if !typing_side_effect then begin told := true; e :: acc end else acc
+				if !typing_side_effect || Display.is_display_position (pos e) then begin told := true; e :: acc end else acc
 			) [] el in
 			old();
 			typing_side_effect := !told;
@@ -1704,9 +1481,9 @@ let optimize_completion_expr e =
 			map e
 		| ESwitch (e,cases,def) ->
 			let e = loop e in
-			let cases = List.map (fun (el,eg,eo) -> match eo with
+			let cases = List.map (fun (el,eg,eo,p) -> match eo with
 				| None ->
-					el,eg,eo
+					el,eg,eo,p
 				| Some e ->
 					let el = List.map loop el in
 					let old = save() in
@@ -1722,22 +1499,22 @@ let optimize_completion_expr e =
 					) el;
 					let e = loop e in
 					old();
-					el, eg, Some e
+					el, eg, Some e, p
 			) cases in
 			let def = match def with
 				| None -> None
-				| Some None -> Some None
-				| Some (Some e) -> Some (Some (loop e))
+				| Some (None,p) -> Some (None,p)
+				| Some (Some e,p) -> Some (Some (loop e),p)
 			in
 			(ESwitch (e,cases,def),p)
 		| ETry (et,cl) ->
 			let et = loop et in
-			let cl = List.map (fun ((n,pn),(t,pt),e) ->
+			let cl = List.map (fun ((n,pn),(t,pt),e,p) ->
 				let old = save() in
 				decl n (Some t) None;
 				let e = loop e in
 				old();
-				(n,pn), (t,pt), e
+				(n,pn), (t,pt), e, p
 			) cl in
 			(ETry (et,cl),p)
 		| EDisplay (s,call) ->

@@ -51,8 +51,8 @@ extern class Date
 	function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void;
 
 	/**
-		Returns the timestamp of the date. It might only have a per-second
-		precision depending on the platforms.
+		Returns the timestamp (in milliseconds) of the date. It might
+		only have a per-second precision depending on the platforms.
 	**/
 	function getTime() : Float;
 
@@ -87,7 +87,7 @@ extern class Date
 	function getDate() : Int;
 
 	/**
-		Returns the day of the week of `this` Date (0-6 range).
+		Returns the day of the week of `this` Date (0-6 range) where `0` is Sunday.
 	**/
 	function getDay() : Int;
 

@@ -20,6 +20,7 @@
 open Ast
 open Common
 open Type
+open Globals
 
 type dce = {
 	com : context;
@@ -27,6 +28,7 @@ type dce = {
 	std_dirs : string list;
 	debug : bool;
 	follow_expr : dce -> texpr -> unit;
+	dependent_types : (string list * string,module_type list) Hashtbl.t;
 	mutable curclass : tclass;
 	mutable added_fields : (tclass * tclass_field * bool) list;
 	mutable marked_fields : tclass_field list;
@@ -54,6 +56,7 @@ let keep_whole_class dce c =
 	|| super_forces_keep c
 	|| (match c with
 		| { cl_path = ([],("Math"|"Array"))} when dce.com.platform = Js -> false
+		| { cl_path = ([],("Math"|"Array"|"String"))} when dce.com.platform = Lua -> false
 		| { cl_extern = true }
 		| { cl_path = ["flash";"_Boot"],"RealBoot" } -> true
 		| { cl_path = [],"String" }
@@ -175,8 +178,8 @@ and mark_t dce p t =
 			List.iter (mark_t dce p) pl
 		| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
 			begin try
-				mark_t dce p (snd (Codegen.AbstractCast.find_multitype_specialization dce.com a pl p))
-			with Typecore.Error _ ->
+				mark_t dce p (snd (Typecore.AbstractCast.find_multitype_specialization dce.com a pl p))
+			with Error.Error _ ->
 				()
 			end
 		| TAbstract(a,pl) ->
@@ -203,6 +206,13 @@ let mark_mt dce mt = match mt with
 
 (* find all dependent fields by checking implementing/subclassing types *)
 let rec mark_dependent_fields dce csup n stat =
+	let dependent = try
+		Hashtbl.find dce.dependent_types csup.cl_path
+	with Not_found ->
+		let cl = List.filter (fun mt -> match mt with TClassDecl c -> is_parent csup c | _ -> false) dce.com.types in
+		Hashtbl.add dce.dependent_types csup.cl_path cl;
+		cl
+	in
 	List.iter (fun mt -> match mt with
 		| TClassDecl c when is_parent csup c ->
 			let rec loop c =
@@ -222,7 +232,7 @@ let rec mark_dependent_fields dce csup n stat =
 			in
 			loop c
 		| _ -> ()
-	) dce.com.types
+	) dependent
 
 (* expr and field evaluation *)
 
@@ -340,6 +350,70 @@ and is_string t = match follow t with
 and is_const_string e = match e.eexpr with
 	| TConst(TString(_)) -> true
 	| _ -> false
+
+and expr_field dce e fa is_call_expr =
+	let do_default = fun () ->
+		let n = field_name fa in
+			(match fa with
+			| FAnon cf ->
+				if Meta.has Meta.Optional cf.cf_meta then begin
+					check_and_add_feature dce "anon_optional_read";
+					check_and_add_feature dce ("anon_optional_read." ^ n);
+				end else begin
+					check_and_add_feature dce "anon_read";
+					check_and_add_feature dce ("anon_read." ^ n);
+				end
+			| FDynamic _ ->
+				check_and_add_feature dce "dynamic_read";
+				check_and_add_feature dce ("dynamic_read." ^ n);
+			| _ -> ());
+			begin match follow e.etype with
+				| TInst(c,_) ->
+					mark_class dce c;
+					field dce c n false;
+				| TAnon a ->
+					(match !(a.a_status) with
+					| Statics c ->
+						mark_class dce c;
+						field dce c n true;
+					| _ -> ())
+
+
+				| _ -> ()
+			end
+	in
+	let mark_instance_field_access c cf =
+		if (not is_call_expr && dce.com.platform = Python) then begin
+			if c.cl_path = ([], "Array") then begin
+				check_and_add_feature dce "closure_Array";
+				check_and_add_feature dce ("python.internal.ArrayImpl." ^ cf.cf_name);
+				check_and_add_feature dce ("python.internal.ArrayImpl")
+			end
+			else if c.cl_path = ([], "String") then begin
+				check_and_add_feature dce "closure_String";
+				check_and_add_feature dce ("python.internal.StringImpl." ^ cf.cf_name);
+				check_and_add_feature dce ("python.internal.StringImpl")
+			end
+		end;
+	in
+	begin match fa with
+		| FStatic(c,cf) ->
+			mark_class dce c;
+			mark_field dce c cf true;
+		| FInstance(c,_,cf) ->
+			(*mark_instance_field_access c cf;*)
+			mark_class dce c;
+			mark_field dce c cf false
+		| FClosure (Some(c, _), cf) ->
+		 	mark_instance_field_access c cf;
+			do_default()
+		| FClosure _ ->
+			do_default()
+		| _ ->
+			do_default()
+	end;
+	expr dce e;
+
 
 and expr dce e =
 	mark_t dce e.epos e.etype;
@@ -475,50 +549,25 @@ and expr dce e =
 		check_and_add_feature dce "binop_>>>";
 		expr dce e1;
 		expr dce e2;
+	| TCall(({ eexpr = TField(ef, fa) } as e2), el ) ->
+		mark_t dce e2.epos e2.etype;
+		expr_field dce ef fa true;
+		List.iter (expr dce) el;
 	| TField(e,fa) ->
-		begin match fa with
-			| FStatic(c,cf) ->
-				mark_class dce c;
-				mark_field dce c cf true;
-			| FInstance(c,_,cf) ->
-				mark_class dce c;
-				mark_field dce c cf false;
-			| _ ->
-
-				let n = field_name fa in
-				(match fa with
-				| FAnon cf ->
-					if Meta.has Meta.Optional cf.cf_meta then begin
-						check_and_add_feature dce "anon_optional_read";
-						check_and_add_feature dce ("anon_optional_read." ^ n);
-					end else begin
-						check_and_add_feature dce "anon_read";
-						check_and_add_feature dce ("anon_read." ^ n);
-					end
-				| FDynamic _ ->
-					check_and_add_feature dce "dynamic_read";
-					check_and_add_feature dce ("dynamic_read." ^ n);
-				| _ -> ());
-				begin match follow e.etype with
-					| TInst(c,_) ->
-						mark_class dce c;
-						field dce c n false;
-					| TAnon a ->
-						(match !(a.a_status) with
-						| Statics c ->
-							mark_class dce c;
-							field dce c n true;
-						| _ -> ())
-
-
-					| _ -> ()
-				end;
-		end;
-		expr dce e;
+		expr_field dce e fa false;
 	| TThrow e ->
 		check_and_add_feature dce "has_throw";
-		to_string dce e.etype;
-		expr dce e
+		expr dce e;
+		(*
+			TODO: Simon, save me! \o
+			This is a hack needed to keep toString field of the actual exception objects
+			that are thrown, but are wrapped into HaxeError before DCE comes into play.
+		*)
+		let e = (match e.eexpr with
+			| TNew({cl_path=(["js";"_Boot"],"HaxeError")}, _, [eoriginal]) -> eoriginal
+			| _ -> e
+		) in
+		to_string dce e.etype
 	| _ ->
 		Type.iter (expr dce) e
 
@@ -560,7 +609,8 @@ let run com main full =
 	let dce = {
 		com = com;
 		full = full;
-		std_dirs = if full then [] else List.map Common.unique_full_path com.std_path;
+		dependent_types = Hashtbl.create 0;
+		std_dirs = if full then [] else List.map Path.unique_full_path com.std_path;
 		debug = Common.defined com Define.DceDebug;
 		added_fields = [];
 		follow_expr = expr;
@@ -599,7 +649,7 @@ let run com main full =
 			begin match c.cl_init with
 				| Some e when keep_class || Meta.has Meta.KeepInit c.cl_meta ->
 					(* create a fake field to deal with our internal logic (issue #3286) *)
-					let cf = mk_field "__init__" e.etype e.epos in
+					let cf = mk_field "__init__" e.etype e.epos null_pos in
 					cf.cf_expr <- Some e;
 					loop true cf
 				| _ ->

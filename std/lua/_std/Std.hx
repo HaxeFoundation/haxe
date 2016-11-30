@@ -38,8 +38,8 @@ import lua.NativeStringTools;
 		return untyped lua.Boot.__string_rec(s);
 	}
 
-	public static inline function int( x : Float ) : Int {
-		return x > 0 ? Math.floor(x) : Math.ceil(x);
+	public static function int( x : Float ) : Int {
+		return lua.Boot.clamp(x);
 	}
 
 	public static function parseInt( x : String ) : Null<Int> {
@@ -86,9 +86,9 @@ import lua.NativeStringTools;
 		// class reflection metadata
 		haxe.macro.Compiler.includeFile("lua/_lua/_hx_classes.lua");
 		__feature__("lua.Boot.getClass", String.prototype.__class__ = __feature__("Type.resolveClass",_hxClasses["String"] = String,String));
-		__feature__("lua.Boot.isClass", String.__name__ = __feature__("Type.getClassName", __lua_table__("String"),true));
+		__feature__("lua.Boot.isClass", String.__name__ = __feature__("Type.getClassName", __lua_table__(["String"]),true));
 		__feature__("Type.resolveClass",_hxClasses["Array"] = Array);
-		__feature__("lua.Boot.isClass",Array.__name__ = __feature__("Type.getClassName",__lua_table__("Array"),true));
+		__feature__("lua.Boot.isClass",Array.__name__ = __feature__("Type.getClassName",__lua_table__(["Array"]),true));
 	}
 
 }

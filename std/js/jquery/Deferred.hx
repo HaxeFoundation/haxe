@@ -14,6 +14,16 @@ package js.jquery;
 	**/
 	public function fail(failCallbacks:haxe.extern.EitherType<haxe.Constraints.Function, Array<haxe.Constraints.Function>>, ?failCallbacks:haxe.extern.EitherType<haxe.Constraints.Function, Array<haxe.Constraints.Function>>):js.jquery.Deferred;
 	/**
+		Determine whether a Deferred object has been rejected.
+	**/
+	@:deprecated("Deprecated since jQuery 1.7")
+	public function isRejected():Bool;
+	/**
+		Determine whether a Deferred object has been resolved.
+	**/
+	@:deprecated("Deprecated since jQuery 1.7")
+	public function isResolved():Bool;
+	/**
 		A factory function that returns a chainable utility object with methods to register multiple callbacks into callback queues, invoke callback queues, and relay the success or failure state of any synchronous or asynchronous function.
 	**/
 	@:selfCall
@@ -29,6 +39,7 @@ package js.jquery;
 	/**
 		Utility method to filter and/or chain Deferreds.
 	**/
+	@:deprecated("Deprecated since jQuery 1.8")
 	@:overload(function(?doneFilter:haxe.Constraints.Function, ?failFilter:haxe.Constraints.Function, ?progressFilter:haxe.Constraints.Function):js.jquery.Promise { })
 	public function pipe(?doneFilter:haxe.Constraints.Function, ?failFilter:haxe.Constraints.Function):js.jquery.Promise;
 	/**
@@ -62,5 +73,7 @@ package js.jquery;
 	/**
 		Add handlers to be called when the Deferred object is resolved, rejected, or still in progress.
 	**/
-	public function then(doneFilter:haxe.Constraints.Function, ?failFilter:haxe.Constraints.Function, ?progressFilter:haxe.Constraints.Function):js.jquery.Promise;
+	@:overload(function(doneFilter:haxe.Constraints.Function, ?failFilter:haxe.Constraints.Function, ?progressFilter:haxe.Constraints.Function):js.jquery.Promise { })
+	@:overload(function(doneCallbacks:haxe.extern.EitherType<haxe.Constraints.Function, Array<haxe.Constraints.Function>>, failCallbacks:haxe.extern.EitherType<haxe.Constraints.Function, Array<haxe.Constraints.Function>>, ?progressCallbacks:haxe.extern.EitherType<haxe.Constraints.Function, Array<haxe.Constraints.Function>>):js.jquery.Promise { })
+	public function then(doneCallbacks:haxe.extern.EitherType<haxe.Constraints.Function, Array<haxe.Constraints.Function>>, failCallbacks:haxe.extern.EitherType<haxe.Constraints.Function, Array<haxe.Constraints.Function>>):js.jquery.Promise;
 }

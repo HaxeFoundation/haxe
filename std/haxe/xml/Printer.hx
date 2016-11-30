@@ -22,8 +22,16 @@
 
 package haxe.xml;
 
+/**
+	This class provides utility methods to convert Xml instances to 
+	String representation.
+**/
 class Printer {
-
+	/**
+		Convert `Xml` to string representation.
+		
+		Set `pretty` to `true` to prettify the result.
+	**/
 	static public function print(xml:Xml, ?pretty = false) {
 		var printer = new Printer(pretty);
 		printer.writeNode(xml, "");
@@ -86,8 +94,10 @@ class Printer {
 				}
 			case ProcessingInstruction:
 				write("<?" + value.nodeValue + "?>");
+				newline();
 			case DocType:
 				write("<!DOCTYPE " + value.nodeValue + ">");
+				newline();
 		}
 	}
 

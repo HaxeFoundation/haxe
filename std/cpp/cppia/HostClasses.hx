@@ -59,10 +59,6 @@ class HostClasses
    "StringBuf",
    "sys.db.Mysql",
    "sys.db.Sqlite",
-   "sys.db.Object",
-   "sys.db.Manager",
-   "sys.db.Connection",
-   "sys.db.Object",
    "sys.FileSystem",
    "sys.io.File",
    "sys.io.FileInput",
@@ -108,7 +104,7 @@ class HostClasses
    "haxe.crypto.Adler32",
    "haxe.crypto.Md5",
    "haxe.crypto.Sha1",
- 
+
    "haxe.io.BufferInput",
    "haxe.io.Bytes",
    "haxe.io.BytesBuffer",
@@ -153,7 +149,7 @@ class HostClasses
    "EReg",
    "Enum",
    "EnumValue",
-   "IntIterator",
+   // "IntIterator",
    "List",
    "Map",
    "String",
@@ -194,7 +190,7 @@ class HostClasses
       externs.set("haxe._Int32.Int32_Impl_",true);
       externs.set("haxe._Int32.___Int32",true);
       // Hidded in implementation classes
-      externs.set("sys.db.RecordType",true);
+      //externs.set("sys.db.RecordType",true);
       externs.set("sys.db._Sqlite.SqliteConnection",true);
       externs.set("sys.db._Sqlite.SqliteResultSet",true);
       externs.set("sys.db._Mysql.MysqlConnection",true);

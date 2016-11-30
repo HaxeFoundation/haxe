@@ -1,5 +1,7 @@
 package unit;
 
+import unit.HelperMacros.getMeta;
+
 @enumMeta private enum E {
 	@a A;
 	@b(0) B;
@@ -66,14 +68,5 @@ package unit;
 
 		eq(getMeta(@foo ("1")).args.length, 0);
 		eq(getMeta(@foo("1") "2").args.length, 1);
-	}
-
-	static macro function getMeta(e) {
-		switch(e.expr) {
-			case EMeta(m, _):
-				return macro { name: $v{m.name}, args: $a{m.params} };
-			default:
-				return macro report("Metadata expected");
-		}
 	}
 }

@@ -4,3 +4,5 @@
 -debug
 -dce no
 -cpp bin/cppia
+-cp src
+--macro include("scripthost")

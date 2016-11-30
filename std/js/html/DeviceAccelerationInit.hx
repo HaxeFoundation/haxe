@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/DeviceMotionEvent.webidl line 57:0. Do not edit!
+// This file is generated from mozilla\DeviceMotionEvent.webidl line 31:0. Do not edit!
 
 package js.html;
 

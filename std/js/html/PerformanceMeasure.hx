@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/PerformanceMeasure.webidl line 42:0. Do not edit!
+// This file is generated from mozilla\PerformanceMeasure.webidl line 13:0. Do not edit!
 
 package js.html;
 

@@ -30,7 +30,7 @@
 	String can be concatenated by using the `+` operator. If an operand is not a
 	String, it is passed through `Std.string()` first.
 	
-	@see http://haxe.org/manual/std-String.html
+	@see https://haxe.org/manual/std-String.html
 **/
 extern class String {
 

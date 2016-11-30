@@ -4,6 +4,7 @@
 *.cmi
 *.cmxa
 *.cmo
+*.cmt
 *.a
 *.exe
 .*.swp

@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/DragEvent.webidl line 39:0. Do not edit!
+// This file is generated from mozilla\DragEvent.webidl line 10:0. Do not edit!
 
 package js.html;
 

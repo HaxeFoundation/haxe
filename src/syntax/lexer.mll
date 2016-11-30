@@ -20,6 +20,7 @@
 {
 open Lexing
 open Ast
+open Globals
 
 type error_msg =
 	| Invalid_character of char
@@ -49,6 +50,8 @@ type lexer_file = {
 	mutable llines : (int * int) list;
 	mutable lalines : (int * int) array;
 	mutable lstrings : int list;
+	mutable llast : int;
+	mutable llastindex : int;
 }
 
 let make_file file =
@@ -59,6 +62,8 @@ let make_file file =
 		llines = [0,1];
 		lalines = [|0,1|];
 		lstrings = [];
+		llast = max_int;
+		llastindex = 0;
 	}
 
 
@@ -134,18 +139,27 @@ let find_line p f =
 	if f.lmaxline <> f.lline then begin
 		f.lmaxline <- f.lline;
 		f.lalines <- Array.of_list (List.rev f.llines);
+		f.llast <- max_int;
+		f.llastindex <- 0;
 	end;
 	let rec loop min max =
 		let med = (min + max) lsr 1 in
 		let lp, line = Array.unsafe_get f.lalines med in
-		if med = min then
+		if med = min then begin
+			f.llast <- p;
+			f.llastindex <- med;
 			line, p - lp
-		else if lp > p then
+		end else if lp > p then
 			loop min med
 		else
 			loop med max
 	in
-	loop 0 (Array.length f.lalines)
+	if p >= f.llast then begin
+		let lp, line = Array.unsafe_get f.lalines f.llastindex in
+		let lp2 = if f.llastindex = Array.length f.lalines - 1 then max_int else fst(Array.unsafe_get f.lalines (f.llastindex + 1)) in
+		if p >= lp && p < lp2 then line, p - lp else loop 0 (Array.length f.lalines)
+	end else
+		loop 0 (Array.length f.lalines)
 
 (* resolve a position within a non-haxe file by counting newlines *)
 let resolve_pos file =

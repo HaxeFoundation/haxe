@@ -22,6 +22,8 @@ open Type
 open Common
 open AnalyzerTexpr
 open AnalyzerTypes
+open OptimizerTexpr
+open Globals
 
 (* File organization:
 	* analyzer.ml: The controlling file with all graph-based optimizations
@@ -394,7 +396,7 @@ module ConstPropagation = DataFlow(struct
 				let e1 = wrap cl1 in
 				let e2 = wrap cl2 in
 				let e = {e with eexpr = TBinop(op,e1,e2)} in
-				let e' = Optimizer.optimize_binop e op e1 e2 in
+				let e' = optimize_binop e op e1 e2 in
 				if e != e' then
 					eval bb e'
 				else
@@ -403,7 +405,7 @@ module ConstPropagation = DataFlow(struct
 				let cl1 = eval bb e1 in
 				let e1 = wrap cl1 in
 				let e = {e with eexpr = TUnop(op,flag,e1)} in
-				let e' = Optimizer.optimize_unop e op flag e1 in
+				let e' = optimize_unop e op flag e1 in
 				if e != e' then
 					eval bb e'
 				else
@@ -456,8 +458,9 @@ module ConstPropagation = DataFlow(struct
 				if not (type_change_ok ctx.com e'.etype e.etype) then raise Not_found;
 				e'
 		in
+		let is_special_var v = v.v_capture || is_asvar_type v.v_type in
 		let rec commit e = match e.eexpr with
-			| TLocal v when not v.v_capture ->
+			| TLocal v when not (is_special_var v) ->
 				begin try
 					inline e v.v_id
 				with Not_found ->
@@ -465,13 +468,13 @@ module ConstPropagation = DataFlow(struct
 				end
 			| TBinop((OpAssign | OpAssignOp _ as op),({eexpr = TLocal v} as e1),e2) ->
 				let e2 = try
-					if (Optimizer.has_side_effect e2) then raise Not_found;
+					if (has_side_effect e2) then raise Not_found;
 					inline e2 v.v_id
 				with Not_found ->
 					commit e2
 				in
 				{e with eexpr = TBinop(op,e1,e2)}
-			| TVar(v,Some e1) when not (Optimizer.has_side_effect e1) ->
+			| TVar(v,Some e1) when not (has_side_effect e1) ->
 				let e1 = try inline e1 v.v_id with Not_found -> commit e1 in
 				{e with eexpr = TVar(v,Some e1)}
 			| _ ->
@@ -814,7 +817,7 @@ module LocalDce = struct
 			| TCall ({ eexpr = TField(_,FStatic({ cl_path = ([],"Std") },{ cf_name = "string" })) },args) -> Type.iter loop e
 			| TCall ({eexpr = TField(_,FEnum _)},_) -> Type.iter loop e
 			| TCall ({eexpr = TConst (TString ("phi" | "fun"))},_) -> ()
-			| TCall({eexpr = TField(e1,fa)},el) -> Optimizer.field_call_has_side_effect loop e1 fa el
+			| TCall({eexpr = TField(e1,fa)},el) when PurityState.is_pure_field_access fa -> loop e1; List.iter loop el
 			| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
 			| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
 			| TFor _ -> raise Exit
@@ -1004,7 +1007,7 @@ module Debug = struct
 		) g.g_var_infos
 
 	let get_dump_path ctx c cf =
-		"dump" :: [Common.platform_name ctx.com.platform] @ (fst c.cl_path) @ [Printf.sprintf "%s.%s" (snd c.cl_path) cf.cf_name]
+		"dump" :: [platform_name ctx.com.platform] @ (fst c.cl_path) @ [Printf.sprintf "%s.%s" (snd c.cl_path) cf.cf_name]
 
 	let dot_debug ctx c cf =
 		let g = ctx.graph in
@@ -1100,8 +1103,8 @@ module Run = struct
 	open AnalyzerConfig
 	open Graph
 
-	let with_timer s f =
-		let timer = timer s in
+	let with_timer actx s f =
+		let timer = timer (if actx.config.detail_times then ["analyzer";s] else ["analyzer"]) in
 		let r = f() in
 		timer();
 		r
@@ -1120,6 +1123,7 @@ module Run = struct
 			loop_counter = 0;
 			loop_stack = [];
 			debug_exprs = [];
+			name_stack = [];
 		} in
 		ctx
 
@@ -1128,37 +1132,46 @@ module Run = struct
 
 	let there actx e =
 		if actx.com.debug then add_debug_expr actx "initial" e;
-		let e = with_timer "analyzer-filter-apply" (fun () -> TexprFilter.apply actx.com e) in
+		let e = with_timer actx "var-lazifier" (fun () -> VarLazifier.apply actx.com e) in
+		if actx.com.debug then add_debug_expr actx "after var-lazifier" e;
+		let e = with_timer actx "filter-apply" (fun () -> TexprFilter.apply actx.com e) in
 		if actx.com.debug then add_debug_expr actx "after filter-apply" e;
-		let tf,is_real_function = match e.eexpr with
+		let tf,t,is_real_function = match e.eexpr with
 			| TFunction tf ->
-				tf,true
+				tf,e.etype,true
 			| _ ->
 				(* Wrap expression in a function so we don't have to treat it as a special case throughout. *)
 				let e = mk (TReturn (Some e)) t_dynamic e.epos in
 				let tf = { tf_args = []; tf_type = e.etype; tf_expr = e; } in
-				tf,false
+				tf,tfun [] e.etype,false
 		in
-		with_timer "analyzer-from-texpr" (fun () -> AnalyzerTexprTransformer.from_tfunction actx tf e.etype e.epos);
+		with_timer actx "from-texpr" (fun () -> AnalyzerTexprTransformer.from_tfunction actx tf t e.epos);
 		is_real_function
 
 	let back_again actx is_real_function =
-		let e = with_timer "analyzer-to-texpr" (fun () -> AnalyzerTexprTransformer.to_texpr actx) in
+		let e = with_timer actx "to-texpr" (fun () -> AnalyzerTexprTransformer.to_texpr actx) in
 		if actx.com.debug then add_debug_expr actx "after to-texpr" e;
 		DynArray.iter (fun vi ->
 			vi.vi_var.v_extra <- vi.vi_extra;
 		) actx.graph.g_var_infos;
-		let e = with_timer "analyzer-fusion" (fun () -> Fusion.apply actx.com actx.config e) in
+		let e = if actx.config.fusion then with_timer actx "fusion" (fun () -> Fusion.apply actx.com actx.config e) else e in
 		if actx.com.debug then add_debug_expr actx "after fusion" e;
-		let e = with_timer "analyzer-cleanup" (fun () -> Cleanup.apply actx.com e) in
-		if actx.com.debug then add_debug_expr actx "after to-cleanup" e;
+		let e = with_timer actx "cleanup" (fun () -> Cleanup.apply actx.com e) in
+		if actx.com.debug then add_debug_expr actx "after cleanup" e;
 		let e = if is_real_function then
 			e
 		else begin
 			(* Get rid of the wrapping function and its return expressions. *)
 			let rec loop first e = match e.eexpr with
 				| TReturn (Some e) -> e
-				| TFunction tf when first -> loop false tf.tf_expr
+				| TFunction tf when first ->
+					begin match loop false tf.tf_expr with
+						| {eexpr = TBlock _ | TIf _ | TSwitch _ | TTry _} when actx.com.platform = Cpp || actx.com.platform = Hl ->
+							mk (TCall(e,[])) tf.tf_type e.epos
+						| e ->
+							e
+					end
+				| TBlock [e] -> loop first e
 				| TFunction _ -> e
 				| _ -> Type.map_expr (loop first) e
 			in
@@ -1173,23 +1186,27 @@ module Run = struct
 		Graph.infer_var_writes actx.graph;
 		if actx.com.debug then Graph.check_integrity actx.graph;
 		if actx.config.optimize && not actx.has_unbound then begin
-			with_timer "analyzer-ssa-apply" (fun () -> Ssa.apply actx);
-			if actx.config.const_propagation then with_timer "analyzer-const-propagation" (fun () -> ConstPropagation.apply actx);
-			if actx.config.copy_propagation then with_timer "analyzer-copy-propagation" (fun () -> CopyPropagation.apply actx);
-			if actx.config.code_motion then with_timer "analyzer-code-motion" (fun () -> CodeMotion.apply actx);
-			with_timer "analyzer-local-dce" (fun () -> LocalDce.apply actx);
+			with_timer actx "ssa-apply" (fun () -> Ssa.apply actx);
+			if actx.config.const_propagation then with_timer actx "const-propagation" (fun () -> ConstPropagation.apply actx);
+			if actx.config.copy_propagation then with_timer actx "copy-propagation" (fun () -> CopyPropagation.apply actx);
+			if actx.config.code_motion then with_timer actx "code-motion" (fun () -> CodeMotion.apply actx);
+			with_timer actx "local-dce" (fun () -> LocalDce.apply actx);
 		end;
 		back_again actx is_real_function
 
+	let rec reduce_control_flow ctx e =
+		Type.map_expr (reduce_control_flow ctx) (Optimizer.reduce_control_flow ctx e)
+
 	let run_on_field ctx config c cf = match cf.cf_expr with
-		| Some e when not (is_ignored cf.cf_meta) && not (Codegen.is_removable_field ctx cf) ->
+		| Some e when not (is_ignored cf.cf_meta) && not (Typecore.is_removable_field ctx cf) ->
 			let config = update_config_from_meta ctx.Typecore.com config cf.cf_meta in
+			(match e.eexpr with TFunction tf -> cf.cf_expr_unoptimized <- Some tf | _ -> ());
 			let actx = create_analyzer_context ctx.Typecore.com config e in
 			let debug() =
 				prerr_endline (Printf.sprintf "While analyzing %s.%s" (s_type_path c.cl_path) cf.cf_name);
 				List.iter (fun (s,e) ->
 					prerr_endline (Printf.sprintf "<%s>" s);
-					prerr_endline (Type.s_expr_pretty true "" (s_type (print_context())) e);
+					prerr_endline (Type.s_expr_pretty true "" false (s_type (print_context())) e);
 					prerr_endline (Printf.sprintf "</%s>" s);
 				) (List.rev actx.debug_exprs);
 				Debug.dot_debug actx c cf;
@@ -1198,13 +1215,13 @@ module Run = struct
 			let e = try
 				run_on_expr actx e
 			with
-			| Error _ | Abort _ as exc ->
+			| Error.Error _ | Abort _ as exc ->
 				raise exc
 			| exc ->
 				debug();
 				raise exc
 			in
-			let e = Cleanup.reduce_control_flow ctx e in
+			let e = reduce_control_flow ctx e in
 			begin match config.debug_kind with
 				| DebugNone -> ()
 				| DebugDot -> Debug.dot_debug actx c cf;

@@ -21,6 +21,6 @@
  */
  package cpp.zip;
 
-#if (haxe_ver < 3.4)
+#if (haxe_ver < 4.0)
 typedef Flush = haxe.zip.FlushMode;
 #end

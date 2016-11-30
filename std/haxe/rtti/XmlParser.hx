@@ -27,7 +27,7 @@ import haxe.xml.Fast;
 	XmlParser processes the runtime type information (RTTI) which
 	is stored as a XML string in a static field `__rtti`.
 	
-	@see <http://haxe.org/manual/cr-rtti.html>
+	@see <https://haxe.org/manual/cr-rtti.html>
 **/
 class XmlParser {
 

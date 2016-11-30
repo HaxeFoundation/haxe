@@ -46,14 +46,14 @@ Math.POSITIVE_INFINITY / one == Math.POSITIVE_INFINITY;
 Math.NEGATIVE_INFINITY / one == Math.NEGATIVE_INFINITY;
 //Math.POSITIVE_INFINITY / zero == Math.POSITIVE_INFINITY;
 //Math.NEGATIVE_INFINITY / zero == Math.NEGATIVE_INFINITY;
-Math.isNaN(Math.POSITIVE_INFINITY / Math.POSITIVE_INFINITY);
-Math.isNaN(Math.POSITIVE_INFINITY / Math.NEGATIVE_INFINITY);
-Math.isNaN(Math.NEGATIVE_INFINITY / Math.POSITIVE_INFINITY);
-Math.isNaN(Math.NEGATIVE_INFINITY / Math.NEGATIVE_INFINITY);
-Math.isNaN(Math.NaN / Math.POSITIVE_INFINITY);
-Math.isNaN(Math.POSITIVE_INFINITY / Math.NaN);
-Math.isNaN(Math.NaN / Math.POSITIVE_INFINITY);
-Math.isNaN(Math.NEGATIVE_INFINITY / Math.NaN);
+Math.isNaN(Math.POSITIVE_INFINITY / Math.POSITIVE_INFINITY) == true;
+Math.isNaN(Math.POSITIVE_INFINITY / Math.NEGATIVE_INFINITY) == true;
+Math.isNaN(Math.NEGATIVE_INFINITY / Math.POSITIVE_INFINITY) == true;
+Math.isNaN(Math.NEGATIVE_INFINITY / Math.NEGATIVE_INFINITY) == true;
+Math.isNaN(Math.NaN / Math.POSITIVE_INFINITY) == true;
+Math.isNaN(Math.POSITIVE_INFINITY / Math.NaN) == true;
+Math.isNaN(Math.NaN / Math.POSITIVE_INFINITY) == true;
+Math.isNaN(Math.NEGATIVE_INFINITY / Math.NaN) == true;
 
 // abs
 Math.abs(-1.223) == 1.223;
@@ -271,14 +271,14 @@ math.POSITIVE_INFINITY / one == math.POSITIVE_INFINITY;
 math.NEGATIVE_INFINITY / one == math.NEGATIVE_INFINITY;
 //math.POSITIVE_INFINITY / zero == math.POSITIVE_INFINITY;
 //math.NEGATIVE_INFINITY / zero == math.NEGATIVE_INFINITY;
-math.isNaN(math.POSITIVE_INFINITY / math.POSITIVE_INFINITY);
-math.isNaN(math.POSITIVE_INFINITY / math.NEGATIVE_INFINITY);
-math.isNaN(math.NEGATIVE_INFINITY / math.POSITIVE_INFINITY);
-math.isNaN(math.NEGATIVE_INFINITY / math.NEGATIVE_INFINITY);
-math.isNaN(math.NaN / math.POSITIVE_INFINITY);
-math.isNaN(math.POSITIVE_INFINITY / math.NaN);
-math.isNaN(math.NaN / math.POSITIVE_INFINITY);
-math.isNaN(math.NEGATIVE_INFINITY / math.NaN);
+math.isNaN(math.POSITIVE_INFINITY / math.POSITIVE_INFINITY) == true;
+math.isNaN(math.POSITIVE_INFINITY / math.NEGATIVE_INFINITY) == true;
+math.isNaN(math.NEGATIVE_INFINITY / math.POSITIVE_INFINITY) == true;
+math.isNaN(math.NEGATIVE_INFINITY / math.NEGATIVE_INFINITY) == true;
+math.isNaN(math.NaN / math.POSITIVE_INFINITY) == true;
+math.isNaN(math.POSITIVE_INFINITY / math.NaN) == true;
+math.isNaN(math.NaN / math.POSITIVE_INFINITY) == true;
+math.isNaN(math.NEGATIVE_INFINITY / math.NaN) == true;
 
 // abs
 math.abs(-1.223) == 1.223;

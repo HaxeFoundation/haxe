@@ -166,7 +166,7 @@ class Timer {
 		The value itself might differ depending on platforms, only differences
 		between two values make sense.
 	**/
-	public static function stamp() : Float {
+	public static inline function stamp() : Float {
 		#if flash
 			return flash.Lib.getTimer() / 1000;
 		#elseif (neko || php)
@@ -175,8 +175,11 @@ class Timer {
 			return Date.now().getTime() / 1000;
 		#elseif cpp
 			return untyped __global__.__time_stamp();
+		#elseif python
+			return Sys.cpuTime();
 		#elseif sys
 			return Sys.time();
+		
 		#else
 			return 0;
 		#end

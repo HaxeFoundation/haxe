@@ -45,7 +45,7 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 	public function call( params : Array<Dynamic> ) : Dynamic {
 		var data = null;
 		var h = new haxe.Http(__url);
-		#if js
+		#if (js && !nodejs)
 			h.async = false;
 		#end
 		#if (neko && no_remoting_shutdown)

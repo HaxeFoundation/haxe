@@ -45,49 +45,49 @@ enum Type {
 	/**
 		Represents a monomorph.
 
-		@see http://haxe.org/manual/types-monomorph.html
+		@see https://haxe.org/manual/types-monomorph.html
 	**/
 	TMono( t : Ref<Null<Type>> );
 
 	/**
 		Represents an enum instance.
 
-		@see http://haxe.org/manual/types-enum-instance.html
+		@see https://haxe.org/manual/types-enum-instance.html
 	**/
 	TEnum( t : Ref<EnumType>, params : Array<Type> );
 
 	/**
 		Represents a class instance.
 
-		@see http://haxe.org/manual/types-class-instance.html
+		@see https://haxe.org/manual/types-class-instance.html
 	**/
 	TInst( t : Ref<ClassType>, params : Array<Type> );
 
 	/**
 		Represents a typedef.
 
-		@see http://haxe.org/manual/type-system-typedef.html
+		@see https://haxe.org/manual/type-system-typedef.html
 	**/
 	TType( t : Ref<DefType>, params : Array<Type> );
 
 	/**
 		Represents a function type.
 
-		@see http://haxe.org/manual/types-function.html
+		@see https://haxe.org/manual/types-function.html
 	**/
 	TFun( args : Array<{ name : String, opt : Bool, t : Type }>, ret : Type );
 
 	/**
 		Represents an anonymous structure type.
 
-		@see http://haxe.org/manual/types-anonymous-structure.html
+		@see https://haxe.org/manual/types-anonymous-structure.html
 	**/
 	TAnonymous( a : Ref<AnonType> );
 
 	/**
 		Represents Dynamic.
 
-		@see http://haxe.org/manual/types-dynamic.html
+		@see https://haxe.org/manual/types-dynamic.html
 	**/
 	TDynamic( t : Null<Type> );
 
@@ -99,7 +99,7 @@ enum Type {
 	/**
 		Represents an abstract type.
 
-		@see http://haxe.org/manual/types-abstract.html
+		@see https://haxe.org/manual/types-abstract.html
 	**/
 	TAbstract( t : Ref<AbstractType>, params : Array<Type> );
 }
@@ -145,7 +145,7 @@ enum AnonStatus {
 		Represents a structure which extends one or multiple structures defined
 		in `tl`.
 
-		@see http://haxe.org/manual/type-system-extensions.html
+		@see https://haxe.org/manual/type-system-extensions.html
 	**/
 	AExtend( tl:Ref<Array<Type>> );
 
@@ -495,14 +495,14 @@ typedef AbstractType = {>BaseType,
 	/**
 		The available implicit from-casts of the abstract.
 
-		@see http://haxe.org/manual/types-abstract-implicit-casts.html
+		@see https://haxe.org/manual/types-abstract-implicit-casts.html
 	**/
 	var from : Array<{t:Type, field:Null<ClassField>}>;
 
 	/**
 		The available implicit to-casts of the abstract.
 
-		@see http://haxe.org/manual/types-abstract-implicit-casts.html
+		@see https://haxe.org/manual/types-abstract-implicit-casts.html
 	**/
 	var to : Array<{t:Type, field:Null<ClassField>}>;
 
@@ -642,14 +642,14 @@ enum MethodKind {
 	/**
 		An inline method.
 
-		@see http://haxe.org/manual/class-field-inline.html
+		@see https://haxe.org/manual/class-field-inline.html
 	**/
 	MethInline;
 
 	/**
 		A dynamic, rebindable method.
 
-		@see http://haxe.org/manual/class-field-dynamic.html
+		@see https://haxe.org/manual/class-field-dynamic.html
 	**/
 	MethDynamic;
 

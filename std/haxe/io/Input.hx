@@ -159,11 +159,11 @@ class Input {
 		The final character is not included in the resulting string.
 	**/
 	public function readUntil( end : Int ) : String {
-		var buf = new StringBuf();
+		var buf = new BytesBuffer();
 		var last : Int;
 		while( (last = readByte()) != end )
-			buf.addChar( last );
-		return buf.toString();
+			buf.addByte( last );
+		return buf.getBytes().toString();
 	}
 
 	/**
@@ -172,16 +172,16 @@ class Input {
 		The CR/LF characters are not included in the resulting string.
 	**/
 	public function readLine() : String {
-		var buf = new StringBuf();
+		var buf = new BytesBuffer();
 		var last : Int;
 		var s;
 		try {
 			while( (last = readByte()) != 10 )
-				buf.addChar( last );
-			s = buf.toString();
+				buf.addByte( last );
+			s = buf.getBytes().toString();
 			if( s.charCodeAt(s.length-1) == 13 ) s = s.substr(0,-1);
 		} catch( e : Eof ) {
-			s = buf.toString();
+			s = buf.getBytes().toString();
 			if( s.length == 0 )
 				#if neko neko.Lib.rethrow #else throw #end (e);
 		}
@@ -193,7 +193,7 @@ class Input {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public #if !(flash || python) inline #end function readFloat() : Float {
+	public function readFloat() : Float {
 		return FPHelper.i32ToFloat(readInt32());
 	}
 
@@ -288,9 +288,7 @@ class Input {
 		else return n;
 #elseif lua
 		var n = bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
-		// lua can't do 32 bit ints, the adjustment for 64 bits must be numeric
-		if (n > 2147483647) n -=  untyped 4294967296.;
-		return n ;
+		return lua.Boot.clamp(n);
 #else
 		return bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
 #end

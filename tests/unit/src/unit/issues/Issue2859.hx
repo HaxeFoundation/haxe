@@ -11,7 +11,7 @@ class Issue2859 extends Test {
 		try {
 			throw new Error("hello");
 		} catch (e:Error) {
-			unit.TestType.typedAs(e, (null:Error));
+			unit.HelperMacros.typedAs(e, (null:Error));
 			func(e);
 		}
 	}

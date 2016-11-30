@@ -25,7 +25,7 @@
 	that are chained together. It is optimized so that adding or removing an
 	element does not imply copying the whole list content every time.
 
-	@see http://haxe.org/manual/std-List.html
+	@see https://haxe.org/manual/std-List.html
 **/
 class List<T> {
 

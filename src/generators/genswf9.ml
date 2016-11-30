@@ -17,6 +17,7 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
+open Globals
 open Ast
 open Type
 open As3
@@ -107,8 +108,8 @@ let rec follow t = match Type.follow t with
 	| t ->
 		t
 
-let invalid_expr p = error "Invalid expression" p
-let stack_error p = error "Stack error" p
+let invalid_expr p = abort "Invalid expression" p
+let stack_error p = abort "Stack error" p
 
 let index_int (x : int) : 'a index = Obj.magic (x + 1)
 let index_nz_int (x : int) : 'a index_nz = Obj.magic x
@@ -225,8 +226,6 @@ let rec type_id ctx t =
 			(match l with
 			| [t] -> type_id ctx t
 			| _ -> type_path ctx ([],"Object"))
-		| KExtension (c,params) ->
-			type_id ctx (TInst (c,params))
 		| _ ->
 			type_path ctx c.cl_path)
 	| TAbstract (a,_) ->
@@ -346,13 +345,6 @@ let property ctx p t =
 			| "ffloor" | "fceil" | "fround" -> ident (String.sub p 1 (String.length p - 1)), None, false
 			| _ -> ident p, None, false)
 		| _ -> ident p, None, false)
-	| TInst ({ cl_kind = KExtension _ } as c,params) ->
-		(* cast type when accessing an extension field *)
-		(try
-			let f = PMap.find p c.cl_fields in
-			ident p, Some (classify ctx (apply_params c.cl_params params f.cf_type)), false
-		with Not_found ->
-			ident p, None, false)
 	| TInst ({ cl_interface = true } as c,_) ->
 		(* lookup the interface in which the field was actually declared *)
 		let rec loop c =
@@ -495,7 +487,7 @@ let define_local ctx ?(init=false) v p =
 let is_set v = (Obj.magic v) = Write
 
 let gen_local_access ctx v p (forset : 'a)  : 'a access =
-	match snd (try PMap.find v.v_id ctx.locals with Not_found -> error ("Unbound variable " ^ v.v_name) p) with
+	match snd (try PMap.find v.v_id ctx.locals with Not_found -> abort ("Unbound variable " ^ v.v_name) p) with
 	| LReg r ->
 		VReg r
 	| LScope n ->
@@ -617,7 +609,7 @@ let debug_infos ?(is_min=true) ctx p =
 	if ctx.debug then begin
 		let line = Lexer.get_error_line (if is_min then p else { p with pmin = p.pmax }) in
 		if ctx.last_file <> p.pfile then begin
-			write ctx (HDebugFile (if ctx.debugger then Common.get_full_path p.pfile else p.pfile));
+			write ctx (HDebugFile (if ctx.debugger then Path.get_full_path p.pfile else p.pfile));
 			ctx.last_file <- p.pfile;
 			ctx.last_line <- -1;
 		end;
@@ -718,7 +710,7 @@ let begin_fun ctx args tret el stat p =
 			| TInt i -> if kind = KUInt then HVUInt i else HVInt i
 			| TFloat s -> HVFloat (float_of_string s)
 			| TBool b -> HVBool b
-			| TNull -> error ("In Flash9, null can't be used as basic type " ^ s_type (print_context()) t) p
+			| TNull -> abort ("In Flash9, null can't be used as basic type " ^ s_type (print_context()) t) p
 			| _ -> assert false)
 		| _, Some TNull -> HVNone
 		| k, Some c ->
@@ -893,7 +885,7 @@ let rec gen_access ctx e (forset : 'a) : 'a access =
 	| TField (e1,fa) ->
 		let f = field_name fa in
 		let id, k, closure = property ctx f e1.etype in
-		if closure && not ctx.for_call then error "In Flash9, this method cannot be accessed this way : please define a local function" e1.epos;
+		if closure && not ctx.for_call then abort "In Flash9, this method cannot be accessed this way : please define a local function" e1.epos;
 		(match e1.eexpr with
 		| TConst (TThis|TSuper) when not ctx.in_static ->
 			write ctx (HFindProp id)
@@ -1081,6 +1073,10 @@ let rec gen_expr_content ctx retval e =
 	| TNew ({ cl_path = [],"Array" },_,[]) ->
 		(* it seems that [] is 4 time faster than new Array() *)
 		write ctx (HArray 0)
+	| TNew ({ cl_path = ["flash"],"Vector" },[t],_) when (match follow t with TInst({ cl_kind = KTypeParameter _ },_) -> true | _ -> false) ->
+		write ctx (HString "Cannot create Vector without knowing runtime type");
+		write ctx HThrow;
+		no_value ctx retval
 	| TNew (c,tl,pl) ->
 		let id = type_id ctx (TInst (c,tl)) in
 		(match id with
@@ -1128,7 +1124,7 @@ let rec gen_expr_content ctx retval e =
 	| TUnop (op,flag,e) ->
 		gen_unop ctx retval op flag e
 	| TTry (e2,cases) ->
-		if ctx.infos.istack <> 0 then error "Cannot compile try/catch as a right-side expression in Flash9" e.epos;
+		if ctx.infos.istack <> 0 then abort "Cannot compile try/catch as a right-side expression in Flash9" e.epos;
 		let branch = begin_branch ctx in
 		let p = ctx.infos.ipos in
 		gen_expr ctx retval e2;
@@ -1380,8 +1376,8 @@ and gen_call ctx retval e el r =
 		gen_expr ctx true counter;
 		write ctx HForIn
 	| TLocal { v_name = "__has_next__" }, [obj;counter] ->
-		let oreg = match gen_access ctx obj Read with VReg r -> r | _ -> error "Must be a local variable" obj.epos in
-		let creg = match gen_access ctx counter Read with VReg r -> r | _ -> error "Must be a local variable" obj.epos in
+		let oreg = match gen_access ctx obj Read with VReg r -> r | _ -> abort "Must be a local variable" obj.epos in
+		let creg = match gen_access ctx counter Read with VReg r -> r | _ -> abort "Must be a local variable" obj.epos in
 		write ctx (HNext (oreg.rid,creg.rid))
 	| TLocal { v_name = "__hkeys__" }, [e2]
 	| TLocal { v_name = "__foreach__" }, [e2]
@@ -1572,7 +1568,7 @@ and check_binop ctx e1 e2 =
 	let invalid = (match classify ctx e1.etype, classify ctx e2.etype with
 	| KInt, KUInt | KUInt, KInt -> (match e1.eexpr, e2.eexpr with TConst (TInt i) , _ | _ , TConst (TInt i) -> i < 0l | _ -> true)
 	| _ -> false) in
-	if invalid then error "Comparison of Int and UInt might lead to unexpected results" (punion e1.epos e2.epos);
+	if invalid then abort "Comparison of Int and UInt might lead to unexpected results" (punion e1.epos e2.epos);
 
 and gen_binop ctx retval op e1 e2 t p =
 	let write_op op =
@@ -1887,12 +1883,12 @@ let generate_class_init ctx c hc =
 	| None -> ()
 	| Some e ->
 		gen_expr ctx false e;
-		if ctx.block_vars <> [] then error "You can't have a local variable referenced from a closure inside __init__ (FP 10.1.53 crash)" e.epos;
+		if ctx.block_vars <> [] then abort "You can't have a local variable referenced from a closure inside __init__ (FP 10.1.53 crash)" e.epos;
 	);
 	generate_class_statics ctx c true;
 	if ctx.swc then begin
 		generate_class_statics ctx c false;
-		if ctx.block_vars <> [] then error "You can't have a local variable referenced from a closure inside a static (FP 10.1.53 crash)" c.cl_pos;
+		if ctx.block_vars <> [] then abort "You can't have a local variable referenced from a closure inside a static (FP 10.1.53 crash)" c.cl_pos;
 	end
 
 let generate_enum_init ctx e hc meta =
@@ -1936,7 +1932,7 @@ let extract_meta meta =
 				match a with
 				| EConst (String s) -> (None, s)
 				| EBinop (OpAssign,(EConst (Ident n),_),(EConst (String s),_)) -> (Some n, s)
-				| _ -> error "Invalid meta definition" p
+				| _ -> abort "Invalid meta definition" p
 			in
 			{ hlmeta_name = n; hlmeta_data = Array.of_list (List.map mk_arg args) } :: loop l
 		| _ :: l -> loop l
@@ -2017,7 +2013,7 @@ let check_constructor ctx c f =
 		match e.eexpr with
 		| TCall ({ eexpr = TConst TSuper },_) -> raise Exit
 		| TBinop (OpAssign,{ eexpr = TField({ eexpr = TConst TThis },FInstance (cc,_,cf)) },_) when c != cc && (match classify ctx cf.cf_type with KFloat | KDynamic -> true | _ -> false) ->
-			error "You cannot assign some super class vars before calling super() in flash, this will reset them to default value" e.epos
+			abort "You cannot assign some super class vars before calling super() in flash, this will reset them to default value" e.epos
 		| _ -> ()
 	in
 	(* only do so if we have a call to super() *)
@@ -2125,9 +2121,11 @@ let generate_class ctx c =
 				cf_meta = [];
 				cf_doc = None;
 				cf_pos = c.cl_pos;
+				cf_name_pos = null_pos;
 				cf_type = TFun ([],t_dynamic);
 				cf_params = [];
 				cf_expr = None;
+				cf_expr_unoptimized = None;
 				cf_kind = Method MethNormal;
 				cf_overloads = [];
 			} false;
@@ -2180,7 +2178,7 @@ let generate_class ctx c =
 		hlc_interface = c.cl_interface;
 		hlc_namespace = (match !has_protected with None -> None | Some p -> Some (HNProtected p));
 		hlc_implements = Array.of_list (List.map (fun (c,_) ->
-			if not c.cl_interface then error "Can't implement class in Flash9" c.cl_pos;
+			if not c.cl_interface then abort "Can't implement class in Flash9" c.cl_pos;
 			let pack, name = real_path c.cl_path in
 			HMMultiName (Some name,[HNPublic (Some (String.concat "." pack))])
 		) c.cl_implements);
@@ -2333,7 +2331,7 @@ let rec generate_type ctx t =
 				hlf_metas = extract_meta e.e_meta;
 			})
 	| TAbstractDecl ({ a_path = [],"Dynamic" } as a) ->
-		generate_type ctx (TClassDecl (mk_class a.a_module a.a_path a.a_pos))
+		generate_type ctx (TClassDecl (mk_class a.a_module a.a_path a.a_pos null_pos))
 	| TTypeDecl _ | TAbstractDecl _ ->
 		None
 
@@ -2341,8 +2339,8 @@ let resource_path name =
 	(["_res"],"_" ^ String.concat "_" (ExtString.String.nsplit name "."))
 
 let generate_resource ctx name =
-	let c = mk_class null_module (resource_path name) null_pos in
-	c.cl_super <- Some (mk_class null_module (["flash";"utils"],"ByteArray") null_pos,[]);
+	let c = mk_class null_module (resource_path name) null_pos null_pos in
+	c.cl_super <- Some (mk_class null_module (["flash";"utils"],"ByteArray") null_pos null_pos,[]);
 	let t = TClassDecl c in
 	match generate_type ctx t with
 	| Some (m,f) -> (t,m,f)

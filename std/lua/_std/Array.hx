@@ -25,7 +25,7 @@ class Array<T> {
 	public var length(default,null) : Int;
 
 	public function new() : Void  {
-		lua.Lib.defArray(cast this,0);
+		untyped _hx_tab_array(this, 0);
 	}
 	public function concat( a : Array<T> ) : Array<T> {
 		var ret = this.copy();
@@ -33,22 +33,20 @@ class Array<T> {
 		return ret;
 	}
 	public function join( sep : String ) : String {
-		var sb = new StringBuf();
-		var first = true;
+		var tbl : lua.Table<Int,String> = lua.Table.create();
 		for (i in iterator()){
-			if (first) first = false;
-			else sb.add(sep);
-			sb.add(Std.string(i));
+			lua.Table.insert(tbl,Std.string(i));
 		}
-		return sb.toString();
+		return lua.Table.concat(tbl,sep);
 	}
 
 	public function pop() : Null<T> {
 		return this.length == 0 ? null : this[this.length-- -1];
 	}
 	public function push(x : T) : Int {
-		this[this.length++] = x;
-		return this.length;
+		this[length] = x;
+		length++;
+		return length;
 	}
 	public function reverse() : Void {
 		var tmp:T;
@@ -81,8 +79,28 @@ class Array<T> {
 		}
 		return ret;
 	}
+
+	// TODO: copied from neko Array.sort, move to general util library?
 	public function sort( f : T -> T -> Int ) : Void {
-		return haxe.ds.ArraySort.sort(this,f);
+		var i = 0;
+		var l = this.length;
+		while( i < l ) {
+			var swap = false;
+			var j = 0;
+			var max = l - i - 1;
+			while( j < max ) {
+				if( f(this[j],this[j+1]) > 0 ) {
+					var tmp = this[j+1];
+					this[j+1] = this[j];
+					this[j] = tmp;
+					swap = true;
+				}
+				j += 1;
+			}
+			if( !swap )
+				break;
+			i += 1;
+		}
 	}
 	public function splice( pos : Int, len : Int ) : Array<T> {
 		if (len < 0 || pos > length) return [];
@@ -101,11 +119,11 @@ class Array<T> {
 	}
 
 	public function toString() : String {
-		var sb = new StringBuf();
-		sb.add("[");
-		sb.add(join(","));
-		sb.add("]");
-		return sb.toString();
+		var tbl : lua.Table<Int,String> = lua.Table.create();
+		lua.Table.insert(tbl, '[');
+		lua.Table.insert(tbl, join(","));
+		lua.Table.insert(tbl, ']');
+		return lua.Table.concat(tbl,"");
 	}
 
 	public function unshift( x : T ) : Void {
@@ -134,9 +152,9 @@ class Array<T> {
 				for (j in i...length-1){
 					this[j] = this[j+1];
 				}
-				// We need to decrement the length variable, and set its 
-				// value to null to avoid hanging on to a reference in the 
-				// underlying lua table.  
+				// We need to decrement the length variable, and set its
+				// value to null to avoid hanging on to a reference in the
+				// underlying lua table.
 				this[length-1] = null;
 				// Do this in two steps to avoid re-updating the __index metamethod
 				length--;

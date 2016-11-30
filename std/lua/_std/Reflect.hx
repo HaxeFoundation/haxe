@@ -20,6 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 import lua.Lua;
+import lua.TableTools;
 import lua.Boot;
 @:coreApi class Reflect {
 
@@ -74,33 +75,23 @@ import lua.Boot;
 				// self or not
 				self_arg = true;
 			}
-			var new_args = lua.Boot.createTable();
+			var new_args = lua.Table.create();
 			for (i in 0...args.length){
 				// copy args to 1-indexed table
 				new_args[i + 1] = args[i];
 			}
 			return if (self_arg){
 				// call with o as leading self param
-				func(o, lua.Table.unpack(new_args, 1, lua.Table.maxn(new_args)));
+				func(o, lua.TableTools.unpack(new_args, 1, TableTools.maxn(new_args)));
 			} else {
 				// call with no self param
-				func(lua.Table.unpack(new_args, 1, lua.Table.maxn(new_args)));
+				func(lua.TableTools.unpack(new_args, 1,  TableTools.maxn(new_args)));
 			}
 		}
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> {
-		if (untyped o.__fields__ != null) {
-			return lua.PairTools.pairsFold(o.__fields__, function(a,b,c:Array<String>){
-				if (Boot.hiddenFields.indexOf(a) == -1) c.push(a);
-				return c;
-			}, []);
-		} else {
-			return lua.PairTools.pairsFold(o, function(a,b,c:Array<String>){
-			if (Boot.hiddenFields.indexOf(a) == -1) c.push(cast a);
-			return c;
-			}, []);
-		}
+		return [for (f in lua.Boot.fieldIterator(o)) f];
 	}
 
 	public static function isFunction( f : Dynamic ) : Bool {
@@ -160,7 +151,7 @@ import lua.Boot;
 				b[k-1] = v
 				l = math.max(k,l)
 			end
-			return f(_hx_tabArray(b, l))
+			return f(_hx_tab_array(b, l))
 		end");
 	}
 

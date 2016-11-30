@@ -21,7 +21,7 @@
  */
 @:coreApi class StringBuf {
 
-	var b : hl.types.Bytes;
+	var b : hl.Bytes;
 	var size : Int;
 	var pos : Int;
 	public var length(get,never) : Int;
@@ -29,7 +29,7 @@
 	public function new() : Void {
 		pos = 0;
 		size = 8; // ensure 4 bytes expand for addChar()
-		b = new hl.types.Bytes(size);
+		b = new hl.Bytes(size);
 	}
 
 	inline function get_length() : Int {
@@ -39,13 +39,13 @@
 	inline function __expand( need : Int ) : Void {
 		var nsize = (size * 3) >> 1;
 		if( need > nsize ) nsize = need;
-		var b2 = new hl.types.Bytes(nsize);
+		var b2 = new hl.Bytes(nsize);
 		b2.blit(0, b, 0, pos);
 		b = b2;
 		size = nsize;
 	}
 
-	inline function __add( bytes : hl.types.Bytes, spos : Int, ssize : Int ) : Void {
+	inline function __add( bytes : hl.Bytes, spos : Int, ssize : Int ) : Void {
 		if( pos + ssize > size ) __expand(pos + ssize);
 		b.blit(pos, bytes, spos, ssize);
 		pos += ssize;
@@ -53,7 +53,7 @@
 
 	public function add<T>( x : T ) : Void {
 		var slen = 0;
-		var sbytes = hl.types.Bytes.ofValue(x, new hl.types.Ref(slen));
+		var sbytes = hl.Bytes.fromValue(x, new hl.Ref(slen));
 		__add(sbytes, 0, slen<<1);
 	}
 

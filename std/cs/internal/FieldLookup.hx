@@ -21,6 +21,21 @@
  */
 package cs.internal;
 
+@:native('haxe.lang.FieldHashConflict')
+@:final @:nativeGen
+@:keep class FieldHashConflict {
+	@:readOnly public var hash(default,never):Int;
+	@:readOnly public var name(default,never):String;
+	public var value:Dynamic;
+	public var next:FieldHashConflict;
+	public function new(hash, name, value, next) {
+		untyped this.hash = hash;
+		untyped this.name = name;
+		this.value = value;
+		this.next = next;
+	}
+}
+
 @:native('haxe.lang.FieldLookup')
 @:final @:nativeGen
 @:classCode("#pragma warning disable 628\n")
@@ -325,4 +340,59 @@ package cs.internal;
 	static function insertDynamic(a:cs.NativeArray<Dynamic>, length:Int, pos:Int, x:Dynamic):cs.NativeArray<Dynamic> return __insert(a, length, pos, x);
 	static function insertString(a:cs.NativeArray<String>, length:Int, pos:Int, x:Dynamic):cs.NativeArray<String> return __insert(a, length, pos, x);
 	#end
+
+	static function getHashConflict(head:FieldHashConflict, hash:Int, name:String):FieldHashConflict {
+		while (head != null) {
+			if (head.hash == hash && head.name == name) {
+				return head;
+			}
+			head = head.next;
+		}
+		return null;
+	}
+
+	static function setHashConflict(head:cs.Ref<FieldHashConflict>, hash:Int, name:String, value:Dynamic):Void {
+		var node = head;
+		while (node != null) {
+			if (node.hash == hash && node.name == name) {
+				node.value = value;
+				return;
+			}
+			node = node.next;
+		}
+		head = new FieldHashConflict(hash, name, value, head);
+	}
+
+	static function deleteHashConflict(head:cs.Ref<FieldHashConflict>, hash:Int, name:String):Bool {
+		// no conflicting fields at all
+		if (head == null) {
+			return false;
+		}
+
+		// list head is conflicting - just point it to the next one
+		if (head.hash == hash && head.name == name) {
+			head = head.next;
+			return true;
+		}
+
+		// loop through the list, removing node if there's one
+		var prev = head, node = head.next;
+		while (node != null) {
+			if (node.hash == hash && node.name == name) {
+				prev.next = node.next;
+				return true;
+			}
+			node = node.next;
+		}
+
+		// not found
+		return false;
+	}
+
+	static function addHashConflictNames(head:FieldHashConflict, arr:Array<String>):Void {
+		while (head != null) {
+			arr.push(head.name);
+			head = head.next;
+		}
+	}
 }

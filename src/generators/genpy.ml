@@ -17,6 +17,7 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
+open Globals
 open Ast
 open Type
 open Common
@@ -26,7 +27,7 @@ module Utils = struct
 	let class_of_module_type mt = match mt with
 		| TClassDecl c -> c
 		| _ -> failwith ("Not a class: " ^ (s_type_path (t_infos mt).mt_path))
-
+	
 	let find_type com path =
 		try
 			List.find (fun mt -> match mt with
@@ -34,7 +35,7 @@ module Utils = struct
 				| _ -> (t_infos mt).mt_path = path
 			) com.types
 		with Not_found ->
-			error (Printf.sprintf "Could not find type %s\n" (s_type_path path)) null_pos
+			abort (Printf.sprintf "Could not find type %s\n" (s_type_path path)) null_pos
 
 	let mk_static_field c cf p =
 			let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
@@ -78,7 +79,7 @@ module KeywordHandler = struct
 		List.iter (fun s -> Hashtbl.add h s ()) [
 			"len"; "int"; "float"; "list"; "bool"; "str"; "isinstance"; "print"; "min"; "max";
 			"hasattr"; "getattr"; "setattr"; "delattr"; "callable"; "type"; "ord"; "chr"; "iter"; "map"; "filter";
-			"tuple"; "dict"; "set"; "bytes"; "bytearray"
+			"tuple"; "dict"; "set"; "bytes"; "bytearray"; "self";
 		];
 		h
 
@@ -95,7 +96,8 @@ module KeywordHandler = struct
 		else s
 
 	let check_var_declaration v =
-		if Hashtbl.mem kwds2 v.v_name then v.v_name <- "_hx_" ^ v.v_name
+		if not (Meta.has Meta.This v.v_meta) then
+			if Hashtbl.mem kwds2 v.v_name then v.v_name <- "_hx_" ^ v.v_name
 end
 
 module Transformer = struct
@@ -123,12 +125,12 @@ module Transformer = struct
 
 	and debug_expr e =
 		let s_type = Type.s_type (print_context()) in
-		let s = Type.s_expr_pretty false "    " s_type e in
+		let s = Type.s_expr_pretty false "    " false s_type e in
 		Printf.printf "%s\n" s
 
 	and debug_expr_with_type e =
 		let s_type = Type.s_type (print_context()) in
-		let es = Type.s_expr_pretty false "    " s_type e in
+		let es = Type.s_expr_pretty false "    " false s_type e in
 		let t = s_type e.etype in
 		Printf.printf "%s : %s\n" es t
 
@@ -272,18 +274,21 @@ module Transformer = struct
 
 	let rec transform_function tf ae is_value =
 		let p = tf.tf_expr.epos in
-		let assigns = List.fold_left (fun acc (v,value) -> match value with
-			| None | Some TNull ->
-				acc
-			| Some ct ->
-				let a_local = mk (TLocal v) v.v_type p in
-				let a_null = mk (TConst TNull) v.v_type p in
-				let a_cmp = mk (TBinop(OpEq,a_local,a_null)) !t_bool p in
-				let a_value = mk (TConst(ct)) v.v_type p in
-				let a_assign = mk (TBinop(OpAssign,a_local,a_value)) v.v_type p in
-				let a_if = mk (TIf(a_cmp,a_assign,None)) !t_void p in
-				a_if :: acc
-		) [] tf.tf_args in
+		let assigns = List.fold_left (fun acc (v,value) ->
+			KeywordHandler.check_var_declaration v;
+			match value with
+				| None | Some TNull ->
+					acc
+				| Some ct ->
+					let a_local = mk (TLocal v) v.v_type p in
+					let a_null = mk (TConst TNull) v.v_type p in
+					let a_cmp = mk (TBinop(OpEq,a_local,a_null)) !t_bool p in
+					let a_value = mk (TConst(ct)) v.v_type p in
+					let a_assign = mk (TBinop(OpAssign,a_local,a_value)) v.v_type p in
+					let a_if = mk (TIf(a_cmp,a_assign,None)) !t_void p in
+					a_if :: acc
+			) [] tf.tf_args
+		in
 		let body = match assigns with
 			| [] ->
 				tf.tf_expr
@@ -308,6 +313,7 @@ module Transformer = struct
 			lift_expr fn
 
 	and transform_var_expr ae eo v =
+		KeywordHandler.check_var_declaration v;
 		let b,new_expr = match eo with
 			| None ->
 				[],None
@@ -840,9 +846,13 @@ module Transformer = struct
 		| (is_value, TBinop(OpAssignOp op,{eexpr = TField(e1,FDynamic s); etype = t},e2)) ->
 			let e = dynamic_field_read_write ae.a_next_id e1 s op e2 t in
 			transform_expr ~is_value:is_value e
-		| (is_value, TField(e1, FClosure(Some ({cl_path = [],("str" | "list")},_),cf))) ->
+		(*
+		| (is_value, TField(e1, FClosure(Some ({cl_path = [],("str")},_),cf))) ->
+
+		| (is_value, TField(e1, FClosure(Some ({cl_path = [],("list")},_),cf))) ->
 			let e = dynamic_field_read e1 cf.cf_name ae.a_expr.etype in
 			transform_expr ~is_value:is_value e
+		*)
 		| (is_value, TBinop(OpAssign, left, right))->
 			(let left = trans true [] left in
 			let right = trans true [] right in
@@ -888,7 +898,7 @@ module Transformer = struct
 			lift_expr ~blocks:blocks r
 		| (false, TTry(etry, catches)) ->
 			let etry = trans false [] etry in
-			let catches = List.map (fun(v,e) -> v, trans false [] e) catches in
+			let catches = List.map (fun(v,e) -> KeywordHandler.check_var_declaration v; v, trans false [] e) catches in
 			let blocks = List.flatten (List.map (fun (_,e) -> e.a_blocks) catches) in
 			let catches = List.map (fun(v,e) -> v, e.a_expr) catches in
 			let r = { a_expr with eexpr = TTry(etry.a_expr, catches)} in
@@ -902,7 +912,7 @@ module Transformer = struct
 			let temp_local = { a_expr with eexpr = TLocal(temp_var)} in
 			let mk_temp_assign right = { a_expr with eexpr = TBinop(OpAssign, temp_local, right)} in
 			let etry = mk_temp_assign etry in
-			let catches = List.map (fun (v,e)-> v, mk_temp_assign e) catches in
+			let catches = List.map (fun (v,e)-> KeywordHandler.check_var_declaration v; v, mk_temp_assign e) catches in
 			let new_try = { a_expr with eexpr = TTry(etry, catches)} in
 			let block = [temp_var_def; new_try; temp_local] in
 			let new_block = { a_expr with eexpr = TBlock(block)} in
@@ -1087,12 +1097,11 @@ module Printer = struct
 		let had_var_args = ref false in
 		let had_kw_args = ref false in
 		let sl = List.map (fun (v,cto) ->
-			let check_err () = if !had_var_args || !had_kw_args then error "Arguments after KwArgs/VarArgs are not allowed" p in
-			KeywordHandler.check_var_declaration v;
+			let check_err () = if !had_var_args || !had_kw_args then abort "Arguments after KwArgs/VarArgs are not allowed" p in
 			let name = handle_keywords v.v_name in
 			match follow v.v_type with
 				| TAbstract({a_path = ["python"],"KwArgs"},_) ->
-					if !had_kw_args then error "Arguments after KwArgs are not allowed" p;
+					if !had_kw_args then abort "Arguments after KwArgs are not allowed" p;
 					had_kw_args := true;
 					"**" ^ name
 				| TAbstract({a_path = ["python"],"VarArgs"},_) ->
@@ -1316,7 +1325,7 @@ module Printer = struct
 				print_call pctx e1 el e
 			| TNew(c,_,el) ->
 				let id = print_base_type (t_infos (TClassDecl c)) in
-				Printf.sprintf "%s(%s)" id (print_exprs pctx ", " el)
+				Printf.sprintf "%s(%s)" id (print_call_args pctx e el)
 			| TUnop(Not,Prefix,e1) ->
 				Printf.sprintf "(%s%s)" (print_unop Not) (print_expr pctx e1)
 			| TUnop(op,Prefix,e1) ->
@@ -1324,7 +1333,6 @@ module Printer = struct
 			| TFunction tf ->
 				print_function pctx tf None e.epos
 			| TVar (v,eo) ->
-				KeywordHandler.check_var_declaration v;
 				print_var pctx v eo
 			| TBlock [] ->
 				Printf.sprintf "pass"
@@ -1343,7 +1351,7 @@ module Printer = struct
 			| TWhile(econd,e1,NormalWhile) ->
 				Printf.sprintf "while %s:\n%s    %s" (print_expr pctx (remove_outer_parens econd)) indent (print_expr_indented e1)
 			| TWhile(econd,e1,DoWhile) ->
-				error "Currently not supported" e.epos
+				abort "Currently not supported" e.epos
 			| TTry(e1,catches) ->
 				print_try pctx e1 catches
 			| TReturn eo ->
@@ -1419,12 +1427,20 @@ module Printer = struct
 				Printf.sprintf "HxString.fromCharCode"
 			| FStatic({cl_path = ["python";"internal"],"UBuiltins"},{cf_name = s}) ->
 				s
+			| FClosure (Some(c,cf),_)  when call_override(name) && ((is_type "" "list")(TClassDecl c)) ->
+				Printf.sprintf "_hx_partial(python_internal_ArrayImpl.%s, %s)" name obj
+			| FInstance (c,_,cf) when call_override(name) && ((is_type "" "list")(TClassDecl c)) ->
+				Printf.sprintf "_hx_partial(python_internal_ArrayImpl.%s, %s)" name obj
+			| FClosure (Some(c,cf),_)  when call_override(name) && ((is_type "" "str")(TClassDecl c)) ->
+				Printf.sprintf "_hx_partial(HxString.%s, %s)" name obj
+			| FInstance (c,_,cf) when call_override(name) && ((is_type "" "str")(TClassDecl c)) ->
+				Printf.sprintf "_hx_partial(HxString.%s, %s)" name obj
 			| FInstance _ | FStatic _ ->
 				do_default ()
 			| FAnon cf when is_assign && call_override(name) ->
 				begin match follow cf.cf_type with
 					| TFun([],_) ->
-						Printf.sprintf "python_lib_FuncTools.partial(HxOverrides.%s, %s)" name obj
+						Printf.sprintf "_hx_partial(HxOverrides.%s, %s)" name obj
 					| _ ->
 						do_default()
 				end
@@ -1441,7 +1457,6 @@ module Printer = struct
 			| _ -> false
 		end in
 		let print_catch pctx i (v,e) =
-			KeywordHandler.check_var_declaration v;
 			let is_empty_expr = begin match e.eexpr with
 				| TBlock [] -> true
 				| _ -> false
@@ -1508,7 +1523,7 @@ module Printer = struct
 				let i = ref 0 in
 				let err msg =
 					let pos = { ecode.epos with pmin = ecode.epos.pmin + !i } in
-					error msg pos
+					abort msg pos
 				in
 				let regex = Str.regexp "[{}]" in
 				let rec loop m = match m with
@@ -1875,14 +1890,18 @@ module Generator = struct
 				else
 					print ctx "%s%s = %s" indent field expr_string_2
 
-	let gen_func_expr ctx e c name metas extra_args indent stat p =
+	let gen_func_expr ctx e c name metas add_self indent stat p =
 		let pctx = Printer.create_context indent ctx.com ctx.com.debug in
 		let e = match e.eexpr with
 			| TFunction(f) ->
-				let args = List.map (fun s ->
-					alloc_var s t_dynamic p,None
-				) extra_args in
-				{e with eexpr = TFunction {f with tf_args = args @ f.tf_args}}
+				let args = if add_self then
+					let v = alloc_var "self" t_dynamic p in
+					v.v_meta <- (Meta.This,[],p) :: v.v_meta;
+					(v,None) :: f.tf_args
+				else
+					f.tf_args
+				in
+				{e with eexpr = TFunction {f with tf_args = args}}
 			| _ ->
 				e
 		in
@@ -1941,7 +1960,7 @@ module Generator = struct
 
 				newline ctx;
 				newline ctx;
-				gen_func_expr ctx ef c "__init__" py_metas ["self"] "    " false cf.cf_pos
+				gen_func_expr ctx ef c "__init__" py_metas true "    " false cf.cf_pos
 			| _ ->
 				assert false
 		end
@@ -1957,7 +1976,7 @@ module Generator = struct
 				begin match cf.cf_kind with
 					| Method _ ->
 						let py_metas = filter_py_metas cf.cf_meta in
-						gen_func_expr ctx e c field py_metas ["self"] "    " false cf.cf_pos;
+						gen_func_expr ctx e c field py_metas true "    " false cf.cf_pos;
 
 					| _ ->
 						gen_expr ctx e (Printf.sprintf "# var %s" field) "    ";
@@ -2019,7 +2038,7 @@ module Generator = struct
 			let py_metas = filter_py_metas cf.cf_meta in
 			let e = match cf.cf_expr with Some e -> e | _ -> assert false in
 			newline ctx;
-			gen_func_expr ctx e c field py_metas [] "    " true cf.cf_pos;
+			gen_func_expr ctx e c field py_metas false "    " true cf.cf_pos;
 		) methods;
 
 		!has_static_methods || !has_empty_static_vars
@@ -2341,7 +2360,7 @@ module Generator = struct
 					| [(EConst(String(module_name)), _); (EConst(String(object_name)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("true")),_)),_)] ->
 						IObject (module_name,object_name), true
 					| _ ->
-						error "Unsupported @:pythonImport format" mp
+						abort "Unsupported @:pythonImport format" mp
 				in
 
 				let import = match import_type with
@@ -2443,6 +2462,8 @@ module Generator = struct
 		Transformer.init com;
 		let ctx = mk_context com in
 		Codegen.map_source_header com (fun s -> print ctx "# %s\n" s);
+		if has_feature ctx "closure_Array" || has_feature ctx "closure_String" then
+			spr ctx "from functools import partial as _hx_partial";
 		gen_imports ctx;
 		gen_resources ctx;
 		gen_types ctx;

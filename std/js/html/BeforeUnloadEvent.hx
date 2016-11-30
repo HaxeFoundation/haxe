@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/BeforeUnloadEvent.webidl line 41:0. Do not edit!
+// This file is generated from mozilla\BeforeUnloadEvent.webidl line 12:0. Do not edit!
 
 package js.html;
 

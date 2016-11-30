@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/ImageCapture.webidl line 45:0. Do not edit!
+// This file is generated from mozilla\ImageCapture.webidl line 16:0. Do not edit!
 
 package js.html;
 

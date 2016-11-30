@@ -23,9 +23,9 @@ class Issue4306 extends Test {
 		function onNoMessage() { }
 
 		eq("Message", addEnumListener(Message, onMessage));
-		t(unit.TestType.typeError(addEnumListener(Message, onNoMessage)));
+		t(unit.HelperMacros.typeError(addEnumListener(Message, onNoMessage)));
 		eq("NoMessage", addEnumListener(NoMessage, onNoMessage));
-		t(unit.TestType.typeError(addEnumListener(NoMessage, onMessage)));
+		t(unit.HelperMacros.typeError(addEnumListener(NoMessage, onMessage)));
 	}
 
 	static function getTypeName(t:TypeName) {

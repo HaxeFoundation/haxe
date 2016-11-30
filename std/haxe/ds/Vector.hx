@@ -33,6 +33,8 @@ private typedef VectorData<T> = #if flash10
 	cs.NativeArray<T>
 #elseif java
 	java.NativeArray<T>
+#elseif lua
+    lua.Table<Int,T>
 #else
 	Array<T>
 #end
@@ -41,7 +43,7 @@ private typedef VectorData<T> = #if flash10
 	A Vector is a storage of fixed size. It can be faster than Array on some
 	targets, and is never slower.
 
-	@see http://haxe.org/manual/std-vector.html
+	@see https://haxe.org/manual/std-vector.html
 **/
 abstract Vector<T>(VectorData<T>) {
 	/**
@@ -67,10 +69,11 @@ abstract Vector<T>(VectorData<T>) {
 		#elseif java
 			this = new java.NativeArray(length);
 		#elseif cpp
-			this = new Array<T>();
-			this.setSize(length);
+			this = NativeArray.create(length);
 		#elseif python
 			this = python.Syntax.pythonCode("[{0}]*{1}", null, length);
+		#elseif lua
+			this = untyped __lua_table__({length:length});
 		#else
 			this = [];
 			untyped this.length = length;
@@ -146,9 +149,28 @@ abstract Vector<T>(VectorData<T>) {
 		#elseif cpp
 			dest.toData().blit(destPos,src.toData(), srcPos,len);
 		#else
-			for (i in 0...len)
-			{
-				dest[destPos + i] = src[srcPos + i];
+			if (src == dest) {
+				if (srcPos < destPos) {
+					var i = srcPos + len;
+					var j = destPos + len;
+					for (k in 0...len) {
+						i--;
+						j--;
+						src[j] = src[i];
+					}
+				} else if (srcPos > destPos) {
+					var i = srcPos;
+					var j = destPos;
+					for (k in 0...len) {
+						src[j] = src[i];
+						i++;
+						j++;
+					}
+				}
+			} else {
+				for (i in 0...len) {
+					dest[destPos + i] = src[srcPos + i];
+				}
 			}
 		#end
 	}
@@ -156,11 +178,13 @@ abstract Vector<T>(VectorData<T>) {
 	/**
 		Creates a new Array, copy the content from the Vector to it, and returns it.
 	**/
-	public #if (flash || cpp) inline #end function toArray():Array<T> {
+	public #if (flash || cpp || js || java) inline #end function toArray():Array<T> {
 		#if cpp
 			return this.copy();
 		#elseif python
 			return this.copy();
+		#elseif js
+			return this.slice(0);
 		#else
 			var a = new Array();
 			var len = length;
@@ -215,8 +239,10 @@ abstract Vector<T>(VectorData<T>) {
 		return fromData(cs.Lib.nativeArray(array,false));
 		#elseif cpp
 		return cast array.copy();
+		#elseif js
+		return fromData(array.slice(0));
 		#else
-		// TODO: Optimize this for flash (and others?)
+		// TODO: Optimize this for others?
 		var vec = new Vector<T>(array.length);
 		for (i in 0...array.length)
 			vec.set(i, array[i]);
@@ -251,7 +277,7 @@ abstract Vector<T>(VectorData<T>) {
 		If `sep` is null, the result is unspecified.
 	**/
 	#if cs @:extern #end public inline function join<T>(sep:String):String {
-		#if (flash||cpp)
+		#if (flash10||cpp)
 		return this.join(sep);
 		#else
 		var b = new StringBuf();
@@ -301,6 +327,8 @@ abstract Vector<T>(VectorData<T>) {
 	public inline function sort<T>(f:T->T->Int):Void {
 		#if (neko || cs || java)
 		throw "not yet supported";
+		#elseif lua
+		haxe.ds.ArraySort.sort(cast this, f);
 		#else
 		this.sort(f);
 		#end

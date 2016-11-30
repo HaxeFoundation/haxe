@@ -8,7 +8,7 @@ class Issue3396 extends Test {
 		Reflect.makeVarArgs(f);
 		Reflect.makeVarArgs(f2);
 		var s:String = f([]);
-		unit.TestType.typedAs(r, (r:String));
-		unit.TestType.typedAs(f2([]), (null:Void));
+		unit.HelperMacros.typedAs(r, (r:String));
+		unit.HelperMacros.typedAs(f2([]), (null:Void));
 	}
 }

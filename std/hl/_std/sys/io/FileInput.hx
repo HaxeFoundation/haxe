@@ -64,7 +64,7 @@ import sys.io.File;
 	}
 
 	@:hlNative("std", "file_eof") static function file_eof( f : FileHandle ) : Bool { return false; }
-	@:hlNative("std", "file_read") static function file_read( f : FileHandle, bytes : hl.types.Bytes, pos : Int, len : Int ) : Int { return 0; }
+	@:hlNative("std", "file_read") static function file_read( f : FileHandle, bytes : hl.Bytes, pos : Int, len : Int ) : Int { return 0; }
 	@:hlNative("std", "file_read_char") static function file_read_char( f : FileHandle ) : Int { return 0; }
 	@:hlNative("std", "file_close") static function file_close( f : FileHandle ) : Void { }
 	@:hlNative("std", "file_seek") static function file_seek( f : FileHandle, pos : Int, from : Int ) : Bool { return true; }

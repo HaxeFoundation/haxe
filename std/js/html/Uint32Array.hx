@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from typedarray.webidl line 162:0. Do not edit!
+// This file is generated from typedarray.webidl line 172:0. Do not edit!
 
 package js.html;
 
@@ -36,8 +36,6 @@ extern class Uint32Array extends ArrayBufferView implements ArrayAccess<Int>
 	@:overload( function( array : Uint32Array ) : Void {} )
 	@:overload( function( array : Array<Int> ) : Void {} )
 	function new( buffer : ArrayBuffer, ?byteOffset : Int, ?length : Int ) : Void;
-	function get( index : Int ) : Int;
-	@:overload( function( index : Int, value : Int ) : Void {} )
 	@:overload( function( array : Uint32Array, ?offset : Int ) : Void {} )
 	function set( array : Array<Int>, ?offset : Int ) : Void;
 	function subarray( start : Int, ?end : Int ) : Uint32Array;

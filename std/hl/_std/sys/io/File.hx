@@ -21,14 +21,13 @@
  */
 package sys.io;
 
-typedef FileHandle = hl.types.NativeAbstract<"hl_fdesc">;
+typedef FileHandle = hl.Abstract<"hl_fdesc">;
 
 @:access(Sys)
 @:coreApi class File {
 
 	public static function getContent( path : String ) : String {
-		var size = 0;
-		var bytes = file_contents(Sys.getPath(path), size);
+		var bytes = file_contents(Sys.getPath(path), null);
 		if( bytes == null ) throw new Sys.SysError("Can't read "+path);
 		return @:privateAccess String.fromUTF8(bytes);
 	}
@@ -78,7 +77,7 @@ typedef FileHandle = hl.types.NativeAbstract<"hl_fdesc">;
 		d.close();
 	}
 
-	@:hlNative("std", "file_open") static function file_open( path : hl.types.Bytes, mode : Int, binary : Bool ) : FileHandle { return null; }
-	@:hlNative("std", "file_contents") static function file_contents( path : hl.types.Bytes, size : hl.types.Ref<Int> ) : hl.types.Bytes { return null; }
+	@:hlNative("std", "file_open") static function file_open( path : hl.Bytes, mode : Int, binary : Bool ) : FileHandle { return null; }
+	@:hlNative("std", "file_contents") static function file_contents( path : hl.Bytes, size : hl.Ref<Int> ) : hl.Bytes { return null; }
 
 }

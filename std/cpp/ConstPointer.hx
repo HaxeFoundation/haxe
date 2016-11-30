@@ -55,6 +55,13 @@ extern class ConstPointer<T>
    public static function fromPointer<T>(inNativePointer:Dynamic) : ConstPointer<T>;
 
    public function reinterpret<Other>():Pointer<Other>;
+
+   inline public function typeCast<Other>():Pointer<Other>
+   {
+      var tmp:haxe.extern.AsVar<Pointer<Other>> = reinterpret();
+      return tmp;
+   }
+
    public function rawCast<Other>():RawPointer<Other>;
 
    public function at(inIndex:Int):Reference<T>;

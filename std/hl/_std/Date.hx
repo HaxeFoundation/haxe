@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-import hl.types.Ref;
+import hl.Ref;
 
 @:coreApi @:final class Date {
 
@@ -92,7 +92,7 @@ import hl.types.Ref;
 		d.t = t;
 		return d;
 	}
-	
+
 	public static function fromTime( t : Float ) : Date {
 		var d : Date = untyped $new(Date);
 		d.t = date_from_time(t);
@@ -121,7 +121,7 @@ import hl.types.Ref;
 	}
 
 	@:hlNative
-	static function date_from_string( b : hl.types.Bytes, len : Int ) : Int {
+	static function date_from_string( b : hl.Bytes, len : Int ) : Int {
 		return 0;
 	}
 
@@ -135,7 +135,7 @@ import hl.types.Ref;
 	}
 
 	@:hlNative
-	static function date_to_string( t : Int, outLen : Ref<Int> ) : hl.types.Bytes {
+	static function date_to_string( t : Int, outLen : Ref<Int> ) : hl.Bytes {
 		return null;
 	}
 

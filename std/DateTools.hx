@@ -112,6 +112,20 @@ class DateTools {
 		support in Flash and JS for day and months names (due to lack of proper
 		internationalization API). On Haxe/Neko/Windows, some formats are not
 		supported.
+
+		```haxe
+		var t = DateTools.format(Date.now(), "%Y-%m-%d_%H:%M:%S"); 
+		// 2016-07-08_14:44:05
+
+		var t = DateTools.format(Date.now(), "%r"); 
+		// 02:44:05 PM
+
+		var t = DateTools.format(Date.now(), "%T"); 
+		// 14:44:05
+
+		var t = DateTools.format(Date.now(), "%F"); 
+		// 2016-07-08
+		```
 	**/
 	public static function format( d : Date, f : String ) : String {
 		#if (neko && !(macro || interp))

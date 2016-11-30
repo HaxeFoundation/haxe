@@ -25,6 +25,7 @@ using lua.NativeStringTools;
 import lua.Package;
 import lua.Lua;
 import lua.Table;
+import lua.TableTools;
 import lua.Os;
 import lua.lib.lfs.Lfs;
 import lua.FileHandle;
@@ -48,7 +49,15 @@ class Sys {
 	}
 	public static function command( cmd : String, ?args : Array<String> ) : Int  {
 		cmd = Boot.shellEscapeCmd(cmd, args);
-		return cast Table.pack(Os.execute(cmd))[3];
+#if (lua_ver < 5.2)
+		return Os.execute(cmd);
+#elseif (lua_ver >= 5.2)
+		return Os.execute(cmd).status;
+#else
+		var ret = TableTools.pack(untyped os.execute(cmd));
+		if (ret[3] != null) return ret[3]
+		else return ret[1];
+#end
 	}
 
 
@@ -65,7 +74,7 @@ class Sys {
 	}
 
 	public static function systemName() : String {
-		switch(Package.config.sub(1,1)){
+		switch(Package.config.sub(1,1).match){
 			case "/" : {
 				var f = Lua.assert(lua.Io.popen("uname"));
 				var s = Lua.assert(f.read(All));
@@ -119,9 +128,9 @@ class Sys {
 	public static function sleep(seconds : Float) : Void {
 		if (seconds <= 0) return;
 		if (Sys.systemName() == "Windows") {
-			Os.execute("ping -n " + (seconds+1) + " localhost > NUL");
+			Sys.command("ping -n " + (seconds+1) + " localhost > NUL");
 		} else {
-			Os.execute('sleep $seconds');
+			Sys.command('sleep $seconds');
 		}
 	}
 

@@ -62,7 +62,7 @@ import sys.io.File;
 	}
 
 	@:hlNative("std","file_flush") static function file_flush( f : FileHandle ) : Bool { return true; }
-	@:hlNative("std", "file_write") static function file_write( f : FileHandle, bytes : hl.types.Bytes, pos : Int, len : Int ) : Int { return 0; }
+	@:hlNative("std", "file_write") static function file_write( f : FileHandle, bytes : hl.Bytes, pos : Int, len : Int ) : Int { return 0; }
 	@:hlNative("std", "file_write_char") static function file_write_char( f : FileHandle, v : Int ) : Bool { return true; }
 
 }

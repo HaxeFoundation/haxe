@@ -43,52 +43,20 @@
 *)
 
 open Printf
-open Ast
 open Genswf
 open Common
+open Common.DisplayMode
 open Type
-
-type context = {
-	com : Common.context;
-	mutable flush : unit -> unit;
-	mutable setup : unit -> unit;
-	mutable messages : string list;
-	mutable has_next : bool;
-	mutable has_error : bool;
-}
+open Server
+open Globals
 
 exception Abort
-exception Completion of string
-
-let version = 3300
-let version_major = version / 1000
-let version_minor = (version mod 1000) / 100
-let version_revision = (version mod 100)
-let version_is_stable = version_minor land 1 = 0
-
-let measure_times = ref false
-let prompt = ref false
-let start_time = ref (get_time())
-
-let path_sep = if Sys.os_type = "Unix" then "/" else "\\"
-
-let get_real_path p =
-	try
-		Extc.get_real_path p
-	with _ ->
-		p
 
 let executable_path() =
 	Extc.executable_path()
 
-let is_debug_run() =
-	try Sys.getenv "HAXEDEBUG" = "1" with _ -> false
-
-let s_version =
-	Printf.sprintf "%d.%d.%d%s" version_major version_minor version_revision (match Version.version_extra with None -> "" | Some v -> " " ^ v)
-
 let format msg p =
-	if p = Ast.null_pos then
+	if p = null_pos then
 		msg
 	else begin
 		let error_printer file line = sprintf "%s:%d:" file line in
@@ -97,41 +65,10 @@ let format msg p =
 		sprintf "%s : %s" epos msg
 	end
 
-let ssend sock str =
-	let rec loop pos len =
-		if len = 0 then
-			()
-		else
-			let s = Unix.send sock str pos len [] in
-			loop (pos + s) (len - s)
-	in
-	loop 0 (String.length str)
-
 let message ctx msg p =
 	ctx.messages <- format msg p :: ctx.messages
 
-let deprecated = [
-	"Type not found : IntIter","IntIter was renamed to IntIterator";
-	"EReg has no field customReplace","EReg.customReplace was renamed to EReg.map";
-	"#StringTools has no field isEOF","StringTools.isEOF was renamed to StringTools.isEof";
-	"Type not found : haxe.BaseCode","haxe.BaseCode was moved to haxe.crypto.BaseCode";
-	"Type not found : haxe.Md5","haxe.Md5 was moved to haxe.crypto.Md5";
-	"Type not found : haxe.SHA1","haxe.SHA1 was moved to haxe.crypto.SHA1";
-	"Type not found : Hash","Hash has been removed, use Map instead";
-	"Type not found : IntHash","IntHash has been removed, use Map instead";
-	"Type not found : haxe.FastList","haxe.FastList was moved to haxe.ds.GenericStack";
-	"#Std has no field format","Std.format has been removed, use single quote 'string ${escape}' syntax instead";
-	"Identifier 'EType' is not part of enum haxe.macro.ExprDef","EType has been removed, use EField instead";
-	"Identifier 'CType' is not part of enum haxe.macro.Constant","CType has been removed, use CIdent instead";
-	"Type not found : haxe.rtti.Infos","Use @:rtti instead of implementing haxe.rtti.Infos";
-	"Type not found : haxe.rtti.Generic","Use @:generic instead of implementing haxe.Generic";
-	"Type not found : flash.utils.TypedDictionary","flash.utils.TypedDictionary has been removed, use Map instead";
-	"Type not found : haxe.Stack", "haxe.Stack has been renamed to haxe.CallStack";
-	"Type not found : neko.zip.Reader", "neko.zip.Reader has been removed, use haxe.zip.Reader instead";
-	"Type not found : neko.zip.Writer", "neko.zip.Writer has been removed, use haxe.zip.Writer instead";
-	"Type not found : haxe.Public", "Use @:publicFields instead of implementing or extending haxe.Public";
-	"#Xml has no field createProlog", "Xml.createProlog was renamed to Xml.createProcessingInstruction"
-]
+let deprecated = []
 
 let limit_string s offset =
 	let rest = 80 - offset in
@@ -150,178 +87,10 @@ let error ctx msg p =
 	message ctx msg p;
 	ctx.has_error <- true
 
-let htmlescape s =
-	let s = String.concat "&amp;" (ExtString.String.nsplit s "&") in
-	let s = String.concat "&lt;" (ExtString.String.nsplit s "<") in
-	let s = String.concat "&gt;" (ExtString.String.nsplit s ">") in
-	let s = String.concat "&quot;" (ExtString.String.nsplit s "\"") in
-	s
-
 let reserved_flags = [
 	"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
 	"as3";"swc";"macro";"sys"
 	]
-
-let complete_fields com fields =
-	let b = Buffer.create 0 in
-	let details = Common.raw_defined com "display-details" in
-	Buffer.add_string b "<list>\n";
-	List.iter (fun (n,t,k,d) ->
-		let s_kind = match k with
-			| Some k -> (match k with
-				| Display.FKVar -> "var"
-				| Display.FKMethod -> "method"
-				| Display.FKType -> "type"
-				| Display.FKPackage -> "package")
-			| None -> ""
-		in
-		if details then
-			Buffer.add_string b (Printf.sprintf "<i n=\"%s\" k=\"%s\"><t>%s</t><d>%s</d></i>\n" n s_kind (htmlescape t) (htmlescape d))
-		else
-			Buffer.add_string b (Printf.sprintf "<i n=\"%s\"><t>%s</t><d>%s</d></i>\n" n (htmlescape t) (htmlescape d))
-	) (List.sort (fun (a,_,ak,_) (b,_,bk,_) -> compare (ak,a) (bk,b)) fields);
-	Buffer.add_string b "</list>\n";
-	raise (Completion (Buffer.contents b))
-
-let report_times print =
-	let tot = ref 0. in
-	Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
-	print (Printf.sprintf "Total time : %.3fs" !tot);
-	if !tot > 0. then begin
-		print "------------------------------------";
-		let timers = List.sort (fun t1 t2 -> compare t1.name t2.name) (Hashtbl.fold (fun _ t acc -> t :: acc) Common.htimers []) in
-		List.iter (fun t -> print (Printf.sprintf "  %s : %.3fs, %.0f%%" t.name t.total (t.total *. 100. /. !tot))) timers
-	end
-
-let make_path f =
-	let cl = get_path_parts f in
-	let error msg =
-		let msg = "Could not process argument " ^ f ^ "\n" ^ msg in
-		failwith msg
-	in
-	let invalid_char x =
-		for i = 1 to String.length x - 1 do
-			match x.[i] with
-			| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' -> ()
-			| c -> error ("invalid character: " ^ (String.make 1 c))
-		done
-	in
-	let rec loop = function
-		| [] ->
-			error "empty part"
-		| [x] ->
-			invalid_char x;
-			[],x
-		| x :: l ->
-			if String.length x = 0 then
-				error "empty part"
-			else if x.[0] < 'a' || x.[0] > 'z' then
-				error "Package name must start with a lower case character";
-			invalid_char x;
-			let path,name = loop l in
-			x :: path,name
-	in
-	loop cl
-
-let starts_uppercase x =
-	x.[0] = '_' || (x.[0] >= 'A' && x.[0] <= 'Z')
-
-let check_uppercase x =
-	if String.length x = 0 then
-		failwith "empty part"
-	else if not (starts_uppercase x) then
-		failwith "Class name must start with uppercase character"
-
-let make_type_path f =
-	let pack,name = make_path f in
-	check_uppercase name;
-	pack,name
-
-let unique l =
-	let rec _unique = function
-		| [] -> []
-		| x1 :: x2 :: l when x1 = x2 -> _unique (x2 :: l)
-		| x :: l -> x :: _unique l
-	in
-	_unique (List.sort compare l)
-
-let rec read_type_path com p =
-	let classes = ref [] in
-	let packages = ref [] in
-	let p = (match p with
-		| x :: l ->
-			(try
-				match PMap.find x com.package_rules with
-				| Directory d -> d :: l
-				| Remap s -> s :: l
-				| _ -> p
-			with
-				Not_found -> p)
-		| _ -> p
-	) in
-	List.iter (fun path ->
-		let dir = path ^ String.concat "/" p in
-		let r = (try Sys.readdir dir with _ -> [||]) in
-		Array.iter (fun f ->
-			if (try (Unix.stat (dir ^ "/" ^ f)).Unix.st_kind = Unix.S_DIR with _ -> false) then begin
-				if f.[0] >= 'a' && f.[0] <= 'z' then begin
-					if p = ["."] then
-						match read_type_path com [f] with
-						| [] , [] -> ()
-						| _ ->
-							try
-								match PMap.find f com.package_rules with
-								| Forbidden -> ()
-								| Remap f -> packages := f :: !packages
-								| Directory _ -> raise Not_found
-							with Not_found ->
-								packages := f :: !packages
-					else
-						packages := f :: !packages
-				end;
-			end else if file_extension f = "hx" then begin
-				let c = Filename.chop_extension f in
-				if String.length c < 2 || String.sub c (String.length c - 2) 2 <> "__" then classes := c :: !classes;
-			end;
-		) r;
-	) com.class_path;
-	List.iter (fun (_,_,extract) ->
-		Hashtbl.iter (fun (path,name) _ ->
-			if path = p then classes := name :: !classes else
-			let rec loop p1 p2 =
-				match p1, p2 with
-				| [], _ -> ()
-				| x :: _, [] -> packages := x :: !packages
-				| a :: p1, b :: p2 -> if a = b then loop p1 p2
-			in
-			loop path p
-		) (extract());
-	) com.swf_libs;
-	List.iter (fun (path,std,close,all_files,lookup) ->
-		List.iter (fun (path, name) ->
-			if path = p then classes := name :: !classes else
-			let rec loop p1 p2 =
-				match p1, p2 with
-				| [], _ -> ()
-				| x :: _, [] -> packages := x :: !packages
-				| a :: p1, b :: p2 -> if a = b then loop p1 p2
-			in
-			loop path p
-		) (all_files())
-	) com.java_libs;
-	List.iter (fun (path,std,all_files,lookup) ->
-		List.iter (fun (path, name) ->
-			if path = p then classes := name :: !classes else
-			let rec loop p1 p2 =
-				match p1, p2 with
-				| [], _ -> ()
-				| x :: _, [] -> packages := x :: !packages
-				| a :: p1, b :: p2 -> if a = b then loop p1 p2
-			in
-		loop path p
-		) (all_files())
-	) com.net_libs;
-	unique !packages, unique !classes
 
 let delete_file f = try Sys.remove f with _ -> ()
 
@@ -339,55 +108,9 @@ let expand_env ?(h=None) path  =
 			"%" ^ key ^ "%"
 	) path
 
-let unquote v =
-	let len = String.length v in
-	if len > 0 && v.[0] = '"' && v.[len - 1] = '"' then String.sub v 1 (len - 2) else v
-
-let parse_hxml_data data =
-	let lines = Str.split (Str.regexp "[\r\n]+") data in
-	List.concat (List.map (fun l ->
-		let l = unquote (ExtString.String.strip l) in
-		if l = "" || l.[0] = '#' then
-			[]
-		else if l.[0] = '-' then
-			try
-				let a, b = ExtString.String.split l " " in
-				[unquote a; unquote (ExtString.String.strip b)]
-			with
-				_ -> [l]
-		else
-			[l]
-	) lines)
-
-let parse_hxml file =
-	let ch = IO.input_channel (try open_in_bin file with _ -> raise Not_found) in
-	let data = IO.read_all ch in
-	IO.close_in ch;
-	parse_hxml_data data
-
-let get_module_path_from_file_path com spath =
-	let rec loop = function
-		| [] -> None
-		| cp :: l ->
-			let cp = (if cp = "" then "./" else cp) in
-			let c = add_trailing_slash (get_real_path (Common.get_full_path cp)) in
-			let clen = String.length c in
-			if clen < String.length spath && String.sub spath 0 clen = c then begin
-				let path = String.sub spath clen (String.length spath - clen) in
-				(try
-					let path = make_type_path path in
-					(match loop l with
-					| Some x as r when String.length (Ast.s_type_path x) < String.length (Ast.s_type_path path) -> r
-					| _ -> Some path)
-				with _ -> loop l)
-			end else
-				loop l
-	in
-	loop com.class_path
-
 let add_libs com libs =
 	let call_haxelib() =
-		let t = Common.timer "haxelib" in
+		let t = Common.timer ["haxelib"] in
 		let cmd = "haxelib path " ^ String.concat " " libs in
 		let pin, pout, perr = Unix.open_process_full cmd (Unix.environment()) in
 		let lines = Std.input_list pin in
@@ -403,15 +126,15 @@ let add_libs com libs =
 	match libs with
 	| [] -> []
 	| _ ->
-		let lines = match !global_cache with
-			| Some cache ->
+		let lines = match CompilationServer.get() with
+			| Some cs ->
 				(try
 					(* if we are compiling, really call haxelib since library path might have changed *)
-					if com.display = DMNone then raise Not_found;
-					Hashtbl.find cache.c_haxelib libs
+					if not com.display.dms_display then raise Not_found;
+					CompilationServer.find_haxelib cs libs
 				with Not_found ->
 					let lines = call_haxelib() in
-					Hashtbl.replace cache.c_haxelib libs lines;
+					CompilationServer.cache_haxelib cs libs lines;
 					lines)
 			| _ -> call_haxelib()
 		in
@@ -436,7 +159,7 @@ let run_command ctx cmd =
 	let h = Hashtbl.create 0 in
 	Hashtbl.add h "__file__" ctx.com.file;
 	Hashtbl.add h "__platform__" (platform_name ctx.com.platform);
-	let t = Common.timer "command" in
+	let t = Common.timer ["command"] in
 	let cmd = expand_env ~h:(Some h) cmd in
 	let len = String.length cmd in
 	if len > 3 && String.sub cmd 0 3 = "cd " then begin
@@ -444,7 +167,7 @@ let run_command ctx cmd =
 		0
 	end else
 	let binary_string s =
-		if Sys.os_type <> "Win32" && Sys.os_type <> "Cygwin" then s else String.concat "\n" (Str.split (Str.regexp "\r\n") s)
+		if not Globals.is_windows then s else String.concat "\n" (Str.split (Str.regexp "\r\n") s)
 	in
 	let pout, pin, perr = Unix.open_process_full cmd (Unix.environment()) in
 	let iout = Unix.descr_of_in_channel pout in
@@ -497,132 +220,183 @@ let run_command ctx cmd =
 	t();
 	r
 
-let display_memory ctx =
-	let verbose = ctx.com.verbose in
-	let print = print_endline in
-	let fmt_size sz =
-		if sz < 1024 then
-			string_of_int sz ^ " B"
-		else if sz < 1024*1024 then
-			string_of_int (sz asr 10) ^ " KB"
-		else
-			Printf.sprintf "%.1f MB" ((float_of_int sz) /. (1024.*.1024.))
-	in
-	let size v =
-		fmt_size (mem_size v)
-	in
-	Gc.full_major();
-	Gc.compact();
-	let mem = Gc.stat() in
-	print ("Total Allocated Memory " ^ fmt_size (mem.Gc.heap_words * (Sys.word_size asr 8)));
-	print ("Free Memory " ^ fmt_size (mem.Gc.free_words * (Sys.word_size asr 8)));
-	(match !global_cache with
-	| None ->
-		print "No cache found";
-	| Some c ->
-		print ("Total cache size " ^ size c);
-		print ("  haxelib " ^ size c.c_haxelib);
-		print ("  parsed ast " ^ size c.c_files ^ " (" ^ string_of_int (Hashtbl.length c.c_files) ^ " files stored)");
-		print ("  typed modules " ^ size c.c_modules ^ " (" ^ string_of_int (Hashtbl.length c.c_modules) ^ " modules stored)");
-		let rec scan_module_deps m h =
-			if Hashtbl.mem h m.m_id then
-				()
-			else begin
-				Hashtbl.add h m.m_id m;
-				PMap.iter (fun _ m -> scan_module_deps m h) m.m_extra.m_deps
-			end
+module Initialize = struct
+	let set_platform com pf file =
+		if com.platform <> Cross then failwith "Multiple targets";
+		Common.init_platform com pf;
+		com.file <- file;
+		if (pf = Flash) && file_extension file = "swc" then Common.define com Define.Swc
+
+	let initialize_target ctx com classes =
+		let add_std dir =
+			com.class_path <- List.filter (fun s -> not (List.mem s com.std_path)) com.class_path @ List.map (fun p -> p ^ dir ^ "/_std/") com.std_path @ com.std_path
 		in
-		let all_modules = Hashtbl.fold (fun _ m acc -> PMap.add m.m_id m acc) c.c_modules PMap.empty in
-		let modules = Hashtbl.fold (fun (path,key) m acc ->
-			let mdeps = Hashtbl.create 0 in
-			scan_module_deps m mdeps;
-			let deps = ref [] in
-			let out = ref all_modules in
-			Hashtbl.iter (fun _ md ->
-				out := PMap.remove md.m_id !out;
-				if m == md then () else begin
-				deps := Obj.repr md :: !deps;
-				List.iter (fun t ->
-					match t with
-					| TClassDecl c ->
-						deps := Obj.repr c :: !deps;
-						List.iter (fun f -> deps := Obj.repr f :: !deps) c.cl_ordered_statics;
-						List.iter (fun f -> deps := Obj.repr f :: !deps) c.cl_ordered_fields;
-					| TEnumDecl e ->
-						deps := Obj.repr e :: !deps;
-						List.iter (fun n -> deps := Obj.repr (PMap.find n e.e_constrs) :: !deps) e.e_names;
-					| TTypeDecl t -> deps := Obj.repr t :: !deps;
-					| TAbstractDecl a -> deps := Obj.repr a :: !deps;
-				) md.m_types;
-				end
-			) mdeps;
-			let chk = Obj.repr Common.memory_marker :: PMap.fold (fun m acc -> Obj.repr m :: acc) !out [] in
-			let inf = Objsize.objsize m !deps chk in
-			(m,Objsize.size_with_headers inf, (inf.Objsize.reached,!deps,!out)) :: acc
-		) c.c_modules [] in
-		let cur_key = ref "" and tcount = ref 0 and mcount = ref 0 in
-		List.iter (fun (m,size,(reached,deps,out)) ->
-			let key = m.m_extra.m_sign in
-			if key <> !cur_key then begin
-				print (Printf.sprintf ("    --- CONFIG %s ----------------------------") (Digest.to_hex key));
-				cur_key := key;
-			end;
-			let sign md =
-				if md.m_extra.m_sign = key then "" else "(" ^ (try Digest.to_hex md.m_extra.m_sign with _ -> "???" ^ md.m_extra.m_sign) ^ ")"
-			in
-			print (Printf.sprintf "    %s : %s" (Ast.s_type_path m.m_path) (fmt_size size));
-			(if reached then try
-				incr mcount;
-				let lcount = ref 0 in
-				let leak l =
-					incr lcount;
-					incr tcount;
-					print (Printf.sprintf "      LEAK %s" l);
-					if !lcount >= 3 && !tcount >= 100 && not verbose then begin
-						print (Printf.sprintf "      ...");
-						raise Exit;
-					end;
+		match com.platform with
+			| Cross ->
+				(* no platform selected *)
+				set_platform com Cross "";
+				"?"
+			| Flash ->
+				let rec loop = function
+					| [] -> ()
+					| (v,_) :: _ when v > com.flash_version -> ()
+					| (v,def) :: l ->
+						Common.raw_define com ("flash" ^ def);
+						loop l
 				in
-				if (Objsize.objsize m deps [Obj.repr Common.memory_marker]).Objsize.reached then leak "common";
-				PMap.iter (fun _ md ->
-					if (Objsize.objsize m deps [Obj.repr md]).Objsize.reached then leak (Ast.s_type_path md.m_path ^ sign md);
-				) out;
-			with Exit ->
-				());
-			if verbose then begin
-				print (Printf.sprintf "      %d total deps" (List.length deps));
-				PMap.iter (fun _ md ->
-					print (Printf.sprintf "      dep %s%s" (Ast.s_type_path md.m_path) (sign md));
-				) m.m_extra.m_deps;
-			end;
-			flush stdout
-		) (List.sort (fun (m1,s1,_) (m2,s2,_) ->
-			let k1 = m1.m_extra.m_sign and k2 = m2.m_extra.m_sign in
-			if k1 = k2 then s1 - s2 else if k1 > k2 then 1 else -1
-		) modules);
-		if !mcount > 0 then print ("*** " ^ string_of_int !mcount ^ " modules have leaks !");
-		print "Cache dump complete")
+				loop Common.flash_versions;
+				Common.raw_define com "flash";
+				com.package_rules <- PMap.remove "flash" com.package_rules;
+				add_std "flash";
+				"swf"
+			| Neko ->
+				add_std "neko";
+				"n"
+			| Js ->
+				if not (PMap.exists (fst (Define.infos Define.JqueryVer)) com.defines) then
+					Common.define_value com Define.JqueryVer "11204";
 
+				let es_version =
+					try
+						int_of_string (Common.defined_value com Define.JsEs)
+					with
+					| Not_found ->
+						(Common.define_value com Define.JsEs "5"; 5)
+					| _ ->
+						0
+				in
 
-let default_flush ctx =
-	List.iter prerr_endline (List.rev ctx.messages);
-	if ctx.has_error && !prompt then begin
-		print_endline "Press enter to exit...";
-		ignore(read_line());
+				if es_version < 3 || es_version = 4 then (* we don't support ancient and there's no 4th *)
+					failwith "Invalid -D js-es value";
+
+				if es_version >= 5 then Common.raw_define com "js-es5"; (* backward-compatibility *)
+
+				add_std "js";
+				"js"
+			| Lua ->
+				add_std "lua";
+				"lua"
+			| Php ->
+				add_std "php";
+				"php"
+			| Cpp ->
+				Common.define_value com Define.HxcppApiLevel "331";
+				add_std "cpp";
+				if Common.defined com Define.Cppia then
+					classes := (Path.parse_path "cpp.cppia.HostClasses" ) :: !classes;
+				"cpp"
+			| Cs ->
+				let old_flush = ctx.flush in
+				ctx.flush <- (fun () ->
+					com.net_libs <- [];
+					old_flush()
+				);
+				Gencs.before_generate com;
+				add_std "cs"; "cs"
+			| Java ->
+				let old_flush = ctx.flush in
+				ctx.flush <- (fun () ->
+					List.iter (fun (_,_,close,_,_) -> close()) com.java_libs;
+					com.java_libs <- [];
+					old_flush()
+				);
+				Genjava.before_generate com;
+				add_std "java"; "java"
+			| Python ->
+				add_std "python";
+				"python"
+			| Hl ->
+				add_std "hl";
+				"hl"
+end
+
+let generate tctx ext xml_out interp swf_header =
+	let com = tctx.Typecore.com in
+	(* check file extension. In case of wrong commandline, we don't want
+		to accidentaly delete a source file. *)
+	if file_extension com.file = ext then delete_file com.file;
+	if com.platform = Flash || com.platform = Cpp then List.iter (Codegen.fix_overrides com) com.types;
+	if Common.defined com Define.Dump then Codegen.Dump.dump_types com;
+	if Common.defined com Define.DumpDependencies then begin
+		Codegen.Dump.dump_dependencies com;
+		if not tctx.Typecore.in_macro then match tctx.Typecore.g.Typecore.macros with
+			| None -> ()
+			| Some(_,ctx) -> print_endline "generate"; Codegen.Dump.dump_dependencies ~target_override:(Some "macro") ctx.Typecore.com
 	end;
-	if ctx.has_error then exit 1
+	begin match com.platform with
+		| Neko | Hl when interp -> ()
+		| Cpp when Common.defined com Define.Cppia -> ()
+		| Cpp | Cs | Java | Php -> Common.mkdir_from_path (com.file ^ "/.")
+		| _ -> Common.mkdir_from_path com.file
+	end;
+	if interp then
+		MacroContext.interpret tctx
+	else if com.platform = Cross then
+		()
+	else begin
+		let generate,name = match com.platform with
+		| Flash when Common.defined com Define.As3 ->
+			Genas3.generate,"AS3"
+		| Flash ->
+			Genswf.generate swf_header,"swf"
+		| Neko ->
+			Genneko.generate,"neko"
+		| Js ->
+			Genjs.generate,"js"
+		| Lua ->
+			Genlua.generate,"lua"
+		| Php ->
+			Genphp.generate,"php"
+		| Cpp ->
+			Gencpp.generate,"cpp"
+		| Cs ->
+			Gencs.generate,"cs"
+		| Java ->
+			Genjava.generate,"java"
+		| Python ->
+			Genpy.generate,"python"
+		| Hl ->
+			Genhl.generate,"hl"
+		| Cross ->
+			assert false
+		in
+		Common.log com ("Generating " ^ name ^ ": " ^ com.file);
+		let t = Common.timer ["generate";name] in
+		generate com;
+		t()
+	end
 
-let create_context params =
-	let ctx = {
-		com = Common.create version s_version params;
-		flush = (fun()->());
-		setup = (fun()->());
-		messages = [];
-		has_next = false;
-		has_error = false;
-	} in
-	ctx.flush <- (fun() -> default_flush ctx);
-	ctx
+let get_std_class_paths () =
+	try
+		let p = Sys.getenv "HAXE_STD_PATH" in
+		let rec loop = function
+			| drive :: path :: l ->
+				if String.length drive = 1 && ((drive.[0] >= 'a' && drive.[0] <= 'z') || (drive.[0] >= 'A' && drive.[0] <= 'Z')) then
+					(drive ^ ":" ^ path) :: loop l
+				else
+					drive :: loop (path :: l)
+			| l ->
+				l
+		in
+		let parts = Str.split_delim (Str.regexp "[;:]") p in
+		"" :: List.map Path.add_trailing_slash (loop parts)
+	with Not_found ->
+		if Sys.os_type = "Unix" then
+			[
+				"/usr/lib/haxe/std/";
+				"/usr/share/haxe/std/";
+				"/usr/local/lib/haxe/std/";
+				"/usr/lib/haxe/extraLibs/";
+				"/usr/local/lib/haxe/extraLibs/";
+				""
+			]
+		else
+			let base_path = Path.add_trailing_slash (Path.get_real_path (try executable_path() with _ -> "./")) in
+			[
+				base_path ^ "std/";
+				base_path ^ "extraLibs/";
+				""
+			]
 
 let rec process_params create pl =
 	let each_params = ref [] in
@@ -647,7 +421,7 @@ let rec process_params create pl =
 			(try Unix.chdir dir with _ -> raise (Arg.Bad ("Invalid directory: " ^ dir)));
 			loop acc l
 		| "--connect" :: hp :: l ->
-			(match !global_cache with
+			(match CompilationServer.get() with
 			| None ->
 				let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
 				do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l)
@@ -675,364 +449,10 @@ let rec process_params create pl =
 	) in
 	loop [] pl
 
-and wait_loop verbose accept =
-	Sys.catch_break false;
-	let has_parse_error = ref false in
-	let cache = {
-		c_haxelib = Hashtbl.create 0;
-		c_files = Hashtbl.create 0;
-		c_modules = Hashtbl.create 0;
-	} in
-	global_cache := Some cache;
-	Typer.macro_enable_cache := true;
-	let current_stdin = ref None in
-	Typeload.parse_hook := (fun com2 file p ->
-		let ffile = Common.unique_full_path file in
-		let is_display_file = ffile = (!Parser.resume_display).Ast.pfile in
-
-		match is_display_file, !current_stdin with
-		| true, Some stdin when Common.defined com2 Define.DisplayStdin ->
-			Typeload.parse_file_from_string com2 file p stdin
-		| _ ->
-			let sign = get_signature com2 in
-			let ftime = file_time ffile in
-			let fkey = ffile ^ "!" ^ sign in
-			try
-				let time, data = Hashtbl.find cache.c_files fkey in
-				if time <> ftime then raise Not_found;
-				data
-			with Not_found ->
-				has_parse_error := false;
-				let data = Typeload.parse_file com2 file p in
-				if verbose then print_endline ("Parsed " ^ ffile);
-				if not !has_parse_error && (not is_display_file) then Hashtbl.replace cache.c_files fkey (ftime,data);
-				data
-	);
-	let cache_module m =
-		Hashtbl.replace cache.c_modules (m.m_path,m.m_extra.m_sign) m;
-	in
-	let check_module_path com m p =
-		if m.m_extra.m_file <> Common.unique_full_path (Typeload.resolve_module_file com m.m_path (ref[]) p) then begin
-			if verbose then print_endline ("Module path " ^ s_type_path m.m_path ^ " has been changed");
-			raise Not_found;
-		end
-	in
-	let compilation_step = ref 0 in
-	let compilation_mark = ref 0 in
-	let mark_loop = ref 0 in
-	Typeload.type_module_hook := (fun (ctx:Typecore.typer) mpath p ->
-		let t = Common.timer "module cache check" in
-		let com2 = ctx.Typecore.com in
-		let sign = get_signature com2 in
-		let dep = ref None in
-		incr mark_loop;
-		let mark = !mark_loop in
-		let start_mark = !compilation_mark in
-		let rec check m =
-			if m.m_extra.m_dirty then begin
-				dep := Some m;
-				false
-			end else if m.m_extra.m_mark = mark then
-				true
-			else try
-				if m.m_extra.m_mark <= start_mark then begin
-					(match m.m_extra.m_kind with
-					| MFake | MSub -> () (* don't get classpath *)
-					| MExtern ->
-						(* if we have a file then this will override our extern type *)
-						let has_file = (try ignore(Typeload.resolve_module_file com2 m.m_path (ref[]) p); true with Not_found -> false) in
-						if has_file then begin
-							if verbose then print_endline ("A file is masking the library file " ^ s_type_path m.m_path);
-							raise Not_found;
-						end;
-						let rec loop = function
-							| [] ->
-								if verbose then print_endline ("No library file was found for " ^ s_type_path m.m_path);
-								raise Not_found (* no extern registration *)
-							| load :: l ->
-								match load m.m_path p with
-								| None -> loop l
-								| Some (file,_) ->
-									if Common.unique_full_path file <> m.m_extra.m_file then begin
-										if verbose then print_endline ("Library file was changed for " ^ s_type_path m.m_path);
-										raise Not_found;
-									end
-						in
-						loop com2.load_extern_type
-					| MCode -> check_module_path com2 m p
-					| MMacro when ctx.Typecore.in_macro -> check_module_path com2 m p
-					| MMacro ->
-						let _, mctx = Typer.get_macro_context ctx p in
-						check_module_path mctx.Typecore.com m p
-					);
-					if file_time m.m_extra.m_file <> m.m_extra.m_time then begin
-						if verbose then print_endline ("File " ^ m.m_extra.m_file ^ (if m.m_extra.m_time = -1. then " not cached (macro-in-macro)" else " has been modified"));
-						if m.m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules m.m_extra.m_file;
-						raise Not_found;
-					end;
-				end;
-				m.m_extra.m_mark <- mark;
-				PMap.iter (fun _ m2 -> if not (check m2) then begin dep := Some m2; raise Not_found end) m.m_extra.m_deps;
-				true
-			with Not_found ->
-				m.m_extra.m_dirty <- true;
-				false
-		in
-		let rec add_modules m0 m =
-			if m.m_extra.m_added < !compilation_step then begin
-				(match m0.m_extra.m_kind, m.m_extra.m_kind with
-				| MCode, MMacro | MMacro, MCode ->
-					(* this was just a dependency to check : do not add to the context *)
-					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
-				| _ ->
-					if verbose then print_endline ("Reusing  cached module " ^ Ast.s_type_path m.m_path);
-					m.m_extra.m_added <- !compilation_step;
-					List.iter (fun t ->
-						match t with
-						| TClassDecl c -> c.cl_restore()
-						| TEnumDecl e ->
-							let rec loop acc = function
-								| [] -> ()
-								| (Ast.Meta.RealPath,[Ast.EConst (Ast.String path),_],_) :: l ->
-									e.e_path <- Ast.parse_path path;
-									e.e_meta <- (List.rev acc) @ l;
-								| x :: l -> loop (x::acc) l
-							in
-							loop [] e.e_meta
-						| TAbstractDecl a ->
-							a.a_meta <- List.filter (fun (m,_,_) -> m <> Ast.Meta.ValueUsed) a.a_meta
-						| _ -> ()
-					) m.m_types;
-					if m.m_extra.m_kind <> MSub then Typeload.add_module ctx m p;
-					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
-					PMap.iter (fun _ m2 -> add_modules m0 m2) m.m_extra.m_deps);
-					List.iter (Typer.call_init_macro ctx) m.m_extra.m_macro_calls
-			end
-		in
-		try
-			let m = Hashtbl.find cache.c_modules (mpath,sign) in
-			if not (check m) then begin
-				if verbose then print_endline ("Skipping cached module " ^ Ast.s_type_path mpath ^ (match !dep with None -> "" | Some m -> "(" ^ Ast.s_type_path m.m_path ^ ")"));
-				raise Not_found;
-			end;
-			add_modules m m;
-			t();
-			Some m
-		with Not_found ->
-			t();
-			None
-	);
-	let run_count = ref 0 in
-	while true do
-		let read, write, close = accept() in
-		let t0 = get_time() in
-		let rec cache_context com =
-			if com.display = DMNone then begin
-				List.iter cache_module com.modules;
-				if verbose then print_endline ("Cached " ^ string_of_int (List.length com.modules) ^ " modules");
-			end;
-			match com.get_macros() with
-			| None -> ()
-			| Some com -> cache_context com
-		in
-		let create params =
-			let ctx = create_context params in
-			ctx.flush <- (fun() ->
-				incr compilation_step;
-				compilation_mark := !mark_loop;
-				List.iter (fun s -> write (s ^ "\n"); if verbose then print_endline ("> " ^ s)) (List.rev ctx.messages);
-				if ctx.has_error then write "\x02\n" else cache_context ctx.com;
-			);
-			ctx.setup <- (fun() ->
-				if verbose then begin
-					let defines = PMap.foldi (fun k v acc -> (k ^ "=" ^ v) :: acc) ctx.com.defines [] in
-					print_endline ("Defines " ^ (String.concat "," (List.sort compare defines)));
-					print_endline ("Using signature " ^ Digest.to_hex (get_signature ctx.com));
-				end;
-				Parser.display_error := (fun e p -> has_parse_error := true; ctx.com.error (Parser.error_msg e) p);
-				if ctx.com.display <> DMNone then begin
-					let file = (!Parser.resume_display).Ast.pfile in
-					let fkey = file ^ "!" ^ get_signature ctx.com in
-					(* force parsing again : if the completion point have been changed *)
-					Hashtbl.remove cache.c_files fkey;
-					(* force module reloading (if cached) *)
-					Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- true) cache.c_modules
-				end
-			);
-			ctx.com.print <- (fun str -> write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit str "\n") ^ "\n"));
-			ctx
-		in
-		(try
-			let s = read() in
-			let hxml =
-				try
-					let idx = String.index s '\001' in
-					current_stdin := Some (String.sub s (idx + 1) ((String.length s) - idx - 1));
-					(String.sub s 0 idx)
-				with Not_found ->
-					s
-			in
-			let data = parse_hxml_data hxml in
-			if verbose then print_endline ("Processing Arguments [" ^ String.concat "," data ^ "]");
-			(try
-				Common.display_default := DMNone;
-				Parser.resume_display := Ast.null_pos;
-				Typeload.return_partial_type := false;
-				measure_times := false;
-				close_times();
-				stats.s_files_parsed := 0;
-				stats.s_classes_built := 0;
-				stats.s_methods_typed := 0;
-				stats.s_macros_called := 0;
-				Hashtbl.clear Common.htimers;
-				let _ = Common.timer "other" in
-				incr compilation_step;
-				compilation_mark := !mark_loop;
-				start_time := get_time();
-				process_params create data;
-				close_times();
-				if !measure_times then report_times (fun s -> write (s ^ "\n"))
-			with
-			| Completion str ->
-				if verbose then print_endline ("Completion Response =\n" ^ str);
-				write str
-			| Arg.Bad msg ->
-				prerr_endline ("Error: " ^ msg);
-			);
-			if verbose then begin
-				print_endline (Printf.sprintf "Stats = %d files, %d classes, %d methods, %d macros" !(stats.s_files_parsed) !(stats.s_classes_built) !(stats.s_methods_typed) !(stats.s_macros_called));
-				print_endline (Printf.sprintf "Time spent : %.3fs" (get_time() -. t0));
-			end
-		with Unix.Unix_error _ ->
-			if verbose then print_endline "Connection Aborted"
-		| e ->
-			let estr = Printexc.to_string e in
-			if verbose then print_endline ("Uncaught Error : " ^ estr);
-			(try write estr with _ -> ());
-			if is_debug_run() then print_endline (Printexc.get_backtrace());
-		);
-		close();
-		current_stdin := None;
-		(* prevent too much fragmentation by doing some compactions every X run *)
-		incr run_count;
-		if !run_count mod 10 = 0 then begin
-			let t0 = get_time() in
-			Gc.compact();
-			if verbose then begin
-				let stat = Gc.quick_stat() in
-				let size = (float_of_int stat.Gc.heap_words) *. 4. in
-				print_endline (Printf.sprintf "Compacted memory %.3fs %.1fMB" (get_time() -. t0) (size /. (1024. *. 1024.)));
-			end
-		end else Gc.minor();
-	done
-
-and init_wait_stdio() =
-	set_binary_mode_in stdin true;
-	set_binary_mode_out stderr true;
-
-	let chin = IO.input_channel stdin in
-	let cherr = IO.output_channel stderr in
-
-	let berr = Buffer.create 0 in
-	let read = fun () ->
-		let len = IO.read_i32 chin in
-		IO.really_nread chin len
-	in
-	let write = Buffer.add_string berr in
-	let close = fun() ->
-		IO.write_i32 cherr (Buffer.length berr);
-		IO.nwrite cherr (Buffer.contents berr);
-		IO.flush cherr
-	in
-	fun() ->
-		Buffer.clear berr;
-		read, write, close
-
-and init_wait_socket verbose host port =
-	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
-	(try Unix.setsockopt sock Unix.SO_REUSEADDR true with _ -> ());
-	(try Unix.bind sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't wait on " ^ host ^ ":" ^ string_of_int port));
-	if verbose then print_endline ("Waiting on " ^ host ^ ":" ^ string_of_int port);
-	Unix.listen sock 10;
-	let bufsize = 1024 in
-	let tmp = String.create bufsize in
-	let accept() = (
-		let sin, _ = Unix.accept sock in
-		Unix.set_nonblock sin;
-		if verbose then print_endline "Client connected";
-		let b = Buffer.create 0 in
-		let rec read_loop count =
-			try
-				let r = Unix.recv sin tmp 0 bufsize [] in
-				if r = 0 then
-					failwith "Incomplete request"
-				else begin
-					if verbose then Printf.printf "Reading %d bytes\n" r;
-					Buffer.add_substring b tmp 0 r;
-					if tmp.[r-1] = '\000' then
-						Buffer.sub b 0 (Buffer.length b - 1)
-					else
-						read_loop 0
-				end
-			with Unix.Unix_error((Unix.EWOULDBLOCK|Unix.EAGAIN),_,_) ->
-				if count = 100 then
-					failwith "Aborting inactive connection"
-				else begin
-					if verbose then print_endline "Waiting for data...";
-					ignore(Unix.select [] [] [] 0.05); (* wait a bit *)
-					read_loop (count + 1);
-				end
-		in
-		let read = fun() -> (let s = read_loop 0 in Unix.clear_nonblock sin; s) in
-		let write = ssend sin in
-		let close() = Unix.close sin in
-		read, write, close
-	) in
-	accept
-
-and do_connect host port args =
-	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
-	(try Unix.connect sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port));
-	let args = ("--cwd " ^ Unix.getcwd()) :: args in
-	ssend sock (String.concat "" (List.map (fun a -> a ^ "\n") args) ^ "\000");
-	let has_error = ref false in
-	let rec print line =
-		match (if line = "" then '\x00' else line.[0]) with
-		| '\x01' ->
-			print_string (String.concat "\n" (List.tl (ExtString.String.nsplit line "\x01")));
-			flush stdout
-		| '\x02' ->
-			has_error := true;
-		| _ ->
-			prerr_endline line;
-	in
-	let buf = Buffer.create 0 in
-	let process() =
-		let lines = ExtString.String.nsplit (Buffer.contents buf) "\n" in
-		(* the last line ends with \n *)
-		let lines = (match List.rev lines with "" :: l -> List.rev l | _ -> lines) in
-		List.iter print lines;
-	in
-	let tmp = String.create 1024 in
-	let rec loop() =
-		let b = Unix.recv sock tmp 0 1024 [] in
-		Buffer.add_substring buf tmp 0 b;
-		if b > 0 then begin
-			if String.get tmp (b - 1) = '\n' then begin
-				process();
-				Buffer.reset buf;
-			end;
-			loop();
-		end
-	in
-	loop();
-	process();
-	if !has_error then exit 1
-
 and init ctx =
 	let usage = Printf.sprintf
 		"Haxe Compiler %s - (C)2005-2016 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-cppia|-as3|-cs|-java|-python|-hl|-lua] <output> [options]\n Options :"
-		s_version (if Sys.os_type = "Win32" then ".exe" else "")
+		Globals.s_version (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
 	let classes = ref [([],"Std")] in
@@ -1050,41 +470,16 @@ try
 	let interp = ref false in
 	let swf_version = ref false in
 	let evals = ref [] in
-	Common.define_value com Define.HaxeVer (float_repres (float_of_int version /. 1000.));
+	Common.define_value com Define.HaxeVer (float_repres (float_of_int Globals.version /. 1000.));
 	Common.raw_define com "haxe3";
 	Common.define_value com Define.Dce "std";
 	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
 	com.error <- error ctx;
-	if !global_cache <> None then com.run_command <- run_command ctx;
+	if CompilationServer.runs() then com.run_command <- run_command ctx;
 	Parser.display_error := (fun e p -> com.error (Parser.error_msg e) p);
-	Parser.use_doc := !Common.display_default <> DMNone || (!global_cache <> None);
-	(try
-		let p = Sys.getenv "HAXE_STD_PATH" in
-		let rec loop = function
-			| drive :: path :: l ->
-				if String.length drive = 1 && ((drive.[0] >= 'a' && drive.[0] <= 'z') || (drive.[0] >= 'A' && drive.[0] <= 'Z')) then
-					(drive ^ ":" ^ path) :: loop l
-				else
-					drive :: loop (path :: l)
-			| l ->
-				l
-		in
-		let parts = Str.split_delim (Str.regexp "[;:]") p in
-		com.class_path <- "" :: List.map add_trailing_slash (loop parts)
-	with
-		Not_found ->
-			if Sys.os_type = "Unix" then
-				com.class_path <- ["/usr/lib/haxe/std/";"/usr/share/haxe/std/";"/usr/local/lib/haxe/std/";"/usr/lib/haxe/extraLibs/";"/usr/local/lib/haxe/extraLibs/";""]
-			else
-				let base_path = add_trailing_slash (get_real_path (try executable_path() with _ -> "./")) in
-				com.class_path <- [base_path ^ "std/";base_path ^ "extraLibs/";""]);
+	Parser.use_doc := !Common.display_default <> DMNone || (CompilationServer.runs());
+	com.class_path <- get_std_class_paths ();
 	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path;
-	let set_platform pf file =
-		if com.platform <> Cross then failwith "Multiple targets";
-		Common.init_platform com pf;
-		com.file <- file;
-		if (pf = Flash) && file_extension file = "swc" then Common.define com Define.Swc;
-	in
 	let define f = Arg.Unit (fun () -> Common.define com f) in
 	let process_ref = ref (fun args -> ()) in
 	let process_libs() =
@@ -1100,41 +495,41 @@ try
 	let basic_args_spec = [
 		("-cp",Arg.String (fun path ->
 			process_libs();
-			com.class_path <- add_trailing_slash path :: com.class_path
+			com.class_path <- Path.add_trailing_slash path :: com.class_path
 		),"<path> : add a directory to find source files");
-		("-js",Arg.String (set_platform Js),"<file> : compile code to JavaScript file");
-		("-lua",Arg.String (set_platform Lua),"<file> : compile code to Lua file");
-		("-swf",Arg.String (set_platform Flash),"<file> : compile code to Flash SWF file");
+		("-js",Arg.String (Initialize.set_platform com Js),"<file> : compile code to JavaScript file");
+		("-lua",Arg.String (Initialize.set_platform com Lua),"<file> : compile code to Lua file");
+		("-swf",Arg.String (Initialize.set_platform com Flash),"<file> : compile code to Flash SWF file");
 		("-as3",Arg.String (fun dir ->
-			set_platform Flash dir;
+			Initialize.set_platform com Flash dir;
 			Common.define com Define.As3;
 			Common.define com Define.NoInline;
 		),"<directory> : generate AS3 code into target directory");
-		("-neko",Arg.String (set_platform Neko),"<file> : compile code to Neko Binary");
+		("-neko",Arg.String (Initialize.set_platform com Neko),"<file> : compile code to Neko Binary");
 		("-php",Arg.String (fun dir ->
 			classes := (["php"],"Boot") :: !classes;
-			set_platform Php dir;
+			Initialize.set_platform com Php dir;
 		),"<directory> : generate PHP code into target directory");
 		("-cpp",Arg.String (fun dir ->
-			set_platform Cpp dir;
+			Initialize.set_platform com Cpp dir;
 		),"<directory> : generate C++ code into target directory");
 		("-cppia",Arg.String (fun file ->
-			set_platform Cpp file;
+			Initialize.set_platform com Cpp file;
 			Common.define com Define.Cppia;
 		),"<file> : generate Cppia code into target file");
 		("-cs",Arg.String (fun dir ->
 			cp_libs := "hxcs" :: !cp_libs;
-			set_platform Cs dir;
+			Initialize.set_platform com Cs dir;
 		),"<directory> : generate C# code into target directory");
 		("-java",Arg.String (fun dir ->
 			cp_libs := "hxjava" :: !cp_libs;
-			set_platform Java dir;
+			Initialize.set_platform com Java dir;
 		),"<directory> : generate Java code into target directory");
 		("-python",Arg.String (fun dir ->
-			set_platform Python dir;
+			Initialize.set_platform com Python dir;
 		),"<file> : generate Python code as target file");
 		("-hl",Arg.String (fun file ->
-			set_platform Hl file;
+			Initialize.set_platform com Hl file;
 		),"<file> : compile HL code as target file");
 		("-xml",Arg.String (fun file ->
 			Parser.use_doc := true;
@@ -1142,7 +537,7 @@ try
 		),"<file> : generate XML types description");
 		("-main",Arg.String (fun cl ->
 			if com.main_class <> None then raise (Arg.Bad "Multiple -main");
-			let cpath = make_type_path cl in
+			let cpath = Path.parse_type_path cl in
 			com.main_class <- Some cpath;
 			classes := cpath :: !classes
 		),"<class> : select startup class");
@@ -1218,9 +613,9 @@ try
 		),"<arg> : pass option <arg> to the native Java/C# compiler");
 		("-x", Arg.String (fun file ->
 			let neko_file = file ^ ".n" in
-			set_platform Neko neko_file;
+			Initialize.set_platform com Neko neko_file;
 			if com.main_class = None then begin
-				let cpath = make_type_path file in
+				let cpath = Path.parse_type_path file in
 				com.main_class <- Some cpath;
 				classes := cpath :: !classes
 			end;
@@ -1246,7 +641,7 @@ try
 		),"<file>[@name] : add a named resource file");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
 		("-cmd", Arg.String (fun cmd ->
-			cmds := unquote cmd :: !cmds
+			cmds := DisplayOutput.unquote cmd :: !cmds
 		),": run the specified command after successful compilation");
 		("--flash-strict", define Define.FlashStrict, ": more type strict flash API");
 		("--no-traces", define Define.NoTraces, ": don't compile trace calls in the program");
@@ -1270,57 +665,7 @@ try
 		("--next", Arg.Unit (fun() -> assert false), ": separate several haxe compilations");
 		("--each", Arg.Unit (fun() -> assert false), ": append preceding parameters to all haxe compilations separated by --next");
 		("--display", Arg.String (fun file_pos ->
-			match file_pos with
-			| "classes" ->
-				pre_compilation := (fun() -> raise (Parser.TypePath (["."],None,true))) :: !pre_compilation;
-			| "keywords" ->
-				complete_fields com (Hashtbl.fold (fun k _ acc -> (k,"",None,"") :: acc) Lexer.keywords [])
-			| "memory" ->
-				did_something := true;
-				(try display_memory ctx with e -> prerr_endline (Printexc.get_backtrace ()));
-			| _ ->
-				let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format : " ^ file_pos) in
-				let file = unquote file in
-				let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
-				let mode = match smode with
-					| "position" ->
-						Common.define com Define.NoCOpt;
-						DMPosition
-					| "usage" ->
-						Common.define com Define.NoCOpt;
-						DMUsage
-					| "type" ->
-						Common.define com Define.NoCOpt;
-						DMType
-					| "toplevel" ->
-						Common.define com Define.NoCOpt;
-						DMToplevel
-					| "module-symbols" ->
-						Common.define com Define.NoCOpt;
-						DMModuleSymbols;
-					| "diagnostics" ->
-						Common.define com Define.NoCOpt;
-						DMDiagnostics;
-					| "" ->
-						DMDefault
-					| _ ->
-						let smode,arg = try ExtString.String.split smode "@" with _ -> pos,"" in
-						match smode with
-							| "resolve" ->
-								DMResolve arg
-							| _ ->
-								DMDefault
-				in
-				let pos = try int_of_string pos with _ -> failwith ("Invalid format : "  ^ pos) in
-				com.display <- mode;
-				Common.display_default := mode;
-				Common.define_value com Define.Display (if smode <> "" then smode else "1");
-				Parser.use_doc := true;
-				Parser.resume_display := {
-					Ast.pfile = Common.unique_full_path file;
-					Ast.pmin = pos;
-					Ast.pmax = pos;
-				};
+			DisplayOutput.handle_display_argument com file_pos pre_compilation did_something;
 		),": display code tips");
 		("--no-output", Arg.Unit (fun() -> no_output := true),": compiles but does not generate any file");
 		("--times", Arg.Unit (fun() -> measure_times := true),": measure compilation times");
@@ -1348,7 +693,7 @@ try
 		),"<package:target> : remap a package to another one");
 		("--interp", Arg.Unit (fun() ->
 			Common.define com Define.Interp;
-			set_platform Neko "";
+			Initialize.set_platform com (!Globals.macro_platform) "";
 			interp := true;
 		),": interpret the program using internal macro system");
 		("--macro", Arg.String (fun e ->
@@ -1362,13 +707,13 @@ try
 		("--wait", Arg.String (fun hp ->
 			let accept = match hp with
 				| "stdio" ->
-					init_wait_stdio()
+					Server.init_wait_stdio()
 				| _ ->
 					let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
 					let port = try int_of_string port with _ -> raise (Arg.Bad "Invalid port") in
 					init_wait_socket com.verbose host port
 			in
-			wait_loop com.verbose accept
+			wait_loop process_params com.verbose accept
 		),"<[host:]port> : wait on the given port for commands to run)");
 		("--connect",Arg.String (fun _ ->
 			assert false
@@ -1377,7 +722,7 @@ try
 			assert false
 		),"<dir> : set current working directory");
 		("-version",Arg.Unit (fun() ->
-			message ctx s_version Ast.null_pos;
+			message ctx Globals.s_version null_pos;
 			did_something := true;
 		),": print version and exit");
 		("--help-defines", Arg.Unit (fun() ->
@@ -1397,47 +742,15 @@ try
 			did_something := true
 		),": print help for all compiler specific defines");
 		("--help-metas", Arg.Unit (fun() ->
-			let m = ref 0 in
-			let rec loop i =
-				let d = Obj.magic i in
-				if d <> Meta.Last then begin
-					let t, (doc,flags) = MetaInfo.to_string d in
-					if not (List.mem MetaInfo.Internal flags) then begin
-						let params = ref [] and used = ref [] and pfs = ref [] in
-						List.iter (function
-							| MetaInfo.HasParam s -> params := s :: !params
-							| MetaInfo.Platform f -> pfs := f :: !pfs
-							| MetaInfo.Platforms fl -> pfs := fl @ !pfs
-							| MetaInfo.UsedOn u -> used := u :: !used
-							| MetaInfo.UsedOnEither ul -> used := ul @ !used
-							| MetaInfo.Internal -> assert false
-						) flags;
-						let params = (match List.rev !params with
-							| [] -> ""
-							| l -> "(" ^ String.concat "," l ^ ")"
-						) in
-						let pfs = (match List.rev !pfs with
-							| [] -> ""
-							| [p] -> " (" ^ platform_name p ^ " only)"
-							| pl -> " (for " ^ String.concat "," (List.map platform_name pl) ^ ")"
-						) in
-						let str = "@" ^ t in
-						if String.length str > !m then m := String.length str;
-						(str,params ^ doc ^ pfs) :: loop (i + 1)
-					end else
-						loop (i + 1)
-				end else
-					[]
-			in
-			let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop 0) in
-			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" !m n (limit_string doc (!m + 3))) all in
+			let all,max_length = Meta.get_documentation_list() in
+			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
 			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
 			did_something := true
 		),": print help for all compiler metadatas");
 	] in
 	let args_callback cl =
-		let path,name = make_path cl in
-		if starts_uppercase name then
+		let path,name = Path.parse_path cl in
+		if Path.starts_uppercase name then
 			classes := (path,name) :: !classes
 		else begin
 			force_typing := true;
@@ -1465,116 +778,17 @@ try
 	process_ref := process;
 	process ctx.com.args;
 	process_libs();
-	if com.display <> DMNone then begin
-		com.warning <- if com.display = DMDiagnostics then (fun s p -> add_diagnostics_message com s p DiagnosticsSeverity.Warning) else message ctx;
+	if com.display.dms_display then begin
+		com.warning <- if com.display.dms_error_policy = EPCollect then (fun s p -> add_diagnostics_message com s p DisplayTypes.DiagnosticsSeverity.Warning) else message ctx;
 		com.error <- error ctx;
-		com.main_class <- None;
-		if com.display <> DMUsage then
-			classes := [];
-		let real = get_real_path (!Parser.resume_display).Ast.pfile in
-		(match get_module_path_from_file_path com real with
-		| Some path ->
-			classes := path :: !classes
-		| None ->
-			if not (Sys.file_exists real) then failwith "Display file does not exist";
-			(match List.rev (ExtString.String.nsplit real path_sep) with
-			| file :: _ when file.[0] >= 'a' && file.[1] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
-			| _ -> ());
-			failwith "Display file was not found in class path"
-		);
-		Common.log com ("Display file : " ^ real);
-		Common.log com ("Classes found : ["  ^ (String.concat "," (List.map Ast.s_type_path !classes)) ^ "]");
 	end;
-	let add_std dir =
-		com.class_path <- List.filter (fun s -> not (List.mem s com.std_path)) com.class_path @ List.map (fun p -> p ^ dir ^ "/_std/") com.std_path @ com.std_path
-	in
-	let ext = (match com.platform with
-		| Cross ->
-			(* no platform selected *)
-			set_platform Cross "";
-			"?"
-		| Flash ->
-			let rec loop = function
-				| [] -> ()
-				| (v,_) :: _ when v > com.flash_version -> ()
-				| (v,def) :: l ->
-					Common.raw_define com ("flash" ^ def);
-					loop l
-			in
-			loop Common.flash_versions;
-			Common.raw_define com "flash";
-			com.package_rules <- PMap.remove "flash" com.package_rules;
-			add_std "flash";
-			"swf"
-		| Neko ->
-			add_std "neko";
-			"n"
-		| Js ->
-			if not (PMap.exists (fst (Define.infos Define.JqueryVer)) com.defines) then
-				Common.define_value com Define.JqueryVer "11204";
-
-			let es_version =
-				try
-					int_of_string (Common.defined_value com Define.JsEs)
-				with
-				| Not_found ->
-					(Common.define_value com Define.JsEs "5"; 5)
-				| _ ->
-					0
-			in
-
-			if es_version < 3 || es_version = 4 then (* we don't support ancient and there's no 4th *)
-				failwith "Invalid -D js-es value";
-
-			if es_version >= 5 then Common.raw_define com "js-es5"; (* backward-compatibility *)
-
-			add_std "js";
-			"js"
-		| Lua ->
-			add_std "lua";
-			"lua"
-		| Php ->
-			add_std "php";
-			"php"
-		| Cpp ->
-			Common.define_value com Define.HxcppApiLevel "330";
-			add_std "cpp";
-			if Common.defined com Define.Cppia then
-				classes := (make_path "cpp.cppia.HostClasses" ) :: !classes;
-			"cpp"
-		| Cs ->
-			let old_flush = ctx.flush in
-			ctx.flush <- (fun () ->
-				com.net_libs <- [];
-				old_flush()
-			);
-			Gencs.before_generate com;
-			add_std "cs"; "cs"
-		| Java ->
-			let old_flush = ctx.flush in
-			ctx.flush <- (fun () ->
-				List.iter (fun (_,_,close,_,_) -> close()) com.java_libs;
-				com.java_libs <- [];
-				old_flush()
-			);
-			Genjava.before_generate com;
-			add_std "java"; "java"
-		| Python ->
-			add_std "python";
-			"python"
-		| Hl ->
-			add_std "hl";
-			"hl"
-	) in
+	DisplayOutput.process_display_file com classes;
+	let ext = Initialize.initialize_target ctx com classes in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
-	begin match com.display with
-		| DMNone | DMToplevel ->
-			()
-		| _ ->
-			if not ctx.has_next then com.package_rules <- PMap.foldi (fun p r acc -> match r with Forbidden -> acc | _ -> PMap.add p r acc) com.package_rules PMap.empty;
+	if com.display.dms_display then begin
+		if not ctx.has_next then com.package_rules <- PMap.foldi (fun p r acc -> match r with Forbidden -> acc | _ -> PMap.add p r acc) com.package_rules PMap.empty;
 	end;
 	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)
-
 	List.iter (fun f -> f()) (List.rev (!pre_compilation));
 	if !classes = [([],"Std")] && not !force_typing then begin
 		let help_spec = basic_args_spec @ [
@@ -1589,36 +803,30 @@ try
 		ctx.setup();
 		Common.log com ("Classpath : " ^ (String.concat ";" com.class_path));
 		Common.log com ("Defines : " ^ (String.concat ";" (PMap.foldi (fun k v acc -> (match v with "1" -> k | _ -> k ^ "=" ^ v) :: acc) com.defines [])));
-		let t = Common.timer "typing" in
+		let t = Common.timer ["typing"] in
 		Typecore.type_expr_ref := (fun ctx e with_type -> Typer.type_expr ctx e with_type);
 		let tctx = Typer.create com in
-		List.iter (Typer.call_init_macro tctx) (List.rev !config_macros);
+		List.iter (MacroContext.call_init_macro tctx) (List.rev !config_macros);
 		List.iter (Typer.eval tctx) !evals;
-		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath Ast.null_pos)) (List.rev !classes);
+		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev !classes);
 		Typer.finalize tctx;
 		t();
-		if ctx.has_error then raise Abort;
-		begin match ctx.com.display with
-			| DMNone | DMUsage | DMDiagnostics ->
-				()
-			| _ ->
-				if ctx.has_next then raise Abort;
-				failwith "No completion point was found";
+		if not ctx.com.display.dms_display && ctx.has_error then raise Abort;
+		if ctx.com.display.dms_exit_during_typing then begin
+			if ctx.has_next || ctx.has_error then raise Abort;
+			failwith "No completion point was found";
 		end;
-		let t = Common.timer "filters" in
+		let t = Common.timer ["filters"] in
 		let main, types, modules = Typer.generate tctx in
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
-		begin match com.display with
-			| DMUsage -> Codegen.detect_usage com;
-			| _ -> ()
-		end;
+		DisplayOutput.process_global_display_mode com tctx;
+		if not (Common.defined com Define.NoDeprecationWarnings) then
+			Display.DeprecationCheck.run com;
 		Filters.run com tctx main;
+		t();
 		if ctx.has_error then raise Abort;
-		(* check file extension. In case of wrong commandline, we don't want
-			to accidentaly delete a source file. *)
-		if not !no_output && file_extension com.file = ext then delete_file com.file;
 		(match !xml_out with
 		| None -> ()
 		| Some "hx" ->
@@ -1627,58 +835,7 @@ try
 			Common.log com ("Generating xml : " ^ file);
 			Common.mkdir_from_path file;
 			Genxml.generate com file);
-		if com.platform = Flash || com.platform = Cpp then List.iter (Codegen.fix_overrides com) com.types;
-		if Common.defined com Define.Dump then Codegen.Dump.dump_types com;
-		if Common.defined com Define.DumpDependencies then Codegen.Dump.dump_dependencies com;
-		t();
-		if not !no_output then begin match com.platform with
-			| Neko when !interp -> ()
-			| Cpp when Common.defined com Define.Cppia -> ()
-			| Cpp | Cs | Java | Php -> Common.mkdir_from_path (com.file ^ "/.")
-			| _ -> Common.mkdir_from_path com.file
-		end;
-		if not !no_output then begin
-			if !interp then begin
-				let ctx = Interp.create com (Typer.make_macro_api tctx Ast.null_pos) in
-				Interp.add_types ctx com.types (fun t -> ());
-				(match com.main with
-				| None -> ()
-				| Some e -> ignore(Interp.eval_expr ctx e));
-			end else if com.platform = Cross then
-				()
-			else begin
-				let generate,name = match com.platform with
-				| Flash when Common.defined com Define.As3 ->
-					Genas3.generate,"AS3"
-				| Flash ->
-					Genswf.generate !swf_header,"swf"
-				| Neko ->
-					Genneko.generate,"neko"
-				| Js ->
-					Genjs.generate,"js"
-				| Lua ->
-					Genlua.generate,"lua"
-				| Php ->
-					Genphp.generate,"php"
-				| Cpp ->
-					Gencpp.generate,"cpp"
-				| Cs ->
-					Gencs.generate,"cs"
-				| Java ->
-					Genjava.generate,"java"
-				| Python ->
-					Genpy.generate,"python"
-				| Hl ->
-					Genhl.generate,"hl"
-				| Cross ->
-					assert false
-				in
-				Common.log com ("Generating " ^ name ^ ": " ^ com.file);
-				let t = Common.timer ("generate " ^ name) in
-				generate com;
-				t()
-			end
-		end
+		if not !no_output then generate tctx ext !xml_out !interp !swf_header;
 	end;
 	Sys.catch_break false;
 	List.iter (fun f -> f()) (List.rev com.callbacks.after_generation);
@@ -1691,9 +848,7 @@ try
 with
 	| Abort ->
 		()
-	| Ast.Error (m,p) ->
-		error ctx m p
-	| Typecore.Fatal_error (m,p) ->
+	| Error.Fatal_error (m,p) ->
 		error ctx m p
 	| Common.Abort (m,p) ->
 		error ctx m p
@@ -1706,169 +861,80 @@ with
 			ctx.has_error <- false;
 			ctx.messages <- [];
 		end else begin
-			error ctx (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (Ast.s_type_path m) ) p;
+			error ctx (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m) ) p;
 			List.iter (error ctx "    referenced here") (List.rev pl);
 		end
-	| Typecore.Error (m,p) ->
-		error ctx (Typecore.error_msg m) p
-	| Interp.Error (msg,p :: l) ->
+	| Error.Error (m,p) ->
+		error ctx (Error.error_msg m) p
+	| Interp.Error (msg,p :: l) | Hlmacro.Error (msg,p :: l) ->
 		message ctx msg p;
 		List.iter (message ctx "Called from") l;
-		error ctx "Aborted" Ast.null_pos;
+		error ctx "Aborted" null_pos;
 	| Typeload.Generic_Exception(m,p) ->
 		error ctx m p
 	| Arg.Bad msg ->
-		error ctx ("Error: " ^ msg) Ast.null_pos
+		error ctx ("Error: " ^ msg) null_pos
 	| Failure msg when not (is_debug_run()) ->
-		error ctx ("Error: " ^ msg) Ast.null_pos
+		error ctx ("Error: " ^ msg) null_pos
 	| Arg.Help msg ->
-		message ctx msg Ast.null_pos
+		message ctx msg null_pos
+	| Display.DisplayPackage pack ->
+		raise (DisplayOutput.Completion (String.concat "." pack))
 	| Display.DisplayFields fields ->
-		let ctx = print_context() in
-		let fields = List.map (fun (name,t,kind,doc) -> name, s_type ctx t, kind, (match doc with None -> "" | Some d -> d)) fields in
-		let fields = if !measure_times then begin
-			close_times();
-			let tot = ref 0. in
-			Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
-			let fields = ("@TOTAL", Printf.sprintf "%.3fs" (get_time() -. !start_time), None, "") :: fields in
-			if !tot > 0. then
-				Hashtbl.fold (fun _ t acc ->
-					("@TIME " ^ t.name, Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot), None, "") :: acc
-				) Common.htimers fields
-			else fields
-		end else
-			fields
+		let fields = List.map (
+			fun (name,kind,doc) -> name, kind, (Option.default "" doc)
+		) fields in
+		let fields =
+			if !measure_times then begin
+				close_times();
+				(List.map (fun (name,value) -> ("@TIME " ^ name, Display.FKTimer value, "")) (DisplayOutput.get_timer_fields !start_time)) @ fields
+			end else
+				fields
 		in
-		complete_fields com fields
-	| Display.DisplayType (t,p) ->
-		let ctx = print_context() in
-		let b = Buffer.create 0 in
-		if p = null_pos then
-			Buffer.add_string b "<type>\n"
-		else begin
-			let error_printer file line = sprintf "%s:%d:" (Common.unique_full_path file) line in
-			let epos = Lexer.get_error_pos error_printer p in
-			Buffer.add_string b ("<type p=\"" ^ (htmlescape epos) ^ "\">\n")
-		end;
-		Buffer.add_string b (htmlescape (s_type ctx t));
-		Buffer.add_string b "\n</type>\n";
-		raise (Completion (Buffer.contents b))
-	| Display.DisplaySignatures tl ->
-		let ctx = print_context() in
-		let b = Buffer.create 0 in
-		List.iter (fun (t,doc) ->
-			Buffer.add_string b "<type>\n";
-			Buffer.add_string b (htmlescape (s_type ctx (follow t)));
-			Buffer.add_string b "\n</type>\n";
-		) tl;
-		raise (Completion (Buffer.contents b))
+		raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))
+	| Display.DisplayType (t,p,doc) ->
+		let doc = match doc with Some _ -> doc | None -> DisplayOutput.find_doc t in
+		raise (DisplayOutput.Completion (DisplayOutput.print_type t p doc))
+	| Display.DisplaySignatures(tl,display_arg) ->
+		if ctx.com.display.dms_kind = DMSignature then
+			raise (DisplayOutput.Completion (DisplayOutput.print_signature tl display_arg))
+		else
+			raise (DisplayOutput.Completion (DisplayOutput.print_signatures tl))
 	| Display.DisplayPosition pl ->
-		let b = Buffer.create 0 in
-		let error_printer file line = sprintf "%s:%d:" (Common.unique_full_path file) line in
-		Buffer.add_string b "<list>\n";
-		List.iter (fun p ->
-			let epos = Lexer.get_error_pos error_printer p in
-			Buffer.add_string b "<pos>";
-			Buffer.add_string b epos;
-			Buffer.add_string b "</pos>\n";
-		) pl;
-		Buffer.add_string b "</list>";
-		raise (Completion (Buffer.contents b))
+		raise (DisplayOutput.Completion (DisplayOutput.print_positions pl))
 	| Display.DisplayToplevel il ->
-		let b = Buffer.create 0 in
-		Buffer.add_string b "<il>\n";
-		let ctx = print_context() in
-		let s_type t = htmlescape (s_type ctx t) in
-		let s_doc d = Option.map_default (fun s -> Printf.sprintf " d=\"%s\"" (htmlescape s)) "" d in
-		List.iter (fun id -> match id with
-			| IdentifierType.ITLocal v ->
-				Buffer.add_string b (Printf.sprintf "<i k=\"local\" t=\"%s\">%s</i>\n" (s_type v.v_type) v.v_name);
-			| IdentifierType.ITMember(c,cf) ->
-				Buffer.add_string b (Printf.sprintf "<i k=\"member\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
-			| IdentifierType.ITStatic(c,cf) ->
-				Buffer.add_string b (Printf.sprintf "<i k=\"static\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
-			| IdentifierType.ITEnum(en,ef) ->
-				Buffer.add_string b (Printf.sprintf "<i k=\"enum\" t=\"%s\"%s>%s</i>\n" (s_type ef.ef_type) (s_doc ef.ef_doc) ef.ef_name);
-			| IdentifierType.ITGlobal(mt,s,t) ->
-				Buffer.add_string b (Printf.sprintf "<i k=\"global\" p=\"%s\" t=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (s_type t) s);
-			| IdentifierType.ITType(mt) ->
-				let infos = t_infos mt in
-				Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s>%s</i>\n" (s_type_path infos.mt_path) (s_doc infos.mt_doc) (snd infos.mt_path));
-			| IdentifierType.ITPackage s ->
-				Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
-		) il;
-		Buffer.add_string b "</il>";
-		raise (Completion (Buffer.contents b))
+		let il =
+			if !measure_times then begin
+				close_times();
+				(List.map (fun (name,value) -> IdentifierType.ITTimer ("@TIME " ^ name ^ ": " ^ value)) (DisplayOutput.get_timer_fields !start_time)) @ il
+			end else
+				il
+		in
+		raise (DisplayOutput.Completion (DisplayOutput.print_toplevel il))
 	| Parser.TypePath (p,c,is_import) ->
-		(match c with
-		| None ->
-			let packs, classes = read_type_path com p in
-			if packs = [] && classes = [] then
-				error ctx ("No classes found in " ^ String.concat "." p) Ast.null_pos
-			else
-				complete_fields com (
-					let convert k f = (f,"",Some k,"") in
-					(List.map (convert Display.FKPackage) packs) @ (List.map (convert Display.FKType) classes)
-				)
-		| Some (c,cur_package) ->
-			try
-				let sl_pack,s_module = match List.rev p with
-					| s :: sl when s.[0] >= 'A' && s.[0] <= 'Z' -> List.rev sl,s
-					| _ -> p,c
-				in
-				let ctx = Typer.create com in
-				let rec lookup p =
-					try
-						Typeload.load_module ctx (p,s_module) Ast.null_pos
-					with e ->
-						if cur_package then
-							match List.rev p with
-							| [] -> raise e
-							| _ :: p -> lookup (List.rev p)
-						else
-							raise e
-				in
-				let m = lookup sl_pack in
-				let statics = ref None in
-				let public_types = List.filter (fun t ->
-					let tinfos = t_infos t in
-					let is_module_type = snd tinfos.mt_path = c in
-					if is_import && is_module_type then begin match t with
-						| TClassDecl c ->
-							ignore(c.cl_build());
-							statics := Some c.cl_ordered_statics
-						| _ -> ()
-					end;
-					not tinfos.mt_private
-				) m.m_types in
-				let types = if c <> s_module then [] else List.map (fun t -> snd (t_path t),"",Some Display.FKType,"") public_types in
-				let ctx = print_context() in
-				let make_field_doc cf =
-					cf.cf_name,
-					s_type ctx cf.cf_type,
-					Some (match cf.cf_kind with Method _ -> Display.FKMethod | Var _ -> Display.FKVar),
-					(match cf.cf_doc with Some s -> s | None -> "")
-				in
-				let types = match !statics with
-					| None -> types
-					| Some cfl -> types @ (List.map make_field_doc (List.filter (fun cf -> cf.cf_public) cfl))
-				in
-				complete_fields com types
-			with Completion c ->
-				raise (Completion c)
-			| _ ->
-				error ctx ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos)
-	| Display.ModuleSymbols s | Display.Diagnostics s ->
-		raise (Completion s)
-	| Interp.Sys_exit i ->
+		let fields =
+			try begin match c with
+				| None ->
+					DisplayOutput.TypePathHandler.complete_type_path com p
+				| Some (c,cur_package) ->
+					DisplayOutput.TypePathHandler.complete_type_path_inner com p c cur_package is_import
+			end with Common.Abort(msg,p) ->
+				error ctx msg p;
+				None
+		in
+		Option.may (fun fields -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))) fields
+	| Display.ModuleSymbols s | Display.Diagnostics s | Display.Statistics s | Display.Metadata s ->
+		raise (DisplayOutput.Completion s)
+	| Interp.Sys_exit i | Hlinterp.Sys_exit i ->
 		ctx.flush();
 		exit i
-	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || !global_cache <> None with _ -> true) && not (is_debug_run()) ->
-		error ctx (Printexc.to_string e) Ast.null_pos
+	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not (is_debug_run()) ->
+		error ctx (Printexc.to_string e) null_pos
 
 ;;
-let other = Common.timer "other" in
+let other = Common.timer ["other"] in
 Sys.catch_break true;
+MacroContext.setup();
 let args = List.tl (Array.to_list Sys.argv) in
 (try
 	let server = Sys.getenv "HAXE_COMPILATION_SERVER" in
@@ -1876,7 +942,7 @@ let args = List.tl (Array.to_list Sys.argv) in
 	do_connect host (try int_of_string port with _ -> failwith "Invalid HAXE_COMPILATION_SERVER port") args
 with Not_found -> try
 	process_params create_context args
-with Completion c ->
+with DisplayOutput.Completion c ->
 	prerr_endline c;
 	exit 0
 | Arg.Bad msg ->

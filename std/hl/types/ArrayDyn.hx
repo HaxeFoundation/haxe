@@ -61,6 +61,10 @@ class ArrayDyn extends ArrayAccess {
 		array.setDyn(pos, value);
 	}
 
+	override function blit( pos : Int, src : ArrayAccess, srcpos : Int, len : Int ) : Void {
+		array.blit(pos, src, srcpos, len);
+	}
+
 	public function concat( a : ArrayDyn ) : ArrayDyn {
 		var a1 = array;
 		var a2 = a.array;
@@ -186,7 +190,7 @@ class ArrayDyn extends ArrayAccess {
 			return array;
 		if( !allowReinterpret )
 			return null;
-		if( t == Type.get(new ArrayI32()) ) {
+		if( t == Type.get(new ArrayBytes.ArrayI32()) ) {
 			var a : BytesAccess<Int> = null;
 			a = new Bytes(array.length << a.sizeBits);
 			for( i in 0...array.length )
@@ -196,7 +200,7 @@ class ArrayDyn extends ArrayAccess {
 			allowReinterpret = false;
 			return arr;
 		}
-		if( t == Type.get(new ArrayF64()) ) {
+		if( t == Type.get(new ArrayBytes.ArrayF64()) ) {
 			var a : BytesAccess<Float> = null;
 			a = new Bytes(array.length << a.sizeBits);
 			for( i in 0...array.length )

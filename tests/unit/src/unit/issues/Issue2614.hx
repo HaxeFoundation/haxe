@@ -22,8 +22,8 @@ class Issue2614 extends Test {
 		var fFloat = lazy(2.);
 		eq(fInt.evaluate(), 2);
 		feq(fFloat.evaluate(), 2.);
-		unit.TestType.typedAs(fInt, (null : Lazy<Int>));
-		unit.TestType.typedAs(fFloat, (null : Lazy<Float>));
+		unit.HelperMacros.typedAs(fInt, (null : Lazy<Int>));
+		unit.HelperMacros.typedAs(fFloat, (null : Lazy<Float>));
 	}
 
 	static public function lazy<A>(l:Lazy<A>):Lazy<A> {

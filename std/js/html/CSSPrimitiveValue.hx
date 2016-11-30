@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/CSSPrimitiveValue.webidl line 39:0. Do not edit!
+// This file is generated from mozilla\CSSPrimitiveValue.webidl line 11:0. Do not edit!
 
 package js.html;
 

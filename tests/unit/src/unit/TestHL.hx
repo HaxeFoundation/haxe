@@ -7,7 +7,7 @@ class TestHL extends Test {
 		//i *= 2;
 	//}
 
-	private function refTestAssign(i:hl.types.Ref<Int>):Void
+	private function refTestAssign(i:hl.Ref<Int>):Void
 	{
 		i.set(2);
 	}

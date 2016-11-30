@@ -115,7 +115,7 @@ class Sha1 {
 			blks[i] = 0;
 		for (i in 0...s.length){
 			var p = i >> 2;
-			blks[p] |= #if !(neko || cpp || php) s.get(i) #else s.charCodeAt(i) #end << (24 - ((i & 3) << 3));
+			blks[p] |= #if !(neko || cpp || php) s.get(i) #else StringTools.fastCodeAt(s,i) #end << (24 - ((i & 3) << 3));
 		}
 		var i = s.length;
 		var p = i >> 2;

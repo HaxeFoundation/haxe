@@ -20,6 +20,7 @@
 open Ast
 open Type
 open Common
+open Codegen
 
 type method_name = {
 	mutable mpath : path;
@@ -211,7 +212,7 @@ let is_string_expr e = is_string_type e.etype
 let to_string ctx e =
 	let v = alloc_var "__call__" t_dynamic e.epos in
 	let f = mk (TLocal v) t_dynamic e.epos in
-	mk (TCall (f, [ Codegen.string ctx.com "_hx_string_rec" e.epos; e; Codegen.string ctx.com "" e.epos])) ctx.com.basic.tstring e.epos
+	mk (TCall (f, [ ExprBuilder.make_string ctx.com "_hx_string_rec" e.epos; e; ExprBuilder.make_string ctx.com "" e.epos])) ctx.com.basic.tstring e.epos
 
 let as_string_expr ctx e =
 	match e.eexpr with
@@ -224,7 +225,7 @@ let as_string_expr ctx e =
 let to_string_null ctx e =
 	let v = alloc_var "__call__" t_dynamic e.epos in
 	let f = mk (TLocal v) t_dynamic e.epos in
-	mk (TCall (f, [ Codegen.string ctx.com "_hx_string_or_null" e.epos; e])) ctx.com.basic.tstring e.epos
+	mk (TCall (f, [ ExprBuilder.make_string ctx.com "_hx_string_or_null" e.epos; e])) ctx.com.basic.tstring e.epos
 
 
 let as_string_expr ctx e =	match e.eexpr with
@@ -343,7 +344,7 @@ let write_resource dir name data =
 	close_out ch
 
 let stack_init com use_add =
-	Codegen.stack_context_init com "GLOBALS['%s']" "GLOBALS['%e']" "__hx__spos" "tmp" use_add null_pos
+	Codegen.stack_context_init com "GLOBALS['%s']" "GLOBALS['%e']" "__hx__spos" "tmp" use_add Globals.null_pos
 
 let init com cwd path def_type =
 	let rec create acc = function
@@ -396,7 +397,7 @@ let init com cwd path def_type =
 	Codegen.map_source_header com (fun s -> print ctx "// %s\n" s);
 	ctx
 
-let unsupported msg p = error ("This expression cannot be generated to PHP: " ^ msg) p
+let unsupported msg p = abort ("This expression cannot be generated to PHP: " ^ msg) p
 
 let newline ctx =
 	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
@@ -780,7 +781,7 @@ and get_constant_prefix meta =
 	(match args with
 		| [EConst(String prefix), _] -> prefix
 		| [] -> ""
-		| _ -> error "Invalid @:phpConstant parameters" pos)
+		| _ -> abort "Invalid @:phpConstant parameters" pos)
 
 and gen_member_access ctx isvar e s =
 	match follow e.etype with
@@ -987,9 +988,9 @@ and gen_tfield ctx e e1 s =
 				| _ ->
 					gen_expr ctx e1) in
 
-			spr ctx "(isset(";
-			gen_field_access ctx true e1 s;
-			spr ctx ") ? ";
+			spr ctx "(property_exists(";
+			ob e1.eexpr;
+			print ctx ", \"%s\") ? " (s_ident s);
 			gen_field_access ctx true e1 s;
 			spr ctx ": array(";
 			ob e1.eexpr;
@@ -2261,9 +2262,9 @@ let generate com =
 							else
 								((n = (prefixed_name false)) || (n = (prefixed_name true)))
 						) !lc_names in
-						unsupported ("method '" ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name ^ "' already exists here '" ^ (fst lc) ^ "' (different case?)") c.cl_pos
+						unsupported ("method '" ^ (Globals.s_type_path c.cl_path) ^ "." ^ cf.cf_name ^ "' already exists here '" ^ (fst lc) ^ "' (different case?)") c.cl_pos
 					with Not_found ->
-						lc_names := ((s_type_path c.cl_path) ^ "." ^ cf.cf_name, prefixed_name static) :: !lc_names)
+						lc_names := ((Globals.s_type_path c.cl_path) ^ "." ^ cf.cf_name, prefixed_name static) :: !lc_names)
 				| _ ->
 					()
 			) lst

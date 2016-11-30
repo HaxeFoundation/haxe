@@ -1,0 +1,5 @@
+Main.hx:11: characters 8-30 : SomeNode should be Node
+Main.hx:11: characters 8-30 : SomeNode should be { parent : Node }
+Main.hx:11: characters 8-30 : Invalid type for field parent :
+Main.hx:11: characters 8-30 : SomeNode should be Node
+Main.hx:11: characters 8-30 : SomeNode should be { parent : Node }

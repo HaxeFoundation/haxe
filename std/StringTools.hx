@@ -21,7 +21,7 @@
  */
 /**
 	This class provides advanced methods on Strings. It is ideally used with
-	`using StringTools` and then acts as an [extension](http://haxe.org/manual/lf-static-extension.html)
+	`using StringTools` and then acts as an [extension](https://haxe.org/manual/lf-static-extension.html)
 	to the `String` class.
 
 	If the first argument to any of the methods is null, the result is
@@ -86,8 +86,8 @@ class StringTools {
 					ret.addChar('('.code);
 				case ['2'.code, '9'.code]:
 					ret.addChar(')'.code);
-				case ['7'.code, 'E'.code]:
-					ret.addChar('-'.code);
+				case ['7'.code, 'E'.code] | ['7'.code, 'e'.code]:
+					ret.addChar('~'.code);
 				case _:
 					ret.addChar('%'.code);
 					ret.addChar(cast c1);
@@ -503,7 +503,7 @@ class StringTools {
 	/**
 		Character codes of the characters that will be escaped by `quoteWinArg(_, true)`.
 	*/
-	public static var winMetaCharacters = [" ".code, "(".code, ")".code, "%".code, "!".code, "^".code, "\"".code, "<".code, ">".code, "&".code, "|".code, "\n".code, "\r".code];
+	public static var winMetaCharacters = [" ".code, "(".code, ")".code, "%".code, "!".code, "^".code, "\"".code, "<".code, ">".code, "&".code, "|".code, "\n".code, "\r".code, ",".code, ";".code];
 
 	/**
 		Returns a String that can be used as a single command line argument

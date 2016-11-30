@@ -48,12 +48,12 @@ class Issue3347 extends Test {
 		eq("0;0;0;0;0;2;", IntKey.fromList);
 		eq(4, m[0]);
 
-		t(unit.TestType.typeError(m["1"] = 1));
-		t(unit.TestType.typeError(m[1] = "1"));
+		t(unit.HelperMacros.typeError(m["1"] = 1));
+		t(unit.HelperMacros.typeError(m[1] = "1"));
 
 		var m2 = new IntMap2();
 		// should fail because constraints unify without casts
-		t(unit.TestType.typeError(m2[1]));
+		t(unit.HelperMacros.typeError(m2[1]));
 
 		var m3 = new IntMap3();
 		var v = m3[0];

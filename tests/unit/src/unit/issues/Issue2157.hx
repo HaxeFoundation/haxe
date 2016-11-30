@@ -21,6 +21,6 @@ private abstract False(Bool) {
 class Issue2157 extends Test {
 	function test() {
 		var x : False = true;
-		t(unit.TestType.typeError(var z : Choice<False, Int> = true));
+		t(unit.HelperMacros.typeError(var z : Choice<False, Int> = true));
 	}
 }

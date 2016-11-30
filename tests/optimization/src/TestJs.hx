@@ -23,7 +23,7 @@ private enum EnumFlagTest {
 }
 
 @:analyzer(code_motion)
-@:analyzer(no_fusion)
+@:analyzer(no_user_var_fusion)
 class TestJs {
 	//@:js('var x = 10;"" + x;var x1 = 10;"" + x1;var x2 = 10.0;"" + x2;var x3 = "10";x3;var x4 = true;"" + x4;')
 	//static function testStdString() {
@@ -229,7 +229,7 @@ class TestJs {
 
 	@:js('
 		var map = new haxe_ds_StringMap();
-		if(__map_reserved.some != null) {map.setReserved("some",2);} else {map.h["some"] = 2;}
+		if(__map_reserved["some"] != null) {map.setReserved("some",2);} else {map.h["some"] = 2;}
 		TestJs["use"](2);
 	')
 	static function testIssue4731() {
@@ -267,9 +267,9 @@ class TestJs {
 
 	@:js('
 		var x = TestJs.getInt();
-		var tmp = x;
+		var x1 = x;
 		++x;
-		TestJs.call(tmp,TestJs.getInt());
+		TestJs.call(x1,TestJs.getInt());
 	')
 	static function testMightBeAffected3() {
 		var x = getInt();
@@ -567,16 +567,16 @@ class TestJs {
 		return call(d2, d1);
 	}
 
-	@:impure
+	@:pure(false)
 	static function getInt(?d:Dynamic) { return 1; }
 	static function getArray() { return [0, 1]; }
-	@:impure
+	@:pure(false)
 	static function call(d1:Dynamic, d2:Dynamic) { return d1; }
-	@:impure
+	@:pure(false)
 	static function use<T>(t:T) { return t; }
 
 	static var intField = 12;
-	static var stringField = "foo";
+	static var stringField(default, never) = "foo";
 
 	@:js('
 		var _g = Type["typeof"]("");
@@ -588,4 +588,25 @@ class TestJs {
         var v = Type.typeof(o).match(TClass(String));
         use(v);
 	}
+
+	@:js('
+		var tmp = "foo";
+		Extern.test(tmp);
+		var tmp1 = "bar";
+		Extern.test(tmp1);
+		var closure = Extern.test;
+		var tmp2 = "baz";
+		closure(tmp2);
+	')
+	static function testAsVar() {
+		Extern.test("foo");
+		var x = "bar";
+		Extern.test(x);
+		var closure = Extern.test;
+		closure("baz");
+	}
+}
+
+extern class Extern {
+	static public function test(e:haxe.extern.AsVar<String>):Void;
 }

@@ -58,6 +58,17 @@ class TestPhp extends Test
 	{
 		f(Class2146.test());
 	}
+
+	function testStupidShit9000() {
+		var f = make();
+		f.handle( function() {
+			eq("ok", "ok");
+		});
+	}
+
+	inline static function make():FunctionCallerWrapper {
+		return new FunctionCaller(function(f) f());
+	}
 }
 
 class Class2146 {
@@ -80,4 +91,15 @@ class Class2146 {
 enum Annotation {
 	Abstract;
 	Const(i:String);
+}
+
+private typedef Func = Void->Void;
+
+private abstract FunctionCaller(Func->Void) to Func->Void {
+	public function new(f:Func->Void) this = f;
+}
+
+private abstract FunctionCallerWrapper( FunctionCaller ) from FunctionCaller to FunctionCaller {
+	public inline function handle(callback:Func):Void
+		return (this:Func->Void)(callback);
 }

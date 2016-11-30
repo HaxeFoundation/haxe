@@ -25,7 +25,7 @@ package haxe;
 /**
 	This class provides advanced methods on enums. It is ideally used with
 	`using EnumTools` and then acts as an 
-  [extension](http://haxe.org/manual/lf-static-extension.html) to the 
+  [extension](https://haxe.org/manual/lf-static-extension.html) to the 
   `enum` types.
 
 	If the first argument to any of the methods is null, the result is
@@ -113,7 +113,7 @@ extern class EnumTools {
 /**
 	This class provides advanced methods on enum values. It is ideally used with
 	`using EnumValueTools` and then acts as an 
-  [extension](http://haxe.org/manual/lf-static-extension.html) to the 
+  [extension](https://haxe.org/manual/lf-static-extension.html) to the 
   `EnumValue` types.
 
 	If the first argument to any of the methods is null, the result is

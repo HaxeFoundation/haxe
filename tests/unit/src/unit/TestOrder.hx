@@ -18,7 +18,7 @@ class TestOrder extends Test {
 
 		// Latest enum should be used
 		var c:E2 = E2.C1;
-		TestType.typedAs(C1, c);
+		HelperMacros.typedAs(C1, c);
 		eq(c, C1);
 	}
 }

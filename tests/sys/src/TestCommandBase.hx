@@ -2,6 +2,7 @@ import sys.*;
 import haxe.io.*;
 
 class TestCommandBase extends haxe.unit.TestCase {
+	var runInfo:{out:String, err:String} = null;
 	function run(cmd:String, ?args:Array<String>):Int {
 		throw "should be overridden";
 	}
@@ -130,6 +131,9 @@ class TestCommandBase extends haxe.unit.TestCase {
 				#else
 					-1;
 				#end
+			if ((code != exitCode) && (runInfo != null)) {
+				trace(runInfo);
+			}
 			assertEquals(code, exitCode);
 		}
 	}

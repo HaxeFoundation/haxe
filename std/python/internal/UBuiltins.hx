@@ -36,7 +36,7 @@ extern class UBuiltins {
     static function min<T>(a:T, b:T):T;
     static function max<T>(a:T, b:T):T;
     static function hasattr(o:Dynamic, a:String):Bool;
-    static function getattr(o:Dynamic, a:String):Dynamic;
+    static function getattr(o:Dynamic, a:String, ?def:Dynamic):Dynamic;
     static function setattr(o:Dynamic, a:String, v:Dynamic):Void;
     static function delattr(o:Dynamic, attr:String):Void;
     static function callable(x:Dynamic):Bool;

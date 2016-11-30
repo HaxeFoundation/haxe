@@ -21,6 +21,8 @@
  */
  package cpp;
 
+import haxe.extern.AsVar;
+
 @:coreType
 extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
 {
@@ -34,33 +36,30 @@ extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
    public static function fromRaw<T>(ptr:RawPointer<T>) : Pointer<T>;
 
    @:native("::cpp::Pointer_obj::fromHandle")
-   static function nativeFromHandle<T>(inHandle:Dynamic,?inKind:String):Pointer<T>;
+   static function nativeFromHandle<T>(inHandle:Dynamic,?inKind:String):AutoCast;
    inline public static function fromHandle<T>(inHandle:Dynamic,?inKind:String) : Pointer<T>
    {
-     var autoCast = nativeFromHandle(inHandle,inKind);
-     return autoCast;
+     return cast nativeFromHandle(inHandle,inKind);
    }
 
    public static function fromPointer<T>(inNativePointer:Dynamic) : Pointer<T>;
 
-   public static function addressOf<T>(inVariable:T) : Pointer<T>;
+   public static function addressOf<T>(inVariable:cpp.Reference<T>) : Pointer<T>;
 
    public static function endOf<T:{}>(inVariable:T) : Pointer<cpp.Void>;
 
    @:native("::cpp::Pointer_obj::arrayElem")
-   static function nativeArrayElem<T>(array:Array<T>, inElem:Int):Pointer<T>;
+   static function nativeArrayElem<T>(array:Array<T>, inElem:Int):AutoCast;
    inline static function arrayElem<T>(array:Array<T>, inElem:Int):Pointer<T>
    {
-      var autoCast = nativeArrayElem(array,inElem);
-      return autoCast;
+      return cast nativeArrayElem(array,inElem);
    }
 
    @:native("::cpp::Pointer_obj::ofArray")
-   static function nativeOfArray<T>(array:Array<T>):Pointer<T>;
+   static function nativeOfArray<T>(array:Array<T>):AutoCast;
    inline public static function ofArray<T>(array:Array<T>):Pointer<T>
    {
-     var autoCast = nativeOfArray(array);
-     return autoCast;
+     return cast nativeOfArray(array);
    }
 
    inline public function toUnmanagedArray(elementCount:Int) : Array<T>

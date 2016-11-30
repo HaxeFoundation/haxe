@@ -23,7 +23,6 @@ package cs.internal;
 import cs.Lib;
 import cs.Lib.*;
 import cs.NativeArray;
-import cs.NativeArray;
 import cs.StdTypes;
 import cs.system.Activator;
 import cs.system.IConvertible;
@@ -386,7 +385,7 @@ import cs.system.Object;
 			{
 				value = mkNullable(value, f.FieldType);
 			}
-			if (Object.ReferenceEquals(Lib.toNativeType(cs.system.Double), Lib.getNativeType(value)) && !Object.ReferenceEquals(t, f.FieldType))
+			if (value != null && Object.ReferenceEquals(Lib.toNativeType(cs.system.Double), Lib.getNativeType(value)) && !Object.ReferenceEquals(t, f.FieldType))
 			{
 				var ic = Lib.as(value, IConvertible);
 				value = ic.ToType(f.FieldType, null);
@@ -798,7 +797,7 @@ import cs.system.Object;
 
 
 #if !erase_generics
-	private static function getGenericAttr(t:cs.system.Type):cs.internal.HxObject.GenericInterface
+	public static function getGenericAttr(t:cs.system.Type):cs.internal.HxObject.GenericInterface
 	{
 		for (attr in t.GetCustomAttributes(true))
 			if (Std.is(attr,cs.internal.HxObject.GenericInterface))
@@ -860,7 +859,7 @@ import cs.system.Object;
 }
 
 @:nativeGen
-@:keep @:native("haxe.lang.EmptyObject") private enum EmptyObject
+@:keep @:native("haxe.lang.EmptyObject") enum EmptyObject
 {
 	EMPTY;
 }

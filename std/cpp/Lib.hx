@@ -81,7 +81,11 @@ class Lib {
 		return null;
 	}
 
-	public static function rethrow(inExp:Dynamic) { throw inExp; }
+	@:extern  @:noDebug @:native("HX_STACK_DO_RETHROW")
+	static function do_rethrow(inExp:Dynamic) { throw inExp; }
+
+	@:noDebug #if(!cppia) inline #end
+	public static function rethrow(inExp:Dynamic) { do_rethrow(inExp); }
 
 	public static function stringReference(inBytes:haxe.io.Bytes) : String
 	{

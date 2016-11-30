@@ -19,7 +19,7 @@ private abstract A<T>(Int) {
 class Issue2639 extends Test {
 	public function test() {
 		var a:A<Int>;
-		t(unit.TestType.typeError(a = 0));
+		t(unit.HelperMacros.typeError(a = 0));
 		var b:A<String> = "foo";
 		eq(3, b.get());
 	}

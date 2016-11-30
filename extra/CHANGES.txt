@@ -1,3 +1,43 @@
+2016-11-29: 3.4.0-RC1
+
+	New features:
+
+	all : support metadata completion
+	all : support type-hint completion
+	all : added @signature display mode (#4758)
+	all : finalized HashLink (HL) target
+
+	General improvements and optimizations:
+
+	all : greatly improved support for display mode in general
+	all : made --times output look much nicer
+	all : remove calls to functions that have no side-effect
+	all : hid private property accessors from completion (#5678)
+	js : updated jQuery extern (js.jquery.*) for jQuery 1.12.4 / 3.1.0 support.
+	js : jQuery extern (js.jquery.*) now includes deprecated fields marked with @:deprecated.
+	js : no longer rewrite `o["s"]` to `o.s` (#5724)
+	cpp : greatly improved ObjC output and integration options
+	lua : greatly improved code output quality
+
+	Bugfixes:
+
+	all : fixed various optimization issues
+	all : fixed various issues with side-effect detection
+	all : fixed performance drain in the DCE implementation (#5716)
+	all : fixed issue with assignments when inlining constructors (#5340)
+	all : fixed major inlining issue when using compilation server (#5320)
+	all : fixed pattern matching evaluation order issue (#5274)
+	cpp : fixed various minor code generation issues
+	js : fixed issue regarding iterating over abstracts (#5385)
+	python : fixed evaluation order issue for array writing (#5366)
+
+	Standard Library:
+
+	all : added Any type (#5500)
+	all : added haxe.extern.AsVar
+	all : added haxe.macro.CompilationServer (experimental)
+	all : fixed haxe.Template.resolve (#5301)
+
 2016-05-27: 3.3.0-RC1
 
 	New features:
@@ -853,7 +893,7 @@
 	resolve environment variable in -cmd commands
 	added flash.Vector.indexOf and lastIndexOf
 	fixed bug in interfaces that define the method toString (Haxe/PHP)
-	fixed bug in haxe.io.BytesInput.readBytes in Flash9 (was throwing Eof if full buffer can't be readed)
+	fixed bug in haxe.io.BytesInput.readBytes in Flash9 (was throwing Eof if full buffer can't be read)
 	fixed implements/extends special classes when they are imported
 	StringBuf now uses an array for JS implementation (around same on FF, faster on IE)
 	fixed assignment of field length in anonym objects (Haxe/PHP)

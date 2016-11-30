@@ -22,15 +22,15 @@
 package haxe;
 
 private class ResourceContent {
-	public var name : hl.types.Bytes;
-	public var data : hl.types.Bytes;
+	public var name : hl.Bytes;
+	public var data : hl.Bytes;
 	public var dataLen : Int;
 }
 
 @:coreApi
 class Resource {
 
-	static var content : hl.types.NativeArray<ResourceContent>;
+	static var content : hl.NativeArray<ResourceContent>;
 
 	public static function listNames() : Array<String> {
 		return [for (x in content) @:privateAccess String.fromUCS2(x.name)];
