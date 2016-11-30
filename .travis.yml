@@ -29,6 +29,8 @@ addons: &addons
 
 install_linux: &install_linux
   # Install neko and haxe dependencies
+  - sudo add-apt-repository ppa:avsm/ppa -y
+  - sudo apt-get update
   - sudo apt-get install -y
       ocaml
       ocaml-native-compilers
