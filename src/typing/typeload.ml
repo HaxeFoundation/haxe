@@ -3517,6 +3517,7 @@ let resolve_module_file com m remap p =
 			let x = (try
 				match PMap.find x com.package_rules with
 				| Forbidden -> forbid := true; x
+				| Directory d -> d
 				| Remap d -> remap := d :: l; d
 				with Not_found -> x
 			) in
