@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\RTCIdentityProvider.webidl line 39:9. Do not edit!
+// This file is generated from mozilla\RTCIdentityProvider.webidl. Do not edit!
 
 package js.html.rtc;
 

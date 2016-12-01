@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\Console.webidl line 12:0. Do not edit!
+// This file is generated from mozilla\Console.webidl. Do not edit!
 
 package js.html;
 

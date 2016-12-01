@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\XPathEvaluator.webidl line 10:0. Do not edit!
+// This file is generated from mozilla\XPathEvaluator.webidl. Do not edit!
 
 package js.html;
 

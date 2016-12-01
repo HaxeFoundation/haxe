@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SVGCircleElement.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\SVGCircleElement.webidl. Do not edit!
 
 package js.html.svg;
 

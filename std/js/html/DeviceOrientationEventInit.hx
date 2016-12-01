@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\DeviceOrientationEvent.webidl line 28:0. Do not edit!
+// This file is generated from mozilla\DeviceOrientationEvent.webidl. Do not edit!
 
 package js.html;
 

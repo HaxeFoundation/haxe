@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\StyleSheetList.webidl line 6:0. Do not edit!
+// This file is generated from mozilla\StyleSheetList.webidl. Do not edit!
 
 package js.html;
 

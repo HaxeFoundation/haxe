@@ -40,15 +40,15 @@ For the complete Haxe licenses, please see https://haxe.org/foundation/open-sour
 
 ## Installing Haxe
 
-The latest stable release is [Haxe 3.3.0-rc.1](https://haxe.org/download/version/3.3.0-rc.1/). Pre-built binaries are available for your platform:
+The latest stable release is [Haxe 3.4.0-rc.1](https://haxe.org/download/version/3.4.0-rc.1/). Pre-built binaries are available for your platform:
 
- * **[Windows installer](https://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-win.exe)**
- * **[Windows binaries](https://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-win.zip)**
- * **[OSX installer](https://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-osx-installer.pkg)**
- * **[OSX binaries](https://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-osx.tar.gz)**
+ * **[Windows installer](https://haxe.org/download/file/3.4.0-rc.1/haxe-3.4.0-rc.1-win.exe)**
+ * **[Windows binaries](https://haxe.org/download/file/3.4.0-rc.1/haxe-3.4.0-rc.1-win.zip)**
+ * **[OSX installer](https://haxe.org/download/file/3.4.0-rc.1/haxe-3.4.0-rc.1-osx-installer.pkg)**
+ * **[OSX binaries](https://haxe.org/download/file/3.4.0-rc.1/haxe-3.4.0-rc.1-osx.tar.gz)**
  * **[Linux Software Packages](https://haxe.org/download/linux)**
- * **[Linux 32-bit binaries](https://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-linux32.tar.gz)**
- * **[Linux 64-bit binaries](https://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-linux64.tar.gz)**
+ * **[Linux 32-bit binaries](https://haxe.org/download/file/3.4.0-rc.1/haxe-3.4.0-rc.1-linux32.tar.gz)**
+ * **[Linux 64-bit binaries](https://haxe.org/download/file/3.4.0-rc.1/haxe-3.4.0-rc.1-linux64.tar.gz)**
 
 Automated development builds are available from [build.haxe.org](http://build.haxe.org).
 

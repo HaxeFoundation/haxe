@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\RTCPeerConnection.webidl line 68:0. Do not edit!
+// This file is generated from mozilla\RTCPeerConnection.webidl. Do not edit!
 
 package js.html.rtc;
 
 typedef AnswerOptions =
 {
-	// > RTCOfferAnswerOptions,
+	> OfferAnswerOptions,
 }

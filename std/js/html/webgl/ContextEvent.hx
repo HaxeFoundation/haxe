@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from webgl.webidl line 5:0. Do not edit!
+// This file is generated from webgl.webidl. Do not edit!
 
 package js.html.webgl;
 

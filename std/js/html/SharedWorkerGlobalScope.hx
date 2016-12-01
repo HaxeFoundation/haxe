@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SharedWorkerGlobalScope.webidl line 19:0. Do not edit!
+// This file is generated from mozilla\SharedWorkerGlobalScope.webidl. Do not edit!
 
 package js.html;
 

@@ -20,12 +20,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\MediaStreamTrack.webidl line 70:0. Do not edit!
+// This file is generated from mozilla\MediaStreamTrack.webidl. Do not edit!
 
 package js.html;
 
 typedef MediaTrackConstraints =
 {
-	// > MediaTrackConstraintSet,
-	@:optional var advanced : Array<Dynamic/*MISSING MediaTrackConstraintSet*/>;
+	> MediaTrackConstraintSet,
+	@:optional var advanced : Array<MediaTrackConstraintSet>;
 }

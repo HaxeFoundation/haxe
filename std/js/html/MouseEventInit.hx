@@ -20,13 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\MouseEvent.webidl line 61:0. Do not edit!
+// This file is generated from mozilla\MouseEvent.webidl. Do not edit!
 
 package js.html;
 
 typedef MouseEventInit =
 {
-	// > EventModifierInit,
+	> EventModifierInit,
 	@:optional var button : Int;
 	@:optional var buttons : Int;
 	@:optional var clientX : Int;

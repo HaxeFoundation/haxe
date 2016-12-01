@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\CSSStyleDeclaration.webidl line 14:0. Do not edit!
+// This file is generated from mozilla\CSSStyleDeclaration.webidl. Do not edit!
 
 package js.html;
 

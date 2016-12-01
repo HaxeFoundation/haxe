@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\HTMLBRElement.webidl line 19:0. Do not edit!
+// This file is generated from mozilla\HTMLBRElement.webidl. Do not edit!
 
 package js.html;
 

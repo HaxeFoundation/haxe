@@ -20,13 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\TouchEvent.webidl line 9:0. Do not edit!
+// This file is generated from mozilla\TouchEvent.webidl. Do not edit!
 
 package js.html;
 
 typedef TouchEventInit =
 {
-	// > EventModifierInit,
+	> EventModifierInit,
 	@:optional var changedTouches : Array<Touch>;
 	@:optional var targetTouches : Array<Touch>;
 	@:optional var touches : Array<Touch>;
