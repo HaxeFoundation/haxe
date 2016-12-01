@@ -1,4 +1,4 @@
-package php7.reflection;
+package php.reflection;
 
 
 @:native('ReflectionProperty')

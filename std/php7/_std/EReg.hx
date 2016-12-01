@@ -21,7 +21,7 @@
  */
 
 import haxe.extern.EitherType;
-import php7.*;
+import php.*;
 
 @:coreApi @:final class EReg {
 

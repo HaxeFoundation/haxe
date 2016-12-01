@@ -21,7 +21,7 @@
  */
 package sys;
 
-import php7.*;
+import php.*;
 import haxe.io.Path;
 
 private enum FileKind {

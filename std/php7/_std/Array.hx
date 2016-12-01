@@ -19,9 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-import php7.*;
+import php.*;
 
-using php7.Global;
+using php.Global;
 
 @:coreApi
 @:final

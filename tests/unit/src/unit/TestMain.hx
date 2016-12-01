@@ -18,7 +18,7 @@ class TestMain {
 	#end
 
 	static function main() {
-	  var verbose = #if ( cpp || neko || php || php7 ) Sys.args().indexOf("-v") >= 0 #else false #end;
+	  var verbose = #if ( cpp || neko || php ) Sys.args().indexOf("-v") >= 0 #else false #end;
 
 		#if cs //"Turkey Test" - Issue #996
 		cs.system.threading.Thread.CurrentThread.CurrentCulture = new cs.system.globalization.CultureInfo('tr-TR');
@@ -79,7 +79,7 @@ class TestMain {
 			#if hl
 			new TestHL(),
 			#end
-			#if (php || php7)
+			#if php
 			new TestPhp(),
 			#end
 			#if (java || cs)
@@ -103,7 +103,7 @@ class TestMain {
 		#end
 
 		// SPOD tests
-		#if ( (neko || ((php || php7) && (travis || appveyor || php_sqlite)) || java || cpp || (cs && (travis || appveyor))) && !macro && !interp)
+		#if ( (neko || (php && (travis || appveyor || php_sqlite)) || java || cpp || (cs && (travis || appveyor))) && !macro && !interp)
 		#if ( (travis || appveyor) && !(cpp || cs) )
 		classes.push(new TestSpod(sys.db.Mysql.connect({
 			host : "127.0.0.1",

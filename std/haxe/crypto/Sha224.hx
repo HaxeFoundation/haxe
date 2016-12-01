@@ -27,7 +27,7 @@ package haxe.crypto;
 class Sha224 {
 
     public static function encode( s:String ) : String {
-        #if (php || php7)
+        #if php
         return untyped __call__("hash", "sha224", s);
         #else
         var sh = new Sha224();
@@ -37,7 +37,7 @@ class Sha224 {
     }
 
     public static function make( b : haxe.io.Bytes ) : haxe.io.Bytes {
-        #if (php || php7)
+        #if php
         return haxe.io.Bytes.ofData(haxe.io.BytesData.ofString(untyped __call__("hash", "sha224", b.getData().toString(), true)));
         #else
         var h = new Sha224().doEncode(b.toString(), b.length*8);

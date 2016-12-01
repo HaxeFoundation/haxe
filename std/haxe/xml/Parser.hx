@@ -378,7 +378,7 @@ class Parser
 							var c = s.fastCodeAt(1) == 'x'.code
 								? Std.parseInt("0" +s.substr(1, s.length - 1))
 								: Std.parseInt(s.substr(1, s.length - 1));
-							#if (neko || cpp || php || php7 || lua)
+							#if (neko || cpp || php || lua)
 							if( c >= 128 ) {
 								// UTF8-encode it
 								if( c <= 0x7FF ) {

@@ -1,4 +1,4 @@
-package php7;
+package php;
 
 /**
     Special type which allows passing function arguments by reference.

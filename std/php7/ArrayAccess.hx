@@ -1,4 +1,4 @@
-package php7;
+package php;
 
 /**
 	Native PHP interface.

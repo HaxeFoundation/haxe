@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import php7.*;
-import php7.reflection.*;
+import php.*;
+import php.reflection.*;
 import haxe.extern.EitherType;
 
-using php7.Global;
+using php.Global;
 
 enum ValueType {
 	TNull;

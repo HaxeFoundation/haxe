@@ -1,4 +1,4 @@
-package php7;
+package php;
 
 import sys.io.File.FileHandle;
 

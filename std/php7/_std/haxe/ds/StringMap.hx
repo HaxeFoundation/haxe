@@ -21,10 +21,10 @@
  */
 package haxe.ds;
 
-import php7.Syntax;
-import php7.Global;
-import php7.NativeArray;
-import php7.NativeAssocArray;
+import php.Syntax;
+import php.Global;
+import php.NativeArray;
+import php.NativeAssocArray;
 import haxe.Constraints;
 
 @:coreApi class StringMap<T> implements IMap<String,T> {

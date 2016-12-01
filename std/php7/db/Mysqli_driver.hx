@@ -1,6 +1,6 @@
-package php7.db;
+package php.db;
 
-import php7.NativeArray;
+import php.NativeArray;
 
 @:native('Mysqli_driver')
 extern class Mysqli_driver {

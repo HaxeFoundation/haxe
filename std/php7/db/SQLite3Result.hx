@@ -1,6 +1,6 @@
-package php7.db;
+package php.db;
 
-import php7.*;
+import php.*;
 import haxe.extern.EitherType;
 
 @:native('SQLite3Result')

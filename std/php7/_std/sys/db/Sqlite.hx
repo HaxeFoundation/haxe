@@ -21,8 +21,8 @@
  */
 package sys.db;
 
-import php7.*;
-import php7.db.*;
+import php.*;
+import php.db.*;
 import sys.db.*;
 
 @:coreApi class Sqlite {

@@ -1,7 +1,7 @@
-package php7.db;
+package php.db;
 
 import haxe.extern.*;
-import php7.*;
+import php.*;
 import haxe.Constraints.Function;
 
 /**

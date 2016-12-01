@@ -1,8 +1,8 @@
-package php7;
+package php;
 
 /**
 	This class contains externs for native PHP constants defined in global namespace.
-	For native PHP functions in global namespace see `php7.Global`.
+	For native PHP functions in global namespace see `php.Global`.
 **/
 @:phpGlobal
 extern class Const {

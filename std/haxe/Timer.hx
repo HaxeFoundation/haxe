@@ -169,7 +169,7 @@ class Timer {
 	public static inline function stamp() : Float {
 		#if flash
 			return flash.Lib.getTimer() / 1000;
-		#elseif (neko || php || php7)
+		#elseif (neko || php)
 			return Sys.time();
 		#elseif js
 			return Date.now().getTime() / 1000;
@@ -179,7 +179,7 @@ class Timer {
 			return Sys.cpuTime();
 		#elseif sys
 			return Sys.time();
-		
+
 		#else
 			return 0;
 		#end

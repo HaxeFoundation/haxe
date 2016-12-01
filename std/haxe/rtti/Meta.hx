@@ -50,7 +50,7 @@ class Meta {
 			return cs.Lib.toNativeType(t).IsInterface;
 		#elseif (flash && as3)
 			return untyped flash.Lib.describeType(t).factory.extendsClass.length() == 0;
-		#elseif php
+		#elseif (php && !php7)
 			return untyped __php__("{0} instanceof _hx_interface", t);
 		#else
 			throw "Something went wrong";
@@ -59,7 +59,9 @@ class Meta {
 
 	private static function getMeta(t:Dynamic):MetaObject
 	{
-#if (java || cs || php || (flash && as3))
+#if (php && php7)
+		return php.Boot.getMeta(t.phpClassName);
+#elseif (java || cs || php || (flash && as3))
 		var ret = Reflect.field(t, "__meta__");
 		if (ret == null && Std.is(t,Class))
 		{
@@ -75,8 +77,6 @@ class Meta {
 #elseif hl
 		var t : hl.BaseType = t;
 		return t.__meta__;
-#elseif php7
-		return php7.Boot.getMeta(t.phpClassName);
 #else
 		return untyped t.__meta__;
 #end

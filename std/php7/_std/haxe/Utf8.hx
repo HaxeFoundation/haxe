@@ -21,7 +21,7 @@
  */
 package haxe;
 
-import php7.Global;
+import php.Global;
 
 @:coreApi
 class Utf8 {

@@ -1,4 +1,4 @@
-package php7.reflection;
+package php.reflection;
 
 import haxe.Constraints;
 import haxe.extern.Rest;

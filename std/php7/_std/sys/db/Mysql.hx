@@ -21,10 +21,10 @@
  */
 package sys.db;
 
-import php7.*;
+import php.*;
 import sys.db.*;
-import php7.db.*;
-import php7.db.Mysqli_result;
+import php.db.*;
+import php.db.Mysqli_result;
 
 @:coreApi class Mysql {
 	public static function connect(

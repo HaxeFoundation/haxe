@@ -19,10 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package php7;
+package php;
 
 /**
-	Session consists of a way to preserve certain data across 
+	Session consists of a way to preserve certain data across
 	subsequent accesses.
 */
 class Session {

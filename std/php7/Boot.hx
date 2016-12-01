@@ -19,11 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package php7;
+package php;
 
 import haxe.PosInfos;
 
-using php7.Global;
+using php.Global;
 
 /**
 	Various Haxe->PHP compatibility utilities.
@@ -282,7 +282,7 @@ class Boot {
 				if (value.is_string()) {
 					return value;
 				}
-			case 'php7\\NativeArray':
+			case 'php\\NativeArray':
 				if (value.is_array()) {
 					return value;
 				}
@@ -414,7 +414,7 @@ class Boot {
 				return value.is_bool();
 			case 'String':
 				return value.is_string();
-			case 'php7\\NativeArray':
+			case 'php\\NativeArray':
 				return value.is_array();
 			case 'Enum', 'Class':
 				if (Syntax.instanceof(value, HxClass)) {

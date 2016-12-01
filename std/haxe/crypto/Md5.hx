@@ -29,7 +29,7 @@ class Md5 {
 	public static function encode( s : String ) : String {
 		#if neko
 			return untyped new String(base_encode(make_md5(s.__s),"0123456789abcdef".__s));
-		#elseif (php || php7)
+		#elseif php
 			return untyped __call__("md5", s);
 		#else
 			var m = new Md5();
@@ -41,7 +41,7 @@ class Md5 {
 	public static function make( b : haxe.io.Bytes ) : haxe.io.Bytes {
 		#if neko
 			return haxe.io.Bytes.ofData(make_md5(b.getData()));
-		#elseif (php || php7)
+		#elseif php
 			return haxe.io.Bytes.ofData( haxe.io.BytesData.ofString(untyped __call__("md5", b.getData().toString(), true)));
 		#else
 			var h = new Md5().doEncode(bytes2blks(b));
@@ -60,7 +60,7 @@ class Md5 {
 	#if neko
 	static var base_encode = neko.Lib.load("std","base_encode",2);
 	static var make_md5 = neko.Lib.load("std","make_md5",1);
-	#elseif !(php || php7)
+	#elseif !php
 
 /*
  * A JavaScript implementation of the RSA Data Security, Inc. MD5 Message
@@ -137,7 +137,7 @@ class Md5 {
 	}
 
 	static function str2blks( str : String ){
-#if !(neko || cpp || php || php7)
+#if !(neko || cpp || php)
 		var str = haxe.io.Bytes.ofString(str);
 #end
 		var nblk = ((str.length + 8) >> 6) + 1;
@@ -157,7 +157,7 @@ class Md5 {
 		var max = str.length;
 		var l = max * 8;
 		while( i < max ) {
-			blks[i >> 2] |= #if !(neko || cpp || php || php7) str.get(i) #else StringTools.fastCodeAt(str, i) #end << (((l + i) % 4) * 8);
+			blks[i >> 2] |= #if !(neko || cpp || php) str.get(i) #else StringTools.fastCodeAt(str, i) #end << (((l + i) % 4) * 8);
 			i++;
 		}
 		blks[i >> 2] |= 0x80 << (((l + i) % 4) * 8);

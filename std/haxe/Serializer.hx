@@ -262,7 +262,7 @@ class Serializer {
 				#if (flash || python || hl)
 				var v : Array<Dynamic> = v;
 				#end
-				var l = #if (neko || flash || php || php7 || cs || java || python || hl || lua) v.length #elseif cpp v.__length() #else __getField(v, "length") #end;
+				var l = #if (neko || flash || php || cs || java || python || hl || lua) v.length #elseif cpp v.__length() #else __getField(v, "length") #end;
 				for( i in 0...l ) {
 					if( v[i] == null )
 						ucount++;
@@ -377,7 +377,7 @@ class Serializer {
 				#end
 			default:
 				if( useCache ) cache.pop();
-				if( #if flash try v.hxSerialize != null catch( e : Dynamic ) false #elseif (cs || java || python) Reflect.hasField(v, "hxSerialize") #elseif php7 php7.Global.method_exists(v, 'hxSerialize') #else v.hxSerialize != null #end  ) {
+				if( #if flash try v.hxSerialize != null catch( e : Dynamic ) false #elseif (cs || java || python) Reflect.hasField(v, "hxSerialize") #elseif (php && php7) php.Global.method_exists(v, 'hxSerialize') #else v.hxSerialize != null #end  ) {
 					buf.add("C");
 					serializeString(Type.getClassName(c));
 					if( useCache ) cache.push(v);
@@ -464,7 +464,7 @@ class Serializer {
 			buf.add(len);
 			for( p in 0...len )
 				serialize( enumBase.getParamI(p));
-			#elseif (php || php7)
+			#elseif php
 			if( useEnumIndex ) {
 				buf.add(":");
 				buf.add(v.index);
@@ -477,10 +477,10 @@ class Serializer {
 			else {
 				buf.add(l);
 				for( i in 0...l ) {
-					#if php
-					serialize(untyped __field__(v, __php__("params"), i));
-					#elseif php7
+					#if (php && php7)
 					serialize(v.params[i]);
+					#elseif php
+					serialize(untyped __field__(v, __php__("params"), i));
 					#end
 				}
 			}

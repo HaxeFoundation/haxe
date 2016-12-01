@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package php7;
+package php;
 
 import haxe.io.Bytes;
 
@@ -253,7 +253,7 @@ class Web {
 
 	/**
 		Returns an hashtable of all Cookies sent by the client.
-		Modifying the hashtable will not modify the cookie, use `php.Web.setCookie()` 
+		Modifying the hashtable will not modify the cookie, use `php.Web.setCookie()`
 		instead.
 	**/
 	public static function getCookies():Map<String,String> {

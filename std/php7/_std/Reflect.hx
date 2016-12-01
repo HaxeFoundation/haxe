@@ -20,12 +20,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import php7.Boot;
-import php7.Syntax;
-import php7.Closure;
+import php.Boot;
+import php.Syntax;
+import php.Closure;
 import haxe.Constraints;
 
-using php7.Global;
+using php.Global;
 
 @:coreApi class Reflect {
 

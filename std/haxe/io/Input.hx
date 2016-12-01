@@ -67,7 +67,7 @@ class Input {
 			while( k > 0 ) {
 			    #if neko
 				    untyped __dollar__sset(b,pos,readByte());
-				#elseif (php || php7)
+				#elseif php
 				    b.set(pos, readByte());
 			    #elseif cpp
 				    b[pos] = untyped readByte();
@@ -104,7 +104,7 @@ class Input {
 	**/
 	public function readAll( ?bufsize : Int ) : Bytes {
 		if( bufsize == null )
-		#if (php || php7)
+		#if php
 			bufsize = 8192; // default value for PHP and max under certain circumstances
 		#else
 			bufsize = (1 << 14); // 16 Ko
@@ -280,7 +280,7 @@ class Input {
 		var ch2 = readByte();
 		var ch3 = readByte();
 		var ch4 = readByte();
-#if (php || php7 || python)
+#if (php || python)
 		// php will overflow integers.  Convert them back to signed 32-bit ints.
 		var n = bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
 		if (n & 0x80000000 != 0)

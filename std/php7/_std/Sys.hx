@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import php7.*;
+import php.*;
 import sys.io.FileOutput;
 import sys.io.FileInput;
 
@@ -118,7 +118,7 @@ import sys.io.FileInput;
 	}
 
 	public static function environment() : Map<String,String> {
-		return php7.Lib.hashOfAssociativeArray(SuperGlobal._SERVER);
+		return php.Lib.hashOfAssociativeArray(SuperGlobal._SERVER);
 	}
 
 	public static function stdin() : haxe.io.Input {

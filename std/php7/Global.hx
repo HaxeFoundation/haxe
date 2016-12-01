@@ -1,10 +1,10 @@
-package php7;
+package php;
 
 import haxe.extern.*;
 
 /**
 	This class contains externs for native PHP functions defined in global namespace.
-	For native PHP constants in global namespace see `php7.Const`.
+	For native PHP constants in global namespace see `php.Const`.
 **/
 @:phpGlobal
 extern class Global {
@@ -72,7 +72,7 @@ extern class Global {
 	static function is_bool( value:Dynamic ) : Bool ;
 
 	/**
-		Checks if `values` is `php7.NativeArray`
+		Checks if `values` is `php.NativeArray`
 		@see http://php.net/manual/en/function.is-array.php
 	**/
 	static function is_array( value:Dynamic ) : Bool ;

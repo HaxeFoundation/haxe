@@ -1918,9 +1918,10 @@ class virtual type_builder ctx wrapper =
 				| { eexpr = TConst (TString code) } as expr :: args ->
 					(match name with
 						| "__php__" ->
-							(match args with
-								| [] -> self#write code
-								| _ -> failwith error
+							(match expr.eexpr with
+								| TConst (TString php) ->
+									Codegen.interpolate_code ctx php args self#write self#write_expr self#pos
+								| _ -> fail self#pos __POS__
 							)
 						| "__call__" ->
 							self#write (code ^ "(");

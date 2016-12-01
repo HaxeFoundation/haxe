@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import php7.*;
+import php.*;
 
 @:coreApi class StringTools {
 

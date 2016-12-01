@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package php7;
+package php;
 
 /**
 	@see http://php.net/manual/en/class.errorexception.php

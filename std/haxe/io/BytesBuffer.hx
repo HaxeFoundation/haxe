@@ -27,7 +27,7 @@ class BytesBuffer {
 	var b : Dynamic; // neko string buffer
 	#elseif flash
 	var b : flash.utils.ByteArray;
-	#elseif (php || php7)
+	#elseif php
 	var b : String;
 	#elseif cpp
 	var b : BytesData;
@@ -48,7 +48,7 @@ class BytesBuffer {
 		#elseif flash
 		b = new flash.utils.ByteArray();
 		b.endian = flash.utils.Endian.LITTLE_ENDIAN;
-		#elseif (php || php7)
+		#elseif php
 		b = "";
 		#elseif cpp
 		b = new BytesData();
@@ -78,7 +78,7 @@ class BytesBuffer {
 		untyped StringBuf.__add_char(b,byte);
 		#elseif flash
 		b.writeByte(byte);
-		#elseif (php || php7)
+		#elseif php
 		b += untyped __call__("chr", byte);
 		#elseif cpp
 		b.push(untyped byte);
@@ -96,7 +96,7 @@ class BytesBuffer {
 		untyped StringBuf.__add(b,src.getData());
 		#elseif flash
 		b.writeBytes(src.getData());
-		#elseif (php || php7)
+		#elseif php
 		b += src.getData().toString();
 		#elseif cs
 		b.Write(src.getData(), 0, src.length);
@@ -165,7 +165,7 @@ class BytesBuffer {
 		try untyped StringBuf.__add_sub(b,src.getData(),pos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
 		#elseif flash
 		if( len > 0 ) b.writeBytes(src.getData(),pos,len);
-		#elseif (php || php7)
+		#elseif php
 		b += src.getData().sub(pos, len).toString() ;
 		#elseif cs
 		b.Write(src.getData(), pos, len);
@@ -195,7 +195,7 @@ class BytesBuffer {
 		#elseif flash
 		var bytes = new Bytes(b.length,b);
 		b.position = 0;
-		#elseif (php || php7)
+		#elseif php
 		var bytes = new Bytes(b.length, BytesData.ofString(b));
 		#elseif cs
 		var buf = b.GetBuffer();

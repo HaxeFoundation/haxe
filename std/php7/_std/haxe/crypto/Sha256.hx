@@ -21,7 +21,7 @@
  */
 package haxe.crypto;
 
-import php7.Global;
+import php.Global;
 import haxe.io.Bytes;
 
 /**

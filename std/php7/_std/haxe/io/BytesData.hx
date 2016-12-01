@@ -21,7 +21,7 @@
  */
 package haxe.io;
 
-import php7.*;
+import php.*;
 
 private class Container {
 	public var s:NativeString;

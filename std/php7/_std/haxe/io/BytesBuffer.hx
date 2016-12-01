@@ -21,7 +21,7 @@
  */
 package haxe.io;
 
-import php7.*;
+import php.*;
 
 class BytesBuffer {
 	var b : String;

@@ -19,9 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package php7;
+package php;
 
-using php7.Global;
+using php.Global;
 
 /**
 	Native PHP array.

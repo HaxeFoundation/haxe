@@ -1,6 +1,6 @@
-package php7.db;
+package php.db;
 
-import php7.RuntimeException;
+import php.RuntimeException;
 
 @:native('PDOException')
 extern class PDOException extends RuntimeException {

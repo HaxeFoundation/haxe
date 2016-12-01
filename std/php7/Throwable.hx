@@ -1,4 +1,4 @@
-package php7;
+package php;
 
 /**
     @see http://php.net/manual/en/class.throwable.php

@@ -21,7 +21,7 @@
  */
 package haxe;
 
-import php7.*;
+import php.*;
 import haxe.format.JsonPrinter;
 
 @:coreApi

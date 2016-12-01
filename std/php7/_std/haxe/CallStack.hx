@@ -1,6 +1,6 @@
 package haxe;
 
-import php7.*;
+import php.*;
 
 private typedef NativeTrace = NativeIndexedArray<NativeAssocArray<Dynamic>>;
 

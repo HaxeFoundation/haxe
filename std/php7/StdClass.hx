@@ -1,4 +1,4 @@
-package php7;
+package php;
 
 @:native('StdClass')
 extern class StdClass implements Dynamic {

@@ -22,7 +22,7 @@
 
 package haxe.ds;
 
-import php7.*;
+import php.*;
 
 @:coreApi
 class ObjectMap <K:{ }, V> implements haxe.Constraints.IMap<K,V> {

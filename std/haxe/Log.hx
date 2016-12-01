@@ -62,6 +62,8 @@ class Log {
 			}
 		#elseif js
 			untyped js.Boot.__trace(v,infos);
+		#elseif (php && php7)
+			php.Boot.trace(v, infos);
 		#elseif php
 			if (infos!=null && infos.customParams!=null) {
 				var extra:String = "";
@@ -71,8 +73,6 @@ class Log {
 			}
 			else
 				untyped __call__('_hx_trace', v, infos);
-		#elseif php7
-			php7.Boot.trace(v, infos);
 		#elseif cpp
 			if (infos!=null && infos.customParams!=null) {
 				var extra:String = "";

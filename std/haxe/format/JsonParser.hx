@@ -158,7 +158,7 @@ class JsonParser {
 				case 'u'.code:
 					var uc = Std.parseInt("0x" + str.substr(pos, 4));
 					pos += 4;
-					#if (neko || php || php7 || cpp || lua)
+					#if (neko || php || cpp || lua)
 					if( uc <= 0x7F )
 						buf.addChar(uc);
 					else if( uc <= 0x7FF ) {
@@ -182,7 +182,7 @@ class JsonParser {
 				}
 				start = pos;
 			}
-			#if (neko || php || php7 || cpp)
+			#if (neko || php || cpp)
 			// ensure utf8 chars are not cut
 			else if( c >= 0x80 ) {
 				pos++;

@@ -21,7 +21,7 @@
  */
 package haxe.io;
 
-import php7.*;
+import php.*;
 
 /**
 	Helper that converts between floating point and binary representation.

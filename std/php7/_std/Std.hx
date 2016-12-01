@@ -1,4 +1,4 @@
-import php7.Boot;
+import php.Boot;
 
 /*
  * Copyright (C)2005-2016 Haxe Foundation
@@ -22,8 +22,8 @@ import php7.Boot;
  * DEALINGS IN THE SOFTWARE.
  */
 
-import php7.Global;
-import php7.Const;
+import php.Global;
+import php.Const;
 @:keep
 @:coreApi class Std {
 

@@ -1,4 +1,4 @@
-package php7.db;
+package php.db;
 
 @:native('Mysqli_warning')
 extern class Mysqli_warning {

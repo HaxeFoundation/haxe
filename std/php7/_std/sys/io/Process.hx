@@ -21,11 +21,11 @@
  */
 package sys.io;
 
-import php7.*;
+import php.*;
 import haxe.io.*;
 
 using StringTools;
-using php7.Global;
+using php.Global;
 
 @:forward(iterator)
 private abstract ProcessPipes(NativeIndexedArray<Resource>) from NativeIndexedArray<Resource> to NativeIndexedArray<Resource> {

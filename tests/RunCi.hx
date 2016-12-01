@@ -21,7 +21,7 @@ private typedef TravisConfig = {
 	var Js = "js";
 	var Lua = "lua";
 	var Php = "php";
-	var Php7 = "php7";
+	var php = "php";
 	var Cpp = "cpp";
 	var Flash9 = "flash9";
 	var As3 = "as3";
@@ -389,33 +389,6 @@ class RunCi {
 					infoMsg('php has already been installed.');
 				} else {
 					runCommand("cinst", ["php", "-version", "5.6.3", "-y"], true);
-					addToPATH("C:\\tools\\php");
-				}
-		}
-		runCommand("php", ["-v"]);
-	}
-
-	static function getPhp7Dependencies() {
-		switch (systemName) {
-			case "Linux":
-				var phpCmd = commandResult("php", ["-v"]);
-				var phpVerReg = ~/PHP ([0-9]+\.[0-9]+)/i;
-				var phpVer = if (phpVerReg.match(phpCmd.stdout))
-					Std.parseFloat(phpVerReg.matched(1));
-				else
-					null;
-				if (phpCmd.exitCode == 0 && phpVer != null && phpVer >= 7.0) {
-					infoMsg('php has already been installed.');
-				} else {
-					requireAptPackages(["php7-cli", "php7-mysql", "php7-sqlite"]);
-				}
-			case "Mac":
-				//pass
-			case "Windows":
-				if (commandSucceed("php", ["-v"])) {
-					infoMsg('php has already been installed.');
-				} else {
-					runCommand("cinst", ["php", "-version", "7.0.5", "-y"], true);
 					addToPATH("C:\\tools\\php");
 				}
 		}
@@ -873,22 +846,24 @@ class RunCi {
 						runCommand("haxe", ["compile-neko.hxml"]);
 						runCommand("neko", ["bin/neko/sys.n"]);
 					case Php:
-						getSpodDependencies();
-						getPhpDependencies();
-						runCommand("haxe", ["compile-php.hxml"].concat(args));
-						runCommand("php", ["bin/php/index.php"]);
+						#if php7
+							getSpodDependencies();
+							runCommand("haxe", ["compile-php7.hxml"].concat(args));
+							runCommand("php", ["bin/php7/index.php"]);
 
-						changeDirectory(sysDir);
-						runCommand("haxe", ["compile-php.hxml"]);
-						runCommand("php", ["bin/php/Main/index.php"]);
-					case Php7:
-						getPhp7Dependencies();
-						runCommand("haxe", ["compile-php7.hxml"].concat(args));
-						runCommand("php", ["bin/php7/index.php"]);
+							changeDirectory(sysDir);
+							runCommand("haxe", ["compile-php7.hxml"]);
+							runCommand("php", ["bin/php7/Main/index.php"]);
+						#else
+							getSpodDependencies();
+							getPhpDependencies();
+							runCommand("haxe", ["compile-php.hxml"].concat(args));
+							runCommand("php", ["bin/php/index.php"]);
 
-						changeDirectory(sysDir);
-						runCommand("haxe", ["compile-php7.hxml"]);
-						runCommand("php", ["bin/php7/Main/index.php"]);
+							changeDirectory(sysDir);
+							runCommand("haxe", ["compile-php.hxml"]);
+							runCommand("php", ["bin/php/Main/index.php"]);
+						#end
 					case Python:
 						var pys = getPythonDependencies();
 
@@ -1102,7 +1077,6 @@ class RunCi {
 						runCommand("haxe", ["compile-hl.hxml"]);
 					case ThirdParty:
 						getPhpDependencies();
-						getPhp7Dependencies();
 						getJavaDependencies();
 						getJSDependencies();
 						getCsDependencies();

@@ -20,8 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import php7.Global;
-import php7.Const;
+import php.Global;
+import php.Const;
 
 @:coreApi class Math {
 	public static var PI(default,null) : Float = Const.M_PI;

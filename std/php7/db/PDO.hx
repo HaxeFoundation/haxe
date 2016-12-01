@@ -19,9 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package php7.db;
+package php.db;
 
-import php7.*;
+import php.*;
 
 @:native('PDO')
 extern class PDO {
