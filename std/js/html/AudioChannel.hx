@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\AudioChannel.webidl line 77:0. Do not edit!
+// This file is generated from mozilla\AudioChannel.webidl. Do not edit!
 
 package js.html;
 

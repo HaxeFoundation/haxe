@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\TextTrack.webidl line 20:0. Do not edit!
+// This file is generated from mozilla\TextTrack.webidl. Do not edit!
 
 package js.html;
 

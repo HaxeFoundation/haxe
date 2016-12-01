@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\MediaStreamTrack.webidl line 75:0. Do not edit!
+// This file is generated from mozilla\MediaStreamTrack.webidl. Do not edit!
 
 package js.html;
 

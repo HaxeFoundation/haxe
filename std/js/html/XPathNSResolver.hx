@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\XPathNSResolver.webidl line 9:9. Do not edit!
+// This file is generated from mozilla\XPathNSResolver.webidl. Do not edit!
 
 package js.html;
 

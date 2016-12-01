@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\RTCStatsReport.webidl line 204:0. Do not edit!
+// This file is generated from mozilla\RTCStatsReport.webidl. Do not edit!
 
 package js.html.rtc;
 

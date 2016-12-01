@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\OscillatorNode.webidl line 23:0. Do not edit!
+// This file is generated from mozilla\OscillatorNode.webidl. Do not edit!
 
 package js.html.audio;
 
