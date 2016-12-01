@@ -481,7 +481,7 @@ let rec func ctx bb tf t p =
 			let bb_try_next = block bb_try e1 in
 			close();
 			(* We always want to keep catch-blocks, so let's add a pseudo CFG edge if it's unreachable. *)
-			if bb_exc.bb_incoming = [] then add_cfg_edge bb_try_next bb_exc CFGMaybeThrow;
+			if bb_exc.bb_incoming = [] then add_cfg_edge (if bb_try_next == g.g_unreachable then bb_try else bb_try_next) bb_exc CFGMaybeThrow;
 			let is_reachable = ref (not (bb_try_next == g.g_unreachable)) in
 			let catches = List.map (fun (v,e) ->
 				let bb_catch = create_node (BKCatch v) e.etype e.epos in
