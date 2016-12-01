@@ -5,6 +5,7 @@
 	all : fixed top-down inference infinite recursion issue (#5848)
 	all : fixed regression in Compiler.include (#5847)
 	all : fixed Not_found exception related to try/catch (#5851)
+	cpp : fixed issue with cpp.Pointer variables being eliminated (#5850)
 
 2016-11-29: 3.4.0-RC1
 

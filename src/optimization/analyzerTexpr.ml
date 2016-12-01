@@ -155,9 +155,22 @@ let is_ref_type = function
 	| TAbstract({a_path=["hl";"types"],"Ref"},_) -> true
 	| _ -> false
 
-let is_asvar_type t = match follow t with
-	| TAbstract({a_path = (["haxe";"extern"],"AsVar")},_) -> true
-	| _ -> false
+let rec is_asvar_type t =
+	let check meta =
+		AnalyzerConfig.has_analyzer_option meta "as_var"
+	in
+	match t with
+	| TInst(c,_) -> check c.cl_meta
+	| TEnum(en,_) -> check en.e_meta
+	| TType(t,tl) -> check t.t_meta || (is_asvar_type (apply_params t.t_params tl t.t_type))
+	| TAbstract(a,_) -> check a.a_meta
+	| TLazy f -> is_asvar_type (!f())
+	| TMono r ->
+		(match !r with
+		| Some t -> is_asvar_type t
+		| _ -> false)
+	| _ ->
+		false
 
 let type_change_ok com t1 t2 =
 	if t1 == t2 then
