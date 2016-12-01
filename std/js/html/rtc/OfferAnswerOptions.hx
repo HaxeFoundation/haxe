@@ -20,14 +20,10 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\TouchEvent.webidl. Do not edit!
+// This file is generated from mozilla\RTCPeerConnection.webidl. Do not edit!
 
-package js.html;
+package js.html.rtc;
 
-typedef TouchEventInit =
+typedef OfferAnswerOptions =
 {
-	> EventModifierInit,
-	@:optional var changedTouches : Array<Touch>;
-	@:optional var targetTouches : Array<Touch>;
-	@:optional var touches : Array<Touch>;
 }

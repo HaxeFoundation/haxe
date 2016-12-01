@@ -20,14 +20,18 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\TouchEvent.webidl. Do not edit!
+// This file is generated from mozilla\AnimationEffectReadOnly.webidl. Do not edit!
 
 package js.html;
 
-typedef TouchEventInit =
+typedef AnimationEffectTimingProperties =
 {
-	> EventModifierInit,
-	@:optional var changedTouches : Array<Touch>;
-	@:optional var targetTouches : Array<Touch>;
-	@:optional var touches : Array<Touch>;
+	@:optional var delay : Float;
+	@:optional var direction : PlaybackDirection;
+	@:optional var duration : haxe.extern.EitherType<Float,String>;
+	@:optional var easing : String;
+	@:optional var endDelay : Float;
+	@:optional var fill : FillMode;
+	@:optional var iterationStart : Float;
+	@:optional var iterations : Float;
 }

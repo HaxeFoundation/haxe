@@ -26,7 +26,7 @@ package js.html;
 
 typedef KeyboardEventInit =
 {
-	// > EventModifierInit,
+	> EventModifierInit,
 	@:optional var charCode : Int;
 	@:optional var code : String;
 	@:optional var isComposing : Bool;

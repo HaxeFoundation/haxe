@@ -20,14 +20,24 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\TouchEvent.webidl. Do not edit!
+// This file is generated from mozilla\UIEvent.webidl. Do not edit!
 
 package js.html;
 
-typedef TouchEventInit =
+typedef EventModifierInit =
 {
-	> EventModifierInit,
-	@:optional var changedTouches : Array<Touch>;
-	@:optional var targetTouches : Array<Touch>;
-	@:optional var touches : Array<Touch>;
+	> UIEventInit,
+	@:optional var altKey : Bool;
+	@:optional var ctrlKey : Bool;
+	@:optional var metaKey : Bool;
+	@:optional var modifierAltGraph : Bool;
+	@:optional var modifierCapsLock : Bool;
+	@:optional var modifierFn : Bool;
+	@:optional var modifierFnLock : Bool;
+	@:optional var modifierNumLock : Bool;
+	@:optional var modifierOS : Bool;
+	@:optional var modifierScrollLock : Bool;
+	@:optional var modifierSymbol : Bool;
+	@:optional var modifierSymbolLock : Bool;
+	@:optional var shiftKey : Bool;
 }

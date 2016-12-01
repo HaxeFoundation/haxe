@@ -26,6 +26,6 @@ package js.html;
 
 typedef MediaTrackConstraints =
 {
-	// > MediaTrackConstraintSet,
-	@:optional var advanced : Array<Dynamic/*MISSING MediaTrackConstraintSet*/>;
+	> MediaTrackConstraintSet,
+	@:optional var advanced : Array<MediaTrackConstraintSet>;
 }

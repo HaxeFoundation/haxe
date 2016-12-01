@@ -26,7 +26,7 @@ package js.html;
 
 typedef MouseEventInit =
 {
-	// > EventModifierInit,
+	> EventModifierInit,
 	@:optional var button : Int;
 	@:optional var buttons : Int;
 	@:optional var clientX : Int;

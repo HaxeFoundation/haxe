@@ -26,7 +26,7 @@ package js.html;
 
 typedef ComputedTimingProperties =
 {
-	// > AnimationEffectTimingProperties,
+	> AnimationEffectTimingProperties,
 	@:optional var activeDuration : Float;
 	@:optional var currentIteration : Float;
 	@:optional var endTime : Float;
