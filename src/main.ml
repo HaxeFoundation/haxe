@@ -88,7 +88,7 @@ let error ctx msg p =
 	ctx.has_error <- true
 
 let reserved_flags = [
-	"cross";"js";"lua";"neko";"flash";"php";"php7";"cpp";"cs";"java";"python";
+	"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
 	"as3";"swc";"macro";"sys"
 	]
 
@@ -277,11 +277,15 @@ module Initialize = struct
 				add_std "lua";
 				"lua"
 			| Php ->
-				add_std "php";
+				if Common.php7 com then
+					begin
+						com.package_rules <- PMap.add "php" (Directory "php7") com.package_rules;
+						com.package_rules <- PMap.add "php7" Forbidden com.package_rules;
+						add_std "php7"
+					end
+				else
+					add_std "php";
 				"php"
-			| Php7 ->
-				add_std "php7";
-				"php7"
 			| Cpp ->
 				Common.define_value com Define.HxcppApiLevel "331";
 				add_std "cpp";
@@ -329,7 +333,7 @@ let generate tctx ext xml_out interp swf_header =
 	begin match com.platform with
 		| Neko | Hl when interp -> ()
 		| Cpp when Common.defined com Define.Cppia -> ()
-		| Cpp | Cs | Java | Php | Php7 -> Common.mkdir_from_path (com.file ^ "/.")
+		| Cpp | Cs | Java | Php -> Common.mkdir_from_path (com.file ^ "/.")
 		| _ -> Common.mkdir_from_path com.file
 	end;
 	if interp then
@@ -349,9 +353,10 @@ let generate tctx ext xml_out interp swf_header =
 		| Lua ->
 			Genlua.generate,"lua"
 		| Php ->
-			Genphp.generate,"php"
-		| Php7 ->
-			Genphp7.generate,"php7"
+			if Common.php7 com then
+				Genphp7.generate,"php"
+			else
+				Genphp.generate,"php"
 		| Cpp ->
 			Gencpp.generate,"cpp"
 		| Cs ->
@@ -456,7 +461,7 @@ let rec process_params create pl =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s - (C)2005-2016 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-php7|-cpp|-cppia|-as3|-cs|-java|-python|-hl|-lua] <output> [options]\n Options :"
+		"Haxe Compiler %s - (C)2005-2016 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-cppia|-as3|-cs|-java|-python|-hl|-lua] <output> [options]\n Options :"
 		Globals.s_version (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
@@ -515,10 +520,6 @@ try
 			classes := (["php"],"Boot") :: !classes;
 			Initialize.set_platform com Php dir;
 		),"<directory> : generate PHP code into target directory");
-		("-php7",Arg.String (fun dir ->
-			classes := (["php7"],"Boot") :: !classes;
-			Initialize.set_platform com Php7 dir;
-		),"<directory> : generate PHP7 code into target directory");
 		("-cpp",Arg.String (fun dir ->
 			Initialize.set_platform com Cpp dir;
 		),"<directory> : generate C++ code into target directory");

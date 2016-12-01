@@ -106,14 +106,13 @@ let target_handles_unops com = match com.platform with
 let target_handles_assign_ops com = match com.platform with
 	(* Technically PHP can handle assign ops, but unfortunately x += y is not always
 	   equivalent to x = x + y in case y has side-effects. *)
-	| Lua | Php | Php7 -> false
+	| Lua | Php -> false
 	| Cpp when not (Common.defined com Define.Cppia) -> false
 	| _ -> true
 
 let target_handles_side_effect_order com = match com.platform with
 	| Cpp -> Common.defined com Define.Cppia
 	| Php -> false
-	| Php7 -> false
 	| _ -> true
 
 let rec can_be_used_as_value com e =
@@ -615,7 +614,7 @@ module Fusion = struct
 				let e1 = {e1 with eexpr = TVar(v1,Some e2)} in
 				state#dec_writes v1;
 				fuse (e1 :: acc) el
-			| ({eexpr = TVar(v1,None)} as e1) :: ({eexpr = TIf(eif,_,Some _)} as e2) :: el when can_be_used_as_value com e2 && not (ExtType.is_void e2.etype) && (match com.platform with Php | Php7 -> false | Cpp when not (Common.defined com Define.Cppia) -> false | _ -> true) ->
+			| ({eexpr = TVar(v1,None)} as e1) :: ({eexpr = TIf(eif,_,Some _)} as e2) :: el when can_be_used_as_value com e2 && not (ExtType.is_void e2.etype) && (match com.platform with Php -> false | Cpp when not (Common.defined com Define.Cppia) -> false | _ -> true) ->
 				begin try
 					let i = ref 0 in
 					let check_assign e = match e.eexpr with

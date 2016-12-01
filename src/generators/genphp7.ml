@@ -58,44 +58,44 @@ let native_exception_path = ([], "Throwable")
 (**
 	Type path for Haxe exceptions wrapper
 *)
-let hxexception_type_path = (["php7"; "_Boot"], "HxException")
+let hxexception_type_path = (["php"; "_Boot"], "HxException")
 (**
-	Type path of `php7.Boot`
+	Type path of `php.Boot`
 *)
-let boot_type_path = (["php7"], "Boot")
+let boot_type_path = (["php"], "Boot")
 (**
-	Type path of the base class for all enums: `php7.Boot.HxEnum`
+	Type path of the base class for all enums: `php.Boot.HxEnum`
 *)
-let hxenum_type_path = (["php7"; "_Boot"], "HxEnum")
+let hxenum_type_path = (["php"; "_Boot"], "HxEnum")
 (**
 	Type path of the implementation class for `Class<Dynamic>`
 *)
-let hxclass_type_path = (["php7"; "_Boot"], "HxClass")
+let hxclass_type_path = (["php"; "_Boot"], "HxClass")
 (**
 	Type path of the implementation class for `String`
 *)
-let hxstring_type_path = (["php7"; "_Boot"], "HxString")
+let hxstring_type_path = (["php"; "_Boot"], "HxString")
 (**
 	Type path of the special implementation class for `String`
 	which is used when Dynamic value is suspected to be a string
 *)
-let hxdynamicstr_type_path = (["php7"; "_Boot"], "HxDynamicStr")
+let hxdynamicstr_type_path = (["php"; "_Boot"], "HxDynamicStr")
 (**
 	Type path of the implementation class for anonymous objects
 *)
-let hxanon_type_path = (["php7"; "_Boot"], "HxAnon")
+let hxanon_type_path = (["php"; "_Boot"], "HxAnon")
 (**
 	Type path of the implementation class for closures
 *)
-let hxclosure_type_path = (["php7"; "_Boot"], "HxClosure")
+let hxclosure_type_path = (["php"; "_Boot"], "HxClosure")
 (**
 	Type path for special PHP extern class to support specific language expressions
 *)
-let syntax_type_path = (["php7"], "Syntax")
+let syntax_type_path = (["php"], "Syntax")
 (**
 	Special abstract which enables passing function arguments and return value by reference
 *)
-let ref_type_path = (["php7"], "Ref")
+let ref_type_path = (["php"], "Ref")
 (**
 	Type path of the implementation class for `Array<T>`
 *)
@@ -103,7 +103,7 @@ let array_type_path = ([], "Array")
 (**
 	Type path of the implementation class for `Array<T>`
 *)
-let native_array_type_path = (["php7"], "NativeArray")
+let native_array_type_path = (["php"], "NativeArray")
 (**
 	Type path of the `Void`
 *)
@@ -146,7 +146,7 @@ let is_void_type t = match follow t with TAbstract ({ a_path = void_type_path },
 let is_bool_type t = match follow t with TAbstract ({ a_path = bool_type_path }, _) -> true | _ -> false
 
 (**
-	Check if specified type is php7.NativeArray
+	Check if specified type is php.NativeArray
 *)
 let is_native_array_type t = match follow t with TAbstract ({ a_path = native_array_type_path }, _) -> true | _ -> false
 
@@ -233,7 +233,7 @@ let error_and_exit pos message =
 let rec is_dynamic_type (target:Type.t) = match follow target with TDynamic _ -> true | _ -> false
 
 (**
-	Check if `target` is `php7.Ref`
+	Check if `target` is `php.Ref`
 *)
 let is_ref (target:Type.t) = match target with TAbstract ({ a_path = type_path }, _) -> type_path = ref_type_path | _ -> false
 
@@ -271,7 +271,7 @@ let is_string_type t = match follow t with TInst ({ cl_path = ([], "String") }, 
 let is_string expr = is_string_type expr.etype
 
 (**
-	Check if `expr` is an access to a method of special `php7.PHP` class
+	Check if `expr` is an access to a method of special `php.PHP` class
 *)
 let is_lang_extern expr =
 	match expr.eexpr with
@@ -319,7 +319,7 @@ let get_void ctx : Type.t =
 				| None -> fail dummy_pos __POS__
 
 (**
-	@return `tclass` instance for `php7.Boot`
+	@return `tclass` instance for `php.Boot`
 *)
 let boot = ref None
 let get_boot ctx : tclass =
@@ -2282,7 +2282,7 @@ class virtual type_builder ctx wrapper =
 						self#write "->phpClassName)";
 					end
 		(**
-			Write language specific expression declared in `php7.PHP` extern
+			Write language specific expression declared in `php.PHP` extern
 		*)
 		method private write_expr_call_lang_extern expr args =
 			let name = match expr.eexpr with
@@ -2309,7 +2309,7 @@ class virtual type_builder ctx wrapper =
 				| "keepVar" -> ()
 				| _ -> fail self#pos __POS__
 		(**
-			Writes splat operator (for `php7.Syntax.splat()`)
+			Writes splat operator (for `php.Syntax.splat()`)
 		*)
 		method private write_expr_lang_splat args =
 			match args with
@@ -2318,7 +2318,7 @@ class virtual type_builder ctx wrapper =
 					self#write_expr args_expr
 				| _ -> fail self#pos __POS__
 		(**
-			Writes error suppression operator (for `php7.Syntax.suppress()`)
+			Writes error suppression operator (for `php.Syntax.suppress()`)
 		*)
 		method private write_expr_lang_suppress args =
 			match args with
@@ -2327,14 +2327,14 @@ class virtual type_builder ctx wrapper =
 					self#write_expr args_expr
 				| _ -> fail self#pos __POS__
 		(**
-			Writes native array declaration (for `php7.Syntax.arrayDecl()`)
+			Writes native array declaration (for `php.Syntax.arrayDecl()`)
 		*)
 		method private write_expr_lang_array_decl args =
 			self#write "[";
 			write_args buffer (fun e -> self#write_expr e) args;
 			self#write "]"
 		(**
-			Writes a call to instance method (for `php7.Syntax.call()`)
+			Writes a call to instance method (for `php.Syntax.call()`)
 		*)
 		method private write_expr_lang_call args =
 			match args with
@@ -2347,7 +2347,7 @@ class virtual type_builder ctx wrapper =
 					self#write ")"
 				| _ -> fail self#pos __POS__
 		(**
-			Writes a call to a static method (for `php7.Syntax.staticCall()`)
+			Writes a call to a static method (for `php.Syntax.staticCall()`)
 		*)
 		method private write_expr_lang_static_call args =
 			match args with
@@ -2360,7 +2360,7 @@ class virtual type_builder ctx wrapper =
 					self#write ")"
 				| _ -> fail self#pos __POS__
 		(**
-			Writes field access for reading (for `php7.Syntax.getField()`)
+			Writes field access for reading (for `php.Syntax.getField()`)
 		*)
 		method private write_expr_lang_get_field args =
 			match args with
@@ -2371,7 +2371,7 @@ class virtual type_builder ctx wrapper =
 					self#write "}"
 				| _ -> fail self#pos __POS__
 		(**
-			Writes field access for writing (for `php7.Syntax.setField()`)
+			Writes field access for writing (for `php.Syntax.setField()`)
 		*)
 		method private write_expr_lang_set_field args =
 			match args with
@@ -2384,7 +2384,7 @@ class virtual type_builder ctx wrapper =
 					self#write_expr value_expr
 				| _ -> fail self#pos __POS__
 		(**
-			Writes static field access for reading (for `php7.Syntax.getStaticField()`)
+			Writes static field access for reading (for `php.Syntax.getStaticField()`)
 		*)
 		method private write_expr_lang_get_static_field args =
 			match args with
@@ -2395,7 +2395,7 @@ class virtual type_builder ctx wrapper =
 					self#write "}"
 				| _ -> fail self#pos __POS__
 		(**
-			Writes static field access for writing (for `php7.Syntax.setField()`)
+			Writes static field access for writing (for `php.Syntax.setField()`)
 		*)
 		method private write_expr_lang_set_static_field args =
 			match args with
@@ -2408,7 +2408,7 @@ class virtual type_builder ctx wrapper =
 					self#write_expr value_expr
 				| _ -> fail self#pos __POS__
 		(**
-			Writes `new` expression with class name taken local variable (for `php7.Syntax.construct()`)
+			Writes `new` expression with class name taken local variable (for `php.Syntax.construct()`)
 		*)
 		method private write_expr_lang_construct args =
 			let (class_expr, args) = match args with
@@ -2421,7 +2421,7 @@ class virtual type_builder ctx wrapper =
 			write_args buffer (fun e -> self#write_expr e) args;
 			self#write ")"
 		(**
-			Writes native php type conversion to output buffer (e.g. `php7.Syntax.int()`)
+			Writes native php type conversion to output buffer (e.g. `php.Syntax.int()`)
 		*)
 		method private write_expr_lang_cast type_name args =
 			match args with
@@ -2437,14 +2437,14 @@ class virtual type_builder ctx wrapper =
 					if add_parentheses then self#write ")"
 				| _ -> fail self#pos __POS__
 		(**
-			Generates binary operation to output buffer (for `php7.Syntax.binop()`)
+			Generates binary operation to output buffer (for `php.Syntax.binop()`)
 		*)
 		method private write_expr_lang_binop args =
 			match args with
 				| val_expr1 :: operator_expr :: val_expr2 :: [] ->
 					let operator = match operator_expr.eexpr with
 						| TConst (TString operator) -> operator
-						| _ -> error_and_exit self#pos "Second argument for php7.Syntax.binop() must be a constant string"
+						| _ -> error_and_exit self#pos "Second argument for php.Syntax.binop() must be a constant string"
 					in
 					self#write "(";
 					self#write_expr val_expr1;
@@ -2453,7 +2453,7 @@ class virtual type_builder ctx wrapper =
 					self#write ")"
 				| _ -> fail self#pos __POS__
 		(**
-			Writes `instanceof` expression to output buffer (for `php7.Syntax.instanceof()`)
+			Writes `instanceof` expression to output buffer (for `php.Syntax.instanceof()`)
 		*)
 		method private write_expr_lang_instanceof args =
 			match args with
@@ -2469,7 +2469,7 @@ class virtual type_builder ctx wrapper =
 					)
 				| _ -> fail self#pos __POS__
 		(**
-			Writes `foreach` expression to output buffer (for `php7.Syntax.foreach()`)
+			Writes `foreach` expression to output buffer (for `php.Syntax.foreach()`)
 		*)
 		method private write_expr_lang_foreach args =
 			match args with

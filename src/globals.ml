@@ -14,7 +14,6 @@ type platform =
 	| Neko
 	| Flash
 	| Php
-	| Php7
 	| Cpp
 	| Cs
 	| Java
@@ -40,7 +39,6 @@ let platforms = [
 	Neko;
 	Flash;
 	Php;
-	Php7;
 	Cpp;
 	Cs;
 	Java;
@@ -55,7 +53,6 @@ let platform_name = function
 	| Neko -> "neko"
 	| Flash -> "flash"
 	| Php -> "php"
-	| Php7 -> "php7"
 	| Cpp -> "cpp"
 	| Cs -> "cs"
 	| Java -> "java"
