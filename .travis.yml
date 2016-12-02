@@ -53,6 +53,9 @@ install_linux: &install_linux
   - mysql -u root -e "create user travis@localhost identified by '';"
   - mysql -u root -e "create database haxe_test;"
   - mysql -u root -e "grant all on haxe_test.* to travis@localhost;"
+  # Setup JDK
+  - jdk_switcher use oraclejdk7
+  - java -version
   # Build haxe
   - make package_src -s
   - make -s
