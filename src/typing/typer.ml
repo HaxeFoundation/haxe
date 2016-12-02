@@ -1801,10 +1801,10 @@ let unify_int ctx e k =
 	with Typeload.Generic_Exception (msg,p) ->
 		error msg p)
 
-let call_to_string ctx e =
+let call_to_string ctx ?(resume=false) e =
 	(* Ignore visibility of the toString field. *)
 	ctx.meta <- (Meta.PrivateAccess,[],e.epos) :: ctx.meta;
-	let acc = type_field ctx e "toString" e.epos MCall in
+	let acc = type_field ~resume ctx e "toString" e.epos MCall in
 	ctx.meta <- List.tl ctx.meta;
 	!build_call_ref ctx acc [] (WithType ctx.t.tstring) e.epos
 
@@ -4077,8 +4077,7 @@ and type_call ctx e el (with_type:with_type) p =
 					| TDynamic _ -> raise Not_found
 					| _ -> ()
 				end;
-				let acc = type_field ~resume:true ctx e "toString" p MCall in
-				build_call ctx acc [] (WithType ctx.t.tstring) p
+				call_to_string ~resume:true ctx e
 			with Not_found ->
 				e
 			in
