@@ -49,7 +49,7 @@ install_linux: &install_linux
   - sudo make install
   - popd
   # Setup database
-  - travis_retry sudo apt-get install mysql-server -y
+  - travis_retry sudo apt-get install mysql-server-5.6 -y
   - mysql -u root -e "create user travis@localhost identified by '';"
   - mysql -u root -e "create database haxe_test;"
   - mysql -u root -e "grant all on haxe_test.* to travis@localhost;"
