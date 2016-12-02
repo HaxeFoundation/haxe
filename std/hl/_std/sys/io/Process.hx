@@ -21,7 +21,7 @@
  */
 package sys.io;
 
-private typedef ProcessHandle = hl.types.NativeAbstract<"hl_process">;
+private typedef ProcessHandle = hl.Abstract<"hl_process">;
 
 private class Stdin extends haxe.io.Output {
 
