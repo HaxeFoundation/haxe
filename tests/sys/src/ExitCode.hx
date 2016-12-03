@@ -9,6 +9,8 @@ class ExitCode {
 	static public var bin:String =
 	#if neko
 		"bin/neko/ExitCode.n";
+	#elseif hl
+		"bin/hl/ExitCode.hl";
 	#elseif cpp
 		#if debug
 			"bin/cpp/ExitCode-debug";
