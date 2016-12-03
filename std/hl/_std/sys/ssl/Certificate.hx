@@ -2,7 +2,7 @@ package sys.ssl;
 import sys.ssl.Lib;
 
 @:noDoc
-typedef CertificatePtr = hl.types.NativeAbstract<"hl_ssl_cert">;
+typedef CertificatePtr = hl.Abstract<"hl_ssl_cert">;
 
 @:coreApi
 class Certificate {
@@ -115,16 +115,16 @@ class Certificate {
 	}
 
 	@:hlNative("ssl","cert_load_defaults") static function cert_load_defaults() : CertificatePtr { return null; }
-	@:hlNative("ssl","cert_load_file") static function cert_load_file( file : hl.types.Bytes ) : CertificatePtr { return null; }
-	@:hlNative("ssl","cert_load_path") static function cert_load_path( path : hl.types.Bytes ) : CertificatePtr { return null; }
-	@:hlNative("ssl","cert_get_subject") static function cert_get_subject( cert : CertificatePtr, obj : hl.types.Bytes ) : hl.types.Bytes { return null; }
-	@:hlNative("ssl","cert_get_issuer") static function cert_get_issuer( cert : CertificatePtr, obj : hl.types.Bytes ) : hl.types.Bytes { return null; }
-	@:hlNative("ssl","cert_get_altnames") static function cert_get_altnames( cert : CertificatePtr ) : hl.types.NativeArray<hl.types.Bytes> { return null; }
-	@:hlNative("ssl","cert_get_notbefore") static function cert_get_notbefore( cert : CertificatePtr ) : hl.types.NativeArray<Int> { return null; }
-	@:hlNative("ssl","cert_get_notafter") static function cert_get_notafter( cert : CertificatePtr ) : hl.types.NativeArray<Int> { return null; }
+	@:hlNative("ssl","cert_load_file") static function cert_load_file( file : hl.Bytes ) : CertificatePtr { return null; }
+	@:hlNative("ssl","cert_load_path") static function cert_load_path( path : hl.Bytes ) : CertificatePtr { return null; }
+	@:hlNative("ssl","cert_get_subject") static function cert_get_subject( cert : CertificatePtr, obj : hl.Bytes ) : hl.Bytes { return null; }
+	@:hlNative("ssl","cert_get_issuer") static function cert_get_issuer( cert : CertificatePtr, obj : hl.Bytes ) : hl.Bytes { return null; }
+	@:hlNative("ssl","cert_get_altnames") static function cert_get_altnames( cert : CertificatePtr ) : hl.NativeArray<hl.Bytes> { return null; }
+	@:hlNative("ssl","cert_get_notbefore") static function cert_get_notbefore( cert : CertificatePtr ) : hl.NativeArray<Int> { return null; }
+	@:hlNative("ssl","cert_get_notafter") static function cert_get_notafter( cert : CertificatePtr ) : hl.NativeArray<Int> { return null; }
 	@:hlNative("ssl","cert_get_next") static function cert_get_next( cert : CertificatePtr ) : Null<CertificatePtr> { return null; }
-	@:hlNative("ssl","cert_add_pem") static function cert_add_pem( cert : Null<CertificatePtr>, data : hl.types.Bytes ) : CertificatePtr { return null; }
-	@:hlNative("ssl","cert_add_der") static function cert_add_der( cert : Null<CertificatePtr>, data : hl.types.Bytes, len : Int ) : CertificatePtr { return null; }
+	@:hlNative("ssl","cert_add_pem") static function cert_add_pem( cert : Null<CertificatePtr>, data : hl.Bytes ) : CertificatePtr { return null; }
+	@:hlNative("ssl","cert_add_der") static function cert_add_der( cert : Null<CertificatePtr>, data : hl.Bytes, len : Int ) : CertificatePtr { return null; }
 	
 
 }

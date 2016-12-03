@@ -2,7 +2,7 @@ package sys.ssl;
 import sys.ssl.Lib;
 
 @:noDoc
-typedef KeyPtr = hl.types.NativeAbstract<"hl_ssl_pkey">;
+typedef KeyPtr = hl.Abstract<"hl_ssl_pkey">;
 
 @:coreApi
 class Key {
@@ -30,7 +30,7 @@ class Key {
 		return new Key( key_from_der( @:privateAccess data.b, @:privateAccess data.length, isPublic ) );
 	}
 
-	@:hlNative("ssl","key_from_pem") static function key_from_pem( data : hl.types.Bytes, pub : Bool, pass : Null<hl.types.Bytes> ) : KeyPtr { return null; }
-	@:hlNative("ssl","key_from_der") static function key_from_der( data : hl.types.Bytes, len : Int, pub : Bool ) : KeyPtr { return null; }
+	@:hlNative("ssl","key_from_pem") static function key_from_pem( data : hl.Bytes, pub : Bool, pass : Null<hl.Bytes> ) : KeyPtr { return null; }
+	@:hlNative("ssl","key_from_der") static function key_from_der( data : hl.Bytes, len : Int, pub : Bool ) : KeyPtr { return null; }
 
 }

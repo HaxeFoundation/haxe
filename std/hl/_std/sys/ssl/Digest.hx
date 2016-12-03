@@ -20,8 +20,8 @@ class Digest {
 		return @:privateAccess dgst_verify( data.b, data.length, signature.b, signature.length, pubKey.__k, (alg:String).toUtf8() );
 	}
 
-	@:hlNative("ssl","dgst_make") static function dgst_make( data : hl.types.Bytes, len : Int, alg : hl.types.Bytes, size : hl.types.Ref<Int> ) : hl.types.Bytes { return null; }
-	@:hlNative("ssl","dgst_sign") static function dgst_sign( data : hl.types.Bytes, len : Int, key : sys.ssl.Key.KeyPtr, alg : hl.types.Bytes, size : hl.types.Ref<Int> ) : hl.types.Bytes { return null; }
-	@:hlNative("ssl","dgst_verify") static function dgst_verify( data : hl.types.Bytes, dlen : Int, sign : hl.types.Bytes, slen : Int, key : sys.ssl.Key.KeyPtr, alg : hl.types.Bytes ) : Bool { return false; }
+	@:hlNative("ssl","dgst_make") static function dgst_make( data : hl.Bytes, len : Int, alg : hl.Bytes, size : hl.Ref<Int> ) : hl.Bytes { return null; }
+	@:hlNative("ssl","dgst_sign") static function dgst_sign( data : hl.Bytes, len : Int, key : sys.ssl.Key.KeyPtr, alg : hl.Bytes, size : hl.Ref<Int> ) : hl.Bytes { return null; }
+	@:hlNative("ssl","dgst_verify") static function dgst_verify( data : hl.Bytes, dlen : Int, sign : hl.Bytes, slen : Int, key : sys.ssl.Key.KeyPtr, alg : hl.Bytes ) : Bool { return false; }
 	
 }

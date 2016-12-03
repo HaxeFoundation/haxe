@@ -3,9 +3,9 @@ import sys.ssl.Lib;
 import sys.ssl.Key.KeyPtr;
 import sys.ssl.Certificate.CertificatePtr;
 
-private typedef SocketHandle = hl.types.NativeAbstract<"hl_socket">;
-private typedef ConfigPtr = hl.types.NativeAbstract<"mbedtls_ssl_config">;
-private typedef ContextPtr = hl.types.NativeAbstract<"mbedtls_ssl_context">;
+private typedef SocketHandle = hl.Abstract<"hl_socket">;
+private typedef ConfigPtr = hl.Abstract<"mbedtls_ssl_config">;
+private typedef ContextPtr = hl.Abstract<"mbedtls_ssl_context">;
 
 @:keep
 private class SNICbResult {
@@ -49,7 +49,7 @@ private class SocketInput extends haxe.io.Input {
 		if( __s != null ) __s.close();
 	}
 	
-	@:hlNative("ssl","ssl_recv") static function ssl_recv( ssl : ContextPtr, bytes : hl.types.Bytes, pos : Int, len : Int ) : Int { return -1; }
+	@:hlNative("ssl","ssl_recv") static function ssl_recv( ssl : ContextPtr, bytes : hl.Bytes, pos : Int, len : Int ) : Int { return -1; }
 	@:hlNative("ssl","ssl_recv_char") static function ssl_recv_char( ssl : ContextPtr ) : Int { return -1; }
 }
 
@@ -84,7 +84,7 @@ private class SocketOutput extends haxe.io.Output {
 		if( __s != null ) __s.close();
 	}
 
-	@:hlNative("ssl","ssl_send") static function ssl_send( ssl : ContextPtr, bytes : hl.types.Bytes, pos : Int, len : Int ) : Int { return -1; }
+	@:hlNative("ssl","ssl_send") static function ssl_send( ssl : ContextPtr, bytes : hl.Bytes, pos : Int, len : Int ) : Int { return -1; }
 	@:hlNative("ssl","ssl_send_char") static function ssl_send_char( ssl : ContextPtr, c : Int ) : Int { return -1; }
 
 }
@@ -106,7 +106,7 @@ class Socket extends sys.net.Socket {
 	private var ownCert : Null<Certificate>;
 	private var ownKey : Null<Key>;
 	private var altSNIContexts : Null<Array<{match: String->Bool, key: Key, cert: Certificate}>>;
-	private var sniCallback : hl.types.Bytes -> SNICbResult;
+	private var sniCallback : hl.Bytes -> SNICbResult;
 	private var handshakeDone : Bool;
 
 	private override function init() : Void {
@@ -213,7 +213,7 @@ class Socket extends sys.net.Socket {
 			conf_set_cert( conf, @:privateAccess ownCert.__x, @:privateAccess ownKey.__k );
 
 		if ( altSNIContexts != null ) {
-			sniCallback = function(servername:hl.types.Bytes) : SNICbResult {
+			sniCallback = function(servername:hl.Bytes) : SNICbResult {
 				var servername = @:privateAccess String.fromUTF8(servername);
 				for( c in altSNIContexts ){
 					if( c.match(servername) )
@@ -238,7 +238,7 @@ class Socket extends sys.net.Socket {
 	@:hlNative("ssl","ssl_close") static function ssl_close( ssl : ContextPtr ) : Void {}
 	@:hlNative("ssl","ssl_handshake") static function ssl_handshake( ssl : ContextPtr ) : Int { return -1; }
 	@:hlNative("ssl","ssl_set_socket") static function ssl_set_socket( ssl : ContextPtr, socket : SocketHandle ) : Void { }
-	@:hlNative("ssl","ssl_set_hostname") static function ssl_set_hostname( ssl : ContextPtr, name : hl.types.Bytes ) : Void { }
+	@:hlNative("ssl","ssl_set_hostname") static function ssl_set_hostname( ssl : ContextPtr, name : hl.Bytes ) : Void { }
 	@:hlNative("ssl","ssl_get_peer_certificate") static function ssl_get_peer_certificate( ssl : ContextPtr ) : CertificatePtr { return null; }
 	
 	@:hlNative("ssl","conf_new") static function conf_new( server : Bool ) : ConfigPtr { return null; }
@@ -246,6 +246,6 @@ class Socket extends sys.net.Socket {
 	@:hlNative("ssl","conf_set_ca") static function conf_set_ca( conf : ConfigPtr, ca : CertificatePtr ) : Void { }
 	@:hlNative("ssl","conf_set_verify") static function conf_set_verify( conf : ConfigPtr, mode : Int ) : Void { }
 	@:hlNative("ssl","conf_set_cert") static function conf_set_cert( conf : ConfigPtr, cert : CertificatePtr, pkey : KeyPtr ) : Void { }
-	@:hlNative("ssl","conf_set_servername_callback") static function conf_set_servername_callback( conf : ConfigPtr, cb : hl.types.Bytes -> SNICbResult ) : Void { }
+	@:hlNative("ssl","conf_set_servername_callback") static function conf_set_servername_callback( conf : ConfigPtr, cb : hl.Bytes -> SNICbResult ) : Void { }
 	
 }
