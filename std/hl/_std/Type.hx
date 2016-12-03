@@ -130,7 +130,7 @@ class Type {
 		} else {
 			narr = @:privateAccess aobj.array;
 		}
-		var v = @:privateAccess e.__type__.allocEnum(index, narr);
+		var v = @:privateAccess e.__type__.allocEnum(index, narr, a.length);
 		if( v == null ) throw "Constructor " + e.__ename__ +"." + e.__constructs__[index] + " does not takes " + narr.length + " parameters";
 		return v;
 	}
