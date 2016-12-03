@@ -2,8 +2,8 @@ package sys.ssl;
 import sys.ssl.Lib;
 import sys.ssl.Key.KeyPtr;
 import sys.ssl.Certificate.CertificatePtr;
+import sys.net.Socket.SocketHandle;
 
-private typedef SocketHandle = hl.Abstract<"hl_socket">;
 private typedef ConfigPtr = hl.Abstract<"mbedtls_ssl_config">;
 private typedef ContextPtr = hl.Abstract<"mbedtls_ssl_context">;
 

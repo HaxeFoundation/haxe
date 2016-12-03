@@ -23,9 +23,9 @@ package sys.net;
 import haxe.io.Error;
 
 #if doc_gen
-private enum SocketHandle { }
+@:noDoc enum SocketHandle { }
 #else
-private typedef SocketHandle = hl.Abstract<"hl_socket">;
+@:noDoc typedef SocketHandle = hl.Abstract<"hl_socket">;
 #end
 
 private class SocketOutput extends haxe.io.Output {
