@@ -157,8 +157,12 @@ private class Stdout extends haxe.io.Input {
 		return _pid(p);
 	}
 
-	public function exitCode() : Int {
-		return _exit(p);
+	public function exitCode( ?block : Bool ) : Null<Int> {
+		var running = false;
+		var code = _exit(p, block == false ? new hl.Ref(running) : null);
+		if( block == false )
+			return running ? null : code;
+		return code;
 	}
 
 	public function close() : Void {
@@ -170,7 +174,7 @@ private class Stdout extends haxe.io.Input {
 	}
 
 	@:hlNative("std","process_run")	static function _run( cmd : hl.Bytes, args : hl.NativeArray<hl.Bytes> ) : ProcessHandle { return null; }
-	@:hlNative("std", "process_exit") static function _exit( p : ProcessHandle ) : Int { return 0; }
+	@:hlNative("std", "process_exit") static function _exit( p : ProcessHandle, running : hl.Ref<Bool> ) : Int { return 0; }
 	@:hlNative("std", "process_pid") static function _pid( p : ProcessHandle ) : Int { return 0; }
 	@:hlNative("std","process_close") static function _close( p : ProcessHandle ) : Void { }
 	@:hlNative("std","process_kill") static function _kill( p : ProcessHandle ) : Void { }

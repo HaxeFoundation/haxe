@@ -139,11 +139,12 @@ class Process {
 		untyped input.p = fp;
 	}
 
-	public function exitCode() : Int {
+	public function exitCode( ?block : Bool ) : Null<Int> {
 		if (null == cl)
 		{
 			st = untyped __call__('proc_get_status', p);
 			while(st[untyped 'running']) {
+				if( block == false ) return null;
 				Sys.sleep(0.01);
 				st = untyped __call__('proc_get_status', p);
 			}

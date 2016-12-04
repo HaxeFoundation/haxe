@@ -92,8 +92,16 @@ class Process {
 		return -1;
 	}
 
-	public function exitCode() : Int
+	public function exitCode( ?block : Bool ) : Null<Int>
 	{
+		if( block == false ) {
+			try {
+				return proc.exitValue();
+			} catch( e : Dynamic ) {
+				return null;
+			}
+		}
+		
 		cast(stdout, ProcessInput).bufferContents();
 		cast(stderr, ProcessInput).bufferContents();
 		try
