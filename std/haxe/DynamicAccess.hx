@@ -91,4 +91,9 @@ abstract DynamicAccess<T>(Dynamic<T>) from Dynamic<T> to Dynamic<T> {
 		Returns an array of `keys` in a structure.
 	**/
 	public inline function keys():Array<String> return Reflect.fields(this);
+	
+	/**
+		Returns a shallow copy of the structure
+	**/
+	public inline function copy():DynamicAccess<T> return Reflect.copy(this);
 }
