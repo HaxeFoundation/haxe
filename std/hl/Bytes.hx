@@ -113,8 +113,42 @@ package hl;
 		Please note that you need to retain the original unoffset'ed Bytes so it does not get garbage collected, unless the pointer was not GC allocated.
 	**/
 	@:hlNative("std","bytes_offset")
-	public function offset( pos : Int ) : Bytes {
+	public function offset( delta : Int ) : Bytes {
 		return null;
+	}
+
+	/**
+		Returns an offset between the two pointers. This might overflow in 64 bits if the addresses of the two pointers differs by more than 4GB
+	**/
+	@:hlNative("std","bytes_subtract")
+	public function subtract( other : Bytes ) : Int {
+		return 0;
+	}
+
+	@:hlNative("std", "bytes_address")
+	static function get_address( b : Bytes, high : Ref<Int> ) : Int {
+		return 0;
+	}
+
+	@:hlNative("std", "bytes_from_address")
+	static function from_address( low : Int, high : Int ) : Bytes {
+		return null;
+	}
+
+	/**
+		Creates an pointer at a given memory address (highly unsafe)
+	**/
+	public static inline function fromAddress( h : haxe.Int64 ) : Bytes {
+		return from_address(h.low, h.high);
+	}
+
+	/**
+		Returns the address value of the bytes. On 32 bit system the upper 32 bits will always be 0
+	**/
+	public function address() : haxe.Int64 {
+		var high = 0;
+		var low = get_address(this, high);
+		return haxe.Int64.make(high,low);
 	}
 
 	public function sub( pos : Int, size : Int ) {
