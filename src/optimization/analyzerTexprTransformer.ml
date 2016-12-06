@@ -246,6 +246,7 @@ let rec func ctx bb tf t p =
 		let e = List.fold_left (fun e f -> f e) e (List.rev fl) in
 		bb,e
 	and declare_var_and_assign bb v e p =
+		(* TODO: this section shouldn't be here because it can be handled as part of the normal value processing *)
 		let rec loop bb e = match e.eexpr with
 			| TParenthesis e1 ->
 				loop bb e1
@@ -255,6 +256,7 @@ let rec func ctx bb tf t p =
 						bb,e
 					| e1 :: el ->
 						let bb = block_element bb e1 in
+						if bb == g.g_unreachable then raise Exit;
 						loop2 bb el
 					| [] ->
 						assert false
@@ -264,27 +266,33 @@ let rec func ctx bb tf t p =
 			| _ ->
 				bb,e
 		in
-		let bb,e = loop bb e in
-		no_void v.v_type p;
-		let ev = mk (TLocal v) v.v_type p in
-		let was_assigned = ref false in
-		let assign e =
-			if not !was_assigned then begin
-				was_assigned := true;
-				add_texpr bb (mk (TVar(v,None)) ctx.com.basic.tvoid ev.epos);
-			end;
-			mk (TBinop(OpAssign,ev,e)) ev.etype ev.epos
-		in
-		let close = push_name v.v_name in
-		let bb = try
-			block_element_plus bb (map_values assign e) (fun e -> mk (TVar(v,Some e)) ctx.com.basic.tvoid ev.epos)
-		with Exit ->
-			let bb,e = value bb e in
-			add_texpr bb (mk (TVar(v,Some e)) ctx.com.basic.tvoid ev.epos);
+		let generate bb e =
+			no_void v.v_type p;
+			let ev = mk (TLocal v) v.v_type p in
+			let was_assigned = ref false in
+			let assign e =
+				if not !was_assigned then begin
+					was_assigned := true;
+					add_texpr bb (mk (TVar(v,None)) ctx.com.basic.tvoid ev.epos);
+				end;
+				mk (TBinop(OpAssign,ev,e)) ev.etype ev.epos
+			in
+			let close = push_name v.v_name in
+			let bb = try
+				block_element_plus bb (map_values assign e) (fun e -> mk (TVar(v,Some e)) ctx.com.basic.tvoid ev.epos)
+			with Exit ->
+				let bb,e = value bb e in
+				add_texpr bb (mk (TVar(v,Some e)) ctx.com.basic.tvoid ev.epos);
+				bb
+			in
+			close();
 			bb
 		in
-		close();
-		bb
+		try
+			let bb,e = loop bb e in
+			generate bb e
+		with Exit ->
+			g.g_unreachable
 	and block_element_plus bb (e,efinal) f =
 		let bb = block_element bb e in
 		let bb = match efinal with

@@ -104,7 +104,8 @@ class Process {
 		return NativeProcess.process_pid(p);
 	}
 
-	public function exitCode() : Int {
+	public function exitCode( ?block : Bool ) : Null<Int> {	
+		if( block == false ) throw "Non blocking exitCode() not supported on this platform";
 		return NativeProcess.process_exit(p);
 	}
 

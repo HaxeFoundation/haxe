@@ -97,7 +97,7 @@ abstract TypeKind(Int) {
 		return null;
 	}
 
-	@:hlNative("std", "alloc_enum") public function allocEnum( index : Int, args : NativeArray<Dynamic> ) : Dynamic {
+	@:hlNative("std", "alloc_enum") public function allocEnum( index : Int, args : NativeArray<Dynamic>, nargs : Int ) : Dynamic {
 		return null;
 	}
 

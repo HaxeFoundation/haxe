@@ -46,7 +46,9 @@ class Process {
 	public function getPid() : Int {
 		return p.pid;
 	}
-	public function exitCode() : Int {
+	public function exitCode( ?block : Bool ) : Null<Int> {
+		if( block == false )
+			return p.poll();
 		return p.wait();
 	}
 	public function close() : Void {
