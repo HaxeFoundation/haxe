@@ -19,6 +19,11 @@
 
 --next
 
+-php all_php7
+-xml php7.xml
+
+--next
+
 -php all_php
 -xml php.xml
 
