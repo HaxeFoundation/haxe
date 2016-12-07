@@ -123,7 +123,7 @@ class TestJs {
 	static inline function verify(s1) return s1 == "foo";
 
 	@:js('
-		var object = { \'hello\' : "world"};
+		var object = { "hello" : "world"};
 		TestJs["use"](object);
 	')
 	static function testQuotedStructureFields1() {
@@ -134,7 +134,7 @@ class TestJs {
 	}
 
 	@:js('
-		var object = { \'hello\' : "world", world : "hello", \'another\' : "quote"};
+		var object = { "hello" : "world", world : "hello", "another" : "quote"};
 		TestJs["use"](object);
 	')
 	static function testQuotedStructureFields2() {
@@ -142,6 +142,17 @@ class TestJs {
 			'hello': "world",
 			world: "hello",
 			"another": "quote"
+		}
+		use(object);
+	}
+
+	@:js('
+		var object = { "\'" : "world"};
+		TestJs["use"](object);
+	')
+	static function testQuotedStructureFields3() {
+		var object = {
+			"'": "world",
 		}
 		use(object);
 	}

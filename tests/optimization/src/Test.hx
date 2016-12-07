@@ -101,7 +101,7 @@ class Test {
 		var z = x.bar;
 	}
 
-	@:js('var x = { \'oh-my\' : "god"};')
+	@:js('var x = { "oh-my" : "god"};')
 	static function testStructureInlineInvalidField() {
         var x = {
             "oh-my": "god"
