@@ -85,7 +85,7 @@ class FileSystem {
 		return Global.is_dir(path);
 	}
 
-	public static function createDirectory( path : String ) : Void {
+	public static inline function createDirectory( path : String ) : Void {
 		Global.mkdir(path, 493, true);
 	}
 
