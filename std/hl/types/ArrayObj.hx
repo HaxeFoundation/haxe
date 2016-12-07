@@ -239,7 +239,7 @@ class ArrayObj<T> extends ArrayBase {
 
 	// called by compiler when accessing the array outside of its bounds, might trigger resize
 	function __expand( index : Int ) {
-		if( index < 0 ) throw "Invalid array access";
+		if( index < 0 ) throw "Invalid array index " + index;
 		var newlen = index + 1;
 		var size : Int = array.length;
 		if( newlen > size ) {
