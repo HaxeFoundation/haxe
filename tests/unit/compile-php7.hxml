@@ -1,0 +1,5 @@
+compile-each.hxml
+-main unit.TestMain
+-lib record-macros
+-php bin/php7
+-D php7

@@ -21,6 +21,7 @@ private typedef TravisConfig = {
 	var Js = "js";
 	var Lua = "lua";
 	var Php = "php";
+	var Php7 = "php7";
 	var Cpp = "cpp";
 	var Flash9 = "flash9";
 	var As3 = "as3";
@@ -844,15 +845,23 @@ class RunCi {
 						changeDirectory(sysDir);
 						runCommand("haxe", ["compile-neko.hxml"]);
 						runCommand("neko", ["bin/neko/sys.n"]);
-					case Php:
-						getSpodDependencies();
-						getPhpDependencies();
-						runCommand("haxe", ["compile-php.hxml"].concat(args));
-						runCommand("php", ["bin/php/index.php"]);
+					case Php7:
+							getSpodDependencies();
+							runCommand("haxe", ["compile-php7.hxml"].concat(args));
+							runCommand("php", ["bin/php7/index.php"]);
 
-						changeDirectory(sysDir);
-						runCommand("haxe", ["compile-php.hxml"]);
-						runCommand("php", ["bin/php/Main/index.php"]);
+							changeDirectory(sysDir);
+							runCommand("haxe", ["compile-php7.hxml"]);
+							runCommand("php", ["bin/php7/Main/index.php"]);
+					case Php:
+							getSpodDependencies();
+							getPhpDependencies();
+							runCommand("haxe", ["compile-php.hxml"].concat(args));
+							runCommand("php", ["bin/php/index.php"]);
+
+							changeDirectory(sysDir);
+							runCommand("haxe", ["compile-php.hxml"]);
+							runCommand("php", ["bin/php/Main/index.php"]);
 					case Python:
 						var pys = getPythonDependencies();
 

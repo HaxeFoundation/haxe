@@ -316,6 +316,8 @@ let get_signature com =
 		com.defines_signature <- Some s;
 		s
 
+let php7 com = com.platform = Php && PMap.exists "php7" com.defines
+
 module CompilationServer = struct
 	type cache = {
 		c_haxelib : (string list, string list) Hashtbl.t;
@@ -705,11 +707,17 @@ let get_config com =
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
 		}
 	| Php ->
-		{
-			default_config with
-			pf_static = false;
-			pf_pad_nulls = true;
-		}
+		if php7 com then
+			{
+				default_config with
+				pf_static = false;
+			}
+		else
+			{
+				default_config with
+				pf_static = false;
+				pf_pad_nulls = true;
+			}
 	| Cpp ->
 		{
 			default_config with

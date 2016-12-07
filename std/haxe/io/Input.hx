@@ -65,17 +65,17 @@ class Input {
 			throw Error.OutsideBounds;
 		try {
 			while( k > 0 ) {
-			    #if neko
-				    untyped __dollar__sset(b,pos,readByte());
-			    #elseif php
-				    b.set(pos, readByte());
-			    #elseif cpp
-				    b[pos] = untyped readByte();
-			    #else
-				    b[pos] = cast readByte();
-			    #end
-			    pos++;
-			    k--;
+				#if neko
+					untyped __dollar__sset(b,pos,readByte());
+				#elseif php
+					b.set(pos, readByte());
+				#elseif cpp
+					b[pos] = untyped readByte();
+				#else
+					b[pos] = cast readByte();
+				#end
+				pos++;
+				k--;
 			}
 		} catch (eof: haxe.io.Eof){}
 		return len-k;
@@ -284,7 +284,7 @@ class Input {
 		// php will overflow integers.  Convert them back to signed 32-bit ints.
 		var n = bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
 		if (n & 0x80000000 != 0)
-		    return ( n | 0x80000000);
+			return ( n | 0x80000000);
 		else return n;
 #elseif lua
 		var n = bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
@@ -317,11 +317,11 @@ class Input {
 
 #if (flash || js || python)
 	function getDoubleSig(bytes:Array<Int>)
-    {
-        return (((bytes[1]&0xF) << 16) | (bytes[2] << 8) | bytes[3] ) * 4294967296. +
-            (bytes[4] >> 7) * 2147483648 +
-            (((bytes[4]&0x7F) << 24) | (bytes[5] << 16) | (bytes[6] << 8) | bytes[7]);
-    }
+	{
+		return (((bytes[1]&0xF) << 16) | (bytes[2] << 8) | bytes[3] ) * 4294967296. +
+			(bytes[4] >> 7) * 2147483648 +
+			(((bytes[4]&0x7F) << 24) | (bytes[5] << 16) | (bytes[6] << 8) | bytes[7]);
+	}
 #end
 
 }

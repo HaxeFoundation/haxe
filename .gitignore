@@ -63,6 +63,7 @@
 /tests/unit/node_modules/
 
 /haxe.sublime*
+.idea
 build.bat
 /.vscode
 tests/unit/compile.php.hxml
@@ -73,6 +74,7 @@ tests/unit/unit.py
 tests/unit/unit.py.res1.txt
 tests/unit/unit.py.res2.bin
 tests/sys/bin/
+/tests/sys/dump/
 tests/optimization/dump/
 tests/misc/projects/*/*.n
 tests/unit/bin/
@@ -89,3 +91,5 @@ tests/misc/projects/Issue4070/cpp/
 /tests/misc/eventLoop/eventLoop.py
 /tests/misc/eventLoop/php
 *.vscode/
+
+/tests/sys/temp

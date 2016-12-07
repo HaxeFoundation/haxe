@@ -901,7 +901,7 @@ let add_meta_field ctx t = match t with
 			f.cf_expr <- Some e;
 			let can_deal_with_interface_metadata () = match ctx.com.platform with
 				| Flash when Common.defined ctx.com Define.As3 -> false
-				| Php -> false
+				| Php when not (Common.php7 ctx.com) -> false
 				| _ -> true
 			in
 			if c.cl_interface && not (can_deal_with_interface_metadata()) then begin

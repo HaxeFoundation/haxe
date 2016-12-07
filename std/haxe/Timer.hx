@@ -179,7 +179,7 @@ class Timer {
 			return Sys.cpuTime();
 		#elseif sys
 			return Sys.time();
-		
+
 		#else
 			return 0;
 		#end

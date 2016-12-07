@@ -114,16 +114,16 @@ class DateTools {
 		supported.
 
 		```haxe
-		var t = DateTools.format(Date.now(), "%Y-%m-%d_%H:%M:%S"); 
+		var t = DateTools.format(Date.now(), "%Y-%m-%d_%H:%M:%S");
 		// 2016-07-08_14:44:05
 
-		var t = DateTools.format(Date.now(), "%r"); 
+		var t = DateTools.format(Date.now(), "%r");
 		// 02:44:05 PM
 
-		var t = DateTools.format(Date.now(), "%T"); 
+		var t = DateTools.format(Date.now(), "%T");
 		// 14:44:05
 
-		var t = DateTools.format(Date.now(), "%F"); 
+		var t = DateTools.format(Date.now(), "%F");
 		// 2016-07-08
 		```
 	**/

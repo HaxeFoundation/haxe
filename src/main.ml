@@ -277,7 +277,14 @@ module Initialize = struct
 				add_std "lua";
 				"lua"
 			| Php ->
-				add_std "php";
+				if Common.php7 com then
+					begin
+						com.package_rules <- PMap.add "php" (Directory "php7") com.package_rules;
+						com.package_rules <- PMap.add "php7" Forbidden com.package_rules;
+						add_std "php7"
+					end
+				else
+					add_std "php";
 				"php"
 			| Cpp ->
 				Common.define_value com Define.HxcppApiLevel "331";
@@ -346,7 +353,10 @@ let generate tctx ext xml_out interp swf_header =
 		| Lua ->
 			Genlua.generate,"lua"
 		| Php ->
-			Genphp.generate,"php"
+			if Common.php7 com then
+				Genphp7.generate,"php"
+			else
+				Genphp.generate,"php"
 		| Cpp ->
 			Gencpp.generate,"cpp"
 		| Cs ->
