@@ -32,7 +32,7 @@ class ImportAll {
 		case "php7":
 			if( !Context.defined("php7") ) return;
 		case "php":
-			if( !Context.defined("php") ) return;
+			if( !Context.defined("php") || Context.defined("php7") ) return;
 		case "neko":
 			if( !Context.defined("neko") ) return;
 		case "js":
@@ -84,6 +84,9 @@ class ImportAll {
 					case "haxe.remoting.SocketWrapper": if( !Context.defined("flash") ) continue;
 					case "haxe.remoting.SyncSocketConnection": if( !(Context.defined("neko") || Context.defined("php") || Context.defined("cpp")) ) continue;
 					case "sys.db.Sqlite" | "sys.db.Mysql" | "cs.db.AdoNet": continue;
+					}
+					if( Context.defined("php7") && cl.indexOf("php7.") == 0 ) {
+						cl = "php." + cl.substr("php7.".length);
 					}
 					Context.getModule(cl);
 				} else if( sys.FileSystem.isDirectory(p + "/" + file) )

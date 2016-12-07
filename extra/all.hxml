@@ -19,6 +19,7 @@
 
 --next
 
+-D php7
 -php all_php7
 -xml php7.xml
 

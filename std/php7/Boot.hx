@@ -262,7 +262,7 @@ class Boot {
 
 	/**
 		Implementation for `cast(value, Class<Dynamic>)`
-		@throws HException if `value` cannot be casted to this type
+		@throws HxException if `value` cannot be casted to this type
 	**/
 	public static function typedCast( hxClass:HxClass, value:Dynamic ) : Dynamic {
 		switch (hxClass.phpClassName) {
