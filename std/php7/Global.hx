@@ -632,6 +632,11 @@ extern class Global {
 	static function file_exists( filename:String ) : Bool;
 
 	/**
+		@see http://php.net/manual/en/function.clearstatcache.php
+	**/
+	static function clearstatcache( clear_realpath_cache:Bool = false, ?filename:String ) : Bool;
+
+	/**
 		@see http://php.net/manual/en/function.fstat.php
 	**/
 	static function fstat( handle:Resource ) : NativeArray;

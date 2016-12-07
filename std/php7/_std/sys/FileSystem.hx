@@ -85,19 +85,8 @@ class FileSystem {
 		return Global.is_dir(path);
 	}
 
-	public static inline function createDirectory( path : String ) : Void {
-		var path = Path.addTrailingSlash(path);
-		var _p = null;
-		var parts = [];
-		while (path != (_p = Path.directory(path))) {
-			parts.unshift(path);
-			path = _p;
-		}
-		for (part in parts) {
-			if (part.charCodeAt(part.length - 1) != ":".code && !exists(part)) {
-				Syntax.suppress(Global.mkdir(part, 493)); // php default is 0777, neko is 0755
-			}
-		}
+	public static function createDirectory( path : String ) : Void {
+		Global.mkdir(path, 493, true);
 	}
 
 	public static inline function deleteFile( path : String ) : Void {
@@ -117,6 +106,7 @@ class FileSystem {
 				list.push(file);
 			}
 		}
+		Global.closedir(dir);
         return list;
 	}
 }

@@ -89,8 +89,7 @@ import sys.io.FileInput;
 					cmd = [cmd].concat(args).map(StringTools.quoteUnixArg).join(" ");
 			}
 		}
-		var result = 0;
-		result = Boot.deref(result);
+		var result = Boot.deref(0);
 		Global.system(cmd, result);
 		return result;
 	}
