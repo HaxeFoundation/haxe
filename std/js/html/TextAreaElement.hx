@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `HTMLTextAreaElement` interface provides special properties and methods for manipulating the layout and presentation of `textarea` elements. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTextAreaElement> 
+**/
 @:native("HTMLTextAreaElement")
 extern class TextAreaElement extends Element
 {

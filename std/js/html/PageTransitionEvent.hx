@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	Page transition events fire when a webpage is being loaded or unloaded. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/PageTransitionEvent> 
+**/
 @:native("PageTransitionEvent")
 extern class PageTransitionEvent extends Event
 {

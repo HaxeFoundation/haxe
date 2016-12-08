@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	To get an object of this interface, call `getContext()` on a `canvas element`, supplying "2d" as the argument: 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D> 
+**/
 @:native("CanvasRenderingContext2D")
 extern class CanvasRenderingContext2D
 {

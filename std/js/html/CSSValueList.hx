@@ -24,10 +24,23 @@
 
 package js.html;
 
+/**
+	The `CSSValueList` interface derives from the `CSSValue` interface and provides the abstraction of an ordered collection of CSS values. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSValueList> 
+**/
 @:native("CSSValueList")
 extern class CSSValueList extends CSSValue implements ArrayAccess<CSSValue>
 {
+	
+	/**
+		An `unsigned long` representing the number of `CSSValues` in the list.
+	**/
 	var length(default,null) : Int;
 	
+	
+	/**
+		This method is used to retrieve a `CSSValue` by ordinal index. The order in this collection represents the order of the values in the CSS style property. If index is greater than or equal to the number of values in the list, this returns `null`.
+	**/
 	function item( index : Int ) : CSSValue;
 }

@@ -24,10 +24,23 @@
 
 package js.html.svg;
 
+/**
+	The` SVGAnimatedString `interface represent string attributes which can be animated from each SVG declaration. You need to create SVG attribute before doing anything else, everything should be declared inside this. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedString> 
+**/
 @:native("SVGAnimatedString")
 extern class AnimatedString
 {
+	
+	/**
+		This is a `DOMString` representing the base value. The base value of the given attribute before applying any animations. Setter throws DOMException.
+	**/
 	var baseVal : String;
+	
+	/**
+		This is a `DOMString` representing the animation value. If the given attribute or property is being animated it contains the current animated value of the attribute or property. If the given attribute or property is not currently being animated, it contains the same value as baseVal.
+	**/
 	var animVal(default,null) : String;
 	
 }

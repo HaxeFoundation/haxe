@@ -24,9 +24,18 @@
 
 package js.html;
 
+/**
+	The `HTMLTimeElement` interface provides special properties (beyond the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating `time` elements. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTimeElement> 
+**/
 @:native("HTMLTimeElement")
 extern class TimeElement extends Element
 {
+	
+	/**
+		Is a `DOMString` that reflects the `datetime` HTML attribute, containing a machine-readable form of the element's date and time value.
+	**/
 	var dateTime : String;
 	
 }

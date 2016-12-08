@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGRect` represents a rectangle. Rectangles consist of codex/code and codey/code coordinate pair identifying a minimum X value, a minimum Y value, and a width and height, which are constrained to be non-negative. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGRect> 
+**/
 @:native("SVGRect")
 extern class Rect
 {

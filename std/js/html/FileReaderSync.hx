@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `FileReaderSync` interface allows to read `File` or `Blob` objects in a synchronous way. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/FileReaderSync> 
+**/
 @:native("FileReaderSync")
 extern class FileReaderSync
 {

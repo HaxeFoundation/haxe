@@ -24,22 +24,63 @@
 
 package js.html;
 
+/**
+	The `Navigator` interface represents the state and the identity of the user agent. It allows scripts to query it and to register themselves to carry on some activities. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Navigator> 
+**/
 @:native("Navigator")
 extern class Navigator
 {
+	
+	/**
+		Returns a `Permissions` object that can be used to query and update permission status of APIs covered by the Permissions API.
+	**/
 	var permissions(default,null) : Permissions;
 	var mimeTypes(default,null) : MimeTypeArray;
 	var plugins(default,null) : PluginArray;
+	
+	/**
+		Reports the value of the user's do-not-track preference. When this value is "yes", your web site or application should not track the user.
+	**/
 	var doNotTrack(default,null) : String;
+	
+	/**
+		Returns a `BatteryManager` object you can use to get information about the battery charging status.
+	**/
 	var battery(default,null) : BatteryManager;
 	var maxTouchPoints(default,null) : Int;
+	
+	/**
+		Returns a string that represents the current operating system.
+	**/
 	var oscpu(default,null) : String;
+	
+	/**
+		Returns the vendor name of the current browser (e.g., "Netscape6").
+	**/
 	var vendor(default,null) : String;
+	
+	/**
+		Returns the vendor version number (e.g. "6.1").
+	**/
 	var vendorSub(default,null) : String;
+	
+	/**
+		Returns the build number of the current browser (e.g., "20060909").
+	**/
 	var productSub(default,null) : String;
+	
+	/**
+		Returns a boolean indicating whether cookies are enabled in the browser or not.
+	**/
 	var cookieEnabled(default,null) : Bool;
 	var buildID(default,null) : String;
 	var hardwareConcurrency(default,null) : Int;
+	
+	/**
+		Returns a `Geolocation` object allowing accessing the location of the device.
+	**/
 	var geolocation(default,null) : Geolocation;
 	var appCodeName(default,null) : String;
 	var appName(default,null) : String;

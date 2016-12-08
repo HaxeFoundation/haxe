@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGPreserveAspectRatio` interface corresponds to the `preserveAspectRatio` attribute, which is available for some of SVG's elements. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGPreserveAspectRatio> 
+**/
 @:native("SVGPreserveAspectRatio")
 extern class PreserveAspectRatio
 {

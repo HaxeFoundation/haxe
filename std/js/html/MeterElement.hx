@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The HTML `meter` elements expose the `HTMLMeterElement` interface, which provides special properties and methods (beyond the `HTMLElement` object interface they also have available to them by inheritance) for manipulating the layout and presentation of `meter` elements. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLMeterElement> 
+**/
 @:native("HTMLMeterElement")
 extern class MeterElement extends Element
 {

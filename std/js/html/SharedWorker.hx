@@ -24,9 +24,18 @@
 
 package js.html;
 
+/**
+	The `SharedWorker` interface represents a specific kind of worker that can be accessed from several browsing contexts, such as several windows, iframes or even workers. They implement an interface different than dedicated workers and have a different global scope, `SharedWorkerGlobalScope`. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker> 
+**/
 @:native("SharedWorker")
 extern class SharedWorker extends EventTarget
 {
+	
+	/**
+		Returns a `MessagePort` object used to communicate and control the shared worker.
+	**/
 	var port(default,null) : MessagePort;
 	var onerror : haxe.Constraints.Function;
 	

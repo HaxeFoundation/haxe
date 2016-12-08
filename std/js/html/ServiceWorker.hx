@@ -24,11 +24,28 @@
 
 package js.html;
 
+/**
+	The `ServiceWorker` interface of the ServiceWorker API provides a reference to a service worker. Multiple browsing contexts (e.g. pages, workers, etc.) can be associated with the same service worker, each through a unique `ServiceWorker` object. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorker> 
+**/
 @:native("ServiceWorker")
 extern class ServiceWorker extends EventTarget
 {
+	
+	/**
+		Returns the `ServiceWorker` serialized script URL defined as part of `ServiceWorkerRegistration`. The URL must be on the same origin as the document that registers the `ServiceWorker`.
+	**/
 	var scriptURL(default,null) : String;
+	
+	/**
+		Returns the state of the service worker. It returns one of the following values: `installing`, `installed,` `activating`, `activated`, or `redundant`.
+	**/
 	var state(default,null) : ServiceWorkerState;
+	
+	/**
+		An `EventListener` property called whenever an event of type `statechange` is fired; it is basically fired anytime the `ServiceWorker.state` changes.
+	**/
 	var onstatechange : haxe.Constraints.Function;
 	var onerror : haxe.Constraints.Function;
 	

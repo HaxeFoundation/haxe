@@ -24,10 +24,23 @@
 
 package js.html;
 
+/**
+	The `SpeechGrammar` interface of the Web Speech API represents a set of words or patterns of words that we want the recognition service to recognize. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechGrammar> 
+**/
 @:native("SpeechGrammar")
 extern class SpeechGrammar
 {
+	
+	/**
+		Sets and returns a string containing the grammar from within in the `SpeechGrammar` object instance.
+	**/
 	var src : String;
+	
+	/**
+		Sets and returns the weight of the `SpeechGrammar` object.
+	**/
 	var weight : Float;
 	
 	/** @throws DOMError */

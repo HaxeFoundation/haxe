@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGTSpanElement` interface provides access to the properties of `tspan` elements, as well as methods to manipulate them. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGTSpanElement> 
+**/
 @:native("SVGTSpanElement")
 extern class TSpanElement extends TextPositioningElement
 {

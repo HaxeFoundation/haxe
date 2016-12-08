@@ -24,12 +24,33 @@
 
 package js.html;
 
+/**
+	The `DOMPointReadOnly` interface specifies the standard properties used by `DOMPoint` to define a 2D or 3D point in a coordinate system. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMPointReadOnly> 
+**/
 @:native("DOMPointReadOnly")
 extern class DOMPointReadOnly
 {
+	
+	/**
+		The x coordinate of the `DOMPoint`.
+	**/
 	var x(default,null) : Float;
+	
+	/**
+		The y coordinate of the `DOMPoint`.
+	**/
 	var y(default,null) : Float;
+	
+	/**
+		The z coordinate of the `DOMPoint`.
+	**/
 	var z(default,null) : Float;
+	
+	/**
+		The perspective value of the `DOMPoint`.
+	**/
 	var w(default,null) : Float;
 	
 }

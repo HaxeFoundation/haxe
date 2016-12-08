@@ -24,8 +24,17 @@
 
 package js.html;
 
+/**
+	The `CanvasPattern` interface represents an opaque object describing a pattern, based on an image, a canvas or a video, created by the `CanvasRenderingContext2D.createPattern()` method. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CanvasPattern> 
+**/
 @:native("CanvasPattern")
 extern class CanvasPattern
 {
+	
+	/**
+		Applies an `SVGMatrix` representing a linear transform to the pattern.
+	**/
 	function setTransform( matrix : js.html.svg.Matrix ) : Void;
 }

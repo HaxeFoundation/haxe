@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGAnimatedLengthList` interface is used for attributes of type `SVGLengthList` which can be animated. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedLengthList> 
+**/
 @:native("SVGAnimatedLengthList")
 extern class AnimatedLengthList
 {

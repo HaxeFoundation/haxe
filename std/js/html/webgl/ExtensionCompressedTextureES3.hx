@@ -24,6 +24,11 @@
 
 package js.html.webgl;
 
+/**
+	The `WEBGL_compressed_texture_es3` extension is part of the WebGL API and exposes 10 ETC/EAC compressed texture formats. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_es3> 
+**/
 @:native("WEBGL_compressed_texture_es3")
 extern class ExtensionCompressedTextureES3
 {

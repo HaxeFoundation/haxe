@@ -24,9 +24,18 @@
 
 package js.html;
 
+/**
+	The `DedicatedWorkerGlobalScope` object (the `Worker` global scope) is accessible through the `self` keyword. Some additional global functions, namespaces objects, and constructors, not typically associated with the worker global scope, but available on it, are listed in the JavaScript Reference. See also: Functions available to workers. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DedicatedWorkerGlobalScope> 
+**/
 @:native("DedicatedWorkerGlobalScope")
 extern class DedicatedWorkerGlobalScope extends WorkerGlobalScope
 {
+	
+	/**
+		Is an `EventHandler` representing the code to be called when the `message` event is raised. These events are of type `MessageEvent` and will be called when the worker receives a message from the document that started it (i.e. from the `Worker.postMessage` method.)
+	**/
 	var onmessage : haxe.Constraints.Function;
 	
 	/** @throws DOMError */

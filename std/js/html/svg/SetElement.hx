@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGSetElement` interface corresponds to the `set` element. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGSetElement> 
+**/
 @:native("SVGSetElement")
 extern class SetElement extends AnimationElement
 {

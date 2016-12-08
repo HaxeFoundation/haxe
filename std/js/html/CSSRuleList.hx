@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	A `CSSRuleList` is an (indirect-modify only) array-like object containing an ordered collection of `CSSRule` objects. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSRuleList> 
+**/
 @:native("CSSRuleList")
 extern class CSSRuleList implements ArrayAccess<CSSRule>
 {

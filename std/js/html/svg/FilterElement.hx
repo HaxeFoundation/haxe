@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGFilterElement` interface provides access to the properties of `filter` elements, as well as methods to manipulate them. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFilterElement> 
+**/
 @:native("SVGFilterElement")
 extern class FilterElement extends Element
 {

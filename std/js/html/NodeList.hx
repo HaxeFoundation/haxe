@@ -24,10 +24,23 @@
 
 package js.html;
 
+/**
+	`NodeList` objects are collections of nodes such as those returned by `Node.childNodes` and the `document.querySelectorAll` method. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/NodeList> 
+**/
 @:native("NodeList")
 extern class NodeList implements ArrayAccess<Node>
 {
+	
+	/**
+		The number of nodes in the `NodeList`.
+	**/
 	var length(default,null) : Int;
 	
+	
+	/**
+		Returns an item in the list by its index, or `null` if the index is out-of-bounds; can be used as an alternative to simply accessing `nodeList[idx]` (which instead returns  `undefined` when `idx` is out-of-bounds).
+	**/
 	function item( index : Int ) : Node;
 }

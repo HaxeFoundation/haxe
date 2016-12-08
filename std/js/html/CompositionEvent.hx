@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The DOM `CompositionEvent` represents events that occur due to the user indirectly entering text. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CompositionEvent> 
+**/
 @:native("CompositionEvent")
 extern class CompositionEvent extends UIEvent
 {

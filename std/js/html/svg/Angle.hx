@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGAngle` interface is used to represent a value that can be an `angle` or `number` value. An `SVGAngle` reflected through the `animVal` attribute is always read only. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAngle> 
+**/
 @:native("SVGAngle")
 extern class Angle
 {
@@ -33,9 +38,37 @@ extern class Angle
 	static inline var SVG_ANGLETYPE_RAD : Int = 3;
 	static inline var SVG_ANGLETYPE_GRAD : Int = 4;
 	
+	
+	/**
+		The type of the value as specified by one of the `SVG_ANGLETYPE_*` constants defined on this interface.
+	**/
 	var unitType(default,null) : Int;
+	
+	/**
+		
+		 The value as a floating point value, in user units. Setting this attribute will cause `valueInSpecifiedUnits` and `valueAsString` to be updated automatically to reflect this setting.
+		
+		 Exceptions on setting: a `DOMException` with code `NO_MODIFICATION_ALLOWED_ERR` is raised when the length corresponds to a read only attribute or when the object itself is read only.
+		 
+	**/
 	var value : Float;
+	
+	/**
+		
+		 The value as a floating point value, in the units expressed by `unitType`. Setting this attribute will cause `value` and `valueAsString` to be updated automatically to reflect this setting.
+		
+		 Exceptions on setting: a `DOMException` with code `NO_MODIFICATION_ALLOWED_ERR` is raised when the length corresponds to a read only attribute or when the object itself is read only.
+		 
+	**/
 	var valueInSpecifiedUnits : Float;
+	
+	/**
+		
+		 The value as a `DOMString` value, in the units expressed by `unitType`. Setting this attribute will cause `value`, `valueInSpecifiedUnits` and `unitType` to be updated automatically to reflect this setting.
+		
+		 Exceptions on setting:
+		 a `DOMException` with code `SYNTAX_ERR` is raised if the assigned string cannot be parsed as a valid `angle`. a `DOMException` with code `NO_MODIFICATION_ALLOWED_ERR` is raised when the length corresponds to a read only attribute or when the object itself is read only.
+	**/
 	var valueAsString : String;
 	
 	/** @throws DOMError */

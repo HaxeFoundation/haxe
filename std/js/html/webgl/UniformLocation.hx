@@ -24,6 +24,11 @@
 
 package js.html.webgl;
 
+/**
+	The WebGLUniformLocation interface is part of the WebGL API and represents the location of a uniform variable in a shader program. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLUniformLocation> 
+**/
 @:native("WebGLUniformLocation")
 extern class UniformLocation
 {

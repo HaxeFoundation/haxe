@@ -24,13 +24,42 @@
 
 package js.html.webgl;
 
+/**
+	The OES_vertex_array_object extension is part of the WebGL API and provides vertex array objects (VAOs) which encapsulate vertex array states. These objects keep pointers to vertex data and provide names for different sets of vertex data. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/OES_vertex_array_object> 
+**/
 @:native("OES_vertex_array_object")
 extern class ExtensionVertexArrayObject
 {
 	static inline var VERTEX_ARRAY_BINDING_OES : Int = 34229;
 	
+	
+	/**
+		
+		 Creates a new `WebGLVertexArrayObjectOES`.
+		 
+	**/
 	function createVertexArrayOES() : VertexArrayObjectOES;
+	
+	/**
+		
+		 Deletes a given `WebGLVertexArrayObjectOES`.
+		 
+	**/
 	function deleteVertexArrayOES( arrayObject : VertexArrayObjectOES ) : Void;
+	
+	/**
+		
+		 Returns `true` if a given object is a `WebGLVertexArrayObjectOES`.
+		 
+	**/
 	function isVertexArrayOES( arrayObject : VertexArrayObjectOES ) : Bool;
+	
+	/**
+		
+		 Binds a given `WebGLVertexArrayObjectOES` to the buffer.
+		 
+	**/
 	function bindVertexArrayOES( arrayObject : VertexArrayObjectOES ) : Void;
 }

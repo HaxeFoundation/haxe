@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	`ArrayBufferView` is a helper type representing any of the following JavaScript `TypedArray` types: 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView> 
+**/
 @:native("ArrayBufferView")
 extern class ArrayBufferView
 {

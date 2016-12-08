@@ -24,6 +24,11 @@
 
 package js.html.webgl;
 
+/**
+	The `WEBGL_compressed_texture_etc1` extension is part of the WebGL API and exposes the ETC1 compressed texture format. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_etc1> 
+**/
 @:native("WEBGL_compressed_texture_etc1")
 extern class ExtensionCompressedTextureETC1
 {

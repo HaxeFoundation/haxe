@@ -24,10 +24,23 @@
 
 package js.html;
 
+/**
+	The `SpeechRecognitionResult` interface of the Web Speech API represents a single recognition match, which may contain multiple `SpeechRecognitionAlternative` objects. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionResult> 
+**/
 @:native("SpeechRecognitionResult")
 extern class SpeechRecognitionResult implements ArrayAccess<SpeechRecognitionAlternative>
 {
+	
+	/**
+		Returns the length of the "array" — the number of `SpeechRecognitionAlternative` objects contained in the result (also referred to as "n-best alternatives".)
+	**/
 	var length(default,null) : Int;
+	
+	/**
+		A `Boolean` that states whether this result is final (true) or not (false) — if so, then this is the final time this result will be returned; if not, then this result is an interim result, and may be updated later on.
+	**/
 	var isFinal(default,null) : Bool;
 	
 	function item( index : Int ) : SpeechRecognitionAlternative;

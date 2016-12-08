@@ -24,11 +24,28 @@
 
 package js.html;
 
+/**
+	The `DocumentType` interface represents a `Node` containing a doctype. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DocumentType> 
+**/
 @:native("DocumentType")
 extern class DocumentType extends Node
 {
+	
+	/**
+		...
+	**/
 	var name(default,null) : String;
+	
+	/**
+		...
+	**/
 	var publicId(default,null) : String;
+	
+	/**
+		...
+	**/
 	var systemId(default,null) : String;
 	
 	function remove() : Void;

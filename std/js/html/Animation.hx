@@ -24,30 +24,99 @@
 
 package js.html;
 
+/**
+	The `Animation` interface of the Web Animations API represents a single animation player and provides playback controls and a timeline for an animation node or source. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Animation> 
+**/
 @:native("Animation")
 extern class Animation extends EventTarget
 {
+	
+	/**
+		Gets and sets the `String` used to identify the animation.
+	**/
 	var id : String;
+	
+	/**
+		Gets and sets the `AnimationEffectReadOnly` associated with this animation. This will usually be a `KeyframeEffect` object.
+	**/
 	var effect(default,null) : AnimationEffectReadOnly;
+	
+	/**
+		Gets or sets the `AnimationTimeline` associated with this animation.
+	**/
 	var timeline(default,null) : AnimationTimeline;
+	
+	/**
+		Gets or sets the scheduled time when an animation's playback should begin.
+	**/
 	var startTime : Float;
+	
+	/**
+		The current time value of the animation in milliseconds, whether running or paused. If the animation lacks a `AnimationTimeline`, is inactive or hasn't been played yet, its value is `null`.
+	**/
 	var currentTime : Float;
+	
+	/**
+		Gets or sets the playback rate of the animation.
+	**/
 	var playbackRate : Float;
+	
+	/**
+		Returns an enumerated value describing the playback state of an animation.
+	**/
 	var playState(default,null) : AnimationPlayState;
+	
+	/**
+		Returns the current ready Promise for this animation.
+	**/
 	var ready(default,null) : Promise<Animation>;
+	
+	/**
+		Returns the current finished Promise for this animation.
+	**/
 	var finished(default,null) : Promise<Animation>;
+	
+	/**
+		Gets and sets the event handler for the `finish` event.
+	**/
 	var onfinish : haxe.Constraints.Function;
+	
+	/**
+		Gets and sets the event handler for the `cancel` event.
+	**/
 	var oncancel : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
 	function new( ?effect : KeyframeEffectReadOnly, ?timeline : AnimationTimeline ) : Void;
+	
+	/**
+		Clears all `KeyframeEffect` caused by this animation and aborts its playback.
+	**/
 	function cancel() : Void;
 	/** @throws DOMError */
+	
+	/**
+		Seeks either end of an animation, depending on whether the animation is playing or reversing.
+	**/
 	function finish() : Void;
 	/** @throws DOMError */
+	
+	/**
+		Starts or resumes playing of an animation, or begins the animation again if it previously finished.
+	**/
 	function play() : Void;
 	/** @throws DOMError */
+	
+	/**
+		Suspends playing of an animation.
+	**/
 	function pause() : Void;
 	/** @throws DOMError */
+	
+	/**
+		Reverses playback direction, stopping at the start of the animation. If the animation is finished or unplayed, it will play from end to beginning.
+	**/
 	function reverse() : Void;
 }

@@ -24,9 +24,18 @@
 
 package js.html.rtc;
 
+/**
+	The interface of the the WebRTC API provides an object represents a certificate that an `RTCPeerConnection` uses to authenticate. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCCertificate> 
+**/
 @:native("RTCCertificate")
 extern class Certificate
 {
+	
+	/**
+		Returns the expiration date of the certificate.
+	**/
 	var expires(default,null) : Int;
 	
 }

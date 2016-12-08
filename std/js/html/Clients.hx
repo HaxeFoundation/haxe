@@ -24,10 +24,27 @@
 
 package js.html;
 
+/**
+	The `Clients` interface of the Service Workers API represents a container for a list of `Client` objects. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Clients> 
+**/
 @:native("Clients")
 extern class Clients
 {
+	
+	/**
+		Gets a service worker client matching a given `id` and returns it in a `Promise`.
+	**/
 	function get( id : String ) : Promise<Dynamic>;
+	
+	/**
+		Gets a list of service worker clients and returns them in a `Promise`. Include the `options` parameter to return all service worker clients whose origin is the same as the associated service worker's origin. If `options` are not included, the method returns only the service worker clients controlled by the service worker. 
+	**/
 	function matchAll( ?options : ClientQueryOptions ) : Promise<Array<Client>>;
+	
+	/**
+		Allows an active Service Worker to set itself as the active worker for a client page when the worker and the page are in the same scope. 
+	**/
 	function claim() : Promise<Void>;
 }

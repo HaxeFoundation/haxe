@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGDescElement` interface corresponds to the `desc` element. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGDescElement> 
+**/
 @:native("SVGDescElement")
 extern class DescElement extends Element
 {

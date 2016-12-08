@@ -24,9 +24,18 @@
 
 package js.html;
 
+/**
+	The `MediaStream` interface represents a stream of media content. A stream consists of several tracks such as video or audio tracks. Each track is specified as an instance of `MediaStreamTrack`. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaStream> 
+**/
 @:native("MediaStream")
 extern class MediaStream extends EventTarget
 {
+	
+	/**
+		A `DOMString` containing 36 characters denoting a universally unique identifier (UUID) for the object.
+	**/
 	var id(default,null) : String;
 	var currentTime(default,null) : Float;
 	
@@ -35,8 +44,24 @@ extern class MediaStream extends EventTarget
 	@:overload( function( stream : MediaStream ) : Void {} )
 	function new( tracks : Array<MediaStreamTrack> ) : Void;
 	function getAudioTracks() : Array<AudioStreamTrack>;
+	
+	/**
+		Returns a list of the `MediaStreamTrack` objects stored in the `MediaStream` object that have their `kind` attribute set to `"video"`. The order is not defined, and may not only vary from one browser to another, but also from one call to another.
+	**/
 	function getVideoTracks() : Array<VideoStreamTrack>;
+	
+	/**
+		Returns a list of all `MediaStreamTrack` objects stored in the `MediaStream` object, regardless of the value of the `kind` attribute. The order is not defined, and may not only vary from one browser to another, but also from one call to another.
+	**/
 	function getTracks() : Array<MediaStreamTrack>;
+	
+	/**
+		Stores a copy of the `MediaStreamTrack` given as argument. If the track has already been added to the `MediaStream` object, nothing happens.
+	**/
 	function addTrack( track : MediaStreamTrack ) : Void;
+	
+	/**
+		Removes the `MediaStreamTrack` given as argument. If the track is not part of the MediaStream` object, nothing happens.
+	**/
 	function removeTrack( track : MediaStreamTrack ) : Void;
 }

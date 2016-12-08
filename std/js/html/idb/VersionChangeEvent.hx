@@ -24,6 +24,11 @@
 
 package js.html.idb;
 
+/**
+	The `IDBVersionChangeEvent` interface of the IndexedDB API indicates that the version of the database has changed, as the result of an `IDBOpenDBRequest.onupgradeneeded` event handler function. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBVersionChangeEvent> 
+**/
 @:native("IDBVersionChangeEvent")
 extern class VersionChangeEvent extends js.html.Event
 {

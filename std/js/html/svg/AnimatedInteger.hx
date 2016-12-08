@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGAnimatedInteger` interface is used for attributes of basic type integer which can be animated. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedInteger> 
+**/
 @:native("SVGAnimatedInteger")
 extern class AnimatedInteger
 {

@@ -24,9 +24,18 @@
 
 package js.html;
 
+/**
+	The `DOMError` interface describes an error object that contains an error name. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMError> 
+**/
 @:native("DOMError")
 extern class DOMError
 {
+	
+	/**
+		Returns a `DOMString` representing one of the error type names (see below).
+	**/
 	var name(default,null) : String;
 	var message(default,null) : String;
 	

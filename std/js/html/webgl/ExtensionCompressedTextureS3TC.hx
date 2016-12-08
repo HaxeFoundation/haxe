@@ -24,6 +24,11 @@
 
 package js.html.webgl;
 
+/**
+	The `WEBGL_compressed_texture_s3tc` extension is part of the WebGL API and exposes four S3TC compressed texture formats. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_s3tc> 
+**/
 @:native("WEBGL_compressed_texture_s3tc")
 extern class ExtensionCompressedTextureS3TC
 {

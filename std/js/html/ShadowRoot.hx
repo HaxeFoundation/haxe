@@ -24,10 +24,23 @@
 
 package js.html;
 
+/**
+	The `ShadowRoot` interface of the Shadow DOM API is the root node of a DOM subtree that is rendered separately from a document's main DOM tree. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ShadowRoot> 
+**/
 @:native("ShadowRoot")
 extern class ShadowRoot extends DocumentFragment
 {
+	
+	/**
+		The DOM tree inside the `ShadowRoot`.
+	**/
 	var innerHTML : String;
+	
+	/**
+		A DOM element to which the `ShadowRoot` is attatched.
+	**/
 	var host(default,null) : Element;
 	var olderShadowRoot(default,null) : ShadowRoot;
 	var applyAuthorStyles : Bool;

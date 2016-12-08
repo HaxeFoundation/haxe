@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	`XMLHttpRequestEventTarget` is the interface that describes the event handlers you can implement in an object that will handle events for an `XMLHttpRequest`. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequestEventTarget> 
+**/
 @:native("XMLHttpRequestEventTarget")
 extern class XMLHttpRequestEventTarget extends EventTarget
 {

@@ -27,7 +27,15 @@ package js.html.audio;
 @:native("ScriptProcessorNode")
 extern class ScriptProcessorNode extends AudioNode
 {
+	
+	/**
+		Represents the `EventHandler` to be called.
+	**/
 	var onaudioprocess : haxe.Constraints.Function;
+	
+	/**
+		Returns an integer representing both the input and output buffer size. Its value can be a power of 2 value in the range `256`–`16384`.
+	**/
 	var bufferSize(default,null) : Int;
 	
 }

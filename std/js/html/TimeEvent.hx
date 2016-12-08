@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	Extends Event. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/TimeEvent> 
+**/
 @:native("TimeEvent")
 extern class TimeEvent extends Event
 {

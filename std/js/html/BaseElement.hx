@@ -24,10 +24,23 @@
 
 package js.html;
 
+/**
+	The `HTMLBaseElement` interface contains the base URI for a document. This object inherits all of the properties and methods as described in the `HTMLElement` interface. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLBaseElement> 
+**/
 @:native("HTMLBaseElement")
 extern class BaseElement extends Element
 {
+	
+	/**
+		Is a `DOMString` that reflects the `href` HTML attribute, containing a base URL for relative URLs in the document.
+	**/
 	var href : String;
+	
+	/**
+		Is a `DOMString` that reflects the `target` HTML attribute, containing a default target browsing context or frame for elements that do not have a target reference specified.
+	**/
 	var target : String;
 	
 }

@@ -24,14 +24,35 @@
 
 package js.html;
 
+/**
+	The `FontFaceSet` interface of the CSS Font Loading API is an interface for loading font faces and checking their download statuses. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/FontFaceSet> 
+**/
 @:native("FontFaceSet")
 extern class FontFaceSet extends EventTarget
 {
 	var size(default,null) : Int;
+	
+	/**
+		An `EventListener` property called whenever an event of type `loading` is fired, indicating that a font face set has started to load.
+	**/
 	var onloading : haxe.Constraints.Function;
+	
+	/**
+		An `EventListener` property called whenever an event of type `loadingdone` is fired, indicating that a font face set has finished loading.
+	**/
 	var onloadingdone : haxe.Constraints.Function;
+	
+	/**
+		An `EventListener` property called whenever an event of type `loadingerror` is fired, indicating that an error occurred during the loading of a font face set.
+	**/
 	var onloadingerror : haxe.Constraints.Function;
 	var ready(default,null) : Promise<Void>;
+	
+	/**
+		Indicates the font face's loading status. It will be one of `'loading'` or `'loaded'`.
+	**/
 	var status(default,null) : FontFaceSetLoadStatus;
 	
 	/** @throws DOMError */

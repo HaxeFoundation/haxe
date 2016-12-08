@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGAnimatedAngle` interface is used for attributes of basic type angle which can be animated. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedAngle> 
+**/
 @:native("SVGAnimatedAngle")
 extern class AnimatedAngle
 {

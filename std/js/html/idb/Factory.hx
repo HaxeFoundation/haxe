@@ -24,6 +24,11 @@
 
 package js.html.idb;
 
+/**
+	In the following code snippet, we make a request to open a database, and include handlers for the success and error cases. For a full working example, see our To-do Notifications app (view example live.) 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBFactory> 
+**/
 @:native("IDBFactory")
 extern class Factory
 {

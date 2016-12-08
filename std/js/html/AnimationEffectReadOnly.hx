@@ -24,10 +24,23 @@
 
 package js.html;
 
+/**
+	The `AnimationEffectReadOnly` interface of the Web Animations API defines current and future animation effects like `KeyframeEffect`, which can be passed to `Animation` objects for playing, and `KeyframeEffectReadOnly` (which is used by CSS Animations and Transitions). 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectReadOnly> 
+**/
 @:native("AnimationEffectReadOnly")
 extern class AnimationEffectReadOnly
 {
+	
+	/**
+		The `AnimationEffectTimingReadOnly` object associated with the animation containing all the animation's timing values.
+	**/
 	var timing(default,null) : AnimationEffectTimingReadOnly;
 	
+	
+	/**
+		Returns the calculated timing properties for this Animation Effect.
+	**/
 	function getComputedTiming() : ComputedTimingProperties;
 }

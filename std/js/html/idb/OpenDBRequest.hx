@@ -24,10 +24,23 @@
 
 package js.html.idb;
 
+/**
+	No methods, but inherits methods from its parents `IDBRequest` and `EventTarget`. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBOpenDBRequest> 
+**/
 @:native("IDBOpenDBRequest")
 extern class OpenDBRequest extends Request
 {
+	
+	/**
+		The event handler for the blocked event. This event is triggered when the `upgradeneeded` event should be triggered because of a version change but the database is still in use (i.e. not closed) somewhere, even after the `versionchange` event was sent.
+	**/
 	var onblocked : haxe.Constraints.Function;
+	
+	/**
+		The event handler for the `upgradeneeded` event, fired when a database of a bigger version number than the existing stored database is loaded.
+	**/
 	var onupgradeneeded : haxe.Constraints.Function;
 	
 }

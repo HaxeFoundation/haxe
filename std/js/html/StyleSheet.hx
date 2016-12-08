@@ -24,15 +24,48 @@
 
 package js.html;
 
+/**
+	An object implementing the `StyleSheet` interface represents a single style sheet. CSS style sheets will further implement the more specialized `CSSStyleSheet` interface. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/StyleSheet> 
+**/
 @:native("StyleSheet")
 extern class StyleSheet
 {
+	
+	/**
+		Returns a `DOMString` representing the style sheet language for this style sheet.
+	**/
 	var type(default,null) : String;
+	
+	/**
+		Returns a `DOMString` representing the location of the stylesheet.
+	**/
 	var href(default,null) : String;
+	
+	/**
+		Returns a `Node` associating this style sheet with the current document.
+	**/
 	var ownerNode(default,null) : Node;
+	
+	/**
+		Returns a `StyleSheet` including this one, if any; returns `null` if there aren't any.
+	**/
 	var parentStyleSheet(default,null) : StyleSheet;
+	
+	/**
+		Returns a `DOMString` representing the advisory title of the current style sheet.
+	**/
 	var title(default,null) : String;
+	
+	/**
+		Returns a `MediaList` representing the intended destination medium for style information.
+	**/
 	var media(default,null) : MediaList;
+	
+	/**
+		Is a `Boolean` representing whether the current stylesheet has been applied or not.
+	**/
 	var disabled : Bool;
 	
 }

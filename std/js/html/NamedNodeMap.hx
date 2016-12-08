@@ -24,20 +24,57 @@
 
 package js.html;
 
+/**
+	The `NamedNodeMap` interface represents a collection of `Attr` objects. Objects inside a `NamedNodeMap` are not in any particular order, unlike `NodeList`, although they may be accessed by an index as in an array. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/NamedNodeMap> 
+**/
 @:native("NamedNodeMap")
 extern class NamedNodeMap implements ArrayAccess<Attr>
 {
+	
+	/**
+		Returns the amount of objects in the map.
+	**/
 	var length(default,null) : Int;
 	
+	
+	/**
+		Returns a `Attr`, corresponding to the given name.
+	**/
 	function getNamedItem( name : String ) : Attr;
 	/** @throws DOMError */
+	
+	/**
+		Replaces, or adds, the `Attr` identified in the map by the given name.
+	**/
 	function setNamedItem( arg : Attr ) : Attr;
 	/** @throws DOMError */
+	
+	/**
+		Removes the `Attr` identified by the given map.
+	**/
 	function removeNamedItem( name : String ) : Attr;
+	
+	/**
+		Returns the `Attr` at the given index, or `null` if the index is higher or equal to the number of nodes.
+	**/
 	function item( index : Int ) : Attr;
+	
+	/**
+		Returns a `Attr` identified by a namespace and related local name.
+	**/
 	function getNamedItemNS( namespaceURI : String, localName : String ) : Attr;
 	/** @throws DOMError */
+	
+	/**
+		Replaces, or adds, the `Attr` identified in the map by the given namespace and related local name.
+	**/
 	function setNamedItemNS( arg : Attr ) : Attr;
 	/** @throws DOMError */
+	
+	/**
+		Removes the `Attr` identified by the given namespace and related local name.
+	**/
 	function removeNamedItemNS( namespaceURI : String, localName : String ) : Attr;
 }

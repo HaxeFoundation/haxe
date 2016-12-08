@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGStyleElement` interface corresponds to the SVG `style` element. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGStyleElement> 
+**/
 @:native("SVGStyleElement")
 extern class StyleElement extends Element
 {

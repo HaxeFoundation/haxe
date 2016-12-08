@@ -24,6 +24,11 @@
 
 package js.html.webgl;
 
+/**
+	The WebGLRenderingContext interface provides the OpenGL ES 2.0 rendering context for the drawing surface of an HTML `canvas` element. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext> 
+**/
 @:native("WebGLRenderingContext")
 extern class RenderingContext
 {

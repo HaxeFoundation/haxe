@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGUseElement` interface provides access to the properties of `use` elements, as well as methods to manipulate them. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGUseElement> 
+**/
 @:native("SVGUseElement")
 extern class UseElement extends GraphicsElement
 {

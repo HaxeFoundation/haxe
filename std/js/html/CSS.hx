@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `CSS` interface holds useful CSS-related methods. No object with this interface are implemented: it contains only static methods and therefore is a utilitarian interface. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSS> 
+**/
 @:native("CSS")
 extern class CSS
 {

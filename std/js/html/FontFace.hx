@@ -24,21 +24,66 @@
 
 package js.html;
 
+/**
+	The `FontFace` interface represents a single usable font face. It allows control of the source of the font face, being a URL to an external resource, or a buffer; it also allows control of when the font face is loaded and its current status. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/FontFace> 
+**/
 @:native("FontFace")
 extern class FontFace
 {
+	
+	/**
+		Is a `DOMString` that contains the family of the font. It is equivalent to the `@font-face/family` descriptor.
+	**/
 	var family : String;
+	
+	/**
+		Is a `DOMString` that contains the style of the font. It is equivalent to the `@font-face/style` descriptor.
+	**/
 	var style : String;
+	
+	/**
+		Is a `DOMString` that contains the weight of the font. It is equivalent to the `@font-face/weight` descriptor.
+	**/
 	var weight : String;
+	
+	/**
+		Is a `DOMString` that contains how the font stretches. It is equivalent to the `@font-face/stretch` descriptor.
+	**/
 	var stretch : String;
+	
+	/**
+		Is a `DOMString` that contains the range of code encompassed the font. It is equivalent to the `@font-face/unicode-range` descriptor.
+	**/
 	var unicodeRange : String;
+	
+	/**
+		Is a `DOMString` that contains the variant of the font. It is equivalent to the `@font-face/range` descriptor.
+	**/
 	var variant : String;
+	
+	/**
+		Is a `DOMString` that contains the features of the font. It is equivalent to the `@font-face/feature-settings` descriptor.
+	**/
 	var featureSettings : String;
+	
+	/**
+		Returns an enumerated value indicating the status of the font. It can be one of the following: `"unloaded"`, `"loading"`, `"loaded"`, or `"error"`.
+	**/
 	var status(default,null) : FontFaceLoadStatus;
+	
+	/**
+		Returns a `Promise` to a `FontFace` that fulfills when the font is completely loaded and rejects when an error happens.
+	**/
 	var loaded(default,null) : Promise<FontFace>;
 	
 	/** @throws DOMError */
 	function new( family : String, source : haxe.extern.EitherType<String,haxe.extern.EitherType<ArrayBuffer,ArrayBufferView>>, ?descriptors : FontFaceDescriptors ) : Void;
 	/** @throws DOMError */
+	
+	/**
+		Loads the font, returning a `Promise` to a `FontFace` that fulfills when the font is completely loaded and rejects when an error happens.
+	**/
 	function load() : Promise<FontFace>;
 }

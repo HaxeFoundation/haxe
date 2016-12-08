@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	An `SVGPoint` represents a 2D or 3D point in the SVG coordinate system. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGPoint> 
+**/
 @:native("SVGPoint")
 extern class Point
 {

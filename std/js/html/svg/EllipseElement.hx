@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGEllipseElement` interface provides access to the properties of `ellipse` elements. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGEllipseElement> 
+**/
 @:native("SVGEllipseElement")
 extern class EllipseElement extends GraphicsElement
 {

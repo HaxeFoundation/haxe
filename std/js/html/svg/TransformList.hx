@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGTransformList` defines a list of `SVGTransform` objects. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGTransformList> 
+**/
 @:native("SVGTransformList")
 extern class TransformList implements ArrayAccess<Transform>
 {

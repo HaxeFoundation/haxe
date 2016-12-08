@@ -27,6 +27,10 @@ package js.html.idb;
 @:native("IDBCursorWithValue")
 extern class CursorWithValue extends Cursor
 {
+	
+	/**
+		Returns the value of the current cursor.
+	**/
 	var value(default,null) : Dynamic;
 	
 }

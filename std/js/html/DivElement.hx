@@ -24,9 +24,18 @@
 
 package js.html;
 
+/**
+	The `HTMLDivElement` interface provides special properties (beyond the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating div elements. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLDivElement> 
+**/
 @:native("HTMLDivElement")
 extern class DivElement extends Element
 {
+	
+	/**
+		Is a `DOMString` representing an enumerated property indicating alignment of the element's contents with respect to the surrounding context. The possible values are `"left"`, `"right"`, `"justify"`, and `"center"`.
+	**/
 	var align : String;
 	
 }

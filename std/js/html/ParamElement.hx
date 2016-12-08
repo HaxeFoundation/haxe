@@ -24,12 +24,33 @@
 
 package js.html;
 
+/**
+	The `HTMLParamElement` interface provides special properties (beyond those of the regular `HTMLElement` object interface it inherits) for manipulating `param` elements, representing a pair of a key and a value that acts as a parameter for an `object` element. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLParamElement> 
+**/
 @:native("HTMLParamElement")
 extern class ParamElement extends Element
 {
+	
+	/**
+		Is a `DOMString` representing the name of the parameter. It reflects the `name` attribute.
+	**/
 	var name : String;
+	
+	/**
+		Is a `DOMString` representing the value associated to the parameter. It reflects the `value` attribute.
+	**/
 	var value : String;
+	
+	/**
+		Is a `DOMString` containing the type of the parameter when `valueType` has the `"ref"` value. It reflects the `type` attribute.
+	**/
 	var type : String;
+	
+	/**
+		Is a `DOMString` containing the type of the `value`. It reflects the ``valuetype`` attribute and has one of the values: `"data"`, `"ref"`, or `"object"`.
+	**/
 	var valueType : String;
 	
 }

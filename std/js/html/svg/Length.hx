@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGLength` interface correspond to the length basic data type. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGLength> 
+**/
 @:native("SVGLength")
 extern class Length
 {

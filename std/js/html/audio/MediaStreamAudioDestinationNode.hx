@@ -24,9 +24,18 @@
 
 package js.html.audio;
 
+/**
+	Inherits properties from its parent, `AudioNode`. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamAudioDestinationNode> 
+**/
 @:native("MediaStreamAudioDestinationNode")
 extern class MediaStreamAudioDestinationNode extends AudioNode
 {
+	
+	/**
+		Is a `MediaStream` containing a single `AudioMediaStreamTrack` with the same number of channels as the node itself. You can use this property to get a stream out of the audio graph and feed it into another construct, such as a Media Recorder.
+	**/
 	var stream(default,null) : js.html.MediaStream;
 	
 }

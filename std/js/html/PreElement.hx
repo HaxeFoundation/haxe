@@ -24,9 +24,18 @@
 
 package js.html;
 
+/**
+	The `HTMLPreElement` interface expose specific properties and methods (beyond those defined by regular `HTMLElement` interface it also has available to it by inheritance) for manipulating block of preformatted text. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLPreElement> 
+**/
 @:native("HTMLPreElement")
 extern class PreElement extends Element
 {
+	
+	/**
+		Is a `long` value reflecting the obsolete `width` attribute, containing a fixed-size length for the `pre` element.
+	**/
 	var width : Int;
 	
 }

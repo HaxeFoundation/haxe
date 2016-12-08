@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGAnimatedNumber` interface is used for attributes which take a list of numbers and which can be animated. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedNumberList> 
+**/
 @:native("SVGAnimatedNumberList")
 extern class AnimatedNumberList
 {

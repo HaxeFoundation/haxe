@@ -24,16 +24,53 @@
 
 package js.html;
 
+/**
+	The `AnimationEffectTimingReadOnly` interface of the Web Animations API is comprised of timing properties. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectTimingReadOnly> 
+**/
 @:native("AnimationEffectTimingReadOnly")
 extern class AnimationEffectTimingReadOnly
 {
+	
+	/**
+		The number of milliseconds to delay the start of the animation. Defaults to `0`.
+	**/
 	var delay(default,null) : Float;
+	
+	/**
+		The number of milliseconds to delay after the end of an animation. This is primarily of use when sequencing animations based on the end time of another animation. Defaults to `0`.
+	**/
 	var endDelay(default,null) : Float;
+	
+	/**
+		Dictates whether the animation's effects should be reflected by the element(s) state prior to playing (`backwards`), retained after the animation has completed playing (`forwards`), or `both`. Defaults to `none`.
+	**/
 	var fill(default,null) : FillMode;
+	
+	/**
+		A number representing which repetition the animation begins at and its progress through it.
+	**/
 	var iterationStart(default,null) : Float;
+	
+	/**
+		The number of times the animation should repeat. Defaults to `1`, and can also take a value of infinity to make it repeat infinitely.
+	**/
 	var iterations(default,null) : Float;
+	
+	/**
+		The number of milliseconds each iteration of the animation takes to complete. Defaults to `0`.
+	**/
 	var duration(default,null) : haxe.extern.EitherType<Float,String>;
+	
+	/**
+		Whether the animation runs forwards (`normal`), backwards (`reverse`), switches direction after each iteration (`alternate`), or runs backwards and switches direction after each iteration (`alternate-reverse`). Defaults to `normal`.
+	**/
 	var direction(default,null) : PlaybackDirection;
+	
+	/**
+		The rate of the animation's change over time. Accepts the pre-defined values `linear`, `ease`, `ease-in`, `ease-out`, and `ease-in-out`, or a custom cubic-bezier value like `cubic-bezier(0.42, 0, 0.58, 1)`. Defaults to `linear`.
+	**/
 	var easing(default,null) : String;
 	
 }

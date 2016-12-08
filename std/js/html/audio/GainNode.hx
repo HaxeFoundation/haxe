@@ -24,9 +24,18 @@
 
 package js.html.audio;
 
+/**
+	The gain is a unitless value, changing with time, that is multiplied to each corresponding sample of all input channels. If modified, the new gain is applied using a de-zippering algorithm in order to prevent unaesthetic 'clicks' from appearing in the resulting audio. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/GainNode> 
+**/
 @:native("GainNode")
 extern class GainNode extends AudioNode
 {
+	
+	/**
+		Is an a-rate `AudioParam` representing the amount of gain to apply.
+	**/
 	var gain(default,null) : AudioParam;
 	
 }

@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGPatternElement` interface corresponds to the `pattern` element. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGPatternElement> 
+**/
 @:native("SVGPatternElement")
 extern class PatternElement extends Element
 {

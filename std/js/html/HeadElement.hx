@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `HTMLHeadElement` interface contains the descriptive information, or metadata, for a document. This object inherits all of the properties and methods described in the `HTMLElement` interface. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLHeadElement> 
+**/
 @:native("HTMLHeadElement")
 extern class HeadElement extends Element
 {

@@ -24,6 +24,11 @@
 
 package js.html.webgl;
 
+/**
+	The `WEBGL_color_buffer_float` extension is part of the WebGL API and adds the ability to render to 32-bit floating-point color buffers. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_color_buffer_float> 
+**/
 @:native("WEBGL_color_buffer_float")
 extern class ExtensionColorBufferFloat
 {

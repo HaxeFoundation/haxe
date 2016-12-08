@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGAnimatedTransformList` interface is used for attributes which take a list of numbers and which can be animated. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedTransformList> 
+**/
 @:native("SVGAnimatedTransformList")
 extern class AnimatedTransformList
 {

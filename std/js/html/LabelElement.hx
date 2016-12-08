@@ -24,11 +24,28 @@
 
 package js.html;
 
+/**
+	The `HTMLLabelElement` interface gives access to properties specific to `label` elements. It inherits methods and properties from the base `HTMLElement` interface. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement> 
+**/
 @:native("HTMLLabelElement")
 extern class LabelElement extends Element
 {
+	
+	/**
+		Is a `HTMLFormElement` object representing the form with which the labeled control is associated, or `null` if there is no associated control, or if that control isn't associated with a form. In other words, this is just a shortcut for `HTMLLabelElement.control.form`.
+	**/
 	var form(default,null) : FormElement;
+	
+	/**
+		Is a string containing the ID of the labeled control. This reflects the `for` attribute.
+	**/
 	var htmlFor : String;
+	
+	/**
+		Is a `HTMLElement` representing the control with which the label is associated.
+	**/
 	var control(default,null) : Element;
 	
 }

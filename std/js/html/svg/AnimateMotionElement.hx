@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGAnimateMotionElement` interface corresponds to the `animateMotion` element. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimateMotionElement> 
+**/
 @:native("SVGAnimateMotionElement")
 extern class AnimateMotionElement extends AnimationElement
 {

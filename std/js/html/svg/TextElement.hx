@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGTextElement` interface corresponds to the `text` elements. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGTextElement> 
+**/
 @:native("SVGTextElement")
 extern class TextElement extends TextPositioningElement
 {

@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `HTMLTableColElement` interface provides special properties (beyond the `HTMLElement` interface it also has available to it inheritance) for manipulating single or grouped table column elements. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableColElement> 
+**/
 @:native("HTMLTableColElement")
 extern class TableColElement extends Element
 {

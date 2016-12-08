@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	Many of SVG's graphics operations utilize 2x3 matrices of the form: 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGMatrix> 
+**/
 @:native("SVGMatrix")
 extern class Matrix
 {

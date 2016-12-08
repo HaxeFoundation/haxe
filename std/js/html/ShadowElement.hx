@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `HTMLShadowElement` interface represents a `shadow` HTML Element, which is used in Shadow DOM. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLShadowElement> 
+**/
 @:native("HTMLShadowElement")
 extern class ShadowElement extends Element
 {

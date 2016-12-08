@@ -24,6 +24,11 @@
 
 package js.html.webgl;
 
+/**
+	The `EXT_shader_texture_lod` extension is part of the WebGL API and adds additional texture functions to the OpenGL ES Shading Language which provide the shader writer with explicit control of LOD (Level of detail). 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/EXT_shader_texture_lod> 
+**/
 @:native("EXT_shader_texture_lod")
 extern class ExtensionShaderTextureLod
 {

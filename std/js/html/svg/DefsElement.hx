@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGDefsElement` interface corresponds to the `defs` element. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGDefsElement> 
+**/
 @:native("SVGDefsElement")
 extern class DefsElement extends GraphicsElement
 {

@@ -24,10 +24,23 @@
 
 package js.html;
 
+/**
+	The `PermissionStatus` interface of the Permissions API provides the state of an object and an event handler for monitoring changes to said state. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/PermissionStatus> 
+**/
 @:native("PermissionStatus")
 extern class PermissionStatus extends EventTarget
 {
+	
+	/**
+		Returns the state of a requested permission; one of `'granted'`, `'denied'`, or `'prompt'`.
+	**/
 	var state(default,null) : PermissionState;
+	
+	/**
+		An event called whenever `PermissionStatus.status` changes.
+	**/
 	var onchange : haxe.Constraints.Function;
 	
 }

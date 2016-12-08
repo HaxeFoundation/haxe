@@ -24,9 +24,18 @@
 
 package js.html;
 
+/**
+	The `HTMLHtmlElement` interface serves as the root node for a given HTML document.  This object inherits the properties and methods described in the `HTMLElement` interface. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLHtmlElement> 
+**/
 @:native("HTMLHtmlElement")
 extern class HtmlElement extends Element
 {
+	
+	/**
+		Is a `DOMString` representing the version of the HTML Document Type Definition (DTD) that governs this document. This property should not be used any more as it is non-conforming. Simply omit it.
+	**/
 	var version : String;
 	
 }

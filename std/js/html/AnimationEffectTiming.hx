@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `AnimationEffectTiming` interface of the Web Animations API is comprised of timing properties. It is returned by the `timing` attribute of a `KeyframeEffect`. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectTiming> 
+**/
 @:native("AnimationEffectTiming")
 extern class AnimationEffectTiming extends AnimationEffectTimingReadOnly
 {

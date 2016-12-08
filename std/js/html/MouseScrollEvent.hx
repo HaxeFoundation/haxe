@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `MouseScrollEvent` interface represents events that occur due to the user moving a mouse wheel or similar input device. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MouseScrollEvent> 
+**/
 @:native("MouseScrollEvent")
 extern class MouseScrollEvent extends MouseEvent
 {

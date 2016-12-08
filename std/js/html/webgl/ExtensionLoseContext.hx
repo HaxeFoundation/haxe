@@ -24,9 +24,22 @@
 
 package js.html.webgl;
 
+/**
+	The WEBGL_lose_context extension is part of the WebGL API and exposes functions to simulate losing and restoring a `WebGLRenderingContext`. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_lose_context> 
+**/
 @:native("WEBGL_lose_context")
 extern class ExtensionLoseContext
 {
+	
+	/**
+		Simulates losing the context.
+	**/
 	function loseContext() : Void;
+	
+	/**
+		Simulates restoring the context.
+	**/
 	function restoreContext() : Void;
 }

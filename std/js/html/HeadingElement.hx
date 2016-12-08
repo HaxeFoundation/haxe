@@ -24,9 +24,18 @@
 
 package js.html;
 
+/**
+	The `HTMLHeadingElement` interface represents the different heading elements. It inherits methods and properties from the `HTMLElement` interface. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLHeadingElement> 
+**/
 @:native("HTMLHeadingElement")
 extern class HeadingElement extends Element
 {
+	
+	/**
+		Is a `DOMString` representing an enumerated attribute indicating alignment of the heading with respect to the surrounding context.
+	**/
 	var align : String;
 	
 }

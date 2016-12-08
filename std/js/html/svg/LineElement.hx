@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGLineElement` interface provides access to the properties of `line` elements, as well as methods to manipulate them. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGLineElement> 
+**/
 @:native("SVGLineElement")
 extern class LineElement extends GraphicsElement
 {

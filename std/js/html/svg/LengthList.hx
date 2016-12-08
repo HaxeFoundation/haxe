@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGLengthList` defines a list of `SVGLength` objects. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGLengthList> 
+**/
 @:native("SVGLengthList")
 extern class LengthList implements ArrayAccess<Length>
 {

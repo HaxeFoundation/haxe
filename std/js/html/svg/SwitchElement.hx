@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGSwitchElement` interface corresponds to the `switch` element. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGSwitchElement> 
+**/
 @:native("SVGSwitchElement")
 extern class SwitchElement extends GraphicsElement
 {

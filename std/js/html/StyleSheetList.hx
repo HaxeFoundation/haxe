@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `StyleSheetList` interface represents a list of `StyleSheet`. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/StyleSheetList> 
+**/
 @:native("StyleSheetList")
 extern class StyleSheetList implements ArrayAccess<StyleSheet>
 {

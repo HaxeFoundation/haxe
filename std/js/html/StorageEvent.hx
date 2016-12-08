@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	A `StorageEvent` is sent to a window when a storage area changes. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/StorageEvent> 
+**/
 @:native("StorageEvent")
 extern class StorageEvent extends Event
 {

@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGClipPathElement` interface provides access to the properties of `clipPath` elements, as well as methods to manipulate them. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGClipPathElement> 
+**/
 @:native("SVGClipPathElement")
 extern class ClipPathElement extends Element
 {

@@ -24,6 +24,11 @@
 
 package js.html.rtc;
 
+/**
+	The `RTCPeerConnection` interface represents a WebRTC connection between the local computer and a remote peer. It provides methods to connect to a remote peer, maintain and monitor the connection, and close the connection once it's no longer needed. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection> 
+**/
 @:native("RTCPeerConnection")
 extern class PeerConnection extends js.html.EventTarget
 {

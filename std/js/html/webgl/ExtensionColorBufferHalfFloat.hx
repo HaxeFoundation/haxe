@@ -24,6 +24,11 @@
 
 package js.html.webgl;
 
+/**
+	The `EXT_color_buffer_half_float` extension is part of the WebGL API and adds the ability to render to 16-bit floating-point color buffers. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/EXT_color_buffer_half_float> 
+**/
 @:native("EXT_color_buffer_half_float")
 extern class ExtensionColorBufferHalfFloat
 {

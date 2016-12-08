@@ -24,10 +24,23 @@
 
 package js.html.audio;
 
+/**
+	A `WaveShaperNode` always has exactly one input and one output. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WaveShaperNode> 
+**/
 @:native("WaveShaperNode")
 extern class WaveShaperNode extends AudioNode
 {
+	
+	/**
+		Is a `Float32Array` of numbers describing the distortion to apply.
+	**/
 	var curve : js.html.Float32Array;
+	
+	/**
+		Is an enumerated value indicating if oversampling must be used. Oversampling is a technique for creating more samples (up-sampling) before applying the distortion effect to the audio signal.
+	**/
 	var oversample : OverSampleType;
 	
 }

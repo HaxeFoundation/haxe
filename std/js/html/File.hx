@@ -24,11 +24,28 @@
 
 package js.html;
 
+/**
+	The `File` interface provides information about files and allows JavaScript in a web page to access their content. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/File> 
+**/
 @:native("File")
 extern class File extends Blob
 {
+	
+	/**
+		Returns the name of the file referenced by the `File` object.
+	**/
 	var name(default,null) : String;
+	
+	/**
+		Returns the last modified time of the file, in millisecond since the UNIX epoch (January 1st, 1970 at Midnight).
+	**/
 	var lastModified(default,null) : Int;
+	
+	/**
+		Returns the last modified `Date` of the file referenced by the `File` object.
+	**/
 	var lastModifiedDate(default,null) : Date;
 	
 	/** @throws DOMError */

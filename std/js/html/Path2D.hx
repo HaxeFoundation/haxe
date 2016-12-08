@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `Path2D` interface of the Canvas 2D API is used to declare paths that are then later used on `CanvasRenderingContext2D` objects. The path methods of the `CanvasRenderingContext2D` interface are present on this interface as well and are allowing you to create paths that you can retain and replay as required on a canvas. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Path2D> 
+**/
 @:native("Path2D")
 extern class Path2D
 {
@@ -31,6 +36,10 @@ extern class Path2D
 	@:overload( function() : Void {} )
 	@:overload( function( other : Path2D ) : Void {} )
 	function new( pathString : String ) : Void;
+	
+	/**
+		Adds a path to the current path.
+	**/
 	function addPath( path : Path2D, ?transformation : js.html.svg.Matrix ) : Void;
 	function closePath() : Void;
 	function moveTo( x : Float, y : Float ) : Void;

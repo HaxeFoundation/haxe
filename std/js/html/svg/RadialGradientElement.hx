@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGRadialGradientElement` interface corresponds to the `radialGradient` element. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGRadialGradientElement> 
+**/
 @:native("SVGRadialGradientElement")
 extern class RadialGradientElement extends GradientElement
 {

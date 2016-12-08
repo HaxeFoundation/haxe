@@ -24,8 +24,17 @@
 
 package js.html.webgl;
 
+/**
+	The `WEBGL_debug_shaders` extension is part of the WebGL API and exposes a method to debug shaders from privileged contexts. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_debug_shaders> 
+**/
 @:native("WEBGL_debug_shaders")
 extern class ExtensionDebugShaders
 {
+	
+	/**
+		Returns the translated shader source.
+	**/
 	function getTranslatedShaderSource( shader : Shader ) : String;
 }

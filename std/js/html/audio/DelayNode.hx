@@ -27,6 +27,10 @@ package js.html.audio;
 @:native("DelayNode")
 extern class DelayNode extends AudioNode
 {
+	
+	/**
+		Is an a-rate `AudioParam` representing the amount of delay to apply.
+	**/
 	var delayTime(default,null) : AudioParam;
 	
 }

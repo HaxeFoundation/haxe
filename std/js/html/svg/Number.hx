@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGNumber` interface correspond to the number basic data type. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGNumber> 
+**/
 @:native("SVGNumber")
 extern class Number
 {

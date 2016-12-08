@@ -24,6 +24,11 @@
 
 package js.html.webgl;
 
+/**
+	The WebGLBuffer interface is part of the WebGL API and represents an opaque buffer object storing data such as vertices or colors. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLBuffer> 
+**/
 @:native("WebGLBuffer")
 extern class Buffer
 {

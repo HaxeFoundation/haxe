@@ -24,10 +24,23 @@
 
 package js.html.rtc;
 
+/**
+	The `RTCSessionDescription` interface represents the parameters of a session. Each `RTCSessionDescription` consists of a description `type` indicating which part of the offer/answer negotiation process it describes and of the SDP descriptor of the session. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCSessionDescription> 
+**/
 @:native("RTCSessionDescription")
 extern class SessionDescription
 {
+	
+	/**
+		An enum of type ``RTCSdpType`` describing the session description's type.
+	**/
 	var type : SdpType;
+	
+	/**
+		A `DOMString` containing the `SDP` describing the session.
+	**/
 	var sdp : String;
 	
 	/** @throws DOMError */

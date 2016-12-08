@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `HTMLElement` interface represents any HTML element. Some elements directly implement this interface, others implement it via an interface that inherits it. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement> 
+**/
 @:native("HTMLElement")
 extern class Element extends DOMElement
 {

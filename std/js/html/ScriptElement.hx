@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	HTML script elements expose the `HTMLScriptElement` interface, which provides special properties and methods (beyond the regular `HTMLElement` object interface they also have available to them by inheritance) for manipulating the layout and presentation of `script` elements. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLScriptElement> 
+**/
 @:native("HTMLScriptElement")
 extern class ScriptElement extends Element
 {

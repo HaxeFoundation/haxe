@@ -24,11 +24,28 @@
 
 package js.html;
 
+/**
+	A type returned by some APIs which contains a list of DOMString (strings). 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMStringList> 
+**/
 @:native("DOMStringList")
 extern class DOMStringList implements ArrayAccess<String>
 {
+	
+	/**
+		Returns the length of the list,
+	**/
 	var length(default,null) : Int;
 	
+	
+	/**
+		Returns a `DOMString`.
+	**/
 	function item( index : Int ) : String;
+	
+	/**
+		Returns `Boolean` indicating if the given string is in the list
+	**/
 	function contains( string : String ) : Bool;
 }

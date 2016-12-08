@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	Used by the `dataset` HTML attribute to represent data for custom attributes added to elements. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMStringMap> 
+**/
 @:native("DOMStringMap")
 extern class DOMStringMap implements Dynamic<String>
 {

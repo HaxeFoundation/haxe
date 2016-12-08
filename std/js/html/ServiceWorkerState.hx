@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `ServiceWorkerState` is associated with its `ServiceWorker`'s state. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerState> 
+**/
 @:enum abstract ServiceWorkerState(String)
 {
 	var INSTALLING = "installing";

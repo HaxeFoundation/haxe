@@ -24,9 +24,18 @@
 
 package js.html;
 
+/**
+	The `TextMetrics` interface represents the dimension of a text in the canvas, as created by the `CanvasRenderingContext2D.measureText()` method. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/TextMetrics> 
+**/
 @:native("TextMetrics")
 extern class TextMetrics
 {
+	
+	/**
+		Is a `double` giving the calculated width of a segment of inline text in CSS pixels. It takes into account the current font of the context.
+	**/
 	var width(default,null) : Float;
 	
 }

@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `DOMMatrix` interface represents 4x4 matrices, suitable for 2D and 3D operations. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMMatrix> 
+**/
 @:native("DOMMatrix")
 extern class DOMMatrix extends DOMMatrixReadOnly
 {
@@ -36,16 +41,60 @@ extern class DOMMatrix extends DOMMatrixReadOnly
 	function new( numberSequence : Array<Float> ) : Void;
 	function multiplySelf( other : DOMMatrix ) : DOMMatrix;
 	function preMultiplySelf( other : DOMMatrix ) : DOMMatrix;
+	
+	/**
+		Returns itself, a `DOMMatrix`, with its new content being the result of the matrix being translated by the given vector.
+	**/
 	function translateSelf( tx : Float, ty : Float, ?tz : Float = 0.0 ) : DOMMatrix;
+	
+	/**
+		Returns itself, a `DOMMatrix`, with its new content being the result of the matrix x and y dimensions being scaled by the given factor, centered on the origin given.
+	**/
 	function scaleSelf( scale : Float, ?originX : Float = 0.0, ?originY : Float = 0.0 ) : DOMMatrix;
+	
+	/**
+		Returns itself, a `DOMMatrix`, with its new content being the result of the matrix x, y and z dimension being scaled by the given factor, centered on the origin given.
+	**/
 	function scale3dSelf( scale : Float, ?originX : Float = 0.0, ?originY : Float = 0.0, ?originZ : Float = 0.0 ) : DOMMatrix;
+	
+	/**
+		Returns itself, a `DOMMatrix`, with its new content being the result of the matrix x, y and z dimension being scaled by the given factor for each dimension, centered on the origin given.
+	**/
 	function scaleNonUniformSelf( scaleX : Float, ?scaleY : Float = 1.0, ?scaleZ : Float = 1.0, ?originX : Float = 0.0, ?originY : Float = 0.0, ?originZ : Float = 0.0 ) : DOMMatrix;
+	
+	/**
+		Returns itself, a `DOMMatrix`, with its new content being the result of the original matrix being rotated by the given angle, with the rotation centered on the origin given.
+	**/
 	function rotateSelf( angle : Float, ?originX : Float = 0.0, ?originY : Float = 0.0 ) : DOMMatrix;
+	
+	/**
+		Returns itself, a `DOMMatrix`, with its new content being the result of the original matrix being rotated by the angle between the given vector and (1,0), centered on the origin given.
+	**/
 	function rotateFromVectorSelf( x : Float, y : Float ) : DOMMatrix;
+	
+	/**
+		Returns itself, a `DOMMatrix`, with its new content being the result of the original matrix being rotated by the given angle and the give vector.
+	**/
 	function rotateAxisAngleSelf( x : Float, y : Float, z : Float, angle : Float ) : DOMMatrix;
+	
+	/**
+		Returns itself, a `DOMMatrix`, with its new content being the result of the original matrix being skewed along the x-axis by the given factor.
+	**/
 	function skewXSelf( sx : Float ) : DOMMatrix;
+	
+	/**
+		Returns itself, a `DOMMatrix`, with its new content being the result of the original matrix being skewed along the y-axis by the given factor.
+	**/
 	function skewYSelf( sy : Float ) : DOMMatrix;
+	
+	/**
+		Returns itself,  a `DOMMatrix`, with its new content being the result of the original matrix being inverted. If the matrix cannot be inverted, all its components are set to `NaN` and `is2D()` returns `false`.
+	**/
 	function invertSelf() : DOMMatrix;
 	/** @throws DOMError */
+	
+	/**
+		Returns itself, a `DOMMatrix`, with its describing the matrix representing the same transformation as the CSS `transform` functions given in parameter.
+	**/
 	function setMatrixValue( transformList : String ) : DOMMatrix;
 }

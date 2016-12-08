@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `Range` interface represents a fragment of a document that can contain nodes and parts of text nodes. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Range> 
+**/
 @:native("Range")
 extern class Range
 {
@@ -32,11 +37,35 @@ extern class Range
 	static inline var END_TO_END : Int = 2;
 	static inline var END_TO_START : Int = 3;
 	
+	
+	/**
+		Returns the `Node` within which the `Range` starts.
+	**/
 	var startContainer(default,null) : Node;
+	
+	/**
+		Returns a number representing where in the `startContainer` the `Range` starts.
+	**/
 	var startOffset(default,null) : Int;
+	
+	/**
+		Returns the `Node` within which the `Range` ends.
+	**/
 	var endContainer(default,null) : Node;
+	
+	/**
+		Returns a number representing where in the `endContainer` the `Range` ends.
+	**/
 	var endOffset(default,null) : Int;
+	
+	/**
+		Returns a `Boolean` indicating whether the range's start and end points are at the same position.
+	**/
 	var collapsed(default,null) : Bool;
+	
+	/**
+		Returns the deepest `Node` that contains the `startContainer` and `endContainer` nodes.
+	**/
 	var commonAncestorContainer(default,null) : Node;
 	
 	/** @throws DOMError */

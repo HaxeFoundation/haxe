@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `PerformanceNavigation` interface represents information about how the navigation to the current document was done. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/PerformanceNavigation> 
+**/
 @:native("PerformanceNavigation")
 extern class PerformanceNavigation
 {
@@ -32,7 +37,47 @@ extern class PerformanceNavigation
 	static inline var TYPE_BACK_FORWARD : Int = 2;
 	static inline var TYPE_RESERVED : Int = 255;
 	
+	
+	/**
+		Is an <code>unsigned short</code> containing a constant describing how the navigation to this page was done. Possible values are:
+		 <table class="standard-table">
+		  
+		   <tr>
+		    Value
+		    Constant name
+		    Meaning
+		   </tr>
+		  
+		  
+		   <tr>
+		    <td><code>0</code></td>
+		    <td><code>TYPE_NAVIGATE</code></td>
+		    <td>The page was accessed by following a link, a bookmark, a form submission, a script, or typing the URL in the address bar.</td>
+		   </tr>
+		   <tr>
+		    <td><code>1</code></td>
+		    <td><code>TYPE_RELOAD</code></td>
+		    <td>The page was accessed by clicking the Reload button or via the <code>Location.reload()</code> method.</td>
+		   </tr>
+		   <tr>
+		    <td><code>2</code></td>
+		    <td><code>TYPE_BACK_FORWARD</code></td>
+		    <td>The page was accessed by navigating into the history.</td>
+		   </tr>
+		   <tr>
+		    <td><code>255</code></td>
+		    <td><code>TYPE_RESERVED</code></td>
+		    <td>Any other way.</td>
+		   </tr>
+		  
+		 </table>
+		 
+	**/
 	var type(default,null) : Int;
+	
+	/**
+		Is an `unsigned short` representing the number of REDIRECTs done before reaching the page.
+	**/
 	var redirectCount(default,null) : Int;
 	
 }

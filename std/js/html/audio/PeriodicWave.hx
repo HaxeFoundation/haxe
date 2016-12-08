@@ -24,6 +24,11 @@
 
 package js.html.audio;
 
+/**
+	`PeriodicWave` has no inputs or outputs; it is used to create custom oscillators via `OscillatorNode.setPeriodicWave`. The `PeriodicWave` itself is created/returned by `AudioContext.createPeriodicWave`. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/PeriodicWave> 
+**/
 @:native("PeriodicWave")
 extern class PeriodicWave
 {

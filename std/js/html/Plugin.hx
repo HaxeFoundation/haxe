@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `Plugin` interface provides information about a browser plugin. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Plugin> 
+**/
 @:native("Plugin")
 extern class Plugin implements ArrayAccess<MimeType>
 {

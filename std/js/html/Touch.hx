@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `Touch` interface represents a single contact point on a touch-sensitive device. The contact point is commonly a finger or stylus and the device may be a touchscreen or trackpad. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Touch> 
+**/
 @:native("Touch")
 extern class Touch
 {

@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `KeyframeEffect` interface of the Web Animations API lets us create sets of animatable properties and values, called keyframes. These can then be played using the `Animation()` constructor. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/KeyframeEffect> 
+**/
 @:native("KeyframeEffect")
 extern class KeyframeEffect extends KeyframeEffectReadOnly
 {

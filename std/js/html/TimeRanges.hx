@@ -24,13 +24,30 @@
 
 package js.html;
 
+/**
+	The `TimeRanges` interface is used to represent a set of time ranges, primarily for the purpose of tracking which portions of media have been buffered when loading it for use by the `audio` and `video` elements. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/TimeRanges> 
+**/
 @:native("TimeRanges")
 extern class TimeRanges
 {
+	
+	/**
+		Returns an `unsigned long` representing the number of time ranges represented by the time range object.
+	**/
 	var length(default,null) : Int;
 	
 	/** @throws DOMError */
+	
+	/**
+		Returns the time for the start of the range with the specified index.
+	**/
 	function start( index : Int ) : Float;
 	/** @throws DOMError */
+	
+	/**
+		Returns the time for the end of the specified range.
+	**/
 	function end( index : Int ) : Float;
 }

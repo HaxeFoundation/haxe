@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	An `XPathExpression` is a compiled XPath query returned from `document.createExpression()`. It has a method `evaluate()` which can be used to execute the compiled XPath. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/XPathExpression> 
+**/
 @:native("XPathExpression")
 extern class XPathExpression
 {

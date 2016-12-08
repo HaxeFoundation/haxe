@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	A `DOMRect` represents a rectangle. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMRect> 
+**/
 @:native("DOMRect")
 extern class DOMRect extends DOMRectReadOnly
 {

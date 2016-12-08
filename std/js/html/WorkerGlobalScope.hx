@@ -24,24 +24,77 @@
 
 package js.html;
 
+/**
+	The `WorkerGlobalScope` interface of the Web Workers API is an interface representing the scope of any worker. Workers have no browsing context; this scope contains the information usually conveyed by `Window` objects — in this case event handlers, the console or the associated `WorkerNavigator` object. Each `WorkerGlobalScope` has its own event loop. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WorkerGlobalScope> 
+**/
 @:native("WorkerGlobalScope")
 extern class WorkerGlobalScope extends EventTarget
 {
+	
+	/**
+		Returns a reference to the `WorkerGlobalScope` itself. Most of the time it is a specific scope like `DedicatedWorkerGlobalScope`,  `SharedWorkerGlobalScope` or `ServiceWorkerGlobalScope`.
+	**/
 	var self(default,null) : WorkerGlobalScope;
+	
+	/**
+		Returns the `Console` associated with the worker.
+	**/
 	var console(default,null) : Console;
+	
+	/**
+		Returns the `WorkerLocation` associated with the worker. It is a specific location object, mostly a subset of the `Location` for browsing scopes, but adapted to workers.
+	**/
 	var location(default,null) : WorkerLocation;
+	
+	/**
+		Is an `EventHandler` representing the code to be called when the `error` event is raised.
+	**/
 	var onerror : haxe.extern.EitherType<Event,String> -> String -> Int -> Int -> Dynamic -> Bool;
+	
+	/**
+		Is an `EventHandler` representing the code to be called when the `offline` event is raised.
+	**/
 	var onoffline : haxe.Constraints.Function;
+	
+	/**
+		Is an `EventHandler` representing the code to be called when the `online` event is raised.
+	**/
 	var ononline : haxe.Constraints.Function;
+	
+	/**
+		Returns the `WorkerNavigator` associated with the worker. It is a specific navigator object, mostly a subset of the `Navigator` for browsing scopes, but adapted to workers.
+	**/
 	var navigator(default,null) : WorkerNavigator;
+	
+	/**
+		Is an `EventHandler` representing the code to be called when the `close` event is raised.
+	**/
 	var onclose : haxe.Constraints.Function;
+	
+	/**
+		Returns the `Performance` associated with the worker. It is a regular performance object, except that only a subset of its property and methods are available to workers.
+	**/
 	var performance(default,null) : Performance;
 	var indexedDB(default,null) : js.html.idb.Factory;
 	
 	/** @throws DOMError */
+	
+	/**
+		Discards any tasks queued in the `WorkerGlobalScope`'s event loop, effectively closing this particular scope.
+	**/
 	function close() : Void;
 	/** @throws DOMError */
+	
+	/**
+		Imports one or more scripts into the worker's scope. You can specify as many as you'd like, separated by commas. For example:` importScripts('foo.js', 'bar.js');`
+	**/
 	function importScripts( urls : haxe.extern.Rest<String> ) : Void;
+	
+	/**
+		Allows you to write a message to stdout — i.e. in your terminal. This is the same as Firefox's `window.dump`, but for workers.
+	**/
 	function dump( ?str : String ) : Void;
 	/** @throws DOMError */
 	function fetch( input : haxe.extern.EitherType<Request,String>, ?init : RequestInit ) : Promise<Response>;

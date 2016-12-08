@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `DocumentFragment` interface represents a minimal document object that has no parent. It is used as a light-weight version of `Document` to store well-formed or potentially non-well-formed fragments of XML. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DocumentFragment> 
+**/
 @:native("DocumentFragment")
 extern class DocumentFragment extends Node
 {
@@ -34,9 +39,21 @@ extern class DocumentFragment extends Node
 	
 	/** @throws DOMError */
 	function new() : Void;
+	
+	/**
+		Returns the first `Element` node within the DocumentFragment`, in document order, that matches the specified ID.
+	**/
 	function getElementById( elementId : String ) : Element;
 	/** @throws DOMError */
+	
+	/**
+		Returns the first `Element` node within the `DocumentFragment`, in document order, that matches the specified selectors.
+	**/
 	function querySelector( selectors : String ) : Element;
 	/** @throws DOMError */
+	
+	/**
+		Returns a `NodeList` of all the `Element` nodes within the `DocumentFragment` that match the specified selectors.
+	**/
 	function querySelectorAll( selectors : String ) : NodeList;
 }

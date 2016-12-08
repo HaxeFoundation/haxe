@@ -24,6 +24,11 @@
 
 package js.html.webgl;
 
+/**
+	The WebGLFramebuffer interface is part of the WebGL API and represents a collection of buffers that serve as a rendering destination. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLFramebuffer> 
+**/
 @:native("WebGLFramebuffer")
 extern class Framebuffer
 {

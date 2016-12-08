@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `MediaStreamConstraints` dictionary is used when calling `getUserMedia()` to specify what kinds of tracks should be included in the returned `MediaStream`, and, optionally, to establish constraints for those tracks' settings. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamConstraints> 
+**/
 typedef MediaStreamConstraints =
 {
 	@:optional var audio : haxe.extern.EitherType<Bool,MediaTrackConstraints>;

@@ -24,9 +24,18 @@
 
 package js.html;
 
+/**
+	The `HTMLDListElement` interface provides special properties (beyond those of the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating definition list elements. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLDListElement> 
+**/
 @:native("HTMLDListElement")
 extern class DListElement extends Element
 {
+	
+	/**
+		Is a `Boolean` indicating that spacing between list items should be reduced.
+	**/
 	var compact : Bool;
 	
 }

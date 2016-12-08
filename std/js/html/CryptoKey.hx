@@ -24,12 +24,33 @@
 
 package js.html;
 
+/**
+	The `CryptoKey` interface represents a cryptographic key derived from a specific key algorithm. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CryptoKey> 
+**/
 @:native("CryptoKey")
 extern class CryptoKey
 {
+	
+	/**
+		Returns an enumerated value representing the type of the key, a secret key (for symmetric algorithm), a public or a private key (for an asymmetric algorithm)
+	**/
 	var type(default,null) : String;
+	
+	/**
+		Returns a `Boolean` indicating if the raw information may be exported to the application or not.
+	**/
 	var extractable(default,null) : Bool;
+	
+	/**
+		Returns an opaque object representing a particular cipher the key has to be used with.
+	**/
 	var algorithm(default,null) : Dynamic;
+	
+	/**
+		Returns an array of enumerated values indicating what the key can be used for.
+	**/
 	var usages(default,null) : Array<String>;
 	
 }

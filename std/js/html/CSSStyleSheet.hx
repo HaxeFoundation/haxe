@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `CSSStyleSheet` interface represents a single CSS style sheet. It inherits properties and methods from its parent, `StyleSheet`. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSStyleSheet> 
+**/
 @:native("CSSStyleSheet")
 extern class CSSStyleSheet extends StyleSheet
 {

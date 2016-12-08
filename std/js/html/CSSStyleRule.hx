@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	`CSSStyleRule` represents a single CSS style rule. It implements the `CSSRule` interface with a type value of `1` (`CSSRule.STYLE_RULE`). 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSStyleRule> 
+**/
 @:native("CSSStyleRule")
 extern class CSSStyleRule extends CSSRule
 {

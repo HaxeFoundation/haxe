@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `HTMLHRElement` interface provides special properties (beyond those of the `HTMLElement` interface it also has available to it by inheritance) for manipulating `hr` elements. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLHRElement> 
+**/
 @:native("HTMLHRElement")
 extern class HRElement extends Element
 {

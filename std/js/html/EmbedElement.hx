@@ -24,14 +24,43 @@
 
 package js.html;
 
+/**
+	The `HTMLEmbedElement` interface, which provides special properties (beyond the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating `embed` elements. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLEmbedElement> 
+**/
 @:native("HTMLEmbedElement")
 extern class EmbedElement extends Element
 {
+	
+	/**
+		Is a `DOMString` that reflects the `src` HTML attribute, containing the address of the resource.
+	**/
 	var src : String;
+	
+	/**
+		Is a `DOMString` that reflects the `type` HTML attribute, containing the type of the resource.
+	**/
 	var type : String;
+	
+	/**
+		Is a `DOMString` that reflects the `width` HTML attribute, containing the displayed width of the resource.
+	**/
 	var width : String;
+	
+	/**
+		Is a `DOMString` representing an enumerated property indicating alignment of the element's contents with respect to the surrounding context. The possible values are `"left"`, `"right"`, `"center"`, and `"justify"`.
+	**/
 	var height : String;
+	
+	/**
+		Is a `DOMString` reflecting the `height` HTML attribute, containing the displayed height of the resource.
+	**/
 	var align : String;
+	
+	/**
+		Is a `DOMString` representing the name of the embedded object.
+	**/
 	var name : String;
 	
 	function getSVGDocument() : HTMLDocument;

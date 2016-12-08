@@ -24,6 +24,11 @@
 
 package js.html.svg;
 
+/**
+	The `SVGAnimatedBoolean` interface is used for attributes of type boolean which can be animated. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedBoolean> 
+**/
 @:native("SVGAnimatedBoolean")
 extern class AnimatedBoolean
 {

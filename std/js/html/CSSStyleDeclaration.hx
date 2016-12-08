@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	`CSSStyleDeclaration` represents a collection of CSS property-value pairs. It is used in a few APIs: 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSStyleDeclaration> 
+**/
 @:native("CSSStyleDeclaration")
 extern class CSSStyleDeclaration implements ArrayAccess<String>
 {

@@ -24,6 +24,11 @@
 
 package js.html;
 
+/**
+	The `HTMLLegendElement` is an interface allowing to access properties of the `legend` elements. It inherits properties and methods from the `HTMLElement` interface. 
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLLegendElement> 
+**/
 @:native("HTMLLegendElement")
 extern class LegendElement extends Element
 {
