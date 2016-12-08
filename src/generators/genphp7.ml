@@ -1668,13 +1668,14 @@ class virtual type_builder ctx wrapper =
 		method private write_constructor_function_declaration func write_arg =
 			self#write ("function __construct (");
 			write_args buffer write_arg func.tf_args;
-			self#write ")";
-			self#indent 1;
-			self#write "\n";
-			self#write_line "{";
+			self#write ") {\n";
 			self#indent_more;
 			self#write_instance_initialization;
-			self#write_fake_block (inject_defaults ctx func);
+			let func = inject_defaults ctx func in
+			begin match func.eexpr with
+				| TBlock [] -> ()
+				| _ -> self#write_fake_block func;
+			end;
 			self#indent_less;
 			self#write_indentation;
 			self#write "}"
