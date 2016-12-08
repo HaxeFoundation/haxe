@@ -24,6 +24,13 @@
 
 package js.html.svg;
 
+/**
+	The `SVGMaskElement` interface provides access to the properties of `mask` elements, as well as methods to manipulate them.
+
+	Documentation [SVGMaskElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGMaskElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGMaskElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGMaskElement>
+**/
 @:native("SVGMaskElement")
 extern class MaskElement extends Element
 {

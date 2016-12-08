@@ -24,9 +24,20 @@
 
 package js.html;
 
+/**
+	The `ClipboardEvent` interface represents events providing information related to modification of the clipboard, that is `cut`, `copy`, and `paste` events.
+
+	Documentation [ClipboardEvent](https://developer.mozilla.org/en-US/docs/Web/API/ClipboardEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ClipboardEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ClipboardEvent>
+**/
 @:native("ClipboardEvent")
 extern class ClipboardEvent extends Event
 {
+	
+	/**
+		Is a `DataTransfer` object containing the data affected by the user-initiated `cut`, `copy`, or `paste` operation, along with its MIME type.
+	**/
 	var clipboardData(default,null) : DataTransfer;
 	
 	/** @throws DOMError */

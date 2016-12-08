@@ -24,6 +24,13 @@
 
 package js.html;
 
+/**
+	The `WorkerLocation` interface defines the absolute location of the script executed by the `Worker`. Such an object is initialized for each worker and is available via the `WorkerGlobalScope.location` property obtained by calling `window.self.location`.
+
+	Documentation [WorkerLocation](https://developer.mozilla.org/en-US/docs/Web/API/WorkerLocation) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/WorkerLocation$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WorkerLocation>
+**/
 @:native("WorkerLocation")
 extern class WorkerLocation
 {

@@ -24,6 +24,13 @@
 
 package js.html.svg;
 
+/**
+	The `SVGRectElement` interface provides access to the properties of `rect` elements, as well as methods to manipulate them.
+
+	Documentation [SVGRectElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGRectElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGRectElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGRectElement>
+**/
 @:native("SVGRectElement")
 extern class RectElement extends GraphicsElement
 {

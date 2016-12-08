@@ -24,12 +24,27 @@
 
 package js.html;
 
+/**
+	TextEncoder takes a stream of code points as input and emits a stream of bytes. For a more scalable, non-native library, see `StringView` – a C-like representation of strings based on typed arrays.
+
+	Documentation [TextEncoder](https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder>
+**/
 @:native("TextEncoder")
 extern class TextEncoder
 {
+	
+	/**
+		Is a `DOMString` containing the name of the encoder, that is a string describing the method the `TextEncoder` will use.
+	**/
 	var encoding(default,null) : String;
 	
 	/** @throws DOMError */
 	function new( ?utfLabel : String = "utf-8" ) : Void;
+	
+	/**
+		Returns a `Uint8Array` containing utf-8 encoded text.
+	**/
 	function encode( ?input : String = "" ) : Uint8Array;
 }

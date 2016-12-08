@@ -24,12 +24,31 @@
 
 package js.html;
 
+/**
+	The `WindowClient` interface of the ServiceWorker API represents the scope of a service worker client that is a document in a browser context, controlled by an active worker. The service worker client independently selects and uses a service worker for its own loading and sub-resources.
+
+	Documentation [WindowClient](https://developer.mozilla.org/en-US/docs/Web/API/WindowClient) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/WindowClient$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WindowClient>
+**/
 @:native("WindowClient")
 extern class WindowClient extends Client
 {
+	
+	/**
+		Indicates the visibility of the current client. This value can be one of `hidden`, `visible`, `prerender`, or `unloaded`.
+	**/
 	var visibilityState(default,null) : VisibilityState;
+	
+	/**
+		A boolean that indicates whether the current client has focus.
+	**/
 	var focused(default,null) : Bool;
 	
 	/** @throws DOMError */
+	
+	/**
+		Gives user input focus to the current client. 
+	**/
 	function focus() : Promise<WindowClient>;
 }

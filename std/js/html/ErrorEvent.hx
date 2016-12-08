@@ -24,13 +24,40 @@
 
 package js.html;
 
+/**
+	The `ErrorEvent` interface represents events providing information related to errors in scripts or in files.
+
+	Documentation [ErrorEvent](https://developer.mozilla.org/en-US/docs/Web/API/ErrorEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ErrorEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ErrorEvent>
+**/
 @:native("ErrorEvent")
 extern class ErrorEvent extends Event
 {
+	
+	/**
+		Is a `DOMString` containing a human-readable error message describing the problem.
+	**/
 	var message(default,null) : String;
+	
+	/**
+		Is a `DOMString` containing the name of the script file in which the error occurred.
+	**/
 	var filename(default,null) : String;
+	
+	/**
+		Is an `integer` containing the line number of the script file on which the error occurred.
+	**/
 	var lineno(default,null) : Int;
+	
+	/**
+		Is an `integer` containing the column number of the script file on which the error occurred.
+	**/
 	var colno(default,null) : Int;
+	
+	/**
+		Is a JavaScript `Object` that is concerned by the event.
+	**/
 	var error(default,null) : Dynamic;
 	
 	/** @throws DOMError */

@@ -24,6 +24,13 @@
 
 package js.html.audio;
 
+/**
+	The Web Audio API `AudioProcessingEvent` represents events that occur when a `ScriptProcessorNode` input buffer is ready to be processed.
+
+	Documentation [AudioProcessingEvent](https://developer.mozilla.org/en-US/docs/Web/API/AudioProcessingEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AudioProcessingEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioProcessingEvent>
+**/
 @:native("AudioProcessingEvent")
 extern class AudioProcessingEvent extends js.html.Event
 {

@@ -24,6 +24,13 @@
 
 package js.html;
 
+/**
+	The `beforeunload` event is fired when the window, the document and its resources are about to be unloaded.
+
+	Documentation [BeforeUnloadEvent](https://developer.mozilla.org/en-US/docs/Web/API/BeforeUnloadEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/BeforeUnloadEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/BeforeUnloadEvent>
+**/
 @:native("BeforeUnloadEvent")
 extern class BeforeUnloadEvent extends Event
 {

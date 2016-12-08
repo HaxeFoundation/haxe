@@ -24,17 +24,40 @@
 
 package js.html;
 
+/**
+	The `SpeechGrammarList` interface of the Web Speech API represents a list of `SpeechGrammar` objects containing words or patterns of words that we want the recognition service to recognize.
+
+	Documentation [SpeechGrammarList](https://developer.mozilla.org/en-US/docs/Web/API/SpeechGrammarList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SpeechGrammarList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechGrammarList>
+**/
 @:native("SpeechGrammarList")
 extern class SpeechGrammarList implements ArrayAccess<SpeechGrammar>
 {
+	
+	/**
+		Returns the number of `SpeechGrammar` objects contained in the `SpeechGrammarList`.
+	**/
 	var length(default,null) : Int;
 	
 	/** @throws DOMError */
 	function new() : Void;
 	/** @throws DOMError */
+	
+	/**
+		Standard getter — allows individual `SpeechGrammar` objects to be retrieved from the `SpeechGrammarList` using array syntax.
+	**/
 	function item( index : Int ) : SpeechGrammar;
 	/** @throws DOMError */
+	
+	/**
+		Takes a grammar present at a specific URI and adds it to the `SpeechGrammarList` as a new `SpeechGrammar` object.
+	**/
 	function addFromURI( src : String, ?weight : Float ) : Void;
 	/** @throws DOMError */
+	
+	/**
+		Takes a grammar present in a specific `DOMString` within the code base (e.g. stored in a variable) and adds it to the `SpeechGrammarList` as a new `SpeechGrammar` object.
+	**/
 	function addFromString( string : String, ?weight : Float ) : Void;
 }

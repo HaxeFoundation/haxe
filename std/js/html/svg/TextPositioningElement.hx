@@ -24,6 +24,13 @@
 
 package js.html.svg;
 
+/**
+	The `SVGTextPositioningElement` interface is inherited by text-related interfaces: `SVGTextElement`, `SVGTSpanElement`, `SVGTRefElement` and `SVGAltGlyphElement`.
+
+	Documentation [SVGTextPositioningElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGTextPositioningElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGTextPositioningElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGTextPositioningElement>
+**/
 @:native("SVGTextPositioningElement")
 extern class TextPositioningElement extends TextContentElement
 {

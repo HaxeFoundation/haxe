@@ -24,15 +24,34 @@
 
 package js.html;
 
+/**
+	The `Worker` interface of the Web Workers API represents a background task that can be easily created and can send messages back to its creator. Creating a worker is as simple as calling the `Worker()` constructor and specifying a script to be run in the worker thread.
+
+	Documentation [Worker](https://developer.mozilla.org/en-US/docs/Web/API/Worker) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Worker$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Worker>
+**/
 @:native("Worker")
 extern class Worker extends EventTarget
 {
+	
+	/**
+		An `EventListener` called whenever a `MessageEvent` of type `message` bubbles through the worker — i.e. when a message is sent to the parent document from the worker via `DedicatedWorkerGlobalScope.postMessage`. The message is stored in the event's `MessageEvent.data` property.
+	**/
 	var onmessage : haxe.Constraints.Function;
 	var onerror : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
 	function new( scriptURL : String ) : Void;
+	
+	/**
+		Immediately terminates the worker. This does not offer the worker an opportunity to finish its operations; it is simply stopped at once. ServiceWorker instances do not support this method.
+	**/
 	function terminate() : Void;
 	/** @throws DOMError */
+	
+	/**
+		Sends a message — which can consist of `any` JavaScript object — to the worker's inner scope.
+	**/
 	function postMessage( message : Dynamic, ?transfer : Array<Dynamic> ) : Void;
 }

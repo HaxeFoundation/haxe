@@ -24,6 +24,13 @@
 
 package js.html;
 
+/**
+	The `PointerEvent` interface represents the state of a DOM event produced by a pointer such as the geometry of the contact point, the device type that generated the event, the amount of pressure that was applied on the contact surface, etc.
+
+	Documentation [PointerEvent](https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent>
+**/
 @:native("PointerEvent")
 extern class PointerEvent extends MouseEvent
 {

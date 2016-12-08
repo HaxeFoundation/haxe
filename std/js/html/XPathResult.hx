@@ -38,16 +38,52 @@ extern class XPathResult
 	static inline var ANY_UNORDERED_NODE_TYPE : Int = 8;
 	static inline var FIRST_ORDERED_NODE_TYPE : Int = 9;
 	
+	
+	/**
+		readonly integer (short)
+	**/
 	var resultType(default,null) : Int;
+	
+	/**
+		readonly float
+	**/
 	var numberValue(default,null) : Float;
+	
+	/**
+		readonly String
+	**/
 	var stringValue(default,null) : String;
+	
+	/**
+		readonly boolean
+	**/
 	var booleanValue(default,null) : Bool;
+	
+	/**
+		readonly Node
+	**/
 	var singleNodeValue(default,null) : Node;
+	
+	/**
+		readonly boolean
+	**/
 	var invalidIteratorState(default,null) : Bool;
+	
+	/**
+		readonly Integer
+	**/
 	var snapshotLength(default,null) : Int;
 	
 	/** @throws DOMError */
+	
+	/**
+		...
+	**/
 	function iterateNext() : Node;
 	/** @throws DOMError */
+	
+	/**
+		...
+	**/
 	function snapshotItem( index : Int ) : Node;
 }

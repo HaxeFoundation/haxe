@@ -24,6 +24,13 @@
 
 package js.html;
 
+/**
+	A `DeviceRotationRate` object provides information about the rate at which the device is rotating around all three axes.
+
+	Documentation [DeviceRotationRate](https://developer.mozilla.org/en-US/docs/Web/API/DeviceRotationRate) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DeviceRotationRate$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DeviceRotationRate>
+**/
 @:native("DeviceRotationRate")
 extern class DeviceRotationRate
 {

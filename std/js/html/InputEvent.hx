@@ -24,9 +24,20 @@
 
 package js.html;
 
+/**
+	The `InputEvent` interface represents an event notifying of editable content change.
+
+	Documentation [InputEvent](https://developer.mozilla.org/en-US/docs/Web/API/InputEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/InputEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/InputEvent>
+**/
 @:native("InputEvent")
 extern class InputEvent extends UIEvent
 {
+	
+	/**
+		Returns a `Boolean` value indicating if the event is fired after `compositionstart` and before `compositionend`.
+	**/
 	var isComposing(default,null) : Bool;
 	
 	/** @throws DOMError */

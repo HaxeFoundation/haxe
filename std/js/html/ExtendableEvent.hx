@@ -24,6 +24,13 @@
 
 package js.html;
 
+/**
+	The `ExtendableEvent` interface extends the lifetime of the `install` and `activate` events dispatched on the global scope as part of the service worker lifecycle. This ensures that any functional events (like `FetchEvent`) are not dispatched until it upgrades database schemas and deletes the outdated cache entries.
+
+	Documentation [ExtendableEvent](https://developer.mozilla.org/en-US/docs/Web/API/ExtendableEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ExtendableEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ExtendableEvent>
+**/
 @:native("ExtendableEvent")
 extern class ExtendableEvent extends Event
 {

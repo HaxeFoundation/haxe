@@ -24,6 +24,13 @@
 
 package js.html.webgl;
 
+/**
+	The `EXT_texture_filter_anisotropic` extension is part of the WebGL API and exposes two constants for anisotropic filtering (AF).
+
+	Documentation [EXT_texture_filter_anisotropic](https://developer.mozilla.org/en-US/docs/Web/API/EXT_texture_filter_anisotropic) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/EXT_texture_filter_anisotropic$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/EXT_texture_filter_anisotropic>
+**/
 @:native("EXT_texture_filter_anisotropic")
 extern class ExtensionTextureFilterAnisotropic
 {

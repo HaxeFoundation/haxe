@@ -24,6 +24,13 @@
 
 package js.html.svg;
 
+/**
+	The `SVGLinearGradientElement` interface corresponds to the `linearGradient` element.
+
+	Documentation [SVGLinearGradientElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGLinearGradientElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGLinearGradientElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGLinearGradientElement>
+**/
 @:native("SVGLinearGradientElement")
 extern class LinearGradientElement extends GradientElement
 {

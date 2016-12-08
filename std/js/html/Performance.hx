@@ -24,11 +24,30 @@
 
 package js.html;
 
+/**
+	The `Performance` interface represents timing-related performance information for the given page.
+
+	Documentation [Performance](https://developer.mozilla.org/en-US/docs/Web/API/Performance) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Performance$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Performance>
+**/
 @:native("Performance")
 extern class Performance
 {
+	
+	/**
+		Is a `PerformanceTiming` object containing latency-related performance information.
+	**/
 	var timing(default,null) : PerformanceTiming;
+	
+	/**
+		Is a `PerformanceNavigation` object representing the type of navigation that occurs in the given browsing context, like the amount of redirections needed to fetch the resource.
+	**/
 	var navigation(default,null) : PerformanceNavigation;
 	
+	
+	/**
+		Returns a `DOMHighResTimeStamp` representing the amount of milliseconds elapsed since a reference instant.
+	**/
 	function now() : Float;
 }

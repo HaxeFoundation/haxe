@@ -24,21 +24,80 @@
 
 package js.html;
 
+/**
+	The `SpeechSynthesisUtterance` interface of the Web Speech API represents a speech request. It contains the content the speech service should read and information about how to read it (e.g. language, pitch and volume.)
+
+	Documentation [SpeechSynthesisUtterance](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisUtterance) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisUtterance$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisUtterance>
+**/
 @:native("SpeechSynthesisUtterance")
 extern class SpeechSynthesisUtterance extends EventTarget
 {
+	
+	/**
+		Gets and sets the text that will be synthesised when the utterance is spoken.
+	**/
 	var text : String;
+	
+	/**
+		Gets and sets the language of the utterance.
+	**/
 	var lang : String;
+	
+	/**
+		Gets and sets the voice that will be used to speak the utterance.
+	**/
 	var voice : SpeechSynthesisVoice;
+	
+	/**
+		Gets and sets the volume that the utterance will be spoken at.
+	**/
 	var volume : Float;
+	
+	/**
+		Gets and sets the speed at which the utterance will be spoken at.
+	**/
 	var rate : Float;
+	
+	/**
+		Gets and sets the pitch at which the utterance will be spoken at.
+	**/
 	var pitch : Float;
+	
+	/**
+		Fired when the utterance has begun to be spoken.
+	**/
 	var onstart : haxe.Constraints.Function;
+	
+	/**
+		Fired when the utterance has finished being spoken.
+	**/
 	var onend : haxe.Constraints.Function;
+	
+	/**
+		Fired when an error occurs that prevents the utterance from being succesfully spoken.
+	**/
 	var onerror : haxe.Constraints.Function;
+	
+	/**
+		Fired when the utterance is paused part way through.
+	**/
 	var onpause : haxe.Constraints.Function;
+	
+	/**
+		Fired when a paused utterance is resumed.
+	**/
 	var onresume : haxe.Constraints.Function;
+	
+	/**
+		Fired when the spoken utterance reaches a named SSML "mark" tag.
+	**/
 	var onmark : haxe.Constraints.Function;
+	
+	/**
+		Fired when the spoken utterance reaches a word or sentence boundary.
+	**/
 	var onboundary : haxe.Constraints.Function;
 	
 	/** @throws DOMError */

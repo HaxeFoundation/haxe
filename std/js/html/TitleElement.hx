@@ -24,9 +24,20 @@
 
 package js.html;
 
+/**
+	The `HTMLTitleElement` interface contains the title for a document. This element inherits all of the properties and methods of the `HTMLElement` interface.
+
+	Documentation [HTMLTitleElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTitleElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTitleElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTitleElement>
+**/
 @:native("HTMLTitleElement")
 extern class TitleElement extends Element
 {
+	
+	/**
+		Is a `DOMString` representing the text of the document's title.
+	**/
 	var text : String;
 	
 }

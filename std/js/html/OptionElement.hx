@@ -24,6 +24,13 @@
 
 package js.html;
 
+/**
+	The `HTMLOptionElement` interface represents `option` elements and inherits all classes and methods of the `HTMLElement` interface.
+
+	Documentation [HTMLOptionElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLOptionElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLOptionElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLOptionElement>
+**/
 @:native("HTMLOptionElement")
 extern class OptionElement extends Element
 {

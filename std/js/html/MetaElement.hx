@@ -24,6 +24,13 @@
 
 package js.html;
 
+/**
+	The `HTMLMetaElement` interface contains descriptive metadata about a document. It inherits all of the properties and methods described in the `HTMLElement` interface.
+
+	Documentation [HTMLMetaElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMetaElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMetaElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLMetaElement>
+**/
 @:native("HTMLMetaElement")
 extern class MetaElement extends Element
 {

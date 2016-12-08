@@ -24,6 +24,13 @@
 
 package js.html.webgl;
 
+/**
+	The `WEBGL_compressed_texture_pvrtc` extension is part of the WebGL API and exposes four PVRTC compressed texture formats.
+
+	Documentation [WEBGL_compressed_texture_pvrtc](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_pvrtc) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_pvrtc$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_pvrtc>
+**/
 @:native("WEBGL_compressed_texture_pvrtc")
 extern class ExtensionCompressedTexturePVRTC
 {

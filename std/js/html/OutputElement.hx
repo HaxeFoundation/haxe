@@ -24,6 +24,13 @@
 
 package js.html;
 
+/**
+	The `HTMLOutputElement` interface provides properties and methods (beyond those inherited from `HTMLElement`) for manipulating the layout and presentation of `output` elements.
+
+	Documentation [HTMLOutputElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLOutputElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLOutputElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLOutputElement>
+**/
 @:native("HTMLOutputElement")
 extern class OutputElement extends Element
 {

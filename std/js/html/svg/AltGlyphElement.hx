@@ -24,10 +24,25 @@
 
 package js.html.svg;
 
+/**
+	  
+
+	Documentation [SVGAltGlyphElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGAltGlyphElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGAltGlyphElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAltGlyphElement>
+**/
 @:native("SVGAltGlyphElement")
 extern class AltGlyphElement extends TextPositioningElement
 {
+	
+	/**
+		It corresponds to the attribute `glyphRef` on the given element. It's data type is 'String'. It defines the glyph identifier, whose format is dependent on the ‘format’ of the given font.
+	**/
 	var glyphRef : String;
+	
+	/**
+		It corresponds to the attribute  `format` on the given element. It's data type is 'String'. This property specifies the format of the given font.
+	**/
 	var format : String;
 	var href(default,null) : AnimatedString;
 	

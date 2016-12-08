@@ -24,6 +24,13 @@
 
 package js.html.svg;
 
+/**
+	The `SVGStopElement` interface corresponds to the `stop` element.
+
+	Documentation [SVGStopElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGStopElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGStopElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGStopElement>
+**/
 @:native("SVGStopElement")
 extern class StopElement extends Element
 {

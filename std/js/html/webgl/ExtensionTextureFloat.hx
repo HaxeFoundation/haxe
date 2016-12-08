@@ -24,6 +24,13 @@
 
 package js.html.webgl;
 
+/**
+	The `OES_texture_float` extension is part of the WebGL API and exposes floating-point pixel types for textures.
+
+	Documentation [OES_texture_float](https://developer.mozilla.org/en-US/docs/Web/API/OES_texture_float) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/OES_texture_float$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/OES_texture_float>
+**/
 @:native("OES_texture_float")
 extern class ExtensionTextureFloat
 {

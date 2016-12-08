@@ -24,10 +24,25 @@
 
 package js.html;
 
+/**
+	The `SpeechRecognitionError` interface of the Web Speech API represents error messages from the recognition service.
+
+	Documentation [SpeechRecognitionError](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionError) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionError$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionError>
+**/
 @:native("SpeechRecognitionError")
 extern class SpeechRecognitionError extends Event
 {
+	
+	/**
+		Returns the type of error raised.
+	**/
 	var error(default,null) : SpeechRecognitionErrorCode;
+	
+	/**
+		Returns a message describing the error in more detail.
+	**/
 	var message(default,null) : String;
 	
 	/** @throws DOMError */

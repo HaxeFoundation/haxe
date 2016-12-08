@@ -24,12 +24,35 @@
 
 package js.html;
 
+/**
+	The `DeviceMotionEvent` provides web developers with information about the speed of changes for the device's position and orientation.
+
+	Documentation [DeviceMotionEvent](https://developer.mozilla.org/en-US/docs/Web/API/DeviceMotionEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DeviceMotionEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DeviceMotionEvent>
+**/
 @:native("DeviceMotionEvent")
 extern class DeviceMotionEvent extends Event
 {
+	
+	/**
+		An object giving the acceleration of the device on the three axis X, Y and Z. Acceleration is expressed in m/s2.
+	**/
 	var acceleration(default,null) : DeviceAcceleration;
+	
+	/**
+		An object giving the acceleration of the device on the three axis X, Y and Z with the effect of gravity. Acceleration is expressed in m/s2.
+	**/
 	var accelerationIncludingGravity(default,null) : DeviceAcceleration;
+	
+	/**
+		An object giving the rate of change of the device's orientation on the three orientation axis alpha, beta and gamma. Rotation rate is express in degrees per seconds.
+	**/
 	var rotationRate(default,null) : DeviceRotationRate;
+	
+	/**
+		A number representing the interval of time, in milliseconds, at which data is obtained from the device.
+	**/
 	var interval(default,null) : Float;
 	
 	/** @throws DOMError */

@@ -24,6 +24,13 @@
 
 package js.html.svg;
 
+/**
+	The `SVGForeignObjectElement` interface provides access to the properties of `foreignObject` elements, as well as methods to manipulate them.
+
+	Documentation [SVGForeignObjectElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGForeignObjectElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGForeignObjectElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGForeignObjectElement>
+**/
 @:native("SVGForeignObjectElement")
 extern class ForeignObjectElement extends GraphicsElement
 {

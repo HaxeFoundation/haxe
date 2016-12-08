@@ -24,9 +24,20 @@
 
 package js.html.svg;
 
+/**
+	The `SVGAElement` interface provides access to the properties of `a` element, as well as methods to manipulate them.
+
+	Documentation [SVGAElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGAElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGAElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAElement>
+**/
 @:native("SVGAElement")
 extern class AElement extends GraphicsElement
 {
+	
+	/**
+		It corresponds to attribute  `target` on the given `a` element.
+	**/
 	var target(default,null) : AnimatedString;
 	var download : String;
 	var href(default,null) : AnimatedString;

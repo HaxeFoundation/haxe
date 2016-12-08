@@ -24,13 +24,30 @@
 
 package js.html;
 
+/**
+	This interface inherits properties from its parent, `Event`:
+
+	Documentation [CustomEvent](https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent>
+**/
 @:native("CustomEvent")
 extern class CustomEvent extends Event
 {
+	
+	/**
+		Any data passed when initializing the event.
+	**/
 	var detail(default,null) : Dynamic;
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : CustomEventInit ) : Void;
 	/** @throws DOMError */
+	
+	/**
+		
+		 Initializes a `CustomEvent` object. If the event has already being dispatched, this method does nothing.
+		 
+	**/
 	function initCustomEvent( type : String, canBubble : Bool, cancelable : Bool, detail : Dynamic ) : Void;
 }

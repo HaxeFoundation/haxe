@@ -24,6 +24,13 @@
 
 package js.html.svg;
 
+/**
+	The `SVGViewElement` interface provides access to the properties of `view` elements, as well as methods to manipulate them.
+
+	Documentation [SVGViewElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGViewElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGViewElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGViewElement>
+**/
 @:native("SVGViewElement")
 extern class ViewElement extends Element
 {

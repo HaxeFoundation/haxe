@@ -24,6 +24,13 @@
 
 package js.html.webgl;
 
+/**
+	The `EXT_frag_depth` extension is part of the WebGL API and enables to set a depth value of a fragment from within the fragment shader.
+
+	Documentation [EXT_frag_depth](https://developer.mozilla.org/en-US/docs/Web/API/EXT_frag_depth) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/EXT_frag_depth$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/EXT_frag_depth>
+**/
 @:native("EXT_frag_depth")
 extern class ExtensionFragDepth
 {

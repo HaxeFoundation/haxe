@@ -24,6 +24,13 @@
 
 package js.html.svg;
 
+/**
+	The `SVGAnimatedRect` interface is used for attributes of basic `SVGRect` which can be animated.
+
+	Documentation [SVGAnimatedRect](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedRect) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedRect$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedRect>
+**/
 @:native("SVGAnimatedRect")
 extern class AnimatedRect
 {

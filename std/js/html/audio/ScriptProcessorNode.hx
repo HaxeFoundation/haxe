@@ -24,10 +24,23 @@
 
 package js.html.audio;
 
+/**
+	Documentation [ScriptProcessorNode](https://developer.mozilla.org/en-US/docs/Web/API/ScriptProcessorNode) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ScriptProcessorNode$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ScriptProcessorNode>
+**/
 @:native("ScriptProcessorNode")
 extern class ScriptProcessorNode extends AudioNode
 {
+	
+	/**
+		Represents the `EventHandler` to be called.
+	**/
 	var onaudioprocess : haxe.Constraints.Function;
+	
+	/**
+		Returns an integer representing both the input and output buffer size. Its value can be a power of 2 value in the range `256`–`16384`.
+	**/
 	var bufferSize(default,null) : Int;
 	
 }

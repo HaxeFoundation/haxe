@@ -24,6 +24,13 @@
 
 package js.html.svg;
 
+/**
+	The `SVGCircleElement` interface is an interface for the `circle` element. The circle element is defined by the cx and cy attributes, that denote the coordinates of the centre of the circle. It also has a radius attribute r that denotes the radius of the circle. The radius value must be positive to allow the successful rendering of the element.
+
+	Documentation [SVGCircleElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGCircleElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGCircleElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGCircleElement>
+**/
 @:native("SVGCircleElement")
 extern class CircleElement extends GraphicsElement
 {

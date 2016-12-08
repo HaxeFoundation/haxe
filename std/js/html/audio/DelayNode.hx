@@ -24,9 +24,18 @@
 
 package js.html.audio;
 
+/**
+	Documentation [DelayNode](https://developer.mozilla.org/en-US/docs/Web/API/DelayNode) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DelayNode$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DelayNode>
+**/
 @:native("DelayNode")
 extern class DelayNode extends AudioNode
 {
+	
+	/**
+		Is an a-rate `AudioParam` representing the amount of delay to apply.
+	**/
 	var delayTime(default,null) : AudioParam;
 	
 }

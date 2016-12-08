@@ -24,6 +24,13 @@
 
 package js.html.svg;
 
+/**
+	The `SVGScriptElement` interface corresponds to the SVG `script` element.
+
+	Documentation [SVGScriptElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGScriptElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGScriptElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGScriptElement>
+**/
 @:native("SVGScriptElement")
 extern class ScriptElement extends Element
 {

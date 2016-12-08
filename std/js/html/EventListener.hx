@@ -24,6 +24,13 @@
 
 package js.html;
 
+/**
+	This method is called whenever an event occurs of the type for which the `EventListener` interface was registered.
+
+	Documentation [EventListener](https://developer.mozilla.org/en-US/docs/Web/API/EventListener) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/EventListener$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/EventListener>
+**/
 @:native("EventListener")
 extern class EventListener
 {

@@ -24,9 +24,20 @@
 
 package js.html;
 
+/**
+	The `HTMLBRElement` interface represents a HTML line break element (`br`). It inherits from `HTMLElement`.
+
+	Documentation [HTMLBRElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLBRElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLBRElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLBRElement>
+**/
 @:native("HTMLBRElement")
 extern class BRElement extends Element
 {
+	
+	/**
+		Is a `DOMString` indicating the flow of text around floating objects.
+	**/
 	var clear : String;
 	
 }

@@ -24,9 +24,20 @@
 
 package js.html;
 
+/**
+	The `AnimationTimeline` interface of the Web Animations API represents the timeline of an animation. This interface exists to define timeline features (inherited by `DocumentTimeline` and future timeline types) and is not itself directly used by developers. Anywhere you see `AnimationTimeline`, you should use `DocumentTimeline` or any other timeline type instead.
+
+	Documentation [AnimationTimeline](https://developer.mozilla.org/en-US/docs/Web/API/AnimationTimeline) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AnimationTimeline$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AnimationTimeline>
+**/
 @:native("AnimationTimeline")
 extern class AnimationTimeline
 {
+	
+	/**
+		Returns the time value in milliseconds for this timeline or `null` if this timeline is inactive.
+	**/
 	var currentTime(default,null) : Float;
 	
 }

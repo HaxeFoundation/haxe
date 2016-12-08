@@ -24,9 +24,20 @@
 
 package js.html;
 
+/**
+	The `CSSMediaRule` is an interface representing a single CSS `@media` rule. It implements the `CSSConditionRule` interface, and therefore the `CSSGroupingRule` and the `CSSRule` interface with a type value of `4` (`CSSRule.MEDIA_RULE`).
+
+	Documentation [CSSMediaRule](https://developer.mozilla.org/en-US/docs/Web/API/CSSMediaRule) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CSSMediaRule$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSMediaRule>
+**/
 @:native("CSSMediaRule")
 extern class CSSMediaRule extends CSSRule
 {
+	
+	/**
+		Specifies a `MediaList` representing the intended destination medium for style information.
+	**/
 	var media(default,null) : MediaList;
 	var cssRules(default,null) : CSSRuleList;
 	

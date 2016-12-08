@@ -24,6 +24,13 @@
 
 package js.html.webgl;
 
+/**
+	The `OES_element_index_uint` extension is part of the WebGL API and adds support for `gl.UNSIGNED_INT` types to `WebGLRenderingContext.drawElements()`.
+
+	Documentation [OES_element_index_uint](https://developer.mozilla.org/en-US/docs/Web/API/OES_element_index_uint) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/OES_element_index_uint$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/OES_element_index_uint>
+**/
 @:native("OES_element_index_uint")
 extern class ExtensionElementIndexUint
 {

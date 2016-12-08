@@ -24,9 +24,20 @@
 
 package js.html;
 
+/**
+	The `HTMLQuoteElement` interface provides special properties and methods (beyond the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating quoting elements, like `blockquote` and `q`, but not the `cite` element.
+
+	Documentation [HTMLQuoteElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLQuoteElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLQuoteElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLQuoteElement>
+**/
 @:native("HTMLQuoteElement")
 extern class QuoteElement extends Element
 {
+	
+	/**
+		Is a `DOMString` reflecting the `cite` HTML attribute, containing a URL for the source of the quotation.
+	**/
 	var cite : String;
 	
 }

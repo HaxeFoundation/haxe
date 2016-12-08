@@ -24,6 +24,13 @@
 
 package js.html.svg;
 
+/**
+	The `SVGPathElement` interface corresponds to the `path` element.
+
+	Documentation [SVGPathElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGPathElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGPathElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGPathElement>
+**/
 @:native("SVGPathElement")
 extern class PathElement extends GraphicsElement
 {

@@ -24,13 +24,28 @@
 
 package js.html.audio;
 
+/**
+	It is important to note that there is only one listener per context and that it isn't an `AudioNode`.
+
+	Documentation [AudioListener](https://developer.mozilla.org/en-US/docs/Web/API/AudioListener) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AudioListener$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioListener>
+**/
 @:native("AudioListener")
 extern class AudioListener
 {
 	var dopplerFactor : Float;
 	var speedOfSound : Float;
 	
+	
+	/**
+		Sets the position of the listener. See `Deprecated features` to learn why this method was removed.
+	**/
 	function setPosition( x : Float, y : Float, z : Float ) : Void;
+	
+	/**
+		Sets the orientation of the listener.
+	**/
 	function setOrientation( x : Float, y : Float, z : Float, xUp : Float, yUp : Float, zUp : Float ) : Void;
 	function setVelocity( x : Float, y : Float, z : Float ) : Void;
 }

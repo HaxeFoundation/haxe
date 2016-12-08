@@ -24,6 +24,13 @@
 
 package js.html.svg;
 
+/**
+	The `SVGGradient` interface is a base interface used by `SVGLinearGradientElement` and `SVGRadialGradientElement`.
+
+	Documentation [SVGGradientElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGGradientElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGGradientElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGGradientElement>
+**/
 @:native("SVGGradientElement")
 extern class GradientElement extends Element
 {

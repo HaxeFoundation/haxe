@@ -24,6 +24,13 @@
 
 package js.html;
 
+/**
+	`DOMParser` can parse XML or HTML source stored in a string into a DOM Document. `DOMParser` is specified in DOM Parsing and Serialization.
+
+	Documentation [DOMParser](https://developer.mozilla.org/en-US/docs/Web/API/DOMParser) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DOMParser$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMParser>
+**/
 @:native("DOMParser")
 extern class DOMParser
 {

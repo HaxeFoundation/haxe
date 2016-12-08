@@ -24,6 +24,13 @@
 
 package js.html.svg;
 
+/**
+	The `SVGAnimatedNumber` interface is used for attributes of basic type Number which can be animated.
+
+	Documentation [SVGAnimatedNumber](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedNumber) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedNumber$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedNumber>
+**/
 @:native("SVGAnimatedNumber")
 extern class AnimatedNumber
 {

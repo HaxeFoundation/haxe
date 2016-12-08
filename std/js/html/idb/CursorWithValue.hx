@@ -24,9 +24,18 @@
 
 package js.html.idb;
 
+/**
+	Documentation [IDBCursorWithValue](https://developer.mozilla.org/en-US/docs/Web/API/IDBCursorWithValue) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/IDBCursorWithValue$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBCursorWithValue>
+**/
 @:native("IDBCursorWithValue")
 extern class CursorWithValue extends Cursor
 {
+	
+	/**
+		Returns the value of the current cursor.
+	**/
 	var value(default,null) : Dynamic;
 	
 }

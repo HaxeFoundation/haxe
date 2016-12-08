@@ -24,6 +24,13 @@
 
 package js.html.idb;
 
+/**
+	The `IDBMutableFile` interface provides access in read or write mode to a file, dealing with all the necessary locks.
+
+	Documentation [IDBMutableFile](https://developer.mozilla.org/en-US/docs/Web/API/IDBMutableFile) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/IDBMutableFile$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBMutableFile>
+**/
 @:native("IDBMutableFile")
 extern class MutableFile extends js.html.EventTarget
 {

@@ -24,6 +24,13 @@
 
 package js.html.svg;
 
+/**
+	The `SVGSVGElement` interface provides access to the properties of `svg` elements, as well as methods to manipulate them. This interface contains also various miscellaneous commonly-used utility methods, such as matrix operations and the ability to control the time of redraw on visual rendering devices.
+
+	Documentation [SVGSVGElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGSVGElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGSVGElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGSVGElement>
+**/
 @:native("SVGSVGElement")
 extern class SVGElement extends GraphicsElement
 {

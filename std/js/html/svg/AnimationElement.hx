@@ -24,6 +24,13 @@
 
 package js.html.svg;
 
+/**
+	The `SVGAnimationElement` interface is the base interface for all of the animation element interfaces: `SVGAnimateElement`, `SVGSetElement`, `SVGAnimateColorElement`, `SVGAnimateMotionElement` and `SVGAnimateTransformElement`.
+
+	Documentation [SVGAnimationElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimationElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimationElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimationElement>
+**/
 @:native("SVGAnimationElement")
 extern class AnimationElement extends Element
 {

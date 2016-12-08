@@ -24,11 +24,30 @@
 
 package js.html;
 
+/**
+	The `Transition``Event` interface represents events providing information related to transitions.
+
+	Documentation [TransitionEvent](https://developer.mozilla.org/en-US/docs/Web/API/TransitionEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/TransitionEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/TransitionEvent>
+**/
 @:native("TransitionEvent")
 extern class TransitionEvent extends Event
 {
+	
+	/**
+		Is a `DOMString` containing the name CSS property associated with the transition.
+	**/
 	var propertyName(default,null) : String;
+	
+	/**
+		Is a `float` giving the amount of time the transtion has been running, in seconds, when this event fired. This value is not affected by the `transition-delay` property.
+	**/
 	var elapsedTime(default,null) : Float;
+	
+	/**
+		Is a `DOMString`, starting with `'::'`, containing the name of the pseudo-element the animation runs on. If the transition doesn't run on a pseudo-element but on the element, an empty string: `''``.`
+	**/
 	var pseudoElement(default,null) : String;
 	
 	/** @throws DOMError */

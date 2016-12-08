@@ -24,6 +24,13 @@
 
 package js.html.svg;
 
+/**
+	The `SVGAnimatedEnumeration` interface is used for attributes whose value must be a constant from a particular enumeration and which can be animated.
+
+	Documentation [SVGAnimatedEnumeration](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedEnumeration) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedEnumeration$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedEnumeration>
+**/
 @:native("SVGAnimatedEnumeration")
 extern class AnimatedEnumeration
 {
