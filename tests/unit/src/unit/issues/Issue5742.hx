@@ -1,7 +1,7 @@
 package unit.issues;
 
-#if sys
 class Issue5742 extends Test {
+#if sys
 	function test(){
 		try {
             sys.FileSystem.deleteFile('nonexistent.file');
@@ -17,5 +17,5 @@ class Issue5742 extends Test {
             t(true);
         }
 	}
-}
 #end
+}
