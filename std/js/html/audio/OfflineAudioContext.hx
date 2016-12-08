@@ -25,9 +25,11 @@
 package js.html.audio;
 
 /**
-	The `OfflineAudioContext` interface is an `AudioContext` interface representing an audio-processing graph built from linked together `AudioNode`s. In contrast with a standard `AudioContext`, an `OfflineAudioContext` doesn't render the audio to the device hardware; instead, it generates it, as fast as it can, and outputs the result to an `AudioBuffer`. 
+	The `OfflineAudioContext` interface is an `AudioContext` interface representing an audio-processing graph built from linked together `AudioNode`s. In contrast with a standard `AudioContext`, an `OfflineAudioContext` doesn't render the audio to the device hardware; instead, it generates it, as fast as it can, and outputs the result to an `AudioBuffer`.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/OfflineAudioContext> 
+	Documentation [OfflineAudioContext](https://developer.mozilla.org/en-US/docs/Web/API/OfflineAudioContext) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/OfflineAudioContext$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/OfflineAudioContext>
 **/
 @:native("OfflineAudioContext")
 extern class OfflineAudioContext extends AudioContext

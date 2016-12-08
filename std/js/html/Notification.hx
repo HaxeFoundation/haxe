@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `Notification` interface of the Notifications API is used to configure and display desktop notifications to the user. 
+	The `Notification` interface of the Notifications API is used to configure and display desktop notifications to the user.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Notification> 
+	Documentation [Notification](https://developer.mozilla.org/en-US/docs/Web/API/Notification) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Notification$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Notification>
 **/
 @:native("Notification")
 extern class Notification extends EventTarget

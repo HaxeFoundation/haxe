@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `BroadcastChannel` interface represents a named channel that any browsing context of a given origin can subscribe to. It allows communication between different documents (in different windows, tabs, frames or iframes) of the same origin. Messages are broadcasted via a `message` event fired at all `BroadcastChannel` objects listening to the channel. 
+	The `BroadcastChannel` interface represents a named channel that any browsing context of a given origin can subscribe to. It allows communication between different documents (in different windows, tabs, frames or iframes) of the same origin. Messages are broadcasted via a `message` event fired at all `BroadcastChannel` objects listening to the channel.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel> 
+	Documentation [BroadcastChannel](https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel>
 **/
 @:native("BroadcastChannel")
 extern class BroadcastChannel extends EventTarget

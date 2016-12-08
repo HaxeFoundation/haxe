@@ -25,9 +25,11 @@
 package js.html.svg;
 
 /**
-	The `SVGImageElement` interface corresponds to the `image` element. 
+	The `SVGImageElement` interface corresponds to the `image` element.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGImageElement> 
+	Documentation [SVGImageElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGImageElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGImageElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGImageElement>
 **/
 @:native("SVGImageElement")
 extern class ImageElement extends GraphicsElement

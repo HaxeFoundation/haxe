@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `ExtendableMessageEvent` interface of the `ServiceWorker API` represents the event object of a `message` event fired on a service worker (when a channel message is received on the `ServiceWorkerGlobalScope` from another context) — extends the lifetime of such events. 
+	The `ExtendableMessageEvent` interface of the `ServiceWorker API` represents the event object of a `message` event fired on a service worker (when a channel message is received on the `ServiceWorkerGlobalScope` from another context) — extends the lifetime of such events.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/ExtendableMessageEvent> 
+	Documentation [ExtendableMessageEvent](https://developer.mozilla.org/en-US/docs/Web/API/ExtendableMessageEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ExtendableMessageEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ExtendableMessageEvent>
 **/
 @:native("ExtendableMessageEvent")
 extern class ExtendableMessageEvent extends ExtendableEvent

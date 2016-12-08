@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `TextDecoder` interface represents a decoder for a specific method, that is a specific character encoding, like `utf-8`, `iso-8859-2`, `koi8`, `cp1261`, `gbk`, ... A decoder takes a stream of bytes as input and emits a stream of code points. For a more scalable, non-native library, see `StringView` – a C-like representation of strings based on typed arrays. 
+	The `TextDecoder` interface represents a decoder for a specific method, that is a specific character encoding, like `utf-8`, `iso-8859-2`, `koi8`, `cp1261`, `gbk`, ... A decoder takes a stream of bytes as input and emits a stream of code points. For a more scalable, non-native library, see `StringView` – a C-like representation of strings based on typed arrays.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder> 
+	Documentation [TextDecoder](https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder>
 **/
 @:native("TextDecoder")
 extern class TextDecoder

@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `PerformanceNavigation` interface represents information about how the navigation to the current document was done. 
+	The `PerformanceNavigation` interface represents information about how the navigation to the current document was done.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/PerformanceNavigation> 
+	Documentation [PerformanceNavigation](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceNavigation) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceNavigation$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/PerformanceNavigation>
 **/
 @:native("PerformanceNavigation")
 extern class PerformanceNavigation

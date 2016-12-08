@@ -25,9 +25,11 @@
 package js.html.audio;
 
 /**
-	A `WaveShaperNode` always has exactly one input and one output. 
+	A `WaveShaperNode` always has exactly one input and one output.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/WaveShaperNode> 
+	Documentation [WaveShaperNode](https://developer.mozilla.org/en-US/docs/Web/API/WaveShaperNode) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/WaveShaperNode$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WaveShaperNode>
 **/
 @:native("WaveShaperNode")
 extern class WaveShaperNode extends AudioNode

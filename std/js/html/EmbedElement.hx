@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLEmbedElement` interface, which provides special properties (beyond the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating `embed` elements. 
+	The `HTMLEmbedElement` interface, which provides special properties (beyond the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating `embed` elements.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLEmbedElement> 
+	Documentation [HTMLEmbedElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLEmbedElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLEmbedElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLEmbedElement>
 **/
 @:native("HTMLEmbedElement")
 extern class EmbedElement extends Element

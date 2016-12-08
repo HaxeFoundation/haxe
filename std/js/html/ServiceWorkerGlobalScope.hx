@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `ServiceWorkerGlobalScope` interface of the ServiceWorker API represents the global execution context of a service worker. 
+	The `ServiceWorkerGlobalScope` interface of the ServiceWorker API represents the global execution context of a service worker.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope> 
+	Documentation [ServiceWorkerGlobalScope](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope>
 **/
 @:native("ServiceWorkerGlobalScope")
 extern class ServiceWorkerGlobalScope extends WorkerGlobalScope

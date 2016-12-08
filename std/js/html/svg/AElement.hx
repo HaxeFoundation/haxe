@@ -25,9 +25,11 @@
 package js.html.svg;
 
 /**
-	The `SVGAElement` interface provides access to the properties of `a` element, as well as methods to manipulate them. 
+	The `SVGAElement` interface provides access to the properties of `a` element, as well as methods to manipulate them.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAElement> 
+	Documentation [SVGAElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGAElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGAElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAElement>
 **/
 @:native("SVGAElement")
 extern class AElement extends GraphicsElement

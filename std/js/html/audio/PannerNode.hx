@@ -25,9 +25,11 @@
 package js.html.audio;
 
 /**
-	A `PannerNode` always has exactly one input and one output: the input can be mono or stereo but the output is always stereo (2 channels); you can't have panning effects without at least two audio channels! 
+	A `PannerNode` always has exactly one input and one output: the input can be mono or stereo but the output is always stereo (2 channels); you can't have panning effects without at least two audio channels!
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/PannerNode> 
+	Documentation [PannerNode](https://developer.mozilla.org/en-US/docs/Web/API/PannerNode) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PannerNode$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/PannerNode>
 **/
 @:native("PannerNode")
 extern class PannerNode extends AudioNode

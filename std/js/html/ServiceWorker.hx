@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `ServiceWorker` interface of the ServiceWorker API provides a reference to a service worker. Multiple browsing contexts (e.g. pages, workers, etc.) can be associated with the same service worker, each through a unique `ServiceWorker` object. 
+	The `ServiceWorker` interface of the ServiceWorker API provides a reference to a service worker. Multiple browsing contexts (e.g. pages, workers, etc.) can be associated with the same service worker, each through a unique `ServiceWorker` object.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorker> 
+	Documentation [ServiceWorker](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorker) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorker$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorker>
 **/
 @:native("ServiceWorker")
 extern class ServiceWorker extends EventTarget

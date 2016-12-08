@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `SourceBuffer` interface represents a chunk of media to be passed into an `HTMLMediaElement` and played, via a `MediaSource` object. This can be made up of one or several media segments. 
+	The `SourceBuffer` interface represents a chunk of media to be passed into an `HTMLMediaElement` and played, via a `MediaSource` object. This can be made up of one or several media segments.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SourceBuffer> 
+	Documentation [SourceBuffer](https://developer.mozilla.org/en-US/docs/Web/API/SourceBuffer) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SourceBuffer$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SourceBuffer>
 **/
 @:native("SourceBuffer")
 extern class SourceBuffer extends EventTarget

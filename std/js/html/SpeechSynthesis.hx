@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `SpeechSynthesis` interface of the Web Speech API is the controller interface for the speech service; this can be used to retrieve information about the synthesis voices available on the device, start and pause speech, and other commands besides. 
+	The `SpeechSynthesis` interface of the Web Speech API is the controller interface for the speech service; this can be used to retrieve information about the synthesis voices available on the device, start and pause speech, and other commands besides.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis> 
+	Documentation [SpeechSynthesis](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis>
 **/
 @:native("SpeechSynthesis")
 extern class SpeechSynthesis

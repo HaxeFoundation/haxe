@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `MediaError` interface represents an error associated to a media, like a `HTMLMediaElement`. 
+	The `MediaError` interface represents an error associated to a media, like a `HTMLMediaElement`.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaError> 
+	Documentation [MediaError](https://developer.mozilla.org/en-US/docs/Web/API/MediaError) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MediaError$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaError>
 **/
 @:native("MediaError")
 extern class MediaError

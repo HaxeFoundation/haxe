@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLStyleElement` interface represents a `style` element. It inherits properties and methods from its parent, `HTMLElement`, and from `LinkStyle`. 
+	The `HTMLStyleElement` interface represents a `style` element. It inherits properties and methods from its parent, `HTMLElement`, and from `LinkStyle`.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLStyleElement> 
+	Documentation [HTMLStyleElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLStyleElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLStyleElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLStyleElement>
 **/
 @:native("HTMLStyleElement")
 extern class StyleElement extends Element

@@ -25,9 +25,11 @@
 package js.html.idb;
 
 /**
-	The request object does not initially contain any information about the result of the operation, but once information becomes available, an event is fired on the request, and the information becomes available through the properties of the `IDBRequest` instance. 
+	The request object does not initially contain any information about the result of the operation, but once information becomes available, an event is fired on the request, and the information becomes available through the properties of the `IDBRequest` instance.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBRequest> 
+	Documentation [IDBRequest](https://developer.mozilla.org/en-US/docs/Web/API/IDBRequest) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/IDBRequest$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBRequest>
 **/
 @:native("IDBRequest")
 extern class Request extends js.html.EventTarget

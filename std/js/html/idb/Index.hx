@@ -25,9 +25,11 @@
 package js.html.idb;
 
 /**
-	`IDBIndex` interface of the IndexedDB API provides asynchronous access to an index in a database. An index is a kind of object store for looking up records in another object store, called the referenced object store. You use this interface to retrieve data. 
+	`IDBIndex` interface of the IndexedDB API provides asynchronous access to an index in a database. An index is a kind of object store for looking up records in another object store, called the referenced object store. You use this interface to retrieve data.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBIndex> 
+	Documentation [IDBIndex](https://developer.mozilla.org/en-US/docs/Web/API/IDBIndex) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/IDBIndex$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBIndex>
 **/
 @:native("IDBIndex")
 extern class Index

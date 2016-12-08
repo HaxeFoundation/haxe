@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLLinkElement` interface represents reference information for external resources and the relationship of those resources to a document and vice-versa. This object inherits all of the properties and methods of the `HTMLElement` interface. 
+	The `HTMLLinkElement` interface represents reference information for external resources and the relationship of those resources to a document and vice-versa. This object inherits all of the properties and methods of the `HTMLElement` interface.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLLinkElement> 
+	Documentation [HTMLLinkElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLinkElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLinkElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLLinkElement>
 **/
 @:native("HTMLLinkElement")
 extern class LinkElement extends Element

@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `MediaStream` interface represents a stream of media content. A stream consists of several tracks such as video or audio tracks. Each track is specified as an instance of `MediaStreamTrack`. 
+	The `MediaStream` interface represents a stream of media content. A stream consists of several tracks such as video or audio tracks. Each track is specified as an instance of `MediaStreamTrack`.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaStream> 
+	Documentation [MediaStream](https://developer.mozilla.org/en-US/docs/Web/API/MediaStream) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MediaStream$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaStream>
 **/
 @:native("MediaStream")
 extern class MediaStream extends EventTarget

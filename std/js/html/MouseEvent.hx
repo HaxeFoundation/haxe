@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `MouseEvent` interface represents events that occur due to the user interacting with a pointing device (such as a mouse). Common events using this interface include `click`, `dblclick`, `mouseup`, `mousedown`. 
+	The `MouseEvent` interface represents events that occur due to the user interacting with a pointing device (such as a mouse). Common events using this interface include `click`, `dblclick`, `mouseup`, `mousedown`.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent> 
+	Documentation [MouseEvent](https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent>
 **/
 @:native("MouseEvent")
 extern class MouseEvent extends UIEvent

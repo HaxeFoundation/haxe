@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLImageElement` interface provides special properties and methods  for manipulating the layout and presentation of `img` elements. 
+	The `HTMLImageElement` interface provides special properties and methods  for manipulating the layout and presentation of `img` elements.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement> 
+	Documentation [HTMLImageElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement>
 **/
 @:native("HTMLImageElement")
 extern class ImageElement extends Element

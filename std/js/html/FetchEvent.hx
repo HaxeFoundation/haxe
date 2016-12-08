@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The parameter passed into the `ServiceWorkerGlobalScope.onfetch` handler, `FetchEvent` represents a fetch action that is dispatched on the `ServiceWorkerGlobalScope` of a `ServiceWorker`. It contains information about the request and resulting response, and provides the `FetchEvent.respondWith()` method, which allows us to provide an arbitrary response back to the controlled page. 
+	The parameter passed into the `ServiceWorkerGlobalScope.onfetch` handler, `FetchEvent` represents a fetch action that is dispatched on the `ServiceWorkerGlobalScope` of a `ServiceWorker`. It contains information about the request and resulting response, and provides the `FetchEvent.respondWith()` method, which allows us to provide an arbitrary response back to the controlled page.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent> 
+	Documentation [FetchEvent](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent>
 **/
 @:native("FetchEvent")
 extern class FetchEvent extends ExtendableEvent

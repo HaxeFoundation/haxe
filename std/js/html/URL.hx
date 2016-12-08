@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `URL` interface represent an object providing static methods used for creating object URLs. 
+	The `URL` interface represent an object providing static methods used for creating object URLs.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/URL> 
+	Documentation [URL](https://developer.mozilla.org/en-US/docs/Web/API/URL) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/URL$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/URL>
 **/
 @:native("URL")
 extern class URL

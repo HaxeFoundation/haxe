@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `DOMException` interface represents an abnormal event (called an exception) which occurs as a result of calling a method or accessing a property of a web API. This is basically how error conditions are described in web APIs. 
+	The `DOMException` interface represents an abnormal event (called an exception) which occurs as a result of calling a method or accessing a property of a web API. This is basically how error conditions are described in web APIs.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMException> 
+	Documentation [DOMException](https://developer.mozilla.org/en-US/docs/Web/API/DOMException) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DOMException$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMException>
 **/
 @:native("DOMException")
 extern class DOMException

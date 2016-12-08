@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLModElement` interface provides special properties (beyond the regular methods and properties available through the `HTMLElement` interface they also have available to them by inheritance) for manipulating modification elements, that is `del` and `ins`. 
+	The `HTMLModElement` interface provides special properties (beyond the regular methods and properties available through the `HTMLElement` interface they also have available to them by inheritance) for manipulating modification elements, that is `del` and `ins`.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLModElement> 
+	Documentation [HTMLModElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLModElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLModElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLModElement>
 **/
 @:native("HTMLModElement")
 extern class ModElement extends Element

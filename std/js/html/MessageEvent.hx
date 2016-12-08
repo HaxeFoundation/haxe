@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	A `MessageEvent` is the interface representing a message received by a target, being a `WebSocket` or a WebRTC `RTCDataChannel` 
+	A `MessageEvent` is the interface representing a message received by a target, being a `WebSocket` or a WebRTC `RTCDataChannel`
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent> 
+	Documentation [MessageEvent](https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent>
 **/
 @:native("MessageEvent")
 extern class MessageEvent extends Event

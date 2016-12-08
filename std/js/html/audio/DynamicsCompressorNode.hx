@@ -25,9 +25,11 @@
 package js.html.audio;
 
 /**
-	Inherits properties from its parent, `AudioNode`. 
+	Inherits properties from its parent, `AudioNode`.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/DynamicsCompressorNode> 
+	Documentation [DynamicsCompressorNode](https://developer.mozilla.org/en-US/docs/Web/API/DynamicsCompressorNode) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DynamicsCompressorNode$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DynamicsCompressorNode>
 **/
 @:native("DynamicsCompressorNode")
 extern class DynamicsCompressorNode extends AudioNode

@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	`MutationObserver` provides developers a way to react to changes in a DOM. It is designed as a replacement for Mutation Events defined in the DOM3 Events specification. 
+	`MutationObserver` provides developers a way to react to changes in a DOM. It is designed as a replacement for Mutation Events defined in the DOM3 Events specification.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver> 
+	Documentation [MutationObserver](https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver>
 **/
 @:native("MutationObserver")
 extern class MutationObserver

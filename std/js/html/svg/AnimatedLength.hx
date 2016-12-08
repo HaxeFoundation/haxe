@@ -25,9 +25,11 @@
 package js.html.svg;
 
 /**
-	The `SVGAnimatedLength` interface is used for attributes of basic type length which can be animated. 
+	The `SVGAnimatedLength` interface is used for attributes of basic type length which can be animated.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedLength> 
+	Documentation [SVGAnimatedLength](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedLength) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedLength$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedLength>
 **/
 @:native("SVGAnimatedLength")
 extern class AnimatedLength

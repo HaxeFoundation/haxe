@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `WorkerGlobalScope` interface of the Web Workers API is an interface representing the scope of any worker. Workers have no browsing context; this scope contains the information usually conveyed by `Window` objects — in this case event handlers, the console or the associated `WorkerNavigator` object. Each `WorkerGlobalScope` has its own event loop. 
+	The `WorkerGlobalScope` interface of the Web Workers API is an interface representing the scope of any worker. Workers have no browsing context; this scope contains the information usually conveyed by `Window` objects — in this case event handlers, the console or the associated `WorkerNavigator` object. Each `WorkerGlobalScope` has its own event loop.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/WorkerGlobalScope> 
+	Documentation [WorkerGlobalScope](https://developer.mozilla.org/en-US/docs/Web/API/WorkerGlobalScope) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/WorkerGlobalScope$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WorkerGlobalScope>
 **/
 @:native("WorkerGlobalScope")
 extern class WorkerGlobalScope extends EventTarget

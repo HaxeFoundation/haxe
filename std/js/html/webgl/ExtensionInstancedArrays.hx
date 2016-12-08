@@ -25,9 +25,11 @@
 package js.html.webgl;
 
 /**
-	The `ANGLE_instanced_arrays` extension is part of the WebGL API and allows to draw the same object, or groups of similar objects multiple times, if they share the same vertex data, primitive count and type. 
+	The `ANGLE_instanced_arrays` extension is part of the WebGL API and allows to draw the same object, or groups of similar objects multiple times, if they share the same vertex data, primitive count and type.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/ANGLE_instanced_arrays> 
+	Documentation [ANGLE_instanced_arrays](https://developer.mozilla.org/en-US/docs/Web/API/ANGLE_instanced_arrays) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ANGLE_instanced_arrays$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ANGLE_instanced_arrays>
 **/
 @:native("ANGLE_instanced_arrays")
 extern class ExtensionInstancedArrays

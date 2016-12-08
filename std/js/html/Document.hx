@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `Document` interface represents any web page loaded in the browser and serves as an entry point into the web page's content, which is the DOM tree. The DOM tree includes elements such as `body` and `table`, among many others. It provides functionality global to the document, like how to obtain the page's URL and create new elements in the document. 
+	The `Document` interface represents any web page loaded in the browser and serves as an entry point into the web page's content, which is the DOM tree. The DOM tree includes elements such as `body` and `table`, among many others. It provides functionality global to the document, like how to obtain the page's URL and create new elements in the document.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Document> 
+	Documentation [Document](https://developer.mozilla.org/en-US/docs/Web/API/Document) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Document$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Document>
 **/
 @:native("Document")
 extern class Document extends Node

@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLPreElement` interface expose specific properties and methods (beyond those defined by regular `HTMLElement` interface it also has available to it by inheritance) for manipulating block of preformatted text. 
+	The `HTMLPreElement` interface expose specific properties and methods (beyond those defined by regular `HTMLElement` interface it also has available to it by inheritance) for manipulating block of preformatted text.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLPreElement> 
+	Documentation [HTMLPreElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLPreElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLPreElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLPreElement>
 **/
 @:native("HTMLPreElement")
 extern class PreElement extends Element

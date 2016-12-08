@@ -25,9 +25,11 @@
 package js.html.webgl;
 
 /**
-	The `OES_texture_float_linear` extension is part of the WebGL API and allows linear filtering with floating-point pixel types for textures. 
+	The `OES_texture_float_linear` extension is part of the WebGL API and allows linear filtering with floating-point pixel types for textures.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/OES_texture_float_linear> 
+	Documentation [OES_texture_float_linear](https://developer.mozilla.org/en-US/docs/Web/API/OES_texture_float_linear) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/OES_texture_float_linear$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/OES_texture_float_linear>
 **/
 @:native("OES_texture_float_linear")
 extern class ExtensionTextureFloatLinear

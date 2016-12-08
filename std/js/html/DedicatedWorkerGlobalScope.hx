@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `DedicatedWorkerGlobalScope` object (the `Worker` global scope) is accessible through the `self` keyword. Some additional global functions, namespaces objects, and constructors, not typically associated with the worker global scope, but available on it, are listed in the JavaScript Reference. See also: Functions available to workers. 
+	The `DedicatedWorkerGlobalScope` object (the `Worker` global scope) is accessible through the `self` keyword. Some additional global functions, namespaces objects, and constructors, not typically associated with the worker global scope, but available on it, are listed in the JavaScript Reference. See also: Functions available to workers.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/DedicatedWorkerGlobalScope> 
+	Documentation [DedicatedWorkerGlobalScope](https://developer.mozilla.org/en-US/docs/Web/API/DedicatedWorkerGlobalScope) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DedicatedWorkerGlobalScope$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DedicatedWorkerGlobalScope>
 **/
 @:native("DedicatedWorkerGlobalScope")
 extern class DedicatedWorkerGlobalScope extends WorkerGlobalScope

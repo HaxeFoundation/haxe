@@ -25,9 +25,11 @@
 package js.html.idb;
 
 /**
-	Note that as of Firefox 40, IndexedDB transactions have relaxed durability guarantees to increase performance (see bug 1112702.) Previously in a `readwrite` transaction `IDBTransaction.oncomplete` was fired only when all data was guaranteed to have been flushed to disk. In Firefox 40+ the `complete` event is fired after the OS has been told to write the data but potentially before that data has actually been flushed to disk. The `complete` event may thus be delivered quicker than before, however, there exists a small chance that the entire transaction will be lost if the OS crashes or there is a loss of system power before the data is flushed to disk. Since such catastrophic events are rare most consumers should not need to concern themselves further. 
+	Note that as of Firefox 40, IndexedDB transactions have relaxed durability guarantees to increase performance (see bug 1112702.) Previously in a `readwrite` transaction `IDBTransaction.oncomplete` was fired only when all data was guaranteed to have been flushed to disk. In Firefox 40+ the `complete` event is fired after the OS has been told to write the data but potentially before that data has actually been flushed to disk. The `complete` event may thus be delivered quicker than before, however, there exists a small chance that the entire transaction will be lost if the OS crashes or there is a loss of system power before the data is flushed to disk. Since such catastrophic events are rare most consumers should not need to concern themselves further.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBTransaction> 
+	Documentation [IDBTransaction](https://developer.mozilla.org/en-US/docs/Web/API/IDBTransaction) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/IDBTransaction$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBTransaction>
 **/
 @:native("IDBTransaction")
 extern class Transaction extends js.html.EventTarget

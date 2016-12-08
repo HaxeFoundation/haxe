@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `PermissionStatus` interface of the Permissions API provides the state of an object and an event handler for monitoring changes to said state. 
+	The `PermissionStatus` interface of the Permissions API provides the state of an object and an event handler for monitoring changes to said state.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/PermissionStatus> 
+	Documentation [PermissionStatus](https://developer.mozilla.org/en-US/docs/Web/API/PermissionStatus) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PermissionStatus$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/PermissionStatus>
 **/
 @:native("PermissionStatus")
 extern class PermissionStatus extends EventTarget

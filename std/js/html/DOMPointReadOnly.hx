@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `DOMPointReadOnly` interface specifies the standard properties used by `DOMPoint` to define a 2D or 3D point in a coordinate system. 
+	The `DOMPointReadOnly` interface specifies the standard properties used by `DOMPoint` to define a 2D or 3D point in a coordinate system.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMPointReadOnly> 
+	Documentation [DOMPointReadOnly](https://developer.mozilla.org/en-US/docs/Web/API/DOMPointReadOnly) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DOMPointReadOnly$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMPointReadOnly>
 **/
 @:native("DOMPointReadOnly")
 extern class DOMPointReadOnly

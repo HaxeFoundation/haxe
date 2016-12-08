@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `NodeIterator` interface represents an iterator over the members of a list of the nodes in a subtree of the DOM. The nodes will be returned in document order. 
+	The `NodeIterator` interface represents an iterator over the members of a list of the nodes in a subtree of the DOM. The nodes will be returned in document order.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/NodeIterator> 
+	Documentation [NodeIterator](https://developer.mozilla.org/en-US/docs/Web/API/NodeIterator) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/NodeIterator$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/NodeIterator>
 **/
 @:native("NodeIterator")
 extern class NodeIterator

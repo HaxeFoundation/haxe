@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	Used by the `dataset` HTML attribute to represent data for custom attributes added to elements. 
+	Used by the `dataset` HTML attribute to represent data for custom attributes added to elements.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMStringMap> 
+	Documentation [DOMStringMap](https://developer.mozilla.org/en-US/docs/Web/API/DOMStringMap) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DOMStringMap$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMStringMap>
 **/
 @:native("DOMStringMap")
 extern class DOMStringMap implements Dynamic<String>

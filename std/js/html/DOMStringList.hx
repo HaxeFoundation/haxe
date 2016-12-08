@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	A type returned by some APIs which contains a list of DOMString (strings). 
+	A type returned by some APIs which contains a list of DOMString (strings).
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMStringList> 
+	Documentation [DOMStringList](https://developer.mozilla.org/en-US/docs/Web/API/DOMStringList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DOMStringList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMStringList>
 **/
 @:native("DOMStringList")
 extern class DOMStringList implements ArrayAccess<String>

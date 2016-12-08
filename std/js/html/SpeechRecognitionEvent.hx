@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `SpeechRecognitionEvent` interface of the Web Speech API represents the event object for the `result` and `nomatch` events, and contains all the data associated with an interim or final speech recognition result. 
+	The `SpeechRecognitionEvent` interface of the Web Speech API represents the event object for the `result` and `nomatch` events, and contains all the data associated with an interim or final speech recognition result.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionEvent> 
+	Documentation [SpeechRecognitionEvent](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionEvent>
 **/
 @:native("SpeechRecognitionEvent")
 extern class SpeechRecognitionEvent extends Event

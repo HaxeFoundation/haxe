@@ -25,9 +25,11 @@
 package js.html.svg;
 
 /**
-	The `SVGGElement` interface corresponds to the `g` element. 
+	The `SVGGElement` interface corresponds to the `g` element.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGGElement> 
+	Documentation [SVGGElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGGElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGGElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGGElement>
 **/
 @:native("SVGGElement")
 extern class GElement extends GraphicsElement

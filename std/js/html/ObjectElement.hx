@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLObjectElement` interface provides special properties and methods (beyond those on the `HTMLElement` interface it also has available to it by inheritance) for manipulating the layout and presentation of `object` element, representing external resources. 
+	The `HTMLObjectElement` interface provides special properties and methods (beyond those on the `HTMLElement` interface it also has available to it by inheritance) for manipulating the layout and presentation of `object` element, representing external resources.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLObjectElement> 
+	Documentation [HTMLObjectElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLObjectElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLObjectElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLObjectElement>
 **/
 @:native("HTMLObjectElement")
 extern class ObjectElement extends Element

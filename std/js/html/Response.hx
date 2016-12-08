@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `Response` interface of the Fetch API represents the response to a request. 
+	The `Response` interface of the Fetch API represents the response to a request.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Response> 
+	Documentation [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Response$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Response>
 **/
 @:native("Response")
 extern class Response

@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `PerformanceEntry` object encapsulates a single performance metric that is part of the performance timeline. A performance entry can be directly created by making a performance `mark` or `measure` (for example by calling the `mark()` method) at an explicit point in an application. Performance entries are also created in indirect ways such as loading a resource (such as an image). 
+	The `PerformanceEntry` object encapsulates a single performance metric that is part of the performance timeline. A performance entry can be directly created by making a performance `mark` or `measure` (for example by calling the `mark()` method) at an explicit point in an application. Performance entries are also created in indirect ways such as loading a resource (such as an image).
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/PerformanceEntry> 
+	Documentation [PerformanceEntry](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceEntry) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceEntry$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/PerformanceEntry>
 **/
 @:native("PerformanceEntry")
 extern class PerformanceEntry

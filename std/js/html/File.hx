@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `File` interface provides information about files and allows JavaScript in a web page to access their content. 
+	The `File` interface provides information about files and allows JavaScript in a web page to access their content.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/File> 
+	Documentation [File](https://developer.mozilla.org/en-US/docs/Web/API/File) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/File$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/File>
 **/
 @:native("File")
 extern class File extends Blob

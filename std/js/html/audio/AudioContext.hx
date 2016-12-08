@@ -25,9 +25,11 @@
 package js.html.audio;
 
 /**
-	An `AudioContext` can be a target of events, therefore it implements the `EventTarget` interface. 
+	An `AudioContext` can be a target of events, therefore it implements the `EventTarget` interface.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioContext> 
+	Documentation [AudioContext](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioContext>
 **/
 @:native("AudioContext")
 extern class AudioContext extends js.html.EventTarget

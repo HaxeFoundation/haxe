@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `Request` interface of the Fetch API represents a resource request. 
+	The `Request` interface of the Fetch API represents a resource request.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Request> 
+	Documentation [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Request$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Request>
 **/
 @:native("Request")
 extern class Request

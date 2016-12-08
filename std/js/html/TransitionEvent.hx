@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `Transition``Event` interface represents events providing information related to transitions. 
+	The `Transition``Event` interface represents events providing information related to transitions.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/TransitionEvent> 
+	Documentation [TransitionEvent](https://developer.mozilla.org/en-US/docs/Web/API/TransitionEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/TransitionEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/TransitionEvent>
 **/
 @:native("TransitionEvent")
 extern class TransitionEvent extends Event

@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLBaseElement` interface contains the base URI for a document. This object inherits all of the properties and methods as described in the `HTMLElement` interface. 
+	The `HTMLBaseElement` interface contains the base URI for a document. This object inherits all of the properties and methods as described in the `HTMLElement` interface.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLBaseElement> 
+	Documentation [HTMLBaseElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLBaseElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLBaseElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLBaseElement>
 **/
 @:native("HTMLBaseElement")
 extern class BaseElement extends Element

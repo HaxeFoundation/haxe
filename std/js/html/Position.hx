@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `Position` interface represents the position of the concerned device at a given time. The position, represented by a `Coordinates` object, comprehends the 2D position of the device, on a spheroid representing the Earth, but also its altitude and its speed. 
+	The `Position` interface represents the position of the concerned device at a given time. The position, represented by a `Coordinates` object, comprehends the 2D position of the device, on a spheroid representing the Earth, but also its altitude and its speed.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Position> 
+	Documentation [Position](https://developer.mozilla.org/en-US/docs/Web/API/Position) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Position$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Position>
 **/
 @:native("Position")
 extern class Position

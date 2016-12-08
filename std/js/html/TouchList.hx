@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `TouchList` interface represents a list of contact points with a touch surface; for example, if the user has three fingers on the touch surface (such as a screen or trackpad), the corresponding `TouchList` object would have one `Touch` object for each finger, for a total of three entries. 
+	The `TouchList` interface represents a list of contact points with a touch surface; for example, if the user has three fingers on the touch surface (such as a screen or trackpad), the corresponding `TouchList` object would have one `Touch` object for each finger, for a total of three entries.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/TouchList> 
+	Documentation [TouchList](https://developer.mozilla.org/en-US/docs/Web/API/TouchList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/TouchList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/TouchList>
 **/
 @:native("TouchList")
 extern class TouchList implements ArrayAccess<Touch>

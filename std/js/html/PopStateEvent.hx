@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	An event handler for the `popstate` event on the window. 
+	An event handler for the `popstate` event on the window.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/PopStateEvent> 
+	Documentation [PopStateEvent](https://developer.mozilla.org/en-US/docs/Web/API/PopStateEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PopStateEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/PopStateEvent>
 **/
 @:native("PopStateEvent")
 extern class PopStateEvent extends Event

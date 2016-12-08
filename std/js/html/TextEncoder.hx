@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	TextEncoder takes a stream of code points as input and emits a stream of bytes. For a more scalable, non-native library, see `StringView` – a C-like representation of strings based on typed arrays. 
+	TextEncoder takes a stream of code points as input and emits a stream of bytes. For a more scalable, non-native library, see `StringView` – a C-like representation of strings based on typed arrays.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder> 
+	Documentation [TextEncoder](https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder>
 **/
 @:native("TextEncoder")
 extern class TextEncoder

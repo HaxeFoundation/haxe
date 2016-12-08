@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `hashchange` event is fired when the fragment identifier of the URL has changed (the part of the URL that follows the # symbol, including the # symbol). 
+	The `hashchange` event is fired when the fragment identifier of the URL has changed (the part of the URL that follows the # symbol, including the # symbol).
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HashChangeEvent> 
+	Documentation [HashChangeEvent](https://developer.mozilla.org/en-US/docs/Web/API/HashChangeEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HashChangeEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HashChangeEvent>
 **/
 @:native("HashChangeEvent")
 extern class HashChangeEvent extends Event

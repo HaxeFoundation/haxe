@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLButtonElement` interface provides properties and methods (beyond the `button` object interface it also has available to them by inheritance) for manipulating the layout and presentation of button elements. 
+	The `HTMLButtonElement` interface provides properties and methods (beyond the `button` object interface it also has available to them by inheritance) for manipulating the layout and presentation of button elements.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLButtonElement> 
+	Documentation [HTMLButtonElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLButtonElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLButtonElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLButtonElement>
 **/
 @:native("HTMLButtonElement")
 extern class ButtonElement extends Element

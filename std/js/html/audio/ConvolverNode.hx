@@ -25,9 +25,11 @@
 package js.html.audio;
 
 /**
-	The `ConvolverNode` interface is an `AudioNode` that performs a Linear Convolution on a given `AudioBuffer`, often used to achieve a reverb effect. A `ConvolverNode` always has exactly one input and one output. 
+	The `ConvolverNode` interface is an `AudioNode` that performs a Linear Convolution on a given `AudioBuffer`, often used to achieve a reverb effect. A `ConvolverNode` always has exactly one input and one output.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/ConvolverNode> 
+	Documentation [ConvolverNode](https://developer.mozilla.org/en-US/docs/Web/API/ConvolverNode) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ConvolverNode$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ConvolverNode>
 **/
 @:native("ConvolverNode")
 extern class ConvolverNode extends AudioNode

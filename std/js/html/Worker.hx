@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `Worker` interface of the Web Workers API represents a background task that can be easily created and can send messages back to its creator. Creating a worker is as simple as calling the `Worker()` constructor and specifying a script to be run in the worker thread. 
+	The `Worker` interface of the Web Workers API represents a background task that can be easily created and can send messages back to its creator. Creating a worker is as simple as calling the `Worker()` constructor and specifying a script to be run in the worker thread.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Worker> 
+	Documentation [Worker](https://developer.mozilla.org/en-US/docs/Web/API/Worker) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Worker$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Worker>
 **/
 @:native("Worker")
 extern class Worker extends EventTarget

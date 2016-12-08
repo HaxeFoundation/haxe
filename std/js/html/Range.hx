@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `Range` interface represents a fragment of a document that can contain nodes and parts of text nodes. 
+	The `Range` interface represents a fragment of a document that can contain nodes and parts of text nodes.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Range> 
+	Documentation [Range](https://developer.mozilla.org/en-US/docs/Web/API/Range) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Range$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Range>
 **/
 @:native("Range")
 extern class Range

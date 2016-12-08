@@ -25,9 +25,11 @@
 package js.html.audio;
 
 /**
-	Objects of these types are designed to hold small audio snippets, typically less than 45 s. For longer sounds, objects implementing the `MediaElementAudioSourceNode` are more suitable. The buffer contains data in the following format:  non-interleaved IEEE754 32-bit linear PCM with a nominal range between `-1` and `+1`, that is, 32bits floating point buffer, with each samples between -1.0 and 1.0. If the `AudioBuffer` has multiple channels, they are stored in separate buffer. 
+	Objects of these types are designed to hold small audio snippets, typically less than 45 s. For longer sounds, objects implementing the `MediaElementAudioSourceNode` are more suitable. The buffer contains data in the following format:  non-interleaved IEEE754 32-bit linear PCM with a nominal range between `-1` and `+1`, that is, 32bits floating point buffer, with each samples between -1.0 and 1.0. If the `AudioBuffer` has multiple channels, they are stored in separate buffer.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioBuffer> 
+	Documentation [AudioBuffer](https://developer.mozilla.org/en-US/docs/Web/API/AudioBuffer) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AudioBuffer$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioBuffer>
 **/
 @:native("AudioBuffer")
 extern class AudioBuffer

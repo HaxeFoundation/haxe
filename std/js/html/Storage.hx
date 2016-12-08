@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `Storage` interface of the Web Storage API provides access to the session storage or local storage for a particular domain, allowing you to for example add, modify or delete stored data items. 
+	The `Storage` interface of the Web Storage API provides access to the session storage or local storage for a particular domain, allowing you to for example add, modify or delete stored data items.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Storage> 
+	Documentation [Storage](https://developer.mozilla.org/en-US/docs/Web/API/Storage) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Storage$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Storage>
 **/
 @:native("Storage")
 extern class Storage

@@ -25,9 +25,11 @@
 package js.html.audio;
 
 /**
-	`AudioDestinationNode` has no output (as it is the output, no more `AudioNode` can be linked after it in the audio graph) and one input. The amount of channels in the input must be between `0` and the `maxChannelCount` value or an exception is raised. 
+	`AudioDestinationNode` has no output (as it is the output, no more `AudioNode` can be linked after it in the audio graph) and one input. The amount of channels in the input must be between `0` and the `maxChannelCount` value or an exception is raised.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioDestinationNode> 
+	Documentation [AudioDestinationNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioDestinationNode) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AudioDestinationNode$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioDestinationNode>
 **/
 @:native("AudioDestinationNode")
 extern class AudioDestinationNode extends AudioNode

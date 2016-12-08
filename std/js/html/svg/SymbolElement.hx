@@ -25,9 +25,11 @@
 package js.html.svg;
 
 /**
-	The `SVGSymbolElement` interface corresponds to the `symbol` element. 
+	The `SVGSymbolElement` interface corresponds to the `symbol` element.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGSymbolElement> 
+	Documentation [SVGSymbolElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGSymbolElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGSymbolElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGSymbolElement>
 **/
 @:native("SVGSymbolElement")
 extern class SymbolElement extends Element

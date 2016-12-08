@@ -25,9 +25,11 @@
 package js.html.audio;
 
 /**
-	The `BiquadFilterNode` interface represents a simple low-order filter, and is created using the `AudioContext.createBiquadFilter()` method. It is an `AudioNode` that can represent different kinds of filters, tone control devices, and graphic equalizers. 
+	The `BiquadFilterNode` interface represents a simple low-order filter, and is created using the `AudioContext.createBiquadFilter()` method. It is an `AudioNode` that can represent different kinds of filters, tone control devices, and graphic equalizers.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/BiquadFilterNode> 
+	Documentation [BiquadFilterNode](https://developer.mozilla.org/en-US/docs/Web/API/BiquadFilterNode) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/BiquadFilterNode$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/BiquadFilterNode>
 **/
 @:native("BiquadFilterNode")
 extern class BiquadFilterNode extends AudioNode

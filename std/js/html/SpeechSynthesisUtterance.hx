@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `SpeechSynthesisUtterance` interface of the Web Speech API represents a speech request. It contains the content the speech service should read and information about how to read it (e.g. language, pitch and volume.) 
+	The `SpeechSynthesisUtterance` interface of the Web Speech API represents a speech request. It contains the content the speech service should read and information about how to read it (e.g. language, pitch and volume.)
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisUtterance> 
+	Documentation [SpeechSynthesisUtterance](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisUtterance) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisUtterance$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisUtterance>
 **/
 @:native("SpeechSynthesisUtterance")
 extern class SpeechSynthesisUtterance extends EventTarget

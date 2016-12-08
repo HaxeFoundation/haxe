@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLProgressElement` interface provides special properties and methods (beyond the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating the layout and presentation of `progress` elements. 
+	The `HTMLProgressElement` interface provides special properties and methods (beyond the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating the layout and presentation of `progress` elements.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLProgressElement> 
+	Documentation [HTMLProgressElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLProgressElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLProgressElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLProgressElement>
 **/
 @:native("HTMLProgressElement")
 extern class ProgressElement extends Element

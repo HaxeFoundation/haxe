@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `DataTransfer` object is used to hold the data that is being dragged during a drag and drop operation. It may hold one or more data items, each of one or more data types. For more information about drag and drop, see HTML Drag and Drop API. 
+	The `DataTransfer` object is used to hold the data that is being dragged during a drag and drop operation. It may hold one or more data items, each of one or more data types. For more information about drag and drop, see HTML Drag and Drop API.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/DataTransfer> 
+	Documentation [DataTransfer](https://developer.mozilla.org/en-US/docs/Web/API/DataTransfer) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DataTransfer$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DataTransfer>
 **/
 @:native("DataTransfer")
 extern class DataTransfer

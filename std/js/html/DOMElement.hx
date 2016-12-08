@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `Element` interface represents an object of a `Document`. This interface describes methods and properties common to all kinds of elements. Specific behaviors are described in interfaces which inherit from `Element` but add additional functionality. 
+	The `Element` interface represents an object of a `Document`. This interface describes methods and properties common to all kinds of elements. Specific behaviors are described in interfaces which inherit from `Element` but add additional functionality.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Element> 
+	Documentation [Element](https://developer.mozilla.org/en-US/docs/Web/API/Element) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Element$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Element>
 **/
 @:native("Element")
 extern class DOMElement extends Node

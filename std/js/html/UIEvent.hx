@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `UIEvent` interface represents simple user interface events. 
+	The `UIEvent` interface represents simple user interface events.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/UIEvent> 
+	Documentation [UIEvent](https://developer.mozilla.org/en-US/docs/Web/API/UIEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/UIEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/UIEvent>
 **/
 @:native("UIEvent")
 extern class UIEvent extends Event

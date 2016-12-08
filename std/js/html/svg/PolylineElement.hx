@@ -25,9 +25,11 @@
 package js.html.svg;
 
 /**
-	The `SVGPolylineElement` interface provides access to the properties of `polyline` elements, as well as methods to manipulate them. 
+	The `SVGPolylineElement` interface provides access to the properties of `polyline` elements, as well as methods to manipulate them.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGPolylineElement> 
+	Documentation [SVGPolylineElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGPolylineElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGPolylineElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGPolylineElement>
 **/
 @:native("SVGPolylineElement")
 extern class PolylineElement extends GraphicsElement

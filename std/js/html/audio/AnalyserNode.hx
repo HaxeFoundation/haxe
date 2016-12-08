@@ -25,9 +25,11 @@
 package js.html.audio;
 
 /**
-	The `AnalyserNode` interface represents a node able to provide real-time frequency and time-domain analysis information. It is an `AudioNode` that passes the audio stream unchanged from the input to the output, but allows you to take the generated data, process it, and create audio visualizations. 
+	The `AnalyserNode` interface represents a node able to provide real-time frequency and time-domain analysis information. It is an `AudioNode` that passes the audio stream unchanged from the input to the output, but allows you to take the generated data, process it, and create audio visualizations.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode> 
+	Documentation [AnalyserNode](https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode>
 **/
 @:native("AnalyserNode")
 extern class AnalyserNode extends AudioNode

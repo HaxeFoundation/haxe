@@ -25,9 +25,11 @@
 package js.html.audio;
 
 /**
-	The `OscillatorNode` interface represents a periodic waveform, like a sine wave. It is an `AudioNode` audio-processing module that causes a given frequency of sine wave to be created — in effect, a constant tone. 
+	The `OscillatorNode` interface represents a periodic waveform, like a sine wave. It is an `AudioNode` audio-processing module that causes a given frequency of sine wave to be created — in effect, a constant tone.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/OscillatorNode> 
+	Documentation [OscillatorNode](https://developer.mozilla.org/en-US/docs/Web/API/OscillatorNode) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/OscillatorNode$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/OscillatorNode>
 **/
 @:native("OscillatorNode")
 extern class OscillatorNode extends AudioNode

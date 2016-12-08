@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `MediaRecorder` interface of the MediaStream Recording API provides functionality to easily record media. It is created by the invocation of the `MediaRecorder()` constructor. 
+	The `MediaRecorder` interface of the MediaStream Recording API provides functionality to easily record media. It is created by the invocation of the `MediaRecorder()` constructor.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder> 
+	Documentation [MediaRecorder](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder>
 **/
 @:native("MediaRecorder")
 extern class MediaRecorder extends EventTarget

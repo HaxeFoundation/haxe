@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `DOMRectReadOnly` interface specifies the standard properties used by `DOMRect` to define a rectangle. 
+	The `DOMRectReadOnly` interface specifies the standard properties used by `DOMRect` to define a rectangle.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMRectReadOnly> 
+	Documentation [DOMRectReadOnly](https://developer.mozilla.org/en-US/docs/Web/API/DOMRectReadOnly) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DOMRectReadOnly$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMRectReadOnly>
 **/
 @:native("DOMRectReadOnly")
 extern class DOMRectReadOnly

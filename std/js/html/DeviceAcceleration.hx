@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	A `DeviceAcceleration` object provides information about the amount of acceleration the device is experiencing along all three axes. 
+	A `DeviceAcceleration` object provides information about the amount of acceleration the device is experiencing along all three axes.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/DeviceAcceleration> 
+	Documentation [DeviceAcceleration](https://developer.mozilla.org/en-US/docs/Web/API/DeviceAcceleration) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DeviceAcceleration$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DeviceAcceleration>
 **/
 @:native("DeviceAcceleration")
 extern class DeviceAcceleration

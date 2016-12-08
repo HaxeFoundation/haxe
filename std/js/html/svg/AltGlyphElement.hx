@@ -25,9 +25,11 @@
 package js.html.svg;
 
 /**
-	   
+	  
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAltGlyphElement> 
+	Documentation [SVGAltGlyphElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGAltGlyphElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGAltGlyphElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAltGlyphElement>
 **/
 @:native("SVGAltGlyphElement")
 extern class AltGlyphElement extends TextPositioningElement

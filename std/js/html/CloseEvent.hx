@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	A `CloseEvent` is sent to clients using WebSockets when the connection is closed. This is delivered to the listener indicated by the `WebSocket` object's `onclose` attribute. 
+	A `CloseEvent` is sent to clients using WebSockets when the connection is closed. This is delivered to the listener indicated by the `WebSocket` object's `onclose` attribute.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/CloseEvent> 
+	Documentation [CloseEvent](https://developer.mozilla.org/en-US/docs/Web/API/CloseEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CloseEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CloseEvent>
 **/
 @:native("CloseEvent")
 extern class CloseEvent extends Event

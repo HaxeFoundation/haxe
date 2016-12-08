@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLTableCaptionElement` interface special properties (beyond the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating table caption elements. 
+	The `HTMLTableCaptionElement` interface special properties (beyond the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating table caption elements.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableCaptionElement> 
+	Documentation [HTMLTableCaptionElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableCaptionElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableCaptionElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableCaptionElement>
 **/
 @:native("HTMLTableCaptionElement")
 extern class TableCaptionElement extends Element

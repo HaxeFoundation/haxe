@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `PerformanceTiming` interface represents timing-related performance information for the given page. 
+	The `PerformanceTiming` interface represents timing-related performance information for the given page.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/PerformanceTiming> 
+	Documentation [PerformanceTiming](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceTiming) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceTiming$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/PerformanceTiming>
 **/
 @:native("PerformanceTiming")
 extern class PerformanceTiming

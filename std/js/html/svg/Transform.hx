@@ -25,9 +25,11 @@
 package js.html.svg;
 
 /**
-	`SVGTransform` is the interface for one of the component transformations within an `SVGTransformList`; thus, an `SVGTransform` object corresponds to a single component (e.g., `scale(…)` or `matrix(…)`) within a `transform` attribute. 
+	`SVGTransform` is the interface for one of the component transformations within an `SVGTransformList`; thus, an `SVGTransform` object corresponds to a single component (e.g., `scale(…)` or `matrix(…)`) within a `transform` attribute.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGTransform> 
+	Documentation [SVGTransform](https://developer.mozilla.org/en-US/docs/Web/API/SVGTransform) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGTransform$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGTransform>
 **/
 @:native("SVGTransform")
 extern class Transform

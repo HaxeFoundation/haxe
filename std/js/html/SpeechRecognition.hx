@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `SpeechRecognition` interface of the Web Speech API is the controller interface for the recognition service; this also handles the `SpeechRecognitionEvent` sent from the recognition service. 
+	The `SpeechRecognition` interface of the Web Speech API is the controller interface for the recognition service; this also handles the `SpeechRecognitionEvent` sent from the recognition service.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition> 
+	Documentation [SpeechRecognition](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition>
 **/
 @:native("SpeechRecognition")
 extern class SpeechRecognition extends EventTarget

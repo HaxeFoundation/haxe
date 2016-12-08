@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `SpeechSynthesisVoice` interface of the Web Speech API represents a voice that the system supports. Every `SpeechSynthesisVoice` has its own relative speech service including information about language, name and URI. 
+	The `SpeechSynthesisVoice` interface of the Web Speech API represents a voice that the system supports. Every `SpeechSynthesisVoice` has its own relative speech service including information about language, name and URI.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisVoice> 
+	Documentation [SpeechSynthesisVoice](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisVoice) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisVoice$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisVoice>
 **/
 @:native("SpeechSynthesisVoice")
 extern class SpeechSynthesisVoice

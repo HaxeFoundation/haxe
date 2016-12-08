@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `CSSPrimitiveValue` interface derives from the `CSSValue` interface and represents the current computed value of a CSS property. 
+	The `CSSPrimitiveValue` interface derives from the `CSSValue` interface and represents the current computed value of a CSS property.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSPrimitiveValue> 
+	Documentation [CSSPrimitiveValue](https://developer.mozilla.org/en-US/docs/Web/API/CSSPrimitiveValue) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CSSPrimitiveValue$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSPrimitiveValue>
 **/
 @:native("CSSPrimitiveValue")
 extern class CSSPrimitiveValue extends CSSValue

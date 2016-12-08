@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLLIElement` interface expose specific properties and methods (beyond those defined by regular `HTMLElement` interface it also has available to it by inheritance) for manipulating list elements. 
+	The `HTMLLIElement` interface expose specific properties and methods (beyond those defined by regular `HTMLElement` interface it also has available to it by inheritance) for manipulating list elements.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLLIElement> 
+	Documentation [HTMLLIElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLIElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLIElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLLIElement>
 **/
 @:native("HTMLLIElement")
 extern class LIElement extends Element

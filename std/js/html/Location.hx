@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `Location` interface represents the location (URL) of the object it is linked to. Changes done on it are reflected on the object it relates to. Both the `Document` and `Window` interface have such a linked `Location`, accessible via `Document.location` and `Window.location` respectively. 
+	The `Location` interface represents the location (URL) of the object it is linked to. Changes done on it are reflected on the object it relates to. Both the `Document` and `Window` interface have such a linked `Location`, accessible via `Document.location` and `Window.location` respectively.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Location> 
+	Documentation [Location](https://developer.mozilla.org/en-US/docs/Web/API/Location) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Location$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Location>
 **/
 @:native("Location")
 extern class Location

@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	A `DOMPoint` represents a 2D or 3D point in a coordinate system. 
+	A `DOMPoint` represents a 2D or 3D point in a coordinate system.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMPoint> 
+	Documentation [DOMPoint](https://developer.mozilla.org/en-US/docs/Web/API/DOMPoint) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DOMPoint$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMPoint>
 **/
 @:native("DOMPoint")
 extern class DOMPoint extends DOMPointReadOnly

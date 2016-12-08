@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `DOMTokenList` interface represents a set of space-separated tokens. Such a set is returned by `Element.classList`, `HTMLLinkElement.relList`, `HTMLAnchorElement.relList` or `HTMLAreaElement.relList`. It is indexed beginning with `0` as with JavaScript `Array` objects. `DOMTokenList` is always case-sensitive. 
+	The `DOMTokenList` interface represents a set of space-separated tokens. Such a set is returned by `Element.classList`, `HTMLLinkElement.relList`, `HTMLAnchorElement.relList` or `HTMLAreaElement.relList`. It is indexed beginning with `0` as with JavaScript `Array` objects. `DOMTokenList` is always case-sensitive.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMTokenList> 
+	Documentation [DOMTokenList](https://developer.mozilla.org/en-US/docs/Web/API/DOMTokenList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DOMTokenList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMTokenList>
 **/
 @:native("DOMTokenList")
 extern class DOMTokenList implements ArrayAccess<String>

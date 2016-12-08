@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `NamedNodeMap` interface represents a collection of `Attr` objects. Objects inside a `NamedNodeMap` are not in any particular order, unlike `NodeList`, although they may be accessed by an index as in an array. 
+	The `NamedNodeMap` interface represents a collection of `Attr` objects. Objects inside a `NamedNodeMap` are not in any particular order, unlike `NodeList`, although they may be accessed by an index as in an array.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/NamedNodeMap> 
+	Documentation [NamedNodeMap](https://developer.mozilla.org/en-US/docs/Web/API/NamedNodeMap) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/NamedNodeMap$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/NamedNodeMap>
 **/
 @:native("NamedNodeMap")
 extern class NamedNodeMap implements ArrayAccess<Attr>

@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLMapElement` interface provides special properties and methods (beyond those of the regular object `HTMLElement` interface it also has available to it by inheritance) for manipulating the layout and presentation of map elements. 
+	The `HTMLMapElement` interface provides special properties and methods (beyond those of the regular object `HTMLElement` interface it also has available to it by inheritance) for manipulating the layout and presentation of map elements.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLMapElement> 
+	Documentation [HTMLMapElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMapElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMapElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLMapElement>
 **/
 @:native("HTMLMapElement")
 extern class MapElement extends Element

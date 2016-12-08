@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLContentElement` interface represents a `content` HTML Element, which is used in Shadow DOM. 
+	The `HTMLContentElement` interface represents a `content` HTML Element, which is used in Shadow DOM.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLContentElement> 
+	Documentation [HTMLContentElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLContentElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLContentElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLContentElement>
 **/
 @:native("HTMLContentElement")
 extern class ContentElement extends Element

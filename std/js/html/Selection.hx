@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	Calling the `Selection.toString()` method returns the text contained in the selection, e.g.: 
+	Calling the `Selection.toString()` method returns the text contained in the selection, e.g.:
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Selection> 
+	Documentation [Selection](https://developer.mozilla.org/en-US/docs/Web/API/Selection) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Selection$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Selection>
 **/
 @:native("Selection")
 extern class Selection

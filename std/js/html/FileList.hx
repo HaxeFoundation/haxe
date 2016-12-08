@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	An object of this type is returned by the `files` property of the HTML `input` element; this lets you access the list of files selected with the `input type="file"` element. It's also used for a list of files dropped into web content when using the drag and drop API; see the `DataTransfer` object for details on this usage. 
+	An object of this type is returned by the `files` property of the HTML `input` element; this lets you access the list of files selected with the `input type="file"` element. It's also used for a list of files dropped into web content when using the drag and drop API; see the `DataTransfer` object for details on this usage.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/FileList> 
+	Documentation [FileList](https://developer.mozilla.org/en-US/docs/Web/API/FileList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/FileList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/FileList>
 **/
 @:native("FileList")
 extern class FileList implements ArrayAccess<File>

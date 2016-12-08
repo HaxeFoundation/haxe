@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLTableElement` interface provides special properties and methods (beyond the regular `HTMLElement` object interface it also has available to it by inheritance) for manipulating the layout and presentation of tables in an HTML document. 
+	The `HTMLTableElement` interface provides special properties and methods (beyond the regular `HTMLElement` object interface it also has available to it by inheritance) for manipulating the layout and presentation of tables in an HTML document.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableElement> 
+	Documentation [HTMLTableElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableElement>
 **/
 @:native("HTMLTableElement")
 extern class TableElement extends Element

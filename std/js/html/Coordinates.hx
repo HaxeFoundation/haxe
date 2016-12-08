@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `Coordinates` interface represents the position and altitude of the device on Earth, as well as the accuracy with which these properties are calculated. 
+	The `Coordinates` interface represents the position and altitude of the device on Earth, as well as the accuracy with which these properties are calculated.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Coordinates> 
+	Documentation [Coordinates](https://developer.mozilla.org/en-US/docs/Web/API/Coordinates) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Coordinates$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Coordinates>
 **/
 @:native("Coordinates")
 extern class Coordinates

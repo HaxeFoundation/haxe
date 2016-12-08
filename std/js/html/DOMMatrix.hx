@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `DOMMatrix` interface represents 4x4 matrices, suitable for 2D and 3D operations. 
+	The `DOMMatrix` interface represents 4x4 matrices, suitable for 2D and 3D operations.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMMatrix> 
+	Documentation [DOMMatrix](https://developer.mozilla.org/en-US/docs/Web/API/DOMMatrix) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DOMMatrix$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMMatrix>
 **/
 @:native("DOMMatrix")
 extern class DOMMatrix extends DOMMatrixReadOnly

@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `Animation` interface of the Web Animations API represents a single animation player and provides playback controls and a timeline for an animation node or source. 
+	The `Animation` interface of the Web Animations API represents a single animation player and provides playback controls and a timeline for an animation node or source.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Animation> 
+	Documentation [Animation](https://developer.mozilla.org/en-US/docs/Web/API/Animation) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Animation$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Animation>
 **/
 @:native("Animation")
 extern class Animation extends EventTarget

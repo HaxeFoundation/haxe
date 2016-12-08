@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `RadioNodeList` interface represents a collection of elements in a `form` or a `fieldset` element. 
+	The `RadioNodeList` interface represents a collection of elements in a `form` or a `fieldset` element.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/RadioNodeList> 
+	Documentation [RadioNodeList](https://developer.mozilla.org/en-US/docs/Web/API/RadioNodeList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/RadioNodeList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/RadioNodeList>
 **/
 @:native("RadioNodeList")
 extern class RadioNodeList extends NodeList

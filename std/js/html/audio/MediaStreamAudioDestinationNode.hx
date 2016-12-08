@@ -25,9 +25,11 @@
 package js.html.audio;
 
 /**
-	Inherits properties from its parent, `AudioNode`. 
+	Inherits properties from its parent, `AudioNode`.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamAudioDestinationNode> 
+	Documentation [MediaStreamAudioDestinationNode](https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamAudioDestinationNode) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamAudioDestinationNode$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamAudioDestinationNode>
 **/
 @:native("MediaStreamAudioDestinationNode")
 extern class MediaStreamAudioDestinationNode extends AudioNode

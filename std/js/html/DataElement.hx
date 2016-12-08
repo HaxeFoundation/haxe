@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLDataElement` interface provides special properties (beyond the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating `data` elements. 
+	The `HTMLDataElement` interface provides special properties (beyond the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating `data` elements.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLDataElement> 
+	Documentation [HTMLDataElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLDataElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLDataElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLDataElement>
 **/
 @:native("HTMLDataElement")
 extern class DataElement extends Element

@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `ValidityState` interface represents the validity states that an element can be in, with respect to constraint validation. Together, they help explain why an element's value fails to validate, if it's not valid. 
+	The `ValidityState` interface represents the validity states that an element can be in, with respect to constraint validation. Together, they help explain why an element's value fails to validate, if it's not valid.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/ValidityState> 
+	Documentation [ValidityState](https://developer.mozilla.org/en-US/docs/Web/API/ValidityState) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ValidityState$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ValidityState>
 **/
 @:native("ValidityState")
 extern class ValidityState

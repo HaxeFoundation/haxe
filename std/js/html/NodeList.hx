@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	`NodeList` objects are collections of nodes such as those returned by `Node.childNodes` and the `document.querySelectorAll` method. 
+	`NodeList` objects are collections of nodes such as those returned by `Node.childNodes` and the `document.querySelectorAll` method.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/NodeList> 
+	Documentation [NodeList](https://developer.mozilla.org/en-US/docs/Web/API/NodeList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/NodeList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/NodeList>
 **/
 @:native("NodeList")
 extern class NodeList implements ArrayAccess<Node>

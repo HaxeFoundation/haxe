@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `SpeechGrammar` interface of the Web Speech API represents a set of words or patterns of words that we want the recognition service to recognize. 
+	The `SpeechGrammar` interface of the Web Speech API represents a set of words or patterns of words that we want the recognition service to recognize.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechGrammar> 
+	Documentation [SpeechGrammar](https://developer.mozilla.org/en-US/docs/Web/API/SpeechGrammar) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SpeechGrammar$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechGrammar>
 **/
 @:native("SpeechGrammar")
 extern class SpeechGrammar

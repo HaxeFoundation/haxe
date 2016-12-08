@@ -25,9 +25,11 @@
 package js.html.idb;
 
 /**
-	No methods, but inherits methods from its parents `IDBRequest` and `EventTarget`. 
+	No methods, but inherits methods from its parents `IDBRequest` and `EventTarget`.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBOpenDBRequest> 
+	Documentation [IDBOpenDBRequest](https://developer.mozilla.org/en-US/docs/Web/API/IDBOpenDBRequest) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/IDBOpenDBRequest$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBOpenDBRequest>
 **/
 @:native("IDBOpenDBRequest")
 extern class OpenDBRequest extends Request

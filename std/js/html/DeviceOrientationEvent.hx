@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `DeviceOrientationEvent` provides web developers with information from the physical orientation of the device running the web page. 
+	The `DeviceOrientationEvent` provides web developers with information from the physical orientation of the device running the web page.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/DeviceOrientationEvent> 
+	Documentation [DeviceOrientationEvent](https://developer.mozilla.org/en-US/docs/Web/API/DeviceOrientationEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DeviceOrientationEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DeviceOrientationEvent>
 **/
 @:native("DeviceOrientationEvent")
 extern class DeviceOrientationEvent extends Event

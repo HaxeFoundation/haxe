@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `window` object represents a window containing a DOM document; the `document` property points to the DOM document loaded in that window. 
+	The `window` object represents a window containing a DOM document; the `document` property points to the DOM document loaded in that window.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Window> 
+	Documentation [Window](https://developer.mozilla.org/en-US/docs/Web/API/Window) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Window$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Window>
 **/
 @:native("Window")
 extern class Window extends EventTarget

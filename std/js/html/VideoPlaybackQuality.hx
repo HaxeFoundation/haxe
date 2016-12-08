@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `VideoPlaybackQuality` interface represents the set of metrics describing the playback quality of a video. 
+	The `VideoPlaybackQuality` interface represents the set of metrics describing the playback quality of a video.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/VideoPlaybackQuality> 
+	Documentation [VideoPlaybackQuality](https://developer.mozilla.org/en-US/docs/Web/API/VideoPlaybackQuality) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/VideoPlaybackQuality$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/VideoPlaybackQuality>
 **/
 @:native("VideoPlaybackQuality")
 extern class VideoPlaybackQuality

@@ -25,9 +25,11 @@
 package js.html.svg;
 
 /**
-	The `SVGPolygonElement` interface provides access to the properties of `polygon` elements, as well as methods to manipulate them. 
+	The `SVGPolygonElement` interface provides access to the properties of `polygon` elements, as well as methods to manipulate them.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGPolygonElement> 
+	Documentation [SVGPolygonElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGPolygonElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGPolygonElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGPolygonElement>
 **/
 @:native("SVGPolygonElement")
 extern class PolygonElement extends GraphicsElement

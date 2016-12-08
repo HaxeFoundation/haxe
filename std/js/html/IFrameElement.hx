@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLIFrameElement` interface provides special properties and methods (beyond those of the `HTMLElement` interface it also has available to it by inheritance) for manipulating the layout and presentation of inline frame elements. 
+	The `HTMLIFrameElement` interface provides special properties and methods (beyond those of the `HTMLElement` interface it also has available to it by inheritance) for manipulating the layout and presentation of inline frame elements.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLIFrameElement> 
+	Documentation [HTMLIFrameElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLIFrameElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLIFrameElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLIFrameElement>
 **/
 @:native("HTMLIFrameElement")
 extern class IFrameElement extends Element

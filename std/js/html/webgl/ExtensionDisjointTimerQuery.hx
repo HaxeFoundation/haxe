@@ -25,9 +25,11 @@
 package js.html.webgl;
 
 /**
-	The EXT_disjoint_timer_query extension is part of the WebGL API and provides a way to measure the duration of a set of GL commands, without stalling the rendering pipeline. 
+	The EXT_disjoint_timer_query extension is part of the WebGL API and provides a way to measure the duration of a set of GL commands, without stalling the rendering pipeline.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/EXT_disjoint_timer_query> 
+	Documentation [EXT_disjoint_timer_query](https://developer.mozilla.org/en-US/docs/Web/API/EXT_disjoint_timer_query) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/EXT_disjoint_timer_query$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/EXT_disjoint_timer_query>
 **/
 @:native("EXT_disjoint_timer_query")
 extern class ExtensionDisjointTimerQuery

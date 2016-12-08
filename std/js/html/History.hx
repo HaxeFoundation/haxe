@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `History` interface allows to manipulate the browser session history, that is the pages visited in the tab or frame that the current page is loaded in. 
+	The `History` interface allows to manipulate the browser session history, that is the pages visited in the tab or frame that the current page is loaded in.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/History> 
+	Documentation [History](https://developer.mozilla.org/en-US/docs/Web/API/History) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/History$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/History>
 **/
 @:native("History")
 extern class History

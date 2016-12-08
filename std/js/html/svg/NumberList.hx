@@ -25,9 +25,11 @@
 package js.html.svg;
 
 /**
-	The `SVGNumberList` defines a list of `SVGNumber` objects. 
+	The `SVGNumberList` defines a list of `SVGNumber` objects.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGNumberList> 
+	Documentation [SVGNumberList](https://developer.mozilla.org/en-US/docs/Web/API/SVGNumberList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGNumberList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGNumberList>
 **/
 @:native("SVGNumberList")
 extern class NumberList implements ArrayAccess<Number>

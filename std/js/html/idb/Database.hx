@@ -25,9 +25,11 @@
 package js.html.idb;
 
 /**
-	Inherits from: EventTarget 
+	Inherits from: EventTarget
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase> 
+	Documentation [IDBDatabase](https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase>
 **/
 @:native("IDBDatabase")
 extern class Database extends js.html.EventTarget

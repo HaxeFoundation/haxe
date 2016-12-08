@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `DOMImplementation` interface represent an object providing methods which are not dependent on any particular document. Such an object is returned by the `Document.implementation` property. 
+	The `DOMImplementation` interface represent an object providing methods which are not dependent on any particular document. Such an object is returned by the `Document.implementation` property.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMImplementation> 
+	Documentation [DOMImplementation](https://developer.mozilla.org/en-US/docs/Web/API/DOMImplementation) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DOMImplementation$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMImplementation>
 **/
 @:native("DOMImplementation")
 extern class DOMImplementation

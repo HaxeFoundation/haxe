@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLTableCellElement` interface provides special properties and methods (beyond the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating the layout and presentation of table cells, either header or data cells, in an HTML document. 
+	The `HTMLTableCellElement` interface provides special properties and methods (beyond the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating the layout and presentation of table cells, either header or data cells, in an HTML document.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableCellElement> 
+	Documentation [HTMLTableCellElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableCellElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableCellElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableCellElement>
 **/
 @:native("HTMLTableCellElement")
 extern class TableCellElement extends Element

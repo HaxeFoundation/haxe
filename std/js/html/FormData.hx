@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `FormData` interface provides a way to easily construct a set of key/value pairs representing form fields and their values, which can then be easily sent using the `XMLHttpRequest.send()` method. It uses the same format a form would use if the encoding type were set to `"multipart/form-data"`. 
+	The `FormData` interface provides a way to easily construct a set of key/value pairs representing form fields and their values, which can then be easily sent using the `XMLHttpRequest.send()` method. It uses the same format a form would use if the encoding type were set to `"multipart/form-data"`.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/FormData> 
+	Documentation [FormData](https://developer.mozilla.org/en-US/docs/Web/API/FormData) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/FormData$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/FormData>
 **/
 @:native("FormData")
 extern class FormData

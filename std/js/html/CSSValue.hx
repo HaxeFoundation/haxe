@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `CSSValue` interface represents the current computed value of a CSS property. 
+	The `CSSValue` interface represents the current computed value of a CSS property.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSValue> 
+	Documentation [CSSValue](https://developer.mozilla.org/en-US/docs/Web/API/CSSValue) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CSSValue$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSValue>
 **/
 @:native("CSSValue")
 extern class CSSValue

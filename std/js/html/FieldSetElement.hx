@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLFieldSetElement` interface has special properties and methods (beyond the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating the layout and presentation of field-set elements. 
+	The `HTMLFieldSetElement` interface has special properties and methods (beyond the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating the layout and presentation of field-set elements.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLFieldSetElement> 
+	Documentation [HTMLFieldSetElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFieldSetElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFieldSetElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLFieldSetElement>
 **/
 @:native("HTMLFieldSetElement")
 extern class FieldSetElement extends Element

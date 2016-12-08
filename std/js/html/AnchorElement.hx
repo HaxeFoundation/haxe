@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLAnchorElement` interface represents hyperlink elements and provides special properties and methods (beyond those of the regular `HTMLElement` object interface they also have available to them by inheritance) for manipulating the layout and presentation of such elements. 
+	The `HTMLAnchorElement` interface represents hyperlink elements and provides special properties and methods (beyond those of the regular `HTMLElement` object interface they also have available to them by inheritance) for manipulating the layout and presentation of such elements.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLAnchorElement> 
+	Documentation [HTMLAnchorElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLAnchorElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLAnchorElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLAnchorElement>
 **/
 @:native("HTMLAnchorElement")
 extern class AnchorElement extends Element

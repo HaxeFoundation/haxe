@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLCollection` interface represents a generic collection (array-like object similar to arguments) of elements (in document order) and offers methods and properties for selecting from the list. 
+	The `HTMLCollection` interface represents a generic collection (array-like object similar to arguments) of elements (in document order) and offers methods and properties for selecting from the list.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLCollection> 
+	Documentation [HTMLCollection](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCollection) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCollection$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLCollection>
 **/
 @:native("HTMLCollection")
 extern class HTMLCollection implements ArrayAccess<Element>

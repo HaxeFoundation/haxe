@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `SubtleCrypto` interface represents a set of cryptographic primitives. It is available via the `Crypto.subtle` properties available in a window context (via `Window.crypto`). 
+	The `SubtleCrypto` interface represents a set of cryptographic primitives. It is available via the `Crypto.subtle` properties available in a window context (via `Window.crypto`).
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto> 
+	Documentation [SubtleCrypto](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto>
 **/
 @:native("SubtleCrypto")
 extern class SubtleCrypto

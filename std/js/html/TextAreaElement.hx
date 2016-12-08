@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLTextAreaElement` interface provides special properties and methods for manipulating the layout and presentation of `textarea` elements. 
+	The `HTMLTextAreaElement` interface provides special properties and methods for manipulating the layout and presentation of `textarea` elements.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTextAreaElement> 
+	Documentation [HTMLTextAreaElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTextAreaElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTextAreaElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTextAreaElement>
 **/
 @:native("HTMLTextAreaElement")
 extern class TextAreaElement extends Element

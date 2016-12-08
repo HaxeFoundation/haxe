@@ -25,9 +25,11 @@
 package js.html.idb;
 
 /**
-	In the following code snippet, we make a request to open a database, and include handlers for the success and error cases. For a full working example, see our To-do Notifications app (view example live.) 
+	In the following code snippet, we make a request to open a database, and include handlers for the success and error cases. For a full working example, see our To-do Notifications app (view example live.)
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBFactory> 
+	Documentation [IDBFactory](https://developer.mozilla.org/en-US/docs/Web/API/IDBFactory) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/IDBFactory$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBFactory>
 **/
 @:native("IDBFactory")
 extern class Factory

@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `Clients` interface of the Service Workers API represents a container for a list of `Client` objects. 
+	The `Clients` interface of the Service Workers API represents a container for a list of `Client` objects.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Clients> 
+	Documentation [Clients](https://developer.mozilla.org/en-US/docs/Web/API/Clients) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Clients$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Clients>
 **/
 @:native("Clients")
 extern class Clients

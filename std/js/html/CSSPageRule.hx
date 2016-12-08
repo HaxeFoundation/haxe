@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	`CSSPageRule` is an interface representing a single CSS `@page` rule. It implements the `CSSRule` interface with a type value of `6` (`CSSRule.PAGE_RULE`). 
+	`CSSPageRule` is an interface representing a single CSS `@page` rule. It implements the `CSSRule` interface with a type value of `6` (`CSSRule.PAGE_RULE`).
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSPageRule> 
+	Documentation [CSSPageRule](https://developer.mozilla.org/en-US/docs/Web/API/CSSPageRule) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CSSPageRule$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSPageRule>
 **/
 @:native("CSSPageRule")
 extern class CSSPageRule extends CSSRule

@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `CanvasGradient` interface represents an opaque object describing a gradient. It is returned by the methods `CanvasRenderingContext2D.createLinearGradient()` or `CanvasRenderingContext2D.createRadialGradient()`. 
+	The `CanvasGradient` interface represents an opaque object describing a gradient. It is returned by the methods `CanvasRenderingContext2D.createLinearGradient()` or `CanvasRenderingContext2D.createRadialGradient()`.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/CanvasGradient> 
+	Documentation [CanvasGradient](https://developer.mozilla.org/en-US/docs/Web/API/CanvasGradient) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CanvasGradient$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CanvasGradient>
 **/
 @:native("CanvasGradient")
 extern class CanvasGradient

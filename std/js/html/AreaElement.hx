@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLAreaElement` interface provides special properties and methods (beyond those of the regular object `HTMLElement` interface it also has available to it by inheritance) for manipulating the layout and presentation of area elements. 
+	The `HTMLAreaElement` interface provides special properties and methods (beyond those of the regular object `HTMLElement` interface it also has available to it by inheritance) for manipulating the layout and presentation of area elements.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLAreaElement> 
+	Documentation [HTMLAreaElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLAreaElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLAreaElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLAreaElement>
 **/
 @:native("HTMLAreaElement")
 extern class AreaElement extends Element

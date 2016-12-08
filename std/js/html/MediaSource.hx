@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `MediaSource` interface represents a source of media data for an `HTMLMediaElement` object. A `MediaSource` object can be attached to a `HTMLMediaElement` to be played in the user agent. 
+	The `MediaSource` interface represents a source of media data for an `HTMLMediaElement` object. A `MediaSource` object can be attached to a `HTMLMediaElement` to be played in the user agent.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaSource> 
+	Documentation [MediaSource](https://developer.mozilla.org/en-US/docs/Web/API/MediaSource) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MediaSource$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaSource>
 **/
 @:native("MediaSource")
 extern class MediaSource extends EventTarget

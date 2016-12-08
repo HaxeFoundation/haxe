@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `ImageBitmapRenderingContext` interface is a canvas rendering context which only provides the functionality to replace the canvas's contents with the given `ImageBitmap`. Its context id (the first argument to `HTMLCanvasElement.getContext()` or `OffscreenCanvas.getContext()`  is `"bitmaprenderer"`. 
+	The `ImageBitmapRenderingContext` interface is a canvas rendering context which only provides the functionality to replace the canvas's contents with the given `ImageBitmap`. Its context id (the first argument to `HTMLCanvasElement.getContext()` or `OffscreenCanvas.getContext()`  is `"bitmaprenderer"`.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/ImageBitmapRenderingContext> 
+	Documentation [ImageBitmapRenderingContext](https://developer.mozilla.org/en-US/docs/Web/API/ImageBitmapRenderingContext) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ImageBitmapRenderingContext$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ImageBitmapRenderingContext>
 **/
 @:native("ImageBitmapRenderingContext")
 extern class ImageBitmapRenderingContext

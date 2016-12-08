@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `WorkerNavigator` interface represents a subset of the `Navigator` interface allowed to be accessed from a `Worker`. Such an object is initialized for each worker and is available via the `WorkerGlobalScope.navigator` property obtained by calling `window.self.navigator`. 
+	The `WorkerNavigator` interface represents a subset of the `Navigator` interface allowed to be accessed from a `Worker`. Such an object is initialized for each worker and is available via the `WorkerGlobalScope.navigator` property obtained by calling `window.self.navigator`.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/WorkerNavigator> 
+	Documentation [WorkerNavigator](https://developer.mozilla.org/en-US/docs/Web/API/WorkerNavigator) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/WorkerNavigator$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WorkerNavigator>
 **/
 @:native("WorkerNavigator")
 extern class WorkerNavigator

@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `EventSource` interface is used to receive server-sent events. It connects to a server over HTTP and receives events in `text/event-stream` format without closing the connection. 
+	The `EventSource` interface is used to receive server-sent events. It connects to a server over HTTP and receives events in `text/event-stream` format without closing the connection.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/EventSource> 
+	Documentation [EventSource](https://developer.mozilla.org/en-US/docs/Web/API/EventSource) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/EventSource$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/EventSource>
 **/
 @:native("EventSource")
 extern class EventSource extends EventTarget

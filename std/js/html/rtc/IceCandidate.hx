@@ -25,9 +25,11 @@
 package js.html.rtc;
 
 /**
-	The `RTCIceCandidate` interface of the the WebRTC API represents a candidate internet connectivity establishment (ICE) server for establishing an `RTCPeerConnection`. 
+	The `RTCIceCandidate` interface of the the WebRTC API represents a candidate internet connectivity establishment (ICE) server for establishing an `RTCPeerConnection`.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCIceCandidate> 
+	Documentation [RTCIceCandidate](https://developer.mozilla.org/en-US/docs/Web/API/RTCIceCandidate) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/RTCIceCandidate$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCIceCandidate>
 **/
 @:native("RTCIceCandidate")
 extern class IceCandidate

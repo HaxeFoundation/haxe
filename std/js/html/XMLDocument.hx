@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The XMLDocument interface represent an XML document. It inherits from the generic `Document` and does not add any specific methods or properties to it: nevertheless, several algorithms behave differently with the two types of documents. 
+	The XMLDocument interface represent an XML document. It inherits from the generic `Document` and does not add any specific methods or properties to it: nevertheless, several algorithms behave differently with the two types of documents.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/XMLDocument> 
+	Documentation [XMLDocument](https://developer.mozilla.org/en-US/docs/Web/API/XMLDocument) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/XMLDocument$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/XMLDocument>
 **/
 @:native("XMLDocument")
 extern class XMLDocument extends Document

@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `LocalMediaStream` interface represents a stream of media content fetched from a local data source. This is the interface returned by `getUserMedia()`. 
+	The `LocalMediaStream` interface represents a stream of media content fetched from a local data source. This is the interface returned by `getUserMedia()`.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/LocalMediaStream> 
+	Documentation [LocalMediaStream](https://developer.mozilla.org/en-US/docs/Web/API/LocalMediaStream) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/LocalMediaStream$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/LocalMediaStream>
 **/
 @:native("LocalMediaStream")
 extern class LocalMediaStream extends MediaStream

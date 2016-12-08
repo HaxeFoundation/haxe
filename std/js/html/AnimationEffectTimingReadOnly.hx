@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `AnimationEffectTimingReadOnly` interface of the Web Animations API is comprised of timing properties. 
+	The `AnimationEffectTimingReadOnly` interface of the Web Animations API is comprised of timing properties.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectTimingReadOnly> 
+	Documentation [AnimationEffectTimingReadOnly](https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectTimingReadOnly) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectTimingReadOnly$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectTimingReadOnly>
 **/
 @:native("AnimationEffectTimingReadOnly")
 extern class AnimationEffectTimingReadOnly

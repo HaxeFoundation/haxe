@@ -25,9 +25,11 @@
 package js.html.svg;
 
 /**
-	The `SVGMPathElement` interface corresponds to the `mpath` element. 
+	The `SVGMPathElement` interface corresponds to the `mpath` element.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGMPathElement> 
+	Documentation [SVGMPathElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGMPathElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGMPathElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGMPathElement>
 **/
 @:native("SVGMPathElement")
 extern class MPathElement extends Element

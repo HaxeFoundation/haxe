@@ -25,9 +25,11 @@
 package js.html.webgl;
 
 /**
-	The `WEBGL_draw_buffers` extension is part of the WebGL API and enables a fragment shader to write to several textures, which is useful for deferred shading, for example. 
+	The `WEBGL_draw_buffers` extension is part of the WebGL API and enables a fragment shader to write to several textures, which is useful for deferred shading, for example.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_draw_buffers> 
+	Documentation [WEBGL_draw_buffers](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_draw_buffers) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_draw_buffers$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_draw_buffers>
 **/
 @:native("WEBGL_draw_buffers")
 extern class ExtensionDrawBuffers

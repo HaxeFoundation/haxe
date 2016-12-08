@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The HTMLTrackElement` interface provides access to the properties of `track` elements, as well as methods to manipulate them. 
+	The HTMLTrackElement` interface provides access to the properties of `track` elements, as well as methods to manipulate them.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTrackElement> 
+	Documentation [HTMLTrackElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTrackElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTrackElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTrackElement>
 **/
 @:native("HTMLTrackElement")
 extern class TrackElement extends Element

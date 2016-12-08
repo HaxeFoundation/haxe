@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `WheelEvent` interface represents events that occur due to the user moving a mouse wheel or similar input device. 
+	The `WheelEvent` interface represents events that occur due to the user moving a mouse wheel or similar input device.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/WheelEvent> 
+	Documentation [WheelEvent](https://developer.mozilla.org/en-US/docs/Web/API/WheelEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/WheelEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WheelEvent>
 **/
 @:native("WheelEvent")
 extern class WheelEvent extends MouseEvent

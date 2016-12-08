@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `Navigator` interface represents the state and the identity of the user agent. It allows scripts to query it and to register themselves to carry on some activities. 
+	The `Navigator` interface represents the state and the identity of the user agent. It allows scripts to query it and to register themselves to carry on some activities.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Navigator> 
+	Documentation [Navigator](https://developer.mozilla.org/en-US/docs/Web/API/Navigator) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Navigator$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Navigator>
 **/
 @:native("Navigator")
 extern class Navigator

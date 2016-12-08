@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `URLSearchParams` interface defines utility methods to work with the query string of a URL. 
+	The `URLSearchParams` interface defines utility methods to work with the query string of a URL.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams> 
+	Documentation [URLSearchParams](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams>
 **/
 @:native("URLSearchParams")
 extern class URLSearchParams

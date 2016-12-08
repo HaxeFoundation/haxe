@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `GamepadButton` interface defines an individual button of a gamepad or other controller, allowing access to the current state of different types of buttons available on the control device. 
+	The `GamepadButton` interface defines an individual button of a gamepad or other controller, allowing access to the current state of different types of buttons available on the control device.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/GamepadButton> 
+	Documentation [GamepadButton](https://developer.mozilla.org/en-US/docs/Web/API/GamepadButton) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/GamepadButton$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/GamepadButton>
 **/
 @:native("GamepadButton")
 extern class GamepadButton

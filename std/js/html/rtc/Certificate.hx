@@ -25,9 +25,11 @@
 package js.html.rtc;
 
 /**
-	The interface of the the WebRTC API provides an object represents a certificate that an `RTCPeerConnection` uses to authenticate. 
+	The interface of the the WebRTC API provides an object represents a certificate that an `RTCPeerConnection` uses to authenticate.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCCertificate> 
+	Documentation [RTCCertificate](https://developer.mozilla.org/en-US/docs/Web/API/RTCCertificate) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/RTCCertificate$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCCertificate>
 **/
 @:native("RTCCertificate")
 extern class Certificate

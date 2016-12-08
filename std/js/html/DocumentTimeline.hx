@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `DocumentTimeline` interface of the the Web Animations API represents animation timelines, including the default document timeline (accessed via `Document.timeline`). 
+	The `DocumentTimeline` interface of the the Web Animations API represents animation timelines, including the default document timeline (accessed via `Document.timeline`).
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/DocumentTimeline> 
+	Documentation [DocumentTimeline](https://developer.mozilla.org/en-US/docs/Web/API/DocumentTimeline) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DocumentTimeline$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DocumentTimeline>
 **/
 @:native("DocumentTimeline")
 extern class DocumentTimeline extends AnimationTimeline

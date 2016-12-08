@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `PositionError` interface represents the reason of an error occurring when using the geolocating device. 
+	The `PositionError` interface represents the reason of an error occurring when using the geolocating device.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/PositionError> 
+	Documentation [PositionError](https://developer.mozilla.org/en-US/docs/Web/API/PositionError) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PositionError$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/PositionError>
 **/
 @:native("PositionError")
 extern class PositionError

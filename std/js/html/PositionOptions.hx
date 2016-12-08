@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `PositionOptions` interface describes an object containing option properties to pass as a parameter of `Geolocation.getCurrentPosition()` and `Geolocation.watchPosition()`. 
+	The `PositionOptions` interface describes an object containing option properties to pass as a parameter of `Geolocation.getCurrentPosition()` and `Geolocation.watchPosition()`.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/PositionOptions> 
+	Documentation [PositionOptions](https://developer.mozilla.org/en-US/docs/Web/API/PositionOptions) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PositionOptions$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/PositionOptions>
 **/
 typedef PositionOptions =
 {

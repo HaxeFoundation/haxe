@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `DocumentFragment` interface represents a minimal document object that has no parent. It is used as a light-weight version of `Document` to store well-formed or potentially non-well-formed fragments of XML. 
+	The `DocumentFragment` interface represents a minimal document object that has no parent. It is used as a light-weight version of `Document` to store well-formed or potentially non-well-formed fragments of XML.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/DocumentFragment> 
+	Documentation [DocumentFragment](https://developer.mozilla.org/en-US/docs/Web/API/DocumentFragment) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DocumentFragment$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DocumentFragment>
 **/
 @:native("DocumentFragment")
 extern class DocumentFragment extends Node

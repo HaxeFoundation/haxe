@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `SpeechGrammarList` interface of the Web Speech API represents a list of `SpeechGrammar` objects containing words or patterns of words that we want the recognition service to recognize. 
+	The `SpeechGrammarList` interface of the Web Speech API represents a list of `SpeechGrammar` objects containing words or patterns of words that we want the recognition service to recognize.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechGrammarList> 
+	Documentation [SpeechGrammarList](https://developer.mozilla.org/en-US/docs/Web/API/SpeechGrammarList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SpeechGrammarList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechGrammarList>
 **/
 @:native("SpeechGrammarList")
 extern class SpeechGrammarList implements ArrayAccess<SpeechGrammar>

@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	A `Node` is an interface from which a number of DOM types inherit, and allows these various types to be treated (or tested) similarly. 
+	A `Node` is an interface from which a number of DOM types inherit, and allows these various types to be treated (or tested) similarly.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Node> 
+	Documentation [Node](https://developer.mozilla.org/en-US/docs/Web/API/Node) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Node$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Node>
 **/
 @:native("Node")
 extern class Node extends EventTarget

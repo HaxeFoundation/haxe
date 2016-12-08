@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `ServiceWorkerRegistration` interface of the ServiceWorker API represents the service worker registration. You register a service worker to control one or more pages that share the same origin. 
+	The `ServiceWorkerRegistration` interface of the ServiceWorker API represents the service worker registration. You register a service worker to control one or more pages that share the same origin.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerRegistration> 
+	Documentation [ServiceWorkerRegistration](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerRegistration) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerRegistration$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerRegistration>
 **/
 @:native("ServiceWorkerRegistration")
 extern class ServiceWorkerRegistration extends EventTarget

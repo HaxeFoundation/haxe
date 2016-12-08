@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `FontFace` interface represents a single usable font face. It allows control of the source of the font face, being a URL to an external resource, or a buffer; it also allows control of when the font face is loaded and its current status. 
+	The `FontFace` interface represents a single usable font face. It allows control of the source of the font face, being a URL to an external resource, or a buffer; it also allows control of when the font face is loaded and its current status.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/FontFace> 
+	Documentation [FontFace](https://developer.mozilla.org/en-US/docs/Web/API/FontFace) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/FontFace$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/FontFace>
 **/
 @:native("FontFace")
 extern class FontFace

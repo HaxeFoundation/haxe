@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	An object implementing the `StyleSheet` interface represents a single style sheet. CSS style sheets will further implement the more specialized `CSSStyleSheet` interface. 
+	An object implementing the `StyleSheet` interface represents a single style sheet. CSS style sheets will further implement the more specialized `CSSStyleSheet` interface.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/StyleSheet> 
+	Documentation [StyleSheet](https://developer.mozilla.org/en-US/docs/Web/API/StyleSheet) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/StyleSheet$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/StyleSheet>
 **/
 @:native("StyleSheet")
 extern class StyleSheet

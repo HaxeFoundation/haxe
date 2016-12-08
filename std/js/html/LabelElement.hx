@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLLabelElement` interface gives access to properties specific to `label` elements. It inherits methods and properties from the base `HTMLElement` interface. 
+	The `HTMLLabelElement` interface gives access to properties specific to `label` elements. It inherits methods and properties from the base `HTMLElement` interface.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement> 
+	Documentation [HTMLLabelElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement>
 **/
 @:native("HTMLLabelElement")
 extern class LabelElement extends Element

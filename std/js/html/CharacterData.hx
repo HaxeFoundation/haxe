@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `CharacterData` abstract interface represents a `Node` object that contains characters. This is an abstract interface, meaning there aren't any object of type `CharacterData`: it is implemented by other interfaces, like `Text`, `Comment`, or `ProcessingInstruction` which aren't abstract. 
+	The `CharacterData` abstract interface represents a `Node` object that contains characters. This is an abstract interface, meaning there aren't any object of type `CharacterData`: it is implemented by other interfaces, like `Text`, `Comment`, or `ProcessingInstruction` which aren't abstract.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/CharacterData> 
+	Documentation [CharacterData](https://developer.mozilla.org/en-US/docs/Web/API/CharacterData) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CharacterData$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CharacterData>
 **/
 @:native("CharacterData")
 extern class CharacterData extends Node

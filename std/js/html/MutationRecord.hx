@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	A `MutationRecord` represents an individual DOM mutation. It is the object that is passed to `MutationObserver`'s callback. 
+	A `MutationRecord` represents an individual DOM mutation. It is the object that is passed to `MutationObserver`'s callback.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/MutationRecord> 
+	Documentation [MutationRecord](https://developer.mozilla.org/en-US/docs/Web/API/MutationRecord) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MutationRecord$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MutationRecord>
 **/
 @:native("MutationRecord")
 extern class MutationRecord

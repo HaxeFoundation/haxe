@@ -25,9 +25,11 @@
 package js.html.idb;
 
 /**
-	This example shows a variety of different uses of object stores, from updating the data structure with `IDBObjectStore.createIndex` inside an `onupgradeneeded` function, to adding a new item to our object store with `IDBObjectStore.add`. For a full working example, see our To-do Notifications app (view example live.) 
+	This example shows a variety of different uses of object stores, from updating the data structure with `IDBObjectStore.createIndex` inside an `onupgradeneeded` function, to adding a new item to our object store with `IDBObjectStore.add`. For a full working example, see our To-do Notifications app (view example live.)
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore> 
+	Documentation [IDBObjectStore](https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore>
 **/
 @:native("IDBObjectStore")
 extern class ObjectStore

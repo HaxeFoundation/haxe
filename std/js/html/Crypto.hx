@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `Crypto` interface represents basic cryptography features available in the current context. It allows access to a cryptographically strong random number generator and to cryptographic primitives. 
+	The `Crypto` interface represents basic cryptography features available in the current context. It allows access to a cryptographically strong random number generator and to cryptographic primitives.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Crypto> 
+	Documentation [Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Crypto$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Crypto>
 **/
 @:native("Crypto")
 extern class Crypto

@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	`EventTarget` is an interface implemented by objects that can receive events and may have listeners for them. 
+	`EventTarget` is an interface implemented by objects that can receive events and may have listeners for them.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/EventTarget> 
+	Documentation [EventTarget](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/EventTarget>
 **/
 @:native("EventTarget")
 extern class EventTarget

@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLInputElement` interface provides special properties and methods for manipulating the layout and presentation of input elements. 
+	The `HTMLInputElement` interface provides special properties and methods for manipulating the layout and presentation of input elements.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement> 
+	Documentation [HTMLInputElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement>
 **/
 @:native("HTMLInputElement")
 extern class InputElement extends Element

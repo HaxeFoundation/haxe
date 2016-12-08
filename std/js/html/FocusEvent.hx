@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `FocusEvent` interface represents focus-related events like `focus`, `blur`, `focusin`, or `focusout`. 
+	The `FocusEvent` interface represents focus-related events like `focus`, `blur`, `focusin`, or `focusout`.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/FocusEvent> 
+	Documentation [FocusEvent](https://developer.mozilla.org/en-US/docs/Web/API/FocusEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/FocusEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/FocusEvent>
 **/
 @:native("FocusEvent")
 extern class FocusEvent extends UIEvent

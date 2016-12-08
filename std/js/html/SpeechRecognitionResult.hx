@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `SpeechRecognitionResult` interface of the Web Speech API represents a single recognition match, which may contain multiple `SpeechRecognitionAlternative` objects. 
+	The `SpeechRecognitionResult` interface of the Web Speech API represents a single recognition match, which may contain multiple `SpeechRecognitionAlternative` objects.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionResult> 
+	Documentation [SpeechRecognitionResult](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionResult) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionResult$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionResult>
 **/
 @:native("SpeechRecognitionResult")
 extern class SpeechRecognitionResult implements ArrayAccess<SpeechRecognitionAlternative>

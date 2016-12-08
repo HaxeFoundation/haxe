@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	This interface inherits properties from its parent, `Event`: 
+	This interface inherits properties from its parent, `Event`:
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent> 
+	Documentation [CustomEvent](https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent>
 **/
 @:native("CustomEvent")
 extern class CustomEvent extends Event

@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `FontFaceSet` interface of the CSS Font Loading API is an interface for loading font faces and checking their download statuses. 
+	The `FontFaceSet` interface of the CSS Font Loading API is an interface for loading font faces and checking their download statuses.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/FontFaceSet> 
+	Documentation [FontFaceSet](https://developer.mozilla.org/en-US/docs/Web/API/FontFaceSet) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/FontFaceSet$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/FontFaceSet>
 **/
 @:native("FontFaceSet")
 extern class FontFaceSet extends EventTarget

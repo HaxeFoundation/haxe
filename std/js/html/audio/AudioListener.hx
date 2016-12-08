@@ -25,9 +25,11 @@
 package js.html.audio;
 
 /**
-	It is important to note that there is only one listener per context and that it isn't an `AudioNode`. 
+	It is important to note that there is only one listener per context and that it isn't an `AudioNode`.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioListener> 
+	Documentation [AudioListener](https://developer.mozilla.org/en-US/docs/Web/API/AudioListener) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AudioListener$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioListener>
 **/
 @:native("AudioListener")
 extern class AudioListener

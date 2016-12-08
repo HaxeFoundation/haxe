@@ -25,9 +25,11 @@
 package js.html.audio;
 
 /**
-	The `AudioNode` interface is a generic interface for representing an audio processing module like an audio source (e.g. an HTML `audio` or `video` element, an `OscillatorNode`, etc.), the audio destination, intermediate processing module (e.g. a filter like `BiquadFilterNode` or `ConvolverNode`), or volume control (like `GainNode`). 
+	The `AudioNode` interface is a generic interface for representing an audio processing module like an audio source (e.g. an HTML `audio` or `video` element, an `OscillatorNode`, etc.), the audio destination, intermediate processing module (e.g. a filter like `BiquadFilterNode` or `ConvolverNode`), or volume control (like `GainNode`).
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioNode> 
+	Documentation [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioNode>
 **/
 @:native("AudioNode")
 extern class AudioNode extends js.html.EventTarget

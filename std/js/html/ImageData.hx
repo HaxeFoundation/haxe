@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `ImageData` interface represents the underlying pixel data of an area of a `canvas` element. It is created using the `ImageData()` constructor or creator methods on the `CanvasRenderingContext2D` object associated with a canvas: `createImageData()` and `getImageData()`. It can also be used to set a part of the canvas by using `putImageData()`. 
+	The `ImageData` interface represents the underlying pixel data of an area of a `canvas` element. It is created using the `ImageData()` constructor or creator methods on the `CanvasRenderingContext2D` object associated with a canvas: `createImageData()` and `getImageData()`. It can also be used to set a part of the canvas by using `putImageData()`.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/ImageData> 
+	Documentation [ImageData](https://developer.mozilla.org/en-US/docs/Web/API/ImageData) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ImageData$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ImageData>
 **/
 @:native("ImageData")
 extern class ImageData

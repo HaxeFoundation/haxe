@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLSelectElement` interface represents a `select` HTML Element. These elements also share all of the properties and methods of other HTML elements via the `HTMLElement` interface. 
+	The `HTMLSelectElement` interface represents a `select` HTML Element. These elements also share all of the properties and methods of other HTML elements via the `HTMLElement` interface.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLSelectElement> 
+	Documentation [HTMLSelectElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLSelectElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLSelectElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLSelectElement>
 **/
 @:native("HTMLSelectElement")
 extern class SelectElement extends Element implements ArrayAccess<Element>

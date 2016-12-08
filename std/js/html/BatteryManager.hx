@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `BatteryManager` interface provides ways to get information about the system's battery charge level. 
+	The `BatteryManager` interface provides ways to get information about the system's battery charge level.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/BatteryManager> 
+	Documentation [BatteryManager](https://developer.mozilla.org/en-US/docs/Web/API/BatteryManager) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/BatteryManager$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/BatteryManager>
 **/
 @:native("BatteryManager")
 extern class BatteryManager extends EventTarget

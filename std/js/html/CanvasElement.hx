@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLCanvasElement` interface provides properties and methods for manipulating the layout and presentation of canvas elements. The `HTMLCanvasElement` interface also inherits the properties and methods of the `HTMLElement` interface. 
+	The `HTMLCanvasElement` interface provides properties and methods for manipulating the layout and presentation of canvas elements. The `HTMLCanvasElement` interface also inherits the properties and methods of the `HTMLElement` interface.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement> 
+	Documentation [HTMLCanvasElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement>
 **/
 @:native("HTMLCanvasElement")
 extern class CanvasElement extends Element

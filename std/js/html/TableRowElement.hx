@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLTableRowElement` interface provides special properties and methods (beyond the `HTMLElement` interface it also has available to it by inheritance) for manipulating the layout and presentation of rows in an HTML table. 
+	The `HTMLTableRowElement` interface provides special properties and methods (beyond the `HTMLElement` interface it also has available to it by inheritance) for manipulating the layout and presentation of rows in an HTML table.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableRowElement> 
+	Documentation [HTMLTableRowElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableRowElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableRowElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableRowElement>
 **/
 @:native("HTMLTableRowElement")
 extern class TableRowElement extends Element

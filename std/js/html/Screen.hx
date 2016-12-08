@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `Screen` interface represents a screen, usually the one on which the current window is being rendered. 
+	The `Screen` interface represents a screen, usually the one on which the current window is being rendered.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Screen> 
+	Documentation [Screen](https://developer.mozilla.org/en-US/docs/Web/API/Screen) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Screen$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Screen>
 **/
 @:native("Screen")
 extern class Screen extends EventTarget

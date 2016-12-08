@@ -25,9 +25,11 @@
 package js.html.webgl;
 
 /**
-	The `WebGLTimerQueryEXT` interface is part of the WebGL `EXT_disjoint_timer_query` extension and exposes a timer query object. 
+	The `WebGLTimerQueryEXT` interface is part of the WebGL `EXT_disjoint_timer_query` extension and exposes a timer query object.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLTimerQueryEXT> 
+	Documentation [WebGLTimerQueryEXT](https://developer.mozilla.org/en-US/docs/Web/API/WebGLTimerQueryEXT) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/WebGLTimerQueryEXT$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLTimerQueryEXT>
 **/
 @:native("WebGLTimerQueryEXT")
 extern class TimerQueryEXT

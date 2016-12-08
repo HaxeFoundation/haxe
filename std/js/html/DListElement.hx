@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLDListElement` interface provides special properties (beyond those of the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating definition list elements. 
+	The `HTMLDListElement` interface provides special properties (beyond those of the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating definition list elements.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLDListElement> 
+	Documentation [HTMLDListElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLDListElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLDListElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLDListElement>
 **/
 @:native("HTMLDListElement")
 extern class DListElement extends Element

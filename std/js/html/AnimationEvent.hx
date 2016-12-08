@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `AnimationEvent` interface represents events providing information related to animations. 
+	The `AnimationEvent` interface represents events providing information related to animations.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/AnimationEvent> 
+	Documentation [AnimationEvent](https://developer.mozilla.org/en-US/docs/Web/API/AnimationEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AnimationEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AnimationEvent>
 **/
 @:native("AnimationEvent")
 extern class AnimationEvent extends Event

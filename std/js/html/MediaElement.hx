@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLMediaElement` interface adds to `HTMLElement` the properties and methods needed to support basic media-related capabilities that are common to audio and video. The `HTMLVideoElement` and `HTMLAudioElement` elements both inherit this interface. 
+	The `HTMLMediaElement` interface adds to `HTMLElement` the properties and methods needed to support basic media-related capabilities that are common to audio and video. The `HTMLVideoElement` and `HTMLAudioElement` elements both inherit this interface.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement> 
+	Documentation [HTMLMediaElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement>
 **/
 @:native("HTMLMediaElement")
 extern class MediaElement extends Element

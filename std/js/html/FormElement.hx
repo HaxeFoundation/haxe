@@ -29,9 +29,11 @@ package js.html;
 		document.forms - returns an array of HTMLFormElement objects referencing all forms on the page.
 		document.forms[index] - returns an HTMLFormElement object referencing the form at the specified index.
 		document.forms['id'] - returns an HTMLFormElement object referencing the form with the specified id.
-		document.forms['name'] - returns an HTMLFormElement object referencing the form with the specified name. 
+		document.forms['name'] - returns an HTMLFormElement object referencing the form with the specified name.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement> 
+	Documentation [HTMLFormElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement>
 **/
 @:native("HTMLFormElement")
 extern class FormElement extends Element implements ArrayAccess<Element>

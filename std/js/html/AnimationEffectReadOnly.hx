@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `AnimationEffectReadOnly` interface of the Web Animations API defines current and future animation effects like `KeyframeEffect`, which can be passed to `Animation` objects for playing, and `KeyframeEffectReadOnly` (which is used by CSS Animations and Transitions). 
+	The `AnimationEffectReadOnly` interface of the Web Animations API defines current and future animation effects like `KeyframeEffect`, which can be passed to `Animation` objects for playing, and `KeyframeEffectReadOnly` (which is used by CSS Animations and Transitions).
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectReadOnly> 
+	Documentation [AnimationEffectReadOnly](https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectReadOnly) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectReadOnly$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectReadOnly>
 **/
 @:native("AnimationEffectReadOnly")
 extern class AnimationEffectReadOnly

@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `WebSocket` object provides the API for creating and managing a WebSocket connection to a server, as well as for sending and receiving data on the connection. 
+	The `WebSocket` object provides the API for creating and managing a WebSocket connection to a server, as well as for sending and receiving data on the connection.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebSocket> 
+	Documentation [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebSocket>
 **/
 @:native("WebSocket")
 extern class WebSocket extends EventTarget

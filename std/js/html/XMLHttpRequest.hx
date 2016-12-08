@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	`XMLHttpRequest` is an API that provides client functionality for transferring data between a client and a server. It provides an easy way to retrieve data from a URL without having to do a full page refresh. This enables a Web page to update just a part of the page without disrupting what the user is doing. 
+	`XMLHttpRequest` is an API that provides client functionality for transferring data between a client and a server. It provides an easy way to retrieve data from a URL without having to do a full page refresh. This enables a Web page to update just a part of the page without disrupting what the user is doing.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest> 
+	Documentation [XMLHttpRequest](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest>
 **/
 @:native("XMLHttpRequest")
 extern class XMLHttpRequest extends XMLHttpRequestEventTarget

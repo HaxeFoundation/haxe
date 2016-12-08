@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `MediaStreamTrack` interface represents a single media track within a stream; typically, these are audio or video tracks, but other track types may exist as well. 
+	The `MediaStreamTrack` interface represents a single media track within a stream; typically, these are audio or video tracks, but other track types may exist as well.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrack> 
+	Documentation [MediaStreamTrack](https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrack) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrack$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrack>
 **/
 @:native("MediaStreamTrack")
 extern class MediaStreamTrack extends EventTarget

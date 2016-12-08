@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLTableSectionElement` interface provides special properties and methods (beyond the `HTMLElement` interface it also has available to it by inheritance) for manipulating the layout and presentation of sections, that is headers, footers and bodies, in an HTML table. 
+	The `HTMLTableSectionElement` interface provides special properties and methods (beyond the `HTMLElement` interface it also has available to it by inheritance) for manipulating the layout and presentation of sections, that is headers, footers and bodies, in an HTML table.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableSectionElement> 
+	Documentation [HTMLTableSectionElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableSectionElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableSectionElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableSectionElement>
 **/
 @:native("HTMLTableSectionElement")
 extern class TableSectionElement extends Element

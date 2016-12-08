@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLParamElement` interface provides special properties (beyond those of the regular `HTMLElement` object interface it inherits) for manipulating `param` elements, representing a pair of a key and a value that acts as a parameter for an `object` element. 
+	The `HTMLParamElement` interface provides special properties (beyond those of the regular `HTMLElement` object interface it inherits) for manipulating `param` elements, representing a pair of a key and a value that acts as a parameter for an `object` element.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLParamElement> 
+	Documentation [HTMLParamElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLParamElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLParamElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLParamElement>
 **/
 @:native("HTMLParamElement")
 extern class ParamElement extends Element

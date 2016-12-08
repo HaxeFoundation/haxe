@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `SpeechRecognitionAlternative` interface of the Web Speech API represents a single word that has been recognised by the speech recognition service. 
+	The `SpeechRecognitionAlternative` interface of the Web Speech API represents a single word that has been recognised by the speech recognition service.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionAlternative> 
+	Documentation [SpeechRecognitionAlternative](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionAlternative) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionAlternative$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionAlternative>
 **/
 @:native("SpeechRecognitionAlternative")
 extern class SpeechRecognitionAlternative

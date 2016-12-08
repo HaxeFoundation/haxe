@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `ErrorEvent` interface represents events providing information related to errors in scripts or in files. 
+	The `ErrorEvent` interface represents events providing information related to errors in scripts or in files.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/ErrorEvent> 
+	Documentation [ErrorEvent](https://developer.mozilla.org/en-US/docs/Web/API/ErrorEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ErrorEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ErrorEvent>
 **/
 @:native("ErrorEvent")
 extern class ErrorEvent extends Event

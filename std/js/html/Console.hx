@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `Console` object provides access to the browser's debugging console (e.g., the Web Console in Firefox). The specifics of how it works vary from browser to browser, but there is a de facto set of features that are typically provided. 
+	The `Console` object provides access to the browser's debugging console (e.g., the Web Console in Firefox). The specifics of how it works vary from browser to browser, but there is a de facto set of features that are typically provided.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Console> 
+	Documentation [Console](https://developer.mozilla.org/en-US/docs/Web/API/Console) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Console$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Console>
 **/
 @:native("Console")
 extern class Console

@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `DeviceMotionEvent` provides web developers with information about the speed of changes for the device's position and orientation. 
+	The `DeviceMotionEvent` provides web developers with information about the speed of changes for the device's position and orientation.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/DeviceMotionEvent> 
+	Documentation [DeviceMotionEvent](https://developer.mozilla.org/en-US/docs/Web/API/DeviceMotionEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DeviceMotionEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DeviceMotionEvent>
 **/
 @:native("DeviceMotionEvent")
 extern class DeviceMotionEvent extends Event

@@ -25,9 +25,11 @@
 package js.html.svg;
 
 /**
-	The `SVGAnimatedPreserveAspectRatio` interface is used for attributes of type `SVGPreserveAspectRatio` which can be animated. 
+	The `SVGAnimatedPreserveAspectRatio` interface is used for attributes of type `SVGPreserveAspectRatio` which can be animated.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedPreserveAspectRatio> 
+	Documentation [SVGAnimatedPreserveAspectRatio](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedPreserveAspectRatio) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedPreserveAspectRatio$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedPreserveAspectRatio>
 **/
 @:native("SVGAnimatedPreserveAspectRatio")
 extern class AnimatedPreserveAspectRatio

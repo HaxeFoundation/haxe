@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `Client` interface of the ServiceWorker API represents the scope of a service worker client. A service worker client is either a document in a browser context or a `SharedWorker`, which is controlled by an active worker. A client object acts as a snapshot representation of its associated service worker client in the scope of a service worker. 
+	The `Client` interface of the ServiceWorker API represents the scope of a service worker client. A service worker client is either a document in a browser context or a `SharedWorker`, which is controlled by an active worker. A client object acts as a snapshot representation of its associated service worker client in the scope of a service worker.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Client> 
+	Documentation [Client](https://developer.mozilla.org/en-US/docs/Web/API/Client) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Client$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Client>
 **/
 @:native("Client")
 extern class Client

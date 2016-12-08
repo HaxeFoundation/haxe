@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `Gamepad` interface of the Gamepad API defines an individual gamepad or other controller, allowing access to information such as button presses, axis positions, and id. 
+	The `Gamepad` interface of the Gamepad API defines an individual gamepad or other controller, allowing access to information such as button presses, axis positions, and id.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Gamepad> 
+	Documentation [Gamepad](https://developer.mozilla.org/en-US/docs/Web/API/Gamepad) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Gamepad$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Gamepad>
 **/
 @:native("Gamepad")
 extern class Gamepad

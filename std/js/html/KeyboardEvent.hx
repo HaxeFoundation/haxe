@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	`KeyboardEvent` objects describe a user interaction with the keyboard. Each event describes a key; the event type (`keydown`, `keypress`, or `keyup`) identifies what kind of activity was performed. 
+	`KeyboardEvent` objects describe a user interaction with the keyboard. Each event describes a key; the event type (`keydown`, `keypress`, or `keyup`) identifies what kind of activity was performed.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent> 
+	Documentation [KeyboardEvent](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent>
 **/
 @:native("KeyboardEvent")
 extern class KeyboardEvent extends UIEvent

@@ -25,9 +25,11 @@
 package js.html.idb;
 
 /**
-	The `IDBCursor` interface of the IndexedDB API represents a cursor for traversing or iterating over multiple records in a database. 
+	The `IDBCursor` interface of the IndexedDB API represents a cursor for traversing or iterating over multiple records in a database.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBCursor> 
+	Documentation [IDBCursor](https://developer.mozilla.org/en-US/docs/Web/API/IDBCursor) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/IDBCursor$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBCursor>
 **/
 @:native("IDBCursor")
 extern class Cursor

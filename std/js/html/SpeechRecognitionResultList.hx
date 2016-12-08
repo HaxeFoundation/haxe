@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `SpeechRecognitionResultList` interface of the Web Speech API represents a list of `SpeechRecognitionResult` objects, or a single one if results are being captured in `continuous` mode. 
+	The `SpeechRecognitionResultList` interface of the Web Speech API represents a list of `SpeechRecognitionResult` objects, or a single one if results are being captured in `continuous` mode.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionResultList> 
+	Documentation [SpeechRecognitionResultList](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionResultList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionResultList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionResultList>
 **/
 @:native("SpeechRecognitionResultList")
 extern class SpeechRecognitionResultList implements ArrayAccess<SpeechRecognitionResult>

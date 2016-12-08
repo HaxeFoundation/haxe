@@ -25,9 +25,11 @@
 package js.html.svg;
 
 /**
-	All of the SVG DOM interfaces that correspond directly to elements in the SVG language derive from the `SVGElement` interface. 
+	All of the SVG DOM interfaces that correspond directly to elements in the SVG language derive from the `SVGElement` interface.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGElement> 
+	Documentation [SVGElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGElement>
 **/
 @:native("SVGElement")
 extern class Element extends js.html.DOMElement

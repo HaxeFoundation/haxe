@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `KeyframeEffectReadOnly` interface of the Web Animations API describes sets of animatable properties and values that can be played using the `Animation.Animation()` constructor, and which are inherited by `KeyframeEffect`. 
+	The `KeyframeEffectReadOnly` interface of the Web Animations API describes sets of animatable properties and values that can be played using the `Animation.Animation()` constructor, and which are inherited by `KeyframeEffect`.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/KeyframeEffectReadOnly> 
+	Documentation [KeyframeEffectReadOnly](https://developer.mozilla.org/en-US/docs/Web/API/KeyframeEffectReadOnly) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/KeyframeEffectReadOnly$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/KeyframeEffectReadOnly>
 **/
 @:native("KeyframeEffectReadOnly")
 extern class KeyframeEffectReadOnly extends AnimationEffectReadOnly

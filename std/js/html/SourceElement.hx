@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLSourceElement` interface provides special properties (beyond the regular `HTMLElement` object interface it also has available to it by inheritance) for manipulating `source` elements. 
+	The `HTMLSourceElement` interface provides special properties (beyond the regular `HTMLElement` object interface it also has available to it by inheritance) for manipulating `source` elements.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLSourceElement> 
+	Documentation [HTMLSourceElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLSourceElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLSourceElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLSourceElement>
 **/
 @:native("HTMLSourceElement")
 extern class SourceElement extends Element

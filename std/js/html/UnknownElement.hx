@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLUnknownElement` interface represents an invalid HTML element and derives from the `HTMLElement` interface, but without implementing any additional properties or methods. 
+	The `HTMLUnknownElement` interface represents an invalid HTML element and derives from the `HTMLElement` interface, but without implementing any additional properties or methods.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLUnknownElement> 
+	Documentation [HTMLUnknownElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLUnknownElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLUnknownElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLUnknownElement>
 **/
 @:native("HTMLUnknownElement")
 extern class UnknownElement extends Element

@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `ProgressEvent` interface represents events measuring progress of an underlying process, like an HTTP request (for an `XMLHttpRequest`, or the loading of the underlying resource of an `img`, `audio`, `video`, `style` or `link`). 
+	The `ProgressEvent` interface represents events measuring progress of an underlying process, like an HTTP request (for an `XMLHttpRequest`, or the loading of the underlying resource of an `img`, `audio`, `video`, `style` or `link`).
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/ProgressEvent> 
+	Documentation [ProgressEvent](https://developer.mozilla.org/en-US/docs/Web/API/ProgressEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ProgressEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ProgressEvent>
 **/
 @:native("ProgressEvent")
 extern class ProgressEvent extends Event

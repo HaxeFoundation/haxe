@@ -25,9 +25,11 @@
 package js.html.audio;
 
 /**
-	The `AudioBufferSourceNode` interface represents an audio source consisting of in-memory audio data, stored in an `AudioBuffer`. It is an `AudioNode` that acts as an audio source`.` 
+	The `AudioBufferSourceNode` interface represents an audio source consisting of in-memory audio data, stored in an `AudioBuffer`. It is an `AudioNode` that acts as an audio source`.`
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode> 
+	Documentation [AudioBufferSourceNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode>
 **/
 @:native("AudioBufferSourceNode")
 extern class AudioBufferSourceNode extends AudioNode

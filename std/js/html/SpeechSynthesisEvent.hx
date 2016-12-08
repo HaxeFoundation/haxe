@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `SpeechSynthesisEvent` interface of the Web Speech API contains information about the current state of `SpeechSynthesisUtterance` objects that have been processed in the speech service. 
+	The `SpeechSynthesisEvent` interface of the Web Speech API contains information about the current state of `SpeechSynthesisUtterance` objects that have been processed in the speech service.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisEvent> 
+	Documentation [SpeechSynthesisEvent](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisEvent>
 **/
 @:native("SpeechSynthesisEvent")
 extern class SpeechSynthesisEvent extends Event

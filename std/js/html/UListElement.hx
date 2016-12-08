@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLUListElement` interface provides special properties (beyond those defined on the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating unordered list elements. 
+	The `HTMLUListElement` interface provides special properties (beyond those defined on the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating unordered list elements.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLUListElement> 
+	Documentation [HTMLUListElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLUListElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLUListElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLUListElement>
 **/
 @:native("HTMLUListElement")
 extern class UListElement extends Element

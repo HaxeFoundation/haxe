@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `TextMetrics` interface represents the dimension of a text in the canvas, as created by the `CanvasRenderingContext2D.measureText()` method. 
+	The `TextMetrics` interface represents the dimension of a text in the canvas, as created by the `CanvasRenderingContext2D.measureText()` method.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/TextMetrics> 
+	Documentation [TextMetrics](https://developer.mozilla.org/en-US/docs/Web/API/TextMetrics) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/TextMetrics$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/TextMetrics>
 **/
 @:native("TextMetrics")
 extern class TextMetrics

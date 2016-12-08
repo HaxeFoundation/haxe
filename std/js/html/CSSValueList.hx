@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `CSSValueList` interface derives from the `CSSValue` interface and provides the abstraction of an ordered collection of CSS values. 
+	The `CSSValueList` interface derives from the `CSSValue` interface and provides the abstraction of an ordered collection of CSS values.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSValueList> 
+	Documentation [CSSValueList](https://developer.mozilla.org/en-US/docs/Web/API/CSSValueList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CSSValueList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSValueList>
 **/
 @:native("CSSValueList")
 extern class CSSValueList extends CSSValue implements ArrayAccess<CSSValue>

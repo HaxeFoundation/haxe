@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	A `Blob` object represents a file-like object of immutable, raw data. Blobs represent data that isn't necessarily in a JavaScript-native format. The `File` interface is based on `Blob`, inheriting blob functionality and expanding it to support files on the user's system. 
+	A `Blob` object represents a file-like object of immutable, raw data. Blobs represent data that isn't necessarily in a JavaScript-native format. The `File` interface is based on `Blob`, inheriting blob functionality and expanding it to support files on the user's system.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Blob> 
+	Documentation [Blob](https://developer.mozilla.org/en-US/docs/Web/API/Blob) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Blob$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Blob>
 **/
 @:native("Blob")
 extern class Blob

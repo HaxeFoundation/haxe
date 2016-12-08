@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLVideoElement` interface provides special properties and methods for manipulating video objects. It also inherits properties and methods of `HTMLMediaElement` and `HTMLElement`. 
+	The `HTMLVideoElement` interface provides special properties and methods for manipulating video objects. It also inherits properties and methods of `HTMLMediaElement` and `HTMLElement`.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLVideoElement> 
+	Documentation [HTMLVideoElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLVideoElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLVideoElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLVideoElement>
 **/
 @:native("HTMLVideoElement")
 extern class VideoElement extends MediaElement

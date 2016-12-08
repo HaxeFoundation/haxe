@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `DOMMatrixReadOnly` interface represents 4x4 matrices, suitable for 2D and 3D operations. If this interface defines only read-only matrices, the `DOMMatrix` interface which inherits from it, add all the properties and the methods to allow to have modifiable matrices. 
+	The `DOMMatrixReadOnly` interface represents 4x4 matrices, suitable for 2D and 3D operations. If this interface defines only read-only matrices, the `DOMMatrix` interface which inherits from it, add all the properties and the methods to allow to have modifiable matrices.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMMatrixReadOnly> 
+	Documentation [DOMMatrixReadOnly](https://developer.mozilla.org/en-US/docs/Web/API/DOMMatrixReadOnly) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DOMMatrixReadOnly$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMMatrixReadOnly>
 **/
 @:native("DOMMatrixReadOnly")
 extern class DOMMatrixReadOnly

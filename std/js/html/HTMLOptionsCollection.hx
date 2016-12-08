@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	`HTMLOptionsCollection` is an interface representing a collection of HTML option elements (in document order) and offers methods and properties for traversing the list as well as optionally altering its items. This type is returned solely by the "options" property of select. 
+	`HTMLOptionsCollection` is an interface representing a collection of HTML option elements (in document order) and offers methods and properties for traversing the list as well as optionally altering its items. This type is returned solely by the "options" property of select.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLOptionsCollection> 
+	Documentation [HTMLOptionsCollection](https://developer.mozilla.org/en-US/docs/Web/API/HTMLOptionsCollection) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLOptionsCollection$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLOptionsCollection>
 **/
 @:native("HTMLOptionsCollection")
 extern class HTMLOptionsCollection extends HTMLCollection

@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `TreeWalker` object represents the nodes of a document subtree and a position within them. 
+	The `TreeWalker` object represents the nodes of a document subtree and a position within them.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/TreeWalker> 
+	Documentation [TreeWalker](https://developer.mozilla.org/en-US/docs/Web/API/TreeWalker) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/TreeWalker$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/TreeWalker>
 **/
 @:native("TreeWalker")
 extern class TreeWalker

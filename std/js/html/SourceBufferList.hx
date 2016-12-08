@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `SourceBufferList` interface represents a simple container list for multiple `SourceBuffer` objects. 
+	The `SourceBufferList` interface represents a simple container list for multiple `SourceBuffer` objects.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SourceBufferList> 
+	Documentation [SourceBufferList](https://developer.mozilla.org/en-US/docs/Web/API/SourceBufferList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SourceBufferList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SourceBufferList>
 **/
 @:native("SourceBufferList")
 extern class SourceBufferList extends EventTarget implements ArrayAccess<SourceBuffer>

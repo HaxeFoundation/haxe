@@ -25,9 +25,11 @@
 package js.html.svg;
 
 /**
-	The `SVGStringList` defines a list of `DOMString` objects. 
+	The `SVGStringList` defines a list of `DOMString` objects.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGStringList> 
+	Documentation [SVGStringList](https://developer.mozilla.org/en-US/docs/Web/API/SVGStringList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGStringList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGStringList>
 **/
 @:native("SVGStringList")
 extern class StringList implements ArrayAccess<String>

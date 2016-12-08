@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	A `NodeFilter` interface represents an object used to filter the nodes in a `NodeIterator` or `TreeWalker`. They don't know anything about the DOM or how to traverse nodes; they just know how to evaluate a single node against the provided filter. 
+	A `NodeFilter` interface represents an object used to filter the nodes in a `NodeIterator` or `TreeWalker`. They don't know anything about the DOM or how to traverse nodes; they just know how to evaluate a single node against the provided filter.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/NodeFilter> 
+	Documentation [NodeFilter](https://developer.mozilla.org/en-US/docs/Web/API/NodeFilter) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/NodeFilter$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/NodeFilter>
 **/
 @:native("NodeFilter")
 extern class NodeFilter

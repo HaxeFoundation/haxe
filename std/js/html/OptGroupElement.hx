@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLOptGroupElement` interface provides special properties and methods (beyond the regular `HTMLElement` object interface they also have available to them by inheritance) for manipulating the layout and presentation of `optgroup` elements. 
+	The `HTMLOptGroupElement` interface provides special properties and methods (beyond the regular `HTMLElement` object interface they also have available to them by inheritance) for manipulating the layout and presentation of `optgroup` elements.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLOptGroupElement> 
+	Documentation [HTMLOptGroupElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLOptGroupElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLOptGroupElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLOptGroupElement>
 **/
 @:native("HTMLOptGroupElement")
 extern class OptGroupElement extends Element

@@ -25,9 +25,11 @@
 package js.html.audio;
 
 /**
-	There are two kinds of `AudioParam`, a-rate and k-rate parameters: 
+	There are two kinds of `AudioParam`, a-rate and k-rate parameters:
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioParam> 
+	Documentation [AudioParam](https://developer.mozilla.org/en-US/docs/Web/API/AudioParam) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AudioParam$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioParam>
 **/
 @:native("AudioParam")
 extern class AudioParam

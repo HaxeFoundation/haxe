@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `FileReader` object lets web applications asynchronously read the contents of files (or raw data buffers) stored on the user's computer, using `File` or `Blob` objects to specify the file or data to read. 
+	The `FileReader` object lets web applications asynchronously read the contents of files (or raw data buffers) stored on the user's computer, using `File` or `Blob` objects to specify the file or data to read.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/FileReader> 
+	Documentation [FileReader](https://developer.mozilla.org/en-US/docs/Web/API/FileReader) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/FileReader$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/FileReader>
 **/
 @:native("FileReader")
 extern class FileReader extends EventTarget

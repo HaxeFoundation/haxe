@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `Headers` interface of the Fetch API allows you to perform various actions on HTTP request and response headers. These actions include retrieving, setting, adding to, and removing. A `Headers` object has an associated header list, which is initially empty and consists of zero or more name and value pairs.  You can add to this using methods like `append()` (see Examples.) In all methods of this interface, header names are matched by case-insensitive byte sequence. 
+	The `Headers` interface of the Fetch API allows you to perform various actions on HTTP request and response headers. These actions include retrieving, setting, adding to, and removing. A `Headers` object has an associated header list, which is initially empty and consists of zero or more name and value pairs.  You can add to this using methods like `append()` (see Examples.) In all methods of this interface, header names are matched by case-insensitive byte sequence.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Headers> 
+	Documentation [Headers](https://developer.mozilla.org/en-US/docs/Web/API/Headers) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Headers$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Headers>
 **/
 @:native("Headers")
 extern class Headers

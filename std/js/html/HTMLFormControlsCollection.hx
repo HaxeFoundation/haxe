@@ -25,9 +25,11 @@
 package js.html;
 
 /**
-	The `HTMLFormControlsCollection` interface represents a collection of HTML form control elements. It replaces one method of `HTMLCollection`. 
+	The `HTMLFormControlsCollection` interface represents a collection of HTML form control elements. It replaces one method of `HTMLCollection`.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormControlsCollection> 
+	Documentation [HTMLFormControlsCollection](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormControlsCollection) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormControlsCollection$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormControlsCollection>
 **/
 @:native("HTMLFormControlsCollection")
 extern class HTMLFormControlsCollection extends HTMLCollection

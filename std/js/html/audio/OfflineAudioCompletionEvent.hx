@@ -25,9 +25,11 @@
 package js.html.audio;
 
 /**
-	The Web Audio API `OfflineAudioCompletionEvent` interface represents events that occur when the processing of an `OfflineAudioContext` is terminated. The `complete` event implements this interface. 
+	The Web Audio API `OfflineAudioCompletionEvent` interface represents events that occur when the processing of an `OfflineAudioContext` is terminated. The `complete` event implements this interface.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/OfflineAudioCompletionEvent> 
+	Documentation [OfflineAudioCompletionEvent](https://developer.mozilla.org/en-US/docs/Web/API/OfflineAudioCompletionEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/OfflineAudioCompletionEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/OfflineAudioCompletionEvent>
 **/
 @:native("OfflineAudioCompletionEvent")
 extern class OfflineAudioCompletionEvent extends js.html.Event

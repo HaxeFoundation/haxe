@@ -25,9 +25,11 @@
 package js.html.svg;
 
 /**
-	The `SVGAngle` interface is used to represent a value that can be an `angle` or `number` value. An `SVGAngle` reflected through the `animVal` attribute is always read only. 
+	The `SVGAngle` interface is used to represent a value that can be an `angle` or `number` value. An `SVGAngle` reflected through the `animVal` attribute is always read only.
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAngle> 
+	Documentation [SVGAngle](https://developer.mozilla.org/en-US/docs/Web/API/SVGAngle) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGAngle$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAngle>
 **/
 @:native("SVGAngle")
 extern class Angle
