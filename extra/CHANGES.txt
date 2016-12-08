@@ -1,5 +1,9 @@
 2016-??-??: 3.4.0-RC2
 
+	New features:
+
+	js : added API documentation to HTML externs (#5868)
+
 	Bugfixes:
 
 	all : fixed top-down inference infinite recursion issue (#5848)
