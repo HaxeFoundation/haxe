@@ -63,12 +63,12 @@ extern class NodeIterator
 		    <td>Shows all nodes.</td>
 		   </tr>
 		   <tr>
-		    <td><code>NodeFilter.SHOW_ATTRIBUTE</code> {{obsolete_inline}}</td>
+		    <td><code>NodeFilter.SHOW_ATTRIBUTE</code> <em>(deprecated)</em></td>
 		    <td><code>2</code></td>
 		    <td>Shows attribute <code>Attr</code> nodes. This is meaningful only when creating a <code>NodeIterator</code> with an <code>Attr</code> node as its root; in this case, it means that the attribute node will appear in the first position of the iteration or traversal. Since attributes are never children of other nodes, they do not appear when traversing over the document tree.</td>
 		   </tr>
 		   <tr>
-		    <td><code>NodeFilter.SHOW_CDATA_SECTION</code> {{obsolete_inline}}</td>
+		    <td><code>NodeFilter.SHOW_CDATA_SECTION</code> <em>(deprecated)</em></td>
 		    <td><code>8</code></td>
 		    <td>Shows <code>CDATASection</code> nodes.</td>
 		   </tr>
@@ -98,17 +98,17 @@ extern class NodeIterator
 		    <td>Shows <code>Element</code> nodes.</td>
 		   </tr>
 		   <tr>
-		    <td><code>NodeFilter.SHOW_ENTITY</code> {{obsolete_inline}}</td>
+		    <td><code>NodeFilter.SHOW_ENTITY</code> <em>(deprecated)</em></td>
 		    <td><code>32</code></td>
 		    <td>Shows <code>Entity</code> nodes. This is meaningful only when creating a <code>NodeIterator</code> with an <code>Entity</code> node as its root; in this case, it means that the <code>Entity</code> node will appear in the first position of the traversal. Since entities are not part of the document tree, they do not appear when traversing over the document tree.</td>
 		   </tr>
 		   <tr>
-		    <td><code>NodeFilter.SHOW_ENTITY_REFERENCE</code> {{obsolete_inline}}</td>
+		    <td><code>NodeFilter.SHOW_ENTITY_REFERENCE</code> <em>(deprecated)</em></td>
 		    <td><code>16</code></td>
 		    <td>Shows <code>EntityReference</code> nodes.</td>
 		   </tr>
 		   <tr>
-		    <td><code>NodeFilter.SHOW_NOTATION</code> {{obsolete_inline}}</td>
+		    <td><code>NodeFilter.SHOW_NOTATION</code> <em>(deprecated)</em></td>
 		    <td><code>2048</code></td>
 		    <td>Shows <code>Notation</code> nodes. This is meaningful only when creating a <code>NodeIterator</code> with a <code>Notation</code> node as its root; in this case, it means that the <code>Notation</code> node will appear in the first position of the traversal. Since entities are not part of the document tree, they do not appear when traversing over the document tree.</td>
 		   </tr>

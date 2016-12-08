@@ -65,7 +65,7 @@ extern class Node extends EventTarget
 		    <td><code>1</code></td>
 		   </tr>
 		   <tr>
-		    <td><code>ATTRIBUTE_NODE</code> {{deprecated_inline()}}</td>
+		    <td><code>ATTRIBUTE_NODE</code> <em>(deprecated)</em></td>
 		    <td><code>2</code></td>
 		   </tr>
 		   <tr>
@@ -73,15 +73,15 @@ extern class Node extends EventTarget
 		    <td><code>3</code></td>
 		   </tr>
 		   <tr>
-		    <td><code>CDATA_SECTION_NODE</code> {{deprecated_inline()}}</td>
+		    <td><code>CDATA_SECTION_NODE</code> <em>(deprecated)</em></td>
 		    <td><code>4</code></td>
 		   </tr>
 		   <tr>
-		    <td><code>ENTITY_REFERENCE_NODE</code> {{deprecated_inline()}}</td>
+		    <td><code>ENTITY_REFERENCE_NODE</code> <em>(deprecated)</em></td>
 		    <td><code>5</code></td>
 		   </tr>
 		   <tr>
-		    <td><code>ENTITY_NODE</code> {{deprecated_inline()}}</td>
+		    <td><code>ENTITY_NODE</code> <em>(deprecated)</em></td>
 		    <td><code>6</code></td>
 		   </tr>
 		   <tr>
@@ -105,7 +105,7 @@ extern class Node extends EventTarget
 		    <td><code>11</code></td>
 		   </tr>
 		   <tr>
-		    <td><code>NOTATION_NODE</code> {{deprecated_inline()}}</td>
+		    <td><code>NOTATION_NODE</code> <em>(deprecated)</em></td>
 		    <td><code>12</code></td>
 		   </tr>
 		  

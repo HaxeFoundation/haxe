@@ -82,7 +82,7 @@ extern class ButtonElement extends Element
 		  `"submit"`: The button submits the form. This is the default value if the attribute is not specified, {{HTMLVersionInline(5)}} or if it is dynamically changed to an empty or invalid value.
 		  `"reset"`: The button resets the form.
 		  `"button"`: The button does nothing.
-		  `"menu"`: The button displays a menu. {{experimental_inline}}
+		  `"menu"`: The button displays a menu. <em>(experimental)</em>
 		 
 		 
 	**/
