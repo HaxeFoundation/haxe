@@ -1135,8 +1135,7 @@ class virtual type_builder ctx wrapper =
 		method get_contents =
 			if (String.length contents) = 0 then begin
 				self#write_declaration;
-				self#indent 0;
-				self#write_line "{"; (** opening bracket for a class *)
+				self#write_line " {"; (** opening bracket for a class *)
 				self#write_body;
 				if wrapper#needs_initialization then self#write_hx_init;
 				self#indent 0;
@@ -1383,6 +1382,11 @@ class virtual type_builder ctx wrapper =
 		method private write_header =
 			self#indent 0;
 			self#write_line "<?php";
+			self#write_line "/**";
+			Codegen.map_source_header ctx (fun s -> self#write_line (" * " ^ s));
+			if ctx.debug then self#write_line (" * Haxe source file: " ^ self#get_source_file);
+			self#write_line " */";
+			self#write "\n";
 			let namespace = self#get_namespace in
 			if List.length namespace > 0 then
 				self#write_line ("namespace " ^ (String.concat "\\" namespace) ^ ";\n");
@@ -1667,13 +1671,14 @@ class virtual type_builder ctx wrapper =
 		method private write_constructor_function_declaration func write_arg =
 			self#write ("function __construct (");
 			write_args buffer write_arg func.tf_args;
-			self#write ")";
-			self#indent 1;
-			self#write "\n";
-			self#write_line "{";
+			self#write ") {\n";
 			self#indent_more;
 			self#write_instance_initialization;
-			self#write_fake_block (inject_defaults ctx func);
+			let func = inject_defaults ctx func in
+			begin match func.eexpr with
+				| TBlock [] -> ()
+				| _ -> self#write_fake_block func;
+			end;
 			self#indent_less;
 			self#write_indentation;
 			self#write "}"
@@ -1684,10 +1689,7 @@ class virtual type_builder ctx wrapper =
 			let by_ref = if is_ref func.tf_type then "&" else "" in
 			self#write ("function " ^ by_ref ^ name ^ " (");
 			write_args buffer write_arg func.tf_args;
-			self#write ")";
-			self#indent 1;
-			self#write "\n";
-			self#write_indentation;
+			self#write ") ";
 			self#write_expr (inject_defaults ctx func)
 		(**
 			Writes closure declaration to output buffer
@@ -2667,7 +2669,7 @@ class enum_builder ctx (enm:tenum) =
 		*)
 		method private write_declaration =
 			self#write_doc (DocClass enm.e_doc);
-			self#write_line ("class " ^ self#get_name ^ " extends " ^ (self#use hxenum_type_path))
+			self#write ("class " ^ self#get_name ^ " extends " ^ (self#use hxenum_type_path))
 		(**
 			Writes type body to output buffer.
 			E.g. for "class SomeClass { <BODY> }" writes <BODY> part.
@@ -2699,8 +2701,7 @@ class enum_builder ctx (enm:tenum) =
 			self#write_indentation;
 			self#write ("static public function " ^ name ^ " (");
 			write_args buffer (self#write_arg true) args;
-			self#write ")\n";
-			self#write_line "{";
+			self#write ") {\n";
 			self#indent_more;
 			self#write_indentation;
 			self#write "return ";
@@ -2727,8 +2728,7 @@ class enum_builder ctx (enm:tenum) =
 			self#write_line " *";
 			self#write_line " * @return string[]";
 			self#write_line " */";
-			self#write_line "static public function __hx__list ()";
-			self#write_line "{";
+			self#write_line "static public function __hx__list () {";
 			self#indent_more;
 			self#write_line "return [";
 			self#indent_more;
@@ -2749,8 +2749,7 @@ class enum_builder ctx (enm:tenum) =
 			self#write_line " *";
 			self#write_line " * @return int[]";
 			self#write_line " */";
-			self#write_line "static public function __hx__paramsCount ()";
-			self#write_line "{";
+			self#write_line "static public function __hx__paramsCount () {";
 			self#indent_more;
 			self#write_line "return [";
 			self#indent_more;
@@ -2854,7 +2853,6 @@ class class_builder ctx (cls:tclass) =
 				let interfaces = List.map use_interface cls.cl_implements in
 				self#write (String.concat ", " interfaces);
 			end;
-			self#write "\n"
 		(**
 			Returns either user-defined constructor or creates empty constructor if instance initialization is required.
 		*)
@@ -3220,7 +3218,6 @@ class generator (com:context) =
 			let filename = (create_dir_recursive (build_dir :: namespace)) ^ "/" ^ name ^ ".php" in
 			let channel = open_out filename in
 			output_string channel contents;
-			output_string channel ("\n//Haxe source file: " ^ builder#get_source_file ^ "\n");
 			close_out channel;
 			if builder#get_type_path = boot_type_path then
 				boot <- Some (builder, filename)
