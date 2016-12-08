@@ -41,21 +41,17 @@
 	}
 
 	public static function parseInt( x : String ) : Null<Int> {
-		if (untyped __call__("is_numeric", x)) {
-			return untyped __call__("intval", x, 10);
+		x = untyped __call__("ltrim", x);
+		var firstCharIndex = (x.charAt(0) == '-' ? 1 : 0);
+		var firstCharCode = x.charCodeAt(firstCharIndex);
+		if (!isDigitCode(firstCharCode)) {
+			return null;
+		}
+		var secondChar = x.charAt(firstCharIndex + 1);
+		if (secondChar == 'x' || secondChar == 'X') {
+			return untyped __call__("intval", x, 0);
 		} else {
-			x = untyped __call__("ltrim", x);
-			var firstCharIndex = (x.charAt(0) == '-' ? 1 : 0);
-			var firstCharCode = x.charCodeAt(firstCharIndex);
-			if (!isDigitCode(firstCharCode)) {
-				return null;
-			}
-			var secondChar = x.charAt(firstCharIndex + 1);
-			if (secondChar == 'x' || secondChar == 'X') {
-				return untyped __call__("intval", x, 0);
-			} else {
-				return untyped __call__("intval", x, 10);
-			}
+			return untyped __call__("intval", x, 10);
 		}
 	}
 
