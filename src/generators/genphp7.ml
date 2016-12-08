@@ -1383,6 +1383,8 @@ class virtual type_builder ctx wrapper =
 		method private write_header =
 			self#indent 0;
 			self#write_line "<?php";
+			Codegen.map_source_header ctx (fun s -> self#write_line ("//" ^ s));
+			self#write_line ("//Haxe source file: " ^ self#get_source_file);
 			let namespace = self#get_namespace in
 			if List.length namespace > 0 then
 				self#write_line ("namespace " ^ (String.concat "\\" namespace) ^ ";\n");
@@ -3220,7 +3222,6 @@ class generator (com:context) =
 			let filename = (create_dir_recursive (build_dir :: namespace)) ^ "/" ^ name ^ ".php" in
 			let channel = open_out filename in
 			output_string channel contents;
-			output_string channel ("\n//Haxe source file: " ^ builder#get_source_file ^ "\n");
 			close_out channel;
 			if builder#get_type_path = boot_type_path then
 				boot <- Some (builder, filename)
