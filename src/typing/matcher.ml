@@ -672,7 +672,7 @@ module Useless = struct
 						let patterns1 = ExtList.List.make arity (PatAny,p) in
 						loop ((patterns1 @ patterns2) :: pAcc) (q1 :: qAcc) (r1 :: rAcc) pM qM rM
 					| ((PatOr(pat1,pat2)),_) :: patterns2 ->
-						specialize' is_tuple con (((pat1 :: patterns2) :: (pat2 :: patterns2) :: pAcc)) (q1 :: q1 :: qM @ qAcc) (r1 :: r1 :: rM @ rAcc)
+						loop pAcc qAcc rAcc (((pat1 :: patterns2) :: (pat2 :: patterns2) :: pM)) (q1 :: q1 :: qM) (r1 :: r1 :: rM)
 					| (PatBind(_,pat1),_) :: patterns2 ->
 						loop2 (pat1 :: patterns2)
 					| _ ->
