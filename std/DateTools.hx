@@ -33,10 +33,23 @@ class DateTools {
 	#elseif (neko && !(macro || interp))
 	static var date_format = neko.Lib.load("std","date_format",2);
 	#else
+	static var DAY_SHORT_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+	static var DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+	static var MONTH_SHORT_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+	static var MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+	
 	private static function __format_get( d : Date, e : String ) : String {
 		return switch( e ){
 			case "%":
 				"%";
+			case "a":
+				DAY_SHORT_NAMES[d.getDay()];
+			case "A":
+				DAY_NAMES[d.getDay()];
+			case "b","h":
+				MONTH_SHORT_NAMES[d.getMonth()];
+			case "B":
+				MONTH_NAMES[d.getMonth()];
 			case "C":
 				untyped StringTools.lpad(Std.string(Std.int(d.getFullYear()/100)),"0",2);
 			case "d":
