@@ -5,10 +5,13 @@ class Issue4988 extends Test {
 
 	function test() {
 		#if !lua
-		var d:{i:Null<Int>} = null;
-		value = (d.i > 0);
+		try {
+			var d:{i:Null<Int>} = null;
+			value = (d.i > 0);
+			t(false);
+		} catch(e:Dynamic) {
+			t(true);
+		}
 		#end
 	}
-
-	function foo(v:Dynamic) {}
 }
