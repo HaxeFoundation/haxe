@@ -372,6 +372,7 @@ let needs_dereferencing expr =
 			| TNew _ -> true
 			| TArrayDecl _ -> true
 			| TObjectDecl _ -> true
+			| TConst TNull -> true
 			| _ -> false
 	in
 	match expr.eexpr with
