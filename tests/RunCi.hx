@@ -1055,8 +1055,9 @@ class RunCi {
 						if (commandSucceed("mxmlc", ["--version"])) {
 							infoMsg('mxmlc has already been installed.');
 						} else {
-							var flexVersion = "4.14.1";
-							runCommand("wget", ['http://archive.apache.org/dist/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz'], true);
+							var apacheMirror = Json.parse(Http.requestUrl("http://www.apache.org/dyn/closer.lua?as_json=1")).preferred;
+							var flexVersion = "4.15.0";
+							runCommand("wget", ['${apacheMirror}/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz'], true);
 							runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz', "-C", Sys.getEnv("HOME")]);
 							var flexsdkPath = Sys.getEnv("HOME") + '/apache-flex-sdk-${flexVersion}-bin';
 							addToPATH(flexsdkPath + "/bin");
