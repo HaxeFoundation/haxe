@@ -416,6 +416,10 @@
     <hidden path="src\macro\macroApi.cmt" />
     <hidden path="src\macro\macroApi.cmx" />
     <hidden path="src\macro\macroApi.o" />
+    <hidden path="src\generators\genphp7.cmi" />
+    <hidden path="src\generators\genphp7.cmt" />
+    <hidden path="src\generators\genphp7.cmx" />
+    <hidden path="src\generators\genphp7.o" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand>make -j4 FD_OUTPUT=1 -f Makefile.win kill haxe</preBuildCommand>

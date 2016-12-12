@@ -180,6 +180,8 @@ src/generators/genswf.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/typing/type.$
 
 src/generators/hlinterp.$(MODULE_EXT): src/context/common.$(MODULE_EXT) src/generators/hlcode.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT) src/generators/hlopt.$(MODULE_EXT) src/macro/macroApi.$(MODULE_EXT)
 
+src/generators/genphp7.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
+
 src/generators/hl2c.$(MODULE_EXT): src/generators/hlcode.$(MODULE_EXT)
 
 src/generators/hlopt.$(MODULE_EXT): src/generators/hlcode.$(MODULE_EXT)

@@ -4070,16 +4070,11 @@ and type_call ctx e el (with_type:with_type) p =
 		if (platform ctx.com Js || platform ctx.com Python) && el = [] && has_dce ctx.com then
 			let e = type_expr ctx e Value in
 			let infos = type_expr ctx infos Value in
-			let e = try
-				begin match follow e.etype with
-					| TInst({cl_path=[],"String"},_) -> raise Not_found
-					| TMono _ -> raise Not_found
-					| TDynamic _ -> raise Not_found
-					| _ -> ()
-				end;
-				call_to_string ~resume:true ctx e
-			with Not_found ->
-				e
+			let e = match follow e.etype with
+				| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics ->
+					call_to_string ctx e
+				| _ ->
+					e
 			in
 			let v_trace = alloc_unbound_var "`trace" t_dynamic p in
 			mk (TCall (mk (TLocal v_trace) t_dynamic p,[e;infos])) ctx.t.tvoid p
