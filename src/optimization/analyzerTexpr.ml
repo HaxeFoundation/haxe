@@ -129,7 +129,7 @@ let rec can_be_used_as_value com e =
 	in
 	try
 		begin match com.platform,e.eexpr with
-			| (Cs | Cpp | Java | Flash),TConst TNull -> raise Exit
+			| (Cs | Cpp | Java | Flash | Lua),TConst TNull -> raise Exit
 			| _ -> ()
 		end;
 		loop e;

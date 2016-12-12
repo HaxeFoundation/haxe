@@ -4,7 +4,6 @@ class Issue4988 extends Test {
 	static var value:Dynamic;
 
 	function test() {
-		#if !lua
 		try {
 			var d:{i:Null<Int>} = null;
 			value = (d.i > 0);
@@ -12,6 +11,5 @@ class Issue4988 extends Test {
 		} catch(e:Dynamic) {
 			t(true);
 		}
-		#end
 	}
 }
