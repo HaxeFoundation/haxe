@@ -414,7 +414,7 @@ class Boot {
 				return value.is_bool();
 			case 'String':
 				return value.is_string();
-			case 'php\\NativeArray':
+			case 'php\\NativeArray', 'php\\_NativeArray\\NativeArray_Impl_':
 				return value.is_array();
 			case 'Enum', 'Class':
 				if (Syntax.instanceof(value, HxClass)) {

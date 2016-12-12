@@ -451,6 +451,7 @@ function _hx_instanceof($v, $t) {
 		case 'Dynamic': return true;
 		case 'Class'  : return ($v instanceof _hx_class || $v instanceof _hx_interface) && $v->__tname__ != 'Enum';
 		case 'Enum'   : return $v instanceof _hx_enum;
+		case 'php.NativeArray': return is_array($v);
 		default       : return is_a($v, $t->__tname__);
 	}
 }
@@ -538,7 +539,11 @@ _hx_nullob::$inst = new _hx_nullob();
 function _hx_nullob() { return _hx_nullob::$inst; }
 
 function _hx_qtype($n) {
-	return isset(php_Boot::$qtypes[$n]) ? php_Boot::$qtypes[$n] : null;
+	if(!isset(php_Boot::$qtypes[$n])) {
+		php_Boot::$qtypes[$n] = new _hx_type($n, null);
+	}
+
+	return php_Boot::$qtypes[$n];
 }
 
 function _hx_register_type($t) {
