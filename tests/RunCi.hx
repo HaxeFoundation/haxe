@@ -166,6 +166,17 @@ class RunCi {
 		Sys.setCwd(path);
 	}
 
+	static function removeDirectory(path:String) {
+		if (FileSystem.isDirectory(path)) {
+			for (entry in FileSystem.readDirectory(path)) {
+				removeDirectory(Path.join([path, entry]));
+			}
+			FileSystem.deleteDirectory(path);
+		} else if (FileSystem.exists(path)) {
+			FileSystem.deleteFile(path);
+		}
+	}
+
 	static function setupFlashPlayerDebugger():Void {
 		var mmcfgPath = switch (systemName) {
 			case "Linux":
@@ -183,9 +194,10 @@ class RunCi {
 					"libxt6:i386", "libxcursor1:i386", "libnss3:i386", "libgtk2.0-0:i386"
 				]);
 				runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/11/flashplayer_11_sa_debug.i386.tar.gz"], true);
-				runCommand("tar", ["-xf", "flashplayer_11_sa_debug.i386.tar.gz", "-C", Sys.getEnv("HOME")]);
+				runCommand("tar", ["-xf", "flashplayer_11_sa_debug.i386.tar.gz"]);
+				FileSystem.deleteFile("flashplayer_11_sa_debug.i386.tar.gz");
 				File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
-				runCommand(Sys.getEnv("HOME") + "/flashplayerdebugger", ["-v"]);
+				runCommand("./flashplayerdebugger", ["-v"]);
 			case "Mac":
 				runCommand("brew", ["tap", "caskroom/versions"]);
 				runCommand("brew", ["cask", "install", "flash-player-debugger"]);
@@ -204,9 +216,10 @@ class RunCi {
 	static function runFlash(swf:String):Bool {
 		swf = FileSystem.fullPath(swf);
 		Sys.println('going to run $swf');
+		var p = null;
 		switch (systemName) {
 			case "Linux":
-				new Process(Sys.getEnv("HOME") + "/flashplayerdebugger", [swf]);
+				p = new Process("./flashplayerdebugger", [swf]);
 			case "Mac":
 				Sys.command("open", ["-a", "/Applications/Flash Player Debugger.app", swf]);
 		}
@@ -239,12 +252,14 @@ class RunCi {
 				line = traceProcess.stdout.readLine();
 				Sys.println(line);
 				if (line.indexOf("SUCCESS: ") >= 0) {
+					if (p != null) p.kill();
 					return line.indexOf("SUCCESS: true") >= 0;
 				}
 			} catch (e:haxe.io.Eof) {
 				break;
 			}
 		}
+		if (p != null) p.kill();
 		return false;
 	}
 
@@ -461,7 +476,7 @@ class RunCi {
 
 	static function getLuaDependencies(jit = false, lua_version = "lua5.2", luarocks_version = "2.3.0") {
 		switch (systemName){
-			case "Linux": requireAptPackages(["libpcre3-dev"]);
+			case "Linux": requireAptPackages(["libpcre3-dev", "libreadline6-dev", "python-pip"]);
 			case "Mac": runCommand("brew", ["install", "pcre"]);
 		}
 
@@ -473,6 +488,7 @@ class RunCi {
 
 		// we need to cd back into the build directory to do some work
 		var build_dir = Sys.getEnv("TRAVIS_BUILD_DIR");
+		if (build_dir == null) Sys.putEnv("TRAVIS_BUILD_DIR", build_dir = FileSystem.absolutePath("../..")); // If no env, assume local run from tests folder
 		changeDirectory(build_dir);
 
 		// luarocks needs to be in the path
@@ -582,6 +598,7 @@ class RunCi {
 					var pypyVersion = "pypy3-2.4.0-linux64";
 					runCommand("wget", ['https://bitbucket.org/pypy/pypy/downloads/${pypyVersion}.tar.bz2'], true);
 					runCommand("tar", ["-xf", '${pypyVersion}.tar.bz2']);
+					FileSystem.deleteFile('${pypyVersion}.tar.bz2');
 					pypy = FileSystem.fullPath('${pypyVersion}/bin/pypy3');
 				}
 				runCommand(pypy, ["-V"]);
@@ -681,7 +698,7 @@ class RunCi {
 			ver.push("0");
 		}
 		ver.join(".");
-	}
+	};
 
 	static function deploy():Void {
 		if (
@@ -992,6 +1009,7 @@ class RunCi {
 
 						infoMsg("Testing java-lib extras");
 						changeDirectory('$unitDir/bin');
+						if (FileSystem.exists("java-lib-tests")) removeDirectory("java-lib-tests");
 						runCommand("git", ["clone", "https://github.com/waneck/java-lib-tests.git", "--depth", "1"], true);
 						for (dir in FileSystem.readDirectory('java-lib-tests'))
 						{
@@ -1057,8 +1075,9 @@ class RunCi {
 						} else {
 							var flexVersion = "4.14.1";
 							runCommand("wget", ['http://archive.apache.org/dist/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz'], true);
-							runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz', "-C", Sys.getEnv("HOME")]);
-							var flexsdkPath = Sys.getEnv("HOME") + '/apache-flex-sdk-${flexVersion}-bin';
+							runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz']);
+							FileSystem.deleteFile('apache-flex-sdk-${flexVersion}-bin.tar.gz');
+							var flexsdkPath = Sys.getCwd() + '/apache-flex-sdk-${flexVersion}-bin';
 							addToPATH(flexsdkPath + "/bin");
 							var playerglobalswcFolder = flexsdkPath + "/player";
 							FileSystem.createDirectory(playerglobalswcFolder + "/11.1");
