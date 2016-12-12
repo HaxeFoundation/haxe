@@ -491,6 +491,7 @@ class RunCi {
 			runCommand("lua", ["-v"]);
 		}
 		runCommand("pip", ["install", "--user", "cpp-coveralls"]);
+		runCommand("luarocks", ["install", "luafilesystem", "1.6.3-2", "--server=https://luarocks.org/dev"]);
 		runCommand("luarocks", ["install", "lrexlib-pcre", "2.7.2-1", "--server=https://luarocks.org/dev"]);
 		runCommand("luarocks", ["install", "luautf8", "--server=https://luarocks.org/dev"]);
 
