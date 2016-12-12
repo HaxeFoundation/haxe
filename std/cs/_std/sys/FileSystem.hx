@@ -109,7 +109,7 @@ class FileSystem {
 
 	public static function deleteDirectory( path : String ) : Void
 	{
-		if (!File.Exists(path)) throw "Path '" + path + "' doesn't exist";
+		if (!Directory.Exists(path)) throw "Path '" + path + "' doesn't exist";
 		Directory.Delete(path);
 	}
 
