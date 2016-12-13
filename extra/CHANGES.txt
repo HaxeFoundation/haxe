@@ -9,6 +9,7 @@
 	all : fixed top-down inference infinite recursion issue (#5848)
 	all : fixed regression in Compiler.include (#5847)
 	all : fixed Not_found exception related to try/catch (#5851)
+	all : fixed metadata completion showing up in trace arguments (#5775)
 	cpp : fixed issue with cpp.Pointer variables being eliminated (#5850)
 	js : added Notification API to HTML externs (#5852)
 	js : fixed several options structures in HTML externs (#5849)

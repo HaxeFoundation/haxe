@@ -4064,7 +4064,7 @@ and type_call ctx e el (with_type:with_type) p =
 		if Common.defined ctx.com Define.NoTraces then
 			null ctx.t.tvoid p
 		else
-		let mk_to_string_meta e = EMeta((Meta.ToString,[],pos e),e),pos e in
+		let mk_to_string_meta e = EMeta((Meta.ToString,[],null_pos),e),pos e in
 		let params = (match el with [] -> [] | _ -> [("customParams",null_pos),(EArrayDecl (List.map mk_to_string_meta el) , p)]) in
 		let infos = mk_infos ctx p params in
 		if (platform ctx.com Js || platform ctx.com Python) && el = [] && has_dce ctx.com then
