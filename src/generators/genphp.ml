@@ -790,10 +790,16 @@ and gen_member_access ctx isvar e s =
 		| EnumStatics _ ->
 			print ctx "::%s%s" (if isvar then "$" else "") (s_ident s)
 		| Statics sta ->
-			let sep = if Meta.has Meta.PhpGlobal sta.cl_meta then "" else "::" in
+			let (sep, no_dollar) = if Meta.has Meta.PhpGlobal sta.cl_meta then
+					("", false)
+				else
+					match e.eexpr with
+						| TField _ -> ("->", true)
+						| _ -> ("::", false)
+			in
 			let isconst = Meta.has Meta.PhpConstants sta.cl_meta in
 			let cprefix = if isconst then get_constant_prefix sta.cl_meta else "" in
-			print ctx "%s%s%s" sep (if isvar && not isconst then "$" else cprefix)
+			print ctx "%s%s%s" sep (if isvar && not isconst && not no_dollar then "$" else cprefix)
 			(if sta.cl_extern && sep = "" then s else s_ident s)
 		| _ -> print ctx "->%s" (if isvar then s_ident_field s else s_ident s))
 	| _ -> print ctx "->%s" (if isvar then s_ident_field s else s_ident s)
