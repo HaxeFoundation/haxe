@@ -90,11 +90,11 @@ class FileSystem {
 	}
 
 	public static inline function deleteFile( path : String ) : Void {
-		Syntax.suppress(Global.unlink(path));
+		Global.unlink(path);
 	}
 
 	public static inline function deleteDirectory( path : String ) : Void {
-		Syntax.suppress(Global.rmdir(path));
+		Global.rmdir(path);
 	}
 
 	public static function readDirectory( path : String ) : Array<String> {
