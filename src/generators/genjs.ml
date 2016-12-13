@@ -941,9 +941,9 @@ and gen_value ctx e =
 			| _ -> cond
 		) in
 		gen_value ctx cond;
-		spr ctx "?";
+		spr ctx " ? ";
 		gen_value ctx e;
-		spr ctx ":";
+		spr ctx " : ";
 		(match eo with
 		| None -> spr ctx "null"
 		| Some e -> gen_value ctx e);
