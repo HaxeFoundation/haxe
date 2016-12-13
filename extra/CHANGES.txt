@@ -3,6 +3,7 @@
 	New features:
 
 	js : added API documentation to HTML externs (#5868)
+	php : added php7 target, enabled with -D php7
 
 	Bugfixes:
 
@@ -10,6 +11,9 @@
 	all : fixed regression in Compiler.include (#5847)
 	all : fixed Not_found exception related to try/catch (#5851)
 	all : fixed metadata completion showing up in trace arguments (#5775)
+	all : fixed problem with useless pattern detection (#5873)
+	all : fixed issue with toString handling in trace arguments (#5858)
+	all : fixed inline constructor scoping (#5855)
 	cpp : fixed issue with cpp.Pointer variables being eliminated (#5850)
 	js : added Notification API to HTML externs (#5852)
 	js : fixed several options structures in HTML externs (#5849)
