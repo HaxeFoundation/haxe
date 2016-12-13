@@ -1228,27 +1228,30 @@ and parse_var_assignment = parser
 		end
 	| [< >] -> None
 
+and parse_var_assignment_resume vl name pn t s =
+	try
+		let eo = parse_var_assignment s in
+		((name,pn),t,eo)
+	with Display e ->
+		let v = ((name,pn),t,Some e) in
+		let e = (EVars(List.rev (v :: vl)),punion pn (pos e)) in
+		display e
+
 and parse_var_decls_next vl = parser
 	| [< '(Comma,p1); name,t,pn = parse_var_decl_head; s >] ->
-		begin try
-			let eo = parse_var_assignment s in
-			parse_var_decls_next (((name,pn),t,eo) :: vl) s
-		with Display e ->
-			let v = ((name,pn),t,Some e) in
-			let e = (EVars(List.rev (v :: vl)),punion p1 (pos e)) in
-			display e
-		end
+		let v_decl = parse_var_assignment_resume vl name pn t s in
+		parse_var_decls_next (v_decl :: vl) s
 	| [< >] ->
 		vl
 
 and parse_var_decls p1 = parser
 	| [< name,t,pn = parse_var_decl_head; s >] ->
-		let eo = parse_var_assignment s in
-		List.rev (parse_var_decls_next [(name,pn),t,eo] s)
+		let v_decl = parse_var_assignment_resume [] name pn t s in
+		List.rev (parse_var_decls_next [v_decl] s)
 	| [< s >] -> error (Custom "Missing variable identifier") p1
 
 and parse_var_decl = parser
-	| [< name,t,pn = parse_var_decl_head; eo = parse_var_assignment >] -> ((name,pn),t,eo)
+	| [< name,t,pn = parse_var_decl_head; v_decl = parse_var_assignment_resume [] name pn t >] -> v_decl
 
 and inline_function = parser
 	| [< '(Kwd Inline,_); '(Kwd Function,p1) >] -> true, p1
