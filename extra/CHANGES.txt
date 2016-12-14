@@ -23,6 +23,7 @@
 	php : fixed invalid detection of `NativeArray` by `Std.is()` (#5565)
 	php : fixed `stdin()`, `stdout()`, `stderr()` of `Sys` to use predefined constants for corresponding channels (#5733)
 	php : fixed Std.parseInt() on hexstrings for PHP7+ (#5521)
+	php : fixed typed cast in assign operations (#5135)
 
 2016-11-29: 3.4.0-RC1
 
