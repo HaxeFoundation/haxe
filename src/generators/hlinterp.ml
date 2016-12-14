@@ -1937,7 +1937,8 @@ let load_native ctx lib name t =
 						| '1'..'9' | '+' | '$' | '^' | '*' | '?' | '.' | '[' | ']' ->
 							Buffer.add_char buf '\\';
 							Buffer.add_char buf c;
-						| _ -> failwith ("Unsupported escaped char '" ^ String.make 1 c ^ "'"));
+						| _ ->
+							Buffer.add_char buf c);
 						loop c false l
 					| c :: l ->
 						match c with
