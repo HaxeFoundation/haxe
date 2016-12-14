@@ -793,9 +793,13 @@ class _hx_type {
 
 	public function __get($n) {
 		if(($r = $this->__rfl__())==null) return null;
-		if($r->hasProperty($n))
-			return $r->getStaticPropertyValue($n);
-		else if($r->hasMethod($n))
+		if($r->hasProperty($n)) {
+			try {
+				return $r->getStaticPropertyValue($n);
+			} catch(Exception $e) {
+				return null;
+			}
+		} else if($r->hasMethod($n))
 			return array($r->name, $n);
 		else
 			return null;
@@ -808,7 +812,7 @@ class _hx_type {
 
 	public function __isset($n) {
 		if(($r = $this->__rfl__())==null) return null;
-		return $r->hasProperty($n) || $r->hasMethod($n);
+		return array_key_exists($n, $r->getStaticProperties()) || $r->hasMethod($n);
 	}
 }
 
