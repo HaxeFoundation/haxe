@@ -1670,6 +1670,8 @@ and gen_expr ctx e =
 	| TCast (e,None) ->
 		gen_expr ctx e
 	| TCast (e1,Some t) ->
+		let error_message pos message = (Lexer.get_error_pos (Printf.sprintf "%s:%d:") pos) ^ ": " ^ message in
+		print_endline (error_message e1.epos "!!!TYPED CAST!!!");
 		let mk_texpr = function
 			| TClassDecl c -> TAnon { a_fields = PMap.empty; a_status = ref (Statics c) }
 			| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
@@ -1784,7 +1786,9 @@ and gen_value ctx e =
 		gen_value ctx e1
 	| TBlock [] ->
 		()
-	| TCast (e, _)
+	| TCast (_, Some _) ->
+		gen_expr ctx e
+	| TCast (e, None)
 	| TBlock [e] ->
 		gen_value ctx e
 	| TIf (cond,e,eelse) when (cangen_ternary e eelse) ->
