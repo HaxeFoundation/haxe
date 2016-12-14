@@ -6528,6 +6528,7 @@ type cppia_op =
 	| IaToInterfaceArray
 	| IaFun
 	| IaCast
+	| IaTCast
 	| IaBlock
 	| IaBreak
 	| IaContinue
@@ -6732,6 +6733,7 @@ let cppia_op_info = function
 	| IaBinOp OpAssignOp OpLt
 	| IaBinOp OpAssignOp OpAssignOp _
 	| IaBinOp OpAssignOp OpArrow -> assert false
+	| IaTCast -> ("TCAST", 221)
 ;;
 
 class script_writer ctx filename asciiOut =
@@ -7211,8 +7213,10 @@ class script_writer ctx filename asciiOut =
             this#write "\n";
             this#gen_expression catch_expr;
          ) catches;
-   | TCast (cast,None) -> this#checkCast expression.etype cast true true;
-   | TCast (cast,Some _) -> this#checkCast expression.etype cast true true;
+   | TCast (cast,Some (TClassDecl t)) ->
+         this#write ((this#op IaTCast) ^ (this#typeText (TInst(t,[])) ) ^ "\n");
+         this#gen_expression cast;
+   | TCast (cast,_) -> this#checkCast expression.etype cast true true;
    | TParenthesis _ -> abort "Unexpected parens" expression.epos
    | TMeta(_,_) -> abort "Unexpected meta" expression.epos
    );
