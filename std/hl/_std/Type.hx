@@ -121,13 +121,13 @@ class Type {
 			return v;
 		}
 		var a : hl.types.ArrayDyn = cast params;
-		var aobj = Std.instance(@:privateAccess a.array, hl.types.ArrayObj);
 		var narr;
-		if( aobj == null ) {
+		if( @:privateAccess !a.array.isArrayObj() ) {
 			narr = new hl.NativeArray<Dynamic>(a.length);
 			for( i in 0...a.length )
 				narr[i] = @:privateAccess a.array.getDyn(i);
 		} else {
+			var aobj : hl.types.ArrayObj<Dynamic> = cast @:privateAccess a.array;
 			narr = @:privateAccess aobj.array;
 		}
 		var v = @:privateAccess e.__type__.allocEnum(index, narr, a.length);

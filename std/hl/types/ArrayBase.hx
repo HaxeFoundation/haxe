@@ -107,6 +107,10 @@ class ArrayBase extends ArrayAccess {
 		return null;
 	}
 
+	function isArrayObj() {
+		return false;
+	}
+
 	public static function allocI32( bytes : BytesAccess<Int>, length : Int ) @:privateAccess {
 		var a : ArrayBytes.ArrayI32 = untyped $new(ArrayBytes.ArrayI32);
 		a.length = length;

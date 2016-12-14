@@ -94,9 +94,9 @@ class Json {
 		}
 
 		if (Global.is_object(value)) {
-			var result = new NativeAssocArray();
+			var result = {};
 			Syntax.foreach(value, function(fieldName:String, fieldValue:Dynamic) {
-				result[fieldName] = convertBeforeEncode(fieldValue);
+				Syntax.setField(result, fieldName, convertBeforeEncode(fieldValue));
 			});
 
 			return result;
