@@ -556,8 +556,8 @@ and gen_field_access ctx t s =
 	let field c =
 		match fst c.cl_path, snd c.cl_path, s with
 		| [], "Math", "NaN"
-		| [], "Math", "NEGATIVE_INFINITY"
-		| [], "Math", "POSITIVE_INFINITY"
+		| [], "Number", "NEGATIVE_INFINITY"
+		| [], "Number", "POSITIVE_INFINITY"
 		| [], "Math", "isFinite"
 		| [], "Math", "isNaN"
 		| [], "Date", "now"
