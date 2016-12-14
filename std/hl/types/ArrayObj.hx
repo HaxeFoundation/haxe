@@ -47,6 +47,10 @@ class ArrayObj<T> extends ArrayBase {
 		return b.toString();
 	}
 
+	override function isArrayObj() {
+		return true;
+	}
+
 	public function pop() : Null<T> {
 		if( length == 0 )
 			return null;
