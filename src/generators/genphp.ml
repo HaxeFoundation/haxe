@@ -71,6 +71,11 @@ type context = {
 
 let follow = Abstract.follow_with_abstracts
 
+(**
+	Check if specified expression is of `Float` type
+*)
+let is_float expr = match follow expr.etype with TAbstract ({ a_path = ([], "Float") }, _) -> true | _ -> false
+
 let join_class_path path separator =
 	let result = match fst path, snd path with
 	| [], s -> s
@@ -1212,6 +1217,7 @@ and gen_expr ctx e =
 			end else if
 				   ((se1 = "Int" || se1 = "Null<Int>") && (se2 = "Int" || se2 = "Null<Int>"))
 				|| ((se1 = "Float" || se1 = "Null<Float>") && (se2 = "Float" || se2 = "Null<Float>"))
+				&& not (is_float e1 && is_float e2)
 			then begin
 				gen_field_op ctx e1;
 				spr ctx s_phop;

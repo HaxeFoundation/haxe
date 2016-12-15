@@ -296,7 +296,7 @@ let is_unknown_type (target:Type.t) = is_dynamic_type target || is_generic_param
 *)
 let need_boot_equal expr1 expr2 =
 	(is_int expr1 && (is_float expr2 || is_unknown_type expr2.etype))
-	|| (is_float expr1 && (is_int expr2 || is_unknown_type expr2.etype))
+	|| (is_float expr1 && (is_float expr2 || is_int expr2 || is_unknown_type expr2.etype))
 	|| (is_unknown_type expr1.etype && (is_int expr2 || is_float expr2))
 	|| (is_unknown_type expr1.etype && is_unknown_type expr2.etype)
 

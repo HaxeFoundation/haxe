@@ -26,6 +26,7 @@
 	php : fixed typed cast in assign operations (#5135)
 	php : fixed exception thrown by `Reflect.fields(o)` when `o` is `Class<T>` (#5608)
 	php : fixed json encoding of empty objects (#5015)
+	php : fixed checking floats for equality (#4260)
 
 2016-11-29: 3.4.0-RC1
 
