@@ -556,14 +556,12 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 		in
 		let contains_tpos e p =
 			let rec loop e =
-				prerr_endline (e.epos.pfile ^ " " ^ string_of_int e.epos.pmin ^  " " ^ string_of_int e.epos.pmax);
 				if Display.encloses_position p e.epos && e.epos.pfile = p.pfile then raise Exit;
 				Type.iter loop e
 			in
 			try
 				loop e; false;
 			with Exit ->
-				prerr_endline "!";
 				true
 		in
 		let check_e = ref None in
