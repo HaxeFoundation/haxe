@@ -42,6 +42,9 @@ class Json {
 
 	static function phpJsonDecode(json:String):Dynamic {
 		var val = untyped __call__("json_decode", json);
+		if (val == null && untyped __php__("json_last_error() != JSON_ERROR_NONE")) {
+			throw untyped __call__("json_last_error_msg");
+		}
 		return convertAfterDecode(val);
 	}
 

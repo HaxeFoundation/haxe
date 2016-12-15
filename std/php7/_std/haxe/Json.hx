@@ -45,6 +45,9 @@ class Json {
 
 	static function phpJsonDecode(json:String):Dynamic {
 		var value = Global.json_decode(json);
+		if (value == null && Global.json_last_error() != Const.JSON_ERROR_NONE) {
+			throw Global.json_last_error_msg();
+		}
 		return convertAfterDecode(value);
 	}
 
