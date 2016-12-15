@@ -545,7 +545,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 	(* let force_inline, is_extern = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f, c.cl_extern | _ -> false, false in *)
 	let contains_pos e p =
 		let rec loop e =
-			if snd e = p then raise Exit
+			if snd e = p then raise Exit;
 			Ast.iter_expr loop e
 		in
 		try
