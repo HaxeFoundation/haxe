@@ -2820,12 +2820,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 				op ctx (OBool (tmp, b));
 				op ctx (OToDyn (r, tmp));
 			| TString s ->
-				let str, len = to_utf8 s f.tf_expr.epos in
-				let rb = alloc_tmp ctx HBytes in
-				op ctx (ONew r);
-				op ctx (OString (rb,alloc_string ctx str));
-				op ctx (OSetField (r,0,rb));
-				op ctx (OSetField (r,1,reg_int ctx len));
+				op ctx (OMov (r, make_string ctx s f.tf_expr.epos))
 			);
 			j();
 		);
