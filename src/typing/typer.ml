@@ -554,10 +554,24 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 			with Exit ->
 				true
 		in
+		let contains_tpos e p =
+			let rec loop e =
+				prerr_endline (e.epos.pfile ^ " " ^ string_of_int e.epos.pmin ^  " " ^ string_of_int e.epos.pmax);
+				if Display.encloses_position p e.epos && e.epos.pfile = p.pfile then raise Exit;
+				Type.iter loop e
+			in
+			try
+				loop e; false;
+			with Exit ->
+				prerr_endline "!";
+				true
+		in
+		let check_e = ref None in
 		try
 			let e = type_expr ctx e (WithType t) in
+			check_e := Some e;
 			AbstractCast.cast_or_unify_raise ctx t e e.epos
-		with Error(l,p) when (match l with Call_error _ | Module_not_found _ -> false | _ -> contains_pos e p) ->
+		with Error(l,p) when (match l with Call_error _ | Module_not_found _ -> false | _ -> (match !check_e with None -> contains_pos e p | Some e -> contains_tpos e p)) ->
 			raise (WithTypeError (l,p))
 	in
 	let rec loop el args = match el,args with
