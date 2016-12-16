@@ -935,4 +935,29 @@ extern class Global {
 		@see http://php.net/manual/en/function.set-time-limit.php
 	**/
 	static function set_time_limit( seconds:Int ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.function-exists.php
+	**/
+	static function function_exists( function_name:String ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.getallheaders.php
+	**/
+	static function getallheaders() : NativeAssocArray<Dynamic>;
+
+	/**
+		@see http://php.net/manual/en/function.ucwords.php
+	**/
+	static function ucwords( str:String, ?delimiters:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.base64-encode.php
+	**/
+	static function base64_encode( data:String ) : EitherType<String,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.base64-decode.php
+	**/
+	static function base64_decode( data:String, strict:Bool = false ) : EitherType<String,Bool>;
 }

@@ -22,6 +22,9 @@
 package php;
 
 import haxe.io.Bytes;
+import php.Syntax.*;
+import php.Global.*;
+import php.SuperGlobal.*;
 
 /**
 	This class is used for accessing the local Web server and the current
@@ -80,16 +83,16 @@ class Web {
 		explore(StringTools.replace(getParamsString(), ";", "&"));
 		explore(getPostData());
 
-        if (res.length == 0) {
-            var post:haxe.ds.StringMap<Dynamic> = Lib.hashOfAssociativeArray(untyped __php__("$_POST"));
-            var data = post.get(param);
-            var k = 0, v = "";
-            if (untyped __call__("is_array", data)) {
-                untyped __php__(" reset($data); while(list($k, $v) = each($data)) { ");
-                res[k] = v;
-                untyped __php__(" } ");
-            }
-        }
+		if (res.length == 0) {
+			var post:haxe.ds.StringMap<Dynamic> = Lib.hashOfAssociativeArray(untyped __php__("$_POST"));
+			var data = post.get(param);
+			var k = 0, v = "";
+			if (untyped __call__("is_array", data)) {
+				untyped __php__(" reset($data); while(list($k, $v) = each($data)) { ");
+				res[k] = v;
+				untyped __php__(" } ");
+			}
+		}
 
 		if (res.length == 0)
 			return null;
@@ -189,34 +192,66 @@ class Web {
 		Retrieve a client header value sent with the request.
 	**/
 	public static function getClientHeader( k : String ) : String {
-		//Remark : PHP puts all headers in uppercase and replaces - with _, we deal with that here
-		var k = StringTools.replace(k.toUpperCase(),"-","_");
-		for(i in getClientHeaders()) {
-			if(i.header == k)
-				return i.value;
-		}
-		return null;
+		return loadClientHeaders().get(k);
 	}
 
 
-	private static var _client_headers : List<{header : String, value : String}>;
+	private static var _clientHeaders : Map<String,String>;
+	/**
+		Based on https://github.com/ralouphie/getallheaders
+	**/
+	static function loadClientHeaders():Map<String,String> {
+		if(_clientHeaders != null) return _clientHeaders;
+
+		_clientHeaders = new Map();
+
+		if(function_exists('getallheaders')) {
+			foreach(getallheaders(), function(key:String, value:Dynamic) {
+				_clientHeaders.set(key, Std.string(value));
+			});
+			return _clientHeaders;
+		}
+
+		var copyServer = [
+			'CONTENT_TYPE'   => 'Content-Type',
+			'CONTENT_LENGTH' => 'Content-Length',
+			'CONTENT_MD5'    => 'Content-Md5'
+		];
+		foreach(_SERVER, function(key:String, value:Dynamic) {
+			if((substr(key, 0, 5):String) == 'HTTP_') {
+				key = substr(key, 5);
+				if(!copyServer.exists(key) || !isset(_SERVER[key])) {
+					key = str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', key))));
+					_clientHeaders[key] = Std.string(value);
+				}
+			} else if(isset(copyServer[key])) {
+				_clientHeaders[copyServer[key]] = Std.string(value);
+			}
+		});
+		if(!isset(_clientHeaders['Authorization'])) {
+			if(isset(_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+				_clientHeaders['Authorization'] = Std.string(_SERVER['REDIRECT_HTTP_AUTHORIZATION']);
+			} else if(isset(_SERVER['PHP_AUTH_USER'])) {
+				var basic_pass = isset(_SERVER['PHP_AUTH_PW']) ? Std.string(_SERVER['PHP_AUTH_PW']) : '';
+				_clientHeaders['Authorization'] = 'Basic ' + base64_encode(_SERVER['PHP_AUTH_USER'] + ':' + basic_pass);
+			} else if(isset(_SERVER['PHP_AUTH_DIGEST'])) {
+				_clientHeaders['Authorization'] = Std.string(_SERVER['PHP_AUTH_DIGEST']);
+			}
+		}
+
+		return _clientHeaders;
+	}
+
 	/**
 		Retrieve all the client headers.
 	**/
-	public static function getClientHeaders() {
-		if(_client_headers == null) {
-			_client_headers = new List();
-			var h = Lib.hashOfAssociativeArray(untyped __php__("$_SERVER"));
-			for(k in h.keys()) {
-				if(k.substr(0,5) == "HTTP_") {
-					_client_headers.add({ header : k.substr(5), value : h.get(k)});
-				// this is also a valid prefix (issue #1883)
-				} else if(k.substr(0,8) == "CONTENT_") {
-					_client_headers.add({ header : k, value : h.get(k)});
-				}
-			}
+	public static function getClientHeaders():List<{value:String, header:String}> {
+		var headers = loadClientHeaders();
+		var result = new List();
+		for(key in headers.keys()) {
+			result.push({value:headers.get(key), header:key});
 		}
-		return _client_headers;
+		return result;
 	}
 
 	/**
