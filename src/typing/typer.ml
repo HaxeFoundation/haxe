@@ -544,32 +544,10 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 	in
 	(* let force_inline, is_extern = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f, c.cl_extern | _ -> false, false in *)
 	let type_against t e =
-		let contains_pos e p =
-			let rec loop e =
-				if Display.encloses_position p (pos e) && (pos e).pfile = p.pfile then raise Exit;
-				Ast.iter_expr loop e
-			in
-			try
-				loop e; false;
-			with Exit ->
-				true
-		in
-		let contains_tpos e p =
-			let rec loop e =
-				if Display.encloses_position p e.epos && e.epos.pfile = p.pfile then raise Exit;
-				Type.iter loop e
-			in
-			try
-				loop e; false;
-			with Exit ->
-				true
-		in
-		let check_e = ref None in
 		try
 			let e = type_expr ctx e (WithType t) in
-			check_e := Some e;
 			AbstractCast.cast_or_unify_raise ctx t e e.epos
-		with Error(l,p) when (match l with Call_error _ | Module_not_found _ -> false | _ -> (match !check_e with None -> contains_pos e p | Some e -> contains_tpos e p)) ->
+		with Error(l,p) when (match l with Call_error _ | Module_not_found _ -> false | _ -> true) ->
 			raise (WithTypeError (l,p))
 	in
 	let rec loop el args = match el,args with
