@@ -39,6 +39,7 @@ install:
     - choco install php --ignore-dependencies
     - echo extension=php_mysqli.dll >> C:\tools\php\php.ini
     - echo extension=php_sqlite3.dll >> C:\tools\php\php.ini
+    - echo extension=php_openssl.dll >> C:\tools\php\php.ini
     - RefreshEnv
     # do not use chocolatey's shim, which is buggy when processing arguments
     # see https://github.com/chocolatey/shimgen/issues/27
