@@ -66,7 +66,7 @@ class Socket {
 	public function connect(host : Host, port : Int) : Void {
 		var errs = null;
 		var errn = null;
-		var r = untyped __call__('stream_socket_client', protocol + '://' +host._ip + ':' + port, errn, errs);
+		var r = untyped __call__('stream_socket_client', protocol + '://' +host.host + ':' + port, errn, errs);
 		Socket.checkError(r, errn, errs);
 		__s = cast r;
 		assignHandler();
