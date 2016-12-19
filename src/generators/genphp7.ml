@@ -1719,7 +1719,7 @@ class virtual type_builder ctx wrapper =
 			Writes TBlock to output buffer
 		*)
 		method private write_expr_block block_expr =
-			(* Check if parent expr could not contain blocks in PHP, adn this block needs to be wrapped in a closure. *)
+			(* Check if parent expr could not contain blocks in PHP, and this block needs to be wrapped in a closure. *)
 			let needs_closure = match self#parent_expr with
 				| None -> false
 				| Some e ->
@@ -2240,22 +2240,31 @@ class virtual type_builder ctx wrapper =
 			Writes FClosure field access to output buffer
 		*)
 		method private write_expr_field_closure tcls field expr =
-			let new_closure = "new " ^ (self#use hxclosure_type_path) in
-			match expr.eexpr with
-				| TTypeExpr mtype ->
-					let class_name = self#use_t (type_of_module_type mtype) in
-					self#write (new_closure ^ "(" ^ class_name ^ "::class, '" ^ (field_name field) ^ "')");
-				| _ ->
-					self#write (new_closure ^ "(");
-					(match follow expr.etype with
-						| TInst ({ cl_path = ([], "String") }, []) ->
-							self#write ((self#use hxdynamicstr_type_path) ^ "::wrap(");
-							self#write_expr expr;
-							self#write ")"
-						| _ ->
-							self#write_expr expr
-					);
-					self#write (", '" ^ (field_name field) ^ "')")
+			if is_dynamic_method field then
+				match expr.eexpr with
+					| TTypeExpr mtype ->
+						let class_name = self#use_t (type_of_module_type mtype) in
+						self#write (class_name ^ "::$" ^ (field_name field) ^ "'");
+					| _ ->
+						self#write_expr expr;
+						self#write ("->" ^ (field_name field))
+			else
+				let new_closure = "new " ^ (self#use hxclosure_type_path) in
+				match expr.eexpr with
+					| TTypeExpr mtype ->
+						let class_name = self#use_t (type_of_module_type mtype) in
+						self#write (new_closure ^ "(" ^ class_name ^ "::class, '" ^ (field_name field) ^ "')");
+					| _ ->
+						self#write (new_closure ^ "(");
+						(match follow expr.etype with
+							| TInst ({ cl_path = ([], "String") }, []) ->
+								self#write ((self#use hxdynamicstr_type_path) ^ "::wrap(");
+								self#write_expr expr;
+								self#write ")"
+							| _ ->
+								self#write_expr expr
+						);
+						self#write (", '" ^ (field_name field) ^ "')")
 		(**
 			Write anonymous object declaration to output buffer
 		*)
