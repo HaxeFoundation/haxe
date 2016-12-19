@@ -21,52 +21,56 @@
  */
 package sys.io;
 
+import php.*;
+import php.Global.*;
+import php.Const.*;
+
 @:coreApi
 class FileOutput extends haxe.io.Output {
-	private var __f : File.FileHandle;
+	private var __f : Resource;
 
-	function new(f:File.FileHandle) : Void {
+	function new(f:Resource) : Void {
 		__f = f;
 	}
 
 	public override function writeByte( c : Int ) : Void {
-		var r = untyped __call__('fwrite', __f, __call__('chr', c));
-		if(untyped __physeq__(r, false)) throw haxe.io.Error.Custom('An error occurred');
+		var r = fwrite(__f, chr(c));
+		if(r == false) throw haxe.io.Error.Custom('An error occurred');
 	}
 
 	public override function writeBytes( b : haxe.io.Bytes, p : Int, l : Int ) : Int {
 		var s = b.getString(p, l);
-		if(untyped __call__('feof', __f)) return throw new haxe.io.Eof();
-		var r = untyped __call__('fwrite', __f, s, l);
-		if(untyped __physeq__(r, false)) return throw haxe.io.Error.Custom('An error occurred');
+		if(feof(__f)) throw new haxe.io.Eof();
+		var r = fwrite(__f, s, l);
+		if(r == false) throw haxe.io.Error.Custom('An error occurred');
 		return r;
 	}
 
 	public override function flush() : Void {
-		var r = untyped __call__('fflush', __f);
-		if(untyped __physeq__(r, false)) throw haxe.io.Error.Custom('An error occurred');
+		var r = fflush(__f);
+		if(r == false) throw haxe.io.Error.Custom('An error occurred');
 	}
 
 	public override function close() : Void {
 		super.close();
-		if(__f != null)	untyped __call__('fclose', __f);
+		if(__f != null)	fclose(__f);
 	}
 
 	public function seek( p : Int, pos : FileSeek ) : Void {
 		var w;
 		switch( pos ) {
-			case SeekBegin: w = untyped __php__('SEEK_SET');
-			case SeekCur  : w = untyped __php__('SEEK_CUR');
-			case SeekEnd  : w = untyped __php__('SEEK_END');
+			case SeekBegin: w = SEEK_SET;
+			case SeekCur  : w = SEEK_CUR;
+			case SeekEnd  : w = SEEK_END;
 		}
-		var r = untyped __call__('fseek', __f, p, w);
-		if(untyped __physeq__(r, false)) throw haxe.io.Error.Custom('An error occurred');
+		var r = fseek(__f, p, w);
+		if(r == false) throw haxe.io.Error.Custom('An error occurred');
 	}
 
 	public function tell() : Int {
-		var r = untyped __call__('ftell', __f);
-		if(untyped __physeq__(r, false)) return throw haxe.io.Error.Custom('An error occurred');
-		return cast r;
+		var r = ftell(__f);
+		if(r == false) throw haxe.io.Error.Custom('An error occurred');
+		return r;
 	}
 
 }

@@ -138,6 +138,34 @@ extern class Const {
 	static var STR_PAD_LEFT : Int;
 	static var STR_PAD_BOTH : Int;
 	/**
+		@see http://php.net/manual/en/function.feof.php
+	**/
+	static var SEEK_SET : Int;
+	static var SEEK_CUR : Int;
+	static var SEEK_END : Int;
+	/**
+		@see http://php.net/manual/en/function.stream-socket-server.php
+	**/
+	static var STREAM_SERVER_BIND : Int;
+	static var STREAM_SERVER_LISTEN : Int;
+	/**
+		@see http://php.net/manual/en/function.stream-socket-client.php
+	**/
+	static var STREAM_CLIENT_CONNECT : Int;
+	static var STREAM_CLIENT_ASYNC_CONNECT : Int;
+	static var STREAM_CLIENT_PERSISTENT : Int;
+	/**
+		@see http://php.net/manual/en/function.socket-create.php
+	**/
+	static var SOCK_STREAM : Int;
+	static var SOCK_DGRAM : Int;
+	static var SOCK_SEQPACKET : Int;
+	static var SOCK_RAW : Int;
+	static var SOCK_RDM : Int;
+	static var AF_INET : Int;
+	static var AF_INET6 : Int;
+	static var AF_UNIX : Int;
+	/**
 		@see http://php.net/manual/en/json.constants.php
 	**/
 	static var JSON_ERROR_NONE : Int;

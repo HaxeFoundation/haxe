@@ -285,6 +285,11 @@ extern class Global {
 	static function echo( args:Rest<String> ) : Void;
 
 	/**
+		@see http://php.net/manual/en/function.sprintf.php
+	**/
+	static function sprintf( format:String, args:Rest<Dynamic> ) : EitherType<String,Bool>;
+
+	/**
 		@see http://php.net/manual/en/function.method-exists.php
 	**/
 	static function method_exists( object:Dynamic, method_name:String ) : Bool;
@@ -607,6 +612,16 @@ extern class Global {
 	static function feof( handle:Resource ) : Bool;
 
 	/**
+		@see http://php.net/manual/en/function.fseek.php
+	**/
+	static function fseek( handle:Resource, offset:Int, ?whence:Int ) : EitherType<Int,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.ftell.php
+	**/
+	static function ftell( handle:Resource ) : EitherType<Int,Bool>;
+
+	/**
 		@see http://php.net/manual/en/function.rewind.php
 	**/
 	static function rewind( handle:Resource ) : Bool;
@@ -615,6 +630,16 @@ extern class Global {
 		@see http://php.net/manual/en/function.fgetc.php
 	**/
 	static function fgetc( handle:Resource ) : EitherType<Bool,String>;
+
+	/**
+		@see http://php.net/manual/en/function.fgets.php
+	**/
+	static function fgets( handle:Resource ) : EitherType<Bool,String>;
+
+	/**
+		@see http://php.net/manual/en/function.fflush.php
+	**/
+	static function fflush( handle:Resource ) : Bool;
 
 	/**
 		@see http://php.net/manual/en/function.fwrite.php
@@ -630,6 +655,16 @@ extern class Global {
 		@see http://php.net/manual/en/function.file-exists.php
 	**/
 	static function file_exists( filename:String ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.file-get-contents.php
+	**/
+	static function file_get_contents( filename:String, use_include_path:Bool = false, ?context:Resource, offset:Int = 0, ?maxlen:Int ) : EitherType<String,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.file-put-contents.php
+	**/
+	static function file_put_contents( filename:String, data:Dynamic, flags:Int = 0, ?context:Resource ) : EitherType<Int,Bool>;
 
 	/**
 		@see http://php.net/manual/en/function.clearstatcache.php
@@ -912,6 +947,41 @@ extern class Global {
 	static function stream_select( read:NativeArray, write:NativeArray, except:NativeArray, tv_sec:Int, tv_usec:Int = 0 ) : Bool;
 
 	/**
+		@see http://php.net/manual/en/function.stream-socket-shutdown.php
+	**/
+	static function stream_socket_shutdown( stream:Resource, how:Int ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.stream-set-timeout.php
+	**/
+	static function stream_set_timeout( stream:Resource, seconds:Int, microseconds:Int = 0 ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.stream-set-blocking.php
+	**/
+	static function stream_set_blocking( stream:Resource, mode:Bool ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.stream-socket-accept.php
+	**/
+	static function stream_socket_accept( server_socket:Resource, ?timeout:Float, ?peername:Ref<String> ) : EitherType<Resource,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.stream-socket-client.php
+	**/
+	static function stream_socket_client( remote_socket:String, ?errno:Ref<Int>, ?errstr:Ref<String>, ?timeout:Float, ?flags:Int, ?context:Resource ) : EitherType<Resource,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.stream-socket-server.php
+	**/
+	static function stream_socket_server( local_socket:String, ?errno:Ref<Int>, ?errstr:Ref<String>, ?flags:Int, ?context:Resource ) : EitherType<Resource,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.stream-socket-get-name.php
+	**/
+	static function stream_socket_get_name( stream:Resource, want_peer:Bool ) : EitherType<String,Bool>;
+
+	/**
 		@see http://php.net/manual/en/function.ini-get.php
 	**/
 	static function ini_get( var_name:String ) : EitherType<Bool,String>;
@@ -960,4 +1030,19 @@ extern class Global {
 		@see http://php.net/manual/en/function.base64-decode.php
 	**/
 	static function base64_decode( data:String, strict:Bool = false ) : EitherType<String,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.gethostbyname.php
+	**/
+	static function gethostbyname( hostname:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.gethostbyaddr.php
+	**/
+	static function gethostbyaddr( ip_address:String ) : EitherType<String,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.getprotobyname.php
+	**/
+	static function getprotobyname( name:String ) : EitherType<Int,Bool>;
 }

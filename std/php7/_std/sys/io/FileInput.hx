@@ -20,63 +20,68 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package sys.io;
+
 import haxe.io.Eof;
+import haxe.io.Error;
+import haxe.io.Bytes;
+import php.*;
+import php.Global.*;
+import php.Const.*;
 
 @:coreApi
 class FileInput extends haxe.io.Input {
 
-	private var __f : File.FileHandle;
+	private var __f : Resource;
 
-	function new(f:File.FileHandle) : Void {
+	function new(f:Resource) : Void {
 		__f = f;
 	}
 
 	public override function readByte() : Int {
-		var r = untyped __call__('fread', __f, 1);
-		if(untyped __call__('feof', __f)) return throw new haxe.io.Eof();
-		if(untyped __physeq__(r, false)) return throw haxe.io.Error.Custom('An error occurred');
-		return untyped __call__('ord', r);
+		var r = fread(__f, 1);
+		if(feof(__f)) throw new Eof();
+		if(r == false) throw Custom('An error occurred');
+		return ord(r);
 	}
 
-	public override function readBytes( s : haxe.io.Bytes, p : Int, l : Int ) : Int {
-		if(untyped __call__('feof', __f)) return throw new haxe.io.Eof();
-		var r : String = untyped __call__('fread', __f, l);
-		if(untyped __physeq__(r, false)) return throw haxe.io.Error.Custom('An error occurred');
-		var b = haxe.io.Bytes.ofString(r);
-		s.blit(p, b, 0, r.length);
-		return r.length;
+	public override function readBytes( s : Bytes, p : Int, l : Int ) : Int {
+		if(feof(__f)) throw new Eof();
+		var r = fread(__f, l);
+		if(r == false) throw Custom('An error occurred');
+		var b = Bytes.ofString(r);
+		s.blit(p, b, 0, (r:String).length);
+		return (r:String).length;
 	}
 
 	public override function close() : Void {
 		super.close();
-		if(__f != null)	untyped __call__('fclose', __f);
+		if(__f != null)	fclose(__f);
 	}
 
 	public function seek( p : Int, pos : FileSeek ) : Void {
 		var w;
 		switch( pos ) {
-			case SeekBegin: w = untyped __php__('SEEK_SET');
-			case SeekCur  : w = untyped __php__('SEEK_CUR');
-			case SeekEnd  : w = untyped __php__('SEEK_END');
+			case SeekBegin: w = SEEK_SET;
+			case SeekCur  : w = SEEK_CUR;
+			case SeekEnd  : w = SEEK_END;
 		}
-		var r = untyped __call__('fseek', __f, p, w);
-		if(untyped __physeq__(r, false)) throw haxe.io.Error.Custom('An error occurred');
+		var r = fseek(__f, p, w);
+		if(r == false) throw Custom('An error occurred');
 	}
 
 	public function tell() : Int {
-		var r = untyped __call__('ftell', __f);
-		if(untyped __physeq__(r, false)) return throw haxe.io.Error.Custom('An error occurred');
+		var r = ftell(__f);
+		if(r == false) throw Custom('An error occurred');
 		return cast r;
 	}
 
 	public function eof() : Bool {
-		return untyped __call__('feof', __f);
+		return feof(__f);
 	}
 
 	override function readLine() : String {
-		var r : String = untyped __call__('fgets', __f);
-		if (untyped __physeq__(false, r))
-			throw new Eof();
-		return untyped __call__("rtrim", r, "\r\n");
+		var r = fgets(__f);
+		if (false == r) throw new Eof();
+		return rtrim(r, "\r\n");
 	}
 }
