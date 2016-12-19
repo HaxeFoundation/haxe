@@ -778,6 +778,7 @@ class RunCi {
 			runCommand('gbp import-orig "../haxe_${SNAPSHOT_VERSION}.orig.tar.gz" -u "${SNAPSHOT_VERSION}" --debian-branch=next');
 			runCommand('dch -v "1:${SNAPSHOT_VERSION}-1" --urgency low "snapshot build"');
 			runCommand("debuild -S -sa");
+			runCommand("backportpackage -d yakkety --upload ${PPA} --yes ../haxe_*.dsc");
 			runCommand("backportpackage -d xenial  --upload ${PPA} --yes ../haxe_*.dsc");
 			runCommand("backportpackage -d wily    --upload ${PPA} --yes ../haxe_*.dsc");
 			runCommand("backportpackage -d vivid   --upload ${PPA} --yes ../haxe_*.dsc");
