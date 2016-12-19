@@ -5076,8 +5076,11 @@ let access_str a = match a with
    | AccRequire(_,_) -> "AccRequire" ;;
 
 
-let script_type t optional = if optional then "Object" else
+let script_type t optional = if optional then begin
    match type_string t with
+   | "::String" -> "String"
+   | _ -> "Object"
+   end else match type_string t with
    | "bool" -> "Int"
    | "int" -> "Int"
    | "Float" -> "Float"
