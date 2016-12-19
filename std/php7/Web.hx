@@ -228,7 +228,7 @@ class Web {
 				_clientHeaders[copyServer[key]] = Std.string(value);
 			}
 		});
-		if(!isset(_clientHeaders['Authorization'])) {
+		if(!_clientHeaders.exists('Authorization')) {
 			if(isset(_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
 				_clientHeaders['Authorization'] = Std.string(_SERVER['REDIRECT_HTTP_AUTHORIZATION']);
 			} else if(isset(_SERVER['PHP_AUTH_USER'])) {
