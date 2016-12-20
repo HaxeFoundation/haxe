@@ -292,15 +292,6 @@ let is_generic_parameter (target:Type.t) =
 let is_unknown_type (target:Type.t) = is_dynamic_type target || is_generic_parameter target
 
 (**
-	Check if `expr1` and `expr2` can be reliably checked for equality only with `Boot.equal()`
-*)
-let need_boot_equal expr1 expr2 =
-	(is_int expr1 && (is_float expr2 || is_unknown_type expr2.etype))
-	|| (is_float expr1 && (is_float expr2 || is_int expr2 || is_unknown_type expr2.etype))
-	|| (is_unknown_type expr1.etype && (is_int expr2 || is_float expr2))
-	|| (is_unknown_type expr1.etype && is_unknown_type expr2.etype)
-
-(**
 	@return `Type.t` instance for `Void`
 *)
 let void = ref None
@@ -666,6 +657,18 @@ let is_magic expr =
 			| _ -> false
 		)
 	| _ -> false
+
+(**
+	Check if `expr1` and `expr2` can be reliably checked for equality only with `Boot.equal()`
+*)
+let need_boot_equal expr1 expr2 =
+	if is_constant_null expr1 || is_constant_null expr2 then
+		false
+	else
+		(is_int expr1 && (is_float expr2 || is_unknown_type expr2.etype))
+		|| (is_float expr1 && (is_float expr2 || is_int expr2 || is_unknown_type expr2.etype))
+		|| (is_unknown_type expr1.etype && (is_int expr2 || is_float expr2))
+		|| (is_unknown_type expr1.etype && is_unknown_type expr2.etype)
 
 (**
 	Adds `return` expression to block if it does not have one already
