@@ -742,6 +742,11 @@ extern class Global {
 	static function rename( oldname:String, newname:String, ?context:Resource ) : Bool;
 
 	/**
+		@see http://php.net/manual/en/function.copy.php
+	**/
+	static function copy( source:String, dest:String, ?context:Resource ) : Bool;
+
+	/**
 		@see http://php.net/manual/en/function.preg-match.php
 	**/
 	static function preg_match( pattern:String, subject:String, ?matches:NativeArray, ?flags:Int, ?offset:Int ) : EitherType<Bool,Int> ;

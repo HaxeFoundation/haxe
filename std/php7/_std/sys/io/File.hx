@@ -22,6 +22,7 @@
 package sys.io;
 
 import php.Global.*;
+import php.Global;
 
 @:coreApi class File {
 
@@ -56,7 +57,7 @@ import php.Global.*;
 	}
 
 	public static function copy( srcPath : String, dstPath : String ) : Void {
-		copy(srcPath, dstPath);
+		Global.copy(srcPath, dstPath);
 	}
 
 }
