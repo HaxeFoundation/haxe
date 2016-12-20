@@ -1286,7 +1286,7 @@ let inline_constructors ctx e =
 				if cf.cf_name <> "length" then
 					begin match (IntMap.find v.v_id !vars).ii_kind with
 					| IKArray _ -> cancel v e.epos
-					| _ -> ()
+					| _ -> (try ignore(get_field_var v cf.cf_name) with Not_found -> ignore(add_field_var v cf.cf_name v.v_type));
 					end
 			| _ -> cancel v e.epos
 			end
@@ -1318,21 +1318,14 @@ let inline_constructors ctx e =
 		with Not_found ->
 			None
 	in
-	let extra_vars = ref [] in
-	let assign_or_declare v block_depth name e2 t p =
+	let assign_or_declare v name e2 t p =
 		 try
 			let v = get_field_var v name in
 			let e1 = mk (TLocal v) t p in
 			mk (TBinop(OpAssign,e1,e2)) e1.etype p
 		with Not_found ->
 			let v = add_field_var v name t in
-			if block_depth = 1 then
-				mk (TVar(v,Some e2)) ctx.t.tvoid e.epos
-			else begin
-				let e1 = mk (TLocal v) t p in
-				extra_vars := (mk (TVar(v,None)) ctx.t.tvoid e.epos) :: !extra_vars;
-				mk (TBinop(OpAssign,e1,e2)) e1.etype p
-			end
+			mk (TVar(v,Some e2)) ctx.t.tvoid e.epos
 	in
 	let use_local_or_null v name t p =
 		try
@@ -1360,41 +1353,31 @@ let inline_constructors ctx e =
 		let e = mk (TBlock (List.rev !el)) e.etype e.epos in
 		mk (TMeta((Meta.MergeBlock,[],e.epos),e)) e.etype e.epos
 	in
-	let rec loop block_depth e = match e.eexpr with
+	let rec loop e = match e.eexpr with
 		| TVar(v,_) when v.v_id < 0 ->
 			begin match inline v e.epos with
 			| Some e ->
 				let e = flatten e in
-				loop (block_depth - 1) e
+				loop e
 			| None ->
 				cancel v e.epos;
 				e
 			end
 		| TBinop(OpAssign,({eexpr = TField({eexpr = TLocal v},fa)} as e1),e2) when v.v_id < 0 ->
-			let e2 = loop block_depth e2 in
-			assign_or_declare v block_depth (field_name fa) e2 e1.etype e.epos
+			let e2 = loop e2 in
+			assign_or_declare v (field_name fa) e2 e1.etype e.epos
 		| TField({eexpr = TLocal v},fa) when v.v_id < 0 ->
 			use_local_or_null v (field_name fa) e.etype e.epos
 		| TBinop(OpAssign,({eexpr = TArray({eexpr = TLocal v},{eexpr = TConst (TInt i)})} as e1),e2) when v.v_id < 0 ->
-			let e2 = loop block_depth e2 in
+			let e2 = loop e2 in
 			let name = int_field_name (Int32.to_int i) in
-			assign_or_declare v block_depth name e2 e1.etype e.epos
+			assign_or_declare v name e2 e1.etype e.epos
 		| TArray({eexpr = TLocal v},{eexpr = TConst (TInt i)}) when v.v_id < 0	->
 			use_local_or_null v (int_field_name (Int32.to_int i)) e.etype e.epos
-		(* TODO: this really shouldn't be here, but we have to deal with scoping even if TBlocks are missing *)
-		| TIf(e1,e2,eo) ->
-			let e1 = loop block_depth e1 in
-			let e2 = loop block_depth (mk_block e2) in
-			let eo = Option.map (fun e -> loop block_depth (mk_block e)) eo in
-			{e with eexpr = TIf(e1,e2,eo)}
-		| TWhile(e1,e2,flag) ->
-			let e1 = loop block_depth e1 in
-			let e2 = loop block_depth (mk_block e2) in
-			{e with eexpr = TWhile(e1,e2,flag)}
 		| TBlock el ->
 			let rec block acc el = match el with
 				| e1 :: el ->
-					begin match loop (block_depth + 1) e1 with
+					begin match loop e1 with
 					| {eexpr = TMeta((Meta.MergeBlock,_,_),{eexpr = TBlock el2})} ->
 						let acc = block acc el2 in
 						block acc el
@@ -1406,16 +1389,9 @@ let inline_constructors ctx e =
 			let el = block [] el in
 			mk (TBlock (List.rev el)) e.etype e.epos
 		| _ ->
-			Type.map_expr (loop block_depth) e
+			Type.map_expr loop e
 	in
-	let e = loop 0 e in
-	match !extra_vars with
-	| [] -> e
-	| _ ->
-		let e_init = mk (TBlock !extra_vars) ctx.t.tvoid e.epos in
-		match e.eexpr with
-		| TFunction tf -> {e with eexpr = TFunction {tf with tf_expr = concat e_init tf.tf_expr}}
-		| _ -> concat e_init e
+	loop e
 
 (* ---------------------------------------------------------------------- *)
 (* COMPLETION *)
