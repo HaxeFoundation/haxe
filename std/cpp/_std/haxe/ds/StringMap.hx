@@ -43,7 +43,7 @@ package haxe.ds;
   inline void set(String key, const ::cpp::Pointer<V> &value) {__string_hash_set(h,key,(Dynamic)value ); }
 
   template<typename VALUE>
-  inline Void set(Dynamic &key, const VALUE &value) { set( (String)key, value ); return null(); }
+  inline void set(Dynamic &key, const VALUE &value) { set( (String)key, value ); }
 ")
 @:coreApi class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 	@:ifFeature("haxe.ds.StringMap.*")
