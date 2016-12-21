@@ -30,15 +30,18 @@ extern class NativeArray {
       NativeArray.setSize(result,length);
       return result;
    }
+
    #else
+
    @:native("_hx_create_array_length")
    public static function create<T>(length:Int):Array<T>;
    #end
 
-   @:nativeStaticExtension
-	public static function blit<T>( ioDestArray:Array<T>,
+   public static inline function blit<T>( ioDestArray:Array<T>,
 		inDestElement:Int, inSourceArray:Array<T>,
-		inSourceElement:Int, inElementCount:Int ): Void  { }
+		inSourceElement:Int, inElementCount:Int ): Void  {
+	untyped ioDestArray.blit(inDestElement, inSourceArray, inSourceElement, inElementCount);
+	};
 
 	public static inline function getBase( inArray:Array<Dynamic> ) : ArrayBase {
       return untyped inArray;
