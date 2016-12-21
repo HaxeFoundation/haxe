@@ -24,6 +24,8 @@ import php.Boot;
 
 import php.Global;
 import php.Const;
+import php.Syntax;
+
 @:keep
 @:coreApi class Std {
 
@@ -40,7 +42,7 @@ import php.Const;
 	}
 
 	public static inline function int( x : Float ) : Int {
-		return untyped __call__('(int)', x);
+		return Syntax.int(x);
 	}
 
 	public static function parseInt( x : String ) : Null<Int> {

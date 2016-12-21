@@ -22,6 +22,7 @@
 
 import php.Global;
 import php.Const;
+import php.Syntax.*;
 
 @:coreApi class Math {
 	public static var PI(default,null) : Float = Const.M_PI;
@@ -39,9 +40,9 @@ import php.Const;
 	public static inline function exp( v:Float ) : Float return Global.exp(v);
 	public static inline function log( v:Float ) : Float return Global.log(v);
 	public static inline function sqrt( v:Float ) : Float return Global.sqrt(v);
-	public static inline function round( v:Float ) : Int return untyped __call__("(int)floor", v + 0.5);
-	public static inline function floor( v:Float ) : Int return untyped __call__("(int)floor", v);
-	public static inline function ceil( v:Float ) : Int return untyped __call__("(int)ceil", v);
+	public static inline function round( v:Float ) : Int return int(Global.floor(v + 0.5));
+	public static inline function floor( v:Float ) : Int return int(Global.floor(v));
+	public static inline function ceil( v:Float ) : Int return int(Global.ceil(v));
 	public static inline function atan( v:Float ) : Float return Global.atan(v);
 	public static inline function asin( v:Float ) : Float return Global.asin(v);
 	public static inline function acos( v:Float ) : Float return Global.acos(v);

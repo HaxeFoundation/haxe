@@ -1050,4 +1050,19 @@ extern class Global {
 		@see http://php.net/manual/en/function.getprotobyname.php
 	**/
 	static function getprotobyname( name:String ) : EitherType<Int,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.mktime.php
+	**/
+	static function mktime( ?hour:Int, ?minute:Int, ?second:Int, ?month:Int, ?day:Int, ?year:Int, ?is_dst:Int ) : EitherType<Int,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.date.php
+	**/
+	static function date( format:String, ?timestamp:Int ) : EitherType<String,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.strtotime.php
+	**/
+	static function strtotime( time:String, ?now:Int ) : EitherType<Int,Bool>;
 }

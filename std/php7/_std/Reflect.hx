@@ -151,7 +151,7 @@ using php.Global;
 
 	public static function deleteField( o : Dynamic, field : String ) : Bool {
 		if (hasField(o, field)) {
-			untyped Global.unset(Syntax.getField(o, field));
+			Global.unset(Syntax.getField(o, field));
 			return true;
 		} else {
 			return false;
