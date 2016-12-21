@@ -35,11 +35,10 @@ extern class NativeArray {
    public static function create<T>(length:Int):Array<T>;
    #end
 
-	public static inline function blit<T>( ioDestArray:Array<T>,
+   @:nativeStaticExtension
+	public static function blit<T>( ioDestArray:Array<T>,
 		inDestElement:Int, inSourceArray:Array<T>,
-		inSourceElement:Int, inElementCount:Int ): Void  {
-	untyped ioDestArray.blit(inDestElement, inSourceArray, inSourceElement, inElementCount);
-	};
+		inSourceElement:Int, inElementCount:Int ): Void  { }
 
 	public static inline function getBase( inArray:Array<Dynamic> ) : ArrayBase {
       return untyped inArray;
@@ -58,21 +57,18 @@ extern class NativeArray {
       return Pointer.arrayElem(inArray,inIndex);
    }
 
-	public static inline function setData<T>( inArray:Array<T>,inData:Pointer<T>,inElementCount:Int ) : Void {
-      untyped inArray.setData(inData.raw,inElementCount);
-      }
-	public static inline function setUnmanagedData<T>( inArray:Array<T>,inData:ConstPointer<T>,inElementCount:Int ) : Void {
-      untyped inArray.setUnmanagedData(inData.raw,inElementCount);
-   }
+   @:nativeStaticExtension
+	public static function setData<T>( inArray:Array<T>,inData:Pointer<T>,inElementCount:Int ) : Void { }
 
+   @:nativeStaticExtension
+	public static function setUnmanagedData<T>( inArray:Array<T>,inData:ConstPointer<T>,inElementCount:Int ) : Void { }
 
-	public static inline function zero<T>( ioDestArray:Array<T>, ?inFirst:Int, ?inElements:Int ) : Void {
-		untyped ioDestArray.zero(inFirst, inElements);
-	};
+   @:nativeStaticExtension
+	public static function zero<T>( ioDestArray:Array<T>, ?inFirst:Int, ?inElements:Int ) : Void { };
 
-	public static inline function memcmp<T>( inArrayA:Array<T>, inArrayB:Array<T>) : Int {
-		return untyped inArrayA.memcmp(inArrayB);
-	}
+   @:nativeStaticExtension
+	public static function memcmp<T>( inArrayA:Array<T>, inArrayB:Array<T>) : Int { }
+
 
    #if cppia
 	public static inline function unsafeGet<T>( inDestArray:Array<T>, inIndex:Int) : T {
