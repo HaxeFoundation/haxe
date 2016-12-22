@@ -2461,7 +2461,7 @@ module Generator = struct
 	let run com =
 		Transformer.init com;
 		let ctx = mk_context com in
-		Codegen.map_source_header com (fun s -> print ctx "# %s\n" s);
+		Codegen.map_source_header com (fun s -> print ctx "# %s\n# coding: utf-8\n" s);
 		if has_feature ctx "closure_Array" || has_feature ctx "closure_String" then
 			spr ctx "from functools import partial as _hx_partial";
 		gen_imports ctx;
