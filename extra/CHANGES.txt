@@ -29,6 +29,7 @@
 	php : fixed checking floats for equality (#4260)
 	php : throw if invalid json string supplied to Json.parse() (#4592)
 	php : fixed ssl connections (#4581)
+	php : fixed writing bytes containing zero byte to MySQL & SQLite (#4489)
 
 2016-11-29: 3.4.0-RC1
 

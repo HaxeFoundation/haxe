@@ -157,13 +157,11 @@ class Process {
 		return pid;
 	}
 
-	/**
-		Block until the process exits and return the exit code of the process.
-		If the process has already exited, return the exit code immediately.
-	*/
-	public function exitCode( block : Bool = true ) : Int {
-		if( block == false ) throw "Non blocking exitCode() not supported on this platform";
-
+	public function exitCode( block : Bool = true ) : Null<Int> {
+		if(!block) {
+			updateStatus();
+			return (running ? null : _exitCode);
+		}
 		while (running) {
 			var arr = Syntax.arrayDecl(process);
 			Syntax.suppress(Global.stream_select(arr, arr, arr, null));
