@@ -842,6 +842,16 @@ extern class Global {
 	static function hexdec( hex_string:String ) : Int;
 
 	/**
+		@see http://php.net/manual/en/function.bin2hex.php
+	**/
+	static function bin2hex( str:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.hex2bin.php
+	**/
+	static function hex2bin( str:String ) : EitherType<String,Bool>;
+
+	/**
 		@see http://php.net/manual/en/function.serialize.php
 	**/
 	static function serialize( value:Dynamic ) : String;

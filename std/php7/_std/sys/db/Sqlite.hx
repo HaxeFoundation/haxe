@@ -53,6 +53,7 @@ private class SQLiteConnection implements Connection {
 	}
 
 	public function quote( s : String ) : String {
+		if (s.indexOf("\000") >= 0) return "x'" + Global.bin2hex(s) + "'";
 		return "'" + SQLite3.escapeString(s) + "'";
 	}
 
