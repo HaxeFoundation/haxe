@@ -157,7 +157,7 @@ private class Stdout extends haxe.io.Input {
 		return _pid(p);
 	}
 
-	public function exitCode( ?block : Bool ) : Null<Int> {
+	public function exitCode( block : Bool = true ) : Null<Int> {
 		var running = false;
 		var code = _exit(p, block == false ? new hl.Ref(running) : null);
 		if( block == false )

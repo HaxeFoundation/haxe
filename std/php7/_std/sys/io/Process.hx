@@ -161,7 +161,9 @@ class Process {
 		Block until the process exits and return the exit code of the process.
 		If the process has already exited, return the exit code immediately.
 	*/
-	public function exitCode() : Int {
+	public function exitCode( block : Bool = true ) : Int {
+		if( block == false ) throw "Non blocking exitCode() not supported on this platform";
+
 		while (running) {
 			var arr = Syntax.arrayDecl(process);
 			Syntax.suppress(Global.stream_select(arr, arr, arr, null));

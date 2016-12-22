@@ -51,7 +51,7 @@ class Process {
 
 	public function close() : Void { }
 
-	public function exitCode( ?block : Bool ) : Null<Int> { return 0; }
+	public function exitCode( block : Bool = true ) : Null<Int> { return 0; }
 
 	public function kill() : Void { }
 }
