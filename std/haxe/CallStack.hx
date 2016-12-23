@@ -138,6 +138,13 @@ class CallStack {
 				stack.push(FilePos(null, file, Std.parseInt(line)));
 			}
 			return stack;
+		#elseif hl
+			try {
+				throw null;
+			} catch( e : Dynamic ) {
+				var st = _getExceptionStack();
+				return makeStack(st.length > 2 ? st.sub(2,st.length - 2) : st);
+			}
 		#else
 			return []; // Unsupported
 		#end
@@ -175,7 +182,7 @@ class CallStack {
 			}
 			return a;
 		#elseif php
-			return makeStack("%e");		
+			return makeStack("%e");
 		#elseif cpp
 			var s:Array<String> = untyped __global__.__hxcpp_get_exception_stack();
 			return makeStack(s);
