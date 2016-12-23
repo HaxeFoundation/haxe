@@ -196,7 +196,7 @@ let add_php_prefix ctx type_path =
 		| (pack, name) -> ((get_php_prefix ctx) @ pack, name)
 
 (**
-	If `expr` is a TCast returns underlying expression (recursively bypassing nested casts).
+	If `expr` is a TCast or TMeta, then returns underlying expression (recursively bypassing nested casts).
 	Otherwise returns `expr` as is.
 *)
 let rec reveal_expr expr =

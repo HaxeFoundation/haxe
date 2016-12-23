@@ -76,6 +76,16 @@ let follow = Abstract.follow_with_abstracts
 *)
 let is_float expr = match follow expr.etype with TAbstract ({ a_path = ([], "Float") }, _) -> true | _ -> false
 
+(**
+	If `expr` is a TCast or TMeta, then returns underlying expression (recursively bypassing nested casts).
+	Otherwise returns `expr` as is.
+*)
+let rec reveal_expr expr =
+	match expr.eexpr with
+		| TCast (e, _) -> reveal_expr e
+		| TMeta (_, e) -> reveal_expr e
+		| _ -> expr
+
 let join_class_path path separator =
 	let result = match fst path, snd path with
 	| [], s -> s
@@ -541,7 +551,7 @@ and gen_call ctx e el =
 			spr ctx "]";
 			genargs t)
 	in
-	match e.eexpr , el with
+	match (reveal_expr e).eexpr , el with
 	| TConst TSuper , params ->
 		(match ctx.curclass.cl_super with
 		| None -> assert false

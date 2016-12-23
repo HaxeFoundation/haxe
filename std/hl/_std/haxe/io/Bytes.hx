@@ -36,6 +36,10 @@ class Bytes {
 		return (pos:UInt) >= (length : UInt);
 	}
 
+	inline function outRange(pos:Int,len:Int) : Bool {
+		return pos < 0 || len < 0 || ((pos+len):UInt) > (length : UInt);
+	}
+
 	public function get( pos : Int ) : Int {
 		return if( out(pos) ) 0 else b[pos];
 	}
@@ -46,17 +50,17 @@ class Bytes {
 	}
 
 	public function blit( pos : Int, src : Bytes, srcpos : Int, len : Int ) : Void {
-		if( pos < 0 || srcpos < 0 || len < 0 || pos + len > length || srcpos + len > src.length ) throw Error.OutsideBounds;
+		if( outRange(pos, len) || src.outRange(srcpos,len) ) throw Error.OutsideBounds;
 		b.blit(pos, src.b, srcpos, len);
 	}
 
 	public function fill( pos : Int, len : Int, value : Int ) : Void {
-		if( pos < 0 || len < 0 || pos + len > length ) throw Error.OutsideBounds;
+		if( outRange(pos,len) ) throw Error.OutsideBounds;
 		b.fill(pos, len, value);
 	}
 
 	public function sub( pos : Int, len : Int ) : Bytes {
-		if( pos < 0 || len < 0 || pos + len > length ) throw Error.OutsideBounds;
+		if( outRange(pos,len) ) throw Error.OutsideBounds;
 		return new Bytes(b.sub(pos, len), len);
 	}
 
@@ -116,7 +120,7 @@ class Bytes {
 	}
 
 	public function getString( pos : Int, len : Int ) : String {
-		if( pos < 0 || len < 0 || pos + len > length ) throw Error.OutsideBounds;
+		if( outRange(pos,len) ) throw Error.OutsideBounds;
 
 		var b = new hl.Bytes(len + 1);
 		b.blit(0, this.b, pos, len);

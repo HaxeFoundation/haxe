@@ -224,7 +224,7 @@ class Web {
 					key = str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', key))));
 					_clientHeaders[key] = Std.string(value);
 				}
-			} else if(isset(copyServer[key])) {
+			} else if(copyServer[key] != null) {
 				_clientHeaders[copyServer[key]] = Std.string(value);
 			}
 		});
