@@ -39,7 +39,7 @@ import haxe.Constraints;
 	}
 
 	public inline function get( key : String ) : Null<T> {
-		return Global.isset(data[key]) ? data[key] : null;
+		return Syntax.binop(data[key], '??', null);
 	}
 
 	public inline function exists( key : String ) : Bool {
