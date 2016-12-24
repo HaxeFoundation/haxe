@@ -650,7 +650,7 @@ and gen_expr ctx e =
 	| TObjectDecl fields ->
 		spr ctx "{ ";
 		concat ctx ", " (fun (f,e) -> (match e.eexpr with
-			| TMeta((Meta.QuotedField,_,_),e) -> print ctx "'%s' : " (Ast.s_escape f);
+			| TMeta((Meta.QuotedField,_,_),e) -> print ctx "\"%s\" : " (Ast.s_escape f);
 			| _ -> print ctx "%s : " (anon_field f));
 			gen_value ctx e
 		) fields;
@@ -941,9 +941,9 @@ and gen_value ctx e =
 			| _ -> cond
 		) in
 		gen_value ctx cond;
-		spr ctx "?";
+		spr ctx " ? ";
 		gen_value ctx e;
-		spr ctx ":";
+		spr ctx " : ";
 		(match eo with
 		| None -> spr ctx "null"
 		| Some e -> gen_value ctx e);

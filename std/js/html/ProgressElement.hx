@@ -20,15 +20,34 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\HTMLProgressElement.webidl line 16:0. Do not edit!
+// This file is generated from mozilla\HTMLProgressElement.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `HTMLProgressElement` interface provides special properties and methods (beyond the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating the layout and presentation of `progress` elements.
+
+	Documentation [HTMLProgressElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLProgressElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLProgressElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLProgressElement>
+**/
 @:native("HTMLProgressElement")
 extern class ProgressElement extends Element
 {
+	
+	/**
+		Is a `double` value that reflects the current value; if the progress bar is an indeterminate progress bar, it returns `0`.
+	**/
 	var value : Float;
+	
+	/**
+		Is a `double` value reflecting the content attribute of the same name, limited to numbers greater than zero. Its default value is `1.0`.
+	**/
 	var max : Float;
+	
+	/**
+		Returns a `double` value returning the result of dividing the current value (`value`) by the maximum value (`max`); if the progress bar is an indeterminate progress bar, it returns `-1`.
+	**/
 	var position(default,null) : Float;
 	
 }

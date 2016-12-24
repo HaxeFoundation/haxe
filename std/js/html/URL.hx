@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\URL.webidl line 22:0. Do not edit!
+// This file is generated from mozilla\URL.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `URL` interface represent an object providing static methods used for creating object URLs.
+
+	Documentation [URL](https://developer.mozilla.org/en-US/docs/Web/API/URL) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/URL$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/URL>
+**/
 @:native("URL")
 extern class URL
 {
@@ -33,17 +40,65 @@ extern class URL
 	static function createObjectURL( source : MediaSource, ?options : ObjectURLOptions ) : String;
 	/** @throws DOMError */
 	static function revokeObjectURL( url : String ) : Void;
+	
+	/**
+		Is a `DOMString` containing the whole URL.
+	**/
 	var href : String;
+	
+	/**
+		Returns a `DOMString` containing the origin of the URL, that is its scheme, its domain and its port.
+	**/
 	var origin(default,null) : String;
+	
+	/**
+		Is a `DOMString` containing the protocol scheme of the URL, including the final `':'`.
+	**/
 	var protocol : String;
+	
+	/**
+		Is a `DOMString` containing the username specified before the domain name.
+	**/
 	var username : String;
+	
+	/**
+		Is a `DOMString` containing the password specified before the domain name.
+	**/
 	var password : String;
+	
+	/**
+		Is a `DOMString` containing the host, that is the hostname, a `':'`, and the port of the URL.
+	**/
 	var host : String;
+	
+	/**
+		Is a `DOMString` containing the domain of the URL.
+	**/
 	var hostname : String;
+	
+	/**
+		Is a `DOMString` containing the port number of the URL.
+	**/
 	var port : String;
+	
+	/**
+		Is a `DOMString` containing an initial `'/'` followed by the path of the URL.
+	**/
 	var pathname : String;
+	
+	/**
+		Is a `DOMString` containing a `'?'` followed by the parameters of the URL.
+	**/
 	var search : String;
+	
+	/**
+		Returns a `URLSearchParams` object allowing to access the GET query arguments contained in the URL.
+	**/
 	var searchParams(default,null) : URLSearchParams;
+	
+	/**
+		Is a `DOMString` containing a `'#'` followed by the fragment identifier of the URL.
+	**/
 	var hash : String;
 	
 	/** @throws DOMError */

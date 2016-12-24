@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\MediaQueryList.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\MediaQueryList.webidl. Do not edit!
 
 package js.html;
 
+/**
+	A `MediaQueryList` object maintains a list of media queries on a `document`, and handles sending notifications to listeners when the media queries on the document change.
+
+	Documentation [MediaQueryList](https://developer.mozilla.org/en-US/docs/Web/API/MediaQueryList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MediaQueryList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaQueryList>
+**/
 @:native("MediaQueryList")
 extern class MediaQueryList
 {

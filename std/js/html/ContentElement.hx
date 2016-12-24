@@ -20,14 +20,29 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\HTMLContentElement.webidl line 16:0. Do not edit!
+// This file is generated from mozilla\HTMLContentElement.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `HTMLContentElement` interface represents a `content` HTML Element, which is used in Shadow DOM.
+
+	Documentation [HTMLContentElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLContentElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLContentElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLContentElement>
+**/
 @:native("HTMLContentElement")
 extern class ContentElement extends Element
 {
+	
+	/**
+		Is a `DOMString` that reflects the `select` HTML attribute. The value is a comma-separated list of CSS selectors that select the content to insert in place of the `content` element.
+	**/
 	var select : String;
 	
+	
+	/**
+		Returns a static `NodeList` of the `distributed nodes` associated with this `content` element. 
+	**/
 	function getDistributedNodes() : NodeList;
 }

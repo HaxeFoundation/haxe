@@ -21,7 +21,11 @@
  */
 package sys.io;
 
+#if doc_gen
+enum FileHandle { }
+#else
 typedef FileHandle = hl.Abstract<"hl_fdesc">;
+#end
 
 @:access(Sys)
 @:coreApi class File {

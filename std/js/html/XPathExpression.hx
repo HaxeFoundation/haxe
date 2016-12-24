@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\XPathExpression.webidl line 9:0. Do not edit!
+// This file is generated from mozilla\XPathExpression.webidl. Do not edit!
 
 package js.html;
 
+/**
+	An `XPathExpression` is a compiled XPath query returned from `document.createExpression()`. It has a method `evaluate()` which can be used to execute the compiled XPath.
+
+	Documentation [XPathExpression](https://developer.mozilla.org/en-US/docs/Web/API/XPathExpression) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/XPathExpression$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/XPathExpression>
+**/
 @:native("XPathExpression")
 extern class XPathExpression
 {

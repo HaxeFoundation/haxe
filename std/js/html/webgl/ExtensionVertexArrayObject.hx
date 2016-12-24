@@ -20,17 +20,48 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\WebGLRenderingContext.webidl line 1106:0. Do not edit!
+// This file is generated from mozilla\WebGLRenderingContext.webidl. Do not edit!
 
 package js.html.webgl;
 
+/**
+	The OES_vertex_array_object extension is part of the WebGL API and provides vertex array objects (VAOs) which encapsulate vertex array states. These objects keep pointers to vertex data and provide names for different sets of vertex data.
+
+	Documentation [OES_vertex_array_object](https://developer.mozilla.org/en-US/docs/Web/API/OES_vertex_array_object) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/OES_vertex_array_object$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/OES_vertex_array_object>
+**/
 @:native("OES_vertex_array_object")
 extern class ExtensionVertexArrayObject
 {
 	static inline var VERTEX_ARRAY_BINDING_OES : Int = 34229;
 	
+	
+	/**
+		
+		 Creates a new `WebGLVertexArrayObjectOES`.
+		 
+	**/
 	function createVertexArrayOES() : VertexArrayObjectOES;
+	
+	/**
+		
+		 Deletes a given `WebGLVertexArrayObjectOES`.
+		 
+	**/
 	function deleteVertexArrayOES( arrayObject : VertexArrayObjectOES ) : Void;
+	
+	/**
+		
+		 Returns `true` if a given object is a `WebGLVertexArrayObjectOES`.
+		 
+	**/
 	function isVertexArrayOES( arrayObject : VertexArrayObjectOES ) : Bool;
+	
+	/**
+		
+		 Binds a given `WebGLVertexArrayObjectOES` to the buffer.
+		 
+	**/
 	function bindVertexArrayOES( arrayObject : VertexArrayObjectOES ) : Void;
 }

@@ -22,6 +22,7 @@ import sys.db.Types;
 
 	public var data:SData<Array<ComplexClass>>;
 	public var anEnum:SEnum<SpodEnum>;
+	public var bytes:SBytes<2>;
 }
 
 @:keep class NullableSpodClass extends Object

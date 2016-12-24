@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SVGLengthList.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\SVGLengthList.webidl. Do not edit!
 
 package js.html.svg;
 
+/**
+	The `SVGLengthList` defines a list of `SVGLength` objects.
+
+	Documentation [SVGLengthList](https://developer.mozilla.org/en-US/docs/Web/API/SVGLengthList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGLengthList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGLengthList>
+**/
 @:native("SVGLengthList")
 extern class LengthList implements ArrayAccess<Length>
 {

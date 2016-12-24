@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\HTMLLegendElement.webidl line 19:0. Do not edit!
+// This file is generated from mozilla\HTMLLegendElement.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `HTMLLegendElement` is an interface allowing to access properties of the `legend` elements. It inherits properties and methods from the `HTMLElement` interface.
+
+	Documentation [HTMLLegendElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLegendElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLegendElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLLegendElement>
+**/
 @:native("HTMLLegendElement")
 extern class LegendElement extends Element
 {

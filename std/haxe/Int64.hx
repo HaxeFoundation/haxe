@@ -454,7 +454,7 @@ private typedef __Int64 = ___Int64;
 
 private class ___Int64 {
 	public var high : Int32;
-	public var low : Int32; 
+	public var low : Int32;
 
 	public inline function new( high, low ) {
 		this.high = high;

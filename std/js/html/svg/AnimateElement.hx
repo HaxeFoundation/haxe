@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SVGAnimateElement.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\SVGAnimateElement.webidl. Do not edit!
 
 package js.html.svg;
 
+/**
+	The `SVGAnimateElement` interface corresponds to the `animate` element.
+
+	Documentation [SVGAnimateElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimateElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimateElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimateElement>
+**/
 @:native("SVGAnimateElement")
 extern class AnimateElement extends AnimationElement
 {

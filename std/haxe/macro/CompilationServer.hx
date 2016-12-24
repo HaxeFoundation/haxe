@@ -50,7 +50,7 @@ abstract ModuleCheckPolicy(Int) {
 	`--macro server.field(args)`.
 **/
 class CompilationServer {
-	#if neko
+	#if macro
 
 	/**
 		Sets the `ModuleCheckPolicy` of all files whose dot-path matches an
@@ -71,16 +71,14 @@ class CompilationServer {
 		compilation server should be restarted to ensure it takes effect.
 	**/
 	static public function setModuleCheckPolicy(pathFilters:Array<String>, policy:Array<ModuleCheckPolicy>, ?recursive = true, ?contextOptions:ContextOptions = NormalContext) {
-		pathFilters = [for (pathFilter in pathFilters) untyped pathFilter.__s];
-		@:privateAccess Compiler.load("server_add_module_check_policy", 4)(untyped pathFilters.__neko(), policy.__neko(), recursive, contextOptions);
+		@:privateAccess Compiler.load("server_add_module_check_policy", 4)(pathFilters, policy, recursive, contextOptions);
 	}
 
 	/**
 		Invalidates all files given in `filePaths`, removing them from the cache.
 	**/
 	static public function invalidateFiles(filePaths:Array<String>) {
-		filePaths = [for (filePath in filePaths) untyped filePath.__s];
-		@:privateAccess Compiler.load("server_invalidate_files", 1)(untyped filePaths.__neko());
+		@:privateAccess Compiler.load("server_invalidate_files", 1)(filePaths);
 	}
 	#end
 }

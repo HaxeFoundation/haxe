@@ -114,15 +114,15 @@
 	}
 
 	public static function stdin() : haxe.io.Input {
-		return untyped new sys.io.FileInput(__call__('fopen', 'php://stdin', "r"));
+		return untyped new sys.io.FileInput(__php__("STDIN"));
 	}
 
 	public static function stdout() : haxe.io.Output {
-		return untyped new sys.io.FileOutput(__call__('fopen', 'php://stdout', "w"));
+		return untyped new sys.io.FileOutput(__php__("STDOUT"));
 	}
 
 	public static function stderr() : haxe.io.Output {
-		return untyped new sys.io.FileOutput(__call__('fopen', 'php://stderr', "w"));
+		return untyped new sys.io.FileOutput(__php__("STDERR"));
 	}
 
 	public static function getChar( echo : Bool ) : Int {

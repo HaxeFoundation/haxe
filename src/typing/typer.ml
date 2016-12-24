@@ -970,7 +970,7 @@ let error_require r p =
 		error "This field is not available with the current compilation flags" p
 	else
 	let r = if r = "sys" then
-		"a system platform (php,neko,cpp,etc.)"
+		"a system platform (php,php7,neko,cpp,etc.)"
 	else try
 		if String.sub r 0 5 <> "flash" then raise Exit;
 		let _, v = ExtString.String.replace (String.sub r 5 (String.length r - 5)) "_" "." in
@@ -1801,10 +1801,10 @@ let unify_int ctx e k =
 	with Typeload.Generic_Exception (msg,p) ->
 		error msg p)
 
-let call_to_string ctx e =
+let call_to_string ctx ?(resume=false) e =
 	(* Ignore visibility of the toString field. *)
 	ctx.meta <- (Meta.PrivateAccess,[],e.epos) :: ctx.meta;
-	let acc = type_field ctx e "toString" e.epos MCall in
+	let acc = type_field ~resume ctx e "toString" e.epos MCall in
 	ctx.meta <- List.tl ctx.meta;
 	!build_call_ref ctx acc [] (WithType ctx.t.tstring) e.epos
 
@@ -4012,23 +4012,28 @@ and maybe_type_against_enum ctx f with_type p =
 	try
 		begin match with_type with
 		| WithType t ->
-			let rec loop t = match follow t with
+			let rec loop stack t = match follow t with
 				| TEnum (en,_) ->
 					en.e_path,en.e_names,TEnumDecl en
 				| TAbstract ({a_impl = Some c} as a,_) when has_meta Meta.Enum a.a_meta ->
-					a.a_path,List.map (fun cf -> cf.cf_name) c.cl_ordered_fields,TAbstractDecl a
+					let fields = ExtList.List.filter_map (fun cf ->
+						if Meta.has Meta.Enum cf.cf_meta then Some cf.cf_name else None
+					) c.cl_ordered_statics in
+					a.a_path,fields,TAbstractDecl a
 				| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					begin match get_abstract_froms a pl with
-						| [t] -> loop t
+						| [t2] ->
+							if (List.exists (fast_eq t) stack) then raise Exit;
+							loop (t :: stack) t2
 						| _ -> raise Exit
 					end
 				(* We might type against an enum constructor. *)
 				| TFun(_,tr) ->
-					loop tr
+					loop stack tr
 				| _ ->
 					raise Exit
 			in
-			let path,fields,mt = loop t in
+			let path,fields,mt = loop [] t in
 			let old = ctx.m.curmod.m_types in
 			let restore () = ctx.m.curmod.m_types <- old in
 			ctx.m.curmod.m_types <- ctx.m.curmod.m_types @ [mt];
@@ -4062,23 +4067,17 @@ and type_call ctx e el (with_type:with_type) p =
 		if Common.defined ctx.com Define.NoTraces then
 			null ctx.t.tvoid p
 		else
-		let mk_to_string_meta e = EMeta((Meta.ToString,[],pos e),e),pos e in
+		let mk_to_string_meta e = EMeta((Meta.ToString,[],null_pos),e),pos e in
 		let params = (match el with [] -> [] | _ -> [("customParams",null_pos),(EArrayDecl (List.map mk_to_string_meta el) , p)]) in
 		let infos = mk_infos ctx p params in
 		if (platform ctx.com Js || platform ctx.com Python) && el = [] && has_dce ctx.com then
 			let e = type_expr ctx e Value in
 			let infos = type_expr ctx infos Value in
-			let e = try
-				begin match follow e.etype with
-					| TInst({cl_path=[],"String"},_) -> raise Not_found
-					| TMono _ -> raise Not_found
-					| TDynamic _ -> raise Not_found
-					| _ -> ()
-				end;
-				let acc = type_field ~resume:true ctx e "toString" p MCall in
-				build_call ctx acc [] (WithType ctx.t.tstring) p
-			with Not_found ->
-				e
+			let e = match follow e.etype with
+				| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics ->
+					call_to_string ctx e
+				| _ ->
+					e
 			in
 			let v_trace = alloc_unbound_var "`trace" t_dynamic p in
 			mk (TCall (mk (TLocal v_trace) t_dynamic p,[e;infos])) ctx.t.tvoid p

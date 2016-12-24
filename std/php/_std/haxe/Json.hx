@@ -42,6 +42,9 @@ class Json {
 
 	static function phpJsonDecode(json:String):Dynamic {
 		var val = untyped __call__("json_decode", json);
+		if (val == null && untyped __php__("json_last_error() != JSON_ERROR_NONE")) {
+			throw untyped __call__("json_last_error_msg");
+		}
 		return convertAfterDecode(val);
 	}
 
@@ -73,7 +76,9 @@ class Json {
 		var arr:php.NativeArray;
 		if (untyped __call__("is_object", val)) {
 			switch (untyped __call__("get_class", val)) {
-				case "_hx_anonymous", "stdClass" : arr = php.Lib.associativeArrayOfObject(val);
+				case "_hx_anonymous", "stdClass" :
+					arr = php.Lib.associativeArrayOfObject(val);
+					if(untyped __php__('!{0}', arr)) return {};
 				case "_hx_array" : arr = php.Lib.toPhpArray(val);
 				case "Date" : return Std.string(val); //.split(" ").join("T"); //better with "T"?
 				case "HList" : arr = php.Lib.toPhpArray(Lambda.array(val)); //convert List to array?

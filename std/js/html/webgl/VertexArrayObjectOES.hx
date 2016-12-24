@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\WebGLRenderingContext.webidl line 97:0. Do not edit!
+// This file is generated from mozilla\WebGLRenderingContext.webidl. Do not edit!
 
 package js.html.webgl;
 
+/**
+	The `WebGLVertexArrayObjectOES` interface is part of the WebGL `OES_vertex_array_object` extension, represents vertex array objects (VAOs) pointing to vertex array data and provides names for different sets of vertex data.
+
+	Documentation [WebGLVertexArrayObjectOES](https://developer.mozilla.org/en-US/docs/Web/API/WebGLVertexArrayObjectOES) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/WebGLVertexArrayObjectOES$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLVertexArrayObjectOES>
+**/
 @:native("WebGLVertexArrayObjectOES")
 extern class VertexArrayObjectOES
 {

@@ -109,8 +109,10 @@ class Process {
 		return native.Id;
 	}
 
-	public function exitCode() : Int
+	public function exitCode( block : Bool = true ) : Null<Int>
 	{
+		if( block == false && !native.HasExited )
+			return null;
 		native.WaitForExit();
 		return native.ExitCode;
 	}

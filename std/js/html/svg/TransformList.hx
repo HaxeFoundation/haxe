@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SVGTransformList.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\SVGTransformList.webidl. Do not edit!
 
 package js.html.svg;
 
+/**
+	The `SVGTransformList` defines a list of `SVGTransform` objects.
+
+	Documentation [SVGTransformList](https://developer.mozilla.org/en-US/docs/Web/API/SVGTransformList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGTransformList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGTransformList>
+**/
 @:native("SVGTransformList")
 extern class TransformList implements ArrayAccess<Transform>
 {

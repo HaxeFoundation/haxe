@@ -71,6 +71,21 @@ type context = {
 
 let follow = Abstract.follow_with_abstracts
 
+(**
+	Check if specified expression is of `Float` type
+*)
+let is_float expr = match follow expr.etype with TAbstract ({ a_path = ([], "Float") }, _) -> true | _ -> false
+
+(**
+	If `expr` is a TCast or TMeta, then returns underlying expression (recursively bypassing nested casts).
+	Otherwise returns `expr` as is.
+*)
+let rec reveal_expr expr =
+	match expr.eexpr with
+		| TCast (e, _) -> reveal_expr e
+		| TMeta (_, e) -> reveal_expr e
+		| _ -> expr
+
 let join_class_path path separator =
 	let result = match fst path, snd path with
 	| [], s -> s
@@ -536,7 +551,7 @@ and gen_call ctx e el =
 			spr ctx "]";
 			genargs t)
 	in
-	match e.eexpr , el with
+	match (reveal_expr e).eexpr , el with
 	| TConst TSuper , params ->
 		(match ctx.curclass.cl_super with
 		| None -> assert false
@@ -790,10 +805,16 @@ and gen_member_access ctx isvar e s =
 		| EnumStatics _ ->
 			print ctx "::%s%s" (if isvar then "$" else "") (s_ident s)
 		| Statics sta ->
-			let sep = if Meta.has Meta.PhpGlobal sta.cl_meta then "" else "::" in
+			let (sep, no_dollar) = if Meta.has Meta.PhpGlobal sta.cl_meta then
+					("", false)
+				else
+					match e.eexpr with
+						| TField _ -> ("->", true)
+						| _ -> ("::", false)
+			in
 			let isconst = Meta.has Meta.PhpConstants sta.cl_meta in
 			let cprefix = if isconst then get_constant_prefix sta.cl_meta else "" in
-			print ctx "%s%s%s" sep (if isvar && not isconst then "$" else cprefix)
+			print ctx "%s%s%s" sep (if isvar && not isconst && not no_dollar then "$" else cprefix)
 			(if sta.cl_extern && sep = "" then s else s_ident s)
 		| _ -> print ctx "->%s" (if isvar then s_ident_field s else s_ident s))
 	| _ -> print ctx "->%s" (if isvar then s_ident_field s else s_ident s)
@@ -832,6 +853,9 @@ and gen_field_access ctx isvar e s =
 		ctx.is_call <- false;
 		gen_value ctx e;
 		spr ctx ")";
+		gen_member_access ctx isvar e s
+	| TConst TNull ->
+		spr ctx "_hx_deref(null)";
 		gen_member_access ctx isvar e s
 	| _ ->
 		gen_expr ctx e;
@@ -1203,6 +1227,7 @@ and gen_expr ctx e =
 			end else if
 				   ((se1 = "Int" || se1 = "Null<Int>") && (se2 = "Int" || se2 = "Null<Int>"))
 				|| ((se1 = "Float" || se1 = "Null<Float>") && (se2 = "Float" || se2 = "Null<Float>"))
+				&& not (is_float e1 && is_float e2)
 			then begin
 				gen_field_op ctx e1;
 				spr ctx s_phop;
@@ -1775,7 +1800,9 @@ and gen_value ctx e =
 		gen_value ctx e1
 	| TBlock [] ->
 		()
-	| TCast (e, _)
+	| TCast (_, Some _) ->
+		gen_expr ctx e
+	| TCast (e, None)
 	| TBlock [e] ->
 		gen_value ctx e
 	| TIf (cond,e,eelse) when (cangen_ternary e eelse) ->

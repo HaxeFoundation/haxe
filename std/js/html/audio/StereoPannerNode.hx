@@ -20,13 +20,24 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\StereoPannerNode.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\StereoPannerNode.webidl. Do not edit!
 
 package js.html.audio;
 
+/**
+	The `pan` property takes a unitless value between `-1` (full left pan) and `1` (full right pan). This interface was introduced as a much simpler way to apply a simple panning effect than having to use a full `PannerNode`.
+
+	Documentation [StereoPannerNode](https://developer.mozilla.org/en-US/docs/Web/API/StereoPannerNode) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/StereoPannerNode$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/StereoPannerNode>
+**/
 @:native("StereoPannerNode")
 extern class StereoPannerNode extends AudioNode
 {
+	
+	/**
+		Is an a-rate `AudioParam` representing the amount of panning to apply.
+	**/
 	var pan(default,null) : AudioParam;
 	
 }

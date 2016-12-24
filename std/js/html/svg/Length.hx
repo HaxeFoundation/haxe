@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SVGLength.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\SVGLength.webidl. Do not edit!
 
 package js.html.svg;
 
+/**
+	The `SVGLength` interface correspond to the length basic data type.
+
+	Documentation [SVGLength](https://developer.mozilla.org/en-US/docs/Web/API/SVGLength) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGLength$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGLength>
+**/
 @:native("SVGLength")
 extern class Length
 {

@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\HTMLAudioElement.webidl line 17:0. Do not edit!
+// This file is generated from mozilla\HTMLAudioElement.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `HTMLAudioElement` interface provides access to the properties of `audio` elements, as well as methods to manipulate them. It derives from the `HTMLMediaElement` interface.
+
+	Documentation [HTMLAudioElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLAudioElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLAudioElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLAudioElement>
+**/
 @:native("HTMLAudioElement")
 extern class AudioElement extends MediaElement
 {

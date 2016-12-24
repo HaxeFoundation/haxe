@@ -20,13 +20,24 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\HTMLDataElement.webidl line 12:0. Do not edit!
+// This file is generated from mozilla\HTMLDataElement.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `HTMLDataElement` interface provides special properties (beyond the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating `data` elements.
+
+	Documentation [HTMLDataElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLDataElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLDataElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLDataElement>
+**/
 @:native("HTMLDataElement")
 extern class DataElement extends Element
 {
+	
+	/**
+		Is a `DOMString` reflecting the `value` HTML attribute, containing a machine-readable form of the element's value.
+	**/
 	var value : String;
 	
 }

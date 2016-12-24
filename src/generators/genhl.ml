@@ -2820,12 +2820,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 				op ctx (OBool (tmp, b));
 				op ctx (OToDyn (r, tmp));
 			| TString s ->
-				let str, len = to_utf8 s f.tf_expr.epos in
-				let rb = alloc_tmp ctx HBytes in
-				op ctx (ONew r);
-				op ctx (OString (rb,alloc_string ctx str));
-				op ctx (OSetField (r,0,rb));
-				op ctx (OSetField (r,1,reg_int ctx len));
+				op ctx (OMov (r, make_string ctx s f.tf_expr.epos))
 			);
 			j();
 		);
@@ -3530,7 +3525,7 @@ let add_types ctx types =
 						match f.cf_kind with
 						| Method MethNormal when not (List.exists (fun (m,_,_) -> m = Meta.Custom ":hlNative") f.cf_meta) ->
 							(match f.cf_expr with
-							| Some { eexpr = TFunction { tf_expr = { eexpr = TBlock ([] | [{ eexpr = TReturn (Some { eexpr = TConst _ })}]) } } } ->
+							| Some { eexpr = TFunction { tf_expr = { eexpr = TBlock ([] | [{ eexpr = TReturn (Some { eexpr = TConst _ })}]) } } } | None ->
 								let name = prefix ^ String.lowercase (Str.global_replace (Str.regexp "[A-Z]+") "_\\0" f.cf_name) in
 								f.cf_meta <- (Meta.Custom ":hlNative", [(EConst (String lib),p);(EConst (String name),p)], p) :: f.cf_meta;
 							| _ -> ())

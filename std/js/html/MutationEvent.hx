@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\MutationEvent.webidl line 14:0. Do not edit!
+// This file is generated from mozilla\MutationEvent.webidl. Do not edit!
 
 package js.html;
 
+/**
+	Provides event properties that are specific to modifications to the Document Object Model (DOM) hierarchy and nodes.
+
+	Documentation [MutationEvent](https://developer.mozilla.org/en-US/docs/Web/API/MutationEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MutationEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MutationEvent>
+**/
 @:native("MutationEvent")
 extern class MutationEvent extends Event
 {

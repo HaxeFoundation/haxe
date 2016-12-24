@@ -20,15 +20,34 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\DocumentType.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\DocumentType.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `DocumentType` interface represents a `Node` containing a doctype.
+
+	Documentation [DocumentType](https://developer.mozilla.org/en-US/docs/Web/API/DocumentType) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DocumentType$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DocumentType>
+**/
 @:native("DocumentType")
 extern class DocumentType extends Node
 {
+	
+	/**
+		...
+	**/
 	var name(default,null) : String;
+	
+	/**
+		...
+	**/
 	var publicId(default,null) : String;
+	
+	/**
+		...
+	**/
 	var systemId(default,null) : String;
 	
 	function remove() : Void;

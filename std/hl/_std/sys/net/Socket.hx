@@ -22,7 +22,11 @@
 package sys.net;
 import haxe.io.Error;
 
-private typedef SocketHandle = hl.Abstract<"hl_socket">;
+#if doc_gen
+@:noDoc enum SocketHandle { }
+#else
+@:noDoc typedef SocketHandle = hl.Abstract<"hl_socket">;
+#end
 
 private class SocketOutput extends haxe.io.Output {
 
@@ -110,7 +114,11 @@ class Socket {
 	}
 
 	public function new() : Void {
-		if( __s == null ) __s = socket_new(false);
+		init();
+	}
+	
+	function init() : Void {
+		__s = socket_new(false);
 		input = new SocketInput(this);
 		output = new SocketOutput(this);
 	}

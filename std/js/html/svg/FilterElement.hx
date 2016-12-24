@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SVGFilterElement.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\SVGFilterElement.webidl. Do not edit!
 
 package js.html.svg;
 
+/**
+	The `SVGFilterElement` interface provides access to the properties of `filter` elements, as well as methods to manipulate them.
+
+	Documentation [SVGFilterElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGFilterElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGFilterElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFilterElement>
+**/
 @:native("SVGFilterElement")
 extern class FilterElement extends Element
 {

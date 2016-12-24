@@ -118,6 +118,7 @@ let update_config_from_meta com config meta =
 				| EConst (Ident s) when s = flag_user_var_fusion -> {config with user_var_fusion = true}
 				| EConst (Ident s) when s = "no_" ^ flag_user_var_fusion -> {config with user_var_fusion = false}
 				| EConst (Ident s) when s = flag_fusion_debug -> {config with fusion_debug = true}
+				| EConst (Ident s) when s = "as_var" -> config
 				| _ ->
 					let s = Ast.s_expr e in
 					com.warning (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);

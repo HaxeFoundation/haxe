@@ -123,13 +123,13 @@ let rec can_be_used_as_value com e =
 		(* | TCall _ | TNew _ when (match com.platform with Cpp | Php -> true | _ -> false) -> raise Exit *)
 		| TReturn _ | TThrow _ | TBreak | TContinue -> raise Exit
 		| TUnop((Increment | Decrement),_,_) when not (target_handles_unops com) -> raise Exit
-		| TNew _ when com.platform = Php -> raise Exit
+		| TNew _ when com.platform = Php && not (Common.php7 com) -> raise Exit
 		| TFunction _ -> ()
 		| _ -> Type.iter loop e
 	in
 	try
 		begin match com.platform,e.eexpr with
-			| (Cs | Cpp | Java | Flash),TConst TNull -> raise Exit
+			| (Cs | Cpp | Java | Flash | Lua),TConst TNull -> raise Exit
 			| _ -> ()
 		end;
 		loop e;
@@ -155,9 +155,22 @@ let is_ref_type = function
 	| TAbstract({a_path=["hl";"types"],"Ref"},_) -> true
 	| _ -> false
 
-let is_asvar_type t = match follow t with
-	| TAbstract({a_path = (["haxe";"extern"],"AsVar")},_) -> true
-	| _ -> false
+let rec is_asvar_type t =
+	let check meta =
+		AnalyzerConfig.has_analyzer_option meta "as_var"
+	in
+	match t with
+	| TInst(c,_) -> check c.cl_meta
+	| TEnum(en,_) -> check en.e_meta
+	| TType(t,tl) -> check t.t_meta || (is_asvar_type (apply_params t.t_params tl t.t_type))
+	| TAbstract(a,_) -> check a.a_meta
+	| TLazy f -> is_asvar_type (!f())
+	| TMono r ->
+		(match !r with
+		| Some t -> is_asvar_type t
+		| _ -> false)
+	| _ ->
+		false
 
 let type_change_ok com t1 t2 =
 	if t1 == t2 then
@@ -669,7 +682,7 @@ module Fusion = struct
 							let el = List.map replace el in
 							let e2 = replace e2 in
 							e2,el
-						| Php | Cpp  when not (Common.defined com Define.Cppia) ->
+						| Php | Cpp  when not (Common.defined com Define.Cppia) && not (Common.php7 com) ->
 							let is_php_safe e1 =
 								let rec loop e = match e.eexpr with
 									| TCall _ -> raise Exit
@@ -781,7 +794,7 @@ module Fusion = struct
 							let e3 = replace e3 in
 							if not !found && has_state_read ir then raise Exit;
 							{e with eexpr = TBinop(OpAssign,{ea with eexpr = TArray(e1,e2)},e3)}
-						| TBinop(op,e1,e2) when (match com.platform with Cpp | Php -> true | _ -> false) ->
+						| TBinop(op,e1,e2) when (match com.platform with Cpp | Php when not (Common.php7 com) -> true | _ -> false) ->
 							let e1 = replace e1 in
 							let temp_found = !found in
 							found := false;

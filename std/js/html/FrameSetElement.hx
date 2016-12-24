@@ -20,14 +20,29 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\HTMLFrameSetElement.webidl line 16:0. Do not edit!
+// This file is generated from mozilla\HTMLFrameSetElement.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `HTMLFrameSetElement` interface provides special properties (beyond those of the regular `HTMLElement` interface they also inherit) for manipulating `frameset` elements.
+
+	Documentation [HTMLFrameSetElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFrameSetElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFrameSetElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLFrameSetElement>
+**/
 @:native("HTMLFrameSetElement")
 extern class FrameSetElement extends Element
 {
+	
+	/**
+		Is a `DOMString` that represents the foreground color of text.
+	**/
 	var cols : String;
+	
+	/**
+		Is a `DOMString` that represents the color of visited links.
+	**/
 	var rows : String;
 	var onafterprint : haxe.Constraints.Function;
 	var onbeforeprint : haxe.Constraints.Function;

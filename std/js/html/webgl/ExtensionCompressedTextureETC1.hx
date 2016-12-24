@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\WebGLRenderingContext.webidl line 949:0. Do not edit!
+// This file is generated from mozilla\WebGLRenderingContext.webidl. Do not edit!
 
 package js.html.webgl;
 
+/**
+	The `WEBGL_compressed_texture_etc1` extension is part of the WebGL API and exposes the ETC1 compressed texture format.
+
+	Documentation [WEBGL_compressed_texture_etc1](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_etc1) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_etc1$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_etc1>
+**/
 @:native("WEBGL_compressed_texture_etc1")
 extern class ExtensionCompressedTextureETC1
 {

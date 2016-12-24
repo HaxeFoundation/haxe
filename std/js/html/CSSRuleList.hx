@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\CSSRuleList.webidl line 9:0. Do not edit!
+// This file is generated from mozilla\CSSRuleList.webidl. Do not edit!
 
 package js.html;
 
+/**
+	A `CSSRuleList` is an (indirect-modify only) array-like object containing an ordered collection of `CSSRule` objects.
+
+	Documentation [CSSRuleList](https://developer.mozilla.org/en-US/docs/Web/API/CSSRuleList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CSSRuleList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSRuleList>
+**/
 @:native("CSSRuleList")
 extern class CSSRuleList implements ArrayAccess<CSSRule>
 {

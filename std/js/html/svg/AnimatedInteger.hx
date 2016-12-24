@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SVGAnimatedInteger.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\SVGAnimatedInteger.webidl. Do not edit!
 
 package js.html.svg;
 
+/**
+	The `SVGAnimatedInteger` interface is used for attributes of basic type integer which can be animated.
+
+	Documentation [SVGAnimatedInteger](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedInteger) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedInteger$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedInteger>
+**/
 @:native("SVGAnimatedInteger")
 extern class AnimatedInteger
 {

@@ -20,13 +20,24 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\MediaStreamAudioDestinationNode.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\MediaStreamAudioDestinationNode.webidl. Do not edit!
 
 package js.html.audio;
 
+/**
+	Inherits properties from its parent, `AudioNode`.
+
+	Documentation [MediaStreamAudioDestinationNode](https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamAudioDestinationNode) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamAudioDestinationNode$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamAudioDestinationNode>
+**/
 @:native("MediaStreamAudioDestinationNode")
 extern class MediaStreamAudioDestinationNode extends AudioNode
 {
+	
+	/**
+		Is a `MediaStream` containing a single `AudioMediaStreamTrack` with the same number of channels as the node itself. You can use this property to get a stream out of the audio graph and feed it into another construct, such as a Media Recorder.
+	**/
 	var stream(default,null) : js.html.MediaStream;
 	
 }

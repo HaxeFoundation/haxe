@@ -20,17 +20,40 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\Client.webidl line 14:0. Do not edit!
+// This file is generated from mozilla\Client.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `Client` interface of the ServiceWorker API represents the scope of a service worker client. A service worker client is either a document in a browser context or a `SharedWorker`, which is controlled by an active worker. A client object acts as a snapshot representation of its associated service worker client in the scope of a service worker.
+
+	Documentation [Client](https://developer.mozilla.org/en-US/docs/Web/API/Client) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Client$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Client>
+**/
 @:native("Client")
 extern class Client
 {
+	
+	/**
+		The URL of the current service worker client.
+	**/
 	var url(default,null) : String;
+	
+	/**
+		Indicates the type of browsing context of the current client. This value can be one of `auxiliary`, `top-level`, `nested`, or `none`.
+	**/
 	var frameType(default,null) : FrameType;
+	
+	/**
+		Returns the universally unique identifier of the `Client` object.
+	**/
 	var id(default,null) : String;
 	
 	/** @throws DOMError */
+	
+	/**
+		Allows a service worker to send a message to a `ServiceWorkerClient`.
+	**/
 	function postMessage( message : Dynamic, ?transfer : Array<Dynamic> ) : Void;
 }

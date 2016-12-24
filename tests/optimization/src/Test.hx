@@ -33,8 +33,9 @@ class Test {
 	}
 
 	@:js('
+		var c_y;
 		var c_x = 12;
-		var c_y = "foo";
+		c_y = "foo";
 		var x = 12;
 		c_x = 13;
 		x = 13;
@@ -50,9 +51,10 @@ class Test {
 
 	@:js('
 		var a = 0;
+		var c_x;
 		a = 1;
 		a = 2;
-		var c_x = 12;
+		c_x = 12;
 		var c_y = "foo";
 		a = 12;
 	')
@@ -87,8 +89,10 @@ class Test {
 	}
 
 	@:js('
-		var x_foo = 1;
-		var x_bar = 2;
+		var x_foo;
+		var x_bar;
+		x_foo = 1;
+		x_bar = 2;
 		var y = 1;
 		var z = 2;
 	')
@@ -101,7 +105,7 @@ class Test {
 		var z = x.bar;
 	}
 
-	@:js('var x = { \'oh-my\' : "god"};')
+	@:js('var x = { "oh-my" : "god"};')
 	static function testStructureInlineInvalidField() {
         var x = {
             "oh-my": "god"

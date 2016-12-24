@@ -1325,36 +1325,31 @@ let strip_file ctx file = (match Common.defined ctx Common.Define.AbsolutePath w
 ;;
 
 let hx_stack_push ctx output clazz func_name pos gc_stack =
-   let has_stackframe = ref false in
    if ctx.ctx_debug_level > 0 then begin
       let stripped_file = strip_file ctx.ctx_common pos.pfile in
       let esc_file = (Ast.s_escape stripped_file) in
       ctx.ctx_file_info := PMap.add stripped_file pos.pfile !(ctx.ctx_file_info);
-      if (ctx.ctx_debug_level>0) then begin
-         let full_name = clazz ^ "." ^ func_name ^ (
-           if (clazz="*") then
-             (" (" ^ esc_file ^ ":" ^ (string_of_int (Lexer.get_error_line pos) ) ^ ")")
-           else "") in
+      let full_name = clazz ^ "." ^ func_name ^ (
+        if (clazz="*") then
+          (" (" ^ esc_file ^ ":" ^ (string_of_int (Lexer.get_error_line pos) ) ^ ")")
+        else "") in
 
-         let hash_class_func = gen_hash 0 (clazz^"."^func_name) in
-         let hash_file = gen_hash 0 stripped_file in
+      let hash_class_func = gen_hash 0 (clazz^"."^func_name) in
+      let hash_file = gen_hash 0 stripped_file in
 
-         let lineName  = (string_of_int (Lexer.get_error_line pos) ) in
-         incr ctx.ctx_file_id;
-         let classId = hash64 (clazz ^ "." ^ stripped_file) in
-         let varName = "_hx_pos_" ^ classId ^ "_" ^ lineName ^ "_" ^func_name in
-         let decl = ( varName ^ ",\"" ^ clazz ^ "\",\"" ^ func_name ^ "\"," ^ hash_class_func ^ ",\"" ^
-                 full_name ^ "\",\"" ^ esc_file ^ "\"," ^ lineName ^  "," ^ hash_file ) in
-         if ctx.ctx_is_header then
-            ctx.ctx_writer#write_h_unique ("HX_DECLARE_STACK_FRAME" ^ "(" ^ varName ^ ")\n")
-         else
-            ctx.ctx_writer#write_h_unique ("HX_DEFINE_STACK_FRAME" ^ "(" ^ decl ^ ")\n");
-         output ( (if gc_stack then "HX_GC_STACKFRAME" else "HX_STACKFRAME") ^ "(&" ^ varName ^ ")\n");
-         has_stackframe := true;
-      end
-   end;
-   if gc_stack && not !has_stackframe then
-      output ("HX_JUST_GC_STACKFRAME\n");
+      let lineName  = (string_of_int (Lexer.get_error_line pos) ) in
+      incr ctx.ctx_file_id;
+      let classId = hash64 (clazz ^ "." ^ stripped_file) in
+      let varName = "_hx_pos_" ^ classId ^ "_" ^ lineName ^ "_" ^func_name in
+      let decl = ( varName ^ ",\"" ^ clazz ^ "\",\"" ^ func_name ^ "\"," ^ hash_class_func ^ ",\"" ^
+              full_name ^ "\",\"" ^ esc_file ^ "\"," ^ lineName ^  "," ^ hash_file ) in
+      if ctx.ctx_is_header then
+         ctx.ctx_writer#write_h_unique ("HX_DECLARE_STACK_FRAME" ^ "(" ^ varName ^ ")\n")
+      else
+         ctx.ctx_writer#write_h_unique ("HX_DEFINE_STACK_FRAME" ^ "(" ^ decl ^ ")\n");
+      output ( (if gc_stack then "HX_GC_STACKFRAME" else "HX_STACKFRAME") ^ "(&" ^ varName ^ ")\n");
+   end else if gc_stack then
+      output ("HX_JUST_GC_STACKFRAME\n")
 ;;
 
 
@@ -2972,7 +2967,8 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                baseCpp.cppexpr, baseCpp.cpptype (* nothing to do *)
             else (match return_type with
                | TCppObjC(k) -> CppCastObjC(baseCpp,k), return_type
-               | TCppInst(k) -> CppCast(baseCpp,return_type), return_type
+               | TCppPointer(_,_)
+               | TCppInst(_) -> CppCast(baseCpp,return_type), return_type
                | TCppString -> CppCastScalar(baseCpp,"::String"), return_type
                | TCppCode(t) when baseStr <> (tcpp_to_string t)  ->
                      CppCast(baseCpp, t),  t
@@ -3924,8 +3920,8 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
       let prologue = function gc_stack ->
           cpp_gen_default_values ctx closure.close_args "__o_";
+          hx_stack_push ctx output_i class_name func_name closure.close_expr.cpppos gc_stack;
           if (ctx.ctx_debug_level>0) then begin
-             hx_stack_push ctx output_i class_name func_name closure.close_expr.cpppos gc_stack;
              if (closure.close_this != None) then
                 output_i ("HX_STACK_THIS(__this.mPtr)\n");
              List.iter (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (cpp_var_name_of v) ^ ",\"" ^ (cpp_debug_name_of v) ^"\")\n") )
@@ -3955,11 +3951,11 @@ let gen_cpp_function_body ctx clazz is_static func_name function_def head_code t
    let dot_name = join_class_path clazz.cl_path "." in
    if no_debug then ctx.ctx_debug_level <- 0;
    let prologue = function gc_stack ->
-      let spacer = "            \t" in
+      let spacer = if no_debug then "\t" else "            \t" in
       let output_i = fun s -> output (spacer ^ s) in
       ctx_default_values ctx function_def.tf_args "__o_";
+      hx_stack_push ctx output_i dot_name func_name function_def.tf_expr.epos gc_stack;
       if ctx.ctx_debug_level >0 then begin
-         hx_stack_push ctx output_i dot_name func_name function_def.tf_expr.epos gc_stack;
          if (not is_static)
             then output_i ("HX_STACK_THIS(" ^ (if ctx.ctx_real_this_ptr then "this" else "__this") ^")\n");
          List.iter (fun (v,_) -> if not (cpp_no_debug_synbol ctx v) then
@@ -3977,11 +3973,9 @@ let gen_cpp_function_body ctx clazz is_static func_name function_def head_code t
 let gen_cpp_init ctx dot_name func_name var_name expr =
    let output = ctx.ctx_output in
    let prologue = function gc_stack ->
-      if ctx.ctx_debug_level >0 then begin
-      let spacer = "            \t" in
+      let spacer = if ctx.ctx_debug_level > 0 then "            \t" else "\t" in
       let output_i = fun s -> output (spacer ^ s) in
          hx_stack_push ctx output_i dot_name func_name expr.epos gc_stack;
-      end
    in
    let injection = mk_injection prologue var_name "" in
    gen_cpp_ast_expression_tree ctx dot_name func_name [] injection (mk_block expr);
@@ -5082,8 +5076,11 @@ let access_str a = match a with
    | AccRequire(_,_) -> "AccRequire" ;;
 
 
-let script_type t optional = if optional then "Object" else
+let script_type t optional = if optional then begin
    match type_string t with
+   | "::String" -> "String"
+   | _ -> "Object"
+   end else match type_string t with
    | "bool" -> "Int"
    | "int" -> "Int"
    | "Float" -> "Float"
@@ -6534,6 +6531,7 @@ type cppia_op =
 	| IaToInterfaceArray
 	| IaFun
 	| IaCast
+	| IaTCast
 	| IaBlock
 	| IaBreak
 	| IaContinue
@@ -6738,6 +6736,7 @@ let cppia_op_info = function
 	| IaBinOp OpAssignOp OpLt
 	| IaBinOp OpAssignOp OpAssignOp _
 	| IaBinOp OpAssignOp OpArrow -> assert false
+	| IaTCast -> ("TCAST", 221)
 ;;
 
 class script_writer ctx filename asciiOut =
@@ -7217,8 +7216,10 @@ class script_writer ctx filename asciiOut =
             this#write "\n";
             this#gen_expression catch_expr;
          ) catches;
-   | TCast (cast,None) -> this#checkCast expression.etype cast true true;
-   | TCast (cast,Some _) -> this#checkCast expression.etype cast true true;
+   | TCast (cast,Some (TClassDecl t)) ->
+         this#write ((this#op IaTCast) ^ (this#typeText (TInst(t,[])) ) ^ "\n");
+         this#gen_expression cast;
+   | TCast (cast,_) -> this#checkCast expression.etype cast true true;
    | TParenthesis _ -> abort "Unexpected parens" expression.epos
    | TMeta(_,_) -> abort "Unexpected meta" expression.epos
    );

@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\CSS.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\CSS.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `CSS` interface holds useful CSS-related methods. No object with this interface are implemented: it contains only static methods and therefore is a utilitarian interface.
+
+	Documentation [CSS](https://developer.mozilla.org/en-US/docs/Web/API/CSS) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CSS$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSS>
+**/
 @:native("CSS")
 extern class CSS
 {

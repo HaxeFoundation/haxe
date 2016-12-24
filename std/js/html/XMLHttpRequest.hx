@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\XMLHttpRequest.webidl line 68:0. Do not edit!
+// This file is generated from mozilla\XMLHttpRequest.webidl. Do not edit!
 
 package js.html;
 
+/**
+	`XMLHttpRequest` is an API that provides client functionality for transferring data between a client and a server. It provides an easy way to retrieve data from a URL without having to do a full page refresh. This enables a Web page to update just a part of the page without disrupting what the user is doing.
+
+	Documentation [XMLHttpRequest](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest>
+**/
 @:native("XMLHttpRequest")
 extern class XMLHttpRequest extends XMLHttpRequestEventTarget
 {
@@ -42,6 +49,10 @@ extern class XMLHttpRequest extends XMLHttpRequestEventTarget
 	var status(default,null) : Int;
 	var statusText(default,null) : String;
 	var responseType : XMLHttpRequestResponseType;
+	
+	/**
+		Returns an `ArrayBuffer`, `Blob`, `Document`, JavaScript object, or a `DOMString`, depending on the value of `XMLHttpRequest.responseType`. that contains the response entity body.
+	**/
 	var response(default,null) : Dynamic;
 	var responseText(default,null) : String;
 	var responseXML(default,null) : HTMLDocument;
@@ -51,8 +62,16 @@ extern class XMLHttpRequest extends XMLHttpRequestEventTarget
 	function new( ignored : String ) : Void;
 	/** @throws DOMError */
 	@:overload( function( method : String, url : String ) : Void {} )
+	
+	/**
+		Initializes a request. This method is to be used from JavaScript code; to initialize a request from native code, use `openRequest()` instead.
+	**/
 	function open( method : String, url : String, async : Bool, ?user : String, ?password : String ) : Void;
 	/** @throws DOMError */
+	
+	/**
+		Sets the value of an HTTP request header. You must call `setRequestHeader()`after `open()`, but before `send()`.
+	**/
 	function setRequestHeader( header : String, value : String ) : Void;
 	/** @throws DOMError */
 	@:overload( function() : Void {} )
@@ -62,13 +81,33 @@ extern class XMLHttpRequest extends XMLHttpRequestEventTarget
 	@:overload( function( data : HTMLDocument ) : Void {} )
 	@:overload( function( data : String ) : Void {} )
 	@:overload( function( data : FormData ) : Void {} )
+	
+	/**
+		Sends the request. If the request is asynchronous (which is the default), this method returns as soon as the request is sent.
+	**/
 	function send( data : Dynamic/*MISSING InputStream*/ ) : Void;
 	/** @throws DOMError */
+	
+	/**
+		Aborts the request if it has already been sent.
+	**/
 	function abort() : Void;
 	/** @throws DOMError */
+	
+	/**
+		Returns the string containing the text of the specified header, or `null` if either the response has not yet been received or the header doesn't exist in the response.
+	**/
 	function getResponseHeader( header : String ) : String;
 	/** @throws DOMError */
+	
+	/**
+		Returns all the response headers, separated by CRLF, as a string, or `null` if no response has been received. 
+	**/
 	function getAllResponseHeaders() : String;
 	/** @throws DOMError */
+	
+	/**
+		Overrides the MIME type returned by the server.
+	**/
 	function overrideMimeType( mime : String ) : Void;
 }

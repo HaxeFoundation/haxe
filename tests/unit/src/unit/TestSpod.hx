@@ -57,6 +57,7 @@ class TestSpod extends Test
 		scls.enumFlags = EnumFlags.ofInt(0);
 		scls.enumFlags.set(FirstValue);
 		scls.enumFlags.set(ThirdValue);
+		scls.bytes = Bytes.ofString("\000a");
 
 		scls.data = [new ComplexClass( { name:"test", array:["this", "is", "a", "test"] } )];
 		scls.anEnum = SecondValue;
@@ -409,6 +410,8 @@ class TestSpod extends Test
 
 		eq(cls1.anEnum, SecondValue,pos());
 		t((cls1.anEnum is SpodEnum),pos());
+
+		eq("\000a", cls1.bytes.toString());
 
 		eq(cls1, MySpodClass.manager.select($anEnum == SecondValue),pos());
 

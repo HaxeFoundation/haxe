@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\HTMLTextAreaElement.webidl line 19:0. Do not edit!
+// This file is generated from mozilla\HTMLTextAreaElement.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `HTMLTextAreaElement` interface provides special properties and methods for manipulating the layout and presentation of `textarea` elements.
+
+	Documentation [HTMLTextAreaElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTextAreaElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTextAreaElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTextAreaElement>
+**/
 @:native("HTMLTextAreaElement")
 extern class TextAreaElement extends Element
 {

@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SVGEllipseElement.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\SVGEllipseElement.webidl. Do not edit!
 
 package js.html.svg;
 
+/**
+	The `SVGEllipseElement` interface provides access to the properties of `ellipse` elements.
+
+	Documentation [SVGEllipseElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGEllipseElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGEllipseElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGEllipseElement>
+**/
 @:native("SVGEllipseElement")
 extern class EllipseElement extends GraphicsElement
 {

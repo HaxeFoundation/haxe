@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\XMLHttpRequestEventTarget.webidl line 16:0. Do not edit!
+// This file is generated from mozilla\XMLHttpRequestEventTarget.webidl. Do not edit!
 
 package js.html;
 
+/**
+	`XMLHttpRequestEventTarget` is the interface that describes the event handlers you can implement in an object that will handle events for an `XMLHttpRequest`.
+
+	Documentation [XMLHttpRequestEventTarget](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequestEventTarget) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequestEventTarget$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequestEventTarget>
+**/
 @:native("XMLHttpRequestEventTarget")
 extern class XMLHttpRequestEventTarget extends EventTarget
 {

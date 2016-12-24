@@ -20,14 +20,29 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SpeechGrammar.webidl line 18:0. Do not edit!
+// This file is generated from mozilla\SpeechGrammar.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `SpeechGrammar` interface of the Web Speech API represents a set of words or patterns of words that we want the recognition service to recognize.
+
+	Documentation [SpeechGrammar](https://developer.mozilla.org/en-US/docs/Web/API/SpeechGrammar) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SpeechGrammar$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechGrammar>
+**/
 @:native("SpeechGrammar")
 extern class SpeechGrammar
 {
+	
+	/**
+		Sets and returns a string containing the grammar from within in the `SpeechGrammar` object instance.
+	**/
 	var src : String;
+	
+	/**
+		Sets and returns the weight of the `SpeechGrammar` object.
+	**/
 	var weight : Float;
 	
 	/** @throws DOMError */

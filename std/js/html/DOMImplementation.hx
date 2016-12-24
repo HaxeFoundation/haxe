@@ -20,18 +20,41 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\DOMImplementation.webidl line 16:0. Do not edit!
+// This file is generated from mozilla\DOMImplementation.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `DOMImplementation` interface represent an object providing methods which are not dependent on any particular document. Such an object is returned by the `Document.implementation` property.
+
+	Documentation [DOMImplementation](https://developer.mozilla.org/en-US/docs/Web/API/DOMImplementation) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DOMImplementation$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMImplementation>
+**/
 @:native("DOMImplementation")
 extern class DOMImplementation
 {
+	
+	/**
+		Returns a `Boolean` indicating if a given feature is supported or not. This function is unreliable and kept for compatibility purpose alone: except for SVG-related queries, it always returns `true`. Old browsers are very inconsistent in their behavior.
+	**/
 	function hasFeature( feature : String, version : String ) : Bool;
 	/** @throws DOMError */
+	
+	/**
+		Creates and returns a `DocumentType`.
+	**/
 	function createDocumentType( qualifiedName : String, publicId : String, systemId : String ) : DocumentType;
 	/** @throws DOMError */
+	
+	/**
+		Creates and returns an `XMLDocument`.
+	**/
 	function createDocument( namespace_ : String, qualifiedName : String, ?doctype : DocumentType ) : HTMLDocument;
 	/** @throws DOMError */
+	
+	/**
+		Creates and returns an HTML `Document`.
+	**/
 	function createHTMLDocument( ?title : String ) : HTMLDocument;
 }

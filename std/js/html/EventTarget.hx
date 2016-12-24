@@ -20,19 +20,38 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\EventTarget.webidl line 16:0. Do not edit!
+// This file is generated from mozilla\EventTarget.webidl. Do not edit!
 
 package js.html;
 
+/**
+	`EventTarget` is an interface implemented by objects that can receive events and may have listeners for them.
+
+	Documentation [EventTarget](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/EventTarget>
+**/
 @:native("EventTarget")
 extern class EventTarget
 {
 	/** @throws DOMError */
 	@:overload( function( type : String, listener : EventListener, ?capture : Bool = false, ?wantsUntrusted : Bool ) : Void {} )
+	
+	/**
+		Register an event handler of a specific event type on the `EventTarget`.
+	**/
 	function addEventListener( type : String, listener : haxe.Constraints.Function, ?capture : Bool = false ) : Void;
 	/** @throws DOMError */
 	@:overload( function( type : String, listener : EventListener, ?capture : Bool = false ) : Void {} )
+	
+	/**
+		Removes an event listener from the `EventTarget`.
+	**/
 	function removeEventListener( type : String, listener : haxe.Constraints.Function, ?capture : Bool = false ) : Void;
 	/** @throws DOMError */
+	
+	/**
+		Dispatch an event to this `EventTarget`.
+	**/
 	function dispatchEvent( event : Event ) : Bool;
 }

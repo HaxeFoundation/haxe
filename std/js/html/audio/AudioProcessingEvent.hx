@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\AudioProcessingEvent.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\AudioProcessingEvent.webidl. Do not edit!
 
 package js.html.audio;
 
+/**
+	The Web Audio API `AudioProcessingEvent` represents events that occur when a `ScriptProcessorNode` input buffer is ready to be processed.
+
+	Documentation [AudioProcessingEvent](https://developer.mozilla.org/en-US/docs/Web/API/AudioProcessingEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AudioProcessingEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioProcessingEvent>
+**/
 @:native("AudioProcessingEvent")
 extern class AudioProcessingEvent extends js.html.Event
 {

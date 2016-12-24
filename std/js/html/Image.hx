@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from namedConstructors.webidl line 6:0. Do not edit!
+// This file is generated from namedConstructors.webidl. Do not edit!
 
 package js.html;
 

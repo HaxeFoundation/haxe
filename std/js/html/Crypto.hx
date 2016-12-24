@@ -20,13 +20,24 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\Crypto.webidl line 19:0. Do not edit!
+// This file is generated from mozilla\Crypto.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `Crypto` interface represents basic cryptography features available in the current context. It allows access to a cryptographically strong random number generator and to cryptographic primitives.
+
+	Documentation [Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Crypto$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Crypto>
+**/
 @:native("Crypto")
 extern class Crypto
 {
+	
+	/**
+		Returns a `SubtleCrypto` object providing access to common cryptographic primitives, like hashing, signing, encryption or decryption.
+	**/
 	var subtle(default,null) : SubtleCrypto;
 	
 	/** @throws DOMError */

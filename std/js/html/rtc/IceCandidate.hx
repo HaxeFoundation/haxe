@@ -20,15 +20,34 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\RTCIceCandidate.webidl line 21:0. Do not edit!
+// This file is generated from mozilla\RTCIceCandidate.webidl. Do not edit!
 
 package js.html.rtc;
 
+/**
+	The `RTCIceCandidate` interface of the the WebRTC API represents a candidate internet connectivity establishment (ICE) server for establishing an `RTCPeerConnection`.
+
+	Documentation [RTCIceCandidate](https://developer.mozilla.org/en-US/docs/Web/API/RTCIceCandidate) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/RTCIceCandidate$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCIceCandidate>
+**/
 @:native("RTCIceCandidate")
 extern class IceCandidate
 {
+	
+	/**
+		Returns a transport address for the candidate that can be used for connectivity checks. The format of this address is a `candidate-attribute` as defined in RTC 5245.
+	**/
 	var candidate : String;
+	
+	/**
+		If not `null`, this contains the identifier of the "media stream identification" (as defined in RFC 5888) for the media component this candidate is associated with.
+	**/
 	var sdpMid : String;
+	
+	/**
+		If not `null`, this indicates the index (starting at zero) of the media description (as defined in RFC 4566) in the SDP this candidate is associated with.
+	**/
 	var sdpMLineIndex : Int;
 	
 	/** @throws DOMError */

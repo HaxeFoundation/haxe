@@ -20,27 +20,70 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\Response.webidl line 14:0. Do not edit!
+// This file is generated from mozilla\Response.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `Response` interface of the Fetch API represents the response to a request.
+
+	Documentation [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Response$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Response>
+**/
 @:native("Response")
 extern class Response
 {
-	static function error() : Response;
+	static 
+	/**
+		Returns a new `Response` object associated with a network error.
+	**/
+	function error() : Response;
 	/** @throws DOMError */
-	static function redirect( url : String, ?status : Int = 302 ) : Response;
+	static 
+	/**
+		Creates a new response with a different URL.
+	**/
+	function redirect( url : String, ?status : Int = 302 ) : Response;
+	
+	/**
+		Contains the type of the response (e.g., `basic`, `cors`).
+	**/
 	var type(default,null) : ResponseType;
+	
+	/**
+		Contains the URL of the response.
+	**/
 	var url(default,null) : String;
+	
+	/**
+		Contains the status code of the response (e.g., `200` for a success).
+	**/
 	var status(default,null) : Int;
+	
+	/**
+		Contains a boolean stating whether the response was successful (status in the range 200-299) or not.
+	**/
 	var ok(default,null) : Bool;
+	
+	/**
+		Contains the status message corresponding to the status code (e.g., `OK` for `200`).
+	**/
 	var statusText(default,null) : String;
+	
+	/**
+		Contains the `Headers` object associated with the response.
+	**/
 	var headers(default,null) : Headers;
 	var bodyUsed(default,null) : Bool;
 	
 	/** @throws DOMError */
 	function new( ?body : haxe.extern.EitherType<ArrayBuffer,haxe.extern.EitherType<ArrayBufferView,haxe.extern.EitherType<Blob,haxe.extern.EitherType<FormData,haxe.extern.EitherType<String,URLSearchParams>>>>>, ?init : ResponseInit ) : Void;
 	/** @throws DOMError */
+	
+	/**
+		Creates a clone of a `Response` object.
+	**/
 	function clone() : Response;
 	/** @throws DOMError */
 	function arrayBuffer() : Promise<ArrayBuffer>;

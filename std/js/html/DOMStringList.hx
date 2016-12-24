@@ -20,15 +20,34 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\DOMStringList.webidl line 16:0. Do not edit!
+// This file is generated from mozilla\DOMStringList.webidl. Do not edit!
 
 package js.html;
 
+/**
+	A type returned by some APIs which contains a list of DOMString (strings).
+
+	Documentation [DOMStringList](https://developer.mozilla.org/en-US/docs/Web/API/DOMStringList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DOMStringList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMStringList>
+**/
 @:native("DOMStringList")
 extern class DOMStringList implements ArrayAccess<String>
 {
+	
+	/**
+		Returns the length of the list,
+	**/
 	var length(default,null) : Int;
 	
+	
+	/**
+		Returns a `DOMString`.
+	**/
 	function item( index : Int ) : String;
+	
+	/**
+		Returns `Boolean` indicating if the given string is in the list
+	**/
 	function contains( string : String ) : Bool;
 }

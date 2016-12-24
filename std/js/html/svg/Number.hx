@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SVGNumber.webidl line 17:0. Do not edit!
+// This file is generated from mozilla\SVGNumber.webidl. Do not edit!
 
 package js.html.svg;
 
+/**
+	The `SVGNumber` interface correspond to the number basic data type.
+
+	Documentation [SVGNumber](https://developer.mozilla.org/en-US/docs/Web/API/SVGNumber) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGNumber$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGNumber>
+**/
 @:native("SVGNumber")
 extern class Number
 {

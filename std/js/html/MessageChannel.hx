@@ -20,14 +20,29 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\MessageChannel.webidl line 13:0. Do not edit!
+// This file is generated from mozilla\MessageChannel.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `MessageChannel` interface of the Channel Messaging API allows us to create a new message channel and send data through it via its two `MessagePort` properties.
+
+	Documentation [MessageChannel](https://developer.mozilla.org/en-US/docs/Web/API/MessageChannel) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MessageChannel$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MessageChannel>
+**/
 @:native("MessageChannel")
 extern class MessageChannel
 {
+	
+	/**
+		Returns port1 of the channel.
+	**/
 	var port1(default,null) : MessagePort;
+	
+	/**
+		Returns port2 of the channel.
+	**/
 	var port2(default,null) : MessagePort;
 	
 	/** @throws DOMError */

@@ -35,8 +35,8 @@ class Log {
 
 		This method can be rebound to a custom function:
 			var oldTrace = haxe.Log.trace; // store old function
-			haxe.Log.trace = function(v, ?infos) { 
-			  // handle trace 
+			haxe.Log.trace = function(v, ?infos) {
+			  // handle trace
 			}
 			...
 			haxe.Log.trace = oldTrace;
@@ -62,6 +62,8 @@ class Log {
 			}
 		#elseif js
 			untyped js.Boot.__trace(v,infos);
+		#elseif (php && php7)
+			php.Boot.trace(v, infos);
 		#elseif php
 			if (infos!=null && infos.customParams!=null) {
 				var extra:String = "";

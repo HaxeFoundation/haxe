@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\HTMLMeterElement.webidl line 18:0. Do not edit!
+// This file is generated from mozilla\HTMLMeterElement.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The HTML `meter` elements expose the `HTMLMeterElement` interface, which provides special properties and methods (beyond the `HTMLElement` object interface they also have available to them by inheritance) for manipulating the layout and presentation of `meter` elements.
+
+	Documentation [HTMLMeterElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMeterElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMeterElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLMeterElement>
+**/
 @:native("HTMLMeterElement")
 extern class MeterElement extends Element
 {

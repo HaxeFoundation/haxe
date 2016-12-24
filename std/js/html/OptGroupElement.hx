@@ -20,14 +20,29 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\HTMLOptGroupElement.webidl line 16:0. Do not edit!
+// This file is generated from mozilla\HTMLOptGroupElement.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `HTMLOptGroupElement` interface provides special properties and methods (beyond the regular `HTMLElement` object interface they also have available to them by inheritance) for manipulating the layout and presentation of `optgroup` elements.
+
+	Documentation [HTMLOptGroupElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLOptGroupElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLOptGroupElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLOptGroupElement>
+**/
 @:native("HTMLOptGroupElement")
 extern class OptGroupElement extends Element
 {
+	
+	/**
+		Is a `boolean` representing whether or not the whole list of children `option` is disabled (true) or not (false).
+	**/
 	var disabled : Bool;
+	
+	/**
+		Is a `DOMString` representing the label for the group.
+	**/
 	var label : String;
 	
 }

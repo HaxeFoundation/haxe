@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\PerformanceMark.webidl line 13:0. Do not edit!
+// This file is generated from mozilla\PerformanceMark.webidl. Do not edit!
 
 package js.html;
 
+/**
+	`PerformanceMark` is an abstract interface for `performance entries` with an `entry type` of "`mark`". Entries of this type are created by calling `performance.mark()` to add a named `DOMHighResTimeStamp` (the mark) to the browser's performance timeline.
+
+	Documentation [PerformanceMark](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceMark) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceMark$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/PerformanceMark>
+**/
 @:native("PerformanceMark")
 extern class PerformanceMark extends PerformanceEntry
 {

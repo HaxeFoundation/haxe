@@ -20,14 +20,29 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SharedWorkerGlobalScope.webidl line 19:0. Do not edit!
+// This file is generated from mozilla\SharedWorkerGlobalScope.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `SharedWorkerGlobalScope` object (the `SharedWorker` global scope) is accessible through the `self` keyword. Some additional global functions, namespaces objects, and constructors, not typically associated with the worker global scope, but available on it, are listed in the JavaScript Reference. See the complete list of functions available to workers.
+
+	Documentation [SharedWorkerGlobalScope](https://developer.mozilla.org/en-US/docs/Web/API/SharedWorkerGlobalScope) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SharedWorkerGlobalScope$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SharedWorkerGlobalScope>
+**/
 @:native("SharedWorkerGlobalScope")
 extern class SharedWorkerGlobalScope extends WorkerGlobalScope
 {
+	
+	/**
+		The name that the `SharedWorker` was (optionally) given when it was created. This is the name that the `SharedWorker.SharedWorker` constructor can pass to get a reference to the `SharedWorkerGlobalScope`.
+	**/
 	var name(default,null) : String;
+	
+	/**
+		Is an `EventHandler` representing the code to be called when the `connect` event is raised — that is, when a `MessagePort` connection is opened between the associated `SharedWorker` and the main thread.
+	**/
 	var onconnect : haxe.Constraints.Function;
 	
 }

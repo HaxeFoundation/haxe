@@ -20,20 +20,59 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\DOMRect.webidl line 25:0. Do not edit!
+// This file is generated from mozilla\DOMRect.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `DOMRectReadOnly` interface specifies the standard properties used by `DOMRect` to define a rectangle.
+
+	Documentation [DOMRectReadOnly](https://developer.mozilla.org/en-US/docs/Web/API/DOMRectReadOnly) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DOMRectReadOnly$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMRectReadOnly>
+**/
 @:native("DOMRectReadOnly")
 extern class DOMRectReadOnly
 {
+	
+	/**
+		The x coordinate of the `DOMRect`'s origin.
+	**/
 	var x(default,null) : Float;
+	
+	/**
+		The y coordinate of the `DOMRect`'s origin.
+	**/
 	var y(default,null) : Float;
+	
+	/**
+		The width of the `DOMRect`.
+	**/
 	var width(default,null) : Float;
+	
+	/**
+		The height of the `DOMRect`.
+	**/
 	var height(default,null) : Float;
+	
+	/**
+		Returns the top coordinate value of the `DOMRect` (usually the same as `y`.)
+	**/
 	var top(default,null) : Float;
+	
+	/**
+		Returns the right coordinate value of the `DOMRect` (usually the same as `x + width`).
+	**/
 	var right(default,null) : Float;
+	
+	/**
+		Returns the bottom coordinate value of the `DOMRect` (usually the same as y + height).
+	**/
 	var bottom(default,null) : Float;
+	
+	/**
+		Returns the left coordinate value of the `DOMRect` (usually the same as `x`).
+	**/
 	var left(default,null) : Float;
 	
 }

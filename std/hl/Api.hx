@@ -36,5 +36,6 @@ extern class Api {
 	@:hlNative("std", "get_virtual_value") static function getVirtualValue( v : Dynamic ) : Dynamic;
 	@:hlNative("std", "set_error_handler") static function setErrorHandler( v : Dynamic -> Void ) : Void;
 	@:hlNative("std", "breakpoint") static function breakPoint() : Void;
-	
+	@:hlNative("std", "sys_is64") static function is64() : Bool;
+
 }

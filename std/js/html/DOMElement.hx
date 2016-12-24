@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\Element.webidl line 18:0. Do not edit!
+// This file is generated from mozilla\Element.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `Element` interface represents an object of a `Document`. This interface describes methods and properties common to all kinds of elements. Specific behaviors are described in interfaces which inherit from `Element` but add additional functionality.
+
+	Documentation [Element](https://developer.mozilla.org/en-US/docs/Web/API/Element) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Element$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Element>
+**/
 @:native("Element")
 extern class DOMElement extends Node
 {
@@ -180,6 +187,10 @@ extern class DOMElement extends Node
 	function getElementsByTagNameNS( namespace_ : String, localName : String ) : HTMLCollection;
 	function getElementsByClassName( classNames : String ) : HTMLCollection;
 	/** @throws DOMError */
+	
+	/**
+		Designates a specific element as the capture target of future `PointerEvent`.
+	**/
 	function setPointerCapture( pointerId : Int ) : Void;
 	/** @throws DOMError */
 	function releasePointerCapture( pointerId : Int ) : Void;
@@ -217,11 +228,23 @@ extern class DOMElement extends Node
 	function querySelectorAll( selectors : String ) : NodeList;
 	/** @throws DOMError */
 	function createShadowRoot() : ShadowRoot;
+	
+	/**
+		…
+	**/
 	function getDestinationInsertionPoints() : NodeList;
 	/** @throws DOMError */
 	function requestFullscreen( ?options : Dynamic ) : Void;
 	/** @throws DOMError */
+	
+	/**
+		A shortcut method to create and run an animation on an element. Returns the created Animation object instance.
+	**/
 	function animate( frames : Dynamic, ?options : haxe.extern.EitherType<Float,Dynamic/*MISSING KeyframeAnimationOptions*/> ) : Animation;
+	
+	/**
+		Returns an array of Animation objects currently active on the element.
+	**/
 	function getAnimations() : Array<Animation>;
 	function remove() : Void;
 	/** @throws DOMError */

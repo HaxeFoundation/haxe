@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\HashChangeEvent.webidl line 10:0. Do not edit!
+// This file is generated from mozilla\HashChangeEvent.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `hashchange` event is fired when the fragment identifier of the URL has changed (the part of the URL that follows the # symbol, including the # symbol).
+
+	Documentation [HashChangeEvent](https://developer.mozilla.org/en-US/docs/Web/API/HashChangeEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HashChangeEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HashChangeEvent>
+**/
 @:native("HashChangeEvent")
 extern class HashChangeEvent extends Event
 {

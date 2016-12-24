@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SVGSetElement.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\SVGSetElement.webidl. Do not edit!
 
 package js.html.svg;
 
+/**
+	The `SVGSetElement` interface corresponds to the `set` element.
+
+	Documentation [SVGSetElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGSetElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGSetElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGSetElement>
+**/
 @:native("SVGSetElement")
 extern class SetElement extends AnimationElement
 {

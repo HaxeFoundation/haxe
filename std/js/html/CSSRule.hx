@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from cssrule.webidl line 4:2. Do not edit!
+// This file is generated from cssrule.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `CSSRule` interface represents a single CSS rule. There are several types of rules, listed in the Type constants section below.
+
+	Documentation [CSSRule](https://developer.mozilla.org/en-US/docs/Web/API/CSSRule) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CSSRule$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSRule>
+**/
 @:native("CSSRule")
 extern class CSSRule
 {

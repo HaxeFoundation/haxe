@@ -10,7 +10,7 @@ environment:
         MYSQL_USER: root
         MYSQL_PASSWORD: Password12!
     matrix:
-        - TEST: "neko,python,cs,java,macro"
+        - TEST: "neko,python,cs,java,macro,php7"
         - TEST: "cpp"
 
 services:
@@ -36,6 +36,10 @@ install:
     - '%CYG_ROOT%/bin/bash -lc "opam install camlp4 --yes"'
     # Install neko
     - choco install neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
+    - choco install php --ignore-dependencies
+    - echo extension=php_mysqli.dll >> C:\tools\php\php.ini
+    - echo extension=php_sqlite3.dll >> C:\tools\php\php.ini
+    - echo extension=php_openssl.dll >> C:\tools\php\php.ini
     - RefreshEnv
     # do not use chocolatey's shim, which is buggy when processing arguments
     # see https://github.com/chocolatey/shimgen/issues/27

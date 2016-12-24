@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\KeyboardEvent.webidl line 10:0. Do not edit!
+// This file is generated from mozilla\KeyboardEvent.webidl. Do not edit!
 
 package js.html;
 
+/**
+	`KeyboardEvent` objects describe a user interaction with the keyboard. Each event describes a key; the event type (`keydown`, `keypress`, or `keyup`) identifies what kind of activity was performed.
+
+	Documentation [KeyboardEvent](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent>
+**/
 @:native("KeyboardEvent")
 extern class KeyboardEvent extends UIEvent
 {
@@ -217,19 +224,71 @@ extern class KeyboardEvent extends UIEvent
 	static inline var DOM_VK_PA1 : Int = 253;
 	static inline var DOM_VK_WIN_OEM_CLEAR : Int = 254;
 	
+	
+	/**
+		Returns a `Number` representing the Unicode reference number of the key; this attribute is used only by the `keypress` event. For keys whose `char` attribute contains multiple characters, this is the Unicode value of the first character in that attribute. In Firefox 26 this returns codes for printable characters.
+		 Warning: This attribute is deprecated; you should use `KeyboardEvent.key` instead, if available.
+		 
+	**/
 	var charCode(default,null) : Int;
+	
+	/**
+		Returns a `Number` representing a system and implementation dependent numerical code identifying the unmodified value of the pressed key.
+		 Warning: This attribute is deprecated; you should use `KeyboardEvent.key` instead, if available.
+		 
+	**/
 	var keyCode(default,null) : Int;
+	
+	/**
+		Returns a `Boolean` that is `true` if the Alt ( Option or ⌥ on OS X) key was active when the key event was generated.
+	**/
 	var altKey(default,null) : Bool;
+	
+	/**
+		Returns a `Boolean` that is `true` if the Ctrl key was active when the key event was generated.
+	**/
 	var ctrlKey(default,null) : Bool;
+	
+	/**
+		Returns a `Boolean` that is `true` if the Shift key was active when the key event was generated.
+	**/
 	var shiftKey(default,null) : Bool;
+	
+	/**
+		Returns a `Boolean` that is `true` if the Meta key (on Mac keyboards, the ⌘ Command key; on Windows keyboards, the Windows key (⊞)) was active when the key event was generated.
+	**/
 	var metaKey(default,null) : Bool;
+	
+	/**
+		Returns a `Number` representing the location of the key on the keyboard or other input device.
+	**/
 	var location(default,null) : Int;
+	
+	/**
+		Returns a `Boolean` that is `true` if the key is being held down such that it is automatically repeating.
+	**/
 	var repeat(default,null) : Bool;
+	
+	/**
+		Returns a `Boolean` that is `true` if the event is fired between after `compositionstart` and before `compositionend`.
+	**/
 	var isComposing(default,null) : Bool;
+	
+	/**
+		Returns a `DOMString` representing the key value of the key represented by the event.
+	**/
 	var key(default,null) : String;
 	
 	/** @throws DOMError */
 	function new( typeArg : String, ?keyboardEventInitDict : KeyboardEventInit ) : Void;
+	
+	/**
+		Returns a `Boolean` indicating if the modifier key, like Alt, Shift, Ctrl, or Meta, was pressed when the event was created.
+	**/
 	function getModifierState( key : String ) : Bool;
+	
+	/**
+		Initializes a `KeyboardEvent` object. This has only been implemented by Gecko (others used `KeyboardEvent.initKeyboardEvent()`) and should not be used any more. The standard modern way is to use the `KeyboardEvent.KeyboardEvent` constructor.
+	**/
 	function initKeyEvent( type : String, canBubble : Bool, cancelable : Bool, view : Window, ctrlKey : Bool, altKey : Bool, shiftKey : Bool, metaKey : Bool, keyCode : Int, charCode : Int ) : Void;
 }

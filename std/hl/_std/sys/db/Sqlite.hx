@@ -22,8 +22,8 @@
 package sys.db;
 import haxe.crypto.BaseCode;
 
-private typedef SqliteConnectionHandle = hl.types.NativeAbstract<"sqlite_database">;
-private typedef SqliteResultHandle = hl.types.NativeAbstract<"sqlite_result">;
+private typedef SqliteConnectionHandle = hl.Abstract<"sqlite_database">;
+private typedef SqliteResultHandle = hl.Abstract<"sqlite_result">;
 
 @:hlNative("sqlite")
 private class SqliteLib

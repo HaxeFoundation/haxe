@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SVGNumberList.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\SVGNumberList.webidl. Do not edit!
 
 package js.html.svg;
 
+/**
+	The `SVGNumberList` defines a list of `SVGNumber` objects.
+
+	Documentation [SVGNumberList](https://developer.mozilla.org/en-US/docs/Web/API/SVGNumberList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGNumberList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGNumberList>
+**/
 @:native("SVGNumberList")
 extern class NumberList implements ArrayAccess<Number>
 {

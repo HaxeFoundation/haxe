@@ -20,15 +20,34 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\TouchList.webidl line 16:0. Do not edit!
+// This file is generated from mozilla\TouchList.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `TouchList` interface represents a list of contact points with a touch surface; for example, if the user has three fingers on the touch surface (such as a screen or trackpad), the corresponding `TouchList` object would have one `Touch` object for each finger, for a total of three entries.
+
+	Documentation [TouchList](https://developer.mozilla.org/en-US/docs/Web/API/TouchList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/TouchList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/TouchList>
+**/
 @:native("TouchList")
 extern class TouchList implements ArrayAccess<Touch>
 {
+	
+	/**
+		The number of `Touch` objects in the `TouchList`.
+	**/
 	var length(default,null) : Int;
 	
+	
+	/**
+		Returns the `Touch` object at the specified index in the list.
+	**/
 	function item( index : Int ) : Touch;
+	
+	/**
+		Returns the first `Touch` item in the list whose identifier matches a specified value.
+	**/
 	function identifiedTouch( identifier : Int ) : Touch;
 }

@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\HTMLElement.webidl line 17:0. Do not edit!
+// This file is generated from mozilla\HTMLElement.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `HTMLElement` interface represents any HTML element. Some elements directly implement this interface, others implement it via an interface that inherits it.
+
+	Documentation [HTMLElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement>
+**/
 @:native("HTMLElement")
 extern class Element extends DOMElement
 {

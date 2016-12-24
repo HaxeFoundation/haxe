@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SVGDescElement.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\SVGDescElement.webidl. Do not edit!
 
 package js.html.svg;
 
+/**
+	The `SVGDescElement` interface corresponds to the `desc` element.
+
+	Documentation [SVGDescElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGDescElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGDescElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGDescElement>
+**/
 @:native("SVGDescElement")
 extern class DescElement extends Element
 {

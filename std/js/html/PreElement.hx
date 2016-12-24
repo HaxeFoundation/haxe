@@ -20,13 +20,24 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\HTMLPreElement.webidl line 18:0. Do not edit!
+// This file is generated from mozilla\HTMLPreElement.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `HTMLPreElement` interface expose specific properties and methods (beyond those defined by regular `HTMLElement` interface it also has available to it by inheritance) for manipulating block of preformatted text.
+
+	Documentation [HTMLPreElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLPreElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLPreElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLPreElement>
+**/
 @:native("HTMLPreElement")
 extern class PreElement extends Element
 {
+	
+	/**
+		Is a `long` value reflecting the obsolete `width` attribute, containing a fixed-size length for the `pre` element.
+	**/
 	var width : Int;
 	
 }

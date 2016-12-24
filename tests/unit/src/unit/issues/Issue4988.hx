@@ -1,14 +1,20 @@
 package unit.issues;
 
 class Issue4988 extends Test {
-	function test() {
-		#if !(php || lua)
-		try {
-			var d:{i:Null<Int>} = null;
-			foo(d.i > 0);
-		} catch (e:Dynamic) {}
-		#end
-	}
+	static var value:Dynamic;
+	static var actuallyRunCode = false;
 
-	function foo(_) {}
+	function test() {
+		if (actuallyRunCode) {
+			try {
+				var d:{i:Null<Int>} = null;
+				value = (d.i > 0);
+				t(false);
+			} catch(e:Dynamic) {
+				t(true);
+			}
+		} else {
+			t(true);
+		}
+	}
 }

@@ -24,6 +24,7 @@
 import haxe.extern.AsVar;
 
 @:coreType
+@:analyzer(as_var)
 extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
 {
    public var ref(get,set):Reference<T>;
@@ -71,7 +72,7 @@ extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
 
    inline public function toUnmanagedVector(elementCount:Int) : haxe.ds.Vector<T>
       return cast toUnmanagedArray(elementCount);
- 
+
 
    override public function inc():Pointer<T>;
    override public function dec():Pointer<T>;

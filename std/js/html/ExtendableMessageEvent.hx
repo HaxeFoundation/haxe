@@ -20,17 +20,44 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\ExtendableMessageEvent.webidl line 14:0. Do not edit!
+// This file is generated from mozilla\ExtendableMessageEvent.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `ExtendableMessageEvent` interface of the `ServiceWorker API` represents the event object of a `message` event fired on a service worker (when a channel message is received on the `ServiceWorkerGlobalScope` from another context) — extends the lifetime of such events.
+
+	Documentation [ExtendableMessageEvent](https://developer.mozilla.org/en-US/docs/Web/API/ExtendableMessageEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ExtendableMessageEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ExtendableMessageEvent>
+**/
 @:native("ExtendableMessageEvent")
 extern class ExtendableMessageEvent extends ExtendableEvent
 {
+	
+	/**
+		Returns the event's data. It can be any data type.
+	**/
 	var data(default,null) : Dynamic;
+	
+	/**
+		Returns the origin of the `ServiceWorkerClient` that sent the message
+	**/
 	var origin(default,null) : String;
+	
+	/**
+		Represents, in server-sent events, the last event ID of the event source.
+	**/
 	var lastEventId(default,null) : String;
+	
+	/**
+		Returns a reference to the service worker that sent the message.
+	**/
 	var source(default,null) : haxe.extern.EitherType<Client,haxe.extern.EitherType<ServiceWorker,MessagePort>>;
+	
+	/**
+		Returns the array containing the `MessagePort` objects representing the ports of the associated message channel.
+	**/
 	var ports(default,null) : MessagePortList;
 	
 	/** @throws DOMError */

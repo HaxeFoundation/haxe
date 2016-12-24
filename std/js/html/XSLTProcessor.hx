@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\XSLTProcessor.webidl line 11:0. Do not edit!
+// This file is generated from mozilla\XSLTProcessor.webidl. Do not edit!
 
 package js.html;
 
+/**
+	An `XSLTProcessor` applies an XSLT stylesheet transformation to an XML document to produce a new XML document as output. It has methods to load the XSLT stylesheet, to manipulate `xsl:param` parameter values, and to apply the transformation to documents.
+
+	Documentation [XSLTProcessor](https://developer.mozilla.org/en-US/docs/Web/API/XSLTProcessor) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/XSLTProcessor$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/XSLTProcessor>
+**/
 @:native("XSLTProcessor")
 extern class XSLTProcessor
 {

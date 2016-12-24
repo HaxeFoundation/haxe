@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\AnimationEffectTiming.webidl line 16:0. Do not edit!
+// This file is generated from mozilla\AnimationEffectTiming.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `AnimationEffectTiming` interface of the Web Animations API is comprised of timing properties. It is returned by the `timing` attribute of a `KeyframeEffect`.
+
+	Documentation [AnimationEffectTiming](https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectTiming) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectTiming$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectTiming>
+**/
 @:native("AnimationEffectTiming")
 extern class AnimationEffectTiming extends AnimationEffectTimingReadOnly
 {

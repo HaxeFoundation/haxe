@@ -1496,6 +1496,31 @@ let load_native ctx lib name t =
 			(function
 			| [] -> VBool true
 			| _ -> assert false)
+		| "sys_string" ->
+			let cached_sys_name = ref None in
+			(function
+			| [] ->
+				VBytes (caml_to_hl (match Sys.os_type with
+				| "Unix" ->
+					(match !cached_sys_name with
+					| Some n -> n
+					| None ->
+						let ic = Unix.open_process_in "uname" in
+						let uname = (match input_line ic with
+							| "Darwin" -> "Mac"
+							| n -> n
+						) in
+						close_in ic;
+						cached_sys_name := Some uname;
+						uname)
+				| "Win32" | "Cygwin" -> "Windows"
+				| s -> s))
+			| _ ->
+				assert false)
+		| "sys_is64" ->
+			(function
+			| [] -> VBool (Sys.word_size = 64)
+			| _ -> assert false)
 		| "hash" ->
 			(function
 			| [VBytes str] -> VInt (hash ctx (hl_to_caml str))
@@ -1912,7 +1937,8 @@ let load_native ctx lib name t =
 						| '1'..'9' | '+' | '$' | '^' | '*' | '?' | '.' | '[' | ']' ->
 							Buffer.add_char buf '\\';
 							Buffer.add_char buf c;
-						| _ -> failwith ("Unsupported escaped char '" ^ String.make 1 c ^ "'"));
+						| _ ->
+							Buffer.add_char buf c);
 						loop c false l
 					| c :: l ->
 						match c with

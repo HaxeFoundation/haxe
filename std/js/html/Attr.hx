@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\Attr.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\Attr.webidl. Do not edit!
 
 package js.html;
 
+/**
+	This type represents a DOM element's attribute as an object. In most DOM methods, you will probably directly retrieve the attribute as a string (e.g., `Element.getAttribute()`, but certain functions (e.g., `Element.getAttributeNode()`) or means of iterating give `Attr` types.
+
+	Documentation [Attr](https://developer.mozilla.org/en-US/docs/Web/API/Attr) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Attr$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Attr>
+**/
 @:native("Attr")
 extern class Attr extends Node
 {

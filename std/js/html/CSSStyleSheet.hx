@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\CSSStyleSheet.webidl line 20:0. Do not edit!
+// This file is generated from mozilla\CSSStyleSheet.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `CSSStyleSheet` interface represents a single CSS style sheet. It inherits properties and methods from its parent, `StyleSheet`.
+
+	Documentation [CSSStyleSheet](https://developer.mozilla.org/en-US/docs/Web/API/CSSStyleSheet) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CSSStyleSheet$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSStyleSheet>
+**/
 @:native("CSSStyleSheet")
 extern class CSSStyleSheet extends StyleSheet
 {

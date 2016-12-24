@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\FileReaderSync.webidl line 17:0. Do not edit!
+// This file is generated from mozilla\FileReaderSync.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `FileReaderSync` interface allows to read `File` or `Blob` objects in a synchronous way.
+
+	Documentation [FileReaderSync](https://developer.mozilla.org/en-US/docs/Web/API/FileReaderSync) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/FileReaderSync$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/FileReaderSync>
+**/
 @:native("FileReaderSync")
 extern class FileReaderSync
 {

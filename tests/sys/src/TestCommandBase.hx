@@ -36,6 +36,8 @@ class TestCommandBase extends haxe.unit.TestCase {
 				run(python.lib.Sys.executable, [bin].concat(args));
 			#elseif neko
 				run("neko", [bin].concat(args));
+			#elseif hl
+				run("hl", [bin].concat(args));
 			#elseif php
 				run(untyped __php__("defined('PHP_BINARY') ? PHP_BINARY : 'php'"), [bin].concat(args));
 			#elseif lua
@@ -121,6 +123,8 @@ class TestCommandBase extends haxe.unit.TestCase {
 					run(python.lib.Sys.executable, [bin].concat(args));
 				#elseif neko
 					run("neko", [bin].concat(args));
+				#elseif hl
+					run("hl", [bin].concat(args));
 				#elseif php
 					run(untyped __php__("defined('PHP_BINARY') ? PHP_BINARY : 'php'"), [bin].concat(args));
 				#elseif lua

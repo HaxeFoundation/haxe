@@ -21,6 +21,7 @@ private typedef TravisConfig = {
 	var Js = "js";
 	var Lua = "lua";
 	var Php = "php";
+	var Php7 = "php7";
 	var Cpp = "cpp";
 	var Flash9 = "flash9";
 	var As3 = "as3";
@@ -490,6 +491,7 @@ class RunCi {
 			runCommand("lua", ["-v"]);
 		}
 		runCommand("pip", ["install", "--user", "cpp-coveralls"]);
+		runCommand("luarocks", ["install", "luafilesystem", "1.6.3-2", "--server=https://luarocks.org/dev"]);
 		runCommand("luarocks", ["install", "lrexlib-pcre", "2.7.2-1", "--server=https://luarocks.org/dev"]);
 		runCommand("luarocks", ["install", "luautf8", "--server=https://luarocks.org/dev"]);
 
@@ -776,6 +778,7 @@ class RunCi {
 			runCommand('gbp import-orig "../haxe_${SNAPSHOT_VERSION}.orig.tar.gz" -u "${SNAPSHOT_VERSION}" --debian-branch=next');
 			runCommand('dch -v "1:${SNAPSHOT_VERSION}-1" --urgency low "snapshot build"');
 			runCommand("debuild -S -sa");
+			runCommand("backportpackage -d yakkety --upload ${PPA} --yes ../haxe_*.dsc");
 			runCommand("backportpackage -d xenial  --upload ${PPA} --yes ../haxe_*.dsc");
 			runCommand("backportpackage -d wily    --upload ${PPA} --yes ../haxe_*.dsc");
 			runCommand("backportpackage -d vivid   --upload ${PPA} --yes ../haxe_*.dsc");
@@ -844,15 +847,23 @@ class RunCi {
 						changeDirectory(sysDir);
 						runCommand("haxe", ["compile-neko.hxml"]);
 						runCommand("neko", ["bin/neko/sys.n"]);
-					case Php:
-						getSpodDependencies();
-						getPhpDependencies();
-						runCommand("haxe", ["compile-php.hxml"].concat(args));
-						runCommand("php", ["bin/php/index.php"]);
+					case Php7:
+							getSpodDependencies();
+							runCommand("haxe", ["compile-php7.hxml"].concat(args));
+							runCommand("php", ["bin/php7/index.php"]);
 
-						changeDirectory(sysDir);
-						runCommand("haxe", ["compile-php.hxml"]);
-						runCommand("php", ["bin/php/Main/index.php"]);
+							changeDirectory(sysDir);
+							runCommand("haxe", ["compile-php7.hxml"]);
+							runCommand("php", ["bin/php7/Main/index.php"]);
+					case Php:
+							getSpodDependencies();
+							getPhpDependencies();
+							runCommand("haxe", ["compile-php.hxml"].concat(args));
+							runCommand("php", ["bin/php/index.php"]);
+
+							changeDirectory(sysDir);
+							runCommand("haxe", ["compile-php.hxml"]);
+							runCommand("php", ["bin/php/Main/index.php"]);
 					case Python:
 						var pys = getPythonDependencies();
 
@@ -1046,8 +1057,9 @@ class RunCi {
 						if (commandSucceed("mxmlc", ["--version"])) {
 							infoMsg('mxmlc has already been installed.');
 						} else {
-							var flexVersion = "4.14.1";
-							runCommand("wget", ['http://archive.apache.org/dist/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz'], true);
+							var apacheMirror = Json.parse(Http.requestUrl("http://www.apache.org/dyn/closer.lua?as_json=1")).preferred;
+							var flexVersion = "4.15.0";
+							runCommand("wget", ['${apacheMirror}/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz'], true);
 							runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz', "-C", Sys.getEnv("HOME")]);
 							var flexsdkPath = Sys.getEnv("HOME") + '/apache-flex-sdk-${flexVersion}-bin';
 							addToPATH(flexsdkPath + "/bin");

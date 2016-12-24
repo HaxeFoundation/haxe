@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\HTMLInputElement.webidl line 26:0. Do not edit!
+// This file is generated from mozilla\HTMLInputElement.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `HTMLInputElement` interface provides special properties and methods for manipulating the layout and presentation of input elements.
+
+	Documentation [HTMLInputElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement>
+**/
 @:native("HTMLInputElement")
 extern class InputElement extends Element
 {
@@ -67,13 +74,43 @@ extern class InputElement extends Element
 	var selectionStart : Int;
 	var selectionEnd : Int;
 	var selectionDirection : String;
+	
+	/**
+		`string:` represents the alignment of the element. Use CSS instead.
+	**/
 	var align : String;
+	
+	/**
+		`string:` represents a client-side image map.
+	**/
 	var useMap : String;
 	var textLength(default,null) : Int;
 	
 	/** @throws DOMError */
+	
+	/**
+		Increments the `value` by (`step` * n), where n defaults to 1 if not specified. Throws an INVALID_STATE_ERR exception:
+		 
+		  if the method is not applicable to for the current `type` value.,
+		  if the element has no `step` value,
+		  if the `value` cannot be converted to a number,
+		  if the resulting value is above the `max` or below the `min`.
+		 
+		 
+	**/
 	function stepUp( ?n : Int = 1 ) : Void;
 	/** @throws DOMError */
+	
+	/**
+		Decrements the `value` by (`step` * n), where n defaults to 1 if not specified. Throws an INVALID_STATE_ERR exception:
+		 
+		  if the method is not applicable to for the current `type` value,
+		  if the element has no `step` value,
+		  if the `value` cannot be converted to a number,
+		  if the resulting value is above the `max` or below the `min`. 
+		 
+		 
+	**/
 	function stepDown( ?n : Int = 1 ) : Void;
 	function checkValidity() : Bool;
 	function setCustomValidity( error : String ) : Void;

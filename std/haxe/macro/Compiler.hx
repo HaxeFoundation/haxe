@@ -213,7 +213,7 @@ class Compiler {
 				continue;
 			found = true;
 			for( file in sys.FileSystem.readDirectory(path) ) {
-				if( StringTools.endsWith(file, ".hx") && file.indexOf(".") < 0 ) {
+				if( StringTools.endsWith(file, ".hx") && file.substr(0, file.length - 3).indexOf(".") < 0 ) {
 					var cl = prefix + file.substr(0, file.length - 3);
 					if( skip(cl) )
 						continue;

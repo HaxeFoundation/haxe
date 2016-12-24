@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\PageTransitionEvent.webidl line 17:0. Do not edit!
+// This file is generated from mozilla\PageTransitionEvent.webidl. Do not edit!
 
 package js.html;
 
+/**
+	Page transition events fire when a webpage is being loaded or unloaded.
+
+	Documentation [PageTransitionEvent](https://developer.mozilla.org/en-US/docs/Web/API/PageTransitionEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PageTransitionEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/PageTransitionEvent>
+**/
 @:native("PageTransitionEvent")
 extern class PageTransitionEvent extends Event
 {

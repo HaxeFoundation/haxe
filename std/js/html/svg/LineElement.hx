@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SVGLineElement.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\SVGLineElement.webidl. Do not edit!
 
 package js.html.svg;
 
+/**
+	The `SVGLineElement` interface provides access to the properties of `line` elements, as well as methods to manipulate them.
+
+	Documentation [SVGLineElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGLineElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGLineElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGLineElement>
+**/
 @:native("SVGLineElement")
 extern class LineElement extends GraphicsElement
 {

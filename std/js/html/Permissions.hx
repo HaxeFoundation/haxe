@@ -20,15 +20,28 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\Permissions.webidl line 29:0. Do not edit!
+// This file is generated from mozilla\Permissions.webidl. Do not edit!
 
 package js.html;
 
+/**
+	Documentation [Permissions](https://developer.mozilla.org/en-US/docs/Web/API/Permissions) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Permissions$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Permissions>
+**/
 @:native("Permissions")
 extern class Permissions
 {
 	/** @throws DOMError */
+	
+	/**
+		Returns the user permission status for a given API.
+	**/
 	function query( permission : Dynamic ) : Promise<PermissionStatus>;
 	/** @throws DOMError */
+	
+	/**
+		Revokes the permission currently set on a given API.
+	**/
 	function revoke( permission : Dynamic ) : Promise<PermissionStatus>;
 }
