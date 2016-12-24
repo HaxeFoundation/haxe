@@ -20,14 +20,13 @@
 
 # Making the release
 
-- Copy relevant changelog part to CHANGES.md.
+- Copy relevant changelog part to downloads/$version/CHANGES.md.
 - Write announcement post.
-- Copy announcement post to RELEASE.md.
-- Update versions.json
-- Push the generated binaries and installers to haxe.org.
+- Copy announcement post to downloads/$version/RELEASE.md.
+- Update downloads/versions.json
+- Push the generated binaries and installers to haxe.org, requires git-lfs
 
 # Announcing the release
 
 - Regenerate and upload API documentation (check --title and -D version values).
-- Update http://haxe.org/file/CHANGES.txt
 - Post announcement post to haxelang.
