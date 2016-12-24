@@ -92,7 +92,7 @@ class Process {
 		return -1;
 	}
 
-	public function exitCode( ?block : Bool ) : Null<Int>
+	public function exitCode( block : Bool = true ) : Null<Int>
 	{
 		if( block == false ) {
 			try {

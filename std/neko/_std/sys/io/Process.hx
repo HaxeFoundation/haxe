@@ -106,7 +106,7 @@ private class Stdout extends haxe.io.Input {
 		return _pid(p);
 	}
 
-	public function exitCode( ?block : Bool ) : Null<Int> {
+	public function exitCode( block : Bool = true ) : Null<Int> {
 		if( block == false ) throw "Non blocking exitCode() not supported on this platform";
 		return _exit(p);
 	}

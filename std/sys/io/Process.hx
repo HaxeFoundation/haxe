@@ -63,7 +63,7 @@ extern class Process {
 		If `block` is false, it will return either the process exit code if it's already terminated or null if it's still running.
 		If the process has already exited, return the exit code immediately.
 	*/
-	function exitCode( ?block : Bool ) : Null<Int>;
+	function exitCode( block : Bool = true ) : Null<Int>;
 
 	/**
 		Close the process handle and release the associated resources.

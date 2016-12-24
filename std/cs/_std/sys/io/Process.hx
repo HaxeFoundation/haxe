@@ -109,7 +109,7 @@ class Process {
 		return native.Id;
 	}
 
-	public function exitCode( ?block : Bool ) : Null<Int>
+	public function exitCode( block : Bool = true ) : Null<Int>
 	{
 		if( block == false && !native.HasExited )
 			return null;

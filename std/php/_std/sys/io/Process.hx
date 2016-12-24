@@ -139,7 +139,7 @@ class Process {
 		untyped input.p = fp;
 	}
 
-	public function exitCode( ?block : Bool ) : Null<Int> {
+	public function exitCode( block : Bool = true ) : Null<Int> {
 		if (null == cl)
 		{
 			st = untyped __call__('proc_get_status', p);
