@@ -40,15 +40,15 @@ For the complete Haxe licenses, please see https://haxe.org/foundation/open-sour
 
 ## Installing Haxe
 
-The latest stable release is [Haxe 3.4.0-rc.2](https://haxe.org/download/version/3.4.0-rc.2/). Pre-built binaries are available for your platform:
+The latest stable release is [Haxe 3.4.0-rc.2](https://haxe.org/download/). Pre-built binaries are available for your platform:
 
- * **[Windows installer](https://haxe.org/download/file/3.4.0-rc.2/haxe-3.4.0-rc.2-win.exe)**
- * **[Windows binaries](https://haxe.org/download/file/3.4.0-rc.2/haxe-3.4.0-rc.2-win.zip)**
- * **[OSX installer](https://haxe.org/download/file/3.4.0-rc.2/haxe-3.4.0-rc.2-osx-installer.pkg)**
- * **[OSX binaries](https://haxe.org/download/file/3.4.0-rc.2/haxe-3.4.0-rc.2-osx.tar.gz)**
- * **[Linux Software Packages](https://haxe.org/download/linux)**
- * **[Linux 32-bit binaries](https://haxe.org/download/file/3.4.0-rc.2/haxe-3.4.0-rc.2-linux32.tar.gz)**
- * **[Linux 64-bit binaries](https://haxe.org/download/file/3.4.0-rc.2/haxe-3.4.0-rc.2-linux64.tar.gz)**
+ * **[Windows installer](https://haxe.org/download/file/latest/haxe-latest-win.exe/)**
+ * **[Windows binaries](https://haxe.org/download/file/latest/haxe-latest-win.zip/)**
+ * **[OSX installer](https://haxe.org/download/file/latest/haxe-latest-osx-installer.pkg/)**
+ * **[OSX binaries](https://haxe.org/download/file/latest/haxe-latest-osx.tar.gz/)**
+ * **[Linux Software Packages](https://haxe.org/download/linux/)**
+ * **[Linux 32-bit binaries](https://haxe.org/download/file/latest/haxe-latest-linux32.tar.gz/)**
+ * **[Linux 64-bit binaries](https://haxe.org/download/file/latest/haxe-latest-linux64.tar.gz/)**
 
 Automated development builds are available from [build.haxe.org](http://build.haxe.org).
 
@@ -63,10 +63,10 @@ Automated development builds are available from [build.haxe.org](http://build.ha
 
 ## Using Haxe
 
-For information on on using Haxe, consult the [Haxe documentation](https://haxe.org/documentation):
+For information on on using Haxe, consult the [Haxe documentation](https://haxe.org/documentation/):
 
- * [Haxe Introduction](https://haxe.org/documentation/introduction), an introduction to the Haxe toolkit
- * [The Haxe Manual](https://haxe.org/manual), the reference manual for the Haxe language
+ * [Haxe Introduction](https://haxe.org/documentation/introduction/), an introduction to the Haxe toolkit
+ * [The Haxe Manual](https://haxe.org/manual/), the reference manual for the Haxe language
  * [Haxe Code Cookbook](http://code.haxe.org), code snippets / learning resource
  * [Haxe API](http://api.haxe.org), documentation for the Haxe standard and native APIs
  * [Haxelib](https://lib.haxe.org), a repository of Haxe libraries for a variety of needs
