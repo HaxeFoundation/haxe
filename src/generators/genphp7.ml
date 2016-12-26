@@ -235,7 +235,7 @@ let rec is_dynamic_type (target:Type.t) = match follow target with TDynamic _ ->
 (**
 	Check if `target` is `php.Ref`
 *)
-let is_ref (target:Type.t) = match target with TAbstract ({ a_path = type_path }, _) -> type_path = ref_type_path | _ -> false
+let is_ref (target:Type.t) = match target with TType ({ t_path = type_path }, _) -> type_path = ref_type_path | _ -> false
 
 (**
 	Check if `field` is a `dynamic function`

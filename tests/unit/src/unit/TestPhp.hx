@@ -1,5 +1,7 @@
 package unit;
 
+import php.*;
+
 using StringTools;
 
 class TestPhp extends Test
@@ -7,8 +9,7 @@ class TestPhp extends Test
 	var list : Array<Dynamic>;
 	var list2 : Array<Dynamic>;
 	function empty() return true;
-	function testAbstractEnum()
-	{
+	function testAbstractEnum() {
 		eq(Abstract.getName(), "Abstract");
 		var x = Const("foo");
 		var s = switch(x) {
@@ -18,27 +19,23 @@ class TestPhp extends Test
 		eq("foo", s);
 	}
 
-	function testAbstractKeywordAsFunction()
-	{
+	function testAbstractKeywordAsFunction() {
 		t(empty());
 	}
 
-	function testList2()
-	{
+	function testList2() {
 		list2 = new Array<Dynamic>();
 		for( l in list2 ) {} // fails here
 		t(true);
 	}
 
-	function testList()
-	{
+	function testList() {
 		list = new Array<Dynamic>();
 		for( l in list ) {} // fails here
 		t(true);
 	}
 
-	function testIssue1828()
-	{
+	function testIssue1828() {
 		var x = try {
 			throw "foo";
 		} catch (e:String) {
@@ -47,15 +44,13 @@ class TestPhp extends Test
 		t(x);
 	}
 
-	function testIssue1521()
-	{
+	function testIssue1521() {
 		var pattern = "$a$b";
 		var result = pattern.replace("$a","A").replace("$b","B");
 		eq("AB", result);
 	}
 
-	function testIssue2146()
-	{
+	function testIssue2146() {
 		f(Class2146.test());
 	}
 
@@ -69,6 +64,28 @@ class TestPhp extends Test
 	inline static function make():FunctionCallerWrapper {
 		return new FunctionCaller(function(f) f());
 	}
+
+#if php7
+	/**
+		Check compiler will generate proper function signature with `Ref<T>` arguments
+	**/
+	function testRef() {
+		function modify(i:Ref<Int>) i = 10; //avoid inlining
+		var i = 0;
+		modify(i);
+		eq(10, i);
+	}
+
+	/**
+		Check compiler will not fuse `Ref<T>` vars
+	**/
+	// function testRefAsVar() {
+	// 	var modify = function(i:Ref<Int>) i = 10;
+	// 	var i = 0;
+	// 	modify(i);
+	// 	t(true);
+	// }
+#end
 }
 
 class Class2146 {
