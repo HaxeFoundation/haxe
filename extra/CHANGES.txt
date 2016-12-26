@@ -1,3 +1,9 @@
+2017-??-??: 3.4.0
+
+	Bugfixes:
+
+	all : fixed issue with side-effect detection when optimizing (#5911)
+
 2016-12-24: 3.4.0-RC2
 
 	New features:

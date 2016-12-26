@@ -369,13 +369,19 @@ module InterferenceReport = struct
 		let rec loop e = match e.eexpr with
 			(* vars *)
 			| TLocal v ->
-				set_var_read ir v
+				set_var_read ir v;
+				if v.v_capture then set_state_read ir;
 			| TBinop(OpAssign,{eexpr = TLocal v},e2) ->
 				set_var_write ir v;
+				if v.v_capture then set_state_write ir;
 				loop e2
 			| TBinop(OpAssignOp _,{eexpr = TLocal v},e2) ->
 				set_var_read ir v;
 				set_var_write ir v;
+				if v.v_capture then begin
+					set_state_read ir;
+					set_state_write ir;
+				end;
 				loop e2
 			| TUnop((Increment | Decrement),_,{eexpr = TLocal v}) ->
 				set_var_read ir v;
