@@ -1711,10 +1711,8 @@ let generate_type ctx = function
 		| None -> ()
 		| Some e ->
 			ctx.inits <- e :: ctx.inits);
-		(* Special case, want to add Math.__name__ only when required, handle here since Math is extern *)
 		let p = s_path ctx c.cl_path in
-		if p = "Math" then generate_class___name__ ctx c;
-		(* Another special case for Std because we do not want to generate it if it's empty. *)
+		(* A special case for Std because we do not want to generate it if it's empty. *)
 		if p = "Std" && c.cl_ordered_statics = [] then
 			()
 		else if not c.cl_extern then
