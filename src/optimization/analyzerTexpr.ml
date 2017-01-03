@@ -706,7 +706,7 @@ module Fusion = struct
 								in
 								try loop e1; true with Exit -> false
 							in
-							(* PHP doesn't like call()() expressions. *)
+							(* PHP5 doesn't like call()() expressions. *)
 							let e2 = if com.platform = Php && not (is_php_safe e1) then explore e2 else replace e2 in
 							let el = handle_el el in
 							e2,el

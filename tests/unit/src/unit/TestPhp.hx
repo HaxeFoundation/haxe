@@ -71,9 +71,14 @@ class TestPhp extends Test
 	**/
 	function testRef() {
 		function modify(i:Ref<Int>) i = 10; //avoid inlining
+
 		var i = 0;
 		modify(i);
 		eq(10, i);
+
+		var d = new DummyForRef();
+		modify(d.getThis().field);
+		eq(10, d.field);
 	}
 
 	/**
@@ -86,6 +91,12 @@ class TestPhp extends Test
 	// 	t(true);
 	// }
 #end
+}
+
+private class DummyForRef {
+	public var field:Int = 0;
+	public function new() {}
+	public function getThis() return this;
 }
 
 class Class2146 {

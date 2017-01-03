@@ -172,7 +172,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.array-push.php
 	**/
-	static function array_push( array:NativeArray, value:Rest<Dynamic> ) : Int ;
+	static function array_push( array:Ref<NativeArray>, value:Rest<Dynamic> ) : Int ;
 
 	/**
 		@see http://php.net/manual/en/function.array-reverse.php
@@ -187,7 +187,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.array-shift.php
 	**/
-	static function array_shift( array:NativeArray ) : Dynamic ;
+	static function array_shift( array:Ref<NativeArray> ) : Dynamic ;
 
 	/**
 		@see http://php.net/manual/en/function.array-slice.php
@@ -197,12 +197,12 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.array-splice.php
 	**/
-	static function array_splice( array:NativeArray, offset:Int, lenght:Int = 0, ?replacement:Dynamic ) : NativeArray ;
+	static function array_splice( array:Ref<NativeArray>, offset:Int, lenght:Int = 0, ?replacement:Dynamic ) : NativeArray ;
 
 	/**
 		@see http://php.net/manual/en/function.array-unshift.php
 	**/
-	static function array_unshift( arr:NativeArray, value:Rest<Dynamic> ) : Int ;
+	static function array_unshift( arr:Ref<NativeArray>, value:Rest<Dynamic> ) : Int ;
 
 	/**
 		@see http://php.net/manual/en/function.array-values.php
@@ -232,32 +232,32 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.usort.php
 	**/
-	static function usort( array:NativeArray, value_compare_func:Dynamic->Dynamic->Int ) : Bool ;
+	static function usort( array:Ref<NativeArray>, value_compare_func:Dynamic->Dynamic->Int ) : Bool ;
 
 	/**
 		@see http://php.net/manual/en/function.reset.php
 	**/
-	static function reset( array:NativeArray ) : Dynamic;
+	static function reset( array:Ref<NativeArray> ) : Dynamic;
 
 	/**
 		@see http://php.net/manual/en/function.current.php
 	**/
-	static function current( array:NativeArray ) : Dynamic;
+	static function current( array:Ref<NativeArray> ) : Dynamic;
 
 	/**
 		@see http://php.net/manual/en/function.next.php
 	**/
-	static function next( array:NativeArray ) : Dynamic;
+	static function next( array:Ref<NativeArray> ) : Dynamic;
 
 	/**
 		@see http://php.net/manual/en/function.prev.php
 	**/
-	static function prev( array:NativeArray ) : Dynamic;
+	static function prev( array:Ref<NativeArray> ) : Dynamic;
 
 	/**
 		@see http://php.net/manual/en/function.end.php
 	**/
-	static function end( array:NativeArray ) : Dynamic;
+	static function end( array:Ref<NativeArray> ) : Dynamic;
 
 	/**
 		@see http://php.net/manual/en/function.key.php
@@ -267,7 +267,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.each.php
 	**/
-	static function each( array:NativeArray ) : NativeArray;
+	static function each( array:Ref<NativeArray> ) : NativeArray;
 
 	/**
 		@see http://php.net/manual/en/function.defined.php
