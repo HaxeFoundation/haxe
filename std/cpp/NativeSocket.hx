@@ -12,6 +12,9 @@ extern class NativeSocket
    @:extern @:native("_hx_std_socket_new")
    public static function socket_new(udp:Bool) : Dynamic return null;
 
+   @:extern @:native("_hx_std_socket_new")
+   public static function socket_new_ip(udp:Bool,ipv6:Bool) : Dynamic return null;
+
 
    @:extern @:native("_hx_std_socket_close")
    public static function socket_close(handle:Dynamic) : Void { }
@@ -19,6 +22,9 @@ extern class NativeSocket
 
    @:extern @:native("_hx_std_socket_bind")
    public static function socket_bind(o:Dynamic,host:Int,port:Int) : Void { }
+
+   @:extern @:native("_hx_std_socket_bind_ipv6")
+   public static function socket_bind_ipv6(o:Dynamic,host:haxe.io.BytesData,port:Int) : Void { }
 
 
    @:extern @:native("_hx_std_socket_send_char")
@@ -45,7 +51,7 @@ extern class NativeSocket
    public static function socket_read(o:Dynamic) : haxe.io.BytesData return null;
 
    @:extern @:native("_hx_std_host_resolve_ipv6")
-   public static function host_resolve_ipv6(host:String,onlyIfNoIpv4:Bool) : haxe.io.BytesData return null;
+   public static function host_resolve_ipv6(host:String) : haxe.io.BytesData return null;
 
 
    @:extern @:native("_hx_std_host_resolve")
@@ -69,9 +75,14 @@ extern class NativeSocket
    @:extern @:native("_hx_std_host_local")
    public static function host_local() : String return null;
 
+   inline public static function host_local_ipv6() : String return "::1";
+
 
    @:extern @:native("_hx_std_socket_connect")
    public static function socket_connect(o:Dynamic,host:Int,port:Int) : Void { }
+
+   @:extern @:native("_hx_std_socket_connect_ipv6")
+   public static function socket_connect_ipv6(o:Dynamic,host:haxe.io.BytesData,port:Int) : Void { }
 
 
    @:extern @:native("_hx_std_socket_listen")
