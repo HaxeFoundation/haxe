@@ -1968,6 +1968,8 @@ class virtual type_builder ctx wrapper =
 							)
 						| "__var__" ->
 							(match args with
+								| [] ->
+									self#write ("$" ^ code)
 								| [expr2] ->
 									self#write ("$" ^ code ^ "[");
 									self#write_expr expr2;
