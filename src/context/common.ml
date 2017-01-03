@@ -316,7 +316,7 @@ let get_signature com =
 		com.defines_signature <- Some s;
 		s
 
-let php7 com = com.platform = Php && PMap.exists "php7" com.defines
+let is_php7 com = com.platform = Php && PMap.exists "php7" com.defines
 
 module CompilationServer = struct
 	type cache = {
@@ -707,7 +707,7 @@ let get_config com =
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
 		}
 	| Php ->
-		if php7 com then
+		if is_php7 com then
 			{
 				default_config with
 				pf_static = false;

@@ -685,6 +685,26 @@ let ensure_return_in_block block_expr =
 		| _ -> fail block_expr.epos (try assert false with Assert_failure mlpos -> mlpos)
 
 (**
+	If `expr` is a block, then return list of expressions in that block.
+	Otherwise returns a list with `expr` as a single item.
+*)
+let unpack_block expr =
+		match expr.eexpr with
+			| TBlock exprs -> exprs
+			| _ -> [ expr ]
+
+(**
+	If `expr` is a block of a single expression, then return that single expression.
+	If `expr` is a block with multiple expressions, fail compilation.
+	Otherwise return `expr` as-is.
+*)
+let unpack_single_expr_block expr =
+		match expr.eexpr with
+			| TBlock [ e ] -> e
+			| TBlock _ -> fail expr.epos (try assert false with Assert_failure mlpos -> mlpos)
+			| _ -> expr
+
+(**
 	Check if specified type has rtti meta
 *)
 let has_rtti_meta ctx mtype =
@@ -1251,26 +1271,34 @@ class virtual type_builder ctx wrapper =
 		(**
 			Indicates whether current expression nesting level is a top level of a block
 		*)
-		method private parent_expr_is_block =
-			let rec expr_is_block expr parents =
+		method private parent_expr_is_block single_expr_is_not_block =
+			let rec expr_is_block expr parents no_parent_is_block =
 				match expr.eexpr with
+					| TBlock [_] when single_expr_is_not_block ->
+						(match parents with
+							| { eexpr = TBlock _ } :: _ -> true
+							| { eexpr = TFunction _ } :: _ -> true
+							| _ :: _ -> false
+							| [] -> no_parent_is_block
+						)
 					| TBlock _ -> true
 					| TIf (_, if_expr, Some else_expr) ->
-						if (expr_is_block if_expr []) || (expr_is_block else_expr []) then
+						if (expr_is_block if_expr [] false) || (expr_is_block else_expr [] false) then
 							true
 						else
 							(match parents with
-								| parent :: rest -> expr_is_block parent rest
+								| parent :: rest -> expr_is_block parent rest true
 								| [] -> false
 							)
 					| TIf (_, _, None) -> true
 					| TTry _ -> true
 					| TWhile _ -> true
+					| TFor _ -> true
 					| TSwitch _ -> true
 					| _ -> false
 			in
 			match expr_hierarchy with
-				| _ :: parent :: rest -> expr_is_block parent rest
+				| _ :: parent :: rest -> expr_is_block parent rest true
 				| _ -> false
 		(**
 			Returns parent expression.
@@ -1750,7 +1778,7 @@ class virtual type_builder ctx wrapper =
 				end
 			else
 				begin
-					let inline_block = self#parent_expr_is_block in
+					let inline_block = self#parent_expr_is_block false in
 					self#write_as_block ~inline:inline_block block_expr
 				end
 		(**
@@ -2546,8 +2574,9 @@ class virtual type_builder ctx wrapper =
 			Writes ternary operator expressions to output buffer
 		*)
 		method private write_expr_ternary condition if_expr (else_expr:texpr) pos =
-			let parent_is_if = match self#parent_expr with Some { eexpr = TIf _ } -> true | _ -> false in
-			if parent_is_if then self#write "(";
+			let if_expr = unpack_single_expr_block if_expr
+			and else_expr = unpack_single_expr_block else_expr in
+			self#write "(";
 			(match condition.eexpr with
 				| TParenthesis expr -> self#write_expr expr;
 				| _ -> self#write_expr else_expr
@@ -2556,17 +2585,19 @@ class virtual type_builder ctx wrapper =
 			self#write_expr if_expr;
 			self#write " : ";
 			self#write_expr else_expr;
-			if parent_is_if then self#write ")"
+			self#write ")"
 		(**
 			Writes "if...else..." expression to output buffer
 		*)
 		method private write_expr_if condition if_expr (else_expr:texpr option) =
 			let is_ternary =
-				if self#parent_expr_is_block then
+				if self#parent_expr_is_block true then
 					false
 				else
 					match (if_expr.eexpr, else_expr) with
-						| (TBlock _, _) | (_, Some { eexpr=TBlock _ }) -> false
+						| (TBlock exprs, _)  when (List.length exprs) > 1 -> false
+						| (_, Some { eexpr=TBlock exprs }) when (List.length exprs) > 1 -> false
+						| (_, None) -> false
 						| _ -> true
 			in
 			if is_ternary then

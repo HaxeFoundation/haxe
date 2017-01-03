@@ -277,7 +277,7 @@ module Initialize = struct
 				add_std "lua";
 				"lua"
 			| Php ->
-				if Common.php7 com then
+				if Common.is_php7 com then
 					begin
 						com.package_rules <- PMap.add "php" (Directory "php7") com.package_rules;
 						com.package_rules <- PMap.add "php7" Forbidden com.package_rules;
@@ -353,7 +353,7 @@ let generate tctx ext xml_out interp swf_header =
 		| Lua ->
 			Genlua.generate,"lua"
 		| Php ->
-			if Common.php7 com then
+			if Common.is_php7 com then
 				Genphp7.generate,"php"
 			else
 				Genphp.generate,"php"
