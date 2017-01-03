@@ -1,6 +1,7 @@
 package php;
 
 import haxe.extern.*;
+import haxe.Constraints;
 
 /**
 	This class contains externs for native PHP functions defined in global namespace.
@@ -1090,4 +1091,70 @@ extern class Global {
 		@see http://php.net/manual/en/function.flush.php
 	**/
 	static function flush() : Void;
+
+	/**
+		@see http://php.net/manual/en/function.session-cache-limiter.php
+	**/
+	static function session_cache_limiter( ?cache_limiter:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.session-cache-expire.php
+	**/
+	static function session_cache_expire( ?new_cache_expire:Int ) : Int;
+
+	/**
+		@see http://php.net/manual/en/function.session-name.php
+	**/
+	static function session_name( ?name:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.session-start.php
+	**/
+	static function session_start( ?options:NativeArray ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.session-unset.php
+	**/
+	static function session_unset() : Void;
+
+	/**
+		@see http://php.net/manual/en/function.session-write-close.php
+	**/
+	static function session_write_close() : Void;
+
+	/**
+		@see http://php.net/manual/en/function.session-id.php
+	**/
+	static function session_id( ?id:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.session-save-path.php
+	**/
+	static function session_save_path( ?path:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.session-module-name.php
+	**/
+	static function session_module_name( ?module:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.session-regenerate-id.php
+	**/
+	static function session_regenerate_id( delete_old_session:Bool = false ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.session-set-cookie-params.php
+	**/
+	static function session_set_cookie_params( lifetime:Int, ?path:String, ?domain:String, secure:Bool = false, httponly:Bool = false ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.session-get-cookie-params.php
+	**/
+	static function session_get_cookie_params() : NativeAssocArray<Dynamic>;
+
+	/**
+		@see http://php.net/manual/en/function.session-set-save-handler.php
+	**/
+	@:overload(function( sessionhandler:SessionHandlerInterface, register_shutdown:Bool = true ) : Bool {})
+	static function session_set_save_handler( open:String->String->Bool, close:Void->Bool, read:String->String, write:String->String->Bool, destroy:String->Bool, gc:Int->Bool, ?create_sid:Void->String, ?validate_sid:Function, ?update_timestamp:Function ) : Bool;
 }
