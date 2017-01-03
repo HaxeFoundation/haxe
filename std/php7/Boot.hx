@@ -382,7 +382,7 @@ class Boot {
 		Otherwise return sum of `left` and `right`.
 	**/
 	public static function addOrConcat( left:Dynamic, right:Dynamic ) : Dynamic {
-		if ((left.is_string() || left == null) && (right.is_string() || right == null || isNumber(right))) {
+		if (left.is_string() || right.is_string()) {
 			return (left:String) + (right:String);
 		}
 		return Syntax.binop(left, '+', right);

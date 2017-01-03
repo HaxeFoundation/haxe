@@ -74,11 +74,11 @@ class TestPhp extends Test
 
 		var i = 0;
 		modify(i);
-		eq(10, i);
+		eq(i, 10);
 
 		var d = new DummyForRef();
 		modify(d.getThis().field);
-		eq(10, d.field);
+		eq(d.field, 10);
 	}
 
 	/**
@@ -90,6 +90,30 @@ class TestPhp extends Test
 	// 	modify(i);
 	// 	t(true);
 	// }
+
+	function testAddOrConcat() {
+		var result = add(1, 'a');
+		eq(result, '1a');
+
+		var result = add('a', 1);
+		eq(result, 'a1');
+
+		var result = add('a', 'b');
+		eq(result, 'ab');
+
+		var result = add(1, null);
+		eq(result, 1);
+
+		var result = add(null, 1);
+		eq(result, 1);
+
+		var result = add('a', null);
+		eq(result, 'anull');
+
+		var result = add(null, 'b');
+		eq(result, 'nullb');
+	}
+	function add(a:Dynamic, b:Dynamic):Dynamic return a + b;
 #end
 }
 
