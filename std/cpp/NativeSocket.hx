@@ -44,6 +44,9 @@ extern class NativeSocket
    @:extern @:native("_hx_std_socket_read")
    public static function socket_read(o:Dynamic) : haxe.io.BytesData return null;
 
+   @:extern @:native("_hx_std_host_resolve_ipv6")
+   public static function host_resolve_ipv6(host:String,onlyIfNoIpv4:Bool) : haxe.io.BytesData return null;
+
 
    @:extern @:native("_hx_std_host_resolve")
    public static function host_resolve(host:String) : Int return 0;
@@ -52,9 +55,15 @@ extern class NativeSocket
    @:extern @:native("_hx_std_host_to_string")
    public static function host_to_string(ip:Int) : String return null;
 
+   @:extern @:native("_hx_std_host_to_string_ipv6")
+   public static function host_to_string_ipv6(ipv6:haxe.io.BytesData) : String return null;
+
 
    @:extern @:native("_hx_std_host_reverse")
    public static function host_reverse(host:Int) : String return null;
+
+   @:extern @:native("_hx_std_host_reverse_ipv6")
+   public static function host_reverse_ipv6(ipv6:haxe.io.BytesData) : String return null;
 
 
    @:extern @:native("_hx_std_host_local")

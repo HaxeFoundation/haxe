@@ -30,17 +30,21 @@ class Host {
 
 	public var ip(default,null) : Int;
 
+   private var ipv6(default,null) : haxe.io.BytesData;
+
 	public function new( name : String ) : Void {
 		host = name;
-		ip = NativeSocket.host_resolve(name);
+		ipv6 = NativeSocket.host_resolve_ipv6(name,true);
+		if (ipv6==null)
+			ip = NativeSocket.host_resolve(name);
 	}
 
 	public function toString() : String {
-		return NativeSocket.host_to_string(ip);
+		return ipv6==null ? NativeSocket.host_to_string(ip) : NativeSocket.host_to_string_ipv6(ipv6);
 	}
 
 	public function reverse() : String {
-		return NativeSocket.host_reverse(ip);
+		return ipv6==null ? NativeSocket.host_reverse(ip) : NativeSocket.host_reverse_ipv6(ipv6);
 	}
 
 	public static function localhost() : String {
