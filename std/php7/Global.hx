@@ -817,6 +817,16 @@ extern class Global {
 	static function rawurldecode( str:String ) : String;
 
 	/**
+		@see http://php.net/manual/en/function.header.php
+	**/
+	static function header( string:String, replace:Bool = true, ?http_response_code:Int ) : Void;
+
+	/**
+		@see http://php.net/manual/en/function.setcookie.php
+	**/
+	static function setcookie( name:String, value:String = "", expire:Int = 0, path:String = "", domain:String = "", secure:Bool = false, httponly:Bool = false ) : Bool;
+
+	/**
 		@see http://php.net/manual/en/function.htmlspecialchars.php
 	**/
 	static function htmlspecialchars( string:String, ?flags:Int, ?encoding:String, double_encode:Bool = true ) : String;
@@ -1075,4 +1085,9 @@ extern class Global {
 		@see http://php.net/manual/en/function.strtotime.php
 	**/
 	static function strtotime( time:String, ?now:Int ) : EitherType<Int,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.flush.php
+	**/
+	static function flush() : Void;
 }
