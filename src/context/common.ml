@@ -478,6 +478,7 @@ module Define = struct
 		| HaxeVer
 		| HxcppApiLevel
 		| HxcppGcGenerational
+		| HxcppDebugger
 		| IncludePrefix
 		| Interp
 		| JavaVer
@@ -573,6 +574,7 @@ module Define = struct
 		| HaxeVer -> ("haxe_ver","The current Haxe version value")
 		| HxcppApiLevel -> ("hxcpp_api_level","Provided to allow compatibility between hxcpp versions")
 		| HxcppGcGenerational -> ("HXCPP_GC_GENERATIONAL","Experimental Garbage Collector")
+		| HxcppDebugger -> ("HXCPP_DEBUGGER","Include additional information for HXCPP_DEBUGGER")
 		| IncludePrefix -> ("include_prefix","prepend path to generated include files")
 		| Interp -> ("interp","The code is compiled to be run with --interp")
 		| JavaVer -> ("java_ver", "<version:5-7> Sets the Java version to be targeted")

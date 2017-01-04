@@ -221,7 +221,16 @@ let new_header_file common_ctx base_dir =
 
 
 (* CPP code generation context *)
+(*
+  ctx_debug_level
+    0 = no debug
+    1 = function + line debug via macros, which can be activated at cpp compile-time
+    2 = include macros for HXCPP_DEBUGGER
+    3 = annotate source with additional info about AST and types
+    4 = console output at haxe compile-time
 
+   normal = 1
+*)
 type context =
 {
    ctx_common : Common.context;
@@ -247,6 +256,7 @@ type context =
 
 let new_context common_ctx debug file_info member_types =
 let null_file = new source_writer common_ctx ignore ignore (fun () -> () ) in
+let has_def def = Common.defined_value_safe common_ctx def <>""  in
 let result =
 {
    ctx_common = common_ctx;
@@ -257,7 +267,9 @@ let result =
    ctx_output = (null_file#write);
    ctx_interface_slot = ref (Hashtbl.create 0);
    ctx_interface_slot_count = ref 2;
-   ctx_debug_level = if Common.defined_value_safe common_ctx Define.AnnotateSource <>"" then 2 else debug;
+   ctx_debug_level = if has_def Define.AnnotateSource then 3 else
+                     if has_def Define.HxcppDebugger then 2 else
+                        debug;
    ctx_real_this_ptr = true;
    ctx_class_member_types =  member_types;
    ctx_file_info = file_info;
@@ -2175,7 +2187,7 @@ let cpp_var_debug_name_of v =
 
 
 let cpp_no_debug_synbol ctx var =
-   (ctx.ctx_debug_level=0) || (has_meta_key var.v_meta Meta.CompilerGenerated) ||
+   (ctx.ctx_debug_level<=1) || (has_meta_key var.v_meta Meta.CompilerGenerated) ||
       match cpp_type_of ctx var.v_type with
       | TCppStar _ | TCppReference _ -> true
       | TCppInst (class_def) when (has_meta_key class_def.cl_meta Meta.StructAccess) -> true
@@ -3805,7 +3817,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       | CppCastNative(expr) ->
          out "("; gen expr; out ").mPtr"
       );
-      if (ctx.ctx_debug_level > 1) then
+      if (ctx.ctx_debug_level >= 3) then
          out ("/* " ^ (s_tcpp expr.cppexpr) ^ ":" ^ tcpp_to_string expr.cpptype ^ " */")
 
    and gen expr =
@@ -3921,7 +3933,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       let prologue = function gc_stack ->
           cpp_gen_default_values ctx closure.close_args "__o_";
           hx_stack_push ctx output_i class_name func_name closure.close_expr.cpppos gc_stack;
-          if (ctx.ctx_debug_level>0) then begin
+          if (ctx.ctx_debug_level>=2) then begin
              if (closure.close_this != None) then
                 output_i ("HX_STACK_THIS(__this.mPtr)\n");
              List.iter (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (cpp_var_name_of v) ^ ",\"" ^ (cpp_debug_name_of v) ^"\")\n") )
@@ -3955,7 +3967,7 @@ let gen_cpp_function_body ctx clazz is_static func_name function_def head_code t
       let output_i = fun s -> output (spacer ^ s) in
       ctx_default_values ctx function_def.tf_args "__o_";
       hx_stack_push ctx output_i dot_name func_name function_def.tf_expr.epos gc_stack;
-      if ctx.ctx_debug_level >0 then begin
+      if ctx.ctx_debug_level >= 2 then begin
          if (not is_static)
             then output_i ("HX_STACK_THIS(" ^ (if ctx.ctx_real_this_ptr then "this" else "__this") ^")\n");
          List.iter (fun (v,_) -> if not (cpp_no_debug_synbol ctx v) then
@@ -7335,7 +7347,7 @@ let generate_cppia ctx =
       | TClassDecl class_def ->
          let is_internal = is_internal_class class_def.cl_path in
          if (is_internal || (is_macro class_def.cl_meta)) then
-            ( if (debug>1) then print_endline (" internal class " ^ (join_class_path class_def.cl_path ".") ))
+            ( if (debug>=4) then print_endline (" internal class " ^ (join_class_path class_def.cl_path ".") ))
          else begin
             generate_script_class common_ctx script class_def
          end
@@ -7343,11 +7355,11 @@ let generate_cppia ctx =
       | TEnumDecl enum_def ->
          let is_internal = is_internal_class enum_def.e_path in
          if (is_internal) then
-            (if (debug>1) then print_endline (" internal enum " ^ (join_class_path enum_def.e_path ".") ))
+            (if (debug>=4) then print_endline (" internal enum " ^ (join_class_path enum_def.e_path ".") ))
          else begin
             let meta = Codegen.build_metadata common_ctx object_def in
             if (enum_def.e_extern) then
-               (if (debug>1) then print_endline ("external enum " ^  (join_class_path enum_def.e_path ".") ));
+               (if (debug>=4) then print_endline ("external enum " ^  (join_class_path enum_def.e_path ".") ));
             generate_script_enum common_ctx script enum_def meta
          end
       | TTypeDecl _ | TAbstractDecl _ -> (* already done *) ()
@@ -7408,7 +7420,7 @@ let generate_source ctx =
          let name =  class_text class_def.cl_path in
          let is_internal = is_internal_class class_def.cl_path in
          if (is_internal || (is_macro class_def.cl_meta)) then
-            ( if (debug>1) then print_endline (" internal class " ^ name ))
+            ( if (debug>=4) then print_endline (" internal class " ^ name ))
          else begin
             let rec makeId class_name seed =
                let id = gen_hash32 seed class_name in
