@@ -1269,6 +1269,11 @@ class virtual type_builder ctx wrapper =
 						| _ when Meta.has Meta.CoreType abstr.a_meta -> "mixed"
 						| _ -> self#use_t abstr.a_this
 		(**
+			Indicates if there is no constructor in inheritance chain of this type.
+			Own constructor is ignored.
+		*)
+		method private extends_no_constructor = true
+		(**
 			Indicates whether current expression nesting level is a top level of a block
 		*)
 		method private parent_expr_is_block single_expr_is_not_block =
@@ -2540,15 +2545,21 @@ class virtual type_builder ctx wrapper =
 			Writes TCall to output buffer
 		*)
 		method private write_expr_call target_expr args =
-			let target_expr = reveal_expr target_expr in
+			let target_expr = reveal_expr target_expr
+			and no_call = ref false in
 			(match target_expr.eexpr with
-				| TConst TSuper -> self#write "parent::__construct"
+				| TConst TSuper ->
+					no_call := self#extends_no_constructor;
+					if not !no_call then self#write "parent::__construct"
 				| TField (expr, FClosure (_,_)) -> self#write_expr (parenthesis target_expr)
 				| _ -> self#write_expr target_expr
 			);
-			self#write "(";
-			write_args buffer self#write_expr args;
-			self#write ")";
+			if not !no_call then
+				begin
+					self#write "(";
+					write_args buffer self#write_expr args;
+					self#write ")"
+				end
 		(**
 			Writes a name of a function or a constant from global php namespace
 		*)
@@ -2857,6 +2868,24 @@ class class_builder ctx (cls:tclass) =
 		*)
 		method is_final_field (field:tclass_field) : bool =
 			Meta.has Meta.Final field.cf_meta
+		(**
+			Check if there is no native php constructor in inheritance chain of this class.
+			E.g. `StsClass` does have a constructor while still can be called with `new StdClass()`.
+			So this method will return true for `MyClass` if `MyClass extends StdClass`.
+		*)
+		method private extends_no_constructor =
+			let rec extends_no_constructor tcls =
+				match tcls.cl_super with
+					| None -> true
+					| Some (parent, _) ->
+						if Meta.has Meta.PhpNoConstructor parent.cl_meta then
+							true
+						else
+							match parent.cl_constructor with
+								| Some _ -> false
+								| None -> extends_no_constructor parent
+			in
+			extends_no_constructor cls
 		(**
 			Recursively check if current class is a parent class for a `child`
 		*)
