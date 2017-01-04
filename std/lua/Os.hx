@@ -52,12 +52,12 @@ extern class Os {
 		Deletes the file or directory with the given name.
 		Directories must be empty to be removed. 
 	**/
-	public static function remove(filename : String) : Void;
+	public static function remove(filename : String) : OsSuccess;
 
 	/**
 		Renames file or directory named `oldname` to `newname`.
 	**/
-	public static function rename(oldname : String, newname : String) : Void;
+	public static function rename(oldname : String, newname : String) : OsSuccess;
 
 	/**
 		Sets the current locale of the program.
@@ -119,4 +119,9 @@ typedef DateType = {
 	var success : Bool;
 	var output  : String;
 	var status  : Int;
+}
+
+@:multiReturn extern class OsSuccess {
+	var success : Bool;
+	var message : String;
 }

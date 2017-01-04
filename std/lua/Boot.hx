@@ -192,9 +192,8 @@ class Boot {
 			    if (o.__enum__ != null) printEnum(o,s);
 				else if (o.toString != null && !isArray(o)) o.toString();
 				else if (isArray(o)) {
-					var o2 : Array<Dynamic> = untyped o;
 					if (s.length > 5) "[...]"
-					else '[${[for (i in  o2) __string_rec(i,s+1)].join(",")}]';
+					else '[${[for (i in  cast(o,Array<Dynamic>)) __string_rec(i,s+1)].join(",")}]';
 				}
 				else if (o.__class__ != null) printClass(o,s+"\t");
 				else {
@@ -304,12 +303,6 @@ class Boot {
 		return extendsOrImplements(untyped cl1.__super__, cl2);
 	}
 
-	/*
-	   Create an empty table.
-	*/
-	public inline static function createTable<K,V>(?arr:Array<V>, ?hsh:Dynamic<V>) : Table<K,V> {
-		return untyped __lua_table__(arr,hsh);
-	}
 
 	/*
 	   Create an empty table for vectors

@@ -106,7 +106,12 @@ class Sys {
 	}
 
 	public inline static function getCwd() : String {
-		return lua.lib.lfs.Lfs.currentdir();
+		var ret = lua.lib.lfs.Lfs.currentdir();
+		if (ret.status == null){
+			throw ret.message;
+		} else {
+			return ret.status;
+		}
 	}
 
 	public inline static function setCwd(s : String) : Void {

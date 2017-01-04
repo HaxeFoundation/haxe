@@ -25,16 +25,31 @@ extern class Lfs {
 	@:overload(   function			 (filepath : String, aname : String) : Dynamic {})
 	public static function attributes(filepath : String) : LfsFileStat;
 
-	public static function chdir(path : String) : Bool;
-	public static function lock_dir(path : String, ?second_stale : Int) : String; 
-	public static function currentdir() : String;
+	public static function chdir(path : String) : LfsStatus<Bool>;
+	public static function lock_dir(path : String, ?second_stale : Int) : LfsStatus<String>; 
+	public static function currentdir() : LfsStatus<String>;
 	public static function dir(path : String) : Void->String;
-	public static function lock(filename : String, mode : String, ?start : Int, ?length : Int) : Bool;
+	public static function lock(filename : String, mode : String, ?start : Int, ?length : Int) : LfsStatus<Bool>;
 	public static function link(old : String, _new :String, ?symlink : Bool) : Void;
-	public static function mkdir(dirname : String) : Bool;
-	public static function rmdir(dirname : String) : Bool;
-	public static function setmode(file: String, mode : String) : String;
+	public static function mkdir(dirname : String) : LfsStatus<Bool>;
+	public static function rmdir(dirname : String) : LfsStatus<Bool>;
+	public static function setmode(file: String, mode : String) : LfsStatus<Bool>;
 	public static function symlinkattributes(filepath : String, ?aname : String) : Table<String, String>;
-	public static function touch(filepath : String, ?atime : Int, ?mtime : Int) : Bool;
-	public static function unlock(filehandle : String, ?start : Int, ?length : Int) : Bool;
+	public static function touch(filepath : String, ?atime : Int, ?mtime : Int) : LfsStatus<Bool>;
+	public static function unlock(filehandle : String, ?start : Int, ?length : Int) : LfsStatus<Bool>;
 }
+
+@:multiReturn extern class LfsStatus<T> {
+	var status : T;
+	var message : String;
+}
+
+@:multiReturn extern class LfsDir {
+	var iter : DirObj->String;
+	var dirobj : DirObj;
+}
+
+typedef DirObj = {
+	next : Void->String,
+	close : Void->Void
+};

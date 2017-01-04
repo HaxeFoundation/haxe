@@ -41,12 +41,16 @@ class Array<T> {
 	}
 
 	public function pop() : Null<T> {
-		return this.length == 0 ? null : this[this.length-- -1];
+		if (length == 0 ) return null;
+		var rawlength = lua.Lua.rawget(cast this, 'length');
+		var ret = lua.Lua.rawget(cast this, rawlength-1);
+		lua.Lua.rawset(cast this, 'length', rawlength-1);
+		return ret;
 	}
 	public function push(x : T) : Int {
-		this[length] = x;
-		length++;
-		return length;
+		lua.Lua.rawset(cast this,length,x);
+		lua.Lua.rawset(cast this,'length', length + 1);
+		return lua.Lua.rawget(cast this,'length');
 	}
 	public function reverse() : Void {
 		var tmp:T;

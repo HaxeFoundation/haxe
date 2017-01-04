@@ -42,7 +42,10 @@ class FileSystem {
 	}
 
 	public inline static function rename( path : String, newPath : String ) : Void {
-		return  Os.rename(path, newPath);
+		var ret = Os.rename(path, newPath);
+		if (!ret.success){
+			throw ret.message;
+		}
 	}
 
 	public inline static function stat( path : String ) : FileStat {
@@ -71,13 +74,16 @@ class FileSystem {
 
 	public inline static function absolutePath( relPath : String ) : String {
 		if (relPath == null) return null;
-		var pwd = Lfs.currentdir() ;
+		var pwd = Lfs.currentdir().status;
 		if (pwd == null) return relPath;
 		return Path.join([pwd, relPath]);
 	}
 
 	public inline static function deleteFile( path : String ) : Void {
-		lua.Os.remove(path);
+		var ret = lua.Os.remove(path);
+		if (!ret.success){
+			throw ret.message;
+		}
 	}
 
 	public inline static function readDirectory( path : String ) : Array<String> {
@@ -97,7 +103,10 @@ class FileSystem {
 	}
 
 	public inline static function deleteDirectory( path : String ) : Void {
-		Lfs.rmdir(path);
+		var ret = Lfs.rmdir(path);
+		if (ret.status == null){
+			throw ret.message;
+		}
 	}
 
 	public inline static function createDirectory( path : String ) : Void {

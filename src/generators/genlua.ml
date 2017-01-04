@@ -1573,7 +1573,6 @@ let generate_class ctx c =
 		let bend = open_block ctx in
 		newline ctx;
 		let count = ref 0 in
-
 		List.iter (fun f -> if can_gen_class_field ctx f then (gen_class_field ctx c f (!count > 0); incr count;) ) c.cl_ordered_fields;
 		if (has_class ctx c) then begin
 			newprop ctx;
@@ -1644,13 +1643,13 @@ let generate_enum ctx e =
 			print ctx "function(%s) local _x = _hx_tab_array({[0]=\"%s\",%d,%s,__enum__=%s}, %i);" sargs f.ef_name f.ef_index sargs p (count + 2);
 			if has_feature ctx "may_print_enum" then
 				(* TODO: better namespacing for _estr *)
-				spr ctx " _x.toString = _estr;";
+				spr ctx " rawset(_x, 'toString', _estr);";
 			spr ctx " return _x; end ";
 			ctx.separator <- true;
 		| _ ->
 			println ctx "_hx_tab_array({[0]=\"%s\",%d,__enum__ = %s},2)" f.ef_name f.ef_index p;
 			if has_feature ctx "may_print_enum" then begin
-				println ctx "%s%s.toString = _estr" p (field f.ef_name);
+				println ctx "rawset(%s%s, 'toString', _estr)" p (field f.ef_name);
 			end;
 		);
 		newline ctx
