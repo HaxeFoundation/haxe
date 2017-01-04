@@ -745,6 +745,7 @@ private class HxDynamicStr {
 private class HxAnon extends StdClass {
 
 	public function new( fields:NativeArray = null ) {
+		super();
 		if (fields != null) {
 			Syntax.foreach(fields, function(name, value) Syntax.setField(this, name, value));
 		}
