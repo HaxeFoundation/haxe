@@ -322,7 +322,7 @@ let generate tctx ext xml_out interp swf_header =
 	(* check file extension. In case of wrong commandline, we don't want
 		to accidentaly delete a source file. *)
 	if file_extension com.file = ext then delete_file com.file;
-	if com.platform = Flash || com.platform = Cpp then List.iter (Codegen.fix_overrides com) com.types;
+	if com.platform = Flash || com.platform = Cpp || com.platform = Hl then List.iter (Codegen.fix_overrides com) com.types;
 	if Common.defined com Define.Dump then Codegen.Dump.dump_types com;
 	if Common.defined com Define.DumpDependencies then begin
 		Codegen.Dump.dump_dependencies com;

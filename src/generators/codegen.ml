@@ -365,7 +365,7 @@ let rec find_field com c f =
 		| Some (c,_) ->
 			find_field com c f)
 	with Not_found -> try
-		if com.platform = Cpp then (* Cpp uses delegation for interfaces *)
+		if com.platform = Cpp || com.platform = Hl then (* uses delegation for interfaces *)
 			raise Not_found;
 		let rec loop = function
 			| [] ->
