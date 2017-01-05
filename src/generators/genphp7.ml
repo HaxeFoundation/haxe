@@ -364,6 +364,12 @@ let needs_dereferencing expr =
 			| TArrayDecl _ -> true
 			| TObjectDecl _ -> true
 			| TConst TNull -> true
+			(* some of `php.Syntax` methods *)
+			| TCall ({ eexpr = TField (_, FStatic ({ cl_path = syntax_type_path }, { cf_name = name })) }, _) ->
+				(match name with
+					| "binop" | "object" | "array" -> true
+					| _ -> false
+				)
 			| _ -> false
 	in
 	match expr.eexpr with
