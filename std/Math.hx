@@ -48,7 +48,7 @@ extern class Math
 	static var NEGATIVE_INFINITY(default, null) : Float;
 
 	/**
-		A special `Float` constant which denotes negative infinity.
+		A special `Float` constant which denotes positive infinity.
 
 		For example, this is the result of 1.0 / 0.0.
 
