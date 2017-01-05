@@ -1358,7 +1358,7 @@ let hx_stack_push ctx output clazz func_name pos gc_stack =
       if ctx.ctx_is_header then
          ctx.ctx_writer#write_h_unique ("HX_DECLARE_STACK_FRAME" ^ "(" ^ varName ^ ")\n")
       else
-         ctx.ctx_writer#write_h_unique ("HX_DEFINE_STACK_FRAME" ^ "(" ^ decl ^ ")\n");
+         ctx.ctx_writer#write_h_unique ( (if func_name="new" then "HX_DEFINE_STACK_FRAME" else "HX_LOCAL_STACK_FRAME") ^ "(" ^ decl ^ ")\n");
       output ( (if gc_stack then "HX_GC_STACKFRAME" else "HX_STACKFRAME") ^ "(&" ^ varName ^ ")\n");
    end else if gc_stack then
       output ("HX_JUST_GC_STACKFRAME\n")
