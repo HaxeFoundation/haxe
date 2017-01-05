@@ -2,6 +2,7 @@
 
 	Bugfixes:
 
+	all : fixed `using` picking up non-static abstract functions (#5888)
 	all : fixed issue with side-effect detection when optimizing (#5911)
 	php7 : Allow user-defined modules in `php` package (#5921)
 	php7 : Dereference some of `php.Syntax` methods if required (#5923)
