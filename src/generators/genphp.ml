@@ -1027,7 +1027,7 @@ and gen_tfield ctx e e1 s =
 			gen_field_access ctx false e1 name
 		else
 			gen_uncertain_string_var ctx name e1
-	| TDynamic _ when match s with FDynamic _ -> true | _ -> false ->
+	| TDynamic _ when not ctx.is_call && (match s with FDynamic _ -> true | _ -> false) ->
 		spr ctx "_hx_field(";
 		gen_value ctx e1;
 		print ctx ", \"%s\")" name
