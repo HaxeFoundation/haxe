@@ -996,12 +996,13 @@ and gen_while_expr ctx e =
 	ctx.in_loop <- old_loop
 
 and gen_tfield ctx e e1 s =
+	let name = (field_name s) in
 	match follow e.etype with
 	| TFun (args, _) ->
 		(if ctx.is_call then begin
-			gen_field_access ctx false e1 s
-	  	end else if is_in_dynamic_methods ctx e1 s then begin
-	  		gen_field_access ctx true e1 s;
+			gen_field_access ctx false e1 name
+	  	end else if is_in_dynamic_methods ctx e1 name then begin
+	  		gen_field_access ctx true e1 name;
 	  	end else begin
 			let ob ex =
 				(match ex with
@@ -1014,25 +1015,29 @@ and gen_tfield ctx e e1 s =
 
 			spr ctx "(property_exists(";
 			ob e1.eexpr;
-			print ctx ", \"%s\") ? " (s_ident s);
-			gen_field_access ctx true e1 s;
+			print ctx ", \"%s\") ? " (s_ident name);
+			gen_field_access ctx true e1 name;
 			spr ctx ": array(";
 			ob e1.eexpr;
-			print ctx ", \"%s\"))" (s_ident s);
+			print ctx ", \"%s\"))" (s_ident name);
 
 		end)
 	| TMono _ ->
 		if ctx.is_call then
-			gen_field_access ctx false e1 s
+			gen_field_access ctx false e1 name
 		else
-			gen_uncertain_string_var ctx s e1
+			gen_uncertain_string_var ctx name e1
+	| TDynamic _ when match s with FDynamic _ -> true | _ -> false ->
+		spr ctx "_hx_field(";
+		gen_value ctx e1;
+		print ctx ", \"%s\")" name
 	| _ ->
 		if is_string_expr e1 then
-			gen_string_var ctx s e1
+			gen_string_var ctx name e1
 		else if is_uncertain_expr e1 then
-			gen_uncertain_string_var ctx s e1
+			gen_uncertain_string_var ctx name e1
 		else
-			gen_field_access ctx true e1 s
+			gen_field_access ctx true e1 name
 
 and gen_expr ctx e =
 	let in_block = ctx.in_block in
@@ -1300,7 +1305,7 @@ and gen_expr ctx e =
 		spr ctx ")";
 		print ctx "->params[%d]" i;
 	| TField (e1,s) ->
-		gen_tfield ctx e e1 (field_name s)
+		gen_tfield ctx e e1 s
 	| TTypeExpr t ->
 		print ctx "_hx_qtype(\"%s\")" (s_path_haxe (t_path t))
 	| TParenthesis e ->
@@ -1514,7 +1519,7 @@ and gen_expr ctx e =
 			);
 		| TField (e1,s) ->
 			spr ctx (Ast.s_unop op);
-			gen_tfield ctx e e1 (field_name s)
+			gen_tfield ctx e e1 s
 		| _ ->
 			spr ctx (Ast.s_unop op);
 			gen_value ctx e)
