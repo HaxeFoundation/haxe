@@ -499,7 +499,6 @@ module Define = struct
 		| NetworkSandbox
 		| NetVer
 		| NetTarget
-		| NoAnalyzer
 		| NoCompilation
 		| NoCOpt
 		| NoDeprecationWarnings
@@ -595,7 +594,6 @@ module Define = struct
 		| NekoSource -> ("neko_source","Output neko source instead of bytecode")
 		| NekoV1 -> ("neko_v1","Keep Neko 1.x compatibility")
 		| NetworkSandbox -> ("network-sandbox","Use local network sandbox instead of local file access one")
-		| NoAnalyzer -> ("no-analyzer","Disable the static analyzer")
 		| NoCompilation -> ("no-compilation","Disable final compilation for Cs, Cpp and Java")
 		| NoCOpt -> ("no_copt","Disable completion optimization (for debug purposes)")
 		| NoDebug -> ("no_debug","Remove all debug macros from cpp output")

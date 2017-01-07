@@ -1276,6 +1276,10 @@ module Run = struct
 end
 ;;
 Typecore.analyzer_run_on_expr_ref := (fun com e ->
-	let actx = Run.create_analyzer_context com (AnalyzerConfig.get_base_config com) e in
+	let config = AnalyzerConfig.get_base_config com in
+	(* We always want to optimize because const propagation might be required to obtain
+	   a constant expression for inline field initializations (see issue #4977). *)
+	let config = {config with AnalyzerConfig.optimize = true} in
+	let actx = Run.create_analyzer_context com config e in
 	Run.run_on_expr actx e
 )

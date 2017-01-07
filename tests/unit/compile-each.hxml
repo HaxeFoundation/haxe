@@ -5,6 +5,6 @@
 -resource res1.txt@re/s?!%[]))("'1.txt
 -resource res2.bin@re/s?!%[]))("'1.bin
 -dce full
--D analyzer
+-D analyzer-optimize
 -D analyzer-code-motion
 -D analyzer-user-var-fusion

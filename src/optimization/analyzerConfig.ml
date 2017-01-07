@@ -84,7 +84,7 @@ let is_ignored meta =
 
 let get_base_config com =
 	{
-		optimize = not (Common.defined com Define.NoAnalyzer);
+		optimize = Common.raw_defined com "analyzer-optimize";
 		const_propagation = not (Common.raw_defined com "analyzer-no-const-propagation");
 		copy_propagation = not (Common.raw_defined com "analyzer-no-copy-propagation");
 		code_motion = Common.raw_defined com "analyzer-code-motion";
