@@ -1061,6 +1061,9 @@ let reduce_control_flow ctx e = match e.eexpr with
 		optimize_binop e op e1 e2
 	| TUnop (op,flag,esub) ->
 		optimize_unop e op flag esub
+	| TCall ({ eexpr = TField (o,FClosure (c,cf)) } as f,el) ->
+		let fmode = (match c with None -> FAnon cf | Some (c,tl) -> FInstance (c,tl,cf)) in
+		{ e with eexpr = TCall ({ f with eexpr = TField (o,fmode) },el) }
 	| _ ->
 		e
 
@@ -1079,9 +1082,6 @@ let rec reduce_loop ctx e =
 		(match inl with
 		| None -> reduce_expr ctx e
 		| Some e -> reduce_loop ctx e)
-	| TCall ({ eexpr = TField (o,FClosure (c,cf)) } as f,el) ->
-		let fmode = (match c with None -> FAnon cf | Some (c,tl) -> FInstance (c,tl,cf)) in
-		{ e with eexpr = TCall ({ f with eexpr = TField (o,fmode) },el) }
 	| _ ->
 		reduce_expr ctx (reduce_control_flow ctx e))
 
