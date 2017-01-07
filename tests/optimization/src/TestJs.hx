@@ -4,9 +4,9 @@ private enum Tree<T> {
 }
 
 private enum Some {
-    one(s1:String);
-    pair(s1:String, s2:String);
-    triad(s1:String, s2:String, s3:String);
+	one(s1:String);
+	pair(s1:String, s2:String);
+	triad(s1:String, s2:String, s3:String);
 }
 
 class Inl{
@@ -243,8 +243,8 @@ class TestJs {
 		TestJs["use"](2);
 	')
 	static function testIssue4731() {
-        var map = new Map();
-        var i = map["some"] = 2;
+		var map = new Map();
+		var i = map["some"] = 2;
 		use(i);
 	}
 
@@ -489,10 +489,23 @@ class TestJs {
 		TestJs["use"](v);
 	')
 	static function testIssue4745() {
-        var o = "";
-        var v = Type.typeof(o).match(TClass(String));
-        use(v);
+		var o = "";
+		var v = Type.typeof(o).match(TClass(String));
+		use(v);
 	}
+
+	@:js('
+		var e = { };
+		e["a"] = 30;
+		console.log(e);
+	')
+	@:analyzer(user_var_fusion)
+	static function testIssue4948() {
+		var e = new haxe.DynamicAccess();
+		e["a"] = 30;
+		trace(e);
+	}
+
 
 	@:js('
 		var tmp = "foo";
