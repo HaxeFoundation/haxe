@@ -51,11 +51,12 @@ class Test {
 
 	@:js('
 		var a = 0;
+		var c_y;
 		var c_x;
 		a = 1;
 		a = 2;
 		c_x = 12;
-		var c_y = "foo";
+		c_y = "foo";
 		a = 12;
 	')
 	static function testInlineCtor2() {
@@ -70,12 +71,14 @@ class Test {
 
 	@:js('
 		var a = 0;
+		var b_y;
 		var b_x;
+		var c_y;
 		var c_x = 1;
-		var c_y = "c";
+		c_y = "c";
 		a = 1;
 		b_x = 2;
-		var b_y = "b";
+		b_y = "b";
 		b_x = 1;
 	')
 	static function testInlineCtor3() {

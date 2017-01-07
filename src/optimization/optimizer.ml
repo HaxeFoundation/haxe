@@ -1235,11 +1235,12 @@ let inline_constructors ctx e =
 								e :: acc
 							| _ -> acc
 						) el_init c.cl_ordered_fields in
-						let e = match el_init with
+						let e' = match el_init with
 							| [] -> e
 							| _ -> mk (TBlock (List.rev (e :: el_init))) e.etype e.epos
 						in
-						add v e (IKCtor(cf,c.cl_extern || Meta.has Meta.Extern cf.cf_meta));
+						add v e' (IKCtor(cf,c.cl_extern || Meta.has Meta.Extern cf.cf_meta));
+						find_locals e
 					| None ->
 						()
 					end
