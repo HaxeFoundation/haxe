@@ -46,7 +46,6 @@ module BasicBlock = struct
 	type cfg_edge_Flag =
 		| FlagExecutable      (* Used by constant propagation to handle live edges *)
 		| FlagDce             (* Used by DCE to keep track of handled edges *)
-		| FlagCodeMotion      (* Used by code motion to track handled edges *)
 		| FlagCopyPropagation (* Used by copy propagation to track handled eges *)
 
 	type cfg_edge_kind =

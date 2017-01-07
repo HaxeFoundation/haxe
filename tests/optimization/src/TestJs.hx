@@ -22,7 +22,6 @@ private enum EnumFlagTest {
 	EC;
 }
 
-@:analyzer(code_motion)
 @:analyzer(no_user_var_fusion)
 class TestJs {
 	//@:js('var x = 10;"" + x;var x1 = 10;"" + x1;var x2 = 10.0;"" + x2;var x3 = "10";x3;var x4 = true;"" + x4;')
@@ -313,111 +312,6 @@ class TestJs {
 
 		use(a);
 		use(b);
-	}
-
-	@:js('
-		var a = TestJs.getInt();
-		var b = TestJs.getInt();
-		var x;
-		var tmp = a + b;
-		while(a != b) {
-			x = tmp;
-			TestJs["use"](x);
-		}
-	')
-	static function testCodeMotion1() {
-		var a = getInt();
-		var b = getInt();
-		var x;
-		while (a != b) {
-			x = a + b;
-			use(x);
-		}
-	}
-
-	@:js('
-		var a = TestJs.getInt();
-		var b = TestJs.getInt();
-		var x = 0;
-		while(a != b) {
-			x = a + x;
-			TestJs["use"](x);
-		}
-	')
-	static function testCodeMotion2() {
-		var a = getInt();
-		var b = getInt();
-		var x = 0;
-		while (a != b) {
-			x = a + x;
-			use(x);
-		}
-	}
-
-	@:js('
-		var a = TestJs.getInt();
-		var b = TestJs.getInt();
-		var x;
-		while(a != b) {
-			var tmp = a + b;
-			while(a != b) {
-				x = tmp;
-				TestJs["use"](x);
-			}
-		}
-	')
-	static function testCodeMotion3() {
-		var a = getInt();
-		var b = getInt();
-		var x;
-		while (a != b) {
-			while (a != b) {
-				x = a + b;
-				use(x);
-			}
-		}
-	}
-
-	@:js('
-		var a = TestJs.getInt();
-		var b = TestJs.getInt();
-		var x;
-		var tmp = a + b + b;
-		while(a != b) {
-			x = tmp;
-			TestJs["use"](x);
-		}
-	')
-	static function testCodeMotion4() {
-		var a = getInt();
-		var b = getInt();
-		var x;
-		while (a != b) {
-			x = a + b + b;
-			use(x);
-		}
-	}
-
-	@:js('
-		var a = TestJs.getInt();
-		var b = TestJs.getInt();
-		var x;
-		var tmp = a + b;
-		while(a != b) {
-			x = tmp;
-			TestJs["use"](x);
-			TestJs["use"](x);
-		}
-	')
-	static function testCodeMotion5() {
-		var a = getInt();
-		var b = getInt();
-		var x;
-		while (a != b) {
-			x = a + b;
-			use(x);
-			use(x);
-		}
 	}
 
 	@:js('
