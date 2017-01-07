@@ -1,5 +1,9 @@
 2017-??-??: 3.4.0
 
+	General improvements and optimizations:
+
+	all : support completion for static extensions (#5766)
+
 	Bugfixes:
 
 	all : fixed `using` picking up non-static abstract functions (#5888)

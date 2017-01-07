@@ -745,6 +745,7 @@ and parse_using s p1 =
 			| [< '(Kwd Extern,p) >] ->
 				loop (("extern",p) :: acc)
 			| [< >] ->
+				if is_resuming p then type_path (List.map fst acc) false;
 				serror()
 			end
 		| [< '(Semicolon,p2) >] ->
