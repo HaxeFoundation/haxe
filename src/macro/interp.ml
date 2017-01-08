@@ -460,248 +460,6 @@ let rec dlopen dls =
 	| _ ->
 		None
 
-let neko =
-	match dlopen (if Globals.is_windows then
-		["neko.dll"]
-	else
-		(*
-			By defualt, the makefile of neko produces libneko.so,
-			however, the debian package creates libneko.so.0 without libneko.so...
-			The fedora rpm package creates libneko.so linked to libneko.so.1.
-		*)
-		["libneko.so"; "libneko.so.0"; "libneko.so.1"; "libneko.so.2"; "libneko.dylib"]
-	) with
-	| None ->
-		None
-	| Some(neko) ->
-	let null = Extc.dlint 0 in
-	let load v =
-		let s = Extc.dlsym neko v in
-		if (Obj.magic s) == null then failwith ("Could not load neko." ^ v);
-		s
-	in
-	ignore(Extc.dlcall0 (load "neko_global_init"));
-	let vm = Extc.dlcall1 (load "neko_vm_alloc") null in
-	ignore(Extc.dlcall1 (load "neko_vm_select") vm);
-	let loader = Extc.dlcall2 (load "neko_default_loader") null null in
-	let loadprim =
-		let l1 = load "neko_val_field" in
-		let l2 = Extc.dlcall1 (load "neko_val_id") (Extc.dlstring "loadprim") in
-		Extc.dlcall2 (l1) loader (l2) in
-
-	let callN = load "neko_val_callN" in
-	let callEx = load "neko_val_callEx" in
-	let copy_string = load "neko_copy_string" in
-
-	let alloc_root = load "neko_alloc_root" in
-	let free_root = load "neko_free_root" in
-
-	let alloc_root v =
-		let r = Extc.dlcall1 alloc_root (Extc.dlint 1) in
-		Extc.dlsetptr r v;
-		r
-	in
-	let free_root r =
-		ignore(Extc.dlcall1 free_root r)
-	in
-
-	ignore(alloc_root vm);
-	ignore(alloc_root loader);
-	ignore(alloc_root loadprim);
-
-	let alloc_string s =
-		Extc.dlcall2 copy_string (Extc.dlstring s) (Extc.dlint (String.length s))
-	in
-	let alloc_int (i:int) : Extc.value =
-		Obj.magic i
-	in
-	let loadprim n args =
-		let exc = ref null in
-		let vargs = [|alloc_string n;alloc_int args|] in
-		let p = Extc.dlcall5 callEx loader loadprim (Obj.magic vargs) (Extc.dlint 2) (Obj.magic exc) in
-		if !exc != null then failwith ("Failed to load " ^ n ^ ":" ^ string_of_int args);
-		ignore(alloc_root p);
-		(n,p,args)
-	in
-	let call_raw_prim (_,p,nargs) (args:Extc.value array) =
-		Extc.dlcall3 callN p (Obj.magic args) (Extc.dlint nargs)
-	in
-
-	(* a bit tricky since load "val_true" does not work as expected on Windows *)
-	let unser = try loadprim "std@unserialize" 2 with _ -> ("",null,0) in
-
-	(* did we fail to load std.ndll ? *)
-	if (match unser with ("",_,_) -> true | _ -> false) then None else
-
-	let val_true = call_raw_prim unser [|alloc_string "T";loader|] in
-	let val_false = call_raw_prim unser [|alloc_string "F";loader|] in
-	let val_null = call_raw_prim unser [|alloc_string "N";loader|] in
-
-	let is_64 = call_raw_prim (loadprim "std@sys_is64" 0) [||] == val_true in
-	let alloc_i32, is_v2 = (try load "neko_alloc_int32", true with _ -> Obj.magic 0, false) in
-	let alloc_i32 = if is_v2 then
-		(fun i -> Extc.dlcall1 alloc_i32 (Extc.dlint32 i))
-	else
-		(fun i -> alloc_int (Int32.to_int (if Int32.compare i Int32.zero < 0 then Int32.logand i 0x7FFFFFFFl else Int32.logor i 0x80000000l)))
-	in
-	let tag_bits = if is_v2 then 4 else 3 in
-	let tag_mask = (1 lsl tag_bits) - 1 in
-	let ptr_size = if is_64 then 8 else 4 in
-	let val_field v i = Extc.dladdr v ((i + 1) * ptr_size) in
-	let val_str v = Extc.dladdr v 4 in
-	let val_fun_env v = Extc.dladdr v (8 + ptr_size) in
-
-	(* alloc support *)
-
-	let alloc_function = load "neko_alloc_function" in
-	let alloc_array = load "neko_alloc_array" in
-	let alloc_float = load "neko_alloc_float" in
-	let alloc_object = load "neko_alloc_object" in
-	let alloc_field = load "neko_alloc_field" in
-	let alloc_abstract = load "neko_alloc_abstract" in
-	let val_gc = load "neko_val_gc" in
-	let val_field_name = load "neko_val_field_name" in
-	let val_iter_fields = load "neko_val_iter_fields" in
-	let gen_callback = Extc.dlcaml_callback 2 in
-
-	(* roots *)
-
-	let on_abstract_gc = Extc.dlcaml_callback 1 in
-	let root_index = ref 0 in
-	let roots = Hashtbl.create 0 in
-	Callback.register "dlcallb1" (fun a ->
-		let index : int = Obj.magic (Extc.dlptr (val_field a 1)) in
-		Hashtbl.remove roots index;
-		null
-	);
-
-	(* wrapping *)
-
-	let copy_string v =
-		let head = Extc.dltoint (Extc.dlptr v) in
-		let size = head asr tag_bits in
-		let s = String.create size in
-		Extc.dlmemcpy (Extc.dlstring s) (val_str v) size;
-		s
-	in
-
-	let buffers = ref [] in
-
-	let rec value_neko ?(obj=VNull) = function
-		| VNull -> val_null
-		| VBool b -> if b then val_true else val_false
-		| VInt i -> alloc_int i
-		| VAbstract (ANekoAbstract a) -> a
-		| VAbstract (ANekoBuffer (VString buf)) ->
-			let v = value_neko (VString buf) in
-			buffers := (buf,v) :: !buffers;
-			v
-		| VString s ->
-			let v = alloc_string s in (* make a copy *)
-			ignore(copy_string v);
-			v
-		| VObject o as obj ->
-			let vo = Extc.dlcall1 alloc_object null in
-			Array.iter (fun (id,v) ->
-				ignore(Extc.dlcall3 alloc_field vo (Extc.dlint id) (value_neko ~obj v))
-			) o.ofields;
-			vo
-		| VClosure _ ->
-			failwith "Closure not supported"
-		| VFunction f ->
-			let callb = Extc.dlcall3 alloc_function gen_callback (Extc.dlint (-1)) (Obj.magic "<callback>") in
-			let index = !root_index in
-			incr root_index;
-			Hashtbl.add roots index (f,obj);
-			let a = Extc.dlcall2 alloc_abstract null (Obj.magic index) in
-			if Extc.dlptr (val_field a 1) != Obj.magic index then assert false;
-			ignore(Extc.dlcall2 val_gc a on_abstract_gc);
-			Extc.dlsetptr (val_fun_env callb) a;
-			callb
-		| VArray a ->
-			let va = Extc.dlcall1 alloc_array (Extc.dlint (Array.length a)) in
-			Array.iteri (fun i v ->
-				Extc.dlsetptr (val_field va i) (value_neko v)
-			) a;
-			va
-		| VFloat f ->
-			Extc.dlcall1 alloc_float (Obj.magic f)
-		| VAbstract _ ->
-			failwith "Abstract not supported"
-		| VInt32 i ->
-			alloc_i32 i
-	in
-	let obj_r = ref [] in
-	let obj_fun = (fun v id -> obj_r := (v,id) :: !obj_r; val_null) in
-	let rec neko_value (v:Extc.value) =
-		if Obj.is_int (Obj.magic v) then
-			VInt (Obj.magic v)
-		else
-			let head = Extc.dltoint (Extc.dlptr v) in
-			match head land tag_mask with
-			| 0 -> VNull
-			| 2 -> VBool (v == val_true)
-			| 3 -> VString (copy_string v)
-			| 4 ->
-				ignore(Extc.dlcall3 val_iter_fields v (Extc.dlcallback 2) (Obj.magic obj_fun));
-				let r = !obj_r in
-				obj_r := [];
-				let ctx = get_ctx() in
-				let fields = List.rev_map (fun (v,id) ->
-					let iid = Extc.dltoint id in
-					if not (Hashtbl.mem ctx.fields_cache iid) then begin
-						let name = copy_string (Extc.dlcall1 val_field_name id) in
-						ignore(hash_field ctx name);
-					end;
-					iid, neko_value v
-				) r in
-				VObject { ofields = Array.of_list fields; oproto = None }
-			| 5 ->
-				VArray (Array.init (head asr tag_bits) (fun i -> neko_value (Extc.dlptr (val_field v i))))
-			| 7 ->
-				let r = alloc_root v in
-				let a = ANekoAbstract v in
-				Gc.finalise (fun _ -> free_root r) a;
-				VAbstract a
-			| t ->
-				failwith ("Unsupported Neko value tag " ^ string_of_int t)
-	in
-
-	Callback.register "dlcallb2" (fun args nargs ->
-		(* get back the VM env, which was set in value_neko *)
-		let env = Extc.dlptr (Extc.dladdr vm (2 * ptr_size)) in
-		(* extract the index stored in abstract data *)
-		let index : int = Obj.magic (Extc.dlptr (val_field env 1)) in
-		let f, obj = (try Hashtbl.find roots index with Not_found -> assert false) in
-		let nargs = Extc.dltoint nargs in
-		let rec loop i =
-			if i = nargs then [] else neko_value (Extc.dlptr (Extc.dladdr args (i * ptr_size))) :: loop (i + 1)
-		in
-		let v = (get_ctx()).do_call obj (VFunction f) (loop 0) { psource = "<callback>"; pline = 0; } in
-		value_neko v
-	);
-
-	let callprim (n,p,nargs) args =
-		let arr = Array.of_list (List.map value_neko args) in
-		let exc = ref null in
-		if Array.length arr <> nargs then failwith n;
-		let ret = Extc.dlcall5 callEx val_null p (Obj.magic arr) (Extc.dlint nargs) (Obj.magic exc) in
-		if !exc != null then raise (Runtime (neko_value !exc));
-		(match !buffers with
-		| [] -> ()
-		| l ->
-			buffers := [];
-			(* copy back data *)
-			List.iter (fun (buf,v) ->
-				Extc.dlmemcpy (Extc.dlstring buf) (val_str v) (String.length buf);
-			) l);
-		neko_value ret
-	in
-	Some {
-		load = loadprim;
-		call = callprim;
-	}
-
 (* ---------------------------------------------------------------------- *)
 (* BUILTINS *)
 
@@ -1006,7 +764,7 @@ let builtins =
 		);
 	(* extra *)
 		"use_neko_dll", Fun0 (fun() ->
-			VBool (neko <> None)
+			VBool false
 		);
 	] in
 	let vals = [
@@ -1873,8 +1631,8 @@ let std_lib =
 			| _ -> error()
 		));
 	(* xml *)
-		"parse_xml", (match neko with
-		| None -> Fun2 (fun str o ->
+		"parse_xml",
+			(Fun2 (fun str o ->
 			match str, o with
 			| VString str, VObject events ->
 				let ctx = get_ctx() in
@@ -1907,21 +1665,9 @@ let std_lib =
 				| e -> failwith ("Parser failure (" ^ Printexc.to_string e ^ ")"));
 				VNull
 			| _ -> error())
-		| Some neko ->
-			let parse_xml = neko.load "std@parse_xml" 2 in
-			Fun2 (fun str o -> neko.call parse_xml [str;o])
 		);
 	(* memory, module : not planned *)
-	]
-	(* process *)
-	@ (match neko with
-	| None -> []
-	| Some neko ->
-		let win_ec = (try Some (neko.load "std@win_env_changed" 0) with _ -> None) in
-	[
-		"win_env_changed", (Fun0 (fun() -> match win_ec with None -> error() | Some f -> neko.call f []));
-	]))
-
+	])
 
 (* ---------------------------------------------------------------------- *)
 (* REGEXP LIBRARY *)
