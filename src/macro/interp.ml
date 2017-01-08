@@ -79,9 +79,9 @@ and vfunction =
 	| FunVar of (value list -> value)
 
 and regexp = {
-	r : Str.regexp;
+	r : Pcre.regexp;
 	mutable r_string : string;
-	mutable r_groups : (int * int) option array;
+	mutable r_groups : int array;
 }
 
 and zlib = {
@@ -1930,122 +1930,69 @@ let reg_lib =
 	let error() =
 		raise Builtin_error
 	in
-	(* try to load regexp first : we might fail if pcre is not installed *)
-	let neko = (match neko with
-		| None -> None
-		| Some neko ->
-			(try ignore(neko.load "regexp@regexp_new_options" 2); Some neko with _ -> None)
-	) in
-	match neko with
-	| None ->
+	let open Pcre in
+	let string_of_pcre_error = function
+		| BadPattern(s,i) -> Printf.sprintf "at %i: %s" i s
+		| Partial -> "Partial"
+		| BadPartial -> "BadPartial"
+		| BadUTF8 -> "BadUTF8"
+		| BadUTF8Offset -> "BadUTF8Offset"
+		| MatchLimit -> "MatchLimit"
+		| RecursionLimit -> "RecursionLimit"
+		| InternalError s -> "InternalError: " ^ s
+	in
 	make_library [
-		(* regexp_new : deprecated *)
 		"regexp_new_options", Fun2 (fun str opt ->
-			match str, opt with
-			| VString str, VString opt ->
-				let case_sensitive = ref true in
-				List.iter (function
-					| 'm' -> () (* always ON ? *)
-					| 'i' -> case_sensitive := false
+			match str,opt with
+			| VString str,VString opt ->
+				let flags = List.map (function
+					| 'i' -> `CASELESS
+					| 's' -> `DOTALL
+					| 'm' -> `MULTILINE
+					| 'u' -> `UTF8
+					| 'g' -> `UNGREEDY
 					| c -> failwith ("Unsupported regexp option '" ^ String.make 1 c ^ "'")
-				) (ExtString.String.explode opt);
-				let buf = Buffer.create 0 in
-				let rec loop prev esc = function
-					| [] -> ()
-					| c :: l when esc ->
-						(match c with
-						| 'n' -> Buffer.add_char buf '\n'
-						| 'r' -> Buffer.add_char buf '\r'
-						| 't' -> Buffer.add_char buf '\t'
-						| 'd' -> Buffer.add_string buf "[0-9]"
-						| '\\' -> Buffer.add_string buf "\\\\"
-						| '(' | ')' -> Buffer.add_char buf c
-						| '1'..'9' | '+' | '$' | '^' | '*' | '?' | '.' | '[' | ']' ->
-							Buffer.add_char buf '\\';
-							Buffer.add_char buf c;
-						| _ ->
-							Buffer.add_char buf c);
-						loop c false l
-					| c :: l ->
-						match c with
-						| '\\' -> loop prev true l
-						| '(' | '|' | ')' ->
-							Buffer.add_char buf '\\';
-							Buffer.add_char buf c;
-							loop c false l
-						| '?' when prev = '(' && (match l with ':' :: _ -> true | _ -> false) ->
-							failwith "Non capturing groups '(?:' are not supported in macros"
-						| '?' when prev = '*' ->
-							failwith "Ungreedy *? are not supported in macros"
-						| _ ->
-							Buffer.add_char buf c;
-							loop c false l
-				in
-				loop '\000' false (ExtString.String.explode str);
-				let str = Buffer.contents buf in
-				let r = {
-					r = if !case_sensitive then Str.regexp str else Str.regexp_case_fold str;
+				) (ExtString.String.explode opt) in
+				let r = try regexp ~flags str with Error error -> failwith (string_of_pcre_error error) in
+				let pcre = {
+					r = r;
 					r_string = "";
-					r_groups = [||];
+					r_groups = [||]
 				} in
-				VAbstract (AReg r)
+				VAbstract (AReg pcre)
 			| _ -> error()
 		);
-		"regexp_match", Fun4 (fun r str pos len ->
-			match r, str, pos, len with
-			| VAbstract (AReg r), VString str, VInt pos, VInt len ->
-				let nstr, npos, delta = (if len = String.length str - pos then str, pos, 0 else String.sub str pos len, 0, pos) in
-				(try
-					ignore(Str.search_forward r.r nstr npos);
-					let rec loop n =
-						if n = 9 then
-							[]
-						else try
-							(Some (Str.group_beginning n + delta, Str.group_end n + delta)) :: loop (n + 1)
-						with Not_found ->
-							None :: loop (n + 1)
-						| Invalid_argument _ ->
-							[]
-					in
-					r.r_string <- str;
-					r.r_groups <- Array.of_list (loop 0);
-					VBool true;
+		"regexp_match", Fun4 (fun rex str pos len -> match rex, str, pos, len with
+			| VAbstract (AReg rex),VString str,VInt pos,VInt len ->
+				begin try
+					(* A bit awkward, but the PCRE bindings don't seem to expose the len argument... *)
+					if pos + len > String.length str then raise Not_found;
+					let str = String.sub str 0 (pos + len) in
+					let a = pcre_exec ~rex:rex.r ~pos str in
+					rex.r_string <- str;
+					rex.r_groups <- a;
+					VBool true
 				with Not_found ->
-					VBool false)
+					VBool false
+				end
 			| _ -> error()
 		);
-		"regexp_matched", Fun2 (fun r n ->
-			match r, n with
-			| VAbstract (AReg r), VInt n ->
-				(match (try r.r_groups.(n) with _ -> failwith ("Invalid group " ^ string_of_int n)) with
-				| None -> VNull
-				| Some (pos,pend) -> VString (String.sub r.r_string pos (pend - pos)))
+		"regexp_matched", Fun2 (fun r n -> match r, n with
+			| VAbstract (AReg r),VInt n ->
+				let pos = r.r_groups.(n * 2) in
+				let len = r.r_groups.(n * 2 + 1) - pos in
+				if pos = -1 then VNull
+				else VString (String.sub r.r_string pos len)
 			| _ -> error()
 		);
-		"regexp_matched_pos", Fun2 (fun r n ->
-			match r, n with
-			| VAbstract (AReg r), VInt n ->
-				(match (try r.r_groups.(n) with _ -> failwith ("Invalid group " ^ string_of_int n)) with
-				| None -> VNull
-				| Some (pos,pend) -> VObject (obj (hash_field (get_ctx())) ["pos",VInt pos;"len",VInt (pend - pos)]))
+		"regexp_matched_pos", Fun2 (fun r n -> match r, n with
+			| VAbstract (AReg r),VInt n ->
+				let pos = r.r_groups.(n * 2) in
+				let len = r.r_groups.(n * 2 + 1) - pos in
+				VObject (obj (hash_field (get_ctx())) ["pos",VInt pos;"len",VInt len])
 			| _ -> error()
 		);
-		(* regexp_replace : not used by Haxe *)
-		(* regexp_replace_all : not used by Haxe *)
-		(* regexp_replace_fun : not used by Haxe *)
 	]
-	| Some neko ->
-	let regexp_new_options = neko.load "regexp@regexp_new_options" 2 in
-	let regexp_match = neko.load "regexp@regexp_match" 4 in
-	let regexp_matched = neko.load "regexp@regexp_matched" 2 in
-	let regexp_matched_pos = neko.load "regexp@regexp_matched_pos" 2 in
-	make_library [
-		"regexp_new_options", Fun2 (fun str opt -> neko.call regexp_new_options [str;opt]);
-		"regexp_match", Fun4 (fun r str pos len -> neko.call regexp_match [r;str;pos;len]);
-		"regexp_matched", Fun2 (fun r n -> neko.call regexp_matched [r;n]);
-		"regexp_matched_pos", Fun2 (fun r n -> neko.call regexp_matched_pos [r;n]);
-	]
-
 
 (* ---------------------------------------------------------------------- *)
 (* ZLIB LIBRARY *)
