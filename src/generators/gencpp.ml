@@ -1,6 +1,6 @@
 (*
    The Haxe Compiler
-   Copyright (C) 2005-2016  Haxe Foundation
+   Copyright (C) 2005-2017  Haxe Foundation
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
