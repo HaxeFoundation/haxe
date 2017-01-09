@@ -4,19 +4,19 @@ os:
   - linux
   - osx
 
-sudo: false
-addons:
-  apt:
-    packages:
-      - ocaml
-      - camlp4
-      - zlib1g-dev
+dist: trusty
+sudo: required
 
 install:
   # Install dependencies
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
+      sudo add-apt-repository ppa:haxe/ocaml -y;
+      sudo apt-get update -qq;
+      sudo apt-get install ocaml camlp4 zlib1g-dev -qqy;
+    fi
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
-    travis_retry brew update;
-    travis_retry brew install ocaml camlp4;
+      travis_retry brew update;
+      travis_retry brew install ocaml camlp4;
     fi
 
 script:
