@@ -24,7 +24,6 @@ cache:
 install:
     - 'git submodule update --init --recursive'
     - '%CYG_ROOT%/bin/bash -lc "echo initialize"'
-    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win package_src"'
     # Install ocaml
     - curl -fsS -o cygwin-setup.exe --retry 3 https://cygwin.com/setup-x86.exe
     - 'cygwin-setup.exe -g -q -R "%CYG_ROOT%" -P make -P git -P mingw64-i686-zlib -P rsync -P patch -P diffutils -P curl -P unzip -P m4 -P perl -P mingw64-i686-gcc-core -P mingw64-i686-pcre'
