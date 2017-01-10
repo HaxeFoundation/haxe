@@ -771,6 +771,12 @@ class _hx_type {
 			$this->__meta__ =  eval($cn.'::$__meta__');
 	}
 
+	public function __ensureMeta__() {
+		if(property_exists($this->__tname__, '__meta__') && !$this->__meta__) {
+			$this->__meta__ =  eval($this->__tname__.'::$__meta__');
+		}
+	}
+
 	public function toString()   { return $this->__toString(); }
 
 	public function __toString() {
