@@ -1134,7 +1134,7 @@ let generate_class ctx c =
 			| _ when props = [] -> ()
 			| Some (csup,_) when Codegen.has_properties csup ->
 				newprop ctx;
-				let psup = s_path ctx csup.cl_path in
+				let psup = ctx.type_accessor (TClassDecl csup) in
 				print ctx "__properties__: $extend(%s.prototype.__properties__,{%s})" psup (gen_props props)
 			| _ ->
 				newprop ctx;
