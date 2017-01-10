@@ -11,6 +11,7 @@
 	php7 : Allow user-defined modules in `php` package (#5921)
 	php7 : Dereference some of `php.Syntax` methods if required (#5923)
 	php : fixed assigning a method of dynamic value to a variable (#5469)
+	php : fixed missing initialization of dynamic methods in classes with empty constructors (#4723)
 
 2016-12-24: 3.4.0-RC2
 

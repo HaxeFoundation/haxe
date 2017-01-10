@@ -1338,7 +1338,9 @@ and gen_expr ctx e =
 		if ctx.in_loop then spr ctx "break" else print ctx "break %d" ctx.nested_loops
 	| TContinue ->
 		if ctx.in_loop then spr ctx "continue" else print ctx "continue %d" ctx.nested_loops
-	| TBlock [] ->
+	| TBlock [] when List.length ctx.dynamic_methods = 0 ->
+		let type_name = match ctx.curclass.cl_path with (_, type_name) -> type_name in
+		print_endline (type_name ^ "::" ^ ctx.curmethod ^ " empty block");
 		spr ctx "{}"
 	| TBlock el ->
 		let old_l = ctx.inv_locals in
