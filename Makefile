@@ -33,7 +33,8 @@ LIBS=unix str libs/extlib/extLib libs/xml-light/xml-light libs/swflib/swflib \
 	libs/extc/extc libs/neko/neko libs/javalib/java libs/ziplib/zip \
 	libs/ttflib/ttf libs/ilib/il libs/objsize/objsize libs/pcre/pcre
 
-NATIVE_LIBS=-cclib libs/extc/extc_stubs.o -cclib libs/extc/process_stubs.o -cclib -lz -cclib libs/objsize/c_objsize.o -cclib libs/pcre/pcre_stubs.o -cclib -lpcre -ccopt -L/usr/local/lib
+PCRE=-cclib -lpcre
+NATIVE_LIBS=-cclib libs/extc/extc_stubs.o -cclib libs/extc/process_stubs.o -cclib -lz -cclib libs/objsize/c_objsize.o -cclib libs/pcre/pcre_stubs.o $(PCRE) -ccopt -L/usr/local/lib
 
 ifeq ($(BYTECODE),1)
 	TARGET_FLAG = bytecode
