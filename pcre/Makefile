@@ -1,4 +1,4 @@
-ALL_CFLAGS = $(CFLAGS) -I zlib
+ALL_CFLAGS = $(CFLAGS) -I pcre
 OCAMLOPT=ocamlopt
 OCAMLC=ocamlc
 SRC = pcre.ml pcre_stubs.c
