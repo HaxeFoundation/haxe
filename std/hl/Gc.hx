@@ -30,6 +30,15 @@ class Gc {
 		return { totalAllocated : tot, allocationCount : count, currentMemory : mem };
 	}
 
+	/**
+		Dump whole memory into target filename for analysis.
+	**/
+	public static function dumpMemory( ?fileName : String = "hlmemory.dump" ) {
+		_dump(@:privateAccess fileName.toUtf8());
+	}
+
+	@:hlNative("std", "gc_dump_memory") static function _dump( b : hl.Bytes ) : Void {}
+
 	@:hlNative("std", "gc_profile") public static function activeProfileInfos( b : Bool ) : Void {}
 	@:hlNative("std", "gc_enable") public static function enable( b : Bool ) : Void {}
 	@:hlNative("std", "gc_major") public static function major() : Void {}
