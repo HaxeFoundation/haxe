@@ -317,6 +317,27 @@ and mark_directly_used_mt mt =
 	| _ ->
 		()
 
+and mark_directly_used_t com p t =
+	match follow t with
+	| TInst({cl_kind = KNormal} as c,pl) ->
+		mark_directly_used_class c;
+		List.iter (mark_directly_used_t com p) pl
+	| TEnum(e,pl) ->
+		mark_directly_used_enum e;
+		List.iter (mark_directly_used_t com p) pl
+	| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
+		begin try (* this is copy-pasted from mark_t *)
+			mark_directly_used_t com p (snd (Typecore.AbstractCast.find_multitype_specialization com a pl p))
+		with Error.Error _ ->
+			()
+		end
+	| TAbstract(a,pl) ->
+		List.iter (mark_directly_used_t com p) pl;
+		if not (Meta.has Meta.CoreType a.a_meta) then
+			mark_directly_used_t com p (Abstract.get_underlying_type a pl)
+	| _ ->
+		()
+
 and check_dynamic_write dce fa =
 	let n = field_name fa in
 	check_and_add_feature dce ("dynamic_write");
@@ -441,7 +462,10 @@ and expr dce e =
 	| TTry(e, vl) ->
 		expr dce e;
 		List.iter (fun (v,e) ->
-			if v.v_type != t_dynamic then check_feature dce "typed_catch";
+			if v.v_type != t_dynamic then begin
+				check_feature dce "typed_catch";
+				mark_directly_used_t dce.com v.v_pos v.v_type;
+			end;
 			expr dce e;
 			mark_t dce e.epos v.v_type;
 		) vl;
