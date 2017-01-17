@@ -93,3 +93,4 @@ tests/misc/projects/Issue4070/cpp/
 *.vscode/
 
 /tests/sys/temp
+*.dll

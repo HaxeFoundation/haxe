@@ -1282,7 +1282,7 @@ let alloc_ctx com =
 		smap = smap;
 		js_modern = not (Common.defined com Define.JsClassic);
 		js_flatten = not (Common.defined com Define.JsUnflatten);
-		es_version = int_of_string (Common.defined_value com Define.JsEs);
+		es_version = (try int_of_string (Common.defined_value com Define.JsEs) with _ -> 0);
 		store_exception_stack = if Common.has_dce com then (Common.has_feature com "haxe.CallStack.exceptionStack") else List.exists (function TClassDecl { cl_path=["haxe"],"CallStack" } -> true | _ -> false) com.types;
 		statics = [];
 		inits = [];
