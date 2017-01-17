@@ -463,8 +463,8 @@ class RunCi {
 		switch (systemName){
 			case "Linux": requireAptPackages(["libpcre3-dev"]);
 			case "Mac": {
-			  runCommand("brew", ["install", "pcre"], true);
-			  runCommand("brew", ["install", "python"], true);
+			  runCommand("brew", ["install", "pcre"], false, true);
+			  runCommand("brew", ["install", "python"], false, true);
 			}
 		}
 		runCommand("pip", ["install", "hererocks"]);
