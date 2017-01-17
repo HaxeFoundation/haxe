@@ -2835,6 +2835,7 @@ let decode_tdecl = function
 
 let dec_int = function
 	| VInt i -> i
+	| VInt32 i -> Int32.to_int i
 	| _ -> raise Invalid_expr
 
 let dec_i32 = function
@@ -3091,8 +3092,7 @@ let value_signature v =
 
 let prepare_callback v n =
 	match v with
-	| VFunction f ->
-		if nargs f <> n then raise Invalid_expr;
+	| VFunction _ | VClosure _ ->
 		let ctx = get_ctx() in
 		(fun args ->
 			match catch_errors ctx (fun() -> ctx.do_call VNull v args null_pos) with

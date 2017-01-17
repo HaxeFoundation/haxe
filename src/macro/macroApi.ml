@@ -1082,6 +1082,9 @@ and decode_type t =
 	| 8, [a; pl] -> TAbstract (decode_ref a, List.map decode_type (dec_array pl))
 	| _ -> raise Invalid_expr
 
+and decode_type_decl t =
+	decode_tdecl (field t "__t")
+
 (* ---------------------------------------------------------------------- *)
 (* TEXPR Encoding *)
 
@@ -1616,7 +1619,7 @@ let macro_api ccom get_api =
 						enc_string ("\"" ^ Ast.s_escape (dec_string v) ^ "\"")
 					);
 					"buildMetaData", vfun1 (fun t ->
-						match Codegen.build_metadata com (decode_tdecl t) with
+						match Codegen.build_metadata com (decode_type_decl t) with
 						| None -> vnull
 						| Some e -> encode_texpr e
 					);
@@ -1633,7 +1636,7 @@ let macro_api ccom get_api =
 						vnull
 					);
 					"setCurrentClass", vfun1 (fun c ->
-						Genjs.set_current_class js_ctx (match decode_tdecl c with TClassDecl c -> c | _ -> assert false);
+						Genjs.set_current_class js_ctx (match decode_type_decl c with TClassDecl c -> c | _ -> assert false);
 						vnull
 					);
 				] in
