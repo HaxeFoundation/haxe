@@ -5,31 +5,31 @@ import lua.lib.luv.fs.Open;
 extern class FileSystem {
   @:native("fs_close")
   @:overload(function(file : FileDescriptor, cb : String->Bool->Void) : Request {})
-  static function close(file : FileDescriptor) : Bool;
+  static function close(file : FileDescriptor) : LuvStatus<Bool>;
 
   @:native("fs_open")
   @:overload(function(path : String, flags : Open, mode : Int, ?cb : String->FileDescriptor->Void) : Request {})
-  static function open(path : String, flags : Open, mode : Int) : FileDescriptor;
+  static function open(path : String, flags : Open, mode : Int) : LuvStatus<FileDescriptor>;
 
   @:native("fs_read")
   @:overload(function(file : FileDescriptor, len : Int, offset : Int, ?cb : String->String->Void) : Request {} )
-  static function read(file : FileDescriptor, len : Int, offset : Int) : String;
+  static function read(file : FileDescriptor, len : Int, offset : Int) : LuvStatus<String>;
 
   @:native("fs_unlink")
   @:overload(function(file : FileDescriptor, ?cb : String->String->Void) : Request {} )
-  static function unlink(file : FileDescriptor, content : String) : String;
+  static function unlink(file : FileDescriptor, content : String) : LuvStatus<String>;
 
   @:native("fs_write")
   @:overload(function(file : FileDescriptor, content : String, offset : Int, ?cb : String->Bool->Void) : Int {})
-  static function write(file : FileDescriptor, content : String, offset : Int) : Bool;
+  static function write(file : FileDescriptor, content : String, offset : Int) : LuvStatus<Bool>;
 
   @:native("fs_mkdir")
   @:overload(function(path : String, mode : Int, cb : String->Bool->Void) : Request {})
-  static function mkdir(path : String, mode :Int) : Bool;
+  static function mkdir(path : String, mode :Int) : LuvStatus<Bool>;
 
   @:native("fs_mkdtemp")
   @:overload(function(data : String, cb : String->Bool->Void) : Request {})
-  static function mkdtemp(data : String) : Bool;
+  static function mkdtemp(data : String) : LuvStatus<Bool>;
 
   @:native("fs_rmdir")
   @:overload(function(path : String, cb : String->Bool->Void) : Request {})
@@ -44,59 +44,59 @@ extern class FileSystem {
 
   @:native("fs_stat")
   @:overload(function(path : String, cb : String->Stat->Void) : Request {})
-  static function stat(path : String) : Stat;
+  static function stat(path : String) : LuvStatus<Stat>;
 
   @:native("fs_fstat")
   @:overload(function(descriptor : FileDescriptor, cb : String->Stat->Void) : Request {})
-  static function fstat(descriptor : FileDescriptor) : Stat;
+  static function fstat(descriptor : FileDescriptor) : LuvStatus<Stat>;
 
   @:native("fs_lstat")
   @:overload(function(path : String, cb : String->Stat->Void) : Request {})
-  static function lstat(path : String) : Stat;
+  static function lstat(path : String) : LuvStatus<Stat>;
 
   @:native("fs_rename")
   @:overload(function(path : String, newpath : String, cb : String->Bool->Void) : Request {})
-  static function rename(path : String, newpath : String) : Bool;
+  static function rename(path : String, newpath : String) : LuvStatus<Bool>;
 
   @:native("fs_fsync")
   @:overload(function(descriptor : FileDescriptor, cb : String->Bool->Void) : Request {})
-  static function fsync(descriptor : FileDescriptor) : Bool;
+  static function fsync(descriptor : FileDescriptor) : LuvStatus<Bool>;
 
   @:native("fs_fdatasync")
   @:overload(function(descriptor : FileDescriptor, cb : String->Bool->Void) : Request {})
-  static function fdatasync(descriptor : FileDescriptor) : Bool;
+  static function fdatasync(descriptor : FileDescriptor) : LuvStatus<Bool>;
 
   @:native("fs_ftruncate")
   @:overload(function(descriptor : FileDescriptor, offset : Int, cb : String->Bool->Void) : Request {})
-  static function ftruncate(descriptor : FileDescriptor, offset : Int) : Bool;
+  static function ftruncate(descriptor : FileDescriptor, offset : Int) : LuvStatus<Bool>;
 
   @:native("fs_sendfile")
   @:overload(function(fin : FileDescriptor, fout : FileDescriptor, cb : String->Int->Void) : Request {})
-  static function sendfile(fin : FileDescriptor, fout : FileDescriptor) : Int;
+  static function sendfile(fin : FileDescriptor, fout : FileDescriptor) : LuvStatus<Int>;
 
   @:native("fs_access")
   @:overload(function(path : String, mode : Int, cb : String->Bool->Void) : Request {})
-  static function access(path : String, mode :Int) : Bool;
+  static function access(path : String, mode :Int) : LuvStatus<Bool>;
 
   @:native("fs_chmod")
   @:overload(function(path : String, mode : Int, cb : String->Bool->Void) : Request {})
-  static function chmod(path : String, mode :Int) : Bool;
+  static function chmod(path : String, mode :Int) : LuvStatus<Bool>;
 
   @:native("fs_fchmod")
   @:overload(function(descriptor : FileDescriptor, mode : Int, cb : String->Bool->Void) : Request {})
-  static function fchmod(descriptor : FileDescriptor, mode :Int) : Bool;
+  static function fchmod(descriptor : FileDescriptor, mode :Int) : LuvStatus<Bool>;
 
   @:native("fs_futime")
   @:overload(function(descriptor : FileDescriptor, actime : Int, modtime : Int, cb : String->Bool->Void) : Request {})
-  static function futime(descriptor : FileDescriptor, actime : Int, modtime : Int) : Bool;
+  static function futime(descriptor : FileDescriptor, actime : Int, modtime : Int) : LuvStatus<Bool>;
 
   @:native("fs_utime")
   @:overload(function(path : String, actime : Int, modtime : Int, cb : String->Bool->Void) : Request {})
-  static function utime(path : String, actime : Int, modtime : Int) : Bool;
+  static function utime(path : String, actime : Int, modtime : Int) : LuvStatus<Bool>;
 
   @:native("fs_link")
   @:overload(function(oldpath : String, newpath : String, cb : String->Bool->Void) : Request {})
-  static function link(oldpath : String, newpath : String) : Bool;
+  static function link(oldpath : String, newpath : String) : LuvStatus<Bool>;
 
   @:native("fs_symlink")
   @:overload(function(oldpath : String, newpath : String, flags : Int, cb : String->Bool->Void) : Request {})
@@ -153,6 +153,6 @@ typedef TimeStamp = {
 }
 
 @:multiReturn extern class LuvStatus<T> {
-  var status : T;
+  var value : T;
   var message : String;
 }

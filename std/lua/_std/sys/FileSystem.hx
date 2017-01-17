@@ -49,7 +49,9 @@ class FileSystem {
 	}
 
 	public inline static function stat( path : String ) : FileStat {
-		var l =  LFileSystem.stat(path);
+		var ls =  LFileSystem.stat(path);
+		if (ls.value == null) throw ls.message;
+		var l = ls.value;
 		return {
 			gid   : l.gid,
 			uid   : l.uid,
@@ -85,17 +87,20 @@ class FileSystem {
 	public inline static function readDirectory( path : String ) : Array<String> {
 		var scandir = LFileSystem.scandir(path);
 
-		var itr = function() return LFileSystem.scandir_next(scandir).name;
+		var itr = function() {
+			var next = LFileSystem.scandir_next(scandir).name;
+			return next;
+		}
 		return lua.Lib.fillArray(itr);
 	}
 
 	public inline static function isDirectory( path : String ) : Bool {
-		return  LFileSystem.stat(path).type ==  "directory";
+		return  LFileSystem.stat(path).value.type ==  "directory";
 	}
 
 	public inline static function deleteDirectory( path : String ) : Void {
 		var ret = LFileSystem.rmdir(path);
-		if (ret.status == null){
+		if (ret.value == null){
 			throw ret.message;
 		}
 	}
@@ -110,7 +115,7 @@ class FileSystem {
 			path = _p;
 		}
 		for (part in parts) {
-			if (part.charCodeAt(part.length - 1) != ":".code && !exists(part) && !LFileSystem.mkdir( part, 511 ))
+			if (part.charCodeAt(part.length - 1) != ":".code && !exists(part) && !LFileSystem.mkdir( part, 511 ).value)
 				throw "Could not create directory:" + part;
 		}
 	}
