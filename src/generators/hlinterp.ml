@@ -111,7 +111,7 @@ type context = {
 	mutable on_error : value -> (fundecl * int ref) list -> unit;
 	mutable resolve_macro_api : string -> (value list -> value) option;
 	checked : bool;
-	cached_protos : (int, vproto * ttype array) Hashtbl.t;
+	cached_protos : (int, vproto * ttype array * (int * (value -> value)) list) Hashtbl.t;
 	cached_strings : (int, string) Hashtbl.t;
 	cached_hashes : (int32, string) Hashtbl.t;
 }
@@ -175,10 +175,17 @@ let rec get_proto ctx p =
 	try
 		Hashtbl.find ctx.cached_protos p.pid
 	with Not_found ->
-		let fields = (match p.psuper with None -> [||] | Some p -> snd(get_proto ctx p)) in
+		let fields, bindings = (match p.psuper with None -> [||],[] | Some p -> let _, fields, bindings = get_proto ctx p in fields, bindings) in
 		let meths = Array.map (get_function ctx) p.pvirtuals in
 		let fields = Array.append fields (Array.map (fun (_,_,t) -> t) p.pfields) in
-		let proto = ({ pclass = p; pmethods = meths },fields) in
+		let bindings = List.fold_left (fun acc (fid,fidx) ->
+			let f = get_function ctx fidx in
+			let ft = (match f with FFun f -> f.ftype | FNativeFun _ -> assert false) in
+			let need_closure = (match ft, fields.(fid) with HFun (args,_), HFun(args2,_) -> List.length args > List.length args2 | HFun _, HDyn -> false | _ -> assert false) in
+			let acc = List.filter (fun (fid2,_) -> fid2 <> fid) acc in
+			(fid, (fun v -> VClosure (f,if need_closure then Some v else None))) :: acc
+		) bindings p.pbindings in
+		let proto = ({ pclass = p; pmethods = meths },fields,bindings) in
 		Hashtbl.replace ctx.cached_protos p.pid proto;
 		proto
 
@@ -187,8 +194,11 @@ let alloc_obj ctx t =
 	| HDynObj ->
 		VDynObj { dfields = Hashtbl.create 0; dvalues = [||]; dtypes = [||]; dvirtuals = []; }
 	| HObj p ->
-		let p, fields = get_proto ctx p in
-		VObj { oproto = p; ofields = Array.map default fields }
+		let p, fields, bindings = get_proto ctx p in
+		let ftable = Array.map default fields in
+		let obj = VObj { oproto = p; ofields = ftable } in
+		List.iter (fun (fid,mk) -> ftable.(fid) <- mk obj) bindings;
+		obj
 	| HVirtual v ->
 		let o = {
 			dfields = Hashtbl.create 0;
@@ -743,7 +753,7 @@ let interp ctx f args =
 	let check_obj v o fid =
 		if ctx.checked then match o with
 		| VObj o ->
-			let _, fields = get_proto ctx o.oproto.pclass in
+			let _, fields, _ = get_proto ctx o.oproto.pclass in
 			check v fields.(fid) (fun() -> "obj field")
 		| VVirtual vp ->
 			let _,_, t = vp.vtype.vfields.(fid) in
@@ -902,11 +912,6 @@ let interp ctx f args =
 				let rv = get r in
 				check_obj rv o fid;
 				v.ofields.(fid) <- rv
-			| _ -> assert false)
-		| OSetMethod (o,fid,mid) ->
-			let o = get o in
-			(match o with
-			| VObj v -> v.ofields.(fid) <- VClosure (get_function ctx mid,None)
 			| _ -> assert false)
 		| OCallMethod (r,m,rl) ->
 			(match get (List.hd rl) with
@@ -2290,8 +2295,6 @@ let check code macros =
 				reg r (tfield 0 fid false)
 			| OStaticClosure (r,f) ->
 				reg r ftypes.(f)
-			| OSetMethod (o,f,fid) ->
-				check ftypes.(fid) (tfield o f false)
 			| OVirtualClosure (r,o,fid) ->
 				(match rtype o with
 				| HObj _ ->
@@ -2745,7 +2748,6 @@ let make_spec (code:code) (f:fundecl) =
 			| OCallThis (d,fid,rl) -> args.(d) <- make_call (SMethod fid) (List.map (fun r -> args.(r)) (0 :: rl))
 			| OCallClosure (d,r,rl) -> args.(d) <- make_call (SClosure args.(r)) (List.map (fun r -> args.(r)) rl)
 			| OStaticClosure (d,fid) -> args.(d) <- SFun (fid,None)
-			| OSetMethod (o,f,fid) -> semit (SFieldSet (args.(o),f,SFun(fid,None)))
 			| OInstanceClosure (d,fid,r) -> args.(d) <- SFun (fid,Some args.(r))
 			| OVirtualClosure (d,r,index) -> args.(d) <- SMeth (args.(r),index)
 			| OGetGlobal (d,g) -> args.(d) <- SGlobal g

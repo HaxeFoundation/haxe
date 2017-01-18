@@ -533,6 +533,7 @@ and class_type ?(tref=None) ctx c pl statics =
 			pfunctions = PMap.empty;
 			pnfields = -1;
 			pinterfaces = PMap.empty;
+			pbindings = [];
 		} in
 		let t = HObj p in
 		(match tref with
@@ -562,7 +563,7 @@ and class_type ?(tref=None) ctx c pl statics =
 		let todo = ref [] in
 		List.iter (fun f ->
 			if is_extern_field f || (statics && f.cf_name = "__meta__") then () else
-			match f.cf_kind with
+			let fid = (match f.cf_kind with
 			| Method m when m <> MethDynamic && not statics ->
 				let g = alloc_fid ctx c f in
 				p.pfunctions <- PMap.add f.cf_name g p.pfunctions;
@@ -578,9 +579,10 @@ and class_type ?(tref=None) ctx c pl statics =
 				end else
 					None
 				in
-				DynArray.add pa { fname = f.cf_name; fid = alloc_string ctx f.cf_name; fmethod = g; fvirtual = virt; }
+				DynArray.add pa { fname = f.cf_name; fid = alloc_string ctx f.cf_name; fmethod = g; fvirtual = virt; };
+				None
 			| Method MethDynamic when List.exists (fun ff -> ff.cf_name = f.cf_name) c.cl_overrides ->
-				()
+				Some (try fst (get_index f.cf_name p) with Not_found -> assert false)
 			| _ ->
 				let fid = DynArray.length fa in
 				p.pindex <- PMap.add f.cf_name (fid + start_field, t) p.pindex;
@@ -590,6 +592,11 @@ and class_type ?(tref=None) ctx c pl statics =
 					p.pindex <- PMap.add f.cf_name (fid + start_field, t) p.pindex;
 					Array.set p.pfields fid (f.cf_name, alloc_string ctx f.cf_name, t)
 				) :: !todo;
+				Some (fid + start_field)
+			) in
+			match f.cf_kind, fid with
+			| Method _, Some fid -> p.pbindings <- (fid, alloc_fun_path ctx c.cl_path f.cf_name) :: p.pbindings
+			| _ -> ()
 		) (if statics then c.cl_ordered_statics else c.cl_ordered_fields);
 		if not statics then begin
 			(* add interfaces *)
@@ -606,6 +613,11 @@ and class_type ?(tref=None) ctx c pl statics =
 				DynArray.add pa { fname = "__string"; fid = alloc_string ctx "__string"; fmethod = alloc_fun_path ctx c.cl_path "__string"; fvirtual = None; }
 			with Not_found ->
 				());
+		end else begin
+			(match c.cl_constructor with
+			| Some f when not (is_extern_field f) ->
+				p.pbindings <- ((try fst (get_index "__constructor__" p) with Not_found -> assert false),alloc_fid ctx c f) :: p.pbindings
+			| _ -> ());
 		end;
 		p.pnfields <- DynArray.length fa + start_field;
 		p.pfields <- DynArray.to_array fa;
@@ -661,6 +673,7 @@ and enum_class ctx e =
 			pfunctions = PMap.empty;
 			pnfields = -1;
 			pinterfaces = PMap.empty;
+			pbindings = [];
 		} in
 		let t = HObj p in
 		ctx.cached_types <- PMap.add cpath t ctx.cached_types;
@@ -3040,10 +3053,6 @@ let generate_static_init ctx types main =
 				op ctx (OString (rname, alloc_string ctx (s_type_path path)));
 				op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx ([],"Type") "register",rname,rc));
 
-				(match c.cl_constructor with
-				| Some f when not (is_extern_field f) -> op ctx (OSetMethod (rc,index "__constructor__",alloc_fid ctx c f))
-				| _ -> ());
-
 				let gather_implements() =
 					let classes = ref [] in
 					let rec lookup cv =
@@ -3068,16 +3077,6 @@ let generate_static_init ctx types main =
 					) l;
 					op ctx (OSetField (rc,index "__implementedBy__",ra));
 				end;
-
-				(* register static funs *)
-
-				List.iter (fun f ->
-					match f.cf_kind with
-					| Method _ when not (is_extern_field f) ->
-						op ctx (OSetMethod (rc,index f.cf_name,alloc_fid ctx c f));
-					| _ ->
-						()
-				) c.cl_ordered_statics;
 
 				(match Codegen.build_metadata ctx.com (TClassDecl c) with
 				| None -> ()
@@ -3378,8 +3377,10 @@ let write_code ch code debug =
 			| Some g -> write_index (g + 1));
 			write_index (Array.length p.pfields);
 			write_index (Array.length p.pproto);
+			write_index (List.length p.pbindings);
 			Array.iter (fun (_,n,t) -> write_index n; write_type t) p.pfields;
 			Array.iter (fun f -> write_index f.fid; write_index f.fmethod; write_index (match f.fvirtual with None -> -1 | Some i -> i)) p.pproto;
+			List.iter (fun (fid,fidx) -> write_index fid; write_index fidx) p.pbindings;
 		| HArray ->
 			byte 11
 		| HType ->

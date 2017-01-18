@@ -762,9 +762,6 @@ let generate_function ctx f =
 				assert false)
 		| OStaticClosure (r,fid) ->
 			sexpr "%s = &cl$%d" (reg r) fid
-		| OSetMethod (o,f,fid) ->
-			let name, t = resolve_field (match rtype o with HObj o -> o | _ -> assert false) f in
-			sexpr "%s->%s = (%s)&cl$%d" (reg o) (ident name) (ctype t) fid
 		| OInstanceClosure (r,fid,ptr) ->
 			let ft = ctx.ftable.(fid) in
 			sexpr "%s = hl_alloc_closure_ptr(%s,%s,%s)" (reg r) (type_value (HFun (ft.fe_args,ft.fe_ret))) (funname fid) (reg ptr)
@@ -1005,7 +1002,7 @@ let write_c version file (code:code) =
 	Array.iter (fun f ->
 		Array.iteri (fun i op ->
 			match op with
-			| OStaticClosure (_,fid) | OSetMethod (_,_,fid) ->
+			| OStaticClosure (_,fid) ->
 				Hashtbl.replace used_closures fid ()
 			| OBytes (_,sid) ->
 				Hashtbl.replace bytes_strings sid ()
@@ -1165,7 +1162,7 @@ let write_c version file (code:code) =
 			sexpr "vbyte bytes$%d[] = {%s}" i (String.concat "," (loop str 0))
 		else if String.length str >= string_data_limit then
 			let s = utf8_to_utf16 str in
-			sline "// %s" (String.escaped str);
+			sline "// %s..." (String.escaped (String.sub str 0 (string_data_limit-4)));
 			sexpr "vbyte string$%d[] = {%s}" i (String.concat "," (loop s 0))
 	) code.strings;
 
@@ -1204,13 +1201,21 @@ let write_c version file (code:code) =
 				sexpr "static hl_obj_proto %s[] = {%s}" name (String.concat "," (List.map proto_value (Array.to_list o.pproto)));
 				name
 			in
+			let bindings =
+				if o.pbindings = [] then "NULL" else
+				let name = sprintf "bindings$%d" i in
+				sexpr "static int %s[] = {%s}" name (String.concat "," (List.map (fun (fid,fidx) -> string_of_int fid ^ "," ^ string_of_int fidx) o.pbindings));
+				name
+			in
 			let ofields = [
 				string_of_int (Array.length o.pfields);
 				string_of_int (Array.length o.pproto);
+				string_of_int (List.length o.pbindings);
 				sprintf "(const uchar*)%s" (string ctx o.pid);
 				(match o.psuper with None -> "NULL" | Some c -> sprintf "%s__val" (tname c.pname));
 				fields;
-				proto
+				proto;
+				bindings
 			] in
 			sexpr "static hl_type_obj obj$%d = {%s}" i (String.concat "," ofields);
 		| HEnum e ->
@@ -1301,17 +1306,29 @@ let write_c version file (code:code) =
 	generate_reflection ctx;
 
 	let gen_functions = Hashtbl.create 0 in
+	let all_protos = Hashtbl.create 0 in
 	Array.iter (fun t ->
 		match t with
 		| HObj o ->
+			Hashtbl.add all_protos o.pname o
+		| _ -> ()
+	) all_types;
+
+	Array.iter (fun t ->
+		match t with
+		| HObj o when Hashtbl.mem all_protos o.pname ->
 			let file = ref false in
-			Array.iter (fun p ->
-				match ctx.ftable.(p.fmethod).fe_decl with
+			let base_name, path = match List.rev (ExtString.String.nsplit o.pname ".") with
+				| [] -> assert false
+				| name :: acc -> (if name.[0] = '$' then String.sub name 1 (String.length name - 1) else name), List.rev acc
+			in
+			let generate fid =
+				match ctx.ftable.(fid).fe_decl with
 				| None -> ()
 				| Some f ->
 					if not !file then begin
 						file := true;
-						let path = ExtString.String.nsplit o.pname "." in
+						let path = path @ [base_name] in
 						let path = List.map (fun n -> if String.length n > 128 then Digest.to_hex (Digest.string n) else n) path in
 						let path = (match path with [name] -> ["_std";name] | _ -> path) in
 						open_file ctx (String.concat "/" path ^ ".c");
@@ -1320,7 +1337,19 @@ let write_c version file (code:code) =
 					end;
 					Hashtbl.replace gen_functions f.findex ();
 					generate_function ctx f
-			) o.pproto;
+			in
+			let gen_proto name =
+				try
+					let full_name = String.concat "." (path @ [name]) in
+					let o = Hashtbl.find all_protos full_name in
+					Array.iter (fun p -> generate p.fmethod) o.pproto;
+					List.iter (fun (_,mid) -> generate mid) o.pbindings;
+					Hashtbl.remove all_protos full_name;
+				with Not_found ->
+					()
+			in
+			gen_proto base_name;
+			gen_proto ("$" ^ base_name);
 		| _ -> ()
 	) all_types;
 

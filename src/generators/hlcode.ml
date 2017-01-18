@@ -58,6 +58,7 @@ and class_proto = {
 	mutable pindex : (string, int * ttype) PMap.t;
 	mutable pfunctions : (string, int) PMap.t;
 	mutable pinterfaces : (ttype, int) PMap.t;
+	mutable pbindings : (int * int) list;
 }
 
 and enum_proto = {
@@ -133,7 +134,6 @@ type opcode =
 	| OSetThis of field index * reg
 	| ODynGet of reg * reg * string index
 	| ODynSet of reg * string index * reg
-	| OSetMethod of reg * field index * functable index (* init static method *)
 	(* jumps *)
 	| OJTrue of reg * int
 	| OJFalse of reg * int
@@ -232,6 +232,7 @@ let null_proto =
 		pindex = PMap.empty;
 		pfunctions = PMap.empty;
 		pinterfaces = PMap.empty;
+		pbindings = [];
 	}
 
 let list_iteri f l =
@@ -499,7 +500,6 @@ let ostr fstr o =
 	| OCallThis (r,f,rl) -> Printf.sprintf "callthis %d, [%d](%s)" r f (String.concat "," (List.map string_of_int rl))
 	| OStaticClosure (r,f) -> Printf.sprintf "staticclosure %d, %s" r (fstr f)
 	| OInstanceClosure (r,f,v) -> Printf.sprintf "instanceclosure %d, %s(%d)" r (fstr f) v
-	| OSetMethod (o,f,fid) -> Printf.sprintf "setmethod %d[%d], %d" o f fid
 	| OGetGlobal (r,g) -> Printf.sprintf "global %d, %d" r g
 	| OSetGlobal (g,r) -> Printf.sprintf "setglobal %d, %d" g r
 	| ORet r -> Printf.sprintf "ret %d" r
@@ -640,11 +640,20 @@ let dump pr code =
 		| None -> ()
 		| Some p -> pr ("		extends " ^ p.pname));
 		pr ("		" ^ string_of_int (Array.length p.pfields) ^ " fields");
+		let rec loop = function
+			| None -> 0
+			| Some p -> Array.length p.pfields + loop p.psuper
+		in
+		let start_field = loop p.psuper in
 		Array.iteri (fun i (_,id,t) ->
-			pr ("		  @" ^ string_of_int i ^ " " ^ str id ^ " " ^ tstr t)
+			pr ("		  @" ^ string_of_int (i + start_field) ^ " " ^ str id ^ " " ^ tstr t)
 		) p.pfields;
 		pr ("		" ^ string_of_int (Array.length p.pproto) ^ " methods");
 		Array.iteri (fun i f ->
 			pr ("		  @" ^ string_of_int i ^ " " ^ str f.fid ^ " fun@" ^ string_of_int f.fmethod ^ (match f.fvirtual with None -> "" | Some p -> "[" ^ string_of_int p ^ "]"))
 		) p.pproto;
+		pr ("		" ^ string_of_int (List.length p.pbindings) ^ " bindings");
+		List.iter (fun (i,fidx) ->
+			pr ("		  @" ^ string_of_int i ^ " fun@" ^ string_of_int fidx)
+		) p.pbindings;
 	) protos

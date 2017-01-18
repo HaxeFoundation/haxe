@@ -403,7 +403,7 @@ let enc_inst path fields =
 	let t = (match ctx.gen with None -> assert false | Some gen -> try Genhl.resolve_type gen path with Not_found -> assert false) in
 	match t with
 	| HObj o ->
-		let proto, _ = Hlinterp.get_proto ctx.interp o in
+		let proto, _, _ = Hlinterp.get_proto ctx.interp o in
 		VObj { oproto = proto; ofields = fields }
 	| _ ->
 		assert false
