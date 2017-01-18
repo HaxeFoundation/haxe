@@ -1,1 +1,0 @@
-libpcre.dll.a / libpcre-1.dll : MingW32 8.36 binaries 
