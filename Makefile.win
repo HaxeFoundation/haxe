@@ -43,7 +43,7 @@ package_win:
 	# Copy the package contents to $(PACKAGE_FILE_NAME)
 	# Using poor man's cp (zip then unzip), because cp in cygwin is quite broken
 	mkdir -p $(PACKAGE_FILE_NAME)
-	7z a -y -tzip -mx0 temp.zip $(OUTPUT) haxelib$(EXTENSION) std > log.txt || type log.txt
+	7z a -y -tzip -mx0 temp.zip $(OUTPUT) haxelib$(EXTENSION) std "$$(cygpath -w "$$(which zlib1.dll)")" "$$(cygpath -w "$$(which libpcre-1.dll)")" > log.txt || type log.txt
 	cd extra && 7z a -y -tzip -mx0 ../temp.zip LICENSE.txt CONTRIB.txt CHANGES.txt > log.txt || type log.txt
 	7z x -y temp.zip -o$(PACKAGE_FILE_NAME) > log.txt || type log.txt
 	rm temp.zip
