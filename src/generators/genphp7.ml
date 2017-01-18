@@ -1001,6 +1001,19 @@ let type_name_used_in_namespace ctx name namespace =
 			List.mem name types
 
 (**
+	Simple list intersection implementation.
+	@return A list of values existing in each of source lists.
+*)
+let rec list_intersect list1 list2 =
+	match list2 with
+		| [] -> []
+		| item :: rest ->
+			if List.mem item list1 then
+				item :: (list_intersect list1 rest)
+			else
+				list_intersect list1 rest
+
+(**
 	Class to simplify collecting lists of declared and used local vars.
 	Collected data is needed to generate closures correctly.
 *)
@@ -1010,12 +1023,15 @@ class local_vars =
 		val mutable used_locals = [Hashtbl.create 100]
 		(** Hashtbl to collect local vars declared in current scope *)
 		val mutable declared_locals = [Hashtbl.create 100]
+		(** Local vars which were captured in closures (passed via `use` directive in php) *)
+		val captured_locals = Hashtbl.create 0
 		(**
 			Clear collected data
 		*)
 		method clear : unit =
 			used_locals <- [Hashtbl.create 100];
-			declared_locals <- [Hashtbl.create 100]
+			declared_locals <- [Hashtbl.create 100];
+			Hashtbl.clear captured_locals
 		(**
 			This method should be called upone entering deeper scope.
 			E.g. right before processing a closure. Just before closure arguments handling.
@@ -1027,8 +1043,9 @@ class local_vars =
 			This method should be called right after leaving a scope.
 			@return List of vars names used in finished scope, but declared in higher scopes.
 					And list of vars names declared in finished scope.
+					And list of vars names declared in finished scope and captured by closures via `use` directive
 		*)
-		method pop : string list * string list =
+		method pop : string list * string list * string list =
 			match used_locals with
 				| [] -> assert false
 				| used :: rest_used ->
@@ -1040,17 +1057,24 @@ class local_vars =
 							used_locals <- rest_used;
 							declared_locals <- rest_declared;
 							List.iter self#used higher_vars;
-							(higher_vars, declared_vars)
+							let captured_vars = list_intersect declared_vars (hashtbl_keys captured_locals) in
+							List.iter (fun name -> Hashtbl.remove captured_locals name) declared_vars;
+							(higher_vars, declared_vars, captured_vars)
 		(**
 			This method should be called right after leaving a scope.
 			@return List of vars names used in finished scope, but declared in higher scopes
 		*)
-		method pop_used : string list = match self#pop with (higher_vars, _) -> higher_vars
+		method pop_used : string list = match self#pop with (higher_vars, _, _) -> higher_vars
 		(**
 			This method should be called right after leaving a scope.
 			@return List of vars names declared in finished scope
 		*)
-		method pop_declared : string list = match self#pop with (_, declared_vars) -> declared_vars
+		method pop_declared : string list = match self#pop with (_, declared_vars, _) -> declared_vars
+		(**
+			Get current list of captured variables.
+			After leaving a scope all vars declared in that scope get removed from a list of captured variables.
+		*)
+		method pop_captured : string list = match self#pop with (_, _, captured_vars) -> captured_vars
 		(**
 			Specify local var name declared in current scope
 		*)
@@ -1065,6 +1089,11 @@ class local_vars =
 			match used_locals with
 				| [] -> assert false
 				| current :: _ -> Hashtbl.replace current name name
+		(**
+			Mark specified vars as captured by closures.
+		*)
+		method captured (var_names:string list) : unit =
+			List.iter (fun name -> Hashtbl.replace captured_locals name name) var_names
 	end
 
 (**
@@ -1748,8 +1777,9 @@ class virtual type_builder ctx wrapper =
 			self#write_expr (inject_defaults ctx func);
 			let body = Buffer.contents buffer in
 			buffer <- original_buffer;
-			(* Use captured local vars *)
+			(* Capture local vars used in closures *)
 			let used_vars = vars#pop_used in
+			vars#captured used_vars;
 			self#write " ";
 			if List.length used_vars > 0 then begin
 				self#write " use (";
@@ -1833,7 +1863,7 @@ class virtual type_builder ctx wrapper =
 						write_exprs();
 						let body = Buffer.contents buffer in
 						buffer <- original_buffer;
-						let locals = vars#pop_declared in
+						let locals = vars#pop_captured in
 						if List.length locals > 0 then begin
 							self#write ("unset($" ^ (String.concat ", $" locals) ^ ");\n");
 							self#write_indentation
