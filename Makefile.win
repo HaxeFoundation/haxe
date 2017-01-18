@@ -10,7 +10,6 @@ kill:
 	-@taskkill /F /IM haxe.exe
 
 # allow Ocaml/Mingw as well
-PCRE=-cclib libs/pcre/pcre/libpcre.dll.a
 NATIVE_LIBS += -I "c:/program files/mingw/lib/"
 
 # use make WODI=wodi32 -f Makefile.win to build using WODI 32bit
