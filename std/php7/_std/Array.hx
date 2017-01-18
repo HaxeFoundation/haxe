@@ -90,17 +90,22 @@ class Array<T> implements ArrayAccess<Int,T> {
 		return -1;
 	}
 
-	public function map<S>(f:T->S):Array<S> {
-		return wrap(Global.array_map(f, arr));
+	public inline function map<S>(f:T->S):Array<S> {
+		var result = Syntax.arrayDecl();
+		for(i in 0...length) {
+			result[i] = f(arr[i]);
+		}
+		return wrap(result);
 	}
 
-	public function pop():Null<T> {
+	public inline function pop():Null<T> {
 		if (length > 0) length--;
 		return Global.array_pop(arr);
 	}
 
-	public function push(x:T):Int {
-		return length = Global.array_push(arr, x);
+	public inline function push(x:T):Int {
+		arr[length] = x;
+		return ++length;
 	}
 
 	public function remove(x:T):Bool {
@@ -118,7 +123,7 @@ class Array<T> implements ArrayAccess<Int,T> {
 		arr = Global.array_reverse(arr);
 	}
 
-	public function shift():Null<T> {
+	public inline function shift():Null<T> {
 		if (length > 0) length--;
 		return Global.array_shift(arr);
 	}
@@ -138,7 +143,7 @@ class Array<T> implements ArrayAccess<Int,T> {
 		}
 	}
 
-	public function sort(f:T->T->Int):Void {
+	public inline function sort(f:T->T->Int):Void {
 		arr.usort(f);
 	}
 
@@ -149,7 +154,7 @@ class Array<T> implements ArrayAccess<Int,T> {
 		return result;
 	}
 
-	public function unshift(x:T):Void {
+	public inline function unshift(x:T):Void {
 		length = Global.array_unshift(arr, x);
 	}
 
@@ -188,7 +193,7 @@ class Array<T> implements ArrayAccess<Int,T> {
 	function offsetUnset( offset:Int ) : Void {
 		if (offset >= 0 && offset < length ) {
 			Global.array_splice(arr, offset, 1);
-			length--;
+			--length;
 		}
 	}
 
