@@ -91,18 +91,14 @@ import java.NativeArray;
 	{
 		var buf = new StringBuf();
 		var i = -1;
-
-		var first = true;
-		var length = length;
-		while (++i < length)
+		
+		var to = length-1;
+		while (++i < to)
 		{
-			if (first)
-				first = false;
-			else
-				buf.add(sep);
 			buf.add(__a[i]);
+			buf.add(sep);
 		}
-
+		buf.add(__a[to]);
 		return buf.toString();
 	}
 

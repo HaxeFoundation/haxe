@@ -82,12 +82,12 @@
 	public function join( sep : String ) : String {
 		var s = new StringBuf();
 		var a = this.__a;
-		var max = this.length - 1;
-		for( p in 0...this.length ) {
+		var to = this.length - 1;
+		for( p in 0...to ) {
 			s.add(a[p]);
-			if( p != max )
-				s.add(sep);
+			s.add(sep);
 		}
+		s.add(a[to]);
 		return s.toString();
 	}
 

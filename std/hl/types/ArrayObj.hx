@@ -40,10 +40,12 @@ class ArrayObj<T> extends ArrayBase {
 
 	override function join( sep : String ) : String {
 		var b = new StringBuf();
-		for( i in 0...length ) {
-			if( i > 0 ) b.add(sep);
+		var to = length-1;
+		for( i in 0...to ) {
 			b.add(array[i]);
+			b.add(sep);
 		}
+		b.add(array[to]);
 		return b.toString();
 	}
 
