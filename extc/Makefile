@@ -1,4 +1,4 @@
-ALL_CFLAGS = $(CFLAGS) -I zlib
+ALL_CFLAGS = $(CFLAGS)
 LIBS = -I ../extlib
 OCAMLOPT=ocamlopt
 OCAMLC=ocamlc
