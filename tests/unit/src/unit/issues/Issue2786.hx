@@ -27,6 +27,6 @@ class Issue2786 extends Test {
 	function test() {
 		var a:E = A | B;
 		eq(3, a);
-		t(unit.TestType.typeError((A | B : E2)));
+		t(unit.HelperMacros.typeError((A | B : E2)));
 	}
 }

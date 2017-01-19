@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -107,8 +107,8 @@ class Sys {
 				python.lib.Subprocess.call([cmd].concat(args));
 	}
 
-	public static function cpuTime() : Float {
-		return python.lib.Time.clock();
+	public static inline function cpuTime() : Float {
+		return python.lib.Timeit.default_timer();
 	}
 
 	@:deprecated("Use programPath instead") public static function executablePath() : String {

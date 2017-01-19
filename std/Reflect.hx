@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,7 +23,7 @@
 	The Reflect API is a way to manipulate values dynamically through an
 	abstract interface in an untyped manner. Use with care.
 
-	@see http://haxe.org/manual/std-reflection.html
+	@see https://haxe.org/manual/std-reflection.html
 **/
 extern class Reflect {
 

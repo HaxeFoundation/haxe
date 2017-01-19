@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\RTCPeerConnection.webidl line 105:0. Do not edit!
+// This file is generated from mozilla\RTCPeerConnection.webidl. Do not edit!
 
 package js.html.rtc;
 
+/**
+	The `RTCPeerConnection` interface represents a WebRTC connection between the local computer and a remote peer. It provides methods to connect to a remote peer, maintain and monitor the connection, and close the connection once it's no longer needed.
+
+	Documentation [RTCPeerConnection](https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection>
+**/
 @:native("RTCPeerConnection")
 extern class PeerConnection extends js.html.EventTarget
 {

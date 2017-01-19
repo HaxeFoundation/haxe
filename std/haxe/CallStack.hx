@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -138,22 +138,35 @@ class CallStack {
 				stack.push(FilePos(null, file, Std.parseInt(line)));
 			}
 			return stack;
+		#elseif hl
+			try {
+				throw null;
+			} catch( e : Dynamic ) {
+				var st = _getExceptionStack();
+				return makeStack(st.length > 2 ? st.sub(2,st.length - 2) : st);
+			}
 		#else
 			return []; // Unsupported
 		#end
 	}
+
+	#if hl
+	@:hlNative("std", "exception_stack") static function _getExceptionStack() : hl.NativeArray<hl.Bytes> { return null; }
+	#end
 
 	/**
 		Return the exception stack : this is the stack elements between
 		the place the last exception was thrown and the place it was
 		caught, or an empty array if not available.
 	**/
-	#if cpp @:noStack #end /* Do not mess up the exception stack */
+	#if cpp @:noDebug #end /* Do not mess up the exception stack */
 	public static function exceptionStack() : Array<StackItem> {
 		#if neko
 			return makeStack(untyped __dollar__excstack());
 		#elseif as3
 			return new Array();
+		#elseif hl
+			return makeStack(_getExceptionStack());
 		#elseif flash
 			var err : flash.errors.Error = untyped flash.Boot.lastError;
 			if( err == null ) return new Array();
@@ -250,8 +263,8 @@ class CallStack {
 		}
 	}
 
-	#if cpp @:noStack #end /* Do not mess up the exception stack */
-	private static function makeStack(s #if cs : cs.system.diagnostics.StackTrace #end) {
+	#if cpp @:noDebug #end /* Do not mess up the exception stack */
+	private static function makeStack(s #if cs : cs.system.diagnostics.StackTrace #elseif hl : hl.NativeArray<hl.Bytes> #end) {
 		#if neko
 			var a = new Array();
 			var l = untyped __dollar__asize(s);
@@ -352,6 +365,17 @@ class CallStack {
 					stack.push(FilePos(method, fileName, lineNumber));
 				else
 					stack.push(method);
+			}
+			return stack;
+		#elseif hl
+			var stack = [];
+			var r = ~/^([A-Za-z0-9.$_]+)\.([A-Za-z0-9_]+)\((.+):([0-9]+)\)$/;
+			for( i in 0...s.length-1 ) {
+				var str = @:privateAccess String.fromUCS2(s[i]);
+				if( r.match(str) )
+					stack.push(FilePos(Method(r.matched(1), r.matched(2)), r.matched(3), Std.parseInt(r.matched(4))));
+				else
+					stack.push(Module(str));
 			}
 			return stack;
 		#else

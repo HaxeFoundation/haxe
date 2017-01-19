@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -17,6 +17,7 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
+open Globals
 open JData
 open Unix
 open Ast
@@ -27,6 +28,7 @@ open Gencommon.SourceWriter
 open Printf
 open Option
 open ExtString
+
 module SS = Set.Make(String)
 
 let is_boxed_type t = match follow t with
@@ -1203,7 +1205,7 @@ let configure gen =
 			fun w p -> ()
 		else fun w p ->
 			let cur_line = Lexer.get_error_line p in
-			let file = Common.get_full_path p.pfile in
+			let file = Path.get_full_path p.pfile in
 			print w "//line %d \"%s\"" cur_line (Ast.s_escape file); newline w
 	in
 
@@ -1695,7 +1697,7 @@ let configure gen =
 								| [] -> acc
 								| _ -> acc) (* TODO
 								| _ -> (sprintf " where %s : %s" name (String.concat ", " (List.map (fun (cl,p) -> path_param_s (TClassDecl cl) cl.cl_path p) cl.cl_implements))) :: acc ) *)
-						| _ -> trace (t_s Ast.null_pos t); assert false (* FIXME it seems that a cl_params will never be anything other than cl.cl_params. I'll take the risk and fail if not, just to see if that confirms *)
+						| _ -> trace (t_s null_pos t); assert false (* FIXME it seems that a cl_params will never be anything other than cl.cl_params. I'll take the risk and fail if not, just to see if that confirms *)
 				) [] cl_params in
 				(params, String.concat " " params_extends)
 	in
@@ -1807,7 +1809,7 @@ let configure gen =
 						match meta with
 							| [] ->
 								let expr = match cf.cf_expr with
-									| None -> mk (TBlock([])) t_dynamic Ast.null_pos
+									| None -> mk (TBlock([])) t_dynamic null_pos
 									| Some s ->
 										match s.eexpr with
 											| TFunction tf ->
@@ -1951,7 +1953,11 @@ let configure gen =
 								| _ -> ()
 				with | Not_found -> ()
 				);
-				write w "main();";
+				(match gen.gcon.main with
+					| Some(expr) ->
+						expr_s w (mk_block expr)
+					| None ->
+						write w "main();");
 				end_block w;
 				newline w
 			| _ -> ()
@@ -2097,16 +2103,16 @@ let configure gen =
 	let empty_ctor_expr = mk (TField (empty_en_expr, FEnum(empty_en, PMap.find "EMPTY" empty_en.e_constrs))) empty_ctor_type null_pos in
 	OverloadingConstructor.configure ~empty_ctor_type:empty_ctor_type ~empty_ctor_expr:empty_ctor_expr gen;
 
-	let rcf_static_find = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "findHash" Ast.null_pos [] in
-	(*let rcf_static_lookup = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "lookupHash" Ast.null_pos [] in*)
+	let rcf_static_find = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "findHash" null_pos [] in
+	(*let rcf_static_lookup = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "lookupHash" null_pos [] in*)
 	let get_specialized_postfix t = match t with
 		| TAbstract({a_path = [],"Float"}, _) -> "Float"
 		| TInst({cl_path = [],"String"},_) -> "String"
 		| TAnon _ | TDynamic _ -> "Dynamic"
 		| _ -> print_endline (debug_type t); assert false
 	in
-	let rcf_static_insert t = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("insert" ^ get_specialized_postfix t) Ast.null_pos [] in
-	let rcf_static_remove t = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("remove" ^ get_specialized_postfix t) Ast.null_pos [] in
+	let rcf_static_insert t = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("insert" ^ get_specialized_postfix t) null_pos [] in
+	let rcf_static_remove t = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("remove" ^ get_specialized_postfix t) null_pos [] in
 
 	let can_be_float t = like_float (real_type t) in
 
@@ -2182,6 +2188,7 @@ let configure gen =
 				let t = gen.gclasses.nativearray_type hash_array.etype in
 				{ hash_array with eexpr = TCall(rcf_static_remove t, [hash_array; length; pos]); etype = gen.gcon.basic.tvoid }
 			)
+			None
 		in
 
 	ReflectionCFs.UniversalBaseClass.configure gen (get_cl (get_type gen (["haxe";"lang"],"HxObject")) ) object_iface dynamic_object;
@@ -2190,7 +2197,7 @@ let configure gen =
 
 	ReflectionCFs.implement_varargs_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"], "VarArgsBase")) );
 
-	let slow_invoke = mk_static_field_access_infer (runtime_cl) "slowCallField" Ast.null_pos [] in
+	let slow_invoke = mk_static_field_access_infer (runtime_cl) "slowCallField" null_pos [] in
 	ReflectionCFs.configure rcf_ctx ~slow_invoke:(fun ethis efield eargs -> {
 		eexpr = TCall(slow_invoke, [ethis; efield; eargs]);
 		etype = t_dynamic;
@@ -2419,7 +2426,7 @@ let configure gen =
 	(* add resources array *)
 	let res = ref [] in
 	Hashtbl.iter (fun name v ->
-		res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = Ast.null_pos } :: !res;
+		res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = null_pos } :: !res;
 		let name = Codegen.escape_res_name name true in
 		let full_path = gen.gcon.file ^ "/src/" ^ name in
 		mkdir_from_path full_path;
@@ -2428,12 +2435,12 @@ let configure gen =
 		output_string f v;
 		close_out f;
 
-		out_files := (unique_full_path full_path) :: !out_files
+		out_files := (Path.unique_full_path full_path) :: !out_files
 	) gen.gcon.resources;
 	(try
 		let c = get_cl (Hashtbl.find gen.gtypes (["haxe"], "Resource")) in
 		let cf = PMap.find "content" c.cl_statics in
-		cf.cf_expr <- Some ({ eexpr = TArrayDecl(!res); etype = gen.gcon.basic.tarray gen.gcon.basic.tstring; epos = Ast.null_pos })
+		cf.cf_expr <- Some ({ eexpr = TArrayDecl(!res); etype = gen.gcon.basic.tarray gen.gcon.basic.tstring; epos = null_pos })
 	with | Not_found -> ());
 
 	run_filters gen;
@@ -2502,19 +2509,19 @@ let generate con =
 	let cl_cl = get_cl (get_type gen (["java";"lang"],"Class")) in
 	let basic_fns =
 	[
-		mk_class_field "equals" (TFun(["obj",false,t_dynamic], basic.tbool)) true Ast.null_pos (Method MethNormal) [];
-		mk_class_field "toString" (TFun([], basic.tstring)) true Ast.null_pos (Method MethNormal) [];
-		mk_class_field "hashCode" (TFun([], basic.tint)) true Ast.null_pos (Method MethNormal) [];
-		mk_class_field "getClass" (TFun([], (TInst(cl_cl,[t_dynamic])))) true Ast.null_pos (Method MethNormal) [];
-		mk_class_field "wait" (TFun([], basic.tvoid)) true Ast.null_pos (Method MethNormal) [];
-		mk_class_field "notify" (TFun([], basic.tvoid)) true Ast.null_pos (Method MethNormal) [];
-		mk_class_field "notifyAll" (TFun([], basic.tvoid)) true Ast.null_pos (Method MethNormal) [];
+		mk_class_field "equals" (TFun(["obj",false,t_dynamic], basic.tbool)) true null_pos (Method MethNormal) [];
+		mk_class_field "toString" (TFun([], basic.tstring)) true null_pos (Method MethNormal) [];
+		mk_class_field "hashCode" (TFun([], basic.tint)) true null_pos (Method MethNormal) [];
+		mk_class_field "getClass" (TFun([], (TInst(cl_cl,[t_dynamic])))) true null_pos (Method MethNormal) [];
+		mk_class_field "wait" (TFun([], basic.tvoid)) true null_pos (Method MethNormal) [];
+		mk_class_field "notify" (TFun([], basic.tvoid)) true null_pos (Method MethNormal) [];
+		mk_class_field "notifyAll" (TFun([], basic.tvoid)) true null_pos (Method MethNormal) [];
 	] in
 	List.iter (fun cf -> gen.gbase_class_fields <- PMap.add cf.cf_name cf gen.gbase_class_fields) basic_fns;
 
 	(try
 		configure gen
-	with | TypeNotFound path -> con.error ("Error. Module '" ^ (s_type_path path) ^ "' is required and was not included in build.")	Ast.null_pos);
+	with | TypeNotFound path -> con.error ("Error. Module '" ^ (s_type_path path) ^ "' is required and was not included in build.")	null_pos);
 	debug_mode := false
 
 (** Java lib *)
@@ -2786,7 +2793,7 @@ let convert_java_enum ctx p pe =
 
 		let kind = match field.jf_kind with
 			| JKField when !readonly ->
-				FProp ("default", "null", Some (convert_signature ctx p field.jf_signature,null_pos), None)
+				FProp (("default",null_pos), ("null",null_pos), Some (convert_signature ctx p field.jf_signature,null_pos), None)
 			| JKField ->
 				FVar (Some (convert_signature ctx p field.jf_signature,null_pos), None)
 			| JKMethod ->

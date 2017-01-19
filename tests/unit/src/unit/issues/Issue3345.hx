@@ -28,11 +28,15 @@ class Issue3345 extends Test {
 		var acc:Meters = .0;
 		for (i in 0...10)
 			acc += 10;
+#if !lua
 		eq("100(m)", acc);
+#end
 
 		var acc:Meters = .0;
 		for (i in 0...10)
 			acc -= 10;
+#if !lua
 		eq("-100(m)", acc);
+#end
 	}
 }

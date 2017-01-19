@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,6 @@
  */
  package cpp.zip;
 
-#if (haxe_ver < 3.4)
+#if (haxe_ver < 4.0)
 typedef Uncompress = haxe.zip.Uncompress;
 #end

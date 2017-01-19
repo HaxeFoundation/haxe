@@ -20,7 +20,7 @@ private class Content {
 		return this;
 	}
 
-	public function css(s:String) {
+	public function css(s:Dynamic) {
 		return "foo";
 	}
 }

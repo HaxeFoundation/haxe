@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -138,7 +138,7 @@ private class PDOConnection implements Connection {
 
 	public function quote( s : String ) {
 		if( s.indexOf("\000") >= 0 )
-			return "x'"+base16_encode(s)+"'";
+			return "x'"+untyped __call__('bin2hex', s)+"'";
 		return pdo.quote(s);
 	}
 
@@ -169,12 +169,6 @@ private class PDOConnection implements Connection {
 
 	public function rollback() {
 		pdo.rollBack();
-	}
-
-	function base16_encode(str : String) {
-		str = untyped __call__("unpack", "H"+(2 * str.length), str);
-		str = untyped __call__("chunk_split", untyped str[1]);
-		return str;
 	}
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -66,7 +66,7 @@ class Socket {
 	public function connect(host : Host, port : Int) : Void {
 		var errs = null;
 		var errn = null;
-		var r = untyped __call__('stream_socket_client', protocol + '://' +host._ip + ':' + port, errn, errs);
+		var r = untyped __call__('stream_socket_client', protocol + '://' +host.host + ':' + port, errn, errs);
 		Socket.checkError(r, errn, errs);
 		__s = cast r;
 		assignHandler();

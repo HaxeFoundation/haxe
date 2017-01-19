@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -51,7 +51,8 @@ class EReg {
 	}
 
 	public function match( s : String ) : Bool {
-		this.m = Table.pack(r.exec(s));
+		if (s == null) return false;
+		this.m = lua.TableTools.pack(r.exec(s));
 		this.s = s;
 		return  m[1] != null;
 	}
@@ -59,12 +60,12 @@ class EReg {
 	public function matched( n : Int ) : String {
 		if (m[1] == null || n < 0) throw "EReg::matched";
 		else if (n == 0) {
-			var k =  NativeStringTools.sub(s, m[1], m[2]);
+			var k =  NativeStringTools.sub(s, m[1], m[2]).match;
 			return k;
 		} else if (Std.is(m[3], lua.Table)){
 			var mn = 2 * (n - 1);
 			if (Std.is(untyped m[3][mn+1], Bool)) return null;
-			return NativeStringTools.sub(s, untyped m[3][mn + 1], untyped m[3][mn + 2]);
+			return NativeStringTools.sub(s, untyped m[3][mn + 1], untyped m[3][mn + 2]).match;
 		} else {
 			throw "EReg:matched";
 		}
@@ -72,12 +73,12 @@ class EReg {
 
 	public function matchedLeft() : String {
 		if( m[1] == null ) throw "No string matched";
-		return NativeStringTools.sub(s, 1, m[1]-1);
+		return NativeStringTools.sub(s, 1, m[1]-1).match;
 	}
 
 	public function matchedRight() : String {
 		if( m[1] == null ) throw "No string matched";
-		return NativeStringTools.sub(s, m[2]+1);
+		return NativeStringTools.sub(s, m[2]+1).match;
 	}
 
 	public function matchedPos() : { pos : Int, len : Int } {
@@ -93,14 +94,14 @@ class EReg {
 		var ss = s.substr(0, len < 0 ? s.length : pos + len);
 
 		if (global){
-			m = Table.pack(r.exec(ss, pos + 1));
+			m = lua.TableTools.pack(r.exec(ss, pos + 1));
 			var b = m[1] != null;
 			if (b){
 				this.s = s;
 			}
 			return b;
 		} else {
-			m = Table.pack(r.exec(ss, pos + 1));
+			m = lua.TableTools.pack(r.exec(ss, pos + 1));
 			var b = m[1] != null;
 			if (b){
 				this.s = s;

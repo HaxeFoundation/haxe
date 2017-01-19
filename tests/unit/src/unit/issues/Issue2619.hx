@@ -25,7 +25,7 @@ class Issue2619 extends Test {
 		}
 		eq("foo", s);
 
-		t(unit.TestType.typeError(
+		t(unit.HelperMacros.typeError(
 			try { }
 			catch(e:A) { }
 			catch(e:B) { }

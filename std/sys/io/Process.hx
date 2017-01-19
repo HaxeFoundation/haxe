@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -58,10 +58,12 @@ extern class Process {
 	function getPid() : Int;
 
 	/**
-		Block until the process exits and return the exit code of the process.
+		Query the exit code of the process.
+		If `block` is true or not specified, it will block until the process terminates.
+		If `block` is false, it will return either the process exit code if it's already terminated or null if it's still running.
 		If the process has already exited, return the exit code immediately.
 	*/
-	function exitCode() : Int;
+	function exitCode( block : Bool = true ) : Null<Int>;
 
 	/**
 		Close the process handle and release the associated resources.

@@ -43,14 +43,14 @@ class Issue4526 extends Test {
 
 		var s1:Struct1 = { x: 12, y: 13 };
 		eq("12 13", s1.get());
-		t(unit.TestType.typeError(({x:12} : Struct1)));
-		t(unit.TestType.typeError(({y:12} : Struct1)));
+		t(unit.HelperMacros.typeError(({x:12} : Struct1)));
+		t(unit.HelperMacros.typeError(({y:12} : Struct1)));
 
 		var s2:Struct2 = { x: 12, y: 13 };
 		eq("12 13", s2.get());
 		var s2:Struct2 = { y: 13 };
 		eq(fieldNull + " 13", s2.get());
-		t(unit.TestType.typeError(({x:12} : Struct2)));
+		t(unit.HelperMacros.typeError(({x:12} : Struct2)));
 
 		var s3:Struct3 = { x: 12, y: 13 };
 		eq("12 13", s3.get());

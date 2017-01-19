@@ -66,6 +66,8 @@ class TestArguments extends haxe.unit.TestCase {
 	static public var bin:String =
 	#if neko
 		"bin/neko/TestArguments.n";
+	#elseif hl
+		"bin/hl/TestArguments.hl";
 	#elseif cpp
 		#if debug
 			"bin/cpp/TestArguments-debug";
@@ -86,6 +88,8 @@ class TestArguments extends haxe.unit.TestCase {
 		#end
 	#elseif python
 		"bin/python/TestArguments.py";
+	#elseif php7
+		"bin/php7/TestArguments/index.php";
 	#elseif php
 		"bin/php/TestArguments/index.php";
 	#elseif lua

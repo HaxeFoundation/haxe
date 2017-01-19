@@ -18,13 +18,13 @@ private abstract C(Null<Int>) {
 class Issue3616 extends Test {
 	function test() {
 		var v:A = null;
-		eq(unit.TestType.typeErrorText(v.f(1)), "Invalid call to static function f through abstract instance");
+		eq(unit.HelperMacros.typeErrorText(v.f(1)), "Invalid call to static function f through abstract instance");
 
 		var v = B.f(10);
-		eq(unit.TestType.typeErrorText(v.f()), "Invalid call to static function f through abstract instance");
+		eq(unit.HelperMacros.typeErrorText(v.f()), "Invalid call to static function f through abstract instance");
 
 		var v:C = null;
-		eq(unit.TestType.typeErrorText(v.f), "Invalid call to static function f through abstract instance");
-		eq(unit.TestType.typeErrorText(v.f = 5), "Invalid call to static function f through abstract instance");
+		eq(unit.HelperMacros.typeErrorText(v.f), "Invalid call to static function f through abstract instance");
+		eq(unit.HelperMacros.typeErrorText(v.f = 5), "Invalid call to static function f through abstract instance");
 	}
 }

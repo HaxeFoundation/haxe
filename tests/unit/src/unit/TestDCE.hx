@@ -54,6 +54,7 @@ class DCEClass {
 	}
 }
 
+@:analyzer(no_local_dce)
 class TestDCE extends Test {
 
 	public function testFields() {

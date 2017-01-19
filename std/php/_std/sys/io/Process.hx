@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -139,11 +139,12 @@ class Process {
 		untyped input.p = fp;
 	}
 
-	public function exitCode() : Int {
+	public function exitCode( block : Bool = true ) : Null<Int> {
 		if (null == cl)
 		{
 			st = untyped __call__('proc_get_status', p);
 			while(st[untyped 'running']) {
+				if( block == false ) return null;
 				Sys.sleep(0.01);
 				st = untyped __call__('proc_get_status', p);
 			}

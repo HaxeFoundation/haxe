@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -17,6 +17,7 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
+open Globals
 open Ast
 open Type
 open Common
@@ -45,7 +46,6 @@ module BasicBlock = struct
 	type cfg_edge_Flag =
 		| FlagExecutable      (* Used by constant propagation to handle live edges *)
 		| FlagDce             (* Used by DCE to keep track of handled edges *)
-		| FlagCodeMotion      (* Used by code motion to track handled edges *)
 		| FlagCopyPropagation (* Used by copy propagation to track handled eges *)
 
 	type cfg_edge_kind =
@@ -111,7 +111,7 @@ module BasicBlock = struct
 		| CFGGoto -> "CFGGoto"
 		| CFGFunction -> "CFGFunction"
 		| CFGMaybeThrow -> "CFGMaybeThrow"
-		| CFGCondBranch e -> "CFGCondBranch " ^ (s_expr_pretty false "" (s_type (print_context())) e)
+		| CFGCondBranch e -> "CFGCondBranch " ^ (s_expr_pretty false "" false (s_type (print_context())) e)
 		| CFGCondElse -> "CFGCondElse"
 
 	let has_flag edge flag =
@@ -159,7 +159,7 @@ module BasicBlock = struct
 		bb
 
 	let in_scope bb bb' = match bb'.bb_scopes with
-		| [] -> error (Printf.sprintf "Scope-less block (kind: %s)" (s_block_kind bb'.bb_kind)) bb'.bb_pos
+		| [] -> abort (Printf.sprintf "Scope-less block (kind: %s)" (s_block_kind bb'.bb_kind)) bb'.bb_pos
 		| scope :: _ -> List.mem scope bb.bb_scopes
 end
 
@@ -522,4 +522,5 @@ type analyzer_context = {
 	mutable loop_counter : int;
 	mutable loop_stack : int list;
 	mutable debug_exprs : (string * texpr) list;
+	mutable name_stack : string list;
 }

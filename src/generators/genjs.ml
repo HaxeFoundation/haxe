@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -17,11 +17,10 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
+open Globals
 open Ast
 open Type
 open Common
-
-type pos = Ast.pos
 
 type sourcemap = {
 	sources : (string) DynArray.t;
@@ -42,7 +41,7 @@ type ctx = {
 	buf : Rbuffer.t;
 	chan : out_channel;
 	packages : (string list,unit) Hashtbl.t;
-	smap : sourcemap;
+	smap : sourcemap option;
 	js_modern : bool;
 	js_flatten : bool;
 	es_version : int;
@@ -71,10 +70,10 @@ let get_exposed ctx path meta =
 		(match args with
 			| [ EConst (String s), _ ] -> [s]
 			| [] -> [path]
-			| _ -> error "Invalid @:expose parameters" pos)
+			| _ -> abort "Invalid @:expose parameters" pos)
 	with Not_found -> []
 
-let dot_path = Ast.s_type_path
+let dot_path = s_type_path
 
 let flat_path (p,s) =
 	(* Replace _ with _$ in paths to prevent name collisions. *)
@@ -136,13 +135,12 @@ let static_field c s =
 let has_feature ctx = Common.has_feature ctx.com
 let add_feature ctx = Common.add_feature ctx.com
 
-let unsupported p = error "This expression cannot be compiled to Javascript" p
+let unsupported p = abort "This expression cannot be compiled to Javascript" p
 
 
-let add_mapping ctx force e =
-	if not ctx.com.debug || e.epos.pmin < 0 then () else
+let add_mapping smap force e =
+	if e.epos.pmin < 0 then () else
 	let pos = e.epos in
-	let smap = ctx.smap in
 	let file = try
 		Hashtbl.find smap.sources_hash pos.pfile
 	with Not_found ->
@@ -202,21 +200,21 @@ let add_mapping ctx force e =
 	end
 
 let handle_newlines ctx str =
-	if ctx.com.debug then
+	Option.may (fun smap ->
 		let rec loop from =
 			try begin
 				let next = String.index_from str from '\n' + 1 in
-				Rbuffer.add_char ctx.smap.mappings ';';
-				ctx.smap.output_last_col <- 0;
-				ctx.smap.output_current_col <- 0;
-				ctx.smap.print_comma <- false;
-				Option.may (fun e -> add_mapping ctx true e) ctx.smap.current_expr;
+				Rbuffer.add_char smap.mappings ';';
+				smap.output_last_col <- 0;
+				smap.output_current_col <- 0;
+				smap.print_comma <- false;
+				Option.may (fun e -> add_mapping smap true e) smap.current_expr;
 				loop next
 			end with Not_found ->
-				ctx.smap.output_current_col <- ctx.smap.output_current_col + (String.length str - from);
+				smap.output_current_col <- smap.output_current_col + (String.length str - from);
 		in
 		loop 0
-	else ()
+	) ctx.smap
 
 let flush ctx =
 	Rbuffer.output_buffer ctx.chan ctx.buf;
@@ -234,13 +232,13 @@ let print ctx =
 		Rbuffer.add_string ctx.buf s
 	end)
 
-let write_mappings ctx =
+let write_mappings ctx smap =
 	let basefile = Filename.basename ctx.com.file in
 	print ctx "\n//# sourceMappingURL=%s.map" basefile;
 	let channel = open_out_bin (ctx.com.file ^ ".map") in
-	let sources = DynArray.to_list ctx.smap.sources in
+	let sources = DynArray.to_list smap.sources in
 	let to_url file =
-		ExtString.String.map (fun c -> if c == '\\' then '/' else c) (Common.get_full_path file)
+		ExtString.String.map (fun c -> if c == '\\' then '/' else c) (Path.get_full_path file)
 	in
 	output_string channel "{\n";
 	output_string channel "\"version\":3,\n";
@@ -256,7 +254,7 @@ let write_mappings ctx =
 	end;
 	output_string channel "\"names\":[],\n";
 	output_string channel "\"mappings\":\"";
-	Rbuffer.output_buffer channel ctx.smap.mappings;
+	Rbuffer.output_buffer channel smap.mappings;
 	output_string channel "\"\n";
 	output_string channel "}";
 	close_out channel
@@ -370,7 +368,7 @@ let rec gen_call ctx e el in_value =
 	match e.eexpr , el with
 	| TConst TSuper , params ->
 		(match ctx.current.cl_super with
-		| None -> error "Missing api.setCurrentClass" e.epos
+		| None -> abort "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
 			print ctx "%s.call(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
@@ -378,7 +376,7 @@ let rec gen_call ctx e el in_value =
 		);
 	| TField ({ eexpr = TConst TSuper },f) , params ->
 		(match ctx.current.cl_super with
-		| None -> error "Missing api.setCurrentClass" e.epos
+		| None -> abort "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
 			let name = field_name f in
 			print ctx "%s.prototype%s.call(%s" (ctx.type_accessor (TClassDecl c)) (field name) (this ctx);
@@ -473,16 +471,29 @@ let rec gen_call ctx e el in_value =
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 
+(*
+	this wraps {} in parenthesis which is required to produce valid js code for field and array access to it.
+	the case itself is very rare and most probably comes from redundant code fused by the analyzer,
+	but we still have to support it.
+*)
+and add_objectdecl_parens e =
+	let rec loop e = match e.eexpr with
+		| TCast(e1,None) | TMeta(_,e1) -> loop e1 (* TODO: do we really want to lose these? *)
+		| TObjectDecl _ -> {e with eexpr = TParenthesis e}
+		| _ -> e
+	in
+	loop e
+
 and gen_expr ctx e =
-	add_mapping ctx false e;
+	Option.may (fun smap -> add_mapping smap false e) ctx.smap;
 	(match e.eexpr with
 	| TConst c -> gen_constant ctx e.epos c
 	| TLocal v -> spr ctx (ident v.v_name)
-	| TArray (e1,{ eexpr = TConst (TString s) }) when valid_js_ident s && (match e1.eexpr with TConst (TInt _|TFloat _) -> false | _ -> true) ->
-		gen_value ctx e1;
-		spr ctx (field s)
+	(*| TArray (e1,{ eexpr = TConst (TString s) }) when valid_js_ident s && (match e1.eexpr with TConst (TInt _|TFloat _) -> false | _ -> true) ->
+		gen_value ctx (add_objectdecl_parens e1);
+		spr ctx (field s)*)
 	| TArray (e1,e2) ->
-		gen_value ctx e1;
+		gen_value ctx (add_objectdecl_parens e1);
 		spr ctx "[";
 		gen_value ctx e2;
 		spr ctx "]";
@@ -502,10 +513,11 @@ and gen_expr ctx e =
 		print ctx ")";
 	| TField (x,FClosure (Some ({cl_path=[],"Array"},_), {cf_name="push"})) ->
 		(* see https://github.com/HaxeFoundation/haxe/issues/1997 *)
-		add_feature ctx "use.$arrayPushClosure";
-		print ctx "$arrayPushClosure(";
+		add_feature ctx "use.$arrayPush";
+		add_feature ctx "use.$bind";
+		print ctx "$bind(";
 		gen_value ctx x;
-		print ctx ")"
+		print ctx ",$arrayPush)"
 	| TField (x,FClosure (_,f)) ->
 		add_feature ctx "use.$bind";
 		(match x.eexpr with
@@ -527,7 +539,7 @@ and gen_expr ctx e =
 	| TField (x,f) ->
 		let rec skip e = match e.eexpr with
 			| TCast(e1,None) | TMeta(_,e1) -> skip e1
-			| TConst(TInt _ | TFloat _) -> {e with eexpr = TParenthesis e}
+			| TConst(TInt _ | TFloat _) | TObjectDecl _ -> {e with eexpr = TParenthesis e}
 			| _ -> e
 		in
 		let x = skip x in
@@ -638,7 +650,7 @@ and gen_expr ctx e =
 	| TObjectDecl fields ->
 		spr ctx "{ ";
 		concat ctx ", " (fun (f,e) -> (match e.eexpr with
-			| TMeta((Meta.QuotedField,_,_),e) -> print ctx "'%s' : " (Ast.s_escape f);
+			| TMeta((Meta.QuotedField,_,_),e) -> print ctx "\"%s\" : " (Ast.s_escape f);
 			| _ -> print ctx "%s : " (anon_field f));
 			gen_value ctx e
 		) fields;
@@ -813,7 +825,7 @@ and gen_expr ctx e =
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
 		spr ctx ")");
-	ctx.smap.current_expr <- None;
+	Option.may (fun smap -> smap.current_expr <- None) ctx.smap
 
 
 and gen_block_element ?(after=false) ctx e =
@@ -837,7 +849,7 @@ and gen_block_element ?(after=false) ctx e =
 		if after then newline ctx
 
 and gen_value ctx e =
-	add_mapping ctx false e;
+	Option.may (fun smap -> add_mapping smap false e) ctx.smap;
 	let assign e =
 		mk (TBinop (Ast.OpAssign,
 			mk (TLocal (match ctx.in_value with None -> assert false | Some v -> v)) t_dynamic e.epos,
@@ -929,9 +941,9 @@ and gen_value ctx e =
 			| _ -> cond
 		) in
 		gen_value ctx cond;
-		spr ctx "?";
+		spr ctx " ? ";
 		gen_value ctx e;
-		spr ctx ":";
+		spr ctx " : ";
 		(match eo with
 		| None -> spr ctx "null"
 		| Some e -> gen_value ctx e);
@@ -949,7 +961,7 @@ and gen_value ctx e =
 			List.map (fun (v,e) -> v, block (assign e)) catchs
 		)) e.etype e.epos);
 		v());
-	ctx.smap.current_expr <- None
+	Option.may (fun smap -> smap.current_expr <- None) ctx.smap
 
 
 let generate_package_create ctx (p,_) =
@@ -982,7 +994,7 @@ let generate_package_create ctx (p,_) =
 let check_field_name c f =
 	match f.cf_name with
 	| "prototype" | "__proto__" | "constructor" ->
-		error ("The field name '" ^ f.cf_name ^ "'  is not allowed in JS") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
+		abort ("The field name '" ^ f.cf_name ^ "'  is not allowed in JS") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
 	| _ -> ()
 
 (* convert a.b.c to ["a"]["b"]["c"] *)
@@ -1047,7 +1059,7 @@ let generate_class ctx c =
 	ctx.current <- c;
 	ctx.id_counter <- 0;
 	(match c.cl_path with
-	| [],"Function" -> error "This class redefine a native one" c.cl_pos
+	| [],"Function" -> abort "This class redefine a native one" c.cl_pos
 	| _ -> ());
 	let p = s_path ctx c.cl_path in
 	let hxClasses = has_feature ctx "Type.resolveClass" in
@@ -1122,7 +1134,7 @@ let generate_class ctx c =
 			| _ when props = [] -> ()
 			| Some (csup,_) when Codegen.has_properties csup ->
 				newprop ctx;
-				let psup = s_path ctx csup.cl_path in
+				let psup = ctx.type_accessor (TClassDecl csup) in
 				print ctx "__properties__: $extend(%s.prototype.__properties__,{%s})" psup (gen_props props)
 			| _ ->
 				newprop ctx;
@@ -1211,7 +1223,7 @@ let generate_require ctx path meta =
 	| [(EConst(String(module_name)),_) ; (EConst(String(object_path)),_)] ->
 		print ctx "%s = require(\"%s\").%s" p module_name object_path
 	| _ ->
-		error "Unsupported @:jsRequire format" mp);
+		abort "Unsupported @:jsRequire format" mp);
 
 	newline ctx
 
@@ -1245,26 +1257,32 @@ let set_current_class ctx c =
 	ctx.current <- c
 
 let alloc_ctx com =
+	let smap =
+		if com.debug || Common.defined com Define.JsSourceMap then
+			Some {
+				source_last_line = 0;
+				source_last_col = 0;
+				source_last_file = 0;
+				print_comma = false;
+				output_last_col = 0;
+				output_current_col = 0;
+				sources = DynArray.create();
+				sources_hash = Hashtbl.create 0;
+				mappings = Rbuffer.create 16;
+				current_expr = None;
+			}
+		else
+			None
+	in
 	let ctx = {
 		com = com;
 		buf = Rbuffer.create 16000;
 		chan = open_out_bin com.file;
 		packages = Hashtbl.create 0;
-		smap = {
-			source_last_line = 0;
-			source_last_col = 0;
-			source_last_file = 0;
-			print_comma = false;
-			output_last_col = 0;
-			output_current_col = 0;
-			sources = DynArray.create();
-			sources_hash = Hashtbl.create 0;
-			mappings = Rbuffer.create 16;
-			current_expr = None;
-		};
+		smap = smap;
 		js_modern = not (Common.defined com Define.JsClassic);
 		js_flatten = not (Common.defined com Define.JsUnflatten);
-		es_version = int_of_string (Common.defined_value com Define.JsEs);
+		es_version = (try int_of_string (Common.defined_value com Define.JsEs) with _ -> 0);
 		store_exception_stack = if Common.has_dce com then (Common.has_feature com "haxe.CallStack.exceptionStack") else List.exists (function TClassDecl { cl_path=["haxe"],"CallStack" } -> true | _ -> false) com.types;
 		statics = [];
 		inits = [];
@@ -1475,10 +1493,8 @@ let generate com =
 		print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }";
 		newline ctx;
 	end;
-	if has_feature ctx "use.$arrayPushClosure" then begin
-		print ctx "function $arrayPushClosure(a) {";
-		print ctx " return function(x) { a.push(x); }; ";
-		print ctx "}";
+	if has_feature ctx "use.$arrayPush" then begin
+		print ctx "function $arrayPush(x) { this.push(x); }";
 		newline ctx
 	end;
 	List.iter (gen_block_element ~after:true ctx) (List.rev ctx.inits);
@@ -1504,7 +1520,9 @@ let generate com =
 		) !toplevelExposed
 	);
 
-	if com.debug then write_mappings ctx else (try Sys.remove (com.file ^ ".map") with _ -> ());
+	(match ctx.smap with
+	| Some smap -> write_mappings ctx smap
+	| None -> try Sys.remove (com.file ^ ".map") with _ -> ());
 	flush ctx;
 	close_out ctx.chan)
 

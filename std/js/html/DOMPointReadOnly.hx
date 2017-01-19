@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,16 +20,39 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\DOMPoint.webidl line 16:0. Do not edit!
+// This file is generated from mozilla\DOMPoint.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `DOMPointReadOnly` interface specifies the standard properties used by `DOMPoint` to define a 2D or 3D point in a coordinate system.
+
+	Documentation [DOMPointReadOnly](https://developer.mozilla.org/en-US/docs/Web/API/DOMPointReadOnly) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DOMPointReadOnly$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMPointReadOnly>
+**/
 @:native("DOMPointReadOnly")
 extern class DOMPointReadOnly
 {
+	
+	/**
+		The x coordinate of the `DOMPoint`.
+	**/
 	var x(default,null) : Float;
+	
+	/**
+		The y coordinate of the `DOMPoint`.
+	**/
 	var y(default,null) : Float;
+	
+	/**
+		The z coordinate of the `DOMPoint`.
+	**/
 	var z(default,null) : Float;
+	
+	/**
+		The perspective value of the `DOMPoint`.
+	**/
 	var w(default,null) : Float;
 	
 }

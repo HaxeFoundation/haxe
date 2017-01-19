@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,6 +22,7 @@
 package sys.db;
 import sys.db.RecordInfos;
 
+@:deprecated("This class will be removed soon, please install the record-macros library")
 class TableCreate {
 
 	static function autoInc( dbName ) {

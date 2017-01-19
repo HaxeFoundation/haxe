@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -96,11 +96,11 @@ class FileSystem {
 	}
 
 	public static inline function deleteFile( path : String ) : Void {
-		untyped __call__("@unlink", path);
+		untyped __call__("unlink", path);
 	}
 
 	public static inline function deleteDirectory( path : String ) : Void {
-		untyped __call__("@rmdir", path);
+		untyped __call__("rmdir", path);
 	}
 
 	public static function readDirectory( path : String ) : Array<String> {

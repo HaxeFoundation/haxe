@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,13 +20,24 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\FocusEvent.webidl line 16:0. Do not edit!
+// This file is generated from mozilla\FocusEvent.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `FocusEvent` interface represents focus-related events like `focus`, `blur`, `focusin`, or `focusout`.
+
+	Documentation [FocusEvent](https://developer.mozilla.org/en-US/docs/Web/API/FocusEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/FocusEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/FocusEvent>
+**/
 @:native("FocusEvent")
 extern class FocusEvent extends UIEvent
 {
+	
+	/**
+		Is an `EventTarget` representing a secondary target for this event. As in some cases (like when tabbing in or out a page), this property may be set to `null` for security reasons.
+	**/
 	var relatedTarget(default,null) : EventTarget;
 	
 	/** @throws DOMError */

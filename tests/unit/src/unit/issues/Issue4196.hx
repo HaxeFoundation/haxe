@@ -7,6 +7,6 @@ class Issue4196 extends Test {
 			'b' => {"id": {}}
 		];
 		var a:Map<String, {id:{}}>;
-		unit.TestType.typedAs(f, a);
+		unit.HelperMacros.typedAs(f, a);
 	}
 }

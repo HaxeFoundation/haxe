@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -45,7 +45,7 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 	public function call( params : Array<Dynamic> ) : Dynamic {
 		var data = null;
 		var h = new haxe.Http(__url);
-		#if js
+		#if (js && !nodejs)
 			h.async = false;
 		#end
 		#if (neko && no_remoting_shutdown)

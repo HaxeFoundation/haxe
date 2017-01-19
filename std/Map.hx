@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -42,7 +42,7 @@ import haxe.Constraints.IMap;
 
 	Map is an abstract type, it is not available at runtime.
 
-	@see http://haxe.org/manual/std-Map.html
+	@see https://haxe.org/manual/std-Map.html
 **/
 @:multiType(@:followWithAbstracts K)
 abstract Map<K,V>(IMap<K,V> ) {

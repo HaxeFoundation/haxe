@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,7 +24,7 @@
 
 	See `Type` for the Haxe Reflection API.
 
-	@see http://haxe.org/manual/types-class-instance.html
+	@see https://haxe.org/manual/types-class-instance.html
 **/
 @:coreType @:runtimeValue abstract Class<T> {
 }

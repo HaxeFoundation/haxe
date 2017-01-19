@@ -290,7 +290,7 @@ class TestJava extends Test
 	function testMiscJavaLib()
 	{
 		//setting inline should be an error
-		t(TestType.typeError(Base.inlineNumber = 4));
+		t(HelperMacros.typeError(Base.inlineNumber = 4));
 	}
 
 	//TODO:

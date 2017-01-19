@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -175,8 +175,11 @@ class Timer {
 			return Date.now().getTime() / 1000;
 		#elseif cpp
 			return untyped __global__.__time_stamp();
+		#elseif python
+			return Sys.cpuTime();
 		#elseif sys
 			return Sys.time();
+
 		#else
 			return 0;
 		#end

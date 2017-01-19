@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -18,6 +18,7 @@
  *)
 
 open Ast
+open Globals
 
 type error_msg =
 	| Unexpected of token
@@ -43,6 +44,8 @@ let error_msg = function
 
 let error m p = raise (Error (m,p))
 let display_error : (error_msg -> pos -> unit) ref = ref (fun _ _ -> assert false)
+
+let special_identifier_files = Hashtbl.create 0
 
 let quoted_ident_prefix = "@$__hx__"
 
@@ -88,12 +91,15 @@ let type_path sl in_import = match sl with
 	| n :: l when n.[0] >= 'A' && n.[0] <= 'Z' -> raise (TypePath (List.rev l,Some (n,false),in_import));
 	| _ -> raise (TypePath (List.rev sl,None,in_import))
 
+let is_resuming_file file =
+	Path.unique_full_path file = !resume_display.pfile
+
 let is_resuming p =
 	let p2 = !resume_display in
-	p.pmax = p2.pmin && Common.unique_full_path p.pfile = p2.pfile
+	p.pmax = p2.pmin && is_resuming_file p.pfile
 
 let set_resume p =
-	resume_display := { p with pfile = Common.unique_full_path p.pfile }
+	resume_display := { p with pfile = Path.unique_full_path p.pfile }
 
 let is_dollar_ident e = match fst e with
 	| EConst (Ident n) when n.[0] = '$' ->
@@ -154,9 +160,9 @@ let rec make_meta name params ((v,p2) as e) p1 =
 	| ETernary (e1,e2,e3) -> ETernary (make_meta name params e1 p1 , e2, e3), punion p1 p2
 	| _ -> EMeta((name,params,p1),e),punion p1 p2
 
-let make_is e (t,_) p =
-	let e_is = EField((EConst(Ident "Std"),p),"is"),p in
-	let e2 = expr_of_type_path (t.tpackage,t.tname) p in
+let make_is e (t,p_t) p p_is =
+	let e_is = EField((EConst(Ident "Std"),null_pos),"is"),p_is in
+	let e2 = expr_of_type_path (t.tpackage,t.tname) p_t in
 	ECall(e_is,[e;e2]),p
 
 let reify in_macro =
@@ -228,7 +234,7 @@ let reify in_macro =
 		(EConst (Ident (if o then "true" else "false")),p)
 	in
 	let to_obj fields p =
-		(EObjectDecl fields,p)
+		(EObjectDecl (List.map (fun (s,e) -> (s,null_pos),e) fields),p)
 	in
 	let rec to_tparam t p =
 		let n, v = (match t with
@@ -318,7 +324,7 @@ let reify in_macro =
 			let n, vl = (match k with
 				| FVar (ct,e) -> "FVar", [to_opt to_type_hint ct p;to_opt to_expr e p]
 				| FFun f -> "FFun", [to_fun f p]
-				| FProp (get,set,t,e) -> "FProp", [to_string get p; to_string set p; to_opt to_type_hint t p; to_opt to_expr e p]
+				| FProp (get,set,t,e) -> "FProp", [to_placed_name get; to_placed_name set; to_opt to_type_hint t p; to_opt to_expr e p]
 			) in
 			mk_enum "FieldType" n vl p
 		in
@@ -335,7 +341,7 @@ let reify in_macro =
 	and to_meta m p =
 		to_array (fun (m,el,p) _ ->
 			let fields = [
-				"name", to_string (fst (Common.MetaInfo.to_string m)) p;
+				"name", to_string (Meta.to_string m) p;
 				"params", to_expr_array el p;
 				"pos", to_pos p;
 			] in
@@ -350,7 +356,7 @@ let reify in_macro =
 		let pmin = (EConst (Int (string_of_int p.pmin)),p) in
 		let pmax = (EConst (Int (string_of_int p.pmax)),p) in
 		if in_macro then
-			(EUntyped (ECall ((EConst (Ident "__dollar__mk_pos"),p),[file;pmin;pmax]),p),p)
+			(EUntyped (ECall ((EConst (Ident "$__mk_pos__"),p),[file;pmin;pmax]),p),p)
 		else
 			to_obj [("file",file);("min",pmin);("max",pmax)] p
 	and to_expr_array a p = match a with
@@ -364,7 +370,7 @@ let reify in_macro =
 		in
 		let loop e = to_expr e (snd e) in
 		match fst e with
-		| EConst (Ident n) when n.[0] = '$' && String.length n > 1 ->
+		| EConst (Ident n) when n.[0] = '$' && String.length n > 1 && n <> "$__mk_pos__" ->
 			to_string n p
 		| EConst c ->
 			expr "EConst" [to_const c p]
@@ -377,7 +383,7 @@ let reify in_macro =
 		| EParenthesis e ->
 			expr "EParenthesis" [loop e]
 		| EObjectDecl fl ->
-			expr "EObjectDecl" [to_array (fun (f,e) -> to_obj [("field",to_string f p);("expr",loop e)]) fl p]
+			expr "EObjectDecl" [to_array (fun ((f,_),e) -> to_obj [("field",to_string f p);("expr",loop e)]) fl p]
 		| EArrayDecl el ->
 			expr "EArrayDecl" [to_expr_array el p]
 		| ECall (e,el) ->
@@ -429,12 +435,12 @@ let reify in_macro =
 		| EWhile (e1,e2,flag) ->
 			expr "EWhile" [loop e1;loop e2;to_bool (flag = NormalWhile) p]
 		| ESwitch (e1,cases,def) ->
-			let scase (el,eg,e) p =
+			let scase (el,eg,e,_) p =
 				to_obj [("values",to_expr_array el p);"guard",to_opt to_expr eg p;"expr",to_opt to_expr e p] p
 			in
-			expr "ESwitch" [loop e1;to_array scase cases p;to_opt (to_opt to_expr) def p]
+			expr "ESwitch" [loop e1;to_array scase cases p;to_opt (fun (e,_) -> to_opt to_expr e) def p]
 		| ETry (e1,catches) ->
-			let scatch ((n,_),t,e) p =
+			let scatch ((n,_),t,e,_) p =
 				to_obj [("name",to_string n p);("type",to_ctype t p);("expr",loop e)] p
 			in
 			expr "ETry" [loop e1;to_array scatch catches p]
@@ -485,7 +491,7 @@ let reify in_macro =
 				cur_pos := old;
 				e
 			| _ ->
-				expr "EMeta" [to_obj [("name",to_string (fst (Common.MetaInfo.to_string m)) p);("params",to_expr_array ml p);("pos",to_pos p)] p;loop e1]
+				expr "EMeta" [to_obj [("name",to_string (Meta.to_string m) p);("params",to_expr_array ml p);("pos",to_pos p)] p;loop e1]
 	and to_tparam_decl p t =
 		to_obj [
 			"name", to_placed_name t.tp_name;
@@ -499,7 +505,12 @@ let reify in_macro =
 			List.iter (function
 				| HExtern | HPrivate -> ()
 				| HInterface -> interf := true;
-				| HExtends t -> ext := Some (to_tpath t p)
+				| HExtends t -> ext := (match !ext with
+					| None -> Some (to_tpath t p)
+					| Some _ -> begin
+						impl := (to_tpath t p) :: !impl;
+						!ext
+					  end)
 				| HImplements i-> impl := (to_tpath i p) :: !impl
 			) d.d_flags;
 			to_obj [
@@ -515,6 +526,10 @@ let reify in_macro =
 		| _ -> assert false
 	in
 	(fun e -> to_expr e (snd e)), to_ctype, to_type_def
+
+let next_token s = match Stream.peek s with
+	| Some tk -> tk
+	| _ -> last_token s
 
 let popt f = parser
 	| [< v = f >] -> Some v
@@ -552,10 +567,10 @@ let lower_ident_or_macro = parser
 	| [< '(Kwd Extern,_) >] -> "extern"
 
 let property_ident = parser
-	| [< i, _ = ident >] -> i
-	| [< '(Kwd Dynamic,_) >] -> "dynamic"
-	| [< '(Kwd Default,_) >] -> "default"
-	| [< '(Kwd Null,_) >] -> "null"
+	| [< i,p = ident >] -> i,p
+	| [< '(Kwd Dynamic,p) >] -> "dynamic",p
+	| [< '(Kwd Default,p) >] -> "default",p
+	| [< '(Kwd Null,p) >] -> "null",p
 
 let get_doc s =
 	(* do the peek first to make sure we fetch the doc *)
@@ -582,6 +597,16 @@ let semicolon s =
 		| [< s >] ->
 			let pos = snd (last_token s) in
 			if do_resume() then pos else error Missing_semicolon pos
+
+let encloses_resume p =
+	p.pmin <= !resume_display.pmin && p.pmax >= !resume_display.pmax
+
+let would_skip_resume p1 s =
+	match Stream.npeek 1 s with
+	| [ (_,p2) ] ->
+		is_resuming_file p2.pfile && encloses_resume (punion p1 p2)
+	| _ ->
+		false
 
 let rec	parse_file s =
 	last_doc := None;
@@ -661,7 +686,7 @@ and parse_type_decl s =
 and parse_class doc meta cflags need_name s =
 	let opt_name = if need_name then type_name else (fun s -> match popt type_name s with None -> "",null_pos | Some n -> n) in
 	match s with parser
-	| [< n , p1 = parse_class_flags; name = opt_name; tl = parse_constraint_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl, p2 = parse_class_fields (not need_name) p1 >] ->
+	| [< n , p1 = parse_class_flags; name = opt_name; tl = parse_constraint_params; hl = plist parse_class_herit; '(BrOpen,_); fl, p2 = parse_class_fields (not need_name) p1 >] ->
 		(EClass {
 			d_name = name;
 			d_doc = doc;
@@ -704,7 +729,7 @@ and parse_import s p1 =
 	in
 	let p2, path, mode = (match s with parser
 		| [< '(Const (Ident name),p) >] -> loop [name,p]
-		| [< >] -> serror()
+		| [< >] -> if would_skip_resume p1 s then p1, [], INormal else serror()
 	) in
 	(EImport (path,mode),punion p1 p2)
 
@@ -720,6 +745,7 @@ and parse_using s p1 =
 			| [< '(Kwd Extern,p) >] ->
 				loop (("extern",p) :: acc)
 			| [< >] ->
+				if is_resuming p then type_path (List.map fst acc) false;
 				serror()
 			end
 		| [< '(Semicolon,p2) >] ->
@@ -727,7 +753,7 @@ and parse_using s p1 =
 	in
 	let p2, path = (match s with parser
 		| [< '(Const (Ident name),p) >] -> loop [name,p]
-		| [< >] -> serror()
+		| [< >] -> if would_skip_resume p1 s then p1, [] else serror()
 	) in
 	(EUsing path,punion p1 p2)
 
@@ -842,19 +868,24 @@ and parse_meta_params pname s = match s with parser
 	| [< >] -> []
 
 and parse_meta_entry = parser
-	[< '(At,_); name,p = meta_name; params = parse_meta_params p; s >] -> (name,params,p)
+	[< '(At,p1); s >] ->
+		match s with parser
+		| [< name,p = meta_name p1; params = parse_meta_params p; s >] -> (name,params,p)
+		| [< >] ->
+			if is_resuming p1 then (Meta.Last,[],p1) else serror()
 
 and parse_meta = parser
 	| [< entry = parse_meta_entry; s >] ->
 		entry :: parse_meta s
 	| [< >] -> []
 
-and meta_name = parser
-	| [< '(Const (Ident i),p) >] -> (Meta.Custom i), p
-	| [< '(Kwd k,p) >] -> (Meta.Custom (s_keyword k)),p
-	| [< '(DblDot,_); s >] -> match s with parser
-		| [< '(Const (Ident i),p) >] -> (Common.MetaInfo.parse i), p
-		| [< '(Kwd k,p) >] -> (Common.MetaInfo.parse (s_keyword k)),p
+and meta_name p1 = parser
+	| [< '(Const (Ident i),p) when p.pmin = p1.pmax >] -> (Meta.Custom i), p
+	| [< '(Kwd k,p) when p.pmin = p1.pmax >] -> (Meta.Custom (s_keyword k)),p
+	| [< '(DblDot,p) when p.pmin = p1.pmax; s >] -> match s with parser
+		| [< '(Const (Ident i),p1) when p1.pmin = p.pmax >] -> (Meta.parse i),punion p p1
+		| [< '(Kwd k,p1) when p1.pmin = p.pmax >] -> (Meta.parse (s_keyword k)),punion p p1
+		| [< >] -> if is_resuming p then Meta.Last,p else raise Stream.Failure
 
 and parse_enum_flags = parser
 	| [< '(Kwd Enum,p) >] -> [] , p
@@ -863,11 +894,15 @@ and parse_class_flags = parser
 	| [< '(Kwd Class,p) >] -> [] , p
 	| [< '(Kwd Interface,p) >] -> [HInterface] , p
 
+and parse_complex_type_at p = parser
+	| [< t = parse_complex_type >] -> t
+	| [< >] -> if is_resuming p then CTPath { tpackage = []; tname = ""; tparams = []; tsub = None },p else serror()
+
 and parse_type_hint = parser
-	| [< '(DblDot,_); t = parse_complex_type >] -> t
+	| [< '(DblDot,p1); t = parse_complex_type_at p1 >] -> t
 
 and parse_type_hint_with_pos s = match s with parser
-	| [< '(DblDot,p1); t = parse_complex_type >] -> t
+	| [< '(DblDot,p1); t = parse_complex_type_at p1 >] -> t
 
 and parse_type_opt = parser
 	| [< t = parse_type_hint >] -> Some t
@@ -966,10 +1001,11 @@ and parse_complex_type_next (t : type_hint) = parser
 and parse_type_anonymous opt = parser
 	| [< '(Question,_) when not opt; s >] -> parse_type_anonymous true s
 	| [< name, p1 = ident; t = parse_type_hint_with_pos; s >] ->
-		let next p2 acc =
+		let p2 = pos (last_token s) in
+		let next acc =
 			{
 				cff_name = name,p1;
-				cff_meta = if opt then [Meta.Optional,[],p1] else [];
+				cff_meta = if opt then [Meta.Optional,[],null_pos] else [];
 				cff_access = [];
 				cff_doc = None;
 				cff_kind = FVar (Some t,None);
@@ -977,11 +1013,11 @@ and parse_type_anonymous opt = parser
 			} :: acc
 		in
 		match s with parser
-		| [< '(BrClose,p2) >] -> next p2 [],p2
+		| [< '(BrClose,p2) >] -> next [],p2
 		| [< '(Comma,p2) >] ->
 			(match s with parser
-			| [< '(BrClose,p2) >] -> next p2 [],p2
-			| [< l,p2 = parse_type_anonymous false >] -> next p2 l,punion p1 p2
+			| [< '(BrClose,p2) >] -> next [],p2
+			| [< l,p2 = parse_type_anonymous false >] -> next l,punion p1 p2
 			| [< >] -> serror());
 		| [< >] -> serror()
 
@@ -1024,14 +1060,14 @@ and parse_class_field s =
 				let t = popt parse_type_hint_with_pos s in
 				let e , p2 = (match s with parser
 				| [< '(Binop OpAssign,_); e = toplevel_expr; p2 = semicolon >] -> Some e , p2
-				| [< '(Semicolon,p2) >] -> None , p2
+				| [< p2 = semicolon >] -> None , p2
 				| [< >] -> serror()
 				) in
 				name, punion p1 p2, FProp (i1,i2,t, e)
 			| [< t = popt parse_type_hint_with_pos; s >] ->
 				let e , p2 = (match s with parser
 				| [< '(Binop OpAssign,_); e = toplevel_expr; p2 = semicolon >] -> Some e , p2
-				| [< '(Semicolon,p2) >] -> None , p2
+				| [< p2 = semicolon >] -> None , p2
 				| [< >] -> serror()
 				) in
 				name, punion p1 p2, FVar (t,e))
@@ -1040,7 +1076,7 @@ and parse_class_field s =
 				| [< e = toplevel_expr; s >] ->
 					(try ignore(semicolon s) with Error (Missing_semicolon,p) -> !display_error Missing_semicolon p);
 					Some e, pos e
-				| [< '(Semicolon,p) >] -> None, p
+				| [< p = semicolon >] -> None, p
 				| [< >] -> serror()
 			) in
 			let f = {
@@ -1114,13 +1150,17 @@ and parse_constraint_param = parser
 			tp_meta = meta;
 		}
 
+and parse_type_path_or_resume p1 s = match s with parser
+	| [< t = parse_type_path >] -> t
+	| [< >] -> if would_skip_resume p1 s then { tpackage = []; tname = ""; tparams = []; tsub = None },null_pos else raise Stream.Failure
+
 and parse_class_herit = parser
-	| [< '(Kwd Extends,_); t = parse_type_path >] -> HExtends t
-	| [< '(Kwd Implements,_); t = parse_type_path >] -> HImplements t
+	| [< '(Kwd Extends,p1); t = parse_type_path_or_resume p1 >] -> HExtends t
+	| [< '(Kwd Implements,p1); t = parse_type_path_or_resume p1 >] -> HImplements t
 
 and block1 = parser
-	| [< name,p = dollar_ident; s >] -> block2 name (Ident name) p s
-	| [< '(Const (String name),p); s >] -> block2 (quote_ident name) (String name) p s
+	| [< name,p = dollar_ident; s >] -> block2 (name,p) (Ident name) p s
+	| [< '(Const (String name),p); s >] -> block2 (quote_ident name,p) (String name) p s
 	| [< b = block [] >] -> EBlock b
 
 and block2 name ident p s =
@@ -1138,20 +1178,23 @@ and block2 name ident p s =
 				EBlock (block [e] s)
 
 and block acc s =
+	fst (block_with_pos acc null_pos s)
+
+and block_with_pos acc p s =
 	try
 		(* because of inner recursion, we can't put Display handling in errors below *)
 		let e = try parse_block_elt s with Display e -> display (EBlock (List.rev (e :: acc)),snd e) in
-		block (e :: acc) s
+		block_with_pos (e :: acc) (pos e) s
 	with
 		| Stream.Failure ->
-			List.rev acc
+			List.rev acc,p
 		| Stream.Error _ ->
-			let tk , pos = (match Stream.peek s with None -> last_token s | Some t -> t) in
+			let tk , pos = next_token s in
 			(!display_error) (Unexpected tk) pos;
-			block acc s
+			block_with_pos acc pos s
 		| Error (e,p) ->
 			(!display_error) e p;
-			block acc s
+			block_with_pos acc p s
 
 and parse_block_elt = parser
 	| [< '(Kwd Var,p1); vl = parse_var_decls p1; p2 = semicolon >] ->
@@ -1162,8 +1205,8 @@ and parse_block_elt = parser
 and parse_obj_decl = parser
 	| [< '(Comma,_); s >] ->
 		(match s with parser
-		| [< name, _ = ident; '(DblDot,_); e = expr; l = parse_obj_decl >] -> (name,e) :: l
-		| [< '(Const (String name),_); '(DblDot,_); e = expr; l = parse_obj_decl >] -> (quote_ident name,e) :: l
+		| [< name,p = ident; '(DblDot,_); e = expr; l = parse_obj_decl >] -> ((name,p),e) :: l
+		| [< '(Const (String name),p); '(DblDot,_); e = expr; l = parse_obj_decl >] -> ((quote_ident name,p),e) :: l
 		| [< >] -> [])
 	| [< >] -> []
 
@@ -1186,27 +1229,30 @@ and parse_var_assignment = parser
 		end
 	| [< >] -> None
 
+and parse_var_assignment_resume vl name pn t s =
+	try
+		let eo = parse_var_assignment s in
+		((name,pn),t,eo)
+	with Display e ->
+		let v = ((name,pn),t,Some e) in
+		let e = (EVars(List.rev (v :: vl)),punion pn (pos e)) in
+		display e
+
 and parse_var_decls_next vl = parser
 	| [< '(Comma,p1); name,t,pn = parse_var_decl_head; s >] ->
-		begin try
-			let eo = parse_var_assignment s in
-			parse_var_decls_next (((name,pn),t,eo) :: vl) s
-		with Display e ->
-			let v = ((name,pn),t,Some e) in
-			let e = (EVars(List.rev (v :: vl)),punion p1 (pos e)) in
-			display e
-		end
+		let v_decl = parse_var_assignment_resume vl name pn t s in
+		parse_var_decls_next (v_decl :: vl) s
 	| [< >] ->
 		vl
 
 and parse_var_decls p1 = parser
 	| [< name,t,pn = parse_var_decl_head; s >] ->
-		let eo = parse_var_assignment s in
-		List.rev (parse_var_decls_next [(name,pn),t,eo] s)
+		let v_decl = parse_var_assignment_resume [] name pn t s in
+		List.rev (parse_var_decls_next [v_decl] s)
 	| [< s >] -> error (Custom "Missing variable identifier") p1
 
 and parse_var_decl = parser
-	| [< name,t,pn = parse_var_decl_head; eo = parse_var_assignment >] -> ((name,pn),t,eo)
+	| [< name,t,pn = parse_var_decl_head; v_decl = parse_var_assignment_resume [] name pn t >] -> v_decl
 
 and inline_function = parser
 	| [< '(Kwd Inline,_); '(Kwd Function,p1) >] -> true, p1
@@ -1248,10 +1294,15 @@ and parse_function p1 inl = parser
 
 and expr = parser
 	| [< (name,params,p) = parse_meta_entry; s >] ->
-		(try
+		begin try
 			make_meta name params (secure_expr s) p
-		with Display e ->
-			display (make_meta name params e p))
+		with
+		| Display e ->
+			display (make_meta name params e p)
+		| Stream.Failure | Stream.Error _ when Path.unique_full_path p.pfile = (!resume_display).pfile ->
+			let e = EConst (Ident "null"),p in
+			display (make_meta name params e p)
+		end
 	| [< '(BrOpen,p1); s >] ->
 		if is_resuming p1 then display (EDisplay ((EObjectDecl [],p1),false),p1);
 		(match s with parser
@@ -1263,10 +1314,7 @@ and expr = parser
 				| [< '(BrClose,p2) >] -> p2
 				| [< >] ->
 					(* Ignore missing } if we are resuming and "guess" the last position. *)
-					if do_resume() then begin match Stream.peek s with
-						| Some (_,p) -> p
-						| None -> pos (last_token s)
-					end else serror()
+					if do_resume() then pos (next_token s) else serror()
 			in
 			let e = (b,punion p1 p2) in
 			(match b with
@@ -1288,8 +1336,8 @@ and expr = parser
 			| [< t,pt = parse_type_hint_with_pos; '(PClose,p2); s >] ->
 				let ep = EParenthesis (ECheckType(e,(t,pt)),punion p1 p2), punion p1 p2 in
 				expr_next (ECast (ep,None),punion p1 (pos ep)) s
-			| [< '(Const (Ident "is"),_); t = parse_type_path; '(PClose,p2); >] ->
-				let e_is = make_is e t (punion p1 p2) in
+			| [< '(Const (Ident "is"),p_is); t = parse_type_path; '(PClose,p2); >] ->
+				let e_is = make_is e t (punion p1 p2) p_is in
 				expr_next (ECast (e_is,None),punion p1 (pos e_is)) s
 			| [< '(PClose,p2); s >] ->
 				let ep = expr_next (EParenthesis(e),punion pp p2) s in
@@ -1297,15 +1345,17 @@ and expr = parser
 			| [< >] -> serror())
 		| [< e = secure_expr >] -> expr_next (ECast (e,None),punion p1 (pos e)) s)
 	| [< '(Kwd Throw,p); e = expr >] -> (EThrow e,p)
-	| [< '(Kwd New,p1); t = parse_type_path; '(POpen,p); s >] ->
-		if is_resuming p then display (EDisplayNew t,punion p1 p);
-		(match s with parser
-		| [< al = psep Comma expr; '(PClose,p2); s >] -> expr_next (ENew (t,al),punion p1 p2) s
-		| [< >] -> serror())
+	| [< '(Kwd New,p1); t = parse_type_path; s >] ->
+		begin match s with parser
+		| [< '(POpen,po); e = parse_call_params (fun el p2 -> (ENew(t,el)),punion p1 p2) po >] -> expr_next e s
+		| [< >] ->
+			if do_resume() then (ENew(t,[]),punion p1 (pos t))
+			else serror()
+		end
 	| [< '(POpen,p1); e = expr; s >] -> (match s with parser
 		| [< '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
 		| [< t,pt = parse_type_hint_with_pos; '(PClose,p2); s >] -> expr_next (EParenthesis (ECheckType(e,(t,pt)),punion p1 p2), punion p1 p2) s
-		| [< '(Const (Ident "is"),_); t = parse_type_path; '(PClose,p2); >] -> expr_next (make_is e t (punion p1 p2)) s
+		| [< '(Const (Ident "is"),p_is); t = parse_type_path; '(PClose,p2); >] -> expr_next (make_is e t (punion p1 p2) p_is) s
 		| [< >] -> serror())
 	| [< '(BkOpen,p1); l = parse_array_decl; '(BkClose,p2); s >] -> expr_next (EArrayDecl l, punion p1 p2) s
 	| [< '(Kwd Function,p1); e = parse_function p1 false; >] -> e
@@ -1349,7 +1399,7 @@ and expr = parser
 			Display e -> display (EWhile (cond,e,NormalWhile),punion p1 (pos e)))
 	| [< '(Kwd Do,p1); e = expr; '(Kwd While,_); '(POpen,_); cond = expr; '(PClose,_); s >] -> (EWhile (cond,e,DoWhile),punion p1 (pos e))
 	| [< '(Kwd Switch,p1); e = expr; '(BrOpen,_); cases , def = parse_switch_cases e []; '(BrClose,p2); s >] -> (ESwitch (e,cases,def),punion p1 p2)
-	| [< '(Kwd Try,p1); e = expr; cl = plist (parse_catch e); >] -> (ETry (e,cl),p1)
+	| [< '(Kwd Try,p1); e = expr; cl,p2 = parse_catches e [] (pos e) >] -> (ETry (e,cl),punion p1 p2)
 	| [< '(IntInterval i,p1); e2 = expr >] -> make_binop OpInterval (EConst (Int i),p1) e2
 	| [< '(Kwd Untyped,p1); e = expr >] -> (EUntyped e,punion p1 (pos e))
 	| [< '(Dollar v,p); s >] -> expr_next (EConst (Ident ("$"^v)),p) s
@@ -1357,7 +1407,7 @@ and expr = parser
 and expr_next e1 = parser
 	| [< '(BrOpen,p1) when is_dollar_ident e1; eparam = expr; '(BrClose,p2); s >] ->
 		(match fst e1 with
-		| EConst(Ident n) -> expr_next (EMeta((Common.MetaInfo.from_string n,[],snd e1),eparam), punion p1 p2) s
+		| EConst(Ident n) -> expr_next (EMeta((Meta.from_string n,[],snd e1),eparam), punion p1 p2) s
 		| _ -> assert false)
 	| [< '(Dot,p); s >] ->
 		if is_resuming p then display (EDisplay (e1,false),p);
@@ -1375,14 +1425,7 @@ and expr_next e1 = parser
 			match e1 with
 			| (EConst (Int v),p2) when p2.pmax = p.pmin -> expr_next (EConst (Float (v ^ ".")),punion p p2) s
 			| _ -> serror())
-	| [< '(POpen,p1); s >] ->
-		if is_resuming p1 then display (EDisplay (e1,true),p1);
-		(match s with parser
-		| [< '(Binop OpOr,p2) when do_resume() >] ->
-			set_resume p1;
-			display (EDisplay (e1,true),p1) (* help for debug display mode *)
-		| [< params = parse_call_params e1; '(PClose,p2); s >] -> expr_next (ECall (e1,params) , punion (pos e1) p2) s
-		| [< >] -> serror())
+	| [< '(POpen,p1); e = parse_call_params (fun el p2 -> (ECall(e1,el)),punion (pos e1) p2) p1; s >] -> expr_next e s
 	| [< '(BkOpen,_); e2 = expr; '(BkClose,p2); s >] ->
 		expr_next (EArray (e1,e2), punion (pos e1) p2) s
 	| [< '(Binop OpGt,p1); s >] ->
@@ -1420,10 +1463,10 @@ and parse_guard = parser
 
 and parse_switch_cases eswitch cases = parser
 	| [< '(Kwd Default,p1); '(DblDot,_); s >] ->
-		let b = (try block [] s with Display e -> display (ESwitch (eswitch,cases,Some (Some e)),punion (pos eswitch) (pos e))) in
+		let b,p2 = (try block_with_pos [] p1 s with Display e -> display (ESwitch (eswitch,cases,Some (Some e,punion p1 (pos e))),punion (pos eswitch) (pos e))) in
 		let b = match b with
-			| [] -> None
-			| _ -> Some ((EBlock b,p1))
+			| [] -> None,p1
+			| _ -> let p = punion p1 p2 in Some ((EBlock b,p)),p
 		in
 		let l , def = parse_switch_cases eswitch cases s in
 		(match def with None -> () | Some _ -> error Duplicate_default p1);
@@ -1432,12 +1475,14 @@ and parse_switch_cases eswitch cases = parser
 		(match el with
 		| [] -> error (Custom "case without a pattern is not allowed") p1
 		| _ ->
-			let b = (try block [] s with Display e -> display (ESwitch (eswitch,List.rev ((el,eg,Some e) :: cases),None),punion (pos eswitch) (pos e))) in
-			let b = match b with
-				| [] -> None
-				| _ -> Some ((EBlock b,p1))
+			let b,p2 = (try block_with_pos [] p1 s with Display e -> display (ESwitch (eswitch,List.rev ((el,eg,Some e,punion p1 (pos e)) :: cases),None),punion (pos eswitch) (pos e))) in
+			let b,p = match b with
+				| [] ->
+					let p2 = match eg with Some e -> pos e | None -> match List.rev el with (_,p) :: _ -> p | [] -> p1 in
+					None,punion p1 p2
+				| _ -> let p = punion p1 p2 in Some ((EBlock b,p)),p
 			in
-			parse_switch_cases eswitch ((el,eg,b) :: cases) s
+			parse_switch_cases eswitch ((el,eg,b,p) :: cases) s
 		)
 	| [< >] ->
 		List.rev cases , None
@@ -1447,30 +1492,47 @@ and parse_catch etry = parser
 		match s with parser
 		| [< t,pt = parse_type_hint_with_pos; '(PClose,_); s >] ->
 			(try
-				((name,pn),(t,pt),secure_expr s)
+				let e = secure_expr s in
+				((name,pn),(t,pt),e,punion p (pos e)),(pos e)
 			with
-				Display e -> display (ETry (etry,[(name,pn),(t,pt),e]),punion (pos etry) (pos e)))
+				Display e -> display (ETry (etry,[(name,pn),(t,pt),e,(pos e)]),punion (pos etry) (pos e)))
 		| [< '(_,p) >] -> error Missing_type p
 
-and parse_call_params ec s =
-	let e = (try
-		match s with parser
-		| [< e = expr >] -> Some e
-		| [< >] -> None
-	with Display e ->
-		display (ECall (ec,[e]),punion (pos ec) (pos e))
-	) in
-	let rec loop acc =
-		try
-			match s with parser
-			| [< '(Comma,_); e = expr >] -> loop (e::acc)
-			| [< >] -> List.rev acc
-		with Display e ->
-			display (ECall (ec,List.rev (e::acc)),punion (pos ec) (pos e))
+and parse_catches etry catches pmax = parser
+	| [< (catch,pmax) = parse_catch etry; s >] -> parse_catches etry (catch :: catches) pmax s
+	| [< >] -> List.rev catches,pmax
+
+and parse_call_params f p1 s =
+	let make_display_call el p2 =
+		let e = f el p2 in
+		display (EDisplay(e,true),pos e)
 	in
-	match e with
-	| None -> []
-	| Some e -> loop [e]
+	if is_resuming p1 then make_display_call [] p1;
+	let rec parse_next_param acc p1 =
+		let e = try
+			expr s
+		with
+		| Stream.Error _ | Stream.Failure as exc ->
+			let p2 = pos (next_token s) in
+			if encloses_resume (punion p1 p2) then make_display_call (List.rev acc) p2
+			else raise exc
+		| Display e ->
+			display (f (List.rev (e :: acc)) (pos e))
+		in
+		match s with parser
+		| [< '(PClose,p2) >] -> f (List.rev (e :: acc)) p2
+		| [< '(Comma,p2) >] -> parse_next_param (e :: acc) p2
+		| [< '(Semicolon,p2) >] -> if encloses_resume (punion p1 p2) then make_display_call (List.rev acc) p2 else serror()
+		| [< >] ->
+			let p2 = pos (next_token s) in
+			if encloses_resume (punion p1 p2) then make_display_call (List.rev (e :: acc)) p2 else serror()
+	in
+	match s with parser
+	| [< '(PClose,p2) >] -> f [] p2
+	| [< '(Binop OpOr,p2) when do_resume() >] ->
+		set_resume p1;
+		make_display_call [] p2
+	| [< >] -> parse_next_param [] p1
 
 and parse_macro_cond allow_op s =
 	match s with parser
@@ -1491,6 +1553,7 @@ and parse_macro_cond allow_op s =
 		tk, make_unop op e p
 
 and parse_macro_ident allow_op t p s =
+	if t = "display" then Hashtbl.replace special_identifier_files (Path.unique_full_path p.pfile) t;
 	let e = (EConst (Ident t),p) in
 	if not allow_op then
 		None, e
@@ -1616,7 +1679,7 @@ let parse ctx code =
 			| _ -> error Unimplemented (snd tk))
 		| Sharp "line" ->
 			let line = (match next_token() with
-				| (Const (Int s),_) -> int_of_string s
+				| (Const (Int s),p) -> (try int_of_string s with _ -> error (Custom ("Could not parse ridiculous line number " ^ s)) p)
 				| (t,p) -> error (Unexpected t) p
 			) in
 			!(Lexer.cur).Lexer.lline <- line - 1;
@@ -1627,7 +1690,7 @@ let parse ctx code =
 	and enter_macro p =
 		let tk, e = parse_macro_cond false sraw in
 		let tk = (match tk with None -> Lexer.token code | Some tk -> tk) in
-		if is_true (eval ctx e) || (match fst e with EConst (Ident "macro") when Common.unique_full_path p.pfile = (!resume_display).pfile -> true | _ -> false) then begin
+		if is_true (eval ctx e) || (match fst e with EConst (Ident "macro") when Path.unique_full_path p.pfile = (!resume_display).pfile -> true | _ -> false) then begin
 			mstack := p :: !mstack;
 			tk
 		end else
@@ -1676,3 +1739,39 @@ let parse ctx code =
 			Lexer.restore old;
 			cache := old_cache;
 			raise e
+
+let parse_string com s p error inlined =
+	let old = Lexer.save() in
+	let old_file = (try Some (Hashtbl.find Lexer.all_files p.pfile) with Not_found -> None) in
+	let old_display = !resume_display in
+	let old_de = !display_error in
+	let restore() =
+		(match old_file with
+		| None -> ()
+		| Some f -> Hashtbl.replace Lexer.all_files p.pfile f);
+		if not inlined then resume_display := old_display;
+		Lexer.restore old;
+		display_error := old_de
+	in
+	Lexer.init p.pfile true;
+	display_error := (fun e p -> raise (Error (e,p)));
+	if not inlined then resume_display := null_pos;
+	let pack, decls = try
+		parse com (Lexing.from_string s)
+	with Error (e,pe) ->
+		restore();
+		error (error_msg e) (if inlined then pe else p)
+	| Lexer.Error (e,pe) ->
+		restore();
+		error (Lexer.error_msg e) (if inlined then pe else p)
+	in
+	restore();
+	pack,decls
+
+let parse_expr_string com s p error inl =
+	let head = "class X{static function main() " in
+	let head = (if p.pmin > String.length head then head ^ String.make (p.pmin - String.length head) ' ' else head) in
+	let rec loop e = let e = Ast.map_expr loop e in (fst e,p) in
+	match parse_string com (head ^ s ^ ";}") p error inl with
+	| _,[EClass { d_data = [{ cff_name = "main",null_pos; cff_kind = FFun { f_expr = Some e } }]},_] -> if inl then e else loop e
+	| _ -> raise Exit

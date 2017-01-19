@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -189,7 +189,6 @@ class Web {
 		Retrieve a client header value sent with the request.
 	**/
 	public static function getClientHeader( k : String ) : String {
-		//Remark : PHP puts all headers in uppercase and replaces - with _, we deal with that here
 		var k = StringTools.replace(k.toUpperCase(),"-","_");
 		for(i in getClientHeaders()) {
 			if(i.header == k)
@@ -214,6 +213,15 @@ class Web {
 				} else if(k.substr(0,8) == "CONTENT_") {
 					_client_headers.add({ header : k, value : h.get(k)});
 				}
+			}
+			// and these(issue #5270)
+			if(untyped __php__("isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])")) {
+				_client_headers.add({header: 'AUTHORIZATION', value: untyped __php__("(string)$_SERVER['REDIRECT_HTTP_AUTHORIZATION']")});
+			} else if(untyped __php__("isset($_SERVER['PHP_AUTH_USER'])")) {
+				var basic_pass = untyped __php__("isset($_SERVER['PHP_AUTH_PW']) ? (string)$_SERVER['PHP_AUTH_PW'] : ''");
+				_client_headers.add({header: 'AUTHORIZATION', value: 'Basic ' + untyped __php__("base64_encode($_SERVER['PHP_AUTH_USER'] + ':' + $basic_pass)")});
+			} else if(untyped __php__("isset($_SERVER['PHP_AUTH_DIGEST'])")) {
+				_client_headers.add({header: 'AUTHORIZATION', value: untyped __php__("(string)$_SERVER['PHP_AUTH_DIGEST']")});
 			}
 		}
 		return _client_headers;
@@ -253,7 +261,7 @@ class Web {
 
 	/**
 		Returns an hashtable of all Cookies sent by the client.
-		Modifying the hashtable will not modify the cookie, use `php.Web.setCookie()` 
+		Modifying the hashtable will not modify the cookie, use `php.Web.setCookie()`
 		instead.
 	**/
 	public static function getCookies():Map<String,String> {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -41,26 +41,44 @@
 	}
 
 	public static function parseInt( x : String ) : Null<Int> {
-		untyped if (!__call__("is_numeric", x)) {
-			var matches = null;
-			__call__('preg_match', '/^-?\\d+/', x, matches);
-			return __call__("count", matches) == 0 ? null : __call__('intval', matches[0]);
-		} else
-			return x.substr(0, 2).toLowerCase() == "0x" ? __php__("(int) hexdec(substr($x, 2))") : __php__("intval($x)");
+		x = untyped __call__("ltrim", x);
+		var firstCharIndex = (x.charAt(0) == '-' ? 1 : 0);
+		var firstCharCode = x.charCodeAt(firstCharIndex);
+		if (!isDigitCode(firstCharCode)) {
+			return null;
+		}
+		var secondChar = x.charAt(firstCharIndex + 1);
+		if (secondChar == 'x' || secondChar == 'X') {
+			return untyped __call__("intval", x, 0);
+		} else {
+			return untyped __call__("intval", x, 10);
+		}
 	}
 
 	public static function parseFloat( x : String ) : Float {
-		var v : Float = untyped __call__("floatval", x);
-		untyped	if (v==0.0) {
-			x=untyped __call__("rtrim", x);
-			v=untyped __call__("floatval", x);
-			if (v == 0.0 && !__call__("is_numeric", x)) v = untyped __call__("acos", 1.01);
+		var result = untyped __call__("floatval", x);
+		if (untyped __php__("$result != 0")) return result;
+
+		x = untyped __call__("ltrim", x);
+		var firstCharIndex = (x.charAt(0) == '-' ? 1 : 0);
+		var charCode = x.charCodeAt(firstCharIndex);
+
+		if (charCode == '.'.code) {
+			charCode = x.charCodeAt(firstCharIndex + 1);
 		}
-		return v;
+
+		if (isDigitCode(charCode)) {
+			return 0.0;
+		} else {
+			return Math.NaN;
+		}
 	}
 
 	public static function random( x : Int ) : Int {
 		return untyped x <= 0 ? 0 : __call__("mt_rand", 0, x-1);
 	}
 
+	static inline function isDigitCode( charCode:Null<Int> ) : Bool {
+		return charCode != null && charCode >= '0'.code && charCode <= '9'.code;
+	}
 }

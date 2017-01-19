@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,7 +25,7 @@
 	that are chained together. It is optimized so that adding or removing an
 	element does not imply copying the whole list content every time.
 
-	@see http://haxe.org/manual/std-List.html
+	@see https://haxe.org/manual/std-List.html
 **/
 class List<T> {
 

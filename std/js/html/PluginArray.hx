@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\PluginArray.webidl line 9:0. Do not edit!
+// This file is generated from mozilla\PluginArray.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `PluginArray` interface is used to store a list of `Plugin` objects describing the available plugins; it's returned by the `window.navigator.plugins` property. The `PluginArray` is not a JavaScript array, but has the `length` property and supports accessing individual items using bracket notation (`plugins[2]`), as well as via `item(index)` and `namedItem("name")` methods.
+
+	Documentation [PluginArray](https://developer.mozilla.org/en-US/docs/Web/API/PluginArray) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PluginArray$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/PluginArray>
+**/
 @:native("PluginArray")
 extern class PluginArray implements ArrayAccess<Plugin>
 {

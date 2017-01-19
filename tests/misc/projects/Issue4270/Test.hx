@@ -12,7 +12,7 @@ class Test {
         if (exit != 0) {
             error(arg + ":\n" + stderr, exit);
         } else {
-            var exist = stderr.indexOf("<i n=\"code\">") != -1;
+            var exist = stderr.indexOf("<i n=\"code\"") != -1;
             if (shouldExist && !exist)
                 error(arg + ":\nNo 'code' field found in the completion output:\n\n" + stderr, 1);
             else if (!shouldExist && exist)

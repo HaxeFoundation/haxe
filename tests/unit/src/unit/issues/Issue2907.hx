@@ -17,7 +17,7 @@ class Issue2907 extends Test {
 	}
 
 	function test<T>() {
-		t(unit.TestType.typeError(
+		t(unit.HelperMacros.typeError(
 			try { }
 			catch(e:T) { }
 		));

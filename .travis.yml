@@ -15,12 +15,10 @@ env:
     - PPA="ppa:haxe/snapshots"
     - DEBFULLNAME="Haxe CI Bot"
     - DEBEMAIL="haxe-ci@onthewings.net"
-    # lua specific versions
-    - LUAROCKS=2.3.0
-    - LUA=lua5.2
 
 sudo: required
 dist: trusty
+osx_image: xcode6.4
 addons: &addons
   ssh_known_hosts:
     - haxe.org
@@ -28,7 +26,10 @@ addons: &addons
 
 install_linux: &install_linux
   # Install neko and haxe dependencies
+  - sudo add-apt-repository ppa:haxe/ocaml -y
+  - sudo apt-get update
   - sudo apt-get install -y
+      ocaml
       ocaml-native-compilers
       camlp4
       pkg-config
@@ -48,19 +49,24 @@ install_linux: &install_linux
   - sudo make install
   - popd
   # Setup database
-  - travis_retry sudo apt-get install mysql-server -y
+  - travis_retry sudo apt-get install mysql-server-5.6 -y
   - mysql -u root -e "create user travis@localhost identified by '';"
   - mysql -u root -e "create database haxe_test;"
   - mysql -u root -e "grant all on haxe_test.* to travis@localhost;"
+  # Setup JDK
+  - jdk_switcher use oraclejdk7
+  - java -version
   # Build haxe
   - make package_src -s
   - make -s
   - make package_bin -s
+  - ls -l out
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
 
 install_osx: &install_osx
   # Install haxe dependencies
+  - brew uninstall --force brew-cask # https://github.com/caskroom/homebrew-cask/pull/15381
   - travis_retry brew update
   - travis_retry brew install ocaml camlp4;
   # Install neko
@@ -75,6 +81,7 @@ install_osx: &install_osx
   - make package_src -s
   - make -s
   - make package_bin -s
+  - ls -l out
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
 
@@ -122,6 +129,15 @@ matrix:
             g++-multilib
       install: *install_linux
 
+    - os: linux
+      env:
+        - TEST=php7
+      before_install:
+        - phpenv global "7.0"
+        # - sudo apt-get install php7-cli php7-mysql php7-sqlite -y || (sudo add-apt-repository ppa:ondrej/php -y && sudo apt-get update -y && sudo apt-get install  php7.0-cli php7.0-mysql php7.0-sqlite -y)
+        - php -v || true
+      install: *install_linux
+
     #######
     # osx #
     #######
@@ -140,6 +156,7 @@ script:
   - eval `ssh-agent -s` # for deployment to haxe.org
   - pushd tests
   -   mkdir ~/haxelib && haxelib setup ~/haxelib
+  -   haxelib install record-macros
   -   haxe -version
   -   haxe RunCi.hxml
   -   neko RunCi.n

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -42,7 +42,7 @@ private typedef NativeString = String;
 			if ( index >= me.length() || index < 0 )
 				return null;
 			else
-				return me.codePointAt(index);
+				return (int) me.charAt(index);
 	')
 	public static function charCodeAt(me:NativeString, index:Int):Null<Int>
 	{

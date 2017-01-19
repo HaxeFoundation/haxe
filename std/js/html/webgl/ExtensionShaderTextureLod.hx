@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\WebGLRenderingContext.webidl line 1072:0. Do not edit!
+// This file is generated from mozilla\WebGLRenderingContext.webidl. Do not edit!
 
 package js.html.webgl;
 
+/**
+	The `EXT_shader_texture_lod` extension is part of the WebGL API and adds additional texture functions to the OpenGL ES Shading Language which provide the shader writer with explicit control of LOD (Level of detail).
+
+	Documentation [EXT_shader_texture_lod](https://developer.mozilla.org/en-US/docs/Web/API/EXT_shader_texture_lod) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/EXT_shader_texture_lod$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/EXT_shader_texture_lod>
+**/
 @:native("EXT_shader_texture_lod")
 extern class ExtensionShaderTextureLod
 {

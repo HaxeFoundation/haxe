@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,13 +20,24 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\HTMLHtmlElement.webidl line 19:0. Do not edit!
+// This file is generated from mozilla\HTMLHtmlElement.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `HTMLHtmlElement` interface serves as the root node for a given HTML document.  This object inherits the properties and methods described in the `HTMLElement` interface.
+
+	Documentation [HTMLHtmlElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLHtmlElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLHtmlElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLHtmlElement>
+**/
 @:native("HTMLHtmlElement")
 extern class HtmlElement extends Element
 {
+	
+	/**
+		Is a `DOMString` representing the version of the HTML Document Type Definition (DTD) that governs this document. This property should not be used any more as it is non-conforming. Simply omit it.
+	**/
 	var version : String;
 	
 }

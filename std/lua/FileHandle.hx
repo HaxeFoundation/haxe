@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,9 +28,11 @@ extern class FileHandle extends UserData {
 	public function flush() : Void;
 	public function read(arg : Rest<EitherType<ReadArgument,Int>>) : String;
 	public function close() : Void;
+
 	public function write(str : String) : Void;
 
 	@:overload(function () : Int {})
+	@:overload(function (arg : String) : Int {})
 	public function seek(arg : String, pos : Int) : Void;
 }
 

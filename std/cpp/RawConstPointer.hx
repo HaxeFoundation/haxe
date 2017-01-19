@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,4 +24,6 @@
 @:unreflective
 extern class RawConstPointer<T> implements ArrayAccess<T>
 {
+   @:native("hx::AddressOf")
+   public static function addressOf<T>(t:T) : RawConstPointer<T>;
 }

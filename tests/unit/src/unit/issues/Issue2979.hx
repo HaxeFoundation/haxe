@@ -11,7 +11,7 @@ class Issue2979 extends Test {
 	function test() {
 		var b:B<String> = null;
 		var a:A<String>;
-		unit.TestType.typedAs(a, b.a());
-		unit.TestType.typedAs(a, b.toA());
+		unit.HelperMacros.typedAs(a, b.a());
+		unit.HelperMacros.typedAs(a, b.toA());
 	}
 }

@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -24,6 +24,7 @@ open Genswf9
 open Type
 open Common
 open Ast
+open Globals
 
 let rec make_tpath = function
 	| HMPath (pack,name) ->
@@ -109,7 +110,7 @@ let is_valid_path com pack name =
 		| [] ->
 			false
 		| load :: l ->
-			match load (pack,name) Ast.null_pos with
+			match load (pack,name) null_pos with
 			| None -> loop l
 			| Some (file,(_,a)) -> true
 	in
@@ -196,7 +197,7 @@ let build_class com c file =
 		match f.hlf_kind with
 		| HFVar v ->
 			if v.hlv_const then
-				cf.cff_kind <- FProp ("default","never",Some (make_type v.hlv_type,null_pos),None)
+				cf.cff_kind <- FProp (("default",null_pos),("never",null_pos),Some (make_type v.hlv_type,null_pos),None)
 			else
 				cf.cff_kind <- FVar (Some (make_dyn_type v.hlv_type,null_pos),None);
 			cf :: acc
@@ -301,7 +302,7 @@ let build_class com c file =
 			cff_doc = None;
 			cff_access = flags;
 			cff_meta = [];
-			cff_kind = if get && set then FVar (Some (make_dyn_type t,null_pos), None) else FProp ((if get then "default" else "never"),(if set then "default" else "never"),Some (make_dyn_type t,null_pos),None);
+			cff_kind = if get && set then FVar (Some (make_dyn_type t,null_pos), None) else FProp (((if get then "default" else "never"),null_pos),((if set then "default" else "never"),null_pos),Some (make_dyn_type t,null_pos),None);
 		}
 	in
 	let fields = Hashtbl.fold (fun (name,stat) t acc ->
@@ -324,7 +325,7 @@ let build_class com c file =
 			| f :: l ->
 				match f.cff_kind with
 				| FVar (Some (CTPath { tpackage = []; tname = ("String" | "Int" | "UInt") as tname },null_pos),None)
-				| FProp ("default","never",Some (CTPath { tpackage = []; tname = ("String" | "Int" | "UInt") as tname },null_pos),None) when List.mem AStatic f.cff_access ->
+				| FProp (("default",_),("never",_),Some (CTPath { tpackage = []; tname = ("String" | "Int" | "UInt") as tname },null_pos),None) when List.mem AStatic f.cff_access ->
 					if !real_type = "" then real_type := tname else if !real_type <> tname then raise Exit;
 					{
 						ec_name = f.cff_name;
@@ -363,7 +364,7 @@ let build_class com c file =
 	(path.tpackage, [(EClass class_data,pos)])
 
 let extract_data (_,tags) =
-	let t = Common.timer "read swf" in
+	let t = Common.timer ["read";"swf"] in
 	let h = Hashtbl.create 0 in
 	let rec loop_field f =
 		match f.hlf_kind with
@@ -455,7 +456,7 @@ let remove_debug_infos as3 =
 	As3hlparse.flatten (List.map loop_static hl)
 
 let parse_swf com file =
-	let t = Common.timer "read swf" in
+	let t = Common.timer ["read";"swf"] in
 	let is_swc = file_extension file = "swc" || file_extension file = "ane" in
 	let file = (try Common.find_file com file with Not_found -> failwith ((if is_swc then "SWC" else "SWF") ^ " Library not found : " ^ file)) in
 	let ch = if is_swc then begin
@@ -481,7 +482,7 @@ let parse_swf com file =
 	IO.close_in ch;
 	List.iter (fun t ->
 		match t.tdata with
-		| TActionScript3 (id,as3) when not com.debug && com.display = DMNone ->
+		| TActionScript3 (id,as3) when not com.debug && not com.display.DisplayMode.dms_display ->
 			t.tdata <- TActionScript3 (id,remove_debug_infos as3)
 		| _ -> ()
 	) tags;
@@ -744,7 +745,7 @@ let detect_format data p =
 	| '\xFF', i, _ when (int_of_char i) land 0xE2 = 0xE2 -> SMP3
 	| 'G', 'I', 'F' -> BGIF
 	| _ ->
-		error "Unknown file format" p
+		abort "Unknown file format" p
 
 open TTFData
 
@@ -786,7 +787,7 @@ let build_swf9 com file swc =
 		if String.length file > 5 && String.sub file 0 5 = "data:" then
 			String.sub file 5 (String.length file - 5)
 		else
-			(try Std.input_file ~bin:true file with Invalid_argument("String.create") -> error "File is too big (max 16MB allowed)" p | _  -> error "File not found" p)
+			(try Std.input_file ~bin:true file with Invalid_argument("String.create") -> abort "File is too big (max 16MB allowed)" p | _  -> abort "File not found" p)
 	in
 	let bmp = List.fold_left (fun acc t ->
 		match t with
@@ -795,8 +796,8 @@ let build_swf9 com file swc =
 				| [] -> acc
 				| (Meta.Font,(EConst (String file),p) :: args,_) :: l ->
 					let file = try Common.find_file com file with Not_found -> file in
-					let ch = try open_in_bin file with _ -> error "File not found" p in
-					let ttf = try TTFParser.parse ch with e -> error ("Error while parsing font " ^ file ^ " : " ^ Printexc.to_string e) p in
+					let ch = try open_in_bin file with _ -> abort "File not found" p in
+					let ttf = try TTFParser.parse ch with e -> abort ("Error while parsing font " ^ file ^ " : " ^ Printexc.to_string e) p in
 					close_in ch;
 					let get_string e = match fst e with
 						| EConst (String s) -> Some s
@@ -814,7 +815,7 @@ let build_swf9 com file swc =
 						| _ :: [e] ->
 							begin match fst e with
 								| EObjectDecl fl ->
-									begin try ttf_config.ttfc_font_name <- get_string (List.assoc "fontName" fl)
+									begin try ttf_config.ttfc_font_name <- get_string (Expr.field_assoc "fontName" fl)
 									with Not_found -> () end
 								| _ ->
 									()
@@ -874,10 +875,10 @@ let build_swf9 com file swc =
 					let adata = load_file_data afile p2 in
 					(match detect_format ddata p1 with
 					| BJPG -> ()
-					| _ -> error "RGB channel must be a JPG file" p1);
+					| _ -> abort "RGB channel must be a JPG file" p1);
 					(match detect_format adata p2 with
 					| BPNG -> ()
-					| _ -> error "Alpha channel must be a PNG file" p2);
+					| _ -> abort "Alpha channel must be a PNG file" p2);
 					let png = Png.parse (IO.input_string adata) in
 					let h = Png.header png in
 					let amask = (match h.Png.png_color with
@@ -889,7 +890,7 @@ let build_swf9 com file swc =
 								String.unsafe_set alpha i (String.unsafe_get raw_data (i lsl 2));
 							done;
 							Extc.zip alpha
-						| _ -> error "PNG file must contain 8 bit alpha channel" p2
+						| _ -> abort "PNG file must contain 8 bit alpha channel" p2
 					) in
 					incr cid;
 					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
@@ -928,9 +929,9 @@ let build_swf9 com file swc =
 								let data = IO.nread i data_size in
 								make_flags 0 (chan = 1) freq bits, (data_size * 8 / (chan * bits)), data
 							with Exit | IO.No_more_input | IO.Overflow _ ->
-								error "Invalid WAV file" p
+								abort "Invalid WAV file" p
 							| Failure msg ->
-								error ("Invalid WAV file (" ^ msg ^ ")") p
+								abort ("Invalid WAV file (" ^ msg ^ ")") p
 							)
 						| SMP3 ->
 							(try
@@ -983,12 +984,12 @@ let build_swf9 com file swc =
 								read_frame();
 								make_flags 2 !mono !sampling 16, (!samples), ("\x00\x00" ^ data)
 							with Exit | IO.No_more_input | IO.Overflow _ ->
-								error "Invalid MP3 file" p
+								abort "Invalid MP3 file" p
 							| Failure msg ->
-								error ("Invalid MP3 file (" ^ msg ^ ")") p
+								abort ("Invalid MP3 file (" ^ msg ^ ")") p
 							)
 						| _ ->
-							error "Sound extension not supported (only WAV or MP3)" p
+							abort "Sound extension not supported (only WAV or MP3)" p
 					) in
 					incr cid;
 					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
@@ -1024,7 +1025,7 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 				let path = parse_path e.exp_name in
 				let b = List.exists (fun t -> t_path t = path) com.types in
 				if not b && fst path = [] then List.iter (fun t ->
-					if snd (t_path t) = snd path then error ("Linkage name '" ^ snd path ^ "' in '" ^ file ^  "' should be '" ^ s_type_path (t_path t) ^"'") (t_infos t).mt_pos;
+					if snd (t_path t) = snd path then abort ("Linkage name '" ^ snd path ^ "' in '" ^ file ^  "' should be '" ^ s_type_path (t_path t) ^"'") (t_infos t).mt_pos;
 				) com.types;
 				b
 			) el in
@@ -1100,9 +1101,9 @@ let generate swf_header com =
 								if Meta.has Meta.Bind c.cl_meta then
 									toremove := (t_path t) :: !toremove
 								else
-									error ("Class already exists in '" ^ file ^ "', use @:bind to redefine it") (t_infos t).mt_pos
+									abort ("Class already exists in '" ^ file ^ "', use @:bind to redefine it") (t_infos t).mt_pos
 							| _ ->
-								error ("Invalid redefinition of class defined in '" ^ file ^ "'") (t_infos t).mt_pos
+								abort ("Invalid redefinition of class defined in '" ^ file ^ "'") (t_infos t).mt_pos
 					) com.types;
 				) el
 			| _ -> ()
@@ -1140,7 +1141,7 @@ let generate swf_header com =
 	let fattr = if Common.defined com Define.AdvancedTelemetry then fattr @ [tag (TUnknown (0x5D,"\x00\x00"))] else fattr in
 	let swf_script_limits = try
 		let s = Common.defined_value com Define.SwfScriptTimeout in
-		let i = try int_of_string s with _ -> error "Argument to swf_script_timeout must be an integer" Ast.null_pos in
+		let i = try int_of_string s with _ -> abort "Argument to swf_script_timeout must be an integer" null_pos in
 		[tag(TScriptLimits (256, if i < 0 then 0 else if i > 65535 then 65535 else i))]
 	with Not_found ->
 		[]
@@ -1164,7 +1165,7 @@ let generate swf_header com =
 		{header with h_frame_count = header.h_frame_count + 1},loop tags
 	| _ -> swf in
 	(* write swf/swc *)
-	let t = Common.timer "write swf" in
+	let t = Common.timer ["write";"swf"] in
 	let level = (try int_of_string (Common.defined_value com Define.SwfCompressLevel) with Not_found -> 9) in
 	SwfParser.init Extc.input_zip (Extc.output_zip ~level);
 	(match swc with

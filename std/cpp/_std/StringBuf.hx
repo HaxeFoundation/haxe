@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,44 +24,68 @@ using cpp.NativeArray;
 
 @:coreApi
 class StringBuf {
-	private var b : Array<String>;
-	public var length(get,never) : Int;
-	var charBuf:Array<cpp.Char>;
+   private var b : Array<String>;
+   public var length(get,never) : Int;
+   var charBuf:Array<cpp.Char>;
 
-	public function new() : Void {
-		b = new Array();
-	}
+   public function new() : Void {
+   }
+
+   private function charBufAsString() : String
+   {
+      var len = charBuf.length;
+      charBuf.push(0);
+      return NativeString.fromGcPointer( charBuf.address(0), len );
+   }
 
    private function flush() : Void{
-      b.push( NativeString.fromGcPointer( charBuf.address(0), charBuf.length ) );
+      if (b==null)
+         b = [charBufAsString()];
+      else
+         b.push( charBufAsString() );
       charBuf = null;
    }
-	function get_length() : Int {
-		if (charBuf!=null) flush();
-		var len = 0;
-		for(s in b)
-			len += s==null ? 4 : s.length;
-		return len;
-	}
+   function get_length() : Int {
+      var len = 0;
+      if (charBuf!=null)
+         len = charBuf.length;
+      if (b!=null)
+         for(s in b)
+            len += s==null ? 4 : s.length;
+      return len;
+   }
 
-	public inline function add<T>( x : T ) : Void {
-		if (charBuf!=null) flush();
-		b.push(Std.string(x));
-	}
+   public inline function add<T>( x : T ) : Void {
+      if (charBuf!=null) flush();
+      if (b==null)
+         b = [Std.string(x)];
+      else
+         b.push(Std.string(x));
+   }
 
-	public #if !cppia inline #end function addSub( s : String, pos : Int, ?len : Int ) : Void {
-		if (charBuf!=null) flush();
-		b.push(s.substr(pos,len));
-	}
+   public #if !cppia inline #end function addSub( s : String, pos : Int, ?len : Int ) : Void {
+      if (charBuf!=null) flush();
+      if (b==null)
+         b = [s.substr(pos,len)];
+      else
+         b.push(s.substr(pos,len));
+   }
 
-	public #if !cppia inline #end function addChar( c : Int ) : Void {
-		if (charBuf==null) charBuf = new Array<cpp.Char>();
-		charBuf.push(c);
-	}
+   public #if !cppia inline #end function addChar( c : Int ) : Void {
+      if (charBuf==null) charBuf = new Array<cpp.Char>();
+      charBuf.push(c);
+   }
 
-	public #if !cppia inline #end function toString() : String {
-		if (charBuf!=null) flush();
-		return b.join("");
-	}
+   public function toString() : String {
+      if (charBuf!=null)
+      {
+         if (b==null)
+           return( charBufAsString() );
+         flush();
+      }
+      if (b==null)
+         return "";
+      return b.join("");
+   }
 
 }

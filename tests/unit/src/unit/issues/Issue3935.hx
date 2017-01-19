@@ -24,11 +24,11 @@ class Issue3935 extends Test {
 	}
 
 	function testFail() {
-		t(unit.TestType.typeError([1=>2, 3=>"4"]));
-		t(unit.TestType.typeError(["1"=>2, "3"=>"4"]));
+		t(unit.HelperMacros.typeError([1=>2, 3=>"4"]));
+		t(unit.HelperMacros.typeError(["1"=>2, "3"=>"4"]));
 		var m = new MyClass();
 		var m2 = new MyClass();
-		t(unit.TestType.typeError([m => 1, m2 => "1"]));
-		t(unit.TestType.typeError([EBreak => 1, EContinue => "2"]));
+		t(unit.HelperMacros.typeError([m => 1, m2 => "1"]));
+		t(unit.HelperMacros.typeError([EBreak => 1, EContinue => "2"]));
 	}
 }

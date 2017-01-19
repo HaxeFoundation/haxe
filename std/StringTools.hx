@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,7 +21,7 @@
  */
 /**
 	This class provides advanced methods on Strings. It is ideally used with
-	`using StringTools` and then acts as an [extension](http://haxe.org/manual/lf-static-extension.html)
+	`using StringTools` and then acts as an [extension](https://haxe.org/manual/lf-static-extension.html)
 	to the `String` class.
 
 	If the first argument to any of the methods is null, the result is
@@ -86,8 +86,8 @@ class StringTools {
 					ret.addChar('('.code);
 				case ['2'.code, '9'.code]:
 					ret.addChar(')'.code);
-				case ['7'.code, 'E'.code]:
-					ret.addChar('-'.code);
+				case ['7'.code, 'E'.code] | ['7'.code, 'e'.code]:
+					ret.addChar('~'.code);
 				case _:
 					ret.addChar('%'.code);
 					ret.addChar(cast c1);

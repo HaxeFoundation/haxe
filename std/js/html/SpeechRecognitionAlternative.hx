@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,29 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SpeechRecognitionAlternative.webidl line 17:0. Do not edit!
+// This file is generated from mozilla\SpeechRecognitionAlternative.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `SpeechRecognitionAlternative` interface of the Web Speech API represents a single word that has been recognised by the speech recognition service.
+
+	Documentation [SpeechRecognitionAlternative](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionAlternative) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionAlternative$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionAlternative>
+**/
 @:native("SpeechRecognitionAlternative")
 extern class SpeechRecognitionAlternative
 {
+	
+	/**
+		Returns a string containing the transcript of the recognised word.
+	**/
 	var transcript(default,null) : String;
+	
+	/**
+		Returns a numeric estimate of how confident the speech recognition system is that the recognition is correct.
+	**/
 	var confidence(default,null) : Float;
 	
 }

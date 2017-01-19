@@ -4,7 +4,7 @@ class Issue2914 extends Test {
 	function test() {
 		var o:Null<Int> = 0;
 
-		t(unit.TestType.typeError({
+		t(unit.HelperMacros.typeError({
 			var x = switch o {
 				case x if (x > 1): x;
 			}

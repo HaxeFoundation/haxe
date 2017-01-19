@@ -1,13 +1,91 @@
-2016-??-??: 3.3.0-RC2
-
-	New features:
-
-	all : added Any type (#5500)
+2017-??-??: 3.4.0
 
 	General improvements and optimizations:
 
+	all : support completion for static extensions (#5766)
+
+	Bugfixes:
+
+	all : fixed `using` picking up non-static abstract functions (#5888)
+	all : fixed issue with side-effect detection when optimizing (#5911)
+	php7 : Allow user-defined modules in `php` package (#5921)
+	php7 : Dereference some of `php.Syntax` methods if required (#5923)
+	php : fixed assigning a method of dynamic value to a variable (#5469)
+	php : fixed missing initialization of dynamic methods in classes with empty constructors (#4723)
+
+2016-12-24: 3.4.0-RC2
+
+	New features:
+
+	js : added API documentation to HTML externs (#5868)
+	php : added php7 target, enabled with -D php7
+
+	Bugfixes:
+
+	all : fixed top-down inference infinite recursion issue (#5848)
+	all : fixed regression in Compiler.include (#5847)
+	all : fixed Not_found exception related to try/catch (#5851)
+	all : fixed metadata completion showing up in trace arguments (#5775)
+	all : fixed problem with useless pattern detection (#5873)
+	all : fixed issue with toString handling in trace arguments (#5858)
+	all : fixed inline constructor scoping (#5855)
+	cpp : fixed issue with cpp.Pointer variables being eliminated (#5850)
+	js : added Notification API to HTML externs (#5852)
+	js : fixed several options structures in HTML externs (#5849)
+	php/cs : FileSystem.deleteFile() and FileSystem.deleteDirectory() now throw on non-existent path (#5742)
+	php/lua : fixed field access on `null` (#4988)
+	php : fixed static field access on a `Class<T>` stored to a field (#5383)
+	php : fixed invalid detection of `NativeArray` by `Std.is()` (#5565)
+	php : fixed `stdin()`, `stdout()`, `stderr()` of `Sys` to use predefined constants for corresponding channels (#5733)
+	php : fixed Std.parseInt() on hexstrings for PHP7+ (#5521)
+	php : fixed typed cast in assign operations (#5135)
+	php : fixed exception thrown by `Reflect.fields(o)` when `o` is `Class<T>` (#5608)
+	php : fixed json encoding of empty objects (#5015)
+	php : fixed checking floats for equality (#4260)
+	php : throw if invalid json string supplied to Json.parse() (#4592)
+	php : fixed ssl connections (#4581)
+	php : fixed writing bytes containing zero byte to MySQL & SQLite (#4489)
+	php : fixed call()() cases for PHP5 (#5569)
+
+2016-11-29: 3.4.0-RC1
+
+	New features:
+
+	all : support metadata completion
+	all : support type-hint completion
+	all : added @signature display mode (#4758)
+	all : finalized HashLink (HL) target
+
+	General improvements and optimizations:
+
+	all : greatly improved support for display mode in general
+	all : made --times output look much nicer
+	all : remove calls to functions that have no side-effect
+	all : hid private property accessors from completion (#5678)
 	js : updated jQuery extern (js.jquery.*) for jQuery 1.12.4 / 3.1.0 support.
 	js : jQuery extern (js.jquery.*) now includes deprecated fields marked with @:deprecated.
+	js : no longer rewrite `o["s"]` to `o.s` (#5724)
+	cpp : greatly improved ObjC output and integration options
+	lua : greatly improved code output quality
+
+	Bugfixes:
+
+	all : fixed various optimization issues
+	all : fixed various issues with side-effect detection
+	all : fixed performance drain in the DCE implementation (#5716)
+	all : fixed issue with assignments when inlining constructors (#5340)
+	all : fixed major inlining issue when using compilation server (#5320)
+	all : fixed pattern matching evaluation order issue (#5274)
+	cpp : fixed various minor code generation issues
+	js : fixed issue regarding iterating over abstracts (#5385)
+	python : fixed evaluation order issue for array writing (#5366)
+
+	Standard Library:
+
+	all : added Any type (#5500)
+	all : added haxe.extern.AsVar
+	all : added haxe.macro.CompilationServer (experimental)
+	all : fixed haxe.Template.resolve (#5301)
 
 2016-05-27: 3.3.0-RC1
 

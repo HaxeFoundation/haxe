@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,7 @@
  */
 package sys.db;
 
+@:deprecated("This class will be removed soon, please install the record-macros library")
 enum RecordType {
 	DId;
 	DInt;
@@ -59,12 +60,14 @@ enum RecordType {
 	DNull;
 }
 
+@:deprecated("This class will be removed soon, please install the record-macros library")
 typedef RecordField = {
 	var name : String;
 	var t : RecordType;
 	var isNull : Bool;
 }
 
+@:deprecated("This class will be removed soon, please install the record-macros library")
 typedef RecordRelation = {
 	var prop : String;
 	var key : String;
@@ -75,6 +78,7 @@ typedef RecordRelation = {
 	var isNull : Bool;
 }
 
+@:deprecated("This class will be removed soon, please install the record-macros library")
 typedef RecordInfos = {
 	var name : String;
 	var key : Array<String>;

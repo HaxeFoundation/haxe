@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,7 +25,7 @@
     Native JavaScript regular expressions.
 
     For cross-platform regular expressions, use Haxe `EReg` class or 
-    [regexp literals](http://haxe.org/manual/std-regex.html).
+    [regexp literals](https://haxe.org/manual/std-regex.html).
 **/
 @:native("RegExp")
 extern class RegExp {

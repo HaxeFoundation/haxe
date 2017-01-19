@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,6 +29,7 @@ import sys.db.RecordInfos;
 	Haxe website to learn how to use Record.
 **/
 #if !macro @:build(sys.db.RecordMacros.addRtti()) #end
+@:deprecated("This class will be removed soon, please install the record-macros library")
 class Manager<T : Object> {
 
 	/* ----------------------------- STATICS ------------------------------ */

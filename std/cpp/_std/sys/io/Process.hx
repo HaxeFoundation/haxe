@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -104,7 +104,8 @@ class Process {
 		return NativeProcess.process_pid(p);
 	}
 
-	public function exitCode() : Int {
+	public function exitCode( block : Bool = true ) : Null<Int> {
+		if( block == false ) throw "Non blocking exitCode() not supported on this platform";
 		return NativeProcess.process_exit(p);
 	}
 

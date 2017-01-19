@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -276,14 +276,7 @@ class Printer {
 					+ (interfaces != null ? (isInterface ? [for (tp in interfaces) " extends " + printTypePath(tp)] : [for (tp in interfaces) " implements " + printTypePath(tp)]).join("") : "")
 					+ " {\n"
 					+ [for (f in t.fields) {
-						var fstr = printField(f);
-						tabs + fstr + switch(f.kind) {
-							case FVar(_, _), FProp(_, _, _, _): ";";
-							case FFun({expr:null}): ";";
-							case FFun({expr:{expr:EBlock(_)}}): "";
-							case FFun(_): ";";
-							case _: "";
-						};
+						tabs + printFieldWithDelimiter(f);
 					}].join("\n")
 					+ "\n}";
 				case TDAlias(ct):
@@ -302,18 +295,24 @@ class Printer {
 					+ (to == null ? "" : [for (t in to) " to " + printComplexType(t)].join(""))
 					+ " {\n"
 					+ [for (f in t.fields) {
-						var fstr = printField(f);
-						tabs + fstr + switch(f.kind) {
-							case FVar(_, _), FProp(_, _, _, _): ";";
-							case FFun(func) if (func.expr == null): ";";
-							case _: "";
-						};
+						tabs + printFieldWithDelimiter(f);
 					}].join("\n")
 					+ "\n}";
 			}
 
 		tabs = old;
 		return str;
+	}
+
+	function printFieldWithDelimiter(f:Field):String
+	{
+		return printField(f) + switch(f.kind) {
+			case FVar(_, _), FProp(_, _, _, _): ";";
+			case FFun({expr:null}): ";";
+			case FFun({expr:{expr:EBlock(_)}}): "";
+			case FFun(_): ";";
+			case _: "";
+		};
 	}
 
 	function opt<T>(v:T, f:T->String, prefix = "") return v == null ? "" : (prefix + f(v));

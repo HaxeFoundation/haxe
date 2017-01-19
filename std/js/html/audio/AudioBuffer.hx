@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,22 +20,57 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\AudioBuffer.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\AudioBuffer.webidl. Do not edit!
 
 package js.html.audio;
 
+/**
+	Objects of these types are designed to hold small audio snippets, typically less than 45 s. For longer sounds, objects implementing the `MediaElementAudioSourceNode` are more suitable. The buffer contains data in the following format:  non-interleaved IEEE754 32-bit linear PCM with a nominal range between `-1` and `+1`, that is, 32bits floating point buffer, with each samples between -1.0 and 1.0. If the `AudioBuffer` has multiple channels, they are stored in separate buffer.
+
+	Documentation [AudioBuffer](https://developer.mozilla.org/en-US/docs/Web/API/AudioBuffer) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AudioBuffer$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioBuffer>
+**/
 @:native("AudioBuffer")
 extern class AudioBuffer
 {
+	
+	/**
+		Returns a float representing the sample rate, in samples per second, of the PCM data stored in the buffer.
+	**/
 	var sampleRate(default,null) : Float;
+	
+	/**
+		Returns an integer representing the length, in sample-frames, of the PCM data stored in the buffer.
+	**/
 	var length(default,null) : Int;
+	
+	/**
+		Returns a double representing the duration, in seconds, of the PCM data stored in the buffer.
+	**/
 	var duration(default,null) : Float;
+	
+	/**
+		Returns an integer representing the number of discrete audio channels described by the PCM data stored in the buffer.
+	**/
 	var numberOfChannels(default,null) : Int;
 	
 	/** @throws DOMError */
+	
+	/**
+		Returns a `Float32Array` containing the PCM data associated with the channel, defined by the `channel` parameter (with `0` representing the first channel).
+	**/
 	function getChannelData( channel : Int ) : js.html.Float32Array;
 	/** @throws DOMError */
+	
+	/**
+		Copies the samples from the specified channel of the `AudioBuffer` to the `destination` array.
+	**/
 	function copyFromChannel( destination : js.html.Float32Array, channelNumber : Int, ?startInChannel : Int = 0 ) : Void;
 	/** @throws DOMError */
+	
+	/**
+		Copies the samples to the specified channel of the `AudioBuffer`, from the `source` array.
+	**/
 	function copyToChannel( source : js.html.Float32Array, channelNumber : Int, ?startInChannel : Int = 0 ) : Void;
 }

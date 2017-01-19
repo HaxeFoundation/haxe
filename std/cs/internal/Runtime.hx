@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -385,7 +385,7 @@ import cs.system.Object;
 			{
 				value = mkNullable(value, f.FieldType);
 			}
-			if (Object.ReferenceEquals(Lib.toNativeType(cs.system.Double), Lib.getNativeType(value)) && !Object.ReferenceEquals(t, f.FieldType))
+			if (value != null && Object.ReferenceEquals(Lib.toNativeType(cs.system.Double), Lib.getNativeType(value)) && !Object.ReferenceEquals(t, f.FieldType))
 			{
 				var ic = Lib.as(value, IConvertible);
 				value = ic.ToType(f.FieldType, null);

@@ -37,7 +37,7 @@ class Issue2584 extends Test {
 		eq("foo", b.x);
 
 		var a : { x: XX } = { x: new XX("foo") };
-		t(unit.TestType.typeError((a : { x: String })));
+		t(unit.HelperMacros.typeError((a : { x: String })));
 	}
 
 	function test2() {
@@ -63,6 +63,6 @@ class Issue2584 extends Test {
 		var a : Array<Option<{ x : String}>> = x;
 
 		var xx : Array<Option<{ x : XX}>> = null;
-		t(unit.TestType.typeError((xx : Array<Option<{ x : String}>>)));
+		t(unit.HelperMacros.typeError((xx : Array<Option<{ x : String}>>)));
 	}
 }

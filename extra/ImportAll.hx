@@ -29,8 +29,10 @@ class ImportAll {
 			haxe.macro.Compiler.define("doc_gen");
 		}
 		switch( pack ) {
+		case "php7":
+			if( !Context.defined("php7") ) return;
 		case "php":
-			if( !Context.defined("php") ) return;
+			if( !Context.defined("php") || Context.defined("php7") ) return;
 		case "neko":
 			if( !Context.defined("neko") ) return;
 		case "js":
@@ -71,7 +73,7 @@ class ImportAll {
 				if( file == ".svn" || file == "_std" )
 					continue;
 				var full = (pack == "") ? file : pack + "." + file;
-				if( StringTools.endsWith(file, ".hx") ) {
+				if( StringTools.endsWith(file, ".hx") && file.substr(0, file.length - 3).indexOf(".") < 0 ) {
 					var cl = full.substr(0, full.length - 3);
 					switch( cl ) {
 					case "ImportAll", "neko.db.MacroManager": continue;
@@ -82,6 +84,9 @@ class ImportAll {
 					case "haxe.remoting.SocketWrapper": if( !Context.defined("flash") ) continue;
 					case "haxe.remoting.SyncSocketConnection": if( !(Context.defined("neko") || Context.defined("php") || Context.defined("cpp")) ) continue;
 					case "sys.db.Sqlite" | "sys.db.Mysql" | "cs.db.AdoNet": continue;
+					}
+					if( Context.defined("php7") && cl.indexOf("php7.") == 0 ) {
+						cl = "php." + cl.substr("php7.".length);
 					}
 					Context.getModule(cl);
 				} else if( sys.FileSystem.isDirectory(p + "/" + file) )

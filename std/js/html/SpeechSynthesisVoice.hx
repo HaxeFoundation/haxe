@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,16 +20,39 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SpeechSynthesisVoice.webidl line 16:0. Do not edit!
+// This file is generated from mozilla\SpeechSynthesisVoice.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `SpeechSynthesisVoice` interface of the Web Speech API represents a voice that the system supports. Every `SpeechSynthesisVoice` has its own relative speech service including information about language, name and URI.
+
+	Documentation [SpeechSynthesisVoice](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisVoice) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisVoice$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisVoice>
+**/
 @:native("SpeechSynthesisVoice")
 extern class SpeechSynthesisVoice
 {
+	
+	/**
+		Returns the type of URI and location of the speech synthesis service for this voice.
+	**/
 	var voiceURI(default,null) : String;
+	
+	/**
+		Returns a human-readable name that represents the voice.
+	**/
 	var name(default,null) : String;
+	
+	/**
+		Returns a BCP 47 language tag indicating the language of the voice.
+	**/
 	var lang(default,null) : String;
+	
+	/**
+		A `Boolean` indicating whether the voice is supplied by a local speech synthesizer service (`true`), or a remote speech synthesizer service (`false`.)
+	**/
 	var localService(default,null) : Bool;
 	@:native("default")
 	var default_(default,null) : Bool;

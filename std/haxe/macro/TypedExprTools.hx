@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@ import haxe.macro.Type;
 
 /**
 	This class provides some utility methods to work with typed expressions.
-	It is best used through 'using haxe.macro.TypedExprTools' syntax and then 
+	It is best used through 'using haxe.macro.TypedExprTools' syntax and then
 	provides additional methods on `haxe.macro.TypedExpr` instances.
 **/
 class TypedExprTools {
@@ -156,7 +156,7 @@ class TypedExprTools {
 
 	#if macro
 	static public function toString(t:TypedExpr, ?pretty = false):String {
-		return new String(haxe.macro.Context.load("s_expr", 2)(t, pretty));
+		return @:privateAccess haxe.macro.Context.sExpr(t, pretty);
 	}
 	#end
 }

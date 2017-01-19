@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -38,8 +38,8 @@ import lua.NativeStringTools;
 		return untyped lua.Boot.__string_rec(s);
 	}
 
-	public static inline function int( x : Float ) : Int {
-		return x > 0 ? Math.floor(x) : Math.ceil(x);
+	public static function int( x : Float ) : Int {
+		return lua.Boot.clamp(x);
 	}
 
 	public static function parseInt( x : String ) : Null<Int> {

@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -17,6 +17,7 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
+open Globals
 open Gencommon.ReflectionCFs
 open Ast
 open Common
@@ -709,7 +710,7 @@ let rec get_fun_modifiers meta access modifiers =
 		| (Meta.ReadOnly,[],_) :: meta -> get_fun_modifiers meta access ("readonly" :: modifiers)
 		| (Meta.Unsafe,[],_) :: meta -> get_fun_modifiers meta access ("unsafe" :: modifiers)
 		| (Meta.Volatile,[],_) :: meta -> get_fun_modifiers meta access ("volatile" :: modifiers)
-		| (Meta.Custom ("?prop_impl" | "?event_impl"),[],_) :: meta -> get_fun_modifiers meta "private" modifiers
+		| (Meta.Custom ("?prop_impl" | ":cs_event_impl"),[],_) :: meta -> get_fun_modifiers meta "private" modifiers
 		| _ :: meta -> get_fun_modifiers meta access modifiers
 
 (* this was the way I found to pass the generator context to be accessible across all functions here *)
@@ -1134,9 +1135,9 @@ let configure gen =
 		if skip_line_directives then
 			fun w p -> ()
 		else fun w p ->
-			if p.pfile <> Ast.null_pos.pfile then (* Compiler Error CS1560 https://msdn.microsoft.com/en-us/library/z3t5e5sw(v=vs.90).aspx *)
+			if p.pfile <> null_pos.pfile then (* Compiler Error CS1560 https://msdn.microsoft.com/en-us/library/z3t5e5sw(v=vs.90).aspx *)
 			let cur_line = Lexer.get_error_line p in
-			let file = Common.get_full_path p.pfile in
+			let file = Path.get_full_path p.pfile in
 			if cur_line <> ((!last_line)+1) then
 				let line = Ast.s_escape file in
 				if String.length line <= 256 then
@@ -1579,12 +1580,20 @@ let configure gen =
 					) el;
 					end_block w
 				| TIf (econd, e1, Some(eelse)) when was_in_value ->
+					let base = t_s e.etype in
 					write w "( ";
 					expr_s w (mk_paren econd);
 					write w " ? ";
-					expr_s w (mk_paren e1);
+					if t_s e1.etype <> base then
+						expr_s w (mk_cast e.etype e1)
+					else
+						expr_s w (mk_paren e1);
+
 					write w " : ";
-					expr_s w (mk_paren eelse);
+					if t_s eelse.etype <> base then
+						expr_s w (mk_cast e.etype eelse)
+					else
+						expr_s w (mk_paren eelse);
 					write w " )";
 				| TIf (econd, e1, eelse) ->
 					write w "if ";
@@ -2030,7 +2039,7 @@ let configure gen =
 				let unop = PMap.find name unops_names in
 				"operator " ^ s_unop unop, false, false
 			with | Not_found ->
-				if Meta.has (Meta.Custom "?prop_impl") cf.cf_meta || Meta.has (Meta.Custom "?event_impl") cf.cf_meta then
+				if Meta.has (Meta.Custom "?prop_impl") cf.cf_meta || Meta.has (Meta.Custom ":cs_event_impl") cf.cf_meta then
 					"_" ^ name, false, false
 				else
 					name, false, false
@@ -2122,7 +2131,7 @@ let configure gen =
 						match meta with
 							| [] ->
 								let expr = match cf.cf_expr with
-									| None -> mk (TBlock([])) t_dynamic Ast.null_pos
+									| None -> mk (TBlock([])) t_dynamic null_pos
 									| Some s ->
 										match s.eexpr with
 											| TFunction tf ->
@@ -2138,7 +2147,7 @@ let configure gen =
 									| TBlock _ ->
 										let unchecked = needs_unchecked e in
 										if unchecked then (begin_block w; write w "unchecked ");
-										let t = Common.timer "expression to string" in
+										let t = Common.timer ["expression to string"] in
 										expr_s w e;
 										t();
 										line_reset_directive w;
@@ -2165,7 +2174,7 @@ let configure gen =
 												| None -> ()
 												| Some sc ->
 													write w ": ";
-													let t = Common.timer "expression to string" in
+													let t = Common.timer ["expression to string"] in
 													expr_s w sc;
 													write w " ";
 													t()
@@ -2402,8 +2411,12 @@ let configure gen =
 					write w "public static void Main() ";
 					begin_block w;
 					(if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "global::cs.Boot.init();"; newline w);
-					expr_s w { eexpr = TTypeExpr(TClassDecl cl); etype = t_dynamic; epos = Ast.null_pos };
-					write w ".main();";
+					(match gen.gcon.main with
+						| None ->
+							expr_s w { eexpr = TTypeExpr(TClassDecl cl); etype = t_dynamic; epos = null_pos };
+							write w ".main();"
+						| Some expr ->
+							expr_s w (mk_block expr));
 					end_block w;
 					end_block w;
 					newline w;
@@ -2443,7 +2456,11 @@ let configure gen =
 			write w "public static void Main()";
 			begin_block w;
 			(if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "global::cs.Boot.init();"; newline w);
-			write w "main();";
+			(match gen.gcon.main with
+				| None ->
+					write w "main();";
+				| Some expr ->
+						expr_s w (mk_block expr));
 			end_block w
 		end;
 
@@ -2471,8 +2488,6 @@ let configure gen =
 				| Var { v_read = AccCall } | Var { v_write = AccCall } when Type.is_extern_field v && Meta.has Meta.Property v.cf_meta ->
 					props := (v.cf_name, ref (v, v.cf_type, None, None)) :: !props;
 				| Var { v_read = AccNormal; v_write = AccNormal } when Meta.has Meta.Event v.cf_meta ->
-					if v.cf_public then gen.gcon.error "@:event fields must be private" v.cf_pos;
-					v.cf_meta <- (Meta.SkipReflection, [], null_pos) :: v.cf_meta;
 					events := (v.cf_name, ref (v, v.cf_type, false, None, None)) :: !events;
 				| _ ->
 					nonprops := v :: !nonprops;
@@ -2521,7 +2536,6 @@ let configure gen =
 					let event = find_event (String.sub cf.cf_name 4 (String.length cf.cf_name - 4)) in
 					let v, t, _, add, remove = !event in
 					assert (add = None);
-					cf.cf_meta <- (Meta.Custom "?event_impl", [], null_pos) :: cf.cf_meta;
 					let custom = not (is_empty_function cf) in
 					event := (v, t, custom, Some cf, remove);
 					false
@@ -2530,7 +2544,6 @@ let configure gen =
 					let event = find_event (String.sub cf.cf_name 7 (String.length cf.cf_name - 7)) in
 					let v, t, _, add, remove = !event in
 					assert (remove = None);
-					cf.cf_meta <- (Meta.Custom "?event_impl", [], null_pos) :: cf.cf_meta;
 					let custom = not (is_empty_function cf) in
 					event := (v, t, custom, add, Some cf);
 					false
@@ -2541,25 +2554,11 @@ let configure gen =
 			let nonprops = ref nonprops in
 			List.iter (fun (n,r) ->
 				let ev, t, custom, add, remove = !r in
-				let tmeth = (tfun [t] basic.tvoid) in
 				match add, remove with
-				| None, _ ->
-					gen.gcon.error ("Missing event method add_" ^ n) ev.cf_pos;
-					failwith "Build failed"
-				| _, None ->
-					gen.gcon.error ("Missing event method remove_" ^ n) ev.cf_pos;
-					failwith "Build failed"
 				| Some add, Some remove ->
-					let check cf = try
-						type_eq EqStrict cf.cf_type tmeth
-					with Unify_error el ->
-						List.iter (fun e -> gen.gcon.error (Typecore.unify_error_msg (print_context()) e) cf.cf_pos) el;
-						failwith "Build failed";
-					in
-					check add;
-					check remove;
 					if custom && not cl.cl_interface then
 						nonprops := add :: remove :: !nonprops
+				| _ -> assert false (* shouldn't happen because Filters.check_cs_events makes sure methods are present *)
 			) events;
 
 			let evts = List.map (fun(_,v) -> !v) events in
@@ -2783,8 +2782,8 @@ let configure gen =
 	let empty_ctor_expr = mk (TField (empty_en_expr, FEnum(empty_en, PMap.find "EMPTY" empty_en.e_constrs))) empty_ctor_type null_pos in
 	OverloadingConstructor.configure ~empty_ctor_type:empty_ctor_type ~empty_ctor_expr:empty_ctor_expr gen;
 
-	let rcf_static_find = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "findHash" Ast.null_pos [] in
-	let rcf_static_lookup = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "lookupHash" Ast.null_pos [] in
+	let rcf_static_find = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "findHash" null_pos [] in
+	let rcf_static_lookup = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "lookupHash" null_pos [] in
 
 	let rcf_static_insert, rcf_static_remove =
 		if erase_generics then begin
@@ -2793,11 +2792,11 @@ let configure gen =
 				| TAnon _ | TDynamic _ -> "Dynamic"
 				| _ -> print_endline (debug_type t); assert false
 			in
-			(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("insert" ^ get_specialized_postfix t) Ast.null_pos []),
-			(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("remove" ^ get_specialized_postfix t) Ast.null_pos [])
+			(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("insert" ^ get_specialized_postfix t) null_pos []),
+			(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("remove" ^ get_specialized_postfix t) null_pos [])
 		end else
-			(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "insert" Ast.null_pos [t]),
-			(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "remove" Ast.null_pos [t])
+			(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "insert" null_pos [t]),
+			(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "remove" null_pos [t])
 	in
 
 	let can_be_float = like_float in
@@ -2859,6 +2858,8 @@ let configure gen =
 	else
 		TypeParams.RealTypeParams.RealTypeParamsModf.configure gen (TypeParams.RealTypeParams.RealTypeParamsModf.set_only_hxgeneric gen);
 
+	let flookup_cl = get_cl (get_type gen (["haxe";"lang"], "FieldLookup")) in
+
 	let rcf_ctx =
 		ReflectionCFs.new_ctx
 			gen
@@ -2876,6 +2877,20 @@ let configure gen =
 			(fun hash_array length pos ->
 				let t = gen.gclasses.nativearray_type hash_array.etype in
 				{ hash_array with eexpr = TCall(rcf_static_remove t, [hash_array; length; pos]); etype = gen.gcon.basic.tvoid }
+			)
+			(
+				let delete = mk_static_field_access_infer flookup_cl "deleteHashConflict" null_pos [] in
+				let get = mk_static_field_access_infer flookup_cl "getHashConflict" null_pos [] in
+				let set = mk_static_field_access_infer flookup_cl "setHashConflict" null_pos [] in
+				let add = mk_static_field_access_infer flookup_cl "addHashConflictNames" null_pos [] in
+				let conflict_t = TInst (get_cl (get_type gen (["haxe"; "lang"], "FieldHashConflict")), []) in
+				Some {
+					t = conflict_t;
+					get_conflict = (fun ehead ehash ename -> mk (TCall (get, [ehead; ehash; ename])) conflict_t ehead.epos);
+					set = (fun ehead ehash ename evalue -> mk (TCall (set, [ehead; ehash; ename; evalue])) basic.tvoid ehead.epos);
+					delete = (fun ehead ehash ename -> mk (TCall (delete, [ehead; ehash; ename])) basic.tbool ehead.epos);
+					add_names = (fun ehead earr -> mk (TCall (add, [ehead; earr])) basic.tvoid ehead.epos);
+				}
 			)
 	in
 
@@ -2895,7 +2910,7 @@ let configure gen =
 
 	ReflectionCFs.implement_varargs_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"], "VarArgsBase")) );
 
-	let slow_invoke = mk_static_field_access_infer (runtime_cl) "slowCallField" Ast.null_pos [] in
+	let slow_invoke = mk_static_field_access_infer (runtime_cl) "slowCallField" null_pos [] in
 	ReflectionCFs.configure rcf_ctx ~slow_invoke:(fun ethis efield eargs -> {
 		eexpr = TCall(slow_invoke, [ethis; efield; eargs]);
 		etype = t_dynamic;
@@ -3165,7 +3180,7 @@ let configure gen =
 			output_string f v;
 			close_out f;
 
-			out_files := (unique_full_path full_path) :: !out_files
+			out_files := (Path.unique_full_path full_path) :: !out_files
 		) gen.gcon.resources;
 	end;
 	(* add resources array *)
@@ -3174,9 +3189,9 @@ let configure gen =
 		let cf = PMap.find "content" res.cl_statics in
 		let res = ref [] in
 		Hashtbl.iter (fun name v ->
-			res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = Ast.null_pos } :: !res;
+			res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = null_pos } :: !res;
 		) gen.gcon.resources;
-		cf.cf_expr <- Some ({ eexpr = TArrayDecl(!res); etype = gen.gcon.basic.tarray gen.gcon.basic.tstring; epos = Ast.null_pos })
+		cf.cf_expr <- Some ({ eexpr = TArrayDecl(!res); etype = gen.gcon.basic.tarray gen.gcon.basic.tstring; epos = null_pos })
 	with | Not_found -> ());
 
 	run_filters gen;
@@ -3193,7 +3208,6 @@ let configure gen =
 	let hashes = Hashtbl.fold (fun i s acc -> incr nhash; (normalize_i i,s) :: acc) rcf_ctx.rcf_hash_fields [] in
 	let hashes = List.sort (fun (i,s) (i2,s2) -> compare i i2) hashes in
 
-	let flookup_cl = get_cl (get_type gen (["haxe";"lang"], "FieldLookup")) in
 	let haxe_libs = List.filter (function (_,_,_,lookup) -> is_some (lookup (["haxe";"lang"], "DceNo"))) gen.gcon.net_libs in
 	(try
 		(* first let's see if we're adding a -net-lib that has already a haxe.lang.FieldLookup *)
@@ -3308,15 +3322,15 @@ let generate con =
 		let type_cl = get_cl ( get_type gen (["System"], "Type")) in
 		let basic_fns =
 		[
-			mk_class_field "Equals" (TFun(["obj",false,t_dynamic], basic.tbool)) true Ast.null_pos (Method MethNormal) [];
-			mk_class_field "ToString" (TFun([], basic.tstring)) true Ast.null_pos (Method MethNormal) [];
-			mk_class_field "GetHashCode" (TFun([], basic.tint)) true Ast.null_pos (Method MethNormal) [];
-			mk_class_field "GetType" (TFun([], TInst(type_cl, []))) true Ast.null_pos (Method MethNormal) [];
+			mk_class_field "Equals" (TFun(["obj",false,t_dynamic], basic.tbool)) true null_pos (Method MethNormal) [];
+			mk_class_field "ToString" (TFun([], basic.tstring)) true null_pos (Method MethNormal) [];
+			mk_class_field "GetHashCode" (TFun([], basic.tint)) true null_pos (Method MethNormal) [];
+			mk_class_field "GetType" (TFun([], TInst(type_cl, []))) true null_pos (Method MethNormal) [];
 		] in
 		List.iter (fun cf -> gen.gbase_class_fields <- PMap.add cf.cf_name cf gen.gbase_class_fields) basic_fns;
 		configure gen
 	with | TypeNotFound path ->
-		con.error ("Error. Module '" ^ (s_type_path path) ^ "' is required and was not included in build.")	Ast.null_pos);
+		con.error ("Error. Module '" ^ (s_type_path path) ^ "' is required and was not included in build.")	null_pos);
 	debug_mode := false
 
 (* -net-lib implementation *)
@@ -3575,7 +3589,7 @@ let convert_ilfield ctx p field =
 	let kind = match readonly with
 		| true ->
 			cff_meta := (Meta.ReadOnly, [], cff_pos) :: !cff_meta;
-			FProp ("default", "never", Some (convert_signature ctx p field.fsig.snorm,null_pos), None)
+			FProp (("default",null_pos), ("never",null_pos), Some (convert_signature ctx p field.fsig.snorm,null_pos), None)
 		| false ->
 			FVar (Some (convert_signature ctx p field.fsig.snorm,null_pos), None)
 	in
@@ -3811,7 +3825,7 @@ let convert_ilprop ctx p prop is_explicit_impl =
 	in
 
 	let kind =
-		FProp (get, set, Some(convert_signature ctx p ilsig,null_pos), None)
+		FProp ((get,null_pos), (set,null_pos), Some(convert_signature ctx p ilsig,null_pos), None)
 	in
 	{
 		cff_name = prop.pname,null_pos;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,6 +28,8 @@ class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 	private var v : Dynamic; // Values table
 
 	public inline function new() : Void {
+		// these need to be plain anonymous tables,
+		// so that we can set arbitrary string values.
 		v = untyped __lua__("{}");
 		k = untyped __lua__("{}");
 	}
@@ -42,7 +44,7 @@ class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 	}
 
 	public inline function exists( key : String ) : Bool untyped {
-		return untyped __lua__("{0}[{1}] or false", k, key);
+		return untyped __lua__("({0}[{1}] or false)", k, key);
 	}
 
 	public function remove( key : String ) : Bool untyped {

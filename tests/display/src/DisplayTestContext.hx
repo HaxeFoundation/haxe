@@ -65,6 +65,18 @@ class DisplayTestContext {
 		return extractPositions(callHaxe('$pos@usage'));
 	}
 
+	public function documentSymbols():Array<ModuleSymbolEntry> {
+		return haxe.Json.parse(callHaxe("0@module-symbols"))[0].symbols;
+	}
+
+	public function signature(pos:Position):SignatureHelp {
+		return haxe.Json.parse(callHaxe('$pos@signature'));
+	}
+
+	public function metadataDoc(pos:Position):String {
+		return extractMetadata(callHaxe('$pos@type'));
+	}
+
 	function callHaxe(displayPart:String):String {
 		var args = [
 			"-cp", "src",
@@ -79,6 +91,7 @@ class DisplayTestContext {
 		var stderr = proc.stderr.readAll();
 		var stdout = proc.stdout.readAll();
 		var exit = proc.exitCode();
+		proc.close();
 		var success = exit == 0;
 		var s = stderr.toString();
 		if (!success || s == "") {
@@ -145,14 +158,23 @@ class DisplayTestContext {
 		return ret;
 	}
 
+	static function extractMetadata(result:String) {
+		var xml = Xml.parse(result);
+		xml = xml.firstElement();
+		if (xml.nodeName != "metadata") {
+			return null;
+		}
+		return xml.firstChild().nodeValue;
+	}
+
 	static function normalizePath(p:String):String {
 		if (!haxe.io.Path.isAbsolute(p)) {
 			p = Sys.getCwd() + p;
 		}
 		if (Sys.systemName() == "Windows") {
-			// on windows, haxe returns lowercase paths with backslashes
+			// on windows, haxe returns paths with backslashes, drive letter uppercased
+			p = p.substr(0, 1).toUpperCase() + p.substr(1);
 			p = p.replace("/", "\\");
-			p = p.toLowerCase();
 		}
 		return p;
 	}

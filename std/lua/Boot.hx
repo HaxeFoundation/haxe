@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -192,9 +192,8 @@ class Boot {
 			    if (o.__enum__ != null) printEnum(o,s);
 				else if (o.toString != null && !isArray(o)) o.toString();
 				else if (isArray(o)) {
-					var o2 : Array<Dynamic> = untyped o;
 					if (s.length > 5) "[...]"
-					else '[${[for (i in  o2) __string_rec(i,s+1)].join(",")}]';
+					else '[${[for (i in  cast(o,Array<Dynamic>)) __string_rec(i,s+1)].join(",")}]';
 				}
 				else if (o.__class__ != null) printClass(o,s+"\t");
 				else {
@@ -223,7 +222,7 @@ class Boot {
 	   Define an array from the given table
 	*/
 	public inline static function defArray<T>(tab: Table<Int,T>, ?length : Int) : Array<T> {
-		if (length == null) length = tableMaxN(tab) + 1; // maxn doesn't count 0 index
+		if (length == null) length = TableTools.maxn(tab) + 1; // maxn doesn't count 0 index
 		return untyped _hx_tab_array(tab, length);
 	}
 
@@ -252,9 +251,9 @@ class Boot {
 	}
 
 	/*
-	   A 32 bit clamp function for integers
+	   A 32 bit clamp function for numbers
 	*/
-	public inline static function clamp(x:Int){
+	public inline static function clamp(x:Float){
 		return untyped __define_feature__("lua.Boot.clamp", _hx_bit_clamp(x));
 	}
 
@@ -295,7 +294,7 @@ class Boot {
 		else if (cl1 == cl2) return true;
 		else if (untyped cl1.__interfaces__ != null) {
 			var intf = untyped cl1.__interfaces__;
-			for (i in 1...( tableMaxN(intf) + 1)){
+			for (i in 1...( TableTools.maxn(intf) + 1)){
 				// check each interface, including extended interfaces
 				if (extendsOrImplements(intf[1], cl2)) return true;
 			}
@@ -304,16 +303,6 @@ class Boot {
 		return extendsOrImplements(untyped cl1.__super__, cl2);
 	}
 
-	public inline static function tableMaxN(t:Table.AnyTable) : Int {
-		return untyped __define_feature__("use._hx_maxn", _hx_maxn(t));
-	}
-
-	/*
-	   Create an empty table.
-	*/
-	public inline static function createTable<K,V>(?arr:Array<V>, ?hsh:Dynamic<V>) : Table<K,V> {
-		return untyped __lua_table__(arr,hsh);
-	}
 
 	/*
 	   Create an empty table for vectors
@@ -354,19 +343,19 @@ class Boot {
 	}
 
 	public static function fieldIterator( o : Table<String,Dynamic>) : Iterator<String> {
-		var tbl = (untyped o.__fields__ != null) ?  o.__fields__ : o;
-		var cur = Lua.pairs(tbl);
+		var tbl : Table<String,String> =  cast (untyped o.__fields__ != null) ?  o.__fields__ : o;
+		var cur = Lua.pairs(tbl).next;
 		var next_valid = function(tbl, val){
 			while (hiddenFields[untyped val] != null){
-				val = cur(tbl, val);
+				val = cur(tbl, val).index;
 			}
 			return val;
 		}
-		var cur_val = next_valid(tbl, cur(tbl, null));
+		var cur_val = next_valid(tbl, cur(tbl, null).index);
 		return {
 			next : function(){
 				var ret = cur_val;
-				cur_val = next_valid(tbl, cur(tbl, cur_val));
+				cur_val = next_valid(tbl, cur(tbl, cur_val).index);
 				return ret;
 			},
 			hasNext : function() return cur_val !=  null

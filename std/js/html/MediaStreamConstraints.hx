@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\MediaStream.webidl line 20:0. Do not edit!
+// This file is generated from mozilla\MediaStream.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `MediaStreamConstraints` dictionary is used when calling `getUserMedia()` to specify what kinds of tracks should be included in the returned `MediaStream`, and, optionally, to establish constraints for those tracks' settings.
+
+	Documentation [MediaStreamConstraints](https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamConstraints) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamConstraints$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamConstraints>
+**/
 typedef MediaStreamConstraints =
 {
 	@:optional var audio : haxe.extern.EitherType<Bool,MediaTrackConstraints>;

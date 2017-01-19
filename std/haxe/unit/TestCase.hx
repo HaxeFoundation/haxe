@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -46,7 +46,7 @@ import haxe.PosInfos;
 	To run code before or after the test, override the functions `setup` 
 	and `tearDown`.
 
-	@see <http://haxe.org/manual/std-unit-testing.html>
+	@see <https://haxe.org/manual/std-unit-testing.html>
 **/
 @:keepSub
 @:publicFields

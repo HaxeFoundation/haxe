@@ -12,6 +12,9 @@ extern class NativeSocket
    @:extern @:native("_hx_std_socket_new")
    public static function socket_new(udp:Bool) : Dynamic return null;
 
+   @:extern @:native("_hx_std_socket_new")
+   public static function socket_new_ip(udp:Bool,ipv6:Bool) : Dynamic return null;
+
 
    @:extern @:native("_hx_std_socket_close")
    public static function socket_close(handle:Dynamic) : Void { }
@@ -19,6 +22,9 @@ extern class NativeSocket
 
    @:extern @:native("_hx_std_socket_bind")
    public static function socket_bind(o:Dynamic,host:Int,port:Int) : Void { }
+
+   @:extern @:native("_hx_std_socket_bind_ipv6")
+   public static function socket_bind_ipv6(o:Dynamic,host:haxe.io.BytesData,port:Int) : Void { }
 
 
    @:extern @:native("_hx_std_socket_send_char")
@@ -44,6 +50,9 @@ extern class NativeSocket
    @:extern @:native("_hx_std_socket_read")
    public static function socket_read(o:Dynamic) : haxe.io.BytesData return null;
 
+   @:extern @:native("_hx_std_host_resolve_ipv6")
+   public static function host_resolve_ipv6(host:String) : haxe.io.BytesData return null;
+
 
    @:extern @:native("_hx_std_host_resolve")
    public static function host_resolve(host:String) : Int return 0;
@@ -52,17 +61,28 @@ extern class NativeSocket
    @:extern @:native("_hx_std_host_to_string")
    public static function host_to_string(ip:Int) : String return null;
 
+   @:extern @:native("_hx_std_host_to_string_ipv6")
+   public static function host_to_string_ipv6(ipv6:haxe.io.BytesData) : String return null;
+
 
    @:extern @:native("_hx_std_host_reverse")
    public static function host_reverse(host:Int) : String return null;
+
+   @:extern @:native("_hx_std_host_reverse_ipv6")
+   public static function host_reverse_ipv6(ipv6:haxe.io.BytesData) : String return null;
 
 
    @:extern @:native("_hx_std_host_local")
    public static function host_local() : String return null;
 
+   inline public static function host_local_ipv6() : String return "::1";
+
 
    @:extern @:native("_hx_std_socket_connect")
    public static function socket_connect(o:Dynamic,host:Int,port:Int) : Void { }
+
+   @:extern @:native("_hx_std_socket_connect_ipv6")
+   public static function socket_connect_ipv6(o:Dynamic,host:haxe.io.BytesData,port:Int) : Void { }
 
 
    @:extern @:native("_hx_std_socket_listen")

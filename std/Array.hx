@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,8 +23,8 @@
 	An Array is a storage for values. You can access it using indexes or
 	with its API.
 
-	@see http://haxe.org/manual/std-Array.html
-	@see http://haxe.org/manual/lf-array-comprehension.html
+	@see https://haxe.org/manual/std-Array.html
+	@see https://haxe.org/manual/lf-array-comprehension.html
 **/
 extern class Array<T> {
 
@@ -124,11 +124,11 @@ extern class Array<T> {
 		`this` Array.
 
 		If `pos` or `end` are negative, their offsets are calculated from the
-		end	of `this` Array by `this.length + pos` and `this.length + end`
+		end of `this` Array by `this.length + pos` and `this.length + end`
 		respectively. If this yields a negative value, 0 is used instead.
 
-		If `pos` exceeds `this.length` or if `end` exceeds or equals `pos`,
-		the result is `[]`.
+		If `pos` exceeds `this.length` or if `end` is less than or equals
+		`pos`, the result is `[]`.
 	**/
 	function slice( pos : Int, ?end : Int ) : Array<T>;
 

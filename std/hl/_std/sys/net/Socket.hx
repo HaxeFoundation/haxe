@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +22,11 @@
 package sys.net;
 import haxe.io.Error;
 
-private typedef SocketHandle = hl.types.NativeAbstract<"hl_socket">;
+#if doc_gen
+@:noDoc enum SocketHandle { }
+#else
+@:noDoc typedef SocketHandle = hl.Abstract<"hl_socket">;
+#end
 
 private class SocketOutput extends haxe.io.Output {
 
@@ -56,7 +60,7 @@ private class SocketOutput extends haxe.io.Output {
 
 
 	@:hlNative("std","socket_send_char") static function socket_send_char( s : SocketHandle, c : Int ) : Int { return 0; }
-	@:hlNative("std","socket_send") static function socket_send( s : SocketHandle, bytes : hl.types.Bytes, pos : Int, len : Int ) : Int { return 0; }
+	@:hlNative("std","socket_send") static function socket_send( s : SocketHandle, bytes : hl.Bytes, pos : Int, len : Int ) : Int { return 0; }
 
 }
 
@@ -91,7 +95,7 @@ private class SocketInput extends haxe.io.Input {
 		sock.close();
 	}
 
-	@:hlNative("std","socket_recv") static function socket_recv( s : SocketHandle, bytes : hl.types.Bytes, pos : Int, len : Int ) : Int { return 0; }
+	@:hlNative("std","socket_recv") static function socket_recv( s : SocketHandle, bytes : hl.Bytes, pos : Int, len : Int ) : Int { return 0; }
 	@:hlNative("std","socket_recv_char") static function socket_recv_char( s : SocketHandle ) : Int { return 0; }
 
 }
@@ -110,7 +114,11 @@ class Socket {
 	}
 
 	public function new() : Void {
-		if( __s == null ) __s = socket_new(false);
+		init();
+	}
+	
+	function init() : Void {
+		__s = socket_new(false);
 		input = new SocketInput(this);
 		output = new SocketOutput(this);
 	}
@@ -206,8 +214,8 @@ class Socket {
 	@:hlNative("std", "socket_listen") static function socket_listen( s : SocketHandle, count : Int ) : Bool { return true; }
 	@:hlNative("std", "socket_bind") static function socket_bind( s : SocketHandle, host : Int, port : Int ) : Bool { return true; }
 	@:hlNative("std", "socket_accept") static function socket_accept( s : SocketHandle ) : SocketHandle { return null; }
-	@:hlNative("std", "socket_peer") static function socket_peer( s : SocketHandle, host : hl.types.Ref<Int>, port : hl.types.Ref<Int> ) : Bool { return true; }
-	@:hlNative("std", "socket_host") static function socket_host( s : SocketHandle, host : hl.types.Ref<Int>, port : hl.types.Ref<Int> ) : Bool { return true; }
+	@:hlNative("std", "socket_peer") static function socket_peer( s : SocketHandle, host : hl.Ref<Int>, port : hl.Ref<Int> ) : Bool { return true; }
+	@:hlNative("std", "socket_host") static function socket_host( s : SocketHandle, host : hl.Ref<Int>, port : hl.Ref<Int> ) : Bool { return true; }
 	@:hlNative("std", "socket_set_timeout") static function socket_set_timeout( s : SocketHandle, timeout : Float ) : Bool { return true; }
 	@:hlNative("std", "socket_shutdown") static function socket_shutdown( s : SocketHandle, read : Bool, write : Bool ) : Bool { return true; }
 	@:hlNative("std", "socket_set_blocking") static function socket_set_blocking( s : SocketHandle, b : Bool ) : Bool { return true; }

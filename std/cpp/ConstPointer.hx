@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,7 +21,7 @@
  */
  package cpp;
 
-@:coreType @:include("cpp/Pointer.h") @:native("cpp.Pointer")
+@:coreType @:include("cpp/Pointer.h") @:native("cpp.Pointer") @:analyzer(as_var)
 extern class ConstPointer<T>
 {
    // ptr actually returns the pointer - not strictly a 'T' - for pointers to smart pointers
@@ -55,6 +55,7 @@ extern class ConstPointer<T>
    public static function fromPointer<T>(inNativePointer:Dynamic) : ConstPointer<T>;
 
    public function reinterpret<Other>():Pointer<Other>;
+
    public function rawCast<Other>():RawPointer<Other>;
 
    public function at(inIndex:Int):Reference<T>;

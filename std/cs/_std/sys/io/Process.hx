@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -109,8 +109,10 @@ class Process {
 		return native.Id;
 	}
 
-	public function exitCode() : Int
+	public function exitCode( block : Bool = true ) : Null<Int>
 	{
+		if( block == false && !native.HasExited )
+			return null;
 		native.WaitForExit();
 		return native.ExitCode;
 	}

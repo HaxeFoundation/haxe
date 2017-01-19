@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,29 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SpeechRecognitionResult.webidl line 17:0. Do not edit!
+// This file is generated from mozilla\SpeechRecognitionResult.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `SpeechRecognitionResult` interface of the Web Speech API represents a single recognition match, which may contain multiple `SpeechRecognitionAlternative` objects.
+
+	Documentation [SpeechRecognitionResult](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionResult) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionResult$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionResult>
+**/
 @:native("SpeechRecognitionResult")
 extern class SpeechRecognitionResult implements ArrayAccess<SpeechRecognitionAlternative>
 {
+	
+	/**
+		Returns the length of the "array" — the number of `SpeechRecognitionAlternative` objects contained in the result (also referred to as "n-best alternatives".)
+	**/
 	var length(default,null) : Int;
+	
+	/**
+		A `Boolean` that states whether this result is final (true) or not (false) — if so, then this is the final time this result will be returned; if not, then this result is an interim result, and may be updated later on.
+	**/
 	var isFinal(default,null) : Bool;
 	
 	function item( index : Int ) : SpeechRecognitionAlternative;

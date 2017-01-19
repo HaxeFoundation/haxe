@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,6 +30,6 @@ package haxe.extern;
 
 	Otherwise, use of this type is discouraged.
 	
-	@see <http://haxe.org/manual/lf-externs.html>
+	@see <https://haxe.org/manual/lf-externs.html>
 **/
 abstract EitherType<T1,T2>(Dynamic) from T1 to T1 from T2 to T2 {}

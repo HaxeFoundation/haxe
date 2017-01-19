@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -52,27 +52,27 @@ class XmlParserException
 	 * the XML parsing error message
 	 */
 	public var message:String;
-	
+
 	/**
 	 * the line number at which the XML parsing error occured
 	 */
 	public var lineNumber:Int;
-	
+
 	/**
 	 * the character position in the reported line at which the parsing error occured
 	 */
 	public var positionAtLine:Int;
-	
+
 	/**
 	 * the character position in the XML string at which the parsing error occured
 	 */
 	public var position:Int;
-	
+
 	/**
 	 * the invalid XML string
 	 */
 	public var xml:String;
-	
+
 	public function new(message:String, xml:String, position:Int)
 	{
 		this.xml = xml;
@@ -80,7 +80,7 @@ class XmlParserException
 		this.position = position;
 		lineNumber = 1;
 		positionAtLine = 0;
-		
+
 		for( i in 0...position)
 		{
 			var c = xml.fastCodeAt(i);
@@ -92,7 +92,7 @@ class XmlParserException
 			}
 		}
 	}
-	
+
 	public function toString():String
 	{
 		return Type.getClassName(Type.getClass(this)) + ": " + message + " at line " + lineNumber + " char " + positionAtLine;
@@ -113,7 +113,7 @@ class Parser
 
 	/**
 	 * Parses the String into an XML Document. Set strict parsing to true in order to enable a strict check of XML attributes and entities.
-	 * 
+	 *
 	 * @throws haxe.xml.XmlParserException
 	 */
 	static public function parse(str:String, strict = false)

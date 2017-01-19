@@ -1,4 +1,4 @@
 <list>
-<i n="A"><t></t><d></d></i>
-<i n="B"><t></t><d></d></i>
+<i n="A" k="type"><t></t><d></d></i>
+<i n="B" k="type"><t></t><d></d></i>
 </list>
