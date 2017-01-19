@@ -80,6 +80,7 @@
 	}
 
 	public function join( sep : String ) : String {
+		if(length == 0) return "";
 		var s = new StringBuf();
 		var a = this.__a;
 		var to = this.length - 1;

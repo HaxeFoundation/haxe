@@ -280,6 +280,7 @@ abstract Vector<T>(VectorData<T>) {
 		#if (flash10||cpp)
 		return this.join(sep);
 		#else
+		if(length == 0) return "";
 		var b = new StringBuf();
 		var i = 0;
 		var to = length-1;

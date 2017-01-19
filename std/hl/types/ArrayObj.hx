@@ -39,6 +39,7 @@ class ArrayObj<T> extends ArrayBase {
 	}
 
 	override function join( sep : String ) : String {
+		if(length == 0) return "";
 		var b = new StringBuf();
 		var to = length-1;
 		for( i in 0...to ) {

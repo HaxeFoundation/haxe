@@ -89,6 +89,7 @@ import java.NativeArray;
 
 	public function join( sep : String ) : String
 	{
+		if(length == 0) return "";
 		var buf = new StringBuf();
 		var i = -1;
 		
