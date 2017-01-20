@@ -210,7 +210,7 @@ src/optimization/analyzer.$(MODULE_EXT): src/context/meta.$(MODULE_EXT) src/glob
 
 src/optimization/analyzerConfig.$(MODULE_EXT): src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/context/common.$(MODULE_EXT)
 
-src/optimization/analyzerTexpr.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/typing/error.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/optimization/analyzerConfig.$(MODULE_EXT) src/optimization/optimizerTexpr.$(MODULE_EXT)
+src/optimization/analyzerTexpr.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/typing/error.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/optimization/analyzerConfig.$(MODULE_EXT) src/optimization/optimizerTexpr.$(MODULE_EXT) src/generators/genphp7.$(MODULE_EXT)
 
 src/optimization/analyzerTexprTransformer.$(MODULE_EXT): src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/typing/error.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/optimization/analyzerConfig.$(MODULE_EXT) src/optimization/analyzerTypes.$(MODULE_EXT) src/optimization/analyzerTexpr.$(MODULE_EXT)
 

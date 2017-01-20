@@ -119,7 +119,7 @@ class Array<T> implements ArrayAccess<Int,T> {
 		return false;
 	}
 
-	public function reverse():Void {
+	public inline function reverse():Void {
 		arr = Global.array_reverse(arr);
 	}
 

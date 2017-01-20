@@ -47,6 +47,7 @@ extern class Syntax {
 
     /**
         Ggenerates `$value instanceof $phpClassName`.
+        Haxe generates `Std.is(value, Type)` calls to `$value instanceof Type` automatically where possible.
         `type` only accepts direct class names. That means `Type.resolveClass('MyClass')` is not allowed, but `MyClass` is.
     **/
     static function instanceof<V,C>( value:AsVar<V>,  type:AsVar<Class<C>> ) : Bool;

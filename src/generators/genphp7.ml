@@ -112,6 +112,10 @@ let void_type_path = ([], "Void")
 	Type path of the `Bool`
 *)
 let bool_type_path = ([], "Bool")
+(**
+	Type path of the `Std`
+*)
+let std_type_path = ([], "Std")
 
 (**
 	Stub to use when you need a `Ast.pos` instance, but don't have one
@@ -203,6 +207,17 @@ let rec reveal_expr expr =
 	match expr.eexpr with
 		| TCast (e, _) -> reveal_expr e
 		| TMeta (_, e) -> reveal_expr e
+		| _ -> expr
+
+(**
+	If `expr` is a TCast or TMeta or TParenthesis, then returns underlying expression (recursively bypassing nested casts and parenthesis).
+	Otherwise returns `expr` as is.
+*)
+let rec reveal_expr_with_parenthesis expr =
+	match expr.eexpr with
+		| TCast (e, _) -> reveal_expr_with_parenthesis e
+		| TMeta (_, e) -> reveal_expr_with_parenthesis e
+		| TParenthesis e -> reveal_expr_with_parenthesis e
 		| _ -> expr
 
 (**
@@ -751,12 +766,34 @@ let field_name field =
 		field.cf_name
 
 (**
+	Check if `expr` is `Std.is`
+*)
+let is_std_is expr =
+	match expr.eexpr with
+		| TField (_, FStatic ({ cl_path = path }, { cf_name = "is" })) -> path = boot_type_path || path = std_type_path
+		| _ -> false
+
+(**
+	Check if `subject_arg` and `type_arg` can be generated as `$subject instanceof Type` expression.
+*)
+let instanceof_compatible (subject_arg:texpr) (type_arg:texpr) : bool =
+	match (reveal_expr_with_parenthesis type_arg).eexpr with
+		| TTypeExpr (TClassDecl { cl_path = path }) when path <> ([], "String") ->
+			let subject_arg = reveal_expr_with_parenthesis subject_arg in
+			(match subject_arg.eexpr with
+				| TLocal _ | TField _ | TCall _ | TArray _ -> not (is_magic subject_arg)
+				| _ -> false
+			)
+		| _ -> false
+
+
+(**
 	PHP DocBlock types
 *)
 type doc_type =
 	| DocVar of string * (string option) (* (type name, description) *)
 	| DocMethod of (string * bool * t) list * t * (string option) (* (arguments, return type, description) *)
-| DocClass of string option
+	| DocClass of string option
 
 (**
 	Common interface for module_type instances
@@ -1583,6 +1620,7 @@ class virtual type_builder ctx wrapper =
 					self#write ")"
 				| TObjectDecl fields -> self#write_expr_object_declaration fields
 				| TArrayDecl exprs -> self#write_expr_array_decl exprs
+				| TCall (target, [arg1; arg2]) when is_std_is target && instanceof_compatible arg1 arg2 -> self#write_expr_lang_instanceof [arg1; arg2]
 				| TCall ({ eexpr = TLocal { v_name = name }}, args) when is_magic expr -> self#write_expr_magic name args
 				| TCall ({ eexpr = TField (expr, access) }, args) when is_string expr -> self#write_expr_call_string expr access args
 				| TCall (expr, args) when is_lang_extern expr -> self#write_expr_call_lang_extern expr args
@@ -2547,7 +2585,7 @@ class virtual type_builder ctx wrapper =
 				| val_expr :: type_expr :: [] ->
 					self#write_expr val_expr;
 					self#write " instanceof ";
-					(match type_expr.eexpr with
+					(match (reveal_expr type_expr).eexpr with
 						| TTypeExpr (TClassDecl tcls) ->
 							self#write (self#use_t (TInst (tcls, [])))
 						| _ ->
