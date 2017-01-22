@@ -1705,7 +1705,7 @@ class virtual type_builder ctx wrapper =
 				| TSuper -> self#write "parent"
 				| TInt value ->
 					(* See https://github.com/HaxeFoundation/haxe/issues/5289 *)
-					if (Int32.to_int value) = -2147483648 then
+					if value = Int32.min_int then
 						self#write "((int)-2147483648)"
 					else
 						self#write (Int32.to_string value)
