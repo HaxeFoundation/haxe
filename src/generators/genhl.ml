@@ -3649,7 +3649,7 @@ let generate com =
 	end;
 	let t = Common.timer ["write";"hl"] in
 	if file_extension com.file = "c" then
-		Hl2c.write_c com.Common.version com.file code
+		Hl2c.write_c com com.file code
 	else begin
 		let ch = IO.output_string() in
 		write_code ch code true;
