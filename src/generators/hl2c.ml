@@ -1081,11 +1081,13 @@ let write_c com file (code:code) =
 
 	open_file ctx "hl/natives.h";
 	line "// Natives functions";
+	let native_libs = Hashtbl.create 0 in
 	Array.iter (fun (lib,name,t,idx) ->
 		match t with
 		| HFun (args,t) ->
 			let fname =
 				let lib = code.strings.(lib) in
+				Hashtbl.replace native_libs lib ();
 				let lib = if lib = "std" then "hl" else lib in
 				lib ^ "_" ^ code.strings.(name)
 			in
@@ -1372,7 +1374,7 @@ let write_c com file (code:code) =
 	line "#include <hl/code.h>";
 	line "#include <hlc_main.c>";
 	line "";
-	line "#ifdef INCLUDE_ALL";
+	line "#ifndef HL_MAKE";
 	List.iter (sline "#  include <%s>") ctx.cfiles;
 	line "#endif";
 	line "";
@@ -1398,6 +1400,7 @@ let write_c com file (code:code) =
 	line "{";
 	block ctx;
 	sline "\"version\" : %d," ctx.version;
+	sline "\"libs\" : [%s]," (String.concat "," (Hashtbl.fold (fun k _ acc -> sprintf "\"%s\"" k :: acc) native_libs []));
 	sline "\"defines\" : {%s\n\t}," (String.concat "," (PMap.foldi (fun k v acc -> sprintf "\n\t\t\"%s\" : \"%s\"" k v :: acc) com.Common.defines []));
 	sline "\"files\" : [%s\n\t]" (String.concat "," (List.map (sprintf "\n\t\t\"%s\"") ctx.cfiles));
 	unblock ctx;
