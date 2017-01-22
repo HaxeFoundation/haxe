@@ -42,6 +42,15 @@ class Type {
 		untyped $allTypes(new hl.types.BytesMap());
 	}
 
+	@:keep static function initClass( ct : hl.Type, t : hl.Type, name : hl.Bytes ) : hl.BaseType.Class @:privateAccess {
+		var c : hl.BaseType.Class = ct.allocObject();
+		t.setGlobal(c);
+		c.__type__ = t;
+		c.__name__ = String.fromUCS2(name);
+		register(name, c);
+		return c;
+	}
+
 	@:keep static function initEnum( et : hl.Type, t : hl.Type ) : hl.BaseType.Enum @:privateAccess {
 		var e : hl.BaseType.Enum = et.allocObject();
 		e.__type__ = t;

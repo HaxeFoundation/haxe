@@ -3029,6 +3029,8 @@ let generate_static_init ctx types main =
 				let path = if c == ctx.array_impl.abase then [],"Array" else if c == ctx.base_class then [],"Class" else c.cl_path in
 
 				let g, ct = class_global ~resolve:false ctx c in
+				let ctype = if c == ctx.array_impl.abase then ctx.array_impl.aall else c in
+				let t = class_type ctx ctype (List.map snd ctype.cl_params) false in
 
 				let index name =
 					match ct with
@@ -3038,20 +3040,43 @@ let generate_static_init ctx types main =
 						assert false
 				in
 
-				let rc = alloc_tmp ctx ct in
-				op ctx (ONew rc);
-				op ctx (OSetGlobal (g,rc));
-				hold ctx rc;
+				let rc = (match t with
+				| HObj o when (match o.pclassglobal with None -> -1 | Some i -> i) <> g ->
+					(* manual registration for objects with prototype tricks (Array) *)
 
-				let rt = alloc_tmp ctx HType in
-				let ctype = if c == ctx.array_impl.abase then ctx.array_impl.aall else c in
-				op ctx (OType (rt, class_type ctx ctype (List.map snd ctype.cl_params) false));
-				op ctx (OSetField (rc,index "__type__",rt));
-				op ctx (OSetField (rc,index "__name__",eval_expr ctx { eexpr = TConst (TString (s_type_path path)); epos = c.cl_pos; etype = ctx.com.basic.tstring }));
+					let rc = alloc_tmp ctx ct in
+					op ctx (ONew rc);
+					op ctx (OSetGlobal (g,rc));
+					hold ctx rc;
 
-				let rname = alloc_tmp ctx HBytes in
-				op ctx (OString (rname, alloc_string ctx (s_type_path path)));
-				op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx ([],"Type") "register",rname,rc));
+					let rt = alloc_tmp ctx HType in
+					op ctx (OType (rt, t));
+					op ctx (OSetField (rc,index "__type__",rt));
+					op ctx (OSetField (rc,index "__name__",eval_expr ctx { eexpr = TConst (TString (s_type_path path)); epos = c.cl_pos; etype = ctx.com.basic.tstring }));
+
+					let rname = alloc_tmp ctx HBytes in
+					op ctx (OString (rname, alloc_string ctx (s_type_path path)));
+					op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx ([],"Type") "register",rname,rc));
+					rc
+
+				| _ ->
+
+					let rct = alloc_tmp ctx HType in
+					op ctx (OType (rct, ct));
+					hold ctx rct;
+
+					let rt = alloc_tmp ctx HType in
+					op ctx (OType (rt, t));
+
+					let rname = alloc_tmp ctx HBytes in
+					op ctx (OString (rname, alloc_string ctx (s_type_path path)));
+
+					let rc = alloc_tmp ctx (class_type ctx ctx.base_class [] false) in
+					op ctx (OCall3 (rc, alloc_fun_path ctx ([],"Type") "initClass", rct, rt, rname));
+					hold ctx rc;
+					free ctx rct;
+					rc
+				) in
 
 				let gather_implements() =
 					let classes = ref [] in
@@ -3076,6 +3101,11 @@ let generate_static_init ctx types main =
 						op ctx (OSetArray (ra, reg_int ctx i, rt));
 					) l;
 					op ctx (OSetField (rc,index "__implementedBy__",ra));
+
+					(* TODO : use a plain class for interface object since we don't allow statics *)
+					let rt = alloc_tmp ctx ct in
+					op ctx (OSafeCast (rt, rc));
+					op ctx (OSetGlobal (g, rt));
 				end;
 
 				(match Codegen.build_metadata ctx.com (TClassDecl c) with
