@@ -1697,13 +1697,18 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write_expr_const const =
 			match const with
-				| TInt value -> self#write (Int32.to_string value)
 				| TFloat str -> self#write str
 				| TString str -> self#write ("\"" ^ (escape_bin str) ^ "\"")
 				| TBool value -> self#write (if value then "true" else "false")
 				| TNull -> self#write "null"
 				| TThis -> self#write "$this"
 				| TSuper -> self#write "parent"
+				| TInt value ->
+					(* See https://github.com/HaxeFoundation/haxe/issues/5289 *)
+					if (Int32.to_int value) = -2147483648 then
+						self#write "((int)-2147483648)"
+					else
+						self#write (Int32.to_string value)
 		(**
 			Writes TArrayDecl to output buffer
 		*)
