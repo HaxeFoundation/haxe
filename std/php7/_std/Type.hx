@@ -258,7 +258,7 @@ enum ValueType {
 
 		if (v.is_object()) {
 			if (Reflect.isFunction(v)) return TFunction;
-			if (Syntax.instanceof(v, StdClass)) return TObject;
+			if (Std.is(v, StdClass)) return TObject;
 			if (Boot.isClass(v)) return TObject;
 
 			var hxClass = Boot.getClass(Global.get_class(v));

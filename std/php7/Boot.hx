@@ -340,7 +340,7 @@ class Boot {
 			if (value.method_exists('__toString')) {
 				return value.__toString();
 			}
-			if (Syntax.instanceof(value, StdClass)) {
+			if (Std.is(value, StdClass)) {
 				if (value.toString.isset() && value.toString.is_callable()) {
 					return value.toString();
 				}
@@ -351,10 +351,10 @@ class Boot {
 				}
 				return '{ ' + Global.implode(', ', result) + ' }';
 			}
-			if (Syntax.instanceof(value, HxClosure) || Syntax.instanceof(value, Closure)) {
+			if (isFunction(value)) {
 				return '<function>';
 			}
-			if (Syntax.instanceof(value, HxClass)) {
+			if (Std.is(value, HxClass)) {
 				return '[class ' + getClassName((value:HxClass).phpClassName) + ']';
 			} else {
 				return '[object ' + getClassName(Global.get_class(value)) + ']';
@@ -417,7 +417,7 @@ class Boot {
 			case 'php\\NativeArray', 'php\\_NativeArray\\NativeArray_Impl_':
 				return value.is_array();
 			case 'Enum', 'Class':
-				if (Syntax.instanceof(value, HxClass)) {
+				if (Std.is(value, HxClass)) {
 					var valuePhpClass = (cast value:HxClass).phpClassName;
 					var enumPhpClass = (cast HxEnum:HxClass).phpClassName;
 					var isEnumType = Global.is_subclass_of(valuePhpClass, enumPhpClass);
@@ -435,15 +435,29 @@ class Boot {
 	/**
 		Check if `value` is a `Class<T>`
 	**/
-	public static function isClass(value:Dynamic) : Bool {
-		return Syntax.instanceof(value, HxClass);
+	public static inline function isClass(value:Dynamic) : Bool {
+		return Std.is(value, HxClass);
 	}
 
 	/**
 		Check if `value` is an enum constructor instance
 	**/
-	public static function isEnumValue(value:Dynamic) : Bool {
-		return Syntax.instanceof(value, HxEnum);
+	public static inline function isEnumValue(value:Dynamic) : Bool {
+		return Std.is(value, HxEnum);
+	}
+
+	/**
+		Check if `value` is a function
+	**/
+	public static inline function isFunction(value:Dynamic) : Bool {
+		return Std.is(value, Closure) || Std.is(value, HxClosure);
+	}
+
+	/**
+		Check if `value` is an instance of `HxClosure`
+	**/
+	public static inline function isHxClosure(value:Dynamic) : Bool {
+		return Std.is(value, HxClosure);
 	}
 
 	/**
@@ -799,8 +813,8 @@ private class HxClosure {
 		if (eThis == null) {
 			eThis = target;
 		}
-		if (Syntax.instanceof(eThis, StdClass)) {
-			if (Syntax.instanceof(eThis, HxAnon)) {
+		if (Std.is(eThis, StdClass)) {
+			if (Std.is(eThis, HxAnon)) {
 				return Syntax.getField(eThis, func);
 			}
 		}

@@ -778,7 +778,7 @@ let is_std_is expr =
 *)
 let instanceof_compatible (subject_arg:texpr) (type_arg:texpr) : bool =
 	match (reveal_expr_with_parenthesis type_arg).eexpr with
-		| TTypeExpr (TClassDecl { cl_path = path }) when path <> ([], "String") ->
+		| TTypeExpr (TClassDecl { cl_path = path }) when path <> ([], "String") && path <> ([], "Class") ->
 			let subject_arg = reveal_expr_with_parenthesis subject_arg in
 			(match subject_arg.eexpr with
 				| TLocal _ | TField _ | TCall _ | TArray _ -> not (is_magic subject_arg)
@@ -2583,6 +2583,7 @@ class virtual type_builder ctx wrapper =
 		method private write_expr_lang_instanceof args =
 			match args with
 				| val_expr :: type_expr :: [] ->
+					self#write "(";
 					self#write_expr val_expr;
 					self#write " instanceof ";
 					(match (reveal_expr type_expr).eexpr with
@@ -2591,7 +2592,8 @@ class virtual type_builder ctx wrapper =
 						| _ ->
 							self#write_expr type_expr;
 							if not (is_string type_expr) then self#write "->phpClassName"
-					)
+					);
+					self#write ")"
 				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
 		(**
 			Writes `foreach` expression to output buffer (for `php.Syntax.foreach()`)
