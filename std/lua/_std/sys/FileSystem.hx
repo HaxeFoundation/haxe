@@ -50,8 +50,8 @@ class FileSystem {
 
 	public inline static function stat( path : String ) : FileStat {
 		var ls =  LFileSystem.stat(path);
-		if (ls.value == null) throw ls.message;
-		var l = ls.value;
+		if (ls.result == null) throw ls.message;
+		var l = ls.result;
 		return {
 			gid   : l.gid,
 			uid   : l.uid,
@@ -95,12 +95,14 @@ class FileSystem {
 	}
 
 	public inline static function isDirectory( path : String ) : Bool {
-		return  LFileSystem.stat(path).value.type ==  "directory";
+		var result = LFileSystem.stat(path).result;
+		if (result == null) return false;
+		else return result.type ==  "directory";
 	}
 
 	public inline static function deleteDirectory( path : String ) : Void {
 		var ret = LFileSystem.rmdir(path);
-		if (ret.value == null){
+		if (ret.result == null){
 			throw ret.message;
 		}
 	}
@@ -115,7 +117,7 @@ class FileSystem {
 			path = _p;
 		}
 		for (part in parts) {
-			if (part.charCodeAt(part.length - 1) != ":".code && !exists(part) && !LFileSystem.mkdir( part, 511 ).value)
+			if (part.charCodeAt(part.length - 1) != ":".code && !exists(part) && !LFileSystem.mkdir( part, 511 ).result)
 				throw "Could not create directory:" + part;
 		}
 	}

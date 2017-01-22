@@ -1,39 +1,40 @@
 package lua.lib.luv.fs;
 import lua.lib.luv.fs.Open;
+import lua.Result;
 
 @:luaRequire("luv")
 extern class FileSystem {
   @:native("fs_close")
   @:overload(function(file : FileDescriptor, cb : String->Bool->Void) : Request {})
-  static function close(file : FileDescriptor) : LuvStatus<Bool>;
+  static function close(file : FileDescriptor) : Result<Bool>;
 
   @:native("fs_open")
   @:overload(function(path : String, flags : Open, mode : Int, ?cb : String->FileDescriptor->Void) : Request {})
-  static function open(path : String, flags : Open, mode : Int) : LuvStatus<FileDescriptor>;
+  static function open(path : String, flags : Open, mode : Int) : Result<FileDescriptor>;
 
   @:native("fs_read")
   @:overload(function(file : FileDescriptor, len : Int, offset : Int, ?cb : String->String->Void) : Request {} )
-  static function read(file : FileDescriptor, len : Int, offset : Int) : LuvStatus<String>;
+  static function read(file : FileDescriptor, len : Int, offset : Int) : Result<String>;
 
   @:native("fs_unlink")
   @:overload(function(file : FileDescriptor, ?cb : String->String->Void) : Request {} )
-  static function unlink(file : FileDescriptor, content : String) : LuvStatus<String>;
+  static function unlink(file : FileDescriptor, content : String) : Result<String>;
 
   @:native("fs_write")
   @:overload(function(file : FileDescriptor, content : String, offset : Int, ?cb : String->Bool->Void) : Int {})
-  static function write(file : FileDescriptor, content : String, offset : Int) : LuvStatus<Bool>;
+  static function write(file : FileDescriptor, content : String, offset : Int) : Result<Bool>;
 
   @:native("fs_mkdir")
   @:overload(function(path : String, mode : Int, cb : String->Bool->Void) : Request {})
-  static function mkdir(path : String, mode :Int) : LuvStatus<Bool>;
+  static function mkdir(path : String, mode :Int) : Result<Bool>;
 
   @:native("fs_mkdtemp")
   @:overload(function(data : String, cb : String->Bool->Void) : Request {})
-  static function mkdtemp(data : String) : LuvStatus<Bool>;
+  static function mkdtemp(data : String) : Result<Bool>;
 
   @:native("fs_rmdir")
   @:overload(function(path : String, cb : String->Bool->Void) : Request {})
-  static function rmdir(path : String) : LuvStatus<Int>;
+  static function rmdir(path : String) : Result<Int>;
 
   @:native("fs_scandir")
   @:overload(function(path : String, cb : String->Bool->Void) : Request {})
@@ -44,59 +45,59 @@ extern class FileSystem {
 
   @:native("fs_stat")
   @:overload(function(path : String, cb : String->Stat->Void) : Request {})
-  static function stat(path : String) : LuvStatus<Stat>;
+  static function stat(path : String) : Result<Stat>;
 
   @:native("fs_fstat")
   @:overload(function(descriptor : FileDescriptor, cb : String->Stat->Void) : Request {})
-  static function fstat(descriptor : FileDescriptor) : LuvStatus<Stat>;
+  static function fstat(descriptor : FileDescriptor) : Result<Stat>;
 
   @:native("fs_lstat")
   @:overload(function(path : String, cb : String->Stat->Void) : Request {})
-  static function lstat(path : String) : LuvStatus<Stat>;
+  static function lstat(path : String) : Result<Stat>;
 
   @:native("fs_rename")
   @:overload(function(path : String, newpath : String, cb : String->Bool->Void) : Request {})
-  static function rename(path : String, newpath : String) : LuvStatus<Bool>;
+  static function rename(path : String, newpath : String) : Result<Bool>;
 
   @:native("fs_fsync")
   @:overload(function(descriptor : FileDescriptor, cb : String->Bool->Void) : Request {})
-  static function fsync(descriptor : FileDescriptor) : LuvStatus<Bool>;
+  static function fsync(descriptor : FileDescriptor) : Result<Bool>;
 
   @:native("fs_fdatasync")
   @:overload(function(descriptor : FileDescriptor, cb : String->Bool->Void) : Request {})
-  static function fdatasync(descriptor : FileDescriptor) : LuvStatus<Bool>;
+  static function fdatasync(descriptor : FileDescriptor) : Result<Bool>;
 
   @:native("fs_ftruncate")
   @:overload(function(descriptor : FileDescriptor, offset : Int, cb : String->Bool->Void) : Request {})
-  static function ftruncate(descriptor : FileDescriptor, offset : Int) : LuvStatus<Bool>;
+  static function ftruncate(descriptor : FileDescriptor, offset : Int) : Result<Bool>;
 
   @:native("fs_sendfile")
   @:overload(function(fin : FileDescriptor, fout : FileDescriptor, cb : String->Int->Void) : Request {})
-  static function sendfile(fin : FileDescriptor, fout : FileDescriptor) : LuvStatus<Int>;
+  static function sendfile(fin : FileDescriptor, fout : FileDescriptor) : Result<Int>;
 
   @:native("fs_access")
   @:overload(function(path : String, mode : Int, cb : String->Bool->Void) : Request {})
-  static function access(path : String, mode :Int) : LuvStatus<Bool>;
+  static function access(path : String, mode :Int) : Result<Bool>;
 
   @:native("fs_chmod")
   @:overload(function(path : String, mode : Int, cb : String->Bool->Void) : Request {})
-  static function chmod(path : String, mode :Int) : LuvStatus<Bool>;
+  static function chmod(path : String, mode :Int) : Result<Bool>;
 
   @:native("fs_fchmod")
   @:overload(function(descriptor : FileDescriptor, mode : Int, cb : String->Bool->Void) : Request {})
-  static function fchmod(descriptor : FileDescriptor, mode :Int) : LuvStatus<Bool>;
+  static function fchmod(descriptor : FileDescriptor, mode :Int) : Result<Bool>;
 
   @:native("fs_futime")
   @:overload(function(descriptor : FileDescriptor, actime : Int, modtime : Int, cb : String->Bool->Void) : Request {})
-  static function futime(descriptor : FileDescriptor, actime : Int, modtime : Int) : LuvStatus<Bool>;
+  static function futime(descriptor : FileDescriptor, actime : Int, modtime : Int) : Result<Bool>;
 
   @:native("fs_utime")
   @:overload(function(path : String, actime : Int, modtime : Int, cb : String->Bool->Void) : Request {})
-  static function utime(path : String, actime : Int, modtime : Int) : LuvStatus<Bool>;
+  static function utime(path : String, actime : Int, modtime : Int) : Result<Bool>;
 
   @:native("fs_link")
   @:overload(function(oldpath : String, newpath : String, cb : String->Bool->Void) : Request {})
-  static function link(oldpath : String, newpath : String) : LuvStatus<Bool>;
+  static function link(oldpath : String, newpath : String) : Result<Bool>;
 
   @:native("fs_symlink")
   @:overload(function(oldpath : String, newpath : String, flags : Int, cb : String->Bool->Void) : Request {})
@@ -152,7 +153,3 @@ typedef TimeStamp = {
   nsec : Int
 }
 
-@:multiReturn extern class LuvStatus<T> {
-  var value : T;
-  var message : String;
-}
