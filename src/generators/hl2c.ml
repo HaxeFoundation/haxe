@@ -1279,16 +1279,7 @@ let write_c com file (code:code) =
 		| HEnum e ->
 			sexpr "type$%d.tenum = &enum$%d" i i;
 			(match e.eglobal with None -> () | Some g -> sexpr "enum$%d.global_value = (void**)&global$%d" i g);
-			Array.iteri (fun cid (_,_,tl) ->
-				if Array.length tl > 0 then begin
-					line "{";
-					block ctx;
-					sexpr "%s *_e = NULL" (enum_constr_type ctx e cid);
-					Array.iteri (fun pid _ -> sexpr "eoffsets$%d_%d[%d] = (int)(int_val)&_e->p%d" i cid pid pid) tl;
-					unblock ctx;
-					line "}";
-				end
-			) e.efields
+			sexpr "hl_init_enum(&type$%d)" i;
 		| HVirtual _ ->
 			sexpr "type$%d.virt = &virt$%d" i i;
 			sexpr "hl_init_virtual(&type$%d,ctx)" i;
