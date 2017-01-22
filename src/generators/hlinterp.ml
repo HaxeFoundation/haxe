@@ -401,7 +401,7 @@ let rec to_virtual ctx v vp =
 
 let rec dyn_cast ctx v t rt =
 	let invalid() =
-		error ("Can't cast " ^ vstr_d ctx v ^ ":"  ^ tstr t ^ " to " ^ tstr rt)
+		throw_msg ctx ("Can't cast " ^ vstr_d ctx v ^ ":"  ^ tstr t ^ " to " ^ tstr rt)
 	in
 	let default() =
 		let v = default rt in
@@ -1238,14 +1238,16 @@ let load_native ctx lib name t =
 			| _ -> assert false)
 		| "alloc_enum" ->
 			(function
-			| [VType (HEnum e); VInt idx; VArray (vl,vt)] ->
+			| [VType (HEnum e); VInt idx; VArray (vl,vt); VInt len] ->
 				let idx = int idx in
+				let len = int len in
 				let _, _, args = e.efields.(idx) in
-				if Array.length args <> Array.length vl then
+				if Array.length args <> len then
 					VNull
 				else
-					VDyn (VEnum (idx,Array.mapi (fun i v -> dyn_cast ctx v vt args.(i)) vl),HEnum e)
-			| _ -> assert false)
+					VDyn (VEnum (idx,Array.mapi (fun i v -> dyn_cast ctx v vt args.(i)) (Array.sub vl 0 len)),HEnum e)
+			| vl ->
+				assert false)
 		| "array_blit" ->
 			(function
 			| [VArray (dst,_); VInt dp; VArray (src,_); VInt sp; VInt len] ->

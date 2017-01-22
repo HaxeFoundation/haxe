@@ -115,8 +115,10 @@ class String {
 		if( pos < 0 ) {
 			pos = sl + pos;
 			if( pos < 0 ) pos = 0;
-		} else if( len < 0 )
+		} else if( len < 0 ) {
 			len = sl + len - pos;
+			if( len < 0 ) return "";
+		}
 		if( ((pos + len) : UInt) > (sl:UInt) )
 			len = sl - pos;
 		if( pos < 0 || len <= 0 ) return "";
