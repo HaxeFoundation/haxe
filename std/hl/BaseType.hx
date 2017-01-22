@@ -56,20 +56,6 @@ class Enum extends BaseType {
 	public var __emap__ : hl.types.BytesMap;
 	public var __constructs__ : Array<String>;
 	public var __evalues__ : NativeArray<Dynamic>;
-	function new(t,vals) @:privateAccess {
-		__type__ = t;
-		__evalues__ = vals;
-		__ename__ = t.getName();
-		__emap__ = new hl.types.BytesMap();
-		__constructs__ = new Array();
-		var cl = t.getEnumFields();
-		for( i in 0...cl.length ) {
-			var name = cl[i];
-			__emap__.set(name, i);
-			__constructs__.push(String.fromUCS2(name));
-		}
-		std.Type.register(__ename__.bytes,this);
-	}
 }
 
 @:keep

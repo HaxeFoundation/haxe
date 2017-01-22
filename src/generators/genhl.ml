@@ -3088,54 +3088,46 @@ let generate_static_init ctx types main =
 
 			| TEnumDecl e when not e.e_extern ->
 
-				let t = enum_class ctx e in
-				let g = alloc_global ctx (match t with HObj o -> o.pname | _ -> assert false) t in
+				let et = enum_class ctx e in
+				let t = enum_type ctx e in
+
+				let ret = alloc_tmp ctx HType in
+				op ctx (OType (ret, et));
+				hold ctx ret;
+				let rt = alloc_tmp ctx HType in
+				op ctx (OType (rt, t));
+				let r = alloc_tmp ctx (class_type ctx ctx.base_enum [] false) in
+				op ctx (OCall2 (r, alloc_fun_path ctx ([],"Type") "initEnum", ret, rt));
+				free ctx ret;
 
 				let index name =
-					match t with
+					match et with
 					| HObj o ->
 						fst (try get_index name o with Not_found -> assert false)
 					| _ ->
 						assert false
 				in
-				let r = alloc_tmp ctx t in
-				let rt = alloc_tmp ctx HType in
-				op ctx (ONew r);
-
-				let max_val = ref (-1) in
-				PMap.iter (fun _ c ->
-					match follow c.ef_type with
-					| TFun _ -> ()
-					| _ -> if c.ef_index > !max_val then max_val := c.ef_index;
-				) e.e_constrs;
 
 				let avalues = alloc_tmp ctx HArray in
-				op ctx (OType (rt, HDyn));
-				op ctx (OCall2 (avalues, alloc_std ctx "alloc_array" [HType;HI32] HArray, rt, reg_int ctx (!max_val + 1)));
+				op ctx (OField (avalues, r, index "__evalues__"));
 
 				List.iter (fun n ->
 					let f = PMap.find n e.e_constrs in
 					match follow f.ef_type with
 					| TFun _ -> ()
 					| _ ->
-						let t = to_type ctx f.ef_type in
 						let g = alloc_global ctx (efield_name e f) t in
 						let r = alloc_tmp ctx t in
-						op ctx (OMakeEnum (r,f.ef_index,[]));
+						let rd = alloc_tmp ctx HDyn in
+						op ctx (OGetArray (rd,avalues, reg_int ctx f.ef_index));
+						op ctx (OSafeCast (r, rd));
 						op ctx (OSetGlobal (g,r));
-						let d = alloc_tmp ctx HDyn in
-						op ctx (OToDyn (d,r));
-						op ctx (OSetArray (avalues, reg_int ctx f.ef_index, d));
 				) e.e_names;
-
-				op ctx (OType (rt, (to_type ctx (TEnum (e,List.map snd e.e_params)))));
-				op ctx (OCall3 (alloc_tmp ctx HVoid, alloc_fun_path ctx (["hl"],"Enum") "new",r,rt,avalues));
 
 				(match Codegen.build_metadata ctx.com (TEnumDecl e) with
 				| None -> ()
 				| Some e -> op ctx (OSetField (r,index "__meta__",eval_to ctx e HDyn)));
 
-				op ctx (OSetGlobal (g,r));
 
 			| TAbstractDecl { a_path = [], name; a_pos = pos } ->
 				(match name with

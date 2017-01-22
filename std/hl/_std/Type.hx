@@ -42,6 +42,24 @@ class Type {
 		untyped $allTypes(new hl.types.BytesMap());
 	}
 
+	@:keep static function initEnum( et : hl.Type, t : hl.Type ) : hl.BaseType.Enum @:privateAccess {
+		var e : hl.BaseType.Enum = et.allocObject();
+		e.__type__ = t;
+		e.__evalues__ = t.getEnumValues();
+		e.__ename__ = t.getName();
+		e.__emap__ = new hl.types.BytesMap();
+		e.__constructs__ = new Array();
+		var cl = t.getEnumFields();
+		for( i in 0...cl.length ) {
+			var name = cl[i];
+			e.__emap__.set(name, i);
+			e.__constructs__.push(String.fromUCS2(name));
+		}
+		register(e.__ename__.bytes,e);
+		t.setGlobal(e);
+		return e;
+	}
+
 	@:keep static function register( b : hl.Bytes, t : hl.BaseType ) : Void {
 		allTypes.set(b, t);
 	}

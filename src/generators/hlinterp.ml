@@ -1552,6 +1552,14 @@ let load_native ctx lib name t =
 				| HEnum e -> (match e.eglobal with None -> VNull | Some g -> ctx.t_globals.(g))
 				| _ -> VNull)
 			| _ -> assert false)
+		| "type_set_global" ->
+			(function
+			| [VType t; v] ->
+				VBool (match t with
+				| HObj c -> (match c.pclassglobal with None -> false | Some g -> ctx.t_globals.(g) <- v; true)
+				| HEnum e -> (match e.eglobal with None -> false | Some g -> ctx.t_globals.(g) <- v; true)
+				| _ -> false)
+			| _ -> assert false)
 		| "type_name" ->
 			(function
 			| [VType t] ->
@@ -1617,6 +1625,11 @@ let load_native ctx lib name t =
 				(match t with
 				| HEnum e -> VArray (Array.map (fun (f,_,_) -> VBytes (caml_to_hl f)) e.efields,HBytes)
 				| _ -> VNull)
+			| _ -> assert false)
+		| "type_enum_values" ->
+			(function
+			| [VType (HEnum e as t)] ->
+				VArray (Array.mapi (fun i (_,_,args) -> if Array.length args <> 0 then VNull else VDyn (VEnum (i,[||]),t)) e.efields,HDyn)
 			| _ -> assert false)
 		| "type_enum_eq" ->
 			(function
