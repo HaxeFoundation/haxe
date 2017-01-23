@@ -55,6 +55,7 @@ build_script:
     - 'set HAXEPATH=%APPVEYOR_BUILD_FOLDER%'
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win package_bin"'
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win package_choco"'
+    - move out\haxe.*.nupkg .
     - dir %APPVEYOR_BUILD_FOLDER%\out
     - cd %APPVEYOR_BUILD_FOLDER%/tests/
     - mkdir "%HAXELIB_ROOT%"
@@ -72,4 +73,5 @@ test_script:
     - neko RunCi.n
 
 artifacts:
-    - path: out/*.zip
+    - path: 'out/*.zip'
+    - path: '*.nupkg'
