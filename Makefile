@@ -78,6 +78,7 @@ COMMIT_DATE=$(shell \
 	fi \
 )
 PACKAGE_FILE_NAME=haxe_$(COMMIT_DATE)_$(COMMIT_SHA)
+HAXE_VERSION=$(shell $(OUTPUT) -version 2>&1 | awk '{print $$1;}')
 
 # using $(CURDIR) on Windows will not work since it might be a Cygwin path
 ifdef SYSTEMROOT
