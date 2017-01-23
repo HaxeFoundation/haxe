@@ -72,4 +72,4 @@ test_script:
     - neko RunCi.n
 
 artifacts:
-    - path: out/*
+    - path: out/*.zip
