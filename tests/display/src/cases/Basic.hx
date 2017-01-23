@@ -85,4 +85,16 @@ class Basic extends DisplayTestCase {
 	@:funcCode function testMissingParams() {
 		eq("Array<Array.T>", type(pos(1)));
 	}
+
+	/**
+	class Some {
+		function new(someName:Int) {}
+		function main() {
+			Some.new{-1-}
+		}
+	}
+	**/
+	function testCtorClosureType() {
+		eq("someName : Int -> cases.Some", type(pos(1)));
+	}
 }

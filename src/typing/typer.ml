@@ -2628,7 +2628,7 @@ and type_access ctx e p mode =
 					tf_args = List.map (fun v -> v,None) vl;
 					tf_type = t;
 					tf_expr = mk (TReturn (Some ec)) t p;
-				}) (tfun (List.map (fun v -> v.v_type) vl) t) p)
+				}) (TFun ((List.map (fun v -> v.v_name,false,v.v_type) vl),t)) p)
 			| _ -> error "Binding new is only allowed on class types" p
 		end;
 	| EField _ ->
