@@ -1,0 +1,11 @@
+# http://editorconfig.org
+
+[*.c]
+charset = utf-8
+indent_style = tab
+indent_size = 4
+end_of_line = lf
+indent_brace_style = K&R
+insert_final_newline = true
+trim_trailing_whitespace = true
+max_line_length = 100

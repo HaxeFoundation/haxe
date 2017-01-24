@@ -1,6 +1,6 @@
 /*
  *  Extc : C common OCaml bindings
- *  Copyright (c)2004 Nicolas Cannasse
+ *  Copyright (c)2004-2017 Nicolas Cannasse
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,8 +17,10 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#include <assert.h>
 #include <caml/alloc.h>
 #include <caml/callback.h>
+#include <caml/custom.h>
 #include <caml/mlvalues.h>
 #include <caml/fail.h>
 #include <zlib.h>
@@ -52,68 +54,270 @@
 #	define CLK_TCK	100
 #endif
 
+/**
+ * Converts an OCaml value to a C pointer for a z_stream.
+ *
+ * @param v {value} An OCaml value
+ * @return {z_streamp} A pointer for a z_stream
+ */
+#define ZStreamP_val(v) (*((z_streamp *) Data_custom_val(v)))
 
-#define zval(z)		((z_streamp)(z))
+/**
+ * Converts an OCaml `Extc.zflush` value to an allowed flush value for _zlib_.
+ *
+ * It may raise the following OCaml exception:
+ * - Failure: Unknown zflush value.
+ *
+ * Make sure to update this function when refactoring OCaml's `Extc.zflush` type. The integer value
+ * of OCaml's `Extc.zflush` is the 0-based index of the position of the constructor in the type
+ * definition.
+ *
+ * See:
+ * https://github.com/HaxeFoundation/haxe-debian/blob/31cb4aaab9f6770d058883a1c5b97e36c8ec5d71/libs/extc/extc.ml#L22
+ * https://github.com/madler/zlib/blob/cacf7f1d4e3d44d871b605da3b647f07d718623f/zlib.h#L168
+ *
+ * @param zflush_val {value} OCaml `Extc.zflush`
+ * @return {int} C int representing an allowed flush value for _zlib_
+ */
+int Zflush_val(value zflush_val) {
+	switch (Int_val(zflush_val)) {
+		case 0: return Z_NO_FLUSH;
+		case 1: return Z_PARTIAL_FLUSH;
+		case 2: return Z_SYNC_FLUSH;
+		case 3: return Z_FULL_FLUSH;
+		case 4: return Z_FINISH;
+		// TODO: support Z_BLOCK and Z_TREE
+		// TODO: append the received value
+		default: failwith("Error in `Zflush_val` (extc_stubs.c): Unknown zflush value");
+	}
+	assert(0);
+}
 
+/**
+ * Converts an allowed flush value for _zlib_ to an OCaml `Extc.zflush` value.
+ *
+ * Make sure to update this function when refactoring OCaml's `Extc.zflush` type. The integer value
+ * of OCaml's `Extc.zflush` is the 0-based index of the position of the constructor in the type
+ * definition.
+ *
+ * See:
+ * https://github.com/madler/zlib/blob/cacf7f1d4e3d44d871b605da3b647f07d718623f/zlib.h#L168
+ * https://github.com/HaxeFoundation/haxe-debian/blob/31cb4aaab9f6770d058883a1c5b97e36c8ec5d71/libs/extc/extc.ml#L22
+ *
+ * @param {int} C int representing an allowed flush value for _zlib_
+ * @return {value} OCaml `Extc.zflush`
+ */
+value val_Zflush(int zflush) {
+	switch (zflush) {
+		case Z_NO_FLUSH: return Val_int(0);
+		case Z_PARTIAL_FLUSH: return Val_int(1);
+		case Z_SYNC_FLUSH: return Val_int(2);
+		case Z_FULL_FLUSH: return Val_int(3);
+		case Z_FINISH: return Val_int(4);
+		// TODO: support Z_BLOCK and Z_TREE
+	}
+	assert(0);
+}
+
+/**
+ * Free the memory of the pointer contained in the supplied OCaml value `caml_z_stream_pointer`.
+ *
+ * @param z_streamp_val {value} An OCaml value containing a z_stream pointer to the memory to free.
+ */
+void zlib_free_stream(value z_streamp_val) {
+	caml_stat_free(ZStreamP_val(z_streamp_val));
+	ZStreamP_val(z_streamp_val) = NULL;
+}
+
+/**
+ * Define the custom operations for a z_stream. This ensures that the memory of the owned
+ * by the contained pointer is freed.
+ *
+ * See:
+ * https://github.com/ocaml/ocaml/blob/70d880a41a82aae1ebd428fd38100e8467f8535a/byterun/caml/custom.h#L25
+ */
+static struct custom_operations zlib_stream_ops = {
+	// identifier
+	"z_stream_ops",
+	// finalize
+	&zlib_free_stream,
+	// compare
+	NULL,
+	// hash
+	NULL,
+	// serialize
+	NULL,
+	// compare_ext
+	NULL
+};
+
+/**
+ * Create an OCaml value containing a new z_stream pointer.
+ *
+ * This function may raise the following OCaml exception:
+ * - Out_of_memory exception
+ *
+ * @return {value} An OCaml value containing a new z_stream pointer.
+ */
 value zlib_new_stream() {
-	value z = alloc((sizeof(z_stream) + sizeof(value) - 1) / sizeof(value),Abstract_tag);
-	z_stream *s = zval(z);
-	s->zalloc = NULL;
-	s->zfree = NULL;
-	s->opaque = NULL;
-	s->next_in = NULL;
-	s->next_out = NULL;
-	return z;
+    value z_streamp_val = caml_alloc_custom(&zlib_stream_ops, sizeof(z_streamp), 0, 1);
+    ZStreamP_val(z_streamp_val) = malloc(sizeof(z_stream));
+    ZStreamP_val(z_streamp_val)->zalloc = NULL;
+    ZStreamP_val(z_streamp_val)->zfree = NULL;
+    ZStreamP_val(z_streamp_val)->opaque = NULL;
+    ZStreamP_val(z_streamp_val)->next_in = NULL;
+    ZStreamP_val(z_streamp_val)->next_out = NULL;
+    return z_streamp_val;
 }
 
-CAMLprim value zlib_deflate_init2(value lvl,value wbits) {
-	value z = zlib_new_stream();
-	if( deflateInit2(zval(z),Int_val(lvl),Z_DEFLATED,Int_val(wbits),8,Z_DEFAULT_STRATEGY) != Z_OK )
-		failwith("zlib_deflate_init");
-	return z;
+/**
+ * OCaml binding for _zlib_'s `deflateInit2` function.
+ *
+ * This creates a new stream and initializes it for deflate.
+ *
+ * This function may raise the following OCaml exceptions:
+ * - Out_of_memory exception
+ * - Failure exception: Invalid parameters
+ * - Failure exception: Invalid version
+ * - Failure exception: Unknown zlib return code
+ *
+ * See:
+ * https://github.com/madler/zlib/blob/cacf7f1d4e3d44d871b605da3b647f07d718623f/zlib.h#L538
+ *
+ * @param levelVal {value} OCaml `int`: the compression level, must be in the range 0..9.
+ *     0 gives no compression at all, 1 the best speed, 9 the best compression.
+ * @param windowBitsVal {value} OCaml `int`: base two logarithm of the window size (size of the
+ *     history buffer) used by _zlib_. It should be in the range 9..15 for this version of _zlib_.
+ *     It can also be in the range -15..-8 (the absolute value is used) for raw deflate.
+ *     Finally, it can be greater than 15 for gzip encoding. See _zlib_'s documentation for
+ *     `deflateInit2` for the exact documentation.
+ * @return {value} An OCaml value representing the new stream, initialized for deflate.
+ */
+CAMLprim value zlib_deflate_init2(value level_val, value window_bits_val) {
+	int level = Int_val(level_val);
+	int window_bits = Int_val(window_bits_val);
+	value z_streamp_val = zlib_new_stream();
+	z_streamp stream = ZStreamP_val(z_streamp_val);
+
+	int deflate_init2_result = deflateInit2(
+		stream,
+		level,
+		Z_DEFLATED, // method
+		window_bits,
+		8, // memLevel
+		Z_DEFAULT_STRATEGY // strategy
+	);
+
+	if (deflate_init2_result == Z_OK) {
+		return z_streamp_val;
+	}
+
+	switch (deflate_init2_result) {
+		case Z_MEM_ERROR:
+			caml_raise_out_of_memory();
+			break;
+		case Z_STREAM_ERROR:
+			// TODO: use stream->msg to get _zlib_'s text message
+			failwith("Error in `zlib_deflate_init2` (extc_stubs.c): call to `deflateInit2` failed: Z_STREAM_ERROR");
+			break;
+		case Z_VERSION_ERROR:
+			// TODO: use stream->msg to get _zlib_'s text message
+			failwith("Error in `zlib_deflate_init2` (extc_stubs.c): call to `deflateInit2` failed: Z_VERSION_ERROR");
+			break;
+		default:
+			failwith("Error in `zlib_deflate_init2` (extc_stubs.c): unknown return code from `deflateInit2`");
+	}
+	assert(0);
 }
 
-CAMLprim value zlib_deflate( value zv, value src, value spos, value slen, value dst, value dpos, value dlen, value flush ) {
-	z_streamp z = zval(zv);
-	value res;
-	int r;
+/**
+ * OCaml binding for _zlib_'s `deflate` function.
+ *
+ * Compresses as much data as possible, and stops when the input buffer becomes empty or the output
+ * buffer becomes full.
+ *
+ * This function may raise the following OCaml exceptions:
+ * - Out_of_memory exception
+ * - Failure exception: Invalid parameters
+ * - Failure exception: Invalid version
+ * - Failure exception: Unknown zlib return code
+ *
+ * See:
+ * https://github.com/madler/zlib/blob/cacf7f1d4e3d44d871b605da3b647f07d718623f/zlib.h#L250
+ *
+ * @param stream_val {value} OCaml `Extc.zstream`: value containing a z_stream pointer to a deflate
+ *     stream.
+ * @param src {value} OCaml `bytes`: Source buffer
+ * @param spos {value} OCaml `int`: Index of the inclusive start offset of the source.
+ * @param slen {value} OCaml `int`: Length of the data to read from the source buffer, from spos.
+ * @param dst {value} OCaml `bytes`: Source buffer
+ * @param dpos {value} OCaml `int`: Index of the inclusive start offset of the source.
+ * @param dlen {value} OCaml `int`: Length of the data to read from the source buffer, from spos.
+ * @param flush_val {value} OCaml `Extc.zflush`: Controls the flush logic. See _zlib_'s
+ *     documentation.
+ * @return {value} OCaml `Extc.reslut`.
+ */
+CAMLprim value zlib_deflate(value stream_val, value src, value spos, value slen, value dst, value dpos, value dlen, value flush_val) {
+	z_streamp stream = ZStreamP_val(stream_val);
+	int flush = Zflush_val(flush_val);
 
-	z->next_in = (Bytef*)(String_val(src) + Int_val(spos));
-	z->next_out = (Bytef*)(String_val(dst) + Int_val(dpos));
-	z->avail_in = Int_val(slen);
-	z->avail_out = Int_val(dlen);
-	if( (r = deflate(z,Int_val(flush))) < 0 )
-		failwith("zlib_deflate");
+	stream->next_in = (Bytef*)(String_val(src) + Int_val(spos));
+	stream->next_out = (Bytef*)(String_val(dst) + Int_val(dpos));
+	stream->avail_in = Int_val(slen);
+	stream->avail_out = Int_val(dlen);
 
-	z->next_in = NULL;
-	z->next_out = NULL;
+	int deflate_result = deflate(stream, flush);
 
-	res = alloc_small(3, 0);
-	Field(res, 0) = Val_bool(r == Z_STREAM_END);
-	Field(res, 1) = Val_int(Int_val(slen) - z->avail_in);
-	Field(res, 2) = Val_int(Int_val(dlen) - z->avail_out);
-	return res;
+	if (deflate_result == Z_OK || deflate_result == Z_STREAM_END) {
+		stream->next_in = NULL;
+		stream->next_out = NULL;
+		value zresult = alloc_small(3, 0);
+		// z_finish
+		Field(zresult, 0) = Val_bool(deflate_result == Z_STREAM_END);
+		// z_read
+		Field(zresult, 1) = Val_int(Int_val(slen) - stream->avail_in);
+		// z_wrote
+		Field(zresult, 2) = Val_int(Int_val(dlen) - stream->avail_out);
+
+		return zresult;
+	}
+	switch (deflate_result) {
+		case Z_MEM_ERROR:
+			caml_raise_out_of_memory();
+			break;
+		case Z_STREAM_ERROR:
+			// TODO: use stream->msg to get _zlib_'s text message
+			failwith("Error in `zlib_deflate` (extc_stubs.c): call to `deflate` failed: Z_STREAM_ERROR");
+			break;
+		case Z_BUF_ERROR:
+			// TODO: use stream->msg to get _zlib_'s text message
+			failwith("Error in `zlib_deflate` (extc_stubs.c): call to `deflate` failed: Z_BUF_ERROR");
+			break;
+		default:
+			failwith("Error in `zlib_deflate` (extc_stubs.c): unknown return code from `deflate`");
+	}
+	assert(0);
 }
 
-CAMLprim value zlib_deflate_bytecode(value * arg, int nargs) {
-	return zlib_deflate(arg[0],arg[1],arg[2],arg[3],arg[4],arg[5],arg[6],arg[7]);
+CAMLprim value zlib_deflate_bytecode(value *arg, int nargs) {
+	return zlib_deflate(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5], arg[6], arg[7]);
 }
 
 CAMLprim value zlib_deflate_end(value zv) {
-	if( deflateEnd(zval(zv)) != 0 )
+	if( deflateEnd(ZStreamP_val(zv)) != 0 )
 		failwith("zlib_deflate_end");
 	return Val_unit;
 }
 
 CAMLprim value zlib_inflate_init(value wbits) {
 	value z = zlib_new_stream();
-	if( inflateInit2(zval(z),Int_val(wbits)) != Z_OK )
+	if( inflateInit2(ZStreamP_val(z),Int_val(wbits)) != Z_OK )
 		failwith("zlib_inflate_init");
 	return z;
 }
 
 CAMLprim value zlib_inflate( value zv, value src, value spos, value slen, value dst, value dpos, value dlen, value flush ) {
-	z_streamp z = zval(zv);
+	z_streamp z = ZStreamP_val(zv);
 	value res;
 	int r;
 
@@ -139,13 +343,13 @@ CAMLprim value zlib_inflate_bytecode(value * arg, int nargs) {
 }
 
 CAMLprim value zlib_inflate_end(value zv) {
-	if( inflateEnd(zval(zv)) != 0 )
+	if( inflateEnd(ZStreamP_val(zv)) != 0 )
 		failwith("zlib_inflate_end");
 	return Val_unit;
 }
 
 CAMLprim value zlib_deflate_bound(value zv,value len) {
-	return Val_int(deflateBound(zval(zv),Int_val(len)));
+	return Val_int(deflateBound(ZStreamP_val(zv),Int_val(len)));
 }
 
 CAMLprim value executable_path(value u) {
