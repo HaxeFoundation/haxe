@@ -161,7 +161,7 @@ static struct custom_operations zlib_stream_ops = {
  */
 value zlib_new_stream() {
     value z_streamp_val = caml_alloc_custom(&zlib_stream_ops, sizeof(z_streamp), 0, 1);
-    ZStreamP_val(z_streamp_val) = malloc(sizeof(z_stream));
+    ZStreamP_val(z_streamp_val) = caml_stat_alloc(sizeof(z_stream));
     ZStreamP_val(z_streamp_val)->zalloc = NULL;
     ZStreamP_val(z_streamp_val)->zfree = NULL;
     ZStreamP_val(z_streamp_val)->opaque = NULL;
