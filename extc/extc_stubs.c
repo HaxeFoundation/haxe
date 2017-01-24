@@ -130,8 +130,8 @@ void zlib_free_stream(value z_streamp_val) {
 }
 
 /**
- * Define the custom operations for a z_stream. This ensures that the memory of the owned
- * by the contained pointer is freed.
+ * Define the custom operations for a z_stream. This ensures that the memory owned
+ * by the z_stream pointer is freed.
  *
  * See:
  * https://github.com/ocaml/ocaml/blob/70d880a41a82aae1ebd428fd38100e8467f8535a/byterun/caml/custom.h#L25
