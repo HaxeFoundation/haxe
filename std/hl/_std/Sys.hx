@@ -137,7 +137,14 @@ class Sys {
 	}
 
 	public static function programPath() : String {
-		return makePath(sys_exe_path());
+		return sys_program_path;
+	}
+	private static var sys_program_path = {
+		var hlFile = sys_hl_file();
+		if( hlFile == null )
+			makePath( sys_exe_path() );
+		else
+			sys.FileSystem.fullPath( makePath(hlFile) );
 	}
 
 	@:hlNative("std", "sys_utf8_path") static function sys_utf8_path() : Bool { return false; }
@@ -160,6 +167,7 @@ class Sys {
 	@:hlNative("std", "sys_set_cwd") static function set_cwd( path : hl.Bytes ) : Bool { return true; }
 	@:hlNative("std", "sys_command") static function sys_command( cmd : hl.Bytes ) : Int { return 0; }
 	@:hlNative("std", "sys_exe_path") static function sys_exe_path() : hl.Bytes { return null; }
+	@:hlNative("std", "sys_hl_file") static function sys_hl_file() : hl.Bytes { return null; }
 	@:hlNative("std", "sys_string") static function sys_string() : hl.Bytes { return null; }
 
 }
