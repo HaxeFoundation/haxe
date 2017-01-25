@@ -229,7 +229,7 @@ class Path {
 		var colon = false;
 		var slashes = false;
 		for (i in 0...tmp.length) {
-			switch (tmp.charCodeAt(i)) {
+			switch (StringTools.fastCodeAt(tmp, i)) {
 				case ":".code:
 					acc.add(":");
 					colon = true;
