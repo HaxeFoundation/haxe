@@ -3648,9 +3648,19 @@ let generate com =
 		Hlinterp.check code false;
 	end;
 	let t = Common.timer ["write";"hl"] in
-	if file_extension com.file = "c" then
-		Hl2c.write_c com com.file code
-	else begin
+
+	let escape_command s =
+		let b = Buffer.create 0 in
+		String.iter (fun ch -> if (ch=='"' || ch=='\\' ) then Buffer.add_string b "\\";  Buffer.add_char b ch) s;
+		"\"" ^ Buffer.contents b ^ "\""
+	in
+
+	if file_extension com.file = "c" then begin
+		Hl2c.write_c com com.file code;
+		let t = Common.timer ["nativecompile";"hl"] in
+		if not (Common.defined com Define.NoCompilation) && com.run_command ("haxelib run hashlink build " ^ escape_command com.file) <> 0 then failwith "Build failed";
+		t();
+	end else begin
 		let ch = IO.output_string() in
 		write_code ch code true;
 		let str = IO.close_out ch in
@@ -3681,6 +3691,9 @@ let generate com =
 		close_out dbg; *)
 	end;
 	t();
+	if Common.raw_defined com "run" then begin
+		if com.run_command ("haxelib run hashlink run " ^ escape_command com.file) <> 0 then failwith "Failed to run HL";
+	end;
 	if Common.defined com Define.Interp then
 		try
 			let ctx = Hlinterp.create true in
