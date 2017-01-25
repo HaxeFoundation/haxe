@@ -1958,12 +1958,10 @@ let generate com =
 	    println ctx "  if (v ~= v or math.abs(v) == _G.math.huge) then return nil end";
 	    println ctx "  return _hx_bit.band(v, 2147483647 ) - math.abs(_hx_bit.band(v, 2147483648))";
 	    println ctx "end";
-	    println ctx "pcall(require, 'bit')";
-	    println ctx "if type(jit) == 'table' then";
+	    println ctx "if bit then";
 	    println ctx "  _hx_bit = bit";
-	    println ctx "else";
-	    println ctx "  pcall(require, 'bit32')";  (* also try bit32 *)
-	    println ctx "  local _hx_bit_raw = bit or bit32";
+	    println ctx "elseif bit32 then";
+	    println ctx "  local _hx_bit_raw = bit32";
 	    println ctx "  _hx_bit = setmetatable({}, { __index = _hx_bit_raw });";
 	    println ctx "  _hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end;"; (* lua 5.2  weirdness *)
 	    println ctx "end";

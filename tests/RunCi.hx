@@ -472,7 +472,7 @@ class RunCi {
 
 	static function installLuaVersionDependencies(lv:String){
 	  if (lv == "-l5.1"){
-	    runCommand("luarocks", ["install", "bit32", "5.3.0-1", "--server=https://luarocks.org/dev"]);
+	    runCommand("luarocks", ["install", "luabitop", "1.0.2-3", "--server=https://luarocks.org/dev"]);
 	  }
 	  runCommand("luarocks", ["install", "lrexlib-pcre", "2.8.0-1", "--server=https://luarocks.org/dev"]);
 	  runCommand("luarocks", ["install", "luv", "1.9.1-0", "--server=https://luarocks.org/dev"]);
