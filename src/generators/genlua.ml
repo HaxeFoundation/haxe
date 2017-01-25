@@ -1942,13 +1942,12 @@ let generate com =
 	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
 	(* Generate some dummy placeholders for utility libs that may be required*)
-	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp, _hx_table";
+	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp, _hx_table, _hx_bit_raw";
 
 	List.iter (transform_multireturn ctx) com.types;
 	List.iter (generate_type ctx) com.types;
 
 	if has_feature ctx "use._bitop" || has_feature ctx "lua.Boot.clamp" then begin
-	    println ctx "local _hx_bit_raw = require 'bit32'";
 	    println ctx "_hx_bit_clamp = function(v) ";
 	    println ctx "  if v <= 2147483647 and v >= -2147483648 then";
 	    println ctx "    if v > 0 then return _G.math.floor(v)";
@@ -1957,11 +1956,13 @@ let generate com =
 	    println ctx "  end";
 	    println ctx "  if v > 2251798999999999 then v = v*2 end;";
 	    println ctx "  if (v ~= v or v == _G.math.huge or v == -_G.math.huge) then return nil end";
-	    println ctx "  return _hx_bit_raw.band(v, 2147483647.0 ) - _hx_bit_raw.band(v, 2147483648.0)";
+	    println ctx "  return _hx_bit_raw.band(v, 2147483647 ) - math.abs(_hx_bit_raw.band(v, 2147483648))";
 	    println ctx "end";
 	    println ctx "if type(jit) == 'table' then";
+	    println ctx "  _hx_bit_raw = require('bit')";
 	    println ctx "  _hx_bit = setmetatable({},{__index = function(t,k) return function(...) return _hx_bit_clamp(rawget(_hx_bit_raw,k)(...)) end end})";
 	    println ctx "else";
+	    println ctx "  _hx_bit_raw = require('bit32')";
 	    println ctx "  _hx_bit = setmetatable({}, { __index = _hx_bit_raw })";
 	    println ctx "  _hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end";
 	    println ctx "end";
