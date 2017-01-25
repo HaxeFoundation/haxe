@@ -1958,6 +1958,7 @@ let generate com =
 	    println ctx "  if (v ~= v or math.abs(v) == _G.math.huge) then return nil end";
 	    println ctx "  return _hx_bit.band(v, 2147483647 ) - math.abs(_hx_bit.band(v, 2147483648))";
 	    println ctx "end";
+	    println ctx "pcall(require, 'bit')"; (* require this for lua 5.1 *)
 	    println ctx "if bit then";
 	    println ctx "  _hx_bit = bit";
 	    println ctx "elseif bit32 then";
