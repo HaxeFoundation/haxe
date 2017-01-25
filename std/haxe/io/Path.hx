@@ -241,7 +241,7 @@ class Path {
 						acc.add("/");
 						slashes = false;
 					}
-					acc.add(String.fromCharCode(i));
+					acc.addChar(i);
 			}
 		}
 		return acc.toString();
