@@ -72,6 +72,9 @@ extern class NativeArray {
    @:nativeStaticExtension
 	public static function memcmp<T>( inArrayA:Array<T>, inArrayB:Array<T>) : Int { }
 
+   @:native("_hx_reslove_virtual_array")
+	public static function resolveVirtualArray( inArray:Array<Dynamic>) : Dynamic { }
+
 
    #if cppia
 	public static inline function unsafeGet<T>( inDestArray:Array<T>, inIndex:Int) : T {

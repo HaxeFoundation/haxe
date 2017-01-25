@@ -262,6 +262,7 @@ class Unserializer {
  		case "a".code:
 			var buf = buf;
  			var a = new Array<Dynamic>();
+ 			#if cpp var cachePos = cache.length; #end
  			cache.push(a);
  			while( true ) {
  				var c = get(pos);
@@ -276,7 +277,11 @@ class Unserializer {
  				} else
  					a.push(unserialize());
  			}
+ 			#if cpp
+ 			return cache[cachePos] = cpp.NativeArray.resolveVirtualArray(a);
+ 			#else
  			return a;
+ 			#end
  		case "o".code:
 	 		var o = {};
 	 		cache.push(o);
