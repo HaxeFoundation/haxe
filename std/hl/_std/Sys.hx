@@ -42,6 +42,7 @@ class Sys {
 		return utf8Path ? s.bytes.utf16ToUtf8(0, null) : s.bytes;
 	}
 	static function makePath( b : hl.Bytes ) : String {
+		if( b == null ) return null;
 		return utf8Path ? String.fromUTF8(b) : String.fromUCS2(b);
 	}
 
