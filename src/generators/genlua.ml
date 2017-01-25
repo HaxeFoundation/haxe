@@ -1965,6 +1965,7 @@ let generate com =
 	    println ctx "  local _hx_bit_raw = bit32";
 	    println ctx "  _hx_bit = setmetatable({}, { __index = _hx_bit_raw });";
 	    println ctx "  _hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end;"; (* lua 5.2  weirdness *)
+	    println ctx "  _hx_bit.bxor = function(...) return _hx_bit_clamp(_hx_bit_raw.bxor(...)) end;"; (* lua 5.2  weirdness *)
 	    println ctx "end";
 	end;
 
