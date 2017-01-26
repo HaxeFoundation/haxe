@@ -62,6 +62,7 @@ type method_context = {
 	mutable mcontinues : (int -> unit) list;
 	mutable mbreaks : (int -> unit) list;
 	mutable mtrys : int;
+	mutable mloop_trys : int;
 	mutable mcaptreg : int;
 	mutable mcurpos : Globals.pos;
 	mutable massign : lassign list;
@@ -229,6 +230,7 @@ let method_context id t captured hasthis =
 		mhasthis = hasthis;
 		mcaptured = captured;
 		mtrys = 0;
+		mloop_trys = 0;
 		mcaptreg = 0;
 		mdebug = DynArray.create();
 		mcurpos = Globals.null_pos;
@@ -933,6 +935,15 @@ let before_return ctx =
 		end
 	in
 	loop ctx.m.mtrys
+
+let before_break_continue ctx =
+	let rec loop i =
+		if i > 0 then begin
+			op ctx (OEndTrap false);
+			loop (i - 1)
+		end
+	in
+	loop (ctx.m.mtrys - ctx.m.mloop_trys)
 
 let type_value ctx t p =
 	match t with
@@ -2312,9 +2323,10 @@ and eval_expr ctx e =
 		op ctx (OThrow (eval_to ctx v HDyn));
 		alloc_tmp ctx HDyn
 	| TWhile (cond,eloop,NormalWhile) ->
-		let oldb = ctx.m.mbreaks and oldc = ctx.m.mcontinues in
+		let oldb = ctx.m.mbreaks and oldc = ctx.m.mcontinues and oldtrys = ctx.m.mloop_trys in
 		ctx.m.mbreaks <- [];
 		ctx.m.mcontinues <- [];
+		ctx.m.mloop_trys <- ctx.m.mtrys;
 		let continue_pos = current_pos ctx in
 		let ret = jump_back ctx in
 		let j = jump_expr ctx cond false in
@@ -2325,11 +2337,13 @@ and eval_expr ctx e =
 		List.iter (fun f -> f continue_pos) ctx.m.mcontinues;
 		ctx.m.mbreaks <- oldb;
 		ctx.m.mcontinues <- oldc;
+		ctx.m.mloop_trys <- oldtrys;
 		alloc_tmp ctx HVoid
 	| TWhile (cond,eloop,DoWhile) ->
-		let oldb = ctx.m.mbreaks and oldc = ctx.m.mcontinues in
+		let oldb = ctx.m.mbreaks and oldc = ctx.m.mcontinues and oldtrys = ctx.m.mloop_trys in
 		ctx.m.mbreaks <- [];
 		ctx.m.mcontinues <- [];
+		ctx.m.mloop_trys <- ctx.m.mtrys;
 		let start = jump ctx (fun p -> OJAlways p) in
 		let continue_pos = current_pos ctx in
 		let ret = jump_back ctx in
@@ -2342,6 +2356,7 @@ and eval_expr ctx e =
 		List.iter (fun f -> f continue_pos) ctx.m.mcontinues;
 		ctx.m.mbreaks <- oldb;
 		ctx.m.mcontinues <- oldc;
+		ctx.m.mloop_trys <- oldtrys;
 		alloc_tmp ctx HVoid
 	| TCast (v,None) ->
 		let t = to_type ctx e.etype in
@@ -2498,11 +2513,13 @@ and eval_expr ctx e =
 		op ctx (OEnumField (r,eval_expr ctx ec,f.ef_index,index));
 		cast_to ctx r (to_type ctx e.etype) e.epos
 	| TContinue ->
+		before_break_continue ctx;
 		let pos = current_pos ctx in
 		op ctx (OJAlways (-1)); (* loop *)
 		ctx.m.mcontinues <- (fun target -> DynArray.set ctx.m.mops pos (OJAlways (target - (pos + 1)))) :: ctx.m.mcontinues;
 		alloc_tmp ctx HVoid
 	| TBreak ->
+		before_break_continue ctx;
 		let pos = current_pos ctx in
 		op ctx (OJAlways (-1)); (* loop *)
 		ctx.m.mbreaks <- (fun target -> DynArray.set ctx.m.mops pos (OJAlways (target - (pos + 1)))) :: ctx.m.mbreaks;
