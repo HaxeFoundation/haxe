@@ -153,4 +153,8 @@ class UI {
 	public static function stopLoop() : Void {
 	}
 
+	@:hlNative("ui","ui_close_console")
+	public static function closeConsole() : Void {
+	}
+	
 }
