@@ -3572,8 +3572,10 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let texpr = loop t in
 		mk (TCast (type_expr ctx e Value,Some texpr)) t p
 	| EDisplay (e,iscall) ->
-		if iscall then handle_signature_display ctx e with_type
-		else handle_display ctx e with_type
+		begin match ctx.com.display.dms_kind with
+			| DMField | DMSignature when iscall -> handle_signature_display ctx e with_type
+			| _ -> handle_display ctx e with_type
+		end
 	| EDisplayNew t ->
 		assert false
 		(*let t = Typeload.load_instance ctx t true p in
