@@ -37,6 +37,7 @@ class Boot {
 	static var hiddenFields : Table<String,Bool> = untyped __lua__("{__id__=true, hx__closures=true, super=true, prototype=true, __fields__=true, __ifields__=true, __class__=true, __properties__=true}");
 
 
+
 	static function __unhtml(s : String)
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
 
@@ -192,8 +193,9 @@ class Boot {
 			    if (o.__enum__ != null) printEnum(o,s);
 				else if (o.toString != null && !isArray(o)) o.toString();
 				else if (isArray(o)) {
+					var o2 : Array<Dynamic> = untyped o;
 					if (s.length > 5) "[...]"
-					else '[${[for (i in  cast(o,Array<Dynamic>)) __string_rec(i,s+1)].join(",")}]';
+					else '[${[for (i in o2) __string_rec(i,s+1)].join(",")}]';
 				}
 				else if (o.__class__ != null) printClass(o,s+"\t");
 				else {
@@ -360,5 +362,42 @@ class Boot {
 			},
 			hasNext : function() return cur_val !=  null
 		}
+	}
+
+	static var os_patterns = [
+		'Windows' => ['windows','^mingw','^cygwin'],
+		'Linux'   => ['linux'],
+		'Mac'     => ['mac','darwin'],
+		'BSD'     => ['bsd$'],
+		'Solaris' => ['SunOS']
+	];
+
+	public static function systemName() : String {
+		var os : String = null;
+		if (untyped jit != null && untyped jit.os != null ){
+			os = untyped jit.os;
+			os = os.toLowerCase();
+		} else {
+			var popen_status : Bool = false;
+			var popen_result : lua.FileHandle = null;
+			untyped __lua__("popen_status, popen_result = pcall(_G.io.popen, '')");
+			if (popen_status) {
+				popen_result.close;
+				os = lua.Io.popen('uname -s','r').read('*l').toLowerCase();
+			} else {
+				os = lua.Os.getenv('OS').toLowerCase();
+			}
+
+		}
+
+		for (k in os_patterns.keys()){
+			for (p in os_patterns.get(k)) {
+				if (lua.NativeStringTools.match(os,p) != null){
+					return k;
+				}
+			}
+		}
+
+		return null;
 	}
 }

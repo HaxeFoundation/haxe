@@ -98,7 +98,8 @@ class Log {
 			#elseif java
 			untyped __java__("java.lang.System.out.println(str)");
 			#elseif lua
-			untyped __define_feature__("use._hx_print",_hx_print(Std.string(str)));
+			if (str == null) str = "null";
+			untyped __define_feature__("use._hx_print",_hx_print(str));
 			#end
 		#elseif (python)
 			var str:String = null;

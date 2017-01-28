@@ -68,7 +68,7 @@ class Sys {
 	}
 
 	static function getSystemName() : String {
-		return untyped _hx_os_info()[1];
+		return lua.Boot.systemName();
 	}
 
 	public static function systemName() : String {
@@ -120,8 +120,4 @@ class Sys {
 	public static function time() : Float
 		return lua.lib.luasocket.Socket.gettime();
 
-	static function __init__() : Void untyped {
-		// os detection helper
-		haxe.macro.Compiler.includeFile("lua/_lua/_hx_os_info.lua");
-	}
 }

@@ -192,7 +192,7 @@ abstract CollectGarbageOption(String) {
 @:multiReturn
 extern class PCallResult {
 	var status : Bool;
-	var error : String;
+	var value : Dynamic;
 }
 
 @:multiReturn
