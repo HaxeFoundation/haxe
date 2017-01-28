@@ -296,7 +296,7 @@ class Boot {
 			var intf = untyped cl1.__interfaces__;
 			for (i in 1...( TableTools.maxn(intf) + 1)){
 				// check each interface, including extended interfaces
-				if (extendsOrImplements(intf[1], cl2)) return true;
+				if (extendsOrImplements(intf[i], cl2)) return true;
 			}
 		}
 		// check standard inheritance
