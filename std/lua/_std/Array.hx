@@ -106,6 +106,7 @@ class Array<T> {
 			i += 1;
 		}
 	}
+
 	public function splice( pos : Int, len : Int ) : Array<T> {
 		if (len < 0 || pos > length) return [];
 		else if (pos < 0) pos = length -(-pos % length);

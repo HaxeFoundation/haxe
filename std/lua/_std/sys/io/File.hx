@@ -24,6 +24,7 @@ import lua.Lua;
 import lua.Io;
 import lua.Os;
 import lua.FileHandle;
+import lua.Boot;
 
 @:coreApi
 class File {
@@ -40,8 +41,10 @@ class File {
 	}
 
 	public static function copy( srcPath : String, dstPath : String ) : Void {
-		// TODO : escape paths
-		Os.execute('copy $srcPath $dstPath');
+		switch (Sys.systemName()) {
+			case "Windows" : Os.execute('copy ${StringTools.quoteWinArg(srcPath, true)} ${StringTools.quoteWinArg(dstPath,true)}');
+			default : Os.execute('copy ${StringTools.quoteUnixArg(srcPath)} ${StringTools.quoteUnixArg(dstPath)}');
+		};
 	}
 
 	public static function getBytes( path : String ) : haxe.io.Bytes {
