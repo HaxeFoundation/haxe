@@ -4108,6 +4108,7 @@ and type_call ctx e el (with_type:with_type) p =
 	| (EConst (Ident "$type"),_) , [e] ->
 		let e = type_expr ctx e Value in
 		ctx.com.warning (s_type (print_context()) e.etype) e.epos;
+		let e = Display.Diagnostics.secure_generated_code ctx e in
 		e
 	| (EField(e,"match"),p), [epat] ->
 		let et = type_expr ctx e Value in
