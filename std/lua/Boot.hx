@@ -307,16 +307,6 @@ class Boot {
 
 
 	/*
-	   Create an empty table for vectors
-	*/
-	// TODO: provide a simpler anonymous table generator syntax in genlua
-	public static function createVectorTable<K,V>(length:Int) : Table<K,V> {
-		var table : Table<K,V> = untyped __lua__("{}");
-		untyped table.length = length;
-		return table;
-	}
-
-	/*
 		Returns a shell escaped version of "cmd" along with any args
 	*/
 	public static function shellEscapeCmd(cmd : String, ?args : Array<String>){

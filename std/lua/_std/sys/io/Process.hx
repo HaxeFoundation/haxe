@@ -51,7 +51,7 @@ class Process {
 	  by the shell.
 	**/
 	static function setArgs(cmd : String, ?args : Array<String>) : Table<Int,String>{
-		var pargs = lua.Boot.createVectorTable(0);
+		var pargs = lua.Table.create();
 		var idx = 1;
 		if (sys.FileSystem.exists(cmd)) cmd = '"$cmd"'; // escape simple paths
 		var all = [cmd];

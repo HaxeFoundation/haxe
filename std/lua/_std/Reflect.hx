@@ -25,7 +25,6 @@ import lua.Boot;
 @:coreApi class Reflect {
 
 	public inline static function hasField( o : Dynamic, field : String ) : Bool {
-		// TODO: Lua can't detect fields that are set to null, figure out a workaround.
 		return untyped o.__fields__ != null ? o.__fields__[field] != null :  o[field] != null;
 	}
 
