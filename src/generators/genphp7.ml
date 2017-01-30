@@ -833,6 +833,10 @@ class virtual type_wrapper (type_path:path) (meta:metadata) (needs_generation:bo
 			Full type path
 		*)
 		method get_type_path = type_path
+		(**
+			If current type requires some additional type to be generated
+		*)
+		method get_service_type : module_type option = None
 	end
 
 (**
@@ -876,6 +880,33 @@ class class_wrapper (cls) =
 			Returns `Type.module_type` instance for this type
 		*)
 		method get_module_type = TClassDecl cls
+		(**
+			If current type requires some additional type to be generated
+		*)
+		method get_service_type : module_type option =
+			if not cls.cl_extern then
+				None
+			else
+				match cls.cl_init with
+					| None -> None
+					| Some body ->
+						let path =
+							match cls.cl_path with
+								| (pack, name) -> (pack @ ["_" ^ name], ("_extern_" ^ name))
+						in
+						let additional_cls = {
+							cls with
+								cl_extern =  false;
+								cl_path = path;
+								cl_fields  = PMap.create (fun a b -> 0);
+								cl_statics  = PMap.create (fun a b -> 0);
+								cl_ordered_fields  = [];
+								cl_ordered_statics  = [];
+								cl_constructor = None;
+								cl_overrides = [];
+								cl_init = Some body
+						} in
+						Some (TClassDecl additional_cls)
 	end
 
 (**
@@ -3454,14 +3485,18 @@ class generator (com:context) =
 let generate (com:context) =
 	let gen = new generator com in
 	gen#initialize;
-	let generate com_type =
+	let rec generate com_type =
 		let wrapper = get_wrapper com_type in
 		if wrapper#needs_generation then
-			match com_type with
+			(match com_type with
 				| TClassDecl cls -> gen#generate (new class_builder com cls);
 				| TEnumDecl enm -> gen#generate (new enum_builder com enm);
 				| TTypeDecl typedef -> ();
 				| TAbstractDecl abstr -> ()
+			);
+		match wrapper#get_service_type with
+			| None -> ()
+			| Some service_type -> generate service_type
 	in
 	List.iter generate com.types;
 	gen#finalize;
