@@ -1409,29 +1409,28 @@ class virtual type_builder ctx wrapper =
 				| _ :: parent :: rest -> expr_is_block parent rest true
 				| _ -> false
 		(**
-			Returns parent expression.
+			Returns parent expression  (bypasses casts and metas)
 		*)
 		method private parent_expr =
+			let rec traverse expr parents =
+				match expr.eexpr with
+					| TCast (_, None)
+					| TMeta _ ->
+						(match parents with
+							| parent :: rest -> traverse parent rest
+							| [] -> None
+						)
+					| _ -> Some expr
+			in
 			match expr_hierarchy with
-				| _ :: expr :: _ -> Some expr
+				| _ :: parent :: rest -> traverse parent rest
 				| _ -> None
 		(**
 			Indicates if parent expression is a call (bypasses casts and metas)
 		*)
 		method private parent_expr_is_call =
-			let rec expr_is_call expr parents =
-				match expr.eexpr with
-					| TCast _
-					| TMeta _ ->
-						(match parents with
-							| parent :: rest -> expr_is_call parent rest
-							| [] -> false
-						)
-					| TCall _ -> true
-					| _ -> false
-			in
-			match expr_hierarchy with
-				| _ :: parent :: rest -> expr_is_call parent rest
+			match self#parent_expr with
+				| Some { eexpr = TCall _ } -> true
 				| _ -> false
 		(**
 			Position of currently generated code in source hx files
