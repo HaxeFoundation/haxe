@@ -610,6 +610,15 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		in
 		let e = List.fold_left inline_meta e cf.cf_meta in
 		let e = Display.Diagnostics.secure_generated_code ctx e in
+		if Meta.has (Meta.Custom ":inlineDebug") ctx.meta then begin
+			let se t = s_expr_pretty true t true (s_type (print_context())) in
+			print_endline (Printf.sprintf "Inline %s:\n\tArgs: %s\n\tExpr: %s\n\tResult: %s"
+				cf.cf_name
+				(String.concat "" (List.map (fun (i,e) -> Printf.sprintf "\n\t\t%s<%i> = %s" (i.i_subst.v_name) (i.i_subst.v_id) (se "\t\t" e)) inlined_vars))
+				(se "\t" f.tf_expr)
+				(se "\t" e)
+			);
+		end;
 		(* we need to replace type-parameters that were used in the expression *)
 		if not has_params then
 			Some e
