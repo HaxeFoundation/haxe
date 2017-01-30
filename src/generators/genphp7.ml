@@ -1761,39 +1761,39 @@ class virtual type_builder ctx wrapper =
 			Writes TArray to output buffer
 		*)
 		method private write_expr_array_access target index =
-			(*self#write_expr target;
-			self#write "[";
-			self#write_expr index;
-			self#write "]"*)
 			let write_index left_bracket right_bracket =
 				self#write left_bracket;
 				self#write_expr index;
 				self#write right_bracket
 			in
+			let write_fast_access () =
+				self#write "(";
+				self#write_expr target;
+				self#write "->arr";
+				write_index "[" "] ?? null)"
+			and write_normal_access () =
+				self#write_expr target;
+				write_index "[" "]"
+			in
 			match follow target.etype with
 				| TInst ({ cl_path = path }, _) when path = array_type_path ->
 					(match self#parent_expr with
-						| Some { eexpr = TBinop (OpAssign, { eexpr = TArray (t, i) }, _) } when t == target ->
-							self#write_expr target;
-							write_index "[" "]"
-						| Some { eexpr = TBinop (OpAssignOp _, { eexpr = TArray (t, i) }, _) } when t == target ->
-							self#write_expr target;
-							write_index "[" "]"
-						| Some { eexpr = TUnop (op, _, { eexpr = TArray (t, i) }) } when t == target && is_modifying_unop op ->
-							self#write_expr target;
-							write_index "[" "]"
-						| Some { eexpr = TField ({ eexpr = TArray (t, i) }, _) } ->
-							self#write_expr target;
-							write_index "[" "]"
-						| _ ->
-							self#write "(";
-							self#write_expr target;
-							self#write "->arr";
-							write_index "[" "] ?? null)"
+						| None -> write_fast_access ()
+						| Some expr ->
+							match (reveal_expr expr).eexpr with
+								| TBinop (OpAssign, { eexpr = TArray (t, i) }, _) when t == target ->
+									write_normal_access ()
+								| TBinop (OpAssignOp _, { eexpr = TArray (t, i) }, _) when t == target ->
+									write_normal_access ()
+								| TUnop (op, _, { eexpr = TArray (t, i) }) when t == target && is_modifying_unop op ->
+									write_normal_access ()
+								| TField ({ eexpr = TArray (t, i) }, _) ->
+									write_normal_access ()
+								| _ ->
+									write_fast_access ()
 					)
 				| _ ->
-					self#write_expr target;
-					write_index "[" "]"
+					write_normal_access ()
 		(**
 			Writes TVar to output buffer
 		*)
