@@ -1942,36 +1942,40 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		| AKAccess(a,tl,c,ebase,ekey) ->
 			let cf_get,tf_get,r_get,ekey,_ = AbstractCast.find_array_access ctx a tl ekey None p in
 			(* bind complex keys to a variable so they do not make it into the output twice *)
-			let ekey,l = match Optimizer.make_constant_expression ctx ekey with
-				| Some e -> e, fun () -> None
+			let save = save_locals ctx in
+			let maybe_bind_to_temp e = match Optimizer.make_constant_expression ctx e with
+				| Some e -> e,None
 				| None ->
-					let save = save_locals ctx in
-					let v = gen_local ctx ekey.etype p in
-					let e = mk (TLocal v) ekey.etype p in
-					e, fun () -> (save(); Some (mk (TVar (v,Some ekey)) ctx.t.tvoid p))
+					let v = gen_local ctx e.etype p in
+					let e' = mk (TLocal v) e.etype p in
+					e', Some (mk (TVar (v,Some e)) ctx.t.tvoid p)
 			in
+			let ekey,ekey' = maybe_bind_to_temp ekey in
+			let ebase,ebase' = maybe_bind_to_temp ebase in
 			let eget = mk_array_get_call ctx (cf_get,tf_get,r_get,ekey,None) c ebase p in
 			let eget = type_binop2 ctx op eget e2 true (WithType eget.etype) p in
 			unify ctx eget.etype r_get p;
 			let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_access ctx a tl ekey (Some eget) p in
 			let eget = match eget with None -> assert false | Some e -> e in
 			let et = type_module_type ctx (TClassDecl c) None p in
-			begin match cf_set.cf_expr,cf_get.cf_expr with
+			let e = match cf_set.cf_expr,cf_get.cf_expr with
 				| None,None ->
 					let ea = mk (TArray(ebase,ekey)) r_get p in
 					mk (TBinop(OpAssignOp op,ea,type_expr ctx e2 (WithType r_get))) r_set p
 				| Some _,Some _ ->
 					let ef_set = mk (TField(et,(FStatic(c,cf_set)))) tf_set p in
-					(match l() with
-					| None -> make_call ctx ef_set [ebase;ekey;eget] r_set p
-					| Some e ->
-						mk (TBlock [
-							e;
-							make_call ctx ef_set [ebase;ekey;eget] r_set p
-						]) r_set p)
+					let el = [make_call ctx ef_set [ebase;ekey;eget] r_set p] in
+					let el = match ebase' with None -> el | Some ebase -> ebase :: el in
+					let el = match ekey' with None -> el | Some ekey -> ekey :: el in
+					begin match el with
+						| [e] -> e
+						| el -> mk (TBlock el) r_set p
+					end
 				| _ ->
 					error "Invalid array access getter/setter combination" p
-			end;
+			in
+			save();
+			e
 		| AKInline _ | AKMacro _ ->
 			assert false)
 	| _ ->
