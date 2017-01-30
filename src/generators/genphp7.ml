@@ -1774,20 +1774,26 @@ class virtual type_builder ctx wrapper =
 				self#write_expr target;
 				write_index "[" "]"
 			in
+			let write_depending_on e =
+				match (reveal_expr e).eexpr with
+					| TArray (t, i) when t  == target ->
+						write_normal_access ()
+					| _ ->
+						write_fast_access ()
+			in
 			match follow target.etype with
 				| TInst ({ cl_path = path }, _) when path = array_type_path ->
 					(match self#parent_expr with
 						| None -> write_fast_access ()
 						| Some expr ->
 							match (reveal_expr expr).eexpr with
-								| TBinop (OpAssign, { eexpr = TArray (t, i) }, _) when t == target ->
-									write_normal_access ()
-								| TBinop (OpAssignOp _, { eexpr = TArray (t, i) }, _) when t == target ->
-									write_normal_access ()
-								| TUnop (op, _, { eexpr = TArray (t, i) }) when t == target && is_modifying_unop op ->
-									write_normal_access ()
-								| TField ({ eexpr = TArray (t, i) }, _) ->
-									write_normal_access ()
+								| TUnop (op, _, e) when is_modifying_unop op ->
+									write_depending_on e
+								| TBinop (OpAssign, e, _)
+								| TBinop (OpAssignOp _, e, _)
+								| TField (e, _)
+								| TArray (e, _) ->
+									write_depending_on e
 								| _ ->
 									write_fast_access ()
 					)
