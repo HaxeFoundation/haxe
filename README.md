@@ -23,6 +23,7 @@ Haxe allows you to compile for the following targets:
  * PHP
  * Python
  * Lua
+ * [HashLink](http://hashlink.haxe.org/)
 
 You can try Haxe directly from your browser at [try.haxe.org](http://try.haxe.org)!
 
@@ -40,7 +41,7 @@ For the complete Haxe licenses, please see https://haxe.org/foundation/open-sour
 
 ## Installing Haxe
 
-The latest stable release is [Haxe 3.4.0-rc.2](https://haxe.org/download/). Pre-built binaries are available for your platform:
+The latest stable release is available at [https://haxe.org/download/](https://haxe.org/download/). Pre-built binaries are available for your platform:
 
  * **[Windows installer](https://haxe.org/download/file/latest/haxe-latest-win.exe/)**
  * **[Windows binaries](https://haxe.org/download/file/latest/haxe-latest-win.zip/)**
@@ -91,6 +92,7 @@ Haxe   | neko
 3.1.3  | 2.0.0
 3.2.0  | 2.0.0
 3.3.0  | 2.1.0
+3.4.0  | 2.1.0
 
 
 ## Contributing
