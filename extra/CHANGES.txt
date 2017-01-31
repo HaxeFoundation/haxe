@@ -1,11 +1,15 @@
-2017-??-??: 3.4.0
+2017-01-31: 3.4.0
 
 	General improvements and optimizations:
 
 	all : support completion for static extensions (#5766)
 	all : removed neko dependency for macros, use PCRE instead
 	all : disabled analyzer optimizations by default, re-enable with -D analyzer-optimize
-	php7/hl : made various improvements
+	php7 : generate native `$v instanceof MyType` instead of `Std.is(v, MyType)` where possible for better performance
+	php7 : added @:phpNoConstructor meta for externs which do not have native php constructors and yet can be constructed
+	php7 : greatly reduced amount of generated tmp vars
+	php7 : `Array` performance improvements
+	hl : made various improvements
 
 	Bugfixes:
 
