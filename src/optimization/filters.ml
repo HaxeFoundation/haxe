@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -901,7 +901,7 @@ let add_meta_field ctx t = match t with
 			f.cf_expr <- Some e;
 			let can_deal_with_interface_metadata () = match ctx.com.platform with
 				| Flash when Common.defined ctx.com Define.As3 -> false
-				| Php when not (Common.php7 ctx.com) -> false
+				| Php when not (Common.is_php7 ctx.com) -> false
 				| _ -> true
 			in
 			if c.cl_interface && not (can_deal_with_interface_metadata()) then begin
@@ -1129,7 +1129,7 @@ let run com tctx main =
 		apply_native_paths;
 		add_rtti;
 		(match com.platform with | Java | Cs -> (fun _ _ -> ()) | _ -> add_field_inits);
-		add_meta_field;
+		(match com.platform with Hl -> (fun _ _ -> ()) | _ -> add_meta_field);
 		check_void_field;
 		(match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ _ -> ()) );
 		commit_features;

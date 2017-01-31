@@ -3,6 +3,7 @@ package lua;
 /**
 	This library provides generic functions for table manipulation.
 **/
+// TODO: use an abstract here?
 @:native("_G.table")
 extern class Table<A,B> implements ArrayAccess<B> implements Dynamic<B> {
 	public inline static function create<A,B>(?arr:Array<B>, ?hsh:Dynamic<B>) : Table<A,B> {

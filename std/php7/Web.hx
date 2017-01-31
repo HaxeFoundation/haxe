@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -37,10 +37,7 @@ class Web {
 	**/
 	public static function getParams() : Map<String,String> {
 		#if force_std_separator
-		var a : NativeArray = untyped __php__("$_POST");
-		if(untyped __call__("get_magic_quotes_gpc"))
-			untyped __php__("reset($a); while(list($k, $v) = each($a)) $a[$k] = stripslashes((string)$v)");
-		var h = Lib.hashOfAssociativeArray(a);
+		var h = Lib.hashOfAssociativeArray(_POST);
 		var params = getParamsString();
 		if( params == "" )
 			return h;
@@ -51,10 +48,7 @@ class Web {
 		}
 		return h;
 		#else
-		var a : NativeArray = untyped __php__("array_merge($_GET, $_POST)");
-		if(untyped __call__("get_magic_quotes_gpc"))
-			untyped __php__("reset($a); while(list($k, $v) = each($a)) $a[$k] = stripslashes((string)$v)");
-		return Lib.hashOfAssociativeArray(a);
+		return Lib.hashOfAssociativeArray(array_merge(_GET, _POST));
 		#end
 	}
 
@@ -84,13 +78,12 @@ class Web {
 		explore(getPostData());
 
 		if (res.length == 0) {
-			var post:haxe.ds.StringMap<Dynamic> = Lib.hashOfAssociativeArray(untyped __php__("$_POST"));
+			var post:haxe.ds.StringMap<Dynamic> = Lib.hashOfAssociativeArray(_POST);
 			var data = post.get(param);
-			var k = 0, v = "";
-			if (untyped __call__("is_array", data)) {
-				untyped __php__(" reset($data); while(list($k, $v) = each($data)) { ");
-				res[k] = v;
-				untyped __php__(" } ");
+			if (is_array(data)) {
+				foreach(data, function(key:Int, value:String) {
+					res[key] = value;
+				});
 			}
 		}
 
@@ -103,21 +96,21 @@ class Web {
 		Returns the local server host name.
 	**/
 	public static inline function getHostName() : String {
-		return untyped __php__("$_SERVER['SERVER_NAME']");
+		return _SERVER['SERVER_NAME'];
 	}
 
 	/**
 		Surprisingly returns the client IP address.
 	**/
 	public static inline function getClientIP() : String {
-		return untyped __php__("$_SERVER['REMOTE_ADDR']");
+		return _SERVER['REMOTE_ADDR'];
 	}
 
 	/**
 		Returns the original request URL (before any server internal redirections).
 	**/
 	public static function getURI() : String {
-		var s : String = untyped __php__("$_SERVER['REQUEST_URI']");
+		var s : String = _SERVER['REQUEST_URI'];
 		return s.split("?")[0];
 	}
 
@@ -125,7 +118,7 @@ class Web {
 		Tell the client to redirect to the given url ("Location" header).
 	**/
 	public static function redirect( url : String ) {
-		untyped __call__('header', "Location: " + url);
+		header("Location: " + url);
 	}
 
 	/**
@@ -133,7 +126,7 @@ class Web {
 		already been sent so this will raise an exception.
 	**/
 	public static inline function setHeader( h : String, v : String ) {
-		untyped __call__('header', h+": "+v);
+		header('$h: $v');
 	}
 
 	/**
@@ -185,7 +178,7 @@ class Web {
 			case 505: code = "505 HTTP Version Not Supported";
 			default: code = Std.string(r);
 		}
-		untyped __call__('header', "HTTP/1.1 " + code, true, r);
+		header("HTTP/1.1 " + code, true, r);
 	}
 
 	/**
@@ -258,8 +251,8 @@ class Web {
 		Returns all the GET parameters `String`
 	**/
 	public static function getParamsString() : String {
-		if(untyped __call__("isset", __var__("_SERVER", "QUERY_STRING")))
-			return untyped __var__("_SERVER", "QUERY_STRING");
+		if(isset(_SERVER['QUERY_STRING']))
+			return _SERVER['QUERY_STRING'];
 		else
 			return "";
 	}
@@ -273,16 +266,16 @@ class Web {
 		`php.Web.parseMultipart()` methods.
 	**/
 	public static function getPostData() {
-		var h = untyped __call__("fopen", "php://input", "r");
+		var h = fopen("php://input", "r");
 		var bsize = 8192;
 		var max = 32;
 		var data : String = null;
 		var counter = 0;
-		while (!untyped __call__("feof", h) && counter < max) {
-			data += untyped __call__("fread", h, bsize);
+		while (!feof(h) && counter < max) {
+			data += fread(h, bsize);
 			counter++;
 		}
-		untyped __call__("fclose", h);
+		fclose(h);
 		return data;
 	}
 
@@ -292,7 +285,7 @@ class Web {
 		instead.
 	**/
 	public static function getCookies():Map<String,String> {
-		return Lib.hashOfAssociativeArray(untyped __php__("$_COOKIE"));
+		return Lib.hashOfAssociativeArray(_COOKIE);
 	}
 
 
@@ -305,23 +298,23 @@ class Web {
 		if(domain == null) domain = '';
 		if(secure == null) secure = false;
 		if(httpOnly == null) httpOnly = false;
-		untyped __call__("setcookie", key, value, t, path, domain, secure, httpOnly);
+		setcookie(key, value, t, path, domain, secure, httpOnly);
 	}
 
 	/**
 		Returns an object with the authorization sent by the client (Basic scheme only).
 	**/
 	public static function getAuthorization() : { user : String, pass : String } {
-		if(!untyped __php__("isset($_SERVER['PHP_AUTH_USER'])"))
+		if(!isset(_SERVER['PHP_AUTH_USER']))
 			return null;
-		return untyped {user: __php__("$_SERVER['PHP_AUTH_USER']"), pass: __php__("$_SERVER['PHP_AUTH_PW']")};
+		return {user: _SERVER['PHP_AUTH_USER'], pass: _SERVER['PHP_AUTH_PW']};
 	}
 
 	/**
 		Get the current script directory in the local filesystem.
 	**/
 	public static inline function getCwd() : String {
-		return untyped __php__("dirname($_SERVER[\"SCRIPT_FILENAME\"])") + "/";
+		return dirname(_SERVER['SCRIPT_FILENAME']) + "/";
 	}
 
 	/**
@@ -358,30 +351,27 @@ class Web {
 		directly save the data on hard drive in the case of a file upload.
 	**/
 	public static function parseMultipart( onPart : String -> String -> Void, onData : Bytes -> Int -> Int -> Void ) : Void {
-		var a : NativeArray = untyped __var__("_POST");
-		if(untyped __call__("get_magic_quotes_gpc"))
-			untyped __php__("reset($a); while(list($k, $v) = each($a)) $a[$k] = stripslashes((string)$v)");
-		var post = Lib.hashOfAssociativeArray(a);
+		var post = Lib.hashOfAssociativeArray(_POST);
 
 		for (key in post.keys())
 		{
 			onPart(key, "");
 			var v = post.get(key);
-			onData(Bytes.ofString(v), 0, untyped __call__("strlen", v));
+			onData(Bytes.ofString(v), 0, strlen(v));
 		}
 
-		if(!untyped __call__("isset", __php__("$_FILES"))) return;
-		var parts : Array<String> = untyped __call__("new _hx_array",__call__("array_keys", __php__("$_FILES")));
+		if(!isset(_FILES)) return;
+		var parts : Array<String> = @:privateAccess Array.wrap(array_keys(_FILES));
 		for(part in parts) {
-			var info : Dynamic = untyped __php__("$_FILES[$part]");
-			var tmp : String = untyped info['tmp_name'];
-			var file : String = untyped info['name'];
-			var err : Int = untyped info['error'];
+			var info : NativeAssocArray<Dynamic> = _FILES[part];
+			var tmp : String = info['tmp_name'];
+			var file : String = info['name'];
+			var err : Int = info['error'];
 
 			if(err > 0) {
 				switch(err) {
-					case 1: throw "The uploaded file exceeds the max size of " + untyped __call__('ini_get', 'upload_max_filesize');
-					case 2: throw "The uploaded file exceeds the max file size directive specified in the HTML form (max is" + untyped __call__('ini_get', 'post_max_size') + ")";
+					case 1: throw "The uploaded file exceeds the max size of " + ini_get('upload_max_filesize');
+					case 2: throw "The uploaded file exceeds the max file size directive specified in the HTML form (max is" + ini_get('post_max_size') + ")";
 					case 3: throw "The uploaded file was only partially uploaded";
 					case 4: continue; // No file was uploaded
 					case 6: throw "Missing a temporary folder";
@@ -392,14 +382,14 @@ class Web {
 			onPart(part, file);
 			if ("" != file)
 			{
-				var h = untyped __call__("fopen", tmp, "r");
+				var h = fopen(tmp, "r");
 				var bsize = 8192;
-				while (!untyped __call__("feof", h)) {
-					var buf : String = untyped __call__("fread", h, bsize);
-					var size : Int = untyped __call__("strlen", buf);
+				while (!feof(h)) {
+					var buf : String = fread(h, bsize);
+					var size : Int = strlen(buf);
 					onData(Bytes.ofString(buf), 0, size);
 				}
-				untyped __call__("fclose", h);
+				fclose(h);
 			}
 		}
 	}
@@ -409,15 +399,15 @@ class Web {
 		this can be useful for displaying some long operation progress.
 	**/
 	public static inline function flush() : Void {
-		untyped __call__("flush");
+		flush();
 	}
 
 	/**
 		Get the HTTP method used by the client.
 	**/
 	public static function getMethod() : String {
-		if(untyped __php__("isset($_SERVER['REQUEST_METHOD'])"))
-			return untyped __php__("$_SERVER['REQUEST_METHOD']");
+		if(isset(_SERVER['REQUEST_METHOD']))
+			return _SERVER['REQUEST_METHOD'];
 		else
 			return null;
 	}
@@ -425,6 +415,6 @@ class Web {
 	public static var isModNeko(default,null) : Bool;
 
 	static function __init__() {
-		isModNeko = !php.Lib.isCli();
+		isModNeko = !Lib.isCli();
 	}
 }

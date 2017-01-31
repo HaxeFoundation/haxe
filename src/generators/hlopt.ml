@@ -1,5 +1,5 @@
 (*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -111,8 +111,6 @@ let opcode_fx frw op =
 		write d
 	| OSetGlobal (_,a) ->
 		read a;
-	| OSetMethod (o,_,_) ->
-		read o;
 	| OField (d,a,_) | ODynGet (d,a,_) ->
 		read a; write d
 	| OSetField (a,_,b) | ODynSet (a,_,b)->
@@ -272,8 +270,6 @@ let opcode_map read write op =
 		OGetGlobal (write d, g)
 	| OSetGlobal (g,r) ->
 		OSetGlobal (g, read r)
-	| OSetMethod (o,f,m) ->
-		OSetMethod (read o, f, m)
 	| OField (d,a,f) ->
 		let a = read a in
 		OField (write d, a, f)

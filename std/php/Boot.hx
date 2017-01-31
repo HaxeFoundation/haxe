@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -769,6 +769,12 @@ class _hx_type {
 		$this->__path__ = $path;
 		if(property_exists($cn, '__meta__'))
 			$this->__meta__ =  eval($cn.'::$__meta__');
+	}
+
+	public function __ensureMeta__() {
+		if(property_exists($this->__tname__, '__meta__') && !$this->__meta__) {
+			$this->__meta__ =  eval($this->__tname__.'::$__meta__');
+		}
 	}
 
 	public function toString()   { return $this->__toString(); }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -71,6 +71,9 @@ extern class NativeArray {
 
    @:nativeStaticExtension
 	public static function memcmp<T>( inArrayA:Array<T>, inArrayB:Array<T>) : Int { }
+
+   @:native("_hx_reslove_virtual_array")
+	public static function resolveVirtualArray( inArray:Array<Dynamic>) : Dynamic { }
 
 
    #if cppia

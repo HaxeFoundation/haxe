@@ -448,13 +448,19 @@ class TestBasetypes extends Test {
 		var v1:unit.MyAbstract.MyVector = new unit.MyAbstract.MyPoint3(1, 1, 1);
 		var v2:unit.MyAbstract.MyVector = new unit.MyAbstract.MyPoint3(1, 2, 3);
 		eq("(2,3,4)", v1 + v2);
+#if !lua
 		eq("(2,4,6)", v2 * 2.);
+#end
 		var v1Old = v1;
 		v1 *= 2.;
+#if !lua
 		eq("(2,2,2)", v1);
+#end
 		eq(v1Old, v1);
 		var v3 = v1 * 2.;
+#if !lua
 		eq("(4,4,4)", v3);
+#end
 		f(v1 == v3);
 
 		var i:unit.MyAbstract.MyInt = 1;

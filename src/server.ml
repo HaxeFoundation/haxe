@@ -430,7 +430,10 @@ let rec wait_loop process_params verbose accept =
 				incr compilation_step;
 				compilation_mark := !mark_loop;
 				List.iter (fun s -> write (s ^ "\n"); if verbose then print_endline ("> " ^ s)) (List.rev ctx.messages);
-				if ctx.has_error then write "\x02\n" else cache_context ctx.com;
+				if ctx.has_error then begin
+					measure_times := false;
+					write "\x02\n"
+				end else cache_context ctx.com;
 			);
 			ctx.setup <- (fun() ->
 				let sign = get_signature ctx.com in

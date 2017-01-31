@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -3511,19 +3511,25 @@ let type_module ctx mpath file ?(is_extern=false) tdecls p =
 
 let resolve_module_file com m remap p =
 	let forbid = ref false in
-	let file = (match m with
+	let compose_path no_rename =
+		(match m with
 		| [] , name -> name
 		| x :: l , name ->
 			let x = (try
 				match PMap.find x com.package_rules with
 				| Forbidden -> forbid := true; x
-				| Directory d -> d
+				| Directory d -> if no_rename then x else d
 				| Remap d -> remap := d :: l; d
 				with Not_found -> x
 			) in
 			String.concat "/" (x :: l) ^ "/" ^ name
-	) ^ ".hx" in
-	let file = Common.find_file com file in
+		) ^ ".hx"
+	in
+	let file = try
+			Common.find_file com (compose_path false)
+		with Not_found ->
+			Common.find_file com (compose_path true)
+	in
 	let file = (match String.lowercase (snd m) with
 	| "con" | "aux" | "prn" | "nul" | "com1" | "com2" | "com3" | "lpt1" | "lpt2" | "lpt3" when Sys.os_type = "Win32" ->
 		(* these names are reserved by the OS - old DOS legacy, such files cannot be easily created but are reported as visible *)

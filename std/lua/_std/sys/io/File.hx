@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,12 +24,13 @@ import lua.Lua;
 import lua.Io;
 import lua.Os;
 import lua.FileHandle;
+import lua.Boot;
 
 @:coreApi
 class File {
 	public static function getContent( path : String ) : String {
 		var f = Io.open(path, "r");
-		var s = f.read(All);
+		var s = f.read("*all");
 		f.close();
 		return s;
 	}
@@ -40,7 +41,10 @@ class File {
 	}
 
 	public static function copy( srcPath : String, dstPath : String ) : Void {
-		Os.execute('copy $srcPath $dstPath');
+		switch (Sys.systemName()) {
+			case "Windows" : Os.execute('copy ${StringTools.quoteWinArg(srcPath, true)} ${StringTools.quoteWinArg(dstPath,true)}');
+			default : Os.execute('copy ${StringTools.quoteUnixArg(srcPath)} ${StringTools.quoteUnixArg(dstPath)}');
+		};
 	}
 
 	public static function getBytes( path : String ) : haxe.io.Bytes {

@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -316,7 +316,7 @@ let get_signature com =
 		com.defines_signature <- Some s;
 		s
 
-let php7 com = com.platform = Php && PMap.exists "php7" com.defines
+let is_php7 com = com.platform = Php && PMap.exists "php7" com.defines
 
 module CompilationServer = struct
 	type cache = {
@@ -478,6 +478,7 @@ module Define = struct
 		| HaxeVer
 		| HxcppApiLevel
 		| HxcppGcGenerational
+		| HxcppDebugger
 		| IncludePrefix
 		| Interp
 		| JavaVer
@@ -498,7 +499,6 @@ module Define = struct
 		| NetworkSandbox
 		| NetVer
 		| NetTarget
-		| NoAnalyzer
 		| NoCompilation
 		| NoCOpt
 		| NoDeprecationWarnings
@@ -573,6 +573,7 @@ module Define = struct
 		| HaxeVer -> ("haxe_ver","The current Haxe version value")
 		| HxcppApiLevel -> ("hxcpp_api_level","Provided to allow compatibility between hxcpp versions")
 		| HxcppGcGenerational -> ("HXCPP_GC_GENERATIONAL","Experimental Garbage Collector")
+		| HxcppDebugger -> ("HXCPP_DEBUGGER","Include additional information for HXCPP_DEBUGGER")
 		| IncludePrefix -> ("include_prefix","prepend path to generated include files")
 		| Interp -> ("interp","The code is compiled to be run with --interp")
 		| JavaVer -> ("java_ver", "<version:5-7> Sets the Java version to be targeted")
@@ -593,7 +594,6 @@ module Define = struct
 		| NekoSource -> ("neko_source","Output neko source instead of bytecode")
 		| NekoV1 -> ("neko_v1","Keep Neko 1.x compatibility")
 		| NetworkSandbox -> ("network-sandbox","Use local network sandbox instead of local file access one")
-		| NoAnalyzer -> ("no-analyzer","Disable the static analyzer")
 		| NoCompilation -> ("no-compilation","Disable final compilation for Cs, Cpp and Java")
 		| NoCOpt -> ("no_copt","Disable completion optimization (for debug purposes)")
 		| NoDebug -> ("no_debug","Remove all debug macros from cpp output")
@@ -707,7 +707,7 @@ let get_config com =
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
 		}
 	| Php ->
-		if php7 com then
+		if is_php7 com then
 			{
 				default_config with
 				pf_static = false;

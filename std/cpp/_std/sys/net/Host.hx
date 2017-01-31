@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,17 +30,25 @@ class Host {
 
 	public var ip(default,null) : Int;
 
+   private var ipv6(default,null) : haxe.io.BytesData;
+
 	public function new( name : String ) : Void {
 		host = name;
-		ip = NativeSocket.host_resolve(name);
+      try {
+			ip = NativeSocket.host_resolve(name);
+      }
+      catch(e:Dynamic)
+      {
+		   ipv6 = NativeSocket.host_resolve_ipv6(name);
+      }
 	}
 
 	public function toString() : String {
-		return NativeSocket.host_to_string(ip);
+		return ipv6==null ? NativeSocket.host_to_string(ip) : NativeSocket.host_to_string_ipv6(ipv6);
 	}
 
 	public function reverse() : String {
-		return NativeSocket.host_reverse(ip);
+		return ipv6==null ? NativeSocket.host_reverse(ip) : NativeSocket.host_reverse_ipv6(ipv6);
 	}
 
 	public static function localhost() : String {

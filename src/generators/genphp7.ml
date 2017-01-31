@@ -112,6 +112,10 @@ let void_type_path = ([], "Void")
 	Type path of the `Bool`
 *)
 let bool_type_path = ([], "Bool")
+(**
+	Type path of the `Std`
+*)
+let std_type_path = ([], "Std")
 
 (**
 	Stub to use when you need a `Ast.pos` instance, but don't have one
@@ -206,6 +210,17 @@ let rec reveal_expr expr =
 		| _ -> expr
 
 (**
+	If `expr` is a TCast or TMeta or TParenthesis, then returns underlying expression (recursively bypassing nested casts and parenthesis).
+	Otherwise returns `expr` as is.
+*)
+let rec reveal_expr_with_parenthesis expr =
+	match expr.eexpr with
+		| TCast (e, _) -> reveal_expr_with_parenthesis e
+		| TMeta (_, e) -> reveal_expr_with_parenthesis e
+		| TParenthesis e -> reveal_expr_with_parenthesis e
+		| _ -> expr
+
+(**
 	@return Error message with position information
 *)
 let error_message pos message = (Lexer.get_error_pos (Printf.sprintf "%s:%d:") pos) ^ ": " ^ message
@@ -235,7 +250,7 @@ let rec is_dynamic_type (target:Type.t) = match follow target with TDynamic _ ->
 (**
 	Check if `target` is `php.Ref`
 *)
-let is_ref (target:Type.t) = match target with TAbstract ({ a_path = type_path }, _) -> type_path = ref_type_path | _ -> false
+let is_ref (target:Type.t) = match target with TType ({ t_path = type_path }, _) -> type_path = ref_type_path | _ -> false
 
 (**
 	Check if `field` is a `dynamic function`
@@ -364,6 +379,12 @@ let needs_dereferencing expr =
 			| TArrayDecl _ -> true
 			| TObjectDecl _ -> true
 			| TConst TNull -> true
+			(* some of `php.Syntax` methods *)
+			| TCall ({ eexpr = TField (_, FStatic ({ cl_path = syntax_type_path }, { cf_name = name })) }, _) ->
+				(match name with
+					| "binop" | "object" | "array" -> true
+					| _ -> false
+				)
 			| _ -> false
 	in
 	match expr.eexpr with
@@ -685,6 +706,26 @@ let ensure_return_in_block block_expr =
 		| _ -> fail block_expr.epos (try assert false with Assert_failure mlpos -> mlpos)
 
 (**
+	If `expr` is a block, then return list of expressions in that block.
+	Otherwise returns a list with `expr` as a single item.
+*)
+let unpack_block expr =
+		match expr.eexpr with
+			| TBlock exprs -> exprs
+			| _ -> [ expr ]
+
+(**
+	If `expr` is a block of a single expression, then return that single expression.
+	If `expr` is a block with multiple expressions, fail compilation.
+	Otherwise return `expr` as-is.
+*)
+let unpack_single_expr_block expr =
+		match expr.eexpr with
+			| TBlock [ e ] -> e
+			| TBlock _ -> fail expr.epos (try assert false with Assert_failure mlpos -> mlpos)
+			| _ -> expr
+
+(**
 	Check if specified type has rtti meta
 *)
 let has_rtti_meta ctx mtype =
@@ -725,12 +766,34 @@ let field_name field =
 		field.cf_name
 
 (**
+	Check if `expr` is `Std.is`
+*)
+let is_std_is expr =
+	match expr.eexpr with
+		| TField (_, FStatic ({ cl_path = path }, { cf_name = "is" })) -> path = boot_type_path || path = std_type_path
+		| _ -> false
+
+(**
+	Check if `subject_arg` and `type_arg` can be generated as `$subject instanceof Type` expression.
+*)
+let instanceof_compatible (subject_arg:texpr) (type_arg:texpr) : bool =
+	match (reveal_expr_with_parenthesis type_arg).eexpr with
+		| TTypeExpr (TClassDecl { cl_path = path }) when path <> ([], "String") && path <> ([], "Class") ->
+			let subject_arg = reveal_expr_with_parenthesis subject_arg in
+			(match subject_arg.eexpr with
+				| TLocal _ | TField _ | TCall _ | TArray _ -> not (is_magic subject_arg)
+				| _ -> false
+			)
+		| _ -> false
+
+
+(**
 	PHP DocBlock types
 *)
 type doc_type =
 	| DocVar of string * (string option) (* (type name, description) *)
 	| DocMethod of (string * bool * t) list * t * (string option) (* (arguments, return type, description) *)
-| DocClass of string option
+	| DocClass of string option
 
 (**
 	Common interface for module_type instances
@@ -770,6 +833,10 @@ class virtual type_wrapper (type_path:path) (meta:metadata) (needs_generation:bo
 			Full type path
 		*)
 		method get_type_path = type_path
+		(**
+			If current type requires some additional type to be generated
+		*)
+		method get_service_type : module_type option = None
 	end
 
 (**
@@ -813,6 +880,33 @@ class class_wrapper (cls) =
 			Returns `Type.module_type` instance for this type
 		*)
 		method get_module_type = TClassDecl cls
+		(**
+			If current type requires some additional type to be generated
+		*)
+		method get_service_type : module_type option =
+			if not cls.cl_extern then
+				None
+			else
+				match cls.cl_init with
+					| None -> None
+					| Some body ->
+						let path =
+							match cls.cl_path with
+								| (pack, name) -> (pack @ ["_" ^ name], ("_extern_" ^ name))
+						in
+						let additional_cls = {
+							cls with
+								cl_extern =  false;
+								cl_path = path;
+								cl_fields  = PMap.create (fun a b -> 0);
+								cl_statics  = PMap.create (fun a b -> 0);
+								cl_ordered_fields  = [];
+								cl_ordered_statics  = [];
+								cl_constructor = None;
+								cl_overrides = [];
+								cl_init = Some body
+						} in
+						Some (TClassDecl additional_cls)
 	end
 
 (**
@@ -975,6 +1069,19 @@ let type_name_used_in_namespace ctx name namespace =
 			List.mem name types
 
 (**
+	Simple list intersection implementation.
+	@return A list of values existing in each of source lists.
+*)
+let rec list_intersect list1 list2 =
+	match list2 with
+		| [] -> []
+		| item :: rest ->
+			if List.mem item list1 then
+				item :: (list_intersect list1 rest)
+			else
+				list_intersect list1 rest
+
+(**
 	Class to simplify collecting lists of declared and used local vars.
 	Collected data is needed to generate closures correctly.
 *)
@@ -984,12 +1091,15 @@ class local_vars =
 		val mutable used_locals = [Hashtbl.create 100]
 		(** Hashtbl to collect local vars declared in current scope *)
 		val mutable declared_locals = [Hashtbl.create 100]
+		(** Local vars which were captured in closures (passed via `use` directive in php) *)
+		val captured_locals = Hashtbl.create 0
 		(**
 			Clear collected data
 		*)
 		method clear : unit =
 			used_locals <- [Hashtbl.create 100];
-			declared_locals <- [Hashtbl.create 100]
+			declared_locals <- [Hashtbl.create 100];
+			Hashtbl.clear captured_locals
 		(**
 			This method should be called upone entering deeper scope.
 			E.g. right before processing a closure. Just before closure arguments handling.
@@ -1001,8 +1111,9 @@ class local_vars =
 			This method should be called right after leaving a scope.
 			@return List of vars names used in finished scope, but declared in higher scopes.
 					And list of vars names declared in finished scope.
+					And list of vars names declared in finished scope and captured by closures via `use` directive
 		*)
-		method pop : string list * string list =
+		method pop : string list * string list * string list =
 			match used_locals with
 				| [] -> assert false
 				| used :: rest_used ->
@@ -1014,17 +1125,24 @@ class local_vars =
 							used_locals <- rest_used;
 							declared_locals <- rest_declared;
 							List.iter self#used higher_vars;
-							(higher_vars, declared_vars)
+							let captured_vars = list_intersect declared_vars (hashtbl_keys captured_locals) in
+							List.iter (fun name -> Hashtbl.remove captured_locals name) declared_vars;
+							(higher_vars, declared_vars, captured_vars)
 		(**
 			This method should be called right after leaving a scope.
 			@return List of vars names used in finished scope, but declared in higher scopes
 		*)
-		method pop_used : string list = match self#pop with (higher_vars, _) -> higher_vars
+		method pop_used : string list = match self#pop with (higher_vars, _, _) -> higher_vars
 		(**
 			This method should be called right after leaving a scope.
 			@return List of vars names declared in finished scope
 		*)
-		method pop_declared : string list = match self#pop with (_, declared_vars) -> declared_vars
+		method pop_declared : string list = match self#pop with (_, declared_vars, _) -> declared_vars
+		(**
+			Get current list of captured variables.
+			After leaving a scope all vars declared in that scope get removed from a list of captured variables.
+		*)
+		method pop_captured : string list = match self#pop with (_, _, captured_vars) -> captured_vars
 		(**
 			Specify local var name declared in current scope
 		*)
@@ -1039,6 +1157,11 @@ class local_vars =
 			match used_locals with
 				| [] -> assert false
 				| current :: _ -> Hashtbl.replace current name name
+		(**
+			Mark specified vars as captured by closures.
+		*)
+		method captured (var_names:string list) : unit =
+			List.iter (fun name -> Hashtbl.replace captured_locals name name) var_names
 	end
 
 (**
@@ -1249,53 +1372,65 @@ class virtual type_builder ctx wrapper =
 						| _ when Meta.has Meta.CoreType abstr.a_meta -> "mixed"
 						| _ -> self#use_t abstr.a_this
 		(**
+			Indicates if there is no constructor in inheritance chain of this type.
+			Own constructor is ignored.
+		*)
+		method private extends_no_constructor = true
+		(**
 			Indicates whether current expression nesting level is a top level of a block
 		*)
-		method private parent_expr_is_block =
-			let rec expr_is_block expr parents =
+		method private parent_expr_is_block single_expr_is_not_block =
+			let rec expr_is_block expr parents no_parent_is_block =
 				match expr.eexpr with
+					| TBlock [_] when single_expr_is_not_block ->
+						(match parents with
+							| { eexpr = TBlock _ } :: _ -> true
+							| { eexpr = TFunction _ } :: _ -> true
+							| _ :: _ -> false
+							| [] -> no_parent_is_block
+						)
 					| TBlock _ -> true
 					| TIf (_, if_expr, Some else_expr) ->
-						if (expr_is_block if_expr []) || (expr_is_block else_expr []) then
+						if (expr_is_block if_expr [] false) || (expr_is_block else_expr [] false) then
 							true
 						else
 							(match parents with
-								| parent :: rest -> expr_is_block parent rest
+								| parent :: rest -> expr_is_block parent rest true
 								| [] -> false
 							)
 					| TIf (_, _, None) -> true
 					| TTry _ -> true
 					| TWhile _ -> true
+					| TFor _ -> true
 					| TSwitch _ -> true
 					| _ -> false
 			in
 			match expr_hierarchy with
-				| _ :: parent :: rest -> expr_is_block parent rest
+				| _ :: parent :: rest -> expr_is_block parent rest true
 				| _ -> false
 		(**
-			Returns parent expression.
+			Returns parent expression  (bypasses casts and metas)
 		*)
 		method private parent_expr =
+			let rec traverse expr parents =
+				match expr.eexpr with
+					| TCast (_, None)
+					| TMeta _ ->
+						(match parents with
+							| parent :: rest -> traverse parent rest
+							| [] -> None
+						)
+					| _ -> Some expr
+			in
 			match expr_hierarchy with
-				| _ :: expr :: _ -> Some expr
+				| _ :: parent :: rest -> traverse parent rest
 				| _ -> None
 		(**
 			Indicates if parent expression is a call (bypasses casts and metas)
 		*)
 		method private parent_expr_is_call =
-			let rec expr_is_call expr parents =
-				match expr.eexpr with
-					| TCast _
-					| TMeta _ ->
-						(match parents with
-							| parent :: rest -> expr_is_call parent rest
-							| [] -> false
-						)
-					| TCall _ -> true
-					| _ -> false
-			in
-			match expr_hierarchy with
-				| _ :: parent :: rest -> expr_is_call parent rest
+			match self#parent_expr with
+				| Some { eexpr = TCall _ } -> true
 				| _ -> false
 		(**
 			Position of currently generated code in source hx files
@@ -1515,6 +1650,7 @@ class virtual type_builder ctx wrapper =
 					self#write ")"
 				| TObjectDecl fields -> self#write_expr_object_declaration fields
 				| TArrayDecl exprs -> self#write_expr_array_decl exprs
+				| TCall (target, [arg1; arg2]) when is_std_is target && instanceof_compatible arg1 arg2 -> self#write_expr_lang_instanceof [arg1; arg2]
 				| TCall ({ eexpr = TLocal { v_name = name }}, args) when is_magic expr -> self#write_expr_magic name args
 				| TCall ({ eexpr = TField (expr, access) }, args) when is_string expr -> self#write_expr_call_string expr access args
 				| TCall (expr, args) when is_lang_extern expr -> self#write_expr_call_lang_extern expr args
@@ -1591,13 +1727,18 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write_expr_const const =
 			match const with
-				| TInt value -> self#write (Int32.to_string value)
 				| TFloat str -> self#write str
 				| TString str -> self#write ("\"" ^ (escape_bin str) ^ "\"")
 				| TBool value -> self#write (if value then "true" else "false")
 				| TNull -> self#write "null"
 				| TThis -> self#write "$this"
 				| TSuper -> self#write "parent"
+				| TInt value ->
+					(* See https://github.com/HaxeFoundation/haxe/issues/5289 *)
+					if value = Int32.min_int then
+						self#write "((int)-2147483648)"
+					else
+						self#write (Int32.to_string value)
 		(**
 			Writes TArrayDecl to output buffer
 		*)
@@ -1619,39 +1760,45 @@ class virtual type_builder ctx wrapper =
 			Writes TArray to output buffer
 		*)
 		method private write_expr_array_access target index =
-			(*self#write_expr target;
-			self#write "[";
-			self#write_expr index;
-			self#write "]"*)
 			let write_index left_bracket right_bracket =
 				self#write left_bracket;
 				self#write_expr index;
 				self#write right_bracket
 			in
+			let write_fast_access () =
+				self#write "(";
+				self#write_expr target;
+				self#write "->arr";
+				write_index "[" "] ?? null)"
+			and write_normal_access () =
+				self#write_expr target;
+				write_index "[" "]"
+			in
+			let write_depending_on e =
+				match (reveal_expr e).eexpr with
+					| TArray (t, i) when t  == target ->
+						write_normal_access ()
+					| _ ->
+						write_fast_access ()
+			in
 			match follow target.etype with
 				| TInst ({ cl_path = path }, _) when path = array_type_path ->
 					(match self#parent_expr with
-						| Some { eexpr = TBinop (OpAssign, { eexpr = TArray (t, i) }, _) } when t == target ->
-							self#write_expr target;
-							write_index "[" "]"
-						| Some { eexpr = TBinop (OpAssignOp _, { eexpr = TArray (t, i) }, _) } when t == target ->
-							self#write_expr target;
-							write_index "[" "]"
-						| Some { eexpr = TUnop (op, _, { eexpr = TArray (t, i) }) } when t == target && is_modifying_unop op ->
-							self#write_expr target;
-							write_index "[" "]"
-						| Some { eexpr = TField ({ eexpr = TArray (t, i) }, _) } ->
-							self#write_expr target;
-							write_index "[" "]"
-						| _ ->
-							self#write "(";
-							self#write_expr target;
-							self#write "->arr";
-							write_index "[" "] ?? null)"
+						| None -> write_fast_access ()
+						| Some expr ->
+							match (reveal_expr expr).eexpr with
+								| TUnop (op, _, e) when is_modifying_unop op ->
+									write_depending_on e
+								| TBinop (OpAssign, e, _)
+								| TBinop (OpAssignOp _, e, _)
+								| TField (e, _)
+								| TArray (e, _) ->
+									write_depending_on e
+								| _ ->
+									write_fast_access ()
 					)
 				| _ ->
-					self#write_expr target;
-					write_index "[" "]"
+					write_normal_access ()
 		(**
 			Writes TVar to output buffer
 		*)
@@ -1709,8 +1856,9 @@ class virtual type_builder ctx wrapper =
 			self#write_expr (inject_defaults ctx func);
 			let body = Buffer.contents buffer in
 			buffer <- original_buffer;
-			(* Use captured local vars *)
+			(* Capture local vars used in closures *)
 			let used_vars = vars#pop_used in
+			vars#captured used_vars;
 			self#write " ";
 			if List.length used_vars > 0 then begin
 				self#write " use (";
@@ -1750,7 +1898,7 @@ class virtual type_builder ctx wrapper =
 				end
 			else
 				begin
-					let inline_block = self#parent_expr_is_block in
+					let inline_block = self#parent_expr_is_block false in
 					self#write_as_block ~inline:inline_block block_expr
 				end
 		(**
@@ -1794,7 +1942,7 @@ class virtual type_builder ctx wrapper =
 						write_exprs();
 						let body = Buffer.contents buffer in
 						buffer <- original_buffer;
-						let locals = vars#pop_declared in
+						let locals = vars#pop_captured in
 						if List.length locals > 0 then begin
 							self#write ("unset($" ^ (String.concat ", $" locals) ^ ");\n");
 							self#write_indentation
@@ -1940,6 +2088,8 @@ class virtual type_builder ctx wrapper =
 							)
 						| "__var__" ->
 							(match args with
+								| [] ->
+									self#write ("$" ^ code)
 								| [expr2] ->
 									self#write ("$" ^ code ^ "[");
 									self#write_expr expr2;
@@ -2474,15 +2624,17 @@ class virtual type_builder ctx wrapper =
 		method private write_expr_lang_instanceof args =
 			match args with
 				| val_expr :: type_expr :: [] ->
+					self#write "(";
 					self#write_expr val_expr;
 					self#write " instanceof ";
-					(match type_expr.eexpr with
+					(match (reveal_expr type_expr).eexpr with
 						| TTypeExpr (TClassDecl tcls) ->
 							self#write (self#use_t (TInst (tcls, [])))
 						| _ ->
 							self#write_expr type_expr;
 							if not (is_string type_expr) then self#write "->phpClassName"
-					)
+					);
+					self#write ")"
 				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
 		(**
 			Writes `foreach` expression to output buffer (for `php.Syntax.foreach()`)
@@ -2510,15 +2662,21 @@ class virtual type_builder ctx wrapper =
 			Writes TCall to output buffer
 		*)
 		method private write_expr_call target_expr args =
-			let target_expr = reveal_expr target_expr in
+			let target_expr = reveal_expr target_expr
+			and no_call = ref false in
 			(match target_expr.eexpr with
-				| TConst TSuper -> self#write "parent::__construct"
+				| TConst TSuper ->
+					no_call := self#extends_no_constructor;
+					if not !no_call then self#write "parent::__construct"
 				| TField (expr, FClosure (_,_)) -> self#write_expr (parenthesis target_expr)
 				| _ -> self#write_expr target_expr
 			);
-			self#write "(";
-			write_args buffer self#write_expr args;
-			self#write ")";
+			if not !no_call then
+				begin
+					self#write "(";
+					write_args buffer self#write_expr args;
+					self#write ")"
+				end
 		(**
 			Writes a name of a function or a constant from global php namespace
 		*)
@@ -2546,8 +2704,9 @@ class virtual type_builder ctx wrapper =
 			Writes ternary operator expressions to output buffer
 		*)
 		method private write_expr_ternary condition if_expr (else_expr:texpr) pos =
-			let parent_is_if = match self#parent_expr with Some { eexpr = TIf _ } -> true | _ -> false in
-			if parent_is_if then self#write "(";
+			let if_expr = unpack_single_expr_block if_expr
+			and else_expr = unpack_single_expr_block else_expr in
+			self#write "(";
 			(match condition.eexpr with
 				| TParenthesis expr -> self#write_expr expr;
 				| _ -> self#write_expr else_expr
@@ -2556,17 +2715,19 @@ class virtual type_builder ctx wrapper =
 			self#write_expr if_expr;
 			self#write " : ";
 			self#write_expr else_expr;
-			if parent_is_if then self#write ")"
+			self#write ")"
 		(**
 			Writes "if...else..." expression to output buffer
 		*)
 		method private write_expr_if condition if_expr (else_expr:texpr option) =
 			let is_ternary =
-				if self#parent_expr_is_block then
+				if self#parent_expr_is_block true then
 					false
 				else
 					match (if_expr.eexpr, else_expr) with
-						| (TBlock _, _) | (_, Some { eexpr=TBlock _ }) -> false
+						| (TBlock exprs, _)  when (List.length exprs) > 1 -> false
+						| (_, Some { eexpr=TBlock exprs }) when (List.length exprs) > 1 -> false
+						| (_, None) -> false
 						| _ -> true
 			in
 			if is_ternary then
@@ -2824,6 +2985,24 @@ class class_builder ctx (cls:tclass) =
 		*)
 		method is_final_field (field:tclass_field) : bool =
 			Meta.has Meta.Final field.cf_meta
+		(**
+			Check if there is no native php constructor in inheritance chain of this class.
+			E.g. `StsClass` does have a constructor while still can be called with `new StdClass()`.
+			So this method will return true for `MyClass` if `MyClass extends StdClass`.
+		*)
+		method private extends_no_constructor =
+			let rec extends_no_constructor tcls =
+				match tcls.cl_super with
+					| None -> true
+					| Some (parent, _) ->
+						if Meta.has Meta.PhpNoConstructor parent.cl_meta then
+							true
+						else
+							match parent.cl_constructor with
+								| Some _ -> false
+								| None -> extends_no_constructor parent
+			in
+			extends_no_constructor cls
 		(**
 			Recursively check if current class is a parent class for a `child`
 		*)
@@ -3311,14 +3490,18 @@ class generator (com:context) =
 let generate (com:context) =
 	let gen = new generator com in
 	gen#initialize;
-	let generate com_type =
+	let rec generate com_type =
 		let wrapper = get_wrapper com_type in
 		if wrapper#needs_generation then
-			match com_type with
+			(match com_type with
 				| TClassDecl cls -> gen#generate (new class_builder com cls);
 				| TEnumDecl enm -> gen#generate (new enum_builder com enm);
 				| TTypeDecl typedef -> ();
 				| TAbstractDecl abstr -> ()
+			);
+		match wrapper#get_service_type with
+			| None -> ()
+			| Some service_type -> generate service_type
 	in
 	List.iter generate com.types;
 	gen#finalize;

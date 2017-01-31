@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -34,7 +34,7 @@ class ObjectMap <K:{ }, V> implements haxe.Constraints.IMap<K,V> {
 		_values = new NativeAssocArray();
 	}
 
-	public function set(key:K, value:V):Void untyped {
+	public function set(key:K, value:V):Void {
 		var id = Global.spl_object_hash(key);
 		_keys[id] = key;
 		_values[id] = value;

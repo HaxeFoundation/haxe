@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -745,6 +745,7 @@ and parse_using s p1 =
 			| [< '(Kwd Extern,p) >] ->
 				loop (("extern",p) :: acc)
 			| [< >] ->
+				if is_resuming p then type_path (List.map fst acc) false;
 				serror()
 			end
 		| [< '(Semicolon,p2) >] ->

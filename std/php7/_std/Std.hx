@@ -1,7 +1,7 @@
 import php.Boot;
 
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -33,8 +33,8 @@ import php.Syntax;
 		return Boot.is(v, t);
 	}
 
-	public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
-		return Std.is(value, c) ? cast value : null;
+	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+		return Boot.is(value, cast c) ? cast value : null;
 	}
 
 	public static function string( s : Dynamic ) : String {
@@ -83,7 +83,7 @@ import php.Syntax;
 		}
 	}
 
-	public static function random( x : Int ) : Int {
+	public static inline function random( x : Int ) : Int {
 		return x <= 1 ? 0 : Global.mt_rand(0, x - 1);
 	}
 

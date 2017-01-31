@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -33,7 +33,7 @@ using php.Global;
 		if (!o.is_object()) return false;
 		if (o.property_exists(field)) return true;
 
-		if (Syntax.instanceof(o, cast Boot.getHxClass())) {
+		if (Boot.isClass(o)) {
 			if (Global.property_exists(o.phpClassName, field)) return true;
 			return Global.method_exists(o.phpClassName, field);
 		}
@@ -51,7 +51,7 @@ using php.Global;
 			return Boot.closure(o, field);
 		}
 
-		if (Syntax.instanceof(o, cast Boot.getHxClass())) {
+		if (Boot.isClass(o)) {
 			if (Global.property_exists(o.phpClassName, field)) {
 				return Syntax.getField(o, field);
 			}
@@ -94,7 +94,7 @@ using php.Global;
 	}
 
 	public static function callMethod( o : Dynamic, func : Function, args : Array<Dynamic> ) : Dynamic {
-		if (Syntax.instanceof(func, Closure)) {
+		if (Std.is(func, Closure)) {
 			if (o != null) {
 				func = cast cast(func, Closure).bindTo(o);
 			}
@@ -111,12 +111,8 @@ using php.Global;
 		return [];
 	}
 
-	public static function isFunction( f : Dynamic ) : Bool {
-		if (Syntax.instanceof(f, Closure)) {
-			return true;
-		} else {
-			return Syntax.instanceof(f, cast Boot.closureHxClass());
-		}
+	public static inline function isFunction( f : Dynamic ) : Bool {
+		return Boot.isFunction(f);
 	}
 
 	public static function compare<T>( a : T, b : T ) : Int {
@@ -129,8 +125,7 @@ using php.Global;
 	}
 
 	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool {
-		var hxClosure : Class<Dynamic> = cast Boot.closureHxClass();
-		if (Syntax.instanceof(f1, hxClosure) && Syntax.instanceof(f2, hxClosure)) {
+		if (Boot.isHxClosure(f1) && Boot.isHxClosure(f2)) {
 			return f1.equals(f2);
 		} else {
 			return f1 == f2;

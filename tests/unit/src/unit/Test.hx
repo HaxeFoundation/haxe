@@ -272,5 +272,8 @@ class Test {
 		success = false;
 		reportInfos = null;
 		trace("STACK :\n"+stack);
+#if lua
+		Sys.exit(1);
+#end
 	}
 }

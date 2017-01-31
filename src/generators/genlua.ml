@@ -1573,7 +1573,6 @@ let generate_class ctx c =
 		let bend = open_block ctx in
 		newline ctx;
 		let count = ref 0 in
-
 		List.iter (fun f -> if can_gen_class_field ctx f then (gen_class_field ctx c f (!count > 0); incr count;) ) c.cl_ordered_fields;
 		if (has_class ctx c) then begin
 			newprop ctx;
@@ -1644,13 +1643,13 @@ let generate_enum ctx e =
 			print ctx "function(%s) local _x = _hx_tab_array({[0]=\"%s\",%d,%s,__enum__=%s}, %i);" sargs f.ef_name f.ef_index sargs p (count + 2);
 			if has_feature ctx "may_print_enum" then
 				(* TODO: better namespacing for _estr *)
-				spr ctx " _x.toString = _estr;";
+				spr ctx " rawset(_x, 'toString', _estr);";
 			spr ctx " return _x; end ";
 			ctx.separator <- true;
 		| _ ->
 			println ctx "_hx_tab_array({[0]=\"%s\",%d,__enum__ = %s},2)" f.ef_name f.ef_index p;
 			if has_feature ctx "may_print_enum" then begin
-				println ctx "%s%s.toString = _estr" p (field f.ef_name);
+				println ctx "rawset(%s%s, 'toString', _estr)" p (field f.ef_name);
 			end;
 		);
 		newline ctx
@@ -1711,10 +1710,8 @@ let generate_type ctx = function
 		| None -> ()
 		| Some e ->
 			ctx.inits <- e :: ctx.inits);
-		(* Special case, want to add Math.__name__ only when required, handle here since Math is extern *)
 		let p = s_path ctx c.cl_path in
-		if p = "Math" then generate_class___name__ ctx c;
-		(* Another special case for Std because we do not want to generate it if it's empty. *)
+		(* A special case for Std because we do not want to generate it if it's empty. *)
 		if p = "Std" && c.cl_ordered_statics = [] then
 			()
 		else if not c.cl_extern then
@@ -1945,13 +1942,12 @@ let generate com =
 	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
 	(* Generate some dummy placeholders for utility libs that may be required*)
-	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp, _hx_table";
+	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp, _hx_table, _hx_bit_raw";
 
 	List.iter (transform_multireturn ctx) com.types;
 	List.iter (generate_type ctx) com.types;
 
 	if has_feature ctx "use._bitop" || has_feature ctx "lua.Boot.clamp" then begin
-	    println ctx "local _hx_bit_raw = require 'bit32'";
 	    println ctx "_hx_bit_clamp = function(v) ";
 	    println ctx "  if v <= 2147483647 and v >= -2147483648 then";
 	    println ctx "    if v > 0 then return _G.math.floor(v)";
@@ -1959,13 +1955,17 @@ let generate com =
 	    println ctx "    end";
 	    println ctx "  end";
 	    println ctx "  if v > 2251798999999999 then v = v*2 end;";
-	    println ctx "  return _hx_bit_raw.band(v, 2147483647 ) - _hx_bit_raw.band(v, 2147483648)";
+	    println ctx "  if (v ~= v or math.abs(v) == _G.math.huge) then return nil end";
+	    println ctx "  return _hx_bit.band(v, 2147483647 ) - math.abs(_hx_bit.band(v, 2147483648))";
 	    println ctx "end";
-	    println ctx "if type(jit) == 'table' then";
-	    println ctx "  _hx_bit = setmetatable({},{__index = function(t,k) return function(...) return _hx_bit_clamp(rawget(_hx_bit_raw,k)(...)) end end})";
-	    println ctx "else";
-	    println ctx "  _hx_bit = setmetatable({}, { __index = _hx_bit_raw })";
-	    println ctx "  _hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end";
+	    println ctx "pcall(require, 'bit')"; (* require this for lua 5.1 *)
+	    println ctx "if bit then";
+	    println ctx "  _hx_bit = bit";
+	    println ctx "elseif bit32 then";
+	    println ctx "  local _hx_bit_raw = bit32";
+	    println ctx "  _hx_bit = setmetatable({}, { __index = _hx_bit_raw });";
+	    println ctx "  _hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end;"; (* lua 5.2  weirdness *)
+	    println ctx "  _hx_bit.bxor = function(...) return _hx_bit_clamp(_hx_bit_raw.bxor(...)) end;"; (* lua 5.2  weirdness *)
 	    println ctx "end";
 	end;
 

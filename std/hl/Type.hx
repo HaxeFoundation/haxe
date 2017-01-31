@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -81,6 +81,10 @@ abstract TypeKind(Int) {
 		return null;
 	}
 
+	@:hlNative("std","type_set_global") public function setGlobal( v : Dynamic ) : Bool {
+		return false;
+	}
+
 	@:hlNative("std","type_args_count") public function getArgsCount() : Int {
 		return 0;
 	}
@@ -90,6 +94,10 @@ abstract TypeKind(Int) {
 	}
 
 	@:hlNative("std","type_enum_fields") public function getEnumFields() : NativeArray<Bytes> {
+		return null;
+	}
+
+	@:hlNative("std","type_enum_values") public function getEnumValues() : NativeArray<Dynamic> {
 		return null;
 	}
 

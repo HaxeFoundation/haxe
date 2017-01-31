@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -1134,7 +1134,7 @@ let generate_class ctx c =
 			| _ when props = [] -> ()
 			| Some (csup,_) when Codegen.has_properties csup ->
 				newprop ctx;
-				let psup = s_path ctx csup.cl_path in
+				let psup = ctx.type_accessor (TClassDecl csup) in
 				print ctx "__properties__: $extend(%s.prototype.__properties__,{%s})" psup (gen_props props)
 			| _ ->
 				newprop ctx;
@@ -1282,7 +1282,7 @@ let alloc_ctx com =
 		smap = smap;
 		js_modern = not (Common.defined com Define.JsClassic);
 		js_flatten = not (Common.defined com Define.JsUnflatten);
-		es_version = int_of_string (Common.defined_value com Define.JsEs);
+		es_version = (try int_of_string (Common.defined_value com Define.JsEs) with _ -> 0);
 		store_exception_stack = if Common.has_dce com then (Common.has_feature com "haxe.CallStack.exceptionStack") else List.exists (function TClassDecl { cl_path=["haxe"],"CallStack" } -> true | _ -> false) com.types;
 		statics = [];
 		inits = [];

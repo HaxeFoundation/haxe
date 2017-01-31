@@ -15,9 +15,6 @@ env:
     - PPA="ppa:haxe/snapshots"
     - DEBFULLNAME="Haxe CI Bot"
     - DEBEMAIL="haxe-ci@onthewings.net"
-    # lua specific versions
-    - LUAROCKS=2.3.0
-    - LUA=lua5.2
 
 sudo: required
 dist: trusty
@@ -87,8 +84,6 @@ install_osx: &install_osx
   - ls -l out
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
-  # Install pip (used in lua test)
-  - curl https://bootstrap.pypa.io/get-pip.py -o - | sudo python
 
 matrix:
   include:

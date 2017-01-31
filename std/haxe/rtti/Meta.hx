@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -62,6 +62,9 @@ class Meta {
 #if (php && php7)
 		return php.Boot.getMeta(t.phpClassName);
 #elseif (java || cs || php || (flash && as3))
+		#if php
+		t.__ensureMeta__();
+		#end
 		var ret = Reflect.field(t, "__meta__");
 		if (ret == null && Std.is(t,Class))
 		{

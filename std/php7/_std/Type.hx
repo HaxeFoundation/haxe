@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -258,7 +258,7 @@ enum ValueType {
 
 		if (v.is_object()) {
 			if (Reflect.isFunction(v)) return TFunction;
-			if (Syntax.instanceof(v, StdClass)) return TObject;
+			if (Std.is(v, StdClass)) return TObject;
 			if (Boot.isClass(v)) return TObject;
 
 			var hxClass = Boot.getClass(Global.get_class(v));

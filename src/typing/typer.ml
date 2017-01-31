@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -1131,7 +1131,7 @@ let rec using_field ctx mode e i p =
 	| (c,pc) :: l ->
 		try
 			let cf = PMap.find i c.cl_statics in
-			if Meta.has Meta.NoUsing cf.cf_meta || not (can_access ctx c cf true) then raise Not_found;
+			if Meta.has Meta.NoUsing cf.cf_meta || not (can_access ctx c cf true) || (Meta.has Meta.Impl cf.cf_meta) then raise Not_found;
 			let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 			let map = apply_params cf.cf_params monos in
 			let t = map cf.cf_type in
@@ -1942,36 +1942,40 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		| AKAccess(a,tl,c,ebase,ekey) ->
 			let cf_get,tf_get,r_get,ekey,_ = AbstractCast.find_array_access ctx a tl ekey None p in
 			(* bind complex keys to a variable so they do not make it into the output twice *)
-			let ekey,l = match Optimizer.make_constant_expression ctx ekey with
-				| Some e -> e, fun () -> None
+			let save = save_locals ctx in
+			let maybe_bind_to_temp e = match Optimizer.make_constant_expression ctx e with
+				| Some e -> e,None
 				| None ->
-					let save = save_locals ctx in
-					let v = gen_local ctx ekey.etype p in
-					let e = mk (TLocal v) ekey.etype p in
-					e, fun () -> (save(); Some (mk (TVar (v,Some ekey)) ctx.t.tvoid p))
+					let v = gen_local ctx e.etype p in
+					let e' = mk (TLocal v) e.etype p in
+					e', Some (mk (TVar (v,Some e)) ctx.t.tvoid p)
 			in
+			let ekey,ekey' = maybe_bind_to_temp ekey in
+			let ebase,ebase' = maybe_bind_to_temp ebase in
 			let eget = mk_array_get_call ctx (cf_get,tf_get,r_get,ekey,None) c ebase p in
 			let eget = type_binop2 ctx op eget e2 true (WithType eget.etype) p in
 			unify ctx eget.etype r_get p;
 			let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_access ctx a tl ekey (Some eget) p in
 			let eget = match eget with None -> assert false | Some e -> e in
 			let et = type_module_type ctx (TClassDecl c) None p in
-			begin match cf_set.cf_expr,cf_get.cf_expr with
+			let e = match cf_set.cf_expr,cf_get.cf_expr with
 				| None,None ->
 					let ea = mk (TArray(ebase,ekey)) r_get p in
 					mk (TBinop(OpAssignOp op,ea,type_expr ctx e2 (WithType r_get))) r_set p
 				| Some _,Some _ ->
 					let ef_set = mk (TField(et,(FStatic(c,cf_set)))) tf_set p in
-					(match l() with
-					| None -> make_call ctx ef_set [ebase;ekey;eget] r_set p
-					| Some e ->
-						mk (TBlock [
-							e;
-							make_call ctx ef_set [ebase;ekey;eget] r_set p
-						]) r_set p)
+					let el = [make_call ctx ef_set [ebase;ekey;eget] r_set p] in
+					let el = match ebase' with None -> el | Some ebase -> ebase :: el in
+					let el = match ekey' with None -> el | Some ekey -> ekey :: el in
+					begin match el with
+						| [e] -> e
+						| el -> mk (TBlock el) r_set p
+					end
 				| _ ->
 					error "Invalid array access getter/setter combination" p
-			end;
+			in
+			save();
+			e
 		| AKInline _ | AKMacro _ ->
 			assert false)
 	| _ ->
@@ -2628,7 +2632,7 @@ and type_access ctx e p mode =
 					tf_args = List.map (fun v -> v,None) vl;
 					tf_type = t;
 					tf_expr = mk (TReturn (Some ec)) t p;
-				}) (tfun (List.map (fun v -> v.v_type) vl) t) p)
+				}) (TFun ((List.map (fun v -> v.v_name,false,v.v_type) vl),t)) p)
 			| _ -> error "Binding new is only allowed on class types" p
 		end;
 	| EField _ ->
@@ -3311,7 +3315,7 @@ and type_array_decl ctx el with_type p =
 		let t = try
 			unify_min_raise ctx el
 		with Error (Unify l,p) ->
-			if ctx.untyped then t_dynamic else begin
+			if ctx.untyped || ctx.com.display.dms_error_policy = EPIgnore then t_dynamic else begin
 				display_error ctx "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>" p;
 				raise (Error (Unify l, p))
 			end
@@ -3572,8 +3576,10 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let texpr = loop t in
 		mk (TCast (type_expr ctx e Value,Some texpr)) t p
 	| EDisplay (e,iscall) ->
-		if iscall then handle_signature_display ctx e with_type
-		else handle_display ctx e with_type
+		begin match ctx.com.display.dms_kind with
+			| DMField | DMSignature when iscall -> handle_signature_display ctx e with_type
+			| _ -> handle_display ctx e with_type
+		end
 	| EDisplayNew t ->
 		assert false
 		(*let t = Typeload.load_instance ctx t true p in
@@ -4102,6 +4108,7 @@ and type_call ctx e el (with_type:with_type) p =
 	| (EConst (Ident "$type"),_) , [e] ->
 		let e = type_expr ctx e Value in
 		ctx.com.warning (s_type (print_context()) e.etype) e.epos;
+		let e = Display.Diagnostics.secure_generated_code ctx e in
 		e
 	| (EField(e,"match"),p), [epat] ->
 		let et = type_expr ctx e Value in

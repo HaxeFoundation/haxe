@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -98,7 +98,8 @@ class Log {
 			#elseif java
 			untyped __java__("java.lang.System.out.println(str)");
 			#elseif lua
-			untyped __define_feature__("use._hx_print",_hx_print(Std.string(str)));
+			if (str == null) str = "null";
+			untyped __define_feature__("use._hx_print",_hx_print(str));
 			#end
 		#elseif (python)
 			var str:String = null;

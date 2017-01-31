@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -48,7 +48,7 @@ extern class Math
 	static var NEGATIVE_INFINITY(default, null) : Float;
 
 	/**
-		A special `Float` constant which denotes negative infinity.
+		A special `Float` constant which denotes positive infinity.
 
 		For example, this is the result of 1.0 / 0.0.
 

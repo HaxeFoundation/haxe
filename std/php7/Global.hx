@@ -1,6 +1,7 @@
 package php;
 
 import haxe.extern.*;
+import haxe.Constraints;
 
 /**
 	This class contains externs for native PHP functions defined in global namespace.
@@ -172,7 +173,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.array-push.php
 	**/
-	static function array_push( array:NativeArray, value:Rest<Dynamic> ) : Int ;
+	static function array_push( array:Ref<NativeArray>, value:Rest<Dynamic> ) : Int ;
 
 	/**
 		@see http://php.net/manual/en/function.array-reverse.php
@@ -187,7 +188,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.array-shift.php
 	**/
-	static function array_shift( array:NativeArray ) : Dynamic ;
+	static function array_shift( array:Ref<NativeArray> ) : Dynamic ;
 
 	/**
 		@see http://php.net/manual/en/function.array-slice.php
@@ -197,12 +198,12 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.array-splice.php
 	**/
-	static function array_splice( array:NativeArray, offset:Int, lenght:Int = 0, ?replacement:Dynamic ) : NativeArray ;
+	static function array_splice( array:Ref<NativeArray>, offset:Int, lenght:Int = 0, ?replacement:Dynamic ) : NativeArray ;
 
 	/**
 		@see http://php.net/manual/en/function.array-unshift.php
 	**/
-	static function array_unshift( arr:NativeArray, value:Rest<Dynamic> ) : Int ;
+	static function array_unshift( arr:Ref<NativeArray>, value:Rest<Dynamic> ) : Int ;
 
 	/**
 		@see http://php.net/manual/en/function.array-values.php
@@ -232,32 +233,32 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.usort.php
 	**/
-	static function usort( array:NativeArray, value_compare_func:Dynamic->Dynamic->Int ) : Bool ;
+	static function usort( array:Ref<NativeArray>, value_compare_func:Dynamic->Dynamic->Int ) : Bool ;
 
 	/**
 		@see http://php.net/manual/en/function.reset.php
 	**/
-	static function reset( array:NativeArray ) : Dynamic;
+	static function reset( array:Ref<NativeArray> ) : Dynamic;
 
 	/**
 		@see http://php.net/manual/en/function.current.php
 	**/
-	static function current( array:NativeArray ) : Dynamic;
+	static function current( array:Ref<NativeArray> ) : Dynamic;
 
 	/**
 		@see http://php.net/manual/en/function.next.php
 	**/
-	static function next( array:NativeArray ) : Dynamic;
+	static function next( array:Ref<NativeArray> ) : Dynamic;
 
 	/**
 		@see http://php.net/manual/en/function.prev.php
 	**/
-	static function prev( array:NativeArray ) : Dynamic;
+	static function prev( array:Ref<NativeArray> ) : Dynamic;
 
 	/**
 		@see http://php.net/manual/en/function.end.php
 	**/
-	static function end( array:NativeArray ) : Dynamic;
+	static function end( array:Ref<NativeArray> ) : Dynamic;
 
 	/**
 		@see http://php.net/manual/en/function.key.php
@@ -267,7 +268,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.each.php
 	**/
-	static function each( array:NativeArray ) : NativeArray;
+	static function each( array:Ref<NativeArray> ) : NativeArray;
 
 	/**
 		@see http://php.net/manual/en/function.defined.php
@@ -817,6 +818,16 @@ extern class Global {
 	static function rawurldecode( str:String ) : String;
 
 	/**
+		@see http://php.net/manual/en/function.header.php
+	**/
+	static function header( string:String, replace:Bool = true, ?http_response_code:Int ) : Void;
+
+	/**
+		@see http://php.net/manual/en/function.setcookie.php
+	**/
+	static function setcookie( name:String, value:String = "", expire:Int = 0, path:String = "", domain:String = "", secure:Bool = false, httponly:Bool = false ) : Bool;
+
+	/**
 		@see http://php.net/manual/en/function.htmlspecialchars.php
 	**/
 	static function htmlspecialchars( string:String, ?flags:Int, ?encoding:String, double_encode:Bool = true ) : String;
@@ -1075,4 +1086,75 @@ extern class Global {
 		@see http://php.net/manual/en/function.strtotime.php
 	**/
 	static function strtotime( time:String, ?now:Int ) : EitherType<Int,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.flush.php
+	**/
+	static function flush() : Void;
+
+	/**
+		@see http://php.net/manual/en/function.session-cache-limiter.php
+	**/
+	static function session_cache_limiter( ?cache_limiter:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.session-cache-expire.php
+	**/
+	static function session_cache_expire( ?new_cache_expire:Int ) : Int;
+
+	/**
+		@see http://php.net/manual/en/function.session-name.php
+	**/
+	static function session_name( ?name:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.session-start.php
+	**/
+	static function session_start( ?options:NativeArray ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.session-unset.php
+	**/
+	static function session_unset() : Void;
+
+	/**
+		@see http://php.net/manual/en/function.session-write-close.php
+	**/
+	static function session_write_close() : Void;
+
+	/**
+		@see http://php.net/manual/en/function.session-id.php
+	**/
+	static function session_id( ?id:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.session-save-path.php
+	**/
+	static function session_save_path( ?path:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.session-module-name.php
+	**/
+	static function session_module_name( ?module:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.session-regenerate-id.php
+	**/
+	static function session_regenerate_id( delete_old_session:Bool = false ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.session-set-cookie-params.php
+	**/
+	static function session_set_cookie_params( lifetime:Int, ?path:String, ?domain:String, secure:Bool = false, httponly:Bool = false ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.session-get-cookie-params.php
+	**/
+	static function session_get_cookie_params() : NativeAssocArray<Dynamic>;
+
+	/**
+		@see http://php.net/manual/en/function.session-set-save-handler.php
+	**/
+	@:overload(function( sessionhandler:SessionHandlerInterface, register_shutdown:Bool = true ) : Bool {})
+	static function session_set_save_handler( open:String->String->Bool, close:Void->Bool, read:String->String, write:String->String->Bool, destroy:String->Bool, gc:Int->Bool, ?create_sid:Void->String, ?validate_sid:Function, ?update_timestamp:Function ) : Bool;
 }

@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -123,7 +123,7 @@ let rec can_be_used_as_value com e =
 		(* | TCall _ | TNew _ when (match com.platform with Cpp | Php -> true | _ -> false) -> raise Exit *)
 		| TReturn _ | TThrow _ | TBreak | TContinue -> raise Exit
 		| TUnop((Increment | Decrement),_,_) when not (target_handles_unops com) -> raise Exit
-		| TNew _ when com.platform = Php && not (Common.php7 com) -> raise Exit
+		| TNew _ when com.platform = Php && not (Common.is_php7 com) -> raise Exit
 		| TFunction _ -> ()
 		| _ -> Type.iter loop e
 	in
@@ -151,6 +151,7 @@ let is_unbound_call_that_might_have_side_effects v el = match v.v_name,el with
 
 let is_ref_type = function
 	| TType({t_path = ["cs"],("Ref" | "Out")},_) -> true
+	| TType({t_path = path},_) when path = Genphp7.ref_type_path -> true
 	| TType({t_path = ["cpp"],("Reference")},_) -> true
 	| TAbstract({a_path=["hl";"types"],"Ref"},_) -> true
 	| _ -> false
@@ -368,13 +369,19 @@ module InterferenceReport = struct
 		let rec loop e = match e.eexpr with
 			(* vars *)
 			| TLocal v ->
-				set_var_read ir v
+				set_var_read ir v;
+				if v.v_capture then set_state_read ir;
 			| TBinop(OpAssign,{eexpr = TLocal v},e2) ->
 				set_var_write ir v;
+				if v.v_capture then set_state_write ir;
 				loop e2
 			| TBinop(OpAssignOp _,{eexpr = TLocal v},e2) ->
 				set_var_read ir v;
 				set_var_write ir v;
+				if v.v_capture then begin
+					set_state_read ir;
+					set_state_write ir;
+				end;
 				loop e2
 			| TUnop((Increment | Decrement),_,{eexpr = TLocal v}) ->
 				set_var_read ir v;
@@ -627,7 +634,15 @@ module Fusion = struct
 				let e1 = {e1 with eexpr = TVar(v1,Some e2)} in
 				state#dec_writes v1;
 				fuse (e1 :: acc) el
-			| ({eexpr = TVar(v1,None)} as e1) :: ({eexpr = TIf(eif,_,Some _)} as e2) :: el when can_be_used_as_value com e2 && not (ExtType.is_void e2.etype) && (match com.platform with Php -> false | Cpp when not (Common.defined com Define.Cppia) -> false | _ -> true) ->
+			| ({eexpr = TVar(v1,None)} as e1) :: ({eexpr = TIf(eif,_,Some _)} as e2) :: el
+				when
+					can_be_used_as_value com e2 &&
+					not (ExtType.is_void e2.etype) &&
+					(match com.platform with
+						| Php when not (Common.is_php7 com) -> false
+						| Cpp when not (Common.defined com Define.Cppia) -> false
+						| _ -> true)
+				->
 				begin try
 					let i = ref 0 in
 					let check_assign e = match e.eexpr with
@@ -682,7 +697,7 @@ module Fusion = struct
 							let el = List.map replace el in
 							let e2 = replace e2 in
 							e2,el
-						| Php | Cpp  when not (Common.defined com Define.Cppia) && not (Common.php7 com) ->
+						| Php | Cpp  when not (Common.defined com Define.Cppia) && not (Common.is_php7 com) ->
 							let is_php_safe e1 =
 								let rec loop e = match e.eexpr with
 									| TCall _ -> raise Exit
@@ -691,7 +706,7 @@ module Fusion = struct
 								in
 								try loop e1; true with Exit -> false
 							in
-							(* PHP doesn't like call()() expressions. *)
+							(* PHP5 doesn't like call()() expressions. *)
 							let e2 = if com.platform = Php && not (is_php_safe e1) then explore e2 else replace e2 in
 							let el = handle_el el in
 							e2,el
@@ -794,7 +809,7 @@ module Fusion = struct
 							let e3 = replace e3 in
 							if not !found && has_state_read ir then raise Exit;
 							{e with eexpr = TBinop(OpAssign,{ea with eexpr = TArray(e1,e2)},e3)}
-						| TBinop(op,e1,e2) when (match com.platform with Cpp | Php when not (Common.php7 com) -> true | _ -> false) ->
+						| TBinop(op,e1,e2) when (match com.platform with Cpp | Php when not (Common.is_php7 com) -> true | _ -> false) ->
 							let e1 = replace e1 in
 							let temp_found = !found in
 							found := false;

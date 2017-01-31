@@ -459,55 +459,25 @@ class RunCi {
 		runCommand("node", ["-v"]);
 	}
 
-	static function getLuaDependencies(jit = false, lua_version = "lua5.2", luarocks_version = "2.3.0") {
+	static function getLuaDependencies(){
 		switch (systemName){
 			case "Linux": requireAptPackages(["libpcre3-dev"]);
-			case "Mac": runCommand("brew", ["install", "pcre"]);
+			case "Mac": {
+			  runCommand("brew", ["install", "pcre"], false, true);
+			  runCommand("brew", ["install", "python"], false, true);
+			}
 		}
+		runCommand("pip", ["install", "hererocks"]);
+	}
 
-		var home_dir = Sys.getEnv("HOME");
-
-		// the lua paths created by the setup script.
-		addToPATH('$home_dir/.lua');
-		addToPATH('$home_dir/.local/bin');
-
-		// we need to cd back into the build directory to do some work
-		var build_dir = Sys.getEnv("TRAVIS_BUILD_DIR");
-		changeDirectory(build_dir);
-
-		// luarocks needs to be in the path
-		addToPATH('$build_dir/install/luarocks/bin');
-
-
-		if (jit) Sys.putEnv("LUAJIT","yes");
-		Sys.putEnv("LUAROCKS", luarocks_version);
-		Sys.putEnv("LUA", lua_version);
-
-		// use the helper scripts in .travis. TODO: Refactor as pure haxe?
-		runCommand("sh", ['${build_dir}/.travis/setenv_lua.sh']);
-		if (jit){
-			runCommand("luajit", ["-v"]);
-		} else {
-			runCommand("lua", ["-v"]);
-		}
-		runCommand("pip", ["install", "--user", "cpp-coveralls"]);
-		runCommand("luarocks", ["install", "luafilesystem", "1.6.3-2", "--server=https://luarocks.org/dev"]);
-		runCommand("luarocks", ["install", "lrexlib-pcre", "2.7.2-1", "--server=https://luarocks.org/dev"]);
-		runCommand("luarocks", ["install", "luautf8", "--server=https://luarocks.org/dev"]);
-
-		// we did user land installs of luarocks and lua.  We need to point lua
-		// to the luarocks install using the luarocks path and env variables
-		var lua_path = commandResult("luarocks", ["path", "--lr-path"]).stdout.trim();
-		Sys.putEnv("LUA_PATH", lua_path);
-		trace(lua_path + " is the value for lua_path");
-
-		// step two of the variable setting
-		var lua_cpath = commandResult("luarocks", ["path", "--lr-cpath"]).stdout.trim();
-		Sys.putEnv("LUA_CPATH", lua_cpath);
-		trace(lua_cpath + " is the value for lua_cpath");
-
-		// change back to the unit dir for the rest of the tests
-		changeDirectory(unitDir);
+	static function installLuaVersionDependencies(lv:String){
+	  if (lv == "-l5.1"){
+	    runCommand("luarocks", ["install", "luabitop", "1.0.2-3", "--server=https://luarocks.org/dev"]);
+	  }
+	  runCommand("luarocks", ["install", "lrexlib-pcre", "2.8.0-1", "--server=https://luarocks.org/dev"]);
+	  runCommand("luarocks", ["install", "luv", "1.9.1-0", "--server=https://luarocks.org/dev"]);
+	  runCommand("luarocks", ["install", "luasocket", "3.0rc1-2", "--server=https://luarocks.org/dev"]);
+	  runCommand("luarocks", ["install", "environ", "0.1.0-1", "--server=https://luarocks.org/dev"]);
 	}
 
 	static function getCsDependencies() {
@@ -885,8 +855,26 @@ class RunCi {
 						}
 					case Lua:
 						getLuaDependencies();
-						runCommand("haxe", ["compile-lua.hxml"].concat(args));
-						runCommand("lua", ["bin/unit.lua"]);
+						var envpath = Sys.getEnv("HOME") + '/lua_env';
+						addToPATH(envpath + '/bin');
+						for (lv in ["-l5.1", "-l5.2", "-l5.3", "-j2.0", "-j2.1" ]){
+						  if (systemName == "Mac" && lv.startsWith("-j")) continue;
+						  Sys.println('--------------------');
+						  Sys.println('Lua Version: $lv');
+						  runCommand("hererocks", [envpath, lv, "-rlatest", "-i"]);
+						  trace('path: ' + Sys.getEnv("PATH"));
+						  runCommand("lua",["-v"]);
+						  runCommand("luarocks",[]);
+						  installLuaVersionDependencies(lv);
+
+						  changeDirectory(unitDir);
+						  runCommand("haxe", ["compile-lua.hxml"].concat(args));
+						  runCommand("lua", ["bin/unit.lua"]);
+
+						  changeDirectory(sysDir);
+						  runCommand("haxe", ["compile-lua.hxml"].concat(args));
+						  runCommand("lua", ["bin/lua/sys.lua"]);
+						}
 					case Cpp:
 						getCppDependencies();
 						getSpodDependencies();

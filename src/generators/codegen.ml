@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -365,7 +365,7 @@ let rec find_field com c f =
 		| Some (c,_) ->
 			find_field com c f)
 	with Not_found -> try
-		if com.platform = Cpp then (* Cpp uses delegation for interfaces *)
+		if com.platform = Cpp || com.platform = Hl then (* uses delegation for interfaces *)
 			raise Not_found;
 		let rec loop = function
 			| [] ->
@@ -531,6 +531,8 @@ module Dump = struct
 		| [] -> assert false
 		| d :: [] ->
 			let d = make_valid_filename d in
+			let maxlen = 200 - String.length ext in
+			let d = if String.length d > maxlen then String.sub d 0 maxlen else d in
 			let ch = open_out (String.concat "/" (List.rev (d :: acc)) ^ ext) in
 			ch
 		| d :: l ->

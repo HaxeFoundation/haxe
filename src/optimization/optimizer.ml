@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -610,6 +610,15 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		in
 		let e = List.fold_left inline_meta e cf.cf_meta in
 		let e = Display.Diagnostics.secure_generated_code ctx e in
+		if Meta.has (Meta.Custom ":inlineDebug") ctx.meta then begin
+			let se t = s_expr_pretty true t true (s_type (print_context())) in
+			print_endline (Printf.sprintf "Inline %s:\n\tArgs: %s\n\tExpr: %s\n\tResult: %s"
+				cf.cf_name
+				(String.concat "" (List.map (fun (i,e) -> Printf.sprintf "\n\t\t%s<%i> = %s" (i.i_subst.v_name) (i.i_subst.v_id) (se "\t\t" e)) inlined_vars))
+				(se "\t" f.tf_expr)
+				(se "\t" e)
+			);
+		end;
 		(* we need to replace type-parameters that were used in the expression *)
 		if not has_params then
 			Some e
@@ -1061,6 +1070,9 @@ let reduce_control_flow ctx e = match e.eexpr with
 		optimize_binop e op e1 e2
 	| TUnop (op,flag,esub) ->
 		optimize_unop e op flag esub
+	| TCall ({ eexpr = TField (o,FClosure (c,cf)) } as f,el) ->
+		let fmode = (match c with None -> FAnon cf | Some (c,tl) -> FInstance (c,tl,cf)) in
+		{ e with eexpr = TCall ({ f with eexpr = TField (o,fmode) },el) }
 	| _ ->
 		e
 
@@ -1079,9 +1091,6 @@ let rec reduce_loop ctx e =
 		(match inl with
 		| None -> reduce_expr ctx e
 		| Some e -> reduce_loop ctx e)
-	| TCall ({ eexpr = TField (o,FClosure (c,cf)) } as f,el) ->
-		let fmode = (match c with None -> FAnon cf | Some (c,tl) -> FInstance (c,tl,cf)) in
-		{ e with eexpr = TCall ({ f with eexpr = TField (o,fmode) },el) }
 	| _ ->
 		reduce_expr ctx (reduce_control_flow ctx e))
 
@@ -1235,11 +1244,12 @@ let inline_constructors ctx e =
 								e :: acc
 							| _ -> acc
 						) el_init c.cl_ordered_fields in
-						let e = match el_init with
+						let e' = match el_init with
 							| [] -> e
 							| _ -> mk (TBlock (List.rev (e :: el_init))) e.etype e.epos
 						in
-						add v e (IKCtor(cf,c.cl_extern || Meta.has Meta.Extern cf.cf_meta));
+						add v e' (IKCtor(cf,c.cl_extern || Meta.has Meta.Extern cf.cf_meta));
+						find_locals e
 					| None ->
 						()
 					end

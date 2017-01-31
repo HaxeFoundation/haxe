@@ -9,7 +9,6 @@
 - Make sure CHANGES.txt has a proper date set!
 - Make sure `version` in globals.ml has the correct value.
 - Update README.md:
-  - Installing Haxe: update "Latest stable version"
   - Version compatibility: add/update the Haxe/Neko version
 - Merge development branch into master.
 - Wait for Travis to greenlight master.

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -40,6 +40,33 @@ class Type {
 
 	@:keep static function init() : Void {
 		untyped $allTypes(new hl.types.BytesMap());
+	}
+
+	@:keep static function initClass( ct : hl.Type, t : hl.Type, name : hl.Bytes ) : hl.BaseType.Class @:privateAccess {
+		var c : hl.BaseType.Class = ct.allocObject();
+		t.setGlobal(c);
+		c.__type__ = t;
+		c.__name__ = String.fromUCS2(name);
+		register(name, c);
+		return c;
+	}
+
+	@:keep static function initEnum( et : hl.Type, t : hl.Type ) : hl.BaseType.Enum @:privateAccess {
+		var e : hl.BaseType.Enum = et.allocObject();
+		e.__type__ = t;
+		e.__evalues__ = t.getEnumValues();
+		e.__ename__ = t.getName();
+		e.__emap__ = new hl.types.BytesMap();
+		e.__constructs__ = new Array();
+		var cl = t.getEnumFields();
+		for( i in 0...cl.length ) {
+			var name = cl[i];
+			e.__emap__.set(name, i);
+			e.__constructs__.push(String.fromUCS2(name));
+		}
+		register(e.__ename__.bytes,e);
+		t.setGlobal(e);
+		return e;
 	}
 
 	@:keep static function register( b : hl.Bytes, t : hl.BaseType ) : Void {

@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -46,7 +46,6 @@ module BasicBlock = struct
 	type cfg_edge_Flag =
 		| FlagExecutable      (* Used by constant propagation to handle live edges *)
 		| FlagDce             (* Used by DCE to keep track of handled edges *)
-		| FlagCodeMotion      (* Used by code motion to track handled edges *)
 		| FlagCopyPropagation (* Used by copy propagation to track handled eges *)
 
 	type cfg_edge_kind =

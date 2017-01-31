@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -115,8 +115,10 @@ class String {
 		if( pos < 0 ) {
 			pos = sl + pos;
 			if( pos < 0 ) pos = 0;
-		} else if( len < 0 )
+		} else if( len < 0 ) {
 			len = sl + len - pos;
+			if( len < 0 ) return "";
+		}
 		if( ((pos + len) : UInt) > (sl:UInt) )
 			len = sl - pos;
 		if( pos < 0 || len <= 0 ) return "";

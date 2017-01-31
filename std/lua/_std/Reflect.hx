@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,7 +25,6 @@ import lua.Boot;
 @:coreApi class Reflect {
 
 	public inline static function hasField( o : Dynamic, field : String ) : Bool {
-		// TODO: Lua can't detect fields that are set to null, figure out a workaround.
 		return untyped o.__fields__ != null ? o.__fields__[field] != null :  o[field] != null;
 	}
 

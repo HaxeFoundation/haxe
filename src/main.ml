@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -277,7 +277,7 @@ module Initialize = struct
 				add_std "lua";
 				"lua"
 			| Php ->
-				if Common.php7 com then
+				if Common.is_php7 com then
 					begin
 						com.package_rules <- PMap.add "php" (Directory "php7") com.package_rules;
 						com.package_rules <- PMap.add "php7" Forbidden com.package_rules;
@@ -322,7 +322,7 @@ let generate tctx ext xml_out interp swf_header =
 	(* check file extension. In case of wrong commandline, we don't want
 		to accidentaly delete a source file. *)
 	if file_extension com.file = ext then delete_file com.file;
-	if com.platform = Flash || com.platform = Cpp then List.iter (Codegen.fix_overrides com) com.types;
+	if com.platform = Flash || com.platform = Cpp || com.platform = Hl then List.iter (Codegen.fix_overrides com) com.types;
 	if Common.defined com Define.Dump then Codegen.Dump.dump_types com;
 	if Common.defined com Define.DumpDependencies then begin
 		Codegen.Dump.dump_dependencies com;
@@ -353,7 +353,7 @@ let generate tctx ext xml_out interp swf_header =
 		| Lua ->
 			Genlua.generate,"lua"
 		| Php ->
-			if Common.php7 com then
+			if Common.is_php7 com then
 				Genphp7.generate,"php"
 			else
 				Genphp.generate,"php"
@@ -461,7 +461,7 @@ let rec process_params create pl =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s - (C)2005-2016 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-cppia|-as3|-cs|-java|-python|-hl|-lua] <output> [options]\n Options :"
+		"Haxe Compiler %s - (C)2005-2017 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-cppia|-as3|-cs|-java|-python|-hl|-lua] <output> [options]\n Options :"
 		Globals.s_version (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in

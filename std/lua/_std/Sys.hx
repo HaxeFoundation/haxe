@@ -1,6 +1,6 @@
 
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,7 +27,6 @@ import lua.Lua;
 import lua.Table;
 import lua.TableTools;
 import lua.Os;
-import lua.lib.lfs.Lfs;
 import lua.FileHandle;
 import lua.Io;
 import lua.Boot;
@@ -36,6 +35,7 @@ import sys.io.FileOutput;
 
 @:coreApi
 class Sys {
+	static var _system_name : String;
 	public static inline function print( v : Dynamic ) : Void {
 		return lua.Lib.print(v);
 	}
@@ -48,16 +48,10 @@ class Sys {
 		return args;
 	}
 	public static function command( cmd : String, ?args : Array<String> ) : Int  {
-		cmd = Boot.shellEscapeCmd(cmd, args);
-#if (lua_ver < 5.2)
-		return Os.execute(cmd);
-#elseif (lua_ver >= 5.2)
-		return Os.execute(cmd).status;
-#else
-		var ret = TableTools.pack(untyped os.execute(cmd));
-		if (ret[3] != null) return ret[3]
-		else return ret[1];
-#end
+		var p = new sys.io.Process(cmd, args);
+		var code = p.exitCode();
+		p.close();
+		return code;
 	}
 
 
@@ -73,51 +67,41 @@ class Sys {
 		return lua.Io.read(1).byte();
 	}
 
+	static function getSystemName() : String {
+		return lua.Boot.systemName();
+	}
+
 	public static function systemName() : String {
-		switch(Package.config.sub(1,1).match){
-			case "/" : {
-				var f = Lua.assert(lua.Io.popen("uname"));
-				var s = Lua.assert(f.read(All));
-				f.close();
-				s = s.gsub('^%s+', '');
-				s = s.gsub('%s+$', '');
-				s = s.gsub('[\n\r]+', ' ');
-				if (s == "Darwin") return "Mac";
-				else if (s.lower().find("bsd") != null) return "BSD";
-				else return "Linux";
-			}
-			case "\\" : return "Windows";
-			default : return null;
-		}
+		if (_system_name == null) _system_name = getSystemName();
+		return _system_name;
 	}
 
-	public inline static function environment() : Map<String,String>  {
-		throw "not supported";
-		return new Map();
+	public static function environment() : Map<String,String>  {
+		var map = new Map<String,String>();
+		var f = function(k,v) map.set(k,v);
+		untyped __lua__("for k,v in lua.lib.environ.Environ.enum() do f(k,v) end");
+		return map;
 	}
 
-	public inline static function executablePath() : String {
-		throw "not supported";
-		return null;
+	@:deprecated("Use programPath instead") public static function executablePath() : String {
+		return lua.lib.luv.Misc.exepath();
 	}
 
 	public inline static function programPath() : String {
 		return haxe.io.Path.join([getCwd(), Lua.arg[0]]);
 	}
 
-	public inline static function getCwd() : String {
-		return lua.lib.lfs.Lfs.currentdir();
-	}
+	public inline static function getCwd() : String
+		return lua.lib.luv.Misc.cwd();
 
-	public inline static function setCwd(s : String) : Void {
-		lua.lib.lfs.Lfs.chdir(s);
-	}
+	public inline static function setCwd(s : String) : Void
+		lua.lib.luv.Misc.chdir(s);
 
 	public inline static function getEnv(s : String) : String {
 		return lua.Os.getenv(s);
 	}
 	public inline static function putEnv(s : String, v : String ) : Void {
-		throw "not supported";
+		lua.lib.environ.Environ.setenv(s,v);
 	}
 
 	public inline static function setTimeLocale(loc : String) : Bool  {
@@ -125,19 +109,15 @@ class Sys {
 		return lua.Os.setlocale(loc) != null;
 	}
 
-	public static function sleep(seconds : Float) : Void {
-		if (seconds <= 0) return;
-		if (Sys.systemName() == "Windows") {
-			Sys.command("ping -n " + (seconds+1) + " localhost > NUL");
-		} else {
-			Sys.command('sleep $seconds');
-		}
-	}
+	public static function sleep(seconds : Float) : Void
+		lua.lib.luv.Thread.sleep(Math.floor(seconds * 1000));
 
 
 	public inline static function stderr() : haxe.io.Output return new FileOutput(Io.stderr);
 	public inline static function stdin()  : haxe.io.Input return new FileInput(Io.stdin);
 	public inline static function stdout() : haxe.io.Output return new FileOutput(Io.stdout);
 
-	public static function time() : Float return lua.Os.time();
+	public static function time() : Float
+		return lua.lib.luasocket.Socket.gettime();
+
 }

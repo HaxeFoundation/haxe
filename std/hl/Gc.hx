@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,6 +29,15 @@ class Gc {
 		_stats(tot, count, mem);
 		return { totalAllocated : tot, allocationCount : count, currentMemory : mem };
 	}
+
+	/**
+		Dump whole memory into target filename for analysis.
+	**/
+	public static function dumpMemory( ?fileName : String = "hlmemory.dump" ) {
+		_dump(@:privateAccess fileName.toUtf8());
+	}
+
+	@:hlNative("std", "gc_dump_memory") static function _dump( b : hl.Bytes ) : Void {}
 
 	@:hlNative("std", "gc_profile") public static function activeProfileInfos( b : Bool ) : Void {}
 	@:hlNative("std", "gc_enable") public static function enable( b : Bool ) : Void {}

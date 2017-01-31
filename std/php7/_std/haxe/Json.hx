@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -87,7 +87,7 @@ class Json {
 	}
 
 	static function convertBeforeEncode(value:Dynamic):Dynamic {
-		if (Syntax.instanceof(value, Array)) {
+		if (Std.is(value, Array)) {
 			var result = new NativeIndexedArray();
 			Syntax.foreach(value.arr, function(index:Int, item:Dynamic) {
 				result[index] = convertBeforeEncode(item);
