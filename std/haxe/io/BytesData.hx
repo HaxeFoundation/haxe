@@ -27,8 +27,6 @@ package haxe.io;
 	typedef BytesData =	flash.utils.ByteArray;
 #elseif php
 	typedef BytesData = php.BytesData;
-#elseif php
-	typedef BytesData = php.NativeString;
 #elseif cpp
 	typedef BytesData = Array< cpp.UInt8 >;
 #elseif java
