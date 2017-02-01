@@ -1433,6 +1433,21 @@ class virtual type_builder ctx wrapper =
 				| Some { eexpr = TCall _ } -> true
 				| _ -> false
 		(**
+			Check if currently generated expression is located in a left part of assignment.
+		*)
+		method private is_in_write_context =
+			let rec traverse current parents =
+				match parents with
+					| { eexpr = TBinop(OpAssign, left_expr, _) } :: _
+					| { eexpr = TBinop(OpAssignOp _, left_expr, _) } :: _ -> left_expr == current
+					| { eexpr = TUnop(op, _, _) } :: _ -> is_modifying_unop op
+					| [] -> false
+					| parent :: rest -> traverse parent rest
+			in
+			match expr_hierarchy with
+				| current :: parents -> traverse current parents
+				| _ -> false
+		(**
 			Position of currently generated code in source hx files
 		*)
 		method private pos =
@@ -1774,19 +1789,23 @@ class virtual type_builder ctx wrapper =
 				self#write_expr target;
 				write_index "[" "]"
 			in
-			let write_depending_on e =
+			(*let write_depending_on e =
 				match (reveal_expr e).eexpr with
 					| TArray (t, i) when t  == target ->
 						write_normal_access ()
 					| _ ->
 						write_fast_access ()
-			in
+			in*)
 			match follow target.etype with
 				| TInst ({ cl_path = path }, _) when path = array_type_path ->
-					(match self#parent_expr with
+					if self#is_in_write_context then
+						write_normal_access()
+					else
+						write_fast_access()
+					(*(match self#parent_expr with
 						| None -> write_fast_access ()
 						| Some expr ->
-							match (reveal_expr expr).eexpr with
+							match expr.eexpr with
 								| TUnop (op, _, e) when is_modifying_unop op ->
 									write_depending_on e
 								| TBinop (OpAssign, e, _)
@@ -1796,7 +1815,7 @@ class virtual type_builder ctx wrapper =
 									write_depending_on e
 								| _ ->
 									write_fast_access ()
-					)
+					)*)
 				| _ ->
 					write_normal_access ()
 		(**
