@@ -51,7 +51,7 @@ extern class SpeechSynthesisEvent extends Event
 	var elapsedTime(default,null) : Float;
 	
 	/**
-		Returns the name associated with certain types of events occuring as the `SpeechSynthesisUtterance.text` is being spoken: the name of the SSML marker reached in the case of a `mark` event, or the type of boundary reached in the case of a `boundary` event.
+		Returns the name associated with certain types of events occurring as the `SpeechSynthesisUtterance.text` is being spoken: the name of the SSML marker reached in the case of a `mark` event, or the type of boundary reached in the case of a `boundary` event.
 	**/
 	var name(default,null) : String;
 	

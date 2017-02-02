@@ -80,7 +80,7 @@ class Thread {
 
 	/**
 		The function [f] will be called by this thread if it's in [osLoop].
-		[sync] returns immediatly. See [osInitialize] remarks.
+		[sync] returns immediately. See [osInitialize] remarks.
 	**
 	public function sync( f : Void -> Void ) {
 		os_sync(handle,f);

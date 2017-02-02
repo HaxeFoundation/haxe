@@ -23,7 +23,7 @@ package neko;
 
 /**
 	This class is used for accessing the local Web server and the current
-	client request and informations.
+	client request and information.
 **/
 class Web {
 

@@ -54,17 +54,17 @@ class XmlParserException
 	public var message:String;
 
 	/**
-	 * the line number at which the XML parsing error occured
+	 * the line number at which the XML parsing error occurred
 	 */
 	public var lineNumber:Int;
 
 	/**
-	 * the character position in the reported line at which the parsing error occured
+	 * the character position in the reported line at which the parsing error occurred
 	 */
 	public var positionAtLine:Int;
 
 	/**
-	 * the character position in the XML string at which the parsing error occured
+	 * the character position in the XML string at which the parsing error occurred
 	 */
 	public var position:Int;
 

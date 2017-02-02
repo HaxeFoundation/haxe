@@ -22,7 +22,7 @@
 package sys;
 
 /**
-	File informations, as given by `sys.FileSystem.stat`.
+	File information, as given by `sys.FileSystem.stat`.
 **/
 typedef FileStat = {
 
@@ -47,7 +47,7 @@ typedef FileStat = {
 	var mtime : Date;
 
 	/**
-		The creation time for the file (not all filesystems support this).
+		The creation time for the file (not all file systems support this).
 	**/
 	var ctime : Date;
 

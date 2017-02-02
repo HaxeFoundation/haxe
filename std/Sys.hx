@@ -36,7 +36,7 @@ extern class Sys {
 	static function println( v : Dynamic ) : Void;
 
 	/**
-		Returns all the arguments that were passed by the commandline.
+		Returns all the arguments that were passed by the command line.
 	**/
 	static function args() : Array<String>;
 
@@ -51,7 +51,7 @@ extern class Sys {
 	static function putEnv( s : String, v : String ) : Void;
 
 	/**
-		Returns the whole environement variables.
+		Returns the whole environment variables.
 	**/
 	static function environment() : Map<String,String>;
 

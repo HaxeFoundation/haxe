@@ -78,7 +78,7 @@ extern class String {
 	function charCodeAt( index : Int) : Null<Int>;
 
 	/**
-		Returns the position of the leftmost occurence of `str` within `this`
+		Returns the position of the leftmost occurrence of `str` within `this`
 		String.
 
 		If `startIndex` is given, the search is performed within the substring
@@ -91,7 +91,7 @@ extern class String {
 	function indexOf( str : String, ?startIndex : Int ) : Int;
 
 	/**
-		Returns the position of the rightmost occurence of `str` within `this`
+		Returns the position of the rightmost occurrence of `str` within `this`
 		String.
 
 		If `startIndex` is given, the search is performed within the substring
@@ -104,7 +104,7 @@ extern class String {
 	function lastIndexOf( str : String, ?startIndex : Int ) : Int;
 
 	/**
-		Splits `this` String at each occurence of `delimiter`.
+		Splits `this` String at each occurrence of `delimiter`.
 
 		If `this` String is the empty String `""`, the result is not consistent
 		across targets and may either be `[]` (on Js, Cpp) or `[""]`.
@@ -118,7 +118,7 @@ extern class String {
 
 		If `delimiter` is null, the result is unspecified.
 
-		Otherwise, `this` String is split into parts at each occurence of
+		Otherwise, `this` String is split into parts at each occurrence of
 		`delimiter`. If `this` String starts (or ends) with `delimiter`, the
 		result `Array` contains a leading (or trailing) empty String `""` element.
 		Two subsequent delimiters also result in an empty String `""` element.

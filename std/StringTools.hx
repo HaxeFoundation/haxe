@@ -361,7 +361,7 @@ class StringTools {
 	}
 
 	/**
-		Replace all occurences of the String `sub` in the String `s` by the
+		Replace all occurrences of the String `sub` in the String `s` by the
 		String `by`.
 
 		If `sub` is the empty String `""`, `by` is inserted after each character
