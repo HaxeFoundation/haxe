@@ -221,9 +221,14 @@ let rec reveal_expr_with_parenthesis expr =
 		| _ -> expr
 
 (**
+	Get string representation of specified position in Haxe code.
+*)
+let stringify_pos pos = Lexer.get_error_pos (Printf.sprintf "%s:%d:") pos
+
+(**
 	@return Error message with position information
 *)
-let error_message pos message = (Lexer.get_error_pos (Printf.sprintf "%s:%d:") pos) ^ ": " ^ message
+let error_message pos message = (stringify_pos pos) ^ ": " ^ message
 
 (**
 	Terminates compiler process and prints user-friendly instructions about filing an issue in compiler repo.
@@ -1909,6 +1914,11 @@ class virtual type_builder ctx wrapper =
 			self#write_as_block ~inline:true expr;
 			expr_hierarchy <- List.tl expr_hierarchy
 		(**
+			Write position of specified expression to output buffer
+		*)
+		method private write_pos expr =
+			self#write ("#" ^ (stringify_pos expr.epos) ^ "\n");
+		(**
 			Writes "{ <expressions> }" to output buffer
 		*)
 		method private write_as_block ?inline ?unset_locals expr =
@@ -1916,6 +1926,8 @@ class virtual type_builder ctx wrapper =
 			and exprs = match expr.eexpr with TBlock exprs -> exprs | _ -> [expr] in
 			let write_body () =
 				let write_expr expr =
+					self#write_pos expr;
+					self#write_indentation;
 					self#write_expr expr;
 					match expr.eexpr with
 						| TBlock _ | TIf _ | TTry _ | TSwitch _ | TWhile (_, _, NormalWhile) -> self#write "\n"
