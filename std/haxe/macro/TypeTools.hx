@@ -230,7 +230,7 @@ class TypeTools {
 		Applies the type parameters `typeParameters` to type `t` with the given
 		types `concreteTypes`.
 
-		This function replaces occurences of type parameters in `t` if they are
+		This function replaces occurrences of type parameters in `t` if they are
 		part of `typeParameters`. The array index of such a type parameter is
 		then used to lookup the concrete type in `concreteTypes`.
 

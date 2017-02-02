@@ -127,7 +127,7 @@ class List<T> {
 	}
 
 	/**
-		Removes the first occurence of `v` in `this` List.
+		Removes the first occurrence of `v` in `this` List.
 
 		If `v` is found by checking standard equality, it is removed from `this`
 		List and the function returns true.

@@ -136,7 +136,7 @@ class Debugger
      *        thread events.  Note that this function is called directly from
      *        the thread experiencing the event and the handler should return
      *        quickly to avoid blocking the calling thread unnecessarily.
-     *        The paramaters to handler are:
+     *        The parameters to handler are:
      *          - threadNumber, the thread number of the event
      *          - event, one of THREAD_CREATED, THREAD_TERMINATED,
      *            THREAD_STARTED, or THREAD_STOPPED

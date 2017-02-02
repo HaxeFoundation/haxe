@@ -23,7 +23,7 @@
 package lua;
 
 /**
-  An implementation of the Haxe iterator datastructure needed for identical 
+  An implementation of the Haxe iterator data structure needed for identical 
   lua iterator behavior. 
  **/
 class HaxeIterator<T> {

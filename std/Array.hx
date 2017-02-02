@@ -210,12 +210,12 @@ extern class Array<T> {
 	function insert( pos : Int, x : T ) : Void;
 
 	/**
-		Removes the first occurence of `x` in `this` Array.
+		Removes the first occurrence of `x` in `this` Array.
 
 		This operation modifies `this` Array in place.
 
 		If `x` is found by checking standard equality, it is removed from `this`
-		Array and all following elements are reindexed acoordingly. The function
+		Array and all following elements are reindexed accordingly. The function
 		then returns true.
 
 		If `x` is not found, `this` Array is not changed and the function
@@ -224,7 +224,7 @@ extern class Array<T> {
 	function remove( x : T ) : Bool;
 
 	/**
-		Returns position of the first occurense of `x` in `this` Array, searching front to back.
+		Returns position of the first occurrence of `x` in `this` Array, searching front to back.
 
 		If `x` is found by checking standard equality, the function returns its index.
 
@@ -239,7 +239,7 @@ extern class Array<T> {
 	function indexOf( x : T, ?fromIndex:Int ) : Int;
 
 	/**
-		Returns position of the last occurense of `x` in `this` Array, searching back to front.
+		Returns position of the last occurrence of `x` in `this` Array, searching back to front.
 
 		If `x` is found by checking standard equality, the function returns its index.
 

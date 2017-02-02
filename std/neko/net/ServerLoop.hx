@@ -137,7 +137,7 @@ class ServerLoop<ClientData> {
 	}
 
 	/**
-		Called when an error occured. This enable you to log the error somewhere.
+		Called when an error occurred. This enable you to log the error somewhere.
 		By default the error is displayed using `trace`.
 	**/
 	public function onError( e : Dynamic ) {

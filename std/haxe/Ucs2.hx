@@ -83,7 +83,7 @@ abstract Ucs2(String) {
 	}
 
 	/**
-		Returns the position of the leftmost occurence of `str` within `this`
+		Returns the position of the leftmost occurrence of `str` within `this`
 		Ucs2.
 
 		If `startIndex` is given, the search is performed within the substring
@@ -98,7 +98,7 @@ abstract Ucs2(String) {
 	}
 
 	/**
-		Returns the position of the rightmost occurence of `str` within `this`
+		Returns the position of the rightmost occurrence of `str` within `this`
 		Ucs2.
 
 		If `startIndex` is given, the search is performed within the substring
@@ -113,7 +113,7 @@ abstract Ucs2(String) {
 	}
 
 	/**
-		Splits `this` Ucs2 at each occurence of `delimiter`.
+		Splits `this` Ucs2 at each occurrence of `delimiter`.
 
 		If `this` Ucs2 is the empty Ucs2 "", the result is not consistent
 		across targets and may either be `[]` (on Js, Cpp) or `[""]`.
@@ -127,7 +127,7 @@ abstract Ucs2(String) {
 
 		If `delimiter` is null, the result is unspecified.
 
-		Otherwise, `this` Ucs2 is split into parts at each occurence of
+		Otherwise, `this` Ucs2 is split into parts at each occurrence of
 		`delimiter`. If `this` Ucs2 starts (or ends) with `delimiter`, the
 		result Array contains a leading (or trailing) empty Ucs2 "" element.
 		Two subsequent delimiters also result in an empty Ucs2 "" element.

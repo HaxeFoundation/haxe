@@ -33,7 +33,7 @@ enum StackItem {
 }
 
 /**
-	Get informations about the call stack.
+	Get information about the call stack.
 **/
 class CallStack {
 	#if js
