@@ -9,6 +9,10 @@ open Meta
 open Globals
 
 let debug = ref false
+(**
+	Do not add comments with Haxe positions before each line of generated php code
+*)
+let skip_line_directives = ref false
 
 (**
 	Escape string for constant strings generation.
@@ -1926,8 +1930,10 @@ class virtual type_builder ctx wrapper =
 			and exprs = match expr.eexpr with TBlock exprs -> exprs | _ -> [expr] in
 			let write_body () =
 				let write_expr expr =
-					self#write_pos expr;
-					self#write_indentation;
+					if not !skip_line_directives then begin
+						self#write_pos expr;
+						self#write_indentation
+					end;
 					self#write_expr expr;
 					match expr.eexpr with
 						| TBlock _ | TIf _ | TTry _ | TSwitch _ | TWhile (_, _, NormalWhile) -> self#write "\n"
@@ -3498,6 +3504,7 @@ class generator (com:context) =
 	Entry point to Genphp7
 *)
 let generate (com:context) =
+	skip_line_directives := Common.defined com Define.RealPosition;
 	let gen = new generator com in
 	gen#initialize;
 	let rec generate com_type =

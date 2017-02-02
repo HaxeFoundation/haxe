@@ -608,7 +608,7 @@ module Define = struct
 		| NoTraces -> ("no_traces","Disable all trace calls")
 		| Objc -> ("objc","Sets the hxcpp output to objective-c++ classes. Must be defined for interop")
 		| PhpPrefix -> ("php_prefix","Compiled with --php-prefix")
-		| RealPosition -> ("real_position","Disables Haxe source mapping when targetting C#, removes position comments in Java output")
+		| RealPosition -> ("real_position","Disables Haxe source mapping when targetting C#, removes position comments in Java and Php7 output")
 		| ReplaceFiles -> ("replace_files","GenCommon internal")
 		| Scriptable -> ("scriptable","GenCPP internal")
 		| ShallowExpose -> ("shallow-expose","Expose types to surrounding scope of Haxe generated closure without writing to window object")
