@@ -379,19 +379,19 @@ let need_parenthesis_for_binop current parent =
 (**
 	Check if specified expression may require dereferencing if used as "temporary expression"
 *)
-let needs_dereferencing expr =
+let needs_dereferencing for_assignment expr =
 	let rec is_create target_expr =
 		match target_expr.eexpr with
 			| TParenthesis e -> is_create e
 			| TCast (e, _) -> is_create e
-			| TNew _ -> true
-			| TArrayDecl _ -> true
-			| TObjectDecl _ -> true
+			| TNew _ -> for_assignment
+			| TArrayDecl _ -> for_assignment
+			| TObjectDecl _ -> for_assignment
 			| TConst TNull -> true
 			(* some of `php.Syntax` methods *)
 			| TCall ({ eexpr = TField (_, FStatic ({ cl_path = syntax_type_path }, { cf_name = name })) }, _) ->
 				(match name with
-					| "binop" | "object" | "array" -> true
+					| "binop" | "object" | "array" -> for_assignment
 					| _ -> false
 				)
 			| _ -> false
@@ -442,6 +442,15 @@ let is_modifying_unop op =
 	match op with
 		| Increment
 		| Decrement -> true
+		| _ -> false
+
+(**
+	Check if specified binary operation contains assignment
+*)
+let is_assignment_binop op =
+	match op with
+		| OpAssign
+		| OpAssignOp _ -> true
 		| _ -> false
 
 (**
@@ -1661,7 +1670,7 @@ class virtual type_builder ctx wrapper =
 					vars#used var.v_name;
 					self#write ("$" ^ var.v_name)
 				| TArray (target, index) -> self#write_expr_array_access target index
-				| TBinop (operation, expr1, expr2) when needs_dereferencing expr1 ->
+				| TBinop (operation, expr1, expr2) when needs_dereferencing (is_assignment_binop operation) expr1 ->
 					self#write_expr { expr with eexpr = TBinop (operation, self#dereference expr1, expr2) }
 				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2
 				| TField (fexpr, access) when is_php_global expr -> self#write_expr_php_global expr
@@ -1682,7 +1691,7 @@ class virtual type_builder ctx wrapper =
 				| TCall (target, args) -> self#write_expr_call target args
 				| TNew (_, _, args) when is_string expr -> write_args buffer self#write_expr args
 				| TNew (tcls, _, args) -> self#write_expr_new tcls args
-				| TUnop (operation, flag, target_expr) when needs_dereferencing target_expr ->
+				| TUnop (operation, flag, target_expr) when needs_dereferencing (is_modifying_unop operation) target_expr ->
 					self#write_expr { expr with eexpr = TUnop (operation, flag, self#dereference target_expr) }
 				| TUnop (operation, flag, expr) -> self#write_expr_unop operation flag expr
 				| TFunction fn -> self#write_expr_function fn
