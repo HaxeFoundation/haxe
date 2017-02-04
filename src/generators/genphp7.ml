@@ -792,6 +792,26 @@ let is_std_is expr =
 		| _ -> false
 
 (**
+	Check if provided expression is actually a casting to NativeStructArray
+*)
+let is_native_struct_array_cast expr =
+	match expr.eexpr with
+		| TCall ({ eexpr = TField (_, field) }, _) ->
+			(match field with
+				| FStatic ({ cl_path = (["php"; "_NativeStructArray"], "NativeStructArray_Impl_") }, { cf_name = "__fromObject" }) -> true
+				| _ -> false
+			)
+		| _ -> false
+
+(**
+	Check if `expr` is an anonymous object declaration
+*)
+let is_object_declaration expr =
+	match (reveal_expr expr).eexpr with
+		| TObjectDecl _ -> true
+		| _ -> false
+
+(**
 	Check if `subject_arg` and `type_arg` can be generated as `$subject instanceof Type` expression.
 *)
 let instanceof_compatible (subject_arg:texpr) (type_arg:texpr) : bool =
@@ -1528,6 +1548,11 @@ class virtual type_builder ctx wrapper =
 		method private write str =
 			Buffer.add_string buffer str
 		(**
+			Writes constant double-quoted string to output buffer
+		*)
+		method private write_const_string str =
+			self#write ("\"" ^ (escape_bin str) ^ "\"")
+		(**
 			Writes fixed amount of empty lines (E.g. between methods)
 		*)
 		method private write_empty_lines =
@@ -1684,6 +1709,7 @@ class virtual type_builder ctx wrapper =
 				| TObjectDecl fields -> self#write_expr_object_declaration fields
 				| TArrayDecl exprs -> self#write_expr_array_decl exprs
 				| TCall (target, [arg1; arg2]) when is_std_is target && instanceof_compatible arg1 arg2 -> self#write_expr_lang_instanceof [arg1; arg2]
+				| TCall (_, [arg]) when is_native_struct_array_cast expr && is_object_declaration arg -> self#write_assoc_array_decl arg
 				| TCall ({ eexpr = TLocal { v_name = name }}, args) when is_magic expr -> self#write_expr_magic name args
 				| TCall ({ eexpr = TField (expr, access) }, args) when is_string expr -> self#write_expr_call_string expr access args
 				| TCall (expr, args) when is_lang_extern expr -> self#write_expr_call_lang_extern expr args
@@ -1761,7 +1787,7 @@ class virtual type_builder ctx wrapper =
 		method private write_expr_const const =
 			match const with
 				| TFloat str -> self#write str
-				| TString str -> self#write ("\"" ^ (escape_bin str) ^ "\"")
+				| TString str -> self#write_const_string str
 				| TBool value -> self#write (if value then "true" else "false")
 				| TNull -> self#write "null"
 				| TThis -> self#write "$this"
@@ -1789,6 +1815,31 @@ class virtual type_builder ctx wrapper =
 					self#indent_less;
 					self#write_indentation;
 					self#write "])"
+		(**
+			Write associative array declaration (used for NativeStructArray)
+		*)
+		method private write_assoc_array_decl object_decl =
+			match (reveal_expr object_decl).eexpr with
+				| TObjectDecl fields ->
+					if List.length fields = 0 then
+						self#write "[]"
+					else begin
+						self#write "[\n";
+						self#indent_more;
+						List.iter
+							(fun (name, field) ->
+								self#write_indentation;
+								self#write_const_string name;
+								self#write " => ";
+								self#write_expr field;
+								self#write ",\n"
+							)
+							fields;
+						self#indent_less;
+						self#write_indentation;
+						self#write "]";
+					end
+				| _ -> fail object_decl.epos (try assert false with Assert_failure mlpos -> mlpos)
 		(**
 			Writes TArray to output buffer
 		*)
