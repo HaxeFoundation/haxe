@@ -1562,7 +1562,18 @@ let type_function ctx args ret fmode f do_display p =
 	ctx.curfun <- fmode;
 	ctx.ret <- ret;
 	ctx.opened <- [];
-	let e = match f.f_expr with None -> error "Function body required" p | Some e -> e in
+	let e = match f.f_expr with
+		| None ->
+			if ctx.com.display.dms_error_policy = EPIgnore then
+				(* when we don't care because we're in display mode, just act like
+				   the function has an empty block body. this is fine even if function
+				   defines a return type, because returns aren't checked in this mode
+				*)
+				EBlock [],p
+			else
+				error "Function body required" p
+		| Some e -> e
+	in
 	let e = if not do_display then
 		type_expr ctx e NoValue
 	else begin
