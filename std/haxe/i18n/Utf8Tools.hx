@@ -155,7 +155,7 @@ class Utf8Tools {
 	}
 
 	static function getCharCode ( b:Utf8Impl, pos:Int, size:Int):Int {
-		return Encoding.charCodeFromUtf8Bytes(b.b, pos, size);
+		return Encoding.charCodeFromUtf8Bytes(new Utf8Reader(b.b), pos, size);
 	}
 
 	static function compareChar ( b1:Utf8Impl, pos1:Int, b2:Utf8Impl, pos2:Int, size:Int):Bool {

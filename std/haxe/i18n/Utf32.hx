@@ -134,6 +134,10 @@ abstract Utf32(Utf32Impl) {
 		return Utf16.fromByteAccess(Encoding.convertUtf32toUtf16(getReader(), StrictConversion));
 	}
 
+	public function toUcs2() : Ucs2 {
+		return toUtf16().toUcs2();
+	}
+
 	@:op(A == B) inline function opEq (other:Utf32) {
 		return this.equal(asByteAccess(other));
 	}

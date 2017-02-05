@@ -168,6 +168,10 @@ abstract Ucs2(String) {
 		return Utf16.fromBytes(toBytes());
 	}
 
+	public inline function toUtf32() : Utf32 {
+		return toUtf16().toUtf32();
+	}
+
 	static inline function fromImpl (str:String):Ucs2 {
 		return cast str;
 	}
@@ -328,6 +332,10 @@ abstract Ucs2(ByteAccess) {
 	public function toUtf16() : Utf16 {
 		// we can reuse the same underlying byteaccess because ucs2 allows supplementary chars
 		return Utf16.fromByteAccess(this);
+	}
+
+	public function toUtf32() : Utf32 {
+		return toUtf16().toUtf32();
 	}
 
 	@:op(A == B) inline function opEq (other:Ucs2) {
