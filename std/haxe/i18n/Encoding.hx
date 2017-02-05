@@ -1,8 +1,7 @@
 package haxe.i18n;
 import haxe.i18n.ByteAccess;
 import haxe.i18n.ByteAccessBuffer;
-
-
+import haxe.ds.Vector;
 
 /***** SOURCE
 // http://llvm.org/svn/llvm-project/llvm/trunk/include/llvm/Support/ConvertUTF.h
@@ -58,16 +57,6 @@ import haxe.i18n.ByteAccessBuffer;
 
 ------------------------------------------------------------------------ */
 
-
-//#include "llvm/Support/ConvertUTF.h"
-//#ifdef CVTUTF_DEBUG
-//#include <stdio.h>
-//#endif
-//#include <assert.h>
-
-import haxe.ds.Vector;
-
-
 enum ConversionError {
     SourceExhausted;
     SourceIllegal(bytePos:Int);
@@ -80,10 +69,10 @@ enum ConversionError {
 
 
 class Encoding {
-    static inline var halfShift:Int  = 10; /* used for shifting by 10 bits */
+    static inline var HALF_SHIFT:Int  = 10; /* used for shifting by 10 bits */
 
-    static inline var halfBase:Int = 0x0010000;
-    static inline var halfMask:Int = 0x3FF;
+    static inline var HALF_BASE:Int = 0x0010000;
+    static inline var HALF_MASK:Int = 0x3FF;
 
     static inline var UNI_SUR_HIGH_START:Int = 0xD800;
     static inline var UNI_SUR_HIGH_END:Int = 0xDBFF;
@@ -94,9 +83,10 @@ class Encoding {
     static inline var UNI_REPLACEMENT_CHAR:Int = 0x0000FFFD;
     static inline var UNI_MAX_BMP:Int = 0x0000FFFF;
     static inline var UNI_MAX_UTF16:Int = 0x0010FFFF;
-    //static inline var UNI_MAX_UTF32:Int = 0x7FFFFFFF;
+    
     static inline var UNI_MAX_LEGAL_UTF32:Int = 0x0010FFFF;
 
+    //static inline var UNI_MAX_UTF32:Int = 0x7FFFFFFF;
     //static inline var UNI_MAX_UTF8_BYTES_PER_CODE_POINT:Int = 4;
 
     //static inline var UNI_UTF16_BYTE_ORDER_MARK_NATIVE:Int=  0xFEFF;
@@ -118,8 +108,6 @@ class Encoding {
     public static inline function isSurrogatePair(code : Int) : Bool {
         return code > UNI_MAX_BMP && code <= UNI_MAX_UTF16;
 	}
-
-    /* --------------------------------------------------------------------- */
 
     /*
      * Index into the table below with the first byte of a UTF-8 sequence to
@@ -209,35 +197,37 @@ class Encoding {
     }
 
     static inline function writeUtf8CodeBytes (ch:Int, bytesToWrite:Int, addByte:Int->Void) {
+        
         var byteMask:Int = 0xBF;
         var byteMark:Int = 0x80;
         switch (bytesToWrite)
-            {
-                case 4:
-                    addByte( (   (ch >> 18) | firstByteMark[bytesToWrite]) );
-                    addByte( ( ( (ch >> 12) | byteMark) & byteMask) );
-                    addByte( ( ( (ch >> 6) | byteMark) & byteMask) );
-                    addByte( ( ( (ch) | byteMark) & byteMask) );
-                case 3:
-                    addByte( (   (ch >> 12) | firstByteMark[bytesToWrite]) );
-                    addByte( ( ( (ch >> 6) | byteMark) & byteMask) );
-                    addByte( ( ( (ch) | byteMark) & byteMask) );
-                case 2:
-                    addByte( (   (ch >> 6) | firstByteMark[bytesToWrite]) );
-                    addByte( ( ( (ch) | byteMark) & byteMask) );
-                case 1:
-                    addByte( (   (ch) | firstByteMark[bytesToWrite]) );
-            }
+        {
+            case 4:
+                addByte( (   (ch >> 18) | firstByteMark[bytesToWrite]) );
+                addByte( ( ( (ch >> 12) | byteMark) & byteMask) );
+                addByte( ( ( (ch >> 6 ) | byteMark) & byteMask) );
+                addByte( ( ( (ch      ) | byteMark) & byteMask) );
+            case 3:
+                addByte( (   (ch >> 12) | firstByteMark[bytesToWrite]) );
+                addByte( ( ( (ch >> 6 ) | byteMark) & byteMask) );
+                addByte( ( ( (ch      ) | byteMark) & byteMask) );
+            case 2:
+                addByte( (   (ch >> 6 ) | firstByteMark[bytesToWrite]) );
+                addByte( ( ( (ch      ) | byteMark) & byteMask) );
+            case 1:
+                addByte( (   (ch      ) | firstByteMark[bytesToWrite]) );
+        }
     }
 
     public static inline function utf16surrogatePairToCharCode (ch1:Int, ch2:Int) {
-        return ((ch1 - UNI_SUR_HIGH_START) << halfShift)
-            + (ch2 - UNI_SUR_LOW_START) + halfBase;
+        return ((ch1 - UNI_SUR_HIGH_START) << HALF_SHIFT)
+            + (ch2 - UNI_SUR_LOW_START) + HALF_BASE;
     }
+
     public static inline function charCodeToSurrogatePair (code:Int) {
-        code -= halfBase;
-        var high = (code >> halfShift) + UNI_SUR_HIGH_START;
-        var low = (code & halfMask) + UNI_SUR_LOW_START;
+        code -= HALF_BASE;
+        var high = (code >> HALF_SHIFT) + UNI_SUR_HIGH_START;
+        var low = (code & HALF_MASK) + UNI_SUR_LOW_START;
         return { high : high, low : low };
     }
 
@@ -294,8 +284,6 @@ class Encoding {
             bytesToWrite = 3;
             ch = UNI_REPLACEMENT_CHAR;
             if (flags == StrictConversion) {
-
-                trace("source illegal");
                 throw SourceIllegal(pos);
             }
         }
@@ -313,13 +301,13 @@ class Encoding {
     public static inline function getUtf8CharSize (first) {
         return trailingBytesForUTF8[first]+1;
     }
-    
 
     // asserts valid utf8 bytes
     public static inline function charCodeFromUtf8Bytes (source:Utf8Reader, pos:Int, size:Int) {
         var extraBytesToRead = size - 1;
 
         var ch = 0;
+        
         switch (extraBytesToRead) {
             case 5:
                 ch += source.fastGet(pos++); ch <<= 6;
@@ -364,18 +352,18 @@ class Encoding {
         while (i < source.length) {
 
             var extraBytesToRead:Int = trailingBytesForUTF8[source.fastGet(i)];
-
+            var size = extraBytesToRead + 1;
             if (extraBytesToRead >= source.length - i) {
                 throw SourceExhausted;
             }
             /* Do this check whether lenient or strict */
-            if (!isLegalUTF8(source, i, extraBytesToRead+1)) {
+            if (!isLegalUTF8(source, i, size)) {
                 throw SourceIllegal(i);
             }
-            var ch = charCodeFromUtf8Bytes(source, i, extraBytesToRead+1);
+            var ch = charCodeFromUtf8Bytes(source, i, size);
             
             writeUtf16CodeBytes(ch, i, function (_, ch) target.addInt16BigEndian(ch), flags, strictUcs2 );
-            i+=extraBytesToRead+1;
+            i+=size;
         }
         return target.getByteAccess();
     }
@@ -415,9 +403,9 @@ class Encoding {
     }
 
     public inline static function codeToSurrogatePair (code:Int) {
-        var code = code - halfBase;
-        var high = ((code >> halfShift) + UNI_SUR_HIGH_START);
-        var low = ((code & halfMask) + UNI_SUR_LOW_START);
+        var code = code - HALF_BASE;
+        var high = ((code >> HALF_SHIFT) + UNI_SUR_HIGH_START);
+        var low = ((code & HALF_MASK) + UNI_SUR_LOW_START);
         return { high : high, low : low };
     }
 
@@ -447,17 +435,17 @@ class Encoding {
 
         var ch0 = source.fastGet(pos);
 
-        inline function case4 () {
+        inline function check4 () {
             var ch3 = source.fastGet(pos+3);
             return if (ch3 < 0x80 || ch3 > 0xBF) false else true;
         }
 
-        inline function case3 () {
+        inline function check3 () {
             var ch2 = source.fastGet(pos+2);
             return if (ch2 < 0x80 || ch2 > 0xBF) false else true;
         }
 
-        inline function case2 () {
+        inline function check2 () {
             var ch1 = source.fastGet(pos+1);
             return if (ch1 < 0x80 || ch1 > 0xBF) {
                 false;
@@ -471,25 +459,26 @@ class Encoding {
             }
         }
 
-        inline function case1 () {
+        inline function check1 () {
             return if (ch0 >= 0x80 && ch0 < 0xC2) false else true;
         }
 
-        inline function case0 () {
+        inline function check0 () {
             return ch0 <= 0xF4;
         }
 
         return switch (length)
         {
             case 4:
-                case4() && case3() && case2() && case1() && case0();
+                check4() && check3() && check2() && check1() && check0();
             case 3:
-                case3() && case2() && case1() && case0();
+                check3() && check2() && check1() && check0();
             case 2:
-                case2() && case1() && case0();
+                check2() && check1() && check0();
             case 1:
-                case1() && case0();
-            case _: false;
+                check1() && check0();
+            case _: 
+                false;
         }
     }
 

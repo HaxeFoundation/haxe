@@ -21,8 +21,6 @@
  */
 package haxe.i18n;
 
-
-
 import haxe.i18n.ByteAccess;
 
 typedef Utf32Impl = ByteAccess;
@@ -108,10 +106,11 @@ abstract Utf32(Utf32Impl) {
 	inline function impl ():ByteAccess {
 		return this;
 	}
+	// end private helpers
 
-	//public function toNativeString() : String {
-	//	return Utf32Tools.toNativeString(this);
-	//}
+	public function toNativeString() : String {
+		return Utf32Tools.toNativeString(this);
+	}
 
 	public static inline function fromCharCode( code : Int ) : Utf32 {
 		return fromImpl(Encoding.charCodeToUtf32ByteAccess(code));
@@ -124,7 +123,6 @@ abstract Utf32(Utf32Impl) {
 	public static inline function fromBytes( bytes : haxe.io.Bytes ) : Utf32 {
 		return fromImpl(ByteAccess.fromBytes(bytes).copy());
 	}
-
 	
 	public function toUtf8() : Utf8 {
 		return Utf8.fromByteAccess(Encoding.convertUtf32toUtf8(getReader(), StrictConversion));
@@ -150,7 +148,6 @@ abstract Utf32(Utf32Impl) {
 		return fromImpl(this.append(asByteAccess(other)));
 	}
 
-
 	function compare (other:Utf32):Int {
 		return Utf32Tools.compare(this, other.impl());
 	}
@@ -168,7 +165,4 @@ abstract Utf32(Utf32Impl) {
 	@:op(A >= B) inline function opGreaterThanOrEq (other:Utf32) {
 		return compare(other) >= 0;
 	}
-
-	
 }
-

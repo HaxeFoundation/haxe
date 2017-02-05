@@ -17,7 +17,7 @@ class Utf16Tools {
 	}
 
 	static function strLength(impl:Utf16Impl) {
-		return impl.length;//calcLength(impl);
+		return impl.length;
 	}
 
 	static inline function mkImplFromBuffer(buf:ByteAccessBuffer, newSize:Int):Utf16Impl {
@@ -54,8 +54,6 @@ class Utf16Tools {
 	static inline function getInt16 (impl:Utf16Impl, pos:Int) {
 		return impl.b.getInt16(pos);
 	}
-
-	
 
 	static inline function getInt32 (impl:Utf16Impl, pos:Int) {
 		return impl.b.getInt32(pos);
@@ -282,7 +280,6 @@ class Utf16Tools {
 				posFull++;
 			}
 
-
 		}
 		return res;
 	}
@@ -313,9 +310,9 @@ class Utf16Tools {
 				
 			} else {
 				if (j > 0) {
-					// restore next search position and continue
+					
 					posFull++;
-					i = iNext;
+					i = iNext; // restore next search position and continue
 					j = 0;
 					pos = 0;
 					continue;
@@ -350,10 +347,9 @@ class Utf16Tools {
 		
 		var pos = 0;
 		var posFull = 0;
-		// byte iteration variables
 		var i = 0;
 		var j = 0;
-		// iterate bytes
+
 		while (i < byteLength(impl)) {
 			var size = getCharSize(getInt16(impl, i));
 			var size2 = getCharSize(getInt16(delimiter, j));
@@ -436,7 +432,6 @@ class Utf16Tools {
 		var newSize = 0;
 		while (i < byteLength) {
 			var char = getInt16(str, i);
-			//if (char == null) throw "error";
 			var size = getCharSize(char);
 			if (cur >= pos && (len == null || cur < pos + len))
 			{

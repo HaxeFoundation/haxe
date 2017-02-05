@@ -31,27 +31,27 @@ class Utf32Tools {
 		return impl.length >> 2;
 	}
 
-	static inline function isUpperCaseLetter (bytes:Int) {
-		return bytes >= 0x41 && bytes <= 0x5A;
+	static inline function isUpperCaseLetter (code:Int) {
+		return code >= 0x41 && code <= 0x5A;
 	}
 
-	static inline function isLowerCaseLetter (bytes:Int) {
-		return bytes >= 0x61 && bytes <= 0x7A;
+	static inline function isLowerCaseLetter (code:Int) {
+		return code >= 0x61 && code <= 0x7A;
 	}
 
-	static inline function toLowerCaseLetter (bytes:Int):Int {
-		return if (isUpperCaseLetter(bytes)) {
-			bytes + 0x20;
+	static inline function toLowerCaseLetter (code:Int):Int {
+		return if (isUpperCaseLetter(code)) {
+			code + 0x20;
 		} else {
-			bytes;
+			code;
 		}
 	}
 
-	static inline function toUpperCaseLetter (bytes:Int) {
-		return if (isLowerCaseLetter(bytes)) {
-			bytes - 0x20;
+	static inline function toUpperCaseLetter (code:Int) {
+		return if (isLowerCaseLetter(code)) {
+			code - 0x20;
 		} else {
-			bytes;
+			code;
 		}
 	}
 
@@ -259,9 +259,9 @@ class Utf32Tools {
 		}
 	}
 
-	//static inline function toNativeString(impl:Utf32Impl) : String {
-	//	return Utf32.fromImpl(impl).toUtf8().toNativeString();
-	//}
+	static inline function toNativeString(impl:Utf32Impl) : String {
+		return Utf32.fromImpl(impl).toUtf8().toNativeString();
+	}
 
 	static function compare (impl:Utf32Impl, other:Utf32Impl):Int {
 		var len1 = strLength(impl);

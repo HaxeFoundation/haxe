@@ -83,8 +83,6 @@ class Utf8Tools {
 		return { length : len, b : ba};
 	}
 
-	
-
 	public static inline function toNativeString(impl:Utf8Impl) : String {
 		return impl.b.getString(0, impl.b.length);
 	}
@@ -104,24 +102,23 @@ class Utf8Tools {
 		return len;
 	}
 
-	static function getCharSize (start:Int):Int {
+	static inline function getCharSize (start:Int):Int {
 		return Encoding.getUtf8CharSize(start);
-		
 	}
 
-	static function isUpperCaseLetter (bytes:Utf8Impl, pos:Int, size:Int) {
+	static inline function isUpperCaseLetter (bytes:Utf8Impl, pos:Int, size:Int) {
 		var b = fastGet(bytes, pos);
 		return b >= 0x41 && b <= 0x5A;
 	}
 
 	
-	static function isLowerCaseLetter (bytes:Utf8Impl, pos:Int, size:Int) {
+	static inline function isLowerCaseLetter (bytes:Utf8Impl, pos:Int, size:Int) {
 		var b = fastGet(bytes, pos);
 		return b >= 0x61 && b <= 0x7A;
 	}
 
 	
-	static function toLowerCaseLetter (bytes:Utf8Impl, target:Utf8Impl, pos:Int, size:Int) {
+	static inline function toLowerCaseLetter (bytes:Utf8Impl, target:Utf8Impl, pos:Int, size:Int) {
 		if (isUpperCaseLetter(bytes, pos, size)) {
 			set(target, pos, fastGet(bytes, pos)+0x20);
 		} else {
@@ -337,7 +334,6 @@ class Utf8Tools {
 					pos = 0;
 					continue;
 				}
-				
 			}
 
 			i+=size;
@@ -445,7 +441,6 @@ class Utf8Tools {
 			len = strLength(str) + len;
 			if (len < 0) len = 0;
 		}
-
 		
 		if (len == 0) return empty;
 
@@ -494,7 +489,6 @@ class Utf8Tools {
 		return substr(ba, startIndex, endIndex - startIndex);
 	}
 
-
 	static function fromCharCode( code : Int ) : Utf8Impl
 	{
 		var size = getCodeSize(code);
@@ -518,7 +512,6 @@ class Utf8Tools {
 		}
 		return bytes;
 	}
-
 
 	static function toCodeArray (ba:Utf8Impl):Array<Int> {
 		var res = [];
@@ -551,9 +544,4 @@ class Utf8Tools {
 		if (len1 > len2) return 1;
 		return 0;
 	}
-
-
-
-	
-
 }
