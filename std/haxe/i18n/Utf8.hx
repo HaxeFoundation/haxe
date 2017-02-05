@@ -121,6 +121,10 @@ abstract Utf8(Utf8Impl) {
  	public inline function toUtf16 ():Utf16 {
 		return Utf16.fromByteAccess(Encoding.convertUtf8toUtf16(getReader(), StrictConversion));
 	}
+
+	public inline function toUtf32 ():Utf32 {
+		return Utf32.fromByteAccess(Encoding.convertUtf8toUtf32(getReader(), StrictConversion));
+	}
 	
 	public inline function toBytes() : haxe.io.Bytes {
 		return Utf8Tools.toBytes(this);

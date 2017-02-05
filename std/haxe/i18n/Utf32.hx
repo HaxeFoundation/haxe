@@ -125,16 +125,14 @@ abstract Utf32(Utf32Impl) {
 		return fromImpl(ByteAccess.fromBytes(bytes).copy());
 	}
 
-	/*
+	
 	public function toUtf8() : Utf8 {
-		return toUtf8();
+		return Utf8.fromByteAccess(Encoding.convertUtf32toUtf8(getReader(), StrictConversion));
 	}
-
+	
 	public function toUtf16() : Utf16 {
-		toUtf8()
-		return Utf16.fromByteAccess(this);
+		return Utf16.fromByteAccess(Encoding.convertUtf32toUtf16(getReader(), StrictConversion));
 	}
-	*/
 
 	@:op(A == B) inline function opEq (other:Utf32) {
 		return this.equal(asByteAccess(other));
