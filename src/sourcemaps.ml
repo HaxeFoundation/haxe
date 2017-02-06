@@ -1,7 +1,7 @@
 
 open Globals
 open Ast
-open Type
+open Lexer
 open Common
 
 (**
@@ -55,7 +55,8 @@ class sourcemap_file generated_file =
 		(** Indicates whether comma should be written to output buffer on next `map` call *)
 		val mutable print_comma = false
 	(**
-		Map specified haxe position
+		Map specified haxe position.
+		This method should be called right before an expression in `pos` is writtend to generated file.
 	*)
 	method map pos =
 		let src_file = self#get_file_index pos
@@ -95,12 +96,18 @@ class sourcemap_file generated_file =
 		handle_next_new_line (-1);
 		()
 	(**
+		Force new line.
+	*)
+	method new_line =
+		print_comma <- false;
+		current_out_col <- 0
+	(**
 		Write generated map to disk.
 		If `file_name` is not provided then `generated_file` will be used with additional `.map` extension.
 		E.g if `generated_file` is `path/to/file.js`, then sourcemap will be written to `path/to/file.js.map`.
 		This function does not try to create missing directories.
 	*)
-	method write_map ?file_name com =
+	method generate ?file_name com =
 		let file_name = match file_name with Some f -> f | None -> generated_file ^ ".map" in
 		let channel = open_out file_name in
 		let sources = DynArray.to_list files in
@@ -144,7 +151,7 @@ class sourcemap_file generated_file =
 			DynArray.add files pos.pfile;
 			index
 	(**
-		Apply base64 VLQ encoding to `number` and write it to `buffer`
+		Apply base64 VLQ encoding to `number` and write it to output buffer
 	*)
 	method private write_base64_vlq number =
 		let rec loop vlq =
@@ -166,19 +173,22 @@ end
 *)
 class sourcemaps =
 	object (self)
-	(** Dictionary of all sourcemaps generators f. *)
-	val files = Hashtbl.create 1
+	(** Dictionary of all sourcemaps generators for each generated file. *)
+	val generators = Hashtbl.create 1
 	(**
 		Get an object to generate sourcemap for `generated_file`.
 		`generated_file` is not a file containing sourcemap, but a target language file.
 	*)
 	method for_file (generated_file:string) : sourcemap_file =
 		try
-			Hashtbl.find files generated_file
+			Hashtbl.find generators generated_file
 		with Not_found ->
 			let file = new sourcemap_file generated_file in
-			Hashtbl.replace files generated_file file;
+			Hashtbl.replace generators generated_file file;
 			file
+	(**
+		Generate sourcemaps for all generated files
+	*)
+	method generate (com:Common.context) =
+		Hashtbl.iter (fun _ (sm:sourcemap_file) -> sm#generate com) generators
 end
-
-
