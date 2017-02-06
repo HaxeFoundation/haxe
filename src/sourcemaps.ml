@@ -100,7 +100,8 @@ class sourcemap_file generated_file =
 	*)
 	method new_line =
 		print_comma <- false;
-		current_out_col <- 0
+		current_out_col <- 0;
+		Rbuffer.add_char buffer ';'
 	(**
 		Write generated map to disk.
 		If `file_name` is not provided then `generated_file` will be used with additional `.map` extension.
@@ -132,13 +133,6 @@ class sourcemap_file generated_file =
 		output_string channel "\"\n";
 		output_string channel "}";
 		close_out channel
-	(**
-		Should be called when new line is inserted in generated file
-	*)
-	(*method new_line =
-		last_out_col <- 0;
-		line_is_empty <- true;
-		Rbuffer.add_char buffer ';'*)
 	(**
 		Get source Haxe file position in a list of files referenced by this sourcemap
 	*)
