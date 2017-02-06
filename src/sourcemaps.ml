@@ -61,10 +61,10 @@ class sourcemap_file generated_file =
 	method map pos =
 		let src_file = self#get_file_index pos
 		and src_line, src_col = match (Lexer.find_pos pos) with (line, col) -> (line + 1, col) in
-		if print_comma then begin
-			print_comma <- true;
+		if print_comma then
 			Rbuffer.add_char buffer ','
-		end;
+		else
+			print_comma <- true;
 		self#write_base64_vlq (current_out_col - last_out_col);
 		self#write_base64_vlq (src_file - last_src_file);
 		self#write_base64_vlq (src_line - last_src_line);
