@@ -32,9 +32,11 @@ let to_vlq number =
 		number lsl 1
 
 (**
-	Sourcemap generator for a signle `generated_file`
+	Writes sourcemap for a signle `generated_file` to disk.
+	If your code generation is straightforward, you can use this class directly.
+	Otherwise use `sourcemap_builder` (e.g. if you need to generate some middle parts of a code and then generate the beginning).
 *)
-class sourcemap_file generated_file =
+class sourcemap_writer (generated_file:string) =
 	object (self)
 		(** Output buffer for generated sourcemap *)
 		val buffer = Rbuffer.create 1024
@@ -96,13 +98,6 @@ class sourcemap_file generated_file =
 		handle_next_new_line (-1);
 		()
 	(**
-		Force new line.
-	*)
-	method new_line =
-		print_comma <- false;
-		current_out_col <- 0;
-		Rbuffer.add_char buffer ';'
-	(**
 		Write generated map to disk.
 		If `file_name` is not provided then `generated_file` will be used with additional `.map` extension.
 		E.g if `generated_file` is `path/to/file.js`, then sourcemap will be written to `path/to/file.js.map`.
@@ -162,27 +157,121 @@ class sourcemap_file generated_file =
 		loop (to_vlq number)
 end
 
+type sm_node_data =
+	| SMPos of pos
+	| SMStr of string
+	| SMNil (* this data type marks the beginning and the end of a list *)
+
+type sm_node = {
+	mutable smn_left : sm_node option;
+	mutable smn_right : sm_node option;
+	smn_data : sm_node_data;
+}
+
+let init_sourcemap_node_list =
+	let first =
+		{
+			smn_left = None;
+			smn_right = None;
+			smn_data = SMNil;
+		}
+	in
+	let last =
+		{
+			smn_left = Some first;
+			smn_right = None;
+			smn_data = SMNil;
+		}
+	in
+	first.smn_right <- Some last;
+	first
+
 (**
-	This class can be used to manage sourcemaps for multiple generated files.
+	Builds data for sourcemap.
 *)
-class sourcemaps =
+class sourcemap_builder (generated_file:string) =
 	object (self)
-	(** Dictionary of all sourcemaps generators for each generated file. *)
-	val generators = Hashtbl.create 1
+	(** Current node *)
+	val mutable current = init_sourcemap_node_list
 	(**
-		Get an object to generate sourcemap for `generated_file`.
-		`generated_file` is not a file containing sourcemap, but a target language file.
+		Add data to sourcemap.
+		1. `#insert (SMPos pos)` should be called right before an expression in `pos` is writtend to generated file.
+		2. `#insert (SMStr str)` should be called every time some string is written to generated file.
 	*)
-	method for_file (generated_file:string) : sourcemap_file =
-		try
-			Hashtbl.find generators generated_file
-		with Not_found ->
-			let file = new sourcemap_file generated_file in
-			Hashtbl.replace generators generated_file file;
-			file
+	method insert (data:sm_node_data) =
+		(* new node which will be inserted after current one *)
+		let inserted =
+			{
+				smn_left = Some current;
+				smn_right = current.smn_right;
+				smn_data = data;
+			}
+		in
+		(* link new node with current and next to current one *)
+		current.smn_right <- Some inserted;
+		(match inserted.smn_right with
+			| Some right -> right.smn_left <- current.smn_right
+			| None -> ()
+		);
+		(* inserted node becomes current *)
+		current <- inserted
 	(**
-		Generate sourcemaps for all generated files
+		Rewind builder so that next `#insert data` call will insert data in the beginning of this sourcemap.
 	*)
-	method generate (com:Common.context) =
-		Hashtbl.iter (fun _ (sm:sourcemap_file) -> sm#generate com) generators
+	method rewind =
+		let rec loop node =
+			match node with
+				| Some ({ smn_data = SMNil } as node) -> current <- node
+				| Some node -> loop node.smn_left
+				| None -> assert false
+		in
+		loop (Some current)
+	(**
+		Fast forward builder so that next `#insert data` call will attach data to the end of this sourcemap.
+	*)
+	method fast_forward =
+		let rec loop node =
+			match node.smn_right with
+				| Some { smn_data = SMNil } -> current <- node
+				| Some node -> loop node
+				| None -> assert false
+		in
+		loop current
+	(**
+		Set builder pointer to `node` so that next `#insert data` call will insert data right after this `node`.
+	*)
+	method seek (node:sm_node) = current <- node
+	(**
+		Get current node in this builder
+	*)
+	method get_pointer = current
+	(**
+		Write source map to disk.
+		If `file_name` is not provided then `generated_file` will be used with additional `.map` extension.
+		E.g if `generated_file` is `path/to/file.js`, then sourcemap will be written to `path/to/file.js.map`.
+		This function does not try to create missing directories.
+	*)
+	method generate ?file_name com =
+		(* remember position *)
+		let pointer = self#get_pointer in
+		self#rewind;
+		(* write source map to a buffer *)
+		let writer = new sourcemap_writer generated_file in
+		let rec loop node =
+			(match node.smn_data with
+				| SMPos pos -> writer#map pos
+				| SMStr str -> writer#string_written str
+				| SMNil -> ()
+			);
+			(match node.smn_right with
+				| None -> ()
+				| Some node -> loop node
+			)
+		in
+		loop current;
+		(* dump source map to a file *)
+		let file_name = match file_name with Some f -> f | None -> generated_file in
+		writer#generate ~file_name:file_name com;
+		(* restore position *)
+		self#seek pointer
 end

@@ -1225,10 +1225,15 @@ class virtual type_builder ctx wrapper =
 		(** Object to collect local vars declarations and usage as we iterate through methods' expressions *)
 		val vars = new local_vars
 		(** Sourcemap generator *)
-		val mutable sourcemap : sourcemap_file option = None
-		(** Set sourcemap generator *)
-		method set_sourcemap_generator generator =
-			sourcemap <- Some generator
+		val mutable sourcemap : sourcemap_builder option = None
+		(**
+			Set sourcemap generator
+		*)
+		method set_sourcemap_generator generator = sourcemap <- Some generator
+		(**
+			Get sourcemap generator
+		*)
+		method get_sourcemap_generator = sourcemap
 		(**
 			Get PHP namespace path
 		*)
@@ -1553,7 +1558,7 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write str =
 			Buffer.add_string buffer str;
-			Option.may (fun smap -> smap#string_written str) sourcemap;
+			Option.may (fun smap -> smap#insert (SMStr str)) sourcemap;
 		(**
 			Writes constant double-quoted string to output buffer
 		*)
@@ -1696,7 +1701,7 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write_expr (expr:texpr) =
 			expr_hierarchy <- expr :: expr_hierarchy;
-			Option.may (fun smap -> smap#map expr.epos) sourcemap;
+			Option.may (fun smap -> smap#insert (SMPos expr.epos)) sourcemap;
 			(match expr.eexpr with
 				| TConst const -> self#write_expr_const const
 				| TLocal var ->
@@ -3475,7 +3480,6 @@ class class_builder ctx (cls:tclass) =
 *)
 class generator (com:context) =
 	object (self)
-		val sourcemaps = new sourcemaps
 		val mutable build_dir = ""
 		val root_dir = com.file
 		val mutable init_types = []
@@ -3494,9 +3498,13 @@ class generator (com:context) =
 			let filename = (create_dir_recursive (build_dir :: namespace)) ^ "/" ^ name ^ ".php" in
 			let channel = open_out filename in
 			if com.debug then
-				builder#set_sourcemap_generator (sourcemaps#for_file filename);
+				builder#set_sourcemap_generator (new sourcemap_builder filename);
 			output_string channel builder#get_contents;
 			close_out channel;
+			(match builder#get_sourcemap_generator with
+				| Some smap -> smap#generate com
+				| None -> ()
+			);
 			if builder#get_type_path = boot_type_path then
 				boot <- Some (builder, filename)
 			else if builder#has_magic_init then
@@ -3507,7 +3515,6 @@ class generator (com:context) =
 		method finalize : unit =
 			self#generate_magic_init;
 			self#generate_entry_point;
-			sourcemaps#generate com
 		(**
 			Generates calls to static __init__ methods in Boot.php
 		*)
