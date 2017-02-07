@@ -243,7 +243,7 @@ let rec func ctx bb tf t p =
 		end;
 		let bb = declare_var_and_assign bb v e e.epos in
 		let e = {e with eexpr = TLocal v} in
-		let e = List.fold_left (fun e f -> f e) e (List.rev fl) in
+		let e = List.fold_left (fun e f -> f e) e fl in
 		bb,e
 	and declare_var_and_assign bb v e p =
 		(* TODO: this section shouldn't be here because it can be handled as part of the normal value processing *)
