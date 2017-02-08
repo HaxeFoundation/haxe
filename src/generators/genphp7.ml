@@ -579,14 +579,14 @@ let get_visibility (meta:metadata) = if Meta.has Meta.Protected meta then "prote
 (**
 	Writes arguments list to output buffer
 *)
-let rec write_args buffer arg_writer (args:'a) =
+let rec write_args (str_writer:string->unit) arg_writer (args:'a list) =
 	match args with
 		| [] -> ()
 		| [arg] -> arg_writer arg
 		| arg :: rest ->
 			arg_writer arg;
-			Buffer.add_string buffer ", ";
-			write_args buffer arg_writer rest
+			str_writer ", ";
+			write_args str_writer arg_writer rest
 
 (**
 	Check if specified field is a var with non-constant expression
@@ -1321,7 +1321,6 @@ class virtual type_builder ctx wrapper =
 				(* Boot initialization *)
 				if boot_type_path = self#get_type_path then
 					self#write_statement (boot_class ^ "::__hx__init()");
-				(*let php_class = get_full_type_name ~escape:true ~omit_first_slash:true (add_php_prefix ctx self#get_type_path)*)
 				let haxe_class = match wrapper#get_type_path with (path, name) -> String.concat "." (path @ [name]) in
 				self#write_statement (boot_class ^ "::registerClass(" ^ (self#get_name) ^ "::class, '" ^ haxe_class ^ "')");
 				self#write_rtti_meta;
@@ -1330,6 +1329,7 @@ class virtual type_builder ctx wrapper =
 				if wrapper#needs_initialization && boot_type_path <> self#get_type_path then
 					self#write_statement (self#get_name ^ "::__hx__init()");
 				let body = Buffer.contents buffer in
+				Option.may (fun smap -> smap#rewind) sourcemap;
 				Buffer.clear buffer;
 				self#write_header;
 				self#write "\n";
@@ -1728,7 +1728,7 @@ class virtual type_builder ctx wrapper =
 				| TCall (expr, args) when is_lang_extern expr -> self#write_expr_call_lang_extern expr args
 				| TCall (target, args) when is_sure_var_field_access target -> self#write_expr_call (parenthesis target) args
 				| TCall (target, args) -> self#write_expr_call target args
-				| TNew (_, _, args) when is_string expr -> write_args buffer self#write_expr args
+				| TNew (_, _, args) when is_string expr -> write_args self#write self#write_expr args
 				| TNew (tcls, _, args) -> self#write_expr_new tcls args
 				| TUnop (operation, flag, target_expr) when needs_dereferencing (is_modifying_unop operation) target_expr ->
 					self#write_expr { expr with eexpr = TUnop (operation, flag, self#dereference target_expr) }
@@ -1901,7 +1901,7 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write_constructor_function_declaration func write_arg =
 			self#write ("function __construct (");
-			write_args buffer write_arg func.tf_args;
+			write_args self#write write_arg func.tf_args;
 			self#write ") {\n";
 			self#indent_more;
 			self#write_instance_initialization;
@@ -1919,7 +1919,7 @@ class virtual type_builder ctx wrapper =
 		method private write_method_function_declaration name func write_arg =
 			let by_ref = if is_ref func.tf_type then "&" else "" in
 			self#write ("function " ^ by_ref ^ name ^ " (");
-			write_args buffer write_arg func.tf_args;
+			write_args self#write write_arg func.tf_args;
 			self#write ") ";
 			self#write_expr (inject_defaults ctx func)
 		(**
@@ -1928,7 +1928,7 @@ class virtual type_builder ctx wrapper =
 		method private write_closure_declaration func write_arg =
 			vars#dive;
 			self#write "function (";
-			write_args buffer write_arg func.tf_args;
+			write_args self#write write_arg func.tf_args;
 			self#write ")";
 			(* Generate closure body to separate buffer *)
 			let original_buffer = buffer in
@@ -1942,7 +1942,7 @@ class virtual type_builder ctx wrapper =
 			self#write " ";
 			if List.length used_vars > 0 then begin
 				self#write " use (";
-				write_args buffer (fun name -> self#write ("&$" ^ name)) used_vars;
+				write_args self#write (fun name -> self#write ("&$" ^ name)) used_vars;
 				self#write ") "
 			end;
 			self#write body
@@ -2168,7 +2168,7 @@ class virtual type_builder ctx wrapper =
 							)
 						| "__call__" ->
 							self#write (code ^ "(");
-							write_args buffer self#write_expr args;
+							write_args self#write self#write_expr args;
 							self#write ")"
 						| "__physeq__" ->
 							(match args with
@@ -2449,7 +2449,7 @@ class virtual type_builder ctx wrapper =
 			match access with
 				| FInstance (_, _, ({ cf_kind = Method _ } as field)) ->
 					self#write ((self#use hxstring_type_path) ^ "::" ^ (field_name field) ^ "(");
-					write_args buffer self#write_expr (expr :: args);
+					write_args self#write self#write_expr (expr :: args);
 					self#write ")"
 				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
 		(**
@@ -2472,11 +2472,11 @@ class virtual type_builder ctx wrapper =
 				| _ ->
 					let (args, return_type) = get_function_signature field  in
 					self#write "function(";
-					write_args buffer (self#write_arg true) args;
+					write_args self#write (self#write_arg true) args;
 					self#write ") { return ";
 					write_expr ();
 					self#write (operator ^ (field_name field) ^ "(");
-					write_args buffer (self#write_arg false) args;
+					write_args self#write (self#write_arg false) args;
 					self#write "); }"
 		(**
 			Writes FClosure field access to output buffer
@@ -2586,7 +2586,7 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write_expr_lang_array_decl args =
 			self#write "[";
-			write_args buffer (fun e -> self#write_expr e) args;
+			write_args self#write (fun e -> self#write_expr e) args;
 			self#write "]"
 		(**
 			Writes a call to instance method (for `php.Syntax.call()`)
@@ -2598,7 +2598,7 @@ class virtual type_builder ctx wrapper =
 					self#write "->{";
 					self#write_expr method_expr;
 					self#write "}(";
-					write_args buffer (fun e -> self#write_expr e) args;
+					write_args self#write (fun e -> self#write_expr e) args;
 					self#write ")"
 				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
 		(**
@@ -2611,7 +2611,7 @@ class virtual type_builder ctx wrapper =
 					self#write "::{";
 					self#write_expr method_expr;
 					self#write "}(";
-					write_args buffer (fun e -> self#write_expr e) args;
+					write_args self#write (fun e -> self#write_expr e) args;
 					self#write ")"
 				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
 		(**
@@ -2673,7 +2673,7 @@ class virtual type_builder ctx wrapper =
 			self#write "new ";
 			self#write_expr class_expr;
 			self#write "(";
-			write_args buffer (fun e -> self#write_expr e) args;
+			write_args self#write (fun e -> self#write_expr e) args;
 			self#write ")"
 		(**
 			Writes native php type conversion to output buffer (e.g. `php.Syntax.int()`)
@@ -2763,7 +2763,7 @@ class virtual type_builder ctx wrapper =
 			if not !no_call then
 				begin
 					self#write "(";
-					write_args buffer self#write_expr args;
+					write_args self#write self#write_expr args;
 					self#write ")"
 				end
 		(**
@@ -2787,7 +2787,7 @@ class virtual type_builder ctx wrapper =
 		method private write_expr_new inst_class args =
 			let needs_php_prefix = not inst_class.cl_extern in
 			self#write ("new " ^ (self#use ~prefix:needs_php_prefix inst_class.cl_path) ^ "(");
-			write_args buffer self#write_expr args;
+			write_args self#write self#write_expr args;
 			self#write ")"
 		(**
 			Writes ternary operator expressions to output buffer
@@ -2963,7 +2963,7 @@ class enum_builder ctx (enm:tenum) =
 			self#write_doc (DocMethod (args, TEnum (enm, []), field.ef_doc));
 			self#write_indentation;
 			self#write ("static public function " ^ name ^ " (");
-			write_args buffer (self#write_arg true) args;
+			write_args self#write (self#write_arg true) args;
 			self#write ") {\n";
 			self#indent_more;
 			self#write_indentation;
@@ -2973,7 +2973,7 @@ class enum_builder ctx (enm:tenum) =
 				| [] -> self#write ((self#use hxenum_type_path) ^ "::singleton(static::class, '" ^ name ^ "', " ^ index_str ^")")
 				| args ->
 					self#write ("new " ^ self#get_name ^ "('" ^ name ^ "', " ^ index_str ^", [");
-					write_args buffer (fun (name, _, _) -> self#write ("$" ^ name)) args;
+					write_args self#write (fun (name, _, _) -> self#write ("$" ^ name)) args;
 					self#write "])"
 			);
 			self#write ";\n";
@@ -3378,7 +3378,7 @@ class class_builder ctx (cls:tclass) =
 			match field.cf_expr with
 				| None ->
 					self#write ("function " ^ (field_name field) ^ " (");
-					write_args buffer (self#write_arg true) args;
+					write_args self#write (self#write_arg true) args;
 					self#write ")";
 					self#write " ;\n"
 				| Some { eexpr = TFunction fn } ->
@@ -3401,11 +3401,11 @@ class class_builder ctx (cls:tclass) =
 			(match field.cf_expr with
 				| None -> (* interface *)
 					self#write " (";
-					write_args buffer (self#write_arg true) args;
+					write_args self#write (self#write_arg true) args;
 					self#write ");\n";
 				| Some { eexpr = TFunction fn } -> (* normal class *)
 					self#write " (";
-					write_args buffer self#write_function_arg fn.tf_args;
+					write_args self#write self#write_function_arg fn.tf_args;
 					self#write ")\n";
 					self#write_line "{";
 					self#indent_more;
@@ -3497,8 +3497,8 @@ class generator (com:context) =
 			and name = builder#get_name in
 			let filename = (create_dir_recursive (build_dir :: namespace)) ^ "/" ^ name ^ ".php" in
 			let channel = open_out filename in
-			if com.debug then
-				builder#set_sourcemap_generator (new sourcemap_builder filename);
+			(*if com.debug then
+				builder#set_sourcemap_generator (new sourcemap_builder filename);*)
 			output_string channel builder#get_contents;
 			close_out channel;
 			(match builder#get_sourcemap_generator with

@@ -270,7 +270,7 @@ class sourcemap_builder (generated_file:string) =
 		in
 		loop current;
 		(* dump source map to a file *)
-		let file_name = match file_name with Some f -> f | None -> generated_file in
+		let file_name = match file_name with Some f -> f | None -> generated_file ^ ".map" in
 		writer#generate ~file_name:file_name com;
 		(* restore position *)
 		self#seek pointer
