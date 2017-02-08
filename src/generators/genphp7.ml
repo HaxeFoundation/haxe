@@ -2202,8 +2202,12 @@ class virtual type_builder ctx wrapper =
 		*)
 		method private write_expr_type (mtype:module_type) =
 			let ttype = type_of_module_type mtype in
-			match expr_hierarchy with
-				| _ :: { eexpr = TField _ } :: _ -> self#write (self#use_t ttype)
+			match self#parent_expr with
+				(* When type is used to access type fields. E.g. `TypeExpr.someField` *)
+				| Some { eexpr = TField (_, FStatic _) }
+				| Some { eexpr = TField (_, FEnum _) } ->
+					self#write (self#use_t ttype)
+				(* Other cases *)
 				| _ ->
 					let class_name =
 						match self#use_t ttype with
@@ -2240,8 +2244,8 @@ class virtual type_builder ctx wrapper =
 				let write_left = match writer with None -> self#write_expr | Some writer -> writer in
 				let write_right = match right_writer with None -> write_left | Some writer -> writer
 				and need_parenthesis =
-					match expr_hierarchy with
-						| _ :: { eexpr = TBinop (parent, _, _) } :: _ -> need_parenthesis_for_binop operation parent
+					match self#parent_expr with
+						| Some { eexpr = TBinop (parent, _, _) } -> need_parenthesis_for_binop operation parent
 						| _ -> false
 				in
 				if need_parenthesis then self#write "(";
@@ -2383,8 +2387,8 @@ class virtual type_builder ctx wrapper =
 						| _ -> write_access "->" (field_name field)
 					)
 				| (_, FStatic (_, ({ cf_kind = Method MethDynamic } as field))) ->
-					(match expr_hierarchy with
-						| _ :: { eexpr = TCall ({ eexpr = TField (e, a) }, _) } :: _ when a == access ->
+					(match self#parent_expr with
+						| Some { eexpr = TCall ({ eexpr = TField (e, a) }, _) } when a == access ->
 							self#write "(";
 							write_access "::" ("$" ^ (field_name field));
 							self#write ")"
@@ -2465,8 +2469,8 @@ class virtual type_builder ctx wrapper =
 					| TTypeExpr _ -> "::"
 					| _ -> "->"
 			in
-			match expr_hierarchy with
-				| _ :: { eexpr = TCall ({ eexpr = TField (e, FStatic (_, f)) }, _) } :: _ when e == expr && f == field ->
+			match self#parent_expr with
+				| Some { eexpr = TCall ({ eexpr = TField (e, FStatic (_, f)) }, _) } when e == expr && f == field ->
 					write_expr ();
 					self#write (operator ^ (field_name field))
 				| _ ->
