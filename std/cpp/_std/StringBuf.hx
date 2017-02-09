@@ -78,13 +78,11 @@ class StringBuf {
 
    public function toString() : String {
       if (charBuf!=null)
-      {
-         if (b==null)
-           return( charBufAsString() );
          flush();
-      }
-      if (b==null)
+      if (b==null || b.length==0)
          return "";
+      if (b.length==1)
+         return b[0];
       return b.join("");
    }
 
