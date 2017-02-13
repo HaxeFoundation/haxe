@@ -34,12 +34,12 @@
 		o[field] = value;
 	}
 
-	public static inline function getProperty( o : Dynamic, field : String ) : Dynamic untyped {
+	public static function getProperty( o : Dynamic, field : String ) : Dynamic untyped {
 		var tmp;
 		return if( o == null ) __define_feature__("Reflect.getProperty",null) else if( o.__properties__ && (tmp=o.__properties__["get_"+field]) ) o[tmp]() else o[field];
 	}
 
-	public static inline function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
+	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
 		var tmp;
 		if( o.__properties__ && (tmp=o.__properties__["set_"+field]) ) o[tmp](value) else o[field] = __define_feature__("Reflect.setProperty",value);
 	}
