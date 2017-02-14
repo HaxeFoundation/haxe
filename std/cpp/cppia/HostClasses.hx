@@ -55,6 +55,7 @@ class HostClasses
    "cpp.vm.WeakRef",
    "cpp.Object",
    "cpp.Int64",
+   "cpp.Finalizable",
    "Std",
    "StringBuf",
    "sys.db.Mysql",
