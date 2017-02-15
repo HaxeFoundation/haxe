@@ -1574,17 +1574,17 @@ class virtual type_builder ctx wrapper =
 			Writes current indentation to output buffer
 		*)
 		method private write_indentation =
-			Buffer.add_string buffer indentation
+			self#write indentation
 		(**
 			Writes specified line to output buffer and appends \n
 		*)
 		method private write_line line =
-			Buffer.add_string buffer (indentation ^ line ^ "\n")
+			self#write (indentation ^ line ^ "\n")
 		(**
 			Writes specified statement to output buffer and appends ";\n"
 		*)
 		method private write_statement statement =
-			Buffer.add_string buffer (indentation ^ statement ^ ";\n")
+			self#write (indentation ^ statement ^ ";\n")
 		(**
 			Build file header (<?php, namespace and file doc block)
 		*)
@@ -3501,8 +3501,8 @@ class generator (com:context) =
 			and name = builder#get_name in
 			let filename = (create_dir_recursive (build_dir :: namespace)) ^ "/" ^ name ^ ".php" in
 			let channel = open_out filename in
-			(*if com.debug then
-				builder#set_sourcemap_generator (new sourcemap_builder filename);*)
+			if com.debug then
+				builder#set_sourcemap_generator (new sourcemap_builder filename);
 			output_string channel builder#get_contents;
 			close_out channel;
 			(match builder#get_sourcemap_generator with
