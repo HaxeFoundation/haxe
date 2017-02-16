@@ -3,7 +3,7 @@ next release
 	Bugfixes:
 
 	all : fixed compilation server issue with two identical @:native paths on extern abstracts (#5993)
-	php/php7 : fixed invalid result of Web.getPostData() (#6073)
+	php/php7 : fixed invalid result of Web.getPostData() (#6033)
 
 2017-01-31: 3.4.0
 
