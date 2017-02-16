@@ -1164,7 +1164,6 @@ type inline_info = {
 
 let inline_constructors ctx e =
 	let vars = ref IntMap.empty in
-	let extern_count = ref 0 in (* Number of extern inline constructors that have not been inlined yet *)
 	let is_valid_ident s =
 		try
 			if String.length s = 0 then raise Exit;
@@ -1250,9 +1249,7 @@ let inline_constructors ctx e =
 							| [] -> e
 							| _ -> mk (TBlock (List.rev (e :: el_init))) e.etype e.epos
 						in
-						let is_extern_ctor = is_extern_ctor c cf in
-						add v e' (IKCtor(cf,is_extern_ctor));
-						if is_extern_ctor then decr extern_count;
+						add v e' (IKCtor(cf,is_extern_ctor c cf));
 						find_locals e
 					| None ->
 						()
@@ -1318,9 +1315,6 @@ let inline_constructors ctx e =
 			end
 		| TLocal v when v.v_id < 0 ->
 			cancel v e.epos;
-		| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})} as cf)} as c,_,_) when is_extern_ctor c cf ->
-			incr extern_count;
-			Type.iter find_locals e
 		| _ ->
 			Type.iter find_locals e
 	in
@@ -1405,19 +1399,13 @@ let inline_constructors ctx e =
 			in
 			let el = block [] el in
 			mk (TBlock (List.rev el)) e.etype e.epos
+		| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})} as cf)} as c,_,_) when is_extern_ctor c cf ->
+			display_error ctx "Extern constructor could not be inlined" e.epos;
+			Type.map_expr loop e
 		| _ ->
 			Type.map_expr loop e
 	in
-	let result = loop e in
-	if !extern_count <> 0 then begin
-		(* Check if there's any extern inline constructors left behind *)
-		let rec loop e = match e.eexpr with
-			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl) when is_extern_ctor c cf ->
-				display_error ctx "Extern constructor could not be inlined" e.epos;
-			| _ -> Type.iter loop e
-		in loop result;
-	end;
-	result
+	loop e
 
 (* ---------------------------------------------------------------------- *)
 (* COMPLETION *)
