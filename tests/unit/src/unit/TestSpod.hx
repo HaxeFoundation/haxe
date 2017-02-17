@@ -27,12 +27,14 @@ class TestSpod extends Test
 		try cnx.request('DROP TABLE ClassWithStringId') catch(e:Dynamic) {}
 		try cnx.request('DROP TABLE ClassWithStringIdRef') catch(e:Dynamic) {}
 		try cnx.request('DROP TABLE IssueC3828') catch(e:Dynamic) {}
+		try cnx.request('DROP TABLE Issue6041Table') catch(e:Dynamic) {}
 		TableCreate.create(MySpodClass.manager);
 		TableCreate.create(OtherSpodClass.manager);
 		TableCreate.create(NullableSpodClass.manager);
 		TableCreate.create(ClassWithStringId.manager);
 		TableCreate.create(ClassWithStringIdRef.manager);
 		TableCreate.create(IssueC3828.manager);
+		TableCreate.create(Issue6041Table.manager);
 	}
 
 	private function setManager()
@@ -166,6 +168,19 @@ class TestSpod extends Test
 		var u2 = IssueC3828.manager.search($refUser == u1).first();
 		eq(u1.id, u1id);
 		eq(u2.id, u2id);
+	}
+
+	public function testIssue6041()
+	{
+		setManager();
+		var item = new Issue6041Table();
+		item.insert();
+		var result = cnx.request('SELECT * FROM Issue6041Table LIMIT 1');
+		var amount = 1;
+		for(row in result) {
+			if(--amount < 0) throw "Invalid amount of rows in result";
+		}
+		eq(amount, 0);
 	}
 
 	public function testStringIdRel()
