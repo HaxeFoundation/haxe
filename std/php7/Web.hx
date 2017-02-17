@@ -269,13 +269,15 @@ class Web {
 		var h = fopen("php://input", "r");
 		var bsize = 8192;
 		var max = 32;
-		var data : String = null;
+		var data = '';
 		var counter = 0;
 		while (!feof(h) && counter < max) {
 			data = Syntax.binop(data, ' . ', fread(h, bsize));
 			counter++;
 		}
 		fclose(h);
+		if (counter == 0) 
+			return null;
 		return data;
 	}
 
