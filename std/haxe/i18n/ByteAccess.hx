@@ -4,7 +4,6 @@ import haxe.io.Bytes;
 import haxe.io.BytesData;
 import haxe.io.Error;
 
-
 import haxe.i18n.BytesDataTools;
 
 abstract ByteAccess(BytesData) {
@@ -22,11 +21,10 @@ abstract ByteAccess(BytesData) {
 	public inline function getInt32( pos : Int ) : Int {
 		return (get(pos) << 24) | (get(pos+1) << 16) | (get(pos+2) << 8) | get(pos+3);
 	}
+
 	public inline function getInt16( pos : Int ) : Int {
 		var upper = get(pos) << 8;
 		var lower =  get(pos+1);
-		//if (upper == null) throw "upper is null";
-		//if (lower == null) throw "lower is null";
 		return upper | lower;
 	}
 
@@ -58,16 +56,15 @@ abstract ByteAccess(BytesData) {
 		return BytesDataTools.fastGet(this, pos);
 	}
 
-
 	public inline function blit (pos : Int, src : ByteAccess, srcpos : Int, len : Int):Void {
 		return BytesDataTools.blit(this, pos, src.asBytesData(), srcpos, len);
 	}
+
 	public inline function append (other : ByteAccess):ByteAccess {
 		var ba = alloc(length + other.length);
 		ba.blit(0, asByteAccess(), 0, length);
 		ba.blit(length, other, 0, other.length);
 		return ba;
-
 	}
 
 	@:op(a == b) function opEq (other: ByteAccess) {
@@ -129,8 +126,6 @@ abstract ByteAccess(BytesData) {
 		return cast b;
 	}
 
-
-
 	public inline function asBytesData ():BytesData {
 		return this;
 	}
@@ -150,5 +145,4 @@ abstract ByteAccess(BytesData) {
 	public inline function toBytes ():Bytes {
 		return Bytes.ofData(this);
 	}
-
 }

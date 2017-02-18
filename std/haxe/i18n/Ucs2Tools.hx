@@ -267,23 +267,6 @@ class Ucs2Tools {
 	static inline function compare (impl:Ucs2Impl, other:Ucs2Impl):Int {
 		return impl.compare(other);
 	}
-	/*
-	static function compare (impl:Ucs2Impl, other:Ucs2Impl):Int {
-		var len1 = strLength(impl);
-		var len2 = strLength(other);
-		
-		var min = len1 < len2 ? len1 : len2;
-		for (i in 0...min) {
-			var a = fastCodeAt(impl, i);
-			var b = fastCodeAt(other, i);
-			if (a < b) return -1;
-			if (a > b) return 1;
-		}
-		if (len1 < len2) return -1;
-		if (len1 > len2) return 1;
-		return 0;
-	}
-	*/
 	
 	static function isValid(impl:Ucs2Impl) {
 		for (i in 0...strLength(impl)) {

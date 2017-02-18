@@ -4,7 +4,6 @@ import haxe.io.Bytes;
 import haxe.io.BytesData;
 import haxe.io.Error;
 
-
 #if !nodejs
 import js.html.compat.Uint8Array;
 #end
@@ -61,7 +60,6 @@ abstract ByteAccess(Uint8Array) {
 		}
 		return res.join(",");
 	}
-
 
 	public inline function fastGet (pos:Int):Int {
 		return Uint8ArrayTools.fastGet(this, pos);
@@ -139,4 +137,3 @@ abstract ByteAccess(Uint8Array) {
 		return Bytes.ofData(sub(0, length).getData());
 	}
 }
-

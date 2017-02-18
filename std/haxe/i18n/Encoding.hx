@@ -486,9 +486,6 @@ class Encoding {
     {
         var sourceEnd = source.length;
 
-        
-        // assert(!isLegalUTF8Sequence(source, sourceEnd));
-
         /*
         * Unicode 6.3.0, D93b:
         *
@@ -567,7 +564,6 @@ class Encoding {
         }
 
         if ((b1 >= 0x80 && b1 <= 0xC1) || b1 >= 0xF5) throw "assert";
-        // assert((b1 >= 0x80 && b1 <= 0xC1) || b1 >= 0xF5);
         /*
         * There are no valid sequences that start with these bytes.  Maximal subpart
         * is defined to have length 1 in these cases.

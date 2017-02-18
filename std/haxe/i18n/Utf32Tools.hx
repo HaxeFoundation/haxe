@@ -86,7 +86,6 @@ class Utf32Tools {
 		return res;
 	}
 
-
 	static var empty = ByteAccess.alloc(0); 
 
 	public static function charAt(impl:Utf32Impl, index : Int) : Utf32Impl {
@@ -174,7 +173,6 @@ class Utf32Tools {
 	}
 
 	public static function substring( impl:Utf32Impl, startIndex : Int, ?endIndex : Int ) : Utf32Impl {
-		
 		var startIndex:Null<Int> = startIndex;
 		if (startIndex < 0) startIndex = 0;
 		if (endIndex != null && endIndex < 0) endIndex = 0;
@@ -188,7 +186,6 @@ class Utf32Tools {
 			startIndex = endIndex;
 			endIndex = x;
 		}
-		
 		
 		if (endIndex == null || endIndex > len) endIndex = len;
 

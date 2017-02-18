@@ -521,31 +521,4 @@ class Utf8Tools {
 	static inline function compare (impl:Utf8Impl, other:Utf8Impl):Int {
 		return impl.b.compare(other.b);
 	}
-	/*
-	static function compare (impl:Utf8Impl, other:Utf8Impl):Int {
-		var len1 = strLength(impl);
-		var len2 = strLength(other);
-		var min = len1 < len2 ? len1 : len2;
-
-		var p1 = 0;
-		var p2 = 0;
-		for (i in 0...min) {
-			var b1 = fastGet(impl, p1);
-			var size1 = getCharSize(b1);
-			var code1 = getCharCode(impl, p1, size1);
-
-			var b2 = fastGet(other, p2);
-			var size2 = getCharSize(b2);
-			var code2 = getCharCode(other, p2, size2);
-
-			if (code1 < code2) return -1;
-			if (code1 > code2) return 1;
-			p1 += size1;
-			p2 += size2;
-		}
-		if (len1 < len2) return -1;
-		if (len1 > len2) return 1;
-		return 0;
-	}
-	*/
 }
