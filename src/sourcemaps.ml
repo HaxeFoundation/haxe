@@ -56,6 +56,7 @@ class sourcemap_writer (generated_file:string) =
 		val mutable last_out_col = 0
 		(** Indicates whether comma should be written to output buffer on next `map` call *)
 		val mutable print_comma = false
+		(** Last position passed to `map` *)
 		val mutable last_mapped_pos = None
 	(**
 		Map specified haxe position.
@@ -171,7 +172,7 @@ type sm_node = {
 	smn_data : sm_node_data;
 }
 
-let init_sourcemap_node_list =
+let init_sourcemap_node_list () : sm_node =
 	let first =
 		{
 			smn_left = None;
@@ -195,7 +196,7 @@ let init_sourcemap_node_list =
 class sourcemap_builder (generated_file:string) =
 	object (self)
 	(** Current node *)
-	val mutable current = init_sourcemap_node_list
+	val mutable current = init_sourcemap_node_list()
 	(**
 		Add data to sourcemap.
 		1. `#insert (SMPos pos)` should be called right before an expression in `pos` is writtend to generated file.

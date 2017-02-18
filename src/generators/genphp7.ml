@@ -1568,8 +1568,7 @@ class virtual type_builder ctx wrapper =
 			Writes fixed amount of empty lines (E.g. between methods)
 		*)
 		method private write_empty_lines =
-			self#write "\n";
-			self#write "\n"
+			self#write "\n\n"
 		(**
 			Writes current indentation to output buffer
 		*)
