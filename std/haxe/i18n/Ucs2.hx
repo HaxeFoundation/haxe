@@ -577,49 +577,41 @@ private class Ucs2Tools {
 	public static function split( impl:Ucs2Impl, delimiter : Ucs2Impl ) : Array<Ucs2> {
 		var delimiterLen = delimiter.length;
 
-		var buffer = new ByteAccessBuffer();
-		var tempBuffer = new ByteAccessBuffer();
-
+		var lastPos = 0;
 		var res = [];
 		var pos = 0;
-
-		for ( i in 0...impl.length) {
+		
+		var i = 0;
+		while ( i < impl.length) {
 
 			var b = impl.fastGet(i);
 			var d = delimiter.fastGet(pos);
 
 			if (b == d) {
-				tempBuffer.addByte(b);
 				pos++;
 			} else {
-				if (pos > 0) {
-					buffer.addBuffer(tempBuffer);
-					tempBuffer.reset();
-				}
-				buffer.addByte(b);
 				pos = 0;
 			}
 
 			if (pos == delimiterLen) {
-				pos = 0;
-				if (buffer.length > 0) {
-					res.push(Ucs2.fromImpl(buffer.getByteAccess()));
-					buffer.reset();
+				var size = ((i+1) - delimiterLen) - lastPos;
+				if (size > 0) {
+					res.push(Ucs2.fromImpl(impl.sub(lastPos, size)));
 				} else {
 					res.push(Ucs2.fromImpl(empty));
 				}
-				tempBuffer.reset();
+				pos = 0;
+				lastPos = i+1;
 			}
+			i++;
 		}
 
-		if (pos != 0) {
-			buffer.addBuffer(tempBuffer);
-		}
-		if (buffer.length > 0) {
-			res.push(Ucs2.fromImpl(buffer.getByteAccess()));
+		if (lastPos < impl.length) {
+			res.push(Ucs2.fromImpl(impl.sub(lastPos, impl.length - lastPos)));
 		} else {
 			res.push(Ucs2.fromImpl(empty));
 		}
+		
 		return res;
 	}
 

@@ -58,15 +58,15 @@ abstract Utf32(Utf32Impl) {
 		return res;
 	}
 
-	public function toUpperCase() : Utf32 {
+	public inline function toUpperCase() : Utf32 {
 		return fromImpl(Utf32Tools.toUpperCase(this));
 	}
 
-	public function toLowerCase() : Utf32 {
+	public inline function toLowerCase() : Utf32 {
 		return fromImpl(Utf32Tools.toLowerCase(this));
 	}
 
-	public function charAt(index : Int) : Utf32 {
+	public inline function charAt(index : Int) : Utf32 {
 		return fromImpl(Utf32Tools.charAt(this, index));
 	}
 
@@ -74,7 +74,7 @@ abstract Utf32(Utf32Impl) {
 		return Utf32Tools.isValid(this);
 	}
 
-	public function charCodeAt( index : Int) : Null<Int> {
+	public inline function charCodeAt( index : Int) : Null<Int> {
 		return Utf32Tools.charCodeAt(this, index);
 	}
 
@@ -86,15 +86,15 @@ abstract Utf32(Utf32Impl) {
 		return Utf32Tools.lastIndexOf(this, str.impl(), startIndex);
 	}
 
-	public function split( delimiter : Utf32 ) : Array<Utf32> {
+	public inline function split( delimiter : Utf32 ) : Array<Utf32> {
 		return Utf32Tools.split(this, delimiter.impl());
 	}
 
-	public function substr( pos : Int, ?len : Int ) : Utf32 {
+	public inline function substr( pos : Int, ?len : Int ) : Utf32 {
 		return fromImpl(Utf32Tools.substr(this, pos, len));
 	}
 
-	public function substring( startIndex : Int, ?endIndex : Int ) : Utf32 {
+	public inline function substring( startIndex : Int, ?endIndex : Int ) : Utf32 {
 		return fromImpl(Utf32Tools.substring(this, startIndex, endIndex));
 	}
 
@@ -359,46 +359,37 @@ class Utf32Tools {
 	public static function split( impl:Utf32Impl, delimiter : Utf32Impl ) : Array<Utf32> {
 		var delimiterLen = delimiter.length;
 
-		var buffer = new ByteAccessBuffer();
-		var tempBuffer = new ByteAccessBuffer();
-
+		var lastPos = 0;
 		var res = [];
 		var pos = 0;
-
-		for ( i in 0...impl.length) {
-
+		
+		var i = 0;
+		while ( i < impl.length) {
+			
 			var b = impl.fastGet(i);
 			var d = delimiter.fastGet(pos);
 
 			if (b == d) {
-				tempBuffer.addByte(b);
 				pos++;
 			} else {
-				if (pos > 0) {
-					buffer.addBuffer(tempBuffer);
-					tempBuffer.reset();
-				}
-				buffer.addByte(b);
 				pos = 0;
 			}
 
 			if (pos == delimiterLen) {
-				pos = 0;
-				if (buffer.length > 0) {
-					res.push(Utf32.fromImpl(buffer.getByteAccess()));
-					buffer.reset();
+				var size = ((i+1) - delimiterLen) - lastPos;
+				if ( size > 0) {
+					res.push(Utf32.fromImpl(impl.sub(lastPos, size)));
 				} else {
 					res.push(Utf32.fromImpl(empty));
 				}
-				tempBuffer.reset();
+				pos = 0;
+				lastPos = i+1;
 			}
+			i++;
 		}
 
-		if (pos != 0) {
-			buffer.addBuffer(tempBuffer);
-		}
-		if (buffer.length > 0) {
-			res.push(Utf32.fromImpl(buffer.getByteAccess()));
+		if (lastPos < impl.length) {
+			res.push(Utf32.fromImpl(impl.sub(lastPos, impl.length - lastPos)));
 		} else {
 			res.push(Utf32.fromImpl(empty));
 		}
