@@ -166,3 +166,276 @@ abstract Utf32(Utf32Impl) {
 		return compare(other) >= 0;
 	}
 }
+
+abstract Utf32Reader(ByteAccess) {
+
+	public inline function new (bytes:ByteAccess) {
+		this = bytes;
+	}
+
+	public var length(get, never):Int;
+
+	inline function get_length () {
+		return this.length;
+	}
+	
+	public inline function getInt32 (pos:Int) {
+		return this.getInt32(pos);
+	}
+}
+
+@:allow(haxe.i18n)
+class Utf32Tools {
+
+	static inline function strToImplIndex (strIndex:Int):Int {
+		return strIndex << 2;
+	}
+	static inline function implToStrIndex (strIndex:Int):Int {
+		return strIndex >> 2;
+	}
+
+	static inline function strLength(impl:Utf32Impl):Int {
+		return implToStrIndex(impl.length);
+	}
+
+	static inline function isUpperCaseLetter (code:Int) {
+		return code >= 0x41 && code <= 0x5A;
+	}
+
+	static inline function isLowerCaseLetter (code:Int) {
+		return code >= 0x61 && code <= 0x7A;
+	}
+
+	static inline function toLowerCaseLetter (code:Int):Int {
+		return if (isUpperCaseLetter(code)) {
+			code + 0x20;
+		} else {
+			code;
+		}
+	}
+
+	static inline function toUpperCaseLetter (code:Int) {
+		return if (isLowerCaseLetter(code)) {
+			code - 0x20;
+		} else {
+			code;
+		}
+	}
+
+	static function toUpperCase(impl:Utf32Impl) : Utf32Impl {
+		var res = Utf32Impl.alloc(impl.length);
+		var i = 0;
+		while (i < impl.length) {
+			var b = impl.getInt32(i);
+			res.setInt32(i, toUpperCaseLetter(b));
+			i+=4;
+			
+		}
+		return res;
+	}
+
+	static function toLowerCase(impl:Utf32Impl) : Utf32Impl {
+		var res = Utf32Impl.alloc(impl.length);
+		var i = 0;
+		while (i < impl.length) {
+			var b = impl.getInt32(i);
+			res.setInt32(i, toLowerCaseLetter(b));
+			i+=4;
+		}
+
+		return res;
+	}
+
+	static var empty = ByteAccess.alloc(0); 
+
+	public static function charAt(impl:Utf32Impl, index : Int) : Utf32Impl {
+		if (index < 0 || index >= strLength(impl)) {
+			return empty;
+		}
+		var b = ByteAccess.alloc(4);
+		var pos = strToImplIndex(index);
+		b.set(0, impl.get(pos    ));
+		b.set(1, impl.get(pos + 1));
+		b.set(2, impl.get(pos + 2));
+		b.set(3, impl.get(pos + 3));
+
+		return b;
+	}
+
+	public static function indexOf(impl:Utf32Impl, str : Utf32Impl, ?startIndex : Int ) : Int {
+		var res = -1;
+		var strLen = str.length;
+
+		var len = impl.length;
+		var i = startIndex != null ? (strToImplIndex(startIndex)) : 0;
+		var pos = 0;
+		var fullPos = i;
+		while (i < len) {
+			if (impl.fastGet(i) == str.fastGet(pos)) {
+				pos++;
+			} else if (pos > 0) {
+				pos = 0;
+			}
+			fullPos++;
+			if (pos == strLen) {
+				res = implToStrIndex(fullPos - strLen);
+				break;
+			}
+			i++;
+		}
+		return res;
+	}
+
+	public static function lastIndexOf( impl:Utf32Impl, str : Utf32Impl, ?startIndex : Int ) : Int {
+		var len = str.length;
+		var pos = len-1;
+	
+		var startIndex = startIndex == null ? impl.length : strToImplIndex(startIndex) + len;
+
+		if (startIndex > impl.length) {
+			startIndex = impl.length;
+		}
+		var i = startIndex;
+		var res = -1;
+		var fullPos = startIndex;
+		var lastPos = len - 1;
+		while (--i > -1) {
+			if (impl.fastGet(i) == str.fastGet(pos)) {
+				pos--;
+			} else if (pos < lastPos) {
+				pos = lastPos;
+			}
+			fullPos--;
+			if (pos == -1) {
+				res = implToStrIndex(fullPos);
+				break;
+			}
+		}
+		return res;
+	}
+
+	public static function substr( impl:Utf32Impl, pos : Int, ?len : Int ) : Utf32Impl {
+		return if (len == null) {
+			if (pos < 0) {
+				var newPos = strLength(impl) + pos;
+				if (newPos < 0) newPos = 0;
+				substring(impl, newPos);
+			} else {
+				substring(impl, pos);
+			}
+		} else {
+			if (len < 0) {
+				substring(impl, pos, strLength(impl) + len);
+			} else {
+				substring(impl, pos, pos + len);
+			}
+		}
+	}
+
+	public static function substring( impl:Utf32Impl, startIndex : Int, ?endIndex : Int ) : Utf32Impl {
+		var startIndex:Null<Int> = startIndex;
+		if (startIndex < 0) startIndex = 0;
+		if (endIndex != null && endIndex < 0) endIndex = 0;
+		
+		var len = strLength(impl);
+		
+		if (endIndex == null) endIndex = len;
+
+ 		if (startIndex > endIndex) {
+			var x = startIndex;
+			startIndex = endIndex;
+			endIndex = x;
+		}
+		
+		if (endIndex == null || endIndex > len) endIndex = len;
+
+		if (startIndex == null || startIndex > len) return empty;
+		
+		return impl.sub(strToImplIndex(startIndex), strToImplIndex(endIndex) - strToImplIndex(startIndex));
+	}
+
+	public static function split( impl:Utf32Impl, delimiter : Utf32Impl ) : Array<Utf32> {
+		var delimiterLen = delimiter.length;
+
+		var buffer = new ByteAccessBuffer();
+		var tempBuffer = new ByteAccessBuffer();
+
+		var res = [];
+		var pos = 0;
+
+		for ( i in 0...impl.length) {
+
+			var b = impl.fastGet(i);
+			var d = delimiter.fastGet(pos);
+
+			if (b == d) {
+				tempBuffer.addByte(b);
+				pos++;
+			} else {
+				if (pos > 0) {
+					buffer.addBuffer(tempBuffer);
+					tempBuffer.reset();
+				}
+				buffer.addByte(b);
+				pos = 0;
+			}
+
+			if (pos == delimiterLen) {
+				pos = 0;
+				if (buffer.length > 0) {
+					res.push(Utf32.fromImpl(buffer.getByteAccess()));
+					buffer.reset();
+				} else {
+					res.push(Utf32.fromImpl(empty));
+				}
+				tempBuffer.reset();
+			}
+		}
+
+		if (pos != 0) {
+			buffer.addBuffer(tempBuffer);
+		}
+		if (buffer.length > 0) {
+			res.push(Utf32.fromImpl(buffer.getByteAccess()));
+		} else {
+			res.push(Utf32.fromImpl(empty));
+		}
+		return res;
+	}
+
+	public static function charCodeAt( impl:Utf32Impl, index : Int) : Null<Int> {
+		if (index < 0 || index >= strLength(impl)) {
+			return null;
+		}
+		return fastCodeAt(impl, index);
+	}
+
+	static inline function fastCodeAt( impl:Utf32Impl, index : Int) : Int {
+		var pos = strToImplIndex(index);
+		return (impl.get(pos) << 24) | (impl.get(pos+1) << 16) | (impl.get(pos+2) << 8) | impl.get(pos + 3);
+
+	}
+
+	static inline function eachCode ( impl:Utf32Impl, f : Int -> Void) {
+		for (i in 0...strLength(impl)) {
+			var code = fastCodeAt(impl, i);
+			f(code);
+		}
+	}
+
+	static inline function toNativeString(impl:Utf32Impl) : String {
+		return Utf32.fromImpl(impl).toUtf8().toNativeString();
+	}
+
+	static inline function compare (impl:Utf32Impl, other:Utf32Impl):Int {
+		return impl.compare(other);
+	}
+	
+	static function isValid(impl:Utf32Impl) {
+		for (i in 0...strLength(impl)) {
+			var code = fastCodeAt(impl, i);
+			if (Encoding.isHighSurrogate(code)) return false;
+		}
+		return true;
+	}
+}
