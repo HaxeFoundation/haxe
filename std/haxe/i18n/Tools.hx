@@ -74,7 +74,6 @@ enum ConversionError {
   var LenientConversion = 1;
 }
 
-
 class Convert {
     static inline var HALF_SHIFT:Int  = 10; /* used for shifting by 10 bits */
 
@@ -204,9 +203,9 @@ class Convert {
     }
 
     static inline function writeUtf8CodeBytes (ch:Int, bytesToWrite:Int, addByte:Int->Void) {
-        
         var byteMask:Int = 0xBF;
         var byteMark:Int = 0x80;
+
         switch (bytesToWrite)
         {
             case 4:
@@ -489,8 +488,7 @@ class Convert {
         }
     }
 
-    static function findMaximalSubpartOfIllFormedUTF8Sequence(source:Utf8Reader, pos:Int) 
-    {
+    static function findMaximalSubpartOfIllFormedUTF8Sequence(source:Utf8Reader, pos:Int) {
         var sourceEnd = source.length;
 
         /*
@@ -578,8 +576,7 @@ class Convert {
         return 1;
     }
 
-    public static function convertUtf8toUtf32(source:Utf8Reader, flags:ConversionFlags):ByteAccess 
-    {
+    public static function convertUtf8toUtf32(source:Utf8Reader, flags:ConversionFlags):ByteAccess {
         var i = 0;
         
         var target = new ByteAccessBuffer(); 
@@ -642,9 +639,7 @@ class Convert {
         return target.getByteAccess();
     }
 
-
-    public static function convertUtf32toUtf8 (source:Utf32Reader, flags:ConversionFlags):ByteAccess 
-    {
+    public static function convertUtf32toUtf8 (source:Utf32Reader, flags:ConversionFlags):ByteAccess {
         var i = 0;
         var target = new ByteAccessBuffer(); 
 
@@ -664,8 +659,7 @@ class Convert {
         return target.getByteAccess();
     }
 
-    public static function convertUtf32toUtf16 (source:Utf32Reader, flags:ConversionFlags) 
-    {
+    public static function convertUtf32toUtf16 (source:Utf32Reader, flags:ConversionFlags) {
         var i = 0;
         var target = new ByteAccessBuffer();
 
@@ -752,7 +746,7 @@ class NativeStringTools {
 		}
 		catch (e:Dynamic) throw e;
 		#elseif cs
-		var b = cs.system.text.Convert.BigEndianUnicode.GetBytes(s);
+		var b = cs.system.text.Encoding.BigEndianUnicode.GetBytes(s);
 		return ByteAccess.ofData(b);
 		#else
 		// fallback utf8 to utf16
@@ -783,7 +777,7 @@ class NativeStringTools {
 		untyped __global__.__hxcpp_bytes_of_string(a,s);
 		return ByteAccess.ofData(a);
 		#elseif cs
-		var b = cs.system.text.Convert.UTF8.GetBytes(s);
+		var b = cs.system.text.Encoding.UTF8.GetBytes(s);
 		return ByteAccess.ofData(b);
 		#elseif java
 		try
@@ -809,7 +803,7 @@ class NativeStringTools {
 			var c : Int = StringTools.fastCodeAt(s,i++);
 			// surrogate pair
 			if( 0xD800 <= c && c <= 0xDBFF )
-			       c = (c - 0xD7C0 << 10) | (StringTools.fastCodeAt(s,i++) & 0x3FF);
+		        c = (c - 0xD7C0 << 10) | (StringTools.fastCodeAt(s,i++) & 0x3FF);
 			if( c <= 0x7F )
 				a.push(c);
 			else if( c <= 0x7FF ) {

@@ -287,13 +287,11 @@ private class Utf8Tools {
 		var b = fastGet(bytes, pos);
 		return b >= 0x41 && b <= 0x5A;
 	}
-
 	
 	static inline function isLowerCaseLetter (bytes:Utf8Impl, pos:Int, size:Int) {
 		var b = fastGet(bytes, pos);
 		return b >= 0x61 && b <= 0x7A;
 	}
-
 	
 	static inline function toLowerCaseLetter (bytes:Utf8Impl, target:Utf8Impl, pos:Int, size:Int) {
 		if (isUpperCaseLetter(bytes, pos, size)) {

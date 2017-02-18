@@ -4,7 +4,6 @@ import haxe.io.Bytes;
 
 import haxe.io.BytesBuffer;
 
-
 @:access(haxe.io.BytesBuffer)
 class BytesBufferTools {
 
@@ -29,8 +28,6 @@ class BytesBufferTools {
 		buffer.b = new Array();
 		#end
 	}
-
-
 }
 
 // TODO write a faster ByteAccessBuffer without using BytesBuffer or by
@@ -41,9 +38,6 @@ class BytesBufferTools {
 	public inline function new () {
 		this = new BytesBuffer();
 	}
-
-
-
 
 	public inline function add (b:ByteAccess) {
 		this.add(b.toBytes());

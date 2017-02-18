@@ -96,21 +96,20 @@ abstract Ucs2(String) {
 	}
 
 	static inline function nativeStringfromCharCode( code : Int ) : String {
-
-		// maybe split to surrogate pair and add both
-		if (Convert.isSurrogatePair(code)) {
+		return if (Convert.isSurrogatePair(code)) {
 
 			var surr = Convert.codeToSurrogatePair(code);
 			#if hl
-			return String.fromCharCode(code);
+			String.fromCharCode(code);
 			#else
-			return String.fromCharCode(surr.high) + String.fromCharCode(surr.low);
+			String.fromCharCode(surr.high) + String.fromCharCode(surr.low);
 			#end	
+		} else {
+			String.fromCharCode(code);
 		}
-		return String.fromCharCode(code);
 	}
 
-	public function toBytes(  ) : haxe.io.Bytes {
+	public function toBytes() : haxe.io.Bytes {
 		var b = haxe.io.Bytes.alloc(length*2);
 		for (i in 0...length) {
 			var code = charCodeAt(i);
@@ -177,6 +176,7 @@ abstract Ucs2(String) {
 	static inline function fromImpl (str:String):Ucs2 {
 		return cast str;
 	}
+
 	inline function impl() : String {
 		return this;
 	}
@@ -224,7 +224,6 @@ abstract Ucs2(String) {
 }
 
 abstract Ucs2Reader(String) {
-
 	public inline function new (s:String) {
 		this = s;
 	}
@@ -248,7 +247,6 @@ typedef Ucs2Impl = ByteAccess;
 
 @:allow(haxe.i18n)
 abstract Ucs2(ByteAccess) {
-
 	public var length(get,never) : Int;
 
 	public inline function new(str:String)  {
@@ -321,9 +319,11 @@ abstract Ucs2(ByteAccess) {
 	static inline function fromByteAccess (bytes:ByteAccess):Ucs2 {
 		return cast bytes;
 	}
+
 	static inline function fromImpl (impl:ByteAccess):Ucs2 {
 		return cast impl;
 	}
+
 	inline function impl ():ByteAccess {
 		return this;
 	}
@@ -368,7 +368,6 @@ abstract Ucs2(ByteAccess) {
 	@:op(A + B) inline function opAdd (other:Ucs2) {
 		return fromImpl(this.append(asByteAccess(other)));
 	}
-
 
 	function compare (other:Ucs2):Int {
 		return Ucs2Tools.compare(this, other.impl());
@@ -553,7 +552,8 @@ private class Ucs2Tools {
 
 	public static function substring( impl:Ucs2Impl, startIndex : Int, ?endIndex : Int ) : Ucs2Impl {
 		
-		var startIndex:Null<Int> = startIndex;
+		var startIndex:Null<Int> = startIndex; // make startIndex nullable, because of possible swap with endIndex
+
 		if (startIndex < 0) startIndex = 0;
 		if (endIndex != null && endIndex < 0) endIndex = 0;
 		
@@ -561,18 +561,17 @@ private class Ucs2Tools {
 		
 		if (endIndex == null) endIndex = len;
 
- 		if (startIndex > endIndex) {
+ 		if (startIndex > endIndex) { // swap startIndex and endIndex
 			var x = startIndex;
 			startIndex = endIndex;
 			endIndex = x;
 		}
 		
-		
 		if (endIndex == null || endIndex > len) endIndex = len;
 
 		if (startIndex == null || startIndex > len) return empty;
 		
-		return impl.sub(startIndex * 2, endIndex * 2 - startIndex * 2);
+		return impl.sub(startIndex << 1, (endIndex << 1) - (startIndex << 1) );
 	}
 
 	public static function split( impl:Ucs2Impl, delimiter : Ucs2Impl ) : Array<Ucs2> {

@@ -151,13 +151,9 @@ abstract ByteAccess(BytesData) {
 	}
 }
 
-
-
-
 private class BytesDataTools {
 
 	#if (!(js))
-
 	public static function alloc( length : Int ) : BytesData {
 		#if neko
 		return untyped __dollar__smake(length);
@@ -188,7 +184,6 @@ private class BytesDataTools {
 		return a;
 		#end
 	}
-
 
 	public static inline function get( b:BytesData, pos : Int ) : Int {
 		#if neko
@@ -286,7 +281,6 @@ private class BytesDataTools {
 		return untyped b.length;
 		#end
 	}
-
 
 	static public function sub( b:BytesData, pos : Int, len : Int ) : BytesData {
 		#if !neko
