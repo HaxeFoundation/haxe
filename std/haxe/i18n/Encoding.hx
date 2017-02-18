@@ -2,6 +2,7 @@ package haxe.i18n;
 import haxe.i18n.ByteAccess;
 import haxe.i18n.ByteAccessBuffer;
 import haxe.ds.Vector;
+import haxe.i18n.Ucs2.Ucs2Reader;
 
 /***** SOURCE
 // http://llvm.org/svn/llvm-project/llvm/trunk/include/llvm/Support/ConvertUTF.h
