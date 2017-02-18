@@ -70,7 +70,14 @@ class sourcemap_writer (generated_file:string) =
 			Rbuffer.add_char buffer ','
 		else
 			print_comma <- true;
-		self#write_base64_vlq (current_out_col - last_out_col);
+		(*
+			We need to map the start of each line to the first expression on that line.
+			Otherwise languages, which don't provide column in stack trace, will point one line above the correct line.
+		*)
+		if last_out_col = 0 then
+			self#write_base64_vlq 0
+		else
+			self#write_base64_vlq (current_out_col - last_out_col);
 		self#write_base64_vlq (src_file - last_src_file);
 		self#write_base64_vlq (src_line - last_src_line);
 		self#write_base64_vlq (src_col - last_src_col);
@@ -90,7 +97,7 @@ class sourcemap_writer (generated_file:string) =
 					begin
 						print_comma <- false;
 						current_out_col <- length - previous_index;
-						Option.may (fun pos -> self#map pos) last_mapped_pos
+						last_out_col <- 0
 					end
 				else
 					current_out_col <- current_out_col + length
