@@ -21,6 +21,8 @@
  */
 package haxe.i18n;
 
+import haxe.i18n.Tools;
+
 import haxe.i18n.ByteAccess;
 
 typedef Utf32Impl = ByteAccess;
@@ -113,7 +115,7 @@ abstract Utf32(Utf32Impl) {
 	}
 
 	public static inline function fromCharCode( code : Int ) : Utf32 {
-		return fromImpl(Encoding.charCodeToUtf32ByteAccess(code));
+		return fromImpl(Convert.charCodeToUtf32ByteAccess(code));
 	}
 
 	public function toBytes(  ) : haxe.io.Bytes {
@@ -125,11 +127,11 @@ abstract Utf32(Utf32Impl) {
 	}
 	
 	public function toUtf8() : Utf8 {
-		return Utf8.fromByteAccess(Encoding.convertUtf32toUtf8(getReader(), StrictConversion));
+		return Utf8.fromByteAccess(Convert.convertUtf32toUtf8(getReader(), StrictConversion));
 	}
 	
 	public function toUtf16() : Utf16 {
-		return Utf16.fromByteAccess(Encoding.convertUtf32toUtf16(getReader(), StrictConversion));
+		return Utf16.fromByteAccess(Convert.convertUtf32toUtf16(getReader(), StrictConversion));
 	}
 
 	public function toUcs2() : Ucs2 {
@@ -434,7 +436,7 @@ class Utf32Tools {
 	static function isValid(impl:Utf32Impl) {
 		for (i in 0...strLength(impl)) {
 			var code = fastCodeAt(impl, i);
-			if (Encoding.isHighSurrogate(code)) return false;
+			if (Convert.isHighSurrogate(code)) return false;
 		}
 		return true;
 	}

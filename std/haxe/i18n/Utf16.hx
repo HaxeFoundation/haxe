@@ -21,6 +21,8 @@
  */
 package haxe.i18n;
 
+import haxe.i18n.Tools;
+
 @:structInit class Utf16Impl {
 	public var b(default, null) : ByteAccess;
 	public var length(default,null) : Int;
@@ -116,11 +118,11 @@ abstract Utf16(Utf16Impl) {
 	}
 
 	public inline function toUtf8 ():Utf8 {
-		return Utf8.fromByteAccess(Encoding.convertUtf16toUtf8(getReader(), StrictConversion));
+		return Utf8.fromByteAccess(Convert.convertUtf16toUtf8(getReader(), StrictConversion));
 	}
 
 	public inline function toUtf32 ():Utf32 {
-		return Utf32.fromByteAccess(Encoding.convertUtf16toUtf32(getReader(), StrictConversion));
+		return Utf32.fromByteAccess(Convert.convertUtf16toUtf32(getReader(), StrictConversion));
 	}
 
 	public inline function toBytes() : haxe.io.Bytes {
@@ -277,7 +279,7 @@ class Utf16Tools {
 	}
 
 	static inline function getCharSize (firstInt16:Int):Int {
-		return if (Encoding.isHighSurrogate(firstInt16)) 4 else 2;
+		return if (Convert.isHighSurrogate(firstInt16)) 4 else 2;
 	}
 
 	static inline function isUpperCaseLetter (bytes:Utf16Impl, pos:Int, size:Int) {
@@ -320,7 +322,7 @@ class Utf16Tools {
 		return switch size {
 
 			case 2: getInt16(b, pos);
-			case 4: Encoding.utf16surrogatePairToCharCode(getInt16(b, pos), getInt16(b, pos+2));
+			case 4: Convert.utf16surrogatePairToCharCode(getInt16(b, pos), getInt16(b, pos+2));
 			case _: throw "invalid size, 2 or 4 expected";
 		}
 	}
@@ -651,7 +653,7 @@ class Utf16Tools {
 	static function fromCharCode( code : Int ) : Utf16Impl
 	{
 		return {
-			b : Encoding.charCodeToUtf16ByteAccess(code),
+			b : Convert.charCodeToUtf16ByteAccess(code),
 			length : 1
 		}
 	}

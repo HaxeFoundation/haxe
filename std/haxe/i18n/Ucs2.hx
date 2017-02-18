@@ -21,6 +21,8 @@
  */
 package haxe.i18n;
 
+import haxe.i18n.Tools;
+
 /**
 	Cross platform UCS2 string API.
 **/
@@ -96,9 +98,9 @@ abstract Ucs2(String) {
 	static inline function nativeStringfromCharCode( code : Int ) : String {
 
 		// maybe split to surrogate pair and add both
-		if (Encoding.isSurrogatePair(code)) {
+		if (Convert.isSurrogatePair(code)) {
 
-			var surr = Encoding.codeToSurrogatePair(code);
+			var surr = Convert.codeToSurrogatePair(code);
 			#if hl
 			return String.fromCharCode(code);
 			#else
@@ -129,10 +131,10 @@ abstract Ucs2(String) {
 		while (i < bytes.length) {
 			var code1 = (bytes.fastGet(i) << 8) | bytes.fastGet(i+1);
 			// we allow surrogates in ucs2, but we treat them as individual chars with invalid codes
-			if (Encoding.isHighSurrogate(code1)) {
+			if (Convert.isHighSurrogate(code1)) {
 				var code2 = (bytes.fastGet(i+2) << 8) | bytes.fastGet(i+3);
 				#if hl
-				var code = Encoding.utf16surrogatePairToCharCode(code1, code2); 
+				var code = Convert.utf16surrogatePairToCharCode(code1, code2); 
 				res += String.fromCharCode(code);
 				#else
 				// js, java, cs just allow String.fromCharCode for high and low surrogates
@@ -161,7 +163,7 @@ abstract Ucs2(String) {
 	}
 
 	public inline function toUtf8() : Utf8 {
-		return Utf8.fromByteAccess(Encoding.convertUcs2toUtf8(getReader(), StrictConversion));
+		return Utf8.fromByteAccess(Convert.convertUcs2toUtf8(getReader(), StrictConversion));
 	}
 
 	public inline function toUtf16() : Utf16 {
@@ -215,7 +217,7 @@ abstract Ucs2(String) {
 	public function isValid () {
 		for (i in 0...length) {
 			var code = fastCodeAt(i);
-			if (Encoding.isHighSurrogate(code)) return false;
+			if (Convert.isHighSurrogate(code)) return false;
 		}
 		return true;
 	}
@@ -331,7 +333,7 @@ abstract Ucs2(ByteAccess) {
 	}
 
 	public static inline function fromCharCode( code : Int ) : Ucs2 {
-		return fromImpl(Encoding.charCodeToUtf16ByteAccess(code));
+		return fromImpl(Convert.charCodeToUtf16ByteAccess(code));
 	}
 
 	public function toBytes(  ) : haxe.io.Bytes {
@@ -651,7 +653,7 @@ private class Ucs2Tools {
 	static function isValid(impl:Ucs2Impl) {
 		for (i in 0...strLength(impl)) {
 			var code = fastCodeAt(impl, i);
-			if (Encoding.isHighSurrogate(code)) return false;
+			if (Convert.isHighSurrogate(code)) return false;
 		}
 		return true;
 	}

@@ -21,6 +21,8 @@
  */
 package haxe.i18n;
 
+import haxe.i18n.Tools;
+
 import haxe.io.Bytes;
 
 @:structInit class Utf8Impl {
@@ -113,15 +115,15 @@ abstract Utf8(Utf8Impl) {
 	}
  	
 	public inline function toUcs2() : Ucs2 {
-		return Ucs2.fromByteAccess(Encoding.convertUtf8toUcs2(getReader(), StrictConversion, false));
+		return Ucs2.fromByteAccess(Convert.convertUtf8toUcs2(getReader(), StrictConversion, false));
 	}
 	
  	public inline function toUtf16 ():Utf16 {
-		return Utf16.fromByteAccess(Encoding.convertUtf8toUtf16(getReader(), StrictConversion));
+		return Utf16.fromByteAccess(Convert.convertUtf8toUtf16(getReader(), StrictConversion));
 	}
 
 	public inline function toUtf32 ():Utf32 {
-		return Utf32.fromByteAccess(Encoding.convertUtf8toUtf32(getReader(), StrictConversion));
+		return Utf32.fromByteAccess(Convert.convertUtf8toUtf32(getReader(), StrictConversion));
 	}
 	
 	public inline function toBytes() : haxe.io.Bytes {
@@ -251,7 +253,7 @@ private class Utf8Tools {
 	}
 
 	static function fromByteAccess (ba:ByteAccess):Utf8Impl {
-		if (!Encoding.isLegalUtf8String(new Utf8Reader(ba))) {
+		if (!Convert.isLegalUtf8String(new Utf8Reader(ba))) {
 			throw "illegal utf8";
 		}
 		var len = calcLength(ba);
@@ -278,7 +280,7 @@ private class Utf8Tools {
 	}
 
 	static inline function getCharSize (start:Int):Int {
-		return Encoding.getUtf8CharSize(start);
+		return Convert.getUtf8CharSize(start);
 	}
 
 	static inline function isUpperCaseLetter (bytes:Utf8Impl, pos:Int, size:Int) {
@@ -327,7 +329,7 @@ private class Utf8Tools {
 	}
 
 	static function getCharCode ( b:Utf8Impl, pos:Int, size:Int):Int {
-		return Encoding.charCodeFromUtf8Bytes(new Utf8Reader(b.b), pos, size);
+		return Convert.charCodeFromUtf8Bytes(new Utf8Reader(b.b), pos, size);
 	}
 
 	static function compareChar ( b1:Utf8Impl, pos1:Int, b2:Utf8Impl, pos2:Int, size:Int):Bool {
