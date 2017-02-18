@@ -81,3 +81,45 @@ check-swf:
 check-hl:
 	haxe-i18n -main Check -hl bin/check.hl -debug -dce no
 	hl bin/check.hl
+
+# benchmarks
+
+benchmark-cpp:
+	haxe-i18n -main Benchmark -cpp bin/cpp -debug -dce no
+	bin/cpp/Benchmark-debug
+
+benchmark-neko:
+	haxe-i18n -main Benchmark -neko bin/benchmark.n -debug -dce no
+	neko bin/benchmark.n
+
+benchmark-java:
+	haxe-i18n -main Benchmark -java bin/java -debug -dce no
+	java -jar bin/java/Benchmark-Debug.jar
+
+benchmark-cs:
+	haxe-i18n -main Benchmark -cs bin/cs -debug -dce no
+	bin/cs/bin/Benchmark-Debug.exe
+
+benchmark-lua:
+	haxe-i18n -main Benchmark -lua bin/benchmark.lua
+	luajit bin/benchmark.lua
+
+benchmark-python:
+	haxe-i18n -main Benchmark -python bin/benchmark.py -debug  -dce no -D analyzer-code-motion
+	python3 bin/benchmark.py
+
+benchmark-php:
+	haxe-i18n -main Benchmark -php bin/php -debug -dce no
+	php bin/php/index.php
+
+benchmark-js:
+	haxe-i18n -main Benchmark -js bin/benchmark.js -debug -D nodejs -dce no
+	node bin/benchmark.js
+
+benchmark-swf:
+	haxe-i18n -main Benchmark -swf bin/benchmark.swf -debug -dce no 
+	flashplayerdebugger bin/benchmark.swf
+
+benchmark-hl:
+	haxe-i18n -main Benchmark -hl bin/benchmark.hl -debug -dce no
+	hl bin/benchmark.hl
