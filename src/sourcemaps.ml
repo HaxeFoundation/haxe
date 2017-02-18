@@ -56,13 +56,15 @@ class sourcemap_writer (generated_file:string) =
 		val mutable last_out_col = 0
 		(** Indicates whether comma should be written to output buffer on next `map` call *)
 		val mutable print_comma = false
+		val mutable last_mapped_pos = None
 	(**
 		Map specified haxe position.
 		This method should be called right before an expression in `pos` is writtend to generated file.
 	*)
 	method map pos =
+		last_mapped_pos <- Some pos;
 		let src_file = self#get_file_index pos
-		and src_line, src_col = match (Lexer.find_pos pos) with (line, col) -> (line + 1, col) in
+		and src_line, src_col = match (Lexer.find_pos pos) with (line, col) -> (line - 1, col) in
 		if print_comma then
 			Rbuffer.add_char buffer ','
 		else
@@ -86,7 +88,8 @@ class sourcemap_writer (generated_file:string) =
 				if previous_index >= 0 then
 					begin
 						print_comma <- false;
-						current_out_col <- length - previous_index
+						current_out_col <- length - previous_index;
+						Option.may (fun pos -> self#map pos) last_mapped_pos
 					end
 				else
 					current_out_col <- current_out_col + length
