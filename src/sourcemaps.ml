@@ -286,3 +286,16 @@ class sourcemap_builder (generated_file:string) =
 		(* restore position *)
 		self#seek pointer
 end
+
+let get_sourcemap_pointer (builder:sourcemap_builder option) =
+	match builder with
+		| Some builder -> Some builder#get_pointer
+		| None -> None
+
+let set_sourcemap_pointer (builder:sourcemap_builder option) (pointer:sm_node option) =
+	match builder with
+		| None -> ()
+		| Some builder ->
+			match pointer with
+				| Some node -> builder#seek node
+				| None -> ()

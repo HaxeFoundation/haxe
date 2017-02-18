@@ -1560,6 +1560,11 @@ class virtual type_builder ctx wrapper =
 			Buffer.add_string buffer str;
 			Option.may (fun smap -> smap#insert (SMStr str)) sourcemap;
 		(**
+			Writes specified string to output buffer without affecting sourcemap generator
+		*)
+		method private write_bypassing_sourcemap str =
+			Buffer.add_string buffer str;
+		(**
 			Writes constant double-quoted string to output buffer
 		*)
 		method private write_const_string str =
@@ -1931,10 +1936,12 @@ class virtual type_builder ctx wrapper =
 			self#write ")";
 			(* Generate closure body to separate buffer *)
 			let original_buffer = buffer in
+			let sm_pointer_before_body = get_sourcemap_pointer sourcemap in
 			buffer <- Buffer.create 256;
 			self#write_expr (inject_defaults ctx func);
 			let body = Buffer.contents buffer in
 			buffer <- original_buffer;
+			set_sourcemap_pointer sourcemap sm_pointer_before_body;
 			(* Capture local vars used in closures *)
 			let used_vars = vars#pop_used in
 			vars#captured used_vars;
@@ -1944,7 +1951,8 @@ class virtual type_builder ctx wrapper =
 				write_args self#write (fun name -> self#write ("&$" ^ name)) used_vars;
 				self#write ") "
 			end;
-			self#write body
+			self#write_bypassing_sourcemap body;
+			Option.may (fun smap -> smap#fast_forward) sourcemap
 		(**
 			Writes TBlock to output buffer
 		*)
@@ -2025,17 +2033,20 @@ class virtual type_builder ctx wrapper =
 				if unset_locals then
 					begin
 						let original_buffer = buffer in
+						let sm_pointer_before_body = get_sourcemap_pointer sourcemap in
 						buffer <- Buffer.create 256;
 						vars#dive;
 						write_exprs();
 						let body = Buffer.contents buffer in
 						buffer <- original_buffer;
+						set_sourcemap_pointer sourcemap sm_pointer_before_body;
 						let locals = vars#pop_captured in
 						if List.length locals > 0 then begin
 							self#write ("unset($" ^ (String.concat ", $" locals) ^ ");\n");
 							self#write_indentation
 						end;
-						self#write body
+						self#write_bypassing_sourcemap body;
+						Option.may (fun smap -> smap#fast_forward) sourcemap
 					end
 				else
 					write_exprs()
