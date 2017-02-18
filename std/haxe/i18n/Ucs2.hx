@@ -571,7 +571,7 @@ private class Ucs2Tools {
 
 		if (startIndex == null || startIndex > len) return empty;
 		
-		return impl.sub(startIndex << 1, (endIndex << 1) - (startIndex << 1) );
+		return impl.sub(strToImplIndex(startIndex), strToImplIndex(endIndex) - strToImplIndex(startIndex) );
 	}
 
 	public static function split( impl:Ucs2Impl, delimiter : Ucs2Impl ) : Array<Ucs2> {
