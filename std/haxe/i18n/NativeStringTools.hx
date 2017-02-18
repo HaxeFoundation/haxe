@@ -24,16 +24,11 @@ class NativeStringTools {
 	}
 
 	public static function toUtf32 (s:String):ByteAccess {
-		
-		// fallback utf8 to utf32
 		return Encoding.convertUtf8toUtf32(new Utf8Reader(toUtf8(s)), StrictConversion);
-		
 	}
 
 	public static function toUcs2 (s:String):ByteAccess {
-		// fallback utf8 to ucs2
 		return Encoding.convertUtf8toUcs2(new Utf8Reader(toUtf8(s)), StrictConversion, false);
-		
 	}
 
 	public static function toUtf8 (s:String):ByteAccess {
