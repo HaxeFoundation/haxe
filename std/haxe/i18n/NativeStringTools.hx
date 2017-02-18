@@ -1,5 +1,6 @@
 package haxe.i18n;
 
+import haxe.i18n.Utf8.Utf8Reader;
 import haxe.io.BytesData;
 
 class NativeStringTools {
