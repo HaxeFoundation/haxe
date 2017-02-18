@@ -245,14 +245,14 @@ class Web {
 		case, you will have to use `php.Web.getMultipart()` or
 		`php.Web.parseMultipart()` methods.
 	**/
-	public static function getPostData() {
+	public static function getPostData() : Null<String> {
 		var h = untyped __call__("fopen", "php://input", "r");
 		var bsize = 8192;
 		var max = 32;
 		var data : String = null;
 		var counter = 0;
 		while (!untyped __call__("feof", h) && counter < max) {
-			data += untyped __call__("fread", h, bsize);
+			data = untyped __php__('{0} . fread({1}, {2})', data, h, bsize);
 			counter++;
 		}
 		untyped __call__("fclose", h);

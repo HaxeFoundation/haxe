@@ -61,7 +61,7 @@ class ExternalConnection implements Connection implements Dynamic<Connection> {
 		var params = escapeString(s.toString());
 		var data = null;
 		#if flash
-			#if js-unflatten
+			#if js_unflatten
 				data = flash.external.ExternalInterface.call("haxe.remoting.ExternalConnection.doCall",__data.name,__path.join("."),params);
 			#else
 				data = flash.external.ExternalInterface.call("haxe_remoting_ExternalConnection.doCall",__data.name,__path.join("."),params);
