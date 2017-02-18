@@ -4,6 +4,7 @@ import haxe.i18n.ByteAccessBuffer;
 import haxe.ds.Vector;
 import haxe.i18n.Ucs2.Ucs2Reader;
 import haxe.i18n.Utf8.Utf8Reader;
+import haxe.i18n.Utf16.Utf16Reader;
 
 /***** SOURCE
 // http://llvm.org/svn/llvm-project/llvm/trunk/include/llvm/Support/ConvertUTF.h
