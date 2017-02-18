@@ -27,8 +27,15 @@ import haxe.i18n.Utf32.Utf32Impl;
 @:allow(haxe.i18n)
 class Utf32Tools {
 
+	static inline function strToImplIndex (strIndex:Int):Int {
+		return strIndex << 2;
+	}
+	static inline function implToStrIndex (strIndex:Int):Int {
+		return strIndex >> 2;
+	}
+
 	static inline function strLength(impl:Utf32Impl):Int {
-		return impl.length >> 2;
+		return implToStrIndex(impl.length);
 	}
 
 	static inline function isUpperCaseLetter (code:Int) {
@@ -87,7 +94,7 @@ class Utf32Tools {
 			return empty;
 		}
 		var b = ByteAccess.alloc(4);
-		var pos = index << 2;
+		var pos = strToImplIndex(index);
 		b.set(0, impl.get(pos    ));
 		b.set(1, impl.get(pos + 1));
 		b.set(2, impl.get(pos + 2));
@@ -101,7 +108,7 @@ class Utf32Tools {
 		var strLen = str.length;
 
 		var len = impl.length;
-		var i = startIndex != null ? (startIndex << 2) : 0;
+		var i = startIndex != null ? (strToImplIndex(startIndex)) : 0;
 		var pos = 0;
 		var fullPos = i;
 		while (i < len) {
@@ -112,7 +119,7 @@ class Utf32Tools {
 			}
 			fullPos++;
 			if (pos == strLen) {
-				res = (fullPos - strLen) >> 2;
+				res = implToStrIndex(fullPos - strLen);
 				break;
 			}
 			i++;
@@ -124,7 +131,7 @@ class Utf32Tools {
 		var len = str.length;
 		var pos = len-1;
 	
-		var startIndex = startIndex == null ? impl.length : ((startIndex) << 2)+len;
+		var startIndex = startIndex == null ? impl.length : strToImplIndex(startIndex) + len;
 
 		if (startIndex > impl.length) {
 			startIndex = impl.length;
@@ -141,7 +148,7 @@ class Utf32Tools {
 			}
 			fullPos--;
 			if (pos == -1) {
-				res = (fullPos) >> 2;
+				res = implToStrIndex(fullPos);
 				break;
 			}
 		}
@@ -187,7 +194,7 @@ class Utf32Tools {
 
 		if (startIndex == null || startIndex > len) return empty;
 		
-		return impl.sub(startIndex << 2, (endIndex << 2) - (startIndex << 2));
+		return impl.sub(strToImplIndex(startIndex), strToImplIndex(endIndex) - strToImplIndex(startIndex));
 	}
 
 	public static function split( impl:Utf32Impl, delimiter : Utf32Impl ) : Array<Utf32> {
@@ -247,7 +254,7 @@ class Utf32Tools {
 	}
 
 	static inline function fastCodeAt( impl:Utf32Impl, index : Int) : Int {
-		var pos = index << 2;
+		var pos = strToImplIndex(index);
 		return (impl.get(pos) << 24) | (impl.get(pos+1) << 16) | (impl.get(pos+2) << 8) | impl.get(pos + 3);
 
 	}
@@ -263,20 +270,8 @@ class Utf32Tools {
 		return Utf32.fromImpl(impl).toUtf8().toNativeString();
 	}
 
-	static function compare (impl:Utf32Impl, other:Utf32Impl):Int {
-		var len1 = strLength(impl);
-		var len2 = strLength(other);
-		
-		var min = len1 < len2 ? len1 : len2;
-		for (i in 0...min) {
-			var a = fastCodeAt(impl, i);
-			var b = fastCodeAt(other, i);
-			if (a < b) return -1;
-			if (a > b) return 1;
-		}
-		if (len1 < len2) return -1;
-		if (len1 > len2) return 1;
-		return 0;
+	static inline function compare (impl:Utf32Impl, other:Utf32Impl):Int {
+		return impl.compare(other);
 	}
 	
 	static function isValid(impl:Utf32Impl) {
@@ -286,6 +281,4 @@ class Utf32Tools {
 		}
 		return true;
 	}
-	
 }
-

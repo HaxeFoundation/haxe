@@ -284,7 +284,7 @@ class Utf16Tools {
 		return res;
 	}
 	
-	@:analyzer(no_code_motion) static function lastIndexOf( ba:Utf16Impl, str : Utf16Impl, ?startIndex : Int ) : Int {
+	static function lastIndexOf( ba:Utf16Impl, str : Utf16Impl, ?startIndex : Int ) : Int {
 		var startIndexIsNull = startIndex == null;
 		var res = -1;
 		var len = strLength(str); // O(n)
@@ -406,7 +406,6 @@ class Utf16Tools {
 		return res;
 	}
 	
-	@:analyzer(no_code_motion) 
 	static function substr( str:Utf16Impl, pos : Int, ?len : Int ) : Utf16Impl {
 
 		var lenIsNull = len == null;
@@ -479,7 +478,11 @@ class Utf16Tools {
 	}
 
  	// string functions
-
+	
+	static inline function compare (impl:Utf16Impl, other:Utf16Impl):Int {
+		return impl.b.compare(other.b);
+	}
+	/*
 	static function compare (impl:Utf16Impl, other:Utf16Impl):Int {
 		var len1 = strLength(impl);
 		var len2 = strLength(other);
@@ -505,5 +508,6 @@ class Utf16Tools {
 		if (len1 > len2) return 1;
 		return 0;
 	}
+	*/
 
 }

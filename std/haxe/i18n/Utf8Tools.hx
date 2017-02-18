@@ -300,7 +300,7 @@ class Utf8Tools {
 		return res;
 	}
 
-	@:analyzer(no_code_motion) static function lastIndexOf( ba:Utf8Impl, str : Utf8Impl, ?startIndex : Int ) : Int {
+	static function lastIndexOf( ba:Utf8Impl, str : Utf8Impl, ?startIndex : Int ) : Int {
 		
 		var startIndexIsNull = startIndex == null;
 		
@@ -426,7 +426,6 @@ class Utf8Tools {
 		return res;
 	}
 	
-	@:analyzer(no_code_motion) // see https://github.com/HaxeFoundation/haxe/issues/5826
 	static function substr<T>( str:Utf8Impl, pos : Int, ?len : Int ) : Utf8Impl {
 
 		var lenIsNull = len == null;
@@ -519,6 +518,10 @@ class Utf8Tools {
 		return res;
 	}
 
+	static inline function compare (impl:Utf8Impl, other:Utf8Impl):Int {
+		return impl.b.compare(other.b);
+	}
+	/*
 	static function compare (impl:Utf8Impl, other:Utf8Impl):Int {
 		var len1 = strLength(impl);
 		var len2 = strLength(other);
@@ -544,4 +547,5 @@ class Utf8Tools {
 		if (len1 > len2) return 1;
 		return 0;
 	}
+	*/
 }

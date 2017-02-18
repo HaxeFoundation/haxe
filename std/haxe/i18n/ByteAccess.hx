@@ -94,6 +94,23 @@ abstract ByteAccess(BytesData) {
 		return true;
 	}
 
+	public function compare (other:ByteAccess) {
+		var a = fromBytesData(this);
+		var b = other;
+		
+		var min = a.length < b.length ? a.length : b.length;
+
+		for (i in 0...min) {
+			var b1 = a.fastGet(i);
+			var b2 = b.fastGet(i);
+			if (b1 < b2) return -1;
+			if (b1 > b2) return 1;
+		}
+		if (a.length < b.length) return -1;
+		if (a.length > b.length) return 1;
+		return 0;
+	}
+
 	public function toString ():String {
 		var a = fromBytesData(this);
 		var res = [];

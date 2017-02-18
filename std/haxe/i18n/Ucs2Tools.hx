@@ -27,8 +27,14 @@ import haxe.i18n.Ucs2.Ucs2Impl;
 @:allow(haxe.i18n)
 class Ucs2Tools {
 
+	static inline function strToImplIndex (strIndex:Int):Int {
+		return strIndex << 1;
+	}
+	static inline function implToStrIndex (strIndex:Int):Int {
+		return strIndex >> 1;
+	}
 	static inline function strLength(impl:Ucs2Impl):Int {
-		return impl.length >> 1;
+		return implToStrIndex(impl.length);
 	}
 
 	static inline function isUpperCaseLetter (bytes:Int) {
@@ -109,7 +115,7 @@ class Ucs2Tools {
 			}
 			fullPos++;
 			if (pos == strLen) {
-				res = (fullPos - strLen) >> 1;
+				res = implToStrIndex(fullPos - strLen);
 				break;
 			}
 			i++;
@@ -121,7 +127,7 @@ class Ucs2Tools {
 		var len = str.length;
 		var pos = len-1;
 	
-		var startIndex = startIndex == null ? impl.length : ((startIndex) << 1)+len;
+		var startIndex = startIndex == null ? impl.length : strToImplIndex(startIndex) + len;
 
 		if (startIndex > impl.length) {
 			startIndex = impl.length;
@@ -138,7 +144,7 @@ class Ucs2Tools {
 			}
 			fullPos--;
 			if (pos == -1) {
-				res = (fullPos) >> 1;
+				res = implToStrIndex(fullPos);
 				break;
 			}
 		}
@@ -244,7 +250,7 @@ class Ucs2Tools {
 	}
 
 	static inline function fastCodeAt( impl:Ucs2Impl, index : Int) : Int {
-		return (impl.get(index << 1) << 8) | impl.get((index << 1) + 1);
+		return (impl.get(strToImplIndex(index)) << 8) | impl.get(strToImplIndex(index) + 1);
 	}
 
 	static inline function eachCode ( impl:Ucs2Impl, f : Int -> Void) {
@@ -258,6 +264,10 @@ class Ucs2Tools {
 		return Ucs2.fromImpl(impl).toUtf8().toNativeString();
 	}
 
+	static inline function compare (impl:Ucs2Impl, other:Ucs2Impl):Int {
+		return impl.compare(other);
+	}
+	/*
 	static function compare (impl:Ucs2Impl, other:Ucs2Impl):Int {
 		var len1 = strLength(impl);
 		var len2 = strLength(other);
@@ -273,6 +283,7 @@ class Ucs2Tools {
 		if (len1 > len2) return 1;
 		return 0;
 	}
+	*/
 	
 	static function isValid(impl:Ucs2Impl) {
 		for (i in 0...strLength(impl)) {
