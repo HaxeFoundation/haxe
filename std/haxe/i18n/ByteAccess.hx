@@ -174,7 +174,7 @@ private class BytesDataTools {
 		#elseif python
 		return new python.Bytearray(length);
 		#elseif hl
-		var b = new hl.types.Bytes(length);
+		var b = new hl.Bytes(length);
 		b.fill(0, length, 0);
 		return new BytesData(b,length);
 		#else
@@ -340,7 +340,7 @@ private class BytesDataTools {
 		var end = cast(Math.min(pos+len,getLength(b)),Int);
 		return [for (i in begin...end) String.fromCharCode(b[i])].join("");
 		#elseif hl
-		var b1 = new hl.types.Bytes(len + 1);
+		var b1 = new hl.Bytes(len + 1);
 		b1.blit(0, b, pos, len);
 		b1[len] = 0;
 		return @:privateAccess String.fromUTF8(b1);

@@ -22,7 +22,7 @@ class BytesBufferTools {
 		#elseif java
 		buffer.b = new java.io.ByteArrayOutputStream();
 		#elseif hl
-		buffer.b = new hl.types.Bytes(buffer.size);
+		buffer.b = new hl.Bytes(buffer.size);
 		buffer.pos = 0;
 		#else
 		buffer.b = new Array();
