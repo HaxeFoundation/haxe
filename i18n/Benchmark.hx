@@ -6,9 +6,9 @@ import haxe.i18n.Utf32;
 import BenchmarkMacro;
 
 
-typedef Test = { method : String, id : String, time : Float };
+typedef Test = { method : String, id : String, time : Float, res:Dynamic };
 
-@:analyzer(no_module) class Benchmark {
+class Benchmark {
 
 	static var multiplier = #if js 3 #else 1 #end;
 
@@ -35,17 +35,6 @@ At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergr
 		benchmarkUcs2(new Ucs2(str), substrings.map(Ucs2.new), tests);
 
 		print(tests);
-		
-		var s = new Utf32(str);
-		var t = haxe.Timer.stamp();	
-
-		//var res = s.split(new Utf32('justo'));
-		//var t = haxe.Timer.stamp() - t;
-		//trace(t);
-		//var s = new Utf32("xfooxfooxxbarxbarxx");
-		//trace(s.split(new Utf32('x')).map(function (x) return x.toNativeString()));
-		//trace(s.split(new Utf32('x')).map(function (x) return x.toNativeString()));
-		
 
 	}
 

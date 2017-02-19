@@ -10,7 +10,7 @@ class BenchmarkMacro {
 					x = code();
 				}
 				var t = haxe.Timer.stamp() - t;
-				tests.push({ method : method, id : $id, time: t });
+				tests.push({ method : method, id : $id, time: t, res:x });
 				trace($id + "-" + method + ":" + t);
 			}
 
