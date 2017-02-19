@@ -182,7 +182,7 @@ abstract Utf16Reader(ByteAccess) {
 	}
 }
 
-class Utf16Tools {
+private class Utf16Tools {
 
 	static inline function fastGet (impl:Utf16Impl, pos:Int) {
 		return impl.b.fastGet(pos);

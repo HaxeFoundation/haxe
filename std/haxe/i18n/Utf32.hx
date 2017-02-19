@@ -187,7 +187,7 @@ abstract Utf32Reader(ByteAccess) {
 }
 
 @:allow(haxe.i18n)
-class Utf32Tools {
+private class Utf32Tools {
 
 	static inline function strToImplIndex (strIndex:Int):Int {
 		return strIndex << 2;
@@ -372,7 +372,7 @@ class Utf32Tools {
 			}
 			return res;
 		}
-		
+
 		while ( i < impl.length) {
 			
 			var b = impl.fastGet(i);
