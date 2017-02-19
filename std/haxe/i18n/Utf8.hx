@@ -545,6 +545,14 @@ private class Utf8Tools {
 		// byte iteration variables
 		var i = 0;
 		var j = 0;
+		if (delimiter.length == 0) {
+			while ( i < byteLength(str)) {
+				var size = getCharSize(fastGet(str, i));
+				res.push(Utf8.fromImpl(sub(str, i, size, 1)));
+				i+=size;
+			}
+			return res;
+		}
 		// iterate bytes
 		while (i < byteLength(str)) {
 			var size = getCharSize(fastGet(str, i));

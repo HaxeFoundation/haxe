@@ -362,8 +362,17 @@ class Utf32Tools {
 		var lastPos = 0;
 		var res = [];
 		var pos = 0;
-		
+
 		var i = 0;
+
+		if (delimiter.length == 0) {
+			while ( i < impl.length) {
+				res.push(Utf32.fromImpl(impl.sub(i, 4)));
+				i+=4;
+			}
+			return res;
+		}
+		
 		while ( i < impl.length) {
 			
 			var b = impl.fastGet(i);

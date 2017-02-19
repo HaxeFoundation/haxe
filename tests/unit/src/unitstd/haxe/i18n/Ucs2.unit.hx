@@ -147,8 +147,8 @@ arrEq(s.split(wrap("x")),[wrap(""), wrap("foo"), wrap("foo"), wrap(""), wrap("ba
 
 arrEq(s.split(wrap("xx")),[wrap("xfooxfoo"),wrap("barxbar"),wrap("")]);
 
-//s.split(wrap("")) == [wrap("x"), wrap("f"), wrap("o"), wrap("o"), wrap("x"), wrap("f"), wrap("o"), wrap("o"), wrap("x"), wrap("x"), wrap("b"), wrap("a"), wrap("r"), wrap("x"), wrap("b"), wrap("a"), wrap("r"), wrap("x"), wrap("x")];
-//s.split(wrap("z")) == [wrap("xfooxfooxxbarxbarxx")];
+arrEq(s.split(wrap("")), [wrap("x"), wrap("f"), wrap("o"), wrap("o"), wrap("x"), wrap("f"), wrap("o"), wrap("o"), wrap("x"), wrap("x"), wrap("b"), wrap("a"), wrap("r"), wrap("x"), wrap("b"), wrap("a"), wrap("r"), wrap("x"), wrap("x")]);
+arrEq(s.split(wrap("z")),[wrap("xfooxfooxxbarxbarxx")]);
 
 
 

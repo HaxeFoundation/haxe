@@ -531,6 +531,14 @@ class Utf16Tools {
 		var i = 0;
 		var j = 0;
 
+		if (delimiter.length == 0) {
+			while ( i < byteLength(impl)) {
+				var size = getCharSize(getInt16(impl, i));
+				res.push(Utf16.fromImpl(sub(impl, i, size, 1)));
+				i+=size;
+			}
+			return res;
+		}
 		while (i < byteLength(impl)) {
 			var size = getCharSize(getInt16(impl, i));
 			var size2 = getCharSize(getInt16(delimiter, j));

@@ -582,6 +582,14 @@ private class Ucs2Tools {
 		var pos = 0;
 		
 		var i = 0;
+		if (delimiter.length == 0) {
+			while ( i < impl.length) {
+				res.push(Ucs2.fromImpl(impl.sub(i, 2)));
+				i+=2;
+			}
+			return res;
+		}
+
 		while ( i < impl.length) {
 
 			var b = impl.fastGet(i);
