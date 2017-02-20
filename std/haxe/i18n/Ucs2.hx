@@ -112,8 +112,7 @@ abstract Ucs2(String) {
 	public function toBytes() : haxe.io.Bytes {
 		var b = haxe.io.Bytes.alloc(length*2);
 		for (i in 0...length) {
-			var code = charCodeAt(i);
-			if (code == null) throw "assert";
+			var code = fastCodeAt(i);
 			b.set(i * 2, ((code & 0xFF00) >> 8));
 			b.set(i * 2 + 1, (code & 0x00FF));
 		}
