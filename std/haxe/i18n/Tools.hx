@@ -755,11 +755,26 @@ class NativeStringTools {
 	}
 
 	public static function toUtf32 (s:String):ByteAccess {
+        #if python
+		return ByteAccess.ofData(python.NativeStringTools.encode(s, "utf-32be"));
+        #elseif java
+		try
+		{
+			var b:BytesData = untyped s.getBytes("UTF-32BE");
+			return ByteAccess.ofData(b);
+		}
+		catch (e:Dynamic) throw e;
+        #elseif cs
+		var b = cs.system.text.Encoding.UTF32.GetBytes(s);
+		return ByteAccess.ofData(b);
+        #else
 		return Convert.convertUtf8toUtf32(new Utf8Reader(toUtf8(s)), StrictConversion);
+        #end
 	}
 
-	public static function toUcs2 (s:String):ByteAccess {
-		return Convert.convertUtf8toUcs2(new Utf8Reader(toUtf8(s)), StrictConversion, false);
+	public static inline function toUcs2 (s:String):ByteAccess {
+        return toUtf16(s);
+		//return Convert.convertUtf8toUcs2(new Utf8Reader(toUtf8(s)), StrictConversion, false);
 	}
 
 	public static function toUtf8 (s:String):ByteAccess {
