@@ -28,7 +28,7 @@ test-cpp:
 
 test-lua:
 	cd ../tests/unit && haxe-i18n compile-lua.hxml
-	cd ../tests/unit && lua bin/unit.lua 
+	cd ../tests/unit && luajit bin/unit.lua 
 
 test-swf:
 	cd ../tests/unit && haxe-i18n compile-flash9.hxml
@@ -110,6 +110,10 @@ benchmark-python:
 
 benchmark-php:
 	haxe-i18n -main Benchmark -php bin/php -debug -dce no
+	php bin/php/index.php
+
+benchmark-php7:
+	haxe-i18n -main Benchmark -D php7 -php bin/php -debug -dce no
 	php bin/php/index.php
 
 benchmark-js:
