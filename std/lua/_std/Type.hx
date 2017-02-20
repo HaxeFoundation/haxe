@@ -191,11 +191,10 @@ enum ValueType {
 		return untyped e[0];
 	}
 
-	inline static function _enumParameters(e : Array<Dynamic>) : Array<Dynamic> {
-		return e.slice(2);
-	}
-
 	public inline static function enumParameters( e : EnumValue ) : Array<Dynamic> {
+		inline function _enumParameters(e : Array<Dynamic>) : Array<Dynamic> {
+			return e.slice(2);
+		}
 		return _enumParameters(untyped e);
 	}
 
