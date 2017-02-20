@@ -25,7 +25,10 @@ import haxe.i18n.Tools;
 
 import haxe.i18n.ByteAccess;
 
-typedef Utf32Impl = ByteAccess;
+typedef Utf32Impl = haxe.ds.Vector<Int>;
+
+
+
 
 @:allow(haxe.i18n)
 abstract Utf32(Utf32Impl) {
@@ -33,7 +36,7 @@ abstract Utf32(Utf32Impl) {
 	public var length(get,never) : Int;
 
 	public inline function new(str:String)  {
-		this = NativeStringTools.toUtf32(str); 
+		this = byteAccessToImpl(NativeStringTools.toUtf32(str)); 
 	}
 
 	public inline function getReader ():Utf32Reader {
@@ -44,7 +47,7 @@ abstract Utf32(Utf32Impl) {
 		return Utf32Tools.strLength(this);
 	}
 
-	public static function asByteAccess( s:Utf32 ) : ByteAccess {
+	public static function asImpl( s:Utf32 ) : Utf32Impl {
 		return cast s;
 	}
 
@@ -102,14 +105,23 @@ abstract Utf32(Utf32Impl) {
 		return fromImpl(Utf32Tools.substring(this, startIndex, endIndex));
 	}
 
+	static function byteAccessToImpl (ba:ByteAccess) {
+		var res = new Utf32Impl(ba.length >> 2);
+		var i = 0;
+		while (i < ba.length) {
+			res[i >> 2] = ba.getInt32(i);
+			i+=4;
+		}
+		return res;
+	}
 	// private helpers
 	static inline function fromByteAccess (bytes:ByteAccess):Utf32 {
-		return cast bytes;
+		return fromImpl(byteAccessToImpl(bytes));
 	}
-	static inline function fromImpl (impl:ByteAccess):Utf32 {
+	static inline function fromImpl (impl:Utf32Impl):Utf32 {
 		return cast impl;
 	}
-	inline function impl ():ByteAccess {
+	inline function impl ():Utf32Impl {
 		return this;
 	}
 	// end private helpers
@@ -119,15 +131,27 @@ abstract Utf32(Utf32Impl) {
 	}
 
 	public static inline function fromCharCode( code : Int ) : Utf32 {
-		return fromImpl(Convert.charCodeToUtf32ByteAccess(code));
+		var v = new Utf32Impl(1);
+		v[0] = code;
+		return fromImpl(v);
 	}
 
 	public function toBytes(  ) : haxe.io.Bytes {
-		return this.copy().toBytes();
+		var res = haxe.io.Bytes.alloc(this.length << 2);
+		for (i in 0...this.length) {
+			res.setInt32(i << 2, this[i]);
+		}
+		return res;
 	}
 
 	public static inline function fromBytes( bytes : haxe.io.Bytes ) : Utf32 {
-		return fromImpl(ByteAccess.fromBytes(bytes).copy());
+		var res = new Utf32Impl(bytes.length >> 2);
+		var i = 0;
+		while (i < bytes.length) {
+			res[i >> 2] = bytes.getInt32(i);
+			i+=4;
+		}
+		return fromImpl(res);
 	}
 	
 	public function toUtf8() : Utf8 {
@@ -143,7 +167,7 @@ abstract Utf32(Utf32Impl) {
 	}
 
 	@:op(A == B) inline function opEq (other:Utf32) {
-		return this.equal(asByteAccess(other));
+		return Utf32Tools.equal(this, other.impl());
 	}
 
 	@:op(A != B) inline function opNotEq (other:Utf32) {
@@ -151,7 +175,7 @@ abstract Utf32(Utf32Impl) {
 	}
 
 	@:op(A + B) inline function opAdd (other:Utf32) {
-		return fromImpl(this.append(asByteAccess(other)));
+		return fromImpl(Utf32Tools.append(this, other.impl()));
 	}
 
 	function compare (other:Utf32):Int {
@@ -173,31 +197,38 @@ abstract Utf32(Utf32Impl) {
 	}
 }
 
-abstract Utf32Reader(ByteAccess) {
+abstract Utf32Reader(Utf32Impl) {
 
-	public inline function new (bytes:ByteAccess) {
-		this = bytes;
+	public inline function new (vector:Utf32Impl) {
+		this = vector;
 	}
 
 	public var length(get, never):Int;
 
 	inline function get_length () {
-		return this.length;
+		return this.length << 2;
 	}
 	
 	public inline function getInt32 (pos:Int) {
-		return this.getInt32(pos);
+		return this[pos >> 2];
 	}
 }
 
 @:allow(haxe.i18n)
 private class Utf32Tools {
 
+	static function append (v:Utf32Impl, other:Utf32Impl) {
+		var res = new Utf32Impl(v.length + other.length);
+		Utf32Impl.blit(v, 0, res, 0, v.length);
+		Utf32Impl.blit(other, 0, res, v.length, other.length);
+		return res;
+	}
+
 	static inline function strToImplIndex (strIndex:Int):Int {
-		return strIndex << 2;
+		return strIndex;
 	}
 	static inline function implToStrIndex (strIndex:Int):Int {
-		return strIndex >> 2;
+		return strIndex;
 	}
 
 	static inline function strLength(impl:Utf32Impl):Int {
@@ -229,13 +260,12 @@ private class Utf32Tools {
 	}
 
 	static inline function map(impl:Utf32Impl, f:Int->Int) : Utf32Impl {
-		var res = Utf32Impl.alloc(impl.length);
+		var res = new Utf32Impl(impl.length);
 		var i = 0;
 		while (i < impl.length) {
-			var b = impl.getInt32(i);
-			res.setInt32(i, f(b));
-			i+=4;
-			
+			var b = impl[i];
+			res[i] = f(b);
+			i++;
 		}
 		return res;
 	}
@@ -249,19 +279,15 @@ private class Utf32Tools {
 		return map(impl, function (code) return toLowerCaseLetter(code));
 	}
 
-	static var empty = ByteAccess.alloc(0); 
+	static var empty = new Utf32Impl(0); 
 
 	public static function charAt(impl:Utf32Impl, index : Int) : Utf32Impl {
 		if (index < 0 || index >= strLength(impl)) {
 			return empty;
 		}
-		var b = ByteAccess.alloc(4);
+		var b = new Utf32Impl(1);
 		var pos = strToImplIndex(index);
-		b.set(0, impl.get(pos    ));
-		b.set(1, impl.get(pos + 1));
-		b.set(2, impl.get(pos + 2));
-		b.set(3, impl.get(pos + 3));
-
+		b[0] = impl[pos];
 		return b;
 	}
 
@@ -274,7 +300,7 @@ private class Utf32Tools {
 		var pos = 0;
 		var fullPos = i;
 		while (i < len) {
-			if (impl.fastGet(i) == str.fastGet(pos)) {
+			if (impl[i] == str[pos]) {
 				pos++;
 			} else if (pos > 0) {
 				pos = 0;
@@ -303,7 +329,7 @@ private class Utf32Tools {
 		var fullPos = startIndex;
 		var lastPos = len - 1;
 		while (--i > -1) {
-			if (impl.fastGet(i) == str.fastGet(pos)) {
+			if (impl[i] == str[pos]) {
 				pos--;
 			} else if (pos < lastPos) {
 				pos = lastPos;
@@ -354,7 +380,13 @@ private class Utf32Tools {
 
 		if (startIndex == null || startIndex > len) return empty;
 		if (startIndex == 0 && endIndex == 0) return empty;
-		return impl.sub(strToImplIndex(startIndex), strToImplIndex(endIndex) - strToImplIndex(startIndex));
+		return sub(impl, startIndex, endIndex-startIndex);
+	}
+
+	public static function sub( impl:Utf32Impl, pos:Int, size:Int ) : Utf32Impl {
+		var res = new Utf32Impl(size);
+		Utf32Impl.blit(impl, pos, res, 0, size);
+		return res;
 	}
 
 	public static function split( impl:Utf32Impl, delimiter : Utf32Impl ) : Array<Utf32> {
@@ -368,16 +400,16 @@ private class Utf32Tools {
 
 		if (delimiter.length == 0) {
 			while ( i < impl.length) {
-				res.push(Utf32.fromImpl(impl.sub(i, 4)));
-				i+=4;
+				res.push(Utf32.fromImpl(sub(impl, i,1)));
+				i++;
 			}
 			return res;
 		}
 
 		while ( i < impl.length) {
 			
-			var b = impl.fastGet(i);
-			var d = delimiter.fastGet(pos);
+			var b = impl[i];
+			var d = delimiter[pos];
 
 			if (b == d) {
 				pos++;
@@ -388,7 +420,8 @@ private class Utf32Tools {
 			if (pos == delimiterLen) {
 				var size = ((i+1) - delimiterLen) - lastPos;
 				if ( size > 0) {
-					res.push(Utf32.fromImpl(impl.sub(lastPos, size)));
+					
+					res.push(Utf32.fromImpl(sub(impl, lastPos, size)));
 				} else {
 					res.push(Utf32.fromImpl(empty));
 				}
@@ -399,7 +432,7 @@ private class Utf32Tools {
 		}
 
 		if (lastPos < impl.length) {
-			res.push(Utf32.fromImpl(impl.sub(lastPos, impl.length - lastPos)));
+			res.push(Utf32.fromImpl(sub(impl, lastPos, impl.length - lastPos)));
 		} else {
 			res.push(Utf32.fromImpl(empty));
 		}
@@ -415,7 +448,7 @@ private class Utf32Tools {
 
 	static inline function fastCodeAt( impl:Utf32Impl, index : Int) : Int {
 		var pos = strToImplIndex(index);
-		return (impl.get(pos) << 24) | (impl.get(pos+1) << 16) | (impl.get(pos+2) << 8) | impl.get(pos + 3);
+		return (impl[pos]);
 	}
 
 	static inline function eachCode ( impl:Utf32Impl, f : Int -> Void) {
@@ -429,8 +462,34 @@ private class Utf32Tools {
 		return Utf32.fromImpl(impl).toUtf8().toNativeString();
 	}
 
-	static inline function compare (impl:Utf32Impl, other:Utf32Impl):Int {
-		return impl.compare(other);
+	static function compare (impl:Utf32Impl, other:Utf32Impl):Int {
+		var l1 = impl.length;
+		var l2 = other.length;
+		var min = l1 < l2 ? l1 : l2;
+		for (i in 0...min) {
+			var a = impl[i];
+			var b = other[i];
+
+			var res = a < b ? -1 : a > b ? 1 : 0;
+			if (res != 0) return res;
+		}
+
+		return l1 < l2 ? -1 : l1 > l2 ? 1 : 0;
+	}
+
+	static function equal (impl:Utf32Impl, other:Utf32Impl):Bool {
+		var l1 = impl.length;
+		var l2 = other.length;
+		if (l1 != l2) return false;
+		
+		for (i in 0...l1) {
+			var a = impl[i];
+			var b = other[i];
+
+			if (a != b) return false;
+			
+		}
+		return true;
 	}
 	
 	static function isValid(impl:Utf32Impl) {

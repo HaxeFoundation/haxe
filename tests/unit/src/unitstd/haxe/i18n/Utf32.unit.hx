@@ -2,12 +2,12 @@
 
 var wrap = function (s) return new haxe.i18n.Utf32(s);
 
-var arrEq = function (a:Array<haxe.i18n.Utf32>, b:Array<haxe.i18n.Utf32>) {
+var arrEq = function (a:Array<haxe.i18n.Utf32>, b:Array<haxe.i18n.Utf32>, ?pos:haxe.PosInfos) {
 	t(a.length == b.length);
 	for (i in 0...a.length) {
 		var a1 = a[i];
 		var b1 = b[i];
-		t(a1 == b1);
+		t(a1 == b1, pos);
 	}
 }
 
