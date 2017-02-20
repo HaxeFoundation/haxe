@@ -353,7 +353,7 @@ private class Utf32Tools {
 		if (endIndex == null || endIndex > len) endIndex = len;
 
 		if (startIndex == null || startIndex > len) return empty;
-		
+		if (startIndex == 0 && endIndex == 0) return empty;
 		return impl.sub(strToImplIndex(startIndex), strToImplIndex(endIndex) - strToImplIndex(startIndex));
 	}
 

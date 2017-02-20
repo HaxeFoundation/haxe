@@ -768,7 +768,7 @@ class NativeStringTools {
 		#elseif flash
 		var b = new flash.utils.ByteArray();
 		b.writeUTFBytes(s);
-		return ByteAccess.ofData(b.length,b);
+		return ByteAccess.ofData(b);
 		#elseif php
 		var x = #if php7 (s:BytesData) #else BytesData.ofString(s) #end;
 		return ByteAccess.ofData(x);
