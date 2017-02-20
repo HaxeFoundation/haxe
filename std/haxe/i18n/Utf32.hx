@@ -228,28 +228,25 @@ private class Utf32Tools {
 		}
 	}
 
-	static function toUpperCase(impl:Utf32Impl) : Utf32Impl {
+	static inline function map(impl:Utf32Impl, f:Int->Int) : Utf32Impl {
 		var res = Utf32Impl.alloc(impl.length);
 		var i = 0;
 		while (i < impl.length) {
 			var b = impl.getInt32(i);
-			res.setInt32(i, toUpperCaseLetter(b));
+			res.setInt32(i, f(b));
 			i+=4;
 			
 		}
 		return res;
 	}
+	static function toUpperCase(impl:Utf32Impl) : Utf32Impl {
+		// directly using toUpperCaseLetter results in not inlined function
+		return map(impl, function (code) return toUpperCaseLetter(code));
+	}
 
 	static function toLowerCase(impl:Utf32Impl) : Utf32Impl {
-		var res = Utf32Impl.alloc(impl.length);
-		var i = 0;
-		while (i < impl.length) {
-			var b = impl.getInt32(i);
-			res.setInt32(i, toLowerCaseLetter(b));
-			i+=4;
-		}
-
-		return res;
+		// directly using toLowerCaseLetter results in not inlined function
+		return map(impl, function (code) return toLowerCaseLetter(code));
 	}
 
 	static var empty = ByteAccess.alloc(0); 

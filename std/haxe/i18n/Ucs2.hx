@@ -448,30 +448,27 @@ private class Ucs2Tools {
 		}
 	}
 
-	static function toUpperCase(impl:Ucs2Impl) : Ucs2Impl {
+	static inline function map(impl:Ucs2Impl, f:Int->Int) : Ucs2Impl {
 		var res = Ucs2Impl.alloc(impl.length);
 		var i = 0;
 		while (i < impl.length) {
 			var b = impl.getInt16(i);
-			res.setInt16(i, toUpperCaseLetter(b));
+			res.setInt16(i, f(b));
 			i+=2;
 			
 		}
 		return res;
 	}
-
-	static function toLowerCase(impl:Ucs2Impl) : Ucs2Impl {
-		var res = Ucs2Impl.alloc(impl.length);
-		var i = 0;
-		while (i < impl.length) {
-			var b = impl.getInt16(i);
-			res.setInt16(i, toLowerCaseLetter(b));
-			i+=2;
-		}
-
-		return res;
+	
+	static function toUpperCase(impl:Ucs2Impl) : Ucs2Impl {
+		// directly using toUpperCaseLetter results in not inlined function
+		return map(impl, function (code) return toUpperCaseLetter(code));
 	}
 
+	static function toLowerCase(impl:Ucs2Impl) : Ucs2Impl {
+		// directly using toLowerCaseLetter results in not inlined function
+		return map(impl, function (code) return toLowerCaseLetter(code));
+	}
 
 	static var empty = ByteAccess.alloc(0); 
 

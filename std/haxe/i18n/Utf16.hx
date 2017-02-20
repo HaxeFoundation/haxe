@@ -345,29 +345,27 @@ private class Utf16Tools {
 	}
 
 	 // string functions
-
-	static function toUpperCase(impl:Utf16Impl) : Utf16Impl {
+	
+	static inline function modify(impl:Utf16Impl, f:Utf16Impl->Utf16Impl->Int->Int->Void) : Utf16Impl {
 		var res = allocImpl(byteLength(impl), strLength(impl));
 		var i = 0;
 		while (i < byteLength(impl)) {
 			var b = getInt16(impl, i);
 			var size = getCharSize(b);
-			toUpperCaseLetter(impl, res, i, size);
+			f(impl, res, i, size);
 			i += size;
 		}
 		return res;
 	}
 
+	static function toUpperCase(impl:Utf16Impl) : Utf16Impl {
+		// directly using toUpperCaseLetter results in not inlined function
+		return modify(impl, function (impl, res, i, size) return toUpperCaseLetter(impl, res, i, size));
+	}
+
 	static function toLowerCase(impl:Utf16Impl) : Utf16Impl {
-		var res = allocImpl(byteLength(impl), strLength(impl));
-		var i = 0;
-		while (i < byteLength(impl)) {
-			var b = getInt16(impl, i);
-			var size = getCharSize(b);
-			toLowerCaseLetter(impl, res, i, size);
-			i += size;
-		}
-		return res;
+		// directly using toLowerCaseLetter results in not inlined function
+		return modify(impl, function (impl, res, i, size) return toLowerCaseLetter(impl, res, i, size));
 	}
 
 	static function charAt(impl:Utf16Impl, index : Int) : Utf16Impl {

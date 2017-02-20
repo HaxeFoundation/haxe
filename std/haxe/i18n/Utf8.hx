@@ -367,30 +367,27 @@ private class Utf8Tools {
 
 	// string functions
 
-	static function toUpperCase(ba:Utf8Impl) : Utf8Impl {
+	static function modify(ba:Utf8Impl, f:Utf8Impl->Utf8Impl->Int->Int->Void) : Utf8Impl {
 		var res = allocImpl(byteLength(ba), strLength(ba));
 		var i = 0;
 		while (i < byteLength(ba)) {
 			var b = fastGet(ba, i);
 			var size = getCharSize(b);
-			toUpperCaseLetter(ba, res, i, size);
+			f(ba, res, i, size);
 
 			i += size;
 		}
 		return res;
 	}
 
-	static function toLowerCase(ba:Utf8Impl) : Utf8Impl {
-		var res = allocImpl(byteLength(ba), strLength(ba));
-		var i = 0;
-		while (i < byteLength(ba)) {
-			var b = fastGet(ba, i);
-			var size = getCharSize(b);
-			toLowerCaseLetter(ba, res, i, size);
+	static function toUpperCase(ba:Utf8Impl) : Utf8Impl {
+		// directly using toUpperCaseLetter results in not inlined function
+		return modify(ba, function (impl, res, i, size) return toUpperCaseLetter(impl, res, i, size));
+	}
 
-			i += size;
-		}
-		return res;
+	static function toLowerCase(ba:Utf8Impl) : Utf8Impl {
+		// directly using toLowerCaseLetter results in not inlined function
+		return modify(ba, function (impl, res, i, size) return toLowerCaseLetter(impl, res, i, size));
 	}
 	
 	static function charAt(ba:Utf8Impl, index : Int) : Utf8Impl {
