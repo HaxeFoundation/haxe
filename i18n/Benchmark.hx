@@ -3,7 +3,9 @@ import haxe.i18n.Utf16;
 import haxe.i18n.Ucs2;
 import haxe.i18n.Utf32;
 
+using StringTools;
 import BenchmarkMacro;
+
 
 
 typedef Test = { method : String, id : String, time : Float, res:Dynamic };
@@ -13,7 +15,7 @@ class Benchmark {
 	static var multiplier = #if js 3 #else 1 #end;
 
 	static function main () {
-
+				
 		var str = 'Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.   
 
 Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel illum dolore eu feugiat nulla facilisis at vero eros et accumsan et iusto odio dignissim qui blandit praesent luptatum zzril delenit augue duis dolore te feugait nulla facilisi. Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat.   
@@ -40,19 +42,37 @@ At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergr
 
 
 	static function cutTime (time) {
-		return time < 0.000000000000001 ? 0.000000000000001 : time;
+		return time < 0.0001 ? 0.0001 : time;
 	}
 	static function print (tests:Array<Test>) {
 		tests.sort(function (a, b) {
 			var r = a.method < b.method ? -1 : a.method > b.method ? 1 : 0;
-			if (r == 0) return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+			if (r == 0 && a.method.length != b.method.length) {
+				return a.method.length < b.method.length ? -1 : 1;
+			}
+			if (r == 0) {return switch [a.id, b.id] {
+				case [a, b] if (a == b):  0;
+				case ['native', _]:  -1;
+				case [_, 'native']:   1;
+				case ['ucs2', _]:    -1;
+				case [_, 'ucs2']:     1;
+				case ['utf32', _]:   -1;
+				case [_, 'utf32']:    1;
+				case ['utf8', _]:    -1;
+				case [_, 'utf8']:     1;
+				case ['utf16', _]:   -1;
+				case [_, 'utf16']:    1;
+				case _ : 0;
+			}
+			}
 			return r;
 		});
+		
 		var lookup = new haxe.ds.StringMap();
 		for (t in tests) {
 			if (t.id == 'native') lookup.set(t.method, cutTime(t.time));
 		}
-		var s = tests.map(function (t) return StringTools.rpad(t.method, " ", 20) + "" + StringTools.rpad(t.id, " ", 10) + "" + StringTools.rpad('' + (Math.floor(t.time*10000)/10000), " ", 12) + ':' + (Math.floor(cutTime(t.time)/lookup.get(t.method)*100)/100) );
+		var s = tests.map(function (t) return StringTools.rpad(t.method, " ", 20) + "" + StringTools.rpad(t.id, " ", 10) + "" + StringTools.rpad('' + (Math.floor(t.time*10000)/10000), " ", 12) + ':' + StringTools.lpad('' + (Math.floor(cutTime(t.time)/lookup.get(t.method)*100)/100), " ", 8) + "x");
 		trace('\n' + s.join("\n"));
 	}
 

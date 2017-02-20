@@ -295,6 +295,12 @@ abstract Ucs2(ByteAccess) {
 		return Ucs2Tools.charCodeAt(this, index);
 	}
 
+	public function fastCodeAt( index : Int) : Int {
+		return Ucs2Tools.fastCodeAt(this, index);
+	}
+
+
+
 	public inline function indexOf( str : Ucs2, ?startIndex : Int ) : Int {
 		return Ucs2Tools.indexOf(this, str.impl(), startIndex);
 	}

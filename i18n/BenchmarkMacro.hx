@@ -11,7 +11,7 @@ class BenchmarkMacro {
 				}
 				var t = haxe.Timer.stamp() - t;
 				tests.push({ method : method, id : $id, time: t, res:x });
-				trace($id + "-" + method + ":" + t);
+				//trace($id + "-" + method + ":" + t);
 			}
 
 			wrap('split', 100, function () {
@@ -38,10 +38,32 @@ class BenchmarkMacro {
 				return res;
 			});
 			
-			wrap('charCodeAt', 1000, function () {
+			wrap('charCodeAt n/2', 1000, function () {
 				var res = s.charCodeAt(Math.floor(s.length / 2));
 				return res;
 			});
+			
+			wrap('charCodeAt n', 1000, function () {
+				var res = s.charCodeAt(s.length -1);
+			});
+
+			wrap('charCodeAt 1', 1000, function () {
+				var res = s.charCodeAt(0);
+			});
+
+			wrap('fastCodeAt n/2', 1000, function () {
+				var res = s.fastCodeAt(Math.floor(s.length / 2));
+				return res;
+			});
+			
+			wrap('fastCodeAt n', 1000, function () {
+				var res = s.fastCodeAt(s.length -1);
+			});
+
+			wrap('fastCodeAt 1', 1000, function () {
+				var res = s.fastCodeAt(0);
+			});
+				
 			wrap('toUpperCase', 100, function () {
 				var res = s.toUpperCase();
 				return res;

@@ -53,6 +53,10 @@ abstract Utf8(Utf8Impl) {
 	public inline function charCodeAt( index : Int) : Null<Int> {
 		return Utf8Tools.charCodeAt(this, index);
 	}
+
+	public inline function fastCodeAt( index : Int) : Null<Int> {
+		return Utf8Tools.fastCodeAt(this, index);
+	}
 	
 	public inline function indexOf( str : Utf8, ?startIndex : Int ) : Int {
 		 return Utf8Tools.indexOf(this, str.impl(), startIndex);
@@ -423,6 +427,24 @@ private class Utf8Tools {
 			}
 		}
 		return r;
+	}
+
+	static function fastCodeAt( ba:Utf8Impl, index : Int) : Null<Int> {
+		var pos = 0;
+		var i = 0;
+		
+		while (i < byteLength(ba)) {
+
+			var b = fastGet(ba, i);
+			var size = getCharSize(b);
+			if (pos == index) {
+				return getCharCode(ba, i, size);
+			} else {
+				pos++;
+				i += size;
+			}
+		}
+		return 0;
 	}
 
 	static function indexOf( ba:Utf8Impl, str : Utf8Impl, ?startIndex : Int ) : Int

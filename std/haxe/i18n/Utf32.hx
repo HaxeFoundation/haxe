@@ -78,6 +78,10 @@ abstract Utf32(Utf32Impl) {
 		return Utf32Tools.charCodeAt(this, index);
 	}
 
+	public inline function fastCodeAt( index : Int) : Int {
+		return Utf32Tools.fastCodeAt(this, index);
+	}
+
 	public inline function indexOf( str : Utf32, ?startIndex : Int ) : Int {
 		return Utf32Tools.indexOf(this, str.impl(), startIndex);
 	}
@@ -415,7 +419,6 @@ private class Utf32Tools {
 	static inline function fastCodeAt( impl:Utf32Impl, index : Int) : Int {
 		var pos = strToImplIndex(index);
 		return (impl.get(pos) << 24) | (impl.get(pos+1) << 16) | (impl.get(pos+2) << 8) | impl.get(pos + 3);
-
 	}
 
 	static inline function eachCode ( impl:Utf32Impl, f : Int -> Void) {

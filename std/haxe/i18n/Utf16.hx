@@ -53,6 +53,10 @@ abstract Utf16(Utf16Impl) {
 		return Utf16Tools.charCodeAt(this, index);
 	}
 
+	public inline function fastCodeAt( index : Int) : Int {
+		return Utf16Tools.fastCodeAt(this, index);
+	}
+
 	public inline function indexOf( str : Utf16, ?startIndex : Int ) : Int {
 		return Utf16Tools.indexOf(this, str.impl(), startIndex);
 	}
@@ -405,6 +409,22 @@ private class Utf16Tools {
 		return r;
 	}
 
+	static function fastCodeAt( ba:Utf16Impl, index : Int) : Null<Int> {
+		var pos = 0;
+		var i = 0;
+		while (i < byteLength(ba)) {
+			var b = getInt16(ba, i);
+			var size = getCharSize(b);
+			if (pos == index) {
+				return getCharCode(ba, i, size);
+			} else {
+				pos++;
+				i += size;
+			}
+		}
+		return 0;
+	}
+
 
 	static inline function eachCode ( impl:Utf16Impl, f : Int -> Void) {
 		var i = 0;
@@ -419,7 +439,6 @@ private class Utf16Tools {
 
 	static function indexOf( impl:Utf16Impl, str : Utf16Impl, ?startIndex : Int ) : Int
 	{
-
 		var res = -1;
 		var len = strLength(str); // O(n)
 		var pos = 0;
