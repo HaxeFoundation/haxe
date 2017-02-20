@@ -770,7 +770,7 @@ class NativeStringTools {
 		b.writeUTFBytes(s);
 		return ByteAccess.ofData(b.length,b);
 		#elseif php
-		var x = BytesData.ofString(s);
+		var x = #if php7 (s:BytesData) #else BytesData.ofString(s) #end;
 		return ByteAccess.ofData(x);
 		#elseif cpp
 		var a = new BytesData();
