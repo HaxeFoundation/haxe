@@ -2,11 +2,10 @@ import haxe.io.Bytes;
 import haxe.i18n.Utf8;
 import haxe.i18n.Utf16;
 import haxe.i18n.Ucs2;
+import haxe.i18n.Utf32;
 import haxe.i18n.ByteAccess;
 import haxe.i18n.ByteAccessBuffer;
-import haxe.i18n.BytesBufferTools;
-import haxe.i18n.Encoding;
-import haxe.i18n.NativeStringTools;
+import haxe.i18n.Tools;
 
 class Check {
 
