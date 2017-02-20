@@ -36,7 +36,11 @@ test-swf:
 
 test-php:
 	cd ../tests/unit && haxe-i18n compile-php.hxml
-	cd ../tests/unit && php bin/php/index.php 
+	cd ../tests/unit && php bin/php/index.php
+
+test-php7:
+	cd ../tests/unit && haxe-i18n compile-php7.hxml
+	cd ../tests/unit && php bin/php/index.php  
 
 test-hl:
 	cd ../tests/unit && haxe-i18n compile-hl.hxml
