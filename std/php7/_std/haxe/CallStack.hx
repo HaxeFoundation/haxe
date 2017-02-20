@@ -15,9 +15,8 @@ enum StackItem {
 	LocalFunction( ?v : Int );
 }
 
-@:dox(hide)
-@:noCompletion
 class CallStack {
+	@:ifFeature("haxe.CallStack.exceptionStack")
 	static var lastExceptionTrace : NativeTrace;
 
 	/**
@@ -73,7 +72,7 @@ class CallStack {
 		}
 	}
 
-	@:keep
+	@:ifFeature("haxe.CallStack.exceptionStack")
 	static function saveExceptionTrace( e:Throwable ) : Void {
 		lastExceptionTrace = e.getTrace();
 
