@@ -30,11 +30,11 @@ At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergr
 
 		var substrings = ['justo', 'gubergren'];
 		var tests = [];
-		benchmarkString(str, substrings, tests);
-		benchmarkUtf32(new Utf32(str), substrings.map(Utf32.new), tests);
-		benchmarkUtf8(new Utf8(str), substrings.map(Utf8.new), tests);
-		benchmarkUtf16(new Utf16(str), substrings.map(Utf16.new), tests);
-		benchmarkUcs2(new Ucs2(str), substrings.map(Ucs2.new), tests);
+		benchmarkString(str, str, substrings, tests);
+		benchmarkUtf32(str, new Utf32(str), substrings.map(Utf32.new), tests);
+		benchmarkUtf8(str, new Utf8(str), substrings.map(Utf8.new), tests);
+		benchmarkUtf16(str, new Utf16(str), substrings.map(Utf16.new), tests);
+		benchmarkUcs2(str, new Ucs2(str), substrings.map(Ucs2.new), tests);
 
 		print(tests);
 
@@ -76,22 +76,27 @@ At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergr
 		trace('\n' + s.join("\n"));
 	}
 
-	static function benchmarkString (s:String, substrings:Array<String>, tests:Array<Test>) {
+	static function benchmarkString (raw:String, s:String, substrings:Array<String>, tests:Array<Test>) {
+		inline function mkNew () return raw;
 		return BenchmarkMacro.getCode('native');
 	}
 
-	static function benchmarkUtf8 (s:Utf8, substrings:Array<Utf8>, tests:Array<Test>) {
+	static function benchmarkUtf8 (raw:String, s:Utf8, substrings:Array<Utf8>, tests:Array<Test>) {
+		inline function mkNew () return new Utf8(raw);
 		return BenchmarkMacro.getCode('utf8');
 	}
-	static function benchmarkUtf16 (s:Utf16, substrings:Array<Utf16>, tests:Array<Test>) {
+	static function benchmarkUtf16 (raw:String, s:Utf16, substrings:Array<Utf16>, tests:Array<Test>) {
+		inline function mkNew () return new Utf16(raw);
 		return BenchmarkMacro.getCode('utf16');
 	}
 
-	static function benchmarkUcs2 (s:Ucs2, substrings:Array<Ucs2>, tests:Array<Test>) {
+	static function benchmarkUcs2 (raw:String, s:Ucs2, substrings:Array<Ucs2>, tests:Array<Test>) {
+		inline function mkNew () return new Ucs2(raw);
 		return BenchmarkMacro.getCode('ucs2');
 	}
 
-	static function benchmarkUtf32 (s:Utf32, substrings:Array<Utf32>, tests:Array<Test>) {
+	static function benchmarkUtf32 (raw:String, s:Utf32, substrings:Array<Utf32>, tests:Array<Test>) {
+		inline function mkNew () return new Utf32(raw);
 		return BenchmarkMacro.getCode('utf32');
 	}
 

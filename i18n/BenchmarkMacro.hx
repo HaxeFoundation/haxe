@@ -86,6 +86,10 @@ class BenchmarkMacro {
 				var res = s.length;
 				return res;
 			});
+			wrap('new', 1000, function () {
+				var res = mkNew();
+				return res;
+			});
 		}
 	}
 }
