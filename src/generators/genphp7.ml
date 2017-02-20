@@ -657,6 +657,11 @@ let is_concatenation expr =
 		| _ -> false
 
 (**
+	Check if provided expression is a block of expressions
+*)
+let is_block expr = match expr.eexpr with TBlock _ -> true | _ -> false
+
+(**
 	Check if provided expression is a binary operation
 *)
 let is_binop expr = match expr.eexpr with TBinop _ -> true | _ -> false
@@ -1990,7 +1995,7 @@ class virtual type_builder ctx wrapper =
 			and exprs = match expr.eexpr with TBlock exprs -> exprs | _ -> [expr] in
 			let write_body () =
 				let write_expr expr =
-					if not !skip_line_directives then begin
+					if not !skip_line_directives && not (is_block expr) then begin
 						self#write_pos expr;
 						self#write_indentation
 					end;
