@@ -1736,17 +1736,12 @@ let generate_type ctx = function
 			()
 		else if not c.cl_extern then
 			generate_class ctx c
-		else if Meta.has Meta.LuaRequire c.cl_meta && is_directly_used ctx.com c.cl_meta then
-			generate_require ctx c.cl_path c.cl_meta
 		else if Meta.has Meta.InitPackage c.cl_meta then
 			(match c.cl_path with
 			| ([],_) -> ()
 			| _ -> generate_package_create ctx c.cl_path);
 		check_multireturn ctx c;
-	| TEnumDecl e when e.e_extern ->
-		if Meta.has Meta.LuaRequire e.e_meta && is_directly_used ctx.com e.e_meta then
-		    generate_require ctx e.e_path e.e_meta;
-	| TEnumDecl e -> generate_enum ctx e
+	| TEnumDecl e when not e.e_extern -> generate_enum ctx e
 	| TTypeDecl _ | TAbstractDecl _ -> ()
 
 let generate_type_forward ctx = function
@@ -1755,13 +1750,17 @@ let generate_type_forward ctx = function
 		| None -> ()
 		| Some e ->
 			ctx.inits <- e :: ctx.inits);
-		if not c.cl_extern then begin
-		    generate_package_create ctx c.cl_path;
-		    let p = s_path ctx c.cl_path in
-		    println ctx "%s = _hx_e()" p;
-		end
+		if not c.cl_extern then
+		    begin
+			generate_package_create ctx c.cl_path;
+			let p = s_path ctx c.cl_path in
+			println ctx "%s = _hx_e()" p
+		    end
+		else if Meta.has Meta.LuaRequire c.cl_meta && is_directly_used ctx.com c.cl_meta then
+		    generate_require ctx c.cl_path c.cl_meta
 	| TEnumDecl e when e.e_extern ->
-		()
+		if Meta.has Meta.LuaRequire e.e_meta && is_directly_used ctx.com e.e_meta then
+		    generate_require ctx e.e_path e.e_meta;
 	| TEnumDecl e ->
 		generate_package_create ctx e.e_path;
 		let p = s_path ctx e.e_path in
