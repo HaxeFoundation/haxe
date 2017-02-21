@@ -658,6 +658,11 @@ let is_concatenation expr =
 		| _ -> false
 
 (**
+	Check if provided expression is a block of expressions
+*)
+let is_block expr = match expr.eexpr with TBlock _ -> true | _ -> false
+
+(**
 	Check if provided expression is a binary operation
 *)
 let is_binop expr = match expr.eexpr with TBinop _ -> true | _ -> false
@@ -2010,7 +2015,7 @@ class virtual type_builder ctx wrapper =
 			and exprs = match expr.eexpr with TBlock exprs -> exprs | _ -> [expr] in
 			let write_body () =
 				let write_expr expr =
-					if not !skip_line_directives then begin
+					if not !skip_line_directives && not (is_block expr) then begin
 						self#write_pos expr;
 						self#write_indentation
 					end;
@@ -2136,7 +2141,7 @@ class virtual type_builder ctx wrapper =
 			self#write_as_block try_expr;
 			self#write " catch (\\Throwable $__hx__caught_e) {\n";
 			self#indent_more;
-			if ctx.debug then
+			if has_feature ctx "haxe.CallStack.exceptionStack"  then
 				self#write_statement ((self#use (["haxe"], "CallStack")) ^ "::saveExceptionTrace($__hx__caught_e)");
 			self#write_statement ("$__hx__real_e = ($__hx__caught_e instanceof " ^ haxe_exception ^ " ? $__hx__caught_e->e : $__hx__caught_e)");
 			self#write_indentation;

@@ -60,6 +60,8 @@ class BytesInput extends Input {
 	}
 
 	public override function readByte() : Int {
+		if( len == 0 ) throw new Eof();
+		--len;
 		return b[pos++];
 	}
 

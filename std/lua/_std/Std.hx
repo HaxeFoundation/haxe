@@ -39,7 +39,8 @@ import lua.NativeStringTools;
 	}
 
 	public static function int( x : Float ) : Int {
-		return lua.Boot.clamp(x);
+		if (!Math.isFinite(x) || Math.isNaN(x)) return 0;
+		else return lua.Boot.clamp(x);
 	}
 
 	public static function parseInt( x : String ) : Null<Int> {
