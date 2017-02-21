@@ -124,7 +124,7 @@ class sourcemap_writer (generated_file:string) =
 		output_string channel "{\n";
 		output_string channel "\"version\":3,\n";
 		output_string channel ("\"file\":\"" ^ (String.concat "\\\\" (ExtString.String.nsplit generated_file "\\")) ^ "\",\n");
-		output_string channel ("\"sourceRoot\":\"file:///\",\n");
+		output_string channel ("\"sourceRoot\":\"file://\",\n");
 		output_string channel ("\"sources\":[" ^
 			(String.concat "," (List.map (fun s -> "\"" ^ to_url s ^ "\"") sources)) ^
 			"],\n");
@@ -161,8 +161,7 @@ class sourcemap_writer (generated_file:string) =
 			let continuation_bit = base in
 			let digit = vlq land mask in
 			let next = vlq asr shift in
-			Rbuffer.add_char buffer (encode_digit (
-				if next > 0 then digit lor continuation_bit else digit));
+			Rbuffer.add_char buffer (encode_digit (if next > 0 then digit lor continuation_bit else digit));
 			if next > 0 then loop next else ()
 		in
 		loop (to_vlq number)
