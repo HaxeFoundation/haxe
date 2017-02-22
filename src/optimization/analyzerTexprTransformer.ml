@@ -333,7 +333,10 @@ let rec func ctx bb tf t p =
 		add_texpr bb {e with eexpr = TBinop(OpAssign,ea,eop)};
 		bb,ea
 	and field_assign_op bb op e ef e1 fa e2 =
-		let bb,e1 = bind_to_temp bb false e1 in
+		let bb,e1 = match fa with
+			| FInstance(c,_,_) | FClosure(Some(c,_),_) when is_stack_allocated c -> bb,e1
+			| _ -> bind_to_temp bb false e1
+		in
 		let ef = {ef with eexpr = TField(e1,fa)} in
 		let bb,e3 = bind_to_temp bb false ef in
 		let bb,e2 = bind_to_temp bb false e2 in

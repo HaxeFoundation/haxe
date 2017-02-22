@@ -30,6 +30,8 @@ let rec is_true_expr e1 = match e1.eexpr with
 	| TParenthesis e1 -> is_true_expr e1
 	| _ -> false
 
+let is_stack_allocated c = Meta.has Meta.StructAccess c.cl_meta
+
 let map_values ?(allow_control_flow=true) f e =
 	let branching = ref false in
 	let efinal = ref None in
