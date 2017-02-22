@@ -3516,7 +3516,7 @@ class generator (com:context) =
 			and name = builder#get_name in
 			let filename = (create_dir_recursive (build_dir :: namespace)) ^ "/" ^ name ^ ".php" in
 			let channel = open_out filename in
-			if com.debug then
+			if Common.defined com Define.SourceMap then
 				builder#set_sourcemap_generator (new sourcemap_builder filename);
 			output_string channel builder#get_contents;
 			close_out channel;

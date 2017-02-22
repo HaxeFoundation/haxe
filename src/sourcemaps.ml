@@ -114,8 +114,9 @@ class sourcemap_writer (generated_file:string) =
 		E.g if `generated_file` is `path/to/file.js`, then sourcemap will be written to `path/to/file.js.map`.
 		This function does not try to create missing directories.
 	*)
-	method generate ?file_name com =
-		let file_name = match file_name with Some f -> f | None -> generated_file ^ ".map" in
+	method generate ?file_name ?source_root com =
+		let file_name = match file_name with Some f -> f | None -> generated_file ^ ".map"
+		and source_root = match source_root with Some r -> r | None -> "" in
 		let channel = open_out file_name in
 		let sources = DynArray.to_list files in
 		let to_url file =
@@ -124,7 +125,7 @@ class sourcemap_writer (generated_file:string) =
 		output_string channel "{\n";
 		output_string channel "\"version\":3,\n";
 		output_string channel ("\"file\":\"" ^ (String.concat "\\\\" (ExtString.String.nsplit generated_file "\\")) ^ "\",\n");
-		output_string channel ("\"sourceRoot\":\"file://\",\n");
+		output_string channel ("\"sourceRoot\":\"" ^ source_root ^ "\",\n");
 		output_string channel ("\"sources\":[" ^
 			(String.concat "," (List.map (fun s -> "\"" ^ to_url s ^ "\"") sources)) ^
 			"],\n");
@@ -261,7 +262,7 @@ class sourcemap_builder (generated_file:string) =
 		E.g if `generated_file` is `path/to/file.js`, then sourcemap will be written to `path/to/file.js.map`.
 		This function does not try to create missing directories.
 	*)
-	method generate ?file_name com =
+	method generate ?file_name ?source_root com =
 		(* remember position *)
 		let pointer = self#get_pointer in
 		self#rewind;
@@ -280,8 +281,9 @@ class sourcemap_builder (generated_file:string) =
 		in
 		loop current;
 		(* dump source map to a file *)
-		let file_name = match file_name with Some f -> f | None -> generated_file ^ ".map" in
-		writer#generate ~file_name:file_name com;
+		let file_name = match file_name with Some f -> f | None -> generated_file ^ ".map"
+		and source_root = match source_root with Some r -> r | None -> "" in
+		writer#generate ~file_name:file_name ~source_root:source_root com;
 		(* restore position *)
 		self#seek pointer
 end
