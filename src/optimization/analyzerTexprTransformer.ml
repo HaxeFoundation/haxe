@@ -522,7 +522,7 @@ let rec func ctx bb tf t p =
 			block_element bb (mk (TReturn None) t_dynamic e.epos)
 		| TReturn (Some e1) ->
 			begin try
-				let mk_return e1 = mk (TReturn (Some e1)) t_dynamic e.epos in
+				let mk_return e1 = mk (TReturn (Some e1)) t_dynamic e1.epos in
 				block_element_value bb e1 mk_return
 			with Exit ->
 				let bb,e1 = value bb e1 in
