@@ -16,6 +16,13 @@ enum StackItem {
 }
 
 class CallStack {
+	/**
+		If defined this function will be used to transform call stack entries.
+		@param String - generated php file name.
+		@param Int - Line number in generated file.
+	*/
+	static public var mapPosition : String->Int->Null<{?source:String, ?originalLine:Int}>;
+
 	@:ifFeature("haxe.CallStack.exceptionStack")
 	static var lastExceptionTrace : NativeTrace;
 
@@ -83,7 +90,7 @@ class CallStack {
 		for (i in -(count - 1)...1) {
 			var exceptionEntry:NativeAssocArray<Dynamic> = Global.end(lastExceptionTrace);
 
-			if(!Global.isset(exceptionEntry['file'])) {
+			if(!Global.isset(exceptionEntry['file']) || !Global.isset(currentTrace[-i]['file'])) {
 				Global.array_pop(lastExceptionTrace);
 			} else if (currentTrace[-i]['file'] == exceptionEntry['file'] && currentTrace[-i]['line'] == exceptionEntry['line']) {
 				Global.array_pop(lastExceptionTrace);
@@ -129,6 +136,13 @@ class CallStack {
 				}
 			}
 			if (Global.isset(entry['file'])) {
+				if (mapPosition != null) {
+					var pos = mapPosition(entry['file'], entry['line']);
+					if (pos != null && pos.source != null && pos.originalLine != null) {
+						entry['file'] = pos.source;
+						entry['line'] = pos.originalLine;
+					}
+				}
 				result.push(FilePos(item, entry['file'], entry['line']));
 			} else if (item != null) {
 				result.push(item);
