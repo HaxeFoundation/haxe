@@ -48,6 +48,7 @@ import sys.io.File;
 	public override function close() : Void {
 		super.close();
 		@:privateAccess FileInput.file_close(__f);
+		__f = null;
 	}
 
 	public function seek( p : Int, pos : FileSeek ) : Void {
