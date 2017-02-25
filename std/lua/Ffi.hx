@@ -22,22 +22,24 @@
 
 package lua;
 
+import haxe.Constraints.Function;
+import lua.Table;
 #if lua_jit
-@:native("_G.ffi")
+@:luaRequire("ffi")
 extern class Ffi {
 
 	// Declaring and accessing external symbols
 	public static var C : Dynamic;
 	public static function gc(cdata : Dynamic, finalizer : Function) : Void;
 	public static function load (name : String, ?global : Bool) : Dynamic;
-	public static function metatype<T>(ct : Ctype<T>, metatable : Table<Dynamic>) : Ctype<T>;
+	public static function metatype<T>(ct : Ctype<T>, metatable : Table<Dynamic,Dynamic>) : Ctype<T>;
 	public static function typeof(str:String) : Ctype<Dynamic>;
 
 	// C Type functionality
-	public static function alignof(ct : Ctype<T>) : Int;
-	public static function istype(ct : Ctype<T>, obj:Dynamic) : Bool;
-	public static function offsetof(ct : Ctype<T>, field:String) : Int;
-	public static function sizeof(ct : Ctype<T>, ?nelem : Int) : Int;
+	public static function alignof<T>(ct : Ctype<T>) : Int;
+	public static function istype<T>(ct : Ctype<T>, obj:Dynamic) : Bool;
+	public static function offsetof<T>(ct : Ctype<T>, field:String) : Int;
+	public static function sizeof<T>(ct : Ctype<T>, ?nelem : Int) : Int;
 
 
 	// Utility functionality
