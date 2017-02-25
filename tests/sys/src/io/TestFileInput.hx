@@ -43,6 +43,7 @@ class TestFileInput extends haxe.unit.TestCase {
 		var count = file.readBytes(bytes, 0, 9);
 		assertEquals(9, count);
 		assertEquals(116, bytes.get(0));
+		file.close();
 	}
 
 	public function testSeekBeginCur() {
