@@ -69,7 +69,7 @@ private class MysqlConnection implements Connection {
 	}
 
 	public function close() : Void {
-		close();
+		db.close();
 	}
 
 	public function escape( s : String ) : String {
