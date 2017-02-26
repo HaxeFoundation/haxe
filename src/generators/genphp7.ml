@@ -2390,22 +2390,18 @@ class virtual type_builder ctx wrapper =
 				);
 				self#write (!access_str ^ field_str)
 			in
-			match (follow expr.etype, access) with
-				| (TInst ({ cl_path = ([], "String") }, _), FInstance (_, _, { cf_name = "length"; cf_kind = Var _ })) ->
+			match access with
+				| FInstance ({ cl_path = [], "String"}, _, { cf_name = "length"; cf_kind = Var _ }) ->
 					self#write "strlen(";
 					self#write_expr expr;
 					self#write ")"
-				| (_, FInstance ({ cl_path = [], "String"}, _, { cf_name = "length"; cf_kind = Var _ })) ->
-					self#write "strlen(";
-					self#write_expr expr;
-					self#write ")"
-				| (_, FInstance (_, _, field)) -> write_access "->" (field_name field)
-				| (_, FStatic (_, ({ cf_kind = Var _ } as field))) ->
+				| FInstance (_, _, field) -> write_access "->" (field_name field)
+				| FStatic (_, ({ cf_kind = Var _ } as field)) ->
 					(match (reveal_expr expr).eexpr with
 						| TTypeExpr _ -> write_access "::" ("$" ^ (field_name field))
 						| _ -> write_access "->" (field_name field)
 					)
-				| (_, FStatic (_, ({ cf_kind = Method MethDynamic } as field))) ->
+				| FStatic (_, ({ cf_kind = Method MethDynamic } as field)) ->
 					(match self#parent_expr with
 						| Some { eexpr = TCall ({ eexpr = TField (e, a) }, _) } when a == access ->
 							self#write "(";
@@ -2414,15 +2410,15 @@ class virtual type_builder ctx wrapper =
 						| _ ->
 							write_access "::" ("$" ^ (field_name field))
 					)
-				| (_, FStatic (_, ({ cf_kind = Method _ } as field))) -> self#write_expr_field_static expr field
-				| (_, FAnon field) ->
+				| FStatic (_, ({ cf_kind = Method _ } as field)) -> self#write_expr_field_static expr field
+				| FAnon field ->
 					let written_as_probable_string = self#write_expr_field_if_string expr (field_name field) in
 					if not written_as_probable_string then write_access "->" (field_name field)
-				| (_, FDynamic field_name) ->
+				| FDynamic field_name ->
 					let written_as_probable_string = self#write_expr_field_if_string expr field_name in
 					if not written_as_probable_string then write_access "->" field_name
-				| (_, FClosure (tcls, field)) -> self#write_expr_field_closure tcls field expr
-				| (_, FEnum (_, field)) ->
+				| FClosure (tcls, field) -> self#write_expr_field_closure tcls field expr
+				| FEnum (_, field) ->
 					if is_enum_constructor_with_args field then
 						if not self#parent_expr_is_call then
 							begin
