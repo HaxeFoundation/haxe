@@ -2395,6 +2395,10 @@ class virtual type_builder ctx wrapper =
 					self#write "strlen(";
 					self#write_expr expr;
 					self#write ")"
+				| (_, FInstance ({ cl_path = [], "String"}, _, { cf_name = "length"; cf_kind = Var _ })) ->
+					self#write "strlen(";
+					self#write_expr expr;
+					self#write ")"
 				| (_, FInstance (_, _, field)) -> write_access "->" (field_name field)
 				| (_, FStatic (_, ({ cf_kind = Var _ } as field))) ->
 					(match (reveal_expr expr).eexpr with
