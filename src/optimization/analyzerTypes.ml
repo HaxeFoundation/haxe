@@ -216,8 +216,8 @@ module Graph = struct
 	let get_var_info g v = match v.v_extra with
 		| Some(_,Some {eexpr = TConst (TInt i32)}) -> DynArray.get g.g_var_infos (Int32.to_int i32)
 		| _ ->
-			prerr_endline "Unbound variable, please report this";
-			prerr_endline (Printer.s_tvar v);
+			print_endline "Unbound variable, please report this";
+			print_endline (Printer.s_tvar v);
 			assert false
 
 	let declare_var g v bb =
@@ -311,15 +311,15 @@ module Graph = struct
 		List.iter (fun bb ->
 			List.iter (fun edge ->
 				if edge.cfg_to = g.g_unreachable then
-					prerr_endline (Printf.sprintf "Outgoing edge from %i to the unreachable block" bb.bb_id)
+					print_endline (Printf.sprintf "Outgoing edge from %i to the unreachable block" bb.bb_id)
 				else if not (List.memq edge edge.cfg_to.bb_incoming) then
-					prerr_endline (Printf.sprintf "Outgoing edge %i -> %i has no matching incoming edge" edge.cfg_from.bb_id edge.cfg_to.bb_id)
+					print_endline (Printf.sprintf "Outgoing edge %i -> %i has no matching incoming edge" edge.cfg_from.bb_id edge.cfg_to.bb_id)
 			) bb.bb_outgoing;
 			List.iter (fun edge ->
 				if edge.cfg_from == g.g_unreachable then
-					prerr_endline (Printf.sprintf "Incoming edge to %i from the unreachable block" bb.bb_id)
+					print_endline (Printf.sprintf "Incoming edge to %i from the unreachable block" bb.bb_id)
 				else if not (List.memq edge edge.cfg_from.bb_outgoing) then
-					prerr_endline (Printf.sprintf "Incoming edge %i <- %i has no matching outgoing edge" edge.cfg_to.bb_id edge.cfg_from.bb_id)
+					print_endline (Printf.sprintf "Incoming edge %i <- %i has no matching outgoing edge" edge.cfg_to.bb_id edge.cfg_from.bb_id)
 			) bb.bb_incoming
 		) g.g_nodes
 
