@@ -7,6 +7,7 @@ next release
 	Bugfixes:
 
 	all : fixed compilation server issue with two identical @:native paths on extern abstracts (#5993)
+	php : fixed FileSystem.stat() for directories on Windows (#6057)
 	php/php7 : fixed invalid result of Web.getPostData() (#6033)
 	php7 : fixed invalid access to length of string in some cases (#6055)
 	php7 : fixed infinite recursion on MysqlConnection.close() (#6056)
