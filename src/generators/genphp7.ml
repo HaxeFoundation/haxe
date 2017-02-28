@@ -3556,7 +3556,8 @@ class generator (com:context) =
 			match self#get_main_class with
 				| None -> ()
 				| Some main_class ->
-					let channel = open_out (root_dir ^ "/index.php") in
+					let filename = match com.php_front with None -> "index.php" | Some n -> n in
+					let channel = open_out (root_dir ^ "/" ^ filename) in
 					output_string channel "<?php\n";
 					output_string channel ("set_include_path(__DIR__.'/" ^ (String.concat "/" self#get_lib_path) ^ "');\n");
 					output_string channel "spl_autoload_register(\n";
