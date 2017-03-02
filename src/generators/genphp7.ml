@@ -3304,7 +3304,7 @@ class class_builder ctx (cls:tclass) =
 				)
 				cls.cl_statics;
 			(* `static var` initialization *)
-			let write_var_initialization _ field =
+			let write_var_initialization field =
 				let write_assign expr =
 					self#write_indentation;
 					self#write ("self::$" ^ (field_name field) ^ " = ");
@@ -3333,7 +3333,7 @@ class class_builder ctx (cls:tclass) =
 					self#write ";\n"
 				end
 			in
-			PMap.iter write_var_initialization cls.cl_statics
+			List.iter write_var_initialization cls.cl_ordered_statics
 		(**
 			Writes single field to output buffer.
 		*)
