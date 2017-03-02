@@ -49,10 +49,10 @@ class Gc {
 	/**
 		Start tracking an object field change.
 		The check will be performed every allocation and the callback function triggered everytime
-		a change has been performed since last check.
+		a change has been performed since last check. The callback parameter is true if the object was collected.
 		It is necessary to enable the Track flag in Gc.flags
 	**/
-	public static function track( obj : Dynamic, field : String, callb : Void -> Void ) {
+	public static function track( obj : Dynamic, field : String, callb : Bool -> Void ) {
 		var oval = if( Reflect.isFunction(obj) ) Api.getClosureValue(obj) else obj;
 		var fid = if( ~/^[0-9]+$/.match(field) ) Std.parseInt(field) else @:privateAccess field.bytes.hash();
 		if( !_track(oval, fid, callb) )
@@ -92,7 +92,7 @@ class Gc {
 	@:hlNative("std", "gc_enable") public static function enable( b : Bool ) : Void {}
 	@:hlNative("std", "gc_major") public static function major() : Void {}
 	@:hlNative("std", "gc_stats") static function _stats( totalAllocated : hl.Ref<Float>, allocationCount : hl.Ref<Float>, currentMemory : hl.Ref<Float> ) : Void {}
-	@:hlNative("std", "gc_track") static function _track( obj : Dynamic, fid : Int, callb : Void -> Void ) : Bool { return false; }
+	@:hlNative("std", "gc_track") static function _track( obj : Dynamic, fid : Int, callb : Bool -> Void ) : Bool { return false; }
 	@:hlNative("std", "gc_untrack") static function _untrack( obj : Dynamic ) : Bool { return false; }
 
 	@:hlNative("std", "gc_get_flags") static function _get_flags() : Int { return 0; }
