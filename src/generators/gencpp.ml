@@ -5846,7 +5846,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    let generate_script_function isStatic field scriptName callName =
       match follow field.cf_type  with
-      | TFun (args,return_type) ->
+      | TFun (args,return_type) when not (is_data_member field) ->
          output_cpp ("\nstatic void CPPIA_CALL " ^ scriptName ^ "(hx::CppiaCtx *ctx) {\n");
          let ret = script_signature return_type false in
          if (ret<>"v") then output_cpp ("ctx->return" ^ (script_type return_type false) ^ "(");
