@@ -3717,7 +3717,8 @@ and handle_signature_display ctx e_ast with_type =
 	in
 	let rec follow_with_callable (t,doc) = match follow t with
 		| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta -> follow_with_callable (Abstract.get_underlying_type a tl,doc)
-		| t -> (t,doc)
+		| TFun(_,_) as t -> (t,doc)
+		| _ -> error ("Not a callable type: " ^ (s_type (print_context()) t)) p
 	in
 	let tl = List.map follow_with_callable tl in
 	let rec loop i p1 el = match el with
