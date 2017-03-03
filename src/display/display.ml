@@ -27,7 +27,7 @@ exception Diagnostics of string
 exception Statistics of string
 exception ModuleSymbols of string
 exception Metadata of string
-exception DisplaySignatures of (t * documentation) list * int
+exception DisplaySignatures of (tsignature * documentation) list * int
 exception DisplayType of t * pos * string option
 exception DisplayPosition of pos list
 exception DisplayFields of (string * display_field_kind * documentation) list

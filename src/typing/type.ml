@@ -57,11 +57,13 @@ type t =
 	| TEnum of tenum * tparams
 	| TInst of tclass * tparams
 	| TType of tdef * tparams
-	| TFun of (string * bool * t) list * t
+	| TFun of tsignature
 	| TAnon of tanon
 	| TDynamic of t
 	| TLazy of (unit -> t) ref
 	| TAbstract of tabstract * tparams
+
+and tsignature = (string * bool * t) list * t
 
 and tparams = t list
 

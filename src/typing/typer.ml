@@ -3655,9 +3655,9 @@ and handle_display ctx e_ast with_type =
 	let e = match e_ast,with_type with
 	| (EConst (Ident "$type"),_),_ ->
 		let mono = mk_mono() in
-		raise (Display.DisplaySignatures ([(TFun(["expression",false,mono],mono),Some "Outputs type of argument as a warning and uses argument as value")],0))
+		raise (Display.DisplaySignatures ([((["expression",false,mono],mono),Some "Outputs type of argument as a warning and uses argument as value")],0))
 	| (EConst (Ident "trace"),_),_ ->
-		raise (Display.DisplaySignatures ([(tfun [t_dynamic] ctx.com.basic.tvoid,Some "Print given arguments")],0))
+		raise (Display.DisplaySignatures ([((["value",false,t_dynamic],ctx.com.basic.tvoid),Some "Print given arguments")],0))
 	| (EConst (Ident "_"),p),WithType t ->
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
 	| _ -> try
@@ -3717,7 +3717,7 @@ and handle_signature_display ctx e_ast with_type =
 	in
 	let rec follow_with_callable (t,doc) = match follow t with
 		| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta -> follow_with_callable (Abstract.get_underlying_type a tl,doc)
-		| TFun(_,_) as t -> (t,doc)
+		| TFun(args,ret) -> ((args,ret),doc)
 		| _ -> error ("Not a callable type: " ^ (s_type (print_context()) t)) p
 	in
 	let tl = List.map follow_with_callable tl in
@@ -3733,16 +3733,14 @@ and handle_signature_display ctx e_ast with_type =
 	let el = if display_arg >= List.length el then el @ [EConst (Ident "null"),null_pos] else el in
 	let rec loop acc tl = match tl with
 		| (t,doc) :: tl ->
-			let keep t = match t with
-				| TFun (args,r) ->
-					begin try
-						let _ = unify_call_args' ctx el args r p false false in
-						true
-					with
-					| Error(Call_error (Not_enough_arguments _),_) -> true
-					| _ -> false
-					end
+			let keep (args,r) =
+				begin try
+					let _ = unify_call_args' ctx el args r p false false in
+					true
+				with
+				| Error(Call_error (Not_enough_arguments _),_) -> true
 				| _ -> false
+				end
 			in
 			loop (if keep t then (t,doc) :: acc else acc) tl
 		| [] ->

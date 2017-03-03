@@ -905,11 +905,11 @@ with
 	| Display.DisplayType (t,p,doc) ->
 		let doc = match doc with Some _ -> doc | None -> DisplayOutput.find_doc t in
 		raise (DisplayOutput.Completion (DisplayOutput.print_type t p doc))
-	| Display.DisplaySignatures(tl,display_arg) ->
+	| Display.DisplaySignatures(signatures,display_arg) ->
 		if ctx.com.display.dms_kind = DMSignature then
-			raise (DisplayOutput.Completion (DisplayOutput.print_signature tl display_arg))
+			raise (DisplayOutput.Completion (DisplayOutput.print_signature signatures display_arg))
 		else
-			raise (DisplayOutput.Completion (DisplayOutput.print_signatures tl))
+			raise (DisplayOutput.Completion (DisplayOutput.print_signatures signatures))
 	| Display.DisplayPosition pl ->
 		raise (DisplayOutput.Completion (DisplayOutput.print_positions pl))
 	| Display.DisplayToplevel il ->

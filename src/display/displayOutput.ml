@@ -103,11 +103,11 @@ let print_type t p doc =
 
 let print_signatures tl =
 	let b = Buffer.create 0 in
-	List.iter (fun (t,doc) ->
+	List.iter (fun ((args,ret),doc) ->
 		Buffer.add_string b "<type";
 		Option.may (fun s -> Buffer.add_string b (Printf.sprintf " d=\"%s\"" (htmlescape s))) doc;
 		Buffer.add_string b ">\n";
-		Buffer.add_string b (htmlescape (s_type (print_context()) (follow t)));
+		Buffer.add_string b (htmlescape (s_type (print_context()) (TFun(args,ret))));
 		Buffer.add_string b "\n</type>\n";
 	) tl;
 	Buffer.contents b
@@ -409,17 +409,15 @@ let print_signature tl display_arg =
 	let st = s_type (print_context()) in
 	let s_arg (n,o,t) = Printf.sprintf "%s%s:%s" (if o then "?" else "") n (st t) in
 	let s_fun args ret = Printf.sprintf "(%s):%s" (String.concat ", " (List.map s_arg args)) (st ret) in
-	let siginf = List.map (fun (t,doc) ->
-		let label = match follow t with TFun(args,ret) -> s_fun args ret | _ -> st t in
-		let parameters = match follow t with
-			| TFun(args,_) ->
-				List.map (fun arg ->
+	let siginf = List.map (fun ((args,ret),doc) ->
+		let label = s_fun args ret in
+		let parameters =
+			List.map (fun arg ->
 					let label = s_arg arg in
 					JObject [
 						"label",JString label
 					]
-				) args
-			| _ -> []
+			) args
 		in
 		let js = [
 			"label",JString label;
