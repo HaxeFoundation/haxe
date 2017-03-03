@@ -4012,9 +4012,9 @@ let is_dynamic_haxe_method f =
 
 
 let is_data_member field =
-   match field.cf_expr with
-   | Some { eexpr = TFunction function_def } -> is_dynamic_haxe_method field
-   | _ -> true;;
+   match field.cf_kind with
+   | Var _ | Method MethDynamic -> true
+   | _ -> false;;
 
 
 let is_override class_def field =
