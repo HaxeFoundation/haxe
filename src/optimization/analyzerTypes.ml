@@ -211,17 +211,18 @@ module Graph = struct
 		} in
 		DynArray.add g.g_var_infos vi;
 		let i = DynArray.length g.g_var_infos - 1 in
-		v.v_extra <- Some([],Some (mk (TConst (TInt (Int32.of_int i))) t_dynamic null_pos))
+		v.v_extra <- Some([],Some (mk (TConst (TInt (Int32.of_int i))) t_dynamic null_pos));
+		vi
 
 	let get_var_info g v = match v.v_extra with
 		| Some(_,Some {eexpr = TConst (TInt i32)}) -> DynArray.get g.g_var_infos (Int32.to_int i32)
 		| _ ->
 			print_endline "Unbound variable, please report this";
 			print_endline (Printer.s_tvar v);
-			assert false
+			create_var_info g g.g_unreachable v
 
 	let declare_var g v bb =
-		create_var_info g bb v
+		ignore(create_var_info g bb v)
 
 	let add_var_def g bb v =
 		if bb.bb_id > 0 then begin
