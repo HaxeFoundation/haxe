@@ -1746,6 +1746,16 @@ let unify_stack = ref []
 let abstract_cast_stack = ref []
 let unify_new_monos = ref []
 
+let print_stacks() =
+	let ctx = print_context() in
+	let st = s_type ctx in
+	print_endline "unify_stack";
+	List.iter (fun (a,b) -> Printf.printf "\t%s , %s\n" (st a) (st b)) !unify_stack;
+	print_endline "monos";
+	List.iter (fun m -> print_endline ("\t" ^ st m)) !unify_new_monos;
+	print_endline "abstract_cast_stack";
+	List.iter (fun (a,b) -> Printf.printf "\t%s , %s\n" (st a) (st b)) !abstract_cast_stack
+
 let rec unify a b =
 	if a == b then
 		()
