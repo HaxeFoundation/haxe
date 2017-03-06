@@ -2855,15 +2855,7 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 			let namespace = self#get_namespace in
 			if List.length namespace > 0 then
 				writer#write_line ("namespace " ^ (String.concat "\\" namespace) ^ ";\n");
-			self#write_use
-		(**
-			Position of currently generated code in source hx files
-		*)
-		method pos = writer#pos
-		(**
-			Build "use" statements
-		*)
-		method private write_use = writer#write_use
+			writer#write_use
 		(**
 			Generates PHP docblock to output buffer.
 		*)
@@ -3562,10 +3554,10 @@ class class_builder ctx (cls:tclass) =
 (**
 	Handles generation process
 *)
-class generator (com:context) =
+class generator (ctx:context) =
 	object (self)
 		val mutable build_dir = ""
-		val root_dir = com.file
+		val root_dir = ctx.file
 		val mutable init_types = []
 		val mutable boot : (type_builder * string) option  = None
 		(**
@@ -3581,12 +3573,12 @@ class generator (com:context) =
 			and name = builder#get_name in
 			let filename = (create_dir_recursive (build_dir :: namespace)) ^ "/" ^ name ^ ".php" in
 			let channel = open_out filename in
-			if Common.defined com Define.SourceMap then
+			if Common.defined ctx Define.SourceMap then
 				builder#set_sourcemap_generator (new sourcemap_builder filename);
 			output_string channel builder#get_contents;
 			close_out channel;
 			(match builder#get_sourcemap_generator with
-				| Some smap -> smap#generate com
+				| Some smap -> smap#generate ctx
 				| None -> ()
 			);
 			if builder#get_type_path = boot_type_path then
@@ -3618,12 +3610,13 @@ class generator (com:context) =
 			Creates `index.php` which can be used as entry-point for standalone Haxe->PHP app
 		*)
 		method generate_entry_point =
-			match self#get_main_class with
+			match self#get_entry_point with
 				| None -> ()
-				| Some main_class ->
-					let filename = match com.php_front with None -> "index.php" | Some n -> n in
+				| Some (uses, entry_point) ->
+					let filename = match ctx.php_front with None -> "index.php" | Some n -> n in
 					let channel = open_out (root_dir ^ "/" ^ filename) in
 					output_string channel "<?php\n";
+					output_string channel uses;
 					output_string channel ("set_include_path(__DIR__.'/" ^ (String.concat "/" self#get_lib_path) ^ "');\n");
 					output_string channel "spl_autoload_register(\n";
 					output_string channel "	function($class){\n";
@@ -3636,10 +3629,10 @@ class generator (com:context) =
 					(match boot with
 						| None -> fail dummy_pos (try assert false with Assert_failure mlpos -> mlpos)
 						| Some (builder, filename) ->
-							let boot_class = get_full_type_name (add_php_prefix com builder#get_type_path) in
+							let boot_class = get_full_type_name (add_php_prefix ctx builder#get_type_path) in
 							output_string channel (boot_class ^ "::__hx__init();\n")
 					);
-					output_string channel (main_class ^ "::main();\n");
+					output_string channel entry_point;
 					close_out channel
 		(**
 			Create necessary directories  before processing types
@@ -3651,16 +3644,23 @@ class generator (com:context) =
 			Returns path from `index.php` to directory which will contain all generated classes
 		*)
 		method private get_lib_path : string list =
-			match com.php_lib with
+			match ctx.php_lib with
 				| None -> ["lib"];
 				| Some path -> (Str.split (Str.regexp "/")  path)
 		(**
-			Returns FQN for main class if defined
+			Returns PHP code for entry point
 		*)
-		method private get_main_class : string option =
-			match com.main_class with
+		method private get_entry_point : (string * string) option =
+			match ctx.main with
 				| None -> None
-				| Some type_path -> Some (get_full_type_name (add_php_prefix com type_path))
+				| Some expr ->
+					let writer = new code_writer ctx ([], "") "" in
+					writer#write_as_block ~inline:true expr;
+					let code = writer#get_contents in
+					writer#clear_contents;
+					writer#write_use;
+					let uses = writer#get_contents in
+					Some (uses, code)
 	end
 
 (**
