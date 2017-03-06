@@ -646,7 +646,7 @@ let unify_field_call ctx fa el args ret p inline =
 		| TFun(args,ret) ->
 			let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
 			let mk_call ethis p_field =
-				let ef = mk (TField(ethis,mk_fa cf)) tf p_field in
+				let ef = mk (TField(ethis,mk_fa cf)) t p_field in
 				make_call ctx ef (List.map fst el) ret p
 			in
 			el,tf,mk_call
@@ -4267,7 +4267,7 @@ and build_call ctx acc el (with_type:with_type) p =
 				| _ ->
 					let el, tfunc = unify_call_args ctx el args r p false false in
 					let r = match tfunc with TFun(_,r) -> r | _ -> assert false in
-					mk (TCall ({e with etype = tfunc},el)) r p
+					mk (TCall (e,el)) r p
 			end
 		| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta ->
 			loop (Abstract.get_underlying_type a tl)
