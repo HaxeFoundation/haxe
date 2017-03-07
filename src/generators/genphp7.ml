@@ -1574,7 +1574,8 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2
 				| TField (fexpr, access) when is_php_global expr -> self#write_expr_php_global expr
 				| TField (fexpr, access) when is_php_class_const expr -> self#write_expr_php_class_const expr
-				| TField (expr, access) -> self#write_expr_field expr access
+				| TField (fexpr, access) when needs_dereferencing false expr -> self#write_expr (self#dereference expr)
+				| TField (fexpr, access) -> self#write_expr_field fexpr access
 				| TTypeExpr mtype -> self#write_expr_type mtype
 				| TParenthesis expr ->
 					self#write "(";

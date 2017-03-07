@@ -9,6 +9,8 @@ class Issue4988 extends Test {
 			try {
 				var d:{i:Null<Int>} = null;
 				value = (d.i > 0);
+				(null:Dynamic).nonExistent();
+				null.nonExistent();
 				t(false);
 			} catch(e:Dynamic) {
 				t(true);
