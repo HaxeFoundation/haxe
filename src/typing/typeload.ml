@@ -573,7 +573,7 @@ and load_complex_type ctx allow_display p (t,pn) =
 				| _ ->
 					error "Can only extend structures" p
 			in
-			let il = List.map (fun (t,_) -> load_instance ctx ~allow_display (t,pn) false p) tl in
+			let il = List.map (fun (t,pn) -> load_instance ctx ~allow_display (t,pn) false p) tl in
 			let tr = ref None in
 			let t = TMono tr in
 			let r = exc_protect ctx (fun r ->

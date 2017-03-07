@@ -17,6 +17,7 @@ class Issue6068 extends DisplayTestCase {
 	}
 
 	function check(fn) {
+		numTests++;
 		var result = try {
 				fn();
 				false;
