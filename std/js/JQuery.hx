@@ -335,6 +335,7 @@ extern class JQuery implements ArrayAccess<Element> {
 	function live( events : String, callb : JqEvent -> Void ) : JQuery;
 	function trigger( events : String ) : JQuery;
 	function triggerHandler( events : String ) : JQuery;
+	function off( ?events : String, ?selector : String, ?callb : JqEvent -> Void ) : JQuery;
 	function unbind( ?events : String, ?callb : JqEvent -> Void ) : JQuery;
 	function undelegate( ?selector : String, ?events : String, ?callb : JqEvent -> Void ) : JQuery;
 
