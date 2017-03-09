@@ -387,7 +387,11 @@ extern class JQuery implements ArrayAccess<Element> {
 	static function contains( parent : Element, child : Element ) : Bool;
 	static function noConflict( ?removeAll : Bool ) : Void;
 	static function parseJSON( json : String ) : Dynamic;
+	static function parseXML( xml : String ) : Dynamic; // returns a XML document
 	static function globalEval( js : String ) : Void;
+	
+	//see load() and its overrides
+	//static function ajax( url:String, settings:Dynamic ) : Dynamic;
 
 
 	//static function parseXML
