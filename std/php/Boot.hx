@@ -267,7 +267,7 @@ function _hx_array_assign($a, $i, $v) { return $a[$i] = $v; }
 class _hx_break_exception extends Exception {}
 
 function _hx_cast($v, $type) {
-	if(Std::is($v, $type)) {
+	if(_hx_instanceof($v, $type)) {
 		return $v;
 	} else {
 		throw new HException('Class cast error');
