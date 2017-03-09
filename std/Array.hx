@@ -154,7 +154,7 @@ extern class Array<T> {
 		This operation modifies `this` Array in place.
 
 		If `len` is < 0 or `pos` exceeds `this`.length, the result is the empty
-		Array [].
+		Array []. On js platform the array may be unchanged instead.
 
 		If `pos` is negative, its value is calculated from the end	of `this`
 		Array by `this.length + pos`. If this yields a negative value, 0 is
