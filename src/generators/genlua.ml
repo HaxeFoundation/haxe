@@ -54,6 +54,7 @@ type object_store = {
 	mutable os_fields : object_store list;
 }
 
+
 let debug_expression expression  =
     " --[[ " ^ Type.s_expr_kind expression  ^ " --]] "
 
@@ -2001,15 +2002,18 @@ let generate com =
 	println ctx "_hx_array_mt.__index = Array.prototype";
 	newline ctx;
 
+	let b = open_block ctx in
+	println ctx "local _hx_static_init = function()";
 	(* Generate statics *)
 	List.iter (generate_static ctx) (List.rev ctx.statics);
-
 	(* Localize init variables inside a do-block *)
 	(* Note: __init__ logic can modify static variables. *)
-	println ctx "do";
+	(* Generate statics *)
 	List.iter (gen_block_element ctx) (List.rev ctx.inits);
+	b();
 	newline ctx;
 	println ctx "end";
+	newline ctx;
 
 	let rec chk_features e =
 		if is_dynamic_iterator ctx e then add_feature ctx "use._iterator";
@@ -2110,6 +2114,8 @@ let generate com =
 	    println ctx "  return maxn";
 	    println ctx "end;";
 	end;
+
+	println ctx "_hx_static_init();";
 
 	List.iter (generate_enumMeta_fields ctx) com.types;
 
