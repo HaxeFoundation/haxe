@@ -19,9 +19,10 @@
         <description>Haxe is an open source toolkit based on a modern, high level, strictly typed programming language, a cross-compiler, a complete cross-platform standard library and ways to access each platform's native capabilities.
  
 This package will install haxe and haxelib. After installation, you should run `haxelib setup &lt;path&gt;`, where `&lt;path&gt;` is the haxelib repository folder for placing third-party libraries. The folder should be created manually before running the command.</description>
-        <tags>haxe</tags>
+        <releaseNotes>https://github.com/HaxeFoundation/haxe/blob/master/extra/CHANGES.txt</releaseNotes>
+        <tags>haxe programming development foss cross-platform</tags>
         <dependencies>
-            <dependency id="neko" />
+            <dependency id="neko" version="2.1.0" />
         </dependencies>
     </metadata>
 </package>

@@ -104,3 +104,7 @@ abstract AbstractSpodTest<A>(A) from A
 
 @:keep class IssueC3828 extends BaseIssueC3828 {
 }
+
+@:keep class Issue6041Table extends Object {
+	public var id:SInt = 0;
+}

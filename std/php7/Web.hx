@@ -28,7 +28,7 @@ import php.SuperGlobal.*;
 
 /**
 	This class is used for accessing the local Web server and the current
-	client request and informations.
+	client request and information.
 **/
 class Web {
 
@@ -265,14 +265,14 @@ class Web {
 		case, you will have to use `php.Web.getMultipart()` or
 		`php.Web.parseMultipart()` methods.
 	**/
-	public static function getPostData() {
+	public static function getPostData() : Null<String> {
 		var h = fopen("php://input", "r");
 		var bsize = 8192;
 		var max = 32;
 		var data : String = null;
 		var counter = 0;
 		while (!feof(h) && counter < max) {
-			data += fread(h, bsize);
+			data = Syntax.binop(data, ' . ', fread(h, bsize));
 			counter++;
 		}
 		fclose(h);

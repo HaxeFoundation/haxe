@@ -475,7 +475,7 @@ class Context {
 		Defines a new module as `modulePath` with several `TypeDefinition`
 		`types`. This is analogous to defining a .hx file.
 
-		The individial `types` can reference each other and any identifier
+		The individual `types` can reference each other and any identifier
 		respects the `imports` and `usings` as usual, expect that imports are
 		not allowed to have `.*` wildcards or `in s` shorthands.
 	**/
@@ -554,7 +554,7 @@ class Context {
 	}
 
 	/**
-		Register a macro call to be performed everytime the module `modulePath` is reused by the compilation cache,
+		Register a macro call to be performed every time the module `modulePath` is reused by the compilation cache,
 		meaning that neither the module itself nor its dependencies was changed since last compilation.
 
 		The `macroCall` should be a String containing valid Haxe expression, similar to `--init` macros (see https://haxe.org/manual/macro-initialization.html).
@@ -571,7 +571,7 @@ class Context {
 	}
 
 	/**
-		Register a callback function that will be called everytime the macro context cached is reused with a new
+		Register a callback function that will be called every time the macro context cached is reused with a new
 		compilation. This enable to reset some static vars since the code might have been changed. If the callback
 		returns false, the macro context is discarded and another one is created.
 	**/

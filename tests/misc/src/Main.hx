@@ -84,7 +84,7 @@ class Main {
 			case [true, false]:
 				true;
 			case [true, true]:
-				Sys.println("Expected failure, but no failure occured");
+				Sys.println("Expected failure, but no failure occurred");
 				false;
 			case [false, true]:
 				true;

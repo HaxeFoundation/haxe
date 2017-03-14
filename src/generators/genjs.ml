@@ -1104,6 +1104,7 @@ let generate_class ctx c =
 		| [] -> ()
 		| props ->
 			print ctx "%s.__properties__ = {%s}" p (gen_props props);
+			ctx.separator <- true;
 			newline ctx);
 	end;
 

@@ -67,7 +67,7 @@ enum Constant {
 	CString( s : String );
 
 	/**
-		Represents an indentifier.
+		Represents an identifier.
 	**/
 	CIdent( s : String );
 
@@ -819,7 +819,7 @@ typedef TypeDefinition = {
 	@:optional var meta : Metadata;
 
 	/**
-		The paramater type declarations of the type definition.
+		The parameter type declarations of the type definition.
 	**/
 	@:optional var params : Array<TypeParamDecl>;
 

@@ -23,7 +23,7 @@ package haxe;
 
 /**
 	Since not all platforms guarantee that `String` always uses UTF-8 encoding, you
-	can use this crossplatform API to perform operations on such strings.
+	can use this cross-platform API to perform operations on such strings.
 **/
 class Utf8 {
 

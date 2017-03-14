@@ -69,7 +69,7 @@ private class MysqlConnection implements Connection {
 	}
 
 	public function close() : Void {
-		close();
+		db.close();
 	}
 
 	public function escape( s : String ) : String {
@@ -180,7 +180,9 @@ private class MysqlResultSet implements ResultSet {
 
 	function withdrawFetched() : Dynamic {
 		if (fetchedRow == null) return null;
-		return Boot.createAnon(fetchedRow);
+		var row = fetchedRow;
+		fetchedRow = null;
+		return Boot.createAnon(row);
 	}
 
 	function correctArrayTypes(row:NativeAssocArray<String>):NativeAssocArray<Scalar> {

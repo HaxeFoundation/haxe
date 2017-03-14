@@ -848,7 +848,7 @@ and gen_field_access ctx isvar e s =
 		gen_value ctx e;
 		spr ctx ")";
 		gen_member_access ctx isvar e s
-	| TCast (ec, _) when (match ec.eexpr with | TNew _ | TArrayDecl _ -> true | _ -> false) ->
+	| TCast (ec, _) when (match ec.eexpr with | TNew _ | TArrayDecl _ | TConst TNull -> true | _ -> false) ->
 		spr ctx "_hx_deref(";
 		ctx.is_call <- false;
 		gen_value ctx e;

@@ -10,7 +10,8 @@ environment:
         MYSQL_USER: root
         MYSQL_PASSWORD: Password12!
     matrix:
-        - TEST: "neko,python,cs,java,macro,php7"
+        - TEST: "neko,python,cs,java,macro"
+        - TEST: "php7,php"
         - TEST: "cpp"
 
 services:
@@ -36,10 +37,12 @@ install:
     - '%CYG_ROOT%/bin/bash -lc "opam install camlp4 --yes"'
     # Install neko
     - choco install neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
-    - choco install php --ignore-dependencies
-    - echo extension=php_mysqli.dll >> C:\tools\php\php.ini
-    - echo extension=php_sqlite3.dll >> C:\tools\php\php.ini
-    - echo extension=php_openssl.dll >> C:\tools\php\php.ini
+    - choco install chocolatey-core.extension php --ignore-dependencies -y
+    - echo extension=php_mysqli.dll >> C:\tools\php71\php.ini
+    - echo extension=php_sqlite3.dll >> C:\tools\php71\php.ini
+    - echo extension=php_openssl.dll >> C:\tools\php71\php.ini
+    - echo extension=php_pdo_mysql.dll >> C:\tools\php71\php.ini
+    - echo extension=php_pdo_sqlite.dll >> C:\tools\php71\php.ini
     - RefreshEnv
     - neko -version
     # setup python

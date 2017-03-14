@@ -6,7 +6,9 @@ package lua;
 // TODO: use an abstract here?
 @:native("_G.table")
 extern class Table<A,B> implements ArrayAccess<B> implements Dynamic<B> {
-	public inline static function create<A,B>(?arr:Array<B>, ?hsh:Dynamic<B>) : Table<A,B> {
+
+	@:analyzer(no_fusion)
+	public inline static function create<A,B>(?arr:Array<B>, ?hsh:Dynamic) : Table<A,B> {
 		return untyped __lua_table__(arr,hsh);
 	}
 

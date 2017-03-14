@@ -48,7 +48,7 @@ typedef Socket =
 	 - the boolean false for a response
 	 - a serialized value representing the result
 
-	Exceptions are serialized with `serializeException` so they will be thrown immediatly
+	Exceptions are serialized with `serializeException` so they will be thrown immediately
 	when they are unserialized.
 **/
 class SocketProtocol {

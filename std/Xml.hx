@@ -57,7 +57,7 @@
 }
 
 /**
-	Crossplatform Xml API.
+	Cross-platform Xml API.
 
 	@see https://haxe.org/manual/std-Xml.html
 **/

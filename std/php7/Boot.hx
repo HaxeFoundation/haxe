@@ -633,14 +633,14 @@ private class HxString {
 		}
 	}
 
-	public static function indexOf( str:String, search:String, startIndex:Int = 0 ) : Int {
-		if (startIndex < 0) startIndex += str.length;
-		var index = Global.strpos(str, search, startIndex);
-		if (index == false) {
-			return -1;
-		} else {
-			return index;
+	public static function indexOf( str:String, search:String, startIndex:Int = null ) : Int {
+		if (startIndex == null) {
+			startIndex = 0;
+		} else if (startIndex < 0) {
+			startIndex += str.length;
 		}
+		var index = Global.strpos(str, search, startIndex);
+		return (index == false ? -1 : index);
 	}
 
 	public static function lastIndexOf( str:String, search:String, startIndex:Int = null ) : Int {

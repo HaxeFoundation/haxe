@@ -12,7 +12,7 @@ class Issue5572 extends unit.Test {
 		Reflect.setField(o, field2, 2); // second, added to object's "conflicts"
 		Reflect.setField(o, field2, 3); // should find one from "conflicts" and change the value
 		eq(Reflect.field(o, field1), 1); // retrieved from the hashes array
-		eq(Reflect.field(o, field2), 3); // retreived from "conflicts"
+		eq(Reflect.field(o, field2), 3); // retrieved from "conflicts"
 		var expectedFields = [field1, field2];
 		for (field in Reflect.fields(o)) {
 			if (!expectedFields.remove(field))

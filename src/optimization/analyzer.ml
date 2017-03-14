@@ -978,14 +978,14 @@ module Run = struct
 			(match e.eexpr with TFunction tf -> cf.cf_expr_unoptimized <- Some tf | _ -> ());
 			let actx = create_analyzer_context ctx.Typecore.com config e in
 			let debug() =
-				prerr_endline (Printf.sprintf "While analyzing %s.%s" (s_type_path c.cl_path) cf.cf_name);
+				print_endline (Printf.sprintf "While analyzing %s.%s" (s_type_path c.cl_path) cf.cf_name);
 				List.iter (fun (s,e) ->
-					prerr_endline (Printf.sprintf "<%s>" s);
-					prerr_endline (Type.s_expr_pretty true "" false (s_type (print_context())) e);
-					prerr_endline (Printf.sprintf "</%s>" s);
+					print_endline (Printf.sprintf "<%s>" s);
+					print_endline (Type.s_expr_pretty true "" false (s_type (print_context())) e);
+					print_endline (Printf.sprintf "</%s>" s);
 				) (List.rev actx.debug_exprs);
 				Debug.dot_debug actx c cf;
-				prerr_endline (Printf.sprintf "dot graph written to %s" (String.concat "/" (Debug.get_dump_path actx c cf)));
+				print_endline (Printf.sprintf "dot graph written to %s" (String.concat "/" (Debug.get_dump_path actx c cf)));
 			in
 			let e = try
 				run_on_expr actx e

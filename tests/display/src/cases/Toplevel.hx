@@ -144,7 +144,7 @@ class Toplevel extends DisplayTestCase {
 		eq(true, hasToplevel(typesCompletion, "package", "haxe"));
 	}
 
-	static function hasToplevel(a:Array<ToplevelElement>, kind:String, name:String):Bool {
+	public static function hasToplevel(a:Array<ToplevelElement>, kind:String, name:String):Bool {
 		return a.exists(function(t) return t.kind == kind && t.name == name);
 	}
 }

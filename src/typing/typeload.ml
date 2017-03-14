@@ -573,7 +573,7 @@ and load_complex_type ctx allow_display p (t,pn) =
 				| _ ->
 					error "Can only extend structures" p
 			in
-			let il = List.map (fun (t,_) -> load_instance ctx ~allow_display (t,pn) false p) tl in
+			let il = List.map (fun (t,pn) -> load_instance ctx ~allow_display (t,pn) false p) tl in
 			let tr = ref None in
 			let t = TMono tr in
 			let r = exc_protect ctx (fun r ->
@@ -1562,7 +1562,18 @@ let type_function ctx args ret fmode f do_display p =
 	ctx.curfun <- fmode;
 	ctx.ret <- ret;
 	ctx.opened <- [];
-	let e = match f.f_expr with None -> error "Function body required" p | Some e -> e in
+	let e = match f.f_expr with
+		| None ->
+			if ctx.com.display.dms_error_policy = EPIgnore then
+				(* when we don't care because we're in display mode, just act like
+				   the function has an empty block body. this is fine even if function
+				   defines a return type, because returns aren't checked in this mode
+				*)
+				EBlock [],p
+			else
+				error "Function body required" p
+		| Some e -> e
+	in
 	let e = if not do_display then
 		type_expr ctx e NoValue
 	else begin
@@ -1573,7 +1584,7 @@ let type_function ctx args ret fmode f do_display p =
 		with
 		| Parser.TypePath (_,None,_) | Exit ->
 			type_expr ctx e NoValue
-		| Display.DisplayType (t,_,_) | Display.DisplaySignatures ([(t,_)],_) when (match follow t with TMono _ -> true | _ -> false) ->
+		| Display.DisplayType (t,_,_) when (match follow t with TMono _ -> true | _ -> false) ->
 			type_expr ctx (if ctx.com.display.dms_kind = DMToplevel then Display.ExprPreprocessing.find_enclosing ctx.com e else e) NoValue
 	end in
 	let e = match e.eexpr with

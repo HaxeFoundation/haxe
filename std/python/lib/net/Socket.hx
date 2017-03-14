@@ -44,7 +44,7 @@ extern class Socket {
     function close() : Void;
 
     /**
-        Connect to the given server host/port. Throw an exception in case we couldn't sucessfully connect.
+        Connect to the given server host/port. Throw an exception in case we couldn't successfully connect.
     **/
     function connect( addr : python.lib.net.Address ) : Void;
 
@@ -71,12 +71,12 @@ extern class Socket {
     function accept() : Tuple2<Socket,Address>;
 
     /**
-        Return the informations about the other side of a connected socket.
+        Return the information about the other side of a connected socket.
     **/
     function getpeername() : python.lib.net.Address;
 
     /**
-        Return the informations about our side of a connected socket.
+        Return the information about our side of a connected socket.
     **/
     function getsockname() : python.lib.net.Address;
 
@@ -91,7 +91,7 @@ extern class Socket {
     function waitForRead() : Void;
 
     /**
-        Change the blocking mode of the socket. A blocking socket is the default behavior. A non-blocking socket will abort blocking operations immediatly by throwing a haxe.io.Error.Blocking value.
+        Change the blocking mode of the socket. A blocking socket is the default behavior. A non-blocking socket will abort blocking operations immediately by throwing a haxe.io.Error.Blocking value.
     **/
     function setblocking( b : Bool ) : Void;
 

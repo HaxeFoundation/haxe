@@ -243,7 +243,7 @@ let rec func ctx bb tf t p =
 		end;
 		let bb = declare_var_and_assign bb v e e.epos in
 		let e = {e with eexpr = TLocal v} in
-		let e = List.fold_left (fun e f -> f e) e (List.rev fl) in
+		let e = List.fold_left (fun e f -> f e) e fl in
 		bb,e
 	and declare_var_and_assign bb v e p =
 		(* TODO: this section shouldn't be here because it can be handled as part of the normal value processing *)
@@ -333,7 +333,10 @@ let rec func ctx bb tf t p =
 		add_texpr bb {e with eexpr = TBinop(OpAssign,ea,eop)};
 		bb,ea
 	and field_assign_op bb op e ef e1 fa e2 =
-		let bb,e1 = bind_to_temp bb false e1 in
+		let bb,e1 = match fa with
+			| FInstance(c,_,_) | FClosure(Some(c,_),_) when is_stack_allocated c -> bb,e1
+			| _ -> bind_to_temp bb false e1
+		in
 		let ef = {ef with eexpr = TField(e1,fa)} in
 		let bb,e3 = bind_to_temp bb false ef in
 		let bb,e2 = bind_to_temp bb false e2 in
@@ -519,7 +522,7 @@ let rec func ctx bb tf t p =
 			block_element bb (mk (TReturn None) t_dynamic e.epos)
 		| TReturn (Some e1) ->
 			begin try
-				let mk_return e1 = mk (TReturn (Some e1)) t_dynamic e.epos in
+				let mk_return e1 = mk (TReturn (Some e1)) t_dynamic e1.epos in
 				block_element_value bb e1 mk_return
 			with Exit ->
 				let bb,e1 = value bb e1 in

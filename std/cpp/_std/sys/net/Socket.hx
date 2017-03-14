@@ -153,7 +153,7 @@ class Socket {
 
    public function connect(host : Host, port : Int) : Void {
       try {
-         if (host.ip==0) {
+         if (host.ip==0 && host.host!="0.0.0.0") {
             // hack, hack, hack
             var ipv6:haxe.io.BytesData = Reflect.field(host,"ipv6");
             if (ipv6!=null)
@@ -189,7 +189,7 @@ class Socket {
    }
 
    public function bind(host : Host, port : Int) : Void {
-      if (host.ip==0)
+      if (host.ip==0  && host.host!="0.0.0.0")
       {
           var ipv6:haxe.io.BytesData = Reflect.field(host,"ipv6");
           if (ipv6!=null)

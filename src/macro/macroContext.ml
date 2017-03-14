@@ -477,7 +477,6 @@ let get_macro_context ctx p =
 		api, mctx
 
 let load_macro ctx display cpath f p =
-	let t = macro_timer ctx ["typing";s_type_path cpath ^ "." ^ f] in
 	let api, mctx = get_macro_context ctx p in
 	let mint = Interp.get_ctx() in
 	let cpath, sub = (match List.rev (fst cpath) with
@@ -485,6 +484,7 @@ let load_macro ctx display cpath f p =
 		| _ -> cpath, None
 	) in
 	let meth = try Hashtbl.find mctx.com.cached_macros (cpath,f) with Not_found ->
+		let t = macro_timer ctx ["typing";s_type_path cpath ^ "." ^ f] in
 		(* Temporarily enter display mode while typing the macro. *)
 		if display then mctx.com.display <- ctx.com.display;
 		let m = (try Hashtbl.find ctx.g.types_module cpath with Not_found -> cpath) in
@@ -522,9 +522,9 @@ let load_macro ctx display cpath f p =
 			wildcard_packages = [];
 			module_imports = [];
 		};
+		t();
 		meth
 	in
-	t();
 	let call args =
 		let t = macro_timer ctx ["execution";s_type_path cpath ^ "." ^ f] in
 		incr stats.s_macros_called;

@@ -54,6 +54,7 @@ type object_store = {
 	mutable os_fields : object_store list;
 }
 
+
 let debug_expression expression  =
     " --[[ " ^ Type.s_expr_kind expression  ^ " --]] "
 
@@ -462,22 +463,13 @@ let rec gen_call ctx e el in_value =
 	| TField (e, ((FInstance _ | FAnon _ | FDynamic _) as ef)), el ->
 		let s = (field_name ef) in
 		if Hashtbl.mem kwds s || not (valid_lua_ident s) then begin
-		    match e.eexpr with
-		    |TNew _-> (
-			add_feature ctx "use._hx_apply_self";
-			spr ctx "_hx_apply_self(";
-			gen_value ctx e;
-			print ctx ",\"%s\"" (field_name ef);
-			if List.length(el) > 0 then spr ctx ",";
-			concat ctx "," (gen_value ctx) el;
-			spr ctx ")";
-		    );
-		    |_ -> (
-			gen_value ctx e;
-			print ctx "%s(" (anon_field s);
-			concat ctx "," (gen_value ctx) (e::el);
-			spr ctx ")"
-		    )
+		    add_feature ctx "use._hx_apply_self";
+		    spr ctx "_hx_apply_self(";
+		    gen_value ctx e;
+		    print ctx ",\"%s\"" (field_name ef);
+		    if List.length(el) > 0 then spr ctx ",";
+		    concat ctx "," (gen_value ctx) el;
+		    spr ctx ")";
 		end else begin
 		    gen_value ctx e;
 		    print ctx ":%s(" (field_name ef);
@@ -840,7 +832,7 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx "_hx_o({__fields__={";
 		concat ctx "," (fun (f,e) -> print ctx "%s=" (anon_field f); spr ctx "true") fields;
 		spr ctx "},";
-		concat ctx "," (fun (f,e) -> print ctx "%s=" (anon_field f); gen_value ctx e) fields;
+		concat ctx "," (fun (f,e) -> print ctx "%s=" (anon_field f); gen_anon_value ctx e) fields;
 		spr ctx "})";
 		ctx.separator <- true
 	| TFor (v,it,e) ->
@@ -1023,6 +1015,35 @@ and gen_block_element ctx e  =
 		gen_expr ctx e;
 		semicolon ctx;
 	end;
+
+(* values generated in anon structures can get modified.  Functions are bind-ed *)
+(* and include a dummy "self" leading variable so they can be called like normal *)
+(* instance methods *)
+and gen_anon_value ctx e =
+    match e with
+    | { eexpr = TFunction f} ->
+	let old = ctx.in_value, ctx.in_loop in
+	ctx.in_value <- None;
+	ctx.in_loop <- false;
+	print ctx "function(%s) " (String.concat "," ("self" :: (List.map ident (List.map arg_name f.tf_args))));
+	let fblock = fun_block ctx f e.epos in
+	(match fblock.eexpr with
+	| TBlock el ->
+		let bend = open_block ctx in
+		List.iter (gen_block_element ctx) el;
+	    bend();
+	    newline ctx;
+	|_ -> ());
+	spr ctx "end";
+	ctx.in_value <- fst old;
+	ctx.in_loop <- snd old;
+	ctx.separator <- true
+    | { etype = TFun (args, ret)}  ->
+	spr ctx "function(_,...) return ";
+	gen_value ctx e;
+	spr ctx "(...) end";
+    | _->
+	gen_value ctx e
 
 and gen_value ctx e =
 	let assign e =
@@ -1716,17 +1737,12 @@ let generate_type ctx = function
 			()
 		else if not c.cl_extern then
 			generate_class ctx c
-		else if Meta.has Meta.LuaRequire c.cl_meta && is_directly_used ctx.com c.cl_meta then
-			generate_require ctx c.cl_path c.cl_meta
 		else if Meta.has Meta.InitPackage c.cl_meta then
 			(match c.cl_path with
 			| ([],_) -> ()
 			| _ -> generate_package_create ctx c.cl_path);
 		check_multireturn ctx c;
-	| TEnumDecl e when e.e_extern ->
-		if Meta.has Meta.LuaRequire e.e_meta && is_directly_used ctx.com e.e_meta then
-		    generate_require ctx e.e_path e.e_meta;
-	| TEnumDecl e -> generate_enum ctx e
+	| TEnumDecl e when not e.e_extern -> generate_enum ctx e
 	| TTypeDecl _ | TAbstractDecl _ -> ()
 
 let generate_type_forward ctx = function
@@ -1735,13 +1751,17 @@ let generate_type_forward ctx = function
 		| None -> ()
 		| Some e ->
 			ctx.inits <- e :: ctx.inits);
-		if not c.cl_extern then begin
-		    generate_package_create ctx c.cl_path;
-		    let p = s_path ctx c.cl_path in
-		    println ctx "%s = _hx_e()" p;
-		end
+		if not c.cl_extern then
+		    begin
+			generate_package_create ctx c.cl_path;
+			let p = s_path ctx c.cl_path in
+			println ctx "%s = _hx_e()" p
+		    end
+		else if Meta.has Meta.LuaRequire c.cl_meta && is_directly_used ctx.com c.cl_meta then
+		    generate_require ctx c.cl_path c.cl_meta
 	| TEnumDecl e when e.e_extern ->
-		()
+		if Meta.has Meta.LuaRequire e.e_meta && is_directly_used ctx.com e.e_meta then
+		    generate_require ctx e.e_path e.e_meta;
 	| TEnumDecl e ->
 		generate_package_create ctx e.e_path;
 		let p = s_path ctx e.e_path in
@@ -1982,15 +2002,18 @@ let generate com =
 	println ctx "_hx_array_mt.__index = Array.prototype";
 	newline ctx;
 
+	let b = open_block ctx in
+	println ctx "local _hx_static_init = function()";
 	(* Generate statics *)
 	List.iter (generate_static ctx) (List.rev ctx.statics);
-
 	(* Localize init variables inside a do-block *)
 	(* Note: __init__ logic can modify static variables. *)
-	println ctx "do";
+	(* Generate statics *)
 	List.iter (gen_block_element ctx) (List.rev ctx.inits);
+	b();
 	newline ctx;
 	println ctx "end";
+	newline ctx;
 
 	let rec chk_features e =
 		if is_dynamic_iterator ctx e then add_feature ctx "use._iterator";
@@ -2092,6 +2115,7 @@ let generate com =
 	    println ctx "end;";
 	end;
 
+	println ctx "_hx_static_init();";
 
 	List.iter (generate_enumMeta_fields ctx) com.types;
 

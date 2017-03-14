@@ -61,12 +61,12 @@ import lua.Boot;
 		}
 	}
 
-	public inline static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic  {
+	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic  {
 		if (args == null || args.length == 0){
 			return func(o);
 		} else {
 			var self_arg = false;
-			if (o != null && Type.getClass(o) != null){
+			if (o != null ){
 				// if o is not null, it means we need to pass it as the "self"
 				// parameter.  However, we should also check to see if it's
 				// a valid class instance in the first place.

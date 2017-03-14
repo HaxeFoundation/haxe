@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package cs.types;
+package cs.types;
 
 typedef Int64 = cs.StdTypes.Int64;
 

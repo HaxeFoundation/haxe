@@ -39,7 +39,7 @@ class FileSystem {
 	}
 
 	public static function stat( path : String ) : FileStat {
-		untyped __php__("$fp = fopen($path, \"r\"); $fstat = fstat($fp); fclose($fp);");
+		untyped __php__("$fstat = stat($path);");
 		return untyped {
 			gid   : __php__("$fstat['gid']"),
 			uid   : __php__("$fstat['uid']"),
