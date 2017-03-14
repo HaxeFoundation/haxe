@@ -163,7 +163,7 @@ enum ValueType {
 			t = Lib.toNativeType(resolveClass(getClassName(cl)));
 		}
 		var ctors = t.GetConstructors();
-		return Runtime.callMethod(null, cast ctors, ctors.Length, args);
+		return Runtime.callMethod(null, cast ctors, ctors.Length, cs.Lib.nativeArray(args,true));
 	}
 
 	// cache empty constructor arguments so we don't allocate it on each createEmptyInstance call
@@ -200,7 +200,7 @@ enum ValueType {
 				throw 'Constructor $constr needs parameters';
 			return ret;
 		} else {
-			return cs.internal.Runtime.slowCallField(e,constr,params);
+			return cs.internal.Runtime.slowCallField(e,constr,cs.Lib.nativeArray(params,true));
 		}
 	}
 

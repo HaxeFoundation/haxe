@@ -205,14 +205,18 @@ private typedef NativeString = cs.system.String;
 		}
 	}
 
-	public static function handleCallField(str:NativeString, f:String, args:Array<Dynamic>):Dynamic
+	public static function handleCallField(str:NativeString, f:String, args:cs.NativeArray<Dynamic>):Dynamic
 	{
-		var _args:Array<Dynamic> = [str];
+		var _args;
 		if (args == null)
-			args = _args;
-		else
-			args = _args.concat(args);
+			_args = cs.NativeArray.make(str);
+		else {
+			_args = new cs.NativeArray(args.length + 1);
+			for (i in 0...args.length)
+				_args[i] = args[i];
+			_args[args.length] = str;
+		}
 
-		return Runtime.slowCallField(StringExt, f, args);
+		return Runtime.slowCallField(StringExt, f, _args);
 	}
 }

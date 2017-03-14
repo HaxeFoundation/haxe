@@ -3200,7 +3200,7 @@ struct
 			let args_real_to_func args =
 				let arity = List.length args in
 				if arity >= max_arity then
-					[ alloc_var (gen.gmk_internal_name "fn" "dynargs") (basic.tarray t_dynamic), None ]
+					[ alloc_var (gen.gmk_internal_name "fn" "dynargs") (gen.gclasses.nativearray t_dynamic), None ]
 				else func_args_i arity
 			in
 
@@ -3219,7 +3219,7 @@ struct
 			let args_real_to_func_sig args =
 				let arity = List.length args in
 				if arity >= max_arity then
-					[gen.gmk_internal_name "fn" "dynargs", false, basic.tarray t_dynamic]
+					[gen.gmk_internal_name "fn" "dynargs", false, gen.gclasses.nativearray t_dynamic]
 				else begin
 					func_sig_i arity
 				end
@@ -3236,7 +3236,7 @@ struct
 
 			let args_real_to_func_call el (pos:pos) =
 				if List.length el >= max_arity then
-					[{ eexpr = TArrayDecl el; etype = basic.tarray t_dynamic; epos = pos }]
+					[mk_nativearray_decl gen t_dynamic el pos]
 				else begin
 					List.fold_left (fun acc e ->
 						if like_float (gen.greal_type e.etype) && not (like_i64 (gen.greal_type e.etype)) then
@@ -3438,7 +3438,7 @@ struct
 				in
 
 				let type_name = gen.gmk_internal_name "fn" "type" in
-				let dynamic_arg = alloc_var (gen.gmk_internal_name "fn" "dynargs") (basic.tarray t_dynamic) in
+				let dynamic_arg = alloc_var (gen.gmk_internal_name "fn" "dynargs") (gen.gclasses.nativearray t_dynamic) in
 
 				let mk_invoke_complete_i i is_float =
 
@@ -3670,7 +3670,7 @@ struct
 							eexpr = TIf(
 								mk (TBinop (OpEq, dynargs, null dynargs.etype pos)) basic.tbool pos,
 								mk (TConst (TInt Int32.zero)) basic.tint pos,
-								Some (mk_field_access gen dynargs "length" pos));
+								Some (gen.gclasses.nativearray_len dynargs pos));
 							etype = basic.tint;
 							epos = pos;
 						} in
@@ -7773,7 +7773,7 @@ struct
 		let field_args, switch_var = field_type_args ctx cl.cl_pos in
 		let field_args_exprs = List.map (fun (v,_) -> mk_local v pos) field_args in
 
-		let dynamic_arg = alloc_var "dynargs" (basic.tarray t_dynamic) in
+		let dynamic_arg = alloc_var "dynargs" (gen.gclasses.nativearray t_dynamic) in
 		let all_args = field_args @ [ dynamic_arg, None ] in
 		let fun_t = TFun(fun_args all_args, t_dynamic) in
 
@@ -7826,9 +7826,12 @@ struct
 				let cases = List.map (switch_case ctx pos) names in
 				(cases,
 					{ eexpr = TReturn(Some (mk_this_call cf (List.map (fun (name,_,t) ->
-							let ret = { eexpr = TArray(dyn_arg_local, ExprBuilder.make_int ctx.rcf_gen.gcon !i pos); etype = t_dynamic; epos = pos } in
+							let eidx = ExprBuilder.make_int ctx.rcf_gen.gcon !i pos in
 							incr i;
-							ret
+							let ret = mk (TArray (dyn_arg_local, eidx)) t_dynamic pos in
+							let elen = gen.gclasses.nativearray_len dyn_arg_local pos in
+							let egt = mk (TBinop (OpGt,elen,eidx)) basic.tbool pos in
+							mk (TIf (egt,ret,Some (ExprBuilder.make_null t_dynamic pos))) t_dynamic pos
 						) (fst (get_args (cf.cf_type))) ) ));
 						etype = basic.tvoid;
 						epos = pos
@@ -7918,14 +7921,13 @@ struct
 	let implement_varargs_cl ctx cl =
 		let pos = cl.cl_pos in
 		let gen = ctx.rcf_gen in
-		let basic = gen.gcon.basic in
 
 		let this_t = TInst(cl, List.map snd cl.cl_params) in
 		let this = { eexpr = TConst(TThis); etype = this_t ; epos = pos } in
 		let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
 
 		let invokedyn = gen.gmk_internal_name "hx" "invokeDynamic" in
-		let idyn_t = TFun([gen.gmk_internal_name "fn" "dynargs", false, basic.tarray t_dynamic], t_dynamic) in
+		let idyn_t = TFun([gen.gmk_internal_name "fn" "dynargs", false, gen.gclasses.nativearray t_dynamic], t_dynamic) in
 		let this_idyn = mk_this invokedyn idyn_t in
 
 		let map_fn arity ret vars api =
@@ -7941,9 +7943,9 @@ struct
 			let call_arg = if arity = (-1) then
 				api (-1) t_dynamic None
 			else if arity = 0 then
-				null (basic.tarray t_empty) pos
+				null (gen.gclasses.nativearray t_empty) pos
 			else
-				{ eexpr = TArrayDecl(loop (arity - 1) []); etype = basic.tarray t_empty; epos = pos }
+				mk_nativearray_decl gen t_empty (loop (arity - 1) []) pos
 			in
 
 			let expr = {
@@ -8004,9 +8006,9 @@ struct
 			let call_arg = if arity = (-1) then
 				api (-1) t_dynamic None
 			else if arity = 0 then
-				null (basic.tarray t_empty) pos
+				null (gen.gclasses.nativearray t_empty) pos
 			else
-				{ eexpr = TArrayDecl(loop (arity - 1) []); etype = basic.tarray t_empty; epos = pos }
+				mk_nativearray_decl gen t_empty (loop (arity - 1) []) pos
 			in
 
 			let expr = {
