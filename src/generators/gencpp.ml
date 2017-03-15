@@ -3999,6 +3999,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
                 output_i ("HX_STACK_THIS(__this.mPtr)\n");
              List.iter (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (cpp_var_name_of v) ^ ",\"" ^ (cpp_debug_name_of v) ^"\")\n") )
                 (List.filter (cpp_debug_var_visible ctx) closure.close_args);
+
+             let line = Lexer.get_error_line closure.close_expr.cpppos in
+             let lineName = Printf.sprintf "%4d" line in
+             out ("HXLINE(" ^ lineName ^ ")\n" );
           end
       in
 
@@ -4033,6 +4037,10 @@ let gen_cpp_function_body ctx clazz is_static func_name function_def head_code t
             then output_i ("HX_STACK_THIS(" ^ (if ctx.ctx_real_this_ptr then "this" else "__this") ^")\n");
          List.iter (fun (v,_) -> if not (cpp_no_debug_synbol ctx v) then
               output_i ("HX_STACK_ARG(" ^ (cpp_var_name_of v) ^ ",\"" ^ v.v_name ^"\")\n") ) function_def.tf_args;
+
+         let line = Lexer.get_error_line function_def.tf_expr.epos in
+         let lineName = Printf.sprintf "%4d" line in
+         output ("HXLINE(" ^ lineName ^ ")\n" );
       end;
       if (head_code<>"") then
          output_i (head_code ^ "\n");
