@@ -1742,8 +1742,10 @@ let generate_type ctx = function
 			| ([],_) -> ()
 			| _ -> generate_package_create ctx c.cl_path);
 		check_multireturn ctx c;
-	| TEnumDecl e when not e.e_extern -> generate_enum ctx e
-	| TTypeDecl _ | TAbstractDecl _ -> ()
+	| TEnumDecl e ->
+		if not e.e_extern then generate_enum ctx e
+		else ();
+	| TTypeDecl _ | TAbstractDecl _ | _ -> ()
 
 let generate_type_forward ctx = function
 	| TClassDecl c ->
