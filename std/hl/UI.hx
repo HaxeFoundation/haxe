@@ -28,6 +28,10 @@ abstract Sentinel(SentinelHandle) {
 	public function new( timeout, callback ) {
 		this = create_sentinel(timeout,callback);
 	}
+	
+	public function setPause( p : Bool ) {
+		_pause(this, p);
+	}
 
 	public function tick() {
 		_tick(this);
@@ -38,6 +42,7 @@ abstract Sentinel(SentinelHandle) {
 	}
 
 	@:hlNative("ui","ui_sentinel_tick") static function _tick( h : SentinelHandle ) : Void {}
+	@:hlNative("ui","ui_sentinel_pause") static function _pause( h : SentinelHandle, b : Bool ) : Void {}
 
 }
 
