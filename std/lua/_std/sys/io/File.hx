@@ -30,6 +30,7 @@ import lua.Boot;
 class File {
 	public static function getContent( path : String ) : String {
 		var f = Io.open(path, "r");
+		if (f == null) throw 'Invalid path : $path';
 		var s = f.read("*all");
 		f.close();
 		return s;
@@ -55,11 +56,15 @@ class File {
 	}
 
 	public static function read( path : String, binary : Bool = true ) : FileInput {
-		return new FileInput(Io.open(path, binary ? 'rb' : 'r'));
+		var fh = Io.open(path, binary ? 'rb' : 'r');
+		if (fh == null) throw 'Invalid path : $path';
+		return new FileInput(fh);
 	}
 
 	public static function write( path : String, binary : Bool = true ) : FileOutput {
-		return new FileOutput(Io.open(path, binary ? 'wb' : 'w'));
+		var fh = Io.open(path, binary ? 'wb' : 'w');
+		if (fh == null) throw 'Invalid path : $path';
+		return new FileOutput(fh);
 	}
 
 	public static function saveBytes( path : String, bytes : haxe.io.Bytes ) : Void {
