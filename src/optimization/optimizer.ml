@@ -659,7 +659,7 @@ and type_inline_ctor ctx c cf tf ethis el po =
 		let el = List.fold_left (fun acc cf -> 
 			match cf.cf_kind,cf.cf_expr with
 			| Var _,Some e ->
-				let lhs = mk (TField(ethis,FInstance (c,List.map snd c.cl_params,cf))) cf.cf_type e.epos in
+				let lhs = mk (TField(ethis,FInstance (c,cparams,cf))) cf.cf_type e.epos in
 				let eassign = mk (TBinop(OpAssign,lhs,e)) cf.cf_type e.epos in
 				eassign :: acc
 			| _ -> acc
