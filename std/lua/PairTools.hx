@@ -14,26 +14,11 @@ class PairTools {
 		untyped __lua__( "for i,v in _G.ipairs(table) do ret[i] = func(i,v) end;");
 		return ret;
 	}
-
-	public static function ipairsToIntMap<A,B>(table:Table<A,B>) : haxe.ds.IntMap<B> {
-		var ret = new haxe.ds.IntMap<B>();
-		ipairsEach(table, function(a,b) ret.set(a,b));
-		return ret;
-	}
-
 	public static function pairsMap<A,B,C>(table:Table<A,B>, func : A->B->C->C) : Table<A,C> {
 		var ret : Table<A,C> = Table.create();
 		untyped __lua__( "for k,v in _G.pairs(table) do ret[k] = func(k,v) end;");
 		return ret;
 	}
-
-	@:generic
-	public static function pairsToMap<A,B>(table:Table<A,B>) : Map<A,B> {
-		var ret = new Map<A,B>();
-		pairsEach(table, function(a,b) ret.set(a,b));
-		return ret;
-	}
-
 	public static function ipairsFold<A,B>(table:Table<Int,A>, func : Int->A->B->B, seed: B) : B  {
 		untyped __lua__("for i,v in _G.ipairs(table) do seed = func(i,v,seed) end");
 		return untyped __lua__("seed");
