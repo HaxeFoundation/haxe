@@ -1749,10 +1749,6 @@ let generate_type ctx = function
 
 let generate_type_forward ctx = function
 	| TClassDecl c ->
-		(match c.cl_init with
-		| None -> ()
-		| Some e ->
-			ctx.inits <- e :: ctx.inits);
 		if not c.cl_extern then
 		    begin
 			generate_package_create ctx c.cl_path;
@@ -2017,18 +2013,6 @@ let generate com =
 	println ctx "end";
 	newline ctx;
 
-	let rec chk_features e =
-		if is_dynamic_iterator ctx e then add_feature ctx "use._iterator";
-		match e.eexpr with
-		| TField (_,FClosure _) ->
-			add_feature ctx "use._hx_bind"
-		| _ ->
-			Type.iter chk_features e
-	in
-
-	List.iter chk_features ctx.inits;
-
-	List.iter (fun (_,_,e) -> chk_features e) ctx.statics;
 	if has_feature ctx "use._iterator" then begin
 		add_feature ctx "use._hx_bind";
 		println ctx "function _hx_iterator(o)  if ( lua.Boot.__instanceof(o, Array) ) then return function() return HxOverrides.iter(o) end elseif (typeof(o.iterator) == 'function') then return  _hx_bind(o,o.iterator) else return  o.iterator end end";
