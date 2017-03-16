@@ -26,7 +26,7 @@ extern class Lua {
 		Pops a table from the stack and sets it as the new metatable for the value
 		at the given acceptable index.
 	**/
-	public static function setmetatable(tbl:Table<Dynamic,Dynamic>, mtbl: Table<Dynamic, Dynamic>): Void;
+	public static function setmetatable(tbl:Table<Dynamic,Dynamic>, mtbl: Table<Dynamic, Dynamic>): Table<Dynamic, Dynamic>;
 
 	/**
 		Pops a table from the stack and sets it as the new environment for the value
