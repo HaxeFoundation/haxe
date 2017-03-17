@@ -1222,6 +1222,7 @@ let inline_constructors ctx e =
 		if i < 0 then "n" ^ (string_of_int (-i))
 		else (string_of_int i)
 	in
+	let is_extern_ctor c cf = c.cl_extern || Meta.has Meta.Extern cf.cf_meta in
 	let rec find_locals e = match e.eexpr with
 		| TVar(v,Some e1) ->
 			find_locals e1;
@@ -1249,7 +1250,7 @@ let inline_constructors ctx e =
 							| [] -> e
 							| _ -> mk (TBlock (List.rev (e :: el_init))) e.etype e.epos
 						in
-						add v e' (IKCtor(cf,c.cl_extern || Meta.has Meta.Extern cf.cf_meta));
+						add v e' (IKCtor(cf,is_extern_ctor c cf));
 						find_locals e
 					| None ->
 						()
@@ -1399,6 +1400,9 @@ let inline_constructors ctx e =
 			in
 			let el = block [] el in
 			mk (TBlock (List.rev el)) e.etype e.epos
+		| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})} as cf)} as c,_,_) when is_extern_ctor c cf ->
+			display_error ctx "Extern constructor could not be inlined" e.epos;
+			Type.map_expr loop e
 		| _ ->
 			Type.map_expr loop e
 	in
