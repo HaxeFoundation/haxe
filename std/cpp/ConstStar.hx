@@ -19,37 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package sys.io;
+package cpp;
 
-import lua.FileHandle;
+// Allows haxe to type result correctly, and hxcpp can recognise this use the correct type
+typedef ConstStar<T> = T;
 
-class FileOutput extends haxe.io.Output {
-	var f:FileHandle;
 
-	public function new(f:FileHandle){
-		if (f == null) throw 'Invalid filehandle : $f';
-		this.f = f;
-	}
-
-	public inline function seek( p : Int, pos : FileSeek ) : Void {
-		var arg = switch(pos){
-			case SeekBegin : "set";
-			case SeekCur : "cur";
-			case SeekEnd : "end";
-		}
-		return f.seek(arg, p);
-	}
-
-	public inline function tell() : Int {
-		return f.seek();
-	}
-
-	override inline public function writeByte(c : Int) : Void {
-		f.write(String.fromCharCode(c));
-	}
-
-	override public function close() {
-		f.close();
-	}
-
-}

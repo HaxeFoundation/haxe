@@ -73,7 +73,7 @@ abstract EnumFlags<T:EnumValue>(Int) {
 		If `v` is null, the result is unspecified.
 	**/
 	public inline function unset( v : T ) : Void {
-		this &= 0xFFFFFFF - (1 << Type.enumIndex(v));
+		this &= 0xFFFFFFFF - (1 << Type.enumIndex(v));
 	}
 
 	/**

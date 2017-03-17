@@ -28,7 +28,6 @@ class PairTools {
 		return untyped __lua__("seed");
 	}
 
-
 	public static function ipairsConcat<T>(table1:Table<Int,T>, table2:Table<Int,T>){
 		var ret:Table<Int,T> = Table.create();
 		ipairsFold(table1, function(a,b,c:Table<Int,T>){ c[a] = b; return c;}, ret);
