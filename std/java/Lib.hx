@@ -57,7 +57,6 @@ package java;
 
 	/**
 		Gets the native `java.lang.Class` from the supplied object. Will throw an exception in case of null being passed.
-		[deprecated] - use `getNativeType` instead
 	**/
 	inline public static function getNativeType<T>(obj:T):java.lang.Class<T>
 	{
