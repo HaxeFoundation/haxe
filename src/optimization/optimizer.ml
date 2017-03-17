@@ -492,8 +492,8 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			{ e with eexpr = TFunction { tf_args = args; tf_expr = expr; tf_type = f.tf_type } }
 		| TCall({eexpr = TConst TSuper; etype = t},el) ->
 			begin match follow t with
-			| TInst({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf)},_) ->
-				begin match type_inline ctx cf tf ethis el ctx.t.tvoid None po true with
+			| TInst({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,_) ->
+				begin match type_inline_ctor ctx c cf tf ethis el po with
 				| Some e -> map term e
 				| None -> error "Could not inline super constructor call" po
 				end
@@ -650,6 +650,29 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			in
 			let rec map_expr_type e = Type.map_expr_type map_expr_type map_type map_var e in
 			Some (map_expr_type e)
+
+(* Same as type_inline, but modifies the function body to add field inits *)
+and type_inline_ctor ctx c cf tf ethis el po =
+	let field_inits = 
+		let cparams = List.map snd c.cl_params in
+		let ethis = mk (TConst TThis) (TInst (c,cparams)) c.cl_pos in
+		let el = List.fold_left (fun acc cf -> 
+			match cf.cf_kind,cf.cf_expr with
+			| Var _,Some e ->
+				let lhs = mk (TField(ethis,FInstance (c,cparams,cf))) cf.cf_type e.epos in
+				let eassign = mk (TBinop(OpAssign,lhs,e)) cf.cf_type e.epos in
+				eassign :: acc
+			| _ -> acc
+		) [] c.cl_ordered_fields in
+		List.rev el
+	in
+	let tf =
+		if field_inits = [] then tf
+		else
+			let bl = match tf.tf_expr with {eexpr = TBlock b } -> b | x -> [x] in
+			{tf with tf_expr = mk (TBlock (field_inits @ bl)) ctx.t.tvoid c.cl_pos}
+	in
+	type_inline ctx cf tf ethis el ctx.t.tvoid None po true
 
 
 (* ---------------------------------------------------------------------- *)
@@ -1235,17 +1258,8 @@ let inline_constructors ctx e =
 						()
 					end
 				| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl) when type_iseq v.v_type e1.etype ->
-					begin match type_inline ctx cf tf (mk (TLocal v) (TInst (c,tl)) e1.epos) pl ctx.t.tvoid None e1.epos true with
+					begin match type_inline_ctor ctx c cf tf (mk (TLocal v) (TInst (c,tl)) e1.epos) pl e1.epos with
 					| Some e ->
-						(* add field inits here because the filter has not run yet (issue #2336) *)
-						let ev = mk (TLocal v) v.v_type e.epos in
-						let el_init = List.fold_left (fun acc cf -> match cf.cf_kind,cf.cf_expr with
-							| Var _,Some e ->
-								let ef = mk (TField(ev,FInstance(c,tl,cf))) cf.cf_type e.epos in
-								let e = mk (TBinop(OpAssign,ef,e)) cf.cf_type e.epos in
-								e :: acc
-							| _ -> acc
-						) el_init c.cl_ordered_fields in
 						let e' = match el_init with
 							| [] -> e
 							| _ -> mk (TBlock (List.rev (e :: el_init))) e.etype e.epos
