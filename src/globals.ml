@@ -24,7 +24,6 @@ let version = 3401
 let version_major = version / 1000
 let version_minor = (version mod 1000) / 100
 let version_revision = (version mod 100)
-let version_is_stable = version_minor land 1 = 0
 
 let macro_platform = ref Neko
 
