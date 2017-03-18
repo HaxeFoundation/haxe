@@ -206,7 +206,7 @@ and tclass = {
 	mutable cl_interface : bool;
 	mutable cl_super : (tclass * tparams) option;
 	mutable cl_implements : (tclass * tparams) list;
-	mutable cl_fields : (string , tclass_field) PMap.t;
+	mutable cl_fields : (string, tclass_field) PMap.t;
 	mutable cl_statics : (string, tclass_field) PMap.t;
 	mutable cl_ordered_statics : tclass_field list;
 	mutable cl_ordered_fields : tclass_field list;
