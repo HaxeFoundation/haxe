@@ -2317,7 +2317,7 @@ let is_gc_element ctx member_type =
 
 
 
-let retype_expression ctx request_type function_args expression_tree forInjection =
+let retype_expression ctx request_type function_args function_type expression_tree forInjection =
    let rev_closures = ref [] in
    let closureId = ref 0 in
    let declarations = ref (Hashtbl.create 0) in
@@ -2975,8 +2975,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             CppTry(cppBlock, cppCatches), TCppVoid
 
          | TReturn eo ->
-            (*CppReturn(match eo with None -> None | Some e -> Some (retype (cpp_type_of expr.etype) e)), TCppVoid*)
-            CppReturn(match eo with None -> None | Some e -> Some (retype (cpp_type_of e.etype) e)), TCppVoid
+            CppReturn(match eo with None -> None | Some e -> Some (retype (cpp_type_of function_type) e)), TCppVoid
 
          | TCast (base,None) -> (* Use auto-cast rules *)
             let return_type = cpp_type_of expr.etype in
@@ -3222,7 +3221,7 @@ let gen_type ctx haxe_type =
 ;;
 
 
-let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection tree =
+let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_type injection tree =
    let writer = ctx.ctx_writer in
    let out = ctx.ctx_output in
    let lastLine = ref (-1) in
@@ -3244,7 +3243,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
    let forInjection = match injection with Some inject -> inject.inj_setvar<>"" | _ -> false in
 
-   let cppTree =  retype_expression ctx TCppVoid function_args tree forInjection in
+   let cppTree =  retype_expression ctx TCppVoid function_args function_type tree forInjection in
    let label_name i = Printf.sprintf "_hx_goto_%i" i in
    let class_hash = gen_hash_small 0 class_name in
 
@@ -4059,7 +4058,7 @@ let gen_cpp_function_body ctx clazz is_static func_name function_def head_code t
    let args = List.map fst function_def.tf_args in
 
    let injection = mk_injection prologue "" tail_code in
-   gen_cpp_ast_expression_tree ctx dot_name func_name args injection (mk_block function_def.tf_expr);
+   gen_cpp_ast_expression_tree ctx dot_name func_name args function_def.tf_type injection (mk_block function_def.tf_expr);
 ;;
 
 let gen_cpp_init ctx dot_name func_name var_name expr =
@@ -4070,7 +4069,7 @@ let gen_cpp_init ctx dot_name func_name var_name expr =
          hx_stack_push ctx output_i dot_name func_name expr.epos gc_stack;
    in
    let injection = mk_injection prologue var_name "" in
-   gen_cpp_ast_expression_tree ctx dot_name func_name [] injection (mk_block expr);
+   gen_cpp_ast_expression_tree ctx dot_name func_name [] t_dynamic injection (mk_block expr);
 ;;
 
 
