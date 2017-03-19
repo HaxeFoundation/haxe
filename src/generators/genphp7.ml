@@ -1651,7 +1651,17 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 		*)
 		method write_expr_array_decl exprs =
 			match exprs with
-				| [] -> self#write ("new " ^ (self#use array_type_path) ^ "()")
+				| [] ->
+					let decl () = self#write ("new " ^ (self#use array_type_path) ^ "()") in
+					(* Wrap into parentheses if trying to access items of empty array declaration *)
+					(match self#parent_expr with
+						| Some { eexpr = TArray _ } ->
+							self#write "(";
+							decl();
+							self#write ")"
+						| _ ->
+							decl()
+					)
 				| [expr] ->
 					self#write ((self#use array_type_path) ^ "::wrap([");
 					self#write_expr expr;
