@@ -51,7 +51,7 @@ extern class Sys {
 	static function putEnv( s : String, v : String ) : Void;
 
 	/**
-		Returns the whole environment variables.
+		Returns all environment variables.
 	**/
 	static function environment() : Map<String,String>;
 
