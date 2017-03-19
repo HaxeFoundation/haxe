@@ -327,7 +327,8 @@ extern class JQuery implements ArrayAccess<Element> {
 	function select( ?callb : JqEvent -> Void ) : JQuery;
 	function submit( ?callb : JqEvent -> Void ) : JQuery;
 	function unload( ?callb : JqEvent -> Void ) : JQuery;
-
+	
+	@:overload(function( events : String, f : Bool ) : JQuery {})
 	function bind( events : String, callb : JqEvent -> Void ) : JQuery;
 	function delegate( selector : String, events : String, callb : JqEvent -> Void ) : JQuery;
 	function die( ?events : String, ?callb : JqEvent -> Void ) : JQuery;
@@ -335,6 +336,7 @@ extern class JQuery implements ArrayAccess<Element> {
 	function live( events : String, callb : JqEvent -> Void ) : JQuery;
 	function trigger( events : String ) : JQuery;
 	function triggerHandler( events : String ) : JQuery;
+	@:overload(function( events : String, f : Bool ) : JQuery {})
 	function unbind( ?events : String, ?callb : JqEvent -> Void ) : JQuery;
 	function undelegate( ?selector : String, ?events : String, ?callb : JqEvent -> Void ) : JQuery;
 
