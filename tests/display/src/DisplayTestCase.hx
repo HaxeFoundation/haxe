@@ -72,8 +72,8 @@ class DisplayTestCase {
 		}
 	}
 
-	function hasField(a:Array<FieldElement>, name:String, type:String):Bool {
-		return a.exists(function(t) return t.type == type && t.name == name);
+	function hasField(a:Array<FieldElement>, name:String, type:String, ?kind:String):Bool {
+		return a.exists(function(t) return t.type == type && t.name == name && (kind == null || t.kind == kind));
 	}
 
 	function hasPath(a:Array<FieldElement>, name:String):Bool {

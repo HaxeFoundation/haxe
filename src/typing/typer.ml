@@ -3945,6 +3945,7 @@ and display_expr ctx e_ast e with_type p =
 			| TFun (args,ret) ->
 				let t = opt_args args ret in
 				let cf = mk_field "bind" (tfun [t] t) p null_pos in
+				cf.cf_kind <- Method MethNormal;
 				PMap.add "bind" cf PMap.empty
 			| _ ->
 				PMap.empty
