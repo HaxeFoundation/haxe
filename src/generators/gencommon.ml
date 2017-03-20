@@ -8473,35 +8473,16 @@ end;;
 (* ******************************************* *)
 (* IteratorsInterface *)
 (* ******************************************* *)
-
 (*
-
-	This module will handle with Iterators, Iterables and TFor() expressions.
+	This module will handle with Iterators and Iterables.
 	At first, a module filter will receive a Iterator<T> and Iterable<T> interface, which will be implemented
 	if hasNext(), next() or iterator() fields are detected with the correct type.
 	At this part a custom function will be called which can adequate the class fields so they are compatible with
 	native Iterators as well
 
-	The expression filter part of this module will look for TFor() expressions, and transform like that:
-	for (anInt in value.iterator())
-	{
-
-	}
-
-	{
-		var s:haxe.lang.Iterator<Int> = ExternalFunction.getIterator(value.iterator());
-		while (s.hasNext())
-		{
-			var anInt:Int = s.next();
-
-		}
-	}
-
 	dependencies:
 		None.
-
 *)
-
 module IteratorsInterface =
 struct
 	let name = "iterators_interface"
@@ -8592,7 +8573,6 @@ struct
 
 	end;;
 	*)
-
 end;;
 
 
