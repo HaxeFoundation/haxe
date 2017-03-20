@@ -818,13 +818,16 @@ class RunCi {
 						runCommand("haxe", ["compile-neko.hxml"]);
 						runCommand("neko", ["bin/neko/sys.n"]);
 					case Php7:
+						if (systemName == "Linux") {
 							getSpodDependencies();
+							runCommand("phpenv", ["global", '"7.0"']);
 							runCommand("haxe", ["compile-php7.hxml"].concat(args));
 							runCommand("php", ["bin/php7/index.php"]);
 
 							changeDirectory(sysDir);
 							runCommand("haxe", ["compile-php7.hxml"]);
 							runCommand("php", ["bin/php7/Main/index.php"]);
+						}
 					case Php:
 							getSpodDependencies();
 							getPhpDependencies();

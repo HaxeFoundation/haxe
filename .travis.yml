@@ -122,15 +122,6 @@ matrix:
             g++-multilib
       install: *install_linux
 
-    - os: linux
-      env:
-        - TEST=php7
-      before_install:
-        - phpenv global "7.0"
-        # - sudo apt-get install php7-cli php7-mysql php7-sqlite -y || (sudo add-apt-repository ppa:ondrej/php -y && sudo apt-get update -y && sudo apt-get install  php7.0-cli php7.0-mysql php7.0-sqlite -y)
-        - php -v || true
-      install: *install_linux
-
     #######
     # osx #
     #######
