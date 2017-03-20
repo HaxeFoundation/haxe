@@ -399,7 +399,6 @@ struct
 			| _ -> assert false
 		in
 		let string_ext = get_cl ( get_type gen (["haxe";"lang"], "StringExt")) in
-		let clstring = match basic.tstring with | TInst(cl,_) -> cl | _ -> assert false in
 		let ti64 = match ( get_type gen (["cs"], "Int64") ) with | TTypeDecl t -> TType(t,[]) | TAbstractDecl a -> TAbstract(a,[]) | _ -> assert false in
 		let boxed_ptr =
 			if Common.defined gen.gcon Define.Unsafe then
@@ -518,16 +517,6 @@ struct
 
 				| TCast(expr, _) when (is_string e.etype) && (not (is_string expr.etype)) && not (in_runtime_class gen) ->
 					{ e with eexpr = TCall( mk_static_field_access_infer runtime_cl "toString" expr.epos [], [run expr] ) }
-				| TBinop( (Ast.OpNotEq as op), e1, e2)
-				| TBinop( (Ast.OpEq as op), e1, e2) when is_string e1.etype || is_string e2.etype ->
-					let mk_ret e = match op with | Ast.OpNotEq -> { e with eexpr = TUnop(Ast.Not, Ast.Prefix, e) } | _ -> e in
-					mk_ret { e with
-						eexpr = TCall({
-							eexpr = TField(ExprBuilder.make_static_this clstring e.epos, FDynamic "Equals");
-							etype = TFun(["obj1",false,basic.tstring; "obj2",false,basic.tstring], basic.tbool);
-							epos = e1.epos
-						}, [ run e1; run e2 ])
-					}
 
 				| TCast(expr, _) when is_tparam e.etype && not (in_runtime_class gen) && not (Common.defined gen.gcon Define.EraseGenerics) ->
 					let static = mk_static_field_access_infer (runtime_cl) "genericCast" e.epos [e.etype] in
