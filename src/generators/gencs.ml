@@ -98,9 +98,6 @@ let cs_unops =
 let binops_names = List.fold_left (fun acc (op,n) -> PMap.add n op acc) PMap.empty cs_binops
 let unops_names = List.fold_left (fun acc (op,n) -> PMap.add n op acc) PMap.empty cs_unops
 
-let get_item = "get_Item"
-let set_item = "set_Item"
-
 let is_tparam t =
 	match follow t with
 		| TInst( { cl_kind = KTypeParameter _ }, [] ) -> true
