@@ -2082,8 +2082,6 @@ let configure gen =
 	Normalize.configure gen ~metas:(Hashtbl.create 0);
 	AbstractImplementationFix.configure gen;
 
-	IteratorsInterface.configure gen;
-
 	let closure_t = ClosuresToClass.DoubleAndDynamicClosureImpl.get_ctx gen (get_cl (get_type gen (["haxe";"lang"],"Function"))) 6 in
 	ClosuresToClass.configure gen closure_t;
 
