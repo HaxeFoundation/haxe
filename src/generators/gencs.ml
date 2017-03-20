@@ -3344,7 +3344,7 @@ type net_lib_ctx = {
 }
 
 let is_haxe_keyword = function
-	| "callback" | "cast" | "extern" | "function" | "in" | "typedef" | "using" | "var" | "untyped" | "inline" -> true
+	| "cast" | "extern" | "function" | "in" | "typedef" | "using" | "var" | "untyped" | "inline" -> true
 	| _ -> false
 
 let hxpath_to_net ctx path =

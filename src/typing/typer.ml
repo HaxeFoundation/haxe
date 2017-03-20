@@ -1575,8 +1575,7 @@ and type_field ?(resume=false) ctx e i p mode =
 	| _ ->
 		try using_field ctx mode e i p with Not_found -> no_field()
 
-let type_bind ctx (e : texpr) params p =
-	let args,ret = match follow e.etype with TFun(args, ret) -> args, ret | _ -> error "First parameter of callback is not a function" p in
+let type_bind ctx (e : texpr) (args,ret) params p =
 	let vexpr v = mk (TLocal v) v.v_type p in
 	let acount = ref 0 in
 	let alloc_name n =
@@ -4088,21 +4087,12 @@ and type_call ctx e el (with_type:with_type) p =
 			mk (TCall (mk (TLocal v_trace) t_dynamic p,[e;infos])) ctx.t.tvoid p
 		else
 			type_expr ctx (ECall ((EField ((EField ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[mk_to_string_meta e;infos]),p) NoValue
-	| (EConst(Ident "callback"),p1),args ->
-		let ecb = try Some (type_ident_raise ctx "callback" p1 MCall) with Not_found -> None in
-		(match ecb with
-		| Some ecb ->
-			build_call ctx ecb args with_type p
-		| None ->
-			display_error ctx "callback syntax has changed to func.bind(args)" p;
-			let e = type_expr ctx e Value in
-			type_bind ctx e args p)
 	| (EField ((EConst (Ident "super"),_),_),_), _ ->
 		def()
 	| (EField (e,"bind"),p), args ->
 		let e = type_expr ctx e Value in
 		(match follow e.etype with
-			| TFun _ -> type_bind ctx e args p
+			| TFun signature -> type_bind ctx e signature args p
 			| _ -> def ())
 	| (EConst (Ident "$type"),_) , [e] ->
 		let e = type_expr ctx e Value in

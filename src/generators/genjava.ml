@@ -2539,7 +2539,7 @@ exception ConversionError of string * pos
 let error s p = raise (ConversionError (s, p))
 
 let is_haxe_keyword = function
-	| "callback" | "cast" | "extern" | "function" | "in" | "typedef" | "using" | "var" | "untyped" | "inline" -> true
+	| "cast" | "extern" | "function" | "in" | "typedef" | "using" | "var" | "untyped" | "inline" -> true
 	| _ -> false
 
 let jname_to_hx name =
