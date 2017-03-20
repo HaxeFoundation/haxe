@@ -1160,11 +1160,14 @@ class RecordMacros {
 			if( opt.orderBy != null )
 				r.sql = inst.sqlAddString(r.sql, " ORDER BY " + opt.orderBy);
 			if( opt.limit != null ) {
-				r.sql = inst.sqlAddString(r.sql, " LIMIT ");
-				r.sql = inst.sqlAdd(r.sql, opt.limit.pos, pos);
 				if( opt.limit.len != null ) {
-					r.sql = inst.sqlAddString(r.sql, ",");
+					r.sql = inst.sqlAddString(r.sql, " LIMIT ");
+					r.sql = inst.sqlAdd(r.sql, opt.limit.pos, pos);
+					r.sql = inst.sqlAddString(r.sql, " OFFSET ");
 					r.sql = inst.sqlAdd(r.sql, opt.limit.len, pos);
+				}else{
+					r.sql = inst.sqlAddString(r.sql, " LIMIT ");
+					r.sql = inst.sqlAdd(r.sql, opt.limit.pos, pos);
 				}
 			}
 			if( opt.forceIndex != null )
