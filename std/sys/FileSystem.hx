@@ -75,7 +75,7 @@ extern class FileSystem {
 	/**
 		Tells if the file or directory specified by `path` is a directory.
 
-		If `path` is not a valid file system entry or if its destination is no
+		If `path` is not a valid file system entry or if its destination is not
 		accessible, an exception is thrown.
 
 		If `path` is null, the result is unspecified.

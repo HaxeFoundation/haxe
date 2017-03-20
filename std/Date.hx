@@ -67,7 +67,7 @@ extern class Date
 	function getMinutes() : Int;
 
 	/**
-		Returns the seconds of the `this` Date (0-59 range).
+		Returns the seconds of `this` Date (0-59 range).
 	**/
 	function getSeconds() : Int;
 

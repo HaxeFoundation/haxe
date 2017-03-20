@@ -745,7 +745,9 @@ let rec class_string klass suffix params remap =
    (* Normal class *)
    | path when klass.cl_extern && (not (is_internal_class path) )->
             (join_class_path_remap klass.cl_path "::") ^ suffix
-   | _ -> "::" ^ (join_class_path_remap klass.cl_path "::") ^ suffix
+   | _ ->
+      let globalNamespace = if (get_meta_string klass.cl_meta Meta.Native)<>"" then "" else "::" in
+      globalNamespace ^ (join_class_path_remap klass.cl_path "::") ^ suffix
    )
 and type_string_suff suffix haxe_type remap =
    let type_string = type_string_remap remap in
@@ -1687,7 +1689,8 @@ and tcpp_to_string tcpp =
     tcpp_to_string_suffix "" tcpp
 
 and cpp_class_path_of klass =
-      " ::" ^ (join_class_path_remap klass.cl_path "::")
+      let globalNamespace = if (get_meta_string klass.cl_meta Meta.Native)<>"" then " " else " ::" in
+      globalNamespace ^ (join_class_path_remap klass.cl_path "::")
 ;;
 
 
@@ -1973,7 +1976,8 @@ let cpp_enum_path_of enum =
       rename
    else
    *)
-      "::" ^ (join_class_path_remap enum.e_path "::")
+   let globalNamespace = if (get_meta_string enum.e_meta Meta.Native)<>"" then "" else "::" in
+   globalNamespace ^ (join_class_path_remap enum.e_path "::")
 ;;
 
 
@@ -2013,10 +2017,9 @@ let cpp_class_name klass =
       rename ^ "_obj"
    else
    *)
-   begin
-      let path = "::" ^ (join_class_path_remap klass.cl_path "::") in
-      if path="::String" then path else path ^ "_obj"
-   end
+   let globalNamespace = if (get_meta_string klass.cl_meta Meta.Native)<>"" then "" else "::" in
+   let path = globalNamespace ^ (join_class_path_remap klass.cl_path "::") in
+   if path="::String" then path else path ^ "_obj"
 ;;
 
 
@@ -2314,7 +2317,7 @@ let is_gc_element ctx member_type =
 
 
 
-let retype_expression ctx request_type function_args expression_tree forInjection =
+let retype_expression ctx request_type function_args function_type expression_tree forInjection =
    let rev_closures = ref [] in
    let closureId = ref 0 in
    let declarations = ref (Hashtbl.create 0) in
@@ -2972,7 +2975,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             CppTry(cppBlock, cppCatches), TCppVoid
 
          | TReturn eo ->
-            CppReturn(match eo with None -> None | Some e -> Some (retype (cpp_type_of e.etype) e)), TCppVoid
+            CppReturn(match eo with None -> None | Some e -> Some (retype (cpp_type_of function_type) e)), TCppVoid
 
          | TCast (base,None) -> (* Use auto-cast rules *)
             let return_type = cpp_type_of expr.etype in
@@ -3030,6 +3033,11 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
       end else if (cppExpr.cpptype=TCppVariant || cppExpr.cpptype=TCppDynamic) then begin
          match return_type with
          | TCppUnchanged -> cppExpr
+         | TCppInst(t) when (has_meta_key t.cl_meta Meta.StructAccess) ->
+             let structType = TCppStruct( TCppInst(t) ) in
+             let structCast =  mk_cppexpr (CppCast(cppExpr,structType)) structType in
+             mk_cppexpr (CppCast(structCast,(TCppInst t))) (TCppInst t)
+
          | TCppObjectArray _
          | TCppScalarArray _
          | TCppNativePointer _
@@ -3056,6 +3064,11 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
 
          | TCppDynamic when cppExpr.cpptype=TCppVariant
               -> mk_cppexpr (CppCastVariant(cppExpr)) return_type
+
+         | TCppStar(t,const) ->
+             let ptrType = TCppPointer((if const then "ConstPointer" else "Pointer"),t) in
+             let ptrCast =  mk_cppexpr (CppCast(cppExpr,ptrType)) ptrType in
+             mk_cppexpr (CppCast(ptrCast,TCppStar(t,const))) (TCppStar(t,const))
 
          | _ -> cppExpr
       end else match cppExpr.cpptype, return_type with
@@ -3105,10 +3118,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
              let ptrType = TCppPointer((if const then "ConstPointer" else "Pointer"),t) in
              let ptrCast =  mk_cppexpr (CppCast(cppExpr,ptrType)) ptrType in
              mk_cppexpr (CppCast(ptrCast,TCppDynamic)) TCppDynamic
-         | TCppDynamic, TCppStar(t,const) ->
-             let ptrType = TCppPointer((if const then "ConstPointer" else "Pointer"),t) in
-             let ptrCast =  mk_cppexpr (CppCast(cppExpr,ptrType)) ptrType in
-             mk_cppexpr (CppCast(ptrCast,TCppStar(t,const))) (TCppStar(t,const))
+
 
          | TCppStar(t,const), TCppInst _
          | TCppStar(t,const), TCppStruct _ ->
@@ -3211,7 +3221,7 @@ let gen_type ctx haxe_type =
 ;;
 
 
-let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection tree =
+let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_type injection tree =
    let writer = ctx.ctx_writer in
    let out = ctx.ctx_output in
    let lastLine = ref (-1) in
@@ -3233,7 +3243,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
    let forInjection = match injection with Some inject -> inject.inj_setvar<>"" | _ -> false in
 
-   let cppTree =  retype_expression ctx TCppVoid function_args tree forInjection in
+   let cppTree =  retype_expression ctx TCppVoid function_args function_type tree forInjection in
    let label_name i = Printf.sprintf "_hx_goto_%i" i in
    let class_hash = gen_hash_small 0 class_name in
 
@@ -3244,7 +3254,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          List.iter gen_closure closures;
          (match injection with Some inject -> inject.inj_prologue gc_stack | _ -> () );
          let remaining = ref (List.length exprs) in
-         lastLine := -1;
+         lastLine := Lexer.get_error_line tree.epos;
          List.iter (fun e ->
             output_p e "";
             if (!remaining=1) then
@@ -4048,7 +4058,7 @@ let gen_cpp_function_body ctx clazz is_static func_name function_def head_code t
    let args = List.map fst function_def.tf_args in
 
    let injection = mk_injection prologue "" tail_code in
-   gen_cpp_ast_expression_tree ctx dot_name func_name args injection (mk_block function_def.tf_expr);
+   gen_cpp_ast_expression_tree ctx dot_name func_name args function_def.tf_type injection (mk_block function_def.tf_expr);
 ;;
 
 let gen_cpp_init ctx dot_name func_name var_name expr =
@@ -4059,7 +4069,7 @@ let gen_cpp_init ctx dot_name func_name var_name expr =
          hx_stack_push ctx output_i dot_name func_name expr.epos gc_stack;
    in
    let injection = mk_injection prologue var_name "" in
-   gen_cpp_ast_expression_tree ctx dot_name func_name [] injection (mk_block expr);
+   gen_cpp_ast_expression_tree ctx dot_name func_name [] t_dynamic injection (mk_block expr);
 ;;
 
 
