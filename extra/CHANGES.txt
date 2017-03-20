@@ -1,3 +1,9 @@
+????-??-??: 4.0.0
+
+	General improvements and optimizations:
+
+	js : improved generation of `break` inside `switch` inside loops (#4964)
+
 2017-03-20: 3.4.2
 
 	Bugfixes:
