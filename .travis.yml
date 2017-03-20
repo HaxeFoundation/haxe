@@ -27,27 +27,19 @@ addons: &addons
 install_linux: &install_linux
   # Install neko and haxe dependencies
   - sudo add-apt-repository ppa:haxe/ocaml -y
+  - sudo add-apt-repository ppa:haxe/snapshots -y
   - sudo apt-get update
   - sudo apt-get install -y
+      neko
       ocaml
       ocaml-native-compilers
       camlp4
       pkg-config
-      libgc-dev
       libssl-dev
       libpcre3-dev
       zlib1g-dev
-      apache2-dev
       libmysqlclient-dev
       libsqlite3-dev
-      libgtk2.0-dev
-  # Install neko
-  - travis_retry git clone https://github.com/HaxeFoundation/neko.git ~/neko
-  - pushd ~/neko
-  - cmake -DSTATIC_DEPS=MbedTLS
-  - make
-  - sudo make install
-  - popd
   # Setup database
   - travis_retry sudo apt-get install mysql-server-5.6 -y
   - mysql -u root -e "create user travis@localhost identified by '';"
