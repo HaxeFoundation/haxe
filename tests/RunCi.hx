@@ -820,7 +820,7 @@ class RunCi {
 					case Php7:
 						if (systemName == "Linux") {
 							getSpodDependencies();
-							runCommand("phpenv", ["global", '"7.0"']);
+							runCommand("phpenv", ["global", "7.0"]);
 							runCommand("haxe", ["compile-php7.hxml"].concat(args));
 							runCommand("php", ["bin/php7/index.php"]);
 
