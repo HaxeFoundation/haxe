@@ -25,15 +25,16 @@ addons: &addons
     - api.haxe.org
 
 install_linux: &install_linux
+  # Install opam + ocaml
+  - sudo wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin 4.02.3
+  - export OPAMYES=1
+  - opam install camlp4
+  - eval `opam config env`
   # Install neko and haxe dependencies
-  - sudo add-apt-repository ppa:haxe/ocaml -y
   - sudo add-apt-repository ppa:haxe/snapshots -y
   - sudo apt-get update
   - sudo apt-get install -y
       neko
-      ocaml
-      ocaml-native-compilers
-      camlp4
       pkg-config
       libssl-dev
       libpcre3-dev
