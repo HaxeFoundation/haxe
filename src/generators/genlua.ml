@@ -602,7 +602,7 @@ and gen_expr ?(local=true) ctx e = begin
 		    if (i == 0) then spr ctx "[0]="
 		    else spr ctx ", ";
 		    gen_value ctx e) el;
-		print ctx " }, %i)" !count;
+		print ctx "}, %i)" !count;
 	| TThrow e ->
 		spr ctx "_G.error(";
 		gen_value ctx e;
