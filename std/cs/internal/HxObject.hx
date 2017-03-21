@@ -108,29 +108,12 @@ class HxEnum
 	{
 		return getTag();
 	}
-}
 
-@:keep @:native('haxe.lang.ParamEnum') @:nativeGen
-private class ParamEnum extends HxEnum
-{
-	@:readOnly private var params(default,never):Vector<Dynamic>;
-
-	public function new(index:Int, params:Vector<Dynamic>)
+	public static function paramsToString(tag:String, params:Vector<Dynamic>):String
 	{
-		super(index);
-		untyped this.params = params;
-	}
-
-	override public function getParams():Array<{}>
-	{
-		return params == null ? [] : cs.Lib.array(cast params.toData());
-	}
-
-	override public function toString():String
-	{
-		if (params == null || params.length == 0) return getTag();
 		var ret = new StringBuf();
-		ret.add(getTag()); ret.add("(");
+		ret.add(tag);
+		ret.add("(");
 		var first = true;
 		for (p in params)
 		{
@@ -144,28 +127,7 @@ private class ParamEnum extends HxEnum
 		return ret.toString();
 	}
 
-	public function Equals(obj:Dynamic)
-	{
-		if (obj == this) //we cannot use == as .Equals !
-			return true;
-		var obj:ParamEnum = Std.instance(obj, ParamEnum);
-		var ret = obj != null && Std.is(obj, StdType.getClass(this)) && obj.index == this.index;
-		if (!ret)
-			return false;
-		if (obj.params == this.params)
-			return true;
-		var len = 0;
-		if (obj.params == null || this.params == null || (len = this.params.length) != obj.params.length)
-			return false;
-		for (i in 0...len)
-		{
-			if (!StdType.enumEq(obj.params[i], this.params[i]))
-				return false;
-		}
-		return true;
-	}
-
-	public function GetHashCode():Int
+	public static function paramsGetHashCode(index:Int, params:Vector<Dynamic>):Int
 	{
 		var h:Int = 19;
 		if (params != null) for (p in params)
@@ -177,5 +139,4 @@ private class ParamEnum extends HxEnum
 		h += index;
 		return h;
 	}
-
 }
