@@ -34,7 +34,7 @@ import lua.Table;
 
 class StringBuf {
 
-	var b:Dynamic;
+	var b:Table<Int,String>;
 
 	/*
 		The length of `this` StringBuf in characters.
@@ -47,7 +47,7 @@ class StringBuf {
 		This may involve initialization of the internal buffer.
 	**/
 	public inline function new() {
-		b = {};
+		b = Table.create();
 		this.length = 0;
 	}
 
