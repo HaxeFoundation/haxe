@@ -4,6 +4,10 @@
 
 	js : improved generation of `break` inside `switch` inside loops (#4964)
 
+	Removals:
+
+	all : SPOD (sys.db.Object, sys.db.Manager and friends) was moved into a separate library `record-macros` (https://github.com/HaxeFoundation/record-macros)
+
 2017-03-20: 3.4.2
 
 	Bugfixes:
