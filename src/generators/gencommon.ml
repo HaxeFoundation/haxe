@@ -8539,7 +8539,7 @@ struct
 			add_static cl_enum cf_constructs;
 
 			(* add the class to the module *)
-			gen.gadd_to_module (TClassDecl cl_enum) priority;
+			gen.gadd_to_module (TClassDecl cl_enum) max_dep;
 
 			let e_pack, e_name = en.e_path in
 			let cl_enum_t = TInst (cl_enum, []) in
@@ -8561,7 +8561,7 @@ struct
 				] @ cl_ctor.cl_meta;
 				ctors_map := PMap.add name cl_ctor !ctors_map;
 
-				gen.gadd_to_module (TClassDecl cl_ctor) priority;
+				gen.gadd_to_module (TClassDecl cl_ctor) max_dep;
 
 				let esuper = mk (TConst TSuper) cl_enum_t pos in
 				let etag = (mk (TConst(TString name)) basic.tstring pos) in
