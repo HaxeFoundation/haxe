@@ -24,8 +24,6 @@ import java.internal.Exceptions;
 import java.internal.Function;
 import java.internal.HxObject;
 import java.internal.Runtime;
-// TODO (see Gencommon.IteratorsInterfaceModf)
-//import java.internal.Iterator;
 import java.Lib;
 //import java.internal.StringExt;
 import java.StdTypes;
