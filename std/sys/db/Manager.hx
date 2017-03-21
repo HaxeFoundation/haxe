@@ -202,6 +202,20 @@ class Manager<T : Object> {
 		// table with one key not defined : suppose autoincrement
 		if( table_keys.length == 1 && Reflect.field(x,table_keys[0]) == null )
 			Reflect.setField(x,table_keys[0],getCnx().lastInsertId());
+		
+		// make sure there is a cache_field (needed for update)
+		if ( Reflect.field(x, cache_field) == null ) {
+			#if neko
+			var o = untyped __dollar__new(x);
+			#else
+			var o = untyped __php__("new stdClass()");
+			for( f in Reflect.fields(x) )
+				Reflect.setField(o, f, Reflect.field(x, f));
+			untyped o._manager = this;
+			#end
+			untyped o._lock = true;
+			Reflect.setField(x, cache_field, o);
+		}
 		addToCache(x);
 	}
 
