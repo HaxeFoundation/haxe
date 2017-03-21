@@ -3,10 +3,13 @@
 	General improvements and optimizations:
 
 	js : improved generation of `break` inside `switch` inside loops (#4964)
+	cs : improved generation of enum classes (#6119)
 
 	Removals:
 
 	all : SPOD (sys.db.Object, sys.db.Manager and friends) was moved into a separate library `record-macros` (https://github.com/HaxeFoundation/record-macros)
+	js : js.JQuery and js.SWFObject were moved into hx3compat library (https://github.com/HaxeFoundation/hx3compat),
+	     it's recommended to use more modern js.jquery.JQuery and js.swfobject.SWFObject classes.
 
 2017-03-20: 3.4.2
 
