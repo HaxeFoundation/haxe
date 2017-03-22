@@ -1748,7 +1748,7 @@ let generate_type ctx = function
 	| TEnumDecl e ->
 		if not e.e_extern then generate_enum ctx e
 		else ();
-	| TTypeDecl _ | TAbstractDecl _ | _ -> ()
+	| TTypeDecl _ | TAbstractDecl _ -> ()
 
 let generate_type_forward ctx = function
 	| TClassDecl c ->

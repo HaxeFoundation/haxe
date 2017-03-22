@@ -1,4 +1,4 @@
 S src/**
-B src/**
+B _build/src/**
 S libs/**
 B libs/**
