@@ -56,13 +56,13 @@ let new_t () = {
 
 	dependencies:
 		Should run before ReflectionCFs, in order to enable proper reflection access.
-		Should run before TypeParams.RealTypeParams.RealTypeParamsModf, since generic enums must be first converted to generic classes
+		Should run before RealTypeParams.RealTypeParamsModf, since generic enums must be first converted to generic classes
 		It needs that the target platform implements __array__() as a shortcut to declare haxe.ds.Vector
 *)
 module EnumToClassModf =
 struct
 	let name = "enum_to_class_mod"
-	let priority = solve_deps name [DBefore ReflectionCFs.priority; DBefore TypeParams.RealTypeParams.RealTypeParamsModf.priority]
+	let priority = solve_deps name [DBefore ReflectionCFs.priority; DBefore RealTypeParams.RealTypeParamsModf.priority]
 
 	let pmap_exists fn pmap = try PMap.iter (fun a b -> if fn a b then raise Exit) pmap; false with | Exit -> true
 

@@ -1313,7 +1313,7 @@ let implement_invokeField ctx ~slow_invoke cl =
 		let t = apply_object cf in
 		(* the return type transformation into Dynamic *)
 		(* is meant to avoid return-type casting after functions with *)
-		(* type parameters are properly inferred at TypeParams.infer_params *)
+		(* type parameters are properly inferred at infer_params *)
 		(* e.g. function getArray<T : SomeType>(t:T):Array<T>; after infer_params, *)
 		(* T will be inferred as SomeType, but the returned type will still be typed *)
 		(* as Array<Dynamic> *)
@@ -1633,7 +1633,7 @@ let configure_dynamic_field_access ctx =
 
 	dependencies:
 		As a rule, it should be one of the last module filters to run so any @:hxgen class created in the process
-		-Should- only run after TypeParams.RealTypeParams.Modf
+		-Should- only run after RealTypeParams.Modf
 *)
 module UniversalBaseClass =
 struct

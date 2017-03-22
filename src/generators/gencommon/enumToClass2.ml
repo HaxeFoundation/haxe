@@ -34,7 +34,7 @@ module EnumToClass2Modf =
 struct
 
 	let name = "enum_to_class2_mod"
-	let priority = solve_deps name [DBefore ReflectionCFs.priority; DBefore TypeParams.RealTypeParams.RealTypeParamsModf.priority]
+	let priority = solve_deps name [DBefore ReflectionCFs.priority; DBefore RealTypeParams.RealTypeParamsModf.priority]
 
 	let add_static c cf =
 		c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;

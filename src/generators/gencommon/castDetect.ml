@@ -46,7 +46,7 @@ open Gencommon
 
 *)
 let name = "cast_detect_2"
-let priority = solve_deps name [DBefore TypeParams.priority; DBefore ExpressionUnwrap.priority]
+let priority = solve_deps name [DBefore RealTypeParams.priority; DBefore ExpressionUnwrap.priority]
 
 (* ******************************************* *)
 (* ReturnCast *)
@@ -755,7 +755,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 				(* let called_t = TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype) in *)
 				let called_t = match follow e1.etype with | TFun _ -> e1.etype | _ -> TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype)	in (* workaround for issue #1742 *)
 				let called_t = change_rest called_t elist in
-				let fparams = TypeParams.infer_params gen ecall.epos (get_fun (apply_params cl.cl_params params actual_t)) (get_fun called_t) cf.cf_params calls_parameters_explicitly in
+				let fparams = infer_params gen.gcon ecall.epos (get_fun (apply_params cl.cl_params params actual_t)) (get_fun called_t) cf.cf_params calls_parameters_explicitly in
 				(* get what the backend actually sees *)
 				(* actual field's function *)
 				let actual_t = get_real_fun gen actual_t in
@@ -764,7 +764,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 				let real_fparams = if calls_parameters_explicitly then
 					gen.greal_type_param (TClassDecl cl) fparams
 				else
-					gen.greal_type_param (TClassDecl cl) (TypeParams.infer_params gen ecall.epos (get_fun function_t) (get_fun (get_real_fun gen called_t)) cf.cf_params calls_parameters_explicitly) in
+					gen.greal_type_param (TClassDecl cl) (infer_params gen.gcon ecall.epos (get_fun function_t) (get_fun (get_real_fun gen called_t)) cf.cf_params calls_parameters_explicitly) in
 				let function_t = get_real_fun gen (apply_params cf.cf_params real_fparams function_t) in
 				let args_ft, ret_ft = get_fun function_t in
 				(* applied function *)

@@ -751,7 +751,7 @@ let generate con =
 		in
 
 		let is_hxgeneric md =
-			TypeParams.RealTypeParams.is_hxgeneric md
+			RealTypeParams.is_hxgeneric md
 		in
 
 		let rec field_is_hxgeneric e = match e.eexpr with
@@ -897,7 +897,7 @@ let generate con =
 				| TAbstractDecl a -> a.a_params
 				| TTypeDecl t -> t.t_params
 			in
-			let is_hxgeneric = if types = [] then is_hxgen md else (TypeParams.RealTypeParams.is_hxgeneric md) in
+			let is_hxgeneric = if types = [] then is_hxgen md else (RealTypeParams.is_hxgeneric md) in
 			let ret t =
 				let t_changed = real_type t in
 				match is_hxgeneric, t_changed with
@@ -2812,9 +2812,9 @@ let generate con =
 
 		add_cast_handler gen;
 		if not erase_generics then
-			TypeParams.RealTypeParams.configure gen (fun e t -> gen.gcon.warning ("Cannot cast to " ^ (debug_type t)) e.epos; mk_cast t e) ifaces (get_cl (get_type gen (["haxe";"lang"], "IGenericObject")))
+			RealTypeParams.configure gen (fun e t -> gen.gcon.warning ("Cannot cast to " ^ (debug_type t)) e.epos; mk_cast t e) ifaces (get_cl (get_type gen (["haxe";"lang"], "IGenericObject")))
 		else
-			TypeParams.RealTypeParams.RealTypeParamsModf.configure gen (TypeParams.RealTypeParams.RealTypeParamsModf.set_only_hxgeneric gen);
+			RealTypeParams.RealTypeParamsModf.configure gen (RealTypeParams.RealTypeParamsModf.set_only_hxgeneric gen);
 
 		let flookup_cl = get_cl (get_type gen (["haxe";"lang"], "FieldLookup")) in
 
