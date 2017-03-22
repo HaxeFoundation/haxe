@@ -94,3 +94,6 @@ tests/misc/projects/Issue4070/cpp/
 
 /tests/sys/temp
 *.dll
+_build/
+Makefile.dependencies
+Makefile.modules

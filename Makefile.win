@@ -1,4 +1,5 @@
 PLATFORM=win
+MAKEFILENAME=Makefile.win
 include Makefile
 OUTPUT=haxe.exe
 EXTENSION=.exe

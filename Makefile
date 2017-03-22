@@ -17,6 +17,7 @@ INSTALL_STD_DIR=$(INSTALL_LIB_DIR)/std
 PACKAGE_OUT_DIR=out
 PACKAGE_SRC_EXTENSION=.tar.gz
 
+MAKEFILENAME?=Makefile
 PLATFORM?=unix
 
 OUTPUT=haxe
@@ -26,9 +27,13 @@ OCAMLC?=ocamlc
 LFLAGS=
 STATICLINK?=0
 
+HAXE_DIRECTORIES=compiler context generators macro optimization syntax typing display
+
+INCLUDES = $(HAXE_DIRECTORIES:%=-I _build/src/%)
+
 CFLAGS= -bin-annot
 ALL_CFLAGS= $(CFLAGS) -g -w -3 -I libs/extlib -I libs/extc -I libs/neko -I libs/javalib -I libs/ziplib -I libs/swflib -I libs/xml-light -I libs/ttflib -I libs/ilib -I libs/objsize -I libs/pcre \
-	-I src -I src/context -I src/generators -I src/macro -I src/optimization -I src/syntax -I src/typing -I src/display
+	$(INCLUDES)
 
 LIBS=unix str libs/extlib/extLib libs/xml-light/xml-light libs/swflib/swflib \
 	libs/extc/extc libs/neko/neko libs/javalib/java libs/ziplib/zip \
@@ -60,20 +65,9 @@ endif
 
 CC_CMD = $(COMPILER) $(ALL_CFLAGS) -c $<
 
-CC_PARSER_CMD = $(COMPILER) -pp camlp4o $(ALL_CFLAGS) -c src/syntax/parser.ml
-
 RELDIR=../../..
 
-MODULES=json version globals path context/meta syntax/ast display/displayTypes typing/type typing/error \
-	syntax/lexer context/common generators/genxml \
-	syntax/parser typing/abstract typing/typecore display/display optimization/optimizerTexpr \
-	optimization/optimizer typing/overloads typing/typeload sourcemaps generators/codegen generators/gencommon generators/genas3 \
-	generators/gencpp generators/genjs generators/genneko generators/genphp generators/genphp7 generators/genswf9 \
-	generators/genswf generators/genjava generators/gencs generators/genpy macro/macroApi macro/interp generators/hlcode generators/hlopt generators/hlinterp generators/hl2c \
-	generators/genlua \
-	optimization/dce optimization/analyzerConfig optimization/analyzerTypes optimization/analyzerTexpr \
-	optimization/analyzerTexprTransformer optimization/analyzer generators/genhl \
-	optimization/filters macro/hlmacro macro/macroContext typing/typer typing/matcher display/displayOutput server main
+-include Makefile.modules
 
 ADD_REVISION?=0
 
@@ -111,8 +105,33 @@ libs:
 	make -C libs/objsize OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
 	make -C libs/pcre OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
 
-haxe: $(MODULES:%=src/%.$(MODULE_EXT))
-	$(COMPILER) -o $(OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(LIBS:=.$(LIB_EXT)) $(MODULES:%=src/%.$(MODULE_EXT))
+copy_output_files:
+	mkdir -p _build
+	$(foreach dir,$(HAXE_DIRECTORIES:%=src/%),mkdir -p _build/$(dir) && rsync -u $(dir)/*.ml _build/$(dir) &&) true
+	sh compile.sh $(ADD_REVISION)
+ifneq ($(ADD_REVISION),0)
+	$(MAKE) -f Makefile.version_extra -s --no-print-directory ADD_REVISION=$(ADD_REVISION) BRANCH=$(BRANCH) COMMIT_SHA=$(COMMIT_SHA) COMMIT_DATE=$(COMMIT_DATE) > _build/src/compiler/version.ml
+endif
+
+haxe: copy_output_files
+	$(MAKE) -f $(MAKEFILENAME) build_pass_1
+	$(MAKE) -f $(MAKEFILENAME) build_pass_2
+	$(MAKE) -f $(MAKEFILENAME) build_pass_3
+	$(MAKE) -f $(MAKEFILENAME) build_pass_4
+
+build_pass_1:
+	printf MODULES= > Makefile.modules
+	ls -1 $(HAXE_DIRECTORIES:%=_build/src/%/*.ml) | tr '\n' ' ' >> Makefile.modules
+
+build_pass_2:
+	printf MODULES= > Makefile.modules
+	ocamldep -sort -slash $(INCLUDES) $(MODULES) | sed -e "s/\.ml//g" >> Makefile.modules
+
+build_pass_3:
+	ocamldep -slash -native $(INCLUDES) $(MODULES:%=%.ml) > Makefile.dependencies
+
+build_pass_4: $(MODULES:%=%.$(MODULE_EXT))
+	$(COMPILER) -o $(OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(LIBS:=.$(LIB_EXT)) $(MODULES:%=%.$(MODULE_EXT))
 
 haxelib:
 	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(OUTPUT) client.hxml && nekotools boot run.n)
@@ -147,137 +166,9 @@ uninstall:
 		rm -rf $(INSTALL_LIB_DIR); \
 	fi
 
-
 # Modules
 
-# context
-
-src/context/common.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/display/displayTypes.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
-
-src/context/meta.$(MODULE_EXT): src/globals.$(MODULE_EXT)
-
-# display
-
-src/display/display.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/path.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/display/displayTypes.$(MODULE_EXT)
-
-src/display/displayTypes.$(MODULE_EXT) : src/globals.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
-
-src/display/displayOutput.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/typer.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/display/display.$(MODULE_EXT)
-
-# sourcemaps
-
-src/sourcemaps.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
-
-# generators
-
-src/generators/codegen.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/generators/genxml.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
-
-src/generators/genas3.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
-
-src/generators/gencommon.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/typing/error.$(MODULE_EXT) src/typing/overloads.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
-
-src/generators/gencpp.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
-
-src/generators/gencs.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/generators/gencommon.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
-
-src/generators/genjava.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/generators/gencommon.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
-
-src/generators/genjs.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
-
-src/generators/genneko.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
-
-src/generators/genlua.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
-
-src/generators/genphp.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
-
-src/generators/genpy.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
-
-src/generators/genswf.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/generators/genswf9.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
-
-src/generators/hlinterp.$(MODULE_EXT): src/context/common.$(MODULE_EXT) src/generators/hlcode.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT) src/generators/hlopt.$(MODULE_EXT) src/macro/macroApi.$(MODULE_EXT)
-
-src/generators/genphp7.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/sourcemaps.$(MODULE_EXT)
-
-src/generators/hl2c.$(MODULE_EXT): src/generators/hlcode.$(MODULE_EXT) src/context/common.$(MODULE_EXT)
-
-src/generators/hlopt.$(MODULE_EXT): src/generators/hlcode.$(MODULE_EXT)
-
-src/generators/genhl.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/generators/hlcode.$(MODULE_EXT) src/generators/hlinterp.$(MODULE_EXT) src/generators/hl2c.$(MODULE_EXT) src/generators/hlopt.$(MODULE_EXT)
-
-src/generators/genswf9.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
-
-src/generators/genxml.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
-
-# macro
-
-src/macro/interp.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/typing/error.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/generators/genneko.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/generators/genswf.$(MODULE_EXT) src/generators/genjava.$(MODULE_EXT) src/generators/gencs.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT) src/macro/macroApi.$(MODULE_EXT) libs/pcre/pcre.$(LIB_EXT)
-
-src/macro/macroContext.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/typing/error.$(MODULE_EXT) src/optimization/optimizerTexpr.$(MODULE_EXT) src/typing/overloads.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/typeload.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/optimization/optimizer.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/optimization/filters.$(MODULE_EXT) src/generators/genjs.$(MODULE_EXT) src/display/display.$(MODULE_EXT) src/macro/hlmacro.$(MODULE_EXT) src/macro/macroApi.$(MODULE_EXT)
-
-src/macro/hlmacro.$(MODULE_EXT): src/generators/hlinterp.$(MODULE_EXT) src/generators/genhl.$(MODULE_EXT) src/macro/macroApi.$(MODULE_EXT)
-
-src/macro/macroApi.$(MODULE_EXT): src/generators/genjs.$(MODULE_EXT) src/generators/gencs.$(MODULE_EXT) src/generators/genjava.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT)
-
-# optimization
-
-src/optimization/analyzer.$(MODULE_EXT): src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/optimization/optimizer.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/optimization/analyzerConfig.$(MODULE_EXT) src/optimization/analyzerTypes.$(MODULE_EXT) src/optimization/analyzerTexpr.$(MODULE_EXT) src/optimization/analyzerTexprTransformer.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT)
-
-src/optimization/analyzerConfig.$(MODULE_EXT): src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/context/common.$(MODULE_EXT)
-
-src/optimization/analyzerTexpr.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/typing/error.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/optimization/analyzerConfig.$(MODULE_EXT) src/optimization/optimizerTexpr.$(MODULE_EXT) src/generators/genphp7.$(MODULE_EXT)
-
-src/optimization/analyzerTexprTransformer.$(MODULE_EXT): src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/typing/error.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/optimization/analyzerConfig.$(MODULE_EXT) src/optimization/analyzerTypes.$(MODULE_EXT) src/optimization/analyzerTexpr.$(MODULE_EXT)
-
-src/optimization/analyzerTypes.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/optimization/analyzerConfig.$(MODULE_EXT)
-
-src/optimization/dce.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/error.$(MODULE_EXT) src/path.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/typing/type.$(MODULE_EXT)
-
-src/optimization/filters.$(MODULE_EXT): src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/typing/error.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/optimization/analyzer.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/optimization/dce.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT)
-
-src/optimization/optimizer.$(MODULE_EXT): src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/optimization/optimizerTexpr.$(MODULE_EXT) src/display/display.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
-
-src/optimization/optimizerTexpr.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
-
-# syntax
-
-src/syntax/ast.$(MODULE_EXT): src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT)
-
-src/syntax/lexer.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/syntax/lexer.ml src/syntax/ast.$(MODULE_EXT)
-
-src/syntax/parser.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/path.$(MODULE_EXT) src/syntax/parser.ml src/syntax/lexer.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
-	$(CC_PARSER_CMD)
-
-# typing
-
-src/typing/abstract.$(MODULE_EXT): src/context/meta.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/error.$(MODULE_EXT)
-
-src/typing/error.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/typing/type.$(MODULE_EXT)
-
-src/typing/matcher.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/typing/error.$(MODULE_EXT) src/optimization/optimizer.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/typer.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
-
-src/typing/overloads.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/typing/type.$(MODULE_EXT)
-
-src/typing/type.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/json.$(MODULE_EXT)
-
-src/typing/typecore.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
-
-src/typing/typeload.$(MODULE_EXT): src/globals.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/optimization/optimizerTexpr.$(MODULE_EXT) src/typing/overloads.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/optimization/optimizer.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/json.$(MODULE_EXT) src/display/display.$(MODULE_EXT)
-
-src/typing/typer.$(MODULE_EXT): src/typing/abstract.$(MODULE_EXT) src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/typing/error.$(MODULE_EXT) src/optimization/optimizerTexpr.$(MODULE_EXT) src/typing/overloads.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/typeload.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/optimization/optimizer.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/optimization/filters.$(MODULE_EXT) src/generators/genjs.$(MODULE_EXT) src/display/display.$(MODULE_EXT) src/macro/macroContext.$(MODULE_EXT)
-
-# main
-
-src/main.$(MODULE_EXT): src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/typing/error.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/path.$(MODULE_EXT) src/optimization/filters.$(MODULE_EXT) src/typing/matcher.$(MODULE_EXT) src/typing/typer.$(MODULE_EXT) src/typing/typeload.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/optimization/optimizer.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT) src/generators/genxml.$(MODULE_EXT) src/generators/genswf.$(MODULE_EXT) src/generators/genphp.$(MODULE_EXT) src/generators/genphp7.$(MODULE_EXT) src/generators/genneko.$(MODULE_EXT) src/generators/genjs.$(MODULE_EXT) src/generators/genlua.$(MODULE_EXT) src/generators/gencpp.$(MODULE_EXT) src/generators/genas3.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/generators/genjava.$(MODULE_EXT) src/generators/gencs.$(MODULE_EXT) src/generators/genpy.$(MODULE_EXT) src/generators/genhl.$(MODULE_EXT) src/display/display.$(MODULE_EXT) src/server.$(MODULE_EXT) src/display/displayOutput.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
-
-src/globals.$(MODULE_EXT): src/version.$(MODULE_EXT)
-
-src/path.$(MODULE_EXT): src/globals.$(MODULE_EXT)
-
-src/server.$(MODULE_EXT): src/context/meta.$(MODULE_EXT) src/globals.$(MODULE_EXT) src/path.$(MODULE_EXT) src/typing/typer.$(MODULE_EXT) src/typing/typeload.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/context/common.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/display/displayOutput.$(MODULE_EXT)
-
-src/version.$(MODULE_EXT):
-	$(MAKE) -f Makefile.version_extra -s --no-print-directory ADD_REVISION=$(ADD_REVISION) BRANCH=$(BRANCH) COMMIT_SHA=$(COMMIT_SHA) COMMIT_DATE=$(COMMIT_DATE) > src/version.ml
-	$(COMPILER) $(ALL_CFLAGS) -c src/version.ml
+-include Makefile.dependencies
 
 # Package
 
@@ -337,7 +228,7 @@ clean_libs:
 	make -C libs/pcre clean
 
 clean_haxe:
-	rm -f -r  $(MODULES:%=src/%.obj) $(MODULES:%=src/%.o) $(MODULES:%=src/%.cmx) $(MODULES:%=src/%.cmi) $(MODULES:%=src/%.cmo) $(MODULES:%=src/%.cmt) src/syntax/lexer.ml src/version.ml $(OUTPUT)
+	rm -f -r _build $(OUTPUT)
 
 clean_tools:
 	rm -f $(OUTPUT) haxelib
@@ -353,7 +244,4 @@ clean_package:
 .ml.cmo:
 	$(CC_CMD)
 
-.mll.ml:
-	ocamllex $<
-
-.PHONY: haxe libs version.cmx version.cmo haxelib
+.PHONY: haxe libs haxelib
