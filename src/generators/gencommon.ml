@@ -473,10 +473,6 @@ type generator_ctx =
 	mutable gcurrent_classfield : tclass_field option;
 
 	(* events *)
-	(* is executed once every new classfield *)
-	mutable gon_classfield_start : (unit -> unit) list;
-	(* is executed once every new module type *)
-	mutable gon_new_module_type : (unit -> unit) list;
 	(* after module filters ended *)
 	mutable gafter_mod_filters_ended : (unit -> unit) list;
 	(* after expression filters ended *)
@@ -650,8 +646,6 @@ let new_ctx con =
 		gcurrent_class = None;
 		gcurrent_classfield = None;
 
-		gon_classfield_start = [];
-		gon_new_module_type = [];
 		gafter_mod_filters_ended = [];
 		gafter_expr_filters_ended = [];
 		gafter_filters_ended = [];
@@ -689,7 +683,6 @@ let init_ctx gen =
 	in
 	gen.gfollow#add ~name:"final" ~priority:PLast follow
 
-(* run_follow (gen:generator_ctx) (t:t) *)
 let run_follow gen = gen.gfollow#run_f
 
 let reorder_modules gen =
@@ -714,13 +707,10 @@ let run_filters_from gen t filters =
 		gen.gcurrent_path <- c.cl_path;
 		gen.gcurrent_class <- Some(c);
 
-		List.iter (fun fn -> fn()) gen.gon_new_module_type;
-
 		gen.gcurrent_classfield <- None;
 		let rec process_field f =
 			reset_temps();
 			gen.gcurrent_classfield <- Some(f);
-			List.iter (fun fn -> fn()) gen.gon_classfield_start;
 
 			trace f.cf_name;
 			(match f.cf_expr with
