@@ -805,15 +805,39 @@ let rec get_fun_modifiers meta access modifiers =
 		| (Meta.Native,[],_) :: meta -> get_fun_modifiers meta access ("native" :: modifiers)
 		| _ :: meta -> get_fun_modifiers meta access modifiers
 
-(* this was the way I found to pass the generator context to be accessible across all functions here *)
-(* so 'configure' is almost 'top-level' and will have all functions needed to make this work *)
-let configure gen =
+let generate con =
+	let exists = ref false in
+	con.java_libs <- List.map (fun (file,std,close,la,gr) ->
+		if String.ends_with file "hxjava-std.jar" then begin
+			exists := true;
+			(file,true,close,la,gr)
+		end else
+			(file,std,close,la,gr)) con.java_libs;
+	if not !exists then
+		failwith "Your version of hxjava is outdated. Please update it by running: `haxelib update hxjava`";
+	let gen = new_ctx con in
+	gen.gallow_tp_dynamic_conversion <- true;
+
+	let basic = con.basic in
+	(* make the basic functions in java *)
+	let cl_cl = get_cl (get_type gen (["java";"lang"],"Class")) in
+	let basic_fns =
+	[
+		mk_class_field "equals" (TFun(["obj",false,t_dynamic], basic.tbool)) true null_pos (Method MethNormal) [];
+		mk_class_field "toString" (TFun([], basic.tstring)) true null_pos (Method MethNormal) [];
+		mk_class_field "hashCode" (TFun([], basic.tint)) true null_pos (Method MethNormal) [];
+		mk_class_field "getClass" (TFun([], (TInst(cl_cl,[t_dynamic])))) true null_pos (Method MethNormal) [];
+		mk_class_field "wait" (TFun([], basic.tvoid)) true null_pos (Method MethNormal) [];
+		mk_class_field "notify" (TFun([], basic.tvoid)) true null_pos (Method MethNormal) [];
+		mk_class_field "notifyAll" (TFun([], basic.tvoid)) true null_pos (Method MethNormal) [];
+	] in
+	List.iter (fun cf -> gen.gbase_class_fields <- PMap.add cf.cf_name cf gen.gbase_class_fields) basic_fns;
+
+	(try
 	let native_arr_cl = get_cl ( get_type gen (["java"], "NativeArray") ) in
 	gen.gclasses.nativearray <- (fun t -> TInst(native_arr_cl,[t]));
 	gen.gclasses.nativearray_type <- (function TInst(_,[t]) -> t | _ -> assert false);
 	gen.gclasses.nativearray_len <- (fun e p -> mk_field_access gen e "length" p);
-
-	let basic = gen.gcon.basic in
 
 	let fn_cl = get_cl (get_type gen (["haxe";"lang"],"Function")) in
 
@@ -2463,37 +2487,5 @@ let configure gen =
 		Sys.chdir old_dir;
 	end
 
-(* end of configure function *)
-
-let generate con =
-	let exists = ref false in
-	con.java_libs <- List.map (fun (file,std,close,la,gr) ->
-		if String.ends_with file "hxjava-std.jar" then begin
-			exists := true;
-			(file,true,close,la,gr)
-		end else
-			(file,std,close,la,gr)) con.java_libs;
-	if not !exists then
-		failwith "Your version of hxjava is outdated. Please update it by running: `haxelib update hxjava`";
-	let gen = new_ctx con in
-	gen.gallow_tp_dynamic_conversion <- true;
-
-	let basic = con.basic in
-	(* make the basic functions in java *)
-	let cl_cl = get_cl (get_type gen (["java";"lang"],"Class")) in
-	let basic_fns =
-	[
-		mk_class_field "equals" (TFun(["obj",false,t_dynamic], basic.tbool)) true null_pos (Method MethNormal) [];
-		mk_class_field "toString" (TFun([], basic.tstring)) true null_pos (Method MethNormal) [];
-		mk_class_field "hashCode" (TFun([], basic.tint)) true null_pos (Method MethNormal) [];
-		mk_class_field "getClass" (TFun([], (TInst(cl_cl,[t_dynamic])))) true null_pos (Method MethNormal) [];
-		mk_class_field "wait" (TFun([], basic.tvoid)) true null_pos (Method MethNormal) [];
-		mk_class_field "notify" (TFun([], basic.tvoid)) true null_pos (Method MethNormal) [];
-		mk_class_field "notifyAll" (TFun([], basic.tvoid)) true null_pos (Method MethNormal) [];
-	] in
-	List.iter (fun cf -> gen.gbase_class_fields <- PMap.add cf.cf_name cf gen.gbase_class_fields) basic_fns;
-
-	(try
-		configure gen
-	with | TypeNotFound path -> con.error ("Error. Module '" ^ (s_type_path path) ^ "' is required and was not included in build.")	null_pos);
+	with TypeNotFound path -> con.error ("Error. Module '" ^ (s_type_path path) ^ "' is required and was not included in build.") null_pos);
 	debug_mode := false
