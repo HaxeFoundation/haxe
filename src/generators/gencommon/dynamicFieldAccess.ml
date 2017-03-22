@@ -21,9 +21,6 @@ open Ast
 open Type
 open Gencommon
 
-(* ******************************************* *)
-(* Dynamic Field Access *)
-(* ******************************************* *)
 (*
 	This module will filter every dynamic field access in haxe.
 
@@ -68,53 +65,56 @@ let configure gen (is_dynamic:texpr->texpr->Type.tfield_access->bool) (change_ex
 			let name = field_name f in
 			(try
 				match decl with
-					| TClassDecl cl ->
-							let cf = PMap.find name cl.cl_statics in
-							{ e with eexpr = TField({ fexpr with eexpr = TTypeExpr decl }, FStatic(cl, cf)) }
-					| TEnumDecl en ->
-							let ef = PMap.find name en.e_constrs in
-							{ e with eexpr = TField({ fexpr with eexpr = TTypeExpr decl }, FEnum(en, ef)) }
-					| TAbstractDecl _ -> (* abstracts don't have TFields *) assert false
-					| TTypeDecl _ -> (* anon_class doesn't return TTypeDecl *) assert false
-				with
-					| Not_found -> match f with
-						| FStatic(cl,cf) when Meta.has Meta.Extern cf.cf_meta ->
-							{ e with eexpr = TField({ fexpr with eexpr = TTypeExpr decl }, FStatic(cl, cf)) }
-						| _ ->
-							change_expr e { fexpr with eexpr = TTypeExpr decl } (field_name f) None true
-			)
-		| TField(fexpr, f) when is_dynamic e fexpr (f) ->
+				| TClassDecl cl ->
+					let cf = PMap.find name cl.cl_statics in
+					{ e with eexpr = TField ({ fexpr with eexpr = TTypeExpr decl }, FStatic (cl, cf)) }
+				| TEnumDecl en ->
+					let ef = PMap.find name en.e_constrs in
+					{ e with eexpr = TField ({ fexpr with eexpr = TTypeExpr decl }, FEnum (en, ef)) }
+				| TAbstractDecl _ (* abstracts don't have TFields *)
+				| TTypeDecl _ -> (* anon_class doesn't return TTypeDecl *)
+					assert false
+			with Not_found ->
+				match f with
+				| FStatic (cl, cf) when Meta.has Meta.Extern cf.cf_meta ->
+					{ e with eexpr = TField ({ fexpr with eexpr = TTypeExpr decl }, FStatic (cl, cf)) }
+				| _ ->
+					change_expr e { fexpr with eexpr = TTypeExpr decl } (field_name f) None true)
+
+		| TField (fexpr, f) when is_dynamic e fexpr f ->
 			change_expr e (run fexpr) (field_name f) None true
-		| TCall(
-			{ eexpr = TField(_, FStatic({ cl_path = ([], "Reflect") }, { cf_name = "field" })) } ,
-				[obj; { eexpr = TConst(TString(field)) }]
-			) ->
+
+		| TCall ({ eexpr = TField (_, FStatic({ cl_path = ([], "Reflect") }, { cf_name = "field" })) }, [obj; { eexpr = TConst (TString field) }]) ->
 			let t = match gen.greal_type obj.etype with
-				| TDynamic _ | TAnon _ | TMono _ -> t_dynamic
-				| t -> t
+			| TDynamic _ | TAnon _ | TMono _ -> t_dynamic
+			| t -> t
 			in
 			change_expr (mk_field_access gen { obj with etype = t } field obj.epos) (run obj) field None false
-		| TCall(
-			{ eexpr = TField(_, FStatic({ cl_path = ([], "Reflect") }, { cf_name = "setField" } )) },
-				[obj; { eexpr = TConst(TString(field)) }; evalue]
-			) ->
+
+		| TCall ({ eexpr = TField (_, FStatic({ cl_path = ([], "Reflect") }, { cf_name = "setField" } )) }, [obj; { eexpr = TConst(TString field) }; evalue]) ->
 			change_expr (mk_field_access gen obj field obj.epos) (run obj) field (Some (run evalue)) false
-		| TBinop(OpAssign, ({eexpr = TField(fexpr, f)}), evalue) when is_dynamic e fexpr (f) ->
+
+		| TBinop (OpAssign, { eexpr = TField(fexpr, f) }, evalue) when is_dynamic e fexpr f ->
 			change_expr e (run fexpr) (field_name f) (Some (run evalue)) true
-		| TBinop(OpAssign, { eexpr = TField(fexpr, f) }, evalue) ->
-				(match field_access_esp gen fexpr.etype (f) with
-					| FClassField(_,_,_,cf,false,t,_) when (try PMap.find cf.cf_name gen.gbase_class_fields == cf with Not_found -> false) ->
-							change_expr e (run fexpr) (field_name f) (Some (run evalue)) true
-					| _ -> Type.map_expr run e
-				)
-		(* #if debug *)
-		| TBinop(OpAssignOp op, ({eexpr = TField(fexpr, f)}), evalue) when is_dynamic e fexpr (f) -> assert false (* this case shouldn't happen *)
-		| TUnop(Increment, _, ({eexpr = TField( ( { eexpr=TLocal(local) } as fexpr ), f)}))
-		| TUnop(Decrement, _, ({eexpr = TField( ( { eexpr=TLocal(local) } as fexpr ), f)})) when is_dynamic e fexpr (f) -> assert false (* this case shouldn't happen *)
-		(* #end *)
-		| TCall( ({ eexpr = TField(fexpr, f) }), params ) when is_dynamic e fexpr (f) ->
+
+		| TBinop (OpAssign, { eexpr = TField(fexpr, f) }, evalue) ->
+			(match field_access_esp gen fexpr.etype f with
+			| FClassField(_,_,_,cf,false,t,_) when (try PMap.find cf.cf_name gen.gbase_class_fields == cf with Not_found -> false) ->
+				change_expr e (run fexpr) (field_name f) (Some (run evalue)) true
+			| _ ->
+				Type.map_expr run e)
+
+		| TBinop (OpAssignOp _, { eexpr = TField (fexpr, f) }, _) when is_dynamic e fexpr f ->
+			assert false (* this case shouldn't happen *)
+		| TUnop (Increment, _, { eexpr = TField (({ eexpr = TLocal _ } as fexpr), f)})
+		| TUnop (Decrement, _, { eexpr = TField (({ eexpr = TLocal _ } as fexpr), f)}) when is_dynamic e fexpr f ->
+			assert false (* this case shouldn't happen *)
+
+		| TCall ({ eexpr = TField (fexpr, f) }, params) when is_dynamic e fexpr f ->
 			call_expr e (run fexpr) (field_name f) (List.map run params)
-		| _ -> Type.map_expr run e
+
+		| _ ->
+			Type.map_expr run e
 	in
-	let map e = Some(run e) in
-	gen.gexpr_filters#add "dynamic_field_access" (PCustom(priority)) map
+	let map e = Some (run e) in
+	gen.gexpr_filters#add name (PCustom priority) map
