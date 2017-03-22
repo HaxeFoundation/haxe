@@ -28,7 +28,6 @@ open Gencommon
 (* Casts detection v2 *)
 (* ******************************************* *)
 (*
-
 	Will detect implicit casts and add TCast for them. Since everything is already followed by follow_all, typedefs are considered a new type altogether
 
 	Types shouldn't be cast if:
@@ -47,29 +46,19 @@ open Gencommon
 
 *)
 let name = "cast_detect_2"
-
 let priority = solve_deps name [DBefore TypeParams.priority; DBefore ExpressionUnwrap.priority]
 
 (* ******************************************* *)
 (* ReturnCast *)
 (* ******************************************* *)
-
 (*
-
 	Cast detection for return types can't be done at CastDetect time, since we need an
 	unwrapped expression to make sure we catch all return cast detections. So this module
 	is specifically to deal with that, and is configured automatically by CastDetect
-
-	dependencies:
-
-
 *)
-
 module ReturnCast =
 struct
-
 	let name = "return_cast"
-
 	let priority = solve_deps name [DAfter priority; DAfter ExpressionUnwrap.priority]
 
 	let default_implementation gen =
@@ -131,12 +120,7 @@ struct
 	let configure gen =
 		let map e = Some(default_implementation gen e) in
 		gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
-
 end;;
-
-let get_args t = match follow t with
-	| TFun(args,ret) -> args,ret
-	| _ -> trace (debug_type t); assert false
 
 (*
 	Since this function is applied under native-context only, the type paraters will already be changed
@@ -829,14 +813,14 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 		(match en.e_params with
 			(*
 			| [] ->
-				let args, ret = get_args (efield.ef_type) in
+				let args, ret = get_fun (efield.ef_type) in
 				let ef = { ef with eexpr = TTypeExpr( TEnumDecl en ); etype = TEnum(en, []) } in
 				handle_cast gen { ecall with eexpr = TCall({ e1 with eexpr = TField(ef, FEnum(en, efield)) }, List.map2 (fun param (_,_,t) -> handle_cast gen param (gen.greal_type t) (gen.greal_type param.etype)) elist args) } (gen.greal_type ecall.etype) (gen.greal_type ret)
 		*)
 			| _ ->
 				let pt = match e with | None -> real_type | Some _ -> snd (get_fun e1.etype) in
 				let _params = match follow pt with | TEnum(_, p) -> p | _ -> gen.gcon.warning (debug_expr e1) e1.epos; assert false in
-				let args, ret = get_args efield.ef_type in
+				let args, ret = get_fun efield.ef_type in
 				let actual_t = TFun(List.map (fun (n,o,t) -> (n,o,gen.greal_type t)) args, gen.greal_type ret) in
 				(*
 					because of differences on how <Dynamic> is handled on the platforms, this is a hack to be able to
@@ -846,7 +830,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 				let t = apply_params en.e_params (gen.greal_type_param (TEnumDecl en) cf_params) actual_t in
 				let t = apply_params efield.ef_params (List.map (fun _ -> t_dynamic) efield.ef_params) t in
 
-				let args, ret = get_args t in
+				let args, ret = get_fun t in
 
 				let elist = List.map2 (fun param (_,_,t) -> handle_cast gen (param) (gen.greal_type t) (gen.greal_type param.etype)) elist args in
 				let e1 = { e1 with eexpr = TField({ ef with eexpr = TTypeExpr( TEnumDecl en ); etype = TEnum(en, _params) }, FEnum(en, efield) ) } in

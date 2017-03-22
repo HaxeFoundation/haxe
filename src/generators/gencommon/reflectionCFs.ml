@@ -575,10 +575,6 @@ let is_override cl = match cl.cl_super with
 	| Some (cl, _) when is_hxgen (TClassDecl cl) -> true
 	| _ -> false
 
-let get_args t = match follow t with
-	| TFun(args,ret) -> args,ret
-	| _ -> assert false
-
 (* WARNING: this will only work if overloading contructors is possible on target language *)
 let implement_dynamic_object_ctor ctx cl =
 	let rec is_side_effects_free e =
@@ -968,7 +964,7 @@ let implement_get_set ctx cl =
 
 		let this = { eexpr = TConst TThis; etype = TInst(cl, List.map snd cl.cl_params); epos = pos } in
 		let mk_this_call_raw name fun_t params =
-			{ eexpr = TCall( { (mk_field_access gen this name pos) with etype = fun_t; }, params ); etype = snd (get_args fun_t); epos = pos }
+			{ eexpr = TCall( { (mk_field_access gen this name pos) with etype = fun_t; }, params ); etype = snd (get_fun fun_t); epos = pos }
 		in
 
 		let fun_type = ref (TFun([], basic.tvoid)) in
@@ -1310,7 +1306,7 @@ let implement_invokeField ctx ~slow_invoke cl =
 	let apply_object cf = apply_params cf.cf_params (List.map (fun _ -> t_dynamic) cf.cf_params) cf.cf_type in
 
 	let mk_this_call_raw name fun_t params =
-		{ eexpr = TCall( { (mk_field_access gen this name pos) with etype = fun_t }, params ); etype = snd (get_args fun_t); epos = pos }
+		{ eexpr = TCall( { (mk_field_access gen this name pos) with etype = fun_t }, params ); etype = snd (get_fun fun_t); epos = pos }
 	in
 
 	let mk_this_call cf params =
@@ -1321,12 +1317,7 @@ let implement_invokeField ctx ~slow_invoke cl =
 		(* e.g. function getArray<T : SomeType>(t:T):Array<T>; after infer_params, *)
 		(* T will be inferred as SomeType, but the returned type will still be typed *)
 		(* as Array<Dynamic> *)
-		let args, ret = get_args t in
-		let ret = match follow ret with
-			| TAbstract ({ a_path = ([], "Void") },[]) -> ret
-			| _ -> ret
-		in
-		mk_this_call_raw cf.cf_name (TFun(args, ret)) params
+		mk_this_call_raw cf.cf_name t params
 	in
 
 	let extends_hxobject = extends_hxobject cl in
@@ -1358,7 +1349,7 @@ let implement_invokeField ctx ~slow_invoke cl =
 						let ret = { eexpr = TArray(dyn_arg_local, ExprBuilder.make_int ctx.rcf_gen.gcon !i pos); etype = t_dynamic; epos = pos } in
 						incr i;
 						ret
-					) (fst (get_args (cf.cf_type))))
+					) (fst (get_fun (cf.cf_type))))
 				)
 			)
 		in
