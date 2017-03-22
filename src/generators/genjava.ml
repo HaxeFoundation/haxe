@@ -2381,7 +2381,7 @@ let generate con =
 			Type.concat esetstack e;
 		);
 
-	ClassInstance.configure gen (fun e _ -> { e with eexpr = TCall({ eexpr = TLocal(alloc_var "__typeof__" t_dynamic); etype = t_dynamic; epos = e.epos }, [e]) });
+	ClassInstance.configure gen;
 
 	CastDetect.configure gen (Some empty_ctor_type) false;
 
