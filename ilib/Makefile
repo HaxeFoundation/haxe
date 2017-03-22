@@ -5,20 +5,20 @@ SRCS=peData.ml peReader.ml peWriter.ml ilMeta.mli ilData.mli ilMetaTools.ml ilMe
 
 all: native bytecode
 
-native: il.cmxa
-bytecode: il.cma
+native: ilib.cmxa
+bytecode: ilib.cma
 
-il.cmxa: $(SRCS)
-	$(OCAMLOPT) -g -I ../extlib -a -o il.cmxa $(SRCS)
+ilib.cmxa: $(SRCS)
+	$(OCAMLOPT) -g -I ../extlib -a -o ilib.cmxa $(SRCS)
 
-il.cma: $(SRCS)
-	$(OCAMLC) -g -I ../extlib -a -o il.cma $(SRCS)
+ilib.cma: $(SRCS)
+	$(OCAMLC) -g -I ../extlib -a -o ilib.cma $(SRCS)
 
-dump: il.cmxa dump.ml peDataDebug.ml ilMetaDebug.ml
-	$(OCAMLOPT) -g -I ../extlib -o dump ../extlib/extLib.cmxa il.cmxa peDataDebug.ml dump.ml
+dump: ilib.cmxa dump.ml peDataDebug.ml ilMetaDebug.ml
+	$(OCAMLOPT) -g -I ../extlib -o dump ../extlib/extLib.cmxa ilib.cmxa peDataDebug.ml dump.ml
 
 clean:
-	rm -f il.cma il.cmxa il.lib il.a $(wildcard *.cmx) $(wildcard *.cmo) $(wildcard *.obj) $(wildcard *.o) $(wildcard *.cmi) dump
+	rm -f ilib.cma ilib.cmxa ilib.lib ilib.a $(wildcard *.cmx) $(wildcard *.cmo) $(wildcard *.obj) $(wildcard *.o) $(wildcard *.cmi) dump
 
 .PHONY: all bytecode native clean
 

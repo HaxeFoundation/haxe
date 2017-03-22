@@ -4,17 +4,17 @@ SRC=jData.ml jReader.ml jWriter.ml
 
 all: bytecode native
 
-native: java.cmxa
-bytecode: java.cma
+native: javalib.cmxa
+bytecode: javalib.cma
 
-java.cmxa: $(SRC)
-	$(OCAMLOPT) -g -I ../extlib -a -o java.cmxa $(SRC)
+javalib.cmxa: $(SRC)
+	$(OCAMLOPT) -g -I ../extlib -a -o javalib.cmxa $(SRC)
 
-java.cma: $(SRC)
-	$(OCAMLC) -g -I ../extlib -a -o java.cma $(SRC)
+javalib.cma: $(SRC)
+	$(OCAMLC) -g -I ../extlib -a -o javalib.cma $(SRC)
 
 clean:
-	rm -rf java.cmxa java.cma java.lib java.a $(wildcard *.cmx) $(wildcard *.obj) $(wildcard *.o) $(wildcard *.cmi) $(wildcard *.cmo)
+	rm -rf javalib.cmxa javalib.cma javalib.lib javalib.a $(wildcard *.cmx) $(wildcard *.obj) $(wildcard *.o) $(wildcard *.cmi) $(wildcard *.cmo)
 
 .PHONY: all bytecode native clean
 
