@@ -109,7 +109,7 @@ let configure gen unwrap_null wrap_val null_to_dynamic has_value opeq_handler =
 		| TLocal _ ->
 			e, e
 		| _ ->
-			let v = mk_temp gen "nulltmp" e.etype in
+			let v = mk_temp "nulltmp" e.etype in
 			add_tmp v (Some (null e.etype e.epos)) e.epos;
 			let local = { e with eexpr = TLocal(v) } in
 			mk_paren { e with eexpr = TBinop(Ast.OpAssign, local, e) }, local
@@ -185,10 +185,10 @@ let configure gen unwrap_null wrap_val null_to_dynamic has_value opeq_handler =
 											| _ ->
 												let v, e1, evars = match e1.eexpr with
 													| TField(ef, f) ->
-														let v = mk_temp gen "nullbinop" ef.etype in
+														let v = mk_temp "nullbinop" ef.etype in
 														v, { e1 with eexpr = TField(mk_local v ef.epos, f) }, ef
 													| _ ->
-														let v = mk_temp gen "nullbinop" e1.etype in
+														let v = mk_temp "nullbinop" e1.etype in
 														v, mk_local v e1.epos, e1
 												in
 												{ e with eexpr = TBlock([

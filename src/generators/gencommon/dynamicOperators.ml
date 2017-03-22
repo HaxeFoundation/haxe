@@ -84,11 +84,11 @@ let configure gen ?(handle_strings = true) (should_change:texpr->bool) (equals_h
 					| TField _ | TArray _ ->
 						let eleft, rest = match e1.eexpr with
 							| TField(ef, f) ->
-								let v = mk_temp gen "dynop" ef.etype in
+								let v = mk_temp "dynop" ef.etype in
 								{ e1 with eexpr = TField(mk_local v ef.epos, f) }, [ { eexpr = TVar(v,Some (run ef)); etype = basic.tvoid; epos = ef.epos } ]
 							| TArray(e1a, e2a) ->
-								let v = mk_temp gen "dynop" e1a.etype in
-								let v2 = mk_temp gen "dynopi" e2a.etype in
+								let v = mk_temp "dynop" e1a.etype in
+								let v2 = mk_temp "dynopi" e2a.etype in
 								{ e1 with eexpr = TArray(mk_local v e1a.epos, mk_local v2 e2a.epos) }, [
 									{ eexpr = TVar(v,Some (run e1a)); etype = basic.tvoid; epos = e1.epos };
 									{ eexpr = TVar(v2, Some (run e2a)); etype = basic.tvoid; epos = e1.epos }
@@ -145,7 +145,7 @@ let configure gen ?(handle_strings = true) (should_change:texpr->bool) (equals_h
 				let var, getvar =
 					match e1.eexpr with
 						| TField(fexpr, field) ->
-							let tmp = mk_temp gen "getvar" fexpr.etype in
+							let tmp = mk_temp "getvar" fexpr.etype in
 							let var = { eexpr = TVar(tmp, Some(run fexpr)); etype = gen.gcon.basic.tvoid; epos = e.epos } in
 							(Some var, { eexpr = TField( { fexpr with eexpr = TLocal(tmp) }, field); etype = etype; epos = e1.epos })
 						| _ ->
@@ -161,7 +161,7 @@ let configure gen ?(handle_strings = true) (should_change:texpr->bool) (equals_h
 						in
 						{ eexpr = TBlock(block); etype = etype; epos = e.epos }
 					| Postfix ->
-						let ret = mk_temp gen "ret" etype in
+						let ret = mk_temp "ret" etype in
 						let vars = (match var with Some e -> [e] | None -> []) @ [{ eexpr = TVar(ret, Some (mk_cast etype getvar)); etype = gen.gcon.basic.tvoid; epos = e.epos }] in
 						let retlocal = { eexpr = TLocal(ret); etype = etype; epos = e.epos } in
 						let block = vars @

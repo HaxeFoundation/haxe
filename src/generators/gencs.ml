@@ -203,7 +203,7 @@ struct
 						match obj.eexpr with
 							| TLocal(v) -> f obj
 							| _ ->
-								let var = mk_temp gen "is" obj.etype in
+								let var = mk_temp "is" obj.etype in
 								let added = { obj with eexpr = TVar(var, Some(obj)); etype = basic.tvoid } in
 								let local = mk_local var obj.epos in
 								{
@@ -277,7 +277,7 @@ struct
 					in
 
 					let mk_local obj =
-						let var = mk_temp gen "opUshr" obj.etype in
+						let var = mk_temp "opUshr" obj.etype in
 						let added = { obj with eexpr = TVar(var, Some(obj)); etype = basic.tvoid } in
 						let local = mk_local var obj.epos in
 						local, added
@@ -522,10 +522,10 @@ let add_cast_handler gen =
 		let old_param = get_narr_param e.etype in
 		let new_param = get_narr_param to_t in
 
-		let new_v = mk_temp gen "new_arr" to_t in
-		let i = mk_temp gen "i" basic.tint in
+		let new_v = mk_temp "new_arr" to_t in
+		let i = mk_temp "i" basic.tint in
 		let old_len = mk_field_access gen e "Length" e.epos in
-		let obj_v = mk_temp gen "obj" t_dynamic in
+		let obj_v = mk_temp "obj" t_dynamic in
 		let check_null = {eexpr = TBinop(Ast.OpNotEq, e, null e.etype e.epos); etype = basic.tbool; epos = e.epos} in
 		let block = [
 			{
@@ -1392,7 +1392,7 @@ let configure gen =
 							let rec loop fx acc = match fx with
 								| (v,e,expr) :: tl ->
 									write w "fixed(";
-									let vf = mk_temp gen "fixed" v.v_type in
+									let vf = mk_temp "fixed" v.v_type in
 									expr_s w { expr with eexpr = TVar(vf, Some e) };
 									write w ") ";
 									begin_block w;
@@ -2840,7 +2840,7 @@ let configure gen =
 
 	let closure_cl = get_cl (get_type gen (["haxe";"lang"],"Closure")) in
 	let varargs_cl = get_cl (get_type gen (["haxe";"lang"],"VarArgsFunction")) in
-	let dynamic_name = gen.gmk_internal_name "hx" "invokeDynamic" in
+	let dynamic_name = mk_internal_name "hx" "invokeDynamic" in
 
 	List.iter (fun cl ->
 		List.iter (fun cf ->
@@ -3077,7 +3077,7 @@ let configure gen =
 			| _ -> assert false
 	);
 
-	ExpressionUnwrap.configure gen (fun e -> Some { eexpr = TVar(mk_temp gen "expr" e.etype, Some e); etype = gen.gcon.basic.tvoid; epos = e.epos });
+	ExpressionUnwrap.configure gen (fun e -> Some { eexpr = TVar(mk_temp "expr" e.etype, Some e); etype = gen.gcon.basic.tvoid; epos = e.epos });
 
 	UnnecessaryCastsRemoval.configure gen;
 

@@ -290,19 +290,19 @@ let enumerate_dynamic_fields ctx cl when_found base_arr =
 	{ eexpr = TVar (vtmp,None); etype = basic.tvoid; epos = pos }
 	::
 	if ctx.rcf_optimize then
-		mk_for (mk_this (gen.gmk_internal_name "hx" "hashes") (gen.gclasses.nativearray basic.tint)) (mk_this (gen.gmk_internal_name "hx" "length") basic.tint)
+		mk_for (mk_this (mk_internal_name "hx" "hashes") (gen.gclasses.nativearray basic.tint)) (mk_this (mk_internal_name "hx" "length") basic.tint)
 		@
-		mk_for (mk_this (gen.gmk_internal_name "hx" "hashes_f") (gen.gclasses.nativearray basic.tint)) (mk_this (gen.gmk_internal_name "hx" "length_f") basic.tint)
+		mk_for (mk_this (mk_internal_name "hx" "hashes_f") (gen.gclasses.nativearray basic.tint)) (mk_this (mk_internal_name "hx" "length_f") basic.tint)
 		@
 		(
 			let conflict_ctx = Option.get ctx.rcf_hash_conflict_ctx in
-			let ehead = mk_this (gen.gmk_internal_name "hx" "conflicts") conflict_ctx.t in
+			let ehead = mk_this (mk_internal_name "hx" "conflicts") conflict_ctx.t in
 			[conflict_ctx.add_names ehead base_arr]
 		)
 	else
-		mk_for (mk_this (gen.gmk_internal_name "hx" "hashes") (gen.gclasses.nativearray basic.tstring)) (mk_this (gen.gmk_internal_name "hx" "length") basic.tint)
+		mk_for (mk_this (mk_internal_name "hx" "hashes") (gen.gclasses.nativearray basic.tstring)) (mk_this (mk_internal_name "hx" "length") basic.tint)
 		@
-		mk_for (mk_this (gen.gmk_internal_name "hx" "hashes_f") (gen.gclasses.nativearray basic.tstring)) (mk_this (gen.gmk_internal_name "hx" "length_f") basic.tint)
+		mk_for (mk_this (mk_internal_name "hx" "hashes_f") (gen.gclasses.nativearray basic.tstring)) (mk_this (mk_internal_name "hx" "length_f") basic.tint)
 
 (* *********************
 		Dynamic lookup
@@ -321,12 +321,12 @@ let abstract_dyn_lookup_implementation ctx this field_local hash_local may_value
 	let basic = gen.gcon.basic in
 	let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
 	let a_t = if ctx.rcf_optimize then basic.tint else basic.tstring in
-	let hx_hashes = mk_this (gen.gmk_internal_name "hx" "hashes") (gen.gclasses.nativearray a_t) in
-	let hx_hashes_f = mk_this (gen.gmk_internal_name "hx" "hashes_f") (gen.gclasses.nativearray a_t) in
-	let hx_dynamics = mk_this (gen.gmk_internal_name "hx" "dynamics") (gen.gclasses.nativearray t_empty) in
-	let hx_dynamics_f = mk_this (gen.gmk_internal_name "hx" "dynamics_f") (gen.gclasses.nativearray basic.tfloat) in
-	let hx_length = mk_this (gen.gmk_internal_name "hx" "length") (basic.tint) in
-	let hx_length_f = mk_this (gen.gmk_internal_name "hx" "length_f") (basic.tint) in
+	let hx_hashes = mk_this (mk_internal_name "hx" "hashes") (gen.gclasses.nativearray a_t) in
+	let hx_hashes_f = mk_this (mk_internal_name "hx" "hashes_f") (gen.gclasses.nativearray a_t) in
+	let hx_dynamics = mk_this (mk_internal_name "hx" "dynamics") (gen.gclasses.nativearray t_empty) in
+	let hx_dynamics_f = mk_this (mk_internal_name "hx" "dynamics_f") (gen.gclasses.nativearray basic.tfloat) in
+	let hx_length = mk_this (mk_internal_name "hx" "length") (basic.tint) in
+	let hx_length_f = mk_this (mk_internal_name "hx" "length_f") (basic.tint) in
 	let res = alloc_var "res" basic.tint in
 	let fst_hash, snd_hash, fst_dynamics, snd_dynamics, fst_length, snd_length =
 		if is_float then
@@ -380,7 +380,7 @@ let abstract_dyn_lookup_implementation ctx this field_local hash_local may_value
 
 			if ctx.rcf_optimize then
 				let conflict_ctx = Option.get ctx.rcf_hash_conflict_ctx in
-				let ehead = mk_this (gen.gmk_internal_name "hx" "conflicts") conflict_ctx.t in
+				let ehead = mk_this (mk_internal_name "hx" "conflicts") conflict_ctx.t in
 				let vconflict = alloc_var "conflict" conflict_ctx.t in
 				let local_conflict = mk_local vconflict pos in
 				[mk (TIf (
@@ -457,7 +457,7 @@ let abstract_dyn_lookup_implementation ctx this field_local hash_local may_value
 			let block =
 				if ctx.rcf_optimize then
 					let conflict_ctx = Option.get ctx.rcf_hash_conflict_ctx in
-					let ehead = mk_this (gen.gmk_internal_name "hx" "conflicts") conflict_ctx.t in
+					let ehead = mk_this (mk_internal_name "hx" "conflicts") conflict_ctx.t in
 					[mk (TIf (
 						mk (TBinop (OpLt, hash_local, ExprBuilder.make_int gen.gcon 0 pos)) basic.tbool pos,
 						conflict_ctx.set ehead hash_local field_local value_local,
@@ -477,16 +477,16 @@ let get_delete_field ctx cl is_dynamic =
 	let tf_args, switch_var = field_type_args ctx pos in
 	let local_switch_var = mk_local switch_var pos in
 	let fun_type = TFun(fun_args tf_args,basic.tbool) in
-	let cf = mk_class_field (gen.gmk_internal_name "hx" "deleteField") fun_type false pos (Method MethNormal) [] in
+	let cf = mk_class_field (mk_internal_name "hx" "deleteField") fun_type false pos (Method MethNormal) [] in
 	let body = if is_dynamic then begin
 		let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
 		let a_t = if ctx.rcf_optimize then basic.tint else basic.tstring in
-		let hx_hashes = mk_this (gen.gmk_internal_name "hx" "hashes") (gen.gclasses.nativearray a_t) in
-		let hx_hashes_f = mk_this (gen.gmk_internal_name "hx" "hashes_f") (gen.gclasses.nativearray a_t) in
-		let hx_dynamics = mk_this (gen.gmk_internal_name "hx" "dynamics") (gen.gclasses.nativearray t_empty) in
-		let hx_dynamics_f = mk_this (gen.gmk_internal_name "hx" "dynamics_f") (gen.gclasses.nativearray basic.tfloat) in
-		let hx_length = mk_this (gen.gmk_internal_name "hx" "length") (basic.tint) in
-		let hx_length_f = mk_this (gen.gmk_internal_name "hx" "length_f") (basic.tint) in
+		let hx_hashes = mk_this (mk_internal_name "hx" "hashes") (gen.gclasses.nativearray a_t) in
+		let hx_hashes_f = mk_this (mk_internal_name "hx" "hashes_f") (gen.gclasses.nativearray a_t) in
+		let hx_dynamics = mk_this (mk_internal_name "hx" "dynamics") (gen.gclasses.nativearray t_empty) in
+		let hx_dynamics_f = mk_this (mk_internal_name "hx" "dynamics_f") (gen.gclasses.nativearray basic.tfloat) in
+		let hx_length = mk_this (mk_internal_name "hx" "length") (basic.tint) in
+		let hx_length_f = mk_this (mk_internal_name "hx" "length_f") (basic.tint) in
 		let res = alloc_var "res" basic.tint in
 		let res_local = mk_local res pos in
 		let gte = {
@@ -542,7 +542,7 @@ let get_delete_field ctx cl is_dynamic =
 			let v_name = match tf_args with (v,_) :: _ -> v | _ -> assert false in
 			let local_name = mk_local v_name pos in
 			let conflict_ctx = Option.get ctx.rcf_hash_conflict_ctx in
-			let ehead = mk_this (gen.gmk_internal_name "hx" "conflicts") conflict_ctx.t in
+			let ehead = mk_this (mk_internal_name "hx" "conflicts") conflict_ctx.t in
 			(mk (TIf (
 				mk (TBinop (OpLt, local_switch_var, ExprBuilder.make_int gen.gcon 0 pos)) basic.tbool pos,
 				mk (TReturn (Some (conflict_ctx.delete ehead local_switch_var local_name))) basic.tvoid pos,
@@ -614,10 +614,10 @@ let implement_dynamic_object_ctor ctx cl =
 	let basic = gen.gcon.basic in
 	let hasht = if ctx.rcf_optimize then basic.tint else basic.tstring in
 
-	let hashes_field = gen.gmk_internal_name "hx" "hashes", gen.gclasses.nativearray hasht in
-	let hashes_f_field = gen.gmk_internal_name "hx" "hashes_f", gen.gclasses.nativearray hasht in
-	let dynamics_field = gen.gmk_internal_name "hx" "dynamics", gen.gclasses.nativearray t_empty in
-	let dynamics_f_field = gen.gmk_internal_name "hx" "dynamics_f", gen.gclasses.nativearray basic.tfloat in
+	let hashes_field = mk_internal_name "hx" "hashes", gen.gclasses.nativearray hasht in
+	let hashes_f_field = mk_internal_name "hx" "hashes_f", gen.gclasses.nativearray hasht in
+	let dynamics_field = mk_internal_name "hx" "dynamics", gen.gclasses.nativearray t_empty in
+	let dynamics_f_field = mk_internal_name "hx" "dynamics_f", gen.gclasses.nativearray basic.tfloat in
 	let fields =
 	[
 		hashes_field;
@@ -652,8 +652,8 @@ let implement_dynamic_object_ctor ctx cl =
 					) tf_args
 					@
 					[
-						mk (TBinop(OpAssign, mk_this (gen.gmk_internal_name "hx" "length") basic.tint, gen.gclasses.nativearray_len (mk_local hashes_var pos) pos)) basic.tint pos;
-						mk (TBinop(OpAssign, mk_this (gen.gmk_internal_name "hx" "length_f") basic.tint, gen.gclasses.nativearray_len (mk_local hashes_f_var pos) pos)) basic.tint pos;
+						mk (TBinop(OpAssign, mk_this (mk_internal_name "hx" "length") basic.tint, gen.gclasses.nativearray_len (mk_local hashes_var pos) pos)) basic.tint pos;
+						mk (TBinop(OpAssign, mk_this (mk_internal_name "hx" "length_f") basic.tint, gen.gclasses.nativearray_len (mk_local hashes_f_var pos) pos)) basic.tint pos;
 					]
 				);
 				etype = basic.tvoid;
@@ -714,7 +714,7 @@ let implement_dynamic_object_ctor ctx cl =
 				if is_side_effects_free expr then
 					change_exprs tl ((name,expr) :: acc)
 				else begin
-					let var = mk_temp gen "odecl" expr.etype in
+					let var = mk_temp "odecl" expr.etype in
 					exprs_before := { eexpr = TVar(var,Some expr); etype = basic.tvoid; epos = expr.epos } :: !exprs_before;
 					change_exprs tl ((name,mk_local var expr.epos) :: acc)
 				end
@@ -769,10 +769,10 @@ let implement_dynamics ctx cl =
 
 			let new_fields =
 			[
-				mk_class_field (gen.gmk_internal_name "hx" "hashes") (gen.gclasses.nativearray hasht) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
-				mk_class_field (gen.gmk_internal_name "hx" "dynamics") (gen.gclasses.nativearray t_empty) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
-				mk_class_field (gen.gmk_internal_name "hx" "hashes_f") (gen.gclasses.nativearray hasht) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
-				mk_class_field (gen.gmk_internal_name "hx" "dynamics_f") (gen.gclasses.nativearray basic.tfloat) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
+				mk_class_field (mk_internal_name "hx" "hashes") (gen.gclasses.nativearray hasht) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
+				mk_class_field (mk_internal_name "hx" "dynamics") (gen.gclasses.nativearray t_empty) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
+				mk_class_field (mk_internal_name "hx" "hashes_f") (gen.gclasses.nativearray hasht) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
+				mk_class_field (mk_internal_name "hx" "dynamics_f") (gen.gclasses.nativearray basic.tfloat) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
 			] in
 
 			(if cl.cl_path <> (["haxe"; "lang"], "DynamicObject") then
@@ -781,7 +781,7 @@ let implement_dynamics ctx cl =
 
 			let new_fields =
 				if ctx.rcf_optimize then
-					let f = mk_class_field (gen.gmk_internal_name "hx" "conflicts") (Option.get ctx.rcf_hash_conflict_ctx).t false pos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
+					let f = mk_class_field (mk_internal_name "hx" "conflicts") (Option.get ctx.rcf_hash_conflict_ctx).t false pos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
 					f :: new_fields
 				else
 					new_fields
@@ -790,8 +790,8 @@ let implement_dynamics ctx cl =
 			let delete = get_delete_field ctx cl true in
 
 			let new_fields = new_fields @ [
-				mk_class_field (gen.gmk_internal_name "hx" "length") (basic.tint) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
-				mk_class_field (gen.gmk_internal_name "hx" "length_f") (basic.tint) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
+				mk_class_field (mk_internal_name "hx" "length") (basic.tint) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
+				mk_class_field (mk_internal_name "hx" "length_f") (basic.tint) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
 				delete;
 			] in
 
@@ -852,7 +852,7 @@ let implement_final_lookup ctx cl =
 	*)
 	let create_cfs is_dynamic callback =
 		let create_cf is_float is_set =
-			let name = gen.gmk_internal_name "hx" ( (if is_set then "lookupSetField" else "lookupField") ^ (if is_float then "_f" else "") ) in
+			let name = mk_internal_name "hx" ( (if is_set then "lookupSetField" else "lookupField") ^ (if is_float then "_f" else "") ) in
 			let field_args, switch_var = field_type_args ctx pos in
 			let ret_t = if is_float then basic.tfloat else t_dynamic in
 			let tf_args, throw_errors_opt =
@@ -972,7 +972,7 @@ let implement_get_set ctx cl =
 		in
 
 		let fun_type = ref (TFun([], basic.tvoid)) in
-		let fun_name = ctx.rcf_gen.gmk_internal_name "hx" ( (if is_set then "setField" else "getField") ^ (if is_float then "_f" else "") ) in
+		let fun_name = mk_internal_name "hx" ( (if is_set then "setField" else "getField") ^ (if is_float then "_f" else "") ) in
 		let cfield = mk_class_field fun_name !fun_type false pos (Method MethNormal) [] in
 
 		let maybe_cast e = e in
@@ -1001,7 +1001,7 @@ let implement_get_set ctx cl =
 			let value_var = alloc_var "value" (if is_float then basic.tfloat else t_dynamic) in
 			let value_local = { eexpr = TLocal(value_var); etype = value_var.v_type; epos = pos } in
 			let tf_args = tf_args @ [value_var,None; handle_prop, None; ] in
-			let lookup_name = gen.gmk_internal_name "hx" ("lookupSetField" ^ if is_float then "_f" else "") in
+			let lookup_name = mk_internal_name "hx" ("lookupSetField" ^ if is_float then "_f" else "") in
 
 			let do_default =
 					fun () ->
@@ -1068,7 +1068,7 @@ let implement_get_set ctx cl =
 				let tf_args = tf_args @ [ throw_errors,None; ] in
 
 				(* default: if (isCheck) return __undefined__ else if(throwErrors) throw "Field not found"; else return null; *)
-				let lookup_name = gen.gmk_internal_name "hx" "lookupField" in
+				let lookup_name = mk_internal_name "hx" "lookupField" in
 				let do_default =
 						fun () ->
 							mk_return (mk_this_call_raw lookup_name (TFun(fun_args (field_args @ [throw_errors,None;is_check,None; ]),t_dynamic)) ( List.map (fun (v,_) -> mk_local v pos) field_args @ [ throw_errors_local; is_check_local; ] ))
@@ -1078,7 +1078,7 @@ let implement_get_set ctx cl =
 			end else begin
 				let tf_args = tf_args @ [ throw_errors,None; ] in
 
-				let lookup_name = gen.gmk_internal_name "hx" "lookupField_f" in
+				let lookup_name = mk_internal_name "hx" "lookupField_f" in
 				let do_default =
 						fun () ->
 							mk_return (mk_this_call_raw lookup_name (TFun(fun_args (field_args @ [throw_errors,None; ]),basic.tfloat)) ( List.map (fun (v,_) -> mk_local v pos) field_args @ [ throw_errors_local; ] ))
@@ -1206,7 +1206,7 @@ let implement_getFields ctx cl =
 			super.__hx_getFields(baseArr);
 		}
 	*)
-	let name = gen.gmk_internal_name "hx" "getFields" in
+	let name = mk_internal_name "hx" "getFields" in
 	let v_base_arr = alloc_var "baseArr" (basic.tarray basic.tstring) in
 	let base_arr = mk_local v_base_arr pos in
 
@@ -1344,7 +1344,7 @@ let implement_invokeField ctx ~slow_invoke cl =
 		}
 	*)
 
-	let dyn_fun = mk_class_field (ctx.rcf_gen.gmk_internal_name "hx" "invokeField") fun_t false cl.cl_pos (Method MethNormal) [] in
+	let dyn_fun = mk_class_field (mk_internal_name "hx" "invokeField") fun_t false cl.cl_pos (Method MethNormal) [] in
 
 	let mk_switch_dyn cfs old =
 		let get_case (names,cf) =
@@ -1381,7 +1381,7 @@ let implement_invokeField ctx ~slow_invoke cl =
 			{ eexpr = TReturn(Some (call_super ctx all_args t_dynamic dyn_fun cl this_t pos) ); etype = basic.tvoid; epos = pos }
 		else (
 			let field = begin
-				let fun_name = ctx.rcf_gen.gmk_internal_name "hx" "getField" in
+				let fun_name = mk_internal_name "hx" "getField" in
 				let tf_args, _ = field_type_args ctx pos in
 				let tf_args, args = fun_args tf_args, field_args_exprs in
 
@@ -1394,7 +1394,7 @@ let implement_invokeField ctx ~slow_invoke cl =
 			let field = mk_cast (TInst(ctx.rcf_ft.func_class,[])) field in
 			mk_return {
 				eexpr = TCall(
-					mk_field_access gen field (gen.gmk_internal_name "hx" "invokeDynamic") pos,
+					mk_field_access gen field (mk_internal_name "hx" "invokeDynamic") pos,
 					[mk_local dynamic_arg pos]);
 				etype = t_dynamic;
 				epos = pos
@@ -1452,8 +1452,8 @@ let implement_varargs_cl ctx cl =
 	let this = { eexpr = TConst(TThis); etype = this_t ; epos = pos } in
 	let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
 
-	let invokedyn = gen.gmk_internal_name "hx" "invokeDynamic" in
-	let idyn_t = TFun([gen.gmk_internal_name "fn" "dynargs", false, basic.tarray t_dynamic], t_dynamic) in
+	let invokedyn = mk_internal_name "hx" "invokeDynamic" in
+	let idyn_t = TFun([mk_internal_name "fn" "dynargs", false, basic.tarray t_dynamic], t_dynamic) in
 	let this_idyn = mk_this invokedyn idyn_t in
 
 	let map_fn arity ret vars api =
@@ -1539,7 +1539,7 @@ let implement_closure_cl ctx cl =
 
 		let expr = {
 			eexpr = TCall(
-				mk_field_access gen this_obj (gen.gmk_internal_name "hx" "invokeField") pos,
+				mk_field_access gen this_obj (mk_internal_name "hx" "invokeField") pos,
 				(List.map (fun (v,_) -> mk_this v.v_name v.v_type) field_args) @ [ call_arg ]
 			);
 			etype = t_dynamic;
@@ -1684,10 +1684,10 @@ let configure ?slow_invoke ctx baseinterface =
 	let run = (fun md -> match md with
 		| TClassDecl cl when is_hxgen md && ( not cl.cl_interface || cl.cl_path = baseinterface.cl_path ) && (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) ->
 			(implement_dynamics ctx cl);
-			(if not (PMap.mem (gen.gmk_internal_name "hx" "lookupField") cl.cl_fields) then implement_final_lookup ctx cl);
-			(if not (PMap.mem (gen.gmk_internal_name "hx" "getField") cl.cl_fields) then implement_get_set ctx cl);
-			(if not (PMap.mem (gen.gmk_internal_name "hx" "invokeField") cl.cl_fields) then implement_invokeField ctx ~slow_invoke:slow_invoke cl);
-			(if not (PMap.mem (gen.gmk_internal_name "hx" "getFields") cl.cl_fields) then implement_getFields ctx cl);
+			(if not (PMap.mem (mk_internal_name "hx" "lookupField") cl.cl_fields) then implement_final_lookup ctx cl);
+			(if not (PMap.mem (mk_internal_name "hx" "getField") cl.cl_fields) then implement_get_set ctx cl);
+			(if not (PMap.mem (mk_internal_name "hx" "invokeField") cl.cl_fields) then implement_invokeField ctx ~slow_invoke:slow_invoke cl);
+			(if not (PMap.mem (mk_internal_name "hx" "getFields") cl.cl_fields) then implement_getFields ctx cl);
 			None
 		| _ -> None)
 	in

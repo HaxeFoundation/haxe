@@ -80,10 +80,10 @@ let configure gen (should_wrap:t->bool) (wrap_throw:texpr->texpr->texpr) (unwrap
 						| Some (v,c), _
 						| _, (v, c) :: _ ->
 							let pos = c.epos in
-							let temp_var = mk_temp gen "catchallException" catchall_type in
+							let temp_var = mk_temp "catchallException" catchall_type in
 							let temp_local = { eexpr=TLocal(temp_var); etype = temp_var.v_type; epos = pos } in
 							let catchall_var = (*match catchall with
-								| None -> *) mk_temp gen "catchall" t_dynamic
+								| None -> *) mk_temp "catchall" t_dynamic
 								(*| Some (v,_) -> v*)
 							in
 							let catchall_decl = { eexpr = TVar(catchall_var, Some(temp_local)); etype=gen.gcon.basic.tvoid; epos = pos } in

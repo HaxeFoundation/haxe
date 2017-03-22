@@ -354,7 +354,7 @@ let add_assign gen add_statement expr =
 			add_statement expr;
 			null expr.etype expr.epos
 		| _ ->
-			let var = mk_temp gen "stmt" expr.etype in
+			let var = mk_temp "stmt" expr.etype in
 			let tvars = { expr with eexpr = TVar(var,Some(expr)) } in
 			let local = { expr with eexpr = TLocal(var) } in
 			add_statement tvars;
@@ -396,7 +396,7 @@ let short_circuit_op_unwrap gen add_statement expr :texpr =
 	let rec loop acc expr =
 		match expr.eexpr with
 			| TBinop ( (Ast.OpBoolAnd as op), left, right) ->
-				let var = mk_temp gen "boolv" right.etype in
+				let var = mk_temp "boolv" right.etype in
 				let tvars = { right with eexpr = TVar(var, Some( { right with eexpr = TConst(TBool false); etype = gen.gcon.basic.tbool } )); etype = gen.gcon.basic.tvoid } in
 				let local = { right with eexpr = TLocal(var) } in
 
@@ -411,7 +411,7 @@ let short_circuit_op_unwrap gen add_statement expr :texpr =
 					| _ -> add_assign gen add_statement left
 				in
 
-				let var = mk_temp gen "boolv" right.etype in
+				let var = mk_temp "boolv" right.etype in
 				let tvars = { right with eexpr = TVar(var, Some( { right with eexpr = TConst(TBool false); etype = gen.gcon.basic.tbool } )); etype = gen.gcon.basic.tvoid } in
 				let local = { right with eexpr = TLocal(var) } in
 				add_statement tvars;
@@ -419,7 +419,7 @@ let short_circuit_op_unwrap gen add_statement expr :texpr =
 				({ expr with eexpr = TBinop(op, left, local) }, [ do_not left, { right with eexpr = TBinop(Ast.OpAssign, local, right) } ])
 			| _ when acc = [] -> assert false
 			| _ ->
-				let var = mk_temp gen "boolv" expr.etype in
+				let var = mk_temp "boolv" expr.etype in
 				let tvars = { expr with eexpr = TVar(var, Some( { expr with etype = gen.gcon.basic.tbool } )); etype = gen.gcon.basic.tvoid } in
 				let local = { expr with eexpr = TLocal(var) } in
 
@@ -461,7 +461,7 @@ let short_circuit_op_unwrap gen add_statement expr :texpr =
 		match expr.eexpr with
 			| TBinop ( (Ast.OpBoolAnd as op), left, right)
 			| TBinop ( (Ast.OpBoolOr as op), left, right) ->
-				let var = mk_temp gen "boolv" left.etype in
+				let var = mk_temp "boolv" left.etype in
 				let tvars = { left with eexpr = TVar([var, if is_first then Some(left) else Some( { left with eexpr = TConst(TBool false) } )]); etype = gen.gcon.basic.tvoid } in
 				let local = { left with eexpr = TLocal(var) } in
 				if not is_first then begin
@@ -478,7 +478,7 @@ let short_circuit_op_unwrap gen add_statement expr :texpr =
 				{ expr with eexpr = TBinop(op, local, new_right) }
 			| _ when is_first -> assert false
 			| _ ->
-				let var = mk_temp gen "boolv" expr.etype in
+				let var = mk_temp "boolv" expr.etype in
 				let tvars = { expr with eexpr = TVar([var, Some ( { expr with eexpr = TConst(TBool false) } ) ]); etype = gen.gcon.basic.tvoid } in
 				let local = { expr with eexpr = TLocal(var) } in
 				last_block := !last_block @ [ { expr with eexpr = TBinop(Ast.OpAssign, local, expr) } ];

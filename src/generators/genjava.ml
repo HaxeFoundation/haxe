@@ -392,13 +392,13 @@ struct
 		let local = match e1.eexpr with
 			| TLocal _ -> e1
 			| _ ->
-				let var = mk_temp gen "svar" e1.etype in
+				let var = mk_temp "svar" e1.etype in
 				let added = { e1 with eexpr = TVar(var, Some(e1)); etype = basic.tvoid } in
 				let local = mk_local var e1.epos in
 				block := added :: !block;
 				local
 		in
-		let execute_def_var = mk_temp gen "executeDef" gen.gcon.basic.tbool in
+		let execute_def_var = mk_temp "executeDef" gen.gcon.basic.tbool in
 		let execute_def = mk_local execute_def_var e1.epos in
 		let execute_def_set = { eexpr = TBinop(Ast.OpAssign, execute_def, { eexpr = TConst(TBool false); etype = basic.tbool; epos = e1.epos }); etype = basic.tbool; epos = e1.epos } in
 
@@ -416,7 +416,7 @@ struct
 			match !hash_cache with
 				| Some c -> c
 				| None ->
-					let var = mk_temp gen "hash" basic.tint in
+					let var = mk_temp "hash" basic.tint in
 					let cond = !local_hashcode in
 					block := { eexpr = TVar(var, Some cond); etype = basic.tvoid; epos = local.epos } :: !block;
 					let local = mk_local var local.epos in
@@ -2376,7 +2376,7 @@ let configure gen =
 			| _ -> assert false
 	);
 
-	ExpressionUnwrap.configure gen (fun e -> Some { eexpr = TVar(mk_temp gen "expr" e.etype, Some e); etype = gen.gcon.basic.tvoid; epos = e.epos });
+	ExpressionUnwrap.configure gen (fun e -> Some { eexpr = TVar(mk_temp "expr" e.etype, Some e); etype = gen.gcon.basic.tvoid; epos = e.epos });
 
 	UnnecessaryCastsRemoval.configure gen;
 

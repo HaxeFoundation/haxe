@@ -176,7 +176,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 							let actual_args, _ = get_fun (get_real_fun gen actual_t) in
 							let new_args, vardecl = List.fold_left2 (fun (args,vdecl) (v,_) (_,_,t) ->
 								if not (type_iseq (gen.greal_type v.v_type) (gen.greal_type t)) then begin
-									let new_var = mk_temp gen v.v_name t in
+									let new_var = mk_temp v.v_name t in
 									(new_var,None) :: args, (v, Some(mk_cast v.v_type (mk_local new_var f.cf_pos))) :: vdecl
 								end else
 									(v,None) :: args, vdecl

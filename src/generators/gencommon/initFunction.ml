@@ -52,7 +52,7 @@ let ensure_simple_expr gen e =
 let configure gen =
 	let handle_override_dynfun acc e this field =
 		let add_expr = ref None in
-		let v = mk_temp gen ("super_" ^ field) e.etype in
+		let v = mk_temp ("super_" ^ field) e.etype in
 		v.v_capture <- true;
 
 		let rec loop e =

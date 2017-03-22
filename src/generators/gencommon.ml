@@ -404,13 +404,6 @@ type generator_ctx =
 	gtools : gen_tools;
 
 	(*
-		configurable function that receives a desired name and makes it "internal", doing the best
-		to ensure that it will not be called from outside.
-		To avoid name clashes between internal names, user must specify two strings: a "namespace" and the name itself
-	 *)
-	gmk_internal_name : string->string->string;
-
-	(*
 		module filters run before module filters and they should generate valid haxe syntax as a result.
 		Module filters shouldn't go through the expressions as it adds an unnecessary burden to the GC,
 		and it can all be done in a single step with gexpr_filters and proper priority selection.
@@ -560,11 +553,17 @@ and gen_tools =
 	mutable r_create_empty : tclass->tparams->pos->texpr;
 }
 
+(**
+	Function that receives a desired name and makes it "internal", doing the best to ensure that it will not be called from outside.
+	To avoid name clashes between internal names, user must specify two strings: a "namespace" and the name itself
+*)
+let mk_internal_name ns name = Printf.sprintf "__%s_%s" ns name
+
 let mk_temp, reset_temps =
 	let tmp_count = ref 0 in
-	(fun gen name t ->
+	(fun name t ->
 		incr tmp_count;
-		let name = gen.gmk_internal_name "temp" (name ^ (string_of_int !tmp_count)) in
+		let name = mk_internal_name "temp" (name ^ (string_of_int !tmp_count)) in
 		alloc_var name t
 	),
 	(fun () -> tmp_count := 0)
@@ -620,7 +619,6 @@ let new_ctx con =
 
 			r_create_empty = (fun _ _ pos -> gen.gcon.error "r_create_empty implementation is not provided" pos; assert false);
 		};
-		gmk_internal_name = (fun ns s -> sprintf "__%s_%s" ns s);
 		gexpr_filters = new rule_map_dispatcher "gexpr_filters";
 		gmodule_filters = new rule_map_dispatcher "gmodule_filters";
 		gsyntax_filters = new rule_map_dispatcher "gsyntax_filters";
@@ -1033,7 +1031,7 @@ let ensure_local gen block name e =
 	match e.eexpr with
 		| TLocal _ -> e
 		| _ ->
-			let var = mk_temp gen name e.etype in
+			let var = mk_temp name e.etype in
 			block := { e with eexpr = TVar(var, Some e); etype = gen.gcon.basic.tvoid; } :: !block;
 			{ e with eexpr = TLocal var }
 

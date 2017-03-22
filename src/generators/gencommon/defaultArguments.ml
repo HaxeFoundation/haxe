@@ -70,7 +70,7 @@ let add_opt gen block pos (var,opt) =
 		(var, opt)
 	| Some const ->
 		let basic = gen.gcon.basic in
-		let nullable_var = mk_temp gen var.v_name (basic.tnull var.v_type) in
+		let nullable_var = mk_temp var.v_name (basic.tnull var.v_type) in
 		let orig_name = var.v_name in
 		var.v_name <- nullable_var.v_name;
 		nullable_var.v_name <- orig_name;

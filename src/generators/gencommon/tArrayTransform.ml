@@ -77,8 +77,8 @@ let configure gen (should_change:texpr->Ast.binop option->bool) (get_fun:string)
 						| _ -> basic.tint
 					in
 
-					let val_v = mk_temp gen "arrVal" actual_t in
-					let ret_v = mk_temp gen "arrRet" actual_t in
+					let val_v = mk_temp "arrVal" actual_t in
+					let ret_v = mk_temp "arrRet" actual_t in
 
 					let arr_local = ensure_local gen block "arr" (run e1a) in
 					let idx_local = ensure_local gen block "arrIndex" (run e2a) in

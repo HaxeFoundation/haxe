@@ -68,7 +68,7 @@ let rec prev_ctor c tl =
 		| Some ctor -> ctor, sup, stl
 
 let make_static_ctor_name gen cl =
-	let name = gen.gmk_internal_name "hx" "ctor" in
+	let name = mk_internal_name "hx" "ctor" in
 	name ^ "_" ^ (String.concat "_" (fst cl.cl_path)) ^ "_" ^ (snd cl.cl_path)
 
 (* replaces super() call with last static constructor call *)

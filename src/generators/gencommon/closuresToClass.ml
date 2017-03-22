@@ -116,7 +116,7 @@ let mk_conversion_fun gen e =
 			v.v_capture <- true;
 			[],e
 		| _ ->
-			let tmp = mk_temp gen "delegate_conv" e.etype in
+			let tmp = mk_temp "delegate_conv" e.etype in
 			tmp.v_capture <- true;
 			[{ eexpr = TVar(tmp,Some e); etype = gen.gcon.basic.tvoid; epos = e.epos }], mk_local tmp e.epos
 	in
@@ -492,7 +492,7 @@ let configure gen ft =
 		let expr, clscapt =
 			match captured, tparams with
 			| [], [] ->
-				let cache_var = gen.gmk_internal_name "hx" "current" in
+				let cache_var = mk_internal_name "hx" "current" in
 				let cache_cf = mk_class_field cache_var (TInst(cls,[])) false func_expr.epos (Var({ v_read = AccNormal; v_write = AccNormal })) [] in
 				cls.cl_ordered_statics <- cache_cf :: cls.cl_ordered_statics;
 				cls.cl_statics <- PMap.add cache_var cache_cf cls.cl_statics;
@@ -604,8 +604,8 @@ struct
 		let func_args_i i =
 			let rec loop i (acc) =
 				if i = 0 then (acc) else begin
-					let vfloat = alloc_var (gen.gmk_internal_name "fn" ("float" ^ string_of_int i)) basic.tfloat in
-					let vdyn = alloc_var (gen.gmk_internal_name "fn" ("dyn" ^ string_of_int i)) t_dynamic in
+					let vfloat = alloc_var (mk_internal_name "fn" ("float" ^ string_of_int i)) basic.tfloat in
+					let vdyn = alloc_var (mk_internal_name "fn" ("dyn" ^ string_of_int i)) t_dynamic in
 
 					loop (i - 1) ((vfloat, None) :: (vdyn, None) :: acc)
 				end
@@ -616,15 +616,15 @@ struct
 		let args_real_to_func args =
 			let arity = List.length args in
 			if arity >= max_arity then
-				[ alloc_var (gen.gmk_internal_name "fn" "dynargs") (basic.tarray t_dynamic), None ]
+				[ alloc_var (mk_internal_name "fn" "dynargs") (basic.tarray t_dynamic), None ]
 			else func_args_i arity
 		in
 
 		let func_sig_i i =
 			let rec loop i acc =
 				if i = 0 then acc else begin
-					let vfloat = gen.gmk_internal_name "fn" ("float" ^ string_of_int i) in
-					let vdyn = gen.gmk_internal_name "fn" ("dyn" ^ string_of_int i) in
+					let vfloat = mk_internal_name "fn" ("float" ^ string_of_int i) in
+					let vdyn = mk_internal_name "fn" ("dyn" ^ string_of_int i) in
 
 					loop (i - 1) ( (vfloat,false,basic.tfloat) :: (vdyn,false,t_dynamic) :: acc )
 				end
@@ -635,7 +635,7 @@ struct
 		let args_real_to_func_sig args =
 			let arity = List.length args in
 			if arity >= max_arity then
-				[gen.gmk_internal_name "fn" "dynargs", false, basic.tarray t_dynamic]
+				[mk_internal_name "fn" "dynargs", false, basic.tarray t_dynamic]
 			else begin
 				func_sig_i arity
 			end
@@ -776,7 +776,7 @@ struct
 			(* set invoke function *)
 			(* todo properly abstract how naming for invoke is made *)
 			let invoke_name = if is_dynamic_func then "invokeDynamic" else ("invoke" ^ (string_of_int arity) ^ (if type_number = 0 then "_o" else "_f")) in
-			let invoke_name = gen.gmk_internal_name "hx" invoke_name in
+			let invoke_name = mk_internal_name "hx" invoke_name in
 			let invoke_field = mk_class_field invoke_name changed_sig false func_expr.epos (Method(MethNormal)) [] in
 			let invoke_fun = {
 				eexpr = TFunction {
@@ -811,7 +811,7 @@ struct
 			let ret_t = if params_len >= max_arity then t_dynamic else ret_t in
 
 			let invoke_fun = if params_len >= max_arity then "invokeDynamic" else "invoke" ^ (string_of_int params_len) ^ postfix in
-			let invoke_fun = gen.gmk_internal_name "hx" invoke_fun in
+			let invoke_fun = mk_internal_name "hx" invoke_fun in
 			let fun_t = match follow tc.etype with
 				| TFun(_sig, _) ->
 					TFun(args_real_to_func_sig _sig, ret_t)
@@ -839,7 +839,7 @@ struct
 
 		let iname i is_float =
 			let postfix = if is_float then "_f" else "_o" in
-			gen.gmk_internal_name "hx" ("invoke" ^ string_of_int i) ^ postfix
+			mk_internal_name "hx" ("invoke" ^ string_of_int i) ^ postfix
 		in
 
 		let map_base_classfields cl map_fn =
@@ -853,8 +853,8 @@ struct
 				cf
 			in
 
-			let type_name = gen.gmk_internal_name "fn" "type" in
-			let dynamic_arg = alloc_var (gen.gmk_internal_name "fn" "dynargs") (basic.tarray t_dynamic) in
+			let type_name = mk_internal_name "fn" "type" in
+			let dynamic_arg = alloc_var (mk_internal_name "fn" "dynargs") (basic.tarray t_dynamic) in
 
 			let mk_invoke_complete_i i is_float =
 
@@ -956,7 +956,7 @@ struct
 
 			let args = [dynamic_arg, None] in
 			let dyn_t = TFun(fun_args args, t_dynamic) in
-			let dyn_cf = mk_class_field (gen.gmk_internal_name "hx" "invokeDynamic") dyn_t false pos (Method MethNormal) [] in
+			let dyn_cf = mk_class_field (mk_internal_name "hx" "invokeDynamic") dyn_t false pos (Method MethNormal) [] in
 
 			dyn_cf.cf_expr <- Some {
 				eexpr = TFunction {
@@ -974,7 +974,7 @@ struct
 				let v_arity, v_type = alloc_var "arity" basic.tint, alloc_var "type" basic.tint in
 				let mk_assign v field = mk (TBinop (OpAssign, mk_this field v.v_type, mk_local v pos)) v.v_type pos in
 
-				let arity_name = gen.gmk_internal_name "hx" "arity" in
+				let arity_name = mk_internal_name "hx" "arity" in
 				new_cf.cf_expr <- Some {
 					eexpr = TFunction({
 						tf_args = [v_arity, None; v_type, None];
@@ -1051,7 +1051,7 @@ struct
 					loop_cases api (arity - 1) (mk_invoke_switch arity api :: acc)
 			in
 
-			let type_name = gen.gmk_internal_name "fn" "type" in
+			let type_name = mk_internal_name "fn" "type" in
 			let mk_expr i is_float vars =
 				let call_expr =
 					let call_t = TFun(List.map (fun v -> (v.v_name, false, v.v_type)) vars, if is_float then t_dynamic else basic.tfloat) in

@@ -56,7 +56,7 @@ let configure gen (should_convert:texpr->bool) =
 					let local, fst_block = match cond.eexpr, should_cache with
 						| TLocal _, false -> cond, []
 						| _ ->
-							let var = mk_temp gen "switch" cond_etype in
+							let var = mk_temp "switch" cond_etype in
 							let cond = run cond in
 							let cond = if should_cache then mk_cast cond_etype cond else cond in
 
