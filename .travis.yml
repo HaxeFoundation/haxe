@@ -25,29 +25,22 @@ addons: &addons
     - api.haxe.org
 
 install_linux: &install_linux
+  # Install opam + ocaml
+  - sudo wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin 4.02.3
+  - export OPAMYES=1
+  - opam install camlp4
+  - eval `opam config env`
   # Install neko and haxe dependencies
-  - sudo add-apt-repository ppa:haxe/ocaml -y
+  - sudo add-apt-repository ppa:haxe/snapshots -y
   - sudo apt-get update
   - sudo apt-get install -y
-      ocaml
-      ocaml-native-compilers
-      camlp4
+      neko
       pkg-config
-      libgc-dev
       libssl-dev
       libpcre3-dev
       zlib1g-dev
-      apache2-dev
       libmysqlclient-dev
       libsqlite3-dev
-      libgtk2.0-dev
-  # Install neko
-  - travis_retry git clone https://github.com/HaxeFoundation/neko.git ~/neko
-  - pushd ~/neko
-  - cmake -DSTATIC_DEPS=MbedTLS
-  - make
-  - sudo make install
-  - popd
   # Setup database
   - travis_retry sudo apt-get install mysql-server-5.6 -y
   - mysql -u root -e "create user travis@localhost identified by '';"
@@ -92,7 +85,7 @@ matrix:
     #########
     - os: linux
       env:
-        - TEST=macro,neko,js,php,flash9,as3,java,cs,python,hl,lua
+        - TEST=macro,neko,js,php,php7,flash9,as3,java,cs,python,hl,lua
         - DEPLOY=1
         - SAUCE=1
         # haxeci_decrypt (Deploy source package to ppa:haxe/snapshots.)
@@ -127,15 +120,6 @@ matrix:
         - travis_retry sudo apt-get install -y
             gcc-multilib
             g++-multilib
-      install: *install_linux
-
-    - os: linux
-      env:
-        - TEST=php7
-      before_install:
-        - phpenv global "7.0"
-        # - sudo apt-get install php7-cli php7-mysql php7-sqlite -y || (sudo add-apt-repository ppa:ondrej/php -y && sudo apt-get update -y && sudo apt-get install  php7.0-cli php7.0-mysql php7.0-sqlite -y)
-        - php -v || true
       install: *install_linux
 
     #######
