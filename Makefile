@@ -22,52 +22,39 @@ PLATFORM?=unix
 
 OUTPUT=haxe
 EXTENSION=
-OCAMLOPT?=ocamlopt
-OCAMLC?=ocamlc
 LFLAGS=
 STATICLINK?=0
 
+# Configuration
+
 HAXE_DIRECTORIES=compiler context generators generators/gencommon macro optimization syntax typing display
+EXTLIB_LIBS=extlib extc neko javalib ziplib swflib xml-light ttflib ilib objsize pcre
+FINDLIB_LIBS=unix str
 
-INCLUDES = $(HAXE_DIRECTORIES:%=-I _build/src/%)
+# Includes, packages and compiler
 
-CFLAGS= -bin-annot
-ALL_CFLAGS= $(CFLAGS) -g -w -3 -I libs/extlib -I libs/extc -I libs/neko -I libs/javalib -I libs/ziplib -I libs/swflib -I libs/xml-light -I libs/ttflib -I libs/ilib -I libs/objsize -I libs/pcre \
-	$(INCLUDES)
-
-LIBS=unix str libs/extlib/extLib libs/xml-light/xml-light libs/swflib/swflib \
-	libs/extc/extc libs/neko/neko libs/javalib/javalib libs/ziplib/ziplib \
-	libs/ttflib/ttflib libs/ilib/ilib libs/objsize/objsize libs/pcre/pcre
-
-
-ifneq ($(STATICLINK),0)
-LIB_PARAMS= -cclib '-Wl,-Bstatic -lpcre -lz -Wl,-Bdynamic '
-
-else
-LIB_PARAMS?= -cclib -lpcre -cclib -lz
-
-endif
-
-NATIVE_LIBS=-cclib libs/extc/extc_stubs.o -cclib libs/extc/process_stubs.o -cclib libs/objsize/c_objsize.o -cclib libs/pcre/pcre_stubs.o -ccopt -L/usr/local/lib $(LIB_PARAMS)
+HAXE_INCLUDES=$(HAXE_DIRECTORIES:%=-I _build/src/%)
+EXTLIB_INCLUDES=$(EXTLIB_LIBS:%=-I libs/%)
+ALL_INCLUDES=$(EXTLIB_INCLUDES) $(HAXE_INCLUDES)
+FINDLIB_PACKAGES=$(FINDLIB_LIBS:%=-package %)
+ALL_CFLAGS=-bin-annot -g -w -3 $(ALL_INCLUDES) $(FINDLIB_PACKAGES)
 
 ifeq ($(BYTECODE),1)
 	TARGET_FLAG = bytecode
-	COMPILER = $(OCAMLC)
+	COMPILER = ocamlfind ocamlc
 	LIB_EXT = cma
 	MODULE_EXT = cmo
 	NATIVE_LIB_FLAG = -custom
 else
 	TARGET_FLAG = native
-	COMPILER = $(OCAMLOPT)
+	COMPILER = ocamlfind ocamlopt
 	LIB_EXT = cmxa
 	MODULE_EXT = cmx
 endif
 
 CC_CMD = $(COMPILER) $(ALL_CFLAGS) -c $<
 
-RELDIR=../../..
-
--include Makefile.modules
+# Meta information
 
 ADD_REVISION?=0
 
@@ -90,20 +77,26 @@ else
 	export HAXE_STD_PATH=$(CURDIR)/std
 endif
 
+# Native libraries
+
+ifneq ($(STATICLINK),0)
+	LIB_PARAMS= -cclib '-Wl,-Bstatic -lpcre -lz -Wl,-Bdynamic '
+else
+	LIB_PARAMS?= -cclib -lpcre -cclib -lz
+endif
+
+NATIVE_LIBS=-cclib libs/extc/extc_stubs.o -cclib libs/extc/process_stubs.o -cclib libs/objsize/c_objsize.o -cclib libs/pcre/pcre_stubs.o -ccopt -L/usr/local/lib $(LIB_PARAMS)
+
+# Modules
+
+-include Makefile.modules
+
+# Rules
+
 all: libs haxe tools
 
 libs:
-	make -C libs/extlib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
-	make -C libs/extc OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
-	make -C libs/neko OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
-	make -C libs/javalib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
-	make -C libs/ilib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
-	make -C libs/ziplib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
-	make -C libs/swflib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
-	make -C libs/xml-light OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
-	make -C libs/ttflib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
-	make -C libs/objsize OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
-	make -C libs/pcre OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
+	$(foreach lib,$(EXTLIB_LIBS),make -C libs/$(lib) $(TARGET_FLAG) &&) true
 
 copy_output_files:
 	mkdir -p _build
@@ -125,13 +118,13 @@ build_pass_1:
 
 build_pass_2:
 	printf MODULES= > Makefile.modules
-	ocamldep -sort -slash $(INCLUDES) $(MODULES) | sed -e "s/\.ml//g" >> Makefile.modules
+	ocamlfind ocamldep -sort -slash $(HAXE_INCLUDES) $(FINDLIB_PACKAGES) $(MODULES) | sed -e "s/\.ml//g" >> Makefile.modules
 
 build_pass_3:
-	ocamldep -slash -native $(INCLUDES) $(MODULES:%=%.ml) > Makefile.dependencies
+	ocamlfind ocamldep -slash -native $(HAXE_INCLUDES) $(FINDLIB_PACKAGES) $(MODULES:%=%.ml) > Makefile.dependencies
 
 build_pass_4: $(MODULES:%=%.$(MODULE_EXT))
-	$(COMPILER) -o $(OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(LIBS:=.$(LIB_EXT)) $(MODULES:%=%.$(MODULE_EXT))
+	$(COMPILER) -linkpkg -o $(OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(FINDLIB_PACKAGES) $(EXTLIB_INCLUDES) $(EXTLIB_LIBS:=.$(LIB_EXT)) $(MODULES:%=%.$(MODULE_EXT))
 
 haxelib:
 	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(OUTPUT) client.hxml && nekotools boot run.n)
@@ -166,7 +159,7 @@ uninstall:
 		rm -rf $(INSTALL_LIB_DIR); \
 	fi
 
-# Modules
+# Dependencies
 
 -include Makefile.dependencies
 
@@ -215,17 +208,7 @@ deploy_doc:
 clean: clean_libs clean_haxe clean_tools clean_package
 
 clean_libs:
-	make -C libs/extlib clean
-	make -C libs/extc clean
-	make -C libs/neko clean
-	make -C libs/ziplib clean
-	make -C libs/javalib clean
-	make -C libs/ilib clean
-	make -C libs/swflib clean
-	make -C libs/xml-light clean
-	make -C libs/ttflib clean
-	make -C libs/objsize clean
-	make -C libs/pcre clean
+	$(foreach lib,$(EXTLIB_LIBS),make -C libs/$(lib) clean &&) true
 
 clean_haxe:
 	rm -f -r _build $(OUTPUT)
