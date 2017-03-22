@@ -1281,7 +1281,7 @@ let write_c com file (code:code) =
 		| HEnum e ->
 			sexpr "type$%d.tenum = &enum$%d" i i;
 			(match e.eglobal with None -> () | Some g -> sexpr "enum$%d.global_value = (void**)&global$%d" i g);
-			sexpr "hl_init_enum(&type$%d)" i;
+			sexpr "hl_init_enum(&type$%d,ctx)" i;
 		| HVirtual _ ->
 			sexpr "type$%d.virt = &virt$%d" i i;
 			sexpr "hl_init_virtual(&type$%d,ctx)" i;
