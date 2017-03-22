@@ -1087,15 +1087,15 @@ let implement_get_set ctx cl =
 				(do_default, tf_args @ [ handle_prop,None; ])
 			end in
 
-				let get_field cf cf_type ethis cl name =
+			let get_field cf cf_type ethis cl name =
 				match cf.cf_kind with
 					| Var { v_read = AccCall } when Type.is_extern_field cf ->
-						mk_return (mk_this_call_raw ("get_" ^ cf.cf_name) (TFun(["value",false,cf.cf_type], cf.cf_type)) [	])
+						mk_this_call_raw ("get_" ^ cf.cf_name) (TFun(["value",false,cf.cf_type], cf.cf_type)) []
 					| Var { v_read = AccCall } ->
 						{
 							eexpr = TIf(
 								handle_prop_local,
-								mk_return (mk_this_call_raw ("get_" ^ cf.cf_name) (TFun(["value",false,cf.cf_type], cf.cf_type)) [	]),
+								mk_this_call_raw ("get_" ^ cf.cf_name) (TFun(["value",false,cf.cf_type], cf.cf_type)) [],
 								Some { eexpr = TField (ethis, FInstance(cl, List.map snd cl.cl_params, cf)); etype = cf_type; epos = pos }
 							);
 							etype = cf_type;
