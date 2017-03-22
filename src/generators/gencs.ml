@@ -3233,7 +3233,7 @@ let generate con =
 				| _ -> ()) gen.gtypes
 		end;
 
-		TypeParams.RenameTypeParameters.run gen;
+		RenameTypeParameters.run gen.gtypes_list;
 
 		let parts = Str.split_delim (Str.regexp "[\\/]+") gen.gcon.file in
 		mkdir_recursive "" parts;
