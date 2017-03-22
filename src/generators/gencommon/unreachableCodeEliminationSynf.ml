@@ -71,7 +71,6 @@ let rec get_constant_expr e =
 		| _ -> None
 
 let traverse gen java_mode =
-	let basic = gen.gcon.basic in
 	let should_warn = false in
 
 	let do_warn =
@@ -135,7 +134,7 @@ let traverse gen java_mode =
 			| TFunction tf ->
 				let changed, kind = process_expr tf.tf_expr in
 				let changed = if not (ExtType.is_void tf.tf_type) && kind <> BreaksFunction then
-					Type.concat changed { eexpr = TReturn( Some (null tf.tf_type expr.epos) ); etype = basic.tvoid; epos = expr.epos }
+					Type.concat changed (Codegen.mk_return (null tf.tf_type expr.epos))
 				else
 					changed
 				in

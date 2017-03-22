@@ -1007,8 +1007,6 @@ let get_real_fun gen t =
 	| TFun(args,t) -> TFun(List.map (fun (n,o,t) -> n,o,gen.greal_type t) args, gen.greal_type t)
 	| _ -> t
 
-let mk_return e = { eexpr = TReturn (Some e); etype = t_dynamic; epos = e.epos }
-
 let v_nativearray = alloc_var "__array__" t_dynamic
 let mk_nativearray_decl gen t el pos =
 	{

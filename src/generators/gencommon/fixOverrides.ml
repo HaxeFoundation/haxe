@@ -19,6 +19,7 @@
 open Option
 open Common
 open Type
+open Codegen
 open Gencommon
 
 (* ******************************************* *)
@@ -137,11 +138,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 									eexpr = TFunction({
 										tf_args = List.map (fun v -> v,None) vars;
 										tf_type = r2;
-										tf_expr = (if is_void then call else {
-											eexpr = TReturn (Some (mk_cast r2 call));
-											etype = r2;
-											epos = p
-										})
+										tf_expr = if is_void then call else (mk_return (mk_cast r2 call));
 									});
 									etype = real_ftype;
 									epos = p;

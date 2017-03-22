@@ -73,6 +73,9 @@ let fcall e name el ret p =
 let mk_parent e =
 	mk (TParenthesis e) e.etype e.epos
 
+let mk_return e =
+	mk (TReturn (Some e)) t_dynamic e.epos
+
 let binop op a b t p =
 	mk (TBinop (op,a,b)) t p
 

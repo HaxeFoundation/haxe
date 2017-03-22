@@ -544,8 +544,8 @@ let get_delete_field ctx cl is_dynamic =
 			let conflict_ctx = Option.get ctx.rcf_hash_conflict_ctx in
 			let ehead = mk_this (mk_internal_name "hx" "conflicts") conflict_ctx.t in
 			(mk (TIf (
-				mk (TBinop (OpLt, local_switch_var, ExprBuilder.make_int gen.gcon 0 pos)) basic.tbool pos,
-				mk (TReturn (Some (conflict_ctx.delete ehead local_switch_var local_name))) basic.tvoid pos,
+				binop OpLt local_switch_var (ExprBuilder.make_int gen.gcon 0 pos) basic.tbool pos,
+				mk_return (conflict_ctx.delete ehead local_switch_var local_name),
 				None
 			)) basic.tvoid pos) :: common
 		else
@@ -1353,14 +1353,13 @@ let implement_invokeField ctx ~slow_invoke cl =
 			let dyn_arg_local = mk_local dynamic_arg pos in
 			let cases = List.map (switch_case ctx pos) names in
 			(cases,
-				{ eexpr = TReturn(Some (mk_this_call cf (List.map (fun (name,_,t) ->
+				mk_return (
+					mk_this_call cf (List.map (fun (name,_,t) ->
 						let ret = { eexpr = TArray(dyn_arg_local, ExprBuilder.make_int ctx.rcf_gen.gcon !i pos); etype = t_dynamic; epos = pos } in
 						incr i;
 						ret
-					) (fst (get_args (cf.cf_type))) ) ));
-					etype = basic.tvoid;
-					epos = pos
-				}
+					) (fst (get_args (cf.cf_type))))
+				)
 			)
 		in
 
@@ -1378,7 +1377,7 @@ let implement_invokeField ctx ~slow_invoke cl =
 		in
 
 		let default = if !is_override then
-			{ eexpr = TReturn(Some (call_super ctx all_args t_dynamic dyn_fun cl this_t pos) ); etype = basic.tvoid; epos = pos }
+			mk_return (call_super ctx all_args t_dynamic dyn_fun cl this_t pos)
 		else (
 			let field = begin
 				let fun_name = mk_internal_name "hx" "getField" in

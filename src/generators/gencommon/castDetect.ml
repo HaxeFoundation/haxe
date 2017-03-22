@@ -21,6 +21,7 @@ open Common
 open Ast
 open Globals
 open Type
+open Codegen
 open Gencommon
 
 (* ******************************************* *)
@@ -91,10 +92,10 @@ struct
 				let ret_type = match !current_ret_type with | Some(s) -> s | None -> gen.gcon.error "Invalid return outside function declaration." e.epos; assert false in
 				(match eopt with
 				| None when not (ExtType.is_void ret_type) ->
-					{ e with eexpr = TReturn( Some(null ret_type e.epos)) }
+					mk_return (null ret_type e.epos)
 				| None -> e
 				| Some eret ->
-					{ e with eexpr = TReturn( Some(handle (run eret) ret_type eret.etype ) ) })
+					mk_return (handle (run eret) ret_type eret.etype))
 			| TFunction(tfunc) ->
 				let last_ret = !current_ret_type in
 				current_ret_type := Some(tfunc.tf_type);

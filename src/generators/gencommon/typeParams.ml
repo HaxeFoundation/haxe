@@ -415,12 +415,7 @@ struct
 								{
 									tf_args = [];
 									tf_type = t_dynamic;
-									tf_expr =
-									{
-										eexpr = TReturn( Some call );
-										etype = t_dynamic;
-										epos = p;
-									}
+									tf_expr = mk_return call
 								});
 								etype = cfield.cf_type;
 								epos = p;
@@ -664,19 +659,13 @@ struct
 					{
 						tf_args = [me,None];
 						tf_type = t_dynamic;
-						tf_expr =
-						{
-							eexpr = TReturn( Some
-							{
-								eexpr = TIf(
-									{ eexpr = TBinop(Ast.OpNotEq, mk_local me p, null me.v_type p); etype = basic.tbool; epos = p },
-									call,
-									Some( null me.v_type p )
-								);
-								etype = t_dynamic;
-								epos = p;
-							});
-							etype = basic.tvoid;
+						tf_expr = mk_return {
+							eexpr = TIf(
+								{ eexpr = TBinop(Ast.OpNotEq, mk_local me p, null me.v_type p); etype = basic.tbool; epos = p },
+								call,
+								Some( null me.v_type p )
+							);
+							etype = t_dynamic;
 							epos = p;
 						}
 					});
@@ -703,9 +692,7 @@ struct
 						eexpr = TFunction {
 							tf_type = t_dynamic;
 							tf_args = [];
-							tf_expr = mk_block { this with
-								eexpr = TReturn (Some this)
-							}
+							tf_expr = mk_block (mk_return this)
 						}
 					};
 					cthis.cl_ordered_fields <- field :: cthis.cl_ordered_fields;

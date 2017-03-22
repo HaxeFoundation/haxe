@@ -126,7 +126,7 @@ let mk_conversion_fun gen e =
 		epos = e.epos;
 	} in
 	let body = if not (ExtType.is_void ret) then
-		{ body with eexpr = TReturn( Some body ) }
+		mk_return body
 	else
 		body
 	in
@@ -446,7 +446,7 @@ let configure gen ft =
 					epos = pos
 				} in
 				let ibody = if not (ExtType.is_void tfunc.tf_type) then
-					{ ibody with eexpr = TReturn( Some ibody ) }
+					mk_return ibody
 				else
 					ibody
 				in
@@ -747,13 +747,13 @@ struct
 			let tf_expr = if is_void then begin
 				let rec map e =
 					match e.eexpr with
-						| TReturn None -> { e with eexpr = TReturn (Some (null t_dynamic e.epos)) }
+						| TReturn None ->
+							mk_return (null t_dynamic e.epos)
 						| _ -> Type.map_expr map e
 				in
 				let e = mk_block (map tfunc.tf_expr) in
 				match e.eexpr with
-					| TBlock(bl) ->
-						{ e with eexpr = TBlock(bl @ [{ eexpr = TReturn (Some (null t_dynamic e.epos)); etype = t_dynamic; epos = e.epos }]) }
+					| TBlock bl -> { e with eexpr = TBlock (bl @ [mk_return (null t_dynamic e.epos)]) }
 					| _ -> assert false
 			end else tfunc.tf_expr in
 

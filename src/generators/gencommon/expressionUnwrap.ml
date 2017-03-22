@@ -534,9 +534,9 @@ let try_call_unwrap_statement gen problematic_expression_unwrap (add_statement:t
 			match e.eexpr with
 				| TThrow _ -> e
 				| _ when ExtType.is_void e.etype ->
-						{ e with eexpr = TBlock([e; { e with eexpr = TReturn None }]) }
+					{ e with eexpr = TBlock([e; { e with eexpr = TReturn None }]) }
 				| _ ->
-						{ e with eexpr = TReturn( Some e ) }
+					Codegen.mk_return e
 		) e )
 	in
 

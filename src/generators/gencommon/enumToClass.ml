@@ -186,20 +186,16 @@ struct
 			eexpr = TFunction {
 				tf_args = [];
 				tf_type = basic.tstring;
-				tf_expr = {
-					eexpr = TReturn (Some (
-						let e_constructs = mk_static_field_access_infer cl "__hx_constructs" pos [] in
-						let e_this = mk (TConst TThis) (TInst (cl,[])) pos in
-						let e_index = mk_field_access gen e_this "index" pos in
-						{
-							eexpr = TArray(e_constructs,e_index);
-							etype = basic.tstring;
-							epos = pos;
-						}
-					));
-					epos = pos;
-					etype = basic.tvoid;
-				}
+				tf_expr = mk_return (
+					let e_constructs = mk_static_field_access_infer cl "__hx_constructs" pos [] in
+					let e_this = mk (TConst TThis) (TInst (cl,[])) pos in
+					let e_index = mk_field_access gen e_this "index" pos in
+					{
+						eexpr = TArray(e_constructs,e_index);
+						etype = basic.tstring;
+						epos = pos;
+					}
+				)
 			};
 			etype = getTag_cf_type;
 			epos = pos;
