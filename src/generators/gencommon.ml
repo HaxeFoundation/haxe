@@ -789,7 +789,6 @@ let run_filters gen =
 	gen.gadd_to_module <- last_add_to_module;
 
 	List.iter (fun fn -> fn()) gen.gafter_expr_filters_ended;
-	(* Codegen.post_process gen.gtypes_list [gen.gexpr_filters#run_f]; *)
 	gen.gtypes_list <- run_filters gen.gsyntax_filters;
 	List.iter (fun fn -> fn()) gen.gafter_filters_ended;
 
