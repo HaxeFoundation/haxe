@@ -77,7 +77,7 @@ let configure gen ~metas =
 			map_expr_type (fun e -> run e) filter_param (fun v -> v.v_type <- filter_param v.v_type; v) e
 	in
 	let map e = Some (run e) in
-	gen.gexpr_filters#add ~name:name ~priority:(PCustom priority) map;
+	gen.gexpr_filters#add name (PCustom priority) map;
 
 	let run md =
 		match md with
@@ -93,4 +93,4 @@ let configure gen ~metas =
 			()
 	in
 	let map md = Some (run md; md) in
-	gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
+	gen.gmodule_filters#add name (PCustom priority) map

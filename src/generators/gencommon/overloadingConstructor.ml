@@ -421,4 +421,4 @@ let configure ~(empty_ctor_type : t) ~(empty_ctor_expr : texpr) gen =
 			());
 		None
 	in
-	gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) module_filter
+	gen.gmodule_filters#add name (PCustom priority) module_filter

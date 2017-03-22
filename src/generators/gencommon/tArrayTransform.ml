@@ -102,4 +102,4 @@ let configure gen (should_change:texpr->Ast.binop option->bool) (get_fun:string)
 			| _ -> Type.map_expr run e
 	in
 	let map e = Some(run e) in
-	gen.gexpr_filters#add ~name:"dyn_tarray" ~priority:(PCustom priority) map
+	gen.gexpr_filters#add "dyn_tarray" (PCustom priority) map

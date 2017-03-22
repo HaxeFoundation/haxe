@@ -327,7 +327,7 @@ struct
 				md
 		in
 		let map md = Some(run md) in
-		gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
+		gen.gmodule_filters#add name (PCustom priority) map
 end;;
 
 
@@ -375,7 +375,7 @@ struct
 				Type.map_expr run e
 		in
 		let map e = Some(run e) in
-		gen.gexpr_filters#add ~name:name ~priority:(PCustom priority) map
+		gen.gexpr_filters#add name (PCustom priority) map
 
 end;;
 

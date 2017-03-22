@@ -786,7 +786,7 @@ struct
 
 		let configure gen mapping_func =
 			let map e = Some(mapping_func e) in
-			gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
+			gen.gmodule_filters#add name (PCustom priority) map
 
 	end;;
 
@@ -830,7 +830,7 @@ struct
 		gen.ghas_tparam_cast_handler <- true;
 		let traverse = default_implementation gen dyn_tparam_cast ifaces in
 		let map e = Some(traverse e) in
-		gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map;
+		gen.gsyntax_filters#add name (PCustom priority) map;
 		RealTypeParamsModf.configure gen (RealTypeParamsModf.default_implementation gen ifaces base_generic)
 
 end;;

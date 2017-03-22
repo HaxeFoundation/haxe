@@ -213,4 +213,4 @@ let traverse gen java_mode =
 let configure gen java_mode =
 	let run = traverse gen java_mode in
 	let map e = Some(run e) in
-	gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
+	gen.gsyntax_filters#add name (PCustom priority) map

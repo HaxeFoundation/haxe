@@ -273,9 +273,8 @@ class ['tp, 'ret] rule_dispatcher name ignore_not_found =
 	val tbl = Hashtbl.create 16
 	val mutable keys = []
 	val names = Hashtbl.create 16
-	val mutable temp = 0
 
-	method add ?(name : string option) (* name helps debugging *) ?(priority : priority = PZero) (rule : 'tp->'ret option) =
+	method add (name : string) (* name helps debugging *) (priority : priority) (rule : 'tp->'ret option) =
 		let p = match priority with
 			| PFirst -> infinity
 			| PLast -> neg_infinity
@@ -290,10 +289,6 @@ class ['tp, 'ret] rule_dispatcher name ignore_not_found =
 			keys <- List.sort (fun x y -> - (compare x y)) keys;
 			q
 		end else Hashtbl.find tbl p in
-		let name = match name with
-			| None -> temp <- temp + 1; "$_" ^ (string_of_int temp)
-			| Some s -> s
-		in
 		(if Hashtbl.mem names name then raise (DuplicateName(name)));
 		Hashtbl.add names name q;
 
@@ -681,7 +676,7 @@ let init_ctx gen =
 			follow_f (apply_params t.t_params tl t.t_type)
 		| _ -> Some t
 	in
-	gen.gfollow#add ~name:"final" ~priority:PLast follow
+	gen.gfollow#add "final" PLast follow
 
 let run_follow gen = gen.gfollow#run_f
 

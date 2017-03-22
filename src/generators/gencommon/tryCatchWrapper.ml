@@ -116,4 +116,4 @@ let configure gen (should_wrap:t->bool) (wrap_throw:texpr->texpr->texpr) (unwrap
 				| _ -> Type.map_expr run e
 	in
 	let map e = Some(run e) in
-	gen.gsyntax_filters#add ~name:"try_catch" ~priority:(PCustom priority) map
+	gen.gsyntax_filters#add "try_catch" (PCustom priority) map

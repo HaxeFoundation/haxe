@@ -55,4 +55,4 @@ let configure gen =
 			()
 	in
 	let map md = Some(run md; md) in
-	gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
+	gen.gmodule_filters#add name (PCustom priority) map

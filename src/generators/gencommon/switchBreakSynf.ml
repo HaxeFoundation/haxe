@@ -112,4 +112,4 @@ let configure gen (change_loop:texpr->int->add_to_block_api->texpr) (change_brea
 		| _ -> Type.map_expr run e
 	in
 	let map e = Some(run e) in
-	gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
+	gen.gsyntax_filters#add name (PCustom priority) map

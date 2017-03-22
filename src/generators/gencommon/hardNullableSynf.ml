@@ -73,7 +73,7 @@ let follow_addon gen t =
 		| _ -> None
 
 let configure gen unwrap_null wrap_val null_to_dynamic has_value opeq_handler =
-	gen.gfollow#add ~name:(name ^ "_follow") (follow_addon gen);
+	gen.gfollow#add (name ^ "_follow") PZero (follow_addon gen);
 
 	let is_null_t = is_null_t gen in
 	let is_string t = match gen.greal_type t with
@@ -278,4 +278,4 @@ let configure gen unwrap_null wrap_val null_to_dynamic has_value opeq_handler =
 			| e -> e
 	in
 	let map e = Some(run e) in
-	gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
+	gen.gsyntax_filters#add name (PCustom priority) map

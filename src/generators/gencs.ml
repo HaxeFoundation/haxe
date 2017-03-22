@@ -306,7 +306,7 @@ struct
 				| _ -> Type.map_expr run e
 		in
 		let map e = Some(run e) in
-		gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
+		gen.gsyntax_filters#add name (PCustom priority) map
 end;;
 
 (* ******************************************* *)
@@ -491,7 +491,7 @@ struct
 				| _ -> Type.map_expr run e
 		in
 		let map e = Some(run e) in
-		gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
+		gen.gsyntax_filters#add name (PCustom priority) map
 end;;
 
 let add_cast_handler gen =
@@ -744,7 +744,7 @@ let configure gen =
 		| _ -> true
 	in
 
-	gen.gfollow#add ~name:"follow_basic" (fun t -> match t with
+	gen.gfollow#add "follow_basic" PZero (fun t -> match t with
 			| TAbstract ({ a_path = ([], "Bool") },[])
 			| TAbstract ({ a_path = ([], "Void") },[])
 			| TAbstract ({ a_path = ([],"Float") },[])

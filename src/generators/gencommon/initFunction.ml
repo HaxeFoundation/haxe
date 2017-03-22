@@ -231,4 +231,4 @@ let configure gen =
 		| TClassDecl cl -> (if not cl.cl_extern then handle_class cl); None
 		| _ -> None in
 
-	gen.gmodule_filters#add ~name:"init_funcs" ~priority:(PCustom priority) mod_filter
+	gen.gmodule_filters#add "init_funcs" (PCustom priority) mod_filter

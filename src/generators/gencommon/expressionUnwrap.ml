@@ -683,4 +683,4 @@ let configure gen (on_expr_as_statement:texpr->texpr option) =
 			| _ -> e (* if expression doesn't have a block, we will exit *)
 	in
 	let map e = Some(traverse e) in
-	gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
+	gen.gsyntax_filters#add name (PCustom priority) map

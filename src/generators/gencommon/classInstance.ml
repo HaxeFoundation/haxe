@@ -62,4 +62,4 @@ let configure gen (change_expr:texpr->module_type->texpr) =
 		| _ -> Type.map_expr run e
 	in
 	let map e = Some(run e) in
-	gen.gsyntax_filters#add ~name:"class_instance" ~priority:(PCustom priority) map
+	gen.gsyntax_filters#add "class_instance" (PCustom priority) map

@@ -588,7 +588,7 @@ let configure gen ft =
 		(* (dynamic_func_call:texpr->texpr->texpr list->texpr) *)
 	in
 	let map e = Some(run e) in
-	gen.gexpr_filters#add ~name:name ~priority:(PCustom priority) map
+	gen.gexpr_filters#add name (PCustom priority) map
 
 
 (*

@@ -1660,7 +1660,7 @@ struct
 					()
 		in
 		let map md = Some(run md; md) in
-		gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
+		gen.gmodule_filters#add name (PCustom priority) map
 end;;
 
 
@@ -1682,4 +1682,4 @@ let configure ?slow_invoke ctx baseinterface =
 		| _ -> None)
 	in
 
-	gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) run
+	gen.gmodule_filters#add name (PCustom priority) run

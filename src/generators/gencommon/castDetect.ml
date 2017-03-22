@@ -119,7 +119,7 @@ struct
 
 	let configure gen =
 		let map e = Some(default_implementation gen e) in
-		gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
+		gen.gsyntax_filters#add name (PCustom priority) map
 end;;
 
 (*
@@ -1175,5 +1175,5 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 		| _ ->
 			Some(run e)
 	in
-	gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map;
+	gen.gsyntax_filters#add name (PCustom priority) map;
 	ReturnCast.configure gen

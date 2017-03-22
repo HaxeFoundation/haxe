@@ -70,4 +70,4 @@ let configure gen =
 	in
 
 	let map e = Some(run e) in
-	gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
+	gen.gsyntax_filters#add name (PCustom priority) map

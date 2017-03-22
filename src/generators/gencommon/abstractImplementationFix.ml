@@ -50,4 +50,4 @@ let configure gen =
 		| _ -> ());
 		Some md
 	in
-	gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) run
+	gen.gmodule_filters#add name (PCustom priority) run

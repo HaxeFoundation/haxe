@@ -117,4 +117,4 @@ let configure gen (is_dynamic:texpr->texpr->Type.tfield_access->bool) (change_ex
 		| _ -> Type.map_expr run e
 	in
 	let map e = Some(run e) in
-	gen.gexpr_filters#add ~name:"dynamic_field_access" ~priority:(PCustom(priority)) map
+	gen.gexpr_filters#add "dynamic_field_access" (PCustom(priority)) map

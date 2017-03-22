@@ -177,4 +177,4 @@ let configure gen ?(handle_strings = true) (should_change:texpr->bool) (equals_h
 		| _ -> Type.map_expr run e
 	in
 	let map e = Some(run e) in
-	gen.gexpr_filters#add ~name:"dyn_ops" ~priority:(PCustom priority) map
+	gen.gexpr_filters#add "dyn_ops" (PCustom priority) map

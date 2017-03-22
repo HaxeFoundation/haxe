@@ -35,4 +35,4 @@ let configure gen map_fn =
 			Type.map_expr run e
 	in
 	let map e = Some(run e) in
-	gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
+	gen.gsyntax_filters#add name (PCustom priority) map

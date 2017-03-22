@@ -84,4 +84,4 @@ let configure gen (should_change:texpr->string->bool) (filter:texpr->texpr->stri
 				| _ -> Type.map_expr run e
 	in
 	let map e = Some(run e) in
-	gen.gexpr_filters#add ~name:name ~priority:(PCustom priority) map
+	gen.gexpr_filters#add name (PCustom priority) map
