@@ -36,8 +36,8 @@ ALL_CFLAGS= $(CFLAGS) -g -w -3 -I libs/extlib -I libs/extc -I libs/neko -I libs/
 	$(INCLUDES)
 
 LIBS=unix str libs/extlib/extLib libs/xml-light/xml-light libs/swflib/swflib \
-	libs/extc/extc libs/neko/neko libs/javalib/java libs/ziplib/zip \
-	libs/ttflib/ttf libs/ilib/il libs/objsize/objsize libs/pcre/pcre
+	libs/extc/extc libs/neko/neko libs/javalib/javalib libs/ziplib/ziplib \
+	libs/ttflib/ttflib libs/ilib/ilib libs/objsize/objsize libs/pcre/pcre
 
 
 ifneq ($(STATICLINK),0)
