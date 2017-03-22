@@ -18,7 +18,6 @@
 *)
 open Common
 open Type
-open Gencommon
 
 (* ******************************************* *)
 (* set hxgen module *)
@@ -33,7 +32,7 @@ open Gencommon
 	The only option is to run this filter eagerly, because it must be one of the first filters to run,
 	since many others depend of it.
 *)
-let run_filter gen =
+let run_filter com types =
 	let rec is_hxgen md =
 		match md with
 		| TClassDecl { cl_kind = KAbstractImpl a } ->
@@ -70,7 +69,7 @@ let run_filter gen =
 				if Meta.has Meta.FlatEnum e.e_meta then
 					false
 				else begin
-					gen.gcon.error "Only flat enums may be @:nativeGen" e.e_pos;
+					com.error "Only flat enums may be @:nativeGen" e.e_pos;
 					true
 				end
 			else
@@ -80,7 +79,7 @@ let run_filter gen =
 		| TAbstractDecl a ->
 			(match follow a.a_this with
 			| TInst _ | TEnum _ | TAbstract _ ->
-				is_hxgen (t_to_md (follow a.a_this))
+				is_hxgen (module_type_of_type (follow a.a_this))
 			| _ ->
 				not (Meta.has Meta.NativeGen a.a_meta))
 		| TTypeDecl t -> (* TODO see when would we use this *)
@@ -96,4 +95,4 @@ let run_filter gen =
 		| TAbstractDecl a -> a.a_meta <- (meta, [], a.a_pos) :: a.a_meta
 	in
 
-	List.iter filter gen.gtypes_list
+	List.iter filter types
