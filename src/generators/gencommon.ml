@@ -63,81 +63,74 @@ open ExtString
 open Codegen
 open Overloads
 
-let alloc_var n t = alloc_var n t null_pos
-
-let debug_type_ctor = function
-	| TMono _ -> "TMono"
-	| TEnum _ -> "TEnum"
-	| TInst _ -> "TInst"
-	| TType _ -> "TType"
-	| TFun _ -> "TFun"
-	| TAnon _ -> "TAnon"
-	| TDynamic _ -> "TDynamic"
-	| TLazy _ -> "TLazy"
-	| TAbstract _ -> "TAbstract"
-
-let debug_type = (s_type (print_context()))
-
-let debug_expr = s_expr debug_type
+(* ******************************************* *)
+(* common helpers *)
+(* ******************************************* *)
 
 let rec like_float t =
 	match follow t with
-		| TAbstract({ a_path = ([], "Float") },[])
-		| TAbstract({ a_path = ([], "Int") },[]) -> true
-		| TAbstract({ a_path = (["cs"], "Pointer") },_) -> false
-		| TAbstract(a, _) -> List.exists (fun t -> like_float t) a.a_from || List.exists (fun t -> like_float t) a.a_to
-		| _ -> false
+	| TAbstract ({ a_path = ([], "Float") }, [])
+	| TAbstract ({ a_path = ([], "Int") }, []) ->
+		true
+	| TAbstract ({ a_path = (["cs"], "Pointer") }, _) ->
+		false
+	| TAbstract (a, _) ->
+		List.exists like_float a.a_from || List.exists like_float a.a_to
+	| _ ->
+		false
 
 let rec like_int t =
 	match follow t with
-		| TAbstract({ a_path = ([], "Int") },[]) -> true
-		| TAbstract({ a_path = (["cs"], "Pointer") },_) -> false
-		| TAbstract(a, _) -> List.exists (fun t -> like_int t) a.a_from || List.exists (fun t -> like_int t) a.a_to
-		| _ -> false
+	| TAbstract ({ a_path = ([], "Int") }, []) ->
+		true
+	| TAbstract ({ a_path = (["cs"], "Pointer") }, _) ->
+		false
+	| TAbstract (a, _) ->
+		List.exists like_int a.a_from || List.exists like_int a.a_to
+	| _ ->
+		false
 
 let rec like_i64 t =
 	match follow t with
-		| TAbstract({ a_path = (["cs"], "Int64") },[])
-		| TAbstract({ a_path = (["cs"], "UInt64") },[])
-		| TAbstract({ a_path = (["java"], "Int64") },[])
-		| TAbstract({ a_path = (["haxe"], "Int64") },[]) -> true
-		| TAbstract(a, _) -> List.exists (fun t -> like_i64 t) a.a_from || List.exists (fun t -> like_i64 t) a.a_to
-		| _ -> false
+	| TAbstract ({ a_path = (["cs"], ("Int64" | "UInt64")) }, [])
+	| TAbstract ({ a_path = (["java"], "Int64") }, [])
+	| TAbstract ({ a_path = (["haxe"], "Int64") }, []) ->
+		true
+	| TAbstract (a, _) ->
+		List.exists like_i64 a.a_from || List.exists like_i64 a.a_to
+	| _ ->
+		false
 
 let follow_once t =
 	match t with
 	| TMono r ->
 		(match !r with
 		| Some t -> t
-		| _ -> t_dynamic (* avoid infinite loop / should be the same in this context *))
+		| _ -> t_dynamic) (* avoid infinite loop / should be the same in this context *)
 	| TLazy f ->
 		!f()
 	| TType (t,tl) ->
 		apply_params t.t_params tl t.t_type
-	| _ -> t
+	| _ ->
+		t
 
-let t_empty = TAnon({ a_fields = PMap.empty; a_status = ref (Closed) })
+let t_empty = TAnon({ a_fields = PMap.empty; a_status = ref Closed })
 
-let tmp_count = ref 0
-
-let reset_temps () = tmp_count := 0
+let alloc_var n t = Type.alloc_var n t null_pos
 
 (* the undefined is a special var that works like null, but can have special meaning *)
-let v_undefined = alloc_var "__undefined__" t_dynamic
-
-let undefined pos = ExprBuilder.make_local v_undefined pos
+let undefined =
+	let v_undefined = alloc_var "__undefined__" t_dynamic in
+	(fun pos -> ExprBuilder.make_local v_undefined pos)
 
 let path_of_md_def md_def =
 	match md_def.m_types with
 		| [TClassDecl c] -> c.cl_path
 		| _ -> md_def.m_path
 
+let debug_type = (s_type (print_context()))
+let debug_expr = s_expr debug_type
 
-(* ******************************************* *)
-(* common helpers *)
-(* ******************************************* *)
-
-let assertions = false (* when assertions == true, many assertions will be made to guarantee the quality of the data input *)
 let debug_mode = ref false
 let trace s = if !debug_mode then print_endline s else ()
 let timer name = if !debug_mode then Common.timer name else fun () -> ()
@@ -147,39 +140,22 @@ let is_string t =
 	| TInst({ cl_path = ([], "String") }, []) -> true
 	| _ -> false
 
-(* helper function for creating Anon types of class / enum modules *)
-
-let anon_of_classtype cl =
-	TAnon {
-		a_fields = cl.cl_statics;
-		a_status = ref (Statics cl)
-	}
-
-let anon_of_enum e =
-	TAnon {
-		a_fields = PMap.empty;
-		a_status = ref (EnumStatics e)
-	}
-
-let anon_of_abstract a =
-	TAnon {
-		a_fields = PMap.empty;
-		a_status = ref (AbstractStatics a)
-	}
-
-let anon_of_mt mt = match mt with
-	| TClassDecl cl -> anon_of_classtype cl
-	| TEnumDecl e -> anon_of_enum e
-	| TAbstractDecl a -> anon_of_abstract a
-	| _ -> assert false
+let mk_mt_access mt pos =
+	let t = match mt with
+		| TClassDecl cl -> TAnon { a_fields = cl.cl_statics; a_status = ref (Statics cl) }
+		| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
+		| TAbstractDecl a -> TAnon { a_fields = PMap.empty; a_status = ref (AbstractStatics a) }
+		| _ -> assert false
+	in
+	mk (TTypeExpr mt) t pos
 
 let anon_class t =
 	match follow t with
 	| TAnon anon ->
 		(match !(anon.a_status) with
-		| Statics cl -> Some(TClassDecl cl)
-		| EnumStatics e -> Some(TEnumDecl e)
-		| AbstractStatics a -> Some(TAbstractDecl a)
+		| Statics cl -> Some (TClassDecl cl)
+		| EnumStatics e -> Some (TEnumDecl e)
+		| AbstractStatics a -> Some (TAbstractDecl a)
 		| _ -> None)
 	| _ -> None
 
@@ -203,8 +179,6 @@ let get_cl mt = match mt with | TClassDecl cl -> cl | _ -> failwith (Printf.spri
 let get_abstract mt = match mt with | TAbstractDecl a -> a | _ -> failwith (Printf.sprintf "Unexpected module type (abstract expected) for %s: %s" (s_type_path (t_path mt)) (s_module_type_kind mt))
 
 let get_tdef mt = match mt with | TTypeDecl t -> t | _ -> assert false
-
-let mk_mt_access mt pos = { eexpr = TTypeExpr(mt); etype = anon_of_mt mt; epos = pos }
 
 let mk_local = ExprBuilder.make_local
 
@@ -587,14 +561,14 @@ and gen_tools =
 	mutable r_create_empty : tclass->tparams->pos->texpr;
 }
 
-let get_type types path =
-	List.find (fun md -> match md with
-		| TClassDecl cl when cl.cl_path = path -> true
-		| TEnumDecl e when e.e_path = path -> true
-		| TTypeDecl t when t.t_path = path -> true
-		| TAbstractDecl a when a.a_path = path -> true
-		| _ -> false
-	) types
+let mk_temp, reset_temps =
+	let tmp_count = ref 0 in
+	(fun gen name t ->
+		incr tmp_count;
+		let name = gen.gmk_internal_name "temp" (name ^ (string_of_int !tmp_count)) in
+		alloc_var name t
+	),
+	(fun () -> tmp_count := 0)
 
 let new_ctx con =
 	let types = Hashtbl.create (List.length con.types) in
@@ -606,7 +580,11 @@ let new_ctx con =
 			| TAbstractDecl a -> Hashtbl.add types a.a_path mt
 	) con.types;
 
-	let cl_dyn = match get_type con.types ([], "Dynamic") with
+	let get_type path =
+		List.find (fun md -> (t_path md) = path) con.types
+	in
+
+	let cl_dyn = match get_type  ([], "Dynamic") with
 		| TClassDecl c -> c
 		| TAbstractDecl a ->
 				mk_class a.a_module ([], "Dynamic") a.a_pos null_pos
@@ -616,8 +594,8 @@ let new_ctx con =
 	let rec gen = {
 		gcon = con;
 		gclasses = {
-			cl_reflect = get_cl (get_type con.types ([], "Reflect"));
-			cl_type = get_cl (get_type con.types ([], "Type"));
+			cl_reflect = get_cl (get_type ([], "Reflect"));
+			cl_type = get_cl (get_type ([], "Type"));
 			cl_dyn = cl_dyn;
 
 			nativearray = (fun _ -> assert false);
@@ -1043,11 +1021,6 @@ let get_real_fun gen t =
 	| _ -> t
 
 let mk_return e = { eexpr = TReturn (Some e); etype = e.etype; epos = e.epos }
-
-let mk_temp gen name t =
-	incr tmp_count;
-	let name = gen.gmk_internal_name "temp" (name ^ (string_of_int !tmp_count)) in
-	alloc_var name t
 
 let v_nativearray = alloc_var "__array__" t_dynamic
 let mk_nativearray_decl gen t el pos =

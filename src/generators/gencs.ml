@@ -124,11 +124,6 @@ let parse_explicit_iface =
 		get_iface split []
 	in parse_explicit_iface
 
-let is_string t =
-	match follow t with
-		| TInst( { cl_path = ([], "String") }, [] ) -> true
-		| _ -> false
-
 let rec change_md = function
 	| TAbstractDecl(a) when Meta.has Meta.Delegate a.a_meta && not (Meta.has Meta.CoreType a.a_meta) ->
 		change_md (t_to_md a.a_this)

@@ -143,11 +143,6 @@ let parse_explicit_iface =
 		get_iface split []
 	in parse_explicit_iface
 
-let is_string t =
-	match follow t with
-		| TInst( { cl_path = ([], "String") }, [] ) -> true
-		| _ -> false
-
 let is_cl t = match follow t with
 	| TInst({ cl_path = ["java";"lang"],"Class" },_)
 	| TAbstract({ a_path = [], ("Class"|"Enum") },_) -> true
@@ -563,8 +558,6 @@ struct
 		let ti64 = mt_to_t_dyn ( get_type gen (["java"], "Int64") ) in
 		let string_ext = get_cl ( get_type gen (["haxe";"lang"], "StringExt")) in
 		let fast_cast = Common.defined gen.gcon Define.FastCast in
-
-		let is_string t = match follow t with | TInst({ cl_path = ([], "String") }, []) -> true | _ -> false in
 
 		let rec run e =
 			match e.eexpr with
