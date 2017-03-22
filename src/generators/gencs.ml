@@ -18,7 +18,6 @@
  *)
 
 open Globals
-open Gencommon.ReflectionCFs
 open Ast
 open Common
 open Type
