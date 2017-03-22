@@ -818,7 +818,7 @@ let configure gen =
 	let fn_cl = get_cl (get_type gen (["haxe";"lang"],"Function")) in
 
 	let runtime_cl = get_cl (get_type gen (["haxe";"lang"],"Runtime")) in
-	let nulltdef = get_tdef (get_type gen ([],"Null")) in
+	let nulltdef = match (get_type gen ([],"Null")) with TTypeDecl t -> t | _ -> assert false in
 
 	(*let string_ref = get_cl ( get_type gen (["haxe";"lang"], "StringRefl")) in*)
 

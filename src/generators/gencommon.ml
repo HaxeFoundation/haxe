@@ -118,6 +118,8 @@ let t_empty = TAnon({ a_fields = PMap.empty; a_status = ref Closed })
 
 let alloc_var n t = Type.alloc_var n t null_pos
 
+let mk_local = ExprBuilder.make_local
+
 (* the undefined is a special var that works like null, but can have special meaning *)
 let undefined =
 	let v_undefined = alloc_var "__undefined__" t_dynamic in
@@ -174,18 +176,12 @@ let anon_class t =
 	| TMono r -> (match !r with | Some t -> t_to_md t | None -> assert false)
 	| _ -> assert false
 
-let get_cl mt = match mt with | TClassDecl cl -> cl | _ -> failwith (Printf.sprintf "Unexpected module type (class expected) for %s: %s" (s_type_path (t_path mt)) (s_module_type_kind mt))
+let get_cl mt = match mt with TClassDecl cl -> cl | _ -> failwith (Printf.sprintf "Unexpected module type (class expected) for %s: %s" (s_type_path (t_path mt)) (s_module_type_kind mt))
+let get_abstract mt = match mt with TAbstractDecl a -> a | _ -> failwith (Printf.sprintf "Unexpected module type (abstract expected) for %s: %s" (s_type_path (t_path mt)) (s_module_type_kind mt))
 
-let get_abstract mt = match mt with | TAbstractDecl a -> a | _ -> failwith (Printf.sprintf "Unexpected module type (abstract expected) for %s: %s" (s_type_path (t_path mt)) (s_module_type_kind mt))
-
-let get_tdef mt = match mt with | TTypeDecl t -> t | _ -> assert false
-
-let mk_local = ExprBuilder.make_local
-
-(* this function is used by CastDetection module *)
 let get_fun t =
 	match follow t with
-	| TFun(r1,r2) -> (r1,r2)
+	| TFun (args, ret) -> args, ret
 	| t -> (trace (debug_type t)); assert false
 
 let mk_cast t e = Type.mk_cast e t e.epos
@@ -197,9 +193,12 @@ let mk_castfast t e = { e with eexpr = TCast(e, Some (TClassDecl null_class)); e
 
 let mk_static_field_access_infer cl field pos params =
 	try
-		let cf = (PMap.find field cl.cl_statics) in
-		{ eexpr = TField(ExprBuilder.make_static_this cl pos, FStatic(cl, cf)); etype = (if params = [] then cf.cf_type else apply_params cf.cf_params params cf.cf_type); epos = pos }
-	with | Not_found -> failwith ("Cannot find field " ^ field ^ " in type " ^ (s_type_path cl.cl_path))
+		let e_type = ExprBuilder.make_static_this cl pos in
+		let cf = PMap.find field cl.cl_statics in
+		let t = if params = [] then cf.cf_type else apply_params cf.cf_params params cf.cf_type in
+		mk (TField(e_type, FStatic(cl, cf))) t pos
+	with Not_found ->
+		failwith ("Cannot find field " ^ field ^ " in class " ^ (s_type_path cl.cl_path))
 
 let mk_static_field_access cl field fieldt pos =
 	{ (mk_static_field_access_infer cl field pos []) with etype = fieldt }
