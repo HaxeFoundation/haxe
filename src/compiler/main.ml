@@ -43,7 +43,6 @@
 *)
 
 open Printf
-open Genswf
 open Common
 open Common.DisplayMode
 open Type
@@ -596,10 +595,10 @@ try
 		),"<header> : define SWF header (width:height:fps:color)");
 		("-swf-lib",Arg.String (fun file ->
 			process_libs(); (* linked swf order matters, and lib might reference swf as well *)
-			Genswf.add_swf_lib com file false
+			SwfLoader.add_swf_lib com file false
 		),"<file> : add the SWF library to the compiled SWF");
 		("-swf-lib-extern",Arg.String (fun file ->
-			Genswf.add_swf_lib com file true
+			SwfLoader.add_swf_lib com file true
 		),"<file> : use the SWF library for type checking");
 		("-java-lib",Arg.String (fun file ->
 			let std = file = "lib/hxjava-std.jar" in
