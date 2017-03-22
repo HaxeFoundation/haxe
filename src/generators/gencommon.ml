@@ -268,7 +268,7 @@ let indent = ref []
 
 (* the rule dispatcher is the primary way to deal with distributed "plugins" *)
 (* we will define rules that will form a distributed / extensible match system *)
-class ['tp, 'ret] rule_dispatcher name ignore_not_found =
+class ['tp, 'ret] rule_dispatcher name =
 	object(self)
 	val tbl = Hashtbl.create 16
 	val mutable keys = []
@@ -297,37 +297,10 @@ class ['tp, 'ret] rule_dispatcher name ignore_not_found =
 	method describe =
 		Hashtbl.iter (fun s _ -> (trace s)) names;
 
-	method remove (name : string) =
-		if Hashtbl.mem names name then begin
-			let q = Hashtbl.find names name in
-			let q_temp = Stack.create () in
-			Stack.iter (function
-				| (n, _) when n = name -> ()
-				| _ as r -> Stack.push r q_temp
-			) q;
-
-			Stack.clear q;
-			Stack.iter (fun r -> Stack.push r q) q_temp;
-
-			Hashtbl.remove names name;
-			true
-		end else false
-
 	method run_f tp = get (self#run tp)
 
-	method did_run tp = is_some (self#run tp)
-
-	method get_list =
-		let ret = ref [] in
-		List.iter (fun key ->
-			let q = Hashtbl.find tbl key in
-			Stack.iter (fun (_, rule) -> ret := rule :: !ret) q
-		) keys;
-
-		List.rev !ret
-
 	method run_from (priority:float) (tp:'tp) : 'ret option =
-		let ok = ref ignore_not_found in
+		let ok = ref false in
 		let ret = ref None in
 		indent := "\t" :: !indent;
 
@@ -361,7 +334,7 @@ end;;
 (* this is a special case where tp = tret and you stack their output as the next's input *)
 class ['tp] rule_map_dispatcher name =
 	object(self)
-	inherit ['tp, 'tp] rule_dispatcher name true as super
+	inherit ['tp, 'tp] rule_dispatcher name
 
 	method run_f tp = get (self#run tp)
 
@@ -613,7 +586,7 @@ let new_ctx con =
 		gexpr_filters = new rule_map_dispatcher "gexpr_filters";
 		gmodule_filters = new rule_map_dispatcher "gmodule_filters";
 		gsyntax_filters = new rule_map_dispatcher "gsyntax_filters";
-		gfollow = new rule_dispatcher "gfollow" false;
+		gfollow = new rule_dispatcher "gfollow";
 		gtypes = types;
 		gtypes_list = con.types;
 		gmodules = con.modules;
