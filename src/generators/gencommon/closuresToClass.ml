@@ -663,15 +663,6 @@ struct
 			end
 		in
 
-		let const_type c def =
-			match c with
-			| TString _ -> basic.tstring
-			| TInt _ -> basic.tint
-			| TFloat _ -> basic.tfloat
-			| TBool _ -> basic.tbool
-			| _ -> def
-		in
-
 		let get_args_func args changed_args pos =
 			let arity = List.length args in
 			let mk_const const elocal t =
@@ -681,7 +672,7 @@ struct
 				| Some const ->
 					{ eexpr = TIf(
 						{ elocal with eexpr = TBinop(Ast.OpEq, elocal, null elocal.etype elocal.epos); etype = basic.tbool },
-						{ elocal with eexpr = TConst(const); etype = const_type const t },
+						{ elocal with eexpr = TConst(const); etype = const_type basic const t },
 						Some ( mk_cast t elocal )
 					); etype = t; epos = elocal.epos }
 			in
