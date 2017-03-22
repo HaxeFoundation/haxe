@@ -1761,7 +1761,7 @@ let macro_api ccom get_api =
 			let com = ccom() in
 			(match com.platform with
 			| Globals.Flash -> Genswf.add_swf_lib com file false
-			| Globals.Java -> Genjava.add_java_lib com file false
+			| Globals.Java -> Java.add_java_lib com file false
 			| Globals.Cs ->
 				let file, is_std = match ExtString.String.nsplit file "@" with
 					| [file] ->

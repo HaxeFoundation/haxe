@@ -307,7 +307,7 @@ module Initialize = struct
 					com.java_libs <- [];
 					old_flush()
 				);
-				Genjava.before_generate com;
+				Java.before_generate com;
 				add_std "java"; "java"
 			| Python ->
 				add_std "python";
@@ -603,7 +603,7 @@ try
 		),"<file> : use the SWF library for type checking");
 		("-java-lib",Arg.String (fun file ->
 			let std = file = "lib/hxjava-std.jar" in
-			arg_delays := (fun () -> Genjava.add_java_lib com file std) :: !arg_delays;
+			arg_delays := (fun () -> Java.add_java_lib com file std) :: !arg_delays;
 		),"<file> : add an external JAR or class directory library");
 		("-net-lib",Arg.String (fun file ->
 			let file, is_std = match ExtString.String.nsplit file "@" with
