@@ -462,7 +462,7 @@ let rec process_params create pl =
 and init ctx =
 	let usage = Printf.sprintf
 		"Haxe Compiler %s - (C)2005-2017 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-cppia|-as3|-cs|-java|-python|-hl|-lua] <output> [options]\n Options :"
-		Globals.s_version (if Sys.os_type = "Win32" then ".exe" else "")
+		s_version (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
 	let classes = ref [([],"Std")] in
@@ -732,7 +732,7 @@ try
 			assert false
 		),"<dir> : set current working directory");
 		("-version",Arg.Unit (fun() ->
-			message ctx Globals.s_version null_pos;
+			message ctx s_version null_pos;
 			did_something := true;
 		),": print version and exit");
 		("--help-defines", Arg.Unit (fun() ->
