@@ -27,7 +27,7 @@ OCAMLC?=ocamlc
 LFLAGS=
 STATICLINK?=0
 
-HAXE_DIRECTORIES=compiler context generators macro optimization syntax typing display
+HAXE_DIRECTORIES=compiler context generators generators/gencommon macro optimization syntax typing display
 
 INCLUDES = $(HAXE_DIRECTORIES:%=-I _build/src/%)
 
