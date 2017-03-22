@@ -2327,6 +2327,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
    let injection = ref forInjection in
    let this_real = ref (if ctx.ctx_real_this_ptr then ThisReal else ThisDynamic) in
    let file_id = ctx.ctx_file_id in
+   let function_return_type = ref (cpp_type_of ctx function_type) in
    let loop_stack = ref [] in
    let alloc_file_id () =
       incr file_id;
@@ -2740,6 +2741,9 @@ let retype_expression ctx request_type function_args function_type expression_tr
             let old_declarations = Hashtbl.copy !declarations in
             let old_uses_this = !uses_this in
             let old_gc_stack = !gc_stack in
+            let old_return_type = !function_return_type in
+            let ret =cpp_type_of func.tf_type in
+            function_return_type := ret;
             uses_this := None;
             undeclared := Hashtbl.create 0;
             declarations := Hashtbl.create 0;
@@ -2749,7 +2753,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             let result = { close_expr=cppExpr;
                            close_id= !closureId;
                            close_undeclared= !undeclared;
-                           close_type= cpp_type_of func.tf_type;
+                           close_type= ret;
                            close_args= func.tf_args;
                            close_this= !uses_this;
                          } in
@@ -2760,6 +2764,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                if not (Hashtbl.mem !declarations name) then
                   Hashtbl.replace !undeclared name tvar;
             ) result.close_undeclared;
+            function_return_type := old_return_type;
             this_real := old_this_real;
             uses_this := if !uses_this != None then Some old_this_real else old_uses_this;
             gc_stack := old_gc_stack;
@@ -2975,7 +2980,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             CppTry(cppBlock, cppCatches), TCppVoid
 
          | TReturn eo ->
-            CppReturn(match eo with None -> None | Some e -> Some (retype (cpp_type_of function_type) e)), TCppVoid
+            CppReturn(match eo with None -> None | Some e -> Some (retype (!function_return_type) e)), TCppVoid
 
          | TCast (base,None) -> (* Use auto-cast rules *)
             let return_type = cpp_type_of expr.etype in
