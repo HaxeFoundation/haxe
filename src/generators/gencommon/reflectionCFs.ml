@@ -1303,21 +1303,9 @@ let implement_invokeField ctx ~slow_invoke cl =
 
 	let this_t = TInst(cl, List.map snd cl.cl_params) in
 	let this = { eexpr = TConst(TThis); etype = this_t; epos = pos } in
-	let apply_object cf = apply_params cf.cf_params (List.map (fun _ -> t_dynamic) cf.cf_params) cf.cf_type in
 
 	let mk_this_call_raw name fun_t params =
 		{ eexpr = TCall( { (mk_field_access gen this name pos) with etype = fun_t }, params ); etype = snd (get_fun fun_t); epos = pos }
-	in
-
-	let mk_this_call cf params =
-		let t = apply_object cf in
-		(* the return type transformation into Dynamic *)
-		(* is meant to avoid return-type casting after functions with *)
-		(* type parameters are properly inferred at infer_params *)
-		(* e.g. function getArray<T : SomeType>(t:T):Array<T>; after infer_params, *)
-		(* T will be inferred as SomeType, but the returned type will still be typed *)
-		(* as Array<Dynamic> *)
-		mk_this_call_raw cf.cf_name t params
 	in
 
 	let extends_hxobject = extends_hxobject cl in
@@ -1343,6 +1331,11 @@ let implement_invokeField ctx ~slow_invoke cl =
 			let i = ref 0 in
 			let dyn_arg_local = mk_local dynamic_arg pos in
 			let cases = List.map (switch_case ctx pos) names in
+
+			let mk_this_call cf params =
+				let t = apply_params cf.cf_params (List.map (fun _ -> t_dynamic) cf.cf_params) cf.cf_type in
+				mk_this_call_raw cf.cf_name t params
+			in
 			(cases,
 				mk_return (
 					mk_this_call cf (List.map (fun (name,_,t) ->

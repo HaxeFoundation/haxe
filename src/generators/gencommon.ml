@@ -203,38 +203,6 @@ let mk_static_field_access_infer cl field pos params =
 let mk_static_field_access cl field fieldt pos =
 	{ (mk_static_field_access_infer cl field pos []) with etype = fieldt }
 
-(* this function will receive the original function argument, the applied function argument and the original function parameters. *)
-(* from this info, it will infer the applied tparams for the function *)
-let infer_params com pos (original_args:((string * bool * t) list * t)) (applied_args:((string * bool * t) list * t)) (params:(string * t) list) calls_parameters_explicitly : tparams =
-	match params with
-	| [] -> []
-	| _ ->
-		let args_list args = (if not calls_parameters_explicitly then t_dynamic else snd args) :: (List.map (fun (n,o,t) -> t) (fst args)) in
-
-		let monos = List.map (fun _ -> mk_mono()) params in
-		let original = args_list (get_fun (apply_params params monos (TFun(fst original_args,snd original_args)))) in
-		let applied = args_list applied_args in
-
-		(try
-			List.iter2 (fun a o ->
-				unify a o
-				(* type_eq EqStrict a o *)
-			) applied original
-			(* unify applied original *)
-		with
-			| Unify_error el ->
-					(* List.iter (fun el -> com.warning (Typecore.unify_error_msg (print_context()) el) pos) el; *)
-					com.warning ("This expression may be invalid") pos
-			| Invalid_argument("List.map2") ->
-					com.warning ("This expression may be invalid") pos
-		);
-
-		List.map (fun t ->
-			match follow t with
-				| TMono _ ->	t_empty
-				| t -> t
-		) monos
-
 (* stolen from Hugh's sources ;-) *)
 (* this used to be a class, but there was something in there that crashed ocaml native compiler in windows *)
 module SourceWriter =

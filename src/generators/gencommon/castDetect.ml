@@ -664,6 +664,39 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 						{ ecall with eexpr = TCall(efield, elist) }
 	in
 
+	(* this function will receive the original function argument, the applied function argument and the original function parameters. *)
+	(* from this info, it will infer the applied tparams for the function *)
+	let infer_params pos (original_args:((string * bool * t) list * t)) (applied_args:((string * bool * t) list * t)) (params:(string * t) list) calls_parameters_explicitly : tparams =
+		match params with
+		| [] -> []
+		| _ ->
+			let args_list args = (if not calls_parameters_explicitly then t_dynamic else snd args) :: (List.map (fun (n,o,t) -> t) (fst args)) in
+
+			let monos = List.map (fun _ -> mk_mono()) params in
+			let original = args_list (get_fun (apply_params params monos (TFun(fst original_args,snd original_args)))) in
+			let applied = args_list applied_args in
+
+			(try
+				List.iter2 (fun a o ->
+					unify a o
+					(* type_eq EqStrict a o *)
+				) applied original
+				(* unify applied original *)
+			with
+				| Unify_error el ->
+						(* List.iter (fun el -> gen.gcon.warning (Typecore.unify_error_msg (print_context()) el) pos) el; *)
+						gen.gcon.warning ("This expression may be invalid") pos
+				| Invalid_argument("List.map2") ->
+						gen.gcon.warning ("This expression may be invalid") pos
+			);
+
+			List.map (fun t ->
+				match follow t with
+					| TMono _ ->	t_empty
+					| t -> t
+			) monos
+	in
+
 	let real_type = gen.greal_type ef.etype in
 	(* this part was rewritten at roughly r6477 in order to correctly support overloads *)
 	(match field_access_esp gen real_type (f) with
@@ -755,7 +788,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 				(* let called_t = TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype) in *)
 				let called_t = match follow e1.etype with | TFun _ -> e1.etype | _ -> TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype)	in (* workaround for issue #1742 *)
 				let called_t = change_rest called_t elist in
-				let fparams = infer_params gen.gcon ecall.epos (get_fun (apply_params cl.cl_params params actual_t)) (get_fun called_t) cf.cf_params calls_parameters_explicitly in
+				let fparams = infer_params ecall.epos (get_fun (apply_params cl.cl_params params actual_t)) (get_fun called_t) cf.cf_params calls_parameters_explicitly in
 				(* get what the backend actually sees *)
 				(* actual field's function *)
 				let actual_t = get_real_fun gen actual_t in
@@ -764,7 +797,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 				let real_fparams = if calls_parameters_explicitly then
 					gen.greal_type_param (TClassDecl cl) fparams
 				else
-					gen.greal_type_param (TClassDecl cl) (infer_params gen.gcon ecall.epos (get_fun function_t) (get_fun (get_real_fun gen called_t)) cf.cf_params calls_parameters_explicitly) in
+					gen.greal_type_param (TClassDecl cl) (infer_params ecall.epos (get_fun function_t) (get_fun (get_real_fun gen called_t)) cf.cf_params calls_parameters_explicitly) in
 				let function_t = get_real_fun gen (apply_params cf.cf_params real_fparams function_t) in
 				let args_ft, ret_ft = get_fun function_t in
 				(* applied function *)
