@@ -1770,7 +1770,7 @@ let macro_api ccom get_api =
 						file,true
 					| _ -> failwith ("unsupported file@`std` format: " ^ file)
 				in
-				Gencs.add_net_lib com file is_std
+				Dotnet.add_net_lib com file is_std
 			| _ -> failwith "Unsupported platform");
 			vnull
 		);

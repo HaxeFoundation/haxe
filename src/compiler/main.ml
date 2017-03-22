@@ -298,7 +298,7 @@ module Initialize = struct
 					com.net_libs <- [];
 					old_flush()
 				);
-				Gencs.before_generate com;
+				Dotnet.before_generate com;
 				add_std "cs"; "cs"
 			| Java ->
 				let old_flush = ctx.flush in
@@ -613,10 +613,10 @@ try
 					file,true
 				| _ -> raise Exit
 			in
-			arg_delays := (fun () -> Gencs.add_net_lib com file is_std) :: !arg_delays;
+			arg_delays := (fun () -> Dotnet.add_net_lib com file is_std) :: !arg_delays;
 		),"<file>[@std] : add an external .NET DLL file");
 		("-net-std",Arg.String (fun file ->
-			Gencs.add_net_std com file
+			Dotnet.add_net_std com file
 		),"<file> : add a root std .NET DLL search path");
 		("-c-arg",Arg.String (fun arg ->
 			com.c_args <- arg :: com.c_args
