@@ -17,12 +17,10 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 *)
 open Common
+open Ast
 open Type
 open Gencommon
 
-(* ******************************************* *)
-(* Int Division Synf *)
-(* ******************************************* *)
 (*
 	On targets that support int division, this module will force a float division to be performed.
 	It will also look for casts to int or use of Std.int() to optimize this kind of operation.
@@ -31,43 +29,52 @@ open Gencommon
 		since it depends on nothing, but many modules might generate division expressions,
 		it will be one of the last modules to run
 *)
-let name = "int_division_synf"
-let priority = solve_deps name [ DAfter ExpressionUnwrap.priority; DAfter ObjectDeclMap.priority; DAfter ArrayDeclSynf.priority ]
-
-let configure gen =
-	let basic = gen.gcon.basic in
-	let rec is_int t = match follow t with
-		| TInst({ cl_path = (["haxe";"lang"],"Null") }, [t]) -> is_int t
+let init com =
+	let rec is_int t =
+		match follow t with
+		| TInst ({ cl_path = (["haxe";"lang"],"Null") }, [t]) ->
+			is_int t
 		| t ->
 			like_int t && not (like_i64 t)
 	in
-	let is_exactly_int t = match follow t with
-		| TAbstract ({ a_path=[],"Int" }, []) -> true
+	let is_exactly_int t =
+		match follow t with
+		| TAbstract ({ a_path = ([],"Int") }, []) -> true
 		| _ -> false
 	in
 	let rec run e =
 		match e.eexpr with
-		| TBinop((Ast.OpDiv as op), e1, e2) when is_int e1.etype && is_int e2.etype ->
-			{ e with eexpr = TBinop(op, mk_cast basic.tfloat (run e1), run e2) }
-		| TCall(
-				{ eexpr = TField(_, FStatic({ cl_path = ([], "Std") }, { cf_name = "int" })) },
-				[ ({ eexpr = TBinop((Ast.OpDiv as op), e1, e2) } as ebinop ) ]
+		| TBinop ((OpDiv as op), e1, e2) when is_int e1.etype && is_int e2.etype ->
+			{ e with eexpr = TBinop (op, mk_cast com.basic.tfloat (run e1), run e2) }
+
+		| TCall (
+				{ eexpr = TField (_, FStatic ({ cl_path = ([], "Std") }, { cf_name = "int" })) },
+				[ { eexpr = TBinop ((OpDiv as op), e1, e2) } as ebinop ]
 			) when is_int e1.etype && is_int e2.etype ->
-			let e = { ebinop with eexpr = TBinop(op, run e1, run e2); etype = basic.tint } in
+
+			let e = { ebinop with eexpr = TBinop (op, run e1, run e2); etype = com.basic.tint } in
 			if not (is_exactly_int e1.etype && is_exactly_int e2.etype) then
-				mk_cast basic.tint e
+				mk_cast com.basic.tint e
 			else
 				e
-		| TCast( ({ eexpr = TBinop((Ast.OpDiv as op), e1, e2) } as ebinop ), _ )
-		| TCast( ({ eexpr = TBinop(( (Ast.OpAssignOp Ast.OpDiv) as op), e1, e2) } as ebinop ), _ ) when is_int e1.etype && is_int e2.etype && is_int e.etype ->
-			let ret = { ebinop with eexpr = TBinop(op, run e1, run e2); etype = e.etype } in
+
+		| TCast ({ eexpr = TBinop((OpDiv as op), e1, e2) } as ebinop, _ )
+		| TCast ({ eexpr = TBinop(((OpAssignOp OpDiv) as op), e1, e2) } as ebinop, _ ) when is_int e1.etype && is_int e2.etype && is_int e.etype ->
+			let ret = { ebinop with eexpr = TBinop (op, run e1, run e2); etype = e.etype } in
 			if not (is_exactly_int e1.etype && is_exactly_int e2.etype) then
 				mk_cast e.etype ret
 			else
 				e
+
 		| _ ->
 			Type.map_expr run e
 	in
+	run
 
-	let map e = Some(run e) in
+let name = "int_division_synf"
+let priority = solve_deps name [ DAfter ExpressionUnwrap.priority; DAfter ObjectDeclMap.priority; DAfter ArrayDeclSynf.priority ]
+
+let configure gen =
+	let run = init gen.gcon in
+	let map e = Some (run e) in
 	gen.gsyntax_filters#add name (PCustom priority) map
