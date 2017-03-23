@@ -438,11 +438,9 @@ struct
 				}
 			}
 		*)
-
-		let new_t = TInst (cl, params) in
 		let pos = cl.cl_pos in
 
-		let new_me_var = alloc_var "new_me" new_t in
+		let new_me_var = alloc_var "new_me" (TInst (cl, params)) in
 		let local_new_me = mk_local new_me_var pos in
 		let this = mk (TConst TThis) (TInst (cl, List.map snd cl.cl_params)) pos in
 		let field_var = alloc_var "field" basic.tstring in
@@ -453,57 +451,50 @@ struct
 		let fields_var = alloc_var "fields" (basic.tarray basic.tstring) in
 		let local_fields = mk_local fields_var pos in
 
-		let get_path t =
-			match follow t with
-				| TInst(cl,_) -> cl.cl_path
-				| TEnum(e,_) -> e.e_path
-				| TAbstract(a,_) -> a.a_path
-				| TMono _
-				| TDynamic _ -> ([], "Dynamic")
-				| _ -> assert false
-		in
-
-		(* this will take all fields that were *)
 		let fields_to_cases fields =
+			let get_path t =
+				match follow t with
+				| TInst (cl,_) -> cl.cl_path
+				| TEnum (e,_) -> e.e_path
+				| TAbstract (a,_) -> a.a_path
+				| TMono _ | TDynamic _ -> ([], "Dynamic")
+				| _ -> assert false
+			in
 			List.map (fun (cf, t_cl, t_cf) ->
-				let this_field = { eexpr = TField(this, FInstance(cl, List.map snd cl.cl_params, cf)); etype = t_cl; epos = pos } in
+				let this_field = mk (TField (this, FInstance (cl, List.map snd cl.cl_params, cf))) t_cl pos in
 				let expr =
-				{
-					eexpr = TBinop(OpAssign, { eexpr = TField(local_new_me, FInstance(cl, List.map snd cl.cl_params, cf) ); etype = t_cf; epos = pos },
-						try (Hashtbl.find gen.gtparam_cast (get_path t_cf)) this_field t_cf with | Not_found -> (* if not found tparam cast, it shouldn't be a valid hxgeneric *) assert false
-					);
-					etype = t_cf;
-					epos = pos;
-				} in
-
+					binop
+						OpAssign
+						(mk (TField (local_new_me, FInstance(cl, List.map snd cl.cl_params, cf))) t_cf pos)
+						(try (Hashtbl.find gen.gtparam_cast (get_path t_cf)) this_field t_cf with Not_found -> (* if not found tparam cast, it shouldn't be a valid hxgeneric *) assert false)
+						t_cf
+						pos
+				in
 				[ExprBuilder.make_string gen.gcon cf.cf_name pos], expr
 			) fields
 		in
 
 		let mk_typehandle =
 			let thandle = alloc_var "__typeof__" t_dynamic in
-			(fun cl -> { eexpr = TCall(mk_local thandle pos, [ ExprBuilder.make_static_this cl pos ]); etype = t_dynamic; epos = pos })
+			(fun cl -> mk (TCall (mk_local thandle pos, [ExprBuilder.make_static_this cl pos])) t_dynamic pos)
 		in
 		let mk_eq cl1 cl2 =
-			{ eexpr = TBinop(Ast.OpEq, mk_typehandle cl1, mk_typehandle cl2); etype = basic.tbool; epos = pos }
+			binop OpEq (mk_typehandle cl1) (mk_typehandle cl2) basic.tbool pos
 		in
-
 		let rec mk_typehandle_cond thisparams cfparams =
 			match thisparams, cfparams with
-				| TInst(cl_this,[]) :: [], TInst(cl_cf,[]) :: [] ->
-					mk_eq cl_this cl_cf
-				| TInst(cl_this,[]) :: hd, TInst(cl_cf,[]) :: hd2 ->
-					{ eexpr = TBinop(Ast.OpBoolAnd, mk_eq cl_this cl_cf, mk_typehandle_cond hd hd2); etype = basic.tbool; epos = pos }
-				| v :: hd, v2 :: hd2 ->
-					(match follow v, follow v2 with
-						| (TInst(cl1,[]) as v), (TInst(cl2,[]) as v2) ->
-							mk_typehandle_cond (v :: hd) (v2 :: hd2)
-						| _ ->
-							assert false
-					)
-				| _ -> assert false
+			| TInst (cl_this,[]) :: [], TInst (cl_cf,[]) :: [] ->
+				mk_eq cl_this cl_cf
+			| TInst (cl_this,[]) :: hd, TInst (cl_cf,[]) :: hd2 ->
+				binop OpBoolAnd (mk_eq cl_this cl_cf) (mk_typehandle_cond hd hd2) basic.tbool pos
+			| v :: hd, v2 :: hd2 ->
+				(match follow v, follow v2 with
+				| (TInst(cl1,[]) as v), (TInst(cl2,[]) as v2) ->
+					mk_typehandle_cond (v :: hd) (v2 :: hd2)
+				| _ ->
+					assert false)
+			| _ -> assert false
 		in
-
 		let fn = {
 			tf_args = [];
 			tf_type = t_dynamic;
