@@ -359,7 +359,7 @@ class ['tp] rule_map_dispatcher name =
 						let t = if !debug_mode then Common.timer [("rule map dispatcher rule: " ^ n)] else fun () -> () in
 						let r = rule(!cur) in
 						t();
-						if is_some r then begin cur := get r end
+						Option.may (fun v -> cur := v) r
 					) q
 				end
 			) keys
