@@ -21,6 +21,7 @@ open Globals
 open Common
 open Ast
 open Type
+open Codegen
 open Gencommon
 
 (* ******************************************* *)
@@ -36,7 +37,6 @@ open Gencommon
 		must run before dynamic field access (?) TODO review
 		It's a syntax filter, as it alters types (throw wrapper)
 *)
-let priority = solve_deps "try_catch" [DBefore DynamicFieldAccess.priority]
 
 (*
 	should_wrap : does the type should be wrapped? This of course works on the reverse way, so it tells us if the type should be unwrapped as well
@@ -47,73 +47,84 @@ let priority = solve_deps "try_catch" [DBefore DynamicFieldAccess.priority]
 	wrapper_type : the wrapper type, so we can test if exception is of type 'wrapper'
 	catch_map : maps the catch expression to include some intialization code (e.g. setting up Stack.exceptionStack)
 *)
-let configure gen (should_wrap:t->bool) (wrap_throw:texpr->texpr->texpr) (unwrap_expr:tvar->pos->texpr) (rethrow_expr:texpr->texpr) (catchall_type:t) (wrapper_type:t) (catch_map:tvar->texpr->texpr) =
+let init com (should_wrap:t->bool) (wrap_throw:texpr->texpr->texpr) (unwrap_expr:tvar->pos->texpr) (rethrow_expr:texpr->texpr) (catchall_type:t) (wrapper_type:t) (catch_map:tvar->texpr->texpr) (gen_typecheck:texpr->t->pos->texpr) =
 	let rec run e =
 		match e.eexpr with
-				| TThrow texpr when should_wrap texpr.etype -> wrap_throw e (run texpr)
-				| TTry (ttry, catches) ->
-					let nowrap_catches, must_wrap_catches, catchall = List.fold_left (fun (nowrap_catches, must_wrap_catches, catchall) (v, catch) ->
-						(* first we'll see if the type is Dynamic (catchall) *)
-						match follow v.v_type with
-							| TDynamic _ ->
-								assert (is_none catchall);
-								(nowrap_catches, must_wrap_catches, Some(v,run catch))
-							(* see if we should unwrap it *)
-							| _ when should_wrap (follow v.v_type) ->
-								(nowrap_catches, (v,run catch) :: must_wrap_catches, catchall)
-							| _ ->
-								( (v,catch_map v (run catch)) :: nowrap_catches, must_wrap_catches, catchall )
-					) ([], [], None) catches
-					in
-					(* temp (?) fix for https://github.com/HaxeFoundation/haxe/issues/4134 *)
-					let must_wrap_catches = List.rev must_wrap_catches in
-					(*
-						1st catch all nowrap "the easy way"
-						2nd see if there are any must_wrap or catchall. If there is,
-							do a catchall first with a temp var.
-							then get catchall var (as dynamic) (or create one), and declare it = catchall exception
-							then test if it is of type wrapper_type. If it is, unwrap it
-							then start doing Std.is() tests for each catch type
-							if there is a catchall in the end, end with it. If there isn't, rethrow
-					*)
-					let dyn_catch = match (catchall, must_wrap_catches) with
-						| Some (v,c), _
-						| _, (v, c) :: _ ->
-							let pos = c.epos in
-							let temp_var = mk_temp "catchallException" catchall_type in
-							let temp_local = { eexpr=TLocal(temp_var); etype = temp_var.v_type; epos = pos } in
-							let catchall_var = (*match catchall with
-								| None -> *) mk_temp "catchall" t_dynamic
-								(*| Some (v,_) -> v*)
-							in
-							let catchall_decl = { eexpr = TVar(catchall_var, Some(temp_local)); etype=gen.gcon.basic.tvoid; epos = pos } in
-							let catchall_local = { eexpr = TLocal(catchall_var); etype = t_dynamic; epos = pos } in
-							(* if it is of type wrapper_type, unwrap it *)
-							let std_is = mk_static_field_access (get_cl (get_type gen ([],"Std"))) "is" (TFun(["v",false,t_dynamic;"cl",false,mt_to_t (get_type gen ([], "Class")) [t_dynamic]],gen.gcon.basic.tbool)) pos in
-							let mk_std_is t pos = { eexpr = TCall(std_is, [catchall_local; mk_mt_access (t_to_mt t) pos]); etype = gen.gcon.basic.tbool; epos = pos } in
+		| TThrow texpr when should_wrap texpr.etype ->
+			wrap_throw e (run texpr)
+		| TTry (ttry, catches) ->
+			let nowrap_catches, must_wrap_catches, catchall = List.fold_left (fun (nowrap_catches, must_wrap_catches, catchall) (v, catch) ->
+				(* first we'll see if the type is Dynamic (catchall) *)
+				match follow v.v_type with
+				| TDynamic _ ->
+					assert (is_none catchall);
+					(nowrap_catches, must_wrap_catches, Some(v, run catch))
+				(* see if we should unwrap it *)
+				| _ when should_wrap (follow v.v_type) ->
+					(nowrap_catches, (v,run catch) :: must_wrap_catches, catchall)
+				| _ ->
+					((v,catch_map v (run catch)) :: nowrap_catches, must_wrap_catches, catchall)
+			) ([], [], None) catches in
 
-							let if_is_wrapper_expr = { eexpr = TIf(mk_std_is wrapper_type pos,
-								{ eexpr = TBinop(OpAssign, catchall_local, unwrap_expr temp_var pos); etype = t_dynamic; epos = pos }
-							, None); etype = gen.gcon.basic.tvoid; epos = pos } in
-							let rec loop must_wrap_catches = match must_wrap_catches with
-								| (vcatch,catch) :: tl ->
-									{ eexpr = TIf(mk_std_is vcatch.v_type catch.epos,
-										{ eexpr = TBlock({ eexpr=TVar(vcatch, Some(mk_cast vcatch.v_type catchall_local)); etype=gen.gcon.basic.tvoid; epos=catch.epos } :: [catch] ); etype = catch.etype; epos = catch.epos },
-										Some (loop tl));
-									etype = catch.etype; epos = catch.epos }
-								| [] ->
-									match catchall with
-										| Some (v,s) ->
-											Type.concat { eexpr = TVar(v, Some(catchall_local)); etype = gen.gcon.basic.tvoid; epos = pos } s
-										| None ->
-											mk_block (rethrow_expr temp_local)
-							in
-							[ ( temp_var, catch_map temp_var { e with eexpr = TBlock([ catchall_decl; if_is_wrapper_expr; loop must_wrap_catches ]) } ) ]
-						| _ ->
-							[]
-					in
-					{ e with eexpr = TTry(run ttry, (List.rev nowrap_catches) @ dyn_catch) }
-				| _ -> Type.map_expr run e
+			(* temp (?) fix for https://github.com/HaxeFoundation/haxe/issues/4134 *)
+			let must_wrap_catches = List.rev must_wrap_catches in
+
+			(*
+				1st catch all nowrap "the easy way"
+				2nd see if there are any must_wrap or catchall. If there is,
+					do a catchall first with a temp var.
+					then get catchall var (as dynamic) (or create one), and declare it = catchall exception
+					then test if it is of type wrapper_type. If it is, unwrap it
+					then start doing Std.is() tests for each catch type
+					if there is a catchall in the end, end with it. If there isn't, rethrow
+			*)
+			let dyn_catch = match catchall, must_wrap_catches with
+			| Some (v,c), _
+			| _, (v, c) :: _ ->
+				let pos = c.epos in
+				let temp_var = mk_temp "catchallException" catchall_type in
+				let temp_local = ExprBuilder.make_local temp_var pos in
+				let catchall_var = mk_temp "catchall" t_dynamic in
+				let catchall_decl = mk (TVar (catchall_var, Some(temp_local))) com.basic.tvoid pos in
+				let catchall_local = ExprBuilder.make_local catchall_var pos in
+
+				(* if it is of type wrapper_type, unwrap it *)
+				let mk_std_is t pos = gen_typecheck catchall_local t pos in
+
+				let if_is_wrapper_expr = mk (TIf(mk_std_is wrapper_type pos, Codegen.binop OpAssign catchall_local (unwrap_expr temp_var pos) t_dynamic pos, None)) com.basic.tvoid pos in
+				let rec loop must_wrap_catches =
+					match must_wrap_catches with
+					| (vcatch,catch) :: tl ->
+						mk (TIf (mk_std_is vcatch.v_type catch.epos,
+							     mk (TBlock [(mk (TVar (vcatch, Some(mk_cast vcatch.v_type catchall_local))) com.basic.tvoid catch.epos); catch]) catch.etype catch.epos,
+							     Some (loop tl))
+						) catch.etype catch.epos
+					| [] ->
+						match catchall with
+						| Some (v,s) ->
+							Type.concat (mk (TVar (v, Some catchall_local)) com.basic.tvoid pos) s
+						| None ->
+							mk_block (rethrow_expr temp_local)
+				in
+				[(temp_var, catch_map temp_var { e with eexpr = TBlock [catchall_decl; if_is_wrapper_expr; loop must_wrap_catches] })]
+			| _ ->
+				[]
+			in
+			{ e with eexpr = TTry(run ttry, (List.rev nowrap_catches) @ dyn_catch) }
+		| _ ->
+			Type.map_expr run e
 	in
+	run
+
+let name = "try_catch"
+let priority = solve_deps name [DBefore DynamicFieldAccess.priority]
+
+let configure gen should_wrap wrap_throw unwrap_expr rethrow_expr catchall_type wrapper_type catch_map =
+	let gen_typecheck e t pos =
+		let std_cl = get_cl (get_type gen ([],"Std")) in
+		let std_is = mk_static_field_access_infer std_cl "is" pos [] in
+		mk (TCall (std_is, [e; mk_mt_access (t_to_mt t) pos])) gen.gcon.basic.tbool pos
+	in
+	let run = init gen.gcon should_wrap wrap_throw unwrap_expr rethrow_expr catchall_type wrapper_type catch_map gen_typecheck in
 	let map e = Some(run e) in
-	gen.gsyntax_filters#add "try_catch" (PCustom priority) map
+	gen.gsyntax_filters#add name (PCustom priority) map
