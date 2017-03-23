@@ -21,10 +21,6 @@ open Ast
 open Type
 open Gencommon
 
-
-(* ******************************************* *)
-(* Unreachable Code Elimination *)
-(* ******************************************* *)
 (*
 	In some source code platforms, the code won't compile if there is Unreachable code, so this filter will take off any unreachable code.
 		If the parameter "handle_switch_break" is set to true, it will already add a "break" statement on switch cases when suitable;
@@ -38,9 +34,6 @@ open Gencommon
 		This must run before SwitchBreakSynf (see SwitchBreakSynf dependecy value)
 		This must be the LAST syntax filter to run. It expects ExpressionUnwrap to have run correctly, since this will only work for source-code based targets
 *)
-let name = "unreachable_synf"
-let priority = min_dep -. 100.0
-
 type uexpr_kind =
 	| Normal
 	| BreaksLoop
@@ -70,11 +63,11 @@ let rec get_constant_expr e =
 		| TParenthesis(e) | TMeta(_,e) -> get_constant_expr e
 		| _ -> None
 
-let traverse gen java_mode =
+let traverse com java_mode =
 	let should_warn = false in
 
 	let do_warn =
-		if should_warn then gen.gcon.warning "Unreachable code" else (fun pos -> ())
+		if should_warn then com.warning "Unreachable code" else (fun pos -> ())
 	in
 
 	let return_loop expr kind =
@@ -210,7 +203,9 @@ let traverse gen java_mode =
 	let run e = fst (process_expr e) in
 	run
 
+let priority = min_dep -. 100.0
+
 let configure gen java_mode =
-	let run = traverse gen java_mode in
+	let run = traverse gen.gcon java_mode in
 	let map e = Some(run e) in
-	gen.gsyntax_filters#add name (PCustom priority) map
+	gen.gsyntax_filters#add "unreachable_synf" (PCustom priority) map
