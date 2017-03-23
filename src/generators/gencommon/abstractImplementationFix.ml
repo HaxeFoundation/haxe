@@ -19,35 +19,25 @@
 open Type
 open Gencommon
 
-(* ******************************************* *)
-(* AbstractImplementationFix *)
-(* ******************************************* *)
-(*
-	This module filter will map the compiler created classes from abstract
-	implementations to valid haxe code, as needed by gencommon
+(** add abstract type parameters to abstract implementation methods *)
+let add_abstract_params = function
+	| TClassDecl ({ cl_kind = KAbstractImpl a } as c) ->
+		List.iter (
+			function
+			| ({ cf_name = "_new" } as cf) ->
+				cf.cf_params <- cf.cf_params @ a.a_params
+			| cf when Meta.has Meta.Impl cf.cf_meta ->
+				(match cf.cf_expr with
+				| Some({ eexpr = TFunction({ tf_args = (v, _) :: _ }) }) when Meta.has Meta.This v.v_meta ->
+					cf.cf_params <- cf.cf_params @ a.a_params
+				| _ -> ())
+			| _ -> ()
+		) c.cl_ordered_statics
+	| _ -> ()
 
-	dependencies:
-		No dependencies
-*)
 let name = "abstract_implementation_fix"
 let priority = solve_deps name []
 
 let configure gen =
-	let run md =
-		(match md with
-		| TClassDecl ({ cl_kind = KAbstractImpl a } as c) ->
-			List.iter (
-				function
-				| ({ cf_name = "_new" } as cf) ->
-					cf.cf_params <- cf.cf_params @ a.a_params
-				| cf when Meta.has Meta.Impl cf.cf_meta ->
-					(match cf.cf_expr with
-					| Some({ eexpr = TFunction({ tf_args = (v, _) :: _ }) }) when Meta.has Meta.This v.v_meta ->
-						cf.cf_params <- cf.cf_params @ a.a_params
-					| _ -> ())
-				| _ -> ()
-			) c.cl_ordered_statics
-		| _ -> ());
-		Some md
-	in
+	let run md = (add_abstract_params md; Some md) in
 	gen.gmodule_filters#add name (PCustom priority) run
