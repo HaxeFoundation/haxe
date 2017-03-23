@@ -19,9 +19,6 @@
 open Type
 open Gencommon
 
-(* ******************************************* *)
-(* ArrayDeclSynf *)
-(* ******************************************* *)
 (*
 	A syntax filter that will change array declarations to the actual native array declarations plus
 	the haxe array initialization
@@ -29,10 +26,7 @@ open Gencommon
 	dependencies:
 		Must run after ObjectDeclMap since it can add TArrayDecl expressions
 *)
-let name = "array_decl_synf"
-let priority = solve_deps name [DAfter ObjectDeclMap.priority]
-
-let configure gen native_array_cl =
+let init (native_array_cl : tclass) (change_type_params : module_type -> t list -> t list) =
 	let rec run e =
 		match e.eexpr with
 		| TArrayDecl el ->
@@ -41,9 +35,18 @@ let configure gen native_array_cl =
 				| TInst(({ cl_path = ([], "Array") } as cl), []) -> cl, [t_dynamic]
 				| _ -> assert false
 			in
-			let changed_params = gen.greal_type_param (TClassDecl cl) params in
-			{ e with eexpr = TNew(cl, changed_params, [ { e with eexpr = TArrayDecl(List.map run el); etype = TInst(native_array_cl, changed_params) } ]	); }
-		| _ -> Type.map_expr run e
+			let params = change_type_params (TClassDecl cl) params in
+			let e_inner_decl = mk (TArrayDecl (List.map run el)) (TInst (native_array_cl, params)) e.epos in
+			mk (TNew (cl, params, [e_inner_decl])) e.etype e.epos
+		| _ ->
+			Type.map_expr run e
 	in
-	let map e = Some(run e) in
+	run
+
+let name = "array_decl_synf"
+let priority = solve_deps name [DAfter ObjectDeclMap.priority]
+
+let configure gen native_array_cl change_type_params =
+	let run = init native_array_cl change_type_params in
+	let map e = Some (run e) in
 	gen.gsyntax_filters#add name (PCustom priority) map

@@ -2413,7 +2413,7 @@ let generate con =
 
 	UnreachableCodeEliminationSynf.configure gen true;
 
-	ArrayDeclSynf.configure gen native_arr_cl;
+	ArrayDeclSynf.configure gen native_arr_cl change_param_type;
 
 	DefaultArguments.configure gen;
 	InterfaceMetas.configure gen;
