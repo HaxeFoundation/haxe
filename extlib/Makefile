@@ -15,15 +15,15 @@ all: bytecode native
 
 opt: native
 
-bytecode: extLib.cma
+bytecode: extlib.cma
 
-native: extLib.cmxa
+native: extlib.cmxa
 
-extLib.cma: $(SRC)
-	$(OCAMLC) -a -o extLib.cma $(SRC)
+extlib.cma: $(SRC)
+	$(OCAMLC) -a -o extlib.cma $(SRC)
 
-extLib.cmxa: $(SRC)
-	$(OCAMLOPT) -g -a -o extLib.cmxa $(SRC)
+extlib.cmxa: $(SRC)
+	$(OCAMLOPT) -g -a -o extlib.cmxa $(SRC)
 
 doc:
 	$(OCAMLC) -c $(MODULES:=.mli)
@@ -32,7 +32,7 @@ doc:
 	cp odoc_style.css doc/style.css
 
 copy:
-	mv *.cmi *.cmx *.cma *.cmxa extLib.lib c:/ocaml/lib/
+	mv *.cmi *.cmx *.cma *.cmxa extlib.lib c:/ocaml/lib/
 
 install:
 	cp META.txt META
