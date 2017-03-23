@@ -21,9 +21,6 @@ open Ast
 open Type
 open Gencommon
 
-(* ******************************************* *)
-(* Expression Unwrap *)
-(* ******************************************* *)
 (*
 	This is the most important module for source-code based targets. It will follow a convention of what's an expression and what's a statement,
 	and will unwrap statements where expressions are expected, and vice-versa.
@@ -45,7 +42,6 @@ open Gencommon
 
 	TODO : While statement must become do / while, with the actual block inside an if for the condition, and else for 'break'
 *)
-let name = "expression_unwrap"
 
 (* priority: first syntax filter *)
 let priority = -10.0
@@ -158,8 +154,8 @@ let rec no_paren e =
 (* must be called in a statement. Will execute fn whenever an expression (not statement) is expected *)
 let rec expr_stat_map fn (expr:texpr) =
 	match (no_paren expr).eexpr with
-		| TBinop ( (Ast.OpAssign as op), left_e, right_e )
-		| TBinop ( (Ast.OpAssignOp _ as op), left_e, right_e ) ->
+		| TBinop ( (OpAssign as op), left_e, right_e )
+		| TBinop ( (OpAssignOp _ as op), left_e, right_e ) ->
 			{ expr with eexpr = TBinop(op, fn left_e, fn right_e) }
 		| TParenthesis _ -> assert false
 		| TCall(left_e, params) ->
@@ -183,8 +179,8 @@ let rec expr_stat_map fn (expr:texpr) =
 		| TBreak
 		| TContinue
 		| TTry _
-		| TUnop (Ast.Increment, _, _)
-		| TUnop (Ast.Decrement, _, _) (* unop is a special case because the haxe compiler won't let us generate complex expressions with Increment/Decrement *)
+		| TUnop (Increment, _, _)
+		| TUnop (Decrement, _, _) (* unop is a special case because the haxe compiler won't let us generate complex expressions with Increment/Decrement *)
 		| TBlock _ -> expr (* there is no expected expression here. Only statements *)
 		| TMeta(m,e) ->
 			{ expr with eexpr = TMeta(m,expr_stat_map fn e) }
@@ -217,10 +213,10 @@ let rec shallow_expr_type expr : shallow_expr_type =
 	match expr.eexpr with
 		| TCall _ when not (ExtType.is_void expr.etype) -> Both expr
 		| TNew _
-		| TUnop (Ast.Increment, _, _)
-		| TUnop (Ast.Decrement, _, _)
-		| TBinop (Ast.OpAssign, _, _)
-		| TBinop (Ast.OpAssignOp _, _, _) -> Both expr
+		| TUnop (Increment, _, _)
+		| TUnop (Decrement, _, _)
+		| TBinop (OpAssign, _, _)
+		| TBinop (OpAssignOp _, _, _) -> Both expr
 		| TIf (cond, eif, Some(eelse)) -> (match aggregate_expr_type expr_kind true [cond;eif;eelse] with
 			| KExprWithStatement -> Statement
 			| _ -> Both expr)
@@ -253,51 +249,48 @@ let rec shallow_expr_type expr : shallow_expr_type =
 
 and expr_kind expr =
 	match shallow_expr_type expr with
-		| Statement -> KStatement
-		| Both expr | Expression expr ->
-			let aggregate = aggregate_expr_type expr_kind in
-			match expr.eexpr with
-				| TConst _
-				| TLocal _
-				| TFunction _
-				| TTypeExpr _ ->
-					KNoSideEffects
-				| TCall (ecall, params) ->
-					aggregate false (ecall :: params)
-				| TNew (_,_,params) ->
-					aggregate false params
-				| TUnop (Increment,_,e)
-				| TUnop (Decrement,_,e) ->
-					aggregate false [e]
-				| TUnop (_,_,e) ->
-					aggregate true [e]
-				| TBinop (Ast.OpBoolAnd, e1, e2)
-				| TBinop (Ast.OpBoolOr, e1, e2) ->	(* TODO: should OpBool never be side-effects free? *)
-					aggregate true [e1;e2]
-				| TBinop (Ast.OpAssign, e1, e2)
-				| TBinop (Ast.OpAssignOp _, e1, e2) ->
-					aggregate false [e1;e2]
-				| TBinop (_, e1, e2) ->
-					aggregate true [e1;e2]
-				| TIf (cond, eif, Some(eelse)) -> (match aggregate true [cond;eif;eelse] with
-					| KExprWithStatement -> KStatement
-					| k -> k)
-				| TArray (e1,e2) ->
-					aggregate true [e1;e2]
-				| TParenthesis e
-				| TMeta(_,e)
-				| TField (e,_) ->
-					aggregate true [e]
-				| TArrayDecl (el) ->
-					aggregate true el
-				| TObjectDecl (sel) ->
-					aggregate true (List.map snd sel)
-				| TCast (e,_) ->
-					aggregate true [e]
-				| _ -> trace (debug_expr expr); assert false (* should have been read as Statement by shallow_expr_type *)
-
-let is_side_effects_free e =
-	match expr_kind e with | KNoSideEffects -> true | _ -> false
+	| Statement -> KStatement
+	| Both expr | Expression expr ->
+		let aggregate = aggregate_expr_type expr_kind in
+		match expr.eexpr with
+		| TConst _
+		| TLocal _
+		| TFunction _
+		| TTypeExpr _ ->
+			KNoSideEffects
+		| TCall (ecall, params) ->
+			aggregate false (ecall :: params)
+		| TNew (_,_,params) ->
+			aggregate false params
+		| TUnop (Increment,_,e)
+		| TUnop (Decrement,_,e) ->
+			aggregate false [e]
+		| TUnop (_,_,e) ->
+			aggregate true [e]
+		| TBinop (OpBoolAnd, e1, e2)
+		| TBinop (OpBoolOr, e1, e2) ->	(* TODO: should OpBool never be side-effects free? *)
+			aggregate true [e1;e2]
+		| TBinop (OpAssign, e1, e2)
+		| TBinop (OpAssignOp _, e1, e2) ->
+			aggregate false [e1;e2]
+		| TBinop (_, e1, e2) ->
+			aggregate true [e1;e2]
+		| TIf (cond, eif, Some(eelse)) -> (match aggregate true [cond;eif;eelse] with
+			| KExprWithStatement -> KStatement
+			| k -> k)
+		| TArray (e1,e2) ->
+			aggregate true [e1;e2]
+		| TParenthesis e
+		| TMeta(_,e)
+		| TField (e,_) ->
+			aggregate true [e]
+		| TArrayDecl (el) ->
+			aggregate true el
+		| TObjectDecl (sel) ->
+			aggregate true (List.map snd sel)
+		| TCast (e,_) ->
+			aggregate true [e]
+		| _ -> trace (debug_expr expr); assert false (* should have been read as Statement by shallow_expr_type *)
 
 let get_kinds (statement:texpr) =
 	let kinds = ref [] in
@@ -347,7 +340,7 @@ let mk_get_block assign_fun e =
 		| _ ->
 			{ e with eexpr = TBlock([ assign_fun e ]) }
 
-let add_assign gen add_statement expr =
+let add_assign add_statement expr =
 	match expr.eexpr, follow expr.etype with
 		| _, TAbstract ({ a_path = ([],"Void") },[])
 		| TThrow _, _ ->
@@ -387,40 +380,40 @@ let rec apply_assign assign_fun right =
 					right
 				| _ -> trace (debug_expr right); assert false (* a statement is required *)
 
-let short_circuit_op_unwrap gen add_statement expr :texpr =
+let short_circuit_op_unwrap com add_statement expr :texpr =
 	let do_not expr =
-		{ expr with eexpr = TUnop(Ast.Not, Ast.Prefix, expr) }
+		{ expr with eexpr = TUnop(Not, Prefix, expr) }
 	in
 
 	(* loop will always return its own TBlock, and the mapped expression *)
 	let rec loop acc expr =
 		match expr.eexpr with
-			| TBinop ( (Ast.OpBoolAnd as op), left, right) ->
+			| TBinop ( (OpBoolAnd as op), left, right) ->
 				let var = mk_temp "boolv" right.etype in
-				let tvars = { right with eexpr = TVar(var, Some( { right with eexpr = TConst(TBool false); etype = gen.gcon.basic.tbool } )); etype = gen.gcon.basic.tvoid } in
+				let tvars = { right with eexpr = TVar(var, Some( { right with eexpr = TConst(TBool false); etype = com.basic.tbool } )); etype = com.basic.tvoid } in
 				let local = { right with eexpr = TLocal(var) } in
 
-				let mapped_left, ret_acc = loop ( (local, { right with eexpr = TBinop(Ast.OpAssign, local, right) } ) :: acc) left in
+				let mapped_left, ret_acc = loop ( (local, { right with eexpr = TBinop(OpAssign, local, right) } ) :: acc) left in
 
 				add_statement tvars;
 				({ expr with eexpr = TBinop(op, mapped_left, local) }, ret_acc)
 			(* we only accept OpBoolOr when it's the first to be evaluated *)
-			| TBinop ( (Ast.OpBoolOr as op), left, right) when acc = [] ->
+			| TBinop ( (OpBoolOr as op), left, right) when acc = [] ->
 				let left = match left.eexpr with
 					| TLocal _ | TConst _ -> left
-					| _ -> add_assign gen add_statement left
+					| _ -> add_assign add_statement left
 				in
 
 				let var = mk_temp "boolv" right.etype in
-				let tvars = { right with eexpr = TVar(var, Some( { right with eexpr = TConst(TBool false); etype = gen.gcon.basic.tbool } )); etype = gen.gcon.basic.tvoid } in
+				let tvars = { right with eexpr = TVar(var, Some( { right with eexpr = TConst(TBool false); etype = com.basic.tbool } )); etype = com.basic.tvoid } in
 				let local = { right with eexpr = TLocal(var) } in
 				add_statement tvars;
 
-				({ expr with eexpr = TBinop(op, left, local) }, [ do_not left, { right with eexpr = TBinop(Ast.OpAssign, local, right) } ])
+				({ expr with eexpr = TBinop(op, left, local) }, [ do_not left, { right with eexpr = TBinop(OpAssign, local, right) } ])
 			| _ when acc = [] -> assert false
 			| _ ->
 				let var = mk_temp "boolv" expr.etype in
-				let tvars = { expr with eexpr = TVar(var, Some( { expr with etype = gen.gcon.basic.tbool } )); etype = gen.gcon.basic.tvoid } in
+				let tvars = { expr with eexpr = TVar(var, Some( { expr with etype = com.basic.tbool } )); etype = com.basic.tvoid } in
 				let local = { expr with eexpr = TLocal(var) } in
 
 				let last_local = ref local in
@@ -439,83 +432,45 @@ let short_circuit_op_unwrap gen add_statement expr :texpr =
 	let rec loop local_assign_list : texpr =
 		match local_assign_list with
 			| [local, assign] ->
-				{ eexpr = TIf(local, assign, None); etype = gen.gcon.basic.tvoid; epos = assign.epos }
+				{ eexpr = TIf(local, assign, None); etype = com.basic.tvoid; epos = assign.epos }
 			| (local, assign) :: tl ->
 				{ eexpr = TIf(local,
 					{
 						eexpr = TBlock ( assign :: [loop tl] );
-						etype = gen.gcon.basic.tvoid;
+						etype = com.basic.tvoid;
 						epos = assign.epos;
 					},
-				None); etype = gen.gcon.basic.tvoid; epos = assign.epos }
+				None); etype = com.basic.tvoid; epos = assign.epos }
 			| [] -> assert false
 	in
 
 	add_statement (loop local_assign_list);
 	mapped_expr
 
-(* there are two short_circuit fuctions as I'm still testing the best way to do it *)
-(*let short_circuit_op_unwrap gen add_statement expr :texpr =
-	let block = ref [] in
-	let rec short_circuit_op_unwrap is_first last_block expr =
-		match expr.eexpr with
-			| TBinop ( (Ast.OpBoolAnd as op), left, right)
-			| TBinop ( (Ast.OpBoolOr as op), left, right) ->
-				let var = mk_temp "boolv" left.etype in
-				let tvars = { left with eexpr = TVar([var, if is_first then Some(left) else Some( { left with eexpr = TConst(TBool false) } )]); etype = gen.gcon.basic.tvoid } in
-				let local = { left with eexpr = TLocal(var) } in
-				if not is_first then begin
-					last_block := !last_block @ [ { left with eexpr = TBinop(Ast.OpAssign, local, left) } ]
-				end;
-
-				add_statement tvars;
-				let local_op = match op with | Ast.OpBoolAnd -> local | Ast.OpBoolOr -> { local with eexpr = TUnop(Ast.Not, Ast.Prefix, local) } | _ -> assert false in
-
-				let new_block = ref [] in
-				let new_right = short_circuit_op_unwrap false new_block right in
-				last_block := !last_block @ [ { expr with eexpr = TIf(local_op, { right with eexpr = TBlock(!new_block) }, None) } ];
-
-				{ expr with eexpr = TBinop(op, local, new_right) }
-			| _ when is_first -> assert false
-			| _ ->
-				let var = mk_temp "boolv" expr.etype in
-				let tvars = { expr with eexpr = TVar([var, Some ( { expr with eexpr = TConst(TBool false) } ) ]); etype = gen.gcon.basic.tvoid } in
-				let local = { expr with eexpr = TLocal(var) } in
-				last_block := !last_block @ [ { expr with eexpr = TBinop(Ast.OpAssign, local, expr) } ];
-				add_statement tvars;
-
-				local
-	in
-	let mapped_expr = short_circuit_op_unwrap true block expr in
-	add_statement { eexpr = TBlock(!block); etype = gen.gcon.basic.tvoid; epos = expr.epos };
-	mapped_expr*)
-
-let twhile_with_condition_statement gen add_statement twhile cond e1 flag =
+let twhile_with_condition_statement com add_statement twhile cond e1 flag =
 	(* when a TWhile is found with a problematic condition *)
-	let basic = gen.gcon.basic in
-
-	let block = if flag = Ast.NormalWhile then
-		{ e1 with eexpr = TIf(cond, e1, Some({ e1 with eexpr = TBreak; etype = basic.tvoid })) }
-	else
-		Type.concat e1 { e1 with
-			eexpr = TIf({
-				eexpr = TUnop(Ast.Not, Ast.Prefix, mk_paren cond);
-				etype = basic.tbool;
-				epos = cond.epos
-			}, { e1 with eexpr = TBreak; etype = basic.tvoid }, None);
-			etype = basic.tvoid
-		}
+	let block =
+		if flag = NormalWhile then
+			{ e1 with eexpr = TIf(cond, e1, Some({ e1 with eexpr = TBreak; etype = com.basic.tvoid })) }
+		else
+			Type.concat e1 { e1 with
+				eexpr = TIf({
+					eexpr = TUnop(Not, Prefix, mk_paren cond);
+					etype = com.basic.tbool;
+					epos = cond.epos
+				}, { e1 with eexpr = TBreak; etype = com.basic.tvoid }, None);
+				etype = com.basic.tvoid
+			}
 	in
-
 	add_statement { twhile with
 		eexpr = TWhile(
-			{ eexpr = TConst(TBool true); etype = basic.tbool; epos = cond.epos },
+			{ eexpr = TConst(TBool true); etype = com.basic.tbool; epos = cond.epos },
 			block,
-			Ast.DoWhile
+			DoWhile
 		);
 	}
 
-let try_call_unwrap_statement gen problematic_expression_unwrap (add_statement:texpr->unit) (expr:texpr) : texpr option =
+let try_call_unwrap_statement com handle_cast problematic_expression_unwrap (add_statement:texpr->unit) (expr:texpr) : texpr option =
 	let check_left left =
 		match expr_kind left with
 			| KExprWithStatement ->
@@ -526,7 +481,7 @@ let try_call_unwrap_statement gen problematic_expression_unwrap (add_statement:t
 
 	let handle_assign op left right =
 		let left = check_left left in
-		Some (apply_assign (fun e -> { e with eexpr = TBinop(op, left, if ExtType.is_void left.etype then e else gen.ghandle_cast left.etype e.etype e) }) right )
+		Some (apply_assign (fun e -> { e with eexpr = TBinop(op, left, if ExtType.is_void left.etype then e else handle_cast left.etype e.etype e) }) right )
 	in
 
 	let handle_return e =
@@ -547,140 +502,133 @@ let try_call_unwrap_statement gen problematic_expression_unwrap (add_statement:t
 	in
 
 	match expr.eexpr with
-		| TBinop((Ast.OpAssign as op),left,right)
-		| TBinop((Ast.OpAssignOp _ as op),left,right) when shallow_expr_type right = Statement ->
+		| TBinop((OpAssign as op),left,right)
+		| TBinop((OpAssignOp _ as op),left,right) when shallow_expr_type right = Statement ->
 			handle_assign op left right
 		| TReturn( Some right ) when shallow_expr_type right = Statement ->
 			handle_return right
-		| TBinop((Ast.OpAssign as op),left, ({ eexpr = TBinop(Ast.OpBoolAnd,_,_) } as right) )
-		| TBinop((Ast.OpAssign as op),left,({ eexpr = TBinop(Ast.OpBoolOr,_,_) } as right))
-		| TBinop((Ast.OpAssignOp _ as op),left,({ eexpr = TBinop(Ast.OpBoolAnd,_,_) } as right) )
-		| TBinop((Ast.OpAssignOp _ as op),left,({ eexpr = TBinop(Ast.OpBoolOr,_,_) } as right) ) ->
-			let right = short_circuit_op_unwrap gen add_statement right in
+		| TBinop((OpAssign as op),left, ({ eexpr = TBinop(OpBoolAnd,_,_) } as right) )
+		| TBinop((OpAssign as op),left,({ eexpr = TBinop(OpBoolOr,_,_) } as right))
+		| TBinop((OpAssignOp _ as op),left,({ eexpr = TBinop(OpBoolAnd,_,_) } as right) )
+		| TBinop((OpAssignOp _ as op),left,({ eexpr = TBinop(OpBoolOr,_,_) } as right) ) ->
+			let right = short_circuit_op_unwrap com add_statement right in
 			Some { expr with eexpr = TBinop(op, check_left left, right) }
-		| TVar(v,Some({ eexpr = TBinop(Ast.OpBoolAnd,_,_) } as right))
-		| TVar(v,Some({ eexpr = TBinop(Ast.OpBoolOr,_,_) } as right)) ->
-			let right = short_circuit_op_unwrap gen add_statement right in
+		| TVar(v,Some({ eexpr = TBinop(OpBoolAnd,_,_) } as right))
+		| TVar(v,Some({ eexpr = TBinop(OpBoolOr,_,_) } as right)) ->
+			let right = short_circuit_op_unwrap com add_statement right in
 			Some { expr with eexpr = TVar(v, Some(right)) }
 		| TVar(v,Some(right)) when shallow_expr_type right = Statement ->
 			add_statement ({ expr with eexpr = TVar(v, Some(null right.etype right.epos)) });
-			handle_assign Ast.OpAssign { expr with eexpr = TLocal(v); etype = v.v_type } right
+			handle_assign OpAssign { expr with eexpr = TLocal(v); etype = v.v_type } right
 		(* TIf handling *)
-		| TBinop((Ast.OpAssign as op),left, ({ eexpr = TIf _ } as right))
-		| TBinop((Ast.OpAssignOp _ as op),left,({ eexpr = TIf _ } as right)) when is_problematic_if right ->
+		| TBinop((OpAssign as op),left, ({ eexpr = TIf _ } as right))
+		| TBinop((OpAssignOp _ as op),left,({ eexpr = TIf _ } as right)) when is_problematic_if right ->
 			handle_assign op left right
 		| TVar(v,Some({ eexpr = TIf _ } as right)) when is_problematic_if right ->
 			add_statement ({ expr with eexpr = TVar(v, Some(null right.etype right.epos)) });
-			handle_assign Ast.OpAssign { expr with eexpr = TLocal(v); etype = v.v_type } right
+			handle_assign OpAssign { expr with eexpr = TLocal(v); etype = v.v_type } right
 		| TWhile(cond, e1, flag) when is_problematic_if cond ->
-			twhile_with_condition_statement gen add_statement expr cond e1 flag;
+			twhile_with_condition_statement com add_statement expr cond e1 flag;
 			Some (null expr.etype expr.epos)
 		| _ -> None
 
-let configure gen (on_expr_as_statement:texpr->texpr option) =
-	let add_assign = add_assign gen in
+let problematic_expression_unwrap add_statement expr e_type =
+	let rec problematic_expression_unwrap is_first expr e_type =
+		match e_type, expr.eexpr with
+			| _, TBinop(OpBoolAnd, _, _)
+			| _, TBinop(OpBoolOr, _, _) -> add_assign add_statement expr (* add_assign so try_call_unwrap_expr *)
+			| KNoSideEffects, _ -> expr
+			| KStatement, _
+			| KNormalExpr, _ -> add_assign add_statement expr
+			| KExprWithStatement, TCall _
+			| KExprWithStatement, TNew _
+			| KExprWithStatement, TBinop (OpAssign,_,_)
+			| KExprWithStatement, TBinop (OpAssignOp _,_,_)
+			| KExprWithStatement, TUnop (Increment,_,_) (* all of these may have side-effects, so they must also be add_assign'ed . is_first avoids infinite loop *)
+			| KExprWithStatement, TUnop (Decrement,_,_) when not is_first -> add_assign add_statement expr
 
-	let problematic_expression_unwrap add_statement expr e_type =
-		let rec problematic_expression_unwrap is_first expr e_type =
-			match e_type, expr.eexpr with
-				| _, TBinop(Ast.OpBoolAnd, _, _)
-				| _, TBinop(Ast.OpBoolOr, _, _) -> add_assign add_statement expr (* add_assign so try_call_unwrap_expr *)
-				| KNoSideEffects, _ -> expr
-				| KStatement, _
-				| KNormalExpr, _ -> add_assign add_statement expr
-				| KExprWithStatement, TCall _
-				| KExprWithStatement, TNew _
-				| KExprWithStatement, TBinop (Ast.OpAssign,_,_)
-				| KExprWithStatement, TBinop (Ast.OpAssignOp _,_,_)
-				| KExprWithStatement, TUnop (Ast.Increment,_,_) (* all of these may have side-effects, so they must also be add_assign'ed . is_first avoids infinite loop *)
-				| KExprWithStatement, TUnop (Ast.Decrement,_,_) when not is_first -> add_assign add_statement expr
-
-				(* bugfix: Type.map_expr doesn't guarantee the correct order of execution *)
-				| KExprWithStatement, TBinop(op,e1,e2) ->
-					let e1 = problematic_expression_unwrap false e1 (expr_kind e1) in
-					let e2 = problematic_expression_unwrap false e2 (expr_kind e2) in
-					{ expr with eexpr = TBinop(op, e1, e2) }
-				| KExprWithStatement, TArray(e1,e2) ->
-					let e1 = problematic_expression_unwrap false e1 (expr_kind e1) in
-					let e2 = problematic_expression_unwrap false e2 (expr_kind e2) in
-					{ expr with eexpr = TArray(e1, e2) }
-				(* bugfix: calls should not be transformed into closure calls *)
-				| KExprWithStatement, TCall(( { eexpr = TField (ef_left, f) } as ef ), eargs) ->
-					{ expr with eexpr = TCall(
-						{ ef with eexpr = TField(problematic_expression_unwrap false ef_left (expr_kind ef_left), f) },
-						List.map (fun e -> problematic_expression_unwrap false e (expr_kind e)) eargs)
-					}
-				| KExprWithStatement, _ -> Type.map_expr (fun e -> problematic_expression_unwrap false e (expr_kind e)) expr
-		in
-		problematic_expression_unwrap true expr e_type
+			(* bugfix: Type.map_expr doesn't guarantee the correct order of execution *)
+			| KExprWithStatement, TBinop(op,e1,e2) ->
+				let e1 = problematic_expression_unwrap false e1 (expr_kind e1) in
+				let e2 = problematic_expression_unwrap false e2 (expr_kind e2) in
+				{ expr with eexpr = TBinop(op, e1, e2) }
+			| KExprWithStatement, TArray(e1,e2) ->
+				let e1 = problematic_expression_unwrap false e1 (expr_kind e1) in
+				let e2 = problematic_expression_unwrap false e2 (expr_kind e2) in
+				{ expr with eexpr = TArray(e1, e2) }
+			(* bugfix: calls should not be transformed into closure calls *)
+			| KExprWithStatement, TCall(( { eexpr = TField (ef_left, f) } as ef ), eargs) ->
+				{ expr with eexpr = TCall(
+					{ ef with eexpr = TField(problematic_expression_unwrap false ef_left (expr_kind ef_left), f) },
+					List.map (fun e -> problematic_expression_unwrap false e (expr_kind e)) eargs)
+				}
+			| KExprWithStatement, _ -> Type.map_expr (fun e -> problematic_expression_unwrap false e (expr_kind e)) expr
 	in
+	problematic_expression_unwrap true expr e_type
 
+let configure gen =
 	let rec traverse e =
 		match e.eexpr with
-			| TBlock el ->
-				let new_block = ref [] in
-				let rec process_statement e =
-					let e = no_paren e in
-					match e.eexpr, shallow_expr_type e with
-						| TCall( { eexpr = TLocal v } as elocal, elist ), _ when String.get v.v_name 0 = '_' && Hashtbl.mem gen.gspecial_vars v.v_name ->
-							new_block := { e with eexpr = TCall( elocal, List.map (fun e ->
-								match e.eexpr with
-									| TBlock _ -> traverse e
-									| _ -> e
-							) elist ) } :: !new_block
-						| _, Statement | _, Both _ ->
-							let e = match e.eexpr with | TReturn (Some ({ eexpr = TThrow _ } as ethrow)) -> ethrow | _ -> e in
-							let kinds = get_kinds e in
-							if has_problematic_expressions kinds then begin
-								match try_call_unwrap_statement gen problematic_expression_unwrap add_statement e with
-									| Some { eexpr = TConst(TNull) } (* no op *)
-									| Some { eexpr = TBlock [] } -> ()
-									| Some e ->
-										if has_problematic_expressions (get_kinds e) then begin
-											process_statement e
-										end else
-											new_block := (traverse e) :: !new_block
-									| None ->
-									(
-										let acc = ref kinds in
-										let new_e = expr_stat_map (fun e ->
-											match !acc with
-												| hd :: tl ->
-													acc := tl;
-													if has_problematic_expressions (hd :: tl) then begin
-														problematic_expression_unwrap add_statement e hd
-													end else
-														e
-												| [] -> assert false
-										) e in
+		| TBlock el ->
+			let new_block = ref [] in
+			let rec process_statement e =
+				let e = no_paren e in
+				match e.eexpr, shallow_expr_type e with
+				| TCall( { eexpr = TLocal v } as elocal, elist ), _ when String.get v.v_name 0 = '_' && Hashtbl.mem gen.gspecial_vars v.v_name ->
+					new_block := { e with eexpr = TCall( elocal, List.map (fun e ->
+						match e.eexpr with
+							| TBlock _ -> traverse e
+							| _ -> e
+					) elist ) } :: !new_block
+				| _, Statement | _, Both _ ->
+					let e = match e.eexpr with TReturn (Some ({ eexpr = TThrow _ } as ethrow)) -> ethrow | _ -> e in
+					let kinds = get_kinds e in
+					if has_problematic_expressions kinds then begin
+						match try_call_unwrap_statement gen.gcon gen.ghandle_cast problematic_expression_unwrap process_statement e with
+							| Some { eexpr = TConst(TNull) } (* no op *)
+							| Some { eexpr = TBlock [] } -> ()
+							| Some e ->
+								if has_problematic_expressions (get_kinds e) then begin
+									process_statement e
+								end else
+									new_block := (traverse e) :: !new_block
+							| None ->
+							(
+								let acc = ref kinds in
+								let new_e = expr_stat_map (fun e ->
+									match !acc with
+										| hd :: tl ->
+											acc := tl;
+											if has_problematic_expressions (hd :: tl) then begin
+												problematic_expression_unwrap process_statement e hd
+											end else
+												e
+										| [] -> assert false
+								) e in
 
-										new_block := (traverse new_e) :: !new_block
-									)
-							end else begin new_block := (traverse e) :: !new_block end
-						| _, Expression e ->
-							match on_expr_as_statement e with
-								| None -> ()
-								| Some e -> process_statement e
-				and add_statement expr =
-					process_statement expr
-				in
-
-				List.iter (process_statement) el;
-				let block = List.rev !new_block in
-				{ e with eexpr = TBlock(block) }
-			| TTry (block, catches) ->
-				{ e with eexpr = TTry(traverse (mk_block block), List.map (fun (v,block) -> (v, traverse (mk_block block))) catches) }
-			| TSwitch (cond,el_e_l, default) ->
-				{ e with eexpr = TSwitch(cond, List.map (fun (el,e) -> (el, traverse (mk_block e))) el_e_l, Option.map (fun e -> traverse (mk_block e)) default) }
-			| TWhile (cond,block,flag) ->
-				{e with eexpr = TWhile(cond,traverse (mk_block block), flag) }
-			| TIf (cond, eif, eelse) ->
-				{ e with eexpr = TIf(cond, traverse (mk_block eif), Option.map (fun e -> traverse (mk_block e)) eelse) }
-			| TFor (v,it,block) ->
-				{ e with eexpr = TFor(v,it, traverse (mk_block block)) }
-			| TFunction (tfunc) ->
-				{ e with eexpr = TFunction({ tfunc with tf_expr = traverse (mk_block tfunc.tf_expr) }) }
-			| _ -> e (* if expression doesn't have a block, we will exit *)
+								new_block := (traverse new_e) :: !new_block
+							)
+					end else begin new_block := (traverse e) :: !new_block end
+				| _, Expression e ->
+					let e = mk (TVar (mk_temp "expr" e.etype, Some e)) gen.gcon.basic.tvoid e.epos in
+					process_statement e
+			in
+			List.iter process_statement el;
+			let block = List.rev !new_block in
+			{ e with eexpr = TBlock block }
+		| TTry (block, catches) ->
+			{ e with eexpr = TTry(traverse (mk_block block), List.map (fun (v,block) -> (v, traverse (mk_block block))) catches) }
+		| TSwitch (cond,el_e_l, default) ->
+			{ e with eexpr = TSwitch(cond, List.map (fun (el,e) -> (el, traverse (mk_block e))) el_e_l, Option.map (fun e -> traverse (mk_block e)) default) }
+		| TWhile (cond,block,flag) ->
+			{e with eexpr = TWhile(cond,traverse (mk_block block), flag) }
+		| TIf (cond, eif, eelse) ->
+			{ e with eexpr = TIf(cond, traverse (mk_block eif), Option.map (fun e -> traverse (mk_block e)) eelse) }
+		| TFor (v,it,block) ->
+			{ e with eexpr = TFor(v,it, traverse (mk_block block)) }
+		| TFunction (tfunc) ->
+			{ e with eexpr = TFunction({ tfunc with tf_expr = traverse (mk_block tfunc.tf_expr) }) }
+		| _ -> e (* if expression doesn't have a block, we will exit *)
 	in
-	let map e = Some(traverse e) in
-	gen.gsyntax_filters#add name (PCustom priority) map
+	let map e = Some (traverse e) in
+	gen.gsyntax_filters#add "expression_unwrap" (PCustom priority) map

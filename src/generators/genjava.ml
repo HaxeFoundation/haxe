@@ -2401,7 +2401,7 @@ let generate con =
 			| _ -> assert false
 	);
 
-	ExpressionUnwrap.configure gen (fun e -> Some { eexpr = TVar(mk_temp "expr" e.etype, Some e); etype = gen.gcon.basic.tvoid; epos = e.epos });
+	ExpressionUnwrap.configure gen;
 
 	UnnecessaryCastsRemoval.configure gen;
 
