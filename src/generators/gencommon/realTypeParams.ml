@@ -439,19 +439,19 @@ struct
 			}
 		*)
 
-		let new_t = TInst(cl, params) in
+		let new_t = TInst (cl, params) in
 		let pos = cl.cl_pos in
 
 		let new_me_var = alloc_var "new_me" new_t in
-		let local_new_me = { eexpr = TLocal(new_me_var); etype = new_t; epos = pos } in
-		let this = { eexpr = TConst(TThis); etype = (TInst(cl, List.map snd cl.cl_params)); epos = pos } in
-		let field_var = alloc_var "field" gen.gcon.basic.tstring in
-		let local_field = { eexpr = TLocal(field_var); etype = field_var.v_type; epos = pos } in
-		let i_var = alloc_var "i" gen.gcon.basic.tint in
-		let local_i = { eexpr = TLocal(i_var); etype = gen.gcon.basic.tint; epos = pos } in
-		let incr_i = { eexpr = TUnop(Ast.Increment, Ast.Postfix, local_i); etype = basic.tint; epos = pos } in
-		let fields_var = alloc_var "fields" (gen.gcon.basic.tarray gen.gcon.basic.tstring) in
-		let local_fields = { eexpr = TLocal(fields_var); etype = (gen.gcon.basic.tarray gen.gcon.basic.tstring); epos = pos } in
+		let local_new_me = mk_local new_me_var pos in
+		let this = mk (TConst TThis) (TInst (cl, List.map snd cl.cl_params)) pos in
+		let field_var = alloc_var "field" basic.tstring in
+		let local_field = mk_local field_var pos in
+		let i_var = alloc_var "i" basic.tint in
+		let local_i = mk_local i_var pos in
+		let incr_i = mk (TUnop (Increment, Postfix, local_i)) basic.tint pos in
+		let fields_var = alloc_var "fields" (basic.tarray basic.tstring) in
+		let local_fields = mk_local fields_var pos in
 
 		let get_path t =
 			match follow t with
@@ -504,90 +504,42 @@ struct
 				| _ -> assert false
 		in
 
-		let fn =
-		{
+		let fn = {
 			tf_args = [];
 			tf_type = t_dynamic;
-			tf_expr =
-				{
-					eexpr = TBlock([
-						(* if (typeof(T) == typeof(T2)) return this *)
-						{
-							eexpr = TIf(
-								mk_typehandle_cond (List.map snd cl.cl_params) params,
-								mk_return this,
-								None);
-							etype = basic.tvoid;
-							epos = pos;
-						};
-						(* var new_me = /*special create empty with tparams construct*/ *)
-						{
-							eexpr = TVar(new_me_var, Some(gen.gtools.r_create_empty cl params pos));
-							etype = gen.gcon.basic.tvoid;
-							epos = pos
-						};
-						(* var fields = Reflect.fields(this); *)
-						{
-							eexpr = TVar(fields_var, Some(gen.gtools.r_fields true this));
-							etype = gen.gcon.basic.tvoid;
-							epos = pos
-						};
-						(* var i = 0; *)
-						{
-							eexpr = TVar(i_var, Some(ExprBuilder.make_int gen.gcon 0 pos));
-							etype = gen.gcon.basic.tvoid;
-							epos = pos
-						};
-						{
-							eexpr = TWhile( (* while (i < fields.length) *)
-								{
-									eexpr = TBinop(Ast.OpLt,
-										local_i,
-										mk_field_access gen local_fields "length" pos);
-									etype = gen.gcon.basic.tbool;
-									epos = pos
-								},
-								{
-									eexpr = TBlock [
-										(* var field = fields[i++]; *)
-										{
-											eexpr = TVar(field_var, Some { eexpr = TArray (local_fields, incr_i); etype = gen.gcon.basic.tstring; epos = pos });
-											etype = gen.gcon.basic.tvoid;
-											epos = pos
-										};
-										(
-											(* default: Reflect.setField(new_me, field, Reflect.field(this, field)) *)
-											let edef = gen.gtools.r_set_field gen.gcon.basic.tvoid local_new_me local_field (gen.gtools.r_field false gen.gcon.basic.tvoid this local_field) in
-											if fields <> [] then
-												(* switch(field) { ... } *)
-												{
-													eexpr = TSwitch(local_field, fields_to_cases fields, Some(edef));
-													etype = gen.gcon.basic.tvoid;
-													epos = pos;
-												}
-											else
-												edef;
-										)
-									];
-									etype = gen.gcon.basic.tvoid;
-									epos = pos
-								},
-								Ast.NormalWhile
-							);
-							etype = gen.gcon.basic.tvoid;
-							epos = pos;
-						};
-						(* return new_me *)
-						mk_return local_new_me
-					]);
-					etype = t_dynamic;
-					epos = pos;
-				};
+			tf_expr = mk (TBlock [
+				(* if (typeof(T) == typeof(T2)) return this *)
+				mk (TIf (mk_typehandle_cond (List.map snd cl.cl_params) params, mk_return this, None)) basic.tvoid pos;
+				(* var new_me = /*special create empty with tparams construct*/ *)
+				mk (TVar (new_me_var, Some (gen.gtools.r_create_empty cl params pos))) basic.tvoid pos;
+				(* var fields = Reflect.fields(this); *)
+				mk (TVar (fields_var, Some (gen.gtools.r_fields true this))) basic.tvoid pos;
+				(* var i = 0; *)
+				mk (TVar (i_var, Some (ExprBuilder.make_int gen.gcon 0 pos))) basic.tvoid pos;
+				(* while (i < fields.length) *)
+				mk (TWhile (
+					binop OpLt local_i (mk_field_access gen local_fields "length" pos) basic.tbool pos,
+					mk (TBlock [
+						(* var field = fields[i++]; *)
+						mk (TVar (field_var, Some (mk (TArray (local_fields, incr_i)) basic.tstring pos))) basic.tvoid pos;
+						(
+							(* default: Reflect.setField(new_me, field, Reflect.field(this, field)) *)
+							let edef = gen.gtools.r_set_field basic.tvoid local_new_me local_field (gen.gtools.r_field false basic.tvoid this local_field) in
+							if fields <> [] then
+								(* switch(field) { ... } *)
+								mk (TSwitch (local_field, fields_to_cases fields, Some edef)) basic.tvoid pos
+							else
+								edef;
+						)
+					]) basic.tvoid pos,
+					NormalWhile
+				)) basic.tvoid pos;
+				(* return new_me *)
+				mk_return local_new_me
+			]) t_dynamic pos
 		}
 		in
-
-		cfield.cf_expr <- Some( { eexpr = TFunction(fn); etype = cfield.cf_type; epos = pos } );
-
+		cfield.cf_expr <- Some (mk (TFunction fn) cfield.cf_type pos);
 		cfield
 
 	let create_static_cast_cf gen iface cf =
