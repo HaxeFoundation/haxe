@@ -5,7 +5,6 @@ environment:
         HAXELIB_ROOT: C:/projects/haxelib
         CYG_ROOT: C:/cygwin
         ADD_REVISION: 1
-        OCAMLOPT: ocamlopt.opt
         MYSQL_PATH: C:\Program Files\MySQL\MySQL Server 5.7
         MYSQL_USER: root
         MYSQL_PASSWORD: Password12!
@@ -35,7 +34,7 @@ install:
     - 7z x "opam32.tar.xz" -so | 7z x -aoa -si -ttar
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && bash opam32/install.sh"'
     - '%CYG_ROOT%/bin/bash -lc "opam init mingw \"https://github.com/fdopen/opam-repository-mingw.git\" --comp 4.02.3+mingw32c --switch 4.02.3+mingw32c --auto-setup --yes"'
-    - '%CYG_ROOT%/bin/bash -lc "opam install camlp4 --yes"'
+    - '%CYG_ROOT%/bin/bash -lc "opam install camlp4 ocamlfind --yes"'
     # Install neko
     - choco install neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
     - choco install chocolatey-core.extension php --ignore-dependencies -y

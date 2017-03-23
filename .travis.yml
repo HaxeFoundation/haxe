@@ -1,8 +1,6 @@
 env:
   global:
     # make variables
-    - OCAMLC=ocamlc.opt
-    - OCAMLOPT=ocamlopt.opt
     - ADD_REVISION=1
     # SauceLabs
     # - secure: SjyKefmjUEXi0IKHGGpcbLAajU0mLHONg8aA8LoY7Q9nAkSN6Aql+fzS38Boq7w1jWn+2FOpr+4jy0l6wVd/bftsF+huFfYpFJmdh8BlKmE0K71zZAral0H1c7YxkuQpPiJCIFGXqtkvev7SWTy0z31u7kuuQeEyW27boXe5cDA=
@@ -28,7 +26,7 @@ install_linux: &install_linux
   # Install opam + ocaml
   - sudo wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin 4.02.3
   - export OPAMYES=1
-  - opam install camlp4
+  - opam install camlp4 ocamlfind
   - eval `opam config env`
   # Install neko and haxe dependencies
   - sudo add-apt-repository ppa:haxe/snapshots -y
@@ -61,7 +59,11 @@ install_osx: &install_osx
   # Install haxe dependencies
   - brew uninstall --force brew-cask # https://github.com/caskroom/homebrew-cask/pull/15381
   - travis_retry brew update
-  - travis_retry brew install ocaml camlp4;
+  - travis_retry brew install opam;
+  - export OPAMYES=1
+  - opam init
+  - opam install camlp4 ocamlfind
+  - eval `opam config env`
   # Install neko
   - travis_retry brew install neko --HEAD;
   # Setup database
