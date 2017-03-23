@@ -2797,9 +2797,9 @@ let generate con =
 			in
 
 			let arr_call = if args <> [] then
-				{ eexpr = TArrayDecl args; etype = basic.tarray t_dynamic; epos = ecall.epos }
+				mk_nativearray_decl gen t_dynamic args ecall.epos
 			else
-				null (basic.tarray t_dynamic) ecall.epos
+				null (gen.gclasses.nativearray t_dynamic) ecall.epos
 			in
 
 			let call_args =

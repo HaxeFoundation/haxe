@@ -37,7 +37,7 @@ package cs.internal;
 
 @:keep @:nativeGen @:native("haxe.lang.VarArgsBase") private class VarArgsBase extends Function
 {
-	public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
+	public function __hx_invokeDynamic(dynArgs:cs.NativeArray<Dynamic>):Dynamic
 	{
 		throw "Abstract implementation";
 	}
@@ -53,9 +53,9 @@ package cs.internal;
 		this.fun = fun;
 	}
 
-	override public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
+	override public function __hx_invokeDynamic(dynArgs:cs.NativeArray<Dynamic>):Dynamic
 	{
-		return fun(dynArgs);
+		return fun(cs.Lib.array(dynArgs));
 	}
 }
 
@@ -73,7 +73,7 @@ package cs.internal;
 		this.hash = hash;
 	}
 
-	override public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
+	override public function __hx_invokeDynamic(dynArgs:cs.NativeArray<Dynamic>):Dynamic
 	{
 		return Runtime.callField(obj, field, hash, dynArgs);
 	}

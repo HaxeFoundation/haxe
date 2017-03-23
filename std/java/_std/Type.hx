@@ -257,20 +257,17 @@ enum ValueType {
 		}
 	}
 
-	@:functionCode('
-		if (params == null || params.length == 0)
-		{
-			java.lang.Object ret = haxe.lang.Runtime.slowGetField(e, constr, true);
-			if (ret instanceof haxe.lang.Function)
-				throw haxe.lang.HaxeException.wrap("Constructor " + constr + " needs parameters");
-			return (T) ret;
+	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T {
+		if (params == null || params.length == 0) {
+			var ret:Dynamic = java.internal.Runtime.slowGetField(e, constr, true);
+			if (Std.is(ret, java.internal.Function)) {
+				throw "Constructor " + constr + " needs parameters";
+			}
+			return ret;
 		} else {
-			return (T) haxe.lang.Runtime.slowCallField(e, constr, params);
+			var params = java.Lib.nativeArray(params, true);
+			return java.internal.Runtime.slowCallField(e, constr, params);
 		}
-	')
-	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T
-	{
-		return null;
 	}
 
 	public static function createEnumIndex<T>( e : Enum<T>, index : Int, ?params : Array<Dynamic> ) : T {

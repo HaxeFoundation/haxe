@@ -1297,7 +1297,7 @@ let implement_invokeField ctx slow_invoke cl =
 	let field_args, switch_var = field_type_args ctx cl.cl_pos in
 	let field_args_exprs = List.map (fun (v,_) -> mk_local v pos) field_args in
 
-	let dynamic_arg = alloc_var "dynargs" (basic.tarray t_dynamic) in
+	let dynamic_arg = alloc_var "dynargs" (gen.gclasses.nativearray t_dynamic) in
 	let all_args = field_args @ [ dynamic_arg, None ] in
 	let fun_t = TFun(fun_args all_args, t_dynamic) in
 
@@ -1434,7 +1434,7 @@ let implement_varargs_cl ctx cl =
 	let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
 
 	let invokedyn = mk_internal_name "hx" "invokeDynamic" in
-	let idyn_t = TFun([mk_internal_name "fn" "dynargs", false, basic.tarray t_dynamic], t_dynamic) in
+	let idyn_t = TFun([mk_internal_name "fn" "dynargs", false, gen.gclasses.nativearray t_dynamic], t_dynamic) in
 	let this_idyn = mk_this invokedyn idyn_t in
 
 	let map_fn arity ret vars api =
@@ -1450,9 +1450,9 @@ let implement_varargs_cl ctx cl =
 		let call_arg = if arity = (-1) then
 			api (-1) t_dynamic None
 		else if arity = 0 then
-			null (basic.tarray t_empty) pos
+			null (gen.gclasses.nativearray t_empty) pos
 		else
-			{ eexpr = TArrayDecl(loop (arity - 1) []); etype = basic.tarray t_empty; epos = pos }
+			mk_nativearray_decl gen t_empty (loop (arity - 1) []) pos
 		in
 
 		let expr = {
@@ -1513,9 +1513,9 @@ let implement_closure_cl ctx cl =
 		let call_arg = if arity = (-1) then
 			api (-1) t_dynamic None
 		else if arity = 0 then
-			null (basic.tarray t_empty) pos
+			null (gen.gclasses.nativearray t_empty) pos
 		else
-			{ eexpr = TArrayDecl(loop (arity - 1) []); etype = basic.tarray t_empty; epos = pos }
+			mk_nativearray_decl gen t_empty  (loop (arity - 1) []) pos
 		in
 
 		let expr = {
