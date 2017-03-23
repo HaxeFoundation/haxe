@@ -46,6 +46,7 @@ open Gencommon
 	catchall_type : the class used for catchall (e:Dynamic)
 	wrapper_type : the wrapper type, so we can test if exception is of type 'wrapper'
 	catch_map : maps the catch expression to include some intialization code (e.g. setting up Stack.exceptionStack)
+	gen_typecheck : generate Std.is (or similar) check expression for given expression and type
 *)
 let init com (should_wrap:t->bool) (wrap_throw:texpr->texpr->texpr) (unwrap_expr:tvar->pos->texpr) (rethrow_expr:texpr->texpr) (catchall_type:t) (wrapper_type:t) (catch_map:tvar->texpr->texpr) (gen_typecheck:texpr->t->pos->texpr) =
 	let rec run e =
