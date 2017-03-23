@@ -2717,7 +2717,7 @@ let generate con =
 		in
 
 		FixOverrides.configure ~explicit_fn_name:explicit_fn_name ~get_vmtype:real_type gen;
-		Normalize.configure gen ~metas:(Hashtbl.create 0);
+		Normalize.configure gen ~allowed_metas:(Hashtbl.create 0);
 
 		AbstractImplementationFix.configure gen;
 

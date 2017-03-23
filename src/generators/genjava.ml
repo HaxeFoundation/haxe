@@ -2094,7 +2094,7 @@ let generate con =
 	in
 
 	FixOverrides.configure ~get_vmtype gen;
-	Normalize.configure gen ~metas:(Hashtbl.create 0);
+	Normalize.configure gen ~allowed_metas:(Hashtbl.create 0);
 	AbstractImplementationFix.configure gen;
 
 	let closure_t = ClosuresToClass.DoubleAndDynamicClosureImpl.get_ctx gen (get_cl (get_type gen (["haxe";"lang"],"Function"))) 6 in

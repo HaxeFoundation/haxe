@@ -20,39 +20,32 @@ open Globals
 open Type
 open Gencommon
 
-
-(* ******************************************* *)
-(* InterfaceProps *)
-(* ******************************************* *)
 (*
 	This module filter will go through all declared properties, and see if they are conforming to a native interface.
 	If they are, it will add Meta.Property to it.
 *)
+let run = function
+	| TClassDecl ({ cl_interface = false; cl_extern = false } as cl) ->
+		let vars = List.fold_left (fun acc (iface,_) ->
+			if Meta.has Meta.CsNative iface.cl_meta then
+				let props = List.filter (fun cf -> match cf.cf_kind with Var { v_read = AccCall } | Var { v_write = AccCall } -> true | _ -> false) iface.cl_ordered_fields in
+				props @ acc
+			else
+				acc
+		) [] cl.cl_implements in
+		if vars <> [] then
+			let vars = List.map (fun cf -> cf.cf_name) vars in
+			List.iter (fun cf -> match cf.cf_kind with
+				| Var { v_read = AccCall } | Var { v_write = AccCall } when List.mem cf.cf_name vars ->
+					cf.cf_meta <- (Meta.Property, [], null_pos) :: cf.cf_meta
+				| _ -> ()
+			) cl.cl_ordered_fields
+	| _ ->
+		()
+
 let name = "interface_props"
 let priority = solve_deps name []
 
 let configure gen =
-	let run md =
-		match md with
-		| TClassDecl ({ cl_interface = false; cl_extern = false } as cl) ->
-			let vars = List.fold_left (fun acc (iface,_) ->
-				if Meta.has Meta.CsNative iface.cl_meta then
-					List.filter (fun cf -> match cf.cf_kind with
-						| Var { v_read = AccCall } | Var { v_write = AccCall } -> true
-						| _ -> false
-					) iface.cl_ordered_fields @ acc
-				else
-					acc
-			) [] cl.cl_implements in
-			let vars = List.map (fun cf -> cf.cf_name) vars in
-			if vars <> [] then
-				List.iter (fun cf -> match cf.cf_kind with
-					| Var { v_read = AccCall } | Var { v_write = AccCall } when List.mem cf.cf_name vars ->
-						cf.cf_meta <- (Meta.Property, [], null_pos) :: cf.cf_meta
-					| _ -> ()
-				) cl.cl_ordered_fields
-		| _ ->
-			()
-	in
-	let map md = Some(run md; md) in
+	let map md = run md; Some md in
 	gen.gmodule_filters#add name (PCustom priority) map

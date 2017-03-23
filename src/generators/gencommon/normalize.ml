@@ -19,9 +19,6 @@
 open Type
 open Gencommon
 
-(* ******************************************* *)
-(* Normalize *)
-(* ******************************************* *)
 (*
 	- Filters out enum constructor type parameters from the AST; See Issue #1796
 	- Filters out monomorphs
@@ -31,8 +28,6 @@ open Gencommon
 		No dependencies; but it still should be one of the first filters to run,
 		as it will help normalize the AST
 *)
-let name = "normalize_type"
-let priority = max_dep
 
 let rec filter_param t =
 	match t with
@@ -68,29 +63,35 @@ let rec filter_param t =
 	| TLazy f ->
 		filter_param (!f())
 
-let configure gen ~metas =
+let init_expr_filter allowed_metas =
 	let rec run e =
 		match e.eexpr with
-		| TMeta (entry, e) when not (Hashtbl.mem metas entry) ->
+		| TMeta ((m,_,_), e) when not (Hashtbl.mem allowed_metas m) ->
 			run e
 		| _ ->
 			map_expr_type (fun e -> run e) filter_param (fun v -> v.v_type <- filter_param v.v_type; v) e
 	in
+	run
+
+let type_filter = function
+	| TClassDecl cl ->
+		let rec map cf =
+			cf.cf_type <- filter_param cf.cf_type;
+			List.iter map cf.cf_overloads
+		in
+		List.iter map cl.cl_ordered_fields;
+		List.iter map cl.cl_ordered_statics;
+		Option.may map cl.cl_constructor
+	| _ ->
+		()
+
+let name = "normalize_type"
+let priority = max_dep
+
+let configure gen ~allowed_metas =
+	let run = init_expr_filter allowed_metas in
 	let map e = Some (run e) in
 	gen.gexpr_filters#add name (PCustom priority) map;
 
-	let run md =
-		match md with
-		| TClassDecl cl ->
-			let rec map cf =
-				cf.cf_type <- filter_param cf.cf_type;
-				List.iter map cf.cf_overloads
-			in
-			List.iter map cl.cl_ordered_fields;
-			List.iter map cl.cl_ordered_statics;
-			Option.may map cl.cl_constructor
-		| _ ->
-			()
-	in
-	let map md = Some (run md; md) in
+	let map md = Some (type_filter md; md) in
 	gen.gmodule_filters#add name (PCustom priority) map
