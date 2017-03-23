@@ -249,5 +249,4 @@ let configure ?explicit_fn_name ~get_vmtype gen =
 	in
 	gen.gafter_mod_filters_ended <- delay :: gen.gafter_mod_filters_ended;
 	let run = run ~explicit_fn_name ~get_vmtype gen in
-	let map md = Some(run md) in
-	gen.gmodule_filters#add name (PCustom priority) map
+	gen.gmodule_filters#add name (PCustom priority) run

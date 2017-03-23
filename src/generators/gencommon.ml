@@ -341,32 +341,50 @@ class ['tp, 'ret] rule_dispatcher name =
 end;;
 
 (* this is a special case where tp = tret and you stack their output as the next's input *)
-class ['tp] rule_map_dispatcher name =
-	object(self)
-	inherit ['tp, 'tp] rule_dispatcher name
+class ['tp] rule_map_dispatcher name = object(self)
+	val tbl = Hashtbl.create 16
+	val mutable keys = []
+	val names = Hashtbl.create 16
 
-	method run_f tp = get (self#run tp)
+	method add (name : string) (* name helps debugging *) (priority : priority) (rule : 'tp->'tp) =
+		let p = match priority with
+			| PFirst -> infinity
+			| PLast -> neg_infinity
+			| PZero -> 0.0
+			| PCustom i -> i
+		in
+		let q = if not (Hashtbl.mem tbl p) then begin
+			let q = Stack.create() in
+			Hashtbl.add tbl p q;
+			keys <- p :: keys;
+			keys <- List.sort (fun x y -> - (compare x y)) keys;
+			q
+		end else Hashtbl.find tbl p in
+		if Hashtbl.mem names name then raise (DuplicateName name);
+		Hashtbl.add names name q;
 
-	method run_from (priority:float) (tp:'tp) : 'ret option =
+		Stack.push (name, rule) q
+
+	method describe =
+		Hashtbl.iter (fun s _ -> (trace s)) names;
+
+	method run (tp:'tp) : 'tp =
+		self#run_from infinity tp
+
+	method run_from (priority:float) (tp:'tp) : 'tp =
 		let cur = ref tp in
-		(try begin
-			List.iter (fun key ->
-
-				if key < priority then begin
-					let q = Hashtbl.find tbl key in
-					Stack.iter (fun (n, rule) ->
-						trace ("running rule " ^ n);
-						let t = if !debug_mode then Common.timer [("rule map dispatcher rule: " ^ n)] else fun () -> () in
-						let r = rule(!cur) in
-						t();
-						Option.may (fun v -> cur := v) r
-					) q
-				end
-			) keys
-
-		end with Exit -> ());
-		Some (!cur)
-
+		List.iter (fun key ->
+			if key < priority then begin
+				let q = Hashtbl.find tbl key in
+				Stack.iter (fun (n, rule) ->
+					trace ("running rule " ^ n);
+					let t = if !debug_mode then Common.timer [("rule map dispatcher rule: " ^ n)] else fun () -> () in
+					cur := rule !cur;
+					t();
+				) q
+			end
+		) keys;
+		!cur
 end;;
 
 
@@ -717,12 +735,12 @@ let run_filters gen =
 	(* first of all, we have to make sure that the filters won't trigger a major Gc collection *)
 	let t = Common.timer ["gencommon_filters"] in
 	(if Common.defined gen.gcon Define.GencommonDebug then debug_mode := true else debug_mode := false);
-	let run_filters filter =
+	let run_filters (filter : texpr rule_map_dispatcher) =
 		let rec loop acc mds =
 			match mds with
 				| [] -> acc
 				| md :: tl ->
-					let filters = [ filter#run_f ] in
+					let filters = [ filter#run ] in
 					let added_types = ref [] in
 					gen.gadd_to_module <- (fun md_type priority ->
 						gen.gtypes_list <- md_type :: gen.gtypes_list;
@@ -732,7 +750,7 @@ let run_filters gen =
 					run_filters_from gen md filters;
 
 					let added_types = List.map (fun (t,p) ->
-						run_filters_from gen t [ fun e -> get (filter#run_from p e) ];
+						run_filters_from gen t [ fun e -> filter#run_from p e ];
 						if Hashtbl.mem gen.gtypes (t_path t) then begin
 							let rec loop i =
 								let p = t_path t in
@@ -756,7 +774,7 @@ let run_filters gen =
 		List.rev (loop [] gen.gtypes_list)
 	in
 
-	let run_mod_filter filter =
+	let run_mod_filter (filter : module_type rule_map_dispatcher) =
 		let last_add_to_module = gen.gadd_to_module in
 		let added_types = ref [] in
 		gen.gadd_to_module <- (fun md_type priority ->
@@ -772,13 +790,11 @@ let run_filters gen =
 							gen.gcurrent_class <- Some c
 						| _ ->
 							gen.gcurrent_class <- None);
-					let new_hd = filter#run_f hd in
+					let new_hd = filter#run hd in
 
 					let added_types_new = !added_types in
 					added_types := [];
-					let added_types = List.map (fun (t,p) ->
-						get (filter#run_from p t)
-					) added_types_new in
+					let added_types = List.map (fun (t,p) -> filter#run_from p t) added_types_new in
 
 					loop ( added_types @ (new_hd :: processed) ) tl
 				| [] ->

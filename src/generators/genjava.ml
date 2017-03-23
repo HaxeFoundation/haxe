@@ -263,8 +263,7 @@ struct
 				(* end Std.is() *)
 				| _ -> Type.map_expr run e
 		in
-		let map e = Some(run e) in
-		gen.gsyntax_filters#add name (PCustom priority) map
+		gen.gsyntax_filters#add name (PCustom priority) run
 
 end;;
 
@@ -676,9 +675,7 @@ struct
 					{ e with eexpr = TBinop(op, mk_cast t_empty (run e1), mk_cast t_empty (run e2)) }
 				| _ -> Type.map_expr run e
 		in
-		let map e = Some(run e) in
-		gen.gsyntax_filters#add name (PCustom priority) map
-
+		gen.gsyntax_filters#add name (PCustom priority) run
 end;;
 
 

@@ -76,5 +76,4 @@ let priority = solve_deps name [ DAfter ExpressionUnwrap.priority; DAfter Object
 
 let configure gen =
 	let run = init gen.gcon in
-	let map e = Some (run e) in
-	gen.gsyntax_filters#add name (PCustom priority) map
+	gen.gsyntax_filters#add name (PCustom priority) run

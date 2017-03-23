@@ -57,5 +57,4 @@ let name = "casts_removal"
 let priority = solve_deps name [DAfter CastDetect.priority; DBefore ExpressionUnwrap.priority]
 
 let configure gen =
-	let map e = Some (traverse e) in
-	gen.gsyntax_filters#add name (PCustom priority) map
+	gen.gsyntax_filters#add name (PCustom priority) traverse

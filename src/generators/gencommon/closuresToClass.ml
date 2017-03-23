@@ -587,8 +587,7 @@ let configure gen ft =
 		ft.dynamic_fun_call
 		(* (dynamic_func_call:texpr->texpr->texpr list->texpr) *)
 	in
-	let map e = Some(run e) in
-	gen.gexpr_filters#add name (PCustom priority) map
+	gen.gexpr_filters#add name (PCustom priority) run
 
 
 (*
@@ -760,7 +759,7 @@ struct
 
 				maybe a way to solve this would be to add an "until" field to run_from
 			*)
-			let real_get_args = gen.gexpr_filters#run_f { eexpr = TBlock(get_args); etype = basic.tvoid; epos = pos } in
+			let real_get_args = gen.gexpr_filters#run (mk (TBlock get_args) basic.tvoid pos) in
 
 			let func_expr = Type.concat real_get_args tf_expr in
 

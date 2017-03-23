@@ -39,5 +39,5 @@ let name = "abstract_implementation_fix"
 let priority = solve_deps name []
 
 let configure gen =
-	let run md = (add_abstract_params md; Some md) in
+	let run md = (add_abstract_params md; md) in
 	gen.gmodule_filters#add name (PCustom priority) run

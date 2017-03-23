@@ -48,5 +48,5 @@ let configure gen =
 			| _ -> ())
 		| _ -> ()
 	in
-	let map md = run md; Some(md) in
+	let map md = run md; md in
 	gen.gmodule_filters#add name (PCustom priority) map

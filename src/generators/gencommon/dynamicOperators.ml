@@ -179,5 +179,4 @@ let priority = 0.0
 
 let configure gen ~handle_strings should_change equals_handler dyn_plus_handler compare_handler =
 	let run = init gen.gcon handle_strings should_change equals_handler dyn_plus_handler compare_handler in
-	let map e = Some (run e) in
-	gen.gexpr_filters#add name (PCustom priority) map
+	gen.gexpr_filters#add name (PCustom priority) run

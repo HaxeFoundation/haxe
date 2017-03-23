@@ -48,5 +48,4 @@ let priority = solve_deps name [DAfter ObjectDeclMap.priority]
 
 let configure gen native_array_cl change_type_params =
 	let run = init native_array_cl change_type_params in
-	let map e = Some (run e) in
-	gen.gsyntax_filters#add name (PCustom priority) map
+	gen.gsyntax_filters#add name (PCustom priority) run

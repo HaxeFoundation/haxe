@@ -47,5 +47,5 @@ let name = "interface_props"
 let priority = solve_deps name []
 
 let configure gen =
-	let map md = run md; Some md in
+	let map md = run md; md in
 	gen.gmodule_filters#add name (PCustom priority) map

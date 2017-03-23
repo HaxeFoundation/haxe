@@ -127,5 +127,4 @@ let configure gen should_wrap wrap_throw unwrap_expr rethrow_expr catchall_type 
 		mk (TCall (std_is, [e; mk_mt_access (t_to_mt t) pos])) gen.gcon.basic.tbool pos
 	in
 	let run = init gen.gcon should_wrap wrap_throw unwrap_expr rethrow_expr catchall_type wrapper_type catch_map gen_typecheck in
-	let map e = Some(run e) in
-	gen.gsyntax_filters#add name (PCustom priority) map
+	gen.gsyntax_filters#add name (PCustom priority) run

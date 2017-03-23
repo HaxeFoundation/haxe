@@ -210,5 +210,4 @@ let priority = min_dep -. 100.0
 
 let configure gen java_mode =
 	let run = init gen.gcon java_mode in
-	let map e = Some(run e) in
-	gen.gsyntax_filters#add "unreachable_synf" (PCustom priority) map
+	gen.gsyntax_filters#add "unreachable_synf" (PCustom priority) run

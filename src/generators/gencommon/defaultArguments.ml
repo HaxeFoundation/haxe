@@ -165,6 +165,6 @@ let configure gen =
 			List.iter (change_func gen) cl.cl_ordered_statics;
 			Option.may (change_func gen) cl.cl_constructor;
 		| _ -> ());
-		Some md;
+		md;
 	in
 	gen.gmodule_filters#add name (PCustom priority) run

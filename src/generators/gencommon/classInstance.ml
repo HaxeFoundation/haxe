@@ -55,5 +55,4 @@ let name = "class_instance"
 let priority = solve_deps name []
 
 let configure gen =
-	let map e = Some(add_typeof e) in
-	gen.gsyntax_filters#add name (PCustom priority) map
+	gen.gsyntax_filters#add name (PCustom priority) add_typeof

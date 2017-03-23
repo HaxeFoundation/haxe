@@ -418,6 +418,6 @@ let configure ~(empty_ctor_type : t) ~(empty_ctor_expr : texpr) gen =
 			change cl;
 		| _ ->
 			());
-		None
+		md
 	in
 	gen.gmodule_filters#add name (PCustom priority) module_filter

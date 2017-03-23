@@ -224,11 +224,11 @@ let name = "init_funcs"
 let priority = solve_deps name [DBefore OverloadingConstructor.priority]
 
 let configure gen =
-	let mod_filter = function
-	| TClassDecl cl ->
-		if not cl.cl_extern then handle_class gen.gcon cl;
-		None
-	| _ ->
-		None
+	let mod_filter md =
+		(match md with
+		| TClassDecl cl when not cl.cl_extern ->
+			handle_class gen.gcon cl
+		| _ -> ());
+		md
 	in
-	gen.gmodule_filters#add "init_funcs" (PCustom priority) mod_filter
+	gen.gmodule_filters#add name (PCustom priority) mod_filter

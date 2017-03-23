@@ -83,7 +83,7 @@ let configure gen (should_convert:texpr->bool) =
 							the condition is guaranteed to not have run twice, we can really run the
 							expr filters again for it (so to change e.g. OpEq accordingly
 						*)
-						gen.gexpr_filters#run_f ret
+						gen.gexpr_filters#run ret
 					in
 
 					let rec loop cases = match cases with
@@ -125,5 +125,4 @@ let configure gen (should_convert:texpr->bool) =
 				with Not_found -> Type.map_expr run e)
 			| _ -> Type.map_expr run e
 	in
-	let map e = Some(run e) in
-	gen.gsyntax_filters#add name (PCustom priority) map
+	gen.gsyntax_filters#add name (PCustom priority) run

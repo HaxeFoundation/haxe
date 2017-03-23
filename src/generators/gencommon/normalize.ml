@@ -90,8 +90,7 @@ let priority = max_dep
 
 let configure gen ~allowed_metas =
 	let run = init_expr_filter allowed_metas in
-	let map e = Some (run e) in
-	gen.gexpr_filters#add name (PCustom priority) map;
+	gen.gexpr_filters#add name (PCustom priority) run;
 
-	let map md = Some (type_filter md; md) in
+	let map md = type_filter md; md in
 	gen.gmodule_filters#add name (PCustom priority) map

@@ -277,5 +277,4 @@ let configure gen unwrap_null wrap_val null_to_dynamic has_value opeq_handler =
 			| { eexpr = TBlock([e]) } -> e
 			| e -> e
 	in
-	let map e = Some(run e) in
-	gen.gsyntax_filters#add name (PCustom priority) map
+	gen.gsyntax_filters#add name (PCustom priority) run

@@ -118,7 +118,7 @@ struct
 		run
 
 	let configure gen =
-		let map e = Some(default_implementation gen e) in
+		let map = default_implementation gen in
 		gen.gsyntax_filters#add name (PCustom priority) map
 end;;
 
@@ -1202,11 +1202,12 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 			| _ -> Type.map_expr run e
 	in
 	gen.ghandle_cast <- (fun tto tfrom expr -> handle_cast gen expr (gen.greal_type tto) (gen.greal_type tfrom));
-	let map e = match gen.gcurrent_classfield with
-		| Some(cf) when Meta.has (Meta.Custom ":skipCastDetect") cf.cf_meta ->
-			None
+	let map e =
+		match gen.gcurrent_classfield with
+		| Some cf when Meta.has (Meta.Custom ":skipCastDetect") cf.cf_meta ->
+			e
 		| _ ->
-			Some(run e)
+			run e
 	in
 	gen.gsyntax_filters#add name (PCustom priority) map;
 	ReturnCast.configure gen

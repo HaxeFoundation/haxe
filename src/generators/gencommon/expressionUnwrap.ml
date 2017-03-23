@@ -630,5 +630,4 @@ let configure gen =
 			{ e with eexpr = TFunction({ tfunc with tf_expr = traverse (mk_block tfunc.tf_expr) }) }
 		| _ -> e (* if expression doesn't have a block, we will exit *)
 	in
-	let map e = Some (traverse e) in
-	gen.gsyntax_filters#add "expression_unwrap" (PCustom priority) map
+	gen.gsyntax_filters#add "expression_unwrap" (PCustom priority) traverse

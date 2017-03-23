@@ -1357,7 +1357,7 @@ let implement_invokeField ctx ~slow_invoke cl =
 			| [] -> cases
 			| _ ->
 				let ncases = List.map (fun cf -> switch_case ctx pos cf.cf_name) old in
-				( ncases, mk_return ((get slow_invoke) this (mk_local (fst (List.hd field_args)) pos) (mk_local dynamic_arg pos)) ) :: cases
+				( ncases, mk_return (slow_invoke this (mk_local (fst (List.hd field_args)) pos) (mk_local dynamic_arg pos)) ) :: cases
 		in
 
 		let default = if !is_override then
@@ -1396,14 +1396,12 @@ let implement_invokeField ctx ~slow_invoke cl =
 
 		let old_nonstatics = ref [] in
 
-		let nonstatics = match slow_invoke with
-			| None -> nonstatics
-			| Some _ ->
-				List.filter (fun (n,cf) ->
-					let is_old = not (PMap.mem cf.cf_name cl.cl_fields) || List.memq cf cl.cl_overrides in
-					(if is_old then old_nonstatics := cf :: !old_nonstatics);
-					not is_old
-				) nonstatics
+		let nonstatics =
+			List.filter (fun (n,cf) ->
+				let is_old = not (PMap.mem cf.cf_name cl.cl_fields) || List.memq cf cl.cl_overrides in
+				(if is_old then old_nonstatics := cf :: !old_nonstatics);
+				not is_old
+			) nonstatics
 		in
 
 		mk_switch_dyn nonstatics !old_nonstatics
@@ -1652,7 +1650,7 @@ struct
 				| _ ->
 					()
 		in
-		let map md = Some(run md; md) in
+		let map md = run md; md in
 		gen.gmodule_filters#add name (PCustom priority) map
 end;;
 
@@ -1662,17 +1660,17 @@ end;;
 *)
 let priority = solve_deps name [DAfter UniversalBaseClass.priority]
 
-let configure ?slow_invoke ctx baseinterface =
+let configure ~slow_invoke ctx baseinterface =
 	let gen = ctx.rcf_gen in
-	let run = (fun md -> match md with
+	let run md =
+		(match md with
 		| TClassDecl cl when is_hxgen md && ( not cl.cl_interface || cl.cl_path = baseinterface.cl_path ) && (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) ->
 			(implement_dynamics ctx cl);
 			(if not (PMap.mem (mk_internal_name "hx" "lookupField") cl.cl_fields) then implement_final_lookup ctx cl);
 			(if not (PMap.mem (mk_internal_name "hx" "getField") cl.cl_fields) then implement_get_set ctx cl);
 			(if not (PMap.mem (mk_internal_name "hx" "invokeField") cl.cl_fields) then implement_invokeField ctx ~slow_invoke:slow_invoke cl);
-			(if not (PMap.mem (mk_internal_name "hx" "getFields") cl.cl_fields) then implement_getFields ctx cl);
-			None
-		| _ -> None)
+			(if not (PMap.mem (mk_internal_name "hx" "getFields") cl.cl_fields) then implement_getFields ctx cl)
+		| _ -> ());
+		md
 	in
-
 	gen.gmodule_filters#add name (PCustom priority) run

@@ -326,8 +326,7 @@ struct
 			| _ ->
 				md
 		in
-		let map md = Some(run md) in
-		gen.gmodule_filters#add name (PCustom priority) map
+		gen.gmodule_filters#add name (PCustom priority) run
 end;;
 
 
@@ -374,9 +373,7 @@ struct
 			| _ ->
 				Type.map_expr run e
 		in
-		let map e = Some(run e) in
-		gen.gexpr_filters#add name (PCustom priority) map
-
+		gen.gexpr_filters#add name (PCustom priority) run
 end;;
 
 let configure gen enum_base_class =

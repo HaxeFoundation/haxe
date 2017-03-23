@@ -305,8 +305,7 @@ struct
 
 				| _ -> Type.map_expr run e
 		in
-		let map e = Some(run e) in
-		gen.gsyntax_filters#add name (PCustom priority) map
+		gen.gsyntax_filters#add name (PCustom priority) run
 end;;
 
 (* ******************************************* *)
@@ -490,8 +489,7 @@ struct
 
 				| _ -> Type.map_expr run e
 		in
-		let map e = Some(run e) in
-		gen.gsyntax_filters#add name (PCustom priority) map
+		gen.gsyntax_filters#add name (PCustom priority) run
 end;;
 
 let add_cast_handler gen =
