@@ -2211,12 +2211,11 @@ let generate con =
 
 	ReflectionCFs.implement_varargs_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"], "VarArgsBase")) );
 
-	let slow_invoke = mk_static_field_access_infer (runtime_cl) "slowCallField" null_pos [] in
-	ReflectionCFs.configure rcf_ctx ~slow_invoke:(fun ethis efield eargs -> {
-		eexpr = TCall(slow_invoke, [ethis; efield; eargs]);
-		etype = t_dynamic;
-		epos = ethis.epos;
-	} ) object_iface;
+	let slow_invoke_field = mk_static_field_access_infer runtime_cl "slowCallField" null_pos [] in
+	let slow_invoke ethis efield eargs =
+		mk (TCall (slow_invoke_field, [ethis; efield; eargs])) t_dynamic ethis.epos
+	in
+	ReflectionCFs.configure rcf_ctx ~slow_invoke:slow_invoke object_iface;
 
 	ObjectDeclMap.configure gen (ReflectionCFs.implement_dynamic_object_ctor rcf_ctx dynamic_object);
 

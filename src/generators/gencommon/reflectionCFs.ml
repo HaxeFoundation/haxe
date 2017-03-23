@@ -1265,7 +1265,7 @@ let implement_getFields ctx cl =
 	end
 
 
-let implement_invokeField ctx ~slow_invoke cl =
+let implement_invokeField ctx slow_invoke cl =
 	(*
 		There are two ways to implement an haxe reflection-enabled class:
 		When we extend a non-hxgen class, and when we extend the base HxObject class.
@@ -1660,17 +1660,16 @@ end;;
 *)
 let priority = solve_deps name [DAfter UniversalBaseClass.priority]
 
-let configure ~slow_invoke ctx baseinterface =
-	let gen = ctx.rcf_gen in
+let configure ctx baseinterface ~slow_invoke =
 	let run md =
 		(match md with
 		| TClassDecl cl when is_hxgen md && ( not cl.cl_interface || cl.cl_path = baseinterface.cl_path ) && (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) ->
-			(implement_dynamics ctx cl);
-			(if not (PMap.mem (mk_internal_name "hx" "lookupField") cl.cl_fields) then implement_final_lookup ctx cl);
-			(if not (PMap.mem (mk_internal_name "hx" "getField") cl.cl_fields) then implement_get_set ctx cl);
-			(if not (PMap.mem (mk_internal_name "hx" "invokeField") cl.cl_fields) then implement_invokeField ctx ~slow_invoke:slow_invoke cl);
-			(if not (PMap.mem (mk_internal_name "hx" "getFields") cl.cl_fields) then implement_getFields ctx cl)
+			implement_dynamics ctx cl;
+			if not (PMap.mem (mk_internal_name "hx" "lookupField") cl.cl_fields) then implement_final_lookup ctx cl;
+			if not (PMap.mem (mk_internal_name "hx" "getField") cl.cl_fields) then implement_get_set ctx cl;
+			if not (PMap.mem (mk_internal_name "hx" "invokeField") cl.cl_fields) then implement_invokeField ctx slow_invoke cl;
+			if not (PMap.mem (mk_internal_name "hx" "getFields") cl.cl_fields) then implement_getFields ctx cl;
 		| _ -> ());
 		md
 	in
-	gen.gmodule_filters#add name (PCustom priority) run
+	ctx.rcf_gen.gmodule_filters#add name (PCustom priority) run
