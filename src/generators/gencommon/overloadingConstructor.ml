@@ -67,7 +67,7 @@ let rec prev_ctor c tl =
 		| None -> prev_ctor sup stl
 		| Some ctor -> ctor, sup, stl
 
-let make_static_ctor_name gen cl =
+let make_static_ctor_name cl =
 	let name = mk_internal_name "hx" "ctor" in
 	name ^ "_" ^ (String.concat "_" (fst cl.cl_path)) ^ "_" ^ (snd cl.cl_path)
 
@@ -80,7 +80,7 @@ let replace_super_call gen c tl with_params me p =
 		| Some(sup,stl) ->
 			let stl = List.map (apply_params c.cl_params tl) stl in
 			try
-				let static_ctor_name = make_static_ctor_name gen sup in
+				let static_ctor_name = make_static_ctor_name sup in
 				sup, stl, PMap.find static_ctor_name sup.cl_statics
 			with Not_found ->
 				loop_super sup stl
@@ -127,7 +127,7 @@ let create_static_ctor gen ~empty_ctor_expr cl ctor =
 	| true -> ()
 	| false when is_none ctor.cf_expr -> ()
 	| false ->
-		let static_ctor_name = make_static_ctor_name gen cl in
+		let static_ctor_name = make_static_ctor_name cl in
 		(* create the static constructor *)
 		let basic = gen.gcon.basic in
 		let ctor_types = List.map (fun (s,t) -> (s, TInst(map_param (get_cl_t t), []))) cl.cl_params in
@@ -225,8 +225,7 @@ let create_static_ctor gen ~empty_ctor_expr cl ctor =
 		| _ -> assert false
 
 (* makes constructors that only call super() for the 'ctor' argument *)
-let clone_ctors gen ctor sup stl cl =
-	let basic = gen.gcon.basic in
+let clone_ctors com ctor sup stl cl =
 	let rec clone cf =
 		let ncf = mk_class_field "new" (apply_params sup.cl_params stl cf.cf_type) cf.cf_public cf.cf_pos cf.cf_kind cf.cf_params in
 		let args, ret = get_fun ncf.cf_type in
@@ -240,14 +239,14 @@ let clone_ctors gen ctor sup stl cl =
 			eexpr = TCall(
 				{ eexpr = TConst TSuper; etype = TInst(cl, List.map snd cl.cl_params); epos = ctor.cf_pos },
 				List.map (fun (v,_) -> mk_local v ctor.cf_pos) tf_args);
-			etype = basic.tvoid;
+			etype = com.basic.tvoid;
 			epos = ctor.cf_pos;
 		} in
 		ncf.cf_expr <- Some
 		{
 			eexpr = TFunction {
 				tf_args = tf_args;
-				tf_type = basic.tvoid;
+				tf_type = com.basic.tvoid;
 				tf_expr = mk_block super_call;
 			};
 			etype = ncf.cf_type;
@@ -321,7 +320,7 @@ let configure ~(empty_ctor_type : t) ~(empty_ctor_expr : texpr) gen =
 						try
 							let sctor, sup, stl = prev_ctor cl (List.map snd cl.cl_params) in
 							(* we'll make constructors that will only call super() *)
-							let ctor = clone_ctors gen sctor sup stl cl in
+							let ctor = clone_ctors gen.gcon sctor sup stl cl in
 							cl.cl_constructor <- Some ctor;
 							ctor
 						with Not_found -> (* create default constructor *)
