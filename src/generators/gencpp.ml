@@ -1786,9 +1786,10 @@ let rec cpp_type_of ctx haxe_type =
 
    | TAbstract (a,params) ->
        cpp_type_from_path ctx a.a_path params (fun () ->
-            if is_scalar_abstract a then
-               TCppScalar(join_class_path a.a_path "::")
-            else
+            if is_scalar_abstract a then begin
+               let native =  get_meta_string a.a_meta Meta.Native in
+               TCppScalar(if native="" then join_class_path a.a_path "::" else native)
+            end else
                TCppDynamic)
 
    | TType (type_def,params) ->
