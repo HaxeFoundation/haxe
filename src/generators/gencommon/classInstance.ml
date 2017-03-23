@@ -31,27 +31,29 @@ open Gencommon
 	gets converted into
 	var x = typeof(MyClass);
 *)
-let priority = solve_deps "class_instance" []
-
-let configure gen =
+let add_typeof =
 	let v_typeof = alloc_var "__typeof__" t_dynamic in
 	let rec run e =
 		match e.eexpr with
-		| TCall (({ eexpr = TLocal({ v_name = ("__is__" | "__as__" | "__typeof__") } as v) } as local), args) when Hashtbl.mem gen.gspecial_vars v.v_name ->
+		| TCall (({ eexpr = TLocal { v_name = ("__is__" | "__as__" | "__typeof__") } } as elocal), args) ->
 			let args = List.map (fun e -> match e.eexpr with TTypeExpr _ -> e | _ -> run e) args in
-			{ e with eexpr = TCall(local, args) }
+			{ e with eexpr = TCall (elocal, args) }
 		| TField ({ eexpr = TTypeExpr _ }, _) ->
 			e
 		| TField (ef, f) ->
 			(match anon_class ef.etype with
-				| None -> Type.map_expr run e
-				| Some t ->
-					{ e with eexpr = TField ({ ef with eexpr = TTypeExpr t }, f)}
-			)
+			| None -> Type.map_expr run e
+			| Some t -> { e with eexpr = TField ({ ef with eexpr = TTypeExpr t }, f)})
 		| TTypeExpr _ ->
 			{ e with eexpr = TCall (mk_local v_typeof e.epos, [e]) }
 		| _ ->
 			Type.map_expr run e
 	in
-	let map e = Some(run e) in
-	gen.gsyntax_filters#add "class_instance" (PCustom priority) map
+	run
+
+let name = "class_instance"
+let priority = solve_deps name []
+
+let configure gen =
+	let map e = Some(add_typeof e) in
+	gen.gsyntax_filters#add name (PCustom priority) map
