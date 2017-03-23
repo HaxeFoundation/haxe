@@ -19,9 +19,8 @@
 open Type
 open Gencommon
 
-(* ******************************************* *)
-(* SwitchBreakSynf *)
-(* ******************************************* *)
+(* TODO: remove this in favor of Filters.mark_switch_break_loops when we figure out who removes its TMetas *)
+
 (*
 	In most languages, 'break' is used as a statement also to break from switch statements.
 	This generates an incompatibility with haxe code, as we can use break to break from loops from inside a switch
@@ -39,12 +38,9 @@ open Gencommon
 		very last filters to run, we will make a fixed value which runs after UnreachableCodeElimination
 		(meaning: it's the very last filter)
 *)
-let name = "switch_break_synf"
-let priority = min_dep -. 150.0
-
 type add_to_block_api = texpr->bool->unit
 
-let configure gen (change_loop:texpr->int->add_to_block_api->texpr) (change_break:texpr->int->add_to_block_api->texpr) =
+let init (change_loop:texpr->int->add_to_block_api->texpr) (change_break:texpr->int->add_to_block_api->texpr) =
 	let in_switch = ref false in
 	let cur_block = ref [] in
 	let to_add = ref [] in
@@ -111,5 +107,11 @@ let configure gen (change_loop:texpr->int->add_to_block_api->texpr) (change_brea
 			if !in_switch then (did_found := !cur_num; change_break e !cur_num api) else e
 		| _ -> Type.map_expr run e
 	in
+	run
+
+let priority = min_dep -. 150.0
+
+let configure gen change_loop change_break =
+	let run = init change_loop change_break in
 	let map e = Some(run e) in
-	gen.gsyntax_filters#add name (PCustom priority) map
+	gen.gsyntax_filters#add "switch_break_synf" (PCustom priority) map
