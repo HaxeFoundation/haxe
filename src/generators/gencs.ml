@@ -1163,7 +1163,6 @@ let generate con =
 				| TObjectDecl _
 				| TArrayDecl _
 				| TCast _
-				| TMeta _
 				| TParenthesis _
 				| TUnop _ ->
 					Type.iter loop expr
@@ -1343,8 +1342,15 @@ let generate con =
 						)
 					| TParenthesis e ->
 						write w "("; expr_s w e; write w ")"
+					| TMeta ((Meta.LoopLabel,[(EConst(Int n),_)],_), e) ->
+						(match e.eexpr with
+						| TFor _ | TWhile _ ->
+							expr_s w e;
+							print w "label%s: {}" n
+						| TBreak -> print w "goto label%s" n
+						| _ -> assert false)
 					| TMeta (_,e) ->
-							expr_s w e
+								expr_s w e
 					| TArrayDecl el
 					| TCall ({ eexpr = TLocal { v_name = "__array__" } }, el)
 					| TCall ({ eexpr = TField(_, FStatic({ cl_path = (["cs"],"NativeArray") }, { cf_name = "make" })) }, el) ->
@@ -1445,10 +1451,6 @@ let generate con =
 						write w "*(";
 						expr_s w e;
 						write w ")"
-					| TCall ({ eexpr = TLocal( { v_name = "__goto__" } ) }, [ { eexpr = TConst(TInt v) } ] ) ->
-						print w "goto label%ld" v
-					| TCall ({ eexpr = TLocal( { v_name = "__label__" } ) }, [ { eexpr = TConst(TInt v) } ] ) ->
-						print w "label%ld: {}" v
 					| TCall ({ eexpr = TLocal( { v_name = "__rethrow__" } ) }, _) ->
 						write w "throw"
 					(* operator overloading handling *)
@@ -2603,8 +2605,6 @@ let generate con =
 
 		Hashtbl.add gen.gspecial_vars "__rethrow__" true;
 		Hashtbl.add gen.gspecial_vars "__typeof__" true;
-		Hashtbl.add gen.gspecial_vars "__label__" true;
-		Hashtbl.add gen.gspecial_vars "__goto__" true;
 		Hashtbl.add gen.gspecial_vars "__is__" true;
 		Hashtbl.add gen.gspecial_vars "__as__" true;
 		Hashtbl.add gen.gspecial_vars "__cs__" true;
@@ -2717,7 +2717,10 @@ let generate con =
 		in
 
 		FixOverrides.configure ~explicit_fn_name:explicit_fn_name ~get_vmtype:real_type gen;
-		Normalize.configure gen ~allowed_metas:(Hashtbl.create 0);
+
+		let allowed_meta = Hashtbl.create 1 in
+		Hashtbl.add allowed_meta Meta.LoopLabel true;
+		Normalize.configure gen ~allowed_metas:allowed_meta;
 
 		AbstractImplementationFix.configure gen;
 
@@ -3104,17 +3107,6 @@ let generate con =
 		UnreachableCodeEliminationSynf.configure gen false;
 
 		ArrayDeclSynf.configure gen native_arr_cl;
-
-		let goto_special = alloc_var "__goto__" t_dynamic in
-		let label_special = alloc_var "__label__" t_dynamic in
-		SwitchBreakSynf.configure gen
-			(fun e_loop n api ->
-				api ({ eexpr = TCall( mk_local label_special e_loop.epos, [ ExprBuilder.make_int gen.gcon n e_loop.epos ] ); etype = t_dynamic; epos = e_loop.epos }) false;
-				e_loop
-			)
-			(fun e_break n api ->
-				{ eexpr = TCall( mk_local goto_special e_break.epos, [ ExprBuilder.make_int gen.gcon n e_break.epos ] ); etype = t_dynamic; epos = e_break.epos }
-			);
 
 		DefaultArguments.configure gen;
 		InterfaceMetas.configure gen;

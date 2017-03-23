@@ -99,6 +99,9 @@ let init com java_mode =
 
 	let rec process_expr expr =
 		match expr.eexpr with
+			| TMeta (m,expr) ->
+				let expr,kind = process_expr expr in
+				{ expr with eexpr = TMeta (m, expr) }, kind
 			| TReturn _ | TThrow _ -> expr, BreaksFunction
 			| TContinue -> expr, BreaksLoop
 			| TBreak -> has_break := true; expr, BreaksLoop

@@ -315,7 +315,7 @@ struct
 			| TThrow _ -> true
 			(* this is hack to not use 'break' on switch cases *)
 			| TLocal { v_name = "__fallback__" } when is_switch -> true
-			| TCall( { eexpr = TLocal { v_name = "__goto__" } }, _ ) -> true
+			| TMeta ((Meta.LoopLabel,_,_), { eexpr = TBreak }) -> true
 			| TParenthesis p | TMeta (_,p) -> is_final_return_expr p
 			| TBlock bl -> is_final_return_block is_switch bl
 			| TSwitch (_, el_e_l, edef) ->
@@ -1173,7 +1173,6 @@ let generate con =
 	let has_semicolon e =
 		match e.eexpr with
 			| TLocal { v_name = "__fallback__" }
-			| TCall ({ eexpr = TLocal( { v_name = "__label__" } ) }, [ { eexpr = TConst(TInt _) } ] ) -> false
 			| TCall ({ eexpr = TLocal( { v_name = "__lock__" } ) }, _ ) -> false
 			| TBlock _ | TFor _ | TSwitch _ | TTry _ | TIf _ -> false
 			| TWhile (_,_,flag) when flag = Ast.NormalWhile -> false
@@ -1250,7 +1249,6 @@ let generate con =
 			| TObjectDecl _
 			| TArrayDecl _
 			| TCast _
-			| TMeta _
 			| TParenthesis _
 			| TUnop _ ->
 				Type.iter loop expr
@@ -1330,6 +1328,14 @@ let generate con =
 				| TTypeExpr mt -> write w (md_s e.epos mt)
 				| TParenthesis e ->
 					write w "("; expr_s w e; write w ")"
+				| TMeta ((Meta.LoopLabel,[(EConst(Int n),_)],_), e) ->
+					(match e.eexpr with
+					| TFor _ | TWhile _ ->
+						print w "label%s:" n;
+						newline w;
+						expr_s w e;
+					| TBreak -> print w "break label%s" n
+					| _ -> assert false)
 				| TMeta (_,e) ->
 					expr_s w e
 				| TCall ({ eexpr = TLocal { v_name = "__array__" } }, el)
@@ -1400,10 +1406,6 @@ let generate con =
 						if has_semicolon eblock then write w ";";
 						end_block w;
 					)
-				| TCall ({ eexpr = TLocal( { v_name = "__goto__" } ) }, [ { eexpr = TConst(TInt v) } ] ) ->
-					print w "break label%ld" v
-				| TCall ({ eexpr = TLocal( { v_name = "__label__" } ) }, [ { eexpr = TConst(TInt v) } ] ) ->
-					print w "label%ld:" v
 				| TCall ({ eexpr = TLocal( { v_name = "__typeof__" } ) }, [ { eexpr = TTypeExpr md } as expr ] ) ->
 					expr_s w expr;
 					write w ".class"
@@ -2050,8 +2052,6 @@ let generate con =
 	(* generate source code *)
 	init_ctx gen;
 
-	Hashtbl.add gen.gspecial_vars "__label__" true;
-	Hashtbl.add gen.gspecial_vars "__goto__" true;
 	Hashtbl.add gen.gspecial_vars "__is__" true;
 	Hashtbl.add gen.gspecial_vars "__typeof__" true;
 	Hashtbl.add gen.gspecial_vars "__java__" true;
@@ -2094,7 +2094,11 @@ let generate con =
 	in
 
 	FixOverrides.configure ~get_vmtype gen;
-	Normalize.configure gen ~allowed_metas:(Hashtbl.create 0);
+
+	let allowed_meta = Hashtbl.create 1 in
+	Hashtbl.add allowed_meta Meta.LoopLabel true;
+	Normalize.configure gen ~allowed_metas:allowed_meta;
+
 	AbstractImplementationFix.configure gen;
 
 	let closure_t = ClosuresToClass.DoubleAndDynamicClosureImpl.get_ctx gen (get_cl (get_type gen (["haxe";"lang"],"Function"))) 6 in
@@ -2410,16 +2414,6 @@ let generate con =
 	UnreachableCodeEliminationSynf.configure gen true;
 
 	ArrayDeclSynf.configure gen native_arr_cl;
-
-	let goto_special = alloc_var "__goto__" t_dynamic in
-	let label_special = alloc_var "__label__" t_dynamic in
-	SwitchBreakSynf.configure gen
-		(fun e_loop n api ->
-			{ e_loop with eexpr = TBlock( { eexpr = TCall( mk_local label_special e_loop.epos, [ Codegen.ExprBuilder.make_int gen.gcon n e_loop.epos ] ); etype = t_dynamic; epos = e_loop.epos } :: [e_loop] ) };
-		)
-		(fun e_break n api ->
-			{ eexpr = TCall( mk_local goto_special e_break.epos, [  Codegen.ExprBuilder.make_int gen.gcon n e_break.epos ] ); etype = t_dynamic; epos = e_break.epos }
-		);
 
 	DefaultArguments.configure gen;
 	InterfaceMetas.configure gen;
