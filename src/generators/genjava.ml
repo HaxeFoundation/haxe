@@ -2272,6 +2272,7 @@ let generate con =
 	let is_int t = like_int t in
 
 	DynamicOperators.configure gen
+		~handle_strings:true
 		(fun e -> match e.eexpr with
 			| TBinop (Ast.OpEq, e1, e2) ->
 				is_dynamic e1.etype || is_dynamic e2.etype || is_type_param e1.etype || is_type_param e2.etype

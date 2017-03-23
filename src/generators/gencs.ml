@@ -2963,6 +2963,7 @@ let generate con =
 		in
 
 		DynamicOperators.configure gen
+			~handle_strings:false
 			(fun e -> match e.eexpr with
 				| TBinop (Ast.OpEq, e1, e2)
 				| TBinop (Ast.OpNotEq, e1, e2) ->
@@ -3032,8 +3033,7 @@ let generate con =
 				end else begin
 					let static = mk_static_field_access_infer (runtime_cl) "compare" e1.epos [] in
 					{ eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tint; epos=e1.epos }
-				end)
-			~handle_strings:false;
+				end);
 
 		FilterClosures.configure gen (fun e1 s -> true) (ReflectionCFs.get_closure_func rcf_ctx closure_cl);
 

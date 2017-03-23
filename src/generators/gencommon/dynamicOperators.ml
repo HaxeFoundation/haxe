@@ -62,119 +62,122 @@ open Gencommon
 		must run before OverloadingConstructor due to later priority conflicts. Since ExpressionUnwrap is only
 		defined afterwards, we will set this value with absolute values
 *)
+let init com handle_strings (should_change:texpr->bool) (equals_handler:texpr->texpr->texpr) (dyn_plus_handler:texpr->texpr->texpr->texpr) (compare_handler:texpr->texpr->texpr) =
+	let get_etype_one e =
+		if like_int e.etype then
+			ExprBuilder.make_int com 1 e.epos
+		else
+			ExprBuilder.make_float com "1.0" e.epos
+	in
+	let rec run e =
+		match e.eexpr with
+		| TBinop (OpAssignOp op, e1, e2) when should_change e -> (* e1 will never contain another TBinop *)
+			(match e1.eexpr with
+			| TLocal _ ->
+				mk_paren { e with eexpr = TBinop(OpAssign, e1, run { e with eexpr = TBinop(op, e1, e2) }) }
+			| TField _ | TArray _ ->
+				let eleft, rest =
+					match e1.eexpr with
+					| TField(ef, f) ->
+						let v = mk_temp "dynop" ef.etype in
+						{ e1 with eexpr = TField (mk_local v ef.epos, f) }, [mk (TVar (v, Some (run ef))) com.basic.tvoid ef.epos]
+					| TArray(e1a, e2a) ->
+						let v = mk_temp "dynop" e1a.etype in
+						let v2 = mk_temp "dynopi" e2a.etype in
+						{ e1 with eexpr = TArray(mk_local v e1a.epos, mk_local v2 e2a.epos) }, [
+							(mk (TVar (v, Some (run e1a))) com.basic.tvoid e1.epos);
+							(mk (TVar (v2, Some (run e2a))) com.basic.tvoid e1.epos)
+						]
+					| _ -> assert false
+				in
+				{ e with eexpr = TBlock (rest @ [{ e with eexpr = TBinop (OpAssign, eleft, run { e with eexpr = TBinop (op, eleft, e2) }) }]) }
+			| _ ->
+				assert false)
+
+		| TBinop (OpAssign, e1, e2)
+		| TBinop (OpInterval, e1, e2) ->
+			Type.map_expr run e
+
+		| TBinop (op, e1, e2) when should_change e ->
+			(match op with
+			| OpEq -> (* type 1 *)
+				equals_handler (run e1) (run e2)
+			| OpNotEq -> (* != -> !equals() *)
+				mk_parent (mk (TUnop (Not, Prefix, (equals_handler (run e1) (run e2)))) com.basic.tbool e.epos)
+			| OpAdd  ->
+				if handle_strings && (is_string e.etype || is_string e1.etype || is_string e2.etype) then
+					{ e with eexpr = TBinop (op, mk_cast com.basic.tstring (run e1), mk_cast com.basic.tstring (run e2)) }
+				else
+					dyn_plus_handler e (run e1) (run e2)
+			| OpGt | OpGte | OpLt | OpLte  -> (* type 2 *)
+				let zero = ExprBuilder.make_int com 0 e.epos in
+				mk (TBinop (op, compare_handler (run e1) (run e2), zero)) com.basic.tbool e.epos
+			| OpMult | OpDiv | OpSub | OpMod -> (* always cast everything to double *)
+				let etype = (get_etype_one e).etype in
+				{ e with eexpr = TBinop (op, mk_cast etype (run e1), mk_cast etype (run e2)) }
+			| OpBoolAnd | OpBoolOr ->
+				{ e with eexpr = TBinop (op, mk_cast com.basic.tbool (run e1), mk_cast com.basic.tbool (run e2)) }
+			| OpAnd | OpOr | OpXor | OpShl | OpShr | OpUShr ->
+				{ e with eexpr = TBinop (op, mk_cast com.basic.tint (run e1), mk_cast com.basic.tint (run e2)) }
+			| OpAssign | OpAssignOp _ | OpInterval | OpArrow ->
+				assert false)
+
+		| TUnop (Increment as op, flag, e1)
+		| TUnop (Decrement as op, flag, e1) when should_change e ->
+			(*
+				some naming definitions:
+				* ret => the returning variable
+				* _g => the get body
+				* getvar => the get variable expr
+
+				This will work like this:
+					- if e1 is a TField, set _g = get body, getvar = (get body).varname
+					- if Prefix, return getvar = getvar + 1.0
+					- if Postfix, set ret = getvar; getvar = getvar + 1.0; ret;
+			*)
+			let one = get_etype_one e in
+			let etype = one.etype in
+			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false) in
+
+			let block =
+				let vars, getvar =
+					match e1.eexpr with
+					| TField (fexpr, field) ->
+						let tmp = mk_temp "getvar" fexpr.etype in
+						let var = mk (TVar (tmp, Some (run fexpr))) com.basic.tvoid e.epos in
+						([var], mk (TField (ExprBuilder.make_local tmp fexpr.epos, field)) etype e1.epos)
+					| _ ->
+						([], e1)
+				in
+				match flag with
+				| Prefix ->
+					vars @ [
+						mk_cast etype { e with eexpr = TBinop(OpAssign, getvar, Codegen.binop op (mk_cast etype getvar) one etype e.epos); etype = getvar.etype }
+					]
+				| Postfix ->
+					let ret = mk_temp "ret" etype in
+					let retlocal = ExprBuilder.make_local ret e.epos in
+					vars @ [
+						mk (TVar (ret, Some (mk_cast etype getvar))) com.basic.tvoid e.epos;
+						{ e with eexpr = TBinop (OpAssign, getvar, Codegen.binop op retlocal one getvar.etype e.epos) };
+						retlocal
+					]
+			in
+			mk (TBlock block) etype e.epos
+
+	| TUnop (op, flag, e1) when should_change e ->
+		let etype = match op with Not -> com.basic.tbool | _ -> com.basic.tint in
+		mk_parent (mk (TUnop (op, flag, mk_cast etype (run e1))) etype e.epos)
+
+	| _ ->
+		Type.map_expr run e
+	in
+	run
+
 let name = "dyn_ops"
 let priority = 0.0
 
-let configure gen ?(handle_strings = true) (should_change:texpr->bool) (equals_handler:texpr->texpr->texpr) (dyn_plus_handler:texpr->texpr->texpr->texpr) (compare_handler:texpr->texpr->texpr) =
-	let get_etype_one e =
-		if like_int e.etype then
-			ExprBuilder.make_int gen.gcon 1 e.epos
-		else
-			ExprBuilder.make_float gen.gcon "1.0" e.epos
-	in
-
-	let basic = gen.gcon.basic in
-
-	let rec run e =
-		match e.eexpr with
-			| TBinop (OpAssignOp op, e1, e2) when should_change e -> (* e1 will never contain another TBinop *)
-				(match e1.eexpr with
-					| TLocal _ ->
-						mk_paren { e with eexpr = TBinop(OpAssign, e1, run { e with eexpr = TBinop(op, e1, e2) }) }
-					| TField _ | TArray _ ->
-						let eleft, rest = match e1.eexpr with
-							| TField(ef, f) ->
-								let v = mk_temp "dynop" ef.etype in
-								{ e1 with eexpr = TField(mk_local v ef.epos, f) }, [ { eexpr = TVar(v,Some (run ef)); etype = basic.tvoid; epos = ef.epos } ]
-							| TArray(e1a, e2a) ->
-								let v = mk_temp "dynop" e1a.etype in
-								let v2 = mk_temp "dynopi" e2a.etype in
-								{ e1 with eexpr = TArray(mk_local v e1a.epos, mk_local v2 e2a.epos) }, [
-									{ eexpr = TVar(v,Some (run e1a)); etype = basic.tvoid; epos = e1.epos };
-									{ eexpr = TVar(v2, Some (run e2a)); etype = basic.tvoid; epos = e1.epos }
-								]
-							| _ -> assert false
-						in
-						{ e with
-							eexpr = TBlock (rest @ [ { e with eexpr = TBinop(OpAssign, eleft, run { e with eexpr = TBinop(op, eleft, e2) }) } ]);
-						}
-					| _ ->
-						assert false
-				)
-
-			| TBinop (OpAssign, e1, e2)
-			| TBinop (OpInterval, e1, e2) -> Type.map_expr run e
-			| TBinop (op, e1, e2) when should_change e->
-				(match op with
-					| OpEq -> (* type 1 *)
-						equals_handler (run e1) (run e2)
-					| OpNotEq -> (* != -> !equals() *)
-						mk_paren { eexpr = TUnop(Ast.Not, Prefix, (equals_handler (run e1) (run e2))); etype = gen.gcon.basic.tbool; epos = e.epos }
-					| OpAdd  ->
-						if handle_strings && (is_string e.etype || is_string e1.etype || is_string e2.etype) then
-							{ e with eexpr = TBinop(op, mk_cast gen.gcon.basic.tstring (run e1), mk_cast gen.gcon.basic.tstring (run e2)) }
-						else
-							dyn_plus_handler e (run e1) (run e2)
-					| OpGt | OpGte | OpLt | OpLte  -> (* type 2 *)
-						{ eexpr = TBinop(op, compare_handler (run e1) (run e2), { eexpr = TConst(TInt(Int32.zero)); etype = gen.gcon.basic.tint; epos = e.epos} ); etype = gen.gcon.basic.tbool; epos = e.epos }
-					| OpMult | OpDiv | OpSub | OpMod -> (* always cast everything to double *)
-						let etype = (get_etype_one e).etype in
-						{ e with eexpr = TBinop(op, mk_cast etype (run e1), mk_cast etype (run e2)) }
-					| OpBoolAnd | OpBoolOr ->
-						{ e with eexpr = TBinop(op, mk_cast gen.gcon.basic.tbool (run e1), mk_cast gen.gcon.basic.tbool (run e2)) }
-					| OpAnd | OpOr | OpXor | OpShl | OpShr | OpUShr ->
-						{ e with eexpr = TBinop(op, mk_cast gen.gcon.basic.tint (run e1), mk_cast gen.gcon.basic.tint (run e2)) }
-					| OpAssign | OpAssignOp _ | OpInterval | OpArrow -> assert false)
-			| TUnop (Increment as op, flag, e1)
-			| TUnop (Decrement as op, flag, e1) when should_change e ->
-				(*
-					some naming definitions:
-					* ret => the returning variable
-					* _g => the get body
-					* getvar => the get variable expr
-
-					This will work like this:
-						- if e1 is a TField, set _g = get body, getvar = (get body).varname
-						- if Prefix, return getvar = getvar + 1.0
-						- if Postfix, set ret = getvar; getvar = getvar + 1.0; ret;
-				*)
-				let one = get_etype_one e in
-				let etype = one.etype in
-				let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false) in
-
-				let var, getvar =
-					match e1.eexpr with
-						| TField(fexpr, field) ->
-							let tmp = mk_temp "getvar" fexpr.etype in
-							let var = { eexpr = TVar(tmp, Some(run fexpr)); etype = gen.gcon.basic.tvoid; epos = e.epos } in
-							(Some var, { eexpr = TField( { fexpr with eexpr = TLocal(tmp) }, field); etype = etype; epos = e1.epos })
-						| _ ->
-							(None, e1)
-				in
-
-				(match flag with
-					| Prefix ->
-						let block = (match var with | Some e -> [e] | None -> []) @
-						[
-							mk_cast etype { e with eexpr = TBinop(OpAssign, getvar,{ eexpr = TBinop(op, mk_cast etype getvar, one); etype = etype; epos = e.epos }); etype = getvar.etype; }
-						]
-						in
-						{ eexpr = TBlock(block); etype = etype; epos = e.epos }
-					| Postfix ->
-						let ret = mk_temp "ret" etype in
-						let vars = (match var with Some e -> [e] | None -> []) @ [{ eexpr = TVar(ret, Some (mk_cast etype getvar)); etype = gen.gcon.basic.tvoid; epos = e.epos }] in
-						let retlocal = { eexpr = TLocal(ret); etype = etype; epos = e.epos } in
-						let block = vars @
-						[
-						{ e with eexpr = TBinop(OpAssign, getvar, { eexpr = TBinop(op, retlocal, one); etype = getvar.etype; epos = e.epos }) };
-						retlocal
-					] in
-					{ eexpr = TBlock(block); etype = etype; epos = e.epos }
-			)
-		| TUnop (op, flag, e1) when should_change e ->
-			let etype = match op with | Not -> gen.gcon.basic.tbool | _ -> gen.gcon.basic.tint in
-			mk_paren { eexpr = TUnop(op, flag, mk_cast etype (run e1)); etype = etype; epos = e.epos }
-		| _ -> Type.map_expr run e
-	in
-	let map e = Some(run e) in
-	gen.gexpr_filters#add "dyn_ops" (PCustom priority) map
+let configure gen ~handle_strings should_change equals_handler dyn_plus_handler compare_handler =
+	let run = init gen.gcon handle_strings should_change equals_handler dyn_plus_handler compare_handler in
+	let map e = Some (run e) in
+	gen.gexpr_filters#add name (PCustom priority) map
