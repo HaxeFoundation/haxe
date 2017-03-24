@@ -46,24 +46,17 @@ struct
 		if override then c.cl_overrides <- cf :: c.cl_overrides
 
 	let convert gen ec_tbl base_class en =
-		let basic = gen.gcon.basic in
 		let pos = en.e_pos in
-
-		let eparamsToString = mk_static_field_access_infer base_class "paramsToString" pos [] in
-		let eparamsGetHashCode = mk_static_field_access_infer base_class "paramsGetHashCode" pos [] in
 
 		(* create the class *)
 		let cl_enum = mk_class en.e_module en.e_path pos in
 		cl_enum.cl_super <- Some (base_class,[]);
 		cl_enum.cl_extern <- en.e_extern;
 		cl_enum.cl_module <- en.e_module;
-		cl_enum.cl_meta <- [
-			(Meta.Enum,[],pos);
-			(Meta.NativeGen,[],pos)
-		] @ cl_enum.cl_meta;
+		cl_enum.cl_meta <- [(Meta.Enum,[],pos); (Meta.NativeGen,[],pos)] @ cl_enum.cl_meta;
 
 		(* mark the enum that it's generated as a class *)
-		en.e_meta <- (Meta.Class, [], pos) :: en.e_meta;
+		en.e_meta <- (Meta.Class,[],pos) :: en.e_meta;
 
 		(* add metadata *)
 		Option.may (fun expr ->
@@ -72,14 +65,19 @@ struct
 			add_static cl_enum cf_meta;
 		) (Codegen.build_metadata gen.gcon (TEnumDecl en));
 
+		let basic = gen.gcon.basic in
+
 		(* add constructs field (for reflection) *)
 		let cf_constructs = mk_class_field "__hx_constructs" (gen.gclasses.nativearray basic.tstring) true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
-		cf_constructs.cf_meta <- [Meta.ReadOnly,[],pos];
-		cf_constructs.cf_expr <- Some (mk_nativearray_decl gen basic.tstring (List.map (fun s -> mk (TConst(TString s)) basic.tstring pos) en.e_names) pos);
+		cf_constructs.cf_meta <- (Meta.ReadOnly,[],pos) :: cf_constructs.cf_meta;
+		cf_constructs.cf_expr <- Some (mk_nativearray_decl gen basic.tstring (List.map (fun s -> ExprBuilder.make_string gen.gcon s pos) en.e_names) pos);
 		add_static cl_enum cf_constructs;
 
 		(* add the class to the module *)
 		gen.gadd_to_module (TClassDecl cl_enum) max_dep;
+
+		let eparamsToString = mk_static_field_access_infer base_class "paramsToString" pos [] in
+		let eparamsGetHashCode = mk_static_field_access_infer base_class "paramsGetHashCode" pos [] in
 
 		let e_pack, e_name = en.e_path in
 		let cl_enum_t = TInst (cl_enum, []) in
