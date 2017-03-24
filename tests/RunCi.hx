@@ -639,8 +639,8 @@ class RunCi {
 			case [major, minor] if (minor.length == 1):
 				'${major}.${minor}';
 			case [major, minor] if (minor.length > 1):
-				var minor = minor.charAt(0);
 				var patch = Std.parseInt(minor.substr(1));
+				var minor = minor.charAt(0);
 				'${major}.${minor}.${patch}';
 			case _:
 				throw haxe_ver;
