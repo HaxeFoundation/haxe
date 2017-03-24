@@ -154,7 +154,7 @@ and complex_type =
 	| CTAnonymous of class_field list
 	| CTParent of type_hint
 	| CTExtend of placed_type_path list * class_field list
-	| CTOptional of type_hint
+	| CTOptional of type_hint option
 
 and type_hint = complex_type * pos
 
@@ -550,7 +550,7 @@ let map_expr loop (e,p) =
 			let tl = List.map tpath tl in
 			let fl = List.map cfield fl in
 			CTExtend (tl,fl)
-		| CTOptional t -> CTOptional (type_hint t)),p
+		| CTOptional t -> CTOptional (Option.map type_hint t)),p
 	and tparamdecl t =
 		let constraints = List.map type_hint t.tp_constraints in
 		let params = List.map tparamdecl t.tp_params in
@@ -748,7 +748,7 @@ let s_expr e =
 		| CTFunction (cl,(c,_)) -> if List.length cl > 0 then String.concat " -> " (List.map (fun (t,_) -> s_complex_type tabs t) cl) else "Void" ^ " -> " ^ s_complex_type tabs c
 		| CTAnonymous fl -> "{ " ^ String.concat "; " (List.map (s_class_field tabs) fl) ^ "}";
 		| CTParent(t,_) -> "(" ^ s_complex_type tabs t ^ ")"
-		| CTOptional(t,_) -> "?" ^ s_complex_type tabs t
+		| CTOptional(t) -> "?" ^ (Option.map_default (fun (t,_) -> s_complex_type tabs t) "" t)
 		| CTExtend (tl, fl) -> "{> " ^ String.concat " >, " (List.map (s_complex_type_path tabs) tl) ^ ", " ^ String.concat ", " (List.map (s_class_field tabs) fl) ^ " }"
 	and s_class_field tabs f =
 		match f.cff_doc with

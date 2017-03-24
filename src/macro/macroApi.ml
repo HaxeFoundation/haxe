@@ -420,7 +420,7 @@ and encode_ctype t =
 	| CTExtend (tl,fields) ->
 		4, [enc_array (List.map encode_path tl); enc_array (List.map encode_field fields)]
 	| CTOptional t ->
-		5, [encode_ctype t]
+		5, [null encode_ctype t]
 	in
 	encode_enum ~pos:(Some (pos t)) ICType tag pl
 
@@ -718,7 +718,7 @@ and decode_ctype t =
 	| 4, [tl;fl] ->
 		CTExtend (List.map decode_path (dec_array tl), List.map decode_field (dec_array fl))
 	| 5, [t] ->
-		CTOptional (decode_ctype t)
+		CTOptional (opt decode_ctype t)
 	| _ ->
 		raise Invalid_expr),p
 
