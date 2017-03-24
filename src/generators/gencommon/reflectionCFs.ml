@@ -1420,7 +1420,6 @@ let implement_invokeField ctx slow_invoke cl =
 let implement_varargs_cl ctx cl =
 	let pos = cl.cl_pos in
 	let gen = ctx.rcf_gen in
-	let basic = gen.gcon.basic in
 
 	let this_t = TInst(cl, List.map snd cl.cl_params) in
 	let this = { eexpr = TConst(TThis); etype = this_t ; epos = pos } in
