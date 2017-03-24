@@ -653,7 +653,6 @@ class RunCi {
 			runCommand("debuild -S -sa");
 			runCommand("backportpackage -d yakkety --upload ${PPA} --yes ../haxe_*.dsc");
 			runCommand("backportpackage -d xenial  --upload ${PPA} --yes ../haxe_*.dsc");
-			runCommand("backportpackage -d wily    --upload ${PPA} --yes ../haxe_*.dsc");
 			runCommand("backportpackage -d vivid   --upload ${PPA} --yes ../haxe_*.dsc");
 			runCommand("backportpackage -d trusty  --upload ${PPA} --yes ../haxe_*.dsc");
 			runCommand("git checkout debian/changelog");
