@@ -1001,19 +1001,15 @@ let get_real_fun gen t =
 
 let v_nativearray = alloc_var "__array__" t_dynamic
 let mk_nativearray_decl gen t el pos =
-	{
-		eexpr = TCall(mk_local v_nativearray pos, el);
-		etype = gen.gclasses.nativearray t;
-		epos = pos;
-	}
+	mk (TCall (mk_local v_nativearray pos, el)) (gen.gclasses.nativearray t) pos
 
-let ensure_local gen block name e =
+let ensure_local com block name e =
 	match e.eexpr with
-		| TLocal _ -> e
-		| _ ->
-			let var = mk_temp name e.etype in
-			block := { e with eexpr = TVar(var, Some e); etype = gen.gcon.basic.tvoid; } :: !block;
-			{ e with eexpr = TLocal var }
+	| TLocal _ -> e
+	| _ ->
+		let v = mk_temp name e.etype in
+		block := (mk (TVar (v, Some e)) com.basic.tvoid e.epos) :: !block;
+		mk_local v e.epos
 
 let follow_module follow_func md = match md with
 	| TClassDecl _

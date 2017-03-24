@@ -59,8 +59,8 @@ let configure gen (should_change:texpr->Ast.binop option->bool) (get_fun:string)
 				(* let ensure_local gen block name e = *)
 				let block = ref [] in
 
-				let arr_local = ensure_local gen block "array" (run e1a) in
-				let idx_local = ensure_local gen block "index" (run e2a) in
+				let arr_local = ensure_local gen.gcon block "array" (run e1a) in
+				let idx_local = ensure_local gen.gcon block "index" (run e2a) in
 				block := (mk_set e arr_local idx_local ( { e with eexpr=TBinop(op, mk_get earray arr_local idx_local, run evalue) } )) :: !block;
 
 				{ e with eexpr = TBlock (List.rev !block) }
@@ -80,8 +80,8 @@ let configure gen (should_change:texpr->Ast.binop option->bool) (get_fun:string)
 					let val_v = mk_temp "arrVal" actual_t in
 					let ret_v = mk_temp "arrRet" actual_t in
 
-					let arr_local = ensure_local gen block "arr" (run e1a) in
-					let idx_local = ensure_local gen block "arrIndex" (run e2a) in
+					let arr_local = ensure_local gen.gcon block "arr" (run e1a) in
+					let idx_local = ensure_local gen.gcon block "arrIndex" (run e2a) in
 
 					let val_local = { earray with eexpr = TLocal(val_v) } in
 					let ret_local = { earray with eexpr = TLocal(ret_v) } in
