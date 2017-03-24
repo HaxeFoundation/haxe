@@ -64,7 +64,7 @@ import cs.system.Object;
 		return obj.__hx_setField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value, false);
 	}
 
-	public static object callField(haxe.lang.HxObject obj, string field, int fieldHash, Array args)
+	public static object callField(haxe.lang.HxObject obj, string field, int fieldHash, object[] args)
 	{
 		return obj.__hx_invokeField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, args);
 	}
@@ -429,7 +429,7 @@ import cs.system.Object;
 		}
 	}
 
-	public static function callMethod(obj:Dynamic, methods:NativeArray<MethodBase>, methodLength:Int, args:Array<Dynamic>):Dynamic
+	public static function callMethod(obj:Dynamic, methods:NativeArray<MethodBase>, methodLength:Int, args:cs.NativeArray<Dynamic>):Dynamic
 	{
 		if (methodLength == 0) throw "No available methods";
 		var length = args.length;
@@ -578,13 +578,13 @@ import cs.system.Object;
 	}
 #end
 
-	public static function slowCallField(obj:Dynamic, field:String, args:Array<Dynamic>):Dynamic
+	public static function slowCallField(obj:Dynamic, field:String, args:cs.NativeArray<Dynamic>):Dynamic
 	{
 		if (field == "toString" && (args == null || args.length == 0))
 		{
 			return obj.ToString();
 		}
-		if (args == null) args = [];
+		if (args == null) args = new cs.NativeArray(0);
 
 		var bf:BindingFlags;
 		var t = Lib.as(obj,cs.system.Type);
@@ -625,14 +625,7 @@ import cs.system.Object;
 		}
 
 		if (last == 0 && t.IsCOMObject)
-		{
-			var oargs = new NativeArray(args.length);
-			for (i in 0...oargs.Length)
-			{
-				oargs[i] = args[i];
-			}
-			return t.InvokeMember(field, BindingFlags.InvokeMethod, null, obj, oargs);
-		}
+			return t.InvokeMember(field, BindingFlags.InvokeMethod, null, obj, args);
 
 		if (last == 0)
 		{
@@ -642,7 +635,7 @@ import cs.system.Object;
 		return Runtime.callMethod(obj, mis, last, args);
 	}
 
-	public static function callField(obj:Dynamic, field:String, fieldHash:Int, args:Array<Dynamic>):Dynamic
+	public static function callField(obj:Dynamic, field:String, fieldHash:Int, args:cs.NativeArray<Dynamic>):Dynamic
 	{
 		var hxObj = Lib.as(obj, HxObject);
 		if (hxObj != null)

@@ -39,7 +39,7 @@ import java.internal.Runtime;
 
 @:nativeGen @:native("haxe.lang.VarArgsBase") @:keep private class VarArgsBase extends Function
 {
-	public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
+	public function __hx_invokeDynamic(dynArgs:java.NativeArray<Dynamic>):Dynamic
 	{
 		throw "Abstract implementation";
 	}
@@ -55,9 +55,9 @@ import java.internal.Runtime;
 		this.fun = fun;
 	}
 
-	override public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
+	override public function __hx_invokeDynamic(dynArgs:java.NativeArray<Dynamic>):Dynamic
 	{
-		return fun(dynArgs);
+		return fun(@:privateAccess Array.ofNative(dynArgs));
 	}
 }
 
@@ -73,7 +73,7 @@ import java.internal.Runtime;
 		this.field = field;
 	}
 
-	override public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
+	override public function __hx_invokeDynamic(dynArgs:java.NativeArray<Dynamic>):Dynamic
 	{
 		return Runtime.callField(obj, field, dynArgs);
 	}

@@ -615,7 +615,7 @@ struct
 		let args_real_to_func args =
 			let arity = List.length args in
 			if arity >= max_arity then
-				[ alloc_var (mk_internal_name "fn" "dynargs") (basic.tarray t_dynamic), None ]
+				[ alloc_var (mk_internal_name "fn" "dynargs") (gen.gclasses.nativearray t_dynamic), None ]
 			else func_args_i arity
 		in
 
@@ -634,7 +634,7 @@ struct
 		let args_real_to_func_sig args =
 			let arity = List.length args in
 			if arity >= max_arity then
-				[mk_internal_name "fn" "dynargs", false, basic.tarray t_dynamic]
+				[mk_internal_name "fn" "dynargs", false, gen.gclasses.nativearray t_dynamic]
 			else begin
 				func_sig_i arity
 			end
@@ -651,7 +651,7 @@ struct
 
 		let args_real_to_func_call el (pos:pos) =
 			if List.length el >= max_arity then
-				[{ eexpr = TArrayDecl el; etype = basic.tarray t_dynamic; epos = pos }]
+				[mk_nativearray_decl gen t_dynamic el pos]
 			else begin
 				List.fold_left (fun acc e ->
 					if like_float (gen.greal_type e.etype) && not (like_i64 (gen.greal_type e.etype)) then
@@ -679,11 +679,13 @@ struct
 			if arity >= max_arity then begin
 				let varray = match changed_args with | [v,_] -> v | _ -> assert false in
 				let varray_local = mk_local varray pos in
-				let mk_varray i = { eexpr = TArray(varray_local, { eexpr = TConst(TInt(Int32.of_int i)); etype = basic.tint; epos = pos }); etype = t_dynamic; epos = pos } in
-
-				snd (List.fold_left (fun (count,acc) (v,const) ->
-					(count + 1, (mk (TVar(v, Some(mk_const const (mk_varray count) v.v_type))) basic.tvoid pos) :: acc)
-				) (0,[]) args)
+				let mk_varray i = { eexpr = TArray(varray_local, ExprBuilder.make_int gen.gcon i pos); etype = t_dynamic; epos = pos } in
+				let el =
+					snd (List.fold_left (fun (count,acc) (v,const) ->
+						(count + 1, (mk (TVar(v, Some(mk_const const (mk_varray count) v.v_type))) basic.tvoid pos) :: acc)
+					) (0, []) args)
+				in
+				List.rev el
 			end else begin
 				let _, dyn_args, float_args = List.fold_left (fun (count,fargs, dargs) arg ->
 					if count land 1 = 0 then
@@ -844,7 +846,7 @@ struct
 			in
 
 			let type_name = mk_internal_name "fn" "type" in
-			let dynamic_arg = alloc_var (mk_internal_name "fn" "dynargs") (basic.tarray t_dynamic) in
+			let dynamic_arg = alloc_var (mk_internal_name "fn" "dynargs") (gen.gclasses.nativearray t_dynamic) in
 
 			let mk_invoke_complete_i i is_float =
 
@@ -1076,7 +1078,7 @@ struct
 						eexpr = TIf(
 							mk (TBinop (OpEq, dynargs, null dynargs.etype pos)) basic.tbool pos,
 							mk (TConst (TInt Int32.zero)) basic.tint pos,
-							Some (mk_field_access gen dynargs "length" pos));
+							Some (gen.gclasses.nativearray_len dynargs pos));
 						etype = basic.tint;
 						epos = pos;
 					} in
