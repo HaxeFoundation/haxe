@@ -201,13 +201,6 @@ let collect_fields cl (methods : bool option) =
 
 	loop cl []
 
-let hash f =
-	let h = ref 0 in
-	for i = 0 to String.length f - 1 do
-		h := !h * 223 + int_of_char (String.unsafe_get f i);
-	done;
-	if Sys.word_size = 64 then Int32.to_int (Int32.shift_right (Int32.shift_left (Int32.of_int !h) 1) 1) else !h
-
 let hash_field ctx f pos =
 	let h = hash f in
 	(try

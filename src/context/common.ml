@@ -1133,6 +1133,13 @@ let float_repres f =
 			Printf.sprintf "%.18g" f
 		in valid_float_lexeme float_val
 
+let hash f =
+	let h = ref 0 in
+	for i = 0 to String.length f - 1 do
+		h := !h * 223 + int_of_char (String.unsafe_get f i);
+	done;
+	if Sys.word_size = 64 then Int32.to_int (Int32.shift_right (Int32.shift_left (Int32.of_int !h) 1) 1) else !h
+
 let add_diagnostics_message com s p sev =
 	let di = com.shared.shared_display_information in
 	di.diagnostics_messages <- (s,p,sev) :: di.diagnostics_messages
