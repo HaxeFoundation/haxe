@@ -48,7 +48,7 @@ open Gencommon
 	catch_map : maps the catch expression to include some intialization code (e.g. setting up Stack.exceptionStack)
 	gen_typecheck : generate Std.is (or similar) check expression for given expression and type
 *)
-let init com (should_wrap:t->bool) (wrap_throw:texpr->texpr->texpr) (unwrap_expr:tvar->pos->texpr) (rethrow_expr:texpr->texpr) (catchall_type:t) (wrapper_type:t) (catch_map:tvar->texpr->texpr) (gen_typecheck:texpr->t->pos->texpr) =
+let init com (should_wrap:t->bool) (wrap_throw:texpr->texpr->texpr) (unwrap_expr:texpr->texpr) (rethrow_expr:texpr->texpr) (catchall_type:t) (wrapper_type:t) (catch_map:tvar->texpr->texpr) (gen_typecheck:texpr->t->pos->texpr) =
 	let rec run e =
 		match e.eexpr with
 		| TThrow texpr when should_wrap texpr.etype ->
@@ -83,21 +83,21 @@ let init com (should_wrap:t->bool) (wrap_throw:texpr->texpr->texpr) (unwrap_expr
 			| Some (v,c), _
 			| _, (v, c) :: _ ->
 				let pos = c.epos in
+
 				let temp_var = mk_temp "catchallException" catchall_type in
 				let temp_local = ExprBuilder.make_local temp_var pos in
 				let catchall_var = mk_temp "catchall" t_dynamic in
-				let catchall_decl = mk (TVar (catchall_var, Some(temp_local))) com.basic.tvoid pos in
 				let catchall_local = ExprBuilder.make_local catchall_var pos in
 
 				(* if it is of type wrapper_type, unwrap it *)
-				let mk_std_is t pos = gen_typecheck catchall_local t pos in
+				let catchall_expr = mk (TIf (gen_typecheck temp_local wrapper_type pos, unwrap_expr temp_local, Some temp_local)) t_dynamic pos in
+				let catchall_decl = mk (TVar (catchall_var, Some catchall_expr)) com.basic.tvoid pos in
 
-				let if_is_wrapper_expr = mk (TIf(mk_std_is wrapper_type pos, Codegen.binop OpAssign catchall_local (unwrap_expr temp_var pos) t_dynamic pos, None)) com.basic.tvoid pos in
 				let rec loop must_wrap_catches =
 					match must_wrap_catches with
 					| (vcatch,catch) :: tl ->
-						mk (TIf (mk_std_is vcatch.v_type catch.epos,
-							     mk (TBlock [(mk (TVar (vcatch, Some(mk_cast vcatch.v_type catchall_local))) com.basic.tvoid catch.epos); catch]) catch.etype catch.epos,
+						mk (TIf (gen_typecheck catchall_local vcatch.v_type catch.epos,
+							     mk (TBlock [(mk (TVar (vcatch, Some(mk_cast (* TODO: this should be a fast non-dynamic cast *) vcatch.v_type catchall_local))) com.basic.tvoid catch.epos); catch]) catch.etype catch.epos,
 							     Some (loop tl))
 						) catch.etype catch.epos
 					| [] ->
@@ -107,7 +107,7 @@ let init com (should_wrap:t->bool) (wrap_throw:texpr->texpr->texpr) (unwrap_expr
 						| None ->
 							mk_block (rethrow_expr temp_local)
 				in
-				[(temp_var, catch_map temp_var { e with eexpr = TBlock [catchall_decl; if_is_wrapper_expr; loop must_wrap_catches] })]
+				[(temp_var, catch_map temp_var { e with eexpr = TBlock [catchall_decl; loop must_wrap_catches] })]
 			| _ ->
 				[]
 			in

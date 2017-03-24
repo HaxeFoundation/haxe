@@ -2363,10 +2363,7 @@ let generate con =
 			let wrap_static = mk_static_field_access (hx_exception) "wrap" (TFun([("obj",false,t_dynamic)], hx_exception_t)) expr.epos in
 			{ throwexpr with eexpr = TThrow { expr with eexpr = TCall(wrap_static, [expr]); etype = hx_exception_t }; etype = gen.gcon.basic.tvoid }
 		)
-		(fun v_to_unwrap pos ->
-			let local = mk_cast hx_exception_t { eexpr = TLocal(v_to_unwrap); etype = v_to_unwrap.v_type; epos = pos } in
-			mk_field_access gen local "obj" pos
-		)
+		(fun local_to_unwrap -> mk_field_access gen (mk_cast hx_exception_t local_to_unwrap) "obj" local_to_unwrap.epos)
 		(fun rethrow ->
 			let wrap_static = mk_static_field_access (hx_exception) "wrap" (TFun([("obj",false,t_dynamic)], hx_exception_t)) rethrow.epos in
 			{ rethrow with eexpr = TThrow { rethrow with eexpr = TCall(wrap_static, [rethrow]); etype = hx_exception_t }; }
