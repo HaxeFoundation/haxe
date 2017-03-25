@@ -1056,7 +1056,7 @@ struct
 				{
 					eexpr = TIf(
 						mk (TBinop (Ast.OpNotEq, mk_this type_name basic.tint, (ExprBuilder.make_int gen.gcon (if is_float then 0 else 1) pos))) basic.tbool pos,
-						mk (TThrow (ExprBuilder.make_string gen.gcon "Wrong number of arguments" pos)) t_dynamic pos,
+						ExprBuilder.make_throw (ExprBuilder.make_string gen.gcon "Wrong number of arguments" pos) pos,
 						Some (mk_return call_expr)
 					);
 					etype = t_dynamic;
@@ -1087,7 +1087,7 @@ struct
 						eexpr = TSwitch(
 							switch_cond,
 							loop_cases api !max_arity [],
-							Some(mk (TThrow (ExprBuilder.make_string gen.gcon "Too many arguments" pos)) basic.tvoid pos));
+							Some(ExprBuilder.make_throw (ExprBuilder.make_string gen.gcon "Too many arguments" pos) pos));
 						etype = basic.tvoid;
 						epos = pos;
 					}
