@@ -260,15 +260,15 @@ let decode_tdecl = function
 	| VAbstract (ATDecl t) -> t
 	| _ -> raise Invalid_expr
 
-let dec_int = function
+let decode_int = function
 	| VInt i -> Int32.to_int i
 	| _ -> raise Invalid_expr
 
-let dec_i32 = function
+let decode_i32 = function
 	| VInt i -> i
 	| _ -> raise Invalid_expr
 
-let dec_bool = function
+let decode_bool = function
 	| VBool b -> b
 	| _ -> raise Invalid_expr
 
@@ -277,11 +277,11 @@ let field o n =
 	| VDynObj _ | VVirtual _ | VObj _ -> Hlinterp.dyn_get_field (interp()) o n HDyn
 	| _ -> raise Invalid_expr
 
-let dec_string = function
+let decode_string = function
 	| VObj { ofields = [|VBytes s;VInt _|] } -> Hlinterp.hl_to_caml s
 	| _ -> raise Invalid_expr
 
-let dec_array = function
+let decode_array = function
 	| VObj { ofields = [|VInt len;VArray (arr,_)|] } ->
 		let len = Int32.to_int len in
 		let rec loop i =
@@ -297,7 +297,7 @@ let decode_lazytype = function
 	| VAbstract (ALazyType (t,_)) -> t
 	| _ -> raise Invalid_expr
 
-let enc_obj t fields =
+let encode_obj t fields =
 	match t with
 	| OMetaAccess ->
 		let h = Hashtbl.create 0 in
@@ -398,7 +398,7 @@ let enc_obj t fields =
 		vvalue = VNull;
 	}
 
-let enc_inst path fields =
+let encode_inst path fields =
 	let ctx = get_ctx() in
 	let t = (match ctx.gen with None -> assert false | Some gen -> try Genhl.resolve_type gen path with Not_found -> assert false) in
 	match t with
@@ -408,10 +408,10 @@ let enc_inst path fields =
 	| _ ->
 		assert false
 
-let enc_string s =
-	enc_inst ([],"String") [|VBytes (caml_to_hl s);VInt (Int32.of_int (String.length s))|]
+let encode_string s =
+	encode_inst ([],"String") [|VBytes (caml_to_hl s);VInt (Int32.of_int (String.length s))|]
 
-let enc_array vl =
+let encode_array vl =
 	let arr = Array.of_list (List.map (fun v ->
 		match v with
 		| VNull | VObj _ | VVirtual _ -> v
@@ -432,15 +432,15 @@ let enc_array vl =
 			VDyn (v,t)
 		| _ -> failwith "Invalid array value"
 	) vl) in
-	enc_inst (["hl";"types"],"ArrayObj") [|VInt (Int32.of_int (Array.length arr));VArray (arr,HDyn)|]
+	encode_inst (["hl";"types"],"ArrayObj") [|VInt (Int32.of_int (Array.length arr));VArray (arr,HDyn)|]
 
 let encode_bytes s =
-	enc_inst (["haxe";"io"],"Bytes") [|VInt (Int32.of_int (String.length s)); VBytes s|]
+	encode_inst (["haxe";"io"],"Bytes") [|VInt (Int32.of_int (String.length s)); VBytes s|]
 
 let encode_string_map convert pmap =
 	let h = Hashtbl.create 0 in
 	PMap.iter (fun k v -> Hashtbl.add h k (convert v)) pmap;
-	enc_inst (["haxe";"ds"],"StringMap") [|VAbstract (AHashBytes h)|]
+	encode_inst (["haxe";"ds"],"StringMap") [|VAbstract (AHashBytes h)|]
 
 let decode_bytes = function
 	| VObj { ofields = [|VInt _;VBytes s|] } -> s
@@ -457,7 +457,7 @@ let encode_ref v convert tostr =
 		dvalues = [|
 			vfun0 (fun() -> convert v);
 			vfun0 (fun() -> VBytes (caml_to_hl (tostr())));
-			vfun0 (fun() -> enc_string (tostr()));
+			vfun0 (fun() -> encode_string (tostr()));
 			VAbstract (AUnsafe (Obj.repr v))
 		|];
 		dtypes = [|
