@@ -40,12 +40,7 @@ open Gencommon
 	This enables two things:
 		empty construction without the need of incompatibility with the platform's native construction method
 		the ability to call super() constructor in any place in the constructor
-
-	This will insert itself in the default reflection-related module filter
 *)
-let priority = 0.0
-let name = "overloading_constructor"
-
 let rec cur_ctor c tl =
 	match c.cl_constructor with
 	| Some ctor ->
@@ -72,7 +67,7 @@ let make_static_ctor_name cl =
 	name ^ "_" ^ (String.concat "_" (fst cl.cl_path)) ^ "_" ^ (snd cl.cl_path)
 
 (* replaces super() call with last static constructor call *)
-let replace_super_call gen c tl with_params me p =
+let replace_super_call com c tl with_params me p follow_type =
 	let rec loop_super c tl =
 		match c.cl_super with
 		| None ->
@@ -96,8 +91,8 @@ let replace_super_call gen c tl with_params me p =
 				let args, _ = get_fun (apply_params cf.cf_params stl cf.cf_type) in
 				try
 					List.for_all2 (fun (_,_,t) e -> try
-						let e_etype = run_follow gen e.etype in
-						let t = run_follow gen t in
+						let e_etype = follow_type e.etype in
+						let t = follow_type t in
 						unify e_etype t; true
 					with Unify_error _ ->
 						false
@@ -106,7 +101,7 @@ let replace_super_call gen c tl with_params me p =
 					false
 			) (cf :: cf.cf_overloads)
 		with Not_found ->
-			gen.gcon.error "No suitable overload for the super call arguments was found" p; cf
+			com.error "No suitable overload for the super call arguments was found" p; cf
 	in
 	{
 		eexpr = TCall(
@@ -117,26 +112,25 @@ let replace_super_call gen c tl with_params me p =
 			},
 			with_params
 		);
-		etype = gen.gcon.basic.tvoid;
+		etype = com.basic.tvoid;
 		epos = p;
 	}
 
 (* will create a static counterpart of 'ctor', and replace its contents to a call to the static version*)
-let create_static_ctor gen ~empty_ctor_expr cl ctor =
+let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 	match Meta.has Meta.SkipCtor ctor.cf_meta with
 	| true -> ()
 	| false when is_none ctor.cf_expr -> ()
 	| false ->
 		let static_ctor_name = make_static_ctor_name cl in
 		(* create the static constructor *)
-		let basic = gen.gcon.basic in
 		let ctor_types = List.map (fun (s,t) -> (s, TInst(map_param (get_cl_t t), []))) cl.cl_params in
 		let me = alloc_var "__hx_this" (TInst(cl, List.map snd ctor_types)) in
 		me.v_capture <- true;
 
 		let fn_args, _ = get_fun ctor.cf_type in
 		let ctor_params = List.map snd ctor_types in
-		let fn_type = TFun((me.v_name,false, me.v_type) :: List.map (fun (n,o,t) -> (n,o,apply_params cl.cl_params ctor_params t)) fn_args, basic.tvoid) in
+		let fn_type = TFun((me.v_name,false, me.v_type) :: List.map (fun (n,o,t) -> (n,o,apply_params cl.cl_params ctor_params t)) fn_args, com.basic.tvoid) in
 		let cur_tf_args = match ctor.cf_expr with
 		| Some { eexpr = TFunction(tf) } -> tf.tf_args
 		| _ -> assert false
@@ -161,12 +155,12 @@ let create_static_ctor gen ~empty_ctor_expr cl ctor =
 			| TCall (({ eexpr = TConst TSuper } as tsuper), params) -> (try
 				let params = List.map (fun e -> map_expr ~is_first:false e) params in
 				actual_super_call := Some { e with eexpr = TCall(tsuper, [empty_ctor_expr]) };
-				replace_super_call gen cl ctor_params params me e.epos
+				replace_super_call com cl ctor_params params me e.epos follow_type
 			with | Not_found ->
 				(* last static function was not found *)
 				actual_super_call := Some e;
 				if not is_first then
-					gen.gcon.error "Super call must be the first call when extending native types" e.epos;
+					com.error "Super call must be the first call when extending native types" e.epos;
 				{ e with eexpr = TBlock([]) })
 			| TFunction tf when is_first ->
 				do_map ~is_first:true e
@@ -219,7 +213,7 @@ let create_static_ctor gen ~empty_ctor_expr cl ctor =
 					[{ eexpr = TConst TThis; etype = TInst(cl, List.map snd cl.cl_params); epos = p }]
 					@ List.map (fun (v,_) -> mk_local v p) cur_tf_args
 				);
-				etype = basic.tvoid;
+				etype = com.basic.tvoid;
 				epos = p
 			}] in
 			ctor.cf_expr <- Some { e with eexpr = TFunction({ tf with tf_expr = { tf.tf_expr with eexpr = TBlock block_contents }; tf_args = changed_tf_args }) }
@@ -272,7 +266,7 @@ let rec descends_from_native_or_skipctor cl =
 	| None -> false
 	| Some(c,_) -> descends_from_native_or_skipctor c
 
-let ensure_super_is_first gen cf =
+let ensure_super_is_first com cf =
 	let rec loop e =
 		match e.eexpr with
 		| TBlock (b :: block) ->
@@ -280,20 +274,17 @@ let ensure_super_is_first gen cf =
 		| TBlock []
 		| TCall({ eexpr = TConst TSuper },_) -> ()
 		| _ ->
-			gen.gcon.error "Types that derive from a native class must have its super() call as the first statement in the constructor" cf.cf_pos
+			com.error "Types that derive from a native class must have its super() call as the first statement in the constructor" cf.cf_pos
 	in
 	match cf.cf_expr with
 	| None -> ()
 	| Some e -> Type.iter loop e
 
-let configure ~(empty_ctor_type : t) ~(empty_ctor_expr : texpr) gen =
-	gen.gtools.r_create_empty <- (fun cl params pos -> mk (TNew(cl,params,[empty_ctor_expr])) (TInst(cl,params)) pos);
-
-	let basic = gen.gcon.basic in
+let init com (empty_ctor_type : t) (empty_ctor_expr : texpr) (follow_type : t -> t) =
+	let basic = com.basic in
 	let should_change cl = not cl.cl_interface && (not cl.cl_extern || is_hxgen (TClassDecl cl)) && (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) in
-	let msize = List.length gen.gtypes_list in
+	let msize = List.length com.types in
 	let processed, empty_ctors = Hashtbl.create msize, Hashtbl.create msize in
-
 
 	let rec get_last_empty cl =
 		try
@@ -321,7 +312,7 @@ let configure ~(empty_ctor_type : t) ~(empty_ctor_expr : texpr) gen =
 						try
 							let sctor, sup, stl = prev_ctor cl (List.map snd cl.cl_params) in
 							(* we'll make constructors that will only call super() *)
-							let ctor = clone_ctors gen.gcon sctor sup stl cl in
+							let ctor = clone_ctors com sctor sup stl cl in
 							cl.cl_constructor <- Some ctor;
 							ctor
 						with Not_found -> (* create default constructor *)
@@ -341,16 +332,16 @@ let configure ~(empty_ctor_type : t) ~(empty_ctor_expr : texpr) gen =
 				(* now that we made sure we have a constructor, exit if native gen *)
 				if not (is_hxgen (TClassDecl cl)) || Meta.has Meta.SkipCtor cl.cl_meta then begin
 					if descends_from_native_or_skipctor cl && is_some cl.cl_super then
-						List.iter (fun cf -> ensure_super_is_first gen cf) (ctor :: ctor.cf_overloads);
+						List.iter (fun cf -> ensure_super_is_first com cf) (ctor :: ctor.cf_overloads);
 					raise Exit
 				end;
 
 				(* if cl descends from a native class, we cannot use the static constructor strategy *)
 				if descends_from_native_or_skipctor cl && is_some cl.cl_super then
-					List.iter (fun cf -> ensure_super_is_first gen cf) (ctor :: ctor.cf_overloads)
+					List.iter (fun cf -> ensure_super_is_first com cf) (ctor :: ctor.cf_overloads)
 				else
 					(* now that we have a current ctor, create the static counterparts *)
-					List.iter (fun cf -> create_static_ctor gen ~empty_ctor_expr:empty_ctor_expr cl cf) (ctor :: ctor.cf_overloads)
+					List.iter (fun cf -> create_static_ctor com ~empty_ctor_expr:empty_ctor_expr cl cf follow_type) (ctor :: ctor.cf_overloads)
 			with Exit -> ());
 
 			(* implement empty ctor *)
@@ -421,4 +412,13 @@ let configure ~(empty_ctor_type : t) ~(empty_ctor_expr : texpr) gen =
 			());
 		md
 	in
+	module_filter
+
+
+let priority = 0.0
+let name = "overloading_constructor"
+
+let configure gen ~empty_ctor_type ~empty_ctor_expr =
+	gen.gtools.r_create_empty <- (fun cl params pos -> mk (TNew(cl,params,[empty_ctor_expr])) (TInst(cl,params)) pos);
+	let module_filter = init gen.gcon empty_ctor_type empty_ctor_expr (run_follow gen) in
 	gen.gmodule_filters#add name (PCustom priority) module_filter
