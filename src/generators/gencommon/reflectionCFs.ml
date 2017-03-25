@@ -249,7 +249,8 @@ let call_super ctx fn_args ret_t cf cl this_t pos =
 	}
 
 
-let mk_throw ctx str pos = { eexpr = TThrow (ExprBuilder.make_string ctx.rcf_gen.gcon str pos); etype = ctx.rcf_gen.gcon.basic.tvoid; epos = pos }
+let mk_throw com str pos =
+	ExprBuilder.make_throw (ExprBuilder.make_string com str pos) pos
 
 let enumerate_dynamic_fields ctx cl when_found base_arr =
 	let gen = ctx.rcf_gen in
@@ -873,7 +874,7 @@ let implement_final_lookup ctx cl =
 				let throw_errors_local = mk_local (get throw_errors_opt) pos in
 				let mk_check_throw msg =
 				{
-					eexpr = TIf(throw_errors_local, mk_throw ctx msg pos, Some (mk_return (null ret_t pos)));
+					eexpr = TIf(throw_errors_local, mk_throw ctx.rcf_gen.gcon msg pos, Some (mk_return (null ret_t pos)));
 					etype = ret_t;
 					epos = pos
 				} in
@@ -936,9 +937,9 @@ let implement_final_lookup ctx cl =
 					[]
 				| Some _ -> (* is set *)
 					if is_float then
-						[ mk_throw ctx "Cannot access field for writing or incompatible type." pos ]
+						[ mk_throw ctx.rcf_gen.gcon "Cannot access field for writing or incompatible type." pos ]
 					else
-						[ mk_throw ctx "Cannot access field for writing." pos ]
+						[ mk_throw ctx.rcf_gen.gcon "Cannot access field for writing." pos ]
 		)
 	end
 

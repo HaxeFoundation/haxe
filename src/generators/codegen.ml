@@ -36,6 +36,9 @@ module ExprBuilder = struct
 		let e_this = make_static_this c p in
 		mk (TField(e_this,FStatic(c,cf))) cf.cf_type p
 
+	let make_throw e p =
+		mk (TThrow e) t_dynamic p
+
 	let make_int com i p =
 		mk (TConst (TInt (Int32.of_int i))) com.basic.tint p
 
