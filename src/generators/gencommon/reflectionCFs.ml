@@ -129,6 +129,8 @@ type rcf_ctx =
 
 	rcf_hash_conflict_ctx : rcf_hash_conflict_ctx option;
 
+	rcf_mk_exception : string -> pos -> texpr;
+
 	(*
 		main expr -> field expr -> field string -> possible hash int (if optimize) -> possible set expr -> should_throw_exceptions -> changed expression
 
@@ -139,7 +141,7 @@ type rcf_ctx =
 	rcf_on_call_field : texpr->texpr->string->int32 option->texpr list->texpr;
 }
 
-let new_ctx gen ft object_iface optimize dynamic_getset_field dynamic_call_field hash_function lookup_function insert_function remove_function hash_conflict_ctx =
+let new_ctx gen ft object_iface optimize dynamic_getset_field dynamic_call_field hash_function lookup_function insert_function remove_function hash_conflict_ctx rcf_mk_exception =
 	{
 		rcf_gen = gen;
 		rcf_ft = ft;
@@ -162,6 +164,7 @@ let new_ctx gen ft object_iface optimize dynamic_getset_field dynamic_call_field
 		rcf_on_getset_field = dynamic_getset_field;
 		rcf_on_call_field = dynamic_call_field;
 		rcf_hash_conflict_ctx = hash_conflict_ctx;
+		rcf_mk_exception = rcf_mk_exception;
 	}
 
 (*
@@ -248,9 +251,6 @@ let call_super ctx fn_args ret_t cf cl this_t pos =
 		epos = pos;
 	}
 
-
-let mk_throw com str pos =
-	ExprBuilder.make_throw (ExprBuilder.make_string com str pos) pos
 
 let enumerate_dynamic_fields ctx cl when_found base_arr =
 	let gen = ctx.rcf_gen in
@@ -835,6 +835,11 @@ let implement_final_lookup ctx cl =
 
 	let this = { eexpr = TConst(TThis); etype = TInst(cl, List.map snd cl.cl_params); epos = pos } in
 
+	let mk_throw str pos =
+		let e = ctx.rcf_mk_exception str pos in
+		ExprBuilder.make_throw e pos
+	in
+
 	(*
 		this function will create the class fields and call callback for each version
 
@@ -874,7 +879,7 @@ let implement_final_lookup ctx cl =
 				let throw_errors_local = mk_local (get throw_errors_opt) pos in
 				let mk_check_throw msg =
 				{
-					eexpr = TIf(throw_errors_local, mk_throw ctx.rcf_gen.gcon msg pos, Some (mk_return (null ret_t pos)));
+					eexpr = TIf(throw_errors_local, mk_throw msg pos, Some (mk_return (null ret_t pos)));
 					etype = ret_t;
 					epos = pos
 				} in
@@ -937,9 +942,9 @@ let implement_final_lookup ctx cl =
 					[]
 				| Some _ -> (* is set *)
 					if is_float then
-						[ mk_throw ctx.rcf_gen.gcon "Cannot access field for writing or incompatible type." pos ]
+						[ mk_throw "Cannot access field for writing or incompatible type." pos ]
 					else
-						[ mk_throw ctx.rcf_gen.gcon "Cannot access field for writing." pos ]
+						[ mk_throw "Cannot access field for writing." pos ]
 		)
 	end
 

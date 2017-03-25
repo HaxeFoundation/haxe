@@ -2186,6 +2186,10 @@ let generate con =
 		mk_cast ecall.etype { ecall with eexpr = TCall(infer, call_args); etype = t_dynamic }
 	in
 
+	let cl_field_exc = get_cl (get_type gen (["java";"lang"],"RuntimeException")) in
+	let cl_field_exc_t = TInst (cl_field_exc, []) in
+	let mk_field_exception msg pos = mk (TNew (cl_field_exc, [], [ExprBuilder.make_string gen.gcon msg pos])) cl_field_exc_t pos in
+
 	let rcf_ctx =
 		ReflectionCFs.new_ctx
 			gen
@@ -2207,6 +2211,7 @@ let generate con =
 				{ hash_array with eexpr = TCall(rcf_static_remove t, [hash_array; length; pos]); etype = gen.gcon.basic.tvoid }
 			)
 			None
+			mk_field_exception
 		in
 
 	ReflectionCFs.UniversalBaseClass.configure gen (get_cl (get_type gen (["haxe";"lang"],"HxObject")) ) object_iface dynamic_object;

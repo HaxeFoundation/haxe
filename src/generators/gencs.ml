@@ -2822,6 +2822,10 @@ let generate con =
 
 		let flookup_cl = get_cl (get_type gen (["haxe";"lang"], "FieldLookup")) in
 
+		let cl_field_exc = get_cl (get_type gen (["System"],"MemberAccessException")) in
+		let cl_field_exc_t = TInst (cl_field_exc, []) in
+		let mk_field_exception msg pos = mk (TNew (cl_field_exc, [], [ExprBuilder.make_string gen.gcon msg pos])) cl_field_exc_t pos in
+
 		let rcf_ctx =
 			ReflectionCFs.new_ctx
 				gen
@@ -2854,6 +2858,7 @@ let generate con =
 						add_names = (fun ehead earr -> mk (TCall (add, [ehead; earr])) basic.tvoid ehead.epos);
 					}
 				)
+				mk_field_exception
 		in
 
 		ReflectionCFs.UniversalBaseClass.configure gen (get_cl (get_type gen (["haxe";"lang"],"HxObject")) ) object_iface dynamic_object;
