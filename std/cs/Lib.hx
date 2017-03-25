@@ -178,7 +178,7 @@ class Lib
 	**/
 	@:extern inline public static function rethrow(e:Dynamic):Void
 	{
-		untyped __rethrow__();
+		throw untyped __rethrow__;
 	}
 
 	/**

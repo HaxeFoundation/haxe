@@ -1130,6 +1130,17 @@ let run com tctx main =
 		Optimizer.reduce_expression tctx;
 		captured_vars com;
 	] in
+	let filters = match com.platform with
+	| Cs ->
+		filters @ [
+			TryCatchWrapper.configure_cs com
+		]
+	| Java ->
+		filters @ [
+			TryCatchWrapper.configure_java com
+		]
+	| _ -> filters
+	in
 	List.iter (run_expression_filters tctx filters) new_types;
 	(* PASS 1.5: pre-analyzer type filters *)
 	List.iter (fun t ->
