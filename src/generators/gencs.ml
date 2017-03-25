@@ -2722,7 +2722,10 @@ let generate con =
 
 		AbstractImplementationFix.configure gen;
 
-		let closure_t = ClosuresToClass.DoubleAndDynamicClosureImpl.get_ctx gen (get_cl (get_type gen (["haxe";"lang"],"Function"))) 6 in
+		let cl_arg_exc = get_cl (get_type gen (["System"],"ArgumentException")) in
+		let cl_arg_exc_t = TInst (cl_arg_exc, []) in
+		let mk_arg_exception msg pos = mk (TNew (cl_arg_exc, [], [ExprBuilder.make_string gen.gcon msg pos])) cl_arg_exc_t pos in
+		let closure_t = ClosuresToClass.DoubleAndDynamicClosureImpl.get_ctx gen (get_cl (get_type gen (["haxe";"lang"],"Function"))) 6 mk_arg_exception in
 		ClosuresToClass.configure gen closure_t;
 
 		let enum_base = (get_cl (get_type gen (["haxe";"lang"],"Enum")) ) in
