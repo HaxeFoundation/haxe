@@ -152,7 +152,7 @@ let in_runtime_class gen =
 module CSharpSpecificESynf =
 struct
 	let name = "csharp_specific_e"
-	let priority = solve_deps name [DBefore ExpressionUnwrap.priority; DBefore ClassInstance.priority; DAfter TryCatchWrapper.priority]
+	let priority = solve_deps name [DBefore ExpressionUnwrap.priority; DBefore ClassInstance.priority]
 
 	let get_cl_from_t t =
 		match follow t with
@@ -1449,8 +1449,6 @@ let generate con =
 						write w "*(";
 						expr_s w e;
 						write w ")"
-					| TCall ({ eexpr = TLocal( { v_name = "__rethrow__" } ) }, _) ->
-						write w "throw"
 					(* operator overloading handling *)
 					| TCall({ eexpr = TField(ef, FInstance(cl,_,{ cf_name = "__get" })) }, [idx]) when not (is_hxgen (TClassDecl cl)) ->
 						expr_s w { e with eexpr = TArray(ef, idx) }
@@ -1631,6 +1629,8 @@ let generate con =
 						if is_some eopt then (write w " "; expr_s w (get eopt))
 					| TBreak -> write w "break"
 					| TContinue -> write w "continue"
+					| TThrow { eexpr = TLocal { v_name = "__rethrow__" } } ->
+						write w "throw"
 					| TThrow e ->
 						write w "throw ";
 						expr_s w e
@@ -3044,45 +3044,6 @@ let generate con =
 				end);
 
 		FilterClosures.configure gen (fun e1 s -> true) (ReflectionCFs.get_closure_func rcf_ctx closure_cl);
-
-		begin
-			let base_exception = get_cl (get_type gen (["System"], "Exception")) in
-			let base_exception_t = TInst(base_exception, []) in
-
-			let hx_exception = get_cl (get_type gen (["haxe";"lang"], "HaxeException")) in
-			let hx_exception_t = TInst(hx_exception, []) in
-
-			let exc_cl = get_cl (get_type gen (["haxe";"lang"],"Exceptions")) in
-
-			let rec is_exception t =
-				match follow t with
-					| TInst(cl,_) ->
-						if cl == base_exception then
-							true
-						else
-							(match cl.cl_super with | None -> false | Some (cl,arg) -> is_exception (TInst(cl,arg)))
-					| _ -> false
-			in
-
-			let v_rethrow = alloc_var "__rethrow__" t_dynamic in
-			TryCatchWrapper.configure gen
-				(fun t -> not (is_exception (real_type t)))
-				(fun throwexpr expr ->
-					let e_hxexception = ExprBuilder.make_static_this hx_exception expr.epos in
-					let e_wrap = fcall e_hxexception "wrap" [expr] hx_exception_t expr.epos in
-					mk (TThrow e_wrap) basic.tvoid expr.epos
-				)
-				(fun local_to_unwrap -> Codegen.field (mk_cast hx_exception_t local_to_unwrap) "obj" t_dynamic local_to_unwrap.epos)
-				(fun rethrow -> mk (TCall ((mk_local v_rethrow rethrow.epos),[rethrow])) basic.tvoid rethrow.epos)
-				base_exception_t
-				hx_exception_t
-				(fun v e ->
-					let e_exc = ExprBuilder.make_static_this exc_cl e.epos in
-					let e_field = Codegen.field e_exc "exception" base_exception_t e.epos in
-					let e_setstack = binop OpAssign e_field (mk_local v e.epos) v.v_type e.epos in
-					Type.concat e_setstack e;
-				)
-		end;
 
 		ClassInstance.configure gen;
 

@@ -22,7 +22,7 @@ open Common
 open Ast
 open Type
 open Codegen
-open Gencommon
+open Codegen.ExprBuilder
 
 (* ******************************************* *)
 (* Try / Catch + throw native types handling *)
@@ -32,15 +32,11 @@ open Gencommon
 	special kinds of objects can be thrown. Because of this, we must wrap some throw
 	statements with an expression, and also we must unwrap it on the catch() phase, and
 	maybe manually test with Std.is()
-
-	dependencies:
-		must run before dynamic field access (?) TODO review
-		It's a syntax filter, as it alters types (throw wrapper)
 *)
 
 (*
 	should_wrap : does the type should be wrapped? This of course works on the reverse way, so it tells us if the type should be unwrapped as well
-	wrap_throw : the wrapper for throw (throw expr->expr inside throw->returning wrapped expression)
+	wrap_throw : the wrapper for throw (throw expr->returning wrapped expression)
 	unwrap_expr : the other way around : given the catch var (maybe will need casting to wrapper_type) , return the unwrap expr
 	rethrow_expr : how to rethrow ane exception in the platform
 	catchall_type : the class used for catchall (e:Dynamic)
@@ -48,11 +44,11 @@ open Gencommon
 	catch_map : maps the catch expression to include some intialization code (e.g. setting up Stack.exceptionStack)
 	gen_typecheck : generate Std.is (or similar) check expression for given expression and type
 *)
-let init com (should_wrap:t->bool) (wrap_throw:texpr->texpr->texpr) (unwrap_expr:texpr->texpr) (rethrow_expr:texpr->texpr) (catchall_type:t) (wrapper_type:t) (catch_map:tvar->texpr->texpr) (gen_typecheck:texpr->t->pos->texpr) =
+let init com (should_wrap:t->bool) (wrap_throw:texpr->texpr) (unwrap_expr:texpr->texpr) (rethrow_expr:texpr->texpr) (catchall_type:t) (wrapper_type:t) (catch_map:tvar->texpr->texpr) (gen_typecheck:texpr->t->pos->texpr) =
 	let rec run e =
 		match e.eexpr with
 		| TThrow texpr when should_wrap texpr.etype ->
-			wrap_throw e (run texpr)
+			wrap_throw (run texpr)
 		| TTry (ttry, catches) ->
 			let nowrap_catches, must_wrap_catches, catchall = List.fold_left (fun (nowrap_catches, must_wrap_catches, catchall) (v, catch) ->
 				(* first we'll see if the type is Dynamic (catchall) *)
@@ -84,10 +80,10 @@ let init com (should_wrap:t->bool) (wrap_throw:texpr->texpr->texpr) (unwrap_expr
 			| _, (v, c) :: _ ->
 				let pos = c.epos in
 
-				let temp_var = mk_temp "catchallException" catchall_type in
-				let temp_local = ExprBuilder.make_local temp_var pos in
-				let catchall_var = mk_temp "catchall" t_dynamic in
-				let catchall_local = ExprBuilder.make_local catchall_var pos in
+				let temp_var = alloc_var "catchallException" catchall_type pos in
+				let temp_local = make_local temp_var pos in
+				let catchall_var = alloc_var "realException" t_dynamic pos in
+				let catchall_local = make_local catchall_var pos in
 
 				(* if it is of type wrapper_type, unwrap it *)
 				let catchall_expr = mk (TIf (gen_typecheck temp_local wrapper_type pos, unwrap_expr temp_local, Some temp_local)) t_dynamic pos in
@@ -97,7 +93,7 @@ let init com (should_wrap:t->bool) (wrap_throw:texpr->texpr->texpr) (unwrap_expr
 					match must_wrap_catches with
 					| (vcatch,catch) :: tl ->
 						mk (TIf (gen_typecheck catchall_local vcatch.v_type catch.epos,
-							     mk (TBlock [(mk (TVar (vcatch, Some(mk_cast (* TODO: this should be a fast non-dynamic cast *) vcatch.v_type catchall_local))) com.basic.tvoid catch.epos); catch]) catch.etype catch.epos,
+							     mk (TBlock [(mk (TVar (vcatch, Some(mk_cast (* TODO: this should be a fast non-dynamic cast *) catchall_local vcatch.v_type pos))) com.basic.tvoid catch.epos); catch]) catch.etype catch.epos,
 							     Some (loop tl))
 						) catch.etype catch.epos
 					| [] ->
@@ -117,14 +113,94 @@ let init com (should_wrap:t->bool) (wrap_throw:texpr->texpr->texpr) (unwrap_expr
 	in
 	run
 
-let name = "try_catch"
-let priority = solve_deps name [DBefore DynamicFieldAccess.priority]
+let find_class com path =
+	let mt = List.find (fun mt -> match mt with TClassDecl c -> c.cl_path = path | _ -> false) com.types in
+	match mt with TClassDecl c -> c | _ -> assert false
 
-let configure gen should_wrap wrap_throw unwrap_expr rethrow_expr catchall_type wrapper_type catch_map =
-	let gen_typecheck e t pos =
-		let std_cl = get_cl (get_type gen ([],"Std")) in
-		let std_is = mk_static_field_access_infer std_cl "is" pos [] in
-		mk (TCall (std_is, [e; mk_mt_access (t_to_mt t) pos])) gen.gcon.basic.tbool pos
+let configure_cs com =
+	let base_exception = find_class com (["cs";"system"], "Exception") in
+	let base_exception_t = TInst(base_exception, []) in
+
+	let hx_exception = find_class com (["cs";"internal";"_Exceptions"], "HaxeException") in
+	let hx_exception_t = TInst(hx_exception, []) in
+
+	let exc_cl = find_class com (["cs";"internal"],"Exceptions") in
+
+	let rec is_exception t =
+		match follow t with
+		| TInst(cl,_) ->
+			if cl == base_exception then
+				true
+			else
+				(match cl.cl_super with | None -> false | Some (cl,arg) -> is_exception (TInst(cl,arg)))
+		| _ -> false
 	in
-	let run = init gen.gcon should_wrap wrap_throw unwrap_expr rethrow_expr catchall_type wrapper_type catch_map gen_typecheck in
-	gen.gsyntax_filters#add name (PCustom priority) run
+
+	let v_rethrow = alloc_unbound_var "__rethrow__" t_dynamic null_pos in
+	let should_wrap t =
+		not (is_exception t)
+	in
+	let wrap_throw expr =
+		match expr.eexpr with
+		| TLocal { v_name = "__rethrow__" } ->
+			make_throw expr expr.epos
+		| _ ->
+			let e_hxexception = make_static_this hx_exception expr.epos in
+			let e_wrap = fcall e_hxexception "wrap" [expr] base_exception_t expr.epos in
+			make_throw e_wrap expr.epos
+	in
+	let unwrap_expr local_to_unwrap = Codegen.field (mk_cast local_to_unwrap hx_exception_t local_to_unwrap.epos) "obj" t_dynamic local_to_unwrap.epos in
+	let rethrow_expr rethrow = make_throw (make_local v_rethrow rethrow.epos) rethrow.epos in
+	let catch_map v e =
+		let e_exc = make_static_this exc_cl e.epos in
+		let e_field = Codegen.field e_exc "exception" base_exception_t e.epos in
+		let e_setstack = binop OpAssign e_field (make_local v e.epos) v.v_type e.epos in
+		Type.concat e_setstack e
+	in
+	let std_cl = find_class com ([],"Std") in
+	let gen_typecheck e t pos =
+		let std = make_static_this std_cl pos in
+		let e_type = make_typeexpr (module_type_of_type t) pos in
+		fcall std "is" [e; e_type] com.basic.tbool pos
+	in
+	init com should_wrap wrap_throw unwrap_expr rethrow_expr base_exception_t hx_exception_t catch_map gen_typecheck
+
+let configure_java com =
+	let base_exception = find_class com (["java"; "lang"], "Throwable") in
+	let base_exception_t = TInst(base_exception, []) in
+
+	let hx_exception = find_class com (["java";"internal";"_Exceptions"], "HaxeException") in
+	let hx_exception_t = TInst(hx_exception, []) in
+
+	let exc_cl = find_class com (["java";"internal"],"Exceptions") in
+
+	let rec is_exception t =
+		match follow t with
+		| TInst(cl,_) ->
+			if cl == base_exception then
+				true
+			else
+				(match cl.cl_super with None -> false | Some (cl,arg) -> is_exception (TInst(cl,arg)))
+		| _ -> false
+	in
+
+	let should_wrap t = not (is_exception t) in
+	let wrap_throw expr =
+		let e_hxexception = make_static_this hx_exception expr.epos in
+		let e_wrap = fcall e_hxexception "wrap" [expr] base_exception_t expr.epos in
+		make_throw e_wrap expr.epos
+	in
+	let unwrap_expr local_to_unwrap = Codegen.field (mk_cast local_to_unwrap hx_exception_t local_to_unwrap.epos) "obj" t_dynamic local_to_unwrap.epos in
+	let rethrow_expr exc = { exc with eexpr = TThrow exc } in
+	let catch_map v e =
+		let exc = make_static_this exc_cl e.epos in
+		let e_setstack = fcall exc "setException" [make_local v e.epos] com.basic.tvoid e.epos in
+		Type.concat e_setstack e;
+	in
+	let std_cl = find_class com ([],"Std") in
+	let gen_typecheck e t pos =
+		let std = make_static_this std_cl pos in
+		let e_type = make_typeexpr (module_type_of_type t) pos in
+		fcall std "is" [e; e_type] com.basic.tbool pos
+	in
+	init com should_wrap wrap_throw unwrap_expr rethrow_expr base_exception_t hx_exception_t catch_map gen_typecheck

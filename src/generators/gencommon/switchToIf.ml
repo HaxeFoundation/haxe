@@ -18,6 +18,7 @@
 *)
 open Common
 open Type
+open Codegen
 open Gencommon
 
 (* ******************************************* *)
@@ -110,7 +111,7 @@ let configure gen (should_convert:texpr->bool) =
 							| _ -> raise Not_found
 						in
 						if Meta.has Meta.Class real_enum.e_meta then raise Not_found;
-						let enum_expr = mk_mt_access (TEnumDecl(real_enum)) e.epos in
+						let enum_expr = ExprBuilder.make_typeexpr (TEnumDecl(real_enum)) e.epos in
 						let fields = Hashtbl.create (List.length real_enum.e_names) in
 						PMap.iter (fun _ ef -> Hashtbl.add fields ef.ef_index ef) real_enum.e_constrs;
 						let cases = List.map (fun (el,e) ->

@@ -166,7 +166,7 @@ let is_cl t = match follow t with
 module JavaSpecificESynf =
 struct
 	let name = "java_specific_e"
-	let priority = solve_deps name [ DBefore ExpressionUnwrap.priority; DBefore ClassInstance.priority; DAfter CastDetect.priority; DAfter TryCatchWrapper.priority ]
+	let priority = solve_deps name [ DBefore ExpressionUnwrap.priority; DBefore ClassInstance.priority; DAfter CastDetect.priority]
 
 	let get_cl_from_t t =
 		match follow t with
@@ -2349,43 +2349,6 @@ let generate con =
 
 	let closure_cl = get_cl (get_type gen (["haxe";"lang"],"Closure")) in
 	FilterClosures.configure gen (fun e1 s -> true) (ReflectionCFs.get_closure_func rcf_ctx closure_cl);
-
-	begin
-		let base_exception = get_cl (get_type gen (["java"; "lang"], "Throwable")) in
-		let base_exception_t = TInst(base_exception, []) in
-
-		let hx_exception = get_cl (get_type gen (["haxe";"lang"], "HaxeException")) in
-		let hx_exception_t = TInst(hx_exception, []) in
-
-		let exc_cl = get_cl (get_type gen (["haxe";"lang"],"Exceptions")) in
-
-		let rec is_exception t =
-			match follow t with
-				| TInst(cl,_) ->
-					if cl == base_exception then
-						true
-					else
-						(match cl.cl_super with | None -> false | Some (cl,arg) -> is_exception (TInst(cl,arg)))
-				| _ -> false
-		in
-
-		TryCatchWrapper.configure gen
-			(fun t -> not (is_exception (real_type t)))
-			(fun throwexpr expr ->
-				let e_hxexception = ExprBuilder.make_static_this hx_exception expr.epos in
-				let e_wrap = fcall e_hxexception "wrap" [expr] hx_exception_t expr.epos in
-				mk (TThrow e_wrap) basic.tvoid expr.epos
-			)
-			(fun local_to_unwrap -> Codegen.field (mk_cast hx_exception_t local_to_unwrap) "obj" t_dynamic local_to_unwrap.epos)
-			(fun exc -> { exc with eexpr = TThrow exc })
-			base_exception_t
-			hx_exception_t
-			(fun v e ->
-				let e_field = mk_static_field_access_infer exc_cl "setException" e.epos [] in
-				let e_setstack = mk (TCall (e_field,[mk_local v e.epos])) basic.tvoid e.epos in
-				Type.concat e_setstack e;
-			)
-	end;
 
 	ClassInstance.configure gen;
 

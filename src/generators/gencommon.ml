@@ -142,15 +142,6 @@ let is_string t =
 	| TInst({ cl_path = ([], "String") }, []) -> true
 	| _ -> false
 
-let mk_mt_access mt pos =
-	let t = match mt with
-		| TClassDecl cl -> TAnon { a_fields = cl.cl_statics; a_status = ref (Statics cl) }
-		| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
-		| TAbstractDecl a -> TAnon { a_fields = PMap.empty; a_status = ref (AbstractStatics a) }
-		| _ -> assert false
-	in
-	mk (TTypeExpr mt) t pos
-
 let anon_class t =
 	match follow t with
 	| TAnon anon ->
