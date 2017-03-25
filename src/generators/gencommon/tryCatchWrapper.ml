@@ -120,26 +120,16 @@ let find_class com path =
 let configure_cs com =
 	let base_exception = find_class com (["cs";"system"], "Exception") in
 	let base_exception_t = TInst(base_exception, []) in
-
 	let hx_exception = find_class com (["cs";"internal";"_Exceptions"], "HaxeException") in
-	let hx_exception_t = TInst(hx_exception, []) in
-
+	let hx_exception_t = TInst (hx_exception, []) in
 	let exc_cl = find_class com (["cs";"internal"],"Exceptions") in
-
 	let rec is_exception t =
 		match follow t with
-		| TInst(cl,_) ->
-			if cl == base_exception then
-				true
-			else
-				(match cl.cl_super with | None -> false | Some (cl,arg) -> is_exception (TInst(cl,arg)))
+		| TInst (cl,_) -> is_parent base_exception cl
 		| _ -> false
 	in
-
 	let v_rethrow = alloc_unbound_var "__rethrow__" t_dynamic null_pos in
-	let should_wrap t =
-		not (is_exception t)
-	in
+	let should_wrap t = not (is_exception t) in
 	let wrap_throw expr =
 		match expr.eexpr with
 		| TLocal { v_name = "__rethrow__" } ->
@@ -167,23 +157,15 @@ let configure_cs com =
 
 let configure_java com =
 	let base_exception = find_class com (["java"; "lang"], "Throwable") in
-	let base_exception_t = TInst(base_exception, []) in
-
+	let base_exception_t = TInst (base_exception, []) in
 	let hx_exception = find_class com (["java";"internal";"_Exceptions"], "HaxeException") in
-	let hx_exception_t = TInst(hx_exception, []) in
-
+	let hx_exception_t = TInst (hx_exception, []) in
 	let exc_cl = find_class com (["java";"internal"],"Exceptions") in
-
 	let rec is_exception t =
 		match follow t with
-		| TInst(cl,_) ->
-			if cl == base_exception then
-				true
-			else
-				(match cl.cl_super with None -> false | Some (cl,arg) -> is_exception (TInst(cl,arg)))
+		| TInst (cl,_) -> is_parent base_exception cl
 		| _ -> false
 	in
-
 	let should_wrap t = not (is_exception t) in
 	let wrap_throw expr =
 		let e_hxexception = make_static_this hx_exception expr.epos in
