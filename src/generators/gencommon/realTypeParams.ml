@@ -412,6 +412,7 @@ struct
 		the current type correctly.
 	*)
 	let create_cast_cfield gen cl name =
+		reset_temps();
 		let basic = gen.gcon.basic in
 		let cparams = List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) cl.cl_params in
 		let cfield = mk_class_field name (TFun([], t_dynamic)) false cl.cl_pos (Method MethNormal) cparams in
