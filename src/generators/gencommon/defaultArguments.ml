@@ -29,8 +29,6 @@ open Gencommon
 	dependencies:
 		It must run before OverloadingConstructor, since OverloadingConstructor will change optional structures behavior
 *)
-let name = "default_arguments"
-let priority = solve_deps name [ DBefore OverloadingConstructor.priority ]
 
 let gen_check basic t nullable_var const pos =
 	let needs_cast t1 t2 =
@@ -66,15 +64,15 @@ let add_opt com block pos (var,opt) =
 		block := evar :: !block;
 		(nullable_var, opt)
 
-let rec change_func gen cf =
-	List.iter (change_func gen) cf.cf_overloads;
+let rec change_func com cl cf =
+	List.iter (change_func com cl) cf.cf_overloads;
 
 	match cf.cf_kind, follow cf.cf_type with
 	| Var _, _ | Method MethDynamic, _ ->
 		()
 	| _, TFun(args, ret) ->
 		let is_ctor = cf.cf_name = "new" in
-		let basic = gen.gcon.basic in
+		let basic = com.basic in
 
 		let found = ref false in
 
@@ -85,7 +83,7 @@ let rec change_func gen cf =
 		(match !found, cf.cf_expr with
 		| true, Some ({ eexpr = TFunction tf } as texpr) ->
 			let block = ref [] in
-			let tf_args = List.map (add_opt gen.gcon block tf.tf_expr.epos) tf.tf_args in
+			let tf_args = List.map (add_opt com block tf.tf_expr.epos) tf.tf_args in
 			let arg_assoc = List.map2 (fun (v,o) (v2,_) -> v,(v2,o) ) tf.tf_args tf_args in
 			let rec extract_super e = match e.eexpr with
 				| TBlock (({ eexpr = TCall ({ eexpr = TConst TSuper }, _) } as e2) :: tl) ->
@@ -112,7 +110,7 @@ let rec change_func gen cf =
 							| Some (cl, _) ->
 								check cl
 					in
-					Option.may check gen.gcurrent_class;
+					check cl;
 
 					let super, tl = extract_super tf.tf_expr in
 					(match super.eexpr with
@@ -129,7 +127,7 @@ let rec change_func gen cf =
 									| Some o -> o
 									in
 									found := true;
-									gen_check gen.gcon.basic v.v_type v2 o e.epos
+									gen_check com.basic v.v_type v2 o e.epos
 								with Not_found -> e)
 							| _ ->
 								Type.map_expr replace_args e
@@ -157,14 +155,18 @@ let rec change_func gen cf =
 		(if !found then cf.cf_type <- TFun(!args, ret))
 	| _, _ -> assert false
 
+let run com md =
+	(match md with
+	| TClassDecl cl ->
+		let apply = change_func com cl in
+		List.iter apply cl.cl_ordered_fields;
+		List.iter apply cl.cl_ordered_statics;
+		Option.may apply cl.cl_constructor;
+	| _ -> ());
+	md
+
+
+let name = "default_arguments"
+let priority = solve_deps name [ DBefore OverloadingConstructor.priority ]
 let configure gen =
-	let run md =
-		(match md with
-		| TClassDecl cl ->
-			List.iter (change_func gen) cl.cl_ordered_fields;
-			List.iter (change_func gen) cl.cl_ordered_statics;
-			Option.may (change_func gen) cl.cl_constructor;
-		| _ -> ());
-		md;
-	in
-	gen.gmodule_filters#add name (PCustom priority) run
+	gen.gmodule_filters#add name (PCustom priority) (run gen.gcon)
