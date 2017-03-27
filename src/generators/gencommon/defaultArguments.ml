@@ -19,15 +19,12 @@
 open Common
 open Type
 open Codegen
-open Gencommon
+open Codegen.ExprBuilder
 
 (*
 	This Module Filter will go through all defined functions in all modules and change them
 	so they set all default arguments to be of a Nullable type, and adds the unroll from nullable to
 	the not-nullable type in the beginning of the function.
-
-	dependencies:
-		It must run before OverloadingConstructor, since OverloadingConstructor will change optional structures behavior
 *)
 
 let gen_check basic t nullable_var const pos =
@@ -38,12 +35,12 @@ let gen_check basic t nullable_var const pos =
 
 	let const_t = const_type basic const t in
 	let const = mk (TConst const) const_t pos in
-	let const = if needs_cast t const_t then mk_cast t const else const in
+	let const = if needs_cast t const_t then mk_cast const t pos else const in
 
-	let arg = mk_local nullable_var pos in
-	let arg = if needs_cast t nullable_var.v_type then mk_cast t arg else arg in
+	let arg = make_local nullable_var pos in
+	let arg = if needs_cast t nullable_var.v_type then mk_cast arg t pos else arg in
 
-	let check = binop Ast.OpEq (mk_local nullable_var pos) (null nullable_var.v_type pos) basic.tbool pos in
+	let check = binop Ast.OpEq (make_local nullable_var pos) (null nullable_var.v_type pos) basic.tbool pos in
 	mk (TIf (check, const, Some arg)) t pos
 
 let add_opt com block pos (var,opt) =
@@ -55,10 +52,7 @@ let add_opt com block pos (var,opt) =
 		(var, opt)
 	| Some const ->
 		let basic = com.basic in
-		let nullable_var = mk_temp var.v_name (basic.tnull var.v_type) in
-		let orig_name = var.v_name in
-		var.v_name <- nullable_var.v_name;
-		nullable_var.v_name <- orig_name;
+		let nullable_var = alloc_var var.v_name (basic.tnull var.v_type) pos in
 		(* var v = (temp_var == null) ? const : cast temp_var; *)
 		let evar = mk (TVar(var, Some(gen_check basic var.v_type nullable_var const pos))) basic.tvoid pos in
 		block := evar :: !block;
@@ -102,7 +96,7 @@ let rec change_func com cl cf =
 					(* check if the class really needs the super as the first statement -
 					just to make sure we don't inadvertently break any existing code *)
 					let rec check cl =
-						if not (is_hxgen (TClassDecl cl)) then
+						if not (Meta.has Meta.HxGen cl.cl_meta) then
 							()
 						else match cl.cl_super with
 							| None ->
@@ -139,7 +133,7 @@ let rec change_func com cl cf =
 					Type.concat { tf.tf_expr with eexpr = TBlock !block; etype = basic.tvoid } tf.tf_expr
 			in
 
-			args := fun_args tf_args;
+			args := List.map (fun (v,s) -> (v.v_name, (s <> None), v.v_type)) tf_args;
 
 			let cf_type = TFun (!args, ret) in
 			cf.cf_expr <- Some { texpr with
@@ -156,17 +150,10 @@ let rec change_func com cl cf =
 	| _, _ -> assert false
 
 let run com md =
-	(match md with
+	match md with
 	| TClassDecl cl ->
 		let apply = change_func com cl in
 		List.iter apply cl.cl_ordered_fields;
 		List.iter apply cl.cl_ordered_statics;
 		Option.may apply cl.cl_constructor;
-	| _ -> ());
-	md
-
-
-let name = "default_arguments"
-let priority = solve_deps name [ DBefore OverloadingConstructor.priority ]
-let configure gen =
-	gen.gmodule_filters#add name (PCustom priority) (run gen.gcon)
+	| _ -> ()

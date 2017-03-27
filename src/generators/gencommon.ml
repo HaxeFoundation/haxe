@@ -168,14 +168,6 @@ let anon_class t =
 	| _ -> assert false
 
 
-let const_type basic const default =
-	match const with
-	| TString _ -> basic.tstring
-	| TInt _ -> basic.tint
-	| TFloat _ -> basic.tfloat
-	| TBool _ -> basic.tbool
-	| _ -> default
-
 let get_cl mt = match mt with TClassDecl cl -> cl | _ -> failwith (Printf.sprintf "Unexpected module type (class expected) for %s: %s" (s_type_path (t_path mt)) (s_module_type_kind mt))
 let get_abstract mt = match mt with TAbstractDecl a -> a | _ -> failwith (Printf.sprintf "Unexpected module type (abstract expected) for %s: %s" (s_type_path (t_path mt)) (s_module_type_kind mt))
 

@@ -38,6 +38,14 @@ type basic_types = {
 	mutable tarray : t -> t;
 }
 
+let const_type basic const default =
+	match const with
+	| TString _ -> basic.tstring
+	| TInt _ -> basic.tint
+	| TFloat _ -> basic.tfloat
+	| TBool _ -> basic.tbool
+	| _ -> default
+
 type stats = {
 	s_files_parsed : int ref;
 	s_classes_built : int ref;
