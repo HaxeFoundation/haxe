@@ -53,7 +53,7 @@ extern class Lua {
 		to a non-existent field in the table is assigned. Existing fields may
 		however be modified. In particular, existing fields may be cleared.
 	**/
-	public static function next<K,V>(k:Table<K, V>, ?i : V): NextResult<K,V>;
+	public static function next<K,V>(k:Table<K, V>, ?i : K): NextResult<K,V>;
 
 	/**
 		Receives an argument of any type and converts it to a string in a reasonable
