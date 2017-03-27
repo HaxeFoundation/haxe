@@ -3071,8 +3071,6 @@ let generate con =
 
 		ArrayDeclSynf.configure gen native_arr_cl change_param_type;
 
-		InterfaceMetas.configure gen;
-
 		CSharpSpecificSynf.configure gen runtime_cl;
 		CSharpSpecificESynf.configure gen runtime_cl;
 
