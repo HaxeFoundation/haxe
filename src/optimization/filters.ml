@@ -1132,10 +1132,12 @@ let run com tctx main =
 	] in
 	let filters = match com.platform with
 	| Cs ->
+		SetHXGen.run_filter com new_types;
 		filters @ [
 			TryCatchWrapper.configure_cs com
 		]
 	| Java ->
+		SetHXGen.run_filter com new_types;
 		filters @ [
 			TryCatchWrapper.configure_java com
 		]
