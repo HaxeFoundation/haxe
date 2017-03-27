@@ -51,19 +51,22 @@ class Int64Helper {
 			if (digitInt < 0 || digitInt > 9) {
 				throw "NumberFormatError";
 			}
-
-			var digit:Int64 = Int64.ofInt(digitInt);
-			if (sIsNegative) {
-				current = Int64.sub(current, Int64.mul(multiplier, digit));
-				if (!Int64.isNeg(current)) {
-					throw "NumberFormatError: Underflow";
-				}
-			} else {
-				current = Int64.add(current, Int64.mul(multiplier, digit));
-				if (Int64.isNeg(current)) {
-					throw "NumberFormatError: Overflow";
+			
+			if (digitInt != 0 ) {
+				var digit:Int64 = Int64.ofInt(digitInt);
+				if (sIsNegative) {
+					current = Int64.sub(current, Int64.mul(multiplier, digit));
+					if (!Int64.isNeg(current)) {
+						throw "NumberFormatError: Underflow";
+					}
+				} else {
+					current = Int64.add(current, Int64.mul(multiplier, digit));
+					if (Int64.isNeg(current)) {
+						throw "NumberFormatError: Overflow";
+					}
 				}
 			}
+			
 			multiplier = Int64.mul(multiplier, base);
 		}
 		return current;
