@@ -29,7 +29,7 @@ install:
     - curl -fsS -o cygwin-setup.exe --retry 3 https://cygwin.com/setup-x86.exe
     - 'cygwin-setup.exe -g -q -R "%CYG_ROOT%" -P make -P git -P mingw64-i686-zlib -P rsync -P patch -P diffutils -P curl -P unzip -P m4 -P perl -P mingw64-i686-gcc-core -P mingw64-i686-pcre'
     - if not exist "opam32.tar.xz" (
-        curl -fsS -o opam32.tar.xz --retry 3 https://dl.dropboxusercontent.com/s/eo4igttab8ipyle/opam32.tar.xz
+        curl -fsS -o opam32.tar.xz --retry 3 https://github.com/fdopen/opam-repository-mingw/releases/download/0.0.0.1/opam32.tar.xz
       )
     - 7z x "opam32.tar.xz" -so | 7z x -aoa -si -ttar
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && bash opam32/install.sh"'
