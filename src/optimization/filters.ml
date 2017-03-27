@@ -940,8 +940,8 @@ let add_meta_field ctx t = match t with
 		| None -> ()
 		| Some e ->
 			add_feature ctx.com "has_metadata";
-			let f = mk_field "__meta__" t_dynamic c.cl_pos null_pos in
-			f.cf_expr <- Some e;
+			let cf = mk_field "__meta__" e.etype e.epos null_pos in
+			cf.cf_expr <- Some e;
 			let can_deal_with_interface_metadata () = match ctx.com.platform with
 				| Flash when Common.defined ctx.com Define.As3 -> false
 				| Php when not (Common.is_php7 ctx.com) -> false
@@ -952,15 +952,13 @@ let add_meta_field ctx t = match t with
 				(* borrowed from gencommon, but I did wash my hands afterwards *)
 				let path = fst c.cl_path,snd c.cl_path ^ "_HxMeta" in
 				let ncls = mk_class c.cl_module path c.cl_pos null_pos in
-				let cf = mk_field "__meta__" e.etype e.epos null_pos in
-				cf.cf_expr <- Some e;
-				ncls.cl_statics <- PMap.add "__meta__" cf ncls.cl_statics;
 				ncls.cl_ordered_statics <- cf :: ncls.cl_ordered_statics;
-				ctx.com.types <- (TClassDecl ncls) :: ctx.com.types;
+				ncls.cl_statics <- PMap.add cf.cf_name cf ncls.cl_statics;
+				ctx.com.types <- ctx.com.types @ [ TClassDecl ncls ];
 				c.cl_meta <- (Meta.Custom ":hasMetadata",[],e.epos) :: c.cl_meta
 			end else begin
-				c.cl_ordered_statics <- f :: c.cl_ordered_statics;
-				c.cl_statics <- PMap.add f.cf_name f c.cl_statics
+				c.cl_ordered_statics <- cf :: c.cl_ordered_statics;
+				c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics
 			end)
 	| _ ->
 		()
