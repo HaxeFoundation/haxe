@@ -1130,25 +1130,41 @@ let run com tctx main =
 		Optimizer.reduce_expression tctx;
 		captured_vars com;
 	] in
-	let filters = match com.platform with
-	| Cs ->
-		SetHXGen.run_filter com new_types;
-		filters @ [
-			TryCatchWrapper.configure_cs com
-		]
-	| Java ->
-		SetHXGen.run_filter com new_types;
-		filters @ [
-			TryCatchWrapper.configure_java com
-		]
-	| _ -> filters
+	let filters =
+		match com.platform with
+		| Cs ->
+			SetHXGen.run_filter com new_types;
+			filters @ [
+				TryCatchWrapper.configure_cs com
+			]
+		| Java ->
+			SetHXGen.run_filter com new_types;
+			filters @ [
+				TryCatchWrapper.configure_java com
+			]
+		| _ -> filters
 	in
 	List.iter (run_expression_filters tctx filters) new_types;
+
 	(* PASS 1.5: pre-analyzer type filters *)
-	List.iter (fun t ->
-		if com.platform = Cs then check_cs_events tctx.com t;
-	) new_types;
+	let filters =
+		match com.platform with
+		| Cs ->
+			[
+				check_cs_events tctx.com;
+				DefaultArguments.run com;
+			]
+		| Java ->
+			[
+				DefaultArguments.run com;
+			]
+		| _ ->
+			[]
+	in
+	List.iter (fun f -> List.iter f new_types) filters;
+
 	if com.platform <> Cross then Analyzer.Run.run_on_types tctx new_types;
+
 	let filters = [
 		Optimizer.sanitize com;
 		if com.config.pf_add_final_return then add_final_return else (fun e -> e);

@@ -2377,7 +2377,6 @@ let generate con =
 
 	ArrayDeclSynf.configure gen native_arr_cl change_param_type;
 
-	DefaultArguments.configure gen;
 	InterfaceMetas.configure gen;
 
 	JavaSpecificSynf.configure gen runtime_cl;

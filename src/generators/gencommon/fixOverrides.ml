@@ -37,7 +37,7 @@ open Gencommon
 
 *)
 let name = "fix_overrides"
-let priority = solve_deps name [DAfter DefaultArguments.priority]
+let priority = solve_deps name []
 
 (*
 	if the platform allows explicit interface implementation (C#),
