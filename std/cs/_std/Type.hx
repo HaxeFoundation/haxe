@@ -261,8 +261,8 @@ enum ValueType {
 	public static function typeof( v : Dynamic ) : ValueType {
 		if (v == null) return ValueType.TNull;
 
-		var t:cs.system.Type = cs.Lib.as(v, cs.system.Type);
-		if (t != null) {
+		var t = cs.Lib.as(v, cs.system.Type);
+		if (!Object.ReferenceEquals(t, null)) {
 			//class type
 			return ValueType.TObject;
 		}
@@ -296,8 +296,6 @@ enum ValueType {
 		if (Std.is(v, IHxObject)) {
 			if (Std.is(v, DynamicObject))
 				return ValueType.TObject;
-			else if (Std.is(v, HxEnum))
-				return ValueType.TEnum(cast t);
 			return ValueType.TClass(cast t);
 		} else if (Std.is(v, Function)) {
 			return ValueType.TFunction;
@@ -319,7 +317,7 @@ enum ValueType {
 
 	public static function enumConstructor( e : EnumValue ) : String untyped
 	{
-		return Std.is(e, cs.system.Enum) ? e+'' : cast(e,HxEnum).getTag();
+		return Std.is(e, cs.system.Enum) ? (cast e : cs.system.Enum).ToString() : cast(e,HxEnum).getTag();
 	}
 
 	public static function enumParameters( e : EnumValue ) : Array<Dynamic> untyped
