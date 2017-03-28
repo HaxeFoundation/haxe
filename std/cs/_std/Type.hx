@@ -42,53 +42,48 @@ enum ValueType {
 
 @:coreApi class Type {
 
-	public static function getClass<T>( o : T ) : Class<T> untyped
-	{
+	public static function getClass<T>( o : T ) : Class<T> {
 		if (Object.ReferenceEquals(o,null) || Std.is(o,DynamicObject) || Std.is(o,cs.system.Type))
 			return null;
 
-		return untyped o.GetType();
+		return cast cs.Lib.getNativeType(o);
 	}
 
-	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped
-	{
-		if (Std.is(o, cs.system.Enum))
-			return untyped o.GetType();
-		else if (Std.is(o,HxEnum))
-			return (untyped o.GetType() : cs.system.Type).BaseType; // enum constructors are subclasses of an enum type
+	public static function getEnum( o : EnumValue ) : Enum<Dynamic> {
+		if (Std.is(o,HxEnum))
+			return cast cs.Lib.getNativeType(o).BaseType; // enum constructors are subclasses of an enum type
+		else if (Std.is(o, cs.system.Enum))
+			return cast cs.Lib.getNativeType(o);
 		return null;
 	}
 
-	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic>
-	{
-		var t:cs.system.Type = Lib.toNativeType(c);
-		var base = t.BaseType;
-		if (base == null || base.ToString() == "haxe.lang.HxObject" || base.ToString() == "System.Object")
+	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> {
+		var base = Lib.toNativeType(c).BaseType;
+		if (Object.ReferenceEquals(base, null) || base.ToString() == "haxe.lang.HxObject" || base.ToString() == "System.Object")
 			return null;
 		return Lib.fromNativeType(base);
 	}
 
 	public static function getClassName( c : Class<Dynamic> ) : String {
-		var ret:String = cast Lib.toNativeType(c);
+		var ret = Lib.toNativeType(c).ToString();
 #if no_root
 		if (ret.length > 10 && StringTools.startsWith(ret, "haxe.root."))
 			ret = ret.substr(10);
 #end
 
-		return switch(ret)
-		{
+		return switch (ret) {
+			// TODO: are those really needed?
 			case "System.Int32": "Int";
 			case "System.Double": "Float";
 			case "System.String": "String";
 			case "System.Object": "Dynamic";
 			case "System.Type": "Class";
-			default: ret.split("`")[0];
+			default: cast(ret,cs.system.String).Split(cs.NativeArray.make(("`".code : cs.StdTypes.Char16)))[0];
 		}
 	}
 
-	public static function getEnumName( e : Enum<Dynamic> ) : String
-	{
-		var ret:String = cast Lib.toNativeType(untyped e);
+	public static function getEnumName( e : Enum<Dynamic> ) : String {
+		var ret = Lib.toNativeType(cast e).ToString();
 #if no_root
 		if (ret.length > 10 && StringTools.startsWith(ret, "haxe.root."))
 			ret = ret.substr(10);
@@ -96,27 +91,26 @@ enum ValueType {
 		return ret;
 	}
 
-	public static function resolveClass( name : String ) : Class<Dynamic>
-	{
+	public static function resolveClass( name : String ) : Class<Dynamic> {
 #if no_root
 		if (name.indexOf(".") == -1)
 			name = "haxe.root." + name;
 #end
-		var t:cs.system.Type = cs.system.Type._GetType(name);
+		var t = cs.system.Type._GetType(name);
 #if !CF
-		if (t == null)
+		if (Object.ReferenceEquals(t,null))
 		{
 			var all = cs.system.AppDomain.CurrentDomain.GetAssemblies().GetEnumerator();
 			while (all.MoveNext())
 			{
 				var t2:cs.system.reflection.Assembly = all.Current;
 				t = t2.GetType(name);
-				if (t != null)
+				if (!Object.ReferenceEquals(t, null))
 					break;
 			}
 		}
 #end
-		if (t == null)
+		if (Object.ReferenceEquals(t,null))
 		{
 			switch(name)
 			{
@@ -128,9 +122,8 @@ enum ValueType {
 				default: return null;
 			}
 #if !erase_generics
-		} else if (t.IsInterface && cast(untyped __typeof__(IGenericObject), cs.system.Type).IsAssignableFrom(t)) {
-			for (attr in t.GetCustomAttributes(true))
-			{
+		} else if (t.IsInterface && cast(IGenericObject, cs.system.Type).IsAssignableFrom(t)) {
+			for (attr in t.GetCustomAttributes(true)) {
 				var g = cs.Lib.as(attr, cs.internal.HxObject.GenericInterface);
 				if (g != null)
 					return Lib.fromNativeType(g.generic);
@@ -143,22 +136,20 @@ enum ValueType {
 		}
 	}
 
-	public static function resolveEnum( name : String ) : Enum<Dynamic> untyped
+	public static function resolveEnum( name : String ) : Enum<Dynamic>
 	{
-		if (name == "Bool") return Bool;
 		var t = Lib.toNativeType(resolveClass(name));
-		if (t != null && t.BaseType.Equals( Lib.toNativeType(cs.system.Enum) ) || Lib.toNativeType(HxEnum).IsAssignableFrom(t))
-			return t;
+		if (!Object.ReferenceEquals(t,null) && untyped t.BaseType.Equals( Lib.toNativeType(cs.system.Enum) ) || Lib.toNativeType(HxEnum).IsAssignableFrom(t))
+			return cast t;
 		return null;
 	}
 
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T
 	{
-		if (untyped cl == String)
+		if (Object.ReferenceEquals(cl, String))
 			return args[0];
-		var t:cs.system.Type = Lib.toNativeType(cl);
-		if (t.IsInterface)
-		{
+		var t = Lib.toNativeType(cl);
+		if (t.IsInterface) {
 			//may be generic
 			t = Lib.toNativeType(resolveClass(getClassName(cl)));
 		}
