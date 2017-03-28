@@ -80,8 +80,7 @@ import js.Boot;
 			Float.__name__ = ["Float"];
 		});
 		__feature__("Bool.*",{
-			var Bool = __feature__("Type.resolveEnum",$hxClasses["Bool"] = __js__("Boolean"), __js__("Boolean"));
-			Bool.__ename__ = ["Bool"];
+			var Bool = __js__("Boolean");
 		});
 		__feature__("Class.*",{
 			var Class = __feature__("Type.resolveClass", $hxClasses["Class"] = { __name__ : ["Class"] }, { __name__ : ["Class"] });

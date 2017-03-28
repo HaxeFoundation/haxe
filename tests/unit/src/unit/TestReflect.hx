@@ -97,9 +97,9 @@ class TestReflect extends Test {
 			var name = TNAMES[i];
 			infos("type "+name);
 			f( t == null );
-			if( name == u("Enum") ) {
+			if( name == u("Enum") || name == u("Bool") ) {
 				// neither an enum or a class
-			} else if( t == MyEnum || t == Bool ) {
+			} else if( t == MyEnum ) {
 				eq( Type.getEnumName(t), name );
 				eq( Type.resolveEnum(name), t );
 			} else {
