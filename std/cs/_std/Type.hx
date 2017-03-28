@@ -93,8 +93,6 @@ enum ValueType {
 		if (ret.length > 10 && StringTools.startsWith(ret, "haxe.root."))
 			ret = ret.substr(10);
 #end
-		if (ret.length == 14 && ret == "System.Boolean")
-			return "Bool";
 		return ret;
 	}
 

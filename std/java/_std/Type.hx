@@ -86,8 +86,6 @@ enum ValueType {
 		var ret:String = c.getName();
 		if (ret.startsWith("haxe.root."))
 			return ret.substr(10);
-		else if (ret == "boolean" || ret == "java.lang.Boolean")
-			return "Bool";
 
 		return ret;
 	}
