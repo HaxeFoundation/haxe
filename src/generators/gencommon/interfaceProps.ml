@@ -18,7 +18,6 @@
 *)
 open Globals
 open Type
-open Gencommon
 
 (*
 	This module filter will go through all declared properties, and see if they are conforming to a native interface.
@@ -42,10 +41,3 @@ let run = function
 			) cl.cl_ordered_fields
 	| _ ->
 		()
-
-let name = "interface_props"
-let priority = solve_deps name []
-
-let configure gen =
-	let map md = run md; md in
-	gen.gmodule_filters#add name (PCustom priority) map

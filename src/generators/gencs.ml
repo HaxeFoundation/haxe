@@ -2730,7 +2730,6 @@ let generate con =
 		EnumToClass2.configure gen enum_base;
 
 		InterfaceVarsDeleteModf.configure gen;
-		InterfaceProps.configure gen;
 
 		let dynamic_object = (get_cl (get_type gen (["haxe";"lang"],"DynamicObject")) ) in
 

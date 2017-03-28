@@ -1207,4 +1207,8 @@ let run com tctx main =
 		commit_features;
 		(if com.config.pf_reserved_type_paths <> [] then check_reserved_type_paths else (fun _ _ -> ()));
 	] in
+	let type_filters = match com.platform with
+		| Cs -> type_filters @ [ fun _ t -> InterfaceProps.run t ]
+		| _ -> type_filters
+	in
 	List.iter (fun t -> List.iter (fun f -> f tctx t) type_filters) com.types
