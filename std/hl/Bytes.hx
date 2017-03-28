@@ -213,4 +213,9 @@ package hl;
 	public static inline function fromBytes( bytes : haxe.io.Bytes ) {
 		return @:privateAccess bytes.b;
 	}
+
+	public inline function toBytes( len : Int ) {
+		return @:privateAccess new haxe.io.Bytes(this, len);
+	}
+
 }
