@@ -85,32 +85,26 @@ class DynamicObject extends HxObject implements Dynamic
 #if core_api_serialize
 @:meta(System.Serializable)
 #end
-class HxEnum
-{
-	@:readOnly private var index(default,never):Int;
+class HxEnum {
+	@:readOnly var index(default,never):Int;
 
-	public function new(index:Int)
-	{
+	@:protected function new(index:Int) {
 		untyped this.index = index;
 	}
 
-	public function getTag():String
-	{
+	public function getTag():String {
 		return throw 'Not Implemented';
 	}
 
-	public function getParams():Array<{}>
-	{
+	public function getParams():Array<{}> {
 		return [];
 	}
 
-	public function toString():String
-	{
+	public function toString():String {
 		return getTag();
 	}
 
-	public static function paramsToString(tag:String, params:Vector<Dynamic>):String
-	{
+	@:protected static function paramsToString(tag:String, params:Vector<Dynamic>):String {
 		var ret = new StringBuf();
 		ret.add(tag);
 		ret.add("(");
@@ -127,8 +121,7 @@ class HxEnum
 		return ret.toString();
 	}
 
-	public static function paramsGetHashCode(index:Int, params:Vector<Dynamic>):Int
-	{
+	@:protected static function paramsGetHashCode(index:Int, params:Vector<Dynamic>):Int {
 		var h:Int = 19;
 		if (params != null) for (p in params)
 		{

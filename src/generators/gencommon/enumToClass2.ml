@@ -69,7 +69,7 @@ struct
 
 		(* add constructs field (for reflection) *)
 		let cf_constructs = mk_class_field "__hx_constructs" (gen.gclasses.nativearray basic.tstring) true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
-		cf_constructs.cf_meta <- (Meta.ReadOnly,[],pos) :: cf_constructs.cf_meta;
+		cf_constructs.cf_meta <- (Meta.ReadOnly,[],pos) :: (Meta.Protected,[],pos) :: cf_constructs.cf_meta;
 		cf_constructs.cf_expr <- Some (mk_nativearray_decl gen basic.tstring (List.map (fun s -> ExprBuilder.make_string gen.gcon s pos) en.e_names) pos);
 		add_static cl_enum cf_constructs;
 

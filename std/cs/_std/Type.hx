@@ -258,11 +258,15 @@ enum ValueType {
 	}
 
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
-		if (Reflect.hasField(e, "__hx_constructs")) {
-			var ret:Array<String> = cs.Lib.array(untyped e.__hx_constructs);
-			return ret.copy();
-		}
-		return cs.Lib.array(cs.system.Enum.GetNames(untyped e));
+		var t = cs.Lib.as(e, cs.system.Type);
+		var f = t.GetField("__hx_constructs", new cs.Flags(BindingFlags.Static) | BindingFlags.NonPublic);
+		if (f != null) {
+			var values:cs.system.Array = f.GetValue(null);
+			var copy = new cs.NativeArray(values.Length);
+			cs.system.Array.Copy(values, copy, values.Length);
+			return cs.Lib.array(copy);
+		} else
+			return cs.Lib.array(cs.system.Enum.GetNames(t));
 	}
 
 	public static function typeof( v : Dynamic ) : ValueType {
