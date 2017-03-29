@@ -19,6 +19,7 @@
 open Common
 open Ast
 open Codegen
+open Codegen.ExprBuilder
 open Type
 open Gencommon
 
@@ -67,7 +68,7 @@ module EnumToClass2Modf = struct
 
 		(* add constructs field (for reflection) *)
 		if has_feature gen.gcon "Type.getEnumConstructs" then begin
-			let e_constructs = mk_array_decl basic.tstring (List.map (fun s -> ExprBuilder.make_string gen.gcon s pos) en.e_names) pos in
+			let e_constructs = mk_array_decl basic.tstring (List.map (fun s -> make_string gen.gcon s pos) en.e_names) pos in
 			let cf_constructs = mk_field "__hx_constructs" e_constructs.etype pos pos in
 			cf_constructs.cf_kind <- Var { v_read = AccNormal; v_write = AccNever };
 			cf_constructs.cf_meta <- (Meta.ReadOnly,[],pos) :: (Meta.Protected,[],pos) :: cf_constructs.cf_meta;
@@ -104,8 +105,8 @@ module EnumToClass2Modf = struct
 			gen.gadd_to_module (TClassDecl cl_ctor) max_dep;
 
 			let esuper = mk (TConst TSuper) cl_enum_t pos in
-			let etag = (mk (TConst(TString name)) basic.tstring pos) in
-			let param_arr = ref [] in
+			let etag = make_string gen.gcon name pos in
+			let efields = ref [] in
 			(match follow ef.ef_type with
 				| TFun(_, _) ->
 					(* erase type params *)
@@ -118,43 +119,48 @@ module EnumToClass2Modf = struct
 					let cl_ctor_t = TInst (cl_ctor,[]) in
 					let other_en_v = alloc_var "en" cl_ctor_t in
 					let other_en_local = mk_local other_en_v pos in
-					let mk_bool b = ExprBuilder.make_bool gen.gcon b pos in
 					let enumeq = mk_static_field_access_infer (get_cl (get_type gen ([],"Type"))) "enumEq" pos [t_dynamic] in
 					let refeq = mk_static_field_access_infer (get_cl (get_type gen (["System"],"Object"))) "ReferenceEquals" pos [] in
 
 					let param_equal_checks = ref [] in
-					let assigns = ref [] in
+					let ctor_block = ref [] in
 					let ctor_args = ref [] in
 					let static_ctor_args = ref [] in
 					let ethis = mk (TConst TThis) cl_ctor_t pos in
 					List.iter (fun (n,_,t) ->
-						let cf_param = mk_class_field n t true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
+						(* create a field for enum argument *)
+						let cf_param = mk_field n t pos pos in
+						cf_param.cf_kind <- Var { v_read = AccNormal; v_write = AccNever };
 						cf_param.cf_meta <- (Meta.ReadOnly,[],pos) :: cf_param.cf_meta;
 						add_field cl_ctor cf_param false;
 
+						(* add static constructor method argument *)
+						static_ctor_args := (alloc_var n t, None) :: !static_ctor_args;
+
+						(* generate argument field access *)
+						let efield = mk (TField (ethis, FInstance (cl_ctor, [], cf_param))) t pos in
+						efields := efield :: !efields;
+
+						(* add constructor argument *)
 						let ctor_arg_v = alloc_var n t in
-						let static_ctor_arg_v = alloc_var n t in
-
-						let ctor_arg_local = mk_local ctor_arg_v pos in
-						let efield = mk (TField (ethis, FInstance(cl_ctor, [], cf_param))) t pos in
-						let assign = Codegen.binop OpAssign efield ctor_arg_local t pos in
-
 						ctor_args := (ctor_arg_v, None) :: !ctor_args;
-						static_ctor_args := (static_ctor_arg_v, None) :: !static_ctor_args;
 
-						param_arr := efield :: !param_arr;
-						assigns := assign :: !assigns;
+						(* generate assignment for the constructor *)
+						let assign = Codegen.binop OpAssign efield (mk_local ctor_arg_v pos) t pos in
+						ctor_block := assign :: !ctor_block;
 
-						let eotherfield = mk (TField (other_en_local, FInstance(cl_ctor, [], cf_param))) t pos in
-						let e_enumeq_check = mk (TCall(enumeq,[efield;eotherfield])) basic.tbool pos in
-						param_equal_checks := mk (TIf (
-							mk (TUnop(Not,Prefix,e_enumeq_check)) basic.tbool pos,
-							mk_return (mk_bool false),
-							None
-						)) basic.tvoid pos :: !param_equal_checks;
+						(* generate an enumEq check for the Equals method (TODO: extract this) *)
+						let eotherfield = mk (TField (other_en_local, FInstance (cl_ctor, [], cf_param))) t pos in
+						let e_enumeq_check = mk (TCall (enumeq, [efield; eotherfield])) basic.tbool pos in
+						let e_param_check =
+							mk (TIf (mk (TUnop (Not, Prefix, e_enumeq_check)) basic.tbool pos,
+							         mk_return (make_bool gen.gcon false pos),
+							         None)
+							) basic.tvoid pos in
+						param_equal_checks := e_param_check :: !param_equal_checks;
 					) (List.rev params);
 
-					assigns := (mk (TCall(esuper,[ExprBuilder.make_int gen.gcon index pos])) basic.tvoid pos) :: !assigns;
+					ctor_block := (mk (TCall(esuper,[make_int gen.gcon index pos])) basic.tvoid pos) :: !ctor_block;
 
 					let cf_ctor_t = TFun (params, basic.tvoid) in
 					let cf_ctor = mk_class_field "new" cf_ctor_t true pos (Method MethNormal) [] in
@@ -162,7 +168,7 @@ module EnumToClass2Modf = struct
 						eexpr = TFunction {
 							tf_args = !ctor_args;
 							tf_type = basic.tvoid;
-							tf_expr = mk (TBlock !assigns) basic.tvoid pos;
+							tf_expr = mk (TBlock !ctor_block) basic.tvoid pos;
 						};
 						etype = cf_ctor_t;
 						epos = pos;
@@ -172,7 +178,7 @@ module EnumToClass2Modf = struct
 					let cf_toString_t = TFun ([],basic.tstring) in
 					let cf_toString = mk_class_field "toString" cf_toString_t true pos (Method MethNormal) [] in
 
-					let etoString_args = mk_array_decl t_dynamic !param_arr pos in
+					let etoString_args = mk_array_decl t_dynamic !efields pos in
 					cf_toString.cf_expr <- Some {
 						eexpr = TFunction {
 							tf_args = [];
@@ -208,18 +214,18 @@ module EnumToClass2Modf = struct
 						let equals_exprs = ref (List.rev [
 							mk (TIf (
 								mk (TCall(refeq,[ethis;eother_local])) basic.tbool pos,
-								mk_return (mk_bool true),
+								mk_return (make_bool gen.gcon true pos),
 								None
 							)) basic.tvoid pos;
 							mk (TVar(other_en_v, Some ecast)) basic.tvoid pos;
 							mk (TIf(
-								mk (TBinop(OpEq,other_en_local,Codegen.ExprBuilder.make_null cl_ctor_t pos)) basic.tbool pos,
-								mk_return (mk_bool false),
+								mk (TBinop(OpEq,other_en_local,make_null cl_ctor_t pos)) basic.tbool pos,
+								mk_return (make_bool gen.gcon false pos),
 								None
 							)) basic.tvoid pos;
 						]) in
 						equals_exprs := (List.rev !param_equal_checks) @ !equals_exprs;
-						equals_exprs := mk_return (mk_bool true) :: !equals_exprs;
+						equals_exprs := mk_return (make_bool gen.gcon true pos) :: !equals_exprs;
 
 						let cf_Equals_t = TFun([("other",false,t_dynamic)],basic.tbool) in
 						let cf_Equals = mk_class_field "Equals" cf_Equals_t true pos (Method MethNormal) [] in
@@ -244,7 +250,7 @@ module EnumToClass2Modf = struct
 								tf_args = [];
 								tf_type = basic.tint;
 								tf_expr = mk_block (mk_return (
-									mk (TCall(eparamsGetHashCode, [ExprBuilder.make_int gen.gcon index pos;etoString_args])) basic.tint pos
+									mk (TCall(eparamsGetHashCode, [make_int gen.gcon index pos;etoString_args])) basic.tint pos
 								));
 							};
 							etype = cf_GetHashCode_t;
@@ -260,7 +266,7 @@ module EnumToClass2Modf = struct
 						eexpr = TFunction {
 							tf_args = [];
 							tf_type = basic.tvoid;
-							tf_expr = mk (TBlock [mk (TCall(esuper,[ExprBuilder.make_int gen.gcon index pos])) basic.tvoid pos]) basic.tvoid pos;
+							tf_expr = mk (TBlock [mk (TCall(esuper,[make_int gen.gcon index pos])) basic.tvoid pos]) basic.tvoid pos;
 						};
 						etype = cf_ctor_t;
 						epos = pos;
@@ -290,13 +296,13 @@ module EnumToClass2Modf = struct
 			};
 			add_field cl_ctor cf_getTag true;
 
-			if !param_arr <> [] then begin
+			if !efields <> [] then begin
 				let cf_getParams = mk_class_field "getParams" cf_getParams_t true pos (Method MethNormal) [] in
 				cf_getParams.cf_expr <- Some {
 					eexpr = TFunction {
 						tf_args = [];
 						tf_type = cf_getParams_ret;
-						tf_expr = mk_block (mk_return (mk (TArrayDecl !param_arr) cf_getParams_ret pos));
+						tf_expr = mk_block (mk_return (mk (TArrayDecl !efields) cf_getParams_ret pos));
 					};
 					etype = cf_getParams_t;
 					epos = pos;
