@@ -328,7 +328,7 @@ class Boot {
 
 
 	static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
-		var f = if (Internal.hasFields(c)) Internal.fieldFields(c) else [];
+		var f = if (Internal.hasFields(c)) Internal.fieldFields(c).copy() else [];
 		if (Internal.hasMethods(c))
 			f = f.concat(Internal.fieldMethods(c));
 
@@ -338,7 +338,7 @@ class Boot {
 			return f;
 		} else {
 
-			var scArr = getInstanceFields(sc).copy();
+			var scArr = getInstanceFields(sc);
 			var scMap = new Set(scArr);
 			for (f1 in f) {
 				if (!scMap.has(f1)) {
