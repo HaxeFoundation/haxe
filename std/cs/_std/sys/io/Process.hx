@@ -35,8 +35,9 @@ class Process {
 
 	private var native:NativeProcess;
 
-	public function new( cmd : String, ?args : Array<String> ) : Void
+	public function new( cmd : String, ?args : Array<String>, ?detached : Bool ) : Void
 	{
+		if( detached ) throw "Detached process is not supported on this platform";
 		this.native = createNativeProcess(cmd, args);
 		native.Start();
 
