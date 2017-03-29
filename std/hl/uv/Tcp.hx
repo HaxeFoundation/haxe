@@ -3,7 +3,8 @@ package hl.uv;
 @:hlNative("uv")
 class Tcp extends Stream {
 
-	public function new( loop : Loop ) {
+	public function new( ?loop : Loop ) {
+		if( loop == null ) loop = Loop.getDefault();
 		super(tcp_init_wrap(loop));
 	}
 

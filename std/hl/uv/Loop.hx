@@ -28,4 +28,16 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 		return null;
 	}
 
+	/**
+		Register the default loop into the main haxe loop.
+		Should be called at least once unless you want to integrate the loop update yourself.
+	**/
+	public static function register() {
+		if( initDone ) return;
+		initDone = true;
+		var def = getDefault();
+		haxe.MainLoop.add(function() def.run(NoWait));
+	}
+	static var initDone = false;
+
 }
