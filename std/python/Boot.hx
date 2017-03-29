@@ -338,10 +338,8 @@ class Boot {
 			return f;
 		} else {
 
-			var scArr = getInstanceFields(sc);
+			var scArr = getInstanceFields(sc).copy();
 			var scMap = new Set(scArr);
-			//var scMap = [for (f in scArr) f => f];
-			var res = [];
 			for (f1 in f) {
 				if (!scMap.has(f1)) {
 					scArr.push(f1);
