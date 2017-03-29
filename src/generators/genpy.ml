@@ -27,7 +27,7 @@ module Utils = struct
 	let class_of_module_type mt = match mt with
 		| TClassDecl c -> c
 		| _ -> failwith ("Not a class: " ^ (s_type_path (t_infos mt).mt_path))
-	
+
 	let find_type com path =
 		try
 			List.find (fun mt -> match mt with
@@ -1519,35 +1519,17 @@ module Printer = struct
 				let s_el = (print_call_args pctx e1 el) in
 				Printf.sprintf "super().__init__(%s)" s_el
 			| ("python_Syntax._pythonCode"),[({ eexpr = TConst (TString code) } as ecode); {eexpr = TArrayDecl tl}] ->
-				let exprs = Array.of_list tl in
-				let i = ref 0 in
-				let err msg =
-					let pos = { ecode.epos with pmin = ecode.epos.pmin + !i } in
-					abort msg pos
+				let r = ref "" in
+				let f_string s =
+					r := !r ^ s
 				in
-				let regex = Str.regexp "[{}]" in
-				let rec loop m = match m with
-					| [] -> ""
-					| Str.Text txt :: tl ->
-						i := !i + String.length txt;
-						txt ^ (loop tl)
-					| Str.Delim a :: Str.Delim b :: tl when a = b ->
-						i := !i + 2;
-						a ^ (loop tl)
-					| Str.Delim "{" :: Str.Text n :: Str.Delim "}" :: tl ->
-						(try
-						let expr = Array.get exprs (int_of_string n) in
-						let txt = print_expr pctx expr in
-						i := !i + 2 + String.length n;
-						txt ^ (loop tl)
-					with | Failure "int_of_string" ->
-						err ("Index expected. Got " ^ n)
-					| Invalid_argument _ ->
-						err ("Out-of-bounds pythonCode special parameter: " ^ n))
-					| Str.Delim x :: _ ->
-						err ("Unexpected " ^ x)
+				let f_expr e =
+					r:= !r ^ (print_expr pctx e)
 				in
-				loop (Str.full_split regex code)
+				let old = pctx.pc_com.error in
+				pctx.pc_com.error <- abort;
+				Std.finally (fun() -> pctx.pc_com.error <- old) (fun() -> Codegen.interpolate_code pctx.pc_com code tl f_string f_expr ecode.epos) ();
+				!r
 			| ("python_Syntax._pythonCode"), [e] ->
 				print_expr pctx e
 			| "python_Syntax._callNamedUntyped",el ->
