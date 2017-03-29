@@ -245,8 +245,7 @@ class Boot {
 		var a = [];
 		if (o != null) {
 			if (Internal.hasFields(o)) {
-				var fields:Array<String> = Internal.fieldFields(o);
-				return fields.copy();
+				return (Internal.fieldFields(o) : Array<String>).copy();
 			}
 			if (isAnonObject(o)) {
 
@@ -328,7 +327,7 @@ class Boot {
 
 
 	static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
-		var f = if (Internal.hasFields(c)) Internal.fieldFields(c).copy() else [];
+		var f = if (Internal.hasFields(c)) (Internal.fieldFields(c) : Array<String>).copy() else [];
 		if (Internal.hasMethods(c))
 			f = f.concat(Internal.fieldMethods(c));
 
