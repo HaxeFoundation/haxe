@@ -1519,17 +1519,14 @@ module Printer = struct
 				let s_el = (print_call_args pctx e1 el) in
 				Printf.sprintf "super().__init__(%s)" s_el
 			| ("python_Syntax._pythonCode"),[({ eexpr = TConst (TString code) } as ecode); {eexpr = TArrayDecl tl}] ->
-				let r = ref "" in
-				let f_string s =
-					r := !r ^ s
-				in
-				let f_expr e =
-					r:= !r ^ (print_expr pctx e)
+				let buf = Buffer.create 0 in
+				let interpolate () =
+					Codegen.interpolate_code pctx.pc_com code tl (Buffer.add_string buf) (fun e -> Buffer.add_string buf (print_expr pctx e)) ecode.epos
 				in
 				let old = pctx.pc_com.error in
 				pctx.pc_com.error <- abort;
-				Std.finally (fun() -> pctx.pc_com.error <- old) (fun() -> Codegen.interpolate_code pctx.pc_com code tl f_string f_expr ecode.epos) ();
-				!r
+				Std.finally (fun() -> pctx.pc_com.error <- old) interpolate ();
+				Buffer.contents buf
 			| ("python_Syntax._pythonCode"), [e] ->
 				print_expr pctx e
 			| "python_Syntax._callNamedUntyped",el ->
