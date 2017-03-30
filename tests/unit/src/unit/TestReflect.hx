@@ -97,7 +97,7 @@ class TestReflect extends Test {
 			var name = TNAMES[i];
 			infos("type "+name);
 			f( t == null );
-			if( name == u("Enum") || name == u("Bool") ) {
+			if( name == u("Enum") || name == u("Bool") || name == u("Int") || name == u("Float") || name == u("Class") || name == u("Dynamic") ) {
 				// neither an enum or a class
 			} else if( t == MyEnum ) {
 				eq( Type.getEnumName(t), name );
@@ -144,7 +144,6 @@ class TestReflect extends Test {
 		is(function() { },null);
 		is(MyClass,Class);
 		is(MyEnum,Enum);
-		is(Class,Class);
 	}
 
 	function is( v : Dynamic, t1 : Dynamic, ?t2 : Dynamic, ?pos : haxe.PosInfos ){
