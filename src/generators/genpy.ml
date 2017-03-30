@@ -2234,32 +2234,7 @@ module Generator = struct
 		newline ctx;
 		let mt = (t_infos (TAbstractDecl a)) in
 		let p = get_path mt in
-		let p_name = get_full_name mt in
-		print ctx "class %s:" p;
-
-		let use_pass = ref true in
-
-		if has_feature ctx "python._hx_class_name" then begin
-			use_pass := false;
-			print ctx "\n    _hx_class_name = \"%s\"" p_name
-		end;
-
-		(match a.a_impl with
-		| Some c ->
-			List.iter (fun cf ->
-				use_pass := false;
-				if cf.cf_name = "_new" then
-					gen_class_constructor ctx c cf
-				else
-					gen_class_field ctx c p cf
-			) c.cl_ordered_statics
-		| None -> ());
-
-		if !use_pass then spr ctx "\n    pass";
-
-		if has_feature ctx "python._hx_class" then print ctx "\n%s._hx_class = %s" p p;
-		if has_feature ctx "python._hx_classes" then print ctx "\n_hx_classes[\"%s\"] = %s" p_name p
-
+		print ctx "class %s: pass" p
 
 	let gen_type ctx mt = match mt with
 		| TClassDecl c -> gen_class ctx c
@@ -2274,7 +2249,7 @@ module Generator = struct
 		| TAbstractDecl {a_path = [],"Dynamic"} when not (has_feature ctx "Dynamic.*") -> ()
 		| TAbstractDecl {a_path = [],"Bool"} when not (has_feature ctx "Bool.*") -> ()
 
-		| TAbstractDecl a when Meta.has Meta.CoreType a.a_meta -> gen_abstract ctx a
+		| TAbstractDecl a when Meta.has Meta.RuntimeValue a.a_meta -> gen_abstract ctx a
 		| _ -> ()
 
 	(* Generator parts *)
