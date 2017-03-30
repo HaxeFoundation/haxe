@@ -2,12 +2,12 @@ package unit.issues;
 
 @:keep
 private class A {
-	var a:Int;
+	public var a:Int;
 }
 
 @:keep
 private class B extends A {
-	var b:Int;
+	public var b:Int;
 }
 
 class Issue6147 extends unit.Test {
