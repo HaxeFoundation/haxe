@@ -479,7 +479,7 @@ try
 	let interp = ref false in
 	let swf_version = ref false in
 	let evals = ref [] in
-	Common.define_value com Define.HaxeVer (float_repres (float_of_int Globals.version /. 1000.));
+	Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int Globals.version /. 1000.));
 	Common.raw_define com "haxe3";
 	Common.define_value com Define.Dce "std";
 	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
