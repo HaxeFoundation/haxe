@@ -171,12 +171,12 @@ class Serializer {
 
 	function serializeRef(v) {
 		#if js
-		var vt = untyped __js__("typeof")(v);
+		var vt = js.Lib.typeof(v);
 		#end
 		for( i in 0...cache.length ) {
 			#if js
 			var ci = cache[i];
-			if( untyped __js__("typeof")(ci) == vt && ci == v ) {
+			if( js.Lib.typeof(ci) == vt && ci == v ) {
 			#else
 			if( cache[i] == v ) {
 			#end
