@@ -93,7 +93,7 @@ class Lib {
 
 		Read more at https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/typeof
 	**/
-	@:extern public static inline function typeof(o:Dynamic):String {
+	@:pure @:extern public static inline function typeof(o:Dynamic):String {
 		return untyped __typeof__(o);
 	}
 
