@@ -138,7 +138,7 @@ class Boot {
 					// strange error on IE
 					return "???";
 				}
-				if( tostr != null && tostr != __js__("Object.toString") && __typeof__(tostr) == "function" ) {
+				if( tostr != null && tostr != __js__("Object.toString") && js.Lib.typeof(tostr) == "function" ) {
 					var s2 = o.toString();
 					if( s2 != "[object Object]")
 						return s2;
