@@ -22,7 +22,7 @@
 package js;
 
 /**
-	Platform-specific JavaScript Library. Provides some platform-specific functions 
+	Platform-specific JavaScript Library. Provides some platform-specific functions
 	for the JavaScript target.
 **/
 class Lib {
@@ -87,6 +87,15 @@ class Lib {
 		return untyped __js__("this");
 	}
 
+	/**
+		Call JavaScript `typeof` operator on the `o` value
+		and return a string representing the JavaScript type of a value.
+
+		Read more at https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/typeof
+	**/
+	@:extern public static inline function typeof(o:Dynamic):String {
+		return untyped __typeof__(o);
+	}
 
 	/**
 		An alias of the JS "global" object.
