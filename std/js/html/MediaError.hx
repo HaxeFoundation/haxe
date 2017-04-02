@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\MediaError.webidl line 16:0. Do not edit!
+// This file is generated from mozilla\MediaError.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `MediaError` interface represents an error associated to a media, like a `HTMLMediaElement`.
+
+	Documentation [MediaError](https://developer.mozilla.org/en-US/docs/Web/API/MediaError) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MediaError$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaError>
+**/
 @:native("MediaError")
 extern class MediaError
 {
@@ -32,6 +39,42 @@ extern class MediaError
 	static inline var MEDIA_ERR_DECODE : Int = 3;
 	static inline var MEDIA_ERR_SRC_NOT_SUPPORTED : Int = 4;
 	
+	
+	/**
+		An <code>unsigned short </code> that represents the error:
+		 <table class="standard-table">
+		  
+		   <tr>
+		    Name
+		    Value
+		    Description
+		   </tr>
+		  
+		  
+		   <tr>
+		    <td><code>MEDIA_ERR_ABORTED</code></td>
+		    <td><code>1</code></td>
+		    <td>The fetching of the associated ressource has been aborted by the user</td>
+		   </tr>
+		   <tr>
+		    <td><code>MEDIA_ERR_NETWORK</code></td>
+		    <td><code>2</code></td>
+		    <td>A network error caused the ressource to stop being fetched.</td>
+		   </tr>
+		   <tr>
+		    <td><code>MEDIA_ERR_DECODE</code></td>
+		    <td><code>3</code></td>
+		    <td>A decoding error caused the ressource to stop being fetched.</td>
+		   </tr>
+		   <tr>
+		    <td><code>MEDIA_ERR_SRC_NOT_SUPPORTED</code></td>
+		    <td><code>4</code></td>
+		    <td>The associated ressource has been detected to be not suitable.</td>
+		   </tr>
+		  
+		 </table>
+		 
+	**/
 	var code(default,null) : Int;
 	
 }

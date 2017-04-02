@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -93,7 +93,8 @@ class Process {
 	public var stderr(default,null) : haxe.io.Input;
 	public var stdin(default,null) : haxe.io.Output;
 
-	public function new( cmd : String, ?args : Array<String> ) : Void {
+	public function new( cmd : String, ?args : Array<String>, ?detached : Bool ) : Void {
+		if( detached ) throw "Detached process is not supported on this platform";
 		p = try NativeProcess.process_run(cmd,args) catch( e : Dynamic ) throw "Process creation failure : "+cmd;
 		stdin = new Stdin(p);
 		stdout = new Stdout(p,true);
@@ -104,7 +105,8 @@ class Process {
 		return NativeProcess.process_pid(p);
 	}
 
-	public function exitCode() : Int {
+	public function exitCode( block : Bool = true ) : Null<Int> {
+		if( block == false ) throw "Non blocking exitCode() not supported on this platform";
 		return NativeProcess.process_exit(p);
 	}
 

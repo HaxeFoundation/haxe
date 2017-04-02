@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -36,7 +36,8 @@ class Process {
 
 	var p:Popen;
 
-	public function new( cmd : String, ?args : Array<String> ) : Void {
+	public function new( cmd : String, ?args : Array<String>, ?detached : Bool ) : Void {
+		if( detached ) throw "Detached process is not supported on this platform";
 		p = Popen.create(args == null ? cmd : [cmd].concat(args), { shell : args == null, stdin : Subprocess.PIPE, stdout: Subprocess.PIPE, stderr : Subprocess.PIPE });
 		this.stdout = IoTools.createFileInputFromText(new TextIOWrapper(new BufferedReader(p.stdout)));
 		this.stderr = IoTools.createFileInputFromText(new TextIOWrapper(new BufferedReader(p.stderr)));
@@ -46,7 +47,9 @@ class Process {
 	public function getPid() : Int {
 		return p.pid;
 	}
-	public function exitCode() : Int {
+	public function exitCode( block : Bool = true ) : Null<Int> {
+		if( block == false )
+			return p.poll();
 		return p.wait();
 	}
 	public function close() : Void {

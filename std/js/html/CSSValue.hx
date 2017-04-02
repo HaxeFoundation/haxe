@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\CSSValue.webidl line 9:0. Do not edit!
+// This file is generated from mozilla\CSSValue.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `CSSValue` interface represents the current computed value of a CSS property.
+
+	Documentation [CSSValue](https://developer.mozilla.org/en-US/docs/Web/API/CSSValue) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CSSValue$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSValue>
+**/
 @:native("CSSValue")
 extern class CSSValue
 {
@@ -32,7 +39,40 @@ extern class CSSValue
 	static inline var CSS_VALUE_LIST : Int = 2;
 	static inline var CSS_CUSTOM : Int = 3;
 	
+	
+	/**
+		A `DOMString` representing the current value.
+	**/
 	var cssText : String;
+	
+	/**
+		An <code>unsigned short</code> representing a code defining the type of the value. Possible values are:
+		 <table class="standard-table">
+		  
+		   <tr>
+		    <td class="header">Constant</td>
+		    <td class="header">Description</td>
+		   </tr>
+		   <tr>
+		    <td><code>CSS_CUSTOM</code></td>
+		    <td>The value is a custom value.</td>
+		   </tr>
+		   <tr>
+		    <td><code>CSS_INHERIT</code></td>
+		    <td>The value is inherited and the <code>cssText</code> contains <code>"inherit"</code>.</td>
+		   </tr>
+		   <tr>
+		    <td><code>CSS_PRIMITIVE_VALUE</code></td>
+		    <td>The value is a primitive value and an instance of the <code>CSSPrimitiveValue</code> interface can be obtained by using binding-specific casting methods on this instance of the <code>CSSValue</code> interface.</td>
+		   </tr>
+		   <tr>
+		    <td><code>CSS_VALUE_LIST</code></td>
+		    <td>The value is a <code>CSSValue</code> list and an instance of the <code>CSSValueList</code> interface can be obtained by using binding-specific casting methods on this instance of the <code>CSSValue</code> interface.</td>
+		   </tr>
+		  
+		 </table>
+		 
+	**/
 	var cssValueType(default,null) : Int;
 	
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,20 +28,6 @@ class Gc
    public static inline var MEM_INFO_CURRENT = 2;
    public static inline var MEM_INFO_LARGE = 3;
 
-   static public function enable(inEnable:Bool) : Void
-   {
-      untyped __global__.__hxcpp_enable(inEnable);
-   }
-
-   static public function run(major:Bool) : Void
-   {
-      untyped __global__.__hxcpp_collect(major);
-   }
-
-   static public function compact() : Void
-   {
-      untyped __global__.__hxcpp_gc_compact();
-   }
 
    // Introduced hxcpp_api_level 310
    // Returns stats on memory usage:
@@ -61,63 +47,66 @@ class Gc
       return NativeGc.memInfo(inWhatInfo);
    }
 
-
    static public function memUsage() : Int
    {
       return Std.int(NativeGc.memInfo(MEM_INFO_USAGE));
    }
 
-   static public function trace(sought:Class<Dynamic>,printInstances:Bool=true) : Int
-   {
-      return untyped __global__.__hxcpp_gc_trace(sought,printInstances);
-   }
-
    static public function versionCheck() { return true; }
 
+   static public function trace(sought:Class<Dynamic>,printInstances:Bool=true) : Int
+   {
+      return cpp.NativeGc.nativeTrace(sought,printInstances);
+   }
+
+
+   #if !cppia inline #end
+   static public function enable(inEnable:Bool) : Void
+      cpp.NativeGc.enable(inEnable);
+
+   #if !cppia inline #end
+   static public function run(major:Bool) : Void
+      cpp.NativeGc.run(major);
+
+   #if !cppia inline #end
+   static public function compact() : Void
+      cpp.NativeGc.compact();
+
+   #if !cppia inline #end
    static public function doNotKill(inObject:Dynamic) : Void
-   {
-      untyped __global__.__hxcpp_gc_do_not_kill(inObject);
-   }
+      cpp.NativeGc.doNotKill(inObject);
 
+   #if !cppia inline #end
    static public function getNextZombie() : Dynamic
-   {
-      return untyped __global__.__hxcpp_get_next_zombie();
-   }
+      return cpp.NativeGc.getNextZombie();
 
+   #if !cppia inline #end
    static public function safePoint() : Void
-   {
-      untyped __global__.__hxcpp_gc_safe_point();
-   }
+      cpp.NativeGc.safePoint();
 
+   #if !cppia inline #end
    static public function enterGCFreeZone() : Void
-   {
-      untyped __global__.__hxcpp_enter_gc_free_zone();
-   }
+      cpp.NativeGc.enterGCFreeZone();
 
+   #if !cppia inline #end
    static public function exitGCFreeZone() : Void
-   {
-      untyped __global__.__hxcpp_exit_gc_free_zone();
-   }
+      cpp.NativeGc.exitGCFreeZone();
 
+   #if !cppia inline #end
    static public function setMinimumFreeSpace(inBytes:Int) : Void
-   {
-      untyped __global__.__hxcpp_set_minimum_free_space(inBytes);
-   }
+      cpp.NativeGc.setMinimumFreeSpace(inBytes);
 
+   #if !cppia inline #end
    static public function setTargetFreeSpacePercentage(inPercentage:Int) : Void
-   {
-      untyped __global__.__hxcpp_set_target_free_space_percentage(inPercentage);
-   }
+      cpp.NativeGc.setTargetFreeSpacePercentage(inPercentage);
 
+   #if !cppia inline #end
    static public function setMinimumWorkingMemory(inBytes:Int) : Void
-   {
-      untyped __global__.__hxcpp_set_minimum_working_memory(inBytes);
-   }
+      cpp.NativeGc.setMinimumWorkingMemory(inBytes);
 
-   @:unreflective
-   inline static public function setFinalizer<T>(inObject:T, inFinalizer:cpp.Callable<T->Void> ) : Void
-   {
-      untyped __global__.__hxcpp_set_finalizer(inObject, inFinalizer);
-   }
+   #if !cppia
+   @:native("__hxcpp_set_finalizer") @:extern
+   static public function setFinalizer<T>(inObject:T, inFinalizer:cpp.Callable<T->Void> ) : Void { }
+   #end
 }
 

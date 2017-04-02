@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,13 +20,24 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\Text.webidl line 16:0. Do not edit!
+// This file is generated from mozilla\Text.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `Text` interface represents the textual content of `Element` or `Attr`.  If an element has no markup within its content, it has a single child implementing `Text` that contains the element's text.  However, if the element contains markup, it is parsed into information items and `Text` nodes that form its children.
+
+	Documentation [Text](https://developer.mozilla.org/en-US/docs/Web/API/Text) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Text$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Text>
+**/
 @:native("Text")
 extern class Text extends CharacterData
 {
+	
+	/**
+		Returns a `DOMString` containing the text of all `Text` nodes logically adjacent to this `Node`, concatenated in document order.
+	**/
 	var wholeText(default,null) : String;
 	
 	/** @throws DOMError */

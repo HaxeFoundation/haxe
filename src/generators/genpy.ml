@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -17,6 +17,7 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
+open Globals
 open Ast
 open Type
 open Common
@@ -34,7 +35,7 @@ module Utils = struct
 				| _ -> (t_infos mt).mt_path = path
 			) com.types
 		with Not_found ->
-			error (Printf.sprintf "Could not find type %s\n" (s_type_path path)) null_pos
+			abort (Printf.sprintf "Could not find type %s\n" (s_type_path path)) null_pos
 
 	let mk_static_field c cf p =
 			let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
@@ -845,9 +846,13 @@ module Transformer = struct
 		| (is_value, TBinop(OpAssignOp op,{eexpr = TField(e1,FDynamic s); etype = t},e2)) ->
 			let e = dynamic_field_read_write ae.a_next_id e1 s op e2 t in
 			transform_expr ~is_value:is_value e
-		| (is_value, TField(e1, FClosure(Some ({cl_path = [],("str" | "list")},_),cf))) ->
+		(*
+		| (is_value, TField(e1, FClosure(Some ({cl_path = [],("str")},_),cf))) ->
+
+		| (is_value, TField(e1, FClosure(Some ({cl_path = [],("list")},_),cf))) ->
 			let e = dynamic_field_read e1 cf.cf_name ae.a_expr.etype in
 			transform_expr ~is_value:is_value e
+		*)
 		| (is_value, TBinop(OpAssign, left, right))->
 			(let left = trans true [] left in
 			let right = trans true [] right in
@@ -1092,11 +1097,11 @@ module Printer = struct
 		let had_var_args = ref false in
 		let had_kw_args = ref false in
 		let sl = List.map (fun (v,cto) ->
-			let check_err () = if !had_var_args || !had_kw_args then error "Arguments after KwArgs/VarArgs are not allowed" p in
+			let check_err () = if !had_var_args || !had_kw_args then abort "Arguments after KwArgs/VarArgs are not allowed" p in
 			let name = handle_keywords v.v_name in
 			match follow v.v_type with
 				| TAbstract({a_path = ["python"],"KwArgs"},_) ->
-					if !had_kw_args then error "Arguments after KwArgs are not allowed" p;
+					if !had_kw_args then abort "Arguments after KwArgs are not allowed" p;
 					had_kw_args := true;
 					"**" ^ name
 				| TAbstract({a_path = ["python"],"VarArgs"},_) ->
@@ -1320,7 +1325,7 @@ module Printer = struct
 				print_call pctx e1 el e
 			| TNew(c,_,el) ->
 				let id = print_base_type (t_infos (TClassDecl c)) in
-				Printf.sprintf "%s(%s)" id (print_exprs pctx ", " el)
+				Printf.sprintf "%s(%s)" id (print_call_args pctx e el)
 			| TUnop(Not,Prefix,e1) ->
 				Printf.sprintf "(%s%s)" (print_unop Not) (print_expr pctx e1)
 			| TUnop(op,Prefix,e1) ->
@@ -1346,7 +1351,7 @@ module Printer = struct
 			| TWhile(econd,e1,NormalWhile) ->
 				Printf.sprintf "while %s:\n%s    %s" (print_expr pctx (remove_outer_parens econd)) indent (print_expr_indented e1)
 			| TWhile(econd,e1,DoWhile) ->
-				error "Currently not supported" e.epos
+				abort "Currently not supported" e.epos
 			| TTry(e1,catches) ->
 				print_try pctx e1 catches
 			| TReturn eo ->
@@ -1422,12 +1427,20 @@ module Printer = struct
 				Printf.sprintf "HxString.fromCharCode"
 			| FStatic({cl_path = ["python";"internal"],"UBuiltins"},{cf_name = s}) ->
 				s
+			| FClosure (Some(c,cf),_)  when call_override(name) && ((is_type "" "list")(TClassDecl c)) ->
+				Printf.sprintf "_hx_partial(python_internal_ArrayImpl.%s, %s)" name obj
+			| FInstance (c,_,cf) when call_override(name) && ((is_type "" "list")(TClassDecl c)) ->
+				Printf.sprintf "_hx_partial(python_internal_ArrayImpl.%s, %s)" name obj
+			| FClosure (Some(c,cf),_)  when call_override(name) && ((is_type "" "str")(TClassDecl c)) ->
+				Printf.sprintf "_hx_partial(HxString.%s, %s)" name obj
+			| FInstance (c,_,cf) when call_override(name) && ((is_type "" "str")(TClassDecl c)) ->
+				Printf.sprintf "_hx_partial(HxString.%s, %s)" name obj
 			| FInstance _ | FStatic _ ->
 				do_default ()
 			| FAnon cf when is_assign && call_override(name) ->
 				begin match follow cf.cf_type with
 					| TFun([],_) ->
-						Printf.sprintf "python_lib_FuncTools.partial(HxOverrides.%s, %s)" name obj
+						Printf.sprintf "_hx_partial(HxOverrides.%s, %s)" name obj
 					| _ ->
 						do_default()
 				end
@@ -1506,35 +1519,14 @@ module Printer = struct
 				let s_el = (print_call_args pctx e1 el) in
 				Printf.sprintf "super().__init__(%s)" s_el
 			| ("python_Syntax._pythonCode"),[({ eexpr = TConst (TString code) } as ecode); {eexpr = TArrayDecl tl}] ->
-				let exprs = Array.of_list tl in
-				let i = ref 0 in
-				let err msg =
-					let pos = { ecode.epos with pmin = ecode.epos.pmin + !i } in
-					error msg pos
+				let buf = Buffer.create 0 in
+				let interpolate () =
+					Codegen.interpolate_code pctx.pc_com code tl (Buffer.add_string buf) (fun e -> Buffer.add_string buf (print_expr pctx e)) ecode.epos
 				in
-				let regex = Str.regexp "[{}]" in
-				let rec loop m = match m with
-					| [] -> ""
-					| Str.Text txt :: tl ->
-						i := !i + String.length txt;
-						txt ^ (loop tl)
-					| Str.Delim a :: Str.Delim b :: tl when a = b ->
-						i := !i + 2;
-						a ^ (loop tl)
-					| Str.Delim "{" :: Str.Text n :: Str.Delim "}" :: tl ->
-						(try
-						let expr = Array.get exprs (int_of_string n) in
-						let txt = print_expr pctx expr in
-						i := !i + 2 + String.length n;
-						txt ^ (loop tl)
-					with | Failure "int_of_string" ->
-						err ("Index expected. Got " ^ n)
-					| Invalid_argument _ ->
-						err ("Out-of-bounds pythonCode special parameter: " ^ n))
-					| Str.Delim x :: _ ->
-						err ("Unexpected " ^ x)
-				in
-				loop (Str.full_split regex code)
+				let old = pctx.pc_com.error in
+				pctx.pc_com.error <- abort;
+				Std.finally (fun() -> pctx.pc_com.error <- old) interpolate ();
+				Buffer.contents buf
 			| ("python_Syntax._pythonCode"), [e] ->
 				print_expr pctx e
 			| "python_Syntax._callNamedUntyped",el ->
@@ -2242,32 +2234,7 @@ module Generator = struct
 		newline ctx;
 		let mt = (t_infos (TAbstractDecl a)) in
 		let p = get_path mt in
-		let p_name = get_full_name mt in
-		print ctx "class %s:" p;
-
-		let use_pass = ref true in
-
-		if has_feature ctx "python._hx_class_name" then begin
-			use_pass := false;
-			print ctx "\n    _hx_class_name = \"%s\"" p_name
-		end;
-
-		(match a.a_impl with
-		| Some c ->
-			List.iter (fun cf ->
-				use_pass := false;
-				if cf.cf_name = "_new" then
-					gen_class_constructor ctx c cf
-				else
-					gen_class_field ctx c p cf
-			) c.cl_ordered_statics
-		| None -> ());
-
-		if !use_pass then spr ctx "\n    pass";
-
-		if has_feature ctx "python._hx_class" then print ctx "\n%s._hx_class = %s" p p;
-		if has_feature ctx "python._hx_classes" then print ctx "\n_hx_classes[\"%s\"] = %s" p_name p
-
+		print ctx "class %s: pass" p
 
 	let gen_type ctx mt = match mt with
 		| TClassDecl c -> gen_class ctx c
@@ -2282,7 +2249,7 @@ module Generator = struct
 		| TAbstractDecl {a_path = [],"Dynamic"} when not (has_feature ctx "Dynamic.*") -> ()
 		| TAbstractDecl {a_path = [],"Bool"} when not (has_feature ctx "Bool.*") -> ()
 
-		| TAbstractDecl a when Meta.has Meta.CoreType a.a_meta -> gen_abstract ctx a
+		| TAbstractDecl a when Meta.has Meta.RuntimeValue a.a_meta -> gen_abstract ctx a
 		| _ -> ()
 
 	(* Generator parts *)
@@ -2347,7 +2314,7 @@ module Generator = struct
 					| [(EConst(String(module_name)), _); (EConst(String(object_name)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("true")),_)),_)] ->
 						IObject (module_name,object_name), true
 					| _ ->
-						error "Unsupported @:pythonImport format" mp
+						abort "Unsupported @:pythonImport format" mp
 				in
 
 				let import = match import_type with
@@ -2448,7 +2415,9 @@ module Generator = struct
 	let run com =
 		Transformer.init com;
 		let ctx = mk_context com in
-		Codegen.map_source_header com (fun s -> print ctx "# %s\n" s);
+		Codegen.map_source_header com (fun s -> print ctx "# %s\n# coding: utf-8\n" s);
+		if has_feature ctx "closure_Array" || has_feature ctx "closure_String" then
+			spr ctx "from functools import partial as _hx_partial";
 		gen_imports ctx;
 		gen_resources ctx;
 		gen_types ctx;

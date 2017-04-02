@@ -5,7 +5,7 @@ package unit.issues;
 class Issue3181 extends Test {
 	function test() {
 		var a:Null<A> = cast 1;
-		t(unit.TestType.typeError(
+		t(unit.HelperMacros.typeError(
 			switch(a) { }
 		));
 	}

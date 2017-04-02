@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -70,7 +70,7 @@ import java.Boot;
 		if (Std.is(o, IHxObject)) {
 			untyped (o : IHxObject).__hx_setField(field, value, true);
 		} else if (Runtime.slowHasField(o, "set_" + field)) {
-			Runtime.slowCallField(o, "set_" + field, [value]);
+			Runtime.slowCallField(o, "set_" + field, java.NativeArray.make(value));
 		} else {
 			Runtime.slowSetField(o, field, value);
 		}
@@ -78,6 +78,7 @@ import java.Boot;
 
 	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic
 	{
+		var args = java.Lib.nativeArray(args, true);
 		return untyped (func : Function).__hx_invokeDynamic(args);
 	}
 

@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -17,16 +17,18 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
+open Globals
 open Ast
 open Type
 open Common
+open Error
 
 exception Internal_match_failure
 
 let s_type = s_type (print_context())
 let s_expr_pretty = s_expr_pretty false "" false s_type
 
-let fake_tuple_type = TInst(mk_class null_module ([],"-Tuple") null_pos, [])
+let fake_tuple_type = TInst(mk_class null_module ([],"-Tuple") null_pos null_pos, [])
 
 let tuple_type tl =
 	tfun tl fake_tuple_type
@@ -381,7 +383,7 @@ module Pattern = struct
 				let patterns,fields = List.fold_left (fun (patterns,fields) (cf,t) ->
 					try
 						if pctx.in_reification && cf.cf_name = "pos" then raise Not_found;
-						let e1 = List.assoc cf.cf_name fl in
+						let e1 = Expr.field_assoc cf.cf_name fl in
 						make pctx t e1 :: patterns,cf.cf_name :: fields
 					with Not_found ->
 						if is_matchable cf then
@@ -389,7 +391,7 @@ module Pattern = struct
 						else
 							patterns,fields
 				) ([],[]) known_fields in
-				List.iter (fun (s,e) -> if not (List.mem s fields) then error (Printf.sprintf "%s has no field %s" (s_type t) s) (pos e)) fl;
+				List.iter (fun ((s,_),e) -> if not (List.mem s fields) then error (Printf.sprintf "%s has no field %s" (s_type t) s) (pos e)) fl;
 				PatConstructor(ConFields fields,patterns)
 			| EBinop(OpOr,e1,e2) ->
 				let pctx1 = {pctx with current_locals = PMap.empty} in
@@ -411,9 +413,10 @@ module Pattern = struct
 				v.v_name <- "tmp";
 				let pat = make pctx e1.etype e2 in
 				PatExtractor(v,e1,pat)
-			| EDisplay(e,call) ->
+			| EDisplay(e,iscall) ->
 				let pat = loop e in
-				let _ = Typer.handle_display ctx e call (WithType t) in
+				let _ = if iscall then Typer.handle_signature_display ctx e (WithType t)
+				else Typer.handle_display ctx e (WithType t) in
 				pat
 			| _ ->
 				fail()
@@ -440,7 +443,7 @@ module Case = struct
 		case_pos : pos;
 	}
 
-	let make ctx t el eg eo with_type =
+	let make ctx t el eg eo_ast with_type p =
 		let rec collapse_case el = match el with
 			| e :: [] ->
 				e
@@ -467,7 +470,7 @@ module Case = struct
 			| None -> None
 			| Some e -> Some (type_expr ctx e Value)
 		in
-		let eo = match eo,with_type with
+		let eo = match eo_ast,with_type with
 			| None,WithType t ->
 				unify ctx ctx.t.tvoid t (pos e);
 				None
@@ -475,7 +478,7 @@ module Case = struct
 				None
 			| Some e,WithType t ->
 				let e = type_expr ctx e (WithType (map t)) in
-				let e = Codegen.AbstractCast.cast_or_unify ctx (map t) e e.epos in
+				let e = AbstractCast.cast_or_unify ctx (map t) e e.epos in
 				Some e
 			| Some e,_ ->
 				let e = type_expr ctx e with_type in
@@ -484,10 +487,15 @@ module Case = struct
 		ctx.ret <- old_ret;
 		List.iter (fun (v,t) -> v.v_type <- t) old_types;
 		save();
+		if ctx.is_display_file && Display.is_display_position p then begin match eo,eo_ast with
+			| Some e,Some e_ast -> ignore(Typer.display_expr ctx e_ast e with_type p)
+			| None,None -> ignore(Typer.display_expr ctx (EBlock [],p) (mk (TBlock []) ctx.t.tvoid p) with_type p)
+			| _ -> assert false
+		end;
 		{
 			case_guard = eg;
 			case_expr = eo;
-			case_pos = pos e;
+			case_pos = p;
 		},[],pat
 end
 
@@ -664,7 +672,7 @@ module Useless = struct
 						let patterns1 = ExtList.List.make arity (PatAny,p) in
 						loop ((patterns1 @ patterns2) :: pAcc) (q1 :: qAcc) (r1 :: rAcc) pM qM rM
 					| ((PatOr(pat1,pat2)),_) :: patterns2 ->
-						specialize' is_tuple con (((pat1 :: patterns2) :: (pat2 :: patterns2) :: pAcc)) (q1 :: q1 :: qM @ qAcc) (r1 :: r1 :: rM @ rAcc)
+						loop pAcc qAcc rAcc (((pat1 :: patterns2) :: (pat2 :: patterns2) :: pM)) (q1 :: q1 :: qM) (r1 :: r1 :: rM)
 					| (PatBind(_,pat1),_) :: patterns2 ->
 						loop2 (pat1 :: patterns2)
 					| _ ->
@@ -746,7 +754,7 @@ module Useless = struct
 	let check_case com p (case,bindings,patterns) =
 		let p = List.map (fun (_,_,patterns) -> patterns) p in
 		match u' p (copy p) (copy p) patterns [] [] with
-			| False -> com.warning "This pattern is unused" case.case_pos
+			| False -> com.warning "This case is unused" case.case_pos
 			| Pos p -> com.warning "This pattern is unused" p
 			| True -> ()
 
@@ -1242,7 +1250,7 @@ module TexprConverter = struct
 		let p = dt.dt_pos in
 		let c_type = match follow (Typeload.load_instance ctx ({ tpackage = ["std"]; tname="Type"; tparams=[]; tsub = None},null_pos) true p) with TInst(c,_) -> c | t -> assert false in
 		let mk_index_call e =
-			if ctx.com.display <> DMNone then
+			if not ctx.in_macro && not ctx.com.display.DisplayMode.dms_full_typing then
 				(* If we are in display mode there's a chance that these fields don't exist. Let's just use a
 				   (correctly typed) neutral value because it doesn't actually matter. *)
 				mk (TConst (TInt (Int32.of_int 0))) ctx.t.tint e.epos
@@ -1251,7 +1259,7 @@ module TexprConverter = struct
 				make_static_call ctx c_type cf (fun t -> t) [e] com.basic.tint e.epos
 		in
 		let mk_name_call e =
-			if ctx.com.display <> DMNone then
+			if not ctx.in_macro && not ctx.com.display.DisplayMode.dms_full_typing then
 				mk (TConst (TString "")) ctx.t.tstring e.epos
 			else
 				let cf = PMap.find "enumConstructor" c_type.cl_statics in
@@ -1273,7 +1281,7 @@ module TexprConverter = struct
 					with Not_exhaustive -> match with_type,finiteness with
 						| NoValue,Infinite -> None
 						| _,CompileTimeFinite when unmatched = [] -> None
-						| _ when ctx.com.display <> DMNone -> None
+						| _ when ctx.com.display.DisplayMode.dms_error_policy = DisplayMode.EPIgnore -> None
 						| _ -> report_not_exhaustive e_subject unmatched
 				in
 				let cases = ExtList.List.filter_map (fun (con,_,dt) -> match unify_constructor ctx params e_subject.etype con with
@@ -1331,7 +1339,7 @@ module TexprConverter = struct
 				let e_then = loop false params dt1 in
 				begin try
 					let e_else = loop false params dt2 in
-					mk (TIf(e,e_then,Some e_else)) e_then.etype (punion e_then.epos e_else.epos)
+					mk (TIf(e,e_then,Some e_else)) t_switch (punion e_then.epos e_else.epos)
 				with Not_exhaustive when with_type = NoValue ->
 					mk (TIf(e,e_then,None)) ctx.t.tvoid (punion e.epos e_then.epos)
 				end
@@ -1342,11 +1350,11 @@ module TexprConverter = struct
 					(fun () ->
 						let e_else = loop false params dt2 in
 						let e_op = mk (TBinop(OpEq,e,e_null)) ctx.t.tbool e.epos in
-						mk (TIf(e_op,e_then,Some e_else)) e_then.etype (punion e_then.epos e_else.epos)
+						mk (TIf(e_op,e_then,Some e_else)) t_switch (punion e_then.epos e_else.epos)
 					)
 				with Not_exhaustive ->
 					if toplevel then (fun () -> loop false params dt2)
-					else if ctx.com.display <> DMNone then (fun () -> mk (TConst TNull) (mk_mono()) dt2.dt_pos)
+					else if ctx.com.display.DisplayMode.dms_error_policy = DisplayMode.EPIgnore then (fun () -> mk (TConst TNull) (mk_mono()) dt2.dt_pos)
 					else report_not_exhaustive e [ConConst TNull,dt.dt_pos]
 				in
 				f()
@@ -1368,7 +1376,6 @@ module Match = struct
 	open Typecore
 
 	let match_expr ctx e cases def with_type p =
-		(* if p.pfile <> "src/Main.hx" then raise Exit; *)
 		let match_debug = Meta.has (Meta.Custom ":matchDebug") ctx.curfield.cf_meta in
 		let rec loop e = match fst e with
 			| EArrayDecl el when (match el with [(EFor _ | EWhile _),_] -> false | _ -> true) ->
@@ -1385,14 +1392,14 @@ module Match = struct
 		let subjects = List.rev subjects in
 		let cases = match def with
 			| None -> cases
-			| Some eo -> cases @ [[EConst (Ident "_"),(match eo with None -> p | Some e -> pos e)],None,eo]
+			| Some (eo,p) -> cases @ [[EConst (Ident "_"),p],None,eo,p]
 		in
 		let tmono,with_type = match with_type with
 			| WithType t -> (match follow t with TMono _ -> Some t,Value | _ -> None,with_type)
 			| _ -> None,with_type
 		in
-		let cases = List.map (fun (el,eg,eo) ->
-			let case,bindings,pat = Case.make ctx t el eg eo with_type in
+		let cases = List.map (fun (el,eg,eo,p) ->
+			let case,bindings,pat = Case.make ctx t el eg eo with_type p in
 			case,bindings,[pat]
 		) cases in
 		let infer_switch_type () =
@@ -1428,7 +1435,7 @@ module Match = struct
 			print_endline (s_expr_pretty e);
 			print_endline "TEXPR END";
 		end;
-		e
+		{e with epos = p}
 end
 ;;
 Typecore.match_expr_ref := Match.match_expr

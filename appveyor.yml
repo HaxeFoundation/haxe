@@ -5,12 +5,12 @@ environment:
         HAXELIB_ROOT: C:/projects/haxelib
         CYG_ROOT: C:/cygwin
         ADD_REVISION: 1
-        OCAMLOPT: ocamlopt.opt
         MYSQL_PATH: C:\Program Files\MySQL\MySQL Server 5.7
         MYSQL_USER: root
         MYSQL_PASSWORD: Password12!
     matrix:
         - TEST: "neko,python,cs,java,macro"
+        - TEST: "php7,php"
         - TEST: "cpp"
 
 services:
@@ -19,36 +19,46 @@ services:
 skip_tags: true
 
 cache:
-    - ocaml-installer.exe -> appveyor.yml
+    - opam32.tar.xz -> appveyor.yml
 
 install:
     - 'git submodule update --init --recursive'
+    - '%CYG_ROOT%/bin/bash -lc "echo initialize"'
+    - choco install curl
     # Install ocaml
-    - if not exist "ocaml-installer.exe" (
-        curl -fsS -o ocaml-installer.exe --retry 3 http://gallium.inria.fr/~protzenk/caml-installer/ocaml-4.02.3-i686-mingw64-installer4-opam.exe
+    - curl -fsSL -o cygwin-setup.exe --retry 3 https://cygwin.com/setup-x86.exe
+    - 'cygwin-setup.exe -g -q -R "%CYG_ROOT%" -P make -P git -P mingw64-i686-zlib -P rsync -P patch -P diffutils -P curl -P unzip -P m4 -P perl -P mingw64-i686-gcc-core -P mingw64-i686-pcre'
+    - if not exist "opam32.tar.xz" (
+        curl -fsSL -o opam32.tar.xz --retry 3 https://github.com/fdopen/opam-repository-mingw/releases/download/0.0.0.1/opam32.tar.xz
       )
-    - ocaml-installer.exe /S
-    - 'C:\Users\Public\Desktop\cygwin-setup.exe -g -q -R "%CYG_ROOT%" -P make -P git -P mingw64-i686-zlib'
-    - 'set PATH=%PATH%;%CYG_ROOT%/usr/i686-w64-mingw32/sys-root/mingw/bin'
+    - 7z x "opam32.tar.xz" -so | 7z x -aoa -si -ttar
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && bash opam32/install.sh"'
+    - '%CYG_ROOT%/bin/bash -lc "opam init mingw \"https://github.com/fdopen/opam-repository-mingw.git\" --comp 4.02.3+mingw32c --switch 4.02.3+mingw32c --auto-setup --yes"'
+    - '%CYG_ROOT%/bin/bash -lc "opam install camlp4 ocamlfind --yes"'
     # Install neko
     - choco install neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
+    - choco install chocolatey-core.extension php --ignore-dependencies -y
+    - echo extension=php_mysqli.dll >> C:\tools\php71\php.ini
+    - echo extension=php_sqlite3.dll >> C:\tools\php71\php.ini
+    - echo extension=php_openssl.dll >> C:\tools\php71\php.ini
+    - echo extension=php_pdo_mysql.dll >> C:\tools\php71\php.ini
+    - echo extension=php_pdo_sqlite.dll >> C:\tools\php71\php.ini
     - RefreshEnv
-    # do not use chocolatey's shim, which is buggy when processing arguments
-    # see https://github.com/chocolatey/shimgen/issues/27
-    - set PATH=C:\ProgramData\chocolatey\lib\neko;%PATH%
     - neko -version
     # setup python
     - cmd: mklink C:\Python34-x64\python3.exe C:\Python34-x64\python.exe
     - set PATH=%PATH%;C:\Python34-x64
+    # expose the dll files
+    - set "PATH=%PATH%;%CYG_ROOT%/usr/i686-w64-mingw32/sys-root/mingw/bin"
 
 build_script:
     - 'cd %APPVEYOR_BUILD_FOLDER%'
-    - '%CYG_ROOT%/bin/bash -lc "echo initialize"'
-    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win package_src"'
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win"'
     - 'set PATH=%PATH%;%APPVEYOR_BUILD_FOLDER%'
     - 'set HAXEPATH=%APPVEYOR_BUILD_FOLDER%'
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win package_bin"'
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win package_choco"'
+    - move out\haxe.*.nupkg .
     - dir %APPVEYOR_BUILD_FOLDER%\out
     - cd %APPVEYOR_BUILD_FOLDER%/tests/
     - mkdir "%HAXELIB_ROOT%"
@@ -66,4 +76,5 @@ test_script:
     - neko RunCi.n
 
 artifacts:
-    - path: out/*
+    - path: 'out/*.zip'
+    - path: '*.nupkg'

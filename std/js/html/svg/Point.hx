@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SVGPoint.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\SVGPoint.webidl. Do not edit!
 
 package js.html.svg;
 
+/**
+	An `SVGPoint` represents a 2D or 3D point in the SVG coordinate system.
+
+	Documentation [SVGPoint](https://developer.mozilla.org/en-US/docs/Web/API/SVGPoint) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGPoint$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGPoint>
+**/
 @:native("SVGPoint")
 extern class Point
 {

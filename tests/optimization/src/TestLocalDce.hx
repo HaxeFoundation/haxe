@@ -13,7 +13,7 @@ private abstract MyEnum(String) to String {
 	var A = "a";
 }
 
-@:analyzer(no_fusion)
+@:analyzer(no_user_var_fusion)
 class TestLocalDce {
 	@:js('console.log(3);')
 	static function testNoOpRemoval() {

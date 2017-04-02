@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +22,7 @@
 package js;
 
 /**
-	Platform-specific JavaScript Library. Provides some platform-specific functions 
+	Platform-specific JavaScript Library. Provides some platform-specific functions
 	for the JavaScript target.
 **/
 class Lib {
@@ -87,6 +87,15 @@ class Lib {
 		return untyped __js__("this");
 	}
 
+	/**
+		Call JavaScript `typeof` operator on the `o` value
+		and return a string representing the JavaScript type of a value.
+
+		Read more at https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/typeof
+	**/
+	@:pure @:extern public static inline function typeof(o:Dynamic):String {
+		return untyped __typeof__(o);
+	}
 
 	/**
 		An alias of the JS "global" object.

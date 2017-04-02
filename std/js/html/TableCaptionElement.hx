@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,13 +20,24 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\HTMLTableCaptionElement.webidl line 16:0. Do not edit!
+// This file is generated from mozilla\HTMLTableCaptionElement.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `HTMLTableCaptionElement` interface special properties (beyond the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating table caption elements.
+
+	Documentation [HTMLTableCaptionElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableCaptionElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableCaptionElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableCaptionElement>
+**/
 @:native("HTMLTableCaptionElement")
 extern class TableCaptionElement extends Element
 {
+	
+	/**
+		Is a `DOMString` which represents an enumerated attribute indicating alignment of the caption with respect to the table.
+	**/
 	var align : String;
 	
 }

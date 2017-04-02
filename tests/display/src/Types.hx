@@ -5,7 +5,8 @@ typedef ToplevelElement = {
 
 typedef FieldElement = {
 	name: String,
-	type: String
+	type: String,
+	kind: String,
 }
 
 abstract Position(Int) to Int {

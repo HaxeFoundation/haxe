@@ -1,5 +1,6 @@
 package io;
 
+import haxe.io.Bytes;
 import sys.io.FileInput;
 import sys.FileSystem;
 import sys.io.File;
@@ -33,6 +34,15 @@ class TestFileInput extends haxe.unit.TestCase {
 		assertEquals(3, file.tell());
 		assertEquals(116, file.readByte());
 		assertEquals(4, file.tell());
+		file.close();
+	}
+
+	public function testReadBytes() {
+		var file : FileInput = File.read(path);
+		var bytes : Bytes = Bytes.alloc (9);
+		var count = file.readBytes(bytes, 0, 9);
+		assertEquals(9, count);
+		assertEquals(116, bytes.get(0));
 		file.close();
 	}
 

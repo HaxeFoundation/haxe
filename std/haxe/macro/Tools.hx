@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,7 +32,7 @@ package haxe.macro;
 	- `haxe.macro.TypedExprTools`
 	- `haxe.macro.PositionTools`
   
-  @see <http://haxe.org/manual/lf-static-extension.html>
+  @see <https://haxe.org/manual/lf-static-extension.html>
 **/
 @:dox(hide)
 typedef TExprTools = ExprTools;

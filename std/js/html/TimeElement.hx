@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,13 +20,24 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\HTMLTimeElement.webidl line 12:0. Do not edit!
+// This file is generated from mozilla\HTMLTimeElement.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `HTMLTimeElement` interface provides special properties (beyond the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating `time` elements.
+
+	Documentation [HTMLTimeElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTimeElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTimeElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTimeElement>
+**/
 @:native("HTMLTimeElement")
 extern class TimeElement extends Element
 {
+	
+	/**
+		Is a `DOMString` that reflects the `datetime` HTML attribute, containing a machine-readable form of the element's date and time value.
+	**/
 	var dateTime : String;
 	
 }

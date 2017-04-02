@@ -57,7 +57,6 @@ class TestIO extends Test {
 
 		var str = "Héllo World !";
 		o.writeString(str);
-
 		eq(o.length, 86);
 
 		o.writeInt16(-12345);

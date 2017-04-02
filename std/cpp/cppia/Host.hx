@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,12 +22,13 @@
  package cpp.cppia;
 
 
-@:build(cpp.cppia.HostClasses.include())
 class Host
 {
    public static function run(source:String)
    {
-      untyped __global__.__scriptable_load_cppia(source);
+      var module = Module.fromString(source);
+      module.boot();
+      module.run();
    }
 
    public static function runFile(filename:String)
@@ -49,7 +50,9 @@ class Host
       else
       {
          var source = sys.io.File.getContent(script);
-         run(source);
+         var module = Module.fromString(source);
+         module.boot();
+         module.run();
       }
    }
 }

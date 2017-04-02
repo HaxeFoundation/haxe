@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\BeforeUnloadEvent.webidl line 12:0. Do not edit!
+// This file is generated from mozilla\BeforeUnloadEvent.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `beforeunload` event is fired when the window, the document and its resources are about to be unloaded.
+
+	Documentation [BeforeUnloadEvent](https://developer.mozilla.org/en-US/docs/Web/API/BeforeUnloadEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/BeforeUnloadEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/BeforeUnloadEvent>
+**/
 @:native("BeforeUnloadEvent")
 extern class BeforeUnloadEvent extends Event
 {

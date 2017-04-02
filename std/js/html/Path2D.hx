@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\CanvasRenderingContext2D.webidl line 428:0. Do not edit!
+// This file is generated from mozilla\CanvasRenderingContext2D.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `Path2D` interface of the Canvas 2D API is used to declare paths that are then later used on `CanvasRenderingContext2D` objects. The path methods of the `CanvasRenderingContext2D` interface are present on this interface as well and are allowing you to create paths that you can retain and replay as required on a canvas.
+
+	Documentation [Path2D](https://developer.mozilla.org/en-US/docs/Web/API/Path2D) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Path2D$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Path2D>
+**/
 @:native("Path2D")
 extern class Path2D
 {
@@ -31,6 +38,10 @@ extern class Path2D
 	@:overload( function() : Void {} )
 	@:overload( function( other : Path2D ) : Void {} )
 	function new( pathString : String ) : Void;
+	
+	/**
+		Adds a path to the current path.
+	**/
 	function addPath( path : Path2D, ?transformation : js.html.svg.Matrix ) : Void;
 	function closePath() : Void;
 	function moveTo( x : Float, y : Float ) : Void;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,16 +20,39 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SubtleCrypto.webidl line 164:0. Do not edit!
+// This file is generated from mozilla\SubtleCrypto.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `CryptoKey` interface represents a cryptographic key derived from a specific key algorithm.
+
+	Documentation [CryptoKey](https://developer.mozilla.org/en-US/docs/Web/API/CryptoKey) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CryptoKey$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CryptoKey>
+**/
 @:native("CryptoKey")
 extern class CryptoKey
 {
+	
+	/**
+		Returns an enumerated value representing the type of the key, a secret key (for symmetric algorithm), a public or a private key (for an asymmetric algorithm)
+	**/
 	var type(default,null) : String;
+	
+	/**
+		Returns a `Boolean` indicating if the raw information may be exported to the application or not.
+	**/
 	var extractable(default,null) : Bool;
+	
+	/**
+		Returns an opaque object representing a particular cipher the key has to be used with.
+	**/
 	var algorithm(default,null) : Dynamic;
+	
+	/**
+		Returns an array of enumerated values indicating what the key can be used for.
+	**/
 	var usages(default,null) : Array<String>;
 	
 }

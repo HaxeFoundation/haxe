@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,6 +27,7 @@ class FileOutput extends haxe.io.Output {
 	var f:FileHandle;
 
 	public function new(f:FileHandle){
+		if (f == null) throw 'Invalid filehandle : $f';
 		this.f = f;
 	}
 

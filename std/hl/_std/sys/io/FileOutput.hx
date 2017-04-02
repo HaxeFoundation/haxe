@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -48,6 +48,7 @@ import sys.io.File;
 	public override function close() : Void {
 		super.close();
 		@:privateAccess FileInput.file_close(__f);
+		__f = null;
 	}
 
 	public function seek( p : Int, pos : FileSeek ) : Void {
@@ -62,7 +63,7 @@ import sys.io.File;
 	}
 
 	@:hlNative("std","file_flush") static function file_flush( f : FileHandle ) : Bool { return true; }
-	@:hlNative("std", "file_write") static function file_write( f : FileHandle, bytes : hl.types.Bytes, pos : Int, len : Int ) : Int { return 0; }
+	@:hlNative("std", "file_write") static function file_write( f : FileHandle, bytes : hl.Bytes, pos : Int, len : Int ) : Int { return 0; }
 	@:hlNative("std", "file_write_char") static function file_write_char( f : FileHandle, v : Int ) : Bool { return true; }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -80,7 +80,7 @@ class Thread {
 
 	/**
 		The function [f] will be called by this thread if it's in [osLoop].
-		[sync] returns immediatly. See [osInitialize] remarks.
+		[sync] returns immediately. See [osInitialize] remarks.
 	**
 	public function sync( f : Void -> Void ) {
 		os_sync(handle,f);

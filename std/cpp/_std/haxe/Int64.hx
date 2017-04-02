@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -170,7 +170,7 @@ abstract Int64( __Int64 ) from __Int64 to __Int64
 		Returns whether the value `val` is of type `haxe.Int64`
 	**/
 	public static #if !cppia inline #end function is( val : Dynamic ) : Bool
-      return untyped __cpp__("(cpp::Int64Struct::is({0}))",val);
+      return __Int64.is(val);
 
 	/**
 		Returns the high 32-bit word of `x`.

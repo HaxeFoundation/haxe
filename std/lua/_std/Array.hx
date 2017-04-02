@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -41,11 +41,16 @@ class Array<T> {
 	}
 
 	public function pop() : Null<T> {
-		return this.length == 0 ? null : this[this.length-- -1];
+		if (length == 0 ) return null;
+		var rawlength = lua.Lua.rawget(cast this, 'length');
+		var ret = lua.Lua.rawget(cast this, rawlength-1);
+		lua.Lua.rawset(cast this, 'length', rawlength-1);
+		return ret;
 	}
 	public function push(x : T) : Int {
-		this[this.length++] = x;
-		return this.length;
+		lua.Lua.rawset(cast this,length,x);
+		lua.Lua.rawset(cast this,'length', length + 1);
+		return lua.Lua.rawget(cast this,'length');
 	}
 	public function reverse() : Void {
 		var tmp:T;
@@ -101,6 +106,7 @@ class Array<T> {
 			i += 1;
 		}
 	}
+
 	public function splice( pos : Int, len : Int ) : Array<T> {
 		if (len < 0 || pos > length) return [];
 		else if (pos < 0) pos = length -(-pos % length);

@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -21,6 +21,8 @@ open Ast
 open Common
 open Type
 open Typecore
+open Error
+open Globals
 
 (* PASS 1 begin *)
 
@@ -602,6 +604,53 @@ let rename_local_vars ctx e =
 	List.iter maybe_rename (List.rev !vars);
 	e
 
+let mark_switch_break_loops e =
+	let add_loop_label n e =
+		{ e with eexpr = TMeta ((Meta.LoopLabel,[(EConst(Int(string_of_int n)),e.epos)],e.epos), e) }
+	in
+	let in_switch = ref false in
+	let did_found = ref (-1) in
+	let num = ref 0 in
+	let cur_num = ref 0 in
+	let rec run e =
+		match e.eexpr with
+		| TFunction _ ->
+			let old_num = !num in
+			num := 0;
+				let ret = Type.map_expr run e in
+			num := old_num;
+			ret
+		| TWhile _ | TFor _ ->
+			let last_switch = !in_switch in
+			let last_found = !did_found in
+			let last_num = !cur_num in
+			in_switch := false;
+			incr num;
+			cur_num := !num;
+			did_found := -1;
+				let new_e = Type.map_expr run e in (* assuming that no loop will be found in the condition *)
+				let new_e = if !did_found <> -1 then add_loop_label !did_found new_e else new_e in
+			did_found := last_found;
+			in_switch := last_switch;
+			cur_num := last_num;
+
+			new_e
+		| TSwitch _ ->
+			let last_switch = !in_switch in
+			in_switch := true;
+				let new_e = Type.map_expr run e in
+			in_switch := last_switch;
+			new_e
+		| TBreak ->
+			if !in_switch then (
+				did_found := !cur_num;
+				add_loop_label !cur_num e
+			) else
+				e
+		| _ -> Type.map_expr run e
+	in
+	run e
+
 let check_unification ctx e t =
 	begin match e.eexpr,t with
 		| TLocal v,TType({t_path = ["cs"],("Ref" | "Out")},_) ->
@@ -692,18 +741,55 @@ let remove_extern_fields ctx t = match t with
 	| TClassDecl c ->
 		if not (Common.defined ctx.com Define.DocGen) then begin
 			c.cl_ordered_fields <- List.filter (fun f ->
-				let b = Codegen.is_removable_field ctx f in
+				let b = is_removable_field ctx f in
 				if b then c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
 				not b
 			) c.cl_ordered_fields;
 			c.cl_ordered_statics <- List.filter (fun f ->
-				let b = Codegen.is_removable_field ctx f in
+				let b = is_removable_field ctx f in
 				if b then c.cl_statics <- PMap.remove f.cf_name c.cl_statics;
 				not b
 			) c.cl_ordered_statics;
 		end
 	| _ ->
 		()
+
+
+module VarLazifier = struct
+	let apply com e =
+		let rec loop var_inits e = match e.eexpr with
+			| TVar(v,Some e1) when (Meta.has (Meta.Custom ":extractorVariable") v.v_meta) ->
+				let var_inits,e1 = loop var_inits e1 in
+				let var_inits = PMap.add v.v_id e1 var_inits in
+				var_inits,{e with eexpr = TVar(v,None)}
+			| TLocal v ->
+				begin try
+					let e_init = PMap.find v.v_id var_inits in
+					let e = {e with eexpr = TBinop(OpAssign,e,e_init)} in
+					let e = {e with eexpr = TParenthesis e} in
+					let var_inits = PMap.remove v.v_id var_inits in
+					var_inits,e
+				with Not_found ->
+					var_inits,e
+				end
+			| TIf(e1,e2,eo) ->
+				let var_inits,e1 = loop var_inits e1 in
+				let _,e2 = loop var_inits e2 in
+				let eo = match eo with None -> None | Some e -> Some (snd (loop var_inits e)) in
+				var_inits,{e with eexpr = TIf(e1,e2,eo)}
+			| TSwitch(e1,cases,edef) ->
+				let var_inits,e1 = loop var_inits e1 in
+				let cases = List.map (fun (el,e) ->
+					let _,e = loop var_inits e in
+					el,e
+				) cases in
+				let edef = match edef with None -> None | Some e -> Some (snd (loop var_inits e)) in
+				var_inits,{e with eexpr = TSwitch(e1,cases,edef)}
+			| _ ->
+				Texpr.foldmap loop var_inits e
+		in
+		snd (loop PMap.empty e)
+end
 
 (* PASS 2 end *)
 
@@ -774,10 +860,6 @@ let apply_native_paths ctx t =
 			let meta,path = get_real_path e.e_meta e.e_path in
 			e.e_meta <- meta :: e.e_meta;
 			e.e_path <- path;
-		| TAbstractDecl a ->
-			let meta,path = get_real_path a.a_meta a.a_path in
-			a.a_meta <- meta :: a.a_meta;
-			a.a_path <- path;
 		| _ ->
 			())
 	with Not_found ->
@@ -790,7 +872,7 @@ let add_rtti ctx t =
 	in
 	match t with
 	| TClassDecl c when has_rtti c && not (PMap.mem "__rtti" c.cl_statics) ->
-		let f = mk_field "__rtti" ctx.t.tstring c.cl_pos in
+		let f = mk_field "__rtti" ctx.t.tstring c.cl_pos null_pos in
 		let str = Genxml.gen_type_string ctx.com t in
 		f.cf_expr <- Some (mk (TConst (TString str)) f.cf_type c.cl_pos);
 		c.cl_ordered_statics <- f :: c.cl_ordered_statics;
@@ -858,7 +940,7 @@ let add_field_inits ctx t =
 					tf_type = ctx.com.basic.tvoid;
 					tf_expr = mk (TBlock el) ctx.com.basic.tvoid c.cl_pos;
 				}) ct c.cl_pos in
-				let ctor = mk_field "new" ct c.cl_pos in
+				let ctor = mk_field "new" ct c.cl_pos null_pos in
 				ctor.cf_kind <- Method MethNormal;
 				{ ctor with cf_expr = Some ce }
 			| Some cf ->
@@ -895,26 +977,25 @@ let add_meta_field ctx t = match t with
 		| None -> ()
 		| Some e ->
 			add_feature ctx.com "has_metadata";
-			let f = mk_field "__meta__" t_dynamic c.cl_pos in
-			f.cf_expr <- Some e;
+			let cf = mk_field "__meta__" e.etype e.epos null_pos in
+			cf.cf_expr <- Some e;
 			let can_deal_with_interface_metadata () = match ctx.com.platform with
 				| Flash when Common.defined ctx.com Define.As3 -> false
-				| Php -> false
+				| Php when not (Common.is_php7 ctx.com) -> false
+				| Cs | Java -> false
 				| _ -> true
 			in
 			if c.cl_interface && not (can_deal_with_interface_metadata()) then begin
 				(* borrowed from gencommon, but I did wash my hands afterwards *)
 				let path = fst c.cl_path,snd c.cl_path ^ "_HxMeta" in
-				let ncls = mk_class c.cl_module path c.cl_pos in
-				let cf = mk_field "__meta__" e.etype e.epos in
-				cf.cf_expr <- Some e;
-				ncls.cl_statics <- PMap.add "__meta__" cf ncls.cl_statics;
+				let ncls = mk_class c.cl_module path c.cl_pos null_pos in
 				ncls.cl_ordered_statics <- cf :: ncls.cl_ordered_statics;
-				ctx.com.types <- (TClassDecl ncls) :: ctx.com.types;
+				ncls.cl_statics <- PMap.add cf.cf_name cf ncls.cl_statics;
+				ctx.com.types <- ctx.com.types @ [ TClassDecl ncls ];
 				c.cl_meta <- (Meta.Custom ":hasMetadata",[],e.epos) :: c.cl_meta
 			end else begin
-				c.cl_ordered_statics <- f :: c.cl_ordered_statics;
-				c.cl_statics <- PMap.add f.cf_name f c.cl_statics
+				c.cl_ordered_statics <- cf :: c.cl_ordered_statics;
+				c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics
 			end)
 	| _ ->
 		()
@@ -945,7 +1026,7 @@ let check_cs_events com t = match t with
 						try
 							type_eq EqStrict m.cf_type tmeth
 						with Unify_error el ->
-							List.iter (fun e -> com.error (Typecore.unify_error_msg (print_context()) e) m.cf_pos) el
+							List.iter (fun e -> com.error (unify_error_msg (print_context()) e) m.cf_pos) el
 					end;
 
 					(*
@@ -1029,10 +1110,10 @@ let run_expression_filters ctx filters t =
 		ctx.curclass <- c;
 		let rec process_field f =
 			(match f.cf_expr with
-			| Some e when not (Codegen.is_removable_field ctx f) ->
-				Codegen.AbstractCast.cast_stack := f :: !Codegen.AbstractCast.cast_stack;
+			| Some e when not (is_removable_field ctx f) ->
+				AbstractCast.cast_stack := f :: !AbstractCast.cast_stack;
 				f.cf_expr <- Some (run e);
-				Codegen.AbstractCast.cast_stack := List.tl !Codegen.AbstractCast.cast_stack;
+				AbstractCast.cast_stack := List.tl !AbstractCast.cast_stack;
 			| _ -> ());
 			List.iter process_field f.cf_overloads
 		in
@@ -1076,28 +1157,57 @@ let iter_expressions fl mt =
 		()
 
 let run com tctx main =
-	if not (Common.defined com Define.NoDeprecationWarnings) then
-		Codegen.DeprecationCheck.run com;
 	let new_types = List.filter (fun t -> not (is_cached t)) com.types in
 	(* PASS 1: general expression filters *)
 	let filters = [
-		Codegen.AbstractCast.handle_abstract_casts tctx;
+		VarLazifier.apply com;
+		AbstractCast.handle_abstract_casts tctx;
 		Optimizer.inline_constructors tctx;
 		check_local_vars_init;
 		Optimizer.reduce_expression tctx;
 		captured_vars com;
 	] in
+	let filters =
+		match com.platform with
+		| Cs ->
+			SetHXGen.run_filter com new_types;
+			filters @ [
+				TryCatchWrapper.configure_cs com
+			]
+		| Java ->
+			SetHXGen.run_filter com new_types;
+			filters @ [
+				TryCatchWrapper.configure_java com
+			]
+		| _ -> filters
+	in
 	List.iter (run_expression_filters tctx filters) new_types;
+
 	(* PASS 1.5: pre-analyzer type filters *)
-	List.iter (fun t ->
-		if com.platform = Cs then check_cs_events tctx.com t;
-	) new_types;
+	let filters =
+		match com.platform with
+		| Cs ->
+			[
+				check_cs_events tctx.com;
+				DefaultArguments.run com;
+			]
+		| Java ->
+			[
+				DefaultArguments.run com;
+			]
+		| _ ->
+			[]
+	in
+	List.iter (fun f -> List.iter f new_types) filters;
+
 	if com.platform <> Cross then Analyzer.Run.run_on_types tctx new_types;
+
 	let filters = [
 		Optimizer.sanitize com;
 		if com.config.pf_add_final_return then add_final_return else (fun e -> e);
 		if com.platform = Js then wrap_js_exceptions com else (fun e -> e);
 		rename_local_vars tctx;
+		mark_switch_break_loops;
 	] in
 	List.iter (run_expression_filters tctx filters) new_types;
 	next_compilation();
@@ -1129,10 +1239,14 @@ let run com tctx main =
 		apply_native_paths;
 		add_rtti;
 		(match com.platform with | Java | Cs -> (fun _ _ -> ()) | _ -> add_field_inits);
-		add_meta_field;
+		(match com.platform with Hl -> (fun _ _ -> ()) | _ -> add_meta_field);
 		check_void_field;
 		(match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ _ -> ()) );
 		commit_features;
 		(if com.config.pf_reserved_type_paths <> [] then check_reserved_type_paths else (fun _ _ -> ()));
 	] in
+	let type_filters = match com.platform with
+		| Cs -> type_filters @ [ fun _ t -> InterfaceProps.run t ]
+		| _ -> type_filters
+	in
 	List.iter (fun t -> List.iter (fun f -> f tctx t) type_filters) com.types

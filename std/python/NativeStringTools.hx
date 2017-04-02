@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -49,4 +49,13 @@ class NativeStringTools {
 		return python.Syntax.field(s, "rpartition")(sep);
 	}
 
+	public static inline function startswith (s:String, prefix:String):Bool
+	{
+		return python.Syntax.field(s, "startswith")(prefix);
+	}
+
+	public static inline function endswith (s:String, suffix:String):Bool
+	{
+		return python.Syntax.field(s, "endswith")(suffix);
+	}
 }

@@ -12,9 +12,9 @@ class Issue4121 extends Test {
 		eq("(@:test (@:test2 ((x) = (@:test3 (1)))))", wrap(@:test @:test2 x = @:test3 1));
 
 		var p2:P2 = { hidden: 12 };
-		t(unit.TestType.typeError(p2.hidden));
+		t(unit.HelperMacros.typeError(p2.hidden));
 		eq(12, @:privateAccess p2.hidden);
-		t(unit.TestType.typeError(p2.hidden = 13));
+		t(unit.HelperMacros.typeError(p2.hidden = 13));
 		@:privateAccess p2.hidden = 13;
 		eq(13, @:privateAccess p2.hidden);
 	}

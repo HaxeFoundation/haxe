@@ -17,6 +17,21 @@ class IImport extends DisplayTestCase {
 	}
 
 	/**
+	import haxe.{-1-}
+	**/
+	function testImport2() {
+		eq(true, hasPath(fields(pos(1)), "Serializer"));
+	}
+
+	/**
+	import haxe.Serializer.{-1-}
+	**/
+	function testImport3() {
+		eq(true, hasPath(fields(pos(1)), "run"));
+		eq(true, hasPath(fields(pos(1)), "Serializer"));
+	}
+
+	/**
 	using ha{-1-}xe.ma{-2-}cro.Exp{-3-}rTools.Expr{-4-}ArrayTools;
 	**/
 	function testUsing1() {
@@ -25,5 +40,20 @@ class IImport extends DisplayTestCase {
 		eq(true, hasPath(fields(pos(3)), "ExprArrayTools"));
 		eq(true, hasField(fields(pos(4)), "iter", "el : Array<haxe.macro.Expr> -> f : (haxe.macro.Expr -> Void) -> Void"));
 		// TODO: test @position display. A bit annoying because it actually ends up in other files and we can't use markers.
+	}
+
+	/**
+	using haxe.{-1-}
+	**/
+	function testUsing2() {
+		eq(true, hasPath(fields(pos(1)), "Serializer"));
+	}
+
+	/**
+	using haxe.Serializer.{-1-}
+	**/
+	function testUsing3() {
+		eq(false, hasPath(fields(pos(1)), "run"));
+		eq(true, hasPath(fields(pos(1)), "Serializer"));
 	}
 }

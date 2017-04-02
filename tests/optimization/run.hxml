@@ -1,4 +1,5 @@
 -cp src
+-D analyzer-optimize
 -D analyzer-user-var-fusion
 --each
 

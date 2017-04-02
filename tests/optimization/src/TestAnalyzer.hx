@@ -448,17 +448,17 @@ class TestAnalyzer extends TestBase {
 		assertEquals(1, a);
 	}
 
-	function testTry1() {
-		var a = 1;
-		try {
+	// function testTry1() {
+	// 	var a = 1;
+	// 	try {
 
-		} catch(e:Dynamic) {
-			assertEqualsConst(1, a);
-			a = 2;
-			assertEqualsConst(2, a);
-		}
-		assertEqualsConst(1, a);
-	}
+	// 	} catch(e:Dynamic) {
+	// 		assertEqualsConst(1, a);
+	// 		a = 2;
+	// 		assertEqualsConst(2, a);
+	// 	}
+	// 	assertEqualsConst(1, a);
+	// }
 
 	function testTry2() {
 		var a = 1;

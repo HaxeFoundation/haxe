@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -40,7 +40,7 @@ enum LoaderHandle {
 	Loaders can be used for sandbox security. When a Module is loaded with a given
 	Loader, this loader can manager the module security by filtering which
 	primitives can be loaded by this module or by rewrapping them at loading-time
-	with custom securized versions. Loaders are inherited in loaded submodules.
+	with custom secured versions. Loaders are inherited in loaded submodules.
 **/
 class Loader {
 
@@ -78,8 +78,8 @@ class Loader {
 	/**
 		The default loader contains a cache of already loaded modules. It's
 		ensuring that the same module does not get loaded twice when circular
-		references are occuring. The same module can eventually be loaded twice
-		but with different names, for example with two relative paths reprensenting
+		references are occurring. The same module can eventually be loaded twice
+		but with different names, for example with two relative paths representing
 		the same file, since the cache is done on a by-name basic.
 	**/
 	public function getCache() : Map<String,Module> {

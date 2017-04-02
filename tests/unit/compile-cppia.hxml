@@ -1,3 +1,4 @@
 compile-each.hxml
--main unit.Test
+-main unit.TestMain
 -cppia bin/unit.cppia
+-lib record-macros

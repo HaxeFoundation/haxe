@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -137,7 +137,7 @@ class ServerLoop<ClientData> {
 	}
 
 	/**
-		Called when an error occured. This enable you to log the error somewhere.
+		Called when an error occurred. This enable you to log the error somewhere.
 		By default the error is displayed using `trace`.
 	**/
 	public function onError( e : Dynamic ) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -47,7 +47,7 @@ private typedef ExprToken = {
 	String, and to have some basic logic.
 
 	A complete documentation of the supported syntax is available at:
-	<http://haxe.org/manual/std-template.html>
+	<https://haxe.org/manual/std-template.html>
 **/
 class Template {
 

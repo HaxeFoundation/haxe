@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -267,7 +267,7 @@ function _hx_array_assign($a, $i, $v) { return $a[$i] = $v; }
 class _hx_break_exception extends Exception {}
 
 function _hx_cast($v, $type) {
-	if(Std::is($v, $type)) {
+	if(_hx_instanceof($v, $type)) {
 		return $v;
 	} else {
 		throw new HException('Class cast error');
@@ -451,6 +451,7 @@ function _hx_instanceof($v, $t) {
 		case 'Dynamic': return true;
 		case 'Class'  : return ($v instanceof _hx_class || $v instanceof _hx_interface) && $v->__tname__ != 'Enum';
 		case 'Enum'   : return $v instanceof _hx_enum;
+		case 'php.NativeArray': return is_array($v);
 		default       : return is_a($v, $t->__tname__);
 	}
 }
@@ -538,7 +539,11 @@ _hx_nullob::$inst = new _hx_nullob();
 function _hx_nullob() { return _hx_nullob::$inst; }
 
 function _hx_qtype($n) {
-	return isset(php_Boot::$qtypes[$n]) ? php_Boot::$qtypes[$n] : null;
+	if(!isset(php_Boot::$qtypes[$n])) {
+		php_Boot::$qtypes[$n] = new _hx_type($n, null);
+	}
+
+	return php_Boot::$qtypes[$n];
 }
 
 function _hx_register_type($t) {
@@ -766,6 +771,12 @@ class _hx_type {
 			$this->__meta__ =  eval($cn.'::$__meta__');
 	}
 
+	public function __ensureMeta__() {
+		if(property_exists($this->__tname__, '__meta__') && !$this->__meta__) {
+			$this->__meta__ =  eval($this->__tname__.'::$__meta__');
+		}
+	}
+
 	public function toString()   { return $this->__toString(); }
 
 	public function __toString() {
@@ -788,9 +799,13 @@ class _hx_type {
 
 	public function __get($n) {
 		if(($r = $this->__rfl__())==null) return null;
-		if($r->hasProperty($n))
-			return $r->getStaticPropertyValue($n);
-		else if($r->hasMethod($n))
+		if($r->hasProperty($n)) {
+			try {
+				return $r->getStaticPropertyValue($n);
+			} catch(Exception $e) {
+				return null;
+			}
+		} else if($r->hasMethod($n))
 			return array($r->name, $n);
 		else
 			return null;
@@ -803,7 +818,7 @@ class _hx_type {
 
 	public function __isset($n) {
 		if(($r = $this->__rfl__())==null) return null;
-		return $r->hasProperty($n) || $r->hasMethod($n);
+		return array_key_exists($n, $r->getStaticProperties()) || $r->hasMethod($n);
 	}
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\WebGLRenderingContext.webidl line 983:0. Do not edit!
+// This file is generated from mozilla\WebGLRenderingContext.webidl. Do not edit!
 
 package js.html.webgl;
 
+/**
+	The `OES_element_index_uint` extension is part of the WebGL API and adds support for `gl.UNSIGNED_INT` types to `WebGLRenderingContext.drawElements()`.
+
+	Documentation [OES_element_index_uint](https://developer.mozilla.org/en-US/docs/Web/API/OES_element_index_uint) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/OES_element_index_uint$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/OES_element_index_uint>
+**/
 @:native("OES_element_index_uint")
 extern class ExtensionElementIndexUint
 {

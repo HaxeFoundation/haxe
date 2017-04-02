@@ -36,13 +36,16 @@ class TestCommandBase extends haxe.unit.TestCase {
 				run(python.lib.Sys.executable, [bin].concat(args));
 			#elseif neko
 				run("neko", [bin].concat(args));
+			#elseif hl
+				run("hl", [bin].concat(args));
 			#elseif php
 				run(untyped __php__("defined('PHP_BINARY') ? PHP_BINARY : 'php'"), [bin].concat(args));
 			#elseif lua
-				switch(Sys.getEnv("LUA")){
-					case null : run("lua", [bin].concat(args));
-					default   : run(Sys.getEnv("LUA"), [bin].concat(args));
-				};
+				if (untyped lua.jit != null){
+					run("luajit", [bin].concat(args));
+				} else {
+					run("lua", [bin].concat(args));
+				}
 			#else
 				-1;
 			#end
@@ -121,13 +124,16 @@ class TestCommandBase extends haxe.unit.TestCase {
 					run(python.lib.Sys.executable, [bin].concat(args));
 				#elseif neko
 					run("neko", [bin].concat(args));
+				#elseif hl
+					run("hl", [bin].concat(args));
 				#elseif php
 					run(untyped __php__("defined('PHP_BINARY') ? PHP_BINARY : 'php'"), [bin].concat(args));
 				#elseif lua
-					switch(Sys.getEnv("LUA")){
-						case null: run("lua", [bin].concat(args));
-						default : run(Sys.getEnv("LUA"), [bin].concat(args));
-					};
+					if (untyped lua.jit != null){
+						run("luajit", [bin].concat(args));
+					} else {
+						run("lua", [bin].concat(args));
+					}
 				#else
 					-1;
 				#end

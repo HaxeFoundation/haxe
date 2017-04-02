@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -37,7 +37,7 @@ package haxe;
 	or may not work for instances of external/native classes.
 
 	The specification of the serialization format can be found here:
-	<http://haxe.org/manual/serialization/format>
+	<https://haxe.org/manual/serialization/format>
 **/
 class Serializer {
 
@@ -111,7 +111,7 @@ class Serializer {
 		Return the String representation of `this` Serializer.
 
 		The exact format specification can be found here:
-		http://haxe.org/manual/serialization/format
+		https://haxe.org/manual/serialization/format
 	**/
 	public function toString() {
 		return buf.toString();
@@ -171,12 +171,12 @@ class Serializer {
 
 	function serializeRef(v) {
 		#if js
-		var vt = untyped __js__("typeof")(v);
+		var vt = js.Lib.typeof(v);
 		#end
 		for( i in 0...cache.length ) {
 			#if js
 			var ci = cache[i];
-			if( untyped __js__("typeof")(ci) == vt && ci == v ) {
+			if( js.Lib.typeof(ci) == vt && ci == v ) {
 			#else
 			if( cache[i] == v ) {
 			#end
@@ -377,7 +377,7 @@ class Serializer {
 				#end
 			default:
 				if( useCache ) cache.pop();
-				if( #if flash try v.hxSerialize != null catch( e : Dynamic ) false #elseif (cs || java || python) Reflect.hasField(v, "hxSerialize") #else v.hxSerialize != null #end  ) {
+				if( #if flash try v.hxSerialize != null catch( e : Dynamic ) false #elseif (cs || java || python) Reflect.hasField(v, "hxSerialize") #elseif (php && php7) php.Global.method_exists(v, 'hxSerialize') #else v.hxSerialize != null #end  ) {
 					buf.add("C");
 					serializeString(Type.getClassName(c));
 					if( useCache ) cache.push(v);
@@ -476,8 +476,13 @@ class Serializer {
 				buf.add(0);
 			else {
 				buf.add(l);
-				for( i in 0...l )
+				for( i in 0...l ) {
+					#if (php && php7)
+					serialize(v.params[i]);
+					#elseif php
 					serialize(untyped __field__(v, __php__("params"), i));
+					#end
+				}
 			}
 			#elseif (java || cs || python || hl)
 			if( useEnumIndex ) {

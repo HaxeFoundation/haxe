@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,11 +22,8 @@
 package hl;
 
 import hl.types.ArrayDyn;
-import hl.types.BaseType;
+import hl.BaseType;
 
 @:dox(hide)
 extern class Boot {
-	@:extern public inline static function dump( v : Dynamic ) : Void {
-		untyped $dump(v);
-	}
 }

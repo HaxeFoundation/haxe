@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,15 +25,19 @@ package haxe.io;
 class Bytes {
 
 	public var length(default,null) : Int;
-	var b : hl.types.Bytes;
+	var b : hl.Bytes;
 
-	function new(b:hl.types.Bytes,length:Int) : Void {
+	function new(b:hl.Bytes,length:Int) : Void {
 		this.b = b;
 		this.length = length;
 	}
 
 	inline function out(pos:Int) : Bool {
 		return (pos:UInt) >= (length : UInt);
+	}
+
+	inline function outRange(pos:Int,len:Int) : Bool {
+		return pos < 0 || len < 0 || ((pos+len):UInt) > (length : UInt);
 	}
 
 	public function get( pos : Int ) : Int {
@@ -46,17 +50,17 @@ class Bytes {
 	}
 
 	public function blit( pos : Int, src : Bytes, srcpos : Int, len : Int ) : Void {
-		if( pos < 0 || srcpos < 0 || len < 0 || pos + len > length || srcpos + len > src.length ) throw Error.OutsideBounds;
+		if( outRange(pos, len) || src.outRange(srcpos,len) ) throw Error.OutsideBounds;
 		b.blit(pos, src.b, srcpos, len);
 	}
 
 	public function fill( pos : Int, len : Int, value : Int ) : Void {
-		if( pos < 0 || len < 0 || pos + len > length ) throw Error.OutsideBounds;
+		if( outRange(pos,len) ) throw Error.OutsideBounds;
 		b.fill(pos, len, value);
 	}
 
 	public function sub( pos : Int, len : Int ) : Bytes {
-		if( pos < 0 || len < 0 || pos + len > length ) throw Error.OutsideBounds;
+		if( outRange(pos,len) ) throw Error.OutsideBounds;
 		return new Bytes(b.sub(pos, len), len);
 	}
 
@@ -116,9 +120,9 @@ class Bytes {
 	}
 
 	public function getString( pos : Int, len : Int ) : String {
-		if( pos < 0 || len < 0 || pos + len > length ) throw Error.OutsideBounds;
+		if( outRange(pos,len) ) throw Error.OutsideBounds;
 
-		var b = new hl.types.Bytes(len + 1);
+		var b = new hl.Bytes(len + 1);
 		b.blit(0, this.b, pos, len);
 		b[len] = 0;
 		return @:privateAccess String.fromUTF8(b);
@@ -153,7 +157,7 @@ class Bytes {
 	}
 
 	public static function alloc( length : Int ) : Bytes {
-		var b = new hl.types.Bytes(length);
+		var b = new hl.Bytes(length);
 		b.fill(0, length, 0);
 		return new Bytes(b,length);
 	}

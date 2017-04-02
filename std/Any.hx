@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -34,4 +34,5 @@
 abstract Any(Dynamic) {
 	@:noCompletion @:extern @:to inline function __promote<T>():T return this;
 	@:noCompletion @:extern @:from inline static function __cast<T>(value:T):Any return cast value;
+	@:noCompletion @:extern inline function toString():String return Std.string(this);
 }

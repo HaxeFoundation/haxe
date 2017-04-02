@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,7 +21,7 @@
  */
 /**
 	This class provides advanced methods on Strings. It is ideally used with
-	`using StringTools` and then acts as an [extension](http://haxe.org/manual/lf-static-extension.html)
+	`using StringTools` and then acts as an [extension](https://haxe.org/manual/lf-static-extension.html)
 	to the `String` class.
 
 	If the first argument to any of the methods is null, the result is
@@ -86,8 +86,8 @@ class StringTools {
 					ret.addChar('('.code);
 				case ['2'.code, '9'.code]:
 					ret.addChar(')'.code);
-				case ['7'.code, 'E'.code]:
-					ret.addChar('-'.code);
+				case ['7'.code, 'E'.code] | ['7'.code, 'e'.code]:
+					ret.addChar('~'.code);
 				case _:
 					ret.addChar('%'.code);
 					ret.addChar(cast c1);
@@ -180,7 +180,7 @@ class StringTools {
 
 		If `start` is the empty String `""`, the result is true.
 	**/
-	public static #if (cs || java) inline #end function startsWith( s : String, start : String ) : Bool {
+	public static #if (cs || java || python) inline #end function startsWith( s : String, start : String ) : Bool {
 		#if java
 		return untyped s.startsWith(start);
 		#elseif cs
@@ -196,6 +196,8 @@ class StringTools {
 		return true;
 		#elseif hl
 		return @:privateAccess (s.length >= start.length && s.bytes.compare(0,start.bytes,0,start.length<<1) == 0);
+		#elseif python
+		return python.NativeStringTools.startswith(s, start);
 		#else
 		return( s.length >= start.length && s.substr(0, start.length) == start );
 		#end
@@ -208,7 +210,7 @@ class StringTools {
 
 		If `end` is the empty String `""`, the result is true.
 	**/
-	public static #if (cs || java) inline #end function endsWith( s : String, end : String ) : Bool {
+	public static #if (cs || java || python) inline #end function endsWith( s : String, end : String ) : Bool {
 		#if java
 		return untyped s.endsWith(end);
 		#elseif cs
@@ -226,6 +228,8 @@ class StringTools {
 		var elen = end.length;
 		var slen = s.length;
 		return @:privateAccess (slen >= elen && s.bytes.compare((slen - elen) << 1, end.bytes, 0, elen << 1) == 0);
+		#elseif python
+		return python.NativeStringTools.endswith(s, end);
 		#else
 		var elen = end.length;
 		var slen = s.length;
@@ -361,7 +365,7 @@ class StringTools {
 	}
 
 	/**
-		Replace all occurences of the String `sub` in the String `s` by the
+		Replace all occurrences of the String `sub` in the String `s` by the
 		String `by`.
 
 		If `sub` is the empty String `""`, `by` is inserted after each character

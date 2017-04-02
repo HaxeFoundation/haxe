@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -85,52 +85,29 @@ class DynamicObject extends HxObject implements Dynamic
 #if core_api_serialize
 @:meta(System.Serializable)
 #end
-class HxEnum
-{
-	@:readOnly private var index(default,never):Int;
+class HxEnum {
+	@:readOnly var index(default,never):Int;
 
-	public function new(index:Int)
-	{
+	@:protected function new(index:Int) {
 		untyped this.index = index;
 	}
 
-	public function getTag():String
-	{
+	public function getTag():String {
 		return throw 'Not Implemented';
 	}
 
-	public function getParams():Array<{}>
-	{
+	public function getParams():Array<{}> {
 		return [];
 	}
 
-	public function toString():String
-	{
+	public function toString():String {
 		return getTag();
 	}
-}
 
-@:keep @:native('haxe.lang.ParamEnum') @:nativeGen
-private class ParamEnum extends HxEnum
-{
-	@:readOnly private var params(default,never):Vector<Dynamic>;
-
-	public function new(index:Int, params:Vector<Dynamic>)
-	{
-		super(index);
-		untyped this.params = params;
-	}
-
-	override public function getParams():Array<{}>
-	{
-		return params == null ? [] : cs.Lib.array(cast params.toData());
-	}
-
-	override public function toString():String
-	{
-		if (params == null || params.length == 0) return getTag();
+	@:protected static function paramsToString(tag:String, params:Vector<Dynamic>):String {
 		var ret = new StringBuf();
-		ret.add(getTag()); ret.add("(");
+		ret.add(tag);
+		ret.add("(");
 		var first = true;
 		for (p in params)
 		{
@@ -144,29 +121,7 @@ private class ParamEnum extends HxEnum
 		return ret.toString();
 	}
 
-	public function Equals(obj:Dynamic)
-	{
-		if (obj == this) //we cannot use == as .Equals !
-			return true;
-		var obj:ParamEnum = Std.instance(obj, ParamEnum);
-		var ret = obj != null && Std.is(obj, StdType.getClass(this)) && obj.index == this.index;
-		if (!ret)
-			return false;
-		if (obj.params == this.params)
-			return true;
-		var len = 0;
-		if (obj.params == null || this.params == null || (len = this.params.length) != obj.params.length)
-			return false;
-		for (i in 0...len)
-		{
-			if (!StdType.enumEq(obj.params[i], this.params[i]))
-				return false;
-		}
-		return true;
-	}
-
-	public function GetHashCode():Int
-	{
+	@:protected static function paramsGetHashCode(index:Int, params:Vector<Dynamic>):Int {
 		var h:Int = 19;
 		if (params != null) for (p in params)
 		{
@@ -177,5 +132,4 @@ private class ParamEnum extends HxEnum
 		h += index;
 		return h;
 	}
-
 }

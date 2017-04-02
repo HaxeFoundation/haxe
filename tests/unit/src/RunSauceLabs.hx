@@ -53,7 +53,8 @@ class RunSauceLabs {
 
 		// hide "Stop running this script?" dialogs
 		// https://support.saucelabs.com/customer/portal/articles/2057026-how-to-hide-%22stop-running-this-script-%22-dialogs
-		var hideLongRunningScriptWarning = "https://support.saucelabs.com/customer/portal/kb_article_attachments/59514/original.bat";
+		// https://gist.github.com/andyli/948045e8f9d7b28104c2e2751d77d04a
+		var hideLongRunningScriptWarning = "https://gist.githubusercontent.com/andyli/948045e8f9d7b28104c2e2751d77d04a/raw/bfe5af9a94175c19d87131cc9bb059872e8d170f/IEMaxScriptStatements.bat";
 
 		//https://saucelabs.com/platforms
 		var browsers:Array<Dynamic> = [

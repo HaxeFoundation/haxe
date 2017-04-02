@@ -1,13 +1,147 @@
-2016-??-??: 3.3.0-RC2
-
-	New features:
-
-	all : added Any type (#5500)
+????-??-??: 4.0.0
 
 	General improvements and optimizations:
 
+	js : improved generation of `break` inside `switch` inside loops (#4964)
+	cs : improved generation of enum classes (#6119)
+
+	Removals:
+
+	all : SPOD (sys.db.Object, sys.db.Manager and friends) was moved into a separate library `record-macros` (https://github.com/HaxeFoundation/record-macros)
+	js : js.JQuery and js.SWFObject were moved into hx3compat library (https://github.com/HaxeFoundation/hx3compat),
+	     it's recommended to use more modern js.jquery.JQuery and js.swfobject.SWFObject classes.
+
+2017-03-20: 3.4.2
+
+	Bugfixes:
+
+	cpp : fixed issue with @:native names being prefixed with :: (#6086)
+	cpp : fixed issue with return type handling (#6103)
+	cpp : fixed inaccurate line numbers that threw off debugging
+	php7 : fixed generation of `[][0]` constructs (#6090)
+
+2017-03-17: 3.4.1
+
+	New features:
+
+	php7 : added source maps generation with `-D source_map` flag.
+
+	General improvements and optimizations:
+
+	cpp : added cpp.Star and cpp.Struct to help with extern typing
+	lua : cleaned up various parts of the standard library
+
+	Bugfixes:
+
+	all : fixed compilation server issue with two identical @:native paths on extern abstracts (#5993)
+	all : fixed invalid inling in a specific case (#6067)
+	all : fixed various display related issues
+	all : fixed inline super() calls missing field initializations (#6097)
+	all : consider UNC paths to be absolute in haxe.io.Path.isAbsolute (#6061)
+	cpp : improved typing of some Function/Callable-related types
+	cpp : fixed problem with line numbers when debugging
+	hl : various fixes and improvements
+	php : fixed FileSystem.stat() for directories on Windows (#6057)
+	php/php7 : fixed invalid result of Web.getPostData() (#6033)
+	php7 : fixed invalid access to length of string in some cases (#6055)
+	php7 : fixed infinite recursion on MysqlConnection.close() (#6056)
+
+2017-01-31: 3.4.0
+
+	General improvements and optimizations:
+
+	all : support completion for static extensions (#5766)
+	all : removed neko dependency for macros, use PCRE instead
+	all : disabled analyzer optimizations by default, re-enable with -D analyzer-optimize
+	php7 : generate native `$v instanceof MyType` instead of `Std.is(v, MyType)` where possible for better performance
+	php7 : added @:phpNoConstructor meta for externs which do not have native php constructors and yet can be constructed
+	php7 : greatly reduced amount of generated tmp vars
+	php7 : `Array` performance improvements
+	hl : made various improvements
+
+	Bugfixes:
+
+	all : fixed `using` picking up non-static abstract functions (#5888)
+	all : fixed issue with side-effect detection when optimizing (#5911)
+	all : fixed issue with zlib bindings causing zlib_deflate errors (#5941)
+	php7 : Allow user-defined modules in `php` package (#5921)
+	php7 : Dereference some of `php.Syntax` methods if required (#5923)
+	php : fixed assigning a method of dynamic value to a variable (#5469)
+	php : fixed missing initialization of dynamic methods in classes with empty constructors (#4723)
+
+2016-12-24: 3.4.0-RC2
+
+	New features:
+
+	js : added API documentation to HTML externs (#5868)
+	php : added php7 target, enabled with -D php7
+
+	Bugfixes:
+
+	all : fixed top-down inference infinite recursion issue (#5848)
+	all : fixed regression in Compiler.include (#5847)
+	all : fixed Not_found exception related to try/catch (#5851)
+	all : fixed metadata completion showing up in trace arguments (#5775)
+	all : fixed problem with useless pattern detection (#5873)
+	all : fixed issue with toString handling in trace arguments (#5858)
+	all : fixed inline constructor scoping (#5855)
+	cpp : fixed issue with cpp.Pointer variables being eliminated (#5850)
+	js : added Notification API to HTML externs (#5852)
+	js : fixed several options structures in HTML externs (#5849)
+	php/cs : FileSystem.deleteFile() and FileSystem.deleteDirectory() now throw on non-existent path (#5742)
+	php/lua : fixed field access on `null` (#4988)
+	php : fixed static field access on a `Class<T>` stored to a field (#5383)
+	php : fixed invalid detection of `NativeArray` by `Std.is()` (#5565)
+	php : fixed `stdin()`, `stdout()`, `stderr()` of `Sys` to use predefined constants for corresponding channels (#5733)
+	php : fixed Std.parseInt() on hexstrings for PHP7+ (#5521)
+	php : fixed typed cast in assign operations (#5135)
+	php : fixed exception thrown by `Reflect.fields(o)` when `o` is `Class<T>` (#5608)
+	php : fixed json encoding of empty objects (#5015)
+	php : fixed checking floats for equality (#4260)
+	php : throw if invalid json string supplied to Json.parse() (#4592)
+	php : fixed ssl connections (#4581)
+	php : fixed writing bytes containing zero byte to MySQL & SQLite (#4489)
+	php : fixed call()() cases for PHP5 (#5569)
+
+2016-11-29: 3.4.0-RC1
+
+	New features:
+
+	all : support metadata completion
+	all : support type-hint completion
+	all : added @signature display mode (#4758)
+	all : finalized HashLink (HL) target
+
+	General improvements and optimizations:
+
+	all : greatly improved support for display mode in general
+	all : made --times output look much nicer
+	all : remove calls to functions that have no side-effect
+	all : hid private property accessors from completion (#5678)
 	js : updated jQuery extern (js.jquery.*) for jQuery 1.12.4 / 3.1.0 support.
 	js : jQuery extern (js.jquery.*) now includes deprecated fields marked with @:deprecated.
+	js : no longer rewrite `o["s"]` to `o.s` (#5724)
+	cpp : greatly improved ObjC output and integration options
+	lua : greatly improved code output quality
+
+	Bugfixes:
+
+	all : fixed various optimization issues
+	all : fixed various issues with side-effect detection
+	all : fixed performance drain in the DCE implementation (#5716)
+	all : fixed issue with assignments when inlining constructors (#5340)
+	all : fixed major inlining issue when using compilation server (#5320)
+	all : fixed pattern matching evaluation order issue (#5274)
+	cpp : fixed various minor code generation issues
+	js : fixed issue regarding iterating over abstracts (#5385)
+	python : fixed evaluation order issue for array writing (#5366)
+
+	Standard Library:
+
+	all : added Any type (#5500)
+	all : added haxe.extern.AsVar
+	all : added haxe.macro.CompilationServer (experimental)
+	all : fixed haxe.Template.resolve (#5301)
 
 2016-05-27: 3.3.0-RC1
 

@@ -25,7 +25,7 @@ class Issue4940 extends Test {
             case KA: new A();
             case KB: new B();
         }
-		unit.TestType.typedAs(new Base(), base);
+		unit.HelperMacros.typedAs(new Base(), base);
 	}
 
 	function testResolutionOrder() {

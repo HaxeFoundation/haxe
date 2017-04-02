@@ -4,6 +4,6 @@
 --next
 
 compile-each.hxml
--main unit.Test
+-main unit.TestMain
 -cs bin/cs
 -net-lib native_cs/bin/native_cs.dll

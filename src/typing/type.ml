@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -18,6 +18,7 @@
  *)
 
 open Ast
+open Globals
 
 type path = string list * string
 
@@ -45,16 +46,24 @@ and method_kind =
 	| MethDynamic
 	| MethMacro
 
+type module_check_policy =
+	| NoCheckFileTimeModification
+	| CheckFileContentModification
+	| NoCheckDependencies
+	| NoCheckShadowing
+
 type t =
 	| TMono of t option ref
 	| TEnum of tenum * tparams
 	| TInst of tclass * tparams
 	| TType of tdef * tparams
-	| TFun of (string * bool * t) list * t
+	| TFun of tsignature
 	| TAnon of tanon
 	| TDynamic of t
 	| TLazy of (unit -> t) ref
 	| TAbstract of tabstract * tparams
+
+and tsignature = (string * bool * t) list * t
 
 and tparams = t list
 
@@ -141,7 +150,7 @@ and tfield_access =
 and texpr = {
 	eexpr : texpr_expr;
 	etype : t;
-	epos : Ast.pos;
+	epos : pos;
 }
 
 and tclass_field = {
@@ -149,18 +158,19 @@ and tclass_field = {
 	mutable cf_type : t;
 	mutable cf_public : bool;
 	cf_pos : pos;
+	cf_name_pos : pos;
 	mutable cf_doc : Ast.documentation;
 	mutable cf_meta : metadata;
 	mutable cf_kind : field_kind;
 	mutable cf_params : type_params;
 	mutable cf_expr : texpr option;
+	mutable cf_expr_unoptimized : tfunc option;
 	mutable cf_overloads : tclass_field list;
 }
 
 and tclass_kind =
 	| KNormal
 	| KTypeParameter of t list
-	| KExtension of tclass * tparams
 	| KExpr of Ast.expr
 	| KGeneric
 	| KGenericInstance of tclass * tparams
@@ -173,7 +183,8 @@ and metadata = Ast.metadata
 and tinfos = {
 	mt_path : path;
 	mt_module : module_def;
-	mt_pos : Ast.pos;
+	mt_pos : pos;
+	mt_name_pos : pos;
 	mt_private : bool;
 	mt_doc : Ast.documentation;
 	mutable mt_meta : metadata;
@@ -183,7 +194,8 @@ and tinfos = {
 and tclass = {
 	mutable cl_path : path;
 	mutable cl_module : module_def;
-	mutable cl_pos : Ast.pos;
+	mutable cl_pos : pos;
+	mutable cl_name_pos : pos;
 	mutable cl_private : bool;
 	mutable cl_doc : Ast.documentation;
 	mutable cl_meta : metadata;
@@ -194,7 +206,7 @@ and tclass = {
 	mutable cl_interface : bool;
 	mutable cl_super : (tclass * tparams) option;
 	mutable cl_implements : (tclass * tparams) list;
-	mutable cl_fields : (string , tclass_field) PMap.t;
+	mutable cl_fields : (string, tclass_field) PMap.t;
 	mutable cl_statics : (string, tclass_field) PMap.t;
 	mutable cl_ordered_statics : tclass_field list;
 	mutable cl_ordered_fields : tclass_field list;
@@ -211,7 +223,8 @@ and tclass = {
 and tenum_field = {
 	ef_name : string;
 	ef_type : t;
-	ef_pos : Ast.pos;
+	ef_pos : pos;
+	ef_name_pos : pos;
 	ef_doc : Ast.documentation;
 	ef_index : int;
 	ef_params : type_params;
@@ -221,7 +234,8 @@ and tenum_field = {
 and tenum = {
 	mutable e_path : path;
 	e_module : module_def;
-	e_pos : Ast.pos;
+	e_pos : pos;
+	e_name_pos : pos;
 	e_private : bool;
 	e_doc : Ast.documentation;
 	mutable e_meta : metadata;
@@ -236,7 +250,8 @@ and tenum = {
 and tdef = {
 	t_path : path;
 	t_module : module_def;
-	t_pos : Ast.pos;
+	t_pos : pos;
+	t_name_pos : pos;
 	t_private : bool;
 	t_doc : Ast.documentation;
 	mutable t_meta : metadata;
@@ -248,7 +263,8 @@ and tdef = {
 and tabstract = {
 	mutable a_path : path;
 	a_module : module_def;
-	a_pos : Ast.pos;
+	a_pos : pos;
+	a_name_pos : pos;
 	a_private : bool;
 	a_doc : Ast.documentation;
 	mutable a_meta : metadata;
@@ -282,8 +298,9 @@ and module_def = {
 and module_def_extra = {
 	m_file : string;
 	m_sign : string;
+	mutable m_check_policy : module_check_policy list;
 	mutable m_time : float;
-	mutable m_dirty : bool;
+	mutable m_dirty : module_def option;
 	mutable m_added : int;
 	mutable m_mark : int;
 	mutable m_deps : (int,module_def) PMap.t;
@@ -341,15 +358,25 @@ let mk_mono() = TMono (ref None)
 
 let rec t_dynamic = TDynamic t_dynamic
 
+let not_opened = ref Closed
+let mk_anon fl = TAnon { a_fields = fl; a_status = not_opened; }
+
+(* We use this for display purposes because otherwise we never see the Dynamic type that
+   is defined in StdTypes.hx. This is set each time a typer is created, but this is fine
+   because Dynamic is the same in all contexts. If this ever changes we'll have to review
+   how we handle this. *)
+let t_dynamic_def = ref t_dynamic
+
 let tfun pl r = TFun (List.map (fun t -> "",false,t) pl,r)
 
 let fun_args l = List.map (fun (a,c,t) -> a, c <> None, t) l
 
-let mk_class m path pos =
+let mk_class m path pos name_pos =
 	{
 		cl_path = path;
 		cl_module = m;
 		cl_pos = pos;
+		cl_name_pos = name_pos;
 		cl_doc = None;
 		cl_meta = [];
 		cl_private = false;
@@ -372,11 +399,11 @@ let mk_class m path pos =
 		cl_restore = (fun() -> ());
 	}
 
-let module_extra file sign time kind =
+let module_extra file sign time kind policy =
 	{
 		m_file = file;
 		m_sign = sign;
-		m_dirty = false;
+		m_dirty = None;
 		m_added = 0;
 		m_mark = 0;
 		m_time = time;
@@ -387,18 +414,21 @@ let module_extra file sign time kind =
 		m_macro_calls = [];
 		m_if_feature = [];
 		m_features = Hashtbl.create 0;
+		m_check_policy = policy;
 	}
 
 
-let mk_field name t p = {
+let mk_field name t p name_pos = {
 	cf_name = name;
 	cf_type = t;
 	cf_pos = p;
+	cf_name_pos = name_pos;
 	cf_doc = None;
 	cf_meta = [];
 	cf_public = true;
 	cf_kind = Var { v_read = AccNormal; v_write = AccNormal };
 	cf_expr = None;
+	cf_expr_unoptimized = None;
 	cf_params = [];
 	cf_overloads = [];
 }
@@ -407,20 +437,21 @@ let null_module = {
 		m_id = alloc_mid();
 		m_path = [] , "";
 		m_types = [];
-		m_extra = module_extra "" "" 0. MFake;
+		m_extra = module_extra "" "" 0. MFake [];
 	}
 
 let null_class =
-	let c = mk_class null_module ([],"") Ast.null_pos in
+	let c = mk_class null_module ([],"") null_pos null_pos in
 	c.cl_private <- true;
 	c
 
-let null_field = mk_field "" t_dynamic Ast.null_pos
+let null_field = mk_field "" t_dynamic null_pos null_pos
 
 let null_abstract = {
 	a_path = ([],"");
 	a_module = null_module;
 	a_pos = null_pos;
+	a_name_pos = null_pos;
 	a_private = true;
 	a_doc = None;
 	a_meta = [];
@@ -875,15 +906,15 @@ let rec s_type ctx t =
 		| None -> Printf.sprintf "Unknown<%d>" (try List.assq t (!ctx) with Not_found -> let n = List.length !ctx in ctx := (t,n) :: !ctx; n)
 		| Some t -> s_type ctx t)
 	| TEnum (e,tl) ->
-		Ast.s_type_path e.e_path ^ s_type_params ctx tl
+		s_type_path e.e_path ^ s_type_params ctx tl
 	| TInst (c,tl) ->
 		(match c.cl_kind with
 		| KExpr e -> Ast.s_expr e
-		| _ -> Ast.s_type_path c.cl_path ^ s_type_params ctx tl)
+		| _ -> s_type_path c.cl_path ^ s_type_params ctx tl)
 	| TType (t,tl) ->
-		Ast.s_type_path t.t_path ^ s_type_params ctx tl
+		s_type_path t.t_path ^ s_type_params ctx tl
 	| TAbstract (a,tl) ->
-		Ast.s_type_path a.a_path ^ s_type_params ctx tl
+		s_type_path a.a_path ^ s_type_params ctx tl
 	| TFun ([],t) ->
 		"Void -> " ^ s_fun ctx t false
 	| TFun (l,t) ->
@@ -1213,8 +1244,6 @@ let s_class_kind = function
 		"KNormal"
 	| KTypeParameter tl ->
 		Printf.sprintf "KTypeParameter [%s]" (s_types tl)
-	| KExtension(c,tl) ->
-		Printf.sprintf "KExtension %s<%s>" (s_type_path c.cl_path) (s_types tl)
 	| KExpr _ ->
 		"KExpr"
 	| KGeneric ->
@@ -1233,8 +1262,14 @@ module Printer = struct
 	let s_type =
 		s_type (print_context())
 
+	let s_pair s1 s2 =
+		Printf.sprintf "(%s,%s)" s1 s2
+
 	let s_record_field name value =
 		Printf.sprintf "%s = %s;" name value
+
+	let s_pos p =
+		Printf.sprintf "%s: %i-%i" p.pfile p.pmin p.pmax
 
 	let s_record_fields tabs fields =
 		let sl = List.map (fun (name,value) -> s_record_field name value) fields in
@@ -1269,22 +1304,26 @@ module Printer = struct
 	let s_type_params tl =
 		s_list ", " s_type_param tl
 
-	let s_tclass_field cf =
-		s_record_fields "\t" [
+	let s_tclass_field tabs cf =
+		s_record_fields tabs [
 			"cf_name",cf.cf_name;
 			"cf_doc",s_doc cf.cf_doc;
 			"cf_type",s_type_kind (follow cf.cf_type);
 			"cf_public",string_of_bool cf.cf_public;
+			"cf_pos",s_pos cf.cf_pos;
+			"cf_name_pos",s_pos cf.cf_name_pos;
 			"cf_meta",s_metadata cf.cf_meta;
 			"cf_kind",s_kind cf.cf_kind;
 			"cf_params",s_type_params cf.cf_params;
 			"cf_expr",s_opt (s_expr_ast true "\t\t" s_type) cf.cf_expr;
 		]
 
-	let s_tclass c =
-		s_record_fields "" [
+	let s_tclass tabs c =
+		s_record_fields tabs [
 			"cl_path",s_type_path c.cl_path;
 			"cl_module",s_type_path c.cl_module.m_path;
+			"cl_pos",s_pos c.cl_pos;
+			"cl_name_pos",s_pos c.cl_name_pos;
 			"cl_private",string_of_bool c.cl_private;
 			"cl_doc",s_doc c.cl_doc;
 			"cl_meta",s_metadata c.cl_meta;
@@ -1298,15 +1337,17 @@ module Printer = struct
 			"cl_array_access",s_opt s_type c.cl_array_access;
 			"cl_overrides",s_list "," (fun cf -> cf.cf_name) c.cl_overrides;
 			"cl_init",s_opt (s_expr_ast true "" s_type) c.cl_init;
-			"cl_constructor",s_opt s_tclass_field c.cl_constructor;
-			"cl_ordered_fields",s_list "\n\t" s_tclass_field c.cl_ordered_fields;
-			"cl_ordered_statics",s_list "\n\t" s_tclass_field c.cl_ordered_statics;
+			"cl_constructor",s_opt (s_tclass_field (tabs ^ "\t")) c.cl_constructor;
+			"cl_ordered_fields",s_list "\n\t" (s_tclass_field (tabs ^ "\t")) c.cl_ordered_fields;
+			"cl_ordered_statics",s_list "\n\t" (s_tclass_field (tabs ^ "\t")) c.cl_ordered_statics;
 		]
 
 	let s_tdef tabs t =
 		s_record_fields tabs [
 			"t_path",s_type_path t.t_path;
 			"t_module",s_type_path t.t_module.m_path;
+			"t_pos",s_pos t.t_pos;
+			"t_name_pos",s_pos t.t_name_pos;
 			"t_private",string_of_bool t.t_private;
 			"t_doc",s_doc t.t_doc;
 			"t_meta",s_metadata t.t_meta;
@@ -1314,34 +1355,40 @@ module Printer = struct
 			"t_type",s_type_kind t.t_type
 		]
 
-	let s_tenum_field ef =
-		s_record_fields "\t" [
+	let s_tenum_field tabs ef =
+		s_record_fields tabs [
 			"ef_name",ef.ef_name;
 			"ef_doc",s_doc ef.ef_doc;
+			"ef_pos",s_pos ef.ef_pos;
+			"ef_name_pos",s_pos ef.ef_name_pos;
 			"ef_type",s_type_kind ef.ef_type;
 			"ef_index",string_of_int ef.ef_index;
 			"ef_params",s_type_params ef.ef_params;
 			"ef_meta",s_metadata ef.ef_meta
 		]
 
-	let s_tenum en =
-		s_record_fields "" [
+	let s_tenum tabs en =
+		s_record_fields tabs [
 			"e_path",s_type_path en.e_path;
 			"e_module",s_type_path en.e_module.m_path;
+			"e_pos",s_pos en.e_pos;
+			"e_name_pos",s_pos en.e_name_pos;
 			"e_private",string_of_bool en.e_private;
 			"d_doc",s_doc en.e_doc;
 			"e_meta",s_metadata en.e_meta;
 			"e_params",s_type_params en.e_params;
 			"e_type",s_tdef "\t" en.e_type;
 			"e_extern",string_of_bool en.e_extern;
-			"e_constrs",s_list "\n\t" s_tenum_field (PMap.fold (fun ef acc -> ef :: acc) en.e_constrs []);
+			"e_constrs",s_list "\n\t" (s_tenum_field (tabs ^ "\t")) (PMap.fold (fun ef acc -> ef :: acc) en.e_constrs []);
 			"e_names",String.concat ", " en.e_names
 		]
 
-	let s_tabstract a =
-		s_record_fields "" [
+	let s_tabstract tabs a =
+		s_record_fields tabs [
 			"a_path",s_type_path a.a_path;
 			"a_modules",s_type_path a.a_module.m_path;
+			"a_pos",s_pos a.a_pos;
+			"a_name_pos",s_pos a.a_name_pos;
 			"a_private",string_of_bool a.a_private;
 			"a_doc",s_doc a.a_doc;
 			"a_meta",s_metadata a.a_meta;
@@ -1384,7 +1431,7 @@ module Printer = struct
 			"m_file",me.m_file;
 			"m_sign",me.m_sign;
 			"m_time",string_of_float me.m_time;
-			"m_dirty",string_of_bool me.m_dirty;
+			"m_dirty",s_opt (fun m -> s_type_path m.m_path) me.m_dirty;
 			"m_added",string_of_int me.m_added;
 			"m_mark",string_of_int me.m_mark;
 			"m_deps",s_pmap string_of_int (fun m -> snd m.m_path) me.m_deps;
@@ -1401,6 +1448,33 @@ module Printer = struct
 			"m_id",string_of_int m.m_id;
 			"m_path",s_type_path m.m_path;
 			"m_extra",s_module_def_extra "\t" m.m_extra
+		]
+
+	let s_type_path tp =
+		s_record_fields "" [
+			"tpackage",s_list "." (fun s -> s) tp.tpackage;
+			"tname",tp.tname;
+			"tparams","";
+			"tsub",s_opt (fun s -> s) tp.tsub;
+		]
+
+	let s_class_flag = function
+		| HInterface -> "HInterface"
+		| HExtern -> "HExtern"
+		| HPrivate -> "HPrivate"
+		| HExtends tp -> "HExtends " ^ (s_type_path (fst tp))
+		| HImplements tp -> "HImplements " ^ (s_type_path (fst tp))
+
+	let s_placed f (x,p) =
+		s_pair (f x) (s_pos p)
+
+	let s_class_field cff =
+		s_record_fields "" [
+			"cff_name",s_placed (fun s -> s) cff.cff_name;
+			"cff_doc",s_opt (fun s -> s) cff.cff_doc;
+			"cff_pos",s_pos cff.cff_pos;
+			"cff_meta",s_metadata cff.cff_meta;
+			"cff_access",s_list ", " Ast.s_access cff.cff_access;
 		]
 end
 
@@ -1671,6 +1745,16 @@ let type_iseq_strict a b =
 let unify_stack = ref []
 let abstract_cast_stack = ref []
 let unify_new_monos = ref []
+
+let print_stacks() =
+	let ctx = print_context() in
+	let st = s_type ctx in
+	print_endline "unify_stack";
+	List.iter (fun (a,b) -> Printf.printf "\t%s , %s\n" (st a) (st b)) !unify_stack;
+	print_endline "monos";
+	List.iter (fun m -> print_endline ("\t" ^ st m)) !unify_new_monos;
+	print_endline "abstract_cast_stack";
+	List.iter (fun (a,b) -> Printf.printf "\t%s , %s\n" (st a) (st b)) !abstract_cast_stack
 
 let rec unify a b =
 	if a == b then
@@ -2122,74 +2206,6 @@ and unify_with_access t1 f2 =
 	(* read/write *)
 	| _ -> with_variance (type_eq EqBothDynamic) t1 f2.cf_type
 
-module Abstract = struct
-	open Ast
-
-	let find_to ab pl b =
-		if follow b == t_dynamic then
-			List.find (fun (t,_) -> follow t == t_dynamic) ab.a_to_field
-		else if List.exists (unify_to ab pl ~allow_transitive_cast:false b) ab.a_to then
-			raise Not_found (* legacy compatibility *)
-		else
-			List.find (unify_to_field ab pl b) ab.a_to_field
-
-	let find_from ab pl a b =
-		if follow a == t_dynamic then
-			List.find (fun (t,_) -> follow t == t_dynamic) ab.a_from_field
-		else if List.exists (unify_from ab pl a ~allow_transitive_cast:false b) ab.a_from then
-			raise Not_found (* legacy compatibility *)
-		else
-			List.find (unify_from_field ab pl a b) ab.a_from_field
-
-	let underlying_type_stack = ref []
-
-	let rec get_underlying_type a pl =
-		let maybe_recurse t =
-			underlying_type_stack := (TAbstract(a,pl)) :: !underlying_type_stack;
-			let rec loop t = match t with
-				| TMono r ->
-					(match !r with
-					| Some t -> loop t
-					| _ -> t)
-				| TLazy f ->
-					loop (!f())
-				| TType({t_path=([],"Null")} as tn,[t1]) ->
-					TType(tn,[loop t1])
-				| TType (t,tl) ->
-					loop (apply_params t.t_params tl t.t_type)
-				| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
-					if List.exists (fast_eq t) !underlying_type_stack then begin
-						let pctx = print_context() in
-						let s = String.concat " -> " (List.map (fun t -> s_type pctx t) (List.rev (t :: !underlying_type_stack))) in
-						underlying_type_stack := [];
-						raise (Error("Abstract chain detected: " ^ s,a.a_pos))
-					end;
-					get_underlying_type a tl
-				| _ ->
-					t
-			in
-			let t = loop t in
-			underlying_type_stack := List.tl !underlying_type_stack;
-			t
-		in
-		try
-			if not (Meta.has Meta.MultiType a.a_meta) then raise Not_found;
-			let m = mk_mono() in
-			let _ = find_to a pl m in
-			maybe_recurse (follow m)
-		with Not_found ->
-			if Meta.has Meta.CoreType a.a_meta then
-				t_dynamic
-			else
-				maybe_recurse (apply_params a.a_params pl a.a_this)
-
-	let rec follow_with_abstracts t = match follow t with
-		| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
-			follow_with_abstracts (get_underlying_type a tl)
-		| t ->
-			t
-end
-
 (* ======= Mapping and iterating ======= *)
 
 let iter f e =
@@ -2395,6 +2411,16 @@ let map_expr_type f ft fv e =
 	| TMeta (m,e1) ->
 		{e with eexpr = TMeta(m, f e1); etype = ft e.etype }
 
+let resolve_typedef t =
+	match t with
+	| TClassDecl _ | TEnumDecl _ | TAbstractDecl _ -> t
+	| TTypeDecl td ->
+		match follow td.t_type with
+		| TEnum (e,_) -> TEnumDecl e
+		| TInst (c,_) -> TClassDecl c
+		| TAbstract (a,_) -> TAbstractDecl a
+		| _ -> t
+
 module TExprToExpr = struct
 	let tpath p mp pl =
 		if snd mp = snd p then
@@ -2493,7 +2519,7 @@ module TExprToExpr = struct
 		| TField (e,f) -> EField (convert_expr e, field_name f)
 		| TTypeExpr t -> fst (mk_path (full_type_path t) e.epos)
 		| TParenthesis e -> EParenthesis (convert_expr e)
-		| TObjectDecl fl -> EObjectDecl (List.map (fun (f,e) -> f, convert_expr e) fl)
+		| TObjectDecl fl -> EObjectDecl (List.map (fun (f,e) -> (f,null_pos), convert_expr e) fl)
 		| TArrayDecl el -> EArrayDecl (List.map convert_expr el)
 		| TCall (e,el) -> ECall (convert_expr e,List.map convert_expr el)
 		| TNew (c,pl,el) -> ENew ((match (try convert_type (TInst (c,pl)) with Exit -> convert_type (TInst (c,[]))) with CTPath p -> p,null_pos | _ -> assert false),List.map convert_expr el)
@@ -2511,14 +2537,21 @@ module TExprToExpr = struct
 		| TWhile (e1,e2,flag) -> EWhile (convert_expr e1, convert_expr e2, flag)
 		| TSwitch (e,cases,def) ->
 			let cases = List.map (fun (vl,e) ->
-				List.map convert_expr vl,None,(match e.eexpr with TBlock [] -> None | _ -> Some (convert_expr e))
+				List.map convert_expr vl,None,(match e.eexpr with TBlock [] -> None | _ -> Some (convert_expr e)),e.epos
 			) cases in
-			let def = match eopt def with None -> None | Some (EBlock [],_) -> Some None | e -> Some e in
+			let def = match eopt def with None -> None | Some (EBlock [],_) -> Some (None,null_pos) | Some e -> Some (Some e,pos e) in
 			ESwitch (convert_expr e,cases,def)
 		| TEnumParameter _ ->
 			(* these are considered complex, so the AST is handled in TMeta(Meta.Ast) *)
 			assert false
-		| TTry (e,catches) -> ETry (convert_expr e,List.map (fun (v,e) -> (v.v_name,v.v_pos), (try convert_type v.v_type,null_pos with Exit -> assert false), convert_expr e) catches)
+		| TTry (e,catches) ->
+			let e1 = convert_expr e in
+			let catches = List.map (fun (v,e) ->
+				let ct = try convert_type v.v_type,null_pos with Exit -> assert false in
+				let e = convert_expr e in
+				(v.v_name,v.v_pos),ct,e,(pos e)
+			) catches in
+			ETry (e1,catches)
 		| TReturn e -> EReturn (eopt e)
 		| TBreak -> EBreak
 		| TContinue -> EContinue

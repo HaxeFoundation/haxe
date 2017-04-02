@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,16 +20,39 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\KeyframeEffect.webidl line 37:0. Do not edit!
+// This file is generated from mozilla\KeyframeEffect.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `KeyframeEffectReadOnly` interface of the Web Animations API describes sets of animatable properties and values that can be played using the `Animation.Animation()` constructor, and which are inherited by `KeyframeEffect`.
+
+	Documentation [KeyframeEffectReadOnly](https://developer.mozilla.org/en-US/docs/Web/API/KeyframeEffectReadOnly) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/KeyframeEffectReadOnly$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/KeyframeEffectReadOnly>
+**/
 @:native("KeyframeEffectReadOnly")
 extern class KeyframeEffectReadOnly extends AnimationEffectReadOnly
 {
+	
+	/**
+		The element or pseudo-element being animated by this object. This may be `null` for animations that do not target a specific element.
+	**/
 	var target(default,null) : haxe.extern.EitherType<Element,CSSPseudoElement>;
+	
+	/**
+		The iteration composite operation for resolving the property value changes of this keyframe effect.
+	**/
 	var iterationComposite(default,null) : IterationCompositeOperation;
+	
+	/**
+		The composite operation property for resolving the property value changes between this and other keyframe effects.
+	**/
 	var composite(default,null) : CompositeOperation;
+	
+	/**
+		The temporal spacing of the keyframe effect's iterations
+	**/
 	var spacing(default,null) : String;
 	
 	/** @throws DOMError */

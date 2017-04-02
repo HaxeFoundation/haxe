@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -48,7 +48,7 @@ typedef Socket =
 	 - the boolean false for a response
 	 - a serialized value representing the result
 
-	Exceptions are serialized with `serializeException` so they will be thrown immediatly
+	Exceptions are serialized with `serializeException` so they will be thrown immediately
 	when they are unserialized.
 **/
 class SocketProtocol {

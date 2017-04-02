@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -73,7 +73,7 @@ abstract EnumFlags<T:EnumValue>(Int) {
 		If `v` is null, the result is unspecified.
 	**/
 	public inline function unset( v : T ) : Void {
-		this &= 0xFFFFFFF - (1 << Type.enumIndex(v));
+		this &= 0xFFFFFFFF - (1 << Type.enumIndex(v));
 	}
 
 	/**

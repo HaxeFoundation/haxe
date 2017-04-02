@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -43,7 +43,7 @@ private typedef VectorData<T> = #if flash10
 	A Vector is a storage of fixed size. It can be faster than Array on some
 	targets, and is never slower.
 
-	@see http://haxe.org/manual/std-vector.html
+	@see https://haxe.org/manual/std-vector.html
 **/
 abstract Vector<T>(VectorData<T>) {
 	/**
@@ -69,8 +69,7 @@ abstract Vector<T>(VectorData<T>) {
 		#elseif java
 			this = new java.NativeArray(length);
 		#elseif cpp
-			this = new Array<T>();
-			this.setSize(length);
+			this = NativeArray.create(length);
 		#elseif python
 			this = python.Syntax.pythonCode("[{0}]*{1}", null, length);
 		#elseif lua
@@ -179,7 +178,7 @@ abstract Vector<T>(VectorData<T>) {
 	/**
 		Creates a new Array, copy the content from the Vector to it, and returns it.
 	**/
-	public #if (flash || cpp || js) inline #end function toArray():Array<T> {
+	public #if (flash || cpp || js || java) inline #end function toArray():Array<T> {
 		#if cpp
 			return this.copy();
 		#elseif python

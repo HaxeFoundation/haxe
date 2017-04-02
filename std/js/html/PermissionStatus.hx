@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,29 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\PermissionStatus.webidl line 19:0. Do not edit!
+// This file is generated from mozilla\PermissionStatus.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `PermissionStatus` interface of the Permissions API provides the state of an object and an event handler for monitoring changes to said state.
+
+	Documentation [PermissionStatus](https://developer.mozilla.org/en-US/docs/Web/API/PermissionStatus) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PermissionStatus$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/PermissionStatus>
+**/
 @:native("PermissionStatus")
 extern class PermissionStatus extends EventTarget
 {
+	
+	/**
+		Returns the state of a requested permission; one of `'granted'`, `'denied'`, or `'prompt'`.
+	**/
 	var state(default,null) : PermissionState;
+	
+	/**
+		An event called whenever `PermissionStatus.status` changes.
+	**/
 	var onchange : haxe.Constraints.Function;
 	
 }

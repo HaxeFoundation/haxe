@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,7 +23,7 @@ package haxe;
 
 /**
 	Since not all platforms guarantee that `String` always uses UTF-8 encoding, you
-	can use this crossplatform API to perform operations on such strings.
+	can use this cross-platform API to perform operations on such strings.
 **/
 class Utf8 {
 

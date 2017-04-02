@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -245,8 +245,7 @@ class Boot {
 		var a = [];
 		if (o != null) {
 			if (Internal.hasFields(o)) {
-				var fields:Array<String> = Internal.fieldFields(o);
-				return fields.copy();
+				return (Internal.fieldFields(o) : Array<String>).copy();
 			}
 			if (isAnonObject(o)) {
 
@@ -328,7 +327,7 @@ class Boot {
 
 
 	static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
-		var f = if (Internal.hasFields(c)) Internal.fieldFields(c) else [];
+		var f = if (Internal.hasFields(c)) (Internal.fieldFields(c) : Array<String>).copy() else [];
 		if (Internal.hasMethods(c))
 			f = f.concat(Internal.fieldMethods(c));
 
@@ -340,8 +339,6 @@ class Boot {
 
 			var scArr = getInstanceFields(sc);
 			var scMap = new Set(scArr);
-			//var scMap = [for (f in scArr) f => f];
-			var res = [];
 			for (f1 in f) {
 				if (!scMap.has(f1)) {
 					scArr.push(f1);

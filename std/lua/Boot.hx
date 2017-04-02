@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -35,6 +35,7 @@ class Boot {
 	public static var platformBigEndian = NativeStringTools.byte(NativeStringTools.dump(function(){}),7) > 0;
 
 	static var hiddenFields : Table<String,Bool> = untyped __lua__("{__id__=true, hx__closures=true, super=true, prototype=true, __fields__=true, __ifields__=true, __class__=true, __properties__=true}");
+
 
 
 	static function __unhtml(s : String)
@@ -194,7 +195,7 @@ class Boot {
 				else if (isArray(o)) {
 					var o2 : Array<Dynamic> = untyped o;
 					if (s.length > 5) "[...]"
-					else '[${[for (i in  o2) __string_rec(i,s+1)].join(",")}]';
+					else '[${[for (i in o2) __string_rec(i,s+1)].join(",")}]';
 				}
 				else if (o.__class__ != null) printClass(o,s+"\t");
 				else {
@@ -223,7 +224,7 @@ class Boot {
 	   Define an array from the given table
 	*/
 	public inline static function defArray<T>(tab: Table<Int,T>, ?length : Int) : Array<T> {
-		if (length == null) length = tableMaxN(tab) + 1; // maxn doesn't count 0 index
+		if (length == null) length = TableTools.maxn(tab) + 1; // maxn doesn't count 0 index
 		return untyped _hx_tab_array(tab, length);
 	}
 
@@ -252,9 +253,9 @@ class Boot {
 	}
 
 	/*
-	   A 32 bit clamp function for integers
+	   A 32 bit clamp function for numbers
 	*/
-	public inline static function clamp(x:Int){
+	public inline static function clamp(x:Float){
 		return untyped __define_feature__("lua.Boot.clamp", _hx_bit_clamp(x));
 	}
 
@@ -295,35 +296,15 @@ class Boot {
 		else if (cl1 == cl2) return true;
 		else if (untyped cl1.__interfaces__ != null) {
 			var intf = untyped cl1.__interfaces__;
-			for (i in 1...( tableMaxN(intf) + 1)){
+			for (i in 1...( TableTools.maxn(intf) + 1)){
 				// check each interface, including extended interfaces
-				if (extendsOrImplements(intf[1], cl2)) return true;
+				if (extendsOrImplements(intf[i], cl2)) return true;
 			}
 		}
 		// check standard inheritance
 		return extendsOrImplements(untyped cl1.__super__, cl2);
 	}
 
-	public inline static function tableMaxN(t:Table.AnyTable) : Int {
-		return untyped __define_feature__("use._hx_maxn", _hx_maxn(t));
-	}
-
-	/*
-	   Create an empty table.
-	*/
-	public inline static function createTable<K,V>(?arr:Array<V>, ?hsh:Dynamic<V>) : Table<K,V> {
-		return untyped __lua_table__(arr,hsh);
-	}
-
-	/*
-	   Create an empty table for vectors
-	*/
-	// TODO: provide a simpler anonymous table generator syntax in genlua
-	public static function createVectorTable<K,V>(length:Int) : Table<K,V> {
-		var table : Table<K,V> = untyped __lua__("{}");
-		untyped table.length = length;
-		return table;
-	}
 
 	/*
 		Returns a shell escaped version of "cmd" along with any args
@@ -354,22 +335,59 @@ class Boot {
 	}
 
 	public static function fieldIterator( o : Table<String,Dynamic>) : Iterator<String> {
-		var tbl = (untyped o.__fields__ != null) ?  o.__fields__ : o;
-		var cur = Lua.pairs(tbl);
+		var tbl : Table<String,String> =  cast (untyped o.__fields__ != null) ?  o.__fields__ : o;
+		var cur = Lua.pairs(tbl).next;
 		var next_valid = function(tbl, val){
 			while (hiddenFields[untyped val] != null){
-				val = cur(tbl, val);
+				val = cur(tbl, val).index;
 			}
 			return val;
 		}
-		var cur_val = next_valid(tbl, cur(tbl, null));
+		var cur_val = next_valid(tbl, cur(tbl, null).index);
 		return {
 			next : function(){
 				var ret = cur_val;
-				cur_val = next_valid(tbl, cur(tbl, cur_val));
+				cur_val = next_valid(tbl, cur(tbl, cur_val).index);
 				return ret;
 			},
 			hasNext : function() return cur_val !=  null
 		}
+	}
+
+	static var os_patterns = [
+		'Windows' => ['windows','^mingw','^cygwin'],
+		'Linux'   => ['linux'],
+		'Mac'     => ['mac','darwin'],
+		'BSD'     => ['bsd$'],
+		'Solaris' => ['SunOS']
+	];
+
+	public static function systemName() : String {
+		var os : String = null;
+		if (untyped jit != null && untyped jit.os != null ){
+			os = untyped jit.os;
+			os = os.toLowerCase();
+		} else {
+			var popen_status : Bool = false;
+			var popen_result : lua.FileHandle = null;
+			untyped __lua__("popen_status, popen_result = pcall(_G.io.popen, '')");
+			if (popen_status) {
+				popen_result.close;
+				os = lua.Io.popen('uname -s','r').read('*l').toLowerCase();
+			} else {
+				os = lua.Os.getenv('OS').toLowerCase();
+			}
+
+		}
+
+		for (k in os_patterns.keys()){
+			for (p in os_patterns.get(k)) {
+				if (lua.NativeStringTools.match(os,p) != null){
+					return k;
+				}
+			}
+		}
+
+		return null;
 	}
 }

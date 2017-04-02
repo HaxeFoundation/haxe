@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,7 +23,7 @@
 package lua;
 
 /**
-  An implementation of the Haxe iterator datastructure needed for identical 
+  An implementation of the Haxe iterator data structure needed for identical 
   lua iterator behavior. 
  **/
 class HaxeIterator<T> {

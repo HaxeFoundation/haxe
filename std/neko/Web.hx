@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,7 +23,7 @@ package neko;
 
 /**
 	This class is used for accessing the local Web server and the current
-	client request and informations.
+	client request and information.
 **/
 class Web {
 

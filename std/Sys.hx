@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -36,7 +36,7 @@ extern class Sys {
 	static function println( v : Dynamic ) : Void;
 
 	/**
-		Returns all the arguments that were passed by the commandline.
+		Returns all the arguments that were passed by the command line.
 	**/
 	static function args() : Array<String>;
 
@@ -51,7 +51,7 @@ extern class Sys {
 	static function putEnv( s : String, v : String ) : Void;
 
 	/**
-		Returns the whole environement variables.
+		Returns all environment variables.
 	**/
 	static function environment() : Map<String,String>;
 

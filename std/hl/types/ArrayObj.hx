@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,7 +24,7 @@ package hl.types;
 @:keep
 class ArrayObj<T> extends ArrayBase {
 
-	var array : hl.types.NativeArray<Dynamic>;
+	var array : hl.NativeArray<Dynamic>;
 
 	public function new() {
 		length = 0;
@@ -32,7 +32,7 @@ class ArrayObj<T> extends ArrayBase {
 	}
 
 	public function concat( a : ArrayObj<T> ) : ArrayObj<T> {
-		var arr = new hl.types.NativeArray(length + a.length);
+		var arr = new hl.NativeArray(length + a.length);
 		arr.blit(0, array, 0, length);
 		arr.blit(length, a.array, 0, a.length);
 		return alloc(cast arr);
@@ -45,6 +45,10 @@ class ArrayObj<T> extends ArrayBase {
 			b.add(array[i]);
 		}
 		return b.toString();
+	}
+
+	override function isArrayObj() {
+		return true;
 	}
 
 	public function pop() : Null<T> {
@@ -187,6 +191,12 @@ class ArrayObj<T> extends ArrayBase {
 		return -1;
 	}
 
+	override function blit( pos : Int, src : ArrayBase.ArrayAccess, srcpos : Int, len : Int ) : Void {
+		var src = (cast src : ArrayObj<T>);
+		if( pos < 0 || srcpos < 0 || len < 0 || pos + len > length || srcpos + len > src.length ) throw haxe.io.Error.OutsideBounds;
+		array.blit(pos, src.array, srcpos, len);
+	}
+
 	public function lastIndexOf( x : T, ?fromIndex:Int ) : Int {
 		var len = length;
 		var i:Int = fromIndex != null ? fromIndex : len - 1;
@@ -233,13 +243,13 @@ class ArrayObj<T> extends ArrayBase {
 
 	// called by compiler when accessing the array outside of its bounds, might trigger resize
 	function __expand( index : Int ) {
-		if( index < 0 ) throw "Invalid array access";
+		if( index < 0 ) throw "Invalid array index " + index;
 		var newlen = index + 1;
 		var size : Int = array.length;
 		if( newlen > size ) {
 			var next = (size * 3) >> 1;
 			if( next < newlen ) next = newlen;
-			var arr2 = new hl.types.NativeArray<Dynamic>(next);
+			var arr2 = new hl.NativeArray<Dynamic>(next);
 			arr2.blit(0,array,0,length);
 			array = arr2;
 		}
@@ -268,7 +278,7 @@ class ArrayObj<T> extends ArrayBase {
 	override function removeDyn( v : Dynamic ) return remove(v);
 	override function sortDyn( f : Dynamic -> Dynamic -> Int ) sort(f);
 
-	public static function alloc<T>( a : hl.types.NativeArray<T> ) : ArrayObj<T> {
+	public static function alloc<T>( a : hl.NativeArray<T> ) : ArrayObj<T> {
 		var arr : ArrayObj<T> = untyped $new(ArrayObj);
 		arr.array = a;
 		arr.length = a.length;

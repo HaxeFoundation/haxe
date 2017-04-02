@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -35,8 +35,8 @@ class Log {
 
 		This method can be rebound to a custom function:
 			var oldTrace = haxe.Log.trace; // store old function
-			haxe.Log.trace = function(v, ?infos) { 
-			  // handle trace 
+			haxe.Log.trace = function(v, ?infos) {
+			  // handle trace
 			}
 			...
 			haxe.Log.trace = oldTrace;
@@ -62,6 +62,8 @@ class Log {
 			}
 		#elseif js
 			untyped js.Boot.__trace(v,infos);
+		#elseif (php && php7)
+			php.Boot.trace(v, infos);
 		#elseif php
 			if (infos!=null && infos.customParams!=null) {
 				var extra:String = "";
@@ -94,9 +96,10 @@ class Log {
 			#if cs
 			cs.system.Console.WriteLine(str);
 			#elseif java
-			untyped __java__("java.lang.System.out.println(str)");
+			Sys.println(str);
 			#elseif lua
-			untyped __define_feature__("use._hx_print",_hx_print(Std.string(str)));
+			if (str == null) str = "null";
+			untyped __define_feature__("use._hx_print",_hx_print(str));
 			#end
 		#elseif (python)
 			var str:String = null;

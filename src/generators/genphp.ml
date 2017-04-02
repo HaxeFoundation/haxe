@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -70,6 +70,21 @@ type context = {
 }
 
 let follow = Abstract.follow_with_abstracts
+
+(**
+	Check if specified expression is of `Float` type
+*)
+let is_float expr = match follow expr.etype with TAbstract ({ a_path = ([], "Float") }, _) -> true | _ -> false
+
+(**
+	If `expr` is a TCast or TMeta, then returns underlying expression (recursively bypassing nested casts).
+	Otherwise returns `expr` as is.
+*)
+let rec reveal_expr expr =
+	match expr.eexpr with
+		| TCast (e, _) -> reveal_expr e
+		| TMeta (_, e) -> reveal_expr e
+		| _ -> expr
 
 let join_class_path path separator =
 	let result = match fst path, snd path with
@@ -344,7 +359,7 @@ let write_resource dir name data =
 	close_out ch
 
 let stack_init com use_add =
-	Codegen.stack_context_init com "GLOBALS['%s']" "GLOBALS['%e']" "__hx__spos" "tmp" use_add null_pos
+	Codegen.stack_context_init com "GLOBALS['%s']" "GLOBALS['%e']" "__hx__spos" "tmp" use_add Globals.null_pos
 
 let init com cwd path def_type =
 	let rec create acc = function
@@ -397,7 +412,7 @@ let init com cwd path def_type =
 	Codegen.map_source_header com (fun s -> print ctx "// %s\n" s);
 	ctx
 
-let unsupported msg p = error ("This expression cannot be generated to PHP: " ^ msg) p
+let unsupported msg p = abort ("This expression cannot be generated to PHP: " ^ msg) p
 
 let newline ctx =
 	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
@@ -536,7 +551,7 @@ and gen_call ctx e el =
 			spr ctx "]";
 			genargs t)
 	in
-	match e.eexpr , el with
+	match (reveal_expr e).eexpr , el with
 	| TConst TSuper , params ->
 		(match ctx.curclass.cl_super with
 		| None -> assert false
@@ -781,7 +796,7 @@ and get_constant_prefix meta =
 	(match args with
 		| [EConst(String prefix), _] -> prefix
 		| [] -> ""
-		| _ -> error "Invalid @:phpConstant parameters" pos)
+		| _ -> abort "Invalid @:phpConstant parameters" pos)
 
 and gen_member_access ctx isvar e s =
 	match follow e.etype with
@@ -790,10 +805,16 @@ and gen_member_access ctx isvar e s =
 		| EnumStatics _ ->
 			print ctx "::%s%s" (if isvar then "$" else "") (s_ident s)
 		| Statics sta ->
-			let sep = if Meta.has Meta.PhpGlobal sta.cl_meta then "" else "::" in
+			let (sep, no_dollar) = if Meta.has Meta.PhpGlobal sta.cl_meta then
+					("", false)
+				else
+					match e.eexpr with
+						| TField _ -> ("->", true)
+						| _ -> ("::", false)
+			in
 			let isconst = Meta.has Meta.PhpConstants sta.cl_meta in
 			let cprefix = if isconst then get_constant_prefix sta.cl_meta else "" in
-			print ctx "%s%s%s" sep (if isvar && not isconst then "$" else cprefix)
+			print ctx "%s%s%s" sep (if isvar && not isconst && not no_dollar then "$" else cprefix)
 			(if sta.cl_extern && sep = "" then s else s_ident s)
 		| _ -> print ctx "->%s" (if isvar then s_ident_field s else s_ident s))
 	| _ -> print ctx "->%s" (if isvar then s_ident_field s else s_ident s)
@@ -827,11 +848,14 @@ and gen_field_access ctx isvar e s =
 		gen_value ctx e;
 		spr ctx ")";
 		gen_member_access ctx isvar e s
-	| TCast (ec, _) when (match ec.eexpr with | TNew _ | TArrayDecl _ -> true | _ -> false) ->
+	| TCast (ec, _) when (match ec.eexpr with | TNew _ | TArrayDecl _ | TConst TNull -> true | _ -> false) ->
 		spr ctx "_hx_deref(";
 		ctx.is_call <- false;
 		gen_value ctx e;
 		spr ctx ")";
+		gen_member_access ctx isvar e s
+	| TConst TNull ->
+		spr ctx "_hx_deref(null)";
 		gen_member_access ctx isvar e s
 	| _ ->
 		gen_expr ctx e;
@@ -972,12 +996,13 @@ and gen_while_expr ctx e =
 	ctx.in_loop <- old_loop
 
 and gen_tfield ctx e e1 s =
+	let name = (field_name s) in
 	match follow e.etype with
 	| TFun (args, _) ->
 		(if ctx.is_call then begin
-			gen_field_access ctx false e1 s
-	  	end else if is_in_dynamic_methods ctx e1 s then begin
-	  		gen_field_access ctx true e1 s;
+			gen_field_access ctx false e1 name
+	  	end else if is_in_dynamic_methods ctx e1 name then begin
+	  		gen_field_access ctx true e1 name;
 	  	end else begin
 			let ob ex =
 				(match ex with
@@ -990,25 +1015,29 @@ and gen_tfield ctx e e1 s =
 
 			spr ctx "(property_exists(";
 			ob e1.eexpr;
-			print ctx ", \"%s\") ? " (s_ident s);
-			gen_field_access ctx true e1 s;
+			print ctx ", \"%s\") ? " (s_ident name);
+			gen_field_access ctx true e1 name;
 			spr ctx ": array(";
 			ob e1.eexpr;
-			print ctx ", \"%s\"))" (s_ident s);
+			print ctx ", \"%s\"))" (s_ident name);
 
 		end)
 	| TMono _ ->
 		if ctx.is_call then
-			gen_field_access ctx false e1 s
+			gen_field_access ctx false e1 name
 		else
-			gen_uncertain_string_var ctx s e1
+			gen_uncertain_string_var ctx name e1
+	| TDynamic _ when not ctx.is_call && (match s with FDynamic _ -> true | _ -> false) ->
+		spr ctx "_hx_field(";
+		gen_value ctx e1;
+		print ctx ", \"%s\")" name
 	| _ ->
 		if is_string_expr e1 then
-			gen_string_var ctx s e1
+			gen_string_var ctx name e1
 		else if is_uncertain_expr e1 then
-			gen_uncertain_string_var ctx s e1
+			gen_uncertain_string_var ctx name e1
 		else
-			gen_field_access ctx true e1 s
+			gen_field_access ctx true e1 name
 
 and gen_expr ctx e =
 	let in_block = ctx.in_block in
@@ -1203,6 +1232,7 @@ and gen_expr ctx e =
 			end else if
 				   ((se1 = "Int" || se1 = "Null<Int>") && (se2 = "Int" || se2 = "Null<Int>"))
 				|| ((se1 = "Float" || se1 = "Null<Float>") && (se2 = "Float" || se2 = "Null<Float>"))
+				&& not (is_float e1 && is_float e2)
 			then begin
 				gen_field_op ctx e1;
 				spr ctx s_phop;
@@ -1275,7 +1305,7 @@ and gen_expr ctx e =
 		spr ctx ")";
 		print ctx "->params[%d]" i;
 	| TField (e1,s) ->
-		gen_tfield ctx e e1 (field_name s)
+		gen_tfield ctx e e1 s
 	| TTypeExpr t ->
 		print ctx "_hx_qtype(\"%s\")" (s_path_haxe (t_path t))
 	| TParenthesis e ->
@@ -1308,7 +1338,7 @@ and gen_expr ctx e =
 		if ctx.in_loop then spr ctx "break" else print ctx "break %d" ctx.nested_loops
 	| TContinue ->
 		if ctx.in_loop then spr ctx "continue" else print ctx "continue %d" ctx.nested_loops
-	| TBlock [] ->
+	| TBlock [] when List.length ctx.dynamic_methods = 0 ->
 		spr ctx "{}"
 	| TBlock el ->
 		let old_l = ctx.inv_locals in
@@ -1489,7 +1519,7 @@ and gen_expr ctx e =
 			);
 		| TField (e1,s) ->
 			spr ctx (Ast.s_unop op);
-			gen_tfield ctx e e1 (field_name s)
+			gen_tfield ctx e e1 s
 		| _ ->
 			spr ctx (Ast.s_unop op);
 			gen_value ctx e)
@@ -1775,7 +1805,9 @@ and gen_value ctx e =
 		gen_value ctx e1
 	| TBlock [] ->
 		()
-	| TCast (e, _)
+	| TCast (_, Some _) ->
+		gen_expr ctx e
+	| TCast (e, None)
 	| TBlock [e] ->
 		gen_value ctx e
 	| TIf (cond,e,eelse) when (cangen_ternary e eelse) ->
@@ -2262,9 +2294,9 @@ let generate com =
 							else
 								((n = (prefixed_name false)) || (n = (prefixed_name true)))
 						) !lc_names in
-						unsupported ("method '" ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name ^ "' already exists here '" ^ (fst lc) ^ "' (different case?)") c.cl_pos
+						unsupported ("method '" ^ (Globals.s_type_path c.cl_path) ^ "." ^ cf.cf_name ^ "' already exists here '" ^ (fst lc) ^ "' (different case?)") c.cl_pos
 					with Not_found ->
-						lc_names := ((s_type_path c.cl_path) ^ "." ^ cf.cf_name, prefixed_name static) :: !lc_names)
+						lc_names := ((Globals.s_type_path c.cl_path) ^ "." ^ cf.cf_name, prefixed_name static) :: !lc_names)
 				| _ ->
 					()
 			) lst

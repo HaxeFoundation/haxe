@@ -1,4 +1,4 @@
 <list>
-<i n="a"><t>Float</t><d></d></i>
-<i n="b"><t>String</t><d></d></i>
+<i n="a" k="var"><t>Float</t><d></d></i>
+<i n="b" k="var"><t>String</t><d></d></i>
 </list>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\DocumentTimeline.webidl line 20:0. Do not edit!
+// This file is generated from mozilla\DocumentTimeline.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `DocumentTimeline` interface of the the Web Animations API represents animation timelines, including the default document timeline (accessed via `Document.timeline`).
+
+	Documentation [DocumentTimeline](https://developer.mozilla.org/en-US/docs/Web/API/DocumentTimeline) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DocumentTimeline$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DocumentTimeline>
+**/
 @:native("DocumentTimeline")
 extern class DocumentTimeline extends AnimationTimeline
 {
