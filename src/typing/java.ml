@@ -253,7 +253,9 @@ let convert_java_enum ctx p pe =
 		List.iter (function
 			| JPublic -> cff_access := APublic :: !cff_access
 			| JPrivate -> raise Exit (* private instances aren't useful on externs *)
-			| JProtected -> cff_access := APrivate :: !cff_access
+			| JProtected ->
+				cff_meta := (Meta.Protected, [], p) :: !cff_meta;
+				cff_access := APrivate :: !cff_access
 			| JStatic -> cff_access := AStatic :: !cff_access
 			| JFinal ->
 				cff_meta := (Meta.Final, [], p) :: !cff_meta;
