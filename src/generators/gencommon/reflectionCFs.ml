@@ -1099,7 +1099,7 @@ let implement_get_set ctx cl =
 					| Var _
 					| Method MethDynamic -> { eexpr = TField (ethis, FInstance(cl,List.map snd cl.cl_params,cf)); etype = cf_type; epos = pos }
 					| _ ->
-							{ eexpr = TField (this, FClosure(Some (cl,[]), cf)); etype = cf_type; epos = pos } (* TODO: FClosure change *)
+							{ eexpr = TField (this, FClosure(Some (cl,List.map snd cl.cl_params), cf)); etype = cf_type; epos = pos }
 			in
 
 			let do_field cf cf_type =
@@ -1661,7 +1661,7 @@ let priority = solve_deps name [DAfter UniversalBaseClass.priority]
 let configure ctx baseinterface ~slow_invoke =
 	let run md =
 		(match md with
-		| TClassDecl cl when is_hxgen md && ( not cl.cl_interface || cl.cl_path = baseinterface.cl_path ) && (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) ->
+		| TClassDecl ({ cl_extern = false } as cl) when is_hxgen md && ( not cl.cl_interface || cl.cl_path = baseinterface.cl_path ) && (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) ->
 			implement_dynamics ctx cl;
 			if not (PMap.mem (mk_internal_name "hx" "lookupField") cl.cl_fields) then implement_final_lookup ctx cl;
 			if not (PMap.mem (mk_internal_name "hx" "getField") cl.cl_fields) then implement_get_set ctx cl;
