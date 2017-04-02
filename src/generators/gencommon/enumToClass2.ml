@@ -337,24 +337,24 @@ end;;
 
 
 module EnumToClass2Exprf = struct
-	let name = "enum_to_class2_exprf"
-	let priority = solve_deps name []
-
-	let configure gen ec_tbl =
+	let init com ec_tbl =
+		let v_as = alloc_var "__as__" t_dynamic in
 		let rec run e =
 			let get_converted_enum_classes et =
-				let en = match follow (gen.gfollow#run_f et) with
-					| TEnum(en,_) -> en
+				let en = match follow et with
+					| TEnum (en,_) -> en
 					| _ -> raise Not_found
 				in
 				Hashtbl.find ec_tbl en.e_path
 			in
 
 			match e.eexpr with
-			| TCall (({eexpr = TField(_, FStatic({cl_path=[],"Type"},{cf_name="enumIndex"}))} as left), [f]) ->
+			| TCall ({ eexpr = TField (_, FStatic ({ cl_path = ([], "Type") }, { cf_name = "enumIndex" })) } as left, [f]) ->
 				let f = run f in
 				(try
-					mk_field_access gen {f with etype = TInst ((get_converted_enum_classes f.etype).base, [])} "index" e.epos
+					let cl = (get_converted_enum_classes f.etype).base in
+					let e_enum = { f with etype = TInst (cl, []) } in
+					Codegen.field e_enum "index" com.basic.tint e.epos
 				with Not_found ->
 					{ e with eexpr = TCall(left, [f]) })
 			| TEnumParameter(f, ef, i) ->
@@ -366,22 +366,27 @@ module EnumToClass2Exprf = struct
 				let f = { f with etype = TInst(cl_enum, []) } in
 
 				let cl_ctor = PMap.find ef.ef_name classes.ctors in
-				let cl_ctor_t = TInst(cl_ctor, []) in
-				let eas = mk_local (alloc_var "__as__" t_dynamic) f.epos in
-				let ecast = mk (TCall(eas,[f])) cl_ctor_t f.epos in
+				let ecast = mk (TCall (mk_local v_as f.epos, [f])) (TInst (cl_ctor, [])) f.epos in
 
 				(match ef.ef_type with
-				| TFun(params,ret) ->
+				| TFun (params, _) ->
 					let fname, _, _ = List.nth params i in
-					{ (mk_field_access gen ecast fname e.epos) with etype = e.etype }
+					Codegen.field ecast fname e.etype e.epos
 				| _ -> assert false)
 			| _ ->
 				Type.map_expr run e
 		in
+		run
+
+	let name = "enum_to_class2_exprf"
+	let priority = solve_deps name []
+
+	let configure gen ec_tbl =
+		let run = init gen.gcon ec_tbl in
 		gen.gexpr_filters#add name (PCustom priority) run
 end;;
 
 let configure gen enum_base_class =
 	let ec_tbl = Hashtbl.create 10 in
 	EnumToClass2Modf.configure gen ec_tbl enum_base_class;
-	EnumToClass2Exprf.configure gen ec_tbl
+	EnumToClass2Exprf.configure gen ec_tbl;
