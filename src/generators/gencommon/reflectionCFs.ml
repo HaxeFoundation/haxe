@@ -1099,7 +1099,7 @@ let implement_get_set ctx cl =
 					| Var _
 					| Method MethDynamic -> { eexpr = TField (ethis, FInstance(cl,List.map snd cl.cl_params,cf)); etype = cf_type; epos = pos }
 					| _ ->
-							{ eexpr = TField (this, FClosure(Some (cl,[]), cf)); etype = cf_type; epos = pos } (* TODO: FClosure change *)
+							{ eexpr = TField (this, FClosure(Some (cl,List.map snd cl.cl_params), cf)); etype = cf_type; epos = pos }
 			in
 
 			let do_field cf cf_type =
