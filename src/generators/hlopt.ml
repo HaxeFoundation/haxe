@@ -133,9 +133,9 @@ let opcode_fx frw op =
 		write r
 	| OEndTrap _ ->
 		() (* ??? *)
-	| OGetUI8 (d,a,b) | OGetUI16 (d,a,b) | OGetI32 (d,a,b) | OGetF32 (d,a,b) | OGetF64 (d,a,b) | OGetArray (d,a,b) ->
+	| OGetUI8 (d,a,b) | OGetUI16 (d,a,b) | OGetI32 (d,a,b) | OGetI64 (d,a,b) | OGetF32 (d,a,b) | OGetF64 (d,a,b) | OGetArray (d,a,b) ->
 		read a; read b; write d
-	| OSetUI8 (a,b,c) | OSetUI16 (a,b,c) | OSetI32 (a,b,c) | OSetF32 (a,b,c) | OSetF64 (a,b,c) | OSetArray (a,b,c) ->
+	| OSetUI8 (a,b,c) | OSetUI16 (a,b,c) | OSetI32 (a,b,c) | OSetI64 (a,b,c) | OSetF32 (a,b,c) | OSetF64 (a,b,c) | OSetArray (a,b,c) ->
 		read a; read b; read c
 	| ONew d ->
 		write d
@@ -354,6 +354,9 @@ let opcode_map read write op =
 	| OGetI32 (d,a,b) ->
 		let a = read a and b = read b in
 		OGetI32 (write d, a, b)
+	| OGetI64 (d,a,b) ->
+		let a = read a and b = read b in
+		OGetI64 (write d, a, b)
 	| OGetF32 (d,a,b) ->
 		let a = read a and b = read b in
 		OGetF32 (write d, a, b)
@@ -372,6 +375,9 @@ let opcode_map read write op =
 	| OSetI32 (a,b,c) ->
 		let a = read a and b = read b and c = read c in
 		OSetI32 (a, b, c)
+	| OSetI64 (a,b,c) ->
+		let a = read a and b = read b and c = read c in
+		OSetI64 (a, b, c)
 	| OSetF32 (a,b,c) ->
 		let a = read a and b = read b and c = read c in
 		OSetF32 (a, b, c)

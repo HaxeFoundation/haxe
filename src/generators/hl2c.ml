@@ -98,11 +98,11 @@ let tname str =
 	if Hashtbl.mem keywords ("_" ^ n) then "__" ^ n else n
 
 let is_gc_ptr = function
-	| HVoid | HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool | HType | HRef _ -> false
+	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HType | HRef _ -> false
 	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ -> true
 
 let is_ptr = function
-	| HVoid | HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool -> false
+	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool -> false
 	| _ -> true
 
 let rec ctype_no_ptr = function
@@ -110,6 +110,7 @@ let rec ctype_no_ptr = function
 	| HUI8 -> "unsigned char",0
 	| HUI16 -> "unsigned short",0
 	| HI32 -> "int",0
+	| HI64 -> "int64",0
 	| HF32 -> "float",0
 	| HF64 -> "double",0
 	| HBool -> "bool",0
@@ -149,6 +150,7 @@ let type_id t =
 	| HUI8 -> "HUI8"
 	| HUI16 -> "HUI16"
 	| HI32 -> "HI32"
+	| HI64 -> "HI64"
 	| HF32 -> "HF32"
 	| HF64 -> "HF64"
 	| HBool -> "HBOOL"
@@ -261,7 +263,7 @@ let generate_reflection ctx =
 	let funByArgs = Hashtbl.create 0 in
 	let type_kind t =
 		match t with
-		| HVoid | HF32 | HF64 -> t
+		| HVoid | HF32 | HF64 | HI64 -> t
 		| HBool | HUI8 | HUI16 | HI32 -> HI32
 		| HBytes | HDyn | HFun _ | HObj _ | HArray | HType | HRef _ | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ -> HDyn
 	in
@@ -271,7 +273,8 @@ let generate_reflection ctx =
 		| HBool | HUI8 | HUI16 | HI32 -> 1 (* same int representation *)
 		| HF32 -> 2
 		| HF64 -> 3
-		| _ -> 4
+		| HI64 -> 4
+		| _ -> 5
 	in
 	let add_fun args t =
 		let nargs = List.length args in
@@ -852,6 +855,8 @@ let generate_function ctx f =
 			sexpr "%s = *(unsigned short*)(%s + %s)" (reg r) (reg b) (reg idx)
 		| OGetI32 (r,b,idx) ->
 			sexpr "%s = *(int*)(%s + %s)" (reg r) (reg b) (reg idx)
+		| OGetI64 (r,b,idx) ->
+			sexpr "%s = *(int64*)(%s + %s)" (reg r) (reg b) (reg idx)
 		| OGetF32 (r,b,idx) ->
 			sexpr "%s = *(float*)(%s + %s)" (reg r) (reg b) (reg idx)
 		| OGetF64 (r,b,idx) ->
@@ -864,6 +869,8 @@ let generate_function ctx f =
 			sexpr "*(unsigned short*)(%s + %s) = (unsigned short)%s" (reg b) (reg idx) (reg r)
 		| OSetI32 (b,idx,r) ->
 			sexpr "*(int*)(%s + %s) = %s" (reg b) (reg idx) (reg r)
+		| OSetI64 (b,idx,r) ->
+			sexpr "*(int64*)(%s + %s) = %s" (reg b) (reg idx) (reg r)
 		| OSetF32 (b,idx,r) ->
 			sexpr "*(float*)(%s + %s) = (float)%s" (reg b) (reg idx) (reg r)
 		| OSetF64 (b,idx,r) ->
