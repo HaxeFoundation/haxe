@@ -853,28 +853,16 @@ let generate_function ctx f =
 			sexpr "%s = *(unsigned char*)(%s + %s)" (reg r) (reg b) (reg idx)
 		| OGetUI16 (r,b,idx) ->
 			sexpr "%s = *(unsigned short*)(%s + %s)" (reg r) (reg b) (reg idx)
-		| OGetI32 (r,b,idx) ->
-			sexpr "%s = *(int*)(%s + %s)" (reg r) (reg b) (reg idx)
-		| OGetI64 (r,b,idx) ->
-			sexpr "%s = *(int64*)(%s + %s)" (reg r) (reg b) (reg idx)
-		| OGetF32 (r,b,idx) ->
-			sexpr "%s = *(float*)(%s + %s)" (reg r) (reg b) (reg idx)
-		| OGetF64 (r,b,idx) ->
-			sexpr "%s = *(double*)(%s + %s)" (reg r) (reg b) (reg idx)
+		| OGetMem (r,b,idx) ->
+			sexpr "%s = *(%s*)(%s + %s)" (reg r) (ctype (rtype r)) (reg b) (reg idx)
 		| OGetArray (r, arr, idx) ->
 			sexpr "%s = ((%s*)(%s + 1))[%s]" (reg r) (ctype (rtype r)) (reg arr) (reg idx)
 		| OSetUI8 (b,idx,r) ->
 			sexpr "*(unsigned char*)(%s + %s) = (unsigned char)%s" (reg b) (reg idx) (reg r)
 		| OSetUI16 (b,idx,r) ->
 			sexpr "*(unsigned short*)(%s + %s) = (unsigned short)%s" (reg b) (reg idx) (reg r)
-		| OSetI32 (b,idx,r) ->
-			sexpr "*(int*)(%s + %s) = %s" (reg b) (reg idx) (reg r)
-		| OSetI64 (b,idx,r) ->
-			sexpr "*(int64*)(%s + %s) = %s" (reg b) (reg idx) (reg r)
-		| OSetF32 (b,idx,r) ->
-			sexpr "*(float*)(%s + %s) = (float)%s" (reg b) (reg idx) (reg r)
-		| OSetF64 (b,idx,r) ->
-			sexpr "*(double*)(%s + %s) = %s" (reg b) (reg idx) (reg r)
+		| OSetMem (b,idx,r) ->
+			sexpr "*(%s*)(%s + %s) = %s" (ctype (rtype r)) (reg b) (reg idx) (reg r)
 		| OSetArray (arr,idx,v) ->
 			sexpr "((%s*)(%s + 1))[%s] = %s" (ctype (rtype v)) (reg arr) (reg idx) (reg v)
 		| OSafeCast (r,v) ->

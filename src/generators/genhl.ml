@@ -855,14 +855,8 @@ let read_mem ctx rdst bytes index t =
 		op ctx (OGetUI8 (rdst,bytes,index))
 	| HUI16 ->
 		op ctx (OGetUI16 (rdst,bytes,index))
-	| HI32 ->
-		op ctx (OGetI32 (rdst,bytes,index))
-	| HI64 ->
-		op ctx (OGetI64 (rdst,bytes,index))
-	| HF32 ->
-		op ctx (OGetF32 (rdst,bytes,index))
-	| HF64 ->
-		op ctx (OGetF64 (rdst,bytes,index))
+	| HI32 | HI64 | HF32 | HF64 ->
+		op ctx (OGetMem (rdst,bytes,index))
 	| _ ->
 		assert false
 
@@ -872,14 +866,8 @@ let write_mem ctx bytes index t r =
 		op ctx (OSetUI8 (bytes,index,r))
 	| HUI16 ->
 		op ctx (OSetUI16 (bytes,index,r))
-	| HI32 ->
-		op ctx (OSetI32 (bytes,index,r))
-	| HI64 ->
-		op ctx (OSetI64 (bytes,index,r))
-	| HF32 ->
-		op ctx (OSetF32 (bytes,index,r))
-	| HF64 ->
-		op ctx (OSetF64 (bytes,index,r))
+	| HI32 | HI64 | HF32 | HF64 ->
+		op ctx (OSetMem (bytes,index,r))
 	| _ ->
 		assert false
 
@@ -1545,7 +1533,7 @@ and eval_expr ctx e =
 			let r = eval_to ctx v HI32 in
 			free ctx pos;
 			free ctx b;
-			op ctx (OSetI32 (b, pos, r));
+			op ctx (OSetMem (b, pos, r));
 			r
 		| "$bseti64", [b;pos;v] ->
 			let b = eval_to ctx b HBytes in
@@ -1555,7 +1543,7 @@ and eval_expr ctx e =
 			let r = eval_to ctx v HI64 in
 			free ctx pos;
 			free ctx b;
-			op ctx (OSetI64 (b, pos, r));
+			op ctx (OSetMem (b, pos, r));
 			r
 		| "$bsetf32", [b;pos;v] ->
 			let b = eval_to ctx b HBytes in
@@ -1565,7 +1553,7 @@ and eval_expr ctx e =
 			let r = eval_to ctx v HF32 in
 			free ctx pos;
 			free ctx b;
-			op ctx (OSetF32 (b, pos, r));
+			op ctx (OSetMem (b, pos, r));
 			r
 		| "$bsetf64", [b;pos;v] ->
 			let b = eval_to ctx b HBytes in
@@ -1575,7 +1563,7 @@ and eval_expr ctx e =
 			let r = eval_to ctx v HF64 in
 			free ctx pos;
 			free ctx b;
-			op ctx (OSetF64 (b, pos, r));
+			op ctx (OSetMem (b, pos, r));
 			r
 		| "$bytes_sizebits", [eb] ->
 			(match follow eb.etype with
@@ -1583,10 +1571,8 @@ and eval_expr ctx e =
 				reg_int ctx (match to_type ctx t with
 				| HUI8 -> 0
 				| HUI16 -> 1
-				| HI32 -> 2
-				| HF32 -> 2
-				| HI64 -> 3
-				| HF64 -> 3
+				| HI32 | HF32 -> 2
+				| HI64 | HF64 -> 3
 				| t -> abort ("Unsupported basic type " ^ tstr t) e.epos)
 			| _ ->
 				abort "Invalid BytesAccess" eb.epos);
@@ -1624,19 +1610,19 @@ and eval_expr ctx e =
 					r
 				| HI32 ->
 					let r = alloc_tmp ctx HI32 in
-					op ctx (OGetI32 (r, b, shl ctx pos 2));
+					op ctx (OGetMem (r, b, shl ctx pos 2));
 					r
 				| HI64 ->
 					let r = alloc_tmp ctx HI64 in
-					op ctx (OGetI64 (r, b, shl ctx pos 3));
+					op ctx (OGetMem (r, b, shl ctx pos 3));
 					r
 				| HF32 ->
 					let r = alloc_tmp ctx HF32 in
-					op ctx (OGetF32 (r, b, shl ctx pos 2));
+					op ctx (OGetMem (r, b, shl ctx pos 2));
 					r
 				| HF64 ->
 					let r = alloc_tmp ctx HF64 in
-					op ctx (OGetF64 (r, b, shl ctx pos 3));
+					op ctx (OGetMem (r, b, shl ctx pos 3));
 					r
 				| _ ->
 					abort ("Unsupported basic type " ^ tstr t) e.epos)
@@ -1664,25 +1650,25 @@ and eval_expr ctx e =
 				| HI32 ->
 					let v = eval_to ctx value HI32 in
 					hold ctx v;
-					op ctx (OSetI32 (b, shl ctx pos 2, v));
+					op ctx (OSetMem (b, shl ctx pos 2, v));
 					free ctx v;
 					v
 				| HI64 ->
 					let v = eval_to ctx value HI64 in
 					hold ctx v;
-					op ctx (OSetI64 (b, shl ctx pos 3, v));
+					op ctx (OSetMem (b, shl ctx pos 3, v));
 					free ctx v;
 					v
 				| HF32 ->
 					let v = eval_to ctx value HF32 in
 					hold ctx v;
-					op ctx (OSetF32 (b, shl ctx pos 2, v));
+					op ctx (OSetMem (b, shl ctx pos 2, v));
 					free ctx v;
 					v
 				| HF64 ->
 					let v = eval_to ctx value HF64 in
 					hold ctx v;
-					op ctx (OSetF64 (b, shl ctx pos 3, v));
+					op ctx (OSetMem (b, shl ctx pos 3, v));
 					free ctx v;
 					v
 				| _ ->
@@ -1715,7 +1701,7 @@ and eval_expr ctx e =
 			let pos = eval_to ctx pos HI32 in
 			free ctx b;
 			let r = alloc_tmp ctx HI32 in
-			op ctx (OGetI32 (r, b, pos));
+			op ctx (OGetMem (r, b, pos));
 			r
 		| "$bgeti64", [b;pos] ->
 			let b = eval_to ctx b HBytes in
@@ -1723,7 +1709,7 @@ and eval_expr ctx e =
 			let pos = eval_to ctx pos HI32 in
 			free ctx b;
 			let r = alloc_tmp ctx HI64 in
-			op ctx (OGetI64 (r, b, pos));
+			op ctx (OGetMem (r, b, pos));
 			r
 		| "$bgetf32", [b;pos] ->
 			let b = eval_to ctx b HBytes in
@@ -1731,7 +1717,7 @@ and eval_expr ctx e =
 			let pos = eval_to ctx pos HI32 in
 			free ctx b;
 			let r = alloc_tmp ctx HF32 in
-			op ctx (OGetF32 (r, b, pos));
+			op ctx (OGetMem (r, b, pos));
 			r
 		| "$bgetf64", [b;pos] ->
 			let b = eval_to ctx b HBytes in
@@ -1739,7 +1725,7 @@ and eval_expr ctx e =
 			let pos = eval_to ctx pos HI32 in
 			free ctx b;
 			let r = alloc_tmp ctx HF64 in
-			op ctx (OGetF64 (r, b, pos));
+			op ctx (OGetMem (r, b, pos));
 			r
 		| "$asize", [e] ->
 			let r = alloc_tmp ctx HI32 in
@@ -2430,13 +2416,13 @@ and eval_expr ctx e =
 		in
 		(match et with
 		| HI32 ->
-			array_bytes 2 HI32 "I32" (fun b i r -> OSetI32 (b,i,r))
+			array_bytes 2 HI32 "I32" (fun b i r -> OSetMem (b,i,r))
 		| HUI16 ->
 			array_bytes 1 HI32 "UI16" (fun b i r -> OSetUI16 (b,i,r))
 		| HF32 ->
-			array_bytes 2 HF32 "F32" (fun b i r -> OSetF32 (b,i,r))
+			array_bytes 2 HF32 "F32" (fun b i r -> OSetMem (b,i,r))
 		| HF64 ->
-			array_bytes 3 HF64 "F64" (fun b i r -> OSetF64 (b,i,r))
+			array_bytes 3 HF64 "F64" (fun b i r -> OSetMem (b,i,r))
 		| _ ->
 			let at = if is_dynamic et then et else HDyn in
 			let a = alloc_tmp ctx HArray in
@@ -3656,7 +3642,7 @@ let add_types ctx types =
 let build_code ctx types main =
 	let ep = generate_static_init ctx types main in
 	{
-		version = 1;
+		version = 2;
 		entrypoint = ep;
 		strings = DynArray.to_array ctx.cstrings.arr;
 		ints = DynArray.to_array ctx.cints.arr;

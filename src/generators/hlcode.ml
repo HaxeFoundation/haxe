@@ -169,17 +169,11 @@ type opcode =
 	(* memory access *)
 	| OGetUI8 of reg * reg * reg
 	| OGetUI16 of reg * reg * reg
-	| OGetI32 of reg * reg * reg
-	| OGetI64 of reg * reg * reg
-	| OGetF32 of reg * reg * reg
-	| OGetF64 of reg * reg * reg
+	| OGetMem of reg * reg * reg
 	| OGetArray of reg * reg * reg
 	| OSetUI8 of reg * reg * reg
 	| OSetUI16 of reg * reg * reg
-	| OSetI32 of reg * reg * reg
-	| OSetI64 of reg * reg * reg
-	| OSetF32 of reg * reg * reg
-	| OSetF64 of reg * reg * reg
+	| OSetMem of reg * reg * reg
 	| OSetArray of reg * reg * reg
 	(* type operations *)
 	| ONew of reg
@@ -535,15 +529,11 @@ let ostr fstr o =
 	| ORethrow r -> Printf.sprintf "rethrow %d" r
 	| OGetUI8 (r,b,p) -> Printf.sprintf "getui8 %d,%d[%d]" r b p
 	| OGetUI16 (r,b,p) -> Printf.sprintf "getui16 %d,%d[%d]" r b p
-	| OGetI32 (r,b,p) -> Printf.sprintf "geti32 %d,%d[%d]" r b p
-	| OGetF32 (r,b,p) -> Printf.sprintf "getf32 %d,%d[%d]" r b p
-	| OGetF64 (r,b,p) -> Printf.sprintf "getf64 %d,%d[%d]" r b p
+	| OGetMem (r,b,p) -> Printf.sprintf "getmem %d,%d[%d]" r b p
 	| OGetArray (r,a,i) -> Printf.sprintf "getarray %d,%d[%d]" r a i
 	| OSetUI8 (r,p,v) -> Printf.sprintf "setui8 %d,%d,%d" r p v
 	| OSetUI16 (r,p,v) -> Printf.sprintf "setui16 %d,%d,%d" r p v
-	| OSetI32 (r,p,v) -> Printf.sprintf "seti32 %d,%d,%d" r p v
-	| OSetF32 (r,p,v) -> Printf.sprintf "setf32 %d,%d,%d" r p v
-	| OSetF64 (r,p,v) -> Printf.sprintf "setf64 %d,%d,%d" r p v
+	| OSetMem (r,p,v) -> Printf.sprintf "setmem %d,%d,%d" r p v
 	| OSetArray (a,i,v) -> Printf.sprintf "setarray %d[%d],%d" a i v
 	| OSafeCast (r,v) -> Printf.sprintf "safecast %d,%d" r v
 	| OUnsafeCast (r,v) -> Printf.sprintf "unsafecast %d,%d" r v

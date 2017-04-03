@@ -995,25 +995,18 @@ let interp ctx f args =
 				let b = int_of_char (String.get b (Int32.to_int p + 1)) in
 				set r (VInt (Int32.of_int (a lor (b lsl 8))))
 			| _ -> assert false)
-		| OGetI32 (r,b,p) ->
-			(match get b, get p with
-			| VBytes b, VInt p -> set r (VInt (get_i32 b (Int32.to_int p)))
-			| _ -> assert false)
-		| OGetI64 (r,b,p) ->
-			(match get b, get p with
-			| VBytes b, VInt p -> set r (VInt64 (get_i64 b (Int32.to_int p)))
-			| _ -> assert false)
-		| OGetF32 (r,b,p) ->
-			(match get b, get p with
-			| VBytes b, VInt p -> set r (VFloat (Int32.float_of_bits (get_i32 b (Int32.to_int p))))
-			| _ -> assert false)
-		| OGetF64 (r,b,p) ->
+		| OGetMem (r,b,p) ->
 			(match get b, get p with
 			| VBytes b, VInt p ->
 				let p = Int32.to_int p in
-				let i64 = Int64.logor (Int64.logand (Int64.of_int32 (get_i32 b p)) 0xFFFFFFFFL) (Int64.shift_left (Int64.of_int32 (get_i32 b (p + 4))) 32) in
-				set r (VFloat (Int64.float_of_bits i64))
-			| _ -> assert false)
+				set r (match rtype r with
+				| HI32 -> VInt (get_i32 b p)
+				| HI64 -> VInt64 (get_i64 b p)
+				| HF32 -> VFloat (Int32.float_of_bits (get_i32 b p))
+				| HF64 -> VFloat (Int64.float_of_bits (get_i64 b p))
+				| _ -> assert false)
+			| _ ->
+				assert false)
 		| OGetArray (r,a,i) ->
 			(match get a, get i with
 			| VArray (a,_), VInt i -> set r a.(Int32.to_int i)
@@ -1028,26 +1021,18 @@ let interp ctx f args =
 				String.set b (Int32.to_int p) (char_of_int ((Int32.to_int v) land 0xFF));
 				String.set b (Int32.to_int p + 1) (char_of_int (((Int32.to_int v) lsr 8) land 0xFF))
 			| _ -> assert false)
-		| OSetI32 (r,p,v) ->
-			(match get r, get p, get v with
-			| VBytes b, VInt p, VInt v -> set_i32 b (Int32.to_int p) v
-			| _ -> assert false)
-		| OSetI64 (r,p,v) ->
-			(match get r, get p, get v with
-			| VBytes b, VInt p, VInt64 v -> set_i64 b (Int32.to_int p) v
-			| _ -> assert false)
-		| OSetF32 (r,p,v) ->
-			(match get r, get p, get v with
-			| VBytes b, VInt p, VFloat v -> set_i32 b (Int32.to_int p) (Int32.bits_of_float v)
-			| _ -> assert false)
-		| OSetF64 (r,p,v) ->
-			(match get r, get p, get v with
-			| VBytes b, VInt p, VFloat v ->
+		| OSetMem (r,p,v) ->
+			(match get r, get p with
+			| VBytes b, VInt p ->
 				let p = Int32.to_int p in
-				let v64 = Int64.bits_of_float v in
-				set_i32 b p (Int64.to_int32 v64);
-				set_i32 b (p + 4) (Int64.to_int32 (Int64.shift_right_logical v64 32));
-			| _ -> assert false)
+				(match rtype v, get v with
+				| HI32, VInt v -> set_i32 b p v
+				| HI64, VInt64 v -> set_i64 b p v
+				| HF32, VFloat f -> set_i32 b p (Int32.bits_of_float f)
+				| HF64, VFloat f -> set_i64 b p (Int64.bits_of_float f)
+				| _ -> assert false)
+			| _ ->
+				assert false)
 		| OSetArray (a,i,v) ->
 			(match get a, get i with
 			| VArray (a,t), VInt i ->
@@ -2361,38 +2346,22 @@ let check code macros =
 				reg a HArray;
 				reg i HI32;
 				ignore(rtype v);
-			| OGetUI8 (r,b,p) | OGetI32 (r,b,p) | OGetUI16(r,b,p) ->
+			| OGetUI8 (r,b,p) | OGetUI16(r,b,p) ->
 				reg r HI32;
 				reg b HBytes;
 				reg p HI32;
-			| OGetI64 (r,b,p) ->
-				reg r HI64;
+			| OGetMem (r,b,p) ->
+				(match rtype r with HI32 | HI64 | HF32 | HF64 -> () | _ -> error (reg_inf r ^ " should be numeric"));
 				reg b HBytes;
 				reg p HI32;
-			| OGetF32 (r,b,p) ->
-				reg r HF32;
-				reg b HBytes;
-				reg p HI32;
-			| OGetF64 (r,b,p) ->
-				reg r HF64;
-				reg b HBytes;
-				reg p HI32;
-			| OSetUI8 (r,p,v) | OSetI32 (r,p,v) | OSetUI16 (r,p,v) ->
+			| OSetUI8 (r,p,v) | OSetUI16 (r,p,v) ->
 				reg r HBytes;
 				reg p HI32;
 				reg v HI32;
-			| OSetI64 (r,p,v) ->
+			| OSetMem (r,p,v) ->
 				reg r HBytes;
 				reg p HI32;
-				reg v HI64;
-			| OSetF32 (r,p,v) ->
-				reg r HBytes;
-				reg p HI32;
-				reg v HF32;
-			| OSetF64 (r,p,v) ->
-				reg r HBytes;
-				reg p HI32;
-				reg v HF64;
+				(match rtype v with HI32 | HI64 | HF32 | HF64 -> () | _ -> error (reg_inf r ^ " should be numeric"));
 			| OSetArray (a,i,v) ->
 				reg a HArray;
 				reg i HI32;
@@ -2835,17 +2804,11 @@ let make_spec (code:code) (f:fundecl) =
 			| OTrap _ | OEndTrap _ -> ()
 			| OGetUI8 (d,b,i) -> args.(d) <- SMem (args.(b),args.(i),HUI8)
 			| OGetUI16 (d,b,i) -> args.(d) <- SMem (args.(b),args.(i),HUI16)
-			| OGetI32 (d,b,i) -> args.(d) <- SMem (args.(b),args.(i),HI32)
-			| OGetI64 (d,b,i) -> args.(d) <- SMem (args.(b),args.(i),HI64)
-			| OGetF32 (d,b,i) -> args.(d) <- SMem (args.(b),args.(i),HF32)
-			| OGetF64 (d,b,i) -> args.(d) <- SMem (args.(b),args.(i),HF64)
+			| OGetMem (d,b,i) -> args.(d) <- SMem (args.(b),args.(i),f.regs.(d))
 			| OGetArray (d,b,i) -> args.(d) <- SMem (args.(b),args.(i),HArray)
 			| OSetUI8 (b,i,v) -> semit (SWriteMem (args.(b),args.(i),args.(v),HUI8))
 			| OSetUI16 (b,i,v) -> semit (SWriteMem (args.(b),args.(i),args.(v),HUI16))
-			| OSetI32 (b,i,v) -> semit (SWriteMem (args.(b),args.(i),args.(v),HI32))
-			| OSetI64 (b,i,v) -> semit (SWriteMem (args.(b),args.(i),args.(v),HI64))
-			| OSetF32 (b,i,v) -> semit (SWriteMem (args.(b),args.(i),args.(v),HF32))
-			| OSetF64 (b,i,v) -> semit (SWriteMem (args.(b),args.(i),args.(v),HF64))
+			| OSetMem (b,i,v) -> semit (SWriteMem (args.(b),args.(i),args.(v),f.regs.(v)))
 			| OSetArray (b,i,v) -> semit (SWriteMem (args.(b),args.(i),args.(v),HArray))
 			| ONew d ->
 				incr alloc_count;
