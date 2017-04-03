@@ -3749,7 +3749,7 @@ let generate com =
 	if Common.defined com Define.Interp then
 		try
 			let t = Common.timer ["generate";"hl";"interp"] in
-			let ctx = Hlinterp.create false in
+			let ctx = Hlinterp.create true in
 			Hlinterp.add_code ctx code;
 			t();
 		with
