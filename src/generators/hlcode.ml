@@ -30,6 +30,7 @@ type ttype =
 	| HUI8
 	| HUI16
 	| HI32
+	| HI64
 	| HF32
 	| HF64
 	| HBool
@@ -169,12 +170,14 @@ type opcode =
 	| OGetUI8 of reg * reg * reg
 	| OGetUI16 of reg * reg * reg
 	| OGetI32 of reg * reg * reg
+	| OGetI64 of reg * reg * reg
 	| OGetF32 of reg * reg * reg
 	| OGetF64 of reg * reg * reg
 	| OGetArray of reg * reg * reg
 	| OSetUI8 of reg * reg * reg
 	| OSetUI16 of reg * reg * reg
 	| OSetI32 of reg * reg * reg
+	| OSetI64 of reg * reg * reg
 	| OSetF32 of reg * reg * reg
 	| OSetF64 of reg * reg * reg
 	| OSetArray of reg * reg * reg
@@ -249,11 +252,11 @@ let list_mapi f l =
 let is_nullable t =
 	match t with
 	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HRef _ -> true
-	| HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool | HVoid | HType -> false
+	| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HVoid | HType -> false
 
 
 let is_int = function
-	| HUI8 | HUI16 | HI32 -> true
+	| HUI8 | HUI16 | HI32 | HI64 -> true
 	| _ -> false
 
 let is_float = function
@@ -261,7 +264,7 @@ let is_float = function
 	| _ -> false
 
 let is_number = function
-	| HUI8 | HUI16 | HI32 | HF32 | HF64 -> true
+	| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 -> true
 	| _ -> false
 
 (*
@@ -405,7 +408,7 @@ let gather_types (code:code) =
 		| _ ->
 			()
 	in
-	List.iter (fun t -> get_type t) [HVoid; HUI8; HUI16; HI32; HF32; HF64; HBool; HType; HDyn]; (* make sure all basic types get lower indexes *)
+	List.iter (fun t -> get_type t) [HVoid; HUI8; HUI16; HI32; HI64; HF32; HF64; HBool; HType; HDyn]; (* make sure all basic types get lower indexes *)
 	Array.iter (fun g -> get_type g) code.globals;
 	Array.iter (fun (_,_,t,_) -> get_type t) code.natives;
 	Array.iter (fun f ->
@@ -430,6 +433,7 @@ let rec tstr ?(stack=[]) ?(detailed=false) t =
 	| HUI8 -> "ui8"
 	| HUI16 -> "ui16"
 	| HI32 -> "i32"
+	| HI64 -> "i64"
 	| HF32 -> "f32"
 	| HF64 -> "f64"
 	| HBool -> "bool"

@@ -25,6 +25,7 @@ open Hlcode
 type value =
 	| VNull
 	| VInt of int32
+	| VInt64 of int64
 	| VFloat of float
 	| VBool of bool
 	| VDyn of value * ttype
@@ -119,6 +120,7 @@ type context = {
 let default t =
 	match t with
 	| HUI8 | HUI16 | HI32 -> VInt Int32.zero
+	| HI64 -> VInt64 Int64.zero
 	| HF32 | HF64 -> VFloat 0.
 	| HBool -> VBool false
 	| _ -> if is_nullable t then VNull else VUndef
