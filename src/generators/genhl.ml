@@ -3748,7 +3748,9 @@ let generate com =
 	end;
 	if Common.defined com Define.Interp then
 		try
-			let ctx = Hlinterp.create true in
+			let t = Common.timer ["generate";"hl";"interp"] in
+			let ctx = Hlinterp.create false in
 			Hlinterp.add_code ctx code;
+			t();
 		with
 			Failure msg -> abort msg null_pos
