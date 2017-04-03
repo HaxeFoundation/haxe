@@ -1156,7 +1156,11 @@ let iter_expressions fl mt =
 	| _ ->
 		()
 
+let filter_timer detailed s =
+	timer (if detailed then "filters" :: s else ["filters"])
+
 let run com tctx main =
+	let detail_times = Common.raw_defined com "filter-times" in
 	let new_types = List.filter (fun t -> not (is_cached t)) com.types in
 	(* PASS 1: general expression filters *)
 	let filters = [
@@ -1181,8 +1185,9 @@ let run com tctx main =
 			]
 		| _ -> filters
 	in
+	let t = filter_timer detail_times ["expr 1"] in
 	List.iter (run_expression_filters tctx filters) new_types;
-
+	t();
 	(* PASS 1.5: pre-analyzer type filters *)
 	let filters =
 		match com.platform with
@@ -1198,8 +1203,9 @@ let run com tctx main =
 		| _ ->
 			[]
 	in
+	let t = filter_timer detail_times ["type 1"] in
 	List.iter (fun f -> List.iter f new_types) filters;
-
+	t();
 	if com.platform <> Cross then Analyzer.Run.run_on_types tctx new_types;
 
 	let filters = [
@@ -1209,10 +1215,17 @@ let run com tctx main =
 		rename_local_vars tctx;
 		mark_switch_break_loops;
 	] in
+	let t = filter_timer detail_times ["expr 2"] in
 	List.iter (run_expression_filters tctx filters) new_types;
+	t();
 	next_compilation();
+	let t = filter_timer detail_times ["callbacks"] in
 	List.iter (fun f -> f()) (List.rev com.callbacks.before_dce); (* macros onGenerate etc. *)
+	t();
+	let t = filter_timer detail_times ["save state"] in
 	List.iter (save_class_state tctx) new_types;
+	t();
+	let t = filter_timer detail_times ["type 2"] in
 	(* PASS 2: type filters pre-DCE *)
 	List.iter (fun t ->
 		remove_generic_base tctx t;
@@ -1221,6 +1234,8 @@ let run com tctx main =
 		(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)
 		check_remove_metadata tctx t;
 	) com.types;
+	t();
+	let t = filter_timer detail_times ["dce"] in
 	(* DCE *)
 	let dce_mode = if Common.defined com Define.As3 then
 		"no"
@@ -1233,6 +1248,7 @@ let run com tctx main =
 		| "no" -> Dce.fix_accessors com
 		| _ -> failwith ("Unknown DCE mode " ^ dce_mode)
 	end;
+	t();
 	(* PASS 3: type filters post-DCE *)
 	let type_filters = [
 		check_private_path;
@@ -1249,4 +1265,6 @@ let run com tctx main =
 		| Cs -> type_filters @ [ fun _ t -> InterfaceProps.run t ]
 		| _ -> type_filters
 	in
-	List.iter (fun t -> List.iter (fun f -> f tctx t) type_filters) com.types
+	let t = filter_timer detail_times ["type 3"] in
+	List.iter (fun t -> List.iter (fun f -> f tctx t) type_filters) com.types;
+	t()
