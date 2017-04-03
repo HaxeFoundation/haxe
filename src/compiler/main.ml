@@ -336,7 +336,7 @@ let generate tctx ext xml_out interp swf_header =
 		| _ -> Common.mkdir_from_path com.file
 	end;
 	if interp then
-		MacroContext.interpret tctx
+		Std.finally (Common.timer ["interp"]) MacroContext.interpret tctx
 	else if com.platform = Cross then
 		()
 	else begin
@@ -936,6 +936,7 @@ with
 		raise (DisplayOutput.Completion s)
 	| Interp.Sys_exit i | Hlinterp.Sys_exit i ->
 		ctx.flush();
+		if !measure_times then report_times prerr_endline;
 		exit i
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not (is_debug_run()) ->
 		error ctx (Printexc.to_string e) null_pos
