@@ -143,6 +143,7 @@ let v_dynamic = function
 let rec is_compatible v t =
 	match v, t with
 	| VInt _, (HUI8 | HUI16 | HI32) -> true
+	| VInt64 _, HI64 -> true
 	| VFloat _, (HF32 | HF64) -> true
 	| VBool _, HBool -> true
 	| _, HVoid -> true
@@ -888,7 +889,7 @@ let interp ctx f args =
 		| OToDyn (r,a) -> set r (make_dyn (get a) f.regs.(a))
 		| OToSFloat (r,a) -> set r (match get a with VInt v -> VFloat (Int32.to_float v) | VFloat _ as v -> v | _ -> assert false)
 		| OToUFloat (r,a) -> set r (match get a with VInt v -> VFloat (ufloat v) | VFloat _ as v -> v | _ -> assert false)
-		| OToInt (r,a) -> set r (match get a with VFloat v -> VInt (Int32.of_float v) | VInt _ as v -> v | _ -> assert false)
+		| OToInt (r,a) -> set r (match get a with VFloat v -> VInt (Int32.of_float v) | VInt i when rtype r = HI64 -> VInt64 (Int64.of_int32 i) | VInt _ as v -> v | _ -> assert false)
 		| OLabel _ -> ()
 		| ONew r ->
 			set r (alloc_obj ctx (rtype r))
@@ -2145,12 +2146,12 @@ let check code macros =
 		in
 		let numeric r =
 			match rtype r with
-			| HUI8 | HUI16 | HI32 | HF32 | HF64 -> ()
+			| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 -> ()
 			| _ -> error (reg_inf r ^ " should be numeric")
 		in
 		let int r =
 			match rtype r with
-			| HUI8 | HUI16 | HI32 -> ()
+			| HUI8 | HUI16 | HI32 | HI64 -> ()
 			| _ -> error (reg_inf r ^ " should be integral")
 		in
 		let float r =
