@@ -3261,13 +3261,14 @@ and type_local_function ctx name f with_type p =
 	(match v with
 	| None -> e
 	| Some v ->
+		let open LocalUsage in
 		if params <> [] || inline then v.v_extra <- Some (params,if inline then Some e else None);
 		let rec loop = function
-			| Filters.Block f | Filters.Loop f | Filters.Function f -> f loop
-			| Filters.Use v2 | Filters.Assign v2 when v == v2 -> raise Exit
-			| Filters.Use _ | Filters.Assign _ | Filters.Declare _ -> ()
+			| LocalUsage.Block f | LocalUsage.Loop f | LocalUsage.Function f -> f loop
+			| LocalUsage.Use v2 | LocalUsage.Assign v2 when v == v2 -> raise Exit
+			| LocalUsage.Use _ | LocalUsage.Assign _ | LocalUsage.Declare _ -> ()
 		in
-		let is_rec = (try Filters.local_usage loop e; false with Exit -> true) in
+		let is_rec = (try local_usage loop e; false with Exit -> true) in
 		let decl = (if is_rec then begin
 			if inline then display_error ctx "Inline function cannot be recursive" e.epos;
 			let vnew = add_local ctx v.v_name ft v.v_pos in
