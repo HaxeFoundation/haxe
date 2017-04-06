@@ -29,7 +29,7 @@ STATICLINK?=0
 
 HAXE_DIRECTORIES=compiler context generators generators/gencommon macro filters optimization syntax typing display
 EXTLIB_LIBS=extlib extc neko javalib ziplib swflib xml-light ttflib ilib objsize pcre
-FINDLIB_LIBS=unix str
+FINDLIB_LIBS=unix str threads
 
 # Includes, packages and compiler
 
@@ -38,7 +38,7 @@ EXTLIB_INCLUDES=$(EXTLIB_LIBS:%=-I libs/%)
 ALL_INCLUDES=$(EXTLIB_INCLUDES) $(HAXE_INCLUDES)
 FINDLIB_PACKAGES=$(FINDLIB_LIBS:%=-package %)
 CFLAGS=
-ALL_CFLAGS=-bin-annot -g -w -3 $(CFLAGS) $(ALL_INCLUDES) $(FINDLIB_PACKAGES)
+ALL_CFLAGS=-bin-annot -thread -g -w -3 $(CFLAGS) $(ALL_INCLUDES) $(FINDLIB_PACKAGES)
 
 ifeq ($(BYTECODE),1)
 	TARGET_FLAG = bytecode
@@ -86,7 +86,7 @@ else
 	LIB_PARAMS?= -cclib -lpcre -cclib -lz
 endif
 
-NATIVE_LIBS=-cclib libs/extc/extc_stubs.o -cclib libs/extc/process_stubs.o -cclib libs/objsize/c_objsize.o -cclib libs/pcre/pcre_stubs.o -ccopt -L/usr/local/lib $(LIB_PARAMS)
+NATIVE_LIBS=-thread -cclib libs/extc/extc_stubs.o -cclib libs/extc/process_stubs.o -cclib libs/objsize/c_objsize.o -cclib libs/pcre/pcre_stubs.o -ccopt -L/usr/local/lib $(LIB_PARAMS)
 
 # Modules
 
