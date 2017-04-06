@@ -34,13 +34,13 @@ class Host {
 
 	public function new( name : String ) : Void {
 		host = name;
-      try {
+		try {
 			ip = NativeSocket.host_resolve(name);
-      }
-      catch(e:Dynamic)
-      {
-		   ipv6 = NativeSocket.host_resolve_ipv6(name);
-      }
+		} catch(e:Dynamic) { }
+
+     	try {
+			ipv6 = NativeSocket.host_resolve_ipv6(name);
+		}catch(e:Dynamic){ }
 	}
 
 	public function toString() : String {

@@ -153,21 +153,31 @@ class Socket {
 
    public function connect(host : Host, port : Int) : Void {
       try {
-         if (host.ip==0 && host.host!="0.0.0.0") {
-            // hack, hack, hack
-            var ipv6:haxe.io.BytesData = Reflect.field(host,"ipv6");
-            if (ipv6!=null)
-            {
-                close();
-                __s = NativeSocket.socket_new_ip(false,true);
-                init();
-                NativeSocket.socket_connect_ipv6(__s, ipv6, port);
+         // hack, hack, hack
+         var ipv6:haxe.io.BytesData = Reflect.field(host,"ipv6");
+         if (host.ip != 0 || host.host == "0.0.0.0") {
+            try {
+                NativeSocket.socket_connect(__s, host.ip, port);
+            } catch (s : String) {
+               if (s == "EOF" && ipv6 != null) {
+                  close();
+                  __s = NativeSocket.socket_new_ip(false,true);
+                  init();
+                  NativeSocket.socket_connect_ipv6(__s, ipv6, port);
+               }
+               else
+                  cpp.Lib.rethrow(s);
             }
-            else
-               throw "Unresolved host";
          }
-         else
-            NativeSocket.socket_connect(__s, host.ip, port);
+         else if(ipv6 != null) {
+            close();
+            __s = NativeSocket.socket_new_ip(false,true);
+            init();
+            NativeSocket.socket_connect_ipv6(__s, ipv6, port);
+         }
+         else {
+            throw "Unresolved host";
+         }
       } catch( s : String ) {
          if( s == "Invalid socket handle" )
             throw "Failed to connect on "+host.toString()+":"+port;
@@ -189,21 +199,27 @@ class Socket {
    }
 
    public function bind(host : Host, port : Int) : Void {
-      if (host.ip==0  && host.host!="0.0.0.0")
-      {
-          var ipv6:haxe.io.BytesData = Reflect.field(host,"ipv6");
-          if (ipv6!=null)
-          {
-              close();
-              __s = NativeSocket.socket_new_ip(false,true);
-              init();
-              NativeSocket.socket_bind_ipv6(__s, ipv6, port);
-          }
-          else
-             throw "Unresolved host";
+      var ipv6:haxe.io.BytesData = Reflect.field(host,"ipv6");
+      if (host.ip != 0 || host.host == "0.0.0.0") {
+         try {
+            NativeSocket.socket_bind(__s, host.ip, port);
+         } catch (s : String) {
+            if (s == "EOF" && ipv6 != null) {
+               close();
+               __s = NativeSocket.socket_new_ip(false,true);
+               init();
+               NativeSocket.socket_bind_ipv6(__s, ipv6, port);
+            }
+            else
+               cpp.Lib.rethrow(s);
+         }
       }
-      else
-         NativeSocket.socket_bind(__s, host.ip, port);
+      else if(ipv6 != null) {
+         close();
+         __s = NativeSocket.socket_new_ip(false,true);
+         init();
+         NativeSocket.socket_bind_ipv6(__s, ipv6, port);
+      }
    }
 
    public function accept() : Socket {
