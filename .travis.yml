@@ -23,22 +23,16 @@ addons: &addons
     - api.haxe.org
 
 install_linux: &install_linux
-  # Install opam + ocaml
-  - sudo wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin 4.02.3
-  - export OPAMYES=1
-  - opam install camlp4 ocamlfind
-  - eval `opam config env`
   # Install neko and haxe dependencies
+  - sudo add-apt-repository ppa:haxe/ocaml -y
   - sudo add-apt-repository ppa:haxe/snapshots -y
   - sudo apt-get update
   - sudo apt-get install -y
       neko
-      pkg-config
-      libssl-dev
-      libpcre3-dev
-      zlib1g-dev
-      libmysqlclient-dev
-      libsqlite3-dev
+      ocaml
+      ocaml-native-compilers
+      ocaml-findlib
+      camlp4
   # Setup database
   - travis_retry sudo apt-get install mysql-server-5.6 -y
   - mysql -u root -e "create user travis@localhost identified by '';"
