@@ -2081,6 +2081,8 @@ and eval_expr ctx e =
 						| OpMod -> op ctx (if unsigned e1.etype then OUMod (r,a,b) else OSMod (r,a,b))
 						| OpDiv -> op ctx (OSDiv (r,a,b)) (* don't use UDiv since both operands are float already *)
 						| _ -> assert false)
+					| HDyn ->
+						op ctx (OCall3 (r, alloc_std ctx "dyn_op" [HI32;HDyn;HDyn] HDyn, reg_int ctx (match bop with OpSub -> 1 | OpMult -> 2 | OpMod -> 3 | OpDiv -> 4 | _ -> assert false), a, b))
 					| _ ->
 						assert false)
 				| OpShl | OpShr | OpUShr | OpAnd | OpOr | OpXor ->
@@ -2094,6 +2096,8 @@ and eval_expr ctx e =
 						| OpOr -> op ctx (OOr (r,a,b))
 						| OpXor -> op ctx (OXor (r,a,b))
 						| _ -> ())
+					| HDyn ->
+						op ctx (OCall3 (r, alloc_std ctx "dyn_op" [HI32;HDyn;HDyn] HDyn, reg_int ctx (match bop with OpShl -> 5 | OpShr -> 6 | OpUShr -> 7 | OpAnd -> 8 | OpOr -> 9 | OpXor -> 10 | _ -> assert false), a, b))
 					| _ ->
 						assert false)
 				| OpAssignOp bop ->
