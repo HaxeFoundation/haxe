@@ -2836,10 +2836,6 @@ let decode_i32 = function
 	| VInt32 i -> i
 	| _ -> raise Invalid_expr
 
-let decode_bytes = function
-	| VString s -> s
-	| _ -> raise Invalid_expr
-
 let encode_pos p =
 	VAbstract (APos p)
 
