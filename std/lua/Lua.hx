@@ -63,7 +63,7 @@ extern class Lua {
 	**/
 	public static function tostring(v:Dynamic): String;
 
-	public static function ipairs<T>(t:Table<Int,T>): PairsResult<Int,T>;
+	public static function ipairs<K,V>(t:Table<K,V>): IPairsResult<K,V>;
 
 	public static function pairs<K,V>(t:Table<K,V>): PairsResult<K,V> ;
 
@@ -202,10 +202,17 @@ extern class NextResult<K,V> {
 }
 
 @:multiReturn
+extern class IPairsResult<K,V> {
+	var next : Table<K,V>->Int->NextResult<Int,V>;
+	var table : Table<K,V>;
+	var index : Int;
+}
+
+@:multiReturn
 extern class PairsResult<K,V> {
 	var next : Table<K,V>->K->NextResult<K,V>;
 	var table : Table<K,V>;
-	var index : V;
+	var index : K;
 }
 
 @:multiReturn
