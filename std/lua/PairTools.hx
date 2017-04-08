@@ -55,4 +55,36 @@ class PairTools {
 		untyped __lua__("for k,v in _G.pairs(table1) do ret[k] = v end");
 		return ret;
 	}
+
+	public static function pairsIterator<A,B>(table:Table<A,B>) : Iterator<{index:A, value:B}> {
+		var p = Lua.pairs(table);
+		var next = p.next;
+		var i = p.index;
+		return {
+			next : function(){
+				var res = next(table,i);
+				i = res.index;
+				return {index : res.index, value : res.value};
+			},
+			hasNext : function(){
+				return Lua.next(table, i).value != null;
+			}
+		}
+	}
+
+	public static function ipairsIterator<A,B>(table:Table<A,B>) : Iterator<{index:Int, value:B}> {
+		var p = Lua.ipairs(table);
+		var next = p.next;
+		var i = p.index;
+		return {
+			next : function(){
+				var res = next(table,i);
+				i = res.index;
+				return {index : res.index, value : res.value};
+			},
+			hasNext : function(){
+				return next(table, i).value != null;
+			}
+		}
+	}
 }
