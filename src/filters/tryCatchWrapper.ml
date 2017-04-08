@@ -16,7 +16,6 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 *)
-open Option
 open Globals
 open Common
 open Ast
@@ -54,7 +53,7 @@ let init com (should_wrap:t->bool) (wrap_throw:texpr->texpr) (unwrap_expr:texpr-
 				(* first we'll see if the type is Dynamic (catchall) *)
 				match follow v.v_type with
 				| TDynamic _ ->
-					assert (is_none catchall);
+					assert (Option.is_none catchall);
 					(nowrap_catches, must_wrap_catches, Some(v, run catch))
 				(* see if we should unwrap it *)
 				| _ when should_wrap (follow v.v_type) ->

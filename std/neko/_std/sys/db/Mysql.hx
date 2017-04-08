@@ -191,7 +191,7 @@ private class MysqlConnection implements sys.db.Connection {
 		user : String,
 		pass : String,
 		?socket : String,
-		database : String
+		?database : String
 	} ) : sys.db.Connection {
 		var o = untyped {
 			host : params.host.__s,
@@ -201,11 +201,13 @@ private class MysqlConnection implements sys.db.Connection {
 			socket : if( params.socket == null ) null else params.socket.__s
 		};
 		var c = D.connect(o);
-		try {
-			D.select_db(c,untyped params.database.__s);
-		} catch( e : Dynamic ) {
-			D.close(c);
-			neko.Lib.rethrow(e);
+		if (params.database != null) {
+			try {
+				D.select_db(c,untyped params.database.__s);
+			} catch( e : Dynamic ) {
+				D.close(c);
+				neko.Lib.rethrow(e);
+			}
 		}
 		return new MysqlConnection(c);
 	}

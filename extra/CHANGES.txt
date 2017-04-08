@@ -4,10 +4,11 @@
 
 	js : improved generation of `break` inside `switch` inside loops (#4964)
 	cs : improved generation of enum classes (#6119)
+	sys : the `database` parameter of `Mysql.connect` is now optional
 
 	Removals:
 
-	all : SPOD (sys.db.Object, sys.db.Manager and friends) was moved into a separate library `record-macros` (https://github.com/HaxeFoundation/record-macros)
+	sys : SPOD (sys.db.Object, sys.db.Manager and friends) was moved into a separate library `record-macros` (https://github.com/HaxeFoundation/record-macros)
 	js : js.JQuery and js.SWFObject were moved into hx3compat library (https://github.com/HaxeFoundation/hx3compat),
 	     it's recommended to use more modern js.jquery.JQuery and js.swfobject.SWFObject classes.
 

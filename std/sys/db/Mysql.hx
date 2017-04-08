@@ -29,7 +29,7 @@ class Mysql {
 		user : String,
 		pass : String,
 		?socket : String,
-		database : String
+		?database : String
 	} ) : sys.db.Connection {
 		throw "Not implemented for this platform";
 		return null;

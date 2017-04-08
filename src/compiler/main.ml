@@ -169,55 +169,21 @@ let run_command ctx cmd =
 		if not Globals.is_windows then s else String.concat "\n" (Str.split (Str.regexp "\r\n") s)
 	in
 	let pout, pin, perr = Unix.open_process_full cmd (Unix.environment()) in
-	let iout = Unix.descr_of_in_channel pout in
-	let ierr = Unix.descr_of_in_channel perr in
-	let berr = Buffer.create 0 in
 	let bout = Buffer.create 0 in
-	let tmp = String.create 1024 in
-	let result = ref None in
-	(*
-		we need to read available content on process out/err if we want to prevent
-		the process from blocking when the pipe is full
-	*)
-	let is_process_running() =
-		let pid, r = Unix.waitpid [Unix.WNOHANG] (-1) in
-		if pid = 0 then
-			true
-		else begin
-			result := Some r;
-			false;
-		end
+	let berr = Buffer.create 0 in
+	let read_content channel buf =
+		Buffer.add_string buf (IO.read_all (IO.input_channel channel));
 	in
-	let rec loop ins =
-		let (ch,_,_), timeout = (try Unix.select ins [] [] 0.02, true with _ -> ([],[],[]),false) in
-		match ch with
-		| [] ->
-			(* make sure we read all *)
-			if timeout && is_process_running() then
-				loop ins
-			else begin
-				Buffer.add_string berr (IO.read_all (IO.input_channel perr));
-				Buffer.add_string bout (IO.read_all (IO.input_channel pout));
-			end
-		| s :: _ ->
-			let n = Unix.read s tmp 0 (String.length tmp) in
-			if s == iout && n > 0 then
-				ctx.com.print (String.sub tmp 0 n)
-			else
-				Buffer.add_substring (if s == iout then bout else berr) tmp 0 n;
-			loop (if n = 0 then List.filter ((!=) s) ins else ins)
-	in
-	(try loop [iout;ierr] with Unix.Unix_error _ -> ());
+	let tout = Thread.create (fun() -> read_content pout bout) () in
+	read_content perr berr;
+	Thread.join tout;
+	let result = (match Unix.close_process_full (pout,pin,perr) with Unix.WEXITED c | Unix.WSIGNALED c | Unix.WSTOPPED c -> c) in
 	let serr = binary_string (Buffer.contents berr) in
 	let sout = binary_string (Buffer.contents bout) in
 	if serr <> "" then ctx.messages <- (if serr.[String.length serr - 1] = '\n' then String.sub serr 0 (String.length serr - 1) else serr) :: ctx.messages;
-	if sout <> "" then ctx.com.print sout;
-	let r = (match (try Unix.close_process_full (pout,pin,perr) with Unix.Unix_error (Unix.ECHILD,_,_) -> (match !result with None -> assert false | Some r -> r)) with
-		| Unix.WEXITED e -> e
-		| Unix.WSIGNALED s | Unix.WSTOPPED s -> if s = 0 then -1 else s
-	) in
+	if sout <> "" then ctx.com.print (sout ^ "\n");
 	t();
-	r
+	result
 
 module Initialize = struct
 	let set_platform com pf file =
@@ -336,7 +302,7 @@ let generate tctx ext xml_out interp swf_header =
 		| _ -> Common.mkdir_from_path com.file
 	end;
 	if interp then
-		MacroContext.interpret tctx
+		Std.finally (Common.timer ["interp"]) MacroContext.interpret tctx
 	else if com.platform = Cross then
 		()
 	else begin
@@ -936,6 +902,7 @@ with
 		raise (DisplayOutput.Completion s)
 	| Interp.Sys_exit i | Hlinterp.Sys_exit i ->
 		ctx.flush();
+		if !measure_times then report_times prerr_endline;
 		exit i
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not (is_debug_run()) ->
 		error ctx (Printexc.to_string e) null_pos

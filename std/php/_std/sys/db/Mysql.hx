@@ -31,7 +31,7 @@ import sys.db.Connection;
 		user : String,
 		pass : String,
 		?socket : String,
-		database : String
+		?database : String
 	} ) : sys.db.Connection {
 		var dsn = "mysql:";
         
@@ -42,8 +42,11 @@ import sys.db.Connection;
 			if (params.port!=null)
 				dsn+='port='+params.port+";";
 		}
-		dsn+="dbname="+params.database;
-		return php.PDO.open(dsn,params.user,params.pass);
+		if (params.database != null) {
+			dsn+="dbname="+params.database;
+		}
+		
+		return php.db.PDO.open(dsn,params.user,params.pass);
 	}
 
 }
