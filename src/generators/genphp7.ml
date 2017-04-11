@@ -2226,6 +2226,10 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					if not written_as_probable_string then write_access "->" field_name
 				| FClosure (tcls, field) -> self#write_expr_field_closure tcls field expr
 				| FEnum (_, field) ->
+					let access_operator = match (reveal_expr expr).eexpr with
+						| TTypeExpr _ -> "::"
+						| _ -> "->"
+					in
 					if is_enum_constructor_with_args field then
 						if not self#parent_expr_is_call then
 							begin
@@ -2238,10 +2242,10 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 								self#write (", '" ^ field.ef_name ^ "')")
 							end
 						else
-							write_access "::" field.ef_name
+							write_access access_operator field.ef_name
 					else
 						begin
-							write_access "::" field.ef_name;
+							write_access access_operator field.ef_name;
 							self#write "()"
 						end
 
