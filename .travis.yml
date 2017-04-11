@@ -56,7 +56,7 @@ install_osx: &install_osx
   - travis_retry brew install opam;
   - export OPAMYES=1
   - opam init
-  - opam install camlp4 ocamlfind
+  - opam install camlp4 sedlex ocamlfind
   - eval `opam config env`
   # Install neko
   - travis_retry brew install neko --HEAD;
