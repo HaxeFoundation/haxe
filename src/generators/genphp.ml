@@ -803,7 +803,12 @@ and gen_member_access ctx isvar e s =
 	| TAnon a ->
 		(match !(a.a_status) with
 		| EnumStatics _ ->
-			print ctx "::%s%s" (if isvar then "$" else "") (s_ident s)
+			let (isvar, access_operator) =
+				match e.eexpr with
+					| TField _ -> (false, "->")
+					| _ -> (isvar, "::")
+			in
+			print ctx "%s%s" (access_operator ^ (if isvar then "$" else "")) (s_ident s)
 		| Statics sta ->
 			let (sep, no_dollar) = if Meta.has Meta.PhpGlobal sta.cl_meta then
 					("", false)
