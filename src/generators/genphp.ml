@@ -568,6 +568,14 @@ and gen_call ctx e el =
 			concat ctx "," (gen_value ctx) params;
 			spr ctx ")";
 		);
+	| TField ({ eexpr = TTypeExpr _ }, FStatic (_, {cf_type = TDynamic _; cf_kind = Var _})) , params ->
+		spr ctx "call_user_func(";
+		ctx.is_call <- true;
+		gen_value ctx e;
+		ctx.is_call <- false;
+		spr ctx ", ";
+		concat ctx ", " (gen_value ctx) el;
+		spr ctx ")";
 	| TLocal { v_name = "__set__" }, { eexpr = TConst (TString code) } :: el ->
 		print ctx "$%s" code;
 		genargs el;
