@@ -12,6 +12,11 @@
 	js : js.JQuery and js.SWFObject were moved into hx3compat library (https://github.com/HaxeFoundation/hx3compat),
 	     it's recommended to use more modern js.jquery.JQuery and js.swfobject.SWFObject classes.
 
+	Bugfixes:
+
+	php/php7: fixed accessing enum constructors on enum type stored to a variable (#6159)
+	php: fix invoking functions stored in dynamic static vars (#6158)
+
 2017-03-20: 3.4.2
 
 	Bugfixes:
