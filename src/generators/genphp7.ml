@@ -2243,15 +2243,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					in
 					if is_enum_constructor_with_args field then
 						if not self#parent_expr_is_call then
-							begin
-								self#write (self#use boot_type_path ^ "::closure(");
-								self#write_expr expr;
-								(match (reveal_expr expr).eexpr with
-									| TTypeExpr _ -> self#write "::class"
-									| _ -> self#write "->phpClassName"
-								);
-								self#write (", '" ^ field.ef_name ^ "')")
-							end
+							self#write_static_method_closure expr field.ef_name
 						else
 							write_access access_operator field.ef_name
 					else
@@ -2311,14 +2303,24 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					write_expr ();
 					self#write (operator ^ (field_name field))
 				| _ ->
-					let (args, return_type) = get_function_signature field  in
-					self#write "function(";
-					write_args self#write (self#write_arg true) args;
-					self#write ") { return ";
-					write_expr ();
-					self#write (operator ^ (field_name field) ^ "(");
-					write_args self#write (self#write_arg false) args;
-					self#write "); }"
+					self#write_static_method_closure expr field.cf_name
+		(**
+			Generates a closure of a static method. `expr` should contain a `HxClass` instance or a string name of a class.
+		*)
+		method write_static_method_closure expr field_name =
+			let expr = reveal_expr expr in
+			self#write ("new " ^ (self#use hxclosure_type_path) ^ "(");
+			(match (reveal_expr expr).eexpr with
+				| TTypeExpr (TClassDecl { cl_path = ([], "String") }) ->
+					self#write ((self#use hxstring_type_path) ^ "::class")
+				| TTypeExpr _ ->
+					self#write_expr expr;
+					self#write "::class"
+				| _ ->
+					self#write_expr expr;
+					self#write "->phpClassName"
+			);
+			self#write (", '" ^ field_name ^ "')")
 		(**
 			Writes FClosure field access to output buffer
 		*)
