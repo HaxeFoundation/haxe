@@ -2196,8 +2196,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 		method write_expr_field expr access =
 			let write_access access_str field_str =
 				let access_str = ref access_str in
-				let expr_without_casts = reveal_expr expr in
-				(match expr_without_casts.eexpr with
+				(match (reveal_expr expr).eexpr with
 					| TNew _
 					| TArrayDecl _
 					| TObjectDecl _ -> self#write_expr (parenthesis expr)
@@ -2237,21 +2236,33 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					if not written_as_probable_string then write_access "->" field_name
 				| FClosure (tcls, field) -> self#write_expr_field_closure tcls field expr
 				| FEnum (_, field) ->
-					let access_operator = match (reveal_expr expr).eexpr with
+					self#write_expr_field_enum expr field
+		(**
+			Generate EField for enum constructor.
+		*)
+		method write_expr_field_enum expr field =
+			let write_field () =
+				self#write_expr expr;
+				let access_operator =
+					match (reveal_expr expr).eexpr with
 						| TTypeExpr _ -> "::"
 						| _ -> "->"
-					in
-					if is_enum_constructor_with_args field then
-						if not self#parent_expr_is_call then
-							self#write_static_method_closure expr field.ef_name
-						else
-							write_access access_operator field.ef_name
-					else
-						begin
-							write_access access_operator field.ef_name;
-							self#write "()"
-						end
-
+				in
+				self#write (access_operator ^ field.ef_name)
+			in
+			if is_enum_constructor_with_args field then
+				match self#parent_expr with
+					(* Invoking this enum field *)
+					| Some { eexpr = TCall ({ eexpr = TField (target_expr, FEnum (_, target_field)) }, _) } when target_expr == expr && target_field == field ->
+						write_field ()
+					(* Passing this enum field somewhere *)
+					| _ ->
+						self#write_static_method_closure expr field.ef_name
+			else
+				begin
+					write_field ();
+					self#write "()"
+				end
 		(**
 			Writes field access on Dynamic expression to output buffer
 		*)
