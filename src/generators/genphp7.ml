@@ -600,6 +600,13 @@ let is_var_with_nonconstant_expr (field:tclass_field) =
 				| Some _ -> true
 			)
 		| Method _ -> false
+(**
+	Check if specified field is an `inline var` field.
+*)
+let is_inline_var (field:tclass_field) =
+	match field.cf_kind with
+		| Var { v_read = AccInline; v_write = AccNever } -> true
+		| _ -> false
 
 (**
 	@return New TBlock expression which is composed of setting default values for optional arguments and function body.
@@ -904,10 +911,14 @@ class class_wrapper (cls) =
 						let needs = ref false in
 						PMap.iter
 							(fun _ field ->
-								(* Check static vars with non-constant expressions *)
-								if not !needs then needs := is_var_with_nonconstant_expr field;
-								(* Check static dynamic functions *)
-								if not !needs then needs := is_dynamic_method field
+								(* Skip `inline var` fields *)
+								if not (is_inline_var field) then begin
+									if not !needs then needs := is_var_with_nonconstant_expr field;
+									(* Check static vars with non-constant expressions *)
+									if not !needs then needs := is_var_with_nonconstant_expr field;
+									(* Check static dynamic functions *)
+									if not !needs then needs := is_dynamic_method field
+								end
 							)
 							cls.cl_statics;
 						!needs
@@ -3382,9 +3393,12 @@ class class_builder ctx (cls:tclass) =
 					writer#write ("self::$" ^ (field_name field) ^ " = ");
 					writer#write_expr expr
 				in
-				(* Do not generate fields for RTTI meta, because this generator uses another way to store it *)
+				(*
+					Do not generate fields for RTTI meta, because this generator uses another way to store it.
+					Also skip initialization for `inline var` fields as those are generated as PHP class constants.
+				*)
 				let is_auto_meta_var = field.cf_name = "__meta__" && (has_rtti_meta ctx wrapper#get_module_type) in
-				if (is_var_with_nonconstant_expr field) && (not is_auto_meta_var) then begin
+				if (is_var_with_nonconstant_expr field) && (not is_auto_meta_var) && (not (is_inline_var field)) then begin
 					(match field.cf_expr with
 						| None -> ()
 						(* There can be not-inlined blocks when compiling with `-debug` *)
@@ -3444,13 +3458,15 @@ class class_builder ctx (cls:tclass) =
 			Writes "inline var" to output buffer as constant
 		*)
 		method private write_const field =
-			writer#indent 1;
-			self#write_doc (DocVar (writer#use_t field.cf_type, field.cf_doc));
-			writer#write_indentation;
-			writer#write ("const " ^ (field_name field) ^ " = ");
 			match field.cf_expr with
 				| None -> fail writer#pos (try assert false with Assert_failure mlpos -> mlpos)
+				(* Do not generate a PHP constant of `inline var` field if expression is not compatible with PHP const *)
+				| Some expr when not (is_constant expr) -> ()
 				| Some expr ->
+					writer#indent 1;
+					self#write_doc (DocVar (writer#use_t field.cf_type, field.cf_doc));
+					writer#write_indentation;
+					writer#write ("const " ^ (field_name field) ^ " = ");
 					writer#write_expr expr;
 					writer#write ";\n"
 		(**
