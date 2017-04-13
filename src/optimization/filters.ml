@@ -856,8 +856,8 @@ let run com tctx main =
 	let filters = [
 		VarLazifier.apply com;
 		AbstractCast.handle_abstract_casts tctx;
-		Optimizer.inline_constructors tctx;
 		check_local_vars_init;
+		Optimizer.inline_constructors tctx;
 		Optimizer.reduce_expression tctx;
 		CapturedVars.captured_vars com;
 	] in
