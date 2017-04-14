@@ -149,39 +149,39 @@ class Sha256 {
 		return blks;
 	}
 
-	function S(X, n) {
+	inline function S(X, n) {
 		return ( X >>> n ) | (X << (32 - n));
 	}
 
-	function R(X, n) {
+	inline function R(X, n) {
 		return ( X >>> n );
 	}
 
-	function Ch(x, y, z) {
+	inline function Ch(x, y, z) {
 		return ((x & y) ^ ((~x) & z));
 	}
 
-	function Maj(x, y, z) {
+	inline function Maj(x, y, z) {
 		return ((x & y) ^ (x & z) ^ (y & z));
 	}
 
-	function Sigma0256(x) {
+	inline function Sigma0256(x) {
 		return (S(x, 2) ^ S(x, 13) ^ S(x, 22));
 	}
 
-	function Sigma1256(x) {
+	inline function Sigma1256(x) {
 		return (S(x, 6) ^ S(x, 11) ^ S(x, 25));
 	}
 
-	function Gamma0256(x) {
+	inline function Gamma0256(x) {
 		return (S(x, 7) ^ S(x, 18) ^ R(x, 3));
 	}
 
-	function Gamma1256(x) {
+	inline function Gamma1256(x) {
 		return (S(x, 17) ^ S(x, 19) ^ R(x, 10));
 	}
 
-	function safeAdd(x, y) {
+	inline function safeAdd(x, y) {
 		var lsw = (x & 0xFFFF) + (y & 0xFFFF);
 		var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
 		return (msw << 16) | (lsw & 0xFFFF);
