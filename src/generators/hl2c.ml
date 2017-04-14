@@ -683,7 +683,8 @@ let generate_function ctx f =
 			else
 				sexpr "%s = %ld" (reg r) code.ints.(idx)
 		| OFloat (r,idx) ->
-			sexpr "%s = %.19g" (reg r) code.floats.(idx)
+			let fstr = sprintf "%.19g" code.floats.(idx) in
+			sexpr "%s = %s" (reg r) (if String.contains fstr '.' then fstr else fstr ^ ".")
 		| OBool (r,b) ->
 			sexpr "%s = %s" (reg r) (if b then "true" else "false")
 		| OBytes (r,idx) ->
@@ -905,7 +906,7 @@ let generate_function ctx f =
 				sexpr "{ venum *tmp";
 				"tmp"
 			end in
-			sexpr "%s = (venum*)hl_gc_alloc%s(sizeof(%s))" tmp (if has_ptr then "" else "_noptr") et;
+			sexpr "%s = (venum*)hl_gc_alloc_%s(sizeof(%s))" tmp (if has_ptr then "raw" else "noptr") et;
 			sexpr "%s->index = %d" tmp cid;
 			let _,_,tl = e.efields.(cid) in
 			list_iteri (fun i v ->
@@ -915,7 +916,7 @@ let generate_function ctx f =
 		| OEnumAlloc (r,cid) ->
 			let et, (_,_,tl) = (match rtype r with HEnum e -> enum_constr_type ctx e cid, e.efields.(cid) | _ -> assert false) in
 			let has_ptr = List.exists is_gc_ptr (Array.to_list tl) in
-			sexpr "%s = (venum*)hl_gc_alloc%s(sizeof(%s))" (reg r) (if has_ptr then "" else "_noptr") et;
+			sexpr "%s = (venum*)hl_gc_alloc_%s(sizeof(%s))" (reg r) (if has_ptr then "raw" else "noptr") et;
 			sexpr "memset(%s,0,sizeof(%s))" (reg r) et;
 			if cid <> 0 then sexpr "%s->index = %d" (reg r) cid
 		| OEnumIndex (r,v) ->
