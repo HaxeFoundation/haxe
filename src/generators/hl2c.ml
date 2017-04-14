@@ -658,7 +658,7 @@ let generate_function ctx f =
 					sexpr "if( %s != %s && (!%s || !%s || !%s->value || !%s->value || %s->value != %s->value) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (label d)
 				else
 					assert false
-			| HEnum _, HEnum _ | HDynObj, HDynObj ->
+			| HEnum _, HEnum _ | HDynObj, HDynObj | HFun _, HFun _ | HAbstract _, HAbstract _ ->
 				phys_compare()
 			| HVirtual _, HObj _->
 				if op = CEq then
@@ -669,8 +669,6 @@ let generate_function ctx f =
 					assert false
 			| HObj _, HVirtual _ ->
 				compare_op op b a d
-			| HFun _, HFun _ ->
-				phys_compare()
 			| ta, tb ->
 				failwith ("Don't know how to compare " ^ tstr ta ^ " and " ^ tstr tb ^ " (hlc)")
 		in
