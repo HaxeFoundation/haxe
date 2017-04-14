@@ -684,7 +684,7 @@ let generate_function ctx f =
 				sexpr "%s = %ld" (reg r) code.ints.(idx)
 		| OFloat (r,idx) ->
 			let fstr = sprintf "%.19g" code.floats.(idx) in
-			sexpr "%s = %s" (reg r) (if String.contains fstr '.' then fstr else fstr ^ ".")
+			sexpr "%s = %s" (reg r) (if String.contains fstr '.' || String.contains fstr 'e' then fstr else fstr ^ ".")
 		| OBool (r,b) ->
 			sexpr "%s = %s" (reg r) (if b then "true" else "false")
 		| OBytes (r,idx) ->
