@@ -111,11 +111,6 @@ extern class PDOClass
 	
 	public static var PARAM_STR(get, never):Int;
 	private static inline function get_PARAM_STR():Int return untyped __php__("PDO::PARAM_STR");
-	
-
-    
-    
-    
     
     public static var MYSQL_ATTR_USE_BUFFERED_QUERY(get, never):Int;
 	private static inline function get_MYSQL_ATTR_USE_BUFFERED_QUERY():Int return untyped __php__("PDO::MYSQL_ATTR_USE_BUFFERED_QUERY");
@@ -164,8 +159,6 @@ extern class PDOClass
     
     public static var MYSQL_ATTR_MULTI_STATEMENTS(get, never):Int;
 	private static inline function get_MYSQL_ATTR_MULTI_STATEMENTS():Int return untyped __php__("PDO::MYSQL_ATTR_MULTI_STATEMENTS");
-
-    
     
 	@:overload(function(dns : String):Void{})
 	@:overload(function(dns : String, username : String):Void{})
@@ -194,4 +187,5 @@ extern class PDOClass
 	public function quote(string : String, parameter_type : Int) : String;
 	public function rollBack() : Bool;
 	public function setAttribute(attribute : Int, value : Dynamic) : Bool;
+    public function inTransaction():Bool;
 }
