@@ -784,7 +784,6 @@ and gen_expr ?(local=true) ctx e = begin
 		ctx.break_depth <- ctx.break_depth + 1;
 		gen_block_element ctx e;
 		newline ctx;
-		handle_break();
 		if has_continue then begin
 		    b();
 		    newline ctx;
@@ -792,6 +791,7 @@ and gen_expr ?(local=true) ctx e = begin
 		    println ctx "if _hx_break_%i then _hx_break_%i = false; break; end" ctx.break_depth ctx.break_depth;
 		end;
 		b();
+		handle_break();
 		spr ctx "end";
 		ctx.break_depth <- ctx.break_depth-1;
 		ctx.handle_continue <- old_ctx_continue;

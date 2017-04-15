@@ -53,7 +53,7 @@ extern class Lua {
 		to a non-existent field in the table is assigned. Existing fields may
 		however be modified. In particular, existing fields may be cleared.
 	**/
-	public static function next<K,V>(k:Table<K, V>, ?i : V): NextResult<K,V>;
+	public static function next<K,V>(k:Table<K, V>, ?i : K): NextResult<K,V>;
 
 	/**
 		Receives an argument of any type and converts it to a string in a reasonable
@@ -63,7 +63,7 @@ extern class Lua {
 	**/
 	public static function tostring(v:Dynamic): String;
 
-	public static function ipairs<T>(t:Table<Int,T>): PairsResult<Int,T>;
+	public static function ipairs<K,V>(t:Table<K,V>): IPairsResult<K,V>;
 
 	public static function pairs<K,V>(t:Table<K,V>): PairsResult<K,V> ;
 
@@ -202,10 +202,17 @@ extern class NextResult<K,V> {
 }
 
 @:multiReturn
+extern class IPairsResult<K,V> {
+	var next : Table<K,V>->Int->NextResult<Int,V>;
+	var table : Table<K,V>;
+	var index : Int;
+}
+
+@:multiReturn
 extern class PairsResult<K,V> {
 	var next : Table<K,V>->K->NextResult<K,V>;
 	var table : Table<K,V>;
-	var index : V;
+	var index : K;
 }
 
 @:multiReturn

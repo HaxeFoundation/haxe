@@ -248,6 +248,8 @@ class TestReflect extends Test {
 		exc( function() Type.createEnum(MyEnum,"Z",[]) );
 	}
 
+	static function compareMethodsDummy() {}
+
 	function testCompareMethods() {
 		var a = new MyClass(0);
 		var b = new MyClass(1);
@@ -256,6 +258,8 @@ class TestReflect extends Test {
 		f( Reflect.compareMethods(a.add,a.get) );
 		f( Reflect.compareMethods(a.add,null) );
 		f( Reflect.compareMethods(null, a.add) );
+		t( Reflect.compareMethods(compareMethodsDummy, compareMethodsDummy) );
+		t( Reflect.compareMethods(String.fromCharCode, String.fromCharCode) );
 		/*
 			Comparison between a method and a closure :
 			Not widely supported atm to justify officiel support
