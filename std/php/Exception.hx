@@ -37,7 +37,7 @@ extern class Exception {
 	public function getCode() : Dynamic;             // code of the exception
 	public function getFile() : String;          // source filename
 	public function getLine() : Int;             // source line
-	public function getTrace() : Array<String>;  // an array of the backtrace()
+	public function getTrace() : NativeArray;  // an array of the backtrace()
 	public function getTraceAsString() : String; // formated string of trace
 	
 	public function __toString() : String;       // formated string for display
