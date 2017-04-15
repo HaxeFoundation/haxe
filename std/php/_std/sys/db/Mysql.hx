@@ -46,7 +46,7 @@ import sys.db.Connection;
 			dsn+="dbname="+params.database;
 		}
 		
-		return php.PDO.open(dsn,params.user,params.pass);
+		return php.db.PDO.open(dsn,params.user,params.pass);
 	}
 
 }
