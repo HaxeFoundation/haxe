@@ -24,7 +24,7 @@ package sys.db;
 @:coreApi class Sqlite {
 
 	public static function open( file : String ) : Connection {
-		return php.PDO.open("sqlite:"+file);
+		return php.db.PDO.open("sqlite:"+file);
 	}
 
 }
