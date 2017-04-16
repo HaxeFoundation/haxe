@@ -45,7 +45,7 @@ import js.Boot;
 	public static function parseInt( x : String ) : Null<Int> {
 		var v = untyped __js__("parseInt")(x, 10);
 		// parse again if hexadecimal
-		if( v == 0 && (x.charCodeAt(1) == 'x'.code || x.charCodeAt(1) == 'X'.code) )
+		if( v == 0 && x.length > 1 && (x.charCodeAt(1) == 'x'.code || x.charCodeAt(1) == 'X'.code) )
 			v = untyped __js__("parseInt")(x);
 		if( untyped __js__("isNaN")(v) )
 			return null;
