@@ -48,7 +48,14 @@ class Log {
 		#if flash
 			#if (fdb || native_trace)
 				var pstr = infos == null ? "(null)" : infos.fileName + ":" + infos.lineNumber;
-				var str = flash.Boot.__string_rec(v, "");
+				var vs:String = v;
+				if( vs.length >= 2 && vs.charCodeAt(1)==0x3A && vs.charCodeAt(0)>=0x30 && vs.charCodeAt(0)<=0x39 ){
+					#if fdb
+					pstr = vs.substr(0,2)+pstr;
+					#end
+					vs = vs.substr(2);
+				}
+				var str = flash.Boot.__string_rec(vs, "");
 				if( infos != null && infos.customParams != null ) for( v in infos.customParams ) str += "," + flash.Boot.__string_rec(v, "");
 				untyped __global__["trace"](pstr+": "+str);
 			#else
