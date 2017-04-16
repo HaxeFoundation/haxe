@@ -405,20 +405,27 @@ class Unserializer {
 			var bytes = haxe.io.Bytes.alloc(size);
 			var bpos = 0;
 			while( i < max ) {
-				var c1 = codes[StringTools.fastCodeAt(buf,i++)];
-				var c2 = codes[StringTools.fastCodeAt(buf,i++)];
+				var c1 = codes[StringTools.fastCodeAt(buf,i)];
+				i++;
+				var c2 = codes[StringTools.fastCodeAt(buf,i)];
+				i++;
 				bytes.set(bpos++,(c1 << 2) | (c2 >> 4));
-				var c3 = codes[StringTools.fastCodeAt(buf,i++)];
+				var c3 = codes[StringTools.fastCodeAt(buf,i)];
+				i++;
 				bytes.set(bpos++,(c2 << 4) | (c3 >> 2));
-				var c4 = codes[StringTools.fastCodeAt(buf,i++)];
+				var c4 = codes[StringTools.fastCodeAt(buf,i)];
+				i++;
 				bytes.set(bpos++,(c3 << 6) | c4);
 			}
 			if( rest >= 2 ) {
-				var c1 = codes[StringTools.fastCodeAt(buf,i++)];
-				var c2 = codes[StringTools.fastCodeAt(buf,i++)];
+				var c1 = codes[StringTools.fastCodeAt(buf,i)];
+				i++;
+				var c2 = codes[StringTools.fastCodeAt(buf,i)];
+				i++;
 				bytes.set(bpos++,(c1 << 2) | (c2 >> 4));
 				if( rest == 3 ) {
-					var c3 = codes[StringTools.fastCodeAt(buf,i++)];
+					var c3 = codes[StringTools.fastCodeAt(buf,i)];
+					i++;
 					bytes.set(bpos++,(c2 << 4) | (c3 >> 2));
 				}
 			}
