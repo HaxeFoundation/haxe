@@ -455,8 +455,12 @@ class Bytes {
 		return s.toString();
 	}
 
-	public inline function getData() : BytesData {
+	#if php @:extern #end public inline function getData() : BytesData {
+		#if php
+		return untyped __php__("&{0}->b", this);
+		#else
 		return b;
+		#end
 	}
 
 	public static function alloc( length : Int ) : Bytes {
