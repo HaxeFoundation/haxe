@@ -101,9 +101,27 @@ class MacroStringTools {
 		return if (pack.length == 0) name else pack.join(".") + "." +name;
 	}
 
-	static public function toComplex( path : String ) : ComplexType {
-		var pack = path.split(".");
-		return TPath( { pack : pack, name : pack.pop(), params : [] } );
+
+
+	static public function toTypePath( path : String ) : Null<TypePath> {
+		var eReg = ~/^(﻿)?[\t\n\r ]*(([a-z][a-zA-Z0-9_]*([\t\n\r ]*\.[\t\n\r ]*[a-z][a-zA-Z0-9_]*)*)[\t\n\r ]*\.)?[\t\n\r ]*([A-Z][a-zA-Z0-9_]*)[\t\n\r ]*(\.[\t\n\r ]*([A-Z][a-zA-Z0-9_]*))?[\t\n\r ]*$/;
+		if (eReg.match(path)) {
+			return {
+				pack: switch (eReg.matched(3)) {
+					case null, "": [];
+					case path: ~/[\t\n\r ]*\.[\t\n\r ]*/g.split(path);
+				},
+				name: eReg.matched(5),
+				sub: eReg.matched(7),
+			};
+		} else {
+			return null;
+		}
+	}
+
+	static public function toComplex( path : String ) : Null<ComplexType> {
+    		var typePath = toTypePath(path);
+		return typePath == null ? null : TPath(typePath);
 	}
 
 }
