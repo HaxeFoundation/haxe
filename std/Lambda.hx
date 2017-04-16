@@ -121,7 +121,7 @@ class Lambda {
 
 		If no such element is found, the result is false.
 	**/
-	public static function has<A>( it : Iterable<A>, elt : A ) : Bool {
+	public static function has<A:B,B>( it : Iterable<A>, elt : B ) : Bool {
 		for( x in it )
 			if( x == elt )
 				return true;
@@ -240,7 +240,7 @@ class Lambda {
 
 		If `v` does not exist in `it`, the result is -1.
 	**/
-	public static function indexOf<T>( it : Iterable<T>, v : T ) : Int {
+	public static function indexOf<T:V,V>( it : Iterable<T>, v : V ) : Int {
 		var i = 0;
 		for( v2 in it ) {
 			if( v == v2 )
