@@ -193,14 +193,23 @@ class Serializer {
 	// only the instance variables
 
 	function serializeClassFields(v,c) {
-		var xml : flash.xml.XML = untyped __global__["flash.utils.describeType"](c);
-		var vars = xml.factory[0].child("variable");
-		for( i in 0...vars.length() ) {
-			var f = vars[i].attribute("name").toString();
-			if( !v.hasOwnProperty(f) )
-				continue;
-			serializeString(f);
-			serialize(Reflect.field(v,f));
+		if (StringTools.startsWith(Type.getClassName(c), "__AS3__.vec.Vector")) {
+			for (i in 0...v.length) {
+				serializeString(Std.string(i));
+				serialize(untyped v[i]);
+			}
+			serializeString("fixed");
+			serialize(v.fixed);
+		} else {
+			var xml : flash.xml.XML = untyped __global__["flash.utils.describeType"](c);
+			var vars = xml.factory[0].child("variable");
+			for( i in 0...vars.length() ) {
+				var f = vars[i].attribute("name").toString();
+				if( !v.hasOwnProperty(f) )
+					continue;
+				serializeString(f);
+				serialize(Reflect.field(v,f));
+			}
 		}
 		buf.add("g");
 	}
