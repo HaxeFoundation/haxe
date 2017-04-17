@@ -492,8 +492,7 @@ let rec is_parent csup c =
 		| Some (c,_) -> is_parent csup c
 
 let add_descendant c descendant =
-	if not (Hashtbl.mem c.cl_descendants descendant.cl_path) then
-		Hashtbl.add c.cl_descendants descendant.cl_path descendant
+	Hashtbl.replace c.cl_descendants descendant.cl_path descendant
 
 let set_super c csup_opt =
 	c.cl_super <- csup_opt;
