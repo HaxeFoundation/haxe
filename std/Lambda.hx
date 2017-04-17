@@ -217,7 +217,7 @@ class Lambda {
 	public static function count<A>( it : Iterable<A>, ?pred : A -> Bool ) {
 		var n = 0;
 		if( pred == null )
-			for( _ in it )
+			for( x in it )
 				n++;
 		else
 			for( x in it )
