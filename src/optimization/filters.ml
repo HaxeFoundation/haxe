@@ -645,8 +645,8 @@ let save_class_state ctx t = match t with
 		let osr = List.map (mk_field_restore) c.cl_ordered_statics in
 		let init = c.cl_init in
 		c.cl_restore <- (fun() ->
-			c.cl_super <- sup;
-			c.cl_implements <- impl;
+			set_super c sup;
+			set_interfaces c impl;
 			c.cl_meta <- meta;
 			c.cl_extern <- ext;
 			c.cl_path <- path;
@@ -969,7 +969,7 @@ let check_cs_events com t = match t with
 (* Removes interfaces tagged with @:remove metadata *)
 let check_remove_metadata ctx t = match t with
 	| TClassDecl c ->
-		c.cl_implements <- List.filter (fun (c,_) -> not (Meta.has Meta.Remove c.cl_meta)) c.cl_implements;
+		set_interfaces c (List.filter (fun (c,_) -> not (Meta.has Meta.Remove c.cl_meta)) c.cl_implements);
 	| _ ->
 		()
 
@@ -992,8 +992,8 @@ let promote_first_interface_to_super ctx t = match t with
 		begin match c.cl_implements with
 		| ({ cl_path = ["cpp";"rtti"],_ },_ ) :: _ -> ()
 		| first_interface  :: remaining ->
-			c.cl_super <- Some first_interface;
-			c.cl_implements <- remaining
+			set_super c (Some first_interface);
+			set_interfaces c remaining
 		| _ -> ()
 		end
 	| _ ->

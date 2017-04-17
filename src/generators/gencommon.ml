@@ -1167,7 +1167,7 @@ let mk_class_field name t public pos kind params =
 (* between both *)
 let map_param cl =
 	let ret = mk_class cl.cl_module (fst cl.cl_path, snd cl.cl_path ^ "_c") cl.cl_pos null_pos in
-	ret.cl_implements <- cl.cl_implements;
+	set_interfaces ret cl.cl_implements;
 	ret.cl_kind <- cl.cl_kind;
 	ret
 
@@ -3041,7 +3041,7 @@ struct
 			(* create the constructor *)
 			(* todo properly abstract how type var is set *)
 
-			cls.cl_super <- Some(ft.func_class, []);
+			set_super cls (Some(ft.func_class, []));
 			let pos = cls.cl_pos in
 			let super_call =
 			{
@@ -4434,9 +4434,9 @@ struct
 								iface.cl_meta;
 							Hashtbl.add ifaces cl.cl_path iface;
 
-							iface.cl_implements <- (base_generic, []) :: iface.cl_implements;
+							add_interface iface (base_generic, []);
 							iface.cl_interface <- true;
-							cl.cl_implements <- (iface, []) :: cl.cl_implements;
+							add_interface cl (iface, []);
 
 							let name = get_cast_name cl in
 							let cast_cf = create_cast_cfield gen cl name in
@@ -4446,7 +4446,7 @@ struct
 								| None -> ()
 								| Some(sup,_) -> try
 									let siface = Hashtbl.find ifaces sup.cl_path in
-									iface.cl_implements <- (siface,[]) :: iface.cl_implements;
+									add_interface iface (siface,[]);
 									()
 								with | Not_found -> loop sup
 							in
@@ -8127,17 +8127,17 @@ struct
 				if is_hxgen md then
 					match md with
 					| TClassDecl ({ cl_interface = true } as cl) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
-						cl.cl_implements <- (baseinterface, []) :: cl.cl_implements
+						add_interface cl (baseinterface, [])
 					| TClassDecl ({ cl_kind = KAbstractImpl _ }) ->
 						(* don't add any base classes to abstract implementations *)
 						()
 					| TClassDecl ({ cl_super = None } as cl) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
 						if is_some cl.cl_dynamic then
-							cl.cl_super <- Some (basedynamic,[])
+							set_super cl (Some (basedynamic,[]))
 						else
-							cl.cl_super <- Some (baseclass,[])
+							set_super cl (Some (baseclass,[]))
 					| TClassDecl ({ cl_super = Some(super,_) } as cl) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && not (is_hxgen (TClassDecl super)) ->
-						cl.cl_implements <- (baseinterface, []) :: cl.cl_implements
+						add_interface cl (baseinterface, [])
 					| _ ->
 						()
 			in
@@ -8259,7 +8259,7 @@ struct
 
 			let super, has_params = if Meta.has Meta.FlatEnum en.e_meta then base_class, false else base_param_class, true in
 
-			cl.cl_super <- Some(super,[]);
+			set_super cl (Some(super,[]));
 			cl.cl_extern <- en.e_extern;
 			en.e_meta <- (Meta.Class, [], pos) :: en.e_meta;
 			cl.cl_module <- en.e_module;

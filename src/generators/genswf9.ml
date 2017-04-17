@@ -2340,7 +2340,7 @@ let resource_path name =
 
 let generate_resource ctx name =
 	let c = mk_class null_module (resource_path name) null_pos null_pos in
-	c.cl_super <- Some (mk_class null_module (["flash";"utils"],"ByteArray") null_pos null_pos,[]);
+	set_super c (Some (mk_class null_module (["flash";"utils"],"ByteArray") null_pos null_pos,[]));
 	let t = TClassDecl c in
 	match generate_type ctx t with
 	| Some (m,f) -> (t,m,f)

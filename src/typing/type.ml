@@ -218,6 +218,7 @@ and tclass = {
 
 	mutable cl_build : unit -> build_state;
 	mutable cl_restore : unit -> unit;
+	mutable cl_descendants : (path, tclass) Hashtbl.t;
 }
 
 and tenum_field = {
@@ -397,6 +398,7 @@ let mk_class m path pos name_pos =
 		cl_overrides = [];
 		cl_build = (fun() -> Built);
 		cl_restore = (fun() -> ());
+		cl_descendants = Hashtbl.create 10
 	}
 
 let module_extra file sign time kind policy =
@@ -488,6 +490,24 @@ let rec is_parent csup c =
 	else match c.cl_super with
 		| None -> false
 		| Some (c,_) -> is_parent csup c
+
+let add_descendant c descendant =
+	if not (Hashtbl.mem c.cl_descendants descendant.cl_path) then
+		Hashtbl.add c.cl_descendants descendant.cl_path descendant
+
+let set_super c csup_opt =
+	c.cl_super <- csup_opt;
+	match csup_opt with
+		| None -> ()
+		| Some (csup,_) -> add_descendant csup c
+
+let add_interface c iface =
+	c.cl_implements <- iface :: c.cl_implements;
+	match iface with (i, _) -> add_descendant i c
+
+let set_interfaces c iface_list =
+	c.cl_implements <- [];
+	List.iter (add_interface c) iface_list
 
 let map loop t =
 	match t with
