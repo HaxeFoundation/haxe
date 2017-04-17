@@ -1649,7 +1649,10 @@ let inline_constructors ctx e =
 			end
 		| _ -> default_case e
 	in
-	if IntMap.for_all (fun _ io -> io.io_cancelled) !inline_objs then e else begin
+	if IntMap.for_all (fun _ io -> io.io_cancelled) !inline_objs then begin
+		IntMap.iter (fun _ iv -> let v = iv.iv_var in if v.v_id < 0 then v.v_id <- -v.v_id ) !vars;
+		e
+	end else begin
 		let el,_ = final_map e in
 		let e = make_expr_for_rev_list el e.etype e.epos in
 		let rec get_pretty_name iv = match iv.iv_kind with
