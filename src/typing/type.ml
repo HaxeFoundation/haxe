@@ -491,6 +491,11 @@ let rec is_parent csup c =
 		| None -> false
 		| Some (c,_) -> is_parent csup c
 
+let rec is_direct_descendant c csup =
+	match c.cl_super with
+		| Some ({ cl_path = super_path },_) when super_path = csup.cl_path -> true
+		| _ -> List.exists (fun (iface,_) -> iface.cl_path = csup.cl_path) c.cl_implements
+
 let add_descendant c descendant =
 	Hashtbl.replace c.cl_descendants descendant.cl_path descendant
 

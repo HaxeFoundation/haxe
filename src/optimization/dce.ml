@@ -222,10 +222,10 @@ let rec mark_dependent_fields dce csup n stat =
 			(match c.cl_super with None -> () | Some (csup,_) -> loop csup))
 	in
 	let rec loop_inheritance c =
-		loop csup;
-		Hashtbl.iter (fun _ c ->
-			loop c;
-			loop_inheritance c;
+		loop c;
+		Hashtbl.iter (fun _ d ->
+			if is_direct_descendant d c then
+				loop_inheritance d
 		) c.cl_descendants;
 	in
 	loop_inheritance csup
