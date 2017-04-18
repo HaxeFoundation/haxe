@@ -206,33 +206,26 @@ let mark_mt dce mt = match mt with
 
 (* find all dependent fields by checking implementing/subclassing types *)
 let rec mark_dependent_fields dce csup n stat =
-	let dependent = try
-		Hashtbl.find dce.dependent_types csup.cl_path
-	with Not_found ->
-		let cl = List.filter (fun mt -> match mt with TClassDecl c -> is_parent csup c | _ -> false) dce.com.types in
-		Hashtbl.add dce.dependent_types csup.cl_path cl;
-		cl
+	let rec loop c =
+		(try
+			let cf = PMap.find n (if stat then c.cl_statics else c.cl_fields) in
+			(* if it's clear that the class is kept, the field has to be kept as well. This is also true for
+				extern interfaces because we cannot remove fields from them *)
+			if Meta.has Meta.Used c.cl_meta || (csup.cl_interface && csup.cl_extern) then mark_field dce c cf stat
+			(* otherwise it might be kept if the class is kept later, so mark it as :?used *)
+			else if not (Meta.has Meta.MaybeUsed cf.cf_meta) then begin
+				cf.cf_meta <- (Meta.MaybeUsed,[],cf.cf_pos) :: cf.cf_meta;
+				dce.marked_maybe_fields <- cf :: dce.marked_maybe_fields;
+			end
+		with Not_found ->
+			(* if the field is not present on current class, it might come from a base class *)
+			(match c.cl_super with None -> () | Some (csup,_) -> loop csup))
 	in
-	List.iter (fun mt -> match mt with
-		| TClassDecl c when is_parent csup c ->
-			let rec loop c =
-				(try
-					let cf = PMap.find n (if stat then c.cl_statics else c.cl_fields) in
-					(* if it's clear that the class is kept, the field has to be kept as well. This is also true for
-					   extern interfaces because we cannot remove fields from them *)
-					if Meta.has Meta.Used c.cl_meta || (csup.cl_interface && csup.cl_extern) then mark_field dce c cf stat
-					(* otherwise it might be kept if the class is kept later, so mark it as :?used *)
-					else if not (Meta.has Meta.MaybeUsed cf.cf_meta) then begin
-						cf.cf_meta <- (Meta.MaybeUsed,[],cf.cf_pos) :: cf.cf_meta;
-						dce.marked_maybe_fields <- cf :: dce.marked_maybe_fields;
-					end
-				with Not_found ->
-					(* if the field is not present on current class, it might come from a base class *)
-					(match c.cl_super with None -> () | Some (csup,_) -> loop csup))
-			in
-			loop c
-		| _ -> ()
-	) dependent
+	let rec loop_inheritance c =
+		loop c;
+		Hashtbl.iter (fun _ d -> loop_inheritance d) c.cl_descendants;
+	in
+	loop_inheritance csup
 
 (* expr and field evaluation *)
 
