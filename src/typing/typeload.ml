@@ -3713,20 +3713,29 @@ let extend_remoting ctx c t p async prot =
 			{ cff_name = f.cff_name; cff_pos = f.cff_pos; cff_doc = None; cff_meta = []; cff_access = [APublic]; cff_kind = FFun fd } :: acc
 		| _ -> acc
 	in
-	let decls = List.map (fun d ->
-		match d with
-		| EClass c, p when fst c.d_name = t.tname ->
-			let is_public = List.mem HExtern c.d_flags || List.mem HInterface c.d_flags in
-			let fields = List.rev (List.fold_left (build_field is_public) base_fields c.d_data) in
-			(EClass { c with d_flags = []; d_name = new_name,pos c.d_name; d_data = fields },p)
-		| _ -> d
-	) decls in
+	let imports = ref [] in
+	let rec loop = function
+		| [] ->
+			error ("Module " ^ s_type_path path ^ " does not define type " ^ t.tname) p
+		| d :: rest ->
+			(match d with
+			| EClass c, p when fst c.d_name = t.tname ->
+				let is_public = List.mem HExtern c.d_flags || List.mem HInterface c.d_flags in
+				let fields = List.rev (List.fold_left (build_field is_public) base_fields c.d_data) in
+				(EClass { c with d_flags = []; d_name = new_name,pos c.d_name; d_data = fields },p)
+			| EImport _,_ | EUsing _,_ ->
+				imports := d :: !imports; (* use same imports *)
+				loop rest
+			| _ ->
+				loop rest)
+	in
+	let proxy_decl = loop decls in
+	let import_path = (List.map (fun s -> s,p) t.tpackage) @ [(t.tname, p)] in
+	let import_decl = (EImport (import_path,INormal)), p in (* import original module *)
+	let decls = List.rev (proxy_decl :: import_decl :: !imports) in
 	let m = type_module ctx (t.tpackage,new_name) file decls p in
 	add_dependency ctx.m.curmod m;
-	try
-		List.find (fun tdecl -> snd (t_path tdecl) = new_name) m.m_types
-	with Not_found ->
-		error ("Module " ^ s_type_path path ^ " does not define type " ^ t.tname) p
+	List.find (fun tdecl -> snd (t_path tdecl) = new_name) m.m_types
 	) in
 	match t with
 	| TClassDecl c2 when c2.cl_params = [] -> ignore(c2.cl_build()); c.cl_super <- Some (c2,[]);
