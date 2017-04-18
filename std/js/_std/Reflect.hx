@@ -59,8 +59,9 @@
 		return a;
 	}
 
-	public static function isFunction( f : Dynamic ) : Bool untyped {
-		return __js__("typeof(f)") == "function" && !(js.Boot.isClass(f) || js.Boot.isEnum(f));
+	@:access(js.Boot)
+	public static function isFunction( f : Dynamic ) : Bool {
+		return js.Lib.typeof(f) == "function" && !(js.Boot.isClass(f) || js.Boot.isEnum(f));
 	}
 
 	public static function compare<T>( a : T, b : T ) : Int {
@@ -75,10 +76,11 @@
 		return f1.scope == f2.scope && f1.method == f2.method && f1.method != null;
 	}
 
-	public static function isObject( v : Dynamic ) : Bool untyped {
+	@:access(js.Boot)
+	public static function isObject( v : Dynamic ) : Bool {
 		if( v == null )
 			return false;
-		var t = __js__("typeof(v)");
+		var t = js.Lib.typeof(v);
 		return (t == "string" || (t == "object" && v.__enum__ == null)) || (t == "function" && (js.Boot.isClass(v) || js.Boot.isEnum(v)) != null);
 	}
 

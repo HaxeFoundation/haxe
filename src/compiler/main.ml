@@ -43,7 +43,6 @@
 *)
 
 open Printf
-open Genswf
 open Common
 open Common.DisplayMode
 open Type
@@ -170,55 +169,21 @@ let run_command ctx cmd =
 		if not Globals.is_windows then s else String.concat "\n" (Str.split (Str.regexp "\r\n") s)
 	in
 	let pout, pin, perr = Unix.open_process_full cmd (Unix.environment()) in
-	let iout = Unix.descr_of_in_channel pout in
-	let ierr = Unix.descr_of_in_channel perr in
-	let berr = Buffer.create 0 in
 	let bout = Buffer.create 0 in
-	let tmp = String.create 1024 in
-	let result = ref None in
-	(*
-		we need to read available content on process out/err if we want to prevent
-		the process from blocking when the pipe is full
-	*)
-	let is_process_running() =
-		let pid, r = Unix.waitpid [Unix.WNOHANG] (-1) in
-		if pid = 0 then
-			true
-		else begin
-			result := Some r;
-			false;
-		end
+	let berr = Buffer.create 0 in
+	let read_content channel buf =
+		Buffer.add_string buf (IO.read_all (IO.input_channel channel));
 	in
-	let rec loop ins =
-		let (ch,_,_), timeout = (try Unix.select ins [] [] 0.02, true with _ -> ([],[],[]),false) in
-		match ch with
-		| [] ->
-			(* make sure we read all *)
-			if timeout && is_process_running() then
-				loop ins
-			else begin
-				Buffer.add_string berr (IO.read_all (IO.input_channel perr));
-				Buffer.add_string bout (IO.read_all (IO.input_channel pout));
-			end
-		| s :: _ ->
-			let n = Unix.read s tmp 0 (String.length tmp) in
-			if s == iout && n > 0 then
-				ctx.com.print (String.sub tmp 0 n)
-			else
-				Buffer.add_substring (if s == iout then bout else berr) tmp 0 n;
-			loop (if n = 0 then List.filter ((!=) s) ins else ins)
-	in
-	(try loop [iout;ierr] with Unix.Unix_error _ -> ());
+	let tout = Thread.create (fun() -> read_content pout bout) () in
+	read_content perr berr;
+	Thread.join tout;
+	let result = (match Unix.close_process_full (pout,pin,perr) with Unix.WEXITED c | Unix.WSIGNALED c | Unix.WSTOPPED c -> c) in
 	let serr = binary_string (Buffer.contents berr) in
 	let sout = binary_string (Buffer.contents bout) in
 	if serr <> "" then ctx.messages <- (if serr.[String.length serr - 1] = '\n' then String.sub serr 0 (String.length serr - 1) else serr) :: ctx.messages;
-	if sout <> "" then ctx.com.print sout;
-	let r = (match (try Unix.close_process_full (pout,pin,perr) with Unix.Unix_error (Unix.ECHILD,_,_) -> (match !result with None -> assert false | Some r -> r)) with
-		| Unix.WEXITED e -> e
-		| Unix.WSIGNALED s | Unix.WSTOPPED s -> if s = 0 then -1 else s
-	) in
+	if sout <> "" then ctx.com.print (sout ^ "\n");
 	t();
-	r
+	result
 
 module Initialize = struct
 	let set_platform com pf file =
@@ -298,7 +263,7 @@ module Initialize = struct
 					com.net_libs <- [];
 					old_flush()
 				);
-				Gencs.before_generate com;
+				Dotnet.before_generate com;
 				add_std "cs"; "cs"
 			| Java ->
 				let old_flush = ctx.flush in
@@ -307,7 +272,7 @@ module Initialize = struct
 					com.java_libs <- [];
 					old_flush()
 				);
-				Genjava.before_generate com;
+				Java.before_generate com;
 				add_std "java"; "java"
 			| Python ->
 				add_std "python";
@@ -337,7 +302,7 @@ let generate tctx ext xml_out interp swf_header =
 		| _ -> Common.mkdir_from_path com.file
 	end;
 	if interp then
-		MacroContext.interpret tctx
+		Std.finally (Common.timer ["interp"]) MacroContext.interpret tctx
 	else if com.platform = Cross then
 		()
 	else begin
@@ -462,7 +427,7 @@ let rec process_params create pl =
 and init ctx =
 	let usage = Printf.sprintf
 		"Haxe Compiler %s - (C)2005-2017 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-cppia|-as3|-cs|-java|-python|-hl|-lua] <output> [options]\n Options :"
-		Globals.s_version (if Sys.os_type = "Win32" then ".exe" else "")
+		s_version (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
 	let classes = ref [([],"Std")] in
@@ -480,7 +445,7 @@ try
 	let interp = ref false in
 	let swf_version = ref false in
 	let evals = ref [] in
-	Common.define_value com Define.HaxeVer (float_repres (float_of_int Globals.version /. 1000.));
+	Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int Globals.version /. 1000.));
 	Common.raw_define com "haxe3";
 	Common.define_value com Define.Dce "std";
 	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
@@ -596,14 +561,14 @@ try
 		),"<header> : define SWF header (width:height:fps:color)");
 		("-swf-lib",Arg.String (fun file ->
 			process_libs(); (* linked swf order matters, and lib might reference swf as well *)
-			Genswf.add_swf_lib com file false
+			SwfLoader.add_swf_lib com file false
 		),"<file> : add the SWF library to the compiled SWF");
 		("-swf-lib-extern",Arg.String (fun file ->
-			Genswf.add_swf_lib com file true
+			SwfLoader.add_swf_lib com file true
 		),"<file> : use the SWF library for type checking");
 		("-java-lib",Arg.String (fun file ->
 			let std = file = "lib/hxjava-std.jar" in
-			arg_delays := (fun () -> Genjava.add_java_lib com file std) :: !arg_delays;
+			arg_delays := (fun () -> Java.add_java_lib com file std) :: !arg_delays;
 		),"<file> : add an external JAR or class directory library");
 		("-net-lib",Arg.String (fun file ->
 			let file, is_std = match ExtString.String.nsplit file "@" with
@@ -613,10 +578,10 @@ try
 					file,true
 				| _ -> raise Exit
 			in
-			arg_delays := (fun () -> Gencs.add_net_lib com file is_std) :: !arg_delays;
+			arg_delays := (fun () -> Dotnet.add_net_lib com file is_std) :: !arg_delays;
 		),"<file>[@std] : add an external .NET DLL file");
 		("-net-std",Arg.String (fun file ->
-			Gencs.add_net_std com file
+			Dotnet.add_net_std com file
 		),"<file> : add a root std .NET DLL search path");
 		("-c-arg",Arg.String (fun arg ->
 			com.c_args <- arg :: com.c_args
@@ -732,7 +697,7 @@ try
 			assert false
 		),"<dir> : set current working directory");
 		("-version",Arg.Unit (fun() ->
-			message ctx Globals.s_version null_pos;
+			message ctx s_version null_pos;
 			did_something := true;
 		),": print version and exit");
 		("--help-defines", Arg.Unit (fun() ->
@@ -937,6 +902,7 @@ with
 		raise (DisplayOutput.Completion s)
 	| Interp.Sys_exit i | Hlinterp.Sys_exit i ->
 		ctx.flush();
+		if !measure_times then report_times prerr_endline;
 		exit i
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not (is_debug_run()) ->
 		error ctx (Printexc.to_string e) null_pos

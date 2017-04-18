@@ -326,7 +326,7 @@ class CallStack {
 		#elseif js
 			if (s == null) {
 				return [];
-			} else if ((untyped __js__("typeof"))(s) == "string") {
+			} else if (js.Lib.typeof(s) == "string") {
 				// Return the raw lines in browsers that don't support prepareStackTrace
 				var stack : Array<String> = s.split("\n");
 				if( stack[0] == "Error" ) stack.shift();

@@ -27,6 +27,7 @@ import lua.Table;
 #if lua_jit
 @:luaRequire("ffi")
 extern class Ffi {
+	public function new(type : String, arg : Dynamic);
 
 	// Declaring and accessing external symbols
 	public static var C : Dynamic;

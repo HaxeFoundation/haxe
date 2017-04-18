@@ -38,6 +38,14 @@ type basic_types = {
 	mutable tarray : t -> t;
 }
 
+let const_type basic const default =
+	match const with
+	| TString _ -> basic.tstring
+	| TInt _ -> basic.tint
+	| TFloat _ -> basic.tfloat
+	| TBool _ -> basic.tbool
+	| _ -> default
+
 type stats = {
 	s_files_parsed : int ref;
 	s_classes_built : int ref;
@@ -1132,6 +1140,13 @@ let float_repres f =
 			if f = float_of_string s2 then s2 else
 			Printf.sprintf "%.18g" f
 		in valid_float_lexeme float_val
+
+let hash f =
+	let h = ref 0 in
+	for i = 0 to String.length f - 1 do
+		h := !h * 223 + int_of_char (String.unsafe_get f i);
+	done;
+	if Sys.word_size = 64 then Int32.to_int (Int32.shift_right (Int32.shift_left (Int32.of_int !h) 1) 1) else !h
 
 let add_diagnostics_message com s p sev =
 	let di = com.shared.shared_display_information in

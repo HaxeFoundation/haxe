@@ -24,6 +24,9 @@ type context = {
 	mutable has_error : bool;
 }
 
+let s_version =
+	Printf.sprintf "%d.%d.%d%s" version_major version_minor version_revision (match Version.version_extra with None -> "" | Some v -> " " ^ v)
+
 let report_times print =
 	let tot = ref 0. in
 	Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;

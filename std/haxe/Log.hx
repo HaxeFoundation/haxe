@@ -96,7 +96,7 @@ class Log {
 			#if cs
 			cs.system.Console.WriteLine(str);
 			#elseif java
-			untyped __java__("java.lang.System.out.println(str)");
+			Sys.println(str);
 			#elseif lua
 			if (str == null) str = "null";
 			untyped __define_feature__("use._hx_print",_hx_print(str));

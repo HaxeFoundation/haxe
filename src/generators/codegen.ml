@@ -32,9 +32,22 @@ module ExprBuilder = struct
 		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
 		mk (TTypeExpr (TClassDecl c)) ta p
 
+	let make_typeexpr mt pos =
+		let t =
+			match mt with
+			| TClassDecl c -> TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) }
+			| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
+			| TAbstractDecl a -> TAnon { a_fields = PMap.empty; a_status = ref (AbstractStatics a) }
+			| _ -> assert false
+		in
+		mk (TTypeExpr mt) t pos
+
 	let make_static_field c cf p =
 		let e_this = make_static_this c p in
 		mk (TField(e_this,FStatic(c,cf))) cf.cf_type p
+
+	let make_throw e p =
+		mk (TThrow e) t_dynamic p
 
 	let make_int com i p =
 		mk (TConst (TInt (Int32.of_int i))) com.basic.tint p
@@ -72,6 +85,9 @@ let fcall e name el ret p =
 
 let mk_parent e =
 	mk (TParenthesis e) e.etype e.epos
+
+let mk_return e =
+	mk (TReturn (Some e)) t_dynamic e.epos
 
 let binop op a b t p =
 	mk (TBinop (op,a,b)) t p

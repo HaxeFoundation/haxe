@@ -160,10 +160,13 @@ enum ValueType {
 		return ((cast e).__constructs__ : Array<String>).copy();
 	}
 
-	public static function typeof( v : Dynamic ) : ValueType untyped {
-		switch( __js__("typeof")(v) ) {
-		case "boolean": return TBool;
-		case "string": return TClass(String);
+	@:access(js.Boot)
+	public static function typeof( v : Dynamic ) : ValueType {
+		switch (js.Lib.typeof(v)) {
+		case "boolean":
+			return TBool;
+		case "string":
+			return TClass(String);
 		case "number":
 			// this should handle all cases : NaN, +/-Inf and Floats outside range
 			if( Math.ceil(v) == v%2147483648.0 )

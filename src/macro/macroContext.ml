@@ -259,7 +259,7 @@ let make_macro_api ctx p =
 		MacroApi.get_build_fields = (fun() ->
 			match ctx.g.get_build_infos() with
 			| None -> Interp.vnull
-			| Some (_,_,fields) -> Interp.enc_array (List.map Interp.encode_field fields)
+			| Some (_,_,fields) -> Interp.encode_array (List.map Interp.encode_field fields)
 		);
 		MacroApi.get_pattern_locals = (fun e t ->
 			!get_pattern_locals_ref ctx e t
@@ -397,7 +397,7 @@ and flush_macro_context mint ctx =
 		mint
 	end else mint in
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
-	let expr_filters = [AbstractCast.handle_abstract_casts mctx; Filters.captured_vars mctx.com; Filters.rename_local_vars mctx] in
+	let expr_filters = [Filters.VarLazifier.apply mctx.com;AbstractCast.handle_abstract_casts mctx; CapturedVars.captured_vars mctx.com; Filters.rename_local_vars mctx] in
 
 	(*
 		some filters here might cause side effects that would break compilation server.
@@ -654,7 +654,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	in
 	let args = match el2 with
 		| [] -> args
-		| _ -> (match List.rev args with _::args -> List.rev args | [] -> []) @ [Interp.enc_array (List.map Interp.encode_expr el2)]
+		| _ -> (match List.rev args with _::args -> List.rev args | [] -> []) @ [Interp.encode_array (List.map Interp.encode_expr el2)]
 	in
 	let call() =
 		match call_macro args with
@@ -669,7 +669,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 							| None -> assert false
 							| Some (_,_,fields) -> fields)
 						else
-							List.map Interp.decode_field (Interp.dec_array v)
+							List.map Interp.decode_field (Interp.decode_array v)
 					in
 					(EVars [("fields",null_pos),Some (CTAnonymous fields,p),None],p)
 				| MMacroType ->

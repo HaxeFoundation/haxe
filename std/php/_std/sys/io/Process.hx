@@ -85,7 +85,8 @@ class Process {
 	public var stderr(default,null) : haxe.io.Input;
 	public var stdin(default,null) : haxe.io.Output;
 
-	public function new( cmd : String, ?args : Array<String> ) : Void {
+	public function new( cmd : String, ?args : Array<String>, ?detached : Bool ) : Void {
+		if( detached ) throw "Detached process is not supported on this platform";
 		var pipes = untyped __call__("array");
 		var descriptorspec = untyped __php__("array(
 			array('pipe', 'r'),

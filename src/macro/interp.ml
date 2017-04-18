@@ -192,13 +192,6 @@ let pop_ret ctx f n =
 let push ctx v =
 	DynArray.add ctx.stack v
 
-let hash f =
-	let h = ref 0 in
-	for i = 0 to String.length f - 1 do
-		h := !h * 223 + int_of_char (String.unsafe_get f i);
-	done;
-	if Sys.word_size = 64 then Int32.to_int (Int32.shift_right (Int32.shift_left (Int32.of_int !h) 1) 1) else !h
-
 let constants =
 	let h = Hashtbl.create 0 in
 	List.iter (fun f -> Hashtbl.add h (hash f) f)
@@ -2807,7 +2800,7 @@ let field v f =
 	| VObject o -> get_field o (hash f)
 	| _ -> raise Invalid_expr
 
-let dec_string v =
+let decode_string v =
 	match field v "__s" with
 	| VString s -> s
 	| _ -> raise Invalid_expr
@@ -2817,7 +2810,7 @@ let decode_bytes v =
 	| VString s -> s
 	| _ -> raise Invalid_expr
 
-let dec_array v =
+let decode_array v =
 	match field v "__a", field v "length" with
 	| VArray a, VInt l -> Array.to_list (if Array.length a = l then a else Array.sub a 0 l)
 	| _ -> raise Invalid_expr
@@ -2833,24 +2826,20 @@ let decode_tdecl = function
 	| VAbstract (ATDecl t) -> t
 	| _ -> raise Invalid_expr
 
-let dec_int = function
+let decode_int = function
 	| VInt i -> i
 	| VInt32 i -> Int32.to_int i
 	| _ -> raise Invalid_expr
 
-let dec_i32 = function
+let decode_i32 = function
 	| VInt i -> Int32.of_int i
 	| VInt32 i -> i
-	| _ -> raise Invalid_expr
-
-let dec_bytes = function
-	| VString s -> s
 	| _ -> raise Invalid_expr
 
 let encode_pos p =
 	VAbstract (APos p)
 
-let enc_inst path fields =
+let encode_inst path fields =
 	let ctx = get_ctx() in
 	let p = (try Hashtbl.find ctx.prototypes path with Not_found -> try
 		(match get_path ctx (path@["prototype"]) Nast.null_pos with
@@ -2863,31 +2852,31 @@ let enc_inst path fields =
 	o.oproto <- Some p;
 	VObject o
 
-let enc_array l =
+let encode_array l =
 	let a = Array.of_list l in
-	enc_inst ["Array"] [
+	encode_inst ["Array"] [
 		"__a", VArray a;
 		"length", VInt (Array.length a);
 	]
 
-let enc_string s =
-	enc_inst ["String"] [
+let encode_string s =
+	encode_inst ["String"] [
 		"__s", VString s;
 		"length", VInt (String.length s)
 	]
 
 let encode_bytes s =
-	enc_inst ["haxe";"io";"Bytes"] [
+	encode_inst ["haxe";"io";"Bytes"] [
 		"b", VString s;
 		"length", VInt (String.length s)
 	]
 
-let enc_hash h =
-	enc_inst ["haxe";"ds";"StringMap"] [
+let encode_hash h =
+	encode_inst ["haxe";"ds";"StringMap"] [
 		"h", VAbstract (AHash h);
 	]
 
-let enc_obj _ l = VObject (obj hash l)
+let encode_obj _ l = VObject (obj hash l)
 
 let encode_enum (i:enum_type) pos index pl =
 	let eindex : int = Obj.magic i in
@@ -2895,7 +2884,7 @@ let encode_enum (i:enum_type) pos index pl =
 	if pl = [] then
 		fst edef.(index)
 	else
-		enc_inst ["haxe";"macro";enum_name i] (
+		encode_inst ["haxe";"macro";enum_name i] (
 			("tag", VString (snd edef.(index))) ::
 			("index", VInt index) ::
 			("args", VArray (Array.of_list pl)) ::
@@ -2903,10 +2892,10 @@ let encode_enum (i:enum_type) pos index pl =
 		)
 
 let encode_ref v convert tostr =
-	enc_obj O__Const [
+	encode_obj O__Const [
 		"get", VFunction (Fun0 (fun() -> convert v));
 		"__string", VFunction (Fun0 (fun() -> VString (tostr())));
-		"toString", VFunction (Fun0 (fun() -> enc_string (tostr())));
+		"toString", VFunction (Fun0 (fun() -> encode_string (tostr())));
 		"$", VAbstract (AUnsafe (Obj.repr v));
 	]
 
@@ -2918,7 +2907,7 @@ let decode_ref v : 'a =
 let encode_string_map convert m =
 	let h = Hashtbl.create 0 in
 	PMap.iter (fun k v -> Hashtbl.add h (VString k) (convert v)) m;
-	enc_hash h
+	encode_hash h
 
 let decode_pos = function
 	| VAbstract (APos p) -> p
@@ -2938,7 +2927,7 @@ let decode_enum_with_pos v =
 		| VAbstract(APos p) -> p
 		| _ -> Globals.null_pos) (* Can happen from reification and other sources. *)
 
-let dec_bool = function
+let decode_bool = function
 	| VBool b -> b
 	| _ -> raise Invalid_expr
 
@@ -2947,7 +2936,7 @@ let decode_unsafe = function
 	| _ -> raise Invalid_expr
 
 let compiler_error msg pos =
-	exc (enc_inst ["haxe";"macro";"Error"] [("message",enc_string msg);("pos",encode_pos pos)])
+	exc (encode_inst ["haxe";"macro";"Error"] [("message",encode_string msg);("pos",encode_pos pos)])
 
 let value_to_expr v p =
 	let h_enum = hash "__enum__" and h_et = hash "__et__" and h_ct = hash "__ct__" in

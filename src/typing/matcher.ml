@@ -1399,6 +1399,7 @@ module Match = struct
 			| _ -> None,with_type
 		in
 		let cases = List.map (fun (el,eg,eo,p) ->
+			let p = match eo with Some e when p = null_pos -> pos e | _ -> p in
 			let case,bindings,pat = Case.make ctx t el eg eo with_type p in
 			case,bindings,[pat]
 		) cases in

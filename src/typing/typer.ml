@@ -1575,12 +1575,11 @@ and type_field ?(resume=false) ctx e i p mode =
 	| _ ->
 		try using_field ctx mode e i p with Not_found -> no_field()
 
-let type_bind ctx (e : texpr) params p =
-	let args,ret = match follow e.etype with TFun(args, ret) -> args, ret | _ -> error "First parameter of callback is not a function" p in
+let type_bind ctx (e : texpr) (args,ret) params p =
 	let vexpr v = mk (TLocal v) v.v_type p in
 	let acount = ref 0 in
 	let alloc_name n =
-		if n = "" || String.length n > 2 && not ctx.is_display_file then begin
+		if n = "" && not ctx.is_display_file then begin
 			incr acount;
 			"a" ^ string_of_int !acount;
 		end else
@@ -3262,13 +3261,14 @@ and type_local_function ctx name f with_type p =
 	(match v with
 	| None -> e
 	| Some v ->
+		let open LocalUsage in
 		if params <> [] || inline then v.v_extra <- Some (params,if inline then Some e else None);
 		let rec loop = function
-			| Filters.Block f | Filters.Loop f | Filters.Function f -> f loop
-			| Filters.Use v2 | Filters.Assign v2 when v == v2 -> raise Exit
-			| Filters.Use _ | Filters.Assign _ | Filters.Declare _ -> ()
+			| LocalUsage.Block f | LocalUsage.Loop f | LocalUsage.Function f -> f loop
+			| LocalUsage.Use v2 | LocalUsage.Assign v2 when v == v2 -> raise Exit
+			| LocalUsage.Use _ | LocalUsage.Assign _ | LocalUsage.Declare _ -> ()
 		in
-		let is_rec = (try Filters.local_usage loop e; false with Exit -> true) in
+		let is_rec = (try local_usage loop e; false with Exit -> true) in
 		let decl = (if is_rec then begin
 			if inline then display_error ctx "Inline function cannot be recursive" e.epos;
 			let vnew = add_local ctx v.v_name ft v.v_pos in
@@ -3946,6 +3946,7 @@ and display_expr ctx e_ast e with_type p =
 			| TFun (args,ret) ->
 				let t = opt_args args ret in
 				let cf = mk_field "bind" (tfun [t] t) p null_pos in
+				cf.cf_kind <- Method MethNormal;
 				PMap.add "bind" cf PMap.empty
 			| _ ->
 				PMap.empty
@@ -4088,21 +4089,12 @@ and type_call ctx e el (with_type:with_type) p =
 			mk (TCall (mk (TLocal v_trace) t_dynamic p,[e;infos])) ctx.t.tvoid p
 		else
 			type_expr ctx (ECall ((EField ((EField ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[mk_to_string_meta e;infos]),p) NoValue
-	| (EConst(Ident "callback"),p1),args ->
-		let ecb = try Some (type_ident_raise ctx "callback" p1 MCall) with Not_found -> None in
-		(match ecb with
-		| Some ecb ->
-			build_call ctx ecb args with_type p
-		| None ->
-			display_error ctx "callback syntax has changed to func.bind(args)" p;
-			let e = type_expr ctx e Value in
-			type_bind ctx e args p)
 	| (EField ((EConst (Ident "super"),_),_),_), _ ->
 		def()
 	| (EField (e,"bind"),p), args ->
 		let e = type_expr ctx e Value in
 		(match follow e.etype with
-			| TFun _ -> type_bind ctx e args p
+			| TFun signature -> type_bind ctx e signature args p
 			| _ -> def ())
 	| (EConst (Ident "$type"),_) , [e] ->
 		let e = type_expr ctx e Value in

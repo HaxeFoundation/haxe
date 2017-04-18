@@ -91,18 +91,18 @@ let s_comp = function
 let core_types =
 	let vp = { vfields = [||]; vindex = PMap.empty } in
 	let ep = { ename = ""; eid = 0; eglobal = None; efields = [||] } in
-	[HVoid;HUI8;HUI16;HI32;HF32;HF64;HBool;HBytes;HDyn;HFun ([],HVoid);HObj null_proto;HArray;HType;HRef HVoid;HVirtual vp;HDynObj;HAbstract ("",0);HEnum ep;HNull HVoid]
+	[HVoid;HUI8;HUI16;HI32;HI64;HF32;HF64;HBool;HBytes;HDyn;HFun ([],HVoid);HObj null_proto;HArray;HType;HRef HVoid;HVirtual vp;HDynObj;HAbstract ("",0);HEnum ep;HNull HVoid]
 
 let tname str =
 	let n = String.concat "__" (ExtString.String.nsplit str ".") in
 	if Hashtbl.mem keywords ("_" ^ n) then "__" ^ n else n
 
 let is_gc_ptr = function
-	| HVoid | HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool | HType | HRef _ -> false
+	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HType | HRef _ -> false
 	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ -> true
 
 let is_ptr = function
-	| HVoid | HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool -> false
+	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool -> false
 	| _ -> true
 
 let rec ctype_no_ptr = function
@@ -110,6 +110,7 @@ let rec ctype_no_ptr = function
 	| HUI8 -> "unsigned char",0
 	| HUI16 -> "unsigned short",0
 	| HI32 -> "int",0
+	| HI64 -> "int64",0
 	| HF32 -> "float",0
 	| HF64 -> "double",0
 	| HBool -> "bool",0
@@ -149,6 +150,7 @@ let type_id t =
 	| HUI8 -> "HUI8"
 	| HUI16 -> "HUI16"
 	| HI32 -> "HI32"
+	| HI64 -> "HI64"
 	| HF32 -> "HF32"
 	| HF64 -> "HF64"
 	| HBool -> "HBOOL"
@@ -261,7 +263,7 @@ let generate_reflection ctx =
 	let funByArgs = Hashtbl.create 0 in
 	let type_kind t =
 		match t with
-		| HVoid | HF32 | HF64 -> t
+		| HVoid | HF32 | HF64 | HI64 -> t
 		| HBool | HUI8 | HUI16 | HI32 -> HI32
 		| HBytes | HDyn | HFun _ | HObj _ | HArray | HType | HRef _ | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ -> HDyn
 	in
@@ -271,7 +273,8 @@ let generate_reflection ctx =
 		| HBool | HUI8 | HUI16 | HI32 -> 1 (* same int representation *)
 		| HF32 -> 2
 		| HF64 -> 3
-		| _ -> 4
+		| HI64 -> 4
+		| _ -> 5
 	in
 	let add_fun args t =
 		let nargs = List.length args in
@@ -655,7 +658,7 @@ let generate_function ctx f =
 					sexpr "if( %s != %s && (!%s || !%s || !%s->value || !%s->value || %s->value != %s->value) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (label d)
 				else
 					assert false
-			| HEnum _, HEnum _ | HDynObj, HDynObj ->
+			| HEnum _, HEnum _ | HDynObj, HDynObj | HFun _, HFun _ | HAbstract _, HAbstract _ ->
 				phys_compare()
 			| HVirtual _, HObj _->
 				if op = CEq then
@@ -666,8 +669,6 @@ let generate_function ctx f =
 					assert false
 			| HObj _, HVirtual _ ->
 				compare_op op b a d
-			| HFun _, HFun _ ->
-				phys_compare()
 			| ta, tb ->
 				failwith ("Don't know how to compare " ^ tstr ta ^ " and " ^ tstr tb ^ " (hlc)")
 		in
@@ -680,7 +681,8 @@ let generate_function ctx f =
 			else
 				sexpr "%s = %ld" (reg r) code.ints.(idx)
 		| OFloat (r,idx) ->
-			sexpr "%s = %.19g" (reg r) code.floats.(idx)
+			let fstr = sprintf "%.19g" code.floats.(idx) in
+			sexpr "%s = %s" (reg r) (if String.contains fstr '.' || String.contains fstr 'e' then fstr else fstr ^ ".")
 		| OBool (r,b) ->
 			sexpr "%s = %s" (reg r) (if b then "true" else "false")
 		| OBytes (r,idx) ->
@@ -850,24 +852,16 @@ let generate_function ctx f =
 			sexpr "%s = *(unsigned char*)(%s + %s)" (reg r) (reg b) (reg idx)
 		| OGetUI16 (r,b,idx) ->
 			sexpr "%s = *(unsigned short*)(%s + %s)" (reg r) (reg b) (reg idx)
-		| OGetI32 (r,b,idx) ->
-			sexpr "%s = *(int*)(%s + %s)" (reg r) (reg b) (reg idx)
-		| OGetF32 (r,b,idx) ->
-			sexpr "%s = *(float*)(%s + %s)" (reg r) (reg b) (reg idx)
-		| OGetF64 (r,b,idx) ->
-			sexpr "%s = *(double*)(%s + %s)" (reg r) (reg b) (reg idx)
+		| OGetMem (r,b,idx) ->
+			sexpr "%s = *(%s*)(%s + %s)" (reg r) (ctype (rtype r)) (reg b) (reg idx)
 		| OGetArray (r, arr, idx) ->
 			sexpr "%s = ((%s*)(%s + 1))[%s]" (reg r) (ctype (rtype r)) (reg arr) (reg idx)
 		| OSetUI8 (b,idx,r) ->
 			sexpr "*(unsigned char*)(%s + %s) = (unsigned char)%s" (reg b) (reg idx) (reg r)
 		| OSetUI16 (b,idx,r) ->
 			sexpr "*(unsigned short*)(%s + %s) = (unsigned short)%s" (reg b) (reg idx) (reg r)
-		| OSetI32 (b,idx,r) ->
-			sexpr "*(int*)(%s + %s) = %s" (reg b) (reg idx) (reg r)
-		| OSetF32 (b,idx,r) ->
-			sexpr "*(float*)(%s + %s) = (float)%s" (reg b) (reg idx) (reg r)
-		| OSetF64 (b,idx,r) ->
-			sexpr "*(double*)(%s + %s) = %s" (reg b) (reg idx) (reg r)
+		| OSetMem (b,idx,r) ->
+			sexpr "*(%s*)(%s + %s) = %s" (ctype (rtype r)) (reg b) (reg idx) (reg r)
 		| OSetArray (arr,idx,v) ->
 			sexpr "((%s*)(%s + 1))[%s] = %s" (ctype (rtype v)) (reg arr) (reg idx) (reg v)
 		| OSafeCast (r,v) ->
@@ -910,7 +904,7 @@ let generate_function ctx f =
 				sexpr "{ venum *tmp";
 				"tmp"
 			end in
-			sexpr "%s = (venum*)hl_gc_alloc%s(sizeof(%s))" tmp (if has_ptr then "" else "_noptr") et;
+			sexpr "%s = (venum*)hl_gc_alloc_%s(sizeof(%s))" tmp (if has_ptr then "raw" else "noptr") et;
 			sexpr "%s->index = %d" tmp cid;
 			let _,_,tl = e.efields.(cid) in
 			list_iteri (fun i v ->
@@ -920,7 +914,7 @@ let generate_function ctx f =
 		| OEnumAlloc (r,cid) ->
 			let et, (_,_,tl) = (match rtype r with HEnum e -> enum_constr_type ctx e cid, e.efields.(cid) | _ -> assert false) in
 			let has_ptr = List.exists is_gc_ptr (Array.to_list tl) in
-			sexpr "%s = (venum*)hl_gc_alloc%s(sizeof(%s))" (reg r) (if has_ptr then "" else "_noptr") et;
+			sexpr "%s = (venum*)hl_gc_alloc_%s(sizeof(%s))" (reg r) (if has_ptr then "raw" else "noptr") et;
 			sexpr "memset(%s,0,sizeof(%s))" (reg r) et;
 			if cid <> 0 then sexpr "%s->index = %d" (reg r) cid
 		| OEnumIndex (r,v) ->
@@ -1281,7 +1275,7 @@ let write_c com file (code:code) =
 		| HEnum e ->
 			sexpr "type$%d.tenum = &enum$%d" i i;
 			(match e.eglobal with None -> () | Some g -> sexpr "enum$%d.global_value = (void**)&global$%d" i g);
-			sexpr "hl_init_enum(&type$%d)" i;
+			sexpr "hl_init_enum(&type$%d,ctx)" i;
 		| HVirtual _ ->
 			sexpr "type$%d.virt = &virt$%d" i i;
 			sexpr "hl_init_virtual(&type$%d,ctx)" i;

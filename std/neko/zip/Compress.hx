@@ -21,6 +21,6 @@
  */
  package neko.zip;
 
-#if (haxe_ver < 4.0)
+#if (haxe_ver < 9000.0)
 typedef Compress = haxe.zip.Compress;
 #end

@@ -76,13 +76,14 @@ import cs.system.reflection.*;
 		if (ihx != null)
 			untyped ihx.__hx_setField(field, FieldLookup.hash(field), value, true);
 		else if (Runtime.slowHasField(o, 'set_$field'))
-			Runtime.slowCallField(o, 'set_$field', [value]);
+			Runtime.slowCallField(o, 'set_$field', cs.NativeArray.make(value));
 		else
 			Runtime.slowSetField(o,field,value);
 	}
 
 	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic
 	{
+		var args = cs.Lib.nativeArray(args,true);
 		return untyped cast(func, Function).__hx_invokeDynamic(args);
 	}
 

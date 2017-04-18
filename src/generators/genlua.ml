@@ -460,6 +460,9 @@ let rec gen_call ctx e el in_value =
 		print ctx ("):%s(") (field_name ef);
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
+	| TField (_, FStatic( { cl_path = ([],"Std") }, { cf_name = "string" })),[{eexpr = TCall({eexpr=TField (_, FStatic( { cl_path = ([],"Std") }, { cf_name = "string" }))}, _)} as el] ->
+		(* unwrap recursive Std.string(Std.string(...)) declarations to Std.string(...) *)
+		gen_value ctx el;
 	| TField (e, ((FInstance _ | FAnon _ | FDynamic _) as ef)), el ->
 		let s = (field_name ef) in
 		if Hashtbl.mem kwds s || not (valid_lua_ident s) then begin
@@ -599,7 +602,7 @@ and gen_expr ?(local=true) ctx e = begin
 		    if (i == 0) then spr ctx "[0]="
 		    else spr ctx ", ";
 		    gen_value ctx e) el;
-		print ctx " }, %i)" !count;
+		print ctx "}, %i)" !count;
 	| TThrow e ->
 		spr ctx "_G.error(";
 		gen_value ctx e;
@@ -781,7 +784,6 @@ and gen_expr ?(local=true) ctx e = begin
 		ctx.break_depth <- ctx.break_depth + 1;
 		gen_block_element ctx e;
 		newline ctx;
-		handle_break();
 		if has_continue then begin
 		    b();
 		    newline ctx;
@@ -789,6 +791,7 @@ and gen_expr ?(local=true) ctx e = begin
 		    println ctx "if _hx_break_%i then _hx_break_%i = false; break; end" ctx.break_depth ctx.break_depth;
 		end;
 		b();
+		handle_break();
 		spr ctx "end";
 		ctx.break_depth <- ctx.break_depth-1;
 		ctx.handle_continue <- old_ctx_continue;
@@ -1745,7 +1748,7 @@ let generate_type ctx = function
 	| TEnumDecl e ->
 		if not e.e_extern then generate_enum ctx e
 		else ();
-	| TTypeDecl _ | TAbstractDecl _ | _ -> ()
+	| TTypeDecl _ | TAbstractDecl _ -> ()
 
 let generate_type_forward ctx = function
 	| TClassDecl c ->

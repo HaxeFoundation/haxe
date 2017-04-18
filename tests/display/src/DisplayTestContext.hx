@@ -153,7 +153,7 @@ class DisplayTestContext {
 		}
 		var ret = [];
 		for (xml in xml.elementsNamed("i")) {
-			ret.push({name: xml.get("n"), type: xml.firstElement().firstChild().nodeValue});
+			ret.push({name: xml.get("n"), type: xml.firstElement().firstChild().nodeValue, kind: xml.get("k")});
 		}
 		return ret;
 	}

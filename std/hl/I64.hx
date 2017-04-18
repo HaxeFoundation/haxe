@@ -19,24 +19,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package js;
+package hl;
 
-@:deprecated("Use js.swfobject.SWFObject instead.")
-@:initPackage
-extern class SWFObject {
-
-	function new( swf : String, id : String, width : Int, height : Int, ver : String, color : String /*...*/ ) : Void;
-	function addParam( param : String, value : String ) : Void;
-	function getSWFHTML() : String;
-	function write( elementId : String ) : Bool;
-	function addVariable( param : String, value : String ) : Void;
-	function setAttribute( id : String, value : String ) : Void;
-
-	private static function __init__() : Void untyped {
-		#if embed_js
-		#error "Haxe no longer bundle third-party JS libraries. Please remove `-D embed-js`. You may download the JS files and use `haxe.macro.Compiler.includeFile`."
-		#end
-		js.SWFObject = deconcept.SWFObject;
-	}
-
-}
+@:coreType @:notNull @:runtimeValue abstract I64 to Int from Int {}

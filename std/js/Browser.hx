@@ -63,6 +63,11 @@ class Browser {
 		try {
 			var s = window.localStorage;
 			s.getItem("");
+			if (s.length == 0) {
+				var key = "_hx_" + Math.random();
+				s.setItem(key,key);
+				s.removeItem(key);
+			}
 			return s;
 		} catch( e : Dynamic ) {
 			return null;
@@ -78,6 +83,11 @@ class Browser {
 		try {
 			var s = window.sessionStorage;
 			s.getItem("");
+			if (s.length == 0) {
+				var key = "_hx_" + Math.random();
+				s.setItem(key,key);
+				s.removeItem(key);
+			}
 			return s;
 		} catch( e : Dynamic ) {
 			return null;

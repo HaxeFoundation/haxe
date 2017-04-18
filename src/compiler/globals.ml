@@ -20,7 +20,7 @@ type platform =
 	| Python
 	| Hl
 
-let version = 3402
+let version = 4000
 let version_major = version / 1000
 let version_minor = (version mod 1000) / 100
 let version_revision = (version mod 100)
@@ -28,9 +28,6 @@ let version_revision = (version mod 100)
 let macro_platform = ref Neko
 
 let is_windows = Sys.os_type = "Win32" || Sys.os_type = "Cygwin"
-
-let s_version =
-	Printf.sprintf "%d.%d.%d%s" version_major version_minor version_revision (match Version.version_extra with None -> "" | Some v -> " " ^ v)
 
 let platforms = [
 	Js;

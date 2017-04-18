@@ -907,8 +907,6 @@ module Run = struct
 
 	let there actx e =
 		if actx.com.debug then add_debug_expr actx "initial" e;
-		let e = with_timer actx.config.detail_times ["->";"var-lazifier"] (fun () -> VarLazifier.apply actx.com e) in
-		if actx.com.debug then add_debug_expr actx "after var-lazifier" e;
 		let e = with_timer actx.config.detail_times ["->";"filter-apply"] (fun () -> TexprFilter.apply actx.com e) in
 		if actx.com.debug then add_debug_expr actx "after filter-apply" e;
 		let tf,t,is_real_function = match e.eexpr with

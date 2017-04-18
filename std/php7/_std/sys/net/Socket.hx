@@ -57,7 +57,7 @@ class Socket {
 
 	public function read() : String {
 		var b = '';
-		while(!feof(__s)) Syntax.binop(b, '.=', fgets(__s));
+		while(!feof(__s)) b += fgets(__s);
 		return b;
 	}
 

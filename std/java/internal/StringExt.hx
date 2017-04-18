@@ -223,15 +223,18 @@ private typedef NativeString = String;
 		}
 	}
 
-	public static function handleCallField(str:NativeString, f:NativeString, args:Array<Dynamic>):Dynamic
+	public static function handleCallField(str:NativeString, f:NativeString, args:java.NativeArray<Dynamic>):Dynamic
 	{
-		var _args:Array<Dynamic> = [str];
-		if (args == null)
-			args = _args;
-		else
-			args = _args.concat(args);
-
-		return Runtime.slowCallField(StringExt, f, args);
+		var _args:java.NativeArray<Dynamic>;
+		if (args == null) {
+			_args = java.NativeArray.make(str);
+		} else {
+			_args = new java.NativeArray(args.length + 1);
+			_args[0] = str;
+			for (i in 0...args.length)
+				_args[i + 1] = args[i];
+		}
+		return Runtime.slowCallField(StringExt, f, _args);
 	}
 }
 

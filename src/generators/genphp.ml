@@ -568,6 +568,14 @@ and gen_call ctx e el =
 			concat ctx "," (gen_value ctx) params;
 			spr ctx ")";
 		);
+	| TField ({ eexpr = TTypeExpr _ }, FStatic (_, {cf_type = TDynamic _; cf_kind = Var _})) , params ->
+		spr ctx "call_user_func(";
+		ctx.is_call <- true;
+		gen_value ctx e;
+		ctx.is_call <- false;
+		spr ctx ", ";
+		concat ctx ", " (gen_value ctx) el;
+		spr ctx ")";
 	| TLocal { v_name = "__set__" }, { eexpr = TConst (TString code) } :: el ->
 		print ctx "$%s" code;
 		genargs el;
@@ -803,7 +811,12 @@ and gen_member_access ctx isvar e s =
 	| TAnon a ->
 		(match !(a.a_status) with
 		| EnumStatics _ ->
-			print ctx "::%s%s" (if isvar then "$" else "") (s_ident s)
+			let (isvar, access_operator) =
+				match e.eexpr with
+					| TField _ -> (false, "->")
+					| _ -> (isvar, "::")
+			in
+			print ctx "%s%s" (access_operator ^ (if isvar then "$" else "")) (s_ident s)
 		| Statics sta ->
 			let (sep, no_dollar) = if Meta.has Meta.PhpGlobal sta.cl_meta then
 					("", false)
