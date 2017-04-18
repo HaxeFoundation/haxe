@@ -36,7 +36,7 @@ class Lib {
 	/**
 		Print the specified value on the default output.
 	**/
-	public static function print(v:Dynamic):Void {
+	public static function print_(v:Dynamic):Void {
 		var str = Std.string(v);
 
 		PySys.stdout.buffer.write( NativeStringTools.encode(str, "utf-8"));

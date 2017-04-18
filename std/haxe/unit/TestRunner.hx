@@ -95,7 +95,7 @@ class TestRunner {
 			var str:String = v;
 			untyped __java__("java.lang.System.out.print(str)");
 		#elseif python
-			python.Lib.print(v);
+			python.Lib.print_(v);
 		#elseif (hl || lua)
 			Sys.print(Std.string(v));
 		#end
