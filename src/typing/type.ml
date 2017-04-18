@@ -220,7 +220,6 @@ and tclass = {
 	mutable cl_restore : unit -> unit;
 	(*
 		These are classes which directly extend or directly implement this class.
-		Note: this list may contain outdated dependencies. Use `is_direct_descendant` to be sure.
 		Populated automatically in post-processing step (Filters.run)
 	*)
 	mutable cl_descendants : (path, tclass) Hashtbl.t;
@@ -495,11 +494,6 @@ let rec is_parent csup c =
 	else match c.cl_super with
 		| None -> false
 		| Some (c,_) -> is_parent csup c
-
-let rec is_direct_descendant c csup =
-	match c.cl_super with
-		| Some ({ cl_path = super_path },_) when super_path = csup.cl_path -> true
-		| _ -> List.exists (fun (iface,_) -> iface.cl_path = csup.cl_path) c.cl_implements
 
 let add_descendant c descendant =
 	Hashtbl.replace c.cl_descendants descendant.cl_path descendant
