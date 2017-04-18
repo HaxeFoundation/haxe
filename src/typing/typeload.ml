@@ -1447,14 +1447,14 @@ module Inheritance = struct
 				let csup,params = check_extends ctx c t p in
 				if c.cl_interface then begin
 					if not csup.cl_interface then error "Cannot extend by using a class" p;
-					add_interface c (csup,params);
+					c.cl_implements <- (csup,params) :: c.cl_implements;
 					if not !has_interf then begin
 						if not is_lib then delay ctx PForce (fun() -> check_interfaces ctx c);
 						has_interf := true;
 					end
 				end else begin
 					if csup.cl_interface then error "Cannot extend by using an interface" p;
-					set_super c (Some (csup,params))
+					c.cl_super <- Some (csup,params)
 				end;
 				(fun () ->
 					check_cancel_build csup;
@@ -1469,7 +1469,7 @@ module Inheritance = struct
 					if is_parent c intf then error "Recursive class" p;
 					if c.cl_interface then error "Interfaces cannot implement another interface (use extends instead)" p;
 					if not intf.cl_interface then error "You can only implement an interface" p;
-					add_interface c (intf, params);
+					c.cl_implements <- (intf, params) :: c.cl_implements;
 					if not !has_interf && not is_lib && not (Meta.has (Meta.Custom "$do_not_check_interf") c.cl_meta) then begin
 						delay ctx PForce (fun() -> check_interfaces ctx c);
 						has_interf := true;
@@ -3729,7 +3729,7 @@ let extend_remoting ctx c t p async prot =
 		error ("Module " ^ s_type_path path ^ " does not define type " ^ t.tname) p
 	) in
 	match t with
-	| TClassDecl c2 when c2.cl_params = [] -> ignore(c2.cl_build()); set_super c (Some (c2,[]));
+	| TClassDecl c2 when c2.cl_params = [] -> ignore(c2.cl_build()); c.cl_super <- Some (c2,[]);
 	| _ -> error "Remoting proxy must be a class without parameters" p
 
 (* -------------------------------------------------------------------------- *)
@@ -3967,7 +3967,7 @@ let rec build_generic ctx c p tl =
 			| Method MethMacro when not ctx.in_macro -> ()
 			| _ -> error "A generic class can't have static fields" cf.cf_pos
 		) c.cl_ordered_statics;
-		set_super cg (match c.cl_super with
+		cg.cl_super <- (match c.cl_super with
 			| None -> None
 			| Some (cs,pl) ->
 				let find_class subst =
@@ -4014,11 +4014,11 @@ let rec build_generic ctx c p tl =
 			| None, None, None -> None
 			| _ -> error "Please define a constructor for this class in order to use it as generic" c.cl_pos
 		);
-		set_interfaces cg (List.map (fun (i,tl) ->
+		cg.cl_implements <- List.map (fun (i,tl) ->
 			(match follow (generic_substitute_type gctx (TInst (i, List.map (generic_substitute_type gctx) tl))) with
 			| TInst (i,tl) -> i, tl
 			| _ -> assert false)
-		) c.cl_implements);
+		) c.cl_implements;
 		cg.cl_ordered_fields <- List.map (fun f ->
 			let f = build_field f in
 			cg.cl_fields <- PMap.add f.cf_name f cg.cl_fields;

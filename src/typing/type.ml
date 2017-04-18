@@ -218,6 +218,11 @@ and tclass = {
 
 	mutable cl_build : unit -> build_state;
 	mutable cl_restore : unit -> unit;
+	(*
+		These are classes which directly extend or directly implement this class.
+		Note: this list may contain outdated dependencies. Use `is_direct_descendant` to be sure.
+		Populated automatically in post-processing step (Filters.run)
+	*)
 	mutable cl_descendants : (path, tclass) Hashtbl.t;
 }
 
@@ -498,20 +503,6 @@ let rec is_direct_descendant c csup =
 
 let add_descendant c descendant =
 	Hashtbl.replace c.cl_descendants descendant.cl_path descendant
-
-let set_super c csup_opt =
-	c.cl_super <- csup_opt;
-	match csup_opt with
-		| None -> ()
-		| Some (csup,_) -> add_descendant csup c
-
-let add_interface c iface =
-	c.cl_implements <- iface :: c.cl_implements;
-	match iface with (i, _) -> add_descendant i c
-
-let set_interfaces c iface_list =
-	c.cl_implements <- [];
-	List.iter (add_interface c) iface_list
 
 let map loop t =
 	match t with

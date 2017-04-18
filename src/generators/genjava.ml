@@ -2064,8 +2064,8 @@ let configure gen =
 			 cl.cl_dynamic <- Option.map run_follow_gen cl.cl_dynamic;
 			 cl.cl_array_access <- Option.map run_follow_gen cl.cl_array_access;
 			 cl.cl_init <- Option.map type_map cl.cl_init;
-			 set_super cl (Option.map super_map cl.cl_super);
-			 set_interfaces cl (List.map super_map cl.cl_implements)
+			 cl.cl_super <- Option.map super_map cl.cl_super;
+			 cl.cl_implements <- List.map super_map cl.cl_implements
 		| _ -> ()
 		) gen.gtypes_list;
 
@@ -2415,7 +2415,7 @@ let configure gen =
 
 	(* add native String as a String superclass *)
 	let str_cl = match gen.gcon.basic.tstring with | TInst(cl,_) -> cl | _ -> assert false in
-	set_super str_cl (Some (get_cl (get_type gen (["haxe";"lang"], "NativeString")), []));
+	str_cl.cl_super <- Some (get_cl (get_type gen (["haxe";"lang"], "NativeString")), []);
 
 	let mkdir dir = if not (Sys.file_exists dir) then Unix.mkdir dir 0o755 in
 	mkdir gen.gcon.file;

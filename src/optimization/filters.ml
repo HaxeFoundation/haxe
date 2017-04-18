@@ -645,8 +645,8 @@ let save_class_state ctx t = match t with
 		let osr = List.map (mk_field_restore) c.cl_ordered_statics in
 		let init = c.cl_init in
 		c.cl_restore <- (fun() ->
-			set_super c sup;
-			set_interfaces c impl;
+			c.cl_super <- sup;
+			c.cl_implements <- impl;
 			c.cl_meta <- meta;
 			c.cl_extern <- ext;
 			c.cl_path <- path;
@@ -969,7 +969,7 @@ let check_cs_events com t = match t with
 (* Removes interfaces tagged with @:remove metadata *)
 let check_remove_metadata ctx t = match t with
 	| TClassDecl c ->
-		set_interfaces c (List.filter (fun (c,_) -> not (Meta.has Meta.Remove c.cl_meta)) c.cl_implements);
+		c.cl_implements <- List.filter (fun (c,_) -> not (Meta.has Meta.Remove c.cl_meta)) c.cl_implements;
 	| _ ->
 		()
 
@@ -992,8 +992,8 @@ let promote_first_interface_to_super ctx t = match t with
 		begin match c.cl_implements with
 		| ({ cl_path = ["cpp";"rtti"],_ },_ ) :: _ -> ()
 		| first_interface  :: remaining ->
-			set_super c (Some first_interface);
-			set_interfaces c remaining
+			c.cl_super <- Some first_interface;
+			c.cl_implements <- remaining
 		| _ -> ()
 		end
 	| _ ->
@@ -1074,7 +1074,16 @@ let iter_expressions fl mt =
 		()
 
 let run com tctx main =
-	let new_types = List.filter (fun t -> not (is_cached t)) com.types in
+	let new_types = List.filter (fun t ->
+		(match t with
+			| TClassDecl cls ->
+				List.iter (fun (iface,_) -> add_descendant iface cls) cls.cl_implements;
+				(match cls.cl_super with
+					| Some (csup,_) -> add_descendant csup cls
+					| None -> ())
+			| _ -> ());
+		not (is_cached t)
+	) com.types in
 	(* PASS 1: general expression filters *)
 	let filters = [
 		AbstractCast.handle_abstract_casts tctx;
