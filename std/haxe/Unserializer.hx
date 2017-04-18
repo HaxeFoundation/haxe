@@ -62,7 +62,7 @@ class Unserializer {
 	**/
 	public static var DEFAULT_RESOLVER : TypeResolver = new DefaultResolver();
 
-	static var BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:";
+	@:access(haxe.Serializer) static var BASE64 = Serializer.BASE64;
 
 	#if !neko
 	static var CODES = null;
