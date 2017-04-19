@@ -26,6 +26,9 @@ package haxe.crypto;
 */
 class Sha256 {
 
+	/**
+	    Creates a base64 encoded Sha256 hash of a String.
+	*/
 	public static function encode( s:String ) : String {
 		#if php
 		return untyped __call__("hash", "sha256", s);
@@ -36,6 +39,9 @@ class Sha256 {
 		#end
 	}
 
+	/**
+	   Creates a plain `haxe.io.Bytes` Sha256 hash of a `haxe.io.Bytes`.
+	*/
 	public static function make( b : haxe.io.Bytes ) : haxe.io.Bytes {
 		#if php
 		return haxe.io.Bytes.ofData(haxe.io.BytesData.ofString(untyped __call__("hash", "sha256", b.getData().toString(), true)));
