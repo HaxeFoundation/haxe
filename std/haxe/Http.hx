@@ -34,7 +34,7 @@ import sys.net.Socket;
 
 	- call `haxe.Http.requestUrl(url)` and receive the result as a `String`
 	(not available on flash)
-	- create a `new haxe.Http(url)`, register your callbacks for `onData`, 
+	- create a `new haxe.Http(url)`, register your callbacks for `onData`,
 	`onError` and `onStatus`, then call `request()`.
 **/
 class Http {
@@ -188,7 +188,7 @@ class Http {
 	**/
 	public function request( ?post : Bool ) : Void {
 		var me = this;
-	#if nodejs
+	#if (js && nodejs)
 		me.responseData = null;
 		var parsedUrl = js.node.Url.parse(url);
 		var secure = (parsedUrl.protocol == "https:");
@@ -202,7 +202,7 @@ class Http {
 				arr = new Array<String>();
 				Reflect.setField(h, i.header, arr);
 			}
-			
+
 			arr.push(i.value);
 		}
 		var uri = postData;
@@ -217,7 +217,7 @@ class Http {
 		}
 		var question = path.split("?").length <= 1;
 		if (!post && uri != null) path += (if( question ) "?" else "&") + uri;
-		
+
 		var opts = {
 			protocol: parsedUrl.protocol,
 			hostname: host,
@@ -787,7 +787,7 @@ class Http {
 		This method is called upon a successful request, with `data` containing
 		the result String.
 
-		The intended usage is to bind it to a custom function:  
+		The intended usage is to bind it to a custom function:
 		`httpInstance.onData = function(data) { // handle result }`
 	**/
 	public dynamic function onData( data : String ) {
@@ -797,7 +797,7 @@ class Http {
 		This method is called upon a request error, with `msg` containing the
 		error description.
 
-		The intended usage is to bind it to a custom function:  
+		The intended usage is to bind it to a custom function:
 		`httpInstance.onError = function(msg) { // handle error }`
 	**/
 	public dynamic function onError( msg : String ) {
@@ -807,7 +807,7 @@ class Http {
 		This method is called upon a Http status change, with `status` being the
 		new status.
 
-		The intended usage is to bind it to a custom function:  
+		The intended usage is to bind it to a custom function:
 		`httpInstance.onStatus = function(status) { // handle status }`
 	**/
 	public dynamic function onStatus( status : Int ) {
