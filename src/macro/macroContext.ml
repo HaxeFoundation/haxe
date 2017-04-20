@@ -264,12 +264,13 @@ let make_macro_api ctx p =
 		MacroApi.get_pattern_locals = (fun e t ->
 			!get_pattern_locals_ref ctx e t
 		);
-		MacroApi.define_type = (fun v ->
+		MacroApi.define_type = (fun v mdep ->
 			let m, tdef, pos = (try Interp.decode_type_def v with MacroApi.Invalid_expr -> Interp.exc_string "Invalid type definition") in
 			let add is_macro ctx =
-				let mnew = Typeload.type_module ctx m ctx.m.curmod.m_extra.m_file [tdef,pos] pos in
+				let mdep = Option.map_default (fun s -> Typeload.load_module ctx (parse_path s) pos) ctx.m.curmod mdep in
+				let mnew = Typeload.type_module ctx m mdep.m_extra.m_file [tdef,pos] pos in
 				mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
-				add_dependency mnew ctx.m.curmod;
+				add_dependency mnew mdep;
 			in
 			add false ctx;
 			(* if we are adding a class which has a macro field, we also have to add it to the macro context (issue #1497) *)

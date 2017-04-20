@@ -36,7 +36,7 @@ type 'value compiler_api = {
 	get_local_vars : unit -> (string, Type.tvar) PMap.t;
 	get_build_fields : unit -> 'value;
 	get_pattern_locals : Ast.expr -> Type.t -> (string,Type.tvar * Globals.pos) PMap.t;
-	define_type : 'value -> unit;
+	define_type : 'value -> string option -> unit;
 	define_module : string -> 'value list -> ((string * Globals.pos) list * Ast.import_mode) list -> Ast.type_path list -> unit;
 	module_dependency : string -> string -> bool -> unit;
 	current_module : unit -> module_def;
@@ -1735,8 +1735,8 @@ let macro_api ccom get_api =
 		"get_build_fields", vfun0 (fun() ->
 			(get_api()).get_build_fields()
 		);
-		"define_type", vfun1 (fun v ->
-			(get_api()).define_type v;
+		"define_type", vfun2 (fun v m ->
+			(get_api()).define_type v (opt decode_string m);
 			vnull
 		);
 		"define_module", vfun4 (fun path vl ui ul ->
