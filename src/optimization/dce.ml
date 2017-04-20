@@ -223,7 +223,7 @@ let rec mark_dependent_fields dce csup n stat =
 	in
 	let rec loop_inheritance c =
 		loop c;
-		Hashtbl.iter (fun _ d -> loop_inheritance d) c.cl_descendants;
+		List.iter (fun d -> loop_inheritance d) c.cl_descendants;
 	in
 	loop_inheritance csup
 

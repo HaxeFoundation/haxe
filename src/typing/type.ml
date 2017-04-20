@@ -222,7 +222,7 @@ and tclass = {
 		These are classes which directly extend or directly implement this class.
 		Populated automatically in post-processing step (Filters.run)
 	*)
-	mutable cl_descendants : (path, tclass) Hashtbl.t;
+	mutable cl_descendants : tclass list;
 }
 
 and tenum_field = {
@@ -402,7 +402,7 @@ let mk_class m path pos name_pos =
 		cl_overrides = [];
 		cl_build = (fun() -> Built);
 		cl_restore = (fun() -> ());
-		cl_descendants = Hashtbl.create 10
+		cl_descendants = [];
 	}
 
 let module_extra file sign time kind policy =
@@ -496,7 +496,7 @@ let rec is_parent csup c =
 		| Some (c,_) -> is_parent csup c
 
 let add_descendant c descendant =
-	Hashtbl.replace c.cl_descendants descendant.cl_path descendant
+	c.cl_descendants <- descendant :: c.cl_descendants
 
 let map loop t =
 	match t with

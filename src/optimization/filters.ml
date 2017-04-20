@@ -394,7 +394,7 @@ let save_class_state ctx t = match t with
 			c.cl_statics <- mk_pmap c.cl_ordered_statics;
 			c.cl_constructor <- Option.map restore_field csr;
 			c.cl_overrides <- over;
-			Hashtbl.clear c.cl_descendants;
+			c.cl_descendants <- [];
 		)
 	| _ ->
 		()
