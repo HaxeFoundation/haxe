@@ -114,7 +114,7 @@ let make_macro_api ctx p =
 		MacroApi.pos = p;
 		MacroApi.get_com = (fun() -> ctx.com);
 		MacroApi.get_type = (fun s ->
-			typing_timer ctx true (fun() ->
+			typing_timer ctx false (fun() ->
 				let path = parse_path s in
 				let tp = match List.rev (fst path) with
 					| s :: sl when String.length s > 0 && (match s.[0] with 'A'..'Z' -> true | _ -> false) ->
@@ -130,10 +130,10 @@ let make_macro_api ctx p =
 			)
 		);
 		MacroApi.resolve_type = (fun t p ->
-			typing_timer ctx true (fun() -> Typeload.load_complex_type ctx false p (t,null_pos))
+			typing_timer ctx false (fun() -> Typeload.load_complex_type ctx false p (t,null_pos))
 		);
 		MacroApi.get_module = (fun s ->
-			typing_timer ctx true (fun() ->
+			typing_timer ctx false (fun() ->
 				let path = parse_path s in
 				let m = List.map type_of_module_type (Typeload.load_module ctx path p).m_types in
 				m
