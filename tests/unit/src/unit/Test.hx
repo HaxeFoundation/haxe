@@ -198,6 +198,7 @@ class Test {
 	static var AMAX = 3;
 	static var timer : haxe.Timer;
 	static var success = true;
+	static var startStamp:Float;
 
 	dynamic static function report( msg : String, ?pos : haxe.PosInfos ) {
 		if( reportInfos != null ) {
@@ -228,6 +229,9 @@ class Test {
 			}
 			#end
 
+			if (success) {
+				report("TIME: " + (haxe.Timer.stamp() - startStamp));
+			}
 			#if sys
 			Sys.exit(success ? 0 : 1);
 			#end
