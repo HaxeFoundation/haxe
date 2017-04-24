@@ -108,9 +108,8 @@ class Test {
 	}
 
 	@:js('
-		var a_1;
 		var a_0 = 1;
-		a_1 = 2;
+		var a_1 = 2;
 		var b = 2;
 	')
 	static function testArrayInline() {
