@@ -1,5 +1,5 @@
 class Promise<T> {
-    function then<TOut>():Promise<TOut> { return null; }
+    public function then<TOut>():Promise<TOut> { return null; }
 }
 
 typedef Thenable<T> = {

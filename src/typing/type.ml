@@ -1779,6 +1779,17 @@ let rec unify a b =
 		(match !t with
 		| None -> if not (link t b a) then error [cannot_unify a b]
 		| Some t -> unify a t)
+	| TType (t1,tl1), TType (t2,tl2) when t1 == t2 ->
+		if not (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!unify_stack)) then begin
+			try
+				unify_stack := (a,b) :: !unify_stack;
+				List.iter2 unify tl1 tl2;
+				unify_stack := List.tl !unify_stack;
+			with
+				Unify_error l ->
+					unify_stack := List.tl !unify_stack;
+					error (cannot_unify a b :: l)
+		end
 	| TType (t,tl) , _ ->
 		if not (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!unify_stack)) then begin
 			try
@@ -2050,7 +2061,7 @@ and unify_anons a b a1 a2 =
 				| _ -> error [invalid_kind n f1.cf_kind f2.cf_kind]);
 			if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
 			try
-				unify_with_access f1.cf_type f2;
+				unify_with_access (field_type f1) f2;
 				(match !(a1.a_status) with
 				| Statics c when not (Meta.has Meta.MaybeUsed f1.cf_meta) -> f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta
 				| _ -> ());

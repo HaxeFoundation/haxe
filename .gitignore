@@ -97,3 +97,7 @@ tests/misc/projects/Issue4070/cpp/
 _build/
 Makefile.dependencies
 Makefile.modules
+
+/tests/unit/compiler_loops/All.n
+
+/tests/unit/compiler_loops/log.txt
