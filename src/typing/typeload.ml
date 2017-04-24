@@ -3314,9 +3314,24 @@ let init_module_type ctx context_init do_init (decl,p) =
 			if (Meta.has Meta.Eager d.d_meta) then
 				follow tt
 			else begin
+				let rec check_rec tt =
+					if tt == t.t_type then error "Recursive typedef is not allowed" p;
+					match tt with
+					| TMono r ->
+						(match !r with
+						| None -> ()
+						| Some t -> check_rec t)
+					| TLazy r ->
+						check_rec ((!r)());
+					| TType (td,tl) ->
+						if td == t then error "Recursive typedef is not allowed" p;
+						check_rec (apply_params td.t_params tl td.t_type)
+					| _ ->
+						()
+				in
 				let f r =
-					if t.t_type == follow tt then error "Recursive typedef is not allowed" p;
 					r := (fun() -> tt);
+					check_rec tt;
 					tt
 				in
 				let r = exc_protect ctx f "typedef_rec_check" in
