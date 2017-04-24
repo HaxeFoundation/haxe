@@ -2195,8 +2195,17 @@ and unify_with_variance f t1 t2 =
 	| t,TAbstract(a,pl) ->
 		type_eq EqBothDynamic t (apply_params a.a_params pl a.a_this);
 		if not (List.exists (fun t2 -> allows_variance_to t (apply_params a.a_params pl t2)) a.a_from) then error [cannot_unify t1 t2]
-	| TAnon a1,TAnon a2 ->
-		unify_anons t1 t2 a1 a2
+	| (TAnon a1 as t1), (TAnon a2 as t2) ->
+		if not (List.exists (fun (a,b) -> fast_eq a t1 && fast_eq b t2) (!unify_stack)) then begin
+			try
+				unify_stack := (t1,t2) :: !unify_stack;
+				unify_anons t1 t2 a1 a2;
+				unify_stack := List.tl !unify_stack;
+			with
+				Unify_error l ->
+					unify_stack := List.tl !unify_stack;
+					error l
+		end
 	| _ ->
 		error [cannot_unify t1 t2]
 
