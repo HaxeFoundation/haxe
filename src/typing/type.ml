@@ -1904,7 +1904,7 @@ let rec unify a b =
 					(* same as before, but unification is reversed (read-only var) *)
 					let old_monos = !unify_new_monos in
 					unify_new_monos := !monos @ !unify_new_monos;
-					if not (List.exists (fun (a2,b2) -> fast_eq b2 ft && fast_eq_mono !unify_new_monos f2.cf_type a2) (!unify_stack)) then begin
+					if not (List.exists (fun (a2,b2) -> fast_eq_mono !unify_new_monos b2 ft && fast_eq f2.cf_type a2) (!unify_stack)) then begin
 						unify_stack := (f2.cf_type,ft) :: !unify_stack;
 						(try
 							unify_with_access ft f2
