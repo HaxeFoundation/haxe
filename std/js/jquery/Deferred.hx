@@ -6,6 +6,11 @@ package js.jquery;
 	**/
 	public function always(alwaysCallbacks:haxe.extern.EitherType<haxe.Constraints.Function, Array<haxe.Constraints.Function>>, ?alwaysCallbacks:haxe.extern.EitherType<haxe.Constraints.Function, Array<haxe.Constraints.Function>>):js.jquery.Deferred;
 	/**
+		Add handlers to be called when the Deferred object is rejected.
+	**/
+	@:native("catch")
+	public function _catch(failFilter:haxe.Constraints.Function):js.jquery.Promise;
+	/**
 		Add handlers to be called when the Deferred object is resolved.
 	**/
 	public function done(doneCallbacks:haxe.extern.EitherType<haxe.Constraints.Function, Array<haxe.Constraints.Function>>, ?doneCallbacks:haxe.extern.EitherType<haxe.Constraints.Function, Array<haxe.Constraints.Function>>):js.jquery.Deferred;
