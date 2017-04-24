@@ -1750,7 +1750,7 @@ let macro_api ccom get_api =
 			com.class_path <- cp :: com.class_path;
 			(match com.get_macros() with
 			| Some(mcom) ->
-				mcom.class_path <- cp :: com.class_path;
+				mcom.class_path <- cp :: mcom.class_path;
 			| None ->
 				());
 			Hashtbl.clear com.file_lookup_cache;
