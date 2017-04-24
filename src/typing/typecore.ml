@@ -617,7 +617,7 @@ let context_ident ctx =
 		"  out "
 
 let debug ctx str =
-	if Common.raw_defined ctx.com "cdebug" then prerr_endline (context_ident ctx ^ !delay_tabs ^ str)
+	if Common.raw_defined ctx.com "cdebug" then print_endline (context_ident ctx ^ string_of_int (String.length !delay_tabs) ^ " " ^ !delay_tabs ^ str)
 
 let init_class_done ctx =
 	debug ctx ("init_class_done " ^ s_type_path ctx.curclass.cl_path);
@@ -648,6 +648,19 @@ let delay ctx p f =
 	in
 	ctx.g.debug_delayed <- loop ctx.g.debug_delayed;
 	debug ctx ("add " ^ inf)
+
+let delay_late ctx p f =
+	let inf = pass_infos ctx p in
+	let rec loop = function
+		| [] -> [p,[f,inf,ctx]]
+		| (p2,l) :: rest ->
+			if p2 <= p then
+				(p2,l) :: loop rest
+			else
+				(p,[f,inf,ctx]) :: (p2,l) :: rest
+	in
+	ctx.g.debug_delayed <- loop ctx.g.debug_delayed;
+	debug ctx ("add late " ^ inf)
 
 let pending_passes ctx =
 	let rec loop acc = function
