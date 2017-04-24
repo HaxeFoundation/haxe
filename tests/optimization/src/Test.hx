@@ -33,9 +33,8 @@ class Test {
 	}
 
 	@:js('
-		var c_y;
 		var c_x = 12;
-		c_y = "foo";
+		var c_y = "foo";
 		var x = 12;
 		c_x = 13;
 		x = 13;
@@ -51,12 +50,10 @@ class Test {
 
 	@:js('
 		var a = 0;
-		var c_y;
-		var c_x;
 		a = 1;
 		a = 2;
-		c_x = 12;
-		c_y = "foo";
+		var c_x = 12;
+		var c_y = "foo";
 		a = 12;
 	')
 	static function testInlineCtor2() {
@@ -71,14 +68,11 @@ class Test {
 
 	@:js('
 		var a = 0;
-		var b_y;
-		var b_x;
-		var c_y;
 		var c_x = 1;
-		c_y = "c";
+		var c_y = "c";
 		a = 1;
-		b_x = 2;
-		b_y = "b";
+		var b_x = 2;
+		var b_y = "b";
 		b_x = 1;
 	')
 	static function testInlineCtor3() {
@@ -92,10 +86,8 @@ class Test {
 	}
 
 	@:js('
-		var x_foo;
-		var x_bar;
-		x_foo = 1;
-		x_bar = 2;
+		var x_foo = 1;
+		var x_bar = 2;
 		var y = 1;
 		var z = 2;
 	')
