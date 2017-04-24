@@ -327,7 +327,7 @@ and module_kind =
 
 and build_state =
 	| Built
-	| Building
+	| Building of tclass list
 	| BuildMacro of (unit -> unit) list ref
 
 (* ======= General utility ======= *)

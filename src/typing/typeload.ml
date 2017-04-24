@@ -28,6 +28,7 @@ open Globals
 exception Build_canceled of build_state
 
 let locate_macro_error = ref true
+let build_count = ref 0
 
 let transform_abstract_field com this_t a_t a f =
 	let stat = List.mem AStatic f.cff_access in
@@ -2098,7 +2099,7 @@ module ClassInitializer = struct
 				fields := f
 			| _ -> error "Class build macro must return a single variable with anonymous fields" p
 		);
-		c.cl_build <- (fun() -> Building);
+		c.cl_build <- (fun() -> Building [c]);
 		List.iter (fun f -> f()) !pending;
 		!fields
 
@@ -3103,14 +3104,16 @@ let init_module_type ctx context_init do_init (decl,p) =
 		let herits = d.d_flags in
 		c.cl_extern <- List.mem HExtern herits;
 		c.cl_interface <- List.mem HInterface herits;
+		let prev_build_count = ref (!build_count - 1) in
 		let build() =
 			let fl = Inheritance.set_heritance ctx c herits p in
 			let rec build() =
-				c.cl_build <- (fun()-> Building);
+				c.cl_build <- (fun()-> Building [c]);
 				try
 					List.iter (fun f -> f()) fl;
 					ClassInitializer.init_class ctx c p do_init d.d_flags d.d_data;
 					c.cl_build <- (fun()-> Built);
+					incr build_count;
 					List.iter (fun (_,t) -> ignore(follow t)) c.cl_params;
 					Built;
 				with Build_canceled state ->
@@ -3120,9 +3123,14 @@ let init_module_type ctx context_init do_init (decl,p) =
 					in
 					(match state with
 					| Built -> assert false
-					| Building -> rebuild()
-					| BuildMacro f -> f := rebuild :: !f);
-					state
+					| Building cl ->
+						if !build_count = !prev_build_count then error ("Loop in class building prevent compiler termination (" ^ String.concat "," (List.map (fun c -> s_type_path c.cl_path) cl) ^ ")") c.cl_pos;
+						prev_build_count := !build_count;
+						rebuild();
+						Building (c :: cl)
+					| BuildMacro f ->
+						f := rebuild :: !f;
+						state);
 				| exn ->
 					c.cl_build <- (fun()-> Built);
 					raise exn
