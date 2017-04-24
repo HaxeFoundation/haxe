@@ -421,10 +421,10 @@ let inline_constructors ctx e =
 			(get_iv_var_decls (get_iv v.v_id)), None
 		| TVar(v,Some e) when v.v_id < 0 ->
 			let el = (get_iv_var_decls (get_iv v.v_id)) in
-			let e,_ = (final_map e) in (e@el, None)
+			let e,_ = (final_map ~unwrap_block:true e) in (e@el, None)
 		| TBinop(OpAssign, lve, rve) ->
 			let (lvel, lvo) = final_map lve in
-			let (rvel, rvo) = final_map rve in
+			let (rvel, rvo) = final_map ~unwrap_block:true rve in
 			begin match lvo with
 			| Some(io) ->
 				(rvel@lvel), lvo
