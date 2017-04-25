@@ -40,17 +40,6 @@ private class HaxeError extends js.Error {
 @:dox(hide)
 class Boot {
 
-	private static function __trace(v,i : haxe.PosInfos) {
-		var msg = if (i != null) i.fileName + ":" + i.lineNumber + ": " else "";
-		msg += __string_rec(v, "");
-		if (i != null && i.customParams != null)
-			for (v in i.customParams)
-				msg += "," + __string_rec(v, "");
-		var d;
-		if( js.Lib.typeof(untyped console) != "undefined" && (untyped console).log != null )
-			(untyped console).log(msg);
-	}
-
 	static inline function isClass(o:Dynamic) : Bool {
 		return untyped __define_feature__("js.Boot.isClass", o.__name__);
 	}

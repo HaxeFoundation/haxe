@@ -60,8 +60,6 @@ class Log {
 				if( infos.customParams != null ) for( v in infos.customParams ) $print(",", v);
 				$print("\n");
 			}
-		#elseif js
-			@:privateAccess js.Boot.__trace(v,infos);
 		#elseif (php && php7)
 			php.Boot.trace(v, infos);
 		#elseif php
