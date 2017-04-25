@@ -199,7 +199,7 @@ extern class Re
 
 	public static function subn(pattern:Pattern, repl:Repl, string:String, count:Int=0, flags:Int=0):String;
 
-	public static function escape(string:String):TODO;
+	public static function escape(string:String):String;
 
 	public static function purge():Void;
 }

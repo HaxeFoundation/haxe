@@ -20,6 +20,10 @@
 	php/php7: fixed accessing enum constructors on enum type stored to a variable (#6159)
 	php: fix invoking functions stored in dynamic static vars (#6158)
 
+	Standard Library:
+
+	all : added EReg.escape
+
 2017-03-20: 3.4.2
 
 	Bugfixes:

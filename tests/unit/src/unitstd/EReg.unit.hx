@@ -107,3 +107,6 @@ pos.len == 2;
 ~/(Hello)/.map("Hello", function(e) return "Hallo") == "Hallo";
 ~/(World)/.map("Hello World", function(e) return "Hallo") == "Hello Hallo";
 ~/(Hola)/.map("Hello World", function(e) return throw "not called") == "Hello World";
+
+// escape
+new EReg("^" + EReg.escape("\\ ^ $ * + ? . ( ) | { } [ ]") + "$", "").match("\\ ^ $ * + ? . ( ) | { } [ ]") == true;

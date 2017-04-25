@@ -197,6 +197,11 @@
 		return buf.toString();
 	}
 
+	public static function escape( s : String ) : String {
+		return escapeRegExpRe.map(s, function(r) return "\\" + r.matched(0));
+	}
+	static var escapeRegExpRe = ~/[\[\]{}()*+?.\\\^$|]/g;
+
 	static var regexp_new_options = neko.Lib.load("regexp","regexp_new_options",2);
 	static var regexp_match = neko.Lib.load("regexp","regexp_match",4);
 	static var regexp_matched = neko.Lib.load("regexp","regexp_matched",2);

@@ -134,4 +134,8 @@ import php.*;
 		}
 		return buf.toString();
 	}
+
+	public static inline function escape( s : String ) : String {
+		return Global.preg_quote(s);
+	}
 }
