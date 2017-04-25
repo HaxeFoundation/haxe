@@ -5,6 +5,7 @@
 	js : improved generation of `break` inside `switch` inside loops (#4964)
 	cs : improved generation of enum classes (#6119)
 	sys : the `database` parameter of `Mysql.connect` is now optional
+	js : updated jQuery extern (js.jquery.*) for jQuery 1.12.4 / 3.2.1 support.
 
 	Removals:
 

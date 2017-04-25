@@ -1,5 +1,5 @@
 
-# [<img src="http://haxe.org/img/haxe-logo-horizontal.svg" alt="Haxe logo" width="140">](https://haxe.org) - [The Cross-Platform Toolkit](https://haxe.org)
+# [<img src="https://haxe.org/img/haxe-logo-horizontal.svg" alt="Haxe logo" width="140">](https://haxe.org) - [The Cross-Platform Toolkit](https://haxe.org)
 [![TravisCI Build Status](https://travis-ci.org/HaxeFoundation/haxe.svg?branch=development)](https://travis-ci.org/HaxeFoundation/haxe)
 [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/HaxeFoundation/haxe?branch=development&svg=true)](https://ci.appveyor.com/project/HaxeFoundation/haxe)
 [![SauceLabs Test Status](https://saucelabs.com/buildstatus/haxe)](https://saucelabs.com/u/haxe)
@@ -17,15 +17,15 @@ Haxe allows you to compile for the following targets:
  * C++
  * C#
  * Flash
+ * [HashLink](http://hashlink.haxe.org/)
  * Java
  * JavaScript
- * NekoVM
- * PHP
- * Python
  * Lua
- * [HashLink](http://hashlink.haxe.org/)
+ * [NekoVM](http://nekovm.org/)
+ * PHP
+ * Python 3
 
-You can try Haxe directly from your browser at [try.haxe.org](http://try.haxe.org)!
+You can try Haxe directly from your browser at [try.haxe.org](https://try.haxe.org)!
 
 For more information about Haxe, head to the [offical Haxe website](https://haxe.org).
 
@@ -76,10 +76,10 @@ For information on on using Haxe, consult the [Haxe documentation](https://haxe.
 
 You can get help and talk with fellow Haxers from around the world via:
 
- * [Haxe on Stack Overflow](http://stackoverflow.com/questions/tagged/haxe)
+ * [Haxe on Stack Overflow](https://stackoverflow.com/questions/tagged/haxe)
  * the [official Haxe Google Group](https://groups.google.com/forum/#!forum/haxelang)
  * [#Haxe on Twitter](https://twitter.com/hashtag/haxe?src=hash)
- * the [Haxe IRC chatroom](http://unic0rn.github.io/tiramisu/haxe), #haxe on chat.freenode.net
+ * the [Haxe IRC chatroom](https://unic0rn.github.io/tiramisu/haxe/), #haxe on chat.freenode.net
 
 :+1: Get notified of the latest Haxe news, follow us on [Twitter](https://twitter.com/haxelang), [Facebook](https://www.facebook.com/haxe.org) or [Google+](https://plus.google.com/+HaxeOrg)
 

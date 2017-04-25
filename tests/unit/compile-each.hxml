@@ -1,4 +1,3 @@
--D macro-times
 -debug
 -cp src
 -cp "C:\Program Files\The Haxe Effect\src/dev/null"

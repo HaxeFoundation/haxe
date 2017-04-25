@@ -97,7 +97,7 @@ NATIVE_LIBS=-thread -cclib libs/extc/extc_stubs.o -cclib libs/extc/process_stubs
 all: libs haxe tools
 
 libs:
-	$(foreach lib,$(EXTLIB_LIBS),make -C libs/$(lib) $(TARGET_FLAG) &&) true
+	$(foreach lib,$(EXTLIB_LIBS),$(MAKE) -C libs/$(lib) $(TARGET_FLAG) &&) true
 
 copy_output_files:
 	mkdir -p _build
@@ -209,7 +209,7 @@ deploy_doc:
 clean: clean_libs clean_haxe clean_tools clean_package
 
 clean_libs:
-	$(foreach lib,$(EXTLIB_LIBS),make -C libs/$(lib) clean &&) true
+	$(foreach lib,$(EXTLIB_LIBS),$(MAKE) -C libs/$(lib) clean &&) true
 
 clean_haxe:
 	rm -f -r _build $(OUTPUT)

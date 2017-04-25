@@ -9,7 +9,7 @@
 
 	This program is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
@@ -394,6 +394,7 @@ let save_class_state ctx t = match t with
 			c.cl_statics <- mk_pmap c.cl_ordered_statics;
 			c.cl_constructor <- Option.map restore_field csr;
 			c.cl_overrides <- over;
+			c.cl_descendants <- [];
 		)
 	| _ ->
 		()
@@ -851,7 +852,16 @@ let filter_timer detailed s =
 
 let run com tctx main =
 	let detail_times = Common.raw_defined com "filter-times" in
-	let new_types = List.filter (fun t -> not (is_cached t)) com.types in
+	let new_types = List.filter (fun t ->
+		(match t with
+			| TClassDecl cls ->
+				List.iter (fun (iface,_) -> add_descendant iface cls) cls.cl_implements;
+				(match cls.cl_super with
+					| Some (csup,_) -> add_descendant csup cls
+					| None -> ())
+			| _ -> ());
+		not (is_cached t)
+	) com.types in
 	(* PASS 1: general expression filters *)
 	let filters = [
 		VarLazifier.apply com;

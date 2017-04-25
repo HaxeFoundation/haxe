@@ -91,7 +91,7 @@ let s_comp = function
 let core_types =
 	let vp = { vfields = [||]; vindex = PMap.empty } in
 	let ep = { ename = ""; eid = 0; eglobal = None; efields = [||] } in
-	[HVoid;HUI8;HUI16;HI32;HF32;HF64;HBool;HBytes;HDyn;HFun ([],HVoid);HObj null_proto;HArray;HType;HRef HVoid;HVirtual vp;HDynObj;HAbstract ("",0);HEnum ep;HNull HVoid]
+	[HVoid;HUI8;HUI16;HI32;HI64;HF32;HF64;HBool;HBytes;HDyn;HFun ([],HVoid);HObj null_proto;HArray;HType;HRef HVoid;HVirtual vp;HDynObj;HAbstract ("",0);HEnum ep;HNull HVoid]
 
 let tname str =
 	let n = String.concat "__" (ExtString.String.nsplit str ".") in
@@ -658,7 +658,7 @@ let generate_function ctx f =
 					sexpr "if( %s != %s && (!%s || !%s || !%s->value || !%s->value || %s->value != %s->value) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (label d)
 				else
 					assert false
-			| HEnum _, HEnum _ | HDynObj, HDynObj ->
+			| HEnum _, HEnum _ | HDynObj, HDynObj | HFun _, HFun _ | HAbstract _, HAbstract _ ->
 				phys_compare()
 			| HVirtual _, HObj _->
 				if op = CEq then
@@ -669,8 +669,6 @@ let generate_function ctx f =
 					assert false
 			| HObj _, HVirtual _ ->
 				compare_op op b a d
-			| HFun _, HFun _ ->
-				phys_compare()
 			| ta, tb ->
 				failwith ("Don't know how to compare " ^ tstr ta ^ " and " ^ tstr tb ^ " (hlc)")
 		in
@@ -683,7 +681,8 @@ let generate_function ctx f =
 			else
 				sexpr "%s = %ld" (reg r) code.ints.(idx)
 		| OFloat (r,idx) ->
-			sexpr "%s = %.19g" (reg r) code.floats.(idx)
+			let fstr = sprintf "%.19g" code.floats.(idx) in
+			sexpr "%s = %s" (reg r) (if String.contains fstr '.' || String.contains fstr 'e' then fstr else fstr ^ ".")
 		| OBool (r,b) ->
 			sexpr "%s = %s" (reg r) (if b then "true" else "false")
 		| OBytes (r,idx) ->
@@ -905,7 +904,7 @@ let generate_function ctx f =
 				sexpr "{ venum *tmp";
 				"tmp"
 			end in
-			sexpr "%s = (venum*)hl_gc_alloc%s(sizeof(%s))" tmp (if has_ptr then "" else "_noptr") et;
+			sexpr "%s = (venum*)hl_gc_alloc_%s(sizeof(%s))" tmp (if has_ptr then "raw" else "noptr") et;
 			sexpr "%s->index = %d" tmp cid;
 			let _,_,tl = e.efields.(cid) in
 			list_iteri (fun i v ->
@@ -915,7 +914,7 @@ let generate_function ctx f =
 		| OEnumAlloc (r,cid) ->
 			let et, (_,_,tl) = (match rtype r with HEnum e -> enum_constr_type ctx e cid, e.efields.(cid) | _ -> assert false) in
 			let has_ptr = List.exists is_gc_ptr (Array.to_list tl) in
-			sexpr "%s = (venum*)hl_gc_alloc%s(sizeof(%s))" (reg r) (if has_ptr then "" else "_noptr") et;
+			sexpr "%s = (venum*)hl_gc_alloc_%s(sizeof(%s))" (reg r) (if has_ptr then "raw" else "noptr") et;
 			sexpr "memset(%s,0,sizeof(%s))" (reg r) et;
 			if cid <> 0 then sexpr "%s->index = %d" (reg r) cid
 		| OEnumIndex (r,v) ->

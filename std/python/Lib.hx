@@ -28,8 +28,8 @@ import python.NativeStringTools;
 typedef PySys = python.lib.Sys;
 
 /**
-	Platform-specific Python Library. Provides some platform-specific functions 
-	for the Python target, such as conversion from Haxe types to native types 
+	Platform-specific Python Library. Provides some platform-specific functions
+	for the Python target, such as conversion from Haxe types to native types
 	and vice-versa.
 **/
 class Lib {
@@ -91,7 +91,7 @@ class Lib {
 	 	Returns the Dictionary `d` as an anonymous Object.
 	 	Modifications to the object are reflected in the Dictionary too.
 	**/
-	public static function dictAsAnon (d:Dict<String, Dynamic>):Dynamic {
+	public static inline function dictAsAnon (d:Dict<String, Dynamic>):Dynamic {
 		return new AnonObject(d);
 	}
 

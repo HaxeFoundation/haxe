@@ -19,23 +19,17 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+package haxe;
 
-package lua.lib.luv.net;
-
-@:luaRequire("luv")
-extern class Dns {
-
-  @:overload(function(node : String, ?service : String, ?hints : AddrInfo, cb : String->Table<Int, AddrInfo>->Void) : Request {})
-  public static function getaddrinfo(node : String, ?service : String, ?hints : AddrInfo ) : Result<Table<Int,AddrInfo>>;
-
-  @:overload(function(ip: String, ?port : Int, ?family : String, cb : String->AddrInfo->Void) : Request {})
-  public static function getnameinfo(info:AddrInfo) : Result<String>;
-}
-
-typedef AddrInfo = {
-    ?ip       : String,
-    ?addr     : String,
-    ?port     : Int,
-    ?family   : String,
-    ?socktype : String
+@:coreApi class Log {
+	@:access(js.Boot.__string_rec)
+	public static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
+		var msg = if (infos != null) infos.fileName + ":" + infos.lineNumber + ": " else "";
+		msg += js.Boot.__string_rec(v, "");
+		if (infos != null && infos.customParams != null)
+			for (v in infos.customParams)
+				msg += "," + js.Boot.__string_rec(v, "");
+		if( js.Lib.typeof(untyped console) != "undefined" && (untyped console).log != null )
+			(untyped console).log(msg);
+	}
 }

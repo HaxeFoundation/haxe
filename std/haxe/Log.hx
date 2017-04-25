@@ -60,8 +60,6 @@ class Log {
 				if( infos.customParams != null ) for( v in infos.customParams ) $print(",", v);
 				$print("\n");
 			}
-		#elseif js
-			untyped js.Boot.__trace(v,infos);
 		#elseif (php && php7)
 			php.Boot.trace(v, infos);
 		#elseif php
@@ -120,20 +118,14 @@ class Log {
 		#end
 	}
 
-	#if (flash || js)
+	#if flash
 	/**
 		Clears the trace output.
 	**/
 	public static dynamic function clear() : Void {
-		#if flash
-		untyped flash.Boot.__clear_trace();
-		#elseif js
-		untyped js.Boot.__clear_trace();
-		#end
+		flash.Boot.__clear_trace();
 	}
-	#end
 
-	#if flash
 	/**
 		Sets the color of the trace output to `rgb`.
 	**/

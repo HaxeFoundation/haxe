@@ -85,6 +85,7 @@ package js.jquery;
 	static public var fx : { /**
 		The rate (in milliseconds) at which animations fire.
 	**/
+	@:deprecated("Deprecated since jQuery 3.0")
 	var interval : Float; /**
 		Globally disable all animations.
 	**/
@@ -218,6 +219,10 @@ package js.jquery;
 	@:overload(function(element:js.html.Element, queueName:String, callback:haxe.Constraints.Function):js.jquery.JQuery { })
 	static public function queue(element:js.html.Element, ?queueName:String):Array<Void -> Void>;
 	/**
+		A Promise-like object (or "thenable") that resolves when the document is ready.
+	**/
+	static public var ready : js.Promise.Thenable<Dynamic>;
+	/**
 		Handles errors thrown synchronously in functions wrapped in <code>jQuery()</code>.
 	**/
 	static public dynamic function readyException(error:js.Error):String;
@@ -259,9 +264,9 @@ package js.jquery;
 	**/
 	static public function uniqueSort(array:Array<js.html.Element>):Array<js.html.Element>;
 	/**
-		Provides a way to execute callback functions based on zero or more objects, usually <a href="/category/deferred-object/">Deferred</a> objects that represent asynchronous events.
+		Provides a way to execute callback functions based on zero or more Thenable objects, usually <a href="/category/deferred-object/">Deferred</a> objects that represent asynchronous events.
 	**/
-	static public function when(deferreds:haxe.extern.Rest<js.jquery.Deferred>):js.jquery.Promise;
+	static public function when(deferreds:haxe.extern.EitherType<js.jquery.Promise, haxe.extern.EitherType<haxe.extern.Rest<js.jquery.Deferred>, js.Promise.Thenable<Dynamic>>>):js.jquery.Promise;
 	/**
 		Create a new jQuery object with elements added to the set of matched elements.
 	**/
@@ -346,6 +351,7 @@ package js.jquery;
 	/**
 		Attach a handler to an event for the elements.
 	**/
+	@:deprecated("Deprecated since jQuery 3.0")
 	@:overload(function(eventType:String, ?eventData:Dynamic, handler:js.jquery.Event -> Void):js.jquery.JQuery { })
 	@:overload(function(eventType:String, ?eventData:Dynamic, ?preventBubble:Bool):js.jquery.JQuery { })
 	public function bind(events:Dynamic):js.jquery.JQuery;
@@ -437,6 +443,7 @@ package js.jquery;
 	/**
 		Attach a handler to one or more events for all elements that match the selector, now or in the future, based on a specific set of root elements.
 	**/
+	@:deprecated("Deprecated since jQuery 3.0")
 	@:overload(function(selector:String, eventType:String, handler:js.jquery.Event -> Void):js.jquery.JQuery { })
 	@:overload(function(selector:String, eventType:String, eventData:Dynamic, handler:js.jquery.Event -> Void):js.jquery.JQuery { })
 	public function delegate(selector:String, events:Dynamic):js.jquery.JQuery;
@@ -779,19 +786,19 @@ package js.jquery;
 	@:overload(function(events:String, ?selector:String, ?data:Dynamic, handler:js.jquery.Event -> Void):js.jquery.JQuery { })
 	public function one(events:String, ?data:Dynamic, handler:js.jquery.Event -> Void):js.jquery.JQuery;
 	/**
-		Get the current computed height for the first element in the set of matched elements, including padding, border, and optionally margin. Returns a number (without "px") representation of the value or null if called on an empty set of elements.
+		Set the CSS outer height of each element in the set of matched elements.
 		OR
-		Set the CSS outer Height of each element in the set of matched elements.
+		Get the current computed outer height (including padding, border, and optionally margin) for the first element in the set of matched elements.
 	**/
-	@:overload(function(_function:haxe.Constraints.Function):js.jquery.JQuery { })
+	@:overload(function(_function:Int -> Float -> haxe.extern.EitherType<Float, String>):js.jquery.JQuery { })
 	@:overload(function(?includeMargin:Bool):Float { })
 	public function outerHeight(value:haxe.extern.EitherType<Float, String>):js.jquery.JQuery;
 	/**
-		Get the current computed width for the first element in the set of matched elements, including padding and border.
+		Get the current computed outer width (including padding, border, and optionally margin) for the first element in the set of matched elements.
 		OR
 		Set the CSS outer width of each element in the set of matched elements.
 	**/
-	@:overload(function(_function:haxe.Constraints.Function):js.jquery.JQuery { })
+	@:overload(function(_function:Int -> Float -> haxe.extern.EitherType<Float, String>):js.jquery.JQuery { })
 	@:overload(function(?includeMargin:Bool):Float { })
 	public function outerWidth(value:haxe.extern.EitherType<Float, String>):js.jquery.JQuery;
 	/**
@@ -1030,6 +1037,7 @@ package js.jquery;
 	/**
 		Remove a previously-attached event handler from the elements.
 	**/
+	@:deprecated("Deprecated since jQuery 3.0")
 	@:overload(function(event:js.jquery.Event):js.jquery.JQuery { })
 	@:overload(function(eventType:String, _false:Bool):js.jquery.JQuery { })
 	@:overload(function(eventType:String, ?handler:js.jquery.Event -> Void):js.jquery.JQuery { })
@@ -1037,6 +1045,7 @@ package js.jquery;
 	/**
 		Remove a handler from the event for all elements which match the current selector, based upon a specific set of root elements.
 	**/
+	@:deprecated("Deprecated since jQuery 3.0")
 	@:overload(function(namespace:String):js.jquery.JQuery { })
 	@:overload(function(selector:String, eventType:String):js.jquery.JQuery { })
 	@:overload(function(selector:String, events:Dynamic):js.jquery.JQuery { })

@@ -114,7 +114,7 @@ let make_macro_api ctx p =
 		MacroApi.pos = p;
 		MacroApi.get_com = (fun() -> ctx.com);
 		MacroApi.get_type = (fun s ->
-			typing_timer ctx true (fun() ->
+			typing_timer ctx false (fun() ->
 				let path = parse_path s in
 				let tp = match List.rev (fst path) with
 					| s :: sl when String.length s > 0 && (match s.[0] with 'A'..'Z' -> true | _ -> false) ->
@@ -130,10 +130,10 @@ let make_macro_api ctx p =
 			)
 		);
 		MacroApi.resolve_type = (fun t p ->
-			typing_timer ctx true (fun() -> Typeload.load_complex_type ctx false p (t,null_pos))
+			typing_timer ctx false (fun() -> Typeload.load_complex_type ctx false p (t,null_pos))
 		);
 		MacroApi.get_module = (fun s ->
-			typing_timer ctx true (fun() ->
+			typing_timer ctx false (fun() ->
 				let path = parse_path s in
 				let m = List.map type_of_module_type (Typeload.load_module ctx path p).m_types in
 				m
@@ -264,12 +264,13 @@ let make_macro_api ctx p =
 		MacroApi.get_pattern_locals = (fun e t ->
 			!get_pattern_locals_ref ctx e t
 		);
-		MacroApi.define_type = (fun v ->
+		MacroApi.define_type = (fun v mdep ->
 			let m, tdef, pos = (try Interp.decode_type_def v with MacroApi.Invalid_expr -> Interp.exc_string "Invalid type definition") in
 			let add is_macro ctx =
-				let mnew = Typeload.type_module ctx m ctx.m.curmod.m_extra.m_file [tdef,pos] pos in
+				let mdep = Option.map_default (fun s -> Typeload.load_module ctx (parse_path s) pos) ctx.m.curmod mdep in
+				let mnew = Typeload.type_module ctx m mdep.m_extra.m_file [tdef,pos] pos in
 				mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
-				add_dependency mnew ctx.m.curmod;
+				add_dependency mnew mdep;
 			in
 			add false ctx;
 			(* if we are adding a class which has a macro field, we also have to add it to the macro context (issue #1497) *)
@@ -526,10 +527,12 @@ let load_macro ctx display cpath f p =
 		meth
 	in
 	let call args =
+		if ctx.com.verbose then Common.log ctx.com ("Calling macro " ^ s_type_path cpath ^ "." ^ f ^ " (" ^ p.pfile ^ ":" ^ string_of_int (Lexer.get_error_line p) ^ ")");
 		let t = macro_timer ctx ["execution";s_type_path cpath ^ "." ^ f] in
 		incr stats.s_macros_called;
 		let r = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [(match sub with None -> snd cpath | Some s -> s)]) f args api in
 		t();
+		if ctx.com.verbose then Common.log ctx.com ("Exiting macro " ^ s_type_path cpath ^ "." ^ f);
 		r
 	in
 	mctx, meth, call

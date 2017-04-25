@@ -1991,7 +1991,7 @@ and eval ctx (e,p) =
 			| _ ->
 				VNull
 		in
-		(fun() -> try loop (DynArray.length ctx.stack) with Sys.Break -> throw ctx p "Ctrl+C")
+		(fun() -> try loop (DynArray.length ctx.stack) with Sys.Break when (try Sys.getenv "HAXEDEBUG" <> "1" with _ -> true) -> throw ctx p "Ctrl+C")
 	| EWhile (econd,e,DoWhile) ->
 		let e = eval ctx e in
 		let econd = eval ctx econd in

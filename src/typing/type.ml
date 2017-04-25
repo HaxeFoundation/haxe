@@ -218,6 +218,11 @@ and tclass = {
 
 	mutable cl_build : unit -> build_state;
 	mutable cl_restore : unit -> unit;
+	(*
+		These are classes which directly extend or directly implement this class.
+		Populated automatically in post-processing step (Filters.run)
+	*)
+	mutable cl_descendants : tclass list;
 }
 
 and tenum_field = {
@@ -322,7 +327,7 @@ and module_kind =
 
 and build_state =
 	| Built
-	| Building
+	| Building of tclass list
 	| BuildMacro of (unit -> unit) list ref
 
 (* ======= General utility ======= *)
@@ -397,6 +402,7 @@ let mk_class m path pos name_pos =
 		cl_overrides = [];
 		cl_build = (fun() -> Built);
 		cl_restore = (fun() -> ());
+		cl_descendants = [];
 	}
 
 let module_extra file sign time kind policy =
@@ -488,6 +494,9 @@ let rec is_parent csup c =
 	else match c.cl_super with
 		| None -> false
 		| Some (c,_) -> is_parent csup c
+
+let add_descendant c descendant =
+	c.cl_descendants <- descendant :: c.cl_descendants
 
 let map loop t =
 	match t with
@@ -1770,6 +1779,17 @@ let rec unify a b =
 		(match !t with
 		| None -> if not (link t b a) then error [cannot_unify a b]
 		| Some t -> unify a t)
+	| TType (t1,tl1), TType (t2,tl2) when t1 == t2 ->
+		if not (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!unify_stack)) then begin
+			try
+				unify_stack := (a,b) :: !unify_stack;
+				List.iter2 unify tl1 tl2;
+				unify_stack := List.tl !unify_stack;
+			with
+				Unify_error l ->
+					unify_stack := List.tl !unify_stack;
+					error (cannot_unify a b :: l)
+		end
 	| TType (t,tl) , _ ->
 		if not (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!unify_stack)) then begin
 			try
@@ -1895,7 +1915,7 @@ let rec unify a b =
 					(* same as before, but unification is reversed (read-only var) *)
 					let old_monos = !unify_new_monos in
 					unify_new_monos := !monos @ !unify_new_monos;
-					if not (List.exists (fun (a2,b2) -> fast_eq b2 ft && fast_eq_mono !unify_new_monos f2.cf_type a2) (!unify_stack)) then begin
+					if not (List.exists (fun (a2,b2) -> fast_eq_mono !unify_new_monos b2 ft && fast_eq f2.cf_type a2) (!unify_stack)) then begin
 						unify_stack := (f2.cf_type,ft) :: !unify_stack;
 						(try
 							unify_with_access ft f2
@@ -2041,7 +2061,7 @@ and unify_anons a b a1 a2 =
 				| _ -> error [invalid_kind n f1.cf_kind f2.cf_kind]);
 			if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
 			try
-				unify_with_access f1.cf_type f2;
+				unify_with_access (field_type f1) f2;
 				(match !(a1.a_status) with
 				| Statics c when not (Meta.has Meta.MaybeUsed f1.cf_meta) -> f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta
 				| _ -> ());
@@ -2175,8 +2195,17 @@ and unify_with_variance f t1 t2 =
 	| t,TAbstract(a,pl) ->
 		type_eq EqBothDynamic t (apply_params a.a_params pl a.a_this);
 		if not (List.exists (fun t2 -> allows_variance_to t (apply_params a.a_params pl t2)) a.a_from) then error [cannot_unify t1 t2]
-	| TAnon a1,TAnon a2 ->
-		unify_anons t1 t2 a1 a2
+	| (TAnon a1 as t1), (TAnon a2 as t2) ->
+		if not (List.exists (fun (a,b) -> fast_eq a t1 && fast_eq b t2) (!unify_stack)) then begin
+			try
+				unify_stack := (t1,t2) :: !unify_stack;
+				unify_anons t1 t2 a1 a2;
+				unify_stack := List.tl !unify_stack;
+			with
+				Unify_error l ->
+					unify_stack := List.tl !unify_stack;
+					error l
+		end
 	| _ ->
 		error [cannot_unify t1 t2]
 

@@ -212,10 +212,6 @@ import python.Syntax;
 	}
 
 	public static inline function random( x : Int ) : Int {
-		if (x <= 0) {
-			return 0;
-		} else {
-			return int(Math.random()*x);
-		}
+		return if (x <= 0) 0 else python.internal.UBuiltins.int(Math.random() * x);
 	}
 }

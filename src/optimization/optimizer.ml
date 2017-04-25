@@ -653,10 +653,10 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 
 (* Same as type_inline, but modifies the function body to add field inits *)
 and type_inline_ctor ctx c cf tf ethis el po =
-	let field_inits = 
+	let field_inits =
 		let cparams = List.map snd c.cl_params in
 		let ethis = mk (TConst TThis) (TInst (c,cparams)) c.cl_pos in
-		let el = List.fold_left (fun acc cf -> 
+		let el = List.fold_left (fun acc cf ->
 			match cf.cf_kind,cf.cf_expr with
 			| Var _,Some e ->
 				let lhs = mk (TField(ethis,FInstance (c,cparams,cf))) cf.cf_type e.epos in
@@ -688,6 +688,7 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 	let gen_int_iter pt f_get f_length =
 		let i = add_local ctx i pt pi in
 		let index = gen_local ctx t_int pi in
+		index.v_meta <- (Meta.ForLoopVariable,[],null_pos) :: index.v_meta;
 		let arr, avars = (match e1.eexpr with
 			| TLocal _ -> e1, None
 			| _ ->
@@ -728,6 +729,7 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 			| _ -> Some (gen_local ctx t_int e1.epos)
 		) in
 		let tmp = gen_local ctx t_int pi in
+		tmp.v_meta <- (Meta.ForLoopVariable,[],null_pos) :: tmp.v_meta;
 		let i = add_local ctx i t_int pi in
 		let rec check e =
 			match e.eexpr with

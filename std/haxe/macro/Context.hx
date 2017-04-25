@@ -466,9 +466,13 @@ class Context {
 
 	/**
 		Defines a new type from `TypeDefinition` `t`.
+
+		If `moduleDependency` is given and is not `null`, it should contain
+		a module path that will be used as a dependency for the newly defined module
+		instead of the current module.
 	**/
-	public static function defineType( t : TypeDefinition ) : Void {
-		load("define_type", 1)(t);
+	public static function defineType( t : TypeDefinition, ?moduleDependency : String ) : Void {
+		load("define_type", 2)(t, moduleDependency);
 	}
 
 	/**
