@@ -46,10 +46,6 @@ class Boot {
 
 	private static function __trace(v,i : haxe.PosInfos) {
 		var msg = if (i != null) i.fileName + ":" + i.lineNumber + ": " else "";
-		#if jsfl
-		msg += __string_rec(v,"");
-		(untyped fl).trace(msg);
-		#else
 		msg += __string_rec(v, "");
 		if (i != null && i.customParams != null)
 			for (v in i.customParams)
@@ -59,18 +55,13 @@ class Boot {
 			d.innerHTML += __unhtml(msg)+"<br/>";
 		else if( js.Lib.typeof(untyped console) != "undefined" && (untyped console).log != null )
 			(untyped console).log(msg);
-		#end
 	}
 
 	private static function __clear_trace() {
 		untyped {
-			#if jsfl
-			fl.outputPanel.clear();
-			#else
 			var d = document.getElementById("haxe:trace");
 			if( d != null )
 				d.innerHTML = "";
-			#end
 		}
 	}
 
