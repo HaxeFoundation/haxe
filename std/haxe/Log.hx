@@ -126,9 +126,9 @@ class Log {
 	**/
 	public static dynamic function clear() : Void {
 		#if flash
-		untyped flash.Boot.__clear_trace();
+		flash.Boot.__clear_trace();
 		#elseif js
-		untyped js.Boot.__clear_trace();
+		@:privateAccess js.Boot.__clear_trace();
 		#end
 	}
 	#end
