@@ -40,10 +40,6 @@ private class HaxeError extends js.Error {
 @:dox(hide)
 class Boot {
 
-	private static function __unhtml(s : String) {
-		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
-	}
-
 	private static function __trace(v,i : haxe.PosInfos) {
 		var msg = if (i != null) i.fileName + ":" + i.lineNumber + ": " else "";
 		msg += __string_rec(v, "");
@@ -51,18 +47,8 @@ class Boot {
 			for (v in i.customParams)
 				msg += "," + __string_rec(v, "");
 		var d;
-		if( js.Lib.typeof(untyped document) != "undefined" && (d = (untyped document).getElementById("haxe:trace")) != null )
-			d.innerHTML += __unhtml(msg)+"<br/>";
-		else if( js.Lib.typeof(untyped console) != "undefined" && (untyped console).log != null )
+		if( js.Lib.typeof(untyped console) != "undefined" && (untyped console).log != null )
 			(untyped console).log(msg);
-	}
-
-	private static function __clear_trace() {
-		untyped {
-			var d = document.getElementById("haxe:trace");
-			if( d != null )
-				d.innerHTML = "";
-		}
 	}
 
 	static inline function isClass(o:Dynamic) : Bool {
