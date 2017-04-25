@@ -23,7 +23,7 @@
 
 	@:pure
 	public inline static function hasField( o : Dynamic, field : String ) : Bool {
-		return untyped __js__('Object').prototype.hasOwnProperty.call(o, field);
+		return js.Object.prototype.hasOwnProperty.call(o, field);
 	}
 
 	public static function field( o : Dynamic, field : String ) : Dynamic {
@@ -51,7 +51,7 @@
 	public static function fields( o : Dynamic ) : Array<String> {
 		var a = [];
 		if (o != null) untyped {
-			var hasOwnProperty = __js__('Object').prototype.hasOwnProperty;
+			var hasOwnProperty = js.Object.prototype.hasOwnProperty;
 			__js__("for( var f in o ) {");
 			if( f != "__id__" && f != "hx__closures__" && hasOwnProperty.call(o, f) ) a.push(f);
 			__js__("}");
