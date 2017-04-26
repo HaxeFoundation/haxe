@@ -61,6 +61,7 @@ class TestMain {
 			new TestOrder(),
 			new TestGADT(),
 			new TestGeneric(),
+			new TestArrowFunctions(),
 			#if !no_pattern_matching
 			new TestMatch(),
 			#end
