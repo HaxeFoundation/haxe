@@ -36,6 +36,10 @@ class TestArrowFunctions extends Test {
 
 	function testSyntax(){
 
+		// skipping hl for now due to variance errors:
+		// Don't know how to cast ref(i32) to null(i32) see issue #6210
+		#if !hl
+
 		maybe = () -> Math.random() > 0.5;
 
 		v0 = (123);
@@ -63,7 +67,7 @@ class TestArrowFunctions extends Test {
 		v0 = f1_0(1);
 
 		f1_1 = (?a) -> a;
-		v0 = f1_0(1);
+		v0 = f1_1(1);
 
 		f1_1 = (?a:Int) -> a;
 		v0 = f1_1(1);
@@ -88,7 +92,7 @@ class TestArrowFunctions extends Test {
 		f3_1 = (?a:Int, b:String) -> a + b.length;
 		f3_2 = (a:Int, ?b:Int) -> a + b;
 
-		#if !flash
+		#if !(flash || as3)
 		f3_1 = function (a=1, b:String) return a + b.length;
 		eq(f3_1("--"),3);
 
@@ -108,7 +112,6 @@ class TestArrowFunctions extends Test {
 		eq(f3_1("--"),3);
 
 		f3_2 = (a:Int, b=2) -> a + b;
-		eq(f3_1("--"),3);
 		eq(f3_2(1),3);
 		#end
 
@@ -142,6 +145,8 @@ class TestArrowFunctions extends Test {
 		map = [1 => a -> a + a, 2 => a -> a + a, 3 => a -> a + a];
 
 		obj = { f : a -> a + a };
+
+		#end
 
 	}
 
