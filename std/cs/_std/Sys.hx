@@ -158,7 +158,7 @@ class Sys {
 
 	@:deprecated("Use programPath instead") public static inline function executablePath() : String
 	{
-		return cs.system.reflection.Assembly.GetExecutingAssembly().GetName().CodeBase;
+		return cs.system.reflection.Assembly.GetExecutingAssembly().Location;
 	}
 
 	public static function programPath() : String {
