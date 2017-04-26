@@ -800,6 +800,7 @@ let run_expression_filters ctx filters t =
 	| TClassDecl c ->
 		ctx.curclass <- c;
 		let rec process_field f =
+			ctx.curfield <- f;
 			(match f.cf_expr with
 			| Some e when not (is_removable_field ctx f) ->
 				AbstractCast.cast_stack := f :: !AbstractCast.cast_stack;
