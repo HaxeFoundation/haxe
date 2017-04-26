@@ -832,7 +832,7 @@ let instanceof_compatible (subject_arg:texpr) (type_arg:texpr) : bool =
 		| TTypeExpr (TClassDecl { cl_path = path }) when path <> ([], "String") && path <> ([], "Class") ->
 			let subject_arg = reveal_expr_with_parenthesis subject_arg in
 			(match subject_arg.eexpr with
-				| TLocal _ | TField _ | TCall _ | TArray _ -> not (is_magic subject_arg)
+				| TLocal _ | TField _ | TCall _ | TArray _ | TConst TThis -> not (is_magic subject_arg)
 				| _ -> false
 			)
 		| _ -> false
