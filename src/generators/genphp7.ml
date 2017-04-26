@@ -3246,6 +3246,7 @@ class class_builder ctx (cls:tclass) =
 					match iface with
 						| (i, params) -> writer#use_t (TInst (i, params))
 				in
+				(* Do not add interfaces which are implemented through other interfaces inheritance *)
 				let unique = List.filter
 					(fun (iface, _) ->
 						not (List.exists

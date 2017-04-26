@@ -2079,7 +2079,22 @@ let generate_class ctx c =
 	| Some (csup,_) ->
 		requires_constructor := false;
 		print ctx "extends %s " (s_path ctx csup.cl_path csup.cl_extern c.cl_pos));
-	let implements = ExtList.List.unique ~cmp:(fun a b -> (fst a).cl_path = (fst b).cl_path) c.cl_implements in
+	(* Do not add interfaces which are implemented through other interfaces inheritance *)
+	let unique = List.filter
+		(fun (iface, _) ->
+			not (List.exists
+				(fun (probably_descendant, _) ->
+					if probably_descendant == iface then
+						false
+					else
+						is_parent iface probably_descendant
+				)
+				c.cl_implements
+			)
+		)
+		c.cl_implements
+	in
+	let implements = ExtList.List.unique ~cmp:(fun a b -> (fst a).cl_path = (fst b).cl_path) unique in
 	(match implements with
 	| [] -> ()
 	| l ->
