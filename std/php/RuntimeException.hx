@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2012 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,34 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package sys.db;
+package php;
+import php.Exception;
 
-import sys.db.Connection;
-
-@:coreApi class Mysql {
-
-	public static function connect( params : {
-		host : String,
-		?port : Int,
-		user : String,
-		pass : String,
-		?socket : String,
-		?database : String
-	} ) : sys.db.Connection {
-		var dsn = "mysql:";
-        
-		if (params.socket !=null)
-			dsn+="unix_socket="+params.socket+";";
-		else{
-			dsn+="host="+params.host+";";
-			if (params.port!=null)
-				dsn+='port='+params.port+";";
-		}
-		if (params.database != null) {
-			dsn+="dbname="+params.database;
-		}
-		
-		return php.db.PDO.open(dsn,params.user,params.pass);
-	}
-
+extern class RuntimeException extends Exception {
+	
 }
