@@ -3246,7 +3246,21 @@ class class_builder ctx (cls:tclass) =
 					match iface with
 						| (i, params) -> writer#use_t (TInst (i, params))
 				in
-				let interfaces = List.map use_interface cls.cl_implements in
+				let unique = List.filter
+					(fun (iface, _) ->
+						not (List.exists
+							(fun (probably_descendant, _) ->
+								if probably_descendant == iface then
+									false
+								else
+									is_parent iface probably_descendant
+							)
+							cls.cl_implements
+						)
+					)
+					cls.cl_implements
+				in
+				let interfaces = List.map use_interface unique in
 				writer#write (String.concat ", " interfaces);
 			end;
 		(**
