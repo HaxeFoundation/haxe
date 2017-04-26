@@ -58,6 +58,7 @@ and inline_object = {
 	io_kind : inline_object_kind;
 	io_expr : texpr;
 	io_pos : pos;
+	io_has_untyped : bool;
 	mutable io_cancelled : bool;
 	mutable io_declared : bool;
 	mutable io_aliases : inline_var list;
@@ -195,7 +196,7 @@ let inline_constructors ctx e =
 	in
 	let rec analyze_aliases (seen_ctors:tclass_field list) (captured:bool) (is_lvalue:bool) (e:texpr) : inline_var option =
 		increment_io_id e;
-		let mk_io (iok : inline_object_kind) (id:int) (expr:texpr) : inline_object =
+		let mk_io ?(has_untyped=false) (iok : inline_object_kind) (id:int) (expr:texpr) : inline_object =
 			let io = {
 				io_kind = iok;
 				io_expr = expr;
@@ -206,6 +207,7 @@ let inline_constructors ctx e =
 				io_aliases = [];
 				io_id_start = id;
 				io_id_end = id;
+				io_has_untyped = has_untyped;
 			} in
 			inline_objs := IntMap.add id io !inline_objs;
 			io
@@ -259,7 +261,8 @@ let inline_constructors ctx e =
 				let v = alloc_var ("inl"^cname) e.etype e.epos in
 				match Optimizer.type_inline_ctor ctx c cf tf (mk (TLocal v) (TInst (c,tl)) e.epos) pl e.epos with
 				| Some inlined_expr ->
-					let io = mk_io (IOKCtor(cf,is_extern_ctor c cf,argvs)) io_id inlined_expr in
+					let has_untyped = (Meta.has Meta.HasUntyped cf.cf_meta) in
+					let io = mk_io (IOKCtor(cf,is_extern_ctor c cf,argvs)) io_id inlined_expr ~has_untyped:has_untyped in
 					let rec loop (c:tclass) (tl:t list) = 
 						let apply = apply_params c.cl_params tl in
 						List.iter (fun cf -> 
@@ -390,6 +393,7 @@ let inline_constructors ctx e =
 			PMap.foldi (fun _ iv acc -> acc@(get_iv_var_decls iv)) io.io_fields []
 		end
 	in
+	let included_untyped = ref false in
 	let rec final_map ?(unwrap_block = false) (e:texpr) : ((texpr list) * (inline_object option)) = 
 		increment_io_id e;
 		let default_case e = 
@@ -408,6 +412,7 @@ let inline_constructors ctx e =
 					current_io_id := io.io_id_end;
 					result
 				end else begin
+					if io.io_has_untyped then included_untyped := true;
 					current_io_id := io.io_id_start;
 					let el,_ = final_map ~unwrap_block:true io.io_expr in
 					let el = el @ get_io_var_decls io in
@@ -515,6 +520,8 @@ let inline_constructors ctx e =
 		e
 	end else begin
 		let el,_ = final_map e in
+		let cf = ctx.curfield in
+		if !included_untyped && not (Meta.has Meta.HasUntyped cf.cf_meta) then cf.cf_meta <- (Meta.HasUntyped,[],e.epos) :: cf.cf_meta;
 		let e = make_expr_for_rev_list el e.etype e.epos in
 		let rec get_pretty_name iv = match iv.iv_kind with
 			| IVKField(io,fname,None) ->
