@@ -493,8 +493,12 @@ class Boot {
 	/**
 		Make sure specified class is loaded
 	**/
-	static public inline function ensureLoaded(phpClassName:String ) : Bool {
+	static public inline function ensureLoaded( phpClassName:String ) : Bool {
 		return Global.class_exists(phpClassName) || Global.interface_exists(phpClassName);
+	}
+
+	static public function dynamicField( value:Dynamic, field:String ) : Dynamic {
+		throw "Not implemented";
 	}
 }
 
