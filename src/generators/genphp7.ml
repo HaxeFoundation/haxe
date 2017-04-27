@@ -2190,50 +2190,47 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| Postfix ->
 					self#write_expr expr;
 					write_unop operation
+		method private write_expr_for_field_access expr access_str field_str =
+			let access_str = ref access_str in
+			(match (reveal_expr expr).eexpr with
+				| TNew _
+				| TArrayDecl _
+				| TObjectDecl _ -> self#write_expr (parenthesis expr)
+				| TConst TSuper ->
+					self#write "parent";
+					access_str := "::"
+				| _ -> self#write_expr expr
+			);
+			self#write (!access_str ^ field_str)
 		(**
 			Writes TField to output buffer
 		*)
 		method write_expr_field expr access =
-			let write_access access_str field_str =
-				let access_str = ref access_str in
-				(match (reveal_expr expr).eexpr with
-					| TNew _
-					| TArrayDecl _
-					| TObjectDecl _ -> self#write_expr (parenthesis expr)
-					| TConst TSuper ->
-						self#write "parent";
-						access_str := "::"
-					| _ -> self#write_expr expr
-				);
-				self#write (!access_str ^ field_str)
-			in
 			match access with
 				| FInstance ({ cl_path = [], "String"}, _, { cf_name = "length"; cf_kind = Var _ }) ->
 					self#write "strlen(";
 					self#write_expr expr;
 					self#write ")"
-				| FInstance (_, _, field) -> write_access "->" (field_name field)
+				| FInstance (_, _, field) -> self#write_expr_for_field_access expr "->" (field_name field)
 				| FStatic (_, ({ cf_kind = Var _ } as field)) ->
 					(match (reveal_expr expr).eexpr with
-						| TTypeExpr _ -> write_access "::" ("$" ^ (field_name field))
-						| _ -> write_access "->" (field_name field)
+						| TTypeExpr _ -> self#write_expr_for_field_access expr "::" ("$" ^ (field_name field))
+						| _ -> self#write_expr_for_field_access expr "->" (field_name field)
 					)
 				| FStatic (_, ({ cf_kind = Method MethDynamic } as field)) ->
 					(match self#parent_expr with
 						| Some { eexpr = TCall ({ eexpr = TField (e, a) }, _) } when a == access ->
 							self#write "(";
-							write_access "::" ("$" ^ (field_name field));
+							self#write_expr_for_field_access expr "::" ("$" ^ (field_name field));
 							self#write ")"
 						| _ ->
-							write_access "::" ("$" ^ (field_name field))
+							self#write_expr_for_field_access expr "::" ("$" ^ (field_name field))
 					)
 				| FStatic (_, ({ cf_kind = Method _ } as field)) -> self#write_expr_field_static expr field
 				| FAnon field ->
 					let written_as_probable_string = self#write_expr_field_if_string expr (field_name field) in
-					if not written_as_probable_string then write_access "->" (field_name field)
-				| FDynamic field_name ->
-					let written_as_probable_string = self#write_expr_field_if_string expr field_name in
-					if not written_as_probable_string then write_access "->" field_name
+					if not written_as_probable_string then self#write_expr_for_field_access expr "->" (field_name field)
+				| FDynamic field_name -> self#write_expr_field_dynamic expr field_name
 				| FClosure (tcls, field) -> self#write_expr_field_closure tcls field expr
 				| FEnum (_, field) ->
 					self#write_expr_field_enum expr field
@@ -2772,6 +2769,29 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 						| Some const ->
 							self#write " = ";
 							self#write_expr_const const
+		(**
+			Write an access to a field of dynamic value
+		*)
+		method private write_expr_field_dynamic expr field_name =
+			let write_direct_access () =
+				let written_as_probable_string = self#write_expr_field_if_string expr field_name in
+				if not written_as_probable_string then self#write_expr_for_field_access expr "->" field_name
+			in
+			let write_wrapped_access () =
+				self#write ((self#use boot_type_path) ^ "::dynamicField(");
+				self#write_expr expr;
+				self#write (", '" ^ field_name ^ "')");
+			in
+			let check_and_write checked_expr =
+				match (reveal_expr checked_expr).eexpr with
+					| TField (target, _) when target == expr -> write_direct_access()
+					| _ -> write_wrapped_access()
+			in
+			match self#parent_expr with
+				| Some { eexpr = TCall (callee, _) } -> check_and_write callee
+				| Some { eexpr = TUnop (op, _, target) } when is_modifying_unop op -> check_and_write target
+				| Some { eexpr = TBinop (op, left, _) } when is_assignment_binop op -> check_and_write left
+				| _ -> write_wrapped_access()
 	end
 
 (**

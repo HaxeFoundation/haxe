@@ -341,7 +341,7 @@ class Boot {
 				return value.__toString();
 			}
 			if (Std.is(value, StdClass)) {
-				if (value.toString.isset() && value.toString.is_callable()) {
+				if (Global.isset(Syntax.getField(value, 'toString')) && value.toString.is_callable()) {
 					return value.toString();
 				}
 				var result = new NativeIndexedArray<String>();
@@ -495,6 +495,19 @@ class Boot {
 	**/
 	static public inline function ensureLoaded(phpClassName:String ) : Bool {
 		return Global.class_exists(phpClassName) || Global.interface_exists(phpClassName);
+	}
+
+	/**
+		Get `field` of a dynamic `value` in a safe manner (avoid exceptions on trying to get a method)
+	**/
+	static public function dynamicField( value:Dynamic, field:String ) : Dynamic {
+		if(Global.method_exists(value, field)) {
+			return closure(value, field);
+		}
+		if(Global.is_string(value)) {
+			value = @:privateAccess new HxDynamicStr(value);
+		}
+		return Syntax.getField(value, field);
 	}
 }
 
