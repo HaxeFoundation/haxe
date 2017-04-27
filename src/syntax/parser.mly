@@ -1292,6 +1292,34 @@ and parse_function p1 inl = parser
 		with
 			Display e -> display (make e))
 
+and arrow_expr = parser
+	| [< '(Arrow,_); s >] -> try let e = expr s in e,false with Display e -> e,true
+	| _ -> serror()
+
+and arrow_function p1 al er =
+	let make e =
+		EFunction(None, { f_params = []; f_type = None; f_args = al; f_expr = Some (EReturn(Some e), (snd e));  }), punion p1 (pos e)
+	in
+	let e,display_error = er in
+	if display_error then display (make e) else make e
+
+and arrow_ident_checktype e = (match e with
+	| EConst(Ident n),p -> (n,p),None
+	| ECheckType((EConst(Ident n),p),(t,pt)),_ -> (n,p),(Some (t,pt))
+	| _ -> serror())
+
+and arrow_first_param e =
+	(match fst e with
+	| EConst(Ident n) ->
+		(n,snd e),false,[],None,None
+	| EBinop(OpAssign,e1,e2)
+	| EParenthesis(EBinop(OpAssign,e1,e2),_) ->
+		let (np,tpt) = arrow_ident_checktype e1 in np,true,[],tpt,(Some e2)
+	| EParenthesis(e) ->
+		let (np,tpt) = arrow_ident_checktype e in np,false,[],tpt,None
+	| _ ->
+		serror())
+
 and expr = parser
 	| [< (name,params,p) = parse_meta_entry; s >] ->
 		begin try
@@ -1352,11 +1380,36 @@ and expr = parser
 			if do_resume() then (ENew(t,[]),punion p1 (pos t))
 			else serror()
 		end
-	| [< '(POpen,p1); e = expr; s >] -> (match s with parser
-		| [< '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
-		| [< t,pt = parse_type_hint_with_pos; '(PClose,p2); s >] -> expr_next (EParenthesis (ECheckType(e,(t,pt)),punion p1 p2), punion p1 p2) s
-		| [< '(Const (Ident "is"),p_is); t = parse_type_path; '(PClose,p2); >] -> expr_next (make_is e t (punion p1 p2) p_is) s
-		| [< >] -> serror())
+	| [< '(POpen,p1); s >] -> (match s with parser
+		| [< '(PClose,p2); er = arrow_expr; s >] ->
+			arrow_function p1 [] er
+		| [< '(Question,p2); al = psep Comma parse_fun_param; '(PClose,_); er = arrow_expr; >] ->
+			let al = (match al with | (np,_,_,topt,e) :: al -> (np,true,[],topt,e) :: al | _ -> assert false ) in
+			arrow_function p1 al er
+		| [<  e = expr; s >] -> (match s with parser
+			| [< '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
+			| [< '(Comma,pc); al = psep Comma parse_fun_param; '(PClose,_); er = arrow_expr; >] ->
+				arrow_function p1 ((arrow_first_param e) :: al) er
+			| [< t,pt = parse_type_hint_with_pos; s >] -> (match s with parser
+				| [< '(PClose,p2); s >] -> expr_next (EParenthesis (ECheckType(e,(t,pt)),punion p1 p2), punion p1 p2) s
+				| [< '(Comma,pc); al = psep Comma parse_fun_param; '(PClose,_); er = arrow_expr; s >] ->
+					arrow_function p1 ((arrow_first_param e) :: al) er
+				| [< '((Binop OpAssign),p2); ea1 = expr; s >] ->
+					let with_args al er = (match fst e with
+						| EConst(Ident n) ->
+							arrow_function p1 (((n,snd e),true,[],(Some(t,pt)),(Some ea1)) :: al) er
+						| _ -> serror())
+					in
+					(match s with parser
+					| [< '(PClose,p2); er = arrow_expr; >] ->
+						with_args [] er
+					| [< '(Comma,pc); al = psep Comma parse_fun_param; '(PClose,_); er = arrow_expr; >] ->
+						with_args al er
+					| [< >] -> serror())
+				| [< >] -> serror())
+			| [< '(Const (Ident "is"),p_is); t = parse_type_path; '(PClose,p2); >] -> expr_next (make_is e t (punion p1 p2) p_is) s
+			| [< >] -> serror())
+		)
 	| [< '(BkOpen,p1); l = parse_array_decl; '(BkClose,p2); s >] -> expr_next (EArrayDecl l, punion p1 p2) s
 	| [< '(Kwd Function,p1); e = parse_function p1 false; >] -> e
 	| [< '(Unop op,p1) when is_prefix op; e = expr >] -> make_unop op e p1
@@ -1428,6 +1481,9 @@ and expr_next e1 = parser
 	| [< '(POpen,p1); e = parse_call_params (fun el p2 -> (ECall(e1,el)),punion (pos e1) p2) p1; s >] -> expr_next e s
 	| [< '(BkOpen,_); e2 = expr; '(BkClose,p2); s >] ->
 		expr_next (EArray (e1,e2), punion (pos e1) p2) s
+	| [< '(Arrow,pa); s >] ->
+		let er = try let e = expr s in e,false with Display e -> e,true
+		in arrow_function (snd e1) [arrow_first_param e1] er
 	| [< '(Binop OpGt,p1); s >] ->
 		(match s with parser
 		| [< '(Binop OpGt,p2) when p1.pmax = p2.pmin; s >] ->
