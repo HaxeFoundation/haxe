@@ -29,11 +29,6 @@ type error_msg =
 	| Missing_type
 	| Custom of string
 
-type expr_either =
-	| Right of expr
-	| Left of expr
-
-
 exception Error of error_msg * pos
 exception TypePath of string list * (string * bool) option * bool (* in import *)
 exception Display of expr
@@ -1298,15 +1293,15 @@ and parse_function p1 inl = parser
 			Display e -> display (make e))
 
 and arrow_expr = parser
-	| [< '(Arrow,_); s >] -> try let e = expr s in Right e with Display e -> Left e
+	| [< '(Arrow,_); s >] -> try let e = expr s in e,false with Display e -> e,true
 	| _ -> serror()
 
 and arrow_function p1 al er =
 	let make e =
 		EFunction(None, { f_params = []; f_type = None; f_args = al; f_expr = Some (EReturn(Some e), (snd e));  }), punion p1 (pos e)
-	in (match er with
-	| Right e -> make e
-	| Left e  -> display (make e))
+	in
+	let e,display_error = er in
+	if display_error then display (make e) else make e
 
 and arrow_ident_checktype e = (match e with
 	| EConst(Ident n),p -> (n,p),None
@@ -1487,7 +1482,7 @@ and expr_next e1 = parser
 	| [< '(BkOpen,_); e2 = expr; '(BkClose,p2); s >] ->
 		expr_next (EArray (e1,e2), punion (pos e1) p2) s
 	| [< '(Arrow,pa); s >] ->
-		let er = try let e = expr s in Right e with Display e -> Left e
+		let er = try let e = expr s in e,false with Display e -> e,true
 		in arrow_function (snd e1) [arrow_first_param e1] er
 	| [< '(Binop OpGt,p1); s >] ->
 		(match s with parser
