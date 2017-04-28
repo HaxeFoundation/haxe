@@ -189,14 +189,49 @@ module StdBytes = struct
 		| VInstance {ikind = IBytes o} -> o
 		| v -> unexpected_value v "bytes"
 
-	let read this pos len =
-		let pos = decode_int pos in
-		try IO.input_string (Bytes.sub this pos len) with _ -> outside_bounds()
+	let read_byte this i = int_of_char (Bytes.get this i)
 
-	let write this pos len v f =
-		let output = IO.output_string() in
-		f output v;
-		(try Bytes.blit (IO.close_out output) 0 this pos len with _ -> outside_bounds())
+	let read_ui16 this i =
+		let ch1 = read_byte this i in
+		let ch2 = read_byte this (i + 1) in
+		ch1 lor (ch2 lsl 8)
+
+	let read_i32 this i =
+		let ch1 = read_byte this i in
+		let ch2 = read_byte this (i + 1) in
+		let ch3 = read_byte this (i + 2) in
+		let base = Int32.of_int (ch1 lor (ch2 lsl 8) lor (ch3 lsl 16)) in
+		let big = Int32.shift_left (Int32.of_int (read_byte this (i + 3))) 24 in
+		Int32.logor base big
+
+	let read_i64 this i =
+		let ch1 = read_byte this i in
+		let ch2 = read_byte this (i + 1) in
+		let ch3 = read_byte this (i + 2) in
+		let ch4 = read_byte this (i + 3) in
+		let base = Int64.of_int (ch1 lor (ch2 lsl 8) lor (ch3 lsl 16)) in
+		let small = Int64.logor base (Int64.shift_left (Int64.of_int ch4) 24) in
+		let big = Int64.of_int32 (read_i32 this (i + 4)) in
+		Int64.logor (Int64.shift_left big 32) small
+
+	let write_byte this i v =
+		Bytes.set this i (Char.unsafe_chr v)
+
+	let write_ui16 this i v =
+		write_byte this i v;
+		write_byte this (i + 1) (v lsr 8)
+
+	let write_i32 this i v =
+		let base = Int32.to_int v in
+		let big = Int32.to_int (Int32.shift_right_logical v 24) in
+		write_byte this i base;
+		write_byte this (i + 1) (base lsr 8);
+		write_byte this (i + 2) (base lsr 16);
+		write_byte this (i + 3) big
+
+	let write_i64 this i v =
+		write_i32 this i (Int64.to_int32 v);
+		write_i32 this (i + 4) (Int64.to_int32 (Int64.shift_right_logical v 32))
 
 	let alloc = vfun1 (fun length ->
 		let length = decode_int length in
@@ -237,37 +272,35 @@ module StdBytes = struct
 	let get = vifun1 (fun vthis pos ->
 		let this = this vthis in
 		let pos = decode_int pos in
-		try vint (int_of_char (Bytes.get this pos)) with _ -> vnull
+		try vint (read_byte this pos) with _ -> vnull
 	)
 
 	let getData = vifun0 (fun vthis -> vthis)
 
 	let getDouble = vifun1 (fun vthis pos ->
-		vfloat (IO.read_double (read (this vthis) pos 8))
+		try vfloat (Int64.float_of_bits (read_i64 (this vthis) (decode_int pos))) with _ -> outside_bounds()
 	)
 
 	let getFloat = vifun1 (fun vthis pos ->
-		vfloat (Int32.float_of_bits (IO.read_real_i32 (read (this vthis) pos 4)))
+		try vfloat (Int32.float_of_bits (read_i32 (this vthis) (decode_int pos))) with _ -> outside_bounds()
 	)
 
 	let getInt32 = vifun1 (fun vthis pos ->
-		vint32 (IO.read_real_i32 (read (this vthis) pos 4))
+		try vint32 (read_i32 (this vthis) (decode_int pos)) with exc -> outside_bounds()
 	)
 
 	let getInt64 = vifun1 (fun vthis pos ->
 		let this = this vthis in
 		let pos = decode_int pos in
-		let high,low = try
-			let low = IO.read_real_i32 (IO.input_string (Bytes.sub this (pos) 4)) in
-			let high = IO.read_real_i32 (IO.input_string (Bytes.sub this (pos + 4) 4)) in
-			high,low
+		try
+			let low = read_i32 this pos in
+			let high = read_i32 this (pos + 4) in
+			let vi = create_instance key_haxe__Int64____Int64 in
+			set_instance_field vi key_high (vint32 high);
+			set_instance_field vi key_low (vint32 low);
+			vinstance vi
 		with _ ->
 			outside_bounds()
-		in
-		let vi = create_instance key_haxe__Int64____Int64 in
-		set_instance_field vi key_high (vint32 high);
-		set_instance_field vi key_low (vint32 low);
-		vinstance vi
 	)
 
 	let getString = vifun2 (fun vthis pos len ->
@@ -278,7 +311,7 @@ module StdBytes = struct
 	)
 
 	let getUInt16 = vifun1 (fun vthis pos ->
-		vint (IO.read_ui16 (read (this vthis) pos 2))
+		try vint (read_ui16 (this vthis) (decode_int pos)) with _ -> outside_bounds()
 	)
 
 	let ofData = vfun1 (fun v -> v)
@@ -291,12 +324,12 @@ module StdBytes = struct
 		let this = this vthis in
 		let pos = decode_int pos in
 		let v = decode_int v in
-		(try Bytes.set this pos (char_of_int (v land 0xFF)) with _ -> ());
+		(try write_byte this pos v with _ -> ());
 		vnull;
 	)
 
 	let setDouble = vifun2 (fun vthis pos v ->
-		write (this vthis) (decode_int pos) 8 (num v) IO.write_double;
+		(try write_i64 (this vthis) (decode_int pos) (Int64.bits_of_float (decode_float v)) with _ -> outside_bounds());
 		vnull
 	)
 
@@ -304,14 +337,12 @@ module StdBytes = struct
 		let this = this vthis in
 		let pos = decode_int pos in
 		let v = num v in
-		let output = IO.output_string() in
-		IO.write_real_i32 output (Int32.bits_of_float v);
-		(try Bytes.blit (IO.close_out output) 0 this pos 4 with _ -> outside_bounds());
+		write_i32 this pos (Int32.bits_of_float v);
 		vnull
 	)
 
 	let setInt32 = vifun2 (fun vthis pos v ->
-		write (this vthis) (decode_int pos) 4 (decode_i32 v) IO.write_real_i32;
+		(try write_i32 (this vthis) (decode_int pos) (decode_i32 v) with _ -> outside_bounds());
 		vnull;
 	)
 
@@ -321,13 +352,16 @@ module StdBytes = struct
 		let high = decode_i32 (instance_field v key_high) in
 		let low = decode_i32 (instance_field v key_low) in
 		let this = this vthis in
-		write this pos 4 low IO.write_real_i32;
-		write this (pos + 4) 4 high IO.write_real_i32;
-		vnull
+		try
+			write_i32 this pos low;
+			write_i32 this (pos + 4) high;
+			vnull
+		with _ ->
+			outside_bounds()
 	)
 
 	let setUInt16 = vifun2 (fun vthis pos v ->
-		write (this vthis) (decode_int pos) 2 (decode_int v land 0xFFFF) IO.write_ui16;
+		(try write_ui16 (this vthis) (decode_int pos) (decode_int v land 0xFFFF) with _ -> outside_bounds());
 		vnull
 	)
 
@@ -365,65 +399,71 @@ module StdBytesBuffer = struct
 
 	let get_length = vifun0 (fun vthis ->
 		let this = this vthis in
-		vint (this.olength)
+		vint (Buffer.length this)
 	)
+
+	let add_char this i =
+		Buffer.add_char this (Char.unsafe_chr i)
+
+	let add_i32 this v =
+		let base = Int32.to_int v in
+		let big = Int32.to_int (Int32.shift_right_logical v 24) in
+		add_char this base;
+		add_char this (base lsr 8);
+		add_char this (base lsr 16);
+		add_char this big
 
 	let addByte = vifun1 (fun vthis byte ->
 		let this = this vthis in
 		let byte = decode_int byte in
-		IO.write_byte this.ooutput byte;
-		this.olength <- this.olength + 1;
+		add_char this byte;
 		vnull;
 	)
 
 	let add = vifun1 (fun vthis src ->
 		let this = this vthis in
 		let src = decode_bytes src in
-		IO.nwrite this.ooutput src;
-		this.olength <- this.olength + Bytes.length src;
+		Buffer.add_bytes this src;
 		vnull
 	)
 
 	let addString = vifun1 (fun vthis src ->
 		let this = this vthis in
 		let src = decode_string src in
-		IO.nwrite this.ooutput src;
-		this.olength <- this.olength + String.length src;
+		Buffer.add_string this src;
 		vnull
 	)
 
 	let addInt32 = vifun1 (fun vthis v ->
 		let this = this vthis in
 		let v = decode_i32 v in
-		IO.write_real_i32 this.ooutput v;
-		this.olength <- this.olength + 4;
+		add_i32 this v;
 		vnull
 	)
 
 	let addInt64 = vifun1 (fun vthis v ->
 		let this = this vthis in
 		let v = decode_instance v in
-		let high = decode_int (instance_field v key_high) in
-		let low = decode_int (instance_field v key_low) in
-		IO.write_i32 this.ooutput low;
-		IO.write_i32 this.ooutput high;
-		this.olength <- this.olength + 8;
+		let high = decode_i32 (instance_field v key_high) in
+		let low = decode_i32 (instance_field v key_low) in
+		add_i32 this low;
+		add_i32 this high;
 		vnull;
 	)
 
 	let addFloat = vifun1 (fun vthis v ->
 		let this = this vthis in
 		let v = num v in
-		IO.write_real_i32 this.ooutput (Int32.bits_of_float v);
-		this.olength <- this.olength + 4;
+		add_i32 this (Int32.bits_of_float v);
 		vnull
 	)
 
 	let addDouble = vifun1 (fun vthis v ->
 		let this = this vthis in
 		let v = num v in
-		IO.write_double this.ooutput v;
-		this.olength <- this.olength + 8;
+		let v = Int64.bits_of_float v in
+		add_i32 this (Int64.to_int32 v);
+		add_i32 this (Int64.to_int32 (Int64.shift_right_logical v 32));
 		vnull
 	)
 
@@ -433,15 +473,13 @@ module StdBytesBuffer = struct
 		let pos = decode_int pos in
 		let len = decode_int len in
 		if pos < 0 || len < 0 || pos + len > String.length src then outside_bounds();
-		IO.nwrite this.ooutput (Bytes.sub src pos len);
-		this.olength <- this.olength + len;
+		Buffer.add_subbytes this src pos len;
 		vnull
 	)
 
 	let getBytes = vifun0 (fun vthis ->
 		let this = this vthis in
-		let s = IO.close_out this.ooutput in
-		encode_bytes s
+		encode_bytes (Buffer.contents this)
 	)
 end
 
@@ -2199,15 +2237,15 @@ module StdUncompress = struct
 		let src = decode_bytes src in
 		let bufsize = default_int bufsize (1 lsl 16) in
 		let zip = zlib_inflate_init () in
-		let buf = IO.output_string () in
+		let buf = Buffer.create 0 in
 		let tmp = Bytes.make bufsize (char_of_int 0) in
 		let rec loop pos =
 			let r = zlib_inflate zip src pos (Bytes.length src - pos) tmp 0 bufsize Z_SYNC_FLUSH in
-			IO.nwrite buf (Bytes.sub tmp 0 r.z_wrote);
+			Buffer.add_subbytes buf tmp 0 r.z_wrote;
 			if not r.z_finish then loop (pos + r.z_read)
 		in
 		loop 0;
-		encode_bytes (IO.close_out buf)
+		encode_bytes (Buffer.contents buf)
 	)
 
 	let setFlushMode = StdCompress.setFlushMode
@@ -2346,7 +2384,7 @@ let init_constructors builtins =
 	add key_haxe_ds_StringMap (fun _ -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (StringHashtbl.create 0)));
 	add key_haxe_ds_IntMap (fun _ -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (IntHashtbl.create 0)));
 	add key_haxe_ds_ObjectMap (fun _ -> encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic (ValueHashtbl.create 0))));
-	add key_haxe_io_BytesBuffer (fun _ -> encode_instance key_haxe_io_BytesBuffer ~kind:(IOutput ({ooutput = IO.output_string(); olength = 0})));
+	add key_haxe_io_BytesBuffer (fun _ -> encode_instance key_haxe_io_BytesBuffer ~kind:(IOutput (Buffer.create 0)));
 	add key_sys_io__Process_NativeProcess
 		(fun vl -> match vl with
 			| [cmd;args] ->
@@ -2395,7 +2433,7 @@ let init_empty_constructors builtins =
 	Hashtbl.add h key_haxe_ds_StringMap (fun () -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (StringHashtbl.create 0)));
 	Hashtbl.add h key_haxe_ds_IntMap (fun () -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (IntHashtbl.create 0)));
 	Hashtbl.add h key_haxe_ds_ObjectMap (fun () -> encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic (ValueHashtbl.create 0))));
-	Hashtbl.add h key_haxe_io_BytesBuffer (fun () -> encode_instance key_haxe_io_BytesBuffer ~kind:(IOutput ({ooutput = IO.output_string(); olength = 0})))
+	Hashtbl.add h key_haxe_io_BytesBuffer (fun () -> encode_instance key_haxe_io_BytesBuffer ~kind:(IOutput (Buffer.create 0)))
 
 let init_standard_library builtins =
 	init_constructors builtins;

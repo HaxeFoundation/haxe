@@ -37,11 +37,6 @@ type vregex = {
 	mutable r_groups : Pcre.substrings array;
 }
 
-type voutput = {
-	ooutput : bytes IO.output;
-	mutable olength : int;
-}
-
 type vzlib = {
 	z : Extc.zstream;
 	mutable z_flush : Extc.zflush;
@@ -115,7 +110,7 @@ and vinstance_kind =
 	| IStringMap of value StringHashtbl.t
 	| IIntMap of value IntHashtbl.t
 	| IObjectMap of (value,value) Hashtbl.t
-	| IOutput of voutput (* BytesBuffer *)
+	| IOutput of Buffer.t (* BytesBuffer *)
 	| IBuffer of Rope.Buffer.t (* StringBuf *)
 	| IPos of pos
 	| IUtf8 of UTF8.Buf.buf
