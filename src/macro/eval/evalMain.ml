@@ -159,6 +159,22 @@ let rec value_to_expr v p =
 	| VInstance {ikind = IString(r,s)} -> (EConst (String (Lazy.force s)),p)
 	| VInstance {ikind = IArray va} -> (EArrayDecl (List.map (fun v -> value_to_expr v p) (EvalArray.to_list va)),p)
 	| VObject o -> (EObjectDecl (List.map (fun (k,v) -> ((rev_hash_s k,p),(value_to_expr v p))) (object_fields o)),p)
+	| VEnumValue e ->
+		let epath =
+			let proto = get_static_prototype_raise (get_ctx()) e.epath in
+			let first, rest = match (ExtString.String.nsplit (rev_hash_s proto.ppath) ".") with
+				| n :: rest -> n, rest
+				| _ -> assert false
+			in
+			let expr = List.fold_left (fun e f -> (EField (e,f), p)) ((EConst (Ident first)),p) rest in
+			let name = match proto.pkind with
+				| PEnum names -> List.nth names e.eindex
+				| _ -> assert false
+			in
+			(EField (expr, name), p)
+		in
+		let args = List.map (fun v -> value_to_expr v p) (Array.to_list e.eargs) in
+		(ECall (epath, args), p)
 	| _ -> exc_string ("Cannot convert " ^ (value_string v) ^ " to expr")
 
 let encode_obj = encode_obj_s
