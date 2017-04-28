@@ -34,7 +34,7 @@ class StringTools {
 	/**
 		Encode an URL by using the standard format.
 	**/
-	#if (!java && !cpp && !lua) inline #end public static function urlEncode( s : String ) : String {
+	#if (!java && !cpp && !lua && !eval) inline #end public static function urlEncode( s : String ) : String {
 		#if flash
 			return untyped __global__["encodeURIComponent"](s);
 		#elseif neko
@@ -104,7 +104,7 @@ class StringTools {
 	/**
 		Decode an URL using the standard format.
 	**/
-	#if (!java && !cpp && !lua) inline #end public static function urlDecode( s : String ) : String {
+	#if (!java && !cpp && !lua && !eval) inline #end public static function urlDecode( s : String ) : String {
 		#if flash
 			return untyped __global__["decodeURIComponent"](s.split("+").join(" "));
 		#elseif neko
@@ -471,7 +471,7 @@ class StringTools {
 		return c == 0;
 		#elseif js
 		return c != c; // fast NaN
-		#elseif (neko || lua)
+		#elseif (neko || lua || eval)
 		return c == null;
 		#elseif cs
 		return c == -1;

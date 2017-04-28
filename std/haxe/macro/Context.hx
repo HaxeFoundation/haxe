@@ -38,7 +38,7 @@ import haxe.macro.Type.TypedExpr;
 #if !neko @:noDoc #end
 class Context {
 
-#if neko
+#if (neko || eval)
 	/**
 		Displays a compilation error `msg` at the given `Position` `pos`
 		and aborts the current macro call.
@@ -587,8 +587,10 @@ class Context {
 	@:allow(haxe.macro.MacroStringTools)
 	@:allow(haxe.macro.TypedExprTools)
 	static function load( f, nargs ) : Dynamic {
-		#if macro
+		#if neko
 		return neko.Lib.load("macro", f, nargs);
+		#elseif eval
+		return eval.vm.Context.callMacroApi(f);
 		#else
 		return Reflect.makeVarArgs(function(_) return throw "Can't be called outside of macro");
 		#end
