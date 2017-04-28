@@ -3,3 +3,5 @@ B _build/src/**
 S libs/**
 B libs/**
 B +threads
+PKG rope
+PKG ptmap
