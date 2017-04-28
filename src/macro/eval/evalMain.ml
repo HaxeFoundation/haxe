@@ -58,6 +58,7 @@ let create com api is_macro =
 	let rec ctx = {
 		ctx_id = !sid;
 		is_macro = is_macro;
+		detail_times = Common.raw_defined com "interp-times";
 		curapi = api;
 		builtins = builtins;
 		type_cache = IntMap.empty;

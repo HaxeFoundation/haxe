@@ -28,6 +28,7 @@ type env_kind =
 
 type env = {
 	mutable leave_pos : pos;
+	timer : unit -> unit;
 	kind : env_kind;
 	locals : value array;
 	captures : value ref array;
@@ -43,6 +44,7 @@ type builtins = {
 type context = {
 	ctx_id : int;
 	is_macro : bool;
+	detail_times : bool;
 	builtins : builtins;
 	mutable curapi : value MacroApi.compiler_api;
 	mutable type_cache : Type.module_type IntMap.t;
@@ -65,6 +67,12 @@ let select ctx = get_ctx_ref := (fun() -> ctx)
 (* Exceptions *)
 
 exception RunTimeException of value * env list * pos
+
+let rec kind_name ctx b = function
+	| EKLocalFunction i when b -> Printf.sprintf "localFunction%i" i
+	| EKLocalFunction i -> Printf.sprintf "%s.localFunction %i" (kind_name ctx true (Stack.top ctx.environments).kind) i
+	| EKMethod(i1,i2) -> Printf.sprintf "%s.%s" (rev_hash_s i1) (rev_hash_s i2)
+	| EKDelayed -> "delayed"
 
 let vstring s =
 	let proto = (get_ctx()).string_prototype in
@@ -122,20 +130,28 @@ let object_fields o =
 
 (* Environment handling *)
 
-let create_environment kind num_locals num_captures = {
+let create_environment kind timer num_locals num_captures = {
 	leave_pos = null_pos;
+	timer = timer;
 	kind = kind;
 	locals = Array.make num_locals vnull;
 	captures = Array.make num_captures (ref vnull);
 }
 
 let push_environment ctx kind num_locals num_captures =
-	let env = create_environment kind num_locals num_captures in
+	let timer = if ctx.detail_times then
+		Common.timer ["macro";"execution";kind_name ctx false kind]
+	else
+		(fun () -> ())
+	in
+	let env = create_environment kind timer num_locals num_captures in
 	Stack.push env ctx.environments;
 	env
 
 let pop_environment ctx =
-	Stack.pop ctx.environments
+	let env = Stack.pop ctx.environments in
+	env.timer();
+	env
 
 (* Prototypes *)
 
