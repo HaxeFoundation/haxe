@@ -59,7 +59,7 @@ install_osx: &install_osx
   - travis_retry brew install opam;
   - export OPAMYES=1
   - opam init
-  - opam install camlp4 ocamlfind rope ptmat
+  - opam install camlp4 ocamlfind rope ptmap
   - eval `opam config env`
   # Install neko
   - travis_retry brew install neko --HEAD;
