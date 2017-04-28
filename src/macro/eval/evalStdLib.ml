@@ -1145,6 +1145,18 @@ module StdMath = struct
 	let tan = vfun1 (fun v -> vfloat (tan (num v)))
 end
 
+module StdMd5 = struct
+	let encode = vfun1 (fun s ->
+		let s = decode_string s in
+		encode_string (Digest.to_hex (Digest.string s))
+	)
+
+	let make = vfun1 (fun b ->
+		let b = decode_bytes b in
+		encode_bytes (Digest.string b)
+	)
+end
+
 module StdNativeProcess = struct
 
 	let this vthis = match vthis with
@@ -2565,6 +2577,10 @@ let init_standard_library builtins =
 		"sin",StdMath.sin;
 		"sqrt",StdMath.sqrt;
 		"tan",StdMath.tan;
+	] [];
+	init_fields builtins (["haxe";"crypto"],"Md5") [
+		"encode",StdMd5.encode;
+		"make",StdMd5.make;
 	] [];
 	init_fields builtins (["sys";"io";"_Process"],"NativeProcess") [ ] [
 		"close",StdNativeProcess.close;
