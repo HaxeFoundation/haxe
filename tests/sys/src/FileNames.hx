@@ -19,7 +19,8 @@ class FileNames {
 
 		// Chinese, Japanese
 		#if !(cs || python || php || neko || cpp || java || lua)
-		"中文，にほんご",
+		"中文，にほんご",
+		// this is (Unicode) equivalent, but fails on OS X: "中文，にほんご",
 		#end
 
 		// "aaa...a"
