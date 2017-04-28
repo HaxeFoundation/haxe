@@ -2653,7 +2653,7 @@ let load_prim ctx f n =
 	| _ ->
 		exc (VString (value_match_failure "Invalid call" ["VString";"VInt"] [f;n]))
 
-let create com api =
+let create com api _ =
 	let loader = obj hash [
 		"args",VArray (Array.of_list (List.map (fun s -> VString s) com.sys_args));
 		"loadprim",VFunction (Fun2 (fun a b -> (get_ctx()).do_loadprim a b));
