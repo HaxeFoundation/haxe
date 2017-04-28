@@ -49,7 +49,6 @@ let error_exc v stack p =
 		Error.error (Printf.sprintf "%s: Uncaught exception %s\nCalled from:\n%s" (format_pos p) (value_string v) sstack) null_pos
 
 let catch_exceptions ctx f p =
-	let t = Common.timer [(if ctx.is_macro then "macro" else "interp");"eval";"run"] in
 	let prev = !get_ctx_ref in
 	select ctx;
 	let r = try
@@ -59,14 +58,11 @@ let catch_exceptions ctx f p =
 	with
 	| RunTimeException(v,stack,p) ->
 		get_ctx_ref := prev;
-		t();
 		error_exc v (match stack with [] -> [] | _ :: l -> l) p
 	| MacroApi.Abort ->
 		None
 	| exc ->
 		get_ctx_ref := prev;
-		t();
 		raise exc
 	in
-	t();
 	r

@@ -732,7 +732,7 @@ and jit_expr jit e =
 
 (* Creates a [EvalValue.vfunc] of function [tf], which can be [static] or not. *)
 let jit_tfunction ctx key_type key_field tf static =
-	let t = Common.timer [(if ctx.is_macro then "macro" else "interp");"eval";"jit"] in
+	let t = Common.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
 	(* Create a new JitContext with an initial scope *)
 	let jit = JitContext.create ctx in
 	push_scope jit;
@@ -761,7 +761,7 @@ let jit_tfunction ctx key_type key_field tf static =
 
 (* JITs expression [e] to a function. This is used for expressions that are not in a method. *)
 let jit_expr ctx e =
-	let t = Common.timer [(if ctx.is_macro then "macro" else "interp");"eval";"jit"] in
+	let t = Common.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
 	let jit = JitContext.create ctx in
 	let f = jit_expr jit (mk_block e) in
 	t();
