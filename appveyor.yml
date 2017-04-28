@@ -19,7 +19,7 @@ services:
 skip_tags: true
 
 cache:
-    - opam32.tar.xz -> appveyor.yml
+    - opam64.tar.xz -> appveyor.yml
 
 install:
     - 'git submodule update --init --recursive'
@@ -28,11 +28,11 @@ install:
     # Install ocaml
     - curl -fsSL -o cygwin-setup.exe --retry 3 https://cygwin.com/setup-x86.exe
     - 'cygwin-setup.exe -g -q -R "%CYG_ROOT%" -P make -P git -P mingw64-i686-zlib -P rsync -P patch -P diffutils -P curl -P unzip -P m4 -P perl -P mingw64-i686-gcc-core -P mingw64-i686-pcre'
-    - if not exist "opam32.tar.xz" (
-        curl -fsSL -o opam32.tar.xz --retry 3 https://github.com/fdopen/opam-repository-mingw/releases/download/0.0.0.1/opam32.tar.xz
+    - if not exist "opam64.tar.xz" (
+        curl -fsSL -o opam64.tar.xz --retry 3 https://github.com/fdopen/opam-repository-mingw/releases/download/0.0.0.1/opam64.tar.xz
       )
-    - 7z x "opam32.tar.xz" -so | 7z x -aoa -si -ttar
-    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && bash opam32/install.sh"'
+    - 7z x "opam64.tar.xz" -so | 7z x -aoa -si -ttar
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && bash opam64/install.sh"'
     - '%CYG_ROOT%/bin/bash -lc "opam init mingw \"https://github.com/fdopen/opam-repository-mingw.git\" --comp 4.02.3+mingw32c --switch 4.02.3+mingw32c --auto-setup --yes"'
     - '%CYG_ROOT%/bin/bash -lc "opam install camlp4 ocamlfind rope ptmap --yes"'
     # Install neko
