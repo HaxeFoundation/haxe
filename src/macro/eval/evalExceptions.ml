@@ -27,8 +27,21 @@ exception Break
 exception Continue
 exception Return of value
 
+let s_value_kind = function
+	| VNull -> "VNull"
+	| VTrue -> "VTrue"
+	| VFalse -> "VFalse"
+	| VInt32 _ -> "VInt32"
+	| VFloat _ -> "VFloat"
+	| VEnumValue _ -> "VEnumValue"
+	| VObject _ -> "VObject"
+	| VInstance _ -> "VInstance"
+	| VPrototype _ -> "VPrototype"
+	| VFunction _ -> "VFunction"
+	| VFieldClosure _ -> "VFieldClosure"
+
 let unexpected_value : 'a . value -> string -> 'a = fun v s ->
-	let str = Printf.sprintf "Unexpected value %s, expected %s" (value_string v) s in
+	let str = Printf.sprintf "Unexpected value %s(%s), expected %s" (s_value_kind v) (value_string v) s in
 	exc_string str
 
 let invalid_call_arg_number i i2 =
