@@ -145,7 +145,7 @@ class Md5 {
 
 		//preallocate size
 		var blksSize = nblk * 16;
-		#if (neko || cs || cpp || java || hl)
+		#if (neko || eval || cs || cpp || java || hl)
 		blks[blksSize - 1] = 0;
 		#end
 
