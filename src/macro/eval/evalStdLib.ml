@@ -36,6 +36,17 @@ let ptmap_keys h =
 let hashtbl_keys h =
 	Hashtbl.fold (fun k _ acc -> k :: acc) h []
 
+let encode_i64 low high =
+	let vi = create_instance key_haxe__Int64____Int64 in
+	set_instance_field vi key_high (vint32 high);
+	set_instance_field vi key_low (vint32 low);
+	vinstance vi
+
+let encode_i64_direct i64 =
+	let low = Int64.to_int32 i64 in
+	let high = Int64.to_int32 (Int64.shift_right_logical i64 32) in
+	encode_i64 low high
+
 module StdArray = struct
 	let this this = match this with
 		| VInstance {ikind = IArray va} -> va
@@ -295,10 +306,7 @@ module StdBytes = struct
 		try
 			let low = read_i32 this pos in
 			let high = read_i32 this (pos + 4) in
-			let vi = create_instance key_haxe__Int64____Int64 in
-			set_instance_field vi key_high (vint32 high);
-			set_instance_field vi key_low (vint32 low);
-			vinstance vi
+			encode_i64 low high;
 		with _ ->
 			outside_bounds()
 	)
@@ -949,6 +957,36 @@ module StdFileOutput = struct
 		let len = decode_int len in
 		output this bytes pos len;
 		vint len
+	)
+end
+
+module StdFPHelper = struct
+	let doubleToI64 = vfun1 (fun v ->
+		let f = num v in
+		let i64 = Int64.bits_of_float f in
+		encode_i64_direct i64
+	)
+
+	let floatToI32 = vfun1 (fun f ->
+		let f = num f in
+		let i32 = Int32.bits_of_float f in
+		vint32 i32
+	)
+
+	let i32ToFloat = vfun1 (fun i ->
+		let i32 = decode_i32 i in
+		let f = Int32.float_of_bits i32 in
+		vfloat f
+	)
+
+	let i64ToDouble = vfun2 (fun low high ->
+		let low = decode_i32 low in
+		let high = decode_i32 high in
+		let b = Bytes.make 8 '0' in
+		StdBytes.write_i32 b 0 low;
+		StdBytes.write_i32 b 4 high;
+		let i64 = StdBytes.read_i64 b 0 in
+		vfloat (Int64.float_of_bits i64)
 	)
 end
 
@@ -2566,6 +2604,12 @@ let init_standard_library builtins =
 		"writeByte",StdFileOutput.writeByte;
 		"writeBytes",StdFileOutput.writeBytes;
 	];
+	init_fields builtins (["haxe";"io"],"FPHelper") [
+		"doubleToI64",StdFPHelper.doubleToI64;
+		"floatToI32",StdFPHelper.floatToI32;
+		"i32ToFloat",StdFPHelper.i32ToFloat;
+		"i64ToDouble",StdFPHelper.i64ToDouble;
+	] [];
 	init_fields builtins (["sys"],"FileSystem") [
 		"absolutePath",StdFileSystem.absolutePath;
 		"createDirectory",StdFileSystem.createDirectory;
