@@ -425,7 +425,7 @@ class Bytes {
 		return new String(untyped __dollar__ssub(b,0,length));
 		#elseif flash
 		b.position = 0;
-		return b.readUTFBytes(length);
+		return b.toString();
 		#elseif php
 		return b.toString();
 		#elseif cs
