@@ -165,23 +165,7 @@ let run_command ctx cmd =
 		Sys.chdir (String.sub cmd 3 (len - 3));
 		0
 	end else
-	let binary_string s =
-		if not Globals.is_windows then s else String.concat "\n" (Str.split (Str.regexp "\r\n") s)
-	in
-	let pout, pin, perr = Unix.open_process_full cmd (Unix.environment()) in
-	let bout = Buffer.create 0 in
-	let berr = Buffer.create 0 in
-	let read_content channel buf =
-		Buffer.add_string buf (IO.read_all (IO.input_channel channel));
-	in
-	let tout = Thread.create (fun() -> read_content pout bout) () in
-	read_content perr berr;
-	Thread.join tout;
-	let result = (match Unix.close_process_full (pout,pin,perr) with Unix.WEXITED c | Unix.WSIGNALED c | Unix.WSTOPPED c -> c) in
-	let serr = binary_string (Buffer.contents berr) in
-	let sout = binary_string (Buffer.contents bout) in
-	if serr <> "" then ctx.messages <- (if serr.[String.length serr - 1] = '\n' then String.sub serr 0 (String.length serr - 1) else serr) :: ctx.messages;
-	if sout <> "" then ctx.com.print (sout ^ "\n");
+	let result = Sys.command cmd in
 	t();
 	result
 
