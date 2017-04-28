@@ -59,10 +59,12 @@ let decode_bytes v = match v with
 
 let decode_i32 v = match v with
 	| VInt32 i -> i
+	| VFloat f -> (Int32.of_float f)
 	| _ -> unexpected_value v "int"
 
 let decode_int v = match v with
 	| VInt32 i -> Int32.to_int i
+	| VFloat f -> int_of_float f
 	| _ -> unexpected_value v "int"
 
 let decode_float v = match v with
@@ -77,6 +79,7 @@ let decode_bool v = match v with
 let default_int v vd = match v with
 	| VNull -> vd
 	| VInt32 i -> Int32.to_int i
+	| VFloat f -> int_of_float f
 	| _ -> unexpected_value v "int"
 
 let decode_unsafe v = match v with
