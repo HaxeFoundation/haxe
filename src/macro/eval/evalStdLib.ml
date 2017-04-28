@@ -915,9 +915,17 @@ module StdFileOutput = struct
 end
 
 module StdFileSystem = struct
+	let rec remove_trailing_slash p =
+		let l = String.length p in
+		if l = 0 then
+			"" (* don't be retarded *)
+		else match p.[l-1] with
+			| '\\' | '/' -> remove_trailing_slash (String.sub p 0 (l - 1))
+			| _ -> p
+
 	let patch_path s =
 		if String.length s > 0 && String.length s <= 3 && s.[1] = ':' then Path.add_trailing_slash s
-		else Path.remove_trailing_slash s
+		else remove_trailing_slash s
 
 	let absolutePath = vfun1 (fun relPath ->
 		encode_string (Path.unique_full_path (decode_string relPath))
