@@ -55,7 +55,7 @@ private class MysqlConnection implements Connection {
 		}
 	) : Void {
 		if (params.port == null) params.port = Std.parseInt(Global.ini_get('mysqli.default_port'));
-		if (params.socket == null) params.socket = Global.ini_get('mysqli.default_socket');]
+		if (params.socket == null) params.socket = Global.ini_get('mysqli.default_socket');
 		if (params.database == null) params.database = "";
 
 		db = new Mysqli(params.host, params.user, params.pass, params.database, params.port, params.socket);
