@@ -1065,6 +1065,130 @@ module StdFileSystem = struct
 	)
 end
 
+module StdGc = struct
+	open Gc
+	let key_minor_heap_size = hash_s "minor_heap_size"
+	let key_major_heap_increment = hash_s "major_heap_increment"
+	let key_space_overhead = hash_s "space_overhead"
+	let key_verbose = hash_s "verbose"
+	let key_max_overhead = hash_s "max_overhead"
+	let key_stack_limit = hash_s "stack_limit"
+	let key_allocation_policy = hash_s "allocation_policy"
+	let key_minor_words = hash_s "minor_words"
+	let key_minor_words = hash_s "minor_words"
+	let key_promoted_words = hash_s "promoted_words"
+	let key_major_words = hash_s "major_words"
+	let key_minor_collections = hash_s "minor_collections"
+	let key_major_collections = hash_s "major_collections"
+	let key_heap_words = hash_s "heap_words"
+	let key_heap_chunks = hash_s "heap_chunks"
+	let key_live_words = hash_s "live_words"
+	let key_live_blocks = hash_s "live_blocks"
+	let key_free_words = hash_s "free_words"
+	let key_free_blocks = hash_s "free_blocks"
+	let key_largest_free = hash_s "largest_free"
+	let key_fragments = hash_s "fragments"
+	let key_compactions = hash_s "compactions"
+	let key_top_heap_words = hash_s "top_heap_words"
+	let key_stack_size = hash_s "stack_size"
+
+	let encode_stats stats =
+		encode_obj None [
+			key_minor_words,vfloat stats.minor_words;
+			key_promoted_words,vfloat stats.promoted_words;
+			key_major_words,vfloat stats.major_words;
+			key_minor_collections,vint stats.minor_collections;
+			key_major_collections,vint stats.major_collections;
+			key_heap_words,vint stats.heap_words;
+			key_heap_chunks,vint stats.heap_chunks;
+			key_live_words,vint stats.live_words;
+			key_live_blocks,vint stats.live_blocks;
+			key_free_words,vint stats.free_words;
+			key_free_blocks,vint stats.free_blocks;
+			key_largest_free,vint stats.largest_free;
+			key_fragments,vint stats.fragments;
+			key_compactions,vint stats.compactions;
+			key_top_heap_words,vint stats.top_heap_words;
+			key_stack_size,vint stats.stack_size;
+		]
+
+	let allocated_bytes = vfun0 (fun () -> vfloat (Gc.allocated_bytes()))
+
+	let compact = vfun0 (fun () -> Gc.compact(); vnull )
+
+	let counters = vfun0 (fun () ->
+		let (minor_words,promoted_words,major_words) = Gc.counters() in
+		encode_obj None [
+			key_minor_words,vfloat minor_words;
+			key_promoted_words,vfloat promoted_words;
+			key_major_words,vfloat major_words;
+		]
+	)
+
+	let finalise = vfun2 (fun f v ->
+		let f = fun v ->
+			ignore(call_value f [v])
+		in
+		Gc.finalise f v;
+		vnull
+	)
+
+	let finalise_release = vfun0 (fun () ->
+		Gc.finalise_release();
+		vnull
+	)
+
+	let full_major = vfun0 (fun () -> Gc.full_major(); vnull )
+
+	let get = vfun0 (fun () ->
+		let control = Gc.get() in
+		encode_obj None [
+			key_minor_heap_size,vint control.minor_heap_size;
+			key_major_heap_increment,vint control.major_heap_increment;
+			key_space_overhead,vint control.space_overhead;
+			key_verbose,vint control.verbose;
+			key_max_overhead,vint control.max_overhead;
+			key_stack_limit,vint control.stack_limit;
+			key_allocation_policy,vint control.allocation_policy;
+		]
+	)
+
+	let major = vfun0 (fun () -> Gc.major(); vnull )
+
+	let major_slice = vfun1 (fun n -> vint (Gc.major_slice (decode_int n)))
+
+	let minor = vfun0 (fun () -> Gc.minor(); vnull )
+
+	let print_stat = vfun1 (fun out_channel ->
+		let out_channel = match out_channel with
+			| VInstance {ikind = IOutChannel ch} -> ch
+			| _ -> unexpected_value out_channel "Output"
+		in
+		Gc.print_stat out_channel;
+		vnull
+	)
+
+	let quick_stat = vfun0 (fun () -> encode_stats (Gc.quick_stat()))
+
+	let set = vfun1 (fun r ->
+		let r = decode_object r in
+		let field key = decode_int (object_field r key) in
+		let control = {
+			minor_heap_size = field key_minor_heap_size;
+			major_heap_increment = field key_major_heap_increment;
+			space_overhead = field key_space_overhead;
+			verbose = field key_verbose;
+			max_overhead = field key_max_overhead;
+			stack_limit = field key_stack_limit;
+			allocation_policy = field key_allocation_policy;
+		} in
+		Gc.set control;
+		vnull
+	)
+
+	let stat = vfun0 (fun () -> encode_stats (Gc.stat()))
+end
+
 module StdHost = struct
 	open Unix
 
@@ -2622,6 +2746,22 @@ let init_standard_library builtins =
 		"rename",StdFileSystem.rename;
 		"readDirectory",StdFileSystem.readDirectory;
 		"stat",StdFileSystem.stat;
+	] [];
+	init_fields builtins (["eval";"vm"],"Gc") [
+		"allocated_bytes",StdGc.allocated_bytes;
+		"compact",StdGc.compact;
+		"counters",StdGc.counters;
+		"finalise",StdGc.finalise;
+		"finalise_release",StdGc.finalise_release;
+		"full_major",StdGc.full_major;
+		"get",StdGc.get;
+		"major",StdGc.major;
+		"major_slice",StdGc.major_slice;
+		"minor",StdGc.minor;
+		"print_stat",StdGc.print_stat;
+		"quick_stat",StdGc.quick_stat;
+		"set",StdGc.set;
+		"stat",StdGc.stat;
 	] [];
 	init_fields builtins (["sys";"net"],"Host") [
 		"localhost",StdHost.localhost;
