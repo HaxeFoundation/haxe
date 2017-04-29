@@ -1173,15 +1173,16 @@ module StdGc = struct
 	let set = vfun1 (fun r ->
 		let r = decode_object r in
 		let field key = decode_int (object_field r key) in
-		let control = {
+		let control = { (Gc.get()) with
 			minor_heap_size = field key_minor_heap_size;
 			major_heap_increment = field key_major_heap_increment;
 			space_overhead = field key_space_overhead;
 			verbose = field key_verbose;
 			max_overhead = field key_max_overhead;
 			stack_limit = field key_stack_limit;
-			allocation_policy = field key_allocation_policy;
 		} in
+		(* Awkward hack to avoid warning. *)
+		let control = {control with allocation_policy = field key_allocation_policy} in
 		Gc.set control;
 		vnull
 	)
