@@ -420,19 +420,27 @@ and jit_expr return jit e =
 			| _ -> Type.iter loop e
 		in
 		(try loop e2 with Exit -> ());
-		let exec_cond = jit_expr false jit e1 in
-		let exec_body = jit_expr false jit e2 in
-		(* This is a bit moronic, but it does avoid run-time branching and setting up some exception
-			handlers for break/continue, so it might be worth it... *)
-		begin match flag,!has_break,!has_continue with
-			| NormalWhile,false,false -> emit_while exec_cond exec_body
-			| NormalWhile,true,false -> emit_while_break exec_cond exec_body
-			| NormalWhile,false,true -> emit_while_continue exec_cond exec_body
-			| NormalWhile,true,true -> emit_while_break_continue exec_cond exec_body
-			| DoWhile,false,false -> emit_do_while exec_cond exec_body
-			| DoWhile,true,false -> emit_do_while_break exec_cond exec_body
-			| DoWhile,false,true -> emit_do_while_continue exec_cond exec_body
-			| DoWhile,true,true -> emit_do_while_break_continue exec_cond exec_body
+		begin match e1.eexpr with
+			| TBinop(OpGte,e1,{eexpr = TConst (TFloat s)}) when not !has_break && not !has_continue && flag = NormalWhile ->
+				let f = float_of_string s in
+				let exec1 = jit_expr false jit e1 in
+				let exec2 = jit_expr false jit e2 in
+				emit_while_gte exec1 f exec2
+			| _ ->
+				let exec_cond = jit_expr false jit e1 in
+				let exec_body = jit_expr false jit e2 in
+				(* This is a bit moronic, but it does avoid run-time branching and setting up some exception
+					handlers for break/continue, so it might be worth it... *)
+				begin match flag,!has_break,!has_continue with
+					| NormalWhile,false,false -> emit_while exec_cond exec_body
+					| NormalWhile,true,false -> emit_while_break exec_cond exec_body
+					| NormalWhile,false,true -> emit_while_continue exec_cond exec_body
+					| NormalWhile,true,true -> emit_while_break_continue exec_cond exec_body
+					| DoWhile,false,false -> emit_do_while exec_cond exec_body
+					| DoWhile,true,false -> emit_do_while_break exec_cond exec_body
+					| DoWhile,false,true -> emit_do_while_continue exec_cond exec_body
+					| DoWhile,true,true -> emit_do_while_break_continue exec_cond exec_body
+				end
 		end
 	| TTry(e1,catches) ->
 		let exec = jit_expr return jit e1 in

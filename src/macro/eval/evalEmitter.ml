@@ -205,6 +205,10 @@ let emit_int_iterator_break_continue slot exec1 exec2 env =
 	end;
 	vnull
 
+let emit_while_gte exec1 f exec2 env =
+	while (num (exec1 env) >= f) do exec2 env done;
+	vnull
+
 let rec run_while_continue exec_cond exec_body env =
 	try
 		while is_true (exec_cond env) do exec_body env done;
