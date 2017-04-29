@@ -564,6 +564,10 @@ let emit_array_read exec1 exec2 env =
 	if i < 0 then vnull
 	else EvalArray.get (decode_varray va) i
 
+let emit_enum_index exec env = match exec env with
+	| VEnumValue ev -> vint ev.eindex
+	| v -> unexpected_value v "enum value"
+
 let emit_enum_parameter_read exec i env = match exec env with
 	| VEnumValue ev -> (try ev.eargs.(i) with Not_found -> vnull)
 	| v1 -> unexpected_value v1 "enum value"

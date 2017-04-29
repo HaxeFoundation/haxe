@@ -558,6 +558,11 @@ and jit_expr jit e =
 				| _ -> emit_proto_field_call proto i execs e.epos
 			in
 			begin match fa with
+				| FStatic({cl_path=[],"Type"},{cf_name="enumIndex"}) ->
+					begin match execs with
+						| [exec] -> emit_enum_index exec
+						| _ -> assert false
+					end
 				| FStatic({cl_path=path},_) | FEnum({e_path=path},_)  ->
 					let proto = get_static_prototype ctx (path_hash path) ef.epos in
 					let i = get_proto_field_index proto name in
