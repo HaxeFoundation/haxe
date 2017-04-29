@@ -1346,6 +1346,7 @@ module StdReflect = struct
 			| VObject o -> List.map fst (object_fields o)
 			| VInstance vi -> IntMap.fold (fun name _ acc -> name :: acc) vi.iproto.pinstance_names []
 			| VPrototype proto -> proto_fields proto
+			| VNull -> []
 			| _ -> unexpected_value o "object"
 		in
 		encode_array (List.map (fun i -> encode_rope (rev_hash i)) fields)
