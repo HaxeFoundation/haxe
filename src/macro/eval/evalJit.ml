@@ -265,6 +265,17 @@ and op_incr jit e1 prefix p = match e1.eexpr with
 	| _ ->
 		op_assign_op jit (get_binop_fun OpAdd p) e1 eone prefix
 
+and op_decr jit e1 prefix p = match e1.eexpr with
+	| TLocal var ->
+		begin match var.v_capture,prefix with
+			| true,true -> emit_capture_decr_prefix (get_capture_slot jit var.v_id)
+			| true,false -> emit_capture_decr_postfix (get_capture_slot jit var.v_id)
+			| false,true -> emit_local_decr_prefix (get_slot jit var.v_id)
+			| false,false -> emit_local_decr_postfix (get_slot jit var.v_id)
+		end
+	| _ ->
+		op_assign_op jit (get_binop_fun OpSub p) e1 eone prefix
+
 and unop jit op flag e1 p =
 	match op with
 	| Not ->
@@ -279,7 +290,7 @@ and unop jit op flag e1 p =
 	| Increment ->
 		op_incr jit e1 (flag = Prefix) p
 	| Decrement ->
-		op_assign_op jit (get_binop_fun OpSub p) e1 eone (flag = Prefix)
+		op_decr jit e1 (flag = Prefix) p
 
 (*
 	This is the main jit function. It turns expression [e] into a function, which can be
