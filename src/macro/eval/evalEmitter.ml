@@ -55,7 +55,7 @@ let apply env exec =
 
 (* Objects and values *)
 
-let emit_null env = vnull
+let emit_null _ = vnull
 
 let emit_local_declaration i exec env =
 	env.locals.(i) <- exec env;
@@ -303,6 +303,9 @@ let emit_block execs env =
 		ignore((Array.unsafe_get execs i) env)
 	done;
 	(Array.unsafe_get execs (l -1)) env
+
+let emit_value exec env =
+	exec env
 
 let emit_return_null _ = raise (Return vnull)
 
@@ -1034,7 +1037,7 @@ let emit_tfunction0 ctx kind num_locals num_captures exec () =
 let emit_tfunction1 ctx kind num_locals num_captures arg1 varacc1 exec v1 =
 	let env = push_environment ctx kind num_locals num_captures in
 	handle_function_argument arg1 varacc1 v1 env;
-	run_function ctx exec env
+		run_function ctx exec env
 
 let emit_tfunction2 ctx kind num_locals num_captures arg1 varacc1 arg2 varacc2 exec v1 v2 =
 	let env = push_environment ctx kind num_locals num_captures in

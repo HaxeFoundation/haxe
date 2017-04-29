@@ -174,13 +174,13 @@ open JitContext
 
 let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 	| TLocal var ->
-		let exec = jit_expr jit e2 in
+		let exec = jit_expr false jit e2 in
 		if var.v_capture then emit_capture_write (get_capture_slot jit var.v_id) exec
 		else emit_local_write (get_slot jit var.v_id) exec
 	| TField(e1,fa) ->
 		let name = hash_s (field_name fa) in
-		let exec1 = jit_expr jit e1 in
-		let exec2 = jit_expr jit e2 in
+		let exec1 = jit_expr false jit e1 in
+		let exec2 = jit_expr false jit e2 in
 		begin match fa with
 			| FStatic({cl_path=path},_) | FEnum({e_path=path},_) ->
 				let proto = get_static_prototype jit.ctx (path_hash path) e1.epos in
@@ -207,13 +207,13 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 	| TArray(ea1,ea2) ->
 		begin match ea1.eexpr with
 		| TLocal var when not var.v_capture ->
-			let exec2 = jit_expr jit ea2 in
-			let exec3 = jit_expr jit e2 in
+			let exec2 = jit_expr false jit ea2 in
+			let exec3 = jit_expr false jit e2 in
 			emit_array_local_write (get_slot jit var.v_id) exec2 exec3 ea2.epos
 		| _ ->
-			let exec1 = jit_expr jit ea1 in
-			let exec2 = jit_expr jit ea2 in
-			let exec3 = jit_expr jit e2 in
+			let exec1 = jit_expr false jit ea1 in
+			let exec2 = jit_expr false jit ea2 in
+			let exec3 = jit_expr false jit e2 in
 			emit_array_write exec1 exec2 exec3 ea2.epos
 		end
 	| _ ->
@@ -221,13 +221,13 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 
 and op_assign_op jit op e1 e2 prefix = match e1.eexpr with
 	| TLocal var ->
-		let exec = jit_expr jit e2 in
+		let exec = jit_expr false jit e2 in
 		if var.v_capture then emit_capture_read_write (get_capture_slot jit var.v_id) exec op prefix
 		else emit_local_read_write (get_slot jit var.v_id) exec op prefix
 	| TField(e1,fa) ->
 		let name = hash_s (field_name fa) in
-		let exec1 = jit_expr jit e1 in
-		let exec2 = jit_expr jit e2 in
+		let exec1 = jit_expr false jit e1 in
+		let exec2 = jit_expr false jit e2 in
 		begin match fa with
 			| FStatic({cl_path=path},_) ->
 				let proto = get_static_prototype jit.ctx (path_hash path) e1.epos in
@@ -242,13 +242,13 @@ and op_assign_op jit op e1 e2 prefix = match e1.eexpr with
 	| TArray(ea1,ea2) ->
 		begin match ea1.eexpr with
 			| TLocal var when not var.v_capture ->
-				let exec2 = jit_expr jit ea2 in
-				let exec3 = jit_expr jit e2 in
+				let exec2 = jit_expr false jit ea2 in
+				let exec3 = jit_expr false jit e2 in
 				emit_array_local_read_write (get_slot jit var.v_id) exec2 exec3 op prefix ea2.epos
 			| _ ->
-				let exec1 = jit_expr jit ea1 in
-				let exec2 = jit_expr jit ea2 in
-				let exec3 = jit_expr jit e2 in
+				let exec1 = jit_expr false jit ea1 in
+				let exec2 = jit_expr false jit ea2 in
+				let exec3 = jit_expr false jit e2 in
 				emit_array_read_write exec1 exec2 exec3 op prefix ea2.epos
 		end
 	| _ ->
@@ -279,13 +279,13 @@ and op_decr jit e1 prefix p = match e1.eexpr with
 and unop jit op flag e1 p =
 	match op with
 	| Not ->
-		let exec = jit_expr jit e1 in
+		let exec = jit_expr false jit e1 in
 		emit_not exec
 	| Neg ->
-		let exec = jit_expr jit e1 in
+		let exec = jit_expr false jit e1 in
 		emit_neg exec p
 	| NegBits ->
-		let exec = jit_expr jit e1 in
+		let exec = jit_expr false jit e1 in
 		emit_op_sub p (fun _ -> vint32 (Int32.minus_one)) exec
 	| Increment ->
 		op_incr jit e1 (flag = Prefix) p
@@ -296,7 +296,7 @@ and unop jit op flag e1 p =
 	This is the main jit function. It turns expression [e] into a function, which can be
 	executed int an environment of type [EvalContext.env].
 *)
-and jit_expr jit e =
+and jit_expr return jit e =
 	let ctx = jit.ctx in
 	let rec loop e = match e.eexpr with
 	(* objects and values *)
@@ -304,7 +304,7 @@ and jit_expr jit e =
 		let varacc = declare_local jit var in
 		let exec = match eo with
 			| None -> emit_null
-			| Some e -> jit_expr jit e
+			| Some e -> jit_expr false jit e
 		in
 		begin match varacc with
 			| Local slot -> emit_local_declaration slot exec
@@ -315,13 +315,13 @@ and jit_expr jit e =
 	| TConst ct ->
 		emit_const (eval_const ct)
 	| TObjectDecl fl ->
-		let fl = List.map (fun (s,e) -> hash_s s,jit_expr jit e) fl in
+		let fl = List.map (fun (s,e) -> hash_s s,jit_expr false jit e) fl in
 		let proto,_ = ctx.get_object_prototype ctx fl in
 		let fl = List.map (fun (s,exec) -> get_instance_field_index proto s,exec) fl in
 		let fa = Array.of_list fl in
 		emit_object_declaration proto fa
 	| TArrayDecl el ->
-		let execs = List.map (jit_expr jit) el in
+		let execs = List.map (jit_expr false jit) el in
 		let execs = Array.of_list execs in
 		emit_array_declaration execs
 	| TTypeExpr mt ->
@@ -331,7 +331,7 @@ and jit_expr jit e =
 	| TFunction tf ->
 		push_scope jit;
 		let varaccs = List.map (fun (var,_) -> declare_local jit var) tf.tf_args in
-		let exec = jit_expr jit tf.tf_expr in
+		let exec = jit_expr false jit tf.tf_expr in
 		pop_scope jit;
 		let args = List.map (fun (_,cto) -> Option.map_default eval_const vnull cto) tf.tf_args in
 		let kind = EKLocalFunction jit.num_closures in
@@ -339,15 +339,15 @@ and jit_expr jit e =
 		emit_closure jit.ctx kind jit.max_local_count (Hashtbl.length jit.captures) varaccs args exec tf.tf_expr.epos
 	(* branching *)
 	| TIf(e1,e2,eo) ->
-		let exec_cond = jit_expr jit e1 in
-		let exec_then = jit_expr jit e2 in
+		let exec_cond = jit_expr false jit e1 in
+		let exec_then = jit_expr return jit e2 in
 		let exec_else = match eo with
 			| None -> emit_null
-			| Some e -> jit_expr jit e
+			| Some e -> jit_expr return jit e
 		in
 		emit_if exec_cond exec_then exec_else
 	| TSwitch(e1,cases,def) ->
-		let exec = jit_expr jit e1 in
+		let exec = jit_expr false jit e1 in
 		let execs = DynArray.create () in
 		let constants = DynArray.create () in
 		let patterns = DynArray.create () in
@@ -364,10 +364,10 @@ and jit_expr jit e =
 				DynArray.add constants el
 			with Exit ->
 				is_complex := true;
-				let el = List.map (jit_expr jit) el in
+				let el = List.map (jit_expr false jit) el in
 				DynArray.add patterns el
 			end;
-			DynArray.add execs (jit_expr jit e);
+			DynArray.add execs (jit_expr return jit e);
 			pop_scope jit;
 		) cases;
 		let exec_def = match def with
@@ -375,7 +375,7 @@ and jit_expr jit e =
 				emit_null
 			| Some e ->
 				push_scope jit;
-				let exec = jit_expr jit e in
+				let exec = jit_expr return jit e in
 				pop_scope jit;
 				exec
 		in
@@ -402,8 +402,8 @@ and jit_expr jit e =
 		in
 		let e2 = loop e2 in
 		let slot = get_slot jit v.v_id in
-		let exec1 = jit_expr jit eto in
-		let exec2 = jit_expr jit e2 in
+		let exec1 = jit_expr false jit eto in
+		let exec2 = jit_expr false jit e2 in
 		begin match !has_break,!has_continue with
 			| false,false -> emit_int_iterator slot exec1 exec2
 			| true,false -> emit_int_iterator_break slot exec1 exec2
@@ -420,8 +420,8 @@ and jit_expr jit e =
 			| _ -> Type.iter loop e
 		in
 		(try loop e2 with Exit -> ());
-		let exec_cond = jit_expr jit e1 in
-		let exec_body = jit_expr jit e2 in
+		let exec_cond = jit_expr false jit e1 in
+		let exec_body = jit_expr false jit e2 in
 		(* This is a bit moronic, but it does avoid run-time branching and setting up some exception
 			handlers for break/continue, so it might be worth it... *)
 		begin match flag,!has_break,!has_continue with
@@ -435,11 +435,11 @@ and jit_expr jit e =
 			| DoWhile,true,true -> emit_do_while_break_continue exec_cond exec_body
 		end
 	| TTry(e1,catches) ->
-		let exec = jit_expr jit e1 in
+		let exec = jit_expr return jit e1 in
 		let catches = List.map (fun (var,e) ->
 			push_scope jit;
 			let varacc = declare_local jit var in
-			let exec = jit_expr jit e in
+			let exec = jit_expr return jit e in
 			pop_scope jit;
 			exec,(hash (rope_path var.v_type)),varacc
 		) catches in
@@ -451,32 +451,32 @@ and jit_expr jit e =
 		loop e1
 	| TBlock [e1;e2] ->
 		push_scope jit;
-		let exec1 = jit_expr jit e1 in
-		let exec2 = jit_expr jit e2 in
+		let exec1 = jit_expr false jit e1 in
+		let exec2 = jit_expr return jit e2 in
 		pop_scope jit;
 		emit_block2 exec1 exec2
 	| TBlock [e1;e2;e3] ->
 		push_scope jit;
-		let exec1 = jit_expr jit e1 in
-		let exec2 = jit_expr jit e2 in
-		let exec3 = jit_expr jit e3 in
+		let exec1 = jit_expr false jit e1 in
+		let exec2 = jit_expr false jit e2 in
+		let exec3 = jit_expr return jit e3 in
 		pop_scope jit;
 		emit_block3 exec1 exec2 exec3
 	| TBlock [e1;e2;e3;e4] ->
 		push_scope jit;
-		let exec1 = jit_expr jit e1 in
-		let exec2 = jit_expr jit e2 in
-		let exec3 = jit_expr jit e3 in
-		let exec4 = jit_expr jit e4 in
+		let exec1 = jit_expr false jit e1 in
+		let exec2 = jit_expr false jit e2 in
+		let exec3 = jit_expr false jit e3 in
+		let exec4 = jit_expr return jit e4 in
 		pop_scope jit;
 		emit_block4 exec1 exec2 exec3 exec4
 	| TBlock [e1;e2;e3;e4;e5] ->
 		push_scope jit;
-		let exec1 = jit_expr jit e1 in
-		let exec2 = jit_expr jit e2 in
-		let exec3 = jit_expr jit e3 in
-		let exec4 = jit_expr jit e4 in
-		let exec5 = jit_expr jit e5 in
+		let exec1 = jit_expr false jit e1 in
+		let exec2 = jit_expr false jit e2 in
+		let exec3 = jit_expr false jit e3 in
+		let exec4 = jit_expr false jit e4 in
+		let exec5 = jit_expr return jit e5 in
 		pop_scope jit;
 		emit_block5 exec1 exec2 exec3 exec4 exec5
 	| TBlock el ->
@@ -484,33 +484,33 @@ and jit_expr jit e =
 		let add = DynArray.add d in
 		let rec loop el = match el with
 			| e1 :: e2 :: e3 :: e4 :: e5 :: el ->
-				let exec1 = jit_expr jit e1 in
-				let exec2 = jit_expr jit e2 in
-				let exec3 = jit_expr jit e3 in
-				let exec4 = jit_expr jit e4 in
-				let exec5 = jit_expr jit e5 in
+				let exec1 = jit_expr false jit e1 in
+				let exec2 = jit_expr false jit e2 in
+				let exec3 = jit_expr false jit e3 in
+				let exec4 = jit_expr false jit e4 in
+				let exec5 = jit_expr (return && el = []) jit e5 in
 				add (emit_block5 exec1 exec2 exec3 exec4 exec5);
 				loop el
 			| e1 :: e2 :: e3 :: e4 :: el ->
-				let exec1 = jit_expr jit e1 in
-				let exec2 = jit_expr jit e2 in
-				let exec3 = jit_expr jit e3 in
-				let exec4 = jit_expr jit e4 in
+				let exec1 = jit_expr false jit e1 in
+				let exec2 = jit_expr false jit e2 in
+				let exec3 = jit_expr false jit e3 in
+				let exec4 = jit_expr (return && el = []) jit e4 in
 				add (emit_block4 exec1 exec2 exec3 exec4);
 				loop el
 			| e1 :: e2 :: e3 :: el ->
-				let exec1 = jit_expr jit e1 in
-				let exec2 = jit_expr jit e2 in
-				let exec3 = jit_expr jit e3 in
+				let exec1 = jit_expr false jit e1 in
+				let exec2 = jit_expr false jit e2 in
+				let exec3 = jit_expr (return && el = []) jit e3 in
 				add (emit_block3 exec1 exec2 exec3);
 				loop el
 			| e1 :: e2 :: el ->
-				let exec1 = jit_expr jit e1 in
-				let exec2 = jit_expr jit e2 in
+				let exec1 = jit_expr false jit e1 in
+				let exec2 = jit_expr (return && el = []) jit e2 in
 				add (emit_block2 exec1 exec2);
 				loop el
 			| [e1] ->
-				let exec1 = jit_expr jit e1 in
+				let exec1 = jit_expr return jit e1 in
 				add (emit_block1 exec1);
 			| [] ->
 				()
@@ -520,19 +520,21 @@ and jit_expr jit e =
 		pop_scope jit;
 		emit_block (DynArray.to_array d)
 	| TReturn None ->
-		emit_return_null
+		if return then emit_null
+		else emit_return_null
 	| TReturn (Some e1) ->
-		let exec = jit_expr jit e1 in
-		emit_return_value exec
+		let exec = jit_expr false jit e1 in
+		if return then emit_value exec
+		else emit_return_value exec
 	| TBreak ->
 		emit_break
 	| TContinue ->
 		emit_continue
 	| TThrow e1 ->
-		let exec = jit_expr jit e1 in
+		let exec = jit_expr false jit e1 in
 		emit_throw exec e.epos
 	| TCast(e1,Some mt) ->
-		let exec = jit_expr jit e1 in
+		let exec = jit_expr false jit e1 in
 		let t = type_of_module_type mt in
 		emit_safe_cast exec (hash (rope_path t)) e.epos
 	(* calls *)
@@ -543,11 +545,11 @@ and jit_expr jit e =
 			let name = hash_s cf.cf_name in
 			let i = get_proto_field_index proto name in
 			let slot = get_slot jit 0 in
-			let execs = List.map (jit_expr jit) el in
+			let execs = List.map (jit_expr false jit) el in
 			emit_super_field_call slot proto i execs e.epos
 		| TField(ef,fa) ->
 			let name = hash_s (field_name fa) in
-			let execs = List.map (jit_expr jit) el in
+			let execs = List.map (jit_expr false jit) el in
 			let is_overridden c s_name =
 				try
 					Hashtbl.find ctx.overrides (c.cl_path,s_name)
@@ -591,12 +593,12 @@ and jit_expr jit e =
 					let i = get_proto_field_index proto name in
 					proto_field_call proto i execs
 				| FInstance(c,_,cf) when is_proper_method cf && not (is_overridden c cf.cf_name) && not c.cl_interface ->
-					let exec = jit_expr jit ef in
+					let exec = jit_expr false jit ef in
 					let proto = get_instance_prototype ctx (path_hash c.cl_path) ef.epos in
 					let i = get_proto_field_index proto name in
 					proto_field_call proto i (exec :: execs)
 				| FInstance(_,_,cf) when is_proper_method cf ->
-					let exec = jit_expr jit ef in
+					let exec = jit_expr false jit ef in
 					begin match execs with
 						| [] -> emit_method_call0 exec name e.epos
 						| [exec1] -> emit_method_call1 exec name exec1 e.epos
@@ -606,14 +608,14 @@ and jit_expr jit e =
 						| _ -> emit_method_call exec name execs e.epos
 					end
 				| _ ->
-					let exec = jit_expr jit ef in
+					let exec = jit_expr false jit ef in
 					emit_field_call exec name execs e.epos
 			end
 		| TConst TSuper ->
 			begin match follow e1.etype with
 			| TInst(c,_) ->
 				let key = (path_hash c.cl_path) in
-				let execs = List.map (jit_expr jit) el in
+				let execs = List.map (jit_expr false jit) el in
 				let f = emit_local_read (get_slot jit 0) in
 				let fnew = get_instance_constructor jit.ctx key e1.epos in
 				emit_super_call f fnew execs e.epos
@@ -622,9 +624,9 @@ and jit_expr jit e =
 		| _ ->
 			match e1.eexpr,el with
 			| TLocal({v_name = "$__mk_pos__"}),[file;min;max] ->
-				let exec1 = jit_expr jit file in
-				let exec2 = jit_expr jit min in
-				let exec3 = jit_expr jit max in
+				let exec1 = jit_expr false jit file in
+				let exec2 = jit_expr false jit min in
+				let exec3 = jit_expr false jit max in
 				emit_mk_pos exec1 exec2 exec3
 			| TLocal({v_name = "$__delayed_call__"}),[{eexpr = TConst(TInt i)}] ->
 				let f = ctx.curapi.MacroApi.delayed_macro (Int32.to_int i) in
@@ -633,14 +635,14 @@ and jit_expr jit e =
 					f()
 				)
 			| _ ->
-				let exec = jit_expr jit e1 in
-				let execs = List.map (jit_expr jit) el in
+				let exec = jit_expr false jit e1 in
+				let execs = List.map (jit_expr false jit) el in
 				emit_call exec execs e.epos
 		end
 	| TNew({cl_path=[],"Array"},_,_) ->
 		emit_new_array
 	| TNew(c,_,el) ->
-		let execs = List.map (jit_expr jit) el in
+		let execs = List.map (jit_expr false jit) el in
 		let key = path_hash c.cl_path in
 		begin try
 			let f = get_special_instance_constructor_raise ctx key in
@@ -664,8 +666,8 @@ and jit_expr jit e =
 	| TField(e1,fa) ->
 		let name = hash_s (field_name fa) in
 		begin match fa with
-			| FInstance({cl_path=([],"Array")},_,{cf_name="length"}) -> emit_array_length_read (jit_expr jit e1)
-			| FInstance({cl_path=(["haxe";"io"],"Bytes")},_,{cf_name="length"}) -> emit_bytes_length_read (jit_expr jit e1)
+			| FInstance({cl_path=([],"Array")},_,{cf_name="length"}) -> emit_array_length_read (jit_expr false jit e1)
+			| FInstance({cl_path=(["haxe";"io"],"Bytes")},_,{cf_name="length"}) -> emit_bytes_length_read (jit_expr false jit e1)
 			| FStatic({cl_path=path},_) | FEnum({e_path=path},_) ->
 				let proto = get_static_prototype ctx (path_hash path) e1.epos in
 				emit_proto_field_read proto (get_proto_field_index proto name)
@@ -674,7 +676,7 @@ and jit_expr jit e =
 				let i = get_instance_field_index proto name in
 				begin match e1.eexpr with
 					| TLocal var when not var.v_capture -> emit_instance_local_field_read (get_slot jit var.v_id) i
-					| _ -> emit_instance_field_read (jit_expr jit e1) i
+					| _ -> emit_instance_field_read (jit_expr false jit e1) i
 				end
 			| FAnon _ ->
 				begin match follow e1.etype with
@@ -684,29 +686,29 @@ and jit_expr jit e =
 						let i = get_instance_field_index proto name in
 						begin match e1.eexpr with
 							| TLocal var when not var.v_capture -> emit_anon_local_field_read (get_slot jit var.v_id) proto i name e1.epos
-							| _ -> emit_anon_field_read (jit_expr jit e1) proto i name e1.epos
+							| _ -> emit_anon_field_read (jit_expr false jit e1) proto i name e1.epos
 						end
 					| _ ->
-						emit_field_read (jit_expr jit e1) name e1.epos
+						emit_field_read (jit_expr false jit e1) name e1.epos
 				end
 			| FClosure _ | FDynamic _ ->
-				let exec = jit_expr jit e1 in
+				let exec = jit_expr false jit e1 in
 				emit_field_closure exec name
 			| _ ->
-				let exec = jit_expr jit e1 in
+				let exec = jit_expr false jit e1 in
 				emit_field_read exec name e1.epos
 		end
 	| TArray(e1,e2) ->
 		begin match e1.eexpr with
 			| TLocal var when not var.v_capture ->
-				emit_array_local_read (get_slot jit var.v_id) (jit_expr jit e2)
+				emit_array_local_read (get_slot jit var.v_id) (jit_expr false jit e2)
 			| _ ->
-				let exec1 = jit_expr jit e1 in
-				let exec2 = jit_expr jit e2 in
+				let exec1 = jit_expr false jit e1 in
+				let exec2 = jit_expr false jit e2 in
 				emit_array_read exec1 exec2
 		end
 	| TEnumParameter(e1,_,i) ->
-		let exec = jit_expr jit e1 in
+		let exec = jit_expr false jit e1 in
 		emit_enum_parameter_read exec i
 	(* ops *)
 	| TBinop(op,e1,e2) ->
@@ -717,16 +719,16 @@ and jit_expr jit e =
 			let f = get_binop_fun op e.epos in
 			op_assign_op jit f e1 e2 true
 		| OpBoolAnd ->
-			let exec1 = jit_expr jit e1 in
-			let exec2 = jit_expr jit e2 in
+			let exec1 = jit_expr false jit e1 in
+			let exec2 = jit_expr false jit e2 in
 			emit_bool_and exec1 exec2
 		| OpBoolOr ->
-			let exec1 = jit_expr jit e1 in
-			let exec2 = jit_expr jit e2 in
+			let exec1 = jit_expr false jit e1 in
+			let exec2 = jit_expr false jit e2 in
 			emit_bool_or exec1 exec2
 		| _ ->
-			let exec1 = jit_expr jit e1 in
-			let exec2 = jit_expr jit e2 in
+			let exec1 = jit_expr false jit e1 in
+			let exec2 = jit_expr false jit e2 in
 			begin match op with
 				| OpAdd -> emit_op_add exec1 exec2
 				| OpMult -> emit_op_mult e.epos exec1 exec2
@@ -768,7 +770,7 @@ let jit_tfunction ctx key_type key_field tf static =
 	let varaccs = if static then [] else [declare_local_this jit] in
 	let varaccs = varaccs @ List.map (fun (var,_) -> declare_local jit var) tf.tf_args in
 	(* Jit the function expression and pop the scope. *)
-	let exec = jit_expr jit tf.tf_expr in
+	let exec = jit_expr true jit tf.tf_expr in
 	pop_scope jit;
 	(* Create a list of default values for the function arguments. *)
 	let args = List.map (fun (_,cto) -> Option.map_default eval_const vnull cto) tf.tf_args in
@@ -791,6 +793,6 @@ let jit_tfunction ctx key_type key_field tf static =
 let jit_expr ctx e =
 	let t = Common.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
 	let jit = JitContext.create ctx in
-	let f = jit_expr jit (mk_block e) in
+	let f = jit_expr false jit (mk_block e) in
 	t();
 	jit,f
