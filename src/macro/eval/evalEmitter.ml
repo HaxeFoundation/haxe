@@ -260,9 +260,12 @@ let emit_do_while_break_continue exec_cond exec_body env =
 	vnull
 
 let emit_try exec catches env =
+	let ctx = get_ctx() in
+	let stack_length = Stack.length ctx.environments in
 	try
 		exec env
 	with RunTimeException(v,_,_) as exc ->
+		restore_env ctx stack_length;
 		let exec,_,varacc = try List.find (fun (_,path,i) -> is v path) catches with Not_found -> raise exc in
 		begin match varacc with
 			| Local slot -> env.locals.(slot) <- v
@@ -1012,10 +1015,6 @@ let run_function ctx exec env =
 		exec env
 	with
 		| Return v -> v
-		| RunTimeException _ as exc ->
-			let env = pop_environment ctx in
-			Stack.push env ctx.exception_stack;
-			raise exc
 	in
 	ignore(pop_environment ctx);
 	v
