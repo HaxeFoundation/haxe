@@ -1795,6 +1795,11 @@ let macro_api ccom get_api =
 			let e = decode_texpr e in
 			encode_expr (TExprToExpr.convert_expr e)
 		);
+		"store_expr", vfun1 (fun e ->
+			let api = get_api() in
+			let te = (api.type_expr (decode_expr e)) in
+			encode_expr (api.store_typed_expr te)
+		);
 		"store_typed_expr", vfun1 (fun e ->
 			let e = decode_texpr e in
 			encode_expr ((get_api()).store_typed_expr e)
