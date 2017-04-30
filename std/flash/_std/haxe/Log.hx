@@ -21,28 +21,31 @@
  */
 package haxe;
 
-/**
-	Log primarily provides the `trace()` method, which is invoked upon a call to
-	`trace()` in Haxe code.
-**/
-extern class Log {
+@:coreApi class Log {
+	public static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
+		#if (fdb || native_trace)
+			var pstr = infos == null ? "(null)" : infos.fileName + ":" + infos.lineNumber;
+			var str = flash.Boot.__string_rec(v, "");
+			if( infos != null && infos.customParams != null ) for( v in infos.customParams ) str += "," + flash.Boot.__string_rec(v, "");
+			untyped __global__["trace"](pstr+": "+str);
+		#else
+			flash.Boot.__trace(v,infos);
+		#end
+	}
 
 	/**
-		Outputs `v` in a platform-dependent way.
-
-		The second parameter `infos` is injected by the compiler and contains
-		information about the position where the `trace()` call was made.
-
-		This method can be rebound to a custom function:
-			var oldTrace = haxe.Log.trace; // store old function
-			haxe.Log.trace = function(v, ?infos) {
-			  // handle trace
-			}
-			...
-			haxe.Log.trace = oldTrace;
-
-		If it is bound to null, subsequent calls to `trace()` will cause an
-		exception.
+		Clears the trace output.
 	**/
-	static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void;
+	@:hack
+	public static dynamic function clear() : Void {
+		flash.Boot.__clear_trace();
+	}
+
+	/**
+		Sets the color of the trace output to `rgb`.
+	**/
+	@:hack
+	public static dynamic function setColor( rgb : Int ) : Void {
+		flash.Boot.__set_trace_color(rgb);
+	}
 }
