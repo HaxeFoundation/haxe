@@ -68,6 +68,8 @@ module JitContext = struct
 		mutable max_local_count : int;
 		(* The number of closures in this context.*)
 		mutable num_closures : int;
+		(* Whether or not this function has a return that's not at the end of control flow. *)
+		mutable has_nonfinal_return : bool;
 	}
 
 	(* Creates a new context *)
@@ -78,6 +80,7 @@ module JitContext = struct
 		local_count = 0;
 		max_local_count = 0;
 		num_closures = 0;
+		has_nonfinal_return = false;
 	}
 
 	(* Returns the number of locals in [scope]. *)
@@ -331,12 +334,15 @@ and jit_expr return jit e =
 	| TFunction tf ->
 		push_scope jit;
 		let varaccs = List.map (fun (var,_) -> declare_local jit var) tf.tf_args in
+		let has_nonfinal_return_old = jit.has_nonfinal_return in
 		let exec = jit_expr false jit tf.tf_expr in
+		let has_nonfinal_return = jit.has_nonfinal_return in
+		jit.has_nonfinal_return <- has_nonfinal_return_old;
 		pop_scope jit;
 		let args = List.map (fun (_,cto) -> Option.map_default eval_const vnull cto) tf.tf_args in
 		let kind = EKLocalFunction jit.num_closures in
 		jit.num_closures <- jit.num_closures + 1;
-		emit_closure jit.ctx kind jit.max_local_count (Hashtbl.length jit.captures) varaccs args exec tf.tf_expr.epos
+		emit_closure jit.ctx has_nonfinal_return kind jit.max_local_count (Hashtbl.length jit.captures) varaccs args exec tf.tf_expr.epos
 	(* branching *)
 	| TIf(e1,e2,eo) ->
 		let exec_cond = jit_expr false jit e1 in
@@ -529,11 +535,17 @@ and jit_expr return jit e =
 		emit_block (DynArray.to_array d)
 	| TReturn None ->
 		if return then emit_null
-		else emit_return_null
+		else begin
+			jit.has_nonfinal_return <- true;
+			emit_return_null
+		end
 	| TReturn (Some e1) ->
 		let exec = jit_expr false jit e1 in
 		if return then emit_value exec
-		else emit_return_value exec
+		else begin
+			jit.has_nonfinal_return <- true;
+			emit_return_value exec
+		end
 	| TBreak ->
 		emit_break
 	| TContinue ->
@@ -788,14 +800,15 @@ let jit_tfunction ctx key_type key_field tf static =
 	let local_count = jit.max_local_count in
 	let capture_count = Hashtbl.length jit.captures in
 	let kind = EKMethod(key_type,key_field) in
+	let hasret = jit.has_nonfinal_return in
 	match args,varaccs with
-	| [],[] -> Fun0 (emit_tfunction0 ctx kind local_count capture_count exec)
-	| [arg1],[varacc1] -> Fun1 (emit_tfunction1 ctx kind local_count capture_count arg1 varacc1 exec)
-	| [arg1;arg2],[varacc1;varacc2] -> Fun2 (emit_tfunction2 ctx kind local_count capture_count arg1 varacc1 arg2 varacc2 exec)
-	| [arg1;arg2;arg3],[varacc1;varacc2;varacc3] -> Fun3 (emit_tfunction3 ctx kind local_count capture_count arg1 varacc1 arg2 varacc2 arg3 varacc3 exec)
-	| [arg1;arg2;arg3;arg4],[varacc1;varacc2;varacc3;varacc4] -> Fun4 (emit_tfunction4 ctx kind local_count capture_count arg1 varacc1 arg2 varacc2 arg3 varacc3 arg4 varacc4 exec)
-	| [arg1;arg2;arg3;arg4;arg5],[varacc1;varacc2;varacc3;varacc4;varacc5] -> Fun5 (emit_tfunction5 ctx kind local_count capture_count arg1 varacc1 arg2 varacc2 arg3 varacc3 arg4 varacc4 arg5 varacc5 exec)
-	| _ -> FunN (emit_tfunction ctx kind local_count capture_count args varaccs exec)
+	| [],[] -> Fun0 (emit_tfunction0 ctx hasret kind local_count capture_count exec)
+	| [arg1],[varacc1] -> Fun1 (emit_tfunction1 ctx hasret kind local_count capture_count arg1 varacc1 exec)
+	| [arg1;arg2],[varacc1;varacc2] -> Fun2 (emit_tfunction2 ctx hasret kind local_count capture_count arg1 varacc1 arg2 varacc2 exec)
+	| [arg1;arg2;arg3],[varacc1;varacc2;varacc3] -> Fun3 (emit_tfunction3 ctx hasret kind local_count capture_count arg1 varacc1 arg2 varacc2 arg3 varacc3 exec)
+	| [arg1;arg2;arg3;arg4],[varacc1;varacc2;varacc3;varacc4] -> Fun4 (emit_tfunction4 ctx hasret kind local_count capture_count arg1 varacc1 arg2 varacc2 arg3 varacc3 arg4 varacc4 exec)
+	| [arg1;arg2;arg3;arg4;arg5],[varacc1;varacc2;varacc3;varacc4;varacc5] -> Fun5 (emit_tfunction5 ctx hasret kind local_count capture_count arg1 varacc1 arg2 varacc2 arg3 varacc3 arg4 varacc4 arg5 varacc5 exec)
+	| _ -> FunN (emit_tfunction ctx hasret kind local_count capture_count args varaccs exec)
 
 (* JITs expression [e] to a function. This is used for expressions that are not in a method. *)
 let jit_expr ctx e =
