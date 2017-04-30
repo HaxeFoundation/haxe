@@ -348,6 +348,7 @@ let call0 v p env =
 	| VFunction (Fun0 f,_) -> f ()
 	| VFunction (FunN f,_) -> f []
 	| VFieldClosure(v0,f) -> call_function f [v0]
+	| VInstance {ikind = ILazyType(_,get)} -> get()
 	| _ -> cannot_call v p
 
 let call1 v v1 p env =

@@ -336,17 +336,17 @@ and jit_expr return jit e =
 		let proto = get_static_prototype_as_value jit.ctx key e.epos in
 		emit_type_expr proto
 	| TFunction tf ->
-		push_scope jit;
-		let varaccs = List.map (fun (var,_) -> declare_local jit var) tf.tf_args in
-		let has_nonfinal_return_old = jit.has_nonfinal_return in
-		let exec = jit_expr false jit tf.tf_expr in
-		let has_nonfinal_return = jit.has_nonfinal_return in
-		jit.has_nonfinal_return <- has_nonfinal_return_old;
-		pop_scope jit;
+		let jit_closure = JitContext.create ctx in
+		jit_closure.captures <- jit.captures;
+		push_scope jit_closure;
+		let varaccs = List.map (fun (var,_) -> declare_local jit_closure var) tf.tf_args in
+		let exec = jit_expr true jit_closure tf.tf_expr in
+		pop_scope jit_closure;
 		let args = List.map (fun (_,cto) -> Option.map_default eval_const vnull cto) tf.tf_args in
 		let kind = EKLocalFunction jit.num_closures in
 		jit.num_closures <- jit.num_closures + 1;
-		emit_closure jit.ctx has_nonfinal_return kind jit.max_local_count (Hashtbl.length jit.captures) varaccs args exec tf.tf_expr.epos
+		let num_captures = Hashtbl.length jit.captures in
+		emit_closure jit.ctx jit_closure.has_nonfinal_return kind jit_closure.max_local_count num_captures varaccs args exec tf.tf_expr.epos
 	(* branching *)
 	| TIf(e1,e2,eo) ->
 		let exec_cond = jit_expr false jit e1 in
