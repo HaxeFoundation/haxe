@@ -137,9 +137,9 @@ module JitContext = struct
 			Local i
 
 	(* Gets the slot of variable id [vid] in context [jit]. *)
-	let get_slot jit vid =
+	let get_slot_raise jit vid =
 		let rec loop scopes = match scopes with
-			| [] -> assert false
+			| [] -> raise Not_found
 			| scope :: scopes ->
 				try
 					scope.local_offset + Hashtbl.find scope.locals vid
@@ -147,6 +147,10 @@ module JitContext = struct
 					loop scopes
 		in
 		loop jit.scopes
+
+	let get_slot jit vid p =
+		try get_slot_raise jit vid
+		with Not_found -> throw_string "Unbound variable" p
 
 	(* Gets the slot of captured variable id [vid] in context [jit]. *)
 	let get_capture_slot jit vid =
@@ -179,7 +183,7 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 	| TLocal var ->
 		let exec = jit_expr false jit e2 in
 		if var.v_capture then emit_capture_write (get_capture_slot jit var.v_id) exec
-		else emit_local_write (get_slot jit var.v_id) exec
+		else emit_local_write (get_slot jit var.v_id e1.epos) exec
 	| TField(e1,fa) ->
 		let name = hash_s (field_name fa) in
 		let exec1 = jit_expr false jit e1 in
@@ -212,7 +216,7 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 		| TLocal var when not var.v_capture ->
 			let exec2 = jit_expr false jit ea2 in
 			let exec3 = jit_expr false jit e2 in
-			emit_array_local_write (get_slot jit var.v_id) exec2 exec3 ea2.epos
+			emit_array_local_write (get_slot jit var.v_id ea1.epos) exec2 exec3 ea2.epos
 		| _ ->
 			let exec1 = jit_expr false jit ea1 in
 			let exec2 = jit_expr false jit ea2 in
@@ -226,7 +230,7 @@ and op_assign_op jit op e1 e2 prefix = match e1.eexpr with
 	| TLocal var ->
 		let exec = jit_expr false jit e2 in
 		if var.v_capture then emit_capture_read_write (get_capture_slot jit var.v_id) exec op prefix
-		else emit_local_read_write (get_slot jit var.v_id) exec op prefix
+		else emit_local_read_write (get_slot jit var.v_id e1.epos) exec op prefix
 	| TField(e1,fa) ->
 		let name = hash_s (field_name fa) in
 		let exec1 = jit_expr false jit e1 in
@@ -247,7 +251,7 @@ and op_assign_op jit op e1 e2 prefix = match e1.eexpr with
 			| TLocal var when not var.v_capture ->
 				let exec2 = jit_expr false jit ea2 in
 				let exec3 = jit_expr false jit e2 in
-				emit_array_local_read_write (get_slot jit var.v_id) exec2 exec3 op prefix ea2.epos
+				emit_array_local_read_write (get_slot jit var.v_id ea1.epos) exec2 exec3 op prefix ea2.epos
 			| _ ->
 				let exec1 = jit_expr false jit ea1 in
 				let exec2 = jit_expr false jit ea2 in
@@ -262,8 +266,8 @@ and op_incr jit e1 prefix p = match e1.eexpr with
 		begin match var.v_capture,prefix with
 			| true,true -> emit_capture_incr_prefix (get_capture_slot jit var.v_id)
 			| true,false -> emit_capture_incr_postfix (get_capture_slot jit var.v_id)
-			| false,true -> emit_local_incr_prefix (get_slot jit var.v_id)
-			| false,false -> emit_local_incr_postfix (get_slot jit var.v_id)
+			| false,true -> emit_local_incr_prefix (get_slot jit var.v_id e1.epos)
+			| false,false -> emit_local_incr_postfix (get_slot jit var.v_id e1.epos)
 		end
 	| _ ->
 		op_assign_op jit (get_binop_fun OpAdd p) e1 eone prefix
@@ -273,8 +277,8 @@ and op_decr jit e1 prefix p = match e1.eexpr with
 		begin match var.v_capture,prefix with
 			| true,true -> emit_capture_decr_prefix (get_capture_slot jit var.v_id)
 			| true,false -> emit_capture_decr_postfix (get_capture_slot jit var.v_id)
-			| false,true -> emit_local_decr_prefix (get_slot jit var.v_id)
-			| false,false -> emit_local_decr_postfix (get_slot jit var.v_id)
+			| false,true -> emit_local_decr_prefix (get_slot jit var.v_id e1.epos)
+			| false,false -> emit_local_decr_postfix (get_slot jit var.v_id e1.epos)
 		end
 	| _ ->
 		op_assign_op jit (get_binop_fun OpSub p) e1 eone prefix
@@ -314,7 +318,7 @@ and jit_expr return jit e =
 			| Env slot -> emit_capture_declaration slot exec
 		end
 	| TConst TThis ->
-		emit_local_read (get_slot jit 0)
+		emit_local_read (get_slot jit 0 e.epos)
 	| TConst ct ->
 		emit_const (eval_const ct)
 	| TObjectDecl fl ->
@@ -396,7 +400,7 @@ and jit_expr return jit e =
 		end
 	| TWhile({eexpr = TParenthesis e1},e2,flag) ->
 		loop {e with eexpr = TWhile(e1,e2,flag)}
-	| TWhile({eexpr = TBinop(OpLt,{eexpr = TLocal v},eto)},e2,NormalWhile) when (Meta.has Meta.ForLoopVariable v.v_meta) ->
+	| TWhile({eexpr = TBinop(OpLt,{eexpr = TLocal v;epos=pv},eto)},e2,NormalWhile) when (Meta.has Meta.ForLoopVariable v.v_meta) ->
 		let has_break = ref false in
 		let has_continue = ref false in
 		let rec loop e = match e.eexpr with
@@ -407,7 +411,7 @@ and jit_expr return jit e =
 			| _ -> Type.map_expr loop e
 		in
 		let e2 = loop e2 in
-		let slot = get_slot jit v.v_id in
+		let slot = get_slot jit v.v_id pv in
 		let exec1 = jit_expr false jit eto in
 		let exec2 = jit_expr false jit e2 in
 		begin match !has_break,!has_continue with
@@ -560,11 +564,11 @@ and jit_expr return jit e =
 	(* calls *)
 	| TCall(e1,el) ->
 		begin match e1.eexpr with
-		| TField({eexpr = TConst TSuper},FInstance(c,_,cf)) ->
+		| TField({eexpr = TConst TSuper;epos=pv},FInstance(c,_,cf)) ->
 			let proto = get_instance_prototype ctx (path_hash c.cl_path) e1.epos in
 			let name = hash_s cf.cf_name in
 			let i = get_proto_field_index proto name in
-			let slot = get_slot jit 0 in
+			let slot = get_slot jit 0 pv in
 			let execs = List.map (jit_expr false jit) el in
 			emit_super_field_call slot proto i execs e.epos
 		| TField(ef,fa) ->
@@ -636,7 +640,7 @@ and jit_expr return jit e =
 			| TInst(c,_) ->
 				let key = (path_hash c.cl_path) in
 				let execs = List.map (jit_expr false jit) el in
-				let f = emit_local_read (get_slot jit 0) in
+				let f = emit_local_read (get_slot jit 0 e1.epos) in
 				let fnew = get_instance_constructor jit.ctx key e1.epos in
 				emit_super_call f fnew execs e.epos
 			| _ -> assert false
@@ -682,7 +686,7 @@ and jit_expr return jit e =
 	(* read *)
 	| TLocal var ->
 		if var.v_capture then emit_capture_read (get_capture_slot jit var.v_id)
-		else emit_local_read (get_slot jit var.v_id)
+		else emit_local_read (get_slot jit var.v_id e.epos)
 	| TField(e1,fa) ->
 		let name = hash_s (field_name fa) in
 		begin match fa with
@@ -695,7 +699,7 @@ and jit_expr return jit e =
 				let proto = get_instance_prototype ctx (path_hash c.cl_path) e1.epos in
 				let i = get_instance_field_index proto name in
 				begin match e1.eexpr with
-					| TLocal var when not var.v_capture -> emit_instance_local_field_read (get_slot jit var.v_id) i
+					| TLocal var when not var.v_capture -> emit_instance_local_field_read (get_slot jit var.v_id e1.epos) i
 					| _ -> emit_instance_field_read (jit_expr false jit e1) i
 				end
 			| FAnon _ ->
@@ -705,7 +709,7 @@ and jit_expr return jit e =
 						let proto,_ = ctx.get_object_prototype ctx l in
 						let i = get_instance_field_index proto name in
 						begin match e1.eexpr with
-							| TLocal var when not var.v_capture -> emit_anon_local_field_read (get_slot jit var.v_id) proto i name e1.epos
+							| TLocal var when not var.v_capture -> emit_anon_local_field_read (get_slot jit var.v_id e1.epos) proto i name e1.epos
 							| _ -> emit_anon_field_read (jit_expr false jit e1) proto i name e1.epos
 						end
 					| _ ->
@@ -721,7 +725,7 @@ and jit_expr return jit e =
 	| TArray(e1,e2) ->
 		begin match e1.eexpr with
 			| TLocal var when not var.v_capture ->
-				emit_array_local_read (get_slot jit var.v_id) (jit_expr false jit e2)
+				emit_array_local_read (get_slot jit var.v_id e1.epos) (jit_expr false jit e2)
 			| _ ->
 				let exec1 = jit_expr false jit e1 in
 				let exec2 = jit_expr false jit e2 in
