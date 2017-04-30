@@ -44,6 +44,8 @@ type builtins = {
 type context = {
 	ctx_id : int;
 	is_macro : bool;
+	debug : bool;
+	record_stack : bool;
 	detail_times : bool;
 	builtins : builtins;
 	mutable curapi : value MacroApi.compiler_api;
@@ -55,6 +57,9 @@ type context = {
 	mutable static_prototypes : vprototype IntMap.t;
 	mutable constructors : value Lazy.t IntMap.t;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
+	(* api *)
+	push_environment : context -> env_kind -> int -> int -> env;
+	pop_environment : context -> unit;
 	(* eval *)
 	environments : env DynArray.t;
 	mutable environment_offset : int;
@@ -130,21 +135,21 @@ let exc_string str = exc (vstring (Rope.of_string str))
 
 (* Environment handling *)
 
-let create_environment kind timer num_locals num_captures = {
-	leave_pos = null_pos;
-	timer = timer;
-	kind = kind;
-	locals = Array.make num_locals vnull;
-	captures = Array.make num_captures (ref vnull);
-}
+let no_timer = fun () -> ()
 
-let push_environment ctx kind num_locals num_captures =
+let push_environment_debug ctx kind num_locals num_captures =
 	let timer = if ctx.detail_times then
 		Common.timer ["macro";"execution";kind_name ctx kind]
 	else
-		(fun () -> ())
+		no_timer
 	in
-	let env = create_environment kind timer num_locals num_captures in
+	let env = {
+		leave_pos = null_pos;
+		timer = timer;
+		kind = kind;
+		locals = Array.make num_locals vnull;
+		captures = Array.make num_captures (ref vnull);
+	} in
 	if ctx.environment_offset = DynArray.length ctx.environments then
 		DynArray.add ctx.environments env
 	else
@@ -152,11 +157,23 @@ let push_environment ctx kind num_locals num_captures =
 	ctx.environment_offset <- ctx.environment_offset + 1;
 	env
 
-let pop_environment ctx =
+let push_environment ctx kind num_locals num_captures =
+	{
+		leave_pos = null_pos;
+		timer = no_timer;
+		kind = kind;
+		locals = Array.make num_locals vnull;
+		captures = Array.make num_captures (ref vnull);
+	}
+
+let pop_environment_debug ctx =
 	ctx.environment_offset <- ctx.environment_offset - 1;
 	let env = DynArray.unsafe_get ctx.environments ctx.environment_offset in
 	env.timer();
-	env
+	()
+
+let pop_environment ctx =
+	()
 
 (* Prototypes *)
 

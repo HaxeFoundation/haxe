@@ -55,9 +55,12 @@ let create com api is_macro =
 		| Some (builtins) ->
 			builtins
 	in
+	let record_stack = (com.Common.debug && not (Common.raw_defined com "no-interp-stack")) || Common.raw_defined com "interp-stack" in
 	let rec ctx = {
 		ctx_id = !sid;
 		is_macro = is_macro;
+		debug = com.Common.debug;
+		record_stack = record_stack;
 		detail_times = Common.raw_defined com "interp-times";
 		curapi = api;
 		builtins = builtins;
@@ -69,6 +72,9 @@ let create com api is_macro =
 		instance_prototypes = IntMap.empty;
 		constructors = IntMap.empty;
 		get_object_prototype = get_object_prototype;
+		(* api *)
+		push_environment = if record_stack then push_environment_debug else push_environment;
+		pop_environment = if record_stack then pop_environment_debug else pop_environment;
 		(* eval *)
 		environments = DynArray.make 32;
 		environment_offset = 0;
@@ -82,8 +88,8 @@ let create com api is_macro =
 let eval_delayed ctx e =
 	let jit,f = jit_expr ctx e in
 	fun () ->
-		let env = push_environment ctx EKDelayed jit.max_local_count (Hashtbl.length jit.captures) in
-		match catch_exceptions ctx (fun () -> Std.finally (fun _ -> ignore(pop_environment ctx)) f env) e.Type.epos with
+		let env = ctx.push_environment ctx EKDelayed jit.max_local_count (Hashtbl.length jit.captures) in
+		match catch_exceptions ctx (fun () -> Std.finally (fun _ -> ctx.pop_environment ctx) f env) e.Type.epos with
 			| Some v -> v
 			| None -> vnull
 

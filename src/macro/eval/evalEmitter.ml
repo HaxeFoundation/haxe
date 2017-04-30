@@ -1021,12 +1021,12 @@ let run_function ctx exec env =
 	with
 		| Return v -> v
 	in
-	ignore(pop_environment ctx);
+	ctx.pop_environment ctx;
 	v
 
 let run_function_noret ctx exec env =
 	let v = exec env in
-	ignore(pop_environment ctx);
+	ctx.pop_environment ctx;
 	v
 
 let emit_closure ctx hasret kind num_locals num_captures varaccs args exec p =
@@ -1034,7 +1034,7 @@ let emit_closure ctx hasret kind num_locals num_captures varaccs args exec p =
 	fun env ->
 		let refs = Array.sub env.captures 0 num_captures in
 		let f = fun ctx num_locals num_captures refs args varaccs vl ->
-			let env = push_environment ctx kind num_locals num_captures in
+			let env = ctx.push_environment ctx kind num_locals num_captures in
 			Array.iteri (fun i vr -> env.captures.(i) <- vr) refs;
 			handle_function_arguments args varaccs vl env;
 			run_function ctx exec env
@@ -1044,20 +1044,20 @@ let emit_closure ctx hasret kind num_locals num_captures varaccs args exec p =
 let emit_tfunction0 ctx hasret kind num_locals num_captures exec =
 	let run_function = if hasret then run_function else run_function_noret in
 	fun () ->
-		let env = push_environment ctx kind num_locals num_captures in
+		let env = ctx.push_environment ctx kind num_locals num_captures in
 		run_function ctx exec env
 
 let emit_tfunction1 ctx hasret kind num_locals num_captures arg1 varacc1 exec =
 	let run_function = if hasret then run_function else run_function_noret in
 	fun v1 ->
-		let env = push_environment ctx kind num_locals num_captures in
+		let env = ctx.push_environment ctx kind num_locals num_captures in
 		handle_function_argument arg1 varacc1 v1 env;
 		run_function ctx exec env
 
 let emit_tfunction2 ctx hasret kind num_locals num_captures arg1 varacc1 arg2 varacc2 exec =
 	let run_function = if hasret then run_function else run_function_noret in
 	fun v1 v2 ->
-		let env = push_environment ctx kind num_locals num_captures in
+		let env = ctx.push_environment ctx kind num_locals num_captures in
 		handle_function_argument arg1 varacc1 v1 env;
 		handle_function_argument arg2 varacc2 v2 env;
 		run_function ctx exec env
@@ -1065,7 +1065,7 @@ let emit_tfunction2 ctx hasret kind num_locals num_captures arg1 varacc1 arg2 va
 let emit_tfunction3 ctx hasret kind num_locals num_captures arg1 varacc1 arg2 varacc2 arg3 varacc3 exec =
 	let run_function = if hasret then run_function else run_function_noret in
 	fun v1 v2 v3 ->
-		let env = push_environment ctx kind num_locals num_captures in
+		let env = ctx.push_environment ctx kind num_locals num_captures in
 		handle_function_argument arg1 varacc1 v1 env;
 		handle_function_argument arg2 varacc2 v2 env;
 		handle_function_argument arg3 varacc3 v3 env;
@@ -1074,7 +1074,7 @@ let emit_tfunction3 ctx hasret kind num_locals num_captures arg1 varacc1 arg2 va
 let emit_tfunction4 ctx hasret kind num_locals num_captures arg1 varacc1 arg2 varacc2 arg3 varacc3 arg4 varacc4 exec =
 	let run_function = if hasret then run_function else run_function_noret in
 	fun v1 v2 v3 v4 ->
-		let env = push_environment ctx kind num_locals num_captures in
+		let env = ctx.push_environment ctx kind num_locals num_captures in
 		handle_function_argument arg1 varacc1 v1 env;
 		handle_function_argument arg2 varacc2 v2 env;
 		handle_function_argument arg3 varacc3 v3 env;
@@ -1084,7 +1084,7 @@ let emit_tfunction4 ctx hasret kind num_locals num_captures arg1 varacc1 arg2 va
 let emit_tfunction5 ctx hasret kind num_locals num_captures arg1 varacc1 arg2 varacc2 arg3 varacc3 arg4 varacc4 arg5 varacc5 exec =
 	let run_function = if hasret then run_function else run_function_noret in
 	fun v1 v2 v3 v4 v5 ->
-		let env = push_environment ctx kind num_locals num_captures in
+		let env = ctx.push_environment ctx kind num_locals num_captures in
 		handle_function_argument arg1 varacc1 v1 env;
 		handle_function_argument arg2 varacc2 v2 env;
 		handle_function_argument arg3 varacc3 v3 env;
@@ -1095,6 +1095,6 @@ let emit_tfunction5 ctx hasret kind num_locals num_captures arg1 varacc1 arg2 va
 let emit_tfunction ctx hasret kind num_locals num_captures args varaccs exec =
 	let run_function = if hasret then run_function else run_function_noret in
 	fun vl ->
-		let env = push_environment ctx kind num_locals num_captures in
+		let env = ctx.push_environment ctx kind num_locals num_captures in
 		handle_function_arguments args varaccs vl env;
 		run_function ctx exec env
