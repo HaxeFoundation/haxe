@@ -61,23 +61,22 @@ let error_exc v stack p =
 		let sstack = String.concat "\n" (List.map (fun p -> Printf.sprintf "\t%s" (format_pos p)) pl) in
 		Error.error (Printf.sprintf "%s: Uncaught exception %s\nCalled from:\n%s" (format_pos p) (value_string v) sstack) null_pos
 
-let restore_env ctx start_length =
-	for i = 0 to Stack.length ctx.environments - start_length - 1 do
-		let env = pop_environment ctx in
-		Stack.push env ctx.exception_stack;
-	done
+let build_exception_stack ctx environment_offset =
+	let d = DynArray.to_list (DynArray.sub ctx.environments environment_offset (ctx.environment_offset - environment_offset)) in
+	ctx.exception_stack <- List.map (fun env -> env.leave_pos,env.kind) d
 
 let catch_exceptions ctx f p =
 	let prev = !get_ctx_ref in
 	select ctx;
-	let stack_length = Stack.length ctx.environments in
+	let environment_offset = ctx.environment_offset in
 	let r = try
 		let v = f() in
 		get_ctx_ref := prev;
 		Some v
 	with
 	| RunTimeException(v,stack,p) ->
-		restore_env ctx stack_length;
+		build_exception_stack ctx environment_offset;
+		ctx.environment_offset <- environment_offset;
 		get_ctx_ref := prev;
 		error_exc v (match stack with [] -> [] | _ :: l -> l) p
 	| MacroApi.Abort ->

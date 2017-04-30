@@ -265,11 +265,12 @@ let emit_do_while_break_continue exec_cond exec_body env =
 
 let emit_try exec catches env =
 	let ctx = get_ctx() in
-	let stack_length = Stack.length ctx.environments in
+	let environment_offset = ctx.environment_offset in
 	try
 		exec env
 	with RunTimeException(v,_,_) as exc ->
-		restore_env ctx stack_length;
+		build_exception_stack ctx (environment_offset - 1);
+		ctx.environment_offset <- environment_offset;
 		let exec,_,varacc = try List.find (fun (_,path,i) -> is v path) catches with Not_found -> raise exc in
 		begin match varacc with
 			| Local slot -> env.locals.(slot) <- v

@@ -56,21 +56,19 @@ type context = {
 	mutable constructors : value Lazy.t IntMap.t;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
 	(* eval *)
-	environments : env Stack.t;
-	exception_stack : env Stack.t;
+	environments : env DynArray.t;
+	mutable environment_offset : int;
+	mutable exception_stack : (pos * env_kind) list;
 }
 
 let get_ctx_ref : (unit -> context) ref = ref (fun() -> assert false)
 let get_ctx () = (!get_ctx_ref)()
 let select ctx = get_ctx_ref := (fun() -> ctx)
 
-(* Exceptions *)
+(* Misc *)
 
-exception RunTimeException of value * env list * pos
-
-let rec kind_name ctx b = function
-	| EKLocalFunction i when b -> Printf.sprintf "localFunction%i" i
-	| EKLocalFunction i -> Printf.sprintf "%s.localFunction %i" (kind_name ctx true (Stack.top ctx.environments).kind) i
+let rec kind_name ctx = function
+	| EKLocalFunction i -> Printf.sprintf "localFunction%i" i
 	| EKMethod(i1,i2) -> Printf.sprintf "%s.%s" (rev_hash_s i1) (rev_hash_s i2)
 	| EKDelayed -> "delayed"
 
@@ -81,21 +79,6 @@ let vstring s =
 		iproto = proto;
 		ikind = IString(s,lazy (Rope.to_string s))
 	}
-
-let stack_to_list stack =
-	let l = DynArray.create () in
-	Stack.iter (fun env -> DynArray.add l env) stack;
-	DynArray.to_list l
-
-let throw v p =
-	let ctx = get_ctx() in
-	Stack.clear ctx.exception_stack;
-	if not (Stack.is_empty ctx.environments) then (Stack.top ctx.environments).leave_pos <- p;
-	raise (RunTimeException(v,stack_to_list ctx.environments,p))
-
-let exc v = throw v null_pos
-
-let exc_string str = exc (vstring (Rope.of_string str))
 
 let call_function f vl = match f,vl with
 	| Fun0 f,_ -> f()
@@ -128,6 +111,23 @@ let object_fields o =
 		else (key,(o.ofields.(index))) :: acc
 	) o.oproto.pinstance_names fields
 
+(* Exceptions *)
+
+exception RunTimeException of value * env list * pos
+
+let call_stack ctx =
+	List.rev (DynArray.to_list (DynArray.sub ctx.environments 0 ctx.environment_offset))
+
+let throw v p =
+	let ctx = get_ctx() in
+	if ctx.environment_offset > 0 then
+		(DynArray.get ctx.environments (ctx.environment_offset - 1)).leave_pos <- p;
+	raise (RunTimeException(v,call_stack ctx,p))
+
+let exc v = throw v null_pos
+
+let exc_string str = exc (vstring (Rope.of_string str))
+
 (* Environment handling *)
 
 let create_environment kind timer num_locals num_captures = {
@@ -140,16 +140,21 @@ let create_environment kind timer num_locals num_captures = {
 
 let push_environment ctx kind num_locals num_captures =
 	let timer = if ctx.detail_times then
-		Common.timer ["macro";"execution";kind_name ctx false kind]
+		Common.timer ["macro";"execution";kind_name ctx kind]
 	else
 		(fun () -> ())
 	in
 	let env = create_environment kind timer num_locals num_captures in
-	Stack.push env ctx.environments;
+	if ctx.environment_offset = DynArray.length ctx.environments then
+		DynArray.add ctx.environments env
+	else
+		DynArray.unsafe_set ctx.environments ctx.environment_offset env;
+	ctx.environment_offset <- ctx.environment_offset + 1;
 	env
 
 let pop_environment ctx =
-	let env = Stack.pop ctx.environments in
+	ctx.environment_offset <- ctx.environment_offset - 1;
+	let env = DynArray.unsafe_get ctx.environments ctx.environment_offset in
 	env.timer();
 	env
 

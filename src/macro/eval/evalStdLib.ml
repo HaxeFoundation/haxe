@@ -494,12 +494,12 @@ end
 module StdCallStack = struct
 	let make_stack envs =
 		let l = DynArray.create () in
-		List.iter (fun env ->
+		List.iter (fun (pos,kind) ->
 			let file_pos s =
-				let line = Lexer.get_error_line env.leave_pos in
-				encode_enum_value key_haxe_StackItem 2 [|s;encode_string env.leave_pos.pfile;vint line|] None
+				let line = Lexer.get_error_line pos in
+				encode_enum_value key_haxe_StackItem 2 [|s;encode_string pos.pfile;vint line|] None
 			in
-			match env.kind with
+			match kind with
 			| EKLocalFunction i ->
 				let local_function = encode_enum_value key_haxe_StackItem 4 [|vint i|] None in
 				DynArray.add l (file_pos local_function);
@@ -513,17 +513,17 @@ module StdCallStack = struct
 
 	let getCallStack = vfun0 (fun () ->
 		let ctx = get_ctx() in
-		let envs = stack_to_list ctx.environments in
+		let envs = call_stack ctx in
 		let envs = match envs with
 			| _ :: _ :: envs -> envs (* Skip calls to callStack() and getCallStack() *)
 			| _ -> envs
 		in
-		make_stack envs
+		make_stack (List.map (fun env -> env.leave_pos,env.kind) envs)
 	)
 
 	let getExceptionStack = vfun0 (fun () ->
 		let ctx = get_ctx() in
-		let envs = stack_to_list ctx.exception_stack in
+		let envs = ctx.exception_stack in
 		make_stack (List.rev envs)
 	)
 end

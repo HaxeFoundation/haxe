@@ -70,8 +70,9 @@ let create com api is_macro =
 		constructors = IntMap.empty;
 		get_object_prototype = get_object_prototype;
 		(* eval *)
-		environments = Stack.create();
-		exception_stack = Stack.create();
+		environments = DynArray.make 32;
+		environment_offset = 0;
+		exception_stack = [];
 	} in
 	t();
 	ctx
