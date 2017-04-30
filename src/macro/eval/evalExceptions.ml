@@ -64,7 +64,10 @@ let error_exc ctx v stack p =
 
 let build_exception_stack ctx environment_offset =
 	let d = if not ctx.debug then [] else DynArray.to_list (DynArray.sub ctx.environments environment_offset (ctx.environment_offset - environment_offset)) in
-	ctx.exception_stack <- List.map (fun env -> env.leave_pos,env.kind) d
+	ctx.exception_stack <- List.map (fun env ->
+		env.in_use <- false;
+		env.leave_pos,env.kind
+	) d
 
 let catch_exceptions ctx f p =
 	let prev = !get_ctx_ref in
