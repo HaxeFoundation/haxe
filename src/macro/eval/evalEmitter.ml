@@ -543,6 +543,44 @@ let emit_super_call f fnew execs p env =
 
 (* unknown call - full lookup *)
 
+let emit_call0 exec p env =
+	call0 (exec env) p env
+
+let emit_call1 exec exec1 p env =
+	let v0 = exec env in
+	let v1 = exec1 env in
+	call1 v0 v1 p env
+
+let emit_call2 exec exec1 exec2 p env =
+	let v0 = exec env in
+	let v1 = exec1 env in
+	let v2 = exec2 env in
+	call2 v0 v1 v2 p env
+
+let emit_call3 exec exec1 exec2 exec3 p env =
+	let v0 = exec env in
+	let v1 = exec1 env in
+	let v2 = exec2 env in
+	let v3 = exec3 env in
+	call3 v0 v1 v2 v3 p env
+
+let emit_call4 exec exec1 exec2 exec3 exec4 p env =
+	let v0 = exec env in
+	let v1 = exec1 env in
+	let v2 = exec2 env in
+	let v3 = exec3 env in
+	let v4 = exec4 env in
+	call4 v0 v1 v2 v3 v4 p env
+
+let emit_call5 exec exec1 exec2 exec3 exec4 exec5 p env =
+	let v0 = exec env in
+	let v1 = exec1 env in
+	let v2 = exec2 env in
+	let v3 = exec3 env in
+	let v4 = exec4 env in
+	let v5 = exec5 env in
+	call5 v0 v1 v2 v3 v4 v5 p env
+
 let emit_call exec execs p env =
 	let v1 = exec env in
 	env.leave_pos <- p;
@@ -1054,13 +1092,13 @@ let emit_closure ctx hasret kind num_locals num_captures varaccs args exec p =
 	let get_env = create_env_function ctx kind num_locals num_captures in
 	fun env ->
 		let refs = Array.sub env.captures 0 num_captures in
-		let f = fun ctx num_locals num_captures refs args varaccs vl ->
+		let f = fun vl ->
 			let env = get_env () in
 			Array.iteri (fun i vr -> env.captures.(i) <- vr) refs;
 			handle_function_arguments args varaccs vl env;
 			run_function ctx exec env
 		in
-		vstatic_function (FunN (f ctx num_locals num_captures refs args varaccs))
+		vstatic_function (FunN f)
 
 let emit_tfunction0 ctx hasret kind num_locals num_captures exec =
 	let run_function = if hasret then run_function else run_function_noret in
