@@ -81,7 +81,7 @@ class ObjectMap<K:{},V> extends flash.utils.Dictionary implements haxe.Constrain
 		return s + "}";
 	}
 }
-
+#if !as3
 private class NativePropertyIterator {
 	var collection:Dynamic;
 	var index:Int = 0;
@@ -139,3 +139,4 @@ private class NativeValueIterator {
 		return result;
 	}
 }
+#end
