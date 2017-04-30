@@ -192,7 +192,7 @@ let convert_param ctx p parent param =
 		in
 		let constraints = List.map (fun s -> if same_sig parent s then (TObject( (["java";"lang"], "Object"), [])) else s) constraints in
 		{
-			tp_name = name,null_pos;
+			tp_name = jname_to_hx name,null_pos;
 			tp_params = [];
 			tp_constraints = List.map (fun t -> convert_signature ctx p t,null_pos) constraints;
 			tp_meta = [];
@@ -903,11 +903,11 @@ let add_java_lib com file std =
 			let rec iter_files pack dir path = try
 				let file = Unix.readdir dir in
 				let filepath = path ^ "/" ^ file in
-				(if String.ends_with file ".class" && not (String.exists file "$") then
-					let file = String.sub file 0 (String.length file - 6) in
-					let path = jpath_to_hx (pack,file) in
-					all := path :: !all;
-					Hashtbl.add hxpack_to_jpack path (pack,file)
+				(if String.ends_with file ".class" then
+					let name = String.sub file 0 (String.length file - 6) in
+					let path = jpath_to_hx (pack,name) in
+					if not (String.exists file "$") then all := path :: !all;
+					Hashtbl.add hxpack_to_jpack path (pack,name)
 				else if (Unix.stat filepath).st_kind = S_DIR && file <> "." && file <> ".." then
 					let pack = pack @ [file] in
 					iter_files (pack) (Unix.opendir filepath) filepath);
