@@ -119,10 +119,10 @@ build_pass_1:
 
 build_pass_2:
 	printf MODULES= > Makefile.modules
-	ocamlfind ocamldep -sort -slash $(HAXE_INCLUDES) $(FINDLIB_PACKAGES) $(MODULES) | sed -e "s/\.ml//g" >> Makefile.modules
+	ocamlfind ocamldep -sort -slash $(HAXE_INCLUDES) $(MODULES) | sed -e "s/\.ml//g" >> Makefile.modules
 
 build_pass_3:
-	ocamlfind ocamldep -slash -native $(HAXE_INCLUDES) $(FINDLIB_PACKAGES) $(MODULES:%=%.ml) > Makefile.dependencies
+	ocamlfind ocamldep -slash -native $(HAXE_INCLUDES) $(MODULES:%=%.ml) > Makefile.dependencies
 
 build_pass_4: $(MODULES:%=%.$(MODULE_EXT))
 	$(COMPILER) -linkpkg -o $(OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(FINDLIB_PACKAGES) $(EXTLIB_INCLUDES) $(EXTLIB_LIBS:=.$(LIB_EXT)) $(MODULES:%=%.$(MODULE_EXT))
