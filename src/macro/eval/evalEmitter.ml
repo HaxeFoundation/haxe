@@ -391,49 +391,72 @@ let call5 v v1 v2 v3 v4 v5 p env =
 	| VFieldClosure(v0,f) -> call_function f [v0;v1;v2;v3;v4;v5]
 	| _ -> cannot_call v p
 
-let emit_proto_field_call0 proto i p env =
-	let vf = proto.pfields.(i) in
-	call0 vf p env
-
-let emit_proto_field_call1 proto i exec1 p env =
-	let vf = proto.pfields.(i) in
-	let v1 = exec1 env in
-	call1 vf v1 p env
-
-let emit_proto_field_call2 proto i exec1 exec2 p env =
-	let vf = proto.pfields.(i) in
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	call2 vf v1 v2 p env
-
-let emit_proto_field_call3 proto i exec1 exec2 exec3 p env =
-	let vf = proto.pfields.(i) in
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	let v3 = exec3 env in
-	call3 vf v1 v2 v3 p env
-
-let emit_proto_field_call4 proto i exec1 exec2 exec3 exec4 p env =
-	let vf = proto.pfields.(i) in
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	let v3 = exec3 env in
-	let v4 = exec4 env in
-	call4 vf v1 v2 v3 v4 p env
-
-let emit_proto_field_call5 proto i exec1 exec2 exec3 exec4 exec5 p env =
-	let vf = proto.pfields.(i) in
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	let v3 = exec3 env in
-	let v4 = exec4 env in
-	let v5 = exec5 env in
-	call5 vf v1 v2 v3 v4 v5 p env
-
-let emit_proto_field_call proto i execs p env =
-	let vf = proto.pfields.(i) in
-	env.leave_pos <- p;
-	call_value vf (List.map (apply env) execs)
+let emit_proto_field_call record_stack proto i execs p =
+	match execs with
+		| [] ->
+			let vf = lazy (match proto.pfields.(i) with VFunction (Fun0 f,_) -> f | v -> cannot_call v p) in
+			(fun env ->
+				if record_stack then env.leave_pos <- p;
+				(Lazy.force vf) ()
+			)
+		| [exec1] ->
+			let vf = lazy (match proto.pfields.(i) with VFunction (Fun1 f,_) -> f | v -> cannot_call v p) in
+			(fun env ->
+				let f = Lazy.force vf in
+				let v1 = exec1 env in
+				if record_stack then env.leave_pos <- p;
+				f v1
+			)
+		| [exec1;exec2] ->
+			let vf = lazy (match proto.pfields.(i) with VFunction (Fun2 f,_) -> f | v -> cannot_call v p) in
+			(fun env ->
+				let f = Lazy.force vf in
+				let v1 = exec1 env in
+				let v2 = exec2 env in
+				if record_stack then env.leave_pos <- p;
+				f v1 v2
+			)
+		| [exec1;exec2;exec3] ->
+			let vf = lazy (match proto.pfields.(i) with VFunction (Fun3 f,_) -> f | v -> cannot_call v p) in
+			(fun env ->
+				let f = Lazy.force vf in
+				let v1 = exec1 env in
+				let v2 = exec2 env in
+				let v3 = exec3 env in
+				if record_stack then env.leave_pos <- p;
+				f v1 v2 v3
+			)
+		| [exec1;exec2;exec3;exec4] ->
+			let vf = lazy (match proto.pfields.(i) with VFunction (Fun4 f,_) -> f | v -> cannot_call v p) in
+			(fun env ->
+				let f = Lazy.force vf in
+				let v1 = exec1 env in
+				let v2 = exec2 env in
+				let v3 = exec3 env in
+				let v4 = exec4 env in
+				if record_stack then env.leave_pos <- p;
+				f v1 v2 v3 v4
+			)
+		| [exec1;exec2;exec3;exec4;exec5] ->
+			let vf = lazy (match proto.pfields.(i) with VFunction (Fun5 f,_) -> f | v -> cannot_call v p) in
+			(fun env ->
+				let f = Lazy.force vf in
+				let v1 = exec1 env in
+				let v2 = exec2 env in
+				let v3 = exec3 env in
+				let v4 = exec4 env in
+				let v5 = exec5 env in
+				if record_stack then env.leave_pos <- p;
+				f v1 v2 v3 v4 v5
+			)
+		| _ ->
+			let vf = lazy (match proto.pfields.(i) with VFunction (FunN f,_) -> f | v -> cannot_call v p) in
+			(fun env ->
+				let f = Lazy.force vf in
+				let vl = List.map (fun exec -> exec env) execs in
+				if record_stack then env.leave_pos <- p;
+				f vl
+			)
 
 (* instance.call() where call is overridden - dynamic dispatch *)
 

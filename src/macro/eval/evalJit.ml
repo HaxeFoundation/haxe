@@ -585,15 +585,6 @@ and jit_expr return jit e =
 				| Method _ -> true
 				| Var _ -> false
 			in
-			let proto_field_call proto i execs = match execs with
-				| [] -> emit_proto_field_call0 proto i e.epos
-				| [exec1] -> emit_proto_field_call1 proto i exec1 e.epos
-				| [exec1;exec2] -> emit_proto_field_call2 proto i exec1 exec2 e.epos
-				| [exec1;exec2;exec3] -> emit_proto_field_call3 proto i exec1 exec2 exec3 e.epos
-				| [exec1;exec2;exec3;exec4] -> emit_proto_field_call4 proto i exec1 exec2 exec3 exec4 e.epos
-				| [exec1;exec2;exec3;exec4;exec5] -> emit_proto_field_call5 proto i exec1 exec2 exec3 exec4 exec5 e.epos
-				| _ -> emit_proto_field_call proto i execs e.epos
-			in
 			begin match fa with
 				| FStatic({cl_path=[],"Type"},{cf_name="enumIndex"}) ->
 					begin match execs with
@@ -612,15 +603,15 @@ and jit_expr return jit e =
 						| [exec1;exec2;exec3;exec4;exec5] -> emit_enum_construction5 key ef.ef_index exec1 exec2 exec3 exec4 exec5 pos
 						| _ -> emit_enum_construction key ef.ef_index (Array.of_list execs) pos
 					end
-				| FStatic({cl_path=path},_) ->
+				| FStatic({cl_path=path},cf) when is_proper_method cf ->
 					let proto = get_static_prototype ctx (path_hash path) ef.epos in
 					let i = get_proto_field_index proto name in
-					proto_field_call proto i execs
+					emit_proto_field_call ctx.record_stack proto i execs e.epos
 				| FInstance(c,_,cf) when is_proper_method cf && not (is_overridden c cf.cf_name) && not c.cl_interface ->
 					let exec = jit_expr false jit ef in
 					let proto = get_instance_prototype ctx (path_hash c.cl_path) ef.epos in
 					let i = get_proto_field_index proto name in
-					proto_field_call proto i (exec :: execs)
+					emit_proto_field_call ctx.record_stack proto i (exec :: execs) e.epos
 				| FInstance(_,_,cf) when is_proper_method cf ->
 					let exec = jit_expr false jit ef in
 					begin match execs with
