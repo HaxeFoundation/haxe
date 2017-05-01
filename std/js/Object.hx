@@ -27,7 +27,7 @@ import haxe.DynamicAccess;
 @:native("Object")
 extern class Object {
 	static function assign<T:{}>(target:T, sources:Rest<{}>):T;
-	@:pure static function create<T:{}>(proto:{}, ?propertiesObject:DynamicAccess<ObjectPropertyDescriptor>):T;
+	@:pure static function create<T>(proto:{}, ?propertiesObject:DynamicAccess<ObjectPropertyDescriptor>):T;
 	static function defineProperties<T:{}>(obj:T, props:DynamicAccess<ObjectPropertyDescriptor>):T;
 	static function defineProperty<T:{}>(obj:T, prop:String, descriptor:ObjectPropertyDescriptor):T;
 	static function freeze<T:{}>(obj:T):T;

@@ -1813,7 +1813,7 @@ let parse_string com s p error inlined =
 	display_error := (fun e p -> raise (Error (e,p)));
 	if not inlined then resume_display := null_pos;
 	let pack, decls = try
-		parse com (Lexing.from_string s)
+		parse com (Sedlexing.Utf8.from_string s)
 	with Error (e,pe) ->
 		restore();
 		error (error_msg e) (if inlined then pe else p)

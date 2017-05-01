@@ -148,45 +148,54 @@ class Sha224 {
         return blks;
     }
 
-    static function safeAdd(x, y) {
+    @:extern
+    inline static function safeAdd(x, y) {
         var lsw = (x & 0xFFFF) + (y & 0xFFFF);
         var msw = (x >>> 16) + (y >>> 16) + (lsw >>> 16);
         return ((msw & 0xFFFF) << 16) | (lsw & 0xFFFF);
     }
 
     // ++
-    function ROTR(X, n) {
+    @:extern
+    inline function ROTR(X, n) {
         return ( X >>> n ) | (X << (32 - n));
     }
 
     // ++
-    function SHR(X, n) {
+    @:extern
+    inline function SHR(X, n) {
         return ( X >>> n );
     }
 
     // ++
-    function Ch(x, y, z) {
+    @:extern
+    inline function Ch(x, y, z) {
         return ((x & y) ^ ((~x) & z));
     }
 
     // ++
-    function Maj(x, y, z) {
+    @:extern
+    inline function Maj(x, y, z) {
         return ((x & y) ^ (x & z) ^ (y & z));
     }
 
-    function Sigma0(x) {
+    @:extern
+    inline function Sigma0(x) {
         return ROTR(x, 2) ^ ROTR(x, 13) ^ ROTR(x, 22);
     }
 
-    function Sigma1(x) {
+    @:extern
+    inline function Sigma1(x) {
         return ROTR(x, 6) ^ ROTR(x, 11) ^ ROTR(x, 25);
     }
 
-    function Gamma0(x) {
+    @:extern
+    inline function Gamma0(x) {
         return ROTR(x, 7) ^ ROTR(x, 18) ^ SHR(x, 3);
     }
 
-    function Gamma1(x) {
+    @:extern
+    inline function Gamma1(x) {
         return ROTR(x, 17) ^ ROTR(x, 19) ^ SHR(x, 10);
     }
 

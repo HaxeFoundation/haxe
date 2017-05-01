@@ -5,3 +5,4 @@ B libs/**
 B +threads
 PKG rope
 PKG ptmap
+PKG sedlex

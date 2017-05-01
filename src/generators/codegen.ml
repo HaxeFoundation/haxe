@@ -855,7 +855,7 @@ let interpolate_code com code tl f_string f_expr p =
 				let expr = Array.get exprs (int_of_string n) in
 				f_expr expr;
 			with
-			| Failure "int_of_string" ->
+			| Failure _ ->
 				f_string ("{" ^ n ^ "}");
 			| Invalid_argument _ ->
 				err ("Out-of-bounds special parameter: " ^ n)
