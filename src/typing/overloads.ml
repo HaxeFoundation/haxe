@@ -36,7 +36,7 @@ let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 			(try
 				List.for_all2 (fun (_,_,t1) (_,_,t2) ->
 				same_arg t1 t2) a1 a2
-			with | Invalid_argument("List.for_all2") ->
+			with Invalid_argument _ ->
 				false)
 		| _ -> assert false
 

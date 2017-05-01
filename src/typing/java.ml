@@ -546,7 +546,7 @@ and compatible_tparams p1 p2 = try match p1, p2 with
 		List.for_all2 compatible_param p1 p2
 	| _, _ ->
 		List.for_all2 compatible_param p1 p2
-	with | Invalid_argument("List.for_all2") -> false
+	with | Invalid_argument _ -> false
 
 let get_adapted_sig f f2 = match f.jf_types with
 	| [] ->
@@ -588,7 +588,7 @@ let jclass_with_params com cls params = try
 			csuper = japply_params jparams cls.csuper;
 			cinterfaces = List.map (japply_params jparams) cls.cinterfaces;
 		}
-	with Invalid_argument("List.map2") ->
+	with Invalid_argument _ ->
 		if com.verbose then prerr_endline ("Differing parameters for class: " ^ s_type_path cls.cpath);
 		cls
 
