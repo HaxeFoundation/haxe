@@ -38,7 +38,7 @@ EXTLIB_INCLUDES=$(EXTLIB_LIBS:%=-I libs/%)
 ALL_INCLUDES=$(EXTLIB_INCLUDES) $(HAXE_INCLUDES)
 FINDLIB_PACKAGES=$(FINDLIB_LIBS:%=-package %)
 CFLAGS=
-ALL_CFLAGS=-bin-annot -thread -g -w -3 $(CFLAGS) $(ALL_INCLUDES) $(FINDLIB_PACKAGES)
+ALL_CFLAGS=-bin-annot -safe-string -thread -g -w -3 $(CFLAGS) $(ALL_INCLUDES) $(FINDLIB_PACKAGES)
 
 ifeq ($(BYTECODE),1)
 	TARGET_FLAG = bytecode
@@ -125,7 +125,7 @@ build_pass_3:
 	ocamlfind ocamldep -slash -native $(HAXE_INCLUDES) $(MODULES:%=%.ml) > Makefile.dependencies
 
 build_pass_4: $(MODULES:%=%.$(MODULE_EXT))
-	$(COMPILER) -linkpkg -o $(OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(FINDLIB_PACKAGES) $(EXTLIB_INCLUDES) $(EXTLIB_LIBS:=.$(LIB_EXT)) $(MODULES:%=%.$(MODULE_EXT))
+	$(COMPILER) -safe-string -linkpkg -o $(OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(FINDLIB_PACKAGES) $(EXTLIB_INCLUDES) $(EXTLIB_LIBS:=.$(LIB_EXT)) $(MODULES:%=%.$(MODULE_EXT))
 
 haxelib:
 	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(OUTPUT) client.hxml && nekotools boot run.n)

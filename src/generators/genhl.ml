@@ -3378,7 +3378,7 @@ let write_code ch code debug =
 				assert false
 	in
 
-	IO.nwrite ch "HLB";
+	IO.nwrite_string ch "HLB";
 	byte code.version;
 
 	let flags = ref 0 in
