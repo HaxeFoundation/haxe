@@ -4,3 +4,7 @@ S libs/**
 B libs/**
 B +threads
 PKG sedlex
+PKG extlib
+PKG camlzip
+PKG xml-light
+FLG -safe-string

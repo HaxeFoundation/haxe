@@ -515,7 +515,7 @@ let set_default ctx a c p =
 let bytes_serialize data =
 	let b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/" in
 	let tbl = Array.init (String.length b64) (fun i -> String.get b64 i) in
-	Base64.str_encode ~tbl data
+	Bytes.unsafe_to_string (Base64.str_encode ~tbl data)
 
 (*
 	Tells if the constructor might be called without any issue whatever its parameters
