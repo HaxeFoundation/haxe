@@ -1083,13 +1083,13 @@ let run_function ctx exec env =
 	with
 		| Return v -> v
 	in
-	env.in_use <- false;
+	if env.in_use then env.in_use <- false;
 	ctx.pop_environment ctx env;
 	v
 
 let run_function_noret ctx exec env =
 	let v = exec env in
-	env.in_use <- false;
+	if env.in_use then env.in_use <- false;
 	ctx.pop_environment ctx env;
 	v
 

@@ -147,7 +147,7 @@ let push_environment_debug ctx kind num_locals num_captures =
 	in
 	let env = {
 		leave_pos = null_pos;
-		in_use = true;
+		in_use = false;
 		timer = timer;
 		kind = kind;
 		locals = Array.make num_locals vnull;
@@ -173,7 +173,7 @@ let create_default_environment ctx kind num_locals =
 let push_environment ctx kind num_locals num_captures =
 	{
 		leave_pos = null_pos;
-		in_use = true;
+		in_use = false;
 		timer = no_timer;
 		kind = kind;
 		locals = Array.make num_locals vnull;
