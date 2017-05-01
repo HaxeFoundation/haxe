@@ -8,7 +8,7 @@
 #  - use 'make -f Makefile.win' to build for Windows
 #  - use 'make MSVC=1 -f Makefile.win' to build for Windows with OCaml/MSVC
 #
-.SUFFIXES : .ml .mli .cmo .cmi .cmx .mll .mly
+.SUFFIXES : .ml .mli .cmo .cmi .cmx .mly
 
 INSTALL_DIR=$(DESTDIR)/usr
 INSTALL_BIN_DIR=$(INSTALL_DIR)/bin
@@ -29,7 +29,7 @@ STATICLINK?=0
 
 HAXE_DIRECTORIES=compiler context generators generators/gencommon macro filters optimization syntax typing display
 EXTLIB_LIBS=extlib extc neko javalib ziplib swflib xml-light ttflib ilib objsize pcre
-FINDLIB_LIBS=unix str threads
+FINDLIB_LIBS=unix str threads sedlex
 
 # Includes, packages and compiler
 
