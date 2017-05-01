@@ -800,6 +800,7 @@ let run_expression_filters ctx filters t =
 	| TClassDecl c ->
 		ctx.curclass <- c;
 		let rec process_field f =
+			ctx.curfield <- f;
 			(match f.cf_expr with
 			| Some e when not (is_removable_field ctx f) ->
 				AbstractCast.cast_stack := f :: !AbstractCast.cast_stack;
@@ -866,8 +867,8 @@ let run com tctx main =
 	let filters = [
 		VarLazifier.apply com;
 		AbstractCast.handle_abstract_casts tctx;
-		Optimizer.inline_constructors tctx;
 		check_local_vars_init;
+		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
 		Optimizer.reduce_expression tctx;
 		CapturedVars.captured_vars com;
 	] in
