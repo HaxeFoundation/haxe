@@ -73,10 +73,18 @@ let select ctx = get_ctx_ref := (fun() -> ctx)
 
 (* Misc *)
 
-let rec kind_name ctx = function
-	| EKLocalFunction i -> Printf.sprintf "localFunction%i" i
-	| EKMethod(i1,i2) -> Printf.sprintf "%s.%s" (rev_hash_s i1) (rev_hash_s i2)
-	| EKDelayed -> "delayed"
+let rec kind_name ctx kind = 
+	let rec loop kind env_id = match kind, env_id with
+		| EKLocalFunction i, 0 -> 
+			Printf.sprintf "localFunction%i" i
+		| EKLocalFunction i, env_id -> 
+			let parent_id = env_id - 1 in 
+			let env = DynArray.get ctx.environments parent_id in
+			Printf.sprintf "%s.localFunction%i" (loop env.kind parent_id) i
+		| EKMethod(i1,i2),_ -> Printf.sprintf "%s.%s" (rev_hash_s i1) (rev_hash_s i2)
+		| EKDelayed,_ -> "delayed"
+	in
+	loop kind ctx.environment_offset
 
 let vstring s =
 	let proto = (get_ctx()).string_prototype in
