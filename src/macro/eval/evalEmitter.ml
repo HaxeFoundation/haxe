@@ -529,58 +529,165 @@ let emit_field_call exec name execs p env =
 
 (* new() - immediate + this-binding *)
 
-let emit_constructor_call0 proto fnew p env =
+let emit_constructor_call0 proto vf p env =
 	let vthis = create_instance_direct proto in
-	ignore(call1 (Lazy.force fnew) vthis p env);
+	env.leave_pmin <- p.pmin;
+	env.leave_pmax <- p.pmax;
+	ignore((Lazy.force vf) vthis);
 	vthis
 
-let emit_constructor_call1 proto fnew exec1 p env =
+let emit_constructor_call1 proto vf exec1 p env =
+	let f = Lazy.force vf in
 	let vthis = create_instance_direct proto in
 	let v1 = exec1 env in
-	ignore(call2 (Lazy.force fnew) vthis v1 p env);
+	env.leave_pmin <- p.pmin;
+	env.leave_pmax <- p.pmax;
+	ignore(f vthis v1);
 	vthis
 
-let emit_constructor_call2 proto fnew exec1 exec2 p env =
+let emit_constructor_call2 proto vf exec1 exec2 p env =
+	let f = Lazy.force vf in
 	let vthis = create_instance_direct proto in
 	let v1 = exec1 env in
 	let v2 = exec2 env in
-	ignore(call3 (Lazy.force fnew) vthis v1 v2 p env);
+	env.leave_pmin <- p.pmin;
+	env.leave_pmax <- p.pmax;
+	ignore(f vthis v1 v2);
 	vthis
 
-let emit_constructor_call3 proto fnew exec1 exec2 exec3 p env =
+let emit_constructor_call3 proto vf exec1 exec2 exec3 p env =
+	let f = Lazy.force vf in
 	let vthis = create_instance_direct proto in
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	let v3 = exec3 env in
-	ignore(call4 (Lazy.force fnew) vthis v1 v2 v3 p env);
+	env.leave_pmin <- p.pmin;
+	env.leave_pmax <- p.pmax;
+	ignore(f vthis v1 v2 v3);
 	vthis
 
-let emit_constructor_call4 proto fnew exec1 exec2 exec3 exec4 p env =
+let emit_constructor_call4 proto vf exec1 exec2 exec3 exec4 p env =
+	let f = Lazy.force vf in
 	let vthis = create_instance_direct proto in
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	let v3 = exec3 env in
 	let v4 = exec4 env in
-	ignore(call5 (Lazy.force fnew) vthis v1 v2 v3 v4 p env);
-	vthis
-
-let emit_constructor_call proto fnew execs p env =
-	let vthis = create_instance_direct proto in
-	let vl = List.map (apply env) execs in
 	env.leave_pmin <- p.pmin;
 	env.leave_pmax <- p.pmax;
-	ignore(call_value_on vthis (Lazy.force fnew) vl);
+	ignore(f vthis v1 v2 v3 v4);
 	vthis
+
+let emit_constructor_callN proto vf execs p env =
+	let f = Lazy.force vf in
+	let vthis = create_instance_direct proto in
+	let vl = List.map (fun exec -> exec env) execs in
+	env.leave_pmin <- p.pmin;
+	env.leave_pmax <- p.pmax;
+	ignore(f (vthis :: vl));
+	vthis
+
+let emit_constructor_call proto fnew execs p =
+	match execs with
+		| [] ->
+			let vf = lazy (match Lazy.force fnew with VFunction (Fun1 f,_) -> f | v -> cannot_call v p) in
+			emit_constructor_call0 proto vf p
+		| [exec1] ->
+			let vf = lazy (match Lazy.force fnew with VFunction (Fun2 f,_) -> f | v -> cannot_call v p) in
+			emit_constructor_call1 proto vf exec1 p
+		| [exec1;exec2] ->
+			let vf = lazy (match Lazy.force fnew with VFunction (Fun3 f,_) -> f | v -> cannot_call v p) in
+			emit_constructor_call2 proto vf exec1 exec2 p
+		| [exec1;exec2;exec3] ->
+			let vf = lazy (match Lazy.force fnew with VFunction (Fun4 f,_) -> f | v -> cannot_call v p) in
+			emit_constructor_call3 proto vf exec1 exec2 exec3 p
+		| [exec1;exec2;exec3;exec4] ->
+			let vf = lazy (match Lazy.force fnew with VFunction (Fun5 f,_) -> f | v -> cannot_call v p) in
+			emit_constructor_call4 proto vf exec1 exec2 exec3 exec4 p
+		| _ ->
+			let vf = lazy (match Lazy.force fnew with VFunction (FunN f,_) -> f | v -> cannot_call v p) in
+			emit_constructor_callN proto vf execs p
 
 (* super() - immediate + this-binding *)
 
-let emit_super_call f fnew execs p env =
-	let vl = List.map (apply env) execs in
-	let vthis = f env in
+let emit_super_call0 vf p env =
+	let vthis = env.locals.(0) in
 	env.leave_pmin <- p.pmin;
 	env.leave_pmax <- p.pmax;
-	ignore(call_value_on vthis (Lazy.force fnew) vl);
+	ignore((Lazy.force vf) vthis);
 	vthis
+
+let emit_super_call1 vf exec1 p env =
+	let f = Lazy.force vf in
+	let vthis = env.locals.(0) in
+	let v1 = exec1 env in
+	env.leave_pmin <- p.pmin;
+	env.leave_pmax <- p.pmax;
+	ignore(f vthis v1);
+	vthis
+
+let emit_super_call2 vf exec1 exec2 p env =
+	let f = Lazy.force vf in
+	let vthis = env.locals.(0) in
+	let v1 = exec1 env in
+	let v2 = exec2 env in
+	env.leave_pmin <- p.pmin;
+	env.leave_pmax <- p.pmax;
+	ignore(f vthis v1 v2);
+	vthis
+
+let emit_super_call3 vf exec1 exec2 exec3 p env =
+	let f = Lazy.force vf in
+	let vthis = env.locals.(0) in
+	let v1 = exec1 env in
+	let v2 = exec2 env in
+	let v3 = exec3 env in
+	env.leave_pmin <- p.pmin;
+	env.leave_pmax <- p.pmax;
+	ignore(f vthis v1 v2 v3);
+	vthis
+
+let emit_super_call4 vf exec1 exec2 exec3 exec4 p env =
+	let f = Lazy.force vf in
+	let vthis = env.locals.(0) in
+	let v1 = exec1 env in
+	let v2 = exec2 env in
+	let v3 = exec3 env in
+	let v4 = exec4 env in
+	env.leave_pmin <- p.pmin;
+	env.leave_pmax <- p.pmax;
+	ignore(f vthis v1 v2 v3 v4);
+	vthis
+
+let emit_super_callN vf execs p env =
+	let f = Lazy.force vf in
+	let vthis = env.locals.(0) in
+	let vl = List.map (fun exec -> exec env) execs in
+	env.leave_pmin <- p.pmin;
+	env.leave_pmax <- p.pmax;
+	ignore(f (vthis :: vl));
+	vthis
+
+let emit_super_call fnew execs p =
+	match execs with
+		| [] ->
+			let vf = lazy (match Lazy.force fnew with VFunction (Fun1 f,_) -> f | v -> cannot_call v p) in
+			emit_super_call0 vf p
+		| [exec1] ->
+			let vf = lazy (match Lazy.force fnew with VFunction (Fun2 f,_) -> f | v -> cannot_call v p) in
+			emit_super_call1 vf exec1 p
+		| [exec1;exec2] ->
+			let vf = lazy (match Lazy.force fnew with VFunction (Fun3 f,_) -> f | v -> cannot_call v p) in
+			emit_super_call2 vf exec1 exec2 p
+		| [exec1;exec2;exec3] ->
+			let vf = lazy (match Lazy.force fnew with VFunction (Fun4 f,_) -> f | v -> cannot_call v p) in
+			emit_super_call3 vf exec1 exec2 exec3 p
+		| [exec1;exec2;exec3;exec4] ->
+			let vf = lazy (match Lazy.force fnew with VFunction (Fun5 f,_) -> f | v -> cannot_call v p) in
+			emit_super_call4 vf exec1 exec2 exec3 exec4 p
+		| _ ->
+			let vf = lazy (match Lazy.force fnew with VFunction (FunN f,_) -> f | v -> cannot_call v p) in
+			emit_super_callN vf execs p
 
 (* unknown call - full lookup *)
 

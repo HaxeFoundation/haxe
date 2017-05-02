@@ -634,9 +634,8 @@ and jit_expr return jit e =
 			| TInst(c,_) ->
 				let key = (path_hash c.cl_path) in
 				let execs = List.map (jit_expr false jit) el in
-				let f = emit_local_read (get_slot jit 0 e1.epos) in
 				let fnew = get_instance_constructor jit.ctx key e1.epos in
-				emit_super_call f fnew execs e.epos
+				emit_super_call fnew execs e.epos
 			| _ -> assert false
 			end
 		| _ ->
@@ -675,14 +674,7 @@ and jit_expr return jit e =
 		with Not_found ->
 			let fnew = get_instance_constructor jit.ctx key e.epos in
 			let proto = get_instance_prototype jit.ctx key e.epos in
-			begin match execs with
-				| [] -> emit_constructor_call0 proto fnew e.epos
-				| [exec1] -> emit_constructor_call1 proto fnew exec1 e.epos
-				| [exec1;exec2] -> emit_constructor_call2 proto fnew exec1 exec2 e.epos
-				| [exec1;exec2;exec3] -> emit_constructor_call3 proto fnew exec1 exec2 exec3 e.epos
-				| [exec1;exec2;exec3;exec4] -> emit_constructor_call4 proto fnew exec1 exec2 exec3 exec4 e.epos
-				| _ -> emit_constructor_call proto fnew execs e.epos
-			end
+			emit_constructor_call proto fnew execs e.epos
 		end
 	(* read *)
 	| TLocal var ->
