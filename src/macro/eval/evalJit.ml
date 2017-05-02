@@ -58,6 +58,10 @@ module JitContext = struct
 
 	type t = {
 		ctx : context;
+		(* The hash of the file this function was defined in. *)
+		file_key : int;
+		(* The breakpoints for our current file. *)
+		breakpoints : (int,breakpoint) Hashtbl.t option;
 		(* The scope stack. *)
 		mutable scopes : scope list;
 		(* The captured variables declared in this context. Maps variable IDs to capture slots. *)
@@ -70,17 +74,22 @@ module JitContext = struct
 		mutable num_closures : int;
 		(* Whether or not this function has a return that's not at the end of control flow. *)
 		mutable has_nonfinal_return : bool;
+		(* The last line we saw (used for breakpoint handling). *)
+		mutable last_line : int;
 	}
 
 	(* Creates a new context *)
-	let create ctx = {
+	let create ctx file_key = {
 		ctx = ctx;
+		file_key = file_key;
 		scopes = [];
 		captures = Hashtbl.create 0;
 		local_count = 0;
 		max_local_count = 0;
 		num_closures = 0;
 		has_nonfinal_return = false;
+		last_line = 0;
+		breakpoints = (try Some (Hashtbl.find ctx.builtins.breakpoints file_key) with Not_found -> None);
 	}
 
 	(* Returns the number of locals in [scope]. *)
@@ -336,7 +345,7 @@ and jit_expr return jit e =
 		let proto = get_static_prototype_as_value jit.ctx key e.epos in
 		emit_type_expr proto
 	| TFunction tf ->
-		let jit_closure = JitContext.create ctx in
+		let jit_closure = JitContext.create ctx jit.file_key in
 		jit_closure.captures <- jit.captures;
 		push_scope jit_closure;
 		let varaccs = List.map (fun (var,_) -> declare_local jit_closure var) tf.tf_args in
@@ -772,13 +781,35 @@ and jit_expr return jit e =
 	| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 		loop e1
 	in
-	loop e
+	let break = match jit.breakpoints with
+		| None -> false
+		| Some breakpoints ->
+			let line = Lexer.get_error_line e.epos in
+			if line = jit.last_line then
+				false
+			else begin
+				jit.last_line <- line;
+				try
+					let _ = Hashtbl.find breakpoints line in
+					true
+				with Not_found ->
+					false
+			end
+	in
+	let f = loop e in
+	if break then
+		(fun env ->
+			print_endline ("Breaking before executing " ^ (s_expr_pretty e));
+			f env
+		)
+	else
+		f
 
 (* Creates a [EvalValue.vfunc] of function [tf], which can be [static] or not. *)
 let jit_tfunction ctx key_type key_field tf static =
 	let t = Common.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
 	(* Create a new JitContext with an initial scope *)
-	let jit = JitContext.create ctx in
+	let jit = JitContext.create ctx (hash_s (Path.unique_full_path tf.tf_expr.epos.pfile)) in
 	push_scope jit;
 	(* Declare `this` (if not static) and function arguments as local variables. *)
 	let varaccs = if static then [] else [declare_local_this jit] in
@@ -807,7 +838,7 @@ let jit_tfunction ctx key_type key_field tf static =
 (* JITs expression [e] to a function. This is used for expressions that are not in a method. *)
 let jit_expr ctx e =
 	let t = Common.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
-	let jit = JitContext.create ctx in
+	let jit = JitContext.create ctx (hash_s (Path.unique_full_path e.epos.pfile)) in
 	let f = jit_expr false jit (mk_block e) in
 	t();
 	jit,f

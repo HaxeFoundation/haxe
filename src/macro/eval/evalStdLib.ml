@@ -583,6 +583,22 @@ module StdCompress = struct
 end
 
 module StdContext = struct
+	let addBreakpoint = vfun2 (fun file line ->
+		let file = decode_string file in
+		let line = decode_int line in
+		let hash = hash_s (Path.unique_full_path file) in
+		let ctx = get_ctx() in
+		begin try
+			let h = Hashtbl.find ctx.builtins.breakpoints hash in
+			Hashtbl.replace h line {bpline = line};
+		with Not_found ->
+			let h = Hashtbl.create 1 in
+			Hashtbl.add h line {bpline = line};
+			Hashtbl.add ctx.builtins.breakpoints hash h
+		end;
+		vnull
+	)
+
 	let callMacroApi = vfun1 (fun f ->
 		let f = decode_string f in
 		Hashtbl.find macro_lib f
@@ -2675,6 +2691,7 @@ let init_standard_library builtins =
 		"setFlushMode",StdCompress.setFlushMode;
 	];
 	init_fields builtins (["eval";"vm"],"Context") [
+		"addBreakpoint",StdContext.addBreakpoint;
 		"callMacroApi",StdContext.callMacroApi;
 	] [];
 	init_fields builtins ([],"Date") [

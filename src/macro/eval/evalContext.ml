@@ -41,11 +41,16 @@ type env = {
 	captures : value ref array;
 }
 
+type breakpoint = {
+	bpline : int;
+}
+
 type builtins = {
 	mutable instance_builtins : (int * value) list IntMap.t;
 	mutable static_builtins : (int * value) list IntMap.t;
 	constructor_builtins : (int,value list -> value) Hashtbl.t;
 	empty_constructor_builtins : (int,unit -> value) Hashtbl.t;
+	breakpoints : (int,(int,breakpoint) Hashtbl.t) Hashtbl.t;
 }
 
 type context = {

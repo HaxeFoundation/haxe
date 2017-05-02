@@ -48,6 +48,8 @@ let create com api is_macro =
 				instance_builtins = IntMap.empty;
 				constructor_builtins = Hashtbl.create 0;
 				empty_constructor_builtins = Hashtbl.create 0;
+				(* debug *)
+				breakpoints = Hashtbl.create 0;
 			} in
 			EvalStdLib.init_standard_library builtins;
 			stdlib := Some builtins;
