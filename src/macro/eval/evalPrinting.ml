@@ -30,7 +30,7 @@ let rnull = of_string "null"
 let rcomma = of_char ','
 let rtrue = of_string "true"
 let rfalse = of_string "false"
-let rfunction = of_string "#function"
+let rfun = of_string "#fun"
 let rclosure = of_string "#closure"
 
 let s_date d =
@@ -87,7 +87,11 @@ and s_value depth v =
 		let len = String.length s in
 		of_string (if String.unsafe_get s (len - 1) = '.' then String.sub s 0 (len - 1) else s)
 	| VFunction (f,_) ->
-		concat2 rfunction (Rope.of_string (string_of_int (num_args f)))
+		let s = match num_args f with
+			| -1 -> ""
+			| i -> string_of_int i
+		in
+		concat2 rfun (Rope.of_string (s))
 	| VFieldClosure _ -> rclosure
 	| VEnumValue ve -> s_enum_value depth ve
 	| VInstance {ikind = IString(s,_)} -> s
