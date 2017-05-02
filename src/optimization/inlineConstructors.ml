@@ -526,8 +526,8 @@ let inline_constructors ctx e =
 		let rec get_pretty_name iv = match iv.iv_kind with
 			| IVKField(io,fname,None) ->
 				begin try
-					let is_user_variable v = Meta.has Meta.UserVariable v.v_meta in
-					let iv = List.find (fun iv -> is_user_variable iv.iv_var) io.io_aliases in
+					let is_user_variable iv = Meta.has Meta.UserVariable iv.iv_var.v_meta in
+					let iv = List.find is_user_variable io.io_aliases in
 					(get_pretty_name iv) ^ "_" ^ fname;
 				with Not_found ->
 					(get_pretty_name (List.hd io.io_aliases)) ^ "_" ^ fname;
