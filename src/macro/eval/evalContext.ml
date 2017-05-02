@@ -156,6 +156,13 @@ let exc_string str = exc (vstring (Rope.of_string str))
 let no_timer = fun () -> ()
 let empty_array = [||]
 
+let create_env_info pfile kind =
+	let info = {
+		kind = kind;
+		pfile = pfile;
+	} in
+	info
+
 let push_environment_debug ctx info num_locals num_captures =
 	let timer = if ctx.detail_times then
 		Common.timer ["macro";"execution";kind_name ctx info.kind]
