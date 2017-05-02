@@ -52,7 +52,7 @@ let format_pos p =
 	Lexer.get_error_pos error_printer p
 
 let error_exc ctx v stack p =
-	let pl = List.map (fun env -> {pfile = rev_hash_s env.leave_pfile;pmin = env.leave_pmin; pmax = env.leave_pmax}) stack in
+	let pl = List.map (fun env -> {pfile = rev_hash_s env.info.pfile;pmin = env.leave_pmin; pmax = env.leave_pmax}) stack in
 	let pl = List.filter (fun p -> p <> null_pos) pl in
 	match pl with
 	| [] ->
@@ -66,7 +66,7 @@ let build_exception_stack ctx environment_offset =
 	let d = if not ctx.debug then [] else DynArray.to_list (DynArray.sub ctx.environments environment_offset (ctx.environment_offset - environment_offset)) in
 	ctx.exception_stack <- List.map (fun env ->
 		env.in_use <- false;
-		{pfile = rev_hash_s env.leave_pfile;pmin = env.leave_pmin; pmax = env.leave_pmax},env.kind
+		{pfile = rev_hash_s env.info.pfile;pmin = env.leave_pmin; pmax = env.leave_pmax},env.info.kind
 	) d
 
 let catch_exceptions ctx f p =

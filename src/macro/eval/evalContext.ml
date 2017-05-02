@@ -26,13 +26,17 @@ type env_kind =
 	| EKMethod of int * int
 	| EKDelayed
 
+type env_info = {
+	pfile : int;
+	kind : env_kind;
+}
+
 type env = {
-	leave_pfile : int;
+	info : env_info;
 	mutable leave_pmin : int;
 	mutable leave_pmax : int;
 	mutable in_use : bool;
 	timer : unit -> unit;
-	kind : env_kind;
 	locals : value array;
 	captures : value ref array;
 }
@@ -61,7 +65,7 @@ type context = {
 	mutable constructors : value Lazy.t IntMap.t;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
 	(* api *)
-	push_environment : context -> int -> env_kind -> int -> int -> env;
+	push_environment : context -> env_info -> int -> int -> env;
 	pop_environment : context -> env -> unit;
 	(* eval *)
 	environments : env DynArray.t;
@@ -82,7 +86,7 @@ let rec kind_name ctx kind =
 		| EKLocalFunction i, env_id ->
 			let parent_id = env_id - 1 in
 			let env = DynArray.get ctx.environments parent_id in
-			Printf.sprintf "%s.localFunction%i" (loop env.kind parent_id) i
+			Printf.sprintf "%s.localFunction%i" (loop env.info.kind parent_id) i
 		| EKMethod(i1,i2),_ -> Printf.sprintf "%s.%s" (rev_hash_s i1) (rev_hash_s i2)
 		| EKDelayed,_ -> "delayed"
 	in
@@ -152,19 +156,18 @@ let exc_string str = exc (vstring (Rope.of_string str))
 let no_timer = fun () -> ()
 let empty_array = [||]
 
-let push_environment_debug ctx pfile kind num_locals num_captures =
+let push_environment_debug ctx info num_locals num_captures =
 	let timer = if ctx.detail_times then
-		Common.timer ["macro";"execution";kind_name ctx kind]
+		Common.timer ["macro";"execution";kind_name ctx info.kind]
 	else
 		no_timer
 	in
 	let env = {
-		leave_pfile = pfile;
+		info = info;
 		leave_pmin = 0;
 		leave_pmax = 0;
 		in_use = false;
 		timer = timer;
-		kind = kind;
 		locals = Array.make num_locals vnull;
 		captures = Array.make num_captures (ref vnull);
 	} in
@@ -175,26 +178,24 @@ let push_environment_debug ctx pfile kind num_locals num_captures =
 	ctx.environment_offset <- ctx.environment_offset + 1;
 	env
 
-let create_default_environment ctx pfile kind num_locals =
+let create_default_environment ctx info num_locals =
 	{
-		leave_pfile = pfile;
+		info = info;
 		leave_pmin = 0;
 		leave_pmax = 0;
 		in_use = false;
 		timer = no_timer;
-		kind = kind;
 		locals = Array.make num_locals vnull;
 		captures = empty_array;
 	}
 
-let push_environment ctx pfile kind num_locals num_captures =
+let push_environment ctx info num_locals num_captures =
 	{
-		leave_pfile = pfile;
+		info = info;
 		leave_pmin = 0;
 		leave_pmax = 0;
 		in_use = false;
 		timer = no_timer;
-		kind = kind;
 		locals = Array.make num_locals vnull;
 		captures = Array.make num_captures (ref vnull);
 	}

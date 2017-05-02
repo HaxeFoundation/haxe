@@ -518,7 +518,7 @@ module StdCallStack = struct
 			| _ :: _ :: envs -> envs (* Skip calls to callStack() and getCallStack() *)
 			| _ -> envs
 		in
-		make_stack (List.map (fun env -> {pfile = rev_hash_s env.leave_pfile;pmin = env.leave_pmin; pmax = env.leave_pmax},env.kind) envs)
+		make_stack (List.map (fun env -> {pfile = rev_hash_s env.info.pfile;pmin = env.leave_pmin; pmax = env.leave_pmax},env.info.kind) envs)
 	)
 
 	let getExceptionStack = vfun0 (fun () ->

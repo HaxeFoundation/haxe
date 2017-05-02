@@ -1111,17 +1111,17 @@ let run_function_noret ctx exec env =
 	ctx.pop_environment ctx env;
 	v
 
-let create_env_function ctx pfile kind num_locals num_captures =
+let create_env_function ctx info num_locals num_captures =
 	if ctx.record_stack || num_captures > 0 then
 		(fun () ->
-			ctx.push_environment ctx pfile kind num_locals num_captures
+			ctx.push_environment ctx info num_locals num_captures
 		)
 	else begin
-		let default_env = lazy (create_default_environment ctx pfile kind num_locals) in
+		let default_env = lazy (create_default_environment ctx info num_locals) in
 		(fun () ->
 			let default_env = Lazy.force default_env in
 			if default_env.in_use then begin
-				ctx.push_environment ctx pfile kind num_locals num_captures
+				ctx.push_environment ctx info num_locals num_captures
 			end else begin
 				default_env.in_use <- true;
 				default_env
@@ -1129,9 +1129,9 @@ let create_env_function ctx pfile kind num_locals num_captures =
 		)
 	end
 
-let emit_closure ctx pfile hasret kind num_locals num_captures varaccs args exec =
+let emit_closure ctx info hasret num_locals num_captures varaccs args exec =
 	let run_function = if hasret then run_function else run_function_noret in
-	let get_env = create_env_function ctx pfile kind num_locals num_captures in
+	let get_env = create_env_function ctx info num_locals num_captures in
 	fun env ->
 		let refs = Array.sub env.captures 0 num_captures in
 		let f = fun vl ->
@@ -1142,33 +1142,33 @@ let emit_closure ctx pfile hasret kind num_locals num_captures varaccs args exec
 		in
 		vstatic_function (FunN f)
 
-let emit_tfunction0 ctx pfile hasret kind num_locals num_captures exec =
+let emit_tfunction0 ctx info hasret num_locals num_captures exec =
 	let run_function = if hasret then run_function else run_function_noret in
-	let get_env = create_env_function ctx pfile kind num_locals num_captures in
+	let get_env = create_env_function ctx info num_locals num_captures in
 	fun () ->
 		let env = get_env() in
 		run_function ctx exec env
 
-let emit_tfunction1 ctx pfile hasret kind num_locals num_captures arg1 varacc1 exec =
+let emit_tfunction1 ctx info hasret num_locals num_captures arg1 varacc1 exec =
 	let run_function = if hasret then run_function else run_function_noret in
-	let get_env = create_env_function ctx pfile kind num_locals num_captures in
+	let get_env = create_env_function ctx info num_locals num_captures in
 	fun v1 ->
 		let env = get_env () in
 		handle_function_argument arg1 varacc1 v1 env;
 		run_function ctx exec env
 
-let emit_tfunction2 ctx pfile hasret kind num_locals num_captures arg1 varacc1 arg2 varacc2 exec =
+let emit_tfunction2 ctx info hasret num_locals num_captures arg1 varacc1 arg2 varacc2 exec =
 	let run_function = if hasret then run_function else run_function_noret in
-	let get_env = create_env_function ctx pfile kind num_locals num_captures in
+	let get_env = create_env_function ctx info num_locals num_captures in
 	fun v1 v2 ->
 		let env = get_env () in
 		handle_function_argument arg1 varacc1 v1 env;
 		handle_function_argument arg2 varacc2 v2 env;
 		run_function ctx exec env
 
-let emit_tfunction3 ctx pfile hasret kind num_locals num_captures arg1 varacc1 arg2 varacc2 arg3 varacc3 exec =
+let emit_tfunction3 ctx info hasret num_locals num_captures arg1 varacc1 arg2 varacc2 arg3 varacc3 exec =
 	let run_function = if hasret then run_function else run_function_noret in
-	let get_env = create_env_function ctx pfile kind num_locals num_captures in
+	let get_env = create_env_function ctx info num_locals num_captures in
 	fun v1 v2 v3 ->
 		let env = get_env () in
 		handle_function_argument arg1 varacc1 v1 env;
@@ -1176,9 +1176,9 @@ let emit_tfunction3 ctx pfile hasret kind num_locals num_captures arg1 varacc1 a
 		handle_function_argument arg3 varacc3 v3 env;
 		run_function ctx exec env
 
-let emit_tfunction4 ctx pfile hasret kind num_locals num_captures arg1 varacc1 arg2 varacc2 arg3 varacc3 arg4 varacc4 exec =
+let emit_tfunction4 ctx info hasret num_locals num_captures arg1 varacc1 arg2 varacc2 arg3 varacc3 arg4 varacc4 exec =
 	let run_function = if hasret then run_function else run_function_noret in
-	let get_env = create_env_function ctx pfile kind num_locals num_captures in
+	let get_env = create_env_function ctx info num_locals num_captures in
 	fun v1 v2 v3 v4 ->
 		let env = get_env () in
 		handle_function_argument arg1 varacc1 v1 env;
@@ -1187,9 +1187,9 @@ let emit_tfunction4 ctx pfile hasret kind num_locals num_captures arg1 varacc1 a
 		handle_function_argument arg4 varacc4 v4 env;
 		run_function ctx exec env
 
-let emit_tfunction5 ctx pfile hasret kind num_locals num_captures arg1 varacc1 arg2 varacc2 arg3 varacc3 arg4 varacc4 arg5 varacc5 exec =
+let emit_tfunction5 ctx info hasret num_locals num_captures arg1 varacc1 arg2 varacc2 arg3 varacc3 arg4 varacc4 arg5 varacc5 exec =
 	let run_function = if hasret then run_function else run_function_noret in
-	let get_env = create_env_function ctx pfile kind num_locals num_captures in
+	let get_env = create_env_function ctx info num_locals num_captures in
 	fun v1 v2 v3 v4 v5 ->
 		let env = get_env () in
 		handle_function_argument arg1 varacc1 v1 env;
@@ -1199,9 +1199,9 @@ let emit_tfunction5 ctx pfile hasret kind num_locals num_captures arg1 varacc1 a
 		handle_function_argument arg5 varacc5 v5 env;
 		run_function ctx exec env
 
-let emit_tfunction ctx pfile hasret kind num_locals num_captures args varaccs exec =
+let emit_tfunction ctx info hasret num_locals num_captures args varaccs exec =
 	let run_function = if hasret then run_function else run_function_noret in
-	let get_env = create_env_function ctx pfile kind num_locals num_captures in
+	let get_env = create_env_function ctx info num_locals num_captures in
 	fun vl ->
 		let env = get_env () in
 		handle_function_arguments args varaccs vl env;
