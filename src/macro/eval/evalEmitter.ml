@@ -343,7 +343,8 @@ let emit_super_field_call slot proto i execs p env =
 (* Type.call() - immediate *)
 
 let call0 v p env =
-	env.leave_pos <- p;
+	env.leave_pmin <- p.pmin;
+	env.leave_pmax <- p.pmax;
 	match v with
 	| VFunction (Fun0 f,_) -> f ()
 	| VFunction (FunN f,_) -> f []
@@ -352,7 +353,8 @@ let call0 v p env =
 	| _ -> cannot_call v p
 
 let call1 v v1 p env =
-	env.leave_pos <- p;
+	env.leave_pmin <- p.pmin;
+	env.leave_pmax <- p.pmax;
 	match v with
 	| VFunction (Fun1 f,_) -> f v1
 	| VFunction (FunN f,_) -> f [v1]
@@ -360,7 +362,8 @@ let call1 v v1 p env =
 	| _ -> cannot_call v p
 
 let call2 v v1 v2 p env =
-	env.leave_pos <- p;
+	env.leave_pmin <- p.pmin;
+	env.leave_pmax <- p.pmax;
 	match v with
 	| VFunction (Fun2 f,_) -> f v1 v2
 	| VFunction (FunN f,_) -> f [v1;v2]
@@ -368,7 +371,8 @@ let call2 v v1 v2 p env =
 	| _ -> cannot_call v p
 
 let call3 v v1 v2 v3 p env =
-	env.leave_pos <- p;
+	env.leave_pmin <- p.pmin;
+	env.leave_pmax <- p.pmax;
 	match v with
 	| VFunction (Fun3 f,_) -> f v1 v2 v3
 	| VFunction (FunN f,_) -> f [v1;v2;v3]
@@ -376,7 +380,8 @@ let call3 v v1 v2 v3 p env =
 	| _ -> cannot_call v p
 
 let call4 v v1 v2 v3 v4 p env =
-	env.leave_pos <- p;
+	env.leave_pmin <- p.pmin;
+	env.leave_pmax <- p.pmax;
 	match v with
 	| VFunction (Fun4 f,_) -> f v1 v2 v3 v4
 	| VFunction (FunN f,_) -> f [v1;v2;v3;v4]
@@ -384,19 +389,21 @@ let call4 v v1 v2 v3 v4 p env =
 	| _ -> cannot_call v p
 
 let call5 v v1 v2 v3 v4 v5 p env =
-	env.leave_pos <- p;
+	env.leave_pmin <- p.pmin;
+	env.leave_pmax <- p.pmax;
 	match v with
 	| VFunction (Fun5 f,_) -> f v1 v2 v3 v4 v5
 	| VFunction (FunN f,_) -> f [v1;v2;v3;v4;v5]
 	| VFieldClosure(v0,f) -> call_function f [v0;v1;v2;v3;v4;v5]
 	| _ -> cannot_call v p
 
-let emit_proto_field_call record_stack proto i execs p =
+let emit_proto_field_call proto i execs p =
 	match execs with
 		| [] ->
 			let vf = lazy (match proto.pfields.(i) with VFunction (Fun0 f,_) -> f | v -> cannot_call v p) in
 			(fun env ->
-				if record_stack then env.leave_pos <- p;
+				env.leave_pmin <- p.pmin;
+				env.leave_pmax <- p.pmax;
 				(Lazy.force vf) ()
 			)
 		| [exec1] ->
@@ -404,7 +411,8 @@ let emit_proto_field_call record_stack proto i execs p =
 			(fun env ->
 				let f = Lazy.force vf in
 				let v1 = exec1 env in
-				if record_stack then env.leave_pos <- p;
+				env.leave_pmin <- p.pmin;
+				env.leave_pmax <- p.pmax;
 				f v1
 			)
 		| [exec1;exec2] ->
@@ -413,7 +421,8 @@ let emit_proto_field_call record_stack proto i execs p =
 				let f = Lazy.force vf in
 				let v1 = exec1 env in
 				let v2 = exec2 env in
-				if record_stack then env.leave_pos <- p;
+				env.leave_pmin <- p.pmin;
+				env.leave_pmax <- p.pmax;
 				f v1 v2
 			)
 		| [exec1;exec2;exec3] ->
@@ -423,7 +432,8 @@ let emit_proto_field_call record_stack proto i execs p =
 				let v1 = exec1 env in
 				let v2 = exec2 env in
 				let v3 = exec3 env in
-				if record_stack then env.leave_pos <- p;
+				env.leave_pmin <- p.pmin;
+				env.leave_pmax <- p.pmax;
 				f v1 v2 v3
 			)
 		| [exec1;exec2;exec3;exec4] ->
@@ -434,7 +444,8 @@ let emit_proto_field_call record_stack proto i execs p =
 				let v2 = exec2 env in
 				let v3 = exec3 env in
 				let v4 = exec4 env in
-				if record_stack then env.leave_pos <- p;
+				env.leave_pmin <- p.pmin;
+				env.leave_pmax <- p.pmax;
 				f v1 v2 v3 v4
 			)
 		| [exec1;exec2;exec3;exec4;exec5] ->
@@ -446,7 +457,8 @@ let emit_proto_field_call record_stack proto i execs p =
 				let v3 = exec3 env in
 				let v4 = exec4 env in
 				let v5 = exec5 env in
-				if record_stack then env.leave_pos <- p;
+				env.leave_pmin <- p.pmin;
+				env.leave_pmax <- p.pmax;
 				f v1 v2 v3 v4 v5
 			)
 		| _ ->
@@ -454,7 +466,8 @@ let emit_proto_field_call record_stack proto i execs p =
 			(fun env ->
 				let f = Lazy.force vf in
 				let vl = List.map (fun exec -> exec env) execs in
-				if record_stack then env.leave_pos <- p;
+				env.leave_pmin <- p.pmin;
+				env.leave_pmax <- p.pmax;
 				f vl
 			)
 
@@ -501,7 +514,8 @@ let emit_method_call4 exec name exec1 exec2 exec3 exec4 p env =
 let emit_method_call exec name execs p env =
 	let vthis,vf = method_call exec name p env in
 	let vl = List.map (apply env) execs in
-	env.leave_pos <- p;
+	env.leave_pmin <- p.pmin;
+	env.leave_pmax <- p.pmax;
 	call_value_on vthis vf vl
 
 (* instance.call() where call is not a method - lookup + this-binding *)
@@ -509,7 +523,8 @@ let emit_method_call exec name execs p env =
 let emit_field_call exec name execs p env =
 	let vthis = exec env in
 	let vf = field vthis name in
-	env.leave_pos <- p;
+	env.leave_pmin <- p.pmin;
+	env.leave_pmax <- p.pmax;
 	call_value_on vthis vf (List.map (apply env) execs)
 
 (* new() - immediate + this-binding *)
@@ -552,7 +567,8 @@ let emit_constructor_call4 proto fnew exec1 exec2 exec3 exec4 p env =
 let emit_constructor_call proto fnew execs p env =
 	let vthis = create_instance_direct proto in
 	let vl = List.map (apply env) execs in
-	env.leave_pos <- p;
+	env.leave_pmin <- p.pmin;
+	env.leave_pmax <- p.pmax;
 	ignore(call_value_on vthis (Lazy.force fnew) vl);
 	vthis
 
@@ -561,7 +577,8 @@ let emit_constructor_call proto fnew execs p env =
 let emit_super_call f fnew execs p env =
 	let vl = List.map (apply env) execs in
 	let vthis = f env in
-	env.leave_pos <- p;
+	env.leave_pmin <- p.pmin;
+	env.leave_pmax <- p.pmax;
 	ignore(call_value_on vthis (Lazy.force fnew) vl);
 	vthis
 
@@ -607,7 +624,8 @@ let emit_call5 exec exec1 exec2 exec3 exec4 exec5 p env =
 
 let emit_call exec execs p env =
 	let v1 = exec env in
-	env.leave_pos <- p;
+	env.leave_pmin <- p.pmin;
+	env.leave_pmax <- p.pmax;
 	call_value v1 (List.map (apply env) execs)
 
 (* Read *)
@@ -1093,17 +1111,17 @@ let run_function_noret ctx exec env =
 	ctx.pop_environment ctx env;
 	v
 
-let create_env_function ctx kind num_locals num_captures =
+let create_env_function ctx pfile kind num_locals num_captures =
 	if ctx.record_stack || num_captures > 0 then
 		(fun () ->
-			ctx.push_environment ctx kind num_locals num_captures
+			ctx.push_environment ctx pfile kind num_locals num_captures
 		)
 	else begin
-		let default_env = lazy (create_default_environment ctx kind num_locals) in
+		let default_env = lazy (create_default_environment ctx pfile kind num_locals) in
 		(fun () ->
 			let default_env = Lazy.force default_env in
 			if default_env.in_use then begin
-				ctx.push_environment ctx kind num_locals num_captures
+				ctx.push_environment ctx pfile kind num_locals num_captures
 			end else begin
 				default_env.in_use <- true;
 				default_env
@@ -1111,9 +1129,9 @@ let create_env_function ctx kind num_locals num_captures =
 		)
 	end
 
-let emit_closure ctx hasret kind num_locals num_captures varaccs args exec p =
+let emit_closure ctx pfile hasret kind num_locals num_captures varaccs args exec =
 	let run_function = if hasret then run_function else run_function_noret in
-	let get_env = create_env_function ctx kind num_locals num_captures in
+	let get_env = create_env_function ctx pfile kind num_locals num_captures in
 	fun env ->
 		let refs = Array.sub env.captures 0 num_captures in
 		let f = fun vl ->
@@ -1124,33 +1142,33 @@ let emit_closure ctx hasret kind num_locals num_captures varaccs args exec p =
 		in
 		vstatic_function (FunN f)
 
-let emit_tfunction0 ctx hasret kind num_locals num_captures exec =
+let emit_tfunction0 ctx pfile hasret kind num_locals num_captures exec =
 	let run_function = if hasret then run_function else run_function_noret in
-	let get_env = create_env_function ctx kind num_locals num_captures in
+	let get_env = create_env_function ctx pfile kind num_locals num_captures in
 	fun () ->
 		let env = get_env() in
 		run_function ctx exec env
 
-let emit_tfunction1 ctx hasret kind num_locals num_captures arg1 varacc1 exec =
+let emit_tfunction1 ctx pfile hasret kind num_locals num_captures arg1 varacc1 exec =
 	let run_function = if hasret then run_function else run_function_noret in
-	let get_env = create_env_function ctx kind num_locals num_captures in
+	let get_env = create_env_function ctx pfile kind num_locals num_captures in
 	fun v1 ->
 		let env = get_env () in
 		handle_function_argument arg1 varacc1 v1 env;
 		run_function ctx exec env
 
-let emit_tfunction2 ctx hasret kind num_locals num_captures arg1 varacc1 arg2 varacc2 exec =
+let emit_tfunction2 ctx pfile hasret kind num_locals num_captures arg1 varacc1 arg2 varacc2 exec =
 	let run_function = if hasret then run_function else run_function_noret in
-	let get_env = create_env_function ctx kind num_locals num_captures in
+	let get_env = create_env_function ctx pfile kind num_locals num_captures in
 	fun v1 v2 ->
 		let env = get_env () in
 		handle_function_argument arg1 varacc1 v1 env;
 		handle_function_argument arg2 varacc2 v2 env;
 		run_function ctx exec env
 
-let emit_tfunction3 ctx hasret kind num_locals num_captures arg1 varacc1 arg2 varacc2 arg3 varacc3 exec =
+let emit_tfunction3 ctx pfile hasret kind num_locals num_captures arg1 varacc1 arg2 varacc2 arg3 varacc3 exec =
 	let run_function = if hasret then run_function else run_function_noret in
-	let get_env = create_env_function ctx kind num_locals num_captures in
+	let get_env = create_env_function ctx pfile kind num_locals num_captures in
 	fun v1 v2 v3 ->
 		let env = get_env () in
 		handle_function_argument arg1 varacc1 v1 env;
@@ -1158,9 +1176,9 @@ let emit_tfunction3 ctx hasret kind num_locals num_captures arg1 varacc1 arg2 va
 		handle_function_argument arg3 varacc3 v3 env;
 		run_function ctx exec env
 
-let emit_tfunction4 ctx hasret kind num_locals num_captures arg1 varacc1 arg2 varacc2 arg3 varacc3 arg4 varacc4 exec =
+let emit_tfunction4 ctx pfile hasret kind num_locals num_captures arg1 varacc1 arg2 varacc2 arg3 varacc3 arg4 varacc4 exec =
 	let run_function = if hasret then run_function else run_function_noret in
-	let get_env = create_env_function ctx kind num_locals num_captures in
+	let get_env = create_env_function ctx pfile kind num_locals num_captures in
 	fun v1 v2 v3 v4 ->
 		let env = get_env () in
 		handle_function_argument arg1 varacc1 v1 env;
@@ -1169,9 +1187,9 @@ let emit_tfunction4 ctx hasret kind num_locals num_captures arg1 varacc1 arg2 va
 		handle_function_argument arg4 varacc4 v4 env;
 		run_function ctx exec env
 
-let emit_tfunction5 ctx hasret kind num_locals num_captures arg1 varacc1 arg2 varacc2 arg3 varacc3 arg4 varacc4 arg5 varacc5 exec =
+let emit_tfunction5 ctx pfile hasret kind num_locals num_captures arg1 varacc1 arg2 varacc2 arg3 varacc3 arg4 varacc4 arg5 varacc5 exec =
 	let run_function = if hasret then run_function else run_function_noret in
-	let get_env = create_env_function ctx kind num_locals num_captures in
+	let get_env = create_env_function ctx pfile kind num_locals num_captures in
 	fun v1 v2 v3 v4 v5 ->
 		let env = get_env () in
 		handle_function_argument arg1 varacc1 v1 env;
@@ -1181,9 +1199,9 @@ let emit_tfunction5 ctx hasret kind num_locals num_captures arg1 varacc1 arg2 va
 		handle_function_argument arg5 varacc5 v5 env;
 		run_function ctx exec env
 
-let emit_tfunction ctx hasret kind num_locals num_captures args varaccs exec =
+let emit_tfunction ctx pfile hasret kind num_locals num_captures args varaccs exec =
 	let run_function = if hasret then run_function else run_function_noret in
-	let get_env = create_env_function ctx kind num_locals num_captures in
+	let get_env = create_env_function ctx pfile kind num_locals num_captures in
 	fun vl ->
 		let env = get_env () in
 		handle_function_arguments args varaccs vl env;

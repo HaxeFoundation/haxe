@@ -346,7 +346,7 @@ and jit_expr return jit e =
 		let kind = EKLocalFunction jit.num_closures in
 		jit.num_closures <- jit.num_closures + 1;
 		let num_captures = Hashtbl.length jit.captures in
-		emit_closure jit.ctx jit_closure.has_nonfinal_return kind jit_closure.max_local_count num_captures varaccs args exec tf.tf_expr.epos
+		emit_closure jit.ctx (hash_s e.epos.pfile) jit_closure.has_nonfinal_return kind jit_closure.max_local_count num_captures varaccs args exec
 	(* branching *)
 	| TIf(e1,e2,eo) ->
 		let exec_cond = jit_expr false jit e1 in
@@ -606,12 +606,12 @@ and jit_expr return jit e =
 				| FStatic({cl_path=path},cf) when is_proper_method cf ->
 					let proto = get_static_prototype ctx (path_hash path) ef.epos in
 					let i = get_proto_field_index proto name in
-					emit_proto_field_call ctx.record_stack proto i execs e.epos
+					emit_proto_field_call proto i execs e.epos
 				| FInstance(c,_,cf) when is_proper_method cf && not (is_overridden c cf.cf_name) && not c.cl_interface ->
 					let exec = jit_expr false jit ef in
 					let proto = get_instance_prototype ctx (path_hash c.cl_path) ef.epos in
 					let i = get_proto_field_index proto name in
-					emit_proto_field_call ctx.record_stack proto i (exec :: execs) e.epos
+					emit_proto_field_call proto i (exec :: execs) e.epos
 				| FInstance(_,_,cf) when is_proper_method cf ->
 					let exec = jit_expr false jit ef in
 					begin match execs with
@@ -803,14 +803,15 @@ let jit_tfunction ctx key_type key_field tf static =
 	let capture_count = Hashtbl.length jit.captures in
 	let kind = EKMethod(key_type,key_field) in
 	let hasret = jit.has_nonfinal_return in
+	let pfile = hash_s tf.tf_expr.epos.pfile in
 	match args,varaccs with
-	| [],[] -> Fun0 (emit_tfunction0 ctx hasret kind local_count capture_count exec)
-	| [arg1],[varacc1] -> Fun1 (emit_tfunction1 ctx hasret kind local_count capture_count arg1 varacc1 exec)
-	| [arg1;arg2],[varacc1;varacc2] -> Fun2 (emit_tfunction2 ctx hasret kind local_count capture_count arg1 varacc1 arg2 varacc2 exec)
-	| [arg1;arg2;arg3],[varacc1;varacc2;varacc3] -> Fun3 (emit_tfunction3 ctx hasret kind local_count capture_count arg1 varacc1 arg2 varacc2 arg3 varacc3 exec)
-	| [arg1;arg2;arg3;arg4],[varacc1;varacc2;varacc3;varacc4] -> Fun4 (emit_tfunction4 ctx hasret kind local_count capture_count arg1 varacc1 arg2 varacc2 arg3 varacc3 arg4 varacc4 exec)
-	| [arg1;arg2;arg3;arg4;arg5],[varacc1;varacc2;varacc3;varacc4;varacc5] -> Fun5 (emit_tfunction5 ctx hasret kind local_count capture_count arg1 varacc1 arg2 varacc2 arg3 varacc3 arg4 varacc4 arg5 varacc5 exec)
-	| _ -> FunN (emit_tfunction ctx hasret kind local_count capture_count args varaccs exec)
+	| [],[] -> Fun0 (emit_tfunction0 ctx pfile hasret kind local_count capture_count exec)
+	| [arg1],[varacc1] -> Fun1 (emit_tfunction1 ctx pfile hasret kind local_count capture_count arg1 varacc1 exec)
+	| [arg1;arg2],[varacc1;varacc2] -> Fun2 (emit_tfunction2 ctx pfile hasret kind local_count capture_count arg1 varacc1 arg2 varacc2 exec)
+	| [arg1;arg2;arg3],[varacc1;varacc2;varacc3] -> Fun3 (emit_tfunction3 ctx pfile hasret kind local_count capture_count arg1 varacc1 arg2 varacc2 arg3 varacc3 exec)
+	| [arg1;arg2;arg3;arg4],[varacc1;varacc2;varacc3;varacc4] -> Fun4 (emit_tfunction4 ctx pfile hasret kind local_count capture_count arg1 varacc1 arg2 varacc2 arg3 varacc3 arg4 varacc4 exec)
+	| [arg1;arg2;arg3;arg4;arg5],[varacc1;varacc2;varacc3;varacc4;varacc5] -> Fun5 (emit_tfunction5 ctx pfile hasret kind local_count capture_count arg1 varacc1 arg2 varacc2 arg3 varacc3 arg4 varacc4 arg5 varacc5 exec)
+	| _ -> FunN (emit_tfunction ctx pfile hasret kind local_count capture_count args varaccs exec)
 
 (* JITs expression [e] to a function. This is used for expressions that are not in a method. *)
 let jit_expr ctx e =

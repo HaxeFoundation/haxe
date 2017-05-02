@@ -27,7 +27,9 @@ type env_kind =
 	| EKDelayed
 
 type env = {
-	mutable leave_pos : pos;
+	leave_pfile : int;
+	mutable leave_pmin : int;
+	mutable leave_pmax : int;
 	mutable in_use : bool;
 	timer : unit -> unit;
 	kind : env_kind;
@@ -59,7 +61,7 @@ type context = {
 	mutable constructors : value Lazy.t IntMap.t;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
 	(* api *)
-	push_environment : context -> env_kind -> int -> int -> env;
+	push_environment : context -> int -> env_kind -> int -> int -> env;
 	pop_environment : context -> env -> unit;
 	(* eval *)
 	environments : env DynArray.t;
@@ -73,12 +75,12 @@ let select ctx = get_ctx_ref := (fun() -> ctx)
 
 (* Misc *)
 
-let rec kind_name ctx kind = 
+let rec kind_name ctx kind =
 	let rec loop kind env_id = match kind, env_id with
-		| EKLocalFunction i, 0 -> 
+		| EKLocalFunction i, 0 ->
 			Printf.sprintf "localFunction%i" i
-		| EKLocalFunction i, env_id -> 
-			let parent_id = env_id - 1 in 
+		| EKLocalFunction i, env_id ->
+			let parent_id = env_id - 1 in
 			let env = DynArray.get ctx.environments parent_id in
 			Printf.sprintf "%s.localFunction%i" (loop env.kind parent_id) i
 		| EKMethod(i1,i2),_ -> Printf.sprintf "%s.%s" (rev_hash_s i1) (rev_hash_s i2)
@@ -134,8 +136,11 @@ let call_stack ctx =
 
 let throw v p =
 	let ctx = get_ctx() in
-	if ctx.environment_offset > 0 then
-		(DynArray.get ctx.environments (ctx.environment_offset - 1)).leave_pos <- p;
+	if ctx.environment_offset > 0 then begin
+		let env = DynArray.get ctx.environments (ctx.environment_offset - 1) in
+		env.leave_pmin <- p.pmin;
+		env.leave_pmax <- p.pmax;
+	end;
 	raise (RunTimeException(v,call_stack ctx,p))
 
 let exc v = throw v null_pos
@@ -147,14 +152,16 @@ let exc_string str = exc (vstring (Rope.of_string str))
 let no_timer = fun () -> ()
 let empty_array = [||]
 
-let push_environment_debug ctx kind num_locals num_captures =
+let push_environment_debug ctx pfile kind num_locals num_captures =
 	let timer = if ctx.detail_times then
 		Common.timer ["macro";"execution";kind_name ctx kind]
 	else
 		no_timer
 	in
 	let env = {
-		leave_pos = null_pos;
+		leave_pfile = pfile;
+		leave_pmin = 0;
+		leave_pmax = 0;
 		in_use = false;
 		timer = timer;
 		kind = kind;
@@ -168,9 +175,11 @@ let push_environment_debug ctx kind num_locals num_captures =
 	ctx.environment_offset <- ctx.environment_offset + 1;
 	env
 
-let create_default_environment ctx kind num_locals =
+let create_default_environment ctx pfile kind num_locals =
 	{
-		leave_pos = null_pos;
+		leave_pfile = pfile;
+		leave_pmin = 0;
+		leave_pmax = 0;
 		in_use = false;
 		timer = no_timer;
 		kind = kind;
@@ -178,9 +187,11 @@ let create_default_environment ctx kind num_locals =
 		captures = empty_array;
 	}
 
-let push_environment ctx kind num_locals num_captures =
+let push_environment ctx pfile kind num_locals num_captures =
 	{
-		leave_pos = null_pos;
+		leave_pfile = pfile;
+		leave_pmin = 0;
+		leave_pmax = 0;
 		in_use = false;
 		timer = no_timer;
 		kind = kind;
