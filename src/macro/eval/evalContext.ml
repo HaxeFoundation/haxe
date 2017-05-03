@@ -18,6 +18,7 @@
  *)
 
 open Globals
+open Type
 open EvalValue
 open EvalHash
 
@@ -40,11 +41,14 @@ type env_kind =
 type env_info = {
 	pfile : int;
 	kind : env_kind;
+	capture_names : (int,string) Hashtbl.t;
 }
 
 type env_debug = {
 	timer : unit -> unit;
-	scopes : scope list;
+	mutable scopes : scope list;
+	mutable line : int;
+	mutable expr : texpr;
 }
 
 type env = {
@@ -71,7 +75,7 @@ type breakpoint = {
 
 type debug_state =
 	| DbgRunning
-	| DbgSingleStep
+	| DbgInspect
 	| DbgWaiting
 	| DbgNext of int
 	| DbgFinish of int
@@ -90,6 +94,7 @@ type debug = {
 	mutable debug_state : debug_state;
 	mutable breakpoint : breakpoint;
 	caught_types : (int,bool) Hashtbl.t;
+	mutable environment_offset_delta : int;
 }
 
 type context = {
@@ -199,16 +204,20 @@ let exc_string str = exc (vstring (Rope.of_string str))
 
 let no_timer = fun () -> ()
 let empty_array = [||]
+let no_expr = mk (TConst TNull) t_dynamic null_pos
 
 let no_debug = {
 	timer = no_timer;
 	scopes = [];
+	line = 0;
+	expr = no_expr
 }
 
-let create_env_info pfile kind =
+let create_env_info pfile kind capture_names =
 	let info = {
 		kind = kind;
 		pfile = pfile;
+		capture_names = capture_names;
 	} in
 	info
 
@@ -226,6 +235,8 @@ let push_environment_debug ctx info num_locals num_captures =
 		env_debug = {
 			timer = timer;
 			scopes = [];
+			line = 0;
+			expr = no_expr;
 		};
 		env_locals = Array.make num_locals vnull;
 		env_captures = Array.make num_captures (ref vnull);

@@ -66,6 +66,7 @@ let create com api is_macro =
 				debug_state = DbgRunning;
 				breakpoint = EvalDebug.make_breakpoint 0 0 BPDisabled;
 				caught_types = Hashtbl.create 0;
+				environment_offset_delta = 0;
 			} in
 			debug := Some debug';
 			debug'
@@ -104,7 +105,7 @@ let create com api is_macro =
 
 let eval_delayed ctx e =
 	let jit,f = jit_expr ctx e in
-	let info = create_env_info (file_hash e.Type.epos.pfile) EKDelayed in
+	let info = create_env_info (file_hash e.Type.epos.pfile) EKDelayed jit.capture_names in
 	fun () ->
 		let env = ctx.push_environment ctx info jit.max_local_count (Hashtbl.length jit.captures) in
 		match catch_exceptions ctx (fun () -> Std.finally (fun _ -> ctx.pop_environment ctx env) f env) e.Type.epos with
