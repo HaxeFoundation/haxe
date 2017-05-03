@@ -234,8 +234,7 @@ and wait ctx run env =
 	and loop () =
 		print_string (Printf.sprintf "1> ");
 		flush stdout;
-		let line = (input_line stdin) in
-		print_endline line;
+		let line = input_line stdin in
 		match ExtString.String.nsplit line " " with
 		| ["quit" | "exit"] ->
 			(* TODO: Borrowed from interp.ml *)
@@ -433,7 +432,7 @@ let debug_loop jit e f =
 				| BPEnabled ->
 					breakpoint.bpstate <- BPHit;
 					ctx.debug.breakpoint <- breakpoint;
-					output_info (Printf.sprintf "Thread 0 stopped in TODO.todo() at %s:%i" (rev_hash_s env.env_info.pfile) env.env_debug.line);
+					output_info (Printf.sprintf "Thread 0 stopped in TODO.todo() at %s:%i." (rev_hash_s env.env_info.pfile) env.env_debug.line);
 					ctx.debug.debug_state <- DbgWaiting;
 					run_loop ctx run_check_breakpoint env
 				| _ ->
