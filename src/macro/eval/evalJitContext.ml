@@ -24,7 +24,7 @@ type t = {
 	(* Whether or not this function has a return that's not at the end of control flow. *)
 	mutable has_nonfinal_return : bool;
 	(* The name of capture variables. Maps local slots to variable names. Only filled in debug mode. *)
-	mutable capture_names : (int,string) Hashtbl.t;
+	mutable capture_infos : (int,var_info) Hashtbl.t;
 }
 
 (* Creates a new context *)
@@ -36,7 +36,7 @@ let create ctx = {
 	max_local_count = 0;
 	num_closures = 0;
 	has_nonfinal_return = false;
-	capture_names = Hashtbl.create 0;
+	capture_infos = Hashtbl.create 0;
 }
 
 (* Returns the number of locals in [scope]. *)
@@ -48,7 +48,7 @@ let push_scope jit =
 	let scope = {
 		local_offset = jit.local_count;
 		locals = Hashtbl.create 0;
-		local_names = Hashtbl.create 0;
+		local_infos = Hashtbl.create 0;
 		local_ids = Hashtbl.create 0;
 	} in
 	jit.scopes <- scope :: jit.scopes
@@ -77,7 +77,7 @@ let declare_local jit var =
 		let i = Hashtbl.length jit.captures in
 		Hashtbl.add jit.captures var.v_id i;
 		if jit.ctx.debug.support_debugger then begin
-			Hashtbl.replace jit.capture_names i var.v_name;
+			Hashtbl.replace jit.capture_infos i {var_name = var.v_name; var_type = s_type (print_context()) var.v_type};
 		end;
 		Env i
 	end else match jit.scopes with
@@ -89,7 +89,7 @@ let declare_local jit var =
 		let slot = scope.local_offset + i in
 		if jit.ctx.debug.support_debugger then begin
 			Hashtbl.replace scope.local_ids var.v_name var.v_id;
-			Hashtbl.replace scope.local_names i var.v_name;
+			Hashtbl.replace scope.local_infos i {var_name = var.v_name; var_type = s_type (print_context()) var.v_type};
 		end;
 		Local slot
 
@@ -100,7 +100,7 @@ let declare_local_this jit = match jit.scopes with
 		let i = Hashtbl.length scope.locals in
 		Hashtbl.add scope.locals 0 i;
 		increase_local_count jit;
-		if jit.ctx.debug.support_debugger then Hashtbl.replace scope.local_names 0 "this";
+		if jit.ctx.debug.support_debugger then Hashtbl.replace scope.local_infos 0 {var_name = "this";var_type = "TODO"};
 		Local i
 
 (* Gets the slot of variable id [vid] in context [jit]. *)

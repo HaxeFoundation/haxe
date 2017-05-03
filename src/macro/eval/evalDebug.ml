@@ -42,8 +42,11 @@ let delete_breakpoint ctx file line =
 	let h = Hashtbl.find ctx.debug.breakpoints hash in
 	Hashtbl.remove h line
 
-let output_variable_name = print_endline
-let output_variable_value = print_endline
+let output_variable info =
+	print_endline (Printf.sprintf "%s" info.var_name)
+
+let output_variable_value info value =
+	print_endline (Printf.sprintf "%s : %s = %s" info.var_name info.var_type value)
 
 let output_call_stack_position ctx i kind p =
 	let line = Lexer.get_error_line p in
@@ -65,21 +68,21 @@ let output_breakpoint_description breakpoint =
 let output_info = print_endline
 let output_error = print_endline
 
-let print_variables capture_names scopes env =
+let print_variables capture_infos scopes env =
 	let rec loop scopes = match scopes with
 		| scope :: scopes ->
-			Hashtbl.iter (fun _ name ->
-				output_variable_name name
-			) scope.local_names;
+			Hashtbl.iter (fun _ info ->
+				output_variable info
+			) scope.local_infos;
 			loop scopes
 		| [] ->
 			()
 	in
 	loop scopes;
-	Hashtbl.iter (fun slot name ->
+	Hashtbl.iter (fun slot info ->
 		if slot < Array.length env.env_captures then
-			output_variable_name name
-	) capture_names
+			output_variable info
+	) capture_infos
 
 let get_var_slot_by_name scopes name =
 	let rec loop scopes = match scopes with
@@ -87,43 +90,44 @@ let get_var_slot_by_name scopes name =
 			begin try
 				let id = Hashtbl.find scope.local_ids name in
 				let slot = Hashtbl.find scope.locals id + scope.local_offset in
-				slot
+				let info = Hashtbl.find scope.local_infos slot in
+				slot,info
 			with Not_found ->
 				loop scopes
 			end
 		| [] ->
 			raise Not_found
 	in
-	if name = "this" then 0 else loop scopes
+	if name = "this" then (0,{var_name = "this";var_type = "TODO"}) else loop scopes
 
-let get_capture_slot_by_name capture_names name =
-	let ret = ref (-1) in
+let get_capture_slot_by_name capture_infos name =
+	let ret = ref None in
 	try
-		Hashtbl.iter (fun slot name' ->
-			if name = name' then begin
-				ret := slot;
+		Hashtbl.iter (fun slot info ->
+			if name = info.var_name then begin
+				ret := (Some(slot,info));
 				raise Exit
 			end
-		) capture_names;
+		) capture_infos;
 		raise Not_found
 	with Exit ->
-		!ret
+		match !ret with None -> assert false | Some info -> info
 
-let print_variable capture_names scopes name env =
+let print_variable capture_infos scopes name env =
 	try
-		let slot = get_var_slot_by_name scopes name in
+		let slot,info = get_var_slot_by_name scopes name in
 		let value = env.env_locals.(slot) in
-		output_variable_value (value_string value);
+		output_variable_value info (value_string value);
 	with Not_found -> try
-		let slot = get_capture_slot_by_name capture_names name in
+		let slot,info = get_capture_slot_by_name capture_infos name in
 		let value = try env.env_captures.(slot) with _ -> raise Not_found in
-		output_variable_value (value_string !value)
+		output_variable_value info (value_string !value)
 	with Not_found ->
 		output_error ("No variable found: " ^ name)
 
 let set_variable scopes name value env =
 	try
-		let slot = get_var_slot_by_name scopes name in
+		let slot,_ = get_var_slot_by_name scopes name in
 		env.env_locals.(slot) <- value;
 		output_info (Printf.sprintf "set variable %s = %s" name (value_string value));
 	with Not_found ->
@@ -394,10 +398,10 @@ and wait ctx run env =
 					loop()
 			end
 		| ["variables" | "vars"] ->
-			print_variables env.env_info.capture_names env.env_debug.scopes env;
+			print_variables env.env_info.capture_infos env.env_debug.scopes env;
 			loop()
 		| ["print" | "p";name] ->
-			print_variable env.env_info.capture_names env.env_debug.scopes name env;
+			print_variable env.env_info.capture_infos env.env_debug.scopes name env;
 			loop()
 		| ["set" | "s";name;"=";value] ->
 			let msg = ref "" in
@@ -413,10 +417,8 @@ and wait ctx run env =
 				output_error (Printf.sprintf "Error parsing %s: %s" value !msg);
 			end;
 			loop()
-		| s :: _ ->
-			output_error (Printf.sprintf "Unknown command: %s" s);
-			loop()
-		| [] ->
+		| s ->
+			output_error (Printf.sprintf "Unknown command: %s" (String.concat " " s));
 			loop()
 	in
 	loop ()

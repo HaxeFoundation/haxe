@@ -22,13 +22,18 @@ open Type
 open EvalValue
 open EvalHash
 
+type var_info = {
+	var_name : string;
+	var_type : string
+}
+
 type scope = {
 	(* The local start offset of the current scope. *)
 	local_offset : int;
 	(* The locals declared in the current scope. Maps variable IDs to local slots. *)
 	mutable locals : (int,int) Hashtbl.t;
 	(* The name of local variables. Maps local slots to variable names. Only filled in debug mode. *)
-	mutable local_names : (int,string) Hashtbl.t;
+	mutable local_infos : (int,var_info) Hashtbl.t;
 	(* The IDs of local variables. Maps variable names to variable IDs. *)
 	mutable local_ids : (string,int) Hashtbl.t;
 }
@@ -41,7 +46,7 @@ type env_kind =
 type env_info = {
 	pfile : int;
 	kind : env_kind;
-	capture_names : (int,string) Hashtbl.t;
+	capture_infos : (int,var_info) Hashtbl.t;
 }
 
 type env_debug = {
@@ -213,11 +218,11 @@ let no_debug = {
 	expr = no_expr
 }
 
-let create_env_info pfile kind capture_names =
+let create_env_info pfile kind capture_infos =
 	let info = {
 		kind = kind;
 		pfile = pfile;
-		capture_names = capture_names;
+		capture_infos = capture_infos;
 	} in
 	info
 

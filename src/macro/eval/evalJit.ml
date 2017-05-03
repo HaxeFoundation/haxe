@@ -223,7 +223,7 @@ and jit_expr return jit e =
 	| TFunction tf ->
 		let jit_closure = EvalJitContext.create ctx in
 		jit_closure.captures <- jit.captures;
-		jit_closure.capture_names <- jit.capture_names;
+		jit_closure.capture_infos <- jit.capture_infos;
 		push_scope jit_closure;
 		let varaccs = List.map (fun (var,_) -> declare_local jit_closure var) tf.tf_args in
 		let exec = jit_expr true jit_closure tf.tf_expr in
@@ -231,7 +231,7 @@ and jit_expr return jit e =
 		let args = List.map (fun (_,cto) -> Option.map_default eval_const vnull cto) tf.tf_args in
 		jit.num_closures <- jit.num_closures + 1;
 		let num_captures = Hashtbl.length jit.captures in
-		let info = create_env_info (file_hash e.epos.pfile) (EKLocalFunction jit.num_closures) jit_closure.capture_names in
+		let info = create_env_info (file_hash e.epos.pfile) (EKLocalFunction jit.num_closures) jit_closure.capture_infos in
 		emit_closure jit.ctx info jit_closure.has_nonfinal_return jit_closure.max_local_count num_captures varaccs args exec
 	(* branching *)
 	| TIf(e1,e2,eo) ->
@@ -696,7 +696,7 @@ let jit_tfunction ctx key_type key_field tf static =
 	let local_count = jit.max_local_count in
 	let capture_count = Hashtbl.length jit.captures in
 	let hasret = jit.has_nonfinal_return in
-	let info = create_env_info (file_hash tf.tf_expr.epos.pfile) (EKMethod(key_type,key_field)) jit.capture_names in
+	let info = create_env_info (file_hash tf.tf_expr.epos.pfile) (EKMethod(key_type,key_field)) jit.capture_infos in
 	match args,varaccs with
 	| [],[] -> Fun0 (emit_tfunction0 ctx info hasret local_count capture_count exec)
 	| [arg1],[varacc1] -> Fun1 (emit_tfunction1 ctx info hasret local_count capture_count arg1 varacc1 exec)
