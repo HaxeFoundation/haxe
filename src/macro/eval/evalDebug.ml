@@ -210,7 +210,8 @@ let rec run_loop ctx run env : value =
 
 (* Reads input and reacts accordingly. *)
 and wait ctx run env =
-	print_endline (Printf.sprintf "> %s" (s_expr_pretty env.env_debug.expr));
+	print_string (Printf.sprintf "1> ");
+	flush stdout;
 	let rec move_frame offset : value =
 		if offset < 0 || offset >= ctx.environment_offset then begin
 			output_error (Printf.sprintf "Frame out of bounds: %i (valid range is %i - %i)" offset 0 (ctx.environment_offset - 1));
