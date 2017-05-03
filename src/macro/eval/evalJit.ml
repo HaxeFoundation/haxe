@@ -351,6 +351,16 @@ and jit_expr return jit e =
 	(* control flow *)
 	| TBlock [] ->
 		emit_null
+	| TBlock el when ctx.debug.support_debugger ->
+		let e1,el = match List.rev el with
+			| e1 :: el -> e1,List.rev el
+			| [] -> assert false
+		in
+		push_scope jit;
+		let execs = List.map (jit_expr false jit) el in
+		let exec1 = jit_expr return jit e1 in
+		pop_scope jit;
+		emit_block (Array.of_list (execs @ [exec1]))
 	| TBlock [e1] ->
 		loop e1
 	| TBlock [e1;e2] ->
