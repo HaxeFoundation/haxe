@@ -45,9 +45,9 @@ let delete_breakpoint ctx file line =
 let output_variable_name = print_endline
 let output_variable_value = print_endline
 
-let output_call_stack_position i p =
+let output_call_stack_position ctx i kind p =
 	let line = Lexer.get_error_line p in
-	print_endline (Printf.sprintf "%6i : TODO.todo() at %s:%i" i p.pfile line)
+	print_endline (Printf.sprintf "%6i : %s at %s:%i" i (kind_name ctx kind) p.pfile line)
 
 let output_file_path = print_endline
 let output_type_name = print_endline
@@ -129,7 +129,7 @@ let set_variable scopes name value env =
 	with Not_found ->
 		output_error ("No variable found: " ^ name)
 
-let print_call_stack ctx p =
+let print_call_stack ctx kind p =
 	let envs = match call_stack ctx with
 		| _ :: envs -> envs
 		| [] -> []
@@ -140,11 +140,13 @@ let print_call_stack ctx p =
 	in
 	let envs = loop ctx.debug.environment_offset_delta envs in
 	let i = ref (ctx.environment_offset - 1) in
-	output_call_stack_position !i {p with pfile = Path.unique_full_path p.Globals.pfile};
+	output_call_stack_position ctx !i kind {p with pfile = Path.unique_full_path p.Globals.pfile};
 	List.iter (fun env ->
-		let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_hash_s env.env_info.pfile} in
-		decr i;
-		output_call_stack_position !i p
+		if env.env_leave_pmin >= 0 then begin
+			let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_hash_s env.env_info.pfile} in
+			decr i;
+			output_call_stack_position ctx !i env.env_info.kind p
+		end
 	) envs
 
 let iter_breakpoints ctx f =
@@ -371,7 +373,7 @@ and wait ctx run env =
 			ctx.debug.debug_state <- DbgFinish ctx.environment_offset;
 			run env
 		| ["where" | "w"] ->
-			print_call_stack ctx env.env_debug.expr.epos;
+			print_call_stack ctx env.env_info.kind env.env_debug.expr.epos;
 			loop()
 		| ["up"] ->
 			let offset = ctx.environment_offset - ctx.debug.environment_offset_delta in
@@ -432,7 +434,7 @@ let debug_loop jit e f =
 				| BPEnabled ->
 					breakpoint.bpstate <- BPHit;
 					ctx.debug.breakpoint <- breakpoint;
-					output_info (Printf.sprintf "Thread 0 stopped in TODO.todo() at %s:%i." (rev_hash_s env.env_info.pfile) env.env_debug.line);
+					output_info (Printf.sprintf "Thread 0 stopped in %s at %s:%i." (rev_hash_s env.env_info.pfile) (kind_name ctx env.env_info.kind) env.env_debug.line);
 					ctx.debug.debug_state <- DbgWaiting;
 					run_loop ctx run_check_breakpoint env
 				| _ ->
