@@ -45,8 +45,8 @@ let delete_breakpoint ctx file line =
 let output_variable info =
 	print_endline (Printf.sprintf "%s" info.var_name)
 
-let output_variable_value info value =
-	print_endline (Printf.sprintf "%s : %s = %s" info.var_name info.var_type value)
+let output_value name t value =
+	print_endline (Printf.sprintf "%s : %s = %s" name t value)
 
 let output_call_stack_position ctx i kind p =
 	let line = Lexer.get_error_line p in
@@ -98,7 +98,7 @@ let get_var_slot_by_name scopes name =
 		| [] ->
 			raise Not_found
 	in
-	if name = "this" then (0,{var_name = "this";var_type = "TODO"}) else loop scopes
+	loop scopes
 
 let get_capture_slot_by_name capture_infos name =
 	let ret = ref None in
@@ -113,16 +113,23 @@ let get_capture_slot_by_name capture_infos name =
 	with Exit ->
 		match !ret with None -> assert false | Some info -> info
 
-let print_variable capture_infos scopes name env =
+let get_variable capture_infos scopes name env =
 	try
 		let slot,info = get_var_slot_by_name scopes name in
 		let value = env.env_locals.(slot) in
-		output_variable_value info (value_string value);
+		Some (info,value)
 	with Not_found -> try
 		let slot,info = get_capture_slot_by_name capture_infos name in
 		let value = try env.env_captures.(slot) with _ -> raise Not_found in
-		output_variable_value info (value_string !value)
+		Some (info,!value)
 	with Not_found ->
+		None
+
+let print_variable capture_infos scopes name env =
+	match get_variable capture_infos scopes name env with
+	| Some (info,value) ->
+		output_value info.var_name info.var_type (value_string value)
+	| None ->
 		output_error ("No variable found: " ^ name)
 
 let set_variable scopes name value env =
@@ -195,6 +202,20 @@ let rec expr_to_value e = match fst e with
 		end
 	| _ ->
 		raise Exit
+
+let parse_expr ctx s p =
+	let msg = ref "" in
+	let error s =
+		msg := s;
+		raise Exit
+	in
+	begin try
+		let e = Parser.parse_expr_string (ctx.curapi.get_com()) s p error false in
+		Some e
+	with Exit ->
+		output_error (Printf.sprintf "Error parsing %s: %s" s !msg);
+		None
+	end
 
 let is_caught ctx v =
 	try
@@ -404,21 +425,41 @@ and wait ctx run env =
 		| ["variables" | "vars"] ->
 			print_variables env.env_info.capture_infos env.env_debug.scopes env;
 			loop()
-		| ["print" | "p";name] ->
-			print_variable env.env_info.capture_infos env.env_debug.scopes name env;
+		| ["print" | "p";e] ->
+			begin match parse_expr ctx e env.env_debug.expr.epos with
+				| Some e ->
+					let rec loop e = match fst e with
+						| EConst(Ident s) ->
+							let info,value = match get_variable env.env_info.capture_infos env.env_debug.scopes s env with
+								| None -> raise Exit
+								| Some (info,value) -> info,value
+							in
+							info.var_name,info.var_type,value
+						| EField(e1,s) ->
+							let n1,_,v1 = loop e1 in
+							let v = EvalField.field v1 (hash_s s) in
+							(Printf.sprintf "%s.%s" n1 s),"TODO",v
+						| _ ->
+							output_error ("Don't know how to handle this expression");
+							raise Exit
+					in
+					begin try
+						let name,t,v = loop e in
+						output_value name t (value_string v)
+					with Exit ->
+						()
+					end
+				| None ->
+					()
+			end;
 			loop()
 		| ["set" | "s";name;"=";value] ->
-			let msg = ref "" in
-			let error s =
-				msg := s;
-				raise Exit
-			in
-			begin try
-				let e = Parser.parse_expr_string (ctx.curapi.get_com()) value env.env_debug.expr.epos error false in
-				let v = expr_to_value e in
-				set_variable env.env_debug.scopes name v env
-			with Exit ->
-				output_error (Printf.sprintf "Error parsing %s: %s" value !msg);
+			begin match parse_expr ctx value env.env_debug.expr.epos with
+				| Some e ->
+					let v = expr_to_value e in
+					set_variable env.env_debug.scopes name v env
+				| None ->
+					()
 			end;
 			loop()
 		| s ->

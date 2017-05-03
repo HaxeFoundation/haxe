@@ -100,7 +100,10 @@ let declare_local_this jit = match jit.scopes with
 		let i = Hashtbl.length scope.locals in
 		Hashtbl.add scope.locals 0 i;
 		increase_local_count jit;
-		if jit.ctx.debug.support_debugger then Hashtbl.replace scope.local_infos 0 {var_name = "this";var_type = "TODO"};
+		if jit.ctx.debug.support_debugger then begin
+			Hashtbl.replace scope.local_ids "this" 0;
+			Hashtbl.replace scope.local_infos 0 {var_name = "this";var_type = "TODO"};
+		end;
 		Local i
 
 (* Gets the slot of variable id [vid] in context [jit]. *)
