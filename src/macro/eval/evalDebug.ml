@@ -33,7 +33,9 @@ let add_breakpoint ctx file line =
 		Hashtbl.add ctx.debug.breakpoints hash h;
 		h
 	in
-	Hashtbl.replace h line (make_breakpoint hash line BPEnabled)
+	let breakpoint = make_breakpoint hash line BPEnabled in
+	Hashtbl.replace h line breakpoint;
+	breakpoint
 
 let delete_breakpoint ctx file line =
 	let hash = hash_s (Path.unique_full_path (Common.find_file (ctx.curapi.get_com()) file)) in
@@ -42,7 +44,11 @@ let delete_breakpoint ctx file line =
 
 let output_variable_name = print_endline
 let output_variable_value = print_endline
-let output_call_stack_position p = print_endline (format_pos p)
+
+let output_call_stack_position i p =
+	let line = Lexer.get_error_line p in
+	print_endline (Printf.sprintf "%6i : TODO.todo() at %s:%i" i p.pfile line)
+
 let output_file_path = print_endline
 let output_type_name = print_endline
 
@@ -133,10 +139,12 @@ let print_call_stack ctx p =
 		| _ -> envs
 	in
 	let envs = loop ctx.debug.environment_offset_delta envs in
-	output_call_stack_position {p with pfile = Path.unique_full_path p.Globals.pfile};
+	let i = ref (ctx.environment_offset - 1) in
+	output_call_stack_position !i {p with pfile = Path.unique_full_path p.Globals.pfile};
 	List.iter (fun env ->
 		let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_hash_s env.env_info.pfile} in
-		output_call_stack_position p
+		decr i;
+		output_call_stack_position !i p
 	) envs
 
 let iter_breakpoints ctx f =
@@ -226,7 +234,9 @@ and wait ctx run env =
 	and loop () =
 		print_string (Printf.sprintf "1> ");
 		flush stdout;
-		match ExtString.String.nsplit (input_line stdin) " " with
+		let line = (input_line stdin) in
+		print_endline line;
+		match ExtString.String.nsplit line " " with
 		| ["quit" | "exit"] ->
 			(* TODO: Borrowed from interp.ml *)
 			if (get_ctx()).curapi.use_cache() then raise (Error.Fatal_error ("",Globals.null_pos));
@@ -267,8 +277,8 @@ and wait ctx run env =
 			begin try
 				let file,line = parse_breakpoint_pattern pattern in
 				begin try
-					add_breakpoint ctx file line;
-					output_info (Printf.sprintf "Added breakpoint at %s:%i" file line);
+					let breakpoint = add_breakpoint ctx file line in
+					output_info (Printf.sprintf "Breakpoint %i set and enabled" breakpoint.bpid);
 				with Not_found ->
 					output_error ("Could not find file " ^ file);
 				end;
@@ -423,7 +433,7 @@ let debug_loop jit e f =
 				| BPEnabled ->
 					breakpoint.bpstate <- BPHit;
 					ctx.debug.breakpoint <- breakpoint;
-					output_info (Printf.sprintf "Hit breakpoint at %s:%i" (rev_hash_s env.env_info.pfile) env.env_debug.line);
+					output_info (Printf.sprintf "Thread 0 stopped in TODO.todo() at %s:%i" (rev_hash_s env.env_info.pfile) env.env_debug.line);
 					ctx.debug.debug_state <- DbgWaiting;
 					run_loop ctx run_check_breakpoint env
 				| _ ->

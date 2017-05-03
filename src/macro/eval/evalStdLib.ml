@@ -587,7 +587,7 @@ module StdContext = struct
 		let file = decode_string file in
 		let line = decode_int line in
 		begin try
-			EvalDebug.add_breakpoint (get_ctx()) file line
+			ignore(EvalDebug.add_breakpoint (get_ctx()) file line);
 		with Not_found ->
 			exc_string ("Could not find file " ^ file)
 		end;
