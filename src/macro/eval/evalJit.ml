@@ -657,60 +657,10 @@ and jit_expr return jit e =
 	| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 		loop e1
 	in
-	let break = match jit.breakpoints with
-		| None -> false
-		| Some breakpoints ->
-			let line = Lexer.get_error_line e.epos in
-			if line = jit.last_line then
-				false
-			else begin
-				jit.last_line <- line;
-				try
-					let _ = Hashtbl.find breakpoints line in
-					true
-				with Not_found ->
-					false
-			end
-	in
 	let f = loop e in
-	if break then begin
-		let max_local_name = ref 0 in
-		let local_names = Hashtbl.create 0 in
-		let capture_names = jit.capture_names in
-		let rec loop scopes = match scopes with
-			| scope :: scopes ->
-				Hashtbl.iter (fun slot name ->
-					let l = String.length name in
-					if l > !max_local_name then max_local_name := l;
-					Hashtbl.replace local_names slot name
-				) scope.local_names;
-				loop scopes
-			| [] ->
-				()
-		in
-		loop jit.scopes;
-		Hashtbl.iter (fun _ name ->
-			let l = String.length name in
-			if l > !max_local_name then max_local_name := l
-		) capture_names;
-		let num_locals = jit.local_count in
-		let num_captures = Hashtbl.length jit.captures in
-		let print name value =
-			print_endline (Printf.sprintf "\t%*s = %s" !max_local_name name (EvalPrinting.value_string value))
-		in
-		(fun env ->
-			print_endline ("Breaking before executing " ^ (s_expr_pretty e));
-			print_endline ("Locals: ");
-			Array.iteri (fun i v ->
-				let name = try Hashtbl.find local_names i with Not_found -> "?" in
-				print name v;
-			) (Array.sub env.locals 0 num_locals);
-			Array.iteri (fun i v ->
-				let name = try Hashtbl.find capture_names i with Not_found -> "?" in
-				print name !v;
-			) (Array.sub env.captures 0 num_captures);
-			f env
-		)
+	if ctx.debug.support_debugger then begin match e.eexpr with
+		| TConst _ | TLocal _ | TTypeExpr _ -> f
+		| _ -> EvalDebug.debug_loop jit e f
 	end else
 		f
 

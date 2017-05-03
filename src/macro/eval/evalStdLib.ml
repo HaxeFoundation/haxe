@@ -586,16 +586,7 @@ module StdContext = struct
 	let addBreakpoint = vfun2 (fun file line ->
 		let file = decode_string file in
 		let line = decode_int line in
-		let hash = hash_s (Path.unique_full_path file) in
-		let ctx = get_ctx() in
-		begin try
-			let h = Hashtbl.find ctx.builtins.breakpoints hash in
-			Hashtbl.replace h line {bpline = line};
-		with Not_found ->
-			let h = Hashtbl.create 1 in
-			Hashtbl.add h line {bpline = line};
-			Hashtbl.add ctx.builtins.breakpoints hash h
-		end;
+		EvalDebug.add_breakpoint (get_ctx()) file line;
 		vnull
 	)
 

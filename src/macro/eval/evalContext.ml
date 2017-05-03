@@ -41,25 +41,47 @@ type env = {
 	captures : value ref array;
 }
 
+type breakpoint_state =
+	| BPEnabled
+	| BPDisabled
+	| BPHit
+
 type breakpoint = {
+	bpid : int;
+	bpfile : int;
 	bpline : int;
+	mutable bpstate : breakpoint_state;
 }
+
+type debug_state =
+	| DbgRunning
+	| DbgSingleStep
+	| DbgWaiting
+	| DbgNext of int
+	| DbgFinish of int
 
 type builtins = {
 	mutable instance_builtins : (int * value) list IntMap.t;
 	mutable static_builtins : (int * value) list IntMap.t;
 	constructor_builtins : (int,value list -> value) Hashtbl.t;
 	empty_constructor_builtins : (int,unit -> value) Hashtbl.t;
+}
+
+type debug = {
+	debug : bool;
 	breakpoints : (int,(int,breakpoint) Hashtbl.t) Hashtbl.t;
+	mutable support_debugger : bool;
+	mutable debug_state : debug_state;
+	mutable breakpoint : breakpoint;
 }
 
 type context = {
 	ctx_id : int;
 	is_macro : bool;
-	debug : bool;
 	record_stack : bool;
 	detail_times : bool;
 	builtins : builtins;
+	debug : debug;
 	mutable curapi : value MacroApi.compiler_api;
 	mutable type_cache : Type.module_type IntMap.t;
 	overrides : (Type.path * string,bool) Hashtbl.t;

@@ -37,6 +37,7 @@ open MacroApi
 let sid = ref (-1)
 
 let stdlib = ref None
+let debug = ref None
 
 let create com api is_macro =
 	let t = Common.timer [(if is_macro then "macro" else "interp");"create"] in
@@ -48,8 +49,6 @@ let create com api is_macro =
 				instance_builtins = IntMap.empty;
 				constructor_builtins = Hashtbl.create 0;
 				empty_constructor_builtins = Hashtbl.create 0;
-				(* debug *)
-				breakpoints = Hashtbl.create 0;
 			} in
 			EvalStdLib.init_standard_library builtins;
 			stdlib := Some builtins;
@@ -57,11 +56,26 @@ let create com api is_macro =
 		| Some (builtins) ->
 			builtins
 	in
-	let record_stack = (com.Common.debug && not (Common.raw_defined com "no-interp-stack")) || Common.raw_defined com "interp-stack" in
+	let debug = match !debug with
+		| None ->
+			let support_debugger = Common.raw_defined com "interp-debugger" in
+			let debug' = {
+				debug = com.Common.debug || support_debugger;
+				breakpoints = Hashtbl.create 0;
+				support_debugger = support_debugger;
+				debug_state = DbgRunning;
+				breakpoint = EvalDebug.make_breakpoint 0 0 BPDisabled;
+			} in
+			debug := Some debug';
+			debug'
+		| Some debug ->
+			debug
+	in
+	let record_stack = (debug.debug && not (Common.raw_defined com "no-interp-stack")) || Common.raw_defined com "interp-stack" in
 	let rec ctx = {
 		ctx_id = !sid;
 		is_macro = is_macro;
-		debug = com.Common.debug;
+		debug = debug;
 		record_stack = record_stack;
 		detail_times = Common.raw_defined com "interp-times";
 		curapi = api;

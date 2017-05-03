@@ -51,19 +51,22 @@ let format_pos p =
 	let error_printer file line = Printf.sprintf "%s:%d:" file line in
 	Lexer.get_error_pos error_printer p
 
+let uncaught_exception_string v p extra =
+	(Printf.sprintf "%s: Uncaught exception %s%s" (format_pos p) (value_string v) extra)
+
 let error_exc ctx v stack p =
 	let pl = List.map (fun env -> {pfile = rev_hash_s env.info.pfile;pmin = env.leave_pmin; pmax = env.leave_pmax}) stack in
 	let pl = List.filter (fun p -> p <> null_pos) pl in
 	match pl with
 	| [] ->
 		let extra = if ctx.record_stack then "" else "\nNo stack information available, consider compiling with -D interp-stack" in
-		Error.error (Printf.sprintf "%s: Uncaught exception %s%s" (format_pos p) (value_string v) extra) null_pos
+		Error.error (uncaught_exception_string v p extra) null_pos
 	| _ ->
 		let sstack = String.concat "\n" (List.map (fun p -> Printf.sprintf "\t%s" (format_pos p)) pl) in
 		Error.error (Printf.sprintf "%s: Uncaught exception %s\nCalled from:\n%s" (format_pos p) (value_string v) sstack) null_pos
 
 let build_exception_stack ctx environment_offset =
-	let d = if not ctx.debug then [] else DynArray.to_list (DynArray.sub ctx.environments environment_offset (ctx.environment_offset - environment_offset)) in
+	let d = if not ctx.debug.debug then [] else DynArray.to_list (DynArray.sub ctx.environments environment_offset (ctx.environment_offset - environment_offset)) in
 	ctx.exception_stack <- List.map (fun env ->
 		env.in_use <- false;
 		{pfile = rev_hash_s env.info.pfile;pmin = env.leave_pmin; pmax = env.leave_pmax},env.info.kind

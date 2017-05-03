@@ -16,14 +16,14 @@ type scope = {
 	mutable locals : (int,int) Hashtbl.t;
 	(* The name of local variables. Maps local slots to variable names. Only filled in debug mode. *)
 	mutable local_names : (int,string) Hashtbl.t;
+	(* The IDs of local variables. Maps variable names to variable IDs. *)
+	mutable local_ids : (string,int) Hashtbl.t;
 }
 
 type t = {
 	ctx : context;
 	(* The hash of the file this function was defined in. *)
 	file_key : int;
-	(* The breakpoints for our current file. *)
-	breakpoints : (int,breakpoint) Hashtbl.t option;
 	(* The scope stack. *)
 	mutable scopes : scope list;
 	(* The captured variables declared in this context. Maps variable IDs to capture slots. *)
@@ -53,7 +53,6 @@ let create ctx file_key = {
 	num_closures = 0;
 	has_nonfinal_return = false;
 	last_line = 0;
-	breakpoints = (try Some (Hashtbl.find ctx.builtins.breakpoints file_key) with Not_found -> None);
 	capture_names = Hashtbl.create 0;
 }
 
@@ -67,6 +66,7 @@ let push_scope jit =
 		local_offset = jit.local_count;
 		locals = Hashtbl.create 0;
 		local_names = Hashtbl.create 0;
+		local_ids = Hashtbl.create 0;
 	} in
 	jit.scopes <- scope :: jit.scopes
 
@@ -93,7 +93,9 @@ let declare_local jit var =
 	if var.v_capture then begin
 		let i = Hashtbl.length jit.captures in
 		Hashtbl.add jit.captures var.v_id i;
-		if jit.ctx.debug then Hashtbl.replace jit.capture_names i var.v_name;
+		if jit.ctx.debug.support_debugger then begin
+			Hashtbl.replace jit.capture_names i var.v_name;
+		end;
 		Env i
 	end else match jit.scopes with
 	| [] -> assert false
@@ -102,7 +104,10 @@ let declare_local jit var =
 		Hashtbl.add scope.locals var.v_id i;
 		increase_local_count jit;
 		let slot = scope.local_offset + i in
-		if jit.ctx.debug then Hashtbl.replace scope.local_names slot var.v_name;
+		if jit.ctx.debug.support_debugger then begin
+			Hashtbl.replace scope.local_ids var.v_name var.v_id;
+			Hashtbl.replace scope.local_names i var.v_name;
+		end;
 		Local slot
 
 (* Declares a variable for `this` in context [jit]. *)
@@ -112,7 +117,7 @@ let declare_local_this jit = match jit.scopes with
 		let i = Hashtbl.length scope.locals in
 		Hashtbl.add scope.locals 0 i;
 		increase_local_count jit;
-		if jit.ctx.debug then Hashtbl.replace scope.local_names 0 "this";
+		if jit.ctx.debug.support_debugger then Hashtbl.replace scope.local_names 0 "this";
 		Local i
 
 (* Gets the slot of variable id [vid] in context [jit]. *)
