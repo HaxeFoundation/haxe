@@ -9,6 +9,7 @@ open EvalExceptions
 open EvalPrinting
 open EvalHash
 open EvalEncode
+open EvalMisc
 open MacroApi
 
 let make_breakpoint =
@@ -131,6 +132,15 @@ let rec expr_to_value e = match fst e with
 		end
 	| _ ->
 		raise Exit
+
+let is_caught ctx v =
+	let rec loop offset =
+		if offset < 0 then false else begin
+			let env = DynArray.get ctx.environments offset in
+			List.exists (fun path -> is v path) env.info.caught_types || loop (offset - 1)
+		end
+	in
+	loop (ctx.environment_offset - 1)
 
 let debug_loop jit e f =
 	let ctx = jit.ctx in
@@ -329,7 +339,12 @@ let debug_loop jit e f =
 			| [] ->
 				loop env
 	and run env =
-		f env
+		try
+			f env
+		with RunTimeException(v,_,_) when not (is_caught ctx v) ->
+			print_endline (uncaught_exception_string v e.epos "");
+			ctx.debug.debug_state <- DbgWaiting;
+			loop env
 	and run_safe env =
 		try
 			let h = Hashtbl.find ctx.debug.breakpoints jit.file_key in

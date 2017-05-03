@@ -40,6 +40,7 @@ type t = {
 	mutable last_line : int;
 	(* The name of capture variables. Maps local slots to variable names. Only filled in debug mode. *)
 	mutable capture_names : (int,string) Hashtbl.t;
+	mutable caught_types : (int,bool) Hashtbl.t;
 }
 
 (* Creates a new context *)
@@ -54,6 +55,7 @@ let create ctx file_key = {
 	has_nonfinal_return = false;
 	last_line = 0;
 	capture_names = Hashtbl.create 0;
+	caught_types = Hashtbl.create 0;
 }
 
 (* Returns the number of locals in [scope]. *)

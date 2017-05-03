@@ -29,6 +29,7 @@ type env_kind =
 type env_info = {
 	pfile : int;
 	kind : env_kind;
+	caught_types : int list;
 }
 
 type env = {
@@ -183,10 +184,11 @@ let exc_string str = exc (vstring (Rope.of_string str))
 let no_timer = fun () -> ()
 let empty_array = [||]
 
-let create_env_info pfile kind =
+let create_env_info pfile kind caught_types =
 	let info = {
 		kind = kind;
 		pfile = pfile;
+		caught_types = Hashtbl.fold (fun k _ acc -> k :: acc) caught_types [];
 	} in
 	info
 

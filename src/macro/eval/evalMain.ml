@@ -103,7 +103,7 @@ let create com api is_macro =
 
 let eval_delayed ctx e =
 	let jit,f = jit_expr ctx e in
-	let info = create_env_info (hash_s e.Type.epos.pfile) EKDelayed in
+	let info = create_env_info (hash_s e.Type.epos.pfile) EKDelayed jit.caught_types in
 	fun () ->
 		let env = ctx.push_environment ctx info jit.max_local_count (Hashtbl.length jit.captures) in
 		match catch_exceptions ctx (fun () -> Std.finally (fun _ -> ctx.pop_environment ctx env) f env) e.Type.epos with
