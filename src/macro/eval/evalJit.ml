@@ -221,7 +221,7 @@ and jit_expr return jit e =
 		let proto = get_static_prototype_as_value jit.ctx key e.epos in
 		emit_type_expr proto
 	| TFunction tf ->
-		let jit_closure = EvalJitContext.create ctx jit.file_key in
+		let jit_closure = EvalJitContext.create ctx in
 		jit_closure.captures <- jit.captures;
 		jit_closure.capture_names <- jit.capture_names;
 		push_scope jit_closure;
@@ -231,7 +231,7 @@ and jit_expr return jit e =
 		let args = List.map (fun (_,cto) -> Option.map_default eval_const vnull cto) tf.tf_args in
 		jit.num_closures <- jit.num_closures + 1;
 		let num_captures = Hashtbl.length jit.captures in
-		let info = create_env_info (hash_s e.epos.pfile) (EKLocalFunction jit.num_closures) in
+		let info = create_env_info (file_hash e.epos.pfile) (EKLocalFunction jit.num_closures) in
 		emit_closure jit.ctx info jit_closure.has_nonfinal_return jit_closure.max_local_count num_captures varaccs args exec
 	(* branching *)
 	| TIf(e1,e2,eo) ->
@@ -680,7 +680,7 @@ and jit_expr return jit e =
 let jit_tfunction ctx key_type key_field tf static =
 	let t = Common.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
 	(* Create a new JitContext with an initial scope *)
-	let jit = EvalJitContext.create ctx (hash_s (Path.unique_full_path tf.tf_expr.epos.pfile)) in
+	let jit = EvalJitContext.create ctx in
 	push_scope jit;
 	(* Declare `this` (if not static) and function arguments as local variables. *)
 	let varaccs = if static then [] else [declare_local_this jit] in
@@ -696,7 +696,7 @@ let jit_tfunction ctx key_type key_field tf static =
 	let local_count = jit.max_local_count in
 	let capture_count = Hashtbl.length jit.captures in
 	let hasret = jit.has_nonfinal_return in
-	let info = create_env_info (hash_s tf.tf_expr.epos.pfile) (EKMethod(key_type,key_field)) in
+	let info = create_env_info (file_hash tf.tf_expr.epos.pfile) (EKMethod(key_type,key_field)) in
 	match args,varaccs with
 	| [],[] -> Fun0 (emit_tfunction0 ctx info hasret local_count capture_count exec)
 	| [arg1],[varacc1] -> Fun1 (emit_tfunction1 ctx info hasret local_count capture_count arg1 varacc1 exec)
@@ -709,7 +709,7 @@ let jit_tfunction ctx key_type key_field tf static =
 (* JITs expression [e] to a function. This is used for expressions that are not in a method. *)
 let jit_expr ctx e =
 	let t = Common.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
-	let jit = EvalJitContext.create ctx (hash_s (Path.unique_full_path e.epos.pfile)) in
+	let jit = EvalJitContext.create ctx in
 	let f = jit_expr false jit (mk_block e) in
 	t();
 	jit,f

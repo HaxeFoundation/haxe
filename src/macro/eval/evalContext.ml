@@ -21,6 +21,17 @@ open Globals
 open EvalValue
 open EvalHash
 
+type scope = {
+	(* The local start offset of the current scope. *)
+	local_offset : int;
+	(* The locals declared in the current scope. Maps variable IDs to local slots. *)
+	mutable locals : (int,int) Hashtbl.t;
+	(* The name of local variables. Maps local slots to variable names. Only filled in debug mode. *)
+	mutable local_names : (int,string) Hashtbl.t;
+	(* The IDs of local variables. Maps variable names to variable IDs. *)
+	mutable local_ids : (string,int) Hashtbl.t;
+}
+
 type env_kind =
 	| EKLocalFunction of int
 	| EKMethod of int * int
@@ -31,14 +42,19 @@ type env_info = {
 	kind : env_kind;
 }
 
-type env = {
-	info : env_info;
-	mutable leave_pmin : int;
-	mutable leave_pmax : int;
-	mutable in_use : bool;
+type env_debug = {
 	timer : unit -> unit;
-	locals : value array;
-	captures : value ref array;
+	scopes : scope list;
+}
+
+type env = {
+	env_info : env_info;
+	env_debug : env_debug;
+	mutable env_leave_pmin : int;
+	mutable env_leave_pmax : int;
+	mutable env_in_use : bool;
+	env_locals : value array;
+	env_captures : value ref array;
 }
 
 type breakpoint_state =
@@ -114,7 +130,7 @@ let rec kind_name ctx kind =
 		| EKLocalFunction i, env_id ->
 			let parent_id = env_id - 1 in
 			let env = DynArray.get ctx.environments parent_id in
-			Printf.sprintf "%s.localFunction%i" (loop env.info.kind parent_id) i
+			Printf.sprintf "%s.localFunction%i" (loop env.env_info.kind parent_id) i
 		| EKMethod(i1,i2),_ -> Printf.sprintf "%s.%s" (rev_hash_s i1) (rev_hash_s i2)
 		| EKDelayed,_ -> "delayed"
 	in
@@ -170,8 +186,8 @@ let throw v p =
 	let ctx = get_ctx() in
 	if ctx.environment_offset > 0 then begin
 		let env = DynArray.get ctx.environments (ctx.environment_offset - 1) in
-		env.leave_pmin <- p.pmin;
-		env.leave_pmax <- p.pmax;
+		env.env_leave_pmin <- p.pmin;
+		env.env_leave_pmax <- p.pmax;
 	end;
 	raise (RunTimeException(v,call_stack ctx,p))
 
@@ -183,6 +199,11 @@ let exc_string str = exc (vstring (Rope.of_string str))
 
 let no_timer = fun () -> ()
 let empty_array = [||]
+
+let no_debug = {
+	timer = no_timer;
+	scopes = [];
+}
 
 let create_env_info pfile kind =
 	let info = {
@@ -198,13 +219,16 @@ let push_environment_debug ctx info num_locals num_captures =
 		no_timer
 	in
 	let env = {
-		info = info;
-		leave_pmin = 0;
-		leave_pmax = 0;
-		in_use = false;
-		timer = timer;
-		locals = Array.make num_locals vnull;
-		captures = Array.make num_captures (ref vnull);
+		env_info = info;
+		env_leave_pmin = 0;
+		env_leave_pmax = 0;
+		env_in_use = false;
+		env_debug = {
+			timer = timer;
+			scopes = [];
+		};
+		env_locals = Array.make num_locals vnull;
+		env_captures = Array.make num_captures (ref vnull);
 	} in
 	if ctx.environment_offset = DynArray.length ctx.environments then
 		DynArray.add ctx.environments env
@@ -215,29 +239,29 @@ let push_environment_debug ctx info num_locals num_captures =
 
 let create_default_environment ctx info num_locals =
 	{
-		info = info;
-		leave_pmin = 0;
-		leave_pmax = 0;
-		in_use = false;
-		timer = no_timer;
-		locals = Array.make num_locals vnull;
-		captures = empty_array;
+		env_info = info;
+		env_leave_pmin = 0;
+		env_leave_pmax = 0;
+		env_in_use = false;
+		env_debug = no_debug;
+		env_locals = Array.make num_locals vnull;
+		env_captures = empty_array;
 	}
 
 let push_environment ctx info num_locals num_captures =
 	{
-		info = info;
-		leave_pmin = 0;
-		leave_pmax = 0;
-		in_use = false;
-		timer = no_timer;
-		locals = Array.make num_locals vnull;
-		captures = Array.make num_captures (ref vnull);
+		env_info = info;
+		env_leave_pmin = 0;
+		env_leave_pmax = 0;
+		env_in_use = false;
+		env_debug = no_debug;
+		env_locals = Array.make num_locals vnull;
+		env_captures = Array.make num_captures (ref vnull);
 	}
 
 let pop_environment_debug ctx env =
 	ctx.environment_offset <- ctx.environment_offset - 1;
-	env.timer();
+	env.env_debug.timer();
 	()
 
 let pop_environment ctx _ =

@@ -33,7 +33,7 @@ let eval_expr ctx key name e =
 	catch_exceptions ctx (fun () ->
 		let jit,f = jit_expr ctx e in
 		let capture_count = Hashtbl.length jit.captures in
-		let info = create_env_info (hash_s e.epos.pfile) (EKMethod(key,name)) in
+		let info = create_env_info (file_hash e.epos.pfile) (EKMethod(key,name)) in
 		let env = ctx.push_environment ctx info jit.max_local_count capture_count in
 		Std.finally (fun _ -> ctx.pop_environment ctx env) f env
 	) e.Type.epos

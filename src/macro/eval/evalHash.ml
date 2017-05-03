@@ -35,6 +35,8 @@ let hash_s f =
 
 let path_hash path = hash_s (Globals.s_type_path path)
 
+let file_hash file = hash_s (Path.unique_full_path file)
+
 let key_length = hash_s "length"
 let key_toString = hash_s "toString"
 let key_OutsideBounds = hash_s "OutsideBounds"

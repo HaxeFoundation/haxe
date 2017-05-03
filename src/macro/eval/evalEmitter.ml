@@ -58,11 +58,11 @@ let apply env exec =
 let emit_null _ = vnull
 
 let emit_local_declaration i exec env =
-	env.locals.(i) <- exec env;
+	env.env_locals.(i) <- exec env;
 	vnull
 
 let emit_capture_declaration i exec env =
-	env.captures.(i) <- ref (exec env);
+	env.env_captures.(i) <- ref (exec env);
 	vnull
 
 let emit_const v _ = v
@@ -162,29 +162,29 @@ let emit_constant_switch exec execs constants exec_def env =
 	loop v1 0
 
 let emit_int_iterator slot exec1 exec2 env =
-	let i1 = decode_int (env.locals.(slot)) in
+	let i1 = decode_int (env.env_locals.(slot)) in
 	let i2 = decode_int (exec1 env) in
 	for i = i1 to i2 - 1 do
-		env.locals.(slot) <- vint i;
+		env.env_locals.(slot) <- vint i;
 		ignore(exec2 env);
 	done;
 	vnull
 
 let emit_int_iterator_continue slot exec1 exec2 env =
-	let i1 = decode_int (env.locals.(slot)) in
+	let i1 = decode_int (env.env_locals.(slot)) in
 	let i2 = decode_int (exec1 env) in
 	for i = i1 to i2 - 1 do
-		env.locals.(slot) <- vint i;
+		env.env_locals.(slot) <- vint i;
 		(try ignore(exec2 env) with Continue -> ())
 	done;
 	vnull
 
 let emit_int_iterator_break slot exec1 exec2 env =
-	let i1 = decode_int (env.locals.(slot)) in
+	let i1 = decode_int (env.env_locals.(slot)) in
 	let i2 = decode_int (exec1 env) in
 	begin try
 		for i = i1 to i2 - 1 do
-			env.locals.(slot) <- vint i;
+			env.env_locals.(slot) <- vint i;
 			ignore(exec2 env);
 		done;
 	with Break ->
@@ -193,11 +193,11 @@ let emit_int_iterator_break slot exec1 exec2 env =
 	vnull
 
 let emit_int_iterator_break_continue slot exec1 exec2 env =
-	let i1 = decode_int (env.locals.(slot)) in
+	let i1 = decode_int (env.env_locals.(slot)) in
 	let i2 = decode_int (exec1 env) in
 	begin try
 		for i = i1 to i2 - 1 do
-			env.locals.(slot) <- vint i;
+			env.env_locals.(slot) <- vint i;
 			(try ignore(exec2 env) with Continue -> ())
 		done;
 	with Break ->
@@ -285,8 +285,8 @@ let emit_try exec catches env =
 				raise exc
 		in
 		begin match varacc with
-			| Local slot -> env.locals.(slot) <- v
-			| Env slot -> env.captures.(slot) <- ref v
+			| Local slot -> env.env_locals.(slot) <- v
+			| Env slot -> env.env_captures.(slot) <- ref v
 		end;
 		exec env
 	in
@@ -350,7 +350,7 @@ let emit_safe_cast exec t p env =
 (* super.call() - immediate *)
 
 let emit_super_field_call slot proto i execs p env =
-	let vthis = env.locals.(slot) in
+	let vthis = env.env_locals.(slot) in
 	let vf = proto.pfields.(i) in
 	let vl = List.map (fun f -> f env) execs in
 	call_value_on vthis vf vl
@@ -358,8 +358,8 @@ let emit_super_field_call slot proto i execs p env =
 (* Type.call() - immediate *)
 
 let call0 v p env =
-	env.leave_pmin <- p.pmin;
-	env.leave_pmax <- p.pmax;
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	match v with
 	| VFunction (Fun0 f,_) -> f ()
 	| VFunction (FunN f,_) -> f []
@@ -368,8 +368,8 @@ let call0 v p env =
 	| _ -> cannot_call v p
 
 let call1 v v1 p env =
-	env.leave_pmin <- p.pmin;
-	env.leave_pmax <- p.pmax;
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	match v with
 	| VFunction (Fun1 f,_) -> f v1
 	| VFunction (FunN f,_) -> f [v1]
@@ -377,8 +377,8 @@ let call1 v v1 p env =
 	| _ -> cannot_call v p
 
 let call2 v v1 v2 p env =
-	env.leave_pmin <- p.pmin;
-	env.leave_pmax <- p.pmax;
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	match v with
 	| VFunction (Fun2 f,_) -> f v1 v2
 	| VFunction (FunN f,_) -> f [v1;v2]
@@ -386,8 +386,8 @@ let call2 v v1 v2 p env =
 	| _ -> cannot_call v p
 
 let call3 v v1 v2 v3 p env =
-	env.leave_pmin <- p.pmin;
-	env.leave_pmax <- p.pmax;
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	match v with
 	| VFunction (Fun3 f,_) -> f v1 v2 v3
 	| VFunction (FunN f,_) -> f [v1;v2;v3]
@@ -395,8 +395,8 @@ let call3 v v1 v2 v3 p env =
 	| _ -> cannot_call v p
 
 let call4 v v1 v2 v3 v4 p env =
-	env.leave_pmin <- p.pmin;
-	env.leave_pmax <- p.pmax;
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	match v with
 	| VFunction (Fun4 f,_) -> f v1 v2 v3 v4
 	| VFunction (FunN f,_) -> f [v1;v2;v3;v4]
@@ -404,8 +404,8 @@ let call4 v v1 v2 v3 v4 p env =
 	| _ -> cannot_call v p
 
 let call5 v v1 v2 v3 v4 v5 p env =
-	env.leave_pmin <- p.pmin;
-	env.leave_pmax <- p.pmax;
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	match v with
 	| VFunction (Fun5 f,_) -> f v1 v2 v3 v4 v5
 	| VFunction (FunN f,_) -> f [v1;v2;v3;v4;v5]
@@ -417,8 +417,8 @@ let emit_proto_field_call proto i execs p =
 		| [] ->
 			let vf = lazy (match proto.pfields.(i) with VFunction (Fun0 f,_) -> f | v -> cannot_call v p) in
 			(fun env ->
-				env.leave_pmin <- p.pmin;
-				env.leave_pmax <- p.pmax;
+				env.env_leave_pmin <- p.pmin;
+				env.env_leave_pmax <- p.pmax;
 				(Lazy.force vf) ()
 			)
 		| [exec1] ->
@@ -426,8 +426,8 @@ let emit_proto_field_call proto i execs p =
 			(fun env ->
 				let f = Lazy.force vf in
 				let v1 = exec1 env in
-				env.leave_pmin <- p.pmin;
-				env.leave_pmax <- p.pmax;
+				env.env_leave_pmin <- p.pmin;
+				env.env_leave_pmax <- p.pmax;
 				f v1
 			)
 		| [exec1;exec2] ->
@@ -436,8 +436,8 @@ let emit_proto_field_call proto i execs p =
 				let f = Lazy.force vf in
 				let v1 = exec1 env in
 				let v2 = exec2 env in
-				env.leave_pmin <- p.pmin;
-				env.leave_pmax <- p.pmax;
+				env.env_leave_pmin <- p.pmin;
+				env.env_leave_pmax <- p.pmax;
 				f v1 v2
 			)
 		| [exec1;exec2;exec3] ->
@@ -447,8 +447,8 @@ let emit_proto_field_call proto i execs p =
 				let v1 = exec1 env in
 				let v2 = exec2 env in
 				let v3 = exec3 env in
-				env.leave_pmin <- p.pmin;
-				env.leave_pmax <- p.pmax;
+				env.env_leave_pmin <- p.pmin;
+				env.env_leave_pmax <- p.pmax;
 				f v1 v2 v3
 			)
 		| [exec1;exec2;exec3;exec4] ->
@@ -459,8 +459,8 @@ let emit_proto_field_call proto i execs p =
 				let v2 = exec2 env in
 				let v3 = exec3 env in
 				let v4 = exec4 env in
-				env.leave_pmin <- p.pmin;
-				env.leave_pmax <- p.pmax;
+				env.env_leave_pmin <- p.pmin;
+				env.env_leave_pmax <- p.pmax;
 				f v1 v2 v3 v4
 			)
 		| [exec1;exec2;exec3;exec4;exec5] ->
@@ -472,8 +472,8 @@ let emit_proto_field_call proto i execs p =
 				let v3 = exec3 env in
 				let v4 = exec4 env in
 				let v5 = exec5 env in
-				env.leave_pmin <- p.pmin;
-				env.leave_pmax <- p.pmax;
+				env.env_leave_pmin <- p.pmin;
+				env.env_leave_pmax <- p.pmax;
 				f v1 v2 v3 v4 v5
 			)
 		| _ ->
@@ -481,8 +481,8 @@ let emit_proto_field_call proto i execs p =
 			(fun env ->
 				let f = Lazy.force vf in
 				let vl = List.map (fun exec -> exec env) execs in
-				env.leave_pmin <- p.pmin;
-				env.leave_pmax <- p.pmax;
+				env.env_leave_pmin <- p.pmin;
+				env.env_leave_pmax <- p.pmax;
 				f vl
 			)
 
@@ -529,8 +529,8 @@ let emit_method_call4 exec name exec1 exec2 exec3 exec4 p env =
 let emit_method_call exec name execs p env =
 	let vthis,vf = method_call exec name p env in
 	let vl = List.map (apply env) execs in
-	env.leave_pmin <- p.pmin;
-	env.leave_pmax <- p.pmax;
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	call_value_on vthis vf vl
 
 (* instance.call() where call is not a method - lookup + this-binding *)
@@ -538,16 +538,16 @@ let emit_method_call exec name execs p env =
 let emit_field_call exec name execs p env =
 	let vthis = exec env in
 	let vf = field vthis name in
-	env.leave_pmin <- p.pmin;
-	env.leave_pmax <- p.pmax;
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	call_value_on vthis vf (List.map (apply env) execs)
 
 (* new() - immediate + this-binding *)
 
 let emit_constructor_call0 proto vf p env =
 	let vthis = create_instance_direct proto in
-	env.leave_pmin <- p.pmin;
-	env.leave_pmax <- p.pmax;
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	ignore((Lazy.force vf) vthis);
 	vthis
 
@@ -555,8 +555,8 @@ let emit_constructor_call1 proto vf exec1 p env =
 	let f = Lazy.force vf in
 	let vthis = create_instance_direct proto in
 	let v1 = exec1 env in
-	env.leave_pmin <- p.pmin;
-	env.leave_pmax <- p.pmax;
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	ignore(f vthis v1);
 	vthis
 
@@ -565,8 +565,8 @@ let emit_constructor_call2 proto vf exec1 exec2 p env =
 	let vthis = create_instance_direct proto in
 	let v1 = exec1 env in
 	let v2 = exec2 env in
-	env.leave_pmin <- p.pmin;
-	env.leave_pmax <- p.pmax;
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	ignore(f vthis v1 v2);
 	vthis
 
@@ -576,8 +576,8 @@ let emit_constructor_call3 proto vf exec1 exec2 exec3 p env =
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	let v3 = exec3 env in
-	env.leave_pmin <- p.pmin;
-	env.leave_pmax <- p.pmax;
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	ignore(f vthis v1 v2 v3);
 	vthis
 
@@ -588,8 +588,8 @@ let emit_constructor_call4 proto vf exec1 exec2 exec3 exec4 p env =
 	let v2 = exec2 env in
 	let v3 = exec3 env in
 	let v4 = exec4 env in
-	env.leave_pmin <- p.pmin;
-	env.leave_pmax <- p.pmax;
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	ignore(f vthis v1 v2 v3 v4);
 	vthis
 
@@ -597,8 +597,8 @@ let emit_constructor_callN proto vf execs p env =
 	let f = Lazy.force vf in
 	let vthis = create_instance_direct proto in
 	let vl = List.map (fun exec -> exec env) execs in
-	env.leave_pmin <- p.pmin;
-	env.leave_pmax <- p.pmax;
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	ignore(f (vthis :: vl));
 	vthis
 
@@ -626,60 +626,60 @@ let emit_constructor_call proto fnew execs p =
 (* super() - immediate + this-binding *)
 
 let emit_super_call0 vf p env =
-	let vthis = env.locals.(0) in
-	env.leave_pmin <- p.pmin;
-	env.leave_pmax <- p.pmax;
+	let vthis = env.env_locals.(0) in
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	ignore((Lazy.force vf) vthis);
 	vthis
 
 let emit_super_call1 vf exec1 p env =
 	let f = Lazy.force vf in
-	let vthis = env.locals.(0) in
+	let vthis = env.env_locals.(0) in
 	let v1 = exec1 env in
-	env.leave_pmin <- p.pmin;
-	env.leave_pmax <- p.pmax;
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	ignore(f vthis v1);
 	vthis
 
 let emit_super_call2 vf exec1 exec2 p env =
 	let f = Lazy.force vf in
-	let vthis = env.locals.(0) in
+	let vthis = env.env_locals.(0) in
 	let v1 = exec1 env in
 	let v2 = exec2 env in
-	env.leave_pmin <- p.pmin;
-	env.leave_pmax <- p.pmax;
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	ignore(f vthis v1 v2);
 	vthis
 
 let emit_super_call3 vf exec1 exec2 exec3 p env =
 	let f = Lazy.force vf in
-	let vthis = env.locals.(0) in
+	let vthis = env.env_locals.(0) in
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	let v3 = exec3 env in
-	env.leave_pmin <- p.pmin;
-	env.leave_pmax <- p.pmax;
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	ignore(f vthis v1 v2 v3);
 	vthis
 
 let emit_super_call4 vf exec1 exec2 exec3 exec4 p env =
 	let f = Lazy.force vf in
-	let vthis = env.locals.(0) in
+	let vthis = env.env_locals.(0) in
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	let v3 = exec3 env in
 	let v4 = exec4 env in
-	env.leave_pmin <- p.pmin;
-	env.leave_pmax <- p.pmax;
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	ignore(f vthis v1 v2 v3 v4);
 	vthis
 
 let emit_super_callN vf execs p env =
 	let f = Lazy.force vf in
-	let vthis = env.locals.(0) in
+	let vthis = env.env_locals.(0) in
 	let vl = List.map (fun exec -> exec env) execs in
-	env.leave_pmin <- p.pmin;
-	env.leave_pmax <- p.pmax;
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	ignore(f (vthis :: vl));
 	vthis
 
@@ -746,15 +746,15 @@ let emit_call5 exec exec1 exec2 exec3 exec4 exec5 p env =
 
 let emit_call exec execs p env =
 	let v1 = exec env in
-	env.leave_pmin <- p.pmin;
-	env.leave_pmax <- p.pmax;
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	call_value v1 (List.map (apply env) execs)
 
 (* Read *)
 
-let emit_local_read i env = env.locals.(i)
+let emit_local_read i env = env.env_locals.(i)
 
-let emit_capture_read i env = !(env.captures.(i))
+let emit_capture_read i env = !(env.env_captures.(i))
 
 let emit_array_length_read exec env = match exec env with
 	| VInstance {ikind = IArray va} -> vint (va.alength)
@@ -767,7 +767,7 @@ let emit_bytes_length_read exec env = match exec env with
 let emit_proto_field_read proto i env =
 	proto.pfields.(i)
 
-let emit_instance_local_field_read iv i env = match env.locals.(iv) with
+let emit_instance_local_field_read iv i env = match env.env_locals.(iv) with
 	| VInstance vi -> vi.ifields.(i)
 	| v -> unexpected_value v "instance"
 
@@ -780,7 +780,7 @@ let emit_field_closure exec name env =
 	dynamic_field v name
 
 let emit_anon_local_field_read iv proto i name p env =
-	match env.locals.(iv) with
+	match env.env_locals.(iv) with
 	| VObject o ->
 		if proto == o.oproto then o.ofields.(i)
 		else object_field o name
@@ -800,7 +800,7 @@ let emit_field_read exec name p env = match exec env with
 	| v -> field v name
 
 let emit_array_local_read i exec2 env =
-	let va = env.locals.(i) in
+	let va = env.env_locals.(i) in
 	let vi = exec2 env in
 	let i = decode_int vi in
 	if i < 0 then vnull
@@ -825,12 +825,12 @@ let emit_enum_parameter_read exec i env = match exec env with
 
 let emit_local_write slot exec env =
 	let v = exec env in
-	env.locals.(slot) <- v;
+	env.env_locals.(slot) <- v;
 	v
 
 let emit_capture_write slot exec env =
 	let v = exec env in
-	env.captures.(slot) := v;
+	env.env_captures.(slot) := v;
 	v
 
 let emit_proto_field_write proto i exec2 env =
@@ -872,7 +872,7 @@ let emit_field_write exec1 name exec2 env =
 	v2
 
 let emit_array_local_write i exec2 exec3 p env =
-	let va = env.locals.(i) in
+	let va = env.env_locals.(i) in
 	let vi = exec2 env in
 	let v3 = exec3 env in
 	let i = decode_int vi in
@@ -892,61 +892,61 @@ let emit_array_write exec1 exec2 exec3 p env =
 (* Read + write *)
 
 let emit_local_read_write slot exec fop prefix env =
-	let v1 = env.locals.(slot) in
+	let v1 = env.env_locals.(slot) in
 	let v2 = exec env in
 	let v = fop v1 v2 in
-	env.locals.(slot) <- v;
+	env.env_locals.(slot) <- v;
 	if prefix then v else v1
 
 let emit_local_incr_postfix slot env =
-	let vi = env.locals.(slot) in
-	env.locals.(slot) <- vint32 (Int32.succ (decode_i32 vi));
+	let vi = env.env_locals.(slot) in
+	env.env_locals.(slot) <- vint32 (Int32.succ (decode_i32 vi));
 	vi
 
 let emit_local_incr_prefix slot env =
-	let vi = env.locals.(slot) in
+	let vi = env.env_locals.(slot) in
 	let v = vint32 (Int32.succ (decode_i32 vi)) in
-	env.locals.(slot) <- v;
+	env.env_locals.(slot) <- v;
 	v
 
 let emit_local_decr_postfix slot env =
-	let vi = env.locals.(slot) in
-	env.locals.(slot) <- vint32 (Int32.pred (decode_i32 vi));
+	let vi = env.env_locals.(slot) in
+	env.env_locals.(slot) <- vint32 (Int32.pred (decode_i32 vi));
 	vi
 
 let emit_local_decr_prefix slot env =
-	let vi = env.locals.(slot) in
+	let vi = env.env_locals.(slot) in
 	let v = vint32 (Int32.pred (decode_i32 vi)) in
-	env.locals.(slot) <- v;
+	env.env_locals.(slot) <- v;
 	v
 
 let emit_capture_read_write slot exec fop prefix env =
-	let v1 = !(env.captures.(slot)) in
+	let v1 = !(env.env_captures.(slot)) in
 	let v2 = exec env in
 	let v = fop v1 v2 in
-	env.captures.(slot) := v;
+	env.env_captures.(slot) := v;
 	if prefix then v else v1
 
 let emit_capture_incr_postfix slot env =
-	let vi = !(env.captures.(slot)) in
-	env.captures.(slot) := vint32 (Int32.succ (decode_i32 vi));
+	let vi = !(env.env_captures.(slot)) in
+	env.env_captures.(slot) := vint32 (Int32.succ (decode_i32 vi));
 	vi
 
 let emit_capture_incr_prefix slot env =
-	let vi = !(env.captures.(slot)) in
+	let vi = !(env.env_captures.(slot)) in
 	let v = vint32 (Int32.succ (decode_i32 vi)) in
-	env.captures.(slot) := v;
+	env.env_captures.(slot) := v;
 	v
 
 let emit_capture_decr_postfix slot env =
-	let vi = !(env.captures.(slot)) in
-	env.captures.(slot) := vint32 (Int32.pred (decode_i32 vi));
+	let vi = !(env.env_captures.(slot)) in
+	env.env_captures.(slot) := vint32 (Int32.pred (decode_i32 vi));
 	vi
 
 let emit_capture_decr_prefix slot env =
-	let vi = !(env.captures.(slot)) in
+	let vi = !(env.env_captures.(slot)) in
 	let v = vint32 (Int32.pred (decode_i32 vi)) in
-	env.captures.(slot) := v;
+	env.env_captures.(slot) := v;
 	v
 
 let emit_proto_field_read_write proto i exec2 fop prefix env =
@@ -990,7 +990,7 @@ let emit_field_read_write exec1 name exec2 fop prefix env =
 		if prefix then v else vf
 
 let emit_array_local_read_write i exec2 exec3 fop prefix p env =
-	let va1 = env.locals.(i) in
+	let va1 = env.env_locals.(i) in
 	let va2 = exec2 env in
 	let va = decode_varray va1 in
 	let i = decode_int va2 in
@@ -1197,8 +1197,8 @@ let handle_function_argument vdef varacc v env =
 		| _ -> v
 	in
 	begin match varacc with
-		| Local slot -> env.locals.(slot) <- v
-		| Env slot -> env.captures.(slot) <- ref v
+		| Local slot -> env.env_locals.(slot) <- v
+		| Env slot -> env.env_captures.(slot) <- ref v
 	end
 
 let handle_function_arguments args varaccs vl' env =
@@ -1223,13 +1223,13 @@ let run_function ctx exec env =
 	with
 		| Return v -> v
 	in
-	if env.in_use then env.in_use <- false;
+	if env.env_in_use then env.env_in_use <- false;
 	ctx.pop_environment ctx env;
 	v
 
 let run_function_noret ctx exec env =
 	let v = exec env in
-	if env.in_use then env.in_use <- false;
+	if env.env_in_use then env.env_in_use <- false;
 	ctx.pop_environment ctx env;
 	v
 
@@ -1242,10 +1242,10 @@ let create_env_function ctx info num_locals num_captures =
 		let default_env = lazy (create_default_environment ctx info num_locals) in
 		(fun () ->
 			let default_env = Lazy.force default_env in
-			if default_env.in_use then begin
+			if default_env.env_in_use then begin
 				ctx.push_environment ctx info num_locals num_captures
 			end else begin
-				default_env.in_use <- true;
+				default_env.env_in_use <- true;
 				default_env
 			end
 		)
@@ -1255,10 +1255,10 @@ let emit_closure ctx info hasret num_locals num_captures varaccs args exec =
 	let run_function = if hasret then run_function else run_function_noret in
 	let get_env = create_env_function ctx info num_locals num_captures in
 	fun env ->
-		let refs = Array.sub env.captures 0 num_captures in
+		let refs = Array.sub env.env_captures 0 num_captures in
 		let f = fun vl ->
 			let env = get_env () in
-			Array.iteri (fun i vr -> env.captures.(i) <- vr) refs;
+			Array.iteri (fun i vr -> env.env_captures.(i) <- vr) refs;
 			handle_function_arguments args varaccs vl env;
 			run_function ctx exec env
 		in

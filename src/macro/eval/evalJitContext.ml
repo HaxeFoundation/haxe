@@ -9,21 +9,8 @@ open EvalEmitter
 	array.
 *)
 
-type scope = {
-	(* The local start offset of the current scope. *)
-	local_offset : int;
-	(* The locals declared in the current scope. Maps variable IDs to local slots. *)
-	mutable locals : (int,int) Hashtbl.t;
-	(* The name of local variables. Maps local slots to variable names. Only filled in debug mode. *)
-	mutable local_names : (int,string) Hashtbl.t;
-	(* The IDs of local variables. Maps variable names to variable IDs. *)
-	mutable local_ids : (string,int) Hashtbl.t;
-}
-
 type t = {
 	ctx : context;
-	(* The hash of the file this function was defined in. *)
-	file_key : int;
 	(* The scope stack. *)
 	mutable scopes : scope list;
 	(* The captured variables declared in this context. Maps variable IDs to capture slots. *)
@@ -41,9 +28,8 @@ type t = {
 }
 
 (* Creates a new context *)
-let create ctx file_key = {
+let create ctx = {
 	ctx = ctx;
-	file_key = file_key;
 	scopes = [];
 	captures = Hashtbl.create 0;
 	local_count = 0;

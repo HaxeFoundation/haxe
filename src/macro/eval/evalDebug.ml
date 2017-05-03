@@ -105,11 +105,11 @@ let get_capture_slot_by_name jit name =
 let print_variable jit scopes name env =
 	try
 		let slot = get_var_slot_by_name scopes name in
-		let value = env.locals.(slot) in
+		let value = env.env_locals.(slot) in
 		output_variable_value (value_string value);
 	with Not_found -> try
 		let slot = get_capture_slot_by_name jit name in
-		let value = env.captures.(slot) in
+		let value = env.env_captures.(slot) in
 		output_variable_value (value_string !value)
 	with Not_found ->
 		output_error ("No variable found: " ^ name)
@@ -117,7 +117,7 @@ let print_variable jit scopes name env =
 let set_variable scopes name value env =
 	try
 		let slot = get_var_slot_by_name scopes name in
-		env.locals.(slot) <- value;
+		env.env_locals.(slot) <- value;
 		output_info (Printf.sprintf "set variable %s = %s" name (value_string value));
 	with Not_found ->
 		output_error ("No variable found: " ^ name)
@@ -129,7 +129,7 @@ let print_call_stack ctx p =
 	in
 	output_call_stack_position p;
 	List.iter (fun env ->
-		let p = {pmin = env.leave_pmin; pmax = env.leave_pmax; pfile = rev_hash_s env.info.pfile} in
+		let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_hash_s env.env_info.pfile} in
 		output_call_stack_position p
 	) envs
 
@@ -380,13 +380,13 @@ let debug_loop jit e f =
 			loop env
 	and run_safe env =
 		try
-			let h = Hashtbl.find ctx.debug.breakpoints jit.file_key in
+			let h = Hashtbl.find ctx.debug.breakpoints env.env_info.pfile in
 			let breakpoint = Hashtbl.find h line in
 			begin match breakpoint.bpstate with
 				| BPEnabled ->
 					breakpoint.bpstate <- BPHit;
 					ctx.debug.breakpoint <- breakpoint;
-					output_info (Printf.sprintf "Hit breakpoint at %s:%i" (rev_hash_s jit.file_key) line);
+					output_info (Printf.sprintf "Hit breakpoint at %s:%i" (rev_hash_s env.env_info.pfile) line);
 					ctx.debug.debug_state <- DbgWaiting;
 					loop env
 				| _ ->
