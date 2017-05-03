@@ -40,11 +40,30 @@ let delete_breakpoint ctx file line =
 	let h = Hashtbl.find ctx.debug.breakpoints hash in
 	Hashtbl.remove h line
 
+let output_variable_name = print_endline
+let output_variable_value = print_endline
+let output_call_stack_position p = print_endline (format_pos p)
+let output_file_path = print_endline
+let output_type_name = print_endline
+
+let output_breakpoint breakpoint =
+	let flag = match breakpoint.bpstate with
+		| BPHit | BPEnabled -> "E"
+		| BPDisabled -> "d"
+	in
+	print_endline (Printf.sprintf "%i %s" breakpoint.bpid flag)
+
+let output_breakpoint_description breakpoint =
+	print_endline (Printf.sprintf "%s:%i" (rev_hash_s breakpoint.bpfile) breakpoint.bpline)
+
+let output_info = print_endline
+let output_error = print_endline
+
 let print_variables jit scopes env =
 	let rec loop scopes = match scopes with
 		| scope :: scopes ->
 			Hashtbl.iter (fun _ name ->
-				print_endline name
+				output_variable_name name
 			) scope.local_names;
 			loop scopes
 		| [] ->
@@ -52,7 +71,7 @@ let print_variables jit scopes env =
 	in
 	loop scopes;
 	Hashtbl.iter (fun _ name ->
-		print_endline name
+		output_variable_name name
 	) jit.capture_names
 
 let get_var_slot_by_name scopes name =
@@ -87,31 +106,31 @@ let print_variable jit scopes name env =
 	try
 		let slot = get_var_slot_by_name scopes name in
 		let value = env.locals.(slot) in
-		print_endline (value_string value);
+		output_variable_value (value_string value);
 	with Not_found -> try
 		let slot = get_capture_slot_by_name jit name in
 		let value = env.captures.(slot) in
-		print_endline (value_string !value)
+		output_variable_value (value_string !value)
 	with Not_found ->
-		print_endline ("No variable found: " ^ name)
+		output_error ("No variable found: " ^ name)
 
 let set_variable scopes name value env =
 	try
 		let slot = get_var_slot_by_name scopes name in
 		env.locals.(slot) <- value;
-		print_endline (Printf.sprintf "set variable %s = %s" name (value_string value));
+		output_info (Printf.sprintf "set variable %s = %s" name (value_string value));
 	with Not_found ->
-		print_endline ("No variable found: " ^ name)
+		output_error ("No variable found: " ^ name)
 
 let print_call_stack ctx p =
 	let envs = match call_stack ctx with
 		| _ :: envs -> envs
 		| [] -> []
 	in
-	print_endline (format_pos p);
+	output_call_stack_position p;
 	List.iter (fun env ->
 		let p = {pmin = env.leave_pmin; pmax = env.leave_pmax; pfile = rev_hash_s env.info.pfile} in
-		print_endline (format_pos p)
+		output_call_stack_position p
 	) envs
 
 let iter_breakpoints ctx f =
@@ -189,7 +208,7 @@ let debug_loop jit e f =
 			| DbgWaiting ->
 				wait env
 	and wait env =
-		print_endline (Printf.sprintf "> %s" (s_expr_pretty e));
+		output_info (Printf.sprintf "> %s" (s_expr_pretty e));
 		match ExtString.String.nsplit (input_line stdin) " " with
 			| ["quit" | "exit"] ->
 				(* TODO: Borrowed from interp.ml *)
@@ -204,59 +223,55 @@ let debug_loop jit e f =
 			(* source | history *)
 			| ["files" | "filespath"] ->
 				Hashtbl.iter (fun i _ ->
-					print_endline (rev_hash_s i);
+					output_file_path (rev_hash_s i);
 				) ctx.debug.breakpoints;
 				loop env
 			| ["classes"] ->
 				IntMap.iter (fun i _ ->
-					print_endline (rev_hash_s i)
+					output_type_name (rev_hash_s i)
 				) ctx.type_cache;
 				loop env
 			| ["mem"] ->
-				print_endline (Printf.sprintf "%f" (Gc.stat()).major_words);
+				output_info (Printf.sprintf "%i" (Gc.stat()).live_words);
 				loop env
 			| ["compact"] ->
-				let before = (Gc.stat()).major_words in
+				let before = (Gc.stat()).live_words in
 				Gc.compact();
-				let after = (Gc.stat()).major_words in
-				print_endline (Printf.sprintf "before: %f\nafter: %f" before after);
+				let after = (Gc.stat()).live_words in
+				output_info (Printf.sprintf "before: %i\nafter: %i" before after);
 				loop env
 			| ["collect"] ->
-				let before = (Gc.stat()).major_words in
+				let before = (Gc.stat()).live_words in
 				Gc.full_major();
-				let after = (Gc.stat()).major_words in
-				print_endline (Printf.sprintf "before: %f\nafter: %f" before after);
+				let after = (Gc.stat()).live_words in
+				output_info (Printf.sprintf "before: %i\nafter: %i" before after);
 				loop env
 			| ["break" | "b";pattern] ->
 				begin try
 					let file,line = parse_breakpoint_pattern pattern in
 					begin try
 						add_breakpoint ctx file line;
-						print_endline (Printf.sprintf "Added breakpoint at %s:%i" file line);
+						output_info (Printf.sprintf "Added breakpoint at %s:%i" file line);
 					with Not_found ->
-						print_endline ("Could not find file " ^ file);
+						output_error ("Could not find file " ^ file);
 					end;
 				with Exit ->
-					print_endline ("Unrecognized breakpoint pattern");
+					output_error ("Unrecognized breakpoint pattern");
 				end;
 				loop env
 			| ["list" | "l"] ->
 				(* TODO: other list syntax *)
 				iter_breakpoints ctx (fun breakpoint ->
-					let flag = match breakpoint.bpstate with
-						| BPHit | BPEnabled -> "E"
-						| BPDisabled -> "d"
-					in
-					print_endline (Printf.sprintf "%i %s" breakpoint.bpid flag)
+					output_breakpoint breakpoint
 				);
 				loop env
 			| ["describe" | "desc";bpid] ->
 				(* TODO: range patterns? *)
 				begin try
 					let breakpoint = find_breakpoint ctx bpid in
-					print_endline (Printf.sprintf "%s:%i" (rev_hash_s breakpoint.bpfile) breakpoint.bpline);
+					output_breakpoint_description breakpoint;
 				with Not_found ->
-					print_endline (Printf.sprintf "Unknown breakpoint: %s" bpid);
+					output_error (Printf.sprintf "Unknown breakpoint: %s" bpid);
 				end;
 				loop env
 			| ["disable" | "dis";bpid] ->
@@ -266,9 +281,9 @@ let debug_loop jit e f =
 				else begin try
 					let breakpoint = find_breakpoint ctx bpid in
 					breakpoint.bpstate <- BPDisabled;
-					print_endline (Printf.sprintf "Breakpoint %s disabled" bpid);
+					output_info (Printf.sprintf "Breakpoint %s disabled" bpid);
 				with Not_found ->
-					print_endline (Printf.sprintf "Unknown breakpoint: %s" bpid);
+					output_error (Printf.sprintf "Unknown breakpoint: %s" bpid);
 				end;
 				loop env
 			| ["enable" | "en";bpid] ->
@@ -278,9 +293,9 @@ let debug_loop jit e f =
 				else begin try
 					let breakpoint = find_breakpoint ctx bpid in
 					breakpoint.bpstate <- BPEnabled;
-					print_endline (Printf.sprintf "Breakpoint %s enabled" bpid);
+					output_info (Printf.sprintf "Breakpoint %s enabled" bpid);
 				with Not_found ->
-					print_endline (Printf.sprintf "Unknown breakpoint: %s" bpid);
+					output_error (Printf.sprintf "Unknown breakpoint: %s" bpid);
 				end;
 				loop env
 			| ["delete" | "d";bpid] ->
@@ -296,9 +311,9 @@ let debug_loop jit e f =
 						Hashtbl.iter (fun k breakpoint -> if breakpoint.bpid = id then to_delete := k :: !to_delete) h;
 						List.iter (fun k -> Hashtbl.remove h k) !to_delete;
 					) ctx.debug.breakpoints;
-					print_endline (Printf.sprintf "Breakpoint %s deleted" bpid);
+					output_info (Printf.sprintf "Breakpoint %s deleted" bpid);
 				with Not_found ->
-					print_endline (Printf.sprintf "Unknown breakpoint: %s" bpid);
+					output_error (Printf.sprintf "Unknown breakpoint: %s" bpid);
 				end;
 				loop env
 			| ["clear";pattern] ->
@@ -308,10 +323,10 @@ let debug_loop jit e f =
 					begin try
 						delete_breakpoint ctx file line
 					with Not_found ->
-						print_endline (Printf.sprintf "Could not find breakpoint %s:%i" file line);
+						output_info (Printf.sprintf "Could not find breakpoint %s:%i" file line);
 					end
 				with Exit ->
-					print_endline ("Unrecognized breakpoint pattern");
+					output_error ("Unrecognized breakpoint pattern");
 				end;
 				loop env
 			(* thread | unsafe | safe *)
@@ -348,11 +363,11 @@ let debug_loop jit e f =
 					let v = expr_to_value e in
 					set_variable scopes name v env
 				with Exit ->
-					print_endline (Printf.sprintf "Error parsing %s: %s" value !msg);
+					output_error (Printf.sprintf "Error parsing %s: %s" value !msg);
 				end;
 				loop env
 			| s :: _ ->
-				print_endline (Printf.sprintf "Unknown command: %s" s);
+				output_error (Printf.sprintf "Unknown command: %s" s);
 				loop env
 			| [] ->
 				loop env
@@ -360,7 +375,7 @@ let debug_loop jit e f =
 		try
 			f env
 		with RunTimeException(v,_,_) when not (is_caught ctx v) ->
-			print_endline (uncaught_exception_string v e.epos "");
+			output_info (uncaught_exception_string v e.epos "");
 			ctx.debug.debug_state <- DbgWaiting;
 			loop env
 	and run_safe env =
@@ -371,7 +386,7 @@ let debug_loop jit e f =
 				| BPEnabled ->
 					breakpoint.bpstate <- BPHit;
 					ctx.debug.breakpoint <- breakpoint;
-					print_endline (Printf.sprintf "Hit breakpoint at %s:%i" (rev_hash_s jit.file_key) line);
+					output_info (Printf.sprintf "Hit breakpoint at %s:%i" (rev_hash_s jit.file_key) line);
 					ctx.debug.debug_state <- DbgWaiting;
 					loop env
 				| _ ->
