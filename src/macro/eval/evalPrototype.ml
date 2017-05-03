@@ -24,7 +24,7 @@ open EvalContext
 open EvalEncode
 open EvalHash
 open EvalJit
-open JitContext
+open EvalJitContext
 open EvalExceptions
 open EvalMisc
 

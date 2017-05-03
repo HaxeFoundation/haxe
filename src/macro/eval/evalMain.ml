@@ -24,7 +24,7 @@ open EvalContext
 open EvalPrototype
 open EvalExceptions
 open EvalJit
-open JitContext
+open EvalJitContext
 open EvalPrinting
 open EvalMisc
 open EvalHash
