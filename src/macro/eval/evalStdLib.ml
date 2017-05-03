@@ -586,7 +586,11 @@ module StdContext = struct
 	let addBreakpoint = vfun2 (fun file line ->
 		let file = decode_string file in
 		let line = decode_int line in
-		EvalDebug.add_breakpoint (get_ctx()) file line;
+		begin try
+			EvalDebug.add_breakpoint (get_ctx()) file line
+		with Not_found ->
+			exc_string ("Could not find file " ^ file)
+		end;
 		vnull
 	)
 
