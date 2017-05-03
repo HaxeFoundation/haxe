@@ -244,22 +244,21 @@ let rec run_loop ctx run env : value =
 				ctx.debug.debug_state <- DbgWaiting;
 				run_loop ctx run env
 			end
-		| DbgWaiting | DbgInspect ->
+		| DbgWaiting ->
 			wait ctx run env
 
 (* Reads input and reacts accordingly. *)
 and wait ctx run env =
+	let get_real_env ctx =
+		ctx.debug.environment_offset_delta <- 0;
+		DynArray.get ctx.environments (ctx.environment_offset - 1);
+	in
 	let rec move_frame offset : value =
 		if offset < 0 || offset >= ctx.environment_offset then begin
 			output_error (Printf.sprintf "Frame out of bounds: %i (valid range is %i - %i)" offset 0 (ctx.environment_offset - 1));
 			loop()
 		end else begin
 			ctx.debug.environment_offset_delta <- (ctx.environment_offset - offset - 1);
-			if ctx.debug.environment_offset_delta = 0 then
-				ctx.debug.debug_state <- DbgWaiting
-			else
-				ctx.debug.debug_state <- DbgInspect;
-			print_endline (Printf.sprintf "%i %i %i" ctx.environment_offset offset ctx.debug.environment_offset_delta);
 			wait ctx run (DynArray.get ctx.environments offset);
 		end
 	and loop () =
@@ -387,18 +386,19 @@ and wait ctx run env =
 			end;
 			loop()
 		(* thread | unsafe | safe *)
-		| ["continue" | "c" | "step" | "s" | "" | "finish" | "f"] when ctx.debug.environment_offset_delta <> 0 ->
-			output_error (Printf.sprintf "Cannot run while frame is shifted. Use up/down to navigate back (currently at %i)." ctx.debug.environment_offset_delta);
-			loop()
 		| ["continue" | "c"] ->
+			let env = get_real_env ctx in
 			ctx.debug.debug_state <- DbgRunning;
 			run env
 		| ["step" | "s" | ""] ->
+			let env = get_real_env ctx in
 			run env
 		| ["next" | "n"] ->
+			let env = get_real_env ctx in
 			ctx.debug.debug_state <- DbgNext ctx.environment_offset;
 			run env
 		| ["finish" | "f"] ->
+			let env = get_real_env ctx in
 			ctx.debug.debug_state <- DbgFinish ctx.environment_offset;
 			run env
 		| ["where" | "w"] ->

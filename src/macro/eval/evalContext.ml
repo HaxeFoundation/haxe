@@ -80,7 +80,6 @@ type breakpoint = {
 
 type debug_state =
 	| DbgRunning
-	| DbgInspect
 	| DbgWaiting
 	| DbgNext of int
 	| DbgFinish of int
