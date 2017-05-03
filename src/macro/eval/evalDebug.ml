@@ -210,8 +210,6 @@ let rec run_loop ctx run env : value =
 
 (* Reads input and reacts accordingly. *)
 and wait ctx run env =
-	print_string (Printf.sprintf "1> ");
-	flush stdout;
 	let rec move_frame offset : value =
 		if offset < 0 || offset >= ctx.environment_offset then begin
 			output_error (Printf.sprintf "Frame out of bounds: %i (valid range is %i - %i)" offset 0 (ctx.environment_offset - 1));
@@ -225,7 +223,10 @@ and wait ctx run env =
 			print_endline (Printf.sprintf "%i %i %i" ctx.environment_offset offset ctx.debug.environment_offset_delta);
 			wait ctx run (DynArray.get ctx.environments offset);
 		end
-	and loop () = match ExtString.String.nsplit (input_line stdin) " " with
+	and loop () =
+		print_string (Printf.sprintf "1> ");
+		flush stdout;
+		match ExtString.String.nsplit (input_line stdin) " " with
 		| ["quit" | "exit"] ->
 			(* TODO: Borrowed from interp.ml *)
 			if (get_ctx()).curapi.use_cache() then raise (Error.Fatal_error ("",Globals.null_pos));
