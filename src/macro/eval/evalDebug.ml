@@ -89,9 +89,9 @@ let get_var_slot_by_name scopes name =
 		| scope :: scopes ->
 			begin try
 				let id = Hashtbl.find scope.local_ids name in
-				let slot = Hashtbl.find scope.locals id + scope.local_offset in
+				let slot = Hashtbl.find scope.locals id in
 				let info = Hashtbl.find scope.local_infos slot in
-				slot,info
+				slot + scope.local_offset,info
 			with Not_found ->
 				loop scopes
 			end
