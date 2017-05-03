@@ -175,7 +175,11 @@ let find_breakpoint ctx sid =
 let parse_breakpoint_pattern pattern =
 	(* TODO: more than file:line patterns? *)
 	try
-		let file,line = ExtString.String.split pattern ":" in
+		let split = ExtString.String.nsplit pattern ":" in
+		let file,line = match List.rev split with
+			| line :: file -> line,String.concat ":" (List.rev file)
+			| [] -> raise Exit
+		in
 		let line = int_of_string line in
 		file,line
 	with _ ->
