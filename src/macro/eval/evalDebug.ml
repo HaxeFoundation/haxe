@@ -176,7 +176,7 @@ let parse_breakpoint_pattern pattern =
 	(* TODO: more than file:line patterns? *)
 	try
 		let split = ExtString.String.nsplit pattern ":" in
-		let file,line = match List.rev split with
+		let line,file = match List.rev split with
 			| line :: file -> line,String.concat ":" (List.rev file)
 			| [] -> raise Exit
 		in
@@ -440,7 +440,7 @@ let debug_loop jit e f =
 				| BPEnabled ->
 					breakpoint.bpstate <- BPHit;
 					ctx.debug.breakpoint <- breakpoint;
-					output_info (Printf.sprintf "Thread 0 stopped in %s at %s:%i." (rev_hash_s env.env_info.pfile) (kind_name ctx env.env_info.kind) env.env_debug.line);
+					output_info (Printf.sprintf "Thread 0 stopped in %s at %s:%i." (kind_name ctx env.env_info.kind) (rev_hash_s env.env_info.pfile) env.env_debug.line);
 					ctx.debug.debug_state <- DbgWaiting;
 					run_loop ctx run_check_breakpoint env
 				| _ ->
