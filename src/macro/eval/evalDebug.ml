@@ -40,7 +40,7 @@ let delete_breakpoint ctx file line =
 	let h = Hashtbl.find ctx.debug.breakpoints hash in
 	Hashtbl.remove h line
 
-let print_locals jit scopes env =
+let print_variables jit scopes env =
 	let rec loop scopes = match scopes with
 		| scope :: scopes ->
 			Hashtbl.iter (fun _ name ->
@@ -50,7 +50,10 @@ let print_locals jit scopes env =
 		| [] ->
 			()
 	in
-	loop scopes
+	loop scopes;
+	Hashtbl.iter (fun _ name ->
+		print_endline name
+	) jit.capture_names
 
 let get_var_slot_by_name scopes name =
 	let rec loop scopes = match scopes with
@@ -65,13 +68,30 @@ let get_var_slot_by_name scopes name =
 		| [] ->
 			raise Not_found
 	in
-	loop scopes
+	if name = "this" then 0 else loop scopes
 
-let print_variable scopes name env =
+let get_capture_slot_by_name jit name =
+	let ret = ref (-1) in
+	try
+		Hashtbl.iter (fun slot name' ->
+			if name = name' then begin
+				ret := slot;
+				raise Exit
+			end
+		) jit.capture_names;
+		raise Not_found
+	with Exit ->
+		!ret
+
+let print_variable jit scopes name env =
 	try
 		let slot = get_var_slot_by_name scopes name in
 		let value = env.locals.(slot) in
 		print_endline (value_string value);
+	with Not_found -> try
+		let slot = get_capture_slot_by_name jit name in
+		let value = env.captures.(slot) in
+		print_endline (value_string !value)
 	with Not_found ->
 		print_endline ("No variable found: " ^ name)
 
@@ -312,10 +332,10 @@ let debug_loop jit e f =
 				loop env
 			(* up | down | frame *)
 			| ["variables" | "vars"] ->
-				print_locals jit scopes env;
+				print_variables jit scopes env;
 				loop env
 			| ["print" | "p";name] ->
-				print_variable scopes name env;
+				print_variable jit scopes name env;
 				loop env
 			| ["set" | "s";name;"=";value] ->
 				let msg = ref "" in

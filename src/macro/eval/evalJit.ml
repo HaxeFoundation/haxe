@@ -223,6 +223,7 @@ and jit_expr return jit e =
 	| TFunction tf ->
 		let jit_closure = EvalJitContext.create ctx jit.file_key in
 		jit_closure.captures <- jit.captures;
+		jit_closure.capture_names <- jit.capture_names;
 		push_scope jit_closure;
 		let varaccs = List.map (fun (var,_) -> declare_local jit_closure var) tf.tf_args in
 		let exec = jit_expr true jit_closure tf.tf_expr in
