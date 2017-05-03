@@ -230,7 +230,7 @@ and jit_expr return jit e =
 		let args = List.map (fun (_,cto) -> Option.map_default eval_const vnull cto) tf.tf_args in
 		jit.num_closures <- jit.num_closures + 1;
 		let num_captures = Hashtbl.length jit.captures in
-		let info = create_env_info (hash_s e.epos.pfile) (EKLocalFunction jit.num_closures) jit_closure.caught_types in
+		let info = create_env_info (hash_s e.epos.pfile) (EKLocalFunction jit.num_closures) in
 		emit_closure jit.ctx info jit_closure.has_nonfinal_return jit_closure.max_local_count num_captures varaccs args exec
 	(* branching *)
 	| TIf(e1,e2,eo) ->
@@ -345,7 +345,6 @@ and jit_expr return jit e =
 			let exec = jit_expr return jit e in
 			pop_scope jit;
 			let key = hash (rope_path var.v_type) in
-			if ctx.debug.support_debugger then Hashtbl.replace jit.caught_types key true;
 			exec,key,varacc
 		) catches in
 		emit_try exec catches
@@ -661,7 +660,7 @@ and jit_expr return jit e =
 	in
 	let f = loop e in
 	if ctx.debug.support_debugger then begin match e.eexpr with
-		| TConst _ | TLocal _ | TTypeExpr _ -> f
+		| TConst _ | TLocal _ | TTypeExpr _ | TBlock _ -> f
 		| _ -> EvalDebug.debug_loop jit e f
 	end else
 		f
@@ -686,7 +685,7 @@ let jit_tfunction ctx key_type key_field tf static =
 	let local_count = jit.max_local_count in
 	let capture_count = Hashtbl.length jit.captures in
 	let hasret = jit.has_nonfinal_return in
-	let info = create_env_info (hash_s tf.tf_expr.epos.pfile) (EKMethod(key_type,key_field)) jit.caught_types in
+	let info = create_env_info (hash_s tf.tf_expr.epos.pfile) (EKMethod(key_type,key_field)) in
 	match args,varaccs with
 	| [],[] -> Fun0 (emit_tfunction0 ctx info hasret local_count capture_count exec)
 	| [arg1],[varacc1] -> Fun1 (emit_tfunction1 ctx info hasret local_count capture_count arg1 varacc1 exec)

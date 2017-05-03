@@ -135,12 +135,17 @@ let rec expr_to_value e = match fst e with
 
 let is_caught ctx v =
 	let rec loop offset =
-		if offset < 0 then false else begin
+		if offset >= 0 then begin
 			let env = DynArray.get ctx.environments offset in
-			List.exists (fun path -> is v path) env.info.caught_types || loop (offset - 1)
+			Hashtbl.iter (fun path _ -> if is v path then raise Exit) ctx.debug.caught_types;
+			loop (offset - 1)
 		end
 	in
-	loop (ctx.environment_offset - 1)
+	try
+		loop (ctx.environment_offset - 1);
+		false
+	with Exit ->
+		true
 
 let debug_loop jit e f =
 	let ctx = jit.ctx in

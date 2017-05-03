@@ -29,7 +29,6 @@ type env_kind =
 type env_info = {
 	pfile : int;
 	kind : env_kind;
-	caught_types : int list;
 }
 
 type env = {
@@ -74,6 +73,7 @@ type debug = {
 	mutable support_debugger : bool;
 	mutable debug_state : debug_state;
 	mutable breakpoint : breakpoint;
+	caught_types : (int,bool) Hashtbl.t;
 }
 
 type context = {
@@ -184,11 +184,10 @@ let exc_string str = exc (vstring (Rope.of_string str))
 let no_timer = fun () -> ()
 let empty_array = [||]
 
-let create_env_info pfile kind caught_types =
+let create_env_info pfile kind =
 	let info = {
 		kind = kind;
 		pfile = pfile;
-		caught_types = Hashtbl.fold (fun k _ acc -> k :: acc) caught_types [];
 	} in
 	info
 

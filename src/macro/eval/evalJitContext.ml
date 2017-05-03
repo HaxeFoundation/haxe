@@ -36,11 +36,8 @@ type t = {
 	mutable num_closures : int;
 	(* Whether or not this function has a return that's not at the end of control flow. *)
 	mutable has_nonfinal_return : bool;
-	(* The last line we saw (used for breakpoint handling). *)
-	mutable last_line : int;
 	(* The name of capture variables. Maps local slots to variable names. Only filled in debug mode. *)
 	mutable capture_names : (int,string) Hashtbl.t;
-	mutable caught_types : (int,bool) Hashtbl.t;
 }
 
 (* Creates a new context *)
@@ -53,9 +50,7 @@ let create ctx file_key = {
 	max_local_count = 0;
 	num_closures = 0;
 	has_nonfinal_return = false;
-	last_line = 0;
 	capture_names = Hashtbl.create 0;
-	caught_types = Hashtbl.create 0;
 }
 
 (* Returns the number of locals in [scope]. *)
