@@ -66,7 +66,7 @@ let value_string value =
 		| VFloat f -> "Float",string_of_float f
 		| VEnumValue ev -> rev_hash_s ev.epath,Rope.to_string (s_enum_value 0 ev)
 		| VObject o -> "Anonymous",fields_string (depth + 1) (object_fields o)
-		| VInstance {ikind = IString(_,s)} -> "String",Lazy.force s
+		| VInstance {ikind = IString(_,s)} -> "String","\"" ^ (Ast.s_escape (Lazy.force s)) ^ "\""
 		| VInstance {ikind = IArray va} -> "Array",Rope.to_string (s_array (depth + 1) va)
 		| VInstance vi -> rev_hash_s vi.iproto.ppath,instance_fields (depth + 1) vi
 		| VPrototype proto -> "Anonymous",Rope.to_string (s_proto_kind proto)
