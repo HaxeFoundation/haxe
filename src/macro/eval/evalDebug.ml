@@ -309,6 +309,37 @@ module DebugOutputJson = struct
 		write_json (Buffer.add_string b) json;
 		DebugOutput.send_string ctx (Buffer.contents b)
 
+	let value_to_json value =
+		let jv t v =
+			JObject ["type",JString t;"value",v]
+		in
+		let rec fields_string depth fields =
+			let l = List.map (fun (name,value) ->
+				let jv = value_string depth value in
+				JObject ["name",JString (rev_hash_s name);"value",jv]
+			) fields in
+			JArray l
+		and instance_fields depth vi =
+			let fields = IntMap.fold (fun name key acc ->
+				(name,vi.ifields.(key)) :: acc
+			) vi.iproto.pinstance_names [] in
+			fields_string (depth + 1) fields
+		and value_string depth v = match v with
+			| VNull -> jv "NULL" (JString "null")
+			| VTrue -> jv "Bool" (JString "true")
+			| VFalse -> jv "Bool" (JString "false")
+			| VInt32 i -> jv "Int" (JString (Int32.to_string i))
+			| VFloat f -> jv "Float" (JString (string_of_float f))
+			| VEnumValue ev -> jv (rev_hash_s ev.epath) (JString (Rope.to_string (s_enum_value 0 ev)))
+			| VObject o -> jv "Anonymous" (fields_string (depth + 1) (object_fields o))
+			| VInstance {ikind = IString(_,s)} -> jv "String" (JString ("\"" ^ (Ast.s_escape (Lazy.force s)) ^ "\""))
+			| VInstance {ikind = IArray va} -> jv "Array" (JString (Rope.to_string (s_array (depth + 1) va)))
+			| VInstance vi -> jv (rev_hash_s vi.iproto.ppath) (instance_fields (depth + 1) vi)
+			| VPrototype proto -> jv "Anonymous" (JString (Rope.to_string (s_proto_kind proto)))
+			| VFunction _ | VFieldClosure _ -> jv "Function" (JString "fun")
+		in
+		value_string 0 value
+
 	let output_variable_name ctx name =
 		print_json ctx (JObject ["result",JString name])
 
