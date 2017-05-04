@@ -243,7 +243,12 @@ module DebugOutput = struct
 					(* TODO: reconnect? *)
 					print_endline s
 				| Some socket ->
-					let s = s ^ "\n" in
+					let l = String.length s in
+					assert (l < 0xFFFF);
+					let buf = Bytes.make 2 ' ' in
+					Bytes.set buf 0 (Char.unsafe_chr l);
+					Bytes.set buf 1 (Char.unsafe_chr (l lsr 8));
+					ignore(send socket buf 0 2 []);
 					ignore(send socket s 0 (String.length s) [])
 			end
 
