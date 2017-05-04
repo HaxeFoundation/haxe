@@ -220,6 +220,17 @@ let is_caught ctx v =
 	with Exit ->
 		true
 
+let get_call_stack_envs ctx kind p =
+	let envs = match call_stack ctx with
+		| _ :: envs -> envs
+		| [] -> []
+	in
+	let rec loop delta envs = match envs with
+		| _ :: envs when delta < 0 -> loop (delta + 1) envs
+		| _ -> envs
+	in
+	loop ctx.debug.environment_offset_delta envs
+
 module DebugOutput = struct
 	open Unix
 
@@ -246,6 +257,18 @@ module DebugOutput = struct
 		let line = Lexer.get_error_line p in
 		send_string ctx (Printf.sprintf "%6i : %s at %s:%i" i (kind_name ctx kind) (Path.get_real_path p.pfile) line)
 
+	let output_call_stack ctx kind p =
+		let envs = get_call_stack_envs ctx kind p in
+		let i = ref (ctx.environment_offset - 1) in
+		output_call_stack_position ctx !i kind {p with pfile = Path.unique_full_path p.Globals.pfile};
+		List.iter (fun env ->
+			if env.env_leave_pmin >= 0 then begin
+				let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_hash_s env.env_info.pfile} in
+				decr i;
+				output_call_stack_position ctx !i env.env_info.kind p
+			end
+		) envs
+
 	let output_file_path ctx s = send_string ctx (Path.get_real_path s)
 
 	let output_type_name ctx = send_string ctx
@@ -257,6 +280,11 @@ module DebugOutput = struct
 		in
 		send_string ctx (Printf.sprintf "%i %s" breakpoint.bpid flag)
 
+	let output_breakpoints ctx =
+		iter_breakpoints ctx (fun breakpoint ->
+			output_breakpoint ctx breakpoint
+		)
+
 	let output_breakpoint_description ctx breakpoint =
 		let s_col = match breakpoint.bpcolumn with
 			| BPAny -> ""
@@ -266,6 +294,91 @@ module DebugOutput = struct
 
 	let output_info ctx = send_string ctx
 	let output_error ctx = send_string ctx
+end
+
+module DebugOutputJson = struct
+	open Json
+
+	let print_json ctx json =
+		let b = Buffer.create 0 in
+		write_json (Buffer.add_string b) json;
+		DebugOutput.send_string ctx (Buffer.contents b)
+
+	let output_variable_name ctx name =
+		print_json ctx (JObject ["result",JString name])
+
+	let output_value ctx name value =
+		let o = JObject [
+			"name",JString name;
+			"value",JString (value_string value)
+		] in
+		print_json ctx (JObject ["result",o])
+
+	let output_call_stack ctx kind p =
+		let envs = get_call_stack_envs ctx kind p in
+		let id = ref (-1) in
+		let stack_item kind p =
+			incr id;
+			let line1,col1,line2,col2 = Lexer.get_pos_coords p in
+			JObject [
+				"id",JInt !id;
+				"name",JString (kind_name ctx kind);
+				"source",JString (Path.get_real_path p.pfile);
+				"line",JInt line1;
+				"column",JInt col1;
+				"endLine",JInt line2;
+				"endColumn",JInt col2;
+			]
+		in
+		let l = [stack_item kind p] in
+		let stack = List.fold_left (fun acc env ->
+			if env.env_leave_pmin >= 0 then begin
+				let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_hash_s env.env_info.pfile} in
+				(stack_item env.env_info.kind p) :: acc
+			end else
+				acc
+		) l envs in
+		print_json ctx (JObject ["result",JArray stack])
+
+	let output_file_path ctx s =
+		print_json ctx (JObject ["result",JString (Path.get_real_path s)])
+
+	let output_type_name ctx name =
+		print_json ctx (JObject ["result",JString name])
+
+	let get_breakpoint_description ctx breakpoint =
+		let state = function
+			| BPEnabled -> "enabled"
+			| BPDisabled -> "disabled"
+			| BPHit -> "hit"
+		in
+		let l = [
+			"id",JInt breakpoint.bpid;
+			"file",JString (Path.get_real_path (rev_hash_s breakpoint.bpfile));
+			"line",JInt breakpoint.bpline;
+			"state",JString (state breakpoint.bpstate)
+		] in
+		let l = match breakpoint.bpcolumn with
+			| BPAny -> l
+			| BPColumn i -> ("column",JInt i) :: l
+		in
+		JObject l
+
+	let output_breakpoint_description ctx breakpoint =
+		print_json ctx (get_breakpoint_description ctx breakpoint)
+
+	let output_breakpoints ctx =
+		let a = DynArray.create () in
+		iter_breakpoints ctx (fun breakpoint ->
+			DynArray.add a (get_breakpoint_description ctx breakpoint)
+		);
+		print_json ctx (JArray (DynArray.to_list a))
+
+	let output_info ctx msg =
+		print_json ctx (JObject ["result",JString msg])
+
+	let output_error ctx msg =
+		print_json ctx (JObject ["error",JString msg])
 end
 
 module DebugInput = struct
@@ -295,7 +408,7 @@ module DebugInput = struct
 			end
 end
 
-open DebugOutput
+open DebugOutputJson
 
 let print_variables ctx capture_infos scopes env =
 	let rec loop scopes = match scopes with
@@ -326,25 +439,7 @@ let set_variable ctx scopes name value env =
 	with Not_found ->
 		output_error ctx ("No variable found: " ^ name)
 
-let print_call_stack ctx kind p =
-	let envs = match call_stack ctx with
-		| _ :: envs -> envs
-		| [] -> []
-	in
-	let rec loop delta envs = match envs with
-		| _ :: envs when delta < 0 -> loop (delta + 1) envs
-		| _ -> envs
-	in
-	let envs = loop ctx.debug.environment_offset_delta envs in
-	let i = ref (ctx.environment_offset - 1) in
-	output_call_stack_position ctx !i kind {p with pfile = Path.unique_full_path p.Globals.pfile};
-	List.iter (fun env ->
-		if env.env_leave_pmin >= 0 then begin
-			let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_hash_s env.env_info.pfile} in
-			decr i;
-			output_call_stack_position ctx !i env.env_info.kind p
-		end
-	) envs
+
 
 let parse_expr ctx s p =
 	let msg = ref "" in
@@ -453,9 +548,7 @@ and wait ctx run env =
 			loop()
 		| ["list" | "l"] ->
 			(* TODO: other list syntax *)
-			iter_breakpoints ctx (fun breakpoint ->
-				output_breakpoint ctx breakpoint
-			);
+			output_breakpoints ctx;
 			loop()
 		| ["describe" | "desc";bpid] ->
 			(* TODO: range patterns? *)
@@ -538,7 +631,7 @@ and wait ctx run env =
 			ctx.debug.debug_state <- DbgFinish ctx.environment_offset;
 			run env
 		| ["where" | "w"] ->
-			print_call_stack ctx env.env_info.kind env.env_debug.expr.epos;
+			output_call_stack ctx env.env_info.kind env.env_debug.expr.epos;
 			loop()
 		| ["up"] ->
 			let offset = ctx.environment_offset - ctx.debug.environment_offset_delta in
