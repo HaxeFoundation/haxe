@@ -255,6 +255,9 @@ module DebugOutput = struct
 	let output_info ctx = send_string ctx
 	let output_error ctx = send_string ctx
 
+	let output_exception_stop ctx v pos =
+		output_info ctx (uncaught_exception_string v pos "")
+
 	let output_variable_name ctx name =
 		send_string ctx (Printf.sprintf "%s" name)
 
@@ -429,6 +432,15 @@ module DebugOutputJson = struct
 
 	let output_error ctx msg =
 		print_json ctx (JObject ["error",JString msg])
+
+	let output_exception_stop ctx v pos =
+		print_json ctx (JObject [
+			"event",JString "exception_stop";
+			"result",JObject [
+				"text",JString (value_string v)
+			];
+		])
+
 end
 
 module DebugInput = struct
@@ -775,7 +787,7 @@ let debug_loop jit e f =
 		with Not_found -> try
 			f env
 		with RunTimeException(v,_,_) when not (is_caught ctx v) ->
-			output_info ctx (uncaught_exception_string v e.epos "");
+			output_exception_stop ctx v e.epos;
 			ctx.debug.debug_state <- DbgWaiting;
 			run_loop ctx run_check_breakpoint env
 	in
