@@ -219,7 +219,7 @@ let parse_breakpoint_pattern pattern =
 	with _ ->
 		raise Exit
 
-let expr_to_value env e =
+let expr_to_value ctx env e =
 	let rec loop e = match fst e with
 		| EConst cst ->
 			begin match cst with
@@ -231,7 +231,13 @@ let expr_to_value env e =
 				| Ident "null" -> "",VNull
 				| Ident s ->
 					let value = match get_variable env.env_info.capture_infos env.env_debug.scopes s env with
-						| None -> raise Exit
+						| None ->
+							let key = hash_s s in
+							begin try
+								VPrototype (IntMap.find key ctx.static_prototypes)
+							with Not_found ->
+								raise Exit
+							end
 						| Some value -> value
 					in
 					s,value
@@ -472,10 +478,10 @@ and wait ctx run env =
 			begin match parse_expr ctx e env.env_debug.expr.epos with
 				| Some e ->
 					begin try
-						let name,v = expr_to_value env e in
+						let name,v = expr_to_value ctx env e in
 						output_value name v
 					with Exit ->
-						output_error ("Don't know how to handle this expression")
+						output_error ("Don't know how to handle this expression: " ^ (Ast.s_expr e))
 					end
 				| None ->
 					()
@@ -486,10 +492,10 @@ and wait ctx run env =
 			begin match parse expr,parse value with
 				| Some expr,Some value ->
 					begin try
-						let _,value = expr_to_value env value in
+						let _,value = expr_to_value ctx env value in
 						begin match fst expr with
 							| EField(e1,s) ->
-								let _,v1 = expr_to_value env e1 in
+								let _,v1 = expr_to_value ctx env e1 in
 								set_field v1 (hash_s s) value
 							| EConst (Ident s) ->
 								set_variable env.env_debug.scopes s value env
