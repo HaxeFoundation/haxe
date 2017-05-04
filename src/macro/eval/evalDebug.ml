@@ -290,7 +290,7 @@ module DebugInput = struct
 					let _ = recv socket buf 0 2 [] in
 					let i = read_ui16 buf 0 in
 					let buf = Bytes.create i in
-					let _ = recv socket buf 0 i in
+					let _ = recv socket buf 0 i [] in
 					Bytes.to_string buf
 			end
 end
