@@ -296,6 +296,9 @@ module DebugOutput = struct
 	let output_breakpoint_set ctx breakpoint =
 		output_info ctx (Printf.sprintf "Breakpoint %i set and enabled" breakpoint.bpid)
 
+	let output_breakpoint_stop ctx env =
+		output_info ctx (Printf.sprintf "Thread %i stopped in %s at %s:%i." 0 (kind_name (get_eval ctx) env.env_info.kind) (rev_hash_s env.env_info.pfile) env.env_debug.line)
+
 	let output_breakpoint_description ctx breakpoint =
 		let s_col = match breakpoint.bpcolumn with
 			| BPAny -> ""
@@ -417,6 +420,9 @@ module DebugOutputJson = struct
 			DynArray.add a (get_breakpoint_description ctx breakpoint)
 		);
 		print_json ctx (JObject ["result",JArray (DynArray.to_list a)])
+
+	let output_breakpoint_stop ctx env =
+		print_json ctx (JObject ["event",JString "breakpoint_stop"])
 
 	let output_info ctx msg =
 		print_json ctx (JObject ["result",JString msg])
@@ -760,7 +766,7 @@ let debug_loop jit e f =
 				| BPEnabled when column_matches breakpoint ->
 					breakpoint.bpstate <- BPHit;
 					ctx.debug.breakpoint <- breakpoint;
-					output_info ctx (Printf.sprintf "Thread %i stopped in %s at %s:%i." 0 (kind_name (get_eval ctx) env.env_info.kind) (rev_hash_s env.env_info.pfile) env.env_debug.line);
+					output_breakpoint_stop ctx env;
 					ctx.debug.debug_state <- DbgWaiting;
 					run_loop ctx run_check_breakpoint env
 				| _ ->
