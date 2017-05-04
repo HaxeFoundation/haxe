@@ -77,7 +77,7 @@ let declare_local jit var =
 		let i = Hashtbl.length jit.captures in
 		Hashtbl.add jit.captures var.v_id i;
 		if jit.ctx.debug.support_debugger then begin
-			Hashtbl.replace jit.capture_infos i {var_name = var.v_name; var_type = s_type (print_context()) var.v_type};
+			Hashtbl.replace jit.capture_infos i var.v_name
 		end;
 		Env i
 	end else match jit.scopes with
@@ -89,7 +89,7 @@ let declare_local jit var =
 		let slot = scope.local_offset + i in
 		if jit.ctx.debug.support_debugger then begin
 			Hashtbl.replace scope.local_ids var.v_name var.v_id;
-			Hashtbl.replace scope.local_infos i {var_name = var.v_name; var_type = s_type (print_context()) var.v_type};
+			Hashtbl.replace scope.local_infos i var.v_name
 		end;
 		Local slot
 
@@ -102,7 +102,7 @@ let declare_local_this jit = match jit.scopes with
 		increase_local_count jit;
 		if jit.ctx.debug.support_debugger then begin
 			Hashtbl.replace scope.local_ids "this" 0;
-			Hashtbl.replace scope.local_infos 0 {var_name = "this";var_type = "TODO"};
+			Hashtbl.replace scope.local_infos 0 "this"
 		end;
 		Local i
 

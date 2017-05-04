@@ -22,10 +22,7 @@ open Type
 open EvalValue
 open EvalHash
 
-type var_info = {
-	var_name : string;
-	var_type : string
-}
+type var_info = string
 
 type scope = {
 	(* The local start offset of the current scope. *)

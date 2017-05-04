@@ -42,8 +42,8 @@ let delete_breakpoint ctx file line =
 	let h = Hashtbl.find ctx.debug.breakpoints hash in
 	Hashtbl.remove h line
 
-let output_variable info =
-	print_endline (Printf.sprintf "%s" info.var_name)
+let output_variable name =
+	print_endline (Printf.sprintf "%s" name)
 
 let value_string value =
 	let rec fields_string depth fields =
@@ -101,17 +101,15 @@ let output_error = print_endline
 let print_variables capture_infos scopes env =
 	let rec loop scopes = match scopes with
 		| scope :: scopes ->
-			Hashtbl.iter (fun _ info ->
-				output_variable info
-			) scope.local_infos;
+			Hashtbl.iter (fun _ name -> output_variable name) scope.local_infos;
 			loop scopes
 		| [] ->
 			()
 	in
 	loop scopes;
-	Hashtbl.iter (fun slot info ->
+	Hashtbl.iter (fun slot name ->
 		if slot < Array.length env.env_captures then
-			output_variable info
+			output_variable name
 	) capture_infos
 
 let get_var_slot_by_name scopes name =
@@ -120,8 +118,7 @@ let get_var_slot_by_name scopes name =
 			begin try
 				let id = Hashtbl.find scope.local_ids name in
 				let slot = Hashtbl.find scope.locals id in
-				let info = Hashtbl.find scope.local_infos slot in
-				slot + scope.local_offset,info
+				slot + scope.local_offset
 			with Not_found ->
 				loop scopes
 			end
@@ -133,38 +130,38 @@ let get_var_slot_by_name scopes name =
 let get_capture_slot_by_name capture_infos name =
 	let ret = ref None in
 	try
-		Hashtbl.iter (fun slot info ->
-			if name = info.var_name then begin
-				ret := (Some(slot,info));
+		Hashtbl.iter (fun slot name' ->
+			if name = name' then begin
+				ret := (Some slot);
 				raise Exit
 			end
 		) capture_infos;
 		raise Not_found
 	with Exit ->
-		match !ret with None -> assert false | Some info -> info
+		match !ret with None -> assert false | Some name -> name
 
 let get_variable capture_infos scopes name env =
 	try
-		let slot,info = get_var_slot_by_name scopes name in
+		let slot = get_var_slot_by_name scopes name in
 		let value = env.env_locals.(slot) in
-		Some (info,value)
+		Some value
 	with Not_found -> try
-		let slot,info = get_capture_slot_by_name capture_infos name in
+		let slot = get_capture_slot_by_name capture_infos name in
 		let value = try env.env_captures.(slot) with _ -> raise Not_found in
-		Some (info,!value)
+		Some !value
 	with Not_found ->
 		None
 
 let print_variable capture_infos scopes name env =
 	match get_variable capture_infos scopes name env with
-	| Some (info,value) ->
-		output_value info.var_name value
+	| Some value ->
+		output_value name value
 	| None ->
 		output_error ("No variable found: " ^ name)
 
 let set_variable scopes name value env =
 	try
-		let slot,_ = get_var_slot_by_name scopes name in
+		let slot = get_var_slot_by_name scopes name in
 		env.env_locals.(slot) <- value;
 		output_info (Printf.sprintf "set variable %s = %s" name (value_string value));
 	with Not_found ->
@@ -460,11 +457,11 @@ and wait ctx run env =
 				| Some e ->
 					let rec loop e = match fst e with
 						| EConst(Ident s) ->
-							let info,value = match get_variable env.env_info.capture_infos env.env_debug.scopes s env with
+							let value = match get_variable env.env_info.capture_infos env.env_debug.scopes s env with
 								| None -> raise Exit
-								| Some (info,value) -> info,value
+								| Some value -> value
 							in
-							info.var_name,value
+							s,value
 						| EField(e1,s) ->
 							let n1,v1 = loop e1 in
 							let v = EvalField.field v1 (hash_s s) in
