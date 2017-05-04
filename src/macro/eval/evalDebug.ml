@@ -287,7 +287,7 @@ module DebugInput = struct
 					input_line Pervasives.stdin
 				| Some socket ->
 					let buf = Bytes.create 2 in
-					let _ = recv socket buf 0 2 in
+					let _ = recv socket buf 0 2 [] in
 					let i = read_ui16 buf 0 in
 					let buf = Bytes.create i in
 					let _ = recv socket buf 0 i in
