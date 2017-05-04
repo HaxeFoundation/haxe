@@ -41,6 +41,7 @@ type env_kind =
 	| EKDelayed
 
 type env_info = {
+	static : bool;
 	pfile : int;
 	kind : env_kind;
 	capture_infos : (int,var_info) Hashtbl.t;
@@ -214,8 +215,9 @@ let no_debug = {
 	expr = no_expr
 }
 
-let create_env_info pfile kind capture_infos =
+let create_env_info static pfile kind capture_infos =
 	let info = {
+		static = static;
 		kind = kind;
 		pfile = pfile;
 		capture_infos = capture_infos;

@@ -144,19 +144,17 @@ let get_variable capture_infos scopes name env =
 	try
 		let slot = get_var_slot_by_name scopes name in
 		let value = env.env_locals.(slot) in
-		Some value
-	with Not_found -> try
+		value
+	with Not_found ->
 		let slot = get_capture_slot_by_name capture_infos name in
 		let value = try env.env_captures.(slot) with _ -> raise Not_found in
-		Some !value
-	with Not_found ->
-		None
+		!value
 
 let print_variable capture_infos scopes name env =
-	match get_variable capture_infos scopes name env with
-	| Some value ->
+	try
+		let value = get_variable capture_infos scopes name env in
 		output_value name value
-	| None ->
+	with Not_found ->
 		output_error ("No variable found: " ^ name)
 
 let set_variable scopes name value env =
@@ -219,6 +217,31 @@ let parse_breakpoint_pattern pattern =
 	with _ ->
 		raise Exit
 
+let resolve_ident ctx env s =
+	let key = hash_s s in
+	try
+		(* 1. Variable *)
+		get_variable env.env_info.capture_infos env.env_debug.scopes s env
+	with Not_found -> try
+		(* 2. Instance *)
+		if env.env_info.static then raise Not_found;
+		let v = env.env_locals.(0) in
+		EvalField.field_raise v key
+	with Not_found -> try
+		(* 3. Static *)
+		begin match env.env_info.kind with
+			| EKMethod(i1,_) ->
+				let proto = get_static_prototype_raise ctx i1 in
+				EvalField.proto_field_raise proto key
+			| _ ->
+				raise Not_found
+		end
+	with Not_found -> try
+		(* 4. Type *)
+		VPrototype (IntMap.find key ctx.static_prototypes)
+	with Not_found ->
+		raise Exit
+
 let expr_to_value ctx env e =
 	let rec loop e = match fst e with
 		| EConst cst ->
@@ -230,16 +253,7 @@ let expr_to_value ctx env e =
 				| Ident "false" -> "",VFalse
 				| Ident "null" -> "",VNull
 				| Ident s ->
-					let value = match get_variable env.env_info.capture_infos env.env_debug.scopes s env with
-						| None ->
-							let key = hash_s s in
-							begin try
-								VPrototype (IntMap.find key ctx.static_prototypes)
-							with Not_found ->
-								raise Exit
-							end
-						| Some value -> value
-					in
+					let value = resolve_ident ctx env s in
 					s,value
 				| _ -> raise Exit
 			end
