@@ -80,9 +80,10 @@ let output_value name value =
 
 let output_call_stack_position ctx i kind p =
 	let line = Lexer.get_error_line p in
-	print_endline (Printf.sprintf "%6i : %s at %s:%i" i (kind_name ctx kind) p.pfile line)
+	print_endline (Printf.sprintf "%6i : %s at %s:%i" i (kind_name ctx kind) (Path.get_real_path p.pfile) line)
 
-let output_file_path = print_endline
+let output_file_path s = print_endline (Path.get_real_path s)
+
 let output_type_name = print_endline
 
 let output_breakpoint breakpoint =
@@ -93,7 +94,7 @@ let output_breakpoint breakpoint =
 	print_endline (Printf.sprintf "%i %s" breakpoint.bpid flag)
 
 let output_breakpoint_description breakpoint =
-	print_endline (Printf.sprintf "%s:%i" (rev_hash_s breakpoint.bpfile) breakpoint.bpline)
+	print_endline (Printf.sprintf "%s:%i" ((Path.get_real_path (rev_hash_s breakpoint.bpfile))) breakpoint.bpline)
 
 let output_info = print_endline
 let output_error = print_endline
