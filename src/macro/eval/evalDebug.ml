@@ -14,17 +14,18 @@ open MacroApi
 
 let make_breakpoint =
 	let id = ref (-1) in
-	(fun file line state ->
+	(fun file line state column ->
 		incr id;
 		{
 			bpid = !id;
 			bpfile = file;
 			bpline = line;
-			bpstate = state
+			bpstate = state;
+			bpcolumn = column;
 		}
 	)
 
-let add_breakpoint ctx file line =
+let add_breakpoint ctx file line column =
 	let hash = hash_s (Path.unique_full_path (Common.find_file (ctx.curapi.get_com()) file)) in
 	let h = try
 		Hashtbl.find ctx.debug.breakpoints hash
@@ -33,7 +34,7 @@ let add_breakpoint ctx file line =
 		Hashtbl.add ctx.debug.breakpoints hash h;
 		h
 	in
-	let breakpoint = make_breakpoint hash line BPEnabled in
+	let breakpoint = make_breakpoint hash line BPEnabled column in
 	Hashtbl.replace h line breakpoint;
 	breakpoint
 
@@ -94,7 +95,11 @@ let output_breakpoint breakpoint =
 	print_endline (Printf.sprintf "%i %s" breakpoint.bpid flag)
 
 let output_breakpoint_description breakpoint =
-	print_endline (Printf.sprintf "%s:%i" ((Path.get_real_path (rev_hash_s breakpoint.bpfile))) breakpoint.bpline)
+	let s_col = match breakpoint.bpcolumn with
+		| BPAny -> ""
+		| BPColumn i -> ":" ^ (string_of_int i)
+	in
+	print_endline (Printf.sprintf "%s:%i%s" ((Path.get_real_path (rev_hash_s breakpoint.bpfile))) breakpoint.bpline s_col)
 
 let output_info = print_endline
 let output_error = print_endline
@@ -209,12 +214,23 @@ let parse_breakpoint_pattern pattern =
 	(* TODO: more than file:line patterns? *)
 	try
 		let split = ExtString.String.nsplit pattern ":" in
-		let line,file = match List.rev split with
-			| line :: file -> line,String.concat ":" (List.rev file)
+		let file,line,column = match List.rev split with
+			| first :: rest ->
+				let first = int_of_string first in
+				begin match rest with
+					| second :: file ->
+						begin try
+							file,(int_of_string second),BPColumn first
+						with _ ->
+							(second :: file),first,BPAny
+						end
+					| file ->
+						file,first,BPAny
+				end
 			| [] -> raise Exit
 		in
-		let line = int_of_string line in
-		file,line
+		let file = String.concat ":" (List.rev file) in
+		file,line,column
 	with _ ->
 		raise Exit
 
@@ -326,8 +342,7 @@ and wait ctx run env =
 			wait ctx run (DynArray.get ctx.environments offset);
 		end
 	and loop () =
-		print_string (Printf.sprintf "1> ");
-		flush stdout;
+		print_endline (Printf.sprintf "1> %s" (s_expr_pretty env.env_debug.expr));
 		let line = input_line stdin in
 		match ExtString.String.nsplit line " " with
 		| ["quit" | "exit"] ->
@@ -368,9 +383,9 @@ and wait ctx run env =
 			loop()
 		| ["break" | "b";pattern] ->
 			begin try
-				let file,line = parse_breakpoint_pattern pattern in
+				let file,line,column = parse_breakpoint_pattern pattern in
 				begin try
-					let breakpoint = add_breakpoint ctx file line in
+					let breakpoint = add_breakpoint ctx file line column in
 					output_info (Printf.sprintf "Breakpoint %i set and enabled" breakpoint.bpid);
 				with Not_found ->
 					output_error ("Could not find file " ^ file);
@@ -439,7 +454,7 @@ and wait ctx run env =
 		| ["clear";pattern] ->
 			(* TODO: range patterns? *)
 			begin try
-				let file,line = parse_breakpoint_pattern pattern in
+				let file,line,column = parse_breakpoint_pattern pattern in
 				begin try
 					delete_breakpoint ctx file line
 				with Not_found ->
@@ -533,14 +548,18 @@ and wait ctx run env =
 let debug_loop jit e f =
 	let ctx = jit.ctx in
 	let scopes = jit.scopes in
-	let line = Lexer.get_error_line e.epos in
+	let line,col1,_,_ = Lexer.get_pos_coords e.epos in
+	let column_matches breakpoint = match breakpoint.bpcolumn with
+		| BPAny -> true
+		| BPColumn i -> i = col1 + 1
+	in
 	(* Checks if we hit a breakpoint, runs the code if not. *)
 	let rec run_check_breakpoint env =
 		try
 			let h = Hashtbl.find ctx.debug.breakpoints env.env_info.pfile in
 			let breakpoint = Hashtbl.find h env.env_debug.line in
 			begin match breakpoint.bpstate with
-				| BPEnabled ->
+				| BPEnabled when column_matches breakpoint ->
 					breakpoint.bpstate <- BPHit;
 					ctx.debug.breakpoint <- breakpoint;
 					output_info (Printf.sprintf "Thread 0 stopped in %s at %s:%i." (kind_name ctx env.env_info.kind) (rev_hash_s env.env_info.pfile) env.env_debug.line);

@@ -64,7 +64,7 @@ let create com api is_macro =
 				breakpoints = Hashtbl.create 0;
 				support_debugger = support_debugger;
 				debug_state = DbgWaiting;
-				breakpoint = EvalDebug.make_breakpoint 0 0 BPDisabled;
+				breakpoint = EvalDebug.make_breakpoint 0 0 BPDisabled BPAny;
 				caught_types = Hashtbl.create 0;
 				environment_offset_delta = 0;
 			} in

@@ -69,10 +69,15 @@ type breakpoint_state =
 	| BPDisabled
 	| BPHit
 
+type breakpoint_column =
+	| BPAny
+	| BPColumn of int
+
 type breakpoint = {
 	bpid : int;
 	bpfile : int;
 	bpline : int;
+	bpcolumn : breakpoint_column;
 	mutable bpstate : breakpoint_state;
 }
 
