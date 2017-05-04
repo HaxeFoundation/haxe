@@ -163,7 +163,7 @@ let set_variable scopes name value env =
 	try
 		let slot = get_var_slot_by_name scopes name in
 		env.env_locals.(slot) <- value;
-		output_info (Printf.sprintf "set variable %s = %s" name (value_string value));
+		output_value name value;
 	with Not_found ->
 		output_error ("No variable found: " ^ name)
 
