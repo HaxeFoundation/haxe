@@ -12,6 +12,8 @@ open EvalEncode
 open EvalMisc
 open MacroApi
 
+(* Breakpoints *)
+
 let make_breakpoint =
 	let id = ref (-1) in
 	(fun file line state column ->
@@ -42,154 +44,6 @@ let delete_breakpoint ctx file line =
 	let hash = hash_s (Path.unique_full_path (Common.find_file (ctx.curapi.get_com()) file)) in
 	let h = Hashtbl.find ctx.debug.breakpoints hash in
 	Hashtbl.remove h line
-
-let output_variable name =
-	print_endline (Printf.sprintf "%s" name)
-
-let value_string value =
-	let rec fields_string depth fields =
-		let tabs = String.make (depth * 2) ' ' in
-		let l = List.map (fun (name,value) ->
-			let s_type,s_value = value_string depth value in
-			Printf.sprintf "%s%s : %s = %s" tabs (rev_hash_s name) s_type s_value
-		) fields in
-		Printf.sprintf "{\n%s\n%s}" (String.concat "\n" l) tabs
-	and instance_fields depth vi =
-		let fields = IntMap.fold (fun name key acc ->
-			(name,vi.ifields.(key)) :: acc
-		) vi.iproto.pinstance_names [] in
-		fields_string (depth + 1) fields
-	and value_string depth v = match v with
-		| VNull -> "NULL","null"
-		| VTrue -> "Bool","true"
-		| VFalse -> "Bool","false"
-		| VInt32 i -> "Int",Int32.to_string i
-		| VFloat f -> "Float",string_of_float f
-		| VEnumValue ev -> rev_hash_s ev.epath,Rope.to_string (s_enum_value 0 ev)
-		| VObject o -> "Anonymous",fields_string (depth + 1) (object_fields o)
-		| VInstance {ikind = IString(_,s)} -> "String","\"" ^ (Ast.s_escape (Lazy.force s)) ^ "\""
-		| VInstance {ikind = IArray va} -> "Array",Rope.to_string (s_array (depth + 1) va)
-		| VInstance vi -> rev_hash_s vi.iproto.ppath,instance_fields (depth + 1) vi
-		| VPrototype proto -> "Anonymous",Rope.to_string (s_proto_kind proto)
-		| VFunction _ | VFieldClosure _ -> "Function","fun"
-	in
-	let s_type,s_value = value_string 0 value in
-	Printf.sprintf "%s = %s" s_type s_value
-
-let output_value name value =
-	print_endline (Printf.sprintf "%s : %s" name (value_string value))
-
-let output_call_stack_position ctx i kind p =
-	let line = Lexer.get_error_line p in
-	print_endline (Printf.sprintf "%6i : %s at %s:%i" i (kind_name ctx kind) (Path.get_real_path p.pfile) line)
-
-let output_file_path s = print_endline (Path.get_real_path s)
-
-let output_type_name = print_endline
-
-let output_breakpoint breakpoint =
-	let flag = match breakpoint.bpstate with
-		| BPHit | BPEnabled -> "E"
-		| BPDisabled -> "d"
-	in
-	print_endline (Printf.sprintf "%i %s" breakpoint.bpid flag)
-
-let output_breakpoint_description breakpoint =
-	let s_col = match breakpoint.bpcolumn with
-		| BPAny -> ""
-		| BPColumn i -> ":" ^ (string_of_int i)
-	in
-	print_endline (Printf.sprintf "%s:%i%s" ((Path.get_real_path (rev_hash_s breakpoint.bpfile))) breakpoint.bpline s_col)
-
-let output_info = print_endline
-let output_error = print_endline
-
-let print_variables capture_infos scopes env =
-	let rec loop scopes = match scopes with
-		| scope :: scopes ->
-			Hashtbl.iter (fun _ name -> output_variable name) scope.local_infos;
-			loop scopes
-		| [] ->
-			()
-	in
-	loop scopes;
-	Hashtbl.iter (fun slot name ->
-		if slot < Array.length env.env_captures then
-			output_variable name
-	) capture_infos
-
-let get_var_slot_by_name scopes name =
-	let rec loop scopes = match scopes with
-		| scope :: scopes ->
-			begin try
-				let id = Hashtbl.find scope.local_ids name in
-				let slot = Hashtbl.find scope.locals id in
-				slot + scope.local_offset
-			with Not_found ->
-				loop scopes
-			end
-		| [] ->
-			raise Not_found
-	in
-	loop scopes
-
-let get_capture_slot_by_name capture_infos name =
-	let ret = ref None in
-	try
-		Hashtbl.iter (fun slot name' ->
-			if name = name' then begin
-				ret := (Some slot);
-				raise Exit
-			end
-		) capture_infos;
-		raise Not_found
-	with Exit ->
-		match !ret with None -> assert false | Some name -> name
-
-let get_variable capture_infos scopes name env =
-	try
-		let slot = get_var_slot_by_name scopes name in
-		let value = env.env_locals.(slot) in
-		value
-	with Not_found ->
-		let slot = get_capture_slot_by_name capture_infos name in
-		let value = try env.env_captures.(slot) with _ -> raise Not_found in
-		!value
-
-let print_variable capture_infos scopes name env =
-	try
-		let value = get_variable capture_infos scopes name env in
-		output_value name value
-	with Not_found ->
-		output_error ("No variable found: " ^ name)
-
-let set_variable scopes name value env =
-	try
-		let slot = get_var_slot_by_name scopes name in
-		env.env_locals.(slot) <- value;
-		output_value name value;
-	with Not_found ->
-		output_error ("No variable found: " ^ name)
-
-let print_call_stack ctx kind p =
-	let envs = match call_stack ctx with
-		| _ :: envs -> envs
-		| [] -> []
-	in
-	let rec loop delta envs = match envs with
-		| _ :: envs when delta < 0 -> loop (delta + 1) envs
-		| _ -> envs
-	in
-	let envs = loop ctx.debug.environment_offset_delta envs in
-	let i = ref (ctx.environment_offset - 1) in
-	output_call_stack_position ctx !i kind {p with pfile = Path.unique_full_path p.Globals.pfile};
-	List.iter (fun env ->
-		if env.env_leave_pmin >= 0 then begin
-			let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_hash_s env.env_info.pfile} in
-			decr i;
-			output_call_stack_position ctx !i env.env_info.kind p
-		end
-	) envs
 
 let iter_breakpoints ctx f =
 	Hashtbl.iter (fun _ breakpoints ->
@@ -233,6 +87,80 @@ let parse_breakpoint_pattern pattern =
 		file,line,column
 	with _ ->
 		raise Exit
+
+(* Printing *)
+
+let value_string value =
+	let rec fields_string depth fields =
+		let tabs = String.make (depth * 2) ' ' in
+		let l = List.map (fun (name,value) ->
+			let s_type,s_value = value_string depth value in
+			Printf.sprintf "%s%s : %s = %s" tabs (rev_hash_s name) s_type s_value
+		) fields in
+		Printf.sprintf "{\n%s\n%s}" (String.concat "\n" l) tabs
+	and instance_fields depth vi =
+		let fields = IntMap.fold (fun name key acc ->
+			(name,vi.ifields.(key)) :: acc
+		) vi.iproto.pinstance_names [] in
+		fields_string (depth + 1) fields
+	and value_string depth v = match v with
+		| VNull -> "NULL","null"
+		| VTrue -> "Bool","true"
+		| VFalse -> "Bool","false"
+		| VInt32 i -> "Int",Int32.to_string i
+		| VFloat f -> "Float",string_of_float f
+		| VEnumValue ev -> rev_hash_s ev.epath,Rope.to_string (s_enum_value 0 ev)
+		| VObject o -> "Anonymous",fields_string (depth + 1) (object_fields o)
+		| VInstance {ikind = IString(_,s)} -> "String","\"" ^ (Ast.s_escape (Lazy.force s)) ^ "\""
+		| VInstance {ikind = IArray va} -> "Array",Rope.to_string (s_array (depth + 1) va)
+		| VInstance vi -> rev_hash_s vi.iproto.ppath,instance_fields (depth + 1) vi
+		| VPrototype proto -> "Anonymous",Rope.to_string (s_proto_kind proto)
+		| VFunction _ | VFieldClosure _ -> "Function","fun"
+	in
+	let s_type,s_value = value_string 0 value in
+	Printf.sprintf "%s = %s" s_type s_value
+
+(* Vars *)
+
+let get_var_slot_by_name scopes name =
+	let rec loop scopes = match scopes with
+		| scope :: scopes ->
+			begin try
+				let id = Hashtbl.find scope.local_ids name in
+				let slot = Hashtbl.find scope.locals id in
+				slot + scope.local_offset
+			with Not_found ->
+				loop scopes
+			end
+		| [] ->
+			raise Not_found
+	in
+	loop scopes
+
+let get_capture_slot_by_name capture_infos name =
+	let ret = ref None in
+	try
+		Hashtbl.iter (fun slot name' ->
+			if name = name' then begin
+				ret := (Some slot);
+				raise Exit
+			end
+		) capture_infos;
+		raise Not_found
+	with Exit ->
+		match !ret with None -> assert false | Some name -> name
+
+let get_variable capture_infos scopes name env =
+	try
+		let slot = get_var_slot_by_name scopes name in
+		let value = env.env_locals.(slot) in
+		value
+	with Not_found ->
+		let slot = get_capture_slot_by_name capture_infos name in
+		let value = try env.env_captures.(slot) with _ -> raise Not_found in
+		!value
+
+(* Expr to value *)
 
 let resolve_ident ctx env s =
 	let key = hash_s s in
@@ -283,6 +211,141 @@ let expr_to_value ctx env e =
 	in
 	loop e
 
+(* Helper *)
+
+let is_caught ctx v =
+	try
+		Hashtbl.iter (fun path _ -> if is v path then raise Exit) ctx.debug.caught_types;
+		false
+	with Exit ->
+		true
+
+module DebugOutput = struct
+	open Unix
+
+	let send_string ctx s = match ctx.debug.debug_socket with
+		| None ->
+			print_endline s
+		| Some socket ->
+			begin match socket.socket with
+				| None ->
+					(* TODO: reconnect? *)
+					print_endline s
+				| Some socket ->
+					let s = s ^ "\n" in
+					ignore(send socket s 0 (String.length s) [])
+			end
+
+	let output_variable_name ctx name =
+		send_string ctx (Printf.sprintf "%s" name)
+
+	let output_value ctx name value =
+		send_string ctx (Printf.sprintf "%s : %s" name (value_string value))
+
+	let output_call_stack_position ctx i kind p =
+		let line = Lexer.get_error_line p in
+		send_string ctx (Printf.sprintf "%6i : %s at %s:%i" i (kind_name ctx kind) (Path.get_real_path p.pfile) line)
+
+	let output_file_path ctx s = send_string ctx (Path.get_real_path s)
+
+	let output_type_name ctx = send_string ctx
+
+	let output_breakpoint ctx breakpoint =
+		let flag = match breakpoint.bpstate with
+			| BPHit | BPEnabled -> "E"
+			| BPDisabled -> "d"
+		in
+		send_string ctx (Printf.sprintf "%i %s" breakpoint.bpid flag)
+
+	let output_breakpoint_description ctx breakpoint =
+		let s_col = match breakpoint.bpcolumn with
+			| BPAny -> ""
+			| BPColumn i -> ":" ^ (string_of_int i)
+		in
+		send_string ctx (Printf.sprintf "%s:%i%s" ((Path.get_real_path (rev_hash_s breakpoint.bpfile))) breakpoint.bpline s_col)
+
+	let output_info ctx = send_string ctx
+	let output_error ctx = send_string ctx
+end
+
+module DebugInput = struct
+	open Unix
+
+	let read_byte this i = int_of_char (Bytes.get this i)
+
+	let read_ui16 this i =
+		let ch1 = read_byte this i in
+		let ch2 = read_byte this (i + 1) in
+		ch1 lor (ch2 lsl 8)
+
+	let read_line ctx = match ctx.debug.debug_socket with
+		| None ->
+			input_line Pervasives.stdin
+		| Some socket ->
+			begin match socket.socket with
+				| None ->
+					input_line Pervasives.stdin
+				| Some socket ->
+					let buf = Bytes.create 2 in
+					let _ = recv socket buf 0 2 in
+					let i = read_ui16 buf 0 in
+					let buf = Bytes.create i in
+					let _ = recv socket buf 0 i in
+					Bytes.to_string buf
+			end
+end
+
+open DebugOutput
+
+let print_variables ctx capture_infos scopes env =
+	let rec loop scopes = match scopes with
+		| scope :: scopes ->
+			Hashtbl.iter (fun _ name -> output_variable_name ctx name) scope.local_infos;
+			loop scopes
+		| [] ->
+			()
+	in
+	loop scopes;
+	Hashtbl.iter (fun slot name ->
+		if slot < Array.length env.env_captures then
+			output_variable_name ctx name
+	) capture_infos
+
+let print_variable ctx capture_infos scopes name env =
+	try
+		let value = get_variable capture_infos scopes name env in
+		output_value ctx name value
+	with Not_found ->
+		output_error ctx ("No variable found: " ^ name)
+
+let set_variable ctx scopes name value env =
+	try
+		let slot = get_var_slot_by_name scopes name in
+		env.env_locals.(slot) <- value;
+		output_value ctx name value;
+	with Not_found ->
+		output_error ctx ("No variable found: " ^ name)
+
+let print_call_stack ctx kind p =
+	let envs = match call_stack ctx with
+		| _ :: envs -> envs
+		| [] -> []
+	in
+	let rec loop delta envs = match envs with
+		| _ :: envs when delta < 0 -> loop (delta + 1) envs
+		| _ -> envs
+	in
+	let envs = loop ctx.debug.environment_offset_delta envs in
+	let i = ref (ctx.environment_offset - 1) in
+	output_call_stack_position ctx !i kind {p with pfile = Path.unique_full_path p.Globals.pfile};
+	List.iter (fun env ->
+		if env.env_leave_pmin >= 0 then begin
+			let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_hash_s env.env_info.pfile} in
+			decr i;
+			output_call_stack_position ctx !i env.env_info.kind p
+		end
+	) envs
+
 let parse_expr ctx s p =
 	let msg = ref "" in
 	let error s =
@@ -293,16 +356,9 @@ let parse_expr ctx s p =
 		let e = Parser.parse_expr_string (ctx.curapi.get_com()) s p error false in
 		Some e
 	with Exit ->
-		output_error (Printf.sprintf "Error parsing %s: %s" s !msg);
+		output_error ctx (Printf.sprintf "Error parsing %s: %s" s !msg);
 		None
 	end
-
-let is_caught ctx v =
-	try
-		Hashtbl.iter (fun path _ -> if is v path then raise Exit) ctx.debug.caught_types;
-		false
-	with Exit ->
-		true
 
 (* Checks debug state and calls what's needed. *)
 let rec run_loop ctx run env : value =
@@ -335,7 +391,7 @@ and wait ctx run env =
 	in
 	let rec move_frame offset : value =
 		if offset < 0 || offset >= ctx.environment_offset then begin
-			output_error (Printf.sprintf "Frame out of bounds: %i (valid range is %i - %i)" offset 0 (ctx.environment_offset - 1));
+			output_error ctx (Printf.sprintf "Frame out of bounds: %i (valid range is %i - %i)" offset 0 (ctx.environment_offset - 1));
 			loop()
 		end else begin
 			ctx.debug.environment_offset_delta <- (ctx.environment_offset - offset - 1);
@@ -344,7 +400,7 @@ and wait ctx run env =
 	and loop () =
 		print_string "1> ";
 		flush stdout;
-		let line = input_line stdin in
+		let line = DebugInput.read_line ctx in
 		match ExtString.String.nsplit line " " with
 		| ["quit" | "exit"] ->
 			(* TODO: Borrowed from interp.ml *)
@@ -359,55 +415,55 @@ and wait ctx run env =
 		(* source | history *)
 		| ["files" | "filespath"] ->
 			Hashtbl.iter (fun i _ ->
-				output_file_path (rev_hash_s i);
+				output_file_path ctx (rev_hash_s i);
 			) ctx.debug.breakpoints;
 			loop()
 		| ["classes"] ->
 			IntMap.iter (fun i _ ->
-				output_type_name (rev_hash_s i)
+				output_type_name ctx (rev_hash_s i)
 			) ctx.type_cache;
 			loop()
 		| ["mem"] ->
-			output_info (Printf.sprintf "%i" (Gc.stat()).live_words);
+			output_info ctx (Printf.sprintf "%i" (Gc.stat()).live_words);
 			loop()
 		| ["compact"] ->
 			let before = (Gc.stat()).live_words in
 			Gc.compact();
 			let after = (Gc.stat()).live_words in
-			output_info (Printf.sprintf "before: %i\nafter: %i" before after);
+			output_info ctx (Printf.sprintf "before: %i\nafter: %i" before after);
 			loop()
 		| ["collect"] ->
 			let before = (Gc.stat()).live_words in
 			Gc.full_major();
 			let after = (Gc.stat()).live_words in
-			output_info (Printf.sprintf "before: %i\nafter: %i" before after);
+			output_info ctx (Printf.sprintf "before: %i\nafter: %i" before after);
 			loop()
 		| ["break" | "b";pattern] ->
 			begin try
 				let file,line,column = parse_breakpoint_pattern pattern in
 				begin try
 					let breakpoint = add_breakpoint ctx file line column in
-					output_info (Printf.sprintf "Breakpoint %i set and enabled" breakpoint.bpid);
+					output_info ctx (Printf.sprintf "Breakpoint %i set and enabled" breakpoint.bpid);
 				with Not_found ->
-					output_error ("Could not find file " ^ file);
+					output_error ctx ("Could not find file " ^ file);
 				end;
 			with Exit ->
-				output_error ("Unrecognized breakpoint pattern");
+				output_error ctx ("Unrecognized breakpoint pattern");
 			end;
 			loop()
 		| ["list" | "l"] ->
 			(* TODO: other list syntax *)
 			iter_breakpoints ctx (fun breakpoint ->
-				output_breakpoint breakpoint
+				output_breakpoint ctx breakpoint
 			);
 			loop()
 		| ["describe" | "desc";bpid] ->
 			(* TODO: range patterns? *)
 			begin try
 				let breakpoint = find_breakpoint ctx bpid in
-				output_breakpoint_description breakpoint;
+				output_breakpoint_description ctx breakpoint;
 			with Not_found ->
-				output_error (Printf.sprintf "Unknown breakpoint: %s" bpid);
+				output_error ctx (Printf.sprintf "Unknown breakpoint: %s" bpid);
 			end;
 			loop()
 		| ["disable" | "dis";bpid] ->
@@ -417,9 +473,9 @@ and wait ctx run env =
 			else begin try
 				let breakpoint = find_breakpoint ctx bpid in
 				breakpoint.bpstate <- BPDisabled;
-				output_info (Printf.sprintf "Breakpoint %s disabled" bpid);
+				output_info ctx (Printf.sprintf "Breakpoint %s disabled" bpid);
 			with Not_found ->
-				output_error (Printf.sprintf "Unknown breakpoint: %s" bpid);
+				output_error ctx (Printf.sprintf "Unknown breakpoint: %s" bpid);
 			end;
 			loop()
 		| ["enable" | "en";bpid] ->
@@ -429,9 +485,9 @@ and wait ctx run env =
 			else begin try
 				let breakpoint = find_breakpoint ctx bpid in
 				breakpoint.bpstate <- BPEnabled;
-				output_info (Printf.sprintf "Breakpoint %s enabled" bpid);
+				output_info ctx (Printf.sprintf "Breakpoint %s enabled" bpid);
 			with Not_found ->
-				output_error (Printf.sprintf "Unknown breakpoint: %s" bpid);
+				output_error ctx (Printf.sprintf "Unknown breakpoint: %s" bpid);
 			end;
 			loop()
 		| ["delete" | "d";bpid] ->
@@ -447,9 +503,9 @@ and wait ctx run env =
 					Hashtbl.iter (fun k breakpoint -> if breakpoint.bpid = id then to_delete := k :: !to_delete) h;
 					List.iter (fun k -> Hashtbl.remove h k) !to_delete;
 				) ctx.debug.breakpoints;
-				output_info (Printf.sprintf "Breakpoint %s deleted" bpid);
+				output_info ctx (Printf.sprintf "Breakpoint %s deleted" bpid);
 			with Not_found ->
-				output_error (Printf.sprintf "Unknown breakpoint: %s" bpid);
+				output_error ctx (Printf.sprintf "Unknown breakpoint: %s" bpid);
 			end;
 			loop()
 		| ["clear";pattern] ->
@@ -459,10 +515,10 @@ and wait ctx run env =
 				begin try
 					delete_breakpoint ctx file line
 				with Not_found ->
-					output_info (Printf.sprintf "Could not find breakpoint %s:%i" file line);
+					output_info ctx (Printf.sprintf "Could not find breakpoint %s:%i" file line);
 				end
 			with Exit ->
-				output_error ("Unrecognized breakpoint pattern");
+				output_error ctx ("Unrecognized breakpoint pattern");
 			end;
 			loop()
 		(* thread | unsafe | safe *)
@@ -499,20 +555,20 @@ and wait ctx run env =
 			begin match frame with
 				| Some frame -> move_frame frame
 				| None ->
-					output_error ("Invalid frame format: " ^ sframe);
+					output_error ctx ("Invalid frame format: " ^ sframe);
 					loop()
 			end
 		| ["variables" | "vars"] ->
-			print_variables env.env_info.capture_infos env.env_debug.scopes env;
+			print_variables ctx env.env_info.capture_infos env.env_debug.scopes env;
 			loop()
 		| ["print" | "p";e] ->
 			begin match parse_expr ctx e env.env_debug.expr.epos with
 				| Some e ->
 					begin try
 						let name,v = expr_to_value ctx env e in
-						output_value name v
+						output_value ctx name v
 					with Exit ->
-						output_error ("Don't know how to handle this expression: " ^ (Ast.s_expr e))
+						output_error ctx ("Don't know how to handle this expression: " ^ (Ast.s_expr e))
 					end
 				| None ->
 					()
@@ -529,19 +585,19 @@ and wait ctx run env =
 								let _,v1 = expr_to_value ctx env e1 in
 								set_field v1 (hash_s s) value
 							| EConst (Ident s) ->
-								set_variable env.env_debug.scopes s value env
+								set_variable ctx env.env_debug.scopes s value env
 							| _ ->
 								raise Exit
 						end
 					with Exit ->
-						output_error ("Don't know how to handle this expression")
+						output_error ctx ("Don't know how to handle this expression")
 					end
 				| _ ->
 					()
 			end;
 			loop()
 		| s ->
-			output_error (Printf.sprintf "Unknown command: %s" (String.concat " " s));
+			output_error ctx (Printf.sprintf "Unknown command: %s" (String.concat " " s));
 			loop()
 	in
 	loop ()
@@ -563,7 +619,7 @@ let debug_loop jit e f =
 				| BPEnabled when column_matches breakpoint ->
 					breakpoint.bpstate <- BPHit;
 					ctx.debug.breakpoint <- breakpoint;
-					output_info (Printf.sprintf "Thread 0 stopped in %s at %s:%i." (kind_name ctx env.env_info.kind) (rev_hash_s env.env_info.pfile) env.env_debug.line);
+					output_info ctx (Printf.sprintf "Thread 0 stopped in %s at %s:%i." (kind_name ctx env.env_info.kind) (rev_hash_s env.env_info.pfile) env.env_debug.line);
 					ctx.debug.debug_state <- DbgWaiting;
 					run_loop ctx run_check_breakpoint env
 				| _ ->
@@ -572,7 +628,7 @@ let debug_loop jit e f =
 		with Not_found -> try
 			f env
 		with RunTimeException(v,_,_) when not (is_caught ctx v) ->
-			output_info (uncaught_exception_string v e.epos "");
+			output_info ctx (uncaught_exception_string v e.epos "");
 			ctx.debug.debug_state <- DbgWaiting;
 			run_loop ctx run_check_breakpoint env
 	in

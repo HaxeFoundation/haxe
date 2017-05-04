@@ -59,6 +59,24 @@ let create com api is_macro =
 	let debug = match !debug with
 		| None ->
 			let support_debugger = Common.raw_defined com "interp-debugger" in
+			let socket =
+				try
+					if not support_debugger then raise Exit;
+					let fail msg =
+						print_endline msg;
+						raise Exit
+					in
+					let s = Common.raw_defined_value com "interp-debugger-socket" in
+					let host,port = try ExtString.String.split s ":" with _ -> fail "Invalid host format, expected host:port" in
+					let host = try Unix.inet_addr_of_string host with exc -> fail (Printexc.to_string exc) in
+					let port = try int_of_string port with _ -> fail "Invalid port, expected int" in
+					let socket = try (Unix.socket Unix.PF_INET Unix.SOCK_STREAM) 0 with exc -> fail (Printexc.to_string exc) in
+					Unix.connect socket (Unix.ADDR_INET (host,port));
+					print_endline "Created socket";
+					Some {addr = host; port = port; socket = Some socket}
+				with _ ->
+					None
+			in
 			let debug' = {
 				debug = com.Common.debug || support_debugger;
 				breakpoints = Hashtbl.create 0;
@@ -67,6 +85,7 @@ let create com api is_macro =
 				breakpoint = EvalDebug.make_breakpoint 0 0 BPDisabled BPAny;
 				caught_types = Hashtbl.create 0;
 				environment_offset_delta = 0;
+				debug_socket = socket;
 			} in
 			debug := Some debug';
 			debug'

@@ -94,6 +94,12 @@ type builtins = {
 	empty_constructor_builtins : (int,unit -> value) Hashtbl.t;
 }
 
+type debug_socket = {
+	addr : Unix.inet_addr;
+	port : int;
+	mutable socket : Unix.file_descr option;
+}
+
 type debug = {
 	debug : bool;
 	breakpoints : (int,(int,breakpoint) Hashtbl.t) Hashtbl.t;
@@ -102,6 +108,7 @@ type debug = {
 	mutable breakpoint : breakpoint;
 	caught_types : (int,bool) Hashtbl.t;
 	mutable environment_offset_delta : int;
+	mutable debug_socket : debug_socket option;
 }
 
 type context = {
