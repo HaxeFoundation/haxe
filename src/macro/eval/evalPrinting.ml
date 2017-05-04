@@ -71,6 +71,11 @@ and s_enum_value depth ve =
 			of_char ')'
 		]
 
+and s_proto_kind proto = match proto.pkind with
+	| PClass _ -> concat empty [of_string "Class<"; rev_hash proto.ppath; of_char '>']
+	| PEnum _ -> concat empty [of_string "Enum<"; rev_hash proto.ppath; of_char '>']
+	| PInstance | PObject -> assert false
+
 and s_value depth v =
 	let call_to_string () =
 		let vf = field_raise v EvalHash.key_toString in
@@ -104,11 +109,7 @@ and s_value depth v =
 		try
 			call_to_string()
 		with Not_found ->
-			begin match proto.pkind with
-				| PClass _ -> concat empty [of_string "Class<"; rev_hash proto.ppath; of_char '>']
-				| PEnum _ -> concat empty [of_string "Enum<"; rev_hash proto.ppath; of_char '>']
-				| PInstance | PObject -> assert false
-			end
+			s_proto_kind proto
 
 and call_value_on vthis v vl =
 	match v with

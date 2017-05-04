@@ -45,8 +45,38 @@ let delete_breakpoint ctx file line =
 let output_variable info =
 	print_endline (Printf.sprintf "%s" info.var_name)
 
-let output_value name t value =
-	print_endline (Printf.sprintf "%s : %s = %s" name t value)
+let value_string value =
+	let rec fields_string depth fields =
+		let tabs = String.make (depth * 2) ' ' in
+		let l = List.map (fun (name,value) ->
+			let s_type,s_value = value_string depth value in
+			Printf.sprintf "%s%s : %s = %s" tabs (rev_hash_s name) s_type s_value
+		) fields in
+		Printf.sprintf "{\n%s\n%s}" (String.concat "\n" l) tabs
+	and instance_fields depth vi =
+		let fields = IntMap.fold (fun name key acc ->
+			(name,vi.ifields.(key)) :: acc
+		) vi.iproto.pinstance_names [] in
+		fields_string (depth + 1) fields
+	and value_string depth v = match v with
+		| VNull -> "NULL","null"
+		| VTrue -> "Bool","true"
+		| VFalse -> "Bool","false"
+		| VInt32 i -> "Int",Int32.to_string i
+		| VFloat f -> "Float",string_of_float f
+		| VEnumValue ev -> rev_hash_s ev.epath,Rope.to_string (s_enum_value 0 ev)
+		| VObject o -> "Anonymous",fields_string (depth + 1) (object_fields o)
+		| VInstance {ikind = IString(_,s)} -> "String",Lazy.force s
+		| VInstance {ikind = IArray va} -> "Array",Rope.to_string (s_array (depth + 1) va)
+		| VInstance vi -> rev_hash_s vi.iproto.ppath,instance_fields (depth + 1) vi
+		| VPrototype proto -> "Anonymous",Rope.to_string (s_proto_kind proto)
+		| VFunction _ | VFieldClosure _ -> "Function","fun"
+	in
+	let s_type,s_value = value_string 0 value in
+	Printf.sprintf "%s = %s" s_type s_value
+
+let output_value name value =
+	print_endline (Printf.sprintf "%s : %s" name (value_string value))
 
 let output_call_stack_position ctx i kind p =
 	let line = Lexer.get_error_line p in
@@ -128,7 +158,7 @@ let get_variable capture_infos scopes name env =
 let print_variable capture_infos scopes name env =
 	match get_variable capture_infos scopes name env with
 	| Some (info,value) ->
-		output_value info.var_name info.var_type (value_string value)
+		output_value info.var_name value
 	| None ->
 		output_error ("No variable found: " ^ name)
 
@@ -434,18 +464,18 @@ and wait ctx run env =
 								| None -> raise Exit
 								| Some (info,value) -> info,value
 							in
-							info.var_name,info.var_type,value
+							info.var_name,value
 						| EField(e1,s) ->
-							let n1,_,v1 = loop e1 in
+							let n1,v1 = loop e1 in
 							let v = EvalField.field v1 (hash_s s) in
-							(Printf.sprintf "%s.%s" n1 s),"TODO",v
+							(Printf.sprintf "%s.%s" n1 s),v
 						| _ ->
 							output_error ("Don't know how to handle this expression");
 							raise Exit
 					in
 					begin try
-						let name,t,v = loop e in
-						output_value name t (value_string v)
+						let name,v = loop e in
+						output_value name v
 					with Exit ->
 						()
 					end
