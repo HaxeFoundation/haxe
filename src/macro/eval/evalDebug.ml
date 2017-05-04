@@ -365,14 +365,14 @@ module DebugOutputJson = struct
 		JObject l
 
 	let output_breakpoint_description ctx breakpoint =
-		print_json ctx (get_breakpoint_description ctx breakpoint)
+		print_json ctx (JObject ["result",get_breakpoint_description ctx breakpoint])
 
 	let output_breakpoints ctx =
 		let a = DynArray.create () in
 		iter_breakpoints ctx (fun breakpoint ->
 			DynArray.add a (get_breakpoint_description ctx breakpoint)
 		);
-		print_json ctx (JArray (DynArray.to_list a))
+		print_json ctx (JObject ["result",JArray (DynArray.to_list a)])
 
 	let output_info ctx msg =
 		print_json ctx (JObject ["result",JString msg])
