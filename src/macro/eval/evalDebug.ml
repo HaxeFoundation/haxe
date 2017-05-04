@@ -219,16 +219,32 @@ let parse_breakpoint_pattern pattern =
 	with _ ->
 		raise Exit
 
-let rec expr_to_value e = match fst e with
-	| EConst cst ->
-		begin match cst with
-			| String s -> encode_string s
-			| Int s -> VInt32 (Int32.of_string s)
-			| Float s -> VFloat (float_of_string s)
-			| _ -> raise Exit
-		end
-	| _ ->
-		raise Exit
+let expr_to_value env e =
+	let rec loop e = match fst e with
+		| EConst cst ->
+			begin match cst with
+				| String s -> "",encode_string s
+				| Int s -> "",VInt32 (Int32.of_string s)
+				| Float s -> "",VFloat (float_of_string s)
+				| Ident "true" -> "",VTrue
+				| Ident "false" -> "",VFalse
+				| Ident "null" -> "",VNull
+				| Ident s ->
+					let value = match get_variable env.env_info.capture_infos env.env_debug.scopes s env with
+						| None -> raise Exit
+						| Some value -> value
+					in
+					s,value
+				| _ -> raise Exit
+			end
+		| EField(e1,s) ->
+			let n1,v1 = loop e1 in
+			let v = EvalField.field v1 (hash_s s) in
+			(Printf.sprintf "%s.%s" n1 s),v
+		| _ ->
+			raise Exit
+	in
+	loop e
 
 let parse_expr ctx s p =
 	let msg = ref "" in
@@ -455,37 +471,35 @@ and wait ctx run env =
 		| ["print" | "p";e] ->
 			begin match parse_expr ctx e env.env_debug.expr.epos with
 				| Some e ->
-					let rec loop e = match fst e with
-						| EConst(Ident s) ->
-							let value = match get_variable env.env_info.capture_infos env.env_debug.scopes s env with
-								| None -> raise Exit
-								| Some value -> value
-							in
-							s,value
-						| EField(e1,s) ->
-							let n1,v1 = loop e1 in
-							let v = EvalField.field v1 (hash_s s) in
-							(Printf.sprintf "%s.%s" n1 s),v
-						| _ ->
-							output_error ("Don't know how to handle this expression");
-							raise Exit
-					in
 					begin try
-						let name,v = loop e in
+						let name,v = expr_to_value env e in
 						output_value name v
 					with Exit ->
-						()
+						output_error ("Don't know how to handle this expression")
 					end
 				| None ->
 					()
 			end;
 			loop()
-		| ["set" | "s";name;"=";value] ->
-			begin match parse_expr ctx value env.env_debug.expr.epos with
-				| Some e ->
-					let v = expr_to_value e in
-					set_variable env.env_debug.scopes name v env
-				| None ->
+		| ["set" | "s";expr;"=";value] ->
+			let parse s = parse_expr ctx s env.env_debug.expr.epos in
+			begin match parse expr,parse value with
+				| Some expr,Some value ->
+					begin try
+						let _,value = expr_to_value env value in
+						begin match fst expr with
+							| EField(e1,s) ->
+								let _,v1 = expr_to_value env e1 in
+								set_field v1 (hash_s s) value
+							| EConst (Ident s) ->
+								set_variable env.env_debug.scopes s value env
+							| _ ->
+								raise Exit
+						end
+					with Exit ->
+						output_error ("Don't know how to handle this expression")
+					end
+				| _ ->
 					()
 			end;
 			loop()
