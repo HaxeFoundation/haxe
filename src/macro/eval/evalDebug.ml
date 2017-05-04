@@ -342,7 +342,8 @@ and wait ctx run env =
 			wait ctx run (DynArray.get ctx.environments offset);
 		end
 	and loop () =
-		print_endline (Printf.sprintf "1> %s" (s_expr_pretty env.env_debug.expr));
+		print_string "1> ";
+		flush stdout;
 		let line = input_line stdin in
 		match ExtString.String.nsplit line " " with
 		| ["quit" | "exit"] ->
