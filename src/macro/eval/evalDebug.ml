@@ -252,6 +252,9 @@ module DebugOutput = struct
 					ignore(send socket s 0 (String.length s) [])
 			end
 
+	let output_info ctx = send_string ctx
+	let output_error ctx = send_string ctx
+
 	let output_variable_name ctx name =
 		send_string ctx (Printf.sprintf "%s" name)
 
@@ -290,6 +293,9 @@ module DebugOutput = struct
 			output_breakpoint ctx breakpoint
 		)
 
+	let output_breakpoint_set ctx breakpoint =
+		output_info ctx (Printf.sprintf "Breakpoint %i set and enabled" breakpoint.bpid)
+
 	let output_breakpoint_description ctx breakpoint =
 		let s_col = match breakpoint.bpcolumn with
 			| BPAny -> ""
@@ -297,8 +303,6 @@ module DebugOutput = struct
 		in
 		send_string ctx (Printf.sprintf "%s:%i%s" ((Path.get_real_path (rev_hash_s breakpoint.bpfile))) breakpoint.bpline s_col)
 
-	let output_info ctx = send_string ctx
-	let output_error ctx = send_string ctx
 end
 
 module DebugOutputJson = struct
@@ -403,6 +407,9 @@ module DebugOutputJson = struct
 	let output_breakpoint_description ctx breakpoint =
 		print_json ctx (JObject ["result",get_breakpoint_description ctx breakpoint])
 
+	let output_breakpoint_set ctx breakpoint =
+		print_json ctx (JObject ["result",JInt breakpoint.bpid])
+
 	let output_breakpoints ctx =
 		let a = DynArray.create () in
 		iter_breakpoints ctx (fun breakpoint ->
@@ -474,8 +481,6 @@ let set_variable ctx scopes name value env =
 		output_value ctx name value;
 	with Not_found ->
 		output_error ctx ("No variable found: " ^ name)
-
-
 
 let parse_expr ctx s p =
 	let msg = ref "" in
@@ -574,7 +579,7 @@ and wait ctx run env =
 				let file,line,column = parse_breakpoint_pattern pattern in
 				begin try
 					let breakpoint = add_breakpoint ctx file line column in
-					output_info ctx (Printf.sprintf "Breakpoint %i set and enabled" breakpoint.bpid);
+					output_breakpoint_set ctx breakpoint;
 				with Not_found ->
 					output_error ctx ("Could not find file " ^ file);
 				end;
