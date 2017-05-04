@@ -394,9 +394,10 @@ module DebugOutputJson = struct
 		in
 		let l = [
 			"id",JInt breakpoint.bpid;
-			"file",JString (Path.get_real_path (rev_hash_s breakpoint.bpfile));
+			"verified",JBool true;
+			"source",JString (Path.get_real_path (rev_hash_s breakpoint.bpfile));
 			"line",JInt breakpoint.bpline;
-			"state",JString (state breakpoint.bpstate)
+			"message",JString (state breakpoint.bpstate)
 		] in
 		let l = match breakpoint.bpcolumn with
 			| BPAny -> l
