@@ -441,6 +441,14 @@ module DebugOutputJson = struct
 			];
 		])
 
+	let output_scopes ctx scopes =
+		print_json ctx (JObject [
+			"result",JArray (List.mapi (fun id scope -> JObject ["id",JInt (id + 1); "name",JString "variables"]) scopes)
+		])
+
+	let output_scope_vars ctx scope =
+		let vars = Hashtbl.fold (fun id name acc -> JObject ["id",JInt id; "name",JString name] :: acc) scope.local_infos [] in
+		print_json ctx (JObject ["result",JArray vars])
 end
 
 module DebugInput = struct
@@ -715,6 +723,19 @@ and wait ctx run env =
 				| Some frame -> move_frame frame
 				| None ->
 					output_error ctx ("Invalid frame format: " ^ sframe);
+					loop()
+			end
+		| ["scopes"] ->
+			output_scopes ctx env.env_debug.scopes;
+			loop()
+		| ["variables" | "vars";sid] ->
+			let scope = try Some (List.nth env.env_debug.scopes ((int_of_string sid) - 1)) with _ -> None in
+			begin match scope with
+				| Some scope ->
+					output_scope_vars ctx scope;
+					loop()
+				| None ->
+					output_error ctx ("Invalid scope id");
 					loop()
 			end
 		| ["variables" | "vars"] ->
