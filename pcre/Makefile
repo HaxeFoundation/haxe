@@ -1,4 +1,5 @@
 ALL_CFLAGS = $(CFLAGS) -I pcre
+LIBS =
 OCAMLOPT=ocamlopt
 OCAMLC=ocamlc
 SRC = pcre.ml pcre_stubs.c
