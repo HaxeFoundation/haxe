@@ -121,7 +121,6 @@ let create com api is_macro =
 		pop_environment = if record_stack then pop_environment_debug else pop_environment;
 		(* eval *)
 		evals = evals;
-		eval = (fun () -> DynArray.unsafe_get evals (Thread.id (Thread.self())));
 		exception_stack = [];
 	} in
 	t();

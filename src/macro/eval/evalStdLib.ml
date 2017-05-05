@@ -513,7 +513,7 @@ module StdCallStack = struct
 
 	let getCallStack = vfun0 (fun () ->
 		let ctx = get_ctx() in
-		let envs = call_stack (ctx.eval()) in
+		let envs = call_stack (get_eval ctx) in
 		let envs = match envs with
 			| _ :: _ :: envs -> envs (* Skip calls to callStack() and getCallStack() *)
 			| _ -> envs

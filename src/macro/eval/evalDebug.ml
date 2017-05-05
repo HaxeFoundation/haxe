@@ -221,7 +221,7 @@ let is_caught ctx v =
 		true
 
 let get_call_stack_envs ctx kind p =
-	let envs = match call_stack (ctx.eval()) with
+	let envs = match call_stack (get_eval ctx) with
 		| _ :: envs -> envs
 		| [] -> []
 	in
@@ -263,11 +263,11 @@ module DebugOutput = struct
 
 	let output_call_stack_position ctx i kind p =
 		let line = Lexer.get_error_line p in
-		send_string ctx (Printf.sprintf "%6i : %s at %s:%i" i (kind_name (ctx.eval()) kind) (Path.get_real_path p.pfile) line)
+		send_string ctx (Printf.sprintf "%6i : %s at %s:%i" i (kind_name (get_eval ctx) kind) (Path.get_real_path p.pfile) line)
 
 	let output_call_stack ctx kind p =
 		let envs = get_call_stack_envs ctx kind p in
-		let i = ref ((ctx.eval()).environment_offset - 1) in
+		let i = ref ((get_eval ctx).environment_offset - 1) in
 		output_call_stack_position ctx !i kind {p with pfile = Path.unique_full_path p.Globals.pfile};
 		List.iter (fun env ->
 			if env.env_leave_pmin >= 0 then begin
@@ -362,7 +362,7 @@ module DebugOutputJson = struct
 			let line1,col1,line2,col2 = Lexer.get_pos_coords p in
 			JObject [
 				"id",JInt !id;
-				"name",JString (kind_name (ctx.eval()) kind);
+				"name",JString (kind_name (get_eval ctx) kind);
 				"source",JString (Path.get_real_path p.pfile);
 				"line",JInt line1;
 				"column",JInt col1;
@@ -509,14 +509,14 @@ let rec run_loop ctx run env : value =
 		| DbgContinue ->
 			run env
 		| DbgNext offset ->
-			if offset < (ctx.eval()).environment_offset then
+			if offset < (get_eval ctx).environment_offset then
 				run env
 			else begin
 				ctx.debug.debug_state <- DbgWaiting;
 				run_loop ctx run env
 			end
 		| DbgFinish offset ->
-			if offset <= (ctx.eval()).environment_offset then
+			if offset <= (get_eval ctx).environment_offset then
 				run env
 			else begin
 				ctx.debug.debug_state <- DbgWaiting;
@@ -529,15 +529,15 @@ let rec run_loop ctx run env : value =
 and wait ctx run env =
 	let get_real_env ctx =
 		ctx.debug.environment_offset_delta <- 0;
-		DynArray.get (ctx.eval()).environments ((ctx.eval()).environment_offset - 1);
+		DynArray.get (get_eval ctx).environments ((get_eval ctx).environment_offset - 1);
 	in
 	let rec move_frame offset : value =
-		if offset < 0 || offset >= (ctx.eval()).environment_offset then begin
-			output_error ctx (Printf.sprintf "Frame out of bounds: %i (valid range is %i - %i)" offset 0 ((ctx.eval()).environment_offset - 1));
+		if offset < 0 || offset >= (get_eval ctx).environment_offset then begin
+			output_error ctx (Printf.sprintf "Frame out of bounds: %i (valid range is %i - %i)" offset 0 ((get_eval ctx).environment_offset - 1));
 			loop()
 		end else begin
-			ctx.debug.environment_offset_delta <- ((ctx.eval()).environment_offset - offset - 1);
-			wait ctx run (DynArray.get (ctx.eval()).environments offset);
+			ctx.debug.environment_offset_delta <- ((get_eval ctx).environment_offset - offset - 1);
+			wait ctx run (DynArray.get (get_eval ctx).environments offset);
 		end
 	and loop () =
 		print_string "1> ";
@@ -684,20 +684,20 @@ and wait ctx run env =
 			run env
 		| ["next" | "n"] ->
 			let env = get_real_env ctx in
-			ctx.debug.debug_state <- DbgNext (ctx.eval()).environment_offset;
+			ctx.debug.debug_state <- DbgNext (get_eval ctx).environment_offset;
 			run env
 		| ["finish" | "f"] ->
 			let env = get_real_env ctx in
-			ctx.debug.debug_state <- DbgFinish (ctx.eval()).environment_offset;
+			ctx.debug.debug_state <- DbgFinish (get_eval ctx).environment_offset;
 			run env
 		| ["where" | "w"] ->
 			output_call_stack ctx env.env_info.kind env.env_debug.expr.epos;
 			loop()
 		| ["up"] ->
-			let offset = (ctx.eval()).environment_offset - ctx.debug.environment_offset_delta in
+			let offset = (get_eval ctx).environment_offset - ctx.debug.environment_offset_delta in
 			move_frame (offset - 2)
 		| ["down"] ->
-			let offset = (ctx.eval()).environment_offset - ctx.debug.environment_offset_delta in
+			let offset = (get_eval ctx).environment_offset - ctx.debug.environment_offset_delta in
 			move_frame offset
 		| ["frame";sframe] ->
 			let frame = try
@@ -773,7 +773,7 @@ let debug_loop jit e f =
 					breakpoint.bpstate <- BPHit;
 					ctx.debug.breakpoint <- breakpoint;
 					ctx.debug.break_thread_id <- Thread.id (Thread.self());
-					output_info ctx (Printf.sprintf "Thread %i stopped in %s at %s:%i." ctx.debug.break_thread_id (kind_name (ctx.eval()) env.env_info.kind) (rev_hash_s env.env_info.pfile) env.env_debug.line);
+					output_info ctx (Printf.sprintf "Thread %i stopped in %s at %s:%i." ctx.debug.break_thread_id (kind_name (get_eval ctx) env.env_info.kind) (rev_hash_s env.env_info.pfile) env.env_debug.line);
 					ctx.debug.debug_state <- DbgWaiting;
 					run_loop ctx run_check_breakpoint env
 				| _ ->
