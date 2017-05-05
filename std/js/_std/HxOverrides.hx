@@ -59,6 +59,7 @@ class HxOverrides {
 		}
 	}
 
+	@:pure
 	static function cca( s : String, index : Int ) : Null<Int> {
 		var x = (cast s).charCodeAt(index);
 		if( x != x ) // fast isNaN
@@ -66,6 +67,7 @@ class HxOverrides {
 		return x;
 	}
 
+	@:pure
 	static function substr( s : String, pos : Int, ?len : Int ) : String {
 		if (len == null) {
 			len = s.length;
@@ -84,9 +86,10 @@ class HxOverrides {
 		}
 		#end
 
-		return (untyped s).substr(pos, len);
+		return (cast s).substr(pos, len);
 	}
 
+	@:pure
 	static function indexOf<T>( a : Array<T>, obj : T, i : Int) {
 		var len = a.length;
 		if (i < 0) {
@@ -102,6 +105,7 @@ class HxOverrides {
 		return -1;
 	}
 
+	@:pure
 	static function lastIndexOf<T>( a : Array<T>, obj : T, i : Int) {
 		var len = a.length;
 		if (i >= len)
@@ -124,6 +128,7 @@ class HxOverrides {
 		return true;
 	}
 
+	@:pure
 	static function iter<T>( a : Array<T> ) : Iterator<T> untyped {
 		return {
 			cur : 0,

@@ -489,10 +489,10 @@ let inline_constructors ctx e =
 			let rec loop acc el = match el with
 				| [] -> acc, None
 				| [e] ->
-					let el',io = final_map e in
+					let el',io = final_map ~unwrap_block:unwrap_block e in
 					(el'@acc), io
 				| e::el ->
-					let el',_ = final_map e in
+					let el',_ = final_map ~unwrap_block:unwrap_block e in
 					loop (el'@acc) el
 			in
 			let el, io = loop [] el in

@@ -240,7 +240,7 @@ let error_message pos message = (stringify_pos pos) ^ ": " ^ message
 *)
 let fail hxpos mlpos =
 	match mlpos with
-		| (file, line, _) ->
+		| (file, line, _, _) ->
 			Printf.printf "%s\n" (error_message hxpos "Unexpected expression. Please submit an issue with expression example and following information:");
 			Printf.printf "%s:%d\n" file line;
 			assert false
@@ -332,7 +332,7 @@ let get_void ctx : Type.t =
 			List.iter find ctx.types;
 			match !void with
 				| Some value -> value
-				| None -> fail dummy_pos (try assert false with Assert_failure mlpos -> mlpos)
+				| None -> fail dummy_pos __POS__
 
 (**
 	@return `tclass` instance for `php.Boot`
@@ -350,7 +350,7 @@ let get_boot ctx : tclass =
 			List.iter find ctx.types;
 			match !boot with
 				| Some value -> value
-				| None -> fail dummy_pos (try assert false with Assert_failure mlpos -> mlpos)
+				| None -> fail dummy_pos __POS__
 
 (**
 	@return `expr` wrapped in parenthesis
@@ -408,7 +408,7 @@ let needs_dereferencing for_assignment expr =
 let get_function_signature (field:tclass_field) : (string * bool * Type.t) list * Type.t =
 	match follow field.cf_type with
 		| TFun (args, return_type) -> (args, return_type)
-		| _ -> fail field.cf_pos (try assert false with Assert_failure mlpos -> mlpos)
+		| _ -> fail field.cf_pos __POS__
 
 (**
 	Check if `target` is 100% guaranteed to be a scalar type in PHP.
@@ -727,14 +727,14 @@ let need_boot_equal expr1 expr2 =
 *)
 let ensure_return_in_block block_expr =
 	match block_expr.eexpr with
-		| TBlock [] -> fail block_expr.epos (try assert false with Assert_failure mlpos -> mlpos)
+		| TBlock [] -> fail block_expr.epos __POS__
 		| TBlock exprs ->
 			let reversed = List.rev exprs in
 			let last_expr = List.hd reversed in
 			let return_expr = { last_expr with eexpr = TReturn (Some last_expr) } in
 			let reversed = return_expr::(List.tl reversed) in
 			{ block_expr with eexpr = TBlock (List.rev reversed) }
-		| _ -> fail block_expr.epos (try assert false with Assert_failure mlpos -> mlpos)
+		| _ -> fail block_expr.epos __POS__
 
 (**
 	If `expr` is a block, then return list of expressions in that block.
@@ -753,7 +753,7 @@ let unpack_block expr =
 let unpack_single_expr_block expr =
 		match expr.eexpr with
 			| TBlock [ e ] -> e
-			| TBlock _ -> fail expr.epos (try assert false with Assert_failure mlpos -> mlpos)
+			| TBlock _ -> fail expr.epos __POS__
 			| _ -> expr
 
 (**
@@ -1338,7 +1338,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 								| Not_found ->
 									Hashtbl.add use_table !alias type_path;
 									added := true
-								| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+								| _ -> fail self#pos __POS__
 						done;
 						!alias
 		(**
@@ -1504,7 +1504,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 							access_expr
 						)
 					}
-				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+				| _ -> fail self#pos __POS__
 		(**
 			Writes specified string to output buffer
 		*)
@@ -1609,7 +1609,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| TFunction fn -> self#write_expr_function fn
 				| TVar (var, expr) -> self#write_expr_var var expr
 				| TBlock exprs -> self#write_expr_block expr
-				| TFor (var, iterator, body) -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+				| TFor (var, iterator, body) -> fail self#pos __POS__
 				| TIf (condition, if_expr, else_expr) -> self#write_expr_if condition if_expr else_expr
 				| TWhile (condition, expr, do_while) -> self#write_expr_while condition expr do_while
 				| TSwitch (switch, cases, default ) -> self#write_expr_switch switch cases default
@@ -1708,7 +1708,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 						self#write_indentation;
 						self#write "]";
 					end
-				| _ -> fail object_decl.epos (try assert false with Assert_failure mlpos -> mlpos)
+				| _ -> fail object_decl.epos __POS__
 		(**
 			Writes TArray to output buffer
 		*)
@@ -1997,7 +1997,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 							(match expr.eexpr with
 								| TConst (TString php) ->
 									Codegen.interpolate_code ctx php args self#write self#write_expr self#pos
-								| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+								| _ -> fail self#pos __POS__
 							)
 						| "__call__" ->
 							self#write (code ^ "(");
@@ -2170,7 +2170,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					self#write_expr expr1;
 					self#write " = ";
 					write_method ((self#use boot_type_path) ^ "::shiftRightUnsigned")
-				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+				| _ -> fail self#pos __POS__
 		(**
 			Writes TUnOp to output buffer
 		*)
@@ -2292,7 +2292,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					self#write ((self#use hxstring_type_path) ^ "::" ^ (field_name field) ^ "(");
 					write_args self#write self#write_expr (expr :: args);
 					self#write ")"
-				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+				| _ -> fail self#pos __POS__
 		(**
 			Writes FStatic field access for methods to output buffer
 		*)
@@ -2393,7 +2393,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 		method write_expr_call_lang_extern expr args =
 			let name = match expr.eexpr with
 				| TField (_, FStatic (_, field)) -> field_name field
-				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+				| _ -> fail self#pos __POS__
 			in
 			match name with
 				| "int" | "float"
@@ -2413,7 +2413,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| "splat" -> self#write_expr_lang_splat args
 				| "suppress" -> self#write_expr_lang_suppress args
 				| "keepVar" -> ()
-				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+				| _ -> fail self#pos __POS__
 		(**
 			Writes splat operator (for `php.Syntax.splat()`)
 		*)
@@ -2422,7 +2422,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| [ args_expr ] ->
 					self#write "...";
 					self#write_expr args_expr
-				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+				| _ -> fail self#pos __POS__
 		(**
 			Writes error suppression operator (for `php.Syntax.suppress()`)
 		*)
@@ -2431,7 +2431,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| [ args_expr ] ->
 					self#write "@";
 					self#write_expr args_expr
-				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+				| _ -> fail self#pos __POS__
 		(**
 			Writes native array declaration (for `php.Syntax.arrayDecl()`)
 		*)
@@ -2451,7 +2451,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					self#write "}(";
 					write_args self#write (fun e -> self#write_expr e) args;
 					self#write ")"
-				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+				| _ -> fail self#pos __POS__
 		(**
 			Writes a call to a static method (for `php.Syntax.staticCall()`)
 		*)
@@ -2464,7 +2464,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					self#write "}(";
 					write_args self#write (fun e -> self#write_expr e) args;
 					self#write ")"
-				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+				| _ -> fail self#pos __POS__
 		(**
 			Writes field access for reading (for `php.Syntax.getField()`)
 		*)
@@ -2475,7 +2475,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					self#write "->{";
 					self#write_expr field_expr;
 					self#write "}"
-				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+				| _ -> fail self#pos __POS__
 		(**
 			Writes field access for writing (for `php.Syntax.setField()`)
 		*)
@@ -2488,7 +2488,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					self#write "}";
 					self#write " = ";
 					self#write_expr value_expr
-				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+				| _ -> fail self#pos __POS__
 		(**
 			Writes static field access for reading (for `php.Syntax.getStaticField()`)
 		*)
@@ -2499,7 +2499,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					self#write "::${";
 					self#write_expr field_expr;
 					self#write "}"
-				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+				| _ -> fail self#pos __POS__
 		(**
 			Writes static field access for writing (for `php.Syntax.setField()`)
 		*)
@@ -2512,14 +2512,14 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					self#write "}";
 					self#write " = ";
 					self#write_expr value_expr
-				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+				| _ -> fail self#pos __POS__
 		(**
 			Writes `new` expression with class name taken local variable (for `php.Syntax.construct()`)
 		*)
 		method write_expr_lang_construct args =
 			let (class_expr, args) = match args with
 				| class_expr :: args -> (class_expr, args)
-				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+				| _ -> fail self#pos __POS__
 			in
 			self#write "new ";
 			self#write_expr class_expr;
@@ -2541,7 +2541,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					self#write ("(" ^ type_name ^")");
 					self#write_expr expr;
 					if add_parentheses then self#write ")"
-				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+				| _ -> fail self#pos __POS__
 		(**
 			Generates binary operation to output buffer (for `php.Syntax.binop()`)
 		*)
@@ -2557,7 +2557,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					self#write (" " ^ operator ^ " ");
 					self#write_expr val_expr2;
 					self#write ")"
-				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+				| _ -> fail self#pos __POS__
 		(**
 			Writes `instanceof` expression to output buffer (for `php.Syntax.instanceof()`)
 		*)
@@ -2575,7 +2575,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 							if not (is_string type_expr) then self#write "->phpClassName"
 					);
 					self#write ")"
-				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+				| _ -> fail self#pos __POS__
 		(**
 			Writes `foreach` expression to output buffer (for `php.Syntax.foreach()`)
 		*)
@@ -2584,7 +2584,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| collection_expr :: { eexpr = TFunction fn } :: [] ->
 					let (key_name, value_name) = match fn.tf_args with
 						| ({ v_name = key_name }, _) :: ({ v_name = value_name }, _) :: [] -> (key_name, value_name)
-						| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+						| _ -> fail self#pos __POS__
 					and add_parentheses =
 						match collection_expr.eexpr with
 							| TLocal _ -> false
@@ -2623,7 +2623,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 		method write_expr_php_global target_expr =
 			match target_expr.eexpr with
 				| TField (_, FStatic (_, field)) -> self#write (field_name field)
-				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+				| _ -> fail self#pos __POS__
 		(**
 			Writes access to PHP class constant
 		*)
@@ -2631,7 +2631,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 			match target_expr.eexpr with
 				| TField (_, FStatic (ecls, field)) ->
 					self#write ((self#use_t (TInst (ecls, []))) ^ "::" ^ (field_name field))
-				| _ -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+				| _ -> fail self#pos __POS__
 		(**
 			Writes TNew to output buffer
 		*)
@@ -2672,7 +2672,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 			in
 			if is_ternary then
 				match else_expr with
-					| None -> fail self#pos (try assert false with Assert_failure mlpos -> mlpos)
+					| None -> fail self#pos __POS__
 					| Some expr ->
 						self#write_expr_ternary condition if_expr expr self#pos
 			else begin
@@ -3092,7 +3092,7 @@ class enum_builder ctx (enm:tenum) =
 				match follow field.ef_type with
 					| TFun (args, _) -> args
 					| TEnum _ -> []
-					| _ -> fail field.ef_pos (try assert false with Assert_failure mlpos -> mlpos)
+					| _ -> fail field.ef_pos __POS__
 			in
 			writer#indent 1;
 			self#write_doc (DocMethod (args, TEnum (enm, []), field.ef_doc));
@@ -3156,7 +3156,7 @@ class enum_builder ctx (enm:tenum) =
 					let count = match follow field.ef_type with
 						| TFun (params, _) -> List.length params
 						| TEnum _ -> 0
-						| _ -> fail field.ef_pos (try assert false with Assert_failure mlpos -> mlpos)
+						| _ -> fail field.ef_pos __POS__
 					in
 					writer#write_line ("'" ^ name ^ "' => " ^ (string_of_int count) ^ ",")
 				)
@@ -3423,7 +3423,7 @@ class class_builder ctx (cls:tclass) =
 				writer#write (field_access ^ " = ");
 				(match field.cf_expr with
 					| Some expr -> writer#write_expr expr
-					| None -> fail field.cf_pos (try assert false with Assert_failure mlpos -> mlpos)
+					| None -> fail field.cf_pos __POS__
 				);
 				writer#write ";\n"
 			in
@@ -3507,7 +3507,7 @@ class class_builder ctx (cls:tclass) =
 		*)
 		method private write_const field =
 			match field.cf_expr with
-				| None -> fail writer#pos (try assert false with Assert_failure mlpos -> mlpos)
+				| None -> fail writer#pos __POS__
 				(* Do not generate a PHP constant of `inline var` field if expression is not compatible with PHP const *)
 				| Some expr when not (is_constant expr) -> ()
 				| Some expr ->
@@ -3540,7 +3540,7 @@ class class_builder ctx (cls:tclass) =
 					let name = if field.cf_name = "new" then "__construct" else (field_name field) in
 					self#write_method name fn;
 					writer#write "\n"
-				| _ -> fail field.cf_pos (try assert false with Assert_failure mlpos -> mlpos)
+				| _ -> fail field.cf_pos __POS__
 		(**
 			Writes dynamic method to output buffer.
 			Only for non-static methods. Static methods are created as static vars in `__hx__init`.
@@ -3573,7 +3573,7 @@ class class_builder ctx (cls:tclass) =
 					writer#write_line "}";
 					(* Don't forget to create a field for default value *)
 					writer#write_statement ("protected $__hx__default__" ^ (field_name field))
-				| _ -> fail field.cf_pos (try assert false with Assert_failure mlpos -> mlpos)
+				| _ -> fail field.cf_pos __POS__
 			);
 		(**
 			Writes initialization code for instances of this class
@@ -3678,7 +3678,7 @@ class generator (ctx:context) =
 				| [] -> ()
 				| _ ->
 					match boot with
-						| None -> fail dummy_pos (try assert false with Assert_failure mlpos -> mlpos)
+						| None -> fail dummy_pos __POS__
 						| Some (_, filename) ->
 							let channel = open_out_gen [Open_creat; Open_text; Open_append] 0o644 filename in
 							List.iter
@@ -3706,7 +3706,7 @@ class generator (ctx:context) =
 					output_string channel "	}\n";
 					output_string channel ");\n";
 					(match boot with
-						| None -> fail dummy_pos (try assert false with Assert_failure mlpos -> mlpos)
+						| None -> fail dummy_pos __POS__
 						| Some (builder, filename) ->
 							let boot_class = get_full_type_name (add_php_prefix ctx builder#get_type_path) in
 							output_string channel (boot_class ^ "::__hx__init();\n")
