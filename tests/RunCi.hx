@@ -569,7 +569,10 @@ class RunCi {
 
 			// deployBintray();
 			deployApiDoc();
-			deployPPA();
+
+			// disable deployment to ppa:haxe/snapshots for now
+			// because there is no debian sedlex package...
+			// deployPPA();
 		}
 	}
 

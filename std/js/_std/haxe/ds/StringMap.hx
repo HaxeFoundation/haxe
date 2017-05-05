@@ -142,7 +142,7 @@ private class StringMapIterator<T> {
 	}
 
 	static function __init__() : Void {
-		untyped __js__("var __map_reserved = {}");
+		untyped __js__("var __map_reserved = {};");
 	}
 
 }
