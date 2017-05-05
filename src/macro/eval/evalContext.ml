@@ -139,6 +139,7 @@ type context = {
 	push_environment : context -> env_info -> int -> int -> env;
 	pop_environment : context -> env -> unit;
 	(* eval *)
+	eval : eval;
 	evals : eval DynArray.t;
 	mutable exception_stack : (pos * env_kind) list;
 }
@@ -150,7 +151,8 @@ let select ctx = get_ctx_ref := (fun() -> ctx)
 (* Misc *)
 
 let get_eval ctx =
-	DynArray.unsafe_get ctx.evals (Thread.id (Thread.self()))
+	let id = Thread.id (Thread.self()) in
+	if id = 0 then ctx.eval else DynArray.unsafe_get ctx.evals id
 
 let rec kind_name ctx kind =
 	let rec loop kind env_id = match kind, env_id with

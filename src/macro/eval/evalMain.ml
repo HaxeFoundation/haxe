@@ -120,6 +120,7 @@ let create com api is_macro =
 		push_environment = if record_stack then push_environment_debug else push_environment;
 		pop_environment = if record_stack then pop_environment_debug else pop_environment;
 		(* eval *)
+		eval = eval;
 		evals = evals;
 		exception_stack = [];
 	} in
