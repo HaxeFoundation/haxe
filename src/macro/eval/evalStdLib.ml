@@ -513,7 +513,7 @@ module StdCallStack = struct
 
 	let getCallStack = vfun0 (fun () ->
 		let ctx = get_ctx() in
-		let envs = call_stack ctx in
+		let envs = call_stack (ctx.eval()) in
 		let envs = match envs with
 			| _ :: _ :: envs -> envs (* Skip calls to callStack() and getCallStack() *)
 			| _ -> envs
@@ -2578,7 +2578,20 @@ let init_constructors builtins =
 		);
 	add key_eval_vm_Thread
 		(fun vl -> match vl with
-			| [f] -> encode_instance key_eval_vm_Thread ~kind:(IThread (Thread.create (fun () -> call_value f []) ()))
+			| [f] ->
+				let ctx = get_ctx() in
+				let f () =
+					let id = Thread.id (Thread.self()) in
+					let new_eval = {environments = DynArray.create (); environment_offset = 0} in
+					if DynArray.length ctx.evals = id then
+						DynArray.add ctx.evals new_eval
+					else
+						DynArray.set ctx.evals id new_eval;
+					ignore(call_value f []);
+					DynArray.delete ctx.evals id;
+					if ctx.debug.support_debugger then ctx.debug.break_thread_id <- 0;
+				in
+				encode_instance key_eval_vm_Thread ~kind:(IThread (Thread.create f ()))
 			| _ -> assert false
 		);
 	add key_haxe_zip_Compress

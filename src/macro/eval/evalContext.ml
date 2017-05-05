@@ -82,8 +82,10 @@ type breakpoint = {
 }
 
 type debug_state =
+	| DbgStart
 	| DbgRunning
 	| DbgWaiting
+	| DbgContinue
 	| DbgNext of int
 	| DbgFinish of int
 
@@ -109,6 +111,12 @@ type debug = {
 	caught_types : (int,bool) Hashtbl.t;
 	mutable environment_offset_delta : int;
 	mutable debug_socket : debug_socket option;
+	mutable break_thread_id : int;
+}
+
+type eval = {
+	environments : env DynArray.t;
+	mutable environment_offset : int;
 }
 
 type context = {
@@ -131,8 +139,8 @@ type context = {
 	push_environment : context -> env_info -> int -> int -> env;
 	pop_environment : context -> env -> unit;
 	(* eval *)
-	environments : env DynArray.t;
-	mutable environment_offset : int;
+	evals : eval DynArray.t;
+	eval : unit -> eval;
 	mutable exception_stack : (pos * env_kind) list;
 }
 
@@ -203,12 +211,12 @@ let call_stack ctx =
 
 let throw v p =
 	let ctx = get_ctx() in
-	if ctx.environment_offset > 0 then begin
-		let env = DynArray.get ctx.environments (ctx.environment_offset - 1) in
+	if (ctx.eval()).environment_offset > 0 then begin
+		let env = DynArray.get (ctx.eval()).environments ((ctx.eval()).environment_offset - 1) in
 		env.env_leave_pmin <- p.pmin;
 		env.env_leave_pmax <- p.pmax;
 	end;
-	raise (RunTimeException(v,call_stack ctx,p))
+	raise (RunTimeException(v,call_stack (ctx.eval()),p))
 
 let exc v = throw v null_pos
 
@@ -238,7 +246,7 @@ let create_env_info static pfile kind capture_infos =
 
 let push_environment_debug ctx info num_locals num_captures =
 	let timer = if ctx.detail_times then
-		Common.timer ["macro";"execution";kind_name ctx info.kind]
+		Common.timer ["macro";"execution";kind_name (ctx.eval()) info.kind]
 	else
 		no_timer
 	in
@@ -256,11 +264,11 @@ let push_environment_debug ctx info num_locals num_captures =
 		env_locals = Array.make num_locals vnull;
 		env_captures = Array.make num_captures (ref vnull);
 	} in
-	if ctx.environment_offset = DynArray.length ctx.environments then
-		DynArray.add ctx.environments env
+	if (ctx.eval()).environment_offset = DynArray.length (ctx.eval()).environments then
+		DynArray.add (ctx.eval()).environments env
 	else
-		DynArray.unsafe_set ctx.environments ctx.environment_offset env;
-	ctx.environment_offset <- ctx.environment_offset + 1;
+		DynArray.unsafe_set (ctx.eval()).environments (ctx.eval()).environment_offset env;
+	(ctx.eval()).environment_offset <- (ctx.eval()).environment_offset + 1;
 	env
 
 let create_default_environment ctx info num_locals =
@@ -286,7 +294,7 @@ let push_environment ctx info num_locals num_captures =
 	}
 
 let pop_environment_debug ctx env =
-	ctx.environment_offset <- ctx.environment_offset - 1;
+	(ctx.eval()).environment_offset <- (ctx.eval()).environment_offset - 1;
 	env.env_debug.timer();
 	()
 

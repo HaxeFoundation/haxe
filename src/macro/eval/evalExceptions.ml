@@ -66,7 +66,7 @@ let error_exc ctx v stack p =
 		Error.error (Printf.sprintf "%s: Uncaught exception %s\nCalled from:\n%s" (format_pos p) (value_string v) sstack) null_pos
 
 let build_exception_stack ctx environment_offset =
-	let d = if not ctx.debug.debug then [] else DynArray.to_list (DynArray.sub ctx.environments environment_offset (ctx.environment_offset - environment_offset)) in
+	let d = if not ctx.debug.debug then [] else DynArray.to_list (DynArray.sub (ctx.eval()).environments environment_offset ((ctx.eval()).environment_offset - environment_offset)) in
 	ctx.exception_stack <- List.map (fun env ->
 		env.env_in_use <- false;
 		{pfile = rev_hash_s env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax},env.env_info.kind
@@ -75,7 +75,7 @@ let build_exception_stack ctx environment_offset =
 let catch_exceptions ctx f p =
 	let prev = !get_ctx_ref in
 	select ctx;
-	let environment_offset = ctx.environment_offset in
+	let environment_offset = (ctx.eval()).environment_offset in
 	let r = try
 		let v = f() in
 		get_ctx_ref := prev;
@@ -83,7 +83,7 @@ let catch_exceptions ctx f p =
 	with
 	| RunTimeException(v,stack,p) ->
 		build_exception_stack ctx environment_offset;
-		ctx.environment_offset <- environment_offset;
+		(ctx.eval()).environment_offset <- environment_offset;
 		get_ctx_ref := prev;
 		error_exc ctx v (match stack with [] -> [] | _ :: l -> l) p
 	| MacroApi.Abort ->

@@ -81,11 +81,12 @@ let create com api is_macro =
 				debug = com.Common.debug || support_debugger;
 				breakpoints = Hashtbl.create 0;
 				support_debugger = support_debugger;
-				debug_state = DbgWaiting;
+				debug_state = DbgStart;
 				breakpoint = EvalDebug.make_breakpoint 0 0 BPDisabled BPAny;
 				caught_types = Hashtbl.create 0;
 				environment_offset_delta = 0;
 				debug_socket = socket;
+				break_thread_id = Thread.id (Thread.self());
 			} in
 			debug := Some debug';
 			debug'
@@ -93,6 +94,12 @@ let create com api is_macro =
 			debug
 	in
 	let record_stack = (debug.debug && not (Common.raw_defined com "no-interp-stack")) || Common.raw_defined com "interp-stack" in
+	let evals = DynArray.create () in
+	let eval = {
+		environments = DynArray.make 32;
+		environment_offset = 0;
+	} in
+	DynArray.add evals eval;
 	let rec ctx = {
 		ctx_id = !sid;
 		is_macro = is_macro;
@@ -113,8 +120,8 @@ let create com api is_macro =
 		push_environment = if record_stack then push_environment_debug else push_environment;
 		pop_environment = if record_stack then pop_environment_debug else pop_environment;
 		(* eval *)
-		environments = DynArray.make 32;
-		environment_offset = 0;
+		evals = evals;
+		eval = (fun () -> DynArray.unsafe_get evals (Thread.id (Thread.self())));
 		exception_stack = [];
 	} in
 	t();
