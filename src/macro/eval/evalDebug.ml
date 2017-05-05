@@ -441,13 +441,14 @@ module DebugOutputJson = struct
 			];
 		])
 
-	let output_scopes ctx scopes =
-		print_json ctx (JObject [
-			"result",JArray (List.mapi (fun id scope -> JObject ["id",JInt (id + 1); "name",JString "variables"]) scopes)
-		])
+	let output_scopes ctx capture_infos scopes =
+		let mk_scope id name = JObject ["id",JInt id; "name",JString name] in
+		let scopes = List.mapi (fun id scope -> mk_scope (id + 2) "Locals") scopes in
+		let scopes = if Hashtbl.length capture_infos == 0 then scopes else (mk_scope 1 "Captures") :: scopes in
+		print_json ctx (JObject ["result",JArray scopes])
 
-	let output_scope_vars ctx scope =
-		let vars = Hashtbl.fold (fun id name acc -> JObject ["id",JInt id; "name",JString name] :: acc) scope.local_infos [] in
+	let output_scope_vars ctx infos =
+		let vars = Hashtbl.fold (fun id name acc -> JObject ["id",JInt id; "name",JString name] :: acc) infos [] in
 		print_json ctx (JObject ["result",JArray vars])
 end
 
@@ -726,13 +727,23 @@ and wait ctx run env =
 					loop()
 			end
 		| ["scopes"] ->
-			output_scopes ctx env.env_debug.scopes;
+			output_scopes ctx env.env_info.capture_infos env.env_debug.scopes;
 			loop()
 		| ["variables" | "vars";sid] ->
-			let scope = try Some (List.nth env.env_debug.scopes ((int_of_string sid) - 1)) with _ -> None in
-			begin match scope with
-				| Some scope ->
-					output_scope_vars ctx scope;
+			let infos = try
+				let sid = int_of_string sid in
+				if (sid = 1) then
+					Some env.env_info.capture_infos
+				else begin
+					let scope = List.nth env.env_debug.scopes (sid - 2) in
+					Some scope.local_infos
+				end
+			with _ ->
+				None
+			in
+			begin match infos with
+				| Some infos ->
+					output_scope_vars ctx infos;
 					loop()
 				| None ->
 					output_error ctx ("Invalid scope id");
