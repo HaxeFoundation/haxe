@@ -319,9 +319,9 @@ module DebugOutputJson = struct
 		write_json (Buffer.add_string b) json;
 		DebugOutput.send_string ctx (Buffer.contents b)
 
-	let value_to_json value =
+	let var_to_json name value =
 		let jv t v =
-			JObject ["type",JString t;"value",v]
+			JObject ["name",JString name;"type",JString t;"value",v]
 		in
 		let rec fields_string depth fields =
 			let l = List.map (fun (name,value) ->
@@ -445,8 +445,20 @@ module DebugOutputJson = struct
 		let scopes = if Hashtbl.length capture_infos == 0 then scopes else (mk_scope 0 "Captures") :: scopes in
 		print_json ctx (JObject ["result",JArray scopes])
 
-	let output_scope_vars ctx infos =
-		let vars = Hashtbl.fold (fun id name acc -> JObject ["id",JInt id; "name",JString name] :: acc) infos [] in
+	let output_capture_vars ctx env =
+		let infos = env.env_info.capture_infos in
+		let vars = Hashtbl.fold (fun slot name acc ->
+			let value = !(env.env_captures.(slot)) in
+			(var_to_json name value) :: acc
+		) infos [] in
+		print_json ctx (JObject ["result",JArray vars])
+
+	let output_scope_vars ctx env scope =
+		let vars = Hashtbl.fold (fun local_slot name acc ->
+			let slot = local_slot + scope.local_offset in
+			let value = env.env_locals.(slot) in
+			(var_to_json name value) :: acc
+		) scope.local_infos [] in
 		print_json ctx (JObject ["result",JArray vars])
 end
 
@@ -729,25 +741,20 @@ and wait ctx run env =
 			output_scopes ctx env.env_info.capture_infos env.env_debug.scopes;
 			loop()
 		| ["variables" | "vars";sid] ->
-			let infos = try
-				let sid = int_of_string sid in
-				if (sid = 0) then
-					Some env.env_info.capture_infos
-				else begin
-					let scope = List.nth env.env_debug.scopes (sid - 1) in
-					Some scope.local_infos
+			(try
+				let sid = try int_of_string sid with _ -> raise Exit in
+				if sid = 0 then begin
+					output_capture_vars ctx env;
+					loop();
+				end else begin
+					let scope = try List.nth env.env_debug.scopes (sid - 1) with _ -> raise Exit in
+					output_scope_vars ctx env scope;
+					loop()
 				end
-			with _ ->
-				None
-			in
-			begin match infos with
-				| Some infos ->
-					output_scope_vars ctx infos;
-					loop()
-				| None ->
-					output_error ctx ("Invalid scope id");
-					loop()
-			end
+			with Exit -> begin
+				output_error ctx ("Invalid scope id");
+				loop ()
+			end)
 		| ["variables" | "vars"] ->
 			print_variables ctx env.env_info.capture_infos env.env_debug.scopes env;
 			loop()
