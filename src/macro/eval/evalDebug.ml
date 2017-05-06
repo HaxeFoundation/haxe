@@ -363,7 +363,7 @@ module DebugOutputJson = struct
 	let output_call_stack ctx kind p =
 		let envs = get_call_stack_envs ctx kind p in
 		let id = ref (-1) in
-		let stack_item kind p =
+		let stack_item kind p artificial =
 			incr id;
 			let line1,col1,line2,col2 = Lexer.get_pos_coords p in
 			JObject [
@@ -374,15 +374,13 @@ module DebugOutputJson = struct
 				"column",JInt col1;
 				"endLine",JInt line2;
 				"endColumn",JInt col2;
+				"artificial",JBool artificial;
 			]
 		in
-		let l = [stack_item kind p] in
+		let l = [stack_item kind p false] in
 		let stack = List.fold_left (fun acc env ->
-			if env.env_leave_pmin >= 0 then begin
-				let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_hash_s env.env_info.pfile} in
-				(stack_item env.env_info.kind p) :: acc
-			end else
-				acc
+			let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_hash_s env.env_info.pfile} in
+			(stack_item env.env_info.kind p (env.env_leave_pmin < 0)) :: acc
 		) l envs in
 		print_json ctx (JObject ["result",JArray (List.rev stack)])
 
