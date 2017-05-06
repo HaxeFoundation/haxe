@@ -54,13 +54,16 @@ and s_array depth va =
 		of_char ']';
 	]
 
-and s_enum_value depth ve =
-	let name = try
+and s_enum_ctor_name ve =
+	try
 		begin match (get_static_prototype_raise (get_ctx()) ve.epath).pkind with
 			| PEnum names -> (try List.nth names ve.eindex with _ -> "#unknown")
 			| _ -> raise Not_found
 		end
-	with Not_found -> "#unknown" in
+	with Not_found -> "#unknown"
+
+and s_enum_value depth ve =
+	let name = s_enum_ctor_name ve in
 	match ve.eargs with
 	| [||] -> of_string name
 	| vl ->

@@ -341,7 +341,12 @@ module DebugOutputJson = struct
 			| VFalse -> "false"
 			| VInt32 i -> Int32.to_string i
 			| VFloat f -> string_of_float f
-			| VEnumValue ev -> Rope.to_string (s_enum_value 0 ev)
+			| VEnumValue ve ->
+				let name = EvalPrinting.s_enum_ctor_name ve in
+				begin match ve.eargs with
+					| [||] -> name
+					| vl -> name ^ "(...)"
+				end
 			| VObject o -> "{...}"
 			| VInstance {ikind = IString(_,s)} -> string_repr s
 			| VInstance {ikind = IArray va} -> "[...]"
@@ -356,7 +361,7 @@ module DebugOutputJson = struct
 		let array_elems va =
 			let l = EvalArray.to_list va in
 			let l = List.map level2_value_repr l in
-			Printf.sprintf "[%s]" (String.concat ", " (List.rev l))
+			Printf.sprintf "[%s]" (String.concat ", " l)
 		in
 		let value_string v = match v with
 			| VNull -> jv "NULL" "null" false
@@ -364,7 +369,17 @@ module DebugOutputJson = struct
 			| VFalse -> jv "Bool" "false" false
 			| VInt32 i -> jv "Int" (Int32.to_string i) false
 			| VFloat f -> jv "Float" (string_of_float f) false
-			| VEnumValue ev -> jv (rev_hash_s ev.epath) (Rope.to_string (s_enum_value 0 ev)) false (* TODO: depends on whether ctor has args *)
+			| VEnumValue ve ->
+				let type_s = rev_hash_s ve.epath in
+				let name = EvalPrinting.s_enum_ctor_name ve in
+				let value_s,is_structured = match ve.eargs with
+					| [||] -> name, false
+					| vl ->
+						let l = Array.to_list (Array.map level2_value_repr vl) in
+						let s = Printf.sprintf "%s(%s)" name (String.concat ", " l) in
+						s, true
+				in
+				jv type_s value_s is_structured
 			| VObject o -> jv "Anonymous" (fields_string (object_fields o)) true (* TODO: false for empty structures *)
 			| VInstance {ikind = IString(_,s)} -> jv "String" (string_repr s) false
 			| VInstance {ikind = IArray va} -> jv "Array" (array_elems va) true (* TODO: false for empty arrays *)
