@@ -441,8 +441,8 @@ module DebugOutputJson = struct
 
 	let output_scopes ctx capture_infos scopes =
 		let mk_scope id name = JObject ["id",JInt id; "name",JString name] in
-		let scopes = List.mapi (fun id scope -> mk_scope (id + 2) "Locals") scopes in
-		let scopes = if Hashtbl.length capture_infos == 0 then scopes else (mk_scope 1 "Captures") :: scopes in
+		let scopes = List.mapi (fun id scope -> mk_scope (id + 1) "Locals") scopes in
+		let scopes = if Hashtbl.length capture_infos == 0 then scopes else (mk_scope 0 "Captures") :: scopes in
 		print_json ctx (JObject ["result",JArray scopes])
 
 	let output_scope_vars ctx infos =
@@ -731,10 +731,10 @@ and wait ctx run env =
 		| ["variables" | "vars";sid] ->
 			let infos = try
 				let sid = int_of_string sid in
-				if (sid = 1) then
+				if (sid = 0) then
 					Some env.env_info.capture_infos
 				else begin
-					let scope = List.nth env.env_debug.scopes (sid - 2) in
+					let scope = List.nth env.env_debug.scopes (sid - 1) in
 					Some scope.local_infos
 				end
 			with _ ->
