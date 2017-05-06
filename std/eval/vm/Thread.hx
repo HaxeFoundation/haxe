@@ -30,4 +30,5 @@ extern class Thread {
 	static function exit():Void;
 	static function join(thread:Thread):Void;
 	static function self():Thread;
+	static function yield():Void;
 }

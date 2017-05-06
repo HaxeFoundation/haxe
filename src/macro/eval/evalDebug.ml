@@ -499,14 +499,18 @@ let parse_expr ctx s p =
 
 (* Checks debug state and calls what's needed. *)
 let rec run_loop ctx run env : value =
-	if ctx.debug.breakpoint.bpstate = BPHit && env.env_debug.line <> ctx.debug.breakpoint.bpline then ctx.debug.breakpoint.bpstate <- BPEnabled;
+	let check_breakpoint () =
+		if ctx.debug.breakpoint.bpstate = BPHit && env.env_debug.line <> ctx.debug.breakpoint.bpline then ctx.debug.breakpoint.bpstate <- BPEnabled
+	in
 	match ctx.debug.debug_state with
 		| DbgRunning ->
+			check_breakpoint();
 			run env
 		| _ when (Thread.id (Thread.self())) != ctx.debug.break_thread_id ->
 			Thread.delay 0.2;
 			run_loop ctx run env
 		| DbgContinue ->
+			check_breakpoint();
 			run env
 		| DbgNext offset ->
 			if offset < (get_eval ctx).environment_offset then

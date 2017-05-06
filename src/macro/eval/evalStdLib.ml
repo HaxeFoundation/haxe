@@ -2175,6 +2175,11 @@ module StdThread = struct
 	let self = vfun0 (fun () ->
 		encode_instance key_eval_vm_Thread ~kind:(IThread (Thread.self()))
 	)
+
+	let yield = vfun0 (fun () ->
+		Thread.yield();
+		vnull
+	)
 end
 
 module StdType = struct
@@ -2588,7 +2593,6 @@ let init_constructors builtins =
 					else
 						DynArray.set ctx.evals id new_eval;
 					ignore(call_value f []);
-					DynArray.delete ctx.evals id;
 					if ctx.debug.support_debugger then ctx.debug.break_thread_id <- 0;
 				in
 				encode_instance key_eval_vm_Thread ~kind:(IThread (Thread.create f ()))
@@ -2943,6 +2947,7 @@ let init_standard_library builtins =
 		"exit",StdThread.exit;
 		"join",StdThread.join;
 		"self",StdThread.self;
+		"yield",StdThread.yield;
 	] [
 		"id",StdThread.id;
 		"kill",StdThread.kill;
