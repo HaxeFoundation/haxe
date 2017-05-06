@@ -1225,26 +1225,26 @@ let run_function ctx exec env =
 		| Return v -> v
 	in
 	if env.env_in_use then env.env_in_use <- false;
-	ctx.pop_environment ctx env;
+	pop_environment ctx env;
 	v
 
 let run_function_noret ctx exec env =
 	let v = exec env in
 	if env.env_in_use then env.env_in_use <- false;
-	ctx.pop_environment ctx env;
+	pop_environment ctx env;
 	v
 
 let create_env_function ctx info num_locals num_captures =
 	if ctx.record_stack || num_captures > 0 then
 		(fun () ->
-			ctx.push_environment ctx info num_locals num_captures
+			push_environment ctx info num_locals num_captures
 		)
 	else begin
 		let default_env = lazy (create_default_environment ctx info num_locals) in
 		(fun () ->
 			let default_env = Lazy.force default_env in
 			if default_env.env_in_use then begin
-				ctx.push_environment ctx info num_locals num_captures
+				push_environment ctx info num_locals num_captures
 			end else begin
 				default_env.env_in_use <- true;
 				default_env

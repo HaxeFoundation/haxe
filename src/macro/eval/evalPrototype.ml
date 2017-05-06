@@ -34,8 +34,8 @@ let eval_expr ctx key name e =
 		let jit,f = jit_expr ctx e in
 		let capture_count = Hashtbl.length jit.captures in
 		let info = create_env_info true (file_hash e.epos.pfile) (EKMethod(key,name)) jit.capture_infos in
-		let env = ctx.push_environment ctx info jit.max_local_count capture_count in
-		Std.finally (fun _ -> ctx.pop_environment ctx env) f env
+		let env = push_environment ctx info jit.max_local_count capture_count in
+		Std.finally (fun _ -> pop_environment ctx env) f env
 	) e.Type.epos
 
 (* Creates constructor function for class [c], if it has a constructor. *)

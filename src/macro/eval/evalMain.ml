@@ -115,9 +115,6 @@ let create com api is_macro =
 		instance_prototypes = IntMap.empty;
 		constructors = IntMap.empty;
 		get_object_prototype = get_object_prototype;
-		(* api *)
-		push_environment = if record_stack then push_environment_debug else push_environment;
-		pop_environment = if record_stack then pop_environment_debug else pop_environment;
 		(* eval *)
 		eval = eval;
 		exception_stack = [];
@@ -131,8 +128,8 @@ let eval_delayed ctx e =
 	let jit,f = jit_expr ctx e in
 	let info = create_env_info true (file_hash e.Type.epos.pfile) EKDelayed jit.capture_infos in
 	fun () ->
-		let env = ctx.push_environment ctx info jit.max_local_count (Hashtbl.length jit.captures) in
-		match catch_exceptions ctx (fun () -> Std.finally (fun _ -> ctx.pop_environment ctx env) f env) e.Type.epos with
+		let env = push_environment ctx info jit.max_local_count (Hashtbl.length jit.captures) in
+		match catch_exceptions ctx (fun () -> Std.finally (fun _ -> pop_environment ctx env) f env) e.Type.epos with
 			| Some v -> v
 			| None -> vnull
 

@@ -134,9 +134,6 @@ type context = {
 	mutable static_prototypes : vprototype IntMap.t;
 	mutable constructors : value Lazy.t IntMap.t;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
-	(* api *)
-	push_environment : context -> env_info -> int -> int -> env;
-	pop_environment : context -> env -> unit;
 	(* eval *)
 	eval : eval;
 	mutable exception_stack : (pos * env_kind) list;
@@ -302,8 +299,11 @@ let pop_environment_debug ctx env =
 	env.env_debug.timer();
 	()
 
-let pop_environment ctx _ =
-	()
+let push_environment ctx info num_locals num_captures =
+	if ctx.record_stack then push_environment_debug ctx info num_locals num_captures else push_environment ctx info num_locals num_captures
+
+let pop_environment ctx env =
+	if ctx.record_stack then pop_environment_debug ctx env else ()
 
 (* Prototypes *)
 
