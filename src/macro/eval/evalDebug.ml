@@ -720,7 +720,7 @@ and wait ctx run env =
 				None
 			in
 			begin match frame with
-				| Some frame -> move_frame frame
+				| Some frame -> move_frame ((get_eval ctx).environment_offset - frame - 1)
 				| None ->
 					output_error ctx ("Invalid frame format: " ^ sframe);
 					loop()
