@@ -473,7 +473,7 @@ let optimize dump (f:fundecl) =
 	let set_op index op = f.code.(index) <- op in
 	let nop_count = ref 0 in
 	let set_nop index r = f.code.(index) <- (ONop r); incr nop_count in
-	let write str = match dump with None -> () | Some ch -> IO.nwrite ch (str ^ "\n") in
+	let write str = match dump with None -> () | Some ch -> IO.nwrite ch (Bytes.unsafe_of_string (str ^ "\n")) in
 
 	let blocks_pos, root = code_graph f in
 

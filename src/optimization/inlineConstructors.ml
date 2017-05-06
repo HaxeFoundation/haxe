@@ -525,7 +525,13 @@ let inline_constructors ctx e =
 		let e = make_expr_for_rev_list el e.etype e.epos in
 		let rec get_pretty_name iv = match iv.iv_kind with
 			| IVKField(io,fname,None) ->
-				(get_pretty_name (List.hd io.io_aliases)) ^ "_" ^ fname;
+				begin try
+					let is_user_variable iv = Meta.has Meta.UserVariable iv.iv_var.v_meta in
+					let iv = List.find is_user_variable io.io_aliases in
+					(get_pretty_name iv) ^ "_" ^ fname;
+				with Not_found ->
+					(get_pretty_name (List.hd io.io_aliases)) ^ "_" ^ fname;
+				end
 			| _ -> iv.iv_var.v_name
 		in
 		IntMap.iter (fun _ iv ->

@@ -264,7 +264,7 @@ let rec token lexbuf =
 	| eof -> mk lexbuf Eof
 	| Plus (Chars " \t") -> token lexbuf
 	| "\r\n" -> newline lexbuf; token lexbuf
-	| '\n' -> newline lexbuf; token lexbuf
+	| '\n' | '\r' -> newline lexbuf; token lexbuf
 	| "0x", Plus ('0'..'9'|'a'..'f'|'A'..'F') -> mk lexbuf (Const (Int (lexeme lexbuf)))
 	| integer -> mk lexbuf (Const (Int (lexeme lexbuf)))
 	| integer, '.', Plus '0'..'9' -> mk lexbuf (Const (Float (lexeme lexbuf)))

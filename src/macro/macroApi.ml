@@ -176,8 +176,8 @@ module type InterpApi = sig
 	val value_to_expr : value -> Globals.pos -> Ast.expr
 	val value_signature : value -> string
 
-	val encode_bytes : string -> value
-	val decode_bytes : value -> string (* haxe.io.Bytes *)
+	val encode_bytes : bytes -> value
+	val decode_bytes : value -> bytes (* haxe.io.Bytes *)
 
 	val prepare_callback : value -> int -> (value list -> value)
 
@@ -1654,6 +1654,7 @@ let macro_api ccom get_api =
 		"add_resource", vfun2 (fun name data ->
 			let name = decode_string name in
 			let data = decode_bytes data in
+			let data = Bytes.unsafe_to_string data in
 			if name = "" then failwith "Empty resource name";
 			Hashtbl.replace (ccom()).resources name data;
 			let m = if name.[0] = '$' then (get_api()).current_macro_module() else (get_api()).current_module() in
@@ -1661,7 +1662,7 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"get_resources", vfun0 (fun() ->
-			encode_string_map encode_bytes (Hashtbl.fold (fun k v acc -> PMap.add k v acc) (ccom()).resources PMap.empty)
+			encode_string_map encode_string (Hashtbl.fold (fun k v acc -> PMap.add k v acc) (ccom()).resources PMap.empty)
 		);
 		"get_local_module", vfun0 (fun() ->
 			let m = (get_api()).current_module() in

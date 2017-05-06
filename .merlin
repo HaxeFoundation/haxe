@@ -6,3 +6,7 @@ B +threads
 PKG rope
 PKG ptmap
 PKG sedlex
+PKG extlib
+PKG camlzip
+PKG xml-light
+FLG -safe-string

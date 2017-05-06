@@ -249,7 +249,7 @@ module DebugOutput = struct
 					Bytes.set buf 0 (Char.unsafe_chr l);
 					Bytes.set buf 1 (Char.unsafe_chr (l lsr 8));
 					ignore(send socket buf 0 2 []);
-					ignore(send socket s 0 (String.length s) [])
+					ignore(send socket (Bytes.unsafe_of_string s) 0 (String.length s) [])
 			end
 
 	let output_info ctx = send_string ctx

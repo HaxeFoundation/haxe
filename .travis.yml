@@ -35,7 +35,7 @@ install_linux: &install_linux
       camlp4
   - wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin system
   - export OPAMYES=1
-  - opam install rope ptmap sedlex
+  - opam install sedlex camlzip xml-light extlib rope ptmap
   # Setup database
   - travis_retry sudo apt-get install mysql-server-5.6 -y
   - mysql -u root -e "create user travis@localhost identified by '';"
@@ -59,7 +59,7 @@ install_osx: &install_osx
   - travis_retry brew install opam;
   - export OPAMYES=1
   - opam init
-  - opam install camlp4 ocamlfind rope ptmap sedlex
+  - opam install camlp4 sedlex ocamlfind camlzip xml-light extlib rope ptmap
   - eval `opam config env`
   # Install neko
   - travis_retry brew install neko --HEAD;

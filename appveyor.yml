@@ -34,7 +34,7 @@ install:
     - 7z x "opam64.tar.xz" -so | 7z x -aoa -si -ttar
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && bash opam64/install.sh"'
     - '%CYG_ROOT%/bin/bash -lc "opam init mingw \"https://github.com/fdopen/opam-repository-mingw.git\" --comp 4.02.3+mingw32c --switch 4.02.3+mingw32c --auto-setup --yes"'
-    - '%CYG_ROOT%/bin/bash -lc "opam install camlp4 ocamlfind sedlex rope ptmap --yes"'
+    - '%CYG_ROOT%/bin/bash -lc "opam install camlp4 sedlex ocamlfind camlzip xml-light extlib rope ptmap --yes"'
     # Install neko
     - choco install neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
     - choco install chocolatey-core.extension php --ignore-dependencies -y

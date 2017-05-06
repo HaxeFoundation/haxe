@@ -315,7 +315,7 @@ module StdBytes = struct
 		let this = this vthis in
 		let pos = decode_int pos in
 		let len = decode_int len in
-		encode_string (try Bytes.sub this pos len with _ -> outside_bounds());
+		encode_string (Bytes.unsafe_to_string ((try Bytes.sub this pos len with _ -> outside_bounds())));
 	)
 
 	let getUInt16 = vifun1 (fun vthis pos ->
@@ -388,7 +388,7 @@ module StdBytes = struct
 		let rec loop acc i =
 			if i >= l then List.rev acc
 			else begin
-				let c = int_of_char this.[i] in
+				let c = int_of_char (Bytes.get this i) in
 				loop ((chars.(c land 15)) :: ((chars.(c lsr 4))) :: acc) (i + 1)
 			end
 		in
@@ -480,14 +480,14 @@ module StdBytesBuffer = struct
 		let src = decode_bytes src in
 		let pos = decode_int pos in
 		let len = decode_int len in
-		if pos < 0 || len < 0 || pos + len > String.length src then outside_bounds();
+		if pos < 0 || len < 0 || pos + len > Bytes.length src then outside_bounds();
 		Buffer.add_subbytes this src pos len;
 		vnull
 	)
 
 	let getBytes = vifun0 (fun vthis ->
 		let this = this vthis in
-		encode_bytes (Buffer.contents this)
+		encode_bytes (Bytes.unsafe_of_string (Buffer.contents this))
 	)
 end
 
@@ -541,7 +541,7 @@ module StdCompress = struct
 		let srcPos = decode_int srcPos in
 		let dst = decode_bytes dst in
 		let dstPos = decode_int dstPos in
-		let r = zlib_deflate this.z src srcPos (String.length src - srcPos) dst dstPos (String.length dst - dstPos) this.z_flush in
+		let r = zlib_deflate this.z (Bytes.unsafe_to_string src) srcPos (Bytes.length src - srcPos) dst dstPos (Bytes.length dst - dstPos) this.z_flush in
 		encode_obj None [
 			key_done,vbool r.z_finish;
 			key_read,vint r.z_read;
@@ -562,7 +562,7 @@ module StdCompress = struct
 		let level = decode_int level in
 		let zip = zlib_deflate_init level in
 		let d = Bytes.make (zlib_deflate_bound zip (Bytes.length s)) (char_of_int 0) in
-		let r = zlib_deflate zip s 0 (String.length s) d 0 (String.length d) Z_FINISH in
+		let r = zlib_deflate zip (Bytes.unsafe_to_string s) 0 (Bytes.length s) d 0 (Bytes.length d) Z_FINISH in
 		zlib_deflate_end zip;
 		if not r.z_finish || r.z_read <> (Bytes.length s) then exc_string "Compression failed";
 		encode_bytes (Bytes.sub d 0 r.z_wrote)
@@ -838,7 +838,7 @@ module StdFile = struct
 
 	let getBytes = vfun1 (fun path ->
 		let path = decode_string path in
-		try encode_bytes (Std.input_file ~bin:true path) with Sys_error _ -> exc_string ("Could not read file " ^ path)
+		try encode_bytes (Bytes.unsafe_of_string (Std.input_file ~bin:true path)) with Sys_error _ -> exc_string ("Could not read file " ^ path)
 	)
 
 	let getContent = vfun1 (fun path ->
@@ -859,7 +859,7 @@ module StdFile = struct
 	let saveBytes = vfun2 (fun path bytes ->
 		let path = decode_string path in
 		let bytes = decode_bytes bytes in
-		write_out path bytes
+		write_out path (Bytes.unsafe_to_string bytes)
 	)
 
 	let saveContent = vfun2 (fun path content ->
@@ -1365,7 +1365,7 @@ module StdMd5 = struct
 
 	let make = vfun1 (fun b ->
 		let b = decode_bytes b in
-		encode_bytes (Digest.string b)
+		encode_bytes (Bytes.unsafe_of_string (Digest.string (Bytes.unsafe_to_string b)))
 	)
 end
 
@@ -1380,7 +1380,7 @@ module StdNativeProcess = struct
 		let bytes = decode_bytes bytes in
 		let pos = decode_int pos in
 		let len = decode_int len in
-		f this bytes pos len
+		f this (Bytes.unsafe_to_string bytes) pos len
 
 	let close = vifun0 (fun vthis ->
 		Process.close (this vthis);
@@ -1554,7 +1554,7 @@ module StdResource = struct
 	)
 
 	let getBytes = vfun1 (fun name ->
-		try encode_bytes (Hashtbl.find ((get_ctx()).curapi.MacroApi.get_com()).resources (decode_string name)) with Not_found -> vnull
+		try encode_bytes (Bytes.unsafe_of_string (Hashtbl.find ((get_ctx()).curapi.MacroApi.get_com()).resources (decode_string name))) with Not_found -> vnull
 	)
 end
 
@@ -1634,9 +1634,9 @@ module StdSocket = struct
 	)
 
 	let receiveChar = vifun0 (fun vthis ->
-		let buf = String.make 1 '\000' in
+		let buf = Bytes.make 1 '\000' in
 		ignore(Unix.recv (this vthis) buf 0 1 []);
-		vint (int_of_char (String.unsafe_get buf 0))
+		vint (int_of_char (Bytes.unsafe_get buf 0))
 	)
 
 	let select = vfun4 (fun read write others timeout ->
@@ -1672,7 +1672,7 @@ module StdSocket = struct
 	let sendChar = vifun1 (fun vthis char ->
 		let this = this vthis in
 		let char = decode_int char in
-		ignore(Unix.send this (String.make 1 (char_of_int char)) 0 1 []);
+		ignore(Unix.send this (Bytes.make 1 (char_of_int char)) 0 1 []);
 		VNull
 	)
 
@@ -1839,7 +1839,7 @@ module StdString = struct
 					let index = String.index_from s i chr in
 					let rec loop2 i2 =
 						if i2 = l_delimiter then true
-						else if Bytes.unsafe_get s (index + i2) = Bytes.unsafe_get delimiter i2 then loop2 (i2 + 1)
+						else if String.unsafe_get s (index + i2) = String.unsafe_get delimiter i2 then loop2 (i2 + 1)
 						else false
 					in
 					if not (loop2 1) then
@@ -1912,8 +1912,8 @@ module StdString = struct
 	let cca = vifun1 (fun vthis i ->
 		let this = this_string vthis in
 		let i = decode_int i in
-		if i < 0 || i >= Bytes.length this then vnull
-		else vint (int_of_char (Bytes.unsafe_get this i))
+		if i < 0 || i >= String.length this then vnull
+		else vint (int_of_char (String.unsafe_get this i))
 	)
 end
 
@@ -2381,12 +2381,12 @@ module StdUncompress = struct
 		let buf = Buffer.create 0 in
 		let tmp = Bytes.make bufsize (char_of_int 0) in
 		let rec loop pos =
-			let r = zlib_inflate zip src pos (Bytes.length src - pos) tmp 0 bufsize Z_SYNC_FLUSH in
+			let r = zlib_inflate zip (Bytes.unsafe_to_string src) pos (Bytes.length src - pos) tmp 0 bufsize Z_SYNC_FLUSH in
 			Buffer.add_subbytes buf tmp 0 r.z_wrote;
 			if not r.z_finish then loop (pos + r.z_read)
 		in
 		loop 0;
-		encode_bytes (Buffer.contents buf)
+		encode_bytes (Bytes.unsafe_of_string (Buffer.contents buf))
 	)
 
 	let setFlushMode = StdCompress.setFlushMode
@@ -2423,7 +2423,7 @@ module StdUtf8 = struct
 			Bytes.unsafe_set buf !i (UChar.char_of uc);
 			incr i
 		) s;
-		encode_string buf
+		encode_string (Bytes.unsafe_to_string buf)
 	)
 
 	let encode = vfun1 (fun s ->

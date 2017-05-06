@@ -3488,7 +3488,10 @@ let type_types_into_module ctx m tdecls p =
 	ctx
 
 let handle_import_hx ctx m decls p =
-	let path_split = List.tl (List.rev (Path.get_path_parts m.m_extra.m_file)) in
+	let path_split = match List.rev (Path.get_path_parts m.m_extra.m_file) with
+		| [] -> []
+		| _ :: l -> l
+	in
 	let join l = String.concat Path.path_sep (List.rev ("import.hx" :: l)) in
 	let rec loop path pack = match path,pack with
 		| _,[] -> [join path]

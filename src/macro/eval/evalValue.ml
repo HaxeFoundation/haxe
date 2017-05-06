@@ -26,7 +26,7 @@ type cmp =
 	| CInf
 	| CUndef
 
-module StringHashtbl = Hashtbl.Make(struct type t = bytes let equal = (=) let hash = Hashtbl.hash end)
+module StringHashtbl = Hashtbl.Make(struct type t = string let equal = (=) let hash = Hashtbl.hash end)
 
 module IntHashtbl = Hashtbl.Make(struct type t = int let equal = (=) let hash = Hashtbl.hash end)
 
@@ -103,7 +103,7 @@ and vprototype = {
 
 and vinstance_kind =
 	| IArray of varray
-	| IString of Rope.t * bytes Lazy.t
+	| IString of Rope.t * string Lazy.t
 	| IBytes of bytes
 	| IRegex of vregex
 	| IDate of float

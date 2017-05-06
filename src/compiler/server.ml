@@ -171,7 +171,7 @@ let ssend sock str =
 			let s = Unix.send sock str pos len [] in
 			loop (pos + s) (len - s)
 	in
-	loop 0 (String.length str)
+	loop 0 (Bytes.length str)
 
 let rec wait_loop process_params verbose accept =
 	Sys.catch_break false;
@@ -587,12 +587,12 @@ and init_wait_stdio() =
 	let berr = Buffer.create 0 in
 	let read = fun () ->
 		let len = IO.read_i32 chin in
-		IO.really_nread chin len
+		IO.really_nread_string chin len
 	in
 	let write = Buffer.add_string berr in
 	let close = fun() ->
 		IO.write_i32 cherr (Buffer.length berr);
-		IO.nwrite cherr (Buffer.contents berr);
+		IO.nwrite_string cherr (Buffer.contents berr);
 		IO.flush cherr
 	in
 	fun() ->
@@ -606,7 +606,7 @@ and init_wait_socket verbose host port =
 	if verbose then print_endline ("Waiting on " ^ host ^ ":" ^ string_of_int port);
 	Unix.listen sock 10;
 	let bufsize = 1024 in
-	let tmp = String.create bufsize in
+	let tmp = Bytes.create bufsize in
 	let accept() = (
 		let sin, _ = Unix.accept sock in
 		Unix.set_nonblock sin;
@@ -619,8 +619,8 @@ and init_wait_socket verbose host port =
 					failwith "Incomplete request"
 				else begin
 					if verbose then Printf.printf "Reading %d bytes\n" r;
-					Buffer.add_substring b tmp 0 r;
-					if tmp.[r-1] = '\000' then
+					Buffer.add_subbytes b tmp 0 r;
+					if Bytes.get tmp (r-1) = '\000' then
 						Buffer.sub b 0 (Buffer.length b - 1)
 					else
 						read_loop 0
@@ -635,7 +635,7 @@ and init_wait_socket verbose host port =
 				end
 		in
 		let read = fun() -> (let s = read_loop 0 in Unix.clear_nonblock sin; s) in
-		let write = ssend sin in
+		let write s = ssend sin (Bytes.unsafe_of_string s) in
 		let close() = Unix.close sin in
 		read, write, close
 	) in
@@ -645,7 +645,7 @@ and do_connect host port args =
 	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
 	(try Unix.connect sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port));
 	let args = ("--cwd " ^ Unix.getcwd()) :: args in
-	ssend sock (String.concat "" (List.map (fun a -> a ^ "\n") args) ^ "\000");
+	ssend sock (Bytes.of_string (String.concat "" (List.map (fun a -> a ^ "\n") args) ^ "\000"));
 	let has_error = ref false in
 	let rec print line =
 		match (if line = "" then '\x00' else line.[0]) with
@@ -664,12 +664,12 @@ and do_connect host port args =
 		let lines = (match List.rev lines with "" :: l -> List.rev l | _ -> lines) in
 		List.iter print lines;
 	in
-	let tmp = String.create 1024 in
+	let tmp = Bytes.create 1024 in
 	let rec loop() =
 		let b = Unix.recv sock tmp 0 1024 [] in
-		Buffer.add_substring buf tmp 0 b;
+		Buffer.add_subbytes buf tmp 0 b;
 		if b > 0 then begin
-			if String.get tmp (b - 1) = '\n' then begin
+			if Bytes.get tmp (b - 1) = '\n' then begin
 				process();
 				Buffer.reset buf;
 			end;
