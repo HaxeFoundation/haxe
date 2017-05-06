@@ -384,7 +384,7 @@ module DebugOutputJson = struct
 			end else
 				acc
 		) l envs in
-		print_json ctx (JObject ["result",JArray stack])
+		print_json ctx (JObject ["result",JArray (List.rev stack)])
 
 	let output_file_path ctx s =
 		print_json ctx (JObject ["result",JString (Path.get_real_path s)])
@@ -565,6 +565,7 @@ and wait ctx run env =
 			loop()
 		end else begin
 			ctx.debug.environment_offset_delta <- ((get_eval ctx).environment_offset - offset - 1);
+			output_info ctx "ok";
 			wait ctx run (DynArray.get (get_eval ctx).environments offset);
 		end
 	and loop () =
