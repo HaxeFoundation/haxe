@@ -479,7 +479,9 @@ module DebugOutputJson = struct
 		let children = match v with
 			| VNull | VTrue | VFalse | VInt32 _ | VFloat _ | VFunction _ | VFieldClosure _ -> []
 			| VEnumValue ev -> [] (* TODO *)
-			| VObject o ->  [] (* TODO *)
+			| VObject o ->
+				let fields = object_fields o in
+				List.map (fun (n,v) -> rev_hash_s n, v) fields
 			| VInstance {ikind = IString(_,s)} -> []
 			| VInstance {ikind = IArray va} -> [] (* TODO *)
 			| VInstance vi -> [] (* TODO *)
