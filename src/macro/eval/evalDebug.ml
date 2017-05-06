@@ -202,6 +202,17 @@ let expr_to_value ctx env e =
 					s,value
 				| _ -> raise Exit
 			end
+		| EArray(e1,eidx) ->
+			let n1,v1 = loop e1 in
+			begin match v1 with
+				| VInstance {ikind = IArray va} ->
+					let nidx,vidx = loop eidx in
+					let idx = match vidx with VInt32 i -> Int32.to_int i | _ -> raise Exit in
+					let n = Printf.sprintf "%s[%s]" n1 nidx in
+					let v = EvalArray.get va idx in
+					(n,v)
+				| _ -> raise Exit
+			end
 		| EField(e1,s) ->
 			let n1,v1 = loop e1 in
 			let v = EvalField.field v1 (hash_s s) in
