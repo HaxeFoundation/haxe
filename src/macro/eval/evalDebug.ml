@@ -323,31 +323,46 @@ module DebugOutputJson = struct
 		let jv t v structured =
 			JObject ["name",JString name;"type",JString t;"value",JString v; "structured",JBool structured]
 		in
-		let rec fields_string depth fields =
-			let j = JObject (List.map (fun (name,value) -> (rev_hash_s name), (value_string depth value)) fields) in
-			let b = Buffer.create 10 in
-			write_json (Buffer.add_string b) j;
-			Buffer.contents b
-		and instance_fields depth vi =
+		let string_repr s = "\"" ^ (Ast.s_escape (Lazy.force s)) ^ "\"" in
+		let level2_value_repr = function
+			| VNull -> "null"
+			| VTrue -> "true"
+			| VFalse -> "false"
+			| VInt32 i -> Int32.to_string i
+			| VFloat f -> string_of_float f
+			| VEnumValue ev -> Rope.to_string (s_enum_value 0 ev)
+			| VObject o -> "{...}"
+			| VInstance {ikind = IString(_,s)} -> string_repr s
+			| VInstance {ikind = IArray va} -> "[...]"
+			| VInstance vi -> (rev_hash_s vi.iproto.ppath)
+			| VPrototype proto -> Rope.to_string (s_proto_kind proto)
+			| VFunction _ | VFieldClosure _ -> "<fun>"
+		in
+		let fields_string fields =
+			let s = List.map (fun (name, value) -> Printf.sprintf "%s: %s" (rev_hash_s name) (level2_value_repr value)) fields in
+			Printf.sprintf "{%s}" (String.concat ", " s)
+		in
+		let instance_fields vi =
 			let fields = IntMap.fold (fun name key acc ->
 				(name,vi.ifields.(key)) :: acc
 			) vi.iproto.pinstance_names [] in
-			fields_string (depth + 1) fields
-		and value_string depth v = match v with
+			fields_string fields
+		in
+		let value_string v = match v with
 			| VNull -> jv "NULL" "null" false
 			| VTrue -> jv "Bool" "true" false
 			| VFalse -> jv "Bool" "false" false
 			| VInt32 i -> jv "Int" (Int32.to_string i) false
 			| VFloat f -> jv "Float" (string_of_float f) false
 			| VEnumValue ev -> jv (rev_hash_s ev.epath) (Rope.to_string (s_enum_value 0 ev)) false (* TODO: depends on whether ctor has args *)
-			| VObject o -> jv "Anonymous" ((fields_string (depth + 1) (object_fields o))) true (* TODO: false for empty structures *)
-			| VInstance {ikind = IString(_,s)} -> jv "String" ("\"" ^ (Ast.s_escape (Lazy.force s)) ^ "\"") false
-			| VInstance {ikind = IArray va} -> jv "Array" (Rope.to_string (s_array (depth + 1) va)) true (* TODO: false for empty arrays *)
-			| VInstance vi -> jv (rev_hash_s vi.iproto.ppath) (instance_fields (depth + 1) vi) true
+			| VObject o -> jv "Anonymous" ((fields_string (object_fields o))) true (* TODO: false for empty structures *)
+			| VInstance {ikind = IString(_,s)} -> jv "String" (string_repr s) false
+			| VInstance {ikind = IArray va} -> jv "Array" (Rope.to_string (s_array 0 va)) true (* TODO: false for empty arrays *)
+			| VInstance vi -> jv (rev_hash_s vi.iproto.ppath) (instance_fields vi) true
 			| VPrototype proto -> jv "Anonymous" (Rope.to_string (s_proto_kind proto)) false (* TODO: show statics *)
 			| VFunction _ | VFieldClosure _ -> jv "Function" "fun" false
 		in
-		value_string 0 value
+		value_string value
 
 	let output_variable_name ctx name =
 		print_json ctx (JObject ["result",JString name])
