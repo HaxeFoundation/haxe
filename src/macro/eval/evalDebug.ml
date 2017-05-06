@@ -334,7 +334,7 @@ module DebugOutputJson = struct
 			| VObject o -> "{...}"
 			| VInstance {ikind = IString(_,s)} -> string_repr s
 			| VInstance {ikind = IArray va} -> "[...]"
-			| VInstance vi -> (rev_hash_s vi.iproto.ppath)
+			| VInstance vi -> (rev_hash_s vi.iproto.ppath) ^ " {...}"
 			| VPrototype proto -> Rope.to_string (s_proto_kind proto)
 			| VFunction _ | VFieldClosure _ -> "<fun>"
 		in
@@ -359,12 +359,14 @@ module DebugOutputJson = struct
 			| VInt32 i -> jv "Int" (Int32.to_string i) false
 			| VFloat f -> jv "Float" (string_of_float f) false
 			| VEnumValue ev -> jv (rev_hash_s ev.epath) (Rope.to_string (s_enum_value 0 ev)) false (* TODO: depends on whether ctor has args *)
-			| VObject o -> jv "Anonymous" ((fields_string (object_fields o))) true (* TODO: false for empty structures *)
+			| VObject o -> jv "Anonymous" (fields_string (object_fields o)) true (* TODO: false for empty structures *)
 			| VInstance {ikind = IString(_,s)} -> jv "String" (string_repr s) false
 			| VInstance {ikind = IArray va} -> jv "Array" (array_elems va) true (* TODO: false for empty arrays *)
-			| VInstance vi -> jv (rev_hash_s vi.iproto.ppath) (instance_fields vi) true
+			| VInstance vi ->
+				let class_name = rev_hash_s vi.iproto.ppath in
+				jv class_name (class_name ^ " " ^ (instance_fields vi)) true
 			| VPrototype proto -> jv "Anonymous" (Rope.to_string (s_proto_kind proto)) false (* TODO: show statics *)
-			| VFunction _ | VFieldClosure _ -> jv "Function" "fun" false
+			| VFunction _ | VFieldClosure _ -> jv "Function" "<fun>" false
 		in
 		value_string value
 
