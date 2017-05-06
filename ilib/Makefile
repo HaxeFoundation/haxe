@@ -9,13 +9,13 @@ native: ilib.cmxa
 bytecode: ilib.cma
 
 ilib.cmxa: $(SRCS)
-	$(OCAMLOPT) -g -I ../extlib -a -o ilib.cmxa $(SRCS)
+	ocamlfind $(OCAMLOPT) -g -package extlib -safe-string -a -o ilib.cmxa $(SRCS)
 
 ilib.cma: $(SRCS)
-	$(OCAMLC) -g -I ../extlib -a -o ilib.cma $(SRCS)
+	ocamlfind $(OCAMLC) -g -package extlib -safe-string -a -o ilib.cma $(SRCS)
 
 dump: ilib.cmxa dump.ml peDataDebug.ml ilMetaDebug.ml
-	$(OCAMLOPT) -g -I ../extlib -o dump ../extlib/extLib.cmxa ilib.cmxa peDataDebug.ml dump.ml
+	ocamlfind $(OCAMLOPT) -g -package extlib -safe-string -o dump ../extlib/extLib.cmxa ilib.cmxa peDataDebug.ml dump.ml
 
 clean:
 	rm -f ilib.cma ilib.cmxa ilib.lib ilib.a $(wildcard *.cmx) $(wildcard *.cmo) $(wildcard *.obj) $(wildcard *.o) $(wildcard *.cmi) dump

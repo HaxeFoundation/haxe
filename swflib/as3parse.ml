@@ -282,7 +282,7 @@ let read_int ch =
 	Int32.to_int (read_as3_int ch)
 
 let read_ident ch =
-	IO.nread ch (read_int ch)
+	IO.nread_string ch (read_int ch)
 
 let read_namespace idents ch =
 	let k = IO.read_byte ch in
@@ -605,7 +605,7 @@ let parse ch len =
 	if parse_statics then ctx.as3_statics <- Array.map (fun _ -> read_static ctx ch) ctx.as3_classes;
 	if parse_inits then ctx.as3_inits <- read_list2 ch (read_static ctx);
 	if parse_functions then ctx.as3_functions <- read_list2 ch (read_function ctx);
-	ctx.as3_unknown <- IO.really_nread ch (len - (get_pos()));
+	ctx.as3_unknown <- IO.really_nread_string ch (len - (get_pos()));
 	if parse_functions && String.length ctx.as3_unknown <> 0 then assert false;
 (*	let len2 = as3_length ctx in
 	if len2 <> len then begin Printf.printf "%d != %d" len len2; assert false; end;
@@ -655,7 +655,7 @@ let write_index_opt ch = function
 
 let write_as3_ident ch id =
 	write_int ch (String.length id);
-	IO.nwrite ch id
+	IO.nwrite_string ch id
 
 let write_namespace empty_index ch = function
 	| A3NPrivate n ->
@@ -890,9 +890,9 @@ let write ch1 ctx =
 	if parse_statics then Array.iter (write_static ch) ctx.as3_statics;
 	if parse_inits then write_list2 ch write_static ctx.as3_inits;
 	if parse_functions then write_list2 ch write_function ctx.as3_functions;
-	IO.nwrite ch ctx.as3_unknown;
+	IO.nwrite_string ch ctx.as3_unknown;
 	let str = IO.close_out ch in
-	List.iter (IO.nwrite ch1) str
+	List.iter (IO.nwrite_string ch1) str
 
 (* ************************************************************************ *)
 (* DUMP *)

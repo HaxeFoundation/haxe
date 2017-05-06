@@ -1,29 +1,25 @@
 (*
    PCRE-OCAML - Perl Compatibility Regular Expressions for OCaml
-
    Copyright (C) 1999-  Markus Mottl
    email: markus.mottl@gmail.com
    WWW:   http://www.ocaml.info
-
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public
    License as published by the Free Software Foundation; either
-   version 2 of the License, or (at your option) any later version.
-
+   version 2.1 of the License, or (at your option) any later version.
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
    Lesser General Public License for more details.
-
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 *)
 
 (* Public exceptions and their registration with the C runtime *)
 
-(* Copied from pcre_compat.ml *)
 let string_copy str = str
+let buffer_add_subbytes = Buffer.add_subbytes
 
 type error =
   | Partial
@@ -162,22 +158,22 @@ let rflag_list irflags =
 
 external pcre_version : unit -> string = "pcre_version_stub"
 
-external pcre_config_utf8 : unit -> bool = "pcre_config_utf8_stub" "noalloc"
+external pcre_config_utf8 : unit -> bool = "pcre_config_utf8_stub" [@@noalloc]
 
 external pcre_config_newline :
-  unit -> char = "pcre_config_newline_stub" "noalloc"
+  unit -> char = "pcre_config_newline_stub" [@@noalloc]
 
 external pcre_config_link_size :
-  unit -> int = "pcre_config_link_size_stub" "noalloc"
+  unit -> int = "pcre_config_link_size_stub" [@@noalloc]
 
 external pcre_config_match_limit :
-  unit -> int = "pcre_config_match_limit_stub" "noalloc"
+  unit -> int = "pcre_config_match_limit_stub" [@@noalloc]
 
 external pcre_config_match_limit_recursion :
-  unit -> int = "pcre_config_match_limit_recursion_stub" "noalloc"
+  unit -> int = "pcre_config_match_limit_recursion_stub" [@@noalloc]
 
 external pcre_config_stackrecurse :
-  unit -> bool = "pcre_config_stackrecurse_stub" "noalloc"
+  unit -> bool = "pcre_config_stackrecurse_stub" [@@noalloc]
 
 let version = pcre_version ()
 let config_utf8 = pcre_config_utf8 ()
@@ -213,7 +209,7 @@ external nameentrysize : regexp -> int = "pcre_nameentrysize_stub"
 external firstbyte : regexp -> firstbyte_info = "pcre_firstbyte_stub"
 external firsttable : regexp -> string option = "pcre_firsttable_stub"
 external lastliteral : regexp -> char option = "pcre_lastliteral_stub"
-external study_stat : regexp -> study_stat = "pcre_study_stat_stub" "noalloc"
+external study_stat : regexp -> study_stat = "pcre_study_stat_stub" [@@noalloc]
 
 
 (* Compilation of patterns *)
@@ -232,14 +228,14 @@ external get_match_limit : regexp -> int option = "pcre_get_match_limit_stub"
 
 (* Internal use only! *)
 external set_imp_match_limit :
-  regexp -> int -> regexp = "pcre_set_imp_match_limit_stub" "noalloc"
+  regexp -> int -> regexp = "pcre_set_imp_match_limit_stub" [@@noalloc]
 
 external get_match_limit_recursion :
   regexp -> int option = "pcre_get_match_limit_recursion_stub"
 
 (* Internal use only! *)
 external set_imp_match_limit_recursion :
-  regexp -> int -> regexp = "pcre_set_imp_match_limit_recursion_stub" "noalloc"
+  regexp -> int -> regexp = "pcre_set_imp_match_limit_recursion_stub" [@@noalloc]
 
 let regexp
       ?(study = true) ?limit ?limit_recursion
@@ -273,29 +269,29 @@ let regexp_or
   regexp ?study ?limit ?limit_recursion ~iflags ?flags ?chtables big_pat
 
 let bytes_unsafe_blit_string str str_ofs bts bts_ofs len =
-  let str_bts = str in
-  String.unsafe_blit str_bts str_ofs bts bts_ofs len
+  let str_bts = Bytes.unsafe_of_string str in
+  Bytes.unsafe_blit str_bts str_ofs bts bts_ofs len
 
 let string_unsafe_sub str ofs len =
-  let res = String.create len in
+  let res = Bytes.create len in
   bytes_unsafe_blit_string str ofs res 0 len;
-  res
+  Bytes.unsafe_to_string res
 
 let quote s =
   let len = String.length s in
-  let buf = String.create (len lsl 1) in
+  let buf = Bytes.create (len lsl 1) in
   let pos = ref 0 in
   for i = 0 to len - 1 do
     match String.unsafe_get s i with
     | '\\' | '^' | '$' | '.' | '[' | '|'
     | '('  | ')' | '?' | '*' | '+' | '{' as c ->
-      String.unsafe_set buf !pos '\\';
+      Bytes.unsafe_set buf !pos '\\';
       incr pos;
-      String.unsafe_set buf !pos c;
+      Bytes.unsafe_set buf !pos c;
       incr pos
-    | c -> String.unsafe_set buf !pos c; incr pos
+    | c -> Bytes.unsafe_set buf !pos c; incr pos
   done;
-  string_unsafe_sub (buf) 0 !pos
+  string_unsafe_sub (Bytes.unsafe_to_string buf) 0 !pos
 
 
 (* Matching of patterns and subpattern extraction *)
@@ -586,7 +582,7 @@ let replace ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
     then
       let postfix_len = max (subj_len - cur_pos) 0 in
       let left = pos + full_len in
-      let res = String.create (left + postfix_len) in
+      let res = Bytes.create (left + postfix_len) in
       bytes_unsafe_blit_string subj 0 res 0 pos;
       bytes_unsafe_blit_string subj cur_pos res left postfix_len;
       let inner_coll ofs (templ, ix, len) =
@@ -596,7 +592,7 @@ let replace ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
         let _ = List.fold_left inner_coll new_ofs trans_lst in
         new_ofs in
       let _ = List.fold_left coll left trans_lsts in
-      res
+      Bytes.unsafe_to_string res
     else
       let first = Array.unsafe_get ovector 0 in
       let len = first - cur_pos in
@@ -636,7 +632,7 @@ let qreplace ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
     then
       let postfix_len = max (subj_len - cur_pos) 0 in
       let left = pos + full_len in
-      let res = String.create (left + postfix_len) in
+      let res = Bytes.create (left + postfix_len) in
       bytes_unsafe_blit_string subj 0 res 0 pos;
       bytes_unsafe_blit_string subj cur_pos res left postfix_len;
       let coll ofs = function
@@ -649,7 +645,7 @@ let qreplace ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
             bytes_unsafe_blit_string templ 0 res new_ofs templ_len;
             new_ofs in
       let _ = List.fold_left coll left subst_lst in
-      res
+      Bytes.unsafe_to_string res
     else
       let first = Array.unsafe_get ovector 0 in
       let len = first - cur_pos in
@@ -684,7 +680,7 @@ let substitute_substrings ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
     then
       let postfix_len = max (subj_len - cur_pos) 0 in
       let left = pos + full_len in
-      let res = String.create (left + postfix_len) in
+      let res = Bytes.create (left + postfix_len) in
       bytes_unsafe_blit_string subj 0 res 0 pos;
       bytes_unsafe_blit_string subj cur_pos res left postfix_len;
       let coll ofs (templ, ix, len) =
@@ -692,7 +688,7 @@ let substitute_substrings ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
         bytes_unsafe_blit_string templ ix res new_ofs len;
         new_ofs in
       let _ = List.fold_left coll left subst_lst in
-      res
+      Bytes.unsafe_to_string res
     else
       let first = Array.unsafe_get ovector 0 in
       let len = first - cur_pos in
@@ -739,13 +735,13 @@ let replace_first ?(iflags = 0) ?flags ?(rex = def_rex) ?pat ?(pos = 0)
     let first = Array.unsafe_get ovector 0 in
     let last = Array.unsafe_get ovector 1 in
     let rest = String.length subj - last in
-    let res = String.create (first + res_len + rest) in
+    let res = Bytes.create (first + res_len + rest) in
     bytes_unsafe_blit_string subj 0 res 0 first;
     let coll ofs (templ, ix, len) =
       bytes_unsafe_blit_string templ ix res ofs len; ofs + len in
     let ofs = List.fold_left coll first trans_lst in
     bytes_unsafe_blit_string subj last res ofs rest;
-    res
+    Bytes.unsafe_to_string res
   with Not_found -> string_copy subj
 
 let qreplace_first ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
@@ -760,11 +756,11 @@ let qreplace_first ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
     let len = String.length templ in
     let rest = String.length subj - last in
     let postfix_start = first + len in
-    let res = String.create (postfix_start + rest) in
+    let res = Bytes.create (postfix_start + rest) in
     bytes_unsafe_blit_string subj 0 res 0 first;
     bytes_unsafe_blit_string templ 0 res first len;
     bytes_unsafe_blit_string subj last res postfix_start rest;
-    res
+    Bytes.unsafe_to_string res
   with Not_found -> string_copy subj
 
 let substitute_substrings_first ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
@@ -781,11 +777,11 @@ let substitute_substrings_first ?(iflags = 0) ?flags ?(rex = def_rex) ?pat
     let postfix_len = subj_len - last in
     let templ_len = String.length templ in
     let postfix_start = prefix_len + templ_len in
-    let res = String.create (postfix_start + postfix_len) in
+    let res = Bytes.create (postfix_start + postfix_len) in
     bytes_unsafe_blit_string subj 0 res 0 prefix_len;
     bytes_unsafe_blit_string templ 0 res prefix_len templ_len;
     bytes_unsafe_blit_string subj last res postfix_start postfix_len;
-    res
+    Bytes.unsafe_to_string res
   with Not_found -> string_copy subj
 
 let substitute_first ?iflags ?flags ?rex ?pat ?pos
@@ -880,7 +876,7 @@ let internal_psplit flags rex max pos callout subj =
 
 let rec strip_all_empty = function "" :: t -> strip_all_empty t | l -> l
 
-external isspace : char -> bool = "pcre_isspace_stub" "noalloc"
+external isspace : char -> bool = "pcre_isspace_stub" [@@noalloc]
 
 let rec find_no_space ix len str =
   if ix = len || not (isspace (String.unsafe_get str ix)) then ix

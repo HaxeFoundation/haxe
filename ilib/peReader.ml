@@ -263,7 +263,7 @@ let read_pe_header r header =
 	let nsections = header.coff_nsections in
 	seek r sections_offset;
 	let sections = Array.init nsections (fun n ->
-		let name = nread i 8 in
+		let name = nread_string i 8 in
 		let name = try
 			let index = String.index name '\x00' in
 			String.sub name 0 index
@@ -482,7 +482,7 @@ let read r =
 	seek r 0x3c;
 	let pe_sig_offset = read_i32 i in
 	seek r pe_sig_offset;
-	if really_nread i 4 <> "PE\x00\x00" then
+	if really_nread_string i 4 <> "PE\x00\x00" then
 		error "Invalid PE header signature: PE expected";
 	let header = read_coff_header i in
 	let pe_header = read_pe_header r header in

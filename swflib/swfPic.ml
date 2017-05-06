@@ -73,6 +73,7 @@ let load_picture file id =
 		let w = header.png_width in
 		let h = header.png_height in
 		let data = (try Png.filter png data with Png.Error msg -> error (PngError msg)) in
+		let data = Bytes.unsafe_of_string data in
 		{
 			pwidth = w;
 			pheight = h;
@@ -82,30 +83,30 @@ let load_picture file id =
 				| ClTrueColor (TBits8,NoAlpha) ->
 					(* set alpha to 0 *)
 					for p = 0 to w * h - 1 do
-						String.unsafe_set data (p * 4) '\000';
+						Bytes.unsafe_set data (p * 4) '\000';
 					done;
 					TBitsLossless {
 						bll_id = id;
 						bll_format = 5;
 						bll_width = w;
 						bll_height = h;
-						bll_data = Extc.zip data;
+						bll_data = Extc.zip (Bytes.unsafe_to_string data);
 					}
 				| ClTrueColor (TBits8,HaveAlpha) ->
 					(* premultiply rgb by alpha *)
 					for p = 0 to w * h - 1 do
 						let k = p * 4 in
-						let a = int_of_char (String.unsafe_get data k) in
-						String.unsafe_set data (k + 1) (Char.unsafe_chr ((int_of_char (String.unsafe_get data (k + 1)) * a) / 0xFF));
-						String.unsafe_set data (k + 2) (Char.unsafe_chr ((int_of_char (String.unsafe_get data (k + 2)) * a) / 0xFF));
-						String.unsafe_set data (k + 3) (Char.unsafe_chr ((int_of_char (String.unsafe_get data (k + 3)) * a) / 0xFF));
+						let a = int_of_char (Bytes.unsafe_get data k) in
+						Bytes.unsafe_set data (k + 1) (Char.unsafe_chr ((int_of_char (Bytes.unsafe_get data (k + 1)) * a) / 0xFF));
+						Bytes.unsafe_set data (k + 2) (Char.unsafe_chr ((int_of_char (Bytes.unsafe_get data (k + 2)) * a) / 0xFF));
+						Bytes.unsafe_set data (k + 3) (Char.unsafe_chr ((int_of_char (Bytes.unsafe_get data (k + 3)) * a) / 0xFF));
 					done;
 					TBitsLossless2 {
 						bll_id = id;
 						bll_format = 5;
 						bll_width = w;
 						bll_height = h;
-						bll_data = Extc.zip data;
+						bll_data = Extc.zip (Bytes.unsafe_to_string data);
 					}
 				| _ -> error UnsupportedColorModel);
 		}

@@ -270,7 +270,7 @@ let write_debug_infos ch files inf =
 	flush_repeat(!curpos)
 
 let write ch (globals,ops) =
-	IO.nwrite ch "NEKO";
+	IO.nwrite_string ch "NEKO";
 	let ids , pos , csize = code_tables ops in
 	IO.write_i32 ch (Array.length globals);
 	IO.write_i32 ch (Array.length ids);
@@ -279,7 +279,7 @@ let write ch (globals,ops) =
 		match x with
 		| GlobalVar s -> IO.write_byte ch 1; IO.write_string ch s
 		| GlobalFunction (p,nargs) -> IO.write_byte ch 2; IO.write_i32 ch (pos.(p) lor (nargs lsl 24))
-		| GlobalString s -> IO.write_byte ch 3; IO.write_ui16 ch (String.length s); IO.nwrite ch s
+		| GlobalString s -> IO.write_byte ch 3; IO.write_ui16 ch (String.length s); IO.nwrite_string ch s
 		| GlobalFloat s -> IO.write_byte ch 4; IO.write_string ch s
 		| GlobalDebug (files,inf) -> IO.write_byte ch 5; write_debug_infos ch files inf;
 		| GlobalVersion v -> IO.write_byte ch 6; IO.write_byte ch v

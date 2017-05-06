@@ -55,7 +55,7 @@ let rec to_xml_rec p2 ast =
 		)
 	| EBlock el ->
 		name := "b";
-		childs := List.map (to_xml_rec p) el; 
+		childs := List.map (to_xml_rec p) el;
 	| EParenthesis e ->
 		name := "p";
 		childs := [to_xml_rec p e];
@@ -68,7 +68,7 @@ let rec to_xml_rec p2 ast =
 		childs := to_xml_rec p e :: List.map (to_xml_rec p) el;
 	| EArray (a,b) ->
 		name := "a";
-		childs := [to_xml_rec p a; to_xml_rec p b]; 
+		childs := [to_xml_rec p a; to_xml_rec p b];
 	| EVars vl ->
 		name := "var";
 		childs := List.map (fun(v,e) ->
@@ -140,9 +140,9 @@ let rec write_fmt_rec tabs ch x =
 	| Node (name,att,childs) ->
 		IO.printf ch "%s<%s%s" tabs name (String.concat "" (List.map (fun(a,v) -> " " ^ a ^ "=\"" ^ escape v ^ "\"") att));
 		match childs with
-		| [] -> IO.nwrite ch "/>"
+		| [] -> IO.nwrite_string ch "/>"
 		| l ->
-			IO.nwrite ch ">\n";
+			IO.nwrite_string ch ">\n";
 			List.iter (fun(x) -> write_fmt_rec (tabs ^ " ") ch x; IO.write ch '\n') l;
 			IO.printf ch "%s</%s>" tabs name
 
@@ -156,9 +156,9 @@ let rec write_rec ch x =
 	| Node (name,att,childs) ->
 		IO.printf ch "<%s%s" name (String.concat "" (List.map (fun(a,v) -> " " ^ a ^ "=\"" ^ escape v ^ "\"") att));
 		match childs with
-		| [] -> IO.nwrite ch "/>"
+		| [] -> IO.nwrite_string ch "/>"
 		| l ->
-			IO.nwrite ch ">";
+			IO.nwrite_string ch ">";
 			List.iter (fun(x) -> write_rec ch x) l;
 			IO.printf ch "</%s>" name
 

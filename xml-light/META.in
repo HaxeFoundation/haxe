@@ -1,3 +1,0 @@
-version="@VERSION@"
-archive(byte)="xml-light.cma"
-archive(native)="xml-light.cmxa"

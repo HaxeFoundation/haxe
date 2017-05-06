@@ -11,13 +11,13 @@ bytecode: pcre.cma
 native: pcre.cmxa
 
 pcre.cma: pcre_stubs.o pcre.ml
-	$(OCAMLC) -a -o pcre.cma $(LIBS) pcre.ml
+	$(OCAMLC) -safe-string -a -o pcre.cma $(LIBS) pcre.ml
 
 pcre.cmxa: pcre.ml pcre_stubs.o
-	$(OCAMLOPT) -a -o pcre.cmxa $(LIBS) pcre.ml
+	$(OCAMLOPT) -safe-string -a -o pcre.cmxa $(LIBS) pcre.ml
 
 pcre_stubs.o: pcre_stubs.c
-	$(OCAMLC) $(ALL_CFLAGS) pcre_stubs.c
+	$(OCAMLC) -safe-string $(ALL_CFLAGS) pcre_stubs.c
 
 clean:
 	rm -f pcre.cma pcre.cmi pcre.cmx pcre.cmxa pcre.o pcre.obj pcre_stubs.obj pcre_stubs.o

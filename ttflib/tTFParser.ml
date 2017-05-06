@@ -55,7 +55,7 @@ let parse_directory ctx header =
 	let ch = ctx.ch in
 	let directory = Hashtbl.create 0 in
 	for i = 0 to header.hd_num_tables - 1 do
-		let name = nread ch 4 in
+		let name = nread_string ch 4 in
 		let cs = rd32r ch in
 		let off = rd32r ch in
 		let length = rd32r ch in
@@ -120,7 +120,7 @@ let parse_hhea_table ctx =
 	let caret_slope_rise = rd16 ch in
 	let caret_slope_run = rd16 ch in
 	let caret_offset = rd16 ch in
-	let reserved = nread ch 8 in
+	let reserved = nread_string ch 8 in
 	let metric_data_format = rd16 ch in
 	let number_of_hmetrics = rdu16 ch in
 	{
@@ -533,7 +533,7 @@ let parse_name_table ctx =
 	in
 	let records = Array.map (fun r ->
 		seek_in ctx.file ((Int32.to_int ctx.entry.entry_offset) + offset + r.nr_offset);
-		r.nr_value <- nread ch r.nr_length;
+		r.nr_value <- nread_string ch r.nr_length;
 		if r.nr_name_id = 4 && r.nr_platform_id = 3 || r.nr_platform_id = 0 then set_name r.nr_value;
 		r
 	) records in

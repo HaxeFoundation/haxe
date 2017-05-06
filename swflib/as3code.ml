@@ -437,7 +437,7 @@ let opcode ch =
 			A3Unk (char_of_int op)
 
 let parse ch len =
-	let data = nread ch len in
+	let data = nread_string ch len in
 	let ch = input_string data in
 	let a = MultiArray.create() in
 	let rec loop() =

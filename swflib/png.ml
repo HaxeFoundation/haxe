@@ -110,9 +110,9 @@ let rec header = function
 	| CHeader h :: _ -> h
 	| _ :: l -> header l
 
-let data f = 
+let data f =
 	let rec loop acc = function
-		| [] -> 
+		| [] ->
 			(match List.rev acc with
 			| [] -> error Invalid_file
 			| l -> String.concat "" l)
@@ -166,7 +166,7 @@ let input_crc ch =
 		~input:(fun s p l ->
 			let l = IO.input ch s p l in
 			for i = 0 to l - 1 do
-				update s.[p+i]
+				update (Bytes.get s (p+i))
 			done;
 			l
 		)
@@ -191,7 +191,7 @@ let output_crc ch =
 		~output:(fun s p l ->
 			let l = IO.output ch s p l in
 			for i = 0 to l - 1 do
-				update s.[p+i]
+				update (Bytes.get s (p+i))
 			done;
 			l
 		)
@@ -233,9 +233,9 @@ let parse_header ch =
 let parse_chunk ch =
 	let len = IO.BigEndian.read_i32 ch in
 	let ch2 , crc = input_crc ch in
-	let id = IO.nread ch2 4 in
+	let id = IO.nread_string ch2 4 in
 	if len < 0 || not (is_id_char id.[0]) || not (is_id_char id.[1]) || not (is_id_char id.[2]) || not (is_id_char id.[3]) then error Invalid_file;
-	let data = IO.nread ch2 len in
+	let data = IO.nread_string ch2 len in
 	let crc_val = IO.BigEndian.read_real_i32 ch in
 	if crc_val <> crc() then error Invalid_CRC;
 	match id with
@@ -248,7 +248,7 @@ let parse_chunk ch =
 let png_sign = "\137\080\078\071\013\010\026\010"
 
 let parse ch =
-	let sign = (try IO.nread ch (String.length png_sign) with IO.No_more_input -> error Invalid_header) in
+	let sign = (try IO.nread_string ch (String.length png_sign) with IO.No_more_input -> error Invalid_header) in
 	if sign <> png_sign then error Invalid_header;
 	let rec loop acc =
 		match parse_chunk ch with
@@ -264,8 +264,8 @@ let parse ch =
 let write_chunk ch cid cdata =
 	IO.BigEndian.write_i32 ch (String.length cdata);
 	let ch2 , crc = output_crc ch in
-	IO.nwrite ch2 cid;
-	IO.nwrite ch2 cdata;
+	IO.nwrite_string ch2 cid;
+	IO.nwrite_string ch2 cdata;
 	IO.BigEndian.write_real_i32 ch (crc())
 
 let write_header real_ch h =
@@ -286,7 +286,7 @@ let write_header real_ch h =
 	write_chunk real_ch "IHDR" data
 
 let write ch png =
-	IO.nwrite ch png_sign;
+	IO.nwrite_string ch png_sign;
 	List.iter (function
 		| CEnd -> write_chunk ch "IEND" ""
 		| CHeader h -> write_header ch h
@@ -306,14 +306,14 @@ let filter png data =
 	| ClTrueColor (TBits16,_) -> error Unsupported_colors
 	| ClTrueColor (TBits8,alpha) ->
 		let alpha = (match alpha with NoAlpha -> false | HaveAlpha -> true) in
-		let buf = String.create (w * h * 4) in
+		let buf = Bytes.create (w * h * 4) in
 		let nbytes = if alpha then 4 else 3 in
 		let stride = nbytes * w + 1 in
 		if String.length data < h * stride then error Invalid_datasize;
 		let bp = ref 0 in
 		let get p = int_of_char (String.unsafe_get data p) in
-		let bget p = int_of_char (String.unsafe_get buf p) in
-		let set v = String.unsafe_set buf !bp (Char.unsafe_chr v); incr bp in
+		let bget p = int_of_char (Bytes.unsafe_get buf p) in
+		let set v = Bytes.unsafe_set buf !bp (Char.unsafe_chr v); incr bp in
 		let filters = [|
 			(fun x y v -> v
 			);
@@ -364,12 +364,12 @@ let filter png data =
 				end;
 			done;
 		done;
-		buf
+		Bytes.to_string buf
 
 let make ~width ~height ~pixel ~compress =
-	let data = String.create (width * height * 4 + height) in
+	let data = Bytes.create (width * height * 4 + height) in
 	let p = ref 0 in
-	let set v = String.unsafe_set data !p (Char.unsafe_chr v); incr p in
+	let set v = Bytes.unsafe_set data !p (Char.unsafe_chr v); incr p in
 	for y = 0 to height - 1 do
 		set 0;
 		for x = 0 to width - 1 do
@@ -382,6 +382,7 @@ let make ~width ~height ~pixel ~compress =
 			set (Int32.to_int (Int32.shift_right_logical c 24));
 		done;
 	done;
+	let data = Bytes.to_string data in
 	let data = compress data in
 	let header = {
 		png_width = width;

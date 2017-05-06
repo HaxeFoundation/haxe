@@ -78,7 +78,7 @@ let parse_constant max idx ch =
     KNameAndType (n1, n2)
   | 1 ->
     let len = read_ui16 ch in
-    let str = IO.nread ch len in
+    let str = IO.nread_string ch len in
     (* TODO: correctly decode modified UTF8 *)
     KUtf8String str
   | 15 ->
@@ -424,7 +424,7 @@ let parse_attribute on_special consts ch =
     Some (AttrInvisibleAnnotations (List.init anncount (fun _ -> parse_annotation consts ch)))
   | _ ->
     let do_default () =
-      Some (AttrUnknown (aname,IO.nread ch alen))
+      Some (AttrUnknown (aname,IO.nread_string ch alen))
     in
     match on_special with
     | None -> do_default()

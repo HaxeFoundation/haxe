@@ -27,7 +27,7 @@ val unsafe_contents : t -> string
 val sub : t -> int -> int -> string
 val nth : t -> int -> char
 
-  
+
 val add_char : t -> char -> unit
 
 val add_substring : t -> string -> int -> int -> unit

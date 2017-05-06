@@ -4,7 +4,7 @@ OCAMLOPT=ocamlopt
 OCAMLC=ocamlc
 .SUFFIXES : .ml .mli .cmo .cmi .cmx .mll .mly
 
-ALL_CFLAGS= $(CFLAGS) -I ../extlib -I ../extc -g
+ALL_CFLAGS= $(CFLAGS) -safe-string -package extlib -I ../extlib-leftovers -I ../extc -g
 LIBS=
 
 SRC=actionScript.ml as3hl.mli as3.mli png.ml swflib.sln swf.ml swfPic.ml as3code.ml as3hlparse.ml as3parse.ml png.mli swfParser.ml
@@ -18,10 +18,10 @@ native: swflib.cmxa
 bytecode: swflib.cma
 
 swflib.cmxa: $(MODULES)
-	$(OCAMLOPT) -o swflib.cmxa -a $(LIBS) $(MODULES)
+	ocamlfind $(OCAMLOPT) -safe-string -o swflib.cmxa -a $(LIBS) $(MODULES)
 
 swflib.cma: $(MODULES:.cmx=.cmo)
-	$(OCAMLC) -o swflib.cma -a $(LFLAGS) $(LIBS) $(MODULES:.cmx=.cmo)
+	ocamlfind $(OCAMLC) -safe-string -o swflib.cma -a $(LFLAGS) $(LIBS) $(MODULES:.cmx=.cmo)
 
 actionScript.cmx: swf.cmx
 
@@ -61,19 +61,19 @@ clean:
 
 # SUFFIXES
 .ml.cmo:
-	$(OCAMLC) $(ALL_CFLAGS) -c $<
+	ocamlfind $(OCAMLC) $(ALL_CFLAGS) -c $<
 
 .ml.cmx:
-	$(OCAMLOPT) $(ALL_CFLAGS) -c $<
+	ocamlfind $(OCAMLOPT) $(ALL_CFLAGS) -c $<
 
 .mli.cmi:
-	$(OCAMLC) $(ALL_CFLAGS) $<
+	ocamlfind $(OCAMLC) $(ALL_CFLAGS) $<
 
 .mll.ml:
-	ocamllex $<
+	ocamlfind ocamllex $<
 
 .mly.ml:
-	ocamlyacc $<
+	ocamlfind ocamlyacc $<
 
 .PHONY: all bytecode native clean
 

@@ -387,7 +387,7 @@ let parse_action ch =
 			with
 				Not_found ->
 					printf "Unknown Action 0x%.2X (%d)\n" id len;
-					AUnknown (id,nread ch len)
+					AUnknown (id,nread_string ch len)
 	) in
 (*	let len2 = action_data_length act in
 	if len <> len2 then error (sprintf "Datalen mismatch for action 0x%.2X (%d != %d)" id len len2);
@@ -572,7 +572,7 @@ let write_action_data acts curindex ch = function
 	| ACallFrame ->
 		()
 	| AUnknown (_,data) ->
-		nwrite ch data
+		nwrite_string ch data
 	| _ ->
 		assert false
 

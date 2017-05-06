@@ -9,10 +9,10 @@ native: neko.cmxa
 bytecode: neko.cma
 
 neko.cmxa: $(SRC)
-	$(OCAMLOPT) -I ../extlib -a -o neko.cmxa $(SRC)
+	ocamlfind $(OCAMLOPT) -package extlib -safe-string -a -o neko.cmxa $(SRC)
 
 neko.cma: $(SRC)
-	$(OCAMLC) -I ../extlib -a -o neko.cma $(SRC)
+	ocamlfind $(OCAMLC) -package extlib -safe-string -a -o neko.cma $(SRC)
 
 clean:
 	rm -rf neko.cmxa neko.cma neko.lib neko.a $(wildcard *.cmx) $(wildcard *.obj) $(wildcard *.o) $(wildcard *.cmi) $(wildcard *.cmo)

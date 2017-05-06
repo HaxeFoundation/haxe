@@ -28,8 +28,8 @@ let rec write_glyph ttf key glyf =
 
 let write_font ch ttf glyphs =
 	let scale = 1024. /. (float_of_int ttf.ttf_head.hd_units_per_em) in
-	IO.nwrite ch "{\n\t";
-	IO.nwrite ch (String.concat ",\n\t" (List.map (fun (key,paths) ->
+	IO.nwrite_string ch "{\n\t";
+	IO.nwrite_string ch (String.concat ",\n\t" (List.map (fun (key,paths) ->
 		(Printf.sprintf "\"g%i\":[" key)
 		^ (String.concat "," (List.map (fun path ->
 			match path.gp_type with
@@ -40,7 +40,7 @@ let write_font ch ttf glyphs =
 		) paths))
 		^ "]";
 	) glyphs));
-	IO.nwrite ch "\n}"
+	IO.nwrite_string ch "\n}"
 
 let to_json ttf range_str =
 	let lut = TTFTools.build_lut ttf range_str in

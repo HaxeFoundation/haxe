@@ -45,7 +45,7 @@ let write_string ctx s =
 			ctx.scount <- ctx.scount + 1;
 			b ctx 0;
 			IO.write_ui16 ctx.ch (String.length s);
-			IO.nwrite ctx.ch s
+			IO.nwrite_string ctx.ch s
 
 let write_constant ctx = function
 	| True -> b ctx 0
@@ -254,7 +254,7 @@ and write_expr ctx (e,p) =
 	| ENeko s ->
 		b ctx 27;
 		write_ui24 ctx (String.length s);
-		IO.nwrite ctx.ch s
+		IO.nwrite_string ctx.ch s
 
 let write ch e =
 	let ctx = {
@@ -264,6 +264,6 @@ let write ch e =
 		scount = 0;
 		strings = Hashtbl.create 0;
 	} in
-	IO.nwrite ctx.ch "NBA\001";
+	IO.nwrite_string ctx.ch "NBA\001";
 	write_expr ctx e
 

@@ -34,14 +34,14 @@ let rec rope_nth i = function
 
 type t = {
   mutable rope : rope;     (* the left part is a rope *)
-  mutable buffer : string; (* the right part is a buffer... *)
+  mutable buffer : bytes; (* the right part is a buffer... *)
   mutable position : int;  (* ...with [position] bytes used *)
 }
 
 let create n =
   let n = if n < 1 then 1 else n in
   let n = if n > Sys.max_string_length then Sys.max_string_length else n in
-  let s = String.create n in
+  let s = Bytes.create n in
   { rope = rope_empty; buffer = s; position = 0; }
 
 let reset b =
@@ -68,10 +68,10 @@ let unsafe_contents b =
   let n = b.position in
   let len = r + n in
   if len > Sys.max_string_length then invalid_arg "Rbuffer.contents";
-  let s = String.create len in
+  let s = Bytes.create len in
   blit_rope s 0 b.rope;
-  String.blit b.buffer 0 s r n;
-  s
+  Bytes.blit b.buffer 0 s r n;
+  Bytes.unsafe_to_string s
 
 (* [blit_subrope s i ofs len] blits the subrope [r[ofs..ofs+len-1]] in string
    [s] at index [i] *)
@@ -96,49 +96,49 @@ let sub b ofs len =
   if len > Sys.max_string_length ||
      ofs < 0 || len < 0 || ofs > r + b.position - len
   then invalid_arg "Buffer.sub";
-  let s = String.create len in
+  let s = Bytes.create len in
   if ofs + len <= r then
     blit_subrope s 0 ofs len b.rope
   else if ofs >= r then
-    String.blit b.buffer (ofs - r) s 0 len
+    Bytes.blit b.buffer (ofs - r) s 0 len
   else begin
     blit_subrope s 0 ofs (r - ofs) b.rope;
-    String.blit b.buffer 0 s (r - ofs) (ofs + len - r)
+    Bytes.blit b.buffer 0 s (r - ofs) (ofs + len - r)
   end;
-  s
+  Bytes.unsafe_to_string s
 
 let nth b i =
   let r = rope_length b.rope in
   if i < 0 || i >= r + b.position then invalid_arg "Buffer.nth";
-  if i < r then rope_nth i b.rope else String.unsafe_get b.buffer (i - r)
+  if i < r then rope_nth i b.rope else Bytes.unsafe_get b.buffer (i - r)
 
 (* moves the data in [b.buffer], if any, to the rope; ensures [b.position=0] *)
 let move_buffer_to_rope b =
   let pos = b.position in
   if pos > 0 then begin
-    let n = String.length b.buffer in
+    let n = Bytes.length b.buffer in
     if pos = n then begin
       (* whole buffer goes to the rope; faster to allocate a new buffer *)
-      b.rope <- App (b.rope, Str b.buffer, rope_length b.rope + pos);
-      b.buffer <- String.create n
+      b.rope <- App (b.rope, Str (Bytes.unsafe_to_string b.buffer), rope_length b.rope + pos);
+      b.buffer <- Bytes.create n
     end else begin
       (* part of the buffer goes to the rope; easier to copy it *)
-      b.rope <- App (b.rope, Str (String.sub b.buffer 0 pos),
+      b.rope <- App (b.rope, Str (Bytes.sub_string b.buffer 0 pos),
 		     rope_length b.rope + pos)
     end;
     b.position <- 0
   end
 
 let add_char b c =
-  if b.position = String.length b.buffer then move_buffer_to_rope b;
+  if b.position = Bytes.length b.buffer then move_buffer_to_rope b;
   let pos = b.position in
-  b.buffer.[pos] <- c;
+  Bytes.set b.buffer pos c;
   b.position <- pos + 1
 
 (* allocates space for [len] bytes and returns the corresponding place
    (as a string and an offset within that string) *)
 let alloc b len =
-  let n = String.length b.buffer in
+  let n = Bytes.length b.buffer in
   let pos = b.position in
   let len' = pos + len in
   if len' <= n then begin
@@ -147,16 +147,16 @@ let alloc b len =
     b.buffer, pos
   end else if len' <= Sys.max_string_length then begin
     (* buffer and len fit in a new string, allocated in the rope *)
-    let str = String.create len' in
-    String.blit b.buffer 0 str 0 pos;
-    b.rope <- App (b.rope, Str str, rope_length b.rope + len');
+    let str = Bytes.create len' in
+    Bytes.blit b.buffer 0 str 0 pos;
+    b.rope <- App (b.rope, Str (Bytes.unsafe_to_string str), rope_length b.rope + len');
     b.position <- 0;
     str, pos
   end else begin
     (* buffer and len require two strings, allocated in the rope *)
-    let str = String.create len in
+    let str = Bytes.create len in
     b.rope <- App (b.rope,
-		   App (Str (String.sub b.buffer 0 pos), Str str, len'),
+		   App (Str (Bytes.sub_string b.buffer 0 pos), Str (Bytes.unsafe_to_string str), len'),
 		   rope_length b.rope + len');
     b.position <- 0;
     str, 0
@@ -178,7 +178,7 @@ let add_buffer b b2 =
   if b.position > 0 then move_buffer_to_rope b;
   (* now we have b.position = 0 *)
   b.rope <- App (b.rope, b2.rope, rope_length b.rope + rope_length b2.rope);
-  add_substring b b2.buffer 0 b2.position
+  add_substring b (Bytes.unsafe_to_string b2.buffer) 0 b2.position
 
 let rec add_channel b ic len =
   if len <= Sys.max_string_length then begin
@@ -193,7 +193,7 @@ let rec add_channel b ic len =
 let output_buffer oc b =
   let rec loop wl = match wl with
     | Str s :: wl ->
-      output oc s 0 (String.length s);
+      output oc (Bytes.of_string s) 0 (String.length s);
       loop wl
     | App( l, r, _) :: wl ->
       loop (l :: r :: wl)
@@ -216,4 +216,4 @@ let print fmt b =
       ()
   in
   loop [b.rope];
-  pp_print_string fmt (String.sub b.buffer 0 b.position)
+  pp_print_string fmt (Bytes.sub_string b.buffer 0 b.position)

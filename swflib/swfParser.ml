@@ -925,7 +925,7 @@ let parse_bitmap_lossless ch len =
 	let format = read_byte ch in
 	let width = read_ui16 ch in
 	let height = read_ui16 ch in
-	let data = nread ch (len - 7) in
+	let data = nread_string ch (len - 7) in
 	{
 		bll_id = id;
 		bll_format = format;
@@ -1028,7 +1028,7 @@ let parse_edit_text ch =
 
 let parse_cid_data ch len =
 	let id = read_ui16 ch in
-	let data = nread ch (len - 2) in
+	let data = nread_string ch (len - 2) in
 	{
 		cd_id = id;
 		cd_data = data;
@@ -1038,7 +1038,7 @@ let parse_morph_shape ch len =
 	let id = read_ui16 ch in
 	let sbounds = read_rect ch in
 	let ebounds = read_rect ch in
-	let data = nread ch (len - 2 - rect_length sbounds - rect_length ebounds) in
+	let data = nread_string ch (len - 2 - rect_length sbounds - rect_length ebounds) in
 	{
 		msh_id = id;
 		msh_start_bounds = sbounds;
@@ -1050,7 +1050,7 @@ let parse_filter_gradient ch =
 	let ncolors = read_byte ch in
 	let colors = read_count ncolors read_rgba ch in
 	let cvals = read_count ncolors read_byte ch in
-	let data = nread ch 19 in
+	let data = nread_string ch 19 in
 	{
 		fgr_colors = List.combine colors cvals;
 		fgr_data = data;
@@ -1058,12 +1058,12 @@ let parse_filter_gradient ch =
 
 let parse_filter ch =
 	match read_byte ch with
-	| 0 -> FDropShadow (nread ch 23)
-	| 1 -> FBlur (nread ch 9)
-	| 2 -> FGlow (nread ch 15)
-	| 3 -> FBevel (nread ch 27)
+	| 0 -> FDropShadow (nread_string ch 23)
+	| 1 -> FBlur (nread_string ch 9)
+	| 2 -> FGlow (nread_string ch 15)
+	| 3 -> FBevel (nread_string ch 27)
 	| 4 -> FGradientGlow (parse_filter_gradient ch)
-	| 6 -> FAdjustColor (nread ch 80)
+	| 6 -> FAdjustColor (nread_string ch 80)
 	| 7 -> FGradientBevel (parse_filter_gradient ch)
 	| _ -> assert false
 
@@ -1187,14 +1187,14 @@ let rec parse_tag ch h =
 			}
 		| 0x06 ->
 			let id = read_ui16 ch in
-			let data = nread ch (len - 2) in
+			let data = nread_string ch (len - 2) in
 			TBitsJPEG {
 				jpg_id = id;
 				jpg_data = data;
 			}
 		(*//0x07 TButton *)
 		| 0x08 ->
-			TJPEGTables (nread ch len)
+			TJPEGTables (nread_string ch len)
 		| 0x09 ->
 			TSetBgColor (read_rgb ch)
 		| 0x0A ->
@@ -1209,7 +1209,7 @@ let rec parse_tag ch h =
 			let sid = read_ui16 ch in
 			let flags = read_byte ch in
 			let samples = read_i32 ch in
-			let data = nread ch (len - 7) in
+			let data = nread_string ch (len - 7) in
 			TSound {
 				so_id = sid;
 				so_flags = flags;
@@ -1218,7 +1218,7 @@ let rec parse_tag ch h =
 			}
 		| 0x0F ->
 			let sid = read_ui16 ch in
-			let data = nread ch (len - 2) in
+			let data = nread_string ch (len - 2) in
 			TStartSound {
 				sts_id = sid;
 				sts_data = data;
@@ -1231,7 +1231,7 @@ let rec parse_tag ch h =
 			TBitsLossless (parse_bitmap_lossless ch len)
 		| 0x15 ->
 			let id = read_ui16 ch in
-			let data = nread ch (len - 2) in
+			let data = nread_string ch (len - 2) in
 			let data, table = extract_jpg_table data in
 			TBitsJPEG2 {
 				bd_id = id;
@@ -1262,9 +1262,9 @@ let rec parse_tag ch h =
 		| 0x23 ->
 			let id = read_ui16 ch in
 			let size = read_i32 ch in
-			let data = nread ch size in
+			let data = nread_string ch size in
 			let data, table = extract_jpg_table data in
-			let alpha = nread ch (len - 6 - size) in
+			let alpha = nread_string ch (len - 6 - size) in
 			TBitsJPEG3 {
 				bd_id = id;
 				bd_table = table;
@@ -1289,7 +1289,7 @@ let rec parse_tag ch h =
 		(* 0x28 invalid *)
 		| 0x29 ->
 			(* undocumented ? *)
-			TProductInfo (nread ch len)
+			TProductInfo (nread_string ch len)
 		(* 0x2A invalid *)
 		| 0x2B ->
 			let label = read_string ch in
@@ -1297,7 +1297,7 @@ let rec parse_tag ch h =
 			TFrameLabel (label,id)
 		(* 0x2C invalid *)
 		| 0x2D ->
-			TSoundStreamHead2 (nread ch len)
+			TSoundStreamHead2 (nread_string ch len)
 		| 0x2E when !full_parsing ->
 			TMorphShape (parse_morph_shape ch len)
 		(* 0x2F invalid *)
@@ -1333,7 +1333,7 @@ let rec parse_tag ch h =
 			TFontInfo2 (parse_cid_data ch len)
 		| 0x3F ->
 			(* undocumented ? *)
-			TDebugID (nread ch len)
+			TDebugID (nread_string ch len)
 		| 0x40 ->
 			let tag = read_ui16 ch in
 			(* 0 in general, 6517 for some swfs *)
@@ -1420,10 +1420,10 @@ let rec parse_tag ch h =
 			if read_i32 ch <> 0 then assert false;
 			let rec loop len =
 				if len > Sys.max_string_length then
-					let s = nread ch Sys.max_string_length in
+					let s = nread_string ch Sys.max_string_length in
 					s :: loop (len - Sys.max_string_length)
 				else
-					[nread ch len]
+					[nread_string ch len]
 			in
 			(match loop (len - 6) with
 			| [data] -> TBinaryData (cid,data)
@@ -1435,9 +1435,9 @@ let rec parse_tag ch h =
 			let id = read_ui16 ch in
 			let size = read_i32 ch in
 			let deblock = read_ui16 ch in
-			let data = nread ch size in
+			let data = nread_string ch size in
 			let data, table = extract_jpg_table data in
-			let alpha = nread ch (len - 6 - size) in
+			let alpha = nread_string ch (len - 6 - size) in
 			TBitsJPEG4 {
 				bd_id = id;
 				bd_table = table;
@@ -1449,7 +1449,7 @@ let rec parse_tag ch h =
 			TFont4 (parse_cid_data ch len)
 		| _ ->
 			(*if !Swf.warnings then Printf.printf "Unknown tag 0x%.2X\n" id;*)
-			TUnknown (id,nread ch len)
+			TUnknown (id,nread_string ch len)
 	) in
 (*	let len2 = tag_data_length t in
 	if len <> len2 then error (Printf.sprintf "Datalen mismatch for tag 0x%.2X (%d != %d)" id len len2);
@@ -1469,7 +1469,7 @@ and parse_tag_list ch =
 	loop []
 
 let parse ch =
-	let sign = nread ch 3 in
+	let sign = nread_string ch 3 in
 	if sign <> "FWS" && sign <> "CWS" then error "Invalid SWF signature";
 	let ver = read_byte ch in
 	swf_version := ver;
@@ -1703,13 +1703,13 @@ let write_bitmap_lossless ch b =
 	write_byte ch b.bll_format;
 	write_ui16 ch b.bll_width;
 	write_ui16 ch b.bll_height;
-	nwrite ch b.bll_data
+	nwrite_string ch b.bll_data
 
 let write_morph_shape ch s =
 	write_ui16 ch s.msh_id;
 	write_rect ch s.msh_start_bounds;
 	write_rect ch s.msh_end_bounds;
-	nwrite ch s.msh_data
+	nwrite_string ch s.msh_data
 
 let write_text_record ch t r =
 	write_byte ch (make_flags [flag r.txr_dx; flag r.txr_dy; flag r.txr_color; flag r.txr_font; false; false; false; true]);
@@ -1760,33 +1760,33 @@ let write_edit_text ch t =
 
 let write_cid_data ch c =
 	write_ui16 ch c.cd_id;
-	nwrite ch c.cd_data
+	nwrite_string ch c.cd_data
 
 let write_filter_gradient ch fg =
 	write_byte ch (List.length fg.fgr_colors);
 	List.iter (fun (c,_) -> write_rgba ch c) fg.fgr_colors;
 	List.iter (fun (_,n) -> write_byte ch n) fg.fgr_colors;
-	nwrite ch fg.fgr_data
+	nwrite_string ch fg.fgr_data
 
 let write_filter ch = function
 	| FDropShadow s ->
 		write_byte ch 0;
-		nwrite ch s
+		nwrite_string ch s
 	| FBlur s ->
 		write_byte ch 1;
-		nwrite ch s
+		nwrite_string ch s
 	| FGlow s ->
 		write_byte ch 2;
-		nwrite ch s
+		nwrite_string ch s
 	| FBevel s ->
 		write_byte ch 3;
-		nwrite ch s
+		nwrite_string ch s
 	| FGradientGlow fg ->
 		write_byte ch 4;
 		write_filter_gradient ch fg
 	| FAdjustColor s ->
 		write_byte ch 6;
-		nwrite ch s
+		nwrite_string ch s
 	| FGradientBevel fg ->
 		write_byte ch 7;
 		write_filter_gradient ch fg
@@ -1871,9 +1871,9 @@ let rec write_tag_data ch = function
 		write_ui16 ch r.rmo_depth;
 	| TBitsJPEG b ->
 		write_ui16 ch b.jpg_id;
-		nwrite ch b.jpg_data
+		nwrite_string ch b.jpg_data
 	| TJPEGTables tab ->
-		nwrite ch tab
+		nwrite_string ch tab
 	| TSetBgColor c ->
 		write_rgb ch c
 	| TFont c ->
@@ -1888,16 +1888,16 @@ let rec write_tag_data ch = function
 		write_ui16 ch s.so_id;
 		write_byte ch s.so_flags;
 		write_i32 ch s.so_samples;
-		nwrite ch s.so_data
+		nwrite_string ch s.so_data
 	| TStartSound s ->
 		write_ui16 ch s.sts_id;
-		nwrite ch s.sts_data
+		nwrite_string ch s.sts_data
 	| TBitsLossless b ->
 		write_bitmap_lossless ch b
 	| TBitsJPEG2 b ->
 		write_ui16 ch b.bd_id;
-		opt (nwrite ch) b.bd_table;
-		nwrite ch b.bd_data;
+		opt (nwrite_string ch) b.bd_table;
+		nwrite_string ch b.bd_data;
 	| TShape2 s ->
 		write_shape ch s
 	| TProtect ->
@@ -1915,9 +1915,9 @@ let rec write_tag_data ch = function
 	| TBitsJPEG3 b ->
 		write_ui16 ch b.bd_id;
 		write_i32 ch (String.length b.bd_data + opt_len String.length b.bd_table);
-		opt (nwrite ch) b.bd_table;
-		nwrite ch b.bd_data;
-		opt (nwrite ch) b.bd_alpha;
+		opt (nwrite_string ch) b.bd_table;
+		nwrite_string ch b.bd_data;
+		opt (nwrite_string ch) b.bd_alpha;
 	| TBitsLossless2 b ->
 		write_bitmap_lossless ch b
 	| TEditText t ->
@@ -1928,12 +1928,12 @@ let rec write_tag_data ch = function
 		List.iter (write_tag ch) c.c_tags;
 		write_tag ch tag_end;
 	| TProductInfo s ->
-		nwrite ch s
+		nwrite_string ch s
 	| TFrameLabel (label,id) ->
 		write_string ch label;
 		opt (write ch) id;
 	| TSoundStreamHead2 data ->
-		nwrite ch data
+		nwrite_string ch data
 	| TMorphShape s ->
 		write_morph_shape ch s
 	| TFont2 c ->
@@ -1961,7 +1961,7 @@ let rec write_tag_data ch = function
 	| TFontInfo2 c ->
 		write_cid_data ch c
 	| TDebugID s ->
-		nwrite ch s
+		nwrite_string ch s
 	| TEnableDebugger2 (tag,pass) ->
 		write_ui16 ch tag;
 		write_string ch pass
@@ -2025,24 +2025,24 @@ let rec write_tag_data ch = function
 	| TBinaryData (id,data) ->
 		write_ui16 ch id;
 		write_i32 ch 0;
-		nwrite ch data
+		nwrite_string ch data
 	| TBigBinaryData (id,data) ->
 		write_ui16 ch id;
 		write_i32 ch 0;
-		List.iter (nwrite ch) data
+		List.iter (nwrite_string ch) data
 	| TFontName c ->
 		write_cid_data ch c
 	| TBitsJPEG4 b ->
 		write_ui16 ch b.bd_id;
 		write_i32 ch (String.length b.bd_data + opt_len String.length b.bd_table);
 		opt (write_ui16 ch) b.bd_deblock;
-		opt (nwrite ch) b.bd_table;
-		nwrite ch b.bd_data;
-		opt (nwrite ch) b.bd_alpha;
+		opt (nwrite_string ch) b.bd_table;
+		nwrite_string ch b.bd_data;
+		opt (nwrite_string ch) b.bd_alpha;
 	| TFont4 c ->
 		write_cid_data ch c
 	| TUnknown (_,data) ->
-		nwrite ch data
+		nwrite_string ch data
 
 and write_tag ch t =
 	let id = tag_id t.tdata in
@@ -2057,7 +2057,7 @@ and write_tag ch t =
 
 let write ch (h,tags) =
 	swf_version := h.h_version;
-	nwrite ch (if h.h_compressed then "CWS" else "FWS");
+	nwrite_string ch (if h.h_compressed then "CWS" else "FWS");
 	write ch (char_of_int h.h_version);
 	let rec calc_len = function
 		| [] -> tag_length tag_end

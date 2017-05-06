@@ -2320,7 +2320,7 @@ let read_padded i npad =
 let read_meta_tables pctx header module_cache =
 	let i = pctx.r.i in
 	seek_rva pctx (fst header.clr_meta);
-	let magic = nread i 4 in
+	let magic = nread_string i 4 in
 	if magic <> "BSJB" then error ("Error reading metadata table: Expected magic 'BSJB'. Got " ^ magic);
 	let major = read_ui16 i in
 	let minor = read_ui16 i in
@@ -2362,21 +2362,21 @@ let read_meta_tables pctx header module_cache =
 		seek_rva pctx rva;
 		match String.lowercase s.str_name with
 		| "#guid" ->
-			sguid := nread i (Int32.to_int s.str_size)
+			sguid := nread_string i (Int32.to_int s.str_size)
 		| "#strings" ->
-			sstrings := nread i (Int32.to_int s.str_size)
+			sstrings := nread_string i (Int32.to_int s.str_size)
 		| "#us" ->
-			sus := nread i (Int32.to_int s.str_size)
+			sus := nread_string i (Int32.to_int s.str_size)
 		| "#blob" ->
-			sblob := nread i (Int32.to_int s.str_size)
+			sblob := nread_string i (Int32.to_int s.str_size)
 		| "#~" ->
 			assert (Option.is_none !compressed);
 			compressed := Some true;
-			smeta := nread i (Int32.to_int s.str_size)
+			smeta := nread_string i (Int32.to_int s.str_size)
 		| "#-" ->
 			assert (Option.is_none !compressed);
 			compressed := Some false;
-			smeta := nread i (Int32.to_int s.str_size)
+			smeta := nread_string i (Int32.to_int s.str_size)
 		| _ ->
 			extra := s :: !extra
 	) streams;
