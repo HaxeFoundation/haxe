@@ -506,9 +506,6 @@ let rec run_loop ctx run env : value =
 		| DbgRunning ->
 			check_breakpoint();
 			run env
-		| _ when (Thread.id (Thread.self())) != ctx.debug.break_thread_id ->
-			Thread.delay 0.2;
-			run_loop ctx run env
 		| DbgContinue ->
 			check_breakpoint();
 			run env
@@ -665,19 +662,6 @@ and wait ctx run env =
 				output_error ctx ("Unrecognized breakpoint pattern");
 			end;
 			loop()
-		| ["thread";thread] ->
-			begin try
-				let id = int_of_string thread in
-				if id < 0 || id >= DynArray.length ctx.evals then
-					output_error ctx (Printf.sprintf "Invalid thread ID (valid range is %i - %i)" 0 (DynArray.length ctx.evals - 1))
-				else begin
-					ctx.debug.break_thread_id <- id;
-					output_info ctx (Printf.sprintf "Active thread set to %i" id);
-				end
-			with _ ->
-				output_error ctx ("Invalid thead ID, expected integer");
-			end;
-			run_loop ctx run env
 		(* thread | unsafe | safe *)
 		| ["continue" | "c"] ->
 			let env = get_real_env ctx in
@@ -776,8 +760,7 @@ let debug_loop jit e f =
 				| BPEnabled when column_matches breakpoint ->
 					breakpoint.bpstate <- BPHit;
 					ctx.debug.breakpoint <- breakpoint;
-					ctx.debug.break_thread_id <- Thread.id (Thread.self());
-					output_info ctx (Printf.sprintf "Thread %i stopped in %s at %s:%i." ctx.debug.break_thread_id (kind_name (get_eval ctx) env.env_info.kind) (rev_hash_s env.env_info.pfile) env.env_debug.line);
+					output_info ctx (Printf.sprintf "Thread %i stopped in %s at %s:%i." 0 (kind_name (get_eval ctx) env.env_info.kind) (rev_hash_s env.env_info.pfile) env.env_debug.line);
 					ctx.debug.debug_state <- DbgWaiting;
 					run_loop ctx run_check_breakpoint env
 				| _ ->
@@ -787,7 +770,6 @@ let debug_loop jit e f =
 			f env
 		with RunTimeException(v,_,_) when not (is_caught ctx v) ->
 			output_info ctx (uncaught_exception_string v e.epos "");
-			ctx.debug.break_thread_id <- Thread.id (Thread.self());
 			ctx.debug.debug_state <- DbgWaiting;
 			run_loop ctx run_check_breakpoint env
 	in

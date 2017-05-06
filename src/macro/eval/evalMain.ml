@@ -86,7 +86,6 @@ let create com api is_macro =
 				caught_types = Hashtbl.create 0;
 				environment_offset_delta = 0;
 				debug_socket = socket;
-				break_thread_id = Thread.id (Thread.self());
 			} in
 			debug := Some debug';
 			debug'
@@ -121,7 +120,6 @@ let create com api is_macro =
 		pop_environment = if record_stack then pop_environment_debug else pop_environment;
 		(* eval *)
 		eval = eval;
-		evals = evals;
 		exception_stack = [];
 	} in
 	t();
