@@ -342,12 +342,6 @@ module DebugOutputJson = struct
 			let l = List.map (fun (name, value) -> Printf.sprintf "%s: %s" (rev_hash_s name) (level2_value_repr value)) fields in
 			Printf.sprintf "{%s}" (String.concat ", " l)
 		in
-		let instance_fields vi =
-			let fields = IntMap.fold (fun name key acc ->
-				(name,vi.ifields.(key)) :: acc
-			) vi.iproto.pinstance_names [] in
-			fields_string fields
-		in
 		let array_elems va =
 			let l = Array.fold_left (fun acc v -> (level2_value_repr v) :: acc) [] va.avalues in
 			Printf.sprintf "[%s]" (String.concat ", " (List.rev l))
@@ -364,7 +358,7 @@ module DebugOutputJson = struct
 			| VInstance {ikind = IArray va} -> jv "Array" (array_elems va) true (* TODO: false for empty arrays *)
 			| VInstance vi ->
 				let class_name = rev_hash_s vi.iproto.ppath in
-				jv class_name (class_name ^ " " ^ (instance_fields vi)) true
+				jv class_name (class_name ^ " " ^ (fields_string (instance_fields vi))) true
 			| VPrototype proto -> jv "Anonymous" (Rope.to_string (s_proto_kind proto)) false (* TODO: show statics *)
 			| VFunction _ | VFieldClosure _ -> jv "Function" "<fun>" false
 		in

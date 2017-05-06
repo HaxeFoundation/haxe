@@ -208,6 +208,12 @@ let object_fields o =
 		else (key,(o.ofields.(index))) :: acc
 	) o.oproto.pinstance_names fields
 
+let instance_fields i =
+	IntMap.fold (fun name key acc ->
+		(name,i.ifields.(key)) :: acc
+	) i.iproto.pinstance_names []
+
+
 (* Exceptions *)
 
 exception RunTimeException of value * env list * pos
