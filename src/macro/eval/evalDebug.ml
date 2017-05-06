@@ -321,32 +321,31 @@ module DebugOutputJson = struct
 
 	let var_to_json name value =
 		let jv t v structured =
-			JObject ["name",JString name;"type",JString t;"value",v; "structured",JBool structured]
+			JObject ["name",JString name;"type",JString t;"value",JString v; "structured",JBool structured]
 		in
 		let rec fields_string depth fields =
-			let l = List.map (fun (name,value) ->
-				let jv = value_string depth value in
-				JObject ["name",JString (rev_hash_s name);"value",jv]
-			) fields in
-			JArray l
+			let j = JObject (List.map (fun (name,value) -> (rev_hash_s name), (value_string depth value)) fields) in
+			let b = Buffer.create 10 in
+			write_json (Buffer.add_string b) j;
+			Buffer.contents b
 		and instance_fields depth vi =
 			let fields = IntMap.fold (fun name key acc ->
 				(name,vi.ifields.(key)) :: acc
 			) vi.iproto.pinstance_names [] in
 			fields_string (depth + 1) fields
 		and value_string depth v = match v with
-			| VNull -> jv "NULL" (JString "null") false
-			| VTrue -> jv "Bool" (JString "true") false
-			| VFalse -> jv "Bool" (JString "false") false
-			| VInt32 i -> jv "Int" (JString (Int32.to_string i)) false
-			| VFloat f -> jv "Float" (JString (string_of_float f)) false
-			| VEnumValue ev -> jv (rev_hash_s ev.epath) (JString (Rope.to_string (s_enum_value 0 ev))) false (* TODO: depends on whether ctor has args *)
-			| VObject o -> jv "Anonymous" (fields_string (depth + 1) (object_fields o)) true (* TODO: false for empty structures *)
-			| VInstance {ikind = IString(_,s)} -> jv "String" (JString ("\"" ^ (Ast.s_escape (Lazy.force s)) ^ "\"")) false
-			| VInstance {ikind = IArray va} -> jv "Array" (JString (Rope.to_string (s_array (depth + 1) va))) true (* TODO: false for empty arrays *)
+			| VNull -> jv "NULL" "null" false
+			| VTrue -> jv "Bool" "true" false
+			| VFalse -> jv "Bool" "false" false
+			| VInt32 i -> jv "Int" (Int32.to_string i) false
+			| VFloat f -> jv "Float" (string_of_float f) false
+			| VEnumValue ev -> jv (rev_hash_s ev.epath) (Rope.to_string (s_enum_value 0 ev)) false (* TODO: depends on whether ctor has args *)
+			| VObject o -> jv "Anonymous" ((fields_string (depth + 1) (object_fields o))) true (* TODO: false for empty structures *)
+			| VInstance {ikind = IString(_,s)} -> jv "String" ("\"" ^ (Ast.s_escape (Lazy.force s)) ^ "\"") false
+			| VInstance {ikind = IArray va} -> jv "Array" (Rope.to_string (s_array (depth + 1) va)) true (* TODO: false for empty arrays *)
 			| VInstance vi -> jv (rev_hash_s vi.iproto.ppath) (instance_fields (depth + 1) vi) true
-			| VPrototype proto -> jv "Anonymous" (JString (Rope.to_string (s_proto_kind proto))) false (* TODO: show statics *)
-			| VFunction _ | VFieldClosure _ -> jv "Function" (JString "fun") false
+			| VPrototype proto -> jv "Anonymous" (Rope.to_string (s_proto_kind proto)) false (* TODO: show statics *)
+			| VFunction _ | VFieldClosure _ -> jv "Function" "fun" false
 		in
 		value_string 0 value
 
@@ -460,6 +459,20 @@ module DebugOutputJson = struct
 			(var_to_json name value) :: acc
 		) scope.local_infos [] in
 		print_json ctx (JObject ["result",JArray vars])
+
+	let output_inner_vars ctx v =
+		let children = match v with
+			| VNull | VTrue | VFalse | VInt32 _ | VFloat _ | VFunction _ | VFieldClosure _ -> []
+			| VEnumValue ev -> [] (* TODO *)
+			| VObject o ->  [] (* TODO *)
+			| VInstance {ikind = IString(_,s)} -> []
+			| VInstance {ikind = IArray va} -> [] (* TODO *)
+			| VInstance vi -> [] (* TODO *)
+			| VPrototype proto -> [] (* TODO *)
+		in
+		let vars = List.map (fun (n,v) -> var_to_json n v) children in
+		print_json ctx (JObject ["result",JArray vars])
+
 end
 
 module DebugInput = struct
@@ -740,23 +753,38 @@ and wait ctx run env =
 		| ["scopes"] ->
 			output_scopes ctx env.env_info.capture_infos env.env_debug.scopes;
 			loop()
-		| ["variables" | "vars";sid] ->
-			(try
-				let sid = try int_of_string sid with _ -> raise Exit in
-				if sid = 0 then begin
-					output_capture_vars ctx env;
-					loop();
-				end else begin
-					let scope = try List.nth env.env_debug.scopes (sid - 1) with _ -> raise Exit in
-					output_scope_vars ctx env scope;
-					loop()
-				end
-			with Exit -> begin
-				output_error ctx ("Invalid scope id");
-				loop ()
-			end)
 		| ["variables" | "vars"] ->
 			print_variables ctx env.env_info.capture_infos env.env_debug.scopes env;
+			loop()
+		| ["vars_scope";sid] ->
+			begin
+				try
+					let sid = try int_of_string sid with _ -> raise Exit in
+					if sid = 0 then begin
+						output_capture_vars ctx env;
+						loop();
+					end else begin
+						let scope = try List.nth env.env_debug.scopes (sid - 1) with _ -> raise Exit in
+						output_scope_vars ctx env scope;
+						loop()
+					end
+				with Exit -> begin
+					output_error ctx ("Invalid scope id");
+					loop ()
+				end
+			end
+		| ["vars_inner";e] ->
+			begin match parse_expr ctx e env.env_debug.expr.epos with
+				| Some e ->
+					begin try
+						let _,v = expr_to_value ctx env e in
+						output_inner_vars ctx v
+					with Exit ->
+						output_error ctx ("Don't know how to handle this expression: " ^ (Ast.s_expr e))
+					end
+				| None ->
+					()
+			end;
 			loop()
 		| ["print" | "p";e] ->
 			begin match parse_expr ctx e env.env_debug.expr.epos with
