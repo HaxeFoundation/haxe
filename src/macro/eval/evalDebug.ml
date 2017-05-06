@@ -339,14 +339,18 @@ module DebugOutputJson = struct
 			| VFunction _ | VFieldClosure _ -> "<fun>"
 		in
 		let fields_string fields =
-			let s = List.map (fun (name, value) -> Printf.sprintf "%s: %s" (rev_hash_s name) (level2_value_repr value)) fields in
-			Printf.sprintf "{%s}" (String.concat ", " s)
+			let l = List.map (fun (name, value) -> Printf.sprintf "%s: %s" (rev_hash_s name) (level2_value_repr value)) fields in
+			Printf.sprintf "{%s}" (String.concat ", " l)
 		in
 		let instance_fields vi =
 			let fields = IntMap.fold (fun name key acc ->
 				(name,vi.ifields.(key)) :: acc
 			) vi.iproto.pinstance_names [] in
 			fields_string fields
+		in
+		let array_elems va =
+			let l = Array.fold_left (fun acc v -> (level2_value_repr v) :: acc) [] va.avalues in
+			Printf.sprintf "[%s]" (String.concat ", " (List.rev l))
 		in
 		let value_string v = match v with
 			| VNull -> jv "NULL" "null" false
@@ -357,7 +361,7 @@ module DebugOutputJson = struct
 			| VEnumValue ev -> jv (rev_hash_s ev.epath) (Rope.to_string (s_enum_value 0 ev)) false (* TODO: depends on whether ctor has args *)
 			| VObject o -> jv "Anonymous" ((fields_string (object_fields o))) true (* TODO: false for empty structures *)
 			| VInstance {ikind = IString(_,s)} -> jv "String" (string_repr s) false
-			| VInstance {ikind = IArray va} -> jv "Array" (Rope.to_string (s_array 0 va)) true (* TODO: false for empty arrays *)
+			| VInstance {ikind = IArray va} -> jv "Array" (array_elems va) true (* TODO: false for empty arrays *)
 			| VInstance vi -> jv (rev_hash_s vi.iproto.ppath) (instance_fields vi) true
 			| VPrototype proto -> jv "Anonymous" (Rope.to_string (s_proto_kind proto)) false (* TODO: show statics *)
 			| VFunction _ | VFieldClosure _ -> jv "Function" "fun" false
