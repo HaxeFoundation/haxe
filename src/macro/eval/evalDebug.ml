@@ -343,7 +343,8 @@ module DebugOutputJson = struct
 			Printf.sprintf "{%s}" (String.concat ", " l)
 		in
 		let array_elems va =
-			let l = Array.fold_left (fun acc v -> (level2_value_repr v) :: acc) [] va.avalues in
+			let l = EvalArray.to_list va in
+			let l = List.map level2_value_repr l in
 			Printf.sprintf "[%s]" (String.concat ", " (List.rev l))
 		in
 		let value_string v = match v with
@@ -483,8 +484,12 @@ module DebugOutputJson = struct
 				let fields = object_fields o in
 				List.map (fun (n,v) -> rev_hash_s n, v) fields
 			| VInstance {ikind = IString(_,s)} -> []
-			| VInstance {ikind = IArray va} -> [] (* TODO *)
-			| VInstance vi -> [] (* TODO *)
+			| VInstance {ikind = IArray va} ->
+				let l = EvalArray.to_list va in
+				List.mapi (fun i v -> (Printf.sprintf "[%d]" i), v) l
+			| VInstance vi ->
+				let fields = instance_fields vi in
+				List.map (fun (n,v) -> rev_hash_s n, v) fields
 			| VPrototype proto -> [] (* TODO *)
 		in
 		let vars = List.map (fun (n,v) -> var_to_json n v) children in
