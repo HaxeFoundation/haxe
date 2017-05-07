@@ -336,7 +336,7 @@ module DebugOutputJson = struct
 
 	let var_to_json name value access =
 		let jv t v structured =
-			JObject ["name",JString name;"type",JString t;"value",JString v;"structured",JBool structured;"access",access]
+			JObject ["name",JString name;"type",JString t;"value",JString v;"structured",JBool structured;"access",JString access]
 		in
 		let string_repr s = "\"" ^ (Ast.s_escape (Lazy.force s)) ^ "\"" in
 		let level2_value_repr = function
@@ -473,6 +473,9 @@ module DebugOutputJson = struct
 	let output_info ctx msg =
 		print_json ctx (JObject ["result",JString msg])
 
+	let output_set_var_result ctx name value access =
+		print_json ctx (JObject ["result",(var_to_json name value access)])
+
 	let output_error ctx msg =
 		print_json ctx (JObject ["error",JString msg])
 
@@ -512,18 +515,35 @@ module DebugOutputJson = struct
 			| VEnumValue ve ->
 				begin match ve.eargs with
 					| [||] -> []
-					| vl -> Array.to_list (Array.mapi (fun i v -> (Printf.sprintf "[%d]" i), v) vl)
+					| vl ->
+						Array.to_list (Array.mapi (fun i v ->
+							let n = Printf.sprintf "[%d]" i in
+							let a = access ^ n in
+							n, v, a
+						) vl)
 				end
 			| VObject o ->
 				let fields = object_fields o in
-				List.map (fun (n,v) -> rev_hash_s n, v) fields
+				List.map (fun (n,v) ->
+					let n = rev_hash_s n in
+					let a = access ^ "." ^ n in
+					n, v, a
+				) fields
 			| VInstance {ikind = IString(_,s)} -> []
 			| VInstance {ikind = IArray va} ->
 				let l = EvalArray.to_list va in
-				List.mapi (fun i v -> (Printf.sprintf "[%d]" i), v) l
+				List.mapi (fun i v ->
+					let n = Printf.sprintf "[%d]" i in
+					let a = access ^ n in
+					n, v, a
+				) l
 			| VInstance vi ->
 				let fields = instance_fields vi in
-				List.map (fun (n,v) -> rev_hash_s n, v) fields
+				List.map (fun (n,v) ->
+					let n = rev_hash_s n in
+					let a = access ^ "." ^ n in
+					n, v, a
+				) fields
 			| VPrototype proto -> [] (* TODO *)
 		in
 		let vars = List.map (fun (n,v,a) -> var_to_json n v a) children in
@@ -855,18 +875,21 @@ and wait ctx run env =
 					()
 			end;
 			loop()
-		| ["set" | "s";expr;"=";value] ->
+		| ["set" | "s";expr_s;"=";value] ->
 			let parse s = parse_expr ctx s env.env_debug.expr.epos in
-			begin match parse expr,parse value with
+			begin match parse expr_s,parse value with
 				| Some expr,Some value ->
 					begin try
 						let _,value = expr_to_value ctx env value in
 						begin match fst expr with
+							(* TODO: support setting array elements and enum values *)
 							| EField(e1,s) ->
 								let _,v1 = expr_to_value ctx env e1 in
-								set_field v1 (hash_s s) value
+								set_field v1 (hash_s s) value;
+								output_set_var_result ctx s value expr_s
 							| EConst (Ident s) ->
-								set_variable ctx env.env_debug.scopes s value env
+								set_variable ctx env.env_debug.scopes s value env;
+								output_set_var_result ctx s value expr_s
 							| _ ->
 								raise Exit
 						end
