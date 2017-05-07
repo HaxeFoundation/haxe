@@ -204,14 +204,18 @@ let expr_to_value ctx env e =
 			end
 		| EArray(e1,eidx) ->
 			let n1,v1 = loop e1 in
+			let nidx,vidx = loop eidx in
+			let n = Printf.sprintf "%s[%s]" n1 nidx in
+			let idx = match vidx with VInt32 i -> Int32.to_int i | _ -> raise Exit in
 			begin match v1 with
 				| VInstance {ikind = IArray va} ->
-					let nidx,vidx = loop eidx in
-					let idx = match vidx with VInt32 i -> Int32.to_int i | _ -> raise Exit in
-					let n = Printf.sprintf "%s[%s]" n1 nidx in
 					let v = EvalArray.get va idx in
 					(n,v)
-				| _ -> raise Exit
+				| VEnumValue ev ->
+					let v = Array.get ev.eargs idx in
+					(n,v)
+				| _ ->
+					raise Exit
 			end
 		| EField(e1,s) ->
 			let n1,v1 = loop e1 in
@@ -505,7 +509,11 @@ module DebugOutputJson = struct
 	let output_inner_vars ctx v =
 		let children = match v with
 			| VNull | VTrue | VFalse | VInt32 _ | VFloat _ | VFunction _ | VFieldClosure _ -> []
-			| VEnumValue ev -> [] (* TODO *)
+			| VEnumValue ve ->
+				begin match ve.eargs with
+					| [||] -> []
+					| vl -> Array.to_list (Array.mapi (fun i v -> (Printf.sprintf "[%d]" i), v) vl)
+				end
 			| VObject o ->
 				let fields = object_fields o in
 				List.map (fun (n,v) -> rev_hash_s n, v) fields
