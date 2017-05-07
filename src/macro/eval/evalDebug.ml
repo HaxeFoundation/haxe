@@ -205,8 +205,8 @@ let expr_to_value ctx env e =
 		| EArray(e1,eidx) ->
 			let n1,v1 = loop e1 in
 			let nidx,vidx = loop eidx in
-			let n = Printf.sprintf "%s[%s]" n1 nidx in
 			let idx = match vidx with VInt32 i -> Int32.to_int i | _ -> raise Exit in
+			let n = Printf.sprintf "%s[%d]" n1 idx in
 			begin match v1 with
 				| VInstance {ikind = IArray va} ->
 					let v = EvalArray.get va idx in
@@ -334,9 +334,9 @@ module DebugOutputJson = struct
 		write_json (Buffer.add_string b) json;
 		DebugOutput.send_string ctx (Buffer.contents b)
 
-	let var_to_json name value =
+	let var_to_json name value access =
 		let jv t v structured =
-			JObject ["name",JString name;"type",JString t;"value",JString v; "structured",JBool structured]
+			JObject ["name",JString name;"type",JString t;"value",JString v;"structured",JBool structured;"access",access]
 		in
 		let string_repr s = "\"" ^ (Ast.s_escape (Lazy.force s)) ^ "\"" in
 		let level2_value_repr = function
@@ -494,7 +494,7 @@ module DebugOutputJson = struct
 		let infos = env.env_info.capture_infos in
 		let vars = Hashtbl.fold (fun slot name acc ->
 			let value = !(env.env_captures.(slot)) in
-			(var_to_json name value) :: acc
+			(var_to_json name value name) :: acc
 		) infos [] in
 		print_json ctx (JObject ["result",JArray vars])
 
@@ -502,11 +502,11 @@ module DebugOutputJson = struct
 		let vars = Hashtbl.fold (fun local_slot name acc ->
 			let slot = local_slot + scope.local_offset in
 			let value = env.env_locals.(slot) in
-			(var_to_json name value) :: acc
+			(var_to_json name value name) :: acc
 		) scope.local_infos [] in
 		print_json ctx (JObject ["result",JArray vars])
 
-	let output_inner_vars ctx v =
+	let output_inner_vars ctx v access =
 		let children = match v with
 			| VNull | VTrue | VFalse | VInt32 _ | VFloat _ | VFunction _ | VFieldClosure _ -> []
 			| VEnumValue ve ->
@@ -526,7 +526,7 @@ module DebugOutputJson = struct
 				List.map (fun (n,v) -> rev_hash_s n, v) fields
 			| VPrototype proto -> [] (* TODO *)
 		in
-		let vars = List.map (fun (n,v) -> var_to_json n v) children in
+		let vars = List.map (fun (n,v,a) -> var_to_json n v a) children in
 		print_json ctx (JObject ["result",JArray vars])
 
 end
@@ -833,8 +833,8 @@ and wait ctx run env =
 			begin match parse_expr ctx e env.env_debug.expr.epos with
 				| Some e ->
 					begin try
-						let _,v = expr_to_value ctx env e in
-						output_inner_vars ctx v
+						let access,v = expr_to_value ctx env e in
+						output_inner_vars ctx v access
 					with Exit ->
 						output_error ctx ("Don't know how to handle this expression: " ^ (Ast.s_expr e))
 					end
