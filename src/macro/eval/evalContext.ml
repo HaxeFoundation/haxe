@@ -282,8 +282,16 @@ let create_default_environment ctx info num_locals =
 		env_captures = empty_array;
 	}
 
+let pop_environment_debug ctx env =
+	let eval = get_eval ctx in
+	eval.environment_offset <- eval.environment_offset - 1;
+	env.env_debug.timer();
+	()
+
 let push_environment ctx info num_locals num_captures =
-	{
+	if ctx.record_stack then
+		push_environment_debug ctx info num_locals num_captures
+	else {
 		env_info = info;
 		env_leave_pmin = 0;
 		env_leave_pmax = 0;
@@ -292,15 +300,6 @@ let push_environment ctx info num_locals num_captures =
 		env_locals = Array.make num_locals vnull;
 		env_captures = Array.make num_captures (ref vnull);
 	}
-
-let pop_environment_debug ctx env =
-	let eval = get_eval ctx in
-	eval.environment_offset <- eval.environment_offset - 1;
-	env.env_debug.timer();
-	()
-
-let push_environment ctx info num_locals num_captures =
-	if ctx.record_stack then push_environment_debug ctx info num_locals num_captures else push_environment ctx info num_locals num_captures
 
 let pop_environment ctx env =
 	if ctx.record_stack then pop_environment_debug ctx env else ()
