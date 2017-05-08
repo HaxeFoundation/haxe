@@ -365,7 +365,7 @@ let rec wait_loop process_params verbose accept =
 					(* this was just a dependency to check : do not add to the context *)
 					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
 				| _ ->
-					(*if verbose then print_endline (Printf.sprintf "%s%sreusing %s" (sign_string com2) tabs (s_type_path m.m_path));*)
+					if verbose then print_endline (Printf.sprintf "%s%sreusing %s" (sign_string com2) tabs (s_type_path m.m_path));
 					m.m_extra.m_added <- !compilation_step;
 					List.iter (fun t ->
 						match t with
