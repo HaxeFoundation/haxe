@@ -23,7 +23,8 @@
 
 	Standard Library:
 
-	all : added EReg.escape
+	all : added `EReg.escape` (#5098)
+	all : `BalancedTree implements `haxe.Constraints.IMap` (#6231)
 
 2017-03-20: 3.4.2
 

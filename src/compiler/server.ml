@@ -5,6 +5,7 @@ open Common
 open Common.DisplayMode
 open Type
 open DisplayOutput
+open Json
 
 exception Dirty of module_def
 
@@ -23,6 +24,16 @@ type context = {
 	mutable has_next : bool;
 	mutable has_error : bool;
 }
+
+type server_message =
+	| AddedDirectory of string
+	| FoundDirectories of (string * float ref) list
+	| ModulePathChanged of (module_def * float * string)
+	| NotCached of module_def
+	| Parsed of (string * string)
+	| RemovedDirectory of string
+	| Reusing of module_def
+	| SkippingDep of (module_def * module_def)
 
 let s_version =
 	Printf.sprintf "%d.%d.%d%s" version_major version_minor version_revision (match Version.version_extra with None -> "" | Some v -> " " ^ v)
@@ -176,6 +187,7 @@ let ssend sock str =
 let rec wait_loop process_params verbose accept =
 	Sys.catch_break false;
 	let has_parse_error = ref false in
+	let test_server_messages = DynArray.create () in
 	let cs = CompilationServer.create () in
 	let sign_string com =
 		let sign = get_signature com in
@@ -188,6 +200,34 @@ let rec wait_loop process_params verbose accept =
 				i
 		in
 		Printf.sprintf "%2s,%3s: " sign_id (short_platform_name com.platform)
+	in
+	let process_server_message com tabs =
+		if true || Common.raw_defined com "compilation-server-test" then (fun message ->
+			let module_path m = JString (s_type_path m.m_path) in
+			let kind,data = match message with
+				| AddedDirectory dir -> "addedDirectory",JString dir
+				| FoundDirectories dirs -> "foundDirectories",JInt (List.length dirs)
+				| ModulePathChanged(m,time,file) -> "modulePathChanged",module_path m
+				| NotCached m -> "notCached",module_path m
+				| Parsed(ffile,_) -> "parsed",JString ffile
+				| RemovedDirectory dir -> "removedDirectory",JString dir
+				| Reusing m -> "reusing",module_path m
+				| SkippingDep(m,m') -> "skipping",JObject ["skipped",module_path m;"dependency",module_path m']
+			in
+			let js = JObject [("kind",JString kind);("data",data)] in
+			DynArray.add test_server_messages js;
+		) else (fun message -> match message with
+			| AddedDirectory dir -> print_endline (Printf.sprintf "%sadded directory %s" (sign_string com) dir)
+			| FoundDirectories dirs -> print_endline (Printf.sprintf "%sfound %i directories" (sign_string com) (List.length dirs));
+			| ModulePathChanged(m,time,file) ->
+				print_endline (Printf.sprintf "%smodule path might have changed: %s\n\twas: %2.0f %s\n\tnow: %2.0f %s"
+					(sign_string com) (s_type_path m.m_path) m.m_extra.m_time m.m_extra.m_file time file);
+			| NotCached m -> print_endline (Printf.sprintf "%s%s not cached (%s)" (sign_string com) (s_type_path m.m_path) (if m.m_extra.m_time = -1. then "macro-in-macro" else "modified"));
+			| Parsed(ffile,info) -> print_endline (Printf.sprintf "%sparsed %s (%s)" (sign_string com) ffile info)
+			| RemovedDirectory dir -> print_endline (Printf.sprintf "%sremoved directory %s" (sign_string com) dir);
+			| Reusing m -> print_endline (Printf.sprintf "%s%sreusing %s" (sign_string com) tabs (s_type_path m.m_path));
+			| SkippingDep(m,m') -> print_endline (Printf.sprintf "%sskipping %s%s" (sign_string com) (s_type_path m.m_path) (if m == m' then "" else Printf.sprintf "(%s)" (s_type_path m'.m_path)));
+		)
 	in
 	MacroContext.macro_enable_cache := true;
 	let current_stdin = ref None in
@@ -221,7 +261,7 @@ let rec wait_loop process_params verbose accept =
 						CompilationServer.cache_file cs fkey (ftime,data);
 						"cached",false
 				end in
-				if verbose && is_unusual then print_endline (Printf.sprintf "%sparsed %s (%s)" (sign_string com2) ffile info);
+				if verbose && is_unusual then process_server_message com2 "" (Parsed(ffile,info));
 				data
 	);
 	let check_module_shadowing com paths m =
@@ -230,8 +270,7 @@ let rec wait_loop process_params verbose accept =
 			if Sys.file_exists file then begin
 				let time = file_time file in
 				if time > m.m_extra.m_time then begin
-					if verbose then print_endline (Printf.sprintf "%smodule path might have changed: %s\n\twas: %2.0f %s\n\tnow: %2.0f %s"
-						(sign_string com) (s_type_path m.m_path) m.m_extra.m_time m.m_extra.m_file time file);
+					if verbose then process_server_message com "" (ModulePathChanged(m,time,file));
 					raise Not_found
 				end
 			end
@@ -263,7 +302,7 @@ let rec wait_loop process_params verbose accept =
 							List.iter (fun dir ->
 								if not (CompilationServer.has_directory cs sign dir) then begin
 									let time = stat dir in
-									if verbose then print_endline (Printf.sprintf "%sadded directory %s" (sign_string com) dir);
+									if verbose then process_server_message com "" (AddedDirectory dir);
 									CompilationServer.add_directory cs sign (dir,ref time)
 								end;
 							) sub_dirs;
@@ -272,7 +311,7 @@ let rec wait_loop process_params verbose accept =
 							acc
 					with Unix.Unix_error _ ->
 						CompilationServer.remove_directory cs sign dir;
-						if verbose then print_endline (Printf.sprintf "%sremoved directory %s" (sign_string com) dir);
+						if verbose then process_server_message com "" (RemovedDirectory dir);
 						acc
 				) [] all_dirs
 			with Not_found ->
@@ -291,7 +330,7 @@ let rec wait_loop process_params verbose accept =
 					in
 					List.iter add_dir com.class_path;
 					List.iter add_dir (Path.find_directories (platform_name com.platform) true com.class_path);
-					if verbose then print_endline (Printf.sprintf "%sfound %i directories" (sign_string com) (List.length !dirs));
+					if verbose then process_server_message com "" (FoundDirectories !dirs);
 					CompilationServer.add_directories cs sign !dirs
 				) :: !delays;
 				(* Returning [] should be fine here because it's a new context, so we won't do any
@@ -364,7 +403,7 @@ let rec wait_loop process_params verbose accept =
 					if has_policy CheckFileContentModification && not (content_changed m m.m_extra.m_file) then begin
 						if verbose then print_endline (Printf.sprintf "%s%s changed time not but content, reusing" (sign_string com2) m.m_extra.m_file)
 					end else begin
-						if verbose then print_endline (Printf.sprintf "%s%s not cached (%s)" (sign_string com2) (s_type_path m.m_path) (if m.m_extra.m_time = -1. then "macro-in-macro" else "modified"));
+						if verbose then process_server_message com2 "" (NotCached m);
 						if m.m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules m.m_extra.m_file;
 						raise Not_found;
 					end
@@ -406,7 +445,7 @@ let rec wait_loop process_params verbose accept =
 					(* this was just a dependency to check : do not add to the context *)
 					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
 				| _ ->
-					(*if verbose then print_endline (Printf.sprintf "%s%sreusing %s" (sign_string com2) tabs (s_type_path m.m_path));*)
+					if verbose then process_server_message com2 tabs (Reusing m);
 					m.m_extra.m_added <- !compilation_step;
 					List.iter (fun t ->
 						match t with
@@ -438,7 +477,7 @@ let rec wait_loop process_params verbose accept =
 			begin match check m with
 			| None -> ()
 			| Some m' ->
-				if verbose then print_endline (Printf.sprintf "%sskipping %s%s" (sign_string com2) (s_type_path m.m_path) (if m == m' then "" else Printf.sprintf "(%s)" (s_type_path m'.m_path)));
+				if verbose then process_server_message com2 "" (SkippingDep(m,m'));
 				tcheck();
 				raise Not_found;
 			end;
@@ -522,6 +561,7 @@ let rec wait_loop process_params verbose accept =
 			let data = parse_hxml_data hxml in
 			if verbose then print_endline ("Processing Arguments [" ^ String.concat "," data ^ "]");
 			(try
+				DynArray.clear test_server_messages;
 				Hashtbl.clear changed_directories;
 				Common.display_default := DMNone;
 				Parser.resume_display := null_pos;
@@ -547,6 +587,11 @@ let rec wait_loop process_params verbose accept =
 			| Arg.Bad msg ->
 				prerr_endline ("Error: " ^ msg);
 			);
+			if DynArray.length test_server_messages > 0 then begin
+				let b = Buffer.create 0 in
+				write_json (Buffer.add_string b) (JArray (DynArray.to_list test_server_messages));
+				write (Buffer.contents b)
+			end;
 			let fl = !delays in
 			delays := [];
 			List.iter (fun f -> f()) fl;
