@@ -48,9 +48,9 @@ class HaxeServerTestCase {
 			arguments: ["-v", "--cwd", testDir],
 			env: { }
 		});
+		vfs = new Vfs(testDir);
 		server = new HaxeServer(context);
 		server.start();
-		vfs = new Vfs(testDir);
 	}
 
 	public function teardown() {
