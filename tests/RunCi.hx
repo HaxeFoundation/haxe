@@ -841,6 +841,7 @@ class RunCi {
 							}
 						];
 
+						haxelibInstall("hxnodejs");
 						var env = Sys.environment();
 						if (
 							env.exists("SAUCE") &&
@@ -864,7 +865,6 @@ class RunCi {
 							// }
 
 							runCommand("npm", ["install", "wd", "q"], true);
-							haxelibInstall("hxnodejs");
 							runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
 							var server = new Process("nekotools", ["server"]);
 							runCommand("node", ["bin/RunSauceLabs.js"].concat([for (js in jsOutputs) "unit-js.html?js=" + js.urlEncode()]));
@@ -876,6 +876,7 @@ class RunCi {
 						infoMsg("Test optimization:");
 						changeDirectory(optDir);
 						runCommand("haxe", ["run.hxml"]);
+						haxelibInstall("utest");
 						changeDirectory(serverDir);
 						runCommand("haxe", ["build.hxml"]);
 						runCommand("node", ["test.js"]);
