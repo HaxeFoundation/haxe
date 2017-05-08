@@ -502,6 +502,7 @@ class RunCi {
 	static var optDir(default, never) = cwd + "optimization/";
 	static var miscDir(default, never) = cwd + "misc/";
 	static var displayDir(default, never) = cwd + "display/";
+	static var serverDir(default, never) = cwd + "server/";
 	static var gitInfo(get, null):{repo:String, branch:String, commit:String, timestamp:Float, date:String};
 	static var success(default, null) = true;
 	static function get_gitInfo() return if (gitInfo != null) gitInfo else gitInfo = {
@@ -875,6 +876,9 @@ class RunCi {
 						infoMsg("Test optimization:");
 						changeDirectory(optDir);
 						runCommand("haxe", ["run.hxml"]);
+						changeDirectory(serverDir);
+						runCommand("haxe", ["build.hxml"]);
+						runCommand("node", ["test.js"]);
 					case Java:
 						getSpodDependencies();
 						getJavaDependencies();
