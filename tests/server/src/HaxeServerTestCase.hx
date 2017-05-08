@@ -1,35 +1,22 @@
 import HaxeServer;
+import haxe.Json;
 import utest.Assert;
+
+typedef Message<T> = {
+	kind: String,
+	data: T
+}
 
 class TestContext {
 	public var displayServerConfig:DisplayServerConfigBase;
-	var messages:Array<String>;
-	var messageString:Null<String>;
 
 	public function new(config:DisplayServerConfigBase) {
 		this.displayServerConfig = config;
-		messages = [];
 	}
 
-	public function sendErrorMessage(msg:String) {
-		messages.push(msg);
-	}
+	public function sendErrorMessage(msg:String) { }
 
-	public function sendLogMessage(msg:String) {
-		messages.push(msg);
-	}
-
-	public function hasMessage(msg:String) {
-		if (messageString == null) {
-			messageString = messages.join("\n");
-		}
-		return new EReg(EReg.escape(msg), "").match(messageString);
-	}
-
-	public function resetMessages() {
-		messageString = null;
-		messages = [];
-	}
+	public function sendLogMessage(msg:String) { }
 }
 
 class HaxeServerTestCase {
@@ -37,6 +24,7 @@ class HaxeServerTestCase {
 	var server:HaxeServer;
 	var vfs:Vfs;
 	var testDir:String;
+	var messages:Array<Message<Any>>;
 
 	public function new() {
 		testDir = "test/cases/" + Type.getClassName(Type.getClass(this));
@@ -45,7 +33,7 @@ class HaxeServerTestCase {
 	public function setup() {
 		context = new TestContext({
 			haxePath: "haxe",
-			arguments: ["-v", "--cwd", testDir],
+			arguments: ["-v", "-D", "compilation-server-test", "--cwd", testDir],
 			env: { }
 		});
 		vfs = new Vfs(testDir);
@@ -58,7 +46,11 @@ class HaxeServerTestCase {
 	}
 
 	function haxe(args:Array<String>, done:Void -> Void) {
-		server.process(args, null, function(_) {
+		server.process(args, null, function(result) {
+			if (result == "") {
+				result = "{}";
+			}
+			messages = Json.parse(result);
 			done();
 		}, function(message) {
 			Assert.fail(message);
@@ -70,11 +62,31 @@ class HaxeServerTestCase {
 		return sys.io.File.getContent("test/templates/" + templateName);
 	}
 
-	inline function hasMessage(msg:String) {
-		return context.hasMessage(msg);
+	function hasMessage<T>(msg:{kind: String, data:T}) {
+		function compareData(data1:Dynamic, data2:Dynamic) {
+			return switch (msg.kind) {
+				case "reusing" | "notCached": data1 == data2;
+				case "skipping": data1.skipped == data2.skipped && data1.dependency == data2.dependency;
+				case _: false;
+			}
+		}
+		for (message in messages) {
+			if (message.kind == msg.kind && compareData(message.data, cast msg.data)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
-	inline function resetMessages() {
-		context.resetMessages();
+	function assertReuse(module:String) {
+		Assert.isTrue(hasMessage({kind: "reusing", data: module}));
+	}
+
+	function assertSkipping(module:String, ?dependency:String) {
+		Assert.isTrue(hasMessage({kind: "skipping", data: {skipped: module, dependency: dependency == null ? module : dependency}}));
+	}
+
+	function assertNotCacheModified(module:String) {
+		Assert.isTrue(hasMessage({kind: "notCached", data: module}));
 	}
 }

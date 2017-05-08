@@ -1,17 +1,15 @@
-import utest.Assert.*;
-import TestStrings.*;
 import AsyncMacro.async;
 
 class NoModification extends HaxeServerTestCase {
 	public function test() {
 		async({
 			vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
-			haxe("-main", "HelloWorld.hx", "--no-output", "-js", "no.js");
-			haxe("-main", "HelloWorld.hx", "--no-output", "-js", "no.js");
-			isTrue(context.hasMessage(TestStrings.reusing("HelloWorld")));
-			resetMessages();
-			haxe("-main", "HelloWorld.hx", "--no-output", "-js", "no.js");
-			isTrue(context.hasMessage(TestStrings.reusing("HelloWorld")));
+			var args = ["-main", "HelloWorld.hx", "--no-output", "-js", "no.js"];
+			haxe(args);
+			haxe(args);
+			assertReuse("HelloWorld");
+			haxe(args);
+			assertReuse("HelloWorld");
 		});
 	}
 }
@@ -20,11 +18,12 @@ class Modification extends HaxeServerTestCase {
 	public function test() {
 		async({
 			vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
-			haxe("-main", "HelloWorld.hx", "--no-output", "-js", "no.js");
+			var args = ["-main", "HelloWorld.hx", "--no-output", "-js", "no.js"];
+			haxe(args);
 			vfs.touchFile("HelloWorld.hx");
-			haxe("-main", "HelloWorld.hx", "--no-output", "-js", "no.js");
-			isTrue(hasMessage(skipping("HelloWorld")));
-			isTrue(hasMessage(notCachedModified("HelloWorld")));
+			haxe(args);
+			assertSkipping("HelloWorld");
+			assertNotCacheModified("HelloWorld");
 		});
 	}
 }
@@ -34,12 +33,15 @@ class Dependency extends HaxeServerTestCase {
 		async({
 			vfs.putContent("WithDependency.hx", getTemplate("WithDependency.hx"));
 			vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
-			haxe("-main", "WithDependency.hx", "--no-output", "-js", "no.js");
+			var args = ["-main", "WithDependency.hx", "--no-output", "-js", "no.js"];
+			haxe(args);
 			vfs.touchFile("Dependency.hx");
-			haxe("-main", "WithDependency.hx", "--no-output", "-js", "no.js");
-			isTrue(hasMessage(skipping("WithDependency")));
-			isTrue(hasMessage(skippingDep("WithDependency", "Dependency")));
-			isTrue(hasMessage(notCachedModified("Dependency")));
+			haxe(args);
+			assertSkipping("WithDependency", "Dependency");
+			assertNotCacheModified("Dependency");
+			haxe(args);
+			assertReuse("Dependency");
+			assertReuse("WithDependency");
 		});
 	}
 }

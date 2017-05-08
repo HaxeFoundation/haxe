@@ -16,7 +16,8 @@ class AsyncMacro {
 			} else switch (e0) {
 				case macro haxe($a{args}):
 					var e = loop(el);
-					macro haxe([$a{args}], () -> $e);
+					args.push(macro () -> $e);
+					macro haxe($a{args});
 				case _:
 					macro { $e0; ${loop(el)}};
 			}

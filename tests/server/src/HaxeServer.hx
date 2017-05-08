@@ -6,11 +6,6 @@ import js.node.stream.Readable;
 
 using StringTools;
 
-enum DisplayResult {
-    DCancelled;
-    DResult(msg:String);
-}
-
 class ErrorUtils {
     public static function errorToString(error:Dynamic, intro:String):String {
         var result = intro + Std.string(error);
@@ -28,12 +23,12 @@ private class DisplayRequest {
 
     var args:Array<String>;
     var stdin:String;
-    var callback:DisplayResult->Void;
+    var callback:String->Void;
     var errback:String->Void;
 
     static var stdinSepBuf = new Buffer([1]);
 
-    public function new(args:Array<String>, stdin:String, callback:DisplayResult->Void, errback:String->Void) {
+    public function new(args:Array<String>, stdin:String, callback:String->Void, errback:String->Void) {
         this.args = args;
         this.stdin = stdin;
         this.callback = callback;
@@ -67,10 +62,6 @@ private class DisplayRequest {
         return Buffer.concat(chunks, length + 4);
     }
 
-    public inline function cancel() {
-        callback(DCancelled);
-    }
-
     public function processResult(data:String) {
         var buf = new StringBuf();
         var hasError = false;
@@ -93,7 +84,7 @@ private class DisplayRequest {
             return errback(data);
 
         try {
-            callback(DResult(data));
+            callback(data);
         } catch (e:Any) {
             errback(ErrorUtils.errorToString(e, "Exception while handling Haxe completion response: "));
         }
@@ -208,13 +199,6 @@ class HaxeServer {
             proc = null;
         }
 
-        // cancel all callbacks
-        var request = requestsHead;
-        while (request != null) {
-            request.cancel();
-            request = request.next;
-        }
-
         requestsHead = requestsTail = currentRequest = null;
     }
 
@@ -251,7 +235,7 @@ class HaxeServer {
         }
     }
 
-    public function process(args:Array<String>, stdin:String, callback:DisplayResult->Void, errback:String->Void) {
+    public function process(args:Array<String>, stdin:String, callback:String->Void, errback:String->Void) {
         // create a request object
         var request = new DisplayRequest(args, stdin, callback, errback);
 
