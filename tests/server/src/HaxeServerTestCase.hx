@@ -78,15 +78,15 @@ class HaxeServerTestCase {
 		return false;
 	}
 
-	function assertReuse(module:String) {
-		Assert.isTrue(hasMessage({kind: "reusing", data: module}));
+	function assertReuse(module:String, ?p:haxe.PosInfos) {
+		Assert.isTrue(hasMessage({kind: "reusing", data: module}), null, p);
 	}
 
-	function assertSkipping(module:String, ?dependency:String) {
-		Assert.isTrue(hasMessage({kind: "skipping", data: {skipped: module, dependency: dependency == null ? module : dependency}}));
+	function assertSkipping(module:String, ?dependency:String, ?p:haxe.PosInfos) {
+		Assert.isTrue(hasMessage({kind: "skipping", data: {skipped: module, dependency: dependency == null ? module : dependency}}), null, p);
 	}
 
-	function assertNotCacheModified(module:String) {
-		Assert.isTrue(hasMessage({kind: "notCached", data: module}));
+	function assertNotCacheModified(module:String, ?p:haxe.PosInfos) {
+		Assert.isTrue(hasMessage({kind: "notCached", data: module}), null, p);
 	}
 }
