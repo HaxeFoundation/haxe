@@ -83,11 +83,11 @@ let catch_exceptions ctx f p =
 		get_ctx_ref := prev;
 		Some v
 	with
-	| RunTimeException(v,stack,p) ->
+	| RunTimeException(v,stack,p') ->
 		build_exception_stack ctx environment_offset;
 		eval.environment_offset <- environment_offset;
 		get_ctx_ref := prev;
-		error_exc ctx v (match stack with [] -> [] | _ :: l -> l) p
+		error_exc ctx v (match stack with [] -> [] | _ :: l -> l) (if p' = null_pos then p else p')
 	| MacroApi.Abort ->
 		None
 	| exc ->
