@@ -36,7 +36,7 @@ install_linux: &install_linux
       ocaml-native-compilers
       ocaml-findlib
       camlp4
-      s3cmd
+      awscli
   - wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin system
   - export OPAMYES=1
   - opam install sedlex camlzip xml-light extlib

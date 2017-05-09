@@ -7,7 +7,16 @@ class Indexer
 	{
 		var spaceRegex = ~/[ \t]+/g,
 				s3pathRegex = ~/s3:\/\/([^\/]+)/;
-		var proc = new Process('s3cmd',['ls',s3path]);
+		if (!s3path.endsWith('/')) {
+			s3path = '$s3path/';
+		}
+
+		if (!s3pathRegex.match(s3path)) {
+			throw 'Invalid s3 path $s3path';
+		}
+
+		var basePath = 'http://' + s3pathRegex.matched(1) + '.s3-website-us-east-1.amazonaws.com' + s3pathRegex.matchedRight();
+		var proc = new Process('aws',['s3','ls',s3path]);
 		var records = [],
 				dirs = [];
 		try
@@ -20,23 +29,16 @@ class Indexer
 
 				inline function getPath(path:String)
 				{
-					if (!s3pathRegex.match(path))
-					{
-						trace('bad s3 response: ${ln[3]} (from $ln)');
-						return path;
-					} else {
-						return 'http://' + s3pathRegex.matched(1) + '.s3-website-us-east-1.amazonaws.com' + s3pathRegex.matchedRight();
-					}
+					return basePath + path;
 				}
 				switch(ln[1])
 				{
-					case 'DIR':
+					case 'PRE':
 						dirs.push(getPath(ln[2]));
 					case _:
 						var size = ln[2];
 						var path = ln[3];
 						path = getPath(path);
-						// var path = ln[3].replace('s3://','http://
 						records.push({ date: ln[0] + ' ' + ln[1], size: ln[2], path: path, fname:haxe.io.Path.withoutDirectory(path) });
 				}
 			}

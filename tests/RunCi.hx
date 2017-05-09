@@ -678,12 +678,12 @@ class RunCi {
 		var changeLatest = gitInfo.branch == "development";
 		Sys.putEnv('AWS_ACCESS_KEY_ID', Sys.getEnv('HXBUILDS_AWS_ACCESS_KEY_ID'));
 		Sys.putEnv('AWS_SECRET_ACCESS_KEY', Sys.getEnv('HXBUILDS_AWS_SECRET_ACCESS_KEY'));
-		runCommand('s3cmd sync "$sourceFile" "$S3_HXBUILDS_ADDR/$kind/$fileName"');
+		runCommand('aws s3 cp "$sourceFile" "$S3_HXBUILDS_ADDR/$kind/$fileName"');
 		if (changeLatest) {
-			runCommand('s3cmd sync "$sourceFile" "$S3_HXBUILDS_ADDR/$kind/haxe_latest$ext"');
+			runCommand('aws s3 cp "$sourceFile" "$S3_HXBUILDS_ADDR/$kind/haxe_latest$ext"');
 		}
 		Indexer.index('$S3_HXBUILDS_ADDR/$kind/');
-		runCommand('s3cmd sync index.html "$S3_HXBUILDS_ADDR/$kind/index.html"');
+		runCommand('aws s3 cp index.html "$S3_HXBUILDS_ADDR/$kind/index.html"');
 	}
 
 	/**
