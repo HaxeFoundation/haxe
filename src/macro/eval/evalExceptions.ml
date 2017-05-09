@@ -59,7 +59,7 @@ let error_exc ctx v stack p =
 	let pl = List.filter (fun p -> p <> null_pos) pl in
 	match pl with
 	| [] ->
-		let extra = if ctx.record_stack then "" else "\nNo stack information available, consider compiling with -D interp-stack" in
+		let extra = if ctx.record_stack then "" else "\nNo stack information available, consider compiling with -D eval-stack" in
 		Error.error (uncaught_exception_string v p extra) null_pos
 	| _ ->
 		let sstack = String.concat "\n" (List.map (fun p -> Printf.sprintf "\t%s" (format_pos p)) pl) in

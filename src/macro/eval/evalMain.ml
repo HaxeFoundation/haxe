@@ -19,6 +19,7 @@
 
 open Globals
 open Ast
+open Common
 open EvalValue
 open EvalContext
 open EvalPrototype
@@ -58,7 +59,7 @@ let create com api is_macro =
 	in
 	let debug = match !debug with
 		| None ->
-			let support_debugger = Common.raw_defined com "interp-debugger" in
+			let support_debugger = Common.defined com Define.EvalDebugger in
 			let socket =
 				try
 					if not support_debugger then raise Exit;
@@ -66,7 +67,8 @@ let create com api is_macro =
 						print_endline msg;
 						raise Exit
 					in
-					let s = Common.raw_defined_value com "interp-debugger-socket" in
+					let s = Common.defined_value com Define.EvalDebugger in
+					if s = "1" then raise Exit;
 					let host,port = try ExtString.String.split s ":" with _ -> fail "Invalid host format, expected host:port" in
 					let host = try Unix.inet_addr_of_string host with exc -> fail (Printexc.to_string exc) in
 					let port = try int_of_string port with _ -> fail "Invalid port, expected int" in
@@ -92,7 +94,7 @@ let create com api is_macro =
 		| Some debug ->
 			debug
 	in
-	let record_stack = (debug.debug && not (Common.raw_defined com "no-interp-stack")) || Common.raw_defined com "interp-stack" in
+	let record_stack = Common.defined com Define.EvalStack in
 	let evals = DynArray.create () in
 	let eval = {
 		environments = DynArray.make 32;
@@ -104,7 +106,7 @@ let create com api is_macro =
 		is_macro = is_macro;
 		debug = debug;
 		record_stack = record_stack;
-		detail_times = Common.raw_defined com "interp-times";
+		detail_times = Common.defined com Define.EvalTimes;
 		curapi = api;
 		builtins = builtins;
 		type_cache = IntMap.empty;
