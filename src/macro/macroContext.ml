@@ -504,9 +504,7 @@ let load_macro ctx display cpath f p =
 		let mt = Typeload.load_type_def mctx p { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = sub } in
 		let cl, meth = (match mt with
 			| TClassDecl c ->
-				let t = macro_timer ctx ["finalize"] in
 				mctx.g.do_finalize mctx;
-				t();
 				c, (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
 			| _ -> error "Macro should be called on a class" p
 		) in
