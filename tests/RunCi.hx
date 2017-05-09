@@ -566,17 +566,20 @@ class RunCi {
 		) {
 			changeDirectory(repoDir);
 
-			// generate doc
-			runCommand("make", ["-s", "install_dox"]);
-			runCommand("make", ["-s", "package_doc"]);
+			if (Sys.systemName() != 'Windows') {
+				// generate doc
+				runCommand("make", ["-s", "install_dox"]);
+				runCommand("make", ["-s", "package_doc"]);
 
-			// deployBintray();
-			deployApiDoc();
+				// deployBintray();
+				deployApiDoc();
+
+				// disable deployment to ppa:haxe/snapshots for now
+				// because there is no debian sedlex package...
+				// deployPPA();
+			}
+
 			deployNightlies();
-
-			// disable deployment to ppa:haxe/snapshots for now
-			// because there is no debian sedlex package...
-			// deployPPA();
 		}
 	}
 
