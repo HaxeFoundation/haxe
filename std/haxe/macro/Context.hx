@@ -517,6 +517,26 @@ class Context {
 	}
 
 	/**
+		Types expression `e`, stores the resulting typed expression internally and 
+		returns a syntax-level expression that can be returned from a macro and 
+		will be replaced by the stored typed expression.
+
+		If `e` is null or invalid, an exception is thrown.
+
+		A call to `storeExpr(e)` is equivalent to `storeTypedExpr(typeExpr(e))` without
+		the overhead of encoding and decoding between regular and macro runtime.
+
+		NOTE: the returned value references an internally stored typed expression
+		that is reset between compilations, so care should be taken when storing
+		the expression returned by this method in a static variable and using the
+		compilation server.
+	**/
+	@:require(haxe_ver >= 4.0)
+	public static function storeExpr( e : Expr ) : Expr {
+		return load("store_expr",1)(e);
+	}
+
+	/**
 		Evaluates `e` as macro code.
 
 		Any call to this function takes effect when the macro is executed, not
