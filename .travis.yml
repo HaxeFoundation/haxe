@@ -80,6 +80,7 @@ install_osx: &install_osx
   - ls -l out
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
+  - travis_retry brew install awscli
 
 matrix:
   include:
