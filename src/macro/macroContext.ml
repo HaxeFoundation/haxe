@@ -390,7 +390,7 @@ and flush_macro_context mint ctx =
 	(* if one of the type we are using has been modified, we need to create a new macro context from scratch *)
 	let mint = if not (Interp.can_reuse mint types && check_reuse()) then begin
 		let com2 = mctx.com in
-		let mint = Interp.create com2 (make_macro_api ctx Globals.null_pos) in
+		let mint = Interp.create com2 (make_macro_api ctx Globals.null_pos) true in
 		let macro = ((fun() -> Interp.select mint), mctx) in
 		ctx.g.macros <- Some macro;
 		mctx.g.macros <- Some macro;
@@ -431,7 +431,8 @@ let create_macro_interp ctx mctx =
 	let com2 = mctx.com in
 	let mint, init = (match !macro_interp_cache with
 		| None ->
-			let mint = Interp.create com2 (make_macro_api ctx null_pos) in
+			let mint = Interp.create com2 (make_macro_api ctx null_pos) true in
+			Interp.select mint;
 			mint, (fun() -> init_macro_interp ctx mctx mint)
 		| Some mint ->
 			macro_interp_reused := false;
@@ -755,7 +756,7 @@ let call_init_macro ctx e =
 		error "Invalid macro call" p
 
 let interpret ctx =
-	let mctx = Interp.create ctx.com (make_macro_api ctx null_pos) in
+	let mctx = Interp.create ctx.com (make_macro_api ctx null_pos) false in
 	Interp.add_types mctx ctx.com.types (fun t -> ());
 	match ctx.com.main with
 	| None -> ()
