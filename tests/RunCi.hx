@@ -61,6 +61,8 @@ class RunCi {
 		throw Fail;
 	}
 
+	static var S3_HXBUILDS_ADDR(default, null) = 's3://hxbuilds/builds/haxe';
+
 	/**
 		Run a command using `Sys.command()`.
 		If the command exits with non-zero code, exit the whole script with the same code.
@@ -622,6 +624,65 @@ class RunCi {
 
 			runCommand("make", ["-s", "deploy_doc"]);
 		}
+	}
+
+	/**
+		Deploy source package to hxbuilds s3
+	*/
+	static function deployNightlies():Void {
+		if (
+			(gitInfo.branch == "development" ||
+			gitInfo.branch == "master" ||
+			gitInfo.branch == "nightly-travis") &&
+			Sys.getEnv("HXBUILDS_AWS_ACCESS_KEY_ID") != null &&
+			Sys.getEnv("HXBUILDS_AWS_SECRET_ACCESS_KEY") != null
+		) {
+			if (ci == TravisCI) {
+				runCommand("make", ["-s", "package_unix"]);
+				if (Sys.systemName() == 'Linux') {
+					// source
+					for (file in sys.FileSystem.readDirectory('out')) {
+						if (file.startsWith('haxe') && file.endsWith('_src.tar.gz')) {
+							submitToS3("source", 'out/$file');
+							break;
+						}
+					}
+				}
+				for (file in sys.FileSystem.readDirectory('out')) {
+					if (file.startsWith('haxe') && file.endsWith('_bin.tar.gz')) {
+						var name = Sys.systemName() == "Linux" ? 'linux64' : 'mac';
+						submitToS3(name, 'out/$file');
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	static function fileExtension(file:String) {
+		file = haxe.io.Path.withoutDirectory(file);
+		var idx = file.indexOf('.');
+		if (idx < 0) {
+			return '';
+		} else {
+			return file.substr(idx);
+		}
+	}
+
+	static function submitToS3(kind:String, sourceFile:String) {
+		var date = DateTools.format(Date.now(), '%Y-%m-%d');
+		var ext = fileExtension(sourceFile);
+		var fileName = 'haxe_${date}_${gitInfo.branch}_${gitInfo.commit.substr(0,7)}${ext}';
+
+		var changeLatest = gitInfo.branch == "development";
+		Sys.putEnv('AWS_ACCESS_KEY_ID', Sys.getEnv('HXBUILDS_AWS_ACCESS_KEY_ID'));
+		Sys.putEnv('AWS_SECRET_ACCESS_KEY', Sys.getEnv('HXBUILDS_AWS_SECRET_ACCESS_KEY'));
+		runCommand('s3cmd sync "$sourceFile" "$S3_HXBUILDS_ADDR/$kind/$fileName"');
+		if (changeLatest) {
+			runCommand('s3cmd sync "$sourceFile" "$S3_HXBUILDS_ADDR/$kind/haxe_latest$ext"');
+		}
+		Indexer.index('$S3_HXBUILDS_ADDR/$kind/');
+		runCommand('s3cmd sync index.html "$S3_HXBUILDS_ADDR/$kind/index.html"');
 	}
 
 	/**
