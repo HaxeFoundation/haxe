@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package python;
-
+import python.internal.MethodClosure;
 import python.internal.ArrayImpl;
 import python.internal.Internal;
 import python.internal.StringImpl;
@@ -276,6 +276,8 @@ class Boot {
 		return UBuiltins.isinstance(o, UBuiltins.list);
 	}
 
+
+
 	static function simpleField( o : Dynamic, field : String ) : Dynamic {
 		if (field == null) return null;
 
@@ -283,122 +285,98 @@ class Boot {
 		return if (UBuiltins.hasattr(o, field)) UBuiltins.getattr(o, field) else null;
 	}
 
-	static var closures:Dynamic;
-
-	static function getClosure (funId:String, o:Dynamic,  or : Void->Dynamic) {
-		
-		if (closures == null) {
-			python.Syntax.pythonCode("import weakref");
-			closures = python.Syntax.pythonCode("weakref.WeakValueDictionary()");
-		}
-		var hash = UBuiltins.str(UBuiltins.id(o)) + "_" + funId;
-		var closure = python.Syntax.callField(closures, "get", hash);
-		if (closure == null) {
-			var res = or();
-			python.Syntax.arraySet(closures, hash, res);
-			return res;
-		}
-		return closure;
+	@:ifFeature("closure_Array", "closure_String")
+	static inline function createClosure (obj:Dynamic, func:Dynamic):Dynamic {
+		return new MethodClosure(obj, func);
 	}
 
 	static function field( o : Dynamic, field : String ) : Dynamic {
 		if (field == null) return null;
 
-		switch (field) {
-			case "length" if (isString(o)): 
-				return StringImpl.get_length(o);
-			case "toLowerCase" if (isString(o)): 
-				var lazy = function () return StringImpl.toLowerCase.bind(o);
-				return getClosure("String"+field, o, lazy);
-			case "toUpperCase" if (isString(o)): 
-				var lazy = function () return StringImpl.toUpperCase.bind(o);
-				return getClosure("String"+field, o, lazy);
-			case "charAt" if (isString(o)): 
-				var lazy = function () return StringImpl.charAt.bind(o);
-				return getClosure("String"+field, o, lazy);
-			case "charCodeAt" if (isString(o)): 
-				var lazy = function () return StringImpl.charCodeAt.bind(o);
-				return getClosure("String"+field, o, lazy);
-			case "indexOf" if (isString(o)): 
-				var lazy = function () return StringImpl.indexOf.bind(o);
-				return getClosure("String"+field, o, lazy);
-			case "lastIndexOf" if (isString(o)): 
-				var lazy = function () return StringImpl.lastIndexOf.bind(o);
-				return getClosure("String"+field, o, lazy);
-			case "split" if (isString(o)): 
-				var lazy = function () return StringImpl.split.bind(o);
-				return getClosure("String"+field, o, lazy);
-			case "substr" if (isString(o)): 
-				var lazy = function () return StringImpl.substr.bind(o);
-				return getClosure("String"+field, o, lazy);
-			case "substring" if (isString(o)): 
-				var lazy = function () return StringImpl.substring.bind(o);
-				return getClosure("String"+field, o, lazy);
-			case "toString" if (isString(o)): 
-				var lazy = function () return StringImpl.toString.bind(o);
-				return getClosure("String"+field, o, lazy);
-			case "length" if (isArray(o)): 
-				return ArrayImpl.get_length(o);
-			case "map" if (isArray(o)): 
-				var lazy = function () return ArrayImpl.map.bind(o);
-				return getClosure("Array"+field, o, lazy);
-			case "filter" if (isArray(o)): 
-				var lazy = function () return ArrayImpl.filter.bind(o);
-				return getClosure("Array"+field, o, lazy);
-			case "concat" if (isArray(o)): 
-				var lazy = function () return ArrayImpl.concat.bind(o);
-				return getClosure("Array"+field, o, lazy);
-			case "copy" if (isArray(o)): 
-				return function () return ArrayImpl.copy(o);
-			case "iterator" if (isArray(o)): 
-				var lazy = function () return ArrayImpl.iterator.bind(o);
-				return getClosure("Array"+field, o, lazy);
-			case "insert" if (isArray(o)): 
-				var lazy = function () return ArrayImpl.insert.bind(o);
-				return getClosure("Array"+field, o, lazy);
-			case "join" if (isArray(o)): 
-				return function (sep) return ArrayImpl.join(o, sep);
-			case "toString" if (isArray(o)): 
-				var lazy = function () return ArrayImpl.toString.bind(o);
-				return getClosure("Array"+field, o, lazy);
-			case "pop" if (isArray(o)): 
-				var lazy = function () return ArrayImpl.pop.bind(o);
-				return getClosure("Array"+field, o, lazy);
-			case "push" if (isArray(o)): 
-				var lazy = function () return ArrayImpl.push.bind(o);
-				return getClosure("Array"+field, o, lazy);
-			case "unshift" if (isArray(o)): 
-				var lazy = function () return ArrayImpl.unshift.bind(o);
-				return getClosure("Array"+field, o, lazy);
-			case "indexOf" if (isArray(o)): 
-				var lazy = function () return ArrayImpl.indexOf.bind(o);
-				return getClosure("Array"+field, o, lazy);
-			case "lastIndexOf" if (isArray(o)): 
-				var lazy = function () return ArrayImpl.lastIndexOf.bind(o);
-				return getClosure("Array"+field, o, lazy);
-			case "remove" if (isArray(o)): 
-				var lazy = function () return ArrayImpl.remove.bind(o);
-				return getClosure("Array"+field, o, lazy);
-			case "reverse" if (isArray(o)): 
-				var lazy = function () return ArrayImpl.reverse.bind(o);
-				return getClosure("Array"+field, o, lazy);
-			case "shift" if (isArray(o)): 
-				var lazy = function () return ArrayImpl.shift.bind(o);
-				return getClosure("Array"+field, o, lazy);
-			case "slice" if (isArray(o)): 
-				var lazy = function () return ArrayImpl.slice.bind(o);
-				return getClosure("Array"+field, o, lazy);
-			case "sort" if (isArray(o)): 
-				var lazy = function () return ArrayImpl.sort.bind(o);
-				return getClosure("Array"+field, o, lazy);
-			case "splice" if (isArray(o)): 
-				var lazy = function () return ArrayImpl.splice.bind(o);
-				return getClosure("Array"+field, o, lazy);
+		if (isString(o)) {
+			return stringClosure(field, o);
 		}
-
+		if (isArray(o)) {
+			return arrayClosure(field, o);
+		}
 
 		var field = handleKeywords(field);
 		return if (UBuiltins.hasattr(o, field)) UBuiltins.getattr(o, field) else null;
+	}
+
+	static function stringClosure(  field : String, o : Dynamic ) : Dynamic {
+		switch (field) {
+			case "toLowerCase":
+				return createClosure(o, StringImpl.toLowerCase);
+			case "toUpperCase":
+				return createClosure(o, StringImpl.toUpperCase);
+			case "charAt":
+				return createClosure(o, StringImpl.charAt);
+			case "charCodeAt":
+				return createClosure(o, StringImpl.charCodeAt);
+			case "indexOf":
+				return createClosure(o, StringImpl.indexOf);
+			case "lastIndexOf":
+				return createClosure(o, StringImpl.lastIndexOf);
+			case "split":
+				return createClosure(o, StringImpl.split);
+			case "substr":
+				return createClosure(o, StringImpl.substr);
+			case "substring":
+				return createClosure(o, StringImpl.substring);
+			case "toString":
+				return createClosure(o, StringImpl.toString);
+		}
+		return null;
+	}
+
+	static function arrayClosure( field : String, o : Dynamic ) : Dynamic {
+		if (field == null) return null;
+
+		switch (field) {
+			case "length":
+				return ArrayImpl.get_length(o);
+			case "map":
+				return createClosure(o, ArrayImpl.map);
+			case "filter":
+				return createClosure(o, ArrayImpl.filter);
+			case "concat":
+				return createClosure(o, ArrayImpl.concat);
+			case "copy":
+				return createClosure(o, ArrayImpl.copy);
+			case "iterator":
+				return createClosure(o, ArrayImpl.iterator);
+			case "insert":
+				return createClosure(o, ArrayImpl.insert);
+			case "join":
+				return createClosure(o, ArrayImpl.join);
+			case "toString":
+				return createClosure(o, ArrayImpl.toString);
+			case "pop":
+				return createClosure(o, ArrayImpl.pop);
+			case "push":
+				return createClosure(o, ArrayImpl.push);
+			case "unshift":
+				return createClosure(o, ArrayImpl.unshift);
+			case "indexOf":
+				return createClosure(o, ArrayImpl.indexOf);
+			case "lastIndexOf":
+				return createClosure(o, ArrayImpl.lastIndexOf);
+			case "remove":
+				return createClosure(o, ArrayImpl.remove);
+			case "reverse":
+				return createClosure(o, ArrayImpl.reverse);
+			case "shift":
+				return createClosure(o, ArrayImpl.shift);
+			case "slice":
+				return createClosure(o, ArrayImpl.slice);
+			case "sort":
+				return createClosure(o, ArrayImpl.sort);
+			case "splice":
+				return createClosure(o, ArrayImpl.splice);
+
+		}
+		return null;
 	}
 
 
