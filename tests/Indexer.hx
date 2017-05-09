@@ -16,7 +16,7 @@ class Indexer
 		}
 
 		var basePath = 'http://' + s3pathRegex.matched(1) + '.s3-website-us-east-1.amazonaws.com' + s3pathRegex.matchedRight();
-		var proc = new Process('aws',['s3','ls',s3path]);
+		var proc = new Process('aws',['s3','ls',s3path,'--region','us-east-1']);
 		var records = [],
 				dirs = [];
 		try
