@@ -564,7 +564,7 @@ class RunCi {
 		if (
 			Sys.getEnv("DEPLOY") != null
 		) {
-			changeDirectory(repoDir);
+			changeDirectory(repoDir.substr(0, repoDir.length - 1));
 
 			if (Sys.systemName() != 'Windows') {
 				// generate doc
