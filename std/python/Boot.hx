@@ -293,92 +293,72 @@ class Boot {
 	static function field( o : Dynamic, field : String ) : Dynamic {
 		if (field == null) return null;
 
-		if (isString(o)) {
-			return stringClosure(field, o);
+		return switch (field) {
+			case "toLowerCase" if (isString(o)):
+				createClosure(o, StringImpl.toLowerCase);
+			case "toUpperCase" if (isString(o)):
+				createClosure(o, StringImpl.toUpperCase);
+			case "charAt" if (isString(o)):
+				createClosure(o, StringImpl.charAt);
+			case "charCodeAt" if (isString(o)):
+				createClosure(o, StringImpl.charCodeAt);
+			case "indexOf" if (isString(o)):
+				createClosure(o, StringImpl.indexOf);
+			case "lastIndexOf" if (isString(o)):
+				createClosure(o, StringImpl.lastIndexOf);
+			case "split" if (isString(o)):
+				createClosure(o, StringImpl.split);
+			case "substr" if (isString(o)):
+				createClosure(o, StringImpl.substr);
+			case "substring" if (isString(o)):
+				createClosure(o, StringImpl.substring);
+			case "toString" if (isString(o)):
+				createClosure(o, StringImpl.toString);
+			case "length" if (isArray(o)):
+				ArrayImpl.get_length(o);
+			case "map" if (isArray(o)):
+				createClosure(o, ArrayImpl.map);
+			case "filter" if (isArray(o)):
+				createClosure(o, ArrayImpl.filter);
+			case "concat" if (isArray(o)):
+				createClosure(o, ArrayImpl.concat);
+			case "copy" if (isArray(o)):
+				createClosure(o, ArrayImpl.copy);
+			case "iterator" if (isArray(o)):
+				createClosure(o, ArrayImpl.iterator);
+			case "insert" if (isArray(o)):
+				createClosure(o, ArrayImpl.insert);
+			case "join" if (isArray(o)):
+				createClosure(o, ArrayImpl.join);
+			case "toString" if (isArray(o)):
+				createClosure(o, ArrayImpl.toString);
+			case "pop" if (isArray(o)):
+				createClosure(o, ArrayImpl.pop);
+			case "push" if (isArray(o)):
+				createClosure(o, ArrayImpl.push);
+			case "unshift" if (isArray(o)):
+				createClosure(o, ArrayImpl.unshift);
+			case "indexOf" if (isArray(o)):
+				createClosure(o, ArrayImpl.indexOf);
+			case "lastIndexOf" if (isArray(o)):
+				createClosure(o, ArrayImpl.lastIndexOf);
+			case "remove" if (isArray(o)):
+				createClosure(o, ArrayImpl.remove);
+			case "reverse" if (isArray(o)):
+				createClosure(o, ArrayImpl.reverse);
+			case "shift" if (isArray(o)):
+				createClosure(o, ArrayImpl.shift);
+			case "slice" if (isArray(o)):
+				createClosure(o, ArrayImpl.slice);
+			case "sort" if (isArray(o)):
+				createClosure(o, ArrayImpl.sort);
+			case "splice" if (isArray(o)):
+				createClosure(o, ArrayImpl.splice);
+			default:
+				var field = handleKeywords(field);
+				if (UBuiltins.hasattr(o, field)) UBuiltins.getattr(o, field) else null;
 		}
-		if (isArray(o)) {
-			return arrayClosure(field, o);
-		}
-
-		var field = handleKeywords(field);
-		return if (UBuiltins.hasattr(o, field)) UBuiltins.getattr(o, field) else null;
 	}
-
-	static function stringClosure(  field : String, o : Dynamic ) : Dynamic {
-		switch (field) {
-			case "toLowerCase":
-				return createClosure(o, StringImpl.toLowerCase);
-			case "toUpperCase":
-				return createClosure(o, StringImpl.toUpperCase);
-			case "charAt":
-				return createClosure(o, StringImpl.charAt);
-			case "charCodeAt":
-				return createClosure(o, StringImpl.charCodeAt);
-			case "indexOf":
-				return createClosure(o, StringImpl.indexOf);
-			case "lastIndexOf":
-				return createClosure(o, StringImpl.lastIndexOf);
-			case "split":
-				return createClosure(o, StringImpl.split);
-			case "substr":
-				return createClosure(o, StringImpl.substr);
-			case "substring":
-				return createClosure(o, StringImpl.substring);
-			case "toString":
-				return createClosure(o, StringImpl.toString);
-		}
-		return null;
-	}
-
-	static function arrayClosure( field : String, o : Dynamic ) : Dynamic {
-		if (field == null) return null;
-
-		switch (field) {
-			case "length":
-				return ArrayImpl.get_length(o);
-			case "map":
-				return createClosure(o, ArrayImpl.map);
-			case "filter":
-				return createClosure(o, ArrayImpl.filter);
-			case "concat":
-				return createClosure(o, ArrayImpl.concat);
-			case "copy":
-				return createClosure(o, ArrayImpl.copy);
-			case "iterator":
-				return createClosure(o, ArrayImpl.iterator);
-			case "insert":
-				return createClosure(o, ArrayImpl.insert);
-			case "join":
-				return createClosure(o, ArrayImpl.join);
-			case "toString":
-				return createClosure(o, ArrayImpl.toString);
-			case "pop":
-				return createClosure(o, ArrayImpl.pop);
-			case "push":
-				return createClosure(o, ArrayImpl.push);
-			case "unshift":
-				return createClosure(o, ArrayImpl.unshift);
-			case "indexOf":
-				return createClosure(o, ArrayImpl.indexOf);
-			case "lastIndexOf":
-				return createClosure(o, ArrayImpl.lastIndexOf);
-			case "remove":
-				return createClosure(o, ArrayImpl.remove);
-			case "reverse":
-				return createClosure(o, ArrayImpl.reverse);
-			case "shift":
-				return createClosure(o, ArrayImpl.shift);
-			case "slice":
-				return createClosure(o, ArrayImpl.slice);
-			case "sort":
-				return createClosure(o, ArrayImpl.sort);
-			case "splice":
-				return createClosure(o, ArrayImpl.splice);
-
-		}
-		return null;
-	}
-
 
 	static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
 		var f = if (Internal.hasFields(c)) (Internal.fieldFields(c) : Array<String>).copy() else [];
