@@ -4,7 +4,7 @@ type pos = {
 	pmax : int;
 }
 
-module IntMap = Map.Make(struct type t = int let compare a b = a - b end)
+module IntMap = Ptmap
 module StringMap = Map.Make(struct type t = string let compare = String.compare end)
 
 type platform =
