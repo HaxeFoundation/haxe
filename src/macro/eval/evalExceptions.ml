@@ -67,7 +67,7 @@ let error_exc ctx v stack p =
 
 let build_exception_stack ctx environment_offset =
 	let eval = get_eval ctx in
-	let d = if not ctx.debug.debug then [] else DynArray.to_list (DynArray.sub eval.environments environment_offset (eval.environment_offset - environment_offset)) in
+	let d = if not ctx.record_stack then [] else DynArray.to_list (DynArray.sub eval.environments environment_offset (eval.environment_offset - environment_offset)) in
 	ctx.exception_stack <- List.map (fun env ->
 		env.env_in_use <- false;
 		{pfile = rev_hash_s env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax},env.env_info.kind
