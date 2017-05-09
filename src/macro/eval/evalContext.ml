@@ -205,17 +205,20 @@ let object_fields o =
 exception RunTimeException of value * env list * pos
 
 let call_stack ctx =
-	List.rev (DynArray.to_list (DynArray.sub ctx.environments 0 ctx.environment_offset))
+	if not ctx.record_stack then
+		[]
+	else
+		List.rev (DynArray.to_list (DynArray.sub ctx.eval.environments 0 ctx.eval.environment_offset))
 
 let throw v p =
 	let ctx = get_ctx() in
 	let eval = get_eval ctx in
-	if eval.environment_offset > 0 then begin
+	if ctx.record_stack && eval.environment_offset > 0 then begin
 		let env = DynArray.get eval.environments (eval.environment_offset - 1) in
 		env.env_leave_pmin <- p.pmin;
 		env.env_leave_pmax <- p.pmax;
 	end;
-	raise (RunTimeException(v,call_stack eval,p))
+	raise (RunTimeException(v,call_stack ctx,p))
 
 let exc v = throw v null_pos
 

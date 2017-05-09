@@ -221,7 +221,7 @@ let is_caught ctx v =
 		true
 
 let get_call_stack_envs ctx kind p =
-	let envs = match call_stack (get_eval ctx) with
+	let envs = match call_stack ctx with
 		| _ :: envs -> envs
 		| [] -> []
 	in
