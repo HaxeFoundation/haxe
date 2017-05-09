@@ -25,18 +25,18 @@ open EvalHash
 
 (* Functions *)
 
-let vifun0 f = vfunction (Fun1 ((fun f a -> f a) f))
-let vifun1 f = vfunction (Fun2 ((fun f a b -> f a b) f))
-let vifun2 f = vfunction (Fun3 ((fun f a b c -> f a b c) f))
-let vifun3 f = vfunction (Fun4 ((fun f a b c d -> f a b c d) f))
-let vifun4 f = vfunction (Fun5 ((fun f a b c d e -> f a b c d e) f))
+let vifun0 f = vfunction (Fun1 (fun a -> f a))
+let vifun1 f = vfunction (Fun2 (fun a b -> f a b))
+let vifun2 f = vfunction (Fun3 (fun a b c -> f a b c))
+let vifun3 f = vfunction (Fun4 (fun a b c d -> f a b c d))
+let vifun4 f = vfunction (Fun5 (fun a b c d e -> f a b c d e))
 
-let vfun0 f = vstatic_function (Fun0 ((fun f vl -> f ()) f))
-let vfun1 f = vstatic_function (Fun1 ((fun f a -> f a) f))
-let vfun2 f = vstatic_function (Fun2 ((fun f a b -> f a b) f))
-let vfun3 f = vstatic_function (Fun3 ((fun f a b c -> f a b c) f))
-let vfun4 f = vstatic_function (Fun4 ((fun f a b c d -> f a b c d) f))
-let vfun5 f = vstatic_function (Fun5 ((fun f a b c d e -> f a b c d e) f))
+let vfun0 f = vstatic_function (Fun0 (fun vl -> f ()))
+let vfun1 f = vstatic_function (Fun1 (fun a -> f a))
+let vfun2 f = vstatic_function (Fun2 (fun a b -> f a b))
+let vfun3 f = vstatic_function (Fun3 (fun a b c -> f a b c))
+let vfun4 f = vstatic_function (Fun4 (fun a b c d -> f a b c d))
+let vfun5 f = vstatic_function (Fun5 (fun a b c d e -> f a b c d e))
 
 (* Objects *)
 
