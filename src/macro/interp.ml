@@ -2653,7 +2653,7 @@ let load_prim ctx f n =
 	| _ ->
 		exc (VString (value_match_failure "Invalid call" ["VString";"VInt"] [f;n]))
 
-let create com api =
+let create com api _ =
 	let loader = obj hash [
 		"args",VArray (Array.of_list (List.map (fun s -> VString s) com.sys_args));
 		"loadprim",VFunction (Fun2 (fun a b -> (get_ctx()).do_loadprim a b));
@@ -2807,7 +2807,7 @@ let decode_string v =
 
 let decode_bytes v =
 	match field v "b" with
-	| VString s -> s
+	| VString s -> (Bytes.unsafe_of_string s)
 	| _ -> raise Invalid_expr
 
 let decode_array v =
@@ -2867,8 +2867,8 @@ let encode_string s =
 
 let encode_bytes s =
 	encode_inst ["haxe";"io";"Bytes"] [
-		"b", VString s;
-		"length", VInt (String.length s)
+		"b", VString (Bytes.unsafe_to_string s);
+		"length", VInt (Bytes.length s)
 	]
 
 let encode_hash h =

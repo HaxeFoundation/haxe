@@ -38,58 +38,99 @@ type server_message =
 let s_version =
 	Printf.sprintf "%d.%d.%d%s" version_major version_minor version_revision (match Version.version_extra with None -> "" | Some v -> " " ^ v)
 
+type timer_node = {
+	name : string;
+	path : string;
+	parent : timer_node;
+	info : string;
+	mutable time : float;
+	mutable num_calls : int;
+	mutable children : timer_node list;
+}
+
 let report_times print =
-	let tot = ref 0. in
-	Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
-	if !tot > 0. then begin
-		let buckets = Hashtbl.create 0 in
-		let add id time calls =
-			try
-				let time',calls' = Hashtbl.find buckets id in
-				Hashtbl.replace buckets id (time' +. time,calls' + calls)
-			with Not_found ->
-				Hashtbl.add buckets id (time,calls)
+	let nodes = Hashtbl.create 0 in
+	let rec root = {
+		name = "";
+		path = "";
+		parent = root;
+		info = "";
+		time = 0.;
+		num_calls = 0;
+		children = [];
+	} in
+	Hashtbl.iter (fun _ timer ->
+		let rec loop parent sl = match sl with
+			| [] -> assert false
+			| s :: sl ->
+				let path = (match parent.path with "" -> "" | _ -> parent.path ^ ".") ^ s in
+				let node = try
+					let node = Hashtbl.find nodes path in
+					node.num_calls <- node.num_calls + timer.calls;
+					node.time <- node.time +. timer.total;
+					node
+				with Not_found ->
+					let name,info = try
+						let i = String.rindex s '.' in
+						String.sub s (i + 1) (String.length s - i - 1),String.sub s 0 i
+					with Not_found ->
+						s,""
+					in
+					let node = {
+						name = name;
+						path = path;
+						parent = parent;
+						info = info;
+						time = timer.total;
+						num_calls = timer.calls;
+						children = [];
+					} in
+					Hashtbl.add nodes path node;
+					node
+				in
+				begin match sl with
+					| [] -> ()
+					| _ ->
+						let child = loop node sl in
+						if not (List.memq child node.children) then
+							node.children <- child :: node.children;
+				end;
+				node
 		in
-		Hashtbl.iter (fun _ t ->
-			let rec loop acc ids = match ids with
-				| id :: ids ->
-					add (List.rev (id :: acc)) t.total t.calls;
-					loop (id :: acc) ids
-				| [] ->
-					()
-			in
-			loop [] t.id
-		) Common.htimers;
-		let max_name = ref 0 in
-		let max_calls = ref 0 in
-		let timers = Hashtbl.fold (fun id t acc ->
-			let name,indent = match List.rev id with
-				| [] -> assert false
-				| name :: l -> name,(String.make (List.length l * 2) ' ')
-			in
-			let name,info = try
-				let i = String.rindex name '.' in
-				String.sub name (i + 1) (String.length name - i - 1),String.sub name 0 i
-			with Not_found ->
-				name,""
-			in
-			let name = indent ^ name in
-			if String.length name > !max_name then max_name := String.length name;
-			if snd t > !max_calls then max_calls := snd t;
-			(id,name,info,t) :: acc
-		) buckets [] in
-		let max_calls = String.length (string_of_int !max_calls) in
-		print (Printf.sprintf "%-*s | %7s |   %% | %*s | info" !max_name "name" "time(s)" max_calls "#");
-		let sep = String.make (!max_name + max_calls + 21) '-' in
-		print sep;
-		let timers = List.sort (fun (id1,_,_,_) (id2,_,_,_) -> compare id1 id2) timers in
-		let print_timer id name info (time,calls) =
-			print (Printf.sprintf "%-*s | %7.3f | %3.0f | %*i | %s" !max_name name time (time *. 100. /. !tot) max_calls calls info)
-		in
-		List.iter (fun (id,name,info,t) -> print_timer id name info t) timers;
-		print sep;
-		print_timer ["total"] "total" "" (!tot,0)
-	end
+		let node = loop root timer.id in
+		if not (List.memq node root.children) then
+			root.children <- node :: root.children
+	) Common.htimers;
+	let max_name = ref 0 in
+	let max_calls = ref 0 in
+	let rec loop depth node =
+		let l = (String.length node.name) + 2 * depth in
+		if l > !max_name then max_name := l;
+		List.iter (fun child ->
+			node.num_calls <- node.num_calls + child.num_calls;
+			node.time <- node.time +. child.time;
+			loop (depth + 1) child;
+		) node.children;
+		node.children <- List.sort (fun node1 node2 -> compare node2.time node1.time) node.children;
+		if node.num_calls > !max_calls then max_calls := node.num_calls;
+	in
+	loop 0 root;
+	let max_calls = String.length (string_of_int !max_calls) in
+	print (Printf.sprintf "%-*s | %7s |   %% |  p%% | %*s | info" !max_name "name" "time(s)" max_calls "#");
+	let sep = String.make (!max_name + max_calls + 27) '-' in
+	print sep;
+	let print_time name node =
+		if node.time > 0.0009 then
+			print (Printf.sprintf "%-*s | %7.3f | %3.0f | %3.0f | %*i | %s" !max_name name node.time (node.time *. 100. /. root.time) (node.time *. 100. /. node.parent.time) max_calls node.num_calls node.info)
+	in
+	let rec loop depth node =
+		let name = (String.make (depth * 2) ' ') ^ node.name in
+		print_time name node;
+		List.iter (loop (depth + 1)) node.children
+	in
+	List.iter (loop 0) root.children;
+	print sep;
+	print_time "total" root
 
 let default_flush ctx =
 	List.iter prerr_endline (List.rev ctx.messages);
