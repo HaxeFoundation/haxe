@@ -100,7 +100,7 @@ let rec compare a b =
 
 let rec equals a b = match a,b with
 	| VNull,VNull -> true
-	| VInt32 a,VInt32 b -> Int32.compare a b = 0
+	| VInt32 a,VInt32 b -> a = b
 	| VFloat a,VFloat b -> a = b
 	| VFloat a,VInt32 b -> a = (Int32.to_float b)
 	| VInt32 a,VFloat b -> (Int32.to_float a) = b
