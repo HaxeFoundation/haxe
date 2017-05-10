@@ -276,7 +276,7 @@ let emit_try exec catches env =
 	let v = try
 		exec env
 	with RunTimeException(v,_,_) as exc ->
-		build_exception_stack ctx (environment_offset - 1);
+		build_exception_stack ctx environment_offset;
 		eval.environment_offset <- environment_offset;
 		let exec,_,varacc =
 			try
