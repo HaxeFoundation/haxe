@@ -600,6 +600,14 @@ module StdContext = struct
 	)
 end
 
+module StdCrc32 = struct
+	let make = vfun1 (fun data ->
+		let data = decode_bytes data in
+		let crc32 = Extc.zlib_crc32 data (Bytes.length data) in
+		vint crc32
+	)
+end
+
 module StdDate = struct
 	open Unix
 
@@ -2649,6 +2657,9 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"vm"],"Context") [
 		"addBreakpoint",StdContext.addBreakpoint;
 		"callMacroApi",StdContext.callMacroApi;
+	] [];
+	init_fields builtins (["haxe";"crypto"],"Crc32") [
+		"make",StdCrc32.make;
 	] [];
 	init_fields builtins ([],"Date") [
 		"fromString",StdDate.fromString;
