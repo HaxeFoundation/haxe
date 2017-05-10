@@ -622,6 +622,12 @@ and jit_expr return jit e =
 		let exec = jit_expr false jit e1 in
 		emit_enum_parameter_read exec i
 	(* ops *)
+	| TBinop(OpEq,e1,{eexpr = TConst TNull}) | TBinop(OpEq,{eexpr = TConst TNull},e1) ->
+		let exec = jit_expr false jit e1 in
+		emit_eq_null exec
+	| TBinop(OpNotEq,e1,{eexpr = TConst TNull}) | TBinop(OpNotEq,{eexpr = TConst TNull},e1) ->
+		let exec = jit_expr false jit e1 in
+		emit_not_eq_null exec
 	| TBinop(op,e1,e2) ->
 		begin match op with
 		| OpAssign ->

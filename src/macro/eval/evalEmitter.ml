@@ -1016,6 +1016,14 @@ let emit_array_read_write exec1 exec2 exec3 fop prefix p env =
 
 (* Ops *)
 
+let emit_eq_null exec env = match exec env with
+	| VNull -> VTrue
+	| _ -> VFalse
+
+let emit_not_eq_null exec env = match exec env with
+	| VNull -> VFalse
+	| _ -> VTrue
+
 let op_add v1 v2 = match v1,v2 with
 	| VInt32 i1,VInt32 i2 -> vint32 (Int32.add i1 i2)
 	| VFloat f1,VFloat f2 -> vfloat (f1 +. f2)
