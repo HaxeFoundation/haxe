@@ -352,6 +352,11 @@ CAMLprim value zlib_deflate_bound(value zv,value len) {
 	return Val_int(deflateBound(ZStreamP_val(zv),Int_val(len)));
 }
 
+CAMLprim value zlib_crc32( value src, value len ) {
+	uLong crc = crc32(0L, (Bytef*)(String_val(src)), Int_val(len));
+	return Val_int(crc);
+}
+
 CAMLprim value executable_path(value u) {
 #ifdef _WIN32
 	char path[MAX_PATH];
