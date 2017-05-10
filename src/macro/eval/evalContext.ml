@@ -169,6 +169,14 @@ let vstring s =
 		ikind = IString(s,lazy (Rope.to_string s))
 	}
 
+let vstring_direct (r,s) =
+	let proto = (get_ctx()).string_prototype in
+	vinstance {
+		ifields = [|vint (Rope.length r)|];
+		iproto = proto;
+		ikind = IString(r,s)
+	}
+
 let call_function f vl = match f,vl with
 	| Fun0 f,_ -> f()
 	| Fun1 f,[] -> f vnull

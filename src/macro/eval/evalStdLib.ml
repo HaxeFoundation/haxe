@@ -2038,7 +2038,7 @@ module StdSys = struct
 		let h = StringHashtbl.create 0 in
 		Array.iter(fun s ->
 			let k, v = ExtString.String.split s "=" in
-			StringHashtbl.replace h k (encode_string v)
+			StringHashtbl.replace h (Rope.of_string k,lazy k) (encode_string v)
 		) env;
 		encode_string_map_direct h
 	)
@@ -2485,7 +2485,7 @@ let init_maps builtins =
 		| VInstance {ikind = IStringMap h} -> h
 		| v -> unexpected_value v "string map"
 	in
-	init_fields builtins (["haxe";"ds"],"StringMap") [] (StdStringMap.map_fields encode_string decode_string (fun s -> Rope.of_string s) this);
+	init_fields builtins (["haxe";"ds"],"StringMap") [] (StdStringMap.map_fields vstring_direct decode_rope_string (fun (r,_) -> r) this);
 	let this vthis = match vthis with
 		| VInstance {ikind = IObjectMap h} -> Obj.magic h
 		| v -> unexpected_value v "object map"

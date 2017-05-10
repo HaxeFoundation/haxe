@@ -133,7 +133,7 @@ let encode_string_map_direct h =
 
 let encode_string_map convert m =
 	let h = StringHashtbl.create 0 in
-	PMap.iter (fun key value -> StringHashtbl.add h key (convert value)) m;
+	PMap.iter (fun key value -> StringHashtbl.add h (Rope.of_string key,lazy key) (convert value)) m;
 	encode_string_map_direct h
 
 let fake_proto path = {

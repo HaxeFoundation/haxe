@@ -26,7 +26,13 @@ type cmp =
 	| CInf
 	| CUndef
 
-module StringHashtbl = Hashtbl.Make(struct type t = string let equal = (=) let hash = Hashtbl.hash end)
+type vstring = Rope.t * string Lazy.t
+
+module StringHashtbl = Hashtbl.Make(struct
+	type t = vstring
+	let equal (r1,s1) (r2,s2) = r1 == r2 || Lazy.force s1 = Lazy.force s2
+	let hash (_,s) = Hashtbl.hash (Lazy.force s)
+end)
 
 module IntHashtbl = Hashtbl.Make(struct type t = int let equal = (=) let hash = Hashtbl.hash end)
 
@@ -103,7 +109,7 @@ and vprototype = {
 
 and vinstance_kind =
 	| IArray of varray
-	| IString of Rope.t * string Lazy.t
+	| IString of vstring
 	| IBytes of bytes
 	| IRegex of vregex
 	| IDate of float
