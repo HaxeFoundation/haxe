@@ -94,7 +94,8 @@ let create com api is_macro =
 		| Some debug ->
 			debug
 	in
-	let record_stack = Common.defined com Define.EvalStack in
+	let detail_times = Common.defined com Define.EvalTimes in
+	let record_stack = debug.support_debugger || detail_times || Common.defined com Define.EvalStack in
 	let evals = DynArray.create () in
 	let eval = {
 		environments = DynArray.make 32;
@@ -106,7 +107,7 @@ let create com api is_macro =
 		is_macro = is_macro;
 		debug = debug;
 		record_stack = record_stack;
-		detail_times = Common.defined com Define.EvalTimes;
+		detail_times = detail_times;
 		curapi = api;
 		builtins = builtins;
 		type_cache = IntMap.empty;
