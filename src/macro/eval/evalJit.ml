@@ -482,6 +482,16 @@ and jit_expr jit return e =
 				| Method _ -> true
 				| Var _ -> false
 			in
+			let instance_call c =
+				let exec = jit_expr jit false ef in
+				let proto = get_instance_prototype ctx (path_hash c.cl_path) ef.epos in
+				let i = get_proto_field_index proto name in
+				emit_proto_field_call proto i (exec :: execs) e.epos
+			in
+			let default () =
+				let exec = jit_expr jit false ef in
+				emit_method_call exec name execs e.epos
+			in
 			begin match fa with
 				| FStatic({cl_path=[],"Type"},{cf_name="enumIndex"}) ->
 					begin match execs with
@@ -504,14 +514,16 @@ and jit_expr jit return e =
 					let proto = get_static_prototype ctx (path_hash path) ef.epos in
 					let i = get_proto_field_index proto name in
 					emit_proto_field_call proto i execs e.epos
-				| FInstance(c,_,cf) when is_proper_method cf && not (is_overridden c cf.cf_name) && not c.cl_interface ->
-					let exec = jit_expr jit false ef in
-					let proto = get_instance_prototype ctx (path_hash c.cl_path) ef.epos in
-					let i = get_proto_field_index proto name in
-					emit_proto_field_call proto i (exec :: execs) e.epos
-				| FInstance(_,_,cf) when is_proper_method cf ->
-					let exec = jit_expr jit false ef in
-					emit_method_call exec name execs e.epos
+				| FInstance(c,_,cf) when is_proper_method cf && not (is_overridden c cf.cf_name) ->
+					if not c.cl_interface then
+						instance_call c
+					else if c.cl_implements = [] && c.cl_super = None then begin match c.cl_descendants with
+						| [c'] when not c'.cl_interface && not (is_overridden c' cf.cf_name) ->
+							instance_call c'
+						| _ ->
+							default()
+					end else
+						default()
 				| _ ->
 					let exec = jit_expr jit false ef in
 					emit_field_call exec name execs e.epos
