@@ -635,6 +635,22 @@ class RunCi {
 	*/
 	static function deployNightlies():Void {
 		trace('deployNightlies()');
+		trace(ci);
+		trace(Sys.getEnv("APPVEYOR_PROJECT_SLUG"));
+		trace(Sys.getEnv("APPVEYOR_REPO_BRANCH"));
+		trace(commandResult("git", ["rev-parse", "HEAD"]).stdout.trim());
+		trace(Std.parseFloat(commandResult("git", ["show", "-s", "--format=%ct", "HEAD"]).stdout));
+		trace(commandResult("git", ["show", "-s", "--format=%ct", "HEAD"]).stdout);
+		var gitTime = commandResult("git", ["show", "-s", "--format=%ct", "HEAD"]).stdout;
+		var tzd = {
+			var z = Date.fromTime(0);
+			z.getHours() * 60 * 60 * 1000 + z.getMinutes() * 60 * 1000
+		};
+		trace(tzd);
+		trace(Std.parseFloat(gitTime));
+		var time = Date.fromTime(Std.parseFloat(gitTime) * 1000 - tzd);
+		trace(time);
+		trace(DateTools.format(time, '%FT%TZ'));
 		trace(gitInfo);
 		trace(Sys.getEnv("HXBUILDS_AWS_ACCESS_KEY_ID") != null);
 		trace(Sys.getEnv("HXBUILDS_AWS_SECRET_ACCESS_KEY") != null);
