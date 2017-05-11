@@ -317,9 +317,11 @@ let push_environment ctx info num_locals num_captures =
 		env_locals = Array.make num_locals vnull;
 		env_captures = Array.make num_captures (ref vnull);
 	}
+[@@inline]
 
 let pop_environment ctx env =
 	if ctx.record_stack then pop_environment_debug ctx env else ()
+[@@inline]
 
 (* Prototypes *)
 

@@ -709,14 +709,119 @@ let jit_tfunction ctx key_type key_field tf static =
 	let capture_count = Hashtbl.length jit.captures in
 	let hasret = jit.has_nonfinal_return in
 	let info = create_env_info static (file_hash tf.tf_expr.epos.pfile) (EKMethod(key_type,key_field)) jit.capture_infos in
+	let default_env = create_default_environment ctx info local_count in
+	if capture_count > 0 then default_env.env_in_use <- true;
+	let get_env () =
+		if default_env.env_in_use then begin
+			push_environment ctx info local_count capture_count
+		end else begin
+			default_env.env_in_use <- true;
+			default_env
+		end
+		[@@inline]
+	in
 	match args,varaccs with
-	| [],[] -> Fun0 (emit_tfunction0 ctx info hasret local_count capture_count exec)
-	| [arg1],[varacc1] -> Fun1 (emit_tfunction1 ctx info hasret local_count capture_count arg1 varacc1 exec)
-	| [arg1;arg2],[varacc1;varacc2] -> Fun2 (emit_tfunction2 ctx info hasret local_count capture_count arg1 varacc1 arg2 varacc2 exec)
-	| [arg1;arg2;arg3],[varacc1;varacc2;varacc3] -> Fun3 (emit_tfunction3 ctx info hasret local_count capture_count arg1 varacc1 arg2 varacc2 arg3 varacc3 exec)
-	| [arg1;arg2;arg3;arg4],[varacc1;varacc2;varacc3;varacc4] -> Fun4 (emit_tfunction4 ctx info hasret local_count capture_count arg1 varacc1 arg2 varacc2 arg3 varacc3 arg4 varacc4 exec)
-	| [arg1;arg2;arg3;arg4;arg5],[varacc1;varacc2;varacc3;varacc4;varacc5] -> Fun5 (emit_tfunction5 ctx info hasret local_count capture_count arg1 varacc1 arg2 varacc2 arg3 varacc3 arg4 varacc4 arg5 varacc5 exec)
-	| _ -> FunN (emit_tfunction ctx info hasret local_count capture_count args varaccs exec)
+	| [],[] ->
+		if hasret then Fun0 (fun () ->
+			let env = get_env () in
+			run_function ctx exec env
+		)
+		else Fun0 (fun () ->
+			let env = get_env () in
+			run_function_noret ctx exec env
+		)
+	| [arg1],[varacc1] ->
+		if hasret then Fun1 (fun v1 ->
+			let env = get_env () in
+			handle_function_argument arg1 varacc1 v1 env;
+			run_function ctx exec env
+		)
+		else Fun1 (fun v1 ->
+			let env = get_env () in
+			handle_function_argument arg1 varacc1 v1 env;
+			run_function_noret ctx exec env
+		)
+	| [arg1;arg2],[varacc1;varacc2] ->
+		let run v1 v2 =
+			let env = get_env () in
+			handle_function_argument arg1 varacc1 v1 env;
+			handle_function_argument arg2 varacc2 v2 env;
+			env
+			[@@inline]
+		in
+		if hasret then Fun2 (fun v1 v2 ->
+			let env = run v1 v2 in
+			run_function ctx exec env
+		)
+		else Fun2 (fun v1 v2 ->
+			let env = run v1 v2 in
+			run_function_noret ctx exec env
+		)
+	| [arg1;arg2;arg3],[varacc1;varacc2;varacc3] ->
+		let run v1 v2 v3 =
+			let env = get_env () in
+			handle_function_argument arg1 varacc1 v1 env;
+			handle_function_argument arg2 varacc2 v2 env;
+			handle_function_argument arg3 varacc3 v3 env;
+			env
+			[@@inline]
+		in
+		if hasret then Fun3 (fun v1 v2 v3 ->
+			let env = run v1 v2 v3 in
+			run_function ctx exec env
+		)
+		else Fun3 (fun v1 v2 v3 ->
+			let env = run v1 v2 v3 in
+			run_function_noret ctx exec env
+		)
+	| [arg1;arg2;arg3;arg4],[varacc1;varacc2;varacc3;varacc4] ->
+		let run v1 v2 v3 v4 =
+			let env = get_env () in
+			handle_function_argument arg1 varacc1 v1 env;
+			handle_function_argument arg2 varacc2 v2 env;
+			handle_function_argument arg3 varacc3 v3 env;
+			handle_function_argument arg4 varacc4 v4 env;
+			env
+			[@@inline]
+		in
+		if hasret then Fun4 (fun v1 v2 v3 v4 ->
+			let env = run v1 v2 v3 v4 in
+			run_function ctx exec env
+		)
+		else Fun4 (fun v1 v2 v3 v4 ->
+			let env = run v1 v2 v3 v4 in
+			run_function_noret ctx exec env
+		)
+	| [arg1;arg2;arg3;arg4;arg5],[varacc1;varacc2;varacc3;varacc4;varacc5] ->
+		let run v1 v2 v3 v4 v5 =
+			let env = get_env () in
+			handle_function_argument arg1 varacc1 v1 env;
+			handle_function_argument arg2 varacc2 v2 env;
+			handle_function_argument arg3 varacc3 v3 env;
+			handle_function_argument arg4 varacc4 v4 env;
+			handle_function_argument arg5 varacc5 v5 env;
+			env
+			[@@inline]
+		in
+		if hasret then Fun5 (fun v1 v2 v3 v4 v5 ->
+			let env = run v1 v2 v3 v4 v5 in
+			run_function ctx exec env
+		)
+		else Fun5 (fun v1 v2 v3 v4 v5 ->
+			let env = run v1 v2 v3 v4 v5 in
+			run_function_noret ctx exec env
+		)
+	| _ ->
+		if hasret then FunN (fun vl ->
+			let env = get_env () in
+			handle_function_arguments args varaccs vl env;
+			run_function ctx exec env
+		)
+		else FunN (fun vl ->
+			let env = get_env () in
+			handle_function_arguments args varaccs vl env;
+			run_function_noret ctx exec env
+		)
 
 (* JITs expression [e] to a function. This is used for expressions that are not in a method. *)
 let jit_expr ctx e =
