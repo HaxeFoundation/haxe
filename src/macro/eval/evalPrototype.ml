@@ -41,9 +41,9 @@ let eval_expr ctx key name e =
 (* Creates constructor function for class [c], if it has a constructor. *)
 let create_constructor ctx c =
 	match c.cl_constructor with
-	| Some {cf_expr = Some {eexpr = TFunction tf}} when not c.cl_extern ->
+	| Some {cf_expr = Some {eexpr = TFunction tf; epos = pos}} when not c.cl_extern ->
 		let key = path_hash c.cl_path in
-		let v = lazy (vfunction (jit_tfunction ctx key key_new tf false)) in
+		let v = lazy (vfunction (jit_tfunction ctx key key_new tf false pos)) in
 		ctx.constructors <- IntMap.add key v ctx.constructors;
 	| _ ->
 		()
@@ -181,9 +181,9 @@ let create_static_prototype ctx mt =
 		let fields = List.filter (fun cf -> not (is_removable_field cf)) c.cl_ordered_statics in
 		let delays = DynArray.create() in
 		if not c.cl_extern then List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
-			| Method _,Some {eexpr = TFunction tf} ->
+			| Method _,Some {eexpr = TFunction tf; epos = pos} ->
 				let name = hash_s cf.cf_name in
-				PrototypeBuilder.add_proto_field pctx name (lazy (vstatic_function (jit_tfunction ctx key name tf true)));
+				PrototypeBuilder.add_proto_field pctx name (lazy (vstatic_function (jit_tfunction ctx key name tf true pos)));
 			| Var _,Some e ->
 				let name = hash_s cf.cf_name in
 				PrototypeBuilder.add_proto_field pctx name (lazy vnull);
@@ -236,9 +236,9 @@ let create_instance_prototype ctx c =
 	if c.cl_extern && c.cl_path <> ([],"String") then
 		()
 	else List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
-		| Method meth,Some {eexpr = TFunction tf} ->
+		| Method meth,Some {eexpr = TFunction tf; epos = pos} ->
 			let name = hash_s cf.cf_name in
-			let v = lazy (vfunction (jit_tfunction ctx key name tf false)) in
+			let v = lazy (vfunction (jit_tfunction ctx key name tf false pos)) in
 			if meth = MethDynamic then PrototypeBuilder.add_instance_field pctx name v;
 			PrototypeBuilder.add_proto_field pctx name v
 		| Var _,_ when not (is_extern_field cf) ->

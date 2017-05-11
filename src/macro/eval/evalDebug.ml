@@ -494,15 +494,31 @@ module DebugOutputJson = struct
 		output_result ctx (var_to_json name value access)
 
 	let output_scopes ctx capture_infos scopes =
-		let mk_scope id name = JObject ["id",JInt id; "name",JString name] in
+		let mk_scope id name pos =
+			let fl = ["id",JInt id; "name",JString name] in
+			let fl =
+				if pos <> null_pos then
+					let line1,col1,line2,col2 = Lexer.get_pos_coords pos in
+					("pos",JObject [
+						"source",JString (Path.get_real_path pos.pfile);
+						"line",JInt line1;
+						"column",JInt col1;
+						"endLine",JInt line2;
+						"endColumn",JInt col2;
+					]) :: fl
+				else
+					fl
+			in
+			JObject fl
+		in
 		let _,scopes = List.fold_left (fun (id,acc) scope ->
 			if Hashtbl.length scope.local_infos <> 0 then
-				(id + 1), (mk_scope id "Locals") :: acc
+				(id + 1), (mk_scope id "Locals" scope.pos) :: acc
 			else
 				(id + 1), acc
 		) (1,[]) scopes in
 		let scopes = List.rev scopes in
-		let scopes = if Hashtbl.length capture_infos = 0 then scopes else (mk_scope 0 "Captures") :: scopes in
+		let scopes = if Hashtbl.length capture_infos = 0 then scopes else (mk_scope 0 "Captures" null_pos) :: scopes in
 		output_result ctx (JArray scopes)
 
 	let output_capture_vars ctx env =

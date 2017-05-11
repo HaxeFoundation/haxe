@@ -44,12 +44,13 @@ let num_locals scope =
 	Hashtbl.length scope.locals
 
 (* Pushes a new scope onto context [jit]. *)
-let push_scope jit =
+let push_scope jit pos =
 	let scope = {
 		local_offset = jit.local_count;
 		locals = Hashtbl.create 0;
 		local_infos = Hashtbl.create 0;
 		local_ids = Hashtbl.create 0;
+		pos = pos;
 	} in
 	jit.scopes <- scope :: jit.scopes
 

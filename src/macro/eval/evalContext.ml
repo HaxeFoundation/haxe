@@ -25,6 +25,7 @@ open EvalHash
 type var_info = string
 
 type scope = {
+	pos : pos;
 	(* The local start offset of the current scope. *)
 	local_offset : int;
 	(* The locals declared in the current scope. Maps variable IDs to local slots. *)

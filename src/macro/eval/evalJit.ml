@@ -225,7 +225,7 @@ and jit_expr jit return e =
 		let jit_closure = EvalJitContext.create ctx in
 		jit_closure.captures <- jit.captures;
 		jit_closure.capture_infos <- jit.capture_infos;
-		push_scope jit_closure;
+		push_scope jit_closure e.epos;
 		let varaccs = List.map (fun (var,_) -> declare_local jit_closure var) tf.tf_args in
 		let exec = jit_expr jit_closure true tf.tf_expr in
 		pop_scope jit_closure;
@@ -251,7 +251,7 @@ and jit_expr jit return e =
 		let is_complex = ref false in
 		(* This is slightly insane... *)
 		List.iter (fun (el,e) ->
-			push_scope jit;
+			push_scope jit e.epos;
 			begin try
 				if !is_complex then raise Exit;
 				let el = List.map (fun e -> match e.eexpr with
@@ -271,7 +271,7 @@ and jit_expr jit return e =
 			| None ->
 				emit_null
 			| Some e ->
-				push_scope jit;
+				push_scope jit e.epos;
 				let exec = jit_expr jit return e in
 				pop_scope jit;
 				exec
@@ -342,7 +342,7 @@ and jit_expr jit return e =
 	| TTry(e1,catches) ->
 		let exec = jit_expr jit return e1 in
 		let catches = List.map (fun (var,e) ->
-			push_scope jit;
+			push_scope jit e.epos;
 			let varacc = declare_local jit var in
 			let exec = jit_expr jit return e in
 			pop_scope jit;
@@ -358,7 +358,7 @@ and jit_expr jit return e =
 			| e1 :: el -> e1,List.rev el
 			| [] -> assert false
 		in
-		push_scope jit;
+		push_scope jit e.epos;
 		let execs = List.map (jit_expr jit false) el in
 		let exec1 = jit_expr jit return e1 in
 		pop_scope jit;
@@ -366,20 +366,20 @@ and jit_expr jit return e =
 	| TBlock [e1] ->
 		loop e1
 	| TBlock [e1;e2] ->
-		push_scope jit;
+		push_scope jit e.epos;
 		let exec1 = jit_expr jit false e1 in
 		let exec2 = jit_expr jit return e2 in
 		pop_scope jit;
 		emit_block2 exec1 exec2
 	| TBlock [e1;e2;e3] ->
-		push_scope jit;
+		push_scope jit e.epos;
 		let exec1 = jit_expr jit false e1 in
 		let exec2 = jit_expr jit false e2 in
 		let exec3 = jit_expr jit return e3 in
 		pop_scope jit;
 		emit_block3 exec1 exec2 exec3
 	| TBlock [e1;e2;e3;e4] ->
-		push_scope jit;
+		push_scope jit e.epos;
 		let exec1 = jit_expr jit false e1 in
 		let exec2 = jit_expr jit false e2 in
 		let exec3 = jit_expr jit false e3 in
@@ -387,7 +387,7 @@ and jit_expr jit return e =
 		pop_scope jit;
 		emit_block4 exec1 exec2 exec3 exec4
 	| TBlock [e1;e2;e3;e4;e5] ->
-		push_scope jit;
+		push_scope jit e.epos;
 		let exec1 = jit_expr jit false e1 in
 		let exec2 = jit_expr jit false e2 in
 		let exec3 = jit_expr jit false e3 in
@@ -431,7 +431,7 @@ and jit_expr jit return e =
 			| [] ->
 				()
 		in
-		push_scope jit;
+		push_scope jit e.epos;
 		loop el;
 		pop_scope jit;
 		emit_block (DynArray.to_array d)
@@ -691,11 +691,11 @@ and jit_expr jit return e =
 		f
 
 (* Creates a [EvalValue.vfunc] of function [tf], which can be [static] or not. *)
-let jit_tfunction ctx key_type key_field tf static =
+let jit_tfunction ctx key_type key_field tf static pos =
 	let t = Common.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
 	(* Create a new JitContext with an initial scope *)
 	let jit = EvalJitContext.create ctx in
-	push_scope jit;
+	push_scope jit pos;
 	(* Declare `this` (if not static) and function arguments as local variables. *)
 	let varaccs = if static then [] else [declare_local_this jit] in
 	let varaccs = varaccs @ List.map (fun (var,_) -> declare_local jit var) tf.tf_args in
