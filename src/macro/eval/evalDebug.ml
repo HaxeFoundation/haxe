@@ -334,6 +334,23 @@ module DebugOutputJson = struct
 		write_json (Buffer.add_string b) json;
 		DebugOutput.send_string ctx (Buffer.contents b)
 
+	let output_result ctx value =
+		print_json ctx (JObject ["result",value])
+
+	let output_success ctx =
+		output_result ctx (JString "ok")
+
+	let output_error ctx msg =
+		print_json ctx (JObject ["error",JString msg])
+
+	let output_event ctx event data =
+		let fields = ["event",JString event] in
+		let fields = Option.map_default (fun data -> fields @ ["result",data]) fields data in
+		print_json ctx (JObject fields)
+
+	let output_info ctx msg =
+		output_result ctx (JString msg)
+
 	let var_to_json name value access =
 		let jv t v structured =
 			JObject ["name",JString name;"type",JString t;"value",JString v;"structured",JBool structured;"access",JString access]
@@ -396,14 +413,14 @@ module DebugOutputJson = struct
 		value_string value
 
 	let output_variable_name ctx name =
-		print_json ctx (JObject ["result",JString name])
+		output_info ctx name
 
 	let output_value ctx name value =
 		let o = JObject [
 			"name",JString name;
 			"value",JString (value_string value)
 		] in
-		print_json ctx (JObject ["result",o])
+		output_result ctx o
 
 	let output_call_stack ctx kind p =
 		let envs = get_call_stack_envs ctx kind p in
@@ -427,13 +444,13 @@ module DebugOutputJson = struct
 			let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_hash_s env.env_info.pfile} in
 			(stack_item env.env_info.kind p (env.env_leave_pmin < 0)) :: acc
 		) l envs in
-		print_json ctx (JObject ["result",JArray (List.rev stack)])
+		output_result ctx (JArray (List.rev stack))
 
 	let output_file_path ctx s =
-		print_json ctx (JObject ["result",JString (Path.get_real_path s)])
+		output_info ctx (Path.get_real_path s)
 
 	let output_type_name ctx name =
-		print_json ctx (JObject ["result",JString name])
+		output_info ctx name
 
 	let get_breakpoint_description ctx breakpoint =
 		let state = function
@@ -455,37 +472,26 @@ module DebugOutputJson = struct
 		JObject l
 
 	let output_breakpoint_description ctx breakpoint =
-		print_json ctx (JObject ["result",get_breakpoint_description ctx breakpoint])
+		output_result ctx (get_breakpoint_description ctx breakpoint)
 
 	let output_breakpoint_set ctx breakpoint =
-		print_json ctx (JObject ["result",JInt breakpoint.bpid])
+		output_result ctx (JInt breakpoint.bpid)
 
 	let output_breakpoints ctx =
 		let a = DynArray.create () in
 		iter_breakpoints ctx (fun breakpoint ->
 			DynArray.add a (get_breakpoint_description ctx breakpoint)
 		);
-		print_json ctx (JObject ["result",JArray (DynArray.to_list a)])
+		output_result ctx (JArray (DynArray.to_list a))
 
 	let output_breakpoint_stop ctx env =
-		print_json ctx (JObject ["event",JString "breakpoint_stop"])
-
-	let output_info ctx msg =
-		print_json ctx (JObject ["result",JString msg])
-
-	let output_set_var_result ctx name value access =
-		print_json ctx (JObject ["result",(var_to_json name value access)])
-
-	let output_error ctx msg =
-		print_json ctx (JObject ["error",JString msg])
+		output_event ctx "breakpoint_stop" None
 
 	let output_exception_stop ctx v pos =
-		print_json ctx (JObject [
-			"event",JString "exception_stop";
-			"result",JObject [
-				"text",JString (value_string v)
-			];
-		])
+		output_event ctx "exception_stop" (Some (JObject ["text",JString (value_string v)]))
+
+	let output_set_var_result ctx name value access =
+		output_result ctx (var_to_json name value access)
 
 	let output_scopes ctx capture_infos scopes =
 		let mk_scope id name = JObject ["id",JInt id; "name",JString name] in
@@ -497,7 +503,7 @@ module DebugOutputJson = struct
 		) (1,[]) scopes in
 		let scopes = List.rev scopes in
 		let scopes = if Hashtbl.length capture_infos = 0 then scopes else (mk_scope 0 "Captures") :: scopes in
-		print_json ctx (JObject ["result",JArray scopes])
+		output_result ctx (JArray scopes)
 
 	let output_capture_vars ctx env =
 		let infos = env.env_info.capture_infos in
@@ -505,7 +511,7 @@ module DebugOutputJson = struct
 			let value = !(env.env_captures.(slot)) in
 			(var_to_json name value name) :: acc
 		) infos [] in
-		print_json ctx (JObject ["result",JArray vars])
+		output_result ctx (JArray vars)
 
 	let output_scope_vars ctx env scope =
 		let vars = Hashtbl.fold (fun local_slot name acc ->
@@ -513,7 +519,7 @@ module DebugOutputJson = struct
 			let value = env.env_locals.(slot) in
 			(var_to_json name value name) :: acc
 		) scope.local_infos [] in
-		print_json ctx (JObject ["result",JArray vars])
+		output_result ctx (JArray vars)
 
 	let output_inner_vars ctx v access =
 		let children = match v with
@@ -553,7 +559,7 @@ module DebugOutputJson = struct
 			| VPrototype proto -> [] (* TODO *)
 		in
 		let vars = List.map (fun (n,v,a) -> var_to_json n v a) children in
-		print_json ctx (JObject ["result",JArray vars])
+		output_result ctx (JArray vars)
 
 end
 
@@ -670,7 +676,7 @@ and wait ctx run env =
 			loop()
 		end else begin
 			ctx.debug.environment_offset_delta <- ((get_eval ctx).environment_offset - offset - 1);
-			output_info ctx "ok";
+			output_success ctx;
 			wait ctx run (DynArray.get (get_eval ctx).environments offset);
 		end
 	and loop () =
