@@ -860,7 +860,7 @@ and wait ctx run env =
 		| ["variables" | "vars"] ->
 			print_variables ctx env.env_info.capture_infos env.env_debug.scopes env;
 			loop()
-		| ["vars_scope";sid] ->
+		| ["vars";sid] ->
 			begin
 				try
 					let sid = try int_of_string sid with _ -> raise Exit in
@@ -877,7 +877,7 @@ and wait ctx run env =
 					loop ()
 				end
 			end
-		| ["vars_inner";e] ->
+		| ["structure";e] ->
 			begin match parse_expr ctx e env.env_debug.expr.epos with
 				| Some e ->
 					begin try
