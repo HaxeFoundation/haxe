@@ -744,13 +744,12 @@ let jit_tfunction ctx key_type key_field tf static =
 			run_function_noret ctx exec env
 		)
 	| [arg1;arg2],[varacc1;varacc2] ->
-		let run v1 v2 =
+		let run = (fun v1 v2 ->
 			let env = get_env () in
 			handle_function_argument arg1 varacc1 v1 env;
 			handle_function_argument arg2 varacc2 v2 env;
 			env
-			[@@inline]
-		in
+		) [@inline] in
 		if hasret then Fun2 (fun v1 v2 ->
 			let env = run v1 v2 in
 			run_function ctx exec env
@@ -760,14 +759,13 @@ let jit_tfunction ctx key_type key_field tf static =
 			run_function_noret ctx exec env
 		)
 	| [arg1;arg2;arg3],[varacc1;varacc2;varacc3] ->
-		let run v1 v2 v3 =
+		let run = (fun v1 v2 v3 ->
 			let env = get_env () in
 			handle_function_argument arg1 varacc1 v1 env;
 			handle_function_argument arg2 varacc2 v2 env;
 			handle_function_argument arg3 varacc3 v3 env;
 			env
-			[@@inline]
-		in
+		) [@inline] in
 		if hasret then Fun3 (fun v1 v2 v3 ->
 			let env = run v1 v2 v3 in
 			run_function ctx exec env
@@ -777,15 +775,14 @@ let jit_tfunction ctx key_type key_field tf static =
 			run_function_noret ctx exec env
 		)
 	| [arg1;arg2;arg3;arg4],[varacc1;varacc2;varacc3;varacc4] ->
-		let run v1 v2 v3 v4 =
+		let run = (fun v1 v2 v3 v4 ->
 			let env = get_env () in
 			handle_function_argument arg1 varacc1 v1 env;
 			handle_function_argument arg2 varacc2 v2 env;
 			handle_function_argument arg3 varacc3 v3 env;
 			handle_function_argument arg4 varacc4 v4 env;
 			env
-			[@@inline]
-		in
+		) [@inline] in
 		if hasret then Fun4 (fun v1 v2 v3 v4 ->
 			let env = run v1 v2 v3 v4 in
 			run_function ctx exec env
@@ -795,7 +792,7 @@ let jit_tfunction ctx key_type key_field tf static =
 			run_function_noret ctx exec env
 		)
 	| [arg1;arg2;arg3;arg4;arg5],[varacc1;varacc2;varacc3;varacc4;varacc5] ->
-		let run v1 v2 v3 v4 v5 =
+		let run = (fun v1 v2 v3 v4 v5 ->
 			let env = get_env () in
 			handle_function_argument arg1 varacc1 v1 env;
 			handle_function_argument arg2 varacc2 v2 env;
@@ -803,8 +800,7 @@ let jit_tfunction ctx key_type key_field tf static =
 			handle_function_argument arg4 varacc4 v4 env;
 			handle_function_argument arg5 varacc5 v5 env;
 			env
-			[@@inline]
-		in
+		) [@inline] in
 		if hasret then Fun5 (fun v1 v2 v3 v4 v5 ->
 			let env = run v1 v2 v3 v4 v5 in
 			run_function ctx exec env
