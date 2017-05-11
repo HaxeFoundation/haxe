@@ -635,6 +635,9 @@ class RunCi {
 	*/
 	static function deployNightlies():Void {
 		trace('deployNightlies()');
+		trace(gitInfo);
+		trace(Sys.getEnv("HXBUILDS_AWS_ACCESS_KEY_ID") != null);
+		trace(Sys.getEnv("HXBUILDS_AWS_SECRET_ACCESS_KEY") != null);
 		if (
 			(gitInfo.branch == "development" ||
 			gitInfo.branch == "master" ||
@@ -671,6 +674,8 @@ class RunCi {
 					}
 				}
 			}
+		} else {
+			trace('Not deploying nightlies');
 		}
 	}
 
