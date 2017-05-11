@@ -515,8 +515,10 @@ and jit_expr jit return e =
 					let proto = get_static_prototype ctx (path_hash path) ef.epos in
 					let i = get_proto_field_index proto name in
 					emit_proto_field_call proto i execs e.epos
-				| FInstance(c,_,cf) when is_proper_method cf && not (is_overridden c cf.cf_name) ->
-					if not c.cl_interface then
+				| FInstance(c,_,cf) when is_proper_method cf ->
+					if is_overridden c cf.cf_name then
+						default()
+					else if not c.cl_interface then
 						instance_call c
 					else if c.cl_implements = [] && c.cl_super = None then begin match c.cl_descendants with
 						| [c'] when not c'.cl_interface && not (is_overridden c' cf.cf_name) ->
