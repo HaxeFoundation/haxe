@@ -489,8 +489,14 @@ module DebugOutputJson = struct
 
 	let output_scopes ctx capture_infos scopes =
 		let mk_scope id name = JObject ["id",JInt id; "name",JString name] in
-		let scopes = List.mapi (fun id scope -> mk_scope (id + 1) "Locals") scopes in
-		let scopes = if Hashtbl.length capture_infos == 0 then scopes else (mk_scope 0 "Captures") :: scopes in
+		let _,scopes = List.fold_left (fun (id,acc) scope ->
+			if Hashtbl.length scope.local_infos <> 0 then
+				(id + 1), (mk_scope id "Locals") :: acc
+			else
+				(id + 1), acc
+		) (1,[]) scopes in
+		let scopes = List.rev scopes in
+		let scopes = if Hashtbl.length capture_infos = 0 then scopes else (mk_scope 0 "Captures") :: scopes in
 		print_json ctx (JObject ["result",JArray scopes])
 
 	let output_capture_vars ctx env =
