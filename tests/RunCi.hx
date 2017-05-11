@@ -634,27 +634,12 @@ class RunCi {
 		Deploy source package to hxbuilds s3
 	*/
 	static function deployNightlies():Void {
-		trace('deployNightlies()');
-		trace(ci);
-		trace(Sys.getEnv("APPVEYOR_PROJECT_SLUG"));
-		trace(Sys.getEnv("APPVEYOR_REPO_BRANCH"));
-		trace(commandResult("git", ["rev-parse", "HEAD"]).stdout.trim());
-		trace(Std.parseFloat(commandResult("git", ["show", "-s", "--format=%ct", "HEAD"]).stdout));
-		trace(commandResult("git", ["show", "-s", "--format=%ct", "HEAD"]).stdout);
 		var gitTime = commandResult("git", ["show", "-s", "--format=%ct", "HEAD"]).stdout;
 		var tzd = {
 			var z = Date.fromTime(0);
 			z.getHours() * 60 * 60 * 1000 + z.getMinutes() * 60 * 1000;
 		};
-		trace(tzd);
-		trace(Std.parseFloat(gitTime));
 		var time = Date.fromTime(Std.parseFloat(gitTime) * 1000 - tzd);
-		trace(time);
-		trace(DateTools.format(time, '%Y-%m-%dT%H:%M:%SZ'));
-		trace('getting info');
-		trace(gitInfo);
-		trace(Sys.getEnv("HXBUILDS_AWS_ACCESS_KEY_ID") != null);
-		trace(Sys.getEnv("HXBUILDS_AWS_SECRET_ACCESS_KEY") != null);
 		if (
 			(gitInfo.branch == "development" ||
 			gitInfo.branch == "master" ||
@@ -662,7 +647,6 @@ class RunCi {
 			Sys.getEnv("HXBUILDS_AWS_ACCESS_KEY_ID") != null &&
 			Sys.getEnv("HXBUILDS_AWS_SECRET_ACCESS_KEY") != null
 		) {
-			trace('deploying nightlies');
 			if (ci == TravisCI) {
 				runCommand("make", ["-s", "package_unix"]);
 				if (Sys.systemName() == 'Linux') {
@@ -682,8 +666,6 @@ class RunCi {
 					}
 				}
 			} else {
-				trace('getting cwd');
-				trace(sys.FileSystem.readDirectory(Sys.getCwd()));
 				for (file in sys.FileSystem.readDirectory('out')) {
 					if (file.startsWith('haxe') && file.endsWith('_bin.zip')) {
 						submitToS3('windows', 'out/$file');
