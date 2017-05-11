@@ -194,13 +194,14 @@ and jit_expr jit return e =
 	(* objects and values *)
 	| TVar(var,eo) ->
 		let varacc = declare_local jit var in
-		let exec = match eo with
+		begin match eo with
 			| None -> emit_null
-			| Some e -> jit_expr jit false e
-		in
-		begin match varacc with
-			| Local slot -> emit_local_declaration slot exec
-			| Env slot -> emit_capture_declaration slot exec
+			| Some e ->
+				let exec = jit_expr jit false e in
+				begin match varacc with
+					| Local slot -> emit_local_declaration slot exec
+					| Env slot -> emit_capture_declaration slot exec
+				end
 		end
 	| TConst TThis ->
 		emit_local_read (get_slot jit 0 e.epos)
