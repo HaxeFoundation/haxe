@@ -31,7 +31,7 @@
 @:notNull
 @:runtimeValue
 @:analyzer(no_const_propagation)
-abstract UInt to Int from Int
+abstract UInt to Int from Int to Float
 {
 	@:commutative @:op(A+B) private static function addI(lhs:UInt, rhs:Int):UInt;
 	@:commutative @:op(A+B) private static function addF(lhs:UInt, rhs:Float):Float;
@@ -99,7 +99,7 @@ abstract UInt to Int from Int
 
 	@see https://haxe.org/manual/types-basic-types.html
 **/
-abstract UInt(Int) from Int to Int {
+abstract UInt(Int) from Int to Int to Float {
 
 	@:op(A + B) private static inline function add(a:UInt, b:UInt):UInt {
 		return a.toInt() + b.toInt();
