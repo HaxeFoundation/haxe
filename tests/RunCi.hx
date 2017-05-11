@@ -644,7 +644,7 @@ class RunCi {
 		var gitTime = commandResult("git", ["show", "-s", "--format=%ct", "HEAD"]).stdout;
 		var tzd = {
 			var z = Date.fromTime(0);
-			z.getHours() * 60 * 60 * 1000 + z.getMinutes() * 60 * 1000
+			z.getHours() * 60 * 60 * 1000 + z.getMinutes() * 60 * 1000;
 		};
 		trace(tzd);
 		trace(Std.parseFloat(gitTime));
