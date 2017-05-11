@@ -564,7 +564,7 @@ class RunCi {
 		if (
 			Sys.getEnv("DEPLOY") != null
 		) {
-			changeDirectory(repoDir.substr(0, repoDir.length - 1));
+			changeDirectory(repoDir);
 
 			if (Sys.systemName() != 'Windows') {
 				// generate doc
@@ -634,6 +634,7 @@ class RunCi {
 		Deploy source package to hxbuilds s3
 	*/
 	static function deployNightlies():Void {
+		trace('deployNightlies()');
 		if (
 			(gitInfo.branch == "development" ||
 			gitInfo.branch == "master" ||
@@ -641,6 +642,7 @@ class RunCi {
 			Sys.getEnv("HXBUILDS_AWS_ACCESS_KEY_ID") != null &&
 			Sys.getEnv("HXBUILDS_AWS_SECRET_ACCESS_KEY") != null
 		) {
+			trace('deploying nightlies');
 			if (ci == TravisCI) {
 				runCommand("make", ["-s", "package_unix"]);
 				if (Sys.systemName() == 'Linux') {
@@ -660,6 +662,8 @@ class RunCi {
 					}
 				}
 			} else {
+				trace('getting cwd');
+				trace(sys.FileSystem.readDirectory(Sys.getCwd()));
 				for (file in sys.FileSystem.readDirectory('out')) {
 					if (file.startsWith('haxe') && file.endsWith('_bin.zip')) {
 						submitToS3('windows', 'out/$file');
