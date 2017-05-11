@@ -489,50 +489,61 @@ let emit_proto_field_call proto i execs p =
 
 (* instance.call() where call is overridden - dynamic dispatch *)
 
-let method_call exec name p env =
-	let vthis = exec env in
-	let vf = match vthis with
+let emit_method_call exec name execs p =
+	let vf vthis = match vthis with
 		| VInstance {iproto = proto} | VPrototype proto -> proto_field_raise proto name
 		| _ -> unexpected_value_p vthis "instance" p
 	in
-	vthis,vf
-
-let emit_method_call0 exec name p env =
-	let vthis,vf = method_call exec name p env in
-	call1 vf vthis p env
-
-let emit_method_call1 exec name exec1 p env =
-	let vthis,vf = method_call exec name p env in
-	let v1 = exec1 env in
-	call2 vf vthis v1 p env
-
-let emit_method_call2 exec name exec1 exec2 p env =
-	let vthis,vf = method_call exec name p env in
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	call3 vf vthis v1 v2 p env
-
-let emit_method_call3 exec name exec1 exec2 exec3 p env =
-	let vthis,vf = method_call exec name p env in
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	let v3 = exec3 env in
-	call4 vf vthis v1 v2 v3 p env
-
-let emit_method_call4 exec name exec1 exec2 exec3 exec4 p env =
-	let vthis,vf = method_call exec name p env in
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	let v3 = exec3 env in
-	let v4 = exec4 env in
-	call5 vf vthis v1 v2 v3 v4 p env
-
-let emit_method_call exec name execs p env =
-	let vthis,vf = method_call exec name p env in
-	let vl = List.map (apply env) execs in
-	env.env_leave_pmin <- p.pmin;
-	env.env_leave_pmax <- p.pmax;
-	call_value_on vthis vf vl
+	match execs with
+		| [] ->
+			(fun env ->
+				let vthis = exec env in
+				let vf = vf vthis in
+				call1 vf vthis p env
+			)
+		| [exec1] ->
+			(fun env ->
+				let vthis = exec env in
+				let vf = vf vthis in
+				let v1 = exec1 env in
+				call2 vf vthis v1 p env
+			)
+		| [exec1;exec2] ->
+			(fun env ->
+				let vthis = exec env in
+				let vf = vf vthis in
+				let v1 = exec1 env in
+				let v2 = exec2 env in
+				call3 vf vthis v1 v2 p env
+			)
+		| [exec1;exec2;exec3] ->
+			(fun env ->
+				let vthis = exec env in
+				let vf = vf vthis in
+				let v1 = exec1 env in
+				let v2 = exec2 env in
+				let v3 = exec3 env in
+				call4 vf vthis v1 v2 v3 p env
+			)
+		| [exec1;exec2;exec3;exec4] ->
+			(fun env ->
+				let vthis = exec env in
+				let vf = vf vthis in
+				let v1 = exec1 env in
+				let v2 = exec2 env in
+				let v3 = exec3 env in
+				let v4 = exec4 env in
+				call5 vf vthis v1 v2 v3 v4 p env
+			)
+		| _ ->
+			(fun env ->
+				let vthis = exec env in
+				let vf = vf vthis in
+				let vl = List.map (apply env) execs in
+				env.env_leave_pmin <- p.pmin;
+				env.env_leave_pmax <- p.pmax;
+				call_value_on vthis vf vl
+			)
 
 (* instance.call() where call is not a method - lookup + this-binding *)
 

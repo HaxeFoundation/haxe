@@ -511,14 +511,7 @@ and jit_expr jit return e =
 					emit_proto_field_call proto i (exec :: execs) e.epos
 				| FInstance(_,_,cf) when is_proper_method cf ->
 					let exec = jit_expr jit false ef in
-					begin match execs with
-						| [] -> emit_method_call0 exec name e.epos
-						| [exec1] -> emit_method_call1 exec name exec1 e.epos
-						| [exec1;exec2] -> emit_method_call2 exec name exec1 exec2 e.epos
-						| [exec1;exec2;exec3] -> emit_method_call3 exec name exec1 exec2 exec3 e.epos
-						| [exec1;exec2;exec3;exec4] -> emit_method_call4 exec name exec1 exec2 exec3 exec4 e.epos
-						| _ -> emit_method_call exec name execs e.epos
-					end
+					emit_method_call exec name execs e.epos
 				| _ ->
 					let exec = jit_expr jit false ef in
 					emit_field_call exec name execs e.epos
