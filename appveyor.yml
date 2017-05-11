@@ -9,9 +9,14 @@ environment:
         MYSQL_PATH: C:\Program Files\MySQL\MySQL Server 5.7
         MYSQL_USER: root
         MYSQL_PASSWORD: Password12!
+        HXBUILDS_AWS_ACCESS_KEY_ID:
+          secure: fggQXlr5xGGl0znUi0UkqPWd6LviHnk0TR6YxJmuV3U=
+        HXBUILDS_AWS_SECRET_ACCESS_KEY:
+          secure: ewwkKcjnSKl/Vtrz1SXmI6XKk1ENmJDyzm5YaR2wi03foRhTke29TvymB21rDTSl
     matrix:
         - TEST: "neko,python,cs,java,macro"
         - TEST: "php7,php"
+          DEPLOY: 1
         - TEST: "cpp"
 
 services:
@@ -51,6 +56,7 @@ install:
     - set PATH=%PATH%;C:\Python34-x64
     # expose the dll files
     - set "PATH=%PATH%;%CYG_ROOT%/usr/i686-w64-mingw32/sys-root/mingw/bin"
+    - choco install awscli
 
 build_script:
     - 'cd %APPVEYOR_BUILD_FOLDER%'
