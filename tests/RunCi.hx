@@ -534,7 +534,7 @@ class RunCi {
 			}
 			// make time in the UTC time zone
 			var time = Date.fromTime(Std.parseFloat(gitTime) * 1000 - tzd);
-			DateTools.format(time, "%FT%TZ");
+			DateTools.format(time, "%Y-%m-%dT%H:%M:%SZ");
 		}
 	}
 	static var haxeVer(default, never) = {
@@ -650,7 +650,8 @@ class RunCi {
 		trace(Std.parseFloat(gitTime));
 		var time = Date.fromTime(Std.parseFloat(gitTime) * 1000 - tzd);
 		trace(time);
-		trace(DateTools.format(time, '%FT%TZ'));
+		trace(DateTools.format(time, '%Y-%m-%dT%H:%M:%SZ'));
+		trace('getting info');
 		trace(gitInfo);
 		trace(Sys.getEnv("HXBUILDS_AWS_ACCESS_KEY_ID") != null);
 		trace(Sys.getEnv("HXBUILDS_AWS_SECRET_ACCESS_KEY") != null);
