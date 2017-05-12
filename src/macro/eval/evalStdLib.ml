@@ -49,7 +49,7 @@ let encode_i64_direct i64 =
 
 module StdArray = struct
 	let this this = match this with
-		| VInstance {ikind = IArray va} -> va
+		| VArray va -> va
 		| v -> unexpected_value v "array"
 
 	let concat = vifun1 (fun vthis a2 ->
@@ -1251,7 +1251,7 @@ module StdLog = struct
 		let file_name = decode_string (object_field infos key_fileName) in
 		let line_number = decode_int (object_field infos key_lineNumber) in
 		let l = match object_field infos key_customParams with
-			| VInstance {ikind = IArray va} -> s :: (List.map value_string (EvalArray.to_list va))
+			| VArray va -> s :: (List.map value_string (EvalArray.to_list va))
 			| _ -> [s]
 		in
 		((get_ctx()).curapi.MacroApi.get_com()).Common.print (Printf.sprintf "%s:%i: %s\n" file_name line_number (String.concat "," l));
@@ -1459,6 +1459,8 @@ module StdReflect = struct
 			iproto = vi.iproto;
 			ikind = vi.ikind;
 		}
+		| VString _ -> o
+		| VArray va -> VArray { va with avalues = Array.copy va.avalues }
 		| _ -> unexpected_value o "object"
 	)
 
@@ -1491,6 +1493,7 @@ module StdReflect = struct
 			| VInstance vi -> IntMap.fold (fun name _ acc -> name :: acc) vi.iproto.pinstance_names []
 			| VPrototype proto -> proto_fields proto
 			| VNull -> []
+			| VString _ | VArray _ -> [key_length]
 			| _ -> unexpected_value o "object"
 		in
 		encode_array (List.map (fun i -> encode_rope (rev_hash i)) fields)
@@ -1526,7 +1529,7 @@ module StdReflect = struct
 	)
 
 	let isObject = vfun1 (fun v -> match v with
-		| VObject _ | VInstance _ | VPrototype _ -> vtrue
+		| VObject _ | VString _ | VArray _ | VInstance _ | VPrototype _ -> vtrue
 		| _ -> vfalse
 	)
 
@@ -1777,15 +1780,15 @@ end
 
 module StdString = struct
 	let this vthis = match vthis with
-		| VInstance {ikind = IString(r,_)} -> r
+		| VString(r,_) -> r
 		| v -> unexpected_value v "string"
 
 	let this_pair vthis = match vthis with
-		| VInstance {ikind = IString(r,s)} -> r,Lazy.force s
+		| VString(r,s) -> r,Lazy.force s
 		| v -> unexpected_value v "string"
 
 	let this_string vthis = match vthis with
-		| VInstance {ikind = IString(_,s)} -> Lazy.force s
+		| VString(_,s) -> Lazy.force s
 		| v -> unexpected_value v "string"
 
 	let charAt = vifun1 (fun vthis index ->
@@ -1935,7 +1938,7 @@ module StdStringBuf = struct
 	let add = vifun1 (fun vthis x ->
 		let this = this vthis in
 		begin match x with
-			| VInstance {ikind = IString(s,_)} -> Buffer.add_rope this s
+			| VString(s,_) -> Buffer.add_rope this s
 			| _ -> Buffer.add_string this (value_string x)
 		end;
 		vnull;
@@ -2165,8 +2168,8 @@ module StdType = struct
 		let vf = field v constr in
 		match vf,params with
 			| VEnumValue _,VNull -> vf
-			| VEnumValue _,VInstance {ikind = IArray va} when va.alength = 0 -> vf
-			| VFunction _,VInstance {ikind = IArray va} -> call_value vf (EvalArray.to_list va)
+			| VEnumValue _,VArray va when va.alength = 0 -> vf
+			| VFunction _,VArray va -> call_value vf (EvalArray.to_list va)
 			| _ -> unexpected_value params "array"
 
 	let allEnums = vfun1 (fun v ->
@@ -2261,13 +2264,15 @@ module StdType = struct
 	let enumParameters = vfun1 (fun v -> match v with
 		| VEnumValue ev ->
 			let va = EvalArray.create ev.eargs in
-			encode_instance ~kind:(IArray va) key_Array
+			VArray va
 		| v -> unexpected_value v "enum value"
 	)
 
 	let getClass = vfun1 (fun v ->
 		match v with
 		| VInstance ({iproto = {pkind = PInstance}} as vi) -> get_static_prototype_as_value (get_ctx()) vi.iproto.ppath null_pos
+		| VString _ -> get_static_prototype_as_value (get_ctx()) key_String null_pos
+		| VArray _ -> get_static_prototype_as_value (get_ctx()) key_Array null_pos
 		| _ -> vnull
 	)
 
@@ -2361,6 +2366,8 @@ module StdType = struct
 			| VFloat _ -> 2,[||]
 			| VTrue | VFalse -> 3,[||]
 			| VInstance vi -> 6,[|get_static_prototype_as_value ctx vi.iproto.ppath null_pos|]
+			| VString _ -> 6,[|get_static_prototype_as_value ctx key_String null_pos|]
+			| VArray _ -> 6,[|get_static_prototype_as_value ctx key_Array null_pos|]
 			| VObject _ | VPrototype _ ->
 				4,[||]
 			| VFunction _
@@ -2547,7 +2554,7 @@ let init_constructors builtins =
 				let cmd = decode_string cmd in
 				let args = match args with
 					| VNull -> None
-					| VInstance {ikind = IArray va} -> Some (Array.map decode_string va.avalues)
+					| VArray va -> Some (Array.map decode_string va.avalues)
 					| _ -> unexpected_value args "array"
 				in
 				encode_instance key_sys_io__Process_NativeProcess ~kind:(IProcess (Process.run cmd args))

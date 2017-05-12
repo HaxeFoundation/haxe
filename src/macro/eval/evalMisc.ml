@@ -54,7 +54,7 @@ let set_object_field o name v2 =
 let set_field v1 name v2 = match v1 with
 	| VObject o -> set_object_field o name v2
 	| VPrototype proto -> set_proto_field proto name v2
-	| VInstance {ikind = IArray va} ->
+	| VArray va ->
 		(* Vector.new does this *)
 		if name = key_length then begin
 			EvalArray.set_length va (decode_int v2);
@@ -79,11 +79,11 @@ let rec compare a b =
 	| VTrue,VTrue | VFalse,VFalse -> CEq
 	| VFalse,VTrue -> CInf
 	| VTrue,VFalse -> CSup
-	| VInstance {ikind = IString(_,s1)},VInstance {ikind = IString(_,s2)} ->
+	| VString(_,s1),VString(_,s2) ->
 		let r = String.compare (Lazy.force s1) (Lazy.force s2) in
 		if r = 0 then CEq else if r < 0 then CInf else CSup
 	| VFunction(a,_), VFunction(b,_) -> if a == b then CEq else CUndef
-	| VInstance {ikind = IArray va1},VInstance {ikind = IArray va2} -> if va1 == va2 then CEq else CUndef
+	| VArray va1,VArray va2 -> if va1 == va2 then CEq else CUndef
 	| VObject a,VObject b -> if a == b then CEq else CUndef
 	| VInstance a,VInstance b -> if a == b then CEq else CUndef
 	| VPrototype a,VPrototype b -> if a == b then CEq else CUndef
@@ -105,9 +105,9 @@ let rec equals a b = match a,b with
 	| VFloat a,VInt32 b -> a = (Int32.to_float b)
 	| VInt32 a,VFloat b -> (Int32.to_float a) = b
 	| VTrue,VTrue | VFalse,VFalse -> true
-	| VInstance {ikind = IString(r1,s1)},VInstance {ikind = IString(r2,s2)} -> r1 == r2 || Lazy.force s1 = Lazy.force s2
+	| VString(r1,s1),VString(r2,s2) -> r1 == r2 || Lazy.force s1 = Lazy.force s2
+	| VArray a,VArray b -> a == b
 	| VFunction(a,_),VFunction(b,_) -> a == b
-	| VInstance {ikind = IArray a},VInstance {ikind = IArray b} -> a == b
 	| VObject a,VObject b -> a == b
 	| VInstance a,VInstance b -> a == b
 	| VPrototype a,VPrototype b -> a == b
@@ -135,9 +135,9 @@ and equals_structurally a b =
 	| VFloat a,VInt32 b -> a = (Int32.to_float b)
 	| VInt32 a,VFloat b -> (Int32.to_float a) = b
 	| VTrue,VTrue | VFalse,VFalse -> true
-	| VInstance {ikind = IString(_,s1)},VInstance {ikind = IString(_,s2)} -> Lazy.force s1 = Lazy.force s2
+	| VString(_,s1),VString(_,s2) -> Lazy.force s1 = Lazy.force s2
 	| VFunction(a,_),VFunction(b,_) -> a == b
-	| VInstance {ikind = IArray a},VInstance {ikind = IArray b} -> a == b || arrays_equal a.avalues b.avalues
+	| VArray a,VArray b -> a == b || arrays_equal a.avalues b.avalues
 	| VObject a,VObject b -> a == b || arrays_equal a.ofields b.ofields && IntMap.equal equals_structurally a.oextra b.oextra
 	| VInstance a,VInstance b -> a == b
 	| VPrototype a,VPrototype b -> a == b
@@ -153,6 +153,8 @@ let is v path =
 	| VPrototype {pkind = PClass _} -> path = key_Class
 	| VPrototype {pkind = PEnum _} -> path = key_Enum
 	| VEnumValue ve -> path = key_EnumValue || path = ve.epath
+	| VString _ -> path = key_String
+	| VArray _ -> path = key_Array
 	| VInstance vi ->
 		let has_interface path' =
 			try begin match (get_static_prototype_raise (get_ctx()) path').pkind with

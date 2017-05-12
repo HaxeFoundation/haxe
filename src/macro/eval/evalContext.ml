@@ -163,20 +163,10 @@ let rec kind_name ctx kind =
 	loop kind ctx.environment_offset
 
 let vstring s =
-	let proto = (get_ctx()).string_prototype in
-	vinstance {
-		ifields = [|vint (Rope.length s)|];
-		iproto = proto;
-		ikind = IString(s,lazy (Rope.to_string s))
-	}
+	VString (s,lazy (Rope.to_string s))
 
 let vstring_direct (r,s) =
-	let proto = (get_ctx()).string_prototype in
-	vinstance {
-		ifields = [|vint (Rope.length r)|];
-		iproto = proto;
-		ikind = IString(r,s)
-	}
+	VString(r,s)
 
 let call_function f vl = match f,vl with
 	| Fun0 f,_ -> f()

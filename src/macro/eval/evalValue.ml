@@ -63,6 +63,8 @@ type value =
 	| VEnumValue of venum_value
 	| VObject of vobject
 	| VInstance of vinstance
+	| VString of vstring
+	| VArray of varray
 	| VPrototype of vprototype
 	| VFunction of vfunc * bool
 	| VFieldClosure of value * vfunc
@@ -108,8 +110,6 @@ and vprototype = {
 }
 
 and vinstance_kind =
-	| IArray of varray
-	| IString of vstring
 	| IBytes of bytes
 	| IRegex of vregex
 	| IDate of float

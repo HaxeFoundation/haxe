@@ -49,9 +49,12 @@ let field_raise v f =
 	| VObject o -> object_field_raise o f
 	| VInstance {ikind = IBytes s} when f = key_length -> vint (Bytes.length s)
 	| VPrototype proto -> proto_field_raise proto f
-	| VInstance {ikind = IArray va} ->
+	| VArray va ->
 		if f = key_length then vint (va.alength)
 		else proto_field_direct (get_instance_prototype_raise (get_ctx()) key_Array) f
+	| VString (_,s) ->
+		if f = key_length then vint (String.length (Lazy.force s))
+		else proto_field_direct (get_ctx()).string_prototype f
 	| VInstance vi -> (try instance_field vi f with Not_found -> proto_field_raise vi.iproto f)
 	| _ -> raise Not_found
 

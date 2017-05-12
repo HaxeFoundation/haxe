@@ -207,8 +207,8 @@ let rec value_to_expr v p =
 	| VFalse -> (EConst (Ident "false"),p)
 	| VInt32 i -> (EConst (Int (Int32.to_string i)),p)
 	| VFloat f -> haxe_float f p
-	| VInstance {ikind = IString(r,s)} -> (EConst (String (Lazy.force s)),p)
-	| VInstance {ikind = IArray va} -> (EArrayDecl (List.map (fun v -> value_to_expr v p) (EvalArray.to_list va)),p)
+	| VString(r,s) -> (EConst (String (Lazy.force s)),p)
+	| VArray va -> (EArrayDecl (List.map (fun v -> value_to_expr v p) (EvalArray.to_list va)),p)
 	| VObject o -> (EObjectDecl (List.map (fun (k,v) -> ((rev_hash_s k,p),(value_to_expr v p))) (object_fields o)),p)
 	| VEnumValue e ->
 		let epath =

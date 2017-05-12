@@ -111,8 +111,8 @@ let value_string value =
 		| VFloat f -> "Float",string_of_float f
 		| VEnumValue ev -> rev_hash_s ev.epath,Rope.to_string (s_enum_value 0 ev)
 		| VObject o -> "Anonymous",fields_string (depth + 1) (object_fields o)
-		| VInstance {ikind = IString(_,s)} -> "String","\"" ^ (Ast.s_escape (Lazy.force s)) ^ "\""
-		| VInstance {ikind = IArray va} -> "Array",Rope.to_string (s_array (depth + 1) va)
+		| VString(_,s) -> "String","\"" ^ (Ast.s_escape (Lazy.force s)) ^ "\""
+		| VArray va -> "Array",Rope.to_string (s_array (depth + 1) va)
 		| VInstance vi -> rev_hash_s vi.iproto.ppath,instance_fields (depth + 1) vi
 		| VPrototype proto -> "Anonymous",Rope.to_string (s_proto_kind proto)
 		| VFunction _ | VFieldClosure _ -> "Function","fun"
@@ -208,7 +208,7 @@ let expr_to_value ctx env e =
 			let idx = match vidx with VInt32 i -> Int32.to_int i | _ -> raise Exit in
 			let n = Printf.sprintf "%s[%d]" n1 idx in
 			begin match v1 with
-				| VInstance {ikind = IArray va} ->
+				| VArray va ->
 					let v = EvalArray.get va idx in
 					(n,v)
 				| VEnumValue ev ->
@@ -369,8 +369,8 @@ module DebugOutputJson = struct
 					| vl -> name ^ "(...)"
 				end
 			| VObject o -> "{...}"
-			| VInstance {ikind = IString(_,s)} -> string_repr s
-			| VInstance {ikind = IArray va} -> "[...]"
+			| VString(_,s) -> string_repr s
+			| VArray va -> "[...]"
 			| VInstance vi -> (rev_hash_s vi.iproto.ppath) ^ " {...}"
 			| VPrototype proto -> Rope.to_string (s_proto_kind proto)
 			| VFunction _ | VFieldClosure _ -> "<fun>"
@@ -402,8 +402,8 @@ module DebugOutputJson = struct
 				in
 				jv type_s value_s is_structured
 			| VObject o -> jv "Anonymous" (fields_string (object_fields o)) true (* TODO: false for empty structures *)
-			| VInstance {ikind = IString(_,s)} -> jv "String" (string_repr s) false
-			| VInstance {ikind = IArray va} -> jv "Array" (array_elems va) true (* TODO: false for empty arrays *)
+			| VString(_,s) -> jv "String" (string_repr s) false
+			| VArray va -> jv "Array" (array_elems va) true (* TODO: false for empty arrays *)
 			| VInstance vi ->
 				let class_name = rev_hash_s vi.iproto.ppath in
 				jv class_name (class_name ^ " " ^ (fields_string (instance_fields vi))) true
@@ -557,8 +557,8 @@ module DebugOutputJson = struct
 					let a = access ^ "." ^ n in
 					n, v, a
 				) fields
-			| VInstance {ikind = IString(_,s)} -> []
-			| VInstance {ikind = IArray va} ->
+			| VString(_,s) -> []
+			| VArray va ->
 				let l = EvalArray.to_list va in
 				List.mapi (fun i v ->
 					let n = Printf.sprintf "[%d]" i in

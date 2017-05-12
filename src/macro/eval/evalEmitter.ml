@@ -492,6 +492,7 @@ let emit_proto_field_call proto i execs p =
 let emit_method_call exec name execs p =
 	let vf vthis = match vthis with
 		| VInstance {iproto = proto} | VPrototype proto -> proto_field_raise proto name
+		| VString _ -> proto_field_raise (get_ctx()).string_prototype name
 		| _ -> unexpected_value_p vthis "instance" p
 	in
 	match execs with
@@ -769,7 +770,7 @@ let emit_local_read i env = env.env_locals.(i)
 let emit_capture_read i env = !(env.env_captures.(i))
 
 let emit_array_length_read exec env = match exec env with
-	| VInstance {ikind = IArray va} -> vint (va.alength)
+	| VArray va -> vint (va.alength)
 	| v -> unexpected_value v "Array"
 
 let emit_bytes_length_read exec env = match exec env with
@@ -781,10 +782,12 @@ let emit_proto_field_read proto i env =
 
 let emit_instance_local_field_read iv i env = match env.env_locals.(iv) with
 	| VInstance vi -> vi.ifields.(i)
+	| VString(_,s) -> vint (String.length (Lazy.force s))
 	| v -> unexpected_value v "instance"
 
 let emit_instance_field_read exec i env = match exec env with
 	| VInstance vi -> vi.ifields.(i)
+	| VString(_,s) -> vint (String.length (Lazy.force s))
 	| v -> unexpected_value v "instance"
 
 let emit_field_closure exec name env =
@@ -1045,9 +1048,9 @@ let op_add v1 v2 = match v1,v2 with
 	| VInt32 i1,VInt32 i2 -> vint32 (Int32.add i1 i2)
 	| VFloat f1,VFloat f2 -> vfloat (f1 +. f2)
 	| VInt32 i,VFloat f | VFloat f,VInt32 i -> vfloat ((Int32.to_float i) +. f)
-	| VInstance {ikind = IString(s1,_)},VInstance {ikind = IString(s2,_)} -> encode_rope (Rope.concat2 s1 s2)
-	| VInstance {ikind = IString(s1,_)},v2 -> encode_rope (Rope.concat2 s1 (s_value 0 v2))
-	| v1,VInstance {ikind = IString(s2,_)} -> encode_rope (Rope.concat2 (s_value 0 v1) s2)
+	| VString(s1,_),VString(s2,_) -> encode_rope (Rope.concat2 s1 s2)
+	| VString(s1,_),v2 -> encode_rope (Rope.concat2 s1 (s_value 0 v2))
+	| v1,VString(s2,_) -> encode_rope (Rope.concat2 (s_value 0 v1) s2)
 	| v1,v2 -> encode_rope (Rope.concat2 (s_value 0 v1) (s_value 0 v2))
 
 let op_mult p v1 v2 = match v1,v2 with
