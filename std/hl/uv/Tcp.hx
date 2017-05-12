@@ -19,7 +19,7 @@ class Tcp extends Stream {
 	}
 
 	public function accept() {
-		var client = handle == null ? null : tcp_accept(handle);
+		var client = handle == null ? null : tcp_accept_wrap(handle);
 		if( client == null ) throw new haxe.io.Eof();
 		return new Stream(client);
 	}
@@ -36,7 +36,7 @@ class Tcp extends Stream {
 		return false;
 	}
 
-	static function tcp_accept( h : HandleData ) : HandleData {
+	static function tcp_accept_wrap( h : HandleData ) : HandleData {
 		return null;
 	}
 
