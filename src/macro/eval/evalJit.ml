@@ -499,6 +499,11 @@ and jit_expr jit return e =
 						| [exec] -> emit_enum_index exec
 						| _ -> assert false
 					end
+				| FStatic({cl_path=[],"StringTools"},{cf_name="fastCodeAt"}) ->
+					begin match execs with
+						| [exec1;exec2] -> emit_string_cca exec1 exec2 e.epos
+						| _ -> assert false
+					end
 				| FEnum({e_path=path},ef) ->
 					let key = path_hash path in
 					let pos = Some ef.ef_pos in

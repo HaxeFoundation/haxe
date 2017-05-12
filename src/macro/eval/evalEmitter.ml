@@ -833,6 +833,12 @@ let emit_enum_parameter_read exec i env = match exec env with
 	| VEnumValue ev -> (try ev.eargs.(i) with Not_found -> vnull)
 	| v1 -> unexpected_value v1 "enum value"
 
+let emit_string_cca exec1 exec2 p env =
+	let s = decode_string (exec1 env) in
+	let index = decode_int (exec2 env) in
+	if index >= String.length s then vnull
+	else vint (int_of_char s.[index])
+
 (* Write *)
 
 let emit_local_write slot exec env =

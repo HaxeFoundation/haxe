@@ -1973,6 +1973,13 @@ module StdStringBuf = struct
 end
 
 module StdStringTools = struct
+	let fastCodeAt = vfun2 (fun s index ->
+		let s = decode_string s in
+		let index = decode_int index in
+		if index >= String.length s then vnull
+		else vint (int_of_char s.[index])
+	)
+
 	let urlEncode = vfun1 (fun s ->
 		let s = decode_string s in
 		let b = Rope.Buffer.create 0 in
@@ -2872,6 +2879,7 @@ let init_standard_library builtins =
 		"toString",StdStringBuf.toString;
 	];
 	init_fields builtins ([],"StringTools") [
+		"fastCodeAt",StdStringTools.fastCodeAt;
 		"urlEncode",StdStringTools.urlEncode;
 		"urlDecode",StdStringTools.urlDecode;
 	] [];
