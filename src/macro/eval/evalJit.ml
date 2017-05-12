@@ -719,7 +719,7 @@ let jit_tfunction ctx key_type key_field tf static pos =
 	let default_env = create_default_environment ctx info local_count in
 	if capture_count > 0 then default_env.env_in_use <- true;
 	let get_env () =
-		if default_env.env_in_use then begin
+		if ctx.record_stack || default_env.env_in_use then begin
 			push_environment ctx info local_count capture_count
 		end else begin
 			default_env.env_in_use <- true;
