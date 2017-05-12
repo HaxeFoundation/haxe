@@ -749,7 +749,6 @@ let jit_tfunction ctx key_type key_field tf static pos =
 			handle_function_argument arg1 varacc1 v1 env;
 			handle_function_argument arg2 varacc2 v2 env;
 			env
-			[@@inline]
 		in
 		if hasret then Fun2 (fun v1 v2 ->
 			let env = run v1 v2 in
@@ -766,7 +765,6 @@ let jit_tfunction ctx key_type key_field tf static pos =
 			handle_function_argument arg2 varacc2 v2 env;
 			handle_function_argument arg3 varacc3 v3 env;
 			env
-			[@@inline]
 		in
 		if hasret then Fun3 (fun v1 v2 v3 ->
 			let env = run v1 v2 v3 in
@@ -784,7 +782,6 @@ let jit_tfunction ctx key_type key_field tf static pos =
 			handle_function_argument arg3 varacc3 v3 env;
 			handle_function_argument arg4 varacc4 v4 env;
 			env
-			[@@inline]
 		in
 		if hasret then Fun4 (fun v1 v2 v3 v4 ->
 			let env = run v1 v2 v3 v4 in
@@ -803,7 +800,6 @@ let jit_tfunction ctx key_type key_field tf static pos =
 			handle_function_argument arg4 varacc4 v4 env;
 			handle_function_argument arg5 varacc5 v5 env;
 			env
-			[@@inline]
 		in
 		if hasret then Fun5 (fun v1 v2 v3 v4 v5 ->
 			let env = run v1 v2 v3 v4 v5 in
