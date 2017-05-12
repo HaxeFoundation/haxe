@@ -720,7 +720,6 @@ let jit_tfunction ctx key_type key_field tf static pos =
 			default_env.env_in_use <- true;
 			default_env
 		end
-		[@@inline]
 	in
 	match args,varaccs with
 	| [],[] ->
