@@ -24,6 +24,7 @@ import python.internal.AnonObject;
 import python.internal.StringImpl;
 import python.internal.ArrayImpl;
 import python.internal.UBuiltins;
+import python.internal.MethodClosure;
 
 import python.lib.Inspect;
 import python.Syntax;
@@ -93,9 +94,19 @@ class Reflect {
 			else ( a == b ) ? 0 : (((cast a) > (cast b)) ? 1 : -1);
 	}
 
+	static inline function isClosure (v:Dynamic):Bool {
+		return UBuiltins.isinstance(v, MethodClosure);
+	}
+
 	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool {
 		if( f1 == f2 )
 			return true;
+		if (isClosure(f1) && isClosure(f2)) {
+			var m1 = (f1:MethodClosure);
+			var m2 = (f2:MethodClosure);
+			return m1.obj == m2.obj && m1.func == m2.func;
+
+		}
 		if( !isFunction(f1) || !isFunction(f2) )
 			return false;
 
