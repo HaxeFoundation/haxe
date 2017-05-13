@@ -24,7 +24,7 @@ class TestArrowFunctions extends Test {
 	var f6_b: Int->(Int->(Int->Int));
 	var f7:   (Int->Int)->(Int->Int);
 	var f8:   Int -> String;
-    var f9:   Float->Bool->String;
+	var f9:   Float->Bool->String;
 	var arr: Array<Int->Int> = [];
 	var map: Map<Int,Int->Int> = new Map();
 	var obj: { f : Int->Int };
@@ -135,7 +135,7 @@ class TestArrowFunctions extends Test {
 		};
 
 		f8 = (a:Int) -> ('$a':String);
-        var _f9 = (a:Float,b:Bool) -> '$a $b';
+		var _f9 = (a:Float,b:Bool) -> '$a $b';
 		f9 = _f9;
 
 		arr = [for (i in 0...5) a -> a * i];
