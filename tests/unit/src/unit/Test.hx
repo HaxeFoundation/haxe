@@ -280,5 +280,4 @@ class Test {
 		Sys.exit(1);
 #end
 	}
-
 }
