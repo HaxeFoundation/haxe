@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +22,6 @@
 package cs.internal;
 import cs.Lib;
 import cs.Lib.*;
-import cs.NativeArray;
 import cs.NativeArray;
 import cs.StdTypes;
 import cs.system.Activator;
@@ -65,7 +64,7 @@ import cs.system.Object;
 		return obj.__hx_setField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value, false);
 	}
 
-	public static object callField(haxe.lang.HxObject obj, string field, int fieldHash, Array args)
+	public static object callField(haxe.lang.HxObject obj, string field, int fieldHash, object[] args)
 	{
 		return obj.__hx_invokeField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, args);
 	}
@@ -386,7 +385,7 @@ import cs.system.Object;
 			{
 				value = mkNullable(value, f.FieldType);
 			}
-			if (Object.ReferenceEquals(Lib.toNativeType(cs.system.Double), Lib.getNativeType(value)) && !Object.ReferenceEquals(t, f.FieldType))
+			if (value != null && Object.ReferenceEquals(Lib.toNativeType(cs.system.Double), Lib.getNativeType(value)) && !Object.ReferenceEquals(t, f.FieldType))
 			{
 				var ic = Lib.as(value, IConvertible);
 				value = ic.ToType(f.FieldType, null);
@@ -430,7 +429,7 @@ import cs.system.Object;
 		}
 	}
 
-	public static function callMethod(obj:Dynamic, methods:NativeArray<MethodBase>, methodLength:Int, args:Array<Dynamic>):Dynamic
+	public static function callMethod(obj:Dynamic, methods:NativeArray<MethodBase>, methodLength:Int, args:cs.NativeArray<Dynamic>):Dynamic
 	{
 		if (methodLength == 0) throw "No available methods";
 		var length = args.length;
@@ -579,79 +578,13 @@ import cs.system.Object;
 	}
 #end
 
-	// @:functionCode('
-	// 	if (field == "toString")
-	// 	{
-	// 		if (args == null)
-	// 			return obj.ToString();
-	// 		field = "ToString";
-	// 	}
-	// 	if (args == null) args = new Array<object>();
-
-	// 	System.Reflection.BindingFlags bf;
-	// 	System.Type t = obj as System.Type;
-	// 	if (t == null)
-	// 	{
-	// 		string s = obj as string;
-	// 		if (s != null)
-	// 			return haxe.lang.StringRefl.handleCallField(s, field, args);
-	// 		t = obj.GetType();
-	// 		bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.FlattenHierarchy;
-	// 	} else {
-	// 		if (t == typeof(string) && field.Equals("fromCharCode"))
-	// 			return haxe.lang.StringExt.fromCharCode(toInt(args[0]));
-	// 		obj = null;
-	// 		bf = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public;
-	// 	}
-
-	// 	System.Reflection.MethodInfo[] mis = t.GetMethods(bf);
-	// 	int last = 0;
-	// 	for (int i = 0; i < mis.Length; i++)
-	// 	{
-	// 		string name = mis[i].Name;
-	// 		if (name.Equals(field))
-	// 		{
-	// 			mis[last++] = mis[i];
-	// 		}
-	// 	}
-
-	// 	if (last == 0 && (field == "__get" || field == "__set"))
-	// 	{
-	// 		field = field == "__get" ? "get_Item" : "set_Item";
-	// 		for (int i = 0; i < mis.Length; i++)
-	// 		{
-	// 			string name = mis[i].Name;
-	// 			if (name.Equals(field))
-	// 			{
-	// 				mis[last++] = mis[i];
-	// 			}
-	// 		}
-	// 	}
-
-	// 	if (last == 0 && t.IsCOMObject)
-	// 	{
-	// 		object[] oargs = new object[arrLen(args)];
-	// 		for (int i = 0; i < oargs.Length; i++)
-	// 		{
-	// 			oargs[i] = args[i];
-	// 		}
-	// 		return t.InvokeMember(field, System.Reflection.BindingFlags.InvokeMethod, null, obj, oargs);
-	// 	}
-
-	// 	if (last == 0)
-	// 	{
-	// 		throw haxe.lang.HaxeException.wrap("Method \'" + field + "\' not found on type " + t);
-	// 	}
-
-	// 	return haxe.lang.Runtime.callMethod(obj, mis, last, args);
-	// ')
-	public static function slowCallField(obj:Dynamic, field:String, args:Array<Dynamic>):Dynamic
+	public static function slowCallField(obj:Dynamic, field:String, args:cs.NativeArray<Dynamic>):Dynamic
 	{
 		if (field == "toString" && (args == null || args.length == 0))
 		{
 			return obj.ToString();
 		}
-		if (args == null) args = [];
+		if (args == null) args = new cs.NativeArray(0);
 
 		var bf:BindingFlags;
 		var t = Lib.as(obj,cs.system.Type);
@@ -692,14 +625,7 @@ import cs.system.Object;
 		}
 
 		if (last == 0 && t.IsCOMObject)
-		{
-			var oargs = new NativeArray(args.length);
-			for (i in 0...oargs.Length)
-			{
-				oargs[i] = args[i];
-			}
-			return t.InvokeMember(field, BindingFlags.InvokeMethod, null, obj, oargs);
-		}
+			return t.InvokeMember(field, BindingFlags.InvokeMethod, null, obj, args);
 
 		if (last == 0)
 		{
@@ -709,7 +635,7 @@ import cs.system.Object;
 		return Runtime.callMethod(obj, mis, last, args);
 	}
 
-	public static function callField(obj:Dynamic, field:String, fieldHash:Int, args:Array<Dynamic>):Dynamic
+	public static function callField(obj:Dynamic, field:String, fieldHash:Int, args:cs.NativeArray<Dynamic>):Dynamic
 	{
 		var hxObj = Lib.as(obj, HxObject);
 		if (hxObj != null)
@@ -860,7 +786,7 @@ import cs.system.Object;
 }
 
 @:nativeGen
-@:keep @:native("haxe.lang.EmptyObject") private enum EmptyObject
+@:keep @:native("haxe.lang.EmptyObject") enum EmptyObject
 {
 	EMPTY;
 }

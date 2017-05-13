@@ -21,6 +21,8 @@ extern class NativeStringTools {
 	**/
 	public static function char(codes: haxe.extern.Rest<Int>): String;
 
+
+	// TODO: make a note about handling matched groups with multireturn
 	/**
 		Returns the substring of `str` that starts at `start` and continues until `end`; 
 		`start` and `end` can be negative. If `end` is absent, then it is assumed to be 
@@ -29,7 +31,7 @@ extern class NativeStringTools {
 		with length `end`, and `sub(str, -end)` returns a suffix of `str` with 
 		length `start`.
 	**/
-	public static function sub(str : String, start : Int, ?end : Int): String;
+	public static function sub(str : String, start : Int, ?end : Int): StringSub;
 
 	/**
 		Returns the character code at position `index` of `str`.
@@ -49,7 +51,7 @@ extern class NativeStringTools {
 		       a plain "find substring" operation, with no characters in pattern 
 		       being considered "magic". Note that if plain is given, then `start` must be given as well.
 	**/
-	public static function find(str : String, target : String, ?start : Int, ?plain : Bool): Int;
+	public static function find(str : String, target : String, ?start : Int, ?plain : Bool): StringFind;
 
 	/**
 		Returns the internal numerical codes of the characters `str[index]`.
@@ -127,3 +129,12 @@ extern class NativeStringTools {
 	public static function dump(d:Dynamic) : Dynamic;
 }
 
+@:multiReturn extern class StringFind {
+	var begin : Int;
+	var end : Int;
+}
+
+@:multiReturn extern class StringSub {
+	var match : String;
+	var count : Int;
+}

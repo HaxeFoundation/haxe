@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -85,7 +85,8 @@ class Process {
 	public var stderr(default,null) : haxe.io.Input;
 	public var stdin(default,null) : haxe.io.Output;
 
-	public function new( cmd : String, ?args : Array<String> ) : Void {
+	public function new( cmd : String, ?args : Array<String>, ?detached : Bool ) : Void {
+		if( detached ) throw "Detached process is not supported on this platform";
 		var pipes = untyped __call__("array");
 		var descriptorspec = untyped __php__("array(
 			array('pipe', 'r'),
@@ -139,11 +140,12 @@ class Process {
 		untyped input.p = fp;
 	}
 
-	public function exitCode() : Int {
+	public function exitCode( block : Bool = true ) : Null<Int> {
 		if (null == cl)
 		{
 			st = untyped __call__('proc_get_status', p);
 			while(st[untyped 'running']) {
+				if( block == false ) return null;
 				Sys.sleep(0.01);
 				st = untyped __call__('proc_get_status', p);
 			}

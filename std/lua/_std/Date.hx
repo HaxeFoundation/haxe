@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -48,7 +48,7 @@
 	}
 
 	public static inline function now() : Date {
-		return fromTime(lua.Os.time());
+		return fromTime(lua.Os.time()*1000);
 	}
 
 	public static inline function fromTime( t : Float ) : Date {
@@ -56,7 +56,7 @@
 		untyped {
 			lua.Lua.setmetatable(d, untyped {__index : Date.prototype});
 			d.t = t/1000;
-			d.d = lua.Os.date("*t", d.t);
+			d.d = lua.Os.date("*t", Std.int(d.t));
 		}
 		return d;
 	}

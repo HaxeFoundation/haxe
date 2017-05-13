@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,6 +24,9 @@ package haxe.io;
 /**
 	An Input is an abstract reader. See other classes in the `haxe.io` package
 	for several possible implementations.
+
+	All functions which read data throw `Eof` when the end of the stream
+	is reached.
 **/
 class Input {
 
@@ -65,17 +68,17 @@ class Input {
 			throw Error.OutsideBounds;
 		try {
 			while( k > 0 ) {
-			    #if neko
-				    untyped __dollar__sset(b,pos,readByte());
-			    #elseif php
-				    b.set(pos, readByte());
-			    #elseif cpp
-				    b[pos] = untyped readByte();
-			    #else
-				    b[pos] = cast readByte();
-			    #end
-			    pos++;
-			    k--;
+				#if neko
+					untyped __dollar__sset(b,pos,readByte());
+				#elseif php
+					b.set(pos, readByte());
+				#elseif cpp
+					b[pos] = untyped readByte();
+				#else
+					b[pos] = cast readByte();
+				#end
+				pos++;
+				k--;
 			}
 		} catch (eof: haxe.io.Eof){}
 		return len-k;
@@ -159,11 +162,11 @@ class Input {
 		The final character is not included in the resulting string.
 	**/
 	public function readUntil( end : Int ) : String {
-		var buf = new StringBuf();
+		var buf = new BytesBuffer();
 		var last : Int;
 		while( (last = readByte()) != end )
-			buf.addChar( last );
-		return buf.toString();
+			buf.addByte( last );
+		return buf.getBytes().toString();
 	}
 
 	/**
@@ -172,16 +175,16 @@ class Input {
 		The CR/LF characters are not included in the resulting string.
 	**/
 	public function readLine() : String {
-		var buf = new StringBuf();
+		var buf = new BytesBuffer();
 		var last : Int;
 		var s;
 		try {
 			while( (last = readByte()) != 10 )
-				buf.addChar( last );
-			s = buf.toString();
+				buf.addByte( last );
+			s = buf.getBytes().toString();
 			if( s.charCodeAt(s.length-1) == 13 ) s = s.substr(0,-1);
 		} catch( e : Eof ) {
-			s = buf.toString();
+			s = buf.getBytes().toString();
 			if( s.length == 0 )
 				#if neko neko.Lib.rethrow #else throw #end (e);
 		}
@@ -284,13 +287,11 @@ class Input {
 		// php will overflow integers.  Convert them back to signed 32-bit ints.
 		var n = bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
 		if (n & 0x80000000 != 0)
-		    return ( n | 0x80000000);
+			return ( n | 0x80000000);
 		else return n;
 #elseif lua
 		var n = bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
-		// lua can't do 32 bit ints, the adjustment for 64 bits must be numeric
-		if (n > 2147483647) n -=  untyped 4294967296.;
-		return n ;
+		return lua.Boot.clamp(n);
 #else
 		return bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
 #end
@@ -319,11 +320,11 @@ class Input {
 
 #if (flash || js || python)
 	function getDoubleSig(bytes:Array<Int>)
-    {
-        return (((bytes[1]&0xF) << 16) | (bytes[2] << 8) | bytes[3] ) * 4294967296. +
-            (bytes[4] >> 7) * 2147483648 +
-            (((bytes[4]&0x7F) << 24) | (bytes[5] << 16) | (bytes[6] << 8) | bytes[7]);
-    }
+	{
+		return (((bytes[1]&0xF) << 16) | (bytes[2] << 8) | bytes[3] ) * 4294967296. +
+			(bytes[4] >> 7) * 2147483648 +
+			(((bytes[4]&0x7F) << 24) | (bytes[5] << 16) | (bytes[6] << 8) | bytes[7]);
+	}
 #end
 
 }

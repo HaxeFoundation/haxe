@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,13 +20,24 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\ClipboardEvent.webidl line 16:0. Do not edit!
+// This file is generated from mozilla\ClipboardEvent.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `ClipboardEvent` interface represents events providing information related to modification of the clipboard, that is `cut`, `copy`, and `paste` events.
+
+	Documentation [ClipboardEvent](https://developer.mozilla.org/en-US/docs/Web/API/ClipboardEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ClipboardEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ClipboardEvent>
+**/
 @:native("ClipboardEvent")
 extern class ClipboardEvent extends Event
 {
+	
+	/**
+		Is a `DataTransfer` object containing the data affected by the user-initiated `cut`, `copy`, or `paste` operation, along with its MIME type.
+	**/
 	var clipboardData(default,null) : DataTransfer;
 	
 	/** @throws DOMError */

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,29 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\Position.webidl line 16:0. Do not edit!
+// This file is generated from mozilla\Position.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `Position` interface represents the position of the concerned device at a given time. The position, represented by a `Coordinates` object, comprehends the 2D position of the device, on a spheroid representing the Earth, but also its altitude and its speed.
+
+	Documentation [Position](https://developer.mozilla.org/en-US/docs/Web/API/Position) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Position$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Position>
+**/
 @:native("Position")
 extern class Position
 {
+	
+	/**
+		Returns a `Coordinates` object defining the current location.
+	**/
 	var coords(default,null) : Coordinates;
+	
+	/**
+		Returns a `DOMTimeStamp` representing the time at which the location was retrieved.
+	**/
 	var timestamp(default,null) : Int;
 	
 }

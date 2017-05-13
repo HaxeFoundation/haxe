@@ -1,6 +1,6 @@
 local function _hx_anon_newindex(t,k,v) t.__fields__[k] = true; rawset(t,k,v); end
 local _hx_anon_mt = {__newindex=_hx_anon_newindex}
-local function _hx_anon(...)
+local function _hx_a(...)
   local __fields__ = {};
   local ret = {__fields__ = __fields__};
   local max = select('#',...);
@@ -15,7 +15,7 @@ local function _hx_anon(...)
   return setmetatable(ret, _hx_anon_mt)
 end
 
-local function _hx_empty()
+local function _hx_e()
   return setmetatable({__fields__ = {}}, _hx_anon_mt)
 end
 

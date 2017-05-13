@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -140,9 +140,11 @@ enum ValueType {
 			return value._hx_getParameters();
 	}
 
-	public inline static function enumIndex( e : EnumValue ) : Int {
-			var value:cpp.EnumBase = cast e;
-			return value._hx_getIndex();
+   @:extern @:native("_hx_getEnumValueIndex")
+	private static function getEnumValueIndex( e : EnumValue ) : Int return 0;
+
+	#if !cppia inline #end public static function enumIndex( e : EnumValue ) : Int {
+			return getEnumValueIndex(e);
 	}
 
 	public static function allEnums<T>( e : Enum<T> ) : Array<T> {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,13 +20,24 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\HTMLDivElement.webidl line 16:0. Do not edit!
+// This file is generated from mozilla\HTMLDivElement.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `HTMLDivElement` interface provides special properties (beyond the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating div elements.
+
+	Documentation [HTMLDivElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLDivElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLDivElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLDivElement>
+**/
 @:native("HTMLDivElement")
 extern class DivElement extends Element
 {
+	
+	/**
+		Is a `DOMString` representing an enumerated property indicating alignment of the element's contents with respect to the surrounding context. The possible values are `"left"`, `"right"`, `"justify"`, and `"center"`.
+	**/
 	var align : String;
 	
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,7 +30,7 @@ private typedef MetaObject = {
 /**
 	An API to access classes and enums metadata at runtime.
 
-	@see <http://haxe.org/manual/cr-rtti.html>
+	@see <https://haxe.org/manual/cr-rtti.html>
 **/
 class Meta {
 
@@ -46,11 +46,11 @@ class Meta {
 	private static function isInterface(t:Dynamic):Bool {
 		#if java
 			return java.Lib.toNativeType(t).isInterface();
-		#elseif cs
+	#elseif cs
 			return cs.Lib.toNativeType(t).IsInterface;
 		#elseif (flash && as3)
 			return untyped flash.Lib.describeType(t).factory.extendsClass.length() == 0;
-		#elseif php
+		#elseif (php && !php7)
 			return untyped __php__("{0} instanceof _hx_interface", t);
 		#else
 			throw "Something went wrong";
@@ -59,7 +59,12 @@ class Meta {
 
 	private static function getMeta(t:Dynamic):MetaObject
 	{
-#if (java || cs || php || (flash && as3))
+#if (php && php7)
+		return php.Boot.getMeta(t.phpClassName);
+#elseif (java || cs || php || (flash && as3))
+		#if php
+		t.__ensureMeta__();
+		#end
 		var ret = Reflect.field(t, "__meta__");
 		if (ret == null && Std.is(t,Class))
 		{
@@ -73,7 +78,7 @@ class Meta {
 		}
 		return ret;
 #elseif hl
-		var t : hl.types.BaseType = t;
+		var t : hl.BaseType = t;
 		return t.__meta__;
 #else
 		return untyped t.__meta__;

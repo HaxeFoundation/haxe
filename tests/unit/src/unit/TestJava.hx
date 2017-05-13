@@ -124,7 +124,7 @@ class TestJava extends Test
 	function testHaxeKeywords()
 	{
 		eq(Base._inline, 42);
-		eq(Base._callback, 43);
+		eq(Base.callback, 43);
 		eq(Base._cast, 44);
 		eq(Base._untyped, 45);
 		eq(Base._in, 46);
@@ -290,7 +290,7 @@ class TestJava extends Test
 	function testMiscJavaLib()
 	{
 		//setting inline should be an error
-		t(TestType.typeError(Base.inlineNumber = 4));
+		t(HelperMacros.typeError(Base.inlineNumber = 4));
 	}
 
 	//TODO:

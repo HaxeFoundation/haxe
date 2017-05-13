@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -454,7 +454,7 @@ private typedef __Int64 = ___Int64;
 
 private class ___Int64 {
 	public var high : Int32;
-	public var low : Int32; 
+	public var low : Int32;
 
 	public inline function new( high, low ) {
 		this.high = high;

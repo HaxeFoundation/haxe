@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,15 +20,34 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\AnimationEvent.webidl line 17:0. Do not edit!
+// This file is generated from mozilla\AnimationEvent.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `AnimationEvent` interface represents events providing information related to animations.
+
+	Documentation [AnimationEvent](https://developer.mozilla.org/en-US/docs/Web/API/AnimationEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AnimationEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AnimationEvent>
+**/
 @:native("AnimationEvent")
 extern class AnimationEvent extends Event
 {
+	
+	/**
+		Is a `DOMString` containing the value of the `animation-name` CSS property associated with the transition.
+	**/
 	var animationName(default,null) : String;
+	
+	/**
+		Is a `float` giving the amount of time the animation has been running, in seconds, when this event fired, excluding any time the animation was paused. For an `"animationstart"` event, `elapsedTime` is `0.0` unless there was a negative value for `animation-delay`, in which case the event will be fired with `elapsedTime` containing  `(-1 * `delay`)`.
+	**/
 	var elapsedTime(default,null) : Float;
+	
+	/**
+		Is a `DOMString`, starting with `'::'`, containing the name of the pseudo-element the animation runs on. If the animation doesn't run on a pseudo-element but on the element, an empty string: `''``.`
+	**/
 	var pseudoElement(default,null) : String;
 	
 	/** @throws DOMError */

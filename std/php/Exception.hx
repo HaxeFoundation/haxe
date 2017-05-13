@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,19 +22,23 @@
 package php;
 
 extern class Exception {
-  public function new(?message : String, ?code : Int) : Void;
-
-  private var message : String;
-  private var code : Int;
-  private var file : String;
-  private var line : Int;
-
-  public function getMessage() : String;       // message of the exception
-  public function getCode() : Int;             // code of the exception
-  public function getFile() : String;          // source filename
-  public function getLine() : Int;             // source line
-  public function getTrace() : Array<String>;  // an array of the backtrace()
-  public function getTraceAsString() : String; // formated string of trace
-
-  public function __toString() : String;       // formated string for display
+    @:overload(function():Void { } )
+    @:overload(function(message : String):Void { } )
+    @:overload(function(message : String, code : Int):Void { } )
+	public function new(message : String, code : Int, previous:Exception) : Void;
+	
+	private var message : String;
+	private var code : Int;
+	private var file : String;
+	private var line : Int;
+	
+	public function getMessage() : String;       // message of the exception
+	public function getPrevious() : Exception;   // last exception
+	public function getCode() : Dynamic;             // code of the exception
+	public function getFile() : String;          // source filename
+	public function getLine() : Int;             // source line
+	public function getTrace() : NativeArray;  // an array of the backtrace()
+	public function getTraceAsString() : String; // formated string of trace
+	
+	public function __toString() : String;       // formated string for display
 }

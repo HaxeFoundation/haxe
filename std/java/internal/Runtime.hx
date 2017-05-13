@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -51,7 +51,7 @@ package java.internal;
 		return obj.__hx_setField_f(field, value, false);
 	}
 
-	public static java.lang.Object callField(haxe.lang.IHxObject obj, java.lang.String field, Array<?> args)
+	public static java.lang.Object callField(haxe.lang.IHxObject obj, java.lang.String field, java.lang.Object[] args)
 	{
 		return obj.__hx_invokeField(field, args);
 	}
@@ -362,7 +362,7 @@ package java.internal;
 		if (obj instanceof java.lang.Class)
 		{
 			if (obj == java.lang.String.class && field.equals("fromCharCode"))
-				return haxe.lang.StringExt.fromCharCode(toInt(args.__get(0)));
+				return haxe.lang.StringExt.fromCharCode(toInt(args[0]));
 
 			cl = (java.lang.Class) obj;
 			obj = null;
@@ -372,7 +372,7 @@ package java.internal;
 			cl = obj.getClass();
 		}
 
-		if (args == null) args = new Array();
+		if (args == null) args = new java.lang.Object[0];
 
 		int len = args.length;
 		java.lang.Class[] cls = new java.lang.Class[len];
@@ -398,7 +398,7 @@ package java.internal;
 
 		for (int i = 0; i < len; i++)
 		{
-			Object o = args.__get(i);
+			Object o = args[i];
 			if (o == null)
 			{
 				continue; //can be anything
@@ -498,7 +498,7 @@ package java.internal;
 			throw haxe.lang.HaxeException.wrap(t);
 		}
 	')
-	public static function slowCallField(obj:Dynamic, field:String, args:Array<Dynamic>):Dynamic
+	public static function slowCallField(obj:Dynamic, field:String, args:java.NativeArray<Dynamic>):Dynamic
 	{
 		return null;
 	}
@@ -511,7 +511,7 @@ package java.internal;
 
 		return slowCallField(obj, field, args);
 	')
-	public static function callField(obj:Dynamic, field:String, args:Array<Dynamic>):Dynamic
+	public static function callField(obj:Dynamic, field:String, args:java.NativeArray<Dynamic>):Dynamic
 	{
 		return null;
 	}
@@ -584,7 +584,7 @@ package java.internal;
 	}
 }
 
-@:keep @:native("haxe.lang.EmptyObject") private enum EmptyObject
+@:keep @:native("haxe.lang.EmptyObject") enum EmptyObject
 {
 	EMPTY;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,6 +30,20 @@ package java;
 {
 
 	/**
+		Print the specified value on the default output.
+	**/
+	inline public static function print( v : Dynamic ) : Void {
+		Sys.print(v);
+	}
+
+	/**
+		Print the specified value on the default output followed by a newline character.
+	**/
+	inline public static function println( v : Dynamic ) : Void {
+		Sys.println(v);
+	}
+
+	/**
 		Returns a native array from the supplied Array. This native array is unsafe to be written on,
 		as it may or may not be linked to the actual Array implementation.
 
@@ -57,7 +71,6 @@ package java;
 
 	/**
 		Gets the native `java.lang.Class` from the supplied object. Will throw an exception in case of null being passed.
-		[deprecated] - use `getNativeType` instead
 	**/
 	inline public static function getNativeType<T>(obj:T):java.lang.Class<T>
 	{

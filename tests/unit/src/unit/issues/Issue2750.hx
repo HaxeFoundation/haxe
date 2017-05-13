@@ -28,10 +28,10 @@ class Issue2750 extends Parent {
 		eq(3, bind());
 		eq(3, match());
 		call(this);
-		t(unit.TestType.typeError(var x = super));
-		t(unit.TestType.typeError(call(super)));
-		t(unit.TestType.typeError({ field: super }));
-		t(unit.TestType.typeError([super]));
+		t(unit.HelperMacros.typeError(var x = super));
+		t(unit.HelperMacros.typeError(call(super)));
+		t(unit.HelperMacros.typeError({ field: super }));
+		t(unit.HelperMacros.typeError([super]));
 	}
 
 	override function foo() {

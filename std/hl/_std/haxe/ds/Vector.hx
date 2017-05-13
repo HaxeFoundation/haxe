@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -45,9 +45,8 @@ abstract Vector<T>(VectorData<T>) {
 		return this.length;
 	}
 
-	public static inline function blit<T>(src:Vector<T>, srcPos:Int, dest:Vector<T>, destPos:Int, len:Int):Void	{
-		for (i in 0...len)
-			dest[destPos + i] = src[srcPos + i];
+	public static inline function blit<T>(src:Vector<T>, srcPos:Int, dest:Vector<T>, destPos:Int, len:Int):Void {
+		(cast dest : hl.types.ArrayBase.ArrayAccess).blit(destPos,(cast src : hl.types.ArrayBase.ArrayAccess),srcPos,len);
 	}
 
 	public inline function toArray():Array<T> {

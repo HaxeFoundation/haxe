@@ -97,9 +97,9 @@ class TestReflect extends Test {
 			var name = TNAMES[i];
 			infos("type "+name);
 			f( t == null );
-			if( name == u("Enum") ) {
+			if( name == u("Enum") || name == u("Bool") || name == u("Int") || name == u("Float") || name == u("Class") || name == u("Dynamic") ) {
 				// neither an enum or a class
-			} else if( t == MyEnum || t == Bool ) {
+			} else if( t == MyEnum ) {
 				eq( Type.getEnumName(t), name );
 				eq( Type.resolveEnum(name), t );
 			} else {
@@ -144,7 +144,6 @@ class TestReflect extends Test {
 		is(function() { },null);
 		is(MyClass,Class);
 		is(MyEnum,Enum);
-		is(Class,Class);
 	}
 
 	function is( v : Dynamic, t1 : Dynamic, ?t2 : Dynamic, ?pos : haxe.PosInfos ){
@@ -249,6 +248,8 @@ class TestReflect extends Test {
 		exc( function() Type.createEnum(MyEnum,"Z",[]) );
 	}
 
+	static function compareMethodsDummy() {}
+
 	function testCompareMethods() {
 		var a = new MyClass(0);
 		var b = new MyClass(1);
@@ -257,6 +258,8 @@ class TestReflect extends Test {
 		f( Reflect.compareMethods(a.add,a.get) );
 		f( Reflect.compareMethods(a.add,null) );
 		f( Reflect.compareMethods(null, a.add) );
+		t( Reflect.compareMethods(compareMethodsDummy, compareMethodsDummy) );
+		t( Reflect.compareMethods(String.fromCharCode, String.fromCharCode) );
 		/*
 			Comparison between a method and a closure :
 			Not widely supported atm to justify officiel support

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -40,7 +40,7 @@ typedef TypeResolver = {
 		String
 
 	The specification of the serialization format can be found here:
-	<http://haxe.org/manual/serialization/format>
+	<https://haxe.org/manual/serialization/format>
 **/
 class Unserializer {
 
@@ -262,6 +262,7 @@ class Unserializer {
  		case "a".code:
 			var buf = buf;
  			var a = new Array<Dynamic>();
+ 			#if cpp var cachePos = cache.length; #end
  			cache.push(a);
  			while( true ) {
  				var c = get(pos);
@@ -276,7 +277,11 @@ class Unserializer {
  				} else
  					a.push(unserialize());
  			}
+ 			#if cpp
+ 			return cache[cachePos] = cpp.NativeArray.resolveVirtualArray(a);
+ 			#else
  			return a;
+ 			#end
  		case "o".code:
 	 		var o = {};
 	 		cache.push(o);

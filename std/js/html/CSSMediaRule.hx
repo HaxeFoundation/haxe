@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,13 +20,24 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from cssrule.webidl line 37:2. Do not edit!
+// This file is generated from cssrule.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `CSSMediaRule` is an interface representing a single CSS `@media` rule. It implements the `CSSConditionRule` interface, and therefore the `CSSGroupingRule` and the `CSSRule` interface with a type value of `4` (`CSSRule.MEDIA_RULE`).
+
+	Documentation [CSSMediaRule](https://developer.mozilla.org/en-US/docs/Web/API/CSSMediaRule) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CSSMediaRule$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSMediaRule>
+**/
 @:native("CSSMediaRule")
 extern class CSSMediaRule extends CSSRule
 {
+	
+	/**
+		Specifies a `MediaList` representing the intended destination medium for style information.
+	**/
 	var media(default,null) : MediaList;
 	var cssRules(default,null) : CSSRuleList;
 	

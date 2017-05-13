@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -173,6 +173,10 @@
 		return buf.toString();
 	}
 
+	public static function escape( s : String ) : String {
+		return escapeRegExpRe.map(s, function(r) return "\\" + r.matched(0));
+	}
+	static var escapeRegExpRe = ~/[\[\]{}()*+?.\\\^$|]/g;
 
    @:extern @:native("_hx_regexp_new_options")
 	static function _hx_regexp_new_options(s:String, options:String) : Dynamic return null;

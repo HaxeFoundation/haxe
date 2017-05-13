@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -34,7 +34,7 @@ import sys.net.Socket;
 
 	- call `haxe.Http.requestUrl(url)` and receive the result as a `String`
 	(not available on flash)
-	- create a `new haxe.Http(url)`, register your callbacks for `onData`, 
+	- create a `new haxe.Http(url)`, register your callbacks for `onData`,
 	`onError` and `onStatus`, then call `request()`.
 **/
 class Http {
@@ -53,7 +53,7 @@ class Http {
 	var chunk_size : Null<Int>;
 	var chunk_buf : haxe.io.Bytes;
 	var file : { param : String, filename : String, io : haxe.io.Input, size : Int, mimeType : String };
-#elseif js
+#elseif (js && !nodejs)
 	public var async : Bool;
 	public var withCredentials : Bool;
 #end
@@ -81,7 +81,7 @@ class Http {
 		headers = new List<{ header:String, value:String }>();
 		params = new List<{ param:String, value:String }>();
 
-		#if js
+		#if (js && !nodejs)
 		async = true;
 		withCredentials = false;
 		#elseif sys
@@ -145,7 +145,9 @@ class Http {
 
 	#if (js || flash)
 
-	#if js
+	#if nodejs
+	var req:js.node.http.ClientRequest;
+	#elseif js
 	var req:js.html.XMLHttpRequest;
 	#elseif flash
 	var req:flash.net.URLLoader;
@@ -186,7 +188,66 @@ class Http {
 	**/
 	public function request( ?post : Bool ) : Void {
 		var me = this;
-	#if js
+	#if (js && nodejs)
+		me.responseData = null;
+		var parsedUrl = js.node.Url.parse(url);
+		var secure = (parsedUrl.protocol == "https:");
+		var host = parsedUrl.hostname;
+		var path = parsedUrl.path;
+		var port = if (parsedUrl.port != null) Std.parseInt(parsedUrl.port) else (secure ? 443 : 80);
+		var h:Dynamic = {};
+		for (i in headers) {
+			var arr = Reflect.field(h, i.header);
+			if (arr == null) {
+				arr = new Array<String>();
+				Reflect.setField(h, i.header, arr);
+			}
+
+			arr.push(i.value);
+		}
+		var uri = postData;
+		if( uri != null )
+			post = true;
+		else for( p in params ) {
+			if( uri == null )
+				uri = "";
+			else
+				uri += "&";
+			uri += StringTools.urlEncode(p.param)+"="+StringTools.urlEncode(p.value);
+		}
+		var question = path.split("?").length <= 1;
+		if (!post && uri != null) path += (if( question ) "?" else "&") + uri;
+
+		var opts = {
+			protocol: parsedUrl.protocol,
+			hostname: host,
+			port: port,
+			method: post ? 'POST' : 'GET',
+			path: path,
+			headers: h
+		};
+		function httpResponse (res) {
+			var s = res.statusCode;
+			if (s != null)
+				me.onStatus(s);
+			var body = '';
+			res.on('data', function (d) {
+				body += d;
+			});
+			res.on('end', function (_) {
+				me.responseData = body;
+				me.req = null;
+				if (s != null && s >= 200 && s < 400) {
+					me.onData(body);
+				} else {
+					me.onError("Http Error #"+s);
+				}
+			});
+		}
+		req = secure ? js.node.Https.request(untyped opts, httpResponse) : js.node.Http.request(untyped opts, httpResponse);
+		if (post) req.write(uri);
+		req.end();
+	#elseif js
 		me.responseData = null;
 		var r = req = js.Browser.createXMLHttpRequest();
 		var onreadystatechange = function(_) {
@@ -375,7 +436,7 @@ class Http {
 				sock = new php.net.SslSocket();
 				#elseif java
 				sock = new java.net.SslSocket();
-				#elseif (!no_ssl && (hxssl || cpp || (neko && !(macro || interp))))
+				#elseif (!no_ssl && (hxssl || hl || cpp || (neko && !(macro || interp))))
 				sock = new sys.ssl.Socket();
 				#else
 				throw "Https is only supported with -lib hxssl";
@@ -726,7 +787,7 @@ class Http {
 		This method is called upon a successful request, with `data` containing
 		the result String.
 
-		The intended usage is to bind it to a custom function:  
+		The intended usage is to bind it to a custom function:
 		`httpInstance.onData = function(data) { // handle result }`
 	**/
 	public dynamic function onData( data : String ) {
@@ -736,7 +797,7 @@ class Http {
 		This method is called upon a request error, with `msg` containing the
 		error description.
 
-		The intended usage is to bind it to a custom function:  
+		The intended usage is to bind it to a custom function:
 		`httpInstance.onError = function(msg) { // handle error }`
 	**/
 	public dynamic function onError( msg : String ) {
@@ -746,13 +807,13 @@ class Http {
 		This method is called upon a Http status change, with `status` being the
 		new status.
 
-		The intended usage is to bind it to a custom function:  
+		The intended usage is to bind it to a custom function:
 		`httpInstance.onStatus = function(status) { // handle status }`
 	**/
 	public dynamic function onStatus( status : Int ) {
 	}
 
-#if !flash
+#if (!flash && !nodejs)
 	/**
 		Makes a synchronous request to `url`.
 

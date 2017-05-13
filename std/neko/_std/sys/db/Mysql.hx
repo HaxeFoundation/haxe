@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -191,7 +191,7 @@ private class MysqlConnection implements sys.db.Connection {
 		user : String,
 		pass : String,
 		?socket : String,
-		database : String
+		?database : String
 	} ) : sys.db.Connection {
 		var o = untyped {
 			host : params.host.__s,
@@ -201,11 +201,13 @@ private class MysqlConnection implements sys.db.Connection {
 			socket : if( params.socket == null ) null else params.socket.__s
 		};
 		var c = D.connect(o);
-		try {
-			D.select_db(c,untyped params.database.__s);
-		} catch( e : Dynamic ) {
-			D.close(c);
-			neko.Lib.rethrow(e);
+		if (params.database != null) {
+			try {
+				D.select_db(c,untyped params.database.__s);
+			} catch( e : Dynamic ) {
+				D.close(c);
+				neko.Lib.rethrow(e);
+			}
 		}
 		return new MysqlConnection(c);
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,7 +27,7 @@ package haxe.format;
 	This class is used by `haxe.Json` when native JSON implementation
 	is not available.
 
-	@see http://haxe.org/manual/std-Json-encoding.html
+	@see https://haxe.org/manual/std-Json-encoding.html
 **/
 class JsonPrinter {
 

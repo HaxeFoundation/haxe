@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,8 +24,6 @@ package lua;
 
 import haxe.Constraints.Function;
 
-// TODO: seperate bit helper method from extern so operators can use it.
-import lua.Bit;
 
 @:dox(hide)
 class Boot {
@@ -36,31 +34,12 @@ class Boot {
 
 	public static var platformBigEndian = NativeStringTools.byte(NativeStringTools.dump(function(){}),7) > 0;
 
-	public static var hiddenFields = [
-		"__id__", "hx__closures", "super",
-		"prototype", "__fields__", "__ifields__", "__class__", "__properties__"
-	];
+	static var hiddenFields : Table<String,Bool> = untyped __lua__("{__id__=true, hx__closures=true, super=true, prototype=true, __fields__=true, __ifields__=true, __class__=true, __properties__=true}");
+
+
 
 	static function __unhtml(s : String)
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
-
-	/*
-	   Binds a function definition to the given instance
-	*/
-	@:keep
-	public static function bind(o:Dynamic, m: Function) : Function{
-		if (m == null) return null;
-		// if (m.__id.__ == nil) m.__id__ = _fid + 1;
-		var f: Function = null;
-		if ( o.hx__closures__ == null )
-			Lua.rawset(o,"hx__closures__", {});
-		else untyped f = o.hx__closures__[m];
-		if (f == null){
-			f = untyped __lua__("function(...) return m(o, ...) end");
-			untyped o.hx__closures__[m] = f;
-		}
-		return f;
-	}
 
 	/*
 	   Indicates if the given object is a class.
@@ -100,7 +79,6 @@ class Boot {
 
 		switch( cl ) {
 			case Int:
-				// TODO: matching js behavior here, but js behavior clamps.  Is that correct?
 				return (Lua.type(o) == "number" &&  clamp(o) == o);
 			case Float:
 				return Lua.type(o) == "number";
@@ -217,22 +195,18 @@ class Boot {
 				else if (isArray(o)) {
 					var o2 : Array<Dynamic> = untyped o;
 					if (s.length > 5) "[...]"
-					else '[${[for (i in  o2) __string_rec(i,s+1)].join(",")}]';
-				} else if (s.length > 5){
-					"{...}";
+					else '[${[for (i in o2) __string_rec(i,s+1)].join(",")}]';
 				}
-				else if (Reflect.hasField(o,"__tostring")) Lua.tostring(o);
-				else if (Reflect.hasField(o,"__class__")) printClass(o,s+"\t");
-				else if (Lua.next(o) == null) "{}";
+				else if (o.__class__ != null) printClass(o,s+"\t");
 				else {
-					var fields = Reflect.fields(o);
+					var fields = fieldIterator(o);
 					var buffer:Table<Int,String> = Table.create();
 					var first = true;
 					Table.insert(buffer,"{ ");
 					for (f in fields){
 						if (first) first = false;
 						else Table.insert(buffer,", ");
-						Table.insert(buffer,'${s}${Std.string(f)} : ${untyped Std.string(o[f])}');
+						Table.insert(buffer,'${Std.string(f)} : ${untyped Std.string(o[f])}');
 					}
 					Table.insert(buffer, " }");
 					Table.concat(buffer, "");
@@ -250,7 +224,7 @@ class Boot {
 	   Define an array from the given table
 	*/
 	public inline static function defArray<T>(tab: Table<Int,T>, ?length : Int) : Array<T> {
-		if (length == null) length = Table.maxn(tab) + 1; // maxn doesn't count 0 index
+		if (length == null) length = TableTools.maxn(tab) + 1; // maxn doesn't count 0 index
 		return untyped _hx_tab_array(tab, length);
 	}
 
@@ -279,10 +253,10 @@ class Boot {
 	}
 
 	/*
-	   A 32 bit clamp function for integers
+	   A 32 bit clamp function for numbers
 	*/
-	public inline static function clamp(x:Int){
-		return untyped _hx_bit_clamp(x);
+	public inline static function clamp(x:Float){
+		return untyped __define_feature__("lua.Boot.clamp", _hx_bit_clamp(x));
 	}
 
 	/*
@@ -296,19 +270,19 @@ class Boot {
 				year  : 0,
 				month : 1,
 				day   : 1,
-				hour  : Std.parseInt(k[0]),
-				min   : Std.parseInt(k[1]),
-				sec   : Std.parseInt(k[2])
+				hour  : Lua.tonumber(k[0]),
+				min   : Lua.tonumber(k[1]),
+				sec   : Lua.tonumber(k[2])
 			});
 			return std.Date.fromTime(t);
 		case 10: // YYYY-MM-DD
 			var k = s.split("-");
-			return new std.Date(Std.parseInt(k[0]), Std.parseInt(k[1]) - 1, Std.parseInt(k[2]),0,0,0);
+			return new std.Date(Lua.tonumber(k[0]), Lua.tonumber(k[1]) - 1, Lua.tonumber(k[2]),0,0,0);
 		case 19: // YYYY-MM-DD hh:mm:ss
 			var k = s.split(" ");
 			var y = k[0].split("-");
 			var t = k[1].split(":");
-			return new std.Date(cast y[0],Std.parseInt(y[1]) - 1, Std.parseInt(y[2]),Std.parseInt(t[0]),Std.parseInt(t[1]),Std.parseInt(t[2]));
+			return new std.Date(cast y[0],Lua.tonumber(y[1]) - 1, Lua.tonumber(y[2]),Lua.tonumber(t[0]),Lua.tonumber(t[1]),Lua.tonumber(t[2]));
 		default:
 			throw "Invalid date format : " + s;
 		}
@@ -322,31 +296,15 @@ class Boot {
 		else if (cl1 == cl2) return true;
 		else if (untyped cl1.__interfaces__ != null) {
 			var intf = untyped cl1.__interfaces__;
-			for (i in 1...(Table.maxn(intf) + 1)){
+			for (i in 1...( TableTools.maxn(intf) + 1)){
 				// check each interface, including extended interfaces
-				if (extendsOrImplements(intf[1], cl2)) return true;
+				if (extendsOrImplements(intf[i], cl2)) return true;
 			}
 		}
 		// check standard inheritance
 		return extendsOrImplements(untyped cl1.__super__, cl2);
 	}
 
-	/*
-	   Create an empty table.
-	*/
-	public inline static function createTable<K,V>(?arr:Array<V>, ?hsh:Dynamic<V>) : Table<K,V> {
-		return untyped __lua_table__(arr,hsh);
-	}
-
-	/*
-	   Create an empty table for vectors
-	*/
-	// TODO: provide a simpler anonymous table generator syntax in genlua
-	public static function createVectorTable<K,V>(length:Int) : Table<K,V> {
-		var table : Table<K,V> = untyped __lua__("{}");
-		untyped table.length = length;
-		return table;
-	}
 
 	/*
 		Returns a shell escaped version of "cmd" along with any args
@@ -376,13 +334,60 @@ class Boot {
 		}
 	}
 
+	public static function fieldIterator( o : Table<String,Dynamic>) : Iterator<String> {
+		var tbl : Table<String,String> =  cast (untyped o.__fields__ != null) ?  o.__fields__ : o;
+		var cur = Lua.pairs(tbl).next;
+		var next_valid = function(tbl, val){
+			while (hiddenFields[untyped val] != null){
+				val = cur(tbl, val).index;
+			}
+			return val;
+		}
+		var cur_val = next_valid(tbl, cur(tbl, null).index);
+		return {
+			next : function(){
+				var ret = cur_val;
+				cur_val = next_valid(tbl, cur(tbl, cur_val).index);
+				return ret;
+			},
+			hasNext : function() return cur_val !=  null
+		}
+	}
 
-	public static function __init__(){
-		// anonymous to instance method wrapper
-		haxe.macro.Compiler.includeFile("lua/_lua/_hx_function_to_instance_function.lua");
-		// static to instance class wrapper
-		haxe.macro.Compiler.includeFile("lua/_lua/_hx_static_to_instance_function.lua");
-		// simple apply method
-		haxe.macro.Compiler.includeFile("lua/_lua/_hx_apply.lua");
+	static var os_patterns = [
+		'Windows' => ['windows','^mingw','^cygwin'],
+		'Linux'   => ['linux'],
+		'Mac'     => ['mac','darwin'],
+		'BSD'     => ['bsd$'],
+		'Solaris' => ['SunOS']
+	];
+
+	public static function systemName() : String {
+		var os : String = null;
+		if (untyped jit != null && untyped jit.os != null ){
+			os = untyped jit.os;
+			os = os.toLowerCase();
+		} else {
+			var popen_status : Bool = false;
+			var popen_result : lua.FileHandle = null;
+			untyped __lua__("popen_status, popen_result = pcall(_G.io.popen, '')");
+			if (popen_status) {
+				popen_result.close;
+				os = lua.Io.popen('uname -s','r').read('*l').toLowerCase();
+			} else {
+				os = lua.Os.getenv('OS').toLowerCase();
+			}
+
+		}
+
+		for (k in os_patterns.keys()){
+			for (p in os_patterns.get(k)) {
+				if (lua.NativeStringTools.match(os,p) != null){
+					return k;
+				}
+			}
+		}
+
+		return null;
 	}
 }

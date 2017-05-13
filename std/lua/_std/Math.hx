@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -36,7 +36,7 @@ class Math
 
 	// Note: this has to be an untyped literal, otherwise the compiler tries
 	// to unify it to an Int, which defeats useful numeric reflection behavior.
-	static inline function get_NaN () : Float return untyped __lua__("0/0");
+	static inline function get_NaN () : Float return untyped __lua__("(0/0)");
 
 	public static function isNaN( f : Float ) : Bool return (f != f);
 	public static inline function isFinite( f : Float ) : Bool {
@@ -57,7 +57,7 @@ class Math
 	public static inline function floor(v:Float):Int  return lua.Math.floor(v);
 	public static inline function log(v:Float):Float  return lua.Math.log(v);
 
-	public static inline function random() : Float    return lua.Math.random();
+	public static inline function random() : Float return untyped __define_feature__("Math.random", lua.Math.random());
 
 	public static inline function atan2(y:Float, x:Float):Float return lua.Math.atan2(y,x);
 	public static inline function max(a:Float, b:Float):Float {
@@ -74,7 +74,4 @@ class Math
 	public static inline function fceil( v : Float ) : Float return ceil(v);
 	public static inline function fround( v : Float ) : Float return round(v);
 
-	static function __init__() : Void {
-		untyped __feature__("Type.resolveClass", _hxClasses["Math"] = Math);
-	}
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -196,6 +196,11 @@
 			buf.add(s.substr(offset));
 		return buf.toString();
 	}
+
+	public static function escape( s : String ) : String {
+		return escapeRegExpRe.map(s, function(r) return "\\" + r.matched(0));
+	}
+	static var escapeRegExpRe = ~/[\[\]{}()*+?.\\\^$|]/g;
 
 	static var regexp_new_options = neko.Lib.load("regexp","regexp_new_options",2);
 	static var regexp_match = neko.Lib.load("regexp","regexp_match",4);

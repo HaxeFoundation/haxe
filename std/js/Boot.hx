@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -40,42 +40,6 @@ private class HaxeError extends js.Error {
 @:dox(hide)
 class Boot {
 
-	private static function __unhtml(s : String) {
-		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
-	}
-
-	private static function __trace(v,i : haxe.PosInfos) {
-		untyped {
-			var msg = if( i != null ) i.fileName+":"+i.lineNumber+": " else "";
-			#if jsfl
-			msg += __string_rec(v,"");
-			fl.trace(msg);
-			#else
-			msg += __string_rec(v, "");
-			if( i != null && i.customParams != null )
-				for( v in i.customParams )
-					msg += "," + __string_rec(v, "");
-			var d;
-			if( __js__("typeof")(document) != "undefined" && (d = document.getElementById("haxe:trace")) != null )
-				d.innerHTML += __unhtml(msg)+"<br/>";
-			else if( __js__("typeof console") != "undefined" && __js__("console").log != null )
-				__js__("console").log(msg);
-			#end
-		}
-	}
-
-	private static function __clear_trace() {
-		untyped {
-			#if jsfl
-			fl.outputPanel.clear();
-			#else
-			var d = document.getElementById("haxe:trace");
-			if( d != null )
-				d.innerHTML = "";
-			#end
-		}
-	}
-
 	static inline function isClass(o:Dynamic) : Bool {
 		return untyped __define_feature__("js.Boot.isClass", o.__name__);
 	}
@@ -105,7 +69,7 @@ class Boot {
 			    return "null";
 			if( s.length >= 5 )
 				return "<...>"; // too much deep recursion
-			var t = __js__("typeof(o)");
+			var t = js.Lib.typeof(o);
 			if( t == "function" && (isClass(o) || isEnum(o)) )
 				t = "object";
 			switch( t ) {
@@ -140,7 +104,7 @@ class Boot {
 					// strange error on IE
 					return "???";
 				}
-				if( tostr != null && tostr != __js__("Object.toString") && __typeof__(tostr) == "function" ) {
+				if( tostr != null && tostr != __js__("Object.toString") && js.Lib.typeof(tostr) == "function" ) {
 					var s2 = o.toString();
 					if( s2 != "[object Object]")
 						return s2;
@@ -191,13 +155,13 @@ class Boot {
 			return false;
 		switch( cl ) {
 		case Int:
-			return (untyped __js__("typeof"))(o) == "number" && untyped __js__("(o|0) === o");
+			return js.Lib.typeof(o) == "number" && untyped __js__("(o|0) === o");
 		case Float:
-			return (untyped __js__("typeof"))(o) == "number";
+			return js.Lib.typeof(o) == "number";
 		case Bool:
-			return (untyped __js__("typeof"))(o) == "boolean";
+			return js.Lib.typeof(o) == "boolean";
 		case String:
-			return (untyped __js__("typeof"))(o) == "string";
+			return js.Lib.typeof(o) == "string";
 		case Array:
 			return (untyped __js__("(o instanceof Array)")) && o.__enum__ == null;
 		case Dynamic:
@@ -205,13 +169,13 @@ class Boot {
 		default:
 			if( o != null ) {
 				// Check if o is an instance of a Haxe class or a native JS object
-				if( (untyped __js__("typeof"))(cl) == "function" ) {
+				if( js.Lib.typeof(cl) == "function" ) {
 					if( untyped __js__("o instanceof cl") )
 						return true;
 					if( __interfLoop(getClass(o),cl) )
 						return true;
 				}
-				else if ( (untyped __js__("typeof"))(cl) == "object" && __isNativeObj(cl) ) {
+				else if ( js.Lib.typeof(cl) == "object" && __isNativeObj(cl) ) {
 					if( untyped __js__("o instanceof cl") )
 						return true;
 				}

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -129,7 +129,7 @@ class Reader {
 					#if neko
 					// enter progressive mode : we use a different input which has
 					// a temporary buffer, this is necessary since we have to uncompress
-					// progressively, and after that we might have pending readed data
+					// progressively, and after that we might have pending read data
 					// that needs to be processed
 					var bufSize = 65536;
 					if( buf == null ) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -33,6 +33,9 @@ using Lambda;
 	best used through 'using haxe.macro.TypeTools' syntax and then provides
 	additional methods on haxe.macro.Type instances.
 **/
+#if hl
+@:hlNative("macro")
+#end
 class TypeTools {
 
 	static function nullable(complexType : ComplexType) : ComplexType return macro : Null<$complexType>;
@@ -227,7 +230,7 @@ class TypeTools {
 		Applies the type parameters `typeParameters` to type `t` with the given
 		types `concreteTypes`.
 
-		This function replaces occurences of type parameters in `t` if they are
+		This function replaces occurrences of type parameters in `t` if they are
 		part of `typeParameters`. The array index of such a type parameter is
 		then used to lookup the concrete type in `concreteTypes`.
 
@@ -243,8 +246,19 @@ class TypeTools {
 			throw 'Incompatible arguments: ${typeParameters.length} type parameters and ${concreteTypes.length} concrete types';
 		else if (typeParameters.length == 0)
 			return t;
-		return Context.load("apply_params", 3)(typeParameters.map(function(tp) return {name:untyped tp.name.__s, t:tp.t}), concreteTypes, t);
+		#if neko
+		return Context.load("apply_params", 3)(typeParameters, concreteTypes, t);
+		#else
+		return applyParams(typeParameters, concreteTypes, t);
+		#end
 	}
+
+	#if !neko
+	private static function applyParams( typeParameters:Array<TypeParameter>, concreteTypes:Array<Type>, t:Type ) : Type {
+		return null;
+	}
+	#end
+
 
 	/**
 		Transforms `t` by calling `f` on each of its subtypes.
@@ -328,7 +342,14 @@ class TypeTools {
 	/**
 		Converts type `t` to a human-readable String representation.
 	**/
-	static public function toString( t : Type ) : String return new String(Context.load("s_type", 1)(t));
+	static public function toString( t : Type ) : String {
+		#if neko
+		return Context.load("s_type", 1)(t);
+		#else
+		return null;
+		#end
+	}
+
 	#end
 
 	/**

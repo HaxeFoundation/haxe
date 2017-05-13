@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,27 +22,30 @@
 
 package lua;
 
+import haxe.Constraints.Function;
+import lua.Table;
 #if lua_jit
-@:native("_G.ffi")
+@:luaRequire("ffi")
 extern class Ffi {
+	public function new(type : String, arg : Dynamic);
 
 	// Declaring and accessing external symbols
 	public static var C : Dynamic;
 	public static function gc(cdata : Dynamic, finalizer : Function) : Void;
-	public static function load : (name : String, ?global : Bool) : Dynamic;
-	public static function metatype<T>(ct : Ctype<T>, metatable : Table<Dynamic>) : Ctype<T>;
+	public static function load (name : String, ?global : Bool) : Dynamic;
+	public static function metatype<T>(ct : Ctype<T>, metatable : Table<Dynamic,Dynamic>) : Ctype<T>;
 	public static function typeof(str:String) : Ctype<Dynamic>;
 
-	// C Type functionality 
-	public static function alignof(ct : Ctype<T>) : Int;
-	public static function istype(ct : Ctype<T>, obj:Dynamic) : Bool;
-	public static function offsetof(ct : Ctype<T>, field:String) : Int;
-	public static function sizeof(ct : Ctype<T>, ?nelem : Int) : Int;
+	// C Type functionality
+	public static function alignof<T>(ct : Ctype<T>) : Int;
+	public static function istype<T>(ct : Ctype<T>, obj:Dynamic) : Bool;
+	public static function offsetof<T>(ct : Ctype<T>, field:String) : Int;
+	public static function sizeof<T>(ct : Ctype<T>, ?nelem : Int) : Int;
 
 
 	// Utility functionality
 	public static function errno(?newerr : Int) : Int;
-	public static function fill(dst : Dynamic, len : Int, c:Int) : Void; 
+	public static function fill(dst : Dynamic, len : Int, c:Int) : Void;
 	public static function string(ptr : Dynamic, ?len : Int) : String;
 
 	@:overload(   function     (dst : Dynamic, str : String)             : Dynamic {})
@@ -51,7 +54,7 @@ extern class Ffi {
 	// Target specific functionality
 	public static var os : String;
 	public static var arch : String;
-	public static function abi(param : String) : Bool; 
+	public static function abi(param : String) : Bool;
 }
 
 extern class Ctype<T> {}

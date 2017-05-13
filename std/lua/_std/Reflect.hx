@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 import lua.Lua;
+import lua.TableTools;
 import lua.Boot;
 @:coreApi class Reflect {
 
 	public inline static function hasField( o : Dynamic, field : String ) : Bool {
-		// TODO: Lua can't detect fields that are set to null, figure out a workaround.
 		return untyped o.__fields__ != null ? o.__fields__[field] != null :  o[field] != null;
 	}
 
@@ -61,12 +61,12 @@ import lua.Boot;
 		}
 	}
 
-	public inline static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic  {
+	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic  {
 		if (args == null || args.length == 0){
 			return func(o);
 		} else {
 			var self_arg = false;
-			if (o != null && Type.getClass(o) != null){
+			if (o != null ){
 				// if o is not null, it means we need to pass it as the "self"
 				// parameter.  However, we should also check to see if it's
 				// a valid class instance in the first place.
@@ -81,23 +81,16 @@ import lua.Boot;
 			}
 			return if (self_arg){
 				// call with o as leading self param
-				func(o, lua.Table.unpack(new_args, 1, lua.Table.maxn(new_args)));
+				func(o, lua.TableTools.unpack(new_args, 1, TableTools.maxn(new_args)));
 			} else {
 				// call with no self param
-				func(lua.Table.unpack(new_args, 1, lua.Table.maxn(new_args)));
+				func(lua.TableTools.unpack(new_args, 1,  TableTools.maxn(new_args)));
 			}
 		}
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> {
-		var ret = new Array<String>();
-		var fields = lua.Boot.hiddenFields;
-		if (untyped o.__fields__ != null) {
-			untyped __lua__("for k,_ in pairs(o.__fields__) do if fields:indexOf(k) == -1 then ret:push(k) end end");
-		} else {
-			untyped __lua__("for k,_ in pairs(o) do if fields:indexOf(k) == -1 then ret:push(k) end end");
-		}
-		return ret;
+		return [for (f in lua.Boot.fieldIterator(o)) f];
 	}
 
 	public static function isFunction( f : Dynamic ) : Bool {

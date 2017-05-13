@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,7 +32,7 @@ class Thread {
 	}
 
 	/**
-		Send a message to the thread queue. This message can be readed by using `readMessage`.
+		Send a message to the thread queue. This message can be read by using `readMessage`.
 	**/
 	public function sendMessage( msg : Dynamic ) {
 		untyped __global__.__hxcpp_thread_send(handle,msg);

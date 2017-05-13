@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,7 +24,7 @@
 	An abstract type that represents any enum value.
 	See `Type` for the Haxe Reflection API.
 
-	@see http://haxe.org/manual/types-enum-instance.html
+	@see https://haxe.org/manual/types-enum-instance.html
 **/
 @:coreType abstract EnumValue {
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,7 +21,7 @@
  */
 package sys.io;
 
-private typedef ProcessHandle = hl.types.NativeAbstract<"hl_process">;
+private typedef ProcessHandle = hl.Abstract<"hl_process">;
 
 private class Stdin extends haxe.io.Output {
 
@@ -44,13 +44,13 @@ private class Stdin extends haxe.io.Output {
 	}
 
 	public override function writeBytes( buf : haxe.io.Bytes, pos : Int, len : Int ) : Int {
-		var v = _stdin_write(p, buf.getData().b, pos, len);
+		var v = _stdin_write(p, buf.getData().bytes, pos, len);
 		if( v < 0 ) throw new haxe.io.Eof();
 		return v;
 	}
 
-	@:hlNative("std","process_stdin_write") static function _stdin_write( p : ProcessHandle, bytes : hl.types.Bytes, pos : Int, len : Int ) : Int { return 0; }
-	@:hlNative("std","process_stdin_close") static function _stdin_close( p : ProcessHandle ) : Void { }
+	@:hlNative("std","process_stdin_write") static function _stdin_write( p : ProcessHandle, bytes : hl.Bytes, pos : Int, len : Int ) : Int { return 0; }
+	@:hlNative("std", "process_stdin_close") static function _stdin_close( p : ProcessHandle ) : Bool { return false; }
 
 }
 
@@ -73,13 +73,13 @@ private class Stdout extends haxe.io.Input {
 	}
 
 	public override function readBytes( str : haxe.io.Bytes, pos : Int, len : Int ) : Int {
-		var v = out ? _stdout_read(p,str.getData().b,pos,len) : _stderr_read(p,str.getData().b,pos,len);
+		var v = out ? _stdout_read(p,str.getData().bytes,pos,len) : _stderr_read(p,str.getData().bytes,pos,len);
 		if( v < 0 ) throw new haxe.io.Eof();
 		return v;
 	}
 
-	@:hlNative("std","process_stdout_read") static function _stdout_read( p : ProcessHandle, bytes : hl.types.Bytes, pos : Int, len : Int ) : Int { return 0; }
-	@:hlNative("std","process_stderr_read") static function _stderr_read( p : ProcessHandle, bytes : hl.types.Bytes, pos : Int, len : Int ) : Int { return 0; }
+	@:hlNative("std","process_stdout_read") static function _stdout_read( p : ProcessHandle, bytes : hl.Bytes, pos : Int, len : Int ) : Int { return 0; }
+	@:hlNative("std","process_stderr_read") static function _stderr_read( p : ProcessHandle, bytes : hl.Bytes, pos : Int, len : Int ) : Int { return 0; }
 
 }
 
@@ -89,17 +89,62 @@ private class Stdout extends haxe.io.Input {
 	var p : ProcessHandle;
 	public var stdout(default,null) : haxe.io.Input;
 	public var stderr(default,null) : haxe.io.Input;
-	public var stdin(default,null) : haxe.io.Output;
+	public var stdin(default, null) : haxe.io.Output;
 
-	public function new( cmd : String, ?args : Array<String> ) : Void {
+	static var isWin = Sys.systemName() == "Windows";
+
+	public function new( cmd : String, ?args : Array<String>, ?detached : Bool ) : Void {
+		var runCmd = cmd;
+		if( isWin ) {
+			var b = new StringBuf();
+			if( args == null ) {
+				var exe = Sys.getEnv("COMSPEC");
+				if( exe == null ) exe = "cmd.exe";
+				b.add("\"");
+				b.add(exe);
+				b.add("\" /C \"");
+				b.add(cmd);
+				b.addChar('"'.code);
+			} else {
+				b.addChar('"'.code);
+				b.add(cmd);
+				b.addChar('"'.code);
+				for( a in args ) {
+					b.add(" \"");
+					var bsCount = 0;
+					for( i in 0...a.length ) {
+						switch( StringTools.fastCodeAt(a, i) ) {
+						case '"'.code:
+							for( i in 0...bsCount * 2 )
+								b.addChar('\\'.code);
+							bsCount = 0;
+							b.add("\\\"");
+						case '\\'.code:
+							bsCount++;
+						case c:
+							for( i in 0...bsCount )
+								b.addChar('\\'.code);
+							bsCount = 0;
+							b.addChar(c);
+						}
+					}
+					// Add remaining backslashes, if any.
+					for( i in 0...bsCount * 2 )
+						b.addChar('\\'.code);
+					b.addChar('"'.code);
+				}
+				args = null;
+			}
+			runCmd = b.toString();
+		}
 		@:privateAccess {
 			var aargs = null;
 			if( args != null ) {
-				aargs = new hl.types.NativeArray<hl.types.Bytes>(args.length);
+				aargs = new hl.NativeArray<hl.Bytes>(args.length);
 				for( i in 0...args.length )
 					aargs[i] = Sys.getPath(args[i]);
 			}
-			p = _run(Sys.getPath(cmd), aargs);
+			p = _run(Sys.getPath(runCmd), aargs, detached);
 		}
 		if( p == null )
 			throw new Sys.SysError("Process creation failure : "+cmd);
@@ -112,8 +157,12 @@ private class Stdout extends haxe.io.Input {
 		return _pid(p);
 	}
 
-	public function exitCode() : Int {
-		return _exit(p);
+	public function exitCode( block : Bool = true ) : Null<Int> {
+		var running = false;
+		var code = _exit(p, block == false ? new hl.Ref(running) : null);
+		if( block == false )
+			return running ? null : code;
+		return code;
 	}
 
 	public function close() : Void {
@@ -124,8 +173,8 @@ private class Stdout extends haxe.io.Input {
 		_kill(p);
 	}
 
-	@:hlNative("std","process_run")	static function _run( cmd : hl.types.Bytes, args : hl.types.NativeArray<hl.types.Bytes> ) : ProcessHandle { return null; }
-	@:hlNative("std", "process_exit") static function _exit( p : ProcessHandle ) : Int { return 0; }
+	@:hlNative("std","process_run")	static function _run( cmd : hl.Bytes, args : hl.NativeArray<hl.Bytes>, detached : Bool ) : ProcessHandle { return null; }
+	@:hlNative("std", "process_exit") static function _exit( p : ProcessHandle, running : hl.Ref<Bool> ) : Int { return 0; }
 	@:hlNative("std", "process_pid") static function _pid( p : ProcessHandle ) : Int { return 0; }
 	@:hlNative("std","process_close") static function _close( p : ProcessHandle ) : Void { }
 	@:hlNative("std","process_kill") static function _kill( p : ProcessHandle ) : Void { }

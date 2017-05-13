@@ -27,19 +27,22 @@ class Child extends Parent {
 
 class Issue4690 {
 	@:js('
+		var c_z;
+		var c_y;
+		var c_x;
 		console.log("Child.new: Before super");
 		console.log("Parent.new: Before assign");
-		var c_x = 1;
-		var c_y = "" + 2;
+		c_x = 1;
+		c_y = "" + 2;
 		console.log("Parent.new: After assign");
 		console.log("Child.new: After super");
-		var c_z = 3;
+		c_z = 3;
 		console.log("Child new: After assign");
 		console.log(c_x);
 		console.log(c_y);
 		console.log(c_z);
 	')
-	@:analyzer(no_const_propagation)
+	@:analyzer(no_const_propagation, no_fusion)
 	static function test() {
 		var c = new Child(1, 2, 3);
 		trace(c.x);

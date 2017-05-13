@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +22,7 @@
 package haxe.io;
 
 class BytesInput extends Input {
-	var b : #if js js.html.Uint8Array #elseif hl hl.types.Bytes #else BytesData #end;
+	var b : #if js js.html.Uint8Array #elseif hl hl.Bytes #else BytesData #end;
 	#if !flash
 	var pos : Int;
 	var len : Int;

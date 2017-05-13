@@ -28,11 +28,10 @@ class PairTools {
 		return untyped __lua__("seed");
 	}
 
-
 	public static function ipairsConcat<T>(table1:Table<Int,T>, table2:Table<Int,T>){
 		var ret:Table<Int,T> = Table.create();
 		ipairsFold(table1, function(a,b,c:Table<Int,T>){ c[a] = b; return c;}, ret);
-		var size = lua.Table.maxn(ret);
+		var size = lua.TableTools.maxn(ret);
 		ipairsFold(table2, function(a,b,c:Table<Int,T>){ c[a + size] = b; return c;}, ret);
 		return ret;
 	}
@@ -55,5 +54,37 @@ class PairTools {
 		var ret : Table<A,B> = Table.create();
 		untyped __lua__("for k,v in _G.pairs(table1) do ret[k] = v end");
 		return ret;
+	}
+
+	public static function pairsIterator<A,B>(table:Table<A,B>) : Iterator<{index:A, value:B}> {
+		var p = Lua.pairs(table);
+		var next = p.next;
+		var i = p.index;
+		return {
+			next : function(){
+				var res = next(table,i);
+				i = res.index;
+				return {index : res.index, value : res.value};
+			},
+			hasNext : function(){
+				return Lua.next(table, i).value != null;
+			}
+		}
+	}
+
+	public static function ipairsIterator<A,B>(table:Table<A,B>) : Iterator<{index:Int, value:B}> {
+		var p = Lua.ipairs(table);
+		var next = p.next;
+		var i = p.index;
+		return {
+			next : function(){
+				var res = next(table,i);
+				i = res.index;
+				return {index : res.index, value : res.value};
+			},
+			hasNext : function(){
+				return next(table, i).value != null;
+			}
+		}
 	}
 }

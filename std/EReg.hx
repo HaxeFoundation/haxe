@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -34,7 +34,7 @@
 	its methods.
 
 	A detailed explanation of the supported operations is available at
-	<http://haxe.org/manual/std-regex.html>
+	<https://haxe.org/manual/std-regex.html>
 **/
 class EReg {
 
@@ -190,6 +190,15 @@ class EReg {
 		If `s` or `f` are null, the result is unspecified.
 	**/
 	public function map( s : String, f : EReg -> String ) : String {
+		return null;
+	}
+
+	/**
+		Escape the string `s` for use as a part of regular expression.
+
+		If `s` is null, the result is unspecified.
+	**/
+	public static function escape( s : String ) : String {
 		return null;
 	}
 }

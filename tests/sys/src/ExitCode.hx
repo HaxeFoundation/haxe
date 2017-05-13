@@ -9,6 +9,8 @@ class ExitCode {
 	static public var bin:String =
 	#if neko
 		"bin/neko/ExitCode.n";
+	#elseif hl
+		"bin/hl/ExitCode.hl";
 	#elseif cpp
 		#if debug
 			"bin/cpp/ExitCode-debug";
@@ -29,6 +31,8 @@ class ExitCode {
 		#end
 	#elseif python
 		"bin/python/ExitCode.py";
+	#elseif php7
+		"bin/php7/ExitCode/index.php";
 	#elseif php
 		"bin/php/ExitCode/index.php";
 	#elseif lua

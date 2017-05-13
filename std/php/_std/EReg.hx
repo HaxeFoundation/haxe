@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -117,5 +117,9 @@
 		if (!global && offset > 0 && offset < s.length)
 			buf.add(s.substr(offset));
 		return buf.toString();
+	}
+
+	public static function escape( s : String ) : String {
+		return untyped __call__("preg_quote", s);
 	}
 }

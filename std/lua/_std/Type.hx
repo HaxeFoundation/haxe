@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -82,7 +82,7 @@ enum ValueType {
 	}
 
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped {
-		return __new__(cl, lua.Table.unpack(cast args, 0));
+		return __new__(cl, lua.TableTools.unpack(cast args, 0));
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped {
@@ -111,17 +111,16 @@ enum ValueType {
 
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
 		var p : Dynamic = untyped c.prototype;
-		var a = new Map<String,Dynamic>();
+		var a :Array<String> = [];
 		while (p != null){
-			var pfields : lua.Table<Int, Dynamic>  = untyped p.__fields__;
-			for (f in Reflect.fields(pfields)){
-				a.set(f, true);
+			for (f in lua.Boot.fieldIterator(p)){
+				if (!Lambda.has(a,f)) a.push(f);
 			}
 			var mt = lua.Lua.getmetatable(p);
 			if (mt != null && mt.__index != null ) p = mt.__index;
 			else p = null;
 		}
-		return [for (f in a.keys()) f];
+		return a;
 	}
 
 	public static function getClassFields( c : Class<Dynamic> ) : Array<String> {
@@ -193,7 +192,7 @@ enum ValueType {
 	}
 
 	public inline static function enumParameters( e : EnumValue ) : Array<Dynamic> {
-		return untyped e.slice(2);
+		return (cast e : Array<Dynamic>).slice(2);
 	}
 
 	public inline static function enumIndex( e : EnumValue ) : Int {

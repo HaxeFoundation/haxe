@@ -1,10 +1,9 @@
+PLATFORM=win
+MAKEFILENAME=Makefile.win
 include Makefile
-
 OUTPUT=haxe.exe
 EXTENSION=.exe
 PACKAGE_SRC_EXTENSION=.zip
-
-OCAMLOPT=ocamlopt.opt
 
 kill:
 	-@taskkill /F /IM haxe.exe
@@ -28,21 +27,23 @@ FILTER=sed 's/File "\([^"]\+\)", line \([0-9]\+\), \(.*\)/\1(\2): \3/' tmp.cmi
 endif
 
 ifeq (${FD_OUTPUT}, 1)
-FILTER=sed '/File/{ N; s/File "\([^"]\+\)", line \([0-9]\+\), characters \([0-9-]\+\):[\r\n]*\(.*\)/\1:\2: characters \3 : \4/ }' tmp.cmi
+FILTER=sed -e '/File/{ N; s/File "\([^"]\+\)", line \([0-9]\+\), characters \([0-9-]\+\):[\r\n]*\(.*\)/\1:\2: characters \3 : \4/ }' -e 's/_build\/src\//src\//' tmp.cmi
 endif
 
 ifdef FILTER
-CC_CMD=($(OCAMLOPT) $(CFLAGS) -c $< 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
-CC_PARSER_CMD=($(OCAMLOPT) -pp camlp4o $(CFLAGS) -c src/syntax/parser.ml 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
+CC_CMD=($(COMPILER) $(ALL_CFLAGS) -c $< 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
+CC_PARSER_CMD=($(COMPILER) -pp camlp4o $(ALL_CFLAGS) -c src/syntax/parser.ml 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
 endif
 
-package_bin:
+PACKAGE_FILES=$(OUTPUT) haxelib$(EXTENSION) std "$$(cygpath -w "$$(which zlib1.dll)")" "$$(cygpath -w "$$(which libpcre-1.dll)")"
+
+package_win:
 	mkdir -p out
 	rm -rf $(PACKAGE_FILE_NAME) $(PACKAGE_FILE_NAME).zip temp.zip
 	# Copy the package contents to $(PACKAGE_FILE_NAME)
 	# Using poor man's cp (zip then unzip), because cp in cygwin is quite broken
 	mkdir -p $(PACKAGE_FILE_NAME)
-	7z a -y -tzip -mx0 temp.zip $(OUTPUT) haxelib$(EXTENSION) std > log.txt || type log.txt
+	7z a -y -tzip -mx0 temp.zip $(PACKAGE_FILES) > log.txt || type log.txt
 	cd extra && 7z a -y -tzip -mx0 ../temp.zip LICENSE.txt CONTRIB.txt CHANGES.txt > log.txt || type log.txt
 	7z x -y temp.zip -o$(PACKAGE_FILE_NAME) > log.txt || type log.txt
 	rm temp.zip
@@ -50,3 +51,12 @@ package_bin:
 	7z a -r -tzip out/$(PACKAGE_FILE_NAME)_bin.zip $(PACKAGE_FILE_NAME) > log.txt || type log.txt
 	rm -r $(PACKAGE_FILE_NAME)
 	rm log.txt extra/log.txt
+
+package_choco:
+	mkdir -p OUTPUT
+	7z x -y out/$(PACKAGE_FILE_NAME)_bin.zip -oout > log.txt || type log.txt
+	mv out/$(PACKAGE_FILE_NAME) out/choco
+	sed -e 's/@SNAPSHOT_VERSION@/$(HAXE_VERSION)-SNAP$(COMMIT_DATE)/g' extra/choco/haxe.nuspec > out/choco/haxe.nuspec
+	cd out/choco && choco pack
+	mv out/choco/haxe.*.nupkg out
+	rm -rf out/choco

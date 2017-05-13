@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,7 +24,7 @@ import java.internal.HxObject;
 
 using StringTools;
 
-@:keep enum ValueType {
+enum ValueType {
 	TNull;
 	TInt;
 	TFloat;
@@ -36,7 +36,7 @@ using StringTools;
 	TUnknown;
 }
 
-@:keep @:coreApi class Type {
+@:coreApi class Type {
 
 	public static function getClass<T>( o : T ) : Class<T>
 	{
@@ -86,8 +86,6 @@ using StringTools;
 		var ret:String = c.getName();
 		if (ret.startsWith("haxe.root."))
 			return ret.substr(10);
-		else if (ret == "boolean" || ret == "java.lang.Boolean")
-			return "Bool";
 
 		return ret;
 	}
@@ -243,27 +241,31 @@ using StringTools;
 		return null;
 	}
 
-	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped
-	{
-		if (Reflect.hasField(cl, "__hx_createEmpty"))
-			return cl.__hx_createEmpty();
-		return createInstance(cl, []);
+	// cache empty constructor arguments so we don't allocate it on each createEmptyInstance call
+	@:protected @:readOnly static var __createEmptyInstance_EMPTY_TYPES = java.NativeArray.make(java.Lib.toNativeEnum(java.internal.Runtime.EmptyObject));
+	@:protected @:readOnly static var __createEmptyInstance_EMPTY_ARGS = java.NativeArray.make(java.internal.Runtime.EmptyObject.EMPTY);
+
+	public static function createEmptyInstance<T>( cl : Class<T> ) : T {
+		var t = java.Lib.toNativeType(cl);
+		try {
+			var ctor = t.getConstructor(__createEmptyInstance_EMPTY_TYPES);
+			return ctor.newInstance(__createEmptyInstance_EMPTY_ARGS);
+		} catch (_:java.lang.NoSuchMethodException) {
+			return t.newInstance();
+		}
 	}
 
-	@:functionCode('
-		if (params == null || params.length == 0)
-		{
-			java.lang.Object ret = haxe.lang.Runtime.slowGetField(e, constr, true);
-			if (ret instanceof haxe.lang.Function)
-				throw haxe.lang.HaxeException.wrap("Constructor " + constr + " needs parameters");
-			return (T) ret;
+	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T {
+		if (params == null || params.length == 0) {
+			var ret:Dynamic = java.internal.Runtime.slowGetField(e, constr, true);
+			if (Std.is(ret, java.internal.Function)) {
+				throw "Constructor " + constr + " needs parameters";
+			}
+			return ret;
 		} else {
-			return (T) haxe.lang.Runtime.slowCallField(e, constr, params);
+			var params = java.Lib.nativeArray(params, true);
+			return java.internal.Runtime.slowCallField(e, constr, params);
 		}
-	')
-	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T
-	{
-		return null;
 	}
 
 	public static function createEnumIndex<T>( e : Enum<T>, index : Int, ?params : Array<Dynamic> ) : T {

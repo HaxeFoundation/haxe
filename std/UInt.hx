@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,7 +25,7 @@
 	The unsigned `Int` type is only defined for Flash and C#. It's currently
 	handled the same as a normal Int.
 
-	@see http://haxe.org/manual/types-basic-types.html
+	@see https://haxe.org/manual/types-basic-types.html
 **/
 @:coreType
 @:notNull
@@ -97,7 +97,7 @@ abstract UInt to Int from Int
 	The unsigned `Int` type is only defined for Flash and C#.
 	Simulate it for other platforms.
 
-	@see http://haxe.org/manual/types-basic-types.html
+	@see https://haxe.org/manual/types-basic-types.html
 **/
 abstract UInt(Int) from Int to Int {
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,7 +31,7 @@ abstract Int64(__Int64) from __Int64 to __Int64
 {
 
 	public static inline function make( high : Int32, low : Int32 ) : Int64
-		return new Int64( (cast(high, __Int64) << 32) | (cast(low, __Int64)& untyped __java__('0xffffffffL')) );
+		return new Int64( (cast(high, __Int64) << 32) | (cast(low, __Int64)& (untyped __java__('0xffffffffL') : Int64)) );
 
 	private inline function new(x : __Int64)
 		this = x;

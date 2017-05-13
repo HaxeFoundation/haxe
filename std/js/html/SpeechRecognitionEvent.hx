@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,16 +20,39 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SpeechRecognitionEvent.webidl line 13:0. Do not edit!
+// This file is generated from mozilla\SpeechRecognitionEvent.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `SpeechRecognitionEvent` interface of the Web Speech API represents the event object for the `result` and `nomatch` events, and contains all the data associated with an interim or final speech recognition result.
+
+	Documentation [SpeechRecognitionEvent](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionEvent>
+**/
 @:native("SpeechRecognitionEvent")
 extern class SpeechRecognitionEvent extends Event
 {
+	
+	/**
+		Returns the lowest index value result in the `SpeechRecognitionResultList` "array" that has actually changed.
+	**/
 	var resultIndex(default,null) : Int;
+	
+	/**
+		Returns a `SpeechRecognitionResultList` object representing all the speech recognition results for the current session.
+	**/
 	var results(default,null) : SpeechRecognitionResultList;
+	
+	/**
+		Returns the semantic meaning of what the user said.
+	**/
 	var interpretation(default,null) : Dynamic;
+	
+	/**
+		Returns an Extensible MultiModal Annotation markup language (EMMA) — XML — representation of the result.
+	**/
 	var emma(default,null) : HTMLDocument;
 	
 	/** @throws DOMError */

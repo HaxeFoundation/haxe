@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -48,9 +48,11 @@ extern class Process {
 		 2. When `args` is not given or is `null`, command arguments can be appended to `cmd`. No automatic quoting/escaping will be performed. `cmd` should be formatted exactly as it would be when typed at the command line.
 		It can run executables, as well as shell commands that are not executables (e.g. on Windows: `dir`, `cd`, `echo` etc).
 
+		`detached` allows the created process to be standalone. You cannot communicate with it but you can look at its exit code.
+		
 		`close()` should be called when the `Process` is no longer used.
 	*/
-	function new( cmd : String, ?args : Array<String> ) : Void;
+	function new( cmd : String, ?args : Array<String>, ?detached : Bool ) : Void;
 
 	/**
 		Return the process ID.
@@ -58,10 +60,12 @@ extern class Process {
 	function getPid() : Int;
 
 	/**
-		Block until the process exits and return the exit code of the process.
+		Query the exit code of the process.
+		If `block` is true or not specified, it will block until the process terminates.
+		If `block` is false, it will return either the process exit code if it's already terminated or null if it's still running.
 		If the process has already exited, return the exit code immediately.
 	*/
-	function exitCode() : Int;
+	function exitCode( block : Bool = true ) : Null<Int>;
 
 	/**
 		Close the process handle and release the associated resources.

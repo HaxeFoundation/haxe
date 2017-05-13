@@ -1,33 +1,33 @@
 package issues;
 
 private class ArrayIterator<T> {
-    var a : Array<T>;
-    var pos : Int;
-    public inline function new(a) {
-        this.a = a;
-        this.pos = 0;
-    }
-    public inline function hasNext() {
-        return pos < a.length;
-    }
-    public inline function next() {
-        return a[pos++];
-    }
+	var a : Array<T>;
+	var pos : Int;
+	public inline function new(a) {
+		this.a = a;
+		this.pos = 0;
+	}
+	public inline function hasNext() {
+		return pos < a.length;
+	}
+	public inline function next() {
+		return a[pos++];
+	}
 }
 
 private abstract ArrayRead<T>(Array<T>) {
 
-    public inline function new(a) {
-        this = a;
-    }
+	public inline function new(a) {
+		this = a;
+	}
 
-    function toArray() : Array<T> {
-        return this;
-    }
+	function toArray() : Array<T> {
+		return this;
+	}
 
-    public inline function iterator() : ArrayIterator<T> {
-        return new ArrayIterator(this);
-    }
+	public inline function iterator() : ArrayIterator<T> {
+		return new ArrayIterator(this);
+	}
 
 }
 

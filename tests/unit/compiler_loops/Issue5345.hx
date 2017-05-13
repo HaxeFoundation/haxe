@@ -1,0 +1,1 @@
+typedef Issue5345 = Issue5345;

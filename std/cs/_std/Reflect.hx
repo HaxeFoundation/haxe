@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,7 +30,7 @@ import cs.Lib;
 import cs.system.Object;
 import cs.system.reflection.*;
 
-@:keep @:coreApi class Reflect {
+@:coreApi class Reflect {
 
 	public static function hasField( o : Dynamic, field : String ) : Bool
 	{
@@ -40,6 +40,7 @@ import cs.system.reflection.*;
 		return Runtime.slowHasField(o,field);
 	}
 
+	@:keep
 	public static function field( o : Dynamic, field : String ) : Dynamic
 	{
 		var ihx:IHxObject = Lib.as(o,IHxObject);
@@ -48,6 +49,7 @@ import cs.system.reflection.*;
 		return Runtime.slowGetField(o,field,false);
 	}
 
+	@:keep
 	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void
 	{
 		var ihx:IHxObject = Lib.as(o,IHxObject);
@@ -74,16 +76,18 @@ import cs.system.reflection.*;
 		if (ihx != null)
 			untyped ihx.__hx_setField(field, FieldLookup.hash(field), value, true);
 		else if (Runtime.slowHasField(o, 'set_$field'))
-			Runtime.slowCallField(o, 'set_$field', [value]);
+			Runtime.slowCallField(o, 'set_$field', cs.NativeArray.make(value));
 		else
 			Runtime.slowSetField(o,field,value);
 	}
 
 	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic
 	{
+		var args = cs.Lib.nativeArray(args,true);
 		return untyped cast(func, Function).__hx_invokeDynamic(args);
 	}
 
+	@:keep
 	public static function fields( o : Dynamic ) : Array<String>
 	{
 		var ihx = Lib.as(o,IHxObject);

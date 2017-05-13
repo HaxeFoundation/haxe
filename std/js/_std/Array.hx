@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -38,7 +38,7 @@ extern class Array<T> {
 	function unshift( x : T ) : Void;
 
 	inline function insert( pos : Int, x : T ) : Void {
-		(untyped this).splice(pos,0,x);
+		(cast this).splice(pos,0,x);
 	}
 
 	inline function remove( x : T ) : Bool {
@@ -46,8 +46,8 @@ extern class Array<T> {
 	}
 
 #if (js_es >= 5)
-	function indexOf( x : T, ?fromIndex:Int ) : Int;
-	function lastIndexOf( x : T, ?fromIndex:Int ) : Int;
+	@:pure function indexOf( x : T, ?fromIndex:Int ) : Int;
+	@:pure function lastIndexOf( x : T, ?fromIndex:Int ) : Int;
 
 #else
 	inline function indexOf( x : T, ?fromIndex:Int ) : Int {
@@ -59,15 +59,16 @@ extern class Array<T> {
 	}
 #end
 
+	@:pure
 	inline function copy() : Array<T> {
-		return (untyped this).slice();
+		return (cast this).slice();
 	}
 
 	function map<S>(f:T->S):Array<S>;
 	function filter(f:T->Bool):Array<T>;
 
 	@:runtime inline function iterator() : Iterator<T> {
-		return untyped HxOverrides.iter(this);
+		return @:privateAccess HxOverrides.iter(this);
 	}
 
 }

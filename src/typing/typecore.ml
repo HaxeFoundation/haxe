@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2016  Haxe Foundation
+	Copyright (C) 2005-2017  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -17,8 +17,11 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
+open Globals
+open Ast
 open Common
 open Type
+open Error
 
 type with_type =
 	| NoValue
@@ -26,9 +29,9 @@ type with_type =
 	| WithType of t
 
 type type_patch = {
-	mutable tp_type : Ast.complex_type option;
+	mutable tp_type : complex_type option;
 	mutable tp_remove : bool;
-	mutable tp_meta : Ast.metadata;
+	mutable tp_meta : metadata;
 }
 
 type current_fun =
@@ -59,7 +62,7 @@ type typer_module = {
 	mutable module_using : (tclass * pos) list;
 	mutable module_globals : (string, (module_type * string * pos)) PMap.t;
 	mutable wildcard_packages : (string list * pos) list;
-	mutable module_imports : Ast.import list;
+	mutable module_imports : import list;
 }
 
 type typer_globals = {
@@ -73,17 +76,21 @@ type typer_globals = {
 	mutable std : module_def;
 	mutable hook_generate : (unit -> unit) list;
 	type_patches : (path, (string * bool, type_patch) Hashtbl.t * type_patch) Hashtbl.t;
-	mutable global_metadata : (string list * Ast.metadata_entry * (bool * bool * bool)) list;
-	mutable get_build_infos : unit -> (module_type * t list * Ast.class_field list) option;
+	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
+	mutable module_check_policies : (string list * module_check_policy list * bool) list;
+	mutable get_build_infos : unit -> (module_type * t list * class_field list) option;
 	delayed_macros : (unit -> unit) DynArray.t;
-	mutable global_using : (tclass * Ast.pos) list;
+	mutable global_using : (tclass * pos) list;
 	(* api *)
-	do_inherit : typer -> Type.tclass -> Ast.pos -> (bool * Ast.placed_type_path) -> bool;
+	do_inherit : typer -> Type.tclass -> pos -> (bool * placed_type_path) -> bool;
 	do_create : Common.context -> typer;
-	do_macro : typer -> macro_mode -> path -> string -> Ast.expr list -> Ast.pos -> Ast.expr option;
+	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> expr option;
 	do_load_module : typer -> path -> pos -> module_def;
 	do_optimize : typer -> texpr -> texpr;
 	do_build_instance : typer -> module_type -> pos -> ((string * t) list * path * (t list -> t));
+	do_format_string : typer -> string -> pos -> Ast.expr;
+	do_finalize : typer -> unit;
+	do_generate : typer -> (texpr option * module_type list * module_def list);
 }
 
 and typer = {
@@ -94,7 +101,7 @@ and typer = {
 	mutable meta : metadata;
 	mutable this_stack : texpr list;
 	mutable with_type_stack : with_type list;
-	mutable call_argument_stack : Ast.expr list list;
+	mutable call_argument_stack : expr list list;
 	(* variable *)
 	mutable pass : typer_pass;
 	(* per-module *)
@@ -120,108 +127,21 @@ and typer = {
 	(* events *)
 	mutable on_error : typer -> string -> pos -> unit;
 }
-
-type call_error =
-	| Not_enough_arguments of (string * bool * t) list
-	| Too_many_arguments
-	| Could_not_unify of error_msg
-	| Cannot_skip_non_nullable of string
-
-and error_msg =
-	| Module_not_found of path
-	| Type_not_found of path * string
-	| Unify of unify_error list
-	| Custom of string
-	| Unknown_ident of string
-	| Stack of error_msg * error_msg
-	| Call_error of call_error
-
-exception Fatal_error of string * Ast.pos
-
 exception Forbid_package of (string * path * pos) * pos list * string
-
-exception Error of error_msg * pos
 
 exception WithTypeError of error_msg * pos
 
 let make_call_ref : (typer -> texpr -> texpr list -> t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
-let type_expr_ref : (typer -> Ast.expr -> with_type -> texpr) ref = ref (fun _ _ _ -> assert false)
+let type_expr_ref : (typer -> expr -> with_type -> texpr) ref = ref (fun _ _ _ -> assert false)
 let type_module_type_ref : (typer -> module_type -> t list option -> pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
 let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> assert false)
-let match_expr_ref : (typer -> Ast.expr -> (Ast.expr list * Ast.expr option * Ast.expr option) list -> Ast.expr option option -> with_type -> Ast.pos -> texpr) ref = ref (fun _ _ _ _ _ _ -> assert false)
-let get_pattern_locals_ref : (typer -> Ast.expr -> Type.t -> (string, tvar * pos) PMap.t) ref = ref (fun _ _ _ -> assert false)
-let get_constructor_ref : (typer -> tclass -> t list -> Ast.pos -> (t * tclass_field)) ref = ref (fun _ _ _ _ -> assert false)
-let cast_or_unify_ref : (typer -> t -> texpr -> Ast.pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
+let match_expr_ref : (typer -> expr -> (expr list * expr option * expr option * pos) list -> (expr option * pos) option -> with_type -> pos -> texpr) ref = ref (fun _ _ _ _ _ _ -> assert false)
+let get_pattern_locals_ref : (typer -> expr -> Type.t -> (string, tvar * pos) PMap.t) ref = ref (fun _ _ _ -> assert false)
+let get_constructor_ref : (typer -> tclass -> t list -> pos -> (t * tclass_field)) ref = ref (fun _ _ _ _ -> assert false)
+let cast_or_unify_ref : (typer -> t -> texpr -> pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
 let find_array_access_raise_ref : (typer -> tabstract -> tparams -> texpr -> texpr option -> pos -> (tclass_field * t * t * texpr * texpr option)) ref = ref (fun _ _ _ _ _ _ -> assert false)
 let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun _ _ -> assert false)
-
-let string_source t = match follow t with
-	| TInst(c,_) -> List.map (fun cf -> cf.cf_name) c.cl_ordered_fields
-	| TAnon a -> PMap.fold (fun cf acc -> cf.cf_name :: acc) a.a_fields []
-	| TAbstract({a_impl = Some c},_) -> List.map (fun cf -> cf.cf_name) c.cl_ordered_statics
-	| _ -> []
-
-let short_type ctx t =
-	let tstr = s_type ctx t in
-	if String.length tstr > 150 then String.sub tstr 0 147 ^ "..." else tstr
-
-let unify_error_msg ctx = function
-	| Cannot_unify (t1,t2) ->
-		s_type ctx t1 ^ " should be " ^ s_type ctx t2
-	| Invalid_field_type s ->
-		"Invalid type for field " ^ s ^ " :"
-	| Has_no_field (t,n) ->
-		StringError.string_error n (string_source t) (short_type ctx t ^ " has no field " ^ n)
-	| Has_no_runtime_field (t,n) ->
-		s_type ctx t ^ "." ^ n ^ " is not accessible at runtime"
-	| Has_extra_field (t,n) ->
-		short_type ctx t ^ " has extra field " ^ n
-	| Invalid_kind (f,a,b) ->
-		(match a, b with
-		| Var va, Var vb ->
-			let name, stra, strb = if va.v_read = vb.v_read then
-				"setter", s_access false va.v_write, s_access false vb.v_write
-			else if va.v_write = vb.v_write then
-				"getter", s_access true va.v_read, s_access true vb.v_read
-			else
-				"access", "(" ^ s_access true va.v_read ^ "," ^ s_access false va.v_write ^ ")", "(" ^ s_access true vb.v_read ^ "," ^ s_access false vb.v_write ^ ")"
-			in
-			"Inconsistent " ^ name ^ " for field " ^ f ^ " : " ^ stra ^ " should be " ^ strb
-		| _ ->
-			"Field " ^ f ^ " is " ^ s_kind a ^ " but should be " ^ s_kind b)
-	| Invalid_visibility n ->
-		"The field " ^ n ^ " is not public"
-	| Not_matching_optional n ->
-		"Optional attribute of parameter " ^ n ^ " differs"
-	| Cant_force_optional ->
-		"Optional parameters can't be forced"
-	| Invariant_parameter _ ->
-		"Type parameters are invariant"
-	| Constraint_failure name ->
-		"Constraint check failure for " ^ name
-	| Missing_overload (cf, t) ->
-		cf.cf_name ^ " has no overload for " ^ s_type ctx t
-	| Unify_custom msg ->
-		msg
-
-let rec error_msg = function
-	| Module_not_found m -> "Type not found : " ^ Ast.s_type_path m
-	| Type_not_found (m,t) -> "Module " ^ Ast.s_type_path m ^ " does not define type " ^ t
-	| Unify l ->
-		let ctx = print_context() in
-		String.concat "\n" (List.map (unify_error_msg ctx) l)
-	| Unknown_ident s -> "Unknown identifier : " ^ s
-	| Custom s -> s
-	| Stack (m1,m2) -> error_msg m1 ^ "\n" ^ error_msg m2
-	| Call_error err -> s_call_error err
-
-and s_call_error = function
-	| Not_enough_arguments tl ->
-		let pctx = print_context() in
-		"Not enough arguments, expected " ^ (String.concat ", " (List.map (fun (n,_,t) -> n ^ ":" ^ (short_type pctx t)) tl))
-	| Too_many_arguments -> "Too many arguments"
-	| Could_not_unify err -> error_msg err
-	| Cannot_skip_non_nullable s -> "Cannot skip non-nullable argument " ^ s
+let merge_core_doc_ref : (typer -> tclass -> unit) ref = ref (fun _ _ -> assert false)
 
 let pass_name = function
 	| PBuildModule -> "build-module"
@@ -231,11 +151,9 @@ let pass_name = function
 	| PForce -> "force"
 	| PFinal -> "final"
 
-let display_error ctx msg p = match ctx.com.display with
-	| DMDiagnostics -> add_diagnostics_message ctx.com msg p DiagnosticsSeverity.Error
-	| _ -> ctx.on_error ctx msg p
-
-let error msg p = raise (Error (Custom msg,p))
+let display_error ctx msg p = match ctx.com.display.DisplayMode.dms_error_policy with
+	| DisplayMode.EPShow | DisplayMode.EPIgnore -> ctx.on_error ctx msg p
+	| DisplayMode.EPCollect -> add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsSeverity.Error
 
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 
@@ -292,6 +210,11 @@ let add_local ctx n t p =
 	ctx.locals <- PMap.add n v ctx.locals;
 	v
 
+let add_unbound_local ctx n t p =
+	let v = add_local ctx n t p in
+	v.v_meta <- (Meta.Unbound,[],null_pos) :: v.v_meta;
+	v
+
 let gen_local_prefix = "`"
 
 let gen_local ctx t p =
@@ -307,9 +230,6 @@ let gen_local ctx t p =
 
 let is_gen_local v =
 	String.unsafe_get v.v_name 0 = String.unsafe_get gen_local_prefix 0
-
-let not_opened = ref Closed
-let mk_anon fl = TAnon { a_fields = fl; a_status = not_opened; }
 
 let delay ctx p f =
 	let rec loop = function
@@ -365,13 +285,13 @@ let exc_protect ctx f (where:string) =
 
 let fake_modules = Hashtbl.create 0
 let create_fake_module ctx file =
-	let file = Common.unique_full_path file in
+	let file = Path.unique_full_path file in
 	let mdep = (try Hashtbl.find fake_modules file with Not_found ->
 		let mdep = {
 			m_id = alloc_mid();
 			m_path = (["$DEP"],file);
 			m_types = [];
-			m_extra = module_extra file (Common.get_signature ctx.com) (file_time file) MFake;
+			m_extra = module_extra file (Common.get_signature ctx.com) (file_time file) MFake [];
 		} in
 		Hashtbl.add fake_modules file mdep;
 		mdep
@@ -381,11 +301,307 @@ let create_fake_module ctx file =
 
 let push_this ctx e = match e.eexpr with
 	| TConst ((TInt _ | TFloat _ | TString _ | TBool _) as ct) ->
-		(Ast.EConst (tconst_to_const ct),e.epos),fun () -> ()
+		(EConst (tconst_to_const ct),e.epos),fun () -> ()
 	| _ ->
 		ctx.this_stack <- e :: ctx.this_stack;
-		let er = Ast.EMeta((Ast.Meta.This,[],e.epos), (Ast.EConst(Ast.Ident "this"),e.epos)),e.epos in
+		let er = EMeta((Meta.This,[],e.epos), (EConst(Ident "this"),e.epos)),e.epos in
 		er,fun () -> ctx.this_stack <- List.tl ctx.this_stack
+
+let is_removable_field ctx f =
+	Meta.has Meta.Extern f.cf_meta || Meta.has Meta.Generic f.cf_meta
+	|| (match f.cf_kind with
+		| Var {v_read = AccRequire (s,_)} -> true
+		| Method MethMacro -> not ctx.in_macro
+		| _ -> false)
+
+(* -------------------------------------------------------------------------- *)
+(* ABSTRACT CASTS *)
+
+module AbstractCast = struct
+
+	let cast_stack = ref []
+
+	let make_static_call ctx c cf a pl args t p =
+		if cf.cf_kind = Method MethMacro then begin
+			match args with
+				| [e] ->
+					let e,f = push_this ctx e in
+					ctx.with_type_stack <- (WithType t) :: ctx.with_type_stack;
+					let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name [e] p with
+						| Some e -> type_expr ctx e Value
+						| None ->  type_expr ctx (EConst (Ident "null"),p) Value
+					in
+					ctx.with_type_stack <- List.tl ctx.with_type_stack;
+					f();
+					e
+				| _ -> assert false
+		end else
+			make_static_call ctx c cf (apply_params a.a_params pl) args t p
+
+	let do_check_cast ctx tleft eright p =
+		let recurse cf f =
+			if cf == ctx.curfield || List.mem cf !cast_stack then error "Recursive implicit cast" p;
+			cast_stack := cf :: !cast_stack;
+			let r = f() in
+			cast_stack := List.tl !cast_stack;
+			r
+		in
+		let find a tl f =
+			let tcf,cf = f() in
+			if (Meta.has Meta.MultiType a.a_meta) then
+				mk_cast eright tleft p
+			else match a.a_impl with
+				| Some c -> recurse cf (fun () ->
+					let ret = make_static_call ctx c cf a tl [eright] tleft p in
+					{ ret with eexpr = TMeta( (Meta.ImplicitCast,[],ret.epos), ret) }
+				)
+				| None -> assert false
+		in
+		if type_iseq tleft eright.etype then
+			eright
+		else begin
+			let rec loop tleft tright = match follow tleft,follow tright with
+			| TAbstract(a1,tl1),TAbstract(a2,tl2) ->
+				begin try find a2 tl2 (fun () -> Abstract.find_to a2 tl2 tleft)
+				with Not_found -> try find a1 tl1 (fun () -> Abstract.find_from a1 tl1 eright.etype tleft)
+				with Not_found -> raise Not_found
+				end
+			| TAbstract(a,tl),_ ->
+				begin try find a tl (fun () -> Abstract.find_from a tl eright.etype tleft)
+				with Not_found ->
+					let rec loop2 tcl = match tcl with
+						| tc :: tcl ->
+							if not (type_iseq tc tleft) then loop (apply_params a.a_params tl tc) tright
+							else loop2 tcl
+						| [] -> raise Not_found
+					in
+					loop2 a.a_from
+				end
+			| _,TAbstract(a,tl) ->
+				begin try find a tl (fun () -> Abstract.find_to a tl tleft)
+				with Not_found ->
+					let rec loop2 tcl = match tcl with
+						| tc :: tcl ->
+							if not (type_iseq tc tright) then loop tleft (apply_params a.a_params tl tc)
+							else loop2 tcl
+						| [] -> raise Not_found
+					in
+					loop2 a.a_to
+				end
+			| _ ->
+				raise Not_found
+			in
+			loop tleft eright.etype
+		end
+
+	let cast_or_unify_raise ctx tleft eright p =
+		try
+			(* can't do that anymore because this might miss macro calls (#4315) *)
+			(* if ctx.com.display <> DMNone then raise Not_found; *)
+			do_check_cast ctx tleft eright p
+		with Not_found ->
+			unify_raise ctx eright.etype tleft p;
+			eright
+
+	let cast_or_unify ctx tleft eright p =
+		try
+			cast_or_unify_raise ctx tleft eright p
+		with Error (Unify l,p) ->
+			raise_or_display ctx l p;
+			eright
+
+	let find_array_access_raise ctx a pl e1 e2o p =
+		let is_set = e2o <> None in
+		let ta = apply_params a.a_params pl a.a_this in
+		let rec loop cfl = match cfl with
+			| [] -> raise Not_found
+			| cf :: cfl ->
+				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+				let map t = apply_params a.a_params pl (apply_params cf.cf_params monos t) in
+				let check_constraints () =
+					List.iter2 (fun m (name,t) -> match follow t with
+						| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
+							List.iter (fun tc -> match follow m with TMono _ -> raise (Unify_error []) | _ -> Type.unify m (map tc) ) constr
+						| _ -> ()
+					) monos cf.cf_params;
+				in
+				match follow (map cf.cf_type) with
+				| TFun([(_,_,tab);(_,_,ta1);(_,_,ta2)],r) as tf when is_set ->
+					begin try
+						Type.unify tab ta;
+						let e1 = cast_or_unify_raise ctx ta1 e1 p in
+						let e2o = match e2o with None -> None | Some e2 -> Some (cast_or_unify_raise ctx ta2 e2 p) in
+						check_constraints();
+						cf,tf,r,e1,e2o
+					with Unify_error _ | Error (Unify _,_) ->
+						loop cfl
+					end
+				| TFun([(_,_,tab);(_,_,ta1)],r) as tf when not is_set ->
+					begin try
+						Type.unify tab ta;
+						let e1 = cast_or_unify_raise ctx ta1 e1 p in
+						check_constraints();
+						cf,tf,r,e1,None
+					with Unify_error _ | Error (Unify _,_) ->
+						loop cfl
+					end
+				| _ -> loop cfl
+		in
+		loop a.a_array
+
+	let find_array_access ctx a tl e1 e2o p =
+		try find_array_access_raise ctx a tl e1 e2o p
+		with Not_found -> match e2o with
+			| None ->
+				error (Printf.sprintf "No @:arrayAccess function accepts argument of %s" (s_type (print_context()) e1.etype)) p
+			| Some e2 ->
+				error (Printf.sprintf "No @:arrayAccess function accepts arguments of %s and %s" (s_type (print_context()) e1.etype) (s_type (print_context()) e2.etype)) p
+
+	let find_multitype_specialization com a pl p =
+		let m = mk_mono() in
+		let tl = match Meta.get Meta.MultiType a.a_meta with
+			| _,[],_ -> pl
+			| _,el,_ ->
+				let relevant = Hashtbl.create 0 in
+				List.iter (fun e ->
+					let rec loop f e = match fst e with
+						| EConst(Ident s) ->
+							Hashtbl.replace relevant s f
+						| EMeta((Meta.Custom ":followWithAbstracts",_,_),e1) ->
+							loop Abstract.follow_with_abstracts e1;
+						| _ ->
+							error "Type parameter expected" (pos e)
+					in
+					loop (fun t -> t) e
+				) el;
+				let tl = List.map2 (fun (n,_) t ->
+					try
+						(Hashtbl.find relevant n) t
+					with Not_found ->
+						if not (has_mono t) then t
+						else t_dynamic
+				) a.a_params pl in
+				if com.platform = Globals.Js && a.a_path = ([],"Map") then begin match tl with
+					| t1 :: _ ->
+						let rec loop stack t =
+							if List.exists (fun t2 -> fast_eq t t2) stack then
+								t
+							else begin
+								let stack = t :: stack in
+								match follow t with
+								| TAbstract ({ a_path = [],"Class" },_) ->
+									error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable" (s_type (print_context()) t1)) p;
+								| TEnum(en,tl) ->
+									PMap.iter (fun _ ef -> ignore(loop stack ef.ef_type)) en.e_constrs;
+									Type.map (loop stack) t
+								| t ->
+									Type.map (loop stack) t
+							end
+						in
+						ignore(loop [] t1)
+					| _ -> assert false
+				end;
+				tl
+		in
+		let _,cf =
+			try
+				Abstract.find_to a tl m
+			with Not_found ->
+				let at = apply_params a.a_params pl a.a_this in
+				let st = s_type (print_context()) at in
+				if has_mono at then
+					error ("Type parameters of multi type abstracts must be known (for " ^ st ^ ")") p
+				else
+					error ("Abstract " ^ (s_type_path a.a_path) ^ " has no @:to function that accepts " ^ st) p;
+		in
+		cf, follow m
+
+	let handle_abstract_casts ctx e =
+		let rec loop ctx e = match e.eexpr with
+			| TNew({cl_kind = KAbstractImpl a} as c,pl,el) ->
+				if not (Meta.has Meta.MultiType a.a_meta) then begin
+					(* This must have been a @:generic expansion with a { new } constraint (issue #4364). In this case
+					   let's construct the underlying type. *)
+					match Abstract.get_underlying_type a pl with
+					| TInst(c,tl) as t -> {e with eexpr = TNew(c,tl,el); etype = t}
+					| _ -> error ("Cannot construct " ^ (s_type (print_context()) (TAbstract(a,pl)))) e.epos
+				end else begin
+					(* a TNew of an abstract implementation is only generated if it is a multi type abstract *)
+					let cf,m = find_multitype_specialization ctx.com a pl e.epos in
+					let e = make_static_call ctx c cf a pl ((mk (TConst TNull) (TAbstract(a,pl)) e.epos) :: el) m e.epos in
+					{e with etype = m}
+				end
+			| TCall({eexpr = TField(_,FStatic({cl_path=[],"Std"},{cf_name = "string"}))},[e1]) when (match follow e1.etype with TAbstract({a_impl = Some _},_) -> true | _ -> false) ->
+				begin match follow e1.etype with
+					| TAbstract({a_impl = Some c} as a,tl) ->
+						begin try
+							let cf = PMap.find "toString" c.cl_statics in
+							make_static_call ctx c cf a tl [e1] ctx.t.tstring e.epos
+						with Not_found ->
+							e
+						end
+					| _ ->
+						assert false
+				end
+			| TCall(e1, el) ->
+				begin try
+					let rec find_abstract e t = match follow t,e.eexpr with
+						| TAbstract(a,pl),_ when Meta.has Meta.MultiType a.a_meta -> a,pl,e
+						| _,TCast(e1,None) -> find_abstract e1 e1.etype
+						| _,TLocal {v_extra = Some(_,Some e')} ->
+							begin match follow e'.etype with
+							| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta -> a,pl,mk (TCast(e,None)) e'.etype e.epos
+							| _ -> raise Not_found
+							end
+						| _ -> raise Not_found
+					in
+					let rec find_field e1 =
+						match e1.eexpr with
+						| TCast(e2,None) ->
+							{e1 with eexpr = TCast(find_field e2,None)}
+						| TField(e2,fa) ->
+							let a,pl,e2 = find_abstract e2 e2.etype in
+							let m = Abstract.get_underlying_type a pl in
+							let fname = field_name fa in
+							let el = List.map (loop ctx) el in
+							begin try
+								let fa = quick_field m fname in
+								let get_fun_type t = match follow t with
+									| TFun(_,tr) as tf -> tf,tr
+									| _ -> raise Not_found
+								in
+								let tf,tr = match fa with
+									| FStatic(_,cf) -> get_fun_type cf.cf_type
+									| FInstance(c,tl,cf) -> get_fun_type (apply_params c.cl_params tl cf.cf_type)
+									| FAnon cf -> get_fun_type cf.cf_type
+									| _ -> raise Not_found
+								in
+								let ef = mk (TField({e2 with etype = m},fa)) tf e2.epos in
+								let ecall = make_call ctx ef el tr e.epos in
+								if not (type_iseq ecall.etype e.etype) then
+									mk (TCast(ecall,None)) e.etype e.epos
+								else
+									ecall
+							with Not_found ->
+								(* quick_field raises Not_found if m is an abstract, we have to replicate the 'using' call here *)
+								match follow m with
+								| TAbstract({a_impl = Some c} as a,pl) ->
+									let cf = PMap.find fname c.cl_statics in
+									make_static_call ctx c cf a pl (e2 :: el) e.etype e.epos
+								| _ -> raise Not_found
+							end
+						| _ ->
+							raise Not_found
+					in
+					find_field e1
+				with Not_found ->
+					Type.map_expr (loop ctx) e
+				end
+			| _ ->
+				Type.map_expr (loop ctx) e
+		in
+		loop ctx e
+end
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*
@@ -401,14 +617,14 @@ let context_ident ctx =
 		"  out "
 
 let debug ctx str =
-	if Common.raw_defined ctx.com "cdebug" then prerr_endline (context_ident ctx ^ !delay_tabs ^ str)
+	if Common.raw_defined ctx.com "cdebug" then print_endline (context_ident ctx ^ string_of_int (String.length !delay_tabs) ^ " " ^ !delay_tabs ^ str)
 
 let init_class_done ctx =
-	debug ctx ("init_class_done " ^ Ast.s_type_path ctx.curclass.cl_path);
+	debug ctx ("init_class_done " ^ s_type_path ctx.curclass.cl_path);
 	init_class_done ctx
 
 let ctx_pos ctx =
-	let inf = Ast.s_type_path ctx.m.curmod.m_path in
+	let inf = s_type_path ctx.m.curmod.m_path in
 	let inf = (match snd ctx.curclass.cl_path with "" -> inf | n when n = snd ctx.m.curmod.m_path -> inf | n -> inf ^ "." ^ n) in
 	let inf = (match ctx.curfield.cf_name with "" -> inf | n -> inf ^ ":" ^ n) in
 	inf
@@ -432,6 +648,19 @@ let delay ctx p f =
 	in
 	ctx.g.debug_delayed <- loop ctx.g.debug_delayed;
 	debug ctx ("add " ^ inf)
+
+let delay_late ctx p f =
+	let inf = pass_infos ctx p in
+	let rec loop = function
+		| [] -> [p,[f,inf,ctx]]
+		| (p2,l) :: rest ->
+			if p2 <= p then
+				(p2,l) :: loop rest
+			else
+				(p,[f,inf,ctx]) :: (p2,l) :: rest
+	in
+	ctx.g.debug_delayed <- loop ctx.g.debug_delayed;
+	debug ctx ("add late " ^ inf)
 
 let pending_passes ctx =
 	let rec loop acc = function

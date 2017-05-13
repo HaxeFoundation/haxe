@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -114,10 +114,16 @@ enum ValueType {
 		}
 	}
 
+	#if (js_es < 5)
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped {
 		__js__("function empty() {}; empty.prototype = cl.prototype");
 		return __js__("new empty()");
 	}
+	#else
+	public static inline function createEmptyInstance<T>( cl : Class<T> ) : T {
+		return js.Object.create((cast cl).prototype);
+	}
+	#end
 
 	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T {
 		var f:Dynamic = Reflect.field(e,constr);
@@ -160,10 +166,13 @@ enum ValueType {
 		return ((cast e).__constructs__ : Array<String>).copy();
 	}
 
-	public static function typeof( v : Dynamic ) : ValueType untyped {
-		switch( __js__("typeof")(v) ) {
-		case "boolean": return TBool;
-		case "string": return TClass(String);
+	@:access(js.Boot)
+	public static function typeof( v : Dynamic ) : ValueType {
+		switch (js.Lib.typeof(v)) {
+		case "boolean":
+			return TBool;
+		case "string":
+			return TClass(String);
 		case "number":
 			// this should handle all cases : NaN, +/-Inf and Floats outside range
 			if( Math.ceil(v) == v%2147483648.0 )

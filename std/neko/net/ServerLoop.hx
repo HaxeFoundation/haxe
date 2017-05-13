@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -126,7 +126,7 @@ class ServerLoop<ClientData> {
 	}
 
 	/**
-		This method is called when some data has been readed into a Client buffer.
+		This method is called when some data has been read into a Client buffer.
 		If the data can be handled, then you can return the number of bytes handled
 		that needs to be removed from the buffer. It the data can't be handled (some
 		part of the message is missing for example), returns 0.
@@ -137,7 +137,7 @@ class ServerLoop<ClientData> {
 	}
 
 	/**
-		Called when an error occured. This enable you to log the error somewhere.
+		Called when an error occurred. This enable you to log the error somewhere.
 		By default the error is displayed using `trace`.
 	**/
 	public function onError( e : Dynamic ) {

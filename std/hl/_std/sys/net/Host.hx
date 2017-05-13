@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,9 +29,8 @@ class Host {
 	public var ip(default,null) : Int;
 
 	public function new( name : String ) : Void {
-		var size = 0;
 		host = name;
-		ip = host_resolve(@:privateAccess name.bytes.utf16ToUtf8(0,size));
+		ip = host_resolve(@:privateAccess name.bytes.utf16ToUtf8(0,null));
 		if( ip == -1 ) throw new Sys.SysError("Unresolved host " + name);
 	}
 
@@ -47,9 +46,9 @@ class Host {
 		return @:privateAccess String.fromUTF8(host_local());
 	}
 
-	@:hlNative("std","host_resolve") static function host_resolve( name : hl.types.Bytes ) : Int { return 0; }
-	@:hlNative("std","host_reverse") static function host_reverse( host : Int ) : hl.types.Bytes { return null; }
-	@:hlNative("std","host_to_string") static function host_to_string( host : Int ) : hl.types.Bytes { return null; }
-	@:hlNative("std","host_local") static function host_local() : hl.types.Bytes { return null; }
+	@:hlNative("std","host_resolve") static function host_resolve( name : hl.Bytes ) : Int { return 0; }
+	@:hlNative("std","host_reverse") static function host_reverse( host : Int ) : hl.Bytes { return null; }
+	@:hlNative("std","host_to_string") static function host_to_string( host : Int ) : hl.Bytes { return null; }
+	@:hlNative("std","host_local") static function host_local() : hl.Bytes { return null; }
 
 }

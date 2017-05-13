@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,13 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\AnimationEffectReadOnly.webidl line 41:0. Do not edit!
+// This file is generated from mozilla\AnimationEffectReadOnly.webidl. Do not edit!
 
 package js.html;
 
 typedef ComputedTimingProperties =
 {
-	// > AnimationEffectTimingProperties,
+	> AnimationEffectTimingProperties,
 	@:optional var activeDuration : Float;
 	@:optional var currentIteration : Float;
 	@:optional var endTime : Float;

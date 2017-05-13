@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,12 +20,19 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\MediaStreamTrack.webidl line 70:0. Do not edit!
+// This file is generated from mozilla\MediaStreamTrack.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `MediaTrackConstraints` dictionary is used to describe a set of capabilities and the value or values each can take on. A constraints dictionary is passed into `applyConstraints()` to allow a script to establish a set of exact (required) values or ranges and/or preferred values or ranges of values for the track, and the most recently-requested set of custom constraints can be retrieved by calling `getConstraints()`.
+
+	Documentation [MediaTrackConstraints](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints>
+**/
 typedef MediaTrackConstraints =
 {
-	// > MediaTrackConstraintSet,
-	@:optional var advanced : Array<Dynamic/*MISSING MediaTrackConstraintSet*/>;
+	> MediaTrackConstraintSet,
+	@:optional var advanced : Array<MediaTrackConstraintSet>;
 }

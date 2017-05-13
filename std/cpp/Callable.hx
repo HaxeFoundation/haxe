@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,14 +22,17 @@
 package cpp;
 
 
+@:noPackageRestrict @:callable
+typedef CallableData<T> = T;
+
 // The generator intercepts this type and converts it to a cpp.Function<T> on cpp
 @:noPackageRestrict @:callable
 #if cpp extern #end
-abstract Callable<T>(T)
+abstract Callable<T>( CallableData<T> )
 {
    inline public function new(inValue:T) this = inValue;
-   public var call(get,never):T;
-   inline function get_call():T return this;
+   public var call(get,never):CallableData<T>;
+   inline function get_call():CallableData<T> return this;
 
    #if cpp
    @:from

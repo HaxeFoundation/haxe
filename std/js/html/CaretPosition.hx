@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,29 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\CaretPosition.webidl line 6:0. Do not edit!
+// This file is generated from mozilla\CaretPosition.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `CaretPosition` interface represents the caret postion, an indicator for the text insertion point. You can get a `CaretPosition` using the `document.caretPositionFromPoint` method.
+
+	Documentation [CaretPosition](https://developer.mozilla.org/en-US/docs/Web/API/CaretPosition) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CaretPosition$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CaretPosition>
+**/
 @:native("CaretPosition")
 extern class CaretPosition
 {
+	
+	/**
+		Returns a `Node` containing the found node at the caret's position.
+	**/
 	var offsetNode(default,null) : Node;
+	
+	/**
+		Returns a `long` representing the character offset in the caret position node.
+	**/
 	var offset(default,null) : Int;
 	
 	function getClientRect() : DOMRect;

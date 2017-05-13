@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,12 +24,14 @@ import lua.Lua;
 import lua.Io;
 import lua.Os;
 import lua.FileHandle;
+import lua.Boot;
 
 @:coreApi
 class File {
 	public static function getContent( path : String ) : String {
 		var f = Io.open(path, "r");
-		var s = f.read(All);
+		if (f == null) throw 'Invalid path : $path';
+		var s = f.read("*all");
 		f.close();
 		return s;
 	}
@@ -40,7 +42,10 @@ class File {
 	}
 
 	public static function copy( srcPath : String, dstPath : String ) : Void {
-		Os.execute('copy $srcPath $dstPath');
+		switch (Sys.systemName()) {
+			case "Windows" : Os.execute('copy ${StringTools.quoteWinArg(srcPath, true)} ${StringTools.quoteWinArg(dstPath,true)}');
+			default : Os.execute('copy ${StringTools.quoteUnixArg(srcPath)} ${StringTools.quoteUnixArg(dstPath)}');
+		};
 	}
 
 	public static function getBytes( path : String ) : haxe.io.Bytes {
@@ -51,11 +56,15 @@ class File {
 	}
 
 	public static function read( path : String, binary : Bool = true ) : FileInput {
-		return new FileInput(Io.open(path, binary ? 'rb' : 'r'));
+		var fh = Io.open(path, binary ? 'rb' : 'r');
+		if (fh == null) throw 'Invalid path : $path';
+		return new FileInput(fh);
 	}
 
 	public static function write( path : String, binary : Bool = true ) : FileOutput {
-		return new FileOutput(Io.open(path, binary ? 'wb' : 'w'));
+		var fh = Io.open(path, binary ? 'wb' : 'w');
+		if (fh == null) throw 'Invalid path : $path';
+		return new FileOutput(fh);
 	}
 
 	public static function saveBytes( path : String, bytes : haxe.io.Bytes ) : Void {

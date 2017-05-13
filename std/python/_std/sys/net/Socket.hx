@@ -1,5 +1,5 @@
 /*
-* Copyright (C)2005-2016 Haxe Foundation
+* Copyright (C)2005-2017 Haxe Foundation
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -126,7 +126,7 @@ private class SocketOutput extends haxe.io.Output {
     public var output(default,null) : haxe.io.Output;
 
     /**
-        A custom value that can be associated with the socket. Can be used to retreive your custom infos after a `select`.
+        A custom value that can be associated with the socket. Can be used to retrieve your custom infos after a `select`.
     ***/
     public var custom : Dynamic;
 
@@ -164,7 +164,7 @@ private class SocketOutput extends haxe.io.Output {
     }
 
     /**
-        Connect to the given server host/port. Throw an exception in case we couldn't sucessfully connect.
+        Connect to the given server host/port. Throw an exception in case we couldn't successfully connect.
     **/
     public function connect( host : Host, port : Int ) : Void {
         __init();
@@ -207,7 +207,7 @@ private class SocketOutput extends haxe.io.Output {
     }
 
     /**
-        Return the informations about the other side of a connected socket.
+        Return the information about the other side of a connected socket.
     **/
     public function peer() : { host : Host, port : Int } {
         var pn = __s.getpeername();
@@ -215,7 +215,7 @@ private class SocketOutput extends haxe.io.Output {
     }
 
     /**
-        Return the informations about our side of a connected socket.
+        Return the information about our side of a connected socket.
     **/
     public function host() : { host : Host, port : Int } {
         var pn = __s.getsockname();
@@ -237,14 +237,14 @@ private class SocketOutput extends haxe.io.Output {
     }
 
     /**
-        Change the blocking mode of the socket. A blocking socket is the default behavior. A non-blocking socket will abort blocking operations immediatly by throwing a haxe.io.Error.Blocking value.
+        Change the blocking mode of the socket. A blocking socket is the default behavior. A non-blocking socket will abort blocking operations immediately by throwing a haxe.io.Error.Blocking value.
     **/
     public function setBlocking( b : Bool ) : Void {
         __s.setblocking(b);
     }
 
     /**
-        Allows the socket to immediatly send the data when written to its output : this will cause less ping but might increase the number of packets / data size, especially when doing a lot of small writes.
+        Allows the socket to immediately send the data when written to its output : this will cause less ping but might increase the number of packets / data size, especially when doing a lot of small writes.
     **/
     public function setFastSend( b : Bool ) : Void {}
 

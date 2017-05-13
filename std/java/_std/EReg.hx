@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -176,5 +176,9 @@ import java.util.regex.*;
 		if (!isGlobal && offset > 0 && offset < s.length)
 			buf.add(s.substr(offset));
 		return buf.toString();
+	}
+
+	public static inline function escape( s : String ) : String {
+		return Pattern.quote(s);
 	}
 }

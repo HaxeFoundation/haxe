@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,13 +20,24 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\SharedWorker.webidl line 10:0. Do not edit!
+// This file is generated from mozilla\SharedWorker.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `SharedWorker` interface represents a specific kind of worker that can be accessed from several browsing contexts, such as several windows, iframes or even workers. They implement an interface different than dedicated workers and have a different global scope, `SharedWorkerGlobalScope`.
+
+	Documentation [SharedWorker](https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker>
+**/
 @:native("SharedWorker")
 extern class SharedWorker extends EventTarget
 {
+	
+	/**
+		Returns a `MessagePort` object used to communicate and control the shared worker.
+	**/
 	var port(default,null) : MessagePort;
 	var onerror : haxe.Constraints.Function;
 	

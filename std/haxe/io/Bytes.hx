@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -425,7 +425,7 @@ class Bytes {
 		return new String(untyped __dollar__ssub(b,0,length));
 		#elseif flash
 		b.position = 0;
-		return b.readUTFBytes(length);
+		return b.toString();
 		#elseif php
 		return b.toString();
 		#elseif cs

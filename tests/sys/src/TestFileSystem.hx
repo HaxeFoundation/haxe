@@ -108,4 +108,9 @@ class TestFileSystem extends haxe.unit.TestCase {
 			assertTrue(FileSystem.readDirectory(path) != null);
 		}
 	}
+
+	function testStatDirectory() {
+		var stat = FileSystem.stat(dir);
+		assertTrue(stat != null);
+	}
 }

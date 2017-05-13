@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,8 +28,8 @@ import python.NativeStringTools;
 typedef PySys = python.lib.Sys;
 
 /**
-	Platform-specific Python Library. Provides some platform-specific functions 
-	for the Python target, such as conversion from Haxe types to native types 
+	Platform-specific Python Library. Provides some platform-specific functions
+	for the Python target, such as conversion from Haxe types to native types
 	and vice-versa.
 **/
 class Lib {
@@ -91,7 +91,7 @@ class Lib {
 	 	Returns the Dictionary `d` as an anonymous Object.
 	 	Modifications to the object are reflected in the Dictionary too.
 	**/
-	public static function dictAsAnon (d:Dict<String, Dynamic>):Dynamic {
+	public static inline function dictAsAnon (d:Dict<String, Dynamic>):Dynamic {
 		return new AnonObject(d);
 	}
 

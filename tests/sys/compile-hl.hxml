@@ -1,13 +1,13 @@
 compile-each.hxml
 -main Main
--hl bin/_main.c
+-hl bin/hl/sys.hl
 
 --next
 compile-each.hxml
 -main TestArguments
--cpp bin/_args.c
+-hl bin/hl/TestArguments.hl
 
 --next
 compile-each.hxml
 -main ExitCode
--cpp bin/_exit.c
+-hl bin/hl/ExitCode.hl

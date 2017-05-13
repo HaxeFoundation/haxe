@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\Range.webidl line 18:0. Do not edit!
+// This file is generated from mozilla\Range.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `Range` interface represents a fragment of a document that can contain nodes and parts of text nodes.
+
+	Documentation [Range](https://developer.mozilla.org/en-US/docs/Web/API/Range) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Range$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Range>
+**/
 @:native("Range")
 extern class Range
 {
@@ -32,11 +39,35 @@ extern class Range
 	static inline var END_TO_END : Int = 2;
 	static inline var END_TO_START : Int = 3;
 	
+	
+	/**
+		Returns the `Node` within which the `Range` starts.
+	**/
 	var startContainer(default,null) : Node;
+	
+	/**
+		Returns a number representing where in the `startContainer` the `Range` starts.
+	**/
 	var startOffset(default,null) : Int;
+	
+	/**
+		Returns the `Node` within which the `Range` ends.
+	**/
 	var endContainer(default,null) : Node;
+	
+	/**
+		Returns a number representing where in the `endContainer` the `Range` ends.
+	**/
 	var endOffset(default,null) : Int;
+	
+	/**
+		Returns a `Boolean` indicating whether the range's start and end points are at the same position.
+	**/
 	var collapsed(default,null) : Bool;
+	
+	/**
+		Returns the deepest `Node` that contains the `startContainer` and `endContainer` nodes.
+	**/
 	var commonAncestorContainer(default,null) : Node;
 	
 	/** @throws DOMError */

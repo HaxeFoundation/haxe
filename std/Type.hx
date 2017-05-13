@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,8 +26,8 @@
 	This class complements the more lightweight Reflect class, with a focus on
 	class and enum instances.
 
-	@see http://haxe.org/manual/types.html
-	@see http://haxe.org/manual/std-reflection.html
+	@see https://haxe.org/manual/types.html
+	@see https://haxe.org/manual/std-reflection.html
 **/
 extern class Type {
 
@@ -215,7 +215,7 @@ extern class Type {
 		The order of the constructor names in the returned Array is preserved
 		from the original syntax.
 
-		If `c` is null, the result is unspecified.
+		If `e` is null, the result is unspecified.
 	**/
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String>;
 
