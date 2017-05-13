@@ -64,8 +64,8 @@ let error_exc ctx v stack p =
 		let extra = if ctx.record_stack then "" else "\nNo stack information available, consider compiling with -D eval-stack" in
 		Error.error (uncaught_exception_string v p extra) null_pos
 	| _ ->
-		let sstack = String.concat "\n" (List.map (fun p -> Printf.sprintf "\t%s" (format_pos p)) pl) in
-		Error.error (Printf.sprintf "%s: Uncaught exception %s\nCalled from:\n%s" (format_pos p) (value_string v) sstack) null_pos
+		let sstack = String.concat "\n" (List.map (fun p -> Printf.sprintf "%s: Called from here" (format_pos p)) pl) in
+		Error.error (Printf.sprintf "%s: Uncaught exception %s\n%s" (format_pos p) (value_string v) sstack) null_pos
 
 let build_exception_stack ctx environment_offset =
 	let eval = get_eval ctx in
