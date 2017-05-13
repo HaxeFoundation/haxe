@@ -628,6 +628,8 @@ let configure gen =
 			{ e with eexpr = TFor(v,it, traverse (mk_block block)) }
 		| TFunction (tfunc) ->
 			{ e with eexpr = TFunction({ tfunc with tf_expr = traverse (mk_block tfunc.tf_expr) }) }
+		| TMeta (m, e2) ->
+			{ e with eexpr = TMeta (m, traverse e2)}
 		| _ -> e (* if expression doesn't have a block, we will exit *)
 	in
 	gen.gsyntax_filters#add "expression_unwrap" (PCustom priority) traverse
