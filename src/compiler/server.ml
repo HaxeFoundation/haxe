@@ -202,7 +202,7 @@ let rec wait_loop process_params verbose accept =
 		Printf.sprintf "%2s,%3s: " sign_id (short_platform_name com.platform)
 	in
 	let process_server_message com tabs =
-		if true || Common.raw_defined com "compilation-server-test" then (fun message ->
+		if Common.raw_defined com "compilation-server-test" then (fun message ->
 			let module_path m = JString (s_type_path m.m_path) in
 			let kind,data = match message with
 				| AddedDirectory dir -> "addedDirectory",JString dir
