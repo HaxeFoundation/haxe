@@ -137,12 +137,13 @@ let eval_delayed ctx e =
 			| None -> vnull
 
 let call_path ctx path f vl api =
+	let old = ctx.curapi in
 	ctx.curapi <- api;
 	let path = match List.rev path with
 		| [] -> assert false
 		| name :: path -> List.rev path,name
 	in
-	catch_exceptions ctx (fun () ->
+	catch_exceptions ctx ~final:(fun () -> ctx.curapi <- old) (fun () ->
 		let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
 		let vfield = field vtype (hash_s f) in
 		call_value_on vtype vfield vl

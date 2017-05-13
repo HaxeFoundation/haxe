@@ -76,7 +76,7 @@ let build_exception_stack ctx environment_offset =
 		{pfile = rev_hash_s env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax},env.env_info.kind
 	) d
 
-let catch_exceptions ctx f p =
+let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 	let prev = !get_ctx_ref in
 	select ctx;
 	let eval = get_eval ctx in
@@ -84,17 +84,21 @@ let catch_exceptions ctx f p =
 	let r = try
 		let v = f() in
 		get_ctx_ref := prev;
+		final();
 		Some v
 	with
 	| RunTimeException(v,stack,p') ->
 		build_exception_stack ctx environment_offset;
 		eval.environment_offset <- environment_offset;
 		get_ctx_ref := prev;
+		final();
 		error_exc ctx v (match stack with [] -> [] | _ :: l -> l) (if p' = null_pos then p else p')
 	| MacroApi.Abort ->
+		final();
 		None
 	| exc ->
 		get_ctx_ref := prev;
+		final();
 		raise exc
 	in
 	r
