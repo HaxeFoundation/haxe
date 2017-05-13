@@ -33,7 +33,7 @@ class HaxeServerTestCase {
 	public function setup() {
 		context = new TestContext({
 			haxePath: "haxe",
-			arguments: ["-v", "-D", "compilation-server-test", "--cwd", testDir],
+			arguments: ["-v", "--cwd", testDir],
 			env: { }
 		});
 		vfs = new Vfs(testDir);
@@ -46,6 +46,7 @@ class HaxeServerTestCase {
 	}
 
 	function haxe(args:Array<String>, done:Void -> Void) {
+		args = args.concat(["-D", "compilation-server-test"]);
 		server.process(args, null, function(result) {
 			if (result == "") {
 				result = "{}";
