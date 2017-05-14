@@ -3,7 +3,7 @@ import sys.io.*;
 import haxe.io.*;
 
 /**
-	This is intented to be used by TestSys and io.TestProcess.
+	This is intended to be used by TestSys and io.TestProcess.
 */
 class ExitCode {
 	static public var bin:String =
