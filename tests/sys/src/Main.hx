@@ -3,6 +3,7 @@ class Main {
 		var runner = new haxe.unit.TestRunner();
 		runner.add(new TestSys());
 		runner.add(new TestFileSystem());
+		runner.add(new io.TestFile());
 		runner.add(new io.TestFileInput());
 		runner.add(new io.TestProcess());
 		var code = runner.run() ? 0 : 1;
