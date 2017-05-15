@@ -113,6 +113,7 @@ let create com api is_macro =
 		builtins = builtins;
 		type_cache = IntMap.empty;
 		overrides = Hashtbl.create 0;
+		had_error = false;
 		(* prototypes *)
 		string_prototype = fake_proto key_String;
 		static_prototypes = IntMap.empty;
@@ -138,17 +139,21 @@ let eval_delayed ctx e =
 			| None -> vnull
 
 let call_path ctx path f vl api =
-	let old = ctx.curapi in
-	ctx.curapi <- api;
-	let path = match List.rev path with
-		| [] -> assert false
-		| name :: path -> List.rev path,name
-	in
-	catch_exceptions ctx ~final:(fun () -> ctx.curapi <- old) (fun () ->
-		let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
-		let vfield = field vtype (hash_s f) in
-		call_value_on vtype vfield vl
-	) api.pos
+	if ctx.had_error then
+		None
+	else begin
+		let old = ctx.curapi in
+		ctx.curapi <- api;
+		let path = match List.rev path with
+			| [] -> assert false
+			| name :: path -> List.rev path,name
+		in
+		catch_exceptions ctx ~final:(fun () -> ctx.curapi <- old) (fun () ->
+			let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
+			let vfield = field vtype (hash_s f) in
+			call_value_on vtype vfield vl
+		) api.pos
+	end
 
 let value_signature v =
 	let buf = Buffer.create 0 in
@@ -352,7 +357,9 @@ let can_reuse ctx types = true
 let do_reuse ctx api =
 	ctx.curapi <- api
 
-let set_error ctx e = () (* TODO: Figure out what this does. *)
+let set_error ctx b =
+	(* TODO: Have to reset this somewhere if running compilation server. But where... *)
+	ctx.had_error <- b
 
 let add_types ctx types ready =
 	ignore(catch_exceptions ctx (fun () -> ignore(add_types ctx types ready)) null_pos)
