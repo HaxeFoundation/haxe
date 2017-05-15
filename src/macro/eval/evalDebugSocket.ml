@@ -7,11 +7,114 @@ open Unix
 open Json
 open EvalContext
 open EvalValue
-open EvalExceptions
 open EvalHash
 open EvalPrinting
 open EvalMisc
 open EvalDebugMisc
+
+module JsonRpc = struct
+	let jsonrpc_field = "jsonrpc", JString "2.0"
+
+	let notification method_name params =
+		let fl = [
+			jsonrpc_field;
+			"method", JString method_name;
+		] in
+		let fl = Option.map_default (fun params -> ("params",params) :: fl) fl params in
+		JObject fl
+
+	let result id data =
+		JObject [
+			jsonrpc_field;
+			"id", JInt id;
+			"result", data;
+		]
+
+	let error id code message =
+		let fl = [
+			jsonrpc_field;
+			"error", JObject [
+				"code", JInt code;
+				"message", JString message;
+			];
+		] in
+		let fl = Option.map_default (fun id -> ("id", JInt id) :: fl) fl id in
+		JObject fl
+
+	type json_rpc_error =
+		| Parse_error of string
+		| Invalid_request of string
+		| Method_not_found of int * string (* id->methodname *)
+		| Invalid_params of int
+		| Custom of int * int * string (* id->code->message *)
+
+	exception JsonRpc_error of json_rpc_error
+
+	let handle_jsonrpc_error f output =
+		try f () with JsonRpc_error e ->
+			match e with
+			| Parse_error s -> output (error None (-32700) s)
+			| Invalid_request s -> output (error None (-32600) s)
+			| Method_not_found (id,meth) -> output (error (Some id) (-32601) (Printf.sprintf "Method `%s` not found" meth))
+			| Invalid_params id -> output (error (Some id) (-32602) "Invalid params")
+			| Custom (id,code,msg) -> output (error (Some id) code msg)
+
+	let process_request input handle output =
+		let open Json.Reader in
+		let lexbuf = Sedlexing.Utf8.from_string input in
+		let json = try read_json lexbuf with Json_error s -> raise (JsonRpc_error (Parse_error s)) in
+		let fields = match json with JObject fl -> fl | _ -> raise (JsonRpc_error (Invalid_request "not an object")) in
+		let get_field name map =
+			let field = try List.find (fun (n,_) -> n = name) fields with Not_found -> raise (JsonRpc_error (Invalid_request ("no `" ^ name ^ "` field"))) in
+			let value = map (snd field) in
+			match value with
+			| None -> raise (JsonRpc_error (Invalid_request (Printf.sprintf "`%s` field has invalid data" name)))
+			| Some v -> v
+		in
+		let id = get_field "id" (function JInt i -> Some i | _ -> None) in
+		let meth = get_field "method" (function JString s -> Some s | _ -> None) in
+		let params =
+			try
+				let f = List.find (fun (n,_) -> n = "params") fields in
+			 	Some (snd f)
+			with Not_found ->
+				None
+		in
+		let res = handle id meth params in
+		output id res
+end
+
+let read_byte this i = int_of_char (Bytes.get this i)
+
+let read_ui16 this i =
+	let ch1 = read_byte this i in
+	let ch2 = read_byte this (i + 1) in
+	ch1 lor (ch2 lsl 8)
+
+let read_string socket =
+	match socket.socket with
+		| None ->
+			failwith "no socket" (* TODO: reconnect? *)
+		| Some socket ->
+			let buf = Bytes.create 2 in
+			let _ = recv socket buf 0 2 [] in
+			let i = read_ui16 buf 0 in
+			let buf = Bytes.create i in
+			let _ = recv socket buf 0 i [] in
+			Bytes.to_string buf
+
+let send_string socket s =
+	match socket.socket with
+	| None ->
+		failwith "no socket" (* TODO: reconnect? *)
+	| Some socket ->
+		let l = String.length s in
+		assert (l < 0xFFFF);
+		let buf = Bytes.make 2 ' ' in
+		Bytes.set buf 0 (Char.unsafe_chr l);
+		Bytes.set buf 1 (Char.unsafe_chr (l lsr 8));
+		ignore(send socket buf 0 2 []);
+		ignore(send socket (Bytes.unsafe_of_string s) 0 (String.length s) [])
 
 let get_call_stack_envs ctx kind p =
 	let envs = match call_stack ctx with
@@ -56,44 +159,13 @@ let value_string value =
 	let s_type,s_value = value_string 0 value in
 	Printf.sprintf "%s = %s" s_type s_value
 
-let socket : debug_socket ref = ref (Obj.magic ())
-
-let send_string ctx s =
-	let socket = !socket in
-	match socket.socket with
-	| None ->
-		(* TODO: reconnect? *)
-		print_endline s
-	| Some socket ->
-		let l = String.length s in
-		assert (l < 0xFFFF);
-		let buf = Bytes.make 2 ' ' in
-		Bytes.set buf 0 (Char.unsafe_chr l);
-		Bytes.set buf 1 (Char.unsafe_chr (l lsr 8));
-		ignore(send socket buf 0 2 []);
-		ignore(send socket (Bytes.unsafe_of_string s) 0 (String.length s) [])
-
-let print_json ctx json =
+let print_json socket json =
 	let b = Buffer.create 0 in
 	write_json (Buffer.add_string b) json;
-	send_string ctx (Buffer.contents b)
+	send_string socket (Buffer.contents b)
 
-let output_result ctx value =
-	print_json ctx (JObject ["result",value])
-
-let output_success ctx =
-	output_result ctx (JString "ok")
-
-let output_error ctx msg =
-	print_json ctx (JObject ["error",JString msg])
-
-let output_event ctx event data =
-	let fields = ["event",JString event] in
-	let fields = Option.map_default (fun data -> fields @ ["result",data]) fields data in
-	print_json ctx (JObject fields)
-
-let output_info ctx msg =
-	output_result ctx (JString msg)
+let output_event socket event data =
+	print_json socket (JsonRpc.notification event data)
 
 let var_to_json name value access =
 	let jv t v structured =
@@ -156,16 +228,6 @@ let var_to_json name value access =
 	in
 	value_string value
 
-let output_variable_name ctx name =
-	output_info ctx name
-
-let output_value ctx name value =
-	let o = JObject [
-		"name",JString name;
-		"value",JString (value_string value)
-	] in
-	output_result ctx o
-
 let output_call_stack ctx kind p =
 	let envs = get_call_stack_envs ctx kind p in
 	let id = ref (-1) in
@@ -188,56 +250,9 @@ let output_call_stack ctx kind p =
 		let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_hash_s env.env_info.pfile} in
 		(stack_item env.env_info.kind p (env.env_leave_pmin < 0)) :: acc
 	) l envs in
-	output_result ctx (JArray (List.rev stack))
+	JArray (List.rev stack)
 
-let output_file_path ctx s =
-	output_info ctx (Path.get_real_path s)
-
-let output_type_name ctx name =
-	output_info ctx name
-
-let get_breakpoint_description ctx breakpoint =
-	let state = function
-		| BPEnabled -> "enabled"
-		| BPDisabled -> "disabled"
-		| BPHit -> "hit"
-	in
-	let l = [
-		"id",JInt breakpoint.bpid;
-		"verified",JBool true;
-		"source",JString (Path.get_real_path (rev_hash_s breakpoint.bpfile));
-		"line",JInt breakpoint.bpline;
-		"message",JString (state breakpoint.bpstate)
-	] in
-	let l = match breakpoint.bpcolumn with
-		| BPAny -> l
-		| BPColumn i -> ("column",JInt i) :: l
-	in
-	JObject l
-
-let output_breakpoint_description ctx breakpoint =
-	output_result ctx (get_breakpoint_description ctx breakpoint)
-
-let output_breakpoint_set ctx breakpoint =
-	output_result ctx (JInt breakpoint.bpid)
-
-let output_breakpoints ctx =
-	let a = DynArray.create () in
-	iter_breakpoints ctx (fun breakpoint ->
-		DynArray.add a (get_breakpoint_description ctx breakpoint)
-	);
-	output_result ctx (JArray (DynArray.to_list a))
-
-let output_breakpoint_stop ctx env =
-	output_event ctx "breakpoint_stop" None
-
-let output_exception_stop ctx v pos =
-	output_event ctx "exception_stop" (Some (JObject ["text",JString (value_string v)]))
-
-let output_set_var_result ctx name value access =
-	output_result ctx (var_to_json name value access)
-
-let output_scopes ctx capture_infos scopes =
+let output_scopes capture_infos scopes =
 	let mk_scope id name pos =
 		let fl = ["id",JInt id; "name",JString name] in
 		let fl =
@@ -263,25 +278,25 @@ let output_scopes ctx capture_infos scopes =
 	) (1,[]) scopes in
 	let scopes = List.rev scopes in
 	let scopes = if Hashtbl.length capture_infos = 0 then scopes else (mk_scope 0 "Captures" null_pos) :: scopes in
-	output_result ctx (JArray scopes)
+	JArray scopes
 
-let output_capture_vars ctx env =
+let output_capture_vars env =
 	let infos = env.env_info.capture_infos in
 	let vars = Hashtbl.fold (fun slot name acc ->
 		let value = !(env.env_captures.(slot)) in
 		(var_to_json name value name) :: acc
 	) infos [] in
-	output_result ctx (JArray vars)
+	JArray vars
 
-let output_scope_vars ctx env scope =
+let output_scope_vars env scope =
 	let vars = Hashtbl.fold (fun local_slot name acc ->
 		let slot = local_slot + scope.local_offset in
 		let value = env.env_locals.(slot) in
 		(var_to_json name value name) :: acc
 	) scope.local_infos [] in
-	output_result ctx (JArray vars)
+	JArray vars
 
-let output_inner_vars ctx v access =
+let output_inner_vars v access =
 	let children = match v with
 		| VNull | VTrue | VFalse | VInt32 _ | VFloat _ | VFunction _ | VFieldClosure _ -> []
 		| VEnumValue ve ->
@@ -319,331 +334,218 @@ let output_inner_vars ctx v access =
 		| VPrototype proto -> [] (* TODO *)
 	in
 	let vars = List.map (fun (n,v,a) -> var_to_json n v a) children in
-	output_result ctx (JArray vars)
+	JArray vars
 
-let read_byte this i = int_of_char (Bytes.get this i)
+type command_outcome =
+	| Loop of Json.t
+	| Run of Json.t * EvalContext.env
+	| Wait of Json.t * EvalContext.env
 
-let read_ui16 this i =
-	let ch1 = read_byte this i in
-	let ch2 = read_byte this (i + 1) in
-	ch1 lor (ch2 lsl 8)
 
-let read_line ctx =
-	let socket = !socket in
-	match socket.socket with
-		| None ->
-			(* TODO: reconnect? *)
-			input_line Pervasives.stdin
-		| Some socket ->
-			let buf = Bytes.create 2 in
-			let _ = recv socket buf 0 2 [] in
-			let i = read_ui16 buf 0 in
-			let buf = Bytes.create i in
-			let _ = recv socket buf 0 i [] in
-			Bytes.to_string buf
-
-let parse_breakpoint_pattern pattern =
-	(* TODO: more than file:line patterns? *)
-	try
-		let split = ExtString.String.nsplit pattern ":" in
-		let file,line,column = match List.rev split with
-			| first :: rest ->
-				let first = int_of_string first in
-				begin match rest with
-					| second :: file ->
-						begin try
-							file,(int_of_string second),BPColumn first
-						with _ ->
-							(second :: file),first,BPAny
-						end
-					| file ->
-						file,first,BPAny
-				end
-			| [] -> raise Exit
+let make_connection socket =
+	(* Reads input and reacts accordingly. *)
+	let rec wait ctx run env =
+		let get_real_env ctx =
+			ctx.debug.environment_offset_delta <- 0;
+			DynArray.get (get_eval ctx).environments ((get_eval ctx).environment_offset - 1);
 		in
-		let file = String.concat ":" (List.rev file) in
-		file,line,column
-	with _ ->
-		raise Exit
-
-let print_variables ctx capture_infos scopes env =
-	let rec loop scopes = match scopes with
-		| scope :: scopes ->
-			Hashtbl.iter (fun _ name -> output_variable_name ctx name) scope.local_infos;
-			loop scopes
-		| [] ->
-			()
-	in
-	loop scopes;
-	Hashtbl.iter (fun slot name ->
-		if slot < Array.length env.env_captures then
-			output_variable_name ctx name
-	) capture_infos
-
-
-let set_variable ctx scopes name value env =
-	try
-		let slot = get_var_slot_by_name scopes name in
-		env.env_locals.(slot) <- value;
-		output_value ctx name value;
-	with Not_found ->
-		output_error ctx ("No variable found: " ^ name)
-
-(* Reads input and reacts accordingly. *)
-let rec wait ctx run env =
-	let get_real_env ctx =
-		ctx.debug.environment_offset_delta <- 0;
-		DynArray.get (get_eval ctx).environments ((get_eval ctx).environment_offset - 1);
-	in
-	let rec move_frame offset : value =
-		if offset < 0 || offset >= (get_eval ctx).environment_offset then begin
-			output_error ctx (Printf.sprintf "Frame out of bounds: %i (valid range is %i - %i)" offset 0 ((get_eval ctx).environment_offset - 1));
-			loop()
-		end else begin
-			ctx.debug.environment_offset_delta <- ((get_eval ctx).environment_offset - offset - 1);
-			output_success ctx;
-			wait ctx run (DynArray.get (get_eval ctx).environments offset);
-		end
-	and loop () =
-		print_string "1> ";
-		let line = read_line ctx in
-		match ExtString.String.nsplit line " " with
-		| ["quit" | "exit"] ->
-			(* TODO: Borrowed from interp.ml *)
-			if (get_ctx()).curapi.use_cache() then raise (Error.Fatal_error ("",Globals.null_pos));
-			raise (Interp.Sys_exit 0);
-		| ["detach"] ->
-			Hashtbl.iter (fun _ h ->
-				Hashtbl.clear h
-			) ctx.debug.breakpoints;
-			ctx.debug.debug_state <- DbgRunning;
-			run env
-		(* source | history *)
-		| ["files" | "filespath"] ->
-			Hashtbl.iter (fun i _ ->
-				output_file_path ctx (rev_hash_s i);
-			) ctx.debug.breakpoints;
-			loop()
-		| ["classes"] ->
-			IntMap.iter (fun i _ ->
-				output_type_name ctx (rev_hash_s i)
-			) ctx.type_cache;
-			loop()
-		| ["mem"] ->
-			output_info ctx (Printf.sprintf "%i" (Gc.stat()).live_words);
-			loop()
-		| ["compact"] ->
-			let before = (Gc.stat()).live_words in
-			Gc.compact();
-			let after = (Gc.stat()).live_words in
-			output_info ctx (Printf.sprintf "before: %i\nafter: %i" before after);
-			loop()
-		| ["collect"] ->
-			let before = (Gc.stat()).live_words in
-			Gc.full_major();
-			let after = (Gc.stat()).live_words in
-			output_info ctx (Printf.sprintf "before: %i\nafter: %i" before after);
-			loop()
-		| ["break" | "b";pattern] ->
-			begin try
-				let file,line,column = parse_breakpoint_pattern pattern in
-				begin try
-					let breakpoint = add_breakpoint ctx file line column in
-					output_breakpoint_set ctx breakpoint;
-				with Not_found ->
-					output_error ctx ("Could not find file " ^ file);
-				end;
-			with Exit ->
-				output_error ctx ("Unrecognized breakpoint pattern");
-			end;
-			loop()
-		| ["list" | "l"] ->
-			(* TODO: other list syntax *)
-			output_breakpoints ctx;
-			loop()
-		| ["describe" | "desc";bpid] ->
-			(* TODO: range patterns? *)
-			begin try
-				let breakpoint = find_breakpoint ctx bpid in
-				output_breakpoint_description ctx breakpoint;
-			with Not_found ->
-				output_error ctx (Printf.sprintf "Unknown breakpoint: %s" bpid);
-			end;
-			loop()
-		| ["disable" | "dis";bpid] ->
-			(* TODO: range patterns? *)
-			if bpid = "all" then
-				iter_breakpoints ctx (fun breakpoint -> breakpoint.bpstate <- BPDisabled)
-			else begin try
-				let breakpoint = find_breakpoint ctx bpid in
-				breakpoint.bpstate <- BPDisabled;
-				output_info ctx (Printf.sprintf "Breakpoint %s disabled" bpid);
-			with Not_found ->
-				output_error ctx (Printf.sprintf "Unknown breakpoint: %s" bpid);
-			end;
-			loop()
-		| ["enable" | "en";bpid] ->
-			(* TODO: range patterns? *)
-			if bpid = "all" then
-				iter_breakpoints ctx (fun breakpoint -> breakpoint.bpstate <- BPEnabled)
-			else begin try
-				let breakpoint = find_breakpoint ctx bpid in
-				breakpoint.bpstate <- BPEnabled;
-				output_info ctx (Printf.sprintf "Breakpoint %s enabled" bpid);
-			with Not_found ->
-				output_error ctx (Printf.sprintf "Unknown breakpoint: %s" bpid);
-			end;
-			loop()
-		| ["delete" | "d";bpid] ->
-			(* TODO: range patterns? *)
-			if bpid = "all" then
-				Hashtbl.iter (fun _ h ->
-					Hashtbl.clear h
-				) ctx.debug.breakpoints
-			else begin try
-				let id = try int_of_string bpid with _ -> raise Not_found in
-				Hashtbl.iter (fun _ h ->
-					let to_delete = ref [] in
-					Hashtbl.iter (fun k breakpoint -> if breakpoint.bpid = id then to_delete := k :: !to_delete) h;
-					List.iter (fun k -> Hashtbl.remove h k) !to_delete;
-				) ctx.debug.breakpoints;
-				output_info ctx (Printf.sprintf "Breakpoint %s deleted" bpid);
-			with Not_found ->
-				output_error ctx (Printf.sprintf "Unknown breakpoint: %s" bpid);
-			end;
-			loop()
-		| ["clear";pattern] ->
-			(* TODO: range patterns? *)
-			begin try
-				let file,line,column = parse_breakpoint_pattern pattern in
-				begin try
-					delete_breakpoint ctx file line
-				with Not_found ->
-					output_info ctx (Printf.sprintf "Could not find breakpoint %s:%i" file line);
-				end
-			with Exit ->
-				output_error ctx ("Unrecognized breakpoint pattern");
-			end;
-			loop()
-		(* thread | unsafe | safe *)
-		| ["continue" | "c"] ->
-			let env = get_real_env ctx in
-			ctx.debug.debug_state <- (if ctx.debug.debug_state = DbgStart then DbgRunning else DbgContinue);
-			run env
-		| ["step" | "s" | ""] ->
-			let env = get_real_env ctx in
-			run env
-		| ["next" | "n"] ->
-			let env = get_real_env ctx in
-			ctx.debug.debug_state <- DbgNext (get_eval ctx).environment_offset;
-			run env
-		| ["finish" | "f"] ->
-			let env = get_real_env ctx in
-			ctx.debug.debug_state <- DbgFinish (get_eval ctx).environment_offset;
-			run env
-		| ["where" | "w"] ->
-			output_call_stack ctx env.env_info.kind env.env_debug.expr.epos;
-			loop()
-		| ["up"] ->
-			let offset = (get_eval ctx).environment_offset - ctx.debug.environment_offset_delta in
-			move_frame (offset - 2)
-		| ["down"] ->
-			let offset = (get_eval ctx).environment_offset - ctx.debug.environment_offset_delta in
-			move_frame offset
-		| ["frame";sframe] ->
-			let frame = try
-				Some (int_of_string sframe)
-			with _ ->
-				None
-			in
-			begin match frame with
-				| Some frame -> move_frame ((get_eval ctx).environment_offset - frame - 1)
-				| None ->
-					output_error ctx ("Invalid frame format: " ^ sframe);
-					loop()
-			end
-		| ["scopes"] ->
-			output_scopes ctx env.env_info.capture_infos env.env_debug.scopes;
-			loop()
-		| ["variables" | "vars"] ->
-			print_variables ctx env.env_info.capture_infos env.env_debug.scopes env;
-			loop()
-		| ["vars";sid] ->
-			begin
-				try
-					let sid = try int_of_string sid with _ -> raise Exit in
-					if sid = 0 then begin
-						output_capture_vars ctx env;
-						loop();
+		let rec loop () =
+			let handle_request id name params =
+				let error msg =
+					let open JsonRpc in
+					raise (JsonRpc_error (Custom (id, 1, msg)))
+				in
+				let invalid_params () =
+					let open JsonRpc in
+					raise (JsonRpc_error (Invalid_params id))
+				in
+				let rec move_frame offset =
+					if offset < 0 || offset >= (get_eval ctx).environment_offset then begin
+						error (Printf.sprintf "Frame out of bounds: %i (valid range is %i - %i)" offset 0 ((get_eval ctx).environment_offset - 1))
 					end else begin
-						let scope = try List.nth env.env_debug.scopes (sid - 1) with _ -> raise Exit in
-						output_scope_vars ctx env scope;
-						loop()
+						ctx.debug.environment_offset_delta <- ((get_eval ctx).environment_offset - offset - 1);
+						Wait (JNull, (DynArray.get (get_eval ctx).environments offset))
 					end
-				with Exit -> begin
-					output_error ctx ("Invalid scope id");
-					loop ()
-				end
-			end
-		| ["structure";e] ->
-			begin try
-				let e = parse_expr ctx e env.env_debug.expr.epos in
-				begin try
-					let access,v = expr_to_value ctx env e in
-					output_inner_vars ctx v access
-				with Exit ->
-					output_error ctx ("Don't know how to handle this expression: " ^ (Ast.s_expr e))
-				end
-			with Parse_expr_error e ->
-				output_error ctx e
-			end;
-			loop()
-		| ["print" | "p";e] ->
-			begin try
-				let e = parse_expr ctx e env.env_debug.expr.epos in
-				begin try
-					let name,v = expr_to_value ctx env e in
-					output_value ctx name v
-				with Exit ->
-					output_error ctx ("Don't know how to handle this expression: " ^ (Ast.s_expr e))
-				end
-			with Parse_expr_error e ->
-				output_error ctx e
-			end;
-			loop()
-		| ["set" | "s";expr_s;"=";value] ->
-			let parse s = parse_expr ctx s env.env_debug.expr.epos in
-			begin try
-				let expr,value = parse expr_s,parse value in
-				begin try
-					let _,value = expr_to_value ctx env value in
-					begin match fst expr with
-						(* TODO: support setting array elements and enum values *)
-						| EField(e1,s) ->
-							let _,v1 = expr_to_value ctx env e1 in
-							set_field v1 (hash_s s) value;
-							output_set_var_result ctx s value expr_s
-						| EConst (Ident s) ->
-							set_variable ctx env.env_debug.scopes s value env;
-							output_set_var_result ctx s value expr_s
+				in
+				match name with
+				| "continue" ->
+					let env = get_real_env ctx in
+					ctx.debug.debug_state <- (if ctx.debug.debug_state = DbgStart then DbgRunning else DbgContinue);
+					Run (JNull,env)
+				| "stepIn" ->
+					let env = get_real_env ctx in
+					Run (JNull,env)
+				| "next" ->
+					let env = get_real_env ctx in
+					ctx.debug.debug_state <- DbgNext (get_eval ctx).environment_offset;
+					Run (JNull,env)
+				| "stepOut" ->
+					let env = get_real_env ctx in
+					ctx.debug.debug_state <- DbgFinish (get_eval ctx).environment_offset;
+					Run (JNull,env)
+				| "stackTrace" ->
+					Loop (output_call_stack ctx env.env_info.kind env.env_debug.expr.epos)
+				| "setBreakpoint" ->
+					let file,line,column =
+						match params with
+						| Some (JObject fl) ->
+							let file = try List.find (fun (n,_) -> n = "file") fl with Not_found -> invalid_params () in
+							let file = match (snd file) with JString s -> s | _ -> invalid_params () in
+							let line = try List.find (fun (n,_) -> n = "line") fl with Not_found -> invalid_params () in
+							let line = match (snd line) with JInt s -> s | _ -> invalid_params () in
+							let column = try Some (List.find (fun (n,_) -> n = "column") fl) with Not_found -> None in
+							let column = Option.map_default (fun (_,v) -> match v with JInt i -> BPColumn i | _ -> invalid_params ()) BPAny column in
+							file,line,column
 						| _ ->
-							raise Exit
+							invalid_params ();
+					in
+					begin try
+						let breakpoint = add_breakpoint ctx file line column in
+						Loop (JObject ["id",JInt breakpoint.bpid])
+					with Not_found ->
+						invalid_params ();
 					end
-				with Exit ->
-					output_error ctx ("Don't know how to handle this expression")
-				end
-			with Parse_expr_error e ->
-				output_error ctx e
-			end;
-			loop()
-		| s ->
-			output_error ctx (Printf.sprintf "Unknown command: %s" (String.concat " " s));
-			loop()
+				| "removeBreakpoint" ->
+					let id =
+						match params with
+						| Some (JObject fl) ->
+							let id = try List.find (fun (n,_) -> n = "id") fl with Not_found -> invalid_params () in
+							(match (snd id) with JInt s -> s | _ -> invalid_params ())
+						| _ -> invalid_params ()
+					in
+					begin try
+						Hashtbl.iter (fun _ h ->
+							let to_delete = ref [] in
+							Hashtbl.iter (fun k breakpoint -> if breakpoint.bpid = id then to_delete := k :: !to_delete) h;
+							List.iter (fun k -> Hashtbl.remove h k) !to_delete;
+						) ctx.debug.breakpoints
+					with Not_found ->
+						error (Printf.sprintf "Unknown breakpoint: %d" id)
+					end;
+					Loop JNull
+				| "switchFrame" ->
+					let frame =
+						match params with
+						| Some (JObject fl) ->
+							let id = try List.find (fun (n,_) -> n = "id") fl with Not_found -> invalid_params () in
+							(match (snd id) with JInt s -> s | _ -> invalid_params ())
+						| _ -> invalid_params ()
+					in
+					move_frame ((get_eval ctx).environment_offset - frame - 1)
+				| "getScopes" ->
+					Loop (output_scopes env.env_info.capture_infos env.env_debug.scopes);
+				| "getScopeVariables" ->
+					let sid =
+						match params with
+						| Some (JObject fl) ->
+							let id = try List.find (fun (n,_) -> n = "id") fl with Not_found -> invalid_params () in
+							(match (snd id) with JInt s -> s | _ -> invalid_params ())
+						| _ -> invalid_params ()
+					in
+					begin
+						let vars =
+							try
+								if sid = 0 then begin
+									output_capture_vars env
+								end else begin
+									let scope = try List.nth env.env_debug.scopes (sid - 1) with _ -> raise Exit in
+									output_scope_vars env scope
+								end
+							with Exit ->
+								error "Invalid scope id"
+						in
+						Loop vars
+					end
+				| "getStructure" ->
+					let e =
+						match params with
+						| Some (JObject fl) ->
+							let id = try List.find (fun (n,_) -> n = "expr") fl with Not_found -> invalid_params () in
+							(match (snd id) with JString s -> s | _ -> invalid_params ())
+						| _ -> invalid_params ()
+					in
+					begin try
+						let e = parse_expr ctx e env.env_debug.expr.epos in
+						begin try
+							let access,v = expr_to_value ctx env e in
+							Loop (output_inner_vars v access)
+						with Exit ->
+							error ("Don't know how to handle this expression: " ^ (Ast.s_expr e))
+						end
+					with Parse_expr_error e ->
+						error e
+					end
+				| "setVariable" ->
+					let expr_s,value =
+						match params with
+						| Some (JObject fl) ->
+							let expr = try List.find (fun (n,_) -> n = "expr") fl with Not_found -> invalid_params () in
+							let expr = match (snd expr) with JString s -> s | _ -> invalid_params () in
+							let value = try List.find (fun (n,_) -> n = "value") fl with Not_found -> invalid_params () in
+							let value = match (snd value) with JString s -> s | _ -> invalid_params () in
+							expr,value
+						| _ ->
+							invalid_params ();
+					in
+					let parse s = parse_expr ctx s env.env_debug.expr.epos in
+					begin try
+						let expr,value = parse expr_s,parse value in
+						begin try
+							let _,value = expr_to_value ctx env value in
+							begin match fst expr with
+								(* TODO: support setting array elements and enum values *)
+								| EField(e1,s) ->
+									let _,v1 = expr_to_value ctx env e1 in
+									set_field v1 (hash_s s) value;
+									Loop (var_to_json s value expr_s)
+								| EConst (Ident s) ->
+									begin try
+										let slot = get_var_slot_by_name env.env_debug.scopes name in
+										env.env_locals.(slot) <- value;
+										Loop (var_to_json name value s)
+									with Not_found ->
+										error ("No variable found: " ^ name);
+									end
+								| _ ->
+									raise Exit
+							end
+						with Exit ->
+							error "Don't know how to handle this expression"
+						end
+					with Parse_expr_error e ->
+						error e
+					end
+				| meth ->
+					let open JsonRpc in
+					raise (JsonRpc_error (Method_not_found (id, meth)))
+			in
+			let process_outcome id outcome =
+				let output j = print_json socket (JsonRpc.result id j) in
+				match outcome with
+				| Loop result ->
+					output result;
+					loop ()
+				| Run (result,env) ->
+					output result;
+					run env
+				| Wait (result,env) ->
+					output result;
+					wait ctx run env;
+			in
+			let send_output_and_continue json =
+				print_json socket json;
+				loop ();
+			in
+			JsonRpc.handle_jsonrpc_error (fun () -> JsonRpc.process_request (read_string socket) handle_request process_outcome) send_output_and_continue;
+		in
+		loop ()
 	in
-	loop ()
-
-let make_connection sock =
-	socket := sock;
+	let output_breakpoint_stop _ _ =
+		output_event socket "breakpoint_stop" None
+	in
+	let output_exception_stop _ v _ =
+		output_event socket "exception_stop" (Some (JObject ["text",JString (value_string v)]))
+	in
 	{
 		wait = wait;
 		bp_stop = output_breakpoint_stop;
