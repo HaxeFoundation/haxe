@@ -765,6 +765,15 @@ let has_rtti_meta ctx mtype =
 		| Some _ -> true
 
 (**
+	Check if specified property access requires a real class variable to be defined.
+*)
+let is_real_var_access access =
+	match access with
+		| AccNormal
+		| AccNo -> true
+		| _ -> false
+
+(**
 	Check if this var accesses and meta combination should generate a variable
 *)
 let is_real_var field =
@@ -772,7 +781,7 @@ let is_real_var field =
 		true
 	else
 		match field.cf_kind with
-			| Var { v_read = read; v_write = write } -> read = AccNormal || write = AccNormal
+			| Var { v_read = read; v_write = write } -> is_real_var_access read || is_real_var_access write
 			| _ -> false
 
 (**
