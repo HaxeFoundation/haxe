@@ -86,7 +86,8 @@ class FileSystem {
 	}
 
 	public static inline function createDirectory( path : String ) : Void {
-		Global.mkdir(path, 493, true);
+		if (!Global.is_dir(path))
+			Global.mkdir(path, 493, true);
 	}
 
 	public static inline function deleteFile( path : String ) : Void {
