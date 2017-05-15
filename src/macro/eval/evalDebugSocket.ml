@@ -31,15 +31,14 @@ module JsonRpc = struct
 		]
 
 	let error id code message =
-		let fl = [
+		JObject [
 			jsonrpc_field;
+			"id", id;
 			"error", JObject [
 				"code", JInt code;
 				"message", JString message;
 			];
-		] in
-		let fl = Option.map_default (fun id -> ("id", id) :: fl) fl id in
-		JObject fl
+		]
 
 	type json_rpc_error =
 		| Parse_error of string
@@ -53,11 +52,11 @@ module JsonRpc = struct
 	let handle_jsonrpc_error f output =
 		try f () with JsonRpc_error e ->
 			match e with
-			| Parse_error s -> output (error None (-32700) s)
-			| Invalid_request s -> output (error None (-32600) s)
-			| Method_not_found (id,meth) -> output (error (Some id) (-32601) (Printf.sprintf "Method `%s` not found" meth))
-			| Invalid_params id -> output (error (Some id) (-32602) "Invalid params")
-			| Custom (id,code,msg) -> output (error (Some id) code msg)
+			| Parse_error s -> output (error JNull (-32700) s)
+			| Invalid_request s -> output (error JNull (-32600) s)
+			| Method_not_found (id,meth) -> output (error id (-32601) (Printf.sprintf "Method `%s` not found" meth))
+			| Invalid_params id -> output (error id (-32602) "Invalid params")
+			| Custom (id,code,msg) -> output (error id code msg)
 
 	let process_request input handle output =
 		let open Json.Reader in
