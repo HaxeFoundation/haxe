@@ -1976,15 +1976,7 @@ module StdStringBuf = struct
 end
 
 module StdStringTools = struct
-	let fastCodeAt = vfun2 (fun s index ->
-		let s = decode_string s in
-		let index = decode_int index in
-		if index >= String.length s then vnull
-		else vint (int_of_char s.[index])
-	)
-
-	let urlEncode = vfun1 (fun s ->
-		let s = decode_string s in
+	let url_encode s =
 		let b = Rope.Buffer.create 0 in
 		let hex = "0123456789ABCDEF" in
 		for i = 0 to String.length s - 1 do
@@ -1997,7 +1989,18 @@ module StdStringTools = struct
 				Rope.Buffer.add_char b (String.unsafe_get hex (int_of_char c lsr 4));
 				Rope.Buffer.add_char b (String.unsafe_get hex (int_of_char c land 0xF));
 		done;
-		encode_rope (Rope.Buffer.contents b)
+		Rope.Buffer.contents b
+
+	let fastCodeAt = vfun2 (fun s index ->
+		let s = decode_string s in
+		let index = decode_int index in
+		if index >= String.length s then vnull
+		else vint (int_of_char s.[index])
+	)
+
+	let urlEncode = vfun1 (fun s ->
+		let s = decode_string s in
+		encode_rope (url_encode s)
 	)
 
 	let urlDecode = vfun1 (fun s ->

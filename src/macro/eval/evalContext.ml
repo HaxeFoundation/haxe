@@ -204,6 +204,10 @@ let instance_fields i =
 		(name,i.ifields.(key)) :: acc
 	) i.iproto.pinstance_names []
 
+let proto_fields proto =
+	IntMap.fold (fun name key acc ->
+		(name,proto.pfields.(key)) :: acc
+	) proto.pnames []
 
 (* Exceptions *)
 

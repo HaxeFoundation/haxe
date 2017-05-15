@@ -162,6 +162,8 @@ module ValueHashtbl = Hashtbl.Make(struct
 		| VObject o1,VObject o2 -> o1 == o2
 		| VInstance vi1,VInstance vi2 -> vi1 == vi2
 		| VPrototype p1,VPrototype p2 -> p1 == p2
+		| VFunction(f1,_),VFunction(f2,_) -> f1 == f2
+		| VFieldClosure(v1,f1),VFieldClosure(v2,f2) -> v1 == v2 && f1 == f2
 		| _ -> false
 
 	let hash = Hashtbl.hash

@@ -149,7 +149,172 @@ let call_path ctx path f vl api =
 		call_value_on vtype vfield vl
 	) api.pos
 
-let value_signature v = Digest.string "" (* TODO: probably won't implement this... *)
+let value_signature v =
+	let buf = Buffer.create 0 in
+	let add s = Buffer.add_string buf s in
+	let addc c = Buffer.add_char buf c in
+	let scache = Hashtbl.create 0 in
+	let adds s =
+		try
+			let i = Hashtbl.find scache s in
+			addc 'R';
+			add (string_of_int i)
+		with Not_found ->
+			Hashtbl.add scache s (Hashtbl.length scache);
+			addc 'y';
+			let s = EvalStdLib.StdStringTools.url_encode s in
+			add (string_of_int (Rope.length s));
+			addc ':';
+			add (Rope.to_string s)
+	in
+	let cache = ValueHashtbl.create 0 in
+	let cache_length = ref 0 in
+	let cache v f =
+		try
+			let i = ValueHashtbl.find cache v in
+			addc 'r';
+			add (string_of_int i)
+		with Not_found ->
+			let i = !cache_length in
+			ValueHashtbl.add cache v i;
+			incr cache_length;
+			f()
+	in
+	let function_count = ref 0 in
+	let rec loop v = match v with
+		| VNull -> addc 'n'
+		| VTrue -> addc 't'
+		| VFalse -> addc 'f'
+		| VInt32 i when i = Int32.zero -> addc 'z'
+		| VInt32 i ->
+			addc 'i';
+			add (Int32.to_string i)
+		| VFloat f ->
+			if f = neg_infinity then addc 'm'
+			else if f = infinity then addc 'p'
+			else if f <> f then addc 'k'
+			else begin
+				addc 'd';
+				add (string_of_float f)
+			end
+		| VEnumValue ve ->
+			cache v (fun () ->
+				addc 'j';
+				adds (rev_hash_s ve.epath);
+				addc ':';
+				add (string_of_int ve.eindex);
+				addc ':';
+				add (string_of_int (Array.length ve.eargs));
+				Array.iter loop ve.eargs;
+			)
+		| VObject o ->
+			cache v (fun () ->
+				addc 'o';
+				let fields = object_fields o in
+				loop_fields fields;
+				addc 'g'
+			)
+		| VInstance {ikind = IDate f} ->
+			cache v (fun () ->
+				addc 'v';
+				add (Rope.to_string (s_date f))
+			)
+		| VInstance {ikind = IStringMap map} ->
+			cache v (fun() ->
+				addc 'b';
+				StringHashtbl.iter (fun (_,s) value ->
+					adds (Lazy.force s);
+					loop value
+				) map;
+				addc 'h'
+			)
+		| VInstance {ikind = IIntMap map} ->
+			cache v (fun () ->
+				addc 'q';
+				IntHashtbl.iter (fun i value ->
+					addc ':';
+					add (string_of_int i);
+					loop value
+				) map;
+				addc 'h'
+			)
+		| VInstance {ikind = IObjectMap map} ->
+			cache v (fun() ->
+				addc 'M';
+				ValueHashtbl.iter (fun key value ->
+					loop key;
+					loop value
+				) (Obj.magic map);
+				addc 'h'
+			)
+		| VInstance {ikind = IBytes b} ->
+			cache v (fun () ->
+				addc 's';
+				let base64_chars = [|
+					'A';'B';'C';'D';'E';'F';'G';'H';'I';'J';'K';'L';'M';'N';'O';'P';
+					'Q';'R';'S';'T';'U';'V';'W';'X';'Y';'Z';'a';'b';'c';'d';'e';'f';
+					'g';'h';'i';'j';'k';'l';'m';'n';'o';'p';'q';'r';'s';'t';'u';'v';
+					'w';'x';'y';'z';'0';'1';'2';'3';'4';'5';'6';'7';'8';'9';'%';':'
+				|] in
+				let s = Bytes.unsafe_to_string (Base64.str_encode ~tbl:(base64_chars) (Bytes.unsafe_to_string b)) in
+				add (string_of_int (String.length s));
+				addc ':';
+				add s
+			)
+		| VInstance i ->
+			cache v (fun () ->
+				addc 'c';
+				adds (rev_hash_s i.iproto.ppath);
+				let fields = instance_fields i in
+				loop_fields fields;
+				addc 'g';
+			)
+		| VString(_,s) ->
+			adds (Lazy.force s)
+		| VArray a ->
+			cache v (fun () ->
+				addc 'a';
+				let nulls null_count =
+					if null_count > 0 then begin
+						addc 'u';
+						add (string_of_int null_count);
+					end
+				in
+				let rec loop2 null_count vl = match vl with
+					| VNull :: vl -> loop2 (null_count + 1) vl
+					| v :: vl ->
+						nulls null_count;
+						loop v;
+						loop2 0 vl
+					| [] ->
+						nulls null_count
+				in
+				loop2 0 (Array.to_list a.avalues);
+				addc 'h'
+			)
+		| VPrototype {pkind = PClass _; ppath = path} ->
+			addc 'A';
+			adds (rev_hash_s path)
+		| VPrototype {pkind = PEnum _; ppath = path} ->
+			addc 'B';
+			adds (rev_hash_s path)
+		| VPrototype _ ->
+			assert false
+		| VFunction _ | VFieldClosure _ ->
+			(* Custom format: enumerate functions as F0, F1 etc. *)
+			cache v (fun () ->
+				addc 'F';
+				add (string_of_int !function_count);
+				incr function_count
+			)
+	and loop_fields fields =
+		List.iter (fun (name,v) ->
+			adds (rev_hash_s name);
+			loop v;
+		) fields
+	in
+	loop v;
+	Digest.string (Buffer.contents buf)
 
 let prepare_callback v n =
 	match v with
