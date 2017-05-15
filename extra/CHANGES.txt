@@ -5,6 +5,7 @@ xxxx-xx-xx: 3.4.3
 	php7: fix `@:enum abstract` generation  without `-dce full` (#6175)
 	php7: fix using enum constructor with arguments as a call argument (#6177)
 	php7: fix accessing methods on dynamic values (#6211)
+	php7: fix `null` property access (#6281)
 	php/php7: fixed accessing enum constructors on enum type stored to a variable (#6159)
 	php/php7: fix "cannot implement previously implemented interface" (#6208)
 	php: fix invoking functions stored in dynamic static vars (#6158)
