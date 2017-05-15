@@ -80,7 +80,10 @@ class Input {
 				pos++;
 				k--;
 			}
-		} catch (eof: haxe.io.Eof){}
+		} catch (eof : Eof){
+			if (k == len)
+				throw eof;
+		}
 		return len-k;
 	}
 
@@ -115,14 +118,13 @@ class Input {
 
 		var buf = Bytes.alloc(bufsize);
 		var total = new haxe.io.BytesBuffer();
-		try {
+		var first = true;
+		try{
 			while( true ) {
 				var len = readBytes(buf,0,bufsize);
-				if( len == 0 )
-					throw Error.Blocked;
 				total.addBytes(buf,0,len);
 			}
-		} catch( e : Eof ) { }
+		} catch(e : Eof){}
 		return total.getBytes();
 	}
 
@@ -134,8 +136,6 @@ class Input {
 	public function readFullBytes( s : Bytes, pos : Int, len : Int ) : Void {
 		while( len > 0 ) {
 			var k = readBytes(s,pos,len);
-			if (k == 0)
-				throw Error.Blocked;
 			pos += k;
 			len -= k;
 		}
