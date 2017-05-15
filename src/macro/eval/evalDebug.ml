@@ -57,7 +57,10 @@ let debug_loop jit e f =
 		| BPAny -> true
 		| BPColumn i -> i = col1 + 1
 	in
-	let conn = EvalDebugSocket.connection in
+	let conn = match ctx.debug.debug_socket with
+		| Some socket -> EvalDebugSocket.make_connection socket
+		| None -> EvalDebugCLI.connection
+	in
 	(* Checks if we hit a breakpoint, runs the code if not. *)
 	let rec run_check_breakpoint env =
 		try

@@ -56,24 +56,22 @@ let value_string value =
 	let s_type,s_value = value_string 0 value in
 	Printf.sprintf "%s = %s" s_type s_value
 
+let socket : debug_socket ref = ref (Obj.magic ())
 
-let send_string ctx s = match ctx.debug.debug_socket with
+let send_string ctx s =
+	let socket = !socket in
+	match socket.socket with
 	| None ->
+		(* TODO: reconnect? *)
 		print_endline s
 	| Some socket ->
-		begin match socket.socket with
-			| None ->
-				(* TODO: reconnect? *)
-				print_endline s
-			| Some socket ->
-				let l = String.length s in
-				assert (l < 0xFFFF);
-				let buf = Bytes.make 2 ' ' in
-				Bytes.set buf 0 (Char.unsafe_chr l);
-				Bytes.set buf 1 (Char.unsafe_chr (l lsr 8));
-				ignore(send socket buf 0 2 []);
-				ignore(send socket (Bytes.unsafe_of_string s) 0 (String.length s) [])
-		end
+		let l = String.length s in
+		assert (l < 0xFFFF);
+		let buf = Bytes.make 2 ' ' in
+		Bytes.set buf 0 (Char.unsafe_chr l);
+		Bytes.set buf 1 (Char.unsafe_chr (l lsr 8));
+		ignore(send socket buf 0 2 []);
+		ignore(send socket (Bytes.unsafe_of_string s) 0 (String.length s) [])
 
 let print_json ctx json =
 	let b = Buffer.create 0 in
@@ -330,21 +328,19 @@ let read_ui16 this i =
 	let ch2 = read_byte this (i + 1) in
 	ch1 lor (ch2 lsl 8)
 
-let read_line ctx = match ctx.debug.debug_socket with
-	| None ->
-		input_line Pervasives.stdin
-	| Some socket ->
-		begin match socket.socket with
-			| None ->
-				input_line Pervasives.stdin
-			| Some socket ->
-				let buf = Bytes.create 2 in
-				let _ = recv socket buf 0 2 [] in
-				let i = read_ui16 buf 0 in
-				let buf = Bytes.create i in
-				let _ = recv socket buf 0 i [] in
-				Bytes.to_string buf
-		end
+let read_line ctx =
+	let socket = !socket in
+	match socket.socket with
+		| None ->
+			(* TODO: reconnect? *)
+			input_line Pervasives.stdin
+		| Some socket ->
+			let buf = Bytes.create 2 in
+			let _ = recv socket buf 0 2 [] in
+			let i = read_ui16 buf 0 in
+			let buf = Bytes.create i in
+			let _ = recv socket buf 0 i [] in
+			Bytes.to_string buf
 
 let parse_breakpoint_pattern pattern =
 	(* TODO: more than file:line patterns? *)
@@ -646,8 +642,10 @@ let rec wait ctx run env =
 	in
 	loop ()
 
-let connection : debug_connection = {
-	wait = wait;
-	bp_stop = output_breakpoint_stop;
-	exc_stop = output_exception_stop;
-}
+let make_connection sock =
+	socket := sock;
+	{
+		wait = wait;
+		bp_stop = output_breakpoint_stop;
+		exc_stop = output_exception_stop;
+	}
