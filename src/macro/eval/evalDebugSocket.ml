@@ -541,10 +541,10 @@ let make_connection socket =
 		loop ()
 	in
 	let output_breakpoint_stop _ _ =
-		output_event socket "breakpoint_stop" None
+		output_event socket "breakpointStop" None
 	in
 	let output_exception_stop _ v _ =
-		output_event socket "exception_stop" (Some (JObject ["text",JString (value_string v)]))
+		output_event socket "exceptionStop" (Some (JObject ["text",JString (value_string v)]))
 	in
 	{
 		wait = wait;
