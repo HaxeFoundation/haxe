@@ -19,6 +19,7 @@
 
 open Globals
 open Ast
+open Type
 open Common
 open EvalValue
 open EvalContext
@@ -129,10 +130,10 @@ let create com api is_macro =
 
 let eval_delayed ctx e =
 	let jit,f = jit_expr ctx e in
-	let info = create_env_info true (file_hash e.Type.epos.pfile) EKDelayed jit.capture_infos in
+	let info = create_env_info true (file_hash e.epos.pfile) EKDelayed jit.capture_infos in
 	fun () ->
 		let env = push_environment ctx info jit.max_local_count (Hashtbl.length jit.captures) in
-		match catch_exceptions ctx (fun () -> Std.finally (fun _ -> pop_environment ctx env) f env) e.Type.epos with
+		match catch_exceptions ctx (fun () -> Std.finally (fun _ -> pop_environment ctx env) f env) e.epos with
 			| Some v -> v
 			| None -> vnull
 
@@ -367,6 +368,19 @@ let compiler_error msg pos =
 		assert false
 
 let rec value_to_expr v p =
+	let path i =
+		let mt = IntMap.find i (get_ctx()).type_cache in
+		let make_path t =
+			let rec loop = function
+				| [] -> assert false
+				| [name] -> (EConst (Ident name),p)
+				| name :: l -> (EField (loop l,name),p)
+			in
+			let t = t_infos t in
+			loop (List.rev (if t.mt_module.m_path = t.mt_path then fst t.mt_path @ [snd t.mt_path] else fst t.mt_module.m_path @ [snd t.mt_module.m_path;snd t.mt_path]))
+		in
+		make_path mt
+	in
 	match v with
 	| VNull -> (EConst (Ident "null"),p)
 	| VTrue -> (EConst (Ident "true"),p)
@@ -379,11 +393,7 @@ let rec value_to_expr v p =
 	| VEnumValue e ->
 		let epath =
 			let proto = get_static_prototype_raise (get_ctx()) e.epath in
-			let first, rest = match (ExtString.String.nsplit (rev_hash_s proto.ppath) ".") with
-				| n :: rest -> n, rest
-				| _ -> assert false
-			in
-			let expr = List.fold_left (fun e f -> (EField (e,f), p)) ((EConst (Ident first)),p) rest in
+			let expr = path e.epath in
 			let name = match proto.pkind with
 				| PEnum names -> List.nth names e.eindex
 				| _ -> assert false
