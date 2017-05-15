@@ -83,48 +83,39 @@ module JsonRpc = struct
 		output id res
 end
 
-let read_byte this i = int_of_char (Bytes.get this i)
+module Transport = struct
+	let read_byte this i = int_of_char (Bytes.get this i)
 
-let read_ui16 this i =
-	let ch1 = read_byte this i in
-	let ch2 = read_byte this (i + 1) in
-	ch1 lor (ch2 lsl 8)
+	let read_ui16 this i =
+		let ch1 = read_byte this i in
+		let ch2 = read_byte this (i + 1) in
+		ch1 lor (ch2 lsl 8)
 
-let read_string socket =
-	match socket.socket with
+	let read_string socket =
+		match socket.socket with
+			| None ->
+				failwith "no socket" (* TODO: reconnect? *)
+			| Some socket ->
+				let buf = Bytes.create 2 in
+				let _ = recv socket buf 0 2 [] in
+				let i = read_ui16 buf 0 in
+				let buf = Bytes.create i in
+				let _ = recv socket buf 0 i [] in
+				Bytes.to_string buf
+
+	let send_string socket s =
+		match socket.socket with
 		| None ->
 			failwith "no socket" (* TODO: reconnect? *)
 		| Some socket ->
-			let buf = Bytes.create 2 in
-			let _ = recv socket buf 0 2 [] in
-			let i = read_ui16 buf 0 in
-			let buf = Bytes.create i in
-			let _ = recv socket buf 0 i [] in
-			Bytes.to_string buf
-
-let send_string socket s =
-	match socket.socket with
-	| None ->
-		failwith "no socket" (* TODO: reconnect? *)
-	| Some socket ->
-		let l = String.length s in
-		assert (l < 0xFFFF);
-		let buf = Bytes.make 2 ' ' in
-		Bytes.set buf 0 (Char.unsafe_chr l);
-		Bytes.set buf 1 (Char.unsafe_chr (l lsr 8));
-		ignore(send socket buf 0 2 []);
-		ignore(send socket (Bytes.unsafe_of_string s) 0 (String.length s) [])
-
-let get_call_stack_envs ctx kind p =
-	let envs = match call_stack ctx with
-		| _ :: envs -> envs
-		| [] -> []
-	in
-	let rec loop delta envs = match envs with
-		| _ :: envs when delta < 0 -> loop (delta + 1) envs
-		| _ -> envs
-	in
-	loop ctx.debug.environment_offset_delta envs
+			let l = String.length s in
+			assert (l < 0xFFFF);
+			let buf = Bytes.make 2 ' ' in
+			Bytes.set buf 0 (Char.unsafe_chr l);
+			Bytes.set buf 1 (Char.unsafe_chr (l lsr 8));
+			ignore(send socket buf 0 2 []);
+			ignore(send socket (Bytes.unsafe_of_string s) 0 (String.length s) [])
+end
 
 (* Printing *)
 
@@ -161,7 +152,7 @@ let value_string value =
 let print_json socket json =
 	let b = Buffer.create 0 in
 	write_json (Buffer.add_string b) json;
-	send_string socket (Buffer.contents b)
+	Transport.send_string socket (Buffer.contents b)
 
 let output_event socket event data =
 	print_json socket (JsonRpc.notification event data)
@@ -226,6 +217,17 @@ let var_to_json name value access =
 		| VFunction _ | VFieldClosure _ -> jv "Function" "<fun>" false
 	in
 	value_string value
+
+let get_call_stack_envs ctx kind p =
+	let envs = match call_stack ctx with
+		| _ :: envs -> envs
+		| [] -> []
+	in
+	let rec loop delta envs = match envs with
+		| _ :: envs when delta < 0 -> loop (delta + 1) envs
+		| _ -> envs
+	in
+	loop ctx.debug.environment_offset_delta envs
 
 let output_call_stack ctx kind p =
 	let envs = get_call_stack_envs ctx kind p in
@@ -535,7 +537,7 @@ let make_connection socket =
 				print_json socket json;
 				loop ();
 			in
-			JsonRpc.handle_jsonrpc_error (fun () -> JsonRpc.process_request (read_string socket) handle_request process_outcome) send_output_and_continue;
+			JsonRpc.handle_jsonrpc_error (fun () -> JsonRpc.process_request (Transport.read_string socket) handle_request process_outcome) send_output_and_continue;
 		in
 		loop ()
 	in
