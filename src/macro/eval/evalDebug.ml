@@ -10,6 +10,7 @@ open EvalPrinting
 open EvalHash
 open EvalEncode
 open EvalMisc
+open EvalDebugMisc
 open MacroApi
 
 let is_caught ctx v =
@@ -56,7 +57,7 @@ let debug_loop jit e f =
 		| BPAny -> true
 		| BPColumn i -> i = col1 + 1
 	in
-	let conn = EvalDebugCLI.connection in
+	let conn = EvalDebugSocket.connection in
 	(* Checks if we hit a breakpoint, runs the code if not. *)
 	let rec run_check_breakpoint env =
 		try
