@@ -26,7 +26,7 @@ module JsonRpc = struct
 	let result id data =
 		JObject [
 			jsonrpc_field;
-			"id", JInt id;
+			"id", id;
 			"result", data;
 		]
 
@@ -38,15 +38,15 @@ module JsonRpc = struct
 				"message", JString message;
 			];
 		] in
-		let fl = Option.map_default (fun id -> ("id", JInt id) :: fl) fl id in
+		let fl = Option.map_default (fun id -> ("id", id) :: fl) fl id in
 		JObject fl
 
 	type json_rpc_error =
 		| Parse_error of string
 		| Invalid_request of string
-		| Method_not_found of int * string (* id->methodname *)
-		| Invalid_params of int
-		| Custom of int * int * string (* id->code->message *)
+		| Method_not_found of Json.t * string (* id->methodname *)
+		| Invalid_params of Json.t
+		| Custom of Json.t * int * string (* id->code->message *)
 
 	exception JsonRpc_error of json_rpc_error
 
@@ -71,7 +71,7 @@ module JsonRpc = struct
 			| None -> raise (JsonRpc_error (Invalid_request (Printf.sprintf "`%s` field has invalid data" name)))
 			| Some v -> v
 		in
-		let id = get_field "id" (function JInt i -> Some i | _ -> None) in
+		let id = get_field "id" (fun v -> Some v) in
 		let meth = get_field "method" (function JString s -> Some s | _ -> None) in
 		let params =
 			try
