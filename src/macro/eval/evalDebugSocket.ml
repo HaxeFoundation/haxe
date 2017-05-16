@@ -357,6 +357,45 @@ let make_connection socket =
 					Run (JNull,env)
 				| "stackTrace" ->
 					Loop (output_call_stack ctx env.env_info.kind env.env_debug.expr.epos)
+				| "setBreakpoints" ->
+					let file, bps =
+						match params with
+						| Some (JObject fl) ->
+							let file = try List.find (fun (n,_) -> n = "file") fl with Not_found -> invalid_params () in
+							let file = match (snd file) with JString s -> s | _ -> invalid_params () in
+							let parse_breakpoint = function
+								| JObject fl ->
+									let line = try List.find (fun (n,_) -> n = "line") fl with Not_found -> invalid_params () in
+									let line = match (snd line) with JInt s -> s | _ -> invalid_params () in
+									let column = try Some (List.find (fun (n,_) -> n = "column") fl) with Not_found -> None in
+									let column = Option.map_default (fun (_,v) -> match v with JInt i -> BPColumn i | _ -> invalid_params ()) BPAny column in
+									line,column
+								| _ -> invalid_params ()
+							in
+							let bps = try List.find (fun (n,_) -> n = "breakpoints") fl with Not_found -> invalid_params () in
+							let bps = match (snd bps) with JArray jl -> jl | _ -> invalid_params () in
+							let bps = List.map parse_breakpoint bps in
+							file, bps
+						| _ ->
+							invalid_params ();
+					in
+					let hash = hash_s (Path.unique_full_path (Common.find_file (ctx.curapi.get_com()) file)) in
+					let h =
+						try
+							let h = Hashtbl.find ctx.debug.breakpoints hash in
+							Hashtbl.clear h;
+							h
+						with Not_found ->
+							let h = Hashtbl.create (List.length bps) in
+							Hashtbl.add ctx.debug.breakpoints hash h;
+							h
+					in
+					let bps = List.map (fun (line,column) ->
+						let bp = make_breakpoint hash line BPEnabled column in
+						Hashtbl.add h line bp;
+						JObject ["id",JInt bp.bpid]
+					) bps in
+					Loop (JArray bps)
 				| "setBreakpoint" ->
 					let file,line,column =
 						match params with
