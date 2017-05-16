@@ -594,6 +594,10 @@ module StdContext = struct
 		vnull
 	)
 
+	let breakHere = vfun0 (fun () ->
+		raise (EvalDebugMisc.BreakHere)
+	)
+
 	let callMacroApi = vfun1 (fun f ->
 		let f = decode_string f in
 		Hashtbl.find macro_lib f
@@ -2673,6 +2677,7 @@ let init_standard_library builtins =
 	];
 	init_fields builtins (["eval";"vm"],"Context") [
 		"addBreakpoint",StdContext.addBreakpoint;
+		"breakHere",StdContext.breakHere;
 		"callMacroApi",StdContext.callMacroApi;
 	] [];
 	init_fields builtins (["haxe";"crypto"],"Crc32") [

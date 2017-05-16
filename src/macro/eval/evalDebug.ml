@@ -78,10 +78,16 @@ let debug_loop jit e f =
 			end
 		with Not_found -> try
 			f env
-		with RunTimeException(v,_,_) when not (is_caught ctx v) ->
+		with
+		| RunTimeException(v,_,_) when not (is_caught ctx v) ->
 			conn.exc_stop ctx v e.epos;
 			ctx.debug.debug_state <- DbgWaiting;
 			run_loop ctx conn.wait run_check_breakpoint env
+		| BreakHere ->
+			conn.bp_stop ctx env;
+			ctx.debug.debug_state <- DbgWaiting;
+			run_loop ctx conn.wait run_check_breakpoint env
+
 	in
 	(* Sets the environmental debug data, then executes the debug loop. *)
 	let run_set env =

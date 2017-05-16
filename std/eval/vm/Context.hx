@@ -23,5 +23,6 @@ package eval.vm;
 
 extern class Context {
 	static function addBreakpoint(file:String, line:Int):Void;
+	static function breakHere():Void;
 	static function callMacroApi(s:String):Dynamic;
 }

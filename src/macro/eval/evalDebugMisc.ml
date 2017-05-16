@@ -12,6 +12,8 @@ type debug_connection = {
 	exc_stop : context -> value -> pos -> unit;
 }
 
+exception BreakHere
+
 (* Breakpoints *)
 
 let make_breakpoint =
