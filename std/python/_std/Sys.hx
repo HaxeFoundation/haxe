@@ -46,11 +46,11 @@ class Sys {
 		python.lib.Sys.exit(code);
 	}
 
-	public static function print(v:Dynamic):Void {
-		python.Lib.print(v);
+	public static inline function print(v:Dynamic):Void {
+		python.Lib.print_(v);
 	}
 
-	public static function println(v:Dynamic):Void {
+	public static inline function println(v:Dynamic):Void {
 		python.Lib.println(v);
 	}
 
@@ -146,7 +146,7 @@ class Sys {
 				throw "platform " + x + " not supported";
 		}
 		if (echo) {
-			python.Lib.print(String.fromCharCode(ch));
+			python.Lib.print_(String.fromCharCode(ch));
 		}
 		return ch;
 	}
