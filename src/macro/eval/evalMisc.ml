@@ -111,7 +111,7 @@ let rec equals a b = match a,b with
 	| VObject a,VObject b -> a == b
 	| VInstance a,VInstance b -> a == b
 	| VPrototype a,VPrototype b -> a == b
-	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && Array.length a.eargs = 0 && Array.length b.eargs = 0
+	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && Array.length a.eargs = 0 && Array.length b.eargs = 0 && a.epath == b.epath
 	| VFieldClosure(v1,f1),VFieldClosure(v2,f2) -> f1 == f2 && equals v1 v2
 	| _ -> false
 
