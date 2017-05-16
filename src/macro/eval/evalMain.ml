@@ -75,7 +75,6 @@ let create com api is_macro =
 					let port = try int_of_string port with _ -> fail "Invalid port, expected int" in
 					let socket = try (Unix.socket Unix.PF_INET Unix.SOCK_STREAM) 0 with exc -> fail (Printexc.to_string exc) in
 					Unix.connect socket (Unix.ADDR_INET (host,port));
-					print_endline "Created socket";
 					Some {addr = host; port = port; socket = Some socket}
 				with _ ->
 					None
