@@ -91,6 +91,7 @@ let rec compare a b =
 		if a == b then CEq
 		else if a.eindex < b.eindex then CInf
 		else if a.eindex > b.eindex then CSup
+		else if a.epath <> b.epath then CUndef
 		else if Array.length a.eargs = 0 && Array.length b.eargs = 0 then CEq
 		else CUndef
 	| VFieldClosure(v1,f1),VFieldClosure(v2,f2) ->
@@ -111,7 +112,7 @@ let rec equals a b = match a,b with
 	| VObject a,VObject b -> a == b
 	| VInstance a,VInstance b -> a == b
 	| VPrototype a,VPrototype b -> a == b
-	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && Array.length a.eargs = 0 && Array.length b.eargs = 0 && a.epath == b.epath
+	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && Array.length a.eargs = 0 && Array.length b.eargs = 0 && a.epath = b.epath
 	| VFieldClosure(v1,f1),VFieldClosure(v2,f2) -> f1 == f2 && equals v1 v2
 	| _ -> false
 
@@ -141,7 +142,7 @@ and equals_structurally a b =
 	| VObject a,VObject b -> a == b || arrays_equal a.ofields b.ofields && IntMap.equal equals_structurally a.oextra b.oextra
 	| VInstance a,VInstance b -> a == b
 	| VPrototype a,VPrototype b -> a == b
-	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && arrays_equal a.eargs b.eargs
+	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && arrays_equal a.eargs b.eargs && a.epath = b.epath
 	| VFieldClosure(v1,f1),VFieldClosure(v2,f2) -> f1 == f2 && equals v1 v2
 	| _ -> false
 
