@@ -765,17 +765,6 @@ let has_rtti_meta ctx mtype =
 		| Some _ -> true
 
 (**
-	Check if this var accesses and meta combination should generate a variable
-*)
-let is_real_var field =
-	if Meta.has IsVar field.cf_meta then
-		true
-	else
-		match field.cf_kind with
-			| Var { v_read = read; v_write = write } -> read = AccNormal || write = AccNormal
-			| _ -> false
-
-(**
 	Check if user-defined field has the same name as one of php magic methods, but with not compatible signature.
 *)
 let field_needs_rename field =
@@ -3474,7 +3463,7 @@ class class_builder ctx (cls:tclass) =
 		method private write_field is_static field =
 			match field.cf_kind with
 				| Var { v_read = AccInline; v_write = AccNever } -> self#write_const field
-				| Var _ when is_real_var field ->
+				| Var _ when not (is_extern_field field) ->
 					(* Do not generate fields for RTTI meta, because this generator uses another way to store it *)
 					let is_auto_meta_var = is_static && field.cf_name = "__meta__" && (has_rtti_meta ctx wrapper#get_module_type) in
 					if not is_auto_meta_var then self#write_var field is_static;

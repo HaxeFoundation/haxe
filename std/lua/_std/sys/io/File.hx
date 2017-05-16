@@ -44,7 +44,7 @@ class File {
 	public static function copy( srcPath : String, dstPath : String ) : Void {
 		switch (Sys.systemName()) {
 			case "Windows" : Os.execute('copy ${StringTools.quoteWinArg(srcPath, true)} ${StringTools.quoteWinArg(dstPath,true)}');
-			default : Os.execute('copy ${StringTools.quoteUnixArg(srcPath)} ${StringTools.quoteUnixArg(dstPath)}');
+			default : Os.execute('cp ${StringTools.quoteUnixArg(srcPath)} ${StringTools.quoteUnixArg(dstPath)}');
 		};
 	}
 

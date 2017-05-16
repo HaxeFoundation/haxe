@@ -113,4 +113,11 @@ class TestFileSystem extends haxe.unit.TestCase {
 		var stat = FileSystem.stat(dir);
 		assertTrue(stat != null);
 	}
+
+	function testCreateExistingDirectory() {
+		var testDir = dir + "exists";
+		FileSystem.createDirectory(testDir);
+		FileSystem.createDirectory(testDir); // shouldn't throw
+		assertTrue(FileSystem.isDirectory(testDir));
+	}
 }

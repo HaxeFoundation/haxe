@@ -1393,7 +1393,8 @@ and expr = parser
 			| [< t,pt = parse_type_hint_with_pos; s >] -> (match s with parser
 				| [< '(PClose,p2); s >] -> expr_next (EParenthesis (ECheckType(e,(t,pt)),punion p1 p2), punion p1 p2) s
 				| [< '(Comma,pc); al = psep Comma parse_fun_param; '(PClose,_); er = arrow_expr; s >] ->
-					arrow_function p1 ((arrow_first_param e) :: al) er
+					let (np,_) = arrow_ident_checktype e in
+					arrow_function p1 ((np,false,[],(Some(t,pt)),None) :: al) er
 				| [< '((Binop OpAssign),p2); ea1 = expr; s >] ->
 					let with_args al er = (match fst e with
 						| EConst(Ident n) ->
