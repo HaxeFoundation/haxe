@@ -24,16 +24,16 @@ import Reflect;
 
 /**
 	This class runs unit test cases and prints the result.
-	
+
 	```haxe
 	var r = new haxe.unit.TestRunner();
 	r.add(new MyTestCase());
 	// add other TestCases here
-	
+
 	// finally, run the tests
 	r.run();
 	```
-	
+
 	@see <https://haxe.org/manual/std-unit-testing.html>
 **/
 class TestRunner {
@@ -50,7 +50,7 @@ class TestRunner {
 
 	/**
 		Prints the given object/value.
-		
+
 		 * Flash outputs the result in a new `TextField` on stage.
 		 * JavaScript outputs the result using `console.log`.
 		 * Other targets use native `print` to output the result.
@@ -96,7 +96,7 @@ class TestRunner {
 			untyped __java__("java.lang.System.out.print(str)");
 		#elseif python
 			python.Lib.print(v);
-		#elseif (hl || lua)
+		#elseif (hl || lua || eval)
 			Sys.print(Std.string(v));
 		#end
 	}
@@ -119,7 +119,7 @@ class TestRunner {
 
 	/**
 		Runs the unit tests and prints the results.
-		
+
 		@return `true` if the unit test succesfully executed the test cases.
 	**/
 	public function run() : Bool {

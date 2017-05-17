@@ -55,5 +55,9 @@
 -xml hl.xml
 
 --next
+--interp
+-xml interp.xml
+
+--next
 
 -xml cross.xml

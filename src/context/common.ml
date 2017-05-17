@@ -656,6 +656,7 @@ let short_platform_name = function
 	| Java -> "jav"
 	| Python -> "py"
 	| Hl -> "hl"
+	| Eval -> "evl"
 
 let stats =
 	{
@@ -763,6 +764,12 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_can_skip_non_nullable_argument = false;
+		}
+	| Eval ->
+		{
+			default_config with
+			pf_static = false;
+			pf_pad_nulls = true;
 		}
 
 let memory_marker = [|Unix.time()|]

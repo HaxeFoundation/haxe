@@ -19,6 +19,7 @@ type platform =
 	| Java
 	| Python
 	| Hl
+	| Eval
 
 let version = 4000
 let version_major = version / 1000
@@ -40,6 +41,7 @@ let platforms = [
 	Java;
 	Python;
 	Hl;
+	Eval;
 ]
 
 let platform_name = function
@@ -54,6 +56,7 @@ let platform_name = function
 	| Java -> "java"
 	| Python -> "python"
 	| Hl -> "hl"
+	| Eval -> "eval"
 
 let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
 

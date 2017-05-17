@@ -40,7 +40,7 @@ class MacroStringTools {
 		elements.
 	**/
 	static public function formatString(s:String, pos:Position) {
-		#if neko
+		#if (neko || eval)
 		return Context.load("format_string", 2)(s, pos);
 		#end
 	}
@@ -56,7 +56,7 @@ class MacroStringTools {
 		This operation depends on the position of `e`.
 	**/
 	static public function isFormatExpr(e:ExprOf<String>) : Bool {
-		#if neko
+		#if (neko || eval)
 		return Context.load("is_fmt_string", 1)(e.pos);
 		#else
 		return isFmtString(e.pos);
