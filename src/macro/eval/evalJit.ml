@@ -42,6 +42,10 @@ let eval_const = function
 	| TNull -> vnull
 	| TThis | TSuper -> assert false
 
+let is_int t = match follow t with
+	| TAbstract({a_path=[],"Int"},_) -> true
+	| _ -> false
+
 let get_binop_fun op p = match op with
 	| OpAdd -> op_add
 	| OpMult -> op_mult p
@@ -243,6 +247,45 @@ and jit_expr jit return e =
 			| Some e -> jit_expr jit return e
 		in
 		emit_if exec_cond exec_then exec_else
+	| TSwitch(e1,cases,def) when is_int e1.etype ->
+		let exec = jit_expr jit false e1 in
+		let h = ref IntMap.empty in
+		let max = ref 0 in
+		let shift = ref 0 in
+		List.iter (fun (el,e) ->
+			push_scope jit e.epos;
+			let exec = jit_expr jit return e in
+			List.iter (fun e -> match e.eexpr with
+				| TConst (TInt i32) ->
+					let i = Int32.to_int i32 in
+					h := IntMap.add i exec !h;
+					if i > !max then max := i
+					else if i < !shift then shift := i
+				| _ -> assert false
+			) el;
+			pop_scope jit;
+		) cases;
+		let exec_def = match def with
+			| None -> emit_null
+			| Some e ->
+				push_scope jit e.epos;
+				let exec = jit_expr jit return e in
+				pop_scope jit;
+				exec
+		in
+		let l = !max - !shift + 1 in
+		if l < 256 then begin
+			let cases = Array.init l (fun i -> try IntMap.find (i + !shift) !h with Not_found -> exec_def) in
+			if !shift = 0 then begin match (Texpr.skip e1).eexpr with
+				| TCall({eexpr = TField(_,FStatic({cl_path=[],"Type"},{cf_name="enumIndex"}))},[e1]) ->
+					let exec = jit_expr jit false e1 in
+					emit_enum_switch_array exec cases exec_def e1.epos
+				| _ ->
+					emit_int_switch_array exec cases exec_def e1.epos
+			end else
+				emit_int_switch_array_shift (- !shift) exec cases exec_def e1.epos
+		end else
+			emit_int_switch_map exec !h exec_def e1.epos
 	| TSwitch(e1,cases,def) ->
 		let exec = jit_expr jit false e1 in
 		let execs = DynArray.create () in
