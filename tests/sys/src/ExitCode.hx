@@ -7,7 +7,9 @@ import haxe.io.*;
 */
 class ExitCode {
 	static public var bin:String =
-	#if neko
+	#if interp
+		"bin/interp/ExitCode";
+	#elseif neko
 		"bin/neko/ExitCode.n";
 	#elseif hl
 		"bin/hl/ExitCode.hl";
