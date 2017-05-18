@@ -1645,7 +1645,7 @@ module StdSocket = struct
 		let buf = decode_bytes buf in
 		let pos = decode_int pos in
 		let len = decode_int len in
-		vint (recv this buf pos len [])
+		vint (try recv this buf pos len [] with Unix_error(error,msg,_) -> exc_string (Printf.sprintf "%s: %s" msg (error_message error)))
 	)
 
 	let receiveChar = vifun0 (fun vthis ->
