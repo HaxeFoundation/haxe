@@ -164,7 +164,7 @@ let display_memory com =
 		let modules = Hashtbl.fold (fun (path,key) m acc ->
 			let mdeps = Hashtbl.create 0 in
 			scan_module_deps m mdeps;
-			let deps = ref [] in
+			let deps = ref [Obj.repr null_module] in
 			let out = ref all_modules in
 			Hashtbl.iter (fun _ md ->
 				out := PMap.remove md.m_id !out;
@@ -174,6 +174,7 @@ let display_memory com =
 					match t with
 					| TClassDecl c ->
 						deps := Obj.repr c :: !deps;
+						c.cl_descendants <- []; (* prevent false positive *)
 						List.iter (fun f -> deps := Obj.repr f :: !deps) c.cl_ordered_statics;
 						List.iter (fun f -> deps := Obj.repr f :: !deps) c.cl_ordered_fields;
 					| TEnumDecl e ->
