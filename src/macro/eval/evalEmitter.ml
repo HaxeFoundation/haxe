@@ -313,15 +313,17 @@ let emit_try exec catches env =
 		List.iter (fun (_,path,_) -> Hashtbl.remove ctx.debug.caught_types path) catches
 	in
 	let v = try
-		exec env
+		let v = exec env in
+		restore();
+		v
 	with RunTimeException(v,_,_) as exc ->
+		restore();
 		build_exception_stack ctx environment_offset;
 		eval.environment_offset <- environment_offset;
 		let exec,_,varacc =
 			try
 				List.find (fun (_,path,i) -> is v path) catches
 			with Not_found ->
-				restore();
 				raise exc
 		in
 		begin match varacc with
@@ -330,7 +332,6 @@ let emit_try exec catches env =
 		end;
 		exec env
 	in
-	restore();
 	v
 
 (* Control flow *)
