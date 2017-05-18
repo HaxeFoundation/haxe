@@ -501,7 +501,7 @@ let rec wait_loop process_params verbose accept =
 				if verbose then print_endline ("Completion Response =\n" ^ str);
 				write str
 			| Arg.Bad msg ->
-				prerr_endline ("Error: " ^ msg);
+				print_endline ("Error: " ^ msg);
 			);
 			let fl = !delays in
 			delays := [];
