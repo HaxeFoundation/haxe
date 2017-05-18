@@ -56,16 +56,16 @@ let format_pos p =
 let uncaught_exception_string v p extra =
 	(Printf.sprintf "%s: Uncaught exception %s%s" (format_pos p) (value_string v) extra)
 
-let error_exc ctx v stack p =
+let get_exc_error_message ctx v stack p =
 	let pl = List.map (fun env -> {pfile = rev_hash_s env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax}) stack in
 	let pl = List.filter (fun p -> p <> null_pos) pl in
 	match pl with
 	| [] ->
 		let extra = if ctx.record_stack then "" else "\nNo stack information available, consider compiling with -D eval-stack" in
-		Error.error (uncaught_exception_string v p extra) null_pos
+		uncaught_exception_string v p extra
 	| _ ->
 		let sstack = String.concat "\n" (List.map (fun p -> Printf.sprintf "%s: Called from here" (format_pos p)) pl) in
-		Error.error (Printf.sprintf "%s: Uncaught exception %s\n%s" (format_pos p) (value_string v) sstack) null_pos
+		Printf.sprintf "%s: Uncaught exception %s\n%s" (format_pos p) (value_string v) sstack
 
 let build_exception_stack ctx environment_offset =
 	let eval = get_eval ctx in
@@ -90,9 +90,10 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 	| RunTimeException(v,stack,p') ->
 		build_exception_stack ctx environment_offset;
 		eval.environment_offset <- environment_offset;
+		let msg = get_exc_error_message ctx v (match stack with [] -> [] | _ :: l -> l) (if p' = null_pos then p else p') in
 		get_ctx_ref := prev;
 		final();
-		error_exc ctx v (match stack with [] -> [] | _ :: l -> l) (if p' = null_pos then p else p')
+		Error.error msg null_pos
 	| MacroApi.Abort ->
 		final();
 		None
