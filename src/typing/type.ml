@@ -1268,8 +1268,8 @@ let s_class_kind = function
 
 module Printer = struct
 
-	let s_type =
-		s_type (print_context())
+	let s_type t =
+		s_type (print_context()) t
 
 	let s_pair s1 s2 =
 		Printf.sprintf "(%s,%s)" s1 s2
