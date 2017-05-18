@@ -61,6 +61,8 @@ class RunCi {
 		throw Fail;
 	}
 
+	static var S3_HXBUILDS_ADDR(default, null) = 's3://hxbuilds/builds/haxe';
+
 	/**
 		Run a command using `Sys.command()`.
 		If the command exits with non-zero code, exit the whole script with the same code.
@@ -502,6 +504,7 @@ class RunCi {
 	static var optDir(default, never) = cwd + "optimization/";
 	static var miscDir(default, never) = cwd + "misc/";
 	static var displayDir(default, never) = cwd + "display/";
+	static var serverDir(default, never) = cwd + "server/";
 	static var gitInfo(get, null):{repo:String, branch:String, commit:String, timestamp:Float, date:String};
 	static var success(default, null) = true;
 	static function get_gitInfo() return if (gitInfo != null) gitInfo else gitInfo = {
@@ -531,7 +534,7 @@ class RunCi {
 			}
 			// make time in the UTC time zone
 			var time = Date.fromTime(Std.parseFloat(gitTime) * 1000 - tzd);
-			DateTools.format(time, "%FT%TZ");
+			DateTools.format(time, "%Y-%m-%dT%H:%M:%SZ");
 		}
 	}
 	static var haxeVer(default, never) = {
@@ -563,13 +566,20 @@ class RunCi {
 		) {
 			changeDirectory(repoDir);
 
-			// generate doc
-			runCommand("make", ["-s", "install_dox"]);
-			runCommand("make", ["-s", "package_doc"]);
+			if (Sys.systemName() != 'Windows') {
+				// generate doc
+				runCommand("make", ["-s", "install_dox"]);
+				runCommand("make", ["-s", "package_doc"]);
 
-			// deployBintray();
-			deployApiDoc();
-			deployPPA();
+				// deployBintray();
+				deployApiDoc();
+
+				// disable deployment to ppa:haxe/snapshots for now
+				// because there is no debian sedlex package...
+				// deployPPA();
+			}
+
+			deployNightlies();
 		}
 	}
 
@@ -618,6 +628,80 @@ class RunCi {
 
 			runCommand("make", ["-s", "deploy_doc"]);
 		}
+	}
+
+	/**
+		Deploy source package to hxbuilds s3
+	*/
+	static function deployNightlies():Void {
+		var gitTime = commandResult("git", ["show", "-s", "--format=%ct", "HEAD"]).stdout;
+		var tzd = {
+			var z = Date.fromTime(0);
+			z.getHours() * 60 * 60 * 1000 + z.getMinutes() * 60 * 1000;
+		};
+		var time = Date.fromTime(Std.parseFloat(gitTime) * 1000 - tzd);
+		if (
+			(gitInfo.branch == "development" ||
+			gitInfo.branch == "master" ||
+			gitInfo.branch == "nightly-travis") &&
+			Sys.getEnv("HXBUILDS_AWS_ACCESS_KEY_ID") != null &&
+			Sys.getEnv("HXBUILDS_AWS_SECRET_ACCESS_KEY") != null
+		) {
+			if (ci == TravisCI) {
+				runCommand("make", ["-s", "package_unix"]);
+				if (Sys.systemName() == 'Linux') {
+					// source
+					for (file in sys.FileSystem.readDirectory('out')) {
+						if (file.startsWith('haxe') && file.endsWith('_src.tar.gz')) {
+							submitToS3("source", 'out/$file');
+							break;
+						}
+					}
+				}
+				for (file in sys.FileSystem.readDirectory('out')) {
+					if (file.startsWith('haxe') && file.endsWith('_bin.tar.gz')) {
+						var name = Sys.systemName() == "Linux" ? 'linux64' : 'mac';
+						submitToS3(name, 'out/$file');
+						break;
+					}
+				}
+			} else {
+				for (file in sys.FileSystem.readDirectory('out')) {
+					if (file.startsWith('haxe') && file.endsWith('_bin.zip')) {
+						submitToS3('windows', 'out/$file');
+						break;
+					}
+				}
+			}
+		} else {
+			trace('Not deploying nightlies');
+		}
+	}
+
+	static function fileExtension(file:String) {
+		file = haxe.io.Path.withoutDirectory(file);
+		var idx = file.indexOf('.');
+		if (idx < 0) {
+			return '';
+		} else {
+			return file.substr(idx);
+		}
+	}
+
+	static function submitToS3(kind:String, sourceFile:String) {
+		var date = DateTools.format(Date.now(), '%Y-%m-%d');
+		var ext = fileExtension(sourceFile);
+		var fileName = 'haxe_${date}_${gitInfo.branch}_${gitInfo.commit.substr(0,7)}${ext}';
+
+		var changeLatest = gitInfo.branch == "development";
+		Sys.putEnv('AWS_ACCESS_KEY_ID', Sys.getEnv('HXBUILDS_AWS_ACCESS_KEY_ID'));
+		Sys.putEnv('AWS_SECRET_ACCESS_KEY', Sys.getEnv('HXBUILDS_AWS_SECRET_ACCESS_KEY'));
+		runCommand('aws s3 cp --region us-east-1 "$sourceFile" "$S3_HXBUILDS_ADDR/$kind/$fileName"');
+		if (changeLatest) {
+			runCommand('aws s3 cp --region us-east-1 "$sourceFile" "$S3_HXBUILDS_ADDR/$kind/haxe_latest$ext"');
+		}
+		Indexer.index('$S3_HXBUILDS_ADDR/$kind/');
+		runCommand('aws s3 cp --region us-east-1 index.html "$S3_HXBUILDS_ADDR/$kind/index.html"');
 	}
 
 	/**
@@ -837,6 +921,7 @@ class RunCi {
 							}
 						];
 
+						haxelibInstall("hxnodejs");
 						var env = Sys.environment();
 						if (
 							env.exists("SAUCE") &&
@@ -860,7 +945,6 @@ class RunCi {
 							// }
 
 							runCommand("npm", ["install", "wd", "q"], true);
-							haxelibInstall("hxnodejs");
 							runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
 							var server = new Process("nekotools", ["server"]);
 							runCommand("node", ["bin/RunSauceLabs.js"].concat([for (js in jsOutputs) "unit-js.html?js=" + js.urlEncode()]));
@@ -872,6 +956,10 @@ class RunCi {
 						infoMsg("Test optimization:");
 						changeDirectory(optDir);
 						runCommand("haxe", ["run.hxml"]);
+						haxelibInstall("utest");
+						changeDirectory(serverDir);
+						runCommand("haxe", ["build.hxml"]);
+						runCommand("node", ["test.js"]);
 					case Java:
 						getSpodDependencies();
 						getJavaDependencies();

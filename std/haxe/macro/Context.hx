@@ -38,7 +38,7 @@ import haxe.macro.Type.TypedExpr;
 #if !neko @:noDoc #end
 class Context {
 
-#if neko
+#if (neko || eval)
 	/**
 		Displays a compilation error `msg` at the given `Position` `pos`
 		and aborts the current macro call.
@@ -517,6 +517,26 @@ class Context {
 	}
 
 	/**
+		Types expression `e`, stores the resulting typed expression internally and 
+		returns a syntax-level expression that can be returned from a macro and 
+		will be replaced by the stored typed expression.
+
+		If `e` is null or invalid, an exception is thrown.
+
+		A call to `storeExpr(e)` is equivalent to `storeTypedExpr(typeExpr(e))` without
+		the overhead of encoding and decoding between regular and macro runtime.
+
+		NOTE: the returned value references an internally stored typed expression
+		that is reset between compilations, so care should be taken when storing
+		the expression returned by this method in a static variable and using the
+		compilation server.
+	**/
+	@:require(haxe_ver >= 4.0)
+	public static function storeExpr( e : Expr ) : Expr {
+		return load("store_expr",1)(e);
+	}
+
+	/**
 		Evaluates `e` as macro code.
 
 		Any call to this function takes effect when the macro is executed, not
@@ -587,8 +607,10 @@ class Context {
 	@:allow(haxe.macro.MacroStringTools)
 	@:allow(haxe.macro.TypedExprTools)
 	static function load( f, nargs ) : Dynamic {
-		#if macro
+		#if neko
 		return neko.Lib.load("macro", f, nargs);
+		#elseif eval
+		return eval.vm.Context.callMacroApi(f);
 		#else
 		return Reflect.makeVarArgs(function(_) return throw "Can't be called outside of macro");
 		#end

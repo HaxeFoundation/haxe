@@ -2,6 +2,9 @@ env:
   global:
     # make variables
     - ADD_REVISION=1
+    # nightly builds submit
+    - secure: "UoGjYvQqt66GWmeLC4Pih1iue5AufVgW8XQOd2Bx839NN/2mQQ9bD1HuONJe+taWBJ+PHInkAjYROYYaiCQUA7B1SXs3oQD7Og6arVcR7kY7XOdAQ2t8ZkxJHTnuYGWW/2gNFBESv+3H17bkXG4rzaSn2LV5PJLOxSjw0ziBUMY="
+    - secure: "ugpxt+zeYiAiMYKLK96f5TLSxbQAtmDWiumdwaLHl88fIUeefxJJPIF1Xm0AHeYEJE7sD8dLE1dMbRSzOpXFfTmJoQZv19Wjv+2N5B+DaabKjGj1nZG7q3blGa3nUYzWVfFNFiIpM9c5fvW8yiUFzacZE5itEY8+lZQeGsNh+WQ="
     # SauceLabs
     # - secure: SjyKefmjUEXi0IKHGGpcbLAajU0mLHONg8aA8LoY7Q9nAkSN6Aql+fzS38Boq7w1jWn+2FOpr+4jy0l6wVd/bftsF+huFfYpFJmdh8BlKmE0K71zZAral0H1c7YxkuQpPiJCIFGXqtkvev7SWTy0z31u7kuuQeEyW27boXe5cDA=
     # - secure: sUvWUjCyPuWht4seNa4f2VG9DkvXkhZyLZfjJO9TUAHB2JndS16E2j/qrvKEjycyH6w8tU/B9vnjDRvvGrYXxEXcBEwsJVfkorFnRl9uwGCGIYrzjMhssEl3fMYZK7P304f+gAp5ULrDBX2gIaKeSa8lUNRtz2PsZOieE4kMdhk=
@@ -33,6 +36,10 @@ install_linux: &install_linux
       ocaml-native-compilers
       ocaml-findlib
       camlp4
+      awscli
+  - wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin system
+  - export OPAMYES=1
+  - opam install sedlex camlzip xml-light extlib rope ptmap
   # Setup database
   - travis_retry sudo apt-get install mysql-server-5.6 -y
   - mysql -u root -e "create user travis@localhost identified by '';"
@@ -43,7 +50,7 @@ install_linux: &install_linux
   - java -version
   # Build haxe
   - make package_src -s
-  - make -s
+  - opam config exec -- make -s
   - make package_bin -s
   - ls -l out
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
@@ -56,7 +63,7 @@ install_osx: &install_osx
   - travis_retry brew install opam;
   - export OPAMYES=1
   - opam init
-  - opam install camlp4 ocamlfind
+  - opam install camlp4 sedlex ocamlfind camlzip xml-light extlib rope ptmap
   - eval `opam config env`
   # Install neko
   - travis_retry brew install neko --HEAD;
@@ -73,6 +80,7 @@ install_osx: &install_osx
   - ls -l out
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
+  - travis_retry brew install awscli
 
 matrix:
   include:

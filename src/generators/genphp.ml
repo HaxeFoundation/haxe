@@ -344,8 +344,7 @@ let s_ident_local n =
 	| _ -> n
 
 let create_directory com ldir =
- 	let atm_path = ref (String.create 0) in
- 	atm_path := com.file;
+ 	let atm_path = ref com.file in
  	if not (Sys.file_exists com.file) then (Unix.mkdir com.file 0o755);
  	(List.iter (fun p -> atm_path := !atm_path ^ "/" ^ p; if not (Sys.file_exists !atm_path) then (Unix.mkdir !atm_path 0o755);) ldir)
 

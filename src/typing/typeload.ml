@@ -256,7 +256,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	data
 
 let parse_file_from_string com file p string =
-	parse_file_from_lexbuf com file p (Lexing.from_string string)
+	parse_file_from_lexbuf com file p (Sedlexing.Utf8.from_string string)
 
 let current_stdin = ref None (* TODO: we're supposed to clear this at some point *)
 
@@ -276,7 +276,7 @@ let parse_file com file p =
 		parse_file_from_string com file p s
 	else
 		let ch = try open_in_bin file with _ -> error ("Could not open " ^ file) p in
-		Std.finally (fun() -> close_in ch) (parse_file_from_lexbuf com file p) (Lexing.from_channel ch)
+		Std.finally (fun() -> close_in ch) (parse_file_from_lexbuf com file p) (Sedlexing.Utf8.from_channel ch)
 
 let parse_hook = ref parse_file
 let type_module_hook = ref (fun _ _ _ -> None)
@@ -3488,7 +3488,10 @@ let type_types_into_module ctx m tdecls p =
 	ctx
 
 let handle_import_hx ctx m decls p =
-	let path_split = List.tl (List.rev (Path.get_path_parts m.m_extra.m_file)) in
+	let path_split = match List.rev (Path.get_path_parts m.m_extra.m_file) with
+		| [] -> []
+		| _ :: l -> l
+	in
 	let join l = String.concat Path.path_sep (List.rev ("import.hx" :: l)) in
 	let rec loop path pack = match path,pack with
 		| _,[] -> [join path]

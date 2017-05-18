@@ -324,7 +324,7 @@ let rec handle_cast gen e real_to_t real_from_t =
 	in
 
 	let e = { e with etype = real_from_t } in
-	if try fast_eq real_to_t real_from_t with Invalid_argument("List.for_all2") -> false then e else
+	if try fast_eq real_to_t real_from_t with Invalid_argument _ -> false then e else
 	match real_to_t, real_from_t with
 		(* string is the only type that can be implicitly converted from any other *)
 		| TInst( { cl_path = ([], "String") }, []), TInst( { cl_path = ([], "String") }, [] ) ->
@@ -446,7 +446,7 @@ let rec handle_cast gen e real_to_t real_from_t =
 					List.iter2 (type_eq gen (if gen.gallow_tp_dynamic_conversion then EqRightDynamic else EqStrict)) params_from params_to;
 					e
 				with
-					| Invalid_argument("List.iter2") ->
+					| Invalid_argument _ ->
 						(*
 							this is a hack for RealTypeParams. Since there is no way at this stage to know if the class is the actual
 							EnumsToClass derived from the enum, we need to imply from possible ArgumentErrors (because of RealTypeParams interfaces),
@@ -496,7 +496,7 @@ let rec handle_cast gen e real_to_t real_from_t =
 				mk_cast true to_t e
 		| TFun(args, ret), TFun(args2, ret2) ->
 			let get_args = List.map (fun (_,_,t) -> t) in
-			(try List.iter2 (type_eq gen (EqBothDynamic)) (ret :: get_args args) (ret2 :: get_args args2); e with | Unify_error _ | Invalid_argument("List.iter2") -> mk_cast true to_t e)
+			(try List.iter2 (type_eq gen (EqBothDynamic)) (ret :: get_args args) (ret2 :: get_args args2); e with | Unify_error _ | Invalid_argument _ -> mk_cast true to_t e)
 		| _, _ ->
 			do_unsafe_cast ()
 
@@ -686,7 +686,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 				| Unify_error el ->
 						(* List.iter (fun el -> gen.gcon.warning (Typecore.unify_error_msg (print_context()) el) pos) el; *)
 						gen.gcon.warning ("This expression may be invalid") pos
-				| Invalid_argument("List.map2") ->
+				| Invalid_argument _ ->
 						gen.gcon.warning ("This expression may be invalid") pos
 			);
 
@@ -821,7 +821,7 @@ let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist 
 							{ e1 with eexpr = TField(!ef, f) },
 							elist);
 					}, elist
-				with | Invalid_argument("List.map2") ->
+				with Invalid_argument _ ->
 					gen.gcon.warning ("This expression may be invalid" ) ecall.epos;
 					{ ecall with eexpr = TCall({ e1 with eexpr = TField(!ef, f) }, elist) }, elist
 				in

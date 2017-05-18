@@ -77,7 +77,7 @@ let error_handler ctx v stack =
 	| _ -> ());*)
 	raise (Error (Hlinterp.vstr ctx.interp v Hlcode.HDyn,List.map make_pos stack))
 
-let create com api =
+let create com api _ =
 	let ctx = {
 		com = com;
 		gen = None;

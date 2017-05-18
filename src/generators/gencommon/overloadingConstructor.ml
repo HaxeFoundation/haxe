@@ -97,7 +97,7 @@ let replace_super_call com c tl with_params me p follow_type =
 					with Unify_error _ ->
 						false
 					) args with_params
-				with Invalid_argument("List.for_all2") ->
+				with Invalid_argument _ ->
 					false
 			) (cf :: cf.cf_overloads)
 		with Not_found ->

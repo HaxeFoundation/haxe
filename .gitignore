@@ -101,3 +101,6 @@ Makefile.modules
 /tests/unit/compiler_loops/All.n
 
 /tests/unit/compiler_loops/log.txt
+tests/benchs/mandelbrot/bin/
+tests/server/test/cases/
+tests/server/test.js

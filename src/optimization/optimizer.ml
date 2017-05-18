@@ -1165,6 +1165,7 @@ let rec make_constant_expression ctx ?(concat_strings=false) e =
 
 (* ---------------------------------------------------------------------- *)
 (* INLINE CONSTRUCTORS *)
+(* This version is disabled by default, use -D old-constructor-inline to use this *)
 
 (*
 	First pass :

@@ -846,13 +846,6 @@ module Transformer = struct
 		| (is_value, TBinop(OpAssignOp op,{eexpr = TField(e1,FDynamic s); etype = t},e2)) ->
 			let e = dynamic_field_read_write ae.a_next_id e1 s op e2 t in
 			transform_expr ~is_value:is_value e
-		(*
-		| (is_value, TField(e1, FClosure(Some ({cl_path = [],("str")},_),cf))) ->
-
-		| (is_value, TField(e1, FClosure(Some ({cl_path = [],("list")},_),cf))) ->
-			let e = dynamic_field_read e1 cf.cf_name ae.a_expr.etype in
-			transform_expr ~is_value:is_value e
-		*)
 		| (is_value, TBinop(OpAssign, left, right))->
 			(let left = trans true [] left in
 			let right = trans true [] right in
@@ -1264,7 +1257,9 @@ module Printer = struct
 					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2)
 				| TDynamic _, TDynamic _ ->
 					Printf.sprintf "%s(%s,%s)" (third ops) (print_expr pctx e1) (print_expr pctx e2)
-				| TDynamic _, x | x, TDynamic _ when is_list_or_anon x ->
+				| TDynamic _, x when is_list_or_anon x ->
+					Printf.sprintf "%s(%s,%s)" (third ops) (print_expr pctx e1) (print_expr pctx e2)
+				| x, TDynamic _ when is_list_or_anon x ->
 					Printf.sprintf "%s(%s,%s)" (third ops) (print_expr pctx e1) (print_expr pctx e2)
 				| _,_ -> Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (snd ops) (print_expr pctx e2))
 			| TBinop(OpMod,e1,e2) when (is_type1 "" "Int")(e1.etype) && (is_type1 "" "Int")(e2.etype) ->
@@ -1427,14 +1422,14 @@ module Printer = struct
 				Printf.sprintf "HxString.fromCharCode"
 			| FStatic({cl_path = ["python";"internal"],"UBuiltins"},{cf_name = s}) ->
 				s
-			| FClosure (Some(c,cf),_)  when call_override(name) && ((is_type "" "list")(TClassDecl c)) ->
-				Printf.sprintf "_hx_partial(python_internal_ArrayImpl.%s, %s)" name obj
-			| FInstance (c,_,cf) when call_override(name) && ((is_type "" "list")(TClassDecl c)) ->
-				Printf.sprintf "_hx_partial(python_internal_ArrayImpl.%s, %s)" name obj
-			| FClosure (Some(c,cf),_)  when call_override(name) && ((is_type "" "str")(TClassDecl c)) ->
-				Printf.sprintf "_hx_partial(HxString.%s, %s)" name obj
-			| FInstance (c,_,cf) when call_override(name) && ((is_type "" "str")(TClassDecl c)) ->
-				Printf.sprintf "_hx_partial(HxString.%s, %s)" name obj
+			| FClosure (Some(c,cf),_) when ((is_type "" "list")(TClassDecl c)) ->
+				Printf.sprintf "python_Boot.createClosure(%s, python_internal_ArrayImpl.%s)" obj name
+			| FClosure (Some(c,cf),_) when ((is_type "" "str")(TClassDecl c)) ->
+				Printf.sprintf "python_Boot.createClosure(%s, HxString.%s)" obj name
+			| FInstance (c,_,cf) when ((is_type "" "list")(TClassDecl c)) ->
+				Printf.sprintf "python_Boot.createClosure(%s, python_internal_ArrayImpl.%s)" obj name
+			| FInstance (c,_,cf) when ((is_type "" "str")(TClassDecl c)) ->
+				Printf.sprintf "python_Boot.createClosure(%s, HxString.%s)" obj name
 			| FInstance _ | FStatic _ ->
 				do_default ()
 			| FAnon cf when is_assign && call_override(name) ->

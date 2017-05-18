@@ -2158,7 +2158,8 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 		| KDyn , KInt | KDyn , KFloat | KDyn , KString -> ()
 		| KInt , KDyn | KFloat , KDyn | KString , KDyn -> ()
 		| KDyn , KDyn -> ()
-		| KParam _ , x | x , KParam _ when x <> KString && x <> KOther -> ()
+		| KParam _ , x when x <> KString && x <> KOther -> ()
+		| x , KParam _ when x <> KString && x <> KOther -> ()
 		| KAbstract _,_
 		| _,KAbstract _
 		| KDyn , KUnk

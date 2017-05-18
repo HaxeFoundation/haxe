@@ -71,7 +71,7 @@ class TestJs {
 		return try a[i] catch (e:Dynamic) null;
 	}
 
-	@:js("var a = { v : [{ b : 1}]};a;a.v.length == 1 && a.v[0].b == 1;")
+	@:js("var a_v_0_b = 1;a_v_0_b == 1;")
 	@:analyzer(no_const_propagation, no_local_dce)
 	static function testDeepMatchingWithoutClosures() {
 		var a = {v: [{b: 1}]};

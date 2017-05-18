@@ -86,6 +86,6 @@ class File {
 
 	public static function copy( srcPath : String, dstPath : String ) : Void
 	{
-		cs.system.io.File.Copy(srcPath, dstPath);
+		cs.system.io.File.Copy(srcPath, dstPath, true);
 	}
 }

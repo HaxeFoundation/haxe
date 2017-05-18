@@ -5,6 +5,7 @@ open Common
 open Common.DisplayMode
 open Type
 open DisplayOutput
+open Json
 
 exception Dirty of module_def
 
@@ -24,61 +25,115 @@ type context = {
 	mutable has_error : bool;
 }
 
+type server_message =
+	| AddedDirectory of string
+	| FoundDirectories of (string * float ref) list
+	| ChangedDirectories of (string * float) list
+	| ModulePathChanged of (module_def * float * string)
+	| NotCached of module_def
+	| Parsed of (string * string)
+	| RemovedDirectory of string
+	| Reusing of module_def
+	| SkippingDep of (module_def * module_def)
+
 let s_version =
 	Printf.sprintf "%d.%d.%d%s" version_major version_minor version_revision (match Version.version_extra with None -> "" | Some v -> " " ^ v)
 
+type timer_node = {
+	name : string;
+	path : string;
+	parent : timer_node;
+	info : string;
+	mutable time : float;
+	mutable num_calls : int;
+	mutable children : timer_node list;
+}
+
 let report_times print =
-	let tot = ref 0. in
-	Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
-	if !tot > 0. then begin
-		let buckets = Hashtbl.create 0 in
-		let add id time calls =
-			try
-				let time',calls' = Hashtbl.find buckets id in
-				Hashtbl.replace buckets id (time' +. time,calls' + calls)
-			with Not_found ->
-				Hashtbl.add buckets id (time,calls)
+	let nodes = Hashtbl.create 0 in
+	let rec root = {
+		name = "";
+		path = "";
+		parent = root;
+		info = "";
+		time = 0.;
+		num_calls = 0;
+		children = [];
+	} in
+	Hashtbl.iter (fun _ timer ->
+		let rec loop parent sl = match sl with
+			| [] -> assert false
+			| s :: sl ->
+				let path = (match parent.path with "" -> "" | _ -> parent.path ^ ".") ^ s in
+				let node = try
+					let node = Hashtbl.find nodes path in
+					node.num_calls <- node.num_calls + timer.calls;
+					node.time <- node.time +. timer.total;
+					node
+				with Not_found ->
+					let name,info = try
+						let i = String.rindex s '.' in
+						String.sub s (i + 1) (String.length s - i - 1),String.sub s 0 i
+					with Not_found ->
+						s,""
+					in
+					let node = {
+						name = name;
+						path = path;
+						parent = parent;
+						info = info;
+						time = timer.total;
+						num_calls = timer.calls;
+						children = [];
+					} in
+					Hashtbl.add nodes path node;
+					node
+				in
+				begin match sl with
+					| [] -> ()
+					| _ ->
+						let child = loop node sl in
+						if not (List.memq child node.children) then
+							node.children <- child :: node.children;
+				end;
+				node
 		in
-		Hashtbl.iter (fun _ t ->
-			let rec loop acc ids = match ids with
-				| id :: ids ->
-					add (List.rev (id :: acc)) t.total t.calls;
-					loop (id :: acc) ids
-				| [] ->
-					()
-			in
-			loop [] t.id
-		) Common.htimers;
-		let max_name = ref 0 in
-		let max_calls = ref 0 in
-		let timers = Hashtbl.fold (fun id t acc ->
-			let name,indent = match List.rev id with
-				| [] -> assert false
-				| name :: l -> name,(String.make (List.length l * 2) ' ')
-			in
-			let name,info = try
-				let i = String.rindex name '.' in
-				String.sub name (i + 1) (String.length name - i - 1),String.sub name 0 i
-			with Not_found ->
-				name,""
-			in
-			let name = indent ^ name in
-			if String.length name > !max_name then max_name := String.length name;
-			if snd t > !max_calls then max_calls := snd t;
-			(id,name,info,t) :: acc
-		) buckets [] in
-		let max_calls = String.length (string_of_int !max_calls) in
-		print (Printf.sprintf "%-*s | %7s |   %% | %*s | info" !max_name "name" "time(s)" max_calls "#");
-		let sep = String.make (!max_name + max_calls + 21) '-' in
-		print sep;
-		let timers = List.sort (fun (id1,_,_,_) (id2,_,_,_) -> compare id1 id2) timers in
-		let print_timer id name info (time,calls) =
-			print (Printf.sprintf "%-*s | %7.3f | %3.0f | %*i | %s" !max_name name time (time *. 100. /. !tot) max_calls calls info)
-		in
-		List.iter (fun (id,name,info,t) -> print_timer id name info t) timers;
-		print sep;
-		print_timer ["total"] "total" "" (!tot,0)
-	end
+		let node = loop root timer.id in
+		if not (List.memq node root.children) then
+			root.children <- node :: root.children
+	) Common.htimers;
+	let max_name = ref 0 in
+	let max_calls = ref 0 in
+	let rec loop depth node =
+		let l = (String.length node.name) + 2 * depth in
+		if l > !max_name then max_name := l;
+		List.iter (fun child ->
+			if depth = 0 then begin
+				node.num_calls <- node.num_calls + child.num_calls;
+				node.time <- node.time +. child.time;
+			end;
+			loop (depth + 1) child;
+		) node.children;
+		node.children <- List.sort (fun node1 node2 -> compare node2.time node1.time) node.children;
+		if node.num_calls > !max_calls then max_calls := node.num_calls;
+	in
+	loop 0 root;
+	let max_calls = String.length (string_of_int !max_calls) in
+	print (Printf.sprintf "%-*s | %7s |   %% |  p%% | %*s | info" !max_name "name" "time(s)" max_calls "#");
+	let sep = String.make (!max_name + max_calls + 27) '-' in
+	print sep;
+	let print_time name node =
+		if node.time > 0.0009 then
+			print (Printf.sprintf "%-*s | %7.3f | %3.0f | %3.0f | %*i | %s" !max_name name node.time (node.time *. 100. /. root.time) (node.time *. 100. /. node.parent.time) max_calls node.num_calls node.info)
+	in
+	let rec loop depth node =
+		let name = (String.make (depth * 2) ' ') ^ node.name in
+		print_time name node;
+		List.iter (loop (depth + 1)) node.children
+	in
+	List.iter (loop 0) root.children;
+	print sep;
+	print_time "total" root
 
 let default_flush ctx =
 	List.iter prerr_endline (List.rev ctx.messages);
@@ -130,11 +185,12 @@ let ssend sock str =
 			let s = Unix.send sock str pos len [] in
 			loop (pos + s) (len - s)
 	in
-	loop 0 (String.length str)
+	loop 0 (Bytes.length str)
 
 let rec wait_loop process_params verbose accept =
 	Sys.catch_break false;
 	let has_parse_error = ref false in
+	let test_server_messages = DynArray.create () in
 	let cs = CompilationServer.create () in
 	let sign_string com =
 		let sign = get_signature com in
@@ -147,6 +203,37 @@ let rec wait_loop process_params verbose accept =
 				i
 		in
 		Printf.sprintf "%2s,%3s: " sign_id (short_platform_name com.platform)
+	in
+	let process_server_message com tabs =
+		if Common.raw_defined com "compilation-server-test" then (fun message ->
+			let module_path m = JString (s_type_path m.m_path) in
+			let kind,data = match message with
+				| AddedDirectory dir -> "addedDirectory",JString dir
+				| FoundDirectories dirs -> "foundDirectories",JInt (List.length dirs)
+				| ChangedDirectories dirs -> "changedDirectories",JArray (List.map (fun (s,_) -> JString s) dirs)
+				| ModulePathChanged(m,time,file) -> "modulePathChanged",module_path m
+				| NotCached m -> "notCached",module_path m
+				| Parsed(ffile,_) -> "parsed",JString ffile
+				| RemovedDirectory dir -> "removedDirectory",JString dir
+				| Reusing m -> "reusing",module_path m
+				| SkippingDep(m,m') -> "skipping",JObject ["skipped",module_path m;"dependency",module_path m']
+			in
+			let js = JObject [("kind",JString kind);("data",data)] in
+			DynArray.add test_server_messages js;
+		) else (fun message -> match message with
+			| AddedDirectory dir -> print_endline (Printf.sprintf "%sadded directory %s" (sign_string com) dir)
+			| FoundDirectories dirs -> print_endline (Printf.sprintf "%sfound %i directories" (sign_string com) (List.length dirs));
+			| ChangedDirectories dirs ->
+				print_endline (Printf.sprintf "%schanged directories: [%s]" (sign_string com) (String.concat ", " (List.map (fun (s,_) -> "\"" ^ s ^ "\"") dirs)))
+			| ModulePathChanged(m,time,file) ->
+				print_endline (Printf.sprintf "%smodule path might have changed: %s\n\twas: %2.0f %s\n\tnow: %2.0f %s"
+					(sign_string com) (s_type_path m.m_path) m.m_extra.m_time m.m_extra.m_file time file);
+			| NotCached m -> print_endline (Printf.sprintf "%s%s not cached (%s)" (sign_string com) (s_type_path m.m_path) (if m.m_extra.m_time = -1. then "macro-in-macro" else "modified"));
+			| Parsed(ffile,info) -> print_endline (Printf.sprintf "%sparsed %s (%s)" (sign_string com) ffile info)
+			| RemovedDirectory dir -> print_endline (Printf.sprintf "%sremoved directory %s" (sign_string com) dir);
+			| Reusing m -> print_endline (Printf.sprintf "%s%sreusing %s" (sign_string com) tabs (s_type_path m.m_path));
+			| SkippingDep(m,m') -> print_endline (Printf.sprintf "%sskipping %s%s" (sign_string com) (s_type_path m.m_path) (if m == m' then "" else Printf.sprintf "(%s)" (s_type_path m'.m_path)));
+		)
 	in
 	MacroContext.macro_enable_cache := true;
 	let current_stdin = ref None in
@@ -180,7 +267,7 @@ let rec wait_loop process_params verbose accept =
 						CompilationServer.cache_file cs fkey (ftime,data);
 						"cached",false
 				end in
-				if verbose && is_unusual then print_endline (Printf.sprintf "%sparsed %s (%s)" (sign_string com2) ffile info);
+				if verbose && is_unusual then process_server_message com2 "" (Parsed(ffile,info));
 				data
 	);
 	let check_module_shadowing com paths m =
@@ -189,8 +276,7 @@ let rec wait_loop process_params verbose accept =
 			if Sys.file_exists file then begin
 				let time = file_time file in
 				if time > m.m_extra.m_time then begin
-					if verbose then print_endline (Printf.sprintf "%smodule path might have changed: %s\n\twas: %2.0f %s\n\tnow: %2.0f %s"
-						(sign_string com) (s_type_path m.m_path) m.m_extra.m_time m.m_extra.m_file time file);
+					if verbose then process_server_message com "" (ModulePathChanged(m,time,file));
 					raise Not_found
 				end
 			end
@@ -213,7 +299,7 @@ let rec wait_loop process_params verbose accept =
 			let dirs = try
 				(* Next, get all directories from the cache and filter the ones that haven't changed. *)
 				let all_dirs = CompilationServer.find_directories cs sign in
-				List.fold_left (fun acc (dir,time) ->
+				let dirs = List.fold_left (fun acc (dir,time) ->
 					try
 						let time' = stat dir in
 						if !time < time' then begin
@@ -222,7 +308,7 @@ let rec wait_loop process_params verbose accept =
 							List.iter (fun dir ->
 								if not (CompilationServer.has_directory cs sign dir) then begin
 									let time = stat dir in
-									if verbose then print_endline (Printf.sprintf "%sadded directory %s" (sign_string com) dir);
+									if verbose then process_server_message com "" (AddedDirectory dir);
 									CompilationServer.add_directory cs sign (dir,ref time)
 								end;
 							) sub_dirs;
@@ -231,9 +317,11 @@ let rec wait_loop process_params verbose accept =
 							acc
 					with Unix.Unix_error _ ->
 						CompilationServer.remove_directory cs sign dir;
-						if verbose then print_endline (Printf.sprintf "%sremoved directory %s" (sign_string com) dir);
+						if verbose then process_server_message com "" (RemovedDirectory dir);
 						acc
-				) [] all_dirs
+				) [] all_dirs in
+				if verbose then process_server_message com "" (ChangedDirectories dirs);
+				dirs
 			with Not_found ->
 				(* There were no directories in the cache, so this must be a new context. Let's add
 				   an empty list to make sure no crazy recursion happens. *)
@@ -250,7 +338,7 @@ let rec wait_loop process_params verbose accept =
 					in
 					List.iter add_dir com.class_path;
 					List.iter add_dir (Path.find_directories (platform_name com.platform) true com.class_path);
-					if verbose then print_endline (Printf.sprintf "%sfound %i directories" (sign_string com) (List.length !dirs));
+					if verbose then process_server_message com "" (FoundDirectories !dirs);
 					CompilationServer.add_directories cs sign !dirs
 				) :: !delays;
 				(* Returning [] should be fine here because it's a new context, so we won't do any
@@ -323,7 +411,7 @@ let rec wait_loop process_params verbose accept =
 					if has_policy CheckFileContentModification && not (content_changed m m.m_extra.m_file) then begin
 						if verbose then print_endline (Printf.sprintf "%s%s changed time not but content, reusing" (sign_string com2) m.m_extra.m_file)
 					end else begin
-						if verbose then print_endline (Printf.sprintf "%s%s not cached (%s)" (sign_string com2) (s_type_path m.m_path) (if m.m_extra.m_time = -1. then "macro-in-macro" else "modified"));
+						if verbose then process_server_message com2 "" (NotCached m);
 						if m.m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules m.m_extra.m_file;
 						raise Not_found;
 					end
@@ -365,7 +453,7 @@ let rec wait_loop process_params verbose accept =
 					(* this was just a dependency to check : do not add to the context *)
 					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
 				| _ ->
-					(*if verbose then print_endline (Printf.sprintf "%s%sreusing %s" (sign_string com2) tabs (s_type_path m.m_path));*)
+					if verbose then process_server_message com2 tabs (Reusing m);
 					m.m_extra.m_added <- !compilation_step;
 					List.iter (fun t ->
 						match t with
@@ -397,7 +485,7 @@ let rec wait_loop process_params verbose accept =
 			begin match check m with
 			| None -> ()
 			| Some m' ->
-				if verbose then print_endline (Printf.sprintf "%sskipping %s%s" (sign_string com2) (s_type_path m.m_path) (if m == m' then "" else Printf.sprintf "(%s)" (s_type_path m'.m_path)));
+				if verbose then process_server_message com2 "" (SkippingDep(m,m'));
 				tcheck();
 				raise Not_found;
 			end;
@@ -481,6 +569,7 @@ let rec wait_loop process_params verbose accept =
 			let data = parse_hxml_data hxml in
 			if verbose then print_endline ("Processing Arguments [" ^ String.concat "," data ^ "]");
 			(try
+				DynArray.clear test_server_messages;
 				Hashtbl.clear changed_directories;
 				Common.display_default := DMNone;
 				Parser.resume_display := null_pos;
@@ -506,6 +595,11 @@ let rec wait_loop process_params verbose accept =
 			| Arg.Bad msg ->
 				prerr_endline ("Error: " ^ msg);
 			);
+			if DynArray.length test_server_messages > 0 then begin
+				let b = Buffer.create 0 in
+				write_json (Buffer.add_string b) (JArray (DynArray.to_list test_server_messages));
+				write (Buffer.contents b)
+			end;
 			let fl = !delays in
 			delays := [];
 			List.iter (fun f -> f()) fl;
@@ -546,12 +640,12 @@ and init_wait_stdio() =
 	let berr = Buffer.create 0 in
 	let read = fun () ->
 		let len = IO.read_i32 chin in
-		IO.really_nread chin len
+		IO.really_nread_string chin len
 	in
 	let write = Buffer.add_string berr in
 	let close = fun() ->
 		IO.write_i32 cherr (Buffer.length berr);
-		IO.nwrite cherr (Buffer.contents berr);
+		IO.nwrite_string cherr (Buffer.contents berr);
 		IO.flush cherr
 	in
 	fun() ->
@@ -565,7 +659,7 @@ and init_wait_socket verbose host port =
 	if verbose then print_endline ("Waiting on " ^ host ^ ":" ^ string_of_int port);
 	Unix.listen sock 10;
 	let bufsize = 1024 in
-	let tmp = String.create bufsize in
+	let tmp = Bytes.create bufsize in
 	let accept() = (
 		let sin, _ = Unix.accept sock in
 		Unix.set_nonblock sin;
@@ -578,8 +672,8 @@ and init_wait_socket verbose host port =
 					failwith "Incomplete request"
 				else begin
 					if verbose then Printf.printf "Reading %d bytes\n" r;
-					Buffer.add_substring b tmp 0 r;
-					if tmp.[r-1] = '\000' then
+					Buffer.add_subbytes b tmp 0 r;
+					if Bytes.get tmp (r-1) = '\000' then
 						Buffer.sub b 0 (Buffer.length b - 1)
 					else
 						read_loop 0
@@ -594,7 +688,7 @@ and init_wait_socket verbose host port =
 				end
 		in
 		let read = fun() -> (let s = read_loop 0 in Unix.clear_nonblock sin; s) in
-		let write = ssend sin in
+		let write s = ssend sin (Bytes.unsafe_of_string s) in
 		let close() = Unix.close sin in
 		read, write, close
 	) in
@@ -604,7 +698,7 @@ and do_connect host port args =
 	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
 	(try Unix.connect sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port));
 	let args = ("--cwd " ^ Unix.getcwd()) :: args in
-	ssend sock (String.concat "" (List.map (fun a -> a ^ "\n") args) ^ "\000");
+	ssend sock (Bytes.of_string (String.concat "" (List.map (fun a -> a ^ "\n") args) ^ "\000"));
 	let has_error = ref false in
 	let rec print line =
 		match (if line = "" then '\x00' else line.[0]) with
@@ -623,12 +717,12 @@ and do_connect host port args =
 		let lines = (match List.rev lines with "" :: l -> List.rev l | _ -> lines) in
 		List.iter print lines;
 	in
-	let tmp = String.create 1024 in
+	let tmp = Bytes.create 1024 in
 	let rec loop() =
 		let b = Unix.recv sock tmp 0 1024 [] in
-		Buffer.add_substring buf tmp 0 b;
+		Buffer.add_subbytes buf tmp 0 b;
 		if b > 0 then begin
-			if String.get tmp (b - 1) = '\n' then begin
+			if Bytes.get tmp (b - 1) = '\n' then begin
 				process();
 				Buffer.reset buf;
 			end;

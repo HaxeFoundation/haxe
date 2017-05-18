@@ -530,6 +530,12 @@ module Fusion = struct
 			false
 
 	let use_assign_op com op e1 e2 =
+		let skip e = match com.platform with
+			| Eval -> Texpr.skip e
+			| _ -> e
+		in
+		let e1 = skip e1 in
+		let e2 = skip e2 in
 		is_assign_op op && target_handles_assign_ops com && Texpr.equal e1 e2 && not (has_side_effect e1) && match com.platform with
 			| Cs when is_null e1.etype || is_null e2.etype -> false (* C# hates OpAssignOp on Null<T> *)
 			| _ -> true

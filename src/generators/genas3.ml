@@ -338,7 +338,7 @@ let generate_resources infos =
 		let dir = (infos.com.file :: ["__res"]) in
 		create_dir [] dir;
 		let add_resource name data =
-			let name = Base64.str_encode name in
+			let name = Bytes.unsafe_to_string (Base64.str_encode name) in
 			let ch = open_out_bin (String.concat "/" (dir @ [name])) in
 			output_string ch data;
 			close_out ch
@@ -353,7 +353,7 @@ let generate_resources infos =
 		Hashtbl.iter (fun name _ ->
 			let varname = ("v" ^ (string_of_int !k)) in
 			k := !k + 1;
-			print ctx "\t\t[Embed(source = \"__res/%s\", mimeType = \"application/octet-stream\")]\n" (Base64.str_encode name);
+			print ctx "\t\t[Embed(source = \"__res/%s\", mimeType = \"application/octet-stream\")]\n" (Bytes.unsafe_to_string (Base64.str_encode name));
 			print ctx "\t\tpublic static var %s:Class;\n" varname;
 			inits := ("list[\"" ^ Ast.s_escape name ^ "\"] = " ^ varname ^ ";") :: !inits;
 		) infos.com.resources;

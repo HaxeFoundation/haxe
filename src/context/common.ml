@@ -520,6 +520,7 @@ module Define = struct
 		| NoSwfCompress
 		| NoTraces
 		| Objc
+		| OldConstructorInline
 		| PhpPrefix
 		| RealPosition
 		| ReplaceFiles
@@ -617,6 +618,7 @@ module Define = struct
 		| NoSwfCompress -> ("no_swf_compress","Disable SWF output compression")
 		| NoTraces -> ("no_traces","Disable all trace calls")
 		| Objc -> ("objc","Sets the hxcpp output to objective-c++ classes. Must be defined for interop")
+		| OldConstructorInline -> ("old-constructor-inline","Use old constructor inlining logic (from haxe 3.4.2) instead of the reworked version.")
 		| PhpPrefix -> ("php_prefix","Compiled with --php-prefix")
 		| RealPosition -> ("real_position","Disables Haxe source mapping when targetting C#, removes position comments in Java and Php7 output")
 		| ReplaceFiles -> ("replace_files","GenCommon internal")
@@ -654,6 +656,7 @@ let short_platform_name = function
 	| Java -> "jav"
 	| Python -> "py"
 	| Hl -> "hl"
+	| Eval -> "evl"
 
 let stats =
 	{
@@ -761,6 +764,12 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_can_skip_non_nullable_argument = false;
+		}
+	| Eval ->
+		{
+			default_config with
+			pf_static = false;
+			pf_pad_nulls = true;
 		}
 
 let memory_marker = [|Unix.time()|]

@@ -260,7 +260,7 @@ let build_swf9 com file swc =
 		if String.length file > 5 && String.sub file 0 5 = "data:" then
 			String.sub file 5 (String.length file - 5)
 		else
-			(try Std.input_file ~bin:true file with Invalid_argument("String.create") -> abort "File is too big (max 16MB allowed)" p | _  -> abort "File not found" p)
+			(try Std.input_file ~bin:true file with Invalid_argument _ -> abort "File is too big (max 16MB allowed)" p | _  -> abort "File not found" p)
 	in
 	let bmp = List.fold_left (fun acc t ->
 		match t with
@@ -358,11 +358,11 @@ let build_swf9 com file swc =
 						| Png.ClTrueColor (Png.TBits8,Png.HaveAlpha) ->
 							let data = Extc.unzip (Png.data png) in
 							let raw_data = Png.filter png data in
-							let alpha = String.make (h.Png.png_width * h.Png.png_height) '\000' in
-							for i = 0 to String.length alpha do
-								String.unsafe_set alpha i (String.unsafe_get raw_data (i lsl 2));
+							let alpha = Bytes.make (h.Png.png_width * h.Png.png_height) '\000' in
+							for i = 0 to Bytes.length alpha do
+								Bytes.unsafe_set alpha i (String.unsafe_get raw_data (i lsl 2));
 							done;
-							Extc.zip alpha
+							Extc.zip (Bytes.unsafe_to_string alpha)
 						| _ -> abort "PNG file must contain 8 bit alpha channel" p2
 					) in
 					incr cid;
@@ -384,9 +384,9 @@ let build_swf9 com file swc =
 						| SWAV ->
 							(try
 								let i = IO.input_string data in
-								if IO.nread i 4 <> "RIFF" then raise Exit;
+								if IO.nread_string i 4 <> "RIFF" then raise Exit;
 								ignore(IO.nread i 4); (* size *)
-								if IO.nread i 4 <> "WAVE" || IO.nread i 4 <> "fmt " then raise Exit;
+								if IO.nread_string i 4 <> "WAVE" || IO.nread_string i 4 <> "fmt " then raise Exit;
 								let chunk_size = IO.read_i32 i in
 								if not (chunk_size = 0x10 || chunk_size = 0x12 || chunk_size = 0x40) then failwith ("Unsupported chunk size " ^ string_of_int chunk_size);
 								if IO.read_ui16 i <> 1 then failwith "Not a PCM file";
@@ -397,9 +397,9 @@ let build_swf9 com file swc =
 								ignore(IO.read_i16 i);
 								let bits = IO.read_ui16 i in
 								if chunk_size <> 0x10 then ignore(IO.nread i (chunk_size - 0x10));
-								if IO.nread i 4 <> "data" then raise Exit;
+								if IO.nread_string i 4 <> "data" then raise Exit;
 								let data_size = IO.read_i32 i in
-								let data = IO.nread i data_size in
+								let data = IO.nread_string i data_size in
 								make_flags 0 (chan = 1) freq bits, (data_size * 8 / (chan * bits)), data
 							with Exit | IO.No_more_input | IO.Overflow _ ->
 								abort "Invalid WAV file" p
@@ -418,7 +418,7 @@ let build_swf9 com file swc =
 										()
 									| 0x49 ->
 										(* ID3 *)
-										if IO.nread i 2 <> "D3" then raise Exit;
+										if IO.nread_string i 2 <> "D3" then raise Exit;
 										ignore(IO.read_ui16 i); (* version *)
 										ignore(IO.read_byte i); (* flags *)
 										let size = IO.read_byte i land 0x7F in
@@ -429,7 +429,7 @@ let build_swf9 com file swc =
 										read_frame()
 									| 0x54 ->
 										(* TAG and TAG+ *)
-										if IO.nread i 3 = "AG+" then ignore(IO.nread i 223) else ignore(IO.nread i 124);
+										if IO.nread_string i 3 = "AG+" then ignore(IO.nread i 223) else ignore(IO.nread i 124);
 										read_frame()
 									| 0xFF ->
 										let infos = IO.read_byte i in

@@ -515,7 +515,7 @@ let set_default ctx a c p =
 let bytes_serialize data =
 	let b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/" in
 	let tbl = Array.init (String.length b64) (fun i -> String.get b64 i) in
-	Base64.str_encode ~tbl data
+	Bytes.unsafe_to_string (Base64.str_encode ~tbl data)
 
 (*
 	Tells if the constructor might be called without any issue whatever its parameters
@@ -855,7 +855,7 @@ let interpolate_code com code tl f_string f_expr p =
 				let expr = Array.get exprs (int_of_string n) in
 				f_expr expr;
 			with
-			| Failure "int_of_string" ->
+			| Failure _ ->
 				f_string ("{" ^ n ^ "}");
 			| Invalid_argument _ ->
 				err ("Out-of-bounds special parameter: " ^ n)

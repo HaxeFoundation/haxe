@@ -527,11 +527,11 @@ let builtins =
 		"sset", Fun3 (fun s p c ->
 			let c = char_of_int ((vint c) land 0xFF) in
 			try
-				String.set (vstring s) (vint p) c;
+				Bytes.set (Bytes.unsafe_of_string (vstring s)) (vint p) c;
 				VInt (int_of_char c)
 			with Invalid_argument _ -> VNull);
 		"sblit", Fun5 (fun dst dstp src p l ->
-			String.blit (vstring src) (vint p) (vstring dst) (vint dstp) (vint l);
+			String.blit (vstring src) (vint p) (Bytes.unsafe_of_string (vstring dst)) (vint dstp) (vint l);
 			VNull
 		);
 		"sfind", Fun3 (fun src pos pat ->
@@ -1036,7 +1036,7 @@ let std_lib =
 			| VString s, VString b ->
 				if String.length b <> 64 then assert false;
 				let tbl = Array.init 64 (String.unsafe_get b) in
-				VString (Base64.str_encode ~tbl s)
+				VString (Bytes.unsafe_to_string (Base64.str_encode ~tbl s))
 			| _ -> error()
 		);
 		"base_decode", Fun2 (fun s b ->
@@ -1044,7 +1044,7 @@ let std_lib =
 			let b = vstring b in
 			if String.length b <> 64 then assert false;
 			let tbl = Array.init 64 (String.unsafe_get b) in
-			VString (Base64.str_decode ~tbl:(Base64.make_decoding_table tbl) s)
+			VString (Base64.str_decode ~tbl:(Base64.make_decoding_table tbl) (Bytes.unsafe_of_string s))
 		);
 		"make_md5", Fun1 (fun s ->
 			VString (Digest.string (vstring s))
@@ -1171,13 +1171,13 @@ let std_lib =
 		(* file_name *)
 		"file_write", Fun4 (fun f s p l ->
 			match f, s, p, l with
-			| VAbstract (AFWrite f), VString s, VInt p, VInt l -> output f s p l; VInt l
+			| VAbstract (AFWrite f), VString s, VInt p, VInt l -> output_substring f s p l; VInt l
 			| _ -> error()
 		);
 		"file_read", Fun4 (fun f s p l ->
 			match f, s, p, l with
 			| VAbstract (AFRead (f,r)), VString s, VInt p, VInt l ->
-				let n = input f s p l in
+				let n = input f (Bytes.unsafe_of_string s) p l in
 				if n = 0 then begin
 					r := true;
 					exc (VArray [|VString "file_read"|]);
@@ -1249,26 +1249,26 @@ let std_lib =
 		"socket_send_char", Fun2 (fun s c ->
 			match s, c with
 			| VAbstract (ASocket s), VInt c when c >= 0 && c <= 255 ->
-				ignore(Unix.send s (String.make 1 (char_of_int c)) 0 1 []);
+				ignore(Unix.send s (Bytes.make 1 (char_of_int c)) 0 1 []);
 				VNull
 			| _ -> error()
 		);
 		"socket_send", Fun4 (fun s buf pos len ->
 			match s, buf, pos, len with
-			| VAbstract (ASocket s), VString buf, VInt pos, VInt len -> VInt (Unix.send s buf pos len [])
+			| VAbstract (ASocket s), VString buf, VInt pos, VInt len -> VInt (Unix.send s (Bytes.unsafe_of_string buf) pos len [])
 			| _ -> error()
 		);
 		"socket_recv", Fun4 (fun s buf pos len ->
 			match s, buf, pos, len with
-			| VAbstract (ASocket s), VString buf, VInt pos, VInt len -> VInt (Unix.recv s buf pos len [])
+			| VAbstract (ASocket s), VString buf, VInt pos, VInt len -> VInt (Unix.recv s (Bytes.unsafe_of_string buf) pos len [])
 			| _ -> error()
 		);
 		"socket_recv_char", Fun1 (fun s ->
 			match s with
 			| VAbstract (ASocket s) ->
-				let buf = String.make 1 '\000' in
+				let buf = Bytes.make 1 '\000' in
 				ignore(Unix.recv s buf 0 1 []);
-				VInt (int_of_char (String.unsafe_get buf 0))
+				VInt (int_of_char (Bytes.unsafe_get buf 0))
 			| _ -> error()
 		);
 		"socket_write", Fun2 (fun s str ->
@@ -1277,7 +1277,7 @@ let std_lib =
 				let pos = ref 0 in
 				let len = ref (String.length str) in
 				while !len > 0 do
-					let k = Unix.send s str (!pos) (!len) [] in
+					let k = Unix.send s (Bytes.unsafe_of_string str) (!pos) (!len) [] in
 					pos := !pos + k;
 					len := !len - k;
 				done;
@@ -1287,12 +1287,12 @@ let std_lib =
 		"socket_read", Fun1 (fun s ->
 			match s with
 			| VAbstract (ASocket s) ->
-				let tmp = String.make 1024 '\000' in
+				let tmp = Bytes.make 1024 '\000' in
 				let buf = Buffer.create 0 in
 				let rec loop() =
 					let k = (try Unix.recv s tmp 0 1024 [] with Unix_error _ -> 0) in
 					if k > 0 then begin
-						Buffer.add_substring buf tmp 0 k;
+						Buffer.add_subbytes buf tmp 0 k;
 						loop();
 					end
 				in
@@ -1775,7 +1775,7 @@ let z_lib =
 		"inflate_buffer", Fun5 (fun z src pos dst dpos ->
 			match z, src, pos, dst, dpos with
 			| VAbstract (AZipI z), VString src, VInt pos, VString dst, VInt dpos ->
-				let r = Extc.zlib_inflate z.z src pos (String.length src - pos) dst dpos (String.length dst - dpos) z.z_flush in
+				let r = Extc.zlib_inflate z.z src pos (String.length src - pos) (Bytes.unsafe_of_string dst) dpos (String.length dst - dpos) z.z_flush in
 				VObject (obj (hash_field (get_ctx())) [
 					"done", VBool r.Extc.z_finish;
 					"read", VInt r.Extc.z_read;
@@ -1786,7 +1786,7 @@ let z_lib =
 		"deflate_buffer", Fun5 (fun z src pos dst dpos ->
 			match z, src, pos, dst, dpos with
 			| VAbstract (AZipD z), VString src, VInt pos, VString dst, VInt dpos ->
-				let r = Extc.zlib_deflate z.z src pos (String.length src - pos) dst dpos (String.length dst - dpos) z.z_flush in
+				let r = Extc.zlib_deflate z.z src pos (String.length src - pos) (Bytes.unsafe_of_string dst) dpos (String.length dst - dpos) z.z_flush in
 				VObject (obj (hash_field (get_ctx())) [
 					"done", VBool r.Extc.z_finish;
 					"read", VInt r.Extc.z_read;
@@ -2653,7 +2653,7 @@ let load_prim ctx f n =
 	| _ ->
 		exc (VString (value_match_failure "Invalid call" ["VString";"VInt"] [f;n]))
 
-let create com api =
+let create com api _ =
 	let loader = obj hash [
 		"args",VArray (Array.of_list (List.map (fun s -> VString s) com.sys_args));
 		"loadprim",VFunction (Fun2 (fun a b -> (get_ctx()).do_loadprim a b));
@@ -2807,7 +2807,7 @@ let decode_string v =
 
 let decode_bytes v =
 	match field v "b" with
-	| VString s -> s
+	| VString s -> (Bytes.unsafe_of_string s)
 	| _ -> raise Invalid_expr
 
 let decode_array v =
@@ -2867,8 +2867,8 @@ let encode_string s =
 
 let encode_bytes s =
 	encode_inst ["haxe";"io";"Bytes"] [
-		"b", VString s;
-		"length", VInt (String.length s)
+		"b", VString (Bytes.unsafe_to_string s);
+		"length", VInt (Bytes.length s)
 	]
 
 let encode_hash h =
