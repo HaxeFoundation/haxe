@@ -1319,8 +1319,8 @@ and jump_expr ctx e jcond =
 		free ctx r1;
 		let unsigned = unsigned_op e1 e2 in
 		jump ctx (fun i ->
-			let lt a b = if unsigned then OJULt (a,b,i) else OJSLt (a,b,i) in
-			let gte a b = if unsigned then OJUGte (a,b,i) else OJSGte (a,b,i) in
+			let lt a b = if unsigned then OJULt (a,b,i) else if not jcond && is_float t then OJNotGte (b,a,i) else OJSLt (a,b,i) in
+			let gte a b = if unsigned then OJUGte (a,b,i) else if not jcond && is_float t then OJNotLt (b,a,i) else OJSGte (a,b,i) in
 			match jop with
 			| OpEq -> if jcond then OJEq (r1,r2,i) else OJNotEq (r1,r2,i)
 			| OpNotEq -> if jcond then OJNotEq (r1,r2,i) else OJEq (r1,r2,i)

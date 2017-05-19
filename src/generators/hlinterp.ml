@@ -883,6 +883,8 @@ let interp ctx f args =
 		| OJSLte (a,b,i) -> if vcompare a b (<=) then pos := !pos + i
 		| OJULt (a,b,i) -> if ucompare (get a) (get b) < 0 then pos := !pos + i
 		| OJUGte (a,b,i) -> if ucompare (get a) (get b) >= 0 then pos := !pos + i
+		| OJNotLt (a,b,i) -> if not (vcompare a b (<)) then pos := !pos + i
+		| OJNotGte (a,b,i) -> if not (vcompare a b (>=)) then pos := !pos + i
 		| OJEq (a,b,i) -> if vcompare a b (=) then pos := !pos + i
 		| OJNotEq (a,b,i) -> if not (vcompare a b (=)) then pos := !pos + i
 		| OJAlways i -> pos := !pos + i
@@ -2281,7 +2283,7 @@ let check code macros =
 			| OJNull (r,delta) | OJNotNull (r,delta) ->
 				ignore(rtype r);
 				can_jump delta
-			| OJUGte (a,b,delta) | OJULt (a,b,delta) | OJSGte (a,b,delta) | OJSLt (a,b,delta) | OJSGt (a,b,delta) | OJSLte (a,b,delta) ->
+			| OJUGte (a,b,delta) | OJULt (a,b,delta) | OJSGte (a,b,delta) | OJSLt (a,b,delta) | OJSGt (a,b,delta) | OJSLte (a,b,delta) | OJNotLt (a,b,delta) | OJNotGte (a,b,delta) ->
 				if not (safe_cast (rtype a) (rtype b)) then reg b (rtype a);
 				can_jump delta
 			| OJEq (a,b,delta) | OJNotEq (a,b,delta) ->
@@ -2781,8 +2783,10 @@ let make_spec (code:code) (f:fundecl) =
 			| OJSGte (a,b,_) -> semit (SJComp (">=",args.(a),args.(b)))
 			| OJSGt (a,b,_) -> semit (SJComp (">",args.(a),args.(b)))
 			| OJSLte (a,b,_) -> semit (SJComp ("<=",args.(a),args.(b)))
-			| OJULt (a,b,_) -> semit (SJComp ("<!",args.(a),args.(b)))
-			| OJUGte (a,b,_) -> semit (SJComp (">=!",args.(a),args.(b)))
+			| OJULt (a,b,_) -> semit (SJComp ("<U",args.(a),args.(b)))
+			| OJUGte (a,b,_) -> semit (SJComp (">=U",args.(a),args.(b)))
+			| OJNotLt (a,b,_) -> semit (SJComp ("not<",args.(a),args.(b)))
+			| OJNotGte (a,b,_) -> semit (SJComp ("not>=",args.(a),args.(b)))
 			| OJEq (a,b,_) -> semit (SJComp ("==",args.(a),args.(b)))
 			| OJNotEq (a,b,_) -> semit (SJComp ("!=",args.(a),args.(b)))
 			| OJAlways _ -> semit SJump
