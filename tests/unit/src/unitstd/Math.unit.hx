@@ -432,3 +432,10 @@ math.isNaN(math.POSITIVE_INFINITY) == false;
 math.isNaN(math.NEGATIVE_INFINITY) == false;
 math.isNaN(math.NaN) == true;
 math.isNaN(0.0) == false;
+
+// atan2
+math.atan2(0,1) == 0;
+math.atan2(0,1000) == 0;
+math.atan2(1,0) == Math.PI/2;
+math.atan2(-1,0) == -Math.PI/2;
+math.atan2(0,0) == 0;
