@@ -863,6 +863,9 @@ class RunCi {
 						  changeDirectory(sysDir);
 						  runCommand("haxe", ["compile-lua.hxml"].concat(args));
 						  runCommand("lua", ["bin/lua/sys.lua"]);
+
+						  changeDirectory(miscDir + "");
+						  runCommand("haxe", ["compile.hxml"]);
 						}
 					case Cpp:
 						getCppDependencies();
