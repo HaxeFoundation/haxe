@@ -3,7 +3,7 @@ version: "{build}"
 environment:
     global:
         HAXELIB_ROOT: C:/projects/haxelib
-        CYG_ROOT: C:/cygwin
+        CYG_ROOT: C:/cygwin64
         ADD_REVISION: 1
         MYSQL_PATH: C:\Program Files\MySQL\MySQL Server 5.7
         MYSQL_USER: root
