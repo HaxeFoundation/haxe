@@ -833,7 +833,7 @@ and gen_member_access ctx isvar e s =
 	| _ -> print ctx "->%s" (if isvar then s_ident_field s else s_ident s)
 
 and gen_field_access ctx isvar e s =
-	match e.eexpr with
+	match (reveal_expr e).eexpr with
 	| TTypeExpr t ->
 		let isglobal = match t with
 		| TClassDecl(c) -> Meta.has Meta.PhpGlobal c.cl_meta && c.cl_extern
