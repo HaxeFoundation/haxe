@@ -10,6 +10,7 @@ xxxx-xx-xx: 3.4.3
 	php/php7: fixed accessing enum constructors on enum type stored to a variable (#6159)
 	php/php7: fix "cannot implement previously implemented interface" (#6208)
 	php: fix invoking functions stored in dynamic static vars (#6158)
+	php: fix field access on `new MyClass()` expressions wrapped in a `cast` (#6294)
 	macro : fixed bug in addClassPath that overwrites macro class paths with context class paths
 
 2017-03-20: 3.4.2
