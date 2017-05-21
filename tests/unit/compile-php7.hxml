@@ -3,3 +3,4 @@ compile-each.hxml
 -lib record-macros
 -php bin/php7
 -D php7
+-D dump=ast
