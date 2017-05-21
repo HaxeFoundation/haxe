@@ -70,6 +70,8 @@ let keywords =
 	"thread2";"__declspec";"__finally";"__int64";"__try";"dllexport2";"__inline";"__leave";"asm";
 	(* reserved by HLC *)
 	"t";
+	(* GCC *)
+	"typeof";
 	(* C11 *)
 	"_Alignas";"_Alignof";"_Atomic";"_Bool";"_Complex";"_Generic";"_Imaginary";"_Noreturn";"_Static_assert";"_Thread_local";"_Pragma";
 	"inline";"restrict"
