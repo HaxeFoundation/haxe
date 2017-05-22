@@ -229,15 +229,13 @@ and jit_expr jit return e =
 		let jit_closure = EvalJitContext.create ctx in
 		jit_closure.captures <- jit.captures;
 		jit_closure.capture_infos <- jit.capture_infos;
-		push_scope jit_closure e.epos;
-		let varaccs = List.map (fun (var,_) -> declare_local jit_closure var) tf.tf_args in
-		let exec = jit_expr jit_closure true tf.tf_expr in
-		pop_scope jit_closure;
-		let args = List.map (fun (_,cto) -> Option.map_default eval_const vnull cto) tf.tf_args in
 		jit.num_closures <- jit.num_closures + 1;
+		let exec = jit_tfunction jit_closure true e.epos tf in
 		let num_captures = Hashtbl.length jit.captures in
-		let info = create_env_info true (file_hash e.epos.pfile) (EKLocalFunction jit.num_closures) jit_closure.capture_infos in
-		emit_closure jit.ctx info jit_closure.has_nonfinal_return jit_closure.max_local_count num_captures varaccs args exec
+		let hasret = jit_closure.has_nonfinal_return in
+		let get_env = get_env jit_closure false (file_hash tf.tf_expr.epos.pfile) (EKLocalFunction jit.num_closures) in
+		let num_args = List.length tf.tf_args in
+		emit_closure ctx num_captures num_args get_env hasret exec
 	(* branching *)
 	| TIf(e1,e2,eo) ->
 		let exec_cond = jit_expr jit false e1 in
@@ -738,135 +736,59 @@ and jit_expr jit return e =
 	end else
 		f
 
+and jit_tfunction jit static pos tf =
+	let ctx = jit.ctx in
+	push_scope jit pos;
+	(* Declare `this` (if not static) and function arguments as local variables. *)
+	if not static then ignore(declare_local_this jit);
+	let varaccs = ExtList.List.filter_map (fun (var,_) ->
+		let slot = add_local jit var in
+		if var.v_capture then Some (slot,add_capture jit var) else None
+	) tf.tf_args in
+	(* Add conditionals for default values. *)
+	let e = List.fold_left (fun e (v,cto) -> match cto with
+		| None -> e
+		| Some ct -> concat (Codegen.set_default (ctx.curapi.MacroApi.get_com()) v ct e.epos) e
+	) tf.tf_expr tf.tf_args in
+	(* Jit the function expression. *)
+	let exec = jit_expr jit true e in
+	(* Deal with captured arguments, if necessary. *)
+	let exec = match varaccs with
+		| [] -> exec
+		| _ -> handle_capture_arguments exec varaccs
+	in
+	pop_scope jit;
+	exec
+
+and get_env jit static file info =
+	let ctx = jit.ctx in
+	let num_locals = jit.max_num_locals in
+	let num_captures = Hashtbl.length jit.captures in
+	let info = create_env_info static file info jit.capture_infos in
+	if ctx.record_stack || num_captures > 0 then begin
+		match info.kind with
+		| EKLocalFunction _ -> get_closure_env ctx info num_locals num_captures
+		| _ -> get_normal_env ctx info num_locals num_captures
+	end else begin
+		let default_env = create_default_environment ctx info num_locals in
+		match info.kind with
+		| EKLocalFunction _ -> get_closure_env_opt ctx default_env info num_locals num_captures
+		| _ -> get_normal_env_opt ctx default_env info num_locals num_captures
+	end
+
 (* Creates a [EvalValue.vfunc] of function [tf], which can be [static] or not. *)
 let jit_tfunction ctx key_type key_field tf static pos =
 	let t = Common.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
 	(* Create a new JitContext with an initial scope *)
 	let jit = EvalJitContext.create ctx in
-	push_scope jit pos;
-	(* Declare `this` (if not static) and function arguments as local variables. *)
-	let varaccs = if static then [] else [declare_local_this jit] in
-	let varaccs = varaccs @ List.map (fun (var,_) -> declare_local jit var) tf.tf_args in
-	(* Jit the function expression and pop the scope. *)
-	let exec = jit_expr jit true tf.tf_expr in
-	pop_scope jit;
-	(* Create a list of default values for the function arguments. *)
-	let args = List.map (fun (_,cto) -> Option.map_default eval_const vnull cto) tf.tf_args in
-	let args = if static then args else vnull :: args in
-	t();
+	let exec = jit_tfunction jit static pos tf in
 	(* Create the [vfunc] instance depending on the number of arguments. *)
-	let local_count = jit.max_local_count in
-	let capture_count = Hashtbl.length jit.captures in
 	let hasret = jit.has_nonfinal_return in
-	let info = create_env_info static (file_hash tf.tf_expr.epos.pfile) (EKMethod(key_type,key_field)) jit.capture_infos in
-	let default_env = create_default_environment ctx info local_count in
-	if capture_count > 0 then default_env.env_in_use <- true;
-	let get_env () =
-		if ctx.record_stack || default_env.env_in_use then begin
-			push_environment ctx info local_count capture_count
-		end else begin
-			default_env.env_in_use <- true;
-			default_env
-		end
-	in
-	match args,varaccs with
-	| [],[] ->
-		if hasret then Fun0 (fun () ->
-			let env = get_env () in
-			run_function ctx exec env
-		)
-		else Fun0 (fun () ->
-			let env = get_env () in
-			run_function_noret ctx exec env
-		)
-	| [arg1],[varacc1] ->
-		if hasret then Fun1 (fun v1 ->
-			let env = get_env () in
-			handle_function_argument arg1 varacc1 v1 env;
-			run_function ctx exec env
-		)
-		else Fun1 (fun v1 ->
-			let env = get_env () in
-			handle_function_argument arg1 varacc1 v1 env;
-			run_function_noret ctx exec env
-		)
-	| [arg1;arg2],[varacc1;varacc2] ->
-		let run v1 v2 =
-			let env = get_env () in
-			handle_function_argument arg1 varacc1 v1 env;
-			handle_function_argument arg2 varacc2 v2 env;
-			env
-		in
-		if hasret then Fun2 (fun v1 v2 ->
-			let env = run v1 v2 in
-			run_function ctx exec env
-		)
-		else Fun2 (fun v1 v2 ->
-			let env = run v1 v2 in
-			run_function_noret ctx exec env
-		)
-	| [arg1;arg2;arg3],[varacc1;varacc2;varacc3] ->
-		let run v1 v2 v3 =
-			let env = get_env () in
-			handle_function_argument arg1 varacc1 v1 env;
-			handle_function_argument arg2 varacc2 v2 env;
-			handle_function_argument arg3 varacc3 v3 env;
-			env
-		in
-		if hasret then Fun3 (fun v1 v2 v3 ->
-			let env = run v1 v2 v3 in
-			run_function ctx exec env
-		)
-		else Fun3 (fun v1 v2 v3 ->
-			let env = run v1 v2 v3 in
-			run_function_noret ctx exec env
-		)
-	| [arg1;arg2;arg3;arg4],[varacc1;varacc2;varacc3;varacc4] ->
-		let run v1 v2 v3 v4 =
-			let env = get_env () in
-			handle_function_argument arg1 varacc1 v1 env;
-			handle_function_argument arg2 varacc2 v2 env;
-			handle_function_argument arg3 varacc3 v3 env;
-			handle_function_argument arg4 varacc4 v4 env;
-			env
-		in
-		if hasret then Fun4 (fun v1 v2 v3 v4 ->
-			let env = run v1 v2 v3 v4 in
-			run_function ctx exec env
-		)
-		else Fun4 (fun v1 v2 v3 v4 ->
-			let env = run v1 v2 v3 v4 in
-			run_function_noret ctx exec env
-		)
-	| [arg1;arg2;arg3;arg4;arg5],[varacc1;varacc2;varacc3;varacc4;varacc5] ->
-		let run v1 v2 v3 v4 v5 =
-			let env = get_env () in
-			handle_function_argument arg1 varacc1 v1 env;
-			handle_function_argument arg2 varacc2 v2 env;
-			handle_function_argument arg3 varacc3 v3 env;
-			handle_function_argument arg4 varacc4 v4 env;
-			handle_function_argument arg5 varacc5 v5 env;
-			env
-		in
-		if hasret then Fun5 (fun v1 v2 v3 v4 v5 ->
-			let env = run v1 v2 v3 v4 v5 in
-			run_function ctx exec env
-		)
-		else Fun5 (fun v1 v2 v3 v4 v5 ->
-			let env = run v1 v2 v3 v4 v5 in
-			run_function_noret ctx exec env
-		)
-	| _ ->
-		if hasret then FunN (fun vl ->
-			let env = get_env () in
-			handle_function_arguments args varaccs vl env;
-			run_function ctx exec env
-		)
-		else FunN (fun vl ->
-			let env = get_env () in
-			handle_function_arguments args varaccs vl env;
-			run_function_noret ctx exec env
-		)
+	let get_env = get_env jit static (file_hash tf.tf_expr.epos.pfile) (EKMethod(key_type,key_field)) in
+	let num_args = List.length tf.tf_args + (if not static then 1 else 0) in
+	let f = create_function ctx num_args get_env hasret empty_array exec in
+	t();
+	f
 
 (* JITs expression [e] to a function. This is used for expressions that are not in a method. *)
 let jit_expr ctx e =

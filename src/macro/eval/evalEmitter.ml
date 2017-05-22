@@ -1260,32 +1260,11 @@ let emit_neg exec p env = match exec env with
 
 (* Function *)
 
-let handle_function_argument vdef varacc v env =
-	let v = match v with
-		| VNull -> vdef
-		| _ -> v
-	in
-	begin match varacc with
-		| Local slot -> env.env_locals.(slot) <- v
-		| Env slot -> env.env_captures.(slot) <- ref v
-	end
-[@@inline]
-
-let handle_function_arguments args varaccs vl' env =
-	let rec loop args varaccs vl env = match args,varaccs with
-		| (vdef :: args),(varacc :: varaccs) ->
-			let v,vl = match vl with
-				| [] -> VNull,[]
-				| v :: vl -> v,vl
-			in
-			handle_function_argument vdef varacc v env;
-			loop args varaccs vl env
-		| [],[] ->
-			()
-		| _ ->
-			invalid_call_arg_number (List.length args) (List.length vl')
-	in
-	loop args varaccs vl' env
+let handle_capture_arguments exec varaccs env =
+	List.iter (fun (slot,i) ->
+		env.env_captures.(i) <- ref env.env_locals.(slot)
+	) varaccs;
+	exec env
 
 let run_function ctx exec env =
 	let v = try
@@ -1305,33 +1284,137 @@ let run_function_noret ctx exec env =
 	v
 [@@inline]
 
-let create_env_function ctx info num_locals num_captures =
-	if ctx.record_stack || num_captures > 0 then
-		(fun () ->
-			push_environment ctx info num_locals num_captures
-		)
-	else begin
-		let default_env = lazy (create_default_environment ctx info num_locals) in
-		(fun () ->
-			let default_env = Lazy.force default_env in
-			if default_env.env_in_use then begin
-				push_environment ctx info num_locals num_captures
-			end else begin
-				default_env.env_in_use <- true;
-				default_env
-			end
-		)
+let get_normal_env ctx info num_locals num_captures _ =
+	push_environment ctx info num_locals num_captures
+
+let get_closure_env ctx info num_locals num_captures refs =
+	let env = push_environment ctx info num_locals num_captures in
+	Array.iteri (fun i vr -> env.env_captures.(i) <- vr) refs;
+	env
+
+let get_normal_env_opt ctx default_env info num_locals num_captures _ =
+	if default_env.env_in_use then begin
+		push_environment ctx info num_locals num_captures
+	end else begin
+		default_env.env_in_use <- true;
+		default_env
 	end
 
-let emit_closure ctx info hasret num_locals num_captures varaccs args exec =
-	let run_function = if hasret then run_function else run_function_noret in
-	let get_env = create_env_function ctx info num_locals num_captures in
-	fun env ->
-		let refs = Array.sub env.env_captures 0 num_captures in
-		let f = fun vl ->
-			let env = get_env () in
-			Array.iteri (fun i vr -> env.env_captures.(i) <- vr) refs;
-			handle_function_arguments args varaccs vl env;
+let get_closure_env_opt ctx default_env info num_locals num_captures refs =
+	let env = if default_env.env_in_use then begin
+		push_environment ctx info num_locals num_captures
+	end else begin
+		default_env.env_in_use <- true;
+		default_env
+	end in
+	Array.iteri (fun i vr -> env.env_captures.(i) <- vr) refs;
+	env
+
+let create_function ctx num_args get_env hasret refs exec =
+	match num_args with
+	| 0 ->
+		if hasret then Fun0 (fun () ->
+			let env = get_env refs in
 			run_function ctx exec env
+		)
+		else Fun0 (fun () ->
+			let env = get_env refs in
+			run_function_noret ctx exec env
+		)
+	| 1 ->
+		if hasret then Fun1 (fun v1 ->
+			let env = get_env refs in
+			env.env_locals.(0) <- v1;
+			run_function ctx exec env
+		)
+		else Fun1 (fun v1 ->
+			let env = get_env refs in
+			env.env_locals.(0) <- v1;
+			run_function_noret ctx exec env
+		)
+	| 2 ->
+		let run v1 v2 =
+			let env = get_env refs in
+			env.env_locals.(0) <- v1;
+			env.env_locals.(1) <- v2;
+			env
 		in
-		vstatic_function (FunN f)
+		if hasret then Fun2 (fun v1 v2 ->
+			let env = run v1 v2 in
+			run_function ctx exec env
+		)
+		else Fun2 (fun v1 v2 ->
+			let env = run v1 v2 in
+			run_function_noret ctx exec env
+		)
+	| 3 ->
+		let run v1 v2 v3 =
+			let env = get_env refs in
+			env.env_locals.(0) <- v1;
+			env.env_locals.(1) <- v2;
+			env.env_locals.(2) <- v3;
+			env
+		in
+		if hasret then Fun3 (fun v1 v2 v3 ->
+			let env = run v1 v2 v3 in
+			run_function ctx exec env
+		)
+		else Fun3 (fun v1 v2 v3 ->
+			let env = run v1 v2 v3 in
+			run_function_noret ctx exec env
+		)
+	| 4 ->
+		let run v1 v2 v3 v4 =
+			let env = get_env refs in
+			env.env_locals.(0) <- v1;
+			env.env_locals.(1) <- v2;
+			env.env_locals.(2) <- v3;
+			env.env_locals.(3) <- v4;
+			env
+		in
+		if hasret then Fun4 (fun v1 v2 v3 v4 ->
+			let env = run v1 v2 v3 v4 in
+			run_function ctx exec env
+		)
+		else Fun4 (fun v1 v2 v3 v4 ->
+			let env = run v1 v2 v3 v4 in
+			run_function_noret ctx exec env
+		)
+	| 5 ->
+		let run v1 v2 v3 v4 v5 =
+			let env = get_env refs in
+			env.env_locals.(0) <- v1;
+			env.env_locals.(1) <- v2;
+			env.env_locals.(2) <- v3;
+			env.env_locals.(3) <- v4;
+			env.env_locals.(4) <- v5;
+			env
+		in
+		if hasret then Fun5 (fun v1 v2 v3 v4 v5 ->
+			let env = run v1 v2 v3 v4 v5 in
+			run_function ctx exec env
+		)
+		else Fun5 (fun v1 v2 v3 v4 v5 ->
+			let env = run v1 v2 v3 v4 v5 in
+			run_function_noret ctx exec env
+		)
+	| _ ->
+		if hasret then FunN (fun vl ->
+			let env = get_env refs in
+			List.iteri (fun i v ->
+				env.env_locals.(i) <- v
+			) vl;
+			run_function ctx exec env
+		)
+		else FunN (fun vl ->
+			let env = get_env refs in
+			List.iteri (fun i v ->
+				env.env_locals.(i) <- v
+			) vl;
+			run_function_noret ctx exec env
+		)
+
+let emit_closure ctx num_captures num_args get_env hasret exec env =
+	let refs = Array.sub env.env_captures 0 num_captures in
+	let f = create_function ctx num_args get_env hasret refs exec in
+	vstatic_function f

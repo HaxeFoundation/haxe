@@ -132,7 +132,7 @@ let eval_delayed ctx e =
 	let jit,f = jit_expr ctx e in
 	let info = create_env_info true (file_hash e.epos.pfile) EKDelayed jit.capture_infos in
 	fun () ->
-		let env = push_environment ctx info jit.max_local_count (Hashtbl.length jit.captures) in
+		let env = push_environment ctx info jit.max_num_locals (Hashtbl.length jit.captures) in
 		match catch_exceptions ctx (fun () -> Std.finally (fun _ -> pop_environment ctx env) f env) e.epos with
 			| Some v -> v
 			| None -> vnull

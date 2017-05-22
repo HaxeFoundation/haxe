@@ -16,9 +16,9 @@ type t = {
 	(* The captured variables declared in this context. Maps variable IDs to capture slots. *)
 	mutable captures : (int,int) Hashtbl.t;
 	(* The current number of locals. *)
-	mutable local_count : int;
+	mutable num_locals : int;
 	(* The maximum number of locals. *)
-	mutable max_local_count : int;
+	mutable max_num_locals : int;
 	(* The number of closures in this context.*)
 	mutable num_closures : int;
 	(* Whether or not this function has a return that's not at the end of control flow. *)
@@ -32,8 +32,8 @@ let create ctx = {
 	ctx = ctx;
 	scopes = [];
 	captures = Hashtbl.create 0;
-	local_count = 0;
-	max_local_count = 0;
+	num_locals = 0;
+	max_num_locals = 0;
 	num_closures = 0;
 	has_nonfinal_return = false;
 	capture_infos = Hashtbl.create 0;
@@ -46,7 +46,7 @@ let num_locals scope =
 (* Pushes a new scope onto context [jit]. *)
 let push_scope jit pos =
 	let scope = {
-		local_offset = jit.local_count;
+		local_offset = jit.num_locals;
 		locals = Hashtbl.create 0;
 		local_infos = Hashtbl.create 0;
 		local_ids = Hashtbl.create 0;
@@ -58,14 +58,37 @@ let push_scope jit pos =
 let pop_scope jit = match jit.scopes with
 	| scope :: tl ->
 		jit.scopes <- tl;
-		jit.local_count <- jit.local_count - (num_locals scope);
+		jit.num_locals <- jit.num_locals - (num_locals scope);
 	| [] ->
 		assert false
 
 (* Increases number of locals and updates maximum number of locals if necessary *)
-let increase_local_count jit =
-	jit.local_count <- jit.local_count + 1;
-	if jit.local_count > jit.max_local_count then jit.max_local_count <- jit.local_count
+let increase_num_locals jit =
+	jit.num_locals <- jit.num_locals + 1;
+	if jit.num_locals > jit.max_num_locals then jit.max_num_locals <- jit.num_locals
+
+(* Adds capture variable [var] to context [jit]. *)
+let add_capture jit var =
+	let i = Hashtbl.length jit.captures in
+	Hashtbl.add jit.captures var.v_id i;
+	if jit.ctx.debug.support_debugger then begin
+		Hashtbl.replace jit.capture_infos i var.v_name
+	end;
+	i
+
+(* Adds variable [var] to the current top scope of context [jit]. *)
+let add_local jit var = match jit.scopes with
+	| [] -> assert false
+	| scope :: _ ->
+		let i = Hashtbl.length scope.locals in
+		Hashtbl.add scope.locals var.v_id i;
+		increase_num_locals jit;
+		let slot = scope.local_offset + i in
+		if jit.ctx.debug.support_debugger then begin
+			Hashtbl.replace scope.local_ids var.v_name var.v_id;
+			Hashtbl.replace scope.local_infos i var.v_name
+		end;
+		slot
 
 (*
 	Declares variable [var] in context [jit]. If the variable is captured, it is added to
@@ -74,25 +97,18 @@ let increase_local_count jit =
 	Returns either [Env slot] if the variable is captured or [Local slot] otherwise.
 *)
 let declare_local jit var =
-	if var.v_capture then begin
-		let i = Hashtbl.length jit.captures in
-		Hashtbl.add jit.captures var.v_id i;
-		if jit.ctx.debug.support_debugger then begin
-			Hashtbl.replace jit.capture_infos i var.v_name
-		end;
-		Env i
-	end else match jit.scopes with
-	| [] -> assert false
-	| scope :: _ ->
-		let i = Hashtbl.length scope.locals in
-		Hashtbl.add scope.locals var.v_id i;
-		increase_local_count jit;
-		let slot = scope.local_offset + i in
-		if jit.ctx.debug.support_debugger then begin
-			Hashtbl.replace scope.local_ids var.v_name var.v_id;
-			Hashtbl.replace scope.local_infos i var.v_name
-		end;
-		Local slot
+	if var.v_capture then Env (add_capture jit var)
+	else Local (add_local jit var)
+
+(*
+	Declares function argument [var] in context [jit].
+
+	All function arguments are added as local variables. If the variable is captured, it
+	is also added as a capture variable. This is handled by [EvalEmitter.handle_capture_arguments].
+*)
+let declare_arg jit var =
+	let varacc = add_local jit var in
+	if var.v_capture then add_capture jit var,Some varacc else varacc,None
 
 (* Declares a variable for `this` in context [jit]. *)
 let declare_local_this jit = match jit.scopes with
@@ -100,7 +116,7 @@ let declare_local_this jit = match jit.scopes with
 	| scope :: _ ->
 		let i = Hashtbl.length scope.locals in
 		Hashtbl.add scope.locals 0 i;
-		increase_local_count jit;
+		increase_num_locals jit;
 		if jit.ctx.debug.support_debugger then begin
 			Hashtbl.replace scope.local_ids "this" 0;
 			Hashtbl.replace scope.local_infos 0 "this"
