@@ -8,8 +8,6 @@ class Issue6281 extends unit.Test {
     }
 
     public function test() {
-        #if !cppia
         eq('foo', check);
-        #end
     }
 }
