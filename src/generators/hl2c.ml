@@ -70,6 +70,8 @@ let keywords =
 	"thread2";"__declspec";"__finally";"__int64";"__try";"dllexport2";"__inline";"__leave";"asm";
 	(* reserved by HLC *)
 	"t";
+	(* GCC *)
+	"typeof";
 	(* C11 *)
 	"_Alignas";"_Alignof";"_Atomic";"_Bool";"_Complex";"_Generic";"_Imaginary";"_Noreturn";"_Static_assert";"_Thread_local";"_Pragma";
 	"inline";"restrict"
@@ -797,6 +799,10 @@ let generate_function ctx f =
 			sexpr "if( ((unsigned)%s) < ((unsigned)%s) ) goto %s" (reg a) (reg b) (label d)
 		| OJUGte (a,b,d) ->
 			sexpr "if( ((unsigned)%s) >= ((unsigned)%s) ) goto %s" (reg a) (reg b) (label d)
+		| OJNotLt (a,b,d) ->
+			sexpr "if( !(%s < %s) ) goto %s" (reg a) (reg b) (label d)
+		| OJNotGte (a,b,d) ->
+			sexpr "if( !(%s >= %s) ) goto %s" (reg a) (reg b) (label d)
 		| OJEq (a,b,d) ->
 			compare_op CEq a b d
 		| OJNotEq (a,b,d) ->

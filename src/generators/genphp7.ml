@@ -382,13 +382,14 @@ let need_parenthesis_for_binop current parent =
 *)
 let needs_dereferencing for_assignment expr =
 	let rec is_create target_expr =
-		match target_expr.eexpr with
+		match (reveal_expr target_expr).eexpr with
 			| TParenthesis e -> is_create e
 			| TCast (e, _) -> is_create e
 			| TNew _ -> for_assignment
 			| TArrayDecl _ -> for_assignment
 			| TObjectDecl _ -> for_assignment
 			| TConst TNull -> true
+			| TIf _ -> true
 			(* some of `php.Syntax` methods *)
 			| TCall ({ eexpr = TField (_, FStatic ({ cl_path = syntax_type_path }, { cf_name = name })) }, _) ->
 				(match name with
@@ -397,7 +398,7 @@ let needs_dereferencing for_assignment expr =
 				)
 			| _ -> false
 	in
-	match expr.eexpr with
+	match (reveal_expr expr).eexpr with
 		| TField (target_expr, _) -> is_create target_expr
 		| TArray (target_expr, _) -> is_create target_expr
 		| _ -> false
@@ -1574,7 +1575,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2
 				| TField (fexpr, access) when is_php_global expr -> self#write_expr_php_global expr
 				| TField (fexpr, access) when is_php_class_const expr -> self#write_expr_php_class_const expr
-				| TField (fexpr, access) when needs_dereferencing false expr -> self#write_expr (self#dereference expr)
+				| TField (fexpr, access) when needs_dereferencing (self#is_in_write_context) expr -> self#write_expr (self#dereference expr)
 				| TField (fexpr, access) -> self#write_expr_field fexpr access
 				| TTypeExpr mtype -> self#write_expr_type mtype
 				| TParenthesis expr ->

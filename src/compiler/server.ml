@@ -593,7 +593,7 @@ let rec wait_loop process_params verbose accept =
 				if verbose then print_endline ("Completion Response =\n" ^ str);
 				write str
 			| Arg.Bad msg ->
-				prerr_endline ("Error: " ^ msg);
+				print_endline ("Error: " ^ msg);
 			);
 			if DynArray.length test_server_messages > 0 then begin
 				let b = Buffer.create 0 in

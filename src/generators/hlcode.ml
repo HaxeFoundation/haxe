@@ -146,6 +146,8 @@ type opcode =
 	| OJSLte of reg * reg * int
 	| OJULt of reg * reg * int
 	| OJUGte of reg * reg * int
+	| OJNotLt of reg * reg * int
+	| OJNotGte of reg * reg * int
 	| OJEq of reg * reg * int
 	| OJNotEq of reg * reg * int
 	| OJAlways of int
@@ -511,6 +513,8 @@ let ostr fstr o =
 	| OJSLte (r,a,b) -> Printf.sprintf "jslte %d,%d,%d" r a b
 	| OJULt (a,b,i) -> Printf.sprintf "jult %d,%d,%d" a b i
 	| OJUGte (a,b,i) -> Printf.sprintf "jugte %d,%d,%d" a b i
+	| OJNotLt (a,b,i) -> Printf.sprintf "jnotlt %d,%d,%d" a b i
+	| OJNotGte (a,b,i) -> Printf.sprintf "jnotgte %d,%d,%d" a b i
 	| OJEq (a,b,i) -> Printf.sprintf "jeq %d,%d,%d" a b i
 	| OJNotEq (a,b,i) -> Printf.sprintf "jnoteq %d,%d,%d" a b i
 	| OJAlways d -> Printf.sprintf "jalways %d" d

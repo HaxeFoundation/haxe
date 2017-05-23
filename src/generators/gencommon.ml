@@ -130,7 +130,7 @@ let path_of_md_def md_def =
 		| [TClassDecl c] -> c.cl_path
 		| _ -> md_def.m_path
 
-let debug_type = (s_type (print_context()))
+let debug_type t = (s_type (print_context())) t
 let debug_expr = s_expr debug_type
 
 let debug_mode = ref false

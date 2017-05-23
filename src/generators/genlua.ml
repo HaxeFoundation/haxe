@@ -508,6 +508,10 @@ and gen_expr ?(local=true) ctx e = begin
 		print ctx "_iterator(";
 		gen_value ctx x;
 		print ctx ")";
+	| TField (e, f) when is_string_expr e ->
+                spr ctx "(";
+                gen_value ctx e;
+                print ctx ").%s" (field_name f);
 	| TField (x,FClosure (_,f)) ->
 		add_feature ctx "use._hx_bind";
 		(match x.eexpr with
