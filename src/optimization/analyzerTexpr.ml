@@ -607,28 +607,43 @@ module Fusion = struct
 				let e1 = {e1 with eexpr = TVar(v1,Some e2)} in
 				state#dec_writes v1;
 				fuse (e1 :: acc) el
-			| ({eexpr = TVar(v1,None)} as e1) :: ({eexpr = TIf(eif,_,Some _)} as e2) :: el
-				when
-					can_be_used_as_value com e2 &&
-					not (ExtType.is_void e2.etype) &&
-					(match com.platform with
-						| Php when not (Common.is_php7 com) -> false
-						| Cpp when not (Common.defined com Define.Cppia) -> false
-						| _ -> true)
+			| ({eexpr = TIf(eif,ethen,Some eelse)} as e1) :: el when
+				can_be_used_as_value com e1 &&
+				not (ExtType.is_void e1.etype) &&
+				(match com.platform with
+					| Php when not (Common.is_php7 com) -> false
+					| Cpp when not (Common.defined com Define.Cppia) -> false
+					| _ -> true)
 				->
 				begin try
 					let i = ref 0 in
-					let check_assign e = match e.eexpr with
-						| TBinop(OpAssign,{eexpr = TLocal v2},e2) when v1 == v2 -> incr i; e2
+					let e' = ref None in
+					let check e1 f1 e2 = match !e' with
+						| None ->
+							e' := Some (e1,f1);
+							e2
+						| Some (e',_) ->
+							if Texpr.equal e' e1 then e2 else raise Exit
+					in
+					let check_assign e =
+						match e.eexpr with
+						| TBinop(OpAssign,e1,e2) -> incr i; check e1 (fun e' -> {e with eexpr = TBinop(OpAssign,e1,e')}) e2
 						| _ -> raise Exit
 					in
-					let e,_ = map_values ~allow_control_flow:false check_assign e2 in
-					let e1 = {e1 with eexpr = TVar(v1,Some e)} in
+					let e,_ = map_values check_assign e1 in
+					let e = match !e' with
+						| None -> assert false
+						| Some(e1,f) ->
+							begin match e1.eexpr with
+								| TLocal v -> state#change_writes v (- !i + 1)
+								| _ -> ()
+							end;
+							f e
+					in
 					state#changed;
-					state#change_writes v1 (- !i);
-					fuse (e1 :: acc) el
+					fuse (e :: acc) el
 				with Exit ->
-					fuse (e1 :: acc) (e2 :: el)
+					fuse (e1 :: acc) el
 				end
 			| {eexpr = TVar(v1,Some e1)} :: el when config.optimize && config.local_dce && state#get_reads v1 = 0 && state#get_writes v1 = 0 ->
 				fuse acc (e1 :: el)
