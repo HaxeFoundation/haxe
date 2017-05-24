@@ -18,6 +18,7 @@
  *)
 
 let reverse_map = Hashtbl.create 0
+let file_map = Hashtbl.create 0
 
 let rev_hash i = Hashtbl.find reverse_map i
 
@@ -35,7 +36,14 @@ let hash_s f =
 
 let path_hash path = hash_s (Globals.s_type_path path)
 
-let file_hash file = hash_s (Path.unique_full_path file)
+let file_hash file =
+	let unique_file = Path.unique_full_path file in
+	Hashtbl.replace file_map unique_file file;
+	hash_s unique_file
+
+let rev_file_hash i =
+	let s = rev_hash_s i in
+	try Hashtbl.find file_map s with Not_found -> s
 
 let key_length = hash_s "length"
 let key_toString = hash_s "toString"

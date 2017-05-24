@@ -79,7 +79,7 @@ let output_call_stack ctx kind p =
 	output_call_stack_position ctx !i kind {p with pfile = Path.unique_full_path p.Globals.pfile};
 	List.iter (fun env ->
 		if env.env_leave_pmin >= 0 then begin
-			let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_hash_s env.env_info.pfile} in
+			let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_file_hash env.env_info.pfile} in
 			decr i;
 			output_call_stack_position ctx !i env.env_info.kind p
 		end
@@ -104,14 +104,14 @@ let output_breakpoint_set breakpoint =
 	output_info (Printf.sprintf "Breakpoint %i set and enabled" breakpoint.bpid)
 
 let output_breakpoint_stop ctx env =
-	output_info (Printf.sprintf "Thread %i stopped in %s at %s:%i." 0 (kind_name (get_eval ctx) env.env_info.kind) (rev_hash_s env.env_info.pfile) env.env_debug.line)
+	output_info (Printf.sprintf "Thread %i stopped in %s at %s:%i." 0 (kind_name (get_eval ctx) env.env_info.kind) (rev_file_hash env.env_info.pfile) env.env_debug.line)
 
 let output_breakpoint_description breakpoint =
 	let s_col = match breakpoint.bpcolumn with
 		| BPAny -> ""
 		| BPColumn i -> ":" ^ (string_of_int i)
 	in
-	send_string (Printf.sprintf "%s:%i%s" ((Path.get_real_path (rev_hash_s breakpoint.bpfile))) breakpoint.bpline s_col)
+	send_string (Printf.sprintf "%s:%i%s" ((Path.get_real_path (rev_file_hash breakpoint.bpfile))) breakpoint.bpline s_col)
 
 let read_line () =
 	input_line Pervasives.stdin
@@ -195,7 +195,7 @@ let rec wait ctx run env =
 		(* source | history *)
 		| ["files" | "filespath"] ->
 			Hashtbl.iter (fun i _ ->
-				output_file_path (rev_hash_s i);
+				output_file_path (rev_file_hash i);
 			) ctx.debug.breakpoints;
 			loop()
 		| ["classes"] ->

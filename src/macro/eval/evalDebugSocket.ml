@@ -219,7 +219,7 @@ let output_call_stack ctx kind p =
 	in
 	let l = [stack_item kind p false] in
 	let stack = List.fold_left (fun acc env ->
-		let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_hash_s env.env_info.pfile} in
+		let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_file_hash env.env_info.pfile} in
 		(stack_item env.env_info.kind p (env.env_leave_pmin < 0)) :: acc
 	) l envs in
 	JArray (List.rev stack)
