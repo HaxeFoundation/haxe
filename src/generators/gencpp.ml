@@ -6654,6 +6654,19 @@ let is_assign_op op =
    | _ -> false
 ;;
 
+
+
+
+
+(*
+  ------------------ CPPIA ----------------------------------------
+*)
+
+
+
+
+
+
 let rec script_type_string haxe_type =
    match haxe_type with
    | TType ({ t_path = ([],"Null") },[t]) ->
@@ -6921,6 +6934,8 @@ let cppia_op_info = function
 	| IaTCast -> ("TCAST", 221)
 ;;
 
+
+
 class script_writer ctx filename asciiOut =
    object(this)
    val debug = asciiOut
@@ -6935,6 +6950,7 @@ class script_writer ctx filename asciiOut =
    val identTable = Hashtbl.create 0
    val fileTable = Hashtbl.create 0
    val identBuffer = Buffer.create 0
+   val cppiaAst = false
 
    method stringId name =
       try ( Hashtbl.find identTable name )
@@ -7075,7 +7091,13 @@ class script_writer ctx filename asciiOut =
       this#write "\n";
       if (not isInterface) then begin
          match fieldExpression with
-         | Some ({ eexpr = TFunction function_def } as e) -> this#gen_expression e
+         | Some ({ eexpr = TFunction function_def } as e) ->
+            if cppiaAst then begin
+               let args = List.map fst function_def.tf_args in
+               let cppExpr = retype_expression ctx TCppVoid args function_def.tf_type function_def.tf_expr false in
+               this#gen_expression_ast cppExpr
+            end else
+               this#gen_expression e
          | _ -> print_endline ("Missing function body for " ^ funcName );
       end
    method var readAcc writeAcc isExtern isStatic name varType varExpr =
@@ -7095,6 +7117,8 @@ class script_writer ctx filename asciiOut =
    method writeList prefix len = this#write (prefix ^" "  ^ (string_of_int (len)) ^ "\n");
    method writePos expr = if debug then
       this#write ( (this#fileText expr.epos.pfile) ^ "\t" ^ (string_of_int (Lexer.get_error_line expr.epos) ) ^ indent);
+   method writeCppPos expr = if debug then
+      this#write ( (this#fileText expr.cpppos.pfile) ^ "\t" ^ (string_of_int (Lexer.get_error_line expr.cpppos) ) ^ indent);
    method checkCast toType expr forceCast fromGenExpression=
    let write_cast text =
       if (not fromGenExpression) then
@@ -7157,7 +7181,10 @@ class script_writer ctx filename asciiOut =
       end;
       this#gen_expression expr;
    end
-   method gen_expression expr =
+
+
+
+   method gen_expression expr = (* { *)
    let expression = remove_parens expr in
    this#begin_expr;
    (*this#write ( (this#fileText expression.epos.pfile) ^ "\t" ^ (string_of_int (Lexer.get_error_line expression.epos) ) ^ indent);*)
@@ -7406,7 +7433,20 @@ class script_writer ctx filename asciiOut =
    | TMeta(_,_) -> abort "Unexpected meta" expression.epos
    );
    this#end_expr;
+   (* } *)
+   method gen_expression_ast expression = (* { *)
+   this#begin_expr;
+   this#writeCppPos expression;
+   (match expression.cppexpr with
+      | x -> print_endline ("Unknown cppexpr " ^ (s_tcpp x) );
+   );
+   this#end_expr;
+
+
 end;;
+
+
+
 
 let generate_script_class common_ctx script class_def =
    script#incClasses;

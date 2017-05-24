@@ -127,6 +127,14 @@ build_pass_3:
 build_pass_4: $(MODULES:%=%.$(MODULE_EXT))
 	$(COMPILER) -safe-string -linkpkg -o $(OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(FINDLIB_PACKAGES) $(EXTLIB_INCLUDES) $(EXTLIB_LIBS:=.$(LIB_EXT)) $(MODULES:%=%.$(MODULE_EXT))
 
+# Only use if you have only changed gencpp.ml
+quickcpp: _build/src/generators/gencpp.ml build_pass_4 copy_haxetoolkit
+_build/src/generators/gencpp.ml:src/generators/gencpp.ml
+	cp $< $@
+copy_haxetoolkit: /cygdrive/c/HaxeToolkit/haxe/haxe.exe
+/cygdrive/c/HaxeToolkit/haxe/haxe.exe:haxe.exe
+	cp $< $@
+
 haxelib:
 	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(OUTPUT) client.hxml && nekotools boot run.n)
 	mv extra/haxelib_src/run$(EXTENSION) haxelib$(EXTENSION)
