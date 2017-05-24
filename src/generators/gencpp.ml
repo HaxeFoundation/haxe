@@ -3260,6 +3260,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          List.iter gen_closure closures;
          (match injection with Some inject -> inject.inj_prologue gc_stack | _ -> () );
          let remaining = ref (List.length exprs) in
+         lastLine := Lexer.get_error_line tree.epos;
          List.iter (fun e ->
             output_p e "";
             if (!remaining=1) then
