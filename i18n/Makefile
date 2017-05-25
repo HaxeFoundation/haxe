@@ -7,12 +7,12 @@ test-neko:
 	cd ../tests/unit && neko bin/unit.n
 
 test-js:
-	cd ../tests/unit && haxe-i18n compile-js.hxml 
-	cd ../tests/unit && node bin/unit.js 
+	cd ../tests/unit && haxe-i18n compile-js.hxml
+	cd ../tests/unit && node bin/unit.js
 
 test-python:
 	cd ../tests/unit && haxe-i18n compile-python.hxml
-	cd ../tests/unit && python3 bin/unit.py 
+	cd ../tests/unit && python3 bin/unit.py
 
 test-java:
 	cd ../tests/unit && haxe-i18n compile-java.hxml
@@ -20,19 +20,19 @@ test-java:
 
 test-cs:
 	cd ../tests/unit && haxe-i18n compile-cs.hxml
-	cd ../tests/unit && bin/cs/bin/TestMain-Debug.exe 
+	cd ../tests/unit && bin/cs/bin/TestMain-Debug.exe
 
 test-cpp:
 	cd ../tests/unit && haxe-i18n compile-cpp.hxml
-	cd ../tests/unit && bin/cpp/TestMain-debug 
+	cd ../tests/unit && bin/cpp/TestMain-debug
 
 test-lua:
 	cd ../tests/unit && haxe-i18n compile-lua.hxml
-	cd ../tests/unit && luajit bin/unit.lua 
+	cd ../tests/unit && luajit bin/unit.lua
 
 test-swf:
 	cd ../tests/unit && haxe-i18n compile-flash9.hxml
-	cd ../tests/unit && flashplayerdebugger bin/unit9.swf 
+	cd ../tests/unit && flashplayerdebugger bin/unit9.swf
 
 test-php:
 	cd ../tests/unit && haxe-i18n compile-php.hxml
@@ -40,11 +40,11 @@ test-php:
 
 test-php7:
 	cd ../tests/unit && haxe-i18n compile-php7.hxml
-	cd ../tests/unit && php bin/php/index.php  
+	cd ../tests/unit && php bin/php/index.php
 
 test-hl:
 	cd ../tests/unit && haxe-i18n compile-hl.hxml
-	cd ../tests/unit && hl bin/unit.hl 
+	cd ../tests/unit && hl bin/unit.hl
 
 check-cpp:
 	haxe-i18n -main Check -cpp bin/cpp -debug -dce no
@@ -79,7 +79,7 @@ check-js:
 	node bin/check.js
 
 check-swf:
-	haxe-i18n -main Check -swf bin/check.swf -debug -dce no 
+	haxe-i18n -main Check -swf bin/check.swf -debug -dce no
 	flashplayerdebugger bin/check.swf
 
 check-hl:
@@ -89,45 +89,48 @@ check-hl:
 # benchmarks
 
 benchmark-cpp:
-	haxe-i18n -main Benchmark -cpp bin/cpp -debug -dce no
-	bin/cpp/Benchmark-debug
+	haxe-i18n -main Benchmark -cpp bin/cpp -dce no
+	bin/cpp/Benchmark
 
 benchmark-neko:
-	haxe-i18n -main Benchmark -neko bin/benchmark.n -debug -dce no
+	haxe-i18n -main Benchmark -neko bin/benchmark.n -dce no
 	neko bin/benchmark.n
 
 benchmark-java:
-	haxe-i18n -main Benchmark -java bin/java -debug -dce no
-	java -jar bin/java/Benchmark-Debug.jar
+	haxe-i18n -main Benchmark -java bin/java -dce no
+	java -jar bin/java/Benchmark.jar
 
 benchmark-cs:
-	haxe-i18n -main Benchmark -cs bin/cs -debug -dce no
-	bin/cs/bin/Benchmark-Debug.exe
+	haxe-i18n -main Benchmark -cs bin/cs -dce no
+	bin/cs/bin/Benchmark.exe
 
 benchmark-lua:
 	haxe-i18n -main Benchmark -lua bin/benchmark.lua
 	luajit bin/benchmark.lua
 
 benchmark-python:
-	haxe-i18n -main Benchmark -python bin/benchmark.py -debug  -dce no -D analyzer-code-motion
+	haxe-i18n -main Benchmark -python bin/benchmark.py -dce no -D analyzer-code-motion
 	python3 bin/benchmark.py
 
+benchmark-interp:
+	haxe-i18n --run Benchmark
+
 benchmark-php:
-	haxe-i18n -main Benchmark -php bin/php -debug -dce no
+	haxe-i18n -main Benchmark -php bin/php -dce no
 	php bin/php/index.php
 
 benchmark-php7:
-	haxe-i18n -main Benchmark -D php7 -php bin/php -debug -dce no
+	haxe-i18n -main Benchmark -D php7 -php bin/php -dce no
 	php bin/php/index.php
 
 benchmark-js:
-	haxe-i18n -main Benchmark -js bin/benchmark.js -debug -D nodejs -dce no
+	haxe-i18n -main Benchmark -js bin/benchmark.js -D nodejs -dce no
 	node bin/benchmark.js
 
 benchmark-swf:
-	haxe-i18n -main Benchmark -swf bin/benchmark.swf -debug -dce no 
+	haxe-i18n -main Benchmark -swf bin/benchmark.swf -dce no
 	flashplayerdebugger bin/benchmark.swf
 
 benchmark-hl:
-	haxe-i18n -main Benchmark -hl bin/benchmark.hl -debug -dce no
+	haxe-i18n -main Benchmark -hl bin/benchmark.hl -dce no
 	hl bin/benchmark.hl

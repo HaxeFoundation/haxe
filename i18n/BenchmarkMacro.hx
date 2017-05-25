@@ -1,95 +1,125 @@
+
+
 class BenchmarkMacro {
 
-	macro public static function getCode (id:haxe.macro.Expr) {
-		return macro {
-			function wrap <T>(method, loops, code:Void->T) {
-				var t = haxe.Timer.stamp();	
+	macro public static function getCode (id:haxe.macro.Expr, multiplier:haxe.macro.Expr, tests:haxe.macro.Expr, s:haxe.macro.Expr, substrings:haxe.macro.Expr) {
 
+		var ct = haxe.macro.TypeTools.toComplexType(haxe.macro.Context.typeof(s));
+		return macro {
+			inline function stamp ():Float {
+				${haxe.macro.Context.defined("sys") ? macro return Sys.cpuTime() : macro return haxe.Timer.stamp()};
+			}
+			var multiplier:Int = $multiplier;
+
+
+
+
+
+			function wrap <T>(method:String, loops:Int, code:$ct->T) {
+
+				var num:Int = loops*$multiplier;
 				var x:T = null;
-				for (i in 0...loops*multiplier) {
-					x = code();
+
+
+
+
+				var t = 0.0;
+				for (i in 0...num) {
+					var s = s + mkChar(i);
+					var t1 = stamp();
+					x = code(s);
+					t += stamp() - t1;
 				}
-				var t = haxe.Timer.stamp() - t;
-				tests.push({ method : method, id : $id, time: t, res:x });
+
+
+				$tests.push({ method : method, id : $id, time: t, res:x, loops: loops*$multiplier });
+
 				//trace($id + "-" + method + ":" + t);
 			}
 
-			wrap('split', 100, function () {
+			wrap('split', 100, function (s:$ct) {
 				var res = [];
-				for (i in substrings) {
+				for (i in $substrings) {
 					res = res.concat(s.split(i));
 				}
 				return res;
 			});
 
-			wrap('indexOf', 100, function () {
+
+			wrap('indexOf', 100, function (s:$ct) {
 				var res = 0;
-				for (i in substrings) {
+				for (i in $substrings) {
 					res = s.indexOf(i);
 				}
 				return res;
 			});
 
-			wrap('lastIndexOf', 100, function () {
+			wrap('lastIndexOf', 100, function (s:$ct) {
 				var res = 0;
-				for (i in substrings) {
+				for (i in $substrings) {
 					res = s.lastIndexOf(i);
 				}
 				return res;
 			});
-			
-			wrap('charCodeAt n/2', 1000, function () {
-				var res = s.charCodeAt(Math.floor(s.length / 2));
+			var len = $s.length;
+			wrap('charCodeAt n/2', 1000, function (s:$ct) {
+				var res = s.charCodeAt(Math.floor(len / 2));
 				return res;
 			});
-			
-			wrap('charCodeAt n', 1000, function () {
-				var res = s.charCodeAt(s.length -1);
+
+			wrap('charCodeAt n', 1000, function (s:$ct) {
+				var res = s.charCodeAt(len -1);
 			});
 
-			wrap('charCodeAt 1', 1000, function () {
+			wrap('charCodeAt 1', 1000, function (s:$ct) {
 				var res = s.charCodeAt(0);
 			});
 
-			wrap('fastCodeAt n/2', 1000, function () {
-				var res = s.fastCodeAt(Math.floor(s.length / 2));
+			wrap('fastCodeAt n/2', 1000, function (s:$ct) {
+				var res = s.fastCodeAt(Math.floor(len / 2));
 				return res;
 			});
-			
-			wrap('fastCodeAt n', 1000, function () {
-				var res = s.fastCodeAt(s.length -1);
+
+			wrap('fastCodeAt n', 1000, function (s:$ct) {
+				var res = s.fastCodeAt(len -1);
 			});
 
-			wrap('fastCodeAt 1', 1000, function () {
+			wrap('fastCodeAt 1', 1000, function (s:$ct) {
 				var res = s.fastCodeAt(0);
 			});
-				
-			wrap('toUpperCase', 100, function () {
+
+			wrap('toUpperCase', 100, function (s:$ct) {
 				var res = s.toUpperCase();
 				return res;
 			});
 
-			wrap('toLowerCase', 100, function () {
+			wrap('toLowerCase', 100, function (s:$ct) {
 				var res = s.toLowerCase();
 				return res;
 			});
 
-			wrap('substring', 100, function () {
-				var res = s.substring(0, Math.floor(s.length / 2));
+			wrap('substring', 100, function (s:$ct) {
+				var res = s.substring(0, Math.floor(len / 2));
 				return res;
 			});
-			wrap('substr', 100, function () {
-				var res = s.substr(Math.floor(s.length / 2));
+			wrap('substr', 100, function (s:$ct) {
+				var res = s.substr(Math.floor(len / 2));
 				return res;
 			});
-			wrap('length', 1000, function () {
+			wrap('length', 1000, function (s:$ct) {
 				var res = s.length;
 				return res;
 			});
-			wrap('new', 1000, function () {
+			wrap('new', 1000, function (s:$ct) {
 				var res = mkNew();
 				return res;
 			});
+			wrap('+', 1000, function (s:$ct) {
+				var res = s + s;
+				return res;
+			});
+
 		}
 	}
+
 }
