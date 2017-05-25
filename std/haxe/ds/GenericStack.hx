@@ -61,7 +61,7 @@ private class GenericStackIterator<T> extends cpp.FastIterator<T> {
 
 	@see https://haxe.org/manual/std-GenericStack.html
 **/
-#if (flash || cpp)
+#if (!display && (flash || cpp))
 @:generic
 #end
 class GenericStack<T> {
