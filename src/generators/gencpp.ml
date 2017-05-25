@@ -6705,6 +6705,12 @@ let rec script_type_string haxe_type =
          type_string_suff "" haxe_type false
 ;;
 
+
+let rec script_cpptype_string cppType =
+   tcpp_to_string cppType
+;;
+
+
 type array_of =
    | ArrayInterface of int
    | ArrayData of string
@@ -7000,6 +7006,7 @@ class script_writer ctx filename asciiOut =
    method commentOf text = if doComment then " # " ^ text else ""
    method typeTextString typeName = (string_of_int (this#typeId typeName)) ^ " "
    method typeText typeT = (string_of_int (this#typeId (script_type_string typeT))) ^ " "
+   method astType cppType = (string_of_int (this#typeId (script_cpptype_string cppType))) ^ " "
    method writeType typeT = this#write (this#typeText typeT)
    method boolText value = if value then "1" else "0"
    method writeBool value = this#write (if value then "1 " else "0 ")
@@ -7095,7 +7102,7 @@ class script_writer ctx filename asciiOut =
             if cppiaAst then begin
                let args = List.map fst function_def.tf_args in
                let cppExpr = retype_expression ctx TCppVoid args function_def.tf_type function_def.tf_expr false in
-               this#gen_expression_ast cppExpr
+               this#gen_expression_tree cppExpr
             end else
                this#gen_expression e
          | _ -> print_endline ("Missing function body for " ^ funcName );
@@ -7434,15 +7441,75 @@ class script_writer ctx filename asciiOut =
    );
    this#end_expr;
    (* } *)
-   method gen_expression_ast expression = (* { *)
-   this#begin_expr;
-   this#writeCppPos expression;
-   (match expression.cppexpr with
-      | x -> print_endline ("Unknown cppexpr " ^ (s_tcpp x) );
-   );
-   this#end_expr;
+   method gen_expression_tree expression_tree = (* { *)
+      let blockClosures = ref [] in
+      let rec gen_expression expression =
+      begin
+         this#begin_expr;
+         this#writeCppPos expression;
+         (match expression.cppexpr with
+         | CppBlock(exprs,closures,_) ->
+            this#writeList (this#op IaBlock) (List.length exprs);
+            let oldClosures = !blockClosures in
+            blockClosures := closures;
+            List.iter gen_expression exprs;
+            blockClosures := oldClosures;
 
+         | CppVarDecl(var,init) ->
+            let name =  cpp_var_name_of var in
+            this#write ( (this#op IaTVars) ^ (string_of_int (1)) ^ (this#commentOf (name ^ ":" ^ (script_type_string var.v_type)) ) ^ "\n");
+            this#write ("\t\t" ^ indent);
+            (match init with
+            | None -> this#writeOp IaVarDecl; this#writeVar var;
+            | Some init ->this#writeOp IaVarDeclI;
+                this#writeVar var;
+                this#write (" " ^ (this#astType init.cpptype));
+                this#write "\n";
+                gen_expression init;
+            )
+         | CppInt i -> this#write ((this#op IaConstInt) ^ (Printf.sprintf "%ld " i))
+         | CppFloat float_as_string -> this#write ((this#op IaConstFloat) ^ (this#stringText float_as_string))
+         | CppString s -> this#write ((this#op IaConstString) ^ (this#stringText s))
+         | CppBool false -> this#writeOp IaConstFalse
+         | CppBool true -> this#writeOp IaConstTrue
+         | CppNull -> this#writeOp IaConstNull
+         | CppNil -> abort "Nil not supported in cppia" expression.cpppos
+         | CppThis _ -> this#writeOp IaConsThis
+         | CppSuper _ -> this#writeOp IaConstSuper
+         | CppBreak -> this#writeOp IaBreak
+         | CppContinue -> this#writeOp IaContinue
+         | CppGoto label -> abort "Goto not supported in cppia" expression.cpppos
+         | CppReturn None -> this#writeOpLine IaReturn;
+         | CppReturn Some value -> this#write ( (this#op IaRetVal) ^ (this#astType value.cpptype) ^ "\n");
+         | CppWhile(condition, block, while_flag, _) ->
+             this#write ( (this#op IaWhile) ^ (if while_flag=NormalWhile then "1" else "0" ) ^ "\n");
+             gen_expression condition;
+             gen_expression block;
+         | CppIf (condition,block,None) ->
+            this#writeOpLine IaIf;
+            gen_expression condition;
+            gen_expression block;
+         | CppIf (condition,block,Some elze) ->
+            this#writeOpLine IaIfElse;
+            gen_expression condition;
+            gen_expression block;
+            gen_expression elze;
+         | CppBinop(op, left, right) ->
+            this#writeOpLine (IaBinOp op);
+            gen_expression left;
+            gen_expression right;
 
+         | CppVar VarLocal(var) ->
+            this#write ((this#op IaVar) ^ (string_of_int var.v_id) ^ (this#commentOf var.v_name) );
+         | CppVar VarStatic(class_def,_,field) ->
+            this#write ( (this#op IaFStatic)  ^ (this#instText class_def) ^ " " ^
+                (this#stringText field.cf_name) ^ (this#commentOf field.cf_name) );
+
+         | x -> print_endline ("Unknown cppexpr " ^ (s_tcpp x) );
+         );
+        this#end_expr;
+     end in
+     gen_expression expression_tree
 end;;
 
 
