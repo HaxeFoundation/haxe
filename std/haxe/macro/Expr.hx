@@ -534,7 +534,7 @@ enum ComplexType {
 	/**
 		Represents an optional type.
 	**/
-	TOptional( t : ComplexType );
+	TOptional( t : Null<ComplexType> );
 }
 
 /**

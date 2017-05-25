@@ -278,7 +278,7 @@ let reify in_macro =
 		| CTAnonymous fields -> ct "TAnonymous" [to_array to_cfield fields p]
 		| CTParent t -> ct "TParent" [to_type_hint t p]
 		| CTExtend (tl,fields) -> ct "TExtend" [to_array to_tpath tl p; to_array to_cfield fields p]
-		| CTOptional t -> ct "TOptional" [to_type_hint t p]
+		| CTOptional t -> ct "TOptional" [to_opt to_type_hint t p]
 	and to_type_hint (t,p) _ =
 		(* to_obj ["type",to_ctype t p;"pos",to_pos p] p *)
 		to_ctype (t,p) p
@@ -929,7 +929,7 @@ and parse_complex_type_inner = parser
 		| [< l,p2 = parse_class_fields true p1 >] -> CTAnonymous l,punion p1 p2
 		| [< >] -> serror())
 	| [< '(Question,p1); t,p2 = parse_complex_type_inner >] ->
-		CTOptional (t,p2),punion p1 p2
+		CTOptional (Some (t,p2)),punion p1 p2
 	| [< t,p = parse_type_path >] ->
 		CTPath t,p
 

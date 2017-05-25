@@ -537,6 +537,7 @@ and load_complex_type ctx allow_display p (t,pn) =
 	match t with
 	| CTParent t -> load_complex_type ctx allow_display p t
 	| CTPath t -> load_instance ~allow_display ctx (t,pn) false p
+	| CTOptional None -> mk_mono()
 	| CTOptional _ -> error "Optional type not allowed here" p
 	| CTExtend (tl,l) ->
 		(match load_complex_type ctx allow_display p (CTAnonymous l,p) with
@@ -677,7 +678,7 @@ and load_complex_type ctx allow_display p (t,pn) =
 			TFun ([],load_complex_type ctx allow_display p r)
 		| _ ->
 			TFun (List.map (fun t ->
-				let t, opt = (match fst t with CTOptional t -> t, true | _ -> t,false) in
+				let t, opt = (match fst t with CTOptional (Some t) -> t, true | _ -> t,false) in
 				"",opt,load_complex_type ctx allow_display p t
 			) args,load_complex_type ctx allow_display p r)
 
