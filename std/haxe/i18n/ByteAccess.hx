@@ -3,8 +3,6 @@ package haxe.i18n;
 import haxe.io.Bytes;
 import haxe.io.BytesData;
 import haxe.io.Error;
-import haxe.io.BytesData;
-import haxe.io.Error;
 
 #if cpp
 using cpp.NativeArray;
@@ -86,7 +84,7 @@ abstract ByteAccess(BytesData) {
 	public function equal (other:ByteAccess) {
 		var a = fromBytesData(this);
 		var b = other;
-		
+
 		if (a.length != b.length) return false;
 
 		for (i in 0...a.length) {
@@ -98,7 +96,7 @@ abstract ByteAccess(BytesData) {
 	public function compare (other:ByteAccess) {
 		var a = fromBytesData(this);
 		var b = other;
-		
+
 		var min = a.length < b.length ? a.length : b.length;
 
 		for (i in 0...min) {
@@ -116,7 +114,7 @@ abstract ByteAccess(BytesData) {
 		var a = fromBytesData(this);
 		var res = [];
 		for (i in 0...a.length) {
-			
+
 			res.push(a.fastGet(i));
 		}
 		return res.join(",");
@@ -177,6 +175,8 @@ private class BytesDataTools {
 		var b = new hl.Bytes(length);
 		b.fill(0, length, 0);
 		return new BytesData(b,length);
+		#elseif eval
+		return (Bytes.alloc(length):BytesData);
 		#else
 		var a = new Array();
 		for( i in 0...length )
@@ -200,6 +200,8 @@ private class BytesDataTools {
 		return python.Syntax.arrayAccess(b, pos);
 		#elseif hl
 		return if ((pos:UInt) >= (getLength(b) : UInt)) 0 else b[pos];
+		#elseif eval
+		return (b:Bytes).get(pos);
 		#else
 		return b[pos];
 		#end
@@ -226,6 +228,8 @@ private class BytesDataTools {
 		b.blit(pos, src, srcpos, len);
 		#elseif hl
 		b.bytes.blit(pos, src.bytes, srcpos, len);
+		#elseif eval
+		(b:Bytes).blit(pos, src, srcpos, len);
 		#else
 		var b1 = b;
 		var b2 = src;
@@ -259,6 +263,8 @@ private class BytesDataTools {
 		python.Syntax.arraySet(b, pos, v & 0xFF);
 		#elseif hl
 		b[pos] = v;
+		#elseif eval
+		(b:Bytes).set(pos, v);
 		#else
 		b[pos] = v & 0xFF;
 		#end
@@ -277,6 +283,8 @@ private class BytesDataTools {
 		return b.length;
 		#elseif lua
 		return b.length;
+		#elseif eval
+		return (b:Bytes).length;
 		#else
 		return untyped b.length;
 		#end
@@ -307,6 +315,8 @@ private class BytesDataTools {
 		return python.Syntax.arrayAccess(b, pos, pos+len);
 		#elseif hl
 		return new BytesData(b.bytes.sub(pos, len), len);
+		#elseif eval
+		return (b:Bytes).sub(pos, len);
 		#else
 		return b.slice(pos,pos+len);
 		#end
@@ -344,6 +354,8 @@ private class BytesDataTools {
 		b1.blit(0, b, pos, len);
 		b1[len] = 0;
 		return @:privateAccess String.fromUTF8(b1);
+		#elseif eval
+		return (b:Bytes).getString(pos, len);
 		#else
 		var s = "";
 		var b = b;
@@ -385,6 +397,8 @@ private class BytesDataTools {
 		return untyped b.unsafeGet(pos);
 		#elseif java
 		return untyped b[pos] & 0xFF;
+		#elseif eval
+		return Bytes.fastGet(b, pos);
 		#else
 		return b[pos];
 		#end

@@ -88,7 +88,7 @@ abstract Utf16(Utf16Impl) {
 	@:op(A == B) inline function opEq (other:Utf16) {
 		return Utf16Tools.equal(this, other.impl());
 	}
-	
+
 	@:op(A != B) inline function opNotEq (other:Utf16) {
 		return !opEq(other);
 	}
@@ -122,11 +122,11 @@ abstract Utf16(Utf16Impl) {
 	}
 
 	public inline function toUtf8 ():Utf8 {
-		return Utf8.fromByteAccess(Convert.convertUtf16toUtf8(getReader(), StrictConversion));
+		return Utf8.fromByteAccess(Convert.convertUtf16toUtf8(getReader(), true));
 	}
 
 	public inline function toUtf32 ():Utf32 {
-		return Utf32.fromByteAccess(Convert.convertUtf16toUtf32(getReader(), StrictConversion));
+		return Utf32.fromByteAccess(Convert.convertUtf16toUtf32(getReader(), true));
 	}
 
 	public inline function toBytes() : haxe.io.Bytes {
@@ -136,7 +136,7 @@ abstract Utf16(Utf16Impl) {
 	public inline function toCodeArray () {
 		return Utf16Tools.toCodeArray(this);
 	}
-	
+
 	public static inline function fromByteAccess (ba:ByteAccess) {
 		return fromImpl(Utf16Tools.fromByteAccess(ba));
 	}
@@ -151,7 +151,7 @@ abstract Utf16(Utf16Impl) {
 	inline function get_length() {
 		return Utf16Tools.strLength(this);
 	}
-	
+
 	static inline function fromImpl (impl:Utf16Impl):Utf16 {
 		return cast impl;
 	}
@@ -180,7 +180,7 @@ abstract Utf16Reader(ByteAccess) {
 	public inline function fastGet (pos:Int) {
 		return this.fastGet(pos);
 	}
-	
+
 	public inline function getInt16 (pos:Int) {
 		return this.getInt16(pos);
 	}
@@ -345,7 +345,7 @@ private class Utf16Tools {
 	}
 
 	 // string functions
-	
+
 	static inline function modify(impl:Utf16Impl, f:Utf16Impl->Utf16Impl->Int->Int->Void) : Utf16Impl {
 		var res = allocImpl(byteLength(impl), strLength(impl));
 		var i = 0;
@@ -481,20 +481,20 @@ private class Utf16Tools {
 		}
 		return res;
 	}
-	
+
 	static function lastIndexOf( ba:Utf16Impl, str : Utf16Impl, ?startIndex : Int ) : Int {
 		var startIndexIsNull = startIndex == null;
 		var res = -1;
 		var len = strLength(str); // O(n)
 		var pos = 0;
 		var posFull = 0;
-		
+
 		// byte iteration variables
 		var i = 0;
 		var j = 0;
-		
+
 		var iNext = 0;
-		
+
 		while (i < byteLength(ba) && (startIndexIsNull || posFull < startIndex + 1)) {
 			var size = getCharSize(getInt16(ba, i));
 			var size2 = getCharSize(getInt16(str, j));
@@ -505,10 +505,10 @@ private class Utf16Tools {
 				}
 				pos++;
 				j+=size;
-				
+
 			} else {
 				if (j > 0) {
-					
+
 					posFull++;
 					i = iNext; // restore next search position and continue
 					j = 0;
@@ -532,7 +532,7 @@ private class Utf16Tools {
 		}
 		return res;
 	}
-	
+
 	static function split( impl:Utf16Impl, delimiter : Utf16Impl ) : Array<Utf16>
 	{
 		var delimiterLen = strLength(delimiter);
@@ -542,7 +542,7 @@ private class Utf16Tools {
 		var tmpBufLen = 0; // store utf8 len
 
 		var res:Array<Utf16> = [];
-		
+
 		var pos = 0;
 		var posFull = 0;
 		var i = 0;
@@ -575,7 +575,7 @@ private class Utf16Tools {
 					buf.addBuffer(tmpBuf);
 					bufLen += tmpBufLen;
 					tmpBufLen = 0;
-					tmpBuf.reset();
+					tmpBuf = tmpBuf.reset();
 				}
 				for (k in 0...size) {
 					buf.addByte(fastGet(impl, i+k));
@@ -587,11 +587,11 @@ private class Utf16Tools {
 				if (buf.length > 0) {
 					res.push(Utf16.fromImpl(mkImplFromBuffer(buf, bufLen)));
 					bufLen = 0;
-					buf.reset();
+					buf = buf.reset();
 				} else {
 					res.push(Utf16.fromImpl(empty));
 				}
-				tmpBuf.reset();
+				tmpBuf = tmpBuf.reset();
 				tmpBufLen = 0;
 				j = 0;
 				pos = 0;
@@ -611,7 +611,7 @@ private class Utf16Tools {
 		}
 		return res;
 	}
-	
+
 	static function substr( str:Utf16Impl, pos : Int, ?len : Int ) : Utf16Impl {
 
 		var lenIsNull = len == null;
@@ -655,11 +655,11 @@ private class Utf16Tools {
 	static function substring( impl:Utf16Impl, startIndex : Int, ?endIndex : Int ) : Utf16Impl {
 		var startIndex:Null<Int> = startIndex;
 		var len = strLength(impl);
-		var endIndexIsNull = endIndex == null; 
+		var endIndexIsNull = endIndex == null;
 
 		if (startIndex < 0) startIndex = 0;
 		if (!endIndexIsNull && endIndex < 0) endIndex = 0;
-		
+
 		if (endIndexIsNull) endIndex = len;
 
  		if (startIndex > endIndex) {
@@ -671,7 +671,7 @@ private class Utf16Tools {
 		if (endIndex == null || endIndex > len) endIndex = len;
 
 		if (startIndex == null || startIndex > len) return empty;
-		
+
 		return substr(impl, startIndex, endIndex - startIndex);
 	}
 
@@ -682,7 +682,7 @@ private class Utf16Tools {
 			length : 1
 		}
 	}
-	
+
 	static inline function compare (impl:Utf16Impl, other:Utf16Impl):Int {
 		return impl.b.compare(other.b);
 	}

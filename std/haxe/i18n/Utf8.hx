@@ -33,19 +33,19 @@ import haxe.io.Bytes;
 abstract Utf8(Utf8Impl) {
 
 	public var length(get,never) : Int;
-	
+
 	public inline function new(str:String) : Void {
 		this = Utf8Tools.nativeStringToImpl(str);
 	}
-	
+
 	public inline function toUpperCase() : Utf8 {
 		return fromImpl(Utf8Tools.toUpperCase(this));
 	}
-	
+
 	public inline function toLowerCase() : Utf8 {
 		return fromImpl(Utf8Tools.toLowerCase(this));
 	}
-	
+
 	public inline function charAt(index : Int) : Utf8 {
 		return fromImpl(Utf8Tools.charAt(this, index));
 	}
@@ -57,7 +57,7 @@ abstract Utf8(Utf8Impl) {
 	public inline function fastCodeAt( index : Int) : Null<Int> {
 		return Utf8Tools.fastCodeAt(this, index);
 	}
-	
+
 	public inline function indexOf( str : Utf8, ?startIndex : Int ) : Int {
 		 return Utf8Tools.indexOf(this, str.impl(), startIndex);
 	}
@@ -69,15 +69,15 @@ abstract Utf8(Utf8Impl) {
 	public function split( delimiter : Utf8 ) : Array<Utf8> {
 		return Utf8Tools.split(this, delimiter.impl());
 	}
-	
+
 	public inline function substr( pos : Int, ?len : Int ) : Utf8 {
 		return fromImpl(Utf8Tools.substr(this, pos, len));
 	}
-	
+
 	public inline function substring( startIndex : Int, ?endIndex : Int ) : Utf8 {
 		return fromImpl(Utf8Tools.substring(this, startIndex, endIndex));
 	}
-	
+
 	public static inline function fromCharCode( code : Int ) : Utf8 {
 		return fromImpl(Utf8Tools.fromCharCode(code));
 	}
@@ -93,7 +93,7 @@ abstract Utf8(Utf8Impl) {
 	@:op(A != B) inline function opNotEq (other:Utf8) {
 		return !opEq(other);
 	}
-	
+
 	@:op(A > B) inline function opGreaterThan (other:Utf8) {
 		return compare(other) == 1;
 	}
@@ -117,19 +117,19 @@ abstract Utf8(Utf8Impl) {
 	public inline function toNativeString() : String {
 		return Utf8Tools.toNativeString(this);
 	}
- 	
+
 	public inline function toUcs2() : Ucs2 {
-		return Ucs2.fromByteAccess(Convert.convertUtf8toUcs2(getReader(), StrictConversion, false));
+		return Ucs2.fromByteAccess(Convert.convertUtf8toUcs2(getReader(), true, false));
 	}
-	
+
  	public inline function toUtf16 ():Utf16 {
-		return Utf16.fromByteAccess(Convert.convertUtf8toUtf16(getReader(), StrictConversion));
+		return Utf16.fromByteAccess(Convert.convertUtf8toUtf16(getReader(), true));
 	}
 
 	public inline function toUtf32 ():Utf32 {
-		return Utf32.fromByteAccess(Convert.convertUtf8toUtf32(getReader(), StrictConversion));
+		return Utf32.fromByteAccess(Convert.convertUtf8toUtf32(getReader(), true));
 	}
-	
+
 	public inline function toBytes() : haxe.io.Bytes {
 		return Utf8Tools.toBytes(this);
 	}
@@ -161,7 +161,7 @@ abstract Utf8(Utf8Impl) {
 	inline function impl ():Utf8Impl {
 		return this;
 	}
-	
+
 	static inline function fromImpl (impl:Utf8Impl):Utf8 {
 		return cast impl;
 	}
@@ -291,12 +291,12 @@ private class Utf8Tools {
 		var b = fastGet(bytes, pos);
 		return b >= 0x41 && b <= 0x5A;
 	}
-	
+
 	static inline function isLowerCaseLetter (bytes:Utf8Impl, pos:Int, size:Int) {
 		var b = fastGet(bytes, pos);
 		return b >= 0x61 && b <= 0x7A;
 	}
-	
+
 	static inline function toLowerCaseLetter (bytes:Utf8Impl, target:Utf8Impl, pos:Int, size:Int) {
 		if (isUpperCaseLetter(bytes, pos, size)) {
 			set(target, pos, fastGet(bytes, pos)+0x20);
@@ -306,7 +306,7 @@ private class Utf8Tools {
 			}
 		}
 	}
-	
+
 	static function toUpperCaseLetter (bytes:Utf8Impl, target:Utf8Impl, pos:Int, size:Int) {
 		if (isLowerCaseLetter(bytes, pos, size)) {
 			set(target, pos, fastGet(bytes, pos)-0x20);
@@ -346,7 +346,7 @@ private class Utf8Tools {
 			buf.addByte(fastGet(bytes, pos+i));
 		}
 	}
-	
+
 	static function getCodeSize (code:Int):Int {
 		return if (code <= 0x7F) {
 			1;
@@ -389,7 +389,7 @@ private class Utf8Tools {
 		// directly using toLowerCaseLetter results in not inlined function
 		return modify(ba, function (impl, res, i, size) return toLowerCaseLetter(impl, res, i, size));
 	}
-	
+
 	static function charAt(ba:Utf8Impl, index : Int) : Utf8Impl {
 		var res = null;
 		var pos = 0;
@@ -429,7 +429,7 @@ private class Utf8Tools {
 	static function fastCodeAt( ba:Utf8Impl, index : Int) : Null<Int> {
 		var pos = 0;
 		var i = 0;
-		
+
 		while (i < byteLength(ba)) {
 
 			var b = fastGet(ba, i);
@@ -495,19 +495,19 @@ private class Utf8Tools {
 	}
 
 	static function lastIndexOf( ba:Utf8Impl, str : Utf8Impl, ?startIndex : Int ) : Int {
-		
+
 		var startIndexIsNull = startIndex == null;
-		
+
 		var res = -1;
 		var len = strLength(str);
 		var pos = 0;
 		var posFull = 0;
-		
+
 		var i = 0;
 		var j = 0;
-		
+
 		var iNext = 0;
-		
+
 		while (i < byteLength(ba) && (startIndexIsNull || posFull < startIndex + 1)) {
 			var size = getCharSize(fastGet(ba, i));
 			var size2 = getCharSize(fastGet(str, j));
@@ -518,7 +518,7 @@ private class Utf8Tools {
 				}
 				pos++;
 				j+=size;
-				
+
 			} else {
 				if (j > 0) {
 					// restore next search position and continue
@@ -558,7 +558,7 @@ private class Utf8Tools {
 		var tmpBufLen = 0; // store utf8 len
 
 		var res:Array<Utf8> = [];
-		
+
 		var pos = 0;
 		var posFull = 0;
 		// byte iteration variables
@@ -591,7 +591,7 @@ private class Utf8Tools {
 					buf.addBuffer(tmpBuf);
 					bufLen += tmpBufLen;
 					tmpBufLen = 0;
-					tmpBuf.reset();
+					tmpBuf = tmpBuf.reset();
 				}
 				for (k in 0...size) {
 					buf.addByte(fastGet(str, i+k));
@@ -603,11 +603,11 @@ private class Utf8Tools {
 				if (buf.length > 0) {
 					res.push(Utf8.fromImpl(mkImplFromBuffer(buf, bufLen)));
 					bufLen = 0;
-					buf.reset();
+					buf = buf.reset();
 				} else {
 					res.push(Utf8.fromImpl(empty));
 				}
-				tmpBuf.reset();
+				tmpBuf = tmpBuf.reset();
 				tmpBufLen = 0;
 				j = 0;
 				pos = 0;
@@ -627,7 +627,7 @@ private class Utf8Tools {
 		}
 		return res;
 	}
-	
+
 	static function substr<T>( str:Utf8Impl, pos : Int, ?len : Int ) : Utf8Impl {
 
 		var lenIsNull = len == null;
@@ -642,13 +642,13 @@ private class Utf8Tools {
 			len = strLength(str) + len;
 			if (len < 0) len = 0;
 		}
-		
+
 		if (len == 0) return empty;
 
 		var buf = new ByteAccessBuffer();
 
 		var cur = 0;
-		
+
 		var i = 0;
 		var newSize = 0;
 		while (i < byteLength) {
@@ -671,22 +671,22 @@ private class Utf8Tools {
 	static inline function substring<T>( ba:Utf8Impl, startIndex : Int, ?endIndex : Int ) : Utf8Impl {
 		var startIndex:Null<Int> = startIndex;
 		var len = strLength(ba);
-		var endIndexIsNull = endIndex == null; 
+		var endIndexIsNull = endIndex == null;
 
 		if (startIndex < 0) startIndex = 0;
 		if (!endIndexIsNull && endIndex < 0) endIndex = 0;
-		
+
 		if (endIndexIsNull) endIndex = len;
  		if (startIndex > endIndex) {
 			var x = startIndex;
 			startIndex = endIndex;
 			endIndex = x;
 		}
-		
+
 		if (endIndex == null || endIndex > len) endIndex = len;
-		
+
 		if (startIndex == null || startIndex > len) return empty;
-		
+
 		return substr(ba, startIndex, endIndex - startIndex);
 	}
 

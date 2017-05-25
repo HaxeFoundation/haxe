@@ -8,7 +8,7 @@ import haxe.i18n.Utf16.Utf16Reader;
 import haxe.i18n.Utf32.Utf32Reader;
 import haxe.io.BytesData;
 
-/***** 
+/*****
  *
  * Code in Convert class is based on the following classes:
  * http://llvm.org/svn/llvm-project/llvm/trunk/include/llvm/Support/ConvertUTF.h
@@ -74,6 +74,7 @@ enum ConversionError {
   var LenientConversion = 1;
 }
 
+@:allow(haxe.i18n)
 class Convert {
     static inline var HALF_SHIFT:Int  = 10; /* used for shifting by 10 bits */
 
@@ -89,7 +90,7 @@ class Convert {
     static inline var UNI_REPLACEMENT_CHAR:Int = 0x0000FFFD;
     static inline var UNI_MAX_BMP:Int = 0x0000FFFF;
     static inline var UNI_MAX_UTF16:Int = 0x0010FFFF;
-    
+
     static inline var UNI_MAX_LEGAL_UTF32:Int = 0x0010FFFF;
 
     //static inline var UNI_MAX_UTF32:Int = 0x7FFFFFFF;
@@ -155,7 +156,7 @@ class Convert {
         0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC
     ]);
 
-    public static inline function charCodeToUtf32ByteAccess(code:Int) {
+    static inline function charCodeToUtf32ByteAccess(code:Int) {
         var bytes = ByteAccess.alloc(4);
         bytes.setInt32(0, code);
         return bytes;
@@ -164,41 +165,41 @@ class Convert {
     public static function charCodeToUtf16ByteAccess (code:Int):ByteAccess {
 		var size = getUtf16CodeSize(code);
 		var bytes = ByteAccess.alloc(size);
-		
-		Convert.writeUtf16CodeBytes(code, 0, 
+
+		Convert.writeUtf16CodeBytes(code, 0,
 			function (pos, val) {
 				bytes.set(pos << 1, (val >> 8) & 0xFF );
-				bytes.set((pos << 1)+1, val & 0xFF); 
-			}, StrictConversion, false);
+				bytes.set((pos << 1)+1, val & 0xFF);
+			}, true, false);
 		return bytes;
 	}
 
-    public static function convertUcs2toUtf8 (source:Ucs2Reader, flags:ConversionFlags):ByteAccess {
+    static function convertUcs2toUtf8 (source:Ucs2Reader, strict:Bool):ByteAccess {
 
         var target = new ByteAccessBuffer();
 
         var i = 0;
-        
+
         if (source.length % 2 == 1) throw "invalid source length " + source.length;
-        while (i < source.length) { 
+        while (i < source.length) {
             var bytesToWrite:Int = 0;
-            
+
             var ch = source.getInt16(i);
-            
+
             /* If we have a surrogate pair, convert to UTF32 first. */
             if (isHighSurrogate(ch)) {
                 throw SourceIllegal(i);
-            } else if (flags == StrictConversion) {
+            } else if (strict) {
                 /* UTF-16 surrogate values are illegal in UTF-32 */
                 if (isLowSurrogate(ch)) {
                     throw SourceIllegal(i-2);
                 }
             }
-            var r = getUtf8BytesToWriteAndChar(ch, flags, i);
+            var r = getUtf8BytesToWriteAndChar(ch, strict, i);
             writeUtf8CodeBytes(r.ch, r.bytesToWrite, function (x) target.addByte(x));
             i+=2;
         }
-        
+
         return target.getByteAccess();
     }
 
@@ -230,21 +231,21 @@ class Convert {
             + (ch2 - UNI_SUR_LOW_START) + HALF_BASE;
     }
 
-    public static inline function charCodeToSurrogatePair (code:Int) {
+    static inline function charCodeToSurrogatePair (code:Int) {
         code -= HALF_BASE;
         var high = (code >> HALF_SHIFT) + UNI_SUR_HIGH_START;
         var low = (code & HALF_MASK) + UNI_SUR_LOW_START;
         return { high : high, low : low };
     }
 
-    public static function convertUtf16toUtf8 (source:Utf16Reader, flags:ConversionFlags):ByteAccess {
+    public static function convertUtf16toUtf8 (source:Utf16Reader, strict:Bool):ByteAccess {
 
         var target = new ByteAccessBuffer();
 
         var i = 0;
-        
+
         if (source.length % 2 == 1) throw "invalid source length " + source.length;
-        while (i < source.length) { 
+        while (i < source.length) {
             var ch = source.getInt16(i);
             i+=2;
             /* If we have a surrogate pair, convert to UTF32 first. */
@@ -256,27 +257,27 @@ class Convert {
                     if (isLowSurrogate(ch2)) {
                         ch = utf16surrogatePairToCharCode(ch, ch2);
                         i+=2;
-                    } else if (flags == StrictConversion) { /* it's an unpaired high surrogate */
+                    } else if (strict) { /* it's an unpaired high surrogate */
                         /*  return to the illegal value itself */
                         throw SourceIllegal(i-2);
                     }
                 } else { /* We don't have the 16 bits following the high surrogate. */
                     throw SourceExhausted;
                 }
-            } else if (flags == StrictConversion) {
+            } else if (strict) {
                 /* UTF-16 surrogate values are illegal in UTF-32 */
                 if (isLowSurrogate(ch)) {
                     throw SourceIllegal(i-2);
                 }
             }
-            var r = getUtf8BytesToWriteAndChar(ch, flags, i);
+            var r = getUtf8BytesToWriteAndChar(ch, strict, i);
             writeUtf8CodeBytes(r.ch, r.bytesToWrite, function (x) target.addByte(x));
         }
-        
+
         return target.getByteAccess();
     }
 
-    static inline function getUtf8BytesToWriteAndChar (ch:Int, flags:ConversionFlags, pos:Int) {
+    static inline function getUtf8BytesToWriteAndChar (ch:Int, strict:Bool, pos:Int) {
         var bytesToWrite = 0;
         if (ch < 0x80) {
             bytesToWrite = 1;
@@ -289,19 +290,19 @@ class Convert {
         } else {
             bytesToWrite = 3;
             ch = UNI_REPLACEMENT_CHAR;
-            if (flags == StrictConversion) {
+            if (strict) {
                 throw SourceIllegal(pos);
             }
         }
         return { bytesToWrite : bytesToWrite, ch : ch };
     }
 
-    public static inline function convertUtf8toUtf16 (source:Utf8Reader, flags:ConversionFlags):ByteAccess {
-        return convertUtf8toUtf16OrUcs2(source, flags, false);
+    public static inline function convertUtf8toUtf16 (source:Utf8Reader, strict:Bool):ByteAccess {
+        return convertUtf8toUtf16OrUcs2(source, strict, false);
     }
 
-    public static inline function convertUtf8toUcs2 (source:Utf8Reader, flags:ConversionFlags, strictUcs2:Bool):ByteAccess {
-        return convertUtf8toUtf16OrUcs2(source, flags, strictUcs2);
+    public static inline function convertUtf8toUcs2 (source:Utf8Reader, strict:Bool, strictUcs2:Bool):ByteAccess {
+        return convertUtf8toUtf16OrUcs2(source, strict, strictUcs2);
     }
 
     public static inline function getUtf8CharSize (first) {
@@ -313,7 +314,7 @@ class Convert {
         var extraBytesToRead = size - 1;
 
         var ch = 0;
-        
+
         switch (extraBytesToRead) {
             case 5:
                 ch += source.fastGet(pos++); ch <<= 6;
@@ -347,9 +348,9 @@ class Convert {
         ch -= offsetsFromUTF8[extraBytesToRead];
         return ch;
 
-    } 
+    }
 
-    public static function convertUtf8toUtf16OrUcs2 (source:Utf8Reader, flags:ConversionFlags, strictUcs2:Bool):ByteAccess {
+    public static function convertUtf8toUtf16OrUcs2 (source:Utf8Reader, strict:Bool, strictUcs2:Bool):ByteAccess {
 
         var target = new ByteAccessBuffer();
 
@@ -367,8 +368,8 @@ class Convert {
                 throw SourceIllegal(i);
             }
             var ch = charCodeFromUtf8Bytes(source, i, size);
-            
-            writeUtf16CodeBytes(ch, i, function (_, ch) target.addInt16BigEndian(ch), flags, strictUcs2 );
+
+            writeUtf16CodeBytes(ch, i, function (_, ch) target.addInt16BigEndian(ch), strict, strictUcs2 );
             i+=size;
         }
         return target.getByteAccess();
@@ -378,11 +379,11 @@ class Convert {
 		return if (code <= UNI_MAX_BMP) 2 else 4;
 	}
 
-    public inline static function writeUtf16CodeBytes(ch:Int, pos:Int, addInt16:Int->Int->Void, flags:ConversionFlags, strictUcs2:Bool) {
+    public inline static function writeUtf16CodeBytes(ch:Int, pos:Int, addInt16:Int->Int->Void, strict:Bool, strictUcs2:Bool) {
         if (ch <= UNI_MAX_BMP) { /* Target is a character <= 0xFFFF */
             /* UTF-16 surrogate values are illegal in UTF-32 */
             if (isSurrogateValue(ch)) {
-                if (flags == StrictConversion) {
+                if (strict) {
                     throw SourceIllegal(pos);
                 } else {
                     addInt16(pos, UNI_REPLACEMENT_CHAR);
@@ -391,7 +392,7 @@ class Convert {
                 addInt16(pos, ch);
             }
         } else if (ch > UNI_MAX_UTF16) {
-            if (flags == StrictConversion) {
+            if (strict) {
                 throw SourceIllegal(pos);
             } else {
                 addInt16(pos, UNI_REPLACEMENT_CHAR);
@@ -437,8 +438,8 @@ class Convert {
      * definition of UTF-8 goes up to 4-byte sequences.
      */
 
-    static function isLegalUTF8( source:Utf8Reader, pos:Int, length:Int):Bool {
-
+    static function isLegalUTF8( source:Utf8Reader, pos:Int, length:Int):Bool
+    {
         var ch0 = source.fastGet(pos);
 
         inline function check4 () {
@@ -483,7 +484,7 @@ class Convert {
                 check2() && check1() && check0();
             case 1:
                 check1() && check0();
-            case _: 
+            case _:
                 false;
         }
     }
@@ -576,17 +577,17 @@ class Convert {
         return 1;
     }
 
-    public static function convertUtf8toUtf32(source:Utf8Reader, flags:ConversionFlags):ByteAccess {
+    public static function convertUtf8toUtf32(source:Utf8Reader, strict:Bool):ByteAccess {
         var i = 0;
-        
-        var target = new ByteAccessBuffer(); 
+
+        var target = new ByteAccessBuffer();
 
         while (i < source.length) {
 
             var extraBytesToRead = trailingBytesForUTF8[source.fastGet(i)];
             var size = extraBytesToRead+1;
             if (extraBytesToRead >= source.length - i) {
-                if (flags == StrictConversion) {
+                if (strict) {
                     throw SourceExhausted;
                 } else {
                     /*
@@ -601,7 +602,7 @@ class Convert {
 
             /* Do this check whether lenient or strict */
             if (!isLegalUTF8(source, i, size)) {
-                if (flags == StrictConversion) {
+                if (strict) {
                     throw SourceIllegal(i);
                 } else {
                     /*
@@ -622,7 +623,7 @@ class Convert {
                 * over Plane 17 (> 0x10FFFF) is illegal.
                 */
                 if (isSurrogateValue(ch)) {
-                    if (flags == StrictConversion) {
+                    if (strict) {
                         throw SourceIllegal(i);
                     } else {
                         target.addInt32BigEndian(UNI_REPLACEMENT_CHAR);
@@ -635,42 +636,42 @@ class Convert {
             }
             i+=size;
         }
-        
+
         return target.getByteAccess();
     }
 
-    public static function convertUtf32toUtf8 (source:Utf32Reader, flags:ConversionFlags):ByteAccess {
+    public static function convertUtf32toUtf8 (source:Utf32Reader, strict:Bool):ByteAccess {
         var i = 0;
-        var target = new ByteAccessBuffer(); 
+        var target = new ByteAccessBuffer();
 
         while (i < source.length) {
             var ch = source.getInt32(i);
 
-            if (flags == StrictConversion && isSurrogateValue(ch) ) {
+            if (strict && isSurrogateValue(ch) ) {
                 /* UTF-16 surrogate values are illegal in UTF-32 */
                 throw SourceIllegal(i);
             }
 
-            var r = getUtf8BytesToWriteAndChar(ch, flags, i);
+            var r = getUtf8BytesToWriteAndChar(ch, strict, i);
             writeUtf8CodeBytes(r.ch, r.bytesToWrite, function (x) target.addByte(x));
             i+=4;
-            
+
         }
         return target.getByteAccess();
     }
 
-    public static function convertUtf32toUtf16 (source:Utf32Reader, flags:ConversionFlags) {
+    public static function convertUtf32toUtf16 (source:Utf32Reader, strict:Bool) {
         var i = 0;
         var target = new ByteAccessBuffer();
 
         while (i < source.length) {
             var ch = 0;
-            
+
             ch = source.getInt32(i);
             if (ch <= UNI_MAX_BMP) { /* Target is a character <= 0xFFFF */
                 /* UTF-16 surrogate values are illegal in UTF-32; 0xffff or 0xfffe are both reserved values */
                 if (isSurrogateValue(ch)) {
-                    if (flags == StrictConversion) {
+                    if (strict) {
                         throw SourceIllegal(i);
                     } else {
                         target.addInt16BigEndian(UNI_REPLACEMENT_CHAR);
@@ -679,14 +680,14 @@ class Convert {
                     target.addInt16BigEndian(ch);
                 }
             } else if (ch > UNI_MAX_LEGAL_UTF32) {
-                if (flags == StrictConversion) {
+                if (strict) {
                     throw SourceIllegal(i);
                 } else {
                     target.addInt16BigEndian(UNI_REPLACEMENT_CHAR);
                 }
             } else {
                 var pair = charCodeToSurrogatePair(ch);
-                
+
                 target.addInt16BigEndian(pair.high);
                 target.addInt16BigEndian(pair.low);
             }
@@ -695,15 +696,15 @@ class Convert {
         return target.getByteAccess();
     }
 
-    public static function convertUtf16toUtf32 (source:Utf16Reader, flags:ConversionFlags) {
-        
+    public static function convertUtf16toUtf32 (source:Utf16Reader, strict:Bool) {
+
         var i = 0;
         var target = new ByteAccessBuffer();
 
-        while (i < source.length) 
+        while (i < source.length)
         {
             var ch = source.getInt16(i);
-            
+
             /* If we have a surrogate pair, convert to UTF32 first. */
             if (isHighSurrogate(ch)) {
                 /* If the 16 bits following the high surrogate are in the source buffer... */
@@ -713,13 +714,13 @@ class Convert {
                     if (isLowSurrogate(ch2)) {
                         ch = utf16surrogatePairToCharCode(ch, ch2);
                         i+=2;
-                    } else if (flags == StrictConversion) { /* it's an unpaired high surrogate */
+                    } else if (strict) { /* it's an unpaired high surrogate */
                         throw SourceIllegal(i);
                     }
                 } else { /* We don't have the 16 bits following the high surrogate. */
                     throw SourceExhausted;
                 }
-            } else if (flags == StrictConversion) {
+            } else if (strict) {
                 /* UTF-16 surrogate values are illegal in UTF-32 */
                 if (isLowSurrogate(ch)) {
                     throw SourceIllegal(i);
@@ -728,7 +729,7 @@ class Convert {
             target.addInt32BigEndian(ch);
             i += 2;
         }
-    
+
         return target.getByteAccess();
     }
 }
@@ -750,7 +751,7 @@ class NativeStringTools {
 		return ByteAccess.ofData(b);
 		#else
 		// fallback utf8 to utf16
-		return Convert.convertUtf8toUtf16(new Utf8Reader(toUtf8(s)), StrictConversion);
+		return Convert.convertUtf8toUtf16(new Utf8Reader(toUtf8(s)), true);
 		#end
 	}
 
@@ -768,13 +769,12 @@ class NativeStringTools {
 		var b = cs.system.text.Encoding.UTF32.GetBytes(s);
 		return ByteAccess.ofData(b);
         #else
-		return Convert.convertUtf8toUtf32(new Utf8Reader(toUtf8(s)), StrictConversion);
+		return Convert.convertUtf8toUtf32(new Utf8Reader(toUtf8(s)), true);
         #end
 	}
 
 	public static inline function toUcs2 (s:String):ByteAccess {
         return toUtf16(s);
-		//return Convert.convertUtf8toUcs2(new Utf8Reader(toUtf8(s)), StrictConversion, false);
 	}
 
 	public static function toUtf8 (s:String):ByteAccess {
@@ -810,6 +810,8 @@ class NativeStringTools {
 		var size = 0;
 		var b = @:privateAccess s.bytes.utf16ToUtf8(0, size);
 		return ByteAccess.ofData(new BytesData(b,size));
+        #elseif eval
+        return ByteAccess.ofData(haxe.io.Bytes.ofString(s));
 		#else
 		var a = new Array();
 		// utf16-decode and utf8-encode

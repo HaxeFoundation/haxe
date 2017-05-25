@@ -4,6 +4,7 @@ import haxe.io.Bytes;
 
 import haxe.io.BytesBuffer;
 
+#if !eval
 @:access(haxe.io.BytesBuffer)
 class BytesBufferTools {
 
@@ -29,6 +30,7 @@ class BytesBufferTools {
 		#end
 	}
 }
+#end
 
 // TODO write a faster ByteAccessBuffer without using BytesBuffer or by
 // adding addByteAccess and getByteAccess to BytesBuffer
@@ -37,6 +39,10 @@ class BytesBufferTools {
 
 	public inline function new () {
 		this = new BytesBuffer();
+	}
+
+	static inline function wrap (buf:BytesBuffer):ByteAccessBuffer {
+		return cast buf;
 	}
 
 	public inline function add (b:ByteAccess) {
@@ -55,8 +61,13 @@ class BytesBufferTools {
 		this.addByte(i & 0xFF);
 	}
 
-	public inline function reset ():Void {
+	public inline function reset ():ByteAccessBuffer {
+		#if eval
+		return wrap(new BytesBuffer());
+		#else
 		BytesBufferTools.reset(this);
+		return wrap(this);
+		#end
 	}
 
 	public inline function addBuffer (buf:ByteAccessBuffer) {
