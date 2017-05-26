@@ -31,7 +31,7 @@ At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergr
 
 		var substrings = ['justo', 'gubergren'];
 		var tests:Array<Test> = [];
-		var multiplier:Int = 2;
+		var multiplier:Int = 1;
 		benchmarkString(str, str, substrings, tests, multiplier);
 		benchmarkUtf32(str, new Utf32(str), substrings.map(Utf32.new), tests, multiplier);
 		benchmarkUtf8(str, new Utf8(str), substrings.map(Utf8.new), tests, multiplier);
@@ -44,7 +44,7 @@ At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergr
 		var str = 'Lorem ipsum dolor sit amet, consetetur sadipscing elitr';
 		var substrings = ['ipsum', 'amet'];
 		var tests = [];
-		var multiplier:Int = 20;
+		var multiplier:Int = 2;
 		benchmarkString(str, str, substrings, tests, multiplier);
 		benchmarkUtf32(str, new Utf32(str), substrings.map(Utf32.new), tests, multiplier);
 		benchmarkUtf8(str, new Utf8(str), substrings.map(Utf8.new), tests, multiplier);

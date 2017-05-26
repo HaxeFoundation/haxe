@@ -25,7 +25,7 @@ import haxe.i18n.Tools;
 
 import haxe.i18n.ByteAccess;
 
-typedef Utf32Impl = #if eval Array<Int> #else haxe.ds.Vector<Int> #end;
+typedef Utf32Impl = haxe.ds.Vector<Int>;
 
 
 
@@ -36,7 +36,8 @@ abstract Utf32(Utf32Impl) {
 	public var length(get,never) : Int;
 
 	public inline function new(str:String)  {
-		this = byteAccessToImpl(NativeStringTools.toUtf32(str));
+		this = Tools.NativeStringTools.toUtf32Impl(str);
+		//this = byteAccessToImpl(NativeStringTools.toUtf32(str));
 	}
 
 	public inline function getReader ():Utf32Reader {
@@ -109,11 +110,7 @@ abstract Utf32(Utf32Impl) {
 		var res = Utf32Tools.alloc(ba.length >> 2);
 		var i = 0;
 		while (i < ba.length) {
-			#if eval
-			res.push(ba.getInt32(i));
-			#else
 			res[i >> 2] = ba.getInt32(i);
-			#end
 			i+=4;
 		}
 		return res;
@@ -133,6 +130,7 @@ abstract Utf32(Utf32Impl) {
 	public function toNativeString() : String {
 		return Utf32Tools.toNativeString(this);
 	}
+
 
 	public static inline function fromCharCode( code : Int ) : Utf32 {
 		var v = Utf32Tools.alloc(1);
@@ -219,26 +217,18 @@ abstract Utf32Reader(Utf32Impl) {
 }
 
 @:allow(haxe.i18n)
-private class Utf32Tools {
+class Utf32Tools {
 
-	static function alloc (size:Int) {
-		#if eval
-		return [];
-		#else
+	static inline function alloc (size:Int) {
 		return new Utf32Impl(size);
-		#end
 	}
 
-
-
 	static function append (v:Utf32Impl, other:Utf32Impl) {
-		#if eval
-		var res = v.concat(other);
-		#else
 		var res = alloc(v.length + other.length);
+
 		Utf32Impl.blit(v, 0, res, 0, v.length);
 		Utf32Impl.blit(other, 0, res, v.length, other.length);
-		#end
+
 		return res;
 	}
 
@@ -402,13 +392,11 @@ private class Utf32Tools {
 	}
 
 	public static function sub( impl:Utf32Impl, pos:Int, size:Int ) : Utf32Impl {
-		#if eval
-		return impl.slice(pos, pos + size);
-		#else
 		var res = alloc(size);
+
 		Utf32Impl.blit(impl, pos, res, 0, size);
+
 		return res;
-		#end
 	}
 
 	public static function split( impl:Utf32Impl, delimiter : Utf32Impl ) : Array<Utf32> {

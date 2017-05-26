@@ -350,6 +350,51 @@ class Convert {
 
     }
 
+    public static inline function getNextSizeFromString( source:String, pos:Int) {
+        var extraBytesToRead:Int = trailingBytesForUTF8[StringTools.fastCodeAt(source, pos)];
+        return extraBytesToRead + 1;
+    }
+
+    public static inline function charCodeFromUtf8String (source:String, pos:Int, size:Int) {
+        var extraBytesToRead = size - 1;
+
+        var ch = 0;
+
+        switch (extraBytesToRead) {
+            case 5:
+                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
+                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
+                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
+                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
+                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
+                ch += StringTools.fastCodeAt(source, pos++);
+            case 4:
+                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
+                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
+                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
+                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
+                ch += StringTools.fastCodeAt(source, pos++);
+            case 3:
+                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
+                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
+                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
+                ch += StringTools.fastCodeAt(source, pos++);
+            case 2:
+                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
+                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
+                ch += StringTools.fastCodeAt(source, pos++);
+            case 1:
+                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
+                ch += StringTools.fastCodeAt(source, pos++);
+            case 0:
+                ch += StringTools.fastCodeAt(source, pos++);
+            case _:
+        }
+        ch -= offsetsFromUTF8[extraBytesToRead];
+        return ch;
+
+    }
+
     public static function convertUtf8toUtf16OrUcs2 (source:Utf8Reader, strict:Bool, strictUcs2:Bool):ByteAccess {
 
         var target = new ByteAccessBuffer();
@@ -736,6 +781,40 @@ class Convert {
 
 class NativeStringTools {
 
+    static inline function eachCode (s:String, f:Int->Void) {
+        #if (eval || neko || cpp)
+        // iterate utf8 codes
+        var i = 0;
+		while( i < s.length ) {
+			var size = Convert.getNextSizeFromString(s,i);
+			var code = Convert.charCodeFromUtf8String(s, i, size);
+            f(code);
+            i+=size;
+        }
+        #elseif (js || java || cs)
+        // iterate utf16 codes
+        var i = 0;
+		while( i < s.length ) {
+			var c : Int = StringTools.fastCodeAt(s,i++);
+			// surrogate pair
+			if( 0xD800 <= c && c <= 0xDBFF )
+		        c = (c - 0xD7C0 << 10) | (StringTools.fastCodeAt(s,i++) & 0x3FF);
+            f(c);
+        }
+        #elseif python
+        // iterate utf32 codes
+        var i = 0;
+		while( i < s.length ) {
+			var c : Int = StringTools.fastCodeAt(s,i);
+            f(c);
+            i++;
+        }
+        #else
+        var utf8 = new Utf8(s);
+        utf8.eachCode(f);
+        #end
+    }
+
 	public static function toUtf16 (s:String):ByteAccess {
 		#if python
 		return ByteAccess.ofData(python.NativeStringTools.encode(s, "utf-16be"));
@@ -750,10 +829,55 @@ class NativeStringTools {
 		var b = cs.system.text.Encoding.BigEndianUnicode.GetBytes(s);
 		return ByteAccess.ofData(b);
 		#else
+        return toUtf16ByteAccess(s, false);
 		// fallback utf8 to utf16
-		return Convert.convertUtf8toUtf16(new Utf8Reader(toUtf8(s)), true);
+		//return Convert.convertUtf8toUtf16(new Utf8Reader(toUtf8(s)), true);
 		#end
 	}
+
+    public static function toUtf32Impl (s:String):Utf32.Utf32Impl {
+        var limit = s.length * 2;
+        var a = new Utf32.Utf32Impl(limit);
+
+        var index = 0;
+        eachCode(s, code -> {
+            a[index] = code;
+
+            index++;
+
+            if (index == limit) {
+                limit = limit*2;
+                var d = new Utf32.Utf32Impl(limit);
+
+                Utf32.Utf32Impl.blit(a, 0, d, 0, index);
+
+                a = d;
+            }
+
+
+        });
+
+        var res = new Utf32.Utf32Impl(index);
+        //trace(index);
+        //trace(s.length);
+        Utf32.Utf32Impl.blit(a, 0, res, 0, index);
+
+        return res;
+
+    }
+    public static function toUtf16ByteAccess (s:String, isUcs2:Bool):ByteAccess {
+        var buf = new ByteAccessBuffer();
+		// utf16-decode and utf8-encode
+		var i = 0;
+        var pos = 0;
+        eachCode(s, code -> {
+            Tools.Convert.writeUtf16CodeBytes(code, pos, (_, int16) -> {
+                pos++;
+                buf.addInt16BigEndian(int16);
+            }, true, isUcs2);
+        });
+        return buf.getByteAccess();
+    }
 
 	public static function toUtf32 (s:String):ByteAccess {
         #if python

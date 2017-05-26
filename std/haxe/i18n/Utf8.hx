@@ -138,6 +138,10 @@ abstract Utf8(Utf8Impl) {
 		return Utf8Tools.toCodeArray(this);
 	}
 
+	public inline function eachCode (f:Int->Void):Void {
+		Utf8Tools.eachCode(this, f);
+	}
+
 	public static inline function fromByteAccess (ba:ByteAccess) {
 		return fromImpl(Utf8Tools.fromByteAccess(ba));
 	}
