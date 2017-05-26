@@ -99,22 +99,14 @@ let rec compare a b =
 		else compare v1 v2
 	| _ -> CUndef
 
-let rec equals a b = match a,b with
-	| VNull,VNull -> true
+let equals a b = match a,b with
 	| VInt32 a,VInt32 b -> a = b
 	| VFloat a,VFloat b -> a = b
 	| VFloat a,VInt32 b -> a = (Int32.to_float b)
 	| VInt32 a,VFloat b -> (Int32.to_float a) = b
-	| VTrue,VTrue | VFalse,VFalse -> true
 	| VString(r1,s1),VString(r2,s2) -> r1 == r2 || Lazy.force s1 = Lazy.force s2
-	| VArray a,VArray b -> a == b
-	| VFunction(a,_),VFunction(b,_) -> a == b
-	| VObject a,VObject b -> a == b
-	| VInstance a,VInstance b -> a == b
-	| VPrototype a,VPrototype b -> a == b
 	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && Array.length a.eargs = 0 && Array.length b.eargs = 0 && a.epath = b.epath
-	| VFieldClosure(v1,f1),VFieldClosure(v2,f2) -> f1 == f2 && equals v1 v2
-	| _ -> false
+	| _ -> a == b
 
 let rec arrays_equal a1 a2 =
 	if Array.length a1 <> Array.length a2 then
@@ -130,21 +122,15 @@ let rec arrays_equal a1 a2 =
 
 and equals_structurally a b =
 	match a,b with
-	| VNull,VNull -> true
 	| VInt32 a,VInt32 b -> Int32.compare a b = 0
 	| VFloat a,VFloat b -> a = b
 	| VFloat a,VInt32 b -> a = (Int32.to_float b)
 	| VInt32 a,VFloat b -> (Int32.to_float a) = b
-	| VTrue,VTrue | VFalse,VFalse -> true
 	| VString(_,s1),VString(_,s2) -> Lazy.force s1 = Lazy.force s2
-	| VFunction(a,_),VFunction(b,_) -> a == b
 	| VArray a,VArray b -> a == b || arrays_equal a.avalues b.avalues
 	| VObject a,VObject b -> a == b || arrays_equal a.ofields b.ofields && IntMap.equal equals_structurally a.oextra b.oextra
-	| VInstance a,VInstance b -> a == b
-	| VPrototype a,VPrototype b -> a == b
 	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && arrays_equal a.eargs b.eargs && a.epath = b.epath
-	| VFieldClosure(v1,f1),VFieldClosure(v2,f2) -> f1 == f2 && equals v1 v2
-	| _ -> false
+	| _ -> a == b
 
 let is v path =
 	path = key_Dynamic || match v with
