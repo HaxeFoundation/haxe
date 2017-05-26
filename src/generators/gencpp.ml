@@ -7499,17 +7499,62 @@ class script_writer ctx filename asciiOut =
             gen_expression left;
             gen_expression right;
 
-         | CppVar VarLocal(var) ->
-            this#write ((this#op IaVar) ^ (string_of_int var.v_id) ^ (this#commentOf var.v_name) );
-         | CppVar VarStatic(class_def,_,field) ->
-            this#write ( (this#op IaFStatic)  ^ (this#instText class_def) ^ " " ^
-                (this#stringText field.cf_name) ^ (this#commentOf field.cf_name) );
+         | CppVar var -> gen_var_loc var
+
+         | CppSet(lvalue,rvalue) ->
+            this#writeOpLine (IaBinOp OpAssign);
+            gen_lvalue lvalue expression.cpppos;
+            gen_expression rvalue;
 
          | x -> print_endline ("Unknown cppexpr " ^ (s_tcpp x) );
          );
-        this#end_expr;
-     end in
-     gen_expression expression_tree
+         this#end_expr;
+      end and gen_lvalue lvalue pos =
+         match lvalue with
+         | CppVarRef varLoc ->
+              gen_var_loc varLoc 
+         | CppArrayRef arrayLoc -> (match arrayLoc with
+            | ArrayObject(arrayObj, index, _)
+            | ArrayTyped(arrayObj, index) ->
+               this#write ((this#op IaArrayI) ^ (get_array_type arrayObj) ^ "\n");
+               gen_expression arrayObj;
+               gen_expression index;
+            | ArrayPointer(_, _)
+            | ArrayRawPointer(_,_) -> abort "Unvalid array access in cppia" pos
+            | ArrayVirtual(arrayObj, index)
+            | ArrayImplements(_,arrayObj,index)
+            | ArrayDynamic(arrayObj, index) ->
+               this#write ((this#op IaArrayI) ^ (this#typeTextString "Dynamic") ^ "\n");
+               gen_expression arrayObj;
+               gen_expression index;
+            )
+         | CppGlobalRef(name) -> abort ("Unsupported __global__ '" ^ name ^ "' in cppia") pos;
+         | CppDynamicRef(expr,name) ->
+            let typeText = this#typeTextString "Dynamic" in
+            this#write ( (this#op IaFName) ^ typeText ^ " " ^ (this#stringText name) ^  (this#commentOf name) ^ "\n");
+            gen_expression expr;
+
+      and gen_var_loc loc =
+         match loc with
+         | VarLocal(var) ->
+            this#write ((this#op IaVar) ^ (string_of_int var.v_id) ^ (this#commentOf var.v_name) )
+         | VarStatic(class_def,_,field) ->
+            this#write ( (this#op IaFStatic)  ^ (this#instText class_def) ^ " " ^ (this#stringText field.cf_name) ^ (this#commentOf field.cf_name) );
+         | VarClosure(var) ->
+            this#write ( (this#op IaFThisName) ^ (this#typeTextString "Object") ^ " " ^ (this#stringText var.v_name) ^ "\n")
+         | VarThis(field) ->
+            this#write ( (this#op IaFThisInst) ^ (this#typeTextString "Object") ^ " " ^ (this#stringText field.cf_name) ^ (this#commentOf field.cf_name) );
+         | VarInstance(obj,field,_,_)
+         | VarInterface(obj,field) ->
+            let objType = script_cpptype_string obj.cpptype in
+            this#write ( (this#op IaFLink) ^ (this#astType obj.cpptype) ^ " " ^ (this#stringText field.cf_name) ^ (this#commentOf ( objType ^ "." ^ field.cf_name)) ^ "\n");
+         | VarInternal(obj,_,name) ->
+            let objType = script_cpptype_string obj.cpptype in
+            this#write ( (this#op IaFLink) ^ (this#astType obj.cpptype) ^ " " ^ (this#stringText name) ^ (this#commentOf ( objType ^ "." ^ name)) ^ "\n");
+      and get_array_type elem =
+         this#stringText (script_cpptype_string elem.cpptype);
+      in
+      gen_expression expression_tree
 end;;
 
 
