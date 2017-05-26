@@ -107,6 +107,8 @@ and vprototype = {
 	pparent : vprototype option;
 	(* The [vprototype_kind]. *)
 	pkind : vprototype_kind;
+	(* The value of this prototype, i.e. VPrototype self. *)
+	mutable pvalue : value;
 }
 
 and vinstance_kind =

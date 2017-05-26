@@ -131,15 +131,19 @@ let encode_string_map convert m =
 	PMap.iter (fun key value -> StringHashtbl.add h (Rope.of_string key,lazy key) (convert value)) m;
 	encode_string_map_direct h
 
-let fake_proto path = {
-	ppath = path;
-	pfields = [||];
-	pnames = IntMap.empty;
-	pinstance_names = IntMap.empty;
-	pinstance_fields = [||];
-	pparent = None;
-	pkind = PInstance;
-}
+let fake_proto path =
+	let proto = {
+		ppath = path;
+		pfields = [||];
+		pnames = IntMap.empty;
+		pinstance_names = IntMap.empty;
+		pinstance_fields = [||];
+		pparent = None;
+		pkind = PInstance;
+		pvalue = vnull;
+	} in
+	proto.pvalue <- vprototype proto;
+	proto
 
 let encode_unsafe o =
 	vinstance {
@@ -169,15 +173,19 @@ let encode_tdecl t =
 		ikind = ITypeDecl t;
 	}
 
-let ref_proto = {
-	ppath = key_haxe_macro_Ref;
-	pfields = [||];
-	pnames = IntMap.empty;
-	pinstance_names = IntMap.add key_get 0 (IntMap.singleton key_toString 1);
-	pinstance_fields = [|vnull;vnull|];
-	pparent = None;
-	pkind = PInstance;
-}
+let ref_proto =
+	let proto = {
+		ppath = key_haxe_macro_Ref;
+		pfields = [||];
+		pnames = IntMap.empty;
+		pinstance_names = IntMap.add key_get 0 (IntMap.singleton key_toString 1);
+		pinstance_fields = [|vnull;vnull|];
+		pparent = None;
+		pkind = PInstance;
+		pvalue = vnull;
+	} in
+	proto.pvalue <- vprototype proto;
+	proto
 
 let encode_ref v convert tostr =
 	vinstance {

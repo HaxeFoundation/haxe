@@ -329,7 +329,7 @@ let get_static_prototype ctx path p =
 	with Not_found -> Error.error (Printf.sprintf "[%i] Type not found: %s" ctx.ctx_id (rev_hash_s path)) p
 
 let get_static_prototype_as_value ctx path p =
-	vprototype (get_static_prototype ctx path p)
+	(get_static_prototype ctx path p).pvalue
 
 let get_instance_prototype_raise ctx path =
 	IntMap.find path ctx.instance_prototypes

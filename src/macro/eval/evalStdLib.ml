@@ -2344,13 +2344,13 @@ module StdType = struct
 
 	let getSuperClass = vfun1 (fun v ->
 		match v with
-		| VPrototype {pkind = PClass _; pparent = Some proto} -> vprototype proto
+		| VPrototype {pkind = PClass _; pparent = Some proto} -> proto.pvalue
 		| _ -> vnull
 	)
 
 	let resolveClass = vfun1 (fun v ->
 		let name = decode_rope v in
-		try vprototype (get_static_prototype_raise (get_ctx()) (hash name)) with Not_found -> vnull
+		try (get_static_prototype_raise (get_ctx()) (hash name)).pvalue with Not_found -> vnull
 	)
 
 	let resolveEnum = vfun1 (fun v ->
@@ -2358,7 +2358,7 @@ module StdType = struct
 		try
 			let proto = get_static_prototype_raise (get_ctx()) (hash name) in
 			begin match proto.pkind with
-				| PEnum _ -> vprototype proto
+				| PEnum _ -> proto.pvalue
 				| _ -> vnull
 			end
 		with Not_found ->

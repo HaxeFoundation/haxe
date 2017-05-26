@@ -152,7 +152,9 @@ module PrototypeBuilder = struct
 			pinstance_names = pinstance_names;
 			pparent = pctx.parent;
 			pkind = pctx.kind;
+			pvalue = vnull;
 		} in
+		proto.pvalue <- vprototype proto;
 		(* Register the prototype. *)
 		if pctx.is_static then
 			ctx.static_prototypes <- IntMap.add pctx.key proto ctx.static_prototypes
