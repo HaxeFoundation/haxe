@@ -54,6 +54,13 @@ and s_array depth va =
 		of_char ']';
 	]
 
+and s_vector depth vv =
+	concat empty [
+		of_char '[';
+		EvalArray.join (EvalArray.create vv) (s_value 0) rcomma;
+		of_char ']';
+	]
+
 and s_enum_ctor_name ve =
 	try
 		begin match (get_static_prototype_raise (get_ctx()) ve.epath).pkind with
@@ -104,6 +111,7 @@ and s_value depth v =
 	| VEnumValue ve -> s_enum_value depth ve
 	| VString(s,_) -> s
 	| VArray va -> s_array (depth + 1) va
+	| VVector vv -> s_vector (depth + 1) vv
 	| VInstance {ikind=IDate d} -> s_date d
 	| VInstance {ikind=IPos p} -> of_string ("#pos(" ^ Lexer.get_error_pos (Printf.sprintf "%s:%d:") p ^ ")")
 	| VInstance i -> (try call_to_string () with Not_found -> rev_hash i.iproto.ppath)

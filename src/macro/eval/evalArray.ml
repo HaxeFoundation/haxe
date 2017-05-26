@@ -25,6 +25,15 @@ let create values = {
 	alength = Array.length values;
 }
 
+let array_join a f sep =
+	let buf = Rope.Buffer.create 0 in
+	let last = Array.length a - 1 in
+	Array.iteri (fun i v ->
+		Rope.Buffer.add_rope buf (f v);
+		if i <> last then Rope.Buffer.add_rope buf sep;
+	) a;
+	Rope.Buffer.contents buf
+
 let to_list a = Array.to_list (Array.sub a.avalues 0 a.alength)
 
 let set_length a l =
@@ -83,7 +92,7 @@ let iterator a =
 	)
 
 let join a f sep =
-	Rope.concat sep (List.map f (Array.to_list (Array.sub a.avalues 0 a.alength)))
+	array_join (Array.sub a.avalues 0 a.alength) f sep
 
 let lastIndexOf a equals x fromIndex =
 	let rec loop i =

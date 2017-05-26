@@ -47,6 +47,70 @@ let encode_i64_direct i64 =
 	let high = Int64.to_int32 (Int64.shift_right_logical i64 32) in
 	encode_i64 low high
 
+
+module StdEvalVector = struct
+	let this this = match this with
+		| VVector vv -> vv
+		| v -> unexpected_value v "vector"
+
+	let get_length = vifun0 (fun vthis ->
+		vint (Array.length (this vthis))
+	)
+
+	let set = vifun2 (fun vthis index value ->
+		Array.set (this vthis) (decode_int index) value;
+		vnull
+	)
+
+	let get = vifun1 (fun vthis index ->
+		Array.get (this vthis) (decode_int index)
+	)
+
+	let blit = vifun4 (fun vthis srcPos dest destPos len ->
+		Array.blit (this vthis) (decode_int srcPos) (decode_vector dest) (decode_int destPos) (decode_int len);
+		vnull
+	)
+
+	let toArray = vifun0 (fun vthis ->
+		let copy = Array.copy (this vthis) in
+		encode_array_instance (EvalArray.create copy)
+	)
+
+	let fromArrayCopy = vfun1 (fun arr ->
+		encode_vector_instance (Array.copy (decode_varray arr).avalues)
+	)
+
+	let copy = vifun0 (fun vthis ->
+		encode_vector_instance (Array.copy (this vthis))
+	)
+
+	let join = vifun1 (fun vthis sep ->
+		let this = this vthis in
+		let sep = decode_rope sep in
+		encode_rope (EvalArray.array_join this (s_value 0) sep)
+	)
+
+	let map = vifun1 (fun vthis f ->
+		let this = this vthis in
+		let a = match f with
+			| VFunction(f,_) ->
+				begin match f with
+					| Fun1 f -> Array.map (fun v -> f v) this
+					| FunN f -> Array.map (fun v -> f [v]) this
+					| _ -> invalid_call_arg_number 1 (num_args f)
+				end
+			| VFieldClosure(v1,f) ->
+				begin match f with
+					| Fun2 f -> Array.map (fun v -> f v1 v) this
+					| FunN f -> Array.map (fun v -> f [v1;v]) this
+					| _ -> invalid_call_arg_number 2 (num_args f)
+				end
+			| _ -> exc_string ("Cannot call " ^ (value_string f))
+		in
+		encode_vector_instance a
+	)
+end
+
 module StdArray = struct
 	let this this = match this with
 		| VArray va -> va
@@ -114,7 +178,21 @@ module StdArray = struct
 
 	let map = vifun1 (fun vthis f ->
 		let this = this vthis in
-		let a = EvalArray.map this (fun v -> call_value_on vthis f [v]) in
+		let a = match f with
+			| VFunction(f,_) ->
+				begin match f with
+					| Fun1 f -> EvalArray.map this (fun v -> f v)
+					| FunN f -> EvalArray.map this (fun v -> f [v])
+					| _ -> invalid_call_arg_number 1 (num_args f)
+				end
+			| VFieldClosure(v1,f) ->
+				begin match f with
+					| Fun2 f -> EvalArray.map this (fun v -> f v1 v)
+					| FunN f -> EvalArray.map this (fun v -> f [v1;v])
+					| _ -> invalid_call_arg_number 2 (num_args f)
+				end
+			| _ -> exc_string ("Cannot call " ^ (value_string f))
+		in
 		encode_array_instance a
 	)
 
@@ -2280,6 +2358,7 @@ module StdType = struct
 		| VInstance ({iproto = {pkind = PInstance}} as vi) -> get_static_prototype_as_value (get_ctx()) vi.iproto.ppath null_pos
 		| VString _ -> get_static_prototype_as_value (get_ctx()) key_String null_pos
 		| VArray _ -> get_static_prototype_as_value (get_ctx()) key_Array null_pos
+		| VVector _ -> get_static_prototype_as_value (get_ctx()) key_eval_Vector null_pos
 		| _ -> vnull
 	)
 
@@ -2524,6 +2603,13 @@ let init_maps builtins =
 let init_constructors builtins =
 	let add = Hashtbl.add builtins.constructor_builtins in
 	add key_Array (fun _ -> encode_array_instance (EvalArray.create [||]));
+	add key_eval_Vector
+		(fun vl ->
+			match vl with
+			| [size] ->
+				encode_vector_instance (Array.make (decode_int size) vnull)
+			| _ -> assert false
+		);
 	add key_Date
 		(fun vl ->
 			begin match List.map decode_int vl with
@@ -2591,6 +2677,7 @@ let init_constructors builtins =
 let init_empty_constructors builtins =
 	let h = builtins.empty_constructor_builtins in
 	Hashtbl.add h key_Array (fun () -> encode_array_instance (EvalArray.create [||]));
+	Hashtbl.add h key_eval_Vector (fun () -> encode_vector_instance (Array.create 0 vnull));
 	Hashtbl.add h key_Date (fun () -> encode_instance key_Date ~kind:(IDate 0.));
 	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre.regexp ""; r_global = false; r_string = ""; r_groups = [||]}));
 	Hashtbl.add h key_String (fun () -> encode_rope Rope.empty);
@@ -2624,6 +2711,18 @@ let init_standard_library builtins =
 		"splice",StdArray.splice;
 		"toString",StdArray.toString;
 		"unshift",StdArray.unshift;
+	];
+	init_fields builtins (["eval"],"Vector") [
+		"fromArrayCopy",StdEvalVector.fromArrayCopy;
+	] [
+		"get_length",StdEvalVector.get_length;
+		"set",StdEvalVector.set;
+		"get",StdEvalVector.get;
+		"blit",StdEvalVector.blit;
+		"toArray",StdEvalVector.toArray;
+		"copy",StdEvalVector.copy;
+		"join",StdEvalVector.join;
+		"map",StdEvalVector.map;
 	];
 	init_fields builtins (["haxe";"io"],"Bytes") [
 		"alloc",StdBytes.alloc;

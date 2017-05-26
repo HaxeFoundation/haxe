@@ -65,6 +65,7 @@ type value =
 	| VInstance of vinstance
 	| VString of vstring
 	| VArray of varray
+	| VVector of vvector
 	| VPrototype of vprototype
 	| VFunction of vfunc * bool
 	| VFieldClosure of value * vfunc
@@ -149,6 +150,8 @@ and varray = {
 	mutable avalues : value array;
 	mutable alength : int
 }
+
+and vvector = value array
 
 and venum_value = {
 	eindex : int;

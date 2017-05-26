@@ -111,6 +111,9 @@ let encode_instance ?(kind=INormal) path =
 let encode_array_instance a =
 	VArray a
 
+let encode_vector_instance v =
+	VVector v
+
 let encode_array l =
 	encode_array_instance (EvalArray.create (Array.of_list l))
 

@@ -70,6 +70,12 @@ let emit_const v _ = v
 let emit_new_array env =
 	encode_array_instance (EvalArray.create [||])
 
+let emit_new_vector_int i env =
+	encode_vector_instance (Array.make i vnull)
+
+let emit_new_vector exec env =
+	encode_vector_instance (Array.make (decode_int (exec env)) vnull)
+
 let emit_special_instance f execs env =
 	let vl = List.map (apply env) execs in
 	f vl
@@ -868,6 +874,20 @@ let emit_array_read exec1 exec2 env =
 	if i < 0 then vnull
 	else EvalArray.get (decode_varray va) i
 
+let emit_vector_local_read i exec2 env =
+	let vv = env.env_locals.(i) in
+	let vi = exec2 env in
+	let i = decode_int vi in
+	if i < 0 then vnull
+	else Array.unsafe_get (decode_vector vv) i
+
+let emit_vector_read exec1 exec2 env =
+	let vv = exec1 env in
+	let vi = exec2 env in
+	let i = decode_int vi in
+	if i < 0 then vnull
+	else Array.unsafe_get (decode_vector vv) i
+
 let emit_enum_index exec env = match exec env with
 	| VEnumValue ev -> vint ev.eindex
 	| v -> unexpected_value v "enum value"
@@ -948,6 +968,24 @@ let emit_array_write exec1 exec2 exec3 p env =
 	let i = decode_int vi in
 	if i < 0 then throw_string (Printf.sprintf "Negative array index: %i" i) p;
 	EvalArray.set (decode_varray va) i v3;
+	v3
+
+let emit_vector_local_write i exec2 exec3 p env =
+	let vv = env.env_locals.(i) in
+	let vi = exec2 env in
+	let v3 = exec3 env in
+	let i = decode_int vi in
+	if i < 0 then throw_string (Printf.sprintf "Negative vector index: %i" i) p;
+	Array.unsafe_set (decode_vector vv) i v3;
+	v3
+
+let emit_vector_write exec1 exec2 exec3 p env =
+	let vv = exec1 env in
+	let vi = exec2 env in
+	let v3 = exec3 env in
+	let i = decode_int vi in
+	if i < 0 then throw_string (Printf.sprintf "Negative vector index: %i" i) p;
+	Array.unsafe_set (decode_vector vv) i v3;
 	v3
 
 (* Read + write *)
@@ -1072,6 +1110,30 @@ let emit_array_read_write exec1 exec2 exec3 fop prefix p env =
 	let v2 = exec3 env in
 	let v3 = fop v v2 in
 	EvalArray.set va i v3;
+	if prefix then v3 else v
+
+let emit_vector_local_read_write i exec2 exec3 fop prefix p env =
+	let va1 = env.env_locals.(i) in
+	let va2 = exec2 env in
+	let va = decode_vector va1 in
+	let i = decode_int va2 in
+	if i < 0 then throw_string (Printf.sprintf "Negative vector index: %i" i) p;
+	let v = Array.unsafe_get va i in
+	let v2 = exec3 env in
+	let v3 = fop v v2 in
+	Array.unsafe_set va i v3;
+	if prefix then v3 else v
+
+let emit_vector_read_write exec1 exec2 exec3 fop prefix p env =
+	let va1 = exec1 env in
+	let va2 = exec2 env in
+	let va = decode_vector va1 in
+	let i = decode_int va2 in
+	if i < 0 then throw_string (Printf.sprintf "Negative vector index: %i" i) p;
+	let v = Array.unsafe_get va i in
+	let v2 = exec3 env in
+	let v3 = fop v v2 in
+	Array.unsafe_set va i v3;
 	if prefix then v3 else v
 
 (* Ops *)

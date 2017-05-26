@@ -41,6 +41,10 @@ let decode_array v = match v with
 	| VArray va -> EvalArray.to_list va
 	| _ -> unexpected_value v "array"
 
+let decode_vector v = match v with
+	| VVector vv -> vv
+	| _ -> unexpected_value v "vector"
+
 let decode_varray v = match v with
 	| VArray va -> va
 	| _ -> unexpected_value v "array"
