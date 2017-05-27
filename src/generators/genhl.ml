@@ -2508,12 +2508,47 @@ and eval_expr ctx e =
 			let jends = ref [] in
 			let rvalue = eval_expr ctx en in
 			let loop (cases,e) =
+				hold ctx rvalue;
 				let ok = List.map (fun c ->
-					hold ctx rvalue;
-					let r = eval_to ctx c (common_type ctx en c true c.epos) in
-					free ctx rvalue;
-					jump ctx (fun n -> OJEq (r,rvalue,n))
+					let ct = common_type ctx en c true c.epos in
+					match c.eexpr, ct with
+					| TConst (TString str), HObj { pname = "String" } ->
+						let jnull = jump ctx (fun n -> OJNull (rvalue,n)) in
+
+						(* compare len *)
+						let rlen = alloc_tmp ctx HI32 in
+						op ctx (OField (rlen, rvalue, 1));
+						hold ctx rlen;
+						let str, len = to_utf8 str c.epos in
+						let rlen2 = reg_int ctx len in
+						let jdiff = jump ctx (fun n -> OJNotEq (rlen, rlen2, n)) in
+						free ctx rlen;
+
+						(* compare data *)
+						let rbytes = alloc_tmp ctx HBytes in
+						op ctx (OField (rbytes, rvalue, 0));
+						hold ctx rbytes;
+						let rbytes2 = alloc_tmp ctx HBytes in
+						op ctx (OString (rbytes2,alloc_string ctx str));
+						let result = alloc_tmp ctx HI32 in
+						op ctx (OCall3 (result, alloc_std ctx "string_compare" [HBytes;HBytes;HI32] HI32,rbytes,rbytes2,rlen));
+						free ctx rbytes;
+
+						hold ctx result;
+						let zero = reg_int ctx 0 in
+						let jok = jump ctx (fun n -> OJEq (result, zero, n)) in
+						free ctx result;
+
+						jnull();
+						jdiff();
+						jok
+
+
+					| _ ->
+						let r = eval_to ctx c ct in
+						jump ctx (fun n -> OJEq (r,rvalue,n))
 				) cases in
+				free ctx rvalue;
 				(fun() ->
 					List.iter (fun f -> f()) ok;
 					let re = eval_to ctx e rt in

@@ -261,6 +261,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		with Not_found ->
 			let v' = alloc_var v.v_name v.v_type v.v_pos in
 			if Meta.has Meta.Unbound v.v_meta then v'.v_meta <- [Meta.Unbound,[],p];
+			v'.v_extra <- v.v_extra;
 			let i = {
 				i_var = v;
 				i_subst = v';
