@@ -44,13 +44,23 @@ class Profile {
 
 	public static function dump( fileName = "alloc.dump" ) {
 		var d = getData();
+		var old = enable;
+		enable = false;
 		var f = sys.io.File.write(fileName);
-		for( o in getData() ) {
+		var data = getData();
+		var count = 0, size = 0;
+		for( o in data ) {
+			count += o.count;
+			size += o.size;
+		}
+		f.writeString(count +" total allocs (" + size+" bytes)\n");
+		for( o in data ) {
 			f.writeString(o.count+" "+o.t + " (" + o.size + " bytes)\n");
 			for( s in o.stack )
 				f.writeString("\t" + s + "\n");
 		}
 		f.close();
+		enable = old;
 	}
 
 	static var BUFSIZE = 512;
