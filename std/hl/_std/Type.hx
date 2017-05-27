@@ -237,7 +237,7 @@ class Type {
 		return cast hl.types.ArrayObj.alloc(arr);
 	}
 
-	@:extern public inline static function enumIndex( e : EnumValue ) : Int {
+	public static function enumIndex( e : EnumValue ) : Int {
 		return untyped $enumIndex(e);
 	}
 
