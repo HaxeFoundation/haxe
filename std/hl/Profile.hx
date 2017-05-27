@@ -12,6 +12,9 @@ class Allocation {
 		this.count = count;
 		this.size = size;
 	}
+	@:keep public function toString() {
+		return t + "(" + count + ")";
+	}
 }
 
 @:hlNative("std")
