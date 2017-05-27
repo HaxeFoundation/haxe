@@ -2382,6 +2382,9 @@ and eval_expr ctx e =
 		ctx.m.mcontinues <- oldc;
 		ctx.m.mloop_trys <- oldtrys;
 		alloc_tmp ctx HVoid
+	| TCast ({ eexpr = TCast (v,_) },a) ->
+        (* coalesce double casts into a single runtime check - temp fix for Map accesses *)
+        eval_expr ctx { e with eexpr = TCast(v,a) }
 	| TCast (v,None) ->
 		let t = to_type ctx e.etype in
 		let rv = eval_expr ctx v in
