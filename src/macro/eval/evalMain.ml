@@ -276,7 +276,7 @@ let value_signature v =
 			)
 		| VString(_,s) ->
 			adds (Lazy.force s)
-		| VArray a ->
+		| VArray {avalues = a} | VVector a ->
 			cache v (fun () ->
 				addc 'a';
 				let nulls null_count =
@@ -294,7 +294,7 @@ let value_signature v =
 					| [] ->
 						nulls null_count
 				in
-				loop2 0 (Array.to_list a.avalues);
+				loop2 0 (Array.to_list a);
 				addc 'h'
 			)
 		| VPrototype {pkind = PClass _; ppath = path} ->

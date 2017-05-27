@@ -2454,6 +2454,7 @@ module StdType = struct
 			| VInstance vi -> 6,[|get_static_prototype_as_value ctx vi.iproto.ppath null_pos|]
 			| VString _ -> 6,[|get_static_prototype_as_value ctx key_String null_pos|]
 			| VArray _ -> 6,[|get_static_prototype_as_value ctx key_Array null_pos|]
+			| VVector _ -> 6,[|get_static_prototype_as_value ctx key_eval_Vector null_pos|]
 			| VObject _ | VPrototype _ ->
 				4,[||]
 			| VFunction _

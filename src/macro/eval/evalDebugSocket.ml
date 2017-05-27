@@ -147,7 +147,7 @@ let var_to_json name value access =
 			end
 		| VObject o -> "{...}"
 		| VString(_,s) -> string_repr s
-		| VArray va -> "[...]"
+		| VArray _ | VVector _ -> "[...]"
 		| VInstance vi -> (rev_hash_s vi.iproto.ppath) ^ " {...}"
 		| VPrototype proto -> Rope.to_string (s_proto_kind proto)
 		| VFunction _ | VFieldClosure _ -> "<fun>"
@@ -156,8 +156,7 @@ let var_to_json name value access =
 		let l = List.map (fun (name, value) -> Printf.sprintf "%s: %s" (rev_hash_s name) (level2_value_repr value)) fields in
 		Printf.sprintf "{%s}" (String.concat ", " l)
 	in
-	let array_elems va =
-		let l = EvalArray.to_list va in
+	let array_elems l =
 		let l = List.map level2_value_repr l in
 		Printf.sprintf "[%s]" (String.concat ", " l)
 	in
@@ -180,7 +179,8 @@ let var_to_json name value access =
 			jv type_s value_s is_structured
 		| VObject o -> jv "Anonymous" (fields_string (object_fields o)) true (* TODO: false for empty structures *)
 		| VString(_,s) -> jv "String" (string_repr s) false
-		| VArray va -> jv "Array" (array_elems va) true (* TODO: false for empty arrays *)
+		| VArray va -> jv "Array" (array_elems (EvalArray.to_list va)) true (* TODO: false for empty arrays *)
+		| VVector vv -> jv "Vector" (array_elems (Array.to_list vv)) true
 		| VInstance vi ->
 			let class_name = rev_hash_s vi.iproto.ppath in
 			jv class_name (class_name ^ " " ^ (fields_string (instance_fields vi))) true
@@ -291,6 +291,13 @@ let output_inner_vars v access =
 		| VString(_,s) -> []
 		| VArray va ->
 			let l = EvalArray.to_list va in
+			List.mapi (fun i v ->
+				let n = Printf.sprintf "[%d]" i in
+				let a = access ^ n in
+				n, v, a
+			) l
+		| VVector vv ->
+			let l = Array.to_list vv in
 			List.mapi (fun i v ->
 				let n = Printf.sprintf "[%d]" i in
 				let a = access ^ n in
