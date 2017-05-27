@@ -2651,6 +2651,7 @@ module Texpr = struct
 		let copy_var v =
 			let v2 = alloc_var v.v_name v.v_type v.v_pos in
 			v2.v_meta <- v.v_meta;
+			v2.v_extra <- v.v_extra;
 			Hashtbl.add vars v.v_id v2;
 			v2;
 		in
