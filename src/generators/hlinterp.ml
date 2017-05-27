@@ -1867,6 +1867,10 @@ let load_native ctx lib name t =
 			(function
 			| [VBytes a; VInt apos; VBytes b; VInt bpos; VInt len] -> to_int (String.compare (String.sub a (int apos) (int len)) (String.sub b (int bpos) (int len)))
 			| _ -> assert false)
+		| "string_compare" ->
+			(function
+			| [VBytes a; VBytes b; VInt len] -> to_int (String.compare (String.sub a 0 ((int len) * 2)) (String.sub b 0 ((int len)*2)))
+			| _ -> assert false)
 		| "bytes_fill" ->
 			(function
 			| [VBytes a; VInt pos; VInt len; VInt v] ->
