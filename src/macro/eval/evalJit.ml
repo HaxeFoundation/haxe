@@ -576,30 +576,6 @@ and jit_expr jit return e =
 						| [exec1;exec2] -> emit_string_cca exec1 exec2 e.epos
 						| _ -> assert false
 					end
-				| FInstance({cl_path=["eval"],"Vector"},_,{cf_name="get"}) ->
-					begin match execs with
-						| [exec1] ->
-							begin match ef.eexpr with
-								| TLocal var when not var.v_capture ->
-									emit_vector_local_read (get_slot jit var.v_id ef.epos) exec1
-								| _ ->
-									let exec = jit_expr jit false ef in
-									emit_vector_read exec exec1
-							end
-						| _ -> assert false
-					end
-				| FInstance({cl_path=["eval"],"Vector"},_,{cf_name="set"}) ->
-					begin match execs with
-						| [exec1;exec2] ->
-							begin match ef.eexpr with
-								| TLocal var when not var.v_capture ->
-									emit_vector_local_write (get_slot jit var.v_id ef.epos) exec1 exec2 ef.epos
-								| _ ->
-									let exec = jit_expr jit false ef in
-									emit_vector_write exec exec1 exec2 ef.epos
-							end
-						| _ -> assert false
-					end
 				| FEnum({e_path=path},ef) ->
 					let key = path_hash path in
 					let pos = Some ef.ef_pos in

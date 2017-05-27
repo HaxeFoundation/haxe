@@ -21,20 +21,14 @@
  */
 package eval;
 
-
 extern class Vector<T> implements ArrayAccess<T> {
-
 	public function new(size:Int) : Void;
 	public var length(get, never):Int;
 	function get_length():Int;
-	public function get(index:Int):T;
-	public function set(index:Int, value:T):T;
 	public function blit<T>(srcPos:Int, dest:Vector<T>, destPos:Int, len:Int):Void;
 	public function toArray():Array<T>;
 	static public function fromArrayCopy<T>(array:Array<T>):Vector<T>;
 	public function copy<T>():Vector<T>;
 	public function join<T>(sep:String):String;
 	public function map<S>(f:T->S):Vector<S>;
-
-
 }
