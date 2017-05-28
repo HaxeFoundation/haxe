@@ -106,6 +106,7 @@ let equals a b = match a,b with
 	| VInt32 a,VFloat b -> (Int32.to_float a) = b
 	| VString(r1,s1),VString(r2,s2) -> r1 == r2 || Lazy.force s1 = Lazy.force s2
 	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && Array.length a.eargs = 0 && Array.length b.eargs = 0 && a.epath = b.epath
+	| VPrototype proto1,VPrototype proto2 -> proto1.ppath = proto2.ppath
 	| _ -> a == b
 
 let rec arrays_equal a1 a2 =
@@ -130,6 +131,7 @@ and equals_structurally a b =
 	| VArray a,VArray b -> a == b || arrays_equal a.avalues b.avalues
 	| VObject a,VObject b -> a == b || arrays_equal a.ofields b.ofields && IntMap.equal equals_structurally a.oextra b.oextra
 	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && arrays_equal a.eargs b.eargs && a.epath = b.epath
+	| VPrototype proto1,VPrototype proto2 -> proto1.ppath = proto2.ppath
 	| _ -> a == b
 
 let is v path =
