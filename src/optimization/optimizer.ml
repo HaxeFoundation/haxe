@@ -1106,18 +1106,23 @@ let reduce_control_flow ctx e = match e.eexpr with
 let rec reduce_loop ctx e =
 	let e = Type.map_expr (reduce_loop ctx) e in
 	sanitize_expr ctx.com (match e.eexpr with
-	| TCall ({ eexpr = TField ({ eexpr = TTypeExpr (TClassDecl c) },field) },params) ->
-		(match api_inline ctx c (field_name field) params e.epos with
-		| None -> reduce_expr ctx e
-		| Some e -> reduce_loop ctx e)
-	| TCall ({ eexpr = TFunction func } as ef,el) ->
-		let cf = mk_field "" ef.etype e.epos null_pos in
-		let ethis = mk (TConst TThis) t_dynamic e.epos in
-		let rt = (match follow ef.etype with TFun (_,rt) -> rt | _ -> assert false) in
-		let inl = (try type_inline ctx cf func ethis el rt None e.epos ~self_calling_closure:true false with Error (Custom _,_) -> None) in
-		(match inl with
-		| None -> reduce_expr ctx e
-		| Some e -> reduce_loop ctx e)
+	| TCall(e1,el) ->
+		begin match Texpr.skip e1 with
+			| { eexpr = TFunction func } as ef ->
+				let cf = mk_field "" ef.etype e.epos null_pos in
+				let ethis = mk (TConst TThis) t_dynamic e.epos in
+				let rt = (match follow ef.etype with TFun (_,rt) -> rt | _ -> assert false) in
+				let inl = (try type_inline ctx cf func ethis el rt None e.epos ~self_calling_closure:true false with Error (Custom _,_) -> None) in
+				(match inl with
+				| None -> reduce_expr ctx e
+				| Some e -> reduce_loop ctx e)
+			| { eexpr = TField ({ eexpr = TTypeExpr (TClassDecl c) },field) } ->
+				(match api_inline ctx c (field_name field) el e.epos with
+				| None -> reduce_expr ctx e
+				| Some e -> reduce_loop ctx e)
+			| _ ->
+				reduce_expr ctx e
+		end
 	| _ ->
 		reduce_expr ctx (reduce_control_flow ctx e))
 
