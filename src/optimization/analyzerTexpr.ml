@@ -970,6 +970,10 @@ module Cleanup = struct
 					| _ ->
 						{e with eexpr = TWhile(e1,e2,NormalWhile)}
 				end
+			| TField(e1,(FAnon {cf_name = s} | FDynamic s)) ->
+				let e1 = loop e1 in
+				let fa = quick_field_dynamic e1.etype s in
+				{e with eexpr = TField(e1,fa)}
 			| TField({eexpr = TTypeExpr _},_) ->
 				e
 			| TTypeExpr (TClassDecl c) ->
