@@ -2330,6 +2330,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
    let file_id = ctx.ctx_file_id in
    let function_return_type = ref (cpp_type_of ctx function_type) in
    let loop_stack = ref [] in
+   let forCppia = Common.defined ctx.ctx_common Define.Cppia in
    let alloc_file_id () =
       incr file_id;
       !file_id
@@ -2425,7 +2426,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             end
 
          | TBreak ->
-            if Common.defined ctx.ctx_common Define.Cppia then
+            if forCppia then
                CppBreak, TCppVoid
             else begin match !loop_stack with
                | [] ->
@@ -2495,7 +2496,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   | _ ->
                      (match retypedObj.cpptype, member.cf_name with
                      (* Special variable remapping ... *)
-                     | TCppDynamicArray, "length" when (  not (Common.defined ctx.ctx_common Define.Cppia) )->
+                     | TCppDynamicArray, "length" when (  not forCppia )->
                         CppCall(FuncInternal(retypedObj,"get_length","->"),[]), exprType
 
                      | TCppInterface _,_
@@ -2719,9 +2720,9 @@ let retype_expression ctx request_type function_args function_type expression_tr
                      CppCall( FuncExpression(retypedFunc), retypedArgs), TCppDynamic
                   )
 
-               |  CppGlobal(_) ->
+               |  CppGlobal(name) ->
                   let retypedArgs = List.map (retype TCppDynamic ) args in
-                  CppCall( FuncExpression(retypedFunc) ,retypedArgs), cppType
+                  CppCall( FuncGlobal(name) ,retypedArgs), cppType
 
                | _ ->
                   let retypedArgs = List.map (retype TCppDynamic ) args in
@@ -2894,7 +2895,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
          | TBlock expr_list ->
             let inject = !injection in
             injection := false;
-            if (return_type<>TCppVoid) then
+            if (return_type<>TCppVoid) && not forCppia then
                print_endline ("Value from a block not handled " ^
                (expr.epos.pfile ) ^ " " ^  (string_of_int (Lexer.get_error_line expr.epos) ));
 
@@ -2952,7 +2953,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             let conditionType = cpp_type_of condition.etype in
             let condition = retype conditionType condition in
             let cppDef = match def with None -> None | Some e -> Some (retype TCppVoid (mk_block e)) in
-            if Common.defined ctx.ctx_common Define.Cppia then begin
+            if forCppia then begin
                let cases = List.map (fun (el,e2) ->
                   let cppBlock = retype TCppVoid (mk_block e2) in
                   (List.map (retype conditionType) el), cppBlock ) cases in
@@ -7449,18 +7450,14 @@ class script_writer ctx filename asciiOut =
    this#end_expr;
    (* } *)
    method gen_expression_tree expression_tree = (* { *)
-      let blockClosures = ref [] in
       let rec gen_expression expression =
       begin
          this#begin_expr;
          this#writeCppPos expression;
-         (match expression.cppexpr with
+         let rec match_expr expression = match expression.cppexpr with
          | CppBlock(exprs,closures,_) ->
             this#writeList (this#op IaBlock) (List.length exprs);
-            let oldClosures = !blockClosures in
-            blockClosures := closures;
             List.iter gen_expression exprs;
-            blockClosures := oldClosures;
 
          | CppVarDecl(var,init) ->
             let name =  cpp_var_name_of var in
@@ -7510,6 +7507,8 @@ class script_writer ctx filename asciiOut =
 
          | CppVar var -> gen_var_loc var
 
+         | CppGlobal name -> abort ("Unexpected global '"^ name ^"' in cppia") expression.cpppos
+
          | CppSet(lvalue,rvalue) ->
             this#writeOpLine (IaBinOp OpAssign);
             gen_lvalue lvalue expression.cpppos;
@@ -7548,13 +7547,41 @@ class script_writer ctx filename asciiOut =
             | FuncInternal(func,"cca",".") when func.cpptype=TCppString ->
                this#write ( (this#op IaCallMember) ^ (this#astType func.cpptype) ^ " " ^ (this#stringText "cca") ^
                      argN ^ (this#commentOf "cca") ^ "\n");
-            | FuncInternal(func,name,join) -> abort ("Internal function call '" ^ name ^ "' not supported in cppia") expression.cpppos;
+            | FuncInternal(func,name,join) ->
+               (* abort ("Internal function call '" ^ name ^ "' not supported in cppia") expression.cpppos; *)
+               this#write ( (this#op IaCallMember) ^ (this#astType func.cpptype) ^ " " ^ (this#stringText name) ^
+                     argN ^ (this#commentOf name) ^ "\n");
             | FuncExpression(expr)  ->
                this#write ( (this#op IaCall) ^ argN ^ "\n");
                gen_expression expr;
             );
             List.iter gen_expression args;
 
+         | CppFunction(func,_) ->
+            (match func with
+            | FuncThis(field,_) ->
+               this#write ( (this#op IaFThisInst) ^ (this#typeTextString "Object") ^ " " ^ (this#stringText field.cf_name) ^ (this#commentOf field.cf_name) );
+            | FuncInternal(expr,name,_) ->
+               this#write ( (this#op IaFLink) ^ (this#typeTextString "Dynamic") ^ " " ^ (this#stringText name) ^
+                 (this#commentOf ( "Internal" ^ "." ^ name)) ^ "\n");
+               gen_expression expr;
+
+            | FuncInstance(expr,_,field)
+            | FuncInterface(expr,_,field) ->
+               this#write ( (this#op IaFLink) ^ (this#typeTextString "Dynamic") ^ " " ^ (this#stringText field.cf_name) ^
+                 (this#commentOf ( "Dynamic" ^ "." ^ field.cf_name)) ^ "\n");
+               gen_expression expr;
+
+            | FuncStatic(class_def,_,field) ->
+               this#write ( (this#op IaFStatic)  ^ (this#instText class_def) ^ " " ^ (this#stringText field.cf_name) ^ (this#commentOf field.cf_name) );
+            | FuncExpression(expr) -> match_expr expr;
+            | FuncGlobal(name) ->abort ("Can't create global " ^ name ^ " closure") expression.cpppos
+            | FuncSuper _ | FuncSuperConstruct _ -> abort "Can't create super closure" expression.cpppos
+            | FuncNew _ -> abort "Can't create new closure" expression.cpppos
+            | FuncEnumConstruct _ -> abort "Enum constructor outside of CppCall" expression.cpppos
+            | FuncFromStaticFunction -> abort "Can't create cpp.Function.fromStaticFunction closure" expression.cpppos
+            | FuncTemplate _ -> abort "Can't create template function closure" expression.cpppos
+            )
 
          | CppPosition(file,line,class_name,meth) ->
             this#write ( (this#op IaPosInfo) ^ (this#stringText file) ^ (Printf.sprintf "%ld" line) ^ " " ^
@@ -7594,8 +7621,105 @@ class script_writer ctx filename asciiOut =
             this#write ( (this#op IaEnumI) ^ (this#typeTextString "Dynamic") ^ (string_of_int index) ^ "\n");
             gen_expression obj;
 
+         | CppClosure closure ->
+            this#write ( (this#op IaFun) ^ (this#astType closure.close_type) ^ (string_of_int (List.length closure.close_args)) ^ "\n" );
+            List.iter (fun(arg,init) ->
+               this#write (indent ^ indent_str );
+               this#writeVar arg;
+               match init with
+               | Some const -> this#write ("1 " ^ (this#constText const) ^ "\n")
+               | _ -> this#write "0\n";
+            ) closure.close_args;
+            gen_expression closure.close_expr;
+
+         | CppObjectDecl (values,isStruct) ->this#write ( (this#op IaObjDef) ^ (string_of_int (List.length values)));
+            this#write " ";
+            List.iter (fun (name,_) -> this#write (this#stringText name)  ) values;
+            this#write "\n";
+            List.iter (fun (_,e) -> gen_expression e ) values;
+
+         | CppCrement(incFlag,preFlag,lvalue) ->
+            let op = match incFlag, preFlag with
+            | CppIncrement, Prefix -> IaPlusPlus
+            | CppIncrement, Postfix -> IaPlusPlusPost
+            | CppDecrement, Prefix -> IaMinusMinus
+            | CppDecrement, Postfix -> IaMinusMinusPost
+            in
+            this#writeOpLine op;
+            gen_lvalue lvalue expression.cpppos;
+
+         | CppModify(op,lvalue,rvalue) ->
+            this#writeOpLine (IaBinOp (OpAssignOp op));
+            gen_lvalue lvalue expression.cpppos;
+            gen_expression rvalue;
+
+         | CppUnop(op,expr) ->
+            let op = match op with
+            | CppNot -> IaLogicNot
+            | CppNeg -> IaNeg
+            | CppNegBits -> IaBitNot
+            in
+            this#writeOpLine op;
+            gen_expression expr;
+
+         | CppThrow(value) -> this#writeOpLine IaThrow;
+            gen_expression value;
+
+         | CppTry(block,catches) ->
+            this#writeList (this#op IaTry) (List.length catches);
+            gen_expression block;
+            List.iter ( fun (tvar,catch_expr) ->
+               this#write ("\t\t\t"^indent);
+               this#writeVar tvar;
+               this#write "\n";
+               gen_expression catch_expr;
+            ) catches;
+
+         | CppIntSwitch _ -> abort "CppIntSwitch not supported in cppia" expression.cpppos;
+         | CppSwitch(condition,_, cases, optional_default, _) ->
+            this#write ( (this#op IaSwitch) ^ (string_of_int (List.length cases)) ^ " " ^
+                              (match optional_default with None -> "0" | Some _ -> "1") ^ "\n");
+            gen_expression condition;
+            List.iter (fun (cases_list,expression) ->
+               this#writeList ("\t\t\t"^indent) (List.length cases_list);
+               List.iter (fun value -> gen_expression value ) cases_list;
+               gen_expression expression;
+            ) cases;
+            (match optional_default with None -> () | Some expr -> gen_expression expr);
+
+
+         | CppTCast(expr,toType)
+         | CppCast(expr,toType) ->
+            (match toType with
+            | TCppDynamicArray ->
+               this#write (this#op IaToDynArray);
+               gen_expression expr;
+            | TCppObjectArray(_) ->
+               this#write ((this#op IaToDataArray) ^ (this#typeTextString ("Array.Object")));
+               gen_expression expr;
+            | TCppScalarArray(t) ->
+               this#write ((this#op IaToDataArray)  ^ (this#typeTextString ("Array." ^ (tcpp_to_string t))));
+               gen_expression expr;
+            | _ ->
+               (match expression.cppexpr with
+               (*| CppTCast _ ->
+                  this#writeOpLine IaCast;
+                  gen_expression expr; *)
+               | _ -> match_expr expr)
+            )
+
+         | CppCastScalar(expr,_) -> match_expr expr
+         | CppCastVariant(expr) -> match_expr expr
+         | CppCastStatic(expr,_) -> match_expr expr
+         | CppNullAccess -> 
+            this#writeOpLine IaThrow;
+            this#begin_expr;
+            this#write ((this#op IaConstString) ^ (this#stringText "Null access"));
+            this#end_expr;
+
          | x -> print_endline ("Unknown cppexpr " ^ (s_tcpp x) );
-         );
+         in
+         match_expr expression;
          this#end_expr;
       end and gen_array arrayLoc pos =
          match arrayLoc with
