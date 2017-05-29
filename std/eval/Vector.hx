@@ -23,8 +23,7 @@ package eval;
 
 extern class Vector<T> implements ArrayAccess<T> {
 	public function new(size:Int) : Void;
-	public var length(get, never):Int;
-	function get_length():Int;
+	public var length(default, null):Int;
 	public function blit<T>(srcPos:Int, dest:Vector<T>, destPos:Int, len:Int):Void;
 	public function toArray():Array<T>;
 	static public function fromArrayCopy<T>(array:Array<T>):Vector<T>;

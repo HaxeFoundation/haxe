@@ -670,6 +670,7 @@ and jit_expr jit return e =
 		let name = hash_s (field_name fa) in
 		begin match fa with
 			| FInstance({cl_path=([],"Array")},_,{cf_name="length"}) -> emit_array_length_read (jit_expr jit false e1)
+			| FInstance({cl_path=(["eval"],"Vector")},_,{cf_name="length"}) -> emit_vector_length_read (jit_expr jit false e1)
 			| FInstance({cl_path=(["haxe";"io"],"Bytes")},_,{cf_name="length"}) -> emit_bytes_length_read (jit_expr jit false e1)
 			| FStatic({cl_path=path},_) | FEnum({e_path=path},_) ->
 				let proto = get_static_prototype ctx (path_hash path) e1.epos in

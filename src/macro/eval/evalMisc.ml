@@ -84,6 +84,7 @@ let rec compare a b =
 		if r = 0 then CEq else if r < 0 then CInf else CSup
 	| VFunction(a,_), VFunction(b,_) -> if a == b then CEq else CUndef
 	| VArray va1,VArray va2 -> if va1 == va2 then CEq else CUndef
+	| VVector vv1,VVector vv2 -> if vv1 == vv2 then CEq else CUndef
 	| VObject a,VObject b -> if a == b then CEq else CUndef
 	| VInstance a,VInstance b -> if a == b then CEq else CUndef
 	| VPrototype a,VPrototype b -> if a == b then CEq else CUndef
@@ -129,6 +130,7 @@ and equals_structurally a b =
 	| VInt32 a,VFloat b -> (Int32.to_float a) = b
 	| VString(_,s1),VString(_,s2) -> Lazy.force s1 = Lazy.force s2
 	| VArray a,VArray b -> a == b || arrays_equal a.avalues b.avalues
+	| VVector a,VVector b -> a == b || arrays_equal a b
 	| VObject a,VObject b -> a == b || arrays_equal a.ofields b.ofields && IntMap.equal equals_structurally a.oextra b.oextra
 	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && arrays_equal a.eargs b.eargs && a.epath = b.epath
 	| VPrototype proto1,VPrototype proto2 -> proto1.ppath = proto2.ppath

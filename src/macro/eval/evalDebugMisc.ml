@@ -166,6 +166,9 @@ let expr_to_value ctx env e =
 				| VArray va ->
 					let v = EvalArray.get va idx in
 					(n,v)
+				| VVector vv ->
+					let v = Array.get vv idx in
+					(n,v)
 				| VEnumValue ev ->
 					let v = Array.get ev.eargs idx in
 					(n,v)

@@ -52,6 +52,9 @@ let field_raise v f =
 	| VArray va ->
 		if f = key_length then vint (va.alength)
 		else proto_field_direct (get_instance_prototype_raise (get_ctx()) key_Array) f
+	| VVector vv ->
+		if f = key_length then vint (Array.length vv)
+		else proto_field_direct (get_instance_prototype_raise (get_ctx()) key_eval_Vector) f
 	| VString (_,s) ->
 		if f = key_length then vint (String.length (Lazy.force s))
 		else proto_field_direct (get_ctx()).string_prototype f

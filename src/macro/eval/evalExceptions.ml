@@ -38,6 +38,7 @@ let is v path =
 	| VEnumValue ve -> path = key_EnumValue || path = ve.epath
 	| VString _ -> path = key_String
 	| VArray _ -> path = key_Array
+	| VVector _ -> path = key_eval_Vector
 	| VInstance vi ->
 		let has_interface path' =
 			try begin match (get_static_prototype_raise (get_ctx()) path').pkind with

@@ -819,6 +819,10 @@ let emit_array_length_read exec env = match exec env with
 	| VArray va -> vint (va.alength)
 	| v -> unexpected_value v "Array"
 
+let emit_vector_length_read exec env = match exec env with
+	| VVector vv -> vint (Array.length vv)
+	| v -> unexpected_value v "Vector"
+
 let emit_bytes_length_read exec env = match exec env with
 	| VInstance {ikind = IBytes s} -> vint (Bytes.length s)
 	| v -> unexpected_value v "Bytes"
