@@ -12,8 +12,8 @@ private class TakeParent {
 
 private class TakeChild extends TakeParent {
 	public function new(child:Child) {
-		if (!Std.is(child, Child)) throw 'wtf?';
 		super(child);
+		if (!Std.is(child, Child)) throw 'wtf?';
 	}
 }
 
