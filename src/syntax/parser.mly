@@ -1381,7 +1381,7 @@ and expr = parser
 			else serror()
 		end
 	| [< '(POpen,p1); s >] -> (match s with parser
-		| [< '(PClose,p2); er = arrow_expr; s >] ->
+		| [< '(PClose,p2); er = arrow_expr; >] ->
 			arrow_function p1 [] er
 		| [< '(Question,p2); al = psep Comma parse_fun_param; '(PClose,_); er = arrow_expr; >] ->
 			let al = (match al with | (np,_,_,topt,e) :: al -> (np,true,[],topt,e) :: al | _ -> assert false ) in
@@ -1392,7 +1392,7 @@ and expr = parser
 				arrow_function p1 ((arrow_first_param e) :: al) er
 			| [< t,pt = parse_type_hint_with_pos; s >] -> (match s with parser
 				| [< '(PClose,p2); s >] -> expr_next (EParenthesis (ECheckType(e,(t,pt)),punion p1 p2), punion p1 p2) s
-				| [< '(Comma,pc); al = psep Comma parse_fun_param; '(PClose,_); er = arrow_expr; s >] ->
+				| [< '(Comma,pc); al = psep Comma parse_fun_param; '(PClose,_); er = arrow_expr; >] ->
 					let (np,_) = arrow_ident_checktype e in
 					arrow_function p1 ((np,false,[],(Some(t,pt)),None) :: al) er
 				| [< '((Binop OpAssign),p2); ea1 = expr; s >] ->
