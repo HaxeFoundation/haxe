@@ -1360,6 +1360,15 @@ and gen_return ctx e eo =
 	    spr ctx "do return end"
     | Some e ->
 	    (match e.eexpr with
+            | TField (e2, ((FClosure (_, tcf) | FAnon tcf |FInstance (_,_,tcf)) as ef)) when is_function_type ctx tcf.cf_type ->
+                (* See issue #6259 *)
+		add_feature ctx "use._hx_bind";
+		spr ctx "do return ";
+                print ctx "_hx_bind(";
+                gen_value ctx e2;
+                spr ctx ",";
+                gen_value ctx e;
+                spr ctx ") end";
 	    | TBinop(OpAssign, e1, e2) ->
 		gen_expr ctx e;
 		spr ctx " do return ";
