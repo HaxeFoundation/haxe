@@ -261,7 +261,7 @@ and jit_expr jit return e =
 		jit_closure.capture_infos <- jit.capture_infos;
 		jit.num_closures <- jit.num_closures + 1;
 		let exec = jit_tfunction jit_closure true e.epos tf in
-		let num_captures = Hashtbl.length jit_closure.captures in
+		let num_captures = Hashtbl.length jit.captures in
 		let hasret = jit_closure.has_nonfinal_return in
 		let get_env = get_env jit_closure false (file_hash tf.tf_expr.epos.pfile) (EKLocalFunction jit.num_closures) in
 		let num_args = List.length tf.tf_args in

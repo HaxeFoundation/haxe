@@ -275,7 +275,7 @@ let push_environment_debug ctx info num_locals num_captures =
 			expr = no_expr;
 		};
 		env_locals = Array.make num_locals vnull;
-		env_captures = Array.init num_captures (fun _ -> ref vnull);
+		env_captures = Array.make num_captures (ref vnull);
 	} in
 	if eval.environment_offset = DynArray.length eval.environments then
 		DynArray.add eval.environments env
@@ -311,7 +311,7 @@ let push_environment ctx info num_locals num_captures =
 		env_in_use = false;
 		env_debug = no_debug;
 		env_locals = Array.make num_locals vnull;
-		env_captures = Array.init num_captures (fun _ -> ref vnull);
+		env_captures = Array.make num_captures (ref vnull);
 	}
 [@@inline]
 
