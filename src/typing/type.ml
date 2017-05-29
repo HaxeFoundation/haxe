@@ -1977,7 +1977,7 @@ let rec unify a b =
 				| _ ->
 					let _,t,cf = class_field c tl "new" in
 					if not cf.cf_public then error [invalid_visibility "new"];
-					begin try unify t1 t
+					begin try unify t t1
 					with Unify_error l -> error (cannot_unify a b :: l) end
 			end
 		with Not_found ->
