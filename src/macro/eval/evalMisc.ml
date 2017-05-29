@@ -134,34 +134,6 @@ and equals_structurally a b =
 	| VPrototype proto1,VPrototype proto2 -> proto1.ppath = proto2.ppath
 	| _ -> a == b
 
-let is v path =
-	path = key_Dynamic || match v with
-	| VInt32 _ -> path = key_Int || path = key_Float
-	| VFloat f -> path = key_Float || (path = key_Int && f = (float_of_int (int_of_float f)) && f <= 2147483647. && f >= -2147483648.)
-	| VTrue | VFalse -> path = key_Bool
-	| VPrototype {pkind = PClass _} -> path = key_Class
-	| VPrototype {pkind = PEnum _} -> path = key_Enum
-	| VEnumValue ve -> path = key_EnumValue || path = ve.epath
-	| VString _ -> path = key_String
-	| VArray _ -> path = key_Array
-	| VInstance vi ->
-		let has_interface path' =
-			try begin match (get_static_prototype_raise (get_ctx()) path').pkind with
-				| PClass interfaces -> List.mem path interfaces
-				| _ -> false
-			end with Not_found ->
-				false
-		in
-		let rec loop proto =
-			if path = proto.ppath || has_interface proto.ppath then true
-			else begin match proto.pparent with
-				| Some proto -> loop proto
-				| None -> false
-			end
-		in
-		loop vi.iproto
-	| _ -> false
-
 let is_true v = match v with
 	| VTrue -> true
 	| _ -> false

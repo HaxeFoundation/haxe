@@ -22,10 +22,39 @@ open EvalContext
 open EvalValue
 open EvalPrinting
 open EvalHash
+open EvalField
 
 exception Break
 exception Continue
 exception Return of value
+
+let is v path =
+	path = key_Dynamic || match v with
+	| VInt32 _ -> path = key_Int || path = key_Float
+	| VFloat f -> path = key_Float || (path = key_Int && f = (float_of_int (int_of_float f)) && f <= 2147483647. && f >= -2147483648.)
+	| VTrue | VFalse -> path = key_Bool
+	| VPrototype {pkind = PClass _} -> path = key_Class
+	| VPrototype {pkind = PEnum _} -> path = key_Enum
+	| VEnumValue ve -> path = key_EnumValue || path = ve.epath
+	| VString _ -> path = key_String
+	| VArray _ -> path = key_Array
+	| VInstance vi ->
+		let has_interface path' =
+			try begin match (get_static_prototype_raise (get_ctx()) path').pkind with
+				| PClass interfaces -> List.mem path interfaces
+				| _ -> false
+			end with Not_found ->
+				false
+		in
+		let rec loop proto =
+			if path = proto.ppath || has_interface proto.ppath then true
+			else begin match proto.pparent with
+				| Some proto -> loop proto
+				| None -> false
+			end
+		in
+		loop vi.iproto
+	| _ -> false
 
 let s_value_kind = function
 	| VNull -> "VNull"
@@ -91,10 +120,23 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 	| RunTimeException(v,stack,p') ->
 		build_exception_stack ctx environment_offset;
 		eval.environment_offset <- environment_offset;
-		let msg = get_exc_error_message ctx v (match stack with [] -> [] | _ :: l -> l) (if p' = null_pos then p else p') in
-		get_ctx_ref := prev;
-		final();
-		Error.error msg null_pos
+		if is v key_haxe_macro_Error then begin
+			let v1 = field v key_message in
+			let v2 = field v key_pos in
+			get_ctx_ref := prev;
+			final();
+			match v1,v2 with
+				| VString(_,s),VInstance {ikind = IPos p} ->
+					raise (Error.Error (Error.Custom (Lazy.force s),p))
+				| _ ->
+					Error.error "Something went wrong" null_pos
+		end else begin
+			(* Careful: We have to get the message before resetting the context because toString() might access it. *)
+			let msg = get_exc_error_message ctx v (match stack with [] -> [] | _ :: l -> l) (if p' = null_pos then p else p') in
+			get_ctx_ref := prev;
+			final();
+			Error.error msg null_pos
+		end
 	| MacroApi.Abort ->
 		final();
 		None
