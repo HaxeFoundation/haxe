@@ -1503,7 +1503,7 @@ and tcpp_expr_expr =
    | CppSet of tcpplvalue * tcppexpr
    | CppModify of Ast.binop * tcpplvalue * tcppexpr
    | CppBinop of Ast.binop * tcppexpr * tcppexpr
-   | CppCompare of string * tcppexpr * tcppexpr
+   | CppCompare of string * tcppexpr * tcppexpr * Ast.binop
    | CppNullCompare of string * tcppexpr
    | CppObjectDecl of (string * tcppexpr) list * bool
    | CppPosition of string * int32 * string * string
@@ -2840,12 +2840,12 @@ let retype_expression ctx request_type function_args function_type expression_tr
                | OpLte when   e2_null -> CppNullCompare("IsNull", e1)
                | OpNotEq when e2_null -> CppNullCompare("IsNotNull", e1)
 
-               | OpEq when complex -> CppCompare("IsEq", e1, e2)
-               | OpNotEq when complex -> CppCompare("IsNotEq", e1, e2)
-               | OpGte when complex -> CppCompare("IsGreaterEq", e1, e2)
-               | OpLte when complex -> CppCompare("IsLessEq", e1, e2)
-               | OpGt when complex -> CppCompare("IsGreater", e1, e2)
-               | OpLt  when complex -> CppCompare("IsLess", e1, e2)
+               | OpEq when complex -> CppCompare("IsEq", e1, e2, op)
+               | OpNotEq when complex -> CppCompare("IsNotEq", e1, e2, op)
+               | OpGte when complex -> CppCompare("IsGreaterEq", e1, e2, op)
+               | OpLte when complex -> CppCompare("IsLessEq", e1, e2, op)
+               | OpGt when complex -> CppCompare("IsGreater", e1, e2, op)
+               | OpLt  when complex -> CppCompare("IsLess", e1, e2, op)
 
                | _ -> CppBinop(op,e1,e2)
             in
@@ -3693,8 +3693,8 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
           out (" " ^ op ^ " ");
           out castOpen; gen right; out castClose;
           out ")";
-      | CppCompare(op, left, right) ->
-          out ("hx::" ^ op ^ "( ");
+      | CppCompare(opName, left, right, _) ->
+          out ("hx::" ^ opName ^ "( ");
           gen left;
           out (",");
           gen right;
@@ -7568,14 +7568,37 @@ class script_writer ctx filename asciiOut =
             this#writeOpLine IaNotNull;
             gen_expression e;
 
+         | CppCompare(_, left, right, op) ->
+            this#writeOpLine (IaBinOp op); 
+            gen_expression left;
+            gen_expression right;
+
+         | CppArray(arrayLoc) -> gen_array arrayLoc expression.cpppos
+
+         | CppArrayDecl(exprList) ->
+            this#write ( (this#op IaADef) ^ (this#astType expression.cpptype) ^ " " ^(string_of_int (List.length exprList))^"\n");
+            List.iter gen_expression exprList;
+
+         | CppEnumField(enum,field) ->
+            this#write ( (this#op IaFEnum)  ^ (this#enumText enum) ^ " " ^ (this#stringText field.ef_name) ^ (this#commentOf field.ef_name) );
+
+         | CppDynamicField(obj,name) ->
+            this#write ( (this#op IaFName) ^ (this#typeTextString "Dynamic") ^ " " ^ (this#stringText name) ^  (this#commentOf name) ^ "\n");
+            gen_expression obj;
+
+         | CppClassOf (path,native) ->
+            let klass = "::" ^ (join_class_path path "::" ) in
+            this#write ((this#op IaClassOf) ^ (string_of_int (this#typeId klass)))
+
+         | CppEnumParameter(obj,field,index) ->
+            this#write ( (this#op IaEnumI) ^ (this#typeTextString "Dynamic") ^ (string_of_int index) ^ "\n");
+            gen_expression obj;
+
          | x -> print_endline ("Unknown cppexpr " ^ (s_tcpp x) );
          );
          this#end_expr;
-      end and gen_lvalue lvalue pos =
-         match lvalue with
-         | CppVarRef varLoc ->
-              gen_var_loc varLoc 
-         | CppArrayRef arrayLoc -> (match arrayLoc with
+      end and gen_array arrayLoc pos =
+         match arrayLoc with
             | ArrayObject(arrayObj, index, _)
             | ArrayTyped(arrayObj, index) ->
                this#write ((this#op IaArrayI) ^ (get_array_type arrayObj) ^ "\n");
@@ -7589,7 +7612,10 @@ class script_writer ctx filename asciiOut =
                this#write ((this#op IaArrayI) ^ (this#typeTextString "Dynamic") ^ "\n");
                gen_expression arrayObj;
                gen_expression index;
-            )
+      and gen_lvalue lvalue pos =
+         match lvalue with
+         | CppVarRef varLoc -> gen_var_loc varLoc
+         | CppArrayRef arrayLoc -> gen_array arrayLoc pos
          | CppGlobalRef(name) -> abort ("Unsupported __global__ '" ^ name ^ "' in cppia") pos;
          | CppDynamicRef(expr,name) ->
             let typeText = this#typeTextString "Dynamic" in
