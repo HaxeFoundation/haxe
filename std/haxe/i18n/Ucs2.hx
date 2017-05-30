@@ -240,7 +240,7 @@ abstract Ucs2Reader(String) {
 
 import haxe.i18n.ByteAccess;
 
-typedef Ucs2Impl = ByteAccess;
+private typedef Ucs2Impl = ByteAccess;
 
 @:allow(haxe.i18n)
 abstract Ucs2(ByteAccess) {
@@ -406,7 +406,7 @@ abstract Ucs2Reader(ByteAccess) {
 	}
 }
 
-@:allow(haxe.i18n)
+@:publicFields
 private class Ucs2Tools {
 
 	static inline function strToImplIndex (strIndex:Int):Int {
@@ -470,7 +470,7 @@ private class Ucs2Tools {
 
 	static var empty = ByteAccess.alloc(0);
 
-	public static inline function charAt(impl:Ucs2Impl, index : Int) : Ucs2Impl {
+	static inline function charAt(impl:Ucs2Impl, index : Int) : Ucs2Impl {
 		if (index < 0 || index >= strLength(impl)) {
 			return empty;
 		}
@@ -480,7 +480,7 @@ private class Ucs2Tools {
 		return b;
 	}
 
-	public static function indexOf(impl:Ucs2Impl, str : Ucs2Impl, ?startIndex : Int ) : Int {
+	static function indexOf(impl:Ucs2Impl, str : Ucs2Impl, ?startIndex : Int ) : Int {
 		var res = -1;
 		var strLen = byteLength(str);
 		var byteLen = byteLength(impl);
@@ -504,7 +504,7 @@ private class Ucs2Tools {
 		return res;
 	}
 
-	public static function lastIndexOf( impl:Ucs2Impl, str : Ucs2Impl, ?startIndex : Int ) : Int {
+	static function lastIndexOf( impl:Ucs2Impl, str : Ucs2Impl, ?startIndex : Int ) : Int {
 		var byteLen = byteLength(str);
 		var pos = byteLen-1;
 
@@ -532,7 +532,7 @@ private class Ucs2Tools {
 		return res;
 	}
 
-	public static function substr( impl:Ucs2Impl, pos : Int, ?len : Int ) : Ucs2Impl {
+	static function substr( impl:Ucs2Impl, pos : Int, ?len : Int ) : Ucs2Impl {
 		return if (len == null) {
 			if (pos < 0) {
 				var newPos = strLength(impl) + pos;
@@ -550,7 +550,7 @@ private class Ucs2Tools {
 		}
 	}
 
-	public static function substring( impl:Ucs2Impl, startIndex : Int, ?endIndex : Int ) : Ucs2Impl {
+	static function substring( impl:Ucs2Impl, startIndex : Int, ?endIndex : Int ) : Ucs2Impl {
 
 		var startIndex:Null<Int> = startIndex; // make startIndex nullable, because of possible swap with endIndex
 
@@ -574,7 +574,7 @@ private class Ucs2Tools {
 		return impl.sub(strToImplIndex(startIndex), strToImplIndex(endIndex) - strToImplIndex(startIndex) );
 	}
 
-	public static function split( impl:Ucs2Impl, delimiter : Ucs2Impl ) : Array<Ucs2> {
+	static function split( impl:Ucs2Impl, delimiter : Ucs2Impl ) : Array<Ucs2> {
 		var delimiterLen = byteLength(delimiter);
 
 		var lastPos = 0;
@@ -623,7 +623,7 @@ private class Ucs2Tools {
 		return res;
 	}
 
-	public static inline function charCodeAt( impl:Ucs2Impl, index : Int) : Null<Int> {
+	static inline function charCodeAt( impl:Ucs2Impl, index : Int) : Null<Int> {
 		if (index < 0 || index >= strLength(impl)) {
 			return null;
 		}

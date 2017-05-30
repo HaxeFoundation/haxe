@@ -1,3 +1,34 @@
+/*
+ * Copyright (C)2005-2012 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+
+/*
+ * This File is partly based on the following files of The LLVM Compiler Infrastructure.
+ * It's ported to Haxe and modified to fit the needs of this Library, the original Licence can be found in
+ * LICENSE-ORIGINAL.TXT.
+ *
+ * http://llvm.org/svn/llvm-project/llvm/trunk/include/llvm/Support/ConvertUTF.h
+ * http://llvm.org/svn/llvm-project/llvm/trunk/lib/Support/ConvertUTF.cpp
+ *
+ */
 package haxe.i18n;
 import haxe.i18n.ByteAccess;
 import haxe.i18n.ByteAccessBuffer;
@@ -7,62 +38,6 @@ import haxe.i18n.Utf8.Utf8Reader;
 import haxe.i18n.Utf16.Utf16Reader;
 import haxe.i18n.Utf32.Utf32Reader;
 import haxe.io.BytesData;
-
-/*****
- *
- * Code in Convert class is based on the following classes:
- * http://llvm.org/svn/llvm-project/llvm/trunk/include/llvm/Support/ConvertUTF.h
- * http://llvm.org/svn/llvm-project/llvm/trunk/lib/Support/ConvertUTF.cpp
- *
-*****/
-
-/*===--- ConvertUTF.c - Universal Character Names conversions ---------------===
- *
- *                     The LLVM Compiler Infrastructure
- *
- * This file is distributed under the University of Illinois Open Source
- * License. See LICENSE.TXT for details.
- *
- *===------------------------------------------------------------------------=*/
-/*
- * Copyright 2001-2004 Unicode, Inc.
- *
- * Disclaimer
- *
- * This source code is provided as is by Unicode, Inc. No claims are
- * made as to fitness for any particular purpose. No warranties of any
- * kind are expressed or implied. The recipient agrees to determine
- * applicability of information provided. If this file has been
- * purchased on magnetic or optical media from Unicode, Inc., the
- * sole remedy for any claim will be exchange of defective media
- * within 90 days of receipt.
- *
- * Limitations on Rights to Redistribute This Code
- *
- * Unicode, Inc. hereby grants the right to freely use the information
- * supplied in this file in the creation of products supporting the
- * Unicode Standard, and to make copies of this file in any form
- * for internal or external distribution as long as this notice
- * remains attached.
- */
-
-/* ---------------------------------------------------------------------
-
-	Conversions between UTF32, UTF-16, and UTF-8. Source code file.
-	Author: Mark E. Davis, 1994.
-	Rev History: Rick McGowan, fixes & updates May 2001.
-	Sept 2001: fixed const & error conditions per
-		mods suggested by S. Parent & A. Lillich.
-	June 2002: Tim Dodd added detection and handling of incomplete
-		source sequences, enhanced error detection, added casts
-		to eliminate compiler warnings.
-	July 2003: slight mods to back out aggressive FFFE detection.
-	Jan 2004: updated switches in from-UTF8 conversions.
-	Oct 2004: updated to use UNI_MAX_LEGAL_UTF32 in UTF-32 conversions.
-
-	See the header file "ConvertUTF.h" for complete documentation.
-
------------------------------------------------------------------------- */
 
 enum ConversionError {
 	SourceConsumed;
@@ -184,7 +159,7 @@ class Convert {
 			bytesToWrite = 1;
 		} else if (ch <= 0x7FF) {
 			bytesToWrite = 2;
-		} else if (ch <= 0xFFFF) {
+		} else if (ch <= UNI_MAX_BMP) {
 			bytesToWrite = 3;
 		} else if (ch <= UNI_MAX_LEGAL_UTF32) {
 			bytesToWrite = 4;
@@ -414,7 +389,7 @@ class Convert {
 	}
 
 	 public inline static function writeUtf16CodeBytes(ch:Int, pos:Int, addInt16:Int->Int->Void, strict:Bool, strictUcs2:Bool) {
-		if (ch <= UNI_MAX_BMP) { /* Target is a character <= 0xFFFF */
+		if (ch <= UNI_MAX_BMP) {
 			/* UTF-16 surrogate values are illegal in UTF-32 */
 			if (isSurrogateValue(ch)) {
 				if (strict) {

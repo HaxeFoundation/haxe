@@ -25,10 +25,7 @@ import haxe.i18n.Tools;
 
 import haxe.i18n.ByteAccess;
 
-typedef Utf32Impl = haxe.ds.Vector<Int>;
-
-
-
+private typedef Utf32Impl = haxe.ds.Vector<Int>;
 
 @:allow(haxe.i18n)
 abstract Utf32(Utf32Impl) {
@@ -216,8 +213,8 @@ abstract Utf32Reader(Utf32Impl) {
 	}
 }
 
-@:allow(haxe.i18n)
-class Utf32Tools {
+@:publicFields
+private class Utf32Tools {
 
 	static inline function alloc (size:Int) {
 		return new Utf32Impl(size);
@@ -293,7 +290,7 @@ class Utf32Tools {
 
 	static var empty = alloc(0);
 
-	public static function charAt(impl:Utf32Impl, index : Int) : Utf32Impl {
+	static function charAt(impl:Utf32Impl, index : Int) : Utf32Impl {
 		if (index < 0 || index >= strLength(impl)) {
 			return empty;
 		}
@@ -303,7 +300,7 @@ class Utf32Tools {
 		return b;
 	}
 
-	public static function indexOf(impl:Utf32Impl, str : Utf32Impl, ?startIndex : Int ) : Int {
+	static function indexOf(impl:Utf32Impl, str : Utf32Impl, ?startIndex : Int ) : Int {
 		var res = -1;
 		var strLen = str.length;
 
@@ -327,7 +324,7 @@ class Utf32Tools {
 		return res;
 	}
 
-	public static function lastIndexOf( impl:Utf32Impl, str : Utf32Impl, ?startIndex : Int ) : Int {
+	static function lastIndexOf( impl:Utf32Impl, str : Utf32Impl, ?startIndex : Int ) : Int {
 		var len = str.length;
 		var pos = len-1;
 
@@ -355,7 +352,7 @@ class Utf32Tools {
 		return res;
 	}
 
-	public static function substr( impl:Utf32Impl, pos : Int, ?len : Int ) : Utf32Impl {
+	static function substr( impl:Utf32Impl, pos : Int, ?len : Int ) : Utf32Impl {
 		return if (len == null) {
 			if (pos < 0) {
 				var newPos = strLength(impl) + pos;
@@ -373,7 +370,7 @@ class Utf32Tools {
 		}
 	}
 
-	public static function substring( impl:Utf32Impl, startIndex : Int, ?endIndex : Int ) : Utf32Impl {
+	static function substring( impl:Utf32Impl, startIndex : Int, ?endIndex : Int ) : Utf32Impl {
 		var startIndex:Null<Int> = startIndex;
 		if (startIndex < 0) startIndex = 0;
 		if (endIndex != null && endIndex < 0) endIndex = 0;
@@ -395,7 +392,7 @@ class Utf32Tools {
 		return sub(impl, startIndex, endIndex-startIndex);
 	}
 
-	public static inline function sub( impl:Utf32Impl, pos:Int, size:Int ) : Utf32Impl {
+	static inline function sub( impl:Utf32Impl, pos:Int, size:Int ) : Utf32Impl {
 		var res = alloc(size);
 
 		Utf32Impl.blit(impl, pos, res, 0, size);
@@ -403,7 +400,7 @@ class Utf32Tools {
 		return res;
 	}
 
-	public static function split( impl:Utf32Impl, delimiter : Utf32Impl ) : Array<Utf32> {
+	static function split( impl:Utf32Impl, delimiter : Utf32Impl ) : Array<Utf32> {
 		var delimiterLen = delimiter.length;
 
 		var lastPos = 0;
@@ -453,7 +450,7 @@ class Utf32Tools {
 		return res;
 	}
 
-	public static inline function charCodeAt( impl:Utf32Impl, index : Int) : Null<Int> {
+	static inline function charCodeAt( impl:Utf32Impl, index : Int) : Null<Int> {
 		if (index < 0 || index >= strLength(impl)) {
 			return null;
 		}

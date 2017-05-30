@@ -23,13 +23,12 @@ package haxe.i18n;
 
 import haxe.i18n.Tools;
 
-@:structInit class Utf16Impl {
+@:structInit private class Utf16Impl {
 	public var b(default, null) : ByteAccess;
 	public var length(default,null) : Int;
 }
 
 @:allow(haxe.i18n)
-@:access(haxe.i18n.Utf16Tools)
 abstract Utf16(Utf16Impl) {
 
 	public var length(get,never) : Int;
@@ -186,6 +185,7 @@ abstract Utf16Reader(ByteAccess) {
 	}
 }
 
+@:publicFields
 private class Utf16Tools {
 
 	static inline function fastGet (impl:Utf16Impl, pos:Int) {
@@ -264,14 +264,14 @@ private class Utf16Tools {
 		var len = 0;
 		var index = 0;
 		while (index < ba.length) {
-			var size = getCharSize(ba.getInt16(index));
+			var size = getSequenceSize(ba.getInt16(index));
 			len++;
 			index += size;
 		}
 		return len;
 	}
 
-	static inline function getCharSize (firstInt16:Int):Int {
+	static inline function getSequenceSize (firstInt16:Int):Int {
 		return if (Convert.isHighSurrogate(firstInt16)) 4 else 2;
 	}
 
@@ -304,7 +304,7 @@ private class Utf16Tools {
 			set(target, pos+1, fastGet(bytes, pos+1)-0x20);
 		} else {
 			for (i in 0...size) {
-				set(target, pos+i, fastGet(bytes, pos+i));
+				set(target, pos + i, fastGet(bytes, pos+i));
 			}
 		}
 	}
@@ -334,12 +334,12 @@ private class Utf16Tools {
 
 	 // string functions
 
-	static inline function modify(impl:Utf16Impl, f:Utf16Impl->Utf16Impl->Int->Int->Void) : Utf16Impl {
+	static inline function map(impl:Utf16Impl, f:Utf16Impl->Utf16Impl->Int->Int->Void) : Utf16Impl {
 		var res = allocImpl(byteLength(impl), strLength(impl));
 		var i = 0;
 		while (i < byteLength(impl)) {
 			var b = getInt16(impl, i);
-			var size = getCharSize(b);
+			var size = getSequenceSize(b);
 			f(impl, res, i, size);
 			i += size;
 		}
@@ -348,12 +348,12 @@ private class Utf16Tools {
 
 	static inline function toUpperCase(impl:Utf16Impl) : Utf16Impl {
 		// directly using toUpperCaseLetter results in not inlined function
-		return modify(impl, function (impl, res, i, size) return toUpperCaseLetter(impl, res, i, size));
+		return map(impl, function (impl, res, i, size) return toUpperCaseLetter(impl, res, i, size));
 	}
 
 	static inline function toLowerCase(impl:Utf16Impl) : Utf16Impl {
 		// directly using toLowerCaseLetter results in not inlined function
-		return modify(impl, function (impl, res, i, size) return toLowerCaseLetter(impl, res, i, size));
+		return map(impl, function (impl, res, i, size) return toLowerCaseLetter(impl, res, i, size));
 	}
 
 	static function charAt(impl:Utf16Impl, index : Int) : Utf16Impl {
@@ -361,7 +361,7 @@ private class Utf16Tools {
 		var i = 0;
 		while (i < byteLength(impl)) {
 			var b = getInt16(impl, i);
-			var size = getCharSize(b);
+			var size = getSequenceSize(b);
 			if (pos == index) {
 				return sub(impl, i, size, 1);
 			}
@@ -384,7 +384,7 @@ private class Utf16Tools {
 		while (r == null && i < byteLength(ba)) {
 
 			var b = getInt16(ba, i);
-			var size = getCharSize(b);
+			var size = getSequenceSize(b);
 			if (pos == index) {
 				r = getCharCode(ba, i, size);
 			} else {
@@ -400,7 +400,7 @@ private class Utf16Tools {
 		var i = 0;
 		while (i < byteLength(ba)) {
 			var b = getInt16(ba, i);
-			var size = getCharSize(b);
+			var size = getSequenceSize(b);
 			if (pos == index) {
 				return getCharCode(ba, i, size);
 			} else {
@@ -416,7 +416,7 @@ private class Utf16Tools {
 		var i = 0;
 		while (i < byteLength(impl)) {
 			var b = getInt16(impl, i);
-			var size = getCharSize(b);
+			var size = getSequenceSize(b);
 			var code = getCharCode(impl, i, size);
 			f(code);
 			i += size;
@@ -438,7 +438,7 @@ private class Utf16Tools {
 
 		if (startIndex > 0) {
 			while (i < byteLength) {
-				var size = getCharSize(getInt16(impl, i));
+				var size = getSequenceSize(getInt16(impl, i));
 				i+=size;
 				posFull++;
 				if (posFull >= startIndex) break;
@@ -446,8 +446,8 @@ private class Utf16Tools {
 		}
 		// iterate bytes
 		while (i < byteLength) {
-			var size = getCharSize(getInt16(impl, i));
-			var size2 = getCharSize(getInt16(str, j));
+			var size = getSequenceSize(getInt16(impl, i));
+			var size2 = getSequenceSize(getInt16(str, j));
 
 			if (size == size2 && compareChar(impl, i, str, j, size) == 0) {
 				pos++;
@@ -484,8 +484,8 @@ private class Utf16Tools {
 		var iNext = 0;
 
 		while (i < byteLength(ba) && (startIndexIsNull || posFull < startIndex + 1)) {
-			var size = getCharSize(getInt16(ba, i));
-			var size2 = getCharSize(getInt16(str, j));
+			var size = getSequenceSize(getInt16(ba, i));
+			var size2 = getSequenceSize(getInt16(str, j));
 			if (size == size2 && compareChar(ba, i, str, j, size) == 0) {
 				if (j == 0) {
 					// store the next position for next search
@@ -538,15 +538,15 @@ private class Utf16Tools {
 
 		if (delimiter.length == 0) {
 			while ( i < byteLength(impl)) {
-				var size = getCharSize(getInt16(impl, i));
+				var size = getSequenceSize(getInt16(impl, i));
 				res.push(Utf16.fromImpl(sub(impl, i, size, 1)));
 				i+=size;
 			}
 			return res;
 		}
 		while (i < byteLength(impl)) {
-			var size = getCharSize(getInt16(impl, i));
-			var size2 = getCharSize(getInt16(delimiter, j));
+			var size = getSequenceSize(getInt16(impl, i));
+			var size2 = getSequenceSize(getInt16(delimiter, j));
 
 			if (size == size2 && compareChar(impl, i, delimiter, j, size) == 0) {
 
@@ -625,7 +625,7 @@ private class Utf16Tools {
 		var newSize = 0;
 		while (i < byteLength) {
 			var char = getInt16(str, i);
-			var size = getCharSize(char);
+			var size = getSequenceSize(char);
 			if (cur >= pos && (len == null || cur < pos + len))
 			{
 				newSize++;

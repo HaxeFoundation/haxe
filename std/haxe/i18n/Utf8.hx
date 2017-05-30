@@ -25,11 +25,12 @@ import haxe.i18n.Tools;
 
 import haxe.io.Bytes;
 
-@:structInit class Utf8Impl {
+@:structInit private class Utf8Impl {
 	public var b(default,null) : ByteAccess;
 	public var length(default,null) : Int;
 }
 
+@:allow(haxe.i18n.Utf8Tools)
 abstract Utf8(Utf8Impl) {
 
 	public var length(get,never) : Int;
@@ -188,7 +189,7 @@ abstract Utf8Reader(ByteAccess) {
 	}
 }
 
-@:allow(haxe.i18n)
+@:publicFields
 private class Utf8Tools {
 
 	// implementation specific
@@ -345,7 +346,7 @@ private class Utf8Tools {
 
 	// string functions
 
-	static function modify(ba:Utf8Impl, f:Utf8Impl->Utf8Impl->Int->Int->Void) : Utf8Impl {
+	static function map(ba:Utf8Impl, f:Utf8Impl->Utf8Impl->Int->Int->Void) : Utf8Impl {
 		var res = allocImpl(byteLength(ba), strLength(ba));
 		var i = 0;
 		while (i < byteLength(ba)) {
@@ -360,12 +361,12 @@ private class Utf8Tools {
 
 	static inline function toUpperCase(ba:Utf8Impl) : Utf8Impl {
 		// directly using toUpperCaseLetter results in not inlined function
-		return modify(ba, function (impl, res, i, size) return toUpperCaseLetter(impl, res, i, size));
+		return map(ba, function (impl, res, i, size) return toUpperCaseLetter(impl, res, i, size));
 	}
 
 	static inline function toLowerCase(ba:Utf8Impl) : Utf8Impl {
 		// directly using toLowerCaseLetter results in not inlined function
-		return modify(ba, function (impl, res, i, size) return toLowerCaseLetter(impl, res, i, size));
+		return map(ba, function (impl, res, i, size) return toLowerCaseLetter(impl, res, i, size));
 	}
 
 	static function charAt(ba:Utf8Impl, index : Int) : Utf8Impl {
@@ -491,8 +492,7 @@ private class Utf8Tools {
 					iNext = i + size1;
 				}
 				pos++;
-				j+=size1;
-
+				j += size1;
 			} else {
 				if (j > 0) {
 					// restore next search position and continue
@@ -503,7 +503,6 @@ private class Utf8Tools {
 					continue;
 				}
 			}
-
 			if (pos == len) {
 				// store result
 				res = posFull;
@@ -517,18 +516,17 @@ private class Utf8Tools {
 			if (pos == 0) {
 				posFull++;
 			}
-			i+=size1;
+			i += size1;
 		}
 		return res;
 	}
 
-	@:access(haxe.i18n.Utf8.fromImpl)
 	static function split( str:Utf8Impl, delimiter : Utf8Impl ) : Array<Utf8>
 	{
 		var delimiterLen = strLength(delimiter);
 
 		if (delimiterLen == 0) {
-			var res:Array<Utf8> = [];
+			var res = [];
 			var i = 0;
 			while ( i < byteLength(str)) {
 				var size = getSequenceSize(fastGet(str, i));
@@ -537,7 +535,7 @@ private class Utf8Tools {
 			}
 			return res;
 		} else {
-			var res:Array<Utf8> = [];
+			var res = [];
 			var buf = new ByteAccessBuffer();
 			var tmpBuf = new ByteAccessBuffer();
 			var bufLen = 0; // store utf8 len
@@ -553,10 +551,10 @@ private class Utf8Tools {
 				if (size == size2 && compareChar(str, i, delimiter, j, size)) {
 
 					pos++;
-					j+=size;
+					j += size;
 					tmpBufLen++;
 					for (k in 0...size) {
-						tmpBuf.addByte(fastGet(str, i+k));
+						tmpBuf.addByte(fastGet(str, i + k));
 					}
 				} else {
 					if (pos != 0) {
@@ -572,7 +570,7 @@ private class Utf8Tools {
 					}
 					bufLen++;
 				}
-				i+=size;
+				i += size;
 				if (pos == delimiterLen) {
 					if (buf.length > 0) {
 						res.push(Utf8.fromImpl(mkImplFromBuffer(buf, bufLen)));
@@ -605,33 +603,30 @@ private class Utf8Tools {
 
 	static function substr<T>( str:Utf8Impl, pos : Int, ?len : Int ) : Utf8Impl {
 
-		var lenIsNull = len == null;
+		if (len == 0) return empty;
+
 		var byteLength = byteLength(str);
 		if (pos < 0) {
-			var thisLength = strLength(str);
-			pos = thisLength + pos;
+			pos = strLength(str) + pos;
 			if (pos < 0) pos = 0;
 		}
 
-		if (!lenIsNull && len < 0) {
+		if (len != null && len < 0) {
 			len = strLength(str) + len;
 			if (len < 0) len = 0;
 		}
 
-		if (len == 0) return empty;
-
 		var buf = new ByteAccessBuffer();
-
 		var cur = 0;
 
 		var i = 0;
-		var newSize = 0;
+		var newLen = 0;
 		while (i < byteLength) {
 			var char = fastGet(str, i);
 			var size = getSequenceSize(char);
 			if (cur >= pos && (len == null || cur < pos + len))
 			{
-				newSize++;
+				newLen++;
 				pushCharCode(str, buf, i, size);
 			} else if (len != null && cur >= pos+len) {
 				break;
@@ -640,7 +635,7 @@ private class Utf8Tools {
 			i+=size;
 			cur++;
 		}
-		return mkImplFromBuffer(buf, newSize);
+		return mkImplFromBuffer(buf, newLen);
 	}
 
 	static inline function substring<T>( ba:Utf8Impl, startIndex : Int, ?endIndex : Int ) : Utf8Impl {
@@ -664,7 +659,7 @@ private class Utf8Tools {
 		return substr(ba, startIndex, endIndex - startIndex);
 	}
 
-	static function fromCharCode( code : Int ) : Utf8Impl
+	static inline function fromCharCode( code : Int ) : Utf8Impl
 	{
 		var b = Convert.charCodeToUtf8ByteAccess(code);
 		return mkImpl(b, 1);
