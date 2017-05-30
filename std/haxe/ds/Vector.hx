@@ -158,6 +158,30 @@ abstract Vector<T>(VectorData<T>) {
 			dest.toData().blit(destPos,src.toData(), srcPos,len);
 		#elseif eval
 			src.toData().blit(srcPos, dest.toData(), destPos, len);
+		#elseif python
+			if (src == dest) {
+				if (srcPos < destPos) {
+					var i = srcPos + len;
+					var j = destPos + len;
+					for (k in 0...len) {
+						i--;
+						j--;
+						python.internal.ArrayImpl.unsafeSet(src.toData(), j, python.internal.ArrayImpl.unsafeGet(src.toData(), i));
+					}
+				} else if (srcPos > destPos) {
+					var i = srcPos;
+					var j = destPos;
+					for (k in 0...len) {
+						python.internal.ArrayImpl.unsafeSet(src.toData(), j, python.internal.ArrayImpl.unsafeGet(src.toData(), i));
+						i++;
+						j++;
+					}
+				}
+			} else {
+				for (i in 0...len) {
+					python.internal.ArrayImpl.unsafeSet(dest.toData(), destPos + i, python.internal.ArrayImpl.unsafeGet(src.toData(), srcPos + i));
+				}
+			}
 		#else
 			if (src == dest) {
 				if (srcPos < destPos) {
@@ -242,7 +266,7 @@ abstract Vector<T>(VectorData<T>) {
 	#if as3 @:extern #end
 	static public inline function fromArrayCopy<T>(array:Array<T>):Vector<T> {
 		#if python
-		return cast array.copy();
+		return fromData(array.copy());
 		#elseif flash10
 		return fromData(flash.Vector.ofArray(array));
 		#elseif java

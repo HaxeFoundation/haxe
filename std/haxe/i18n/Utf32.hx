@@ -48,7 +48,7 @@ abstract Utf32(Utf32Impl) {
 		return Utf32Tools.strLength(this);
 	}
 
-	public static function asImpl( s:Utf32 ) : Utf32Impl {
+	public static inline function asImpl( s:Utf32 ) : Utf32Impl {
 		return cast s;
 	}
 
@@ -74,7 +74,7 @@ abstract Utf32(Utf32Impl) {
 		return fromImpl(Utf32Tools.charAt(this, index));
 	}
 
-	public function isValid ():Bool {
+	public inline function isValid ():Bool {
 		return Utf32Tools.isValid(this);
 	}
 
@@ -127,7 +127,7 @@ abstract Utf32(Utf32Impl) {
 	}
 	// end private helpers
 
-	public function toNativeString() : String {
+	public inline function toNativeString() : String {
 		return Utf32Tools.toNativeString(this);
 	}
 
@@ -156,15 +156,15 @@ abstract Utf32(Utf32Impl) {
 		return fromImpl(res);
 	}
 
-	public function toUtf8() : Utf8 {
+	public inline function toUtf8() : Utf8 {
 		return Utf8.fromByteAccess(Convert.convertUtf32toUtf8(getReader(), true));
 	}
 
-	public function toUtf16() : Utf16 {
+	public inline function toUtf16() : Utf16 {
 		return Utf16.fromByteAccess(Convert.convertUtf32toUtf16(getReader(), true));
 	}
 
-	public function toUcs2() : Ucs2 {
+	public inline function toUcs2() : Ucs2 {
 		return toUtf16().toUcs2();
 	}
 
@@ -180,7 +180,7 @@ abstract Utf32(Utf32Impl) {
 		return fromImpl(Utf32Tools.append(this, other.impl()));
 	}
 
-	function compare (other:Utf32):Int {
+	inline function compare (other:Utf32):Int {
 		return Utf32Tools.compare(this, other.impl());
 	}
 
@@ -224,12 +224,16 @@ class Utf32Tools {
 	}
 
 	static function append (v:Utf32Impl, other:Utf32Impl) {
+		#if (python || js || php7 || php || flash)
+		return Utf32Impl.fromData(v.toData().concat(other.toData()));
+		#else
 		var res = alloc(v.length + other.length);
 
 		Utf32Impl.blit(v, 0, res, 0, v.length);
 		Utf32Impl.blit(other, 0, res, v.length, other.length);
 
 		return res;
+		#end
 	}
 
 	static inline function strToImplIndex (strIndex:Int):Int {
@@ -391,7 +395,7 @@ class Utf32Tools {
 		return sub(impl, startIndex, endIndex-startIndex);
 	}
 
-	public static function sub( impl:Utf32Impl, pos:Int, size:Int ) : Utf32Impl {
+	public static inline function sub( impl:Utf32Impl, pos:Int, size:Int ) : Utf32Impl {
 		var res = alloc(size);
 
 		Utf32Impl.blit(impl, pos, res, 0, size);
@@ -449,7 +453,7 @@ class Utf32Tools {
 		return res;
 	}
 
-	public static function charCodeAt( impl:Utf32Impl, index : Int) : Null<Int> {
+	public static inline function charCodeAt( impl:Utf32Impl, index : Int) : Null<Int> {
 		if (index < 0 || index >= strLength(impl)) {
 			return null;
 		}
@@ -488,6 +492,7 @@ class Utf32Tools {
 	}
 
 	static function equal (impl:Utf32Impl, other:Utf32Impl):Bool {
+		if (impl == other) return true;
 		var l1 = impl.length;
 		var l2 = other.length;
 		if (l1 != l2) return false;

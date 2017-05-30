@@ -260,7 +260,7 @@ abstract Ucs2(ByteAccess) {
 		return Ucs2Tools.strLength(this);
 	}
 
-	public static function asByteAccess( s:Ucs2 ) : ByteAccess {
+	public static inline function asByteAccess( s:Ucs2 ) : ByteAccess {
 		return cast s;
 	}
 
@@ -274,27 +274,27 @@ abstract Ucs2(ByteAccess) {
 		return res;
 	}
 
-	public function toUpperCase() : Ucs2 {
+	public inline function toUpperCase() : Ucs2 {
 		return fromImpl(Ucs2Tools.toUpperCase(this));
 	}
 
-	public function toLowerCase() : Ucs2 {
+	public inline function toLowerCase() : Ucs2 {
 		return fromImpl(Ucs2Tools.toLowerCase(this));
 	}
 
-	public function charAt(index : Int) : Ucs2 {
+	public inline function charAt(index : Int) : Ucs2 {
 		return fromImpl(Ucs2Tools.charAt(this, index));
 	}
 
-	public function isValid ():Bool {
+	public inline function isValid ():Bool {
 		return Ucs2Tools.isValid(this);
 	}
 
-	public function charCodeAt( index : Int) : Null<Int> {
+	public inline function charCodeAt( index : Int) : Null<Int> {
 		return Ucs2Tools.charCodeAt(this, index);
 	}
 
-	public function fastCodeAt( index : Int) : Int {
+	public inline function fastCodeAt( index : Int) : Int {
 		return Ucs2Tools.fastCodeAt(this, index);
 	}
 
@@ -308,15 +308,15 @@ abstract Ucs2(ByteAccess) {
 		return Ucs2Tools.lastIndexOf(this, str.impl(), startIndex);
 	}
 
-	public function split( delimiter : Ucs2 ) : Array<Ucs2> {
+	public inline function split( delimiter : Ucs2 ) : Array<Ucs2> {
 		return Ucs2Tools.split(this, delimiter.impl());
 	}
 
-	public function substr( pos : Int, ?len : Int ) : Ucs2 {
+	public inline function substr( pos : Int, ?len : Int ) : Ucs2 {
 		return fromImpl(Ucs2Tools.substr(this, pos, len));
 	}
 
-	public function substring( startIndex : Int, ?endIndex : Int ) : Ucs2 {
+	public inline function substring( startIndex : Int, ?endIndex : Int ) : Ucs2 {
 		return fromImpl(Ucs2Tools.substring(this, startIndex, endIndex));
 	}
 
@@ -333,7 +333,7 @@ abstract Ucs2(ByteAccess) {
 		return this;
 	}
 
-	public function toNativeString() : String {
+	public inline function toNativeString() : String {
 		return Ucs2Tools.toNativeString(this);
 	}
 
@@ -341,7 +341,7 @@ abstract Ucs2(ByteAccess) {
 		return fromImpl(Convert.charCodeToUtf16ByteAccess(code));
 	}
 
-	public function toBytes(  ) : haxe.io.Bytes {
+	public inline function toBytes(  ) : haxe.io.Bytes {
 		return this.copy().toBytes();
 	}
 
@@ -349,16 +349,16 @@ abstract Ucs2(ByteAccess) {
 		return fromImpl(ByteAccess.fromBytes(bytes).copy());
 	}
 
-	public function toUtf8() : Utf8 {
+	public inline function toUtf8() : Utf8 {
 		return toUtf16().toUtf8();
 	}
 
-	public function toUtf16() : Utf16 {
+	public inline function toUtf16() : Utf16 {
 		// we can reuse the same underlying byteaccess because ucs2 allows supplementary chars
 		return Utf16.fromByteAccess(this);
 	}
 
-	public function toUtf32() : Utf32 {
+	public inline function toUtf32() : Utf32 {
 		return toUtf16().toUtf32();
 	}
 
@@ -374,7 +374,7 @@ abstract Ucs2(ByteAccess) {
 		return fromImpl(this.append(asByteAccess(other)));
 	}
 
-	function compare (other:Ucs2):Int {
+	inline function compare (other:Ucs2):Int {
 		return Ucs2Tools.compare(this, other.impl());
 	}
 
@@ -459,19 +459,19 @@ private class Ucs2Tools {
 		return res;
 	}
 
-	static function toUpperCase(impl:Ucs2Impl) : Ucs2Impl {
+	static inline function toUpperCase(impl:Ucs2Impl) : Ucs2Impl {
 		// directly using toUpperCaseLetter results in not inlined function
 		return map(impl, function (code) return toUpperCaseLetter(code));
 	}
 
-	static function toLowerCase(impl:Ucs2Impl) : Ucs2Impl {
+	static inline function toLowerCase(impl:Ucs2Impl) : Ucs2Impl {
 		// directly using toLowerCaseLetter results in not inlined function
 		return map(impl, function (code) return toLowerCaseLetter(code));
 	}
 
 	static var empty = ByteAccess.alloc(0);
 
-	public static function charAt(impl:Ucs2Impl, index : Int) : Ucs2Impl {
+	public static inline function charAt(impl:Ucs2Impl, index : Int) : Ucs2Impl {
 		if (index < 0 || index >= strLength(impl)) {
 			return empty;
 		}
@@ -625,7 +625,7 @@ private class Ucs2Tools {
 		return res;
 	}
 
-	public static function charCodeAt( impl:Ucs2Impl, index : Int) : Null<Int> {
+	public static inline function charCodeAt( impl:Ucs2Impl, index : Int) : Null<Int> {
 		if (index < 0 || index >= strLength(impl)) {
 			return null;
 		}

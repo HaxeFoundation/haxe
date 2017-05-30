@@ -232,7 +232,7 @@ private class Utf8Tools {
 		}
 	}
 
-	static function nativeStringToImpl (s:String):Utf8Impl {
+	static inline function nativeStringToImpl (s:String):Utf8Impl {
 		if (s.length == 0) return empty;
 
 		var ba = nativeStringToByteAccess(s);
@@ -253,14 +253,14 @@ private class Utf8Tools {
 	}
 
 	static inline function equal (ba:Utf8Impl, other:Utf8Impl):Bool {
-		return ba.length == other.length && ba.b.equal(other.b);
+		return ba == other || (ba.length == other.length && ba.b.equal(other.b));
 	}
 
 	static inline function toBytes(impl:Utf8Impl) : haxe.io.Bytes {
 		return impl.b.copy().toBytes();
 	}
 
-	static function fromByteAccess (ba:ByteAccess):Utf8Impl {
+	static inline function fromByteAccess (ba:ByteAccess):Utf8Impl {
 		if (!Convert.isLegalUtf8String(new Utf8Reader(ba))) {
 			throw "illegal utf8";
 		}
@@ -311,7 +311,7 @@ private class Utf8Tools {
 		}
 	}
 
-	static function toUpperCaseLetter (bytes:Utf8Impl, target:Utf8Impl, pos:Int, size:Int) {
+	static inline function toUpperCaseLetter (bytes:Utf8Impl, target:Utf8Impl, pos:Int, size:Int) {
 		if (isLowerCaseLetter(bytes, pos, size)) {
 			set(target, pos, fastGet(bytes, pos)-0x20);
 		} else {
@@ -334,24 +334,24 @@ private class Utf8Tools {
 		}
 	}
 
-	static function getCharCode ( b:Utf8Impl, pos:Int, size:Int):Int {
+	static inline function getCharCode ( b:Utf8Impl, pos:Int, size:Int):Int {
 		return Convert.charCodeFromUtf8Bytes(new Utf8Reader(b.b), pos, size);
 	}
 
-	static function compareChar ( b1:Utf8Impl, pos1:Int, b2:Utf8Impl, pos2:Int, size:Int):Bool {
+	static inline function compareChar ( b1:Utf8Impl, pos1:Int, b2:Utf8Impl, pos2:Int, size:Int):Bool {
 		var c1 = getCharCode(b1, pos1, size);
 		var c2 = getCharCode(b2, pos2, size);
 
 		return c1 == c2;
 	}
 
-	static function pushCharCode (bytes:Utf8Impl, buf:ByteAccessBuffer, pos:Int, size:Int) {
+	static inline function pushCharCode (bytes:Utf8Impl, buf:ByteAccessBuffer, pos:Int, size:Int) {
 		for (i in 0...size) {
 			buf.addByte(fastGet(bytes, pos+i));
 		}
 	}
 
-	static function getCodeSize (code:Int):Int {
+	static inline function getCodeSize (code:Int):Int {
 		return if (code <= 0x7F) {
 			1;
 		} else if (code <= 0x7FF) {
@@ -365,7 +365,7 @@ private class Utf8Tools {
 		}
 	}
 
-	static function nativeStringToByteAccess (s:String):ByteAccess {
+	static inline function nativeStringToByteAccess (s:String):ByteAccess {
 		return NativeStringTools.toUtf8(s);
  	}
 
@@ -384,12 +384,12 @@ private class Utf8Tools {
 		return res;
 	}
 
-	static function toUpperCase(ba:Utf8Impl) : Utf8Impl {
+	static inline function toUpperCase(ba:Utf8Impl) : Utf8Impl {
 		// directly using toUpperCaseLetter results in not inlined function
 		return modify(ba, function (impl, res, i, size) return toUpperCaseLetter(impl, res, i, size));
 	}
 
-	static function toLowerCase(ba:Utf8Impl) : Utf8Impl {
+	static inline function toLowerCase(ba:Utf8Impl) : Utf8Impl {
 		// directly using toLowerCaseLetter results in not inlined function
 		return modify(ba, function (impl, res, i, size) return toLowerCaseLetter(impl, res, i, size));
 	}
@@ -718,7 +718,7 @@ private class Utf8Tools {
 		return bytes;
 	}
 
-	static function toCodeArray (ba:Utf8Impl):Array<Int> {
+	static inline function toCodeArray (ba:Utf8Impl):Array<Int> {
 		var res = [];
 		eachCode(ba, function (c) res.push(c));
 		return res;

@@ -151,7 +151,6 @@ abstract ByteAccess(BytesData) {
 
 private class BytesDataTools {
 
-	#if (!(js))
 	public static function alloc( length : Int ) : BytesData {
 		#if neko
 		return untyped __dollar__smake(length);
@@ -285,6 +284,8 @@ private class BytesDataTools {
 		return b.length;
 		#elseif eval
 		return (b:Bytes).length;
+		#elseif python
+		return b.length;
 		#else
 		return untyped b.length;
 		#end
@@ -397,11 +398,12 @@ private class BytesDataTools {
 		return untyped b.unsafeGet(pos);
 		#elseif java
 		return untyped b[pos] & 0xFF;
+		#elseif python
+		return python.Syntax.arrayAccess(b, pos);
 		#elseif eval
 		return Bytes.fastGet(b, pos);
 		#else
 		return b[pos];
 		#end
 	}
-	#end
 }

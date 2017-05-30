@@ -311,43 +311,7 @@ class Convert {
 
     // asserts valid utf8 bytes
     public static inline function charCodeFromUtf8Bytes (source:Utf8Reader, pos:Int, size:Int) {
-        var extraBytesToRead = size - 1;
-
-        var ch = 0;
-
-        switch (extraBytesToRead) {
-            case 5:
-                ch += source.fastGet(pos++); ch <<= 6;
-                ch += source.fastGet(pos++); ch <<= 6;
-                ch += source.fastGet(pos++); ch <<= 6;
-                ch += source.fastGet(pos++); ch <<= 6;
-                ch += source.fastGet(pos++); ch <<= 6;
-                ch += source.fastGet(pos++);
-            case 4:
-                ch += source.fastGet(pos++); ch <<= 6;
-                ch += source.fastGet(pos++); ch <<= 6;
-                ch += source.fastGet(pos++); ch <<= 6;
-                ch += source.fastGet(pos++); ch <<= 6;
-                ch += source.fastGet(pos++);
-            case 3:
-                ch += source.fastGet(pos++); ch <<= 6;
-                ch += source.fastGet(pos++); ch <<= 6;
-                ch += source.fastGet(pos++); ch <<= 6;
-                ch += source.fastGet(pos++);
-            case 2:
-                ch += source.fastGet(pos++); ch <<= 6;
-                ch += source.fastGet(pos++); ch <<= 6;
-                ch += source.fastGet(pos++);
-            case 1:
-                ch += source.fastGet(pos++); ch <<= 6;
-                ch += source.fastGet(pos++);
-            case 0:
-                ch += source.fastGet(pos++);
-            case _:
-        }
-        ch -= offsetsFromUTF8[extraBytesToRead];
-        return ch;
-
+        return charCodeFromUtf8( pos -> source.fastGet(pos), pos, size);
     }
 
     public static inline function getNextSizeFromString( source:String, pos:Int) {
@@ -355,39 +319,39 @@ class Convert {
         return extraBytesToRead + 1;
     }
 
-    public static inline function charCodeFromUtf8String (source:String, pos:Int, size:Int) {
+    public static inline function charCodeFromUtf8 (codeAt:Int->Int, pos:Int, size:Int) {
         var extraBytesToRead = size - 1;
 
         var ch = 0;
 
         switch (extraBytesToRead) {
             case 5:
-                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
-                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
-                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
-                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
-                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
-                ch += StringTools.fastCodeAt(source, pos++);
+                ch += codeAt(pos++); ch <<= 6;
+                ch += codeAt(pos++); ch <<= 6;
+                ch += codeAt(pos++); ch <<= 6;
+                ch += codeAt(pos++); ch <<= 6;
+                ch += codeAt(pos++); ch <<= 6;
+                ch += codeAt(pos++);
             case 4:
-                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
-                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
-                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
-                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
-                ch += StringTools.fastCodeAt(source, pos++);
+                ch += codeAt(pos++); ch <<= 6;
+                ch += codeAt(pos++); ch <<= 6;
+                ch += codeAt(pos++); ch <<= 6;
+                ch += codeAt(pos++); ch <<= 6;
+                ch += codeAt(pos++);
             case 3:
-                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
-                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
-                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
-                ch += StringTools.fastCodeAt(source, pos++);
+                ch += codeAt(pos++); ch <<= 6;
+                ch += codeAt(pos++); ch <<= 6;
+                ch += codeAt(pos++); ch <<= 6;
+                ch += codeAt(pos++);
             case 2:
-                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
-                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
-                ch += StringTools.fastCodeAt(source, pos++);
+                ch += codeAt(pos++); ch <<= 6;
+                ch += codeAt(pos++); ch <<= 6;
+                ch += codeAt(pos++);
             case 1:
-                ch += StringTools.fastCodeAt(source, pos++); ch <<= 6;
-                ch += StringTools.fastCodeAt(source, pos++);
+                ch += codeAt(pos++); ch <<= 6;
+                ch += codeAt(pos++);
             case 0:
-                ch += StringTools.fastCodeAt(source, pos++);
+                ch += codeAt(pos++);
             case _:
         }
         ch -= offsetsFromUTF8[extraBytesToRead];
@@ -787,11 +751,11 @@ class NativeStringTools {
         var i = 0;
 		while( i < s.length ) {
 			var size = Convert.getNextSizeFromString(s,i);
-			var code = Convert.charCodeFromUtf8String(s, i, size);
+			var code = Convert.charCodeFromUtf8( pos -> StringTools.fastCodeAt(s, pos), i, size);
             f(code);
             i+=size;
         }
-        #elseif (js || java || cs)
+        #elseif (js || java || cs || flash)
         // iterate utf16 codes
         var i = 0;
 		while( i < s.length ) {
@@ -801,6 +765,7 @@ class NativeStringTools {
 		        c = (c - 0xD7C0 << 10) | (StringTools.fastCodeAt(s,i++) & 0x3FF);
             f(c);
         }
+
         #elseif python
         // iterate utf32 codes
         var i = 0;
@@ -836,15 +801,11 @@ class NativeStringTools {
 	}
 
     public static function toUtf32Impl (s:String):Utf32.Utf32Impl {
-        var limit = s.length * 2;
+        var limit = s.length * 1;
         var a = new Utf32.Utf32Impl(limit);
 
         var index = 0;
         eachCode(s, code -> {
-            a[index] = code;
-
-            index++;
-
             if (index == limit) {
                 limit = limit*2;
                 var d = new Utf32.Utf32Impl(limit);
@@ -853,14 +814,21 @@ class NativeStringTools {
 
                 a = d;
             }
+            a[index] = code;
 
-
+            index++;
         });
+
+        if (limit == s.length && index == s.length) {
+            return a;
+        }
 
         var res = new Utf32.Utf32Impl(index);
         //trace(index);
         //trace(s.length);
         Utf32.Utf32Impl.blit(a, 0, res, 0, index);
+
+
 
         return res;
 

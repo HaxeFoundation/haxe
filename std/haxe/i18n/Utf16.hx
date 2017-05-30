@@ -34,7 +34,7 @@ abstract Utf16(Utf16Impl) {
 
 	public var length(get,never) : Int;
 
-	public function new(str:String) : Void {
+	public inline function new(str:String) : Void {
 		this = Utf16Tools.nativeStringToImpl(str);
 	}
 
@@ -200,7 +200,7 @@ private class Utf16Tools {
 		return ba.b.length;
 	}
 
-	static function strLength(impl:Utf16Impl) {
+	static inline function strLength(impl:Utf16Impl) {
 		return impl.length;
 	}
 
@@ -219,7 +219,7 @@ private class Utf16Tools {
 		}
 	}
 
-	static function nativeStringToImpl (s:String):Utf16Impl {
+	static inline function nativeStringToImpl (s:String):Utf16Impl {
 		if (s.length == 0) return empty;
 		var ba = NativeStringTools.toUtf16(s);
 		return {
@@ -248,12 +248,12 @@ private class Utf16Tools {
 		return { length : len, b : ba};
 	}
 
-	static function toNativeString(impl:Utf16Impl) : String {
+	static inline function toNativeString(impl:Utf16Impl) : String {
 		return impl.b.getString(0, impl.b.length);
 	}
 
 	static inline function equal (impl:Utf16Impl, other:Utf16Impl) {
-		return impl.length == other.length && impl.b.equal(other.b);
+		return impl == other || (impl.length == other.length && impl.b.equal(other.b));
 	}
 
 	static inline function append (impl:Utf16Impl, other:Utf16Impl):Utf16Impl {
@@ -324,7 +324,6 @@ private class Utf16Tools {
 
 	static inline function getCharCode ( b:Utf16Impl, pos:Int, size:Int):Int {
 		return switch size {
-
 			case 2: getInt16(b, pos);
 			case 4: Convert.utf16surrogatePairToCharCode(getInt16(b, pos), getInt16(b, pos+2));
 			case _: throw "invalid size, 2 or 4 expected";
@@ -358,12 +357,12 @@ private class Utf16Tools {
 		return res;
 	}
 
-	static function toUpperCase(impl:Utf16Impl) : Utf16Impl {
+	static inline function toUpperCase(impl:Utf16Impl) : Utf16Impl {
 		// directly using toUpperCaseLetter results in not inlined function
 		return modify(impl, function (impl, res, i, size) return toUpperCaseLetter(impl, res, i, size));
 	}
 
-	static function toLowerCase(impl:Utf16Impl) : Utf16Impl {
+	static inline function toLowerCase(impl:Utf16Impl) : Utf16Impl {
 		// directly using toLowerCaseLetter results in not inlined function
 		return modify(impl, function (impl, res, i, size) return toLowerCaseLetter(impl, res, i, size));
 	}
@@ -675,7 +674,7 @@ private class Utf16Tools {
 		return substr(impl, startIndex, endIndex - startIndex);
 	}
 
-	static function fromCharCode( code : Int ) : Utf16Impl
+	static inline function fromCharCode( code : Int ) : Utf16Impl
 	{
 		return {
 			b : Convert.charCodeToUtf16ByteAccess(code),

@@ -56,7 +56,7 @@ abstract ByteAccess(Uint8Array) {
 	public function toString ():String {
 		var res = [];
 		for (i in 0...length) {
-			
+
 			res.push(fastGet(i));
 		}
 		return res.join(",");
@@ -84,11 +84,11 @@ abstract ByteAccess(Uint8Array) {
 		}
 		return true;
 	}
-	
+
 	public function compare (other:ByteAccess) {
 		var a = fromUint8Array(this);
 		var b = other;
-		
+
 		var min = a.length < b.length ? a.length : b.length;
 
 		for (i in 0...min) {
@@ -137,9 +137,8 @@ abstract ByteAccess(Uint8Array) {
 		return Bytes.ofData(sub(0, length).getData());
 	}
 }
-
 private class Uint8ArrayTools {
-	#if (js)
+
 	public static inline function get( b:Uint8Array, pos : Int ) : Int {
 		return b[pos];
 	}
@@ -223,5 +222,5 @@ private class Uint8ArrayTools {
 		for( i in 0...len )
 			b1[i+pos] = b2[i+srcpos];
 	}
-	#end
+
 }

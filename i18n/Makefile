@@ -4,6 +4,10 @@ HAXE_STD_PATH=$(HAXEPATH)/std
 PATH1=$(HAXEPATH):$(PATH)
 ENV=HAXEPATH=$(HAXEPATH) HAXE_LIBRARY_PATH=$(HAXE_LIBRARY_PATH) HAXE_STD_PATH=$(HAXE_STD_PATH) PATH=$(PATH1)
 HAXE_EXEC=$(ENV) $(HAXEPATH)/haxe
+PYPY3=/home/frabbit/Downloads/pypy3-v5.7.1-linux64/bin/pypy3
+HASHLINK_PATH=/home/frabbit/github/hashlink
+HL_ENV=LD_LIBRARY_PATH=$(HASHLINK_PATH)
+HL=$(HL_ENV) $(HASHLINK_PATH)/hl
 
 test-1: test-neko test-js test-python test-php test-hl
 test-all: test-neko test-js test-python test-php test-java test-cs test-cpp test-hl
@@ -22,6 +26,10 @@ test-js:
 test-python:
 	cd ../tests/unit && $(HAXE_EXEC) compile-python.hxml
 	cd ../tests/unit && python3 bin/unit.py
+
+test-pypy:
+	cd ../tests/unit && $(HAXE_EXEC) compile-python.hxml
+	cd ../tests/unit && $(PYPY3) bin/unit.py
 
 test-java:
 	cd ../tests/unit && $(HAXE_EXEC) compile-java.hxml
@@ -54,6 +62,12 @@ test-php7:
 test-hl:
 	cd ../tests/unit && $(HAXE_EXEC) compile-hl.hxml
 	cd ../tests/unit && hl bin/unit.hl
+
+test-eval:
+	cd ../tests/unit && haxe-eval -cp ../../standalone compile-macro.hxml
+
+test-interp:
+	cd ../tests/unit && $(HAXE_EXEC) -cp ../../standalone compile-macro.hxml
 
 check-cpp:
 	$(HAXE_EXEC) -main Check -cpp bin/cpp -debug -dce no
@@ -98,8 +112,12 @@ check-hl:
 # benchmarks
 
 benchmark-cpp:
-	$(HAXE_EXEC) -main Benchmark -cpp bin/cpp -dce no
-	bin/cpp/Benchmark
+	$(HAXE_EXEC) -main Benchmark -cpp bin/cpp1 -dce no
+	bin/cpp1/Benchmark
+
+benchmark-cpp-2:
+	$(HAXE_EXEC) -D HXCPP-GC-GENERATIONAL -main Benchmark -cpp bin/cpp2 -dce no
+	bin/cpp2/Benchmark
 
 benchmark-neko:
 	$(HAXE_EXEC) -main Benchmark -neko bin/benchmark.n -dce no
@@ -118,15 +136,18 @@ benchmark-lua:
 	luajit bin/benchmark.lua
 
 benchmark-python:
-	$(HAXE_EXEC) -main Benchmark -python bin/benchmark.py -dce no -D analyzer-code-motion
+	$(HAXE_EXEC) -main Benchmark -python bin/benchmark.py -dce no
 	python3 bin/benchmark.py
 
 benchmark-pypy:
-	$(HAXE_EXEC) -main Benchmark -python bin/benchmark.py -dce no -D analyzer-code-motion
-	pypy3 bin/benchmark.py
+	$(HAXE_EXEC) -main Benchmark -python bin/benchmark.py -dce no
+	$(PYPY3) bin/benchmark.py
 
 benchmark-interp:
 	$(HAXE_EXEC) --run Benchmark
+
+benchmark-eval:
+	haxe-eval -cp ../standalone --run Benchmark
 
 benchmark-php:
 	$(HAXE_EXEC) -main Benchmark -php bin/php -dce no
@@ -146,4 +167,10 @@ benchmark-swf:
 
 benchmark-hl:
 	$(HAXE_EXEC) -main Benchmark -hl bin/benchmark.hl -dce no
-	hl bin/benchmark.hl
+	$(HL) bin/benchmark.hl
+
+
+benchmark-hlc:
+	$(HAXE_EXEC) -main Benchmark -hl bin/benchmark-hl.c -dce no
+	cd bin && gcc -o bench-hl -I ./ -I $(HASHLINK_PATH)/src benchmark-hl.c -std=c11 -lm $(HASHLINK_PATH)/libhl.so -Wl,-rpath,$(HASHLINK_PATH)
+	bin/bench-hl
