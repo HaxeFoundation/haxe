@@ -16,8 +16,28 @@ abstract ByteAccess(BytesData) {
 		this = BytesDataTools.alloc(length);
 	}
 
+	/* constructors */
+
+	public static inline function alloc (length:Int) {
+		return new ByteAccess(length);
+	}
+
+	public static inline function ofData (data:BytesData):ByteAccess {
+		return fromImpl(data);
+	}
+
+	public static inline function fromBytes (b:Bytes):ByteAccess {
+		return fromImpl(b.getData());
+	}
+
+	/* gets */
+
 	public inline function get( pos : Int ) : Int {
 		return BytesDataTools.get(this, pos);
+	}
+
+	public inline function fastGet (pos:Int) {
+		return BytesDataTools.fastGet(this, pos);
 	}
 
 	public inline function getInt32( pos : Int ) : Int {
@@ -29,6 +49,12 @@ abstract ByteAccess(BytesData) {
 		var lower =  get(pos+1);
 		return upper | lower;
 	}
+
+	public inline function getString( pos : Int, len : Int ) : String {
+		return BytesDataTools.getString(this, pos, len);
+	}
+
+	/* sets */
 
 	public inline function set( pos : Int, v : Int ) : Void {
 		BytesDataTools.set(this, pos, v);
@@ -46,16 +72,14 @@ abstract ByteAccess(BytesData) {
 		BytesDataTools.set(this, pos+3, v & 0xFF );
 	}
 
-	inline function get_length ():Int {
-		return BytesDataTools.getLength(this);
-	}
+	/* sets end */
 
 	public inline function sub(i:Int, size:Int):ByteAccess {
 		return fromImpl(BytesDataTools.sub(this, i, size));
 	}
 
-	public inline function fastGet (pos:Int) {
-		return BytesDataTools.fastGet(this, pos);
+	public inline function copy ():ByteAccess {
+		return fromImpl(BytesDataTools.sub(this, 0, length));
 	}
 
 	public inline function blit (pos : Int, src : ByteAccess, srcpos : Int, len : Int):Void {
@@ -64,28 +88,18 @@ abstract ByteAccess(BytesData) {
 
 	public inline function append (other : ByteAccess):ByteAccess {
 		var ba = alloc(length + other.length);
-		ba.blit(0, asByteAccess(), 0, length);
+		ba.blit(0, fromImpl(this), 0, length);
 		ba.blit(length, other, 0, other.length);
 		return ba;
 	}
 
-	@:op(a == b) function opEq (other: ByteAccess) {
-		return asByteAccess().equal(other);
-	}
-
-	public static inline function alloc (length:Int) {
-		return new ByteAccess(length);
-	}
-
-	public inline function copy ():ByteAccess {
-		return fromImpl(BytesDataTools.sub(this, 0, length));
-	}
+	/* compare, equal */
 
 	public function equal (other:ByteAccess) {
 		if (this == other.impl()) return true;
+
 		var a = fromImpl(this);
 		var b = other;
-
 
 		if (a.length != b.length) return false;
 
@@ -113,6 +127,7 @@ abstract ByteAccess(BytesData) {
 		return 0;
 	}
 
+	/* conversions */
 	public function toString ():String {
 		var a = fromImpl(this);
 		var res = [];
@@ -123,32 +138,26 @@ abstract ByteAccess(BytesData) {
 		return res.join(",");
 	}
 
-	public inline function getString( pos : Int, len : Int ) : String {
-		return BytesDataTools.getString(this, pos, len);
+	public inline function toBytes ():Bytes {
+		return Bytes.ofData(this);
 	}
+
+	@:allow(haxe.i18n) inline function getData ():BytesData {
+		return impl();
+	}
+
+	/* internal helpers */
 
 	static inline function fromImpl (b:BytesData):ByteAccess {
 		return cast b;
 	}
 
-	public inline function impl ():BytesData {
+	inline function impl ():BytesData {
 		return this;
 	}
 
-	inline function asByteAccess ():ByteAccess {
-		return cast this;
-	}
-
-	public static inline function ofData (data:BytesData):ByteAccess {
-		return fromImpl(data);
-	}
-
-	public static inline function fromBytes (b:Bytes):ByteAccess {
-		return fromImpl(b.getData());
-	}
-
-	public inline function toBytes ():Bytes {
-		return Bytes.ofData(this);
+	inline function get_length ():Int {
+		return BytesDataTools.getLength(this);
 	}
 }
 

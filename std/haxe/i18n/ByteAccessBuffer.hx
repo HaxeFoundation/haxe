@@ -1,14 +1,12 @@
 package haxe.i18n;
 
 import haxe.io.Bytes;
-
 import haxe.io.BytesBuffer;
 
-#if !eval
 @:access(haxe.io.BytesBuffer)
 class BytesBufferTools {
 
-	public static function reset(buffer:BytesBuffer) {
+	public static inline function reset(buffer:BytesBuffer):BytesBuffer {
 		#if neko
 		buffer.b = untyped StringBuf.__make();
 		#elseif flash
@@ -25,28 +23,53 @@ class BytesBufferTools {
 		#elseif hl
 		buffer.b = new hl.Bytes(buffer.size);
 		buffer.pos = 0;
+		#elseif eval
+		buffer = new BytesBuffer();
 		#else
 		buffer.b = new Array();
 		#end
+		return buffer;
+	}
+
+	public static inline function addBytesData( buffer:BytesBuffer, src : haxe.io.BytesData ) {
+		#if neko
+		untyped StringBuf.__add(buffer.b,src);
+		#elseif flash
+		buffer.b.writeBytes(src);
+		#elseif php
+		buffer.b += src.toString();
+		#elseif cs
+		buffer.b.Write(src, 0, src.length);
+		#elseif java
+		buffer.b.write(src, 0, src.length);
+		#elseif eval
+		buffer.addBytes(src, 0, src.length);
+		#elseif js
+		var b1 = buffer.b;
+		var b2:js.html.Uint8Array = (src:Dynamic).bytes;
+		for( i in 0...src.byteLength )
+			buffer.b.push( (b2:Dynamic)[i]);
+		#elseif hl
+		@:privateAccess buffer.__add(src, 0, src.length);
+
+		#else
+		var b1 = buffer.b;
+		var b2 = src;
+		for( i in 0...src.length )
+			buffer.b.push(b2[i]);
+		#end
 	}
 }
-#end
 
-// TODO write a faster ByteAccessBuffer without using BytesBuffer or by
-// adding addByteAccess and getByteAccess to BytesBuffer
-
+@:access(haxe.i18n.ByteAccess)
 @:forward(addByte, length) abstract ByteAccessBuffer(BytesBuffer) {
 
 	public inline function new () {
 		this = new BytesBuffer();
 	}
 
-	static inline function wrap (buf:BytesBuffer):ByteAccessBuffer {
-		return cast buf;
-	}
-
 	public inline function add (b:ByteAccess) {
-		this.add(b.toBytes());
+		BytesBufferTools.addBytesData(this, b.getData());
 	}
 
 	public inline function addInt16BigEndian (i:Int) {
@@ -61,22 +84,25 @@ class BytesBufferTools {
 		this.addByte(i & 0xFF);
 	}
 
-	public inline function reset ():ByteAccessBuffer {
-		#if eval
-		return wrap(new BytesBuffer());
-		#else
-		BytesBufferTools.reset(this);
-		return wrap(this);
-		#end
-	}
-
 	public inline function addBuffer (buf:ByteAccessBuffer) {
 		add(buf.getByteAccess());
 	}
 
+	public inline function reset ():ByteAccessBuffer {
+		return fromImpl(BytesBufferTools.reset(this));
+	}
+
+
+
 	public inline function getByteAccess ():ByteAccess {
 		var b = this.getBytes();
 		return ByteAccess.fromBytes(b);
+	}
+
+	/* internal */
+
+	static inline function fromImpl (buf:BytesBuffer):ByteAccessBuffer {
+		return cast buf;
 	}
 
 }

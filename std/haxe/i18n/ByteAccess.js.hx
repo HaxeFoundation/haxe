@@ -18,6 +18,22 @@ abstract ByteAccess(Uint8Array) {
 		this = Uint8ArrayTools.alloc(length);
 	}
 
+	/* static constructors */
+
+	public static inline function alloc (length:Int) {
+		return new ByteAccess(length);
+	}
+
+	public static inline function ofData (data:BytesData):ByteAccess {
+		return fromImpl(Uint8ArrayTools.wrapData(data));
+	}
+
+	public static inline function fromBytes (b:Bytes):ByteAccess {
+		return fromImpl(Uint8ArrayTools.wrapData(b.sub(0, b.length).getData()));
+	}
+
+	/* gets */
+
 	public inline function get( pos : Int ) : Int {
 		return Uint8ArrayTools.get(this, pos);
 	}
@@ -30,6 +46,16 @@ abstract ByteAccess(Uint8Array) {
 		return (get(pos) << 8) | get(pos+1);
 	}
 
+	public inline function getString( pos : Int, len : Int ) : String {
+		return Uint8ArrayTools.getString(this, pos, len);
+	}
+
+	public inline function fastGet (pos:Int):Int {
+		return Uint8ArrayTools.fastGet(this, pos);
+	}
+
+	/* sets */
+
 	public inline function set( pos : Int, v : Int ) : Void {
 		Uint8ArrayTools.set(this, pos, v);
 	}
@@ -41,38 +67,28 @@ abstract ByteAccess(Uint8Array) {
 		Uint8ArrayTools.set(this, pos+3, v & 0xFF );
 	}
 
-	inline function getData():BytesData {
-		return Uint8ArrayTools.getData(this);
-	}
-
-	inline function get_length ():Int {
-		return Uint8ArrayTools.getLength(this);
-	}
+	/* sets end */
 
 	public inline function sub(pos:Int, len:Int):ByteAccess {
 		return fromImpl(Uint8ArrayTools.sub(this, pos, len));
 	}
 
-	public function toString ():String {
-		var res = [];
-		for (i in 0...length) {
-
-			res.push(fastGet(i));
-		}
-		return res.join(",");
-	}
-
-	public inline function fastGet (pos:Int):Int {
-		return Uint8ArrayTools.fastGet(this, pos);
-	}
-
-	public static inline function alloc (length:Int) {
-		return new ByteAccess(length);
-	}
-
 	public inline function copy ():ByteAccess {
 		return sub(0, length);
 	}
+
+	public inline function blit (pos : Int, src : ByteAccess, srcpos : Int, len : Int):Void {
+		return Uint8ArrayTools.blit(this, pos, src.impl(), srcpos, len);
+	}
+
+	public inline function append (other : ByteAccess):ByteAccess {
+		var c = Uint8ArrayTools.alloc(this.length + other.length);
+		c.set(this);
+		c.set(other.impl(), this.length);
+		return fromImpl(c);
+	}
+
+	/* compare, equal */
 
 	public function equal (other:ByteAccess) {
 		if (this == other.impl()) return true;
@@ -104,20 +120,22 @@ abstract ByteAccess(Uint8Array) {
 		return 0;
 	}
 
-	public inline function getString( pos : Int, len : Int ) : String {
-		return Uint8ArrayTools.getString(this, pos, len);
+	/* conversions */
+
+	public function toString ():String {
+		var res = [];
+		for (i in 0...length) {
+
+			res.push(fastGet(i));
+		}
+		return res.join(",");
 	}
 
-	public inline function blit (pos : Int, src : ByteAccess, srcpos : Int, len : Int):Void {
-		return Uint8ArrayTools.blit(this, pos, src.impl(), srcpos, len);
+	public inline function toBytes ():Bytes {
+		return Bytes.ofData(sub(0, length).getData());
 	}
 
-	public inline function append (other : ByteAccess):ByteAccess {
-		var c = Uint8ArrayTools.alloc(this.length + other.length);
-		c.set(this);
-		c.set(other.impl(), this.length);
-		return fromImpl(c);
-	}
+	/* Internal functions */
 
 	static inline function fromImpl (b:Uint8Array):ByteAccess {
 		return cast b;
@@ -127,30 +145,27 @@ abstract ByteAccess(Uint8Array) {
 		return this;
 	}
 
-	public static inline function fromBytes (b:Bytes):ByteAccess {
-		return fromImpl(Uint8ArrayTools.wrapData(b.sub(0, b.length).getData()));
+	@:allow(haxe.i18n) inline function getData():BytesData {
+		return Uint8ArrayTools.getData(this);
 	}
 
-	public static inline function ofData (data:BytesData):ByteAccess {
-		return fromImpl(Uint8ArrayTools.wrapData(data));
-	}
-
-	public inline function toBytes ():Bytes {
-		return Bytes.ofData(sub(0, length).getData());
+	inline function get_length ():Int {
+		return Uint8ArrayTools.getByteLength(this);
 	}
 }
+
 private class Uint8ArrayTools {
 
 	public static inline function get( b:Uint8Array, pos : Int ) : Int {
 		return b[pos];
 	}
 
-	public static inline function set( b:Uint8Array, pos : Int, v : Int ) : Void {
-		b[pos] = v & 0xFF;
+	public static inline function fastGet (b:Uint8Array, pos:Int):Int {
+		return (b:Dynamic)[pos];
 	}
 
 	public static function getString( b:Uint8Array, pos : Int, len : Int ) : String {
-		if( pos < 0 || len < 0 || pos + len > getLength(b) ) throw Error.OutsideBounds;
+		if( pos < 0 || len < 0 || pos + len > getByteLength(b) ) throw Error.OutsideBounds;
 		var s = "";
 
 		var fcc = String.fromCharCode;
@@ -178,26 +193,22 @@ private class Uint8ArrayTools {
 		}
 		return s;
 	}
-	public static inline function alloc (length:Int) {
+
+	public static inline function set( b:Uint8Array, pos : Int, v : Int ) : Void {
+		b[pos] = v & 0xFF;
+	}
+
+	public static inline function getByteLength (b:Uint8Array):Int {
+		return getData(b).byteLength;
+	}
+
+	public static inline function alloc (length:Int):Uint8Array {
 		var data = new BytesData(length);
 		return Uint8ArrayTools.wrapData(data);
 	}
 
-	public static inline function sub(b:Uint8Array, pos:Int, len:Int):Uint8Array {
-		if( pos < 0 || len < 0 || pos + len > getLength(b) ) throw Error.OutsideBounds;
-		return wrapData(b.buffer.slice(pos+b.byteOffset,pos+b.byteOffset+len));
-	}
-
-	public static inline function fastGet (b:Uint8Array, pos:Int):Int {
-		return (b:Dynamic)[pos];
-	}
-
 	public static inline function getData(b:Uint8Array):BytesData {
 		return (b:Dynamic).bufferValue;
-	}
-
-	public static inline function getLength (b:Uint8Array):Int {
-		return getData(b).byteLength;
 	}
 
 	public static inline function wrapData (data:BytesData):Uint8Array {
@@ -207,9 +218,14 @@ private class Uint8ArrayTools {
 		return a;
 	}
 
-	public static function blit( b:Uint8Array, pos : Int, src : Uint8Array, srcpos : Int, len : Int ) : Void {
+	public static inline function sub(b:Uint8Array, pos:Int, len:Int):Uint8Array {
+		if( pos < 0 || len < 0 || pos + len > getByteLength(b) ) throw Error.OutsideBounds;
+		return wrapData(b.buffer.slice(pos+b.byteOffset,pos+b.byteOffset+len));
+	}
 
-		if( pos < 0 || srcpos < 0 || len < 0 || pos + len > getLength(b) || srcpos + len > getLength(src) ) throw Error.OutsideBounds;
+	public static function blit( b:Uint8Array, pos : Int, src : Uint8Array, srcpos : Int, len : Int ) : Void {
+		var byteLength = getByteLength(b);
+		if( pos < 0 || srcpos < 0 || len < 0 || pos + len > byteLength || srcpos + len > byteLength ) throw Error.OutsideBounds;
 
 		var b1 = b;
 		var b2 = src;
@@ -221,8 +237,8 @@ private class Uint8ArrayTools {
 			}
 			return;
 		}
-		for( i in 0...len )
-			b1[i+pos] = b2[i+srcpos];
+		for( i in 0...len ) {
+			b1[i + pos] = b2[i + srcpos];
+		}
 	}
-
 }
