@@ -61,6 +61,14 @@ let debug_expression expression  =
 let debug_type t  =
     " --[[ " ^ Type.s_type_kind t  ^ " --]] ";;
 
+let flat_path (p,s) =
+	(* Replace _ with __ in paths to prevent name collisions. *)
+	let escape str = String.concat "_" (ExtString.String.nsplit str "_") in
+
+	match p with
+	| [] -> escape s
+	| _ -> "__" ^ String.concat "_" (List.map escape p) ^ "_" ^ (escape s)
+
 let get_exposed ctx path meta = try
 		let (_, args, pos) = Meta.get Meta.Expose meta in
 		(match args with
@@ -71,7 +79,7 @@ let get_exposed ctx path meta = try
 
 let dot_path = Globals.s_type_path
 
-let s_path ctx = dot_path
+let s_path ctx = flat_path
 
 (* Lua requires decimal encoding for characters, rather than the hex *)
 (* provided by Ast.s_escape *)
@@ -1518,7 +1526,7 @@ let generate_class ctx c =
 	);
 	newline ctx;
 
-	(match (get_exposed ctx (dot_path c.cl_path) c.cl_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) p; newline ctx) | _ -> ());
+	(match (get_exposed ctx (s_path ctx c.cl_path) c.cl_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) p; newline ctx) | _ -> ());
 
 	if hxClasses then println ctx "_hxClasses[\"%s\"] = %s" (dot_path c.cl_path) p;
 	generate_class___name__ ctx c;
@@ -1666,7 +1674,7 @@ let generate_require ctx path meta =
 	let _, args, mp = Meta.get Meta.LuaRequire meta in
 	let p = (s_path ctx path) in
 
-	generate_package_create ctx path;
+	(* generate_package_create ctx path; *)
 
 	(match args with
 	| [(EConst(String(module_name)),_)] ->
@@ -1749,7 +1757,7 @@ let alloc_ctx com =
 		| TClassDecl ({ cl_extern = true } as c) when not (Meta.has Meta.LuaRequire c.cl_meta)
 			-> dot_path p
 		| TEnumDecl { e_extern = true }
-			-> dot_path p
+			-> s_path ctx p
 		| _ -> s_path ctx p);
 	ctx
 
