@@ -1360,7 +1360,7 @@ and gen_return ctx e eo =
 	    spr ctx "do return end"
     | Some e ->
 	    (match e.eexpr with
-            | TField (e2, ((FClosure (_, tcf) | FAnon tcf |FInstance (_,_,tcf)) as ef)) when is_function_type ctx tcf.cf_type ->
+            | TField (e2, ((FClosure (_, tcf) | FAnon tcf |FInstance (_,_,tcf)))) when is_function_type ctx tcf.cf_type ->
                 (* See issue #6259 *)
 		add_feature ctx "use._hx_bind";
 		spr ctx "do return ";
