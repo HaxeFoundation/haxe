@@ -667,6 +667,21 @@ module StdContext = struct
 		let f = decode_string f in
 		Hashtbl.find macro_lib f
 	)
+
+	let plugin_data = ref None
+
+	let register data = plugin_data := Some data
+
+	let loadPlugin = vfun1 (fun filePath ->
+		let filePath = decode_string filePath in
+		let filePath = Dynlink.adapt_filename filePath in
+		(try Dynlink.loadfile filePath with Dynlink.Error error -> exc_string (Dynlink.error_message error));
+		match !plugin_data with
+			| None ->
+				vnull
+			| Some l ->
+				encode_obj_s None l
+	)
 end
 
 module StdCrc32 = struct
@@ -2764,6 +2779,7 @@ let init_standard_library builtins =
 		"addBreakpoint",StdContext.addBreakpoint;
 		"breakHere",StdContext.breakHere;
 		"callMacroApi",StdContext.callMacroApi;
+		"loadPlugin",StdContext.loadPlugin;
 	] [];
 	init_fields builtins (["haxe";"crypto"],"Crc32") [
 		"make",StdCrc32.make;

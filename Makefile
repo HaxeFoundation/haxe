@@ -29,7 +29,7 @@ STATICLINK?=0
 
 HAXE_DIRECTORIES=compiler context filters generators generators/gencommon macro macro/eval optimization syntax typing display
 EXTLIB_LIBS=extlib-leftovers extc neko javalib swflib ttflib ilib objsize pcre
-FINDLIB_LIBS=unix str threads sedlex camlzip xml-light extlib rope ptmap
+FINDLIB_LIBS=unix str threads sedlex camlzip xml-light extlib rope ptmap dynlink
 
 # Includes, packages and compiler
 
@@ -140,6 +140,13 @@ build_pass_3:
 
 build_pass_4: $(MODULES:%=%.$(MODULE_EXT))
 	$(COMPILER) -safe-string -linkpkg -o $(OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(FINDLIB_PACKAGES) $(EXTLIB_INCLUDES) $(EXTLIB_LIBS:=.$(LIB_EXT)) $(MODULES:%=%.$(MODULE_EXT))
+
+plugin:
+ifeq ($(BYTECODE),1)
+	$(CC_CMD) $(PLUGIN).ml
+else
+	$(COMPILER) $(ALL_CFLAGS) -shared -o $(PLUGIN).cmxs $(PLUGIN).ml
+endif
 
 # Only use if you have only changed gencpp.ml
 quickcpp: _build/src/generators/gencpp.ml build_pass_4 copy_haxetoolkit
