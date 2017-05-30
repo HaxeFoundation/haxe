@@ -314,7 +314,7 @@ private class Utf16Tools {
 	static inline function getCharCode ( b:Utf16Impl, pos:Int, size:Int):Int {
 		return switch size {
 			case 2: getInt16(b, pos);
-			case 4: Convert.utf16surrogatePairToCharCode(getInt16(b, pos), getInt16(b, pos+2));
+			case 4: Convert.surrogatePairToCharCode(getInt16(b, pos), getInt16(b, pos+2));
 			case _: throw "invalid size, 2 or 4 expected";
 		}
 	}

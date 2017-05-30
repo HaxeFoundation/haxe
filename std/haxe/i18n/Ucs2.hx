@@ -130,7 +130,7 @@ abstract Ucs2(String) {
 			if (Convert.isHighSurrogate(code1)) {
 				var code2 = (bytes.fastGet(i+2) << 8) | bytes.fastGet(i+3);
 				#if hl
-				var code = Convert.utf16surrogatePairToCharCode(code1, code2);
+				var code = Convert.surrogatePairToCharCode(code1, code2);
 				res += String.fromCharCode(code);
 				#else
 				// js, java, cs just allow String.fromCharCode for high and low surrogates
@@ -214,7 +214,7 @@ abstract Ucs2(String) {
 	public function isValid () {
 		for (i in 0...length) {
 			var code = fastCodeAt(i);
-			if (Convert.isSurrogateValue(code)) return false;
+			if (Convert.isSurrogate(code)) return false;
 		}
 		return true;
 	}
@@ -652,7 +652,7 @@ private class Ucs2Tools {
 	static function isValid(impl:Ucs2Impl) {
 		for (i in 0...strLength(impl)) {
 			var code = fastCodeAt(impl, i);
-			if (Convert.isSurrogateValue(code)) return false;
+			if (Convert.isSurrogate(code)) return false;
 		}
 		return true;
 	}
