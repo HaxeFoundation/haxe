@@ -78,7 +78,7 @@ let macro_timer ctx l =
 
 let typing_timer ctx need_type f =
 	let t = Common.timer ["typing"] in
-	let old = ctx.com.error and oldp = ctx.pass in
+	let old = ctx.com.error and oldp = ctx.pass and oldlocals = ctx.locals in
 	(*
 		disable resumable errors... unless we are in display mode (we want to reach point of completion)
 	*)
@@ -89,6 +89,7 @@ let typing_timer ctx need_type f =
 		t();
 		ctx.com.error <- old;
 		ctx.pass <- oldp;
+		ctx.locals <- oldlocals;
 	in
 	try
 		let r = f() in
