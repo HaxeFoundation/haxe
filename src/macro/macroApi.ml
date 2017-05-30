@@ -51,6 +51,7 @@ type 'value compiler_api = {
 	decode_expr : 'value -> Ast.expr;
 	encode_expr : Ast.expr -> 'value;
 	encode_ctype : Ast.type_hint -> 'value;
+	decode_type : 'value -> t;
 }
 
 
