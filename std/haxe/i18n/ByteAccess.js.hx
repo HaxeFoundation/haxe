@@ -154,17 +154,18 @@ abstract ByteAccess(Uint8Array) {
 	}
 }
 
-private class Uint8ArrayTools {
+@:allow(haxe.i18n)
+class Uint8ArrayTools {
 
-	public static inline function get( b:Uint8Array, pos : Int ) : Int {
+	static inline function get( b:Uint8Array, pos : Int ) : Int {
 		return b[pos];
 	}
 
-	public static inline function fastGet (b:Uint8Array, pos:Int):Int {
+	static inline function fastGet (b:Uint8Array, pos:Int):Int {
 		return (b:Dynamic)[pos];
 	}
 
-	public static function getString( b:Uint8Array, pos : Int, len : Int ) : String {
+	static function getString( b:Uint8Array, pos : Int, len : Int ) : String {
 		if( pos < 0 || len < 0 || pos + len > getByteLength(b) ) throw Error.OutsideBounds;
 		var s = "";
 
@@ -194,36 +195,40 @@ private class Uint8ArrayTools {
 		return s;
 	}
 
-	public static inline function set( b:Uint8Array, pos : Int, v : Int ) : Void {
+	static inline function set( b:Uint8Array, pos : Int, v : Int ) : Void {
 		b[pos] = v & 0xFF;
 	}
 
-	public static inline function getByteLength (b:Uint8Array):Int {
+	static inline function getByteLength (b:Uint8Array):Int {
 		return getData(b).byteLength;
 	}
 
-	public static inline function alloc (length:Int):Uint8Array {
+	static inline function alloc (length:Int):Uint8Array {
 		var data = new BytesData(length);
 		return Uint8ArrayTools.wrapData(data);
 	}
 
-	public static inline function getData(b:Uint8Array):BytesData {
+	static inline function getArrayFromData(b:BytesData):Uint8Array {
+		return (b:Dynamic).bytes;
+	}
+
+	static inline function getData(b:Uint8Array):BytesData {
 		return (b:Dynamic).bufferValue;
 	}
 
-	public static inline function wrapData (data:BytesData):Uint8Array {
+	static inline function wrapData (data:BytesData):Uint8Array {
 		var a = new js.html.Uint8Array(data);
 		(a:Dynamic).bufferValue = data; // some impl does not return the same instance in .buffer
 		(data:Dynamic).bytes = a;
 		return a;
 	}
 
-	public static inline function sub(b:Uint8Array, pos:Int, len:Int):Uint8Array {
+	static inline function sub(b:Uint8Array, pos:Int, len:Int):Uint8Array {
 		if( pos < 0 || len < 0 || pos + len > getByteLength(b) ) throw Error.OutsideBounds;
 		return wrapData(b.buffer.slice(pos+b.byteOffset,pos+b.byteOffset+len));
 	}
 
-	public static function blit( b:Uint8Array, pos : Int, src : Uint8Array, srcpos : Int, len : Int ) : Void {
+	static function blit( b:Uint8Array, pos : Int, src : Uint8Array, srcpos : Int, len : Int ) : Void {
 		var byteLength = getByteLength(b);
 		if( pos < 0 || srcpos < 0 || len < 0 || pos + len > byteLength || srcpos + len > byteLength ) throw Error.OutsideBounds;
 

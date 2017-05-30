@@ -128,6 +128,7 @@ abstract ByteAccess(BytesData) {
 	}
 
 	/* conversions */
+
 	public function toString ():String {
 		var a = fromImpl(this);
 		var res = [];

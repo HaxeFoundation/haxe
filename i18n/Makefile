@@ -61,7 +61,7 @@ test-php7:
 
 test-hl:
 	cd ../tests/unit && $(HAXE_EXEC) compile-hl.hxml
-	cd ../tests/unit && hl bin/unit.hl
+	cd ../tests/unit && $(HL) bin/unit.hl
 
 test-eval:
 	cd ../tests/unit && haxe-eval -cp ../../standalone compile-macro.hxml
@@ -169,6 +169,8 @@ benchmark-hl:
 	$(HAXE_EXEC) -main Benchmark -hl bin/benchmark.hl -dce no
 	$(HL) bin/benchmark.hl
 
+benchmark-hl-interp:
+	$(HAXE_EXEC) -main Benchmark -hl bin/benchmark.hl -dce no -D interp -D hl-check
 
 benchmark-hlc:
 	$(HAXE_EXEC) -main Benchmark -hl bin/benchmark-hl.c -dce no

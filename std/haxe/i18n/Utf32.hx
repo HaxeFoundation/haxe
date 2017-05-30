@@ -36,7 +36,7 @@ abstract Utf32(Utf32Impl) {
 	public var length(get,never) : Int;
 
 	public inline function new(str:String)  {
-		this = Tools.NativeStringTools.toUtf32Impl(str);
+		this = Tools.NativeStringTools.toUtf32Vector(str);
 		//this = byteAccessToImpl(NativeStringTools.toUtf32(str));
 	}
 

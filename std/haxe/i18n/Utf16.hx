@@ -204,35 +204,27 @@ private class Utf16Tools {
 		return impl.length;
 	}
 
+	static inline function mkImpl (b:ByteAccess, length:Int):Utf16Impl {
+		return { b : b, length : length }
+	}
+
 	static inline function mkImplFromBuffer(buf:ByteAccessBuffer, newSize:Int):Utf16Impl {
-		return {
-			b : buf.getByteAccess(),
-			length : newSize
-		}
+		return mkImpl(buf.getByteAccess(), newSize);
 	}
 
 	static inline function sub (ba:Utf16Impl, pos:Int, size:Int, newLen:Int):Utf16Impl {
 		var bytes = ba.b.sub(pos, size);
-		return {
-			b : bytes,
-			length : newLen
-		}
+		return mkImpl(bytes, newLen);
 	}
 
 	static inline function nativeStringToImpl (s:String):Utf16Impl {
 		if (s.length == 0) return empty;
-		var ba = NativeStringTools.toUtf16(s);
-		return {
-			b : ba,
-			length : calcLength(ba)
-		}
+		var ba = NativeStringTools.toUtf16ByteAccess(s);
+		return mkImpl(ba, calcLength(ba));
 	}
 
 	static inline function allocImpl (size:Int, strLength:Int):Utf16Impl {
-		return {
-			b : ByteAccess.alloc(size),
-			length : strLength
-		}
+		return mkImpl(ByteAccess.alloc(size), strLength);
 	}
 
 	static inline function getInt16 (impl:Utf16Impl, pos:Int) {
@@ -245,7 +237,7 @@ private class Utf16Tools {
 
 	static inline function fromByteAccess (ba:ByteAccess):Utf16Impl {
 		var len = calcLength(ba);
-		return { length : len, b : ba};
+		return mkImpl(ba, len);
 	}
 
 	static inline function toNativeString(impl:Utf16Impl) : String {
@@ -259,10 +251,7 @@ private class Utf16Tools {
 	static inline function append (impl:Utf16Impl, other:Utf16Impl):Utf16Impl {
 		if (other.length == 0) return impl;
 		if (impl.length == 0) return other;
-		return {
-			length : impl.length + other.length,
-			b : impl.b.append(other.b)
-		}
+		return mkImpl(impl.b.append(other.b), impl.length + other.length);
 	}
 
 	static inline function toBytes(impl:Utf16Impl) : haxe.io.Bytes {
@@ -676,10 +665,7 @@ private class Utf16Tools {
 
 	static inline function fromCharCode( code : Int ) : Utf16Impl
 	{
-		return {
-			b : Convert.charCodeToUtf16ByteAccess(code),
-			length : 1
-		}
+		return mkImpl(Convert.charCodeToUtf16ByteAccess(code), 1);
 	}
 
 	static inline function compare (impl:Utf16Impl, other:Utf16Impl):Int {

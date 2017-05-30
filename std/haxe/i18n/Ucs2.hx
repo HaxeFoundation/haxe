@@ -70,7 +70,6 @@ abstract Ucs2(String) {
 			return this.lastIndexOf(str.impl());
 		}
 		return this.lastIndexOf(str.impl(), startIndex);
-
 	}
 
 	public inline function split( delimiter : Ucs2 ) : Array<Ucs2> {
@@ -97,11 +96,10 @@ abstract Ucs2(String) {
 
 	static inline function nativeStringfromCharCode( code : Int ) : String {
 		return if (Convert.isSurrogatePair(code)) {
-
-			var surr = Convert.codeToSurrogatePair(code);
 			#if hl
 			String.fromCharCode(code);
 			#else
+			var surr = Convert.charCodeToSurrogatePair(code);
 			String.fromCharCode(surr.high) + String.fromCharCode(surr.low);
 			#end
 		} else {
@@ -161,7 +159,7 @@ abstract Ucs2(String) {
 	}
 
 	public inline function toUtf8() : Utf8 {
-		return Utf8.fromByteAccess(Convert.convertUcs2toUtf8(getReader(), true));
+		return toUtf16().toUtf8();
 	}
 
 	public inline function toUtf16() : Utf16 {
@@ -216,7 +214,7 @@ abstract Ucs2(String) {
 	public function isValid () {
 		for (i in 0...length) {
 			var code = fastCodeAt(i);
-			if (Convert.isHighSurrogate(code)) return false;
+			if (Convert.isSurrogateValue(code)) return false;
 		}
 		return true;
 	}
@@ -249,7 +247,7 @@ abstract Ucs2(ByteAccess) {
 	public var length(get,never) : Int;
 
 	public inline function new(str:String)  {
-		this = NativeStringTools.toUcs2(str);
+		this = NativeStringTools.toUcs2ByteAccess(str);
 	}
 
 	public inline function getReader ():Ucs2Reader {
@@ -297,8 +295,6 @@ abstract Ucs2(ByteAccess) {
 	public inline function fastCodeAt( index : Int) : Int {
 		return Ucs2Tools.fastCodeAt(this, index);
 	}
-
-
 
 	public inline function indexOf( str : Ucs2, ?startIndex : Int ) : Int {
 		return Ucs2Tools.indexOf(this, str.impl(), startIndex);
@@ -423,6 +419,10 @@ private class Ucs2Tools {
 		return implToStrIndex(impl.length);
 	}
 
+	static inline function byteLength(impl:Ucs2Impl):Int {
+		return impl.length;
+	}
+
 	static inline function isUpperCaseLetter (bytes:Int) {
 		return bytes >= 0x0041 && bytes <= 0x005A;
 	}
@@ -448,13 +448,12 @@ private class Ucs2Tools {
 	}
 
 	static inline function map(impl:Ucs2Impl, f:Int->Int) : Ucs2Impl {
-		var res = Ucs2Impl.alloc(impl.length);
+		var res = Ucs2Impl.alloc(byteLength(impl));
 		var i = 0;
 		while (i < impl.length) {
 			var b = impl.getInt16(i);
 			res.setInt16(i, f(b));
 			i+=2;
-
 		}
 		return res;
 	}
@@ -478,19 +477,18 @@ private class Ucs2Tools {
 		var b = ByteAccess.alloc(2);
 		b.set(0, impl.get(index * 2));
 		b.set(1, impl.get(index * 2 + 1));
-
 		return b;
 	}
 
 	public static function indexOf(impl:Ucs2Impl, str : Ucs2Impl, ?startIndex : Int ) : Int {
 		var res = -1;
-		var strLen = str.length;
+		var strLen = byteLength(str);
+		var byteLen = byteLength(impl);
 
-		var len = impl.length;
 		var i = startIndex != null ? startIndex * 2 : 0;
 		var pos = 0;
 		var fullPos = i;
-		while (i < len) {
+		while (i < byteLen) {
 			if (impl.fastGet(i) == str.fastGet(pos)) {
 				pos++;
 			} else if (pos > 0) {
@@ -507,18 +505,18 @@ private class Ucs2Tools {
 	}
 
 	public static function lastIndexOf( impl:Ucs2Impl, str : Ucs2Impl, ?startIndex : Int ) : Int {
-		var len = str.length;
-		var pos = len-1;
+		var byteLen = byteLength(str);
+		var pos = byteLen-1;
 
-		var startIndex = startIndex == null ? impl.length : strToImplIndex(startIndex) + len;
+		var startIndex = startIndex == null ? byteLength(impl) : strToImplIndex(startIndex) + byteLen;
 
-		if (startIndex > impl.length) {
-			startIndex = impl.length;
+		if (startIndex > byteLength(impl)) {
+			startIndex = byteLength(impl);
 		}
 		var i = startIndex;
 		var res = -1;
 		var fullPos = startIndex;
-		var lastPos = len - 1;
+		var lastPos = byteLen - 1;
 		while (--i > -1) {
 			if (impl.fastGet(i) == str.fastGet(pos)) {
 				pos--;
@@ -577,7 +575,7 @@ private class Ucs2Tools {
 	}
 
 	public static function split( impl:Ucs2Impl, delimiter : Ucs2Impl ) : Array<Ucs2> {
-		var delimiterLen = delimiter.length;
+		var delimiterLen = byteLength(delimiter);
 
 		var lastPos = 0;
 		var res = [];
@@ -585,14 +583,14 @@ private class Ucs2Tools {
 
 		var i = 0;
 		if (delimiter.length == 0) {
-			while ( i < impl.length) {
+			while ( i < byteLength(impl)) {
 				res.push(Ucs2.fromImpl(impl.sub(i, 2)));
 				i+=2;
 			}
 			return res;
 		}
 
-		while ( i < impl.length) {
+		while ( i < byteLength(impl)) {
 
 			var b = impl.fastGet(i);
 			var d = delimiter.fastGet(pos);
@@ -616,8 +614,8 @@ private class Ucs2Tools {
 			i++;
 		}
 
-		if (lastPos < impl.length) {
-			res.push(Ucs2.fromImpl(impl.sub(lastPos, impl.length - lastPos)));
+		if (lastPos < byteLength(impl)) {
+			res.push(Ucs2.fromImpl(impl.sub(lastPos, byteLength(impl) - lastPos)));
 		} else {
 			res.push(Ucs2.fromImpl(empty));
 		}
@@ -654,7 +652,7 @@ private class Ucs2Tools {
 	static function isValid(impl:Ucs2Impl) {
 		for (i in 0...strLength(impl)) {
 			var code = fastCodeAt(impl, i);
-			if (Convert.isHighSurrogate(code)) return false;
+			if (Convert.isSurrogateValue(code)) return false;
 		}
 		return true;
 	}

@@ -4,7 +4,7 @@ import haxe.io.Bytes;
 import haxe.io.BytesBuffer;
 
 @:access(haxe.io.BytesBuffer)
-class BytesBufferTools {
+private class BytesBufferTools {
 
 	public static inline function reset(buffer:BytesBuffer):BytesBuffer {
 		#if neko
@@ -46,9 +46,9 @@ class BytesBufferTools {
 		buffer.addBytes(src, 0, src.length);
 		#elseif js
 		var b1 = buffer.b;
-		var b2:js.html.Uint8Array = (src:Dynamic).bytes;
+		var b2:js.html.Uint8Array = ByteAccess.Uint8ArrayTools.getArrayFromData(src);
 		for( i in 0...src.byteLength )
-			buffer.b.push( (b2:Dynamic)[i]);
+			buffer.b.push( ByteAccess.Uint8ArrayTools.fastGet(b2, i));
 		#elseif hl
 		@:privateAccess buffer.__add(src, 0, src.length);
 
@@ -85,14 +85,18 @@ class BytesBufferTools {
 	}
 
 	public inline function addBuffer (buf:ByteAccessBuffer) {
+		#if (js || python)
+		for (e in @:privateAccess buf.impl().b) {
+			this.addByte(e);
+		}
+		#else
 		add(buf.getByteAccess());
+		#end
 	}
 
 	public inline function reset ():ByteAccessBuffer {
 		return fromImpl(BytesBufferTools.reset(this));
 	}
-
-
 
 	public inline function getByteAccess ():ByteAccess {
 		var b = this.getBytes();
@@ -103,6 +107,10 @@ class BytesBufferTools {
 
 	static inline function fromImpl (buf:BytesBuffer):ByteAccessBuffer {
 		return cast buf;
+	}
+
+	inline function impl ():BytesBuffer {
+		return this;
 	}
 
 }

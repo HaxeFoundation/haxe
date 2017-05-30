@@ -209,47 +209,35 @@ private class Utf8Tools {
 		return ba.length;
 	}
 
+	static inline function mkImpl (b:ByteAccess, len:Int):Utf8Impl {
+		return { b : b, length: len };
+	}
+
 	static inline function mkImplFromBuffer(buf:ByteAccessBuffer, newSize:Int):Utf8Impl {
-		return {
-			b : buf.getByteAccess(),
-			length : newSize
-		}
+		return mkImpl(buf.getByteAccess(), newSize);
 	}
 
 	static inline function sub (ba:Utf8Impl, pos:Int, size:Int, newLen:Int):Utf8Impl {
 		if (newLen == 0 && size == 0) return empty;
 		var bytes = ba.b.sub(pos, size);
-		return {
-			b : bytes,
-			length : newLen
-		}
+		return mkImpl(bytes, newLen);
 	}
 
 	static inline function allocImpl (size:Int, strLength:Int):Utf8Impl {
-		return {
-			b : ByteAccess.alloc(size),
-			length : strLength
-		}
+		return mkImpl(ByteAccess.alloc(size), strLength);
 	}
 
 	static inline function nativeStringToImpl (s:String):Utf8Impl {
 		if (s.length == 0) return empty;
-
 		var ba = nativeStringToByteAccess(s);
-		return {
-			b : ba,
-			length : calcLength(ba)
-		}
+		return mkImpl(ba, calcLength(ba));
 	}
 
 	static inline function append (ba:Utf8Impl, other:Utf8Impl):Utf8Impl {
 		if (other.length == 0) return ba;
 		if (ba.length == 0) return other;
 
-		return {
-			length : ba.length + other.length,
-			b : ba.b.append(other.b)
-		}
+		return mkImpl(ba.b.append(other.b), ba.length + other.length);
 	}
 
 	static inline function equal (ba:Utf8Impl, other:Utf8Impl):Bool {
@@ -261,11 +249,11 @@ private class Utf8Tools {
 	}
 
 	static inline function fromByteAccess (ba:ByteAccess):Utf8Impl {
-		if (!Convert.isLegalUtf8String(new Utf8Reader(ba))) {
+		if (!Convert.isLegalUtf8Source(new Utf8Reader(ba))) {
 			throw "illegal utf8";
 		}
 		var len = calcLength(ba);
-		return { length : len, b : ba};
+		return mkImpl(ba, len);
 	}
 
 	public static inline function toNativeString(impl:Utf8Impl) : String {
@@ -278,17 +266,17 @@ private class Utf8Tools {
 
 	static function calcLength(ba:ByteAccess) {
 		var len = 0;
-		var index = 0;
-		while (index < ba.length) {
-			var size = getCharSize(ba.fastGet(index));
+		var i = 0;
+		while (i < ba.length) {
+			var size = getSequenceSize(ba.fastGet(i));
 			len++;
-			index += size;
+			i += size;
 		}
 		return len;
 	}
 
-	static inline function getCharSize (start:Int):Int {
-		return Convert.getUtf8CharSize(start);
+	static inline function getSequenceSize (start:Int):Int {
+		return Convert.getUtf8SequenceSize(start);
 	}
 
 	static inline function isUpperCaseLetter (bytes:Utf8Impl, pos:Int, size:Int) {
@@ -327,7 +315,7 @@ private class Utf8Tools {
 		var i = 0;
 		while (i < byteLength(ba)) {
 			var b = fastGet(ba, i);
-			var size = getCharSize(b);
+			var size = getSequenceSize(b);
 			var code = getCharCode(ba, i, size);
 			f(code);
 			i += size;
@@ -351,22 +339,8 @@ private class Utf8Tools {
 		}
 	}
 
-	static inline function getCodeSize (code:Int):Int {
-		return if (code <= 0x7F) {
-			1;
-		} else if (code <= 0x7FF) {
-			2;
-		} else if (code <= 0xFFFF) {
-			3;
-		} else if (code <= 0x10FFFF) {
-			4;
-		} else {
-			throw "invalid code " + code;
-		}
-	}
-
 	static inline function nativeStringToByteAccess (s:String):ByteAccess {
-		return NativeStringTools.toUtf8(s);
+		return NativeStringTools.toUtf8ByteAccess(s);
  	}
 
 	// string functions
@@ -376,7 +350,7 @@ private class Utf8Tools {
 		var i = 0;
 		while (i < byteLength(ba)) {
 			var b = fastGet(ba, i);
-			var size = getCharSize(b);
+			var size = getSequenceSize(b);
 			f(ba, res, i, size);
 
 			i += size;
@@ -400,7 +374,7 @@ private class Utf8Tools {
 		var i = 0;
 		while (i < byteLength(ba)) {
 			var b = fastGet(ba, i);
-			var size = getCharSize(b);
+			var size = getSequenceSize(b);
 			if (pos == index) {
 				res = sub(ba, i, size, 1);
 				break;
@@ -419,7 +393,7 @@ private class Utf8Tools {
 		while (r == null && i < byteLength(ba)) {
 
 			var b = fastGet(ba, i);
-			var size = getCharSize(b);
+			var size = getSequenceSize(b);
 			if (pos == index) {
 				r = getCharCode(ba, i, size);
 			} else {
@@ -437,7 +411,7 @@ private class Utf8Tools {
 		while (i < byteLength(ba)) {
 
 			var b = fastGet(ba, i);
-			var size = getCharSize(b);
+			var size = getSequenceSize(b);
 			if (pos == index) {
 				return getCharCode(ba, i, size);
 			} else {
@@ -464,30 +438,28 @@ private class Utf8Tools {
 		// move forward to startIndex
 		if (startIndex > 0) {
 			while (i < byteLength) {
-				var size = getCharSize(fastGet(ba, i));
-				i+=size;
+				var size = getSequenceSize(fastGet(ba, i));
+				i += size;
 				posFull++;
 				if (posFull >= startIndex) break;
 			}
 		}
 		// iterate bytes
 		while (i < byteLength) {
-			var size = getCharSize(fastGet(ba, i));
-			//trace(size);
-			var size2 = getCharSize(fastGet(str, j));
+			var size1 = getSequenceSize(fastGet(ba, i));
+			var size2 = getSequenceSize(fastGet(str, j));
 
-			if (size == size2 && compareChar(ba, i, str, j, size)) {
+			if (size1 == size2 && compareChar(ba, i, str, j, size1)) {
 				pos++;
-				j+=size;
+				j += size1;
 			} else {
 				j = 0;
 				posFull += pos;
 				pos = 0;
 			}
 
-			i+=size;
+			i += size1;
 			if (pos == strLen) {
-				//trace(posFull, strLen);
 				res = posFull;
 				break;
 			}
@@ -499,9 +471,7 @@ private class Utf8Tools {
 	}
 
 	static function lastIndexOf( ba:Utf8Impl, str : Utf8Impl, ?startIndex : Int ) : Int {
-
 		var startIndexIsNull = startIndex == null;
-
 		var res = -1;
 		var len = strLength(str);
 		var pos = 0;
@@ -513,15 +483,15 @@ private class Utf8Tools {
 		var iNext = 0;
 
 		while (i < byteLength(ba) && (startIndexIsNull || posFull < startIndex + 1)) {
-			var size = getCharSize(fastGet(ba, i));
-			var size2 = getCharSize(fastGet(str, j));
-			if (size == size2 && compareChar(ba, i, str, j, size)) {
+			var size1 = getSequenceSize(fastGet(ba, i));
+			var size2 = getSequenceSize(fastGet(str, j));
+			if (size1 == size2 && compareChar(ba, i, str, j, size1)) {
 				if (j == 0) {
 					// store the next position character position in bytes for next search
-					iNext = i + size;
+					iNext = i + size1;
 				}
 				pos++;
-				j+=size;
+				j+=size1;
 
 			} else {
 				if (j > 0) {
@@ -534,7 +504,6 @@ private class Utf8Tools {
 				}
 			}
 
-			i+=size;
 			if (pos == len) {
 				// store result
 				res = posFull;
@@ -548,6 +517,7 @@ private class Utf8Tools {
 			if (pos == 0) {
 				posFull++;
 			}
+			i+=size1;
 		}
 		return res;
 	}
@@ -556,80 +526,81 @@ private class Utf8Tools {
 	static function split( str:Utf8Impl, delimiter : Utf8Impl ) : Array<Utf8>
 	{
 		var delimiterLen = strLength(delimiter);
-		var buf = new ByteAccessBuffer();
-		var tmpBuf = new ByteAccessBuffer();
-		var bufLen = 0; // store utf8 len
-		var tmpBufLen = 0; // store utf8 len
 
-		var res:Array<Utf8> = [];
-
-		var pos = 0;
-		var posFull = 0;
-		// byte iteration variables
-		var i = 0;
-		var j = 0;
-		if (delimiter.length == 0) {
+		if (delimiterLen == 0) {
+			var res:Array<Utf8> = [];
+			var i = 0;
 			while ( i < byteLength(str)) {
-				var size = getCharSize(fastGet(str, i));
+				var size = getSequenceSize(fastGet(str, i));
 				res.push(Utf8.fromImpl(sub(str, i, size, 1)));
 				i+=size;
 			}
 			return res;
-		}
-		// iterate bytes
-		while (i < byteLength(str)) {
-			var size = getCharSize(fastGet(str, i));
-			var size2 = getCharSize(fastGet(delimiter, j));
-			if (size == size2 && compareChar(str, i, delimiter, j, size)) {
+		} else {
+			var res:Array<Utf8> = [];
+			var buf = new ByteAccessBuffer();
+			var tmpBuf = new ByteAccessBuffer();
+			var bufLen = 0; // store utf8 len
+			var tmpBufLen = 0; // store utf8 len
+			var pos = 0;
+			var posFull = 0;
+			var i = 0;
+			var j = 0;
+			// iterate bytes
+			while (i < byteLength(str)) {
+				var size = getSequenceSize(fastGet(str, i));
+				var size2 = getSequenceSize(fastGet(delimiter, j));
+				if (size == size2 && compareChar(str, i, delimiter, j, size)) {
 
-				pos++;
-				j+=size;
-				tmpBufLen++;
-				for (k in 0...size) {
-					tmpBuf.addByte(fastGet(str, i+k));
+					pos++;
+					j+=size;
+					tmpBufLen++;
+					for (k in 0...size) {
+						tmpBuf.addByte(fastGet(str, i+k));
+					}
+				} else {
+					if (pos != 0) {
+						j = 0;
+						pos = 0;
+						buf.addBuffer(tmpBuf);
+						bufLen += tmpBufLen;
+						tmpBufLen = 0;
+						tmpBuf = tmpBuf.reset();
+					}
+					for (k in 0...size) {
+						buf.addByte(fastGet(str, i+k));
+					}
+					bufLen++;
 				}
-			} else {
-				if (pos != 0) {
+				i+=size;
+				if (pos == delimiterLen) {
+					if (buf.length > 0) {
+						res.push(Utf8.fromImpl(mkImplFromBuffer(buf, bufLen)));
+						bufLen = 0;
+						buf = buf.reset();
+					} else {
+						res.push(Utf8.fromImpl(empty));
+					}
+					tmpBuf = tmpBuf.reset();
+					tmpBufLen = 0;
 					j = 0;
 					pos = 0;
-					buf.addBuffer(tmpBuf);
-					bufLen += tmpBufLen;
-					tmpBufLen = 0;
-					tmpBuf = tmpBuf.reset();
 				}
-				for (k in 0...size) {
-					buf.addByte(fastGet(str, i+k));
-				}
-				bufLen++;
+				posFull++;
 			}
-			i+=size;
-			if (pos == delimiterLen) {
-				if (buf.length > 0) {
-					res.push(Utf8.fromImpl(mkImplFromBuffer(buf, bufLen)));
-					bufLen = 0;
-					buf = buf.reset();
-				} else {
-					res.push(Utf8.fromImpl(empty));
-				}
-				tmpBuf = tmpBuf.reset();
-				tmpBufLen = 0;
+			if (pos != 0) {
 				j = 0;
 				pos = 0;
+				buf.addBuffer(tmpBuf);
+				bufLen += tmpBufLen;
 			}
-			posFull++;
+			if (buf.length > 0) {
+				res.push(Utf8.fromImpl(mkImplFromBuffer(buf, bufLen)));
+			} else {
+				res.push(Utf8.fromImpl(empty));
+			}
+			return res;
 		}
-		if (pos != 0) {
-			j = 0;
-			pos = 0;
-			buf.addBuffer(tmpBuf);
-			bufLen += tmpBufLen;
-		}
-		if (buf.length > 0) {
-			res.push(Utf8.fromImpl(mkImplFromBuffer(buf, bufLen)));
-		} else {
-			res.push(Utf8.fromImpl(empty));
-		}
-		return res;
 	}
 
 	static function substr<T>( str:Utf8Impl, pos : Int, ?len : Int ) : Utf8Impl {
@@ -657,7 +628,7 @@ private class Utf8Tools {
 		var newSize = 0;
 		while (i < byteLength) {
 			var char = fastGet(str, i);
-			var size = getCharSize(char);
+			var size = getSequenceSize(char);
 			if (cur >= pos && (len == null || cur < pos + len))
 			{
 				newSize++;
@@ -675,12 +646,11 @@ private class Utf8Tools {
 	static inline function substring<T>( ba:Utf8Impl, startIndex : Int, ?endIndex : Int ) : Utf8Impl {
 		var startIndex:Null<Int> = startIndex;
 		var len = strLength(ba);
-		var endIndexIsNull = endIndex == null;
 
 		if (startIndex < 0) startIndex = 0;
-		if (!endIndexIsNull && endIndex < 0) endIndex = 0;
+		if (endIndex != null && endIndex < 0) endIndex = 0;
 
-		if (endIndexIsNull) endIndex = len;
+		if (endIndex == null) endIndex = len;
  		if (startIndex > endIndex) {
 			var x = startIndex;
 			startIndex = endIndex;
@@ -696,26 +666,8 @@ private class Utf8Tools {
 
 	static function fromCharCode( code : Int ) : Utf8Impl
 	{
-		var size = getCodeSize(code);
-		var bytes = allocImpl(size, 1);
-		switch size {
-			case 1:
-				set(bytes, 0, code);
-			case 2:
-				set(bytes, 0, 0xC0 | (code >> 6));
-				set(bytes, 1, 0x80 | (code & 0x3F));
-			case 3:
-				set(bytes, 0, 0xE0 | (code >> 12));
-				set(bytes, 1, 0x80 | ((code >> 6) & 0x3F));
-				set(bytes, 2, 0x80 | (code & 0x3F));
-			case 4:
-				set(bytes, 0, 0xF0 | (code >> 18));
-				set(bytes, 1, 0x80 | ((code >> 12)  & 0x3F));
-				set(bytes, 2, 0x80 | ((code >> 6) & 0x3F));
-				set(bytes, 3, 0x80 | (code & 0x3F));
-			case _: throw "invalid char code";
-		}
-		return bytes;
+		var b = Convert.charCodeToUtf8ByteAccess(code);
+		return mkImpl(b, 1);
 	}
 
 	static inline function toCodeArray (ba:Utf8Impl):Array<Int> {
