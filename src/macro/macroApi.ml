@@ -50,6 +50,7 @@ type 'value compiler_api = {
 	add_module_check_policy : string list -> int list -> bool -> int -> unit;
 	decode_expr : 'value -> Ast.expr;
 	encode_expr : Ast.expr -> 'value;
+	encode_ctype : Ast.type_hint -> 'value;
 }
 
 
