@@ -50,7 +50,7 @@ abstract ByteAccess(Uint8Array) {
 	}
 
 	public inline function sub(pos:Int, len:Int):ByteAccess {
-		return fromUint8Array(Uint8ArrayTools.sub(this, pos, len));
+		return fromImpl(Uint8ArrayTools.sub(this, pos, len));
 	}
 
 	public function toString ():String {
@@ -75,9 +75,9 @@ abstract ByteAccess(Uint8Array) {
 	}
 
 	public function equal (other:ByteAccess) {
-		var a = fromUint8Array(this);
+		if (this == other.impl()) return true;
+		var a = fromImpl(this);
 		var b = other;
-		if (a.length != b.length) return false;
 
 		for (i in 0...a.length) {
 			if (a.fastGet(i) != b.fastGet(i)) return false;
@@ -86,8 +86,10 @@ abstract ByteAccess(Uint8Array) {
 	}
 
 	public function compare (other:ByteAccess) {
-		var a = fromUint8Array(this);
+		if (this == other.impl()) return 0;
+		var a = fromImpl(this);
 		var b = other;
+
 
 		var min = a.length < b.length ? a.length : b.length;
 
@@ -107,30 +109,30 @@ abstract ByteAccess(Uint8Array) {
 	}
 
 	public inline function blit (pos : Int, src : ByteAccess, srcpos : Int, len : Int):Void {
-		return Uint8ArrayTools.blit(this, pos, src.asUint8Array(), srcpos, len);
+		return Uint8ArrayTools.blit(this, pos, src.impl(), srcpos, len);
 	}
 
 	public inline function append (other : ByteAccess):ByteAccess {
 		var c = Uint8ArrayTools.alloc(this.length + other.length);
 		c.set(this);
-		c.set(other.asUint8Array(), this.length);
-		return fromUint8Array(c);
+		c.set(other.impl(), this.length);
+		return fromImpl(c);
 	}
 
-	static inline function fromUint8Array (b:Uint8Array):ByteAccess {
+	static inline function fromImpl (b:Uint8Array):ByteAccess {
 		return cast b;
 	}
 
-	inline function asUint8Array ():Uint8Array {
+	inline function impl ():Uint8Array {
 		return this;
 	}
 
 	public static inline function fromBytes (b:Bytes):ByteAccess {
-		return fromUint8Array(Uint8ArrayTools.wrapData(b.sub(0, b.length).getData()));
+		return fromImpl(Uint8ArrayTools.wrapData(b.sub(0, b.length).getData()));
 	}
 
 	public static inline function ofData (data:BytesData):ByteAccess {
-		return fromUint8Array(Uint8ArrayTools.wrapData(data));
+		return fromImpl(Uint8ArrayTools.wrapData(data));
 	}
 
 	public inline function toBytes ():Bytes {

@@ -51,7 +51,7 @@ abstract ByteAccess(BytesData) {
 	}
 
 	public inline function sub(i:Int, size:Int):ByteAccess {
-		return fromBytesData(BytesDataTools.sub(this, i, size));
+		return fromImpl(BytesDataTools.sub(this, i, size));
 	}
 
 	public inline function fastGet (pos:Int) {
@@ -59,7 +59,7 @@ abstract ByteAccess(BytesData) {
 	}
 
 	public inline function blit (pos : Int, src : ByteAccess, srcpos : Int, len : Int):Void {
-		return BytesDataTools.blit(this, pos, src.asBytesData(), srcpos, len);
+		return BytesDataTools.blit(this, pos, src.impl(), srcpos, len);
 	}
 
 	public inline function append (other : ByteAccess):ByteAccess {
@@ -78,12 +78,14 @@ abstract ByteAccess(BytesData) {
 	}
 
 	public inline function copy ():ByteAccess {
-		return fromBytesData(BytesDataTools.sub(this, 0, length));
+		return fromImpl(BytesDataTools.sub(this, 0, length));
 	}
 
 	public function equal (other:ByteAccess) {
-		var a = fromBytesData(this);
+		if (this == other.impl()) return true;
+		var a = fromImpl(this);
 		var b = other;
+
 
 		if (a.length != b.length) return false;
 
@@ -94,7 +96,8 @@ abstract ByteAccess(BytesData) {
 	}
 
 	public function compare (other:ByteAccess) {
-		var a = fromBytesData(this);
+		if (this == other.impl()) return 0;
+		var a = fromImpl(this);
 		var b = other;
 
 		var min = a.length < b.length ? a.length : b.length;
@@ -111,7 +114,7 @@ abstract ByteAccess(BytesData) {
 	}
 
 	public function toString ():String {
-		var a = fromBytesData(this);
+		var a = fromImpl(this);
 		var res = [];
 		for (i in 0...a.length) {
 
@@ -124,11 +127,11 @@ abstract ByteAccess(BytesData) {
 		return BytesDataTools.getString(this, pos, len);
 	}
 
-	static inline function fromBytesData (b:BytesData):ByteAccess {
+	static inline function fromImpl (b:BytesData):ByteAccess {
 		return cast b;
 	}
 
-	public inline function asBytesData ():BytesData {
+	public inline function impl ():BytesData {
 		return this;
 	}
 
@@ -137,11 +140,11 @@ abstract ByteAccess(BytesData) {
 	}
 
 	public static inline function ofData (data:BytesData):ByteAccess {
-		return fromBytesData(data);
+		return fromImpl(data);
 	}
 
 	public static inline function fromBytes (b:Bytes):ByteAccess {
-		return fromBytesData(b.getData());
+		return fromImpl(b.getData());
 	}
 
 	public inline function toBytes ():Bytes {
