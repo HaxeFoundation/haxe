@@ -49,6 +49,7 @@ type 'value compiler_api = {
 	add_global_metadata : string -> string -> (bool * bool * bool) -> unit;
 	add_module_check_policy : string list -> int list -> bool -> int -> unit;
 	decode_expr : 'value -> Ast.expr;
+	encode_expr : Ast.expr -> 'value;
 }
 
 
