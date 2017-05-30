@@ -364,6 +364,7 @@ let make_macro_api ctx p =
 		MacroApi.on_reuse = (fun f ->
 			macro_interp_on_reuse := f :: !macro_interp_on_reuse
 		);
+		MacroApi.decode_expr = Interp.decode_expr;
 	}
 
 let rec init_macro_interp ctx mctx mint =
