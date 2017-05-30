@@ -6964,7 +6964,6 @@ class script_writer ctx filename asciiOut =
    val identTable = Hashtbl.create 0
    val fileTable = Hashtbl.create 0
    val identBuffer = Buffer.create 0
-   val cppiaAst = false
 
    method stringId name =
       try ( Hashtbl.find identTable name )
@@ -7107,10 +7106,21 @@ class script_writer ctx filename asciiOut =
       if (not isInterface) then begin
          match fieldExpression with
          | Some ({ eexpr = TFunction function_def } as e) ->
-            if cppiaAst then begin
+            if (Common.defined ctx.ctx_common Define.CppiaAst)  then begin
                let args = List.map fst function_def.tf_args in
                let cppExpr = retype_expression ctx TCppVoid args function_def.tf_type function_def.tf_expr false in
-               this#gen_expression_tree cppExpr
+               this#begin_expr;
+               this#writePos function_def.tf_expr;
+               this#write ( (this#op IaFun) ^ (this#typeText function_def.tf_type) ^ (string_of_int (List.length args)) ^ "\n" );
+               List.iter (fun(arg,init) ->
+                  this#write (indent ^ indent_str );
+                  this#writeVar arg;
+                  match init with
+                  | Some const -> this#write ("1 " ^ (this#constText const) ^ "\n")
+                  | _ -> this#write "0\n";
+               ) function_def.tf_args;
+               this#gen_expression_tree cppExpr;
+               this#end_expr;
             end else
                this#gen_expression e
          | _ -> print_endline ("Missing function body for " ^ funcName );
@@ -7484,11 +7494,16 @@ class script_writer ctx filename asciiOut =
          | CppContinue -> this#writeOp IaContinue
          | CppGoto label -> abort "Goto not supported in cppia" expression.cpppos
          | CppReturn None -> this#writeOpLine IaReturn;
-         | CppReturn Some value -> this#write ( (this#op IaRetVal) ^ (this#astType value.cpptype) ^ "\n");
+
+         | CppReturn Some value ->
+             this#write ( (this#op IaRetVal) ^ (this#astType value.cpptype) ^ "\n");
+             gen_expression value;
+
          | CppWhile(condition, block, while_flag, _) ->
              this#write ( (this#op IaWhile) ^ (if while_flag=NormalWhile then "1" else "0" ) ^ "\n");
              gen_expression condition;
              gen_expression block;
+
          | CppIf (condition,block,None) ->
             this#writeOpLine IaIf;
             gen_expression condition;
@@ -7591,7 +7606,7 @@ class script_writer ctx filename asciiOut =
             this#writeOpLine IaIsNull;
             gen_expression e;
 
-         | CppNullCompare("IsNotNull", e) ->
+         | CppNullCompare(_, e) ->
             this#writeOpLine IaNotNull;
             gen_expression e;
 
@@ -7608,6 +7623,12 @@ class script_writer ctx filename asciiOut =
 
          | CppEnumField(enum,field) ->
             this#write ( (this#op IaFEnum)  ^ (this#enumText enum) ^ " " ^ (this#stringText field.ef_name) ^ (this#commentOf field.ef_name) );
+
+         | CppEnumIndex(obj) ->
+            (* Cppia does not have a "GetEnumIndex" op code - must use IaCallMember hx::EnumBase.__Index *)
+            this#write ( (this#op IaCallMember) ^ (this#typeTextString "hx::EnumBase") ^ " " ^ (this#stringText "__Index") ^
+                     "0" ^ (this#commentOf ("Enum index") ) ^ "\n");
+            gen_expression obj;
 
          | CppDynamicField(obj,name) ->
             this#write ( (this#op IaFName) ^ (this#typeTextString "Dynamic") ^ " " ^ (this#stringText name) ^  (this#commentOf name) ^ "\n");
@@ -7688,7 +7709,10 @@ class script_writer ctx filename asciiOut =
             (match optional_default with None -> () | Some expr -> gen_expression expr);
 
 
-         | CppTCast(expr,toType)
+         | CppTCast(expr,toType) ->
+            this#write ((this#op IaTCast) ^ (this#astType toType) ^ "\n");
+            gen_expression expr;
+
          | CppCast(expr,toType) ->
             (match toType with
             | TCppDynamicArray ->
@@ -7700,13 +7724,16 @@ class script_writer ctx filename asciiOut =
             | TCppScalarArray(t) ->
                this#write ((this#op IaToDataArray)  ^ (this#typeTextString ("Array." ^ (tcpp_to_string t))));
                gen_expression expr;
-            | _ ->
-               (match expression.cppexpr with
-               (*| CppTCast _ ->
-                  this#writeOpLine IaCast;
-                  gen_expression expr; *)
-               | _ -> match_expr expr)
+            | _ -> match_expr expr
             )
+
+         | CppCastScalar(expr,"bool") ->
+             this#writeOpLine IaCastBool;
+             gen_expression expr;
+
+         | CppCastScalar(expr,"int") ->
+             this#writeOpLine IaCastInt;
+             gen_expression expr;
 
          | CppCastScalar(expr,_) -> match_expr expr
          | CppCastVariant(expr) -> match_expr expr
@@ -7717,7 +7744,17 @@ class script_writer ctx filename asciiOut =
             this#write ((this#op IaConstString) ^ (this#stringText "Null access"));
             this#end_expr;
 
-         | x -> print_endline ("Unknown cppexpr " ^ (s_tcpp x) );
+         | CppCode _
+         | CppFunctionAddress _
+         | CppDereference _
+         | CppAddressOf _
+         | CppFor _
+         | CppCastObjC _
+         | CppCastObjCBlock _
+         | CppCastProtocol _
+         | CppCastNative _ -> abort ("Unsupported operation in cppia :" ^ (s_tcpp expression.cppexpr) ) expression.cpppos
+
+         (*| x -> print_endline ("Unknown cppexpr " ^ (s_tcpp x) );*)
          in
          match_expr expression;
          this#end_expr;
