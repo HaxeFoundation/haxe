@@ -27,9 +27,9 @@ STATICLINK?=0
 
 # Configuration
 
-HAXE_DIRECTORIES=compiler context filters generators generators/gencommon macro macro/eval optimization syntax typing display
-EXTLIB_LIBS=extlib-leftovers extc neko javalib swflib ttflib ilib objsize pcre
-FINDLIB_LIBS=unix str threads sedlex camlzip xml-light extlib rope ptmap dynlink
+HAXE_DIRECTORIES=compiler context generators generators/gencommon macro filters macro/eval optimization syntax typing display
+EXTLIB_LIBS=extlib-leftovers extc neko javalib swflib ttflib ilib objsize pcre ziplib
+FINDLIB_LIBS=unix str threads sedlex xml-light extlib rope ptmap
 
 # Includes, packages and compiler
 

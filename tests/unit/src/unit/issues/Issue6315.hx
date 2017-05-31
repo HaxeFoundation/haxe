@@ -2,6 +2,7 @@ package unit.issues;
 
 class Issue6315 extends unit.Test {
 	function test() {
+		#if !lua
 		try if(throw "ok") { } catch(e:Dynamic) { }
 		try if(throw "ok") { } else { } catch(e:Dynamic) { }
 		try switch throw "ok" { case _: } catch(e:Dynamic) { }
@@ -21,5 +22,6 @@ class Issue6315 extends unit.Test {
 		}
 
 		return "";
+		#end
 	}
 }
