@@ -2236,6 +2236,14 @@ let is_array_splice_call obj member =
    | _,_ -> false
 ;;
 
+
+let is_array_concat_call obj member =
+   match obj.cpptype, member.cf_name with
+   | TCppScalarArray _, "concat"
+   | TCppObjectArray _, "concat" -> true
+   | _,_ -> false
+;;
+
 let cpp_can_static_cast funcType inferredType =
    match funcType with
    | TCppReference(_) | TCppStar(_) | TCppStruct(_) -> false
@@ -2644,6 +2652,10 @@ let retype_expression ctx request_type function_args function_type expression_tr
                | CppFunction( FuncInstance(obj, InstPtr, member), _ ) when not forCppia && return_type=TCppVoid && is_array_splice_call obj member ->
                   let retypedArgs = List.map (retype TCppDynamic ) args in
                   CppCall( FuncInstance(obj, InstPtr, {member with cf_name="removeRange"}), retypedArgs), TCppVoid
+
+               | CppFunction( FuncInstance(obj, InstPtr, member), _ ) when is_array_concat_call obj member ->
+                  let retypedArgs = List.map (retype obj.cpptype) args in
+                  CppCall( FuncInstance(obj, InstPtr, member), retypedArgs), return_type
 
                | CppFunction( FuncStatic(obj, false, member), _ ) when member.cf_name = "hx::AddressOf" ->
                     let arg = retype TCppUnchanged (List.hd args) in
@@ -3157,6 +3169,13 @@ let retype_expression ctx request_type function_args function_type expression_tr
 
          | _, TCppObjectPtr ->
              mk_cppexpr (CppCast(cppExpr,TCppObjectPtr)) TCppObjectPtr
+
+         | TCppDynamicArray, TCppScalarArray _
+         | TCppDynamicArray, TCppObjectArray _
+         | TCppScalarArray _, TCppDynamicArray
+         | TCppObjectArray _, TCppDynamicArray when forCppia ->
+             mk_cppexpr (CppCast(cppExpr,return_type)) return_type
+
          | _ -> cppExpr
    in
    retype request_type expression_tree
@@ -7759,13 +7778,13 @@ class script_writer ctx filename asciiOut =
          | CppCast(expr,toType) ->
             (match toType with
             | TCppDynamicArray ->
-               this#write (this#op IaToDynArray);
+               this#write ((this#op IaToDynArray) ^ "\n");
                gen_expression expr;
             | TCppObjectArray(_) ->
-               this#write ((this#op IaToDataArray) ^ (this#typeTextString ("Array.Object")));
+               this#write ((this#op IaToDataArray) ^ (this#typeTextString ("Array.Object")) ^ "\n");
                gen_expression expr;
             | TCppScalarArray(t) ->
-               this#write ((this#op IaToDataArray)  ^ (this#typeTextString ("Array." ^ (script_cpptype_string t))));
+               this#write ((this#op IaToDataArray)  ^ (this#typeTextString ("Array." ^ (script_cpptype_string t))) ^ "\n");
                gen_expression expr;
             | _ -> match_expr expr
             )
