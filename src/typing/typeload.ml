@@ -2789,7 +2789,29 @@ module ClassInitializer = struct
 		in
 		let cl_if_feature = check_if_feature c.cl_meta in
 		let cl_req = check_require c.cl_meta in
-		List.iter (fun f ->
+		let rec handle_field f =
+			try
+				let epath,el = match Meta.get Meta.Build f.cff_meta with
+					| _, [ECall (epath,el),p],_ -> epath,el
+					| _ -> error "Invalid build parameters" p
+				in
+				let mt = TClassDecl c in
+				let get_fields () = [f] in
+				let s = try String.concat "." (List.rev (string_list_of_expr_path epath)) with Error (_,p) -> error "Build call parameter must be a class path" p in
+				let old = ctx.g.get_build_infos in
+				ctx.g.get_build_infos <- (fun() -> Some (mt, List.map snd (t_infos mt).mt_params, get_fields()));
+				let r = try apply_macro ctx MBuild s el p with e -> ctx.g.get_build_infos <- old; raise e in
+				ctx.g.get_build_infos <- old;
+				begin match r with
+					| None -> error "Build failure" p
+					| Some (EVars [_,Some (CTAnonymous fl,p),None],_) ->
+						List.iter (fun f' ->
+							if f'.cff_name = f.cff_name then f'.cff_meta <- List.filter (fun (m,_,_) -> m <> Meta.Build) f'.cff_meta;
+							handle_field f'
+						) fl
+					| _ -> error "Build failure" p
+				end
+			with Not_found ->
 			let p = f.cff_pos in
 			try
 				let ctx,fctx = create_field_context (ctx,cctx) c f in
@@ -2840,7 +2862,8 @@ module ClassInitializer = struct
 				end
 			with Error (Custom str,p2) when p = p2 ->
 				display_error ctx str p
-		) fields;
+		in
+		List.iter handle_field fields;
 		(match cctx.abstract with
 		| Some a ->
 			a.a_to_field <- List.rev a.a_to_field;
