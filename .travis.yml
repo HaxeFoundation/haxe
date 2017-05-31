@@ -36,6 +36,8 @@ install_linux: &install_linux
       ocaml-native-compilers
       ocaml-findlib
       camlp4
+      libpcre3-dev
+      zlib1g-dev
       awscli
   - wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin system
   - export OPAMYES=1
@@ -50,9 +52,11 @@ install_linux: &install_linux
   - java -version
   # Build haxe
   - make package_src -s
-  - opam config exec -- make -s
+  - opam config exec -- make -s STATICLINK=1
   - make package_bin -s
   - ls -l out
+  - ldd -v ./haxe
+  - ldd -v ./haxelib
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
 
