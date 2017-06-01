@@ -77,6 +77,7 @@ install_osx: &install_osx
   - opam install camlp4 sedlex ocamlfind xml-light extlib rope ptmap
   - eval `opam config env`
   # Install neko
+  - brew upgrade cmake # we need a recent cmake to use CMAKE_OSX_DEPLOYMENT_TARGET
   - git clone https://github.com/HaxeFoundation/neko.git ../neko
   - pushd ../neko
   - cmake . -DSTATIC_DEPS=all
