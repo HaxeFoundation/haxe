@@ -1137,6 +1137,8 @@ let interp ctx f args =
 			traps := (r,target) :: !traps
 		| OEndTrap _ ->
 			traps := List.tl !traps
+		| OAssert _ ->
+			throw_msg ctx "Assert"
 		| ONop _ ->
 			()
 		);
@@ -2497,6 +2499,8 @@ let check code macros =
 				can_jump idx
 			| OEndTrap _ ->
 				()
+			| OAssert _ ->
+				()
 			| ONop _ ->
 				()
 		) f.code
@@ -2888,6 +2892,7 @@ let make_spec (code:code) (f:fundecl) =
 			| OEnumIndex (d,r) -> args.(d) <- SConv ("index",args.(r))
 			| OEnumField (d,r,fid,cid) -> args.(d) <- SEnumField (args.(r),fid,cid)
 			| OSetEnumField (e,fid,r) -> semit (SSetEnumField (args.(e),fid,args.(r)))
+			| OAssert _  -> ()
 			| ONop _ -> ()
 		done;
 		Hashtbl.add block_args b.bstart args

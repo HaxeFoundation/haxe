@@ -943,6 +943,8 @@ let generate_function ctx f =
 		| OEndTrap b ->
 			sexpr "hl_endtrap(trap$%d)" (!trap_depth - 1);
 			if b then decr trap_depth;
+		| OAssert _ ->
+			sexpr "hl_assert()"
 		| ONop _ ->
 			()
 	) f.code;

@@ -1146,6 +1146,15 @@ and unsafe_cast_to ctx (r:reg) (t:ttype) p =
 		if is_dynamic (rtype ctx r) && is_dynamic t then
 			let r2 = alloc_tmp ctx t in
 			op ctx (OUnsafeCast (r2,r));
+			if ctx.com.debug then begin
+				hold ctx r2;
+				ctx.com.warning ("Unsafe cast " ^ tstr rt ^ " to " ^ tstr t) p;
+				let r3 = cast_to ~force:true ctx r t p in
+				let j = jump ctx (fun n -> OJEq (r2,r3,n)) in
+				op ctx (OAssert 0);
+				j();
+				free ctx r2;
+			end;
 			r2
 		else
 			cast_to ~force:true ctx r t p
@@ -1937,7 +1946,28 @@ and eval_expr ctx e =
 			op ctx (OCallClosure (ret, r, el)); (* if it's a value, it's a closure *)
 			def_ret := Some (cast_to ~force:true ctx ret (to_type ctx e.etype) e.epos);
 		);
-		(match !def_ret with None -> cast_to ~force:true ctx ret (to_type ctx e.etype) e.epos | Some r -> r)
+		(match !def_ret with
+		| None ->
+			let rt = to_type ctx e.etype in
+			let is_valid_method t =
+				match follow t with
+				| TFun (_,rt) ->
+					(match follow rt with
+					| TInst({ cl_kind = KTypeParameter tl },_) ->
+						(* don't allow if we have a constraint virtual, see hxbit.Serializer.getRef *)
+						not (List.exists (fun t -> match to_type ctx t with HVirtual _ -> true | _ -> false) tl)
+					| _ -> false)
+				| _ ->
+					false
+			in
+			(match ec.eexpr with
+			| TField (_, FInstance(_,_,{ cf_kind = Method (MethNormal|MethInline); cf_type = t })) when is_valid_method t ->
+				(* let's trust the compiler when it comes to casting the return value from a type parameter *)
+				unsafe_cast_to ctx ret rt e.epos
+			| _ ->
+				cast_to ~force:true ctx ret rt e.epos)
+		| Some r ->
+			r)
 	| TField (ec,FInstance({ cl_path = [],"Array" },[t],{ cf_name = "length" })) when to_type ctx t = HDyn ->
 		let r = alloc_tmp ctx HI32 in
 		op ctx (OCall1 (r,alloc_fun_path ctx (["hl";"types"],"ArrayDyn") "get_length", eval_null_check ctx ec));
@@ -3351,7 +3381,7 @@ let write_code ch code debug =
 		let oid = Obj.tag o in
 
 		match op with
-		| OLabel _ | ONop _ ->
+		| OLabel _ | ONop _ | OAssert _ ->
 			byte oid
 		| OCall2 (r,g,a,b) ->
 			byte oid;
