@@ -1179,6 +1179,8 @@ let call_fun ctx f args =
 			raise (InterpThrow v)
 		| Failure msg ->
 			throw_msg ctx msg
+		| Sys_exit _ as exc ->
+			raise exc
 		| e ->
 			throw_msg ctx (Printexc.to_string e)
 
