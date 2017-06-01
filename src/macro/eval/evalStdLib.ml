@@ -596,17 +596,19 @@ end
 module StdCompress = struct
 	open Extc
 
+	type zfun = zstream -> src:string -> spos:int -> slen:int -> dst:bytes -> dpos:int -> dlen:int -> zflush -> zresult
+
 	let this vthis = match vthis with
 		| VInstance {ikind = IZip zip} -> zip
 		| _ -> unexpected_value vthis "Compress"
 
-	let exec f vthis src srcPos dst dstPos =
+	let exec (f : zfun) vthis src srcPos dst dstPos =
 		let this = this vthis in
 		let src = decode_bytes src in
 		let srcPos = decode_int srcPos in
 		let dst = decode_bytes dst in
 		let dstPos = decode_int dstPos in
-		let r = zlib_deflate this.z (Bytes.unsafe_to_string src) srcPos (Bytes.length src - srcPos) dst dstPos (Bytes.length dst - dstPos) this.z_flush in
+		let r = try f this.z (Bytes.unsafe_to_string src) srcPos (Bytes.length src - srcPos) dst dstPos (Bytes.length dst - dstPos) this.z_flush with _ -> exc_string "oops" in
 		encode_obj None [
 			key_done,vbool r.z_finish;
 			key_read,vint r.z_read;
