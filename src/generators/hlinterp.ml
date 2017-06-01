@@ -1246,7 +1246,7 @@ let load_native ctx lib name t =
 			(function
 			| [VType t] -> alloc_obj ctx t
 			| _ -> assert false)
-		| "alloc_enum" ->
+		| "alloc_enum_dyn" ->
 			(function
 			| [VType (HEnum e); VInt idx; VArray (vl,vt); VInt len] ->
 				let idx = int idx in
@@ -2039,6 +2039,54 @@ let load_native ctx lib name t =
 			(function
 			| [VBytes file;VInt min;VInt max] ->
 				VAbstract (APos { Globals.pfile = String.sub file 0 (String.length file - 1); pmin = Int32.to_int min; pmax = Int32.to_int max })
+			| _ -> assert false)
+		| "dyn_op" ->
+			let op_names = [|"+";"-";"*";"%";"/";"<<";">>";">>>";"&";"|";"^"|] in
+			(function
+			| [VInt op; a; b] ->
+				let op = Int32.to_int op in
+				let is_number v =
+					match v with
+					| VNull -> true
+					| VDyn (_,t) -> is_number t
+					| _ -> false
+				in
+				let error() =
+					failwith ("Can't perform dyn op " ^ vstr ctx a HDyn ^ " " ^ op_names.(op) ^ " " ^ vstr ctx b HDyn)
+				in
+				let fop op =
+					if is_number a && is_number b then begin
+						let a = dyn_cast ctx a HDyn HF64 in
+						let b = dyn_cast ctx b HDyn HF64 in
+						match a, b with
+						| VFloat a, VFloat b -> VDyn (VFloat (op a b),HF64)
+						| _ -> assert false
+					end else
+						error();
+				in
+				let iop op =
+					if is_number a && is_number b then begin
+						let a = dyn_cast ctx a HDyn HI32 in
+						let b = dyn_cast ctx b HDyn HI32 in
+						match a, b with
+						| VInt a, VInt b -> VDyn (VInt (op a b),HI32)
+						| _ -> assert false
+					end else
+						error();
+				in
+				(match op with
+				| 0 -> fop ( +. )
+				| 1 -> fop ( -. )
+				| 2 -> fop ( *. )
+				| 3 -> fop mod_float
+				| 4 -> fop ( /. )
+				| 5 -> iop (fun a b -> Int32.shift_left a (Int32.to_int b))
+				| 6 -> iop (fun a b -> Int32.shift_right a (Int32.to_int b))
+				| 7 -> iop (fun a b -> Int32.shift_right_logical a (Int32.to_int b))
+				| 8 -> iop Int32.logand
+				| 9 -> iop Int32.logor
+				| 10 -> iop Int32.logxor
+				| _ -> assert false)
 			| _ -> assert false)
 		| _ ->
 			unresolved())
