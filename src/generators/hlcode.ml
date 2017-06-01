@@ -268,7 +268,7 @@ let is_number = function
 *)
 let is_dynamic t =
 	match t with
-	| HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HNull _ -> true
+	| HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HNull _ | HEnum _ -> true
 	| _ -> false
 
 let rec tsame t1 t2 =

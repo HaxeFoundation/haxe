@@ -38,7 +38,7 @@ type value =
 	| VRef of ref_value * ttype
 	| VVirtual of vvirtual
 	| VDynObj of vdynobj
-	| VEnum of int * value array
+	| VEnum of enum_proto * int * value array
 	| VAbstract of vabstract
 	| VVarArgs of vfunction * value option
 
@@ -134,10 +134,11 @@ let get_type = function
 	| VClosure (f,None) -> Some (match f with FFun f -> f.ftype | FNativeFun (_,_,t) -> t)
 	| VClosure (f,Some _) -> Some (match f with FFun { ftype = HFun(_::args,ret) } | FNativeFun (_,_,HFun(_::args,ret)) -> HFun (args,ret) | _ -> assert false)
 	| VVarArgs _ -> Some (HFun ([],HDyn))
+	| VEnum (e,_,_) -> Some (HEnum e)
 	| _ -> None
 
 let v_dynamic = function
-	| VNull	| VDyn _ | VObj _ | VClosure _ | VArray _ | VVirtual _ | VDynObj _ | VVarArgs _ -> true
+	| VNull	| VDyn _ | VObj _ | VClosure _ | VArray _ | VVirtual _ | VDynObj _ | VVarArgs _ | VEnum _ -> true
 	| _ -> false
 
 let rec is_compatible v t =
@@ -357,7 +358,7 @@ let rec vstr_d ctx v =
 	| VRef (r,_) -> "ref(" ^ vstr_d (get_ref ctx r) ^ ")"
 	| VVirtual v -> "virtual(" ^ vstr_d v.vvalue ^ ")"
 	| VDynObj d -> "dynobj(" ^ String.concat "," (Hashtbl.fold (fun f i acc -> (f^":"^vstr_d d.dvalues.(i)) :: acc) d.dfields []) ^ ")"
-	| VEnum (i,vals) -> "enum#" ^ string_of_int i  ^ "(" ^ String.concat "," (Array.to_list (Array.map vstr_d vals)) ^ ")"
+	| VEnum (e,i,vals) -> let n, _, _ = e.efields.(i) in if Array.length vals = 0 then n else n ^ "(" ^ String.concat "," (Array.to_list (Array.map vstr_d vals)) ^ ")"
 	| VAbstract _ -> "abstract"
 	| VVarArgs _ -> "varargs"
 
@@ -715,20 +716,16 @@ let rec vstr ctx v t =
 		with Not_found ->
 			"{" ^ String.concat ", " (Hashtbl.fold (fun f i acc -> (f^":"^vstr d.dvalues.(i) d.dtypes.(i)) :: acc) d.dfields []) ^ "}")
 	| VAbstract _ -> "abstract"
-	| VEnum (i,vals) ->
-		(match t with
-		| HEnum e ->
-			let n, _, pl = e.efields.(i) in
-			if Array.length pl = 0 then
-				n
-			else
-				let rec loop i =
-					if i = Array.length pl then []
-					else let v = vals.(i) in vstr v pl.(i) :: loop (i + 1)
-				in
-				n ^ "(" ^ String.concat "," (loop 0) ^ ")"
-		| _ ->
-			assert false)
+	| VEnum (e,i,vals) ->
+		let n, _, pl = e.efields.(i) in
+		if Array.length pl = 0 then
+			n
+		else
+			let rec loop i =
+				if i = Array.length pl then []
+				else let v = vals.(i) in vstr v pl.(i) :: loop (i + 1)
+			in
+			n ^ "(" ^ String.concat "," (loop 0) ^ ")"
 	| VVarArgs _ -> "varargs"
 
 let interp ctx f args =
@@ -1102,26 +1099,26 @@ let interp ctx f args =
 		| ODynSet (o,fid,vr) ->
 			dyn_set_field ctx (get o) ctx.code.strings.(fid) (get vr) (rtype vr)
 		| OMakeEnum (r,e,pl) ->
-			set r (VEnum (e,Array.map get (Array.of_list pl)))
+			set r (VEnum ((match rtype r with HEnum e -> e | _ -> assert false),e,Array.map get (Array.of_list pl)))
 		| OEnumAlloc (r,f) ->
 			(match rtype r with
 			| HEnum e ->
 				let _, _, fl = e.efields.(f) in
 				let vl = Array.create (Array.length fl) VUndef in
-				set r (VEnum (f, vl))
+				set r (VEnum (e, f, vl))
 			| _ -> assert false
 			)
 		| OEnumIndex (r,v) ->
 			(match get v with
-			| VEnum (i,_) | VDyn (VEnum (i,_),_) -> set r (VInt (Int32.of_int i))
+			| VEnum (_,i,_) -> set r (VInt (Int32.of_int i))
 			| _ -> assert false)
 		| OEnumField (r, v, _, i) ->
 			(match get v with
-			| VEnum (_,vl) -> set r vl.(i)
+			| VEnum (_,_,vl) -> set r vl.(i)
 			| _ -> assert false)
 		| OSetEnumField (v, i, r) ->
 			(match get v, rtype v with
-			| VEnum (id,vl), HEnum e ->
+			| VEnum (_,id,vl), HEnum e ->
 				let rv = get r in
 				let _, _, fields = e.efields.(id) in
 				check rv fields.(i) (fun() -> "enumfield");
@@ -1255,7 +1252,7 @@ let load_native ctx lib name t =
 				if Array.length args <> len then
 					VNull
 				else
-					VDyn (VEnum (idx,Array.mapi (fun i v -> dyn_cast ctx v vt args.(i)) (Array.sub vl 0 len)),HEnum e)
+					VEnum (e,idx,Array.mapi (fun i v -> dyn_cast ctx v vt args.(i)) (Array.sub vl 0 len))
 			| vl ->
 				assert false)
 		| "array_blit" ->
@@ -1605,7 +1602,7 @@ let load_native ctx lib name t =
 			| _ -> assert false)
 		| "enum_parameters" ->
 			(function
-			| [VDyn (VEnum (idx,pl),HEnum e)] ->
+			| [VEnum (e,idx,pl)] ->
 				let _,_, ptypes = e.efields.(idx) in
 				VArray (Array.mapi (fun i v -> make_dyn v ptypes.(i)) pl,HDyn)
 			| _ ->
@@ -1638,18 +1635,18 @@ let load_native ctx lib name t =
 			| _ -> assert false)
 		| "type_enum_values" ->
 			(function
-			| [VType (HEnum e as t)] ->
-				VArray (Array.mapi (fun i (_,_,args) -> if Array.length args <> 0 then VNull else VDyn (VEnum (i,[||]),t)) e.efields,HDyn)
+			| [VType (HEnum e)] ->
+				VArray (Array.mapi (fun i (_,_,args) -> if Array.length args <> 0 then VNull else VEnum (e,i,[||])) e.efields,HDyn)
 			| _ -> assert false)
 		| "type_enum_eq" ->
 			(function
-			| [VDyn (VEnum _, HEnum _); VNull] | [VNull; VDyn (VEnum _, HEnum _)] -> VBool false
+			| [VEnum _; VNull] | [VNull; VEnum _] -> VBool false
 			| [VNull; VNull] -> VBool true
-			| [VDyn (VEnum _ as v1, HEnum e1); VDyn (VEnum _ as v2, HEnum e2)] ->
+			| [VEnum (e1,_,_) as v1; VEnum (e2,_,_) as v2] ->
 				let rec loop v1 v2 e =
 					match v1, v2 with
-					| VEnum (t1,_), VEnum (t2,_) when t1 <> t2 -> false
-					| VEnum (t,vl1), VEnum (_,vl2) ->
+					| VEnum (_,t1,_), VEnum (_,t2,_) when t1 <> t2 -> false
+					| VEnum (_,t,vl1), VEnum (_,_,vl2) ->
 						let _, _, pl = e.efields.(t) in
 						let rec chk i =
 							if i = Array.length pl then true
