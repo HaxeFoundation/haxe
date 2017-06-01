@@ -2742,9 +2742,15 @@ let retype_expression ctx request_type function_args function_type expression_tr
                )
             )
 
-         | TNew (clazz,params,args) ->
-            (* New DynamicArray ? *)
-            let retypedArgs = List.map (retype TCppDynamic ) args in
+         | TNew (class_def,params,args) ->
+            let rec find_constructor c = (match c.cl_constructor, c.cl_super with
+            | (Some constructor), _  -> constructor.cf_type
+            | _ , Some (super,_)  -> find_constructor super
+            | _ -> abort "TNew without constructor " expr.epos
+            ) in
+            let constructor_type = find_constructor class_def in
+            let arg_types, _ = cpp_function_type_of_args_ret ctx constructor_type in
+            let retypedArgs = retype_function_args args arg_types in
             let created_type = cpp_type_of expr.etype in
             gc_stack := !gc_stack || (match created_type with | TCppInst(_) -> true | _ -> false );
             CppCall( FuncNew(created_type), retypedArgs), created_type
@@ -6765,7 +6771,7 @@ let rec script_cpptype_string cppType = match cppType with
    | TCppInterface klass -> (join_class_path klass.cl_path ".")
    | TCppInst klass -> (join_class_path klass.cl_path ".")
    | TCppClass -> "Class"
-   | TCppGlobal -> "?";
+   | TCppGlobal -> "?global";
    | TCppNull -> "null";
    | TCppCode _ -> "Dynamic"
 ;;
@@ -7164,7 +7170,7 @@ class script_writer ctx filename asciiOut =
       if (not isInterface) then begin
          match fieldExpression with
          | Some ({ eexpr = TFunction function_def } as e) ->
-            if (Common.defined ctx.ctx_common Define.CppiaAst)  then begin
+            if cppiaAst  then begin
                let args = List.map fst function_def.tf_args in
                let cppExpr = retype_expression ctx TCppVoid args function_def.tf_type function_def.tf_expr false in
                this#begin_expr;
@@ -7189,7 +7195,13 @@ class script_writer ctx filename asciiOut =
          (match varExpr with Some _ -> "1" | _ -> "0" )  ^
          (if doComment then (" # " ^ name ^ "\n") else "\n") );
       match varExpr with
-      | Some expression -> this#gen_expression expression
+      | Some expression ->
+            if cppiaAst then begin
+               let varType = cpp_type_of ctx expression.etype in
+               let cppExpr = retype_expression ctx varType [] t_dynamic expression false in
+               this#gen_expression_tree cppExpr
+            end else
+               this#gen_expression expression
       | _ -> ()
    method implDynamic = this#writeOpLine IaImplDynamic;
    method writeVar v =
@@ -7698,7 +7710,7 @@ class script_writer ctx filename asciiOut =
 
          | CppClassOf (path,native) ->
             let klass =  (join_class_path path "." ) in
-            this#write ((this#op IaClassOf) ^ (string_of_int (this#typeId klass)))
+            this#write ((this#op IaClassOf) ^ (this#typeTextString klass) ^  (this#commentOf klass) );
 
          | CppEnumParameter(obj,field,index) ->
             this#write ( (this#op IaEnumI) ^ (this#typeTextString "Dynamic") ^ (string_of_int index) ^ "\n");
