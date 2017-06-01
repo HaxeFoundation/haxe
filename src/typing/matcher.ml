@@ -360,7 +360,10 @@ module Pattern = struct
 						PMap.fold (fun cf acc -> (cf,cf.cf_type) :: acc) an.a_fields []
 					| TInst(c,tl) ->
 						let rec loop fields c tl =
-							let fields = List.fold_left (fun acc cf -> (cf,apply_params c.cl_params tl cf.cf_type) :: acc) fields c.cl_ordered_fields in
+							let fields = List.fold_left (fun acc cf ->
+								if Typer.can_access ctx c cf false then (cf,apply_params c.cl_params tl cf.cf_type) :: acc
+								else acc
+							) fields c.cl_ordered_fields in
 							match c.cl_super with
 								| None -> fields
 								| Some (csup,tlsup) -> loop fields csup (List.map (apply_params c.cl_params tl) tlsup)
