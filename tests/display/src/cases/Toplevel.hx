@@ -144,6 +144,25 @@ class Toplevel extends DisplayTestCase {
 		eq(true, hasToplevel(typesCompletion, "package", "haxe"));
 	}
 
+	/**
+	class Main<ClassT> {
+		static var myField;
+		static function main<FieldT>() {
+			{-1-}
+		}
+
+		function field<FieldT2>() {
+			{-2-}
+		}
+	**/
+	function testTypeParameters() {
+		eq(true, hasToplevel(toplevel(pos(1)), "type", "FieldT"));
+		eq(false, hasToplevel(toplevel(pos(1)), "type", "ClassT"));
+		eq(true, hasToplevel(toplevel(pos(2)), "type", "ClassT"));
+		eq(false, hasToplevel(toplevel(pos(2)), "type", "FieldT"));
+		eq(true, hasToplevel(toplevel(pos(2)), "type", "FieldT2"));
+	}
+
 	public static function hasToplevel(a:Array<ToplevelElement>, kind:String, name:String):Bool {
 		return a.exists(function(t) return t.kind == kind && t.name == name);
 	}
