@@ -304,20 +304,27 @@ let type_var_field ctx t e stat do_display p =
 let apply_macro ctx mode path el p =
 
 
-	(*PMap.iter (fun a (t, name, pi) -> (Printf.printf "iter: %s\n" name)) ctx.m.module_globals;
+	(*
+	PMap.iter (fun a (t, name, pi) -> (Printf.printf "iter: %s\n" name)) ctx.m.module_globals;
 
 	Printf.printf "------------\n";
 	Printf.printf "Imports:\n\n";
 	List.iter (fun (l, mode) ->
 		let names = List.map (fun (name,_) -> name) l in
-		Printf.printf "%s\n" (String.concat "." names);
+		let mode = match mode with
+			| IAll -> ".*"
+			| IAsName s -> " as " ^ s
+			| INormal -> ""
+		in
+		Printf.printf "%s%s\n" (String.concat "." names) mode;
 	) ctx.m.module_imports;
 	Printf.printf "Imports:\n";
 	Printf.printf "Wildcard packages:\n\n";
 	List.iter (fun (l,_) ->
 		Printf.printf "%s\n" (String.concat "" l);
 	) ctx.m.wildcard_packages;
-	Printf.printf "------------\n";*)
+	Printf.printf "------------\n";
+	*)
 	let get_prio i = function
 		| IAsName _ -> 1
 		| INormal -> 1
@@ -381,7 +388,9 @@ let apply_macro ctx mode path el p =
 			let sorted = sort_candidates candidates in
 			match sorted with
 			| (_,_, (a,b) ) :: _ -> a, b, false
-			| _ ->  error ("Macro named " ^ path ^ " is not imported") p
+			| _ ->
+				(* todo try IAll imports without packages *)
+				error (path ^ " is not imported") p
 		end
 		| meth :: sub :: name :: [] when (starts_with_uppercase sub) -> begin
 			(* maybe it's a subtype of an imported class *)
@@ -429,7 +438,7 @@ let apply_macro ctx mode path el p =
 		match a with
 		| Some _ -> a
 		| None ->
-			Printf.printf "try %s\n" (String.concat "." c);
+			(*Printf.printf "try %s\n" (String.concat "." c);*)
 			let cpath = c @ fst cpath, snd cpath in
 			run cpath (!index)
 	end) regular_try wildcard_packages
@@ -1973,22 +1982,35 @@ let is_java_native_function meta = try
 	with | Not_found -> false
 
 let build_module_def ctx mt meta fvars context_init fbuild =
-	let loop (f_build,f_enum) = function
-		| Meta.Build,args,p -> (fun () ->
+
+	let loop (f_build,f_enum) meta =
+		let do_build s el p =
+
+			let old = ctx.g.get_build_infos in
+			ctx.g.get_build_infos <- (fun() -> Some (mt, List.map snd (t_infos mt).mt_params, fvars()));
+			context_init();
+			let r = try apply_macro ctx MBuild s el p with e -> ctx.g.get_build_infos <- old; raise e in
+			ctx.g.get_build_infos <- old;
+			(match r with
+			| None -> error "Build failure" p
+			| Some e -> fbuild e)
+		in
+		match meta with
+		| Meta.MacroCall(epath),args,p ->
+			(fun () ->
+				if ctx.in_macro then error "You cannot use @-? on a class inside a macro : make sure that your type is not used in macro" p;
+				let el = args in
+				do_build epath el p
+			) :: f_build,f_enum
+		| Meta.Build,args,p ->
+			(fun () ->
+				if ctx.in_macro then error "You cannot use @:build inside a macro : make sure that your type is not used in macro" p;
 				let epath, el = (match args with
 					| [ECall (epath,el),p] -> epath, el
 					| _ -> error "Invalid build parameters" p
 				) in
 				let s = try String.concat "." (List.rev (string_list_of_expr_path epath)) with Error (_,p) -> error "Build call parameter must be a class path" p in
-				if ctx.in_macro then error "You cannot use @:build inside a macro : make sure that your type is not used in macro" p;
-				let old = ctx.g.get_build_infos in
-				ctx.g.get_build_infos <- (fun() -> Some (mt, List.map snd (t_infos mt).mt_params, fvars()));
-				context_init();
-				let r = try apply_macro ctx MBuild s el p with e -> ctx.g.get_build_infos <- old; raise e in
-				ctx.g.get_build_infos <- old;
-				(match r with
-				| None -> error "Build failure" p
-				| Some e -> fbuild e)
+				do_build s el p
 			) :: f_build,f_enum
 		| Meta.Enum,_,p -> f_build,Some (fun () ->
 				begin match mt with
@@ -2933,7 +2955,32 @@ module ClassInitializer = struct
 					| None -> error "Build failure" p
 					| Some (EVars [_,Some (CTAnonymous fl,p),None],_) ->
 						List.iter (fun f' ->
-							if f'.cff_name = f.cff_name then f'.cff_meta <- List.filter (fun (m,_,_) -> m <> Meta.Build) f'.cff_meta;
+							if f'.cff_name = f.cff_name then begin
+								f'.cff_meta <- List.filter (fun (m,_,_) -> m <> Meta.Build) f'.cff_meta;
+							end;
+							handle_field f'
+						) fl
+					| _ -> error "Build failure" p
+				end
+			with Not_found ->
+			try
+				let id, s,el = match Meta.get_macro_calls f.cff_meta with
+					| Meta.MacroCall id, el,_ -> id, id,el
+					| _ -> assert false
+				in
+				let mt = TClassDecl c in
+				let get_fields () = [f] in
+				let old = ctx.g.get_build_infos in
+				ctx.g.get_build_infos <- (fun() -> Some (mt, List.map snd (t_infos mt).mt_params, get_fields()));
+				let r = try apply_macro ctx MBuild s el p with e -> ctx.g.get_build_infos <- old; raise e in
+				ctx.g.get_build_infos <- old;
+				begin match r with
+					| None -> error "Build failure" p
+					| Some (EVars [_,Some (CTAnonymous fl,p),None],_) ->
+						List.iter (fun f' ->
+							if f'.cff_name = f.cff_name then begin
+								f'.cff_meta <- List.filter (fun (m,_,_) -> m <> (Meta.MacroCall id)) f'.cff_meta;
+							end;
 							handle_field f'
 						) fl
 					| _ -> error "Build failure" p
