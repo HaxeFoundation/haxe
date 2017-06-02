@@ -1319,7 +1319,9 @@ module Inheritance = struct
 		| TInst (csup,params) ->
 			if is_parent c csup then error "Recursive class" p;
 			begin match csup.cl_kind with
-				| KTypeParameter _ when not (is_generic_parameter ctx csup) -> error "Cannot extend non-generic type parameters" p
+				| KTypeParameter _ ->
+					if is_generic_parameter ctx csup then error "Extending generic type parameters is no longer allowed in Haxe 4" p;
+					error "Cannot extend type parameters" p
 				| _ -> csup,params
 			end
 		| _ -> error "Should extend by using a class" p
@@ -2223,20 +2225,25 @@ module ClassInitializer = struct
 					| Var v when not fctx.is_static ->
 						let e = if ctx.com.display.dms_display && ctx.com.display.dms_error_policy <> EPCollect then
 							e
-						else match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
-							| Some e -> e
-							| None ->
-								let rec has_this e = match e.eexpr with
-									| TConst TThis ->
-										display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
-									| TLocal v when (match ctx.vthis with Some v2 -> v == v2 | None -> false) ->
-										display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
-									| _ ->
-									Type.iter has_this e
-								in
-								has_this e;
+						else begin
+							let rec check_this e = match e.eexpr with
+								| TConst TThis ->
+									display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
+									raise Exit
+								| TLocal v when (match ctx.vthis with Some v2 -> v == v2 | None -> false) ->
+									display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
+									raise Exit
+								| _ ->
+								Type.iter check_this e
+							in
+							try
+								check_this e;
+								match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
+								| Some e -> e
+								| None -> e
+							with Exit ->
 								e
-						in
+						end in
 						e
 					| Var v when v.v_read = AccInline ->
 						let e = require_constant_expression e "Inline variable initialization must be a constant value" in
@@ -3996,31 +4003,7 @@ let rec build_generic ctx c p tl =
 		cg.cl_super <- (match c.cl_super with
 			| None -> None
 			| Some (cs,pl) ->
-				let find_class subst =
-					let rec loop subst = match subst with
-						| (TInst(c,[]),t) :: subst when c == cs -> t
-						| _ :: subst -> loop subst
-						| [] -> raise Not_found
-					in
-					try
-						if pl <> [] then raise Not_found;
-						let t = loop subst in
-						(* extended type parameter: concrete type must have a constructor, but generic base class must not have one *)
-						begin match follow t,c.cl_constructor with
-							| TInst(cs,_),None ->
-								ignore(cs.cl_build());
-								begin match cs.cl_constructor with
-									| None -> error ("Cannot use " ^ (s_type_path cs.cl_path) ^ " as type parameter because it is extended and has no constructor") p
-									| _ -> ()
-								end;
-							| _,Some cf -> error "Generics extending type parameters cannot have constructors" cf.cf_pos
-							| _ -> ()
-						end;
-						t
-					with Not_found ->
-						apply_params c.cl_params tl (TInst(cs,pl))
-				in
-				let ts = follow (find_class gctx.subst) in
+				let ts = follow (apply_params c.cl_params tl (TInst(cs,pl))) in
 				let cs,pl = Inheritance.check_extends ctx c ts p in
 				match cs.cl_kind with
 				| KGeneric ->

@@ -28,6 +28,7 @@ type context = {
 type server_message =
 	| AddedDirectory of string
 	| FoundDirectories of (string * float ref) list
+	| ChangedDirectories of (string * float) list
 	| ModulePathChanged of (module_def * float * string)
 	| NotCached of module_def
 	| Parsed of (string * string)
@@ -107,8 +108,10 @@ let report_times print =
 		let l = (String.length node.name) + 2 * depth in
 		if l > !max_name then max_name := l;
 		List.iter (fun child ->
-			node.num_calls <- node.num_calls + child.num_calls;
-			node.time <- node.time +. child.time;
+			if depth = 0 then begin
+				node.num_calls <- node.num_calls + child.num_calls;
+				node.time <- node.time +. child.time;
+			end;
 			loop (depth + 1) child;
 		) node.children;
 		node.children <- List.sort (fun node1 node2 -> compare node2.time node1.time) node.children;
@@ -202,11 +205,12 @@ let rec wait_loop process_params verbose accept =
 		Printf.sprintf "%2s,%3s: " sign_id (short_platform_name com.platform)
 	in
 	let process_server_message com tabs =
-		if true || Common.raw_defined com "compilation-server-test" then (fun message ->
+		if Common.raw_defined com "compilation-server-test" then (fun message ->
 			let module_path m = JString (s_type_path m.m_path) in
 			let kind,data = match message with
 				| AddedDirectory dir -> "addedDirectory",JString dir
 				| FoundDirectories dirs -> "foundDirectories",JInt (List.length dirs)
+				| ChangedDirectories dirs -> "changedDirectories",JArray (List.map (fun (s,_) -> JString s) dirs)
 				| ModulePathChanged(m,time,file) -> "modulePathChanged",module_path m
 				| NotCached m -> "notCached",module_path m
 				| Parsed(ffile,_) -> "parsed",JString ffile
@@ -219,6 +223,8 @@ let rec wait_loop process_params verbose accept =
 		) else (fun message -> match message with
 			| AddedDirectory dir -> print_endline (Printf.sprintf "%sadded directory %s" (sign_string com) dir)
 			| FoundDirectories dirs -> print_endline (Printf.sprintf "%sfound %i directories" (sign_string com) (List.length dirs));
+			| ChangedDirectories dirs ->
+				print_endline (Printf.sprintf "%schanged directories: [%s]" (sign_string com) (String.concat ", " (List.map (fun (s,_) -> "\"" ^ s ^ "\"") dirs)))
 			| ModulePathChanged(m,time,file) ->
 				print_endline (Printf.sprintf "%smodule path might have changed: %s\n\twas: %2.0f %s\n\tnow: %2.0f %s"
 					(sign_string com) (s_type_path m.m_path) m.m_extra.m_time m.m_extra.m_file time file);
@@ -293,7 +299,7 @@ let rec wait_loop process_params verbose accept =
 			let dirs = try
 				(* Next, get all directories from the cache and filter the ones that haven't changed. *)
 				let all_dirs = CompilationServer.find_directories cs sign in
-				List.fold_left (fun acc (dir,time) ->
+				let dirs = List.fold_left (fun acc (dir,time) ->
 					try
 						let time' = stat dir in
 						if !time < time' then begin
@@ -313,7 +319,9 @@ let rec wait_loop process_params verbose accept =
 						CompilationServer.remove_directory cs sign dir;
 						if verbose then process_server_message com "" (RemovedDirectory dir);
 						acc
-				) [] all_dirs
+				) [] all_dirs in
+				if verbose then process_server_message com "" (ChangedDirectories dirs);
+				dirs
 			with Not_found ->
 				(* There were no directories in the cache, so this must be a new context. Let's add
 				   an empty list to make sure no crazy recursion happens. *)
@@ -585,7 +593,7 @@ let rec wait_loop process_params verbose accept =
 				if verbose then print_endline ("Completion Response =\n" ^ str);
 				write str
 			| Arg.Bad msg ->
-				prerr_endline ("Error: " ^ msg);
+				print_endline ("Error: " ^ msg);
 			);
 			if DynArray.length test_server_messages > 0 then begin
 				let b = Buffer.create 0 in

@@ -70,6 +70,8 @@ let keywords =
 	"thread2";"__declspec";"__finally";"__int64";"__try";"dllexport2";"__inline";"__leave";"asm";
 	(* reserved by HLC *)
 	"t";
+	(* GCC *)
+	"typeof";
 	(* C11 *)
 	"_Alignas";"_Alignof";"_Atomic";"_Bool";"_Complex";"_Generic";"_Imaginary";"_Noreturn";"_Static_assert";"_Thread_local";"_Pragma";
 	"inline";"restrict"
@@ -797,6 +799,10 @@ let generate_function ctx f =
 			sexpr "if( ((unsigned)%s) < ((unsigned)%s) ) goto %s" (reg a) (reg b) (label d)
 		| OJUGte (a,b,d) ->
 			sexpr "if( ((unsigned)%s) >= ((unsigned)%s) ) goto %s" (reg a) (reg b) (label d)
+		| OJNotLt (a,b,d) ->
+			sexpr "if( !(%s < %s) ) goto %s" (reg a) (reg b) (label d)
+		| OJNotGte (a,b,d) ->
+			sexpr "if( !(%s >= %s) ) goto %s" (reg a) (reg b) (label d)
 		| OJEq (a,b,d) ->
 			compare_op CEq a b d
 		| OJNotEq (a,b,d) ->
@@ -898,33 +904,21 @@ let generate_function ctx f =
 			sexpr "hl_dyn_set%s((vdynamic*)%s,%ld/*%s*/%s,%s)" (dyn_prefix (rtype v)) (reg o) h code.strings.(sid) (type_value_opt (rtype v)) (reg v)
 		| OMakeEnum (r,cid,rl) ->
 			let e, et = (match rtype r with HEnum e -> e, enum_constr_type ctx e cid | _ -> assert false) in
-			let has_ptr = List.exists (fun r -> is_gc_ptr (rtype r)) rl in
 			let need_tmp = List.mem r rl in
 			let tmp = if not need_tmp then reg r else begin
 				sexpr "{ venum *tmp";
 				"tmp"
 			end in
-			sexpr "%s = (venum*)hl_gc_alloc_%s(sizeof(%s))" tmp (if has_ptr then "raw" else "noptr") et;
-			sexpr "%s->index = %d" tmp cid;
+			sexpr "%s = hl_alloc_enum(%s,%d)" tmp (type_value (rtype r)) cid;
 			let _,_,tl = e.efields.(cid) in
 			list_iteri (fun i v ->
 				sexpr "((%s*)%s)->p%d = %s" et tmp i (rcast v tl.(i))
 			) rl;
 			if need_tmp then sexpr "%s = tmp; }" (reg r)
 		| OEnumAlloc (r,cid) ->
-			let et, (_,_,tl) = (match rtype r with HEnum e -> enum_constr_type ctx e cid, e.efields.(cid) | _ -> assert false) in
-			let has_ptr = List.exists is_gc_ptr (Array.to_list tl) in
-			sexpr "%s = (venum*)hl_gc_alloc_%s(sizeof(%s))" (reg r) (if has_ptr then "raw" else "noptr") et;
-			sexpr "memset(%s,0,sizeof(%s))" (reg r) et;
-			if cid <> 0 then sexpr "%s->index = %d" (reg r) cid
+			sexpr "%s = hl_alloc_enum(%s,%d)" (reg r) (type_value (rtype r)) cid
 		| OEnumIndex (r,v) ->
-			(match rtype v with
-			| HEnum _ ->
-				sexpr "%s = %s->index" (reg r) (reg v)
-			| HDyn ->
-				sexpr "%s = ((venum*)%s->v.ptr)->index" (reg r) (reg v)
-			| _ ->
-				assert false)
+			sexpr "%s = HL__ENUM_INDEX__(%s)" (reg r) (reg v)
 		| OEnumField (r,e,cid,pid) ->
 			let tname,(_,_,tl) = (match rtype e with HEnum e -> enum_constr_type ctx e cid, e.efields.(cid) | _ -> assert false) in
 			sexpr "%s((%s*)%s)->p%d" (rassign r tl.(pid)) tname (reg e) pid
@@ -949,6 +943,8 @@ let generate_function ctx f =
 		| OEndTrap b ->
 			sexpr "hl_endtrap(trap$%d)" (!trap_depth - 1);
 			if b then decr trap_depth;
+		| OAssert _ ->
+			sexpr "hl_assert()"
 		| ONop _ ->
 			()
 	) f.code;
@@ -1048,7 +1044,7 @@ let write_c com file (code:code) =
 				if Array.length pl <> 0 then begin
 					line ("typedef struct {");
 					block ctx;
-					expr "int index";
+					line "HL__ENUM_CONSTRUCT__";
 					Array.iteri (fun i t ->
 						expr (var_type ("p" ^ string_of_int i) t)
 					) pl;

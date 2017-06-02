@@ -26,20 +26,30 @@ addons: &addons
     - api.haxe.org
 
 install_linux: &install_linux
-  # Install neko and haxe dependencies
+  # Install dependencies
   - sudo add-apt-repository ppa:haxe/ocaml -y
-  - sudo add-apt-repository ppa:haxe/snapshots -y
   - sudo apt-get update
   - sudo apt-get install -y
-      neko
       ocaml
       ocaml-native-compilers
       ocaml-findlib
       camlp4
+      libpcre3-dev
+      zlib1g-dev
+      libgtk2.0-dev
       awscli
   - wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin system
   - export OPAMYES=1
-  - opam install sedlex camlzip xml-light extlib rope ptmap
+  - opam install sedlex xml-light extlib rope ptmap
+  # Install neko
+  - git clone https://github.com/HaxeFoundation/neko.git ../neko
+  - pushd ../neko
+  - cmake . -DSTATIC_DEPS=all
+  # download static dependencies before actual build, with 3 chances to deal with network issues
+  - make download_static_deps || make download_static_deps || make download_static_deps
+  - make
+  - sudo make install
+  - popd
   # Setup database
   - travis_retry sudo apt-get install mysql-server-5.6 -y
   - mysql -u root -e "create user travis@localhost identified by '';"
@@ -50,23 +60,33 @@ install_linux: &install_linux
   - java -version
   # Build haxe
   - make package_src -s
-  - opam config exec -- make -s
+  - opam config exec -- make -s STATICLINK=1
   - make package_bin -s
   - ls -l out
+  - ldd -v ./haxe
+  - ldd -v ./haxelib
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
 
 install_osx: &install_osx
-  # Install haxe dependencies
+  # Install dependencies
   - brew uninstall --force brew-cask # https://github.com/caskroom/homebrew-cask/pull/15381
   - travis_retry brew update
   - travis_retry brew install opam;
   - export OPAMYES=1
   - opam init
-  - opam install camlp4 sedlex ocamlfind camlzip xml-light extlib rope ptmap
+  - opam install camlp4 sedlex ocamlfind xml-light extlib rope ptmap
   - eval `opam config env`
   # Install neko
-  - travis_retry brew install neko --HEAD;
+  - brew upgrade cmake # we need a recent cmake to use CMAKE_OSX_DEPLOYMENT_TARGET
+  - git clone https://github.com/HaxeFoundation/neko.git ../neko
+  - pushd ../neko
+  - cmake . -DSTATIC_DEPS=all
+  # download static dependencies before actual build, with 3 chances to deal with network issues
+  - make download_static_deps || make download_static_deps || make download_static_deps
+  - make
+  - sudo make install
+  - popd
   # Setup database
   - travis_retry brew install mysql
   - mysql.server start
@@ -74,10 +94,13 @@ install_osx: &install_osx
   - mysql -u root -e "create database haxe_test;"
   - mysql -u root -e "grant all on haxe_test.* to travis@localhost;"
   # Build haxe
+  - travis_retry brew install zlib pcre
   - make package_src -s
-  - make -s
+  - make -s STATICLINK=1 "LIB_PARAMS=/usr/local/opt/zlib/lib/libz.a /usr/local/lib/libpcre.a"
   - make package_bin -s
   - ls -l out
+  - otool -L ./haxe
+  - otool -L ./haxelib
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
   - travis_retry brew install awscli

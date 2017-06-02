@@ -146,6 +146,8 @@ type opcode =
 	| OJSLte of reg * reg * int
 	| OJULt of reg * reg * int
 	| OJUGte of reg * reg * int
+	| OJNotLt of reg * reg * int
+	| OJNotGte of reg * reg * int
 	| OJEq of reg * reg * int
 	| OJNotEq of reg * reg * int
 	| OJAlways of int
@@ -192,6 +194,7 @@ type opcode =
 	| OEnumField of reg * reg * field index * int
 	| OSetEnumField of reg * int * reg
 	(* misc *)
+	| OAssert of unused
 	| ONop of string
 
 type fundecl = {
@@ -266,7 +269,7 @@ let is_number = function
 *)
 let is_dynamic t =
 	match t with
-	| HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HNull _ -> true
+	| HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HNull _ | HEnum _ -> true
 	| _ -> false
 
 let rec tsame t1 t2 =
@@ -511,6 +514,8 @@ let ostr fstr o =
 	| OJSLte (r,a,b) -> Printf.sprintf "jslte %d,%d,%d" r a b
 	| OJULt (a,b,i) -> Printf.sprintf "jult %d,%d,%d" a b i
 	| OJUGte (a,b,i) -> Printf.sprintf "jugte %d,%d,%d" a b i
+	| OJNotLt (a,b,i) -> Printf.sprintf "jnotlt %d,%d,%d" a b i
+	| OJNotGte (a,b,i) -> Printf.sprintf "jnotgte %d,%d,%d" a b i
 	| OJEq (a,b,i) -> Printf.sprintf "jeq %d,%d,%d" a b i
 	| OJNotEq (a,b,i) -> Printf.sprintf "jnoteq %d,%d,%d" a b i
 	| OJAlways d -> Printf.sprintf "jalways %d" d
@@ -556,6 +561,7 @@ let ostr fstr o =
 	| ONullCheck r -> Printf.sprintf "nullcheck %d" r
 	| OTrap (r,i) -> Printf.sprintf "trap %d, %d" r i
 	| OEndTrap b -> Printf.sprintf "endtrap %b" b
+	| OAssert _ -> "assert"
 	| ONop s -> if s = "" then "nop" else "nop " ^ s
 
 let fundecl_name f = if snd f.fpath = "" then "fun$" ^ (string_of_int f.findex) else (fst f.fpath) ^ "." ^ (snd f.fpath)

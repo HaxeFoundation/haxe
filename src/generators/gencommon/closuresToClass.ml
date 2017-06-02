@@ -544,6 +544,11 @@ let configure gen ft =
 		)
 		~tparam_anon_acc:(fun v e -> try
 			let cls, captured = Hashtbl.find tvar_to_cdecl v.v_id in
+			let captured = List.sort (fun e1 e2 -> match e1, e2 with
+				| { eexpr = TLocal v1 }, { eexpr = TLocal v2 } ->
+					compare v1.v_name v2.v_name
+				| _ -> assert false) captured
+			in
 			let types = match v.v_extra with
 				| Some(t,_) -> t
 				| _ -> assert false
@@ -572,7 +577,7 @@ let configure gen ft =
 					snd (List.find (fun (t2,_) -> same_cl t t2) passoc)
 				with | Not_found -> t) cls.cl_params
 			in
-			{ e with eexpr = TNew(cls, cltparams, captured) }
+			{ e with eexpr = TNew(cls, cltparams, List.rev captured) }
 		with
 			| Not_found ->
 			gen.gcon.warning "This expression may be invalid" e.epos;

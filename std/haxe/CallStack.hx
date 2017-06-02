@@ -71,6 +71,11 @@ class CallStack {
 	public static var wrapCallSite:Dynamic->Dynamic;
 	#end
 
+	#if eval
+	static function getCallStack() { return []; }
+	static function getExceptionStack() { return []; }
+	#end
+
 	/**
 		Return the call stack elements, or an empty array if not available.
 	**/
@@ -145,6 +150,8 @@ class CallStack {
 				var st = _getExceptionStack();
 				return makeStack(st.length > 2 ? st.sub(2,st.length - 2) : st);
 			}
+		#elseif eval
+			return getCallStack();
 		#else
 			return []; // Unsupported
 		#end
@@ -220,6 +227,8 @@ class CallStack {
 			return stack;
 		#elseif js
 			return untyped __define_feature__("haxe.CallStack.exceptionStack", getStack(lastException));
+		#elseif eval
+			return getExceptionStack();
 		#else
 			return []; // Unsupported
 		#end

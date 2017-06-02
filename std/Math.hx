@@ -235,7 +235,7 @@ extern class Math
 	**/
 	static function random() : Float;
 
-	#if ((flash && !as3) || cpp)
+	#if ((flash && !as3) || cpp || eval)
 	/**
 		Returns the largest integer value that is not greater than `v`, as a `Float`.
 
@@ -296,6 +296,7 @@ extern class Math
 	**/
 	static function isNaN( f : Float ) : Bool;
 
+	#if !eval
 	private static function __init__() : Void untyped {
 	#if flash
 		NaN = __global__["Number"].NaN;
@@ -324,5 +325,6 @@ extern class Math
 			#end
 		};
 	}
+	#end
 
 }

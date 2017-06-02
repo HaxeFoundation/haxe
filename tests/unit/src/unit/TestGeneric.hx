@@ -8,11 +8,6 @@ class MyGeneric<T> {
 	}
 }
 
-@:generic
-class MyGeneric2<T> extends T {
-	//public function new() { } // not allowed
-}
-
 class MyRandomClass {
 	public var s:String;
 	public function new(s:String) {
@@ -48,23 +43,6 @@ class TestGeneric extends Test {
 		var mg = new MyGeneric<String>("12");
 		eq(mg.t,"12");
 		t((mg.t is String));
-	}
-
-	function testExtends() {
-		// basic class
-		//t(unit.HelperMacros.typeError(new MyGeneric2<String>()));
-
-		// not a class
-		//t(unit.HelperMacros.typeError(new MyGeneric2<Int>()));
-
-		// no constructor
-		//t(unit.HelperMacros.typeError(new MyGeneric2<MyRandomEmptyClass>()));
-
-		var mg = new MyGeneric2<MyRandomClass>("foo");
-		eq("foo", mg.s);
-
-		var mg = new MyGeneric2<MyGeneric<MyRandomClass>>(new MyRandomClass("foo"));
-		eq("foo", mg.t.s);
 	}
 
 	function testConstraints() {

@@ -460,6 +460,7 @@ module Define = struct
 		| CoreApi
 		| CoreApiSerialize
 		| Cppia
+		| CppiaAst
 		| Dce
 		| DceDebug
 		| Debug
@@ -556,6 +557,7 @@ module Define = struct
 		| CoreApi -> ("core_api","Defined in the core api context")
 		| CoreApiSerialize -> ("core_api_serialize","Mark some generated core api classes with the Serializable attribute on C#")
 		| Cppia -> ("cppia", "Generate cpp instruction assembly")
+		| CppiaAst -> ("cppiaast", "Experimental cppia generation based on cpp ast")
 		| Dce -> ("dce","<mode:std|full|no> Set the dead code elimination mode (default std)")
 		| DceDebug -> ("dce_debug","Show DCE log")
 		| Debug -> ("debug","Activated when compiling with -debug")
@@ -656,6 +658,7 @@ let short_platform_name = function
 	| Java -> "jav"
 	| Python -> "py"
 	| Hl -> "hl"
+	| Eval -> "evl"
 
 let stats =
 	{
@@ -763,6 +766,12 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_can_skip_non_nullable_argument = false;
+		}
+	| Eval ->
+		{
+			default_config with
+			pf_static = false;
+			pf_pad_nulls = true;
 		}
 
 let memory_marker = [|Unix.time()|]

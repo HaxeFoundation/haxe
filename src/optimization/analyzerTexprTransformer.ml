@@ -385,38 +385,46 @@ let rec func ctx bb tf t p =
 			end
 		| TIf(e1,e2,None) ->
 			let bb,e1 = bind_to_temp bb false e1 in
-			let bb_then = create_node BKConditional e2.etype e2.epos in
-			add_texpr bb (wrap_meta ":cond-branch" e1);
-			add_cfg_edge bb bb_then (CFGCondBranch (mk (TConst (TBool true)) ctx.com.basic.tbool e2.epos));
-			let bb_then_next = block bb_then e2 in
-			let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
-			set_syntax_edge bb (SEIfThen(bb_then,bb_next,e.epos));
-			add_cfg_edge bb bb_next CFGCondElse;
-			close_node g bb;
-			add_cfg_edge bb_then_next bb_next CFGGoto;
-			close_node g bb_then_next;
-			bb_next
+			if bb == g.g_unreachable then
+				bb
+			else begin
+				let bb_then = create_node BKConditional e2.etype e2.epos in
+				add_texpr bb (wrap_meta ":cond-branch" e1);
+				add_cfg_edge bb bb_then (CFGCondBranch (mk (TConst (TBool true)) ctx.com.basic.tbool e2.epos));
+				let bb_then_next = block bb_then e2 in
+				let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
+				set_syntax_edge bb (SEIfThen(bb_then,bb_next,e.epos));
+				add_cfg_edge bb bb_next CFGCondElse;
+				close_node g bb;
+				add_cfg_edge bb_then_next bb_next CFGGoto;
+				close_node g bb_then_next;
+				bb_next
+			end
 		| TIf(e1,e2,Some e3) ->
 			let bb,e1 = bind_to_temp bb false e1 in
-			let bb_then = create_node BKConditional e2.etype e2.epos in
-			let bb_else = create_node BKConditional e3.etype e3.epos in
-			add_texpr bb (wrap_meta ":cond-branch" e1);
-			add_cfg_edge bb bb_then (CFGCondBranch (mk (TConst (TBool true)) ctx.com.basic.tbool e2.epos));
-			add_cfg_edge bb bb_else CFGCondElse;
-			close_node g bb;
-			let bb_then_next = block bb_then e2 in
-			let bb_else_next = block bb_else e3 in
-			if bb_then_next == g.g_unreachable && bb_else_next == g.g_unreachable then begin
-				set_syntax_edge bb (SEIfThenElse(bb_then,bb_else,g.g_unreachable,e.etype,e.epos));
-				g.g_unreachable
-			end else begin
-				let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
-				set_syntax_edge bb (SEIfThenElse(bb_then,bb_else,bb_next,e.etype,e.epos));
-				add_cfg_edge bb_then_next bb_next CFGGoto;
-				add_cfg_edge bb_else_next bb_next CFGGoto;
-				close_node g bb_then_next;
-				close_node g bb_else_next;
-				bb_next
+			if bb == g.g_unreachable then
+				bb
+			else begin
+				let bb_then = create_node BKConditional e2.etype e2.epos in
+				let bb_else = create_node BKConditional e3.etype e3.epos in
+				add_texpr bb (wrap_meta ":cond-branch" e1);
+				add_cfg_edge bb bb_then (CFGCondBranch (mk (TConst (TBool true)) ctx.com.basic.tbool e2.epos));
+				add_cfg_edge bb bb_else CFGCondElse;
+				close_node g bb;
+				let bb_then_next = block bb_then e2 in
+				let bb_else_next = block bb_else e3 in
+				if bb_then_next == g.g_unreachable && bb_else_next == g.g_unreachable then begin
+					set_syntax_edge bb (SEIfThenElse(bb_then,bb_else,g.g_unreachable,e.etype,e.epos));
+					g.g_unreachable
+				end else begin
+					let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
+					set_syntax_edge bb (SEIfThenElse(bb_then,bb_else,bb_next,e.etype,e.epos));
+					add_cfg_edge bb_then_next bb_next CFGGoto;
+					add_cfg_edge bb_else_next bb_next CFGGoto;
+					close_node g bb_then_next;
+					close_node g bb_else_next;
+					bb_next
+				end
 			end
 		| TSwitch(e1,cases,edef) ->
 			let is_exhaustive = edef <> None || is_exhaustive e1 in

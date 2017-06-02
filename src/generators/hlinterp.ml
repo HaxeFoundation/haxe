@@ -38,7 +38,7 @@ type value =
 	| VRef of ref_value * ttype
 	| VVirtual of vvirtual
 	| VDynObj of vdynobj
-	| VEnum of int * value array
+	| VEnum of enum_proto * int * value array
 	| VAbstract of vabstract
 	| VVarArgs of vfunction * value option
 
@@ -134,10 +134,11 @@ let get_type = function
 	| VClosure (f,None) -> Some (match f with FFun f -> f.ftype | FNativeFun (_,_,t) -> t)
 	| VClosure (f,Some _) -> Some (match f with FFun { ftype = HFun(_::args,ret) } | FNativeFun (_,_,HFun(_::args,ret)) -> HFun (args,ret) | _ -> assert false)
 	| VVarArgs _ -> Some (HFun ([],HDyn))
+	| VEnum (e,_,_) -> Some (HEnum e)
 	| _ -> None
 
 let v_dynamic = function
-	| VNull	| VDyn _ | VObj _ | VClosure _ | VArray _ | VVirtual _ | VDynObj _ | VVarArgs _ -> true
+	| VNull	| VDyn _ | VObj _ | VClosure _ | VArray _ | VVirtual _ | VDynObj _ | VVarArgs _ | VEnum _ -> true
 	| _ -> false
 
 let rec is_compatible v t =
@@ -357,7 +358,7 @@ let rec vstr_d ctx v =
 	| VRef (r,_) -> "ref(" ^ vstr_d (get_ref ctx r) ^ ")"
 	| VVirtual v -> "virtual(" ^ vstr_d v.vvalue ^ ")"
 	| VDynObj d -> "dynobj(" ^ String.concat "," (Hashtbl.fold (fun f i acc -> (f^":"^vstr_d d.dvalues.(i)) :: acc) d.dfields []) ^ ")"
-	| VEnum (i,vals) -> "enum#" ^ string_of_int i  ^ "(" ^ String.concat "," (Array.to_list (Array.map vstr_d vals)) ^ ")"
+	| VEnum (e,i,vals) -> let n, _, _ = e.efields.(i) in if Array.length vals = 0 then n else n ^ "(" ^ String.concat "," (Array.to_list (Array.map vstr_d vals)) ^ ")"
 	| VAbstract _ -> "abstract"
 	| VVarArgs _ -> "varargs"
 
@@ -715,20 +716,16 @@ let rec vstr ctx v t =
 		with Not_found ->
 			"{" ^ String.concat ", " (Hashtbl.fold (fun f i acc -> (f^":"^vstr d.dvalues.(i) d.dtypes.(i)) :: acc) d.dfields []) ^ "}")
 	| VAbstract _ -> "abstract"
-	| VEnum (i,vals) ->
-		(match t with
-		| HEnum e ->
-			let n, _, pl = e.efields.(i) in
-			if Array.length pl = 0 then
-				n
-			else
-				let rec loop i =
-					if i = Array.length pl then []
-					else let v = vals.(i) in vstr v pl.(i) :: loop (i + 1)
-				in
-				n ^ "(" ^ String.concat "," (loop 0) ^ ")"
-		| _ ->
-			assert false)
+	| VEnum (e,i,vals) ->
+		let n, _, pl = e.efields.(i) in
+		if Array.length pl = 0 then
+			n
+		else
+			let rec loop i =
+				if i = Array.length pl then []
+				else let v = vals.(i) in vstr v pl.(i) :: loop (i + 1)
+			in
+			n ^ "(" ^ String.concat "," (loop 0) ^ ")"
 	| VVarArgs _ -> "varargs"
 
 let interp ctx f args =
@@ -883,6 +880,8 @@ let interp ctx f args =
 		| OJSLte (a,b,i) -> if vcompare a b (<=) then pos := !pos + i
 		| OJULt (a,b,i) -> if ucompare (get a) (get b) < 0 then pos := !pos + i
 		| OJUGte (a,b,i) -> if ucompare (get a) (get b) >= 0 then pos := !pos + i
+		| OJNotLt (a,b,i) -> if not (vcompare a b (<)) then pos := !pos + i
+		| OJNotGte (a,b,i) -> if not (vcompare a b (>=)) then pos := !pos + i
 		| OJEq (a,b,i) -> if vcompare a b (=) then pos := !pos + i
 		| OJNotEq (a,b,i) -> if not (vcompare a b (=)) then pos := !pos + i
 		| OJAlways i -> pos := !pos + i
@@ -1100,26 +1099,26 @@ let interp ctx f args =
 		| ODynSet (o,fid,vr) ->
 			dyn_set_field ctx (get o) ctx.code.strings.(fid) (get vr) (rtype vr)
 		| OMakeEnum (r,e,pl) ->
-			set r (VEnum (e,Array.map get (Array.of_list pl)))
+			set r (VEnum ((match rtype r with HEnum e -> e | _ -> assert false),e,Array.map get (Array.of_list pl)))
 		| OEnumAlloc (r,f) ->
 			(match rtype r with
 			| HEnum e ->
 				let _, _, fl = e.efields.(f) in
 				let vl = Array.create (Array.length fl) VUndef in
-				set r (VEnum (f, vl))
+				set r (VEnum (e, f, vl))
 			| _ -> assert false
 			)
 		| OEnumIndex (r,v) ->
 			(match get v with
-			| VEnum (i,_) | VDyn (VEnum (i,_),_) -> set r (VInt (Int32.of_int i))
+			| VEnum (_,i,_) -> set r (VInt (Int32.of_int i))
 			| _ -> assert false)
 		| OEnumField (r, v, _, i) ->
 			(match get v with
-			| VEnum (_,vl) -> set r vl.(i)
+			| VEnum (_,_,vl) -> set r vl.(i)
 			| _ -> assert false)
 		| OSetEnumField (v, i, r) ->
 			(match get v, rtype v with
-			| VEnum (id,vl), HEnum e ->
+			| VEnum (_,id,vl), HEnum e ->
 				let rv = get r in
 				let _, _, fields = e.efields.(id) in
 				check rv fields.(i) (fun() -> "enumfield");
@@ -1138,6 +1137,8 @@ let interp ctx f args =
 			traps := (r,target) :: !traps
 		| OEndTrap _ ->
 			traps := List.tl !traps
+		| OAssert _ ->
+			throw_msg ctx "Assert"
 		| ONop _ ->
 			()
 		);
@@ -1180,6 +1181,8 @@ let call_fun ctx f args =
 			raise (InterpThrow v)
 		| Failure msg ->
 			throw_msg ctx msg
+		| Sys_exit _ as exc ->
+			raise exc
 		| e ->
 			throw_msg ctx (Printexc.to_string e)
 
@@ -1244,7 +1247,7 @@ let load_native ctx lib name t =
 			(function
 			| [VType t] -> alloc_obj ctx t
 			| _ -> assert false)
-		| "alloc_enum" ->
+		| "alloc_enum_dyn" ->
 			(function
 			| [VType (HEnum e); VInt idx; VArray (vl,vt); VInt len] ->
 				let idx = int idx in
@@ -1253,7 +1256,7 @@ let load_native ctx lib name t =
 				if Array.length args <> len then
 					VNull
 				else
-					VDyn (VEnum (idx,Array.mapi (fun i v -> dyn_cast ctx v vt args.(i)) (Array.sub vl 0 len)),HEnum e)
+					VEnum (e,idx,Array.mapi (fun i v -> dyn_cast ctx v vt args.(i)) (Array.sub vl 0 len))
 			| vl ->
 				assert false)
 		| "array_blit" ->
@@ -1603,7 +1606,7 @@ let load_native ctx lib name t =
 			| _ -> assert false)
 		| "enum_parameters" ->
 			(function
-			| [VDyn (VEnum (idx,pl),HEnum e)] ->
+			| [VEnum (e,idx,pl)] ->
 				let _,_, ptypes = e.efields.(idx) in
 				VArray (Array.mapi (fun i v -> make_dyn v ptypes.(i)) pl,HDyn)
 			| _ ->
@@ -1636,18 +1639,18 @@ let load_native ctx lib name t =
 			| _ -> assert false)
 		| "type_enum_values" ->
 			(function
-			| [VType (HEnum e as t)] ->
-				VArray (Array.mapi (fun i (_,_,args) -> if Array.length args <> 0 then VNull else VDyn (VEnum (i,[||]),t)) e.efields,HDyn)
+			| [VType (HEnum e)] ->
+				VArray (Array.mapi (fun i (_,_,args) -> if Array.length args <> 0 then VNull else VEnum (e,i,[||])) e.efields,HDyn)
 			| _ -> assert false)
 		| "type_enum_eq" ->
 			(function
-			| [VDyn (VEnum _, HEnum _); VNull] | [VNull; VDyn (VEnum _, HEnum _)] -> VBool false
+			| [VEnum _; VNull] | [VNull; VEnum _] -> VBool false
 			| [VNull; VNull] -> VBool true
-			| [VDyn (VEnum _ as v1, HEnum e1); VDyn (VEnum _ as v2, HEnum e2)] ->
+			| [VEnum (e1,_,_) as v1; VEnum (e2,_,_) as v2] ->
 				let rec loop v1 v2 e =
 					match v1, v2 with
-					| VEnum (t1,_), VEnum (t2,_) when t1 <> t2 -> false
-					| VEnum (t,vl1), VEnum (_,vl2) ->
+					| VEnum (_,t1,_), VEnum (_,t2,_) when t1 <> t2 -> false
+					| VEnum (_,t,vl1), VEnum (_,_,vl2) ->
 						let _, _, pl = e.efields.(t) in
 						let rec chk i =
 							if i = Array.length pl then true
@@ -1865,6 +1868,10 @@ let load_native ctx lib name t =
 			(function
 			| [VBytes a; VInt apos; VBytes b; VInt bpos; VInt len] -> to_int (String.compare (String.sub a (int apos) (int len)) (String.sub b (int bpos) (int len)))
 			| _ -> assert false)
+		| "string_compare" ->
+			(function
+			| [VBytes a; VBytes b; VInt len] -> to_int (String.compare (String.sub a 0 ((int len) * 2)) (String.sub b 0 ((int len)*2)))
+			| _ -> assert false)
 		| "bytes_fill" ->
 			(function
 			| [VBytes a; VInt pos; VInt len; VInt v] ->
@@ -2033,6 +2040,54 @@ let load_native ctx lib name t =
 			(function
 			| [VBytes file;VInt min;VInt max] ->
 				VAbstract (APos { Globals.pfile = String.sub file 0 (String.length file - 1); pmin = Int32.to_int min; pmax = Int32.to_int max })
+			| _ -> assert false)
+		| "dyn_op" ->
+			let op_names = [|"+";"-";"*";"%";"/";"<<";">>";">>>";"&";"|";"^"|] in
+			(function
+			| [VInt op; a; b] ->
+				let op = Int32.to_int op in
+				let is_number v =
+					match v with
+					| VNull -> true
+					| VDyn (_,t) -> is_number t
+					| _ -> false
+				in
+				let error() =
+					failwith ("Can't perform dyn op " ^ vstr ctx a HDyn ^ " " ^ op_names.(op) ^ " " ^ vstr ctx b HDyn)
+				in
+				let fop op =
+					if is_number a && is_number b then begin
+						let a = dyn_cast ctx a HDyn HF64 in
+						let b = dyn_cast ctx b HDyn HF64 in
+						match a, b with
+						| VFloat a, VFloat b -> VDyn (VFloat (op a b),HF64)
+						| _ -> assert false
+					end else
+						error();
+				in
+				let iop op =
+					if is_number a && is_number b then begin
+						let a = dyn_cast ctx a HDyn HI32 in
+						let b = dyn_cast ctx b HDyn HI32 in
+						match a, b with
+						| VInt a, VInt b -> VDyn (VInt (op a b),HI32)
+						| _ -> assert false
+					end else
+						error();
+				in
+				(match op with
+				| 0 -> fop ( +. )
+				| 1 -> fop ( -. )
+				| 2 -> fop ( *. )
+				| 3 -> fop mod_float
+				| 4 -> fop ( /. )
+				| 5 -> iop (fun a b -> Int32.shift_left a (Int32.to_int b))
+				| 6 -> iop (fun a b -> Int32.shift_right a (Int32.to_int b))
+				| 7 -> iop (fun a b -> Int32.shift_right_logical a (Int32.to_int b))
+				| 8 -> iop Int32.logand
+				| 9 -> iop Int32.logor
+				| 10 -> iop Int32.logxor
+				| _ -> assert false)
 			| _ -> assert false)
 		| _ ->
 			unresolved())
@@ -2281,7 +2336,7 @@ let check code macros =
 			| OJNull (r,delta) | OJNotNull (r,delta) ->
 				ignore(rtype r);
 				can_jump delta
-			| OJUGte (a,b,delta) | OJULt (a,b,delta) | OJSGte (a,b,delta) | OJSLt (a,b,delta) | OJSGt (a,b,delta) | OJSLte (a,b,delta) ->
+			| OJUGte (a,b,delta) | OJULt (a,b,delta) | OJSGte (a,b,delta) | OJSLt (a,b,delta) | OJSGt (a,b,delta) | OJSLte (a,b,delta) | OJNotLt (a,b,delta) | OJNotGte (a,b,delta) ->
 				if not (safe_cast (rtype a) (rtype b)) then reg b (rtype a);
 				can_jump delta
 			| OJEq (a,b,delta) | OJNotEq (a,b,delta) ->
@@ -2443,6 +2498,8 @@ let check code macros =
 				reg r HDyn;
 				can_jump idx
 			| OEndTrap _ ->
+				()
+			| OAssert _ ->
 				()
 			| ONop _ ->
 				()
@@ -2781,8 +2838,10 @@ let make_spec (code:code) (f:fundecl) =
 			| OJSGte (a,b,_) -> semit (SJComp (">=",args.(a),args.(b)))
 			| OJSGt (a,b,_) -> semit (SJComp (">",args.(a),args.(b)))
 			| OJSLte (a,b,_) -> semit (SJComp ("<=",args.(a),args.(b)))
-			| OJULt (a,b,_) -> semit (SJComp ("<!",args.(a),args.(b)))
-			| OJUGte (a,b,_) -> semit (SJComp (">=!",args.(a),args.(b)))
+			| OJULt (a,b,_) -> semit (SJComp ("<U",args.(a),args.(b)))
+			| OJUGte (a,b,_) -> semit (SJComp (">=U",args.(a),args.(b)))
+			| OJNotLt (a,b,_) -> semit (SJComp ("not<",args.(a),args.(b)))
+			| OJNotGte (a,b,_) -> semit (SJComp ("not>=",args.(a),args.(b)))
 			| OJEq (a,b,_) -> semit (SJComp ("==",args.(a),args.(b)))
 			| OJNotEq (a,b,_) -> semit (SJComp ("!=",args.(a),args.(b)))
 			| OJAlways _ -> semit SJump
@@ -2833,6 +2892,7 @@ let make_spec (code:code) (f:fundecl) =
 			| OEnumIndex (d,r) -> args.(d) <- SConv ("index",args.(r))
 			| OEnumField (d,r,fid,cid) -> args.(d) <- SEnumField (args.(r),fid,cid)
 			| OSetEnumField (e,fid,r) -> semit (SSetEnumField (args.(e),fid,args.(r)))
+			| OAssert _  -> ()
 			| ONop _ -> ()
 		done;
 		Hashtbl.add block_args b.bstart args

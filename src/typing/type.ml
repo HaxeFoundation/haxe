@@ -1268,8 +1268,8 @@ let s_class_kind = function
 
 module Printer = struct
 
-	let s_type =
-		s_type (print_context())
+	let s_type t =
+		s_type (print_context()) t
 
 	let s_pair s1 s2 =
 		Printf.sprintf "(%s,%s)" s1 s2
@@ -1977,7 +1977,7 @@ let rec unify a b =
 				| _ ->
 					let _,t,cf = class_field c tl "new" in
 					if not cf.cf_public then error [invalid_visibility "new"];
-					begin try unify t1 t
+					begin try unify t t1
 					with Unify_error l -> error (cannot_unify a b :: l) end
 			end
 		with Not_found ->
@@ -2651,6 +2651,7 @@ module Texpr = struct
 		let copy_var v =
 			let v2 = alloc_var v.v_name v.v_type v.v_pos in
 			v2.v_meta <- v.v_meta;
+			v2.v_extra <- v.v_extra;
 			Hashtbl.add vars v.v_id v2;
 			v2;
 		in

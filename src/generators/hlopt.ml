@@ -61,7 +61,7 @@ type control =
 
 let control = function
 	| OJTrue (_,d) | OJFalse (_,d) | OJNull (_,d) | OJNotNull (_,d)
-	| OJSLt (_,_,d) | OJSGte (_,_,d) | OJSGt (_,_,d) | OJSLte (_,_,d) | OJULt (_,_,d) | OJUGte (_,_,d) | OJEq (_,_,d) | OJNotEq (_,_,d) ->
+	| OJSLt (_,_,d) | OJSGte (_,_,d) | OJSGt (_,_,d) | OJSLte (_,_,d) | OJULt (_,_,d) | OJUGte (_,_,d) | OJEq (_,_,d) | OJNotEq (_,_,d) | OJNotLt (_,_,d) | OJNotGte (_,_,d) ->
 		CJCond d
 	| OJAlways d ->
 		CJAlways d
@@ -121,7 +121,7 @@ let opcode_fx frw op =
 		read a
 	| OJTrue (r,_) | OJFalse (r,_) | OJNull (r,_) | OJNotNull (r,_) ->
 		read r
-	| OJSLt (a,b,_) | OJSGte (a,b,_) | OJSGt (a,b,_) | OJSLte (a,b,_) | OJULt (a,b,_) | OJUGte (a,b,_) | OJEq (a,b,_) | OJNotEq (a,b,_) ->
+	| OJSLt (a,b,_) | OJSGte (a,b,_) | OJSGt (a,b,_) | OJSLte (a,b,_) | OJULt (a,b,_) | OJUGte (a,b,_) | OJNotLt (a,b,_) | OJNotGte (a,b,_) | OJEq (a,b,_) | OJNotEq (a,b,_) ->
 		read a; read b;
 	| OJAlways _ | OLabel _ ->
 		()
@@ -149,7 +149,7 @@ let opcode_fx frw op =
 		write d
 	| OSetEnumField (a,_,b) ->
 		read a; read b
-	| ONop _ ->
+	| ONop _ | OAssert _ ->
 		()
 
 let opcode_eq a b =
@@ -304,6 +304,10 @@ let opcode_map read write op =
 		OJULt (read a, read b, d)
 	| OJUGte (a,b,d) ->
 		OJUGte (read a, read b, d)
+	| OJNotLt (a,b,d) ->
+		OJNotLt (read a, read b, d)
+	| OJNotGte (a,b,d) ->
+		OJNotGte (read a, read b, d)
 	| OJEq (a,b,d) ->
 		OJEq (read a, read b, d)
 	| OJNotEq (a,b,d) ->
@@ -404,7 +408,7 @@ let opcode_map read write op =
 		OMakeEnum (write d, e, rl)
 	| OSetEnumField (a,f,b) ->
 		OSetEnumField (read a, f, read b)
-	| ONop _ ->
+	| ONop _ | OAssert _ ->
 		op
 
 (* build code graph *)
@@ -776,7 +780,7 @@ let optimize dump (f:fundecl) =
 			| ONop _ -> ()
 			| _ ->
 				(match op with
-				| OJTrue _ | OJFalse _ | OJNull _ | OJNotNull _  | OJSLt _ | OJSGte _ | OJSGt _ | OJSLte _ | OJULt _ | OJUGte _ | OJEq _ | OJNotEq _ | OJAlways _ | OSwitch _  | OTrap _ ->
+				| OJTrue _ | OJFalse _ | OJNull _ | OJNotNull _  | OJSLt _ | OJSGte _ | OJSGt _ | OJSLte _ | OJNotLt _ | OJNotGte _ | OJULt _ | OJUGte _ | OJEq _ | OJNotEq _ | OJAlways _ | OSwitch _  | OTrap _ ->
 					jumps := i :: !jumps
 				| _ -> ());
 				let op = if reg_remap then opcode_map (fun r -> reg_map.(r)) (fun r -> reg_map.(r)) op else op in
@@ -800,6 +804,8 @@ let optimize dump (f:fundecl) =
 			| OJSGt (a,b,d) -> OJSGt (a,b,pos d)
 			| OJULt (a,b,d) -> OJULt (a,b,pos d)
 			| OJUGte (a,b,d) -> OJUGte (a,b,pos d)
+			| OJNotLt (a,b,d) -> OJNotLt (a,b,pos d)
+			| OJNotGte (a,b,d) -> OJNotGte (a,b,pos d)
 			| OJEq (a,b,d) -> OJEq (a,b,pos d)
 			| OJNotEq (a,b,d) -> OJNotEq (a,b,pos d)
 			| OJAlways d -> OJAlways (pos d)

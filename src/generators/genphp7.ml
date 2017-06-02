@@ -382,13 +382,14 @@ let need_parenthesis_for_binop current parent =
 *)
 let needs_dereferencing for_assignment expr =
 	let rec is_create target_expr =
-		match target_expr.eexpr with
+		match (reveal_expr target_expr).eexpr with
 			| TParenthesis e -> is_create e
 			| TCast (e, _) -> is_create e
 			| TNew _ -> for_assignment
 			| TArrayDecl _ -> for_assignment
 			| TObjectDecl _ -> for_assignment
 			| TConst TNull -> true
+			| TIf _ -> true
 			(* some of `php.Syntax` methods *)
 			| TCall ({ eexpr = TField (_, FStatic ({ cl_path = syntax_type_path }, { cf_name = name })) }, _) ->
 				(match name with
@@ -397,7 +398,7 @@ let needs_dereferencing for_assignment expr =
 				)
 			| _ -> false
 	in
-	match expr.eexpr with
+	match (reveal_expr expr).eexpr with
 		| TField (target_expr, _) -> is_create target_expr
 		| TArray (target_expr, _) -> is_create target_expr
 		| _ -> false
@@ -763,17 +764,6 @@ let has_rtti_meta ctx mtype =
 	match Codegen.build_metadata ctx mtype with
 		| None -> false
 		| Some _ -> true
-
-(**
-	Check if this var accesses and meta combination should generate a variable
-*)
-let is_real_var field =
-	if Meta.has IsVar field.cf_meta then
-		true
-	else
-		match field.cf_kind with
-			| Var { v_read = read; v_write = write } -> read = AccNormal || write = AccNormal
-			| _ -> false
 
 (**
 	Check if user-defined field has the same name as one of php magic methods, but with not compatible signature.
@@ -1585,7 +1575,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2
 				| TField (fexpr, access) when is_php_global expr -> self#write_expr_php_global expr
 				| TField (fexpr, access) when is_php_class_const expr -> self#write_expr_php_class_const expr
-				| TField (fexpr, access) when needs_dereferencing false expr -> self#write_expr (self#dereference expr)
+				| TField (fexpr, access) when needs_dereferencing (self#is_in_write_context) expr -> self#write_expr (self#dereference expr)
 				| TField (fexpr, access) -> self#write_expr_field fexpr access
 				| TTypeExpr mtype -> self#write_expr_type mtype
 				| TParenthesis expr ->
@@ -3474,7 +3464,7 @@ class class_builder ctx (cls:tclass) =
 		method private write_field is_static field =
 			match field.cf_kind with
 				| Var { v_read = AccInline; v_write = AccNever } -> self#write_const field
-				| Var _ when is_real_var field ->
+				| Var _ when not (is_extern_field field) ->
 					(* Do not generate fields for RTTI meta, because this generator uses another way to store it *)
 					let is_auto_meta_var = is_static && field.cf_name = "__meta__" && (has_rtti_meta ctx wrapper#get_module_type) in
 					if not is_auto_meta_var then self#write_var field is_static;

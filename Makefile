@@ -28,8 +28,8 @@ STATICLINK?=0
 # Configuration
 
 HAXE_DIRECTORIES=compiler context generators generators/gencommon macro filters optimization syntax typing display
-EXTLIB_LIBS=extlib-leftovers extc neko javalib swflib ttflib ilib objsize pcre
-FINDLIB_LIBS=unix str threads sedlex camlzip xml-light extlib rope ptmap
+EXTLIB_LIBS=extlib-leftovers extc neko javalib swflib ttflib ilib objsize pcre ziplib
+FINDLIB_LIBS=unix str threads sedlex xml-light extlib rope ptmap
 
 # Includes, packages and compiler
 
@@ -56,6 +56,10 @@ endif
 CC_CMD = $(COMPILER) $(ALL_CFLAGS) -c $<
 
 # Meta information
+
+BUILD_DIRECTORIES := $(HAXE_DIRECTORIES:%=_build/src/%)
+HAXE_SRC := $(wildcard $(HAXE_DIRECTORIES:%=src/%/*.ml))
+BUILD_SRC := $(HAXE_SRC:%=_build/%)
 
 ADD_REVISION?=0
 
@@ -99,15 +103,25 @@ all: libs haxe tools
 libs:
 	$(foreach lib,$(EXTLIB_LIBS),$(MAKE) -C libs/$(lib) $(TARGET_FLAG) &&) true
 
-copy_output_files:
-	mkdir -p _build
-	$(foreach dir,$(HAXE_DIRECTORIES:%=src/%),mkdir -p _build/$(dir) && rsync -u $(dir)/*.ml _build/$(dir) &&) true
-	sh compile.sh $(ADD_REVISION)
+_build/%:%
+	cp $< $@
+
+build_dirs:
+	@mkdir -p $(BUILD_DIRECTORIES)
+
+_build/src/syntax/parser.ml:src/syntax/parser.mly
+	camlp4o -impl $< -o $@
+
+_build/src/compiler/version.ml:
 ifneq ($(ADD_REVISION),0)
 	$(MAKE) -f Makefile.version_extra -s --no-print-directory ADD_REVISION=$(ADD_REVISION) BRANCH=$(BRANCH) COMMIT_SHA=$(COMMIT_SHA) COMMIT_DATE=$(COMMIT_DATE) > _build/src/compiler/version.ml
+else
+	echo let version_extra = None > _build/src/compiler/version.ml
 endif
 
-haxe: copy_output_files
+build_src:build_dirs $(BUILD_SRC) _build/src/syntax/parser.ml _build/src/compiler/version.ml
+
+haxe: build_src
 	$(MAKE) -f $(MAKEFILENAME) build_pass_1
 	$(MAKE) -f $(MAKEFILENAME) build_pass_2
 	$(MAKE) -f $(MAKEFILENAME) build_pass_3
@@ -126,6 +140,14 @@ build_pass_3:
 
 build_pass_4: $(MODULES:%=%.$(MODULE_EXT))
 	$(COMPILER) -safe-string -linkpkg -o $(OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(FINDLIB_PACKAGES) $(EXTLIB_INCLUDES) $(EXTLIB_LIBS:=.$(LIB_EXT)) $(MODULES:%=%.$(MODULE_EXT))
+
+# Only use if you have only changed gencpp.ml
+quickcpp: _build/src/generators/gencpp.ml build_pass_4 copy_haxetoolkit
+_build/src/generators/gencpp.ml:src/generators/gencpp.ml
+	cp $< $@
+copy_haxetoolkit: /cygdrive/c/HaxeToolkit/haxe/haxe.exe
+/cygdrive/c/HaxeToolkit/haxe/haxe.exe:haxe.exe
+	cp $< $@
 
 haxelib:
 	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(OUTPUT) client.hxml && nekotools boot run.n)

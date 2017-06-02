@@ -246,7 +246,7 @@ class TypeTools {
 			throw 'Incompatible arguments: ${typeParameters.length} type parameters and ${concreteTypes.length} concrete types';
 		else if (typeParameters.length == 0)
 			return t;
-		#if neko
+		#if (neko || eval)
 		return Context.load("apply_params", 3)(typeParameters, concreteTypes, t);
 		#else
 		return applyParams(typeParameters, concreteTypes, t);
@@ -343,7 +343,7 @@ class TypeTools {
 		Converts type `t` to a human-readable String representation.
 	**/
 	static public function toString( t : Type ) : String {
-		#if neko
+		#if (neko || eval)
 		return Context.load("s_type", 1)(t);
 		#else
 		return null;
