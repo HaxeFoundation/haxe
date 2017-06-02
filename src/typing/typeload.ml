@@ -2225,20 +2225,25 @@ module ClassInitializer = struct
 					| Var v when not fctx.is_static ->
 						let e = if ctx.com.display.dms_display && ctx.com.display.dms_error_policy <> EPCollect then
 							e
-						else match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
-							| Some e -> e
-							| None ->
-								let rec has_this e = match e.eexpr with
-									| TConst TThis ->
-										display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
-									| TLocal v when (match ctx.vthis with Some v2 -> v == v2 | None -> false) ->
-										display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
-									| _ ->
-									Type.iter has_this e
-								in
-								has_this e;
+						else begin
+							let rec check_this e = match e.eexpr with
+								| TConst TThis ->
+									display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
+									raise Exit
+								| TLocal v when (match ctx.vthis with Some v2 -> v == v2 | None -> false) ->
+									display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
+									raise Exit
+								| _ ->
+								Type.iter check_this e
+							in
+							try
+								check_this e;
+								match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
+								| Some e -> e
+								| None -> e
+							with Exit ->
 								e
-						in
+						end in
 						e
 					| Var v when v.v_read = AccInline ->
 						let e = require_constant_expression e "Inline variable initialization must be a constant value" in
