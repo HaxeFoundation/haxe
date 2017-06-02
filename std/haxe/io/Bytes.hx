@@ -90,7 +90,7 @@ class Bytes {
 		#elseif java
 		java.lang.System.arraycopy(src.b, srcpos, b, pos, len);
 		#elseif cs
-		cs.system.Array.Copy(src.b, srcpos, b, pos, len);
+		cs.system.Buffer.BlockCopy(src.b, srcpos, b, pos, len);
 		#elseif python
 		python.Syntax.pythonCode("self.b[{0}:{0}+{1}] = src.b[srcpos:srcpos+{1}]", pos, len);
 		#elseif cpp
@@ -149,7 +149,7 @@ class Bytes {
 		return new Bytes(len, newarr);
 		#elseif cs
 		var newarr = new cs.NativeArray(len);
-		cs.system.Array.Copy(b, pos, newarr, 0, len);
+		cs.system.Buffer.BlockCopy(b, pos, newarr, 0, len);
 		return new Bytes(len, newarr);
 		#elseif python
 		return new Bytes(len, python.Syntax.arrayAccess(b, pos, pos+len) );
@@ -209,6 +209,9 @@ class Bytes {
 		Returns the IEEE double precision value at given position (in low endian encoding).
 		Result is unspecified if reading outside of the bounds
 	**/
+	#if (cs && unsafe)
+	@:unsafe
+	#end
 	#if (neko_v21 || (cpp && !cppia) || flash) inline #end
 	public function getDouble( pos : Int ) : Float {
 		#if neko_v21
@@ -219,6 +222,17 @@ class Bytes {
 		#elseif cpp
 		if( pos < 0 || pos + 8 > length ) throw Error.OutsideBounds;
 		return untyped __global__.__hxcpp_memory_get_double(b,pos);
+		#elseif cs
+		#if unsafe
+		var r:Float = 0;
+		untyped __cs__("fixed(byte* src = b)
+			{
+				r = *(double*)&src[pos];
+			}");
+		return r;
+		#else
+		return cs.system.BitConverter.ToDouble(b, pos);
+		#end
 		#else
 		return FPHelper.i64ToDouble(getInt32(pos),getInt32(pos+4));
 		#end
@@ -228,6 +242,9 @@ class Bytes {
 		Returns the IEEE single precision value at given position (in low endian encoding).
 		Result is unspecified if reading outside of the bounds
 	**/
+	#if (cs && unsafe)
+	@:unsafe
+	#end
 	#if (neko_v21 || (cpp && !cppia) || flash) inline #end
 	public function getFloat( pos : Int ) : Float {
 		#if neko_v21
@@ -238,6 +255,17 @@ class Bytes {
 		#elseif cpp
 		if( pos < 0 || pos + 4 > length ) throw Error.OutsideBounds;
 		return untyped __global__.__hxcpp_memory_get_float(b,pos);
+		#elseif cs
+		#if unsafe
+		var r:Float = 0;
+		untyped __cs__("fixed(byte* src = b)
+			{
+				r = *(float*)&src[pos];
+			}");
+		return r;
+		#else
+		return cs.system.BitConverter.ToSingle(b, pos);
+		#end
 		#else
 		var b = new haxe.io.BytesInput(this,pos,4);
 		return b.readFloat();
@@ -248,6 +276,9 @@ class Bytes {
 		Store the IEEE double precision value at given position in low endian encoding.
 		Result is unspecified if writing outside of the bounds.
 	**/
+	#if (cs && unsafe)
+	@:unsafe
+	#end
 	#if (neko_v21 || flash) inline #end
 	public function setDouble( pos : Int, v : Float ) : Void {
 		#if neko_v21
@@ -260,6 +291,22 @@ class Bytes {
 		#elseif cpp
 		if( pos < 0 || pos + 8 > length ) throw Error.OutsideBounds;
 		untyped __global__.__hxcpp_memory_set_double(b,pos,v);
+		#elseif cs
+		#if unsafe
+		var uv:cs.types.UInt64 = untyped __cs__("*(ulong*)&v");
+		b[pos] = untyped (uv & 0xFF);
+		b[pos + 1] = untyped ((uv >> 8) & 0xFF);
+		b[pos + 2] = untyped ((uv >> 16) & 0xFF);
+		b[pos + 3] = untyped ((uv >> 24) & 0xFF);
+		b[pos + 4] = untyped ((uv >> 32) & 0xFF);
+		b[pos + 5] = untyped ((uv >> 40) & 0xFF);
+		b[pos + 6] = untyped ((uv >> 48) & 0xFF);
+		b[pos + 7] = untyped ((uv >> 56) & 0xFF);
+		#else
+		var bytes:BytesData = untyped __cs__("System.BitConverter.GetBytes((double)v)");
+		for ( i in 0 ... 8 )
+			b[pos++] = bytes[i];
+		#end
 		#else
 		var i = FPHelper.doubleToI64(v);
 		setInt32(pos, i.low);
@@ -271,6 +318,9 @@ class Bytes {
 		Store the IEEE single precision value at given position in low endian encoding.
 		Result is unspecified if writing outside of the bounds.
 	**/
+	#if (cs &&unsafe)
+	@:unsafe
+	#end
 	#if (neko_v21 || flash) inline #end
 	public function setFloat( pos : Int, v : Float ) : Void {
 		#if neko_v21
@@ -283,6 +333,19 @@ class Bytes {
 		#elseif cpp
 		if( pos < 0 || pos + 4 > length ) throw Error.OutsideBounds;
 		untyped __global__.__hxcpp_memory_set_float(b,pos,v);
+		#elseif cs
+		#if unsafe
+		untyped __cs__("float fv = (float)v"); 
+		var value:UInt = untyped __cs__("*(uint*)&fv");
+		b[pos] = (value & 0xFF);
+		b[pos + 1] = ((value >> 8) & 0xFF);
+		b[pos + 2] = ((value >> 16) & 0xFF);
+		b[pos + 3] = ((value >> 24) & 0xFF);
+		#else
+		var bytes:BytesData = untyped __cs__("System.BitConverter.GetBytes((float)v)");
+		for ( i in 0 ... 4 )
+			b[pos++] = bytes[i];
+		#end
 		#else
 		setInt32(pos, FPHelper.floatToI32(v));
 		#end
