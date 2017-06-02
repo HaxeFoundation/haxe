@@ -39,7 +39,7 @@ type ctx = {
 	mutable in_loop : bool;
 	mutable in_pcall : bool;
 	mutable iife_assign : bool;
-	mutable handle_break : bool;
+	mutable handle_switch_break : bool;
 	mutable break_depth : int;
 	mutable handle_continue : bool;
 	mutable id_counter : int;
@@ -198,16 +198,16 @@ let rec iter_switch_break in_switch e =
 	| TBreak when in_switch -> raise Exit
 	| _ -> iter (iter_switch_break in_switch) e
 
-let handle_break ctx e =
+let handle_switch_break ctx e =
     (* TODO: This got messy. Find a way to unify the implementation with a try/catch helper at least *)
-	let old = ctx.in_loop, ctx.handle_break in
+	let old = ctx.in_loop, ctx.handle_switch_break in
 	ctx.in_loop <- true;
 	try
 		iter_switch_break false e;
-		ctx.handle_break <- false;
+		ctx.handle_switch_break <- false;
 		(fun() ->
 			ctx.in_loop <- fst old;
-			ctx.handle_break <- snd old;
+			ctx.handle_switch_break <- snd old;
 		)
 	with
 		Exit ->
@@ -216,11 +216,11 @@ let handle_break ctx e =
                         ctx.in_pcall <-false;
 			let b = open_block ctx in
 			newline ctx;
-			ctx.handle_break <- true;
+			ctx.handle_switch_break <- true;
 			(fun() ->
 				b();
 				ctx.in_loop <- fst old;
-				ctx.handle_break <- snd old;
+				ctx.handle_switch_break <- snd old;
 				newline ctx;
 				println ctx "end";
 				println ctx " return _hx_pcall_default end)";
@@ -568,7 +568,7 @@ and gen_expr ?(local=true) ctx e = begin
 	| TReturn eo -> gen_return ctx e eo;
 	| TBreak ->
 		if not ctx.in_loop then unsupported e.epos;
-		if ctx.handle_break then
+		if ctx.handle_switch_break then
 		    spr ctx "_G.error(\"_hx__break__\")"
 		else if ctx.handle_continue then
 		    print ctx "_hx_continue_%i = true; break" ctx.break_depth
@@ -773,7 +773,7 @@ and gen_expr ?(local=true) ctx e = begin
 		gen_value ctx e;
 		spr ctx (Ast.s_unop op)
 	| TWhile (cond,e,Ast.NormalWhile) ->
-		let handle_break = handle_break ctx e in
+		let handle_switch_break = handle_switch_break ctx e in
 		let has_continue = has_continue e in
 		let old_ctx_continue = ctx.handle_continue in
 		ctx.handle_continue <- has_continue;
@@ -798,12 +798,12 @@ and gen_expr ?(local=true) ctx e = begin
 		    println ctx "if _hx_continue_%i then _hx_continue_%i = false; break; end" ctx.break_depth ctx.break_depth;
 		end;
 		b();
-		handle_break();
+		handle_switch_break();
 		spr ctx "end";
 		ctx.break_depth <- ctx.break_depth-1;
 		ctx.handle_continue <- old_ctx_continue;
 	| TWhile (cond,e,Ast.DoWhile) ->
-		let handle_break = handle_break ctx e in
+		let handle_switch_break = handle_switch_break ctx e in
 		let has_continue = has_continue e in
 		let old_ctx_continue = ctx.handle_continue in
 		ctx.handle_continue <- has_continue;
@@ -824,7 +824,7 @@ and gen_expr ?(local=true) ctx e = begin
 		end;
 		ctx.break_depth <- ctx.break_depth + 1;
 		gen_block_element ctx e;
-		handle_break();
+		handle_switch_break();
 		if has_continue then begin
 		    b2();
 		    newline ctx;
@@ -846,7 +846,7 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx "})";
 		ctx.separator <- true
 	| TFor (v,it,e) ->
-		let handle_break = handle_break ctx e in
+		let handle_switch_break = handle_switch_break ctx e in
 		let it = ident (match it.eexpr with
 			| TLocal v -> v.v_name
 			| _ ->
@@ -864,7 +864,7 @@ and gen_expr ?(local=true) ctx e = begin
 		bend();
 		newline ctx;
 		spr ctx "end";
-		handle_break();
+		handle_switch_break();
 		newline ctx;
 	| TTry (e,catchs) ->
 		(* TODO: add temp variables *)
@@ -1801,7 +1801,7 @@ let alloc_ctx com =
 		iife_assign = false;
 		in_loop = false;
 		in_pcall = false;
-		handle_break = false;
+		handle_switch_break = false;
 		break_depth = 0;
 		handle_continue = false;
 		id_counter = 0;
