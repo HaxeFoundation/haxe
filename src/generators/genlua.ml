@@ -37,6 +37,7 @@ type ctx = {
 	mutable tabs : string;
 	mutable in_value : tvar option;
 	mutable in_loop : bool;
+	mutable in_pcall : bool;
 	mutable iife_assign : bool;
 	mutable handle_break : bool;
 	mutable break_depth : int;
@@ -210,8 +211,9 @@ let handle_break ctx e =
 		)
 	with
 		Exit ->
-			println ctx "local _hx_expected_result = {}";
 			println ctx "local _hx_status, _hx_result = pcall(function() ";
+                        let old_in_pcall = ctx.in_pcall in
+                        ctx.in_pcall <-false;
 			let b = open_block ctx in
 			newline ctx;
 			ctx.handle_break <- true;
@@ -221,10 +223,11 @@ let handle_break ctx e =
 				ctx.handle_break <- snd old;
 				newline ctx;
 				println ctx "end";
-				println ctx " return _hx_expected_result end)";
+				println ctx " return _hx_pcall_default end)";
+                                ctx.in_pcall <- old_in_pcall;
 				spr ctx " if not _hx_status then ";
 				newline ctx;
-				println ctx " elseif _hx_result ~= _hx_expected_result then return _hx_result";
+				println ctx " elseif _hx_result ~= _hx_pcall_default then return _hx_result";
 			)
 
 let this ctx = match ctx.in_value with None -> "self" | Some _ -> "self"
@@ -865,13 +868,15 @@ and gen_expr ?(local=true) ctx e = begin
 		newline ctx;
 	| TTry (e,catchs) ->
 		(* TODO: add temp variables *)
-		println ctx "local _hx_expected_result = {}";
+		println ctx "local _hx_pcall_default = {}";
 		println ctx "local _hx_status, _hx_result = pcall(function() ";
+                let old_in_pcall = ctx.in_pcall in
+                ctx.in_pcall<-true;
 		let b = open_block ctx in
 		gen_expr ctx e;
 		let vname = temp ctx in
 		b();
-		println ctx " return _hx_expected_result end)";
+		println ctx " return _hx_pcall_default end)";
 		spr ctx " if not _hx_status then ";
 		let bend = open_block ctx in
 		newline ctx;
@@ -928,7 +933,8 @@ and gen_expr ?(local=true) ctx e = begin
 		end;
 		bend();
 		newline ctx;
-		print ctx " elseif _hx_result ~= _hx_expected_result then return _hx_result end";
+		print ctx " elseif _hx_result ~= _hx_pcall_default then return _hx_result end";
+                ctx.in_pcall <- old_in_pcall;
 	| TSwitch (e,cases,def) ->
 		List.iteri (fun cnt (el,e2) ->
 		    if cnt == 0 then spr ctx "if "
@@ -1794,6 +1800,7 @@ let alloc_ctx com =
 		in_value = None;
 		iife_assign = false;
 		in_loop = false;
+		in_pcall = false;
 		handle_break = false;
 		break_depth = 0;
 		handle_continue = false;
@@ -1977,6 +1984,7 @@ let generate com =
 
 	(* Generate some dummy placeholders for utility libs that may be required*)
 	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp, _hx_table, _hx_bit_raw";
+        println ctx "local _hx_pcall_default = {};";
 
 	List.iter (transform_multireturn ctx) com.types;
 	List.iter (generate_type ctx) com.types;
