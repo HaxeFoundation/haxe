@@ -303,7 +303,8 @@ let type_var_field ctx t e stat do_display p =
 
 let apply_macro ctx mode path el p =
 
-	PMap.iter (fun a (t, name, pi) -> (Printf.printf "iter: %s\n" name)) ctx.m.module_globals;
+
+	(*PMap.iter (fun a (t, name, pi) -> (Printf.printf "iter: %s\n" name)) ctx.m.module_globals;
 
 	Printf.printf "------------\n";
 	Printf.printf "Imports:\n\n";
@@ -316,7 +317,7 @@ let apply_macro ctx mode path el p =
 	List.iter (fun (l,_) ->
 		Printf.printf "%s\n" (String.concat "" l);
 	) ctx.m.wildcard_packages;
-	Printf.printf "------------\n";
+	Printf.printf "------------\n";*)
 	let get_prio i = function
 		| IAsName _ -> 1
 		| INormal -> 1
@@ -328,6 +329,21 @@ let apply_macro ctx mode path el p =
 			else if prio1 > prio2 then 1
 			else if p1 > p2 then -1 else 1
 		) c
+	in
+	let do_default () =
+		match List.rev (ExtString.String.nsplit path ".") with
+		| meth :: name :: pack ->
+			(List.rev pack,name), meth, true (* try default *)
+		| _ ->
+			error "Invalid macro path" p
+	in
+	let starts_with_uppercase s =
+		let len = String.length s in
+		if len > 0 then
+			let first_char = String.sub s 0 1 in
+			(String.lowercase first_char) != first_char
+		else
+			false
 	in
 	let cpath, meth, try_wildcars = (match List.rev (ExtString.String.nsplit path ".") with
 		| meth :: name :: [] -> begin
@@ -346,7 +362,7 @@ let apply_macro ctx mode path el p =
 			let sorted = sort_candidates candidates in
 			match sorted with
 			| (_,_, (a,b) ) :: _ -> a, b, true
-			| _ ->  (List.rev [],name), meth, true (* it's not imported, try default *)
+			| _ -> do_default () (* it's not imported, try default *)
 			end
 		| meth :: [] -> begin
 			(* it's just a function lookup static imports *)
@@ -367,7 +383,7 @@ let apply_macro ctx mode path el p =
 			| (_,_, (a,b) ) :: _ -> a, b, false
 			| _ ->  error ("Macro named " ^ path ^ " is not imported") p
 		end
-		| meth :: sub :: name :: []  -> begin
+		| meth :: sub :: name :: [] when (starts_with_uppercase sub) -> begin
 			(* maybe it's a subtype of an imported class *)
 			let get_path pack name sub meth =
 				let pack = List.map fst (name::pack) in
@@ -383,12 +399,10 @@ let apply_macro ctx mode path el p =
 			let sorted = sort_candidates candidates in
 			match sorted with
 			| (_,_, (a,b) ) :: _ -> a, b, true
-			| _ ->  (List.rev [],name), meth, true (* try default *)
+			| _ -> do_default () (* try default *)
 			end
-		| meth :: name :: pack ->
-			(List.rev pack,name), meth, true (* try default *)
 		| _ ->
-			error "Invalid macro path" p
+			do_default ()
 	) in
 	(* don't try wildcard packages if we don't need it *)
 	let wildcard_packages = if try_wildcars then ctx.m.wildcard_packages else [] in
