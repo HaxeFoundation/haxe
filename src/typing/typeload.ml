@@ -319,7 +319,7 @@ let apply_macro ctx mode path el p =
 	let starts_with_uppercase s =
 		if String.length s > 0 then
 			let first_char = String.get s 0 in
-			(Char.lowercase_ascii first_char) != first_char
+			(Char.lowercase first_char) != first_char
 		else
 			false
 	in
