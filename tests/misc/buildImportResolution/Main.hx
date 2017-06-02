@@ -2,6 +2,7 @@ import TestMacro.*;
 import TestMacro2.build;
 import TestMacro2.build as buildFoo;
 import foo.*;
+import Main.*;
 
 
 #if !macro

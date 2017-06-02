@@ -9,6 +9,7 @@ type call_error =
 
 and error_msg =
 	| Module_not_found of path
+	| Method_not_found of string * path
 	| Type_not_found of path * string
 	| Unify of unify_error list
 	| Custom of string
@@ -71,6 +72,7 @@ let unify_error_msg ctx = function
 
 let rec error_msg = function
 	| Module_not_found m -> "Type not found : " ^ s_type_path m
+	| Method_not_found (m,p) -> "Method " ^ m ^ " not found on class " ^ s_type_path p
 	| Type_not_found (m,t) -> "Module " ^ s_type_path m ^ " does not define type " ^ t
 	| Unify l ->
 		let ctx = print_context() in

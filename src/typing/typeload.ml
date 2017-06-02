@@ -311,8 +311,7 @@ let type_var_field ctx t e stat do_display p =
 
 let apply_macro ctx mode path el p =
 	let sort_candidates c =
-		(* sort by import position *)
-		List.sort (fun (p1,_, _) (p2,_,_) ->
+		List.sort (fun (p1,((p, name), meth), _) (p2,_,_) ->
 			compare p2 p1
 		) c
 	in
@@ -329,20 +328,23 @@ let apply_macro ctx mode path el p =
 		) [] ctx.m.wildcard_packages
 	in
 	let run_candidates candidates try_absolute_path  =
-		let run (cpath, meth) =
+		let run (cpath, meth) do_continue =
+			let msg_not_found = "Method " ^ meth ^ " not found" in
 			try
 				ctx.g.do_macro ctx mode cpath meth el p
-			with e ->
-				None
+			with e when do_continue -> match e with
+				| Error (Module_not_found _, p) -> None
+				| Error (Method_not_found _, p) -> None
+				| _ -> raise e
 		in
 		(* if we didn't found a type, we append all wildcards *)
-		let res = List.fold_left (fun ((res, continue) as acc) (_, d, doContinue) -> begin
+		let res = List.fold_left (fun ((res, continue) as acc) (_, d, do_continue) -> begin
 			match res, continue with
 			| _, false -> acc
 			| Some _, _ -> acc
 			| None, _ ->
 				(*Printf.printf "try %s\n" (String.concat "." c);*)
-				(run d, doContinue)
+				(run d do_continue, do_continue)
 		end) (None, true) candidates in
 
 		match (fst res), try_absolute_path with
@@ -391,7 +393,7 @@ let apply_macro ctx mode path el p =
 					(snd meth1, (get_path pack name meth1), false) :: a
 				| meth1 :: name :: pack, INormal when (fst meth1) = meth ->
 					(snd meth1, (get_path pack name meth1), false) :: a
-				| name :: pack, IAll ->
+				| name :: pack, IAll when (starts_with_uppercase (fst name)) ->
 					let pack = List.map fst pack in
 					let pos = snd name in
 					let name = fst name in
