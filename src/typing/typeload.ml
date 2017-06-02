@@ -302,57 +302,54 @@ let type_var_field ctx t e stat do_display p =
 	| _ -> e
 
 let apply_macro ctx mode path el p =
-
-
-	(*
-	PMap.iter (fun a (t, name, pi) -> (Printf.printf "iter: %s\n" name)) ctx.m.module_globals;
-
-	Printf.printf "------------\n";
-	Printf.printf "Imports:\n\n";
-	List.iter (fun (l, mode) ->
-		let names = List.map (fun (name,_) -> name) l in
-		let mode = match mode with
-			| IAll -> ".*"
-			| IAsName s -> " as " ^ s
-			| INormal -> ""
-		in
-		Printf.printf "%s%s\n" (String.concat "." names) mode;
-	) ctx.m.module_imports;
-	Printf.printf "Imports:\n";
-	Printf.printf "Wildcard packages:\n\n";
-	List.iter (fun (l,_) ->
-		Printf.printf "%s\n" (String.concat "" l);
-	) ctx.m.wildcard_packages;
-	Printf.printf "------------\n";
-	*)
-	let get_prio i = function
-		| IAsName _ -> 1
-		| INormal -> 1
-		| IAll -> 2
-	in
 	let sort_candidates c =
-		List.sort (fun (prio1, p1,a) (prio2, p2,b) ->
-			if prio1 < prio2 then -1
-			else if prio1 > prio2 then 1
-			else if p1 > p2 then -1 else 1
+		(* sort by import position *)
+		List.sort (fun (p1,_, _) (p2,_,_) ->
+			compare p2 p1
 		) c
 	in
-	let do_default () =
-		match List.rev (ExtString.String.nsplit path ".") with
-		| meth :: name :: pack ->
-			(List.rev pack,name), meth, true (* try default *)
-		| _ ->
-			error "Invalid macro path" p
-	in
 	let starts_with_uppercase s =
-		let len = String.length s in
-		if len > 0 then
-			let first_char = String.sub s 0 1 in
-			(String.lowercase first_char) != first_char
+		if String.length s > 0 then
+			let first_char = String.get s 0 in
+			(Char.lowercase_ascii first_char) != first_char
 		else
 			false
 	in
-	let cpath, meth, try_wildcars = (match List.rev (ExtString.String.nsplit path ".") with
+	let mk_wildcard_candidates name meth =
+		List.fold_left (fun a (pack, pos) ->
+			(pos, ((pack, name),meth), true) :: a
+		) [] ctx.m.wildcard_packages
+	in
+	let run_candidates candidates try_absolute_path  =
+		let run (cpath, meth) =
+			try
+				ctx.g.do_macro ctx mode cpath meth el p
+			with e ->
+				None
+		in
+		(* if we didn't found a type, we append all wildcards *)
+		let res = List.fold_left (fun ((res, continue) as acc) (_, d, doContinue) -> begin
+			match res, continue with
+			| _, false -> acc
+			| Some _, _ -> acc
+			| None, _ ->
+				(*Printf.printf "try %s\n" (String.concat "." c);*)
+				(run d, doContinue)
+		end) (None, true) candidates in
+
+		match (fst res), try_absolute_path with
+			| None, true ->
+				(* just try as an absolute path *)
+				let cpath, meth = match List.rev (ExtString.String.nsplit path ".") with
+				| meth :: name :: pack ->
+					(List.rev pack,name), meth
+				| _ ->
+					error "Invalid macro path" p
+				in
+				ctx.g.do_macro ctx mode cpath meth el p
+			| res, _ -> res
+	in
+	(match List.rev (ExtString.String.nsplit path ".") with
 		| meth :: name :: [] -> begin
 			(* maybe it's an imported class *)
 			let get_path pack name meth =
@@ -362,15 +359,16 @@ let apply_macro ctx mode path el p =
 			in
 			let candidates = List.fold_left (fun a (l, mode) ->
 				match (List.rev l), mode with
-				| name1 :: pack, (IAsName s) when s = name -> (get_prio mode, snd name1, (get_path pack name1 meth)) :: a
-				| name1 :: pack, (INormal | IAll) when (fst name1) = name -> (get_prio mode, snd name1, (get_path pack name1 meth)) :: a
+				| name1 :: pack, (IAsName s) when s = name ->
+					(snd name1, (get_path pack name1 meth), false) :: a
+				| name1 :: pack, (INormal) when (fst name1) = name ->
+					(snd name1, (get_path pack name1 meth), false) :: a
 				| _ -> a
 			) [] ctx.m.module_imports in
+			let candidates = candidates @ mk_wildcard_candidates name meth in
 			let sorted = sort_candidates candidates in
-			match sorted with
-			| (_,_, (a,b) ) :: _ -> a, b, true
-			| _ -> do_default () (* it's not imported, try default *)
-			end
+			run_candidates sorted true
+		end
 		| meth :: [] -> begin
 			(* it's just a function lookup static imports *)
 			let get_path pack name meth =
@@ -381,16 +379,22 @@ let apply_macro ctx mode path el p =
 			in
 			let candidates = List.fold_left (fun a (l, mode) ->
 				match (List.rev l), mode with
-				| meth1 :: name :: pack, (IAsName s) when s = meth -> (get_prio mode, snd meth1, (get_path pack name meth1)) :: a
-				| meth1 :: name :: pack, INormal when (fst meth1) = meth -> (get_prio mode, snd meth1, (get_path pack name meth1)) :: a
+				| meth1 :: name :: pack, (IAsName s) when s = meth ->
+					(snd meth1, (get_path pack name meth1), false) :: a
+				| meth1 :: name :: pack, INormal when (fst meth1) = meth ->
+					(snd meth1, (get_path pack name meth1), false) :: a
+				| name :: pack, IAll ->
+					let pack = List.map fst pack in
+					let pos = snd name in
+					let name = fst name in
+					let c = ((List.rev pack,name), meth) in
+					(pos, c, true) :: a
 				| _ -> a
 			) [] ctx.m.module_imports in
 			let sorted = sort_candidates candidates in
-			match sorted with
-			| (_,_, (a,b) ) :: _ -> a, b, false
-			| _ ->
-				(* todo try IAll imports without packages *)
-				error (path ^ " is not imported") p
+			match run_candidates sorted false with
+			| None -> error "Invalid macro path" p
+			| x -> x
 		end
 		| meth :: sub :: name :: [] when (starts_with_uppercase sub) -> begin
 			(* maybe it's a subtype of an imported class *)
@@ -401,47 +405,20 @@ let apply_macro ctx mode path el p =
 			in
 			let candidates = List.fold_left (fun a (l, mode) ->
 				match (List.rev l), mode with
-				| name1 :: pack, (IAsName s) when s = name -> (get_prio mode, snd name1, (get_path pack name1 sub meth)) :: a
-				| name1 :: pack, (INormal | IAll) when (fst name1) = name -> (get_prio mode, snd name1, (get_path pack name1 sub meth)) :: a
+				| name1 :: pack, (IAsName s) when s = name ->
+					(snd name1, (get_path pack name1 sub meth), false) :: a
+				| name1 :: pack, (INormal | IAll) when (fst name1) = name ->
+					(snd name1, (get_path pack name1 sub meth), false) :: a
 				| _ -> a
 			) [] ctx.m.module_imports in
 			let sorted = sort_candidates candidates in
-			match sorted with
-			| (_,_, (a,b) ) :: _ -> a, b, true
-			| _ -> do_default () (* try default *)
-			end
-		| _ ->
-			do_default ()
-	) in
-	(* don't try wildcard packages if we don't need it *)
-	let wildcard_packages = if try_wildcars then ctx.m.wildcard_packages else [] in
-	let max_tries =  (List.length wildcard_packages) + 1 in
-	let firstError = ref [] in
-
-	let run cpath index = begin
-		try
-			ctx.g.do_macro ctx mode cpath meth el p
-		with e -> begin
-			if index = 0 then firstError := [e];
-			if index >= max_tries - 1 then
-				raise (List.hd (!firstError))
-			else
-				None
+			match run_candidates sorted false with
+			| None -> error "Invalid macro path" p
+			| x -> x
 		end
-	end
-	in
-	let regular_try = (run cpath 0) in
-	let index = ref 0 in
-	(* if we didn't found a type, we append all wildcards *)
-	List.fold_left (fun a (c, _) -> begin
-		index := (!index) + 1;
-		match a with
-		| Some _ -> a
-		| None ->
-			(*Printf.printf "try %s\n" (String.concat "." c);*)
-			let cpath = c @ fst cpath, snd cpath in
-			run cpath (!index)
-	end) regular_try wildcard_packages
+		| _ ->
+			run_candidates [] true
+	)
 
 (** since load_type_def and load_instance are used in PASS2, they should not access the structure of a type **)
 
