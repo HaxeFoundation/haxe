@@ -404,7 +404,7 @@ let apply_macro ctx mode path el p =
 			| None -> error "Invalid macro path" p
 			| x -> x
 		end
-		| meth :: sub :: name :: [] when (starts_with_uppercase sub) -> begin
+		| meth :: sub :: name :: [] when (starts_with_uppercase sub) && (starts_with_uppercase name) -> begin
 			(* maybe it's a subtype of an imported class *)
 			let get_path pack name sub meth =
 				let pack = List.map fst (name::pack) in

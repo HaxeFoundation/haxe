@@ -12,6 +12,7 @@ import foo.*;
 @:build(TestMacro3.build(5, true))
 @:build(buildFoo(6, true))
 @:build(foo.bar.TestMacro.build(7, true))
+@:build(bar.TestMacro.build(8, true))
 #end
 class Main {
 
@@ -23,6 +24,7 @@ class Main {
 		TestMacro3.build(5, false);
 		buildFoo(6, false);
 		foo.bar.TestMacro.build(7, false);
+		bar.TestMacro.build(8, false);
 		return macro null;
 	}
 
