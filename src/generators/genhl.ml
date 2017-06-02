@@ -1148,7 +1148,6 @@ and unsafe_cast_to ctx (r:reg) (t:ttype) p =
 			op ctx (OUnsafeCast (r2,r));
 			if ctx.com.debug then begin
 				hold ctx r2;
-				ctx.com.warning ("Unsafe cast " ^ tstr rt ^ " to " ^ tstr t) p;
 				let r3 = cast_to ~force:true ctx r t p in
 				let j = jump ctx (fun n -> OJEq (r2,r3,n)) in
 				op ctx (OAssert 0);
