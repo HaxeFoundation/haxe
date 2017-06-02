@@ -568,7 +568,7 @@ and gen_expr ?(local=true) ctx e = begin
 		if ctx.handle_break then
 		    spr ctx "_G.error(\"_hx__break__\")"
 		else if ctx.handle_continue then
-		    print ctx "_hx_break_%i = true; break" ctx.break_depth
+		    print ctx "_hx_continue_%i = true; break" ctx.break_depth
 		else
 		    spr ctx "break" (*todo*)
 	| TContinue ->
@@ -775,7 +775,7 @@ and gen_expr ?(local=true) ctx e = begin
 		let old_ctx_continue = ctx.handle_continue in
 		ctx.handle_continue <- has_continue;
 		if has_continue then
-		  println ctx "local _hx_break_%i = false;" ctx.break_depth;
+		  println ctx "local _hx_continue_%i = false;" ctx.break_depth;
 		spr ctx "while ";
 		gen_cond ctx cond;
 		let b = open_block ctx in
@@ -792,7 +792,7 @@ and gen_expr ?(local=true) ctx e = begin
 		    b();
 		    newline ctx;
 		    println ctx "until true";
-		    println ctx "if _hx_break_%i then _hx_break_%i = false; break; end" ctx.break_depth ctx.break_depth;
+		    println ctx "if _hx_continue_%i then _hx_continue_%i = false; break; end" ctx.break_depth ctx.break_depth;
 		end;
 		b();
 		handle_break();
@@ -808,7 +808,7 @@ and gen_expr ?(local=true) ctx e = begin
 		gen_block_element ctx e;
 		newline ctx;
 		if has_continue then
-		  println ctx "local _hx_break_%i = false;" ctx.break_depth;
+		  println ctx "local _hx_continue_%i = false;" ctx.break_depth;
 		spr ctx " while ";
 		gen_cond ctx cond;
 		let b = open_block ctx in
@@ -826,7 +826,7 @@ and gen_expr ?(local=true) ctx e = begin
 		    b2();
 		    newline ctx;
 		    println ctx "until true";
-		    println ctx "if _hx_break_%i then _hx_break_%i = false; break; end" ctx.break_depth ctx.break_depth;
+		    println ctx "if _hx_continue_%i then _hx_continue_%i = false; break; end" ctx.break_depth ctx.break_depth;
 		end;
 		b();
 		spr ctx "end";
