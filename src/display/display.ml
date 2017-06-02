@@ -912,6 +912,12 @@ module ToplevelCollector = struct
 		List.iter (fun mt ->
 			DynArray.add acc (ITType mt)
 		) !module_types;
+
+		(* type params *)
+		List.iter (fun (_,t) ->
+			DynArray.add acc (ITType (module_type_of_type t))
+		) ctx.type_params;
+
 		DynArray.to_list acc
 
 	let handle_unresolved_identifier ctx i p only_types =

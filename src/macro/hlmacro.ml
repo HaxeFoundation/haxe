@@ -231,16 +231,19 @@ let last_enum_type = ref IExpr
 
 let encode_enum t pos tag pl =
 	last_enum_type := t;
+	assert false (* todo : list enum prototypes *)
+	(*
 	match pos with
 	| None -> VEnum (tag,Array.of_list pl)
 	| Some p -> VEnum (tag,Array.of_list (List.rev (encode_pos p :: List.rev pl)))
+	*)
 
 let decode_enum = function
-	| VEnum (tag,arr) -> tag, Array.to_list arr
+	| VEnum (_,tag,arr) -> tag, Array.to_list arr
 	| _ -> raise Invalid_expr
 
 let decode_enum_with_pos = function
-	| VEnum (tag,arr) when Array.length arr > 0 && (match arr.(Array.length arr - 1) with VAbstract (APos _) -> true | _ -> false) ->
+	| VEnum (_,tag,arr) when Array.length arr > 0 && (match arr.(Array.length arr - 1) with VAbstract (APos _) -> true | _ -> false) ->
 		let rec loop i =
 			if i = Array.length arr - 1 then [] else arr.(i) :: loop (i + 1)
 		in
