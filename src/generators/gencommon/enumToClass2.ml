@@ -354,7 +354,7 @@ module EnumToClass2Exprf = struct
 				(try
 					let cl = (get_converted_enum_classes f.etype).base in
 					let e_enum = { f with etype = TInst (cl, []) } in
-					Codegen.field e_enum "index" com.basic.tint e.epos
+					Codegen.field e_enum "_hx_index" com.basic.tint e.epos
 				with Not_found ->
 					{ e with eexpr = TCall(left, [f]) })
 			| TEnumParameter(f, ef, i) ->
