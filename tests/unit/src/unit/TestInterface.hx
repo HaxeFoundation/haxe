@@ -43,6 +43,20 @@ private class Point implements IX implements IY {
 
 }
 
+private interface I1 {
+	function foo() : Void;
+}
+
+private interface I2 extends I1 {
+	function bar() : Void;
+}
+
+private class C implements I2 {
+	public function new() {};
+	public function foo() {};
+	public function bar() {};
+}
+
 class TestInterface extends Test {
 
 	public function test() {
@@ -73,6 +87,12 @@ class TestInterface extends Test {
 		var p2 = Std.instance(px,Point);
 		eq( p, p2 );
 		eq( cast(py,IX), px );
-	}
 
+		var c = new C();
+		var i2 : I2 = c;
+		var i1 : I1 = c;
+		eq(i1, c);
+		eq(i2, c);
+		eq(i1,i2);
+	}
 }
