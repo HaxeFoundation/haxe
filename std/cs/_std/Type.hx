@@ -333,7 +333,7 @@ enum ValueType {
 			var values = cs.system.Enum.GetValues(Lib.getNativeType(e));
 			return cs.system.Array.IndexOf(values, e);
 		} else {
-			return cast(e, HxEnum).index;
+			return cast(e, HxEnum)._hx_index;
 		}
 	}
 
