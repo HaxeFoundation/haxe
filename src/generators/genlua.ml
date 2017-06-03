@@ -28,26 +28,25 @@ open ExtList
 type pos = Globals.pos
 
 type ctx = {
-	com : Common.context;
-	buf : Buffer.t;
-	packages : (string list,unit) Hashtbl.t;
-	mutable current : tclass;
-	mutable statics : (tclass * string * texpr) list;
-	mutable inits : texpr list;
-	mutable tabs : string;
-	mutable in_value : tvar option;
-	mutable in_loop : bool;
-	mutable in_pcall : bool;
-	mutable iife_assign : bool;
-	mutable handle_switch_break : bool;
-	mutable break_depth : int;
-	mutable handle_continue : bool;
-	mutable id_counter : int;
-	mutable type_accessor : module_type -> string;
-	mutable separator : bool;
-	mutable found_expose : bool;
-	mutable lua_jit : bool;
-	mutable lua_ver : float;
+        com : Common.context;
+        buf : Buffer.t;
+        packages : (string list,unit) Hashtbl.t;
+        mutable current : tclass;
+        mutable statics : (tclass * string * texpr) list;
+        mutable inits : texpr list;
+        mutable tabs : string;
+        mutable in_value : tvar option;
+        mutable in_loop : bool;
+        mutable in_loop_try : bool;
+        mutable iife_assign : bool;
+        mutable break_depth : int;
+        mutable handle_continue : bool;
+        mutable id_counter : int;
+        mutable type_accessor : module_type -> string;
+        mutable separator : bool;
+        mutable found_expose : bool;
+        mutable lua_jit : bool;
+        mutable lua_ver : float;
 }
 
 type object_store = {
@@ -190,45 +189,6 @@ let open_block ctx =
 	let oldt = ctx.tabs in
 	ctx.tabs <- "  " ^ ctx.tabs;
 	(fun() -> ctx.tabs <- oldt)
-
-let rec iter_switch_break in_switch e =
-	match e.eexpr with
-	| TFunction _ | TWhile _ | TFor _ -> ()
-	| TSwitch _ when not in_switch -> iter_switch_break true e
-	| TBreak when in_switch -> raise Exit
-	| _ -> iter (iter_switch_break in_switch) e
-
-let handle_switch_break ctx e =
-    (* TODO: This got messy. Find a way to unify the implementation with a try/catch helper at least *)
-	let old = ctx.in_loop, ctx.handle_switch_break in
-	ctx.in_loop <- true;
-	try
-		iter_switch_break false e;
-		ctx.handle_switch_break <- false;
-		(fun() ->
-			ctx.in_loop <- fst old;
-			ctx.handle_switch_break <- snd old;
-		)
-	with
-		Exit ->
-			println ctx "local _hx_status, _hx_result = pcall(function() ";
-                        let old_in_pcall = ctx.in_pcall in
-                        ctx.in_pcall <-false;
-			let b = open_block ctx in
-			newline ctx;
-			ctx.handle_switch_break <- true;
-			(fun() ->
-				b();
-				ctx.in_loop <- fst old;
-				ctx.handle_switch_break <- snd old;
-				newline ctx;
-				println ctx "end";
-				println ctx " return _hx_pcall_default end)";
-                                ctx.in_pcall <- old_in_pcall;
-				spr ctx " if not _hx_status then ";
-				newline ctx;
-				println ctx " elseif _hx_result ~= _hx_pcall_default then return _hx_result";
-			)
 
 let this ctx = match ctx.in_value with None -> "self" | Some _ -> "self"
 
@@ -489,6 +449,56 @@ let rec gen_call ctx e el in_value =
 		spr ctx ")");
 	ctx.iife_assign <- false;
 
+and has_continue e =
+    let rec loop e = match e.eexpr with
+	| TContinue -> raise Exit
+	| TWhile(e1,_,_) | TFor(_,e1,_) -> loop e1 (* in theory there could be a continue there. Note that we don't want to recurse into the loop body because we do not care about inner continue expressions *)
+	| _ -> Type.iter loop e
+    in
+    try
+	loop e;
+	false;
+    with Exit ->
+	true
+
+and gen_cond ctx cond =
+    ctx.iife_assign <- true;
+    gen_value ctx cond;
+    ctx.iife_assign <- false
+
+and gen_loop ctx label cond e =
+    let old_in_loop = ctx.in_loop in
+    ctx.in_loop <- true;
+    let old_handle_continue = ctx.handle_continue in
+    let will_continue = has_continue e in
+    ctx.handle_continue <- has_continue e;
+    if will_continue then begin
+        println ctx "_hx_continue_%i = false;" ctx.break_depth;
+    end;
+    ctx.break_depth <- ctx.break_depth + 1;
+    print ctx "%s " label;
+    gen_cond ctx cond;
+    print ctx " do ";
+    if will_continue then print ctx "repeat ";
+    gen_block_element ctx e;
+    newline ctx;
+    if will_continue then begin
+        if will_continue then begin
+            println ctx "until true";
+        end;
+        println ctx "if _hx_continue_%i then " ctx.break_depth;
+        println ctx "_hx_continue_%i = false;" ctx.break_depth;
+        if ctx.in_loop_try then
+            println ctx "_G.error(\"_hx_pcall_break\");"
+        else
+            println ctx "break;";
+        println ctx "end;";
+    end;
+    print ctx "end";
+    ctx.in_loop <- old_in_loop;
+    ctx.break_depth <- ctx.break_depth-1;
+    ctx.handle_continue <- old_handle_continue;
+
 and gen_expr ?(local=true) ctx e = begin
 	match e.eexpr with
 	 TConst c ->
@@ -568,15 +578,18 @@ and gen_expr ?(local=true) ctx e = begin
 	| TReturn eo -> gen_return ctx e eo;
 	| TBreak ->
 		if not ctx.in_loop then unsupported e.epos;
-		if ctx.handle_switch_break then
-		    spr ctx "_G.error(\"_hx__break__\")"
-		else if ctx.handle_continue then
-		    print ctx "_hx_continue_%i = true; break" ctx.break_depth
+		if ctx.handle_continue then
+                    print ctx "_hx_continue_%i = true;" ctx.break_depth;
+		if ctx.in_loop_try then
+		    print ctx "_G.error(\"_hx_pcall_break\", 0)"
 		else
-		    spr ctx "break" (*todo*)
+		    spr ctx "break"
 	| TContinue ->
 		if not ctx.in_loop then unsupported e.epos;
-		spr ctx "break";
+		if ctx.in_loop_try then
+		    print ctx "_G.error(\"_hx_pcall_break\", 0)"
+		else
+		    spr ctx "break" (*todo*)
 	| TBlock el ->
 		let bend = open_block ctx in
 		List.iter (gen_block_element ctx) el;
@@ -773,68 +786,11 @@ and gen_expr ?(local=true) ctx e = begin
 		gen_value ctx e;
 		spr ctx (Ast.s_unop op)
 	| TWhile (cond,e,Ast.NormalWhile) ->
-		let handle_switch_break = handle_switch_break ctx e in
-		let has_continue = has_continue e in
-		let old_ctx_continue = ctx.handle_continue in
-		ctx.handle_continue <- has_continue;
-		if has_continue then
-		  println ctx "local _hx_continue_%i = false;" ctx.break_depth;
-		spr ctx "while ";
-		gen_cond ctx cond;
-		let b = open_block ctx in
-		print ctx " do ";
-		if has_continue then begin
-		    newline ctx;
-		    (open_block ctx)();
-		    spr ctx "repeat "
-		end;
-		ctx.break_depth <- ctx.break_depth + 1;
-		gen_block_element ctx e;
-		newline ctx;
-		if has_continue then begin
-		    b();
-		    newline ctx;
-		    println ctx "until true";
-		    println ctx "if _hx_continue_%i then _hx_continue_%i = false; break; end" ctx.break_depth ctx.break_depth;
-		end;
-		b();
-		handle_switch_break();
-		spr ctx "end";
-		ctx.break_depth <- ctx.break_depth-1;
-		ctx.handle_continue <- old_ctx_continue;
+                gen_loop ctx "while" cond e
 	| TWhile (cond,e,Ast.DoWhile) ->
-		let handle_switch_break = handle_switch_break ctx e in
-		let has_continue = has_continue e in
-		let old_ctx_continue = ctx.handle_continue in
-		ctx.handle_continue <- has_continue;
 		println ctx "while true do ";
 		gen_block_element ctx e;
-		newline ctx;
-		if has_continue then
-		  println ctx "local _hx_continue_%i = false;" ctx.break_depth;
-		spr ctx " while ";
-		gen_cond ctx cond;
-		let b = open_block ctx in
-		println ctx " do ";
-		let b2 = open_block ctx in
-		if has_continue then begin
-		    newline ctx;
-		    (open_block ctx)();
-		    spr ctx "repeat "
-		end;
-		ctx.break_depth <- ctx.break_depth + 1;
-		gen_block_element ctx e;
-		handle_switch_break();
-		if has_continue then begin
-		    b2();
-		    newline ctx;
-		    println ctx "until true";
-		    println ctx "if _hx_continue_%i then _hx_continue_%i = false; break; end" ctx.break_depth ctx.break_depth;
-		end;
-		b();
-		spr ctx "end";
-		ctx.break_depth <- ctx.break_depth-1;
-		ctx.handle_continue <- old_ctx_continue;
+                gen_loop ctx "while" cond e
 	| TObjectDecl [] ->
 		spr ctx "_hx_e()";
 		ctx.separator <- true
@@ -845,39 +801,27 @@ and gen_expr ?(local=true) ctx e = begin
 		concat ctx "," (fun (f,e) -> print ctx "%s=" (anon_field f); gen_anon_value ctx e) fields;
 		spr ctx "})";
 		ctx.separator <- true
-	| TFor (v,it,e) ->
-		let handle_switch_break = handle_switch_break ctx e in
-		let it = ident (match it.eexpr with
-			| TLocal v -> v.v_name
-			| _ ->
-				let name = temp ctx in
-				print ctx "local %s = " name;
-				gen_value ctx it;
-				newline ctx;
-				name
-		) in
-		print ctx "while( %s:hasNext() ) do" it;
-		let bend = open_block ctx in
-		newline ctx;
-		print ctx "local %s = %s:next();" (ident v.v_name) it;
-		gen_block_element ctx e;
-		bend();
-		newline ctx;
-		spr ctx "end";
-		handle_switch_break();
-		newline ctx;
+	| TFor (v,it,e2) ->
+                unsupported e.epos;
 	| TTry (e,catchs) ->
 		(* TODO: add temp variables *)
-		println ctx "local _hx_pcall_default = {}";
+                let old_in_loop_try = ctx.in_loop_try in
+                if ctx.in_loop then
+                    ctx.in_loop_try <- true;
 		println ctx "local _hx_status, _hx_result = pcall(function() ";
-                let old_in_pcall = ctx.in_pcall in
-                ctx.in_pcall<-true;
 		let b = open_block ctx in
 		gen_expr ctx e;
 		let vname = temp ctx in
 		b();
-		println ctx " return _hx_pcall_default end)";
-		spr ctx " if not _hx_status then ";
+                println ctx "return _hx_pcall_default";
+                println ctx "end)";
+                println ctx "if not _hx_status and _hx_result == \"_hx_pcall_break\" then";
+                if ctx.in_loop then
+                    if old_in_loop_try then
+                        println ctx "  _G.error(_hx_result,0);"
+                    else
+                        println ctx "  break";
+		println ctx "elseif not _hx_status then ";
 		let bend = open_block ctx in
 		newline ctx;
 		print ctx "local %s = _hx_result" vname;
@@ -933,8 +877,10 @@ and gen_expr ?(local=true) ctx e = begin
 		end;
 		bend();
 		newline ctx;
-		print ctx " elseif _hx_result ~= _hx_pcall_default then return _hx_result end";
-                ctx.in_pcall <- old_in_pcall;
+                println ctx "elseif _hx_result ~= _hx_pcall_default then";
+                println ctx "  return _hx_result";
+                print ctx "end";
+                ctx.in_loop_try <- old_in_loop_try;
 	| TSwitch (e,cases,def) ->
 		List.iteri (fun cnt (el,e2) ->
 		    if cnt == 0 then spr ctx "if "
@@ -1391,10 +1337,6 @@ and gen_iife_assign ctx f =
     f();
     spr ctx " end)()";
 
-and gen_cond ctx cond =
-    ctx.iife_assign <- true;
-    gen_value ctx cond;
-    ctx.iife_assign <- false;
 
 and has_class ctx c =
     has_feature ctx "lua.Boot.getClass" && (c.cl_super <> None || c.cl_ordered_fields <> [] || c.cl_constructor <> None)
@@ -1408,17 +1350,6 @@ and can_gen_class_field ctx = function
 	| f ->
 		not (is_extern_field f)
 
-and has_continue e =
-    let rec loop e = match e.eexpr with
-	| TContinue -> raise Exit
-	| TWhile(e1,_,_) | TFor(_,e1,_) -> loop e1 (* in theory there could be a continue there. Note that we don't want to recurse into the loop body because we do not care about inner continue expressions *)
-	| _ -> Type.iter loop e
-    in
-    try
-	loop e;
-	false;
-    with Exit ->
-	true
 
 let check_multireturn ctx c =
     match c with
@@ -1800,8 +1731,7 @@ let alloc_ctx com =
 		in_value = None;
 		iife_assign = false;
 		in_loop = false;
-		in_pcall = false;
-		handle_switch_break = false;
+                in_loop_try = false;
 		break_depth = 0;
 		handle_continue = false;
 		id_counter = 0;
@@ -1982,9 +1912,10 @@ let generate com =
 
 	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
-	(* Generate some dummy placeholders for utility libs that may be required*)
-	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp, _hx_table, _hx_bit_raw";
+        (* Generate some dummy placeholders for utility libs that may be required*)
+        println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp, _hx_table, _hx_bit_raw";
         println ctx "local _hx_pcall_default = {};";
+        println ctx "local _hx_pcall_break = {};";
 
 	List.iter (transform_multireturn ctx) com.types;
 	List.iter (generate_type ctx) com.types;
@@ -2138,5 +2069,6 @@ let generate com =
 	let ch = open_out_bin com.file in
 	output_string ch (Buffer.contents ctx.buf);
 	close_out ch
+
 
 
