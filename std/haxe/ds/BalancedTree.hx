@@ -131,7 +131,7 @@ class BalancedTree<K,V> implements haxe.Constraints.IMap<K,V> {
 	
 	public function copy():BalancedTree<K, V> {
 		var copied = new BalancedTree<K, V>();
-		for(key in keys()) copied.set(key, get(key));
+		copied.root = root;
 		return copied;
 	}
 
