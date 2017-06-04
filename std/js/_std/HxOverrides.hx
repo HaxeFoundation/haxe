@@ -55,7 +55,9 @@ class HxOverrides {
 			var t = k[1].split(":");
 			return new Date(cast y[0],cast untyped y[1] - 1,cast y[2],cast t[0],cast t[1],cast t[2]);
 		default:
-			throw "Invalid date format : " + s;
+			var d : Date = untyped __js__('new Date({0})', s);
+			if(Math.isNaN(d.getTime())) throw "Invalid date format : " + s;
+			return d;
 		}
 	}
 
