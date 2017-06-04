@@ -86,7 +86,7 @@ import php.NativeIndexedArray;
 
 	public function copy() : IntMap<T> {
 		var copied = new IntMap();
-		for(key in keys()) copied.set(key, get(key));
+		copied.data = data;
 		return copied;
 	}
 

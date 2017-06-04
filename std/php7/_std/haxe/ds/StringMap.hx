@@ -65,7 +65,7 @@ import haxe.Constraints;
 	
 	public function copy() : StringMap<T> {
 		var copied = new StringMap();
-		for(key in keys()) copied.set(key, get(key));
+		copied.data = data;
 		return copied;
 	}
 

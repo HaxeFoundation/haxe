@@ -32,6 +32,10 @@ copied.get("foo") == map.get("foo");
 copied.get("bar") == map.get("bar");
 copied.get("baz") == map.get("baz");
 
+copied.set("foo", 4);
+copied.get("foo") == 4;
+map.get("foo") == 1;
+
 var values = [];
 for (val in map) {
 	values.push(val);
@@ -75,6 +79,10 @@ copied.exists(3) == map.exists(3);
 copied.get(1) == map.get(1);
 copied.get(2) == map.get(2);
 copied.get(3) == map.get(3);
+
+copied.set(1, 4);
+copied.get(1) == 4;
+map.get(1) == 1;
 
 var values = [];
 for (val in map) {
@@ -122,6 +130,10 @@ copied.get(a) == map.get(a);
 copied.get(b) == map.get(b);
 copied.get(c) == map.get(c);
 
+copied.set(a, 4);
+copied.get(a) == 4;
+map.get(a) == 1;
+
 var values = [];
 for (val in map) {
 	values.push(val);
@@ -167,6 +179,10 @@ copied.exists(c) == map.exists(c);
 copied.get(a) == map.get(a);
 copied.get(b) == map.get(b);
 copied.get(c) == map.get(c);
+
+copied.set(a, 4);
+copied.get(a) == 4;
+map.get(a) == 1;
 
 var values = [];
 for (val in map) {

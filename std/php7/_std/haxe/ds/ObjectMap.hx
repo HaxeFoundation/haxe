@@ -69,7 +69,8 @@ class ObjectMap <K:{ }, V> implements haxe.Constraints.IMap<K,V> {
 	
 	public function copy() : ObjectMap<K,V> {
 		var copied = new ObjectMap();
-		for(key in keys()) copied.set(key, get(key));
+		copied._values = _values;
+		copied._keys = _keys;
 		return copied;
 	}
 

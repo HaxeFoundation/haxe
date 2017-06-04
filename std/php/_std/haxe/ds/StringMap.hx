@@ -62,7 +62,7 @@ package haxe.ds;
 	
 	public function copy() : StringMap<T> {
 		var copied = new StringMap();
-		for(key in keys()) copied.set(key, get(key));
+		copied.h = h;
 		return copied;
 	}
 
