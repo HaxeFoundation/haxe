@@ -69,6 +69,12 @@ class ObjectMap<K:{},V> extends flash.utils.Dictionary implements haxe.Constrain
 	}
 
 	#end
+	
+	public function copy() : ObjectMap<K,V> {
+		var copied = new ObjectMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	public function toString() : String {
 		var s = "";

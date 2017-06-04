@@ -61,6 +61,12 @@ package haxe.ds;
 			next : function() { var i = __this__.it.next(); return __this__.ref[i]; }
 		};
 	}
+	
+	public function copy() : IntMap<T> {
+		var copied = new IntMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	public function toString() : String {
 		var s = new StringBuf();

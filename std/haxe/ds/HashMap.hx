@@ -72,6 +72,16 @@ abstract HashMap<K:{ function hashCode():Int; }, V >(HashMapData<K,V>) {
 	public inline function keys() {
 		return this.keys.iterator();
 	}
+	
+	/**
+		See `Map.copy`
+	**/
+	public function copy() : HashMap<K, V> {
+		var copied = new HashMapData();
+		copied.keys = this.keys.copy();
+		copied.values = this.values.copy();
+		return cast copied;
+	}
 
 	/**
 		See `Map.iterator`

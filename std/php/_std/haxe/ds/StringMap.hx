@@ -59,6 +59,12 @@ package haxe.ds;
 	public function iterator() : Iterator<T> {
 		return untyped __call__("new _hx_array_iterator", __call__("array_values", h));
 	}
+	
+	public function copy() : StringMap<T> {
+		var copied = new StringMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	public function toString() : String {
 		var s = "{";

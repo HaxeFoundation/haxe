@@ -385,6 +385,12 @@ import java.NativeArray;
 			}
 		};
 	}
+	
+	public function copy() : IntMap<T> {
+		var copied = new IntMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	/**
 		Returns an displayable representation of the hashtable content.

@@ -123,6 +123,15 @@ abstract Map<K,V>(IMap<K,V> ) {
 	}
 
 	/**
+		Returns a shallow copy of `this` map.
+
+		The order of values is undefined.
+	**/
+	public inline function copy():Map<K,V> {
+		return cast this.copy();
+	}
+
+	/**
 		Returns a String representation of `this` Map.
 
 		The exact representation depends on the platform and key-type.

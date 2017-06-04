@@ -76,6 +76,12 @@ class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K,V> {
 		var a:Array<Dynamic> = untyped __global__.__object_hash_values(h);
 		return a.iterator();
 	}
+	
+	public function copy() : ObjectMap<K,V> {
+		var copied = new ObjectMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	public function toString() : String {
 		return untyped __global__.__object_hash_to_string(h);

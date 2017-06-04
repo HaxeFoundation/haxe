@@ -84,6 +84,12 @@ import php.NativeIndexedArray;
 		return Global.array_values(data).iterator();
 	}
 
+	public function copy() : IntMap<T> {
+		var copied = new IntMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
+
 	/**
 		See `Map.toString`
 	**/

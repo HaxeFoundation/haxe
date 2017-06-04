@@ -77,6 +77,12 @@ package haxe.ds;
 		var a:Array<Dynamic> = untyped __global__.__int_hash_values(h);
 		return a.iterator();
 	}
+	
+	public function copy() : IntMap<T> {
+		var copied = new IntMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	public function toString() : String {
 		return untyped __global__.__int_hash_to_string(h);

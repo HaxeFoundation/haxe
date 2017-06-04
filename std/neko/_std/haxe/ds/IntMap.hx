@@ -56,6 +56,12 @@ package haxe.ds;
 		untyped __dollar__hiter(h,function(_,v) { l.push(v); });
 		return l.iterator();
 	}
+	
+	public function copy() : IntMap<T> {
+		var copied = new IntMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	public function toString() : String {
 		var s = new StringBuf();

@@ -58,6 +58,12 @@ class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K, V> {
 	public function iterator() : Iterator<V> {
 		return h.values().iter();
 	}
+	
+	public function copy() : ObjectMap<K,V> {
+		var copied = new ObjectMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	public function toString() : String {
 		var s = new StringBuf();

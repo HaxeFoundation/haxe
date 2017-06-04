@@ -66,6 +66,11 @@ extern class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 	public function iterator() : Iterator<T>;
 
 	/**
+		See `Map.copy`
+	**/
+	public function copy() : IntMap<T>;
+	
+	/**
 		See `Map.toString`
 	**/
 	public function toString() : String;
