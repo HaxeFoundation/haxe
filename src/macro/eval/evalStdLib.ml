@@ -1358,7 +1358,7 @@ let encode_list_iterator l =
 	]
 
 module StdMap (Hashtbl : Hashtbl.S) = struct
-	let map_fields enc dec str this = [
+	let map_fields enc dec str enc_inst this = [
 		"get",vifun1 (fun vthis vkey -> try Hashtbl.find (this vthis) (dec vkey) with Not_found -> vnull);
 		"set",vifun2 (fun vthis vkey vvalue -> Hashtbl.replace (this vthis) (dec vkey) vvalue; vnull);
 		"exists",vifun1 (fun vthis vkey -> vbool (Hashtbl.mem (this vthis) (dec vkey)));
@@ -1375,6 +1375,10 @@ module StdMap (Hashtbl : Hashtbl.S) = struct
 		"iterator",vifun0 (fun vthis ->
 			let keys = Hashtbl.fold (fun _ v acc -> v :: acc) (this vthis) [] in
 			encode_list_iterator keys
+		);
+		"copy",vifun0 (fun vthis ->
+			let copied = Hashtbl.copy (this vthis) in
+			enc_inst copied
 		);
 		"toString",vifun0 (fun vthis ->
 			let open Rope in
@@ -2594,17 +2598,17 @@ let init_maps builtins =
 		| VInstance {ikind = IIntMap h} -> h
 		| v -> unexpected_value v "int map"
 	in
-	init_fields builtins (["haxe";"ds"],"IntMap") [] (StdIntMap.map_fields vint decode_int (fun i -> Rope.of_string (string_of_int i)) this);
+	init_fields builtins (["haxe";"ds"],"IntMap") [] (StdIntMap.map_fields vint decode_int (fun i -> Rope.of_string (string_of_int i)) (fun i -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (i))) this);
 	let this vthis = match vthis with
 		| VInstance {ikind = IStringMap h} -> h
 		| v -> unexpected_value v "string map"
 	in
-	init_fields builtins (["haxe";"ds"],"StringMap") [] (StdStringMap.map_fields vstring_direct decode_rope_string (fun (r,_) -> r) this);
+	init_fields builtins (["haxe";"ds"],"StringMap") [] (StdStringMap.map_fields vstring_direct decode_rope_string (fun (r,_) -> r) (fun i -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (i))) this);
 	let this vthis = match vthis with
 		| VInstance {ikind = IObjectMap h} -> Obj.magic h
 		| v -> unexpected_value v "object map"
 	in
-	init_fields builtins (["haxe";"ds"],"ObjectMap") [] (StdObjectMap.map_fields (fun v -> v) (fun v -> v) (fun s -> s_value 0 s) this)
+    init_fields builtins (["haxe";"ds"],"ObjectMap") [] (StdObjectMap.map_fields (fun v -> v) (fun v -> v) (fun s -> s_value 0 s) (fun i -> encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic i))) this)
 
 let init_constructors builtins =
 	let add = Hashtbl.add builtins.constructor_builtins in
