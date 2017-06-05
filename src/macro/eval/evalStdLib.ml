@@ -2660,7 +2660,7 @@ let init_constructors builtins =
 					| VArray va -> Some (Array.map decode_string va.avalues)
 					| _ -> unexpected_value args "array"
 				in
-				encode_instance key_sys_io__Process_NativeProcess ~kind:(IProcess (Process.run cmd args))
+				encode_instance key_sys_io__Process_NativeProcess ~kind:(IProcess (try Process.run cmd args with Failure msg -> exc_string msg))
 			| _ -> assert false
 		);
 	add key_sys_net__Socket_NativeSocket
