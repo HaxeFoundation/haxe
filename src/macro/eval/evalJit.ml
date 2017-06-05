@@ -81,8 +81,6 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 			| FStatic({cl_path=path},_) | FEnum({e_path=path},_) ->
 				let proto = get_static_prototype jit.ctx (path_hash path) e1.epos in
 				emit_proto_field_write proto (get_proto_field_index proto name) exec2
-			| FInstance({cl_path=([],"Array")},_,{cf_name="length"}) ->
-				emit_array_length_write exec1 exec2
 			| FInstance(c,_,_) when not c.cl_interface ->
 				let proto = get_instance_prototype jit.ctx (path_hash c.cl_path) e1.epos in
 				let i = get_instance_field_index proto name in
@@ -373,10 +371,10 @@ and jit_expr jit return e =
 		let exec1 = jit_expr jit false eto in
 		let exec2 = jit_expr jit false e2 in
 		begin match !has_break,!has_continue with
-			| false,false -> emit_int_iterator slot exec1 exec2
-			| true,false -> emit_int_iterator_break slot exec1 exec2
-			| false,true -> emit_int_iterator_continue slot exec1 exec2
-			| true,true -> emit_int_iterator_break_continue slot exec1 exec2
+			| false,false -> emit_int_iterator slot exec1 exec2 pv eto.epos
+			| true,false -> emit_int_iterator_break slot exec1 exec2 pv eto.epos
+			| false,true -> emit_int_iterator_continue slot exec1 exec2 pv eto.epos
+			| true,true -> emit_int_iterator_break_continue slot exec1 exec2 pv eto.epos
 		end
 	| TWhile(e1,e2,flag) ->
 		let has_break = ref false in
@@ -649,7 +647,7 @@ and jit_expr jit return e =
 				emit_new_vector_int (Int32.to_int i32)
 			| _ ->
 				let exec1 = jit_expr jit false e1 in
-				emit_new_vector exec1
+				emit_new_vector exec1 e1.epos
 		end
 	| TNew(c,_,el) ->
 		let execs = List.map (jit_expr jit false) el in
@@ -707,20 +705,20 @@ and jit_expr jit return e =
 			| TInst({cl_path=(["eval"],"Vector")}, _) ->
 				begin match e1.eexpr with
 					| TLocal var when not var.v_capture ->
-						emit_vector_local_read (get_slot jit var.v_id e1.epos) (jit_expr jit false e2)
+						emit_vector_local_read (get_slot jit var.v_id e1.epos) (jit_expr jit false e2) e2.epos
 					| _ ->
 						let exec1 = jit_expr jit false e1 in
 						let exec2 = jit_expr jit false e2 in
-						emit_vector_read exec1 exec2
+						emit_vector_read exec1 exec2 e2.epos
 				end
 			| _ ->
 				begin match e1.eexpr with
 					| TLocal var when not var.v_capture ->
-						emit_array_local_read (get_slot jit var.v_id e1.epos) (jit_expr jit false e2)
+						emit_array_local_read (get_slot jit var.v_id e1.epos) (jit_expr jit false e2) e2.epos
 					| _ ->
 						let exec1 = jit_expr jit false e1 in
 						let exec2 = jit_expr jit false e2 in
-						emit_array_read exec1 exec2
+						emit_array_read exec1 exec2 e2.epos
 				end
 		end
 	| TEnumParameter(e1,_,i) ->

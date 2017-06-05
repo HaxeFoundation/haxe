@@ -48,6 +48,11 @@ let unexpected_value_p v s p =
 let cannot_call v p =
 	throw (encode_string ("Cannot call " ^ (value_string v))) p
 
+let decode_int_p v p = match v with
+	| VInt32 i -> Int32.to_int i
+	| VFloat f -> int_of_float f
+	| _ -> unexpected_value_p v "int" p
+
 (* Emitter *)
 
 let apply env exec =
@@ -73,8 +78,8 @@ let emit_new_array env =
 let emit_new_vector_int i env =
 	encode_vector_instance (Array.make i vnull)
 
-let emit_new_vector exec env =
-	encode_vector_instance (Array.make (decode_int (exec env)) vnull)
+let emit_new_vector exec p env =
+	encode_vector_instance (Array.make (decode_int_p (exec env) p) vnull)
 
 let emit_special_instance f execs env =
 	let vl = List.map (apply env) execs in
@@ -206,27 +211,27 @@ let emit_switch exec execs patterns exec_def env =
 	in
 	loop v1 0
 
-let emit_int_iterator slot exec1 exec2 env =
-	let i1 = decode_int (env.env_locals.(slot)) in
-	let i2 = decode_int (exec1 env) in
+let emit_int_iterator slot exec1 exec2 p1 p2 env =
+	let i1 = decode_int_p (env.env_locals.(slot)) p1 in
+	let i2 = decode_int_p (exec1 env) p2 in
 	for i = i1 to i2 - 1 do
 		env.env_locals.(slot) <- vint i;
 		ignore(exec2 env);
 	done;
 	vnull
 
-let emit_int_iterator_continue slot exec1 exec2 env =
-	let i1 = decode_int (env.env_locals.(slot)) in
-	let i2 = decode_int (exec1 env) in
+let emit_int_iterator_continue slot exec1 exec2 p1 p2 env =
+	let i1 = decode_int_p (env.env_locals.(slot)) p1 in
+	let i2 = decode_int_p (exec1 env) p2 in
 	for i = i1 to i2 - 1 do
 		env.env_locals.(slot) <- vint i;
 		(try ignore(exec2 env) with Continue -> ())
 	done;
 	vnull
 
-let emit_int_iterator_break slot exec1 exec2 env =
-	let i1 = decode_int (env.env_locals.(slot)) in
-	let i2 = decode_int (exec1 env) in
+let emit_int_iterator_break slot exec1 exec2 p1 p2 env =
+	let i1 = decode_int_p (env.env_locals.(slot)) p1 in
+	let i2 = decode_int_p (exec1 env) p2 in
 	begin try
 		for i = i1 to i2 - 1 do
 			env.env_locals.(slot) <- vint i;
@@ -237,9 +242,9 @@ let emit_int_iterator_break slot exec1 exec2 env =
 	end;
 	vnull
 
-let emit_int_iterator_break_continue slot exec1 exec2 env =
-	let i1 = decode_int (env.env_locals.(slot)) in
-	let i2 = decode_int (exec1 env) in
+let emit_int_iterator_break_continue slot exec1 exec2 p1 p2 env =
+	let i1 = decode_int_p (env.env_locals.(slot)) p1 in
+	let i2 = decode_int_p (exec1 env) p1 in
 	begin try
 		for i = i1 to i2 - 1 do
 			env.env_locals.(slot) <- vint i;
@@ -864,31 +869,31 @@ let emit_field_read exec name p env = match exec env with
 	| VNull -> throw_string "field access on null" p
 	| v -> field v name
 
-let emit_array_local_read i exec2 env =
+let emit_array_local_read i exec2 p env =
 	let va = env.env_locals.(i) in
 	let vi = exec2 env in
-	let i = decode_int vi in
+	let i = decode_int_p vi p in
 	if i < 0 then vnull
 	else EvalArray.get (decode_varray va) i
 
-let emit_array_read exec1 exec2 env =
+let emit_array_read exec1 exec2 p env =
 	let va = exec1 env in
 	let vi = exec2 env in
-	let i = decode_int vi in
+	let i = decode_int_p vi p in
 	if i < 0 then vnull
 	else EvalArray.get (decode_varray va) i
 
-let emit_vector_local_read i exec2 env =
+let emit_vector_local_read i exec2 p env =
 	let vv = env.env_locals.(i) in
 	let vi = exec2 env in
-	let i = decode_int vi in
+	let i = decode_int_p vi p in
 	if i < 0 then vnull
 	else Array.unsafe_get (decode_vector vv) i
 
-let emit_vector_read exec1 exec2 env =
+let emit_vector_read exec1 exec2 p env =
 	let vv = exec1 env in
 	let vi = exec2 env in
-	let i = decode_int vi in
+	let i = decode_int_p vi p in
 	if i < 0 then vnull
 	else Array.unsafe_get (decode_vector vv) i
 
@@ -902,7 +907,7 @@ let emit_enum_parameter_read exec i env = match exec env with
 
 let emit_string_cca exec1 exec2 p env =
 	let s = decode_string (exec1 env) in
-	let index = decode_int (exec2 env) in
+	let index = decode_int_p (exec2 env) p in
 	if index >= String.length s then vnull
 	else vint (int_of_char s.[index])
 
@@ -922,12 +927,6 @@ let emit_proto_field_write proto i exec2 env =
 	let v = exec2 env in
 	proto.pfields.(i) <- v;
 	v
-
-let emit_array_length_write exec1 exec2 env =
-	let va = exec1 env in
-	let v2 = exec2 env in
-	EvalArray.set_length (decode_varray va) (decode_int v2);
-	v2
 
 let emit_instance_field_write exec1 i exec2 env = match exec1 env with
 	| VInstance vi ->
@@ -960,7 +959,7 @@ let emit_array_local_write i exec2 exec3 p env =
 	let va = env.env_locals.(i) in
 	let vi = exec2 env in
 	let v3 = exec3 env in
-	let i = decode_int vi in
+	let i = decode_int_p vi p in
 	if i < 0 then throw_string (Printf.sprintf "Negative array index: %i" i) p;
 	EvalArray.set (decode_varray va) i v3;
 	v3
@@ -969,7 +968,7 @@ let emit_array_write exec1 exec2 exec3 p env =
 	let va = exec1 env in
 	let vi = exec2 env in
 	let v3 = exec3 env in
-	let i = decode_int vi in
+	let i = decode_int_p vi p in
 	if i < 0 then throw_string (Printf.sprintf "Negative array index: %i" i) p;
 	EvalArray.set (decode_varray va) i v3;
 	v3
@@ -978,7 +977,7 @@ let emit_vector_local_write i exec2 exec3 p env =
 	let vv = env.env_locals.(i) in
 	let vi = exec2 env in
 	let v3 = exec3 env in
-	let i = decode_int vi in
+	let i = decode_int_p vi p in
 	if i < 0 then throw_string (Printf.sprintf "Negative vector index: %i" i) p;
 	Array.unsafe_set (decode_vector vv) i v3;
 	v3
@@ -987,7 +986,7 @@ let emit_vector_write exec1 exec2 exec3 p env =
 	let vv = exec1 env in
 	let vi = exec2 env in
 	let v3 = exec3 env in
-	let i = decode_int vi in
+	let i = decode_int_p vi p in
 	if i < 0 then throw_string (Printf.sprintf "Negative vector index: %i" i) p;
 	Array.unsafe_set (decode_vector vv) i v3;
 	v3
@@ -1096,7 +1095,7 @@ let emit_array_local_read_write i exec2 exec3 fop prefix p env =
 	let va1 = env.env_locals.(i) in
 	let va2 = exec2 env in
 	let va = decode_varray va1 in
-	let i = decode_int va2 in
+	let i = decode_int_p va2 p in
 	if i < 0 then throw_string (Printf.sprintf "Negative array index: %i" i) p;
 	let v = EvalArray.get va i in
 	let v2 = exec3 env in
@@ -1108,7 +1107,7 @@ let emit_array_read_write exec1 exec2 exec3 fop prefix p env =
 	let va1 = exec1 env in
 	let va2 = exec2 env in
 	let va = decode_varray va1 in
-	let i = decode_int va2 in
+	let i = decode_int_p va2 p in
 	if i < 0 then throw_string (Printf.sprintf "Negative array index: %i" i) p;
 	let v = EvalArray.get va i in
 	let v2 = exec3 env in
@@ -1120,7 +1119,7 @@ let emit_vector_local_read_write i exec2 exec3 fop prefix p env =
 	let va1 = env.env_locals.(i) in
 	let va2 = exec2 env in
 	let va = decode_vector va1 in
-	let i = decode_int va2 in
+	let i = decode_int_p va2 p in
 	if i < 0 then throw_string (Printf.sprintf "Negative vector index: %i" i) p;
 	let v = Array.unsafe_get va i in
 	let v2 = exec3 env in
@@ -1132,7 +1131,7 @@ let emit_vector_read_write exec1 exec2 exec3 fop prefix p env =
 	let va1 = exec1 env in
 	let va2 = exec2 env in
 	let va = decode_vector va1 in
-	let i = decode_int va2 in
+	let i = decode_int_p va2 p in
 	if i < 0 then throw_string (Printf.sprintf "Negative vector index: %i" i) p;
 	let v = Array.unsafe_get va i in
 	let v2 = exec3 env in
