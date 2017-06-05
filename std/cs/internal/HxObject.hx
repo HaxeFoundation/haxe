@@ -86,10 +86,10 @@ class DynamicObject extends HxObject implements Dynamic
 @:meta(System.Serializable)
 #end
 class HxEnum {
-	@:readOnly var index(default,never):Int;
+	@:readOnly var _hx_index(default,never):Int;
 
 	@:protected function new(index:Int) {
-		untyped this.index = index;
+		untyped this._hx_index = index;
 	}
 
 	public function getTag():String {
