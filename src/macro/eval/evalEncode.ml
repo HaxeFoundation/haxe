@@ -126,8 +126,14 @@ let encode_rope s =
 let encode_bytes s =
 	encode_instance key_haxe_io_Bytes ~kind:(IBytes s)
 
+let encode_int_map_direct h =
+	encode_instance key_haxe_ds_IntMap ~kind:(IIntMap h)
+	
 let encode_string_map_direct h =
 	encode_instance key_haxe_ds_StringMap ~kind:(IStringMap h)
+	
+let encode_object_map_direct h =
+	encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic h))
 
 let encode_string_map convert m =
 	let h = StringHashtbl.create 0 in

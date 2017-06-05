@@ -2598,17 +2598,17 @@ let init_maps builtins =
 		| VInstance {ikind = IIntMap h} -> h
 		| v -> unexpected_value v "int map"
 	in
-	init_fields builtins (["haxe";"ds"],"IntMap") [] (StdIntMap.map_fields vint decode_int (fun i -> Rope.of_string (string_of_int i)) (fun i -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (i))) this);
+	init_fields builtins (["haxe";"ds"],"IntMap") [] (StdIntMap.map_fields vint decode_int (fun i -> Rope.of_string (string_of_int i)) encode_int_map_direct this);
 	let this vthis = match vthis with
 		| VInstance {ikind = IStringMap h} -> h
 		| v -> unexpected_value v "string map"
 	in
-	init_fields builtins (["haxe";"ds"],"StringMap") [] (StdStringMap.map_fields vstring_direct decode_rope_string (fun (r,_) -> r) (fun i -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (i))) this);
+	init_fields builtins (["haxe";"ds"],"StringMap") [] (StdStringMap.map_fields vstring_direct decode_rope_string (fun (r,_) -> r) encode_string_map_direct this);
 	let this vthis = match vthis with
 		| VInstance {ikind = IObjectMap h} -> Obj.magic h
 		| v -> unexpected_value v "object map"
 	in
-    init_fields builtins (["haxe";"ds"],"ObjectMap") [] (StdObjectMap.map_fields (fun v -> v) (fun v -> v) (fun s -> s_value 0 s) (fun i -> encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic i))) this)
+    init_fields builtins (["haxe";"ds"],"ObjectMap") [] (StdObjectMap.map_fields (fun v -> v) (fun v -> v) (fun s -> s_value 0 s) encode_object_map_direct this)
 
 let init_constructors builtins =
 	let add = Hashtbl.add builtins.constructor_builtins in
