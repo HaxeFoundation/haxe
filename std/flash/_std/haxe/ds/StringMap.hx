@@ -111,6 +111,12 @@ package haxe.ds;
 	}
 
 	#end
+	
+	public function copy() : StringMap<T> {
+		var copied = new StringMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	public function toString() : String {
 		var s = new StringBuf();

@@ -124,6 +124,12 @@ private class StringMapIterator<T> {
 	public inline function iterator() : Iterator<T> {
 		return new StringMapIterator(this, arrayKeys());
 	}
+	
+	public function copy() : StringMap<T> {
+		var copied = new StringMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	public function toString() : String {
 		var s = new StringBuf();

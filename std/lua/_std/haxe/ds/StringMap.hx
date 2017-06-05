@@ -75,6 +75,12 @@ class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 			next : function() return untyped __lua__("{0}[{1}]", v, it.next())
 		};
 	}
+	
+	public function copy() : StringMap<T> {
+		var copied = new StringMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	public function toString() : String {
 		var s = new StringBuf();

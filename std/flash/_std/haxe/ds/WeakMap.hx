@@ -69,6 +69,12 @@ class WeakMap<K:{},V> extends flash.utils.Dictionary implements haxe.Constraints
 	}
 
 	#end
+	
+	public function copy() : WeakMap<K,V> {
+		var copied = new WeakMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	public function toString() : String {
 		var s = "";

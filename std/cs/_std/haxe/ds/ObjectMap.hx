@@ -392,6 +392,12 @@ import cs.NativeArray;
 	{
 		return new ObjectMapValueIterator(this);
 	}
+	
+	public function copy() : ObjectMap<K,V> {
+		var copied = new ObjectMap<K, V>();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	/**
 		Returns an displayable representation of the hashtable content.

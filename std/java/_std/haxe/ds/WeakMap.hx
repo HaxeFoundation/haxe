@@ -447,6 +447,13 @@ import java.lang.ref.ReferenceQueue;
 			}
 		};
 	}
+	
+	
+	public function copy() : WeakMap<K,V> {
+		var copied = new WeakMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	/**
 		Returns an displayable representation of the hashtable content.
