@@ -81,14 +81,19 @@ let insert a pos x =
 
 let iterator a =
 	let i = ref 0 in
-	let length = a.alength in
+	let a = Array.sub a.avalues 0 a.alength in
+	let length = Array.length a in
 	(fun () ->
 		!i < length
 	),
 	(fun () ->
-		let v = get a !i in
-		incr i;
-		v
+		if !i >= length then
+			vnull
+		else begin
+			let v = a.(!i) in
+			incr i;
+			v
+		end
 	)
 
 let join a f sep =
