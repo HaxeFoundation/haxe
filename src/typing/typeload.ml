@@ -248,7 +248,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	with
 		| Sedlexing.MalFormed ->
 			t();
-			error "Malformed file" p
+			error "Malformed file. Source files must be encoded with UTF-8." {pfile = file; pmin = 0; pmax = 0}
 		| e ->
 			t();
 			raise e
