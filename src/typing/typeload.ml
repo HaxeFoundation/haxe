@@ -243,7 +243,16 @@ let parse_file_from_lexbuf com file p lexbuf =
 	let t = Common.timer ["parsing"] in
 	Lexer.init file true;
 	incr stats.s_files_parsed;
-	let data = (try Parser.parse com lexbuf with e -> t(); raise e) in
+	let data = try
+		Parser.parse com lexbuf
+	with
+		| Sedlexing.MalFormed ->
+			t();
+			error "Malformed file" p
+		| e ->
+			t();
+			raise e
+	in
 	begin match !display_default with
 		| DMModuleSymbols filter when filter <> None || Display.is_display_file file ->
 			let ds = Display.DocumentSymbols.collect_module_symbols data in
