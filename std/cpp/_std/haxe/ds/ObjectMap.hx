@@ -91,4 +91,16 @@ class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K,V> {
 	public function toString() : String {
 		return untyped __global__.__object_hash_to_string(h);
 	}
+
+   #if (scriptable)
+   private function setString(key:Dynamic,val:String) : Void { untyped __object_hash_set_string(h,key,val); }
+   private function setInt(key:Dynamic,val:Int) : Void { untyped __object_hash_set_int(h,key,val); }
+   private function setBool(key:Dynamic,val:Bool) : Void { untyped __object_hash_set_int(h,key,val); }
+   private function setFloat(key:Dynamic,val:Float) : Void { untyped __object_hash_set_float(h,key,val); }
+
+   private function getString(key:Dynamic) : String { return untyped __object_hash_get_string(h,key); }
+   private function getInt(key:Dynamic) : Int { return untyped __object_hash_get_int(h,key); }
+   private function getBool(key:Dynamic) : Bool { return untyped __object_hash_get_bool(h,key); }
+   private function getFloat(key:Dynamic) : Float { return untyped __object_hash_get_float(h,key); }
+   #end
 }

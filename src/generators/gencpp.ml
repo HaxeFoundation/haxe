@@ -2246,6 +2246,16 @@ let is_map_get_call obj member =
    )
 ;;
 
+let is_map_set_call obj member =
+   member.cf_name="set" &&
+   (match obj.cpptype  with
+   | TCppInst({cl_path=(["haxe";"ds"],"IntMap")}) -> true
+   | TCppInst({cl_path=(["haxe";"ds"],"StringMap")}) -> true
+   | TCppInst({cl_path=(["haxe";"ds"],"ObjectMap")}) -> true
+   | _ -> false
+   )
+;;
+
 
 
 let is_array_concat_call obj member =
@@ -2689,13 +2699,13 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   | _ -> abort "First parameter of template function must be a Class" retypedFunc.cpppos
                   )
 
-               | CppFunction( FuncInstance(obj, InstPtr, member), _ ) when not forCppia && is_map_get_call obj member ->
+               | CppFunction( FuncInstance(obj, InstPtr, member), _ ) when is_map_get_call obj member ->
                   let retypedArgs = List.map (retype TCppDynamic ) args in
                   let fname, cppType = match return_type with
-                  | TCppVoid | TCppScalar("bool")  -> "get_bool", return_type
-                  | TCppScalar("int")  -> "get_int", return_type
-                  | TCppScalar("Float")  -> "get_float", return_type
-                  | TCppString  -> "get_string", return_type
+                  | TCppVoid | TCppScalar("bool")  -> (if forCppia then "getBool" else "get_bool"), return_type
+                  | TCppScalar("int")  -> (if forCppia then "getInt" else "get_int"), return_type
+                  | TCppScalar("Float")  -> (if forCppia then "getFloat" else "get_float"), return_type
+                  | TCppString  -> (if forCppia then "getString" else "get_string"), return_type
                   | _ -> "get", TCppDynamic
                   in
                   let func = FuncInstance(obj, InstPtr, {member with cf_name=fname}) in
@@ -2706,6 +2716,19 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   end else
                   *)
                      CppCall( func, retypedArgs), cppType
+
+
+               | CppFunction( FuncInstance(obj, InstPtr, member), _ ) when forCppia && is_map_set_call obj member ->
+                  let retypedArgs = List.map (retype TCppDynamic ) args in
+                  let fname = match retypedArgs with
+                  | [_;{cpptype=TCppScalar("bool")}]  -> "setBool"
+                  | [_;{cpptype=TCppScalar("int")}]  -> "setInt"
+                  | [_;{cpptype=TCppScalar("Float")}]  -> "setFloat"
+                  | [_;{cpptype=TCppString}]  -> "setString"
+                  | _ -> "set"
+                  in
+                  let func = FuncInstance(obj, InstPtr, {member with cf_name=fname}) in
+                  CppCall( func, retypedArgs), cppType
 
 
                | CppFunction( FuncInstance(obj,InstPtr,member) as func, returnType ) when cpp_can_static_cast returnType cppType ->

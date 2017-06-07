@@ -91,4 +91,16 @@ package haxe.ds;
 	public function toString() : String {
 		return untyped __global__.__string_hash_to_string(h);
 	}
+
+   #if (scriptable)
+   private function setString(key:String,val:String) : Void { untyped __string_hash_set_string(h,key,val); }
+   private function setInt(key:String,val:Int) : Void { untyped __string_hash_set_int(h,key,val); }
+   private function setBool(key:String,val:Bool) : Void { untyped __string_hash_set_int(h,key,val); }
+   private function setFloat(key:String,val:Float) : Void { untyped __string_hash_set_float(h,key,val); }
+
+   private function getString(key:String) : String { return untyped __string_hash_get_string(h,key); }
+   private function getInt(key:String) : Int { return untyped __string_hash_get_int(h,key); }
+   private function getBool(key:String) : Bool { return untyped __string_hash_get_bool(h,key); }
+   private function getFloat(key:String) : Float { return untyped __string_hash_get_float(h,key); }
+   #end
 }
