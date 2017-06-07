@@ -104,6 +104,7 @@ import cpp.NativeSys;
 	}
 
 	public static function exit( code : Int ) : Void {
+		unloadAllLibraries();
 		untyped __global__.__hxcpp_exit(code);
 	}
 
