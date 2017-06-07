@@ -267,7 +267,9 @@ class Http {
 				s = null;
 			if( s != null )
 				me.onStatus(s);
-			if( s != null && s >= 200 && s < 400 ) {
+			// Accept a 0 status - this is what you get when loading from a
+			// local filesystem instead of a web browser
+			if (s != null && ((s == 0) || (s >= 200 && s < 400))) {
 				me.req = null;
 				me.onData(me.responseData = r.responseText);
 			}
