@@ -496,7 +496,7 @@ let inline_constructors ctx e =
 					loop (el'@acc) el
 			in
 			let el, io = loop [] el in
-			let el = if unwrap_block then el else [mk (TBlock (List.rev el)) e.etype e.epos] in
+			let el = if unwrap_block || Option.is_some io then el else [mk (TBlock (List.rev el)) e.etype e.epos] in
 			el, io
 		| TMeta((Meta.InlineConstructorArgument (_,io_id_start),_,_),e) ->
 			let old_io_id = !current_io_id in
