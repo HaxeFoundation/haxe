@@ -174,6 +174,10 @@ class Boot {
 						return true;
 					if( __interfLoop(getClass(o),cl) )
 						return true;
+				} else if( 	(untyped __js__("typeof"))(cl) == "object" &&
+							(untyped __js__("typeof"))(o) != "string" &&
+							(untyped __js__("(/^\\[object .*?Element.*?\\]$/).test(cl)")) ) {
+					return untyped __js__("o instanceof cl");
 				}
 				else if ( js.Lib.typeof(cl) == "object" && __isNativeObj(cl) ) {
 					if( untyped __js__("o instanceof cl") )
