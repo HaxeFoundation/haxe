@@ -472,10 +472,10 @@ and gen_loop ctx label cond e =
     let old_handle_continue = ctx.handle_continue in
     let will_continue = has_continue e in
     ctx.handle_continue <- has_continue e;
+    ctx.break_depth <- ctx.break_depth + 1;
     if will_continue then begin
         println ctx "local _hx_continue_%i = false;" ctx.break_depth;
     end;
-    ctx.break_depth <- ctx.break_depth + 1;
     print ctx "%s " label;
     gen_cond ctx cond;
     print ctx " do ";
