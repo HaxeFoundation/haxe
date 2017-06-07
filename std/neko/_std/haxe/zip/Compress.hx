@@ -31,15 +31,21 @@ class Compress {
 	}
 
 	public function execute( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
-		return _deflate_buffer(s,src.getData(),srcPos,dst.getData(),dstPos);
+		if( s != null ) {
+			return _deflate_buffer(s,src.getData(),srcPos,dst.getData(),dstPos);
+		}
 	}
 
 	public function setFlushMode( f : FlushMode ) : Void {
-		_set_flush_mode(s,untyped Std.string(f).__s);
+		if( s != null ) {
+			_set_flush_mode(s,untyped Std.string(f).__s);
+		}
+		return { done : true, read : 0, write : 0 };
 	}
 
 	public function close() : Void {
 		_deflate_end(s);
+		s = null;
 	}
 
 	public static function run( s : haxe.io.Bytes, level : Int ) : haxe.io.Bytes {
