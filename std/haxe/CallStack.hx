@@ -264,7 +264,11 @@ class CallStack {
 			if( s != null ) b.add(")");
 		case Method(cname,meth):
 			b.add(cname);
-			b.add(".");
+			#if (cpp || php)
+				b.add("::");
+			#else
+				b.add(".");
+			#end
 			b.add(meth);
 		case LocalFunction(n):
 			b.add("local function #");
