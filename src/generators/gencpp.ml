@@ -2236,6 +2236,17 @@ let is_array_splice_call obj member =
    | _,_ -> false
 ;;
 
+let is_map_get_call obj member =
+   member.cf_name="get" &&
+   (match obj.cpptype  with
+   | TCppInst({cl_path=(["haxe";"ds"],"IntMap")}) -> true
+   | TCppInst({cl_path=(["haxe";"ds"],"StringMap")}) -> true
+   | TCppInst({cl_path=(["haxe";"ds"],"ObjectMap")}) -> true
+   | _ -> false
+   )
+;;
+
+
 
 let is_array_concat_call obj member =
    match obj.cpptype, member.cf_name with
@@ -2677,6 +2688,25 @@ let retype_expression ctx request_type function_args function_type expression_tr
                       CppCall( FuncTemplate(obj,member,path,native), rest), returnType
                   | _ -> abort "First parameter of template function must be a Class" retypedFunc.cpppos
                   )
+
+               | CppFunction( FuncInstance(obj, InstPtr, member), _ ) when not forCppia && is_map_get_call obj member ->
+                  let retypedArgs = List.map (retype TCppDynamic ) args in
+                  let fname, cppType = match return_type with
+                  | TCppVoid | TCppScalar("bool")  -> "get_bool", return_type
+                  | TCppScalar("int")  -> "get_int", return_type
+                  | TCppScalar("Float")  -> "get_float", return_type
+                  | TCppString  -> "get_string", return_type
+                  | _ -> "get", TCppDynamic
+                  in
+                  let func = FuncInstance(obj, InstPtr, {member with cf_name=fname}) in
+                  (*
+                  if  cpp_can_static_cast cppType return_type then begin
+                     let call = mk_cppexpr (CppCall(func,retypedArgs)) cppType in
+                     CppCastStatic(call, cppType), cppType
+                  end else
+                  *)
+                     CppCall( func, retypedArgs), cppType
+
 
                | CppFunction( FuncInstance(obj,InstPtr,member) as func, returnType ) when cpp_can_static_cast returnType cppType ->
                   let retypedArgs = List.map (retype TCppDynamic ) args in

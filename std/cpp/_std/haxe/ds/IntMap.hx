@@ -44,6 +44,11 @@ package haxe.ds;
 
   template<typename VALUE>
   inline void set(Dynamic &key, const VALUE &value) { set( (int)key, value ); }
+
+  inline bool get_bool(int key) { return __int_hash_get_bool(h,key); }
+  inline int get_int(int key) { return __int_hash_get_int(h,key); }
+  inline Float get_float(int key) { return __int_hash_get_float(h,key); }
+  inline String get_string(int key) { return __int_hash_get_string(h,key); }
 ")
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 
