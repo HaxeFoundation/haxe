@@ -473,7 +473,7 @@ and gen_loop ctx label cond e =
     let will_continue = has_continue e in
     ctx.handle_continue <- has_continue e;
     if will_continue then begin
-        println ctx "_hx_continue_%i = false;" ctx.break_depth;
+        println ctx "local _hx_continue_%i = false;" ctx.break_depth;
     end;
     ctx.break_depth <- ctx.break_depth + 1;
     print ctx "%s " label;
@@ -2064,7 +2064,8 @@ let generate com =
 	| None -> ()
 	| Some e -> gen_expr ctx e; newline ctx);
 
-	println ctx "return _hx_exports";
+        if anyExposed then
+            println ctx "return _hx_exports";
 
 	let ch = open_out_bin com.file in
 	output_string ch (Buffer.contents ctx.buf);
