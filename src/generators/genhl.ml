@@ -487,14 +487,25 @@ and real_type ctx e =
 		match e.eexpr with
 		| TField (_,f) ->
 			let ft = field_type ctx f e.epos in
-			(*
-				Handle function variance:
-				If we have type parameters which are function types, we need to keep the functions
-				because we might need to insert a cast to coerce Void->Bool to Void->Dynamic for instance.
-			*)
 			(match ft, e.etype with
 			| TFun (args,ret), TFun (args2,_) ->
-				TFun (List.map2 (fun ((_,_,t) as a) ((_,_,t2) as a2) -> match t, t2 with TInst ({cl_kind=KTypeParameter _},_), TFun _ -> a2 | _ -> a) args args2, ret)
+				TFun (List.map2 (fun ((name,opt,t) as a) ((_,_,t2) as a2) ->
+					match t, t2 with
+					(*
+						Handle function variance:
+						If we have type parameters which are function types, we need to keep the functions
+						because we might need to insert a cast to coerce Void->Bool to Void->Dynamic for instance.
+					*)
+					| TInst ({cl_kind=KTypeParameter _},_), TFun _ -> a2
+					(*
+						If we have a number, it is more accurate to cast it to the type parameter before wrapping it as dynamic
+					*)
+					| TInst ({cl_kind=KTypeParameter _},_), t when is_number (to_type ctx t) ->
+						let tnull = { t_path = [],"Null"; t_module = null_module; t_pos = null_pos; t_name_pos = null_pos; t_private = false; t_doc = None; t_meta = []; t_params = ["T",t_dynamic]; t_type = t_dynamic } in
+						(name, opt, TType (tnull,[t]))
+					| _ ->
+						a
+				) args args2, ret)
 			| _ -> ft)
 		| TLocal v -> v.v_type
 		| TParenthesis e -> loop e
