@@ -74,7 +74,20 @@ class Boot {
 				t = "object";
 			switch( t ) {
 			case "object":
+				#if js_enums_as_objects
+				if (o.__enum__) {
+					var n = o.__enum__.__constructs__[o._hx_index];
+					if (o.__enum__[n].__params__) {
+						s += "\t";
+						return n + "(" +
+							[for (p in (o.__enum__[n].__params__:Array<String>)) __string_rec(o[p],s)].join(",") + ")";
+					} else {
+						return n;
+					}
+				}
+				#end
 				if( __js__("o instanceof Array") ) {
+					#if !js_enums_as_objects
 					if( o.__enum__ ) {
 						if( o.length == 2 )
 							return o[0];
@@ -88,6 +101,7 @@ class Boot {
 						}
 						return str + ")";
 					}
+					#end
 					var l = o.length;
 					var i;
 					var str = "[";

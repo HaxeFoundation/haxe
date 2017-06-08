@@ -203,14 +203,25 @@ enum ValueType {
 		if( a == b )
 			return true;
 		try {
+			#if !js_enums_as_objects
 			if( a[0] != b[0] )
 				return false;
 			for( i in 2...a.length )
 				if( !enumEq(a[i],b[i]) )
 					return false;
+			#else
+			if (a._hx_index != b._hx_index)
+				return false;
+			for (f in Reflect.fields(a)){
+				if ( !enumEq(a[f],b[f]) ){
+					return false;
+				}
+			}
+			#end
 			var e = a.__enum__;
 			if( e != b.__enum__ || e == null )
 				return false;
+
 		} catch( e : Dynamic ) {
 			return false;
 		}
@@ -218,15 +229,29 @@ enum ValueType {
 	}
 
 	public inline static function enumConstructor( e : EnumValue ) : String {
+		#if !js_enums_as_objects
 		return untyped e[0];
+		#else
+		return untyped e.__enum__.__constructs__[e._hx_index];
+		#end
 	}
 
 	public inline static function enumParameters( e : EnumValue ) : Array<Dynamic> {
+		#if !js_enums_as_objects
 		return untyped e.slice(2);
+		#else
+		var n = enumConstructor(e);
+		return untyped e.__enum__[n].__params__ ?
+			[for (p in (e.__enum__[n].__params__:Array<String>)) e[p]] : [];
+		#end
 	}
 
 	public inline static function enumIndex( e : EnumValue ) : Int {
+	    #if js_enums_as_objects
+		return untyped e._hx_index;
+		#else
 		return untyped e[1];
+		#end
 	}
 
 	public inline static function allEnums<T>( e : Enum<T> ) : Array<T> {

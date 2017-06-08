@@ -494,10 +494,14 @@ and gen_expr ctx e =
 			print ctx ",$bind($_,$_%s))" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name)))
 	| TEnumIndex x ->
 		gen_value ctx x;
-		print ctx "[1]"
-	| TEnumParameter (x,_,i) ->
+		print ctx "._hx_index"
+	| TEnumParameter (x,f,i) ->
 		gen_value ctx x;
-		print ctx "[%i]" (i + 2)
+		if Common.defined ctx.com Define.JsEnumsAsObjects then
+			let fname = (match f.ef_type with TFun((args,_)) -> let fname,_,_ = List.nth args i in  fname | _ -> assert false ) in
+			print ctx ".%s" (fname)
+		else
+			print ctx "[%i]" (i + 2)
 	| TField (_, FStatic ({cl_path = [],""},f)) ->
 		spr ctx f.cf_name;
 	| TField (x, (FInstance(_,_,f) | FStatic(_,f) | FAnon(f))) when Meta.has Meta.SelfCall f.cf_meta ->
@@ -1148,20 +1152,33 @@ let generate_enum ctx e =
 	if has_feature ctx "js.Boot.isEnum" then print ctx " __ename__ : %s," (if has_feature ctx "Type.getEnumName" then "[" ^ String.concat "," ename ^ "]" else "true");
 	print ctx " __constructs__ : [%s] }" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
 	ctx.separator <- true;
+	let as_objects = Common.defined ctx.com Define.JsEnumsAsObjects in
 	newline ctx;
 	List.iter (fun n ->
 		let f = PMap.find n e.e_constrs in
 		print ctx "%s%s = " p (field f.ef_name);
 		(match f.ef_type with
 		| TFun (args,_) ->
-			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in
-			print ctx "function(%s) { var $x = [\"%s\",%d,%s]; $x.__enum__ = %s;" sargs f.ef_name f.ef_index sargs p;
+			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in begin
+			if as_objects then
+				let sfields = String.concat "," (List.map (fun (n,_,_) -> (ident n) ^ ":" ^ (ident n) ) args) in
+				print ctx "function(%s) { var $x = {_hx_index:%d,%s,__enum__:%s};" sargs f.ef_index sfields p;
+			else
+				print ctx "function(%s) { var $x = [\"%s\",%d,%s]; $x.__enum__ = %s;" sargs f.ef_name f.ef_index sargs p;
+			end;
 			if has_feature ctx "has_enum" then
 				spr ctx " $x.toString = $estr;";
 			spr ctx " return $x; }";
+			if as_objects then
+				let sparams = String.concat "," (List.map (fun (n,_,_) -> "\"" ^ (ident n) ^ "\"" ) args) in
+				newline ctx;
+			    print ctx "%s%s.__params__ = [%s];" p (field f.ef_name) sparams;
 			ctx.separator <- true;
 		| _ ->
-			print ctx "[\"%s\",%d]" f.ef_name f.ef_index;
+			if as_objects then
+				print ctx "{_hx_index:%d};" f.ef_index
+			else
+				print ctx "[\"%s\",%d]" f.ef_name f.ef_index;
 			newline ctx;
 			if has_feature ctx "has_enum" then begin
 				print ctx "%s%s.toString = $estr" p (field f.ef_name);

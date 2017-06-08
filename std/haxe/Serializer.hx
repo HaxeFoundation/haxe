@@ -501,6 +501,16 @@ class Serializer {
 				buf.add("0");
 			}
 
+			#elseif js_enums_as_objects
+			if( useEnumIndex ) {
+				buf.add(":");
+				buf.add(v._hx_index);
+			} else
+				serializeString(Type.enumConstructor(v));
+			buf.add(":");
+			var params = Type.enumParameters(v);
+			buf.add(params.length);
+			for(p in params) serialize(p);
 			#else
 			if( useEnumIndex ) {
 				buf.add(":");
