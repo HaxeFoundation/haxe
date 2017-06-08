@@ -41,8 +41,11 @@ class String {
 		else return null;
 	}
 
-	public function toUpperCase() : String return NativeStringTools.upper(this);
-	public function toLowerCase() : String return NativeStringTools.lower(this);
+#if lua_alias_string @:native("_hx_toUpperCase") #end
+	public inline function toUpperCase() : String return NativeStringTools.upper(this);
+#if lua_alias_string @:native("_hx_toLowerCase") #end
+	public inline function toLowerCase() : String return NativeStringTools.lower(this);
+#if lua_alias_string @:native("_hx_indexOf") #end
 	public function indexOf( str : String, ?startIndex : Int ) : Int {
 		if (startIndex == null) startIndex = 1;
 		else startIndex += 1;
@@ -51,6 +54,7 @@ class String {
 		else return -1;
 	}
 
+#if lua_alias_string @:native("_hx_lastIndexOf") #end
 	public function lastIndexOf( str : String, ?startIndex : Int ) : Int {
 		var i = 0;
 		var ret = -1;
@@ -62,6 +66,7 @@ class String {
 		}
 	}
 
+#if lua_alias_string @:native("_hx_split") #end
 	public function split( delimiter : String ) : Array<String> {
 		var idx = 1;
 		var ret = [];
@@ -88,9 +93,12 @@ class String {
 		return ret;
 	}
 
-	public function toString() : String {
+#if lua_alias_string @:native("_hx_toString") #end
+	public inline function toString() : String {
 		return this;
 	}
+
+#if lua_alias_string @:native("_hx_substring") #end
 	public function substring( startIndex : Int, ?endIndex : Int ) : String {
 		if (endIndex == null) endIndex = this.length;
 		if (endIndex < 0) endIndex = 0;
@@ -103,16 +111,17 @@ class String {
 		}
 	}
 
-	function get_length() : Int {
-		return NativeStringTools.len(this);
-	}
-	public function charAt( index : Int) : String {
+#if lua_alias_string @:native("_hx_charAt") #end
+	public inline function charAt( index : Int) : String {
 		return NativeStringTools.sub(this,index+1, index+1).match;
 	}
-	public function charCodeAt( index : Int) : Null<Int> {
+	
+#if lua_alias_string @:native("_hx_charCodeAt") #end
+	public inline function charCodeAt( index : Int) : Null<Int> {
 		return NativeStringTools.byte(this,index+1);
 	}
 
+#if lua_alias_string @:native("_hx_substr") #end
 	public function substr( pos : Int, ?len : Int ) : String {
 		if (len == null || len > pos + this.length) len = this.length;
 		else if (len < 0) len = length + len;
@@ -121,6 +130,7 @@ class String {
 		return NativeStringTools.sub(this, pos + 1, pos+len).match;
 	}
 
+#if lua_alias_string @:native("_hx_fromCharCode") #end
 	public inline static function fromCharCode( code : Int ) : String {
 		return NativeStringTools.char(code);
 	}
