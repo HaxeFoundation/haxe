@@ -342,7 +342,7 @@ let apply_macro ctx mode path el p =
 		match (fst res), try_absolute_path with
 			| None, true ->
 				(* just try as an absolute path *)
-				let cpath, meth = match List.rev (ExtString.String.nsplit path ".") with
+				let cpath, meth = match List.rev path with
 				| meth :: name :: pack ->
 					(List.rev pack,name), meth
 				| _ ->
@@ -353,7 +353,7 @@ let apply_macro ctx mode path el p =
 				error "Invalid macro path" p
 			| res, _ -> res
 	in
-	(match List.rev (ExtString.String.nsplit path ".") with
+	(match List.rev path with
 		| meth :: name :: [] when (starts_with_uppercase name) -> begin
 			(* maybe it's an imported class (also consider wildcard packages) *)
 			let get_path pack name meth =
@@ -1972,7 +1972,7 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 					| [ECall (epath,el),p] -> epath, el
 					| _ -> error "Invalid build parameters" p
 				) in
-				let s = try String.concat "." (List.rev (string_list_of_expr_path epath)) with Error (_,p) -> error "Build call parameter must be a class path" p in
+				let s = try List.rev (string_list_of_expr_path epath) with Error (_,p) -> error "Build call parameter must be a class path" p in
 				let old = ctx.g.get_build_infos in
 				ctx.g.get_build_infos <- (fun() -> Some (mt, List.map snd (t_infos mt).mt_params, fvars()));
 				context_init();
