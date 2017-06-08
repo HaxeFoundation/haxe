@@ -310,11 +310,6 @@ let type_var_field ctx t e stat do_display p =
 	| _ -> e
 
 let apply_macro ctx mode path el p =
-	let sort_candidates c =
-		List.sort (fun (p1,((p, name), meth), _) (p2,_,_) ->
-			compare p2 p1
-		) c
-	in
 	let starts_with_uppercase s =
 		if String.length s > 0 then
 			let first_char = String.get s 0 in
@@ -323,6 +318,11 @@ let apply_macro ctx mode path el p =
 			false
 	in
 	let check_candidates candidates try_absolute_path  =
+		let sort_candidates c =
+			List.sort (fun (p1,((p, name), meth), _) (p2,_,_) ->
+				compare p2 p1
+			) c
+		in
 		let run (cpath, meth) recover_allowed =
 			try
 				ctx.g.do_macro ctx mode cpath meth el p
