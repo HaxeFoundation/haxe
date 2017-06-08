@@ -123,17 +123,7 @@ matrix:
       #   <<: *addons
       #  sauce_connect: true
       before_install:
-        - sudo dpkg --add-architecture i386
         - sudo apt-get update -y || true
-        - travis_retry sudo apt-get install -y
-            libcurl3:i386
-            libglib2.0-0:i386
-            libx11-6:i386
-            libxext6:i386
-            libxt6:i386
-            libxcursor1:i386
-            libnss3:i386
-            libgtk2.0-0:i386
         - "export DISPLAY=:99.0"
         - "sh -e /etc/init.d/xvfb start"
         - "export AUDIODEV=null"
