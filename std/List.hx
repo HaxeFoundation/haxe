@@ -127,6 +127,20 @@ class List<T> {
 	}
 
 	/**
+		Internal method to remove the ListNode element `l` from this list.
+		Hereby `prev` equals to `l`'s predecessor.
+	**/
+	private inline function removeListNode(prev:ListNode<T>, l:ListNode<T>):Void {
+		if( prev == null )
+			h = l.next;
+		else
+			prev.next = l.next;
+		if( q == l )
+			q = prev;
+		length--;
+	}
+
+	/**
 		Removes the first occurrence of `v` in `this` List.
 
 		If `v` is found by checking standard equality, it is removed from `this`
@@ -139,13 +153,29 @@ class List<T> {
 		var l = h;
 		while( l != null ) {
 			if( l.item == v ) {
-				if( prev == null )
-					h = l.next;
-				else
-					prev.next = l.next;
-				if( q == l )
-					q = prev;
-				length--;
+				removeListNode(prev, l);
+				return true;
+			}
+			prev = l;
+			l = l.next;
+		}
+		return false;
+	}
+
+	/**
+		Removes the first element in `this` List where `fct(element)` evaluates to `true`.
+
+		If a list element is found where `fct(element)` evaluates to `true`, it is removed from `this`
+		List and the function returns true.
+
+		Otherwise, false is returned.
+	**/
+	public function removeByFct( fct : T->Bool ) : Bool {
+		var prev:ListNode<T> = null;
+		var l = h;
+		while( l != null ) {
+			if( fct(l.item) ) {
+				removeListNode(prev, l);
 				return true;
 			}
 			prev = l;
