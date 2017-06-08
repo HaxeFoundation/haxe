@@ -322,29 +322,21 @@ let apply_macro ctx mode path el p =
 		else
 			false
 	in
-	let mk_wildcard_candidates name meth =
-		List.fold_left (fun a (pack, pos) ->
-			(pos, ((pack, name),meth), true) :: a
-		) [] ctx.m.wildcard_packages
-	in
-	let run_candidates candidates try_absolute_path  =
-		let run (cpath, meth) do_continue =
-			let msg_not_found = "Method " ^ meth ^ " not found" in
+	let check_candidates candidates try_absolute_path  =
+		let run (cpath, meth) recover_allowed =
 			try
 				ctx.g.do_macro ctx mode cpath meth el p
-			with e when do_continue -> match e with
+			with e when recover_allowed -> match e with
 				| Error (Module_not_found _, p) -> None
 				| Error (Method_not_found _, p) -> None
 				| _ -> raise e
 		in
-		(* if we didn't found a type, we append all wildcards *)
-		let res = List.fold_left (fun ((res, continue) as acc) (_, d, do_continue) -> begin
-			match res, continue with
-			| _, false -> acc
-			| Some _, _ -> acc
-			| None, _ ->
-				(*Printf.printf "try %s\n" (String.concat "." c);*)
-				(run d do_continue, do_continue)
+		let candidates = sort_candidates candidates in
+		(* iterate all candidates *)
+		let res = List.fold_left (fun acc (_, d, recover_allowed) -> begin
+			match acc with
+			| _, false | Some _, _ -> acc (* we already have a result *)
+			| None, _ -> (run d recover_allowed, recover_allowed)
 		end) (None, true) candidates in
 
 		match (fst res), try_absolute_path with
@@ -357,11 +349,13 @@ let apply_macro ctx mode path el p =
 					error "Invalid macro path" p
 				in
 				ctx.g.do_macro ctx mode cpath meth el p
+			| None, false ->
+				error "Invalid macro path" p
 			| res, _ -> res
 	in
 	(match List.rev (ExtString.String.nsplit path ".") with
-		| meth :: name :: [] -> begin
-			(* maybe it's an imported class *)
+		| meth :: name :: [] when (starts_with_uppercase name) -> begin
+			(* maybe it's an imported class (also consider wildcard packages) *)
 			let get_path pack name meth =
 				let pack = List.map fst pack in
 				let name = fst name in
@@ -375,12 +369,17 @@ let apply_macro ctx mode path el p =
 					(snd name1, (get_path pack name1 meth), false) :: a
 				| _ -> a
 			) [] ctx.m.module_imports in
-			let candidates = candidates @ mk_wildcard_candidates name meth in
-			let sorted = sort_candidates candidates in
-			run_candidates sorted true
+			(* allow error recovering for  wildcard candidates *)
+			let mk_wildcard_candidates name meth =
+				List.fold_left (fun a (pack, pos) ->
+					(pos, ((pack, name),meth), true) :: a
+				) [] ctx.m.wildcard_packages
+			in
+			let candidates = candidates @ (mk_wildcard_candidates name meth) in
+			check_candidates candidates true
 		end
 		| meth :: [] -> begin
-			(* it's just a function lookup static imports *)
+			(* maybe it's just a function *)
 			let get_path pack name meth =
 				let pack = List.map fst pack in
 				let name = fst name in
@@ -398,16 +397,13 @@ let apply_macro ctx mode path el p =
 					let pos = snd name in
 					let name = fst name in
 					let c = ((List.rev pack,name), meth) in
-					(pos, c, true) :: a
+					(pos, c, true) :: a (* allow error recovering for IAll candiates *)
 				| _ -> a
 			) [] ctx.m.module_imports in
-			let sorted = sort_candidates candidates in
-			match run_candidates sorted false with
-			| None -> error "Invalid macro path" p
-			| x -> x
+			check_candidates candidates false
 		end
 		| meth :: sub :: name :: [] when (starts_with_uppercase sub) && (starts_with_uppercase name) -> begin
-			(* maybe it's a subtype of an imported class *)
+			(* maybe it's a subtype of an imported module *)
 			let get_path pack name sub meth =
 				let pack = List.map fst (name::pack) in
 				let sub = sub in
@@ -421,13 +417,11 @@ let apply_macro ctx mode path el p =
 					(snd name1, (get_path pack name1 sub meth), false) :: a
 				| _ -> a
 			) [] ctx.m.module_imports in
-			let sorted = sort_candidates candidates in
-			match run_candidates sorted false with
-			| None -> error "Invalid macro path" p
-			| x -> x
+			check_candidates candidates false
 		end
 		| _ ->
-			run_candidates [] true
+			(* we don't have import candidates, just try as an absolute path *)
+			check_candidates [] true
 	)
 
 (** since load_type_def and load_instance are used in PASS2, they should not access the structure of a type **)
