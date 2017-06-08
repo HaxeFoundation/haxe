@@ -40,7 +40,7 @@ typedef T = {
 		return "1";
 	}
 
-	public function set_propAcc(v) {
+	public function set_propAcc(v:String) {
 		return this.propAcc = v.toUpperCase();
 	}
 }

@@ -245,21 +245,34 @@ let mk_mr_box ctx e =
 	mk_lua_code ctx.com code [e] e.etype e.epos
 
 (* create a multi-return select call for given expr and field name *)
-let mk_mr_select com e name =
+let mk_mr_select com e ecall name =
 	let i =
-		match follow e.etype with
+		match follow ecall.etype with
 		| TInst (c,_) ->
 			index_of (fun f -> f.cf_name = name) c.cl_ordered_fields
 		| _ ->
 			assert false
 	in
 	if i == 0 then
-	    e
+            mk_lua_code com "{0}" [ecall] e.etype e.epos
 	else
 	    let code = Printf.sprintf "_G.select(%i, {0})" (i + 1) in
-	    mk_lua_code com code [e] e.etype e.epos
+	    mk_lua_code com code [ecall] e.etype e.epos
 
-(* from genphp *)
+
+
+let is_dynamic t = match follow t with
+        | TMono _ | TDynamic _
+        | TInst({ cl_kind = KTypeParameter _ }, _) -> true
+        | TAnon anon ->
+                (match !(anon.a_status) with
+                        | EnumStatics _ | Statics _ -> false
+                        | _ -> true
+                )
+        | _ -> false
+
+let is_dynamic_expr e = is_dynamic e.etype
+
 let rec is_string_type t =
 	match follow t with
 	| TInst ({cl_path = ([], "String")}, _) -> true
@@ -271,7 +284,6 @@ let rec is_string_type t =
 	| _ -> false
 
 let is_string_expr e = is_string_type e.etype
-(* /from genphp *)
 
 let rec is_int_type ctx t =
     match follow t with
@@ -476,11 +488,13 @@ and gen_loop ctx label cond e =
     if will_continue then begin
         println ctx "local _hx_continue_%i = false;" ctx.break_depth;
     end;
+    let b = open_block ctx in
     print ctx "%s " label;
     gen_cond ctx cond;
     print ctx " do ";
     if will_continue then print ctx "repeat ";
     gen_block_element ctx e;
+    b();
     newline ctx;
     if will_continue then begin
         if will_continue then begin
@@ -521,10 +535,10 @@ and gen_expr ?(local=true) ctx e = begin
 		print ctx "_iterator(";
 		gen_value ctx x;
 		print ctx ")";
-	| TField (e, f) when is_string_expr e ->
-                spr ctx "(";
-                gen_value ctx e;
-                print ctx ").%s" (field_name f);
+	| TField (x,f) when field_name f = "length" && is_string_expr x ->
+                spr ctx "_G.string.len(";
+                gen_value ctx x;
+                spr ctx ")";
 	| TField (x,FClosure (_,f)) ->
 		add_feature ctx "use._hx_bind";
 		(match x.eexpr with
@@ -1265,11 +1279,20 @@ and gen_tbinop ctx op e1 e2 =
 	    gen_expr ctx e2;
 	    spr ctx ")";
     | Ast.OpAdd,_,_ when (is_string_expr e1 || is_string_expr e2) ->
+            add_feature ctx "use._hx_string_add";
+            spr ctx "_hx_string_add(";
 	    gen_value ctx e1;
-	    print ctx " .. ";
+	    print ctx ",";
 	    gen_value ctx e2;
+            spr ctx ")";
+    | Ast.OpAdd,_,_ when (is_dynamic_expr e1 && is_dynamic_expr e2) ->
+            add_feature ctx "use._hx_dyn_add";
+            spr ctx "_hx_dyn_add(";
+	    gen_value ctx e1;
+	    print ctx ",";
+	    gen_value ctx e2;
+            spr ctx ")";
     | _ -> begin
-	    (* wrap expressions used in comparisons for lua *)
 	    gen_paren_tbinop ctx e1;
 	    (match op with
 		| Ast.OpNotEq -> print ctx " ~= ";
@@ -1776,9 +1799,9 @@ let transform_multireturn ctx = function
 						{ e with eexpr = TVar (v, Some ecall) }
 
 					(* if we found a field access for the multi-return call, generate select call *)
-					| TField ({ eexpr = TCall _ } as ecall, f) when is_multireturn ecall.etype ->
-						let ecall = Type.map_expr loop ecall in
-						mk_mr_select ctx.com ecall (field_name f)
+					| TField ({ eexpr = TCall _ } as ecall, f) as tf when is_multireturn ecall.etype ->
+                                                let ecall = Type.map_expr loop ecall in
+                                                mk_mr_select ctx.com e ecall (field_name f)
 
 					(* if we found a multi-return call used as a value, box it *)
 					| TCall _ when is_multireturn e.etype ->
@@ -1913,7 +1936,7 @@ let generate com =
 	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
         (* Generate some dummy placeholders for utility libs that may be required*)
-        println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp, _hx_table, _hx_bit_raw";
+        println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp, _hx_table, _hx_bit_raw, _hx_string_add, _hx_dyn_add";
         println ctx "local _hx_pcall_default = {};";
         println ctx "local _hx_pcall_break = {};";
 
@@ -1942,13 +1965,20 @@ let generate com =
 	    println ctx "end";
 	end;
 
-	(* If we use haxe Strings, patch Lua's string *)
-	if has_feature ctx "use.string" then begin
-	    println ctx "local _hx_string_mt = _G.getmetatable('');";
-	    println ctx "String.__oldindex = _hx_string_mt.__index;";
-	    println ctx "_hx_string_mt.__index = String.__index;";
-	    println ctx "_hx_string_mt.__add = function(a,b) return Std.string(a)..Std.string(b) end;";
-	    println ctx "_hx_string_mt.__concat = _hx_string_mt.__add";
+
+	if has_feature ctx "use._hx_dyn_add" then begin
+            add_feature ctx "use._hx_string_add";
+	    println ctx "_hx_dyn_add = function(a,b)";
+            println ctx "  if (_G.type(a) == 'string' or _G.type(b) == 'string') then ";
+            println ctx "    return _hx_string_add(a, b)";
+            println ctx "  else ";
+            println ctx "    return a + b;";
+            println ctx "  end;";
+	    println ctx "end;";
+	end;
+
+	if has_feature ctx "use._hx_string_add" then begin
+	    println ctx "_hx_string_add = function(a,b) return Std.string(a)..Std.string(b) end;";
 	end;
 
 	(* Array is required, always patch it *)
