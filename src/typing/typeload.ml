@@ -309,7 +309,7 @@ let type_var_field ctx t e stat do_display p =
 	| TType ({ t_path = ([],"UInt") },[]) | TAbstract ({ a_path = ([],"UInt") },[]) when stat -> { e with etype = t }
 	| _ -> e
 
-let apply_macro ctx mode path el p =
+let apply_macro ctx mode rev_path el p =
 	let starts_with_uppercase s =
 		if String.length s > 0 then
 			let first_char = String.get s 0 in
@@ -319,7 +319,7 @@ let apply_macro ctx mode path el p =
 	in
 	let check_candidates candidates try_absolute_path  =
 		let sort_candidates c =
-			List.sort (fun (p1,((p, name), meth), _) (p2,_,_) ->
+			List.sort (fun (p1,_,_) (p2,_,_) ->
 				compare p2 p1
 			) c
 		in
@@ -333,16 +333,16 @@ let apply_macro ctx mode path el p =
 		in
 		let candidates = sort_candidates candidates in
 		(* iterate all candidates *)
-		let res = List.fold_left (fun acc (_, d, recover_allowed) -> begin
+		let res = List.fold_left (fun acc (_, c, recover_allowed) -> begin
 			match acc with
 			| _, false | Some _, _ -> acc (* we already have a result *)
-			| None, _ -> (run d recover_allowed, recover_allowed)
+			| None, _ -> (run c recover_allowed, recover_allowed)
 		end) (None, true) candidates in
 
 		match (fst res), try_absolute_path with
 			| None, true ->
 				(* just try as an absolute path *)
-				let cpath, meth = match List.rev path with
+				let cpath, meth = match rev_path with
 				| meth :: name :: pack ->
 					(List.rev pack,name), meth
 				| _ ->
@@ -353,20 +353,19 @@ let apply_macro ctx mode path el p =
 				error "Invalid macro path" p
 			| res, _ -> res
 	in
-	(match List.rev path with
+	(match rev_path with
 		| meth :: name :: [] when (starts_with_uppercase name) -> begin
 			(* maybe it's an imported class (also consider wildcard packages) *)
 			let get_path pack name meth =
 				let pack = List.map fst pack in
-				let name = fst name in
 				((List.rev pack,name), meth)
 			in
 			let candidates = List.fold_left (fun a (l, mode) ->
 				match (List.rev l), mode with
-				| name1 :: pack, (IAsName s) when s = name ->
-					(snd name1, (get_path pack name1 meth), false) :: a
-				| name1 :: pack, (INormal) when (fst name1) = name ->
-					(snd name1, (get_path pack name1 meth), false) :: a
+				| (name1,pos) :: pack, (IAsName s) when s = name ->
+					(pos, (get_path pack name1 meth), false) :: a
+				| (name1,pos) :: pack, (INormal) when name1 = name ->
+					(pos, (get_path pack name1 meth), false) :: a
 				| _ -> a
 			) [] ctx.m.module_imports in
 			(* allow error recovering for  wildcard candidates *)
@@ -382,20 +381,16 @@ let apply_macro ctx mode path el p =
 			(* maybe it's just a function *)
 			let get_path pack name meth =
 				let pack = List.map fst pack in
-				let name = fst name in
-				let meth = fst meth in
 				((List.rev pack,name), meth)
 			in
 			let candidates = List.fold_left (fun a (l, mode) ->
 				match (List.rev l), mode with
-				| meth1 :: name :: pack, (IAsName s) when s = meth ->
-					(snd meth1, (get_path pack name meth1), false) :: a
-				| meth1 :: name :: pack, INormal when (fst meth1) = meth ->
-					(snd meth1, (get_path pack name meth1), false) :: a
-				| name :: pack, IAll when (starts_with_uppercase (fst name)) ->
+				| (meth1,pos) :: (name,_) :: pack, (IAsName s) when s = meth ->
+					(pos, (get_path pack name meth1), false) :: a
+				| (meth1,pos) :: (name,_) :: pack, INormal when meth1 = meth ->
+					(pos, (get_path pack name meth1), false) :: a
+				| (name,pos) :: pack, IAll when (starts_with_uppercase name) ->
 					let pack = List.map fst pack in
-					let pos = snd name in
-					let name = fst name in
 					let c = ((List.rev pack,name), meth) in
 					(pos, c, true) :: a (* allow error recovering for IAll candiates *)
 				| _ -> a
@@ -405,16 +400,15 @@ let apply_macro ctx mode path el p =
 		| meth :: sub :: name :: [] when (starts_with_uppercase sub) && (starts_with_uppercase name) -> begin
 			(* maybe it's a subtype of an imported module *)
 			let get_path pack name sub meth =
-				let pack = List.map fst (name::pack) in
-				let sub = sub in
+				let pack = name :: (List.map fst pack) in
 				((List.rev pack,sub), meth)
 			in
 			let candidates = List.fold_left (fun a (l, mode) ->
 				match (List.rev l), mode with
-				| name1 :: pack, (IAsName s) when s = name ->
-					(snd name1, (get_path pack name1 sub meth), false) :: a
-				| name1 :: pack, (INormal | IAll) when (fst name1) = name ->
-					(snd name1, (get_path pack name1 sub meth), false) :: a
+				| (name1,pos) :: pack, (IAsName s) when s = name ->
+					(pos, (get_path pack name1 sub meth), false) :: a
+				| (name1,pos) :: pack, (INormal | IAll) when name1 = name ->
+					(pos, (get_path pack name1 sub meth), false) :: a
 				| _ -> a
 			) [] ctx.m.module_imports in
 			check_candidates candidates false
@@ -1972,11 +1966,11 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 					| [ECall (epath,el),p] -> epath, el
 					| _ -> error "Invalid build parameters" p
 				) in
-				let s = try List.rev (string_list_of_expr_path epath) with Error (_,p) -> error "Build call parameter must be a class path" p in
+				let rev_path = try string_list_of_expr_path epath with Error (_,p) -> error "Build call parameter must be a class path" p in
 				let old = ctx.g.get_build_infos in
 				ctx.g.get_build_infos <- (fun() -> Some (mt, List.map snd (t_infos mt).mt_params, fvars()));
 				context_init();
-				let r = try apply_macro ctx MBuild s el p with e -> ctx.g.get_build_infos <- old; raise e in
+				let r = try apply_macro ctx MBuild rev_path el p with e -> ctx.g.get_build_infos <- old; raise e in
 				ctx.g.get_build_infos <- old;
 				(match r with
 				| None -> error "Build failure" p
