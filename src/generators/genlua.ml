@@ -823,6 +823,7 @@ and gen_expr ?(local=true) ctx e = begin
 		b();
                 println ctx "return _hx_pcall_default";
                 println ctx "end)";
+                ctx.in_loop_try <- old_in_loop_try;
                 println ctx "if not _hx_status and _hx_result == \"_hx_pcall_break\" then";
                 if ctx.in_loop then
                     if old_in_loop_try then
@@ -888,7 +889,6 @@ and gen_expr ?(local=true) ctx e = begin
                 println ctx "elseif _hx_result ~= _hx_pcall_default then";
                 println ctx "  return _hx_result";
                 print ctx "end";
-                ctx.in_loop_try <- old_in_loop_try;
 	| TSwitch (e,cases,def) ->
 		List.iteri (fun cnt (el,e2) ->
 		    if cnt == 0 then spr ctx "if "
