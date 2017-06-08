@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue6342 extends unit.Test {
-	@:analyzer(ignore)
+	@:analyzer(no_optimize)
 	function test() {
 		var t = new A(1);
 		var tmp1 = t.foo().x;
@@ -19,12 +19,12 @@ private class A
 {
 	public var x:Int;
 	
-	@:analyzer(ignore)
+	@:analyzer(no_optimize)
 	public inline function new(x) {
 		this.x = x;
 	}
 	
-	@:analyzer(ignore)
+	@:analyzer(no_optimize)
 	public inline function foo() {
 		var tmp = x;
 		return new A(x);
