@@ -255,7 +255,7 @@ a != b;
 b.length == a.length;
 a[0] == b[0];
 a[1] == b[1];
-var func = function(s) return s.toUpperCase();
+var func = function(s:String) return s.toUpperCase();
 ["foo", "bar"].map(func) == ["FOO", "BAR"];
 [].map(func) == [];
 
