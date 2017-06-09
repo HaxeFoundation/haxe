@@ -15,6 +15,7 @@
 
 	Bugfixes:
 
+	php7: fix Reflect.field() for strings (#6276)
 	php7: fix `@:enum abstract` generation  without `-dce full` (#6175)
 	php7: fix using enum constructor with arguments as a call argument (#6177)
 	php7: fix `null` property access (#6281)
