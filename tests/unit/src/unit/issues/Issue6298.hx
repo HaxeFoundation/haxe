@@ -9,7 +9,6 @@ class Issue6298 extends unit.Test {
 
 class Test {
 	public static function good (s : String) : String {
-		trace (s);
 		return s;
 	}
 }
