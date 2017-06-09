@@ -1190,6 +1190,13 @@ and gen_tbinop ctx op e1 e2 =
 		gen_value ctx e1;
 		spr ctx " = ";
 		gen_value ctx e3;
+	    | TField(e3, FInstance _ ), TField(e4, FStatic _ )  ->
+		gen_value ctx e1;
+		print ctx " %s " (Ast.s_binop op);
+		add_feature ctx "use._hx_funcToField";
+		spr ctx "_hx_funcToField(";
+		gen_value ctx e2;
+		spr ctx ")";
 	    | TField(e3, FInstance _ ), TField(e4, FClosure _ )  ->
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
