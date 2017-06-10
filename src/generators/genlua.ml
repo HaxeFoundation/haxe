@@ -332,12 +332,8 @@ let rec gen_call ctx e el in_value =
 			spr ctx ")";
 		);
 	| TCall (x,_) , el when (match x.eexpr with TLocal { v_name = "__lua__" } -> false | _ -> true) ->
-		spr ctx "(";
-		gen_value ctx e;
-		spr ctx ")";
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")";
+                gen_paren ctx [e];
+                gen_paren ctx el;
 	| TLocal { v_name = "__new__" }, { eexpr = TConst (TString cl) } :: params ->
 		print ctx "%s.new(" cl;
 		concat ctx "," (gen_value ctx) params;
@@ -349,14 +345,10 @@ let rec gen_call ctx e el in_value =
 		spr ctx ")";
 	| TLocal { v_name = "__callself__" }, { eexpr = TConst (TString head) } :: { eexpr = TConst (TString tail) } :: el ->
 		print ctx "%s:%s" head tail;
-		spr ctx "(";
-		concat ctx ", " (gen_value ctx) el;
-		spr ctx ")";
+                gen_paren ctx el;
 	| TLocal { v_name = "__call__" }, { eexpr = TConst (TString code) } :: el ->
 		spr ctx code;
-		spr ctx "(";
-		concat ctx ", " (gen_value ctx) el;
-		spr ctx ")";
+                gen_paren ctx el;
 	| TLocal { v_name = "__lua_length__" }, [e]->
 		spr ctx "#"; gen_value ctx e;
 	| TLocal { v_name = "__lua_table__" }, el ->
@@ -385,9 +377,8 @@ let rec gen_call ctx e el in_value =
 	| TLocal { v_name = "__lua__" }, { eexpr = TConst (TString code); epos = p } :: tl ->
 		Codegen.interpolate_code ctx.com code tl (spr ctx) (gen_expr ctx) p
 	| TLocal { v_name = "__type__" },  [o] ->
-		spr ctx "type(";
-		gen_value ctx o;
-		spr ctx ")";
+		spr ctx "type";
+                gen_paren ctx [o];
 	| TLocal ({v_name = "__define_feature__"}), [_;e] ->
 		gen_expr ctx e
 	| TLocal { v_name = "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse ->
@@ -426,9 +417,8 @@ let rec gen_call ctx e el in_value =
 			spr ctx ")";
 		end
 	| TField ( { eexpr = TConst(TInt _ | TFloat _| TString _| TBool _) } as e , ((FInstance _ | FAnon _) as ef)), el ->
-		spr ctx ("(");
-		gen_value ctx e;
-		print ctx ("):%s(") (field_name ef);
+                gen_paren ctx [e];
+		print ctx (":%s(") (field_name ef);
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
 	| TField (_, FStatic( { cl_path = ([],"Std") }, { cf_name = "string" })),[{eexpr = TCall({eexpr=TField (_, FStatic( { cl_path = ([],"Std") }, { cf_name = "string" }))}, _)} as el] ->
@@ -446,15 +436,12 @@ let rec gen_call ctx e el in_value =
 		    spr ctx ")";
 		end else begin
 		    gen_value ctx e;
-		    print ctx ":%s(" (field_name ef);
-		    concat ctx "," (gen_value ctx) el;
-		    spr ctx ")"
+		    print ctx ":%s" (field_name ef);
+                    gen_paren ctx el;
 		end;
 	| _ ->
 		gen_value ctx e;
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")");
+                gen_paren ctx el);
 	ctx.iife_assign <- false;
 
 and has_continue e =
@@ -468,6 +455,11 @@ and has_continue e =
 	false;
     with Exit ->
 	true
+
+and gen_paren ctx el =
+    spr ctx "(";
+    concat ctx ", " (gen_value ctx) el;
+    spr ctx ")";
 
 and gen_cond ctx cond =
     ctx.iife_assign <- true;
@@ -552,9 +544,8 @@ and gen_expr ?(local=true) ctx e = begin
 	| TField (x, (FInstance(_,_,f) | FStatic(_,f) | FAnon(f))) when Meta.has Meta.SelfCall f.cf_meta ->
 		gen_value ctx x;
 	| TField ({ eexpr = TConst(TInt _ | TFloat _| TString _| TBool _) } as e , ((FInstance _ | FAnon _) as ef)) ->
-		spr ctx ("(");
-		gen_value ctx e;
-		print ctx (").%s") (field_name ef);
+                gen_paren ctx [e];
+		print ctx (".%s") (field_name ef);
 	| TField ({ eexpr = TConst (TInt _ | TFloat _) } as x,f) ->
 		gen_expr ctx { e with eexpr = TField(mk (TParenthesis x) x.etype x.epos,f) }
 	| TField ({ eexpr = TObjectDecl fields }, ef ) ->
@@ -578,9 +569,7 @@ and gen_expr ?(local=true) ctx e = begin
 	| TTypeExpr t ->
 		spr ctx (ctx.type_accessor t)
 	| TParenthesis e ->
-		spr ctx "(";
-		gen_value ctx e;
-		spr ctx ")";
+                gen_paren ctx [e];
 	| TMeta (_,e) ->
 		gen_expr ctx e
 	| TReturn eo -> gen_return ctx e eo;
@@ -695,9 +684,7 @@ and gen_expr ?(local=true) ctx e = begin
 			| _ ->
 				print ctx "%s.new" (ctx.type_accessor (TClassDecl c)));
 		| _ -> print ctx "%s.new" (ctx.type_accessor (TClassDecl c)));
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")"
+                gen_paren ctx el;
 	| TIf (cond,e,eelse) ->
 		ctx.iife_assign <- true;
 		spr ctx "if ";
@@ -1292,9 +1279,7 @@ and gen_paren_tbinop ctx e =
     let ee = extract_expr e in
     match ee.eexpr with
     | TBinop _  ->
-	    spr ctx "(";
-	    gen_value ctx ee;
-	    spr ctx ")";
+            gen_paren ctx [ee];
     | _ ->
 	    gen_value ctx ee
 
