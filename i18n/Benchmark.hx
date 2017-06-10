@@ -18,18 +18,12 @@ class Benchmark {
 
 		var t = haxe.Timer.stamp();
 		var str = 'Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
-
 Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel illum dolore eu feugiat nulla facilisis at vero eros et accumsan et iusto odio dignissim qui blandit praesent luptatum zzril delenit augue duis dolore te feugait nulla facilisi. Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat.
-
 Ut wisi enim ad minim veniam, quis nostrud exerci tation ullamcorper suscipit lobortis nisl ut aliquip ex ea commodo consequat. Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel illum dolore eu feugiat nulla facilisis at vero eros et accumsan et iusto odio dignissim qui blandit praesent luptatum zzril delenit augue duis dolore te feugait nulla facilisi.
-
 Nam liber tempor cum soluta nobis eleifend option congue nihil imperdiet doming id quod mazim placerat facer possim assum. Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat. Ut wisi enim ad minim veniam, quis nostrud exerci tation ullamcorper suscipit lobortis nisl ut aliquip ex ea commodo consequat.
+Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel illum dolore eu feugiat nulla facilisis.';
 
-Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel illum dolore eu feugiat nulla facilisis.
-
-At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, At accusam aliquyam diam diam dolore dolores duo eirmod eos erat, et nonumy sed tempor et et invidunt justo labore Stet clita ea et gubergren, kasd magna no rebum. sanctus sea sed takimata ut vero voluptua. est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur';
-
-		var substrings = ['justo', 'gubergren'];
+		var substrings = ['justo', 'gubergren','rebum'];
 		var tests:Array<Test> = [];
 		var multiplier:Int = 1;
 		benchmarkString(str, str, substrings, tests, multiplier);
@@ -42,7 +36,7 @@ At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergr
 
 
 		var str = 'Lorem ipsum dolor sit amet, consetetur sadipscing elitr';
-		var substrings = ['ipsum', 'amet'];
+		var substrings = ['ipsum', 'amet' ,'elitr'];
 		var tests = [];
 		var multiplier:Int = 2;
 		benchmarkString(str, str, substrings, tests, multiplier);
@@ -93,7 +87,9 @@ At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergr
 				StringTools.rpad(Std.string(t.loops), " ", 6) +
 				StringTools.rpad(t.id, " ", 10) +
 				StringTools.rpad('' + (Math.floor(t.time*10000)/10000), " ", 12) + ':' +
-				StringTools.lpad('' + (Math.floor(cutTime(t.time)/lookup.get(t.method)*100)/100), " ", 8) + "x";
+				StringTools.lpad('' + (Math.floor(cutTime(t.time)/lookup.get(t.method)*100)/100), " ", 8) + "x" +
+				" " + ((t.res != null) ? "" : "false");
+
 		});
 		trace('\nString.length: ' + str.length + '\n' + s.join("\n"));
 	}

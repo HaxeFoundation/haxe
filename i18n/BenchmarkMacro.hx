@@ -40,16 +40,16 @@ class BenchmarkMacro {
 			wrap('split', 100, function (s:$ct) {
 				var res = [];
 				for (i in $substrings) {
-					res = res.concat(s.split(i));
+					res.push(s.split(i));
 				}
 				return res;
 			});
 
 
-			wrap('indexOf', 100, function (s:$ct) {
+			wrap('indexOf', 1000, function (s:$ct) {
 				var res = 0;
 				for (i in $substrings) {
-					res = s.indexOf(i);
+					res += s.indexOf(i);
 				}
 				return res;
 			});
@@ -57,7 +57,7 @@ class BenchmarkMacro {
 			wrap('lastIndexOf', 100, function (s:$ct) {
 				var res = 0;
 				for (i in $substrings) {
-					res = s.lastIndexOf(i);
+					res += s.lastIndexOf(i);
 				}
 				return res;
 			});
@@ -69,10 +69,12 @@ class BenchmarkMacro {
 
 			wrap('charCodeAt n', 1000, function (s:$ct) {
 				var res = s.charCodeAt(len -1);
+				return res;
 			});
 
 			wrap('charCodeAt 1', 1000, function (s:$ct) {
 				var res = s.charCodeAt(0);
+				return res;
 			});
 
 			wrap('fastCodeAt n/2', 1000, function (s:$ct) {
@@ -82,10 +84,12 @@ class BenchmarkMacro {
 
 			wrap('fastCodeAt n', 1000, function (s:$ct) {
 				var res = s.fastCodeAt(len -1);
+				return res;
 			});
 
 			wrap('fastCodeAt 1', 1000, function (s:$ct) {
 				var res = s.fastCodeAt(0);
+				return res;
 			});
 
 			wrap('toUpperCase', 100, function (s:$ct) {

@@ -63,9 +63,6 @@ test-hl:
 	cd ../tests/unit && $(HAXE_EXEC) compile-hl.hxml
 	cd ../tests/unit && $(HL) bin/unit.hl
 
-test-eval:
-	cd ../tests/unit && haxe-eval -cp ../../standalone compile-macro.hxml
-
 test-interp:
 	cd ../tests/unit && $(HAXE_EXEC) -cp ../../standalone compile-macro.hxml
 
@@ -145,9 +142,6 @@ benchmark-pypy:
 
 benchmark-interp:
 	$(HAXE_EXEC) --run Benchmark
-
-benchmark-eval:
-	haxe-eval -cp ../standalone --run Benchmark
 
 benchmark-php:
 	$(HAXE_EXEC) -main Benchmark -php bin/php -dce no
