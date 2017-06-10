@@ -92,6 +92,21 @@ class BenchmarkMacro {
 				return res;
 			});
 
+			wrap('charAt n/2', 1000, function (s:$ct) {
+				var res = s.charAt(Math.floor(len / 2));
+				return res;
+			});
+
+			wrap('charAt n', 1000, function (s:$ct) {
+				var res = s.charAt(len -1);
+				return res;
+			});
+
+			wrap('charAt 1', 1000, function (s:$ct) {
+				var res = s.charAt(0);
+				return res;
+			});
+
 			wrap('toUpperCase', 100, function (s:$ct) {
 				var res = s.toUpperCase();
 				return res;
