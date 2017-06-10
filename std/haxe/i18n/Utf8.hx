@@ -370,6 +370,9 @@ private class Utf8Tools {
 	}
 
 	static function charAt(ba:Utf8Impl, index : Int) : Utf8Impl {
+		if (index > 0 && index < strLength(ba) && isAscii(ba)) {
+			return sub(ba, index, 1, 1);
+		}
 		var res = null;
 		var pos = 0;
 		var i = 0;
@@ -388,6 +391,9 @@ private class Utf8Tools {
 	}
 
 	static function charCodeAt( ba:Utf8Impl, index : Int) : Null<Int> {
+		if (index > 0 && index < strLength(ba) && isAscii(ba)) {
+			return getCharCode(ba, index, 1);
+		}
 		var pos = 0;
 		var i = 0;
 		var r:Null<Int> = null;
@@ -405,7 +411,14 @@ private class Utf8Tools {
 		return r;
 	}
 
+	static inline function isAscii (ba:Utf8Impl) {
+		return byteLength(ba) == strLength(ba);
+	}
+
 	static function fastCodeAt( ba:Utf8Impl, index : Int) : Null<Int> {
+		if (index > 0 && index < strLength(ba) && isAscii(ba)) {
+			return getCharCode(ba, index, 1);
+		}
 		var pos = 0;
 		var i = 0;
 

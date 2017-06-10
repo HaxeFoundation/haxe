@@ -357,6 +357,14 @@ private class Utf16Tools {
 	}
 
 	static function charAt(impl:Utf16Impl, index : Int) : Utf16Impl {
+		if (index > 0 && index < strLength(impl)) {
+			if (hasNoSurrogates(impl)) {
+				return sub(impl, index << 1, 2, 1);
+			}
+			if (hasOnlySurrogates(impl)) {
+				return sub(impl, index << 2, 2, 1);
+			}
+		}
 		var pos = 0;
 		var i = 0;
 		while (i < byteLength(impl)) {
@@ -377,7 +385,22 @@ private class Utf16Tools {
 		return res;
 	}
 
+	static inline function hasNoSurrogates (ba:Utf16Impl) {
+		return byteLength(ba) == (strLength(ba) << 1);
+	}
+	static inline function hasOnlySurrogates (ba:Utf16Impl) {
+		return byteLength(ba) == (strLength(ba) << 2);
+	}
+
 	static function charCodeAt( ba:Utf16Impl, index : Int) : Null<Int> {
+		if (index > 0 && index < strLength(ba)) {
+			if (hasNoSurrogates(ba)) {
+				return getCharCode(ba, index << 1, 2);
+			}
+			if (hasOnlySurrogates(ba)) {
+				return getCharCode(ba, index << 2, 4);
+			}
+		}
 		var pos = 0;
 		var i = 0;
 		var r:Null<Int> = null;
@@ -396,6 +419,14 @@ private class Utf16Tools {
 	}
 
 	static function fastCodeAt( ba:Utf16Impl, index : Int) : Null<Int> {
+		if (index > 0 && index < strLength(ba)) {
+			if (hasNoSurrogates(ba)) {
+				return getCharCode(ba, index << 1, 2);
+			}
+			if (hasOnlySurrogates(ba)) {
+				return getCharCode(ba, index << 2, 4);
+			}
+		}
 		var pos = 0;
 		var i = 0;
 		while (i < byteLength(ba)) {
