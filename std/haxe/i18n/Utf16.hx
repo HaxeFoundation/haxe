@@ -665,7 +665,7 @@ private class Utf16Tools {
 
 	static inline function fromCharCode( code : Int ) : Utf16Impl
 	{
-		return mkImpl(Convert.charCodeToUtf16ByteAccess(code), 1);
+		return mkImpl(Convert.codePointToUtf16ByteAccess(code), 1);
 	}
 
 	static inline function compare (impl:Utf16Impl, other:Utf16Impl):Int {

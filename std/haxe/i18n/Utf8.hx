@@ -661,7 +661,7 @@ private class Utf8Tools {
 
 	static inline function fromCharCode( code : Int ) : Utf8Impl
 	{
-		var b = Convert.charCodeToUtf8ByteAccess(code);
+		var b = Convert.codePointToUtf8ByteAccess(code);
 		return mkImpl(b, 1);
 	}
 

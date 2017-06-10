@@ -99,7 +99,7 @@ abstract Ucs2(String) {
 			#if hl
 			String.fromCharCode(code);
 			#else
-			var surr = Convert.charCodeToSurrogatePair(code);
+			var surr = Convert.codePointToSurrogatePair(code);
 			String.fromCharCode(surr.high) + String.fromCharCode(surr.low);
 			#end
 		} else {
@@ -334,7 +334,7 @@ abstract Ucs2(ByteAccess) {
 	}
 
 	public static inline function fromCharCode( code : Int ) : Ucs2 {
-		return fromImpl(Convert.charCodeToUtf16ByteAccess(code));
+		return fromImpl(Convert.codePointToUtf16ByteAccess(code));
 	}
 
 	public inline function toBytes(  ) : haxe.io.Bytes {

@@ -123,10 +123,10 @@ class Convert {
 			+ (codeUnitLow - UNI_SUR_LOW_START) + HALF_BASE;
 	}
 
-	static inline function charCodeToSurrogatePair (charCode:Int) {
-		charCode -= HALF_BASE;
-		var high = (charCode >> HALF_SHIFT) + UNI_SUR_HIGH_START;
-		var low = (charCode & HALF_MASK) + UNI_SUR_LOW_START;
+	static inline function codePointToSurrogatePair (codePoint:Int) {
+		codePoint -= HALF_BASE;
+		var high = (codePoint >> HALF_SHIFT) + UNI_SUR_HIGH_START;
+		var low = (codePoint & HALF_MASK) + UNI_SUR_LOW_START;
 		return { high : high, low : low };
 	}
 
@@ -153,22 +153,22 @@ class Convert {
 		}
 	}
 
-	static inline function getUtf8SequenceSizeFromCharCode (charCode:Int) {
-		if (charCode <= 0x7F) {
+	static inline function getUtf8SequenceSizeFromCodePoint (codePoint:Int) {
+		if (codePoint <= 0x7F) {
 			return 1;
-		} else if (charCode <= 0x7FF) {
+		} else if (codePoint <= 0x7FF) {
 			return 2;
-		} else if (charCode <= UNI_MAX_BMP) {
+		} else if (codePoint <= UNI_MAX_BMP) {
 			return 3;
-		} else if (charCode <= UNI_MAX_LEGAL_UTF32) {
+		} else if (codePoint <= UNI_MAX_LEGAL_UTF32) {
 			return 4;
 		} else {
 			return 3;
 		}
 	}
 
-	static inline function isInvalidUtf8CharCode (charCode:Int) {
-		return charCode > UNI_MAX_LEGAL_UTF32;
+	static inline function isInvalidUtf8CodePoint (codePoint:Int) {
+		return codePoint > UNI_MAX_LEGAL_UTF32;
 
 	}
 
@@ -181,8 +181,8 @@ class Convert {
 		return charCodeFromUtf8( pos -> source.fastGet(pos), pos, size);
 	}
 
-	public static inline function getUtf16CodeSize (charCode:Int):Int {
-		return if (charCode <= UNI_MAX_BMP) 2 else 4;
+	public static inline function getUtf16CodeSize (codePoint:Int):Int {
+		return if (codePoint <= UNI_MAX_BMP) 2 else 4;
 	}
 
 	public static inline function charCodeFromUtf8 (codeUnitAt:Int->Int, pos:Int, size:Int) {
@@ -383,19 +383,19 @@ class Convert {
 		return 1;
 	}
 
-	 public inline static function writeUtf16CodeUnits(charCode:Int, pos:Int, addInt16:Int->Int->Void, strict:Bool, strictUcs2:Bool) {
-		if (charCode <= UNI_MAX_BMP) {
+	 public inline static function writeUtf16CodeUnits(codePoint:Int, pos:Int, addInt16:Int->Int->Void, strict:Bool, strictUcs2:Bool) {
+		if (codePoint <= UNI_MAX_BMP) {
 			/* UTF-16 surrogate values are illegal in UTF-32 */
-			if (isSurrogate(charCode)) {
+			if (isSurrogate(codePoint)) {
 				if (strict) {
 					throw SourceIllegal(pos);
 				} else {
 					addInt16(pos, UNI_REPLACEMENT_CHAR);
 				}
 			} else {
-				addInt16(pos, charCode);
+				addInt16(pos, codePoint);
 			}
-		} else if (charCode > UNI_MAX_UTF16) {
+		} else if (codePoint > UNI_MAX_UTF16) {
 			if (strict) {
 				throw SourceIllegal(pos);
 			} else {
@@ -405,7 +405,7 @@ class Convert {
 			if (strictUcs2) {
 				throw SourceIllegal(pos);
 			} else {
-				var units = charCodeToSurrogatePair(charCode);
+				var units = codePointToSurrogatePair(codePoint);
 				addInt16(pos, units.high);
 				addInt16(pos+1, units.low);
 			}
@@ -434,18 +434,18 @@ class Convert {
 
 	/* code to byteAccess utf8, utf16, utf32 */
 
-	public static function charCodeToUtf8ByteAccess (charCode:Int):ByteAccess {
-		var size = getUtf8SequenceSizeFromCharCode(charCode);
+	public static function codePointToUtf8ByteAccess (codePoint:Int):ByteAccess {
+		var size = getUtf8SequenceSizeFromCodePoint(codePoint);
 		var bytes = ByteAccess.alloc(size);
 		var pos = 0;
-		writeUtf8CodeUnits(charCode, size, function (x) {
+		writeUtf8CodeUnits(codePoint, size, function (x) {
 			bytes.set(pos, x);
 			pos++;
 		});
 		return bytes;
 	}
 
-	public static function charCodeToUtf16ByteAccess (charCode:Int):ByteAccess {
+	public static function codePointToUtf16ByteAccess (charCode:Int):ByteAccess {
 		var size = getUtf16CodeSize(charCode);
 		var bytes = ByteAccess.alloc(size);
 
@@ -454,12 +454,6 @@ class Convert {
 				bytes.set(pos << 1, (val >> 8) & 0xFF );
 				bytes.set((pos << 1)+1, val & 0xFF);
 			}, true, false);
-		return bytes;
-	}
-
-	static inline function charCodeToUtf32ByteAccess(charCode:Int) {
-		var bytes = ByteAccess.alloc(4);
-		bytes.setInt32(0, charCode);
 		return bytes;
 	}
 
@@ -540,7 +534,7 @@ class Convert {
 		while (i < source.length) {
 			var unit = source.getInt16(i);
 			var code = unit;
-			var pos = i;
+			var pos = i; // store position for error reporting
 			i+=2;
 			/* If we have a surrogate pair, convert to UTF32 first. */
 			if (isHighSurrogate(unit)) {
@@ -564,8 +558,8 @@ class Convert {
 				}
 			}
 
-			var size = getUtf8SequenceSizeFromCharCode(code);
-			if (isInvalidUtf8CharCode(code)) {
+			var size = getUtf8SequenceSizeFromCodePoint(code);
+			if (isInvalidUtf8CodePoint(code)) {
 				if (strict) {
 					throw SourceIllegal(pos);
 				} else {
@@ -626,9 +620,9 @@ class Convert {
 				/* UTF-16 surrogate values are illegal in UTF-32 */
 				throw SourceIllegal(i);
 			}
-			var size = getUtf8SequenceSizeFromCharCode(code);
+			var size = getUtf8SequenceSizeFromCodePoint(code);
 
-			if (isInvalidUtf8CharCode(code)) {
+			if (isInvalidUtf8CodePoint(code)) {
 				if (strict) {
 					throw SourceIllegal(i);
 				} else {
@@ -666,7 +660,7 @@ class Convert {
 					target.addInt16BigEndian(UNI_REPLACEMENT_CHAR);
 				}
 			} else {
-				var pair = charCodeToSurrogatePair(unit);
+				var pair = codePointToSurrogatePair(unit);
 
 				target.addInt16BigEndian(pair.high);
 				target.addInt16BigEndian(pair.low);
@@ -821,10 +815,10 @@ class NativeStringTools {
 		#else
 		var a = new Array();
 		eachCharCode(s, (c, pos) -> {
-			if (Convert.isInvalidUtf8CharCode(c)) {
+			if (Convert.isInvalidUtf8CodePoint(c)) {
 				throw SourceIllegal(pos);
 			}
-			var size = Convert.getUtf8SequenceSizeFromCharCode(c);
+			var size = Convert.getUtf8SequenceSizeFromCodePoint(c);
 			Convert.writeUtf8CodeUnits(c, size, function (x) a.push(x));
 		});
 		#if js
