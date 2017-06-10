@@ -76,11 +76,13 @@ class Boot {
 			case "object":
 				#if js_enums_as_objects
 				if (o.__enum__) {
-					var n = o.__enum__.__constructs__[o._hx_index];
-					if (o.__enum__[n].__params__) {
+					var e = $hxEnums[o.__enum__];
+					var n = e.__constructs__[o._hx_index];
+					var con = e[n];
+					if (con.__params__) {
 						s += "\t";
 						return n + "(" +
-							[for (p in (o.__enum__[n].__params__:Array<String>)) __string_rec(o[p],s)].join(",") + ")";
+							[for (p in (con.__params__:Array<String>)) __string_rec(o[p],s)].join(",") + ")";
 					} else {
 						return n;
 					}
@@ -199,7 +201,11 @@ class Boot {
 			// do not use isClass/isEnum here
 			untyped __feature__("Class.*",if( cl == Class && o.__name__ != null ) return true);
 			untyped __feature__("Enum.*",if( cl == Enum && o.__ename__ != null ) return true);
-			return o.__enum__ == cl;
+			#if !js_enums_as_objects
+			return untyped o.__enum__ == cl;
+			#else
+			return (untyped $hxEnums[o.__enum__]) == cl;
+			#end
 		}
 	}
 

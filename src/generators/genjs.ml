@@ -1153,6 +1153,10 @@ let generate_enum ctx e =
 	print ctx " __constructs__ : [%s] }" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
 	ctx.separator <- true;
 	let as_objects = Common.defined ctx.com Define.JsEnumsAsObjects in
+	if as_objects then begin
+		newline ctx;
+		print ctx "$hxEnums[\"%s\"] = %s" p p
+	end;
 	newline ctx;
 	List.iter (fun n ->
 		let f = PMap.find n e.e_constrs in
@@ -1162,17 +1166,18 @@ let generate_enum ctx e =
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in begin
 			if as_objects then
 				let sfields = String.concat "," (List.map (fun (n,_,_) -> (ident n) ^ ":" ^ (ident n) ) args) in
-				print ctx "function(%s) { var $x = {_hx_index:%d,%s,__enum__:%s};" sargs f.ef_index sfields p;
+				print ctx "function(%s) { var $x = {_hx_index:%d,%s,__enum__:\"%s\"};" sargs f.ef_index sfields p;
 			else
 				print ctx "function(%s) { var $x = [\"%s\",%d,%s]; $x.__enum__ = %s;" sargs f.ef_name f.ef_index sargs p;
 			end;
 			if has_feature ctx "has_enum" then
 				spr ctx " $x.toString = $estr;";
 			spr ctx " return $x; }";
-			if as_objects then
+			if as_objects then begin
 				let sparams = String.concat "," (List.map (fun (n,_,_) -> "\"" ^ (ident n) ^ "\"" ) args) in
 				newline ctx;
-			    print ctx "%s%s.__params__ = [%s];" p (field f.ef_name) sparams;
+				print ctx "%s%s.__params__ = [%s];" p (field f.ef_name) sparams
+			end;
 			ctx.separator <- true;
 		| _ ->
 			if as_objects then
@@ -1184,7 +1189,7 @@ let generate_enum ctx e =
 				print ctx "%s%s.toString = $estr" p (field f.ef_name);
 				newline ctx;
 			end;
-			print ctx "%s%s.__enum__ = %s" p (field f.ef_name) p;
+			print ctx "%s%s.__enum__ = %s" p (field f.ef_name) (if as_objects then "\"" ^ p ^"\"" else p);
 		);
 		newline ctx
 	) e.e_names;
@@ -1458,6 +1463,7 @@ let generate com =
 	let vars = if has_feature ctx "has_enum"
 		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) ^ ".__string_rec(this,''); }") :: vars
 		else vars in
+	let vars = if Common.defined com Define.JsEnumsAsObjects then "$hxEnums = {}" :: vars else vars in
 	(match List.rev vars with
 	| [] -> ()
 	| vl ->

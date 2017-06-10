@@ -41,7 +41,11 @@ enum ValueType {
 	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped {
 		if( o == null )
 			return null;
+		#if !js_enums_as_objects
 		return o.__enum__;
+		#else
+		return $hxEnums[o.__enum__];
+		#end
 	}
 
 	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> untyped {
@@ -182,8 +186,13 @@ enum ValueType {
 			if( v == null )
 				return TNull;
 			var e = v.__enum__;
-			if( e != null )
+			if( e != null ){
+				#if !js_enums_as_objects
 				return TEnum(e);
+				#else
+				return TEnum(untyped $hxEnums[e]);
+				#end
+			}
 			var c = js.Boot.getClass(v);
 			if( c != null )
 				return TClass(c);
@@ -232,7 +241,7 @@ enum ValueType {
 		#if !js_enums_as_objects
 		return untyped e[0];
 		#else
-		return untyped e.__enum__.__constructs__[e._hx_index];
+		return untyped $hxEnums[e.__enum__].__constructs__[e._hx_index];
 		#end
 	}
 
@@ -241,8 +250,8 @@ enum ValueType {
 		return untyped e.slice(2);
 		#else
 		var n = enumConstructor(e);
-		return untyped e.__enum__[n].__params__ ?
-			[for (p in (e.__enum__[n].__params__:Array<String>)) e[p]] : [];
+		var params:Array<String> = untyped __js__("$hxEnums[{0}.__enum__][{1}].__params__",e,n);
+		return params != null ? [for (p in params) untyped e[p]] : [];
 		#end
 	}
 
