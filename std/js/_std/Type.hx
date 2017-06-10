@@ -256,7 +256,7 @@ enum ValueType {
 	}
 
 	public inline static function enumIndex( e : EnumValue ) : Int {
-	    #if js_enums_as_objects
+		#if js_enums_as_objects
 		return untyped e._hx_index;
 		#else
 		return untyped e[1];
