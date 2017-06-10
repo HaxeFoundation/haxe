@@ -34,7 +34,6 @@ abstract Utf32(Utf32Impl) {
 
 	public inline function new(str:String)  {
 		this = Tools.NativeStringTools.toUtf32Vector(str);
-		//this = byteAccessToImpl(NativeStringTools.toUtf32(str));
 	}
 
 	public inline function getReader ():Utf32Reader {
