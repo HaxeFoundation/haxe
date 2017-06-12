@@ -42,10 +42,9 @@ class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 	public inline function get( key : Int ) : Null<T> {
 		var ret = h[key];
 		if (ret == tnull){
-			return null;
-		} else {
-			return ret;
+			ret = null;
 		}
+		return ret;
 	}
 
 	public inline function exists( key : Int ) : Bool {
@@ -69,7 +68,7 @@ class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 				cur = Lua.next(h,cur).index;
 				return cast ret;
 			},
-			hasNext : function() return cur != null 
+			hasNext : function() return cur != null
 		}
 	}
 
@@ -80,7 +79,7 @@ class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 			next : function() return h[it.next()]
 		};
 	}
-	
+
 	public function copy() : IntMap<T> {
 		var copied = new IntMap();
 		for(key in keys()) copied.set(key, get(key));

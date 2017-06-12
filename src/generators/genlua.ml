@@ -476,6 +476,7 @@ and gen_loop ctx label cond e =
     if will_continue then begin
         println ctx "local _hx_continue_%i = false;" ctx.break_depth;
     end;
+    let b = open_block ctx in
     print ctx "%s " label;
     gen_cond ctx cond;
     print ctx " do ";
@@ -494,6 +495,7 @@ and gen_loop ctx label cond e =
             println ctx "break;";
         println ctx "end;";
     end;
+    b();
     print ctx "end";
     ctx.in_loop <- old_in_loop;
     ctx.break_depth <- ctx.break_depth-1;

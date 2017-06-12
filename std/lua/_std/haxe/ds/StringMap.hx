@@ -42,10 +42,9 @@ class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 	public inline function get( key : String ) : Null<T> untyped {
 		var ret = h[key];
 		if (ret == tnull){
-			return null;
-		} else {
-			return ret;
+			ret = null;
 		}
+		return ret;
 	}
 
 	public inline function exists( key : String ) : Bool untyped {
