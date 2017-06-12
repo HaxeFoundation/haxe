@@ -108,13 +108,7 @@ abstract Utf32(String) {
 	}
 
 	public static function fromByteAccess (ba:ByteAccess):Utf32 {
-		var res = "";
-		var i = 0;
-		while (i < ba.length) {
-			res += String.fromCharCode(ba.getInt32(i));
-			i+=4;
-		}
-		return new Utf32(res);
+		return new Utf32(ba.getData().decode("utf-32be"));
 	}
 
 	@:op(A == B) inline function opEq (other:Utf32) {
@@ -130,7 +124,8 @@ abstract Utf32(String) {
 	}
 
 	public inline function toUtf8() : Utf8 {
-		return toUtf16().toUtf8();
+		var ba = NativeStringTools.toUtf8ByteAccess(this);
+		return Utf8.fromByteAccess(ba);
 	}
 
 	public inline function toUtf16() : Utf16 {
