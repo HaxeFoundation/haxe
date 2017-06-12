@@ -48,27 +48,28 @@ class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 	}
 
 	public inline function exists( key : String ) : Bool untyped {
-		return Lua.rawget(h,key) != null;
+		return h[key] != null;
 	}
 
 	public function remove( key : String ) : Bool untyped {
-		if (Lua.rawget(h,key) == null){
+		if (h[key] == null){
 			return false;
 		} else {
-			Lua.rawset(h,key,null);
+			h[key] = null;
 			return true;
 		}
 	}
 
 	public function keys() : Iterator<String> {
-		var cur = Lua.next(h,null).index;
+		var next = Lua.next;
+		var cur = next(h,null).index;
 		return {
 			next : function() {
 				var ret = cur;
-				cur = Lua.next(h,cur).index;
+				cur = next(h,cur).index;
 				return cast ret;
 			},
-			hasNext : function() return cur != null 
+			hasNext : function() return cur != null
 		}
 	}
 

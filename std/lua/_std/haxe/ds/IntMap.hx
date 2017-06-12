@@ -48,24 +48,25 @@ class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 	}
 
 	public inline function exists( key : Int ) : Bool {
-		return Lua.rawget(h,key) != null;
+		return h[key] != null;
 	}
 
 	public function remove( key : Int ) : Bool {
-		if (Lua.rawget(h,key) == null){
+		if (h[key] == null){
 			return false;
 		} else {
-			Lua.rawset(h,key,null);
+			h[key] = null;
 			return true;
 		}
 	}
 
 	public function keys() : Iterator<Int> {
-		var cur = Lua.next(h,null).index;
+		var next = Lua.next;
+		var cur = next(h,null).index;
 		return {
 			next : function() {
 				var ret = cur;
-				cur = Lua.next(h,cur).index;
+				cur = next(h,cur).index;
 				return cast ret;
 			},
 			hasNext : function() return cur != null

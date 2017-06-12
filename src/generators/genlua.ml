@@ -482,7 +482,6 @@ and gen_loop ctx label cond e =
     print ctx " do ";
     if will_continue then print ctx "repeat ";
     gen_block_element ctx e;
-    newline ctx;
     if will_continue then begin
         if will_continue then begin
             println ctx "until true";
@@ -496,6 +495,7 @@ and gen_loop ctx label cond e =
         println ctx "end;";
     end;
     b();
+    newline ctx;
     print ctx "end";
     ctx.in_loop <- old_in_loop;
     ctx.break_depth <- ctx.break_depth-1;
