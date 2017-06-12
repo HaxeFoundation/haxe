@@ -15,7 +15,7 @@ var eq1 = function (a:haxe.i18n.Utf32, b:haxe.i18n.Utf32, ?pos:haxe.PosInfos) {
 	eqAbstract(a == b, a.toCodeArray(), b.toCodeArray(), pos);
 }
 
-var violine = 0x1D11E; // 𝄞.code 
+var violine = 0x1D11E; // 𝄞.code
 
 wrap("𝄞").charCodeAt(0) == violine;
 
@@ -38,14 +38,14 @@ eq1(wrap("𝄞b𝄞").substr(0, 2), wrap("𝄞b"));
 eq1(wrap("𝄞b𝄞").substr(0, -1), wrap("𝄞b"));
 eq1(wrap("𝄞b𝄞").substr(0, 0), wrap(""));
 
-// 3 byte char => ऽ 
+// 3 byte char => ऽ
 // 4 byte char => 𝄞
 // 2 byte char => É
 // 1 byte char => a
 
 wrap("ऽ𝄞Éa").length == 4;
 
-wrap("ऽ𝄞ÉaऽÉ𝄞ÉÉ𝄞ÉÉ𝄞ÉÉ").length == 15; 
+wrap("ऽ𝄞ÉaऽÉ𝄞ÉÉ𝄞ÉÉ𝄞ÉÉ").length == 15;
 
 wrap("ऽ𝄞ÉaऽÉ𝄞ÉÉ𝄞ÉÉ𝄞ÉÉ").indexOf(wrap("É𝄞ÉÉ")) == 5;
 
@@ -183,3 +183,9 @@ eq1(wrap("𝄞ऽAऽ").toLowerCase(), wrap("𝄞ऽaऽ"));
 
 eq1(wrap("𝄞ऽऽ").toUpperCase(), wrap("𝄞ऽऽ"));
 eq1(wrap("𝄞ऽaऽ").toUpperCase(), wrap("𝄞ऽAऽ"));
+
+var s = "hello world";
+wrap(s).toNativeString() == s;
+
+var s = "ॐऽऽ";
+wrap(s).toNativeString() == s;

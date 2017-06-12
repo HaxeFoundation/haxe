@@ -113,7 +113,8 @@ abstract Utf16(Utf16Impl) {
 	}
 
 	public inline function toNativeString() : String {
-		return Utf16Tools.toNativeString(this);//this.getString(0, this.length);
+		return toUtf8().toNativeString();
+		//return Utf16Tools.toNativeString(this);//this.getString(0, this.length);
 	}
 
 	public inline function toUcs2() : Ucs2 {
@@ -266,9 +267,10 @@ private class Utf16Tools {
 		return mkImpl(ba, len);
 	}
 
-	static inline function toNativeString(impl:Utf16Impl) : String {
-		return impl.b.getString(0, impl.b.length);
-	}
+	//public inline function toNativeString(impl:Utf16Impl) : String {
+//
+	//	//return impl.b.getString(0, impl.b.length);
+	//}
 
 	static inline function equal (impl:Utf16Impl, other:Utf16Impl) {
 		return impl == other || (impl.length == other.length && impl.b.equal(other.b));

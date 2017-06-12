@@ -15,7 +15,7 @@ var eq1 = function (a:haxe.i18n.Utf16, b:haxe.i18n.Utf16, ?pos:haxe.PosInfos) {
 	eqAbstract(a == b, a.toCodeArray(), b.toCodeArray(), pos);
 }
 
-var violine = 0x1D11E; // 𝄞.code 
+var violine = 0x1D11E; // 𝄞.code
 
 var x = haxe.i18n.Utf16.fromCharCode(violine);
 x.length == 1;
@@ -26,7 +26,7 @@ x.toUtf16().length == 1;
 
 wrap("𝄞").length == 1;
 
-eq1(wrap("𝄞"), haxe.i18n.Utf16.fromCharCode(violine));  
+eq1(wrap("𝄞"), haxe.i18n.Utf16.fromCharCode(violine));
 
 arrEq(wrap("𝄞_𝄞_𝄞").split(wrap("_")), [wrap("𝄞"), wrap("𝄞"), wrap("𝄞")]);
 
@@ -171,3 +171,9 @@ s.indexOf(wrap("ऽ"), 3) == -1;
 
 eq1(wrap("𝄞ऽऽ").toUpperCase(), wrap("𝄞ऽऽ"));
 eq1(wrap("𝄞ऽaऽ").toUpperCase(), wrap("𝄞ऽAऽ"));
+
+var s = "hello world";
+wrap(s).toNativeString() == s;
+
+var s = "ॐऽऽ";
+wrap(s).toNativeString() == s;

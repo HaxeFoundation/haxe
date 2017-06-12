@@ -15,11 +15,11 @@ var eq1 = function (a:haxe.i18n.Ucs2, b:haxe.i18n.Ucs2, ?pos:haxe.PosInfos) {
 	eqAbstract(a == b, a.toCodeArray(), b.toCodeArray(), pos);
 }
 
-var violine = 0x1D11E; // 𝄞.code 
+var violine = 0x1D11E; // 𝄞.code
 
 wrap("𝄞").length == 2;
 
-eq1(wrap("𝄞"), haxe.i18n.Ucs2.fromCharCode(violine));  
+eq1(wrap("𝄞"), haxe.i18n.Ucs2.fromCharCode(violine));
 
 // ucs2 strings can store surrogate pairs, but they count as separate characters
 
@@ -155,3 +155,9 @@ s.indexOf(wrap("ऽ"), 3) == -1;
 
 eq1(wrap("ॐऽऽ").toUpperCase(), wrap("ॐऽऽ"));
 eq1(wrap("ॐऽaऽ").toUpperCase(), wrap("ॐऽAऽ"));
+
+var s = "hello world";
+wrap(s).toNativeString() == s;
+
+var s = "ॐऽऽ";
+wrap(s).toNativeString() == s;
