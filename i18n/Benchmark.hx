@@ -51,7 +51,7 @@ Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie co
 
 
 	static function cutTime (time:Float) {
-		return time < 0.0001 ? 0.0001 : time;
+		return time < 0.00001 ? 0.00001 : time;
 	}
 	static function print (str:String, tests:Array<Test>) {
 		tests.sort(function (a, b) {
@@ -82,6 +82,7 @@ Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie co
 			if (t.id == 'native') lookup.set(t.method, cutTime(t.time));
 		}
 		var s = tests.map(function (t) {
+
 			return
 				StringTools.rpad(t.method, " ", 20) +
 				StringTools.rpad(Std.string(t.loops), " ", 6) +

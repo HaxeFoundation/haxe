@@ -5,6 +5,63 @@ class BenchmarkMacro {
 	macro public static function getCode (id:haxe.macro.Expr, multiplier:haxe.macro.Expr, tests:haxe.macro.Expr, s:haxe.macro.Expr, substrings:haxe.macro.Expr) {
 
 		var ct = haxe.macro.TypeTools.toComplexType(haxe.macro.Context.typeof(s));
+		var idString = switch id.expr {
+			case EConst(CString(s)): s;
+			case _ : throw "assert";
+		};
+		var conversions = macro {
+			${if (idString != "utf8" && idString != "native") macro wrap('toUtf8', 300, function (s:$ct) {
+				var res = s.toUtf8();
+				return res;
+			}) else macro null};
+			${if (idString != "ucs2" && idString != "native") macro wrap('toUcs2', 300, function (s:$ct) {
+				var res = s.toUcs2();
+				return res;
+			}) else macro null};
+			${if (idString != "utf16"  && idString != "native") macro wrap('toUtf16', 300, function (s:$ct) {
+				var res = s.toUtf16();
+				return res;
+			}) else macro null};
+			${if (idString != "utf32" && idString != "native") macro wrap('toUtf32', 300, function (s:$ct) {
+				var res = s.toUtf32();
+				return res;
+			}) else macro null};
+
+			${if (idString != "native") macro wrap('toNativeString', 300, function (s:$ct) {
+				var res = s.toNativeString();
+				return res;
+			}) else macro null};
+			${if (idString != "native") macro wrap('toBytes', 300, function (s:$ct) {
+				var res = s.toBytes();
+				return res;
+			}) else macro null};
+
+			${if (idString == "native") macro wrap('toUtf8', 300, function (s:$ct) {
+				var res = new Utf8(s);
+				return res;
+			}) else macro null};
+			${if (idString == "native") macro wrap('toUcs2', 300, function (s:$ct) {
+				var res = new Ucs2(s);
+				return res;
+			}) else macro null};
+			${if (idString == "native") macro wrap('toUtf16', 300, function (s:$ct) {
+				var res = new Utf16(s);
+				return res;
+			}) else macro null};
+			${if (idString == "native") macro wrap('toUtf32', 300, function (s:$ct) {
+				var res = new Utf32(s);
+				return res;
+			}) else macro null};
+
+			${if (idString == "native") macro wrap('toNativeString', 300, function (s:$ct) {
+				return s;
+			}) else macro null};
+			${if (idString == "native") macro wrap('toBytes', 300, function (s:$ct) {
+				var res = haxe.io.Bytes.ofString(s);
+				return res;
+			}) else macro null};
+		};
+
 		return macro {
 			inline function stamp ():Float {
 				${haxe.macro.Context.defined("sys") ? macro return Sys.cpuTime() : macro return haxe.Timer.stamp()};
@@ -138,6 +195,7 @@ class BenchmarkMacro {
 				return res;
 			});
 
+			$conversions;
 		}
 	}
 
