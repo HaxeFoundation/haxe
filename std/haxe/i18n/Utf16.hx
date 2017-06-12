@@ -117,15 +117,15 @@ abstract Utf16(Utf16Impl) {
 	}
 
 	public inline function toUcs2() : Ucs2 {
-		return Ucs2.fromByteAccess(this.b);
+		return Ucs2.fromUtf16(fromImpl(this));
 	}
 
 	public inline function toUtf8 ():Utf8 {
-		return Utf8.fromByteAccess(Convert.convertUtf16toUtf8(getReader(), true));
+		return Utf8.fromUtf16(fromImpl(this));
 	}
 
 	public inline function toUtf32 ():Utf32 {
-		return Utf32.fromByteAccess(Convert.convertUtf16toUtf32(getReader(), true));
+		return Utf32.fromUtf16(fromImpl(this));
 	}
 
 	public inline function toBytes() : haxe.io.Bytes {
@@ -140,10 +140,36 @@ abstract Utf16(Utf16Impl) {
 		return fromImpl(Utf16Tools.fromByteAccess(ba));
 	}
 
+	public static inline function fromUtf8 (s:Utf8):Utf16 {
+		return fromByteAccess(Convert.convertUtf8toUtf16(s.getReader(), true));
+	}
+
+	public static inline function fromUcs2 (s:Ucs2):Utf16 {
+		#if (flash || js || hl || java || cs)
+		return fromBytes(s.toBytes());
+		#else
+		// we can reuse the same underlying byteaccess because ucs2 allows supplementary chars
+		return fromByteAccess(s.impl());
+		#end
+	}
+
+	public static inline function fromUtf32 (s:Utf32):Utf16 {
+		#if python
+		return fromByteAccess(NativeStringTools.toUtf16ByteAccess(s.impl()));
+		#else
+		return fromByteAccess(Convert.convertUtf32toUtf16(s.getReader(), true));
+		#end
+	}
+
 	public inline function getReader ():Utf16Reader
 	{
 		return new Utf16Reader(this.b);
 	}
+
+	public inline function eachCode ( f : Int -> Void) {
+		return Utf16Tools.eachCode(this, f);
+	}
+
 
 	// private helpers
 
@@ -443,7 +469,7 @@ private class Utf16Tools {
 	}
 
 
-	static inline function eachCode ( impl:Utf16Impl, f : Int -> Void) {
+	public static inline function eachCode ( impl:Utf16Impl, f : Int -> Void) {
 		var i = 0;
 		while (i < byteLength(impl)) {
 			var b = getInt16(impl, i);

@@ -124,17 +124,33 @@ abstract Utf32(String) {
 	}
 
 	public inline function toUtf8() : Utf8 {
-		var ba = NativeStringTools.toUtf8ByteAccess(this);
-		return Utf8.fromByteAccess(ba);
+		return Utf8.fromUtf32(fromImpl(this));
 	}
 
 	public inline function toUtf16() : Utf16 {
-		var ba = NativeStringTools.toUtf16ByteAccess(this);
-		return Utf16.fromByteAccess(ba);
+		return Utf16.fromUtf32(fromImpl(this));
 	}
 
 	public inline function toUcs2() : Ucs2 {
-		return toUtf16().toUcs2();
+		return Ucs2.fromUtf32(fromImpl(this));
+	}
+
+	inline static function fromUcs2 (s:Ucs2):Utf32 {
+		var buf = new StringBuf();
+		s.eachCode(function (codePoint) StringBufTools.addString(buf, String.fromCharCode(codePoint)));
+		return fromImpl(buf.toString());
+	}
+
+	inline static function fromUtf16 (s:Utf16):Utf32 {
+		var buf = new StringBuf();
+		s.eachCode(function (codePoint) StringBufTools.addString(buf, String.fromCharCode(codePoint)));
+		return fromImpl(buf.toString());
+	}
+
+	inline static function fromUtf8 (s:Utf8):Utf32 {
+		var buf = new StringBuf();
+		s.eachCode(function (codePoint) StringBufTools.addString(buf, String.fromCharCode(codePoint)));
+		return fromImpl(buf.toString());
 	}
 
 	static inline function fromImpl (str:String):Utf32 {
@@ -327,15 +343,36 @@ abstract Utf32(Utf32Impl) {
 	}
 
 	public inline function toUtf8() : Utf8 {
-		return Utf8.fromByteAccess(Convert.convertUtf32toUtf8(getReader(), true));
+		return Utf8.fromUtf32(fromImpl(this));
 	}
 
 	public inline function toUtf16() : Utf16 {
-		return Utf16.fromByteAccess(Convert.convertUtf32toUtf16(getReader(), true));
+		return Utf16.fromUtf32(fromImpl(this));
 	}
 
 	public inline function toUcs2() : Ucs2 {
-		return toUtf16().toUcs2();
+		return Ucs2.fromUtf32(fromImpl(this));
+	}
+
+	inline static function fromUcs2 (s:Ucs2):Utf32 {
+		var r = Utf32Tools.alloc(s.length);
+		var pos = 0;
+		s.eachCode(function (codePoint) r[pos++] = codePoint);
+		return fromImpl(r);
+	}
+
+	inline static function fromUtf8 (s:Utf8):Utf32 {
+		var r = Utf32Tools.alloc(s.length);
+		var pos = 0;
+		s.eachCode(function (codePoint) r[pos++] = codePoint);
+		return fromImpl(r);
+	}
+
+	inline static function fromUtf16 (s:Utf16):Utf32 {
+		var r = Utf32Tools.alloc(s.length);
+		var pos = 0;
+		s.eachCode(function (codePoint) r[pos++] = codePoint);
+		return fromImpl(r);
 	}
 
 	@:op(A == B) inline function opEq (other:Utf32) {

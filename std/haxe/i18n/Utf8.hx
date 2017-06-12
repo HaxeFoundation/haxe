@@ -120,15 +120,15 @@ abstract Utf8(Utf8Impl) {
 	}
 
 	public inline function toUcs2() : Ucs2 {
-		return Ucs2.fromByteAccess(Convert.convertUtf8toUcs2(getReader(), true, false));
+		return Ucs2.fromUtf8(fromImpl(this));
 	}
 
  	public inline function toUtf16 ():Utf16 {
-		return Utf16.fromByteAccess(Convert.convertUtf8toUtf16(getReader(), true));
+		return Utf16.fromUtf8(fromImpl(this));
 	}
 
 	public inline function toUtf32 ():Utf32 {
-		return Utf32.fromByteAccess(Convert.convertUtf8toUtf32(getReader(), true));
+		return Utf32.fromUtf8(fromImpl(this));
 	}
 
 	public inline function toBytes() : haxe.io.Bytes {
@@ -147,9 +147,30 @@ abstract Utf8(Utf8Impl) {
 		return fromImpl(Utf8Tools.fromByteAccess(ba));
 	}
 
+	public static inline function fromUtf32(s:Utf32) : Utf8 {
+		#if python
+		return fromByteAccess(NativeStringTools.toUtf8ByteAccess(s.impl()));
+		#else
+		return fromByteAccess(Convert.convertUtf32toUtf8(s.getReader(), true));
+		#end
+	}
+
+	public static inline function fromUtf16 (s:Utf16):Utf8 {
+		return fromByteAccess(Convert.convertUtf16toUtf8(s.getReader(), true));
+	}
+
+	public static inline function fromUcs2(s:Ucs2) : Utf8 {
+		#if (flash || js || hl || java || cs)
+		return new Utf8(s.impl());
+		#else
+		return fromUtf16(s.toUtf16());
+		#end
+	}
+
 	public inline function getReader ():Utf8Reader {
 		return new Utf8Reader(this.b);
 	}
+
 
 	// private api
 
@@ -250,9 +271,6 @@ private class Utf8Tools {
 	}
 
 	static inline function fromByteAccess (ba:ByteAccess):Utf8Impl {
-		if (!Convert.isLegalUtf8Source(new Utf8Reader(ba))) {
-			throw "illegal utf8";
-		}
 		var len = calcLength(ba);
 		return mkImpl(ba, len);
 	}

@@ -829,3 +829,15 @@ class NativeStringTools {
 		#end
 	}
 }
+
+class StringBufTools {
+	public static inline function addString (buf:StringBuf, s:String) {
+		#if js
+		@:privateAccess buf.b += s;
+		#elseif python
+		@:privateAccess buf.add1(s);
+		#else
+		buf.add(s);
+		#end
+	}
+}

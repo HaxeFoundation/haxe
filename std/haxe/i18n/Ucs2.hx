@@ -159,20 +159,38 @@ abstract Ucs2(String) {
 	}
 
 	public inline function toUtf8() : Utf8 {
-		return toUtf16().toUtf8();
+		return Utf8.fromUcs2(fromImpl(this));
 	}
 
 	public inline function toUtf16() : Utf16 {
-		return Utf16.fromBytes(toBytes());
+		return Utf16.fromUcs2(fromImpl(this));
 	}
 
-	public inline function toUtf32() : Utf32 {
-		return toUtf16().toUtf32();
+	public function toUtf32() : Utf32 {
+		return Utf32.fromUcs2( fromImpl(this) );
+	}
+
+	public static inline function fromUtf32 (s:Utf32):Ucs2 {
+		var buf = new StringBuf();
+		s.eachCode(code -> StringBufTools.addString(buf, nativeStringfromCharCode(code)));
+		return fromImpl(buf.toString());
+	}
+
+	public static inline function fromUtf16 (s:Utf16):Ucs2 {
+		return fromByteAccess(s.impl().b);
+	}
+
+	public static inline function fromUtf8(s:Utf8) : Ucs2 {
+		var buf = new StringBuf();
+		s.eachCode(code -> StringBufTools.addString(buf, nativeStringfromCharCode(code)));
+		return fromImpl(buf.toString());
 	}
 
 	static inline function fromImpl (str:String):Ucs2 {
 		return cast str;
 	}
+
+
 
 	inline function impl() : String {
 		return this;
@@ -345,17 +363,28 @@ abstract Ucs2(ByteAccess) {
 		return fromImpl(ByteAccess.fromBytes(bytes).copy());
 	}
 
+	public static inline function fromUtf8(s:Utf8) : Ucs2 {
+		return fromByteAccess(Convert.convertUtf8toUcs2(s.getReader(), true, false));
+	}
+
+	public static inline function fromUtf16 (s:Utf16):Ucs2 {
+		return fromByteAccess(s.impl().b);
+	}
+
+	public static inline function fromUtf32 (s:Utf32):Ucs2 {
+		return fromUtf16(Utf16.fromUtf32(s));
+	}
+
 	public inline function toUtf8() : Utf8 {
-		return toUtf16().toUtf8();
+		return Utf8.fromUcs2(fromImpl(this));
 	}
 
 	public inline function toUtf16() : Utf16 {
-		// we can reuse the same underlying byteaccess because ucs2 allows supplementary chars
-		return Utf16.fromByteAccess(this);
+		return Utf16.fromUcs2(fromImpl(this));
 	}
 
 	public inline function toUtf32() : Utf32 {
-		return toUtf16().toUtf32();
+		return Utf32.fromUcs2(fromImpl(this));
 	}
 
 	@:op(A == B) inline function opEq (other:Ucs2) {
