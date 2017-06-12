@@ -10,7 +10,7 @@ HL_ENV=LD_LIBRARY_PATH=$(HASHLINK_PATH)
 HL=$(HL_ENV) $(HASHLINK_PATH)/hl
 
 test-1: test-neko test-js test-python test-php test-hl
-test-all: test-neko test-js test-python test-php test-java test-cs test-cpp test-hl
+test-all: test-neko test-js test-python test-php test-java test-cs test-cpp test-lua test-hl
 test-static: test-java test-cs test-cpp
 
 
