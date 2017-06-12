@@ -669,14 +669,16 @@ private class Utf8Tools {
 		return mkImplFromBuffer(buf, newLen);
 	}
 
-	static inline function substring<T>( ba:Utf8Impl, startIndex : Int, ?endIndex : Int ) : Utf8Impl {
+	static function substring<T>( ba:Utf8Impl, startIndex : Int, ?endIndex : Int ) : Utf8Impl {
 		var startIndex:Null<Int> = startIndex;
-		var len = strLength(ba);
 
 		if (startIndex < 0) startIndex = 0;
 		if (endIndex != null && endIndex < 0) endIndex = 0;
 
+		var len = strLength(ba);
+
 		if (endIndex == null) endIndex = len;
+
  		if (startIndex > endIndex) {
 			var x = startIndex;
 			startIndex = endIndex;
@@ -687,7 +689,14 @@ private class Utf8Tools {
 
 		if (startIndex == null || startIndex > len) return empty;
 
-		return substr(ba, startIndex, endIndex - startIndex);
+
+		return if (isAscii(ba)) {
+			var len = endIndex - startIndex;
+			return mkImpl(ba.b.sub(startIndex, len), len);
+		} else {
+			substr(ba, startIndex, endIndex - startIndex);
+		}
+
 	}
 
 	static inline function fromCharCode( code : Int ) : Utf8Impl

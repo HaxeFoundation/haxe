@@ -719,7 +719,15 @@ private class Utf16Tools {
 
 		if (startIndex == null || startIndex > len) return empty;
 
-		return substr(impl, startIndex, endIndex - startIndex);
+		return if (hasNoSurrogates(impl)) {
+			var len = (endIndex << 1) - (startIndex << 1);
+			mkImpl(impl.b.sub( (startIndex << 1), len), len >> 1);
+		} else if (hasOnlySurrogates(impl)) {
+			var len = (endIndex << 2)  - (startIndex << 2);
+			mkImpl(impl.b.sub((startIndex << 2), len), len  >> 2);
+		} else {
+			substr(impl, startIndex, endIndex - startIndex);
+		}
 	}
 
 	static inline function fromCharCode( code : Int ) : Utf16Impl
