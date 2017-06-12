@@ -1640,8 +1640,9 @@ let generate_enum ctx e =
 
 let generate_static ctx (c,f,e) =
 	print ctx "%s%s = " (s_path ctx c.cl_path) (field f);
-	gen_value ctx e;
-	newline ctx
+        gen_value ctx e;
+        semicolon ctx;
+        newline ctx
 
 let generate_enumMeta_fields ctx = function
     | TEnumDecl e -> begin
