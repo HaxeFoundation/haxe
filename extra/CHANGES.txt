@@ -6,6 +6,8 @@
 	cs : improved generation of enum classes (#6119)
 	sys : the `database` parameter of `Mysql.connect` is now optional
 	js : updated jQuery extern (js.jquery.*) for jQuery 1.12.4 / 3.2.1 support.
+	Makefile : default Unix installation location $(INSTALL_DIR) changed from /usr to /usr/local.
+	Makefile : default Unix std location $(INSTALL_STD_DIR) changed from $(INSTALL_LIB_DIR)/std to $(INSTALL_DIR)/share/haxe/std.
 
 	Removals:
 

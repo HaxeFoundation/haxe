@@ -10,10 +10,10 @@
 #
 .SUFFIXES : .ml .mli .cmo .cmi .cmx .mly
 
-INSTALL_DIR=$(DESTDIR)/usr
+INSTALL_DIR=$(DESTDIR)/usr/local
 INSTALL_BIN_DIR=$(INSTALL_DIR)/bin
 INSTALL_LIB_DIR=$(INSTALL_DIR)/lib/haxe
-INSTALL_STD_DIR=$(INSTALL_LIB_DIR)/std
+INSTALL_STD_DIR=$(INSTALL_DIR)/share/haxe/std
 PACKAGE_OUT_DIR=out
 PACKAGE_SRC_EXTENSION=.tar.gz
 
@@ -165,7 +165,8 @@ tools: haxelib
 install: uninstall
 	mkdir -p $(INSTALL_BIN_DIR)
 	mkdir -p $(INSTALL_LIB_DIR)/lib
-	cp -rf std $(INSTALL_STD_DIR)
+	mkdir -p $(INSTALL_STD_DIR)
+	cp -rf std/* $(INSTALL_STD_DIR)
 	cp -rf extra $(INSTALL_LIB_DIR)
 	cp haxe $(INSTALL_LIB_DIR)
 	ln -s $(INSTALL_LIB_DIR)/haxe $(INSTALL_BIN_DIR)/haxe

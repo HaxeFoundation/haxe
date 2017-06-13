@@ -363,11 +363,12 @@ let get_std_class_paths () =
 	with Not_found ->
 		if Sys.os_type = "Unix" then
 			[
-				"/usr/lib/haxe/std/";
-				"/usr/share/haxe/std/";
+				"/usr/local/share/haxe/std/";
 				"/usr/local/lib/haxe/std/";
-				"/usr/lib/haxe/extraLibs/";
 				"/usr/local/lib/haxe/extraLibs/";
+				"/usr/share/haxe/std/";
+				"/usr/lib/haxe/std/";
+				"/usr/lib/haxe/extraLibs/";
 				""
 			]
 		else
