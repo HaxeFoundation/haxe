@@ -23,20 +23,14 @@ package python.lib;
 
 import python.Tuple;
 
-
 private abstract Choice <A,B>(Dynamic) {
 	@:from public static inline function fromA <A,B>(x:A):Choice<A,B> return cast x;
 	@:from public static inline function fromB <A,B>(x:B):Choice<A,B> return cast x;
 }
 
-typedef TODO = Dynamic;
-
 typedef Pattern = Choice<String, Regex>;
 
 typedef Repl = Choice<String, MatchObject->String>;
-
-
-
 
 extern class MatchObject
 {
@@ -160,8 +154,6 @@ extern class Re
 	public static var U:Int;
 	public static var UNICODE:Int;
 
-
-
 	public static function compile (pattern:String, ?flags:Int = 0):Regex;
 
 	public static function match (pattern:Pattern, string:String, flags:Int = 0):Null<MatchObject>;
@@ -174,7 +166,6 @@ extern class Re
 	{
 		return python.Syntax.field(pattern, "findall")(string, flags);
 	}
-
 
 	public static inline function findallString(pattern:Pattern, string:String,	flags:Int=0):Array<String>
 	{
@@ -192,7 +183,6 @@ extern class Re
 	}
 
 	public static function finditer(pattern:Pattern, string:String,   flags:Int=0):NativeIterator<MatchObject>;
-
 
 	@:overload(function (pattern:Pattern, repl:String, string:String,  ?count:Int=0, ?flags:Int=0):String {})
 	public static function sub(pattern:Pattern, repl:MatchObject->String, string:String,  ?count:Int=0, ?flags:Int=0):String;
