@@ -74,7 +74,7 @@ install_linux: &install_linux
   - java -version
   # Build haxe
   - if [ -d "~/_hxbuild" ]; then
-      cp -pr ~/_hxbuild ./_build
+      cp -pr ~/_hxbuild ./_build;
     fi
   - make package_src -s
   - opam config exec -- make -s STATICLINK=1
@@ -85,7 +85,7 @@ install_linux: &install_linux
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
   - if [ ! -d "~/_hxbuild" ]; then
-    mkdir ~/_hxbuild
+    mkdir ~/_hxbuild;
     fi
   - cp -prf ./_build/* ~/_hxbuild/
   - sudo rm $APT_CACHE_DIR/lock
