@@ -77,13 +77,16 @@ install_linux: &install_linux
   - java -version
   # Build haxe
   - if [ -d "/home/travis/_hxbuild" ]; then
+      echo "/home/travis/_hxbuild exists";
       cp -pr ~/_hxbuild ./_build;
     fi
   #- make package_src -s
   #- opam config exec -- make -s STATICLINK=1
   #- make package_bin -s
+  - ls -la ~
+  - ls -la .
   - echo $PWD
-  - mkdir ./_build
+  - mkdir -p ./_build
   #- ls -l out
   #- ldd -v ./haxe
   #- ldd -v ./haxelib
