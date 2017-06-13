@@ -23,3 +23,22 @@ max*2 == -2;
 min << 1 == 0;
 min >> 1 == 0xc0000000;
 min >>> 1 == 0x40000000;
+
+var a = [1];
+var next = 0;
+
+var i32:haxe.Int32 = max - 1;
+i32 |= ((a[next] << 32) | 1 );
+i32 == max;
+
+var i32:haxe.Int32 = a[next] << 33;
+i32 >>= 1;
+i32 == 0;
+
+var i32:haxe.Int32 = 2;
+i32 ^= ( (a[next] << 32) | 1);
+i32 == 3;
+
+var i32:haxe.Int32 = 2;
+var c = ~(((a[next] << 32) | 1):haxe.Int32);
+c == 0xfffffffe;
