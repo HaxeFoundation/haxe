@@ -1461,7 +1461,7 @@ and tcppfuncloc =
    | FuncFromStaticFunction
 
 and tcpparrayloc =
-   | ArrayTyped of tcppexpr * tcppexpr
+   | ArrayTyped of tcppexpr * tcppexpr * tcpp
    | ArrayPointer of tcppexpr * tcppexpr
    | ArrayRawPointer of tcppexpr * tcppexpr
    | ArrayObject of tcppexpr * tcppexpr * tcpp
@@ -2851,7 +2851,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             let retypedIdx = retype (TCppScalar("int")) e2 in
             let arrayExpr, elemType = (match retypedObj.cpptype with
               | TCppScalarArray scalar ->
-                 CppArray( ArrayTyped(retypedObj,retypedIdx) ), scalar
+                 CppArray( ArrayTyped(retypedObj,retypedIdx,scalar) ), scalar
               | TCppPointer (_,elem) ->
                  CppArray( ArrayPointer(retypedObj, retypedIdx) ), elem
               | TCppRawPointer (_,elem) ->
@@ -3338,6 +3338,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
    let cppTree =  retype_expression ctx TCppVoid function_args function_type tree forInjection in
    let label_name i = Printf.sprintf "_hx_goto_%i" i in
    let class_hash = gen_hash_small 0 class_name in
+   (*let genGc = Common.defined ctx.ctx_common Define.HxcppGcGenerational in*)
 
    let rec gen_with_injection injection expr =
       (match expr.cppexpr with
@@ -3573,7 +3574,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          out ("->__Field(" ^ (strq name)  ^ ",hx::paccDynamic)");
 
       | CppArray(arrayLoc) -> (match arrayLoc with
-         | ArrayTyped(arrayObj,index) ->
+         | ArrayTyped(arrayObj,index,_) ->
             gen arrayObj; out "->__get("; gen index; out ")"
 
          | ArrayPointer(arrayObj,index) ->
@@ -3624,8 +3625,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          | CppArrayRef arrayLoc -> (match arrayLoc with
             | ArrayObject(arrayObj, index, _) when (is_gc_element ctx TCppDynamic) ->
                gen arrayObj; out "->setCtx( HX_CTX, "; gen index; out ","; gen rvalue; out ")"
+            | ArrayTyped(arrayObj, index, t) when (is_gc_element ctx t) ->
+               gen arrayObj; out "->setCtx( HX_CTX, "; gen index; out ","; gen rvalue; out ")"
             | ArrayObject(arrayObj, index, _)
-            | ArrayTyped(arrayObj, index)
+            | ArrayTyped(arrayObj, index, _)
             | ArrayRawPointer(arrayObj, index) ->
                gen arrayObj; out "["; gen index; out "] = "; gen rvalue
             | ArrayPointer(arrayObj, index) ->
@@ -3995,7 +3998,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       | CppArrayRef arrayLoc -> (match arrayLoc with
          | ArrayObject(arrayObj, index, _) ->
             out "hx::IndexRef("; gen arrayObj; out ".mPtr,"; gen index; out ")";
-         | ArrayTyped(arrayObj, index) ->
+         | ArrayTyped(arrayObj, index, _) ->
             gen arrayObj; out "["; gen index; out "]";
          | ArrayPointer(arrayObj, index) ->
             gen arrayObj; out ".ptr["; gen index; out "]";
@@ -4486,7 +4489,7 @@ let gen_member_def ctx class_def is_static is_interface field =
             if ( doDynamic ) then begin
                output ("::Dynamic " ^ remap_name ^ ";\n");
                if (not is_static) && (is_gc_element ctx TCppDynamic) then
-                  output ("\t\tinline ::Dynamic _hx_set_" ^ remap_name ^ "(hx::Ctx *_hx_ctx,::Dynamic _hx_v) { HX_OBJ_WB(this,_hx_v) return " ^ remap_name ^ "=_hx_v; }\n");
+                  output ("\t\tinline ::Dynamic _hx_set_" ^ remap_name ^ "(hx::StackContext *_hx_ctx,::Dynamic _hx_v) { HX_OBJ_WB(this,_hx_v.mPtr) return " ^ remap_name ^ "=_hx_v; }\n");
                output (if is_static then "\t\tstatic " else "\t\t");
                output ("inline ::Dynamic &" ^ remap_name ^ "_dyn() " ^ "{return " ^ remap_name^ "; }\n")
             end
@@ -4523,8 +4526,10 @@ let gen_member_def ctx class_def is_static is_interface field =
             abort ("Variables of type " ^ tcppStr ^ " may not be used as members") field.cf_pos;
 
          output (tcppStr ^ " " ^ remap_name ^ ";\n" );
-         if not is_static && (is_gc_element ctx tcpp) then
-            output ("\t\tinline " ^ tcppStr ^ " _hx_set_" ^ remap_name ^ "(hx::Ctx *_hx_ctx," ^ tcppStr ^ " _hx_v) { HX_OBJ_WB(this,_hx_v) return " ^ remap_name ^ "=_hx_v; }\n");
+         if not is_static && (is_gc_element ctx tcpp) then begin
+            let getPtr = match tcpp with | TCppString -> ".__s" | _ -> ".mPtr" in
+            output ("\t\tinline " ^ tcppStr ^ " _hx_set_" ^ remap_name ^ "(hx::StackContext *_hx_ctx," ^ tcppStr ^ " _hx_v) { HX_OBJ_WB(this,_hx_v" ^ getPtr ^ ") return " ^ remap_name ^ "=_hx_v; }\n");
+         end;
 
          (* Add a "dyn" function for variable to unify variable/function access *)
          (match follow field.cf_type with
@@ -7889,7 +7894,7 @@ class script_writer ctx filename asciiOut =
       end and gen_array arrayLoc pos =
          match arrayLoc with
             | ArrayObject(arrayObj, index, _)
-            | ArrayTyped(arrayObj, index) ->
+            | ArrayTyped(arrayObj, index, _) ->
                this#write ((this#op IaArrayI) ^ (this#astType arrayObj.cpptype) ^ "\n");
                gen_expression arrayObj;
                gen_expression index;
