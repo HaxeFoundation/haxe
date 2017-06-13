@@ -355,8 +355,12 @@ class Boot {
 			case "splice" if (isArray(o)):
 				createClosure(o, ArrayImpl.splice);
 			default:
-				var field = handleKeywords(field);
-				if (UBuiltins.hasattr(o, field)) UBuiltins.getattr(o, field) else null;
+				if(isString(o)) {
+					(o:String).length;
+				} else {
+					var field = handleKeywords(field);
+					if (UBuiltins.hasattr(o, field)) UBuiltins.getattr(o, field) else null;
+				}
 		}
 	}
 

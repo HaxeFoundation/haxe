@@ -105,3 +105,5 @@ Makefile.modules
 tests/benchs/mandelbrot/bin/
 tests/server/test/cases/
 tests/server/test.js
+
+tests/unit/pypy3-*
