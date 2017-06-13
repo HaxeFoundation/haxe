@@ -53,6 +53,7 @@ install_linux: &install_linux
   - opam install sedlex xml-light extlib rope ptmap
   # Install neko
   - if [ ! -d "../../neko" ]; then
+      mkdir ../../neko
       git clone https://github.com/HaxeFoundation/neko.git ../../neko
     fi
   - pushd ../../neko
@@ -155,7 +156,7 @@ matrix:
     #    - HXCPP_COMPILE_CACHE=~/hxcache
     #  before_install:
     #    - sudo apt-get update -y || true
-    #    - travis_retry sudo apt-get install -y
+    #    - travis_retry sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y
     #        gcc-multilib
     #        g++-multilib
     #  install: *install_linux
