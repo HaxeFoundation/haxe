@@ -7,6 +7,7 @@ cache:
       - $HOME/hxcache
       - $HOME/_hxbuild
       - $HOME/lua_env
+      - /usr/local/Cellar
 env:
   global:
     # make variables
@@ -110,8 +111,15 @@ install_osx: &install_osx
   - eval `opam config env`
   # Install neko
   - brew upgrade cmake # we need a recent cmake to use CMAKE_OSX_DEPLOYMENT_TARGET
-  - git clone https://github.com/HaxeFoundation/neko.git ../neko
-  - pushd ../neko
+  - if [ ! -d "/home/travis/neko" ]; then
+      mkdir /home/travis/neko;
+      pushd /home/travis/neko;
+      git clone https://github.com/HaxeFoundation/neko.git .;
+    else
+      pushd /home/travis/neko;
+      git pull origin master || git clone https://github.com/HaxeFoundation/neko.git .;
+      git submodule update --init --recursive;
+    fi
   - cmake . -DSTATIC_DEPS=all -G Ninja
   # download static dependencies before actual build, with 3 chances to deal with network issues
   - ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
@@ -126,6 +134,10 @@ install_osx: &install_osx
   - mysql -u root -e "grant all on haxe_test.* to travis@localhost;"
   # Build haxe
   - travis_retry brew install zlib pcre
+  - if [ -d "/home/travis/_hxbuild" ]; then
+      echo "/home/travis/_hxbuild exists";
+      cp -pr ~/_hxbuild ./_build;
+    fi
   - make package_src -s
   - make -s STATICLINK=1 "LIB_PARAMS=/usr/local/opt/zlib/lib/libz.a /usr/local/lib/libpcre.a"
   - make package_bin -s
@@ -134,6 +146,10 @@ install_osx: &install_osx
   - otool -L ./haxelib
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
+  - if [ ! -d "/home/travis/_hxbuild" ]; then
+        mkdir ~/_hxbuild;
+    fi
+  - cp -prf ./_build/* ~/_hxbuild/
   - travis_retry brew install awscli
 
 matrix:
@@ -141,40 +157,81 @@ matrix:
     #########
     # linux #
     #########
-    - os: linux
-      env:
-        - TEST=macro,neko,js,php,php7,flash9,as3,java,cs,python,hl,lua
-        - DEPLOY=1
-        # - SAUCE=1
-        # haxeci_decrypt (Deploy source package to ppa:haxe/snapshots.)
-        - secure: "Mw3p6bDZuqVQ6u7GrwLQfje5hhIOA4+mdqqLXYHP79UKdhgqb91Dn6IbG9vQ1VXVe64W4YZbQAMBMMRX5kEPDl6JvTVGSBhg00Mi69oO5qrCMcBI6f9FntG72YaVvLf+PA7co+vKrnJzaP2M9pe4SH9Ztbhy0YNxULp7NQ8FLsM="
-        # deploy_key_decrypt (Deploy doc to api.haxe.org.)
-        - secure: "A75uYqU0Xz6plIgSewEs0QQWe472dCMb9kf3j7Hx0DS7dApXgx8++189sw9Sv0wam5KPtbcIM292MucjGCb5zocVj9xCUVgajhEA0QpTuDMBjk/cg3ClWCGjfybaCl2E5LLdUs7Zy4b4oNWtVikOWLWJ4sC1kaarR9p6kv8yYZg="
-      # addons:
-      #   <<: *addons
-      #  sauce_connect: true
-      before_install:
-        - sudo apt-get update -y || true
-        - "export DISPLAY=:99.0"
-        - "sh -e /etc/init.d/xvfb start"
-        - "export AUDIODEV=null"
-      install: *install_linux
-
-    - os: linux
-      env:
-        - TEST=cpp
-        - HXCPP_COMPILE_CACHE=~/hxcache
-      before_install:
-        - export APT_CACHE_DIR=~/apt-cache && mkdir -pv $APT_CACHE_DIR
-        - sudo apt-get update -y || true
-        - travis_retry sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y
-            gcc-multilib
-            g++-multilib
-      install: *install_linux
+    #- os: linux
+    #  env:
+    #    - TEST=macro
+    #    - DEPLOY=1
+    #    # - SAUCE=1
+    #    # haxeci_decrypt (Deploy source package to ppa:haxe/snapshots.)
+    #    - secure: "Mw3p6bDZuqVQ6u7GrwLQfje5hhIOA4+mdqqLXYHP79UKdhgqb91Dn6IbG9vQ1VXVe64W4YZbQAMBMMRX5kEPDl6JvTVGSBhg00Mi69oO5qrCMcBI6f9FntG72YaVvLf+PA7co+vKrnJzaP2M9pe4SH9Ztbhy0YNxULp7NQ8FLsM="
+    #    # deploy_key_decrypt (Deploy doc to api.haxe.org.)
+    #    - secure: "A75uYqU0Xz6plIgSewEs0QQWe472dCMb9kf3j7Hx0DS7dApXgx8++189sw9Sv0wam5KPtbcIM292MucjGCb5zocVj9xCUVgajhEA0QpTuDMBjk/cg3ClWCGjfybaCl2E5LLdUs7Zy4b4oNWtVikOWLWJ4sC1kaarR9p6kv8yYZg="
+    #  # addons:
+    #  #   <<: *addons
+    #  #  sauce_connect: true
+    #  before_install:
+    #    - sudo apt-get update -y || true
+    #    - "export DISPLAY=:99.0"
+    #    - "sh -e /etc/init.d/xvfb start"
+    #    - "export AUDIODEV=null"
+    #  install: *install_linux
+    #- os: linux
+    #  env:
+    #    - TEST=macro,neko,js,php,php7,flash9,as3,python,hl,lua
+    #    - DEPLOY=1
+    #    # - SAUCE=1
+    #    # haxeci_decrypt (Deploy source package to ppa:haxe/snapshots.)
+    #    - secure: "Mw3p6bDZuqVQ6u7GrwLQfje5hhIOA4+mdqqLXYHP79UKdhgqb91Dn6IbG9vQ1VXVe64W4YZbQAMBMMRX5kEPDl6JvTVGSBhg00Mi69oO5qrCMcBI6f9FntG72YaVvLf+PA7co+vKrnJzaP2M9pe4SH9Ztbhy0YNxULp7NQ8FLsM="
+    #    # deploy_key_decrypt (Deploy doc to api.haxe.org.)
+    #    - secure: "A75uYqU0Xz6plIgSewEs0QQWe472dCMb9kf3j7Hx0DS7dApXgx8++189sw9Sv0wam5KPtbcIM292MucjGCb5zocVj9xCUVgajhEA0QpTuDMBjk/cg3ClWCGjfybaCl2E5LLdUs7Zy4b4oNWtVikOWLWJ4sC1kaarR9p6kv8yYZg="
+    #  # addons:
+    #  #   <<: *addons
+    #  #  sauce_connect: true
+    #  before_install:
+    #    - sudo apt-get update -y || true
+    #    - "export DISPLAY=:99.0"
+    #    - "sh -e /etc/init.d/xvfb start"
+    #    - "export AUDIODEV=null"
+    #  install: *install_linux
+    #- os: linux
+    #  env:
+    #    - TEST=java,cs
+    #    - DEPLOY=1
+    #    # - SAUCE=1
+    #    # haxeci_decrypt (Deploy source package to ppa:haxe/snapshots.)
+    #    - secure: "Mw3p6bDZuqVQ6u7GrwLQfje5hhIOA4+mdqqLXYHP79UKdhgqb91Dn6IbG9vQ1VXVe64W4YZbQAMBMMRX5kEPDl6JvTVGSBhg00Mi69oO5qrCMcBI6f9FntG72YaVvLf+PA7co+vKrnJzaP2M9pe4SH9Ztbhy0YNxULp7NQ8FLsM="
+    #    # deploy_key_decrypt (Deploy doc to api.haxe.org.)
+    #    - secure: "A75uYqU0Xz6plIgSewEs0QQWe472dCMb9kf3j7Hx0DS7dApXgx8++189sw9Sv0wam5KPtbcIM292MucjGCb5zocVj9xCUVgajhEA0QpTuDMBjk/cg3ClWCGjfybaCl2E5LLdUs7Zy4b4oNWtVikOWLWJ4sC1kaarR9p6kv8yYZg="
+    #  # addons:
+    #  #   <<: *addons
+    #  #  sauce_connect: true
+    #  before_install:
+    #    - sudo apt-get update -y || true
+    #    - "export DISPLAY=:99.0"
+    #    - "sh -e /etc/init.d/xvfb start"
+    #    - "export AUDIODEV=null"
+    #  install: *install_linux
+#
+    #- os: linux
+    #  env:
+    #    - TEST=cpp
+    #    - HXCPP_COMPILE_CACHE=~/hxcache
+    #  before_install:
+    #    - export APT_CACHE_DIR=~/apt-cache && mkdir -pv $APT_CACHE_DIR
+    #    - sudo apt-get update -y || true
+    #    - travis_retry sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y
+    #        gcc-multilib
+    #        g++-multilib
+    #  install: *install_linux
 
     #######
     # osx #
     #######
+    - os: osx
+      env:
+        - TEST=macro,neko
+        - DEPLOY=1
+      install: *install_osx
     #- os: osx
     #  env:
     #    - TEST=macro,neko,js,php,flash9,as3,java,cs,python,hl,lua
