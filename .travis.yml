@@ -56,8 +56,8 @@ install_linux: &install_linux
   # Install neko
   - if [ ! -d "/home/travis/neko" ]; then
       mkdir /home/travis/neko;
-      git clone https://github.com/HaxeFoundation/neko.git /home/travis/neko;
       pushd /home/travis/neko;
+      git clone https://github.com/HaxeFoundation/neko.git .;
     else
       pushd /home/travis/neko;
       git pull origin master || git clone https://github.com/HaxeFoundation/neko.git .;
