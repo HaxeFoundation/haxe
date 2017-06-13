@@ -863,7 +863,7 @@ class RunCi {
 						  runCommand("haxe", ["compile-lua.hxml"].concat(args));
 						  runCommand("lua", ["bin/lua/sys.lua"]);
 
-						  changeDirectory(miscDir + "");
+						  changeDirectory(miscDir + "luaDeadCode");
 						  runCommand("haxe", ["compile.hxml"]);
 						}
 					case Cpp:
