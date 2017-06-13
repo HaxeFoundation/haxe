@@ -94,6 +94,7 @@ install_linux: &install_linux
   #- make package_src -s
   #- opam config exec -- make -s STATICLINK=1
   #- make package_bin -s
+  - mkdir ./_build
   #- ls -l out
   #- ldd -v ./haxe
   #- ldd -v ./haxelib
