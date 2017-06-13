@@ -355,7 +355,7 @@ class RunCi {
 			haxelibInstallGit("HaxeFoundation", "hxcpp", true);
 			var oldDir = Sys.getCwd();
 			changeDirectory(getHaxelibPath("hxcpp") + "tools/hxcpp/");
-			runCommand("haxe", ["compile.hxml"]);
+			runCommand("haxe", ["-D", "source-header=''", "compile.hxml"]);
 			changeDirectory(oldDir);
 		}
 
