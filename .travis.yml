@@ -60,7 +60,7 @@ install_linux: &install_linux
       pushd /home/travis/neko;
     else
       pushd /home/travis/neko;
-      git pull origin master;
+      git pull origin master || git clone https://github.com/HaxeFoundation/neko.git .;
       git submodule update --init --recursive;
     fi
   - cmake . -DSTATIC_DEPS=all -G Ninja
