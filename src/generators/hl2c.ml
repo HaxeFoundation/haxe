@@ -945,6 +945,14 @@ let generate_function ctx f =
 			if b then decr trap_depth;
 		| OAssert _ ->
 			sexpr "hl_assert()"
+		| ORefData (r,d) ->
+			(match rtype d with
+			| HArray ->
+				sexpr "%s = (%s)hl_aptr(%s,void*)" (reg r) (ctype (rtype r)) (reg d)
+			| _ ->
+				assert false)
+		| ORefOffset (r,r2,off) ->
+			sexpr "%s = %s + %s" (reg r) (reg r2) (reg off)
 		| ONop _ ->
 			()
 	) f.code;

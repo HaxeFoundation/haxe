@@ -149,7 +149,16 @@ let opcode_fx frw op =
 		write d
 	| OSetEnumField (a,_,b) ->
 		read a; read b
-	| ONop _ | OAssert _ ->
+	| OAssert _ ->
+		()
+	| ORefData (r,d) ->
+		read d;
+		write r;
+	| ORefOffset (r,r2,off) ->
+		read r2;
+		read off;
+		write r;
+	| ONop _  ->
 		()
 
 let opcode_eq a b =
@@ -408,7 +417,16 @@ let opcode_map read write op =
 		OMakeEnum (write d, e, rl)
 	| OSetEnumField (a,f,b) ->
 		OSetEnumField (read a, f, read b)
-	| ONop _ | OAssert _ ->
+	| OAssert _ ->
+		op
+	| ORefData (r,d) ->
+		let d = read d in
+		ORefData(write r,d);
+	| ORefOffset (r,r2,off) ->
+		let r2 = read r2 in
+		let off = read off in
+		ORefOffset (write r,r2,off);
+	| ONop _ ->
 		op
 
 (* build code graph *)

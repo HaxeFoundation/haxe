@@ -1780,8 +1780,12 @@ and eval_expr ctx e =
 		| "$aset", [a; pos; value] ->
 			let et = (match follow a.etype with TAbstract ({ a_path = ["hl"],"NativeArray" },[t]) -> to_type ctx t | _ -> invalid()) in
 			let arr = eval_to ctx a HArray in
+			hold ctx arr;
 			let pos = eval_to ctx pos HI32 in
+			hold ctx pos;
 			let r = eval_to ctx value et in
+			free ctx pos;
+			free ctx arr;
 			op ctx (OSetArray (arr, pos, r));
 			r
 		| "$abytes", [a] ->
@@ -1826,6 +1830,17 @@ and eval_expr ctx e =
 			let out = alloc_tmp ctx (match rtype ctx r with HRef t -> t | _ -> invalid()) in
 			op ctx (OUnref (out,r));
 			out
+		| "$refdata", [e1] ->
+			let v = eval_expr ctx e1 in
+			let r = alloc_tmp ctx (match to_type ctx e.etype with HRef _ as t -> t | _ -> invalid()) in
+			op ctx (ORefData (r,v));
+			r
+		| "$refoffset", [r;e1] ->
+			let r = eval_expr ctx r in
+			let e = eval_to ctx e1 HI32 in
+			let r2 = alloc_tmp ctx (match rtype ctx r with HRef _ as t -> t | _ -> invalid()) in
+			op ctx (ORefOffset (r2,r,e));
+			r2
 		| "$ttype", [v] ->
 			let r = alloc_tmp ctx HType in
 			op ctx (OType (r,to_type ctx v.etype));
@@ -3759,7 +3774,7 @@ let generate com =
 		Hlcode.dump (fun s -> output_string ch (s ^ "\n")) code;
 		close_out ch;
 	end;
-	if Common.raw_defined com "hl-dump-spec" then begin
+	(*if Common.raw_defined com "hl-dump-spec" then begin
 		let ch = open_out_bin "dump/hlspec.txt" in
 		let write s = output_string ch (s ^ "\n") in
 		Array.iter (fun f ->
@@ -3769,7 +3784,7 @@ let generate com =
 			write "";
 		) code.functions;
 		close_out ch;
-	end;
+	end;*)
 	if Common.raw_defined com "hl-check" then begin
 		check ctx;
 		Hlinterp.check code false;
