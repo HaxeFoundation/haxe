@@ -26,7 +26,7 @@ import lua.Os;
 import lua.Lib;
 import lua.Table;
 import haxe.io.Path;
-typedef LFileSystem = lua.lib.luv.fs.FileSystem;
+import lua.lib.luv.fs.FileSystem as LFileSystem;
 
 class FileSystem {
 	public static function exists( path : String ) : Bool {
