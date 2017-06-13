@@ -98,7 +98,6 @@ install_linux: &install_linux
   - cp -prf ./_build/ ~/_hxbuild/
   - sudo rm -f $APT_CACHE_DIR/lock
 
-
 install_osx: &install_osx
   # Install dependencies
   - brew uninstall --force brew-cask # https://github.com/caskroom/homebrew-cask/pull/15381
