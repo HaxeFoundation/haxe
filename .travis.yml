@@ -132,6 +132,7 @@ matrix:
     - os: linux
       env:
         - TEST=cpp
+        - HXCPP_COMPILE_CACHE=~/hxcache
       before_install:
         - sudo apt-get update -y || true
         - travis_retry sudo apt-get install -y
@@ -151,6 +152,7 @@ matrix:
     - os: osx
       env:
         - TEST=cpp
+        - HXCPP_COMPILE_CACHE=~/hxcache
       install: *install_osx
 
 script:
