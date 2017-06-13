@@ -76,7 +76,7 @@ install_linux: &install_linux
   - jdk_switcher use oraclejdk7
   - java -version
   # Build haxe
-  - if [ -d "~/_hxbuild" ]; then
+  - if [ -d "/home/travis/_hxbuild" ]; then
       cp -pr ~/_hxbuild ./_build;
     fi
   - make package_src -s
@@ -87,8 +87,8 @@ install_linux: &install_linux
   - ldd -v ./haxelib
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
-  - if [ ! -d "~/_hxbuild" ]; then
-    mkdir ~/_hxbuild;
+  - if [ ! -d "/home/travis/_hxbuild" ]; then
+        mkdir ~/_hxbuild;
     fi
   - cp -prf ./_build/* ~/_hxbuild/
   - sudo rmf $APT_CACHE_DIR/lock
