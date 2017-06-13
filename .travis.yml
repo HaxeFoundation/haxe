@@ -1,3 +1,11 @@
+cache:
+    directories:
+      - $HOME/.opam
+      - $HOME/Library/Caches/Homebrew
+      - $HOME/neko
+      - $HOME/apt-cache
+      - $HOME/hxcache
+      - $HOME/_hxbuild
 env:
   global:
     # make variables
@@ -26,10 +34,11 @@ addons: &addons
     - api.haxe.org
 
 install_linux: &install_linux
+  - export APT_CACHE_DIR=~/apt-cache && mkdir -pv $APT_CACHE_DIR
   # Install dependencies
   - sudo add-apt-repository ppa:haxe/ocaml -y
   - sudo apt-get update
-  - sudo apt-get install -y
+  - sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y
       ocaml
       ocaml-native-compilers
       ocaml-findlib
@@ -43,9 +52,12 @@ install_linux: &install_linux
   - export OPAMYES=1
   - opam install sedlex xml-light extlib rope ptmap
   # Install neko
-  - git clone https://github.com/HaxeFoundation/neko.git ../neko
-  - pushd ../neko
-  - cmake . -DSTATIC_DEPS=all -G Ninja
+  - if [ ! -d "../../neko" ]; then
+      git clone https://github.com/HaxeFoundation/neko.git ../../neko
+    fi
+  - pushd ../../neko
+  - git pull
+  - cmake . -DSTATIC_DEPS=all  -G Ninja
   # download static dependencies before actual build, with 3 chances to deal with network issues
   - ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
   - ninja -j 4
@@ -60,6 +72,9 @@ install_linux: &install_linux
   - jdk_switcher use oraclejdk7
   - java -version
   # Build haxe
+  - if [ -d "~/_hxbuild" ]; then
+      cp -pr ~/_hxbuild ./_build
+    fi
   - make package_src -s
   - opam config exec -- make -s STATICLINK=1
   - make package_bin -s
@@ -68,6 +83,7 @@ install_linux: &install_linux
   - ldd -v ./haxelib
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
+  - cp -prf ./build/* ~/_hxbuild/
 
 install_osx: &install_osx
   # Install dependencies
@@ -130,31 +146,31 @@ matrix:
         - "export AUDIODEV=null"
       install: *install_linux
 
-    - os: linux
-      env:
-        - TEST=cpp
-        - HXCPP_COMPILE_CACHE=~/hxcache
-      before_install:
-        - sudo apt-get update -y || true
-        - travis_retry sudo apt-get install -y
-            gcc-multilib
-            g++-multilib
-      install: *install_linux
+    #- os: linux
+    #  env:
+    #    - TEST=cpp
+    #    - HXCPP_COMPILE_CACHE=~/hxcache
+    #  before_install:
+    #    - sudo apt-get update -y || true
+    #    - travis_retry sudo apt-get install -y
+    #        gcc-multilib
+    #        g++-multilib
+    #  install: *install_linux
 
     #######
     # osx #
     #######
-    - os: osx
-      env:
-        - TEST=macro,neko,js,php,flash9,as3,java,cs,python,hl,lua
-        - DEPLOY=1
-      install: *install_osx
+    #- os: osx
+    #  env:
+    #    - TEST=macro,neko,js,php,flash9,as3,java,cs,python,hl,lua
+    #    - DEPLOY=1
+    #  install: *install_osx
 
-    - os: osx
-      env:
-        - TEST=cpp
-        - HXCPP_COMPILE_CACHE=~/hxcache
-      install: *install_osx
+    #- os: osx
+    #  env:
+    #    - TEST=cpp
+    #    - HXCPP_COMPILE_CACHE=~/hxcache
+    #  install: *install_osx
 
 script:
   - eval `ssh-agent -s` # for deployment to haxe.org
