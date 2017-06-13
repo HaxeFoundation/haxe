@@ -2338,16 +2338,16 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 						let class_name = self#use_t (type_of_module_type mtype) in
 						self#write (new_closure ^ "(" ^ class_name ^ "::class, '" ^ (field_name field) ^ "')");
 					| _ ->
-						self#write (new_closure ^ "(");
 						(match follow expr.etype with
 							| TInst ({ cl_path = ([], "String") }, []) ->
-								self#write ((self#use hxdynamicstr_type_path) ^ "::wrap(");
+								self#write ("(new " ^ (self#use hxdynamicstr_type_path) ^ "(");
 								self#write_expr expr;
-								self#write ")"
+								self#write ("))->" ^ (field_name field))
 							| _ ->
-								self#write_expr expr
+								self#write (new_closure ^ "(");
+								self#write_expr expr;
+								self#write (", '" ^ (field_name field) ^ "')")
 						);
-						self#write (", '" ^ (field_name field) ^ "')")
 		(**
 			Write anonymous object declaration to output buffer
 		*)

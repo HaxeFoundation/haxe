@@ -114,6 +114,13 @@ class TestPhp extends Test
 		eq(result, 'nullb');
 	}
 	function add(a:Dynamic, b:Dynamic):Dynamic return a + b;
+
+	function testStringClosureType() {
+		var fn:Dynamic = 'foo'.toUpperCase;
+		var className = Type.getClassName(Type.getClass(fn)).split('.').pop();
+		eq('HxDynamicStr', className);
+		eq('FOO', fn());
+	}
 #end
 }
 
