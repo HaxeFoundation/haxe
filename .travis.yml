@@ -82,7 +82,8 @@ install_linux: &install_linux
   #- make package_src -s
   #- opam config exec -- make -s STATICLINK=1
   #- make package_bin -s
-  # - mkdir ./_build
+  - echo $PWD
+  - mkdir ./_build
   #- ls -l out
   #- ldd -v ./haxe
   #- ldd -v ./haxelib
@@ -91,7 +92,7 @@ install_linux: &install_linux
   - if [ ! -d "/home/travis/_hxbuild" ]; then
         mkdir ~/_hxbuild;
     fi
-  - cp -prf ./_build/* ~/_hxbuild/
+  - cp -prf ./_build/ ~/_hxbuild/
   - sudo rmf $APT_CACHE_DIR/lock
 
 install_osx: &install_osx
