@@ -6,6 +6,7 @@ cache:
       - $HOME/apt-cache
       - $HOME/hxcache
       - $HOME/_hxbuild
+      - $HOME/lua_env
 env:
   global:
     # make variables
