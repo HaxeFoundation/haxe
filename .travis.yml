@@ -38,6 +38,7 @@ install_linux: &install_linux
   # Install dependencies
   - sudo add-apt-repository ppa:haxe/ocaml -y
   - sudo apt-get update
+<<<<<<< d03e8331cc5681c23c38b48e8139ecbabb32d860
   - sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y
       ocaml
       ocaml-native-compilers
@@ -48,9 +49,20 @@ install_linux: &install_linux
       libgtk2.0-dev
       ninja-build
       awscli
+=======
+  #- sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y
+  #    ocaml
+  #    ocaml-native-compilers
+  #    ocaml-findlib
+  #    camlp4
+  #    libpcre3-dev
+  #    zlib1g-dev
+  #    libgtk2.0-dev
+  #    awscli
+>>>>>>> just test commands
   - wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin system
   - export OPAMYES=1
-  - opam install sedlex xml-light extlib rope ptmap
+  #- opam install sedlex xml-light extlib rope ptmap
   # Install neko
   - if [ ! -d "../../neko" ]; then
       mkdir ../../neko;
@@ -61,11 +73,11 @@ install_linux: &install_linux
       git pull origin master;
       git submodule update --init --recursive;
     fi
-  - cmake . -DSTATIC_DEPS=all -G Ninja
+  #- cmake . -DSTATIC_DEPS=all -G Ninja
   # download static dependencies before actual build, with 3 chances to deal with network issues
-  - ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
-  - ninja -j 4
-  - sudo ninja install
+  #- ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
+  #- ninja -j 4
+  #- sudo ninja install
   - popd
   # Setup database
   - travis_retry sudo apt-get install mysql-server-5.6 -y
@@ -79,12 +91,12 @@ install_linux: &install_linux
   - if [ -d "/home/travis/_hxbuild" ]; then
       cp -pr ~/_hxbuild ./_build;
     fi
-  - make package_src -s
-  - opam config exec -- make -s STATICLINK=1
-  - make package_bin -s
-  - ls -l out
-  - ldd -v ./haxe
-  - ldd -v ./haxelib
+  #- make package_src -s
+  #- opam config exec -- make -s STATICLINK=1
+  #- make package_bin -s
+  #- ls -l out
+  #- ldd -v ./haxe
+  #- ldd -v ./haxelib
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
   - if [ ! -d "/home/travis/_hxbuild" ]; then
