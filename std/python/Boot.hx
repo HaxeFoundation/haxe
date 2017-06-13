@@ -294,6 +294,8 @@ class Boot {
 		if (field == null) return null;
 
 		return switch (field) {
+			case "length" if (isString(o)):
+				StringImpl.get_length(o);
 			case "toLowerCase" if (isString(o)):
 				createClosure(o, StringImpl.toLowerCase);
 			case "toUpperCase" if (isString(o)):
@@ -355,12 +357,8 @@ class Boot {
 			case "splice" if (isArray(o)):
 				createClosure(o, ArrayImpl.splice);
 			default:
-				if(isString(o)) {
-					(o:String).length;
-				} else {
-					var field = handleKeywords(field);
-					if (UBuiltins.hasattr(o, field)) UBuiltins.getattr(o, field) else null;
-				}
+				var field = handleKeywords(field);
+				if (UBuiltins.hasattr(o, field)) UBuiltins.getattr(o, field) else null;
 		}
 	}
 
