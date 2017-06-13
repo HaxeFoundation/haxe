@@ -31,9 +31,9 @@ var i32:haxe.Int32 = max - 1;
 i32 |= ((a[next] << 32) | 1 );
 i32 == max;
 
-var i32:haxe.Int32 = a[next] << 33;
+var i32:haxe.Int32 = ((a[next] << 33) | 3);
 i32 >>= 1;
-i32 == 0;
+i32 == 1;
 
 var i32:haxe.Int32 = 2;
 i32 ^= ( (a[next] << 32) | 1);
