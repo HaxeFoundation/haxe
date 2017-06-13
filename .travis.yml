@@ -53,8 +53,8 @@ install_linux: &install_linux
   - opam install sedlex xml-light extlib rope ptmap
   # Install neko
   - if [ ! -d "../../neko" ]; then
-      mkdir ../../neko
-      git clone https://github.com/HaxeFoundation/neko.git ../../neko
+      mkdir ../../neko;
+      git clone https://github.com/HaxeFoundation/neko.git ../../neko;
     fi
   - pushd ../../neko
   - git pull
