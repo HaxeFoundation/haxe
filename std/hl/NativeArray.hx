@@ -68,7 +68,7 @@ package hl;
 		return n;
 	}
 
-	@:extern public inline function getRef() : Ref<T> {
+	@:to @:extern public inline function getRef() : Ref<T> {
 		return untyped $refdata(this);
 	}
 
