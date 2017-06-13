@@ -104,8 +104,16 @@ class RunCi {
 
 	static function requireAptPackages(packages:Array<String>):Void {
 		var notYetInstalled = [for (p in packages) if (!isAptPackageInstalled(p)) p];
-		if (notYetInstalled.length > 0)
-			runCommand("sudo", ["apt-get", "install", "-y"].concat(notYetInstalled), true);
+		if (notYetInstalled.length > 0) {
+			var aptCacheDir = Sys.getEnv("APT_CACHE_DIR");
+			var baseCommand = if (aptCacheDir != null) {
+				["apt-get", "-o", 'dir::cache::archives=${aptCacheDir}', "install", "-y"];
+			} else {
+				["apt-get", "install", "-y"];
+			};
+			runCommand("sudo", baseCommand.concat(notYetInstalled), true);
+		}
+
 	}
 
 	static function haxelibInstallGit(account:String, repository:String, ?branch:String, ?srcPath:String, useRetry:Bool = false, ?altName:String):Void {
