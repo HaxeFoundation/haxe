@@ -45,6 +45,13 @@ addons: &addons
     - api.haxe.org
 
 install_linux: &install_linux
+  - if [ ! -d "$HOME/neko" ]; then
+      export CACHE_AVAILABLE=0;
+    elif [ ! -d "$HOME/neko/.git" ]; then
+      export CACHE_AVAILABLE=0;
+    else
+      export CACHE_AVAILABLE=1;
+    fi
   - export APT_CACHE_DIR=~/apt-cache && mkdir -pv $APT_CACHE_DIR
   # Install dependencies
   - sudo add-apt-repository ppa:haxe/ocaml -y
@@ -111,6 +118,13 @@ install_linux: &install_linux
 
 
 install_osx: &install_osx
+  - if [ ! -d "$HOME/neko" ]; then
+      export CACHE_AVAILABLE=0;
+    elif [ ! -d "$HOME/neko/.git" ]; then
+      export CACHE_AVAILABLE=0;
+    else
+      export CACHE_AVAILABLE=1;
+    fi
   # Install dependencies
   - brew uninstall --force brew-cask # https://github.com/caskroom/homebrew-cask/pull/15381
   - travis_retry brew update
@@ -215,6 +229,10 @@ matrix:
 
 script:
   - eval `ssh-agent -s` # for deployment to haxe.org
+  - if [ $CACHE_AVAILABLE = 0 ]; then
+      echo "No cache available";
+      exit 1;
+  - end
   - pushd tests
   -   mkdir ~/haxelib && haxelib setup ~/haxelib
   -   haxelib install record-macros
