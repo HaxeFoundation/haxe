@@ -233,7 +233,7 @@ matrix:
 
 script:
   - eval `ssh-agent -s` # for deployment to haxe.org
-  - export CAN_BUILD=`test $CACHE_AVAILABLE = 1 || test $TRAVIS_OS_NAME = 'linux'`
+  - export CAN_BUILD=`(test $CACHE_AVAILABLE = 1 || test $TRAVIS_OS_NAME = 'linux') && echo 1`
   - if [ ! $CAN_BUILD ]; then
       echo "No cache available, but initial cache created, please try restarting this job";
     fi
