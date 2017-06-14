@@ -243,13 +243,13 @@ script:
   - if [ $CACHE_AVAILABLE = 0 ]; then
       echo "No cache available, but initial cache created, try restarting this job";
     fi
-  - [ $CACHE_AVAILABLE = 1 ] && pushd tests
-  - [ $CACHE_AVAILABLE = 1 ] && mkdir ~/haxelib && haxelib setup ~/haxelib
-  - [ $CACHE_AVAILABLE = 1 ] && haxelib install record-macros
-  - [ $CACHE_AVAILABLE = 1 ] && haxe -version
-  - [ $CACHE_AVAILABLE = 1 ] && haxe RunCi.hxml
-  - [ $CACHE_AVAILABLE = 1 ] && neko RunCi.n
-  - [ $CACHE_AVAILABLE = 1 ] && popd
+  - test $CACHE_AVAILABLE = 1 && pushd tests
+  - test $CACHE_AVAILABLE = 1 && mkdir ~/haxelib && haxelib setup ~/haxelib
+  - test $CACHE_AVAILABLE = 1 && haxelib install record-macros
+  - test $CACHE_AVAILABLE = 1 && haxe -version
+  - test $CACHE_AVAILABLE = 1 && haxe RunCi.hxml
+  - test $CACHE_AVAILABLE = 1 && neko RunCi.n
+  - test $CACHE_AVAILABLE = 1 && popd
 
 branches:
   except:
