@@ -11,9 +11,11 @@ cache:
     - $HOME/Library/Caches/Homebrew
 
 before_cache:
-  - if [ $TRAVIS_OS_NAME = 'linux' ]; then sudo apt-get autoclean; fi
+  - if [ $TRAVIS_OS_NAME = 'linux' ]; then
+      sudo apt-get autoclean;
+      sudo rm -f $HOME/apt-cache/lock || true;
+    fi
   - if [ $TRAVIS_OS_NAME = 'osx' ]; then brew cleanup; fi
-  - sudo rm -f $HOME/apt-cache/lock || true
 
 env:
   global:
