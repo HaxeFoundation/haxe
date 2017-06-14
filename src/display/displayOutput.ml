@@ -710,7 +710,7 @@ let process_display_file com classes =
 				if clen < String.length spath && String.sub spath 0 clen = c then begin
 					let path = String.sub spath clen (String.length spath - clen) in
 					(try
-						let path = Path.parse_type_path path in
+						let path = Path.parse_path path in
 						(match loop l with
 						| Some x as r when String.length (s_type_path x) < String.length (s_type_path path) -> r
 						| _ -> Some path)
@@ -736,7 +736,7 @@ let process_display_file com classes =
 			| None ->
 				if not (Sys.file_exists real) then failwith "Display file does not exist";
 				(match List.rev (ExtString.String.nsplit real Path.path_sep) with
-				| file :: _ when file.[0] >= 'a' && file.[1] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
+				| file :: _ when file.[0] >= 'a' && file.[0] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
 				| _ -> ());
 				failwith "Display file was not found in class path"
 			);
