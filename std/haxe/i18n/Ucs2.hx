@@ -123,7 +123,7 @@ abstract Ucs2(String) {
 
 	public static function fromByteAccess(bytes:ByteAccess):Ucs2 {
 		var i = 0;
-		var res = "";
+		var buf = new StringBuf();
 		while (i < bytes.length) {
 			var code1 = (bytes.fastGet(i) << 8) | bytes.fastGet(i+1);
 			// we allow surrogates in ucs2, but we treat them as individual chars with invalid codes
@@ -131,19 +131,19 @@ abstract Ucs2(String) {
 				var code2 = (bytes.fastGet(i+2) << 8) | bytes.fastGet(i+3);
 				#if hl
 				var code = Convert.surrogatePairToCharCode(code1, code2);
-				res += String.fromCharCode(code);
+				StringBufTools.addString(buf, String.fromCharCode(code));
 				#else
 				// js, java, cs just allow String.fromCharCode for high and low surrogates
-				res += nativeStringfromCharCode(code1);
-				res += nativeStringfromCharCode(code2);
+				StringBufTools.addString(buf, nativeStringfromCharCode(code1));
+				StringBufTools.addString(buf, nativeStringfromCharCode(code2));
 				#end
 				i+=4;
 			} else {
-				res += nativeStringfromCharCode(code1);
+				StringBufTools.addString(buf, nativeStringfromCharCode(code1));
 				i+=2;
 			}
 		}
-		return new Ucs2(res);
+		return new Ucs2(buf.toString());
 	}
 
 	@:op(A == B) inline function opEq (other:Ucs2) {
