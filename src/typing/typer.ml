@@ -333,34 +333,6 @@ let prepare_using_field cf = match follow cf.cf_type with
 		{cf with cf_overloads = loop [] cf.cf_overloads; cf_type = TFun(args,ret)}
 	| _ -> cf
 
-let eval ctx s =
-	let p = { pfile = "--eval"; pmin = 0; pmax = String.length s; } in
-	let pack,decls = Parser.parse_string ctx.com s p error false in
-	let rec find_main current decls = match decls with
-		| (EClass c,_) :: decls ->
-			let path = pack,fst c.d_name in
-			begin try
-				let cff = List.find (fun cff -> fst cff.cff_name = "main") c.d_data in
-				if ctx.com.main_class <> None then error "Multiple main" cff.cff_pos;
-				ctx.com.main_class <- Some path;
-				Some path
-			with Not_found ->
-				find_main (if current = None then Some path else current) decls
-			end
-		| ((EEnum {d_name = (s,_)} | ETypedef {d_name = (s,_)} | EAbstract {d_name = (s,_)}),_) :: decls when current = None ->
-			find_main (Some (pack,s)) decls
-		| _ :: decls ->
-			find_main current decls
-		| [] ->
-			current
-	in
-	let path_module = match find_main None decls with
-		| None -> error "Evaluated string did not define any types" p
-		| Some path -> path
-	in
-	ignore(Typeload.type_module ctx path_module "eval" decls p);
-	flush_pass ctx PBuildClass "eval"
-
 let merge_core_doc ctx c =
 	let c_core = Typeload.load_core_class ctx c in
 	if c.cl_doc = None then c.cl_doc <- c_core.cl_doc;
