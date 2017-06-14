@@ -407,6 +407,7 @@ enum ValueType {
 		return null;
 	}
 
+	@:ifFeature("has_enum")
 	@:functionCode('
 		if (e instanceof java.lang.Enum)
 			return ((java.lang.Enum) e).ordinal();

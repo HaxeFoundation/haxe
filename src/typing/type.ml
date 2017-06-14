@@ -138,6 +138,7 @@ and texpr_expr =
 	| TCast of texpr * module_type option
 	| TMeta of metadata_entry * texpr
 	| TEnumParameter of texpr * tenum_field * int
+	| TEnumIndex of texpr
 
 and tfield_access =
 	| FInstance of tclass * tparams * tclass_field
@@ -983,6 +984,7 @@ let s_expr_kind e =
 	| TArray (_,_) -> "Array"
 	| TBinop (_,_,_) -> "Binop"
 	| TEnumParameter (_,_,_) -> "EnumParameter"
+	| TEnumIndex _ -> "EnumIndex"
 	| TField (_,_) -> "Field"
 	| TTypeExpr _ -> "TypeExpr"
 	| TParenthesis _ -> "Parenthesis"
@@ -1029,6 +1031,8 @@ let rec s_expr s_type e =
 		sprintf "%s[%s]" (loop e1) (loop e2)
 	| TBinop (op,e1,e2) ->
 		sprintf "(%s %s %s)" (loop e1) (s_binop op) (loop e2)
+	| TEnumIndex e1 ->
+		sprintf "EnumIndex %s" (loop e1)
 	| TEnumParameter (e1,_,i) ->
 		sprintf "%s[%i]" (loop e1) i
 	| TField (e,f) ->
@@ -1105,6 +1109,7 @@ let rec s_expr_pretty print_var_ids tabs top_level s_type e =
 	| TArray (e1,e2) -> sprintf "%s[%s]" (loop e1) (loop e2)
 	| TBinop (op,e1,e2) -> sprintf "%s %s %s" (loop e1) (s_binop op) (loop e2)
 	| TEnumParameter (e1,_,i) -> sprintf "%s[%i]" (loop e1) i
+	| TEnumIndex e1 -> sprintf "enumIndex %s" (loop e1)
 	| TField (e1,s) -> sprintf "%s.%s" (loop e1) (field_name s)
 	| TTypeExpr mt -> (s_type_path (t_path mt))
 	| TParenthesis e1 -> sprintf "(%s)" (loop e1)
@@ -1188,6 +1193,7 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 	| TBinop (op,e1,e2) -> tag "Binop" [loop e1; s_binop op; loop e2]
 	| TUnop (op,flag,e1) -> tag "Unop" [s_unop op; if flag = Postfix then "Postfix" else "Prefix"; loop e1]
 	| TEnumParameter (e1,ef,i) -> tag "EnumParameter" [loop e1; ef.ef_name; string_of_int i]
+	| TEnumIndex e1 -> tag "EnumIndex" [loop e1]
 	| TField (e1,fa) ->
 		let sfa = match fa with
 			| FInstance(c,tl,cf) -> tag "FInstance" ~extra_tabs:"\t" [s_type (TInst(c,tl)); cf.cf_name]
@@ -2254,6 +2260,7 @@ let iter f e =
 	| TThrow e
 	| TField (e,_)
 	| TEnumParameter (e,_,_)
+	| TEnumIndex e
 	| TParenthesis e
 	| TCast (e,_)
 	| TUnop (_,_,e)
@@ -2309,7 +2316,9 @@ let map_expr f e =
 	| TThrow e1 ->
 		{ e with eexpr = TThrow (f e1) }
 	| TEnumParameter (e1,ef,i) ->
-		 { e with eexpr = TEnumParameter(f e1,ef,i) }
+		{ e with eexpr = TEnumParameter(f e1,ef,i) }
+	| TEnumIndex e1 ->
+		{ e with eexpr = TEnumIndex (f e1) }
 	| TField (e1,v) ->
 		{ e with eexpr = TField (f e1,v) }
 	| TParenthesis e1 ->
@@ -2374,7 +2383,9 @@ let map_expr_type f ft fv e =
 	| TThrow e1 ->
 		{ e with eexpr = TThrow (f e1); etype = ft e.etype }
 	| TEnumParameter (e1,ef,i) ->
-		{ e with eexpr = TEnumParameter(f e1,ef,i); etype = ft e.etype }
+		{ e with eexpr = TEnumParameter (f e1,ef,i); etype = ft e.etype }
+	| TEnumIndex e1 ->
+		{ e with eexpr = TEnumIndex (f e1); etype = ft e.etype }
 	| TField (e1,v) ->
 		let e1 = f e1 in
 		let v = try
@@ -2570,6 +2581,7 @@ module TExprToExpr = struct
 			) cases in
 			let def = match eopt def with None -> None | Some (EBlock [],_) -> Some (None,null_pos) | Some e -> Some (Some e,pos e) in
 			ESwitch (convert_expr e,cases,def)
+		| TEnumIndex _
 		| TEnumParameter _ ->
 			(* these are considered complex, so the AST is handled in TMeta(Meta.Ast) *)
 			assert false
@@ -2741,6 +2753,9 @@ module Texpr = struct
 		| TEnumParameter (e1,ef,i) ->
 			let acc,e1 = f acc e1 in
 			acc,{ e with eexpr = TEnumParameter(e1,ef,i) }
+		| TEnumIndex e1 ->
+			let acc,e1 = f acc e1 in
+			acc,{ e with eexpr = TEnumIndex e1 }
 		| TField (e1,v) ->
 			let acc,e1 = f acc e1 in
 			acc,{ e with eexpr = TField (e1,v) }

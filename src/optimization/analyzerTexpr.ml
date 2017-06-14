@@ -264,6 +264,8 @@ module TexprKindMapper = struct
 			{ e with eexpr = TThrow (f KThrow e1) }
 		| TEnumParameter (e1,ef,i) ->
 			{ e with eexpr = TEnumParameter(f KAccess e1,ef,i) }
+		| TEnumIndex e1 ->
+			{ e with eexpr = TEnumIndex (f KAccess e1) }
 		| TField (e1,v) ->
 			{ e with eexpr = TField (f KAccess e1,v) }
 		| TParenthesis e1 ->
@@ -645,7 +647,7 @@ module Fusion = struct
 				state#dec_reads v;
 				block_element acc el
 			(* no-side-effect *)
-			| {eexpr = TEnumParameter _ | TFunction _ | TConst _ | TTypeExpr _} :: el ->
+			| {eexpr = TEnumParameter _ | TEnumIndex _ | TFunction _ | TConst _ | TTypeExpr _} :: el ->
 				block_element acc el
 			| {eexpr = TMeta((Meta.Pure,_,_),_)} :: el ->
 				block_element acc el

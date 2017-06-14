@@ -159,6 +159,9 @@ let rec func ctx bb tf t p =
 		| TEnumParameter(e1,ef,ei) ->
 			let bb,e1 = value bb e1 in
 			bb,{e with eexpr = TEnumParameter(e1,ef,ei)}
+		| TEnumIndex e1 ->
+			let bb,e1 = value bb e1 in
+			bb,{e with eexpr = TEnumIndex e1}
 		| TFunction tf ->
 			let bb_func,bb_func_end = func ctx bb tf e.etype e.epos in
 			let e_fun = mk (TConst (TString "fun")) t_dynamic p in
@@ -603,7 +606,7 @@ let rec func ctx bb tf t p =
 			add_texpr bb e;
 			bb
 		(* no-side-effect *)
-		| TEnumParameter _ | TFunction _ | TConst _ | TTypeExpr _ | TLocal _ ->
+		| TEnumParameter _ | TEnumIndex _ | TFunction _ | TConst _ | TTypeExpr _ | TLocal _ ->
 			bb
 		(* no-side-effect composites *)
 		| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) | TField(e1,_) | TUnop(_,_,e1) ->

@@ -713,6 +713,10 @@ module Transformer = struct
 			let e1 = trans true [] e1 in
 			let p = { ae.a_expr with eexpr = TEnumParameter(e1.a_expr,ef,i)} in
 			lift true e1.a_blocks p
+		| (_, TEnumIndex e1) ->
+			let e1 = trans true [] e1 in
+			let p = { ae.a_expr with eexpr = TEnumIndex e1.a_expr } in
+			lift true e1.a_blocks p
 		| (true, TIf(econd, eif, eelse)) ->
 			(let econd1 = trans true [] econd in
 			let eif1 = trans true [] eif in
@@ -1189,6 +1193,8 @@ module Printer = struct
 				handle_keywords v.v_name
 			| TEnumParameter(e1,_,index) ->
 				Printf.sprintf "%s.params[%i]" (print_expr pctx e1) index
+			| TEnumIndex e1 ->
+				Printf.sprintf "%s.index" (print_expr pctx e1)
 			| TArray(e1,e2) when (is_type1 "" "list")(e1.etype) || is_underlying_array e1.etype ->
 				print_tarray_list pctx e1 e2
 			| TArray({etype = t} as e1,e2) when is_anon_or_dynamic t ->
