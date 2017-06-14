@@ -150,6 +150,7 @@ install_osx: &install_osx
     fi
   - cp -prf ./_build/* ~/_hxbuild/
   - travis_retry brew install awscli
+  - travis_retry brew cleanup
 
 matrix:
   include:
