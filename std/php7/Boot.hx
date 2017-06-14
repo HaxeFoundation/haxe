@@ -627,7 +627,7 @@ private class HxEnum {
 private class HxString {
 
 	public static function toUpperCase( str:String ) : String {
-		return str.toUpperCase();
+		return Global.strtoupper(str);
 	}
 
 	public static function toLowerCase( str:String ) : String {
