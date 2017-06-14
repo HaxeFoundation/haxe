@@ -233,17 +233,17 @@ matrix:
 
 script:
   - eval `ssh-agent -s` # for deployment to haxe.org
-  - export REQUIRES_CACHE=`test $CACHE_AVAILABLE = 0 && test $TRAVIS_OS_NAME = 'osx'`
-  - if [ $REQUIRES_CACHE ]; then
+  - export CAN_BUILD=`test $CACHE_AVAILABLE = 1 || test $TRAVIS_OS_NAME = 'linux'`
+  - if [ ! $CAN_BUILD ]; then
       echo "No cache available, but initial cache created, please try restarting this job";
     fi
-  - (test $REQUIRES_CACHE) && pushd tests
-  - (test $REQUIRES_CACHE) && mkdir ~/haxelib && haxelib setup ~/haxelib
-  - (test $REQUIRES_CACHE) && haxelib install record-macros
-  - (test $REQUIRES_CACHE) && haxe -version
-  - (test $REQUIRES_CACHE) && haxe RunCi.hxml
-  - (test $REQUIRES_CACHE) && neko RunCi.n
-  - (test $REQUIRES_CACHE) && popd
+  - test $CAN_BUILD && pushd tests
+  - test $CAN_BUILD && mkdir ~/haxelib && haxelib setup ~/haxelib
+  - test $CAN_BUILD && haxelib install record-macros
+  - test $CAN_BUILD && haxe -version
+  - test $CAN_BUILD && haxe RunCi.hxml
+  - test $CAN_BUILD && neko RunCi.n
+  - test $CAN_BUILD && popd
 
 branches:
   except:
