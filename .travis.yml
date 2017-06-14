@@ -1,7 +1,6 @@
 cache:
     directories:
       - $HOME/.opam
-      - $HOME/Library/Caches/Homebrew
       - $HOME/neko
       - $HOME/apt-cache
       - $HOME/hxcache
