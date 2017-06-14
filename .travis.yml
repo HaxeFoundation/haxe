@@ -111,12 +111,12 @@ install_osx: &install_osx
   - eval `opam config env`
   # Install neko
   - brew upgrade cmake # we need a recent cmake to use CMAKE_OSX_DEPLOYMENT_TARGET
-  - if [ ! -d "/home/travis/neko" ]; then
-      mkdir /home/travis/neko;
-      pushd /home/travis/neko;
+  - if [ ! -d "/Users/travis/neko" ]; then
+      mkdir /Users/travis/neko;
+      pushd /Users/travis/neko;
       git clone https://github.com/HaxeFoundation/neko.git .;
     else
-      pushd /home/travis/neko;
+      pushd /Users/travis/neko;
       git pull origin master || git clone https://github.com/HaxeFoundation/neko.git .;
       git submodule update --init --recursive;
     fi
@@ -134,8 +134,8 @@ install_osx: &install_osx
   - mysql -u root -e "grant all on haxe_test.* to travis@localhost;"
   # Build haxe
   - travis_retry brew install zlib pcre
-  - if [ -d "/home/travis/_hxbuild" ]; then
-      echo "/home/travis/_hxbuild exists";
+  - if [ -d "/Users/travis/_hxbuild" ]; then
+      echo "/Users/travis/_hxbuild exists";
       cp -pr ~/_hxbuild ./_build;
     fi
   - make package_src -s
@@ -146,7 +146,7 @@ install_osx: &install_osx
   - otool -L ./haxelib
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
-  - if [ ! -d "/home/travis/_hxbuild" ]; then
+  - if [ ! -d "/Users/travis/_hxbuild" ]; then
         mkdir ~/_hxbuild;
     fi
   - cp -prf ./_build/* ~/_hxbuild/
