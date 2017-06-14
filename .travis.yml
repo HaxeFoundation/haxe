@@ -1,11 +1,12 @@
 cache:
-    directories:
-      - $HOME/.opam
-      - $HOME/neko
-      - $HOME/apt-cache
-      - $HOME/hxcache
-      - $HOME/_hxbuild
-      - $HOME/lua_env
+  timeout: 1000
+  directories:
+    - $HOME/.opam
+    - $HOME/neko
+    - $HOME/apt-cache
+    - $HOME/hxcache
+    - $HOME/_hxbuild
+    - $HOME/lua_env
 env:
   global:
     # make variables
