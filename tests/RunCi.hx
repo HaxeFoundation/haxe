@@ -573,17 +573,12 @@ class RunCi {
 		) {
 			changeDirectory(repoDir);
 
-			if (Sys.systemName() != 'Windows') {
+			if (Sys.systemName() != 'Windows' && isDeployApiRequired()) {
 				// generate doc
 				runCommand("make", ["-s", "install_dox"]);
-				if (gitInfo.branch == "development") {
-					runCommand("make", ["-s", "package_doc"]);
-
-
-					// deployBintray();
-					deployApiDoc();
-				}
-
+				runCommand("make", ["-s", "package_doc"]);
+				// deployBintray();
+				deployApiDoc();
 				// disable deployment to ppa:haxe/snapshots for now
 				// because there is no debian sedlex package...
 				// deployPPA();
@@ -622,15 +617,18 @@ class RunCi {
 		}
 	}
 
+	static function isDeployApiRequired () {
+		return gitInfo.branch == "development" &&
+			Sys.getEnv("DEPLOY") != null &&
+			Sys.getEnv("deploy_key_decrypt") != null;
+	}
+
 	/**
 		Deploy doc to api.haxe.org.
 	*/
+
 	static function deployApiDoc():Void {
-		if (
-			gitInfo.branch == "development" &&
-			Sys.getEnv("DEPLOY") != null &&
-			Sys.getEnv("deploy_key_decrypt") != null
-		) {
+		if (isDeployApiRequired()) {
 			// setup deploy_key
 			runCommand("openssl aes-256-cbc -k \"$deploy_key_decrypt\" -in extra/deploy_key.enc -out extra/deploy_key -d");
 			runCommand("chmod 600 extra/deploy_key");

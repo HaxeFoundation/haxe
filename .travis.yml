@@ -199,7 +199,6 @@ matrix:
     - os: osx
       env:
         - TEST=macro,neko,js,php,flash9,as3,java,cs,python,hl,lua
-        - DEPLOY=1
       install: *install_osx
 
     - os: osx
