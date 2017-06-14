@@ -425,15 +425,6 @@ module ConstPropagation = DataFlow(struct
 					| EnumValue(i,_) -> Const (TInt (Int32.of_int i))
 					| _ -> raise Exit
 				end;
-			| TCall ({ eexpr = TField (_,FStatic({cl_path=[],"Type"} as c,({cf_name="enumIndex"} as cf)))},[e1]) when ctx.com.platform = Eval ->
-				begin match follow e1.etype,eval bb e1 with
-					| TEnum _,EnumValue(i,_) -> Const (TInt (Int32.of_int i))
-					| _,e1 ->
-						begin match Optimizer.api_inline2 ctx.com c cf.cf_name [wrap e1] e.epos with
-							| None -> raise Exit
-							| Some e -> eval bb e
-						end
-				end
 			| TCall ({ eexpr = TField (_,FStatic(c,cf))},el) ->
 				let el = List.map (eval bb) el in
 				let el = List.map wrap el in
@@ -444,16 +435,7 @@ module ConstPropagation = DataFlow(struct
 			| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 				eval bb e1
 			| _ ->
-				let e1 = match ctx.com.platform,e.eexpr with
-					| Js,TArray(e1,{eexpr = TConst(TInt i)}) when Int32.to_int i = 1 -> e1
-					| Cpp,TCall({eexpr = TField(e1,FDynamic "__Index")},[]) -> e1
-					| Neko,TField(e1,FDynamic "index") -> e1
-					| _ -> raise Exit
-				in
-				begin match follow e1.etype,eval bb e1 with
-					| TEnum _,EnumValue(i,_) -> Const (TInt (Int32.of_int i))
-					| _ -> raise Exit
-				end
+				raise Exit
 		in
 		try
 			eval bb e
