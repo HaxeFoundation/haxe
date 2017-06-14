@@ -149,7 +149,6 @@ install_osx: &install_osx
     fi
   - cp -prf ./_build/* ~/_hxbuild/
   - travis_retry brew install awscli
-  - travis_retry brew cleanup
 
 matrix:
   include:
@@ -228,14 +227,9 @@ matrix:
     #######
     - os: osx
       env:
-        - TEST=macro,neko
+        - TEST=macro,neko,js,php,flash9,as3,java,cs,python,hl,lua
         - DEPLOY=1
       install: *install_osx
-    #- os: osx
-    #  env:
-    #    - TEST=macro,neko,js,php,flash9,as3,java,cs,python,hl,lua
-    #    - DEPLOY=1
-    #  install: *install_osx
 
     - os: osx
       env:
