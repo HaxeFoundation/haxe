@@ -242,7 +242,7 @@ script:
   - eval `ssh-agent -s` # for deployment to haxe.org
   - if [ $CACHE_AVAILABLE = 0 ]; then
       echo "No cache available, but initial cache created, try restarting this job";
-      exit 200
+      exit 200;
     fi
   - pushd tests
   - mkdir ~/haxelib && haxelib setup ~/haxelib
