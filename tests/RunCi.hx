@@ -576,10 +576,13 @@ class RunCi {
 			if (Sys.systemName() != 'Windows') {
 				// generate doc
 				runCommand("make", ["-s", "install_dox"]);
-				runCommand("make", ["-s", "package_doc"]);
+				if (gitInfo.branch == "development") {
+					runCommand("make", ["-s", "package_doc"]);
 
-				// deployBintray();
-				deployApiDoc();
+
+					// deployBintray();
+					deployApiDoc();
+				}
 
 				// disable deployment to ppa:haxe/snapshots for now
 				// because there is no debian sedlex package...
