@@ -244,12 +244,12 @@ script:
       echo "No cache available, but initial cache created, try restarting this job";
       exit 200
     fi
-  - pushd tests &&
-  - mkdir ~/haxelib && haxelib setup ~/haxelib &&
-  - haxelib install record-macros &&
-  - haxe -version &&
-  - haxe RunCi.hxml &&
-  - neko RunCi.n &&
+  - pushd tests
+  - mkdir ~/haxelib && haxelib setup ~/haxelib
+  - haxelib install record-macros
+  - haxe -version
+  - haxe RunCi.hxml
+  - neko RunCi.n
   - popd
 
 branches:
