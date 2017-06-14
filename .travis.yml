@@ -69,7 +69,11 @@ install_linux: &install_linux
       git clone https://github.com/HaxeFoundation/neko.git .;
     else
       pushd $HOME/neko;
-      git pull origin master || git clone https://github.com/HaxeFoundation/neko.git .;
+      if [ ! -d "$HOME/neko/.git" ]; then
+        git clone https://github.com/HaxeFoundation/neko.git .;
+      else
+        git fetch --all; git reset --hard origin/master;
+      fi;
       git submodule update --init --recursive;
     fi
   - cmake . -DSTATIC_DEPS=all -G Ninja
