@@ -237,11 +237,11 @@ matrix:
     #    - DEPLOY=1
     #  install: *install_osx
 
-    #- os: osx
-    #  env:
-    #    - TEST=cpp
-    #    - HXCPP_COMPILE_CACHE=~/hxcache
-    #  install: *install_osx
+    - os: osx
+      env:
+        - TEST=cpp
+        - HXCPP_COMPILE_CACHE=~/hxcache
+      install: *install_osx
 
 script:
   - eval `ssh-agent -s` # for deployment to haxe.org
