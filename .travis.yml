@@ -8,6 +8,8 @@ cache:
     - $HOME/_hxbuild
     - $HOME/lua_env
     - $HOME/Library/Caches/Homebrew
+before_cache:
+  - sudo rm -f $HOME/apt-cache/lock
 env:
   global:
     # make variables
