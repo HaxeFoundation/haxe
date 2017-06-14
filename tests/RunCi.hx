@@ -568,12 +568,9 @@ class RunCi {
 	}
 
 	static function deploy():Void {
-		if (
-			Sys.getEnv("DEPLOY") != null
-		) {
+		if (isDeployApiDocsRequired()) {
 			changeDirectory(repoDir);
-
-			if (Sys.systemName() != 'Windows' && isDeployApiRequired()) {
+			if (Sys.systemName() != 'Windows') {
 				// generate doc
 				runCommand("make", ["-s", "install_dox"]);
 				runCommand("make", ["-s", "package_doc"]);
@@ -583,7 +580,10 @@ class RunCi {
 				// because there is no debian sedlex package...
 				// deployPPA();
 			}
-
+		}
+		if (
+			Sys.getEnv("DEPLOY_NIGHTLIES") != null
+		) {
 			deployNightlies();
 		}
 	}
@@ -617,9 +617,9 @@ class RunCi {
 		}
 	}
 
-	static function isDeployApiRequired () {
+	static function isDeployApiDocsRequired () {
 		return gitInfo.branch == "development" &&
-			Sys.getEnv("DEPLOY") != null &&
+			Sys.getEnv("DEPLOY_API_DOCS") != null &&
 			Sys.getEnv("deploy_key_decrypt") != null;
 	}
 
@@ -628,14 +628,12 @@ class RunCi {
 	*/
 
 	static function deployApiDoc():Void {
-		if (isDeployApiRequired()) {
-			// setup deploy_key
-			runCommand("openssl aes-256-cbc -k \"$deploy_key_decrypt\" -in extra/deploy_key.enc -out extra/deploy_key -d");
-			runCommand("chmod 600 extra/deploy_key");
-			runCommand("ssh-add extra/deploy_key");
+		// setup deploy_key
+		runCommand("openssl aes-256-cbc -k \"$deploy_key_decrypt\" -in extra/deploy_key.enc -out extra/deploy_key -d");
+		runCommand("chmod 600 extra/deploy_key");
+		runCommand("ssh-add extra/deploy_key");
 
-			runCommand("make", ["-s", "deploy_doc"]);
-		}
+		runCommand("make", ["-s", "deploy_doc"]);
 	}
 
 	/**
