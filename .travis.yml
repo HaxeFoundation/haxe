@@ -11,8 +11,8 @@ cache:
     - $HOME/Library/Caches/Homebrew
 
 before_cache:
-  - ls -la ~
   - sudo rm -f $HOME/apt-cache/lock || true
+
 env:
   global:
     # make variables
@@ -59,12 +59,12 @@ install_linux: &install_linux
   - export OPAMYES=1
   - opam install sedlex xml-light extlib rope ptmap
   # Install neko
-  - if [ ! -d "/home/travis/neko" ]; then
-      mkdir /home/travis/neko;
-      pushd /home/travis/neko;
+  - if [ ! -d "$HOME/neko" ]; then
+      mkdir $HOME/neko;
+      pushd $HOME/neko;
       git clone https://github.com/HaxeFoundation/neko.git .;
     else
-      pushd /home/travis/neko;
+      pushd $HOME/neko;
       git pull origin master || git clone https://github.com/HaxeFoundation/neko.git .;
       git submodule update --init --recursive;
     fi
@@ -83,23 +83,19 @@ install_linux: &install_linux
   - jdk_switcher use oraclejdk7
   - java -version
   # Build haxe
-  - if [ -d "/home/travis/_hxbuild" ]; then
-      echo "/home/travis/_hxbuild exists";
+  - if [ -d "$HOME/_hxbuild" ]; then
+      echo "$HOME/_hxbuild exists";
       cp -pr ~/_hxbuild ./_build;
     fi
   - make package_src -s
   - opam config exec -- make -s STATICLINK=1
   - make package_bin -s
-  - ls -la ~
-  - ls -la .
-  - echo $PWD
-  #- mkdir -p ./_build
   - ls -l out
   - ldd -v ./haxe
   - ldd -v ./haxelib
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
-  - if [ ! -d "/home/travis/_hxbuild" ]; then
+  - if [ ! -d "$HOME/_hxbuild" ]; then
         mkdir ~/_hxbuild;
     fi
   - cp -prf ./_build/* ~/_hxbuild/
@@ -117,12 +113,12 @@ install_osx: &install_osx
   - eval `opam config env`
   # Install neko
   - brew upgrade cmake # we need a recent cmake to use CMAKE_OSX_DEPLOYMENT_TARGET
-  - if [ ! -d "/Users/travis/neko" ]; then
-      mkdir /Users/travis/neko;
-      pushd /Users/travis/neko;
+  - if [ ! -d "$HOME/neko" ]; then
+      mkdir $HOME/neko;
+      pushd $HOME/neko;
       git clone https://github.com/HaxeFoundation/neko.git .;
     else
-      pushd /Users/travis/neko;
+      pushd $HOME/neko;
       git pull origin master || git clone https://github.com/HaxeFoundation/neko.git .;
       git submodule update --init --recursive;
     fi
@@ -140,8 +136,8 @@ install_osx: &install_osx
   - mysql -u root -e "grant all on haxe_test.* to travis@localhost;"
   # Build haxe
   - travis_retry brew install zlib pcre
-  - if [ -d "/Users/travis/_hxbuild" ]; then
-      echo "/Users/travis/_hxbuild exists";
+  - if [ -d "$HOME/_hxbuild" ]; then
+      echo "$HOME/_hxbuild exists";
       cp -pr ~/_hxbuild ./_build;
     fi
   - make package_src -s
@@ -152,7 +148,7 @@ install_osx: &install_osx
   - otool -L ./haxelib
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
-  - if [ ! -d "/Users/travis/_hxbuild" ]; then
+  - if [ ! -d "$HOME/_hxbuild" ]; then
         mkdir ~/_hxbuild;
     fi
   - cp -prf ./_build/* ~/_hxbuild/
