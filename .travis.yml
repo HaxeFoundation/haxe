@@ -6,7 +6,6 @@ cache:
       - $HOME/hxcache
       - $HOME/_hxbuild
       - $HOME/lua_env
-      - $HOME/Library/Caches/Homebrew
 env:
   global:
     # make variables
