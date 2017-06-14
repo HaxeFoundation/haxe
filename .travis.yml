@@ -242,15 +242,14 @@ script:
   - eval `ssh-agent -s` # for deployment to haxe.org
   - if [ $CACHE_AVAILABLE = 0 ]; then
       echo "No cache available, but initial cache created, try restarting this job";
-      exit 200;
     fi
-  - pushd tests
-  - mkdir ~/haxelib && haxelib setup ~/haxelib
-  - haxelib install record-macros
-  - haxe -version
-  - haxe RunCi.hxml
-  - neko RunCi.n
-  - popd
+  - [ $CACHE_AVAILABLE = 1 ] && pushd tests
+  - [ $CACHE_AVAILABLE = 1 ] && mkdir ~/haxelib && haxelib setup ~/haxelib
+  - [ $CACHE_AVAILABLE = 1 ] && haxelib install record-macros
+  - [ $CACHE_AVAILABLE = 1 ] && haxe -version
+  - [ $CACHE_AVAILABLE = 1 ] && haxe RunCi.hxml
+  - [ $CACHE_AVAILABLE = 1 ] && neko RunCi.n
+  - [ $CACHE_AVAILABLE = 1 ] && popd
 
 branches:
   except:
