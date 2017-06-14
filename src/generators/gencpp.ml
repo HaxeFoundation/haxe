@@ -2338,7 +2338,7 @@ let is_gc_element ctx member_type =
    | TCppWrapped _
    | TCppScalarArray _
    | TCppInst _
-   | TCppInterface _ 
+   | TCppInterface _
    | TCppClass
        -> true
    | _ -> false
@@ -2422,6 +2422,10 @@ let retype_expression ctx request_type function_args function_type expression_tr
          | TEnumParameter( enumObj, enumField, enumIndex  ) ->
             let retypedObj = retype TCppDynamic enumObj in
             CppEnumParameter( retypedObj, enumField, enumIndex ), cpp_cast_variant_type_of (cpp_type_of (get_nth_type enumField enumIndex))
+
+         | TEnumIndex enumObj ->
+            let retypedObj = retype TCppDynamic enumObj in
+            CppEnumIndex retypedObj, TCppScalar "int"
 
          | TConst TThis ->
             uses_this := Some !this_real;
@@ -3162,7 +3166,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             Using the 'typedef hack', where we use typedef X<T> = T, allows the
             haxe compiler to use these types interchangeably. We then work
             out the correct way to convert between them when one is expected, but another provided.
- 
+
             TCppFunction: these do not really interact with the haxe function type, T
             Since they are implemented with cpp::Function, conversion to/from Dynamic should happen automatically
                CallableData<T> = T;
@@ -3394,9 +3398,9 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
 
       | CppEnumIndex(obj) ->
          gen obj;
-         (*if cpp_is_dynamic_type obj.cpptype then*)
+         if cpp_is_dynamic_type obj.cpptype then
             out ".StaticCast< ::hx::EnumBase >()";
-         out "->getIndex()"
+         out "->_hx_getIndex()"
 
       | CppNullAccess -> out ("hx::Throw(" ^ strq "Null access" ^ ")")
       | CppFunction(func,_) ->
@@ -6233,7 +6237,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          List.iter dump_script_static class_def.cl_ordered_statics;
 
          output_cpp "static hx::ScriptNamedFunction __scriptableFunctions[] = {\n";
-         let dump_func f isStaticFlag = 
+         let dump_func f isStaticFlag =
             let s = try Hashtbl.find sigs f.cf_name with Not_found -> "v" in
             output_cpp ("  hx::ScriptNamedFunction(\"" ^ f.cf_name ^ "\",__s_" ^ f.cf_name ^ ",\"" ^ s ^ "\", " ^ isStaticFlag ^ " ),\n" )
          in
@@ -7559,6 +7563,9 @@ class script_writer ctx filename asciiOut =
          in
          this#write ( (this#op IaEnumI) ^ (this#typeText (TEnum(enum,[])) ) ^ (string_of_int i) ^ "\n");
          this#gen_expression expr;
+   | TEnumIndex expr ->
+         this#write ( (this#op IaCallMember) ^ (this#typeTextString "hx::EnumBase") ^ " " ^ (this#stringText "__Index") ^ "0" ^ (this#commentOf ("Enum index") ) ^ "\n");
+         this#gen_expression expr;
    | TSwitch (condition,cases,optional_default)  ->
          this#write ( (this#op IaSwitch) ^ (string_of_int (List.length cases)) ^ " " ^
                            (match optional_default with None -> "0" | Some _ -> "1") ^ "\n");
@@ -7743,7 +7750,7 @@ class script_writer ctx filename asciiOut =
             gen_expression e;
 
          | CppCompare(_, left, right, op) ->
-            this#writeOpLine (IaBinOp op); 
+            this#writeOpLine (IaBinOp op);
             gen_expression left;
             gen_expression right;
 
@@ -7870,7 +7877,7 @@ class script_writer ctx filename asciiOut =
          | CppCastScalar(expr,_) -> match_expr expr
          | CppCastVariant(expr) -> match_expr expr
          | CppCastStatic(expr,_) -> match_expr expr
-         | CppNullAccess -> 
+         | CppNullAccess ->
             this#writeOpLine IaThrow;
             this#begin_expr;
             this#writeCppPos expression;
@@ -8137,13 +8144,13 @@ let generate_source ctx =
                let id = gen_hash32 seed class_name in
                (* reserve first 100 ids for runtime *)
                if id < Int32.of_int 100 || Hashtbl.mem existingIds id then
-                  makeId class_name (seed+100) 
+                  makeId class_name (seed+100)
                else begin
                   Hashtbl.add existingIds id true;
                   Hashtbl.add ctx.ctx_type_ids class_name id;
                end in
             makeId name 0;
- 
+
             build_xml := !build_xml ^ (get_class_code class_def Meta.BuildXml);
             if (has_init_field class_def) then
                init_classes := class_def.cl_path ::  !init_classes;

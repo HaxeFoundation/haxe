@@ -124,6 +124,7 @@ let configure gen (should_convert:texpr->bool) =
 			begin
 				try
 					match (simplify_expr cond).eexpr with
+					| TEnumIndex enum
 					| TCall  ({ eexpr = TField (_, FStatic ({ cl_path = [],"Type" }, { cf_name = "enumIndex" })) }, [enum]) ->
 						let real_enum =
 							match enum.etype with

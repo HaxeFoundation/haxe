@@ -500,6 +500,9 @@ and gen_expr ctx e =
 			print ctx "($_=";
 			gen_value ctx x;
 			print ctx ",$bind($_,$_%s))" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name)))
+	| TEnumIndex x ->
+		gen_value ctx x;
+		print ctx "[1]"
 	| TEnumParameter (x,_,i) ->
 		gen_value ctx x;
 		print ctx "[%i]" (i + 2)
@@ -865,6 +868,7 @@ and gen_value ctx e =
 	| TBinop _
 	| TField _
 	| TEnumParameter _
+	| TEnumIndex _
 	| TTypeExpr _
 	| TParenthesis _
 	| TObjectDecl _

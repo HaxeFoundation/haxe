@@ -1612,6 +1612,7 @@ let generate con =
 				| TObjectDecl _ -> write w "[ obj decl not supported ]"; if !strict_mode then assert false
 				| TFunction _ -> write w "[ func decl not supported ]"; if !strict_mode then assert false
 				| TEnumParameter _ -> write w "[ enum parameter not supported ]"; if !strict_mode then assert false
+				| TEnumIndex _ -> write w "[ enum index not supported ]"; if !strict_mode then assert false
 		in
 		expr_s w e
 	in
@@ -2105,7 +2106,11 @@ let generate con =
 
 	let enum_base = (get_cl (get_type gen (["haxe";"lang"],"Enum")) ) in
 	let param_enum_base = (get_cl (get_type gen (["haxe";"lang"],"ParamEnum")) ) in
-	EnumToClass.configure gen (None) false true enum_base param_enum_base;
+	let type_enumindex = mk_static_field_access_infer gen.gclasses.cl_type "enumIndex" null_pos [] in
+	let mk_enum_index_call e p =
+		mk (TCall (type_enumindex, [e])) gen.gcon.basic.tint p
+	in
+	EnumToClass.configure gen false true enum_base param_enum_base mk_enum_index_call;
 
 	InterfaceVarsDeleteModf.configure gen;
 

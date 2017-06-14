@@ -1915,6 +1915,8 @@ and eval_expr ctx e =
 			r
 		| _ ->
 			abort ("Unknown native call " ^ v.v_name) e.epos)
+	| TEnumIndex v ->
+		get_enum_index ctx v
 	| TCall ({ eexpr = TField (_,FStatic ({ cl_path = [],"Type" },{ cf_name = "enumIndex" })) },[{ eexpr = TCast(v,_) }]) when (match follow v.etype with TEnum _ -> true | _ -> false) ->
 		get_enum_index ctx v
 	| TCall ({ eexpr = TField (_,FStatic ({ cl_path = [],"Type" },{ cf_name = "enumIndex" })) },[v]) when (match follow v.etype with TEnum _ -> true | _ -> false) ->

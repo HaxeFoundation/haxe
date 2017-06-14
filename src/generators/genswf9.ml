@@ -882,6 +882,9 @@ let rec gen_access ctx e (forset : 'a) : 'a access =
 		write ctx (HGetProp (ident "params"));
 		write ctx (HSmallInt i);
 		VArray
+	| TEnumIndex e1 ->
+		gen_expr ctx true e1;
+		VId (ident "index")
 	| TField (e1,fa) ->
 		let f = field_name fa in
 		let id, k, closure = property ctx f e1.etype in
@@ -1060,6 +1063,7 @@ let rec gen_expr_content ctx retval e =
 		no_value ctx retval
 	| TField _
 	| TLocal _
+	| TEnumIndex _
 	| TTypeExpr _ ->
 		getvar ctx (gen_access ctx e Read)
 	(* both accesses return dynamic so let's cast them to the real type *)

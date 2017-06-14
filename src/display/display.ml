@@ -452,7 +452,7 @@ module Diagnostics = struct
 				()
 			| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ when not in_value ->
 				no_effect e.epos;
-			| TConst _ | TLocal _ | TTypeExpr _ | TEnumParameter _ | TVar _ ->
+			| TConst _ | TLocal _ | TTypeExpr _ | TEnumParameter _ | TEnumIndex _ | TVar _ ->
 				()
 			| TFunction tf ->
 				loop false tf.tf_expr

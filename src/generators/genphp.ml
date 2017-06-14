@@ -1316,6 +1316,11 @@ and gen_expr ctx e =
 		gen_value ctx e1;
 		spr ctx ")";
 		print ctx "->params[%d]" i;
+	| TEnumIndex e1 ->
+		spr ctx "_hx_deref(";
+		gen_value ctx e1;
+		spr ctx ")";
+		print ctx "->index";
 	| TField (e1,s) ->
 		gen_tfield ctx e e1 s
 	| TTypeExpr t ->
@@ -1804,6 +1809,7 @@ and gen_value ctx e =
 	| TArray _
 	| TBinop _
 	| TEnumParameter _
+	| TEnumIndex _
 	| TField _
 	| TParenthesis _
 	| TObjectDecl _

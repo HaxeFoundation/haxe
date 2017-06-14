@@ -325,6 +325,7 @@ enum ValueType {
 		return Std.is(e, cs.system.Enum) ? [] : cast(e,HxEnum).getParams();
 	}
 
+	@:ifFeature("has_enum")
 	@:pure
 	public static function enumIndex( e : EnumValue ) : Int
 	{

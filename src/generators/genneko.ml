@@ -248,6 +248,8 @@ and gen_expr ctx e =
 		| _ -> assert false)
 	| TEnumParameter (e,_,i) ->
 		EArray (field p (gen_expr ctx e) "args",int p i),p
+	| TEnumIndex e ->
+		field p (gen_expr ctx e) "index"
 	| TField (e,f) ->
 		field p (gen_expr ctx e) (field_name f)
 	| TTypeExpr t ->

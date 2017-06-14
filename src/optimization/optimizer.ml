@@ -927,7 +927,7 @@ let standard_precedence op =
 
 let rec need_parent e =
 	match e.eexpr with
-	| TConst _ | TLocal _ | TArray _ | TField _ | TEnumParameter _ | TParenthesis _ | TCall _ | TNew _ | TTypeExpr _ | TObjectDecl _ | TArrayDecl _ -> false
+	| TConst _ | TLocal _ | TArray _ | TField _ | TEnumParameter _ | TEnumIndex _ | TParenthesis _ | TCall _ | TNew _ | TTypeExpr _ | TObjectDecl _ | TArrayDecl _ -> false
 	| TCast (e,None) | TMeta(_,e) -> need_parent e
 	| TCast _ | TThrow _ | TReturn _ | TTry _ | TSwitch _ | TFor _ | TIf _ | TWhile _ | TBinop _ | TContinue | TBreak
 	| TBlock _ | TVar _ | TFunction _ | TUnop _ -> true
@@ -1019,6 +1019,8 @@ let sanitize_expr com e =
 		if need_parent e2 then { e with eexpr = TCall(parent e2,args) } else e
 	| TEnumParameter (e2,ef,i) ->
 		if need_parent e2 then { e with eexpr = TEnumParameter(parent e2,ef,i) } else e
+	| TEnumIndex e2 ->
+		if need_parent e2 then { e with eexpr = TEnumIndex(parent e2) } else e
 	| TField (e2,f) ->
 		if need_parent e2 then { e with eexpr = TField(parent e2,f) } else e
 	| TArray (e1,e2) ->

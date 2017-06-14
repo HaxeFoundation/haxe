@@ -1261,8 +1261,7 @@ module TexprConverter = struct
 				   (correctly typed) neutral value because it doesn't actually matter. *)
 				mk (TConst (TInt (Int32.of_int 0))) ctx.t.tint e.epos
 			else
-				let cf = PMap.find "enumIndex" c_type.cl_statics in
-				make_static_call ctx c_type cf (fun t -> t) [e] com.basic.tint e.epos
+				mk (TEnumIndex e) com.basic.tint e.epos
 		in
 		let mk_name_call e =
 			if not ctx.in_macro && not ctx.com.display.DisplayMode.dms_full_typing then

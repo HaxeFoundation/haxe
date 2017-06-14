@@ -543,6 +543,9 @@ and gen_expr ?(local=true) ctx e = begin
 	| TEnumParameter (x,_,i) ->
 		gen_value ctx x;
 		print ctx "[%i]" (i + 2)
+	| TEnumIndex x ->
+		gen_value ctx x;
+		print ctx "[1]"
 	| TField (x, (FInstance(_,_,f) | FStatic(_,f) | FAnon(f))) when Meta.has Meta.SelfCall f.cf_meta ->
 		gen_value ctx x;
 	| TField ({ eexpr = TConst(TInt _ | TFloat _| TString _| TBool _) } as e , ((FInstance _ | FAnon _) as ef)) ->
@@ -1041,6 +1044,7 @@ and gen_value ctx e =
 	| TBinop _
 	| TField _
 	| TEnumParameter _
+	| TEnumIndex _
 	| TTypeExpr _
 	| TParenthesis _
 	| TObjectDecl _

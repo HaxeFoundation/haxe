@@ -420,6 +420,11 @@ module ConstPropagation = DataFlow(struct
 					| EnumValue(_,el) -> (try List.nth el i with Failure _ -> raise Exit)
 					| _ -> raise Exit
 				end;
+			| TEnumIndex e1 ->
+				begin match eval bb e1 with
+					| EnumValue(i,_) -> Const (TInt (Int32.of_int i))
+					| _ -> raise Exit
+				end;
 			| TCall ({ eexpr = TField (_,FStatic({cl_path=[],"Type"} as c,({cf_name="enumIndex"} as cf)))},[e1]) when ctx.com.platform = Eval ->
 				begin match follow e1.etype,eval bb e1 with
 					| TEnum _,EnumValue(i,_) -> Const (TInt (Int32.of_int i))
@@ -606,7 +611,7 @@ module LocalDce = struct
 			| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
 			| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
 			| TFor _ -> raise Exit
-			| TArray _ | TEnumParameter _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _
+			| TArray _ | TEnumParameter _ | TEnumIndex _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _
 			| TField _ | TIf _ | TTry _ | TSwitch _ | TArrayDecl _ | TBlock _ | TObjectDecl _ | TVar _ -> Type.iter loop e
 		in
 		try
