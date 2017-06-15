@@ -218,7 +218,7 @@ matrix:
     #######
     - os: osx
       env:
-        - TEST=macro,neko,js,php,flash9,as3,java,cs,python,hl,lua
+        - TEST=macro,neko,js,php,python,hl,lua
         - DEPLOY_NIGHTLIES=1
       install: *install_osx
 
