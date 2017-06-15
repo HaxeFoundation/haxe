@@ -205,7 +205,6 @@ matrix:
         - TEST=cpp
         - HXCPP_COMPILE_THREADS=4
         - HXCPP_COMPILE_CACHE=~/hxcache
-        - HXCPP_VERBOSE
       before_install:
         - export APT_CACHE_DIR=~/apt-cache && mkdir -pv $APT_CACHE_DIR
         - sudo apt-get update -y || true
@@ -228,7 +227,6 @@ matrix:
         - TEST=cpp
         - HXCPP_COMPILE_CACHE=~/hxcache
         - HXCPP_COMPILE_THREADS=4
-        - HXCPP_VERBOSE
       install: *install_osx
 
 script:
