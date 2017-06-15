@@ -48,7 +48,7 @@ install_linux: &install_linux
   - cmake . -DSTATIC_DEPS=all -G Ninja
   # download static dependencies before actual build, with 3 chances to deal with network issues
   - ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
-  - ninja
+  - ninja -j 4
   - sudo ninja install
   - popd
   # Setup database
@@ -85,7 +85,7 @@ install_osx: &install_osx
   - cmake . -DSTATIC_DEPS=all -G Ninja
   # download static dependencies before actual build, with 3 chances to deal with network issues
   - ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
-  - ninja
+  - ninja -j 4
   - sudo ninja install
   - popd
   # Setup database
