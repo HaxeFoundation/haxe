@@ -37,6 +37,7 @@ install_linux: &install_linux
       libpcre3-dev
       zlib1g-dev
       libgtk2.0-dev
+      ninja-build
       awscli
   - wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin system
   - export OPAMYES=1
@@ -44,11 +45,11 @@ install_linux: &install_linux
   # Install neko
   - git clone https://github.com/HaxeFoundation/neko.git ../neko
   - pushd ../neko
-  - cmake . -DSTATIC_DEPS=all
+  - cmake . -DSTATIC_DEPS=all -G Ninja
   # download static dependencies before actual build, with 3 chances to deal with network issues
-  - make download_static_deps || make download_static_deps || make download_static_deps
-  - make
-  - sudo make install
+  - ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
+  - ninja
+  - sudo ninja install
   - popd
   # Setup database
   - travis_retry sudo apt-get install mysql-server-5.6 -y
@@ -72,7 +73,7 @@ install_osx: &install_osx
   # Install dependencies
   - brew uninstall --force brew-cask # https://github.com/caskroom/homebrew-cask/pull/15381
   - travis_retry brew update
-  - travis_retry brew install opam;
+  - travis_retry brew install opam ninja;
   - export OPAMYES=1
   - opam init
   - opam install camlp4 sedlex ocamlfind xml-light extlib rope ptmap
@@ -81,11 +82,11 @@ install_osx: &install_osx
   - brew upgrade cmake # we need a recent cmake to use CMAKE_OSX_DEPLOYMENT_TARGET
   - git clone https://github.com/HaxeFoundation/neko.git ../neko
   - pushd ../neko
-  - cmake . -DSTATIC_DEPS=all
+  - cmake . -DSTATIC_DEPS=all -G Ninja
   # download static dependencies before actual build, with 3 chances to deal with network issues
-  - make download_static_deps || make download_static_deps || make download_static_deps
-  - make
-  - sudo make install
+  - ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
+  - ninja
+  - sudo ninja install
   - popd
   # Setup database
   - travis_retry brew install mysql
