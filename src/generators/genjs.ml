@@ -494,7 +494,10 @@ and gen_expr ctx e =
 			print ctx ",$bind($_,$_%s))" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name)))
 	| TEnumIndex x ->
 		gen_value ctx x;
+		if Common.defined ctx.com Define.JsEnumsAsObjects then
 		print ctx "._hx_index"
+		else
+		print ctx "[1]"
 	| TEnumParameter (x,f,i) ->
 		gen_value ctx x;
 		if Common.defined ctx.com Define.JsEnumsAsObjects then
