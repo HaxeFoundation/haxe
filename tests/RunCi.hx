@@ -104,8 +104,16 @@ class RunCi {
 
 	static function requireAptPackages(packages:Array<String>):Void {
 		var notYetInstalled = [for (p in packages) if (!isAptPackageInstalled(p)) p];
-		if (notYetInstalled.length > 0)
-			runCommand("sudo", ["apt-get", "install", "-y"].concat(notYetInstalled), true);
+		if (notYetInstalled.length > 0) {
+			var aptCacheDir = Sys.getEnv("APT_CACHE_DIR");
+			var baseCommand = if (aptCacheDir != null) {
+				["apt-get", "-o", 'dir::cache::archives=${aptCacheDir}', "install", "-y"];
+			} else {
+				["apt-get", "install", "-y"];
+			};
+			runCommand("sudo", baseCommand.concat(notYetInstalled), true);
+		}
+
 	}
 
 	static function haxelibInstallGit(account:String, repository:String, ?branch:String, ?srcPath:String, useRetry:Bool = false, ?altName:String):Void {
@@ -347,7 +355,7 @@ class RunCi {
 			haxelibInstallGit("HaxeFoundation", "hxcpp", true);
 			var oldDir = Sys.getCwd();
 			changeDirectory(getHaxelibPath("hxcpp") + "tools/hxcpp/");
-			runCommand("haxe", ["compile.hxml"]);
+			runCommand("haxe", ["-D", "source-header=''", "compile.hxml"]);
 			changeDirectory(oldDir);
 		}
 
@@ -402,13 +410,23 @@ class RunCi {
 	}
 
 	static function installLuaVersionDependencies(lv:String){
-	  if (lv == "-l5.1"){
-	    runCommand("luarocks", ["install", "luabitop", "1.0.2-3", "--server=https://luarocks.org/dev"]);
-	  }
-	  runCommand("luarocks", ["install", "lrexlib-pcre", "2.8.0-1", "--server=https://luarocks.org/dev"]);
-	  runCommand("luarocks", ["install", "luv", "1.9.1-0", "--server=https://luarocks.org/dev"]);
-	  runCommand("luarocks", ["install", "luasocket", "3.0rc1-2", "--server=https://luarocks.org/dev"]);
-	  runCommand("luarocks", ["install", "environ", "0.1.0-1", "--server=https://luarocks.org/dev"]);
+		if (lv == "-l5.1"){
+			if (!commandSucceed("luarocks", ["show", "luabit"])) {
+	    		runCommand("luarocks", ["install", "luabitop", "1.0.2-3", "--server=https://luarocks.org/dev"]);
+		  	}
+	  	}
+		if (!commandSucceed("luarocks", ["show", "lrexlib-pcre"])) {
+	  		runCommand("luarocks", ["install", "lrexlib-pcre", "2.8.0-1", "--server=https://luarocks.org/dev"]);
+		}
+		if (!commandSucceed("luarocks", ["show", "luv"])) {
+	  		runCommand("luarocks", ["install", "luv", "1.9.1-0", "--server=https://luarocks.org/dev"]);
+		}
+		if (!commandSucceed("luarocks", ["show", "luasocket"])) {
+	  		runCommand("luarocks", ["install", "luasocket", "3.0rc1-2", "--server=https://luarocks.org/dev"]);
+		}
+		if (!commandSucceed("luarocks", ["show", "environ"])) {
+	  		runCommand("luarocks", ["install", "environ", "0.1.0-1", "--server=https://luarocks.org/dev"]);
+		}
 	}
 
 	static function getCsDependencies() {
@@ -560,24 +578,22 @@ class RunCi {
 	}
 
 	static function deploy():Void {
-		if (
-			Sys.getEnv("DEPLOY") != null
-		) {
+		if (isDeployApiDocsRequired()) {
 			changeDirectory(repoDir);
-
 			if (Sys.systemName() != 'Windows') {
 				// generate doc
 				runCommand("make", ["-s", "install_dox"]);
 				runCommand("make", ["-s", "package_doc"]);
-
 				// deployBintray();
 				deployApiDoc();
-
 				// disable deployment to ppa:haxe/snapshots for now
 				// because there is no debian sedlex package...
 				// deployPPA();
 			}
-
+		}
+		if (
+			Sys.getEnv("DEPLOY_NIGHTLIES") != null
+		) {
 			deployNightlies();
 		}
 	}
@@ -611,22 +627,23 @@ class RunCi {
 		}
 	}
 
+	static function isDeployApiDocsRequired () {
+		return gitInfo.branch == "development" &&
+			Sys.getEnv("DEPLOY_API_DOCS") != null &&
+			Sys.getEnv("deploy_key_decrypt") != null;
+	}
+
 	/**
 		Deploy doc to api.haxe.org.
 	*/
-	static function deployApiDoc():Void {
-		if (
-			gitInfo.branch == "development" &&
-			Sys.getEnv("DEPLOY") != null &&
-			Sys.getEnv("deploy_key_decrypt") != null
-		) {
-			// setup deploy_key
-			runCommand("openssl aes-256-cbc -k \"$deploy_key_decrypt\" -in extra/deploy_key.enc -out extra/deploy_key -d");
-			runCommand("chmod 600 extra/deploy_key");
-			runCommand("ssh-add extra/deploy_key");
 
-			runCommand("make", ["-s", "deploy_doc"]);
-		}
+	static function deployApiDoc():Void {
+		// setup deploy_key
+		runCommand("openssl aes-256-cbc -k \"$deploy_key_decrypt\" -in extra/deploy_key.enc -out extra/deploy_key -d");
+		runCommand("chmod 600 extra/deploy_key");
+		runCommand("ssh-add extra/deploy_key");
+
+		runCommand("make", ["-s", "deploy_doc"]);
 	}
 
 	/**
