@@ -577,24 +577,31 @@ class RunCi {
 		ver.join(".");
 	}
 
+	static function isDeployNightlies () {
+		return Sys.getEnv("DEPLOY_NIGHTLIES") != null;
+	}
 	static function deploy():Void {
-		if (isDeployApiDocsRequired()) {
+
+		var doDocs = isDeployApiDocsRequired();
+		var doNightlies = isDeployNightlies();
+
+		if (doDocs || doNightlies) {
 			changeDirectory(repoDir);
-			if (Sys.systemName() != 'Windows') {
-				// generate doc
-				runCommand("make", ["-s", "install_dox"]);
-				runCommand("make", ["-s", "package_doc"]);
-				// deployBintray();
-				deployApiDoc();
-				// disable deployment to ppa:haxe/snapshots for now
-				// because there is no debian sedlex package...
-				// deployPPA();
+			if (doDocs) {
+				if (Sys.systemName() != 'Windows') {
+					// generate doc
+					runCommand("make", ["-s", "install_dox"]);
+					runCommand("make", ["-s", "package_doc"]);
+					// deployBintray();
+					deployApiDoc();
+					// disable deployment to ppa:haxe/snapshots for now
+					// because there is no debian sedlex package...
+					// deployPPA();
+				}
 			}
-		}
-		if (
-			Sys.getEnv("DEPLOY_NIGHTLIES") != null
-		) {
-			deployNightlies();
+			if (doNightlies) {
+				deployNightlies();
+			}
 		}
 	}
 
@@ -1104,4 +1111,6 @@ class RunCi {
 		}
 	}
 }
+
+
 
