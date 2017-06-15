@@ -65,6 +65,7 @@ class Test {
 
 	function assert( ?pos ) {
 		report("Assert",pos);
+		success = false;
 	}
 
 	function exc( f : Void -> Void, ?pos ) {
