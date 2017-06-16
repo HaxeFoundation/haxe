@@ -91,10 +91,10 @@ install_linux: &install_linux
         if [ $REF_CHANGED = 1 ]; then
           git reset --hard origin/master;
           git submodule update --init --recursive;
-        fi
+        fi;
       fi;
-
     fi
+  - env
   - test $REF_CHANGED = 1 || cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
   # download static dependencies before actual build, with 3 chances to deal with network issues
   - test $REF_CHANGED = 1 || ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
@@ -159,9 +159,10 @@ install_osx: &install_osx
         if [ $REF_CHANGED = 1 ]; then
           git reset --hard origin/master;
           git submodule update --init --recursive;
-        fi
+        fi;
       fi;
     fi
+  - env
   - test $REF_CHANGED = 1 || cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
   # download static dependencies before actual build, with 3 chances to deal with network issues
   - test $REF_CHANGED = 1 || ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
