@@ -224,6 +224,7 @@ matrix:
       install: *install_osx
 
     - os: osx
+      osx_image: xcode8.3
       env:
         - TEST=cpp
         - HXCPP_COMPILE_CACHE=~/hxcache
