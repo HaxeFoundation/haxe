@@ -15,10 +15,10 @@ before_cache:
       sudo rm -f $HOME/apt-cache/lock || true;
     fi
   # somehow these files are recreated everytime
-  - rm -f $HOME/travis/lua_env/lib/liblua51.a
-  - rm -f $HOME/travis/lua_env/lib/liblua52.a
-  - rm -f $HOME/travis/lua_env/lib/liblua53.a
-  - rm -f $HOME/travis/lua_env/lib/libluajit-5.1.a
+  - rm -f $HOME/lua_env/lib/liblua51.a
+  - rm -f $HOME/lua_env/lib/liblua52.a
+  - rm -f $HOME/lua_env/lib/liblua53.a
+  - rm -f $HOME/lua_env/lib/libluajit-5.1.a
   #- if [ $TRAVIS_OS_NAME = 'osx' ]; then brew cleanup; fi
 
 env:
