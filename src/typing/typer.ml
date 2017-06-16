@@ -2898,7 +2898,7 @@ and type_object_decl ctx fl with_type p =
 		mk (TObjectDecl (List.rev fields)) (TAnon { a_fields = types; a_status = x }) p
 	| ODKWithStructure a ->
 		let t, fl = type_fields a.a_fields in
-		if !(a.a_status) <> Const then a.a_status := Closed;
+		if !(a.a_status) = Opened then a.a_status := Closed;
 		mk (TObjectDecl fl) t p
 	| ODKWithClass (c,tl) ->
 		let t,ctor = get_constructor ctx c tl p in
