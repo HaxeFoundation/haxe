@@ -140,7 +140,7 @@ install_linux: &install_linux
       mkdir ~/_hxbuild_libs;
     fi
   - cp -prf ./_build/* ~/_hxbuild/
-  - rsync -arv --prune-empty-dirs --include "*/" --include='*.cmi' --include='*.o' --include='*.cmx' --include='*.cmxa' --include='*.a' --exclude="*" ./libs/ $HOME/_hxbuild_libs/
+  - rsync -arv --prune-empty-dirs --include "*/" --include='*.cmi' --include='*.o' --include='*.cmx' --include='*.cmxa' --include='*.a' --include='*.lib' --exclude="*" ./libs/ $HOME/_hxbuild_libs/
 
 install_osx: &install_osx
   - if [ ! -d "$HOME/neko" ]; then
@@ -220,7 +220,7 @@ install_osx: &install_osx
       mkdir ~/_hxbuild_libs;
     fi
   - cp -prf ./_build/* ~/_hxbuild/
-  - rsync -arv --prune-empty-dirs --include "*/" --include='*.cmi' --include='*.o' --include='*.cmx' --include='*.cmxa' --include='*.a' --exclude="*" ./libs/ $HOME/_hxbuild_libs/
+  - rsync -arv --prune-empty-dirs --include "*/" --include='*.cmi' --include='*.o' --include='*.cmx' --include='*.cmxa' --include='*.a' --include='*.lib' --exclude="*" ./libs/ $HOME/_hxbuild_libs/
 
 matrix:
   include:
