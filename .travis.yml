@@ -84,7 +84,7 @@ install_linux: &install_linux
   # download static dependencies before actual build, with 3 chances to deal with network issues
   - ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
   - if [ ! -d "$HOME/neko_old" ]; then mkdir $HOME/neko_old; fi
-  - diff -qr $HOME/neko_old $HOME/neko || ninja -j 4
+  - diff -qr $HOME/neko_old $HOME/neko -x .git || ninja -j 4
   - sudo ninja install
   - popd
   # Setup database
@@ -150,7 +150,7 @@ install_osx: &install_osx
   # download static dependencies before actual build, with 3 chances to deal with network issues
   - ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
   - if [ ! -d "$HOME/neko_old" ]; then mkdir $HOME/neko_old; fi
-  - diff -qr $HOME/neko_old $HOME/neko || ninja -j 4
+  - diff -qr $HOME/neko_old $HOME/neko -x .git || ninja -j 4
   - sudo ninja install
   - popd
   # Setup database
