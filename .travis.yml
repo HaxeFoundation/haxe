@@ -104,7 +104,7 @@ install_linux: &install_linux
       echo "$HOME/_hxbuild exists";
       cp -pr ~/_hxbuild ./_build;
     fi
-  - make package_src -s
+  - test $TRAVIS_OS_NAME = 'osx' || make package_src -s
   - opam config exec -- make -s STATICLINK=1
   - make package_bin -s
   - ls -l out
