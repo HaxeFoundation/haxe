@@ -14,6 +14,11 @@ before_cache:
       sudo apt-get autoclean;
       sudo rm -f $HOME/apt-cache/lock || true;
     fi
+  # somehow these files are recreated everytime
+  - rm -f $HOME/travis/lua_env/lib/liblua51.a
+  - rm -f $HOME/travis/lua_env/lib/liblua52.a
+  - rm -f $HOME/travis/lua_env/lib/liblua53.a
+  - rm -f $HOME/travis/lua_env/lib/libluajit-5.1.a
   #- if [ $TRAVIS_OS_NAME = 'osx' ]; then brew cleanup; fi
 
 env:
@@ -90,10 +95,10 @@ install_linux: &install_linux
       fi;
 
     fi
-  - test $REF_CHANGED = 1 || cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
+  - test $REF_CHANGED != 1 || cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
   # download static dependencies before actual build, with 3 chances to deal with network issues
-  - test $REF_CHANGED = 1 || ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
-  - test $REF_CHANGED = 1 || (ninja -j 4)
+  - test $REF_CHANGED != 1 || ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
+  - test $REF_CHANGED != 1 || (ninja -j 4)
   - sudo cmake -P cmake_install.cmake
   - popd
   # Setup JDK
@@ -157,10 +162,10 @@ install_osx: &install_osx
         fi
       fi;
     fi
-  - test $REF_CHANGED = 1 || cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
+  - test $REF_CHANGED != 1 || cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
   # download static dependencies before actual build, with 3 chances to deal with network issues
-  - test $REF_CHANGED = 1 || ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
-  - test $REF_CHANGED = 1 || (ninja -j 4)
+  - test $REF_CHANGED != 1 || ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
+  - test $REF_CHANGED != 1 || (ninja -j 4)
   - sudo cmake -P cmake_install.cmake
   - popd
   # Build haxe
