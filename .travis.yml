@@ -8,7 +8,6 @@ cache:
     - $HOME/_hxbuild
     - $HOME/lua_env
     - $HOME/.luarocks
-    - $HOME/Library/Caches/Homebrew
 
 before_cache:
   - if [ $TRAVIS_OS_NAME = 'linux' ]; then
