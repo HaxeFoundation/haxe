@@ -17,7 +17,6 @@ INSTALL_STD_DIR=$(INSTALL_DIR)/share/haxe/std
 PACKAGE_OUT_DIR=out
 PACKAGE_SRC_EXTENSION=.tar.gz
 
-PACKAGE_OUT_DIR_ABSOLUTE=$$(pwd)/$(PACKAGE_OUT_DIR)
 MAKEFILENAME?=Makefile
 PLATFORM?=unix
 
@@ -228,7 +227,8 @@ install_dox:
 
 package_doc:
 	mkdir -p $(PACKAGE_OUT_DIR)
-	cd $$(haxelib path dox | head -n 1) && haxe run.hxml && haxe gen.hxml && haxe -lib hxtemplo -lib hxparse -lib hxargs -lib markdown -cp src -dce no --run dox.Dox -theme haxe_api -D website "http://haxe.org/" --title "Haxe API" -o $(PACKAGE_OUT_DIR_ABSOLUTE)/$(PACKAGE_FILE_NAME)_doc.zip -D version "$$(haxe -version 2>&1)" -i bin/xml -ex microsoft -ex javax -ex cs.internal -D source-path https://github.com/HaxeFoundation/haxe/blob/$(BRANCH)/std/
+	export PACKAGE_OUT_DIR_ABSOLUTE=$$(pwd)/$(PACKAGE_OUT_DIR)
+	cd $$(haxelib path dox | head -n 1) && haxe run.hxml && haxe gen.hxml && haxe -lib hxtemplo -lib hxparse -lib hxargs -lib markdown -cp src -dce no --run dox.Dox -theme haxe_api -D website "http://haxe.org/" --title "Haxe API" -o $$(PACKAGE_OUT_DIR_ABSOLUTE)/$(PACKAGE_FILE_NAME)_doc.zip -D version "$$(haxe -version 2>&1)" -i bin/xml -ex microsoft -ex javax -ex cs.internal -D source-path https://github.com/HaxeFoundation/haxe/blob/$(BRANCH)/std/
 
 deploy_doc:
 	scp $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip www-haxe@api.haxe.org:/data/haxeapi/www/v/dev/api-latest.zip
