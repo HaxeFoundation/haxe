@@ -18,9 +18,6 @@ environment:
           DEPLOY: 1
         - TEST: "cpp"
 
-services:
-    - mysql
-
 skip_tags: true
 
 cache:
@@ -43,11 +40,7 @@ install:
     # Install neko
     - choco install neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
     - choco install chocolatey-core.extension php --ignore-dependencies -y
-    - echo extension=php_mysqli.dll >> C:\tools\php71\php.ini
-    - echo extension=php_sqlite3.dll >> C:\tools\php71\php.ini
     - echo extension=php_openssl.dll >> C:\tools\php71\php.ini
-    - echo extension=php_pdo_mysql.dll >> C:\tools\php71\php.ini
-    - echo extension=php_pdo_sqlite.dll >> C:\tools\php71\php.ini
     - RefreshEnv
     - neko -version
     # setup python
@@ -69,11 +62,6 @@ build_script:
     - cd %APPVEYOR_BUILD_FOLDER%/tests/
     - mkdir "%HAXELIB_ROOT%"
     - haxelib setup "%HAXELIB_ROOT%"
-    # setup mysql for testing
-    - set PATH=%MYSQL_PATH%\bin;%PATH%
-    - mysql --user=%MYSQL_USER% --password=%MYSQL_PASSWORD% -e "create user 'travis'@'localhost';"
-    - mysql --user=%MYSQL_USER% --password=%MYSQL_PASSWORD% -e "create database haxe_test;"
-    - mysql --user=%MYSQL_USER% --password=%MYSQL_PASSWORD% -e "grant all on haxe_test.* to 'travis'@'localhost';"
 
 test_script:
     - cd %APPVEYOR_BUILD_FOLDER%/tests/

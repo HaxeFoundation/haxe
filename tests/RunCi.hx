@@ -319,7 +319,7 @@ class RunCi {
 				if (phpCmd.exitCode == 0 && phpVer != null && phpVer >= 5.5) {
 					infoMsg('php has already been installed.');
 				} else {
-					requireAptPackages(["php5-cli", "php5-mysql", "php5-sqlite"]);
+					requireAptPackages(["php5-cli"]);
 				}
 			case "Mac":
 				//pass
@@ -361,21 +361,6 @@ class RunCi {
 
 		gotCppDependencies = true;
 	}
-
-	static var gotSpodDependencies = false;
-  static function getSpodDependencies() {
-		if (gotSpodDependencies ) return;
-
-		//install and build hxcpp
-		try {
-			getHaxelibPath("record-macros");
-			infoMsg('record-macros has already been installed.');
-		} catch(e:Dynamic) {
-			haxelibInstallGit("HaxeFoundation", "record-macros", true);
-		}
-
-		gotSpodDependencies = true;
-  }
 
 	static function getJavaDependencies() {
 		haxelibInstallGit("HaxeFoundation", "hxjava", true);
@@ -819,7 +804,6 @@ class RunCi {
 						runCommand("haxe", ["compile-macro.hxml"]);
 						runCommand("haxe", ["compile-each.hxml", "--run", "Main"]);
 					case Neko:
-						getSpodDependencies();
 						runCommand("haxe", ["compile-neko.hxml", "-D", "dump", "-D", "dump_ignore_var_ids"].concat(args));
 						runCommand("neko", ["bin/unit.n"]);
 
@@ -828,8 +812,7 @@ class RunCi {
 						runCommand("neko", ["bin/neko/sys.n"]);
 					case Php7:
 						if (systemName == "Linux") {
-							getSpodDependencies();
-							runCommand("phpenv", ["global", "7.0"], false, true);
+								runCommand("phpenv", ["global", "7.0"], false, true);
 							runCommand("haxe", ["compile-php7.hxml"].concat(args));
 							runCommand("php", ["bin/php7/index.php"]);
 
@@ -838,8 +821,7 @@ class RunCi {
 							runCommand("php", ["bin/php7/Main/index.php"]);
 						}
 					case Php:
-							getSpodDependencies();
-							getPhpDependencies();
+								getPhpDependencies();
 							runCommand("haxe", ["compile-php.hxml"].concat(args));
 							runCommand("php", ["bin/php/index.php"]);
 
@@ -892,7 +874,6 @@ class RunCi {
 						}
 					case Cpp:
 						getCppDependencies();
-						getSpodDependencies();
 						runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M32"].concat(args));
 						runCpp("bin/cpp/TestMain-debug", []);
 
@@ -987,7 +968,6 @@ class RunCi {
 						runCommand("haxe", ["build.hxml"]);
 						runCommand("node", ["test.js"]);
 					case Java:
-						getSpodDependencies();
 						getJavaDependencies();
 						runCommand("haxe", ["compile-java.hxml"].concat(args));
 						runCommand("java", ["-jar", "bin/java/TestMain-Debug.jar"]);
@@ -1015,7 +995,6 @@ class RunCi {
 						}
 
 					case Cs:
-						getSpodDependencies();
 						getCsDependencies();
 
 						var compl = switch [ci, systemName] {
