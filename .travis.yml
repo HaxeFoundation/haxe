@@ -75,6 +75,7 @@ install_linux: &install_linux
   - export OPAMYES=1
   - opam install sedlex xml-light extlib rope ptmap
   # Install neko
+  - export REF_CHANGED=1;
   - if [ ! -d "$HOME/neko" ]; then
       mkdir $HOME/neko;
       pushd $HOME/neko;
@@ -143,7 +144,7 @@ install_osx: &install_osx
   - opam install camlp4 sedlex ocamlfind xml-light extlib rope ptmap
   - eval `opam config env`
   # Install neko
-
+  - export REF_CHANGED=1;
   - if [ ! -d "$HOME/neko" ]; then
       mkdir $HOME/neko;
       pushd $HOME/neko;
