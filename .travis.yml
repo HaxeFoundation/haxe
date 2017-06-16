@@ -116,7 +116,7 @@ install_linux: &install_linux
   - if [ -d "$HOME/_hxbuild_libs"]; then
       rsync -arv $HOME/_hxbuild_libs/ ./libs/;
     fi
-  - test $TRAVIS_OS_NAME = 'osx' || make package_src -s
+  - make package_src -s
   - opam config exec -- make -s STATICLINK=1 libs
   - opam config exec -- make -s -j STATICLINK=1 haxe
   - opam config exec -- make -s haxelib
@@ -134,6 +134,7 @@ install_linux: &install_linux
     fi
   - cp -prf ./_build/* ~/_hxbuild/
   - rsync -arv --prune-empty-dirs --include "*/" --include='*.cmi' --include='*.o' --include='*.cmx' --include='*.cmxa' --include='*.a' --exclude="*" ./libs/ $HOME/_hxbuild_libs/
+
 install_osx: &install_osx
   - if [ ! -d "$HOME/neko" ]; then
       export CACHE_AVAILABLE=0;
@@ -186,7 +187,6 @@ install_osx: &install_osx
       echo "$HOME/_hxbuild exists";
       cp -pr ~/_hxbuild ./_build;
     fi
-  - make package_src -s
   - make -s STATICLINK=1 "LIB_PARAMS=/usr/local/opt/zlib/lib/libz.a /usr/local/lib/libpcre.a" libs
   - make -s -j STATICLINK=1 "LIB_PARAMS=/usr/local/opt/zlib/lib/libz.a /usr/local/lib/libpcre.a" haxe
   - make -s haxelib
