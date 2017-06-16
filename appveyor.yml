@@ -15,7 +15,7 @@ environment:
     matrix:
         - TEST: "neko,python,cs,java,macro"
         - TEST: "php7,php"
-          DEPLOY: 1
+          DEPLOY_NIGHTLIES: 1
         - TEST: "cpp"
 
 skip_tags: true

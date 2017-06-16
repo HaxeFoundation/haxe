@@ -14,6 +14,11 @@ before_cache:
       sudo apt-get autoclean;
       sudo rm -f $HOME/apt-cache/lock || true;
     fi
+  # somehow these files are recreated everytime
+  - rm -f $HOME/lua_env/lib/liblua51.a
+  - rm -f $HOME/lua_env/lib/liblua52.a
+  - rm -f $HOME/lua_env/lib/liblua53.a
+  - rm -f $HOME/lua_env/lib/libluajit-5.1.a
   #- if [ $TRAVIS_OS_NAME = 'osx' ]; then brew cleanup; fi
 
 env:
@@ -70,25 +75,33 @@ install_linux: &install_linux
   - export OPAMYES=1
   - opam install sedlex xml-light extlib rope ptmap
   # Install neko
+  - export REF_CHANGED=1;
   - if [ ! -d "$HOME/neko" ]; then
       mkdir $HOME/neko;
       pushd $HOME/neko;
       git clone https://github.com/HaxeFoundation/neko.git .;
+      git submodule update --init --recursive;
     else
       pushd $HOME/neko;
       if [ ! -d "$HOME/neko/.git" ]; then
         git clone https://github.com/HaxeFoundation/neko.git .;
+        git submodule update --init --recursive;
       else
-        export OLD_REF=`git rev-parse HEAD`;
-        git fetch --all; git reset --hard origin/master;
+        git fetch --all;
+        export REF_CUR=`git rev-list master | head -n 1`;
+        export REF_REMOTE=`git rev-list origin/master | head -n 1`;
+        export REF_CHANGED=`test $REF_CUR != $REF_REMOTE && echo 1`;
+        if [ $REF_CHANGED = 1 ]; then
+          git reset --hard origin/master;
+          git submodule update --init --recursive;
+        fi;
       fi;
-      git submodule update --init --recursive;
     fi
-  - export NEW_REF=`git rev-parse HEAD`
-  - test $OLD_REF = $NEW_REF || cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
+  - env
+  - test $REF_CHANGED = 1 || cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
   # download static dependencies before actual build, with 3 chances to deal with network issues
-  - test $OLD_REF = $NEW_REF || ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
-  - test $OLD_REF = $NEW_REF || (ninja -j 4)
+  - test $REF_CHANGED = 1 || ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
+  - test $REF_CHANGED = 1 || (ninja -j 4)
   - sudo cmake -P cmake_install.cmake
   - popd
   # Setup JDK
@@ -113,7 +126,6 @@ install_linux: &install_linux
         mkdir ~/_hxbuild;
     fi
   - cp -prf ./_build/* ~/_hxbuild/
-
 install_osx: &install_osx
   - if [ ! -d "$HOME/neko" ]; then
       export CACHE_AVAILABLE=0;
@@ -132,26 +144,33 @@ install_osx: &install_osx
   - opam install camlp4 sedlex ocamlfind xml-light extlib rope ptmap
   - eval `opam config env`
   # Install neko
-
+  - export REF_CHANGED=1;
   - if [ ! -d "$HOME/neko" ]; then
       mkdir $HOME/neko;
       pushd $HOME/neko;
       git clone https://github.com/HaxeFoundation/neko.git .;
+      git submodule update --init --recursive;
     else
       pushd $HOME/neko;
       if [ ! -d "$HOME/neko/.git" ]; then
         git clone https://github.com/HaxeFoundation/neko.git .;
+        git submodule update --init --recursive;
       else
-        export OLD_REF=`git rev-parse HEAD`;
-        git fetch --all; git reset --hard origin/master;
+        git fetch --all;
+        export REF_CUR=`git rev-list master | head -n 1`;
+        export REF_REMOTE=`git rev-list origin/master | head -n 1`;
+        export REF_CHANGED=`test $REF_CUR != $REF_REMOTE && echo 1`;
+        if [ $REF_CHANGED = 1 ]; then
+          git reset --hard origin/master;
+          git submodule update --init --recursive;
+        fi;
       fi;
-      git submodule update --init --recursive;
     fi
-  - export NEW_REF=`git rev-parse HEAD`
-  - test $OLD_REF = $NEW_REF || cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
+  - env
+  - test $REF_CHANGED = 1 || cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
   # download static dependencies before actual build, with 3 chances to deal with network issues
-  - test $OLD_REF = $NEW_REF || ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
-  - test $OLD_REF = $NEW_REF || (ninja -j 4)
+  - test $REF_CHANGED = 1 || ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
+  - test $REF_CHANGED = 1 || (ninja -j 4)
   - sudo cmake -P cmake_install.cmake
   - popd
   # Build haxe
