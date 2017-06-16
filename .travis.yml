@@ -66,7 +66,7 @@ install_linux: &install_linux
   - if [ $LAST_REVISION != "-" ]; then
       export NUMBER_OF_COMPILATION_TRIGGER_FILES=`git diff --name-only $LAST_REVISION $CURRENT_REVISION | grep -Ev "*.hx$"`
       export NO_COMPILATION=`(test $NUMBER_OF_COMPILATION_TRIGGER_FILES -gt 0 && echo 0) || echo 1`;
-      if [ $NO_COMPILATION = 0 ]; then
+      if [ $NO_COMPILATION = 1 ]; then
         echo $CURRENT_REVISION > $HOME/_hxbuild/last_compiled_rev;
       else
         export HAXE_COMPILER_DEPENDENCIES="";
