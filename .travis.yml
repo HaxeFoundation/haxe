@@ -85,8 +85,8 @@ install_linux: &install_linux
   # download static dependencies before actual build, with 3 chances to deal with network issues
   - ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
   - if [ ! -d "$HOME/neko_old" ]; then mkdir $HOME/neko_old; fi
-  - diff -qr $HOME/neko_old $HOME/neko -x .git || ninja -j 4
-  - sudo ninja install
+  - diff -qr $HOME/neko_old $HOME/neko -x .git || (ninja -j 4)
+  - sudo cmake -P cmake_install.cmake
   - popd
   # Setup database
   - travis_retry sudo apt-get install mysql-server-5.6 -y
@@ -153,7 +153,7 @@ install_osx: &install_osx
   - ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
   - if [ ! -d "$HOME/neko_old" ]; then mkdir $HOME/neko_old; fi
   - diff -qr $HOME/neko_old $HOME/neko -x .git || ninja -j 4
-  - sudo ninja install
+  - sudo cmake -P cmake_install.cmake
   - popd
   # Setup database
   - mysql.server start
