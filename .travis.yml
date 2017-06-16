@@ -100,7 +100,9 @@ install_linux: &install_linux
       cp -pr ~/_hxbuild ./_build;
     fi
   - test $TRAVIS_OS_NAME = 'osx' || make package_src -s
-  - opam config exec -- make -j -s STATICLINK=1
+  - opam config exec -- make -s STATICLINK=1 libs
+  - opam config exec -- make -s -j STATICLINK=1 haxe
+  - opam config exec -- make -s haxelib
   - make package_bin -s
   - ls -l out
   - ldd -v ./haxe
@@ -158,7 +160,9 @@ install_osx: &install_osx
       cp -pr ~/_hxbuild ./_build;
     fi
   - make package_src -s
-  - make -j -s STATICLINK=1 "LIB_PARAMS=/usr/local/opt/zlib/lib/libz.a /usr/local/lib/libpcre.a"
+  - make -s STATICLINK=1 "LIB_PARAMS=/usr/local/opt/zlib/lib/libz.a /usr/local/lib/libpcre.a" libs
+  - make -s -j STATICLINK=1 "LIB_PARAMS=/usr/local/opt/zlib/lib/libz.a /usr/local/lib/libpcre.a" haxe
+  - make -s haxelib
   - make package_bin -s
   - ls -l out
   - otool -L ./haxe

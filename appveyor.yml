@@ -52,7 +52,7 @@ install:
 
 build_script:
     - 'cd %APPVEYOR_BUILD_FOLDER%'
-    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -j -s -f Makefile.win"'
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win libs && make -j -s -f Makefile.win haxe && make -s -f Makefile.win haxelib"'
     - 'set PATH=%PATH%;%APPVEYOR_BUILD_FOLDER%'
     - 'set HAXEPATH=%APPVEYOR_BUILD_FOLDER%'
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win package_bin"'
