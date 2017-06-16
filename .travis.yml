@@ -116,6 +116,9 @@ install_linux: &install_linux
   - if [ -d "$HOME/_hxbuild_libs" ]; then
       rsync -arv $HOME/_hxbuild_libs/ ./libs/;
     fi
+  - ls -la ./libs
+  - ls -la ./libs/ectx
+  - ls -la .
   - make package_src -s
   - opam config exec -- make -s STATICLINK=1 libs
   - opam config exec -- make -s -j STATICLINK=1 haxe
