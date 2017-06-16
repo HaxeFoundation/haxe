@@ -75,16 +75,16 @@ install_linux: &install_linux
       if [ ! -d "$HOME/neko/.git" ]; then
         git clone https://github.com/HaxeFoundation/neko.git .;
       else
-        rsync -avq . /$HOME/neko_old --exclude .git;
+        export OLD_REF=`git rev-parse HEAD`;
         git fetch --all; git reset --hard origin/master;
       fi;
       git submodule update --init --recursive;
     fi
-  - cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
+  - export NEW_REF=`git rev-parse HEAD`
+  - test $OLD_REF = $NEW_REF || cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
   # download static dependencies before actual build, with 3 chances to deal with network issues
-  - ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
-  - if [ ! -d "$HOME/neko_old" ]; then mkdir $HOME/neko_old; fi
-  - diff -qr $HOME/neko_old $HOME/neko -x .git || (ninja -j 4)
+  - test $OLD_REF = $NEW_REF || ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
+  - test $OLD_REF = $NEW_REF || (ninja -j 4)
   - sudo cmake -P cmake_install.cmake
   - popd
   # Setup database
@@ -141,16 +141,16 @@ install_osx: &install_osx
       if [ ! -d "$HOME/neko/.git" ]; then
         git clone https://github.com/HaxeFoundation/neko.git .;
       else
-        rsync -avq . /$HOME/neko_old --exclude .git;
+        export OLD_REF=`git rev-parse HEAD`;
         git fetch --all; git reset --hard origin/master;
       fi;
       git submodule update --init --recursive;
     fi
-  - cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
+  - export NEW_REF=`git rev-parse HEAD`
+  - test $OLD_REF = $NEW_REF || cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
   # download static dependencies before actual build, with 3 chances to deal with network issues
-  - ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
-  - if [ ! -d "$HOME/neko_old" ]; then mkdir $HOME/neko_old; fi
-  - diff -qr $HOME/neko_old $HOME/neko -x .git || ninja -j 4
+  - test $OLD_REF = $NEW_REF || ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
+  - test $OLD_REF = $NEW_REF || (ninja -j 4)
   - sudo cmake -P cmake_install.cmake
   - popd
   # Setup database
