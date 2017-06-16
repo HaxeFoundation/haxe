@@ -74,6 +74,7 @@ install_linux: &install_linux
       mkdir $HOME/neko;
       pushd $HOME/neko;
       git clone https://github.com/HaxeFoundation/neko.git .;
+      git submodule update --init --recursive;
     else
       pushd $HOME/neko;
       if [ ! -d "$HOME/neko/.git" ]; then
@@ -141,10 +142,12 @@ install_osx: &install_osx
       mkdir $HOME/neko;
       pushd $HOME/neko;
       git clone https://github.com/HaxeFoundation/neko.git .;
+      git submodule update --init --recursive;
     else
       pushd $HOME/neko;
       if [ ! -d "$HOME/neko/.git" ]; then
         git clone https://github.com/HaxeFoundation/neko.git .;
+        git submodule update --init --recursive;
       else
         git fetch --all;
         export REF_CHANGED=`test 'git rev-list master | head -n 1' != 'git rev-list origin/master | head -n 1' && echo 1`;
@@ -153,7 +156,6 @@ install_osx: &install_osx
           git submodule update --init --recursive;
         fi
       fi;
-      git submodule update --init --recursive;
     fi
   - test $REF_CHANGED = 1 || cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
   # download static dependencies before actual build, with 3 chances to deal with network issues
