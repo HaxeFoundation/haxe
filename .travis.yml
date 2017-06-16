@@ -91,11 +91,6 @@ install_linux: &install_linux
   - test $OLD_REF = $NEW_REF || (ninja -j 4)
   - sudo cmake -P cmake_install.cmake
   - popd
-  # Setup database
-  - travis_retry sudo apt-get install mysql-server-5.6 -y
-  - mysql -u root -e "create user travis@localhost identified by '';"
-  - mysql -u root -e "create database haxe_test;"
-  - mysql -u root -e "grant all on haxe_test.* to travis@localhost;"
   # Setup JDK
   - jdk_switcher use oraclejdk7
   - java -version
@@ -128,7 +123,7 @@ install_osx: &install_osx
   # Install dependencies
   - travis_retry brew update --merge
   - brew uninstall --force brew-cask # https://github.com/caskroom/homebrew-cask/pull/15381
-  - travis_retry brew install opam ninja zlib pcre mysql awscli;
+  - travis_retry brew install opam ninja zlib pcre awscli;
   - brew outdated cmake || brew upgrade cmake # we need a recent cmake to use CMAKE_OSX_DEPLOYMENT_TARGET
   - export OPAMYES=1
   - opam init
@@ -157,11 +152,6 @@ install_osx: &install_osx
   - test $OLD_REF = $NEW_REF || (ninja -j 4)
   - sudo cmake -P cmake_install.cmake
   - popd
-  # Setup database
-  - mysql.server start
-  - mysql -u root -e "create user if not exists travis@localhost identified by '';"
-  - mysql -u root -e "create database haxe_test;"
-  - mysql -u root -e "grant all on haxe_test.* to travis@localhost;"
   # Build haxe
   - if [ -d "$HOME/_hxbuild" ]; then
       echo "$HOME/_hxbuild exists";
@@ -237,7 +227,6 @@ script:
     fi
   - test $CAN_BUILD && pushd tests
   - test $CAN_BUILD && mkdir ~/haxelib && haxelib setup ~/haxelib
-  - test $CAN_BUILD && haxelib install record-macros
   - test $CAN_BUILD && haxe -version
   - test $CAN_BUILD && haxe RunCi.hxml
   - test $CAN_BUILD && neko RunCi.n
