@@ -75,7 +75,7 @@ install_linux: &install_linux
       if [ ! -d "$HOME/neko/.git" ]; then
         git clone https://github.com/HaxeFoundation/neko.git .;
       else
-        rsync -av --progress . /$HOME/neko_old --exclude .git;
+        rsync -avq . /$HOME/neko_old --exclude .git;
         git fetch --all; git reset --hard origin/master;
       fi;
       git submodule update --init --recursive;
@@ -141,7 +141,7 @@ install_osx: &install_osx
       if [ ! -d "$HOME/neko/.git" ]; then
         git clone https://github.com/HaxeFoundation/neko.git .;
       else
-        rsync -av --progress . /$HOME/neko_old --exclude .git;
+        rsync -avq . /$HOME/neko_old --exclude .git;
         git fetch --all; git reset --hard origin/master;
       fi;
       git submodule update --init --recursive;
