@@ -48,7 +48,6 @@ addons: &addons
     - api.haxe.org
 
 install_linux: &install_linux
-
   - if [ ! -d "$HOME/neko" ]; then
       export CACHE_AVAILABLE=0;
     elif [ ! -d "$HOME/neko/.git" ]; then
@@ -74,7 +73,7 @@ install_linux: &install_linux
   - wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin system
   - export OPAMYES=1
   - opam install sedlex xml-light extlib rope ptmap
-  # Install neko
+  # check if we need to install neko
   - export REF_CHANGED=1;
   - if [ ! -d "$HOME/neko" ]; then
       mkdir $HOME/neko;
@@ -110,7 +109,7 @@ install_linux: &install_linux
   # Build haxe
   - make package_src -s
   - opam config exec -- make -s STATICLINK=1 libs
-  - opam config exec -- make -s -j STATICLINK=1 haxe;
+  - opam config exec -- make -s -j STATICLINK=1 haxe
   - opam config exec -- make -s haxelib
   - make package_bin -s
   - ls -l out
@@ -136,7 +135,7 @@ install_osx: &install_osx
   - opam init
   - opam install camlp4 sedlex ocamlfind xml-light extlib rope ptmap
   - eval `opam config env`
-  # Install neko
+  # check if we need to install neko
   - export REF_CHANGED=1;
   - if [ ! -d "$HOME/neko" ]; then
       mkdir $HOME/neko;
@@ -176,14 +175,6 @@ install_osx: &install_osx
   - otool -L ./haxelib
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
-  - if [ ! -d "$HOME/_hxbuild" ]; then
-        mkdir ~/_hxbuild;
-    fi
-  - if [ ! -d "$HOME/_hxbuild_libs"]; then
-      mkdir ~/_hxbuild_libs;
-    fi
-  - cp -prf ./_build/* ~/_hxbuild/
-  - rsync -arv --prune-empty-dirs --include "*/" --include='*.cmi' --include='*.o' --include='*.cmx' --include='*.cmxa' --include='*.a' --include='*.lib' --exclude="*" ./libs/ $HOME/_hxbuild_libs/
 
 matrix:
   include:
