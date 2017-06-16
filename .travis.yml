@@ -78,17 +78,21 @@ install_linux: &install_linux
       pushd $HOME/neko;
       if [ ! -d "$HOME/neko/.git" ]; then
         git clone https://github.com/HaxeFoundation/neko.git .;
+        git submodule update --init --recursive;
       else
-        export OLD_REF=`git rev-parse HEAD`;
-        git fetch --all; git reset --hard origin/master;
+        git fetch --all;
+        export REF_CHANGED=`test 'git rev-list master | head -n 1' != 'git rev-list origin/master | head -n 1' && echo 1`;
+        if [ $REF_CHANGED = 1 ]; then
+          git reset --hard origin/master;
+          git submodule update --init --recursive;
+        fi
       fi;
-      git submodule update --init --recursive;
+
     fi
-  - export NEW_REF=`git rev-parse HEAD`
-  - test $OLD_REF = $NEW_REF || cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
+  - test $REF_CHANGED = 1 || cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
   # download static dependencies before actual build, with 3 chances to deal with network issues
-  - test $OLD_REF = $NEW_REF || ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
-  - test $OLD_REF = $NEW_REF || (ninja -j 4)
+  - test $REF_CHANGED = 1 || ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
+  - test $REF_CHANGED = 1 || (ninja -j 4)
   - sudo cmake -P cmake_install.cmake
   - popd
   # Setup JDK
@@ -142,16 +146,19 @@ install_osx: &install_osx
       if [ ! -d "$HOME/neko/.git" ]; then
         git clone https://github.com/HaxeFoundation/neko.git .;
       else
-        export OLD_REF=`git rev-parse HEAD`;
-        git fetch --all; git reset --hard origin/master;
+        git fetch --all;
+        export REF_CHANGED=`test 'git rev-list master | head -n 1' != 'git rev-list origin/master | head -n 1' && echo 1`;
+        if [ $REF_CHANGED = 1 ]; then
+          git reset --hard origin/master;
+          git submodule update --init --recursive;
+        fi
       fi;
       git submodule update --init --recursive;
     fi
-  - export NEW_REF=`git rev-parse HEAD`
-  - test $OLD_REF = $NEW_REF || cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
+  - test $REF_CHANGED = 1 || cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
   # download static dependencies before actual build, with 3 chances to deal with network issues
-  - test $OLD_REF = $NEW_REF || ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
-  - test $OLD_REF = $NEW_REF || (ninja -j 4)
+  - test $REF_CHANGED = 1 || ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
+  - test $REF_CHANGED = 1 || (ninja -j 4)
   - sudo cmake -P cmake_install.cmake
   - popd
   # Build haxe
