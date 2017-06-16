@@ -124,7 +124,7 @@ install_linux: &install_linux
   - make package_src -s
   - (opam config exec -- make -s STATICLINK=1 libs &&
     opam config exec -- make -s -j STATICLINK=1 haxe) ||
-    (make clean && opam config exec -- make -s STATICLINK=1 libs &&
+    (opam config exec -- make clean && opam config exec -- make -s STATICLINK=1 libs &&
     opam config exec -- make -s -j STATICLINK=1 haxe)
   - opam config exec -- make -s haxelib
   - make package_bin -s
