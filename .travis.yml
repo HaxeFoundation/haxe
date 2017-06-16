@@ -122,7 +122,7 @@ install_osx: &install_osx
       export CACHE_AVAILABLE=1;
     fi
   # Install dependencies
-  - brew update --merge
+  - travis_retry brew update --merge
   - brew uninstall --force brew-cask # https://github.com/caskroom/homebrew-cask/pull/15381
   - travis_retry brew install opam ninja zlib pcre mysql awscli;
   - brew outdated cmake || brew upgrade cmake # we need a recent cmake to use CMAKE_OSX_DEPLOYMENT_TARGET
