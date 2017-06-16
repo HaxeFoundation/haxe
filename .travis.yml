@@ -78,6 +78,7 @@ install_linux: &install_linux
       if [ ! -d "$HOME/neko/.git" ]; then
         git clone https://github.com/HaxeFoundation/neko.git .;
       else
+        export $CHECK_SUM_NEKO=`tar c . | md5sum`;
         git fetch --all; git reset --hard origin/master;
       fi;
       git submodule update --init --recursive;
@@ -85,7 +86,9 @@ install_linux: &install_linux
   - cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
   # download static dependencies before actual build, with 3 chances to deal with network issues
   - ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
-  - ninja -j 4
+  - export $NEW_CHECK_SUM_NEKO=`tar c . | md5sum`
+  - env
+  - test $NEW_CHECK_SUM_NEKO = $CHECK_SUM_NEKO || ninja -j 4
   - sudo ninja install
   - popd
   # Setup database
@@ -142,6 +145,7 @@ install_osx: &install_osx
       if [ ! -d "$HOME/neko/.git" ]; then
         git clone https://github.com/HaxeFoundation/neko.git .;
       else
+        export $CHECK_SUM_NEKO=`tar c . | md5`;
         git fetch --all; git reset --hard origin/master;
       fi;
       git submodule update --init --recursive;
@@ -149,7 +153,9 @@ install_osx: &install_osx
   - cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
   # download static dependencies before actual build, with 3 chances to deal with network issues
   - ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
-  - ninja -j 4
+  - export $NEW_CHECK_SUM_NEKO=`tar c . | md5`
+  - env
+  - test $NEW_CHECK_SUM_NEKO = $CHECK_SUM_NEKO || ninja -j 4
   - sudo ninja install
   - popd
   # Setup database
