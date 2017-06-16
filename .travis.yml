@@ -6,6 +6,7 @@ cache:
     - $HOME/apt-cache
     - $HOME/hxcache
     - $HOME/_hxbuild
+    - $HOME/_hxbuild_libs
     - $HOME/lua_env
     - $HOME/.luarocks
 
@@ -112,6 +113,9 @@ install_linux: &install_linux
       echo "$HOME/_hxbuild exists";
       cp -pr ~/_hxbuild ./_build;
     fi
+  - if [ -d "$HOME/_hxbuild_libs"]; then
+      rsync -arv $HOME/_hxbuild_libs/ ./libs/;
+    fi
   - test $TRAVIS_OS_NAME = 'osx' || make package_src -s
   - opam config exec -- make -s STATICLINK=1 libs
   - opam config exec -- make -s -j STATICLINK=1 haxe
@@ -125,7 +129,11 @@ install_linux: &install_linux
   - if [ ! -d "$HOME/_hxbuild" ]; then
         mkdir ~/_hxbuild;
     fi
+  - if [ ! -d "$HOME/_hxbuild_libs"]; then
+      mkdir ~/_hxbuild_libs;
+    fi
   - cp -prf ./_build/* ~/_hxbuild/
+  - rsync -arv --prune-empty-dirs --include "*/" --include='*.cmi' --include='*.o' --include='*.cmx' --include='*.cmxa' --include='*.a' --exclude="*" ./libs/ $HOME/_hxbuild_libs/
 install_osx: &install_osx
   - if [ ! -d "$HOME/neko" ]; then
       export CACHE_AVAILABLE=0;
