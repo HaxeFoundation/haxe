@@ -113,7 +113,7 @@ install_linux: &install_linux
       echo "$HOME/_hxbuild exists";
       cp -pr ~/_hxbuild ./_build;
     fi
-  - if [ -d "$HOME/_hxbuild_libs"]; then
+  - if [ -d "$HOME/_hxbuild_libs" ]; then
       rsync -arv $HOME/_hxbuild_libs/ ./libs/;
     fi
   - make package_src -s
@@ -187,6 +187,9 @@ install_osx: &install_osx
       echo "$HOME/_hxbuild exists";
       cp -pr ~/_hxbuild ./_build;
     fi
+  - if [ -d "$HOME/_hxbuild_libs" ]; then
+      rsync -arv $HOME/_hxbuild_libs/ ./libs/;
+    fi
   - make -s STATICLINK=1 "LIB_PARAMS=/usr/local/opt/zlib/lib/libz.a /usr/local/lib/libpcre.a" libs
   - make -s -j STATICLINK=1 "LIB_PARAMS=/usr/local/opt/zlib/lib/libz.a /usr/local/lib/libpcre.a" haxe
   - make -s haxelib
@@ -199,7 +202,11 @@ install_osx: &install_osx
   - if [ ! -d "$HOME/_hxbuild" ]; then
         mkdir ~/_hxbuild;
     fi
+  - if [ ! -d "$HOME/_hxbuild_libs"]; then
+      mkdir ~/_hxbuild_libs;
+    fi
   - cp -prf ./_build/* ~/_hxbuild/
+  - rsync -arv --prune-empty-dirs --include "*/" --include='*.cmi' --include='*.o' --include='*.cmx' --include='*.cmxa' --include='*.a' --exclude="*" ./libs/ $HOME/_hxbuild_libs/
 
 matrix:
   include:
