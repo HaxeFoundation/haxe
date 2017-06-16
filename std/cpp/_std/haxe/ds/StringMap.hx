@@ -93,10 +93,10 @@ package haxe.ds;
 	}
 
    #if (scriptable)
-   private function setString(key:String,val:String) : Void { untyped __string_hash_set_string(HX_MAP_THIS,key,val); }
-   private function setInt(key:String,val:Int) : Void { untyped __string_hash_set_int(HX_MAP_THIS,key,val); }
-   private function setBool(key:String,val:Bool) : Void { untyped __string_hash_set_int(HX_MAP_THIS,key,val); }
-   private function setFloat(key:String,val:Float) : Void { untyped __string_hash_set_float(HX_MAP_THIS,key,val); }
+   private function setString(key:String,val:String) : Void { untyped __string_hash_set_string(__cpp__("HX_MAP_THIS"),key,val); }
+   private function setInt(key:String,val:Int) : Void { untyped __string_hash_set_int(__cpp__("HX_MAP_THIS"),key,val); }
+   private function setBool(key:String,val:Bool) : Void { untyped __string_hash_set_int(__cpp__("HX_MAP_THIS"),key,val); }
+   private function setFloat(key:String,val:Float) : Void { untyped __string_hash_set_float(__cpp__("HX_MAP_THIS"),key,val); }
 
    private function getString(key:String) : String { return untyped __string_hash_get_string(h,key); }
    private function getInt(key:String) : Int { return untyped __string_hash_get_int(h,key); }
