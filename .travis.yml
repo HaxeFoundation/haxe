@@ -51,10 +51,7 @@ install_linux: &install_linux
     else
       export CACHE_AVAILABLE=1;
     fi
-  - export APT_CACHE_DIR=~/apt-cache && mkdir -pv $APT_CACHE_DIR
   # Install dependencies
-  - sudo add-apt-repository ppa:haxe/ocaml -y
-  - sudo apt-get update
   - sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y
       ocaml
       ocaml-native-compilers
@@ -200,7 +197,9 @@ matrix:
       #   <<: *addons
       #  sauce_connect: true
       before_install:
-        - sudo apt-get update -y || true
+        - export APT_CACHE_DIR=~/apt-cache && mkdir -pv $APT_CACHE_DIR
+        - sudo add-apt-repository ppa:haxe/ocaml -y
+        - sudo apt-get update -y
         - "export DISPLAY=:99.0"
         - "sh -e /etc/init.d/xvfb start"
         - "export AUDIODEV=null"
@@ -212,7 +211,8 @@ matrix:
         - HXCPP_COMPILE_CACHE=~/hxcache
       before_install:
         - export APT_CACHE_DIR=~/apt-cache && mkdir -pv $APT_CACHE_DIR
-        - sudo apt-get update -y || true
+        - sudo add-apt-repository ppa:haxe/ocaml -y
+        - sudo apt-get update -y
         - travis_retry sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y
             gcc-multilib
             g++-multilib
