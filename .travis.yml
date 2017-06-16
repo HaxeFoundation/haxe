@@ -87,7 +87,9 @@ install_linux: &install_linux
         git submodule update --init --recursive;
       else
         git fetch --all;
-        export REF_CHANGED=`test 'git rev-list master | head -n 1' != 'git rev-list origin/master | head -n 1' && echo 1`;
+        export REF_CUR=`git rev-list master | head -n 1`;
+        export REF_REMOTE=`git rev-list origin/master | head -n 1`;
+        export REF_CHANGED=`test $REF_CUR != $REF_REMOTE && echo 1`;
         if [ $REF_CHANGED = 1 ]; then
           git reset --hard origin/master;
           git submodule update --init --recursive;
@@ -155,7 +157,9 @@ install_osx: &install_osx
         git submodule update --init --recursive;
       else
         git fetch --all;
-        export REF_CHANGED=`test 'git rev-list master | head -n 1' != 'git rev-list origin/master | head -n 1' && echo 1`;
+        export REF_CUR=`git rev-list master | head -n 1`;
+        export REF_REMOTE=`git rev-list origin/master | head -n 1`;
+        export REF_CHANGED=`test $REF_CUR != $REF_REMOTE && echo 1`;
         if [ $REF_CHANGED = 1 ]; then
           git reset --hard origin/master;
           git submodule update --init --recursive;
