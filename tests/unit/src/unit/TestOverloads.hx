@@ -202,11 +202,9 @@ class TestOverloads extends Test
 		eq(child.someField(true, 10), 52);
 		eq(child.initialized3, true);
 
-		#if !cs // TODO: https://github.com/HaxeFoundation/haxe/issues/6352
 		var child:ChildJava4<Int, Bool, ChildJava3<Dynamic, Dynamic>> = new ChildJava4(Bytes.ofString("test"));
 		eq(child.s, "test");
 		eq(child.someField(child), null);
-		#end
 	}
 }
 
@@ -604,11 +602,9 @@ class ChildJava3<A, T : BaseJava> extends ChildJava2<T>
 	}
 }
 
-#if !cs // TODO: https://github.com/HaxeFoundation/haxe/issues/6352
 class ChildJava4<X, Y, Z : ChildJava2<Dynamic>> extends ChildJava3<Y, Z>
 {
 }
-#end
 
 interface NormalInterface
 {
