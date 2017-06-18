@@ -351,6 +351,13 @@ let get_captured expr =
 let configure gen ft =
 
 	let handle_anon_func fexpr tfunc mapinfo delegate_type : texpr * (tclass * texpr list) =
+		let fexpr = match fexpr.eexpr with
+			| TFunction(_) ->
+				{ fexpr with eexpr = TFunction(tfunc) }
+			| _ ->
+				gen.gcon.error "Function expected" fexpr.epos;
+				fexpr
+		in
 		let in_unsafe = mapinfo.in_unsafe || match gen.gcurrent_class, gen.gcurrent_classfield with
 			| Some c, _ when Meta.has Meta.Unsafe c.cl_meta -> true
 			| _, Some cf when Meta.has Meta.Unsafe cf.cf_meta -> true
