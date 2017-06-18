@@ -331,6 +331,16 @@ let rec handle_cast gen e real_to_t real_from_t =
 			mk_cast true to_t e
 		| TInst( { cl_path = ([], "String") }, []), _ ->
 			mk_cast false to_t e
+		| TInst( ({ cl_path = (["cs"|"java"], "NativeArray") } as c_array), [tp_to] ), TInst({ cl_path = (["cs"|"java"], "NativeArray") }, [to_from]) ->
+			(* see #5751 . NativeArray is special because of its ties to Array. We could potentially deal with this for all *)
+			(* TNew expressions, but it's not that simple, since we don't want to retype the whole expression list with the *)
+			(* updated type. *)
+			(match e.eexpr with
+				| TNew(c,_,el) when c == c_array ->
+					mk_cast false (TInst(c_array,[tp_to])) { e with eexpr = TNew(c, [tp_to], el); etype = TInst(c_array,[tp_to]) }
+				| _ ->
+					mk_cast true to_t e)
+
 		| TInst(cl_to, params_to), TInst(cl_from, params_from) ->
 			let ret = ref None in
 			(*
@@ -1045,7 +1055,6 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 			| TCall( ({ eexpr = TField(ef, f) }) as e1, elist ) ->
 				handle_type_parameter gen (Some e) (e1) (run ef) ~clean_ef:ef ~overloads_cast_to_base:overloads_cast_to_base f (List.map run elist) calls_parameters_explicitly
 
-			(* the TNew and TSuper code was modified at r6497 *)
 			| TCall( { eexpr = TConst TSuper } as ef, eparams ) ->
 				let cl, tparams = match follow ef.etype with
 				| TInst(cl,p) ->
@@ -1077,7 +1086,6 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 						handle ({ e with eexpr = TCall(run ef, List.map2 (fun param (_,_,t) -> handle (run param) t param.etype) eparams p) }) e.etype ret
 					| _ -> Type.map_expr run e
 				)
-			(* the TNew and TSuper code was modified at r6497 *)
 			| TNew ({ cl_kind = KTypeParameter _ }, _, _) ->
 				Type.map_expr run e
 			| TNew (cl, tparams, eparams) -> (try
