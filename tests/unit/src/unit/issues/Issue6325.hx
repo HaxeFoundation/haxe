@@ -1,5 +1,7 @@
 package unit.issues;
 
+#if (!hl && !flash && !cpp && !as3)
+
 class Issue6325 extends Test {
   public function test() {
     var base = new Base();
@@ -47,3 +49,5 @@ private class UsesChild extends UsesBase {
     return doSomething(base) + 1;
   }
 }
+
+#end
