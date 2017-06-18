@@ -331,7 +331,7 @@ let rec handle_cast gen e real_to_t real_from_t =
 			mk_cast true to_t e
 		| TInst( { cl_path = ([], "String") }, []), _ ->
 			mk_cast false to_t e
-		| TInst( ({ cl_path = (["cs"|"java"], "NativeArray") } as c_array), [tp_to] ), TInst({ cl_path = (["cs"|"java"], "NativeArray") }, [to_from]) ->
+		| TInst( ({ cl_path = (["cs"|"java"], "NativeArray") } as c_array), [tp_to] ), TInst({ cl_path = (["cs"|"java"], "NativeArray") }, [tp_from]) when not (type_iseq gen (gen.greal_type tp_to) (gen.greal_type tp_from)) ->
 			(* see #5751 . NativeArray is special because of its ties to Array. We could potentially deal with this for all *)
 			(* TNew expressions, but it's not that simple, since we don't want to retype the whole expression list with the *)
 			(* updated type. *)
