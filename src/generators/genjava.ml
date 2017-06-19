@@ -37,32 +37,9 @@ let is_boxed_type t = match follow t with
 	| TInst ({ cl_path = (["java";"lang"], "Byte") }, [])
 	| TInst ({ cl_path = (["java";"lang"], "Short") }, [])
 	| TInst ({ cl_path = (["java";"lang"], "Character") }, [])
-	| TInst ({ cl_path = (["java";"lang"], "Float") }, []) -> true
-	| TAbstract ({ a_path = (["java";"lang"], "Boolean") }, [])
-	| TAbstract ({ a_path = (["java";"lang"], "Double") }, [])
-	| TAbstract ({ a_path = (["java";"lang"], "Integer") }, [])
-	| TAbstract ({ a_path = (["java";"lang"], "Byte") }, [])
-	| TAbstract ({ a_path = (["java";"lang"], "Short") }, [])
-	| TAbstract ({ a_path = (["java";"lang"], "Character") }, [])
-	| TAbstract ({ a_path = (["java";"lang"], "Float") }, []) -> true
+	| TInst ({ cl_path = (["java";"lang"], "Float") }, [])
+	| TInst ({ cl_path = (["java";"lang"], "Long") }, []) -> true
 	| _ -> false
-
-let unboxed_type gen t tbyte tshort tchar tfloat = match follow t with
-	| TInst ({ cl_path = (["java";"lang"], "Boolean") }, []) -> gen.gcon.basic.tbool
-	| TInst ({ cl_path = (["java";"lang"], "Double") }, []) -> gen.gcon.basic.tfloat
-	| TInst ({ cl_path = (["java";"lang"], "Integer") }, []) -> gen.gcon.basic.tint
-	| TInst ({ cl_path = (["java";"lang"], "Byte") }, []) -> tbyte
-	| TInst ({ cl_path = (["java";"lang"], "Short") }, []) -> tshort
-	| TInst ({ cl_path = (["java";"lang"], "Character") }, []) -> tchar
-	| TInst ({ cl_path = (["java";"lang"], "Float") }, []) -> tfloat
-	| TAbstract ({ a_path = (["java";"lang"], "Boolean") }, []) -> gen.gcon.basic.tbool
-	| TAbstract ({ a_path = (["java";"lang"], "Double") }, []) -> gen.gcon.basic.tfloat
-	| TAbstract ({ a_path = (["java";"lang"], "Integer") }, []) -> gen.gcon.basic.tint
-	| TAbstract ({ a_path = (["java";"lang"], "Byte") }, []) -> tbyte
-	| TAbstract ({ a_path = (["java";"lang"], "Short") }, []) -> tshort
-	| TAbstract ({ a_path = (["java";"lang"], "Character") }, []) -> tchar
-	| TAbstract ({ a_path = (["java";"lang"], "Float") }, []) -> tfloat
-	| _ -> assert false
 
 let is_boxed_of_t boxed_t orig_t = match follow boxed_t, follow orig_t with
 	| TInst ({ cl_path = (["java";"lang"], "Boolean") }, []),
@@ -734,10 +711,6 @@ struct
 (*				 | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("toString") })) }, [] ) ->
 					run ef *)
 
-				(* | TCast(expr, m) when is_boxed_type e.etype -> *)
-				(* 	(* let unboxed_type gen t tbyte tshort tchar tfloat = match follow t with *) *)
-				(* 	run { e with etype = unboxed_type gen e.etype tbyte tshort tchar tsingle } *)
-
 				| TCast(expr, _) when is_boxed_number (gen.greal_type expr.etype) && is_unboxed_number (gen.greal_type e.etype) ->
 					let to_t = gen.greal_type e.etype in
 					mk_unbox to_t (run expr)
@@ -795,14 +768,6 @@ struct
 
 					if needs_cast then mk_cast e.etype ret else ret
 
-				(*| TCast(expr, c) when is_int_float gen e.etype ->
-					(* cases when float x = (float) (java.lang.Double val); *)
-					(* FIXME: this fix is broken since it will fail on cases where float x = (float) (java.lang.Float val) or similar. FIX THIS *)
-					let need_second_cast = match gen.gfollow#run_f e.etype with
-						| TInst _ -> false
-						| _ -> true
-					in
-					if need_second_cast then { e with eexpr = TCast(mk_cast (follow e.etype) (run expr), c) }  else Type.map_expr run e*)
 				| TCast(expr, _) when like_i64 e.etype && is_dynamic gen expr.etype ->
 					{
 						eexpr = TCall(
@@ -1159,7 +1124,8 @@ let generate con =
 					TInst(cl_character, [])
 				| TAbstract( { a_path = ([], "Single") }, [] ) ->
 					TInst(cl_float, [])
-				| TAbstract( { a_path = (["java"], "Int64") }, [] ) ->
+				| TAbstract( { a_path = (["java"], "Int64") }, [] )
+				| TAbstract( { a_path = (["haxe"], "Int64") }, [] ) ->
 					TInst(cl_long, [])
 				| _ -> (match follow t with
 					| TInst( { cl_kind = KTypeParameter _ }, []) ->
@@ -2511,7 +2477,7 @@ let generate con =
 			match e1.eexpr, e2.eexpr with
 				| TConst c1, TConst c2 when is_null e1 || is_null e2 ->
 					{ e1 with eexpr = TConst(TBool (c1 = c2)); etype = basic.tbool }
-				| _ when is_null e1 || is_null e2 && not (is_java_basic_type e1.etype || is_java_basic_type e2.etype) ->
+				| _ when (is_null e1 || is_null e2) && not (is_java_basic_type e1.etype || is_java_basic_type e2.etype) ->
 					{ e1 with eexpr = TBinop(Ast.OpEq, e1, e2); etype = basic.tbool }
 				| _ ->
 				let is_ref = match follow e1.etype, follow e2.etype with
