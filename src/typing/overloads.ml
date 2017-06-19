@@ -69,8 +69,6 @@ let rec get_overloads c i =
 module Resolution =
 struct
 	let rec simplify_t t = match t with
-		| TAbstract(a,_) when Meta.has Meta.CoreType a.a_meta ->
-			t
 		| TInst _ | TEnum _ ->
 			t
 		| TAbstract(({ a_path = [],"Null" } as t), [t2]) -> (match simplify_t t2 with
@@ -79,6 +77,8 @@ struct
 			| (TEnum _ as t2) ->
 				TAbstract(t, [simplify_t t2])
 			| t2 -> t2)
+		| TAbstract(a,_) when Meta.has Meta.CoreType a.a_meta ->
+			t
 		| TAbstract(a,tl) -> simplify_t (Abstract.get_underlying_type a tl)
 		| TType(t, tl) ->
 			simplify_t (apply_params t.t_params tl t.t_type)
@@ -143,14 +143,14 @@ struct
 			(cacc, 0)
 		| TDynamic _, _ ->
 			(max_int, 0) (* a function with dynamic will always be worst of all *)
-		| TAbstract(a, _), TDynamic _ when Meta.has Meta.CoreType a.a_meta ->
-			(cacc + 2, 0) (* a dynamic to a basic type will have an "unboxing" penalty *)
-		| _, TDynamic _ ->
-			(cacc + 1, 0)
 		| TAbstract({ a_path = [], "Null" }, [tf]), TAbstract({ a_path = [], "Null" }, [ta]) ->
 			rate_conv (cacc+0) tf ta
 		| TAbstract({ a_path = [], "Null" }, [tf]), ta ->
 			rate_conv (cacc+1) tf ta
+		| TAbstract(a, _), TDynamic _ when Meta.has Meta.CoreType a.a_meta ->
+			(cacc + 2, 0) (* a dynamic to a basic type will have an "unboxing" penalty *)
+		| _, TDynamic _ ->
+			(cacc + 1, 0)
 		| tf, TAbstract({ a_path = [], "Null" }, [ta]) ->
 			rate_conv (cacc+1) tf ta
 		| TAbstract(af,tlf), TAbstract(aa,tla) ->

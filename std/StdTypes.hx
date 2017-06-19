@@ -73,8 +73,8 @@
 	@see https://haxe.org/manual/types-nullability.html
 **/
 @:forward
-@:callable
-abstract Null<T>(T) from T to T { }
+@:coreType
+abstract Null<T> from T to T { }
 
 /**
 	The standard Boolean type, which can either be `true` or `false`.
