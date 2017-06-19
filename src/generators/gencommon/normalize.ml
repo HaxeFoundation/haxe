@@ -47,6 +47,8 @@ let rec filter_param t =
 		TEnum(e,List.map filter_param tl)
 	| TAbstract({ a_path = (["haxe";"extern"],"Rest") } as a,tl) ->
 		TAbstract(a, List.map filter_param tl)
+	| TAbstract({a_path = [],"Null"} as a,[t]) ->
+		TAbstract(a,[filter_param t])
 	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
 		filter_param (Abstract.get_underlying_type a tl)
 	| TAbstract(a,tl) ->

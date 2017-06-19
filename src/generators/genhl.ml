@@ -334,6 +334,12 @@ let make_debug ctx arr =
 	done;
 	out
 
+let fake_tnull =
+	{null_abstract with
+		a_path = [],"Null";
+		a_params = ["T",t_dynamic];
+	}
+
 let rec to_type ?tref ctx t =
 	match t with
 	| TMono r ->
@@ -353,7 +359,6 @@ let rec to_type ?tref ctx t =
 			t
 		) in
 		(match td.t_path with
-		| [], "Null" when not (is_nullable t) -> HNull t
 		| ["haxe";"macro"], name -> Hashtbl.replace ctx.macro_typedefs name t; t
 		| _ -> t)
 	| TLazy f ->
@@ -425,6 +430,9 @@ let rec to_type ?tref ctx t =
 			in
 			loop tl
 		| _ -> class_type ~tref ctx c pl false)
+	| TAbstract ({a_path = [],"Null"},[t1]) ->
+		let t = to_type ?tref ctx t1 in
+		if not (is_nullable t) then HNull t else t
 	| TAbstract (a,pl) ->
 		if Meta.has Meta.CoreType a.a_meta then
 			(match a.a_path with
@@ -501,8 +509,7 @@ and real_type ctx e =
 						If we have a number, it is more accurate to cast it to the type parameter before wrapping it as dynamic
 					*)
 					| TInst ({cl_kind=KTypeParameter _},_), t when is_number (to_type ctx t) ->
-						let tnull = { t_path = [],"Null"; t_module = null_module; t_pos = null_pos; t_name_pos = null_pos; t_private = false; t_doc = None; t_meta = []; t_params = ["T",t_dynamic]; t_type = t_dynamic } in
-						(name, opt, TType (tnull,[t]))
+						(name, opt, TAbstract (fake_tnull,[t]))
 					| _ ->
 						a
 				) args args2, ret)

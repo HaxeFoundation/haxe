@@ -175,6 +175,8 @@ let rec is_pos_infos = function
 		true
 	| TType (t,tl) ->
 		is_pos_infos (apply_params t.t_params tl t.t_type)
+	| TAbstract({a_path=[],"Null"},[t]) ->
+		is_pos_infos t
 	| _ ->
 		false
 
@@ -4489,29 +4491,24 @@ let rec create com =
 			| "Int" -> ctx.t.tint <- TAbstract (a,[])
 			| "Bool" -> ctx.t.tbool <- TAbstract (a,[])
 			| "Dynamic" -> t_dynamic_def := TAbstract(a,List.map snd a.a_params);
-			| _ -> ());
-		| TEnumDecl e ->
-			()
-		| TClassDecl c ->
-			()
-		| TTypeDecl td ->
-			(match snd td.t_path with
 			| "Null" ->
 				let mk_null t =
 					try
-						if not (is_null ~no_lazy:true t) then TType (td,[t]) else t
+						if not (is_null ~no_lazy:true t) then TAbstract (a,[t]) else t
 					with Exit ->
 						(* don't force lazy evaluation *)
 						let r = ref (fun() -> assert false) in
 						r := (fun() ->
-							let t = (if not (is_null t) then TType (td,[t]) else t) in
+							let t = (if not (is_null t) then TAbstract (a,[t]) else t) in
 							r := (fun() -> t);
 							t
 						);
 						TLazy r
 				in
 				ctx.t.tnull <- mk_null;
-			| _ -> ());
+			| _ -> ())
+		| TEnumDecl _ | TClassDecl _ | TTypeDecl _ ->
+			()
 	) ctx.g.std.m_types;
 	let m = Typeload.load_module ctx ([],"String") null_pos in
 	(match m.m_types with

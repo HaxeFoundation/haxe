@@ -643,12 +643,14 @@ let rec follow t =
 		follow (!f())
 	| TType (t,tl) ->
 		follow (apply_params t.t_params tl t.t_type)
+	| TAbstract({a_path = [],"Null"},[t]) ->
+		follow t
 	| _ -> t
 
 let rec is_nullable = function
 	| TMono r ->
 		(match !r with None -> false | Some t -> is_nullable t)
-	| TType ({ t_path = ([],"Null") },[_]) ->
+	| TAbstract ({ a_path = ([],"Null") },[_]) ->
 		true
 	| TLazy f ->
 		is_nullable (!f())
@@ -675,7 +677,7 @@ let rec is_nullable = function
 let rec is_null ?(no_lazy=false) = function
 	| TMono r ->
 		(match !r with None -> false | Some t -> is_null t)
-	| TType ({ t_path = ([],"Null") },[t]) ->
+	| TAbstract ({ a_path = ([],"Null") },[t]) ->
 		not (is_nullable (follow t))
 	| TLazy f ->
 		if no_lazy then raise Exit else is_null (!f())
@@ -688,7 +690,7 @@ let rec is_null ?(no_lazy=false) = function
 let rec is_explicit_null = function
 	| TMono r ->
 		(match !r with None -> false | Some t -> is_null t)
-	| TType ({ t_path = ([],"Null") },[t]) ->
+	| TAbstract ({ a_path = ([],"Null") },[t]) ->
 		true
 	| TLazy f ->
 		is_null (!f())
@@ -1700,6 +1702,12 @@ let rec type_eq param a b =
 			Unify_error l -> error (cannot_unify a b :: l))
 	| TDynamic a , TDynamic b ->
 		type_eq param a b
+	| TAbstract ({a_path=[],"Null"},[t1]),TAbstract ({a_path=[],"Null"},[t2]) ->
+		type_eq param t1 t2
+	| TAbstract ({a_path=[],"Null"},[t]),_ when param <> EqDoNotFollowNull ->
+		type_eq param t b
+	| _,TAbstract ({a_path=[],"Null"},[t]) when param <> EqDoNotFollowNull ->
+		type_eq param a t
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
 		if a1 != a2 && not (param = EqCoreType && a1.a_path = a2.a_path) then error [cannot_unify a b];
 		List.iter2 (type_eq param) tl1 tl2
@@ -1810,6 +1818,12 @@ let rec unify a b =
 	| TEnum (ea,tl1) , TEnum (eb,tl2) ->
 		if ea != eb then error [cannot_unify a b];
 		unify_type_params a b tl1 tl2
+	| TAbstract ({a_path=[],"Null"},[t]),_ ->
+		begin try unify t b
+		with Unify_error l -> error (cannot_unify a b :: l) end
+	| _,TAbstract ({a_path=[],"Null"},[t]) ->
+		begin try unify a t
+		with Unify_error l -> error (cannot_unify a b :: l) end
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) when a1 == a2 ->
 		begin try
 			unify_type_params a b tl1 tl2

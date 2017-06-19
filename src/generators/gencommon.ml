@@ -111,6 +111,8 @@ let follow_once t =
 		!f()
 	| TType (t,tl) ->
 		apply_params t.t_params tl t.t_type
+	| TAbstract({a_path = [],"Null"},[t]) ->
+		t
 	| _ ->
 		t
 
@@ -657,6 +659,8 @@ let init_ctx gen =
 			follow_f (!f())
 		| TType (t,tl) ->
 			follow_f (apply_params t.t_params tl t.t_type)
+		| TAbstract({a_path = [],"Null"},[t]) ->
+			follow_f t
 		| _ -> Some t
 	in
 	gen.gfollow#add "final" PLast follow

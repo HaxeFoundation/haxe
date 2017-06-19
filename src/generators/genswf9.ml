@@ -189,7 +189,7 @@ let rec follow_basic t =
 		| _ -> t)
 	| TLazy f ->
 		follow_basic (!f())
-	| TType ({ t_path = [],"Null" },[tp]) ->
+	| TAbstract ({ a_path = [],"Null" },[tp]) ->
 		(match follow_basic tp with
 		| TMono _
 		| TFun _
@@ -228,7 +228,7 @@ let rec type_id ctx t =
 			| _ -> type_path ctx ([],"Object"))
 		| _ ->
 			type_path ctx c.cl_path)
-	| TAbstract (a,_) ->
+	| TAbstract (a,_) when Meta.has Meta.CoreType a.a_meta ->
 		type_path ctx a.a_path
 	| TFun _ | TType ({ t_path = ["flash";"utils"],"Function" },[]) ->
 		type_path ctx ([],"Function")

@@ -126,20 +126,17 @@ and type_string_suff suffix haxe_type =
 	| TAbstract ({ a_path = [],"Float" },[]) -> "double"
 	| TAbstract ({ a_path = [],"Bool" },[]) -> "bool"
 	| TAbstract ({ a_path = [],"Void" },[]) -> "Void"
+	| TAbstract ({ a_path = [],"Null"},[t]) ->
+		(match follow t with
+		| TInst ({ cl_path = [],"Int" },_)
+		| TInst ({ cl_path = [],"Float" },_)
+		| TEnum ({ e_path = [],"Bool" },_) -> "Dynamic"
+		| _ -> type_string_suff suffix t)
 	| TEnum (enum,params) ->  (join_class_path enum.e_path "::") ^ suffix
 	| TInst (klass,params) ->  (class_string klass suffix params)
 	| TAbstract (abs,params) ->  (join_class_path abs.a_path "::") ^ suffix
 	| TType (type_def,params) ->
 		(match type_def.t_path with
-		| [] , "Null" ->
-			(match params with
-			| [t] ->
-				(match follow t with
-				| TInst ({ cl_path = [],"Int" },_)
-				| TInst ({ cl_path = [],"Float" },_)
-				| TEnum ({ e_path = [],"Bool" },_) -> "Dynamic"
-				| _ -> type_string_suff suffix t)
-			| _ -> assert false);
 		| [] , "Array" ->
 			(match params with
 			| [t] -> "Array<" ^ (type_string (follow t) ) ^ " >"
