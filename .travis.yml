@@ -89,7 +89,7 @@ install_linux: &install_linux
         git fetch --all;
         export REF_CUR=`git rev-list master | head -n 1`;
         export REF_REMOTE=`git rev-list origin/master | head -n 1`;
-        export REF_CHANGED=`test $REF_CUR != $REF_REMOTE && echo 1`;
+        export REF_CHANGED=`(test $REF_CUR != $REF_REMOTE && echo 1) || echo 0`;
         if [ $REF_CHANGED = 1 ]; then
           git reset --hard origin/master;
           git submodule update --init --recursive;
@@ -97,10 +97,10 @@ install_linux: &install_linux
       fi;
     fi;
   - env
-  - test $REF_CHANGED = 1 || cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
+  - test $REF_CHANGED = 0 || cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
   # download static dependencies before actual build, with 3 chances to deal with network issues
-  - test $REF_CHANGED = 1 || ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
-  - test $REF_CHANGED = 1 || (ninja -j 4)
+  - test $REF_CHANGED = 0 || ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
+  - test $REF_CHANGED = 0 || (ninja -j 4)
   - sudo cmake -P cmake_install.cmake
   - popd
   # Setup JDK
