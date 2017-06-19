@@ -228,6 +228,8 @@ let rec type_id ctx t =
 			| _ -> type_path ctx ([],"Object"))
 		| _ ->
 			type_path ctx c.cl_path)
+	| TAbstract ({ a_path = [],"Null"},_) ->
+		HMPath ([],"Object")
 	| TAbstract (a,_) when Meta.has Meta.CoreType a.a_meta ->
 		type_path ctx a.a_path
 	| TFun _ | TType ({ t_path = ["flash";"utils"],"Function" },[]) ->
