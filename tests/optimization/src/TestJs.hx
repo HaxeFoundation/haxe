@@ -201,41 +201,41 @@ class TestJs {
 		use(a + b);
 	}
 
-	// @:js('
-	// 	TestJs["use"](false);
-	// 	TestJs["use"](true);
-	// 	TestJs["use"](true);
-	// 	TestJs["use"](true);
-	// 	TestJs["use"](false);
-	// 	TestJs["use"](true);
-	// 	TestJs["use"](true);
-	// 	TestJs["use"](false);
-	// 	TestJs["use"](false);
-	// 	TestJs["use"](true);
-	// 	TestJs["use"](false);
-	// ')
-	// static function testEnumValueFlags() {
-	// 	var flags = new haxe.EnumFlags();
-	// 	use(flags.has(EA));
-	// 	flags = new haxe.EnumFlags(1);
-	// 	use(flags.has(EA));
+	@:js('
+		TestJs["use"](false);
+		TestJs["use"](true);
+		TestJs["use"](true);
+		TestJs["use"](true);
+		TestJs["use"](false);
+		TestJs["use"](true);
+		TestJs["use"](true);
+		TestJs["use"](false);
+		TestJs["use"](false);
+		TestJs["use"](true);
+		TestJs["use"](false);
+	')
+	static function testEnumValueFlags() {
+		var flags = new haxe.EnumFlags();
+		use(flags.has(EA));
+		flags = new haxe.EnumFlags(1);
+		use(flags.has(EA));
 
-	// 	// set
-	// 	flags.set(EB);
-	// 	use(flags.has(EA));
-	// 	use(flags.has(EB));
-	// 	use(flags.has(EC));
+		// set
+		flags.set(EB);
+		use(flags.has(EA));
+		use(flags.has(EB));
+		use(flags.has(EC));
 
-	// 	// unset
-	// 	flags.unset(EC);
-	// 	use(flags.has(EA));
-	// 	use(flags.has(EB));
-	// 	use(flags.has(EC));
-	// 	flags.unset(EA);
-	// 	use(flags.has(EA));
-	// 	use(flags.has(EB));
-	// 	use(flags.has(EC));
-	// }
+		// unset
+		flags.unset(EC);
+		use(flags.has(EA));
+		use(flags.has(EB));
+		use(flags.has(EC));
+		flags.unset(EA);
+		use(flags.has(EA));
+		use(flags.has(EB));
+		use(flags.has(EC));
+	}
 
 	@:js('
 		var map = new haxe_ds_StringMap();
