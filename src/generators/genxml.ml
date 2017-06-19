@@ -75,8 +75,8 @@ let rec follow_param t =
 		(match !r with
 		| Some t -> follow_param t
 		| _ -> t)
-	| TAbstract ({ a_path = [],"Null" } as a,tl) ->
-		follow_param (apply_params a.a_params tl a.a_this)
+	| TAbstract ({ a_path = [],"Null" },[t]) ->
+		follow_param t
 	| _ ->
 		t
 
