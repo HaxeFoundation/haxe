@@ -143,14 +143,14 @@ struct
 			(cacc, 0)
 		| TDynamic _, _ ->
 			(max_int, 0) (* a function with dynamic will always be worst of all *)
+		| TAbstract(a, _), TDynamic _ when Meta.has Meta.CoreType a.a_meta && a.a_path <> ([],"Null") ->
+			(cacc + 2, 0) (* a dynamic to a basic type will have an "unboxing" penalty *)
+		| _, TDynamic _ ->
+			(cacc + 1, 0)
 		| TAbstract({ a_path = [], "Null" }, [tf]), TAbstract({ a_path = [], "Null" }, [ta]) ->
 			rate_conv (cacc+0) tf ta
 		| TAbstract({ a_path = [], "Null" }, [tf]), ta ->
 			rate_conv (cacc+1) tf ta
-		| TAbstract(a, _), TDynamic _ when Meta.has Meta.CoreType a.a_meta ->
-			(cacc + 2, 0) (* a dynamic to a basic type will have an "unboxing" penalty *)
-		| _, TDynamic _ ->
-			(cacc + 1, 0)
 		| tf, TAbstract({ a_path = [], "Null" }, [ta]) ->
 			rate_conv (cacc+1) tf ta
 		| TAbstract(af,tlf), TAbstract(aa,tla) ->
