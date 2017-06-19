@@ -284,6 +284,8 @@ let do_unsafe_cast gen from_t to_t e	=
 	match gen.gfollow#run_f from_t, gen.gfollow#run_f to_t with
 	| TInst({ cl_kind = KTypeParameter tl },_), t2 when List.exists (fun t -> unifies t t2) tl ->
 		mk_cast to_t (mk_cast t_dynamic e)
+	| from_t, to_t when gen.gspecial_needs_cast to_t from_t ->
+		mk_cast to_t e
 	| _ ->
 		let do_default () =
 			gen.gon_unsafe_cast to_t e.etype e.epos;
@@ -576,26 +578,27 @@ let choose_ctor gen cl tparams etl maybe_empty_t p =
 		| Some(sup,stl) -> get_changed_stl sup (List.map (apply_params c.cl_params tl) stl)
 	in
 	let ret_tparams = List.map (fun t -> match follow t with
-	| TDynamic _ | TMono _ -> t_empty
-	| _ -> t) tparams in
+		| TDynamic _ | TMono _ -> t_empty
+		| _ -> t) tparams
+	in
 	let ret_stl = get_changed_stl cl ret_tparams in
 	let ctors = ctor :: ctor.cf_overloads in
 	List.iter replace_mono etl;
 	(* first filter out or select outright maybe_empty *)
 	let ctors, is_overload = match etl, maybe_empty_t with
-	| [t], Some empty_t ->
-		let count = ref 0 in
-		let is_empty_call = Type.type_iseq t empty_t in
-		let ret = List.filter (fun cf -> match follow cf.cf_type with
-		(* | TFun([_,_,t],_) -> incr count; true *)
-		| TFun([_,_,t],_) ->
-			replace_mono t; incr count; is_empty_call = (Type.type_iseq t empty_t)
-		| _ -> false) ctors in
-		ret, !count > 1
-	| _ ->
-		let len = List.length etl in
-		let ret = List.filter (fun cf -> List.length (fst (get_fun cf.cf_type)) = len) ctors in
-		ret, (match ret with | _ :: [] -> false | _ -> true)
+		| [t], Some empty_t ->
+			let count = ref 0 in
+			let is_empty_call = Type.type_iseq t empty_t in
+			let ret = List.filter (fun cf -> match follow cf.cf_type with
+				| TFun([_,_,t],_) ->
+					replace_mono t; incr count; is_empty_call = (Type.type_iseq t empty_t)
+				| _ -> false) ctors
+			in
+			ret, !count > 1
+		| _ ->
+			let len = List.length etl in
+			let ret = List.filter (fun cf -> List.length (fst (get_fun cf.cf_type)) = len) ctors in
+			ret, (match ret with | _ :: [] -> false | _ -> true)
 	in
 	let rec check_arg arglist elist =
 		match arglist, elist with

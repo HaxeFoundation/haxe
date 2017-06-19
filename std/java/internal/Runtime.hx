@@ -582,6 +582,18 @@ package java.internal;
 	{
 		return (v == v) && !java.lang.Double.DoubleClass._isInfinite(v);
 	}
+
+	public static function getIntFromNumber(n:java.lang.Number):Int {
+		return n == null ? 0 : n.intValue();
+	}
+
+	public static function getFloatFromNumber(n:java.lang.Number):Float {
+		return n == null ? 0.0 : n.doubleValue();
+	}
+
+	public static function getInt64FromNumber(n:java.lang.Number):java.StdTypes.Int64 {
+		return n == null ? 0.0 : n.longValue();
+	}
 }
 
 @:keep @:native("haxe.lang.EmptyObject") enum EmptyObject

@@ -64,6 +64,69 @@ let unboxed_type gen t tbyte tshort tchar tfloat = match follow t with
 	| TAbstract ({ a_path = (["java";"lang"], "Float") }, []) -> tfloat
 	| _ -> assert false
 
+let is_boxed_of_t boxed_t orig_t = match follow boxed_t, follow orig_t with
+	| TInst ({ cl_path = (["java";"lang"], "Boolean") }, []),
+	  TAbstract({ a_path = ([],"Bool") }, [])
+	| TInst ({ cl_path = (["java";"lang"], "Double") }, []),
+	  TAbstract({ a_path = ([],"Float") }, [])
+	| TInst ({ cl_path = (["java";"lang"], "Integer") }, []),
+	  TAbstract({ a_path = ([],"Int") }, [])
+	| TInst ({ cl_path = (["java";"lang"], "Byte") }, []),
+	  TAbstract({ a_path = (["java"],"Int8") }, [])
+	| TInst ({ cl_path = (["java";"lang"], "Short") }, []),
+	  TAbstract({ a_path = (["java"],"Int16") }, [])
+	| TInst ({ cl_path = (["java";"lang"], "Character") }, []),
+	  TAbstract({ a_path = (["java"],"Char16") }, [])
+	| TInst ({ cl_path = (["java";"lang"], "Float") }, []),
+	  TAbstract({ a_path = ([],"Single") }, [])
+	| TInst ({ cl_path = (["java";"lang"], "Long") }, []),
+	  TAbstract({ a_path = (["java"],"Int64") }, []) ->
+		true
+	| _ -> false
+
+let is_boxed_int_type boxed_t = match follow boxed_t with
+	| TInst ({ cl_path = (["java";"lang"], ("Integer"|"Byte"|"Short"|"Long")) }, []) ->
+		true
+	| _ -> false
+
+let is_int64_type t = match follow t with
+	| TAbstract ({ a_path = (["java"], ("Int64")) }, []) ->
+		true
+	| _ -> false
+
+let is_boxed_int64_type t = match follow t with
+	| TInst ({ cl_path = (["java";"lang"], ("Long")) }, []) ->
+		true
+	| _ -> false
+
+let is_int_type t = match follow t with
+	| TAbstract ({ a_path = ([], ("Int")) }, [])
+	| TAbstract ({ a_path = (["java"], ("Int8" | "Int16" | "Int64")) }, []) ->
+		true
+	| _ -> false
+
+let is_boxed_float_type boxed_t = match follow boxed_t with
+	| TInst ({ cl_path = (["java";"lang"], ("Double"|"Float")) }, []) ->
+		true
+	| _ -> false
+
+let is_float_type t = match follow t with
+	| TAbstract ({ a_path = ([], ("Float"|"Single")) }, []) ->
+		true
+	| _ -> false
+
+let is_boxed_number t = match follow t with
+	| TInst ({ cl_path = (["java";"lang"], ("Float"|"Double"|"Integer"|"Byte"|"Short"|"Long")) }, []) ->
+		true
+	| _ ->
+		false
+
+let is_unboxed_number t = match follow t with
+	| TAbstract ({ a_path = ([], ("Float"|"Single"|"Int")) }, [])
+	| TAbstract ({ a_path = (["java"], ("Int8" | "Int16" | "Int64")) }, []) ->
+		true
+	| _ -> false
+
 let rec t_has_type_param t = match follow t with
 	| TInst({ cl_kind = KTypeParameter _ }, []) -> true
 	| TEnum(_, params)
@@ -149,6 +212,12 @@ let is_cl t = match follow t with
 	| TAbstract({ a_path = [], ("Class"|"Enum") },_) -> true
 	| TAnon(a) when is_some (anon_class t) -> true
 	| _ -> false
+
+let mk_cast_if_needed t_to e =
+	if type_iseq t_to e.etype then
+		e
+	else
+		mk_cast t_to e
 
 
 (* ******************************************* *)
@@ -338,7 +407,11 @@ struct
 			| final :: [] -> is_final_return_expr is_switch final
 			| hd :: tl -> is_final_return_block is_switch tl
 
-	let is_null e = match e.eexpr with | TConst(TNull) -> true | _ -> false
+	let rec is_null e = match e.eexpr with
+		| TConst(TNull) -> true
+		| TParenthesis(e)
+		| TMeta(_,e) -> is_null e
+		| _ -> false
 
 	let rec is_equatable gen t =
 		match follow t with
@@ -549,15 +622,84 @@ struct
 		| _ -> assert false
 
 	let configure gen runtime_cl =
+		let cl_boolean = get_cl (get_type gen (["java";"lang"],"Boolean")) in
+		let cl_double = get_cl (get_type gen (["java";"lang"],"Double")) in
+		let cl_integer = get_cl (get_type gen (["java";"lang"],"Integer")) in
+		let cl_byte = get_cl (get_type gen (["java";"lang"],"Byte")) in
+		let cl_short = get_cl (get_type gen (["java";"lang"],"Short")) in
+		let cl_character = get_cl (get_type gen (["java";"lang"],"Character")) in
+		let cl_float = get_cl (get_type gen (["java";"lang"],"Float")) in
+		let cl_long = get_cl (get_type gen (["java";"lang"],"Long")) in
+
 		(if java_hash "Testing string hashCode implementation from haXe" <> (Int32.of_int 545883604) then assert false);
 		let basic = gen.gcon.basic in
-		(* let tchar = mt_to_t_dyn ( get_type gen (["java"], "Char16") ) in *)
-		(* let tbyte = mt_to_t_dyn ( get_type gen (["java"], "Int8") ) in *)
-		(* let tshort = mt_to_t_dyn ( get_type gen (["java"], "Int16") ) in *)
-		(* let tsingle = mt_to_t_dyn ( get_type gen ([], "Single") ) in *)
+		let tchar = mt_to_t_dyn ( get_type gen (["java"], "Char16") ) in
+		let tbyte = mt_to_t_dyn ( get_type gen (["java"], "Int8") ) in
+		let tshort = mt_to_t_dyn ( get_type gen (["java"], "Int16") ) in
+		let tsingle = mt_to_t_dyn ( get_type gen ([], "Single") ) in
 		let ti64 = mt_to_t_dyn ( get_type gen (["java"], "Int64") ) in
 		let string_ext = get_cl ( get_type gen (["haxe";"lang"], "StringExt")) in
 		let fast_cast = Common.defined gen.gcon Define.FastCast in
+
+		let get_unboxed_from_boxed boxed_t =
+			match boxed_t with
+				| TInst( ({ cl_path = (["java";"lang"],name) } as cl), [] ) -> (match name with
+					| "Double" ->
+						cl, basic.tfloat
+					| "Integer" ->
+						cl, basic.tint
+					| "Byte" ->
+						cl, tbyte
+					| "Short" ->
+						cl, tshort
+					| "Float" ->
+						cl, tsingle
+					| "Long" ->
+						cl, ti64
+					| _ ->
+						assert false)
+				| _ -> assert false
+		in
+
+		let mk_valueof_call boxed_t expr =
+			let box_cl, unboxed_t = get_unboxed_from_boxed boxed_t in
+			let fn = TFun(["param1",false,unboxed_t],boxed_t) in
+			{
+				eexpr = TCall(mk_static_field_access box_cl "valueOf" fn expr.epos, [mk_cast_if_needed unboxed_t expr]);
+				etype = boxed_t;
+				epos = expr.epos;
+			}
+		in
+
+		let mk_unbox unboxed_t boxed_e =
+			if is_int64_type unboxed_t then
+				{
+					eexpr = TCall(
+						mk_static_field_access_infer runtime_cl "getInt64FromNumber" boxed_e.epos [],
+						[ boxed_e ]
+					);
+					etype = ti64;
+					epos = boxed_e.epos
+				}
+			else if is_int_type unboxed_t then
+				mk_cast_if_needed unboxed_t {
+					eexpr = TCall(
+						mk_static_field_access_infer runtime_cl "getIntFromNumber" boxed_e.epos [],
+						[ boxed_e ]
+					);
+					etype = basic.tint;
+					epos = boxed_e.epos
+				}
+			else
+				mk_cast_if_needed unboxed_t {
+					eexpr = TCall(
+						mk_static_field_access_infer runtime_cl "getFloatFromNumber" boxed_e.epos [],
+						[ boxed_e ]
+					);
+					etype = basic.tfloat;
+					epos = boxed_e.epos
+				}
+		in
 
 		let rec run e =
 			match e.eexpr with
@@ -595,6 +737,34 @@ struct
 				(* | TCast(expr, m) when is_boxed_type e.etype -> *)
 				(* 	(* let unboxed_type gen t tbyte tshort tchar tfloat = match follow t with *) *)
 				(* 	run { e with etype = unboxed_type gen e.etype tbyte tshort tchar tsingle } *)
+
+				| TCast(expr, _) when is_boxed_number (gen.greal_type expr.etype) && is_unboxed_number (gen.greal_type e.etype) ->
+					let to_t = gen.greal_type e.etype in
+					mk_unbox to_t (run expr)
+
+				| TCast(expr, md) when is_boxed_number (gen.greal_type e.etype) ->
+					let to_t = gen.greal_type e.etype in
+					let from_t = gen.greal_type expr.etype in
+					let ret = if is_unboxed_number from_t then
+							mk_valueof_call to_t (run expr)
+						else if is_boxed_number from_t then
+							if type_iseq from_t to_t then begin
+								(* special case for when the expression is null, as we sometimes need to give *)
+								(* a little help to Java's typer *)
+								if is_null expr then
+									{ e with eexpr = TCast(run expr, md) }
+								else
+									run expr
+							end else begin
+								let box_cl, unboxed_t = get_unboxed_from_boxed to_t in
+								mk_valueof_call to_t (mk_unbox to_t (run expr))
+							end
+						else begin
+							let box_cl, unboxed_t = get_unboxed_from_boxed to_t in
+							mk_valueof_call to_t (run (mk_cast unboxed_t expr))
+						end
+					in
+					ret
 
 				| TCast(expr, _) when is_bool e.etype && is_dynamic gen expr.etype ->
 					{
@@ -948,6 +1118,15 @@ let generate con =
 
 	let cl_cl = get_cl (get_type gen (["java";"lang"],"Class")) in
 
+	let cl_boolean = get_cl (get_type gen (["java";"lang"],"Boolean")) in
+	let cl_double = get_cl (get_type gen (["java";"lang"],"Double")) in
+	let cl_integer = get_cl (get_type gen (["java";"lang"],"Integer")) in
+	let cl_byte = get_cl (get_type gen (["java";"lang"],"Byte")) in
+	let cl_short = get_cl (get_type gen (["java";"lang"],"Short")) in
+	let cl_character = get_cl (get_type gen (["java";"lang"],"Character")) in
+	let cl_float = get_cl (get_type gen (["java";"lang"],"Float")) in
+	let cl_long = get_cl (get_type gen (["java";"lang"],"Long")) in
+
 	let rec real_type t =
 		let t = gen.gfollow#run_f t in
 		match t with
@@ -964,14 +1143,30 @@ let generate con =
 				TInst(c, List.map (fun _ -> t_dynamic) params)
 			| TInst({ cl_kind = KExpr _ }, _) -> t_dynamic
 			| TInst _ -> t
-			| TType({ t_path = ([], "Null") }, [t]) when is_java_basic_type (gen.gfollow#run_f t) -> t_dynamic
-			| TType({ t_path = ([], "Null") }, [t]) ->
-				(match follow t with
+			| TType({ t_path = ([], "Null") }, [t]) -> (
+				match gen.gfollow#run_f t with
+				| TAbstract( { a_path = ([], "Bool") }, [] ) ->
+					TInst(cl_boolean, [])
+				| TAbstract( { a_path = ([], "Float") }, [] ) ->
+					TInst(cl_double, [])
+				| TAbstract( { a_path = ([], "Int") }, [] ) ->
+					TInst(cl_integer, [])
+				| TAbstract( { a_path = (["java"], "Int8") }, [] ) ->
+					TInst(cl_byte, [])
+				| TAbstract( { a_path = (["java"], "Int16") }, [] ) ->
+					TInst(cl_short, [])
+				| TAbstract( { a_path = (["java"], "Char16") }, [] ) ->
+					TInst(cl_character, [])
+				| TAbstract( { a_path = ([], "Single") }, [] ) ->
+					TInst(cl_float, [])
+				| TAbstract( { a_path = (["java"], "Int64") }, [] ) ->
+					TInst(cl_long, [])
+				| _ -> (match follow t with
 					| TInst( { cl_kind = KTypeParameter _ }, []) ->
 							t_dynamic
-							(* real_type t *)
 					| _ -> real_type t
 				)
+			)
 			| TType _ | TAbstract _ -> t
 			| TAnon (anon) -> (match !(anon.a_status) with
 				| Statics _ | EnumStatics _ | AbstractStatics _ -> t
@@ -2059,6 +2254,14 @@ let generate con =
 
 	gen.greal_type <- real_type;
 	gen.greal_type_param <- change_param_type;
+	gen.gspecial_needs_cast <- (fun to_t from_t ->
+		is_boxed_of_t to_t from_t ||
+		is_boxed_of_t from_t to_t ||
+		( (is_boxed_int_type from_t || is_boxed_float_type from_t ) &&
+		  (is_boxed_int_type to_t || is_boxed_float_type to_t || is_int_type to_t || is_float_type to_t) ) ||
+		( (is_boxed_int_type to_t || is_boxed_float_type to_t ) &&
+			(is_boxed_int_type from_t || is_boxed_float_type from_t || is_int_type from_t || is_float_type from_t) )
+	);
 
 	(* before running the filters, follow all possible types *)
 	(* this is needed so our module transformations don't break some core features *)
@@ -2244,7 +2447,7 @@ let generate con =
 			| _ -> assert false
 	) "__get" "__set";
 
-	let field_is_dynamic t field =
+	let field_is_dynamic is_dynamic t field =
 		match field_access_esp gen (gen.greal_type t) field with
 			| FClassField (cl,p,_,_,_,t,_) ->
 				let p = change_param_type (TClassDecl cl) p in
@@ -2258,12 +2461,16 @@ let generate con =
 		| _ -> false
 	in
 
-	let is_dynamic_expr e =
+	let is_dynamic_expr is_dynamic e =
 		is_dynamic e.etype || match e.eexpr with
 		| TField(tf, f) ->
-			field_is_dynamic tf.etype f
+			field_is_dynamic is_dynamic tf.etype f
 		| _ ->
 			false
+	in
+
+	let is_dynamic_op t =
+		is_dynamic t || is_boxed_type (gen.greal_type t)
 	in
 
 	let may_nullable t = match gen.gfollow#run_f t with
@@ -2287,16 +2494,16 @@ let generate con =
 		~handle_strings:true
 		(fun e -> match e.eexpr with
 			| TBinop (Ast.OpEq, e1, e2) ->
-				is_dynamic e1.etype || is_dynamic e2.etype || is_type_param e1.etype || is_type_param e2.etype
+				is_dynamic_op e1.etype || is_dynamic_op e2.etype || is_type_param e1.etype || is_type_param e2.etype
 			| TBinop (Ast.OpAdd, e1, e2)
-			| TBinop (Ast.OpNotEq, e1, e2) -> is_dynamic e1.etype || is_dynamic e2.etype || is_type_param e1.etype || is_type_param e2.etype
+			| TBinop (Ast.OpNotEq, e1, e2) -> is_dynamic_op e1.etype || is_dynamic_op e2.etype || is_type_param e1.etype || is_type_param e2.etype
 			| TBinop (Ast.OpLt, e1, e2)
 			| TBinop (Ast.OpLte, e1, e2)
 			| TBinop (Ast.OpGte, e1, e2)
-			| TBinop (Ast.OpGt, e1, e2) -> is_dynamic e.etype || is_dynamic_expr e1 || is_dynamic_expr e2 || is_string e1.etype || is_string e2.etype
-			| TBinop (_, e1, e2) -> is_dynamic e.etype || is_dynamic_expr e1 || is_dynamic_expr e2
+			| TBinop (Ast.OpGt, e1, e2) -> is_dynamic_op e.etype || is_dynamic_expr is_dynamic_op e1 || is_dynamic_expr is_dynamic_op e2 || is_string e1.etype || is_string e2.etype
+			| TBinop (_, e1, e2) -> is_dynamic_op e.etype || is_dynamic_expr is_dynamic_op e1 || is_dynamic_expr is_dynamic_op e2
 			| TUnop (_, _, e1) ->
-				is_dynamic_expr e1
+				is_dynamic_expr is_dynamic_op e1
 			| _ -> false)
 		(fun e1 e2 ->
 			let is_null e = match e.eexpr with | TConst(TNull) | TLocal({ v_name = "__undefined__" }) -> true | _ -> false in
