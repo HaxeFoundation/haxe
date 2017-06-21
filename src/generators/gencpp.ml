@@ -2388,7 +2388,13 @@ let retype_expression ctx request_type function_args function_type expression_tr
       | CppVar( VarInstance(obj,member,_,"->") as varloc) when is_gc_element ctx (cpp_type_of ctx member.cf_type) ->
            CppVarRef(varloc), true
       | CppVar varloc -> CppVarRef(varloc), false
-      | CppArray arrayloc -> CppArrayRef(arrayloc), false
+
+      | CppArray arrayloc ->
+         CppArrayRef(arrayloc), (match arrayloc with
+         | ArrayObject(arrayObj, index, _) when (is_gc_element ctx TCppDynamic) -> true
+         | ArrayTyped(arrayObj, index, t) when (is_gc_element ctx t) -> true
+         | _ -> false)
+
       | CppDynamicField(expr, name) -> CppDynamicRef(expr,name), false
       | CppTCast(cppExpr,_)
       | CppCast(cppExpr,_)
