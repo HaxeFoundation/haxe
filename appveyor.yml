@@ -13,8 +13,7 @@ environment:
         HXBUILDS_AWS_SECRET_ACCESS_KEY:
           secure: ewwkKcjnSKl/Vtrz1SXmI6XKk1ENmJDyzm5YaR2wi03foRhTke29TvymB21rDTSl
     matrix:
-        - TEST: "neko,python,cs,java,macro"
-        - TEST: "php7,php"
+        - TEST: "neko,python,cs,java,php7,php,macro"
           DEPLOY_NIGHTLIES: 1
         - TEST: "cpp"
 
