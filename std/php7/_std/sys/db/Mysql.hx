@@ -63,7 +63,7 @@ private class MysqlConnection implements Connection {
 
 	public function request( s : String ) : ResultSet {
 		var result = db.query(s);
-		if (result == false) throw 'Failed to perform db query';
+		if (result == false) throw 'Failed to perform db query: ' + db.error;
 		if (result == true) return null;
 
 		return new MysqlResultSet(result);
@@ -103,17 +103,17 @@ private class MysqlConnection implements Connection {
 
 	public function startTransaction() : Void {
 		var success = db.begin_transaction();
-		if (!success) throw 'Failed to start transaction';
+		if (!success) throw 'Failed to start transaction: ' + db.error;
 	}
 
 	public function commit() : Void {
 		var success = db.commit();
-		if (!success) throw 'Failed to commit transaction';
+		if (!success) throw 'Failed to commit transaction: ' + db.error;
 	}
 
 	public function rollback() : Void {
 		var success = db.rollback();
-		if (!success) throw 'Failed to rollback transaction';
+		if (!success) throw 'Failed to rollback transaction: ' + db.error;
 	}
 
 }
