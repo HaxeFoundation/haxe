@@ -525,6 +525,7 @@ module Define = struct
 		| NoTraces
 		| Objc
 		| OldConstructorInline
+		| OldErrorFormat
 		| PhpPrefix
 		| RealPosition
 		| ReplaceFiles
@@ -627,6 +628,7 @@ module Define = struct
 		| NoTraces -> ("no_traces","Disable all trace calls")
 		| Objc -> ("objc","Sets the hxcpp output to objective-c++ classes. Must be defined for interop")
 		| OldConstructorInline -> ("old-constructor-inline","Use old constructor inlining logic (from haxe 3.4.2) instead of the reworked version.")
+		| OldErrorFormat -> ("old-error-format", "Use Haxe 3.x zero-based column error messages instead of new one-based format.")
 		| PhpPrefix -> ("php_prefix","Compiled with --php-prefix")
 		| RealPosition -> ("real_position","Disables Haxe source mapping when targetting C#, removes position comments in Java and Php7 output")
 		| ReplaceFiles -> ("replace_files","GenCommon internal")
