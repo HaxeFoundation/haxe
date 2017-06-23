@@ -758,6 +758,7 @@ try
 		com.warning <- if com.display.dms_error_policy = EPCollect then (fun s p -> add_diagnostics_message com s p DisplayTypes.DiagnosticsSeverity.Warning) else message ctx;
 		com.error <- error ctx;
 	end;
+	Lexer.zero_based_columns := Common.defined com Define.OldErrorFormat;
 	DisplayOutput.process_display_file com classes;
 	let ext = Initialize.initialize_target ctx com classes in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
