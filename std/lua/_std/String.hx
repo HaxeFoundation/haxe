@@ -27,7 +27,7 @@ import lua.NativeStringTools;
 
 @:coreApi
 class String {
-	static var __oldindex : Table<Dynamic,Dynamic>;
+	static var __oldindex : String->String->Dynamic;
 	public var length(default,null) : Int;
 
 
@@ -37,7 +37,7 @@ class String {
 	static function __index(s:Dynamic, k:Dynamic) : Dynamic {
 		if (k == "length") return NativeStringTools.len(s);
 		else if (Reflect.hasField(untyped String.prototype, k)) return untyped String.prototype[k];
-		else if (__oldindex != null) return  __oldindex[k];
+		else if (__oldindex != null) return  __oldindex(s,k);
 		else return null;
 	}
 
