@@ -1640,6 +1640,38 @@ let unify_kind k1 k2 =
 
 let eq_stack = ref []
 
+let rec_stack stack value fcheck frun ferror =
+	if not (List.exists fcheck !stack) then begin
+		try
+			stack := value :: !stack;
+			let v = frun() in
+			stack := List.tl !stack;
+			v
+		with
+			Unify_error l ->
+				stack := List.tl !stack;
+				ferror l
+			| e ->
+				stack := List.tl !stack;
+				raise e
+	end
+
+let rec_stack_bool stack value fcheck frun =
+	if (List.exists fcheck !stack) then false else begin
+		try
+			stack := value :: !stack;
+			frun();
+			stack := List.tl !stack;
+			true
+		with
+			Unify_error l ->
+				stack := List.tl !stack;
+				false
+			| e ->
+				stack := List.tl !stack;
+				raise e
+	end
+
 type eq_kind =
 	| EqStrict
 	| EqCoreType
@@ -1671,18 +1703,10 @@ let rec type_eq param a b =
 	| TType (t,tl) , _ when can_follow a ->
 		type_eq param (apply_params t.t_params tl t.t_type) b
 	| _ , TType (t,tl) when can_follow b ->
-		if List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!eq_stack) then
-			()
-		else begin
-			eq_stack := (a,b) :: !eq_stack;
-			try
-				type_eq param a (apply_params t.t_params tl t.t_type);
-				eq_stack := List.tl !eq_stack;
-			with
-				Unify_error l ->
-					eq_stack := List.tl !eq_stack;
-					error (cannot_unify a b :: l)
-		end
+		rec_stack eq_stack (a,b)
+			(fun (a2,b2) -> fast_eq a a2 && fast_eq b b2)
+			(fun() -> type_eq param a (apply_params t.t_params tl t.t_type))
+			(fun l -> error (cannot_unify a b :: l))
 	| TEnum (e1,tl1) , TEnum (e2,tl2) ->
 		if e1 != e2 && not (param = EqCoreType && e1.e_path = e2.e_path) then error [cannot_unify a b];
 		List.iter2 (type_eq param) tl1 tl2
@@ -1710,16 +1734,10 @@ let rec type_eq param a b =
 					let f2 = PMap.find n a2.a_fields in
 					if f1.cf_kind <> f2.cf_kind && (param = EqStrict || param = EqCoreType || not (unify_kind f1.cf_kind f2.cf_kind)) then error [invalid_kind n f1.cf_kind f2.cf_kind];
 					let a = f1.cf_type and b = f2.cf_type in
-					if not (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!eq_stack)) then begin
-						eq_stack := (a,b) :: !eq_stack;
-						try
-							type_eq param a b;
-							eq_stack := List.tl !eq_stack;
-						with
-							Unify_error l ->
-								eq_stack := List.tl !eq_stack;
-								error (invalid_field n :: l)
-					end;
+					rec_stack eq_stack (a,b)
+						(fun (a2,b2) -> fast_eq a a2 && fast_eq b b2)
+						(fun() -> type_eq param a b)
+						(fun l -> error (invalid_field n :: l))
 				with
 					Not_found ->
 						if is_closed a2 then error [has_no_field b n];
@@ -1786,27 +1804,15 @@ let rec unify a b =
 		| None -> if not (link t b a) then error [cannot_unify a b]
 		| Some t -> unify a t)
 	| TType (t,tl) , _ ->
-		if not (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!unify_stack)) then begin
-			try
-				unify_stack := (a,b) :: !unify_stack;
-				unify (apply_params t.t_params tl t.t_type) b;
-				unify_stack := List.tl !unify_stack;
-			with
-				Unify_error l ->
-					unify_stack := List.tl !unify_stack;
-					error (cannot_unify a b :: l)
-		end
+		rec_stack unify_stack (a,b)
+			(fun(a2,b2) -> fast_eq a a2 && fast_eq b b2)
+			(fun() -> unify (apply_params t.t_params tl t.t_type) b)
+			(fun l -> error (cannot_unify a b :: l))
 	| _ , TType (t,tl) ->
-		if not (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!unify_stack)) then begin
-			try
-				unify_stack := (a,b) :: !unify_stack;
-				unify a (apply_params t.t_params tl t.t_type);
-				unify_stack := List.tl !unify_stack;
-			with
-				Unify_error l ->
-					unify_stack := List.tl !unify_stack;
-					error (cannot_unify a b :: l)
-		end
+		rec_stack unify_stack (a,b)
+			(fun(a2,b2) -> fast_eq a a2 && fast_eq b b2)
+			(fun() -> unify a (apply_params t.t_params tl t.t_type))
+			(fun l -> error (cannot_unify a b :: l))
 	| TEnum (ea,tl1) , TEnum (eb,tl2) ->
 		if ea != eb then error [cannot_unify a b];
 		unify_type_params a b tl1 tl2
@@ -1894,33 +1900,19 @@ let rec unify a b =
 					(* we will do a recursive unification, so let's check for possible recursion *)
 					let old_monos = !unify_new_monos in
 					unify_new_monos := !monos @ !unify_new_monos;
-					if not (List.exists (fun (a2,b2) -> fast_eq b2 f2.cf_type && fast_eq_mono !unify_new_monos ft a2) (!unify_stack)) then begin
-						unify_stack := (ft,f2.cf_type) :: !unify_stack;
-						(try
-							unify_with_access ft f2
-						with
-							Unify_error l ->
-								unify_new_monos := old_monos;
-								unify_stack := List.tl !unify_stack;
-								error (invalid_field n :: l));
-						unify_stack := List.tl !unify_stack;
-					end;
+					rec_stack unify_stack (ft,f2.cf_type)
+						(fun (a2,b2) -> fast_eq b2 f2.cf_type && fast_eq_mono !unify_new_monos ft a2)
+						(fun() -> try unify_with_access ft f2 with e -> unify_new_monos := old_monos; raise e)
+						(fun l -> error (invalid_field n :: l));
 					unify_new_monos := old_monos;
 				| Method MethNormal | Method MethInline | Var { v_write = AccNo } | Var { v_write = AccNever } ->
 					(* same as before, but unification is reversed (read-only var) *)
 					let old_monos = !unify_new_monos in
 					unify_new_monos := !monos @ !unify_new_monos;
-					if not (List.exists (fun (a2,b2) -> fast_eq_mono !unify_new_monos b2 ft && fast_eq f2.cf_type a2) (!unify_stack)) then begin
-						unify_stack := (f2.cf_type,ft) :: !unify_stack;
-						(try
-							unify_with_access ft f2
-						with
-							Unify_error l ->
-								unify_new_monos := old_monos;
-								unify_stack := List.tl !unify_stack;
-								error (invalid_field n :: l));
-						unify_stack := List.tl !unify_stack;
-					end;
+					rec_stack unify_stack (f2.cf_type,ft)
+						(fun(a2,b2) -> fast_eq_mono !unify_new_monos b2 ft && fast_eq f2.cf_type a2)
+						(fun() -> try unify_with_access ft f2 with e -> unify_new_monos := old_monos; raise e)
+						(fun l -> error (invalid_field n :: l));
 					unify_new_monos := old_monos;
 				| _ ->
 					(* will use fast_eq, which have its own stack *)
@@ -2089,19 +2081,12 @@ and unify_anons a b a1 a2 =
 		Unify_error l -> error (cannot_unify a b :: l))
 
 and unify_from ab tl a b ?(allow_transitive_cast=true) t =
-	if (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!abstract_cast_stack)) then false else begin
-	abstract_cast_stack := (a,b) :: !abstract_cast_stack;
-	let t = apply_params ab.a_params tl t in
-	let unify_func = if allow_transitive_cast then unify else type_eq EqStrict in
-	let b = try
-		unify_func a t;
-		true
-	with Unify_error _ ->
-		false
-	in
-	abstract_cast_stack := List.tl !abstract_cast_stack;
-	b
-	end
+	rec_stack_bool abstract_cast_stack (a,b)
+		(fun (a2,b2) -> fast_eq a a2 && fast_eq b b2)
+		(fun() ->
+			let t = apply_params ab.a_params tl t in
+			let unify_func = if allow_transitive_cast then unify else type_eq EqStrict in
+			unify_func a t)
 
 and unify_to ab tl b ?(allow_transitive_cast=true) t =
 	let t = apply_params ab.a_params tl t in
@@ -2113,11 +2098,11 @@ and unify_to ab tl b ?(allow_transitive_cast=true) t =
 		false
 
 and unify_from_field ab tl a b ?(allow_transitive_cast=true) (t,cf) =
-	if (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!abstract_cast_stack)) then false else begin
-	abstract_cast_stack := (a,b) :: !abstract_cast_stack;
-	let unify_func = if allow_transitive_cast then unify else type_eq EqStrict in
-	let b = try
-		begin match follow cf.cf_type with
+	rec_stack_bool abstract_cast_stack (a,b)
+		(fun (a2,b2) -> fast_eq a a2 && fast_eq b b2)
+		(fun() ->
+			let unify_func = if allow_transitive_cast then unify else type_eq EqStrict in
+			match follow cf.cf_type with
 			| TFun(_,r) ->
 				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 				let map t = apply_params ab.a_params tl (apply_params cf.cf_params monos t) in
@@ -2128,22 +2113,16 @@ and unify_from_field ab tl a b ?(allow_transitive_cast=true) (t,cf) =
 					| _ -> ()
 				) monos cf.cf_params;
 				unify_func (map r) b;
-			| _ -> assert false
-		end;
-		true
-	with Unify_error _ -> false
-	in
-	abstract_cast_stack := List.tl !abstract_cast_stack;
-	b
-	end
+				true
+			| _ -> assert false)
 
 and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cf) =
 	let a = TAbstract(ab,tl) in
-	if (List.exists (fun (b2,a2) -> fast_eq a a2 && fast_eq b b2) (!abstract_cast_stack)) then false else begin
-	abstract_cast_stack := (b,a) :: !abstract_cast_stack;
-	let unify_func = if allow_transitive_cast then unify else type_eq EqStrict in
-	let r = try
-		begin match follow cf.cf_type with
+	rec_stack_bool abstract_cast_stack (b,a)
+		(fun (b2,a2) -> fast_eq a a2 && fast_eq b b2)
+		(fun() ->
+			let unify_func = if allow_transitive_cast then unify else type_eq EqStrict in
+			match follow cf.cf_type with
 			| TFun((_,_,ta) :: _,_) ->
 				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 				let map t = apply_params ab.a_params tl (apply_params cf.cf_params monos t) in
@@ -2158,14 +2137,7 @@ and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cf) =
 					| _ -> ()
 				) monos cf.cf_params;
 				unify_func (map t) b;
-			| _ -> assert false
-		end;
-		true
-	with Unify_error _ -> false
-	in
-	abstract_cast_stack := List.tl !abstract_cast_stack;
-	r
-	end
+			| _ -> assert false)
 
 and unify_with_variance f t1 t2 =
 	let allows_variance_to t tf = type_iseq tf t in
@@ -2191,16 +2163,10 @@ and unify_with_variance f t1 t2 =
 		type_eq EqBothDynamic t (apply_params a.a_params pl a.a_this);
 		if not (List.exists (fun t2 -> allows_variance_to t (apply_params a.a_params pl t2)) a.a_from) then error [cannot_unify t1 t2]
 	| (TAnon a1 as t1), (TAnon a2 as t2) ->
-		if not (List.exists (fun (a,b) -> fast_eq a t1 && fast_eq b t2) (!unify_stack)) then begin
-			try
-				unify_stack := (t1,t2) :: !unify_stack;
-				unify_anons t1 t2 a1 a2;
-				unify_stack := List.tl !unify_stack;
-			with
-				Unify_error l ->
-					unify_stack := List.tl !unify_stack;
-					error l
-		end
+		rec_stack unify_stack (t1,t2)
+			(fun (a,b) -> fast_eq a t1 && fast_eq b t2)
+			(fun() -> unify_anons t1 t2 a1 a2)
+			(fun l -> error l)
 	| _ ->
 		error [cannot_unify t1 t2]
 
