@@ -908,8 +908,9 @@ class RunCi {
 							for (es3 in       [[], ["-D", "js-es=3"]])
 							for (unflatten in [[], ["-D", "js-unflatten"]])
 							for (classic in   [[], ["-D", "js-classic"]])
+							for (enums_as_objects in [[], ["-D", "js-enums-as-objects"]])
 							{
-								var extras = args.concat(es3).concat(unflatten).concat(classic);
+								var extras = args.concat(es3).concat(unflatten).concat(classic).concat(enums_as_objects);
 
 								runCommand("haxe", ["compile-js.hxml"].concat(extras));
 
