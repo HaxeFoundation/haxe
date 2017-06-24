@@ -1,1 +1,1 @@
-Main1.hx:3: characters 4-36 : Method get_test is no valid accessor for test because it is not static
+Main1.hx:3: characters 5-37 : Method get_test is no valid accessor for test because it is not static

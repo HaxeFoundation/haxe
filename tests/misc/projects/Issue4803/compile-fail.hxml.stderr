@@ -2,6 +2,6 @@ Main.hx:4: lines 4-7 : Could not find a suitable overload, reasons follow
 Main.hx:4: lines 4-7 : Overload resolution failed for Void -> js.jquery.JQuery
 Main.hx:4: lines 4-7 : Too many arguments
 Main.hx:4: lines 4-7 : Overload resolution failed for handler : (js.jquery.Event -> Void) -> js.jquery.JQuery
-Main.hx:6: characters 7-16 : Object requires field y
-Main.hx:6: characters 7-16 : For function argument 'handler'
+Main.hx:6: characters 8-17 : Object requires field y
+Main.hx:6: characters 8-17 : For function argument 'handler'
 Main.hx:4: lines 4-7 : End of overload failure reasons
