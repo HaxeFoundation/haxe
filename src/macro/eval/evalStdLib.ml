@@ -721,6 +721,27 @@ module StdDate = struct
 				tm_sec = int_of_string (Str.matched_group 6 s);
 			} in
 			encode_date (fst (Unix.mktime t))
+		| 10 ->
+			let r = Str.regexp "^\\([0-9][0-9][0-9][0-9]\\)-\\([0-9][0-9]\\)-\\([0-9][0-9]\\)$" in
+			if not (Str.string_match r s 0) then exc_string ("Invalid date format : " ^ s);
+			let t = Unix.localtime (Unix.time()) in
+			let t = { t with
+				tm_year = int_of_string (Str.matched_group 1 s) - 1900;
+				tm_mon = int_of_string (Str.matched_group 2 s) - 1;
+				tm_mday = int_of_string (Str.matched_group 3 s);
+				tm_hour = 0;
+				tm_min = 0;
+				tm_sec = 0;
+			} in
+			encode_date (fst (Unix.mktime t))
+		| 8 ->
+			let r = Str.regexp "^\\([0-9][0-9]\\):\\([0-9][0-9]\\):\\([0-9][0-9]\\)$" in
+			if not (Str.string_match r s 0) then exc_string ("Invalid date format : " ^ s);
+			let h = int_of_string (Str.matched_group 1 s) in
+			let m = int_of_string (Str.matched_group 2 s) in
+			let s = int_of_string (Str.matched_group 3 s) in
+			let t = h * 60 * 60 + m * 60 + s in
+			encode_date (float_of_int t)
 		| _ ->
 			exc_string ("Invalid date format : " ^ s)
 	)
