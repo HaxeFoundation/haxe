@@ -775,7 +775,7 @@ try
 			("--help-metas", Arg.Unit (fun () -> ()),": print help for all compiler metadatas");
 			("<dot-path>", Arg.Unit (fun () -> ()),": compile the module specified by dot-path");
 		] in
-		if !cmds = [] && not !did_something then Arg.usage help_spec usage;
+		if !cmds = [] && not !did_something then print_endline (Arg.usage_string help_spec usage);
 	end else begin
 		ctx.setup();
 		Common.log com ("Classpath : " ^ (String.concat ";" com.class_path));
