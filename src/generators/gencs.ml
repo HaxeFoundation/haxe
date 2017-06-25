@@ -2045,6 +2045,25 @@ let generate con =
 						gen_class_field w ~is_overload:true is_static cl (Meta.has Meta.Final cf.cf_meta) cf
 					) cf.cf_overloads
 				| Var _ | Method MethDynamic -> ()
+				| Method _ when is_new && Meta.has Meta.Struct cl.cl_meta && fst (get_fun cf.cf_type) = [] ->
+						(* make sure that the method is empty *)
+						let rec check_empty expr = match expr.eexpr with
+							| TBlock(bl) -> bl = [] || List.for_all check_empty bl
+							| TMeta(_,e) -> check_empty e
+							| TParenthesis(e) -> check_empty e
+							| TConst(TNull) -> true
+							| TFunction(tf) -> check_empty tf.tf_expr
+							| _ -> false
+						in
+						(match cf.cf_expr with
+							| Some e ->
+								if not (check_empty e) then
+									gen.gcon.error "The body of a zero argument constructor of a struct should be empty" e.epos
+							| _ -> ());
+						List.iter (fun cf ->
+							if cl.cl_interface || cf.cf_expr <> None then
+								gen_class_field w ~is_overload:true is_static cl (Meta.has Meta.Final cf.cf_meta) cf
+						) cf.cf_overloads;
 				| Method mkind ->
 					List.iter (fun cf ->
 						if cl.cl_interface || cf.cf_expr <> None then
