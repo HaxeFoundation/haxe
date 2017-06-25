@@ -408,7 +408,7 @@ let pos_to_json_range p =
 		JNull
 	else
 		let l1, p1, l2, p2 = Lexer.get_pos_coords p in
-		let to_json l c = JObject [("line", JInt (l - 1)); ("character", JInt c)] in
+		let to_json l c = JObject [("line", JInt (l - 1)); ("character", JInt (c - 1))] in
 		JObject [
 			("start", to_json l1 p1);
 			("end", to_json l2 p2);
