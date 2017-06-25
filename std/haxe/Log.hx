@@ -66,6 +66,7 @@ class Log {
 		#if sys
 		Sys.println(v);
 		#elseif js
+		if( v == null ) trace = trace; // hack to keep trace() if we keep traceOutput()
 		if( js.Lib.typeof(untyped console) != "undefined" && (untyped console).log != null )
 			(untyped console).log(v);
 		#elseif lua
