@@ -145,11 +145,8 @@ let is_java_basic_type t =
 	match follow t with
 		| TInst( { cl_path = (["haxe"], "Int32") }, [] )
 		| TInst( { cl_path = (["haxe"], "Int64") }, [] )
-		| TAbstract( { a_path = ([], "Single") }, [] )
 		| TAbstract( { a_path = (["java"], ("Int8" | "Int16" | "Char16" | "Int64")) }, [] )
-		| TAbstract( { a_path =	([], "Int") }, [] )
-		| TAbstract( { a_path =	([], "Float") }, [] )
-		| TAbstract( { a_path =	([], "Bool") }, [] ) ->
+		| TAbstract( { a_path =	([], ("Int"|"Float"|"Bool"|"Single")) }, [] ) ->
 			true
 		| _ -> false
 
@@ -2478,6 +2475,13 @@ let generate con =
 	let is_double t = like_float t && not (like_int t) in
 	let is_int t = like_int t in
 
+	let nullable_basic t = match gen.gfollow#run_f t with
+		| TType({ t_path = ([],"Null") }, [t]) when is_java_basic_type t ->
+			Some(t)
+		| _ ->
+			None
+	in
+
 	DynamicOperators.configure gen
 		~handle_strings:true
 		(fun e -> match e.eexpr with
@@ -2488,7 +2492,8 @@ let generate con =
 			| TBinop (Ast.OpLt, e1, e2)
 			| TBinop (Ast.OpLte, e1, e2)
 			| TBinop (Ast.OpGte, e1, e2)
-			| TBinop (Ast.OpGt, e1, e2) -> is_dynamic_op e.etype || is_dynamic_op e1.etype || is_dynamic_op e2.etype || is_string e1.etype || is_string e2.etype
+			| TBinop (Ast.OpGt, e1, e2) ->
+				is_dynamic_op e.etype || is_dynamic_op e1.etype || is_dynamic_op e2.etype || is_string e1.etype || is_string e2.etype
 			| TBinop (_, e1, e2) -> is_dynamic_op e.etype || is_dynamic_expr is_dynamic_op e1 || is_dynamic_expr is_dynamic_op e2
 			| TUnop (_, _, e1) ->
 				is_dynamic_expr is_dynamic_op e1
@@ -2537,13 +2542,23 @@ let generate con =
 				| _ ->
 					let static = mk_static_field_access_infer (runtime_cl) "plus"  e1.epos [] in
 					mk_cast e.etype { eexpr = TCall(static, [e1; e2]); etype = t_dynamic; epos=e1.epos })
-		(fun e1 e2 ->
-			if is_string e1.etype then begin
-				{ e1 with eexpr = TCall(mk_field_access gen e1 "compareTo" e1.epos, [ e2 ]); etype = gen.gcon.basic.tint }
-			end else begin
-				let static = mk_static_field_access_infer (runtime_cl) "compare" e1.epos [] in
-				{ eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tint; epos=e1.epos }
-			end);
+		(fun op e e1 e2 ->
+				match nullable_basic e1.etype, nullable_basic e2.etype with
+					| Some(t1), None when is_java_basic_type e2.etype ->
+						{ e with eexpr = TBinop(op, mk_cast t1 e1, e2) }
+					| None, Some(t2) when is_java_basic_type e1.etype ->
+						{ e with eexpr = TBinop(op, e1, mk_cast t2 e2) }
+					| _ ->
+							let handler = if is_string e1.etype then begin
+									{ e1 with eexpr = TCall(mk_field_access gen e1 "compareTo" e1.epos, [ e2 ]); etype = gen.gcon.basic.tint }
+								end else begin
+									let static = mk_static_field_access_infer (runtime_cl) "compare" e1.epos [] in
+									{ eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tint; epos=e1.epos }
+								end
+							in
+							let zero = ExprBuilder.make_int gen.gcon 0 e.epos in
+							{ e with eexpr = TBinop(op, handler, zero) }
+			);
 
 	let closure_cl = get_cl (get_type gen (["haxe";"lang"],"Closure")) in
 	FilterClosures.configure gen (fun e1 s -> true) (ReflectionCFs.get_closure_func rcf_ctx closure_cl);

@@ -2991,6 +2991,13 @@ let generate con =
 			| _ -> false
 		in
 
+		let nullable_basic t = match gen.gfollow#run_f t with
+			| TType({ t_path = ([],"Null") }, [t]) when is_cs_basic_type t ->
+				Some(t)
+			| _ ->
+				None
+		in
+
 		DynamicOperators.configure gen
 			~handle_strings:false
 			(fun e -> match e.eexpr with
@@ -3056,13 +3063,23 @@ let generate con =
 					| _ ->
 						let static = mk_static_field_access_infer (runtime_cl) "plus"  e1.epos [] in
 						mk_cast e.etype { eexpr = TCall(static, [e1; e2]); etype = t_dynamic; epos=e1.epos })
-			(fun e1 e2 ->
-				if is_string e1.etype then begin
-					{ e1 with eexpr = TCall(mk_static_field_access_infer string_cl "Compare" e1.epos [], [ e1; e2 ]); etype = gen.gcon.basic.tint }
-				end else begin
-					let static = mk_static_field_access_infer (runtime_cl) "compare" e1.epos [] in
-					{ eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tint; epos=e1.epos }
-				end);
+		(fun op e e1 e2 ->
+				match nullable_basic e1.etype, nullable_basic e2.etype with
+					| Some(t1), None when is_cs_basic_type e2.etype ->
+						{ e with eexpr = TBinop(op, mk_cast t1 e1, e2) }
+					| None, Some(t2) when is_cs_basic_type e1.etype ->
+						{ e with eexpr = TBinop(op, e1, mk_cast t2 e2) }
+					| _ ->
+							let handler = if is_string e1.etype then begin
+									{ e1 with eexpr = TCall(mk_static_field_access_infer string_cl "Compare" e1.epos [], [ e1; e2 ]); etype = gen.gcon.basic.tint }
+								end else begin
+									let static = mk_static_field_access_infer (runtime_cl) "compare" e1.epos [] in
+									{ eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tint; epos=e1.epos }
+								end
+							in
+							let zero = ExprBuilder.make_int gen.gcon 0 e.epos in
+							{ e with eexpr = TBinop(op, handler, zero) }
+		);
 
 		FilterClosures.configure gen (fun e1 s -> true) (ReflectionCFs.get_closure_func rcf_ctx closure_cl);
 
