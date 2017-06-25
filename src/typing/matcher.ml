@@ -406,10 +406,19 @@ module Pattern = struct
 					pctx.current_locals <- PMap.add name (v,p) pctx.current_locals
 				) pctx1.current_locals;
 				PatOr(pat1,pat2)
-			| EBinop(OpAssign,(EConst (Ident s),p),e2) ->
+			| EBinop(OpAssign,e1,e2) ->
 				let pat = make pctx t e2 in
-				let v = add_local s p in
-				PatBind(v,pat)
+				let rec loop e = match e with
+					| (EConst (Ident s),p) ->
+						let v = add_local s p in
+						PatBind(v,pat)
+					| (EParenthesis e1,_) -> loop e1
+					| (EDisplay(e1,_),_) ->
+						ignore(Typer.handle_display ctx e (WithType t));
+						loop e
+					| _ -> fail()
+					in
+					loop e1
 			| EBinop(OpArrow,e1,e2) ->
 				let v = add_local "_" null_pos in
 				let e1 = type_expr ctx e1 Value in
