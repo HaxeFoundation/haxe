@@ -2951,7 +2951,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 	in
 	let check_path_display path p = match ctx.com.display.dms_kind with
 		(* We cannot use ctx.is_display_file because the import could come from an import.hx file. *)
-		| DMDiagnostics b when (b && not (ExtString.String.ends_with p.pfile "import.hx")) || Display.is_display_file p.pfile ->
+		| DMDiagnostics b when (b || Display.is_display_file p.pfile) && not (ExtString.String.ends_with p.pfile "import.hx") ->
 			Display.ImportHandling.add_import_position ctx.com p path;
 		| DMStatistics | DMUsage _ ->
 			Display.ImportHandling.add_import_position ctx.com p path;
