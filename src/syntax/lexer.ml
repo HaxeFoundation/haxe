@@ -402,36 +402,39 @@ and string2 lexbuf =
 	| "${" ->
 		let pmin = lexeme_start lexbuf in
 		store lexbuf;
-		(try code_string lexbuf with Exit -> error Unclosed_code pmin);
+		(try code_string lexbuf 0 with Exit -> error Unclosed_code pmin);
 		string2 lexbuf;
 	| Plus (Compl ('\'' | '\\' | '\r' | '\n' | '$')) -> store lexbuf; string2 lexbuf
 	| _ -> assert false
 
-and code_string lexbuf =
+and code_string lexbuf open_braces =
 	match%sedlex lexbuf with
 	| eof -> raise Exit
-	| '\n' | '\r' | "\r\n" -> newline lexbuf; store lexbuf; code_string lexbuf
-	| '{' | '/' -> store lexbuf; code_string lexbuf
-	| '}' -> store lexbuf; (* stop *)
+	| '\n' | '\r' | "\r\n" -> newline lexbuf; store lexbuf; code_string lexbuf open_braces
+	| '{' -> store lexbuf; code_string lexbuf (open_braces + 1)
+	| '/' -> store lexbuf; code_string lexbuf open_braces
+	| '}' ->
+		store lexbuf;
+		if open_braces > 0 then code_string lexbuf (open_braces - 1)
 	| '"' ->
 		add "\"";
 		let pmin = lexeme_start lexbuf in
 		(try ignore(string lexbuf) with Exit -> error Unterminated_string pmin);
 		add "\"";
-		code_string lexbuf
+		code_string lexbuf open_braces
 	| "'" ->
 		add "'";
 		let pmin = lexeme_start lexbuf in
 		let pmax = (try string2 lexbuf with Exit -> error Unterminated_string pmin) in
 		add "'";
 		fast_add_fmt_string { pfile = !cur.lfile; pmin = pmin; pmax = pmax };
-		code_string lexbuf
+		code_string lexbuf open_braces
 	| "/*" ->
 		let pmin = lexeme_start lexbuf in
 		(try ignore(comment lexbuf) with Exit -> error Unclosed_comment pmin);
-		code_string lexbuf
-	| "//", Star (Compl ('\n' | '\r')) -> store lexbuf; code_string lexbuf
-	| Plus (Compl ('/' | '"' | '\'' | '{' | '}' | '\n' | '\r')) -> store lexbuf; code_string lexbuf
+		code_string lexbuf open_braces
+	| "//", Star (Compl ('\n' | '\r')) -> store lexbuf; code_string lexbuf open_braces
+	| Plus (Compl ('/' | '"' | '\'' | '{' | '}' | '\n' | '\r')) -> store lexbuf; code_string lexbuf open_braces
 	| _ -> assert false
 
 and regexp lexbuf =
