@@ -136,6 +136,11 @@ let rec replace_type_param t = match follow t with
 	| TInst(cl, params) -> TInst(cl, List.map replace_type_param params)
 	| _ -> t
 
+let in_runtime_class gen =
+	match gen.gcurrent_class with
+	| Some { cl_path = ["haxe";"lang"],"Runtime"} -> true
+	| _ -> false
+
 let is_java_basic_type t =
 	match follow t with
 		| TInst( { cl_path = (["haxe"], "Int32") }, [] )
@@ -600,17 +605,10 @@ struct
 
 	let configure gen runtime_cl =
 		let cl_boolean = get_cl (get_type gen (["java";"lang"],"Boolean")) in
-		let cl_double = get_cl (get_type gen (["java";"lang"],"Double")) in
-		let cl_integer = get_cl (get_type gen (["java";"lang"],"Integer")) in
-		let cl_byte = get_cl (get_type gen (["java";"lang"],"Byte")) in
-		let cl_short = get_cl (get_type gen (["java";"lang"],"Short")) in
-		let cl_character = get_cl (get_type gen (["java";"lang"],"Character")) in
-		let cl_float = get_cl (get_type gen (["java";"lang"],"Float")) in
-		let cl_long = get_cl (get_type gen (["java";"lang"],"Long")) in
+		let cl_number = get_cl (get_type gen (["java";"lang"],"Number")) in
 
 		(if java_hash "Testing string hashCode implementation from haXe" <> (Int32.of_int 545883604) then assert false);
 		let basic = gen.gcon.basic in
-		let tchar = mt_to_t_dyn ( get_type gen (["java"], "Char16") ) in
 		let tbyte = mt_to_t_dyn ( get_type gen (["java"], "Int8") ) in
 		let tshort = mt_to_t_dyn ( get_type gen (["java"], "Int16") ) in
 		let tsingle = mt_to_t_dyn ( get_type gen ([], "Single") ) in
@@ -678,6 +676,32 @@ struct
 				}
 		in
 
+		let mk_dyn_box boxed_t expr =
+			let name = match boxed_t with
+				| TInst({ cl_path = (["java";"lang"],"Integer") },[]) ->
+					"numToInteger"
+				| TInst({ cl_path = (["java";"lang"],"Double") },[]) ->
+					"numToDouble"
+				| TInst({ cl_path = (["java";"lang"],"Float") },[]) ->
+					"numToFloat"
+				| TInst({ cl_path = (["java";"lang"],"Byte") },[]) ->
+					"numToByte"
+				| TInst({ cl_path = (["java";"lang"],"Long") },[]) ->
+					"numToLong"
+				| TInst({ cl_path = (["java";"lang"],"Short") },[]) ->
+					"numToShort"
+				| _ -> gen.gcon.error ("Invalid boxed type " ^ (debug_type boxed_t)) expr.epos; assert false
+			in
+			{
+				eexpr = TCall(
+					mk_static_field_access_infer runtime_cl name expr.epos [],
+					[ mk_cast (TInst(cl_number,[])) expr ]
+				);
+				etype = boxed_t;
+				epos = expr.epos
+			}
+		in
+
 		let rec run e =
 			match e.eexpr with
 				(* for new NativeArray<T> issues *)
@@ -708,8 +732,6 @@ struct
 						| _ ->
 							{ e with eexpr = TCall(run efield, List.map run args) }
 					)
-(*				 | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("toString") })) }, [] ) ->
-					run ef *)
 
 				| TCast(expr, _) when is_boxed_number (gen.greal_type expr.etype) && is_unboxed_number (gen.greal_type e.etype) ->
 					let to_t = gen.greal_type e.etype in
@@ -728,22 +750,22 @@ struct
 									{ e with eexpr = TCast(run expr, md) }
 								else
 									run expr
-							end else begin
-								let box_cl, unboxed_t = get_unboxed_from_boxed to_t in
-								mk_valueof_call to_t (mk_unbox to_t (run expr))
-							end
+							end else
+								mk_dyn_box (gen.greal_type e.etype) (run expr)
 						else begin
-							let box_cl, unboxed_t = get_unboxed_from_boxed to_t in
-							mk_valueof_call to_t (run (mk_cast unboxed_t expr))
+							if in_runtime_class gen then
+								mk_cast e.etype (run expr)
+							else
+								mk_dyn_box (gen.greal_type e.etype) (run expr)
 						end
 					in
 					ret
 
-				| TCast(expr, _) when is_bool e.etype && is_dynamic gen expr.etype ->
+				| TCast(expr, _) when is_bool e.etype ->
 					{
 						eexpr = TCall(
 							mk_static_field_access_infer runtime_cl "toBool" expr.epos [],
-							[ run expr ]
+							[ mk_cast_if_needed (TInst(cl_boolean,[])) (run expr) ]
 						);
 						etype = basic.tbool;
 						epos = e.epos
