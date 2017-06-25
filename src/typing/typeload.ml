@@ -1778,7 +1778,7 @@ let check_global_metadata ctx meta f_add mpath tpath so =
 		let add = ((field_mode && to_fields) || (not field_mode && to_types)) && (match_path recursive sl1 sl2) in
 		if add then f_add m
 	) ctx.g.global_metadata;
-	if ctx.is_display_file then Display.DisplayEmitter.check_display_metadata ctx meta
+	if ctx.is_display_file then delay ctx PCheckConstraint (fun () -> Display.DisplayEmitter.check_display_metadata ctx meta)
 
 let patch_class ctx c fields =
 	let path = match c.cl_kind with
