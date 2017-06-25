@@ -2488,7 +2488,7 @@ let generate con =
 			| TBinop (Ast.OpLt, e1, e2)
 			| TBinop (Ast.OpLte, e1, e2)
 			| TBinop (Ast.OpGte, e1, e2)
-			| TBinop (Ast.OpGt, e1, e2) -> is_dynamic_op e.etype || is_dynamic_expr is_dynamic_op e1 || is_dynamic_expr is_dynamic_op e2 || is_string e1.etype || is_string e2.etype
+			| TBinop (Ast.OpGt, e1, e2) -> is_dynamic_op e.etype || is_dynamic_op e1.etype || is_dynamic_op e2.etype || is_string e1.etype || is_string e2.etype
 			| TBinop (_, e1, e2) -> is_dynamic_op e.etype || is_dynamic_expr is_dynamic_op e1 || is_dynamic_expr is_dynamic_op e2
 			| TUnop (_, _, e1) ->
 				is_dynamic_expr is_dynamic_op e1
