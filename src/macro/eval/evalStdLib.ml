@@ -1480,21 +1480,25 @@ module StdNativeProcess = struct
 		let len = decode_int len in
 		f this (Bytes.unsafe_to_string bytes) pos len
 
+	let process_catch f vthis =
+		try f (this vthis)
+		with Failure msg -> exc_string msg
+
 	let close = vifun0 (fun vthis ->
-		Process.close (this vthis);
+		process_catch Process.close vthis;
 		vnull
 	)
 
 	let exitCode = vifun0 (fun vthis ->
-		vint (Process.exit (this vthis))
+		vint (process_catch Process.exit vthis)
 	)
 
 	let getPid = vifun0 (fun vthis ->
-		vint (Process.pid (this vthis))
+		vint (process_catch Process.pid vthis)
 	)
 
 	let kill = vifun0 (fun vthis ->
-		Process.kill (this vthis);
+		process_catch Process.kill vthis;
 		vnull
 	)
 
@@ -1507,7 +1511,7 @@ module StdNativeProcess = struct
 	)
 
 	let closeStdin = vifun0 (fun vthis ->
-		Process.close_stdin (this vthis);
+		process_catch Process.close_stdin vthis;
 		vnull
 	)
 
@@ -2687,7 +2691,7 @@ let init_constructors builtins =
 let init_empty_constructors builtins =
 	let h = builtins.empty_constructor_builtins in
 	Hashtbl.add h key_Array (fun () -> encode_array_instance (EvalArray.create [||]));
-	Hashtbl.add h key_eval_Vector (fun () -> encode_vector_instance (Array.create 0 vnull));
+	Hashtbl.add h key_eval_Vector (fun () -> encode_vector_instance (Array.make 0 vnull));
 	Hashtbl.add h key_Date (fun () -> encode_instance key_Date ~kind:(IDate 0.));
 	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre.regexp ""; r_global = false; r_string = ""; r_groups = [||]}));
 	Hashtbl.add h key_String (fun () -> encode_rope Rope.empty);
