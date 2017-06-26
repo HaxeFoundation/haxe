@@ -163,6 +163,30 @@ class Toplevel extends DisplayTestCase {
 		eq(true, hasToplevel(toplevel(pos(2)), "type", "FieldT2"));
 	}
 
+	/**
+	import cases.Toplevel.E.a;
+
+	enum E {
+		a;
+	}
+
+	class Main {
+		static var a:Int;
+		function new(a) {
+			{-1-}
+		}
+
+		static function main() {
+		}
+	}
+	**/
+	function testDuplicates() {
+		var toplevels = toplevel(pos(1));
+		toplevels = toplevels.filter(function(t) return t.name == "a");
+		eq(1, toplevels.length);
+		eq("local", toplevels[0].kind);
+	}
+
 	public static function hasToplevel(a:Array<ToplevelElement>, kind:String, name:String):Bool {
 		return a.exists(function(t) return t.kind == kind && t.name == name);
 	}

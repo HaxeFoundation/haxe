@@ -721,6 +721,27 @@ module StdDate = struct
 				tm_sec = int_of_string (Str.matched_group 6 s);
 			} in
 			encode_date (fst (Unix.mktime t))
+		| 10 ->
+			let r = Str.regexp "^\\([0-9][0-9][0-9][0-9]\\)-\\([0-9][0-9]\\)-\\([0-9][0-9]\\)$" in
+			if not (Str.string_match r s 0) then exc_string ("Invalid date format : " ^ s);
+			let t = Unix.localtime (Unix.time()) in
+			let t = { t with
+				tm_year = int_of_string (Str.matched_group 1 s) - 1900;
+				tm_mon = int_of_string (Str.matched_group 2 s) - 1;
+				tm_mday = int_of_string (Str.matched_group 3 s);
+				tm_hour = 0;
+				tm_min = 0;
+				tm_sec = 0;
+			} in
+			encode_date (fst (Unix.mktime t))
+		| 8 ->
+			let r = Str.regexp "^\\([0-9][0-9]\\):\\([0-9][0-9]\\):\\([0-9][0-9]\\)$" in
+			if not (Str.string_match r s 0) then exc_string ("Invalid date format : " ^ s);
+			let h = int_of_string (Str.matched_group 1 s) in
+			let m = int_of_string (Str.matched_group 2 s) in
+			let s = int_of_string (Str.matched_group 3 s) in
+			let t = h * 60 * 60 + m * 60 + s in
+			encode_date (float_of_int t)
 		| _ ->
 			exc_string ("Invalid date format : " ^ s)
 	)
@@ -1480,21 +1501,25 @@ module StdNativeProcess = struct
 		let len = decode_int len in
 		f this (Bytes.unsafe_to_string bytes) pos len
 
+	let process_catch f vthis =
+		try f (this vthis)
+		with Failure msg -> exc_string msg
+
 	let close = vifun0 (fun vthis ->
-		Process.close (this vthis);
+		process_catch Process.close vthis;
 		vnull
 	)
 
 	let exitCode = vifun0 (fun vthis ->
-		vint (Process.exit (this vthis))
+		vint (process_catch Process.exit vthis)
 	)
 
 	let getPid = vifun0 (fun vthis ->
-		vint (Process.pid (this vthis))
+		vint (process_catch Process.pid vthis)
 	)
 
 	let kill = vifun0 (fun vthis ->
-		Process.kill (this vthis);
+		process_catch Process.kill vthis;
 		vnull
 	)
 
@@ -1507,7 +1532,7 @@ module StdNativeProcess = struct
 	)
 
 	let closeStdin = vifun0 (fun vthis ->
-		Process.close_stdin (this vthis);
+		process_catch Process.close_stdin vthis;
 		vnull
 	)
 
@@ -2687,7 +2712,7 @@ let init_constructors builtins =
 let init_empty_constructors builtins =
 	let h = builtins.empty_constructor_builtins in
 	Hashtbl.add h key_Array (fun () -> encode_array_instance (EvalArray.create [||]));
-	Hashtbl.add h key_eval_Vector (fun () -> encode_vector_instance (Array.create 0 vnull));
+	Hashtbl.add h key_eval_Vector (fun () -> encode_vector_instance (Array.make 0 vnull));
 	Hashtbl.add h key_Date (fun () -> encode_instance key_Date ~kind:(IDate 0.));
 	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre.regexp ""; r_global = false; r_string = ""; r_groups = [||]}));
 	Hashtbl.add h key_String (fun () -> encode_rope Rope.empty);

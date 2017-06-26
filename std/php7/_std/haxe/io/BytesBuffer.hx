@@ -69,7 +69,7 @@ class BytesBuffer {
 		if( pos < 0 || len < 0 || pos + len > src.length ) {
 			throw Error.OutsideBounds;
 		} else {
-			Syntax.binop(b, '.=', src.getData().sub(pos, len).toString());
+			b += src.getData().sub(pos, len).toString();
 		}
 	}
 

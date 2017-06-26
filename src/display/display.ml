@@ -786,19 +786,20 @@ module ToplevelCollector = struct
 
 	let run ctx only_types =
 		let acc = DynArray.create () in
+		let add x = DynArray.add acc x in
 
 		if not only_types then begin
 			(* locals *)
 			PMap.iter (fun _ v ->
 				if not (is_gen_local v) then
-					DynArray.add acc (ITLocal v)
+					add (ITLocal v)
 			) ctx.locals;
 
 			(* member vars *)
 			if ctx.curfun <> FunStatic then begin
 				let rec loop c =
 					List.iter (fun cf ->
-						DynArray.add acc (ITMember(ctx.curclass,cf))
+						add (ITMember(ctx.curclass,cf))
 					) c.cl_ordered_fields;
 					match c.cl_super with
 						| None ->
@@ -812,7 +813,7 @@ module ToplevelCollector = struct
 
 			(* statics *)
 			List.iter (fun cf ->
-				DynArray.add acc (ITStatic(ctx.curclass,cf))
+				add (ITStatic(ctx.curclass,cf))
 			) ctx.curclass.cl_ordered_statics;
 
 			(* enum constructors *)
@@ -820,7 +821,7 @@ module ToplevelCollector = struct
 				match t with
 				| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta ->
 					List.iter (fun cf ->
-						if (Meta.has Meta.Enum cf.cf_meta) then DynArray.add acc (ITEnumAbstract(a,cf));
+						if (Meta.has Meta.Enum cf.cf_meta) then add (ITEnumAbstract(a,cf));
 					) c.cl_ordered_statics
 				| TClassDecl _ | TAbstractDecl _ ->
 					()
@@ -831,7 +832,7 @@ module ToplevelCollector = struct
 					end
 				| TEnumDecl e ->
 					PMap.iter (fun _ ef ->
-						DynArray.add acc (ITEnum(e,ef))
+						add (ITEnum(e,ef))
 					) e.e_constrs;
 			in
 			List.iter enum_ctors ctx.m.curmod.m_types;
@@ -846,15 +847,15 @@ module ToplevelCollector = struct
 						| TAbstractDecl {a_impl = Some c} -> (PMap.find s c.cl_statics).cf_type
 						| _ -> raise Not_found
 					in
-					DynArray.add acc (ITGlobal(mt,s,t))
+					add (ITGlobal(mt,s,t))
 				with Not_found ->
 					()
 			) ctx.m.module_globals;
 
 			(* literals *)
-			DynArray.add acc (ITLiteral "null");
-			DynArray.add acc (ITLiteral "true");
-			DynArray.add acc (ITLiteral "false");
+			add (ITLiteral "null");
+			add (ITLiteral "true");
+			add (ITLiteral "false");
 		end;
 
 		let module_types = ref [] in
@@ -906,16 +907,16 @@ module ToplevelCollector = struct
 		explore_class_paths ctx class_paths false add_package (fun _ -> ()) add_type;
 
 		List.iter (fun pack ->
-			DynArray.add acc (ITPackage pack)
+			add (ITPackage pack)
 		) !packages;
 
 		List.iter (fun mt ->
-			DynArray.add acc (ITType mt)
+			add (ITType mt)
 		) !module_types;
 
 		(* type params *)
 		List.iter (fun (_,t) ->
-			DynArray.add acc (ITType (module_type_of_type t))
+			add (ITType (module_type_of_type t))
 		) ctx.type_params;
 
 		DynArray.to_list acc

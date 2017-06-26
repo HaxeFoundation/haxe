@@ -291,6 +291,8 @@ import cs.NativeArray;
 					var key = _keys[j];
 					var val = vals[j];
 
+					_keys[j] = 0;
+					vals[j] = cast null;
 					setIsDelTrue(flags, j);
 					while (true) /* kick-out process; sort of like in Cuckoo hashing */
 					{
@@ -362,7 +364,7 @@ import cs.NativeArray;
 	{
 		return new IntMapValueIterator(this);
 	}
-	
+
 	public function copy() : IntMap<T> {
 		var copied = new IntMap<T>();
 		for(key in keys()) copied.set(key, get(key));

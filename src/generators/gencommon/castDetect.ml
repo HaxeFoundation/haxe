@@ -45,7 +45,7 @@ open Gencommon
 		Must run before ExpressionUnwrap
 
 *)
-let name = "cast_detect_2"
+let name = "cast_detect"
 let priority = solve_deps name [DBefore RealTypeParams.priority; DBefore ExpressionUnwrap.priority]
 
 (* ******************************************* *)
@@ -284,6 +284,8 @@ let do_unsafe_cast gen from_t to_t e	=
 	match gen.gfollow#run_f from_t, gen.gfollow#run_f to_t with
 	| TInst({ cl_kind = KTypeParameter tl },_), t2 when List.exists (fun t -> unifies t t2) tl ->
 		mk_cast to_t (mk_cast t_dynamic e)
+	| from_t, to_t when gen.gspecial_needs_cast to_t from_t ->
+		mk_cast to_t e
 	| _ ->
 		let do_default () =
 			gen.gon_unsafe_cast to_t e.etype e.epos;
@@ -332,6 +334,17 @@ let rec handle_cast gen e real_to_t real_from_t =
 		| TInst( { cl_path = ([], "String") }, []), _ ->
 			mk_cast false to_t e
 		| TInst( ({ cl_path = (["cs"|"java"], "NativeArray") } as c_array), [tp_to] ), TInst({ cl_path = (["cs"|"java"], "NativeArray") }, [tp_from]) when not (type_iseq gen (gen.greal_type tp_to) (gen.greal_type tp_from)) ->
+				(* when running e.g. var nativeArray:NativeArray<Dynamic> = @:privateAccess someIntMap.vals, we end up with a bad cast because of the type parameters differences *)
+				(* se clean these kinds of casts *)
+				let rec clean_cast e = match e.eexpr with
+					| TCast(expr,_) -> (match gen.greal_type e.etype with
+						| TInst({ cl_path = (["cs"|"java"],"NativeArray") }, _) ->
+							clean_cast expr
+						| _ ->
+							e)
+					| TParenthesis(e) | TMeta(_,e) -> clean_cast e
+					| _ -> e
+				in
 			(* see #5751 . NativeArray is special because of its ties to Array. We could potentially deal with this for all *)
 			(* TNew expressions, but it's not that simple, since we don't want to retype the whole expression list with the *)
 			(* updated type. *)
@@ -339,7 +352,11 @@ let rec handle_cast gen e real_to_t real_from_t =
 				| TNew(c,_,el) when c == c_array ->
 					mk_cast false (TInst(c_array,[tp_to])) { e with eexpr = TNew(c, [tp_to], el); etype = TInst(c_array,[tp_to]) }
 				| _ ->
-					mk_cast true to_t e)
+					try
+						type_eq gen EqRightDynamic tp_from tp_to;
+						e
+					with | Unify_error _ ->
+						mk_cast false to_t (clean_cast e))
 
 		| TInst(cl_to, params_to), TInst(cl_from, params_from) ->
 			let ret = ref None in
@@ -576,26 +593,27 @@ let choose_ctor gen cl tparams etl maybe_empty_t p =
 		| Some(sup,stl) -> get_changed_stl sup (List.map (apply_params c.cl_params tl) stl)
 	in
 	let ret_tparams = List.map (fun t -> match follow t with
-	| TDynamic _ | TMono _ -> t_empty
-	| _ -> t) tparams in
+		| TDynamic _ | TMono _ -> t_empty
+		| _ -> t) tparams
+	in
 	let ret_stl = get_changed_stl cl ret_tparams in
 	let ctors = ctor :: ctor.cf_overloads in
 	List.iter replace_mono etl;
 	(* first filter out or select outright maybe_empty *)
 	let ctors, is_overload = match etl, maybe_empty_t with
-	| [t], Some empty_t ->
-		let count = ref 0 in
-		let is_empty_call = Type.type_iseq t empty_t in
-		let ret = List.filter (fun cf -> match follow cf.cf_type with
-		(* | TFun([_,_,t],_) -> incr count; true *)
-		| TFun([_,_,t],_) ->
-			replace_mono t; incr count; is_empty_call = (Type.type_iseq t empty_t)
-		| _ -> false) ctors in
-		ret, !count > 1
-	| _ ->
-		let len = List.length etl in
-		let ret = List.filter (fun cf -> List.length (fst (get_fun cf.cf_type)) = len) ctors in
-		ret, (match ret with | _ :: [] -> false | _ -> true)
+		| [t], Some empty_t ->
+			let count = ref 0 in
+			let is_empty_call = Type.type_iseq t empty_t in
+			let ret = List.filter (fun cf -> match follow cf.cf_type with
+				| TFun([_,_,t],_) ->
+					replace_mono t; incr count; is_empty_call = (Type.type_iseq t empty_t)
+				| _ -> false) ctors
+			in
+			ret, !count > 1
+		| _ ->
+			let len = List.length etl in
+			let ret = List.filter (fun cf -> List.length (fst (get_fun cf.cf_type)) = len) ctors in
+			ret, (match ret with | _ :: [] -> false | _ -> true)
 	in
 	let rec check_arg arglist elist =
 		match arglist, elist with
@@ -1192,9 +1210,10 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 						| (TInst(c,tl) as tinst1), TAbstract({ a_path = ["cs"],"Pointer" }, [tinst2]) when type_iseq gen tinst1 (gen.greal_type tinst2) ->
 							run expr
 						| _ ->
+							let expr = run expr in
 							let last_unsafe = gen.gon_unsafe_cast in
 							gen.gon_unsafe_cast <- (fun t t2 pos -> ());
-							let ret = handle (run expr) e.etype expr.etype in
+							let ret = handle expr e.etype expr.etype in
 							gen.gon_unsafe_cast <- last_unsafe;
 							match ret.eexpr with
 								| TCast _ -> { ret with etype = gen.greal_type e.etype }

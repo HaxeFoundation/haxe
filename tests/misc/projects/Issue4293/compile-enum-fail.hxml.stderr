@@ -1,1 +1,1 @@
-OnEnum.hx:1: characters 15-16 : Duplicate type parameter name: T
+OnEnum.hx:1: characters 16-17 : Duplicate type parameter name: T

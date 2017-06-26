@@ -32,7 +32,7 @@ class File {
 			var start = lines[mid];
 			return
 				if (mid == min)
-					{line: mid, pos: pos - start};
+					{line: mid, pos: pos - start + 1};
 				else if (start > pos)
 					loop(min, mid);
 				else

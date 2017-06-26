@@ -62,7 +62,7 @@ open Gencommon
 		must run before OverloadingConstructor due to later priority conflicts. Since ExpressionUnwrap is only
 		defined afterwards, we will set this value with absolute values
 *)
-let init com handle_strings (should_change:texpr->bool) (equals_handler:texpr->texpr->texpr) (dyn_plus_handler:texpr->texpr->texpr->texpr) (compare_handler:texpr->texpr->texpr) =
+let init com handle_strings (should_change:texpr->bool) (equals_handler:texpr->texpr->texpr) (dyn_plus_handler:texpr->texpr->texpr->texpr) (compare_handler:Ast.binop->texpr->texpr->texpr->texpr) =
 	let get_etype_one e =
 		if like_int e.etype then
 			ExprBuilder.make_int com 1 e.epos
@@ -110,8 +110,7 @@ let init com handle_strings (should_change:texpr->bool) (equals_handler:texpr->t
 				else
 					dyn_plus_handler e (run e1) (run e2)
 			| OpGt | OpGte | OpLt | OpLte  -> (* type 2 *)
-				let zero = ExprBuilder.make_int com 0 e.epos in
-				mk (TBinop (op, compare_handler (run e1) (run e2), zero)) com.basic.tbool e.epos
+				compare_handler op e (run e1) (run e2)
 			| OpMult | OpDiv | OpSub | OpMod -> (* always cast everything to double *)
 				let etype = (get_etype_one e).etype in
 				{ e with eexpr = TBinop (op, mk_cast etype (run e1), mk_cast etype (run e2)) }

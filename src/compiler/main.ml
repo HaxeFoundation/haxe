@@ -758,6 +758,7 @@ try
 		com.warning <- if com.display.dms_error_policy = EPCollect then (fun s p -> add_diagnostics_message com s p DisplayTypes.DiagnosticsSeverity.Warning) else message ctx;
 		com.error <- error ctx;
 	end;
+	Lexer.zero_based_columns := Common.defined com Define.OldErrorFormat;
 	DisplayOutput.process_display_file com classes;
 	let ext = Initialize.initialize_target ctx com classes in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
@@ -774,7 +775,7 @@ try
 			("--help-metas", Arg.Unit (fun () -> ()),": print help for all compiler metadatas");
 			("<dot-path>", Arg.Unit (fun () -> ()),": compile the module specified by dot-path");
 		] in
-		if !cmds = [] && not !did_something then Arg.usage help_spec usage;
+		if !cmds = [] && not !did_something then print_endline (Arg.usage_string help_spec usage);
 	end else begin
 		ctx.setup();
 		Common.log com ("Classpath : " ^ (String.concat ";" com.class_path));

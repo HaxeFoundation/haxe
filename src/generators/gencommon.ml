@@ -607,7 +607,7 @@ let new_ctx con =
 		ghandle_cast = (fun to_t from_t e -> mk_cast to_t e);
 		gon_unsafe_cast = (fun t t2 pos -> (gen.gcon.warning ("Type " ^ (debug_type t2) ^ " is being cast to the unrelated type " ^ (s_type (print_context()) t)) pos));
 		gneeds_box = (fun t -> false);
-		gspecial_needs_cast = (fun to_t from_t -> true);
+		gspecial_needs_cast = (fun to_t from_t -> false);
 		gsupported_conversions = Hashtbl.create 0;
 
 		gadd_type = (fun md should_filter ->
