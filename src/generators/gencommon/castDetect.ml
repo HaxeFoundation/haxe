@@ -45,7 +45,7 @@ open Gencommon
 		Must run before ExpressionUnwrap
 
 *)
-let name = "cast_detect_2"
+let name = "cast_detect"
 let priority = solve_deps name [DBefore RealTypeParams.priority; DBefore ExpressionUnwrap.priority]
 
 (* ******************************************* *)
