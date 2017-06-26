@@ -2476,6 +2476,7 @@ let generate con =
 	let is_int t = like_int t in
 
 	let nullable_basic t = match gen.gfollow#run_f t with
+		| TAbstract({ a_path = ([],"Null") }, [t])
 		| TType({ t_path = ([],"Null") }, [t]) when is_java_basic_type t ->
 			Some(t)
 		| _ ->

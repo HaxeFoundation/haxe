@@ -2994,7 +2994,8 @@ let generate con =
 		in
 
 		let nullable_basic t = match gen.gfollow#run_f t with
-			| TType({ t_path = ([],"Null") }, [t]) when is_cs_basic_type t ->
+			| TType({ t_path = ([],"Null") }, [t])
+			| TAbstract({ a_path = ([],"Null") }, [t]) when is_cs_basic_type t ->
 				Some(t)
 			| _ ->
 				None
