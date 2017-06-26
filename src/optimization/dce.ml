@@ -43,7 +43,7 @@ type dce = {
 (* check for @:keepSub metadata, which forces @:keep on child classes *)
 let rec super_forces_keep c =
 	Meta.has Meta.KeepSub c.cl_meta || match c.cl_super with
-	| Some (csup,_) -> super_forces_keep csup
+	| Some (csup,_) -> csup.cl_extern || super_forces_keep csup
 	| _ -> false
 
 let is_std_file dce file =

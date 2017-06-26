@@ -45,13 +45,16 @@ let run_filter com types =
 					else
 						Option.map_default (is_hxgen_class) false c.cl_super || List.exists is_hxgen_class c.cl_implements
 				end else begin
-					if Meta.has Meta.NativeChildren c.cl_meta || Meta.has Meta.NativeGen c.cl_meta then
+					if Meta.has Meta.NativeChildren c.cl_meta || Meta.has Meta.NativeGen c.cl_meta || Meta.has Meta.Struct c.cl_meta then
 						Option.map_default is_hxgen_class false c.cl_super || List.exists is_hxgen_class c.cl_implements
 					else
 						let rec has_nativec (c,p) =
 							if is_hxgen_class (c,p) then
 								false
-							else
+							else if Meta.has Meta.Struct c.cl_meta then begin
+								com.error ("Struct types cannot be subclassed") c.cl_pos;
+								true
+							end else
 								(Meta.has Meta.NativeChildren c.cl_meta && not (Option.map_default is_hxgen_class false c.cl_super || List.exists is_hxgen_class c.cl_implements))
 								|| Option.map_default has_nativec false c.cl_super
 						in

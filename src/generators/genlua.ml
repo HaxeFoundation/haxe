@@ -997,7 +997,7 @@ and gen_anon_value ctx e =
 	ctx.in_value <- fst old;
 	ctx.in_loop <- snd old;
 	ctx.separator <- true
-    | { etype = TFun (args, ret)}  ->
+    | _ when (is_function_type ctx e.etype) ->
 	spr ctx "function(_,...) return ";
 	gen_value ctx e;
 	spr ctx "(...) end";
@@ -1141,9 +1141,8 @@ and gen_value ctx e =
 		v()
 
 and is_function_type ctx t =
-    match t with
+    match follow(t) with
     | TFun _ -> true
-    | TMono r -> (match !r with | Some (TFun _) -> true | _ -> false)
     | _ -> false;
 
 and gen_tbinop ctx op e1 e2 =

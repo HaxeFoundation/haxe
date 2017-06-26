@@ -211,6 +211,8 @@ import java.NativeArray;
 					var key = _keys[j];
 					var val = vals[j];
 
+					_keys[j] = null;
+					vals[j] = cast null;
 					hashes[j] = FLAG_DEL;
 					while (true) /* kick-out process; sort of like in Cuckoo hashing */
 					{
@@ -409,8 +411,8 @@ import java.NativeArray;
 			}
 		};
 	}
-	
-	
+
+
 	public function copy() : ObjectMap<K,V> {
 		var copied = new ObjectMap();
 		for(key in keys()) copied.set(key, get(key));

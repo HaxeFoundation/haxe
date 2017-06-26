@@ -245,6 +245,7 @@ import java.lang.ref.ReferenceQueue;
 				{
 					var entry = entries[j];
 
+					entries[j] = null;
 					hashes[j] = FLAG_DEL;
 					while (true) /* kick-out process; sort of like in Cuckoo hashing */
 					{
@@ -447,8 +448,8 @@ import java.lang.ref.ReferenceQueue;
 			}
 		};
 	}
-	
-	
+
+
 	public function copy() : WeakMap<K,V> {
 		var copied = new WeakMap();
 		for(key in keys()) copied.set(key, get(key));

@@ -1594,7 +1594,7 @@ let get_closure_func ctx closure_cl =
 
 let configure_dynamic_field_access ctx =
 	let gen = ctx.rcf_gen in
-	let is_dynamic expr fexpr field =
+	let is_dynamic fexpr field =
 		match (field_access_esp gen (gen.greal_type fexpr.etype) field) with
 		| FEnumField _
 		| FClassField _ -> false
@@ -1602,7 +1602,7 @@ let configure_dynamic_field_access ctx =
 	in
 
 	let maybe_hash = if ctx.rcf_optimize then fun str pos -> Some (hash_field_i32 ctx pos str) else fun str pos -> None in
-	DynamicFieldAccess.configure gen is_dynamic
+	DynamicFieldAccess.configure gen ~fix_tparam_access:true is_dynamic
 		(fun expr fexpr field set is_unsafe ->
 			let hash = maybe_hash field fexpr.epos in
 			ctx.rcf_on_getset_field expr fexpr field hash set is_unsafe

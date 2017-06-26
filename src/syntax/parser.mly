@@ -251,7 +251,7 @@ let reify in_macro =
 			| [] -> ei
 			| _ ->
 				(* `macro : $TP<Int>` conveys the intent to use TP and overwrite the
-				   type parameters. *)
+					 type parameters. *)
 				let ea = to_array to_tparam t.tparams p in
 				let fields = [
 					("pack", (EField(ei,"pack"),p));
@@ -365,7 +365,9 @@ let reify in_macro =
 	and to_expr e _ =
 		let p = snd e in
 		let expr n vl =
-			let e = mk_enum "ExprDef" n vl p in
+			(* We don't want the position of the call expression to span the entire call (#6396). *)
+			let pmin = {p with pmax = p.pmin} in
+			let e = mk_enum "ExprDef" n vl pmin in
 			to_obj [("expr",e);("pos",to_pos p)] p
 		in
 		let loop e = to_expr e (snd e) in
@@ -510,7 +512,7 @@ let reify in_macro =
 					| Some _ -> begin
 						impl := (to_tpath t p) :: !impl;
 						!ext
-					  end)
+						end)
 				| HImplements i-> impl := (to_tpath i p) :: !impl
 			) d.d_flags;
 			to_obj [

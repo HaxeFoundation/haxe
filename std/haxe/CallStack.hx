@@ -208,9 +208,6 @@ class CallStack {
 					stack.push( method );
 				}
 			}
-			// stack.shift();
-			stack.shift();
-			stack.pop();
 			return stack;
 		#elseif cs
 			return makeStack(new cs.system.diagnostics.StackTrace(cs.internal.Exceptions.exception, true));

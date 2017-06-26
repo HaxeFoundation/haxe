@@ -1,4 +1,4 @@
-Main.hx:3: characters 35-54 : c : { test : String } -> Void should be Null<js.PromiseCallback<Int, Void>>
-Main.hx:3: characters 35-54 : c : { test : String } -> Void should be js.PromiseCallback<Int, Void>
-Main.hx:3: characters 35-54 : c : { test : String } -> Void should be haxe.extern.EitherType<Int -> Void, Int -> js.Promise<Void>>
-Main.hx:3: characters 35-54 : For function argument 'fulfillCallback'
+Main.hx:3: characters 36-55 : c : { test : String } -> Void should be Null<js.PromiseCallback<Int, Void>>
+Main.hx:3: characters 36-55 : c : { test : String } -> Void should be js.PromiseCallback<Int, Void>
+Main.hx:3: characters 36-55 : c : { test : String } -> Void should be haxe.extern.EitherType<Int -> Void, Int -> js.Promise<Void>>
+Main.hx:3: characters 36-55 : For function argument 'fulfillCallback'

@@ -37,6 +37,15 @@ class GenericCell<T> {
 
 #if cpp
 @:generic
+#if cppia
+private class GenericStackIterator<T> {
+	public var current : GenericCell<T>;
+	public function hasNext():Bool { return current!=null; }
+	public function next():T { var result = current.elt; current = current.next; return result; }
+
+	public function new(head) { current = head; }
+}
+#else
 private class GenericStackIterator<T> extends cpp.FastIterator<T> {
 	public var current : GenericCell<T>;
 	override public function hasNext():Bool { return current!=null; }
@@ -44,6 +53,8 @@ private class GenericStackIterator<T> extends cpp.FastIterator<T> {
 
 	public function new(head) { current = head; }
 }
+#end
+
 
 #end
 
