@@ -364,8 +364,7 @@ let mk_mono() = TMono (ref None)
 
 let rec t_dynamic = TDynamic t_dynamic
 
-let not_opened = ref Closed
-let mk_anon fl = TAnon { a_fields = fl; a_status = not_opened; }
+let mk_anon fl = TAnon { a_fields = fl; a_status = ref Closed; }
 
 (* We use this for display purposes because otherwise we never see the Dynamic type that
    is defined in StdTypes.hx. This is set each time a typer is created, but this is fine
