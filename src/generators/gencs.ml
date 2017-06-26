@@ -2100,9 +2100,7 @@ let generate con =
 					(* <T>(string arg1, object arg2) with T : object *)
 					(match cf.cf_expr with
 					| Some { eexpr = TFunction tf } ->
-							print w "%s(%s)%s" (params) (String.concat ", "
-								(List.map2 (fun (var,o) (_,_,t) -> sprintf "%s %s%s" (argt_s t) (change_id var.v_name) (if is_some o then " = default(" ^ t_s var.v_type ^ ")" else "")) tf.tf_args args)
-							) (params_ext)
+							print w "%s(%s)%s" (params) (String.concat ", " (List.map2 (fun (var, _) (_,_,t) -> sprintf "%s %s" (argt_s t) (change_id var.v_name)) tf.tf_args args)) (params_ext)
 					| _ ->
 							print w "%s(%s)%s" (params) (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (argt_s t) (change_id name)) args)) (params_ext)
 					);
