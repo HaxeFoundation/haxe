@@ -57,6 +57,7 @@ install_linux: &install_linux
     fi
   # Install dependencies
   - export APT_CACHE_DIR=~/apt-cache && mkdir -pv $APT_CACHE_DIR
+  - sudo apt-get install --reinstall ca-certificates # workaround for "Cannot add PPA: 'ppa:haxe/ocaml'. Please check that the PPA name or format is correct."
   - sudo add-apt-repository ppa:haxe/ocaml -y
   - sudo apt-get update -y
   - sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y
