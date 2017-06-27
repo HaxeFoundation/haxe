@@ -1346,7 +1346,7 @@ and can_gen_class_field ctx = function
 	| { cf_expr = (None | Some { eexpr = TConst TNull }) } when not (has_feature ctx "Type.getInstanceFields") ->
 		false
 	| f ->
-		not (is_physical_field f)
+		is_physical_field f
 
 
 let check_multireturn ctx c =
