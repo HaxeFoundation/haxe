@@ -113,7 +113,7 @@ build_dirs:
 _build/src/syntax/parser.ml:src/syntax/parser.mly
 	camlp4o -impl $< -o $@
 
-_build/src/compiler/version.ml:
+_build/src/compiler/version.ml: FORCE
 ifneq ($(ADD_REVISION),0)
 	$(MAKE) -f Makefile.version_extra -s --no-print-directory ADD_REVISION=$(ADD_REVISION) BRANCH=$(BRANCH) COMMIT_SHA=$(COMMIT_SHA) COMMIT_DATE=$(COMMIT_DATE) > _build/src/compiler/version.ml
 else
@@ -258,6 +258,8 @@ clean_tools:
 
 clean_package:
 	rm -rf $(PACKAGE_OUT_DIR)
+
+FORCE:
 
 # SUFFIXES
 
