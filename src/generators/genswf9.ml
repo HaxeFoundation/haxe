@@ -1957,7 +1957,7 @@ let generate_field_kind ctx f c stat =
 		in
 		loop f.cf_meta
 	in
-	if is_extern_field f then None else
+	if not (is_physical_field f) then None else
 	match f.cf_expr with
 	| Some { eexpr = TFunction fdata } ->
 		let rec loop c name =

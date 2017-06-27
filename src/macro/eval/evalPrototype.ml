@@ -191,7 +191,7 @@ let create_static_prototype ctx mt =
 				PrototypeBuilder.add_proto_field pctx name (lazy vnull);
 				let i = DynArray.length pctx.PrototypeBuilder.fields - 1 in
 				DynArray.add delays (fun proto -> proto.pfields.(i) <- (match eval_expr ctx key name e with Some e -> e | None -> vnull))
-			| _,None when not (is_extern_field cf) ->
+			| _,None when is_physical_field cf ->
 				PrototypeBuilder.add_proto_field pctx (hash_s cf.cf_name) (lazy vnull);
 			|  _ ->
 				()
@@ -243,7 +243,7 @@ let create_instance_prototype ctx c =
 			let v = lazy (vfunction (jit_tfunction ctx key name tf false pos)) in
 			if meth = MethDynamic then PrototypeBuilder.add_instance_field pctx name v;
 			PrototypeBuilder.add_proto_field pctx name v
-		| Var _,_ when not (is_extern_field cf) ->
+		| Var _,_ when is_physical_field cf ->
 			let name = hash_s cf.cf_name in
 			PrototypeBuilder.add_instance_field pctx name (lazy vnull);
 		|  _ ->

@@ -772,12 +772,11 @@ let extract_field = function
 	| FAnon f | FInstance (_,_,f) | FStatic (_,f) | FClosure (_,f) -> Some f
 	| _ -> None
 
-(* TODO: Function with bad name. It should be `is_non_physical_field` *)
-let is_extern_field f =
+let is_physical_field f =
 	match f.cf_kind with
-	| Method _ -> false
-	| Var { v_read = AccNormal | AccInline | AccNo } | Var { v_write = AccNormal | AccNo } -> false
-	| _ -> not (Meta.has Meta.IsVar f.cf_meta)
+	| Method _ -> true
+	| Var { v_read = AccNormal | AccInline | AccNo } | Var { v_write = AccNormal | AccNo } -> true
+	| _ -> Meta.has Meta.IsVar f.cf_meta
 
 let field_type f =
 	match f.cf_params with
