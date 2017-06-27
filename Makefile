@@ -104,6 +104,7 @@ libs:
 	$(foreach lib,$(EXTLIB_LIBS),$(MAKE) -C libs/$(lib) $(TARGET_FLAG) &&) true
 
 _build/%:%
+	mkdir -p $(dir $@)
 	cp $< $@
 
 build_dirs:
@@ -119,7 +120,7 @@ else
 	echo let version_extra = None > _build/src/compiler/version.ml
 endif
 
-build_src: | build_dirs $(BUILD_SRC) _build/src/syntax/parser.ml _build/src/compiler/version.ml
+build_src: | $(BUILD_SRC) _build/src/syntax/parser.ml _build/src/compiler/version.ml
 
 haxe: build_src
 	$(MAKE) -f $(MAKEFILENAME) build_pass_1
