@@ -809,6 +809,12 @@ typedef TypeDefinition = {
 	var name : String;
 
 	/**
+		The documentation of the type, if available. If the type has no
+		documentation, the value is `null`.
+	**/
+	@:optional var doc : Null<String>;
+
+	/**
 		The position to the type definition.
 	**/
 	var pos : Position;

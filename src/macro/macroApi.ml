@@ -1369,10 +1369,11 @@ let decode_type_def v =
 	let pos = decode_pos (field v "pos") in
 	let isExtern = decode_opt_bool (field v "isExtern") in
 	let fields = List.map decode_field (decode_array (field v "fields")) in
+	let doc = opt decode_string (field v "doc") in
 	let mk fl dl =
 		{
 			d_name = name;
-			d_doc = None;
+			d_doc = doc;
 			d_params = decode_tparams (field v "params");
 			d_meta = meta;
 			d_flags = fl;
