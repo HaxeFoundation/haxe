@@ -994,7 +994,7 @@ let generate con =
 	let fn_cl = get_cl (get_type gen (["haxe";"lang"],"Function")) in
 
 	let runtime_cl = get_cl (get_type gen (["haxe";"lang"],"Runtime")) in
-	let nulltdef = match (get_type gen ([],"Null")) with TTypeDecl t -> t | _ -> assert false in
+	let nulltabstract = get_abstract (get_type gen ([],"Null")) in
 
 	(*let string_ref = get_cl ( get_type gen (["haxe";"lang"], "StringRefl")) in*)
 
@@ -1035,8 +1035,8 @@ let generate con =
 									| TAbstract ({ a_path = ["java"],"Char16" },[])
 									| TType ({ t_path = [],"Single" },[])
 									| TAbstract ({ a_path = [],"Single" },[]) ->
-										TType(nulltdef, [f_t])
-									(*| TType ({ t_path = [], "Null"*)
+										TAbstract(nulltabstract, [f_t])
+									(*| TAbstract ({ a_path = [], "Null"*)
 									| TInst (cl, ((_ :: _) as p)) when cl.cl_path <> (["java"],"NativeArray") ->
 										(* TInst(cl, List.map (fun _ -> t_dynamic) p) *)
 										TInst(cl,p)
@@ -1078,8 +1078,8 @@ let generate con =
 			| TType ({ t_path = [],"Single" },[])
 			| TAbstract ({ a_path = [],"Single" },[]) ->
 					Some t
-			| TType (({ t_path = [],"Null" } as tdef),[t2]) ->
-					Some (TType(tdef,[gen.gfollow#run_f t2]))
+			| TAbstract (({ a_path = [],"Null" } as tab),[t2]) ->
+					Some (TAbstract(tab,[gen.gfollow#run_f t2]))
 			| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					Some (gen.gfollow#run_f ( Abstract.get_underlying_type a pl) )
 			| TAbstract( { a_path = ([], "EnumValue") }, _ )
@@ -1114,20 +1114,8 @@ let generate con =
 	let rec real_type t =
 		let t = gen.gfollow#run_f t in
 		match t with
-			| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-				real_type (Abstract.get_underlying_type a pl)
-			| TInst( { cl_path = (["haxe"], "Int32") }, [] ) -> gen.gcon.basic.tint
-			| TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> ti64
-			| TAbstract( { a_path = ([], "Class") }, p	)
-			| TAbstract( { a_path = ([], "Enum") }, p  )
-			| TInst( { cl_path = ([], "Class") }, p  )
-			| TInst( { cl_path = ([], "Enum") }, p	) -> TInst(cl_cl,[t_dynamic])
-			| TEnum(e,params) -> TEnum(e, List.map (fun _ -> t_dynamic) params)
-			| TInst(c,params) when Meta.has Meta.Enum c.cl_meta ->
-				TInst(c, List.map (fun _ -> t_dynamic) params)
-			| TInst({ cl_kind = KExpr _ }, _) -> t_dynamic
-			| TInst _ -> t
-			| TType({ t_path = ([], "Null") }, [t]) -> (
+			| TAbstract({ a_path = ([], "Null") }, [t]) when is_java_basic_type (gen.gfollow#run_f t) -> t_dynamic
+			| TAbstract({ a_path = ([], "Null") }, [t]) -> (
 				match gen.gfollow#run_f t with
 				| TAbstract( { a_path = ([], "Bool") }, [] ) ->
 					TInst(cl_boolean, [])
@@ -1152,6 +1140,19 @@ let generate con =
 					| _ -> real_type t
 				)
 			)
+			| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
+				real_type (Abstract.get_underlying_type a pl)
+			| TInst( { cl_path = (["haxe"], "Int32") }, [] ) -> gen.gcon.basic.tint
+			| TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> ti64
+			| TAbstract( { a_path = ([], "Class") }, p	)
+			| TAbstract( { a_path = ([], "Enum") }, p  )
+			| TInst( { cl_path = ([], "Class") }, p  )
+			| TInst( { cl_path = ([], "Enum") }, p	) -> TInst(cl_cl,[t_dynamic])
+			| TEnum(e,params) -> TEnum(e, List.map (fun _ -> t_dynamic) params)
+			| TInst(c,params) when Meta.has Meta.Enum c.cl_meta ->
+				TInst(c, List.map (fun _ -> t_dynamic) params)
+			| TInst({ cl_kind = KExpr _ }, _) -> t_dynamic
+			| TInst _ -> t
 			| TType _ | TAbstract _ -> t
 			| TAnon (anon) -> (match !(anon.a_status) with
 				| Statics _ | EnumStatics _ | AbstractStatics _ -> t
@@ -2459,7 +2460,7 @@ let generate con =
 	in
 
 	let may_nullable t = match gen.gfollow#run_f t with
-		| TType({ t_path = ([], "Null") }, [t]) ->
+		| TAbstract({ a_path = ([], "Null") }, [t]) ->
 			(match follow t with
 				| TInst({ cl_path = ([], "String") }, [])
 				| TAbstract ({ a_path = ([], "Float") },[])

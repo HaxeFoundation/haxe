@@ -188,7 +188,7 @@ let type_change_ok com t1 t2 =
 		let rec is_nullable_or_whatever = function
 			| TMono r ->
 				(match !r with None -> false | Some t -> is_nullable_or_whatever t)
-			| TType ({ t_path = ([],"Null") },[_]) ->
+			| TAbstract ({ a_path = ([],"Null") },[_]) ->
 				true
 			| TLazy f ->
 				is_nullable_or_whatever (!f())

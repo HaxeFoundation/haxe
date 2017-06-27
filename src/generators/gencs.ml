@@ -94,7 +94,7 @@ let is_pointer gen t =
 let rec is_null t =
 	match t with
 		| TInst( { cl_path = (["haxe"; "lang"], "Null") }, _ )
-		| TType( { t_path = ([], "Null") }, _ ) -> true
+		| TAbstract( { a_path = ([], "Null") }, _ ) -> true
 		| TType( t, tl ) -> is_null (apply_params t.t_params tl t.t_type)
 		| TMono r ->
 			(match !r with
@@ -786,8 +786,8 @@ let generate con =
 				| TAbstract ({ a_path = ["cs"],"Out" },_)
 				| TType ({ t_path = [],"Single" },[])
 				| TAbstract ({ a_path = [],"Single" },[]) -> Some t
-				| TType (({ t_path = [],"Null" } as tdef),[t2]) ->
-						Some (TType(tdef,[follow (gen.gfollow#run_f t2)]))
+				| TAbstract (({ a_path = [],"Null" } as tab),[t2]) ->
+						Some (TAbstract(tab,[follow (gen.gfollow#run_f t2)]))
 				| TAbstract({ a_path = ["cs"],"PointerAccess" },[t]) ->
 						Some (TAbstract(ptr,[t]))
 				| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
@@ -827,6 +827,23 @@ let generate con =
 		let rec real_type t =
 			let t = gen.gfollow#run_f t in
 			let ret = match t with
+				| TAbstract({ a_path = ([], "Null") }, [t]) ->
+					(*
+						Null<> handling is a little tricky.
+						It will only change to haxe.lang.Null<> when the actual type is non-nullable or a type parameter
+						It works on cases such as Hash<T> returning Null<T> since cast_detect will invoke real_type at the original type,
+						Null<T>, which will then return the type haxe.lang.Null<>
+					*)
+					if erase_generics then
+						if is_cs_basic_type t then
+							t_dynamic
+						else
+							real_type t
+					else
+						(match real_type t with
+							| TInst( { cl_kind = KTypeParameter _ }, _ ) -> TInst(null_t, [t])
+							| t when is_cs_basic_type t -> TInst(null_t, [t])
+							| _ -> real_type t)
 				| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					real_type (Abstract.get_underlying_type a pl)
 				| TAbstract ({ a_path = (["cs";"_Flags"], "EnumUnderlying") }, [t]) ->
@@ -854,23 +871,6 @@ let generate con =
 				| TInst(cl, params) when Meta.has Meta.Enum cl.cl_meta ->
 					TInst(cl, List.map (fun _ -> t_dynamic) params)
 				| TInst(cl, params) -> TInst(cl, change_param_type (TClassDecl cl) params)
-				| TType({ t_path = ([], "Null") }, [t]) ->
-					(*
-						Null<> handling is a little tricky.
-						It will only change to haxe.lang.Null<> when the actual type is non-nullable or a type parameter
-						It works on cases such as Hash<T> returning Null<T> since cast_detect will invoke real_type at the original type,
-						Null<T>, which will then return the type haxe.lang.Null<>
-					*)
-					if erase_generics then
-						if is_cs_basic_type t then
-							t_dynamic
-						else
-							real_type t
-					else
-						(match real_type t with
-							| TInst( { cl_kind = KTypeParameter _ }, _ ) -> TInst(null_t, [t])
-							| t when is_cs_basic_type t -> TInst(null_t, [t])
-							| _ -> real_type t)
 				| TAbstract _
 				| TType _ -> t
 				| TAnon (anon) when (match !(anon.a_status) with | Statics _ | EnumStatics _ | AbstractStatics _ -> true | _ -> false) -> t
@@ -2944,7 +2944,7 @@ let generate con =
 		in
 
 		let may_nullable t = match gen.gfollow#run_f t with
-			| TType({ t_path = ([], "Null") }, [t]) ->
+			| TAbstract({ a_path = ([], "Null") }, [t]) ->
 				(match follow t with
 					| TInst({ cl_path = ([], "String") }, [])
 					| TAbstract ({ a_path = ([], "Float") },[])

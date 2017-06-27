@@ -760,20 +760,17 @@ and type_string_suff suffix haxe_type remap =
    | TAbstract ({ a_path = ([],"Int") },[]) -> "int"
    | TAbstract ({ a_path = (["cpp"],"UInt8") },[]) -> "unsigned char"
    | TAbstract( { a_path = ([], "EnumValue") }, _  ) -> "Dynamic"
+   | TAbstract ({ a_path = ([],"Null") }, [t]) ->
+		(match follow t with
+		| TAbstract ({ a_path = [],"Int" },_)
+		| TAbstract ({ a_path = [],"Float" },_)
+		| TAbstract ({ a_path = [],"Bool" },_) -> "Dynamic" ^ suffix
+		| t when type_has_meta_key t Meta.NotNull -> "Dynamic" ^ suffix
+		| _ -> type_string_suff suffix t remap)
    | TEnum (enum,params) ->  "::" ^ (join_class_path_remap enum.e_path "::") ^ suffix
    | TInst (klass,params) ->  (class_string klass suffix params remap)
    | TType (type_def,params) ->
       (match type_def.t_path with
-      | [] , "Null" ->
-         (match params with
-         | [t] ->
-            (match follow t with
-            | TAbstract ({ a_path = [],"Int" },_)
-            | TAbstract ({ a_path = [],"Float" },_)
-            | TAbstract ({ a_path = [],"Bool" },_) -> "Dynamic" ^ suffix
-            | t when type_has_meta_key t Meta.NotNull -> "Dynamic" ^ suffix
-            | _ -> type_string_suff suffix t remap)
-         | _ -> assert false);
       | [] , "Array" ->
          (match params with
          | [t] when (type_string (follow t) ) = "Dynamic" -> "Dynamic"
@@ -6770,7 +6767,7 @@ let is_assign_op op =
 
 let rec script_type_string haxe_type =
    match haxe_type with
-   | TType ({ t_path = ([],"Null") },[t]) ->
+   | TAbstract ({ a_path = ([],"Null") },[t]) ->
       (match follow t with
       | TAbstract ({ a_path = [],"Int" },_)
       | TAbstract ({ a_path = [],"Float" },_)

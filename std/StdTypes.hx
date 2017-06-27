@@ -72,7 +72,9 @@
 
 	@see https://haxe.org/manual/types-nullability.html
 **/
-typedef Null<T> = T
+@:forward
+@:coreType
+abstract Null<T> from T to T { }
 
 /**
 	The standard Boolean type, which can either be `true` or `false`.

@@ -653,7 +653,7 @@ struct
 		in
 
 		let rettype_real_to_func t = match run_follow gen t with
-			| TType({ t_path = [],"Null" }, _) ->
+			| TAbstract({ a_path = [],"Null" }, _) ->
 				0,t_dynamic
 			| _ when like_float t && not (like_i64 t) ->
 				(1, basic.tfloat)

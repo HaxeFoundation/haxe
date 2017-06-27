@@ -30,8 +30,8 @@ let rec get_underlying_type a pl =
 				| _ -> t)
 			| TLazy f ->
 				loop (!f())
-			| TType({t_path=([],"Null")} as tn,[t1]) ->
-				TType(tn,[loop t1])
+			| TAbstract({a_path=([],"Null")} as a,[t1]) ->
+				TAbstract(a,[loop t1])
 			| TType (t,tl) ->
 				loop (apply_params t.t_params tl t.t_type)
 			| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
