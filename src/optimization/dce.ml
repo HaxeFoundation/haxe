@@ -43,8 +43,17 @@ type dce = {
 (* check for @:keepSub metadata, which forces @:keep on child classes *)
 let rec super_forces_keep c =
 	Meta.has Meta.KeepSub c.cl_meta || match c.cl_super with
-	| Some (csup,_) -> csup.cl_extern || super_forces_keep csup
+	| Some (csup,_) -> super_forces_keep csup
 	| _ -> false
+
+let rec is_or_overrides_extern_field cf c =
+	if c.cl_extern then cf.cf_expr = None
+	else
+		match c.cl_super with
+			| None -> false
+			| Some (csup,_) ->
+				try is_or_overrides_extern_field (PMap.find cf.cf_name csup.cl_fields) csup
+				with Not_found -> false
 
 let is_std_file dce file =
 	List.exists (ExtString.String.starts_with file) dce.std_dirs
@@ -67,11 +76,12 @@ let keep_whole_enum dce en =
 	|| not (dce.full || is_std_file dce en.e_module.m_extra.m_file || has_meta Meta.Dce en.e_meta)
 
 (* check if a field is kept *)
-let keep_field dce cf =
+let keep_field dce cf c is_static =
 	Meta.has Meta.Keep cf.cf_meta
 	|| Meta.has Meta.Used cf.cf_meta
 	|| cf.cf_name = "__init__"
 	|| is_extern_field cf
+	|| (not is_static && is_or_overrides_extern_field cf c)
 
 (* marking *)
 
@@ -654,7 +664,7 @@ let run com main full =
 		| TClassDecl c ->
 			let keep_class = keep_whole_class dce c && (not c.cl_extern || c.cl_interface) in
 			let loop stat cf =
-				if keep_class || keep_field dce cf then mark_field dce c cf stat
+				if keep_class || keep_field dce cf c stat then mark_field dce c cf stat
 			in
 			List.iter (loop true) c.cl_ordered_statics;
 			List.iter (loop false) c.cl_ordered_fields;
@@ -739,7 +749,7 @@ let run com main full =
 			(* add :keep so subsequent filter calls do not process class fields again *)
 			c.cl_meta <- (Meta.Keep,[],c.cl_pos) :: c.cl_meta;
  			c.cl_ordered_statics <- List.filter (fun cf ->
-				let b = keep_field dce cf in
+				let b = keep_field dce cf c true in
 				if not b then begin
 					if dce.debug then print_endline ("[DCE] Removed field " ^ (s_type_path c.cl_path) ^ "." ^ (cf.cf_name));
 					check_property cf true;
@@ -748,7 +758,7 @@ let run com main full =
 				b
 			) c.cl_ordered_statics;
 			c.cl_ordered_fields <- List.filter (fun cf ->
-				let b = keep_field dce cf in
+				let b = keep_field dce cf c false in
 				if not b then begin
 					if dce.debug then print_endline ("[DCE] Removed field " ^ (s_type_path c.cl_path) ^ "." ^ (cf.cf_name));
 					check_property cf false;
@@ -756,7 +766,7 @@ let run com main full =
 				end;
 				b
 			) c.cl_ordered_fields;
-			(match c.cl_constructor with Some cf when not (keep_field dce cf) -> c.cl_constructor <- None | _ -> ());
+			(match c.cl_constructor with Some cf when not (keep_field dce cf c false) -> c.cl_constructor <- None | _ -> ());
 			let inef cf = not (is_extern_field cf) in
 			let has_non_extern_fields = List.exists inef c.cl_ordered_fields || List.exists inef c.cl_ordered_statics in
 			(* we keep a class if it was used or has a used field *)

@@ -772,6 +772,7 @@ let extract_field = function
 	| FAnon f | FInstance (_,_,f) | FStatic (_,f) | FClosure (_,f) -> Some f
 	| _ -> None
 
+(* TODO: Function with bad name. It should be `is_non_physical_field` *)
 let is_extern_field f =
 	match f.cf_kind with
 	| Method _ -> false
