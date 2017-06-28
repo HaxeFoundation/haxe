@@ -416,6 +416,15 @@ let init com (empty_ctor_type : t) (empty_ctor_expr : texpr) (follow_type : t ->
 	in
 	module_filter
 
+let init_expr_filter create_empty =
+	let rec run e =
+		match e.etype, e.eexpr with
+		| TInst (cl, params), TCall ({ eexpr = TField (_, FStatic ({cl_path = [],"Type"}, {cf_name = "createEmptyInstance"})) }, [{eexpr = TTypeExpr ((TClassDecl cl_arg) as mt_arg) }]) when cl == cl_arg && is_hxgen mt_arg ->
+			create_empty cl params e.epos
+		| _ ->
+			Type.map_expr run e
+	in
+	run
 
 let priority = 0.0
 let name = "overloading_constructor"
@@ -423,4 +432,6 @@ let name = "overloading_constructor"
 let configure gen ~empty_ctor_type ~empty_ctor_expr =
 	gen.gtools.r_create_empty <- (fun cl params pos -> mk (TNew(cl,params,[empty_ctor_expr])) (TInst(cl,params)) pos);
 	let module_filter = init gen.gcon empty_ctor_type empty_ctor_expr (run_follow gen) in
-	gen.gmodule_filters#add name (PCustom priority) module_filter
+	gen.gmodule_filters#add name (PCustom priority) module_filter;
+	let expr_filter = init_expr_filter gen.gtools.r_create_empty in
+	gen.gexpr_filters#add name (PCustom priority) expr_filter
