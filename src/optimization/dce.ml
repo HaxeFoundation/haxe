@@ -80,7 +80,7 @@ let keep_field dce cf c is_static =
 	Meta.has Meta.Keep cf.cf_meta
 	|| Meta.has Meta.Used cf.cf_meta
 	|| cf.cf_name = "__init__"
-	|| is_extern_field cf
+	|| not (is_physical_field cf)
 	|| (not is_static && is_or_overrides_extern_field cf c)
 
 (* marking *)
@@ -702,7 +702,7 @@ let run com main full =
 			List.iter (fun (c,cf,stat) -> mark_dependent_fields dce c cf.cf_name stat) cfl;
 			(* mark fields as used *)
 			List.iter (fun (c,cf,stat) ->
-				if not (is_extern_field cf) then mark_class dce c;
+				if is_physical_field cf then mark_class dce c;
 				mark_field dce c cf stat;
 				mark_t dce cf.cf_pos cf.cf_type
 			) cfl;
@@ -767,7 +767,7 @@ let run com main full =
 				b
 			) c.cl_ordered_fields;
 			(match c.cl_constructor with Some cf when not (keep_field dce cf c false) -> c.cl_constructor <- None | _ -> ());
-			let inef cf = not (is_extern_field cf) in
+			let inef cf = is_physical_field cf in
 			let has_non_extern_fields = List.exists inef c.cl_ordered_fields || List.exists inef c.cl_ordered_statics in
 			(* we keep a class if it was used or has a used field *)
 			if Meta.has Meta.Used c.cl_meta || has_non_extern_fields then loop (mt :: acc) l else begin

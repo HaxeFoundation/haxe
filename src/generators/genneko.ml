@@ -401,7 +401,7 @@ and gen_expr ctx e =
 
 let gen_method ctx p c acc =
 	ctx.curmethod <- c.cf_name;
-	if is_extern_field c then acc else
+	if not (is_physical_field c) then acc else
 	match c.cf_expr with
 	| None ->
 		((c.cf_name, null p) :: acc)

@@ -83,7 +83,7 @@ let handle_class com cl =
 					| Some e -> ensure_simple_expr com e);
 					acc
 			| Var _
-			| Method MethDynamic when not (Type.is_extern_field cf) ->
+			| Method MethDynamic when Type.is_physical_field cf ->
 				(match cf.cf_expr with
 				| Some e ->
 					(match cf.cf_params with

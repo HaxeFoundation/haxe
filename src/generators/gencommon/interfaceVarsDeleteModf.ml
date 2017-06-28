@@ -45,7 +45,7 @@ let configure gen =
 				match cf.cf_kind with
 				| Var _ when gen.gcon.platform = Cs && Meta.has Meta.Event cf.cf_meta ->
 					true
-				| Var vkind when not (Type.is_extern_field cf && Meta.has Meta.Property cf.cf_meta) ->
+				| Var vkind when Type.is_physical_field cf || not (Meta.has Meta.Property cf.cf_meta) ->
 					(match vkind.v_read with
 						| AccCall ->
 							let newcf = mk_class_field ("get_" ^ cf.cf_name) (TFun([],cf.cf_type)) true cf.cf_pos (Method MethNormal) [] in

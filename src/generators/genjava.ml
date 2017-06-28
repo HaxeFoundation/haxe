@@ -1915,7 +1915,7 @@ let generate con =
 		in
 		(match cf.cf_kind with
 			| Var _
-			| Method (MethDynamic) when not (Type.is_extern_field cf) ->
+			| Method (MethDynamic) when Type.is_physical_field cf ->
 				(if is_overload || List.exists (fun cf -> cf.cf_expr <> None) cf.cf_overloads then
 					gen.gcon.error "Only normal (non-dynamic) methods can be overloaded" cf.cf_pos);
 				if not is_interface then begin
@@ -1929,7 +1929,7 @@ let generate con =
 						| None -> write w ";"
 					)
 				end (* TODO see how (get,set) variable handle when they are interfaces *)
-			| Method _ when Type.is_extern_field cf || (match cl.cl_kind, cf.cf_expr with | KAbstractImpl _, None -> true | _ -> false) ->
+			| Method _ when not (Type.is_physical_field cf) || (match cl.cl_kind, cf.cf_expr with | KAbstractImpl _, None -> true | _ -> false) ->
 				List.iter (fun cf -> if cl.cl_interface || cf.cf_expr <> None then
 					gen_class_field w ~is_overload:true is_static cl (Meta.has Meta.Final cf.cf_meta) cf
 				) cf.cf_overloads

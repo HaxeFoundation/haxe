@@ -3474,7 +3474,7 @@ class class_builder ctx (cls:tclass) =
 		method private write_field is_static field =
 			match field.cf_kind with
 				| Var { v_read = AccInline; v_write = AccNever } -> self#write_const field
-				| Var _ when not (is_extern_field field) ->
+				| Var _ when is_physical_field field ->
 					(* Do not generate fields for RTTI meta, because this generator uses another way to store it *)
 					let is_auto_meta_var = is_static && field.cf_name = "__meta__" && (has_rtti_meta ctx wrapper#get_module_type) in
 					if not is_auto_meta_var then self#write_var field is_static;

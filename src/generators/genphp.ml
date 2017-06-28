@@ -1904,7 +1904,7 @@ let gen_assigned_value ctx eo =	match eo with
 		()
 
 let generate_field ctx static f =
-	if not (is_extern_field f) then
+	if is_physical_field f then
 		newline ctx;
 	ctx.locals <- PMap.empty;
 	ctx.inv_locals <- PMap.empty;
@@ -1923,7 +1923,7 @@ let generate_field ctx static f =
 		else
 			gen_function ctx (s_ident f.cf_name) fd f.cf_params p
 	| _ ->
-		if (is_extern_field f) then
+		if not (is_physical_field f) then
 			()
 		else if ctx.curclass.cl_interface then
 			match follow f.cf_type, f.cf_kind with
@@ -2012,7 +2012,7 @@ let generate_static_field_assign ctx path f =
 					print ctx "%s::$%s = " (s_path ctx path false p) (s_ident f.cf_name);
 					gen_value ctx e
 				| _ -> ())
-			| _ when is_extern_field f ->
+			| _ when not (is_physical_field f) ->
 				()
 			| _ ->
 				newline ctx;

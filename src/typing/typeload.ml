@@ -2228,7 +2228,7 @@ module ClassInitializer = struct
 							display_error ctx "Extern non-inline variables may not be initialized" p;
 							e
 						end else require_constant_expression e "Extern variable initialization must be a constant value"
-					| Var v when is_extern_field cf ->
+					| Var v when not (is_physical_field cf) ->
 						(* disallow initialization of non-physical fields (issue #1958) *)
 						display_error ctx "This field cannot be initialized because it is not a real variable" p; e
 					| Var v when not fctx.is_static ->

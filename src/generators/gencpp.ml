@@ -949,7 +949,7 @@ let member_type ctx field_object member =
 *)
 let is_interface obj = is_interface_type obj.etype;;
 
-let should_implement_field x = not (is_extern_field x);;
+let should_implement_field x = is_physical_field x;;
 
 let is_extern_class class_def =
    class_def.cl_extern || (has_meta_key class_def.cl_meta Meta.Extern) ||
@@ -4394,7 +4394,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          output ( " " ^ class_name ^ "::" ^ remap_name ^ ";\n\n");
       end
    | _ ->
-      if is_static && (not (is_extern_field field)) then begin
+      if is_static && is_physical_field field then begin
          gen_type ctx field.cf_type;
          output ( " " ^ class_name ^ "::" ^ remap_name ^ ";\n\n");
       end
@@ -5216,7 +5216,7 @@ let variable_field field =
 
 let is_readable class_def field =
    (match field.cf_kind with
-   | Var { v_read = AccNever } when (is_extern_field field) -> false
+   | Var { v_read = AccNever } when not (is_physical_field field) -> false
    | Var { v_read = AccInline } -> false
    | Var _ when is_abstract_impl class_def -> false
    | _ -> true)
@@ -5224,7 +5224,7 @@ let is_readable class_def field =
 
 let is_writable class_def field =
    (match field.cf_kind with
-   | Var { v_write = AccNever } when (is_extern_field field) -> false
+   | Var { v_write = AccNever } when not (is_physical_field field) -> false
    | Var { v_read = AccInline } -> false
    | Var _ when is_abstract_impl class_def -> false
    | _ -> true)
@@ -5929,7 +5929,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          let get_field_dat = List.map (fun f ->
             (f.cf_name, String.length f.cf_name,
                (match f.cf_kind with
-               | Var { v_read = AccCall } when is_extern_field f ->
+               | Var { v_read = AccCall } when not (is_physical_field f) ->
                      "if (" ^ (checkPropCall f) ^ ") return " ^ (toVal f ((keyword_remap ("get_" ^ f.cf_name)) ^ "()" ) ) ^ ";"
                | Var { v_read = AccCall } -> "return " ^ (toVal f ((checkPropCall f) ^ " ? " ^ (keyword_remap ("get_" ^ f.cf_name)) ^ "() : " ^
                      ((keyword_remap f.cf_name) ^ (if (variable_field f) then "" else "_dyn()")) ) ) ^ ";"
@@ -5948,7 +5948,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          let get_field_dat = List.map (fun f ->
             (f.cf_name, String.length f.cf_name,
                (match f.cf_kind with
-               | Var { v_read = AccCall } when is_extern_field f ->
+               | Var { v_read = AccCall } when not (is_physical_field f) ->
                      "if (" ^ (checkPropCall f) ^ ") { outValue = " ^ (toDynamic f (keyword_remap ("get_" ^ f.cf_name) ^ "()")) ^ "; return true; }"
                | Var { v_read = AccCall } -> "outValue = " ^ (toDynamic f ((checkPropCall f) ^ " ? " ^ (keyword_remap ("get_" ^ f.cf_name)) ^ "() : " ^
                      ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()"))) ^ "; return true;";
@@ -5986,7 +5986,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                   let inVal =  "(inValue.Cast< " ^ (castable f) ^ " >())" in
                   let setter = keyword_remap ("set_" ^ f.cf_name) in
                   "if (" ^ (checkPropCall f) ^ ") return " ^ (toVal f (setter ^inVal) ) ^ ";" ^
-                      ( if is_extern_field f then "" else default_action )
+                      ( if not (is_physical_field f) then "" else default_action )
                | _ -> default_action
                )
             )
@@ -6014,7 +6014,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                   let inVal = "(ioValue.Cast< " ^ (castable f) ^ " >())" in
                   let setter = keyword_remap ("set_" ^ f.cf_name) in
                   "if (" ^ (checkPropCall f) ^ ")  ioValue = " ^ (toDynamic f (setter ^ inVal) ) ^ ";"
-                      ^ ( if is_extern_field f then "" else " else " ^ default_action )
+                      ^ ( if not (is_physical_field f) then "" else " else " ^ default_action )
                | _ -> default_action
                )
             )
@@ -8006,7 +8006,7 @@ let generate_script_class common_ctx script class_def =
          | AccInline -> IaAccessNormal
          | AccRequire (_,_) -> IaAccessNormal
          in
-         let isExtern = is_extern_field field in
+         let isExtern = not (is_physical_field field) in
          script#var (mode_code v.v_read) (mode_code v.v_write) isExtern isStatic field.cf_name field.cf_type field.cf_expr
       | Method MethDynamic, TFun(args,ret) ->
          script#func isStatic true field.cf_name ret args class_def.cl_interface field.cf_expr
