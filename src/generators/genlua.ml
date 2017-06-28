@@ -200,6 +200,13 @@ let open_block ctx =
 
 let this ctx = match ctx.in_value with None -> "self" | Some _ -> "self"
 
+let is_closure_instance_type e =
+    match follow(e.etype) with
+        | TInst (c,_) when Meta.has Meta.LuaClosureInstance c.cl_meta ->
+                true;
+        | _ ->
+                false
+
 let is_dynamic_iterator ctx e =
 	let check x =
 		has_feature ctx "HxOverrides.iter" && (match follow x.etype with
@@ -436,7 +443,10 @@ let rec gen_call ctx e el in_value =
 		    spr ctx ")";
 		end else begin
 		    gen_value ctx e;
-		    print ctx ":%s" (field_name ef);
+                    if is_closure_instance_type e then
+                        print ctx ".%s" (field_name ef)
+                    else
+                        print ctx ":%s" (field_name ef);
                     gen_paren ctx el;
 		end;
 	| _ ->
@@ -1690,6 +1700,8 @@ let generate_type ctx = function
 		(* A special case for Std because we do not want to generate it if it's empty. *)
 		if p = "Std" && c.cl_ordered_statics = [] then
 			()
+		else if (not c.cl_extern) && Meta.has Meta.LuaClosureInstance c.cl_meta then
+                    abort "LuaClosureInstance is valid for externs only" c.cl_pos
 		else if not c.cl_extern then
 			generate_class ctx c
 		else if Meta.has Meta.InitPackage c.cl_meta then

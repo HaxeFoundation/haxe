@@ -89,6 +89,7 @@ type strict_meta =
 	| LibType
 	| LoopLabel
 	| LuaRequire
+	| LuaClosureInstance
 	| Meta
 	| Macro
 	| MaybeUsed
@@ -281,6 +282,7 @@ let get_info = function
 	| JavaNative -> ":javaNative",("Automatically added by -java-lib on classes generated from JAR/class files",[Platform Java; UsedOnEither[TClass;TEnum]; UsedInternally])
 	| JsRequire -> ":jsRequire",("Generate javascript module require expression for given extern",[Platform Js; UsedOn TClass])
 	| LuaRequire -> ":luaRequire",("Generate lua module require expression for given extern",[Platform Lua; UsedOn TClass])
+	| LuaClosureInstance -> ":luaClosureInstance",("Indicates that the given extern type instance should have closure-style methods (dot access rather than colon).",[Platform Lua; UsedOn TClass])
 	| Keep -> ":keep",("Causes a field or type to be kept by DCE",[])
 	| KeepInit -> ":keepInit",("Causes a class to be kept by DCE even if all its field are removed",[UsedOn TClass])
 	| KeepSub -> ":keepSub",("Extends @:keep metadata to all implementing and extending classes",[UsedOn TClass])
