@@ -215,12 +215,12 @@ let check_local_vars_init e =
 (* -------------------------------------------------------------------------- *)
 (* RENAME LOCAL VARS *)
 
-let rename_local_vars ctx e =
+let rename_local_vars ctx reserved e =
 	let vars = ref [] in
 	let declare v =
 		vars := v :: !vars
 	in
-	let reserved = ref StringMap.empty in
+	let reserved = ref reserved in
 	let reserve name =
 		reserved := StringMap.add name true !reserved
 	in
@@ -572,7 +572,7 @@ let add_rtti ctx t =
 		()
 
 (* Adds member field initializations as assignments to the constructor *)
-let add_field_inits ctx t =
+let add_field_inits reserved ctx t =
 	let is_as3 = Common.defined ctx.com Define.As3 && not ctx.in_macro in
 	let apply c =
 		let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) c.cl_pos in
@@ -648,7 +648,7 @@ let add_field_inits ctx t =
 			(match cf.cf_expr with
 			| Some e ->
 				(* This seems a bit expensive, but hopefully constructor expressions aren't that massive. *)
-				let e = rename_local_vars ctx e in
+				let e = rename_local_vars ctx reserved e in
 				let e = Optimizer.sanitize ctx.com e in
 				cf.cf_expr <- Some e
 			| _ ->
@@ -908,12 +908,18 @@ let run com tctx main =
 	List.iter (fun f -> List.iter f new_types) filters;
 	t();
 	if com.platform <> Cross then Analyzer.Run.run_on_types tctx new_types;
-
+	let reserved = match com.platform with
+		| Js ->
+			let h = ref StringMap.empty in
+			List.iter (fun mt -> h := StringMap.add (Path.flat_path (t_infos mt).mt_path) true !h) com.types;
+			!h
+		| _ -> StringMap.empty
+	in
 	let filters = [
 		Optimizer.sanitize com;
 		if com.config.pf_add_final_return then add_final_return else (fun e -> e);
 		if com.platform = Js then wrap_js_exceptions com else (fun e -> e);
-		rename_local_vars tctx;
+		rename_local_vars tctx reserved;
 		mark_switch_break_loops;
 	] in
 	let t = filter_timer detail_times ["expr 2"] in
@@ -955,7 +961,7 @@ let run com tctx main =
 		check_private_path;
 		apply_native_paths;
 		add_rtti;
-		(match com.platform with | Java | Cs -> (fun _ _ -> ()) | _ -> add_field_inits);
+		(match com.platform with | Java | Cs -> (fun _ _ -> ()) | _ -> add_field_inits reserved);
 		(match com.platform with Hl -> (fun _ _ -> ()) | _ -> add_meta_field);
 		check_void_field;
 		(match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ _ -> ()) );

@@ -69,12 +69,12 @@ import js.Boot;
 			__feature__("js.Boot.getClass",__js__('Date').prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["Date"] = __js__('Date'),__js__('Date')));
 			__feature__("js.Boot.isClass",__js__('Date').__name__ = ["Date"]);
 		});
-		__feature__("Int.*",var Int = {});
-		__feature__("Dynamic.*",var Dynamic = {});
-		__feature__("Float.*",var Float = __js__("Number"));
-		__feature__("Bool.*",var Bool = __js__("Boolean"));
-		__feature__("Class.*",var Class = {});
-		__feature__("Enum.*",var Enum = {});
+		__feature__("Int.*",__js__('var Int = { };'));
+		__feature__("Dynamic.*",__js__('var Dynamic = { };'));
+		__feature__("Float.*",__js__('var Float = Number'));
+		__feature__("Bool.*",__js__('var Bool = Boolean'));
+		__feature__("Class.*",__js__('var Class = { };'));
+		__feature__("Enum.*",__js__('var Enum = { };'));
 
 #if (js_es < 5)
 		__feature__("Array.map",

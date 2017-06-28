@@ -74,15 +74,7 @@ let get_exposed ctx path meta =
 
 let dot_path = s_type_path
 
-let flat_path (p,s) =
-	(* Replace _ with _$ in paths to prevent name collisions. *)
-	let escape str = String.concat "_$" (ExtString.String.nsplit str "_") in
-
-	match p with
-	| [] -> escape s
-	| _ -> String.concat "_" (List.map escape p) ^ "_" ^ (escape s)
-
-let s_path ctx = if ctx.js_flatten then flat_path else dot_path
+let s_path ctx = if ctx.js_flatten then Path.flat_path else dot_path
 
 let kwds =
 	let h = Hashtbl.create 0 in
