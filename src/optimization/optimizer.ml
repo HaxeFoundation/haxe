@@ -410,13 +410,14 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 				el, map term e
 			) cases in
 			let def = opt (map term) def in
-			{ e with eexpr = TSwitch (map false e1,cases,def); etype = if ret_val then unify_min ctx ((List.map snd cases) @ (match def with None -> [] | Some e -> [e])) else e.etype }
+			let t = if ret_val && ExtType.is_void e.etype then unify_min ctx ((List.map snd cases) @ (match def with None -> [] | Some e -> [e])) else e.etype in
+			{ e with eexpr = TSwitch (map false e1,cases,def); etype = t }
 		| TTry (e1,catches) ->
 			{ e with eexpr = TTry (map term e1,List.map (fun (v,e) ->
 				let lv = (local v).i_subst in
 				let e = map term e in
 				lv,e
-			) catches); etype = if term && ret_val then unify_min ctx (e1::List.map snd catches) else e.etype }
+			) catches); etype = if term && ret_val && ExtType.is_void e.etype then unify_min ctx (e1::List.map snd catches) else e.etype }
 		| TBlock l ->
 			let old = save_locals ctx in
 			let t = ref e.etype in
@@ -458,7 +459,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			let econd = map false econd in
 			let eif = map term eif in
 			let eelse = map term eelse in
-			{ e with eexpr = TIf(econd,eif,Some eelse); etype = if ret_val then unify_min ctx [eif;eelse] else e.etype }
+			{ e with eexpr = TIf(econd,eif,Some eelse); etype = if ret_val && ExtType.is_void e.etype then unify_min ctx [eif;eelse] else e.etype }
 		| TParenthesis e1 ->
 			let e1 = map term e1 in
 			mk (TParenthesis e1) e1.etype e.epos
