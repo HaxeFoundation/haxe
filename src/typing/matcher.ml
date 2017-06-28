@@ -1142,7 +1142,7 @@ module TexprConverter = struct
 			let t_ef = match follow ef.ef_type with TFun(_,t) -> t | _ -> ef.ef_type in
 			let t_ef = apply_params ctx.type_params params (monomorphs en.e_params (monomorphs ef.ef_params t_ef)) in
 			let monos = List.map (fun t -> match follow t with
-				| TInst({cl_kind = KTypeParameter _},_) -> mk_mono()
+				| TInst({cl_kind = KTypeParameter _},_) | TMono _ -> mk_mono()
 				| _ -> t
 			) params in
 			let rec duplicate_monos t = match follow t with
