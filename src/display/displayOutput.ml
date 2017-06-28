@@ -285,7 +285,10 @@ module TypePathHandler = struct
 					end;
 				end else if file_extension f = "hx" then begin
 					let c = Filename.chop_extension f in
-					if String.length c < 2 || String.sub c (String.length c - 2) 2 <> "__" then classes := c :: !classes;
+					try
+						ignore(String.index c '.')
+					with Not_found ->
+						if String.length c < 2 || String.sub c (String.length c - 2) 2 <> "__" then classes := c :: !classes;
 				end;
 			) r;
 		) com.class_path;
