@@ -45,7 +45,7 @@ type 'value compiler_api = {
 	delayed_macro : int -> (unit -> (unit -> 'value));
 	use_cache : unit -> bool;
 	format_string : string -> Globals.pos -> Ast.expr;
-	cast_or_unify : Type.t -> texpr -> Globals.pos -> Type.texpr;
+	cast_or_unify : Type.t -> texpr -> Globals.pos -> bool;
 	add_global_metadata : string -> string -> (bool * bool * bool) -> unit;
 	add_module_check_policy : string list -> int list -> bool -> int -> unit;
 	decode_expr : 'value -> Ast.expr;
@@ -1558,8 +1558,7 @@ let macro_api ccom get_api =
 		);
 		"unify", vfun2 (fun t1 t2 ->
 			let e1 = mk (TObjectDecl []) (decode_type t1) Globals.null_pos in
-			try ignore(((get_api()).cast_or_unify) (decode_type t2) e1 Globals.null_pos); vbool true
-			with Error.Error (Error.Unify _,_) -> vbool false
+			vbool (((get_api()).cast_or_unify) (decode_type t2) e1 Globals.null_pos)
 		);
 		"typeof", vfun1 (fun v ->
 			encode_type ((get_api()).type_expr (decode_expr v)).etype

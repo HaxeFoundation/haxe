@@ -92,7 +92,10 @@ let typing_timer ctx need_type f =
 	*)
 	(*if ctx.com.display = DMNone then ctx.com.error <- (fun e p -> raise (Error(Custom e,p)));*) (* TODO: review this... *)
 	ctx.com.error <- (fun e p -> raise (Error(Custom e,p)));
-	if need_type && ctx.pass < PTypeField then ctx.pass <- PTypeField;
+	if need_type && ctx.pass < PTypeField then begin
+		ctx.pass <- PTypeField;
+		flush_pass ctx PBuildClass "typing_timer";
+	end;
 	let exit() =
 		t();
 		ctx.com.error <- old;
@@ -337,7 +340,13 @@ let make_macro_api ctx p =
 			ctx.g.do_format_string ctx s p
 		);
 		MacroApi.cast_or_unify = (fun t e p ->
-			AbstractCast.cast_or_unify_raise ctx t e p
+			typing_timer ctx true (fun () ->
+				try
+					ignore(AbstractCast.cast_or_unify_raise ctx t e p);
+					true
+				with Error (Unify _,_) ->
+					false
+			)
 		);
 		MacroApi.add_global_metadata = (fun s1 s2 config ->
 			let meta = (match Parser.parse_string ctx.com (s2 ^ " typedef T = T") null_pos error false with
