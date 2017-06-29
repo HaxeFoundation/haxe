@@ -775,6 +775,8 @@ and jit_expr jit return e =
 		loop (Codegen.for_remap (ctx.curapi.MacroApi.get_com()) v e1 e2 e.epos)
 	| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 		loop e1
+	| TIdent s ->
+		Error.error ("Unknown identifier: " ^ s) e.epos
 	in
 	let f = loop e in
 	if ctx.debug.support_debugger then begin match e.eexpr with

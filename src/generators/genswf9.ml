@@ -1351,6 +1351,8 @@ let rec gen_expr_content ctx retval e =
 					j();
 					write ctx (HCast tid)
 		end
+	| TIdent s ->
+		abort ("Unbound variable " ^ s) e.epos
 
 and gen_call ctx retval e el r =
 	match e.eexpr , el with

@@ -1612,6 +1612,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| TMeta (_, expr) -> self#write_expr expr
 				| TEnumParameter (expr, constructor, index) -> self#write_expr_enum_parameter expr constructor index
 				| TEnumIndex expr -> self#write_expr_enum_index expr
+				| TIdent s -> self#write s
 			);
 			expr_hierarchy <- List.tl expr_hierarchy
 		(**

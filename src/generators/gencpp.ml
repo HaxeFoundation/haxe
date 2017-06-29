@@ -3108,6 +3108,8 @@ let retype_expression ctx request_type function_args function_type expression_tr
             | _ ->
                CppTCast(baseCpp, return_type), return_type
             )
+		| TIdent s ->
+			assert false
       in
       let cppExpr = mk_cppexpr retypedExpr retypedType in
 
@@ -7594,6 +7596,7 @@ class script_writer ctx filename asciiOut =
    | TCast (cast,_) -> this#checkCast expression.etype cast true true;
    | TParenthesis _ -> abort "Unexpected parens" expression.epos
    | TMeta(_,_) -> abort "Unexpected meta" expression.epos
+   | TIdent _ -> abort "Unexpected ident" expression.epos
    );
    this#end_expr;
    (* } *)

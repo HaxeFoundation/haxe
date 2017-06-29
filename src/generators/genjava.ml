@@ -1794,6 +1794,7 @@ let generate con =
 				| TFunction _ -> write w "[ func decl not supported ]"; if !strict_mode then assert false
 				| TEnumParameter _ -> write w "[ enum parameter not supported ]"; if !strict_mode then assert false
 				| TEnumIndex _ -> write w "[ enum index not supported ]"; if !strict_mode then assert false
+				| TIdent s -> write w "[ ident not supported ]"; if !strict_mode then assert false
 		in
 		expr_s w e
 	in

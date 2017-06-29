@@ -1205,6 +1205,7 @@ and encode_texpr e =
 			| TMeta(m,e1) -> 25,[encode_meta_entry m;loop e1]
 			| TEnumParameter(e1,ef,i) -> 26,[loop e1;encode_efield ef;vint i]
 			| TEnumIndex e1 -> 27,[loop e1]
+			| TIdent s -> 28,[encode_string s]
 		in
 		encode_obj OTypedExprDef [
 			"pos", encode_pos e.epos;
@@ -1352,6 +1353,7 @@ and decode_texpr v =
 		| 25, [m;v1] -> TMeta(decode_meta_entry m,loop v1)
 		| 26, [v1;ef;i] -> TEnumParameter(loop v1,decode_efield ef,decode_int i)
 		| 27, [v1] -> TEnumIndex(loop v1)
+		| 28, [v1] -> TIdent(decode_string v1)
 		| i,el -> Printf.printf "%i %i\n" i (List.length el); raise Invalid_expr
 	in
 	try

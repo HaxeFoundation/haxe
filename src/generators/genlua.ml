@@ -916,6 +916,8 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx ")"
 	| TCast (e1,None) ->
 		gen_value ctx e1;
+	| TIdent s ->
+		spr ctx s
 end;
 
 (* gen_block_element handles expressions that map to "statements" in lua. *)
@@ -1051,7 +1053,8 @@ and gen_value ctx e =
 	| TArrayDecl _
 	| TNew _
 	| TUnop _
-	| TFunction _ ->
+	| TFunction _
+	| TIdent _ ->
 		gen_expr ctx e
 	| TMeta (_,e1) ->
 		gen_value ctx e1

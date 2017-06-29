@@ -1716,6 +1716,8 @@ and gen_expr ctx e =
 		spr ctx ", ";
 		gen_expr ctx (mk (TTypeExpr t) (mk_texpr t) e1.epos);
 		spr ctx ")"
+	| TIdent s ->
+		spr ctx s
 
 and argument_list_from_locals include_this in_var l =
 	let lst = ref [] in
@@ -1814,7 +1816,8 @@ and gen_value ctx e =
 	| TCall _
 	| TUnop _
 	| TNew _
-	| TFunction _ ->
+	| TFunction _
+	| TIdent _ ->
 		gen_expr ctx e
 	| TMeta (_,e1) ->
 		gen_value ctx e1

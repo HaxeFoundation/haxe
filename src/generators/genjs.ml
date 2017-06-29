@@ -799,7 +799,10 @@ and gen_expr ctx e =
 		gen_expr ctx e1;
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
-		spr ctx ")");
+		spr ctx ")"
+	| TIdent s ->
+		spr ctx s
+	);
 	Option.may (fun smap -> smap.current_expr <- None) ctx.smap
 
 
@@ -867,7 +870,8 @@ and gen_value ctx e =
 	| TArrayDecl _
 	| TNew _
 	| TUnop _
-	| TFunction _ ->
+	| TFunction _
+	| TIdent _ ->
 		gen_expr ctx e
 	| TMeta (_,e1) ->
 		gen_value ctx e1

@@ -928,7 +928,8 @@ let standard_precedence op =
 
 let rec need_parent e =
 	match e.eexpr with
-	| TConst _ | TLocal _ | TArray _ | TField _ | TEnumParameter _ | TEnumIndex _ | TParenthesis _ | TCall _ | TNew _ | TTypeExpr _ | TObjectDecl _ | TArrayDecl _ -> false
+	| TConst _ | TLocal _ | TArray _ | TField _ | TEnumParameter _ | TEnumIndex _ | TParenthesis _
+	| TCall _ | TNew _ | TTypeExpr _ | TObjectDecl _ | TArrayDecl _ | TIdent _ -> false
 	| TCast (e,None) | TMeta(_,e) -> need_parent e
 	| TCast _ | TThrow _ | TReturn _ | TTry _ | TSwitch _ | TFor _ | TIf _ | TWhile _ | TBinop _ | TContinue | TBreak
 	| TBlock _ | TVar _ | TFunction _ | TUnop _ -> true

@@ -811,6 +811,8 @@ and gen_expr ctx e =
 		end
 	| TCast (e1,Some t) ->
 		gen_expr ctx (Codegen.default_cast ctx.inf.com e1 t e.etype e.epos)
+	| TIdent s ->
+		spr ctx s
 
 and gen_block_element ctx e = match e.eexpr with
 	| TObjectDecl fl ->
@@ -890,7 +892,8 @@ and gen_value ctx e =
 	| TCall _
 	| TNew _
 	| TUnop _
-	| TFunction _ ->
+	| TFunction _
+	| TIdent _ ->
 		gen_expr ctx e
 	| TMeta (_,e1) ->
 		gen_value ctx e1

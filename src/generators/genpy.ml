@@ -951,7 +951,7 @@ module Transformer = struct
 			let f = exprs_to_func (new_expr.a_blocks @ [new_expr.a_expr]) (ae.a_next_id()) ae in
 			lift_expr ~is_value:true ~blocks:f.a_blocks f.a_expr
 
-		| ( _, TBreak ) | ( _, TContinue ) ->
+		| ( _, TBreak ) | ( _, TContinue ) | ( _, TIdent _) ->
 			lift_expr a_expr
 
 	and transform e =
@@ -1381,6 +1381,8 @@ module Printer = struct
 				Printf.sprintf "(%s if %s else %s)" (print_expr pctx eif) (print_expr pctx econd) (print_expr pctx eelse)
 			| TMeta(_,e1) ->
 				print_expr pctx e1
+			| TIdent s ->
+				s
 			| TSwitch _ | TCast(_, Some _) | TFor _ | TUnop(_,Postfix,_) ->
 				assert false
 

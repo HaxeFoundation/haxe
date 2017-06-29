@@ -450,9 +450,9 @@ module Diagnostics = struct
 				had_effect := true;
 			| TLocal v when not (Meta.has Meta.UserVariable v.v_meta) ->
 				()
-			| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ when not in_value ->
+			| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ | TIdent _ when not in_value ->
 				no_effect e.epos;
-			| TConst _ | TLocal _ | TTypeExpr _ | TEnumParameter _ | TEnumIndex _ | TVar _ ->
+			| TConst _ | TLocal _ | TTypeExpr _ | TEnumParameter _ | TEnumIndex _ | TVar _ | TIdent _ ->
 				()
 			| TFunction tf ->
 				loop false tf.tf_expr

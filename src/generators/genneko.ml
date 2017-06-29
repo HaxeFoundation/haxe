@@ -370,6 +370,8 @@ and gen_expr ctx e =
 		gen_expr ctx e
 	| TCast (e1,Some t) ->
 		gen_expr ctx (Codegen.default_cast ~vtmp:"@tmp" ctx.com e1 t e.etype e.epos)
+	| TIdent s ->
+		ident p s
 	| TSwitch (e,cases,eo) ->
 		let e = gen_expr ctx e in
 		let eo = (match eo with None -> None | Some e -> Some (gen_expr ctx e)) in

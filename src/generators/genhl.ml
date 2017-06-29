@@ -2717,6 +2717,8 @@ and eval_expr ctx e =
 		else
 			op ctx (OSafeCast (r,re));
 		r
+	| TIdent s ->
+		assert false
 
 and gen_assign_op ctx acc e1 f =
 	let f r =

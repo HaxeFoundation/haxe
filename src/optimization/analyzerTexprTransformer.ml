@@ -96,7 +96,7 @@ let rec func ctx bb tf t p =
 		(fun () -> ctx.name_stack <- List.tl ctx.name_stack)
 	in
 	let rec value' bb e = match e.eexpr with
-		| TLocal v ->
+		| TLocal _ | TIdent _ ->
 			bb,e
 		| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
 			block_element bb e,e1
@@ -606,7 +606,7 @@ let rec func ctx bb tf t p =
 			add_texpr bb e;
 			bb
 		(* no-side-effect *)
-		| TEnumParameter _ | TEnumIndex _ | TFunction _ | TConst _ | TTypeExpr _ | TLocal _ ->
+		| TEnumParameter _ | TEnumIndex _ | TFunction _ | TConst _ | TTypeExpr _ | TLocal _ | TIdent _ ->
 			bb
 		(* no-side-effect composites *)
 		| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) | TField(e1,_) | TUnop(_,_,e1) ->

@@ -222,6 +222,7 @@ let rec shallow_expr_type expr : shallow_expr_type =
 			| _ -> Both expr)
 		| TConst _
 		| TLocal _
+		| TIdent _
 		| TArray _
 		| TBinop _
 		| TField _

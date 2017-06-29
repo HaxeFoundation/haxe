@@ -236,7 +236,8 @@ module TexprKindMapper = struct
 		| TLocal _
 		| TBreak
 		| TContinue
-		| TTypeExpr _ ->
+		| TTypeExpr _
+		| TIdent _ ->
 			e
 		| TArray(e1,e2) ->
 			let e1 = f KAccess e1 in
