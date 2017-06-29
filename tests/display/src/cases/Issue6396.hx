@@ -14,7 +14,7 @@ class Issue6396 extends DisplayTestCase {
 	}
 	**/
 	function test() {
-		eq(range(1, 2), position(pos(2)));
-		eq("String", type(pos(2)));
+		eq(range(1, 2), position(pos(3)));
+		eq("String", type(pos(3)));
 	}
 }

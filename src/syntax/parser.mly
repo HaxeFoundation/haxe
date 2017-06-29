@@ -183,7 +183,8 @@ let reify in_macro =
 		| Regexp (r,o) -> mk_enum "Constant" "CRegexp" [(EConst (String r),p);(EConst (String o),p)] p
 	in
 	let rec to_binop o p =
-		let op n = mk_enum "Binop" n [] p in
+		let pmin = {p with pmax = p.pmin} in
+		let op n = mk_enum "Binop" n [] pmin in
 		match o with
 		| OpAdd -> op "OpAdd"
 		| OpMult -> op "OpMult"
