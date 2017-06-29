@@ -487,7 +487,7 @@ let reify in_macro =
 				expr "EConst" [mk_enum "Constant" "CIdent" [e1] (pos e1)]
 			| Meta.Dollar "p", _ ->
 				(ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"MacroStringTools"),p),"toFieldExpr"),p),[e]),p)
-			| Meta.Custom ":pos", [pexpr] ->
+			| Meta.Pos, [pexpr] ->
 				let old = !cur_pos in
 				cur_pos := Some pexpr;
 				let e = loop e1 in
