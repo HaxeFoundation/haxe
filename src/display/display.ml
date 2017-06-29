@@ -799,7 +799,7 @@ module ToplevelCollector = struct
 			if ctx.curfun <> FunStatic then begin
 				let rec loop c =
 					List.iter (fun cf ->
-						add (ITMember(ctx.curclass,cf))
+						if not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITMember(ctx.curclass,cf))
 					) c.cl_ordered_fields;
 					match c.cl_super with
 						| None ->
@@ -813,7 +813,7 @@ module ToplevelCollector = struct
 
 			(* statics *)
 			List.iter (fun cf ->
-				add (ITStatic(ctx.curclass,cf))
+				if not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITStatic(ctx.curclass,cf))
 			) ctx.curclass.cl_ordered_statics;
 
 			(* enum constructors *)
@@ -821,7 +821,7 @@ module ToplevelCollector = struct
 				match t with
 				| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta ->
 					List.iter (fun cf ->
-						if (Meta.has Meta.Enum cf.cf_meta) then add (ITEnumAbstract(a,cf));
+						if (Meta.has Meta.Enum cf.cf_meta) && not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITEnumAbstract(a,cf));
 					) c.cl_ordered_statics
 				| TClassDecl _ | TAbstractDecl _ ->
 					()

@@ -187,6 +187,18 @@ class Toplevel extends DisplayTestCase {
 		eq("local", toplevels[0].kind);
 	}
 
+	/**
+	class Main {
+		static function main() {
+			{-1-}
+		}
+		@:noCompletion static function test() { }
+	}
+	**/
+	function testIssue6407() {
+		eq(false, hasToplevel(toplevel(pos(1)), "static", "test"));
+	}
+
 	public static function hasToplevel(a:Array<ToplevelElement>, kind:String, name:String):Bool {
 		return a.exists(function(t) return t.kind == kind && t.name == name);
 	}
