@@ -231,8 +231,6 @@ struct
 		let f_md	= ( get_type gen (["java";"lang"], "Float")) in
 		let bool_md = get_type gen (["java";"lang"], "Boolean") in
 
-		let is_var = alloc_var "__is__" t_dynamic in
-
 		let rec run e =
 			match e.eexpr with
 				(* Math changes *)
@@ -262,7 +260,7 @@ struct
 					) ->
 					let mk_is is_basic obj md =
 						let obj = if is_basic then mk_cast t_dynamic obj else obj in
-						{ e with eexpr = TCall( { eexpr = TLocal is_var; etype = t_dynamic; epos = e.epos }, [
+						{ e with eexpr = TCall( { eexpr = TIdent "__is__"; etype = t_dynamic; epos = e.epos }, [
 							run obj;
 							{ eexpr = TTypeExpr md; etype = t_dynamic (* this is after all a syntax filter *); epos = e.epos }
 						] ) }
@@ -572,7 +570,7 @@ struct
 				epos = e.epos
 			} in
 
-			let e = if has_fallback then { e with eexpr = TBlock([ e; mk_local (alloc_var "__fallback__" t_dynamic) e.epos]) } else e in
+			let e = if has_fallback then { e with eexpr = TBlock([ e; mk (TIdent "__fallback__") t_dynamic e.epos]) } else e in
 
 			(el, e)
 		in
@@ -1405,9 +1403,7 @@ let generate con =
 	let extract_statements expr =
 		let ret = ref [] in
 		let rec loop expr = match expr.eexpr with
-			| TCall ({ eexpr = TLocal {
-					v_name = "__is__" | "__typeof__" | "__array__"
-				} }, el) ->
+			| TCall ({ eexpr = TIdent ("__is__" | "__typeof__" | "__array__")}, el) ->
 				List.iter loop el
 			| TNew ({ cl_path = (["java"], "NativeArray") }, params, [ size ]) ->
 				()
@@ -1420,6 +1416,7 @@ let generate con =
 				ret := expr :: !ret
 			| TConst _
 			| TLocal _
+			| TIdent _
 			| TArray _
 			| TBinop _
 			| TField _
@@ -1478,6 +1475,8 @@ let generate con =
 					write w ".undefined";
 				| TLocal var ->
 					write_id w var.v_name
+				| TIdent s ->
+					write_id w s
 				| TField(_, FEnum(en,ef)) ->
 					let s = ef.ef_name in
 					print w "%s." (path_s_import e.epos en.e_path en.e_meta); write_field w s
@@ -1794,7 +1793,6 @@ let generate con =
 				| TFunction _ -> write w "[ func decl not supported ]"; if !strict_mode then assert false
 				| TEnumParameter _ -> write w "[ enum parameter not supported ]"; if !strict_mode then assert false
 				| TEnumIndex _ -> write w "[ enum index not supported ]"; if !strict_mode then assert false
-				| TIdent s -> write w "[ ident not supported ]"; if !strict_mode then assert false
 		in
 		expr_s w e
 	in

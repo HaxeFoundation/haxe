@@ -3109,6 +3109,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                CppTCast(baseCpp, return_type), return_type
             )
 		| TIdent s ->
+			print_endline (Printf.sprintf "%s: %s" (Printer.s_pos expr.epos) s);
 			assert false
       in
       let cppExpr = mk_cppexpr retypedExpr retypedType in

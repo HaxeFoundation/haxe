@@ -143,7 +143,7 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 		in
 
 		let typeof t =
-			let tof = mk_local ctx "__typeof__" (tfun [o.etype] tstring) p in
+			let tof = mk (TIdent "__typeof__") (tfun [o.etype] tstring) p in
 			let tof = mk (TCall (tof, [o])) tstring p in
 			mk (TBinop (Ast.OpEq, tof, (mk (TConst (TString t)) tstring p))) tbool p
 		in

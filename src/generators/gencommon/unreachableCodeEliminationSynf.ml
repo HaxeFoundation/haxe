@@ -76,8 +76,7 @@ let init com java_mode =
 			| _ -> expr, kind
 	in
 
-	let sbreak = alloc_var "__sbreak__" t_dynamic in
-	let mk_sbreak = mk_local sbreak in
+	let mk_sbreak = mk (TIdent "__sbreak__") t_dynamic in
 
 	let rec has_fallback expr = match expr.eexpr with
 		| TBlock(bl) -> (match List.rev bl with

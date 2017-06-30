@@ -663,7 +663,7 @@ let implement_dynamic_object_ctor ctx cl =
 			tf_args = [];
 			tf_expr = {
 				eexpr = TBlock(List.map (fun (f,t) ->
-					{ eexpr = TBinop(Ast.OpAssign, mk_this f t,{ eexpr = TCall(mk_local v_nativearray pos, []); etype = t; epos = pos; }); etype = t; epos = pos }
+					{ eexpr = TBinop(Ast.OpAssign, mk_this f t,{ eexpr = TCall(mk (TIdent "__array__") t_dynamic pos, []); etype = t; epos = pos; }); etype = t; epos = pos }
 				) fields);
 				etype = basic.tvoid;
 				epos = pos;
@@ -766,7 +766,7 @@ let implement_dynamics ctx cl =
 			] in
 
 			(if cl.cl_path <> (["haxe"; "lang"], "DynamicObject") then
-				List.iter (fun cf -> cf.cf_expr <- Some { eexpr = TCall(mk_local v_nativearray pos, []); etype = cf.cf_type; epos = cf.cf_pos }) new_fields
+				List.iter (fun cf -> cf.cf_expr <- Some { eexpr = TCall(mk (TIdent "__array__") t_dynamic pos, []); etype = cf.cf_type; epos = cf.cf_pos }) new_fields
 			);
 
 			let new_fields =

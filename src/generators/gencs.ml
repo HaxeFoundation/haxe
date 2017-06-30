@@ -168,8 +168,6 @@ struct
 		let basic = gen.gcon.basic in
 		let uint = match get_type gen ([], "UInt") with | TTypeDecl t -> TType(t, []) | TAbstractDecl a -> TAbstract(a, []) | _ -> assert false in
 
-		let is_var = alloc_var "__is__" t_dynamic in
-
 		let rec run e =
 			match e.eexpr with
 				(* Std.is() *)
@@ -184,7 +182,7 @@ struct
 					) ->
 					let md = change_md md in
 					let mk_is obj md =
-						{ e with eexpr = TCall( { eexpr = TLocal is_var; etype = t_dynamic; epos = e.epos }, [
+						{ e with eexpr = TCall( { eexpr = TIdent "__is__"; etype = t_dynamic; epos = e.epos }, [
 							obj;
 							{ eexpr = TTypeExpr md; etype = t_dynamic (* this is after all a syntax filter *); epos = e.epos }
 						] ) }
@@ -361,7 +359,6 @@ struct
 
 		let is_cl t = match gen.greal_type t with | TInst ( { cl_path = (["System"], "Type") }, [] ) -> true | _ -> false in
 
-		let as_var = alloc_var "__as__" t_dynamic in
 		let fast_cast = Common.defined gen.gcon Define.FastCast in
 
 		let rec run e =
@@ -458,14 +455,14 @@ struct
 					if is_cs_basic_type (gen.greal_type e.etype) || is_tparam (gen.greal_type e.etype) then
 						{ e with eexpr = TCast(run expr, Some(TClassDecl null_class)) }
 					else
-						{ e with eexpr = TCall(mk_local as_var e.epos, [run expr]) }
+						{ e with eexpr = TCall(mk (TIdent "__as__") t_dynamic e.epos, [run expr]) }
 
 				| TCast(expr, _) when (is_string e.etype) && (not (is_string expr.etype)) && not (in_runtime_class gen) ->
 					{ e with eexpr = TCall( mk_static_field_access_infer runtime_cl "toString" expr.epos [], [run expr] ) }
 
 				| TCast(expr, _) when is_tparam e.etype && not (in_runtime_class gen) && not (Common.defined gen.gcon Define.EraseGenerics) ->
 					let static = mk_static_field_access_infer (runtime_cl) "genericCast" e.epos [e.etype] in
-					{ e with eexpr = TCall(static, [mk_local (alloc_var "$type_param" e.etype) expr.epos; run expr]); }
+					{ e with eexpr = TCall(static, [mk (TIdent "$type_param") e.etype expr.epos; run expr]); }
 
 				| TBinop( (Ast.OpNotEq as op), e1, e2)
 				| TBinop( (Ast.OpEq as op), e1, e2) when is_struct e1.etype || is_struct e2.etype ->
@@ -1138,9 +1135,7 @@ let generate con =
 		let extract_statements expr =
 			let ret = ref [] in
 			let rec loop expr = match expr.eexpr with
-				| TCall ({ eexpr = TLocal {
-						v_name = "__is__" | "__typeof__" | "__array__" | "__sizeof__" | "__delegate__"
-					} }, el) ->
+				| TCall ({ eexpr = TIdent ("__is__" | "__typeof__" | "__array__" | "__sizeof__" | "__delegate__")}, el) ->
 					List.iter loop el
 				| TNew ({ cl_path = (["cs"], "NativeArray") }, params, [ size ]) ->
 					()
@@ -2680,8 +2675,7 @@ let generate con =
 			| _ -> ()
 			) gen.gtypes_list;
 
-		let tp_v = alloc_var "$type_param" t_dynamic in
-		let mk_tp t pos = { eexpr = TLocal(tp_v); etype = t; epos = pos } in
+		let mk_tp t pos = { eexpr = TIdent "$type_param"; etype = t; epos = pos } in
 		gen.gparam_func_call <- (fun ecall efield params elist ->
 			match efield.eexpr with
 			| TField(_, FEnum _) ->

@@ -234,7 +234,7 @@ let traverse gen ?tparam_anon_decl ?tparam_anon_acc (handle_anon_func:texpr->tfu
 				handle_anon_func e { tf with tf_expr = run tf.tf_expr } !info None
 			| TCall({ eexpr = TConst(TSuper) }, _) ->
 				Type.map_expr run e
-			| TCall({ eexpr = TLocal(v) }, args) when String.get v.v_name 0 = '_' && Hashtbl.mem gen.gspecial_vars v.v_name ->
+			| TCall({ eexpr = TIdent s }, args) when String.get s 0 = '_' && Hashtbl.mem gen.gspecial_vars s ->
 				Type.map_expr run e
 			| TCall(tc,params) ->
 				let i = ref 0 in

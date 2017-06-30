@@ -38,7 +38,7 @@ let ensure_simple_expr com e =
 		match e.eexpr with
 		| TConst _ | TLocal _ | TArray _ | TBinop _
 		| TField _ | TTypeExpr _ | TParenthesis _ | TCast _ | TMeta _
-		| TCall _ | TNew _ | TUnop _ ->
+		| TCall _ | TNew _ | TUnop _ | TIdent _ ->
 			Type.iter iter e
 		| _ ->
 			print_endline (debug_expr e);
