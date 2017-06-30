@@ -572,54 +572,54 @@ and gen_call ctx e el =
 		spr ctx ", ";
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")";
-	| TLocal { v_name = "__set__" }, { eexpr = TConst (TString code) } :: el ->
+	| TIdent "__set__", { eexpr = TConst (TString code) } :: el ->
 		print ctx "$%s" code;
 		genargs el;
-	| TLocal { v_name = "__set__" }, e :: el ->
+	| TIdent "__set__", e :: el ->
 		gen_value ctx e;
 		genargs el;
-	| TLocal { v_name = "__setfield__" }, e :: (f :: el) ->
+	| TIdent "__setfield__", e :: (f :: el) ->
 		gen_value ctx e;
 		spr ctx "->{";
 		gen_value ctx f;
 		spr ctx "}";
 		genargs el;
-	| TLocal { v_name = "__field__" }, e :: ({ eexpr = TConst (TString code) } :: el) ->
+	| TIdent "__field__", e :: ({ eexpr = TConst (TString code) } :: el) ->
 		gen_value ctx e;
 		spr ctx "->";
 		spr ctx code;
 		gen_array_args ctx el;
-	| TLocal { v_name = "__field__" }, e :: (f :: el) ->
+	| TIdent "__field__", e :: (f :: el) ->
 		gen_value ctx e;
 		spr ctx "->";
 		gen_value ctx f;
 		gen_array_args ctx el;
-	| TLocal { v_name = "__prefix__" }, [] ->
+	| TIdent "__prefix__", [] ->
 		(match ctx.com.php_prefix with
 		| Some prefix ->
 			print ctx "\"%s\"" prefix
 		| None ->
 			spr ctx "null")
-	| TLocal { v_name = "__var__" }, { eexpr = TConst (TString code) } :: el ->
+	| TIdent "__var__", { eexpr = TConst (TString code) } :: el ->
 		print ctx "$%s" code;
 		gen_array_args ctx el;
-	| TLocal { v_name = "__var__" }, e :: el ->
+	| TIdent "__var__", e :: el ->
 		gen_value ctx e;
 		gen_array_args ctx el;
-	| TLocal { v_name = "__call__" }, { eexpr = TConst (TString code) } :: el ->
+	| TIdent "__call__", { eexpr = TConst (TString code) } :: el ->
 		spr ctx code;
 		spr ctx "(";
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")";
-	| TLocal { v_name = "__php__" }, [{ eexpr = TConst (TString code) }] ->
+	| TIdent "__php__", [{ eexpr = TConst (TString code) }] ->
 		(*--php-prefix*)
 		spr ctx (prefix_init_replace ctx.com code)
-	| TLocal { v_name = "__php__" }, { eexpr = TConst (TString code); epos = p } :: tl ->
+	| TIdent "__php__", { eexpr = TConst (TString code); epos = p } :: tl ->
 		Codegen.interpolate_code ctx.com code tl (spr ctx) (gen_expr ctx) p
-	| TLocal { v_name = "__instanceof__" },  [e1;{ eexpr = TConst (TString t) }] ->
+	| TIdent "__instanceof__",  [e1;{ eexpr = TConst (TString t) }] ->
 		gen_value ctx e1;
 		print ctx " instanceof %s" t;
-	| TLocal { v_name = "__physeq__" },  [e1;e2] ->
+	| TIdent "__physeq__",  [e1;e2] ->
 		spr ctx "(";
 		gen_value ctx e1;
 		spr ctx " === ";

@@ -362,7 +362,7 @@ struct
 			| TReturn _
 			| TThrow _ -> true
 			(* this is hack to not use 'break' on switch cases *)
-			| TLocal { v_name = "__fallback__" } when is_switch -> true
+			| TIdent "__fallback__" when is_switch -> true
 			| TMeta ((Meta.LoopLabel,_,_), { eexpr = TBreak }) -> true
 			| TParenthesis p | TMeta (_,p) -> is_final_return_expr p
 			| TBlock bl -> is_final_return_block is_switch bl
@@ -1351,8 +1351,8 @@ let generate con =
 
 	let has_semicolon e =
 		match e.eexpr with
-			| TLocal { v_name = "__fallback__" }
-			| TCall ({ eexpr = TLocal( { v_name = "__lock__" } ) }, _ ) -> false
+			| TIdent "__fallback__"
+			| TCall ({ eexpr = TIdent "__lock__" }, _ ) -> false
 			| TBlock _ | TFor _ | TSwitch _ | TTry _ | TIf _ -> false
 			| TWhile (_,_,flag) when flag = Ast.NormalWhile -> false
 			| _ -> true
@@ -1388,7 +1388,7 @@ let generate con =
 
 	let rec extract_tparams params el =
 		match el with
-			| ({ eexpr = TLocal({ v_name = "$type_param" }) } as tp) :: tl ->
+			| ({ eexpr = TIdent "$type_param" } as tp) :: tl ->
 				extract_tparams (tp.etype :: params) tl
 			| _ -> (params, el)
 	in
@@ -1415,8 +1415,8 @@ let generate con =
 			| TUnop (Ast.Decrement, _, _)
 			| TBinop (Ast.OpAssign, _, _)
 			| TBinop (Ast.OpAssignOp _, _, _)
-			| TLocal { v_name = "__fallback__" }
-			| TLocal { v_name = "__sbreak__" } ->
+			| TIdent "__fallback__"
+			| TIdent "__sbreak__" ->
 				ret := expr :: !ret
 			| TConst _
 			| TLocal _
@@ -1471,9 +1471,9 @@ let generate con =
 								| t -> write w ("null") )
 						| TThis -> write w "this"
 						| TSuper -> write w "super")
-				| TLocal { v_name = "__fallback__" } -> ()
-				| TLocal { v_name = "__sbreak__" } -> write w "break"
-				| TLocal { v_name = "__undefined__" } ->
+				| TIdent "__fallback__" -> ()
+				| TIdent "__sbreak__" -> write w "break"
+				| TIdent "__undefined__" ->
 					write w (t_s e.epos (TInst(runtime_cl, List.map (fun _ -> t_dynamic) runtime_cl.cl_params)));
 					write w ".undefined";
 				| TLocal var ->
@@ -1517,7 +1517,7 @@ let generate con =
 					| _ -> assert false)
 				| TMeta (_,e) ->
 					expr_s w e
-				| TCall ({ eexpr = TLocal { v_name = "__array__" } }, el)
+				| TCall ({ eexpr = TIdent "__array__" }, el)
 				| TCall ({ eexpr = TField(_, FStatic({ cl_path = (["java"],"NativeArray") }, { cf_name = "make" })) }, el)
 				| TArrayDecl el when t_has_type_param e.etype ->
 					let _, el = extract_tparams [] el in
@@ -1529,7 +1529,7 @@ let generate con =
 						acc + 1
 					) 0 el);
 					write w "}) )"
-				| TCall ({ eexpr = TLocal { v_name = "__array__" } }, el)
+				| TCall ({ eexpr = TIdent "__array__" }, el)
 				| TCall ({ eexpr = TField(_, FStatic({ cl_path = (["java"],"NativeArray") }, { cf_name = "make" })) }, el)
 				| TArrayDecl el ->
 					let _, el = extract_tparams [] el in
@@ -1553,17 +1553,17 @@ let generate con =
 						write w "Character.toString((char) ";
 						expr_s w cc;
 						write w ")"
-				| TCall ({ eexpr = TLocal( { v_name = "__is__" } ) }, [ expr; { eexpr = TTypeExpr(md) } ] ) ->
+				| TCall ({ eexpr = TIdent "__is__" }, [ expr; { eexpr = TTypeExpr(md) } ] ) ->
 					write w "( ";
 					expr_s w expr;
 					write w " instanceof ";
 					write w (md_s e.epos md);
 					write w " )"
-				| TCall ({ eexpr = TLocal( { v_name = "__java__" } ) }, [ { eexpr = TConst(TString(s)) } ] ) ->
+				| TCall ({ eexpr = TIdent "__java__" }, [ { eexpr = TConst(TString(s)) } ] ) ->
 					write w s
-				| TCall ({ eexpr = TLocal( { v_name = "__java__" } ) }, { eexpr = TConst(TString(s)) } :: tl ) ->
+				| TCall ({ eexpr = TIdent "__java__" }, { eexpr = TConst(TString(s)) } :: tl ) ->
 					Codegen.interpolate_code gen.gcon s tl (write w) (expr_s w) e.epos
-				| TCall ({ eexpr = TLocal( { v_name = "__lock__" } ) }, [ eobj; eblock ] ) ->
+				| TCall ({ eexpr = TIdent "__lock__" }, [ eobj; eblock ] ) ->
 					write w "synchronized(";
 					let rec loop eobj = match eobj.eexpr with
 						| TTypeExpr md ->
@@ -1585,7 +1585,7 @@ let generate con =
 						if has_semicolon eblock then write w ";";
 						end_block w;
 					)
-				| TCall ({ eexpr = TLocal( { v_name = "__typeof__" } ) }, [ { eexpr = TTypeExpr md } as expr ] ) ->
+				| TCall ({ eexpr = TIdent "__typeof__" }, [ { eexpr = TTypeExpr md } as expr ] ) ->
 					expr_s w expr;
 					write w ".class"
 				| TCall (e, el) ->
@@ -2502,7 +2502,7 @@ let generate con =
 				is_dynamic_expr is_dynamic_op e1
 			| _ -> false)
 		(fun e1 e2 ->
-			let is_null e = match e.eexpr with | TConst(TNull) | TLocal({ v_name = "__undefined__" }) -> true | _ -> false in
+			let is_null e = match e.eexpr with | TConst(TNull) | TIdent "__undefined__" -> true | _ -> false in
 
 			match e1.eexpr, e2.eexpr with
 				| TConst c1, TConst c2 when is_null e1 || is_null e2 ->

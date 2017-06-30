@@ -131,7 +131,7 @@ let configure_cs com =
 	let should_wrap t = not (is_exception t) in
 	let wrap_throw expr =
 		match expr.eexpr with
-		| TLocal { v_name = "__rethrow__" } ->
+		| TIdent "__rethrow__" ->
 			make_throw expr expr.epos
 		| _ ->
 			let e_hxexception = make_static_this hx_exception expr.epos in

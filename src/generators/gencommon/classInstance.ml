@@ -35,7 +35,7 @@ let add_typeof =
 	let v_typeof = alloc_var "__typeof__" t_dynamic in
 	let rec run e =
 		match e.eexpr with
-		| TCall (({ eexpr = TLocal { v_name = ("__is__" | "__as__" | "__typeof__") } } as elocal), args) ->
+		| TCall (({ eexpr = TIdent ("__is__" | "__as__" | "__typeof__") } as elocal), args) ->
 			let args = List.map (fun e -> match e.eexpr with TTypeExpr _ -> e | _ -> run e) args in
 			{ e with eexpr = TCall (elocal, args) }
 		| TField ({ eexpr = TTypeExpr _ }, _) ->

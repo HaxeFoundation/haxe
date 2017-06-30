@@ -1029,7 +1029,7 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 				handle e t real_t
 			| TCast( { eexpr = TConst TNull }, _ ) ->
 				{ e with eexpr = TConst TNull }
-			| TCast( { eexpr = TCall( { eexpr = TLocal { v_name = "__delegate__" } } as local, [del] ) } as e2, _) ->
+			| TCast( { eexpr = TCall( { eexpr = TIdent "__delegate__" } as local, [del] ) } as e2, _) ->
 				{ e with eexpr = TCast({ e2 with eexpr = TCall(local, [Type.map_expr run del]) }, None) }
 
 			| TBinop ( (Ast.OpAssign | Ast.OpAssignOp _ as op), e1, e2 ) ->
@@ -1060,7 +1060,7 @@ let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_paramete
 				in
 				let base_type = List.hd base_type in
 				{ e with eexpr = TArrayDecl( List.map (fun e -> handle (run e) base_type e.etype) el ); etype = et }
-			| TCall ({ eexpr = TLocal { v_name = "__array__" } } as arr_local, el) ->
+			| TCall ({ eexpr = TIdent "__array__" } as arr_local, el) ->
 				let et = e.etype in
 				let base_type = match follow et with
 					| TInst(cl, bt) -> gen.greal_type_param (TClassDecl cl) bt

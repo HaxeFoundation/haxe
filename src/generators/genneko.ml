@@ -199,7 +199,7 @@ and gen_call ctx p e el =
 			this p;
 			array p (List.map (gen_expr ctx) el)
 		]
-	| TLocal { v_name = "__resources__" }, [] ->
+	| TIdent "__resources__", [] ->
 		call p (builtin p "array") (Hashtbl.fold (fun name data acc ->
 			(EObject [("name",gen_constant ctx e.epos (TString name));("data",gen_big_string ctx p data)],p) :: acc
 		) ctx.com.resources [])

@@ -940,7 +940,7 @@ let sanitize_expr com e =
 		match e.eexpr with
 		| TVar _	(* needs to be put into blocks *)
 		| TFor _	(* a temp var is needed for holding iterator *)
-		| TCall ({ eexpr = TLocal { v_name = "__js__" } },_) (* we never know *)
+		| TCall ({ eexpr = TIdent "__js__" },_) (* we never know *)
 			-> block e
 		| _ -> e
 	in
