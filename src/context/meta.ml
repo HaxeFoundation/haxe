@@ -123,6 +123,7 @@ type strict_meta =
 	| PhpClassConst
 	| PhpMagic
 	| PhpNoConstructor
+	| Pos
 	| PrivateAccess
 	| Property
 	| Protected
@@ -320,6 +321,7 @@ let get_info = function
 	| PhpClassConst -> ":phpClassConst",("(php7)  Generate static var of an extern class as a PHP class constant",[Platform Php;UsedOn TClass])
 	| PhpMagic -> ":phpMagic",("(php7) Treat annotated field as special PHP magic field",[Platform Php;UsedOn TClassField])
 	| PhpNoConstructor -> ":phpNoConstructor",("(php7) Special meta for extern classes which does not have native constructor in PHP, but need a constructor in Haxe extern",[Platform Php;UsedOn TClass])
+	| Pos -> ":pos",("Sets the position of a reified expression",[HasParam "Position";UsedOn TExpr])
 	| Public -> ":public",("Marks a class field as being public",[UsedOn TClassField;UsedInternally])
 	| PublicFields -> ":publicFields",("Forces all class fields of inheriting classes to be public",[UsedOn TClass])
 	| QuotedField -> ":quotedField",("Used internally to mark structure fields which are quoted in syntax",[UsedInternally])

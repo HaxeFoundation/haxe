@@ -1047,6 +1047,8 @@ let field_access ctx mode f fmode t e p =
 				AKExpr (mk (TField (e,FClosure (None,f))) t p)
 			else
 				normal()
+		| AccCall when ctx.in_display ->
+			normal()
 		| AccCall ->
 			let m = (match mode with MSet -> "set_" | _ -> "get_") ^ f.cf_name in
 			let is_abstract_this_access () = match e.eexpr,ctx.curfun with
@@ -1397,6 +1399,7 @@ and type_field ?(resume=false) ctx e i p mode =
 	| TAnon a ->
 		(try
 			let f = PMap.find i a.a_fields in
+			if Meta.has Meta.Impl f.cf_meta && not (Meta.has Meta.Enum f.cf_meta) then display_error ctx "Cannot access non-static abstract field statically" p;
 			if not f.cf_public && not ctx.untyped then begin
 				match !(a.a_status) with
 				| Closed | Extend _ -> () (* always allow anon private fields access *)
@@ -3936,7 +3939,7 @@ and display_expr ctx e_ast e with_type p =
 				let acc = ref (loop acc l) in
 				let rec dup t = Type.map dup t in
 				List.iter (fun f ->
-					if not (Meta.has Meta.NoUsing f.cf_meta) then
+					if not (Meta.has Meta.NoUsing f.cf_meta) && not (Meta.has Meta.Impl f.cf_meta) then
 					let f = { f with cf_type = opt_type f.cf_type } in
 					let monos = List.map (fun _ -> mk_mono()) f.cf_params in
 					let map = apply_params f.cf_params monos in
