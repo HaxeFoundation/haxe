@@ -471,11 +471,11 @@ and expr dce e =
 			expr dce e;
 			mark_t dce e.epos v.v_type;
 		) vl;
-	| TCall ({eexpr = TLocal ({v_name = "`trace"})},[p;{ eexpr = TObjectDecl(v)}]) ->
+	| TCall ({eexpr = TIdent "`trace"},[p;{ eexpr = TObjectDecl(v)}]) ->
 		check_and_add_feature dce "has_anon_trace";
 		List.iter (fun (_,e) -> expr dce e) v;
 		expr dce p;
-	| TCall ({eexpr = TLocal ({v_name = "__define_feature__"})},[{eexpr = TConst (TString ft)};e]) ->
+	| TCall ({eexpr = TIdent "__define_feature__"},[{eexpr = TConst (TString ft)};e]) ->
 		Hashtbl.replace dce.curclass.cl_module.m_extra.m_features ft true;
 		check_feature dce ft;
 		expr dce e;

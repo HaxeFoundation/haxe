@@ -208,7 +208,7 @@ module EnumToClass2Modf = struct
 					begin
 						let other_v = alloc_var "other" t_dynamic in
 						let eother_local = mk_local other_v pos in
-						let eas = mk_local (alloc_var "__as__" t_dynamic) pos in
+						let eas = mk (TIdent "__as__") t_dynamic pos in
 						let ecast = mk (TCall(eas,[eother_local])) cl_ctor_t pos in
 
 						let equals_exprs = ref (List.rev [
@@ -338,7 +338,6 @@ end;;
 
 module EnumToClass2Exprf = struct
 	let init com ec_tbl mk_enum_index_call =
-		let v_as = alloc_var "__as__" t_dynamic in
 		let rec run e =
 			let get_converted_enum_classes et =
 				let en = match follow et with
@@ -374,7 +373,7 @@ module EnumToClass2Exprf = struct
 				let f = { f with etype = TInst(cl_enum, []) } in
 
 				let cl_ctor = PMap.find ef.ef_name classes.ctors in
-				let ecast = mk (TCall (mk_local v_as f.epos, [f])) (TInst (cl_ctor, [])) f.epos in
+				let ecast = mk (TCall (mk (TIdent "__as__") t_dynamic f.epos, [f])) (TInst (cl_ctor, [])) f.epos in
 
 				(match ef.ef_type with
 				| TFun (params, _) ->

@@ -127,11 +127,11 @@ let configure_cs com =
 		| TInst (cl,_) -> is_parent base_exception cl
 		| _ -> false
 	in
-	let v_rethrow = alloc_unbound_var "__rethrow__" t_dynamic null_pos in
+	let e_rethrow = mk (TIdent "__rethrow__") t_dynamic null_pos in
 	let should_wrap t = not (is_exception t) in
 	let wrap_throw expr =
 		match expr.eexpr with
-		| TLocal { v_name = "__rethrow__" } ->
+		| TIdent "__rethrow__" ->
 			make_throw expr expr.epos
 		| _ ->
 			let e_hxexception = make_static_this hx_exception expr.epos in
@@ -139,7 +139,7 @@ let configure_cs com =
 			make_throw e_wrap expr.epos
 	in
 	let unwrap_expr local_to_unwrap = Codegen.field (mk_cast local_to_unwrap hx_exception_t local_to_unwrap.epos) "obj" t_dynamic local_to_unwrap.epos in
-	let rethrow_expr rethrow = make_throw (make_local v_rethrow rethrow.epos) rethrow.epos in
+	let rethrow_expr rethrow = make_throw e_rethrow rethrow.epos in
 	let catch_map v e =
 		let e_exc = make_static_this exc_cl e.epos in
 		let e_field = Codegen.field e_exc "exception" base_exception_t e.epos in

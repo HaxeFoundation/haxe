@@ -611,12 +611,12 @@ and jit_expr jit return e =
 			end
 		| _ ->
 			match e1.eexpr,el with
-			| TLocal({v_name = "$__mk_pos__"}),[file;min;max] ->
+			| TIdent "$__mk_pos__",[file;min;max] ->
 				let exec1 = jit_expr jit false file in
 				let exec2 = jit_expr jit false min in
 				let exec3 = jit_expr jit false max in
 				emit_mk_pos exec1 exec2 exec3
-			| TLocal({v_name = "$__delayed_call__"}),[{eexpr = TConst(TInt i)}] ->
+			| TIdent "$__delayed_call__",[{eexpr = TConst(TInt i)}] ->
 				let f = ctx.curapi.MacroApi.delayed_macro (Int32.to_int i) in
 				(fun env ->
 					let f = f() in
@@ -775,6 +775,8 @@ and jit_expr jit return e =
 		loop (Codegen.for_remap (ctx.curapi.MacroApi.get_com()) v e1 e2 e.epos)
 	| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 		loop e1
+	| TIdent s ->
+		Error.error ("Unknown identifier: " ^ s) e.epos
 	in
 	let f = loop e in
 	if ctx.debug.support_debugger then begin match e.eexpr with

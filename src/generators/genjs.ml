@@ -344,64 +344,64 @@ let rec gen_call ctx e el in_value =
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
 		);
-	| TCall (x,_) , el when (match x.eexpr with TLocal { v_name = "__js__" } -> false | _ -> true) ->
+	| TCall (x,_) , el when (match x.eexpr with TIdent "__js__" -> false | _ -> true) ->
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ")";
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
-	| TLocal { v_name = "__new__" }, { eexpr = TConst (TString cl) } :: params ->
+	| TIdent "__new__", { eexpr = TConst (TString cl) } :: params ->
 		print ctx "new %s(" cl;
 		concat ctx "," (gen_value ctx) params;
 		spr ctx ")";
-	| TLocal { v_name = "__new__" }, e :: params ->
+	| TIdent "__new__", e :: params ->
 		spr ctx "new ";
 		gen_value ctx e;
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) params;
 		spr ctx ")";
-	| TLocal { v_name = "__js__" }, [{ eexpr = TConst (TString "this") }] ->
+	| TIdent "__js__", [{ eexpr = TConst (TString "this") }] ->
 		spr ctx (this ctx)
-	| TLocal { v_name = "__js__" }, [{ eexpr = TConst (TString code) }] ->
+	| TIdent "__js__", [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
-	| TLocal { v_name = "__js__" }, { eexpr = TConst (TString code); epos = p } :: tl ->
+	| TIdent "__js__", { eexpr = TConst (TString code); epos = p } :: tl ->
 		Codegen.interpolate_code ctx.com code tl (spr ctx) (gen_expr ctx) p
-	| TLocal { v_name = "__instanceof__" },  [o;t] ->
+	| TIdent "__instanceof__",  [o;t] ->
 		spr ctx "(";
 		gen_value ctx o;
 		print ctx " instanceof ";
 		gen_value ctx t;
 		spr ctx ")";
-	| TLocal { v_name = "__typeof__" },  [o] ->
+	| TIdent "__typeof__",  [o] ->
 		spr ctx "typeof(";
 		gen_value ctx o;
 		spr ctx ")";
-	| TLocal { v_name = "__strict_eq__" } , [x;y] ->
+	| TIdent "__strict_eq__" , [x;y] ->
 		(* add extra parenthesis here because of operator precedence *)
 		spr ctx "((";
 		gen_value ctx x;
 		spr ctx ") === ";
 		gen_value ctx y;
 		spr ctx ")";
-	| TLocal { v_name = "__strict_neq__" } , [x;y] ->
+	| TIdent "__strict_neq__" , [x;y] ->
 		(* add extra parenthesis here because of operator precedence *)
 		spr ctx "((";
 		gen_value ctx x;
 		spr ctx ") !== ";
 		gen_value ctx y;
 		spr ctx ")";
-	| TLocal ({v_name = "__define_feature__"}), [_;e] ->
+	| TIdent "__define_feature__", [_;e] ->
 		gen_expr ctx e
-	| TLocal { v_name = "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse ->
+	| TIdent "__feature__", { eexpr = TConst (TString f) } :: eif :: eelse ->
 		(if has_feature ctx f then
 			gen_value ctx eif
 		else match eelse with
 			| [] -> ()
 			| e :: _ -> gen_value ctx e)
-	| TLocal { v_name = "__rethrow__" }, [] ->
+	| TIdent "__rethrow__", [] ->
 		spr ctx "throw $hx_rethrow";
-	| TLocal { v_name = "__resources__" }, [] ->
+	| TIdent "__resources__", [] ->
 		spr ctx "[";
 		concat ctx "," (fun (name,data) ->
 			spr ctx "{ ";
@@ -412,7 +412,7 @@ let rec gen_call ctx e el in_value =
 			spr ctx "}"
 		) (Hashtbl.fold (fun name data acc -> (name,data) :: acc) ctx.com.resources []);
 		spr ctx "]";
-	| TLocal { v_name = "`trace" }, [e;infos] ->
+	| TIdent "`trace", [e;infos] ->
 		if has_feature ctx "haxe.Log.trace" then begin
 			let t = (try List.find (fun t -> t_path t = (["haxe"],"Log")) ctx.com.types with _ -> assert false) in
 			spr ctx (ctx.type_accessor t);
@@ -675,7 +675,7 @@ and gen_expr ctx e =
 		if (has_feature ctx "js.Lib.rethrow") then begin
 			let has_rethrow (_,e) =
 				let rec loop e = match e.eexpr with
-				| TCall({eexpr = TLocal {v_name = "__rethrow__"}}, []) -> raise Exit
+				| TCall({eexpr = TIdent "__rethrow__"}, []) -> raise Exit
 				| _ -> Type.iter loop e
 				in
 				try (loop e; false) with Exit -> true
@@ -799,7 +799,10 @@ and gen_expr ctx e =
 		gen_expr ctx e1;
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
-		spr ctx ")");
+		spr ctx ")"
+	| TIdent s ->
+		spr ctx s
+	);
 	Option.may (fun smap -> smap.current_expr <- None) ctx.smap
 
 
@@ -807,7 +810,7 @@ and gen_block_element ?(after=false) ctx e =
 	match e.eexpr with
 	| TBlock el ->
 		List.iter (gen_block_element ~after ctx) el
-	| TCall ({ eexpr = TLocal { v_name = "__feature__" } }, { eexpr = TConst (TString f) } :: eif :: eelse) ->
+	| TCall ({ eexpr = TIdent "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse) ->
 		if has_feature ctx f then
 			gen_block_element ~after ctx eif
 		else (match eelse with
@@ -867,7 +870,8 @@ and gen_value ctx e =
 	| TArrayDecl _
 	| TNew _
 	| TUnop _
-	| TFunction _ ->
+	| TFunction _
+	| TIdent _ ->
 		gen_expr ctx e
 	| TMeta (_,e1) ->
 		gen_value ctx e1

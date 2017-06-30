@@ -951,7 +951,7 @@ module Transformer = struct
 			let f = exprs_to_func (new_expr.a_blocks @ [new_expr.a_expr]) (ae.a_next_id()) ae in
 			lift_expr ~is_value:true ~blocks:f.a_blocks f.a_expr
 
-		| ( _, TBreak ) | ( _, TContinue ) ->
+		| ( _, TBreak ) | ( _, TContinue ) | ( _, TIdent _) ->
 			lift_expr a_expr
 
 	and transform e =
@@ -1213,7 +1213,7 @@ module Printer = struct
 				Printf.sprintf "%s = %s" (print_expr pctx e1) (print_expr pctx (remove_outer_parens e2))
 			| TBinop(op,e1,({eexpr = TBinop(_,_,_)} as e2)) ->
 				print_expr pctx { e with eexpr = TBinop(op, e1, { e2 with eexpr = TParenthesis(e2) })}
-			| TBinop(OpEq,{eexpr = TCall({eexpr = TLocal {v_name = "__typeof__"}},[e1])},e2) ->
+			| TBinop(OpEq,{eexpr = TCall({eexpr = TIdent "__typeof__"},[e1])},e2) ->
 				begin match e2.eexpr with
 					| TConst(TString s) ->
 						begin match s with
@@ -1381,6 +1381,8 @@ module Printer = struct
 				Printf.sprintf "(%s if %s else %s)" (print_expr pctx eif) (print_expr pctx econd) (print_expr pctx eelse)
 			| TMeta(_,e1) ->
 				print_expr pctx e1
+			| TIdent s ->
+				s
 			| TSwitch _ | TCast(_, Some _) | TFor _ | TUnop(_,Postfix,_) ->
 				assert false
 
@@ -1607,7 +1609,7 @@ module Printer = struct
 			PMap.foldi fold_dict native_fields ""
 		in
 		match e1.eexpr, el with
-			| TLocal { v_name = "`trace" }, [e;infos] ->
+			| TIdent "`trace", [e;infos] ->
 				if has_feature pctx "haxe.Log.trace" then begin
 					"haxe_Log.trace(" ^ (print_expr pctx e) ^ "," ^ (print_expr pctx infos) ^ ")"
 				end else if is_safe_string pctx e then

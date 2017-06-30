@@ -235,7 +235,7 @@ let index_of f l =
 
 (* create a __lua__ call *)
 let mk_lua_code com code args t pos =
-	let lua_local = Codegen.ExprBuilder.make_local (alloc_var "__lua__" t_dynamic pos) pos in
+	let lua_local = mk (TIdent "__lua__") t_dynamic pos in
 	let code_const = Codegen.ExprBuilder.make_string com code pos in
 	mk (TCall (lua_local, code_const :: args)) t pos
 
@@ -331,27 +331,27 @@ let rec gen_call ctx e el in_value =
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
 		);
-	| TCall (x,_) , el when (match x.eexpr with TLocal { v_name = "__lua__" } -> false | _ -> true) ->
+	| TCall (x,_) , el when (match x.eexpr with TIdent "__lua__" -> false | _ -> true) ->
                 gen_paren ctx [e];
                 gen_paren ctx el;
-	| TLocal { v_name = "__new__" }, { eexpr = TConst (TString cl) } :: params ->
+	| TIdent "__new__", { eexpr = TConst (TString cl) } :: params ->
 		print ctx "%s.new(" cl;
 		concat ctx "," (gen_value ctx) params;
 		spr ctx ")";
-	| TLocal { v_name = "__new__" }, e :: params ->
+	| TIdent "__new__", e :: params ->
 		gen_value ctx e;
 		spr ctx ".new(";
 		concat ctx "," (gen_value ctx) params;
 		spr ctx ")";
-	| TLocal { v_name = "__callself__" }, { eexpr = TConst (TString head) } :: { eexpr = TConst (TString tail) } :: el ->
+	| TIdent "__callself__", { eexpr = TConst (TString head) } :: { eexpr = TConst (TString tail) } :: el ->
 		print ctx "%s:%s" head tail;
                 gen_paren ctx el;
-	| TLocal { v_name = "__call__" }, { eexpr = TConst (TString code) } :: el ->
+	| TIdent "__call__", { eexpr = TConst (TString code) } :: el ->
 		spr ctx code;
                 gen_paren ctx el;
-	| TLocal { v_name = "__lua_length__" }, [e]->
+	| TIdent "__lua_length__", [e]->
 		spr ctx "#"; gen_value ctx e;
-	| TLocal { v_name = "__lua_table__" }, el ->
+	| TIdent "__lua_table__", el ->
 		let count = ref 0 in
 		spr ctx "({";
 		List.iter (fun e ->
@@ -372,22 +372,22 @@ let rec gen_call ctx e el in_value =
 			    abort "__lua_table__ only accepts array or anonymous object arguments" e.epos;
 		)) el;
 		spr ctx "})";
-	| TLocal { v_name = "__lua__" }, [{ eexpr = TConst (TString code) }] ->
+	| TIdent "__lua__", [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
-	| TLocal { v_name = "__lua__" }, { eexpr = TConst (TString code); epos = p } :: tl ->
+	| TIdent "__lua__", { eexpr = TConst (TString code); epos = p } :: tl ->
 		Codegen.interpolate_code ctx.com code tl (spr ctx) (gen_expr ctx) p
-	| TLocal { v_name = "__type__" },  [o] ->
+	| TIdent "__type__",  [o] ->
 		spr ctx "type";
                 gen_paren ctx [o];
-	| TLocal ({v_name = "__define_feature__"}), [_;e] ->
+	| TIdent "__define_feature__", [_;e] ->
 		gen_expr ctx e
-	| TLocal { v_name = "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse ->
+	| TIdent "__feature__", { eexpr = TConst (TString f) } :: eif :: eelse ->
 		(if has_feature ctx f then
 			gen_value ctx eif
 		else match eelse with
 			| [] -> ()
 			| e :: _ -> gen_value ctx e)
-	| TLocal { v_name = "__resources__" }, [] ->
+	| TIdent "__resources__", [] ->
 		(* TODO: Array declaration helper *)
 		spr ctx "_hx_tab_array({";
 		let count = ref 0 in
@@ -402,7 +402,7 @@ let rec gen_call ctx e el in_value =
 			incr count
 		) (Hashtbl.fold (fun name data acc -> (name,data) :: acc) ctx.com.resources []);
 		print ctx "}, %i)" !count;
-	| TLocal { v_name = "`trace" }, [e;infos] ->
+	| TIdent "`trace", [e;infos] ->
 		if has_feature ctx "haxe.Log.trace" then begin
 			let t = (try List.find (fun t -> t_path t = (["haxe"],"Log")) ctx.com.types with _ -> assert false) in
 			spr ctx (ctx.type_accessor t);
@@ -916,6 +916,8 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx ")"
 	| TCast (e1,None) ->
 		gen_value ctx e1;
+	| TIdent s ->
+		spr ctx s
 end;
 
 (* gen_block_element handles expressions that map to "statements" in lua. *)
@@ -933,10 +935,10 @@ and gen_block_element ctx e  =
 	| TArrayDecl el | TBlock el ->
 		List.iter (gen_block_element ctx) el;
 	(* For plain lua table instantiations, just capture argument operations *)
-	| TCall({ eexpr = TLocal { v_name = "__lua_table__" }} , el) ->
+	| TCall({ eexpr = TIdent "__lua_table__"} , el) ->
 		List.iter(fun x -> gen_block_element ctx x) el
 	(* make a no-op __define_feature__ expression possible *)
-	| TCall({eexpr = TLocal ({v_name = "__define_feature__"})}, [_;e]) ->
+	| TCall({eexpr = TIdent "__define_feature__"}, [_;e]) ->
 		gen_block_element ctx e
 	| TObjectDecl fl ->
 		List.iter (fun (_,e) -> gen_block_element ctx e) fl
@@ -962,7 +964,7 @@ and gen_block_element ctx e  =
 		let f () = gen_expr ctx e in
 		gen_iife_assign ctx f;
 		semicolon ctx;
-	| TCall ({ eexpr = TLocal { v_name = "__feature__" } }, { eexpr = TConst (TString f) } :: eif :: eelse) ->
+	| TCall ({ eexpr = TIdent "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse) ->
 		if has_feature ctx f then
 			gen_block_element ctx eif
 		else (match eelse with
@@ -1051,7 +1053,8 @@ and gen_value ctx e =
 	| TArrayDecl _
 	| TNew _
 	| TUnop _
-	| TFunction _ ->
+	| TFunction _
+	| TIdent _ ->
 		gen_expr ctx e
 	| TMeta (_,e1) ->
 		gen_value ctx e1

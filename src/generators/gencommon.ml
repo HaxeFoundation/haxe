@@ -124,8 +124,7 @@ let mk_local = ExprBuilder.make_local
 
 (* the undefined is a special var that works like null, but can have special meaning *)
 let undefined =
-	let v_undefined = alloc_var "__undefined__" t_dynamic in
-	(fun pos -> ExprBuilder.make_local v_undefined pos)
+	(fun pos -> mk (TIdent "__undefined__") t_dynamic pos)
 
 let path_of_md_def md_def =
 	match md_def.m_types with
@@ -986,9 +985,8 @@ let get_real_fun gen t =
 	| TFun(args,t) -> TFun(List.map (fun (n,o,t) -> n,o,gen.greal_type t) args, gen.greal_type t)
 	| _ -> t
 
-let v_nativearray = alloc_var "__array__" t_dynamic
 let mk_nativearray_decl gen t el pos =
-	mk (TCall (mk_local v_nativearray pos, el)) (gen.gclasses.nativearray t) pos
+	mk (TCall (mk (TIdent "__array__") t_dynamic pos, el)) (gen.gclasses.nativearray t) pos
 
 let ensure_local com block name e =
 	match e.eexpr with

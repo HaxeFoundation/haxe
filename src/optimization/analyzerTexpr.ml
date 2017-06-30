@@ -142,12 +142,12 @@ let rec can_be_used_as_value com e =
 let wrap_meta s e =
 	mk (TMeta((Meta.Custom s,[],e.epos),e)) e.etype e.epos
 
-let is_really_unbound v = match v.v_name with
+let is_really_unbound s = match s with
 	| "`trace" | "__int__" -> false
-	| _ -> is_unbound v
+	| _ -> true
 
 let r = Str.regexp "^\\([A-Za-z0-9_]\\)+$"
-let is_unbound_call_that_might_have_side_effects v el = match v.v_name,el with
+let is_unbound_call_that_might_have_side_effects s el = match s,el with
 	| "__js__",[{eexpr = TConst (TString s)}] when Str.string_match r s 0 -> false
 	| _ -> true
 
@@ -236,7 +236,8 @@ module TexprKindMapper = struct
 		| TLocal _
 		| TBreak
 		| TContinue
-		| TTypeExpr _ ->
+		| TTypeExpr _
+		| TIdent _ ->
 			e
 		| TArray(e1,e2) ->
 			let e1 = f KAccess e1 in
@@ -487,7 +488,7 @@ module InterferenceReport = struct
 				loop e1;
 				loop e2;
 			(* state *)
-			| TCall({eexpr = TLocal v},el) when not (is_unbound_call_that_might_have_side_effects v el) ->
+			| TCall({eexpr = TIdent s},el) when not (is_unbound_call_that_might_have_side_effects s el) ->
 				List.iter loop el
 			| TNew(c,_,el) when (match c.cl_constructor with Some cf when PurityState.is_pure c cf -> true | _ -> false) ->
 				set_state_read ir;
@@ -879,7 +880,7 @@ module Fusion = struct
 							|| has_field_write ir (field_name fa) || has_state_write ir ->
 							raise Exit
 						(* state *)
-						| TCall({eexpr = TLocal v},el) when not (is_unbound_call_that_might_have_side_effects v el) ->
+						| TCall({eexpr = TIdent s},el) when not (is_unbound_call_that_might_have_side_effects s el) ->
 							e
 						| TNew(c,tl,el) when (match c.cl_constructor with Some cf when PurityState.is_pure c cf -> true | _ -> false) ->
 							let el = handle_el el in
@@ -898,7 +899,7 @@ module Fusion = struct
 							{e with eexpr = TCall(ef,el)}
 						| TCall(e1,el) ->
 							let e1,el = match e1.eexpr with
-								| TLocal v when is_really_unbound v -> e1,el
+								| TIdent s when s <> "`trace" && s <> "__int__" -> e1,el
 								| _ -> handle_call e1 el
 							in
 							if not !found && (((has_state_read ir || has_any_field_read ir)) || has_state_write ir || has_any_field_write ir) then raise Exit;
@@ -1037,7 +1038,7 @@ module Fusion = struct
 				in
 				let el = fuse_loop el in
 				{e with eexpr = TBlock el}
-			| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
+			| TCall({eexpr = TIdent s},_) when is_really_unbound s ->
 				e
 			| _ ->
 				Type.map_expr loop e
@@ -1069,7 +1070,7 @@ module Cleanup = struct
 				if_or_op e e1 e2 e3;
 			| TUnop((Increment | Decrement),_,e1) when (match (Texpr.skip e1).eexpr with TConst _ -> true | _ -> false) ->
 				loop e1
-			| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
+			| TCall({eexpr = TIdent s},_) when is_really_unbound s ->
 				e
 			| TBlock el ->
 				let el = List.map (fun e ->
@@ -1222,7 +1223,7 @@ module Purity = struct
 					| _ ->
 						taint_raise node (* Can that even happen? *)
 				end
-			| TCall({eexpr = TLocal v},el) when not (is_unbound_call_that_might_have_side_effects v el) ->
+			| TCall({eexpr = TIdent s},el) when not (is_unbound_call_that_might_have_side_effects s el) ->
 				List.iter loop el;
 			| TCall _ ->
 				taint_raise node

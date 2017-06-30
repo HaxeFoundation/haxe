@@ -1515,9 +1515,9 @@ and eval_expr ctx e =
 				r
 			)
 		| _ -> assert false);
-	| TCall ({ eexpr = TLocal v }, el) when v.v_name.[0] = '$' ->
+	| TCall ({ eexpr = TIdent s }, el) when s.[0] = '$' ->
 		let invalid() = abort "Invalid native call" e.epos in
-		(match v.v_name, el with
+		(match s, el with
 		| "$new", [{ eexpr = TTypeExpr (TClassDecl _) }] ->
 			(match follow e.etype with
 			| TInst (c,pl) ->
@@ -1921,7 +1921,7 @@ and eval_expr ctx e =
 			free ctx min;
 			r
 		| _ ->
-			abort ("Unknown native call " ^ v.v_name) e.epos)
+			abort ("Unknown native call " ^ s) e.epos)
 	| TEnumIndex v ->
 		get_enum_index ctx v
 	| TCall ({ eexpr = TField (_,FStatic ({ cl_path = [],"Type" },{ cf_name = "enumIndex" })) },[{ eexpr = TCast(v,_) }]) when (match follow v.etype with TEnum _ -> true | _ -> false) ->
@@ -2717,6 +2717,8 @@ and eval_expr ctx e =
 		else
 			op ctx (OSafeCast (r,re));
 		r
+	| TIdent s ->
+		assert false
 
 and gen_assign_op ctx acc e1 f =
 	let f r =

@@ -76,15 +76,14 @@ let init com java_mode =
 			| _ -> expr, kind
 	in
 
-	let sbreak = alloc_var "__sbreak__" t_dynamic in
-	let mk_sbreak = mk_local sbreak in
+	let mk_sbreak = mk (TIdent "__sbreak__") t_dynamic in
 
 	let rec has_fallback expr = match expr.eexpr with
 		| TBlock(bl) -> (match List.rev bl with
-			| { eexpr = TLocal { v_name = "__fallback__" } } :: _ -> true
+			| { eexpr = TIdent "__fallback__" } :: _ -> true
 			| ({ eexpr = TBlock(_) } as bl) :: _ -> has_fallback bl
 			| _ -> false)
-		| TLocal { v_name = "__fallback__" } -> true
+		| TIdent "__fallback__" -> true
 		| _ -> false
 	in
 
@@ -105,7 +104,7 @@ let init com java_mode =
 			| TReturn _ | TThrow _ -> expr, BreaksFunction
 			| TContinue -> expr, BreaksLoop
 			| TBreak -> has_break := true; expr, BreaksLoop
-			| TCall( { eexpr = TLocal { v_name = "__goto__" } }, _ ) -> expr, BreaksLoop
+			| TCall( { eexpr = TIdent "__goto__" }, _ ) -> expr, BreaksLoop
 
 			| TBlock bl ->
 				let new_block = ref [] in

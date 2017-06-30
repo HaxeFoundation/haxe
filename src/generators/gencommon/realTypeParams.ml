@@ -473,8 +473,7 @@ struct
 		in
 
 		let mk_typehandle =
-			let thandle = alloc_var "__typeof__" t_dynamic in
-			(fun cl -> mk (TCall (mk_local thandle pos, [ExprBuilder.make_static_this cl pos])) t_dynamic pos)
+			(fun cl -> mk (TCall (mk (TIdent "__typeof__") t_dynamic pos, [ExprBuilder.make_static_this cl pos])) t_dynamic pos)
 		in
 		let mk_eq cl1 cl2 =
 			binop OpEq (mk_typehandle cl1) (mk_typehandle cl2) basic.tbool pos

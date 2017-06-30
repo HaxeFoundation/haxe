@@ -701,7 +701,7 @@ let is_access expr =
 *)
 let is_magic expr =
 	match expr.eexpr with
-	| TCall ({ eexpr = TLocal { v_name = name }}, _) ->
+	| TCall ({ eexpr = TIdent name}, _) ->
 		(match name with
 			| "__php__" -> true
 			| "__call__" -> true
@@ -1586,7 +1586,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| TArrayDecl exprs -> self#write_expr_array_decl exprs
 				| TCall (target, [arg1; arg2]) when is_std_is target && instanceof_compatible arg1 arg2 -> self#write_expr_lang_instanceof [arg1; arg2]
 				| TCall (_, [arg]) when is_native_struct_array_cast expr && is_object_declaration arg -> self#write_assoc_array_decl arg
-				| TCall ({ eexpr = TLocal { v_name = name }}, args) when is_magic expr -> self#write_expr_magic name args
+				| TCall ({ eexpr = TIdent name}, args) when is_magic expr -> self#write_expr_magic name args
 				| TCall ({ eexpr = TField (expr, access) }, args) when is_string expr -> self#write_expr_call_string expr access args
 				| TCall (expr, args) when is_lang_extern expr -> self#write_expr_call_lang_extern expr args
 				| TCall (target, args) when is_sure_var_field_access target -> self#write_expr_call (parenthesis target) args
@@ -1612,6 +1612,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| TMeta (_, expr) -> self#write_expr expr
 				| TEnumParameter (expr, constructor, index) -> self#write_expr_enum_parameter expr constructor index
 				| TEnumIndex expr -> self#write_expr_enum_index expr
+				| TIdent s -> self#write s
 			);
 			expr_hierarchy <- List.tl expr_hierarchy
 		(**

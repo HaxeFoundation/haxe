@@ -64,7 +64,7 @@ end
 let has_side_effect e =
 	let rec loop e =
 		match e.eexpr with
-		| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ -> ()
+		| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ | TIdent _ -> ()
 		| TCall({eexpr = TField(e1,fa)},el) when PurityState.is_pure_field_access fa -> loop e1; List.iter loop el
 		| TNew(c,_,el) when (match c.cl_constructor with Some cf when PurityState.is_pure c cf -> true | _ -> false) -> List.iter loop el
 		| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
@@ -88,7 +88,7 @@ let is_read_only_field_access e fa = match fa with
 		true
 	| FDynamic _ ->
 		false
-	| FAnon {cf_kind = Var {v_write = AccNo}} when (match e.eexpr with TLocal v when is_unbound v -> true | _ -> false) -> true
+	| FAnon {cf_kind = Var {v_write = AccNo}} when (match e.eexpr with TIdent _ -> true | _ -> false) -> true
 	| FInstance (c,_,cf) | FStatic (c,cf) | FClosure (Some(c,_),cf) ->
 		begin match cf.cf_kind with
 			| Method MethDynamic -> false

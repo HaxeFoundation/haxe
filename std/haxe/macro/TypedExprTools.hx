@@ -47,7 +47,7 @@ class TypedExprTools {
 	**/
 	static public function map(e:TypedExpr, f:TypedExpr -> TypedExpr):TypedExpr {
 		return switch(e.expr) {
-			case TConst(_) | TLocal(_) | TBreak | TContinue | TTypeExpr(_): e;
+			case TConst(_) | TLocal(_) | TBreak | TContinue | TTypeExpr(_) | TIdent(_): e;
 			case TArray(e1, e2): with(e, TArray(f(e1), f(e2)));
 			case TBinop(op, e1, e2): with(e, TBinop(op, f(e1), f(e2)));
 			case TFor(v, e1, e2): with(e, TFor(v, f(e1), f(e2)));
@@ -83,7 +83,7 @@ class TypedExprTools {
 	**/
 	static public function iter(e:TypedExpr, f:TypedExpr -> Void):Void {
 		switch(e.expr) {
-			case TConst(_) | TLocal(_) | TBreak | TContinue | TTypeExpr(_):
+			case TConst(_) | TLocal(_) | TBreak | TContinue | TTypeExpr(_) | TIdent(_):
 			case TArray(e1, e2) | TBinop(_, e1, e2) | TFor(_, e1, e2) | TWhile(e1, e2, _):
 				f(e1);
 				f(e2);
@@ -128,7 +128,7 @@ class TypedExprTools {
 	**/
 	static public function mapWithType(e:TypedExpr, f:TypedExpr -> TypedExpr, ft:Type -> Type, fv:TVar -> TVar):TypedExpr {
 		return switch(e.expr) {
-			case TConst(_) | TBreak | TContinue | TTypeExpr(_): with(e, ft(e.t));
+			case TConst(_) | TBreak | TContinue | TTypeExpr(_) | TIdent(_): with(e, ft(e.t));
 			case TLocal(v): with(e, TLocal(fv(v)), ft(e.t));
 			case TArray(e1, e2): with(e, TArray(f(e1), f(e2)), ft(e.t));
 			case TBinop(op, e1, e2): with(e, TBinop(op, f(e1), f(e2)), ft(e.t));

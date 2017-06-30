@@ -1188,7 +1188,7 @@ let rec is_dynamic_in_cpp ctx expr =
       | TCall(func,args) ->
          let is_IaCall =
             (match (remove_parens_cast func).eexpr with
-            | TField ( { eexpr = TLocal  { v_name = "__global__" }}, field ) -> false
+            | TField ( { eexpr = TIdent "__global__" }, field ) -> false
             | TField (obj,FStatic (class_def,field) ) when is_real_function field -> false
             | TField (obj,FInstance (_,_,field) ) when (is_this obj) && (is_real_function field) -> false
             | TField (obj,FInstance (_,_,field) ) when is_super obj -> false
@@ -1208,7 +1208,7 @@ let rec is_dynamic_in_cpp ctx expr =
          );
       | TParenthesis(expr) | TMeta(_,expr) -> is_dynamic_in_cpp ctx expr
       | TCast (e,None) -> (type_string expr.etype) = "Dynamic"
-      | TLocal { v_name = "__global__" } -> false
+      | TIdent "__global__" -> false
       | TConst TNull -> true
       | _ -> false (* others ? *) )
       in
@@ -2444,11 +2444,25 @@ let retype_expression ctx request_type function_args function_type expression_tr
          | TConst x ->
             cpp_const_type x
 
-         | TLocal { v_name = "__global__" } ->
+         | TIdent "__global__" ->
             CppClassOf(([],""),false), TCppGlobal
 
          | TLocal tvar ->
             let name = tvar.v_name in
+            if (Hashtbl.mem !declarations name) then begin
+               (*print_endline ("Using existing tvar " ^ tvar.v_name);*)
+               CppVar(VarLocal(tvar)), cpp_type_of tvar.v_type
+            end else begin
+               (*print_endline ("Missing tvar " ^ tvar.v_name);*)
+               Hashtbl.replace !undeclared name tvar;
+               if tvar.v_capture then
+                  CppVar(VarClosure(tvar)), cpp_type_of tvar.v_type
+               else
+                  CppGlobal(name), cpp_type_of tvar.v_type
+            end
+
+         | TIdent name ->
+            let tvar = alloc_var name expr.etype expr.epos in
             if (Hashtbl.mem !declarations name) then begin
                (*print_endline ("Using existing tvar " ^ tvar.v_name);*)
                CppVar(VarLocal(tvar)), cpp_type_of tvar.v_type
@@ -2641,7 +2655,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   CppEnumField(enum, enum_field), TCppEnum(enum)
             )
 
-         | TCall( {eexpr = TLocal { v_name = "__cpp__" }}, arg_list ) ->
+         | TCall( {eexpr = TIdent "__cpp__"}, arg_list ) ->
             let  cppExpr = match arg_list with
             | [{ eexpr = TConst (TString code) }] -> CppCode(code, [])
             | ({ eexpr = TConst (TString code) }) :: remaining ->
@@ -7402,7 +7416,7 @@ class script_writer ctx filename asciiOut =
       let argN = (string_of_int (List.length arg_list)) ^ " " in
       let gen_call () =
          (match (remove_parens_cast func).eexpr with
-         | TField ( { eexpr = TLocal  { v_name = "__global__" }}, field ) ->
+         | TField ( { eexpr = TIdent "__global__" }, field ) ->
                   this#write ( (this#op IaCallGlobal) ^ (this#stringText (field_name field)) ^ argN ^ (this#commentOf (field_name field)) ^ "\n");
          | TField (obj,FStatic (class_def,field) ) when is_real_function field ->
                   this#write ( (this#op IaCallStatic) ^ (this#instText class_def) ^ " " ^ (this#stringText field.cf_name) ^
@@ -7594,6 +7608,7 @@ class script_writer ctx filename asciiOut =
    | TCast (cast,_) -> this#checkCast expression.etype cast true true;
    | TParenthesis _ -> abort "Unexpected parens" expression.epos
    | TMeta(_,_) -> abort "Unexpected meta" expression.epos
+   | TIdent _ -> abort "Unexpected ident" expression.epos
    );
    this#end_expr;
    (* } *)

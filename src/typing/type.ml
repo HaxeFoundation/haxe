@@ -139,6 +139,7 @@ and texpr_expr =
 	| TMeta of metadata_entry * texpr
 	| TEnumParameter of texpr * tenum_field * int
 	| TEnumIndex of texpr
+	| TIdent of string
 
 and tfield_access =
 	| FInstance of tclass * tparams * tclass_field
@@ -337,11 +338,6 @@ let alloc_var =
 	let uid = ref 0 in
 	(fun n t p -> incr uid; { v_name = n; v_type = t; v_id = !uid; v_capture = false; v_extra = None; v_meta = []; v_pos = p })
 
-let alloc_unbound_var n t p =
-	let v = alloc_var n t p in
-	v.v_meta <- [Meta.Unbound,[],null_pos];
-	v
-
 let alloc_mid =
 	let mid = ref 0 in
 	(fun() -> incr mid; !mid)
@@ -352,9 +348,6 @@ let mk_block e =
 	match e.eexpr with
 	| TBlock _ -> e
 	| _ -> mk (TBlock [e]) e.etype e.epos
-
-let is_unbound v =
-	Meta.has Meta.Unbound v.v_meta
 
 let mk_cast e t p = mk (TCast(e,None)) t p
 
@@ -1008,6 +1001,7 @@ let s_expr_kind e =
 	| TThrow _ -> "Throw"
 	| TCast _ -> "Cast"
 	| TMeta _ -> "Meta"
+	| TIdent _ -> "Ident"
 
 let s_const = function
 	| TInt i -> Int32.to_string i
@@ -1095,6 +1089,8 @@ let rec s_expr s_type e =
 		sprintf "Cast %s%s" (match t with None -> "" | Some t -> s_type_path (t_path t) ^ ": ") (loop e)
 	| TMeta ((n,el,_),e) ->
 		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)
+	| TIdent s ->
+		"Ident " ^ s
 	) in
 	sprintf "(%s : %s)" str (s_type e.etype)
 
@@ -1164,6 +1160,8 @@ let rec s_expr_pretty print_var_ids tabs top_level s_type e =
 		sprintf "cast (%s,%s)" (loop e) (s_type_path (t_path mt))
 	| TMeta ((n,el,_),e) ->
 		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)
+	| TIdent s ->
+		s
 
 let rec s_expr_ast print_var_ids tabs s_type e =
 	let sprintf = Printf.sprintf in
@@ -1250,6 +1248,8 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 			| _ -> sprintf "%s(%s)" s (String.concat ", " (List.map Ast.s_expr el))
 		in
 		tag "Meta" [s; loop e1]
+	| TIdent s ->
+		tag "Ident" [s]
 
 let s_types ?(sep = ", ") tl =
 	let pctx = print_context() in
@@ -2217,7 +2217,8 @@ let iter f e =
 	| TLocal _
 	| TBreak
 	| TContinue
-	| TTypeExpr _ ->
+	| TTypeExpr _
+	| TIdent _ ->
 		()
 	| TArray (e1,e2)
 	| TBinop (_,e1,e2)
@@ -2267,7 +2268,8 @@ let map_expr f e =
 	| TLocal _
 	| TBreak
 	| TContinue
-	| TTypeExpr _ ->
+	| TTypeExpr _
+	| TIdent _ ->
 		e
 	| TArray (e1,e2) ->
 		let e1 = f e1 in
@@ -2331,7 +2333,8 @@ let map_expr_type f ft fv e =
 	| TConst _
 	| TBreak
 	| TContinue
-	| TTypeExpr _ ->
+	| TTypeExpr _
+	| TIdent _ ->
 		{ e with etype = ft e.etype }
 	| TLocal v ->
 		{ e with eexpr = TLocal (fv v); etype = ft e.etype }
@@ -2574,7 +2577,8 @@ module TExprToExpr = struct
 			) in
 			ECast (convert_expr e,t)
 		| TMeta ((Meta.Ast,[e1,_],_),_) -> e1
-		| TMeta (m,e) -> EMeta(m,convert_expr e))
+		| TMeta (m,e) -> EMeta(m,convert_expr e)
+		| TIdent s -> EConst (Ident s))
 		,e.epos)
 
 end
@@ -2697,7 +2701,8 @@ module Texpr = struct
 		| TLocal _
 		| TBreak
 		| TContinue
-		| TTypeExpr _ ->
+		| TTypeExpr _
+		| TIdent _ ->
 			acc,e
 		| TArray (e1,e2) ->
 			let acc,e1 = f acc e1 in
