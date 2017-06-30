@@ -1397,6 +1397,7 @@ and type_field ?(resume=false) ctx e i p mode =
 	| TAnon a ->
 		(try
 			let f = PMap.find i a.a_fields in
+			if Meta.has Meta.Impl f.cf_meta && not (Meta.has Meta.Enum f.cf_meta) then display_error ctx "Cannot access non-static abstract field statically" p;
 			if not f.cf_public && not ctx.untyped then begin
 				match !(a.a_status) with
 				| Closed | Extend _ -> () (* always allow anon private fields access *)
