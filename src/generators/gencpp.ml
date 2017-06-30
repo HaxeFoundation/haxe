@@ -2461,6 +2461,13 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   CppGlobal(name), cpp_type_of tvar.v_type
             end
 
+         | TIdent name ->
+            if (Hashtbl.mem !declarations name) then begin
+			   let tvar = alloc_var name expr.etype expr.epos in
+               CppVar(VarLocal(tvar)), cpp_type_of tvar.v_type
+			end else
+				abort ("Unknown identifier: " ^ name) expr.epos
+
          | TBreak ->
             if forCppia then
                CppBreak, TCppVoid
@@ -3108,9 +3115,6 @@ let retype_expression ctx request_type function_args function_type expression_tr
             | _ ->
                CppTCast(baseCpp, return_type), return_type
             )
-		| TIdent s ->
-			print_endline (Printf.sprintf "%s: %s" (Printer.s_pos expr.epos) s);
-			assert false
       in
       let cppExpr = mk_cppexpr retypedExpr retypedType in
 

@@ -67,7 +67,7 @@ let mk_infos ctx p params =
 
 let check_assign ctx e =
 	match e.eexpr with
-	| TLocal {v_extra = None} | TArray _ | TField _ ->
+	| TLocal {v_extra = None} | TArray _ | TField _ | TIdent _ ->
 		()
 	| TConst TThis | TTypeExpr _ when ctx.untyped ->
 		()

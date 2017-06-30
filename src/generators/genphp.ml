@@ -222,8 +222,7 @@ let rec is_string_type t =
 let is_string_expr e = is_string_type e.etype
 
 let to_string ctx e =
-	let v = alloc_var "__call__" t_dynamic e.epos in
-	let f = mk (TLocal v) t_dynamic e.epos in
+	let f = mk (TIdent "__call__") t_dynamic e.epos in
 	mk (TCall (f, [ ExprBuilder.make_string ctx.com "_hx_string_rec" e.epos; e; ExprBuilder.make_string ctx.com "" e.epos])) ctx.com.basic.tstring e.epos
 
 let as_string_expr ctx e =
@@ -235,8 +234,7 @@ let as_string_expr ctx e =
 	| _ -> e
 (* for known String type that could have null value *)
 let to_string_null ctx e =
-	let v = alloc_var "__call__" t_dynamic e.epos in
-	let f = mk (TLocal v) t_dynamic e.epos in
+	let f = mk (TIdent "__call__") t_dynamic e.epos in
 	mk (TCall (f, [ ExprBuilder.make_string ctx.com "_hx_string_or_null" e.epos; e])) ctx.com.basic.tstring e.epos
 
 
