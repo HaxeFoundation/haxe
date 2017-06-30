@@ -219,8 +219,8 @@ and gen_expr ctx e =
 	match e.eexpr with
 	| TConst c ->
 		gen_constant ctx e.epos c
-	| TLocal v when v.v_name.[0] = '$' ->
-		(EConst (Builtin (String.sub v.v_name 1 (String.length v.v_name - 1))),p)
+	| TIdent s when s.[0] = '$' ->
+		(EConst (Builtin (String.sub s 1 (String.length s - 1))),p)
 	| TLocal v ->
 		if v.v_capture then
 			(EArray (ident p v.v_name,int p 0),p)
