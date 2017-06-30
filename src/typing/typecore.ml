@@ -210,11 +210,6 @@ let add_local ctx n t p =
 	ctx.locals <- PMap.add n v ctx.locals;
 	v
 
-let add_unbound_local ctx n t p =
-	let v = add_local ctx n t p in
-	v.v_meta <- (Meta.Unbound,[],null_pos) :: v.v_meta;
-	v
-
 let gen_local_prefix = "`"
 
 let gen_local ctx t p =

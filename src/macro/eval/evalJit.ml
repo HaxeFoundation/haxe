@@ -611,12 +611,12 @@ and jit_expr jit return e =
 			end
 		| _ ->
 			match e1.eexpr,el with
-			| TLocal({v_name = "$__mk_pos__"}),[file;min;max] ->
+			| TIdent "$__mk_pos__",[file;min;max] ->
 				let exec1 = jit_expr jit false file in
 				let exec2 = jit_expr jit false min in
 				let exec3 = jit_expr jit false max in
 				emit_mk_pos exec1 exec2 exec3
-			| TLocal({v_name = "$__delayed_call__"}),[{eexpr = TConst(TInt i)}] ->
+			| TIdent "$__delayed_call__",[{eexpr = TConst(TInt i)}] ->
 				let f = ctx.curapi.MacroApi.delayed_macro (Int32.to_int i) in
 				(fun env ->
 					let f = f() in

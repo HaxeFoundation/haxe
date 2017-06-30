@@ -30,7 +30,7 @@ open Globals
 
 let mk_untyped_call name p params =
 	{
-		eexpr = TCall({ eexpr = TLocal(alloc_unbound_var name t_dynamic p); etype = t_dynamic; epos = p }, params);
+		eexpr = TCall({ eexpr = TIdent name; etype = t_dynamic; epos = p }, params);
 		etype = t_dynamic;
 		epos = p;
 	}
@@ -130,14 +130,7 @@ let api_inline2 com c field params p =
 
 let api_inline ctx c field params p = match c.cl_path, field, params with
 	| ([],"Std"),"is",[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when ctx.com.platform = Js ->
-		let mk_local ctx n t pos =
-			mk (TLocal (try
-				PMap.find n ctx.locals
-			with _ ->
-				let v = add_local ctx n t p in
-				v.v_meta <- [Meta.Unbound,[],p];
-				v
-			)) t pos in
+		let mk_local ctx n t pos = mk (TIdent n) t pos in
 
 		let tstring = ctx.com.basic.tstring in
 		let tbool = ctx.com.basic.tbool in
@@ -260,7 +253,6 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			Hashtbl.find locals v.v_id
 		with Not_found ->
 			let v' = alloc_var v.v_name v.v_type v.v_pos in
-			if Meta.has Meta.Unbound v.v_meta then v'.v_meta <- [Meta.Unbound,[],p];
 			v'.v_extra <- v.v_extra;
 			let i = {
 				i_var = v;
@@ -282,8 +274,6 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		let l = try
 			Hashtbl.find locals v.v_id
 		with Not_found ->
-			(* make sure to duplicate unbound inline variable to prevent dependency leak when unifying monomorph *)
-			if has_meta Meta.Unbound v.v_meta then local v else
 			{
 				i_var = v;
 				i_subst = v;

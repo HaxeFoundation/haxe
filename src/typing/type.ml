@@ -338,11 +338,6 @@ let alloc_var =
 	let uid = ref 0 in
 	(fun n t p -> incr uid; { v_name = n; v_type = t; v_id = !uid; v_capture = false; v_extra = None; v_meta = []; v_pos = p })
 
-let alloc_unbound_var n t p =
-	let v = alloc_var n t p in
-	v.v_meta <- [Meta.Unbound,[],null_pos];
-	v
-
 let alloc_mid =
 	let mid = ref 0 in
 	(fun() -> incr mid; !mid)
@@ -353,9 +348,6 @@ let mk_block e =
 	match e.eexpr with
 	| TBlock _ -> e
 	| _ -> mk (TBlock [e]) e.etype e.epos
-
-let is_unbound v =
-	Meta.has Meta.Unbound v.v_meta
 
 let mk_cast e t p = mk (TCast(e,None)) t p
 

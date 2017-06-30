@@ -2423,8 +2423,7 @@ and type_ident ctx i p mode =
 				AKExpr (mk (TConst TThis) ctx.tthis p)
 			else
 				let t = mk_mono() in
-				let v = alloc_unbound_var i t p in
-				AKExpr (mk (TLocal v) t p)
+				AKExpr ((mk (TIdent i)) t p)
 		end else begin
 			if ctx.curfun = FunStatic && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
 			begin try
@@ -2447,11 +2446,11 @@ and type_ident ctx i p mode =
 					| DMDiagnostics b when b || ctx.is_display_file ->
 						Display.ToplevelCollector.handle_unresolved_identifier ctx i p false;
 						let t = mk_mono() in
-						AKExpr (mk (TLocal (add_unbound_local ctx i t p)) t p)
+						AKExpr (mk (TIdent i) t p)
 					| _ ->
 						display_error ctx (error_msg err) p;
 						let t = mk_mono() in
-						AKExpr (mk (TLocal (add_unbound_local ctx i t p)) t p)
+						AKExpr (mk (TIdent i) t p)
 			end
 		end
 
@@ -2679,7 +2678,7 @@ and type_vars ctx vl p =
 		with
 			Error (e,p) ->
 				check_error ctx e p;
-				add_unbound_local ctx v t_dynamic pv, None
+				add_local ctx v t_dynamic pv, None (* TODO: What to do with this... *)
 	) vl in
 	match vl with
 	| [v,eo] ->
@@ -4063,8 +4062,8 @@ and type_call ctx e el (with_type:with_type) p =
 				| _ ->
 					e
 			in
-			let v_trace = alloc_unbound_var "`trace" t_dynamic p in
-			mk (TCall (mk (TLocal v_trace) t_dynamic p,[e;infos])) ctx.t.tvoid p
+			let e_trace = mk (TIdent "`trace") t_dynamic p in
+			mk (TCall (e_trace,[e;infos])) ctx.t.tvoid p
 		else
 			type_expr ctx (ECall ((EField ((EField ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[mk_to_string_meta e;infos]),p) NoValue
 	| (EField ((EConst (Ident "super"),_),_),_), _ ->
@@ -4093,8 +4092,8 @@ and type_call ctx e el (with_type:with_type) p =
 		let e = type_expr ctx e Value in
 		if Common.platform ctx.com Flash then
 			let t = tfun [e.etype] e.etype in
-			let v_unprotect = alloc_unbound_var "__unprotect__" t p in
-			mk (TCall (mk (TLocal v_unprotect) t p,[e])) e.etype e.epos
+			let e_unprotect = mk (TIdent "__unprotect__") t p in
+			mk (TCall (e_unprotect,[e])) e.etype e.epos
 		else
 			e
 	| (EDisplay((EConst (Ident "super"),_ as e1),false),_),_ ->
