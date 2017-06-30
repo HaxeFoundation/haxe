@@ -168,10 +168,12 @@ let make_is e (t,p_t) p p_is =
 let reify in_macro =
 	let cur_pos = ref None in
 	let mk_enum ename n vl p =
-		let constr = (EConst (Ident n),p) in
+		(* We don't want the position of the call expression to span the entire call (#6396). *)
+		let pmin = {p with pmax = p.pmin} in
+		let constr = (EConst (Ident n),pmin) in
 		match vl with
 		| [] -> constr
-		| _ -> (ECall (constr,vl),p)
+		| _ -> (ECall (constr,vl),pmin)
 	in
 	let to_const c p =
 		let cst n v = mk_enum "Constant" n [EConst (String v),p] p in
@@ -183,8 +185,7 @@ let reify in_macro =
 		| Regexp (r,o) -> mk_enum "Constant" "CRegexp" [(EConst (String r),p);(EConst (String o),p)] p
 	in
 	let rec to_binop o p =
-		let pmin = {p with pmax = p.pmin} in
-		let op n = mk_enum "Binop" n [] pmin in
+		let op n = mk_enum "Binop" n [] p in
 		match o with
 		| OpAdd -> op "OpAdd"
 		| OpMult -> op "OpMult"
@@ -284,6 +285,7 @@ let reify in_macro =
 		(* to_obj ["type",to_ctype t p;"pos",to_pos p] p *)
 		to_ctype (t,p) p
 	and to_fun f p =
+		let p = {p with pmax = p.pmin} in
 		let farg ((n,_),o,_,t,e) p =
 			let fields = [
 				"name", to_string n p;
@@ -366,9 +368,7 @@ let reify in_macro =
 	and to_expr e _ =
 		let p = snd e in
 		let expr n vl =
-			(* We don't want the position of the call expression to span the entire call (#6396). *)
-			let pmin = {p with pmax = p.pmin} in
-			let e = mk_enum "ExprDef" n vl pmin in
+			let e = mk_enum "ExprDef" n vl p in
 			to_obj [("expr",e);("pos",to_pos p)] p
 		in
 		let loop e = to_expr e (snd e) in
@@ -415,7 +415,7 @@ let reify in_macro =
 		| EFunction (name,f) ->
 			let name = match name with
 				| None ->
-					to_null p
+					to_null null_pos
 				| Some name ->
 					if ExtString.String.starts_with name "inline_$" then begin
 						let real_name = (String.sub name 7 (String.length name - 7)) in
