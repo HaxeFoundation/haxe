@@ -235,7 +235,7 @@ let index_of f l =
 
 (* create a __lua__ call *)
 let mk_lua_code com code args t pos =
-	let lua_local = Codegen.ExprBuilder.make_local (alloc_var "__lua__" t_dynamic pos) pos in
+	let lua_local = mk (TIdent "__lua__") t_dynamic pos in
 	let code_const = Codegen.ExprBuilder.make_string com code pos in
 	mk (TCall (lua_local, code_const :: args)) t pos
 

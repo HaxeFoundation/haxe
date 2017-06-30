@@ -2462,11 +2462,18 @@ let retype_expression ctx request_type function_args function_type expression_tr
             end
 
          | TIdent name ->
+            let tvar = alloc_var name expr.etype expr.epos in
             if (Hashtbl.mem !declarations name) then begin
-			   let tvar = alloc_var name expr.etype expr.epos in
+               (*print_endline ("Using existing tvar " ^ tvar.v_name);*)
                CppVar(VarLocal(tvar)), cpp_type_of tvar.v_type
-			end else
-				abort ("Unknown identifier: " ^ name) expr.epos
+            end else begin
+               (*print_endline ("Missing tvar " ^ tvar.v_name);*)
+               Hashtbl.replace !undeclared name tvar;
+               if tvar.v_capture then
+                  CppVar(VarClosure(tvar)), cpp_type_of tvar.v_type
+               else
+                  CppGlobal(name), cpp_type_of tvar.v_type
+            end
 
          | TBreak ->
             if forCppia then
