@@ -302,41 +302,42 @@ and field dce c n stat =
 	with Not_found ->
 		if dce.debug then prerr_endline ("[DCE] Field " ^ n ^ " not found on " ^ (s_type_path c.cl_path)) else ())
 
-and mark_directly_used_class c =
-	if not (Meta.has Meta.DirectlyUsed c.cl_meta) then
+and mark_directly_used_class dce c =
+	(* don't add @:directlyUsed if it's used within the class itself. this can happen with extern inline methods *)
+	if c != dce.curclass && not (Meta.has Meta.DirectlyUsed c.cl_meta) then
 		c.cl_meta <- (Meta.DirectlyUsed,[],c.cl_pos) :: c.cl_meta
 
 and mark_directly_used_enum e =
 	if not (Meta.has Meta.DirectlyUsed e.e_meta) then
 		e.e_meta <- (Meta.DirectlyUsed,[],e.e_pos) :: e.e_meta
 
-and mark_directly_used_mt mt =
+and mark_directly_used_mt dce mt =
 	match mt with
 	| TClassDecl c ->
-		mark_directly_used_class c
+		mark_directly_used_class dce c
 	| TEnumDecl e ->
 		mark_directly_used_enum e
 	| _ ->
 		()
 
-and mark_directly_used_t com p t =
+and mark_directly_used_t dce p t =
 	match follow t with
 	| TInst({cl_kind = KNormal} as c,pl) ->
-		mark_directly_used_class c;
-		List.iter (mark_directly_used_t com p) pl
+		mark_directly_used_class dce c;
+		List.iter (mark_directly_used_t dce p) pl
 	| TEnum(e,pl) ->
 		mark_directly_used_enum e;
-		List.iter (mark_directly_used_t com p) pl
+		List.iter (mark_directly_used_t dce p) pl
 	| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
 		begin try (* this is copy-pasted from mark_t *)
-			mark_directly_used_t com p (snd (Typecore.AbstractCast.find_multitype_specialization com a pl p))
+			mark_directly_used_t dce p (snd (Typecore.AbstractCast.find_multitype_specialization dce.com a pl p))
 		with Error.Error _ ->
 			()
 		end
 	| TAbstract(a,pl) ->
-		List.iter (mark_directly_used_t com p) pl;
+		List.iter (mark_directly_used_t dce p) pl;
 		if not (Meta.has Meta.CoreType a.a_meta) then
-			mark_directly_used_t com p (Abstract.get_underlying_type a pl)
+			mark_directly_used_t dce p (Abstract.get_underlying_type a pl)
 	| _ ->
 		()
 
@@ -443,7 +444,7 @@ and expr dce e =
 	match e.eexpr with
 	| TNew(c,pl,el) ->
 		mark_class dce c;
-		mark_directly_used_class c;
+		mark_directly_used_class dce c;
 		field dce c "new" false;
 		List.iter (expr dce) el;
 		List.iter (mark_t dce e.epos) pl;
@@ -453,20 +454,20 @@ and expr dce e =
 	| TCast(e, Some mt) ->
 		check_feature dce "typed_cast";
 		mark_mt dce mt;
-		mark_directly_used_mt mt;
+		mark_directly_used_mt dce mt;
 		expr dce e;
 	| TObjectDecl(vl) ->
 		check_and_add_feature dce "has_anon";
 		List.iter (fun (_,e) -> expr dce e) vl;
 	| TTypeExpr mt ->
 		mark_mt dce mt;
-		mark_directly_used_mt mt;
+		mark_directly_used_mt dce mt;
 	| TTry(e, vl) ->
 		expr dce e;
 		List.iter (fun (v,e) ->
 			if v.v_type != t_dynamic then begin
 				check_feature dce "typed_catch";
-				mark_directly_used_t dce.com v.v_pos v.v_type;
+				mark_directly_used_t dce v.v_pos v.v_type;
 			end;
 			expr dce e;
 			mark_t dce e.epos v.v_type;
@@ -710,7 +711,8 @@ let run com main full =
 			List.iter (fun (c,cf,_) ->
 				dce.curclass <- c;
 				opt (expr dce) cf.cf_expr;
-				List.iter (fun cf -> if cf.cf_expr <> None then opt (expr dce) cf.cf_expr) cf.cf_overloads
+				List.iter (fun cf -> if cf.cf_expr <> None then opt (expr dce) cf.cf_expr) cf.cf_overloads;
+				dce.curclass <- null_class
 			) cfl;
 			loop ()
 	in
@@ -815,9 +817,9 @@ let run com main full =
 	*)
 	List.iter (function
 		| TClassDecl ({cl_extern = false; cl_super = Some ({cl_extern = true} as csup, _)}) ->
-			mark_directly_used_class csup
+			mark_directly_used_class dce csup
 		| TClassDecl ({cl_extern = false} as c) when c.cl_implements <> [] ->
-			List.iter (fun (iface,_) -> if (iface.cl_extern) then mark_directly_used_class iface) c.cl_implements;
+			List.iter (fun (iface,_) -> if (iface.cl_extern) then mark_directly_used_class dce iface) c.cl_implements;
 		| _ -> ()
 	) com.types;
 
