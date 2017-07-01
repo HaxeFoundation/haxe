@@ -519,7 +519,6 @@ module Define = struct
 		| NoDebug
 		| NoInline
 		| NoOpt
-		| NoPatternMatching
 		| NoRoot
 		| NoSwfCompress
 		| NoTraces
@@ -620,7 +619,6 @@ module Define = struct
 		| NoDeprecationWarnings -> ("no-deprecation-warnings","Do not warn if fields annotated with @:deprecated are used")
 		| NoFlashOverride -> ("no-flash-override", "Change overrides on some basic classes into HX suffixed methods, flash only")
 		| NoOpt -> ("no_opt","Disable optimizations")
-		| NoPatternMatching -> ("no_pattern_matching","Disable pattern matching")
 		| NoInline -> ("no_inline","Disable inlining")
 		| NoRoot -> ("no_root","Generate top-level types into haxe.root namespace")
 		| NoMacroCache -> ("no_macro_cache","Disable macro context caching")
