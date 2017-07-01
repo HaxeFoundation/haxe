@@ -58,6 +58,11 @@ let platform_name = function
 	| Hl -> "hl"
 	| Eval -> "eval"
 
+let platform_list_help = function
+	| [] -> ""
+	| [p] -> " (" ^ platform_name p ^ " only)"
+	| pl -> " (for " ^ String.concat "," (List.map platform_name pl) ^ ")"
+
 let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
 
 let s_type_path (p,s) = match p with [] -> s | _ -> String.concat "." p ^ "." ^ s

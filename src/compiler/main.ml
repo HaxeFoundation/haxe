@@ -702,18 +702,8 @@ try
 			did_something := true;
 		),": print version and exit");
 		("--help-defines", Arg.Unit (fun() ->
-			let m = ref 0 in
-			let rec loop i =
-				let d = Obj.magic i in
-				if d <> Define.Last then begin
-					let t, doc = Define.infos d in
-					if String.length t > !m then m := String.length t;
-					((String.concat "-" (ExtString.String.nsplit t "_")),doc) :: (loop (i + 1))
-				end else
-					[]
-			in
-			let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop 0) in
-			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" !m n (limit_string doc (!m + 3))) all in
+			let all,max_length = Define.get_documentation_list() in
+			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
 			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
 			did_something := true
 		),": print help for all compiler specific defines");

@@ -410,11 +410,7 @@ let get_documentation d =
 			| [] -> ""
 			| l -> "(" ^ String.concat "," l ^ ")"
 		) in
-		let pfs = (match List.rev !pfs with
-			| [] -> ""
-			| [p] -> " (" ^ platform_name p ^ " only)"
-			| pl -> " (for " ^ String.concat "," (List.map platform_name pl) ^ ")"
-		) in
+		let pfs = platform_list_help (List.rev !pfs) in
 		let str = "@" ^ t in
 		Some (str,params ^ doc ^ pfs)
 	end else
