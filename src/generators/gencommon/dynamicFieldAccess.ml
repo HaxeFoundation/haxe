@@ -56,22 +56,17 @@ let priority = solve_deps name [DAfter DynamicOperators.priority]
 	change_expr (expr) (field_access_expr) (field) (setting expr) (is_unsafe) : changes the expression
 	call_expr (expr) (field_access_expr) (field) (call_params) : changes a call expression
 *)
-let configure gen ?fix_tparam_access (is_dynamic:texpr->Type.tfield_access->bool) (change_expr:texpr->texpr->string->texpr option->bool->texpr) (call_expr:texpr->texpr->string->texpr list->texpr) =
-	let fix_tparam_access = match fix_tparam_access with
-		| None -> false
-		| Some f -> f
-	in
+let configure gen (is_dynamic:texpr->Type.tfield_access->bool) (change_expr:texpr->texpr->string->texpr option->bool->texpr) (call_expr:texpr->texpr->string->texpr list->texpr) =
 	let is_nondynamic_tparam fexpr f = match follow fexpr.etype with
 		| TInst({ cl_kind = KTypeParameter(tl) }, _) ->
 			List.exists (fun t -> not (is_dynamic { fexpr with etype = t } f)) tl
 		| _ -> false
 	in
 
-	let fix_tparam_access = true in
 	let rec run e =
 		match e.eexpr with
 		(* class types *)
-		| TField(fexpr, f) when fix_tparam_access && is_nondynamic_tparam fexpr f ->
+		| TField(fexpr, f) when is_nondynamic_tparam fexpr f ->
 			(match follow fexpr.etype with
 				| TInst({ cl_kind = KTypeParameter(tl) }, _) ->
 					let t = List.find (fun t -> not (is_dynamic { fexpr with etype = t } f)) tl in
@@ -128,7 +123,7 @@ let configure gen ?fix_tparam_access (is_dynamic:texpr->Type.tfield_access->bool
 		| TUnop (Decrement, _, { eexpr = TField (({ eexpr = TLocal _ } as fexpr), f)}) when is_dynamic fexpr f ->
 			assert false (* this case shouldn't happen *)
 
-		| TCall ({ eexpr = TField (fexpr, f) }, params) when is_dynamic fexpr f && (not (fix_tparam_access && is_nondynamic_tparam fexpr f)) ->
+		| TCall ({ eexpr = TField (fexpr, f) }, params) when is_dynamic fexpr f && (not (is_nondynamic_tparam fexpr f)) ->
 			call_expr e (run fexpr) (field_name f) (List.map run params)
 
 		| _ ->

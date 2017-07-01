@@ -1602,7 +1602,7 @@ let configure_dynamic_field_access ctx =
 	in
 
 	let maybe_hash = if ctx.rcf_optimize then fun str pos -> Some (hash_field_i32 ctx pos str) else fun str pos -> None in
-	DynamicFieldAccess.configure gen ~fix_tparam_access:true is_dynamic
+	DynamicFieldAccess.configure gen is_dynamic
 		(fun expr fexpr field set is_unsafe ->
 			let hash = maybe_hash field fexpr.epos in
 			ctx.rcf_on_getset_field expr fexpr field hash set is_unsafe
