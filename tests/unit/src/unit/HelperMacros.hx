@@ -7,6 +7,12 @@ class HelperMacros {
 		return macro $v { Std.string(Date.now()) };
 	}
 
+	static public macro function typeString(e) {
+		var typed = haxe.macro.Context.typeExpr(e);
+		var s = haxe.macro.TypeTools.toString(typed.t);
+		return macro $v{s};
+	}
+
 	static public macro function typedAs(actual:haxe.macro.Expr, expected:haxe.macro.Expr) {
 		var tExpected = haxe.macro.Context.typeof(expected);
 		var tActual = haxe.macro.Context.typeof(actual);
