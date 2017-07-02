@@ -202,7 +202,7 @@ let this ctx = match ctx.in_value with None -> "self" | Some _ -> "self"
 
 let is_dot_access e cf =
     match follow(e.etype), cf with
-        | TInst (c,_), FInstance(_,_,icf)  when (Meta.has Meta.LuaDotAccess c.cl_meta || Meta.has Meta.LuaDotAccess icf.cf_meta)->
+        | TInst (c,_), FInstance(_,_,icf)  when (Meta.has Meta.LuaDotMethod c.cl_meta || Meta.has Meta.LuaDotMethod icf.cf_meta)->
                 true;
         | _ ->
                 false
@@ -1700,8 +1700,8 @@ let generate_type ctx = function
 		(* A special case for Std because we do not want to generate it if it's empty. *)
 		if p = "Std" && c.cl_ordered_statics = [] then
 			()
-		else if (not c.cl_extern) && Meta.has Meta.LuaDotAccess c.cl_meta then
-                    abort "LuaDotAccess is valid for externs only" c.cl_pos
+		else if (not c.cl_extern) && Meta.has Meta.LuaDotMethod c.cl_meta then
+                    abort "LuaDotMethod is valid for externs only" c.cl_pos
 		else if not c.cl_extern then
 			generate_class ctx c
 		else if Meta.has Meta.InitPackage c.cl_meta then
