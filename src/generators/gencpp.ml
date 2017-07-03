@@ -1454,7 +1454,7 @@ and tcppfuncloc =
    | FuncNew of tcpp
    | FuncExpression of tcppexpr
    | FuncInternal of tcppexpr * string * string
-   | FuncGlobal of string
+   | FuncExtern of string * bool
    | FuncFromStaticFunction
 
 and tcpparrayloc =
@@ -1470,7 +1470,7 @@ and tcpplvalue =
    | CppVarRef of tcppvarloc
    | CppArrayRef of tcpparrayloc
    | CppDynamicRef of tcppexpr * string
-   | CppGlobalRef of string
+   | CppExternRef of string * bool
 
 
 and tcpp_expr_expr =
@@ -1486,7 +1486,7 @@ and tcpp_expr_expr =
    | CppCode of string * tcppexpr list
    | CppClosure of tcpp_closure
    | CppVar of tcppvarloc
-   | CppGlobal of string
+   | CppExtern of string * bool
    | CppDynamicField of tcppexpr * string
    | CppFunction of tcppfuncloc * tcpp
    | CppEnumIndex of tcppexpr
@@ -1551,7 +1551,7 @@ let rec s_tcpp = function
    | CppVar VarStatic(_) -> "CppVarStatic"
    | CppVar VarInternal(_) -> "CppVarInternal"
    | CppDynamicField _ -> "CppDynamicField"
-   | CppGlobal _ -> "CppGlobal"
+   | CppExtern _ -> "CppExtern"
    | CppFunction _ -> "CppFunction"
    | CppEnumIndex _ -> "CppEnumIndex"
    | CppEnumField  _ -> "CppEnumField"
@@ -1570,7 +1570,7 @@ let rec s_tcpp = function
    | CppCall (FuncNew _,_) -> "CppCallNew"
    | CppCall (FuncExpression _,_) -> "CppCallExpression"
    | CppCall (FuncInternal _,_) -> "CppCallInternal"
-   | CppCall (FuncGlobal _,_) -> "CppCallGlobal"
+   | CppCall (FuncExtern _,_) -> "CppCallExtern"
    | CppCall (FuncFromStaticFunction,_) -> "CppCallFromStaticFunction"
    | CppAddressOf _  -> "CppAddressOf"
    | CppDereference _  -> "CppDereference"
@@ -1662,7 +1662,7 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
         (cpp_class_path_of klass) ^ suffix
    | TCppInterface _ -> "::Dynamic"
    | TCppClass -> "hx::Class" ^ suffix;
-   | TCppGlobal -> "";
+   | TCppGlobal -> "::Dynamic";
    | TCppNull -> " ::Dynamic";
    | TCppCode _ -> "Code"
 
@@ -2400,7 +2400,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
       | CppCastObjCBlock(cppExpr,_,_)
       | CppCastScalar(cppExpr,_) -> to_lvalue cppExpr
       | CppCastVariant(cppExpr) -> to_lvalue cppExpr
-      | CppGlobal(name) -> CppGlobalRef(name), false
+      | CppExtern(name,isGlobal) -> CppExternRef(name,isGlobal), false
 
       | _ -> abort ("Could not convert expression to l-value (" ^ s_tcpp value.cppexpr ^ ")") value.cpppos
    in
@@ -2445,6 +2445,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             cpp_const_type x
 
          | TIdent "__global__" ->
+            (* functions/vars will appear to be members of the virtual global object *)
             CppClassOf(([],""),false), TCppGlobal
 
          | TLocal tvar ->
@@ -2458,22 +2459,11 @@ let retype_expression ctx request_type function_args function_type expression_tr
                if tvar.v_capture then
                   CppVar(VarClosure(tvar)), cpp_type_of tvar.v_type
                else
-                  CppGlobal(name), cpp_type_of tvar.v_type
+                  CppExtern(name,false), cpp_type_of tvar.v_type
             end
 
          | TIdent name ->
-            let tvar = alloc_var name expr.etype expr.epos in
-            if (Hashtbl.mem !declarations name) then begin
-               (*print_endline ("Using existing tvar " ^ tvar.v_name);*)
-               CppVar(VarLocal(tvar)), cpp_type_of tvar.v_type
-            end else begin
-               (*print_endline ("Missing tvar " ^ tvar.v_name);*)
-               Hashtbl.replace !undeclared name tvar;
-               if tvar.v_capture then
-                  CppVar(VarClosure(tvar)), cpp_type_of tvar.v_type
-               else
-                  CppGlobal(name), cpp_type_of tvar.v_type
-            end
+             CppExtern(name,false), return_type
 
          | TBreak ->
             if forCppia then
@@ -2612,7 +2602,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                let obj = retype TCppDynamic obj in
                let fieldName = field.cf_name in
                if obj.cpptype=TCppGlobal then
-                  CppGlobal(fieldName), cpp_type_of expr.etype
+                  CppExtern(fieldName,true), cpp_type_of expr.etype
                else if obj.cpptype=TCppNull then
                   CppNullAccess, TCppDynamic
                else if is_internal_member fieldName then begin
@@ -2641,11 +2631,11 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   else
                      CppFunction( FuncInternal(obj,fieldName,"->"), cppType), cppType
                end else if (obj.cpptype=TCppGlobal) then
-                  CppGlobal(fieldName), cpp_type_of expr.etype
+                  CppExtern(fieldName,true), cpp_type_of expr.etype
                else if (obj.cpptype=TCppClass) then begin
                   match obj.cppexpr with
                   | CppClassOf(path,_) ->
-                     CppGlobal ( (join_class_path_remap path "::" ) ^ "_obj::" ^ fieldName ), cpp_type_of expr.etype
+                     CppExtern ( (join_class_path_remap path "::" ) ^ "_obj::" ^ fieldName, true ), cpp_type_of expr.etype
                   | _ ->
                      CppVar( VarInternal(obj,"->",fieldName)), cpp_type_of expr.etype
                end else
@@ -2791,7 +2781,8 @@ let retype_expression ctx request_type function_args function_type expression_tr
                   (* Special function calls *)
                   (match expr.cpptype, name with
                   | TCppGlobal, _  ->
-                     CppCall( FuncGlobal(name),retypedArgs), cppType
+                     let retypedArgs = List.map (retype TCppUnchanged ) args in
+                     CppCall( FuncExtern(name,true),retypedArgs), cppType
 
                   | TCppString, _  ->
                      CppCall( FuncInternal(expr,name,"."),retypedArgs), cppType
@@ -2806,9 +2797,9 @@ let retype_expression ctx request_type function_args function_type expression_tr
                      CppCall( FuncExpression(retypedFunc), retypedArgs), TCppDynamic
                   )
 
-               |  CppGlobal(name) ->
-                  let retypedArgs = List.map (retype TCppDynamic ) args in
-                  CppCall( FuncGlobal(name) ,retypedArgs), cppType
+               |  CppExtern(name,isGlobal) ->
+                  let retypedArgs = List.map (retype TCppUnchanged ) args in
+                  CppCall( FuncExtern(name,isGlobal) ,retypedArgs), cppType
 
                | _ ->
                   let retypedArgs = List.map (retype TCppDynamic ) args in
@@ -3437,8 +3428,9 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
                  (out (cpp_class_name clazz); out ("::" ^ (cpp_member_name_of field) ^ "_dyn()"))
          | FuncExpression(expr) ->
               gen expr;
-         | FuncGlobal(name) ->
-              out ("::" ^ name);
+         | FuncExtern(name, isGlobal) ->
+              if isGlobal then out " ::";
+              out name;
          | FuncInternal(expr,name,_) ->
               gen expr; out ("->__Field(" ^ (strq name) ^ ",hx::paccDynamic)")
          | FuncSuper _ | FuncSuperConstruct _ -> abort "Can't create super closure" expr.cpppos
@@ -3563,8 +3555,9 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          | FuncInternal(func,name,join) ->
             gen func; out (join ^ name);
 
-         | FuncGlobal(name) ->
-              out ("::" ^ name);
+         | FuncExtern(name, isGlobal) ->
+              if isGlobal then out " ::";
+              out name;
          | FuncExpression(expr)  ->
               gen expr;
          );
@@ -3587,8 +3580,9 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          out ("&::" ^(join_class_path_remap klass.cl_path "::")^ "_obj::" ^ name );
          out " ))"
 
-      | CppGlobal(name) ->
-         out ("::" ^ name)
+      | CppExtern(name,isGlobal) ->
+         if isGlobal then out " ::";
+         out name;
 
       | CppDynamicField(obj,name) ->
          gen obj;
@@ -3665,7 +3659,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
             )
          | CppDynamicRef(expr,name) ->
             gen expr; out ("->__SetField(" ^ (strq name) ^ ","); gen rvalue; out ",hx::paccDynamic)"
-         | CppGlobalRef(name) -> out ("::" ^ name ^ " = ");
+         | CppExternRef(name, isGlobal) -> if isGlobal then out " ::"; out (name ^ " = ");
          );
          out close;
 
@@ -4031,7 +4025,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          | ArrayImplements(_,arrayObj,index) ->
             out "hx::__ArrayImplRef("; gen arrayObj; out ","; gen index; out ")";
          )
-      | CppGlobalRef(name) -> out ("::" ^ name)
+      | CppExternRef(name,isGlobal) -> if isGlobal then out " ::"; out name
       | CppDynamicRef(expr,name) ->
          let objPtr = match expr.cpptype with
          |  TCppVariant -> "getObject()"
@@ -7675,7 +7669,7 @@ class script_writer ctx filename asciiOut =
 
          | CppVar var -> gen_var_loc var
 
-         | CppGlobal name -> abort ("Unexpected global '"^ name ^"' in cppia") expression.cpppos
+         | CppExtern (name,_) -> abort ("Unexpected global '"^ name ^"' in cppia") expression.cpppos
 
          | CppSet(lvalue,rvalue) ->
             this#writeOpLine IaSet;
@@ -7707,7 +7701,7 @@ class script_writer ctx filename asciiOut =
             | FuncSuper(_,objType,field) ->
                this#write ( (this#op IaCallSuper) ^ (this#astType objType) ^ " " ^ (this#stringText field.cf_name) ^
                   argN ^ (this#commentOf field.cf_name) ^ "\n");
-            | FuncGlobal(name) ->
+            | FuncExtern(name,_) ->
                this#write ( (this#op IaCallGlobal) ^ (this#stringText name) ^ argN ^ (this#commentOf name) ^ "\n");
 
             | FuncNew(newType) ->
@@ -7747,7 +7741,7 @@ class script_writer ctx filename asciiOut =
             | FuncStatic(class_def,_,field) ->
                this#write ( (this#op IaFStatic)  ^ (this#cppInstText class_def) ^ " " ^ (this#stringText field.cf_name) ^ (this#commentOf field.cf_name) );
             | FuncExpression(expr) -> match_expr expr;
-            | FuncGlobal(name) ->abort ("Can't create global " ^ name ^ " closure") expression.cpppos
+            | FuncExtern(name,_) ->abort ("Can't create extern " ^ name ^ " closure") expression.cpppos
             | FuncSuper _ | FuncSuperConstruct _ -> abort "Can't create super closure" expression.cpppos
             | FuncNew _ -> abort "Can't create new closure" expression.cpppos
             | FuncEnumConstruct _ -> abort "Enum constructor outside of CppCall" expression.cpppos
@@ -7937,7 +7931,7 @@ class script_writer ctx filename asciiOut =
          (match lvalue with
          | CppVarRef varLoc -> gen_var_loc varLoc
          | CppArrayRef arrayLoc -> gen_array arrayLoc pos
-         | CppGlobalRef(name) -> abort ("Unsupported __global__ '" ^ name ^ "' in cppia") pos;
+         | CppExternRef(name,_) -> abort ("Unsupported extern '" ^ name ^ "' in cppia") pos;
          | CppDynamicRef(expr,name) ->
             let typeText = this#typeTextString "Dynamic" in
             this#write ( (this#op IaFName) ^ typeText ^ " " ^ (this#stringText name) ^  (this#commentOf name) ^ "\n");

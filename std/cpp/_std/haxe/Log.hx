@@ -22,14 +22,18 @@
 package haxe;
 
 @:coreApi class Log {
+
+   @:extern @:native("__trace")
+   private static function nativeTrace(message:String, posInfo:Dynamic) : Void { }
+
 	public static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
 		if (infos!=null && infos.customParams!=null) {
 			var extra:String = "";
 			for( v in infos.customParams )
 				extra += "," + v;
-			untyped __trace(v + extra,infos);
+			nativeTrace(v + extra,infos);
 		}
 		else
-			untyped __trace(v,infos);
+			nativeTrace(v,infos);
 	}
 }
