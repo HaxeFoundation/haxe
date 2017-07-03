@@ -5059,28 +5059,8 @@ let generate_enum_files baseCtx enum_def super_deps meta =
 
    output_cpp "\t::String(null())\n};\n\n";
 
-   (* ENUM - Mark static as used by GC *)
-   output_cpp ("static void " ^ class_name ^ "_sMarkStatics(HX_MARK_PARAMS) {\n");
-   PMap.iter (fun _ constructor ->
-      let name = keyword_remap constructor.ef_name in
-      match constructor.ef_type with
-      | TFun (_,_) -> ()
-      | _ -> output_cpp ("\tHX_MARK_MEMBER_NAME(" ^ class_name ^ "::" ^ name ^ ",\"" ^ name ^ "\");\n") )
-   enum_def.e_constrs;
-   output_cpp "};\n\n";
-
-   (* ENUM - Visit static as used by GC *)
-   output_cpp "#ifdef HXCPP_VISIT_ALLOCS\n";
-   output_cpp ("static void " ^ class_name ^ "_sVisitStatic(HX_VISIT_PARAMS) {\n");
-   output_cpp ("\tHX_VISIT_MEMBER_NAME(" ^ class_name ^ "::__mClass,\"__mClass\");\n");
-   PMap.iter (fun _ constructor ->
-      let name = keyword_remap constructor.ef_name in
-      match constructor.ef_type with
-      | TFun (_,_) -> ()
-      | _ -> output_cpp ("\tHX_VISIT_MEMBER_NAME(" ^ class_name ^ "::" ^ name ^ ",\"" ^ name ^ "\");\n") )
-   enum_def.e_constrs;
-   output_cpp "};\n";
-   output_cpp "#endif\n\n";
+   (* ENUM - Mark static as used by GC - they are const now, so no marking*)
+   (* ENUM - Visit static as used by GC - none *)
 
    output_cpp ("hx::Class " ^ class_name ^ "::__mClass;\n\n");
 
@@ -5091,8 +5071,8 @@ let generate_enum_files baseCtx enum_def super_deps meta =
    output_cpp ("\nhx::Static(__mClass) = hx::_hx_RegisterClass(" ^ text_name ^
                ", hx::TCanCast< " ^ class_name ^ " >," ^ class_name ^ "_sStaticFields,0,\n");
    output_cpp ("\t&__Create_" ^ class_name ^ ", &__Create,\n");
-   output_cpp ("\t&super::__SGetClass(), &Create" ^ class_name ^ ", " ^ class_name ^ "_sMarkStatics\n");
-   output_cpp("#ifdef HXCPP_VISIT_ALLOCS\n    , " ^ class_name ^ "_sVisitStatic\n#endif\n");
+   output_cpp ("\t&super::__SGetClass(), &Create" ^ class_name ^ ", 0\n");
+   output_cpp("#ifdef HXCPP_VISIT_ALLOCS\n    , 0\n#endif\n");
    output_cpp ("#ifdef HXCPP_SCRIPTABLE\n    , 0\n#endif\n");
       output_cpp (");\n");
    output_cpp ("\t__mClass->mGetStaticField = &" ^ class_name ^"::__GetStatic;\n");
@@ -5109,8 +5089,8 @@ let generate_enum_files baseCtx enum_def super_deps meta =
       match constructor.ef_type with
       | TFun (_,_) -> ()
       | _ ->
-         output_cpp ( (keyword_remap name) ^ " = hx::CreateEnum< " ^ class_name ^ " >(" ^ (str name) ^  "," ^
-            (string_of_int constructor.ef_index) ^ ",0);\n" )
+         output_cpp ( (keyword_remap name) ^ " = hx::CreateConstEnum< " ^ class_name ^ " >(" ^ (str name) ^  "," ^
+            (string_of_int constructor.ef_index) ^ ");\n" )
    ) enum_def.e_constrs;
    output_cpp ("}\n\n");
 
