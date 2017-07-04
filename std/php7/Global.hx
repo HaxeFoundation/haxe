@@ -713,6 +713,11 @@ extern class Global {
 	static function dirname( path:String, levels:Int = 1 ) : String;
 
 	/**
+		@see http://php.net/manual/en/function.glob.php
+	**/
+	static function glob( pattern:String, flags:Int = 0 ) : NativeArray;
+
+	/**
 		@see http://php.net/manual/en/function.opendir.php
 	**/
 	static function opendir( path:String, ?context:Resource ) : EitherType<Resource,Bool>;

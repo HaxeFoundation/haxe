@@ -299,4 +299,14 @@ extern class Const {
 	static var SQLITE3_OPEN_READONLY : Int;
 	static var SQLITE3_OPEN_READWRITE : Int;
 	static var SQLITE3_OPEN_CREATE : Int;
+	/**
+		@see http://php.net/manual/en/function.glob.php
+	**/
+	static var GLOB_MARK : Int;
+	static var GLOB_NOSORT : Int;
+	static var GLOB_NOCHECK : Int;
+	static var GLOB_NOESCAPE : Int;
+	static var GLOB_BRACE : Int;
+	static var GLOB_ONLYDIR : Int;
+	static var GLOB_ERR : Int;
 }
