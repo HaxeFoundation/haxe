@@ -23,6 +23,7 @@ package php;
 
 import haxe.ds.StringMap;
 import php.Global;
+import php.Throwable;
 
 /**
 	Platform-specific PHP Library. Provides some platform-specific functions
@@ -130,8 +131,8 @@ class Lib {
 	/**
 		For neko compatibility only.
 	**/
-	public static function rethrow( e : Dynamic ) {
-		throw "Not implemented";
+	public static inline function rethrow( e : Dynamic ) {
+		throw e;
 	}
 
 	public static function getClasses() {
