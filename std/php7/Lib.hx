@@ -140,10 +140,9 @@ class Lib {
 	}
 
 	/**
-	*  Loads types defined in the specified directory.
- 	*/
- 	public static function loadLib(pathToLib : String) : Void
- 	{
+		Loads types defined in the specified directory.
+	**/
+	public static function loadLib(pathToLib : String) : Void {
 		throw "Not implemented";
- 	}
+	}
 }

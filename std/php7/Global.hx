@@ -1166,5 +1166,25 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.mail.php
 	**/
-	static function mail( $to:String, $subject:String, $message:String, ?$additional_headers:String, ?$additional_parameters:String ) : Bool;
+	static function mail( to:String, subject:String, message:String, ?additional_headers:String, ?additional_parameters:String ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.require.php
+	**/
+	static function require( include_path:String ) : Void;
+
+	/**
+		@see http://php.net/manual/en/function.require-once.php
+	**/
+	static function require_once( include_path:String ) : Void;
+
+	/**
+		@see http://php.net/manual/en/function.include.php
+	**/
+	static function include( include_path:String ) : Void;
+
+	/**
+		@see http://php.net/manual/en/function.include-once.php
+	**/
+	static function include_once( include_path:String ) : Void;
 }
