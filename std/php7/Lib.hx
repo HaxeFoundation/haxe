@@ -142,14 +142,6 @@ class Lib {
 	}
 
 	/**
-<<<<<<< HEAD
-	*  Loads types defined in the specified directory.
- 	*/
- 	public static function loadLib(pathToLib : String) : Void
- 	{
-		throw "Not implemented";
- 	}
-=======
 		Loads types defined in the specified directory.
 	**/
 	public static function loadLib(pathToLib : String) : Void {
@@ -164,5 +156,4 @@ class Lib {
 			loadLib(dirName);
 		});
 	}
->>>>>>> 59e297d... [php7] implemented php.Lib.loadLib()
 }
