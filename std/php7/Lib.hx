@@ -22,10 +22,8 @@
 package php;
 
 import haxe.ds.StringMap;
-import php.Global;
-import php.Throwable;
-import php.Syntax;
-import php.Const;
+import php.*;
+import php.reflection.ReflectionClass;
 
 /**
 	Platform-specific PHP Library. Provides some platform-specific functions
@@ -137,9 +135,33 @@ class Lib {
 		throw e;
 	}
 
-	public static function getClasses() {
-		throw "Not implemented";
+	/**
+		Tries to load all compiled php files and returns list of tpes.
+	**/
+	public static function getClasses():Dynamic {
+		if(!loaded) {
+			loaded = true;
+			var reflection = new ReflectionClass(Boot.getPhpName('php.Boot'));
+			loadLib(Global.dirname(reflection.getFileName(), 2));
+		}
+
+		var result:Dynamic = {};
+		Syntax.foreach(Boot.getRegisteredAliases(), function(phpName:String, haxeName:String) {
+			var parts = haxeName.split('.');
+			var obj = result;
+			while(parts.length > 1) {
+				var pack = parts.shift();
+				if(Syntax.getField(obj, pack) == null) {
+					Syntax.setField(obj, pack, {});
+				}
+				obj = Syntax.getField(obj, pack);
+			}
+			Syntax.setField(obj, parts[0], Boot.getClass(phpName));
+		});
+
+		return result;
 	}
+	static var loaded:Bool = false;
 
 	/**
 		Loads types defined in the specified directory.

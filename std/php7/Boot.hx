@@ -143,6 +143,24 @@ class Boot {
 	}
 
 	/**
+		Returns a list of currently loaded haxe-generated classes.
+	**/
+	public static function getRegisteredClasses():Array<Class<Dynamic>> {
+		var result = [];
+		Syntax.foreach(aliases, function(phpName, haxeName) {
+			result.push(cast getClass(phpName));
+		});
+		return result;
+	}
+
+	/**
+		Returns a list of phpName=>haxeName for currently loaded haxe-generated classes.
+	**/
+	public static function getRegisteredAliases():NativeAssocArray<String> {
+		return aliases;
+	}
+
+	/**
 		Get Class<T> instance for PHP fully qualified class name (E.g. '\some\pack\MyClass')
 		It's always the same instance for the same `phpClassName`
 	**/
