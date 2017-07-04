@@ -22,6 +22,7 @@
 package php;
 
 import haxe.ds.StringMap;
+import php.Global;
 
 /**
 	Platform-specific PHP Library. Provides some platform-specific functions
@@ -122,19 +123,14 @@ class Lib {
 	 * @param	?additionalHeaders
 	 * @param	?additionalParameters
 	 */
-	public static function mail(to : String, subject : String, message : String, ?additionalHeaders : String, ?additionalParameters : String) : Bool
-	{
-		throw "Not implemented";
+	public static inline function mail(to : String, subject : String, message : String, ?additionalHeaders : String, ?additionalParameters : String) : Bool {
+		return Global.mail(to, subject, message, additionalHeaders, additionalParameters);
 	}
 
 	/**
 		For neko compatibility only.
 	**/
 	public static function rethrow( e : Dynamic ) {
-		throw "Not implemented";
-	}
-
-	static function appendType(o : Dynamic, path : Array<String>, t : Dynamic) {
 		throw "Not implemented";
 	}
 
