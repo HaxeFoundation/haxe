@@ -24,6 +24,8 @@ package php;
 import haxe.ds.StringMap;
 import php.Global;
 import php.Throwable;
+import php.Syntax;
+import php.Const;
 
 /**
 	Platform-specific PHP Library. Provides some platform-specific functions
@@ -143,6 +145,15 @@ class Lib {
 		Loads types defined in the specified directory.
 	**/
 	public static function loadLib(pathToLib : String) : Void {
-		throw "Not implemented";
+		var absolutePath = Global.realpath(pathToLib);
+		if(absolutePath == false) throw 'Failed to read path: $pathToLib';
+		Syntax.foreach(Global.glob('$absolutePath/*.php'), function(_, fileName) {
+			if(!Global.is_dir(fileName)) {
+				Global.require_once(fileName);
+			}
+		});
+		Syntax.foreach(Global.glob('$absolutePath/*', Const.GLOB_ONLYDIR), function(_, dirName) {
+			loadLib(dirName);
+		});
 	}
 }
