@@ -1162,4 +1162,9 @@ extern class Global {
 	**/
 	@:overload(function( sessionhandler:SessionHandlerInterface, register_shutdown:Bool = true ) : Bool {})
 	static function session_set_save_handler( open:String->String->Bool, close:Void->Bool, read:String->String, write:String->String->Bool, destroy:String->Bool, gc:Int->Bool, ?create_sid:Void->String, ?validate_sid:Function, ?update_timestamp:Function ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.mail.php
+	**/
+	static function mail( $to:String, $subject:String, $message:String, ?$additional_headers:String, ?$additional_parameters:String ) : Bool;
 }
