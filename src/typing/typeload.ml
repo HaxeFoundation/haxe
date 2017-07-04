@@ -547,7 +547,6 @@ and load_complex_type ctx allow_display p (t,pn) =
 	| CTParent t -> load_complex_type ctx allow_display p t
 	| CTPath t -> load_instance ~allow_display ctx (t,pn) false p
 	| CTOptional _ -> error "Optional type not allowed here" p
-	| CTNamed _ -> error "Named type not allowed here" p
 	| CTExtend (tl,l) ->
 		(match load_complex_type ctx allow_display p (CTAnonymous l,p) with
 		| TAnon a as ta ->
@@ -688,8 +687,7 @@ and load_complex_type ctx allow_display p (t,pn) =
 		| _ ->
 			TFun (List.map (fun t ->
 				let t, opt = (match fst t with CTOptional t -> t, true | _ -> t,false) in
-				let t, n = (match fst t with CTNamed (n,t) -> t,fst n | _ -> t,"") in
-				n,opt,load_complex_type ctx allow_display p t
+				"",opt,load_complex_type ctx allow_display p t
 			) args,load_complex_type ctx allow_display p r)
 
 and init_meta_overloads ctx co cf =
