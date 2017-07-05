@@ -755,6 +755,24 @@ class RunCi {
 		}
 	}
 
+	static function getMatches(ereg:EReg, input:String, index:Int = 0):Array<String> {
+	  var matches = [];
+	  while (ereg.match(input)) {
+	    matches.push(ereg.matched(index));
+	    input = ereg.matchedRight();
+	  }
+	  return matches;
+	}
+
+	static function filterTests(tests:Array<TEST>){
+	  var commit = Sys.getEnv("TRAVIS_COMMIT_MESSAGE");
+	  var test_tags = getMatches(~/\[([^\]]+)\]/m, commit,1);
+	  Sys.println('test tags : $test_tags');
+	  test_tags = [for (tag in test_tags) tag.toLowerCase()];
+	  if (test_tags.length > 0) tests = test_tags;
+	  return tests;
+	}
+
 	static function main():Void {
 		Sys.putEnv("OCAMLRUNPARAM", "b");
 
@@ -764,6 +782,9 @@ class RunCi {
 			case env:
 				[for (v in env.split(",")) v.trim().toLowerCase()];
 		}
+
+		tests = filterTests(tests);
+
 		Sys.println('Going to test: $tests');
 
 		for (test in tests) {
@@ -1089,6 +1110,7 @@ class RunCi {
 			Sys.exit(1);
 		}
 	}
+
 }
 
 
