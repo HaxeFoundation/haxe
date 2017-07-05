@@ -260,19 +260,19 @@ let mk_mr_box ctx e =
 	mk_lua_code ctx.com code [e] e.etype e.epos
 
 (* create a multi-return select call for given expr and field name *)
-let mk_mr_select com e name =
+let mk_mr_select com e ecall name =
 	let i =
-		match follow e.etype with
+		match follow ecall.etype with
 		| TInst (c,_) ->
 			index_of (fun f -> f.cf_name = name) c.cl_ordered_fields
 		| _ ->
 			assert false
 	in
 	if i == 0 then
-	    e
+	    mk_lua_code com "{0}" [ecall] e.etype e.epos
 	else
 	    let code = Printf.sprintf "_G.select(%i, {0})" (i + 1) in
-	    mk_lua_code com code [e] e.etype e.epos
+	    mk_lua_code com code [ecall] e.etype e.epos
 
 (* from genphp *)
 let rec is_string_type t =
@@ -1789,7 +1789,7 @@ let transform_multireturn ctx = function
 					(* if we found a field access for the multi-return call, generate select call *)
 					| TField ({ eexpr = TCall _ } as ecall, f) when is_multireturn ecall.etype ->
 						let ecall = Type.map_expr loop ecall in
-						mk_mr_select ctx.com ecall (field_name f)
+						mk_mr_select ctx.com e ecall (field_name f)
 
 					(* if we found a multi-return call used as a value, box it *)
 					| TCall _ when is_multireturn e.etype ->
