@@ -1428,12 +1428,13 @@ let gen_class_static_field ctx c f =
 		| _ ->
 			ctx.statics <- (c,f.cf_name,e) :: ctx.statics
 
-let gen_class_field ctx c f predelimit =
+let gen_class_field ctx c f =
+	let p = s_path ctx c.cl_path in
+	print ctx "%s.prototype." p;
 	check_field_name c f;
-	if predelimit then println ctx ",";
 	match f.cf_expr with
 	| None ->
-		print ctx "'%s', nil" f.cf_name;
+	        println ctx "%s = nil;" f.cf_name;
 	| Some e ->
 		ctx.id_counter <- 0;
 		(match e.eexpr with
@@ -1441,7 +1442,7 @@ let gen_class_field ctx c f predelimit =
 		    let old = ctx.in_value, ctx.in_loop in
 		    ctx.in_value <- None;
 		    ctx.in_loop <- false;
-		    print ctx "'%s', function" f.cf_name;
+		    print ctx "%s = function" f.cf_name;
 		    print ctx "(%s) " (String.concat "," ("self" :: List.map ident (List.map arg_name f2.tf_args)));
 		    let fblock = fun_block ctx f2 e.epos in
 		    (match fblock.eexpr with
@@ -1463,11 +1464,14 @@ let gen_class_field ctx c f predelimit =
 			bend();
 			newline ctx;
 		    |_ -> ());
-		    spr ctx "end";
+		    println ctx "end";
 		    ctx.in_value <- fst old;
 		    ctx.in_loop <- snd old;
 		    ctx.separator <- true;
-		| _ -> gen_value ctx e)
+                | _ ->
+                    gen_value ctx e;
+                    newline ctx;
+                    )
 
 let generate_class___name__ ctx c =
 	if has_feature ctx "lua.Boot.isClass" then begin
@@ -1554,15 +1558,12 @@ let generate_class ctx c =
 	List.iter (gen_class_static_field ctx c) c.cl_ordered_statics;
 
 	if (has_prototype ctx c) then begin
-		print ctx "%s.prototype = _hx_a(" p;
-		let bend = open_block ctx in
-		newline ctx;
+                println ctx "%s.prototype = _hx_a();" p;
 		let count = ref 0 in
-		List.iter (fun f -> if can_gen_class_field ctx f then (gen_class_field ctx c f (!count > 0); incr count;) ) c.cl_ordered_fields;
+		List.iter (fun f -> if can_gen_class_field ctx f then (gen_class_field ctx c f) ) c.cl_ordered_fields;
 		if (has_class ctx c) then begin
 			newprop ctx;
-			if !count > 0 then spr ctx ",";
-			print ctx "'__class__',  %s" p;
+			println ctx "%s.prototype.__class__ =  %s" p p;
 			incr count;
 		end;
 
@@ -1571,13 +1572,9 @@ let generate_class ctx c =
 			(match c.cl_super with
 			| _ when props = [] -> ()
 			| _ ->
-				if !count > 0 then spr ctx ",";
 				newprop ctx;
-				print ctx "'__properties__',  {%s}" (gen_props props));
+				println ctx "%s.prototype.__properties__ =  {%s}" p (gen_props props));
 		end;
-
-		bend(); newline ctx;
-		println ctx ")";
 		(match c.cl_super with
 		| None -> ()
 		| Some (csup,_) ->
