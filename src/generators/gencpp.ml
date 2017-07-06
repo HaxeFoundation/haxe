@@ -6277,8 +6277,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       in
 
       output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
-      output_cpp ("\thx::Object *dummy = new " ^ class_name ^ ";\n");
-      output_cpp ("\t" ^ class_name ^ "::_hx_vtable = *(void **)dummy;\n");
+      output_cpp ("\t" ^ class_name ^ " _hx_dummy;\n");
+      output_cpp ("\t" ^ class_name ^ "::_hx_vtable = *(void **)&_hx_dummy;\n");
       output_cpp ("\thx::Static(__mClass) = new hx::Class_obj();\n");
       output_cpp ("\t__mClass->mName = " ^  (str class_name_text)  ^ ";\n");
       output_cpp ("\t__mClass->mSuper = &super::__SGetClass();\n");
