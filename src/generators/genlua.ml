@@ -318,7 +318,7 @@ let gen_constant ctx p = function
 	| TThis -> spr ctx (this ctx)
 	| TSuper -> assert false
 
-let rec gen_call ctx e el in_value =
+let rec gen_call ctx e el =
 	ctx.iife_assign <- true;
 	(match e.eexpr , el with
 	| TConst TSuper , params ->
@@ -625,7 +625,7 @@ and gen_expr ?(local=true) ctx e = begin
 		ctx.in_loop <- snd old;
 		ctx.separator <- true
 	| TCall (e,el) ->
-		    gen_call ctx e el false;
+		    gen_call ctx e el;
 	| TArrayDecl el ->
 		spr ctx "_hx_tab_array({";
 		let count = ref 0 in
@@ -1069,7 +1069,7 @@ and gen_value ctx e =
 	| TMeta (_,e1) ->
 		gen_value ctx e1
 	| TCall (e,el) ->
-		gen_call ctx e el true
+		gen_call ctx e el
 	| TReturn _
 	| TBreak
 	| TContinue ->
