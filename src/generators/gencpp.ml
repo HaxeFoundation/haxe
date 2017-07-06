@@ -6078,7 +6078,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       "0 /* sMemberFields */";
    in
 
-   let hasMarkFunc = (not nativeGen) && not (List.exists is_data_member implemented_fields) in
+   let hasMarkFunc = (not nativeGen) && (List.exists is_data_member implemented_fields) in
 
    if (hasMarkFunc) then begin
       (* Mark static variables as used *)
