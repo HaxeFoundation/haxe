@@ -309,7 +309,7 @@ let emit_do_while_break_continue exec_cond exec_body env =
 		ignore(exec_body env); run_while_continue exec_cond exec_body env
 	with
 		| Break -> ()
-		| Continue -> run_while_continue exec_cond exec_body env
+		| Continue -> try run_while_continue exec_cond exec_body env with Break -> ()
 	end;
 	vnull
 
