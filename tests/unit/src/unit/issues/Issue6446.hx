@@ -6,16 +6,18 @@ private class CustomStringBuf extends StringBuf {
 		super();
 	}
 
+	#if eval
 	override function add<T>(x:T) {
 		super.add("add");
 		super.add(x);
 	}
+	#end
 }
 
 class Issue6446 extends unit.Test {
 	function test() {
 		var buf = new CustomStringBuf();
 		buf.add(" custom");
-		eq("add custom", buf.toString());
+		eq(#if eval "add" #else "" #end + " custom", buf.toString());
 	}
 }
