@@ -747,6 +747,17 @@ let emit_super_callN vf execs p env =
 	ignore(f (vthis :: vl));
 	vthis
 
+let emit_special_super_call fnew execs env =
+	let vl = List.map (apply env) execs in
+	let vi' = fnew vl in
+	let vthis = env.env_locals.(0) in
+	(* This isn't very elegant, but it's probably a rare case to extend these types. *)
+	begin match vthis,vi' with
+		| VInstance vi,VInstance vi' -> vi.ikind <- vi'.ikind
+		| _ -> assert false
+	end;
+	vnull
+
 let emit_super_call fnew execs p =
 	match execs with
 		| [] ->

@@ -605,8 +605,13 @@ and jit_expr jit return e =
 			| TInst(c,_) ->
 				let key = (path_hash c.cl_path) in
 				let execs = List.map (jit_expr jit false) el in
-				let fnew = get_instance_constructor jit.ctx key e1.epos in
-				emit_super_call fnew execs e.epos
+				begin try
+					let f = get_special_instance_constructor_raise ctx key in
+					emit_special_super_call f execs
+				with Not_found ->
+					let fnew = get_instance_constructor jit.ctx key e1.epos in
+					emit_super_call fnew execs e.epos
+				end
 			| _ -> assert false
 			end
 		| _ ->

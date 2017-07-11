@@ -143,7 +143,7 @@ and vinstance = {
 	*)
 	iproto : vprototype;
 	(* The [vinstance_kind]. *)
-	ikind : vinstance_kind;
+	mutable ikind : vinstance_kind;
 }
 
 and varray = {
