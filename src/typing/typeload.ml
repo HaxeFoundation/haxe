@@ -2586,7 +2586,8 @@ module ClassInitializer = struct
 			end;
 			t
 		) "type_fun" in
-		if fctx.do_bind then bind_type (ctx,cctx,fctx) cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos);
+		if fctx.do_bind then bind_type (ctx,cctx,fctx) cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
+		else if fctx.is_display_field then Display.DisplayEmitter.maybe_display_field ctx (cf.cf_name_pos) cf;
 		cf
 
 	let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
