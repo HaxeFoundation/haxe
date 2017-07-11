@@ -196,13 +196,13 @@ let get_error_line p =
 	let l, _ = find_pos p in
 	l
 
-let zero_based_columns = ref false
+let old_format = ref false
 
 let get_pos_coords p =
 	let file = find_file p.pfile in
 	let l1, p1 = find_line p.pmin file in
 	let l2, p2 = find_line p.pmax file in
-	if !zero_based_columns then
+	if !old_format then
 		l1, p1, l2, p2
 	else
 		l1, p1+1, l2, p2+1

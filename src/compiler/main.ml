@@ -748,7 +748,17 @@ try
 		com.warning <- if com.display.dms_error_policy = EPCollect then (fun s p -> add_diagnostics_message com s p DisplayTypes.DiagnosticsSeverity.Warning) else message ctx;
 		com.error <- error ctx;
 	end;
-	Lexer.zero_based_columns := Common.defined com Define.OldErrorFormat;
+	Lexer.old_format := Common.defined com Define.OldErrorFormat;
+	if !Lexer.old_format && !Parser.resume_display <> null_pos then begin
+		let p = !Parser.resume_display in
+		(* convert byte position to utf8 position *)
+		try
+			let content = Std.input_file ~bin:true (Path.get_real_path p.pfile) in
+			let pos = UTF8.length (String.sub content 0 p.pmin) in
+			Parser.resume_display := { p with pmin = pos; pmax = pos }
+		with _ ->
+			() (* ignore *)
+	end;
 	DisplayOutput.process_display_file com classes;
 	let ext = Initialize.initialize_target ctx com classes in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
