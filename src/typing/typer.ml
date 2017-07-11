@@ -3478,18 +3478,25 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				unify ctx v ctx.ret p;
 				mk (TReturn None) t_dynamic p
 			| Some e ->
-				let e = type_expr ctx e (WithType ctx.ret) in
-				let e = AbstractCast.cast_or_unify ctx ctx.ret e p in
-				begin match follow e.etype with
-				| TAbstract({a_path=[],"Void"},_) ->
-					(* if we get a Void expression (e.g. from inlining) we don't want to return it (issue #4323) *)
-					mk (TBlock [
-						e;
-						mk (TReturn None) t_dynamic p
-					]) t_dynamic e.epos;
-				| _ ->
-					mk (TReturn (Some e)) t_dynamic p
-				end
+				try
+					let e = type_expr ctx e (WithType ctx.ret) in
+					let e = AbstractCast.cast_or_unify ctx ctx.ret e p in
+					begin match follow e.etype with
+					| TAbstract({a_path=[],"Void"},_) ->
+						(* if we get a Void expression (e.g. from inlining) we don't want to return it (issue #4323) *)
+						mk (TBlock [
+							e;
+							mk (TReturn None) t_dynamic p
+						]) t_dynamic e.epos;
+					| _ ->
+						mk (TReturn (Some e)) t_dynamic p
+					end
+				with Error(err,p) ->
+					check_error ctx err p;
+					(* If we have a bad return, let's generate a return null expression at least. This surpresses various
+					   follow-up errors that come from the fact that the function no longer has a return expression (issue #6445). *)
+					let e_null = mk (TConst TNull) (mk_mono()) p in
+					mk (TReturn (Some e_null)) t_dynamic p
 		end
 	| EBreak ->
 		if not ctx.in_loop then display_error ctx "Break outside loop" p;
