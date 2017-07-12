@@ -551,7 +551,11 @@ and gen_expr ctx e =
 		let old = ctx.in_value, ctx.in_loop in
 		ctx.in_value <- None;
 		ctx.in_loop <- false;
-		print ctx "function(%s) " (String.concat "," (List.map ident (List.map arg_name f.tf_args)));
+		let args = List.map (fun (v,_) ->
+			check_var_declaration v;
+			ident v.v_name
+		) f.tf_args in
+		print ctx "function(%s) " (String.concat "," args);
 		gen_expr ctx (fun_block ctx f e.epos);
 		ctx.in_value <- fst old;
 		ctx.in_loop <- snd old;
