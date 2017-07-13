@@ -129,8 +129,8 @@ install_osx: &install_osx
   # Install dependencies
   - travis_retry brew update --merge
   - brew uninstall --force brew-cask # https://github.com/caskroom/homebrew-cask/pull/15381
-  - travis_retry brew install opam ninja zlib pcre awscli;
-  - brew outdated cmake || brew upgrade cmake # we need a recent cmake to use CMAKE_OSX_DEPLOYMENT_TARGET
+  - travis_retry brew tap Homebrew/bundle
+  - travis_retry brew bundle --file=tests/Brewfile
   - export OPAMYES=1
   - opam init
   - opam install camlp4 sedlex ocamlfind xml-light extlib rope ptmap
