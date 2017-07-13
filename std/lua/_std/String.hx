@@ -26,12 +26,12 @@ import lua.Boot;
 import lua.NativeStringTools;
 
 @:coreApi
+@:extern
 class String {
 	static var __oldindex : String->String->Dynamic;
 	public var length(default,null) : Int;
 
-
-	public function new(string:String) untyped {}
+	public inline function new(string:String) untyped {}
 
 	@:keep
 	static function __index(s:Dynamic, k:Dynamic) : Dynamic {
@@ -48,9 +48,9 @@ class String {
 		else return null;
 	}
 
-	public function toUpperCase() : String return NativeStringTools.upper(this);
-	public function toLowerCase() : String return NativeStringTools.lower(this);
-	public function indexOf( str : String, ?startIndex : Int ) : Int {
+	public inline function toUpperCase() : String return NativeStringTools.upper(this);
+	public inline function toLowerCase() : String return NativeStringTools.lower(this);
+	public inline function indexOf( str : String, ?startIndex : Int ) : Int {
 		if (startIndex == null) startIndex = 1;
 		else startIndex += 1;
 		var r = NativeStringTools.find(this, str, startIndex, true).begin;
@@ -58,18 +58,19 @@ class String {
 		else return -1;
 	}
 
-	public function lastIndexOf( str : String, ?startIndex : Int ) : Int {
+	public inline function lastIndexOf( str : String, ?startIndex : Int ) : Int {
 		var i = 0;
 		var ret = -1;
 		if( startIndex == null ) startIndex = length;
 		while( true ) {
 			var p = indexOf(str, ret+1);
-			if( p == -1 || p > startIndex ) return ret;
+			if( p == -1 || p > startIndex ) break;
 			ret = p;
 		}
+		return ret;
 	}
 
-	public function split( delimiter : String ) : Array<String> {
+	public inline function split( delimiter : String ) : Array<String> {
 		var idx = 1;
 		var ret = [];
 		var delim_offset = delimiter.length > 0 ? delimiter.length : 1;
@@ -95,10 +96,10 @@ class String {
 		return ret;
 	}
 
-	public function toString() : String {
+	public inline function toString() : String {
 		return this;
 	}
-	public function substring( startIndex : Int, ?endIndex : Int ) : String {
+	public inline function substring( startIndex : Int, ?endIndex : Int ) : String {
 		if (endIndex == null) endIndex = this.length;
 		if (endIndex < 0) endIndex = 0;
 		if (startIndex < 0) startIndex = 0;
@@ -113,14 +114,14 @@ class String {
 	function get_length() : Int {
 		return NativeStringTools.len(this);
 	}
-	public function charAt( index : Int) : String {
+	public inline function charAt( index : Int) : String {
 		return NativeStringTools.sub(this,index+1, index+1).match;
 	}
-	public function charCodeAt( index : Int) : Null<Int> {
+	public inline function charCodeAt( index : Int) : Null<Int> {
 		return NativeStringTools.byte(this,index+1);
 	}
 
-	public function substr( pos : Int, ?len : Int ) : String {
+	public inline function substr( pos : Int, ?len : Int ) : String {
 		if (len == null || len > pos + this.length) len = this.length;
 		else if (len < 0) len = length + len;
 		if (pos < 0) pos = length + pos;

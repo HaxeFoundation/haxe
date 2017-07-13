@@ -25,11 +25,17 @@ import lua.Boot;
 @:coreApi class Reflect {
 
 	public inline static function hasField( o : Dynamic, field : String ) : Bool {
-		return untyped o.__fields__ != null ? o.__fields__[field] != null :  o[field] != null;
+		if (Lua.type(o) == "string" && (untyped String.prototype[field] != null || field == "length")){
+			return true;
+		} else return untyped o.__fields__ != null ? o.__fields__[field] != null :  o[field] != null;
 	}
 
 	public static function field( o : Dynamic, field : String ) : Dynamic untyped {
-		return try o[field] catch( e : Dynamic ) null;
+		if (Lua.type(o) == "string"){
+			if (field == "length"){
+				return lua.NativeStringTools.len(o);
+			} else return untyped String.prototype[field];
+		} else return try o[field] catch( e : Dynamic ) null;
 	}
 
 	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
