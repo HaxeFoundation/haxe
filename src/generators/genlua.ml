@@ -288,6 +288,25 @@ let rec is_string_type t =
 let is_string_expr e = is_string_type e.etype
 (* /from genphp *)
 
+let is_dynamic t = match follow t with
+    | TMono _ | TDynamic _
+    | TInst({ cl_kind = KTypeParameter _ }, _) -> true
+    | TAnon anon ->
+        (match !(anon.a_status) with
+         | EnumStatics _ | Statics _ -> false
+         | _ -> true
+        )
+    | _ -> false
+
+let is_dynamic_expr e = is_dynamic e.etype
+
+let is_structural_type t =
+    match follow t with
+    | TDynamic _ -> true
+    | TAnon a -> true
+    | TType ({t_type = TAnon _},_) -> true
+    | _ -> false
+
 let rec is_int_type ctx t =
     match follow t with
     | TInst ({cl_path = ([], "Int")}, _) -> true
@@ -431,6 +450,15 @@ let rec gen_call ctx e el =
      | TField (_, FStatic( { cl_path = ([],"Std") }, { cf_name = "string" })),[{eexpr = TCall({eexpr=TField (_, FStatic( { cl_path = ([],"Std") }, { cf_name = "string" }))}, _)} as el] ->
          (* unwrap recursive Std.string(Std.string(...)) declarations to Std.string(...) *)
          gen_value ctx el;
+     | TField ({eexpr = TLocal _} as e, ef), el when is_possible_string_field e (field_name ef)  ->
+         add_feature ctx "use._hx_wrap_if_string_field";
+         add_feature ctx "use.string";
+         spr ctx "_hx_wrap_if_string_field(";
+         gen_value ctx e;
+         print ctx ",'%s'" (field_name ef);
+         spr ctx ")(";
+         concat ctx "," (gen_value ctx) (e::el);
+         spr ctx ")";
      | TField (e, ((FInstance _ | FAnon _ | FDynamic _) as ef)), el ->
          let s = (field_name ef) in
          if Hashtbl.mem kwds s || not (valid_lua_ident s) then begin
@@ -511,6 +539,29 @@ and gen_loop ctx label cond e =
     ctx.break_depth <- ctx.break_depth-1;
     ctx.handle_continue <- old_handle_continue;
 
+
+and is_possible_string_field e field_name=
+    (* Special case for String fields *)
+    let structural_type = is_structural_type e.etype in
+    if not structural_type then
+        false
+    else match field_name with
+        | "length"
+        | "toUpperCase"
+        | "toLowerCase"
+        | "charAt"
+        | "indexOf"
+        | "lastIndexOf"
+        | "split"
+        | "toString"
+        | "substring"
+        | "substr"
+        | "charCodeAt" ->
+            true
+        | _ ->
+            false
+
+
 and gen_expr ?(local=true) ctx e = begin
     match e.eexpr with
       TConst c ->
@@ -533,10 +584,6 @@ and gen_expr ?(local=true) ctx e = begin
         print ctx "_iterator(";
         gen_value ctx x;
         print ctx ")";
-    | TField (e, f) when is_string_expr e ->
-        spr ctx "(";
-        gen_value ctx e;
-        print ctx ").%s" (field_name f);
     | TField (x,FClosure (_,f)) ->
         add_feature ctx "use._hx_bind";
         (match x.eexpr with
@@ -556,6 +603,15 @@ and gen_expr ?(local=true) ctx e = begin
     | TEnumIndex x ->
         gen_value ctx x;
         print ctx "[1]"
+    | TField (e, ef) when is_string_expr e && field_name ef = "length"->
+        spr ctx "#";
+        gen_value ctx e;
+    | TField (e, ef) when is_possible_string_field e (field_name ef)  ->
+        add_feature ctx "use._hx_wrap_if_string_field";
+        add_feature ctx "use.string";
+        spr ctx "_hx_wrap_if_string_field(";
+        gen_value ctx e;
+        print ctx ",'%s')" (field_name ef)
     | TField (x, (FInstance(_,_,f) | FStatic(_,f) | FAnon(f))) when Meta.has Meta.SelfCall f.cf_meta ->
         gen_value ctx x;
     | TField ({ eexpr = TConst(TInt _ | TFloat _| TString _| TBool _) } as e , ((FInstance _ | FAnon _) as ef)) ->
@@ -679,8 +735,8 @@ and gen_expr ?(local=true) ctx e = begin
                     spr ctx (ident v.v_name);
                     spr ctx " = ";
 
-        (* if it was a multi-return var but it was used as a value itself, *)
-        (* we have to box it in an object conforming to a multi-return extern class *)
+                    (* if it was a multi-return var but it was used as a value itself, *)
+                    (* we have to box it in an object conforming to a multi-return extern class *)
                     let is_boxed_multireturn = Meta.has (Meta.Custom ":lua_mr_box") v.v_meta in
                     let e = if is_boxed_multireturn then mk_mr_box ctx e else e in
                     gen_value ctx e;
@@ -942,7 +998,7 @@ and gen_block_element ctx e  =
             gen_block_element ctx e2;
         | TArrayDecl el | TBlock el ->
             List.iter (gen_block_element ctx) el;
-        (* For plain lua table instantiations, just capture argument operations *)
+            (* For plain lua table instantiations, just capture argument operations *)
         | TCall({ eexpr = TIdent "__lua_table__"} , el) ->
             List.iter(fun x -> gen_block_element ctx x) el
         (* make a no-op __define_feature__ expression possible *)
@@ -985,9 +1041,9 @@ and gen_block_element ctx e  =
             semicolon ctx;
     end;
 
-(* values generated in anon structures can get modified.  Functions are bind-ed *)
-(* and include a dummy "self" leading variable so they can be called like normal *)
-(* instance methods *)
+    (* values generated in anon structures can get modified.  Functions are bind-ed *)
+    (* and include a dummy "self" leading variable so they can be called like normal *)
+    (* instance methods *)
 and gen_anon_value ctx e =
     match e with
     | { eexpr = TFunction f} ->
@@ -1275,10 +1331,19 @@ and gen_tbinop ctx op e1 e2 =
          spr ctx ", ";
          gen_expr ctx e2;
          spr ctx ")";
-     | Ast.OpAdd,_,_ when (is_string_expr e1 || is_string_expr e2) ->
+     | Ast.OpAdd, _, _ when (is_dynamic_expr e1 && is_dynamic_expr e2) ->
+         add_feature ctx "use._hx_dyn_add";
+         spr ctx "_hx_dyn_add(";
          gen_value ctx e1;
-         print ctx " .. ";
+         spr ctx ",";
          gen_value ctx e2;
+         spr ctx ")";
+     | Ast.OpAdd,_,_ when (is_string_expr e1 || is_string_expr e2) ->
+         spr ctx "Std.string(";
+         gen_value ctx e1;
+         spr ctx ") .. Std.string(";
+         gen_value ctx e2;
+         spr ctx ")";
      | _ -> begin
              (* wrap expressions used in comparisons for lua *)
              gen_paren_tbinop ctx e1;
@@ -1953,15 +2018,6 @@ let generate com =
         println ctx "end";
     end;
 
-    (* If we use haxe Strings, patch Lua's string *)
-    if has_feature ctx "use.string" then begin
-        println ctx "local _hx_string_mt = _G.getmetatable('');";
-        println ctx "String.__oldindex = _hx_string_mt.__index;";
-        println ctx "_hx_string_mt.__index = String.__index;";
-        println ctx "_hx_string_mt.__add = function(a,b) return Std.string(a)..Std.string(b) end;";
-        println ctx "_hx_string_mt.__concat = _hx_string_mt.__add";
-    end;
-
     (* Array is required, always patch it *)
     println ctx "_hx_array_mt.__index = Array.prototype";
     newline ctx;
@@ -2064,6 +2120,30 @@ let generate com =
         println ctx "    maxn=type(i)=='number'and i>maxn and i or maxn";
         println ctx "  end";
         println ctx "  return maxn";
+        println ctx "end;";
+    end;
+
+    if has_feature ctx "use._hx_wrap_if_string_field" then begin
+        println ctx "_hx_wrap_if_string_field = function(o, fld)";
+        println ctx "  if _G.type(o) == 'string' then";
+        println ctx "    if fld == 'length' then";
+        println ctx "      return _G.string.len(o)";
+        println ctx "    else";
+        println ctx "      return String.prototype[fld]";
+        println ctx "    end";
+        println ctx "  else";
+        println ctx "    return o[fld]";
+        println ctx "  end";
+        println ctx "end";
+    end;
+
+    if has_feature ctx "use._hx_dyn_add" then begin
+        println ctx "_hx_dyn_add = function(a,b)";
+        println ctx "  if (_G.type(a) == 'string' or _G.type(b) == 'string') then ";
+        println ctx "    return Std.string(a)..Std.string(b)";
+        println ctx "  else ";
+        println ctx "    return a + b;";
+        println ctx "  end;";
         println ctx "end;";
     end;
 
