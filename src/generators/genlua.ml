@@ -288,6 +288,18 @@ let rec is_string_type t =
 let is_string_expr e = is_string_type e.etype
 (* /from genphp *)
 
+let is_dynamic t = match follow t with
+    | TMono _ | TDynamic _
+    | TInst({ cl_kind = KTypeParameter _ }, _) -> true
+    | TAnon anon ->
+        (match !(anon.a_status) with
+         | EnumStatics _ | Statics _ -> false
+         | _ -> true
+        )
+    | _ -> false
+
+let is_dynamic_expr e = is_dynamic e.etype
+
 let is_structural_type t =
     match follow t with
     | TDynamic _ -> true
@@ -1319,10 +1331,19 @@ and gen_tbinop ctx op e1 e2 =
          spr ctx ", ";
          gen_expr ctx e2;
          spr ctx ")";
-     | Ast.OpAdd,_,_ when (is_string_expr e1 || is_string_expr e2) ->
+     | Ast.OpAdd, _, _ when (is_dynamic_expr e1 && is_dynamic_expr e2) ->
+         add_feature ctx "use._hx_dyn_add";
+         spr ctx "_hx_dyn_add(";
          gen_value ctx e1;
-         print ctx " .. ";
+         spr ctx ",";
          gen_value ctx e2;
+         spr ctx ")";
+     | Ast.OpAdd,_,_ when (is_string_expr e1 || is_string_expr e2) ->
+         spr ctx "Std.string(";
+         gen_value ctx e1;
+         spr ctx ") .. Std.string(";
+         gen_value ctx e2;
+         spr ctx ")";
      | _ -> begin
              (* wrap expressions used in comparisons for lua *)
              gen_paren_tbinop ctx e1;
@@ -1997,15 +2018,6 @@ let generate com =
         println ctx "end";
     end;
 
-    (* If we use haxe Strings, patch Lua's string *)
-    if has_feature ctx "use.string" then begin
-        println ctx "local _hx_string_mt = _G.getmetatable('');";
-        (* println ctx "String.__oldindex = _hx_string_mt.__index;"; *)
-        (* println ctx "_hx_string_mt.__index = String.__index;"; *)
-        println ctx "_hx_string_mt.__add = function(a,b) return _G.table.concat({Std.string(a),Std.string(b)}) end;";
-        println ctx "_hx_string_mt.__concat = _hx_string_mt.__add";
-    end;
-
     (* Array is required, always patch it *)
     println ctx "_hx_array_mt.__index = Array.prototype";
     newline ctx;
@@ -2123,6 +2135,16 @@ let generate com =
         println ctx "    return o[fld]";
         println ctx "  end";
         println ctx "end";
+    end;
+
+    if has_feature ctx "use._hx_dyn_add" then begin
+        println ctx "_hx_dyn_add = function(a,b)";
+        println ctx "  if (_G.type(a) == 'string' or _G.type(b) == 'string') then ";
+        println ctx "    return Std.string(a)..Std.string(b)";
+        println ctx "  else ";
+        println ctx "    return a + b;";
+        println ctx "  end;";
+        println ctx "end;";
     end;
 
     println ctx "_hx_static_init();";
