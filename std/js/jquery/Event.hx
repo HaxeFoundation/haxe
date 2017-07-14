@@ -143,4 +143,6 @@ package js.jquery;
 			
 	**/
 	public var view : js.html.Window;
+	
+	public inline function getThis() : JQuery return new JQuery(untyped __js__('this'));
 }
