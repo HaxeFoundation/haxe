@@ -108,6 +108,7 @@ class Socket extends sys.net.Socket {
 	private var altSNIContexts : Null<Array<{match: String->Bool, key: Key, cert: Certificate}>>;
 	private var sniCallback : hl.Bytes -> SNICbResult;
 	private var handshakeDone : Bool;
+	private var isBlocking : Bool = true;
 
 	private override function init() : Void {
 		__s = sys.net.Socket.socket_new( false );
@@ -133,7 +134,8 @@ class Socket extends sys.net.Socket {
 			ssl_set_hostname( ssl, @:privateAccess hostname.toUtf8() );
 		if( !sys.net.Socket.socket_connect( __s, host.ip, port ) )
 			throw new Sys.SysError("Failed to connect on "+host.toString()+":"+port);
-		handshake();
+		if( isBlocking )
+			handshake();
 	}
 
 	public function handshake() : Void {
@@ -146,6 +148,11 @@ class Socket extends sys.net.Socket {
 			else
 				throw new haxe.io.Eof();
 		}
+	}
+
+	override function setBlocking( b : Bool ) : Void {
+		super.setBlocking(b);
+		isBlocking = b;
 	}
 
 	public function setCA( cert : Certificate ) : Void {
