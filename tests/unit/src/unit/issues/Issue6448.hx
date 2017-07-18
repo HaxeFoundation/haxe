@@ -1,5 +1,6 @@
 package unit.issues;
 
+#if js
 @:native("some6448")
 private class C {
 	public var v = true;
@@ -15,6 +16,7 @@ private extern class Lib {
 		untyped __js__("function ___hx_returnTrue() { return true; }");
 	}
 }
+#end
 
 class Issue6448 extends unit.Test {
 	#if js
