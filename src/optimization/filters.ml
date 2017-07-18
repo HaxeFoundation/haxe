@@ -24,6 +24,24 @@ open Typecore
 open Error
 open Globals
 
+(** retrieve string from @:native metadata or raise Not_found *)
+let get_native_name meta =
+	let rec get_native meta = match meta with
+		| [] -> raise Not_found
+		| (Meta.Native,[v],p as meta) :: _ ->
+			meta
+		| _ :: meta ->
+			get_native meta
+	in
+	let (_,e,mp) = get_native meta in
+	match e with
+	| [Ast.EConst (Ast.String name),p] ->
+		name,p
+	| [] ->
+		raise Not_found
+	| _ ->
+		error "String expected" mp
+
 (* PASS 1 begin *)
 
 (* Adds final returns to functions as required by some platforms *)
@@ -214,6 +232,18 @@ let check_local_vars_init e =
 
 (* -------------------------------------------------------------------------- *)
 (* RENAME LOCAL VARS *)
+
+let collect_reserved_local_names com =
+	match com.platform with
+	| Js ->
+		let h = ref StringMap.empty in
+		List.iter (fun mt ->
+			let tinfos = t_infos mt in
+			let native_name = try fst (get_native_name tinfos.mt_meta) with Not_found -> Path.flat_path tinfos.mt_path in
+			h := StringMap.add native_name true !h
+		) com.types;
+		!h
+	| _ -> StringMap.empty
 
 let rename_local_vars ctx reserved e =
 	let vars = ref [] in
@@ -496,23 +526,6 @@ let check_private_path ctx t = match t with
 
 (* Rewrites class or enum paths if @:native metadata is set *)
 let apply_native_paths ctx t =
-	let get_native_name meta =
-		let rec get_native meta = match meta with
-			| [] -> raise Not_found
-			| (Meta.Native,[v],p as meta) :: _ ->
-				meta
-			| _ :: meta ->
-				get_native meta
-		in
-		let (_,e,mp) = get_native meta in
-		match e with
-		| [Ast.EConst (Ast.String name),p] ->
-			name,p
-		| [] ->
-			raise Not_found
-		| _ ->
-			error "String expected" mp
-	in
 	let get_real_name meta name =
 		let name',p = get_native_name meta in
 		(Meta.RealPath,[Ast.EConst (Ast.String (name)), p], p), name'
@@ -908,13 +921,7 @@ let run com tctx main =
 	List.iter (fun f -> List.iter f new_types) filters;
 	t();
 	if com.platform <> Cross then Analyzer.Run.run_on_types tctx new_types;
-	let reserved = match com.platform with
-		| Js ->
-			let h = ref StringMap.empty in
-			List.iter (fun mt -> h := StringMap.add (Path.flat_path (t_infos mt).mt_path) true !h) com.types;
-			!h
-		| _ -> StringMap.empty
-	in
+	let reserved = collect_reserved_local_names com in
 	let filters = [
 		Optimizer.sanitize com;
 		if com.config.pf_add_final_return then add_final_return else (fun e -> e);
