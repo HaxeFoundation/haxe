@@ -237,10 +237,20 @@ let collect_reserved_local_names com =
 	match com.platform with
 	| Js ->
 		let h = ref StringMap.empty in
+		let add name = h := StringMap.add name true !h in
 		List.iter (fun mt ->
 			let tinfos = t_infos mt in
 			let native_name = try fst (get_native_name tinfos.mt_meta) with Not_found -> Path.flat_path tinfos.mt_path in
-			h := StringMap.add native_name true !h
+			if native_name = "" then
+				match mt with
+				| TClassDecl c ->
+					List.iter (fun cf ->
+						let native_name = try fst (get_native_name cf.cf_meta) with Not_found -> cf.cf_name in
+						add native_name
+					) c.cl_ordered_statics;
+				| _ -> ()
+			else
+				add native_name
 		) com.types;
 		!h
 	| _ -> StringMap.empty
