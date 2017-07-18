@@ -68,7 +68,7 @@ let is_internal_class = function
    |  (["cpp"],"Int16") | (["cpp"],"UInt16")
    |  (["cpp"],"Int32") | (["cpp"],"UInt32")
    |  (["cpp"],"Int64") | (["cpp"],"UInt64")
-   |  (["cpp"],"Float32") | (["cpp"],"Float64") -> true
+   |  (["cpp"],"Float32") | (["cpp"],"Float64") | ([],"Single") -> true
    | _ -> false;;
 
 let get_include_prefix common_ctx with_slash =
@@ -587,7 +587,7 @@ let is_numeric = function
    | "::cpp::UInt32" | "::cpp::Int32"
    | "::cpp::UInt64" | "::cpp::Int64"
    | "::cpp::Float32" | "::cpp::Float64"
-   | "int" | "bool" | "double" | "float" -> true
+   | "int" | "bool" | "double" | "float" | "Single" -> true
    | _ -> false
 
 
@@ -1808,6 +1808,7 @@ let rec cpp_type_of ctx haxe_type =
       | ([], "EnumValue"),_ -> TCppObject
       | ([], "Class"),_ -> TCppClass
       | ([], "Enum"),_  -> TCppClass
+      | ([], "Single"),_ -> TCppScalar("float")
       | (["cpp"], "Char"),_ -> TCppScalar("char")
       | (["cpp"], "Object"),_ -> TCppObjectPtr
       | (["cpp"], "Float32"),_ -> TCppScalar("float")
