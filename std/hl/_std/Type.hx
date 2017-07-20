@@ -75,6 +75,10 @@ class Type {
 
 	public static function getClass<T>( o : T ) : Class<T> {
 		var t = hl.Type.getDynamic(o);
+		if( t.kind == HVirtual ) {
+			o = hl.Api.getVirtualValue(o);
+			t = hl.Type.getDynamic(o);
+		}
 		if( t.kind == HObj )
 			return t.getGlobal();
 		return null;
