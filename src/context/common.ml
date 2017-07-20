@@ -499,6 +499,7 @@ module Define = struct
 		| JsEs
 		| JsUnflatten
 		| JsSourceMap
+		| JsEnumsAsObjects
 		| SourceMap
 		| KeepOldOutput
 		| LoopUnrollMaxCost
@@ -603,6 +604,7 @@ module Define = struct
 		| JqueryVer -> "jquery_ver",("The jQuery version supported by js.jquery.*. The version is encoded as an interger. e.g. 1.11.3 is encoded as 11103",[Platform Js])
 		| JsClassic -> "js_classic",("Don't use a function wrapper and strict mode in JS output",[Platform Js])
 		| JsEs -> "js_es",("Generate JS compilant with given ES standard version (default 5)",[Platform Js; HasParam "version number"])
+		| JsEnumsAsObjects -> "js_enums_as_objects",("Generate enum representation as object instead of as array",[Platform Js])
 		| JsUnflatten -> "js_unflatten",("Generate nested objects for packages and types",[Platform Js])
 		| JsSourceMap -> "js_source_map",("Generate JavaScript source map even in non-debug mode",[Platform Js])
 		| SourceMap -> "source_map",("Generate source map for compiled files (Currently supported for php7 only)",[Platform Php])

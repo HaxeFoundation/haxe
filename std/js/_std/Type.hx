@@ -41,7 +41,11 @@ enum ValueType {
 	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped {
 		if( o == null )
 			return null;
+		#if !js_enums_as_objects
 		return o.__enum__;
+		#else
+		return $hxEnums[o.__enum__];
+		#end
 	}
 
 	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> untyped {
@@ -182,8 +186,13 @@ enum ValueType {
 			if( v == null )
 				return TNull;
 			var e = v.__enum__;
-			if( e != null )
+			if( e != null ){
+				#if !js_enums_as_objects
 				return TEnum(e);
+				#else
+				return TEnum(untyped $hxEnums[e]);
+				#end
+			}
 			var c = js.Boot.getClass(v);
 			if( c != null )
 				return TClass(c);
@@ -203,14 +212,25 @@ enum ValueType {
 		if( a == b )
 			return true;
 		try {
+			#if !js_enums_as_objects
 			if( a[0] != b[0] )
 				return false;
 			for( i in 2...a.length )
 				if( !enumEq(a[i],b[i]) )
 					return false;
+			#else
+			if (a._hx_index != b._hx_index)
+				return false;
+			for (f in Reflect.fields(a)){
+				if ( !enumEq(a[f],b[f]) ){
+					return false;
+				}
+			}
+			#end
 			var e = a.__enum__;
 			if( e != b.__enum__ || e == null )
 				return false;
+
 		} catch( e : Dynamic ) {
 			return false;
 		}
@@ -218,15 +238,29 @@ enum ValueType {
 	}
 
 	public inline static function enumConstructor( e : EnumValue ) : String {
+		#if !js_enums_as_objects
 		return untyped e[0];
+		#else
+		return untyped $hxEnums[e.__enum__].__constructs__[e._hx_index];
+		#end
 	}
 
 	public inline static function enumParameters( e : EnumValue ) : Array<Dynamic> {
+		#if !js_enums_as_objects
 		return untyped e.slice(2);
+		#else
+		var n = enumConstructor(e);
+		var params:Array<String> = untyped __js__("$hxEnums[{0}.__enum__][{1}].__params__",e,n);
+		return params != null ? [for (p in params) untyped e[p]] : [];
+		#end
 	}
 
 	public inline static function enumIndex( e : EnumValue ) : Int {
+		#if js_enums_as_objects
+		return untyped e._hx_index;
+		#else
 		return untyped e[1];
+		#end
 	}
 
 	public inline static function allEnums<T>( e : Enum<T> ) : Array<T> {
