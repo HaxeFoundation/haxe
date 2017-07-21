@@ -26,8 +26,7 @@ import haxe.extern.EitherType;
 @:luaRequire("rex_pcre")
 extern class Rex {
 
-	@:overload(          function       (expr : String, flag : Int) : Rex{})
-	inline public static function create(expr : String, flag : String) : Rex{
+	inline public static function create(expr : String, flag : EitherType<Int,String>) : Rex{
 		return untyped Rex['new'](expr, flag);
 	}
 
