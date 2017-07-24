@@ -2890,13 +2890,17 @@ let retype_expression ctx request_type function_args function_type expression_tr
             let path = t_path module_type in
             CppClassOf(path, is_native_gen_module module_type), TCppClass
 
-         | TBinop (op,e1,e2) ->
-            let objC1 = (is_objc_type e1.etype) in
-            let objC2 = (is_objc_type e2.etype) in
-            let compareObjC = (objC1<>objC2) && (op=OpEq || op=OpNotEq) in
-            let e2 = retype (if compareObjC && objC2 then TCppUnchanged
-                else cpp_type_of (if op=OpAssign then e1 else e2).etype) e2 in
-            let e1 = retype (if compareObjC && objC1 then TCppUnchanged else cpp_type_of e1.etype) e1 in
+         | TBinop (op,left,right) ->
+            let binOpType = match op with
+            | OpDiv -> TCppScalar("Float")
+            | OpBoolAnd | OpBoolOr -> TCppScalar("bool")
+            | OpAnd | OpOr | OpXor | OpShl | OpShr | OpUShr -> TCppScalar("int")
+            | OpAssign -> cpp_type_of left.etype
+            | _ -> TCppUnchanged
+            in
+            let e1 = retype binOpType left in
+            let e2 = retype binOpType right in
+
             let complex = (is_complex_compare e1.cpptype) || (is_complex_compare e2.cpptype) in
             let e1_null = e1.cpptype=TCppNull in
             let e2_null = e2.cpptype=TCppNull in
@@ -3128,7 +3132,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
          | TCppDynamic ->  mk_cppexpr (CppCastNative(cppExpr)) TCppVoidStar
          | _ -> let toDynamic = mk_cppexpr (CppCast(cppExpr, TCppDynamic)) TCppDynamic in
                 mk_cppexpr (CppCastNative(toDynamic)) TCppVoidStar
-      end else if (cppExpr.cpptype=TCppVariant || cppExpr.cpptype=TCppDynamic) then begin
+      end else if (cppExpr.cpptype=TCppVariant || cppExpr.cpptype=TCppDynamic || cppExpr.cpptype==TCppObject) then begin
          match return_type with
          | TCppUnchanged -> cppExpr
          | TCppInst(t) when (has_meta_key t.cl_meta Meta.StructAccess) ->
@@ -3247,6 +3251,8 @@ let retype_expression ctx request_type function_args function_type expression_tr
          | TCppScalarArray _, TCppDynamicArray
          | TCppObjectArray _, TCppDynamicArray when forCppia ->
              mk_cppexpr (CppCast(cppExpr,return_type)) return_type
+         | TCppScalar(from), TCppScalar(too) when from<>too ->
+             mk_cppexpr (CppCastScalar(cppExpr,too)) return_type
 
          | _ -> cppExpr
    in
@@ -3373,7 +3379,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          out spacer;
          writer#end_block;
 
-      | CppInt i -> out (Printf.sprintf "(int)%ld" i)
+      | CppInt i -> out (Printf.sprintf (if i> Int32.of_int(-1000000000) && i< Int32.of_int(1000000000) then "%ld" else "(int)%ld") i)
       | CppFloat float_as_string -> out ("((Float)" ^ float_as_string ^")")
       | CppString s -> out (strq s)
       | CppBool b -> out (if b then "true" else "false")
@@ -3781,15 +3787,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
 
       | CppBinop(op, left, right) ->
          let op = string_of_op op expr.cpppos in
-         let castOpen, castClose = (match op with
-         | ">>" | "<<" | "&" | "|" | "^"  -> "(int)", ""
-         | "&&" | "||" -> "(bool)", ""
-         | "/" -> "(Float)", ""
-         | _ -> "","") in
           out "(";
-          out castOpen; gen left; out castClose;
+          gen left;
           out (" " ^ op ^ " ");
-          out castOpen; gen right; out castClose;
+          gen right;
           out ")";
       | CppCompare(opName, left, right, _) ->
           out ("hx::" ^ opName ^ "( ");
