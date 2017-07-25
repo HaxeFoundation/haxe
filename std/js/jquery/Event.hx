@@ -143,6 +143,9 @@ package js.jquery;
 			
 	**/
 	public var view : js.html.Window;
-	
-	public inline function getThis() : JQuery return new JQuery(untyped __js__('this'));
+	/**
+		A convenient method of getting `$(this)`, which is typically the same as `$(evt.currentTarget)`.
+		For detail, refer to https://api.jquery.com/event.currenttarget/.
+	**/
+	inline public function getThis():js.jquery.JQuery return new js.jquery.JQuery(js.Lib.nativeThis);
 }
