@@ -15,6 +15,7 @@
 	sys : SPOD (sys.db.Object, sys.db.Manager and friends) was moved into a separate library `record-macros` (https://github.com/HaxeFoundation/record-macros)
 	js : js.JQuery and js.SWFObject were moved into hx3compat library (https://github.com/HaxeFoundation/hx3compat),
 	     it's recommended to use more modern js.jquery.JQuery and js.swfobject.SWFObject classes.
+	all : moved haxe.web.Dispatch into hx3compat library (https://github.com/HaxeFoundation/hx3compat).
 
 	Bugfixes:
 
