@@ -73,25 +73,25 @@ class Md5 {
 	function new() {
 	}
 
-	function bitOR(a, b){
+	inline function bitOR(a, b){
 		var lsb = (a & 0x1) | (b & 0x1);
 		var msb31 = (a >>> 1) | (b >>> 1);
 		return (msb31 << 1) | lsb;
 	}
 
-	function bitXOR(a, b){
+	inline function bitXOR(a, b){
 		var lsb = (a & 0x1) ^ (b & 0x1);
 		var msb31 = (a >>> 1) ^ (b >>> 1);
 		return (msb31 << 1) | lsb;
 	}
 
-	function bitAND(a, b){
+	inline function bitAND(a, b){
 		var lsb = (a & 0x1) & (b & 0x1);
 		var msb31 = (a >>> 1) & (b >>> 1);
 		return (msb31 << 1) | lsb;
 	}
 
-	function addme(x, y) {
+	inline function addme(x, y) {
 		var lsw = (x & 0xFFFF)+(y & 0xFFFF);
 		var msw = (x >> 16)+(y >> 16)+(lsw >> 16);
 		return (msw << 16) | (lsw & 0xFFFF);
@@ -169,27 +169,27 @@ class Md5 {
 		return blks;
 	}
 
-	function rol(num, cnt){
+	inline function rol(num, cnt){
 		return (num << cnt) | (num >>> (32 - cnt));
 	}
 
-	function cmn(q, a, b, x, s, t){
+	inline function cmn(q, a, b, x, s, t){
 		return addme(rol((addme(addme(a, q), addme(x, t))), s), b);
 	}
 
-	function ff(a, b, c, d, x, s, t){
+	inline function ff(a, b, c, d, x, s, t){
 		return cmn(bitOR(bitAND(b, c), bitAND((~b), d)), a, b, x, s, t);
 	}
 
-	function gg(a, b, c, d, x, s, t){
+	inline function gg(a, b, c, d, x, s, t){
 		return cmn(bitOR(bitAND(b, d), bitAND(c, (~d))), a, b, x, s, t);
 	}
 
-	function hh(a, b, c, d, x, s, t){
+	inline function hh(a, b, c, d, x, s, t){
 		return cmn(bitXOR(bitXOR(b, c), d), a, b, x, s, t);
 	}
 
-	function ii(a, b, c, d, x, s, t){
+	inline function ii(a, b, c, d, x, s, t){
 		return cmn(bitXOR(c, bitOR(b, (~d))), a, b, x, s, t);
 	}
 
