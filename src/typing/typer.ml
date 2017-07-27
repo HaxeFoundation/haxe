@@ -2166,6 +2166,8 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[e1;e2])) t p
 	| OpArrow ->
 		error "Unexpected =>" p
+	| OpIn ->
+		error "Unexpected in" p
 	| OpAssign
 	| OpAssignOp _ ->
 		assert false
@@ -3381,7 +3383,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| _ -> error "Identifier expected" (pos e1)
 		in
 		let rec loop display e1 = match fst e1 with
-			| EIn(e1,e2) -> loop_ident display e1,e2
+			| EBinop(OpIn,e1,e2) -> loop_ident display e1,e2
 			| EDisplay(e1,_) -> loop true e1
 			| _ -> error "For expression should be 'v in expr'" (snd it)
 		in
@@ -3428,8 +3430,6 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		ctx.in_loop <- old_loop;
 		old_locals();
 		e
-	| EIn _ ->
-		error "This expression is not allowed outside a for loop" p
 	| ETernary (e1,e2,e3) ->
 		type_expr ctx (EIf (e1,e2,Some e3),p) with_type
 	| EIf (e,e1,e2) ->

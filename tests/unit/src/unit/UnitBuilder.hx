@@ -147,7 +147,7 @@ class UnitBuilder {
 						}
 					case EThrow(e):
 						macro exc(function() $e);
-					case EIn(e1, {expr:EArrayDecl(el) }):
+					case EBinop(OpIn, e1, {expr:EArrayDecl(el) }):
 						var el2 = [];
 						for (e in el)
 							el2.push(macro $e1 == $e);

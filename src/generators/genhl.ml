@@ -2316,7 +2316,7 @@ and eval_expr ctx e =
 					free ctx r;
 					binop r r b;
 					r))
-		| OpInterval | OpArrow ->
+		| OpInterval | OpArrow | OpIn ->
 			assert false)
 	| TUnop (Not,_,v) ->
 		let tmp = alloc_tmp ctx HBool in

@@ -87,6 +87,7 @@ type binop =
 	| OpAssignOp of binop
 	| OpInterval
 	| OpArrow
+	| OpIn
 
 type unop =
 	| Increment
@@ -182,7 +183,6 @@ and expr_def =
 	| EFunction of string option * func
 	| EBlock of expr list
 	| EFor of expr * expr
-	| EIn of expr * expr
 	| EIf of expr * expr * expr option
 	| EWhile of expr * expr * while_flag
 	| ESwitch of expr * (expr list * expr option * expr option * pos) list * (expr option * pos) option
@@ -431,6 +431,7 @@ let rec s_binop = function
 	| OpAssignOp op -> s_binop op ^ "="
 	| OpInterval -> "..."
 	| OpArrow -> "=>"
+	| OpIn -> " in "
 
 let s_unop = function
 	| Increment -> "++"
@@ -607,10 +608,6 @@ let map_expr loop (e,p) =
 		let e1 = loop e1 in
 		let e2 = loop e2 in
 		EFor (e1,e2)
-	| EIn (e1,e2) ->
-		let e1 = loop e1 in
-		let e2 = loop e2 in
-		EIn (e1,e2)
 	| EIf (e,e1,e2) ->
 		let e = loop e in
 		let e1 = loop e1 in
@@ -665,7 +662,7 @@ let iter_expr loop (e,p) =
 	| EConst _ | EContinue | EBreak | EDisplayNew _ | EReturn None -> ()
 	| EParenthesis e1 | EField(e1,_) | EUnop(_,_,e1) | EReturn(Some e1) | EThrow e1 | EMeta(_,e1)
 	| ECheckType(e1,_) | EDisplay(e1,_) | ECast(e1,_) | EUntyped e1 -> loop e1;
-	| EArray(e1,e2) | EBinop(_,e1,e2) | EIn(e1,e2) | EFor(e1,e2) | EWhile(e1,e2,_) | EIf(e1,e2,None) -> loop e1; loop e2;
+	| EArray(e1,e2) | EBinop(_,e1,e2) | EFor(e1,e2) | EWhile(e1,e2,_) | EIf(e1,e2,None) -> loop e1; loop e2;
 	| ETernary(e1,e2,e3) | EIf(e1,e2,Some e3) -> loop e1; loop e2; loop e3;
 	| EArrayDecl el | ENew(_,el) | EBlock el -> List.iter loop el
 	| ECall(e1,el) -> loop e1; exprs el;
@@ -706,7 +703,6 @@ let s_expr e =
 		| EBlock [] -> "{ }"
 		| EBlock el -> s_block tabs el "{" "\n" "}"
 		| EFor (e1,e2) -> "for (" ^ s_expr_inner tabs e1 ^ ") " ^ s_expr_inner tabs e2
-		| EIn (e1,e2) -> s_expr_inner tabs e1 ^ " in " ^ s_expr_inner tabs e2
 		| EIf (e,e1,None) -> "if (" ^ s_expr_inner tabs e ^ ") " ^ s_expr_inner tabs e1
 		| EIf (e,e1,Some e2) -> "if (" ^ s_expr_inner tabs e ^ ") " ^ s_expr_inner tabs e1 ^ " else " ^ s_expr_inner tabs e2
 		| EWhile (econd,e,NormalWhile) -> "while (" ^ s_expr_inner tabs econd ^ ") " ^ s_expr_inner tabs e

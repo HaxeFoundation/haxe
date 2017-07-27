@@ -46,7 +46,7 @@ class TestMatch extends Test {
 				s;
 			case EArray(_, { expr : EConst(CInt(i) | CFloat(i)) } ):
 				Std.string(i);
-			case EIn(_, { expr : e, pos : _ }) :
+			case EBinop(OpIn, _, { expr : e, pos : _ }) :
 				Std.string(e);
 			case _:
 				"not_found";

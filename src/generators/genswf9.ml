@@ -1691,7 +1691,7 @@ and gen_binop ctx retval op e1 e2 t p =
 		gen_op A3OLt
 	| OpLte ->
 		gen_op A3OLte
-	| OpInterval | OpArrow ->
+	| OpInterval | OpArrow | OpIn ->
 		assert false
 
 and gen_expr ctx retval e =

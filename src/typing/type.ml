@@ -2540,7 +2540,7 @@ module TExprToExpr = struct
 			EVars ([(v.v_name,v.v_pos), mk_type_hint v.v_type v.v_pos, eopt eo])
 		| TBlock el -> EBlock (List.map convert_expr el)
 		| TFor (v,it,e) ->
-			let ein = (EIn ((EConst (Ident v.v_name),it.epos),convert_expr it),it.epos) in
+			let ein = (EBinop (OpIn,(EConst (Ident v.v_name),it.epos),convert_expr it),it.epos) in
 			EFor (ein,convert_expr e)
 		| TIf (e,e1,e2) -> EIf (convert_expr e,convert_expr e1,eopt e2)
 		| TWhile (e1,e2,flag) -> EWhile (convert_expr e1, convert_expr e2, flag)

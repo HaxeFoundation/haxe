@@ -239,7 +239,7 @@ module DocumentSymbols = struct
 			| EFunction(Some s,f) ->
 				add s Function p;
 				func parent f
-			| EIn((EConst(Ident s),p),e2) ->
+			| EBinop(OpIn,(EConst(Ident s),p),e2) ->
 				add s Variable p;
 				expr parent e2;
 			| _ ->

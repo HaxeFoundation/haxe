@@ -212,6 +212,11 @@ enum Binop {
 		`=>`
 	**/
 	OpArrow;
+
+	/**
+		`in`
+	**/
+	OpIn;
 }
 
 /**
@@ -412,11 +417,6 @@ enum ExprDef {
 		A `for` expression.
 	**/
 	EFor( it : Expr, expr : Expr );
-
-	/**
-		A `(e1 in e2)` expression.
-	**/
-	EIn( e1 : Expr, e2 : Expr );
 
 	/**
 		An `if(econd) eif` or `if(econd) eif else eelse` expression.

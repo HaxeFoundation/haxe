@@ -731,7 +731,7 @@ and func ctx i =
 				| OpAdd | OpMult | OpDiv | OpSub | OpAnd
 				| OpOr | OpXor | OpShl | OpShr | OpUShr | OpMod ->
 					true
-				| OpAssignOp _ | OpInterval | OpArrow | OpAssign | OpEq
+				| OpAssignOp _ | OpInterval | OpArrow | OpIn | OpAssign | OpEq
 				| OpNotEq | OpGt | OpGte | OpLt | OpLte | OpBoolAnd | OpBoolOr ->
 					false
 			in
