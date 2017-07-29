@@ -416,9 +416,13 @@ let join_class_path_remap path separator =
    | x -> x
 ;;
 
+let error_single_quote_meta key pos =
+   abort (Printf.sprintf "Use double quotes for the %s argument" (Meta.to_string key)) pos
+
 let get_meta_string meta key =
    let rec loop = function
       | [] -> ""
+      | (k,[Ast.EFormat _,pos],_) :: _ when k=key -> error_single_quote_meta key pos
       | (k,[Ast.EConst (Ast.String name),_],_) :: _  when k=key-> name
       | _ :: l -> loop l
       in
@@ -430,6 +434,7 @@ let get_meta_string meta key =
 let get_meta_string_path meta key =
    let rec loop = function
       | [] -> ""
+      | (k,[Ast.EFormat _,pos],_) :: _ when k=key -> error_single_quote_meta key pos
       | (k,[Ast.EConst (Ast.String name),_], pos) :: _  when k=key->
            (try
            if (String.sub name 0 2) = "./" then begin

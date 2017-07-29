@@ -131,7 +131,7 @@ private class MysqlConnection implements sys.db.Connection {
 		__c = c;
 	 D.set_conv_funs( cpp.Function.fromStaticFunction(D.charsToBytes),
                      cpp.Function.fromStaticFunction(D.secondsToDate) );
-    
+
 	}
 
 	public function request( s : String ) : sys.db.ResultSet {
@@ -194,7 +194,7 @@ private class MysqlConnection implements sys.db.Connection {
 	private static var __use_date = Date;
 }
 
-@:buildXml('<include name="${HXCPP}/src/hx/libs/mysql/Build.xml"/>')
+@:buildXml("<include name=\"${HXCPP}/src/hx/libs/mysql/Build.xml\"/>")
 @:coreApi class Mysql {
 
 	public static function connect( params : {

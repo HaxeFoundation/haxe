@@ -467,6 +467,8 @@ let reify in_macro =
 			expr "ETernary" [loop e1;loop e2;loop e3]
 		| ECheckType (e1,ct) ->
 			expr "ECheckType" [loop e1; to_type_hint ct p]
+		| EFormat parts ->
+			expr "EFormat" [to_array to_formatsegment parts p]
 		| EMeta ((m,ml,p),e1) ->
 			match m, ml with
 			| Meta.Dollar ("" | "e"), _ ->
@@ -495,6 +497,19 @@ let reify in_macro =
 				e
 			| _ ->
 				expr "EMeta" [to_obj [("name",to_string (Meta.to_string m) p);("params",to_expr_array ml p);("pos",to_pos p)] p;loop e1]
+	and to_formatsegment part _ =
+		let f name arg pos =
+			let kind = mk_enum "FormatSegmentKind" name [arg] pos in
+			to_obj [
+				"kind",kind;
+				"pos",to_pos pos;
+			] pos
+		in
+		let part,p = part in
+		match part with
+		| FmtRaw s -> f "FRaw" (to_string s p) p
+		| FmtIdent s -> f "FIdent" (to_string s p) p
+		| FmtExpr e -> f "FExpr" (to_expr e p) p
 	and to_tparam_decl p t =
 		to_obj [
 			"name", to_placed_name t.tp_name;
@@ -1355,6 +1370,9 @@ and expr = parser
 		parse_macro_expr p s
 	| [< '(Kwd Var,p1); v = parse_var_decl >] -> (EVars [v],p1)
 	| [< '(Const c,p); s >] -> expr_next (EConst c,p) s
+	| [< '(Fmt parts,p); s >] ->
+		let parts = parse_format_parts parts in
+		expr_next (EFormat parts,p) s
 	| [< '(Kwd This,p); s >] -> expr_next (EConst (Ident "this"),p) s
 	| [< '(Kwd True,p); s >] -> expr_next (EConst (Ident "true"),p) s
 	| [< '(Kwd False,p); s >] -> expr_next (EConst (Ident "false"),p) s
@@ -1460,6 +1478,18 @@ and expr = parser
 	| [< '(IntInterval i,p1); e2 = expr >] -> make_binop OpInterval (EConst (Int i),p1) e2
 	| [< '(Kwd Untyped,p1); e = expr >] -> (EUntyped e,punion p1 (pos e))
 	| [< '(Dollar v,p); s >] -> expr_next (EConst (Ident ("$"^v)),p) s
+
+and parse_format_parts parts =
+	List.map (fun (t,p) -> (match t with
+		| Raw s -> FmtRaw s
+		| Name s -> FmtIdent s
+		| Code [] -> FmtRaw ""
+		| Code tokens ->
+			let s = Stream.of_list tokens in
+			let r = FmtExpr (expr s) in
+			(match Stream.peek s with None -> () | Some (tk,p) -> error (Unexpected tk) p);
+			r
+	),p) parts
 
 and expr_next e1 = parser
 	| [< '(BrOpen,p1) when is_dollar_ident e1; eparam = expr; '(BrClose,p2); s >] ->

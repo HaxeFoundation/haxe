@@ -128,6 +128,11 @@ class ExprTools {
 				}
 				if (edef != null && edef.expr != null)
 					f(edef);
+			case EFormat(parts):
+				for (part in parts) switch part.kind {
+					case FRaw(_) | FIdent(_):
+					case FExpr(e): f(e);
+				}
 		}
 	}
 
@@ -208,6 +213,11 @@ class ExprTools {
 					ret.push( { name: arg.name, opt: arg.opt, type: arg.type, value: opt(arg.value, f) } );
 				EFunction(name, { args: ret, ret: func.ret, params: func.params, expr: f(func.expr) } );
 			case EMeta(m, e): EMeta(m, f(e));
+			case EFormat(parts):
+				EFormat([for (part in parts) switch part.kind {
+					case FRaw(_) | FIdent(_): part;
+					case FExpr(e): {kind: FExpr(f(e)), pos: part.pos};
+				}]);
 		}};
 	}
 

@@ -337,7 +337,12 @@ let make_macro_api ctx p =
 			!macro_enable_cache
 		);
 		MacroApi.format_string = (fun s p ->
-			ctx.g.do_format_string ctx s p
+			let s = Printf.sprintf "'%s'" s in
+			let e = parse_expr_string s p true in
+			match fst e with
+			| EConst (String _) -> e
+			| EFormat parts -> Expr.format_string parts p
+			| _ -> raise MacroApi.Invalid_expr
 		);
 		MacroApi.cast_or_unify = (fun t e p ->
 			typing_timer ctx true (fun () ->
@@ -613,7 +618,6 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		| _ ->
 			el,[]
 	in
-	let todo = ref [] in
 	let args =
 		(*
 			force default parameter types to haxe.macro.Expr, and if success allow to pass any value type since it will be encoded
@@ -634,11 +638,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		let constants = List.map (fun e ->
 			let p = snd e in
 			let e = (try
-				(match Codegen.type_constant_value ctx.com e with
-				| { eexpr = TConst (TString _); epos = p } when Lexer.is_fmt_string p ->
-					Lexer.remove_fmt_string p;
-					todo := (fun() -> Lexer.add_fmt_string p) :: !todo;
-				| _ -> ());
+				ignore(Codegen.type_constant_value ctx.com e);
 				e
 			with Error (Custom _,_) ->
 				(* if it's not a constant, let's make something that is typed as haxe.macro.Expr - for nice error reporting *)
@@ -652,7 +652,6 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index))),p)),p)
 		) el in
 		let elt, _ = unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false in
-		List.iter (fun f -> f()) (!todo);
 		List.map2 (fun (_,mct) e ->
 			let e, et = (match e.eexpr with
 				(* get back our index and real expression *)

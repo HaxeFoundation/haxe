@@ -23,7 +23,7 @@ package sys;
 
 import cpp.NativeSys;
 
-@:buildXml('<include name="${HXCPP}/src/hx/libs/std/Build.xml"/>')
+@:buildXml("<include name=\"${HXCPP}/src/hx/libs/std/Build.xml\"/>")
 @:coreApi
 class FileSystem {
 

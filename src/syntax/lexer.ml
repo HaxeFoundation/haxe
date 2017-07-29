@@ -49,7 +49,6 @@ type lexer_file = {
 	mutable lmaxline : int;
 	mutable llines : (int * int) list;
 	mutable lalines : (int * int) array;
-	mutable lstrings : int list;
 	mutable llast : int;
 	mutable llastindex : int;
 }
@@ -61,7 +60,6 @@ let make_file file =
 		lmaxline = 1;
 		llines = [0,1];
 		lalines = [|0,1|];
-		lstrings = [];
 		llast = max_int;
 		llastindex = 0;
 	}
@@ -102,37 +100,6 @@ let newline lexbuf =
 	let cur = !cur in
 	cur.lline <- cur.lline + 1;
 	cur.llines <- (lexeme_end lexbuf,cur.lline) :: cur.llines
-
-let fmt_pos p =
-	p.pmin + (p.pmax - p.pmin) * 1000000
-
-let add_fmt_string p =
-	let file = (try
-		Hashtbl.find all_files p.pfile
-	with Not_found ->
-		let f = make_file p.pfile in
-		Hashtbl.replace all_files p.pfile f;
-		f
-	) in
-	file.lstrings <- (fmt_pos p) :: file.lstrings
-
-let fast_add_fmt_string p =
-	let cur = !cur in
-	cur.lstrings <- (fmt_pos p) :: cur.lstrings
-
-let is_fmt_string p =
-	try
-		let file = Hashtbl.find all_files p.pfile in
-		List.mem (fmt_pos p) file.lstrings
-	with Not_found ->
-		false
-
-let remove_fmt_string p =
-	try
-		let file = Hashtbl.find all_files p.pfile in
-		file.lstrings <- List.filter ((<>) (fmt_pos p)) file.lstrings
-	with Not_found ->
-		()
 
 let find_line p f =
 	(* rebuild cache if we have a new line *)
@@ -233,9 +200,18 @@ let mk_ident lexbuf =
 	let s = lexeme lexbuf in
 	mk lexbuf (try Kwd (Hashtbl.find keywords s) with Not_found -> Const (Ident s))
 
+(* we create simple String tokens for single-quote strings that don't contain interpolated values *)
+let mk_fmt_tok parts pmin pmax =
+	let t =
+		match parts with
+		| [] -> Const (String "")
+		| [(Raw s,_)] -> Const (String s)
+		| _ -> Fmt parts
+	in
+	mk_tok t pmin pmax
+
 let invalid_char lexbuf =
 	error (Invalid_character (lexeme_char lexbuf 0)) (lexeme_start lexbuf)
-
 
 let ident = [%sedlex.regexp?
 	(
@@ -257,6 +233,8 @@ let idtype = [%sedlex.regexp? Star '_', 'A'..'Z', Star ('_' | 'a'..'z' | 'A'..'Z
 
 let integer = [%sedlex.regexp? ('1'..'9', Star ('0'..'9')) | '0']
 
+let whitespace = [%sedlex.regexp? Plus (Chars " \t")]
+
 let rec skip_header lexbuf =
 	match%sedlex lexbuf with
 	| 0xfeff -> skip_header lexbuf
@@ -267,7 +245,7 @@ let rec skip_header lexbuf =
 let rec token lexbuf =
 	match%sedlex lexbuf with
 	| eof -> mk lexbuf Eof
-	| Plus (Chars " \t") -> token lexbuf
+	| whitespace -> token lexbuf
 	| "\r\n" -> newline lexbuf; token lexbuf
 	| '\n' | '\r' -> newline lexbuf; token lexbuf
 	| "0x", Plus ('0'..'9'|'a'..'f'|'A'..'F') -> mk lexbuf (Const (Int (lexeme lexbuf)))
@@ -347,11 +325,8 @@ let rec token lexbuf =
 	| "'" ->
 		reset();
 		let pmin = lexeme_start lexbuf in
-		let pmax = (try string2 lexbuf with Exit -> error Unterminated_string pmin) in
-		let str = (try unescape (contents()) with Invalid_escape_sequence(c,i) -> error (Invalid_escape c) (pmin + i)) in
-		let t = mk_tok (Const (String str)) pmin pmax in
-		fast_add_fmt_string (snd t);
-		t
+		let parts,pmax = (try string2 (pmin+1) [] lexbuf with Exit -> error Unterminated_string pmin) in
+		mk_fmt_tok (List.rev parts) pmin pmax
 	| "~/" ->
 		reset();
 		let pmin = lexeme_start lexbuf in
@@ -390,51 +365,95 @@ and string lexbuf =
 	| Plus (Compl ('"' | '\\' | '\r' | '\n')) -> store lexbuf; string lexbuf
 	| _ -> assert false
 
-and string2 lexbuf =
+and string2 pmin parts lexbuf =
+	let consume_part() =
+		let contents = contents() in
+		reset();
+		if contents = "" then
+			parts
+		else begin
+			let pmax = lexeme_start lexbuf in
+			let str = (try unescape contents with Invalid_escape_sequence(c,i) -> error (Invalid_escape c) (pmin + i)) in
+			let part = mk_tok (Raw str) pmin pmax in
+			part :: parts
+		end
+	in
 	match%sedlex lexbuf with
 	| eof -> raise Exit
-	| '\n' | '\r' | "\r\n" -> newline lexbuf; store lexbuf; string2 lexbuf
-	| '\\' -> store lexbuf; string2 lexbuf
-	| "\\\\" -> store lexbuf; string2 lexbuf
-	| "\\'" -> store lexbuf; string2 lexbuf
-	| "'" -> lexeme_end lexbuf
-	| "$$" | "\\$" | '$' -> store lexbuf; string2 lexbuf
-	| "${" ->
+	| '\n' | '\r' | "\r\n" -> newline lexbuf; store lexbuf; string2 pmin parts lexbuf
+	| '\\' -> store lexbuf; string2 pmin parts lexbuf
+	| "\\\\" -> store lexbuf; string2 pmin parts lexbuf
+	| "\\'" -> store lexbuf; string2 pmin parts lexbuf
+	| "'" ->
+		consume_part(), lexeme_end lexbuf
+	| "$$" -> add "$"; string2 pmin parts lexbuf
+	| '$', ident ->
+		let parts = consume_part() in
 		let pmin = lexeme_start lexbuf in
-		store lexbuf;
-		(try code_string lexbuf 0 with Exit -> error Unclosed_code pmin);
-		string2 lexbuf;
-	| Plus (Compl ('\'' | '\\' | '\r' | '\n' | '$')) -> store lexbuf; string2 lexbuf
+		let pmax = lexeme_end lexbuf in
+		let ident =
+			let v = lexeme lexbuf in
+			String.sub v 1 (String.length v - 1)
+		in
+		let part = mk_tok (Name ident) pmin pmax in
+		string2 pmax (part :: parts) lexbuf
+	| "\\$" | '$' -> store lexbuf; string2 pmin parts lexbuf
+	| "${" ->
+		let parts = consume_part() in
+		let pmin = lexeme_start lexbuf in
+		let start = lexeme_end lexbuf in
+		let tokens,pmax = (try code_string start lexbuf 0 with Exit -> error Unclosed_code pmin) in
+		let part = mk_tok (Code tokens) pmin pmax in
+		let parts = part :: parts in
+		string2 pmax parts lexbuf
+	| Plus (Compl ('\'' | '\\' | '\r' | '\n' | '$')) -> store lexbuf; string2 pmin parts lexbuf
 	| _ -> assert false
 
-and code_string lexbuf open_braces =
+and code_string start lexbuf open_braces =
+	let consume() =
+		let code = contents() in
+		let code_lexbuf = Sedlexing.Utf8.from_string code in
+		let rec loop acc =
+			match token code_lexbuf with
+			| (Eof,_) -> acc
+			| (tok,p) ->
+				let tok = tok, {p with pmin = p.pmin + start; pmax = p.pmax + start} in
+				loop (tok :: acc)
+		in
+		let r = List.rev (loop []) in
+		reset();
+		r
+	in
 	match%sedlex lexbuf with
 	| eof -> raise Exit
-	| '\n' | '\r' | "\r\n" -> newline lexbuf; store lexbuf; code_string lexbuf open_braces
-	| '{' -> store lexbuf; code_string lexbuf (open_braces + 1)
-	| '/' -> store lexbuf; code_string lexbuf open_braces
+	| whitespace -> code_string start lexbuf open_braces
+	| '\n' | '\r' | "\r\n" -> newline lexbuf; store lexbuf; code_string start lexbuf open_braces
+	| '{' -> store lexbuf; code_string start lexbuf (open_braces + 1)
+	| '/' -> store lexbuf; code_string start lexbuf open_braces
 	| '}' ->
-		store lexbuf;
-		if open_braces > 0 then code_string lexbuf (open_braces - 1)
+		if open_braces > 0 then
+			(store lexbuf; code_string start lexbuf (open_braces - 1))
+		else
+			consume(),lexeme_end lexbuf
 	| '"' ->
 		add "\"";
 		let pmin = lexeme_start lexbuf in
 		(try ignore(string lexbuf) with Exit -> error Unterminated_string pmin);
 		add "\"";
-		code_string lexbuf open_braces
+		code_string start lexbuf open_braces
 	| "'" ->
-		add "'";
+		let parts = consume() in
 		let pmin = lexeme_start lexbuf in
-		let pmax = (try string2 lexbuf with Exit -> error Unterminated_string pmin) in
-		add "'";
-		fast_add_fmt_string { pfile = !cur.lfile; pmin = pmin; pmax = pmax };
-		code_string lexbuf open_braces
+		let tokens,pmax = (try string2 (pmin+1) [] lexbuf with Exit -> error Unterminated_string pmin) in
+		let t = mk_fmt_tok (List.rev tokens) pmin pmax in
+		let rest,pmax = code_string start lexbuf open_braces in
+		parts @ (t :: rest),pmax
 	| "/*" ->
 		let pmin = lexeme_start lexbuf in
 		(try ignore(comment lexbuf) with Exit -> error Unclosed_comment pmin);
-		code_string lexbuf open_braces
-	| "//", Star (Compl ('\n' | '\r')) -> store lexbuf; code_string lexbuf open_braces
-	| Plus (Compl ('/' | '"' | '\'' | '{' | '}' | '\n' | '\r')) -> store lexbuf; code_string lexbuf open_braces
+		code_string start lexbuf open_braces
+	| "//", Star (Compl ('\n' | '\r')) -> store lexbuf; code_string start lexbuf open_braces
+	| Plus (Compl ('/' | '"' | '\'' | '{' | '}' | '\n' | '\r')) -> store lexbuf; code_string start lexbuf open_braces
 	| _ -> assert false
 
 and regexp lexbuf =

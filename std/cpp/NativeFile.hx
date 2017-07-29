@@ -1,6 +1,6 @@
 package cpp;
 
-@:buildXml('<include name="${HXCPP}/src/hx/libs/std/Build.xml"/>')
+@:buildXml("<include name=\"${HXCPP}/src/hx/libs/std/Build.xml\"/>")
 extern class NativeFile
 {
    @:extern @:native("_hx_std_file_open")
