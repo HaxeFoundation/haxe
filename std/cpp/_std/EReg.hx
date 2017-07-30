@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-@:buildXml('<include name="${HXCPP}/src/hx/libs/regexp/Build.xml"/>')
+@:buildXml("<include name=\"${HXCPP}/src/hx/libs/regexp/Build.xml\"/>")
 @:coreApi class EReg {
 
 	var r : Dynamic;

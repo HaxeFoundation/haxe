@@ -348,12 +348,12 @@ class TestJs {
 		//use(a);
 	//}
 
-	@:js('
+	@:js("
 		TestJs.getInt();
 		if(TestJs.getInt() != 0) {
-			throw new js__$Boot_HaxeError("meh");
+			throw new js__$Boot_HaxeError(\"meh\");
 		}
-	')
+	")
 	static function testIfInvert() {
 		var tmp;
 		var tmp2 = getInt();

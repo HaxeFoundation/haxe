@@ -197,7 +197,7 @@ private class SqliteResultSet implements ResultSet {
 
 }
 
-@:buildXml('<include name="${HXCPP}/src/hx/libs/sqlite/Build.xml"/>')
+@:buildXml("<include name=\"${HXCPP}/src/hx/libs/sqlite/Build.xml\"/>")
 @:coreApi class Sqlite {
 
 	public static function open( file : String ) : Connection {

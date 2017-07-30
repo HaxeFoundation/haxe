@@ -105,6 +105,7 @@ type constant =
 type token =
 	| Eof
 	| Const of constant
+	| Fmt of (fmt_token * pos) list
 	| Kwd of keyword
 	| Comment of string
 	| CommentLine of string
@@ -126,6 +127,11 @@ type token =
 	| Question
 	| At
 	| Dollar of string
+
+and fmt_token =
+	| Raw of string
+	| Name of string
+	| Code of (token * pos) list
 
 type unop_flag =
 	| Prefix
@@ -169,6 +175,7 @@ and placed_name = string * pos
 
 and expr_def =
 	| EConst of constant
+	| EFormat of (format_part * pos) list
 	| EArray of expr * expr
 	| EBinop of binop * expr * expr
 	| EField of expr * string
@@ -200,6 +207,11 @@ and expr_def =
 	| EMeta of metadata_entry * expr
 
 and expr = expr_def * pos
+
+and format_part =
+	| FmtRaw of string
+	| FmtIdent of string * pos
+	| FmtExpr of expr
 
 and type_param = {
 	tp_name : placed_name;
@@ -439,9 +451,18 @@ let s_unop = function
 	| Neg -> "-"
 	| NegBits -> "~"
 
-let s_token = function
+let rec s_token = function
 	| Eof -> "<end of file>"
 	| Const c -> s_constant c
+	| Fmt pl ->
+		let pl = List.map (fun p -> match fst p with
+			| Raw s -> s
+			| Name s -> "$" ^ s
+			| Code tl ->
+				let tl = List.map (fun (t,_) -> s_token t) tl in
+				"${" ^ (String.concat "" tl) ^ "}"
+		) pl in
+		"'" ^ (String.concat "" pl)  ^ "'"
 	| Kwd k -> s_keyword k
 	| Comment s -> "/*"^s^"*/"
 	| CommentLine s -> "//"^s
@@ -574,6 +595,25 @@ let map_expr loop (e,p) =
 	in
 	let e = (match e with
 	| EConst _ -> e
+	| EFormat parts ->
+		let parts = List.map (fun p ->
+			match fst p with
+			| FmtRaw _ -> p
+			| FmtExpr e -> (FmtExpr (loop e), snd p)
+			| FmtIdent (i,pos) ->
+				let fake_expr = (EConst (Ident i),pos) in
+				let new_expr = loop fake_expr in
+				if new_expr == fake_expr then
+					p
+				else (
+					match new_expr with
+					| (EConst (Ident i),new_pos) ->
+						(FmtIdent (i,new_pos),snd p)
+					| _ ->
+						(FmtExpr new_expr,snd p)
+				)
+		) parts in
+		EFormat parts
 	| EArray (e1,e2) ->
 		let e1 = loop e1 in
 		let e2 = loop e2 in
@@ -681,6 +721,12 @@ let iter_expr loop (e,p) =
 			opt e;
 		) cases;
 		(match def with None -> () | Some (e,_) -> opt e);
+	| EFormat parts ->
+		List.iter (fun p -> match fst p with
+			| FmtRaw _ -> ()
+			| FmtIdent (i,pos) -> loop (EConst (Ident i),pos)
+			| FmtExpr e1 -> loop e1
+		) parts
 	| EFunction(_,f) ->
 		List.iter (fun (_,_,_,_,eo) -> opt eo) f.f_args;
 		opt f.f_expr
@@ -690,6 +736,14 @@ let s_expr e =
 	let rec s_expr_inner tabs (e,_) =
 		match e with
 		| EConst c -> s_constant c
+		| EFormat parts ->
+			let parts = List.map (fun p ->
+				match fst p with
+				| FmtRaw s -> s
+				| FmtIdent (i,_) -> "$" ^ i
+				| FmtExpr e -> "${" ^ (s_expr_inner tabs e) ^ "}"
+			) parts in
+			Printf.sprintf "'%s'" (String.concat "" parts)
 		| EArray (e1,e2) -> s_expr_inner tabs e1 ^ "[" ^ s_expr_inner tabs e2 ^ "]"
 		| EBinop (op,e1,e2) -> s_expr_inner tabs e1 ^ " " ^ s_binop op ^ " " ^ s_expr_inner tabs e2
 		| EField (e,f) -> s_expr_inner tabs e ^ "." ^ f
@@ -866,4 +920,20 @@ module Expr = struct
 			| [] -> raise Not_found
 		in
 		loop fl
+
+	let format_string parts p =
+		let concat e1 e2 = (EBinop (OpAdd,e1,e2), (punion (pos e1) (pos e2))) in
+		let empty_string_expr = EConst (String ""),p in
+		let edef,_ = List.fold_left (fun expr part ->
+			let part, pos = part in
+			match part with
+			| FmtRaw s ->
+				let string_part_expr = (EConst (String s),pos) in
+				if expr == empty_string_expr then string_part_expr else concat expr string_part_expr
+			| FmtIdent (i,pos) ->
+				concat expr (EConst (Ident i),pos)
+			| FmtExpr e ->
+				concat expr e
+		) empty_string_expr parts in
+		edef,p
 end

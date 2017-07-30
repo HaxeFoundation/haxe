@@ -495,6 +495,49 @@ enum ExprDef {
 		A `@m e` expression.
 	**/
 	EMeta( s : MetadataEntry, e : Expr );
+
+	/**
+		An interpolated string expression, e.g. `'hello $name!'`.
+
+		@see https://haxe.org/manual/lf-string-interpolation.html
+	**/
+	EFormat( s : Array<FormatSegment> );
+}
+
+/**
+	Represents a segment within an interpolated format string.
+**/
+typedef FormatSegment = {
+	/**
+		The segment kind.
+	**/
+	var kind:FormatSegmentKind;
+
+	/**
+		The position of the segment.
+	**/
+	var pos:Position;
+}
+
+/**
+	Represents the kind of an interpolated format string segment.
+**/
+enum FormatSegmentKind {
+	/**
+		Raw (non-interpolated) string content.
+	**/
+	FRaw(s:String);
+
+	/**
+		Single identifier interpolation, e.g. `$name`.
+		Position points to the identifier after the `$`.
+	**/
+	FIdent(i:String, pos:Position);
+
+	/**
+		Expression interpolation, e.g. `${name.toUpperCase()}`.
+	**/
+	FExpr(e:Expr);
 }
 
 /**

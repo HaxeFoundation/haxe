@@ -21,7 +21,7 @@
  */
 package haxe.zip;
 
-@:coreApi @:buildXml('<include name="${HXCPP}/src/hx/libs/zlib/Build.xml" />')
+@:coreApi @:buildXml("<include name=\"${HXCPP}/src/hx/libs/zlib/Build.xml\" />")
 class Compress {
 
 	var s : Dynamic;

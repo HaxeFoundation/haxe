@@ -1,6 +1,6 @@
 package cpp;
 
-@:buildXml('<include name="${HXCPP}/src/hx/libs/ssl/Build.xml"/>')
+@:buildXml("<include name=\"${HXCPP}/src/hx/libs/ssl/Build.xml\"/>")
 extern class NativeSsl
 {
    @:extern @:native("_hx_ssl_new")
