@@ -722,7 +722,9 @@ let iter_expr loop (e,p) =
 	| EFormat parts ->
 		List.iter (fun p -> match fst p with
 			| FmtRaw _ -> ()
-			| FmtIdent i -> loop (EConst (Ident i),snd p)
+			| FmtIdent i ->
+				let pos = snd p in
+				loop (EConst (Ident i),{pos with pmin = pos.pmin + 1 (* omit dollar sign *)})
 			| FmtExpr e1 -> loop e1
 		) parts
 	| EFunction(_,f) ->
