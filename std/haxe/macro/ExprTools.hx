@@ -224,7 +224,7 @@ class ExprTools {
 							part
 						else switch enew.expr {
 							case EConst(CIdent(i)): {kind: FIdent(i), pos: enew.pos};
-							case _: {kind: FExpr(enew), pos: enew.pos};
+							case _: {kind: FExpr(enew), pos: part.pos};
 						}
 					case FExpr(e): {kind: FExpr(f(e)), pos: part.pos};
 				}]);

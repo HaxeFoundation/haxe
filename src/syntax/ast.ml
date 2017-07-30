@@ -608,7 +608,7 @@ let map_expr loop (e,p) =
 				else
 					(match new_expr with
 					| (EConst (Ident i),new_pos) -> (FmtIdent i,new_pos)
-					| (_,new_pos) as expr -> (FmtExpr expr,new_pos))
+					| _ -> (FmtExpr new_expr,pos))
 			| FmtExpr e -> (FmtExpr (loop e), snd p)
 		) parts in
 		EFormat parts
