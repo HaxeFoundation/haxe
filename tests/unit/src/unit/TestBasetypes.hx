@@ -298,9 +298,10 @@ class TestBasetypes extends Test {
 		eq('$$', "$");
 		eq('x$*', "x$*");
 
-		var x = 5, y = [];
+		var x = 5, y = [], Z = 30;
 		eq('$x', "5");
 		eq('a$x$', "a5$");
+		eq('$Z', "30");
 
 		eq('${5}', "5");
 		eq('${5}${2}', "52");

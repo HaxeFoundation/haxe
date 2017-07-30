@@ -387,7 +387,7 @@ and string2 pmin parts lexbuf =
 	| "'" ->
 		consume_part(), lexeme_end lexbuf
 	| "$$" -> add "$"; string2 pmin parts lexbuf
-	| '$', ident ->
+	| '$', (ident | idtype) ->
 		let parts = consume_part() in
 		let pmin = lexeme_start lexbuf in
 		let pmax = lexeme_end lexbuf in
