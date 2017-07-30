@@ -210,7 +210,7 @@ and expr = expr_def * pos
 
 and format_part =
 	| FmtRaw of string
-	| FmtIdent of string
+	| FmtIdent of string * pos
 	| FmtExpr of expr
 
 and type_param = {
@@ -599,17 +599,19 @@ let map_expr loop (e,p) =
 		let parts = List.map (fun p ->
 			match fst p with
 			| FmtRaw _ -> p
-			| FmtIdent i ->
-				let pos = snd p in
-				let fake_expr = (EConst (Ident i),{pos with pmin = pos.pmin + 1 (* omit dollar sign *)}) in
+			| FmtExpr e -> (FmtExpr (loop e), snd p)
+			| FmtIdent (i,pos) ->
+				let fake_expr = (EConst (Ident i),pos) in
 				let new_expr = loop fake_expr in
 				if new_expr == fake_expr then
 					p
-				else
-					(match new_expr with
-					| (EConst (Ident i),_) -> (FmtIdent i,pos)
-					| _ -> (FmtExpr new_expr,pos))
-			| FmtExpr e -> (FmtExpr (loop e), snd p)
+				else (
+					match new_expr with
+					| (EConst (Ident i),new_pos) ->
+						(FmtIdent (i,new_pos),snd p)
+					| _ ->
+						(FmtExpr new_expr,snd p)
+				)
 		) parts in
 		EFormat parts
 	| EArray (e1,e2) ->
@@ -722,9 +724,7 @@ let iter_expr loop (e,p) =
 	| EFormat parts ->
 		List.iter (fun p -> match fst p with
 			| FmtRaw _ -> ()
-			| FmtIdent i ->
-				let pos = snd p in
-				loop (EConst (Ident i),{pos with pmin = pos.pmin + 1 (* omit dollar sign *)})
+			| FmtIdent (i,pos) -> loop (EConst (Ident i),pos)
 			| FmtExpr e1 -> loop e1
 		) parts
 	| EFunction(_,f) ->
@@ -740,7 +740,7 @@ let s_expr e =
 			let parts = List.map (fun p ->
 				match fst p with
 				| FmtRaw s -> s
-				| FmtIdent i -> "$" ^ i
+				| FmtIdent (i,_) -> "$" ^ i
 				| FmtExpr e -> "${" ^ (s_expr_inner tabs e) ^ "}"
 			) parts in
 			Printf.sprintf "'%s'" (String.concat "" parts)
@@ -930,9 +930,8 @@ module Expr = struct
 			| FmtRaw s ->
 				let string_part_expr = (EConst (String s),pos) in
 				if expr == empty_string_expr then string_part_expr else concat expr string_part_expr
-			| FmtIdent i ->
-				let eident = EConst (Ident i), {pos with pmin = pos.pmin + 1 (* identifier position is after the $ *)} in
-				concat expr eident
+			| FmtIdent (i,pos) ->
+				concat expr (EConst (Ident i),pos)
 			| FmtExpr e ->
 				concat expr e
 		) empty_string_expr parts in

@@ -530,8 +530,9 @@ enum FormatSegmentKind {
 
 	/**
 		Single identifier interpolation, e.g. `$name`.
+		Position points to the identifier after the `$`.
 	**/
-	FIdent(i:String);
+	FIdent(i:String, pos:Position);
 
 	/**
 		Expression interpolation, e.g. `${name.toUpperCase()}`.

@@ -131,7 +131,7 @@ class ExprTools {
 			case EFormat(parts):
 				for (part in parts) switch part.kind {
 					case FRaw(_):
-					case FIdent(i): f({pos: part.pos, expr: EConst(CIdent(i))});
+					case FIdent(i,pos): f({pos: pos, expr: EConst(CIdent(i))});
 					case FExpr(e): f(e);
 				}
 		}
@@ -217,15 +217,15 @@ class ExprTools {
 			case EFormat(parts):
 				EFormat([for (part in parts) switch part.kind {
 					case FRaw(_): part;
-					case FIdent(i):
-						var efake = {pos: part.pos, expr: EConst(CIdent(i))};
+					case FIdent(i,pos):
+						var efake = {pos: pos, expr: EConst(CIdent(i))};
 						var enew = f(efake);
 						if (enew == efake)
 							part
 						else {
 							pos: part.pos,
 							kind: switch enew.expr {
-								case EConst(CIdent(i)): FIdent(i);
+								case EConst(CIdent(i)): FIdent(i, enew.pos);
 								case _: FExpr(enew);
 							}
 						}

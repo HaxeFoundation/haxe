@@ -5,7 +5,7 @@ class Issue5803 extends Test {
 		var expr = macro 'a: $a';
 		t(expr.expr.match(EFormat([
 			{kind: FRaw("a: ")},
-			{kind: FIdent("a")}
+			{kind: FIdent("a",_)}
 		])));
 
 		var expr = macro 'a: ${a}';

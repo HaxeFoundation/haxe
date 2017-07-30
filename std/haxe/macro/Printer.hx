@@ -231,7 +231,7 @@ class Printer {
 		case EMeta(meta, e1): printMetadata(meta) + " " +printExpr(e1);
 		case EFormat(parts): [for (part in parts) switch part.kind {
 			case FRaw(s): s;
-			case FIdent(s): '$$$s';
+			case FIdent(s,_): '$$$s';
 			case FExpr(e): '$${${printExpr(e)}}';
 		}].join("");
 	}

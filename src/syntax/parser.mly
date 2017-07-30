@@ -498,8 +498,8 @@ let reify in_macro =
 			| _ ->
 				expr "EMeta" [to_obj [("name",to_string (Meta.to_string m) p);("params",to_expr_array ml p);("pos",to_pos p)] p;loop e1]
 	and to_formatsegment part _ =
-		let f name arg pos =
-			let kind = mk_enum "FormatSegmentKind" name [arg] pos in
+		let f name args pos =
+			let kind = mk_enum "FormatSegmentKind" name args pos in
 			to_obj [
 				"kind",kind;
 				"pos",to_pos pos;
@@ -507,9 +507,9 @@ let reify in_macro =
 		in
 		let part,p = part in
 		match part with
-		| FmtRaw s -> f "FRaw" (to_string s p) p
-		| FmtIdent s -> f "FIdent" (to_string s p) p
-		| FmtExpr e -> f "FExpr" (to_expr e p) p
+		| FmtRaw s -> f "FRaw" [(to_string s p)] p
+		| FmtIdent (s,pos) -> f "FIdent" [(to_string s p);(to_pos pos)] p
+		| FmtExpr e -> f "FExpr" [(to_expr e p)] p
 	and to_tparam_decl p t =
 		to_obj [
 			"name", to_placed_name t.tp_name;
@@ -1482,7 +1482,7 @@ and expr = parser
 and parse_format_parts parts =
 	List.map (fun (t,p) -> (match t with
 		| Raw s -> FmtRaw s
-		| Name s -> FmtIdent s
+		| Name s -> FmtIdent (s,{p with pmin = p.pmin + 1} (* omit dollar sign *))
 		| Code [] -> FmtRaw ""
 		| Code tokens ->
 			let s = Stream.of_list tokens in

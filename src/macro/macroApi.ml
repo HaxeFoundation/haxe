@@ -564,7 +564,7 @@ and encode_format_part part =
 	let part,pos = part in
 	let tag, pl = match part with
 		| FmtRaw s -> 0, [encode_string s]
-		| FmtIdent i -> 1, [encode_string i]
+		| FmtIdent (i,p) -> 1, [encode_string i; encode_pos p]
 		| FmtExpr e -> 2, [encode_expr e]
 	in
 	let kind = encode_enum IFormatSegmentKind tag pl in
@@ -838,7 +838,7 @@ and decode_format_part v =
 	let p = decode_pos (field v "pos") in
 	(match decode_enum (field v "kind") with
 	| 0, [vs] -> FmtRaw (decode_string vs)
-	| 1, [vs] -> FmtIdent (decode_string vs)
+	| 1, [vs;vp] -> FmtIdent (decode_string vs,decode_pos vp)
 	| 2, [ve] -> FmtExpr (decode_expr ve)
 	| _ -> raise Invalid_expr),p
 
