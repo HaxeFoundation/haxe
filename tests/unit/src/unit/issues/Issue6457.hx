@@ -12,7 +12,9 @@ class Issue6457 extends Test {
     var vals = [ for (k in m) k];
     eq(vals.length, 1);
     eq(vals[0], 10);
+#if !cpp
     eq(m.toString(), '{0 => 10}');
+#end
 
     var m = new Map();
     m.set("c", 1);
@@ -25,6 +27,8 @@ class Issue6457 extends Test {
     var vals = [ for (k in m) k];
     eq(vals.length, 1);
     eq(vals[0], 10);
+#if !cpp
     eq(m.toString(), '{z => 10}');
+#end
   }
 }
