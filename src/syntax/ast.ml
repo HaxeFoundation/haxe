@@ -600,7 +600,8 @@ let map_expr loop (e,p) =
 			match fst p with
 			| FmtRaw _ -> p
 			| FmtIdent i ->
-				let fake_expr = (EConst (Ident i),snd p) in
+				let pos = snd p in
+				let fake_expr = (EConst (Ident i),{pos with pmin = pos.pmin + 1 (* omit dollar sign *)}) in
 				let new_expr = loop fake_expr in
 				if new_expr == fake_expr then
 					p

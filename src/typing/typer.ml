@@ -3229,14 +3229,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let t = Typeload.load_core_type ctx "EReg" in
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[str;opt])) t p
 	| EFormat parts ->
-		let econcat = Expr.format_string parts p in
-		let econcat =
-			if ctx.in_display && Display.is_display_position p then
-				Display.ExprPreprocessing.process_expr ctx.com econcat
-			else
-				econcat
-		in
-		type_expr ctx econcat with_type
+		type_expr ctx (Expr.format_string parts p) with_type
 	| EConst c ->
 		Codegen.type_constant ctx.com c p
 	| EBinop (op,e1,e2) ->
