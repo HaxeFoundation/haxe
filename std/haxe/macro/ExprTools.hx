@@ -222,9 +222,12 @@ class ExprTools {
 						var enew = f(efake);
 						if (enew == efake)
 							part
-						else switch enew.expr {
-							case EConst(CIdent(i)): {kind: FIdent(i), pos: enew.pos};
-							case _: {kind: FExpr(enew), pos: part.pos};
+						else {
+							pos: part.pos,
+							kind: switch enew.expr {
+								case EConst(CIdent(i)): FIdent(i);
+								case _: FExpr(enew);
+							}
 						}
 					case FExpr(e): {kind: FExpr(f(e)), pos: part.pos};
 				}]);
