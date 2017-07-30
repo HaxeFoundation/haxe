@@ -596,7 +596,16 @@ let map_expr loop (e,p) =
 	let e = (match e with
 	| EConst _ -> e
 	| EFormat parts ->
-		let parts = List.map (fun p -> match fst p with FmtRaw _ | FmtIdent _ -> p | FmtExpr e -> (FmtExpr (loop e), snd p)) parts in
+		let parts = List.map (fun p ->
+			match fst p with
+			| FmtRaw _ -> p
+			| FmtIdent i ->
+				let fake_expr = (EConst (Ident i),snd p) in
+				(match loop fake_expr with
+				| (EConst (Ident i),new_pos) -> (FmtIdent i,new_pos)
+				| (_,new_pos) as expr -> (FmtExpr expr,new_pos))
+			| FmtExpr e -> (FmtExpr (loop e), snd p)
+		) parts in
 		EFormat parts
 	| EArray (e1,e2) ->
 		let e1 = loop e1 in
@@ -706,7 +715,11 @@ let iter_expr loop (e,p) =
 		) cases;
 		(match def with None -> () | Some (e,_) -> opt e);
 	| EFormat parts ->
-		List.iter (fun p -> match fst p with FmtRaw _ | FmtIdent _ -> () | FmtExpr e1 -> loop e1) parts
+		List.iter (fun p -> match fst p with
+			| FmtRaw _ -> ()
+			| FmtIdent i -> loop (EConst (Ident i),snd p)
+			| FmtExpr e1 -> loop e1
+		) parts
 	| EFunction(_,f) ->
 		List.iter (fun (_,_,_,_,eo) -> opt eo) f.f_args;
 		opt f.f_expr
