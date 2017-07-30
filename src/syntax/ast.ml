@@ -601,9 +601,13 @@ let map_expr loop (e,p) =
 			| FmtRaw _ -> p
 			| FmtIdent i ->
 				let fake_expr = (EConst (Ident i),snd p) in
-				(match loop fake_expr with
-				| (EConst (Ident i),new_pos) -> (FmtIdent i,new_pos)
-				| (_,new_pos) as expr -> (FmtExpr expr,new_pos))
+				let new_expr = loop fake_expr in
+				if new_expr == fake_expr then
+					p
+				else
+					(match new_expr with
+					| (EConst (Ident i),new_pos) -> (FmtIdent i,new_pos)
+					| (_,new_pos) as expr -> (FmtExpr expr,new_pos))
 			| FmtExpr e -> (FmtExpr (loop e), snd p)
 		) parts in
 		EFormat parts
