@@ -1313,6 +1313,15 @@ let rec gen_expr_content ctx retval e =
 		);
 		List.iter (fun j -> j()) jend;
 		branch());
+	| TCast (e1,Some t) when not retval ->
+		let p = e.epos in
+		let e2 = mk (TTypeExpr t) t_dynamic p in
+		let eis = mk (TIdent "__is__") t_dynamic p in
+		let ecall = mk (TCall(eis,[e1;e2])) ctx.com.basic.tbool p in
+		let enot = {ecall with eexpr = TUnop(Not,Prefix,ecall)} in
+		let exc = mk (TThrow (mk (TConst (TString "Class cast error")) ctx.com.basic.tstring p)) ctx.com.basic.tvoid p in
+		let eif = mk (TIf(enot,exc,None)) ctx.com.basic.tvoid p in
+		gen_expr ctx retval eif
 	| TCast (e1,t) ->
 		gen_expr ctx retval e1;
 		if retval then begin
