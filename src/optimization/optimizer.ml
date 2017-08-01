@@ -517,6 +517,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			| TLocal _
 			| TConst TThis (* not really, but should not be move inside a function body *)
 				-> raise Exit
+			| TObjectDecl _ | TArrayDecl _ -> raise Exit
 			| TField (_,FEnum _)
 			| TTypeExpr _
 			| TConst _ -> ()
