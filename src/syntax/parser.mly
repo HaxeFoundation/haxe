@@ -1368,9 +1368,6 @@ and expr = parser
 			| [< t,pt = parse_type_hint_with_pos; '(PClose,p2); s >] ->
 				let ep = EParenthesis (ECheckType(e,(t,pt)),punion p1 p2), punion p1 p2 in
 				expr_next (ECast (ep,None),punion p1 (pos ep)) s
-			| [< '(Const (Ident "is"),p_is); t = parse_type_path; '(PClose,p2); >] ->
-				let e_is = make_is e t (punion p1 p2) p_is in
-				expr_next (ECast (e_is,None),punion p1 (pos e_is)) s
 			| [< '(PClose,p2); s >] ->
 				let ep = expr_next (EParenthesis(e),punion pp p2) s in
 				expr_next (ECast (ep,None),punion p1 (pos ep)) s
@@ -1412,7 +1409,6 @@ and expr = parser
 						with_args al er
 					| [< >] -> serror())
 				| [< >] -> serror())
-			| [< '(Const (Ident "is"),p_is); t = parse_type_path; '(PClose,p2); >] -> expr_next (make_is e t (punion p1 p2) p_is) s
 			| [< >] -> serror())
 		)
 	| [< '(BkOpen,p1); l = parse_array_decl; '(BkClose,p2); s >] -> expr_next (EArrayDecl l, punion p1 p2) s
@@ -1486,6 +1482,8 @@ and expr_next e1 = parser
 	| [< '(POpen,p1); e = parse_call_params (fun el p2 -> (ECall(e1,el)),punion (pos e1) p2) p1; s >] -> expr_next e s
 	| [< '(BkOpen,_); e2 = expr; '(BkClose,p2); s >] ->
 		expr_next (EArray (e1,e2), punion (pos e1) p2) s
+	| [< '(Const (Ident "is"),p_is); t = parse_type_path; s >] ->
+		expr_next (make_is e1 t (punion (pos e1) (snd t)) p_is) s
 	| [< '(Arrow,pa); s >] ->
 		let er = try let e = expr s in e,false with Display e -> e,true
 		in arrow_function (snd e1) [arrow_first_param e1] er
