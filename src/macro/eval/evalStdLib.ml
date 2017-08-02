@@ -1126,7 +1126,7 @@ module StdFileSystem = struct
 			| _ -> p
 
 	let patch_path s =
-		if String.length s > 0 && String.length s <= 3 && s.[1] = ':' then Path.add_trailing_slash s
+		if String.length s > 1 && String.length s <= 3 && s.[1] = ':' then Path.add_trailing_slash s
 		else remove_trailing_slash s
 
 	let absolutePath = vfun1 (fun relPath ->
