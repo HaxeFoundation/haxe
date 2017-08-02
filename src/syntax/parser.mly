@@ -1515,7 +1515,7 @@ and expr_next e1 = parser
 	| [< '(Question,_); e2 = expr; '(DblDot,_); e3 = expr >] ->
 		(ETernary (e1,e2,e3),punion (pos e1) (pos e3))
 	| [< '(Kwd In,_); e2 = expr >] ->
-		(EBinop (OpIn,e1,e2), punion (pos e1) (pos e2))
+		make_binop OpIn e1 e2
 	| [< >] -> e1
 
 and parse_guard = parser
