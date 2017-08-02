@@ -904,7 +904,9 @@ module ToplevelCollector = struct
 				if not (List.mem pack !packages) then packages := pack :: !packages
 		in
 
-		explore_class_paths ctx class_paths false add_package (fun _ -> ()) add_type;
+		let maybe_add_type mt = if not (t_infos mt).mt_private then add_type mt in
+
+		explore_class_paths ctx class_paths false add_package (fun _ -> ()) maybe_add_type;
 
 		List.iter (fun pack ->
 			add (ITPackage pack)
