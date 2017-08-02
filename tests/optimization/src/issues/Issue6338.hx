@@ -1,5 +1,7 @@
 package issues;
 
+import TestJs.use;
+
 extern class Home {
 	static var ids: Ids;
 }
@@ -14,12 +16,12 @@ extern class Ids {
 
 class Issue6338 {
 	@:js('
-		console.log("hd");
-		console.log("ft");
+		TestJs["use"]("hd");
+		TestJs["use"]("ft");
 	')
 	@:analyzer(ignore)
 	static function test() {
-		trace(Home.ids.hd);
-		trace(Home.ids.ft);
+		use(Home.ids.hd);
+		use(Home.ids.ft);
 	}
 }

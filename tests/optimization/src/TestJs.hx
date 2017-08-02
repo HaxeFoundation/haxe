@@ -82,11 +82,11 @@ class TestJs {
 		}) {}
 	}
 
-	@:js("var a = [1,2,3];var _g = 0;while(_g < a.length) {var v = a[_g];++_g;console.log(v + 2);}")
+	@:js('var a = [1,2,3];var _g = 0;while(_g < a.length) {var v = a[_g];++_g;TestJs["use"](v + 2);}')
 	static function testInlineFunctionWithAnonymousCallback() {
 		var a = [1,2,3];
 		inline function forEach(f) for (v in a) f(v);
-		forEach(function(x) trace(x + 2));
+		forEach(function(x) use(x + 2));
 	}
 
 	@:js('var a = "";var e;var _hx_tmp = a.toLowerCase();if(_hx_tmp == "e") {e = 0;} else {throw new Error();}')
@@ -99,12 +99,12 @@ class TestJs {
 		}
 	}
 
-	@:js('console.log("1" + "2" + "3" + "4");')
+	@:js('TestJs["use"]("1" + "2" + "3" + "4");')
 	static function testEnumValuePropagation1() {
 		var n = Node(Node(Leaf("1"), Node(Leaf("2"), Leaf("3"))), Leaf("4"));
 		switch (n) {
 			case Node(Node(Leaf(s1), Node(Leaf(s2), Leaf(s3))), Leaf(s4)):
-				trace(s1 + s2 + s3 + s4);
+				use(s1 + s2 + s3 + s4);
 			case _:
 		}
 	}
@@ -170,9 +170,9 @@ class TestJs {
 		try throw false catch (e:Dynamic) {}
 	}
 
-	@:js("try {throw new js__$Boot_HaxeError(false);} catch( e ) {if (e instanceof js__$Boot_HaxeError) e = e.val;console.log(e);}")
+	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {if (e instanceof js__$Boot_HaxeError) e = e.val;TestJs["use"](e);}')
 	static function testHaxeErrorUnwrappingWhenUsed() {
-		try throw false catch (e:Dynamic) trace(e);
+		try throw false catch (e:Dynamic) use(e);
 	}
 
 	@:js("try {throw new js__$Boot_HaxeError(false);} catch( e ) {if (e instanceof js__$Boot_HaxeError) e = e.val;if( js_Boot.__instanceof(e,Bool) ) {} else throw(e);}")
@@ -476,7 +476,7 @@ class TestJs {
 	@:pure(false)
 	static function call(d1:Dynamic, d2:Dynamic) { return d1; }
 	@:pure(false)
-	static function use<T>(t:T) { return t; }
+	static public function use<T>(t:T) { return t; }
 
 	static var intField = 12;
 	static var stringField(default, never) = "foo";
@@ -495,13 +495,13 @@ class TestJs {
 	@:js('
 		var e = { };
 		e["a"] = 30;
-		console.log(e);
+		TestJs["use"](e);
 	')
 	@:analyzer(user_var_fusion)
 	static function testIssue4948() {
 		var e = new haxe.DynamicAccess();
 		e["a"] = 30;
-		trace(e);
+		use(e);
 	}
 
 
