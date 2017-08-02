@@ -377,7 +377,7 @@ let rec wait_loop process_params verbose accept =
 			let check_module_path () =
 				let directories = get_changed_directories ctx in
 				match m.m_extra.m_kind with
-				| MFake | MSub | MImport -> () (* don't get classpath *)
+				| MFake | MImport -> () (* don't get classpath *)
 				| MExtern ->
 					(* if we have a file then this will override our extern type *)
 					let has_file = (try check_module_shadowing com2 directories m; true with Not_found -> false) in
@@ -471,7 +471,7 @@ let rec wait_loop process_params verbose accept =
 							a.a_meta <- List.filter (fun (m,_,_) -> m <> Meta.ValueUsed) a.a_meta
 						| _ -> ()
 					) m.m_types;
-					if m.m_extra.m_kind <> MSub then Typeload.add_module ctx m p;
+					Typeload.add_module ctx m p;
 					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
 					if ctx.Typecore.in_macro || com2.display.dms_full_typing then
 						PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps;

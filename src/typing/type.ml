@@ -323,7 +323,6 @@ and module_kind =
 	| MCode
 	| MMacro
 	| MFake
-	| MSub
 	| MExtern
 	| MImport
 
@@ -1438,7 +1437,6 @@ module Printer = struct
 		| MCode -> "MCode"
 		| MMacro -> "MMacro"
 		| MFake -> "MFake"
-		| MSub -> "MSub"
 		| MExtern -> "MExtern"
 		| MImport -> "MImport"
 
