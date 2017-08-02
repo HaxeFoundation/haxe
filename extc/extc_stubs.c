@@ -34,6 +34,7 @@
 #	include <string.h>
 #	include <termios.h>
 #	include <stdio.h>
+#	include <time.h>
 #	include <sys/time.h>
 #	include <sys/times.h>
 #	include <sys/stat.h>
@@ -43,6 +44,8 @@
 #	include <sys/param.h>
 #	include <sys/syslimits.h>
 #	include <mach-o/dyld.h>
+#include <mach/mach.h>
+#include <mach/mach_time.h>
 #endif
 #ifdef __FreeBSD__
 #	include <sys/param.h>
@@ -468,6 +471,10 @@ CAMLprim value get_real_path( value path ) {
 #endif
 }
 
+#ifndef _WIN32
+#define TimeSpecToSeconds(ts) (double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0
+#endif
+
 CAMLprim value sys_time() {
 #ifdef _WIN32
 #define EPOCH_DIFF	(134774*24*60*60.0)
@@ -488,10 +495,25 @@ CAMLprim value sys_time() {
 		return caml_copy_double( ((double)ui.QuadPart) / 10000000.0 - EPOCH_DIFF );
 	}
 	return caml_copy_double( ((double)counter.QuadPart) / ((double)freq.QuadPart) );
+#elif __APPLE__
+
+	uint64_t time;
+	uint64_t elapsedNano;
+	static mach_timebase_info_data_t sTimebaseInfo;
+
+	time = mach_absolute_time();
+
+	if ( sTimebaseInfo.denom == 0 ) {
+		(void) mach_timebase_info(&sTimebaseInfo);
+	}
+
+	elapsedNano = time * sTimebaseInfo.numer / sTimebaseInfo.denom;
+
+	return caml_copy_double(time / 1000000000.0);
 #else
-	struct tms t;
-	times(&t);
-	return caml_copy_double( ((double)(t.tms_utime + t.tms_stime)) / CLK_TCK );
+	struct timespec t;
+	clock_gettime(CLOCK_MONOTONIC_RAW, &t);
+	return caml_copy_double(TimeSpecToSeconds(t));
 #endif
 }
 
