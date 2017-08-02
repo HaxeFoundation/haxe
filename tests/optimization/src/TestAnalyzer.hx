@@ -738,7 +738,7 @@ class TestAnalyzer extends TestBase {
 		assertEqualsConst("A", fromCharCode);
 
 		var enumIndex = Type.enumIndex(eBreak);
-		assertEqualsConst(20, enumIndex);
+		assertEqualsConst(19, enumIndex);
 	}
 
 	function testWhilePrune1() {
