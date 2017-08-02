@@ -291,6 +291,7 @@ let generate com file =
 	t();
 	let t = Common.timer ["write";"xml"] in
 	let ch = IO.output_channel (open_out_bin file) in
+	IO.printf ch "<!-- This file can be parsed by haxe.rtti.XmlParser -->\n";
 	write_xml ch "" x;
 	IO.close_out ch;
 	t()
