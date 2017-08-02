@@ -3748,7 +3748,9 @@ and display_expr ctx e_ast e with_type p =
 			| TVar(v,_) -> v.v_type,None
 			| TCall({eexpr = TConst TSuper; etype = t},_) -> t,None
 			| TNew({cl_kind = KAbstractImpl a},tl,_) -> TType(abstract_module_type a tl,[]),None
-			| TNew(c,tl,_) -> TInst(c,tl),None
+			| TNew(c,tl,_) ->
+				let t,_ = get_constructor ctx c tl p in
+				t,None
 			| TTypeExpr (TClassDecl {cl_kind = KAbstractImpl a}) -> TType(abstract_module_type a (List.map snd a.a_params),[]),None
 			| TField(e1,FDynamic "bind") when (match follow e1.etype with TFun _ -> true | _ -> false) -> e1.etype,None
 			| TReturn (Some e1) -> loop e1 (* No point in letting the internal Dynamic surface (issue #5655) *)
