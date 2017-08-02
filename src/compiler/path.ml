@@ -25,7 +25,7 @@ let parse_path f =
 	let invalid_char x =
 		for i = 1 to String.length x - 1 do
 			match x.[i] with
-			| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' -> ()
+			| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '.' -> ()
 			| c -> error ("invalid character: " ^ (String.make 1 c))
 		done
 	in
