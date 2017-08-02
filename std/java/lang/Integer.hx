@@ -66,8 +66,8 @@
 	@:overload static function toOctalString(param1 : Int) : String;
 	@:native("toString") @:overload static function _toString(param1 : Int, param2 : Int) : String;
 	@:native("toString") @:overload static function _toString(param1 : Int) : String;
-	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1 : String, param2 : Int) : Integer;
 	@:overload static function valueOf(param1 : Int) : Integer;
+	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1 : String, param2 : Int) : Integer;
 	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1 : String) : Integer;
 }
 

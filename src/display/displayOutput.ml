@@ -60,22 +60,30 @@ let print_toplevel il =
 	Buffer.add_string b "<il>\n";
 	let s_type t = htmlescape (s_type (print_context()) t) in
 	let s_doc d = maybe_print_doc d in
+	let identifiers = Hashtbl.create 0 in
+	let check_ident s =
+		if Hashtbl.mem identifiers s then false
+		else begin
+			Hashtbl.add identifiers s true;
+			true
+		end
+	in
 	List.iter (fun id -> match id with
 		| IdentifierType.ITLocal v ->
-			Buffer.add_string b (Printf.sprintf "<i k=\"local\" t=\"%s\">%s</i>\n" (s_type v.v_type) v.v_name);
+			if check_ident v.v_name then Buffer.add_string b (Printf.sprintf "<i k=\"local\" t=\"%s\">%s</i>\n" (s_type v.v_type) v.v_name);
 		| IdentifierType.ITMember(c,cf) ->
-			Buffer.add_string b (Printf.sprintf "<i k=\"member\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
+			if check_ident cf.cf_name then Buffer.add_string b (Printf.sprintf "<i k=\"member\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
 		| IdentifierType.ITStatic(c,cf) ->
-			Buffer.add_string b (Printf.sprintf "<i k=\"static\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
+			if check_ident cf.cf_name then Buffer.add_string b (Printf.sprintf "<i k=\"static\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
 		| IdentifierType.ITEnum(en,ef) ->
-			Buffer.add_string b (Printf.sprintf "<i k=\"enum\" t=\"%s\"%s>%s</i>\n" (s_type ef.ef_type) (s_doc ef.ef_doc) ef.ef_name);
+			if check_ident ef.ef_name then Buffer.add_string b (Printf.sprintf "<i k=\"enum\" t=\"%s\"%s>%s</i>\n" (s_type ef.ef_type) (s_doc ef.ef_doc) ef.ef_name);
 		| IdentifierType.ITEnumAbstract(a,cf) ->
-			Buffer.add_string b (Printf.sprintf "<i k=\"enumabstract\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
+			if check_ident cf.cf_name then Buffer.add_string b (Printf.sprintf "<i k=\"enumabstract\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
 		| IdentifierType.ITGlobal(mt,s,t) ->
-			Buffer.add_string b (Printf.sprintf "<i k=\"global\" p=\"%s\" t=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (s_type t) s);
+			if check_ident s then Buffer.add_string b (Printf.sprintf "<i k=\"global\" p=\"%s\" t=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (s_type t) s);
 		| IdentifierType.ITType(mt) ->
 			let infos = t_infos mt in
-			Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s>%s</i>\n" (s_type_path infos.mt_path) (s_doc infos.mt_doc) (snd infos.mt_path));
+			if check_ident (snd infos.mt_path) then Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s>%s</i>\n" (s_type_path infos.mt_path) (s_doc infos.mt_doc) (snd infos.mt_path));
 		| IdentifierType.ITPackage s ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
 		| IdentifierType.ITLiteral s ->
@@ -277,7 +285,10 @@ module TypePathHandler = struct
 					end;
 				end else if file_extension f = "hx" then begin
 					let c = Filename.chop_extension f in
-					if String.length c < 2 || String.sub c (String.length c - 2) 2 <> "__" then classes := c :: !classes;
+					try
+						ignore(String.index c '.')
+					with Not_found ->
+						if String.length c < 2 || String.sub c (String.length c - 2) 2 <> "__" then classes := c :: !classes;
 				end;
 			) r;
 		) com.class_path;
@@ -400,7 +411,7 @@ let pos_to_json_range p =
 		JNull
 	else
 		let l1, p1, l2, p2 = Lexer.get_pos_coords p in
-		let to_json l c = JObject [("line", JInt (l - 1)); ("character", JInt c)] in
+		let to_json l c = JObject [("line", JInt (l - 1)); ("character", JInt (c - 1))] in
 		JObject [
 			("start", to_json l1 p1);
 			("end", to_json l2 p2);
@@ -710,7 +721,7 @@ let process_display_file com classes =
 				if clen < String.length spath && String.sub spath 0 clen = c then begin
 					let path = String.sub spath clen (String.length spath - clen) in
 					(try
-						let path = Path.parse_type_path path in
+						let path = Path.parse_path path in
 						(match loop l with
 						| Some x as r when String.length (s_type_path x) < String.length (s_type_path path) -> r
 						| _ -> Some path)
@@ -736,7 +747,7 @@ let process_display_file com classes =
 			| None ->
 				if not (Sys.file_exists real) then failwith "Display file does not exist";
 				(match List.rev (ExtString.String.nsplit real Path.path_sep) with
-				| file :: _ when file.[0] >= 'a' && file.[1] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
+				| file :: _ when file.[0] >= 'a' && file.[0] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
 				| _ -> ());
 				failwith "Display file was not found in class path"
 			);

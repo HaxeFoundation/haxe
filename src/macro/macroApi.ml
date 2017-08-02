@@ -45,9 +45,13 @@ type 'value compiler_api = {
 	delayed_macro : int -> (unit -> (unit -> 'value));
 	use_cache : unit -> bool;
 	format_string : string -> Globals.pos -> Ast.expr;
-	cast_or_unify : Type.t -> texpr -> Globals.pos -> Type.texpr;
+	cast_or_unify : Type.t -> texpr -> Globals.pos -> bool;
 	add_global_metadata : string -> string -> (bool * bool * bool) -> unit;
 	add_module_check_policy : string list -> int list -> bool -> int -> unit;
+	decode_expr : 'value -> Ast.expr;
+	encode_expr : Ast.expr -> 'value;
+	encode_ctype : Ast.type_hint -> 'value;
+	decode_type : 'value -> t;
 }
 
 
@@ -1200,6 +1204,8 @@ and encode_texpr e =
 			| TCast(e1,mt) -> 24,[loop e1;match mt with None -> vnull | Some mt -> encode_module_type mt]
 			| TMeta(m,e1) -> 25,[encode_meta_entry m;loop e1]
 			| TEnumParameter(e1,ef,i) -> 26,[loop e1;encode_efield ef;vint i]
+			| TEnumIndex e1 -> 27,[loop e1]
+			| TIdent s -> 28,[encode_string s]
 		in
 		encode_obj OTypedExprDef [
 			"pos", encode_pos e.epos;
@@ -1346,6 +1352,8 @@ and decode_texpr v =
 		| 24, [v1;mto] -> TCast(loop v1,opt decode_module_type mto)
 		| 25, [m;v1] -> TMeta(decode_meta_entry m,loop v1)
 		| 26, [v1;ef;i] -> TEnumParameter(loop v1,decode_efield ef,decode_int i)
+		| 27, [v1] -> TEnumIndex(loop v1)
+		| 28, [v1] -> TIdent(decode_string v1)
 		| i,el -> Printf.printf "%i %i\n" i (List.length el); raise Invalid_expr
 	in
 	try
@@ -1363,10 +1371,11 @@ let decode_type_def v =
 	let pos = decode_pos (field v "pos") in
 	let isExtern = decode_opt_bool (field v "isExtern") in
 	let fields = List.map decode_field (decode_array (field v "fields")) in
+	let doc = opt decode_string (field v "doc") in
 	let mk fl dl =
 		{
 			d_name = name;
-			d_doc = None;
+			d_doc = doc;
 			d_params = decode_tparams (field v "params");
 			d_meta = meta;
 			d_flags = fl;
@@ -1551,8 +1560,7 @@ let macro_api ccom get_api =
 		);
 		"unify", vfun2 (fun t1 t2 ->
 			let e1 = mk (TObjectDecl []) (decode_type t1) Globals.null_pos in
-			try ignore(((get_api()).cast_or_unify) (decode_type t2) e1 Globals.null_pos); vbool true
-			with Error.Error (Error.Unify _,_) -> vbool false
+			vbool (((get_api()).cast_or_unify) (decode_type t2) e1 Globals.null_pos)
 		);
 		"typeof", vfun1 (fun v ->
 			encode_type ((get_api()).type_expr (decode_expr v)).etype

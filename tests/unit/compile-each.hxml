@@ -1,3 +1,4 @@
+-D source-header=''
 -debug
 -cp src
 -cp "C:\Program Files\The Haxe Effect\src/dev/null"

@@ -39,7 +39,7 @@ class Math
 	static inline function get_NaN () : Float return untyped __lua__("(0/0)");
 
 	public static function isNaN( f : Float ) : Bool return (f != f);
-	public static inline function isFinite( f : Float ) : Bool {
+	public static function isFinite( f : Float ) : Bool {
 		return (f > Math.NEGATIVE_INFINITY && f < Math.POSITIVE_INFINITY);
 	}
 
@@ -60,10 +60,11 @@ class Math
 	public static inline function random() : Float return untyped __define_feature__("Math.random", lua.Math.random());
 
 	public static inline function atan2(y:Float, x:Float):Float return lua.Math.atan2(y,x);
-	public static inline function max(a:Float, b:Float):Float {
+
+	public static function max(a:Float, b:Float):Float {
 		return Math.isNaN(a) || Math.isNaN(b) ? Math.NaN : lua.Math.max(a,b);
 	}
-	public static inline function min(a:Float, b:Float):Float {
+	public static function min(a:Float, b:Float):Float {
 		return Math.isNaN(a) || Math.isNaN(b) ? Math.NaN : lua.Math.min(a,b);
 	}
 	public static inline function pow(v:Float, exp:Float):Float return lua.Math.pow(v,exp);

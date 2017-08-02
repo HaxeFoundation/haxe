@@ -25,12 +25,19 @@ typedef SentinelHandle = hl.Abstract<"ui_sentinel">;
 
 abstract Sentinel(SentinelHandle) {
 
+	public var pause(get,set) : Bool;
+
 	public function new( timeout, callback ) {
 		this = create_sentinel(timeout,callback);
 	}
-	
-	public function setPause( p : Bool ) {
+
+	function get_pause() {
+		return is_paused(this);
+	}
+
+	function set_pause( p : Bool ) {
 		_pause(this, p);
+		return p;
 	}
 
 	public function tick() {
@@ -43,6 +50,7 @@ abstract Sentinel(SentinelHandle) {
 
 	@:hlNative("ui","ui_sentinel_tick") static function _tick( h : SentinelHandle ) : Void {}
 	@:hlNative("ui","ui_sentinel_pause") static function _pause( h : SentinelHandle, b : Bool ) : Void {}
+	@:hlNative("ui","ui_sentinel_is_paused") static function is_paused( h : SentinelHandle ) : Bool { return false; }
 
 }
 
@@ -161,5 +169,5 @@ class UI {
 	@:hlNative("ui","ui_close_console")
 	public static function closeConsole() : Void {
 	}
-	
+
 }

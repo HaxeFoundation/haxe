@@ -36,4 +36,7 @@ package hl;
 	@:extern public inline function set( v : T ) : Void {
 		return untyped $setref(this,v);
 	}
+	@:extern public inline function offset( v : Int ) : Ref<T> {
+		return untyped $refoffset(this, v);
+	}
 }

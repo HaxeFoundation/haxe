@@ -315,25 +315,26 @@ enum ValueType {
 			return untyped a.Equals(b);
 	}
 
-	public static function enumConstructor( e : EnumValue ) : String untyped
+	public static function enumConstructor( e : EnumValue ) : String
 	{
-		return Std.is(e, cs.system.Enum) ? (cast e : cs.system.Enum).ToString() : cast(e,HxEnum).getTag();
+		return Std.is(e, cs.system.Enum) ? cast(e,cs.system.Enum).ToString() : cast(e,HxEnum).getTag();
 	}
 
-	public static function enumParameters( e : EnumValue ) : Array<Dynamic> untyped
+	public static function enumParameters( e : EnumValue ) : Array<Dynamic>
 	{
 		return Std.is(e, cs.system.Enum) ? [] : cast(e,HxEnum).getParams();
 	}
 
+	@:ifFeature("has_enum")
 	@:pure
-	public static function enumIndex( e : EnumValue ) : Int  untyped
+	public static function enumIndex( e : EnumValue ) : Int
 	{
 		if (Std.is(e, cs.system.Enum))
 		{
 			var values = cs.system.Enum.GetValues(Lib.getNativeType(e));
 			return cs.system.Array.IndexOf(values, e);
 		} else {
-			return cast(e, HxEnum).index;
+			return @:privateAccess cast(e, HxEnum)._hx_index;
 		}
 	}
 

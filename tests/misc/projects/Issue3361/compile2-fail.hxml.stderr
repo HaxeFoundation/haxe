@@ -1,4 +1,4 @@
-Main2.hx:6: characters 16-45 : Field f has different type than in I
-Main2.hx:2: characters 16-43 : Interface field is defined here
-Main2.hx:6: characters 16-45 : s : String -> Void should be d : Dynamic -> Void
-Main2.hx:6: characters 16-45 : String should be Dynamic
+Main2.hx:6: characters 17-46 : Field f has different type than in I
+Main2.hx:2: characters 17-44 : Interface field is defined here
+Main2.hx:6: characters 17-46 : s : String -> Void should be d : Dynamic -> Void
+Main2.hx:6: characters 17-46 : String should be Dynamic

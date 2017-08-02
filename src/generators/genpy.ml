@@ -713,6 +713,10 @@ module Transformer = struct
 			let e1 = trans true [] e1 in
 			let p = { ae.a_expr with eexpr = TEnumParameter(e1.a_expr,ef,i)} in
 			lift true e1.a_blocks p
+		| (_, TEnumIndex e1) ->
+			let e1 = trans true [] e1 in
+			let p = { ae.a_expr with eexpr = TEnumIndex e1.a_expr } in
+			lift true e1.a_blocks p
 		| (true, TIf(econd, eif, eelse)) ->
 			(let econd1 = trans true [] econd in
 			let eif1 = trans true [] eif in
@@ -947,7 +951,7 @@ module Transformer = struct
 			let f = exprs_to_func (new_expr.a_blocks @ [new_expr.a_expr]) (ae.a_next_id()) ae in
 			lift_expr ~is_value:true ~blocks:f.a_blocks f.a_expr
 
-		| ( _, TBreak ) | ( _, TContinue ) ->
+		| ( _, TBreak ) | ( _, TContinue ) | ( _, TIdent _) ->
 			lift_expr a_expr
 
 	and transform e =
@@ -1189,6 +1193,8 @@ module Printer = struct
 				handle_keywords v.v_name
 			| TEnumParameter(e1,_,index) ->
 				Printf.sprintf "%s.params[%i]" (print_expr pctx e1) index
+			| TEnumIndex e1 ->
+				Printf.sprintf "%s.index" (print_expr pctx e1)
 			| TArray(e1,e2) when (is_type1 "" "list")(e1.etype) || is_underlying_array e1.etype ->
 				print_tarray_list pctx e1 e2
 			| TArray({etype = t} as e1,e2) when is_anon_or_dynamic t ->
@@ -1207,7 +1213,7 @@ module Printer = struct
 				Printf.sprintf "%s = %s" (print_expr pctx e1) (print_expr pctx (remove_outer_parens e2))
 			| TBinop(op,e1,({eexpr = TBinop(_,_,_)} as e2)) ->
 				print_expr pctx { e with eexpr = TBinop(op, e1, { e2 with eexpr = TParenthesis(e2) })}
-			| TBinop(OpEq,{eexpr = TCall({eexpr = TLocal {v_name = "__typeof__"}},[e1])},e2) ->
+			| TBinop(OpEq,{eexpr = TCall({eexpr = TIdent "__typeof__"},[e1])},e2) ->
 				begin match e2.eexpr with
 					| TConst(TString s) ->
 						begin match s with
@@ -1375,6 +1381,8 @@ module Printer = struct
 				Printf.sprintf "(%s if %s else %s)" (print_expr pctx eif) (print_expr pctx econd) (print_expr pctx eelse)
 			| TMeta(_,e1) ->
 				print_expr pctx e1
+			| TIdent s ->
+				s
 			| TSwitch _ | TCast(_, Some _) | TFor _ | TUnop(_,Postfix,_) ->
 				assert false
 
@@ -1601,7 +1609,7 @@ module Printer = struct
 			PMap.foldi fold_dict native_fields ""
 		in
 		match e1.eexpr, el with
-			| TLocal { v_name = "`trace" }, [e;infos] ->
+			| TIdent "`trace", [e;infos] ->
 				if has_feature pctx "haxe.Log.trace" then begin
 					"haxe_Log.trace(" ^ (print_expr pctx e) ^ "," ^ (print_expr pctx infos) ^ ")"
 				end else if is_safe_string pctx e then
@@ -1758,7 +1766,7 @@ module Generator = struct
 			match cf.cf_kind with
 				| Var({v_read = AccResolve}) ->
 					()
-				| Var _ when is_extern_field cf ->
+				| Var _ when not (is_physical_field cf) ->
 					()
 				| Var({v_read = AccCall}) ->
 					if Meta.has Meta.IsVar cf.cf_meta then
@@ -1779,7 +1787,7 @@ module Generator = struct
 	let collect_class_statics_data cfl =
 		let fields = DynArray.create () in
 		List.iter (fun cf ->
-			if not (is_extern_field cf) then
+			if is_physical_field cf then
 				DynArray.add fields cf.cf_name
 		) cfl;
 		DynArray.to_list fields
@@ -1789,7 +1797,7 @@ module Generator = struct
 
 	let get_members_with_init_expr c =
 		List.filter (fun cf -> match cf.cf_kind with
-			| Var _ when is_extern_field cf -> false
+			| Var _ when not (is_physical_field cf) -> false
 			| Var _ when cf.cf_expr = None -> true
 			| _ -> false
 		) c.cl_ordered_fields
@@ -2084,7 +2092,7 @@ module Generator = struct
 					let real_fields =
 						List.filter (fun f -> match f.cf_kind with
 							| Method MethDynamic -> raise Exit (* if a class has dynamic method, we can't use __slots__ because python will complain *)
-							| Var _ -> not (is_extern_field f)
+							| Var _ -> is_physical_field f
 							| _ -> false
 						) c.cl_ordered_fields
 					in

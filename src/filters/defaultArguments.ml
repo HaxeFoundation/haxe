@@ -29,7 +29,7 @@ open Codegen.ExprBuilder
 
 let gen_check basic t nullable_var const pos =
 	let needs_cast t1 t2 =
-		let is_null t = match t with TType ({t_path = ([],"Null")}, _) -> true | _ -> false in
+		let is_null t = match t with TAbstract ({a_path = ([],"Null")}, _) -> true | _ -> false in
 		(is_null t1) <> (is_null t2)
 	in
 

@@ -293,70 +293,85 @@ class Boot {
 	static function field( o : Dynamic, field : String ) : Dynamic {
 		if (field == null) return null;
 
-		return switch (field) {
-			case "toLowerCase" if (isString(o)):
-				createClosure(o, StringImpl.toLowerCase);
-			case "toUpperCase" if (isString(o)):
-				createClosure(o, StringImpl.toUpperCase);
-			case "charAt" if (isString(o)):
-				createClosure(o, StringImpl.charAt);
-			case "charCodeAt" if (isString(o)):
-				createClosure(o, StringImpl.charCodeAt);
-			case "indexOf" if (isString(o)):
-				createClosure(o, StringImpl.indexOf);
-			case "lastIndexOf" if (isString(o)):
-				createClosure(o, StringImpl.lastIndexOf);
-			case "split" if (isString(o)):
-				createClosure(o, StringImpl.split);
-			case "substr" if (isString(o)):
-				createClosure(o, StringImpl.substr);
-			case "substring" if (isString(o)):
-				createClosure(o, StringImpl.substring);
-			case "toString" if (isString(o)):
-				createClosure(o, StringImpl.toString);
-			case "length" if (isArray(o)):
-				ArrayImpl.get_length(o);
-			case "map" if (isArray(o)):
-				createClosure(o, ArrayImpl.map);
-			case "filter" if (isArray(o)):
-				createClosure(o, ArrayImpl.filter);
-			case "concat" if (isArray(o)):
-				createClosure(o, ArrayImpl.concat);
-			case "copy" if (isArray(o)):
-				createClosure(o, ArrayImpl.copy);
-			case "iterator" if (isArray(o)):
-				createClosure(o, ArrayImpl.iterator);
-			case "insert" if (isArray(o)):
-				createClosure(o, ArrayImpl.insert);
-			case "join" if (isArray(o)):
-				createClosure(o, ArrayImpl.join);
-			case "toString" if (isArray(o)):
-				createClosure(o, ArrayImpl.toString);
-			case "pop" if (isArray(o)):
-				createClosure(o, ArrayImpl.pop);
-			case "push" if (isArray(o)):
-				createClosure(o, ArrayImpl.push);
-			case "unshift" if (isArray(o)):
-				createClosure(o, ArrayImpl.unshift);
-			case "indexOf" if (isArray(o)):
-				createClosure(o, ArrayImpl.indexOf);
-			case "lastIndexOf" if (isArray(o)):
-				createClosure(o, ArrayImpl.lastIndexOf);
-			case "remove" if (isArray(o)):
-				createClosure(o, ArrayImpl.remove);
-			case "reverse" if (isArray(o)):
-				createClosure(o, ArrayImpl.reverse);
-			case "shift" if (isArray(o)):
-				createClosure(o, ArrayImpl.shift);
-			case "slice" if (isArray(o)):
-				createClosure(o, ArrayImpl.slice);
-			case "sort" if (isArray(o)):
-				createClosure(o, ArrayImpl.sort);
-			case "splice" if (isArray(o)):
-				createClosure(o, ArrayImpl.splice);
-			default:
-				var field = handleKeywords(field);
-				if (UBuiltins.hasattr(o, field)) UBuiltins.getattr(o, field) else null;
+		inline function def () {
+			var field = handleKeywords(field);
+			return if (UBuiltins.hasattr(o, field)) UBuiltins.getattr(o, field) else null;
+		}
+
+		return if (isString(o)) {
+			switch (field) {
+				case "length":
+					StringImpl.get_length(o);
+				case "toLowerCase":
+					createClosure(o, StringImpl.toLowerCase);
+				case "toUpperCase":
+					createClosure(o, StringImpl.toUpperCase);
+				case "charAt":
+					createClosure(o, StringImpl.charAt);
+				case "charCodeAt":
+					createClosure(o, StringImpl.charCodeAt);
+				case "indexOf":
+					createClosure(o, StringImpl.indexOf);
+				case "lastIndexOf":
+					createClosure(o, StringImpl.lastIndexOf);
+				case "split":
+					createClosure(o, StringImpl.split);
+				case "substr":
+					createClosure(o, StringImpl.substr);
+				case "substring":
+					createClosure(o, StringImpl.substring);
+				case "toString":
+					createClosure(o, StringImpl.toString);
+				default:
+					def();
+			}
+		} else if (isArray(o)) {
+			switch (field) {
+				case "length":
+					ArrayImpl.get_length(o);
+				case "map":
+					createClosure(o, ArrayImpl.map);
+				case "filter":
+					createClosure(o, ArrayImpl.filter);
+				case "concat":
+					createClosure(o, ArrayImpl.concat);
+				case "copy":
+					createClosure(o, ArrayImpl.copy);
+				case "iterator":
+					createClosure(o, ArrayImpl.iterator);
+				case "insert":
+					createClosure(o, ArrayImpl.insert);
+				case "join":
+					createClosure(o, ArrayImpl.join);
+				case "toString":
+					createClosure(o, ArrayImpl.toString);
+				case "pop":
+					createClosure(o, ArrayImpl.pop);
+				case "push":
+					createClosure(o, ArrayImpl.push);
+				case "unshift":
+					createClosure(o, ArrayImpl.unshift);
+				case "indexOf":
+					createClosure(o, ArrayImpl.indexOf);
+				case "lastIndexOf":
+					createClosure(o, ArrayImpl.lastIndexOf);
+				case "remove":
+					createClosure(o, ArrayImpl.remove);
+				case "reverse":
+					createClosure(o, ArrayImpl.reverse);
+				case "shift":
+					createClosure(o, ArrayImpl.shift);
+				case "slice":
+					createClosure(o, ArrayImpl.slice);
+				case "sort":
+					createClosure(o, ArrayImpl.sort);
+				case "splice":
+					createClosure(o, ArrayImpl.splice);
+				default:
+					def();
+			}
+		} else {
+			def();
 		}
 	}
 

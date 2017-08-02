@@ -74,15 +74,7 @@ let get_exposed ctx path meta =
 
 let dot_path = s_type_path
 
-let flat_path (p,s) =
-	(* Replace _ with _$ in paths to prevent name collisions. *)
-	let escape str = String.concat "_$" (ExtString.String.nsplit str "_") in
-
-	match p with
-	| [] -> escape s
-	| _ -> String.concat "_" (List.map escape p) ^ "_" ^ (escape s)
-
-let s_path ctx = if ctx.js_flatten then flat_path else dot_path
+let s_path ctx = if ctx.js_flatten then Path.flat_path else dot_path
 
 let kwds =
 	let h = Hashtbl.create 0 in
@@ -352,64 +344,64 @@ let rec gen_call ctx e el in_value =
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
 		);
-	| TCall (x,_) , el when (match x.eexpr with TLocal { v_name = "__js__" } -> false | _ -> true) ->
+	| TCall (x,_) , el when (match x.eexpr with TIdent "__js__" -> false | _ -> true) ->
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ")";
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
-	| TLocal { v_name = "__new__" }, { eexpr = TConst (TString cl) } :: params ->
+	| TIdent "__new__", { eexpr = TConst (TString cl) } :: params ->
 		print ctx "new %s(" cl;
 		concat ctx "," (gen_value ctx) params;
 		spr ctx ")";
-	| TLocal { v_name = "__new__" }, e :: params ->
+	| TIdent "__new__", e :: params ->
 		spr ctx "new ";
 		gen_value ctx e;
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) params;
 		spr ctx ")";
-	| TLocal { v_name = "__js__" }, [{ eexpr = TConst (TString "this") }] ->
+	| TIdent "__js__", [{ eexpr = TConst (TString "this") }] ->
 		spr ctx (this ctx)
-	| TLocal { v_name = "__js__" }, [{ eexpr = TConst (TString code) }] ->
+	| TIdent "__js__", [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
-	| TLocal { v_name = "__js__" }, { eexpr = TConst (TString code); epos = p } :: tl ->
+	| TIdent "__js__", { eexpr = TConst (TString code); epos = p } :: tl ->
 		Codegen.interpolate_code ctx.com code tl (spr ctx) (gen_expr ctx) p
-	| TLocal { v_name = "__instanceof__" },  [o;t] ->
+	| TIdent "__instanceof__",  [o;t] ->
 		spr ctx "(";
 		gen_value ctx o;
 		print ctx " instanceof ";
 		gen_value ctx t;
 		spr ctx ")";
-	| TLocal { v_name = "__typeof__" },  [o] ->
+	| TIdent "__typeof__",  [o] ->
 		spr ctx "typeof(";
 		gen_value ctx o;
 		spr ctx ")";
-	| TLocal { v_name = "__strict_eq__" } , [x;y] ->
+	| TIdent "__strict_eq__" , [x;y] ->
 		(* add extra parenthesis here because of operator precedence *)
 		spr ctx "((";
 		gen_value ctx x;
 		spr ctx ") === ";
 		gen_value ctx y;
 		spr ctx ")";
-	| TLocal { v_name = "__strict_neq__" } , [x;y] ->
+	| TIdent "__strict_neq__" , [x;y] ->
 		(* add extra parenthesis here because of operator precedence *)
 		spr ctx "((";
 		gen_value ctx x;
 		spr ctx ") !== ";
 		gen_value ctx y;
 		spr ctx ")";
-	| TLocal ({v_name = "__define_feature__"}), [_;e] ->
+	| TIdent "__define_feature__", [_;e] ->
 		gen_expr ctx e
-	| TLocal { v_name = "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse ->
+	| TIdent "__feature__", { eexpr = TConst (TString f) } :: eif :: eelse ->
 		(if has_feature ctx f then
 			gen_value ctx eif
 		else match eelse with
 			| [] -> ()
 			| e :: _ -> gen_value ctx e)
-	| TLocal { v_name = "__rethrow__" }, [] ->
+	| TIdent "__rethrow__", [] ->
 		spr ctx "throw $hx_rethrow";
-	| TLocal { v_name = "__resources__" }, [] ->
+	| TIdent "__resources__", [] ->
 		spr ctx "[";
 		concat ctx "," (fun (name,data) ->
 			spr ctx "{ ";
@@ -420,7 +412,7 @@ let rec gen_call ctx e el in_value =
 			spr ctx "}"
 		) (Hashtbl.fold (fun name data acc -> (name,data) :: acc) ctx.com.resources []);
 		spr ctx "]";
-	| TLocal { v_name = "`trace" }, [e;infos] ->
+	| TIdent "`trace", [e;infos] ->
 		if has_feature ctx "haxe.Log.trace" then begin
 			let t = (try List.find (fun t -> t_path t = (["haxe"],"Log")) ctx.com.types with _ -> assert false) in
 			spr ctx (ctx.type_accessor t);
@@ -431,6 +423,14 @@ let rec gen_call ctx e el in_value =
 			spr ctx ")";
 		end else begin
 			spr ctx "console.log(";
+			begin match infos.eexpr with
+			| TObjectDecl (
+				("fileName" , { eexpr = (TConst (TString file)) }) ::
+				("lineNumber" , { eexpr = (TConst (TInt line)) }) :: _) ->
+					print ctx "\"%s:%i: \" + " file (Int32.to_int line);
+			| _ ->
+				()
+			end;
 			gen_value ctx e;
 			spr ctx ")";
 		end
@@ -500,9 +500,21 @@ and gen_expr ctx e =
 			print ctx "($_=";
 			gen_value ctx x;
 			print ctx ",$bind($_,$_%s))" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name)))
-	| TEnumParameter (x,_,i) ->
+	| TEnumIndex x ->
 		gen_value ctx x;
-		print ctx "[%i]" (i + 2)
+		if Common.defined ctx.com Define.JsEnumsAsObjects then
+		print ctx "._hx_index"
+		else
+		print ctx "[1]"
+	| TEnumParameter (x,f,i) ->
+		gen_value ctx x;
+		if Common.defined ctx.com Define.JsEnumsAsObjects then
+			let fname = (match f.ef_type with TFun((args,_)) -> let fname,_,_ = List.nth args i in  fname | _ -> assert false ) in
+			print ctx ".%s" (fname)
+		else
+			print ctx "[%i]" (i + 2)
+	| TField (_, FStatic ({cl_path = [],""},f)) ->
+		spr ctx f.cf_name;
 	| TField (x, (FInstance(_,_,f) | FStatic(_,f) | FAnon(f))) when Meta.has Meta.SelfCall f.cf_meta ->
 		gen_value ctx x;
 	| TField (x,f) ->
@@ -556,7 +568,11 @@ and gen_expr ctx e =
 		let old = ctx.in_value, ctx.in_loop in
 		ctx.in_value <- None;
 		ctx.in_loop <- false;
-		print ctx "function(%s) " (String.concat "," (List.map ident (List.map arg_name f.tf_args)));
+		let args = List.map (fun (v,_) ->
+			check_var_declaration v;
+			ident v.v_name
+		) f.tf_args in
+		print ctx "function(%s) " (String.concat "," args);
 		gen_expr ctx (fun_block ctx f e.epos);
 		ctx.in_value <- fst old;
 		ctx.in_loop <- snd old;
@@ -680,7 +696,7 @@ and gen_expr ctx e =
 		if (has_feature ctx "js.Lib.rethrow") then begin
 			let has_rethrow (_,e) =
 				let rec loop e = match e.eexpr with
-				| TCall({eexpr = TLocal {v_name = "__rethrow__"}}, []) -> raise Exit
+				| TCall({eexpr = TIdent "__rethrow__"}, []) -> raise Exit
 				| _ -> Type.iter loop e
 				in
 				try (loop e; false) with Exit -> true
@@ -804,7 +820,10 @@ and gen_expr ctx e =
 		gen_expr ctx e1;
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
-		spr ctx ")");
+		spr ctx ")"
+	| TIdent s ->
+		spr ctx s
+	);
 	Option.may (fun smap -> smap.current_expr <- None) ctx.smap
 
 
@@ -812,7 +831,7 @@ and gen_block_element ?(after=false) ctx e =
 	match e.eexpr with
 	| TBlock el ->
 		List.iter (gen_block_element ~after ctx) el
-	| TCall ({ eexpr = TLocal { v_name = "__feature__" } }, { eexpr = TConst (TString f) } :: eif :: eelse) ->
+	| TCall ({ eexpr = TIdent "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse) ->
 		if has_feature ctx f then
 			gen_block_element ~after ctx eif
 		else (match eelse with
@@ -865,13 +884,15 @@ and gen_value ctx e =
 	| TBinop _
 	| TField _
 	| TEnumParameter _
+	| TEnumIndex _
 	| TTypeExpr _
 	| TParenthesis _
 	| TObjectDecl _
 	| TArrayDecl _
 	| TNew _
 	| TUnop _
-	| TFunction _ ->
+	| TFunction _
+	| TIdent _ ->
 		gen_expr ctx e
 	| TMeta (_,e1) ->
 		gen_value ctx e1
@@ -986,7 +1007,7 @@ let gen_class_static_field ctx c f =
 	match f.cf_expr with
 	| None | Some { eexpr = TConst TNull } when not (has_feature ctx "Type.getClassFields") ->
 		()
-	| None when is_extern_field f ->
+	| None when not (is_physical_field f) ->
 		()
 	| None ->
 		print ctx "%s%s = null" (s_path ctx c.cl_path) (static_field c f.cf_name);
@@ -1008,7 +1029,7 @@ let can_gen_class_field ctx = function
 	| { cf_expr = (None | Some { eexpr = TConst TNull }) } when not (has_feature ctx "Type.getInstanceFields") ->
 		false
 	| f ->
-		not (is_extern_field f)
+		is_physical_field f
 
 let gen_class_field ctx c f =
 	check_field_name c f;
@@ -1142,26 +1163,44 @@ let generate_enum ctx e =
 	if has_feature ctx "js.Boot.isEnum" then print ctx " __ename__ : %s," (if has_feature ctx "Type.getEnumName" then "[" ^ String.concat "," ename ^ "]" else "true");
 	print ctx " __constructs__ : [%s] }" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
 	ctx.separator <- true;
+	let as_objects = Common.defined ctx.com Define.JsEnumsAsObjects in
+	if as_objects then begin
+		newline ctx;
+		print ctx "$hxEnums[\"%s\"] = %s" p p
+	end;
 	newline ctx;
 	List.iter (fun n ->
 		let f = PMap.find n e.e_constrs in
 		print ctx "%s%s = " p (field f.ef_name);
 		(match f.ef_type with
 		| TFun (args,_) ->
-			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in
-			print ctx "function(%s) { var $x = [\"%s\",%d,%s]; $x.__enum__ = %s;" sargs f.ef_name f.ef_index sargs p;
+			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in begin
+			if as_objects then
+				let sfields = String.concat "," (List.map (fun (n,_,_) -> (ident n) ^ ":" ^ (ident n) ) args) in
+				print ctx "function(%s) { var $x = {_hx_index:%d,%s,__enum__:\"%s\"};" sargs f.ef_index sfields p;
+			else
+				print ctx "function(%s) { var $x = [\"%s\",%d,%s]; $x.__enum__ = %s;" sargs f.ef_name f.ef_index sargs p;
+			end;
 			if has_feature ctx "has_enum" then
 				spr ctx " $x.toString = $estr;";
 			spr ctx " return $x; }";
+			if as_objects then begin
+				let sparams = String.concat "," (List.map (fun (n,_,_) -> "\"" ^ (ident n) ^ "\"" ) args) in
+				newline ctx;
+				print ctx "%s%s.__params__ = [%s];" p (field f.ef_name) sparams
+			end;
 			ctx.separator <- true;
 		| _ ->
-			print ctx "[\"%s\",%d]" f.ef_name f.ef_index;
+			if as_objects then
+				print ctx "{_hx_index:%d};" f.ef_index
+			else
+				print ctx "[\"%s\",%d]" f.ef_name f.ef_index;
 			newline ctx;
 			if has_feature ctx "has_enum" then begin
 				print ctx "%s%s.toString = $estr" p (field f.ef_name);
 				newline ctx;
 			end;
-			print ctx "%s%s.__enum__ = %s" p (field f.ef_name) p;
+			print ctx "%s%s.__enum__ = %s" p (field f.ef_name) (if as_objects then "\"" ^ p ^"\"" else p);
 		);
 		newline ctx
 	) e.e_names;
@@ -1435,6 +1474,7 @@ let generate com =
 	let vars = if has_feature ctx "has_enum"
 		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) ^ ".__string_rec(this,''); }") :: vars
 		else vars in
+	let vars = if Common.defined com Define.JsEnumsAsObjects then "$hxEnums = {}" :: vars else vars in
 	(match List.rev vars with
 	| [] -> ()
 	| vl ->

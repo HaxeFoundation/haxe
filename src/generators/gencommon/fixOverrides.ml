@@ -171,7 +171,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 						(match f.cf_expr with
 						| Some({ eexpr = TFunction(tf) } as e) ->
 							let actual_args, _ = get_fun (get_real_fun gen actual_t) in
-							let new_args, vardecl = List.fold_left2 (fun (args,vdecl) (v,_) (_,_,t) ->
+							let new_args, vars_to_declare = List.fold_left2 (fun (args,vdecl) (v,_) (_,_,t) ->
 								if not (type_iseq (gen.greal_type v.v_type) (gen.greal_type t)) then begin
 									let new_var = mk_temp v.v_name t in
 									(new_var,None) :: args, (v, Some(mk_cast v.v_type (mk_local new_var f.cf_pos))) :: vdecl
@@ -183,21 +183,35 @@ let run ~explicit_fn_name ~get_vmtype gen =
 									eexpr = TVar(v,ve);
 									etype = gen.gcon.basic.tvoid;
 									epos = tf.tf_expr.epos
-								}) vardecl);
+								}) vars_to_declare);
 								etype = gen.gcon.basic.tvoid;
 								epos = tf.tf_expr.epos
 							} in
+							let has_contravariant_args = match (get_real_fun gen f.cf_type, actual_t) with
+								| TFun(current_args,_), TFun(original_args,_) ->
+										List.exists2 (fun (_,_,cur_arg) (_,_,orig_arg) -> try
+											unify orig_arg cur_arg;
+											try
+												unify cur_arg orig_arg;
+												false
+											with Unify_error _ ->
+												true
+										with Unify_error _ -> false) current_args original_args
+								| _ -> assert false
+							in
+							if (not (Meta.has Meta.Overload f.cf_meta) && has_contravariant_args) then
+								f.cf_meta <- (Meta.Overload, [], f.cf_pos) :: f.cf_meta;
 							if Meta.has Meta.Overload f.cf_meta then begin
 								(* if it is overload, create another field with the requested type *)
 								let f3 = mk_class_field f.cf_name t f.cf_public f.cf_pos f.cf_kind f.cf_params in
 								let p = f.cf_pos in
 								let old_args, old_ret = get_fun f.cf_type in
 								let args, ret = get_fun t in
-								let tf_args = List.map (fun (n,o,t) -> alloc_var n t, None) args in
+								let tf_args = List.rev new_args in
 								let f3_mk_return = if ExtType.is_void ret then (fun e -> e) else (fun e -> mk_return (mk_cast ret e)) in
 								f3.cf_expr <- Some {
 									eexpr = TFunction({
-										tf_args = List.rev new_args;
+										tf_args = tf_args;
 										tf_type = ret;
 										tf_expr = Type.concat block (mk_block (f3_mk_return {
 											eexpr = TCall(
@@ -224,7 +238,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 								f3
 							end else begin
 								(* if it's not overload, just cast the vars *)
-								if vardecl <> [] then
+								if vars_to_declare <> [] then
 								f.cf_expr <- Some({ e with
 									eexpr = TFunction({ tf with
 										tf_args = List.rev new_args;

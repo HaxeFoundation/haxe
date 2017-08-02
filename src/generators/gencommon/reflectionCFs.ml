@@ -663,7 +663,7 @@ let implement_dynamic_object_ctor ctx cl =
 			tf_args = [];
 			tf_expr = {
 				eexpr = TBlock(List.map (fun (f,t) ->
-					{ eexpr = TBinop(Ast.OpAssign, mk_this f t,{ eexpr = TCall(mk_local v_nativearray pos, []); etype = t; epos = pos; }); etype = t; epos = pos }
+					{ eexpr = TBinop(Ast.OpAssign, mk_this f t,{ eexpr = TCall(mk (TIdent "__array__") t_dynamic pos, []); etype = t; epos = pos; }); etype = t; epos = pos }
 				) fields);
 				etype = basic.tvoid;
 				epos = pos;
@@ -766,7 +766,7 @@ let implement_dynamics ctx cl =
 			] in
 
 			(if cl.cl_path <> (["haxe"; "lang"], "DynamicObject") then
-				List.iter (fun cf -> cf.cf_expr <- Some { eexpr = TCall(mk_local v_nativearray pos, []); etype = cf.cf_type; epos = cf.cf_pos }) new_fields
+				List.iter (fun cf -> cf.cf_expr <- Some { eexpr = TCall(mk (TIdent "__array__") t_dynamic pos, []); etype = cf.cf_type; epos = cf.cf_pos }) new_fields
 			);
 
 			let new_fields =
@@ -1037,7 +1037,7 @@ let implement_get_set ctx cl =
 							mk_this_call_raw ("set_" ^ cf.cf_name) (TFun(["value",false,cf.cf_type], cf.cf_type)) [ value_local ];
 							mk_return value_local
 						] in
-						if Type.is_extern_field cf then
+						if not (Type.is_physical_field cf) then
 							{ eexpr = TBlock bl; etype = value_local.etype; epos = pos }
 						else
 							{
@@ -1084,7 +1084,7 @@ let implement_get_set ctx cl =
 
 			let get_field cf cf_type ethis cl name =
 				match cf.cf_kind with
-					| Var { v_read = AccCall } when Type.is_extern_field cf ->
+					| Var { v_read = AccCall } when not (Type.is_physical_field cf) ->
 						mk_this_call_raw ("get_" ^ cf.cf_name) (TFun(["value",false,cf.cf_type], cf.cf_type)) []
 					| Var { v_read = AccCall } ->
 						{
@@ -1147,7 +1147,7 @@ let implement_get_set ctx cl =
 			let fields = List.filter (fun (_, cf) -> match is_set, cf.cf_kind with
 				| true, Var { v_write = AccCall } -> true
 				| false, Var { v_read = AccCall } -> true
-				| _ -> not (Type.is_extern_field cf)) fields
+				| _ -> Type.is_physical_field cf) fields
 			in
 			(if fields <> [] then has_fields := true);
 			let cases = List.map (fun (names, cf) ->
@@ -1594,7 +1594,7 @@ let get_closure_func ctx closure_cl =
 
 let configure_dynamic_field_access ctx =
 	let gen = ctx.rcf_gen in
-	let is_dynamic expr fexpr field =
+	let is_dynamic fexpr field =
 		match (field_access_esp gen (gen.greal_type fexpr.etype) field) with
 		| FEnumField _
 		| FClassField _ -> false

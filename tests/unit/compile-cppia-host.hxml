@@ -1,4 +1,5 @@
 -main cpp.cppia.Host
+-D source-header=''
 -D scriptable
 -D dll_export=bin/cppia.classes
 -debug

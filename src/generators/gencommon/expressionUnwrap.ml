@@ -222,10 +222,12 @@ let rec shallow_expr_type expr : shallow_expr_type =
 			| _ -> Both expr)
 		| TConst _
 		| TLocal _
+		| TIdent _
 		| TArray _
 		| TBinop _
 		| TField _
 		| TEnumParameter _
+		| TEnumIndex _
 		| TTypeExpr _
 		| TObjectDecl _
 		| TArrayDecl _
@@ -256,7 +258,8 @@ and expr_kind expr =
 		| TConst _
 		| TLocal _
 		| TFunction _
-		| TTypeExpr _ ->
+		| TTypeExpr _
+		| TIdent _ ->
 			KNoSideEffects
 		| TCall (ecall, params) ->
 			aggregate false (ecall :: params)
@@ -574,7 +577,7 @@ let configure gen =
 			let rec process_statement e =
 				let e = no_paren e in
 				match e.eexpr, shallow_expr_type e with
-				| TCall( { eexpr = TLocal v } as elocal, elist ), _ when String.get v.v_name 0 = '_' && Hashtbl.mem gen.gspecial_vars v.v_name ->
+				| TCall( { eexpr = TIdent s } as elocal, elist ), _ when String.get s 0 = '_' && Hashtbl.mem gen.gspecial_vars s ->
 					new_block := { e with eexpr = TCall( elocal, List.map (fun e ->
 						match e.eexpr with
 							| TBlock _ -> traverse e

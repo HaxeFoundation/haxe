@@ -89,6 +89,7 @@ type strict_meta =
 	| LibType
 	| LoopLabel
 	| LuaRequire
+	| LuaDotMethod 
 	| Meta
 	| Macro
 	| MaybeUsed
@@ -123,6 +124,7 @@ type strict_meta =
 	| PhpClassConst
 	| PhpMagic
 	| PhpNoConstructor
+	| Pos
 	| PrivateAccess
 	| Property
 	| Protected
@@ -161,7 +163,6 @@ type strict_meta =
 	| TemplatedCall
 	| ValueUsed
 	| Volatile
-	| Unbound
 	| UnifyMinDynamic
 	| Unreflective
 	| Unsafe
@@ -281,6 +282,7 @@ let get_info = function
 	| JavaNative -> ":javaNative",("Automatically added by -java-lib on classes generated from JAR/class files",[Platform Java; UsedOnEither[TClass;TEnum]; UsedInternally])
 	| JsRequire -> ":jsRequire",("Generate javascript module require expression for given extern",[Platform Js; UsedOn TClass])
 	| LuaRequire -> ":luaRequire",("Generate lua module require expression for given extern",[Platform Lua; UsedOn TClass])
+	| LuaDotMethod -> ":luaDotMethod",("Indicates that the given extern type instance should have dot-style invocation for methods instead of colon.",[Platform Lua; UsedOnEither[TClass;TClassField]])
 	| Keep -> ":keep",("Causes a field or type to be kept by DCE",[])
 	| KeepInit -> ":keepInit",("Causes a class to be kept by DCE even if all its field are removed",[UsedOn TClass])
 	| KeepSub -> ":keepSub",("Extends @:keep metadata to all implementing and extending classes",[UsedOn TClass])
@@ -320,6 +322,7 @@ let get_info = function
 	| PhpClassConst -> ":phpClassConst",("(php7)  Generate static var of an extern class as a PHP class constant",[Platform Php;UsedOn TClass])
 	| PhpMagic -> ":phpMagic",("(php7) Treat annotated field as special PHP magic field",[Platform Php;UsedOn TClassField])
 	| PhpNoConstructor -> ":phpNoConstructor",("(php7) Special meta for extern classes which does not have native constructor in PHP, but need a constructor in Haxe extern",[Platform Php;UsedOn TClass])
+	| Pos -> ":pos",("Sets the position of a reified expression",[HasParam "Position";UsedOn TExpr])
 	| Public -> ":public",("Marks a class field as being public",[UsedOn TClassField;UsedInternally])
 	| PublicFields -> ":publicFields",("Forces all class fields of inheriting classes to be public",[UsedOn TClass])
 	| QuotedField -> ":quotedField",("Used internally to mark structure fields which are quoted in syntax",[UsedInternally])
@@ -358,7 +361,6 @@ let get_info = function
 	| Transient -> ":transient",("Adds the 'transient' flag to the class field",[Platform Java; UsedOn TClassField])
 	| ValueUsed -> ":valueUsed",("Internally used by DCE to mark an abstract value as used",[UsedInternally])
 	| Volatile -> ":volatile",("",[Platforms [Java;Cs]])
-	| Unbound -> ":unbound", ("Compiler internal to denote unbounded global variable",[UsedInternally])
 	| UnifyMinDynamic -> ":unifyMinDynamic",("Allows a collection of types to unify to Dynamic",[UsedOn TClassField])
 	| Unreflective -> ":unreflective",("",[Platform Cpp])
 	| Unsafe -> ":unsafe",("Declares a class, or a method with the C#'s 'unsafe' flag",[Platform Cs; UsedOnEither [TClass;TClassField]])
@@ -410,11 +412,7 @@ let get_documentation d =
 			| [] -> ""
 			| l -> "(" ^ String.concat "," l ^ ")"
 		) in
-		let pfs = (match List.rev !pfs with
-			| [] -> ""
-			| [p] -> " (" ^ platform_name p ^ " only)"
-			| pl -> " (for " ^ String.concat "," (List.map platform_name pl) ^ ")"
-		) in
+		let pfs = platform_list_help (List.rev !pfs) in
 		let str = "@" ^ t in
 		Some (str,params ^ doc ^ pfs)
 	end else

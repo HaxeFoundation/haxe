@@ -350,12 +350,12 @@ struct
 		let p = cl.cl_pos in
 		let this = { eexpr = TConst TThis; etype = (TInst(cl, List.map snd cl.cl_params)); epos = p } in
 
-		let rec loop cls tls level reverse_params =
-			if (level <> 0 || cls.cl_interface) && tls <> [] && is_hxgeneric (TClassDecl cls) then begin
-				let cparams = List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) cls.cl_params in
-				let name = get_cast_name cls in
+		let rec loop curcls params level reverse_params =
+			if (level <> 0 || curcls.cl_interface) && params <> [] && is_hxgeneric (TClassDecl curcls) then begin
+				let cparams = List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) curcls.cl_params in
+				let name = get_cast_name curcls in
 				if not (PMap.mem name cl.cl_fields) then begin
-					let reverse_params = List.map (apply_params cls.cl_params (List.map snd cparams)) reverse_params in
+					let reverse_params = List.map (apply_params curcls.cl_params params) reverse_params in
 					let cfield = mk_class_field name (TFun([], t_dynamic)) false cl.cl_pos (Method MethNormal) cparams in
 					let field = { eexpr = TField(this, FInstance(cl,List.map snd cl.cl_params, cast_cfield)); etype = apply_params cast_cfield.cf_params reverse_params cast_cfield.cf_type; epos = p } in
 					let call =
@@ -385,20 +385,17 @@ struct
 				end
 			end;
 			let get_reverse super supertl =
-				let kv = List.map2 (fun (_,tparam) applied -> (follow applied, follow tparam)) super.cl_params supertl in
-				List.map (fun t ->
-					try
-						List.assq (follow t) kv
-					with | Not_found -> t
-				) reverse_params
+				List.map (apply_params super.cl_params supertl) reverse_params
 			in
-			(match cls.cl_super with
+			(match curcls.cl_super with
 			| None -> ()
 			| Some(super, supertl) ->
-				loop super supertl (level + 1) (get_reverse super supertl));
+				let super_params = List.map (apply_params curcls.cl_params params) supertl in
+				loop super (super_params) (level + 1) (get_reverse super super_params));
 			List.iter (fun (iface, ifacetl) ->
-				loop iface ifacetl level (get_reverse iface ifacetl)
-			) cls.cl_implements
+				let iface_params = List.map (apply_params curcls.cl_params params) ifacetl in
+				loop iface (iface_params) level (get_reverse iface iface_params);
+			) curcls.cl_implements
 		in
 		loop cl (List.map snd cl.cl_params) 0 (List.map snd cl.cl_params)
 
@@ -476,8 +473,7 @@ struct
 		in
 
 		let mk_typehandle =
-			let thandle = alloc_var "__typeof__" t_dynamic in
-			(fun cl -> mk (TCall (mk_local thandle pos, [ExprBuilder.make_static_this cl pos])) t_dynamic pos)
+			(fun cl -> mk (TCall (mk (TIdent "__typeof__") t_dynamic pos, [ExprBuilder.make_static_this cl pos])) t_dynamic pos)
 		in
 		let mk_eq cl1 cl2 =
 			binop OpEq (mk_typehandle cl1) (mk_typehandle cl2) basic.tbool pos

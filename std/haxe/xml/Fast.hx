@@ -21,18 +21,13 @@
  */
 package haxe.xml;
 
-private class NodeAccess implements Dynamic<Fast> {
+private abstract NodeAccess(Xml) from Xml {
 
-	var __x : Xml;
-
-	public function new( x : Xml ) {
-		__x = x;
-	}
-
+	@:op(a.b)
 	public function resolve( name : String ) : Fast {
-		var x = __x.elementsNamed(name).next();
+		var x = this.elementsNamed(name).next();
 		if( x == null ) {
-			var xname = if( __x.nodeType == Xml.Document ) "Document" else __x.nodeName;
+			var xname = if( this.nodeType == Xml.Document ) "Document" else this.nodeName;
 			throw xname+" is missing element "+name;
 		}
 		return new Fast(x);
@@ -40,66 +35,46 @@ private class NodeAccess implements Dynamic<Fast> {
 
 }
 
-private class AttribAccess implements Dynamic<String> {
+private abstract AttribAccess(Xml) from Xml {
 
-	var __x : Xml;
-
-	public function new( x : Xml ) {
-		__x = x;
-	}
-
+	@:op(a.b)
 	public function resolve( name : String ) : String {
-		if( __x.nodeType == Xml.Document )
+		if( this.nodeType == Xml.Document )
 			throw "Cannot access document attribute "+name;
-		var v = __x.get(name);
+		var v = this.get(name);
 		if( v == null )
-			throw __x.nodeName+" is missing attribute "+name;
+			throw this.nodeName+" is missing attribute "+name;
 		return v;
 	}
 
 }
 
-private class HasAttribAccess implements Dynamic<Bool> {
+private abstract HasAttribAccess(Xml) from Xml {
 
-	var __x : Xml;
-
-	public function new( x : Xml ) {
-		__x = x;
-	}
-
+	@:op(a.b)
 	public function resolve( name : String ) : Bool {
-		if( __x.nodeType == Xml.Document )
+		if( this.nodeType == Xml.Document )
 			throw "Cannot access document attribute "+name;
-		return __x.exists(name);
+		return this.exists(name);
 	}
 
 }
 
-private class HasNodeAccess implements Dynamic<Bool> {
+private abstract HasNodeAccess(Xml) from Xml {
 
-	var __x : Xml;
-
-	public function new( x : Xml ) {
-		__x = x;
-	}
-
+	@:op(a.b)
 	public function resolve( name : String ) : Bool {
-		return __x.elementsNamed(name).hasNext();
+		return this.elementsNamed(name).hasNext();
 	}
 
 }
 
-private class NodeListAccess implements Dynamic<List<Fast>> {
+private abstract NodeListAccess(Xml) from Xml {
 
-	var __x : Xml;
-
-	public function new( x : Xml ) {
-		__x = x;
-	}
-
+	@:op(a.b)
 	public function resolve( name : String ) : List<Fast> {
 		var l = new List();
-		for( x in __x.elementsNamed(name) )
+		for( x in this.elementsNamed(name) )
 			l.add(new Fast(x));
 		return l;
 	}
@@ -114,12 +89,12 @@ class Fast {
 	/**
 		The current corresponding `Xml` node.
 	**/
-	public var x(default, null) : Xml;
+	public var x(default,null) : Xml;
 
 	/**
 		The name of the current element. This is the same as `Xml.nodeName`.
 	**/
-	public var name(get,null) : String;
+	public var name(get,never) : String;
 
 	/**
 		The inner PCDATA or CDATA of the node.
@@ -127,12 +102,12 @@ class Fast {
 		An exception is thrown if there is no data or if there not only data
 		but also other nodes.
 	**/
-	public var innerData(get,null) : String;
+	public var innerData(get,never) : String;
 
 	/**
 		The XML string built with all the sub nodes, excluding the current one.
 	**/
-	public var innerHTML(get,null) : String;
+	public var innerHTML(get,never) : String;
 
 	/**
 		Access to the first sub element with the given name.
@@ -150,7 +125,8 @@ class Fast {
 		var password = user.node.password;
 		```
 	**/
-	public var node(default,null) : NodeAccess;
+	public var node(get,never) : NodeAccess;
+	inline function get_node() return x;
 
 	/**
 		Access to the List of elements with the given name.
@@ -167,7 +143,8 @@ class Fast {
 		}
 		```
 	**/
-	public var nodes(default,null) : NodeListAccess;
+	public var nodes(get,never) : NodeListAccess;
+	inline function get_nodes() return x;
 
 	/**
 		Access to a given attribute.
@@ -183,12 +160,14 @@ class Fast {
 		}
 		```
 	**/
-	public var att(default,null) : AttribAccess;
+	public var att(get,never) : AttribAccess;
+	inline function get_att() return x;
 
 	/**
 		Check the existence of an attribute with the given name.
 	**/
-	public var has(default,null) : HasAttribAccess;
+	public var has(get,never) : HasAttribAccess;
+	inline function get_has() return x;
 
 	/**
 		Check the existence of a sub node with the given name.
@@ -201,22 +180,18 @@ class Fast {
 		}
 		```
 	**/
-	public var hasNode(default,null) : HasNodeAccess;
+	public var hasNode(get,never) : HasNodeAccess;
+	inline function get_hasNode() return x;
 
 	/**
 		The list of all sub-elements which are the nodes with type `Xml.Element`.
 	**/
-	public var elements(get,null) : Iterator<Fast>;
+	public var elements(get,never) : Iterator<Fast>;
 
 	public function new( x : Xml ) {
 		if( x.nodeType != Xml.Document && x.nodeType != Xml.Element )
 			throw "Invalid nodeType "+x.nodeType;
 		this.x = x;
-		node = new NodeAccess(x);
-		nodes = new NodeListAccess(x);
-		att = new AttribAccess(x);
-		has = new HasAttribAccess(x);
-		hasNode = new HasNodeAccess(x);
 	}
 
 	function get_name() {

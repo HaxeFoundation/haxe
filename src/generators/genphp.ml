@@ -126,20 +126,17 @@ and type_string_suff suffix haxe_type =
 	| TAbstract ({ a_path = [],"Float" },[]) -> "double"
 	| TAbstract ({ a_path = [],"Bool" },[]) -> "bool"
 	| TAbstract ({ a_path = [],"Void" },[]) -> "Void"
+	| TAbstract ({ a_path = [],"Null"},[t]) ->
+		(match follow t with
+		| TInst ({ cl_path = [],"Int" },_)
+		| TInst ({ cl_path = [],"Float" },_)
+		| TEnum ({ e_path = [],"Bool" },_) -> "Dynamic"
+		| _ -> type_string_suff suffix t)
 	| TEnum (enum,params) ->  (join_class_path enum.e_path "::") ^ suffix
 	| TInst (klass,params) ->  (class_string klass suffix params)
 	| TAbstract (abs,params) ->  (join_class_path abs.a_path "::") ^ suffix
 	| TType (type_def,params) ->
 		(match type_def.t_path with
-		| [] , "Null" ->
-			(match params with
-			| [t] ->
-				(match follow t with
-				| TInst ({ cl_path = [],"Int" },_)
-				| TInst ({ cl_path = [],"Float" },_)
-				| TEnum ({ e_path = [],"Bool" },_) -> "Dynamic"
-				| _ -> type_string_suff suffix t)
-			| _ -> assert false);
 		| [] , "Array" ->
 			(match params with
 			| [t] -> "Array<" ^ (type_string (follow t) ) ^ " >"
@@ -225,8 +222,7 @@ let rec is_string_type t =
 let is_string_expr e = is_string_type e.etype
 
 let to_string ctx e =
-	let v = alloc_var "__call__" t_dynamic e.epos in
-	let f = mk (TLocal v) t_dynamic e.epos in
+	let f = mk (TIdent "__call__") t_dynamic e.epos in
 	mk (TCall (f, [ ExprBuilder.make_string ctx.com "_hx_string_rec" e.epos; e; ExprBuilder.make_string ctx.com "" e.epos])) ctx.com.basic.tstring e.epos
 
 let as_string_expr ctx e =
@@ -238,8 +234,7 @@ let as_string_expr ctx e =
 	| _ -> e
 (* for known String type that could have null value *)
 let to_string_null ctx e =
-	let v = alloc_var "__call__" t_dynamic e.epos in
-	let f = mk (TLocal v) t_dynamic e.epos in
+	let f = mk (TIdent "__call__") t_dynamic e.epos in
 	mk (TCall (f, [ ExprBuilder.make_string ctx.com "_hx_string_or_null" e.epos; e])) ctx.com.basic.tstring e.epos
 
 
@@ -575,54 +570,54 @@ and gen_call ctx e el =
 		spr ctx ", ";
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")";
-	| TLocal { v_name = "__set__" }, { eexpr = TConst (TString code) } :: el ->
+	| TIdent "__set__", { eexpr = TConst (TString code) } :: el ->
 		print ctx "$%s" code;
 		genargs el;
-	| TLocal { v_name = "__set__" }, e :: el ->
+	| TIdent "__set__", e :: el ->
 		gen_value ctx e;
 		genargs el;
-	| TLocal { v_name = "__setfield__" }, e :: (f :: el) ->
+	| TIdent "__setfield__", e :: (f :: el) ->
 		gen_value ctx e;
 		spr ctx "->{";
 		gen_value ctx f;
 		spr ctx "}";
 		genargs el;
-	| TLocal { v_name = "__field__" }, e :: ({ eexpr = TConst (TString code) } :: el) ->
+	| TIdent "__field__", e :: ({ eexpr = TConst (TString code) } :: el) ->
 		gen_value ctx e;
 		spr ctx "->";
 		spr ctx code;
 		gen_array_args ctx el;
-	| TLocal { v_name = "__field__" }, e :: (f :: el) ->
+	| TIdent "__field__", e :: (f :: el) ->
 		gen_value ctx e;
 		spr ctx "->";
 		gen_value ctx f;
 		gen_array_args ctx el;
-	| TLocal { v_name = "__prefix__" }, [] ->
+	| TIdent "__prefix__", [] ->
 		(match ctx.com.php_prefix with
 		| Some prefix ->
 			print ctx "\"%s\"" prefix
 		| None ->
 			spr ctx "null")
-	| TLocal { v_name = "__var__" }, { eexpr = TConst (TString code) } :: el ->
+	| TIdent "__var__", { eexpr = TConst (TString code) } :: el ->
 		print ctx "$%s" code;
 		gen_array_args ctx el;
-	| TLocal { v_name = "__var__" }, e :: el ->
+	| TIdent "__var__", e :: el ->
 		gen_value ctx e;
 		gen_array_args ctx el;
-	| TLocal { v_name = "__call__" }, { eexpr = TConst (TString code) } :: el ->
+	| TIdent "__call__", { eexpr = TConst (TString code) } :: el ->
 		spr ctx code;
 		spr ctx "(";
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")";
-	| TLocal { v_name = "__php__" }, [{ eexpr = TConst (TString code) }] ->
+	| TIdent "__php__", [{ eexpr = TConst (TString code) }] ->
 		(*--php-prefix*)
 		spr ctx (prefix_init_replace ctx.com code)
-	| TLocal { v_name = "__php__" }, { eexpr = TConst (TString code); epos = p } :: tl ->
+	| TIdent "__php__", { eexpr = TConst (TString code); epos = p } :: tl ->
 		Codegen.interpolate_code ctx.com code tl (spr ctx) (gen_expr ctx) p
-	| TLocal { v_name = "__instanceof__" },  [e1;{ eexpr = TConst (TString t) }] ->
+	| TIdent "__instanceof__",  [e1;{ eexpr = TConst (TString t) }] ->
 		gen_value ctx e1;
 		print ctx " instanceof %s" t;
-	| TLocal { v_name = "__physeq__" },  [e1;e2] ->
+	| TIdent "__physeq__",  [e1;e2] ->
 		spr ctx "(";
 		gen_value ctx e1;
 		spr ctx " === ";
@@ -1316,6 +1311,11 @@ and gen_expr ctx e =
 		gen_value ctx e1;
 		spr ctx ")";
 		print ctx "->params[%d]" i;
+	| TEnumIndex e1 ->
+		spr ctx "_hx_deref(";
+		gen_value ctx e1;
+		spr ctx ")";
+		print ctx "->index";
 	| TField (e1,s) ->
 		gen_tfield ctx e e1 s
 	| TTypeExpr t ->
@@ -1714,6 +1714,8 @@ and gen_expr ctx e =
 		spr ctx ", ";
 		gen_expr ctx (mk (TTypeExpr t) (mk_texpr t) e1.epos);
 		spr ctx ")"
+	| TIdent s ->
+		spr ctx s
 
 and argument_list_from_locals include_this in_var l =
 	let lst = ref [] in
@@ -1804,6 +1806,7 @@ and gen_value ctx e =
 	| TArray _
 	| TBinop _
 	| TEnumParameter _
+	| TEnumIndex _
 	| TField _
 	| TParenthesis _
 	| TObjectDecl _
@@ -1811,7 +1814,8 @@ and gen_value ctx e =
 	| TCall _
 	| TUnop _
 	| TNew _
-	| TFunction _ ->
+	| TFunction _
+	| TIdent _ ->
 		gen_expr ctx e
 	| TMeta (_,e1) ->
 		gen_value ctx e1
@@ -1901,7 +1905,7 @@ let gen_assigned_value ctx eo =	match eo with
 		()
 
 let generate_field ctx static f =
-	if not (is_extern_field f) then
+	if is_physical_field f then
 		newline ctx;
 	ctx.locals <- PMap.empty;
 	ctx.inv_locals <- PMap.empty;
@@ -1920,7 +1924,7 @@ let generate_field ctx static f =
 		else
 			gen_function ctx (s_ident f.cf_name) fd f.cf_params p
 	| _ ->
-		if (is_extern_field f) then
+		if not (is_physical_field f) then
 			()
 		else if ctx.curclass.cl_interface then
 			match follow f.cf_type, f.cf_kind with
@@ -2009,7 +2013,7 @@ let generate_static_field_assign ctx path f =
 					print ctx "%s::$%s = " (s_path ctx path false p) (s_ident f.cf_name);
 					gen_value ctx e
 				| _ -> ())
-			| _ when is_extern_field f ->
+			| _ when not (is_physical_field f) ->
 				()
 			| _ ->
 				newline ctx;

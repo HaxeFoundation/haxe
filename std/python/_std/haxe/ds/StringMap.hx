@@ -57,6 +57,12 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 	public function iterator() : Iterator<T> {
 		return h.values().iter();
 	}
+	
+	public function copy() : StringMap<T> {
+		var copied = new StringMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	public function toString() : String {
 

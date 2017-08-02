@@ -1,17 +1,19 @@
 package issues;
 
+import TestJs.use;
+
 class Issue5745 {
 	@:js('
 		var fn = "filename";
 		var v = cat(fn);
 		runProgram.apply(undefined, ["rm",fn]);
-		console.log(v);
+		TestJs["use"](v);
 	')
     static function test() {
         var fn = 'filename';
         var v = Shell.cat(fn);
         Shell.runProgram(['rm', fn]);
-        trace(v);
+        use(v);
     }
 }
 

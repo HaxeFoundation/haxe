@@ -243,7 +243,16 @@ let parse_file_from_lexbuf com file p lexbuf =
 	let t = Common.timer ["parsing"] in
 	Lexer.init file true;
 	incr stats.s_files_parsed;
-	let data = (try Parser.parse com lexbuf with e -> t(); raise e) in
+	let data = try
+		Parser.parse com lexbuf
+	with
+		| Sedlexing.MalFormed ->
+			t();
+			error "Malformed file. Source files must be encoded with UTF-8." {pfile = file; pmin = 0; pmax = 0}
+		| e ->
+			t();
+			raise e
+	in
 	begin match !display_default with
 		| DMModuleSymbols filter when filter <> None || Display.is_display_file file ->
 			let ds = Display.DocumentSymbols.collect_module_symbols data in
@@ -1769,7 +1778,7 @@ let check_global_metadata ctx meta f_add mpath tpath so =
 		let add = ((field_mode && to_fields) || (not field_mode && to_types)) && (match_path recursive sl1 sl2) in
 		if add then f_add m
 	) ctx.g.global_metadata;
-	if ctx.is_display_file then Display.DisplayEmitter.check_display_metadata ctx meta
+	if ctx.is_display_file then delay ctx PCheckConstraint (fun () -> Display.DisplayEmitter.check_display_metadata ctx meta)
 
 let patch_class ctx c fields =
 	let path = match c.cl_kind with
@@ -2219,7 +2228,7 @@ module ClassInitializer = struct
 							display_error ctx "Extern non-inline variables may not be initialized" p;
 							e
 						end else require_constant_expression e "Extern variable initialization must be a constant value"
-					| Var v when is_extern_field cf ->
+					| Var v when not (is_physical_field cf) ->
 						(* disallow initialization of non-physical fields (issue #1958) *)
 						display_error ctx "This field cannot be initialized because it is not a real variable" p; e
 					| Var v when not fctx.is_static ->
@@ -2577,7 +2586,8 @@ module ClassInitializer = struct
 			end;
 			t
 		) "type_fun" in
-		if fctx.do_bind then bind_type (ctx,cctx,fctx) cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos);
+		if fctx.do_bind then bind_type (ctx,cctx,fctx) cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
+		else if fctx.is_display_field then Display.DisplayEmitter.maybe_display_field ctx (cf.cf_name_pos) cf;
 		cf
 
 	let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
@@ -2942,7 +2952,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 	in
 	let check_path_display path p = match ctx.com.display.dms_kind with
 		(* We cannot use ctx.is_display_file because the import could come from an import.hx file. *)
-		| DMDiagnostics b when (b && not (ExtString.String.ends_with p.pfile "import.hx")) || Display.is_display_file p.pfile ->
+		| DMDiagnostics b when (b || Display.is_display_file p.pfile) && not (ExtString.String.ends_with p.pfile "import.hx") ->
 			Display.ImportHandling.add_import_position ctx.com p path;
 		| DMStatistics | DMUsage _ ->
 			Display.ImportHandling.add_import_position ctx.com p path;
@@ -3683,90 +3693,8 @@ let load_module ctx m p =
 ;;
 type_function_params_rec := type_function_params
 
-(* former codegen.ml stuff starting here *)
-
 (* -------------------------------------------------------------------------- *)
-(* REMOTING PROXYS *)
-
-let extend_remoting ctx c t p async prot =
-	if c.cl_super <> None then error "Cannot extend several classes" p;
-	(* remove forbidden packages *)
-	let rules = ctx.com.package_rules in
-	ctx.com.package_rules <- PMap.foldi (fun key r acc -> match r with Forbidden -> acc | _ -> PMap.add key r acc) rules PMap.empty;
-	(* parse module *)
-	let path = (t.tpackage,t.tname) in
-	let new_name = (if async then "Async_" else "Remoting_") ^ t.tname in
-	(* check if the proxy already exists *)
-	let t = (try
-		load_type_def ctx p { tpackage = fst path; tname = new_name; tparams = []; tsub = None }
-	with
-		Error (Module_not_found _,p2) when p == p2 ->
-	(* build it *)
-	Common.log ctx.com ("Building proxy for " ^ s_type_path path);
-	let file, decls = (try
-		parse_module ctx path p
-	with
-		| Not_found -> ctx.com.package_rules <- rules; error ("Could not load proxy module " ^ s_type_path path ^ (if fst path = [] then " (try using absolute path)" else "")) p
-		| e -> ctx.com.package_rules <- rules; raise e) in
-	ctx.com.package_rules <- rules;
-	let base_fields = [
-		{ cff_name = "__cnx",null_pos; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = []; cff_kind = FVar (Some (CTPath { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = []; tsub = None },null_pos),None) };
-		{ cff_name = "new",null_pos; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = [APublic]; cff_kind = FFun { f_args = [("c",null_pos),false,[],None,None]; f_type = None; f_expr = Some (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p); f_params = [] } };
-	] in
-	let tvoid = CTPath { tpackage = []; tname = "Void"; tparams = []; tsub = None } in
-	let build_field is_public acc f =
-		if fst f.cff_name = "new" then
-			acc
-		else match f.cff_kind with
-		| FFun fd when (is_public || List.mem APublic f.cff_access) && not (List.mem AStatic f.cff_access) ->
-			if List.exists (fun (_,_,_,t,_) -> t = None) fd.f_args then error ("Field " ^ fst f.cff_name ^ " type is not complete and cannot be used by RemotingProxy") p;
-			let eargs = [EArrayDecl (List.map (fun ((a,_),_,_,_,_) -> (EConst (Ident a),p)) fd.f_args),p] in
-			let ftype = (match fd.f_type with Some (CTPath { tpackage = []; tname = "Void" },_) -> None | _ -> fd.f_type) in
-			let fargs, eargs = if async then match ftype with
-				| Some (tret,_) -> fd.f_args @ [("__callb",null_pos),true,[],Some (CTFunction ([tret,null_pos],(tvoid,null_pos)),null_pos),None], eargs @ [EConst (Ident "__callb"),p]
-				| _ -> fd.f_args, eargs @ [EConst (Ident "null"),p]
-			else
-				fd.f_args, eargs
-			in
-			let id = (EConst (String (fst f.cff_name)), p) in
-			let id = if prot then id else ECall ((EConst (Ident "__unprotect__"),p),[id]),p in
-			let expr = ECall (
-				(EField (
-					(ECall ((EField ((EConst (Ident "__cnx"),p),"resolve"),p),[id]),p),
-					"call")
-				,p),eargs),p
-			in
-			let expr = if async || ftype = None then expr else (EReturn (Some expr),p) in
-			let fd = {
-				f_params = fd.f_params;
-				f_args = fargs;
-				f_type = if async then None else ftype;
-				f_expr = Some (EBlock [expr],p);
-			} in
-			{ cff_name = f.cff_name; cff_pos = f.cff_pos; cff_doc = None; cff_meta = []; cff_access = [APublic]; cff_kind = FFun fd } :: acc
-		| _ -> acc
-	in
-	let decls = List.map (fun d ->
-		match d with
-		| EClass c, p when fst c.d_name = t.tname ->
-			let is_public = List.mem HExtern c.d_flags || List.mem HInterface c.d_flags in
-			let fields = List.rev (List.fold_left (build_field is_public) base_fields c.d_data) in
-			(EClass { c with d_flags = []; d_name = new_name,pos c.d_name; d_data = fields },p)
-		| _ -> d
-	) decls in
-	let m = type_module ctx (t.tpackage,new_name) file decls p in
-	add_dependency ctx.m.curmod m;
-	try
-		List.find (fun tdecl -> snd (t_path tdecl) = new_name) m.m_types
-	with Not_found ->
-		error ("Module " ^ s_type_path path ^ " does not define type " ^ t.tname) p
-	) in
-	match t with
-	| TClassDecl c2 when c2.cl_params = [] -> ignore(c2.cl_build()); c.cl_super <- Some (c2,[]);
-	| _ -> error "Remoting proxy must be a class without parameters" p
-
-(* -------------------------------------------------------------------------- *)
-(* HAXE.RTTI.GENERIC *)
+(* generic classes *)
 
 exception Generic_Exception of string * pos
 
@@ -4045,57 +3973,6 @@ let rec build_generic ctx c p tl =
 	end
 
 (* -------------------------------------------------------------------------- *)
-(* HAXE.XML.PROXY *)
-
-let extend_xml_proxy ctx c t file p =
-	let t = load_complex_type ctx false p (t,p) in
-	let file = (try Common.find_file ctx.com file with Not_found -> file) in
-	add_dependency c.cl_module (create_fake_module ctx file);
-	let used = ref PMap.empty in
-	let print_results() =
-		PMap.iter (fun id used ->
-			if not used then ctx.com.warning (id ^ " is not used") p;
-		) (!used)
-	in
-	let check_used = Common.defined ctx.com Define.CheckXmlProxy in
-	if check_used then ctx.g.hook_generate <- print_results :: ctx.g.hook_generate;
-	try
-		let rec loop = function
-			| Xml.Element (_,attrs,childs) ->
-				(try
-					let id = List.assoc "id" attrs in
-					if PMap.mem id c.cl_fields then error ("Duplicate id " ^ id) p;
-					let t = if not check_used then t else begin
-						used := PMap.add id false (!used);
-						let ft() = used := PMap.add id true (!used); t in
-						TLazy (ref ft)
-					end in
-					let f = {
-						cf_name = id;
-						cf_type = t;
-						cf_public = true;
-						cf_pos = p;
-						cf_name_pos = null_pos;
-						cf_doc = None;
-						cf_meta = no_meta;
-						cf_kind = Var { v_read = AccResolve; v_write = AccNo };
-						cf_params = [];
-						cf_expr = None;
-						cf_expr_unoptimized = None;
-						cf_overloads = [];
-					} in
-					c.cl_fields <- PMap.add id f c.cl_fields;
-				with
-					Not_found -> ());
-				List.iter loop childs;
-			| Xml.PCData _ -> ()
-		in
-		loop (Xml.parse_file file)
-	with
-		| Xml.Error e -> error ("XML error " ^ Xml.error e) p
-		| Xml.File_not_found f -> error ("XML File not found : " ^ f) p
-
-(* -------------------------------------------------------------------------- *)
 (* MACRO TYPE *)
 
 let get_macro_path ctx e args p =
@@ -4191,19 +4068,3 @@ let build_instance ctx mtype p =
 		t.t_params , t.t_path , (fun tl -> TType(t,tl))
 	| TAbstractDecl a ->
 		a.a_params, a.a_path, (fun tl -> TAbstract(a,tl))
-
-let on_inherit ctx c p (is_extends,tp) =
-	if not is_extends then
-		true
-	else match fst tp with
-	| { tpackage = ["haxe";"remoting"]; tname = "Proxy"; tparams = [TPType(CTPath t,null_pos)] } ->
-		extend_remoting ctx c t p false true;
-		false
-	| { tpackage = ["haxe";"remoting"]; tname = "AsyncProxy"; tparams = [TPType(CTPath t,null_pos)] } ->
-		extend_remoting ctx c t p true true;
-		false
-	| { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPExpr(EConst (String file),p);TPType (t,_)] } ->
-		extend_xml_proxy ctx c t file p;
-		true
-	| _ ->
-		true

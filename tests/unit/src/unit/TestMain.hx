@@ -87,7 +87,8 @@ class TestMain {
 			#if (java || cs)
 			new TestOverloads(),
 			#end
-			new TestInterface()
+			new TestInterface(),
+			new TestNaN(),
 			// #if ((dce == "full") && !interp && !as3)
 			// new TestDCE(),
 			// #end

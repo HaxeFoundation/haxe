@@ -80,6 +80,12 @@ class UnsafeStringMap<T> implements haxe.Constraints.IMap<String,T> {
 	}
 
 	#end
+	
+	public function copy() : UnsafeStringMap<T> {
+		var copied = new UnsafeStringMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	public function toString() : String {
 		var s = new StringBuf();

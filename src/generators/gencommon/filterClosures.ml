@@ -49,7 +49,7 @@ let configure gen (should_change:texpr->string->bool) (filter:texpr->texpr->stri
 				(match clos with
 					| Some (clos, e1, s) -> { e with eexpr = TCall({ clos with eexpr = TClosure(run e1, s) }, List.map run args ) }
 					| None -> Type.map_expr run e)*)
-				| TCall({ eexpr = TLocal{ v_name = "__delegate__" } } as local, [del]) ->
+				| TCall({ eexpr = TIdent "__delegate__" } as local, [del]) ->
 					{ e with eexpr = TCall(local, [Type.map_expr run del]) }
 				| TCall(({ eexpr = TField(_, _) } as ef), params) ->
 					{ e with eexpr = TCall(Type.map_expr run ef, List.map run params) }

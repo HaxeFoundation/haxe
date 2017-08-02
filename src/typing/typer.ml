@@ -67,7 +67,7 @@ let mk_infos ctx p params =
 
 let check_assign ctx e =
 	match e.eexpr with
-	| TLocal {v_extra = None} | TArray _ | TField _ ->
+	| TLocal {v_extra = None} | TArray _ | TField _ | TIdent _ ->
 		()
 	| TConst TThis | TTypeExpr _ when ctx.untyped ->
 		()
@@ -175,6 +175,8 @@ let rec is_pos_infos = function
 		true
 	| TType (t,tl) ->
 		is_pos_infos (apply_params t.t_params tl t.t_type)
+	| TAbstract({a_path=[],"Null"},[t]) ->
+		is_pos_infos t
 	| _ ->
 		false
 
@@ -332,34 +334,6 @@ let prepare_using_field cf = match follow cf.cf_type with
 		in
 		{cf with cf_overloads = loop [] cf.cf_overloads; cf_type = TFun(args,ret)}
 	| _ -> cf
-
-let eval ctx s =
-	let p = { pfile = "--eval"; pmin = 0; pmax = String.length s; } in
-	let pack,decls = Parser.parse_string ctx.com s p error false in
-	let rec find_main current decls = match decls with
-		| (EClass c,_) :: decls ->
-			let path = pack,fst c.d_name in
-			begin try
-				let cff = List.find (fun cff -> fst cff.cff_name = "main") c.d_data in
-				if ctx.com.main_class <> None then error "Multiple main" cff.cff_pos;
-				ctx.com.main_class <- Some path;
-				Some path
-			with Not_found ->
-				find_main (if current = None then Some path else current) decls
-			end
-		| ((EEnum {d_name = (s,_)} | ETypedef {d_name = (s,_)} | EAbstract {d_name = (s,_)}),_) :: decls when current = None ->
-			find_main (Some (pack,s)) decls
-		| _ :: decls ->
-			find_main current decls
-		| [] ->
-			current
-	in
-	let path_module = match find_main None decls with
-		| None -> error "Evaluated string did not define any types" p
-		| Some path -> path
-	in
-	ignore(Typeload.type_module ctx path_module "eval" decls p);
-	flush_pass ctx PBuildClass "eval"
 
 let merge_core_doc ctx c =
 	let c_core = Typeload.load_core_class ctx c in
@@ -1073,6 +1047,8 @@ let field_access ctx mode f fmode t e p =
 				AKExpr (mk (TField (e,FClosure (None,f))) t p)
 			else
 				normal()
+		| AccCall when ctx.in_display ->
+			normal()
 		| AccCall ->
 			let m = (match mode with MSet -> "set_" | _ -> "get_") ^ f.cf_name in
 			let is_abstract_this_access () = match e.eexpr,ctx.curfun with
@@ -1081,9 +1057,9 @@ let field_access ctx mode f fmode t e p =
 				| _ ->
 					false
 			in
-			if m = ctx.curfield.cf_name && (match e.eexpr with TConst TThis -> true | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
+			if m = ctx.curfield.cf_name && (match e.eexpr with TConst TThis -> true | TLocal v -> Option.map_default (fun vthis -> v == vthis) false ctx.vthis | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
 				let prefix = (match ctx.com.platform with Flash when Common.defined ctx.com Define.As3 -> "$" | _ -> "") in
-				if is_extern_field f then begin
+				if not (is_physical_field f) then begin
 					display_error ctx "This field cannot be accessed because it is not a real variable" p;
 					display_error ctx "Add @:isVar here to enable it" f.cf_pos;
 				end;
@@ -1423,6 +1399,7 @@ and type_field ?(resume=false) ctx e i p mode =
 	| TAnon a ->
 		(try
 			let f = PMap.find i a.a_fields in
+			if Meta.has Meta.Impl f.cf_meta && not (Meta.has Meta.Enum f.cf_meta) then display_error ctx "Cannot access non-static abstract field statically" p;
 			if not f.cf_public && not ctx.untyped then begin
 				match !(a.a_status) with
 				| Closed | Extend _ -> () (* always allow anon private fields access *)
@@ -2446,8 +2423,7 @@ and type_ident ctx i p mode =
 				AKExpr (mk (TConst TThis) ctx.tthis p)
 			else
 				let t = mk_mono() in
-				let v = alloc_unbound_var i t p in
-				AKExpr (mk (TLocal v) t p)
+				AKExpr ((mk (TIdent i)) t p)
 		end else begin
 			if ctx.curfun = FunStatic && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
 			begin try
@@ -2470,11 +2446,11 @@ and type_ident ctx i p mode =
 					| DMDiagnostics b when b || ctx.is_display_file ->
 						Display.ToplevelCollector.handle_unresolved_identifier ctx i p false;
 						let t = mk_mono() in
-						AKExpr (mk (TLocal (add_unbound_local ctx i t p)) t p)
+						AKExpr (mk (TIdent i) t p)
 					| _ ->
 						display_error ctx (error_msg err) p;
 						let t = mk_mono() in
-						AKExpr (mk (TLocal (add_unbound_local ctx i t p)) t p)
+						AKExpr (mk (TIdent i) t p)
 			end
 		end
 
@@ -2702,7 +2678,7 @@ and type_vars ctx vl p =
 		with
 			Error (e,p) ->
 				check_error ctx e p;
-				add_unbound_local ctx v t_dynamic pv, None
+				add_local ctx v t_dynamic pv, None (* TODO: What to do with this... *)
 	) vl in
 	match vl with
 	| [v,eo] ->
@@ -2926,7 +2902,7 @@ and type_object_decl ctx fl with_type p =
 		mk (TObjectDecl (List.rev fields)) (TAnon { a_fields = types; a_status = x }) p
 	| ODKWithStructure a ->
 		let t, fl = type_fields a.a_fields in
-		if !(a.a_status) <> Const then a.a_status := Closed;
+		if !(a.a_status) = Opened then a.a_status := Closed;
 		mk (TObjectDecl fl) t p
 	| ODKWithClass (c,tl) ->
 		let t,ctor = get_constructor ctx c tl p in
@@ -3502,18 +3478,25 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				unify ctx v ctx.ret p;
 				mk (TReturn None) t_dynamic p
 			| Some e ->
-				let e = type_expr ctx e (WithType ctx.ret) in
-				let e = AbstractCast.cast_or_unify ctx ctx.ret e p in
-				begin match follow e.etype with
-				| TAbstract({a_path=[],"Void"},_) ->
-					(* if we get a Void expression (e.g. from inlining) we don't want to return it (issue #4323) *)
-					mk (TBlock [
-						e;
-						mk (TReturn None) t_dynamic p
-					]) t_dynamic e.epos;
-				| _ ->
-					mk (TReturn (Some e)) t_dynamic p
-				end
+				try
+					let e = type_expr ctx e (WithType ctx.ret) in
+					let e = AbstractCast.cast_or_unify ctx ctx.ret e p in
+					begin match follow e.etype with
+					| TAbstract({a_path=[],"Void"},_) ->
+						(* if we get a Void expression (e.g. from inlining) we don't want to return it (issue #4323) *)
+						mk (TBlock [
+							e;
+							mk (TReturn None) t_dynamic p
+						]) t_dynamic e.epos;
+					| _ ->
+						mk (TReturn (Some e)) t_dynamic p
+					end
+				with Error(err,p) ->
+					check_error ctx err p;
+					(* If we have a bad return, let's generate a return null expression at least. This surpresses various
+					   follow-up errors that come from the fact that the function no longer has a return expression (issue #6445). *)
+					let e_null = mk (TConst TNull) (mk_mono()) p in
+					mk (TReturn (Some e_null)) t_dynamic p
 		end
 	| EBreak ->
 		if not ctx.in_loop then display_error ctx "Break outside loop" p;
@@ -3962,7 +3945,7 @@ and display_expr ctx e_ast e with_type p =
 				let acc = ref (loop acc l) in
 				let rec dup t = Type.map dup t in
 				List.iter (fun f ->
-					if not (Meta.has Meta.NoUsing f.cf_meta) then
+					if not (Meta.has Meta.NoUsing f.cf_meta) && not (Meta.has Meta.Impl f.cf_meta) then
 					let f = { f with cf_type = opt_type f.cf_type } in
 					let monos = List.map (fun _ -> mk_mono()) f.cf_params in
 					let map = apply_params f.cf_params monos in
@@ -4086,8 +4069,8 @@ and type_call ctx e el (with_type:with_type) p =
 				| _ ->
 					e
 			in
-			let v_trace = alloc_unbound_var "`trace" t_dynamic p in
-			mk (TCall (mk (TLocal v_trace) t_dynamic p,[e;infos])) ctx.t.tvoid p
+			let e_trace = mk (TIdent "`trace") t_dynamic p in
+			mk (TCall (e_trace,[e;infos])) ctx.t.tvoid p
 		else
 			type_expr ctx (ECall ((EField ((EField ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[mk_to_string_meta e;infos]),p) NoValue
 	| (EField ((EConst (Ident "super"),_),_),_), _ ->
@@ -4116,8 +4099,8 @@ and type_call ctx e el (with_type:with_type) p =
 		let e = type_expr ctx e Value in
 		if Common.platform ctx.com Flash then
 			let t = tfun [e.etype] e.etype in
-			let v_unprotect = alloc_unbound_var "__unprotect__" t p in
-			mk (TCall (mk (TLocal v_unprotect) t p,[e])) e.etype e.epos
+			let e_unprotect = mk (TIdent "__unprotect__") t p in
+			mk (TCall (e_unprotect,[e])) e.etype e.epos
 		else
 			e
 	| (EDisplay((EConst (Ident "super"),_ as e1),false),_),_ ->
@@ -4460,7 +4443,7 @@ let rec create com =
 			get_build_infos = (fun() -> None);
 			std = null_module;
 			global_using = [];
-			do_inherit = Typeload.on_inherit;
+			do_inherit = MagicTypes.on_inherit;
 			do_create = create;
 			do_macro = MacroContext.type_macro;
 			do_load_module = Typeload.load_module;
@@ -4517,29 +4500,24 @@ let rec create com =
 			| "Int" -> ctx.t.tint <- TAbstract (a,[])
 			| "Bool" -> ctx.t.tbool <- TAbstract (a,[])
 			| "Dynamic" -> t_dynamic_def := TAbstract(a,List.map snd a.a_params);
-			| _ -> ());
-		| TEnumDecl e ->
-			()
-		| TClassDecl c ->
-			()
-		| TTypeDecl td ->
-			(match snd td.t_path with
 			| "Null" ->
 				let mk_null t =
 					try
-						if not (is_null ~no_lazy:true t) then TType (td,[t]) else t
+						if not (is_null ~no_lazy:true t) then TAbstract (a,[t]) else t
 					with Exit ->
 						(* don't force lazy evaluation *)
 						let r = ref (fun() -> assert false) in
 						r := (fun() ->
-							let t = (if not (is_null t) then TType (td,[t]) else t) in
+							let t = (if not (is_null t) then TAbstract (a,[t]) else t) in
 							r := (fun() -> t);
 							t
 						);
 						TLazy r
 				in
 				ctx.t.tnull <- mk_null;
-			| _ -> ());
+			| _ -> ())
+		| TEnumDecl _ | TClassDecl _ | TTypeDecl _ ->
+			()
 	) ctx.g.std.m_types;
 	let m = Typeload.load_module ctx ([],"String") null_pos in
 	(match m.m_types with

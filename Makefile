@@ -10,10 +10,10 @@
 #
 .SUFFIXES : .ml .mli .cmo .cmi .cmx .mly
 
-INSTALL_DIR=$(DESTDIR)/usr
+INSTALL_DIR=$(DESTDIR)/usr/local
 INSTALL_BIN_DIR=$(INSTALL_DIR)/bin
 INSTALL_LIB_DIR=$(INSTALL_DIR)/lib/haxe
-INSTALL_STD_DIR=$(INSTALL_LIB_DIR)/std
+INSTALL_STD_DIR=$(INSTALL_DIR)/share/haxe/std
 PACKAGE_OUT_DIR=out
 PACKAGE_SRC_EXTENSION=.tar.gz
 
@@ -27,9 +27,9 @@ STATICLINK?=0
 
 # Configuration
 
-HAXE_DIRECTORIES=compiler context generators generators/gencommon macro filters optimization syntax typing display
+HAXE_DIRECTORIES=compiler context generators generators/gencommon macro filters macro/eval optimization syntax typing display
 EXTLIB_LIBS=extlib-leftovers extc neko javalib swflib ttflib ilib objsize pcre ziplib
-FINDLIB_LIBS=unix str threads sedlex xml-light extlib rope ptmap
+FINDLIB_LIBS=unix str threads sedlex xml-light extlib rope ptmap dynlink
 
 # Includes, packages and compiler
 
@@ -104,6 +104,7 @@ libs:
 	$(foreach lib,$(EXTLIB_LIBS),$(MAKE) -C libs/$(lib) $(TARGET_FLAG) &&) true
 
 _build/%:%
+	mkdir -p $(dir $@)
 	cp $< $@
 
 build_dirs:
@@ -112,14 +113,14 @@ build_dirs:
 _build/src/syntax/parser.ml:src/syntax/parser.mly
 	camlp4o -impl $< -o $@
 
-_build/src/compiler/version.ml:
+_build/src/compiler/version.ml: FORCE
 ifneq ($(ADD_REVISION),0)
 	$(MAKE) -f Makefile.version_extra -s --no-print-directory ADD_REVISION=$(ADD_REVISION) BRANCH=$(BRANCH) COMMIT_SHA=$(COMMIT_SHA) COMMIT_DATE=$(COMMIT_DATE) > _build/src/compiler/version.ml
 else
 	echo let version_extra = None > _build/src/compiler/version.ml
 endif
 
-build_src:build_dirs $(BUILD_SRC) _build/src/syntax/parser.ml _build/src/compiler/version.ml
+build_src: | $(BUILD_SRC) _build/src/syntax/parser.ml _build/src/compiler/version.ml
 
 haxe: build_src
 	$(MAKE) -f $(MAKEFILENAME) build_pass_1
@@ -141,6 +142,13 @@ build_pass_3:
 build_pass_4: $(MODULES:%=%.$(MODULE_EXT))
 	$(COMPILER) -safe-string -linkpkg -o $(OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(FINDLIB_PACKAGES) $(EXTLIB_INCLUDES) $(EXTLIB_LIBS:=.$(LIB_EXT)) $(MODULES:%=%.$(MODULE_EXT))
 
+plugin:
+ifeq ($(BYTECODE),1)
+	$(CC_CMD) $(PLUGIN).ml
+else
+	$(COMPILER) $(ALL_CFLAGS) -shared -o $(PLUGIN).cmxs $(PLUGIN).ml
+endif
+
 # Only use if you have only changed gencpp.ml
 quickcpp: _build/src/generators/gencpp.ml build_pass_4 copy_haxetoolkit
 _build/src/generators/gencpp.ml:src/generators/gencpp.ml
@@ -158,7 +166,8 @@ tools: haxelib
 install: uninstall
 	mkdir -p $(INSTALL_BIN_DIR)
 	mkdir -p $(INSTALL_LIB_DIR)/lib
-	cp -rf std $(INSTALL_STD_DIR)
+	mkdir -p $(INSTALL_STD_DIR)
+	cp -rf std/* $(INSTALL_STD_DIR)
 	cp -rf extra $(INSTALL_LIB_DIR)
 	cp haxe $(INSTALL_LIB_DIR)
 	ln -s $(INSTALL_LIB_DIR)/haxe $(INSTALL_BIN_DIR)/haxe
@@ -219,8 +228,16 @@ install_dox:
 
 package_doc:
 	mkdir -p $(PACKAGE_OUT_DIR)
-	cd $$(haxelib path dox | head -n 1) && haxe run.hxml && haxe gen.hxml
-	haxelib run dox -theme haxe_api -D website "http://haxe.org/" --title "Haxe API" -o $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip -D version "$$(haxe -version 2>&1)" -i $$(haxelib path dox | head -n 1)bin/xml -ex microsoft -ex javax -ex cs.internal -D source-path https://github.com/HaxeFoundation/haxe/blob/$(BRANCH)/std/
+	$(eval OUTFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip)
+	$(eval VERSION := $(shell haxe -version 2>&1))
+	cd $$(haxelib path dox | head -n 1) && \
+		haxe run.hxml && \
+		haxe gen.hxml && \
+		haxe -lib hxtemplo -lib hxparse -lib hxargs -lib markdown \
+		-cp src -dce no --run dox.Dox -theme haxe_api -D website "http://haxe.org/" \
+		--title "Haxe API" -o $(OUTFILE) \
+		-D version "$(VERSION)" -i bin/xml -ex microsoft -ex javax -ex cs.internal \
+		-D source-path https://github.com/HaxeFoundation/haxe/blob/$(BRANCH)/std/
 
 deploy_doc:
 	scp $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip www-haxe@api.haxe.org:/data/haxeapi/www/v/dev/api-latest.zip
@@ -241,6 +258,8 @@ clean_tools:
 
 clean_package:
 	rm -rf $(PACKAGE_OUT_DIR)
+
+FORCE:
 
 # SUFFIXES
 

@@ -31,6 +31,16 @@ for (k in test.keys()) {
 for (k in otherKeys) {
 	eq(false, m.exists(k));
 }
+
+var copied = m.copy();
+copied != m;
+for(k in m.keys()) {
+	eq(test[k], copied.get(k));
+	copied.set(k, copied.get(k) + 1);
+	eq(test[k] + 1, copied.get(k));
+	eq(test[k], m.get(k));
+}
+
 var r = [for (key in m.keys()) key];
 arrEq(r, [1,6,8,11,13,15,17,22,25,27]);
 var r = [for (val in m) val];

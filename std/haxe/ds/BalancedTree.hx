@@ -128,6 +128,12 @@ class BalancedTree<K,V> implements haxe.Constraints.IMap<K,V> {
 		keysLoop(root, ret);
 		return ret.iterator();
 	}
+	
+	public function copy():BalancedTree<K, V> {
+		var copied = new BalancedTree<K, V>();
+		copied.root = root;
+		return copied;
+	}
 
 	function setLoop(k:K, v:V, node:TreeNode<K,V>) {
 		if (node == null) return new TreeNode<K,V>(null, k, v, null);

@@ -56,10 +56,23 @@ let priority = solve_deps name [DAfter DynamicOperators.priority]
 	change_expr (expr) (field_access_expr) (field) (setting expr) (is_unsafe) : changes the expression
 	call_expr (expr) (field_access_expr) (field) (call_params) : changes a call expression
 *)
-let configure gen (is_dynamic:texpr->texpr->Type.tfield_access->bool) (change_expr:texpr->texpr->string->texpr option->bool->texpr) (call_expr:texpr->texpr->string->texpr list->texpr) =
+let configure gen (is_dynamic:texpr->Type.tfield_access->bool) (change_expr:texpr->texpr->string->texpr option->bool->texpr) (call_expr:texpr->texpr->string->texpr list->texpr) =
+	let is_nondynamic_tparam fexpr f = match follow fexpr.etype with
+		| TInst({ cl_kind = KTypeParameter(tl) }, _) ->
+			List.exists (fun t -> not (is_dynamic { fexpr with etype = t } f)) tl
+		| _ -> false
+	in
+
 	let rec run e =
 		match e.eexpr with
 		(* class types *)
+		| TField(fexpr, f) when is_nondynamic_tparam fexpr f ->
+			(match follow fexpr.etype with
+				| TInst({ cl_kind = KTypeParameter(tl) }, _) ->
+					let t = List.find (fun t -> not (is_dynamic { fexpr with etype = t } f)) tl in
+					{ e with eexpr = TField(mk_cast t (run fexpr), f) }
+				| _ -> assert false)
+
 		| TField(fexpr, f) when is_some (anon_class fexpr.etype) ->
 			let decl = get (anon_class fexpr.etype) in
 			let name = field_name f in
@@ -81,7 +94,7 @@ let configure gen (is_dynamic:texpr->texpr->Type.tfield_access->bool) (change_ex
 				| _ ->
 					change_expr e { fexpr with eexpr = TTypeExpr decl } (field_name f) None true)
 
-		| TField (fexpr, f) when is_dynamic e fexpr f ->
+		| TField (fexpr, f) when is_dynamic fexpr f ->
 			change_expr e (run fexpr) (field_name f) None true
 
 		| TCall ({ eexpr = TField (_, FStatic({ cl_path = ([], "Reflect") }, { cf_name = "field" })) }, [obj; { eexpr = TConst (TString field) }]) ->
@@ -94,7 +107,7 @@ let configure gen (is_dynamic:texpr->texpr->Type.tfield_access->bool) (change_ex
 		| TCall ({ eexpr = TField (_, FStatic({ cl_path = ([], "Reflect") }, { cf_name = "setField" } )) }, [obj; { eexpr = TConst(TString field) }; evalue]) ->
 			change_expr (mk_field_access gen obj field obj.epos) (run obj) field (Some (run evalue)) false
 
-		| TBinop (OpAssign, { eexpr = TField(fexpr, f) }, evalue) when is_dynamic e fexpr f ->
+		| TBinop (OpAssign, { eexpr = TField(fexpr, f) }, evalue) when is_dynamic fexpr f ->
 			change_expr e (run fexpr) (field_name f) (Some (run evalue)) true
 
 		| TBinop (OpAssign, { eexpr = TField(fexpr, f) }, evalue) ->
@@ -104,13 +117,13 @@ let configure gen (is_dynamic:texpr->texpr->Type.tfield_access->bool) (change_ex
 			| _ ->
 				Type.map_expr run e)
 
-		| TBinop (OpAssignOp _, { eexpr = TField (fexpr, f) }, _) when is_dynamic e fexpr f ->
+		| TBinop (OpAssignOp _, { eexpr = TField (fexpr, f) }, _) when is_dynamic fexpr f ->
 			assert false (* this case shouldn't happen *)
 		| TUnop (Increment, _, { eexpr = TField (({ eexpr = TLocal _ } as fexpr), f)})
-		| TUnop (Decrement, _, { eexpr = TField (({ eexpr = TLocal _ } as fexpr), f)}) when is_dynamic e fexpr f ->
+		| TUnop (Decrement, _, { eexpr = TField (({ eexpr = TLocal _ } as fexpr), f)}) when is_dynamic fexpr f ->
 			assert false (* this case shouldn't happen *)
 
-		| TCall ({ eexpr = TField (fexpr, f) }, params) when is_dynamic e fexpr f ->
+		| TCall ({ eexpr = TField (fexpr, f) }, params) when is_dynamic fexpr f && (not (is_nondynamic_tparam fexpr f)) ->
 			call_expr e (run fexpr) (field_name f) (List.map run params)
 
 		| _ ->

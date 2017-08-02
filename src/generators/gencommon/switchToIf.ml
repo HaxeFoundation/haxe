@@ -25,105 +25,138 @@ open Gencommon
 (* SwitchToIf *)
 (* ******************************************* *)
 (*
-	Just a syntax filter which changes switch expressions to if() else if() else if() ...
+	A syntax filter which changes switch expressions to if() else if() else if() ...
+
+	Also it handles switches on native enums (which are not converted to classes) by
+	rewriting the switch expression to what's supported directly by the targets.
 *)
 let name = "switch_to_if"
 let priority = solve_deps name []
 
-let rec simplify_expr e = match e.eexpr with
-	| TParenthesis e
-	| TMeta(_,e) -> simplify_expr e
+let rec simplify_expr e =
+	match e.eexpr with
+	| TParenthesis e | TMeta (_, e) -> simplify_expr e
 	| _ -> e
 
 let configure gen (should_convert:texpr->bool) =
 	let basic = gen.gcon.basic in
 	let rec run e =
 		match e.eexpr with
-			| TSwitch(cond,cases,default) when should_convert e ->
-				let cond_etype, should_cache = match gen.gfollow#run_f cond.etype with
-					| TType({ t_path = ([], "Null") }, [t]) ->
-						let rec take_off_nullable t = match gen.gfollow#run_f t with
-							| TType({ t_path = ([], "Null") }, [t]) -> take_off_nullable t
-							| _ -> t
-						in
+		| TSwitch (cond, cases, default) when should_convert e ->
+			let cond_etype, should_cache =
+				match gen.gfollow#run_f cond.etype with
+				| TAbstract ({ a_path = [], "Null" }, [t]) ->
+					let rec take_off_nullable t =
+						match gen.gfollow#run_f t with
+						| TAbstract ({ a_path = [], "Null" }, [t]) -> take_off_nullable t
+						| _ -> t
+					in
+					take_off_nullable t, true
+				| _ ->
+					cond.etype, false
+			in
 
-						take_off_nullable t, true
-					| _ -> cond.etype, false
+			if should_cache && not (should_convert { e with eexpr = TSwitch ({ cond with etype = cond_etype }, cases, default) }) then begin
+				{ e with eexpr = TSwitch (mk_cast cond_etype (run cond), List.map (fun (cs,e) -> (List.map run cs, run e)) cases, Option.map run default) }
+			end else begin
+				let local, fst_block =
+					match cond.eexpr, should_cache with
+					| TLocal _, false ->
+						cond, []
+					| _ ->
+						let var = mk_temp "switch" cond_etype in
+						let cond = run cond in
+						let cond = if should_cache then mk_cast cond_etype cond else cond in
+						mk_local var cond.epos, [ mk (TVar (var,Some cond)) basic.tvoid cond.epos ]
 				in
 
-				if should_cache && not (should_convert { e with eexpr = TSwitch({ cond with etype = cond_etype }, cases, default) }) then begin
-					{ e with eexpr = TSwitch(mk_cast cond_etype (run cond), List.map (fun (cs,e) -> (List.map run cs, run e)) cases, Option.map run default) }
-				end else begin
-					let local, fst_block = match cond.eexpr, should_cache with
-						| TLocal _, false -> cond, []
-						| _ ->
-							let var = mk_temp "switch" cond_etype in
-							let cond = run cond in
-							let cond = if should_cache then mk_cast cond_etype cond else cond in
+				let mk_eq cond =
+					mk (TBinop (Ast.OpEq, local, cond)) basic.tbool cond.epos
+				in
 
-							mk_local var cond.epos, [ { eexpr = TVar(var,Some(cond)); etype = basic.tvoid; epos = cond.epos } ]
-					in
+				let rec mk_many_cond conds =
+					match conds with
+					| cond :: [] ->
+						mk_eq cond
+					| cond :: tl ->
+						mk (TBinop (Ast.OpBoolOr, mk_eq (run cond), mk_many_cond tl)) basic.tbool cond.epos
+					| [] ->
+						assert false
+				in
 
-					let mk_eq cond =
-						{ eexpr = TBinop(Ast.OpEq, local, cond); etype = basic.tbool; epos = cond.epos }
-					in
+				let mk_many_cond conds =
+					let ret = mk_many_cond conds in
+					(*
+						this might be considered a hack. But since we're on a syntax filter and
+						the condition is guaranteed to not have run twice, we can really run the
+						expr filters again for it (to change e.g. OpEq accordingly)
+					*)
+					gen.gexpr_filters#run ret
+				in
 
-					let rec mk_many_cond conds =
-						match conds with
-							| cond :: [] ->
-								mk_eq cond
-							| cond :: tl ->
-								{ eexpr = TBinop(Ast.OpBoolOr, mk_eq (run cond), mk_many_cond tl); etype = basic.tbool; epos = cond.epos }
-							| [] -> assert false
-					in
+				let rec loop cases =
+					match cases with
+					| (conds, e) :: [] ->
+						mk (TIf (mk_many_cond conds, run e, Option.map run default)) e.etype e.epos
+					| (conds, e) :: tl ->
+						mk (TIf (mk_many_cond conds, run e, Some (loop tl))) e.etype e.epos
+					| [] ->
+						match default with
+						| None ->
+							raise Exit
+						| Some d ->
+							run d
+				in
 
-					let mk_many_cond conds =
-						let ret = mk_many_cond conds in
-						(*
-							this might be considered a hack. But since we're on a syntax filter and
-							the condition is guaranteed to not have run twice, we can really run the
-							expr filters again for it (so to change e.g. OpEq accordingly
-						*)
-						gen.gexpr_filters#run ret
-					in
+				try
+					{ e with eexpr = TBlock (fst_block @ [loop cases]) }
+				with Exit ->
+					{ e with eexpr = TBlock [] }
+			end
 
-					let rec loop cases = match cases with
-						| (conds,e) :: [] ->
-							{ eexpr = TIf(mk_many_cond conds, run e, Option.map run default); etype = e.etype; epos = e.epos }
-						| (conds,e) :: tl ->
-							{ eexpr = TIf(mk_many_cond conds, run e, Some(loop tl)); etype = e.etype; epos = e.epos }
-						| [] -> match default with
-							| None ->
-								raise Exit
-							| Some d -> run d
-					in
-
-					try
-						{ e with eexpr = TBlock(fst_block @ [loop cases]) }
-					with | Exit ->
-						{ e with eexpr = TBlock [] }
-				end
-			| TSwitch(cond,cases,default) -> (try
-				match (simplify_expr cond).eexpr with
-					| TCall( { eexpr = TField(_,FStatic({ cl_path = [],"Type" }, { cf_name = "enumIndex" })) }, [enum] ) ->
-						let real_enum = match enum.etype with
-							| TEnum(e,_) -> e
+		(*
+			Convert a switch on a non-class enum (e.g. native enums) to the native switch,
+			effectively chancing `switch enumIndex(e) { case 1: ...; case 2: ...; }` to
+			`switch e { case MyEnum.A: ...; case MyEnum.B: ...; }`, which is supported natively
+			by some target languages like Java and C#.
+		*)
+		| TSwitch (cond, cases, default) ->
+			begin
+				try
+					match (simplify_expr cond).eexpr with
+					| TEnumIndex enum
+					| TCall  ({ eexpr = TField (_, FStatic ({ cl_path = [],"Type" }, { cf_name = "enumIndex" })) }, [enum]) ->
+						let real_enum =
+							match enum.etype with
+							| TEnum (e, _) -> e
 							| _ -> raise Not_found
 						in
-						if Meta.has Meta.Class real_enum.e_meta then raise Not_found;
-						let enum_expr = ExprBuilder.make_typeexpr (TEnumDecl(real_enum)) e.epos in
+						if Meta.has Meta.Class real_enum.e_meta then
+							raise Not_found;
+
 						let fields = Hashtbl.create (List.length real_enum.e_names) in
 						PMap.iter (fun _ ef -> Hashtbl.add fields ef.ef_index ef) real_enum.e_constrs;
-						let cases = List.map (fun (el,e) ->
-							List.map (fun e -> match e.eexpr with
-							| TConst(TInt i) ->
-								let ef = Hashtbl.find fields (Int32.to_int i) in
-								{ e with eexpr = TField(enum_expr, FEnum(real_enum,ef)); etype = TEnum(real_enum,List.map (fun _ -> t_dynamic) real_enum.e_params) }
-							| _ -> raise Not_found) el, run e
+
+						let enum_expr = ExprBuilder.make_typeexpr (TEnumDecl real_enum) e.epos in
+						let cases = List.map (fun (patterns, body) ->
+							let patterns = List.map (fun e ->
+								match e.eexpr with
+								| TConst (TInt i) ->
+									let ef = Hashtbl.find fields (Int32.to_int i) in
+									{ e with eexpr = TField (enum_expr, FEnum (real_enum, ef)); etype = TEnum (real_enum, List.map (fun _ -> t_dynamic) real_enum.e_params) }
+								| _ ->
+									raise Not_found
+							) patterns in
+							let body = run body in
+							patterns, body
 						) cases in
-						{ e with eexpr = TSwitch(enum,cases,Option.map run default) }
-					| _ -> raise Not_found
-				with Not_found -> Type.map_expr run e)
-			| _ -> Type.map_expr run e
+						{ e with eexpr = TSwitch (enum, cases, Option.map run default) }
+					| _ ->
+						raise Not_found
+				with Not_found ->
+					Type.map_expr run e
+			end
+		| _ ->
+			Type.map_expr run e
 	in
 	gen.gsyntax_filters#add name (PCustom priority) run

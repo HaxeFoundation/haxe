@@ -120,6 +120,14 @@ let rec remove_trailing_slash p =
 		| '\\' | '/' -> remove_trailing_slash (String.sub p 0 (l - 1))
 		| _ -> p
 
+let flat_path (p,s) =
+	(* Replace _ with _$ in paths to prevent name collisions. *)
+	let escape str = String.concat "_$" (ExtString.String.nsplit str "_") in
+
+	match p with
+	| [] -> escape s
+	| _ -> String.concat "_" (List.map escape p) ^ "_" ^ (escape s)
+
 open Globals
 
 let find_directories target recursive paths =

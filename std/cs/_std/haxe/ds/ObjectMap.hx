@@ -219,6 +219,8 @@ import cs.NativeArray;
 					var key = _keys[j];
 					var val = vals[j];
 
+					_keys[j] = null;
+					vals[j] = cast null;
 					hashes[j] = FLAG_DEL;
 					while (true) /* kick-out process; sort of like in Cuckoo hashing */
 					{
@@ -391,6 +393,12 @@ import cs.NativeArray;
 	public function iterator() : Iterator<V>
 	{
 		return new ObjectMapValueIterator(this);
+	}
+
+	public function copy() : ObjectMap<K,V> {
+		var copied = new ObjectMap<K, V>();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
 	}
 
 	/**

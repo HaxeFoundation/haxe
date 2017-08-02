@@ -81,12 +81,12 @@ let rec func ctx bb tf t p =
 		close_node g bb;
 		g.g_unreachable
 	in
-	let check_unbound_call v el =
-		if v.v_name = "$ref" then begin match el with
+	let check_unbound_call s el =
+		if s = "$ref" then begin match el with
 			| [{eexpr = TLocal v}] -> v.v_capture <- true
 			| _ -> ()
 		end;
-		if is_unbound_call_that_might_have_side_effects v el then ctx.has_unbound <- true;
+		if is_unbound_call_that_might_have_side_effects s el then ctx.has_unbound <- true;
 	in
 	let no_void t p =
 		if ExtType.is_void (follow t) then Error.error "Cannot use Void as value" p
@@ -96,7 +96,7 @@ let rec func ctx bb tf t p =
 		(fun () -> ctx.name_stack <- List.tl ctx.name_stack)
 	in
 	let rec value' bb e = match e.eexpr with
-		| TLocal v ->
+		| TLocal _ | TIdent _ ->
 			bb,e
 		| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
 			block_element bb e,e1
@@ -104,8 +104,8 @@ let rec func ctx bb tf t p =
 			value bb e1
 		| TBlock _ | TIf _ | TSwitch _ | TTry _ ->
 			bind_to_temp bb false e
-		| TCall({eexpr = TLocal v},el) when is_really_unbound v ->
-			check_unbound_call v el;
+		| TCall({eexpr = TIdent s},el) when is_really_unbound s ->
+			check_unbound_call s el;
 			bb,e
 		| TCall(e1,el) ->
 			call bb e e1 el
@@ -159,6 +159,9 @@ let rec func ctx bb tf t p =
 		| TEnumParameter(e1,ef,ei) ->
 			let bb,e1 = value bb e1 in
 			bb,{e with eexpr = TEnumParameter(e1,ef,ei)}
+		| TEnumIndex e1 ->
+			let bb,e1 = value bb e1 in
+			bb,{e with eexpr = TEnumIndex e1}
 		| TFunction tf ->
 			let bb_func,bb_func_end = func ctx bb tf e.etype e.epos in
 			let e_fun = mk (TConst (TString "fun")) t_dynamic p in
@@ -561,8 +564,8 @@ let rec func ctx bb tf t p =
 				add_terminator bb {e with eexpr = TThrow e1};
 			end
 		(* side_effects *)
-		| TCall({eexpr = TLocal v},el) when is_really_unbound v ->
-			check_unbound_call v el;
+		| TCall({eexpr = TIdent s},el) when is_really_unbound s ->
+			check_unbound_call s el;
 			add_texpr bb e;
 			bb
 		| TCall(e1,el) ->
@@ -603,7 +606,7 @@ let rec func ctx bb tf t p =
 			add_texpr bb e;
 			bb
 		(* no-side-effect *)
-		| TEnumParameter _ | TFunction _ | TConst _ | TTypeExpr _ | TLocal _ ->
+		| TEnumParameter _ | TEnumIndex _ | TFunction _ | TConst _ | TTypeExpr _ | TLocal _ | TIdent _ ->
 			bb
 		(* no-side-effect composites *)
 		| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) | TField(e1,_) | TUnop(_,_,e1) ->
@@ -714,9 +717,9 @@ and func ctx i =
 	let bb,t,p,tf = Hashtbl.find ctx.graph.g_functions i in
 	let e = block_to_texpr ctx bb in
 	let rec loop e = match e.eexpr with
-		| TLocal v when not (is_unbound v) ->
+		| TLocal v ->
 			{e with eexpr = TLocal (get_var_origin ctx.graph v)}
-		| TVar(v,eo) when not (is_unbound v) ->
+		| TVar(v,eo) ->
 			let eo = Option.map loop eo in
 			let v' = get_var_origin ctx.graph v in
 			{e with eexpr = TVar(v',eo)}
@@ -744,7 +747,7 @@ and func ctx i =
 			end
 		| TCall({eexpr = TConst (TString "fun")},[{eexpr = TConst (TInt i32)}]) ->
 			func ctx (Int32.to_int i32)
-		| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
+		| TCall({eexpr = TIdent s},_) when is_really_unbound s ->
 			e
 		| _ ->
 			Type.map_expr loop e

@@ -34,15 +34,15 @@ class BytesBuffer {
 	}
 
 	public inline function addByte( byte : Int ) {
-		Syntax.binop(b, '.=', Global.chr(byte));
+		b = Syntax.binop(b, '.', Global.chr(byte));
 	}
 
 	public inline function add( src : Bytes ) {
-		Syntax.binop(b, '.=', src.getData().toNativeString());
+		b = Syntax.binop(b, '.', src.getData().toNativeString());
 	}
 
 	public inline function addString( v : String ) {
-		Syntax.binop(b, '.=', v);
+		b = Syntax.binop(b, '.', v);
 	}
 
 	public function addInt32( v : Int ) {
@@ -69,7 +69,7 @@ class BytesBuffer {
 		if( pos < 0 || len < 0 || pos + len > src.length ) {
 			throw Error.OutsideBounds;
 		} else {
-			Syntax.binop(b, '.=', src.getData().sub(pos, len).toString());
+			b = Syntax.binop(b, '.', src.getData().sub(pos, len).toString());
 		}
 	}
 

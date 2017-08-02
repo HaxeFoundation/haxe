@@ -24,6 +24,24 @@ open Typecore
 open Error
 open Globals
 
+(** retrieve string from @:native metadata or raise Not_found *)
+let get_native_name meta =
+	let rec get_native meta = match meta with
+		| [] -> raise Not_found
+		| (Meta.Native,[v],p as meta) :: _ ->
+			meta
+		| _ :: meta ->
+			get_native meta
+	in
+	let (_,e,mp) = get_native meta in
+	match e with
+	| [Ast.EConst (Ast.String name),p] ->
+		name,p
+	| [] ->
+		raise Not_found
+	| _ ->
+		error "String expected" mp
+
 (* PASS 1 begin *)
 
 (* Adds final returns to functions as required by some platforms *)
@@ -215,12 +233,34 @@ let check_local_vars_init e =
 (* -------------------------------------------------------------------------- *)
 (* RENAME LOCAL VARS *)
 
-let rename_local_vars ctx e =
+let collect_reserved_local_names com =
+	match com.platform with
+	| Js ->
+		let h = ref StringMap.empty in
+		let add name = h := StringMap.add name true !h in
+		List.iter (fun mt ->
+			let tinfos = t_infos mt in
+			let native_name = try fst (get_native_name tinfos.mt_meta) with Not_found -> Path.flat_path tinfos.mt_path in
+			if native_name = "" then
+				match mt with
+				| TClassDecl c ->
+					List.iter (fun cf ->
+						let native_name = try fst (get_native_name cf.cf_meta) with Not_found -> cf.cf_name in
+						add native_name
+					) c.cl_ordered_statics;
+				| _ -> ()
+			else
+				add native_name
+		) com.types;
+		!h
+	| _ -> StringMap.empty
+
+let rename_local_vars ctx reserved e =
 	let vars = ref [] in
 	let declare v =
 		vars := v :: !vars
 	in
-	let reserved = ref StringMap.empty in
+	let reserved = ref reserved in
 	let reserve name =
 		reserved := StringMap.add name true !reserved
 	in
@@ -496,23 +536,6 @@ let check_private_path ctx t = match t with
 
 (* Rewrites class or enum paths if @:native metadata is set *)
 let apply_native_paths ctx t =
-	let get_native_name meta =
-		let rec get_native meta = match meta with
-			| [] -> raise Not_found
-			| (Meta.Native,[v],p as meta) :: _ ->
-				meta
-			| _ :: meta ->
-				get_native meta
-		in
-		let (_,e,mp) = get_native meta in
-		match e with
-		| [Ast.EConst (Ast.String name),p] ->
-			name,p
-		| [] ->
-			raise Not_found
-		| _ ->
-			error "String expected" mp
-	in
 	let get_real_name meta name =
 		let name',p = get_native_name meta in
 		(Meta.RealPath,[Ast.EConst (Ast.String (name)), p], p), name'
@@ -572,7 +595,7 @@ let add_rtti ctx t =
 		()
 
 (* Adds member field initializations as assignments to the constructor *)
-let add_field_inits ctx t =
+let add_field_inits reserved ctx t =
 	let is_as3 = Common.defined ctx.com Define.As3 && not ctx.in_macro in
 	let apply c =
 		let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) c.cl_pos in
@@ -648,7 +671,7 @@ let add_field_inits ctx t =
 			(match cf.cf_expr with
 			| Some e ->
 				(* This seems a bit expensive, but hopefully constructor expressions aren't that massive. *)
-				let e = rename_local_vars ctx e in
+				let e = rename_local_vars ctx reserved e in
 				let e = Optimizer.sanitize ctx.com e in
 				cf.cf_expr <- Some e
 			| _ ->
@@ -908,12 +931,12 @@ let run com tctx main =
 	List.iter (fun f -> List.iter f new_types) filters;
 	t();
 	if com.platform <> Cross then Analyzer.Run.run_on_types tctx new_types;
-
+	let reserved = collect_reserved_local_names com in
 	let filters = [
 		Optimizer.sanitize com;
 		if com.config.pf_add_final_return then add_final_return else (fun e -> e);
 		if com.platform = Js then wrap_js_exceptions com else (fun e -> e);
-		rename_local_vars tctx;
+		rename_local_vars tctx reserved;
 		mark_switch_break_loops;
 	] in
 	let t = filter_timer detail_times ["expr 2"] in
@@ -955,7 +978,7 @@ let run com tctx main =
 		check_private_path;
 		apply_native_paths;
 		add_rtti;
-		(match com.platform with | Java | Cs -> (fun _ _ -> ()) | _ -> add_field_inits);
+		(match com.platform with | Java | Cs -> (fun _ _ -> ()) | _ -> add_field_inits reserved);
 		(match com.platform with Hl -> (fun _ _ -> ()) | _ -> add_meta_field);
 		check_void_field;
 		(match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ _ -> ()) );

@@ -363,11 +363,12 @@ let get_std_class_paths () =
 	with Not_found ->
 		if Sys.os_type = "Unix" then
 			[
-				"/usr/lib/haxe/std/";
-				"/usr/share/haxe/std/";
+				"/usr/local/share/haxe/std/";
 				"/usr/local/lib/haxe/std/";
-				"/usr/lib/haxe/extraLibs/";
 				"/usr/local/lib/haxe/extraLibs/";
+				"/usr/share/haxe/std/";
+				"/usr/lib/haxe/std/";
+				"/usr/lib/haxe/extraLibs/";
 				""
 			]
 		else
@@ -449,7 +450,6 @@ try
 	let pre_compilation = ref [] in
 	let interp = ref false in
 	let swf_version = ref false in
-	let evals = ref [] in
 	Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int Globals.version /. 1000.));
 	Common.raw_define com "haxe3";
 	Common.define_value com Define.Dce "std";
@@ -680,10 +680,6 @@ try
 			force_typing := true;
 			config_macros := e :: !config_macros
 		)," : call the given macro before typing anything else");
-		("--eval", Arg.String (fun s ->
-			force_typing := true;
-			evals := s :: !evals;
-		), " : evaluates argument as Haxe module code");
 		("--wait", Arg.String (fun hp ->
 			let accept = match hp with
 				| "stdio" ->
@@ -706,18 +702,8 @@ try
 			did_something := true;
 		),": print version and exit");
 		("--help-defines", Arg.Unit (fun() ->
-			let m = ref 0 in
-			let rec loop i =
-				let d = Obj.magic i in
-				if d <> Define.Last then begin
-					let t, doc = Define.infos d in
-					if String.length t > !m then m := String.length t;
-					((String.concat "-" (ExtString.String.nsplit t "_")),doc) :: (loop (i + 1))
-				end else
-					[]
-			in
-			let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop 0) in
-			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" !m n (limit_string doc (!m + 3))) all in
+			let all,max_length = Define.get_documentation_list() in
+			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
 			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
 			did_something := true
 		),": print help for all compiler specific defines");
@@ -762,6 +748,17 @@ try
 		com.warning <- if com.display.dms_error_policy = EPCollect then (fun s p -> add_diagnostics_message com s p DisplayTypes.DiagnosticsSeverity.Warning) else message ctx;
 		com.error <- error ctx;
 	end;
+	Lexer.old_format := Common.defined com Define.OldErrorFormat;
+	if !Lexer.old_format && !Parser.resume_display <> null_pos then begin
+		let p = !Parser.resume_display in
+		(* convert byte position to utf8 position *)
+		try
+			let content = Std.input_file ~bin:true (Path.get_real_path p.pfile) in
+			let pos = UTF8.length (String.sub content 0 p.pmin) in
+			Parser.resume_display := { p with pmin = pos; pmax = pos }
+		with _ ->
+			() (* ignore *)
+	end;
 	DisplayOutput.process_display_file com classes;
 	let ext = Initialize.initialize_target ctx com classes in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
@@ -778,7 +775,7 @@ try
 			("--help-metas", Arg.Unit (fun () -> ()),": print help for all compiler metadatas");
 			("<dot-path>", Arg.Unit (fun () -> ()),": compile the module specified by dot-path");
 		] in
-		if !cmds = [] && not !did_something then Arg.usage help_spec usage;
+		if !cmds = [] && not !did_something then print_endline (Arg.usage_string help_spec usage);
 	end else begin
 		ctx.setup();
 		Common.log com ("Classpath : " ^ (String.concat ";" com.class_path));
@@ -787,7 +784,6 @@ try
 		Typecore.type_expr_ref := (fun ctx e with_type -> Typer.type_expr ctx e with_type);
 		let tctx = Typer.create com in
 		List.iter (MacroContext.call_init_macro tctx) (List.rev !config_macros);
-		List.iter (Typer.eval tctx) !evals;
 		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev !classes);
 		Typer.finalize tctx;
 		t();

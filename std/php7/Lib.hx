@@ -22,6 +22,8 @@
 package php;
 
 import haxe.ds.StringMap;
+import php.*;
+import php.reflection.ReflectionClass;
 
 /**
 	Platform-specific PHP Library. Provides some platform-specific functions
@@ -122,31 +124,58 @@ class Lib {
 	 * @param	?additionalHeaders
 	 * @param	?additionalParameters
 	 */
-	public static function mail(to : String, subject : String, message : String, ?additionalHeaders : String, ?additionalParameters : String) : Bool
-	{
-		throw "Not implemented";
+	public static inline function mail(to : String, subject : String, message : String, ?additionalHeaders : String, ?additionalParameters : String) : Bool {
+		return Global.mail(to, subject, message, additionalHeaders, additionalParameters);
 	}
 
 	/**
 		For neko compatibility only.
 	**/
-	public static function rethrow( e : Dynamic ) {
-		throw "Not implemented";
-	}
-
-	static function appendType(o : Dynamic, path : Array<String>, t : Dynamic) {
-		throw "Not implemented";
-	}
-
-	public static function getClasses() {
-		throw "Not implemented";
+	public static inline function rethrow( e : Dynamic ) {
+		throw e;
 	}
 
 	/**
-	*  Loads types defined in the specified directory.
- 	*/
- 	public static function loadLib(pathToLib : String) : Void
- 	{
-		throw "Not implemented";
- 	}
+		Tries to load all compiled php files and returns list of tpes.
+	**/
+	public static function getClasses():Dynamic {
+		if(!loaded) {
+			loaded = true;
+			var reflection = new ReflectionClass(Boot.getPhpName('php.Boot'));
+			loadLib(Global.dirname(reflection.getFileName(), 2));
+		}
+
+		var result:Dynamic = {};
+		Syntax.foreach(Boot.getRegisteredAliases(), function(phpName:String, haxeName:String) {
+			var parts = haxeName.split('.');
+			var obj = result;
+			while(parts.length > 1) {
+				var pack = parts.shift();
+				if(Syntax.getField(obj, pack) == null) {
+					Syntax.setField(obj, pack, {});
+				}
+				obj = Syntax.getField(obj, pack);
+			}
+			Syntax.setField(obj, parts[0], Boot.getClass(phpName));
+		});
+
+		return result;
+	}
+	static var loaded:Bool = false;
+
+	/**
+		Loads types defined in the specified directory.
+	**/
+	public static function loadLib(pathToLib : String) : Void {
+		var absolutePath = Global.realpath(pathToLib);
+		if(absolutePath == false) throw 'Failed to read path: $pathToLib';
+		Syntax.foreach(Global.glob('$absolutePath/*.php'), function(_, fileName) {
+			if(!Global.is_dir(fileName)) {
+				Global.require_once(fileName);
+			}
+		});
+		Syntax.foreach(Global.glob('$absolutePath/*', Const.GLOB_ONLYDIR), function(_, dirName) {
+			loadLib(dirName);
+		});
+	}
 }

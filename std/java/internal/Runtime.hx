@@ -127,12 +127,9 @@ package java.internal;
 		return 0.0;
 	}
 
-	@:functionCode('
-		return (obj == null) ? false : ((java.lang.Boolean) obj).booleanValue();
-	')
-	public static function toBool(obj:Dynamic):Bool
+	public static function toBool(obj:java.lang.Boolean):Bool
 	{
-		return false;
+		return obj == null ? false : obj.booleanValue();
 	}
 
 	@:functionCode('
@@ -581,6 +578,42 @@ package java.internal;
 	public static function isFinite(v:Float):Bool
 	{
 		return (v == v) && !java.lang.Double.DoubleClass._isInfinite(v);
+	}
+
+	public static function getIntFromNumber(n:java.lang.Number):Int {
+		return n == null ? 0 : n.intValue();
+	}
+
+	public static function getFloatFromNumber(n:java.lang.Number):Float {
+		return n == null ? 0.0 : n.doubleValue();
+	}
+
+	public static function getInt64FromNumber(n:java.lang.Number):java.StdTypes.Int64 {
+		return n == null ? 0.0 : n.longValue();
+	}
+
+	public static function numToInteger(num:java.lang.Number):java.lang.Integer {
+		return num == null ? null : (Std.is(num, java.lang.Integer.IntegerClass) ? cast num : java.lang.Integer.valueOf(num.intValue()));
+	}
+
+	public static function numToDouble(num:java.lang.Number):java.lang.Double {
+		return num == null ? null : (Std.is(num, java.lang.Double.DoubleClass) ? cast num : java.lang.Double.valueOf(num.doubleValue()));
+	}
+
+	public static function numToFloat(num:java.lang.Number):java.lang.Float {
+		return num == null ? null : (Std.is(num, java.lang.Float.FloatClass) ? cast num : java.lang.Float.valueOf(num.floatValue()));
+	}
+
+	public static function numToByte(num:java.lang.Number):java.lang.Byte {
+		return num == null ? null : (Std.is(num, java.lang.Byte.ByteClass) ? cast num : java.lang.Byte.valueOf(num.byteValue()));
+	}
+
+	public static function numToLong(num:java.lang.Number):java.lang.Long {
+		return num == null ? null : (Std.is(num, java.lang.Long.LongClass) ? cast num : java.lang.Long.valueOf(num.longValue()));
+	}
+
+	public static function numToShort(num:java.lang.Number):java.lang.Short {
+		return num == null ? null : (Std.is(num, java.lang.Short.ShortClass) ? cast num : java.lang.Short.valueOf(num.shortValue()));
 	}
 }
 

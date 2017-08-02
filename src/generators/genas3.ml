@@ -247,6 +247,13 @@ let rec type_str ctx t p =
 	match t with
 	| TEnum _ | TInst _ when List.memq t ctx.local_types ->
 		"*"
+	| TAbstract ({a_path = [],"Null"},[t]) ->
+		(match follow t with
+		| TAbstract ({ a_path = [],"UInt" },_)
+		| TAbstract ({ a_path = [],"Int" },_)
+		| TAbstract ({ a_path = [],"Float" },_)
+		| TAbstract ({ a_path = [],"Bool" },_) -> "*"
+		| _ -> type_str ctx t p)
 	| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 		type_str ctx (Abstract.get_underlying_type a pl) p
 	| TAbstract (a,_) ->
@@ -291,16 +298,6 @@ let rec type_str ctx t p =
 	| TType (t,args) ->
 		(match t.t_path with
 		| [], "UInt" -> "uint"
-		| [] , "Null" ->
-			(match args with
-			| [t] ->
-				(match follow t with
-				| TAbstract ({ a_path = [],"UInt" },_)
-				| TAbstract ({ a_path = [],"Int" },_)
-				| TAbstract ({ a_path = [],"Float" },_)
-				| TAbstract ({ a_path = [],"Bool" },_) -> "*"
-				| _ -> type_str ctx t p)
-			| _ -> assert false);
 		| _ -> type_str ctx (apply_params t.t_params args t.t_type) p)
 	| TLazy f ->
 		type_str ctx ((!f)()) p
@@ -433,32 +430,32 @@ let rec gen_call ctx e el r =
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
-	| TLocal { v_name = "__is__" } , [e1;e2] ->
+	| TIdent "__is__" , [e1;e2] ->
 		gen_value ctx e1;
 		spr ctx " is ";
 		gen_value ctx e2;
-	| TLocal { v_name = "__in__" } , [e1;e2] ->
+	| TIdent "__in__" , [e1;e2] ->
 		spr ctx "(";
 		gen_value ctx e1;
 		spr ctx " in ";
 		gen_value ctx e2;
 		spr ctx ")"
-	| TLocal { v_name = "__as__" }, [e1;e2] ->
+	| TIdent "__as__", [e1;e2] ->
 		gen_value ctx e1;
 		spr ctx " as ";
 		gen_value ctx e2;
-	| TLocal { v_name = "__int__" }, [e] ->
+	| TIdent "__int__", [e] ->
 		spr ctx "int(";
 		gen_value ctx e;
 		spr ctx ")";
-	| TLocal { v_name = "__float__" }, [e] ->
+	| TIdent "__float__", [e] ->
 		spr ctx "Number(";
 		gen_value ctx e;
 		spr ctx ")";
-	| TLocal { v_name = "__typeof__" }, [e] ->
+	| TIdent "__typeof__", [e] ->
 		spr ctx "typeof ";
 		gen_value ctx e;
-	| TLocal { v_name = "__keys__" }, [e] ->
+	| TIdent "__keys__", [e] ->
 		let ret = (match ctx.in_value with None -> assert false | Some r -> r) in
 		print ctx "%s = new Array()" ret.v_name;
 		newline ctx;
@@ -466,7 +463,7 @@ let rec gen_call ctx e el r =
 		print ctx "for(var %s : String in " tmp;
 		gen_value ctx e;
 		print ctx ") %s.push(%s)" ret.v_name tmp;
-	| TLocal { v_name = "__hkeys__" }, [e] ->
+	| TIdent "__hkeys__", [e] ->
 		let ret = (match ctx.in_value with None -> assert false | Some r -> r) in
 		print ctx "%s = new Array()" ret.v_name;
 		newline ctx;
@@ -474,7 +471,7 @@ let rec gen_call ctx e el r =
 		print ctx "for(var %s : String in " tmp;
 		gen_value ctx e;
 		print ctx ") %s.push(%s.substr(1))" ret.v_name tmp;
-	| TLocal { v_name = "__foreach__" }, [e] ->
+	| TIdent "__foreach__", [e] ->
 		let ret = (match ctx.in_value with None -> assert false | Some r -> r) in
 		print ctx "%s = new Array()" ret.v_name;
 		newline ctx;
@@ -482,22 +479,22 @@ let rec gen_call ctx e el r =
 		print ctx "for each(var %s : * in " tmp;
 		gen_value ctx e;
 		print ctx ") %s.push(%s)" ret.v_name tmp;
-	| TLocal { v_name = "__new__" }, e :: args ->
+	| TIdent "__new__", e :: args ->
 		spr ctx "new ";
 		gen_value ctx e;
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) args;
 		spr ctx ")";
-	| TLocal { v_name = "__delete__" }, [e;f] ->
+	| TIdent "__delete__", [e;f] ->
 		spr ctx "delete(";
 		gen_value ctx e;
 		spr ctx "[";
 		gen_value ctx f;
 		spr ctx "]";
 		spr ctx ")";
-	| TLocal { v_name = "__unprotect__" }, [e] ->
+	| TIdent "__unprotect__", [e] ->
 		gen_value ctx e
-	| TLocal { v_name = "__vector__" }, [e] ->
+	| TIdent "__vector__", [e] ->
 		spr ctx (type_str ctx r e.epos);
 		spr ctx "(";
 		gen_value ctx e;
@@ -595,7 +592,7 @@ and gen_expr ctx e =
 		gen_constant ctx e.epos c
 	| TLocal v ->
 		spr ctx (s_ident v.v_name)
-	| TArray ({ eexpr = TLocal { v_name = "__global__" } },{ eexpr = TConst (TString s) }) ->
+	| TArray ({ eexpr = TIdent "__global__" },{ eexpr = TConst (TString s) }) ->
 		let path = Ast.parse_path s in
 		spr ctx (s_path ctx false path e.epos)
 	| TArray (e1,e2) ->
@@ -633,6 +630,9 @@ and gen_expr ctx e =
 		gen_expr ctx e1;
 		spr ctx ")";
 		gen_field_access ctx e1.etype (field_name s)
+	| TEnumIndex e ->
+		gen_value ctx e;
+		print ctx ".index";
 	| TEnumParameter (e,_,i) ->
 		gen_value ctx e;
 		print ctx ".params[%i]" i;
@@ -811,6 +811,8 @@ and gen_expr ctx e =
 		end
 	| TCast (e1,Some t) ->
 		gen_expr ctx (Codegen.default_cast ctx.inf.com e1 t e.etype e.epos)
+	| TIdent s ->
+		spr ctx s
 
 and gen_block_element ctx e = match e.eexpr with
 	| TObjectDecl fl ->
@@ -872,7 +874,7 @@ and gen_value ctx e =
 		)
 	in
 	match e.eexpr with
-	| TCall ({ eexpr = TLocal { v_name = "__keys__" } },_) | TCall ({ eexpr = TLocal { v_name = "__hkeys__" } },_) ->
+	| TCall ({ eexpr = TIdent "__keys__" },_) | TCall ({ eexpr = TIdent "__hkeys__" },_) ->
 		let v = value true in
 		gen_expr ctx e;
 		v()
@@ -882,6 +884,7 @@ and gen_value ctx e =
 	| TBinop _
 	| TField _
 	| TEnumParameter _
+	| TEnumIndex _
 	| TTypeExpr _
 	| TParenthesis _
 	| TObjectDecl _
@@ -889,7 +892,8 @@ and gen_value ctx e =
 	| TCall _
 	| TNew _
 	| TUnop _
-	| TFunction _ ->
+	| TFunction _
+	| TIdent _ ->
 		gen_expr ctx e
 	| TMeta (_,e1) ->
 		gen_value ctx e1

@@ -104,8 +104,16 @@ class RunCi {
 
 	static function requireAptPackages(packages:Array<String>):Void {
 		var notYetInstalled = [for (p in packages) if (!isAptPackageInstalled(p)) p];
-		if (notYetInstalled.length > 0)
-			runCommand("sudo", ["apt-get", "install", "-y"].concat(notYetInstalled), true);
+		if (notYetInstalled.length > 0) {
+			var aptCacheDir = Sys.getEnv("APT_CACHE_DIR");
+			var baseCommand = if (aptCacheDir != null) {
+				["apt-get", "-o", 'dir::cache::archives=${aptCacheDir}', "install", "-y"];
+			} else {
+				["apt-get", "install", "-y"];
+			};
+			runCommand("sudo", baseCommand.concat(notYetInstalled), true);
+		}
+
 	}
 
 	static function haxelibInstallGit(account:String, repository:String, ?branch:String, ?srcPath:String, useRetry:Bool = false, ?altName:String):Void {
@@ -174,11 +182,10 @@ class RunCi {
 		switch (systemName) {
 			case "Linux":
 				requireAptPackages([
-					"libcurl3:i386", "libglib2.0-0:i386", "libx11-6:i386", "libxext6:i386",
-					"libxt6:i386", "libxcursor1:i386", "libnss3:i386", "libgtk2.0-0:i386"
+					"libglib2.0", "libfreetype6"
 				]);
-				runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/11/flashplayer_11_sa_debug.i386.tar.gz"], true);
-				runCommand("tar", ["-xf", "flashplayer_11_sa_debug.i386.tar.gz", "-C", Sys.getEnv("HOME")]);
+				runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/25/flash_player_sa_linux_debug.x86_64.tar.gz"], true);
+				runCommand("tar", ["-xf", "flash_player_sa_linux_debug.x86_64.tar.gz", "-C", Sys.getEnv("HOME")]);
 				File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
 				runCommand(Sys.getEnv("HOME") + "/flashplayerdebugger", ["-v"]);
 			case "Mac":
@@ -312,7 +319,7 @@ class RunCi {
 				if (phpCmd.exitCode == 0 && phpVer != null && phpVer >= 5.5) {
 					infoMsg('php has already been installed.');
 				} else {
-					requireAptPackages(["php5-cli", "php5-mysql", "php5-sqlite"]);
+					requireAptPackages(["php5-cli"]);
 				}
 			case "Mac":
 				//pass
@@ -348,27 +355,12 @@ class RunCi {
 			haxelibInstallGit("HaxeFoundation", "hxcpp", true);
 			var oldDir = Sys.getCwd();
 			changeDirectory(getHaxelibPath("hxcpp") + "tools/hxcpp/");
-			runCommand("haxe", ["compile.hxml"]);
+			runCommand("haxe", ["-D", "source-header=''", "compile.hxml"]);
 			changeDirectory(oldDir);
 		}
 
 		gotCppDependencies = true;
 	}
-
-	static var gotSpodDependencies = false;
-  static function getSpodDependencies() {
-		if (gotSpodDependencies ) return;
-
-		//install and build hxcpp
-		try {
-			getHaxelibPath("record-macros");
-			infoMsg('record-macros has already been installed.');
-		} catch(e:Dynamic) {
-			haxelibInstallGit("HaxeFoundation", "record-macros", true);
-		}
-
-		gotSpodDependencies = true;
-  }
 
 	static function getJavaDependencies() {
 		haxelibInstallGit("HaxeFoundation", "hxjava", true);
@@ -393,23 +385,39 @@ class RunCi {
 
 	static function getLuaDependencies(){
 		switch (systemName){
-			case "Linux": requireAptPackages(["libpcre3-dev"]);
+			case "Linux":
+				requireAptPackages(["libpcre3-dev"]);
+				runCommand("pip", ["install", "hererocks"]);
 			case "Mac": {
-			  runCommand("brew", ["install", "pcre"], false, true);
-			  runCommand("brew", ["install", "python"], false, true);
+				if (commandSucceed("python3", ["-V"]))
+					infoMsg('python3 has already been installed.');
+				else
+					runCommand("brew", ["install", "python3"], true);
+
+				runCommand("brew", ["install", "pcre"], false, true);
+				runCommand("pip3", ["install", "hererocks"]);
 			}
 		}
-		runCommand("pip", ["install", "hererocks"]);
 	}
 
 	static function installLuaVersionDependencies(lv:String){
-	  if (lv == "-l5.1"){
-	    runCommand("luarocks", ["install", "luabitop", "1.0.2-3", "--server=https://luarocks.org/dev"]);
-	  }
-	  runCommand("luarocks", ["install", "lrexlib-pcre", "2.8.0-1", "--server=https://luarocks.org/dev"]);
-	  runCommand("luarocks", ["install", "luv", "1.9.1-0", "--server=https://luarocks.org/dev"]);
-	  runCommand("luarocks", ["install", "luasocket", "3.0rc1-2", "--server=https://luarocks.org/dev"]);
-	  runCommand("luarocks", ["install", "environ", "0.1.0-1", "--server=https://luarocks.org/dev"]);
+		if (lv == "-l5.1"){
+			if (!commandSucceed("luarocks", ["show", "luabit"])) {
+				runCommand("luarocks", ["install", "luabitop", "1.0.2-3", "--server=https://luarocks.org/dev"]);
+			}
+		}
+		if (!commandSucceed("luarocks", ["show", "lrexlib-pcre"])) {
+			runCommand("luarocks", ["install", "lrexlib-pcre", "2.8.0-1", "--server=https://luarocks.org/dev"]);
+		}
+		if (!commandSucceed("luarocks", ["show", "luv"])) {
+			runCommand("luarocks", ["install", "luv", "1.9.1-0", "--server=https://luarocks.org/dev"]);
+		}
+		if (!commandSucceed("luarocks", ["show", "luasocket"])) {
+			runCommand("luarocks", ["install", "luasocket", "3.0rc1-2", "--server=https://luarocks.org/dev"]);
+		}
+		if (!commandSucceed("luarocks", ["show", "environ"])) {
+			runCommand("luarocks", ["install", "environ", "0.1.0-1", "--server=https://luarocks.org/dev"]);
+		}
 	}
 
 	static function getCsDependencies() {
@@ -560,26 +568,31 @@ class RunCi {
 		ver.join(".");
 	}
 
+	static function isDeployNightlies () {
+		return Sys.getEnv("DEPLOY_NIGHTLIES") != null;
+	}
 	static function deploy():Void {
-		if (
-			Sys.getEnv("DEPLOY") != null
-		) {
+
+		var doDocs = isDeployApiDocsRequired();
+		var doNightlies = isDeployNightlies();
+
+		if (doDocs || doNightlies) {
 			changeDirectory(repoDir);
-
-			if (Sys.systemName() != 'Windows') {
-				// generate doc
-				runCommand("make", ["-s", "install_dox"]);
-				runCommand("make", ["-s", "package_doc"]);
-
-				// deployBintray();
-				deployApiDoc();
-
-				// disable deployment to ppa:haxe/snapshots for now
-				// because there is no debian sedlex package...
-				// deployPPA();
+			if (doDocs) {
+				if (Sys.systemName() != 'Windows') {
+					// generate doc
+					runCommand("make", ["-s", "install_dox"]);
+					runCommand("make", ["-s", "package_doc"]);
+					// deployBintray();
+					deployApiDoc();
+					// disable deployment to ppa:haxe/snapshots for now
+					// because there is no debian sedlex package...
+					// deployPPA();
+				}
 			}
-
-			deployNightlies();
+			if (doNightlies) {
+				deployNightlies();
+			}
 		}
 	}
 
@@ -612,22 +625,23 @@ class RunCi {
 		}
 	}
 
+	static function isDeployApiDocsRequired () {
+		return gitInfo.branch == "development" &&
+			Sys.getEnv("DEPLOY_API_DOCS") != null &&
+			Sys.getEnv("deploy_key_decrypt") != null;
+	}
+
 	/**
 		Deploy doc to api.haxe.org.
 	*/
-	static function deployApiDoc():Void {
-		if (
-			gitInfo.branch == "development" &&
-			Sys.getEnv("DEPLOY") != null &&
-			Sys.getEnv("deploy_key_decrypt") != null
-		) {
-			// setup deploy_key
-			runCommand("openssl aes-256-cbc -k \"$deploy_key_decrypt\" -in extra/deploy_key.enc -out extra/deploy_key -d");
-			runCommand("chmod 600 extra/deploy_key");
-			runCommand("ssh-add extra/deploy_key");
 
-			runCommand("make", ["-s", "deploy_doc"]);
-		}
+	static function deployApiDoc():Void {
+		// setup deploy_key
+		runCommand("openssl aes-256-cbc -k \"$deploy_key_decrypt\" -in extra/deploy_key.enc -out extra/deploy_key -d");
+		runCommand("chmod 600 extra/deploy_key");
+		runCommand("ssh-add extra/deploy_key");
+
+		runCommand("make", ["-s", "deploy_doc"]);
 	}
 
 	/**
@@ -645,7 +659,8 @@ class RunCi {
 			gitInfo.branch == "master" ||
 			gitInfo.branch == "nightly-travis") &&
 			Sys.getEnv("HXBUILDS_AWS_ACCESS_KEY_ID") != null &&
-			Sys.getEnv("HXBUILDS_AWS_SECRET_ACCESS_KEY") != null
+			Sys.getEnv("HXBUILDS_AWS_SECRET_ACCESS_KEY") != null &&
+			Sys.getEnv("TRAVIS_PULL_REQUEST") != "true"
 		) {
 			if (ci == TravisCI) {
 				runCommand("make", ["-s", "package_unix"]);
@@ -796,7 +811,6 @@ class RunCi {
 						runCommand("haxe", ["compile-macro.hxml"]);
 						runCommand("haxe", ["compile-each.hxml", "--run", "Main"]);
 					case Neko:
-						getSpodDependencies();
 						runCommand("haxe", ["compile-neko.hxml", "-D", "dump", "-D", "dump_ignore_var_ids"].concat(args));
 						runCommand("neko", ["bin/unit.n"]);
 
@@ -805,8 +819,7 @@ class RunCi {
 						runCommand("neko", ["bin/neko/sys.n"]);
 					case Php7:
 						if (systemName == "Linux") {
-							getSpodDependencies();
-							runCommand("phpenv", ["global", "7.0"], false, true);
+								runCommand("phpenv", ["global", "7.0"], false, true);
 							runCommand("haxe", ["compile-php7.hxml"].concat(args));
 							runCommand("php", ["bin/php7/index.php"]);
 
@@ -815,8 +828,7 @@ class RunCi {
 							runCommand("php", ["bin/php7/Main/index.php"]);
 						}
 					case Php:
-							getSpodDependencies();
-							getPhpDependencies();
+								getPhpDependencies();
 							runCommand("haxe", ["compile-php.hxml"].concat(args));
 							runCommand("php", ["bin/php/index.php"]);
 
@@ -847,29 +859,28 @@ class RunCi {
 						var envpath = Sys.getEnv("HOME") + '/lua_env';
 						addToPATH(envpath + '/bin');
 						for (lv in ["-l5.1", "-l5.2", "-l5.3", "-j2.0", "-j2.1" ]){
-						  if (systemName == "Mac" && lv.startsWith("-j")) continue;
-						  Sys.println('--------------------');
-						  Sys.println('Lua Version: $lv');
-						  runCommand("hererocks", [envpath, lv, "-rlatest", "-i"]);
-						  trace('path: ' + Sys.getEnv("PATH"));
-						  runCommand("lua",["-v"]);
-						  runCommand("luarocks",[]);
-						  installLuaVersionDependencies(lv);
+							if (systemName == "Mac" && lv.startsWith("-j")) continue;
+							Sys.println('--------------------');
+							Sys.println('Lua Version: $lv');
+							runCommand("hererocks", [envpath, lv, "-rlatest", "-i"]);
+							trace('path: ' + Sys.getEnv("PATH"));
+							runCommand("lua",["-v"]);
+							runCommand("luarocks",[]);
+							installLuaVersionDependencies(lv);
 
-						  changeDirectory(unitDir);
-						  runCommand("haxe", ["compile-lua.hxml"].concat(args));
-						  runCommand("lua", ["bin/unit.lua"]);
+							changeDirectory(unitDir);
+							runCommand("haxe", ["compile-lua.hxml"].concat(args));
+							runCommand("lua", ["bin/unit.lua"]);
 
-						  changeDirectory(sysDir);
-						  runCommand("haxe", ["compile-lua.hxml"].concat(args));
-						  runCommand("lua", ["bin/lua/sys.lua"]);
+							changeDirectory(sysDir);
+							runCommand("haxe", ["compile-lua.hxml"].concat(args));
+							runCommand("lua", ["bin/lua/sys.lua"]);
 
-						  changeDirectory(miscDir + "");
-						  runCommand("haxe", ["compile.hxml"]);
+							changeDirectory(miscDir + "luaDeadCode/stringReflection");
+							runCommand("haxe", ["compile.hxml"]);
 						}
 					case Cpp:
 						getCppDependencies();
-						getSpodDependencies();
 						runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M32"].concat(args));
 						runCpp("bin/cpp/TestMain-debug", []);
 
@@ -884,6 +895,7 @@ class RunCi {
 								runCommand("haxe", ["compile-cppia-host.hxml"]);
 								runCommand("haxe", ["compile-cppia.hxml"]);
 								runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
+								//runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
 						}
 
 						changeDirectory(sysDir);
@@ -903,8 +915,9 @@ class RunCi {
 							for (es3 in       [[], ["-D", "js-es=3"]])
 							for (unflatten in [[], ["-D", "js-unflatten"]])
 							for (classic in   [[], ["-D", "js-classic"]])
+							for (enums_as_objects in [[], ["-D", "js-enums-as-objects"]])
 							{
-								var extras = args.concat(es3).concat(unflatten).concat(classic);
+								var extras = args.concat(es3).concat(unflatten).concat(classic).concat(enums_as_objects);
 
 								runCommand("haxe", ["compile-js.hxml"].concat(extras));
 
@@ -964,7 +977,6 @@ class RunCi {
 						runCommand("haxe", ["build.hxml"]);
 						runCommand("node", ["test.js"]);
 					case Java:
-						getSpodDependencies();
 						getJavaDependencies();
 						runCommand("haxe", ["compile-java.hxml"].concat(args));
 						runCommand("java", ["-jar", "bin/java/TestMain-Debug.jar"]);
@@ -992,7 +1004,6 @@ class RunCi {
 						}
 
 					case Cs:
-						getSpodDependencies();
 						getCsDependencies();
 
 						var compl = switch [ci, systemName] {
@@ -1042,7 +1053,7 @@ class RunCi {
 							infoMsg('mxmlc has already been installed.');
 						} else {
 							var apacheMirror = Json.parse(Http.requestUrl("http://www.apache.org/dyn/closer.lua?as_json=1")).preferred;
-							var flexVersion = "4.15.0";
+							var flexVersion = "4.16.0";
 							runCommand("wget", ['${apacheMirror}/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz'], true);
 							runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz', "-C", Sys.getEnv("HOME")]);
 							var flexsdkPath = Sys.getEnv("HOME") + '/apache-flex-sdk-${flexVersion}-bin';
@@ -1088,4 +1099,6 @@ class RunCi {
 		}
 	}
 }
+
+
 

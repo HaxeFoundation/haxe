@@ -701,7 +701,7 @@ let is_access expr =
 *)
 let is_magic expr =
 	match expr.eexpr with
-	| TCall ({ eexpr = TLocal { v_name = name }}, _) ->
+	| TCall ({ eexpr = TIdent name}, _) ->
 		(match name with
 			| "__php__" -> true
 			| "__call__" -> true
@@ -1586,7 +1586,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| TArrayDecl exprs -> self#write_expr_array_decl exprs
 				| TCall (target, [arg1; arg2]) when is_std_is target && instanceof_compatible arg1 arg2 -> self#write_expr_lang_instanceof [arg1; arg2]
 				| TCall (_, [arg]) when is_native_struct_array_cast expr && is_object_declaration arg -> self#write_assoc_array_decl arg
-				| TCall ({ eexpr = TLocal { v_name = name }}, args) when is_magic expr -> self#write_expr_magic name args
+				| TCall ({ eexpr = TIdent name}, args) when is_magic expr -> self#write_expr_magic name args
 				| TCall ({ eexpr = TField (expr, access) }, args) when is_string expr -> self#write_expr_call_string expr access args
 				| TCall (expr, args) when is_lang_extern expr -> self#write_expr_call_lang_extern expr args
 				| TCall (target, args) when is_sure_var_field_access target -> self#write_expr_call (parenthesis target) args
@@ -1611,6 +1611,8 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| TCast (expr, mtype) -> self#write_expr_cast expr mtype
 				| TMeta (_, expr) -> self#write_expr expr
 				| TEnumParameter (expr, constructor, index) -> self#write_expr_enum_parameter expr constructor index
+				| TEnumIndex expr -> self#write_expr_enum_index expr
+				| TIdent s -> self#write s
 			);
 			expr_hierarchy <- List.tl expr_hierarchy
 		(**
@@ -2338,16 +2340,16 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 						let class_name = self#use_t (type_of_module_type mtype) in
 						self#write (new_closure ^ "(" ^ class_name ^ "::class, '" ^ (field_name field) ^ "')");
 					| _ ->
-						self#write (new_closure ^ "(");
 						(match follow expr.etype with
 							| TInst ({ cl_path = ([], "String") }, []) ->
-								self#write ((self#use hxdynamicstr_type_path) ^ "::wrap(");
+								self#write ("(new " ^ (self#use hxdynamicstr_type_path) ^ "(");
 								self#write_expr expr;
-								self#write ")"
+								self#write ("))->" ^ (field_name field))
 							| _ ->
-								self#write_expr expr
+								self#write (new_closure ^ "(");
+								self#write_expr expr;
+								self#write (", '" ^ (field_name field) ^ "')")
 						);
-						self#write (", '" ^ (field_name field) ^ "')")
 		(**
 			Write anonymous object declaration to output buffer
 		*)
@@ -2740,6 +2742,15 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| _ -> self#write_expr expr
 			);
 			self#write ("->params[" ^ (string_of_int index) ^ "]")
+		(**
+			Write TEnumIndex expression to output buffer
+		*)
+		method write_expr_enum_index expr =
+			(match expr.eexpr with
+				| TConst TNull -> self#write "(null)"
+				| _ -> self#write_expr expr
+			);
+			self#write "->index"
 		(**
 			Writes argument for function declarations or calls
 		*)
@@ -3464,7 +3475,7 @@ class class_builder ctx (cls:tclass) =
 		method private write_field is_static field =
 			match field.cf_kind with
 				| Var { v_read = AccInline; v_write = AccNever } -> self#write_const field
-				| Var _ when not (is_extern_field field) ->
+				| Var _ when is_physical_field field ->
 					(* Do not generate fields for RTTI meta, because this generator uses another way to store it *)
 					let is_auto_meta_var = is_static && field.cf_name = "__meta__" && (has_rtti_meta ctx wrapper#get_module_type) in
 					if not is_auto_meta_var then self#write_var field is_static;

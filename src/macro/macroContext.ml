@@ -25,7 +25,15 @@ open Typecore
 open Error
 open Globals
 
-module InterpImpl = Interp (* Hlmacro *)
+module Eval = struct
+	include EvalEncode
+	include EvalDecode
+	include EvalValue
+	include EvalContext
+	include EvalMain
+end
+
+module InterpImpl = Eval (* Hlmacro *)
 
 module Interp = struct
 	module BuiltApi = MacroApi.MacroApiImpl(InterpImpl)
@@ -84,7 +92,10 @@ let typing_timer ctx need_type f =
 	*)
 	(*if ctx.com.display = DMNone then ctx.com.error <- (fun e p -> raise (Error(Custom e,p)));*) (* TODO: review this... *)
 	ctx.com.error <- (fun e p -> raise (Error(Custom e,p)));
-	if need_type && ctx.pass < PTypeField then ctx.pass <- PTypeField;
+	if need_type && ctx.pass < PTypeField then begin
+		ctx.pass <- PTypeField;
+		flush_pass ctx PBuildClass "typing_timer";
+	end;
 	let exit() =
 		t();
 		ctx.com.error <- old;
@@ -329,7 +340,13 @@ let make_macro_api ctx p =
 			ctx.g.do_format_string ctx s p
 		);
 		MacroApi.cast_or_unify = (fun t e p ->
-			AbstractCast.cast_or_unify_raise ctx t e p
+			typing_timer ctx true (fun () ->
+				try
+					ignore(AbstractCast.cast_or_unify_raise ctx t e p);
+					true
+				with Error (Unify _,_) ->
+					false
+			)
 		);
 		MacroApi.add_global_metadata = (fun s1 s2 config ->
 			let meta = (match Parser.parse_string ctx.com (s2 ^ " typedef T = T") null_pos error false with
@@ -357,6 +374,10 @@ let make_macro_api ctx p =
 		MacroApi.on_reuse = (fun f ->
 			macro_interp_on_reuse := f :: !macro_interp_on_reuse
 		);
+		MacroApi.decode_expr = Interp.decode_expr;
+		MacroApi.encode_expr = Interp.encode_expr;
+		MacroApi.encode_ctype = Interp.encode_ctype;
+		MacroApi.decode_type = Interp.decode_type;
 	}
 
 let rec init_macro_interp ctx mctx mint =
@@ -399,7 +420,7 @@ and flush_macro_context mint ctx =
 		mint
 	end else mint in
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
-	let expr_filters = [Filters.VarLazifier.apply mctx.com;AbstractCast.handle_abstract_casts mctx; CapturedVars.captured_vars mctx.com; Filters.rename_local_vars mctx] in
+	let expr_filters = [Filters.VarLazifier.apply mctx.com;AbstractCast.handle_abstract_casts mctx; CapturedVars.captured_vars mctx.com;] in
 
 	(*
 		some filters here might cause side effects that would break compilation server.
@@ -415,7 +436,7 @@ and flush_macro_context mint ctx =
 			()
 	in
 	let type_filters = [
-		Filters.add_field_inits mctx;
+		Filters.add_field_inits (StringMap.empty) mctx;
 		minimal_restore;
 		Filters.apply_native_paths mctx
 	] in
@@ -681,7 +702,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 					else try
 						let ct = Interp.decode_ctype v in
 						Typeload.load_complex_type ctx false p ct;
-					with MacroApi.Invalid_expr ->
+					with MacroApi.Invalid_expr | EvalContext.RunTimeException _ ->
 						Interp.decode_type v
 					in
 					ctx.ret <- t;
@@ -758,8 +779,8 @@ let interpret ctx =
 	let mctx = Interp.create ctx.com (make_macro_api ctx null_pos) false in
 	Interp.add_types mctx ctx.com.types (fun t -> ());
 	match ctx.com.main with
-	| None -> ()
-	| Some e -> ignore(Interp.eval_expr mctx e)
+		| None -> ()
+		| Some e -> ignore(Interp.eval_expr mctx e)
 
 let setup() =
 	Interp.setup Interp.macro_api

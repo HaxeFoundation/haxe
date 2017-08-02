@@ -45,6 +45,7 @@ type value =
 and ref_value =
 	| RStack of int
 	| RValue of value ref
+	| RArray of value array * int
 
 and vabstract =
 	| AHashBytes of (string, value) Hashtbl.t
@@ -273,11 +274,13 @@ let make_dyn v t =
 let get_ref ctx = function
 	| RStack i -> ctx.stack.(i)
 	| RValue r -> !r
+	| RArray (a,i) -> a.(i)
 
 let set_ref ctx r v =
 	match r with
 	| RStack i -> ctx.stack.(i) <- v
 	| RValue r -> r := v
+	| RArray (a,i) -> a.(i) <- v
 
 let fstr = function
 	| FFun f -> "function@" ^ string_of_int f.findex
@@ -1038,6 +1041,8 @@ let interp ctx f args =
 			| VArray (a,t), VInt i ->
 				let v = get v in
 				check v t (fun() -> "array");
+				let idx = Int32.to_int i in
+				if ctx.checked && (idx < 0 || idx >= Array.length a) then error (Printf.sprintf "Can't set array index %d with %s" idx (vstr_d ctx v));
 				a.(Int32.to_int i) <- v
 			| _ -> assert false);
 		| OSafeCast (r, v) ->
@@ -1139,6 +1144,14 @@ let interp ctx f args =
 			traps := List.tl !traps
 		| OAssert _ ->
 			throw_msg ctx "Assert"
+		| ORefData (r,d) ->
+			(match get d with
+			| VArray (a,t) -> set r (VRef (RArray (a,0),t))
+			| _ -> assert false)
+		| ORefOffset (r,r2,off) ->
+			(match get r2, get off with
+			| VRef (RArray (a,pos),t), VInt i -> set r (VRef (RArray (a,pos + Int32.to_int i),t))
+			| _ -> assert false)
 		| ONop _ ->
 			()
 		);
@@ -2501,6 +2514,13 @@ let check code macros =
 				()
 			| OAssert _ ->
 				()
+			| ORefData (r,d) ->
+				reg d HArray;
+				(match rtype r with HRef _ -> () | _ -> reg r (HRef HDyn))
+			| ORefOffset (r,r2,off) ->
+				(match rtype r2 with HRef _ -> () | _ -> reg r2 (HRef HDyn));
+				reg r (rtype r2);
+				reg off HI32;
 			| ONop _ ->
 				()
 		) f.code
@@ -2521,6 +2541,7 @@ let check code macros =
 	Array.iter check_fun code.functions
 
 (* ------------------------------- SPEC ---------------------------------------------- *)
+(*
 
 open Hlopt
 
@@ -2907,3 +2928,4 @@ let make_spec (code:code) (f:fundecl) =
 	in
 	loop 0;
 	List.rev !out_spec
+*)

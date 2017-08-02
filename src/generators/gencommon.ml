@@ -111,6 +111,8 @@ let follow_once t =
 		!f()
 	| TType (t,tl) ->
 		apply_params t.t_params tl t.t_type
+	| TAbstract({a_path = [],"Null"},[t]) ->
+		t
 	| _ ->
 		t
 
@@ -122,8 +124,7 @@ let mk_local = ExprBuilder.make_local
 
 (* the undefined is a special var that works like null, but can have special meaning *)
 let undefined =
-	let v_undefined = alloc_var "__undefined__" t_dynamic in
-	(fun pos -> ExprBuilder.make_local v_undefined pos)
+	(fun pos -> mk (TIdent "__undefined__") t_dynamic pos)
 
 let path_of_md_def md_def =
 	match md_def.m_types with
@@ -605,7 +606,7 @@ let new_ctx con =
 		ghandle_cast = (fun to_t from_t e -> mk_cast to_t e);
 		gon_unsafe_cast = (fun t t2 pos -> (gen.gcon.warning ("Type " ^ (debug_type t2) ^ " is being cast to the unrelated type " ^ (s_type (print_context()) t)) pos));
 		gneeds_box = (fun t -> false);
-		gspecial_needs_cast = (fun to_t from_t -> true);
+		gspecial_needs_cast = (fun to_t from_t -> false);
 		gsupported_conversions = Hashtbl.create 0;
 
 		gadd_type = (fun md should_filter ->
@@ -657,6 +658,8 @@ let init_ctx gen =
 			follow_f (!f())
 		| TType (t,tl) ->
 			follow_f (apply_params t.t_params tl t.t_type)
+		| TAbstract({a_path = [],"Null"},[t]) ->
+			follow_f t
 		| _ -> Some t
 	in
 	gen.gfollow#add "final" PLast follow
@@ -982,9 +985,8 @@ let get_real_fun gen t =
 	| TFun(args,t) -> TFun(List.map (fun (n,o,t) -> n,o,gen.greal_type t) args, gen.greal_type t)
 	| _ -> t
 
-let v_nativearray = alloc_var "__array__" t_dynamic
 let mk_nativearray_decl gen t el pos =
-	mk (TCall (mk_local v_nativearray pos, el)) (gen.gclasses.nativearray t) pos
+	mk (TCall (mk (TIdent "__array__") t_dynamic pos, el)) (gen.gclasses.nativearray t) pos
 
 let ensure_local com block name e =
 	match e.eexpr with

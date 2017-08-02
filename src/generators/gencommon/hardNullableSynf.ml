@@ -45,7 +45,7 @@ let name = "hard_nullable"
 let priority = solve_deps name [DAfter CastDetect.ReturnCast.priority]
 
 let rec is_null_t gen t = match gen.greal_type t with
-	| TType( { t_path = ([], "Null") }, [of_t])
+	| TAbstract( { a_path = ([], "Null") }, [of_t])
 	| TInst( { cl_path = (["haxe";"lang"], "Null") }, [of_t]) ->
 		let rec take_off_null t =
 			match is_null_t gen t with | None -> t | Some s -> take_off_null s
@@ -63,13 +63,13 @@ let follow_addon gen t =
 		let t = gen.gfollow#run_f t in
 		match t with
 			(* haxe.lang.Null<haxe.lang.Null<>> wouldn't be a valid construct, so only follow Null<> *)
-			| TType ( { t_path = ([], "Null") }, [of_t] ) -> strip_off_nullable of_t
+			| TAbstract ( { a_path = ([], "Null") }, [of_t] ) -> strip_off_nullable of_t
 			| _ -> t
 	in
 
 	match t with
-		| TType( ({ t_path = ([], "Null") } as tdef), [of_t]) ->
-			Some( TType(tdef, [ strip_off_nullable of_t ]) )
+		| TAbstract( ({ a_path = ([], "Null") } as tab), [of_t]) ->
+			Some( TAbstract(tab, [ strip_off_nullable of_t ]) )
 		| _ -> None
 
 let configure gen unwrap_null wrap_val null_to_dynamic has_value opeq_handler =

@@ -168,10 +168,12 @@ let make_is e (t,p_t) p p_is =
 let reify in_macro =
 	let cur_pos = ref None in
 	let mk_enum ename n vl p =
-		let constr = (EConst (Ident n),p) in
+		(* We don't want the position of the call expression to span the entire call (#6396). *)
+		let pmin = {p with pmax = p.pmin} in
+		let constr = (EConst (Ident n),pmin) in
 		match vl with
 		| [] -> constr
-		| _ -> (ECall (constr,vl),p)
+		| _ -> (ECall (constr,vl),pmin)
 	in
 	let to_const c p =
 		let cst n v = mk_enum "Constant" n [EConst (String v),p] p in
@@ -251,7 +253,7 @@ let reify in_macro =
 			| [] -> ei
 			| _ ->
 				(* `macro : $TP<Int>` conveys the intent to use TP and overwrite the
-				   type parameters. *)
+					 type parameters. *)
 				let ea = to_array to_tparam t.tparams p in
 				let fields = [
 					("pack", (EField(ei,"pack"),p));
@@ -283,6 +285,7 @@ let reify in_macro =
 		(* to_obj ["type",to_ctype t p;"pos",to_pos p] p *)
 		to_ctype (t,p) p
 	and to_fun f p =
+		let p = {p with pmax = p.pmin} in
 		let farg ((n,_),o,_,t,e) p =
 			let fields = [
 				"name", to_string n p;
@@ -412,7 +415,7 @@ let reify in_macro =
 		| EFunction (name,f) ->
 			let name = match name with
 				| None ->
-					to_null p
+					to_null null_pos
 				| Some name ->
 					if ExtString.String.starts_with name "inline_$" then begin
 						let real_name = (String.sub name 7 (String.length name - 7)) in
@@ -484,7 +487,7 @@ let reify in_macro =
 				expr "EConst" [mk_enum "Constant" "CIdent" [e1] (pos e1)]
 			| Meta.Dollar "p", _ ->
 				(ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"MacroStringTools"),p),"toFieldExpr"),p),[e]),p)
-			| Meta.Custom ":pos", [pexpr] ->
+			| Meta.Pos, [pexpr] ->
 				let old = !cur_pos in
 				cur_pos := Some pexpr;
 				let e = loop e1 in
@@ -510,7 +513,7 @@ let reify in_macro =
 					| Some _ -> begin
 						impl := (to_tpath t p) :: !impl;
 						!ext
-					  end)
+						end)
 				| HImplements i-> impl := (to_tpath i p) :: !impl
 			) d.d_flags;
 			to_obj [

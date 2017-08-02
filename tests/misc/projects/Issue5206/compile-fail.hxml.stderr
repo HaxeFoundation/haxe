@@ -1,8 +1,8 @@
-Main.hx:14: characters 28-33 : A should be X
-Main.hx:14: characters 28-33 : { pos : Int, len : Int } should be X
-Main.hx:14: characters 28-33 : { pos : Int, len : Int } should be { ?y : Null<Int>, ?x : Null<Int> }
-Main.hx:14: characters 28-33 : { pos : Int, len : Int } has no field x
-Main.hx:14: characters 26-39 : Y should be Z
-Main.hx:14: characters 26-39 : { y : Int, x : Int } should be Z
-Main.hx:14: characters 26-39 : { y : Int, x : Int } should be { ?pos : Null<Array<String>>, ?len : Null<Array<Float>> }
-Main.hx:14: characters 26-39 : { y : Int, x : Int } has no field len
+Main.hx:14: characters 29-34 : A should be X
+Main.hx:14: characters 29-34 : { pos : Int, len : Int } should be X
+Main.hx:14: characters 29-34 : { pos : Int, len : Int } should be { ?y : Null<Int>, ?x : Null<Int> }
+Main.hx:14: characters 29-34 : { pos : Int, len : Int } has no field x
+Main.hx:14: characters 27-40 : Y should be Z
+Main.hx:14: characters 27-40 : { y : Int, x : Int } should be Z
+Main.hx:14: characters 27-40 : { y : Int, x : Int } should be { ?pos : Null<Array<String>>, ?len : Null<Array<Float>> }
+Main.hx:14: characters 27-40 : { y : Int, x : Int } has no field len

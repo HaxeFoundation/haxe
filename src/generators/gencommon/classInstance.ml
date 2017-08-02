@@ -32,10 +32,9 @@ open Gencommon
 	var x = typeof(MyClass);
 *)
 let add_typeof =
-	let v_typeof = alloc_var "__typeof__" t_dynamic in
 	let rec run e =
 		match e.eexpr with
-		| TCall (({ eexpr = TLocal { v_name = ("__is__" | "__as__" | "__typeof__") } } as elocal), args) ->
+		| TCall (({ eexpr = TIdent ("__is__" | "__as__" | "__typeof__") } as elocal), args) ->
 			let args = List.map (fun e -> match e.eexpr with TTypeExpr _ -> e | _ -> run e) args in
 			{ e with eexpr = TCall (elocal, args) }
 		| TField ({ eexpr = TTypeExpr _ }, _) ->
@@ -45,7 +44,7 @@ let add_typeof =
 			| None -> Type.map_expr run e
 			| Some t -> { e with eexpr = TField ({ ef with eexpr = TTypeExpr t }, f)})
 		| TTypeExpr _ ->
-			{ e with eexpr = TCall (mk_local v_typeof e.epos, [e]) }
+			{ e with eexpr = TCall (mk (TIdent "__typeof__") t_dynamic e.epos, [e]) }
 		| _ ->
 			Type.map_expr run e
 	in

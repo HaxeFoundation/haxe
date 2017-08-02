@@ -22,26 +22,31 @@
 package haxe.ds;
 
 @:headerClassCode("
-  inline void set(Dynamic key, ::null value) { __object_hash_set(h,key,value); }
-  inline void set(Dynamic key, bool value) { __object_hash_set(h,key,value); }
-  inline void set(Dynamic key, char value) { __object_hash_set_int(h,key,value); }
-  inline void set(Dynamic key, unsigned char value) { __object_hash_set_int(h,key,value); }
-  inline void set(Dynamic key, signed char value) { __object_hash_set_int(h,key,value); }
-  inline void set(Dynamic key, short value) { __object_hash_set_int(h,key,value); }
-  inline void set(Dynamic key, unsigned short value) { __object_hash_set_int(h,key,value); }
-  inline void set(Dynamic key, int value) { __object_hash_set_int(h,key,value); }
-  inline void set(Dynamic key, unsigned int value) { __object_hash_set_int(h,key,value); }
-  inline void set(Dynamic key, float value) { __object_hash_set_float(h,key,value); }
-  inline void set(Dynamic key, double value) { __object_hash_set_float(h,key,value); }
-  inline void set(Dynamic key, ::String value) { __object_hash_set_string(h,key,value); }
+  inline void set(Dynamic key, ::null value) { __object_hash_set(HX_MAP_THIS,key,value); }
+  inline void set(Dynamic key, bool value) { __object_hash_set(HX_MAP_THIS,key,value); }
+  inline void set(Dynamic key, char value) { __object_hash_set_int(HX_MAP_THIS,key,value); }
+  inline void set(Dynamic key, unsigned char value) { __object_hash_set_int(HX_MAP_THIS,key,value); }
+  inline void set(Dynamic key, signed char value) { __object_hash_set_int(HX_MAP_THIS,key,value); }
+  inline void set(Dynamic key, short value) { __object_hash_set_int(HX_MAP_THIS,key,value); }
+  inline void set(Dynamic key, unsigned short value) { __object_hash_set_int(HX_MAP_THIS,key,value); }
+  inline void set(Dynamic key, int value) { __object_hash_set_int(HX_MAP_THIS,key,value); }
+  inline void set(Dynamic key, unsigned int value) { __object_hash_set_int(HX_MAP_THIS,key,value); }
+  inline void set(Dynamic key, float value) { __object_hash_set_float(HX_MAP_THIS,key,value); }
+  inline void set(Dynamic key, double value) { __object_hash_set_float(HX_MAP_THIS,key,value); }
+  inline void set(Dynamic key, ::String value) { __object_hash_set_string(HX_MAP_THIS,key,value); }
 
 
   template<typename V, typename H>
-  inline void set(Dynamic key, const ::cpp::Struct<V,H> &value) {__object_hash_set(h,key,value); }
+  inline void set(Dynamic key, const ::cpp::Struct<V,H> &value) {__object_hash_set(HX_MAP_THIS,key,value); }
   template<typename V>
-  inline void set(Dynamic key, const ::cpp::Function<V> &value) {__object_hash_set(h,key,(Dynamic)value ); }
+  inline void set(Dynamic key, const ::cpp::Function<V> &value) {__object_hash_set(HX_MAP_THIS,key,(Dynamic)value ); }
   template<typename V>
-  inline void set(Dynamic key, const ::cpp::Pointer<V> &value) {__object_hash_set(h,key,(Dynamic)value ); }
+  inline void set(Dynamic key, const ::cpp::Pointer<V> &value) {__object_hash_set(HX_MAP_THIS,key,(Dynamic)value ); }
+
+  inline bool get_bool(Dynamic key) { return __object_hash_get_bool(h,key); }
+  inline int get_int(Dynamic key) { return __object_hash_get_int(h,key); }
+  inline Float get_float(Dynamic key) { return __object_hash_get_float(h,key); }
+  inline String get_string(Dynamic key) { return __object_hash_get_string(h,key); }
 
 ")
 @:coreApi
@@ -52,7 +57,7 @@ class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K,V> {
 	public function new() : Void { }
 
 	public function set( key : K, value : V ) : Void {
-		untyped __global__.__object_hash_set(h,key,value);
+		untyped __global__.__object_hash_set(__cpp__("HX_MAP_THIS"),key,value);
 	}
 
 	public function get( key : K ) : Null<V> {
@@ -76,8 +81,26 @@ class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K,V> {
 		var a:Array<Dynamic> = untyped __global__.__object_hash_values(h);
 		return a.iterator();
 	}
+	
+	public function copy() : ObjectMap<K,V> {
+		var copied = new ObjectMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	public function toString() : String {
 		return untyped __global__.__object_hash_to_string(h);
 	}
+
+   #if (scriptable)
+   private function setString(key:Dynamic,val:String) : Void { untyped __object_hash_set_string(__cpp__("HX_MAP_THIS"),key,val); }
+   private function setInt(key:Dynamic,val:Int) : Void { untyped __object_hash_set_int(__cpp__("HX_MAP_THIS"),key,val); }
+   private function setBool(key:Dynamic,val:Bool) : Void { untyped __object_hash_set_int(__cpp__("HX_MAP_THIS"),key,val); }
+   private function setFloat(key:Dynamic,val:Float) : Void { untyped __object_hash_set_float(__cpp__("HX_MAP_THIS"),key,val); }
+
+   private function getString(key:Dynamic) : String { return untyped __object_hash_get_string(h,key); }
+   private function getInt(key:Dynamic) : Int { return untyped __object_hash_get_int(h,key); }
+   private function getBool(key:Dynamic) : Bool { return untyped __object_hash_get_bool(h,key); }
+   private function getFloat(key:Dynamic) : Float { return untyped __object_hash_get_float(h,key); }
+   #end
 }

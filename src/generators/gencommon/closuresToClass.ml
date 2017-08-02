@@ -145,7 +145,7 @@ let traverse gen ?tparam_anon_decl ?tparam_anon_acc (handle_anon_func:texpr->tfu
 	let info = ref null_map_info in
 	let rec run e =
 		match e.eexpr with
-			| TCast({ eexpr = TCall({ eexpr = TLocal{ v_name = "__delegate__" } } as local, [del] ) } as e2, _) ->
+			| TCast({ eexpr = TCall({ eexpr = TIdent "__delegate__" } as local, [del] ) } as e2, _) ->
 				let e2 = { e2 with etype = e.etype } in
 				let replace_delegate ex =
 					{ e with eexpr = TCast({ e2 with eexpr = TCall(local, [ex]) }, None) }
@@ -174,7 +174,7 @@ let traverse gen ?tparam_anon_decl ?tparam_anon_acc (handle_anon_func:texpr->tfu
 						gen.gcon.error "This delegate construct is unsupported" e.epos;
 						replace_delegate (run clean))
 
-			| TCall(({ eexpr = TLocal{ v_name = "__unsafe__" } } as local), [arg]) ->
+			| TCall(({ eexpr = TIdent "__unsafe__" } as local), [arg]) ->
 				let old = !info in
 				info := { !info with in_unsafe = true };
 				let arg2 = run arg in
@@ -186,7 +186,7 @@ let traverse gen ?tparam_anon_decl ?tparam_anon_acc (handle_anon_func:texpr->tfu
 				| Some tparam_anon_decl ->
 					(match (vv, ve) with
 						| ({ v_extra = Some( _ :: _, _) } as v), Some ({ eexpr = TFunction tf } as f)
-						| ({ v_extra = Some( _ :: _, _) } as v), Some { eexpr = TArrayDecl([{ eexpr = TFunction tf } as f]) | TCall({ eexpr = TLocal { v_name = "__array__" } }, [{ eexpr = TFunction tf } as f]) } -> (* captured transformation *)
+						| ({ v_extra = Some( _ :: _, _) } as v), Some { eexpr = TArrayDecl([{ eexpr = TFunction tf } as f]) | TCall({ eexpr = TIdent "__array__" }, [{ eexpr = TFunction tf } as f]) } -> (* captured transformation *)
 							ignore(tparam_anon_decl v f { tf with tf_expr = run tf.tf_expr });
 							{ e with eexpr = TBlock([]) }
 						| _ ->
@@ -234,7 +234,7 @@ let traverse gen ?tparam_anon_decl ?tparam_anon_acc (handle_anon_func:texpr->tfu
 				handle_anon_func e { tf with tf_expr = run tf.tf_expr } !info None
 			| TCall({ eexpr = TConst(TSuper) }, _) ->
 				Type.map_expr run e
-			| TCall({ eexpr = TLocal(v) }, args) when String.get v.v_name 0 = '_' && Hashtbl.mem gen.gspecial_vars v.v_name ->
+			| TCall({ eexpr = TIdent s }, args) when String.get s 0 = '_' && Hashtbl.mem gen.gspecial_vars s ->
 				Type.map_expr run e
 			| TCall(tc,params) ->
 				let i = ref 0 in
@@ -351,6 +351,13 @@ let get_captured expr =
 let configure gen ft =
 
 	let handle_anon_func fexpr tfunc mapinfo delegate_type : texpr * (tclass * texpr list) =
+		let fexpr = match fexpr.eexpr with
+			| TFunction(_) ->
+				{ fexpr with eexpr = TFunction(tfunc) }
+			| _ ->
+				gen.gcon.error "Function expected" fexpr.epos;
+				fexpr
+		in
 		let in_unsafe = mapinfo.in_unsafe || match gen.gcurrent_class, gen.gcurrent_classfield with
 			| Some c, _ when Meta.has Meta.Unsafe c.cl_meta -> true
 			| _, Some cf when Meta.has Meta.Unsafe cf.cf_meta -> true
@@ -646,7 +653,7 @@ struct
 		in
 
 		let rettype_real_to_func t = match run_follow gen t with
-			| TType({ t_path = [],"Null" }, _) ->
+			| TAbstract({ a_path = [],"Null" }, _) ->
 				0,t_dynamic
 			| _ when like_float t && not (like_i64 t) ->
 				(1, basic.tfloat)

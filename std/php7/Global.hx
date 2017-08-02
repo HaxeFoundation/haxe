@@ -713,6 +713,11 @@ extern class Global {
 	static function dirname( path:String, levels:Int = 1 ) : String;
 
 	/**
+		@see http://php.net/manual/en/function.glob.php
+	**/
+	static function glob( pattern:String, flags:Int = 0 ) : NativeArray;
+
+	/**
 		@see http://php.net/manual/en/function.opendir.php
 	**/
 	static function opendir( path:String, ?context:Resource ) : EitherType<Resource,Bool>;
@@ -1162,4 +1167,29 @@ extern class Global {
 	**/
 	@:overload(function( sessionhandler:SessionHandlerInterface, register_shutdown:Bool = true ) : Bool {})
 	static function session_set_save_handler( open:String->String->Bool, close:Void->Bool, read:String->String, write:String->String->Bool, destroy:String->Bool, gc:Int->Bool, ?create_sid:Void->String, ?validate_sid:Function, ?update_timestamp:Function ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.mail.php
+	**/
+	static function mail( to:String, subject:String, message:String, ?additional_headers:String, ?additional_parameters:String ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.require.php
+	**/
+	static function require( include_path:String ) : Void;
+
+	/**
+		@see http://php.net/manual/en/function.require-once.php
+	**/
+	static function require_once( include_path:String ) : Void;
+
+	/**
+		@see http://php.net/manual/en/function.include.php
+	**/
+	static function include( include_path:String ) : Void;
+
+	/**
+		@see http://php.net/manual/en/function.include-once.php
+	**/
+	static function include_once( include_path:String ) : Void;
 }
