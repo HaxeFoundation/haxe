@@ -1053,7 +1053,7 @@ module Printer = struct
 		| OpShr -> ">>"
 		| OpUShr -> ">>"
 		| OpMod -> "%"
-		| OpInterval | OpArrow | OpAssignOp _ -> assert false
+		| OpInterval | OpArrow | OpIn | OpAssignOp _ -> assert false
 
 	let print_string s =
 		Printf.sprintf "\"%s\"" (Ast.s_escape s)

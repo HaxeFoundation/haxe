@@ -620,6 +620,7 @@ module Fusion = struct
 		| OpBoolOr
 		| OpAssignOp _
 		| OpInterval
+		| OpIn
 		| OpArrow ->
 			false
 

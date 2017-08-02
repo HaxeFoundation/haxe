@@ -331,6 +331,7 @@ let rec encode_binop op =
 	| OpAssignOp op -> 20, [encode_binop op]
 	| OpInterval -> 21, []
 	| OpArrow -> 22, []
+	| OpIn -> 23, []
 	in
 	encode_enum IBinop tag pl
 
@@ -496,14 +497,12 @@ and encode_expr e =
 				12, [encode_array (List.map loop el)]
 			| EFor (e,eloop) ->
 				13, [loop e;loop eloop]
-			| EIn (e1,e2) ->
-				14, [loop e1;loop e2]
 			| EIf (econd,e,eelse) ->
-				15, [loop econd;loop e;null loop eelse]
+				14, [loop econd;loop e;null loop eelse]
 			| EWhile (econd,e,flag) ->
-				16, [loop econd;loop e;vbool (match flag with NormalWhile -> true | DoWhile -> false)]
+				15, [loop econd;loop e;vbool (match flag with NormalWhile -> true | DoWhile -> false)]
 			| ESwitch (e,cases,eopt) ->
-				17, [loop e;encode_array (List.map (fun (ecl,eg,e,p) ->
+				16, [loop e;encode_array (List.map (fun (ecl,eg,e,p) ->
 					encode_obj OCase [
 						"values",encode_array (List.map loop ecl);
 						"guard",null loop eg;
@@ -512,7 +511,7 @@ and encode_expr e =
 					]
 				) cases);null (fun (e,_) -> encode_null_expr e) eopt]
 			| ETry (e,catches) ->
-				18, [loop e;encode_array (List.map (fun (v,t,e,p) ->
+				17, [loop e;encode_array (List.map (fun (v,t,e,p) ->
 					encode_obj OCatch [
 						"name",encode_placed_name v;
 						"name_pos",encode_pos (pos v);
@@ -522,27 +521,27 @@ and encode_expr e =
 					]
 				) catches)]
 			| EReturn eo ->
-				19, [null loop eo]
+				18, [null loop eo]
 			| EBreak ->
-				20, []
+				19, []
 			| EContinue ->
-				21, []
+				20, []
 			| EUntyped e ->
-				22, [loop e]
+				21, [loop e]
 			| EThrow e ->
-				23, [loop e]
+				22, [loop e]
 			| ECast (e,t) ->
-				24, [loop e; null encode_ctype t]
+				23, [loop e; null encode_ctype t]
 			| EDisplay (e,flag) ->
-				25, [loop e; vbool flag]
+				24, [loop e; vbool flag]
 			| EDisplayNew t ->
-				26, [encode_path t]
+				25, [encode_path t]
 			| ETernary (econd,e1,e2) ->
-				27, [loop econd;loop e1;loop e2]
+				26, [loop econd;loop e1;loop e2]
 			| ECheckType (e,t) ->
-				28, [loop e; encode_ctype t]
+				27, [loop e; encode_ctype t]
 			| EMeta (m,e) ->
-				29, [encode_meta_entry m;loop e]
+				28, [encode_meta_entry m;loop e]
 		in
 		encode_obj OExpr [
 			"pos", encode_pos p;
@@ -605,6 +604,7 @@ let rec decode_op op =
 	| 20, [op] -> OpAssignOp (decode_op op)
 	| 21, [] -> OpInterval
 	| 22,[] -> OpArrow
+	| 23,[] -> OpIn
 	| _ -> raise Invalid_expr
 
 let decode_unop op =
@@ -764,45 +764,43 @@ and decode_expr v =
 			EBlock (List.map loop (decode_array el))
 		| 13, [e1;e2] ->
 			EFor (loop e1, loop e2)
-		| 14, [e1;e2] ->
-			EIn (loop e1, loop e2)
-		| 15, [e1;e2;e3] ->
+		| 14, [e1;e2;e3] ->
 			EIf (loop e1, loop e2, opt loop e3)
-		| 16, [e1;e2;flag] ->
+		| 15, [e1;e2;flag] ->
 			EWhile (loop e1,loop e2,if decode_bool flag then NormalWhile else DoWhile)
-		| 17, [e;cases;eo] ->
+		| 16, [e;cases;eo] ->
 			let cases = List.map (fun c ->
 				(List.map loop (decode_array (field c "values")),opt loop (field c "guard"),opt loop (field c "expr"),maybe_decode_pos (field c "pos"))
 			) (decode_array cases) in
 			ESwitch (loop e,cases,opt (fun v -> (if field v "expr" = vnull then None else Some (decode_expr v)),Globals.null_pos) eo)
-		| 18, [e;catches] ->
+		| 17, [e;catches] ->
 			let catches = List.map (fun c ->
 				((decode_placed_name (field c "name_pos") (field c "name")),(decode_ctype (field c "type")),loop (field c "expr"),maybe_decode_pos (field c "pos"))
 			) (decode_array catches) in
 			ETry (loop e, catches)
-		| 19, [e] ->
+		| 18, [e] ->
 			EReturn (opt loop e)
-		| 20, [] ->
+		| 19, [] ->
 			EBreak
-		| 21, [] ->
+		| 20, [] ->
 			EContinue
-		| 22, [e] ->
+		| 21, [e] ->
 			EUntyped (loop e)
-		| 23, [e] ->
+		| 22, [e] ->
 			EThrow (loop e)
-		| 24, [e;t] ->
+		| 23, [e;t] ->
 			ECast (loop e,opt decode_ctype t)
-		| 25, [e;f] ->
+		| 24, [e;f] ->
 			EDisplay (loop e,decode_bool f)
-		| 26, [t] ->
+		| 25, [t] ->
 			EDisplayNew (decode_path t)
-		| 27, [e1;e2;e3] ->
+		| 26, [e1;e2;e3] ->
 			ETernary (loop e1,loop e2,loop e3)
-		| 28, [e;t] ->
+		| 27, [e;t] ->
 			ECheckType (loop e, (decode_ctype t))
-		| 29, [m;e] ->
+		| 28, [m;e] ->
 			EMeta (decode_meta_entry m,loop e)
-		| 30, [e;f] ->
+		| 29, [e;f] ->
 			EField (loop e, decode_string f) (*** deprecated EType, keep until haxe 3 **)
 		| _ ->
 			raise Invalid_expr

@@ -120,7 +120,8 @@ let precedence op =
 	| OpBoolAnd -> 7, left
 	| OpBoolOr -> 8, left
 	| OpArrow -> 9, right
-	| OpAssign | OpAssignOp _ -> 10, right
+	| OpIn -> 10, right
+	| OpAssign | OpAssignOp _ -> 11, right
 
 let is_not_assign = function
 	| OpAssign | OpAssignOp _ -> false
@@ -210,6 +211,7 @@ let reify in_macro =
 		| OpAssignOp o -> mk_enum "Binop" "OpAssignOp" [to_binop o p] p
 		| OpInterval -> op "OpInterval"
 		| OpArrow -> op "OpArrow"
+		| OpIn -> op "OpIn"
 	in
 	let to_string s p =
 		let len = String.length s in
@@ -432,8 +434,6 @@ let reify in_macro =
 			expr "EBlock" [to_expr_array el p]
 		| EFor (e1,e2) ->
 			expr "EFor" [loop e1;loop e2]
-		| EIn (e1,e2) ->
-			expr "EIn" [loop e1;loop e2]
 		| EIf (e1,e2,eelse) ->
 			expr "EIf" [loop e1;loop e2;to_opt to_expr eelse p]
 		| EWhile (e1,e2,flag) ->
@@ -1515,7 +1515,7 @@ and expr_next e1 = parser
 	| [< '(Question,_); e2 = expr; '(DblDot,_); e3 = expr >] ->
 		(ETernary (e1,e2,e3),punion (pos e1) (pos e3))
 	| [< '(Kwd In,_); e2 = expr >] ->
-		(EIn (e1,e2), punion (pos e1) (pos e2))
+		make_binop OpIn e1 e2
 	| [< >] -> e1
 
 and parse_guard = parser

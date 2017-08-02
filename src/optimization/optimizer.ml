@@ -914,8 +914,9 @@ let standard_precedence op =
 	| OpBoolAnd -> 14, left
 	| OpBoolOr -> 15, left
 	| OpArrow -> 16, left
-	| OpAssignOp OpAssign -> 17, right (* mimics ?: *)
-	| OpAssign | OpAssignOp _ -> 18, right
+	| OpIn -> 17, right
+	| OpAssignOp OpAssign -> 18, right (* mimics ?: *)
+	| OpAssign | OpAssignOp _ -> 19, right
 
 let rec need_parent e =
 	match e.eexpr with
@@ -1503,18 +1504,18 @@ let optimize_completion_expr e =
 			let e = map e in
 			old();
 			e
-		| EFor ((EIn ((EConst (Ident n),_) as id,it),p),efor) ->
+		| EFor ((EBinop (OpIn,((EConst (Ident n),_) as id),it),p),efor) ->
 			let it = loop it in
 			let old = save() in
 			let etmp = (EConst (Ident "$tmp"),p) in
 			decl n None (Some (EBlock [
 				(EVars [("$tmp",null_pos),None,None],p);
-				(EFor ((EIn (id,it),p),(EBinop (OpAssign,etmp,(EConst (Ident n),p)),p)),p);
+				(EFor ((EBinop (OpIn,id,it),p),(EBinop (OpAssign,etmp,(EConst (Ident n),p)),p)),p);
 				etmp
 			],p));
 			let efor = loop efor in
 			old();
-			(EFor ((EIn (id,it),p),efor),p)
+			(EFor ((EBinop (OpIn,id,it),p),efor),p)
 		| EReturn _ ->
 			typing_side_effect := true;
 			map e
