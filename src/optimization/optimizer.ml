@@ -914,9 +914,9 @@ let standard_precedence op =
 	| OpBoolAnd -> 14, left
 	| OpBoolOr -> 15, left
 	| OpArrow -> 16, left
-	| OpAssignOp OpAssign -> 17, right (* mimics ?: *)
-	| OpAssign | OpAssignOp _ -> 18, right
-	| OpIn -> 19, right
+	| OpIn -> 17, right
+	| OpAssignOp OpAssign -> 18, right (* mimics ?: *)
+	| OpAssign | OpAssignOp _ -> 19, right
 
 let rec need_parent e =
 	match e.eexpr with

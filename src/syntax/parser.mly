@@ -120,8 +120,8 @@ let precedence op =
 	| OpBoolAnd -> 7, left
 	| OpBoolOr -> 8, left
 	| OpArrow -> 9, right
-	| OpAssign | OpAssignOp _ -> 10, right
-	| OpIn -> 11, right
+	| OpIn -> 10, right
+	| OpAssign | OpAssignOp _ -> 11, right
 
 let is_not_assign = function
 	| OpAssign | OpAssignOp _ -> false
