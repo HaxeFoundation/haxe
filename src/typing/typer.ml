@@ -2568,15 +2568,14 @@ and handle_efield ctx e p mode =
 			with
 				Not_found -> loop [] path
 	in
-	let rec loop acc e =
-		let p = pos e in
-		match fst e with
+	let rec loop acc (e,p) =
+		match e with
 		| EField (e,s) ->
 			loop ((s,not (is_lower_ident s),p) :: acc) e
 		| EConst (Ident i) ->
 			type_path ((i,not (is_lower_ident i),p) :: acc)
 		| _ ->
-			fields acc (type_access ctx (fst e) (snd e))
+			fields acc (type_access ctx e p)
 	in
 	loop [] (e,p) mode
 
