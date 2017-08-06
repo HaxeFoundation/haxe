@@ -19,6 +19,7 @@ type 'value compiler_api = {
 	after_generate : (unit -> unit) -> unit;
 	on_type_not_found : (string -> 'value) -> unit;
 	parse_string : string -> Globals.pos -> bool -> Ast.expr;
+	parse_single_expr : string -> Globals.pos -> Ast.expr * string;
 	type_expr : Ast.expr -> Type.texpr;
 	resolve_type  : Ast.complex_type -> Globals.pos -> t;
 	type_macro_expr : Ast.expr -> Type.texpr;
@@ -121,6 +122,7 @@ type obj_type =
 	| OTypedExprDef_catches
 	| OJSGenApi
 	| OContext_getPosInfos
+	| OContext_parseSingleExpr
 	| OCompiler_getDisplayPos
 	| ORef
 (* ---- ^^^^^ please exactly match the name of the typedef or use TypeName_field if it's a anonymous *)
@@ -252,6 +254,7 @@ let proto_name = function
 	| OTypedExprDef_catches -> "TypedExprDef", Some "catches"
 	| OJSGenApi -> "JSGenApi", None
 	| OContext_getPosInfos -> "Context", Some "getPosInfos"
+	| OContext_parseSingleExpr -> "Context", Some "parseSingleExpr"
 	| OCompiler_getDisplayPos -> "Compiler", Some "getDisplayPos"
 	| ORef -> "Ref", None
 
@@ -1545,6 +1548,15 @@ let macro_api ccom get_api =
 			let s = decode_string s in
 			if s = "" then raise Invalid_expr;
 			encode_expr ((get_api()).parse_string s (decode_pos p) (decode_bool b))
+		);
+		"parse_single_expr", vfun2 (fun s p ->
+			let s = decode_string s in
+			let p = decode_pos p in
+			let expr, rest = (get_api()).parse_single_expr s p in
+			encode_obj OContext_parseSingleExpr [
+				"expr", encode_expr expr;
+				"rest", encode_string rest;
+			]
 		);
 		"make_expr", vfun2 (fun v p ->
 			encode_expr (value_to_expr v (decode_pos p))

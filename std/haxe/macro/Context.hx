@@ -280,6 +280,10 @@ class Context {
 		return load("do_parse", 3)(expr, pos, true);
 	}
 
+	public static function parseSingleExpr( expr : String, pos : Position ) : { expr: Expr, rest: String } {
+		return load("parse_single_expr", 2)(expr, pos);
+	}
+
 	/**
 		Builds an expression from `v`.
 
@@ -517,8 +521,8 @@ class Context {
 	}
 
 	/**
-		Types expression `e`, stores the resulting typed expression internally and 
-		returns a syntax-level expression that can be returned from a macro and 
+		Types expression `e`, stores the resulting typed expression internally and
+		returns a syntax-level expression that can be returned from a macro and
 		will be replaced by the stored typed expression.
 
 		If `e` is null or invalid, an exception is thrown.

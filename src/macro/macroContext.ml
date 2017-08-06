@@ -183,6 +183,27 @@ let make_macro_api ctx p =
 			];
 		);
 		MacroApi.parse_string = parse_expr_string;
+		MacroApi.parse_single_expr = (fun s p ->
+			let err () = Interp.exc_string "Invalid expression" in
+			if s = "" then err();
+			let tokens = Sedlexing.Utf8.from_string s in
+			let str = Stream.from (fun _ ->
+				try
+					Some (Lexer.token tokens)
+				with Lexer.Error (Lexer.Invalid_character _,_) ->
+					None
+			) in
+			let expr = try Parser.expr str with Stream.Error _ -> err() in
+			let rec loop e =
+				let e = Ast.map_expr loop e in
+				let ep = pos e in
+				fst e, {p with pmin = p.pmin + ep.pmin; pmax = p.pmin + ep.pmax}
+			in
+			let expr = loop expr in
+			let pos = Sedlexing.lexeme_start tokens in
+			let rest = String.sub s pos (String.length s - pos) in
+			expr,rest
+		);
 		MacroApi.type_expr = (fun e ->
 			typing_timer ctx true (fun() -> type_expr ctx e Value)
 		);
