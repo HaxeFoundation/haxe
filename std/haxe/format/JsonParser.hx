@@ -79,7 +79,7 @@ class JsonParser {
 					case ','.code:
 						if( comma ) comma = false else invalidChar();
 					case '"'.code:
-						if( comma ) invalidChar();
+						if( field != null || comma ) invalidChar();
 						field = parseString();
 					default:
 						invalidChar();
