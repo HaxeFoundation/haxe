@@ -97,6 +97,7 @@ class Unserializer {
  	var scache : Array<String>;
  	var resolver : TypeResolver;
  	var instantiator : TypeInstantiator;
+ 	var kviterator : KVIterator;
  	#if neko
  	var upos : Int;
  	#end
@@ -211,12 +212,14 @@ class Unserializer {
 	}
 
 	inline function unserializeObject(o) {
-		instantiator.applyDynamicValues(o, new KVIterator(this));
+		if (kviterator==null) kviterator = new KVIterator(this);
+		instantiator.applyDynamicValues(o, kviterator);
 		pos++;
 	}
 
 	inline function unserializeInstance(o) {
-		instantiator.applyInstanceValues(o, new KVIterator(this));
+		if (kviterator==null) kviterator = new KVIterator(this);
+		instantiator.applyInstanceValues(o, kviterator);
 		pos++;
 	}
 
@@ -558,8 +561,15 @@ private class KVIterator {
 		}
 		var k : Dynamic = unserializer.unserialize();
 		if( !Std.is(k,String) ) throw "Invalid object key";
-		key = k;
+
+		// Warning: recursion can happen here, and since we use a
+		// single kviterator, the key reference was thrashed.
 		value = unserializer.unserialize();
+
+		// But now we recover, such that whenever we exit
+		// this function, the proper k/v are ready
+		key = k;
+
 		return true;
 	}
 }
