@@ -31,7 +31,7 @@ typedef TypeResolver = {
 typedef TypeInstantiator = {
 	function createEnum<T>( e:Enum<T>, constructor:String, ?params : Array<Dynamic> ) : T;
 	function createEmptyInstance<T>( cl : Class<T> ) : T;
-	function applyInstanceValues( instance : Dynamic, nextKey : Void->String, nextValue : Void->Dynamic ) : Void;
+	function applyInstanceValues( instance : Dynamic, iterator : KVIterator ) : Void;
 }
 
 /**
@@ -224,24 +224,8 @@ class Unserializer {
  		pos++;
 	}
 
-	// Same as unserializeObject, except via instantiator.applyInstanceValues
-	function unserializeInstance(o) {
-		// eof protects this unserializer / pos state, regardless of
-		// what instantiator.applyInstanceValues does.
-		var eof = false;
-		function nextKey() {
-			if( get(pos) == "g".code ) eof = true;
-			if( eof ) {
-				return null;
-			} else {
-				var k : Dynamic = unserialize();
-				if( !Std.is(k,String) ) throw "Invalid object key";
-				return k;
-			}
-		}
-		function nextValue() return eof ? null : unserialize();
-
-		instantiator.applyInstanceValues(o, nextKey, nextValue);
+	inline function unserializeInstance(o) {
+		instantiator.applyInstanceValues(o, new KVIterator(this));
 		pos++;
 	}
 
@@ -546,12 +530,33 @@ private class DefaultInstantiator {
 		return Type.createEmptyInstance(cl);
 	}
 
-	@:final public inline function applyInstanceValues( instance : Dynamic, nextKey : Void->String, nextValue : Void->Dynamic ) : Void
+	@:final public inline function applyInstanceValues( instance : Dynamic, iterator : KVIterator ) : Void
 	{
-		while( true ) {
-			var key = nextKey();
-			if (key==null) break;
-			Reflect.setField(instance, key, nextValue());
+		while( iterator.hasNext() ) {
+			Reflect.setField(instance, iterator.key, iterator.value);
 		}
+	}
+}
+
+@:access(haxe.Unserializer)
+private class KVIterator {
+
+	public var key:String;
+	public var value:Dynamic;
+	private var unserializer:Unserializer;
+
+	public function new(unserializer:Unserializer) {
+		this.unserializer = unserializer;
+	}
+
+	public function hasNext():Bool
+	{
+		if( unserializer.get(unserializer.pos) == "g".code ) return false;
+
+		var k : Dynamic = unserializer.unserialize();
+		if( !Std.is(k,String) ) throw "Invalid object key";
+		key = k;
+		value = unserializer.unserialize();
+		return true;
 	}
 }
