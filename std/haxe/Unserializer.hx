@@ -32,6 +32,7 @@ typedef TypeInstantiator = {
 	function createEnum<T>( e:Enum<T>, constructor:String, ?params : Array<Dynamic> ) : T;
 	function createEmptyInstance<T>( cl : Class<T> ) : T;
 	function applyInstanceValues( instance : Dynamic, iterator : KVIterator ) : Void;
+	function applyDynamicValues( obj : Dynamic, iterator : KVIterator ) : Void;
 }
 
 /**
@@ -209,19 +210,9 @@ class Unserializer {
  		return Std.parseFloat(buf.substr(p1,pos-p1));
 	}
 
-	function unserializeObject(o) {
- 		while( true ) {
- 			if( pos >= length )
- 				throw "Invalid object";
- 			if( get(pos) == "g".code )
- 				break;
- 			var k : Dynamic = unserialize();
- 			if( !Std.is(k,String) )
- 				throw "Invalid object key";
- 			var v = unserialize();
- 			Reflect.setField(o,k,v);
- 		}
- 		pos++;
+	inline function unserializeObject(o) {
+		instantiator.applyDynamicValues(o, new KVIterator(this));
+		pos++;
 	}
 
 	inline function unserializeInstance(o) {
@@ -536,6 +527,14 @@ private class DefaultInstantiator {
 			Reflect.setField(instance, iterator.key, iterator.value);
 		}
 	}
+
+	@:final public inline function applyDynamicValues( obj : Dynamic, iterator : KVIterator ) : Void
+	{
+		while( iterator.hasNext() ) {
+			Reflect.setField(obj, iterator.key, iterator.value);
+		}
+	}
+
 }
 
 @:access(haxe.Unserializer)
@@ -551,8 +550,12 @@ private class KVIterator {
 
 	public function hasNext():Bool
 	{
-		if( unserializer.get(unserializer.pos) == "g".code ) return false;
-
+		if( unserializer.pos >= unserializer.length ) throw "Invalid object";
+		if( unserializer.get(unserializer.pos) == "g".code ) {
+			key = null;
+			value = null;
+			return false;
+		}
 		var k : Dynamic = unserializer.unserialize();
 		if( !Std.is(k,String) ) throw "Invalid object key";
 		key = k;
