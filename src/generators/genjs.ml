@@ -423,17 +423,14 @@ let rec gen_call ctx e el in_value =
 			spr ctx ")";
 		end else begin
 			spr ctx "console.log(";
-			let b = match infos.eexpr with
+			(match infos.eexpr with
 			| TObjectDecl (
 				("fileName" , { eexpr = (TConst (TString file)) }) ::
 				("lineNumber" , { eexpr = (TConst (TInt line)) }) :: _) ->
-					print ctx "\"%s:%i: \" + (" file (Int32.to_int line);
-					true
+					print ctx "\"%s:%i:\"," file (Int32.to_int line)
 			| _ ->
-				false
-			in
+				());
 			gen_value ctx e;
-			if b then spr ctx ")";
 			spr ctx ")";
 		end
 	| _ ->
