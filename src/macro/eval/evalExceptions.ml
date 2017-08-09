@@ -88,7 +88,7 @@ let uncaught_exception_string v p extra =
 	(Printf.sprintf "%s : Uncaught exception %s%s" (format_pos p) (value_string v) extra)
 
 let get_exc_error_message ctx v stack p =
-	let pl = List.map (fun env -> {pfile = rev_hash_s env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax}) stack in
+	let pl = List.map (fun env -> {pfile = rev_file_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax}) stack in
 	let pl = List.filter (fun p -> p <> null_pos) pl in
 	match pl with
 	| [] ->
@@ -104,7 +104,7 @@ let build_exception_stack ctx environment_offset =
 	ctx.exception_stack <- List.map (fun env ->
 		env.env_in_use <- false;
 		env.env_debug.timer();
-		{pfile = rev_hash_s env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax},env.env_info.kind
+		{pfile = rev_file_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax},env.env_info.kind
 	) d
 
 let catch_exceptions ctx ?(final=(fun() -> ())) f p =
