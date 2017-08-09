@@ -104,7 +104,7 @@ class Float32Array {
 	}
 
 	static function __init__() {
-		var Float32Array = untyped js.Lib.global.Float32Array || _new;
+		untyped __js__("var Float32Array = {0} || {1}", js.Lib.global.Float32Array, _new);
 	}
 
 }

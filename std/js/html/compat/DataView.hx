@@ -147,7 +147,7 @@ class DataView {
 	}
 
 	static function __init__() {
-		var DataView = untyped js.Lib.global.DataView || js.html.compat.DataView;
+		untyped __js__("var DataView = {0} || {1}", js.Lib.global.DataView, js.html.compat.DataView);
 	}
 
 }

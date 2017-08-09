@@ -95,7 +95,7 @@ class Uint8Array {
 	}
 
 	static function __init__() {
-		var Uint8Array = untyped js.Lib.global.Uint8Array || _new;
+		untyped __js__("var Uint8Array = {0} || {1}", js.Lib.global.Uint8Array, _new);
 	}
 
 }
