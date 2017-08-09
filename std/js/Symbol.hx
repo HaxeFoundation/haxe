@@ -23,8 +23,39 @@ package js;
 
 @:native("Symbol")
 extern class Symbol {
+	/**
+		To create a new primitive symbol, you write `new Symbol()` with an optional string as its `description`.
+
+		NOTE: Unlike plain JavaScript, in Haxe `new Symbol()` syntax is used, however `Symbol(...)` expression
+		will be generated as required by JavaScript specification.
+	**/
 	@:pure @:selfCall function new(?description:String);
+
+	/**
+		Searches for existing symbols with the given key and returns it if found.
+		Otherwise a new symbol gets created in the global symbol registry with this key.
+	**/
 	@:native("for") static function for_(key:String):Symbol;
+
+	/**
+		Retrieves a shared symbol key from the global symbol registry for the given symbol.
+	**/
 	@:pure static function keyFor(sym:Symbol):Null<String>;
+
+	/**
+		Returns a string containing the description of the Symbol.
+	**/
 	@:pure function toString():String;
+
+	/**
+		A method returning the default iterator for an object.
+	**/
+	static var iterator(default,null):Symbol;
+
+	/**
+		Retrieve symbol from a given `object`.
+
+		NOTE: This is a Haxe-specific method that generates `object[symbol]` expression.
+	**/
+	inline function ofObject<T>(object:{}):Null<T> return (cast object)[cast this];
 }
