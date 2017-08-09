@@ -44,7 +44,7 @@ class TestJs {
 		for (v in a) { }
 	}
 
-	@:js('var a = 1;var v2 = a;if(a + v2 > 0) {TestJs["use"](a);}')
+	@:js('var a = 1;var v2 = a;if(a + v2 > 0) {TestJs.use(a);}')
 	@:analyzer(no_const_propagation)
 	@:analyzer(no_copy_propagation)
 	@:analyzer(no_local_dce)
@@ -82,7 +82,7 @@ class TestJs {
 		}) {}
 	}
 
-	@:js('var a = [1,2,3];var _g = 0;while(_g < a.length) {var v = a[_g];++_g;TestJs["use"](v + 2);}')
+	@:js('var a = [1,2,3];var _g = 0;while(_g < a.length) {var v = a[_g];++_g;TestJs.use(v + 2);}')
 	static function testInlineFunctionWithAnonymousCallback() {
 		var a = [1,2,3];
 		inline function forEach(f) for (v in a) f(v);
@@ -99,7 +99,7 @@ class TestJs {
 		}
 	}
 
-	@:js('TestJs["use"]("1" + "2" + "3" + "4");')
+	@:js('TestJs.use("1" + "2" + "3" + "4");')
 	static function testEnumValuePropagation1() {
 		var n = Node(Node(Leaf("1"), Node(Leaf("2"), Leaf("3"))), Leaf("4"));
 		switch (n) {
@@ -123,7 +123,7 @@ class TestJs {
 
 	@:js('
 		var object = { "hello" : "world"};
-		TestJs["use"](object);
+		TestJs.use(object);
 	')
 	static function testQuotedStructureFields1() {
 		var object = {
@@ -134,7 +134,7 @@ class TestJs {
 
 	@:js('
 		var object = { "hello" : "world", world : "hello", "another" : "quote"};
-		TestJs["use"](object);
+		TestJs.use(object);
 	')
 	static function testQuotedStructureFields2() {
 		var object = {
@@ -147,7 +147,7 @@ class TestJs {
 
 	@:js('
 		var object = { "\'" : "world"};
-		TestJs["use"](object);
+		TestJs.use(object);
 	')
 	static function testQuotedStructureFields3() {
 		var object = {
@@ -170,7 +170,7 @@ class TestJs {
 		try throw false catch (e:Dynamic) {}
 	}
 
-	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {if (e instanceof js__$Boot_HaxeError) e = e.val;TestJs["use"](e);}')
+	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {if (e instanceof js__$Boot_HaxeError) e = e.val;TestJs.use(e);}')
 	static function testHaxeErrorUnwrappingWhenUsed() {
 		try throw false catch (e:Dynamic) use(e);
 	}
@@ -181,7 +181,7 @@ class TestJs {
 	}
 
 
-	@:js('TestJs["use"](2);')
+	@:js('TestJs.use(2);')
 	static function testIssue3938() {
 		var a = 1;
 		if (a == 1) {
@@ -193,7 +193,7 @@ class TestJs {
 	}
 
 	@:js('
-		TestJs["use"](3);
+		TestJs.use(3);
 	')
 	static function testBinop() {
 		var a = 1;
@@ -202,17 +202,17 @@ class TestJs {
 	}
 
 	@:js('
-		TestJs["use"](false);
-		TestJs["use"](true);
-		TestJs["use"](true);
-		TestJs["use"](true);
-		TestJs["use"](false);
-		TestJs["use"](true);
-		TestJs["use"](true);
-		TestJs["use"](false);
-		TestJs["use"](false);
-		TestJs["use"](true);
-		TestJs["use"](false);
+		TestJs.use(false);
+		TestJs.use(true);
+		TestJs.use(true);
+		TestJs.use(true);
+		TestJs.use(false);
+		TestJs.use(true);
+		TestJs.use(true);
+		TestJs.use(false);
+		TestJs.use(false);
+		TestJs.use(true);
+		TestJs.use(false);
 	')
 	static function testEnumValueFlags() {
 		var flags = new haxe.EnumFlags();
@@ -240,7 +240,7 @@ class TestJs {
 	@:js('
 		var map = new haxe_ds_StringMap();
 		if(__map_reserved["some"] != null) {map.setReserved("some",2);} else {map.h["some"] = 2;}
-		TestJs["use"](2);
+		TestJs.use(2);
 	')
 	static function testIssue4731() {
 		var map = new Map();
@@ -296,8 +296,8 @@ class TestJs {
 		if(Math.random() < 0.5) {
 			b = "hello";
 		}
-		TestJs["use"](a);
-		TestJs["use"](b);
+		TestJs.use(a);
+		TestJs.use(b);
 	')
 	static function testIssue4739() {
 		var a = 0;
@@ -314,7 +314,7 @@ class TestJs {
 
 	@:js('
 		var a = TestJs.getInt();
-		TestJs["use"](a);
+		TestJs.use(a);
 	')
 	static function testCopyPropagation1() {
 		var a = getInt();
@@ -326,7 +326,7 @@ class TestJs {
 		var a = TestJs.getInt();
 		var b = a;
 		a = TestJs.getInt();
-		TestJs["use"](b);
+		TestJs.use(b);
 	')
 	static function testCopyPropagation2() {
 		var a = getInt();
@@ -337,7 +337,7 @@ class TestJs {
 
 	//@:js('
 		//var b = TestJs.getInt();
-		//TestJs["use"](b);
+		//TestJs.use(b);
 	//')
 	//static function testCopyPropagation3() {
 		//var a;
@@ -366,14 +366,14 @@ class TestJs {
 
 	@:js('
 		var d1 = TestJs.intField;
-		TestJs.call(TestJs["use"](null),d1);
+		TestJs.call(TestJs.use(null),d1);
 	')
 	static function testInlineRebuilding1() {
 		inlineCall(intField, use(null));
 	}
 
 	@:js('
-		TestJs.call(TestJs["use"](null),TestJs.stringField);
+		TestJs.call(TestJs.use(null),TestJs.stringField);
 	')
 	static function testInlineRebuilding2() {
 		inlineCall(stringField, use(null));
@@ -459,7 +459,7 @@ class TestJs {
 
 	@:js('
 		var i = 5;
-		while(--i >= 0) TestJs["use"](i);
+		while(--i >= 0) TestJs.use(i);
 	')
 	static function testPrefixRebuilding() {
 		var i:Int = 5;
@@ -484,7 +484,7 @@ class TestJs {
 	@:js('
 		var _g = Type["typeof"]("");
 		var v = _g[1] == 6 && _g[2] == String;
-		TestJs["use"](v);
+		TestJs.use(v);
 	')
 	static function testIssue4745() {
 		var o = "";
@@ -495,7 +495,7 @@ class TestJs {
 	@:js('
 		var e = { };
 		e["a"] = 30;
-		TestJs["use"](e);
+		TestJs.use(e);
 	')
 	@:analyzer(user_var_fusion)
 	static function testIssue4948() {

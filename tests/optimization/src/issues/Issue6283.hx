@@ -13,7 +13,7 @@ abstract From<T>(T) from T to T {
 }
 
 class Issue6283 {
-	@:js('TestJs["use"](3);')
+	@:js('TestJs.use(3);')
 	@:analyzer(no_local_dce)
 	static function f(a, b) {
 		#if !macro

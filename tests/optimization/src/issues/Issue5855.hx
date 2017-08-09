@@ -17,7 +17,7 @@ class Issue5855 {
 		if(Math.random() > 0.5) {
 			c_field = "foo";
 		}
-		TestJs["use"](c_field);
+		TestJs.use(c_field);
 	')
 	@:analyzer(ignore)
 	static function main() {

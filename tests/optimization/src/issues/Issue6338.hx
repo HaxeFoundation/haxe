@@ -16,8 +16,8 @@ extern class Ids {
 
 class Issue6338 {
 	@:js('
-		TestJs["use"]("hd");
-		TestJs["use"]("ft");
+		TestJs.use("hd");
+		TestJs.use("ft");
 	')
 	@:analyzer(ignore)
 	static function test() {

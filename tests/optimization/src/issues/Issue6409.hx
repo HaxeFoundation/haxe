@@ -10,7 +10,7 @@ class Issue6409 {
 	@:js('
 		var issues_E1 = null;
 		var f = issues_E.Flags("");
-		TestJs["use"](f);
+		TestJs.use(f);
 	')
 	@:analyzer(ignore)
     static function test() {

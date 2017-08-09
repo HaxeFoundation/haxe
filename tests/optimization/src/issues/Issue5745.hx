@@ -7,7 +7,7 @@ class Issue5745 {
 		var fn = "filename";
 		var v = cat(fn);
 		runProgram.apply(undefined, ["rm",fn]);
-		TestJs["use"](v);
+		TestJs.use(v);
 	')
     static function test() {
         var fn = 'filename';

@@ -32,17 +32,17 @@ class Issue4690 {
 		var c_z;
 		var c_y;
 		var c_x;
-		TestJs["use"]("Child.new: Before super");
-		TestJs["use"]("Parent.new: Before assign");
+		TestJs.use("Child.new: Before super");
+		TestJs.use("Parent.new: Before assign");
 		c_x = 1;
 		c_y = "" + 2;
-		TestJs["use"]("Parent.new: After assign");
-		TestJs["use"]("Child.new: After super");
+		TestJs.use("Parent.new: After assign");
+		TestJs.use("Child.new: After super");
 		c_z = 3;
-		TestJs["use"]("Child new: After assign");
-		TestJs["use"](c_x);
-		TestJs["use"](c_y);
-		TestJs["use"](c_z);
+		TestJs.use("Child new: After assign");
+		TestJs.use(c_x);
+		TestJs.use(c_y);
+		TestJs.use(c_z);
 	')
 	@:analyzer(no_const_propagation, no_fusion)
 	static function test() {

@@ -76,17 +76,28 @@ let dot_path = s_type_path
 
 let s_path ctx = if ctx.js_flatten then Path.flat_path else dot_path
 
-let kwds =
-	let h = Hashtbl.create 0 in
-	List.iter (fun s -> Hashtbl.add h s ()) [
-		"abstract"; "as"; "boolean"; "break"; "byte"; "case"; "catch"; "char"; "class"; "continue"; "const";
-		"debugger"; "default"; "delete"; "do"; "double"; "else"; "enum"; "export"; "extends"; "false"; "final";
-		"finally"; "float"; "for"; "function"; "goto"; "if"; "implements"; "import"; "in"; "instanceof"; "int";
-		"interface"; "is"; "let"; "long"; "namespace"; "native"; "new"; "null"; "package"; "private"; "protected";
-		"public"; "return"; "short"; "static"; "super"; "switch"; "synchronized"; "this"; "throw"; "throws";
-		"transient"; "true"; "try"; "typeof"; "use"; "var"; "void"; "volatile"; "while"; "with"; "yield"
-	];
-	h
+let kwds = Hashtbl.create 0
+
+let setup_kwds lst =
+	List.iter (fun s -> Hashtbl.add kwds s ()) lst
+
+let es3kwds = [
+	"abstract"; "boolean"; "break"; "byte"; "case"; "catch"; "char"; "class"; "const"; "continue";
+	"debugger"; "default"; "delete"; "do"; "double"; "else"; "enum"; "export"; "extends"; "false"; "final";
+	"finally"; "float"; "for"; "function"; "goto"; "if"; "implements"; "import"; "in"; "instanceof"; "int";
+	"interface"; "long"; "native"; "new"; "null"; "package"; "private"; "protected";
+	"public"; "return"; "short"; "static"; "super"; "switch"; "synchronized"; "this"; "throw"; "throws";
+	"transient"; "true"; "try"; "typeof"; "var"; "void"; "volatile"; "while"; "with"
+]
+
+let es5kwds = [
+	"arguments"; "break"; "case"; "catch"; "class"; "const"; "continue";
+	"debugger"; "default"; "delete"; "do"; "else"; "enum"; "eval"; "export"; "extends"; "false";
+	"finally"; "for"; "function"; "if"; "implements"; "import"; "in"; "instanceof";
+	"interface"; "let"; "new"; "null"; "package"; "private"; "protected";
+	"public"; "return"; "static"; "super"; "switch"; "this"; "throw";
+	"true"; "try"; "typeof"; "var"; "void"; "while"; "with"; "yield"
+]
 
 (* Identifiers Haxe reserves to make the JS output cleaner. These can still be used in untyped code (TLocal),
    but are escaped upon declaration. *)
@@ -1342,6 +1353,8 @@ let generate com =
 
 	let nodejs = Common.raw_defined com "nodejs" in
 
+	setup_kwds (if ctx.es_version >= 5 then es5kwds else es3kwds);
+
 	let exposed = List.concat (List.map (fun t ->
 		match t with
 			| TClassDecl c ->
@@ -1430,9 +1443,6 @@ let generate com =
 	);
 
 	if ctx.js_modern then begin
-		(* Additional ES5 strict mode keywords. *)
-		List.iter (fun s -> Hashtbl.replace kwds s ()) [ "arguments"; "eval" ];
-
 		(* Wrap output in a closure *)
 		print ctx "(function (%s) { \"use strict\"" (String.concat ", " (List.map fst closureArgs));
 		newline ctx;

@@ -17,7 +17,7 @@ private abstract MyEnum(String) to String {
 
 @:analyzer(no_user_var_fusion)
 class TestLocalDce {
-	@:js('TestJs["use"](3);')
+	@:js('TestJs.use(3);')
 	static function testNoOpRemoval() {
 		1;
 		2;
@@ -26,7 +26,7 @@ class TestLocalDce {
 	}
 
 	@:js('
-		TestJs["use"](27);
+		TestJs.use(27);
 	')
 	static function testConstMath() {
 		var a = 1 + 2;
@@ -35,7 +35,7 @@ class TestLocalDce {
 	}
 
 	@:js('
-		TestJs["use"]("foo");
+		TestJs.use("foo");
 	')
 	static function testInlineCtor1() {
 		var c = new InlineCtor(12, "foo");
@@ -47,7 +47,7 @@ class TestLocalDce {
 	}
 
 	@:js('
-		TestJs["use"](12);
+		TestJs.use(12);
 	')
 	static function testInlineCtor2() {
 		var a = 0;
@@ -60,7 +60,7 @@ class TestLocalDce {
 	}
 
 	@:js('
-		TestJs["use"](1);
+		TestJs.use(1);
 	')
 	static function testInlineCtor3() {
 		var a = 0;
@@ -73,7 +73,7 @@ class TestLocalDce {
 	}
 
 	@:js('
-		TestJs["use"](2);
+		TestJs.use(2);
 	')
 	static function testStructureInline1() {
 		var x = {
@@ -95,7 +95,7 @@ class TestLocalDce {
 	}
 
 	@:js('
-		TestJs["use"](2);
+		TestJs.use(2);
 	')
 	static function testArrayInline() {
 		var a = [1, 2];
@@ -105,7 +105,7 @@ class TestLocalDce {
 
 	@:js('
 		var a = [1,2];
-		TestJs["use"](a[-1]);
+		TestJs.use(a[-1]);
 	')
 	static function testArrayInlineCancelNegative() {
 		var a = [1, 2];
@@ -114,7 +114,7 @@ class TestLocalDce {
 
 	@:js('
 		var a = [1,2];
-		TestJs["use"](a[2]);
+		TestJs.use(a[2]);
 	')
 	static function testArrayInlineCancelExceeds() {
 		var a = [1, 2];
@@ -122,7 +122,7 @@ class TestLocalDce {
 	}
 
 	@:js('
-		TestJs["use"]("a");
+		TestJs.use("a");
 	')
 	static function testAbstractOverStringBinop() {
 		var s = "" + A;
@@ -134,7 +134,7 @@ class TestLocalDce {
 		//s += 0;
 		//s += 6;
 		//s += 8;
-		//TestJs["use"](s);
+		//TestJs.use(s);
 	//')
 	static function testLoopUnroll() {
 		var s = keep(1);
@@ -144,7 +144,7 @@ class TestLocalDce {
 		use(s);
 	}
 
-	//@:js('TestJs["use"](5.);')
+	//@:js('TestJs.use(5.);')
 	static function testLoopUnrollDavid() {
 		var s = 0.0;
 		inline function foo(r)
@@ -164,7 +164,7 @@ class TestLocalDce {
 			//s += i * 2;
 			//continue;
 		//}
-		//TestJs["use"](s);
+		//TestJs.use(s);
 	//')
 	static function testLoopUnrollContinue() {
 		var s = keep(1);
@@ -185,7 +185,7 @@ class TestLocalDce {
 			//s += i * 2;
 			//break;
 		//}
-		//TestJs["use"](s);
+		//TestJs.use(s);
 	//')
 	static function testLoopUnrollBreak() {
 		var s = keep(1);
