@@ -88,7 +88,8 @@ class TestJson extends Test {
 		deepId( {array: mix} );
 
 		eq( haxe.format.JsonParser.parse('"\\u00E9"'), "é" );
-		exc(() -> haxe.format.JsonParser.parse('{"""a": 1}'));
+		//exc(() -> haxe.format.JsonParser.parse('{"""a": 1}'));
+		exc( function() haxe.format.JsonParser.parse('{"""a": 1}'));
 
 		eq(haxe.format.JsonPrinter.print(Math.POSITIVE_INFINITY), "null");
 		eq(haxe.format.JsonPrinter.print(Math.NEGATIVE_INFINITY), "null");

@@ -150,12 +150,17 @@ else
 endif
 
 # Only use if you have only changed gencpp.ml
-quickcpp: _build/src/generators/gencpp.ml build_pass_4 copy_haxetoolkit
-_build/src/generators/gencpp.ml:src/generators/gencpp.ml
-	cp $< $@
+quickcpp: build_src build_pass_4 copy_haxetoolkit
+
+CPP_OS := $(shell uname)
+ifeq ($(CPP_OS),Linux)
+copy_haxetoolkit: 
+	sudo cp haxe /usr/bin/haxe
+else
 copy_haxetoolkit: /cygdrive/c/HaxeToolkit/haxe/haxe.exe
 /cygdrive/c/HaxeToolkit/haxe/haxe.exe:haxe.exe
 	cp $< $@
+endif
 
 haxelib:
 	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(OUTPUT) client.hxml && nekotools boot run.n)
