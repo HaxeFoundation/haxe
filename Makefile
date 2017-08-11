@@ -51,6 +51,7 @@ else
 	COMPILER = ocamlfind ocamlopt
 	LIB_EXT = cmxa
 	MODULE_EXT = cmx
+	OCAMLDEP_FLAGS = -native
 endif
 
 CC_CMD = $(COMPILER) $(ALL_CFLAGS) -c $<
@@ -137,7 +138,7 @@ build_pass_2:
 	ocamlfind ocamldep -sort -slash $(HAXE_INCLUDES) $(MODULES) | sed -e "s/\.ml//g" >> Makefile.modules
 
 build_pass_3:
-	ocamlfind ocamldep -slash -native $(HAXE_INCLUDES) $(MODULES:%=%.ml) > Makefile.dependencies
+	ocamlfind ocamldep -slash $(OCAMLDEP_FLAGS) $(HAXE_INCLUDES) $(MODULES:%=%.ml) > Makefile.dependencies
 
 build_pass_4: $(MODULES:%=%.$(MODULE_EXT))
 	$(COMPILER) -safe-string -linkpkg -o $(OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(FINDLIB_PACKAGES) $(EXTLIB_INCLUDES) $(EXTLIB_LIBS:=.$(LIB_EXT)) $(MODULES:%=%.$(MODULE_EXT))
