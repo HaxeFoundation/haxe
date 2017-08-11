@@ -31,6 +31,8 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder>
 **/
+import haxe.web.MIME;
+
 @:native("MediaRecorder")
 extern class MediaRecorder extends EventTarget
 {
@@ -38,7 +40,7 @@ extern class MediaRecorder extends EventTarget
 	/**
 		 Returns a `Boolean` value indicating if the given MIME type is supported by the current user agent . 
 	**/
-	function isTypeSupported( type : String ) : Bool;
+	function isTypeSupported( type : MIME ) : Bool;
 	
 	/**
 		Returns the stream that was passed into the constructor when the `MediaRecorder` was created.
@@ -53,7 +55,7 @@ extern class MediaRecorder extends EventTarget
 	/**
 		Returns the MIME type that was selected as the recording container for the `MediaRecorder` object when it was created.
 	**/
-	var mimeType(default,null) : String;
+	var mimeType(default,null) : MIME;
 	var ondataavailable : haxe.Constraints.Function;
 	var onerror : haxe.Constraints.Function;
 	var onstart : haxe.Constraints.Function;

@@ -24,10 +24,12 @@
 
 package js.html;
 
+import haxe.web.MIME;
+
 typedef MediaRecorderOptions =
 {
 	@:optional var audioBitsPerSecond : Int;
 	@:optional var bitsPerSecond : Int;
-	@:optional var mimeType : String;
+	@:optional var mimeType : MIME;
 	@:optional var videoBitsPerSecond : Int;
 }

@@ -31,6 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Blob>
 **/
+import haxe.web.MIME;
 @:native("Blob")
 extern class Blob
 {
@@ -43,7 +44,7 @@ extern class Blob
 	/**
 		A string indicating the MIME type of the data contained in the `Blob`. If the type is unknown, this string is empty.
 	**/
-	var type(default,null) : String;
+	var type(default,null) : MIME;
 	
 	/** @throws DOMError */
 	@:overload( function() : Void {} )
@@ -53,5 +54,5 @@ extern class Blob
 	/**
 		Returns a new `Blob` object containing the data in the specified range of bytes of the source `Blob`.
 	**/
-	function slice( ?start : Int, ?end : Int, ?contentType : String = "" ) : Blob;
+	function slice( ?start : Int, ?end : Int, ?contentType : MIME = "" ) : Blob;
 }

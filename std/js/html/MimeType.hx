@@ -24,12 +24,14 @@
 
 package js.html;
 
+import haxe.web.MIME;
+
 @:native("MimeType")
 extern class MimeType
 {
 	var description(default,null) : String;
 	var enabledPlugin(default,null) : Plugin;
 	var suffixes(default,null) : String;
-	var type(default,null) : String;
+	var type(default,null) : MIME;
 	
 }

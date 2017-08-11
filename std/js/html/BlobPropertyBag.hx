@@ -24,8 +24,10 @@
 
 package js.html;
 
+import haxe.web.MIME;
+
 typedef BlobPropertyBag =
 {
 	@:optional var endings : Dynamic/*MISSING EndingTypes*/;
-	@:optional var type : String;
+	@:optional var type : MIME;
 }

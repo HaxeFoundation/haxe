@@ -31,6 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Response>
 **/
+import haxe.web.HTTPStatus;
 @:native("Response")
 extern class Response
 {
@@ -59,7 +60,7 @@ extern class Response
 	/**
 		Contains the status code of the response (e.g., `200` for a success).
 	**/
-	var status(default,null) : Int;
+	var status(default,null) : HTTPStatus;
 	
 	/**
 		Contains a boolean stating whether the response was successful (status in the range 200-299) or not.

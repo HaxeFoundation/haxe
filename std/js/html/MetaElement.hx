@@ -31,12 +31,13 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLMetaElement>
 **/
+import haxe.web.Scheme;
 @:native("HTMLMetaElement")
 extern class MetaElement extends Element
 {
 	var name : String;
 	var httpEquiv : String;
 	var content : String;
-	var scheme : String;
+	var scheme : Scheme;
 	
 }
