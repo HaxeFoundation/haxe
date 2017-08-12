@@ -2479,7 +2479,10 @@ and handle_efield ctx e p mode =
 		e
 	in
 
-
+	(*
+		given a chain of identifiers (dot-path) represented as a list of (ident,starts_uppercase,pos) tuples,
+		resolve it into an `access_mode->access_kind` getter for the resolved expression
+	*)
 	let type_path path =
 		let rec loop acc path =
 			match path with
@@ -2573,9 +2576,11 @@ and handle_efield ctx e p mode =
 		| [] -> assert false
 		| (name,_,p) :: pnext ->
 			try
+				(* first, try to resolve the first ident in the chain and access its fields *)
 				fields pnext (fun _ -> type_ident_raise ctx name p MGet)
-			with
-				Not_found -> loop [] path
+			with Not_found ->
+				(* first ident couldn't be resolved, it's probably a fully qualified path - resolve it *)
+				loop [] path
 	in
 
 	(*
