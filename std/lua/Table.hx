@@ -12,6 +12,30 @@ extern class Table<A,B> implements ArrayAccess<B> implements Dynamic<B> {
 		return untyped __lua_table__(arr,hsh);
 	}
 
+	public inline static function fromArray<T>(arr:Array<T>) : Table<Int,T>{
+		var ret = Table.create();
+		for (idx in 0...arr.length){
+			ret[idx+1] = arr[idx];
+		}
+		return ret;
+	}
+
+	public inline static function fromMap<A,B>(map:Map<A,B>) : Table<A,B>{
+		var ret = Table.create();
+		for (k in map.keys()){
+			ret[untyped k] = map.get(k);
+		}
+		return ret;
+	}
+
+	public inline static function fromDynamic<A,B>(dyn:Dynamic) : Table<A,B>{
+		var ret = Table.create();
+		for (f in Reflect.fields(dyn)){
+			ret[untyped f] = Reflect.field(dyn, f);
+		}
+		return ret;
+	}
+
 	@:overload(function<A,B>(table:Table<A,B>):Void{})
 	public static function concat<A,B>(table:Table<A,B>, ?sep:String) : String;
 
