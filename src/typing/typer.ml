@@ -2458,6 +2458,13 @@ and type_ident ctx i p mode =
 
 (* MORDOR *)
 and handle_efield ctx e p mode =
+	(*
+		given chain of fields as the `path` argument and an `access_mode->access_kind` getter for some starting expression as `e`,
+		return a new `access_mode->access_kind` getter for the whole field access chain.
+
+		if `resume` is true, `Not_found` will be raised if the first field in chain fails to resolve, in all other
+		cases, normal type errors will be raised if a field can't be accessed.
+	*)
 	let fields ?(resume=false) path e =
 		let resume = ref resume in
 		let force = ref false in
@@ -2471,6 +2478,8 @@ and handle_efield ctx e p mode =
 		if !force then ignore(e MCall); (* not necessarily a call, but prevent #2602 among others *)
 		e
 	in
+
+
 	let type_path path =
 		let rec loop acc path =
 			match path with
@@ -2507,7 +2516,7 @@ and handle_efield ctx e p mode =
 						fields path (fun _ -> AKExpr e)
 					with
 						Error (Module_not_found m,_) when m = (pack,name) ->
-							loop ((List.rev path) @ x :: acc) []
+							loop ((List.rev path) @ x :: acc) [] (* TODO: wtf? we prepend the rest of the chain to the beginning of the path and try again? what's this supposed to do? *)
 				in
 				match path with
 				| (sname,true,p) :: path ->
@@ -2568,6 +2577,18 @@ and handle_efield ctx e p mode =
 			with
 				Not_found -> loop [] path
 	in
+
+	(*
+		loop through the given EField expression and behave differently depending on whether it's a simple dot-path
+		or a more complex expression, accumulating field access parts in form of (ident,starts_uppercase,pos) tuples.
+
+		if it's a dot-path, then it might be either fully-qualified access (pack.Class.field) or normal field access of
+		a local/global/field identifier. we pass the accumulated path to `type_path` and let it figure out what it is.
+
+		if it's NOT a dot-path (anything other than indentifiers appears in EField chain), then we can be sure it's
+		normal field access, not fully-qualified access, so we pass the non-ident expr along with the accumulated
+		fields chain to the `fields` function and let it type the field access.
+	*)
 	let rec loop acc (e,p) =
 		match e with
 		| EField (e,s) ->
