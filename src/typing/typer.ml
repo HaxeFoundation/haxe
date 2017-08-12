@@ -2484,6 +2484,13 @@ and handle_efield ctx e p mode =
 		resolve it into an `access_mode->access_kind` getter for the resolved expression
 	*)
 	let type_path path =
+		(*
+			this is an actual loop for processing a fully-qualified dot-path.
+			it relies on the fact that packages start with a lowercase letter, while modules and types
+			start with upper-case letters, so it processes path parts, accumulating lowercase package parts in `acc`,
+			until it encounters an upper-case part, which can mean either a module access or module's primary type access,
+			so it tries to figure out the type and and calls `fields` on it to resolve the rest of field access chain.
+		*)
 		let rec loop acc path =
 			match path with
 			| [] ->
