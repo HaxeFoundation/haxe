@@ -1041,6 +1041,13 @@ and gen_block_element ctx e  =
             semicolon ctx;
     end;
 
+and is_const_null e =
+    match e.eexpr with
+    | TConst TNull ->
+        true
+    | _ ->
+        false
+
     (* values generated in anon structures can get modified.  Functions are bind-ed *)
     (* and include a dummy "self" leading variable so they can be called like normal *)
     (* instance methods *)
@@ -1063,7 +1070,7 @@ and gen_anon_value ctx e =
         ctx.in_value <- fst old;
         ctx.in_loop <- snd old;
         ctx.separator <- true
-    | _ when (is_function_type ctx e.etype) ->
+    | _ when (is_function_type ctx e.etype) && not (is_const_null e) ->
         spr ctx "function(_,...) return ";
         gen_value ctx e;
         spr ctx "(...) end";
