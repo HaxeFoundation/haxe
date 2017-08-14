@@ -318,7 +318,7 @@ let get_info = function
 	| Optional -> ":optional",("Marks the field of a structure as optional",[UsedOn TClassField])
 	| Overload -> ":overload",("Allows the field to be called with different argument types",[HasParam "Function specification (no expression)";UsedOn TClassField])
 	| PhpConstants -> ":phpConstants",("Marks the static fields of a class as PHP constants, without $",[Platform Php;UsedOn TClass])
-	| PhpGlobal -> ":phpGlobal",("(php7) Puts the static fields of a class in the global PHP namespace",[Platforms [Php;Php];UsedOn TClass])
+	| PhpGlobal -> ":phpGlobal",("(php7) Puts the static fields of a class in the global PHP namespace",[Platform Php;UsedOn TClass])
 	| PhpClassConst -> ":phpClassConst",("(php7)  Generate static var of an extern class as a PHP class constant",[Platform Php;UsedOn TClass])
 	| PhpMagic -> ":phpMagic",("(php7) Treat annotated field as special PHP magic field",[Platform Php;UsedOn TClassField])
 	| PhpNoConstructor -> ":phpNoConstructor",("(php7) Special meta for extern classes which does not have native constructor in PHP, but need a constructor in Haxe extern",[Platform Php;UsedOn TClass])
