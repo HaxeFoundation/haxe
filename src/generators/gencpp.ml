@@ -7083,7 +7083,7 @@ class script_writer ctx filename asciiOut =
    val identTable = Hashtbl.create 0
    val fileTable = Hashtbl.create 0
    val identBuffer = Buffer.create 0
-   val cppiaAst = Common.defined ctx.ctx_common Define.CppiaAst
+   val cppiaAst = not (Common.defined ctx.ctx_common Define.NoCppiaAst)
 
    method stringId name =
       try ( Hashtbl.find identTable name )
