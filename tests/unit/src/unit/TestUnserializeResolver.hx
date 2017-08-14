@@ -2,6 +2,8 @@
 
 class TestUnserializeResolver extends Test {
 
+	static public function main() { new TestUnserializeResolver().test(); }
+
 	function test() {
 
 		// TypeResolver is useful when package structure or class names
@@ -23,42 +25,42 @@ class TestUnserializeResolver extends Test {
 
 }
 
-enum OldEnum {
+private enum OldEnum {
   ThingA;
   ThingB;
 }
 
-class OldClass
+private class OldClass
 {
   public var some_data:OldEnum;
   public function new() { }
 }
 
-enum NewEnum {
+private enum NewEnum {
   ThingA;
   ThingB;
 }
 
-class NewClass
+private class NewClass
 {
   public var some_data:NewEnum;
   public function new() { }
 }
 
-class MyUnserResolver
+private class MyUnserResolver
 {
 	public function new() {}
 	@:final public inline function resolveClass(name:String):Class<Dynamic>
   {
-    // Account for changes in class name
-    if (name=='unit.OldClass') name = 'unit.NewClass';
+    // Account for changes in class name (also for private classes)
+    if (name=='unit._TestUnserializeResolver.OldClass') name = 'unit._TestUnserializeResolver.NewClass';
 
     return Type.resolveClass(name);
   }
 	@:final public inline function resolveEnum(name:String):Enum<Dynamic>
   {
-    // Account for changes in enum name
-    if (name=='unit.OldEnum') name = 'unit.NewEnum';
+    // Account for changes in enum name (also for private classes)
+    if (name=='unit._TestUnserializeResolver.OldEnum') name = 'unit._TestUnserializeResolver.NewEnum';
 
     return Type.resolveEnum(name);
   }
