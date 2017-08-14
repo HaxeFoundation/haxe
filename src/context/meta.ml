@@ -241,7 +241,7 @@ let get_info = function
 	| EnumConstructorParam -> ":enumConstructorParam",("Used internally to annotate GADT type parameters",[UsedOn TClass; UsedInternally])
 	| Event -> ":event",("Automatically added by -net-lib on events. Has no effect on types compiled by Haxe",[Platform Cs; UsedOn TClassField])
 	| Exhaustive -> ":exhaustive",("",[UsedInternally])
-	| Expose -> ":expose",("Makes the class available on the window object",[HasParam "?Name=Class path";UsedOn TClass;Platform Js])
+	| Expose -> ":expose",("Includes the class or field in Haxe exports",[HasParam "?Name=Class path";UsedOnEither [TClass;TClassField];Platforms [Js;Lua]])
 	| Extern -> ":extern",("Marks the field as extern so it is not generated",[UsedOn TClassField])
 	| FakeEnum -> ":fakeEnum",("Treat enum as collection of values of the specified type",[HasParam "Type name";UsedOn TEnum])
 	| File -> ":file",("Includes a given binary file into the target Swf and associates it with the class (must extend flash.utils.ByteArray)",[HasParam "File path";UsedOn TClass;Platform Flash])
