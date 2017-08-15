@@ -2516,20 +2516,35 @@ and handle_efield ctx e p mode =
 								Not_found ->
 									if ctx.in_display then raise (Parser.TypePath (List.map (fun (n,_,_) -> n) (List.rev acc),None,false));
 									raise e)
+
 			| (_,false,_) as x :: path ->
+				(* part starts with lowercase - it's a package part, add it the accumulator and proceed *)
 				loop (x :: acc) path
+
 			| (name,true,p) as x :: path ->
+				(* part starts with uppercase - it either points to a module or its main type *)
+
+				(* acc is contains all the package parts now, so extract package from them *)
 				let pack = List.rev_map (fun (x,_,_) -> x) acc in
+
+				(* default behaviour: try loading module's primary type (with the same name as module)
+				   and resolve the rest of the field chain against its statics, or the type itself
+				   if the rest of chain is empty *)
 				let def() =
 					try
 						let e = type_type ctx (pack,name) p in
 						fields path (fun _ -> AKExpr e)
 					with
 						Error (Module_not_found m,_) when m = (pack,name) ->
-							loop ((List.rev path) @ x :: acc) [] (* TODO: wtf? we prepend the rest of the chain to the beginning of the path and try again? what's this supposed to do? *)
+							(* TODO: wtf? we prepend the rest of the chain to the beginning of the package path and try again?
+							   what's this supposed to do? *)
+							loop ((List.rev path) @ x :: acc) []
 				in
+
 				match path with
 				| (sname,true,p) :: path ->
+					(* next part starts with uppercase, meaning it can be either a module sub-type access
+					   or static field access for the primary module type, so we have to do some guessing here *)
 					let get_static resume t =
 						fields ~resume ((sname,true,p) :: path) (fun _ -> AKExpr (type_module_type ctx t None p))
 					in
@@ -2577,7 +2592,10 @@ and handle_efield ctx e p mode =
 						match check_module (pack,name) sname with
 						| Some r -> r
 						| None -> def());
-				| _ -> def()
+				| _ ->
+					(* no more parts or next part starts with lowercase - it's surely not a type name,
+					   so do the default thing: resolve fields against primary module type *)
+					def()
 		in
 		match path with
 		| [] -> assert false
