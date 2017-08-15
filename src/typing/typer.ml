@@ -2531,14 +2531,8 @@ and handle_efield ctx e p mode =
 				   and resolve the rest of the field chain against its statics, or the type itself
 				   if the rest of chain is empty *)
 				let def() =
-					try
-						let e = type_type ctx (pack,name) p in
-						fields path (fun _ -> AKExpr e)
-					with
-						Error (Module_not_found m,_) when m = (pack,name) ->
-							(* TODO: wtf? we prepend the rest of the chain to the beginning of the package path and try again?
-							   what's this supposed to do? *)
-							loop ((List.rev path) @ x :: acc) []
+					let e = type_type ctx (pack,name) p in
+					fields path (fun _ -> AKExpr e)
 				in
 
 				match path with
