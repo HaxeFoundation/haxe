@@ -45,6 +45,22 @@ let error_msg = function
 let error m p = raise (Error (m,p))
 let display_error : (error_msg -> pos -> unit) ref = ref (fun _ _ -> assert false)
 
+type decl_flag =
+	| DPrivate
+	| DExtern
+
+let decl_flag_to_class_flag = function
+	| DPrivate -> HPrivate
+	| DExtern -> HExtern
+
+let decl_flag_to_enum_flag = function
+	| DPrivate -> EPrivate
+	| DExtern -> EExtern
+
+let decl_flag_to_abstract_flag = function
+	| DPrivate -> APrivAbstract
+	| DExtern -> AExtern
+
 let special_identifier_files = Hashtbl.create 0
 
 let quoted_ident_prefix = "@$__hx__"
@@ -651,7 +667,7 @@ and parse_type_decl s =
 				d_doc = doc;
 				d_meta = meta;
 				d_params = tl;
-				d_flags = List.map snd c @ n;
+				d_flags = List.map decl_flag_to_enum_flag c @ n;
 				d_data = l
 			}, punion p1 p2)
 		| [< n , p1 = parse_class_flags; name = type_name; tl = parse_constraint_params; hl = plist parse_class_herit; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
@@ -660,7 +676,7 @@ and parse_type_decl s =
 				d_doc = doc;
 				d_meta = meta;
 				d_params = tl;
-				d_flags = List.map fst c @ n @ hl;
+				d_flags = List.map decl_flag_to_class_flag c @ n @ hl;
 				d_data = fl;
 			}, punion p1 p2)
 		| [< '(Kwd Typedef,p1); name = type_name; tl = parse_constraint_params; '(Binop OpAssign,p2); t = parse_complex_type; s >] ->
@@ -672,11 +688,11 @@ and parse_type_decl s =
 				d_doc = doc;
 				d_meta = meta;
 				d_params = tl;
-				d_flags = List.map snd c;
+				d_flags = List.map decl_flag_to_enum_flag c;
 				d_data = t;
 			}, punion p1 (pos t))
 		| [< '(Kwd Abstract,p1); name = type_name; tl = parse_constraint_params; st = parse_abstract_subtype; sl = plist parse_abstract_relations; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
-			let flags = List.map (fun (_,c) -> match c with EPrivate -> APrivAbstract | EExtern -> AExtern) c in
+			let flags = List.map decl_flag_to_abstract_flag c in
 			let flags = (match st with None -> flags | Some t -> AIsType t :: flags) in
 			(EAbstract {
 				d_name = name;
@@ -850,8 +866,8 @@ and parse_class_field_resume tdecl s =
 		loop 1
 
 and parse_common_flags = parser
-	| [< '(Kwd Private,_); l = parse_common_flags >] -> (HPrivate, EPrivate) :: l
-	| [< '(Kwd Extern,_); l = parse_common_flags >] -> (HExtern, EExtern) :: l
+	| [< '(Kwd Private,_); l = parse_common_flags >] -> DPrivate :: l
+	| [< '(Kwd Extern,_); l = parse_common_flags >] -> DExtern :: l
 	| [< >] -> []
 
 and parse_meta_argument_expr s =
