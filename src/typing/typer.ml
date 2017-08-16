@@ -2512,8 +2512,9 @@ and handle_efield ctx e p mode =
 						fields path (fun _ -> AKExpr e)
 					with
 						Error (Module_not_found m,_) when m = (pack,name) ->
-							(* TODO: wtf? we prepend the rest of the chain to the beginning of the package path and try again?
-							   what's this supposed to do? *)
+							(* if it's not a module path after all, it could be an untyped field access that looks like
+							   a dot-path, e.g. `untyped __global__.String`, add the whole path to the accumulator and
+							   proceed to the untyped identifier resolution *)
 							loop ((List.rev path) @ x :: acc) []
 				in
 
@@ -2579,6 +2580,8 @@ and handle_efield ctx e p mode =
 				   And it's not a known identifier too, because otherwise `loop` wouldn't be called at all.
 				   So this must be an untyped access (or a typo). Try resolving the first identifier with support
 				   for untyped and resolve the rest of field chain against it.
+
+				   TODO: extract this into a separate function
 				*)
 				(match List.rev acc with
 				| [] -> assert false
