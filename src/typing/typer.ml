@@ -2525,10 +2525,14 @@ and handle_efield ctx e p mode =
 
 					   In this block, `name` is the first first-uppercase part (possibly a module name),
 					   and `sname` is the second first-uppsercase part (possibly a subtype name). *)
+
+					(* get static field by `sname` from a given type `t`, if `resume` is true - raise Not_found *)
 					let get_static resume t =
 						fields ~resume ((sname,true,p) :: path) (fun _ -> AKExpr (type_module_type ctx t None p))
 					in
-					let check_module m v =
+
+					(* try accessing subtype or main class static field by `sname` in given module with path `m` *)
+					let check_module m =
 						try
 							let md = Typeload.load_module ctx m p in
 							(* first look for existing subtype *)
@@ -2566,7 +2570,7 @@ and handle_efield ctx e p mode =
 							(* if the static field (or the type) wasn't not found, look for a subtype instead - #1916
 							   look for subtypes/main-class-statics in modules of current package and its parent packages *)
 							let rec loop pack =
-								match check_module (pack,name) sname with
+								match check_module (pack,name) with
 								| Some r -> r
 								| None ->
 									match List.rev pack with
@@ -2577,7 +2581,7 @@ and handle_efield ctx e p mode =
 					| _ ->
 						(* if package was specified, treat it as fully-qualified access to either
 						   a module subtype or a static field of module's primary type*)
-						match check_module (pack,name) sname with
+						match check_module (pack,name) with
 						| Some r -> r
 						| None -> def());
 				| _ ->
