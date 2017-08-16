@@ -2588,6 +2588,7 @@ and handle_efield ctx e p mode =
 					with
 						Error (Unknown_ident _,p2) as e when p = p2 ->
 							try
+								(* try raising a more sensible error if there was an uppercase-first (module name) part *)
 								let path = ref [] in
 								let name , _ , _ = List.find (fun (name,flag,p) ->
 									if flag then
@@ -2600,6 +2601,7 @@ and handle_efield ctx e p mode =
 								raise (Error (Module_not_found (List.rev !path,name),p))
 							with
 								Not_found ->
+									(* if there was no module name part, last guess is that we're trying to get package completion *)
 									if ctx.in_display then raise (Parser.TypePath (List.map (fun (n,_,_) -> n) (List.rev acc),None,false));
 									raise e)
 		in
