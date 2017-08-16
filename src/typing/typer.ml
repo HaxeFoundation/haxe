@@ -2493,30 +2493,6 @@ and handle_efield ctx e p mode =
 		*)
 		let rec loop acc path =
 			match path with
-			| [] ->
-				(match List.rev acc with
-				| [] -> assert false
-				| (name,flag,p) :: path ->
-					try
-						fields path (type_ident ctx name p)
-					with
-						Error (Unknown_ident _,p2) as e when p = p2 ->
-							try
-								let path = ref [] in
-								let name , _ , _ = List.find (fun (name,flag,p) ->
-									if flag then
-										true
-									else begin
-										path := name :: !path;
-										false
-									end
-								) (List.rev acc) in
-								raise (Error (Module_not_found (List.rev !path,name),p))
-							with
-								Not_found ->
-									if ctx.in_display then raise (Parser.TypePath (List.map (fun (n,_,_) -> n) (List.rev acc),None,false));
-									raise e)
-
 			| (_,false,_) as x :: path ->
 				(* part starts with lowercase - it's a package part, add it the accumulator and proceed *)
 				loop (x :: acc) path
@@ -2541,7 +2517,7 @@ and handle_efield ctx e p mode =
 							loop ((List.rev path) @ x :: acc) []
 				in
 
-				match path with
+				(match path with
 				| (sname,true,p) :: path ->
 					(* next part starts with uppercase, meaning it can be either a module sub-type access
 					   or static field access for the primary module type, so we have to do some guessing here *)
@@ -2595,13 +2571,47 @@ and handle_efield ctx e p mode =
 				| _ ->
 					(* no more parts or next part starts with lowercase - it's surely not a type name,
 					   so do the default thing: resolve fields against primary module type *)
-					def()
+					def())
+
+			| [] ->
+				(* If we get to here, it means that either there were no uppercase-first-letter parts,
+				   or we couldn't find the specified module, so it's not a qualified dot-path after all.
+				   And it's not a known identifier too, because otherwise `loop` wouldn't be called at all.
+				   So this must be an untyped access (or a typo). Try resolving the first identifier with support
+				   for untyped and resolve the rest of field chain against it.
+				*)
+				(match List.rev acc with
+				| [] -> assert false
+				| (name,flag,p) :: path ->
+					try
+						fields path (type_ident ctx name p)
+					with
+						Error (Unknown_ident _,p2) as e when p = p2 ->
+							try
+								let path = ref [] in
+								let name , _ , _ = List.find (fun (name,flag,p) ->
+									if flag then
+										true
+									else begin
+										path := name :: !path;
+										false
+									end
+								) (List.rev acc) in
+								raise (Error (Module_not_found (List.rev !path,name),p))
+							with
+								Not_found ->
+									if ctx.in_display then raise (Parser.TypePath (List.map (fun (n,_,_) -> n) (List.rev acc),None,false));
+									raise e)
 		in
 		match path with
 		| [] -> assert false
 		| (name,_,p) :: pnext ->
 			try
-				(* first, try to resolve the first ident in the chain and access its fields *)
+				(*
+					first, try to resolve the first ident in the chain and access its fields.
+					this doesn't support untyped identifiers yet, because we want to check
+					fully-qualified dot paths first even in an untyped block.
+				*)
 				fields pnext (fun _ -> type_ident_raise ctx name p MGet)
 			with Not_found ->
 				(* first ident couldn't be resolved, it's probably a fully qualified path - resolve it *)
