@@ -2521,7 +2521,10 @@ and handle_efield ctx e p mode =
 				(match path with
 				| (sname,true,p) :: path ->
 					(* next part starts with uppercase, meaning it can be either a module sub-type access
-					   or static field access for the primary module type, so we have to do some guessing here *)
+					   or static field access for the primary module type, so we have to do some guessing here
+
+					   In this block, `name` is the first first-uppercase part (possibly a module name),
+					   and `sname` is the second first-uppsercase part (possibly a subtype name). *)
 					let get_static resume t =
 						fields ~resume ((sname,true,p) :: path) (fun _ -> AKExpr (type_module_type ctx t None p))
 					in
@@ -2542,30 +2545,38 @@ and handle_efield ctx e p mode =
 						with Error (Module_not_found m2,_) when m = m2 ->
 							None
 					in
-					let rec loop pack =
-						match check_module (pack,name) sname with
-						| Some r -> r
-						| None ->
-							match List.rev pack with
-							| [] -> def()
-							| _ :: l -> loop (List.rev l)
-					in
+
 					(match pack with
 					| [] ->
+						(* if there's no package specified... *)
 						(try
+							(* first try getting a type by `name` in current module types and current imports
+							   and try accessing its static field by `sname` *)
 							let path_match t = snd (t_infos t).mt_path = name in
-							let t = try
-								List.find path_match ctx.m.curmod.m_types
-							with Not_found ->
-								let t,p = List.find (fun (t,_) -> path_match t) ctx.m.module_types in
-								Display.ImportHandling.maybe_mark_import_position ctx p;
-								t
+							let t =
+								try
+									List.find path_match ctx.m.curmod.m_types (* types in this modules *)
+								with Not_found ->
+									let t,p = List.find (fun (t,_) -> path_match t) ctx.m.module_types in (* imported types *)
+									Display.ImportHandling.maybe_mark_import_position ctx p;
+									t
 							in
-							(* if the static is not found, look for a subtype instead - #1916 *)
 							get_static true t
 						with Not_found ->
+							(* if the static field (or the type) wasn't not found, look for a subtype instead - #1916
+							   look for subtypes/main-class-statics in modules of current package and its parent packages *)
+							let rec loop pack =
+								match check_module (pack,name) sname with
+								| Some r -> r
+								| None ->
+									match List.rev pack with
+									| [] -> def()
+									| _ :: l -> loop (List.rev l)
+							in
 							loop (fst ctx.m.curmod.m_path))
 					| _ ->
+						(* if package was specified, treat it as fully-qualified access to either
+						   a module subtype or a static field of module's primary type*)
 						match check_module (pack,name) sname with
 						| Some r -> r
 						| None -> def());
