@@ -531,12 +531,12 @@ let dup t =
 	let monos = ref [] in
 	let rec loop t =
 		match t with
-		| TMono { contents = None } ->
+		| TMono ({ contents = None } as r) ->
 			(try
-				List.assq t !monos
+				List.assq r !monos
 			with Not_found ->
 				let m = mk_mono() in
-				monos := (t,m) :: !monos;
+				monos := (r,m) :: !monos;
 				m)
 		| _ ->
 			map loop t
@@ -906,7 +906,7 @@ let rec s_type ctx t =
 	match t with
 	| TMono r ->
 		(match !r with
-		| None -> Printf.sprintf "Unknown<%d>" (try List.assq t (!ctx) with Not_found -> let n = List.length !ctx in ctx := (t,n) :: !ctx; n)
+		| None -> Printf.sprintf "Unknown<%d>" (try List.assq r (!ctx) with Not_found -> let n = List.length !ctx in ctx := (r,n) :: !ctx; n)
 		| Some t -> s_type ctx t)
 	| TEnum (e,tl) ->
 		s_type_path e.e_path ^ s_type_params ctx tl
