@@ -1500,11 +1500,11 @@ let gen_class_static_field ctx c f =
 
 let gen_class_field ctx c f =
     let p = s_path ctx c.cl_path in
-    print ctx "%s.prototype." p;
     check_field_name c f;
+    print ctx "%s.prototype%s" p (field f.cf_name);
     match f.cf_expr with
     | None ->
-        println ctx "%s = nil;" f.cf_name;
+        println ctx "= nil;"
     | Some e ->
         ctx.id_counter <- 0;
         (match e.eexpr with
@@ -1512,7 +1512,7 @@ let gen_class_field ctx c f =
              let old = ctx.in_value, ctx.in_loop in
              ctx.in_value <- None;
              ctx.in_loop <- false;
-             print ctx "%s = function" f.cf_name;
+             print ctx "= function";
              print ctx "(%s) " (String.concat "," ("self" :: List.map ident (List.map arg_name f2.tf_args)));
              let fblock = fun_block ctx f2 e.epos in
              (match fblock.eexpr with
