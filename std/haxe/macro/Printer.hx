@@ -70,7 +70,7 @@ class Printer {
 		case OpMod: "%";
 		case OpInterval: "...";
 		case OpArrow: "=>";
-		case OpIn: " in ";
+		case OpIn: "in";
 		case OpAssignOp(op):
 			printBinop(op)
 			+ "=";
