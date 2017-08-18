@@ -340,7 +340,7 @@ let get_info = function
 	| Runtime -> ":runtime",("?",[])
 	| RuntimeValue -> ":runtimeValue",("Marks an abstract as being a runtime value",[UsedOn TAbstract])
 	| Scalar -> ":scalar",("Used by hxcpp to mark a custom coreType abstract",[UsedOn TAbstract; Platform Cpp])
-	| SelfCall -> ":selfCall",("Translates method calls into calling object directly",[UsedOn TClassField; Platform Js])
+	| SelfCall -> ":selfCall",("Translates method calls into calling object directly",[UsedOn TClassField; Platforms [Js;Lua]])
 	| Setter -> ":setter",("Generates a native setter function on the given field",[HasParam "Class field name";UsedOn TClassField;Platform Flash])
 	| StackOnly -> ":stackOnly",("Instances of this type can only appear on the stack",[Platform Cpp])
 	| StoredTypedExpr -> ":storedTypedExpr",("Used internally to reference a typed expression returned from a macro",[UsedInternally])
