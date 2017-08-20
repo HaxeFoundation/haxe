@@ -58,7 +58,7 @@ private class D {
       return haxe.io.Bytes.ofData(data);
 
    public static function secondsToDate(seconds:Float) : Dynamic
-      return Date.fromTime(seconds);
+      return Date.fromTime(seconds * 1000);
 
 }
 
