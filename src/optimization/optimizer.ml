@@ -902,6 +902,7 @@ let optimize_for_loop_iterator ctx v e1 e2 p =
 let standard_precedence op =
 	let left = true and right = false in
 	match op with
+	| OpIn -> 4, right
 	| OpMult | OpDiv | OpMod -> 5, left
 	| OpAdd | OpSub -> 6, left
 	| OpShl | OpShr | OpUShr -> 7, left
@@ -914,7 +915,6 @@ let standard_precedence op =
 	| OpBoolAnd -> 14, left
 	| OpBoolOr -> 15, left
 	| OpArrow -> 16, left
-	| OpIn -> 17, right
 	| OpAssignOp OpAssign -> 18, right (* mimics ?: *)
 	| OpAssign | OpAssignOp _ -> 19, right
 

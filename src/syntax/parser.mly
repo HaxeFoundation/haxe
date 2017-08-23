@@ -126,17 +126,17 @@ let is_dollar_ident e = match fst e with
 let precedence op =
 	let left = true and right = false in
 	match op with
-	| OpMod -> 0, left
-	| OpMult | OpDiv -> 1, left
-	| OpAdd | OpSub -> 2, left
-	| OpShl | OpShr | OpUShr -> 3, left
-	| OpOr | OpAnd | OpXor -> 4, left
-	| OpEq | OpNotEq | OpGt | OpLt | OpGte | OpLte -> 5, left
-	| OpInterval -> 6, left
-	| OpBoolAnd -> 7, left
-	| OpBoolOr -> 8, left
-	| OpArrow -> 9, right
-	| OpIn -> 10, right
+	| OpIn -> 0, right
+	| OpMod -> 1, left
+	| OpMult | OpDiv -> 2, left
+	| OpAdd | OpSub -> 3, left
+	| OpShl | OpShr | OpUShr -> 4, left
+	| OpOr | OpAnd | OpXor -> 5, left
+	| OpEq | OpNotEq | OpGt | OpLt | OpGte | OpLte -> 6, left
+	| OpInterval -> 7, left
+	| OpBoolAnd -> 8, left
+	| OpBoolOr -> 9, left
+	| OpArrow -> 10, right
 	| OpAssign | OpAssignOp _ -> 11, right
 
 let is_not_assign = function
