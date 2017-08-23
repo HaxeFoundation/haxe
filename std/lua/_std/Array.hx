@@ -42,15 +42,15 @@ class Array<T> {
 
 	public function pop() : Null<T> {
 		if (length == 0 ) return null;
-		var ret = this[length-1];
-		this[length-1] = null;
-		length--;
+		var rawlength = lua.Lua.rawget(cast this, 'length');
+		var ret = lua.Lua.rawget(cast this, rawlength-1);
+		lua.Lua.rawset(cast this, 'length', rawlength-1);
 		return ret;
 	}
 	public function push(x : T) : Int {
-		lua.Lua.rawset(untyped this, length,x);
-		length++;
-		return length;
+		lua.Lua.rawset(cast this,length,x);
+		lua.Lua.rawset(cast this,'length', length + 1);
+		return lua.Lua.rawget(cast this,'length');
 	}
 	public function reverse() : Void {
 		var tmp:T;
@@ -65,8 +65,9 @@ class Array<T> {
 	public function shift() : Null<T> {
 		if (this.length == 0) return null;
 		var ret = this[0];
-		this[0] = this[1];
-		lua.Table.remove(untyped this,1);
+		for (i in 0...length){
+			this[i] = this[i+1];
+		}
 		this.length-=1;
 		return ret;
 	}
@@ -131,8 +132,9 @@ class Array<T> {
 	}
 
 	public function unshift( x : T ) : Void {
-		lua.Table.insert(untyped this, 0, x);
-		length++;
+		var len = length;
+		for (i in 0...len) this[len - i] = this[len - i - 1];
+		this[0] = x;
 	}
 
 	public inline function insert( pos : Int, x : T ) : Void {
