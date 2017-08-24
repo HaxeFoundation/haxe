@@ -1513,7 +1513,7 @@ let gen_class_field ctx c f =
              let old = ctx.in_value, ctx.in_loop in
              ctx.in_value <- None;
              ctx.in_loop <- false;
-             print ctx "= function";
+             print ctx " = function";
              print ctx "(%s) " (String.concat "," ("self" :: List.map ident (List.map arg_name f2.tf_args)));
              let fblock = fun_block ctx f2 e.epos in
              (match fblock.eexpr with
