@@ -24,7 +24,7 @@ class MainEvent {
 	}
 
 	/**
-		Call the event. Will do nothing is the event has been stopped.
+		Call the event. Will do nothing if the event has been stopped.
 	**/
 	public inline function call() {
 		if( f != null ) f();
