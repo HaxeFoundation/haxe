@@ -433,7 +433,10 @@ and jit_expr jit return e =
 		pop_scope jit;
 		emit_block (Array.of_list (execs @ [exec1]))
 	| TBlock [e1] ->
-		loop e1
+		push_scope jit e.epos;
+		let f = loop e1 in
+		pop_scope jit;
+		f
 	| TBlock [e1;e2] ->
 		push_scope jit e.epos;
 		let exec1 = jit_expr jit false e1 in
