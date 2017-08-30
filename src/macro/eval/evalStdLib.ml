@@ -2676,6 +2676,18 @@ let init_constructors builtins =
 	add key_haxe_ds_IntMap (fun _ -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (IntHashtbl.create 0)));
 	add key_haxe_ds_ObjectMap (fun _ -> encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic (ValueHashtbl.create 0))));
 	add key_haxe_io_BytesBuffer (fun _ -> encode_instance key_haxe_io_BytesBuffer ~kind:(IOutput (Buffer.create 0)));
+	add key_haxe_io_Bytes
+		(fun vl -> match vl with
+			| [length;b] ->
+				let length = decode_int length in
+				let b = decode_bytes b in
+				let blit_length = if length > Bytes.length b then Bytes.length b else length in
+				let b' = Bytes.create length in
+				Bytes.blit b 0 b' 0 blit_length;
+				encode_bytes b'
+			| _ ->
+				assert false
+		);
 	add key_sys_io__Process_NativeProcess
 		(fun vl -> match vl with
 			| [cmd;args] ->
