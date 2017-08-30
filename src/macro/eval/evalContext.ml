@@ -358,6 +358,6 @@ let get_proto_field_index proto name =
 let get_instance_field_index_raise proto name =
 	IntMap.find name proto.pinstance_names
 
-let get_instance_field_index proto name =
+let get_instance_field_index proto name p =
 	try get_instance_field_index_raise proto name
-	with Not_found -> Error.error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash_s name) (rev_hash_s proto.ppath)) null_pos
+	with Not_found -> Error.error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash_s name) (rev_hash_s proto.ppath)) p

@@ -1768,7 +1768,7 @@ module StdSocket = struct
 
 	let select = vfun4 (fun read write others timeout ->
 		let proto = get_instance_prototype (get_ctx()) key_sys_net_Socket null_pos in
-		let i = get_instance_field_index proto key_socket in
+		let i = get_instance_field_index proto key_socket null_pos in
 		let pair = function
 			| VInstance vi as v -> this vi.iproto.pfields.(i),v
 			| v -> unexpected_value v "NativeSocket"

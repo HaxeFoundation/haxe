@@ -1090,7 +1090,7 @@ let emit_field_read_write exec1 name exec2 fop prefix env =
 		set_object_field o name v;
 		if prefix then v else vf
 	| VInstance vi ->
-		let i = get_instance_field_index vi.iproto name in
+		let i = get_instance_field_index vi.iproto name null_pos in
 		instance_field_read_write vi i exec2 fop prefix env
 	| VPrototype proto ->
 		let i = get_proto_field_index proto name in
