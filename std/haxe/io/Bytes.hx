@@ -239,8 +239,7 @@ class Bytes {
 		if( pos < 0 || pos + 4 > length ) throw Error.OutsideBounds;
 		return untyped __global__.__hxcpp_memory_get_float(b,pos);
 		#else
-		var b = new haxe.io.BytesInput(this,pos,4);
-		return b.readFloat();
+		return FPHelper.i32ToFloat(getInt32(pos));
 		#end
 	}
 
