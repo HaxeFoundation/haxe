@@ -1447,26 +1447,6 @@ let check_multireturn ctx c =
     | _ -> ()
 
 
-let generate_package_create ctx (p,_) =
-    let rec loop acc = function
-        | [] -> ()
-        | p :: l when Hashtbl.mem ctx.packages (p :: acc) -> loop (p :: acc) l
-        | p :: l ->
-            Hashtbl.add ctx.packages (p :: acc) ();
-            (match acc with
-             | [] -> print ctx "local %s = {}" p
-             | _ ->
-                 let p = String.concat "." (List.rev acc) ^ (field p) in
-                 print ctx "%s = {}" p
-            );
-            ctx.separator <- true;
-            newline ctx;
-            loop (p :: acc) l
-    in
-    match p with
-    | [] -> print ctx "local "
-    | _ -> loop [] p
-
 let check_field_name c f =
     match f.cf_name with
     | "prototype" | "__proto__" | "constructor" ->
@@ -1746,8 +1726,6 @@ let generate_require ctx path meta =
     let _, args, mp = Meta.get Meta.LuaRequire meta in
     let p = (s_path ctx path) in
 
-    (* generate_package_create ctx path; *)
-
     (match args with
      | [(EConst(String(module_name)),_)] ->
          print ctx "%s = _G.require(\"%s\")" p module_name
@@ -1771,11 +1749,7 @@ let generate_type ctx = function
         else if (not c.cl_extern) && Meta.has Meta.LuaDotMethod c.cl_meta then
             error "LuaDotMethod is valid for externs only" c.cl_pos
         else if not c.cl_extern then
-            generate_class ctx c
-        else if Meta.has Meta.InitPackage c.cl_meta then
-            (match c.cl_path with
-             | ([],_) -> ()
-             | _ -> generate_package_create ctx c.cl_path);
+            generate_class ctx c;
         check_multireturn ctx c;
     | TEnumDecl e ->
         if not e.e_extern then generate_enum ctx e
@@ -1786,8 +1760,9 @@ let generate_type_forward ctx = function
     | TClassDecl c ->
         if not c.cl_extern then
             begin
-                generate_package_create ctx c.cl_path;
                 let p = s_path ctx c.cl_path in
+                let l,c = c.cl_path in
+                if List.length(l) == 0 then spr ctx "local ";
                 println ctx "%s = _hx_e()" p
             end
         else if Meta.has Meta.LuaRequire c.cl_meta && is_directly_used ctx.com c.cl_meta then
@@ -1796,8 +1771,9 @@ let generate_type_forward ctx = function
         if Meta.has Meta.LuaRequire e.e_meta && is_directly_used ctx.com e.e_meta then
             generate_require ctx e.e_path e.e_meta;
     | TEnumDecl e ->
-        generate_package_create ctx e.e_path;
         let p = s_path ctx e.e_path in
+        let l,c = e.e_path in
+        if List.length(l) == 0 then spr ctx "local ";
         println ctx "%s = _hx_e()" p;
     | TTypeDecl _ | TAbstractDecl _ -> ()
 
