@@ -436,9 +436,11 @@ module Pattern = struct
 					in
 					loop false e1
 			| EBinop(OpArrow,e1,e2) ->
+				let restore = save_locals ctx in
 				let v = add_local "_" null_pos in
 				let e1 = type_expr ctx e1 Value in
 				v.v_name <- "tmp";
+				restore();
 				let pat = make pctx e1.etype e2 in
 				PatExtractor(v,e1,pat)
 			| EDisplay(e,iscall) ->
