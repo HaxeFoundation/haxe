@@ -225,6 +225,7 @@ let make_macro_api ctx p =
 			tp.tp_meta <- tp.tp_meta @ m;
 		);
 		MacroApi.set_js_generator = (fun gen ->
+			Common.mkdir_from_path ctx.com.file;
 			let js_ctx = Genjs.alloc_ctx ctx.com in
 			ctx.com.js_gen <- Some (fun() ->
 				let t = macro_timer ctx ["jsGenerator"] in
