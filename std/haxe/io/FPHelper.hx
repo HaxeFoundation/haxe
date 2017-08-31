@@ -54,6 +54,8 @@ class FPHelper {
 		}
 	#elseif php
 		static var isLittleEndian : Bool = untyped __call__('unpack','S','\x01\x00')[1] == 1;
+	#elseif js
+		static var helper = new js.html.DataView(new js.html.ArrayBuffer(8));
 	#else
 		static inline var LN2 = 0.6931471805599453; // Math.log(2)
 	#end
@@ -95,6 +97,9 @@ class FPHelper {
 			helper.writeUnsignedInt(i);
 			helper.position = 0;
 			return helper.readFloat();
+		#elseif js
+			helper.setInt32(0, i, true);
+			return helper.getFloat32(0, true);
 		#else
 			var sign = 1 - ((i >>> 31) << 1);
 			var exp = (i >>> 23) & 0xFF;
@@ -135,6 +140,9 @@ class FPHelper {
 			return helper.readUnsignedInt();
 		#elseif php
 			return untyped __call__('unpack','l',__call__('pack', 'f', f))[1];
+		#elseif js
+			helper.setFloat32(0, f, true);
+			return helper.getInt32(0,true);
 		#else
 			if( f == 0 ) return 0;
 			var af = f < 0 ? -f : f;
@@ -194,6 +202,10 @@ class FPHelper {
 			return helper.readDouble();
 		#elseif php
 			return untyped  __call__('unpack', 'd', __call__('pack', 'ii', isLittleEndian ? low : high, isLittleEndian ? high : low))[1];
+		#elseif js
+			helper.setInt32(0, low , true);
+			helper.setInt32(4, high, true);
+			return helper.getFloat64(0,true);
 		#else
 			#if python
 			if (low == 0 && high == 2146435072) {
@@ -278,6 +290,14 @@ class FPHelper {
 			@:privateAccess {
 				i64.set_low(a[isLittleEndian ? 1 : 2]);
 				i64.set_high(a[isLittleEndian ? 2 : 1]);
+			}
+			return i64;
+		#elseif js
+			var i64 = i64tmp;
+			helper.setFloat64(0, v, true);
+			@:privateAccess {
+				i64.set_low(helper.getInt32(0,true));
+				i64.set_high(helper.getInt32(4,true));
 			}
 			return i64;
 		#else
