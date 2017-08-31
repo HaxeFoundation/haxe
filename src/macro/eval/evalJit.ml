@@ -78,6 +78,8 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 		let exec1 = jit_expr jit false e1 in
 		let exec2 = jit_expr jit false e2 in
 		begin match fa with
+			| FInstance({cl_path=(["haxe";"io"],"Bytes")},_,{cf_name="length"}) ->
+				emit_bytes_length_write exec1 exec2
 			| FStatic({cl_path=path},_) | FEnum({e_path=path},_) ->
 				let proto = get_static_prototype jit.ctx (path_hash path) e1.epos in
 				emit_proto_field_write proto (get_proto_field_index proto name) exec2

@@ -924,6 +924,12 @@ let emit_string_cca exec1 exec2 p env =
 
 (* Write *)
 
+let emit_bytes_length_write exec1 exec2 env =
+	let v1 = exec1 env in
+	let v2 = exec2 env in
+	set_bytes_length_field v1 v2;
+	v2
+
 let emit_local_write slot exec env =
 	let v = exec env in
 	env.env_locals.(slot) <- v;
