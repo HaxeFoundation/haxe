@@ -618,7 +618,12 @@ let rec func ctx bb tf t p =
 			block_el bb el
 		| TObjectDecl fl ->
 			block_el bb (List.map snd fl)
-		| TFor _ | TWhile(_,_,DoWhile) ->
+		| TFor (v, e1, e2) -> 
+			(match ctx.com.platform with
+			| Lua -> let bb = block_element bb e1 in block_element bb e2
+			| _ -> assert false
+			)
+		| TWhile(_,_,DoWhile) ->
 			assert false
 	and block_el bb el =
 		match !b_try_stack with
