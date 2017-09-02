@@ -57,7 +57,6 @@ class Http {
 	public var async : Bool;
 	public var withCredentials : Bool;
 #end
-	public var requestBytes : Bool; /* if true, `onDataBytes` will be called instead of `onData` */
 	var postData : String;
 	var headers : List<{ header:String, value:String }>;
 	var params : List<{ param:String, value:String }>;
@@ -78,6 +77,7 @@ class Http {
 		is enabled.
 	**/
 	public function new( url : String ) {
+		onDataBytes = null;
 		this.url = url;
 		headers = new List<{ header:String, value:String }>();
 		params = new List<{ param:String, value:String }>();
@@ -227,7 +227,7 @@ class Http {
 			path: path,
 			headers: h
 		};
-		var httpResponse = if (requestBytes) {
+		var httpResponse = if (onDataBytes != null) {
 			opts.encoding = null;
 			function (res) {
 				var s = res.statusCode;
@@ -294,7 +294,7 @@ class Http {
 			if( s != null && s >= 200 && s < 400 ) {
 				me.req = null;
 				me.responseData = r.responseText;
-				if (requestBytes) {
+				if (onDataBytes != null) {
 					var a = new js.html.ArrayBuffer(me.responseData.length);
 					var b = new js.html.Uint8Array(a);
 					for(i in 0...me.responseData.length)
@@ -352,7 +352,7 @@ class Http {
 
 		for( h in headers )
 			r.setRequestHeader(h.header,h.value);
-		if (requestBytes)
+		if (onDataBytes != null)
 			r.overrideMimeType('text/plain; charset=x-user-defined');
 		r.send(uri);
 		if( !async )
@@ -363,7 +363,7 @@ class Http {
 		loader.addEventListener( "complete", function(e) {
 			me.req = null;
 			me.responseData = loader.data;
-			if (requestBytes)
+			if (onDataBytes != null)
 				throw "not implemented";
 			else
 				me.onData( loader.data );
@@ -442,7 +442,7 @@ class Http {
 			#else
 			me.responseData = output.getBytes().toString();
 			#end
-			if (requestBytes)
+			if (onDataBytes != null)
 				me.onDataBytes(output.getBytes());
 			else
 				me.onData(me.responseData);
@@ -827,7 +827,7 @@ class Http {
 
 	/**
 		These methods are called upon a successful request, with `data` containing
-		the result String or Bytes (depending on `requestBytes`)
+		the result String or Bytes
 
 		The intended usage is to bind it to a custom function:
 		`httpInstance.onData = function(data) { // handle result }`
