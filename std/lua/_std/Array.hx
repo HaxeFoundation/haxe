@@ -65,8 +65,12 @@ class Array<T> {
 	public function shift() : Null<T> {
 		if (this.length == 0) return null;
 		var ret = this[0];
-		this[0] = this[1];
-		lua.Table.remove(untyped this,1);
+		if (this.length == 1){
+			this[0] = null;
+		} else if (this.length > 1) {
+			this[0] = this[1];
+			lua.Table.remove(untyped this,1);
+		}
 		this.length-=1;
 		return ret;
 	}
