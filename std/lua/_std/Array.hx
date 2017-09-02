@@ -131,7 +131,10 @@ class Array<T> {
 	}
 
 	public function unshift( x : T ) : Void {
-		if (this.length == 0) this[0] = x;
+		if (this.length == 0) {
+			this[0] = x;
+			return;
+		}
 		lua.Table.insert(untyped this, 1, x);
 		var tmp = this[0];
 		this[0] = this[1];
