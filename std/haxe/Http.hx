@@ -57,6 +57,7 @@ class Http {
 	public var async : Bool;
 	public var withCredentials : Bool;
 #end
+	public var requestBytes : Bool; /* if true, `onDataBytes` will be called instead of `onData` */
 	var postData : String;
 	var headers : List<{ header:String, value:String }>;
 	var params : List<{ param:String, value:String }>;
@@ -218,7 +219,7 @@ class Http {
 		var question = path.split("?").length <= 1;
 		if (!post && uri != null) path += (if( question ) "?" else "&") + uri;
 
-		var opts = {
+		var opts: Dynamic = {
 			protocol: parsedUrl.protocol,
 			hostname: host,
 			port: port,
@@ -226,25 +227,48 @@ class Http {
 			path: path,
 			headers: h
 		};
-		function httpResponse (res) {
-			var s = res.statusCode;
-			if (s != null)
-				me.onStatus(s);
-			var body = '';
-			res.on('data', function (d) {
-				body += d;
-			});
-			res.on('end', function (_) {
-				me.responseData = body;
-				me.req = null;
-				if (s != null && s >= 200 && s < 400) {
-					me.onData(body);
-				} else {
-					me.onError("Http Error #"+s);
-				}
-			});
-		}
-		req = secure ? js.node.Https.request(untyped opts, httpResponse) : js.node.Http.request(untyped opts, httpResponse);
+		var httpResponse = if (requestBytes) {
+			opts.encoding = null;
+			function (res) {
+				var s = res.statusCode;
+				if (s != null)
+					me.onStatus(s);
+				var body = [];
+				res.on('data', function (d/*:js.node.Buffer*/) {
+					body.push(d);
+				});
+				res.on('end', function (_) {
+					var bytes = js.node.Buffer.concat(body).hxToBytes();
+					me.responseData = bytes.toString();
+					me.req = null;
+					if (s != null && s >= 200 && s < 400) {
+						me.onDataBytes(bytes);
+					} else {
+						me.onError("Http Error #"+s);
+					}
+				});
+			}
+		} else {
+			function (res) {
+				var s = res.statusCode;
+				if (s != null)
+					me.onStatus(s);
+				var body = [];
+				res.on('data', function (d/*:String*/) {
+					body.push(d);
+				});
+				res.on('end', function (_) {
+					me.responseData = body.join("");
+					me.req = null;
+					if (s != null && s >= 200 && s < 400) {
+						me.onData(me.responseData);
+					} else {
+						me.onError("Http Error #"+s);
+					}
+				});
+			}
+		};
+		req = secure ? js.node.Https.request(opts, httpResponse) : js.node.Http.request(opts, httpResponse);
 		if (post) req.write(uri);
 		req.end();
 	#elseif js
@@ -269,7 +293,15 @@ class Http {
 				me.onStatus(s);
 			if( s != null && s >= 200 && s < 400 ) {
 				me.req = null;
-				me.onData(me.responseData = r.responseText);
+				me.responseData = r.responseText;
+				if (requestBytes) {
+					var a = new js.html.ArrayBuffer(me.responseData.length);
+					var b = new js.html.Uint8Array(a);
+					for(i in 0...me.responseData.length)
+						b[i] = StringTools.fastCodeAt(me.responseData,i);
+					me.onDataBytes(haxe.io.Bytes.ofData(a));
+				} else
+					me.onData(me.responseData);
 			}
 			else if ( s == null ) {
 				me.req = null;
@@ -320,6 +352,8 @@ class Http {
 
 		for( h in headers )
 			r.setRequestHeader(h.header,h.value);
+		if (requestBytes)
+			r.overrideMimeType('text/plain; charset=x-user-defined');
 		r.send(uri);
 		if( !async )
 			onreadystatechange(null);
@@ -329,7 +363,10 @@ class Http {
 		loader.addEventListener( "complete", function(e) {
 			me.req = null;
 			me.responseData = loader.data;
-			me.onData( loader.data );
+			if (requestBytes)
+				throw "not implemented";
+			else
+				me.onData( loader.data );
 		});
 		loader.addEventListener( "httpStatus", function(e:flash.events.HTTPStatusEvent){
 			// on Firefox 1.5, Flash calls onHTTPStatus with 0 (!??)
@@ -399,12 +436,17 @@ class Http {
 			onError(e);
 		}
 		customRequest(post,output);
-		if( !err )
-		#if neko
-			me.onData(me.responseData = neko.Lib.stringReference(output.getBytes()));
-		#else
-			me.onData(me.responseData = output.getBytes().toString());
-		#end
+		if( !err ) {
+			#if neko
+			me.responseData = neko.Lib.stringReference(output.getBytes());
+			#else
+			me.responseData = output.getBytes().toString();
+			#end
+			if (requestBytes)
+				me.onDataBytes(output.getBytes());
+			else
+				me.onData(me.responseData);
+		}
 	#end
 	}
 
@@ -784,13 +826,16 @@ class Http {
 #end
 
 	/**
-		This method is called upon a successful request, with `data` containing
-		the result String.
+		These methods are called upon a successful request, with `data` containing
+		the result String or Bytes (depending on `requestBytes`)
 
 		The intended usage is to bind it to a custom function:
 		`httpInstance.onData = function(data) { // handle result }`
 	**/
 	public dynamic function onData( data : String ) {
+	}
+
+	public dynamic function onDataBytes( data : haxe.io.Bytes ) {
 	}
 
 	/**
