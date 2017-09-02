@@ -41,7 +41,7 @@ class TestCommandBase extends haxe.unit.TestCase {
 			#elseif php
 				run(untyped __php__("defined('PHP_BINARY') ? PHP_BINARY : 'php'"), [bin].concat(args));
 			#elseif lua
-				if (untyped lua.jit != null){
+				if (lua.Lua.type(untyped jit) == "table"){
 					run("luajit", [bin].concat(args));
 				} else {
 					run("lua", [bin].concat(args));
@@ -129,7 +129,7 @@ class TestCommandBase extends haxe.unit.TestCase {
 				#elseif php
 					run(untyped __php__("defined('PHP_BINARY') ? PHP_BINARY : 'php'"), [bin].concat(args));
 				#elseif lua
-					if (untyped lua.jit != null){
+					if (lua.Lua.type(untyped jit) == "table"){
 						run("luajit", [bin].concat(args));
 					} else {
 						run("lua", [bin].concat(args));
