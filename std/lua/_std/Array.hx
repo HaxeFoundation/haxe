@@ -135,15 +135,9 @@ class Array<T> {
 	}
 
 	public function unshift( x : T ) : Void {
-		if (this.length == 0) {
-			this[0] = x;
-			return;
-		}
-		lua.Table.insert(untyped this, 1, x);
-		var tmp = this[0];
-		this[0] = this[1];
-		this[1] = tmp;
-		length++;
+		var len = length;
+		for (i in 0...len) this[len - i] = this[len - i - 1];
+		this[0] = x;
 	}
 
 	public inline function insert( pos : Int, x : T ) : Void {
