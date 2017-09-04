@@ -53,6 +53,7 @@ class TestMain {
 			new TestMisc(),
 			new TestJson(),
 			new TestResource(),
+			new TestTemplate(),
 			new TestInt64(),
 			new TestReflect(),
 			new TestSerialize(),
