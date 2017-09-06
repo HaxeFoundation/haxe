@@ -350,7 +350,13 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 	let in_loop = ref false in
 	let cancel_inlining = ref false in
 	let has_return_value = ref false in
-	let ret_val = (match follow f.tf_type with TAbstract ({ a_path = ([],"Void") },[]) -> false | _ -> true) in
+	let return_type t el =
+		(* If the function return is Dynamic or Void, stick to it. *)
+		if follow f.tf_type == t_dynamic || ExtType.is_void (follow f.tf_type) then f.tf_type
+		(* If the expression is Void, find common type of its branches. *)
+		else if ExtType.is_void t then unify_min ctx el
+		else t
+	in
 	let map_pos = if self_calling_closure then (fun e -> e) else (fun e -> { e with epos = p }) in
 	let rec map term e =
 		let po = e.epos in
@@ -400,14 +406,15 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 				el, map term e
 			) cases in
 			let def = opt (map term) def in
-			let t = if ret_val && ExtType.is_void e.etype then unify_min ctx ((List.map snd cases) @ (match def with None -> [] | Some e -> [e])) else e.etype in
+			let t = return_type e.etype ((List.map snd cases) @ (match def with None -> [] | Some e -> [e])) in
 			{ e with eexpr = TSwitch (map false e1,cases,def); etype = t }
 		| TTry (e1,catches) ->
+			let t = return_type e.etype (e1::List.map snd catches) in
 			{ e with eexpr = TTry (map term e1,List.map (fun (v,e) ->
 				let lv = (local v).i_subst in
 				let e = map term e in
 				lv,e
-			) catches); etype = if term && ret_val && ExtType.is_void e.etype then unify_min ctx (e1::List.map snd catches) else e.etype }
+			) catches); etype = t }
 		| TBlock l ->
 			let old = save_locals ctx in
 			let t = ref e.etype in
@@ -449,7 +456,8 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			let econd = map false econd in
 			let eif = map term eif in
 			let eelse = map term eelse in
-			{ e with eexpr = TIf(econd,eif,Some eelse); etype = if ret_val && ExtType.is_void e.etype then unify_min ctx [eif;eelse] else e.etype }
+			let t = return_type e.etype [eif;eelse] in
+			{ e with eexpr = TIf(econd,eif,Some eelse); etype = t }
 		| TParenthesis e1 ->
 			let e1 = map term e1 in
 			mk (TParenthesis e1) e1.etype e.epos
