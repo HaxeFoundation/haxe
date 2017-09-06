@@ -272,6 +272,13 @@ class Boot {
 	}
 
 	/**
+		Unsafe cast to HxClass
+	**/
+	public static inline function castClass(cls:Class<Dynamic>) : HxClass {
+		return cast cls;
+	}
+
+	/**
 		Returns `Class<T>` for `HxClosure`
 	**/
 	public static inline function closureHxClass() : HxClass {
