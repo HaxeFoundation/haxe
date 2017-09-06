@@ -34,6 +34,7 @@
 	}
 
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic {
+		#if php untyped __call__('var_dump', field); #end
 		if (null == o) return null;
 		var cls : String = Std.is(o, Class) ? untyped __php__("$o->__tname__") : untyped __call__("get_class", o);
 		var cls_vars : php.NativeArray = untyped __call__("get_class_vars", cls);
