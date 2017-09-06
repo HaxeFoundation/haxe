@@ -34,6 +34,7 @@ class BytesBuffer {
 	public function new() {
 		pos = 0;
 		size = 0;
+		grow(0);
 	}
 
 	inline function get_length() : Int {
