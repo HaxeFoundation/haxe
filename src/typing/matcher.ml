@@ -1075,9 +1075,9 @@ module Compile = struct
 				let e1 = loop e1 in
 				let bindings = List.map (fun v -> v,subject.epos,subject) vars @ bindings in
 				begin try
-					let v,_,_,left,right = List.find (fun (_,_,e2,_,_) -> Texpr.equal e1 e2) ex_bindings in
+					let v,_,_,left2,right2 = List.find (fun (_,_,e2,_,_) -> Texpr.equal e1 e2) ex_bindings in
 					let ev = mk (TLocal v) v.v_type e1.epos in
-					let patterns = make_offset_list (left + 1) (right - 1) pat pat_any @ patterns in
+					let patterns = make_offset_list (left2 + 1) (right2 - 1) pat pat_any @ patterns in
 					(left + 1, right - 1,ev :: subjects,((case,bindings,patterns) :: cases),ex_bindings)
 				with Not_found ->
 					let v = alloc_var "_hx_tmp" e1.etype e1.epos in
