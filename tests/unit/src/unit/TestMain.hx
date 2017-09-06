@@ -56,6 +56,8 @@ class TestMain {
 			new TestInt64(),
 			new TestReflect(),
 			new TestSerialize(),
+			new TestUnserializeResolver(),
+			new TestUnserializeInstantiator(),
 			new TestMeta(),
 			new TestType(),
 			new TestOrder(),

@@ -27,6 +27,14 @@ typedef TypeResolver = {
 	function resolveEnum( name : String ) : Enum<Dynamic>;
 }
 
+@:noDoc
+typedef TypeInstantiator = {
+	function createEnum<T>( e:Enum<T>, constructor:String, ?params : Array<Dynamic> ) : T;
+	function createEmptyInstance<T>( cl : Class<T> ) : T;
+	function applyInstanceValues( instance : Dynamic, iterator : KVIterator ) : Void;
+	function applyDynamicValues( obj : Dynamic, iterator : KVIterator ) : Void;
+}
+
 /**
 	The `Unserializer` class is the complement to the `Serializer` class. It parses
 	a serialization `String` and creates objects from the contained data.
@@ -62,6 +70,8 @@ class Unserializer {
 	**/
 	public static var DEFAULT_RESOLVER : TypeResolver = new DefaultResolver();
 
+	public static var DEFAULT_INSTANTIATOR : TypeInstantiator = new DefaultInstantiator();
+
 	static var BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:";
 
 	#if !neko
@@ -86,6 +96,8 @@ class Unserializer {
  	var cache : Array<Dynamic>;
  	var scache : Array<String>;
  	var resolver : TypeResolver;
+ 	var instantiator : TypeInstantiator;
+ 	var kviterator : KVIterator;
  	#if neko
  	var upos : Int;
  	#end
@@ -108,12 +120,10 @@ class Unserializer {
  		#end
  		scache = new Array();
  		cache = new Array();
-		var r = DEFAULT_RESOLVER;
-		if( r == null ) {
-			r = new DefaultResolver();
-			DEFAULT_RESOLVER = r;
-		}
-		resolver = r;
+		if( DEFAULT_RESOLVER == null ) DEFAULT_RESOLVER = new DefaultResolver();
+		resolver = DEFAULT_RESOLVER;
+		if( DEFAULT_INSTANTIATOR == null ) DEFAULT_INSTANTIATOR = new DefaultInstantiator();
+		instantiator = DEFAULT_INSTANTIATOR;
  	}
 
 	/**
@@ -138,6 +148,24 @@ class Unserializer {
 	**/
  	public function getResolver() {
 		return resolver;
+	}
+
+	/**
+		Sets the type instantiator of `this` Unserializer instance to `i`.
+
+		See `DEFAULT_INSTANTIATOR` for more information on type instantiators.
+	**/
+ 	public function setInstantiator( i ) {
+		instantiator = i;
+	}
+
+	/**
+		Gets the type instantiator of `this` Unserializer instance.
+
+		See `DEFAULT_INSTANTIATOR` for more information on type instantiators.
+	**/
+ 	public function getInstantiator() {
+		return instantiator;
 	}
 
 	inline function get(p) : Int {
@@ -183,19 +211,16 @@ class Unserializer {
  		return Std.parseFloat(buf.substr(p1,pos-p1));
 	}
 
-	function unserializeObject(o) {
- 		while( true ) {
- 			if( pos >= length )
- 				throw "Invalid object";
- 			if( get(pos) == "g".code )
- 				break;
- 			var k : Dynamic = unserialize();
- 			if( !Std.is(k,String) )
- 				throw "Invalid object key";
- 			var v = unserialize();
- 			Reflect.setField(o,k,v);
- 		}
- 		pos++;
+	inline function unserializeObject(o) {
+		if (kviterator==null) kviterator = new KVIterator(this);
+		instantiator.applyDynamicValues(o, kviterator);
+		pos++;
+	}
+
+	inline function unserializeInstance(o) {
+		if (kviterator==null) kviterator = new KVIterator(this);
+		instantiator.applyInstanceValues(o, kviterator);
+		pos++;
 	}
 
 	function unserializeEnum( edecl, tag ) {
@@ -203,11 +228,11 @@ class Unserializer {
 			throw "Invalid enum format";
 		var nargs = readDigits();
 		if( nargs == 0 )
-			return Type.createEnum(edecl,tag);
+			return instantiator.createEnum(edecl,tag);
 		var args = new Array();
 		while( nargs-- > 0 )
 			args.push(unserialize());
-		return Type.createEnum(edecl,tag,args);
+		return instantiator.createEnum(edecl,tag,args);
 	}
 
 	/**
@@ -227,8 +252,8 @@ class Unserializer {
 		serialization side has to make sure not to include platform-specific
 		data.
 
-		Classes are created from `Type.createEmptyInstance`, which means their
-		constructors are not called.
+		Classes are created from `instantiator.createEmptyInstance`, which means
+		their constructors are not called.
 	**/
  	public function unserialize() : Dynamic {
  		switch( get(pos++) ) {
@@ -304,9 +329,9 @@ class Unserializer {
 			var cl = resolver.resolveClass(name);
 			if( cl == null )
 				throw "Class not found " + name;
-			var o = Type.createEmptyInstance(cl);
+			var o = instantiator.createEmptyInstance(cl);
 			cache.push(o);
-			unserializeObject(o);
+			unserializeInstance(o);
 			return o;
 		case "w".code:
 			var name = unserialize();
@@ -431,7 +456,7 @@ class Unserializer {
 			var cl = resolver.resolveClass(name);
 			if( cl == null )
 				throw "Class not found " + name;
-			var o : Dynamic = Type.createEmptyInstance(cl);
+			var o : Dynamic = instantiator.createEmptyInstance(cl);
 			cache.push(o);
 			o.hxUnserialize(this);
 			if( get(pos++) != "g".code )
@@ -486,5 +511,65 @@ private class NullResolver {
 	inline static function get_instance():NullResolver {
 		if (instance == null) instance = new NullResolver();
 		return instance;
+	}
+}
+
+private class DefaultInstantiator {
+	public function new() {}
+	@:final public inline function createEnum<T>( e:Enum<T>, constructor:String, ?params : Array<Dynamic> ) : T {
+		return Type.createEnum(e,constructor,params);
+	}
+
+	@:final public inline function createEmptyInstance<T>( cl : Class<T> ) : T {
+		return Type.createEmptyInstance(cl);
+	}
+
+	@:final public inline function applyInstanceValues( instance : Dynamic, iterator : KVIterator ) : Void
+	{
+		while( iterator.hasNext() ) {
+			Reflect.setField(instance, iterator.key, iterator.value);
+		}
+	}
+
+	@:final public inline function applyDynamicValues( obj : Dynamic, iterator : KVIterator ) : Void
+	{
+		while( iterator.hasNext() ) {
+			Reflect.setField(obj, iterator.key, iterator.value);
+		}
+	}
+
+}
+
+@:access(haxe.Unserializer)
+private class KVIterator {
+
+	public var key:String;
+	public var value:Dynamic;
+	private var unserializer:Unserializer;
+
+	public function new(unserializer:Unserializer) {
+		this.unserializer = unserializer;
+	}
+
+	public function hasNext():Bool
+	{
+		if( unserializer.pos >= unserializer.length ) throw "Invalid object";
+		if( unserializer.get(unserializer.pos) == "g".code ) {
+			key = null;
+			value = null;
+			return false;
+		}
+		var k : Dynamic = unserializer.unserialize();
+		if( !Std.is(k,String) ) throw "Invalid object key";
+
+		// Warning: recursion can happen here, and since we use a
+		// single kviterator, the key reference was thrashed.
+		value = unserializer.unserialize();
+
+		// But now we recover, such that whenever we exit
+		// this function, the proper k/v are ready
+		key = k;
+
+		return true;
 	}
 }
