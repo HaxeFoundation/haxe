@@ -48,8 +48,7 @@ class Array<T> {
 		return ret;
 	}
 	public function push(x : T) : Int {
-		lua.Lua.rawset(untyped this, length,x);
-		length++;
+		this[this.length] = x;
 		return length;
 	}
 	public function reverse() : Void {
