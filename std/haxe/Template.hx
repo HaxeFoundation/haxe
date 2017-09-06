@@ -114,6 +114,10 @@ class Template {
 	function resolve( v : String ) : Dynamic {
 		if( v == "__current__" )
 			return context;
+#if php7
+		if( v == "null" )
+			return null;
+#end
 		var value = Reflect.getProperty(context, v);
 		if( value != null || Reflect.hasField(context,v) )
 			return value;

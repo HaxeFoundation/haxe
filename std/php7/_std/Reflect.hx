@@ -76,8 +76,6 @@ using php.Global;
 				return Syntax.call(o, 'get_$field');
 			} else if (Global.method_exists(o, field)) {
 				return Boot.closure(o, field);
-			} else if (field == 'null') {
-				return null;
 			} else {
 				return Syntax.getField(o, field);
 			}

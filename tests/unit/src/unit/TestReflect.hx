@@ -305,8 +305,6 @@ class TestReflect extends Test {
 		eq( c.x, 10);
 		eq( Reflect.getProperty(c, "x"), 10);
 
-		eq( Reflect.getProperty(c, "null"), null );
-
 		var c : InterfWithProp = new ClassWithProp();
 		eq( c.x, 5);
 
