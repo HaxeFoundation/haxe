@@ -138,6 +138,7 @@ module Pattern = struct
 	type pattern_context = {
 		ctx : typer;
 		or_locals : (string, tvar * pos) PMap.t option;
+		ctx_locals : (string, tvar) PMap.t;
 		mutable current_locals : (string, tvar * pos) PMap.t;
 		mutable in_reification : bool;
 	}
@@ -437,6 +438,7 @@ module Pattern = struct
 					loop false e1
 			| EBinop(OpArrow,e1,e2) ->
 				let restore = save_locals ctx in
+				ctx.locals <- pctx.ctx_locals;
 				let v = add_local "_" null_pos in
 				let e1 = type_expr ctx e1 Value in
 				v.v_name <- "tmp";
@@ -458,6 +460,7 @@ module Pattern = struct
 		let pctx = {
 			ctx = ctx;
 			current_locals = PMap.empty;
+			ctx_locals = ctx.locals;
 			or_locals = None;
 			in_reification = false;
 		} in
