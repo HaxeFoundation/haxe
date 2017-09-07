@@ -1356,7 +1356,7 @@ module TexprConverter = struct
 				in
 				begin match cases with
 					| [_,e2] when e_default = None && (match finiteness with RunTimeFinite -> true | _ -> false) ->
-						e2
+						{e2 with etype = t_switch}
 					| [[e1],e2] when (with_type = NoValue || e_default <> None) && ctx.com.platform <> Java (* TODO: problem with TestJava.hx:285 *) ->
 						let e_op = mk (TBinop(OpEq,e_subject,e1)) ctx.t.tbool e_subject.epos in
 						mk (TIf(e_op,e2,e_default)) t_switch dt.dt_pos
