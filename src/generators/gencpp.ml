@@ -8272,11 +8272,12 @@ let generate_source ctx =
    ;;
 
 let generate common_ctx =
+   let debug_level = if (Common.defined common_ctx Define.NoDebug) then 0 else 1 in
    if (Common.defined common_ctx Define.Cppia) then begin
-      let ctx = new_context common_ctx 1 (ref PMap.empty) (Hashtbl.create 0)  in
+      let ctx = new_context common_ctx debug_level (ref PMap.empty) (Hashtbl.create 0)  in
       generate_cppia ctx
    end else begin
-      let ctx = new_context common_ctx 1 (ref PMap.empty) (create_member_types common_ctx) in
+      let ctx = new_context common_ctx debug_level (ref PMap.empty) (create_member_types common_ctx) in
       generate_source ctx
    end
 ;;
