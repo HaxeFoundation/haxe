@@ -8,13 +8,13 @@ class Issue6375 extends Test {
 
 	function set_memberField(_) {
 		memberField = 1;
-		rollback = () -> memberField = 3;
+		rollback = function() memberField = 3;
 		return memberField;
 	}
 
 	static function set_staticField(_) {
 		staticField = 2;
-		rollback = () -> staticField = 4;
+		rollback = function() staticField = 4;
 		return staticField;
 	}
 
