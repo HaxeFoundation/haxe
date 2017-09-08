@@ -1082,7 +1082,6 @@ and encode_lazy_type t =
 						encode_type t
 					| LWait _ ->
 						(* we are doing some typing here, let's flush our context if it's not already *)
-						prerr_endline "WAIT!";
 						encode_type (flush_core_context (fun() -> lazy_type f))
 					| LProcessing _ ->
 						(* our type in on the processing stack, error instead of returning most likely an unbound mono *)
