@@ -387,7 +387,7 @@ class RunCi {
 		switch (systemName){
 			case "Linux":
 				requireAptPackages(["libpcre3-dev"]);
-				runCommand("pip", ["install", "hererocks"]);
+				runCommand("pip", ["install", "--user", "hererocks"]);
 			case "Mac": {
 				if (commandSucceed("python3", ["-V"]))
 					infoMsg('python3 has already been installed.');
