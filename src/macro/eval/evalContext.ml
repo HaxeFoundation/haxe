@@ -238,7 +238,7 @@ let error_message = exc_string
 
 let flush_core_context f =
 	let ctx = get_ctx() in
-	ctx.curapi.flush_context f
+	ctx.curapi.MacroApi.flush_context f
 
 (* Environment handling *)
 
