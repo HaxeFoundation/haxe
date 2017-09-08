@@ -52,6 +52,7 @@ type 'value compiler_api = {
 	encode_expr : Ast.expr -> 'value;
 	encode_ctype : Ast.type_hint -> 'value;
 	decode_type : 'value -> t;
+	flush_context : (unit -> t) -> t;
 }
 
 
@@ -177,6 +178,7 @@ module type InterpApi = sig
 	val decode_ref : value -> 'a
 
 	val compiler_error : string -> Globals.pos -> 'a
+	val error_message : string -> 'a
 	val value_to_expr : value -> Globals.pos -> Ast.expr
 	val value_signature : value -> string
 
@@ -186,6 +188,8 @@ module type InterpApi = sig
 	val prepare_callback : value -> int -> (value list -> value)
 
 	val value_string : value -> string
+
+	val flush_core_context : (unit -> t) -> t
 
 end
 
@@ -908,11 +912,14 @@ and encode_efield f =
 and encode_cfield f =
 	encode_obj OClassField [
 		"name", encode_string f.cf_name;
-		"type", (match f.cf_kind with Method _ -> encode_lazy_type f.cf_type | _ -> encode_type f.cf_type);
+		"type", encode_lazy_type f.cf_type;
 		"isPublic", vbool f.cf_public;
 		"params", encode_type_params f.cf_params;
 		"meta", encode_meta f.cf_meta (fun m -> f.cf_meta <- m);
-		"expr", vfun0 (fun() -> ignore(follow f.cf_type); (match f.cf_expr with None -> vnull | Some e -> encode_texpr e));
+		"expr", vfun0 (fun() ->
+			ignore (flush_core_context (fun() -> follow f.cf_type));
+			(match f.cf_expr with None -> vnull | Some e -> encode_texpr e)
+		);
 		"kind", encode_field_kind f.cf_kind;
 		"pos", encode_pos f.cf_pos;
 		"namePos",encode_pos f.cf_name_pos;
@@ -1065,7 +1072,22 @@ and encode_lazy_type t =
 			| Some t -> loop t
 			| _ -> encode_type t)
 		| TLazy f ->
-			encode_enum IType 7 [encode_lazytype f (fun() -> encode_type (lazy_type f))]
+			(match !f with
+			| LAvailable t ->
+				encode_type t
+			| _ ->
+				encode_enum IType 7 [encode_lazytype f (fun() ->
+					(match !f with
+					| LAvailable t ->
+						encode_type t
+					| LWait _ ->
+						(* we are doing some typing here, let's flush our context if it's not already *)
+						prerr_endline "WAIT!";
+						encode_type (flush_core_context (fun() -> lazy_type f))
+					| LProcessing _ ->
+						(* our type in on the processing stack, error instead of returning most likely an unbound mono *)
+						error_message "Accessing a type while it's being typed");
+				)])
 		| _ ->
 			encode_type t
 	in

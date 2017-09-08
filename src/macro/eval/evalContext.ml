@@ -234,6 +234,12 @@ let exc v = throw v null_pos
 
 let exc_string str = exc (vstring (Rope.of_string str))
 
+let error_message = exc_string
+
+let flush_core_context f =
+	let ctx = get_ctx() in
+	ctx.curapi.flush_context f
+
 (* Environment handling *)
 
 let no_timer = fun () -> ()

@@ -195,6 +195,9 @@ let make_macro_api ctx p =
 			loop e;
 			e
 		);
+		MacroApi.flush_context = (fun f ->
+			typing_timer ctx true f
+		);
 		MacroApi.store_typed_expr = (fun te ->
 			let p = te.epos in
 			let id = get_next_stored_typed_expr_id() in
