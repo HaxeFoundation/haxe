@@ -101,7 +101,7 @@ let rec is_null t =
 			| Some t -> is_null t
 			| _ -> false)
 		| TLazy f ->
-			is_null (!f())
+			is_null (lazy_type f)
 		| _ -> false
 
 let rec get_ptr e = match e.eexpr with
@@ -1797,7 +1797,7 @@ let generate con =
 						| Some t -> run t
 						| _ -> () (* avoid infinite loop / should be the same in this context *))
 					| TLazy f ->
-						run (!f())
+						run (lazy_type f)
 					| _ -> ()
 			in
 			run t;

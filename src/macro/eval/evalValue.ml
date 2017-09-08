@@ -130,7 +130,7 @@ and vinstance_kind =
 	| IThread of Thread.t
 	| IZip of vzlib (* Compress/Uncompress *)
 	| ITypeDecl of Type.module_type
-	| ILazyType of ((unit -> Type.t) ref) * (unit -> value)
+	| ILazyType of (Type.tlazy ref) * (unit -> value)
 	| IRef of Obj.t
 	| INormal
 

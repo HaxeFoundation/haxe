@@ -52,6 +52,7 @@ type module_check_policy =
 	| NoCheckDependencies
 	| NoCheckShadowing
 
+
 type t =
 	| TMono of t option ref
 	| TEnum of tenum * tparams
@@ -60,8 +61,13 @@ type t =
 	| TFun of tsignature
 	| TAnon of tanon
 	| TDynamic of t
-	| TLazy of (unit -> t) ref
+	| TLazy of tlazy ref
 	| TAbstract of tabstract * tparams
+
+and tlazy =
+	| LAvailable of t
+	| LProcessing of (unit -> t)
+	| LWait of (unit -> t)
 
 and tsignature = (string * bool * t) list * t
 
@@ -490,6 +496,15 @@ let rec is_parent csup c =
 let add_descendant c descendant =
 	c.cl_descendants <- descendant :: c.cl_descendants
 
+let lazy_type f =
+	match !f with
+	| LAvailable t -> t
+	| LProcessing f | LWait f -> f()
+
+let lazy_available t = LAvailable t
+let lazy_processing f = LProcessing f
+let lazy_wait f = LWait f
+
 let map loop t =
 	match t with
 	| TMono r ->
@@ -521,7 +536,7 @@ let map loop t =
 				}
 		end
 	| TLazy f ->
-		let ft = !f() in
+		let ft = lazy_type f in
 		let ft2 = loop ft in
 		if ft == ft2 then t else ft2
 	| TDynamic t2 ->
@@ -551,7 +566,7 @@ let apply_params cparams params t =
 	let rec loop l1 l2 =
 		match l1, l2 with
 		| [] , [] -> []
-		| (x,TLazy f) :: l1, _ -> loop ((x,(!f)()) :: l1) l2
+		| (x,TLazy f) :: l1, _ -> loop ((x,lazy_type f) :: l1) l2
 		| (_,t1) :: l1 , t2 :: l2 -> (t1,t2) :: loop l1 l2
 		| _ -> assert false
 	in
@@ -607,7 +622,7 @@ let apply_params cparams params t =
 					}
 			end
 		| TLazy f ->
-			let ft = !f() in
+			let ft = lazy_type f in
 			let ft2 = loop ft in
 			if ft == ft2 then
 				t
@@ -631,7 +646,7 @@ let rec follow t =
 		| Some t -> follow t
 		| _ -> t)
 	| TLazy f ->
-		follow (!f())
+		follow (lazy_type f)
 	| TType (t,tl) ->
 		follow (apply_params t.t_params tl t.t_type)
 	| TAbstract({a_path = [],"Null"},[t]) ->
@@ -644,7 +659,7 @@ let rec is_nullable = function
 	| TAbstract ({ a_path = ([],"Null") },[_]) ->
 		true
 	| TLazy f ->
-		is_nullable (!f())
+		is_nullable (lazy_type f)
 	| TType (t,tl) ->
 		is_nullable (apply_params t.t_params tl t.t_type)
 	| TFun _ ->
@@ -671,7 +686,7 @@ let rec is_null ?(no_lazy=false) = function
 	| TAbstract ({ a_path = ([],"Null") },[t]) ->
 		not (is_nullable (follow t))
 	| TLazy f ->
-		if no_lazy then raise Exit else is_null (!f())
+		if no_lazy then raise Exit else is_null (lazy_type f)
 	| TType (t,tl) ->
 		is_null (apply_params t.t_params tl t.t_type)
 	| _ ->
@@ -684,7 +699,7 @@ let rec is_explicit_null = function
 	| TAbstract ({ a_path = ([],"Null") },[t]) ->
 		true
 	| TLazy f ->
-		is_null (!f())
+		is_null (lazy_type f)
 	| TType (t,tl) ->
 		is_null (apply_params t.t_params tl t.t_type)
 	| _ ->
@@ -701,8 +716,8 @@ let rec has_mono t = match t with
 		has_mono r || List.exists (fun (_,_,t) -> has_mono t) args
 	| TAnon a ->
 		PMap.fold (fun cf b -> has_mono cf.cf_type || b) a.a_fields false
-	| TLazy r ->
-		has_mono (!r())
+	| TLazy f ->
+		has_mono (lazy_type f)
 
 let concat e1 e2 =
 	let e = (match e1.eexpr, e2.eexpr with
@@ -726,7 +741,7 @@ let rec module_type_of_type = function
 	| TEnum(en,_) -> TEnumDecl en
 	| TType(t,_) -> TTypeDecl t
 	| TAbstract(a,_) -> TAbstractDecl a
-	| TLazy f -> module_type_of_type (!f())
+	| TLazy f -> module_type_of_type (lazy_type f)
 	| TMono r ->
 		(match !r with
 		| Some t -> module_type_of_type t
@@ -930,7 +945,7 @@ let rec s_type ctx t =
 	| TDynamic t2 ->
 		"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [t2])
 	| TLazy f ->
-		s_type ctx (!f())
+		s_type ctx (lazy_type f)
 
 and s_fun ctx t void =
 	match t with
@@ -943,7 +958,7 @@ and s_fun ctx t void =
 		| None -> s_type ctx t
 		| Some t -> s_fun ctx t void)
 	| TLazy f ->
-		s_fun ctx (!f()) void
+		s_fun ctx (lazy_type f) void
 	| _ ->
 		s_type ctx t
 
@@ -1510,7 +1525,7 @@ let rec link e a b =
 			else
 				loop t2
 		| TLazy f ->
-			loop (!f())
+			loop (lazy_type f)
 		| TAnon a ->
 			try
 				PMap.iter (fun _ f -> if loop f.cf_type then raise Exit) a.a_fields;
@@ -1687,8 +1702,8 @@ let rec type_eq param a b =
 	if a == b then
 		()
 	else match a , b with
-	| TLazy f , _ -> type_eq param (!f()) b
-	| _ , TLazy f -> type_eq param a (!f())
+	| TLazy f , _ -> type_eq param (lazy_type f) b
+	| _ , TLazy f -> type_eq param a (lazy_type f)
 	| TMono t , _ ->
 		(match !t with
 		| None -> if param = EqCoreType || not (link t a b) then error [cannot_unify a b]
@@ -1798,8 +1813,8 @@ let rec unify a b =
 	if a == b then
 		()
 	else match a, b with
-	| TLazy f , _ -> unify (!f()) b
-	| _ , TLazy f -> unify a (!f())
+	| TLazy f , _ -> unify (lazy_type f) b
+	| _ , TLazy f -> unify a (lazy_type f)
 	| TMono t , _ ->
 		(match !t with
 		| None -> if not (link t a b) then error [cannot_unify a b]
@@ -2493,7 +2508,7 @@ module TExprToExpr = struct
 		| (TDynamic t2) as t ->
 			tpath ([],"Dynamic") ([],"Dynamic") (if t == t_dynamic then [] else [convert_type' t2])
 		| TLazy f ->
-			convert_type ((!f)())
+			convert_type (lazy_type f)
 
 	and convert_type' t =
 		convert_type t,null_pos

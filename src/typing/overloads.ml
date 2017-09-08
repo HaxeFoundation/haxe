@@ -14,7 +14,7 @@ let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 			| Some t -> follow_skip_null t
 			| _ -> t)
 		| TLazy f ->
-			follow_skip_null (!f())
+			follow_skip_null (lazy_type f)
 		| TAbstract ({ a_path = [],"Null" } as a, [p]) ->
 			TAbstract(a,[follow p])
 		| TType (t,tl) ->
@@ -87,7 +87,7 @@ struct
 			| None -> t_dynamic)
 		| TAnon _ -> t_dynamic
 		| TDynamic _ -> t
-		| TLazy f -> simplify_t (!f())
+		| TLazy f -> simplify_t (lazy_type f)
 		| TFun _ -> t
 
 	(* rate type parameters *)

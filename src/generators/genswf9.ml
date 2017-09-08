@@ -188,7 +188,7 @@ let rec follow_basic t =
 		| Some t -> follow_basic t
 		| _ -> t)
 	| TLazy f ->
-		follow_basic (!f())
+		follow_basic (lazy_type f)
 	| TAbstract ({ a_path = [],"Null" },[tp]) ->
 		(match follow_basic tp with
 		| TMono _

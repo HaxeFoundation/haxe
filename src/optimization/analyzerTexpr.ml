@@ -167,7 +167,7 @@ let rec is_asvar_type t =
 	| TEnum(en,_) -> check en.e_meta
 	| TType(t,tl) -> check t.t_meta || (is_asvar_type (apply_params t.t_params tl t.t_type))
 	| TAbstract(a,_) -> check a.a_meta
-	| TLazy f -> is_asvar_type (!f())
+	| TLazy f -> is_asvar_type (lazy_type f)
 	| TMono r ->
 		(match !r with
 		| Some t -> is_asvar_type t
@@ -191,7 +191,7 @@ let type_change_ok com t1 t2 =
 			| TAbstract ({ a_path = ([],"Null") },[_]) ->
 				true
 			| TLazy f ->
-				is_nullable_or_whatever (!f())
+				is_nullable_or_whatever (lazy_type f)
 			| TType (t,tl) ->
 				is_nullable_or_whatever (apply_params t.t_params tl t.t_type)
 			| TFun _ ->

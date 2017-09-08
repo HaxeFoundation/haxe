@@ -85,7 +85,7 @@ let build_dependencies t =
 		| TDynamic t2 ->
 			add_type_rec (t::l) t2;
 		| TLazy f ->
-			add_type_rec l ((!f)())
+			add_type_rec l (lazy_type f)
 		| TMono r ->
 			(match !r with
 			| None -> ()

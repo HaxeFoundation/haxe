@@ -634,7 +634,7 @@ let rec is_objc_type t =
    | TType(td,_) -> (Meta.has Meta.Objc td.t_meta)
    | TAbstract (a,_) -> (Meta.has Meta.Objc a.a_meta)
    | TMono r -> (match !r with | Some t -> is_objc_type t | _ -> false)
-   | TLazy f -> is_objc_type (!f())
+   | TLazy f -> is_objc_type (lazy_type f)
    | _ -> false
 ;;
 
@@ -806,7 +806,7 @@ and type_string_suff suffix haxe_type remap =
       | _ -> "Dynamic"  ^ suffix )
       *)
    | TDynamic haxe_type -> "Dynamic" ^ suffix
-   | TLazy func -> type_string_suff suffix ((!func)()) remap
+   | TLazy func -> type_string_suff suffix (lazy_type func) remap
    | TAbstract (abs,pl) when abs.a_impl <> None ->
       type_string_suff suffix (Abstract.get_underlying_type abs pl) remap
    | TAbstract (abs,pl) ->
@@ -1796,7 +1796,7 @@ let rec cpp_type_of ctx haxe_type =
    | TFun _ -> TCppObject
    | TAnon _ -> TCppObject
    | TDynamic _ -> TCppDynamic
-   | TLazy func -> cpp_type_of ctx ((!func)())
+   | TLazy func -> cpp_type_of ctx (lazy_type func)
    )
    and  cpp_type_from_path ctx path params default =
       match path,params with

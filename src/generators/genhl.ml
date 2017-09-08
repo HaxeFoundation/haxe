@@ -362,7 +362,7 @@ let rec to_type ?tref ctx t =
 		| ["haxe";"macro"], name -> Hashtbl.replace ctx.macro_typedefs name t; t
 		| _ -> t)
 	| TLazy f ->
-		to_type ?tref ctx (!f())
+		to_type ?tref ctx (lazy_type f)
 	| TFun (args, ret) ->
 		HFun (List.map (fun (_,o,t) ->
 			let pt = to_type ctx t in

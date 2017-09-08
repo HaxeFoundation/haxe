@@ -508,11 +508,10 @@ let rec load_instance ?(allow_display=false) ctx (t,pn) allow_no_params p =
 						| TInst (c,[]) ->
 							check_const c;
 							let r = exc_protect ctx (fun r ->
-								r := (fun() -> t);
+								r := lazy_available t;
 								delay ctx PCheckConstraint (fun() -> check_param_constraints ctx types t tparams c p);
 								t
 							) "constraint" in
-							delay ctx PForce (fun () -> ignore(!r()));
 							TLazy r
 						| _ -> assert false
 					in
@@ -587,7 +586,7 @@ and load_complex_type ctx allow_display p (t,pn) =
 			let tr = ref None in
 			let t = TMono tr in
 			let r = exc_protect ctx (fun r ->
-				r := (fun _ -> t);
+				r := lazy_processing (fun() -> t);
 				tr := Some (match il with
 					| [i] ->
 						mk_extension i
@@ -595,9 +594,9 @@ and load_complex_type ctx allow_display p (t,pn) =
 						List.iter loop il;
 						a.a_status := Extend il;
 						ta);
+				r := lazy_available t;
 				t
 			) "constraint" in
-			delay ctx PForce (fun () -> ignore(!r()));
 			TLazy r
 		| _ -> assert false)
 	| CTAnonymous l ->
@@ -1223,7 +1222,7 @@ let add_constructor ctx c force_constructor p =
 		} in
 		let r = exc_protect ctx (fun r ->
 			let t = mk_mono() in
-			r := (fun() -> t);
+			r := lazy_processing (fun() -> t);
 			let ctx = { ctx with
 				curfield = cf;
 				pass = PTypeField;
@@ -1270,7 +1269,6 @@ let add_constructor ctx c force_constructor p =
 		) "add_constructor" in
 		cf.cf_type <- TLazy r;
 		c.cl_constructor <- Some cf;
-		delay ctx PForce (fun() -> ignore((!r)()));
 	| None,_ when force_constructor ->
 		let constr = mk (TFunction {
 			tf_args = [];
@@ -1524,7 +1522,7 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 		n, t
 	| _ ->
 		let r = exc_protect ctx (fun r ->
-			r := (fun _ -> t);
+			r := lazy_processing (fun() -> t);
 			let ctx = { ctx with type_params = ctx.type_params @ get_params() } in
 			let constr = List.map (load_complex_type ctx true p) tp.tp_constraints in
 			(* check against direct recursion *)
@@ -1540,7 +1538,6 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 			c.cl_kind <- KTypeParameter constr;
 			t
 		) "constraint" in
-		delay ctx PForce (fun () -> ignore(!r()));
 		n, TLazy r
 
 and type_type_params ?(enum_constructor=false) ctx path get_params p tpl =
@@ -1902,7 +1899,7 @@ module ClassInitializer = struct
 		extends_public : bool;
 		abstract : tabstract option;
 		context_init : unit -> unit;
-		mutable delayed_expr : (typer * (unit -> t) ref option) list;
+		mutable delayed_expr : (typer * tlazy ref option) list;
 		mutable force_constructor : bool;
 	}
 
@@ -2204,7 +2201,7 @@ module ClassInitializer = struct
 			let r = exc_protect ctx (fun r ->
 				(* type constant init fields (issue #1956) *)
 				if not !return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
-					r := (fun() -> t);
+					r := lazy_processing (fun() -> t);
 					cctx.context_init();
 					if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
 					let e = type_var_field ctx t e fctx.is_static fctx.is_display_field p in
@@ -2335,7 +2332,7 @@ module ClassInitializer = struct
 								| TFun([_,_,t],_) -> t
 								| _ -> error (cf.cf_name ^ ": @:from cast functions must accept exactly one argument") p
 						in
-						a.a_from_field <- (TLazy (ref r),cf) :: a.a_from_field;
+						a.a_from_field <- (TLazy (ref (lazy_wait r)),cf) :: a.a_from_field;
 					| (Meta.To,_,_) :: _ ->
 						if fctx.is_macro then error (cf.cf_name ^ ": Macro cast functions are not supported") p;
 						(* TODO: this doesn't seem quite right... *)
@@ -2346,8 +2343,8 @@ module ClassInitializer = struct
 								| TMono _ when (match t with TFun(_,r) -> r == t_dynamic | _ -> false) -> t_dynamic
 								| m -> m
 						in
-							let r = exc_protect ctx (fun r ->
-								let args = if Meta.has Meta.MultiType a.a_meta then begin
+						let r = exc_protect ctx (fun r ->
+							let args = if Meta.has Meta.MultiType a.a_meta then begin
 								let ctor = try
 									PMap.find "_new" c.cl_statics
 								with Not_found ->
@@ -2363,10 +2360,8 @@ module ClassInitializer = struct
 								[]
 							in
 							let t = resolve_m args in
-							r := (fun() -> t);
 							t
 						) "@:to" in
-						delay ctx PForce (fun() -> ignore ((!r)()));
 						a.a_to_field <- (TLazy r, cf) :: a.a_to_field
 					| ((Meta.ArrayAccess,_,_) | (Meta.Op,[(EArrayDecl _),_],_)) :: _ ->
 						if fctx.is_macro then error (cf.cf_name ^ ": Macro array-access functions are not supported") p;
@@ -2550,7 +2545,7 @@ module ClassInitializer = struct
 		ctx.curfield <- cf;
 		let r = exc_protect ctx (fun r ->
 			if not !return_partial_type then begin
-				r := (fun() -> t);
+				r := lazy_processing (fun() -> t);
 				cctx.context_init();
 				incr stats.s_methods_typed;
 				if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ fst f.cff_name);
@@ -2563,26 +2558,26 @@ module ClassInitializer = struct
 					| None ->
 						if fctx.field_kind = FKConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
 				) in
-				match ctx.com.platform with
-					| Java when is_java_native_function cf.cf_meta ->
-						if fd.f_expr <> None then
-							ctx.com.warning "@:native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
-						cf.cf_expr <- None;
-						cf.cf_type <- t
-					| _ ->
-						let e , fargs = type_function ctx args ret fmode fd fctx.is_display_field p in
-						let tf = {
-							tf_args = fargs;
-							tf_type = ret;
-							tf_expr = e;
-						} in
-						if fctx.field_kind = FKInit then
-							(match e.eexpr with
-							| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
-							| _ -> c.cl_init <- Some e);
-						cf.cf_expr <- Some (mk (TFunction tf) t p);
-						cf.cf_type <- t;
-						if fctx.is_display_field then Display.DisplayEmitter.maybe_display_field ctx (cf.cf_name_pos) cf;
+				(match ctx.com.platform with
+				| Java when is_java_native_function cf.cf_meta ->
+					if fd.f_expr <> None then
+						ctx.com.warning "@:native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
+					cf.cf_expr <- None;
+					cf.cf_type <- t
+				| _ ->
+					let e , fargs = type_function ctx args ret fmode fd fctx.is_display_field p in
+					let tf = {
+						tf_args = fargs;
+						tf_type = ret;
+						tf_expr = e;
+					} in
+					if fctx.field_kind = FKInit then
+						(match e.eexpr with
+						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
+						| _ -> c.cl_init <- Some e);
+					cf.cf_expr <- Some (mk (TFunction tf) t p);
+					cf.cf_type <- t;
+					if fctx.is_display_field then Display.DisplayEmitter.maybe_display_field ctx (cf.cf_name_pos) cf);
 			end;
 			t
 		) "type_fun" in
@@ -2892,7 +2887,7 @@ module ClassInitializer = struct
 			init_class_done ctx;
 			(match r with
 			| None -> ()
-			| Some r -> delay ctx PTypeField (fun() -> ignore((!r)())))
+			| Some r -> delay ctx PTypeField (fun() -> ignore(lazy_type r)))
 		) cctx.delayed_expr
 end
 
@@ -3338,21 +3333,19 @@ let init_module_type ctx context_init do_init (decl,p) =
 						(match !r with
 						| None -> ()
 						| Some t -> check_rec t)
-					| TLazy r ->
-						check_rec ((!r)());
+					| TLazy f ->
+						check_rec (lazy_type f);
 					| TType (td,tl) ->
 						if td == t then error "Recursive typedef is not allowed" p;
 						check_rec (apply_params td.t_params tl td.t_type)
 					| _ ->
 						()
 				in
-				let f r =
-					r := (fun() -> tt);
+				let r = exc_protect ctx (fun r ->
+					r := lazy_processing (fun() -> tt);
 					check_rec tt;
 					tt
-				in
-				let r = exc_protect ctx f "typedef_rec_check" in
-				delay ctx PForce (fun () -> ignore(!r()));
+				) "typedef_rec_check" in
 				TLazy r
 			end
 		) in
@@ -3379,12 +3372,11 @@ let init_module_type ctx context_init do_init (decl,p) =
 			let t = if not (Meta.has Meta.CoreType a.a_meta) then begin
 				if !is_type then begin
 					let r = exc_protect ctx (fun r ->
-						r := (fun() -> t);
+						r := lazy_processing (fun() -> t);
 						let at = monomorphs a.a_params a.a_this in
 						(try (if from then Type.unify t at else Type.unify at t) with Unify_error _ -> error "You can only declare from/to with compatible types" p);
 						t
 					) "constraint" in
-					delay ctx PForce (fun () -> ignore(!r()));
 					TLazy r
 				end else
 					error "Missing underlying type declaration or @:coreType declaration" p;
@@ -3710,7 +3702,7 @@ let make_generic ctx ps pt p =
 	let rec loop l1 l2 =
 		match l1, l2 with
 		| [] , [] -> []
-		| (x,TLazy f) :: l1, _ -> loop ((x,(!f)()) :: l1) l2
+		| (x,TLazy f) :: l1, _ -> loop ((x,lazy_type f) :: l1) l2
 		| (_,t1) :: l1 , t2 :: l2 -> (t1,t2) :: loop l1 l2
 		| _ -> assert false
 	in
@@ -3861,7 +3853,7 @@ let rec build_generic ctx c p tl =
 				| None -> ()
 				| Some t -> loop t)
 			| TLazy f ->
-				loop ((!f)());
+				loop (lazy_type f);
 			| TDynamic t2 ->
 				if t == t2 then () else loop t2
 			| TAnon a ->
@@ -3915,11 +3907,10 @@ let rec build_generic ctx c p tl =
 			in
 			let r = exc_protect ctx (fun r ->
 				let t = mk_mono() in
-				r := (fun() -> t);
+				r := lazy_processing (fun() -> t);
 				unify_raise ctx (f()) t p;
 				t
 			) "build_generic" in
-			delay ctx PForce (fun() -> ignore ((!r)()));
 			cf_new.cf_type <- TLazy r;
 			cf_new
 		in
@@ -4041,13 +4032,12 @@ let build_instance ctx mtype p =
 		let build f s =
 			let r = exc_protect ctx (fun r ->
 				let t = mk_mono() in
-				r := (fun() -> t);
+				r := lazy_processing (fun() -> t);
 				let tf = (f()) in
 				unify_raise ctx tf t p;
 				link_dynamic t tf;
 				t
 			) s in
-			delay ctx PForce (fun() -> ignore ((!r)()));
 			TLazy r
 		in
 		let ft = (fun pl ->

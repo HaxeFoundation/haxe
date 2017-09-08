@@ -110,7 +110,7 @@ let extend_xml_proxy ctx c t file p =
 					let t = if not check_used then t else begin
 						used := PMap.add id false (!used);
 						let ft() = used := PMap.add id true (!used); t in
-						TLazy (ref ft)
+						TLazy (ref (lazy_wait ft))
 					end in
 					let f = {
 						cf_name = id;

@@ -170,7 +170,7 @@ let rec is_pos_infos = function
 		| Some t -> is_pos_infos t
 		| _ -> false)
 	| TLazy f ->
-		is_pos_infos (!f())
+		is_pos_infos (lazy_type f)
 	| TType ({ t_path = ["haxe"] , "PosInfos" },[]) ->
 		true
 	| TType (t,tl) ->
@@ -379,7 +379,7 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 				loop (apply_params td.t_params pl td.t_type);
 				(* prioritize the most generic definition *)
 				tl := t :: !tl;
-			| TLazy f -> loop (!f())
+			| TLazy f -> loop (lazy_type f)
 			| TMono r -> (match !r with None -> () | Some t -> loop t)
 			| _ -> tl := t :: !tl)
 		in
@@ -3930,7 +3930,7 @@ and display_expr ctx e_ast e with_type p =
 			match t with
 			| TLazy f ->
 				Typeload.return_partial_type := true;
-				let t = (!f)() in
+				let t = lazy_type f in
 				Typeload.return_partial_type := false;
 				t
 			| _ ->
@@ -4588,10 +4588,10 @@ let rec create com =
 						if not (is_null ~no_lazy:true t) then TAbstract (a,[t]) else t
 					with Exit ->
 						(* don't force lazy evaluation *)
-						let r = ref (fun() -> assert false) in
-						r := (fun() ->
+						let r = ref (lazy_available t_dynamic) in
+						r := lazy_wait (fun() ->
 							let t = (if not (is_null t) then TAbstract (a,[t]) else t) in
-							r := (fun() -> t);
+							r := lazy_available t;
 							t
 						);
 						TLazy r

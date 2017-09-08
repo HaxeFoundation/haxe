@@ -63,7 +63,7 @@ let rec filter_param t =
 	| TDynamic _ ->
 		t
 	| TLazy f ->
-		filter_param (!f())
+		filter_param (lazy_type f)
 
 let init_expr_filter allowed_metas =
 	let rec run e =

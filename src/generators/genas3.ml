@@ -300,7 +300,7 @@ let rec type_str ctx t p =
 		| [], "UInt" -> "uint"
 		| _ -> type_str ctx (apply_params t.t_params args t.t_type) p)
 	| TLazy f ->
-		type_str ctx ((!f)()) p
+		type_str ctx (lazy_type f) p
 
 let rec iter_switch_break in_switch e =
 	match e.eexpr with

@@ -123,7 +123,7 @@ let rec gen_type ?(values=None) t =
 		node "f" (("a",names) :: values) (List.map gen_type (args @ [r]))
 	| TAnon a -> node "a" [] (pmap (fun f -> gen_field [] { f with cf_public = false }) a.a_fields)
 	| TDynamic t2 -> node "d" [] (if t == t2 then [] else [gen_type t2])
-	| TLazy f -> gen_type (!f())
+	| TLazy f -> gen_type (lazy_type f)
 
 and gen_type_decl n t pl =
 	let i = t_infos t in
@@ -356,7 +356,7 @@ let generate_type com t =
 			| None -> t
 			| Some t -> notnull t)
 		| TLazy f ->
-			notnull ((!f)())
+			notnull (lazy_type f)
 		| TAbstract ({ a_path = [],"Null" },[t]) ->
 			t
 		| _ ->
@@ -385,7 +385,7 @@ let generate_type com t =
 			let fields = PMap.fold (fun f acc -> (f.cf_name ^ " : " ^ stype f.cf_type) :: acc) a.a_fields [] in
 			"{" ^ String.concat ", " fields ^ "}"
 		| TLazy f ->
-			stype ((!f)())
+			stype (lazy_type f)
 		| TDynamic t2 ->
 			if t == t2 then "Dynamic" else "Dynamic<" ^ stype t2 ^ ">"
 		| TFun ([],ret) ->
@@ -399,7 +399,7 @@ let generate_type com t =
 			| None -> stype t
 			| Some t -> ftype t)
 		| TLazy f ->
-			ftype ((!f)())
+			ftype (lazy_type f)
 		| TFun _ ->
 			"(" ^ stype t ^ ")"
 		| _ ->

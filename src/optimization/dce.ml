@@ -258,7 +258,7 @@ let rec to_string dce t = match t with
 		| Some t -> to_string dce t
 		| _ -> ())
 	| TLazy f ->
-		to_string dce (!f())
+		to_string dce (lazy_type f)
 	| TDynamic t ->
 		if t == t_dynamic then
 			()

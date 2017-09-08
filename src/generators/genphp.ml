@@ -146,7 +146,7 @@ and type_string_suff suffix haxe_type =
 	| TFun (args,haxe_type) -> "Dynamic"
 	| TAnon anon -> "Dynamic"
 	| TDynamic haxe_type -> "Dynamic"
-	| TLazy func -> type_string_suff suffix ((!func)())
+	| TLazy func -> type_string_suff suffix (lazy_type func)
 	)
 and type_string haxe_type =
 	type_string_suff "" haxe_type;;

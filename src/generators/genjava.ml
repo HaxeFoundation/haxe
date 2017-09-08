@@ -1868,7 +1868,7 @@ let generate con =
 					| Some t -> run t
 					| _ -> () (* avoid infinite loop / should be the same in this context *))
 				| TLazy f ->
-					run (!f())
+					run (lazy_type f)
 				| _ -> ()
 		in
 		run t;

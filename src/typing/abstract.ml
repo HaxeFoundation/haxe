@@ -29,7 +29,7 @@ let rec get_underlying_type a pl =
 				| Some t -> loop t
 				| _ -> t)
 			| TLazy f ->
-				loop (!f())
+				loop (lazy_type f)
 			| TAbstract({a_path=([],"Null")} as a,[t1]) ->
 				TAbstract(a,[loop t1])
 			| TType (t,tl) ->

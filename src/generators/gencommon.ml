@@ -108,7 +108,7 @@ let follow_once t =
 		| Some t -> t
 		| _ -> t_dynamic) (* avoid infinite loop / should be the same in this context *)
 	| TLazy f ->
-		!f()
+		lazy_type f
 	| TType (t,tl) ->
 		apply_params t.t_params tl t.t_type
 	| TAbstract({a_path = [],"Null"},[t]) ->
@@ -164,7 +164,7 @@ let anon_class t =
 			| Statics cl -> TClassDecl cl
 			| AbstractStatics a -> TAbstractDecl a
 			| _ -> assert false)
-	| TLazy f -> t_to_md (!f())
+	| TLazy f -> t_to_md (lazy_type f)
 	| TMono r -> (match !r with | Some t -> t_to_md t | None -> assert false)
 	| _ -> assert false
 
@@ -655,7 +655,7 @@ let init_ctx gen =
 			| Some t -> follow_f t
 			| _ -> Some t)
 		| TLazy f ->
-			follow_f (!f())
+			follow_f (lazy_type f)
 		| TType (t,tl) ->
 			follow_f (apply_params t.t_params tl t.t_type)
 		| TAbstract({a_path = [],"Null"},[t]) ->
@@ -1074,7 +1074,7 @@ let rec replace_mono t =
 	| TAnon _
 	| TDynamic _ -> ()
 	| TLazy f ->
-		replace_mono (!f())
+		replace_mono (lazy_type f)
 
 (* helper *)
 let mk_class_field name t public pos kind params =

@@ -244,7 +244,7 @@ let update_cache_dependencies t =
 			| Some t -> check_t m t
 			| _ -> ())
 		| TLazy f ->
-			check_t m (!f())
+			check_t m (lazy_type f)
 		| TDynamic t ->
 			if t == t_dynamic then
 				()
@@ -499,7 +499,7 @@ let rec is_volatile t =
 		| Some t -> is_volatile t
 		| _ -> false)
 	| TLazy f ->
-		is_volatile (!f())
+		is_volatile (lazy_type f)
 	| TType (t,tl) ->
 		(match t.t_path with
 		| _ -> is_volatile (apply_params t.t_params tl t.t_type))

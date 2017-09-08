@@ -154,7 +154,7 @@ module type InterpApi = sig
 	val encode_string_map : ('a -> value) -> (string, 'a) PMap.t -> value
 
 	val encode_tdecl : Type.module_type -> value
-	val encode_lazytype : (unit -> Type.t) ref -> (unit -> value) -> value
+	val encode_lazytype : tlazy ref -> (unit -> value) -> value
 	val encode_unsafe : Obj.t -> value
 
 	val field : value -> string -> value
@@ -168,7 +168,7 @@ module type InterpApi = sig
 	val decode_pos : value -> Globals.pos
 	val decode_enum : value -> int * value list
 	val decode_tdecl : value -> Type.module_type
-	val decode_lazytype : value -> (unit -> Type.t) ref
+	val decode_lazytype : value -> tlazy ref
 	val decode_unsafe : value -> Obj.t
 
 	val decode_enum_with_pos : value -> (int * value list) * Globals.pos
@@ -1051,7 +1051,7 @@ and encode_type t =
 			else
 				6, [encode_type tsub]
 		| TLazy f ->
-			loop (!f())
+			loop (lazy_type f)
 		| TAbstract (a, pl) ->
 			8, [encode_abref a; encode_tparams pl]
 	in
@@ -1065,7 +1065,7 @@ and encode_lazy_type t =
 			| Some t -> loop t
 			| _ -> encode_type t)
 		| TLazy f ->
-			encode_enum IType 7 [encode_lazytype f (fun() -> encode_type (!f()))]
+			encode_enum IType 7 [encode_lazytype f (fun() -> encode_type (lazy_type f))]
 		| _ ->
 			encode_type t
 	in
@@ -1718,7 +1718,7 @@ let macro_api ccom get_api =
 				| TType (t,tl) ->
 					apply_params t.t_params tl t.t_type
 				| TLazy f ->
-					(!f)()
+					lazy_type f
 			in
 			encode_type (if decode_opt_bool once then follow_once t else Abstract.follow_with_abstracts t)
 		);
@@ -1735,7 +1735,7 @@ let macro_api ccom get_api =
 				| TType (t,tl) ->
 					apply_params t.t_params tl t.t_type
 				| TLazy f ->
-					(!f)()
+					lazy_type f
 			in
 			encode_type (if decode_opt_bool once then follow_once t else follow t)
 		);
