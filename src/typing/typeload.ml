@@ -594,7 +594,6 @@ and load_complex_type ctx allow_display p (t,pn) =
 						List.iter loop il;
 						a.a_status := Extend il;
 						ta);
-				r := lazy_available t;
 				t
 			) "constraint" in
 			TLazy r
@@ -2198,7 +2197,7 @@ module ClassInitializer = struct
 						mk_cast e cf.cf_type e.epos
 				end
 			in
-			let r = exc_protect ctx (fun r ->
+			let r = exc_protect ~force:false ctx (fun r ->
 				(* type constant init fields (issue #1956) *)
 				if not !return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
 					r := lazy_processing (fun() -> t);
@@ -2543,7 +2542,7 @@ module ClassInitializer = struct
 		check_abstract (ctx,cctx,fctx) c cf fd t ret p;
 		init_meta_overloads ctx (Some c) cf;
 		ctx.curfield <- cf;
-		let r = exc_protect ctx (fun r ->
+		let r = exc_protect ~force:false ctx (fun r ->
 			if not !return_partial_type then begin
 				r := lazy_processing (fun() -> t);
 				cctx.context_init();
@@ -2559,24 +2558,24 @@ module ClassInitializer = struct
 						if fctx.field_kind = FKConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
 				) in
 				(match ctx.com.platform with
-				| Java when is_java_native_function cf.cf_meta ->
-					if fd.f_expr <> None then
-						ctx.com.warning "@:native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
-					cf.cf_expr <- None;
-					cf.cf_type <- t
-				| _ ->
-					let e , fargs = type_function ctx args ret fmode fd fctx.is_display_field p in
-					let tf = {
-						tf_args = fargs;
-						tf_type = ret;
-						tf_expr = e;
-					} in
-					if fctx.field_kind = FKInit then
-						(match e.eexpr with
-						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
-						| _ -> c.cl_init <- Some e);
-					cf.cf_expr <- Some (mk (TFunction tf) t p);
-					cf.cf_type <- t;
+					| Java when is_java_native_function cf.cf_meta ->
+						if fd.f_expr <> None then
+							ctx.com.warning "@:native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
+						cf.cf_expr <- None;
+						cf.cf_type <- t
+					| _ ->
+						let e , fargs = type_function ctx args ret fmode fd fctx.is_display_field p in
+						let tf = {
+							tf_args = fargs;
+							tf_type = ret;
+							tf_expr = e;
+						} in
+						if fctx.field_kind = FKInit then
+							(match e.eexpr with
+							| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
+							| _ -> c.cl_init <- Some e);
+						cf.cf_expr <- Some (mk (TFunction tf) t p);
+						cf.cf_type <- t;
 					if fctx.is_display_field then Display.DisplayEmitter.maybe_display_field ctx (cf.cf_name_pos) cf);
 			end;
 			t

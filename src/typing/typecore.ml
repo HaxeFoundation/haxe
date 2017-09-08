@@ -268,7 +268,7 @@ let make_pass ctx f = f
 let init_class_done ctx =
 	ctx.pass <- PTypeField
 
-let exc_protect ctx f (where:string) =
+let exc_protect ?(force=true) ctx f (where:string) =
 	let r = ref (lazy_available t_dynamic) in
 	r := lazy_wait (fun() ->
 		try
@@ -279,7 +279,7 @@ let exc_protect ctx f (where:string) =
 			| Error (m,p) ->
 				raise (Fatal_error ((error_msg m),p))
 	);
-	delay ctx PForce (fun () -> ignore(lazy_type r));
+	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
 
 let fake_modules = Hashtbl.create 0
