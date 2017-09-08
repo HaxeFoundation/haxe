@@ -34,7 +34,6 @@ class BytesBuffer {
 	public function new() {
 		pos = 0;
 		size = 0;
-		grow(0);
 	}
 
 	inline function get_length() : Int {
@@ -48,6 +47,7 @@ class BytesBuffer {
 
 	public function add( src : Bytes ) {
 		if( pos + src.length > size ) grow(src.length);
+		if( size == 0 ) return;
 		var sub = new js.html.Uint8Array(@:privateAccess src.b.buffer, @:privateAccess src.b.byteOffset, src.length);
 		u8.set(sub, pos);
 		pos += src.length;
@@ -85,6 +85,7 @@ class BytesBuffer {
 	public function addBytes( src : Bytes, pos : Int, len : Int ) {
 		if( pos < 0 || len < 0 || pos + len > src.length ) throw Error.OutsideBounds;
 		if( this.pos + len > size ) grow(len);
+		if( size == 0 ) return;
 		var sub = new js.html.Uint8Array(@:privateAccess src.b.buffer, @:privateAccess src.b.byteOffset + pos, len);
 		u8.set(sub, this.pos);
 		this.pos += len;
@@ -106,6 +107,8 @@ class BytesBuffer {
 	}
 
 	public function getBytes() : Bytes @:privateAccess {
+		if( size == 0 )
+			return haxe.io.Bytes.alloc(0);
 		var b = new Bytes(buffer);
 		b.length = pos;
 		return b;
