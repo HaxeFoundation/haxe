@@ -509,6 +509,15 @@ class StringTools {
 	*/
 	public static var winMetaCharacters = [" ".code, "(".code, ")".code, "%".code, "!".code, "^".code, "\"".code, "<".code, ">".code, "&".code, "|".code, "\n".code, "\r".code, ",".code, ";".code];
 
+    /**
+        The newline character, depending on the system. On unix-like systems, this will be `\n`, while on Windows it will be `\r\n`.
+     */
+    public static var newLine:String = {
+        #if sys
+        if(Sys.systemName() == "Windows") '\r\n';
+        else #end '\n';
+    };
+
 	/**
 		Returns a String that can be used as a single command line argument
 		on Windows.
