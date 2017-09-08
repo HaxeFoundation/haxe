@@ -725,15 +725,18 @@ let rec flush_pass ctx p where =
 let make_where ctx where =
 	where ^ " (" ^ ctx_pos ctx ^ ")"
 
-let exc_protect ctx f (where:string) =
-	let f = make_pass ~inf:(make_where ctx where) ctx f in
-	let rec r = ref (fun() ->
+let exc_protect ?(force=true) ctx f (where:string) =
+	let r = ref (lazy_available t_dynamic) in
+	r := lazy_wait (make_pass ~inf:(make_where ctx where) ctx (fun() ->
 		try
-			f r
+			let t = f r in
+			r := lazy_available t;
+			t
 		with
 			| Error (m,p) ->
-				raise (Fatal_error (error_msg m,p))
-	) in
+				raise (Fatal_error ((error_msg m),p))
+	));
+	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
 
 */*)
