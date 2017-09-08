@@ -4035,7 +4035,6 @@ let build_instance ctx mtype p =
 				let tf = (f()) in
 				unify_raise ctx tf t p;
 				link_dynamic t tf;
-				flush_pass ctx PBuildClass "after_build_instance";
 				t
 			) s in
 			TLazy r
