@@ -518,11 +518,11 @@ let make_connection socket =
 									Loop (var_to_json s value expr_s)
 								| EConst (Ident s) ->
 									begin try
-										let slot = get_var_slot_by_name env.env_debug.scopes name in
+										let slot = get_var_slot_by_name env.env_debug.scopes s in
 										env.env_locals.(slot) <- value;
 										Loop (var_to_json name value s)
 									with Not_found ->
-										error ("No variable found: " ^ name);
+										error ("No variable found: " ^ s);
 									end
 								| _ ->
 									raise Exit
