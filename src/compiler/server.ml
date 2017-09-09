@@ -106,7 +106,6 @@ let report_times print =
 	let max_calls = ref 0 in
 	let rec loop depth node =
 		let l = (String.length node.name) + 2 * depth in
-		if l > !max_name then max_name := l;
 		List.iter (fun child ->
 			if depth = 0 then begin
 				node.num_calls <- node.num_calls + child.num_calls;
@@ -116,6 +115,7 @@ let report_times print =
 		) node.children;
 		node.children <- List.sort (fun node1 node2 -> compare node2.time node1.time) node.children;
 		if node.num_calls > !max_calls then max_calls := node.num_calls;
+		if node.time > 0.0009 && l > !max_name then max_name := l;
 	in
 	loop 0 root;
 	let max_calls = String.length (string_of_int !max_calls) in
