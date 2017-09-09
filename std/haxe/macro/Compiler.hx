@@ -176,15 +176,36 @@ class Compiler {
 
 		@param rec If true, recursively adds all sub-packages.
 		@param ignore Array of module names to ignore for inclusion.
+		       You can use `module*` with a * at the end for Wildcard matching
 		@param classPaths An alternative array of paths (directory names) to use to search for modules to include.
 		       Note that if you pass this argument, only the specified paths will be used for inclusion.
 		@param strict If true and given package wasn't found in any of class paths, fail with an error.
 	**/
 	public static function include( pack : String, ?rec = true, ?ignore : Array<String>, ?classPaths : Array<String>, strict = false ) {
+		var ignore_wildcard:Bool = false;
+		if(ignore != null) {
+			for (ignore_rule in ignore) {
+				if(StringTools.endsWith(ignore_rule, "*")) {
+					ignore_wildcard = true;
+					break;
+				}
+			}
+		}
 		var skip = if( ignore == null ) {
 			function(c) return false;
 		} else {
-			function(c) return Lambda.has(ignore, c);
+			function(c:String) {
+				if(ignore_wildcard) {
+					for (ignore_rule in ignore) {
+						if(StringTools.endsWith(ignore_rule, "*")) {
+							if(StringTools.startsWith(c, ignore_rule.substr(0, ignore_rule.length-1))) {
+								return true;
+							}
+						}
+					}
+				}
+				return Lambda.has(ignore, c);
+			}
 		}
 		var displayValue = Context.definedValue("display");
 		if( classPaths == null ) {
