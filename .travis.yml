@@ -50,11 +50,6 @@ install_linux: &install_linux
   - make
   - sudo make install
   - popd
-  # Setup database
-  - travis_retry sudo apt-get install mysql-server-5.6 -y
-  - mysql -u root -e "create user travis@localhost identified by '';"
-  - mysql -u root -e "create database haxe_test;"
-  - mysql -u root -e "grant all on haxe_test.* to travis@localhost;"
   # Setup JDK
   - jdk_switcher use oraclejdk7
   - java -version
@@ -73,12 +68,6 @@ install_osx: &install_osx
   - travis_retry brew install ocaml camlp4;
   # Install neko
   - travis_retry brew install neko --HEAD;
-  # Setup database
-  - travis_retry brew install mysql
-  - mysql.server start
-  - mysql -u root -e "create user if not exists travis@localhost identified by '';"
-  - mysql -u root -e "create database haxe_test;"
-  - mysql -u root -e "grant all on haxe_test.* to travis@localhost;"
   # Build haxe
   - make package_src -s
   - make -s
