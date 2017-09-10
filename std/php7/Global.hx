@@ -763,6 +763,11 @@ extern class Global {
 	static function preg_match_all( pattern:String, subject:String, ?matches:NativeArray, ?flags:Int, ?offset:Int ) : EitherType<Bool,Int> ;
 
 	/**
+		@see http://php.net/manual/en/function.preg-quote.php
+	**/
+	static function preg_quote( str:String, ?delimiter:String ) : String;
+
+	/**
 		@see http://php.net/manual/en/function.preg-split.php
 	**/
 	static function preg_split( pattern:String, subject:String, limit:Int = -1, flags:Int = 0 ) : EitherType<Bool,NativeArray> ;
@@ -1166,5 +1171,25 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.mail.php
 	**/
-	static function mail( $to:String, $subject:String, $message:String, ?$additional_headers:String, ?$additional_parameters:String ) : Bool;
+	static function mail( to:String, subject:String, message:String, ?additional_headers:String, ?additional_parameters:String ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.require.php
+	**/
+	static function require( include_path:String ) : Void;
+
+	/**
+		@see http://php.net/manual/en/function.require-once.php
+	**/
+	static function require_once( include_path:String ) : Void;
+
+	/**
+		@see http://php.net/manual/en/function.include.php
+	**/
+	static function include( include_path:String ) : Void;
+
+	/**
+		@see http://php.net/manual/en/function.include-once.php
+	**/
+	static function include_once( include_path:String ) : Void;
 }
