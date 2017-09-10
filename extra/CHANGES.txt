@@ -1,7 +1,9 @@
-xxxx-xx-xx: 3.4.3
+2017-09-10: 3.4.3
 
 	Bugfixes:
 
+	all : fix DCE issue with interface fields (#6502)
+	cpp : fix return typing for embedded closures (#6121)
 	php7: fix `@:enum abstract` generation  without `-dce full` (#6175)
 	php7: fix using enum constructor with arguments as a call argument (#6177)
 	php7: fix accessing methods on dynamic values (#6211)
