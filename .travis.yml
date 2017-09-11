@@ -43,6 +43,7 @@ install_linux: &install_linux
       libmysqlclient-dev
       libsqlite3-dev
       libgtk2.0-dev
+      awscli
   # Install neko
   - travis_retry git clone https://github.com/HaxeFoundation/neko.git ~/neko
   - pushd ~/neko
