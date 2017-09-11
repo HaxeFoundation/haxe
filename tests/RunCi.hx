@@ -755,7 +755,7 @@ class RunCi {
 		if (
 			(gitInfo.branch == "development" ||
 			gitInfo.branch == "master" ||
-			gitInfo.branch == "3.4.2_bugfix" ||
+			gitInfo.branch == "three_four_three" ||
 			gitInfo.branch == "nightly-travis") &&
 			Sys.getEnv("HXBUILDS_AWS_ACCESS_KEY_ID") != null &&
 			Sys.getEnv("HXBUILDS_AWS_SECRET_ACCESS_KEY") != null &&
