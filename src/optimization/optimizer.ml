@@ -409,7 +409,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			let t = return_type e.etype ((List.map snd cases) @ (match def with None -> [] | Some e -> [e])) in
 			{ e with eexpr = TSwitch (map false e1,cases,def); etype = t }
 		| TTry (e1,catches) ->
-			let t = return_type e.etype (e1::List.map snd catches) in
+			let t = if not term then e.etype else return_type e.etype (e1::List.map snd catches) in
 			{ e with eexpr = TTry (map term e1,List.map (fun (v,e) ->
 				let lv = (local v).i_subst in
 				let e = map term e in
