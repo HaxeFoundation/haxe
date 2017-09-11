@@ -184,8 +184,8 @@ class RunCi {
 					"libcurl3:i386", "libglib2.0-0:i386", "libx11-6:i386", "libxext6:i386",
 					"libxt6:i386", "libxcursor1:i386", "libnss3:i386", "libgtk2.0-0:i386"
 				]);
-				runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/11/flashplayer_11_sa_debug.i386.tar.gz"], true);
-				runCommand("tar", ["-xf", "flashplayer_11_sa_debug.i386.tar.gz", "-C", Sys.getEnv("HOME")]);
+				runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/25/flash_player_sa_linux_debug.x86_64.tar.gz"], true);
+				runCommand("tar", ["-xf", "flash_player_sa_linux_debug.x86_64.tar.gz", "-C", Sys.getEnv("HOME")]);
 				File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
 				runCommand(Sys.getEnv("HOME") + "/flashplayerdebugger", ["-v"]);
 			case "Mac":
@@ -463,23 +463,39 @@ class RunCi {
 
 	static function getLuaDependencies(){
 		switch (systemName){
-			case "Linux": requireAptPackages(["libpcre3-dev"]);
+			case "Linux":
+				requireAptPackages(["libpcre3-dev"]);
+				runCommand("pip", ["install", "--user", "hererocks"]);
 			case "Mac": {
+				if (commandSucceed("python3", ["-V"]))
+					infoMsg('python3 has already been installed.');
+				else
+					runCommand("brew", ["install", "python3"], true);
+
 			  runCommand("brew", ["install", "pcre"], false, true);
-			  runCommand("brew", ["install", "python"], false, true);
+				runCommand("pip3", ["install", "hererocks"]);
 			}
 		}
-		runCommand("pip", ["install", "hererocks"]);
 	}
 
 	static function installLuaVersionDependencies(lv:String){
 	  if (lv == "-l5.1"){
+			if (!commandSucceed("luarocks", ["show", "luabit"])) {
 	    runCommand("luarocks", ["install", "luabitop", "1.0.2-3", "--server=https://luarocks.org/dev"]);
 	  }
+		}
+		if (!commandSucceed("luarocks", ["show", "lrexlib-pcre"])) {
 	  runCommand("luarocks", ["install", "lrexlib-pcre", "2.8.0-1", "--server=https://luarocks.org/dev"]);
+		}
+		if (!commandSucceed("luarocks", ["show", "luv"])) {
 	  runCommand("luarocks", ["install", "luv", "1.9.1-0", "--server=https://luarocks.org/dev"]);
+		}
+		if (!commandSucceed("luarocks", ["show", "luasocket"])) {
 	  runCommand("luarocks", ["install", "luasocket", "3.0rc1-2", "--server=https://luarocks.org/dev"]);
+		}
+		if (!commandSucceed("luarocks", ["show", "environ"])) {
 	  runCommand("luarocks", ["install", "environ", "0.1.0-1", "--server=https://luarocks.org/dev"]);
+	}
 	}
 
 	static function getCsDependencies() {
