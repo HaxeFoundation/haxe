@@ -85,7 +85,7 @@ matrix:
     #########
     - os: linux
       env:
-        - TEST=macro,neko,js,php,flash9,as3,java,cs,python,hl,lua
+        - TEST=macro,neko,js,php,flash9,java,cs,python,hl,lua
         - DEPLOY_NIGHTLIES=1
         - SAUCE=1
         # haxeci_decrypt (Deploy source package to ppa:haxe/snapshots.)
