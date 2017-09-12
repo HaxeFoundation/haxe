@@ -677,37 +677,33 @@ class RunCi {
 	}
 
 	static function deploy():Void {
-		if (
-			Sys.getEnv("DEPLOY") != null
-		) {
+		changeDirectory(repoDir);
+
+		var doDocs = isDeployApiDocsRequired();
+		var doNightlies = isDeployNightlies(),
+				doInstaller = doNightlies && shouldDeployInstaller();
+
+		if (doDocs || doNightlies) {
 			changeDirectory(repoDir);
-
-			var doDocs = isDeployApiDocsRequired();
-			var doNightlies = isDeployNightlies(),
-					doInstaller = doNightlies && shouldDeployInstaller();
-
-			if (doDocs || doNightlies) {
-				changeDirectory(repoDir);
-				if (doDocs) {
-					if (systemName != 'Windows') {
-						// generate doc
-						runCommand("make", ["-s", "install_dox"]);
-						runCommand("make", ["-s", "package_doc"]);
-						// deployBintray();
-						deployApiDoc();
-						// disable deployment to ppa:haxe/snapshots for now
-						// because there is no debian sedlex package...
-						// deployPPA();
-					}
+			if (doDocs) {
+				if (systemName != 'Windows') {
+					// generate doc
+					runCommand("make", ["-s", "install_dox"]);
+					runCommand("make", ["-s", "package_doc"]);
+					// deployBintray();
+					deployApiDoc();
+					// disable deployment to ppa:haxe/snapshots for now
+					// because there is no debian sedlex package...
+					// deployPPA();
 				}
-				if (doNightlies) {
-					if (doInstaller && !doDocs && systemName != 'Windows') {
-						// generate doc
-						runCommand("make", ["-s", "install_dox"]);
-						runCommand("make", ["-s", "package_doc"]);
-					}
-					deployNightlies(doInstaller);
+			}
+			if (doNightlies) {
+				if (doInstaller && !doDocs && systemName != 'Windows') {
+					// generate doc
+					runCommand("make", ["-s", "install_dox"]);
+					runCommand("make", ["-s", "package_doc"]);
 				}
+				deployNightlies(doInstaller);
 			}
 		}
 	}
