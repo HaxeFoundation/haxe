@@ -14,6 +14,7 @@ environment:
           secure: ewwkKcjnSKl/Vtrz1SXmI6XKk1ENmJDyzm5YaR2wi03foRhTke29TvymB21rDTSl
     matrix:
         - TEST: "neko,python,cs,java,macro"
+          DEPLOY_NIGHTLIES: 1
         - TEST: "php7,php"
           DEPLOY: 1
         - TEST: "cpp"
