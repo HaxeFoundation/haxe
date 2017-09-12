@@ -672,6 +672,10 @@ class RunCi {
 		ver.join(".");
 	}
 
+	static function isDeployNightlies () {
+		return Sys.getEnv("DEPLOY_NIGHTLIES") != null;
+	}
+
 	static function deploy():Void {
 		if (
 			Sys.getEnv("DEPLOY") != null
@@ -704,8 +708,6 @@ class RunCi {
 					}
 					deployNightlies(doInstaller);
 				}
-
-				deployNightlies();
 			}
 		}
 	}
