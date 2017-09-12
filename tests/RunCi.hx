@@ -741,7 +741,7 @@ class RunCi {
 		if (systemName == 'Linux') {
 			return false;
 		}
-		if (gitInfo.branch == 'nightly-travis') {
+		if (gitInfo.branch == 'three_four_three') {
 			return true;
 		}
 		var rev = Sys.getEnv('ADD_REVISION');
