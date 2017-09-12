@@ -39,6 +39,8 @@ install:
     # Install neko
     - choco install neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
     - choco install chocolatey-core.extension php --ignore-dependencies -y
+    - choco install nsis.portable
+    - choco install wget
     - echo extension=php_openssl.dll >> C:\tools\php71\php.ini
     - RefreshEnv
     - neko -version

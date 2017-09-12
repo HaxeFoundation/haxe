@@ -15,6 +15,7 @@ INSTALL_BIN_DIR=$(INSTALL_DIR)/bin
 INSTALL_LIB_DIR=$(INSTALL_DIR)/lib/haxe
 INSTALL_STD_DIR=$(INSTALL_DIR)/share/haxe/std
 PACKAGE_OUT_DIR=out
+INSTALLER_TMP_DIR=installer
 PACKAGE_SRC_EXTENSION=.tar.gz
 
 MAKEFILENAME?=Makefile
@@ -155,7 +156,7 @@ quickcpp: build_src build_pass_4 copy_haxetoolkit
 
 CPP_OS := $(shell uname)
 ifeq ($(CPP_OS),Linux)
-copy_haxetoolkit: 
+copy_haxetoolkit:
 	sudo cp haxe /usr/bin/haxe
 else
 copy_haxetoolkit: /cygdrive/c/HaxeToolkit/haxe/haxe.exe
@@ -248,6 +249,53 @@ package_doc:
 deploy_doc:
 	scp $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip www-haxe@api.haxe.org:/data/haxeapi/www/v/dev/api-latest.zip
 	ssh www-haxe@api.haxe.org "cd /data/haxeapi/www/v/dev && find . ! -name 'api-latest.zip' -maxdepth 1 -mindepth 1 -exec rm -rf {} + && unzip -q -o api-latest.zip"
+
+# Installer
+
+package_installer_mac:
+	$(eval DOCFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip)
+	$(eval OUTFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_installer.tar.gz)
+	$(eval PACKFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.tar.gz)
+	$(eval VERSION := $(shell haxe -version 2>&1))
+	$(eval NEKOVER := $(shell neko -version 2>&1))
+	bash -c "rm -rf $(INSTALLER_TMP_DIR)/{resources,pkg,tgz,haxe.tar.gz}"
+	mkdir $(INSTALLER_TMP_DIR)/resources
+	# neko - unpack to change the dir name
+	cd $(INSTALLER_TMP_DIR)/resources && tar -zxvf ../neko-osx64.tar.gz
+	mv $(INSTALLER_TMP_DIR)/resources/neko* $(INSTALLER_TMP_DIR)/resources/neko
+	cd $(INSTALLER_TMP_DIR)/resources && tar -zcvf neko.tar.gz neko
+	# haxe - unpack to change the dir name
+	cd $(INSTALLER_TMP_DIR)/resources && tar -zxvf $(PACKFILE)
+	mv $(INSTALLER_TMP_DIR)/resources/haxe* $(INSTALLER_TMP_DIR)/resources/haxe
+	cd $(INSTALLER_TMP_DIR)/resources && tar -zcvf haxe.tar.gz haxe
+	# scripts
+	cp -rf extra/mac-installer/* $(INSTALLER_TMP_DIR)/resources
+	cd $(INSTALLER_TMP_DIR)/resources && tar -zcvf scripts.tar.gz scripts
+	# installer structure
+	mkdir -p $(INSTALLER_TMP_DIR)/pkg
+	cd $(INSTALLER_TMP_DIR)/pkg && xar -xf ../resources/installer-structure.pkg .
+	mkdir $(INSTALLER_TMP_DIR)/tgz; mv $(INSTALLER_TMP_DIR)/resources/*.tar.gz $(INSTALLER_TMP_DIR)/tgz
+	cd $(INSTALLER_TMP_DIR)/tgz; find . | cpio -o --format odc | gzip -c > ../pkg/files.pkg/Payload
+	cd $(INSTALLER_TMP_DIR)/pkg/files.pkg && bash -c "INSTKB=$$(du -sk ../../tgz | awk '{print $$1;}'); \
+	du -sk ../../tgz; \
+	echo $$INSTKB ; \
+	INSTKBH=`expr $$INSTKB - 4`; \
+	echo $$INSTKBH ;\
+	sed -i '' 's/%%INSTKB%%/$$INSTKBH/g' PackageInfo ;\
+	sed -i '' 's/%%VERSION%%/$(VERSION)/g' PackageInfo ;\
+	sed -i '' 's/%%VERSTRING%%/$(VERSION)/g' PackageInfo ;\
+	sed -i '' 's/%%VERLONG%%/$(VERSION)/g' PackageInfo ;\
+	sed -i '' 's/%%NEKOVER%%/$(NEKOVER)/g' PackageInfo ;\
+	cd .. ;\
+	sed -i '' 's/%%VERSION%%/$(VERSION)/g' Distribution ;\
+	sed -i '' 's/%%VERSTRING%%/$(VERSION)/g' Distribution ;\
+	sed -i '' 's/%%VERLONG%%/$(VERSION)/g' Distribution ;\
+	sed -i '' 's/%%NEKOVER%%/$(NEKOVER)/g' Distribution ;\
+	sed -i '' 's/%%INSTKB%%/$$INSTKBH/g' Distribution"
+	# repackage
+	cd $(INSTALLER_TMP_DIR)/pkg; xar --compression none -cf ../$(PACKAGE_FILE_NAME).pkg *
+	# tar
+	cd $(INSTALLER_TMP_DIR); tar -zcvf $(OUTFILE) $(PACKAGE_FILE_NAME).pkg
 
 # Clean
 
