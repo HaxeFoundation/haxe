@@ -30,6 +30,7 @@ type ttype =
 	| HUI8
 	| HUI16
 	| HI32
+	| HI64
 	| HF32
 	| HF64
 	| HBool
@@ -145,6 +146,8 @@ type opcode =
 	| OJSLte of reg * reg * int
 	| OJULt of reg * reg * int
 	| OJUGte of reg * reg * int
+	| OJNotLt of reg * reg * int
+	| OJNotGte of reg * reg * int
 	| OJEq of reg * reg * int
 	| OJNotEq of reg * reg * int
 	| OJAlways of int
@@ -168,15 +171,11 @@ type opcode =
 	(* memory access *)
 	| OGetUI8 of reg * reg * reg
 	| OGetUI16 of reg * reg * reg
-	| OGetI32 of reg * reg * reg
-	| OGetF32 of reg * reg * reg
-	| OGetF64 of reg * reg * reg
+	| OGetMem of reg * reg * reg
 	| OGetArray of reg * reg * reg
 	| OSetUI8 of reg * reg * reg
 	| OSetUI16 of reg * reg * reg
-	| OSetI32 of reg * reg * reg
-	| OSetF32 of reg * reg * reg
-	| OSetF64 of reg * reg * reg
+	| OSetMem of reg * reg * reg
 	| OSetArray of reg * reg * reg
 	(* type operations *)
 	| ONew of reg
@@ -195,6 +194,9 @@ type opcode =
 	| OEnumField of reg * reg * field index * int
 	| OSetEnumField of reg * int * reg
 	(* misc *)
+	| OAssert of unused
+	| ORefData of reg * reg
+	| ORefOffset of reg * reg * reg
 	| ONop of string
 
 type fundecl = {
@@ -249,11 +251,11 @@ let list_mapi f l =
 let is_nullable t =
 	match t with
 	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HRef _ -> true
-	| HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool | HVoid | HType -> false
+	| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HVoid | HType -> false
 
 
 let is_int = function
-	| HUI8 | HUI16 | HI32 -> true
+	| HUI8 | HUI16 | HI32 | HI64 -> true
 	| _ -> false
 
 let is_float = function
@@ -261,7 +263,7 @@ let is_float = function
 	| _ -> false
 
 let is_number = function
-	| HUI8 | HUI16 | HI32 | HF32 | HF64 -> true
+	| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 -> true
 	| _ -> false
 
 (*
@@ -269,7 +271,7 @@ let is_number = function
 *)
 let is_dynamic t =
 	match t with
-	| HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HNull _ -> true
+	| HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HNull _ | HEnum _ -> true
 	| _ -> false
 
 let rec tsame t1 t2 =
@@ -405,7 +407,7 @@ let gather_types (code:code) =
 		| _ ->
 			()
 	in
-	List.iter (fun t -> get_type t) [HVoid; HUI8; HUI16; HI32; HF32; HF64; HBool; HType; HDyn]; (* make sure all basic types get lower indexes *)
+	List.iter (fun t -> get_type t) [HVoid; HUI8; HUI16; HI32; HI64; HF32; HF64; HBool; HType; HDyn]; (* make sure all basic types get lower indexes *)
 	Array.iter (fun g -> get_type g) code.globals;
 	Array.iter (fun (_,_,t,_) -> get_type t) code.natives;
 	Array.iter (fun f ->
@@ -430,6 +432,7 @@ let rec tstr ?(stack=[]) ?(detailed=false) t =
 	| HUI8 -> "ui8"
 	| HUI16 -> "ui16"
 	| HI32 -> "i32"
+	| HI64 -> "i64"
 	| HF32 -> "f32"
 	| HF64 -> "f64"
 	| HBool -> "bool"
@@ -513,6 +516,8 @@ let ostr fstr o =
 	| OJSLte (r,a,b) -> Printf.sprintf "jslte %d,%d,%d" r a b
 	| OJULt (a,b,i) -> Printf.sprintf "jult %d,%d,%d" a b i
 	| OJUGte (a,b,i) -> Printf.sprintf "jugte %d,%d,%d" a b i
+	| OJNotLt (a,b,i) -> Printf.sprintf "jnotlt %d,%d,%d" a b i
+	| OJNotGte (a,b,i) -> Printf.sprintf "jnotgte %d,%d,%d" a b i
 	| OJEq (a,b,i) -> Printf.sprintf "jeq %d,%d,%d" a b i
 	| OJNotEq (a,b,i) -> Printf.sprintf "jnoteq %d,%d,%d" a b i
 	| OJAlways d -> Printf.sprintf "jalways %d" d
@@ -531,15 +536,11 @@ let ostr fstr o =
 	| ORethrow r -> Printf.sprintf "rethrow %d" r
 	| OGetUI8 (r,b,p) -> Printf.sprintf "getui8 %d,%d[%d]" r b p
 	| OGetUI16 (r,b,p) -> Printf.sprintf "getui16 %d,%d[%d]" r b p
-	| OGetI32 (r,b,p) -> Printf.sprintf "geti32 %d,%d[%d]" r b p
-	| OGetF32 (r,b,p) -> Printf.sprintf "getf32 %d,%d[%d]" r b p
-	| OGetF64 (r,b,p) -> Printf.sprintf "getf64 %d,%d[%d]" r b p
+	| OGetMem (r,b,p) -> Printf.sprintf "getmem %d,%d[%d]" r b p
 	| OGetArray (r,a,i) -> Printf.sprintf "getarray %d,%d[%d]" r a i
 	| OSetUI8 (r,p,v) -> Printf.sprintf "setui8 %d,%d,%d" r p v
 	| OSetUI16 (r,p,v) -> Printf.sprintf "setui16 %d,%d,%d" r p v
-	| OSetI32 (r,p,v) -> Printf.sprintf "seti32 %d,%d,%d" r p v
-	| OSetF32 (r,p,v) -> Printf.sprintf "setf32 %d,%d,%d" r p v
-	| OSetF64 (r,p,v) -> Printf.sprintf "setf64 %d,%d,%d" r p v
+	| OSetMem (r,p,v) -> Printf.sprintf "setmem %d,%d,%d" r p v
 	| OSetArray (a,i,v) -> Printf.sprintf "setarray %d[%d],%d" a i v
 	| OSafeCast (r,v) -> Printf.sprintf "safecast %d,%d" r v
 	| OUnsafeCast (r,v) -> Printf.sprintf "unsafecast %d,%d" r v
@@ -562,6 +563,9 @@ let ostr fstr o =
 	| ONullCheck r -> Printf.sprintf "nullcheck %d" r
 	| OTrap (r,i) -> Printf.sprintf "trap %d, %d" r i
 	| OEndTrap b -> Printf.sprintf "endtrap %b" b
+	| OAssert _ -> "assert"
+	| ORefData (r,d) -> Printf.sprintf "refdata %d, %d" r d
+	| ORefOffset (r,r2,off) -> Printf.sprintf "refoffset %d, %d, %d" r r2 off
 	| ONop s -> if s = "" then "nop" else "nop " ^ s
 
 let fundecl_name f = if snd f.fpath = "" then "fun$" ^ (string_of_int f.findex) else (fst f.fpath) ^ "." ^ (snd f.fpath)

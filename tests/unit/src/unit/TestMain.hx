@@ -18,7 +18,8 @@ class TestMain {
 	#end
 
 	static function main() {
-	  var verbose = #if ( cpp || neko || php ) Sys.args().indexOf("-v") >= 0 #else false #end;
+		Test.startStamp = haxe.Timer.stamp();
+		var verbose = #if ( cpp || neko || php ) Sys.args().indexOf("-v") >= 0 #else false #end;
 
 		#if cs //"Turkey Test" - Issue #996
 		cs.system.threading.Thread.CurrentThread.CurrentCulture = new cs.system.globalization.CultureInfo('tr-TR');
@@ -60,6 +61,7 @@ class TestMain {
 			new TestOrder(),
 			new TestGADT(),
 			new TestGeneric(),
+			new TestArrowFunctions(),
 			#if !no_pattern_matching
 			new TestMatch(),
 			#end
@@ -85,6 +87,8 @@ class TestMain {
 			#if (java || cs)
 			new TestOverloads(),
 			#end
+			new TestInterface(),
+			new TestNaN(),
 			// #if ((dce == "full") && !interp && !as3)
 			// new TestDCE(),
 			// #end
@@ -102,20 +106,6 @@ class TestMain {
 		}
 		#end
 
-		// SPOD tests
-		#if ( (neko || (php && (travis || appveyor || php_sqlite)) || java || cpp || (cs && (travis || appveyor))) && !macro && !interp)
-		#if ( (travis || appveyor) && !(cpp || cs) )
-		classes.push(new TestSpod(sys.db.Mysql.connect({
-			host : "127.0.0.1",
-			user : "travis",
-			pass : "",
-			port : 3306,
-			database : "haxe_test" })));
-		#end
-		if (verbose)
-			logVerbose("Setup sqlite");
-		classes.push(new TestSpod(sys.db.Sqlite.open("db.db3")));
-		#end
 		TestIssues.addIssueClasses("src/unit/issues", "unit.issues");
 		TestIssues.addIssueClasses("src/unit/hxcpp_issues", "unit.hxcpp_issues");
 		var current = null;

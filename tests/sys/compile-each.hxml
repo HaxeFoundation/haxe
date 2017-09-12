@@ -4,6 +4,6 @@
 -cmd nekotools boot bin/neko/ExitCode.n
 
 --next
-
+-D source-header=''
 -debug
 -cp src

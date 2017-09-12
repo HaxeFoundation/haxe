@@ -108,6 +108,11 @@
 			buf.add(s.substr(offset));
 		return buf.toString();
 	}
+
+	public static inline function escape( s : String ) : String {
+		return (cast s).replace(escapeRe, "\\$&");
+	}
+	static var escapeRe = new js.RegExp("[.*+?^${}()|[\\]\\\\]", "g");
 }
 
 @:native("RegExp")

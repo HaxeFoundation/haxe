@@ -58,6 +58,11 @@ Type.createInstance(C, []).v == "var";
 var c = Type.createInstance(ClassWithCtorDefaultValues, [2, "bar"]);
 c.a == 2;
 c.b == "bar";
+#if !hl
+var c2 = Type.createInstance(ClassWithCtorDefaultValues2, [2, "bar"]);
+c2.a == 2;
+c2.b == "bar";
+#end
 //var t = Type.createInstance(ClassWithCtorDefaultValuesChild, [2, "bar"]);
 //t.a == 2;
 //t.b == "bar";
@@ -104,7 +109,7 @@ var requiredFields = ["func", "v", "prop"];
 for (f in fields)
 	t(requiredFields.remove(f));
 requiredFields == [];
-#if !hl // no support for implements Dynamic yet
+#if (!hl && !eval) // no support for implements Dynamic yet
 var cdyn = new CDyn();
 cdyn.foo = "1";
 Reflect.setField(cdyn, "bar", 1);

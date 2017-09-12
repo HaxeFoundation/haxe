@@ -26,6 +26,15 @@ class Main {
         var x = deprecatedProperty; // this also
         deprecatedGetSet; // however this will
         var x = deprecatedGetSet; // this also
+
+		// the enum @:deprecated trumps the enum field one... should be fine
+		switch (None) {
+			case None:
+		}
+
+		switch (None2) {
+			case None2:
+		}
     }
 
     // deprecating fields work
@@ -49,7 +58,9 @@ class MyClass { public function new() {} }
 interface MyInterface { }
 
 @:deprecated
-enum MyEnum { None; }
+enum MyEnum { @:deprecated None; }
+
+enum MyEnum2 { @:deprecated None2; }
 
 @:deprecated
 abstract MyAbstract(String) { public function new(value:String) this = value; }

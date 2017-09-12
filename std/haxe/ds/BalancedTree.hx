@@ -32,7 +32,7 @@ package haxe.ds;
 	Iteration over keys and values, using `keys` and `iterator` respectively,
 	are in-order.
 **/
-class BalancedTree<K,V> {
+class BalancedTree<K,V> implements haxe.Constraints.IMap<K,V> {
 	var root:TreeNode<K,V>;
 
 	/**
@@ -127,6 +127,12 @@ class BalancedTree<K,V> {
 		var ret = [];
 		keysLoop(root, ret);
 		return ret.iterator();
+	}
+	
+	public function copy():BalancedTree<K, V> {
+		var copied = new BalancedTree<K, V>();
+		copied.root = root;
+		return copied;
 	}
 
 	function setLoop(k:K, v:V, node:TreeNode<K,V>) {

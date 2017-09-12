@@ -71,9 +71,11 @@ import cs.NativeArray;
 		if (nOccupied >= upperBound)
 		{
 			if (nBuckets > (size << 1))
+			{
 				resize(nBuckets - 1); //clear "deleted" elements
-			else
+			} else {
 				resize(nBuckets + 2);
+			}
 		}
 
 		var hashes = hashes, keys = _keys, hashes = hashes;
@@ -84,7 +86,7 @@ import cs.NativeArray;
 			var i = k & mask, nProbes = 0;
 
 			var delKey = -1;
-			//for speed up
+			// to speed things up, don't loop if the first bucket is already free
 			if (isEmpty(hashes[i])) {
 				x = i;
 			} else {
@@ -92,7 +94,9 @@ import cs.NativeArray;
 				while(! (isEmpty(flag = hashes[i]) || (flag == k && _keys[i] == key)) )
 				{
 					if (isDel(flag) && delKey == -1)
+					{
 						delKey = i;
+					}
 					i = (i + ++nProbes) & mask;
 #if DEBUG_HASHTBL
 					probeTimes++;
@@ -102,9 +106,11 @@ import cs.NativeArray;
 				}
 
 				if (isEmpty(flag) && delKey != -1)
+				{
 					x = delKey;
-				else
+				} else {
 					x = i;
+				}
 			}
 
 #if DEBUG_HASHTBL
@@ -147,7 +153,7 @@ import cs.NativeArray;
 			var mask = nBuckets - 1, hash = hash(key), k = hash, nProbes = 0;
 			var i = k & mask;
 			var last = i, flag;
-			//var inc = getInc(k, mask);
+			// if we hit an empty bucket, it means we're done
 			while (!isEmpty(flag = hashes[i]) && (isDel(flag) || flag != k || keys[i] != key))
 			{
 				i = (i + ++nProbes) & mask;
@@ -218,26 +224,29 @@ import cs.NativeArray;
 					var key = _keys[j];
 					var val = vals[j];
 
+					_keys[j] = null;
+					vals[j] = cast null;
 					hashes[j] = FLAG_DEL;
 					while (true) /* kick-out process; sort of like in Cuckoo hashing */
 					{
 						var nProbes = 0;
-						//var inc = getInc(k, newMask);
 						var i = k & newMask;
 
 						while (!isEmpty(newHash[i]))
+						{
 							i = (i + ++nProbes) & newMask;
+						}
 
 						newHash[i] = k;
 
 						if (i < nBuckets && !isEither(k = hashes[i])) /* kick out the existing element */
 						{
-							{
+							{ // inlined swap
 								var tmp = _keys[i];
 								_keys[i] = key;
 								key = tmp;
 							}
-							{
+							{ // inlined swap
 								var tmp = vals[i];
 								vals[i] = val;
 								val = tmp;
@@ -255,12 +264,12 @@ import cs.NativeArray;
 
 			if (nBuckets > newNBuckets) /* shrink the hash table */
 			{
-				{
+				{ // inlined swap
 					var k = new NativeArray(newNBuckets);
 					arrayCopy(_keys, 0, k, 0, newNBuckets);
 					this._keys = k;
 				}
-				{
+				{ // inlined swap
 					var v = new NativeArray(newNBuckets);
 					arrayCopy(vals, 0, v, 0, newNBuckets);
 					this.vals = v;
@@ -359,7 +368,9 @@ import cs.NativeArray;
 		} else {
 #if !no_map_cache
 			if (cachedKey == key)
+			{
 				cachedIndex = -1;
+			}
 #end
 			hashes[idx] = FLAG_DEL;
 			_keys[idx] = null;
@@ -386,6 +397,12 @@ import cs.NativeArray;
 	public inline function iterator() : Iterator<T>
 	{
 		return new StringMapValueIterator(this);
+	}
+
+	public function copy() : StringMap<T> {
+		var copied = new StringMap<T>();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
 	}
 
 	/**
@@ -418,9 +435,6 @@ import cs.NativeArray;
 		return ++x;
 	}
 
-	@:extern private static inline function getInc(k:Int, mask:Int):Int //return 1 for linear probing
-		return (((k) >> 3 ^ (k) << 3) | 1) & (mask);
-
 	@:extern private static inline function isEither(v:HashType):Bool
 		return (v & 0xFFFFFFFE) == 0;
 
@@ -430,7 +444,7 @@ import cs.NativeArray;
 	@:extern private static inline function isDel(v:HashType):Bool
 		return v == FLAG_DEL;
 
-	//guarantee: Whatever this function is, it will never return 0 nor 1
+	// guarantee: Whatever this function is, it will never return 0 nor 1
 	@:extern private static inline function hash(s:String):HashType
 	{
 		var k:Int = untyped s.GetHashCode();
@@ -474,20 +488,25 @@ private typedef HashType = Int;
 
 @:final
 @:access(haxe.ds.StringMap)
-private class StringMapKeyIterator<T> {
+private class StringMapKeyIterator<T>
+{
 	var m:StringMap<T>;
 	var i:Int;
 	var len:Int;
 
-	public function new(m:StringMap<T>) {
+	public function new(m:StringMap<T>)
+	{
 		this.m = m;
 		this.i = 0;
 		this.len = m.nBuckets;
 	}
 
-	public function hasNext():Bool {
-		for (j in i...len) {
-			if (!StringMap.isEither(m.hashes[j])) {
+	public function hasNext():Bool
+	{
+		for (j in i...len)
+		{
+			if (!StringMap.isEither(m.hashes[j]))
+			{
 				i = j;
 				return true;
 			}
@@ -495,7 +514,8 @@ private class StringMapKeyIterator<T> {
 		return false;
 	}
 
-	public function next():String {
+	public function next():String
+	{
 		var ret = m._keys[i];
 #if !no_map_cache
 		m.cachedIndex = i;
@@ -508,20 +528,25 @@ private class StringMapKeyIterator<T> {
 
 @:final
 @:access(haxe.ds.StringMap)
-private class StringMapValueIterator<T> {
+private class StringMapValueIterator<T>
+{
 	var m:StringMap<T>;
 	var i:Int;
 	var len:Int;
 
-	public function new(m:StringMap<T>) {
+	public function new(m:StringMap<T>)
+	{
 		this.m = m;
 		this.i = 0;
 		this.len = m.nBuckets;
 	}
 
-	public function hasNext():Bool {
-		for (j in i...len) {
-			if (!StringMap.isEither(m.hashes[j])) {
+	public function hasNext():Bool
+	{
+		for (j in i...len)
+		{
+			if (!StringMap.isEither(m.hashes[j]))
+			{
 				i = j;
 				return true;
 			}
@@ -529,7 +554,8 @@ private class StringMapValueIterator<T> {
 		return false;
 	}
 
-	public inline function next():T {
+	public inline function next():T
+	{
 		return m.vals[i++];
 	}
 }

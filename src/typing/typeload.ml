@@ -28,6 +28,7 @@ open Globals
 exception Build_canceled of build_state
 
 let locate_macro_error = ref true
+let build_count = ref 0
 
 let transform_abstract_field com this_t a_t a f =
 	let stat = List.mem AStatic f.cff_access in
@@ -242,7 +243,16 @@ let parse_file_from_lexbuf com file p lexbuf =
 	let t = Common.timer ["parsing"] in
 	Lexer.init file true;
 	incr stats.s_files_parsed;
-	let data = (try Parser.parse com lexbuf with e -> t(); raise e) in
+	let data = try
+		Parser.parse com lexbuf
+	with
+		| Sedlexing.MalFormed ->
+			t();
+			error "Malformed file. Source files must be encoded with UTF-8." {pfile = file; pmin = 0; pmax = 0}
+		| e ->
+			t();
+			raise e
+	in
 	begin match !display_default with
 		| DMModuleSymbols filter when filter <> None || Display.is_display_file file ->
 			let ds = Display.DocumentSymbols.collect_module_symbols data in
@@ -255,7 +265,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	data
 
 let parse_file_from_string com file p string =
-	parse_file_from_lexbuf com file p (Lexing.from_string string)
+	parse_file_from_lexbuf com file p (Sedlexing.Utf8.from_string string)
 
 let current_stdin = ref None (* TODO: we're supposed to clear this at some point *)
 
@@ -275,7 +285,7 @@ let parse_file com file p =
 		parse_file_from_string com file p s
 	else
 		let ch = try open_in_bin file with _ -> error ("Could not open " ^ file) p in
-		Std.finally (fun() -> close_in ch) (parse_file_from_lexbuf com file p) (Lexing.from_channel ch)
+		Std.finally (fun() -> close_in ch) (parse_file_from_lexbuf com file p) (Sedlexing.Utf8.from_channel ch)
 
 let parse_hook = ref parse_file
 let type_module_hook = ref (fun _ _ _ -> None)
@@ -498,11 +508,10 @@ let rec load_instance ?(allow_display=false) ctx (t,pn) allow_no_params p =
 						| TInst (c,[]) ->
 							check_const c;
 							let r = exc_protect ctx (fun r ->
-								r := (fun() -> t);
+								r := lazy_available t;
 								delay ctx PCheckConstraint (fun() -> check_param_constraints ctx types t tparams c p);
 								t
 							) "constraint" in
-							delay ctx PForce (fun () -> ignore(!r()));
 							TLazy r
 						| _ -> assert false
 					in
@@ -577,7 +586,7 @@ and load_complex_type ctx allow_display p (t,pn) =
 			let tr = ref None in
 			let t = TMono tr in
 			let r = exc_protect ctx (fun r ->
-				r := (fun _ -> t);
+				r := lazy_processing (fun() -> t);
 				tr := Some (match il with
 					| [i] ->
 						mk_extension i
@@ -587,7 +596,6 @@ and load_complex_type ctx allow_display p (t,pn) =
 						ta);
 				t
 			) "constraint" in
-			delay ctx PForce (fun () -> ignore(!r()));
 			TLazy r
 		| _ -> assert false)
 	| CTAnonymous l ->
@@ -1213,7 +1221,7 @@ let add_constructor ctx c force_constructor p =
 		} in
 		let r = exc_protect ctx (fun r ->
 			let t = mk_mono() in
-			r := (fun() -> t);
+			r := lazy_processing (fun() -> t);
 			let ctx = { ctx with
 				curfield = cf;
 				pass = PTypeField;
@@ -1260,7 +1268,6 @@ let add_constructor ctx c force_constructor p =
 		) "add_constructor" in
 		cf.cf_type <- TLazy r;
 		c.cl_constructor <- Some cf;
-		delay ctx PForce (fun() -> ignore((!r)()));
 	| None,_ when force_constructor ->
 		let constr = mk (TFunction {
 			tf_args = [];
@@ -1318,7 +1325,9 @@ module Inheritance = struct
 		| TInst (csup,params) ->
 			if is_parent c csup then error "Recursive class" p;
 			begin match csup.cl_kind with
-				| KTypeParameter _ when not (is_generic_parameter ctx csup) -> error "Cannot extend non-generic type parameters" p
+				| KTypeParameter _ ->
+					if is_generic_parameter ctx csup then error "Extending generic type parameters is no longer allowed in Haxe 4" p;
+					error "Cannot extend type parameters" p
 				| _ -> csup,params
 			end
 		| _ -> error "Should extend by using a class" p
@@ -1399,7 +1408,7 @@ module Inheritance = struct
 			List.iter (fun m ->
 				match m with
 				| Meta.Final, _, _ -> if not (Meta.has Meta.Hack c.cl_meta || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then error "Cannot extend a final class" p;
-				| Meta.AutoBuild, el, p -> c.cl_meta <- (Meta.Build,el,null_pos) :: m :: c.cl_meta
+				| Meta.AutoBuild, el, p -> c.cl_meta <- (Meta.Build,el,{ c.cl_pos with pmax = c.cl_pos.pmin }(* prevent display metadata *)) :: m :: c.cl_meta
 				| _ -> ()
 			) csup.cl_meta
 		in
@@ -1512,7 +1521,7 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 		n, t
 	| _ ->
 		let r = exc_protect ctx (fun r ->
-			r := (fun _ -> t);
+			r := lazy_processing (fun() -> t);
 			let ctx = { ctx with type_params = ctx.type_params @ get_params() } in
 			let constr = List.map (load_complex_type ctx true p) tp.tp_constraints in
 			(* check against direct recursion *)
@@ -1528,7 +1537,6 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 			c.cl_kind <- KTypeParameter constr;
 			t
 		) "constraint" in
-		delay ctx PForce (fun () -> ignore(!r()));
 		n, TLazy r
 
 and type_type_params ?(enum_constructor=false) ctx path get_params p tpl =
@@ -1766,7 +1774,7 @@ let check_global_metadata ctx meta f_add mpath tpath so =
 		let add = ((field_mode && to_fields) || (not field_mode && to_types)) && (match_path recursive sl1 sl2) in
 		if add then f_add m
 	) ctx.g.global_metadata;
-	if ctx.is_display_file then Display.DisplayEmitter.check_display_metadata ctx meta
+	if ctx.is_display_file then delay ctx PCheckConstraint (fun () -> Display.DisplayEmitter.check_display_metadata ctx meta)
 
 let patch_class ctx c fields =
 	let path = match c.cl_kind with
@@ -1890,7 +1898,7 @@ module ClassInitializer = struct
 		extends_public : bool;
 		abstract : tabstract option;
 		context_init : unit -> unit;
-		mutable delayed_expr : (typer * (unit -> t) ref option) list;
+		mutable delayed_expr : (typer * tlazy ref option) list;
 		mutable force_constructor : bool;
 	}
 
@@ -2098,7 +2106,7 @@ module ClassInitializer = struct
 				fields := f
 			| _ -> error "Class build macro must return a single variable with anonymous fields" p
 		);
-		c.cl_build <- (fun() -> Building);
+		c.cl_build <- (fun() -> Building [c]);
 		List.iter (fun f -> f()) !pending;
 		!fields
 
@@ -2189,10 +2197,10 @@ module ClassInitializer = struct
 						mk_cast e cf.cf_type e.epos
 				end
 			in
-			let r = exc_protect ctx (fun r ->
+			let r = exc_protect ~force:false ctx (fun r ->
 				(* type constant init fields (issue #1956) *)
 				if not !return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
-					r := (fun() -> t);
+					r := lazy_processing (fun() -> t);
 					cctx.context_init();
 					if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
 					let e = type_var_field ctx t e fctx.is_static fctx.is_display_field p in
@@ -2216,26 +2224,31 @@ module ClassInitializer = struct
 							display_error ctx "Extern non-inline variables may not be initialized" p;
 							e
 						end else require_constant_expression e "Extern variable initialization must be a constant value"
-					| Var v when is_extern_field cf ->
+					| Var v when not (is_physical_field cf) ->
 						(* disallow initialization of non-physical fields (issue #1958) *)
 						display_error ctx "This field cannot be initialized because it is not a real variable" p; e
 					| Var v when not fctx.is_static ->
 						let e = if ctx.com.display.dms_display && ctx.com.display.dms_error_policy <> EPCollect then
 							e
-						else match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
-							| Some e -> e
-							| None ->
-								let rec has_this e = match e.eexpr with
-									| TConst TThis ->
-										display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
-									| TLocal v when (match ctx.vthis with Some v2 -> v == v2 | None -> false) ->
-										display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
-									| _ ->
-									Type.iter has_this e
-								in
-								has_this e;
+						else begin
+							let rec check_this e = match e.eexpr with
+								| TConst TThis ->
+									display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
+									raise Exit
+								| TLocal v when (match ctx.vthis with Some v2 -> v == v2 | None -> false) ->
+									display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
+									raise Exit
+								| _ ->
+								Type.iter check_this e
+							in
+							try
+								check_this e;
+								match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
+								| Some e -> e
+								| None -> e
+							with Exit ->
 								e
-						in
+						end in
 						e
 					| Var v when v.v_read = AccInline ->
 						let e = require_constant_expression e "Inline variable initialization must be a constant value" in
@@ -2318,7 +2331,7 @@ module ClassInitializer = struct
 								| TFun([_,_,t],_) -> t
 								| _ -> error (cf.cf_name ^ ": @:from cast functions must accept exactly one argument") p
 						in
-						a.a_from_field <- (TLazy (ref r),cf) :: a.a_from_field;
+						a.a_from_field <- (TLazy (ref (lazy_wait r)),cf) :: a.a_from_field;
 					| (Meta.To,_,_) :: _ ->
 						if fctx.is_macro then error (cf.cf_name ^ ": Macro cast functions are not supported") p;
 						(* TODO: this doesn't seem quite right... *)
@@ -2329,8 +2342,8 @@ module ClassInitializer = struct
 								| TMono _ when (match t with TFun(_,r) -> r == t_dynamic | _ -> false) -> t_dynamic
 								| m -> m
 						in
-							let r = exc_protect ctx (fun r ->
-								let args = if Meta.has Meta.MultiType a.a_meta then begin
+						let r = exc_protect ctx (fun r ->
+							let args = if Meta.has Meta.MultiType a.a_meta then begin
 								let ctor = try
 									PMap.find "_new" c.cl_statics
 								with Not_found ->
@@ -2346,10 +2359,8 @@ module ClassInitializer = struct
 								[]
 							in
 							let t = resolve_m args in
-							r := (fun() -> t);
 							t
 						) "@:to" in
-						delay ctx PForce (fun() -> ignore ((!r)()));
 						a.a_to_field <- (TLazy r, cf) :: a.a_to_field
 					| ((Meta.ArrayAccess,_,_) | (Meta.Op,[(EArrayDecl _),_],_)) :: _ ->
 						if fctx.is_macro then error (cf.cf_name ^ ": Macro array-access functions are not supported") p;
@@ -2531,9 +2542,9 @@ module ClassInitializer = struct
 		check_abstract (ctx,cctx,fctx) c cf fd t ret p;
 		init_meta_overloads ctx (Some c) cf;
 		ctx.curfield <- cf;
-		let r = exc_protect ctx (fun r ->
+		let r = exc_protect ~force:false ctx (fun r ->
 			if not !return_partial_type then begin
-				r := (fun() -> t);
+				r := lazy_processing (fun() -> t);
 				cctx.context_init();
 				incr stats.s_methods_typed;
 				if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ fst f.cff_name);
@@ -2546,7 +2557,7 @@ module ClassInitializer = struct
 					| None ->
 						if fctx.field_kind = FKConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
 				) in
-				match ctx.com.platform with
+				(match ctx.com.platform with
 					| Java when is_java_native_function cf.cf_meta ->
 						if fd.f_expr <> None then
 							ctx.com.warning "@:native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
@@ -2565,11 +2576,12 @@ module ClassInitializer = struct
 							| _ -> c.cl_init <- Some e);
 						cf.cf_expr <- Some (mk (TFunction tf) t p);
 						cf.cf_type <- t;
-						if fctx.is_display_field then Display.DisplayEmitter.maybe_display_field ctx (cf.cf_name_pos) cf;
+					if fctx.is_display_field then Display.DisplayEmitter.maybe_display_field ctx (cf.cf_name_pos) cf);
 			end;
 			t
 		) "type_fun" in
-		if fctx.do_bind then bind_type (ctx,cctx,fctx) cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos);
+		if fctx.do_bind then bind_type (ctx,cctx,fctx) cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
+		else if fctx.is_display_field then Display.DisplayEmitter.maybe_display_field ctx (cf.cf_name_pos) cf;
 		cf
 
 	let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
@@ -2874,7 +2886,7 @@ module ClassInitializer = struct
 			init_class_done ctx;
 			(match r with
 			| None -> ()
-			| Some r -> delay ctx PTypeField (fun() -> ignore((!r)())))
+			| Some r -> delay ctx PTypeField (fun() -> ignore(lazy_type r)))
 		) cctx.delayed_expr
 end
 
@@ -2934,7 +2946,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 	in
 	let check_path_display path p = match ctx.com.display.dms_kind with
 		(* We cannot use ctx.is_display_file because the import could come from an import.hx file. *)
-		| DMDiagnostics b when (b && not (ExtString.String.ends_with p.pfile "import.hx")) || Display.is_display_file p.pfile ->
+		| DMDiagnostics b when (b || Display.is_display_file p.pfile) && not (ExtString.String.ends_with p.pfile "import.hx") ->
 			Display.ImportHandling.add_import_position ctx.com p path;
 		| DMStatistics | DMUsage _ ->
 			Display.ImportHandling.add_import_position ctx.com p path;
@@ -3103,14 +3115,16 @@ let init_module_type ctx context_init do_init (decl,p) =
 		let herits = d.d_flags in
 		c.cl_extern <- List.mem HExtern herits;
 		c.cl_interface <- List.mem HInterface herits;
+		let prev_build_count = ref (!build_count - 1) in
 		let build() =
 			let fl = Inheritance.set_heritance ctx c herits p in
 			let rec build() =
-				c.cl_build <- (fun()-> Building);
+				c.cl_build <- (fun()-> Building [c]);
 				try
 					List.iter (fun f -> f()) fl;
 					ClassInitializer.init_class ctx c p do_init d.d_flags d.d_data;
 					c.cl_build <- (fun()-> Built);
+					incr build_count;
 					List.iter (fun (_,t) -> ignore(follow t)) c.cl_params;
 					Built;
 				with Build_canceled state ->
@@ -3120,9 +3134,14 @@ let init_module_type ctx context_init do_init (decl,p) =
 					in
 					(match state with
 					| Built -> assert false
-					| Building -> rebuild()
-					| BuildMacro f -> f := rebuild :: !f);
-					state
+					| Building cl ->
+						if !build_count = !prev_build_count then error ("Loop in class building prevent compiler termination (" ^ String.concat "," (List.map (fun c -> s_type_path c.cl_path) cl) ^ ")") c.cl_pos;
+						prev_build_count := !build_count;
+						rebuild();
+						Building (c :: cl)
+					| BuildMacro f ->
+						f := rebuild :: !f;
+						state);
 				| exn ->
 					c.cl_build <- (fun()-> Built);
 					raise exn
@@ -3306,13 +3325,26 @@ let init_module_type ctx context_init do_init (decl,p) =
 			if (Meta.has Meta.Eager d.d_meta) then
 				follow tt
 			else begin
-				let f r =
-					if t.t_type == follow tt then error "Recursive typedef is not allowed" p;
-					r := (fun() -> tt);
-					tt
+				let rec check_rec tt =
+					if tt == t.t_type then error "Recursive typedef is not allowed" p;
+					match tt with
+					| TMono r ->
+						(match !r with
+						| None -> ()
+						| Some t -> check_rec t)
+					| TLazy f ->
+						check_rec (lazy_type f);
+					| TType (td,tl) ->
+						if td == t then error "Recursive typedef is not allowed" p;
+						check_rec (apply_params td.t_params tl td.t_type)
+					| _ ->
+						()
 				in
-				let r = exc_protect ctx f "typedef_rec_check" in
-				delay ctx PForce (fun () -> ignore(!r()));
+				let r = exc_protect ctx (fun r ->
+					r := lazy_processing (fun() -> tt);
+					check_rec tt;
+					tt
+				) "typedef_rec_check" in
 				TLazy r
 			end
 		) in
@@ -3339,12 +3371,11 @@ let init_module_type ctx context_init do_init (decl,p) =
 			let t = if not (Meta.has Meta.CoreType a.a_meta) then begin
 				if !is_type then begin
 					let r = exc_protect ctx (fun r ->
-						r := (fun() -> t);
+						r := lazy_processing (fun() -> t);
 						let at = monomorphs a.a_params a.a_this in
 						(try (if from then Type.unify t at else Type.unify at t) with Unify_error _ -> error "You can only declare from/to with compatible types" p);
 						t
 					) "constraint" in
-					delay ctx PForce (fun () -> ignore(!r()));
 					TLazy r
 				end else
 					error "Missing underlying type declaration or @:coreType declaration" p;
@@ -3465,7 +3496,10 @@ let type_types_into_module ctx m tdecls p =
 	ctx
 
 let handle_import_hx ctx m decls p =
-	let path_split = List.tl (List.rev (Path.get_path_parts m.m_extra.m_file)) in
+	let path_split = match List.rev (Path.get_path_parts m.m_extra.m_file) with
+		| [] -> []
+		| _ :: l -> l
+	in
 	let join l = String.concat Path.path_sep (List.rev ("import.hx" :: l)) in
 	let rec loop path pack = match path,pack with
 		| _,[] -> [join path]
@@ -3650,90 +3684,8 @@ let load_module ctx m p =
 ;;
 type_function_params_rec := type_function_params
 
-(* former codegen.ml stuff starting here *)
-
 (* -------------------------------------------------------------------------- *)
-(* REMOTING PROXYS *)
-
-let extend_remoting ctx c t p async prot =
-	if c.cl_super <> None then error "Cannot extend several classes" p;
-	(* remove forbidden packages *)
-	let rules = ctx.com.package_rules in
-	ctx.com.package_rules <- PMap.foldi (fun key r acc -> match r with Forbidden -> acc | _ -> PMap.add key r acc) rules PMap.empty;
-	(* parse module *)
-	let path = (t.tpackage,t.tname) in
-	let new_name = (if async then "Async_" else "Remoting_") ^ t.tname in
-	(* check if the proxy already exists *)
-	let t = (try
-		load_type_def ctx p { tpackage = fst path; tname = new_name; tparams = []; tsub = None }
-	with
-		Error (Module_not_found _,p2) when p == p2 ->
-	(* build it *)
-	Common.log ctx.com ("Building proxy for " ^ s_type_path path);
-	let file, decls = (try
-		parse_module ctx path p
-	with
-		| Not_found -> ctx.com.package_rules <- rules; error ("Could not load proxy module " ^ s_type_path path ^ (if fst path = [] then " (try using absolute path)" else "")) p
-		| e -> ctx.com.package_rules <- rules; raise e) in
-	ctx.com.package_rules <- rules;
-	let base_fields = [
-		{ cff_name = "__cnx",null_pos; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = []; cff_kind = FVar (Some (CTPath { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = []; tsub = None },null_pos),None) };
-		{ cff_name = "new",null_pos; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = [APublic]; cff_kind = FFun { f_args = [("c",null_pos),false,[],None,None]; f_type = None; f_expr = Some (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p); f_params = [] } };
-	] in
-	let tvoid = CTPath { tpackage = []; tname = "Void"; tparams = []; tsub = None } in
-	let build_field is_public acc f =
-		if fst f.cff_name = "new" then
-			acc
-		else match f.cff_kind with
-		| FFun fd when (is_public || List.mem APublic f.cff_access) && not (List.mem AStatic f.cff_access) ->
-			if List.exists (fun (_,_,_,t,_) -> t = None) fd.f_args then error ("Field " ^ fst f.cff_name ^ " type is not complete and cannot be used by RemotingProxy") p;
-			let eargs = [EArrayDecl (List.map (fun ((a,_),_,_,_,_) -> (EConst (Ident a),p)) fd.f_args),p] in
-			let ftype = (match fd.f_type with Some (CTPath { tpackage = []; tname = "Void" },_) -> None | _ -> fd.f_type) in
-			let fargs, eargs = if async then match ftype with
-				| Some (tret,_) -> fd.f_args @ [("__callb",null_pos),true,[],Some (CTFunction ([tret,null_pos],(tvoid,null_pos)),null_pos),None], eargs @ [EConst (Ident "__callb"),p]
-				| _ -> fd.f_args, eargs @ [EConst (Ident "null"),p]
-			else
-				fd.f_args, eargs
-			in
-			let id = (EConst (String (fst f.cff_name)), p) in
-			let id = if prot then id else ECall ((EConst (Ident "__unprotect__"),p),[id]),p in
-			let expr = ECall (
-				(EField (
-					(ECall ((EField ((EConst (Ident "__cnx"),p),"resolve"),p),[id]),p),
-					"call")
-				,p),eargs),p
-			in
-			let expr = if async || ftype = None then expr else (EReturn (Some expr),p) in
-			let fd = {
-				f_params = fd.f_params;
-				f_args = fargs;
-				f_type = if async then None else ftype;
-				f_expr = Some (EBlock [expr],p);
-			} in
-			{ cff_name = f.cff_name; cff_pos = f.cff_pos; cff_doc = None; cff_meta = []; cff_access = [APublic]; cff_kind = FFun fd } :: acc
-		| _ -> acc
-	in
-	let decls = List.map (fun d ->
-		match d with
-		| EClass c, p when fst c.d_name = t.tname ->
-			let is_public = List.mem HExtern c.d_flags || List.mem HInterface c.d_flags in
-			let fields = List.rev (List.fold_left (build_field is_public) base_fields c.d_data) in
-			(EClass { c with d_flags = []; d_name = new_name,pos c.d_name; d_data = fields },p)
-		| _ -> d
-	) decls in
-	let m = type_module ctx (t.tpackage,new_name) file decls p in
-	add_dependency ctx.m.curmod m;
-	try
-		List.find (fun tdecl -> snd (t_path tdecl) = new_name) m.m_types
-	with Not_found ->
-		error ("Module " ^ s_type_path path ^ " does not define type " ^ t.tname) p
-	) in
-	match t with
-	| TClassDecl c2 when c2.cl_params = [] -> ignore(c2.cl_build()); c.cl_super <- Some (c2,[]);
-	| _ -> error "Remoting proxy must be a class without parameters" p
-
-(* -------------------------------------------------------------------------- *)
-(* HAXE.RTTI.GENERIC *)
+(* generic classes *)
 
 exception Generic_Exception of string * pos
 
@@ -3749,7 +3701,7 @@ let make_generic ctx ps pt p =
 	let rec loop l1 l2 =
 		match l1, l2 with
 		| [] , [] -> []
-		| (x,TLazy f) :: l1, _ -> loop ((x,(!f)()) :: l1) l2
+		| (x,TLazy f) :: l1, _ -> loop ((x,lazy_type f) :: l1) l2
 		| (_,t1) :: l1 , t2 :: l2 -> (t1,t2) :: loop l1 l2
 		| _ -> assert false
 	in
@@ -3900,7 +3852,7 @@ let rec build_generic ctx c p tl =
 				| None -> ()
 				| Some t -> loop t)
 			| TLazy f ->
-				loop ((!f)());
+				loop (lazy_type f);
 			| TDynamic t2 ->
 				if t == t2 then () else loop t2
 			| TAnon a ->
@@ -3954,11 +3906,10 @@ let rec build_generic ctx c p tl =
 			in
 			let r = exc_protect ctx (fun r ->
 				let t = mk_mono() in
-				r := (fun() -> t);
+				r := lazy_processing (fun() -> t);
 				unify_raise ctx (f()) t p;
 				t
 			) "build_generic" in
-			delay ctx PForce (fun() -> ignore ((!r)()));
 			cf_new.cf_type <- TLazy r;
 			cf_new
 		in
@@ -3970,31 +3921,7 @@ let rec build_generic ctx c p tl =
 		cg.cl_super <- (match c.cl_super with
 			| None -> None
 			| Some (cs,pl) ->
-				let find_class subst =
-					let rec loop subst = match subst with
-						| (TInst(c,[]),t) :: subst when c == cs -> t
-						| _ :: subst -> loop subst
-						| [] -> raise Not_found
-					in
-					try
-						if pl <> [] then raise Not_found;
-						let t = loop subst in
-						(* extended type parameter: concrete type must have a constructor, but generic base class must not have one *)
-						begin match follow t,c.cl_constructor with
-							| TInst(cs,_),None ->
-								ignore(cs.cl_build());
-								begin match cs.cl_constructor with
-									| None -> error ("Cannot use " ^ (s_type_path cs.cl_path) ^ " as type parameter because it is extended and has no constructor") p
-									| _ -> ()
-								end;
-							| _,Some cf -> error "Generics extending type parameters cannot have constructors" cf.cf_pos
-							| _ -> ()
-						end;
-						t
-					with Not_found ->
-						apply_params c.cl_params tl (TInst(cs,pl))
-				in
-				let ts = follow (find_class gctx.subst) in
+				let ts = follow (apply_params c.cl_params tl (TInst(cs,pl))) in
 				let cs,pl = Inheritance.check_extends ctx c ts p in
 				match cs.cl_kind with
 				| KGeneric ->
@@ -4034,57 +3961,6 @@ let rec build_generic ctx c p tl =
 		end;
 		TInst (cg,[])
 	end
-
-(* -------------------------------------------------------------------------- *)
-(* HAXE.XML.PROXY *)
-
-let extend_xml_proxy ctx c t file p =
-	let t = load_complex_type ctx false p (t,p) in
-	let file = (try Common.find_file ctx.com file with Not_found -> file) in
-	add_dependency c.cl_module (create_fake_module ctx file);
-	let used = ref PMap.empty in
-	let print_results() =
-		PMap.iter (fun id used ->
-			if not used then ctx.com.warning (id ^ " is not used") p;
-		) (!used)
-	in
-	let check_used = Common.defined ctx.com Define.CheckXmlProxy in
-	if check_used then ctx.g.hook_generate <- print_results :: ctx.g.hook_generate;
-	try
-		let rec loop = function
-			| Xml.Element (_,attrs,childs) ->
-				(try
-					let id = List.assoc "id" attrs in
-					if PMap.mem id c.cl_fields then error ("Duplicate id " ^ id) p;
-					let t = if not check_used then t else begin
-						used := PMap.add id false (!used);
-						let ft() = used := PMap.add id true (!used); t in
-						TLazy (ref ft)
-					end in
-					let f = {
-						cf_name = id;
-						cf_type = t;
-						cf_public = true;
-						cf_pos = p;
-						cf_name_pos = null_pos;
-						cf_doc = None;
-						cf_meta = no_meta;
-						cf_kind = Var { v_read = AccResolve; v_write = AccNo };
-						cf_params = [];
-						cf_expr = None;
-						cf_expr_unoptimized = None;
-						cf_overloads = [];
-					} in
-					c.cl_fields <- PMap.add id f c.cl_fields;
-				with
-					Not_found -> ());
-				List.iter loop childs;
-			| Xml.PCData _ -> ()
-		in
-		loop (Xml.parse_file file)
-	with
-		| Xml.Error e -> error ("XML error " ^ Xml.error e) p
-		| Xml.File_not_found f -> error ("XML File not found : " ^ f) p
 
 (* -------------------------------------------------------------------------- *)
 (* MACRO TYPE *)
@@ -4155,13 +4031,13 @@ let build_instance ctx mtype p =
 		let build f s =
 			let r = exc_protect ctx (fun r ->
 				let t = mk_mono() in
-				r := (fun() -> t);
+				r := lazy_processing (fun() -> t);
 				let tf = (f()) in
 				unify_raise ctx tf t p;
 				link_dynamic t tf;
+				if ctx.pass >= PBuildClass then flush_pass ctx PBuildClass "after_build_instance";
 				t
 			) s in
-			delay ctx PForce (fun() -> ignore ((!r)()));
 			TLazy r
 		in
 		let ft = (fun pl ->
@@ -4182,19 +4058,3 @@ let build_instance ctx mtype p =
 		t.t_params , t.t_path , (fun tl -> TType(t,tl))
 	| TAbstractDecl a ->
 		a.a_params, a.a_path, (fun tl -> TAbstract(a,tl))
-
-let on_inherit ctx c p (is_extends,tp) =
-	if not is_extends then
-		true
-	else match fst tp with
-	| { tpackage = ["haxe";"remoting"]; tname = "Proxy"; tparams = [TPType(CTPath t,null_pos)] } ->
-		extend_remoting ctx c t p false true;
-		false
-	| { tpackage = ["haxe";"remoting"]; tname = "AsyncProxy"; tparams = [TPType(CTPath t,null_pos)] } ->
-		extend_remoting ctx c t p true true;
-		false
-	| { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPExpr(EConst (String file),p);TPType (t,_)] } ->
-		extend_xml_proxy ctx c t file p;
-		true
-	| _ ->
-		true

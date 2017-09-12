@@ -73,7 +73,10 @@ class Process {
 	}
 
 
-	public function new( cmd : String, ?args : Array<String>){
+	public function new( cmd : String, ?args : Array<String>, ?detached : Bool){
+	
+		if( detached ) throw "Detached process is not supported on this platform";
+	
 		var _stdout = new Pipe(false);
 		var _stderr = new Pipe(false);
 		var _stdin  = new Pipe(false);

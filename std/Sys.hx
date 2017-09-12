@@ -126,7 +126,7 @@ extern class Sys {
 	static function programPath() : String;
 
 	/**
-		Read a single input character from the standard input (without blocking) and returns it. Setting `echo` to true will also display it on the output.
+		Read a single input character from the standard input and returns it. Setting `echo` to true will also display it on the output.
 	**/
 	static function getChar( echo : Bool ) : Int;
 

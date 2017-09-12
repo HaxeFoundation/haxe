@@ -54,7 +54,7 @@ extern class Syntax {
 
     /**
         ```
-        PHP.foreach(collection, function(key, value) trace(key, value));
+        Syntax.foreach(collection, function(key, value) trace(key, value));
         ```
         generates:
         ```
@@ -101,7 +101,7 @@ extern class Syntax {
 
     /**
         ```
-        PHP.arrayDecl(arg1, arg2, arg3);
+        Syntax.arrayDecl(arg1, arg2, arg3);
         ```
         Generates native array declaration:
         ```

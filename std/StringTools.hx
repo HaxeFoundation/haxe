@@ -34,7 +34,7 @@ class StringTools {
 	/**
 		Encode an URL by using the standard format.
 	**/
-	#if (!java && !cpp && !lua) inline #end public static function urlEncode( s : String ) : String {
+	#if (!java && !cpp && !lua && !eval) inline #end public static function urlEncode( s : String ) : String {
 		#if flash
 			return untyped __global__["encodeURIComponent"](s);
 		#elseif neko
@@ -104,7 +104,7 @@ class StringTools {
 	/**
 		Decode an URL using the standard format.
 	**/
-	#if (!java && !cpp && !lua) inline #end public static function urlDecode( s : String ) : String {
+	#if (!java && !cpp && !lua && !eval) inline #end public static function urlDecode( s : String ) : String {
 		#if flash
 			return untyped __global__["decodeURIComponent"](s.split("+").join(" "));
 		#elseif neko
@@ -180,7 +180,7 @@ class StringTools {
 
 		If `start` is the empty String `""`, the result is true.
 	**/
-	public static #if (cs || java) inline #end function startsWith( s : String, start : String ) : Bool {
+	public static #if (cs || java || python) inline #end function startsWith( s : String, start : String ) : Bool {
 		#if java
 		return untyped s.startsWith(start);
 		#elseif cs
@@ -196,6 +196,8 @@ class StringTools {
 		return true;
 		#elseif hl
 		return @:privateAccess (s.length >= start.length && s.bytes.compare(0,start.bytes,0,start.length<<1) == 0);
+		#elseif python
+		return python.NativeStringTools.startswith(s, start);
 		#else
 		return( s.length >= start.length && s.substr(0, start.length) == start );
 		#end
@@ -208,7 +210,7 @@ class StringTools {
 
 		If `end` is the empty String `""`, the result is true.
 	**/
-	public static #if (cs || java) inline #end function endsWith( s : String, end : String ) : Bool {
+	public static #if (cs || java || python) inline #end function endsWith( s : String, end : String ) : Bool {
 		#if java
 		return untyped s.endsWith(end);
 		#elseif cs
@@ -226,6 +228,8 @@ class StringTools {
 		var elen = end.length;
 		var slen = s.length;
 		return @:privateAccess (slen >= elen && s.bytes.compare((slen - elen) << 1, end.bytes, 0, elen << 1) == 0);
+		#elseif python
+		return python.NativeStringTools.endswith(s, end);
 		#else
 		var elen = end.length;
 		var slen = s.length;
@@ -435,7 +439,7 @@ class StringTools {
 		This operation is not guaranteed to work if `s` contains the `\0`
 		character.
 	**/
-	public static inline function fastCodeAt( s : String, index : Int ) : Int {
+	public static #if !eval inline #end function fastCodeAt( s : String, index : Int ) : Int {
 		#if neko
 		return untyped __dollar__sget(s.__s, index);
 		#elseif cpp
@@ -467,7 +471,7 @@ class StringTools {
 		return c == 0;
 		#elseif js
 		return c != c; // fast NaN
-		#elseif (neko || lua)
+		#elseif (neko || lua || eval)
 		return c == null;
 		#elseif cs
 		return c == -1;

@@ -133,7 +133,8 @@ class Process {
 
 		`close()` should be called when the `Process` is no longer used.
 	*/
-	public function new( cmd : String, ?args : Array<String> ) : Void {
+	public function new( cmd : String, ?args : Array<String>, ?detached : Bool ) : Void {
+		if( detached ) throw "Detached process is not supported on this platform";
 		var descriptors = Syntax.arrayDecl(
 			Syntax.arrayDecl('pipe', 'r'),
 			Syntax.arrayDecl('pipe', 'w'),

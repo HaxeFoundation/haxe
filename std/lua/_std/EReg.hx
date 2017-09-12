@@ -154,6 +154,11 @@ class EReg {
 		return buf.toString();
 	}
 
+	public static function escape( s : String ) : String {
+		return escapeRegExpRe.map(s, function(r) return "\\" + r.matched(0));
+	}
+	static var escapeRegExpRe = ~/[\[\]{}()*+?.\\\^$|]/g;
+
 	static function __init__() : Void {
 		if (Rex == null){
 			throw "Rex is missing.  Please install lrexlib-pcre.";

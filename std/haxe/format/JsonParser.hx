@@ -79,7 +79,7 @@ class JsonParser {
 					case ','.code:
 						if( comma ) comma = false else invalidChar();
 					case '"'.code:
-						if( comma ) invalidChar();
+						if( field != null || comma ) invalidChar();
 						field = parseString();
 					default:
 						invalidChar();
@@ -158,7 +158,7 @@ class JsonParser {
 				case 'u'.code:
 					var uc = Std.parseInt("0x" + str.substr(pos, 4));
 					pos += 4;
-					#if (neko || php || cpp || lua)
+					#if (neko || php || cpp || lua || eval)
 					if( uc <= 0x7F )
 						buf.addChar(uc);
 					else if( uc <= 0x7FF ) {

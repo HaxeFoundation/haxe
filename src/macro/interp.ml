@@ -192,13 +192,6 @@ let pop_ret ctx f n =
 let push ctx v =
 	DynArray.add ctx.stack v
 
-let hash f =
-	let h = ref 0 in
-	for i = 0 to String.length f - 1 do
-		h := !h * 223 + int_of_char (String.unsafe_get f i);
-	done;
-	if Sys.word_size = 64 then Int32.to_int (Int32.shift_right (Int32.shift_left (Int32.of_int !h) 1) 1) else !h
-
 let constants =
 	let h = Hashtbl.create 0 in
 	List.iter (fun f -> Hashtbl.add h (hash f) f)
@@ -534,11 +527,11 @@ let builtins =
 		"sset", Fun3 (fun s p c ->
 			let c = char_of_int ((vint c) land 0xFF) in
 			try
-				String.set (vstring s) (vint p) c;
+				Bytes.set (Bytes.unsafe_of_string (vstring s)) (vint p) c;
 				VInt (int_of_char c)
 			with Invalid_argument _ -> VNull);
 		"sblit", Fun5 (fun dst dstp src p l ->
-			String.blit (vstring src) (vint p) (vstring dst) (vint dstp) (vint l);
+			String.blit (vstring src) (vint p) (Bytes.unsafe_of_string (vstring dst)) (vint dstp) (vint l);
 			VNull
 		);
 		"sfind", Fun3 (fun src pos pat ->
@@ -1043,7 +1036,7 @@ let std_lib =
 			| VString s, VString b ->
 				if String.length b <> 64 then assert false;
 				let tbl = Array.init 64 (String.unsafe_get b) in
-				VString (Base64.str_encode ~tbl s)
+				VString (Bytes.unsafe_to_string (Base64.str_encode ~tbl s))
 			| _ -> error()
 		);
 		"base_decode", Fun2 (fun s b ->
@@ -1051,7 +1044,7 @@ let std_lib =
 			let b = vstring b in
 			if String.length b <> 64 then assert false;
 			let tbl = Array.init 64 (String.unsafe_get b) in
-			VString (Base64.str_decode ~tbl:(Base64.make_decoding_table tbl) s)
+			VString (Base64.str_decode ~tbl:(Base64.make_decoding_table tbl) (Bytes.unsafe_of_string s))
 		);
 		"make_md5", Fun1 (fun s ->
 			VString (Digest.string (vstring s))
@@ -1178,13 +1171,13 @@ let std_lib =
 		(* file_name *)
 		"file_write", Fun4 (fun f s p l ->
 			match f, s, p, l with
-			| VAbstract (AFWrite f), VString s, VInt p, VInt l -> output f s p l; VInt l
+			| VAbstract (AFWrite f), VString s, VInt p, VInt l -> output_substring f s p l; VInt l
 			| _ -> error()
 		);
 		"file_read", Fun4 (fun f s p l ->
 			match f, s, p, l with
 			| VAbstract (AFRead (f,r)), VString s, VInt p, VInt l ->
-				let n = input f s p l in
+				let n = input f (Bytes.unsafe_of_string s) p l in
 				if n = 0 then begin
 					r := true;
 					exc (VArray [|VString "file_read"|]);
@@ -1256,26 +1249,26 @@ let std_lib =
 		"socket_send_char", Fun2 (fun s c ->
 			match s, c with
 			| VAbstract (ASocket s), VInt c when c >= 0 && c <= 255 ->
-				ignore(Unix.send s (String.make 1 (char_of_int c)) 0 1 []);
+				ignore(Unix.send s (Bytes.make 1 (char_of_int c)) 0 1 []);
 				VNull
 			| _ -> error()
 		);
 		"socket_send", Fun4 (fun s buf pos len ->
 			match s, buf, pos, len with
-			| VAbstract (ASocket s), VString buf, VInt pos, VInt len -> VInt (Unix.send s buf pos len [])
+			| VAbstract (ASocket s), VString buf, VInt pos, VInt len -> VInt (Unix.send s (Bytes.unsafe_of_string buf) pos len [])
 			| _ -> error()
 		);
 		"socket_recv", Fun4 (fun s buf pos len ->
 			match s, buf, pos, len with
-			| VAbstract (ASocket s), VString buf, VInt pos, VInt len -> VInt (Unix.recv s buf pos len [])
+			| VAbstract (ASocket s), VString buf, VInt pos, VInt len -> VInt (Unix.recv s (Bytes.unsafe_of_string buf) pos len [])
 			| _ -> error()
 		);
 		"socket_recv_char", Fun1 (fun s ->
 			match s with
 			| VAbstract (ASocket s) ->
-				let buf = String.make 1 '\000' in
+				let buf = Bytes.make 1 '\000' in
 				ignore(Unix.recv s buf 0 1 []);
-				VInt (int_of_char (String.unsafe_get buf 0))
+				VInt (int_of_char (Bytes.unsafe_get buf 0))
 			| _ -> error()
 		);
 		"socket_write", Fun2 (fun s str ->
@@ -1284,7 +1277,7 @@ let std_lib =
 				let pos = ref 0 in
 				let len = ref (String.length str) in
 				while !len > 0 do
-					let k = Unix.send s str (!pos) (!len) [] in
+					let k = Unix.send s (Bytes.unsafe_of_string str) (!pos) (!len) [] in
 					pos := !pos + k;
 					len := !len - k;
 				done;
@@ -1294,12 +1287,12 @@ let std_lib =
 		"socket_read", Fun1 (fun s ->
 			match s with
 			| VAbstract (ASocket s) ->
-				let tmp = String.make 1024 '\000' in
+				let tmp = Bytes.make 1024 '\000' in
 				let buf = Buffer.create 0 in
 				let rec loop() =
 					let k = (try Unix.recv s tmp 0 1024 [] with Unix_error _ -> 0) in
 					if k > 0 then begin
-						Buffer.add_substring buf tmp 0 k;
+						Buffer.add_subbytes buf tmp 0 k;
 						loop();
 					end
 				in
@@ -1782,7 +1775,7 @@ let z_lib =
 		"inflate_buffer", Fun5 (fun z src pos dst dpos ->
 			match z, src, pos, dst, dpos with
 			| VAbstract (AZipI z), VString src, VInt pos, VString dst, VInt dpos ->
-				let r = Extc.zlib_inflate z.z src pos (String.length src - pos) dst dpos (String.length dst - dpos) z.z_flush in
+				let r = Extc.zlib_inflate z.z src pos (String.length src - pos) (Bytes.unsafe_of_string dst) dpos (String.length dst - dpos) z.z_flush in
 				VObject (obj (hash_field (get_ctx())) [
 					"done", VBool r.Extc.z_finish;
 					"read", VInt r.Extc.z_read;
@@ -1793,7 +1786,7 @@ let z_lib =
 		"deflate_buffer", Fun5 (fun z src pos dst dpos ->
 			match z, src, pos, dst, dpos with
 			| VAbstract (AZipD z), VString src, VInt pos, VString dst, VInt dpos ->
-				let r = Extc.zlib_deflate z.z src pos (String.length src - pos) dst dpos (String.length dst - dpos) z.z_flush in
+				let r = Extc.zlib_deflate z.z src pos (String.length src - pos) (Bytes.unsafe_of_string dst) dpos (String.length dst - dpos) z.z_flush in
 				VObject (obj (hash_field (get_ctx())) [
 					"done", VBool r.Extc.z_finish;
 					"read", VInt r.Extc.z_read;
@@ -1998,7 +1991,7 @@ and eval ctx (e,p) =
 			| _ ->
 				VNull
 		in
-		(fun() -> try loop (DynArray.length ctx.stack) with Sys.Break -> throw ctx p "Ctrl+C")
+		(fun() -> try loop (DynArray.length ctx.stack) with Sys.Break when (try Sys.getenv "HAXEDEBUG" <> "1" with _ -> true) -> throw ctx p "Ctrl+C")
 	| EWhile (econd,e,DoWhile) ->
 		let e = eval ctx e in
 		let econd = eval ctx econd in
@@ -2660,7 +2653,7 @@ let load_prim ctx f n =
 	| _ ->
 		exc (VString (value_match_failure "Invalid call" ["VString";"VInt"] [f;n]))
 
-let create com api =
+let create com api _ =
 	let loader = obj hash [
 		"args",VArray (Array.of_list (List.map (fun s -> VString s) com.sys_args));
 		"loadprim",VFunction (Fun2 (fun a b -> (get_ctx()).do_loadprim a b));
@@ -2807,17 +2800,17 @@ let field v f =
 	| VObject o -> get_field o (hash f)
 	| _ -> raise Invalid_expr
 
-let dec_string v =
+let decode_string v =
 	match field v "__s" with
 	| VString s -> s
 	| _ -> raise Invalid_expr
 
 let decode_bytes v =
 	match field v "b" with
-	| VString s -> s
+	| VString s -> (Bytes.unsafe_of_string s)
 	| _ -> raise Invalid_expr
 
-let dec_array v =
+let decode_array v =
 	match field v "__a", field v "length" with
 	| VArray a, VInt l -> Array.to_list (if Array.length a = l then a else Array.sub a 0 l)
 	| _ -> raise Invalid_expr
@@ -2833,24 +2826,20 @@ let decode_tdecl = function
 	| VAbstract (ATDecl t) -> t
 	| _ -> raise Invalid_expr
 
-let dec_int = function
+let decode_int = function
 	| VInt i -> i
 	| VInt32 i -> Int32.to_int i
 	| _ -> raise Invalid_expr
 
-let dec_i32 = function
+let decode_i32 = function
 	| VInt i -> Int32.of_int i
 	| VInt32 i -> i
-	| _ -> raise Invalid_expr
-
-let dec_bytes = function
-	| VString s -> s
 	| _ -> raise Invalid_expr
 
 let encode_pos p =
 	VAbstract (APos p)
 
-let enc_inst path fields =
+let encode_inst path fields =
 	let ctx = get_ctx() in
 	let p = (try Hashtbl.find ctx.prototypes path with Not_found -> try
 		(match get_path ctx (path@["prototype"]) Nast.null_pos with
@@ -2863,31 +2852,31 @@ let enc_inst path fields =
 	o.oproto <- Some p;
 	VObject o
 
-let enc_array l =
+let encode_array l =
 	let a = Array.of_list l in
-	enc_inst ["Array"] [
+	encode_inst ["Array"] [
 		"__a", VArray a;
 		"length", VInt (Array.length a);
 	]
 
-let enc_string s =
-	enc_inst ["String"] [
+let encode_string s =
+	encode_inst ["String"] [
 		"__s", VString s;
 		"length", VInt (String.length s)
 	]
 
 let encode_bytes s =
-	enc_inst ["haxe";"io";"Bytes"] [
-		"b", VString s;
-		"length", VInt (String.length s)
+	encode_inst ["haxe";"io";"Bytes"] [
+		"b", VString (Bytes.unsafe_to_string s);
+		"length", VInt (Bytes.length s)
 	]
 
-let enc_hash h =
-	enc_inst ["haxe";"ds";"StringMap"] [
+let encode_hash h =
+	encode_inst ["haxe";"ds";"StringMap"] [
 		"h", VAbstract (AHash h);
 	]
 
-let enc_obj _ l = VObject (obj hash l)
+let encode_obj _ l = VObject (obj hash l)
 
 let encode_enum (i:enum_type) pos index pl =
 	let eindex : int = Obj.magic i in
@@ -2895,7 +2884,7 @@ let encode_enum (i:enum_type) pos index pl =
 	if pl = [] then
 		fst edef.(index)
 	else
-		enc_inst ["haxe";"macro";enum_name i] (
+		encode_inst ["haxe";"macro";enum_name i] (
 			("tag", VString (snd edef.(index))) ::
 			("index", VInt index) ::
 			("args", VArray (Array.of_list pl)) ::
@@ -2903,10 +2892,10 @@ let encode_enum (i:enum_type) pos index pl =
 		)
 
 let encode_ref v convert tostr =
-	enc_obj O__Const [
+	encode_obj O__Const [
 		"get", VFunction (Fun0 (fun() -> convert v));
 		"__string", VFunction (Fun0 (fun() -> VString (tostr())));
-		"toString", VFunction (Fun0 (fun() -> enc_string (tostr())));
+		"toString", VFunction (Fun0 (fun() -> encode_string (tostr())));
 		"$", VAbstract (AUnsafe (Obj.repr v));
 	]
 
@@ -2918,7 +2907,7 @@ let decode_ref v : 'a =
 let encode_string_map convert m =
 	let h = Hashtbl.create 0 in
 	PMap.iter (fun k v -> Hashtbl.add h (VString k) (convert v)) m;
-	enc_hash h
+	encode_hash h
 
 let decode_pos = function
 	| VAbstract (APos p) -> p
@@ -2938,7 +2927,7 @@ let decode_enum_with_pos v =
 		| VAbstract(APos p) -> p
 		| _ -> Globals.null_pos) (* Can happen from reification and other sources. *)
 
-let dec_bool = function
+let decode_bool = function
 	| VBool b -> b
 	| _ -> raise Invalid_expr
 
@@ -2947,7 +2936,7 @@ let decode_unsafe = function
 	| _ -> raise Invalid_expr
 
 let compiler_error msg pos =
-	exc (enc_inst ["haxe";"macro";"Error"] [("message",enc_string msg);("pos",encode_pos pos)])
+	exc (encode_inst ["haxe";"macro";"Error"] [("message",encode_string msg);("pos",encode_pos pos)])
 
 let value_to_expr v p =
 	let h_enum = hash "__enum__" and h_et = hash "__et__" and h_ct = hash "__ct__" in

@@ -34,14 +34,17 @@ using php.Global;
 		if (o.property_exists(field)) return true;
 
 		if (Boot.isClass(o)) {
-			if (Global.property_exists(o.phpClassName, field)) return true;
-			return Global.method_exists(o.phpClassName, field);
+			var phpClassName = Boot.castClass(o).phpClassName;
+			return Global.property_exists(phpClassName, field) || Global.method_exists(phpClassName, field);
 		}
 
 		return false;
 	}
 
 	public static function field( o : Dynamic, field : String ) : Dynamic {
+		if (o.is_string()) {
+			return Syntax.getField(Boot.dynamicString(o), field);
+		}
 		if (!o.is_object()) return null;
 
 		if (o.property_exists(field)) {
@@ -52,11 +55,12 @@ using php.Global;
 		}
 
 		if (Boot.isClass(o)) {
-			if (Global.property_exists(o.phpClassName, field)) {
+			var phpClassName = Boot.castClass(o).phpClassName;
+			if (Global.property_exists(phpClassName, field)) {
 				return Syntax.getField(o, field);
 			}
-			if (Global.method_exists(o.phpClassName, field)) {
-				return Boot.closure(o.phpClassName, field);
+			if (Global.method_exists(phpClassName, field)) {
+				return Boot.closure(phpClassName, field);
 			}
 		}
 
@@ -69,18 +73,17 @@ using php.Global;
 
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic {
 		if (o.is_object()) {
-			if (Boot.hasGetter(Global.get_class(o), field)) {
+			if (Boot.isClass(o)) {
+				var phpClassName = Boot.castClass(o).phpClassName;
+				if (Boot.hasGetter(phpClassName, field)) {
+					return Syntax.staticCall(phpClassName, 'get_$field');
+				}
+			} else if (Boot.hasGetter(Global.get_class(o), field)) {
 				return Syntax.call(o, 'get_$field');
-			} else if (Global.method_exists(o, field)) {
-				return Boot.closure(o, field);
-			} else {
-				return Syntax.getField(o, field);
 			}
 		}
-		if (o.is_string() && field == 'length') {
-			return Global.strlen(o);
-		}
-		return null;
+
+		return Reflect.field(o, field);
 	}
 
 	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void {
@@ -169,6 +172,4 @@ using php.Global;
 			return Global.call_user_func(f, @:privateAccess Array.wrap(Global.func_get_args()));
 		}
 	}
-
-
 }

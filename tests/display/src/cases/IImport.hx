@@ -56,4 +56,12 @@ class IImport extends DisplayTestCase {
 		eq(false, hasPath(fields(pos(1)), "run"));
 		eq(true, hasPath(fields(pos(1)), "Serializer"));
 	}
+
+	/**
+	import haxe.macro.{-1-}
+	**/
+	function testIssue6408() {
+		eq(true, hasPath(fields(pos(1)), "Context"));
+		eq(false, hasPath(fields(pos(1)), "Context.hl"));
+	}
 }

@@ -23,7 +23,7 @@
 
 	@:pure
 	public inline static function hasField( o : Dynamic, field : String ) : Bool {
-		return untyped __js__('Object').prototype.hasOwnProperty.call(o, field);
+		return js.Object.prototype.hasOwnProperty.call(o, field);
 	}
 
 	public static function field( o : Dynamic, field : String ) : Dynamic {
@@ -51,7 +51,7 @@
 	public static function fields( o : Dynamic ) : Array<String> {
 		var a = [];
 		if (o != null) untyped {
-			var hasOwnProperty = __js__('Object').prototype.hasOwnProperty;
+			var hasOwnProperty = js.Object.prototype.hasOwnProperty;
 			__js__("for( var f in o ) {");
 			if( f != "__id__" && f != "hx__closures__" && hasOwnProperty.call(o, f) ) a.push(f);
 			__js__("}");
@@ -59,8 +59,9 @@
 		return a;
 	}
 
-	public static function isFunction( f : Dynamic ) : Bool untyped {
-		return __js__("typeof(f)") == "function" && !(js.Boot.isClass(f) || js.Boot.isEnum(f));
+	@:access(js.Boot)
+	public static function isFunction( f : Dynamic ) : Bool {
+		return js.Lib.typeof(f) == "function" && !(js.Boot.isClass(f) || js.Boot.isEnum(f));
 	}
 
 	public static function compare<T>( a : T, b : T ) : Int {
@@ -75,10 +76,11 @@
 		return f1.scope == f2.scope && f1.method == f2.method && f1.method != null;
 	}
 
-	public static function isObject( v : Dynamic ) : Bool untyped {
+	@:access(js.Boot)
+	public static function isObject( v : Dynamic ) : Bool {
 		if( v == null )
 			return false;
-		var t = __js__("typeof(v)");
+		var t = js.Lib.typeof(v);
 		return (t == "string" || (t == "object" && v.__enum__ == null)) || (t == "function" && (js.Boot.isClass(v) || js.Boot.isEnum(v)) != null);
 	}
 

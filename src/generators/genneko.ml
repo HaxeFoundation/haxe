@@ -199,7 +199,7 @@ and gen_call ctx p e el =
 			this p;
 			array p (List.map (gen_expr ctx) el)
 		]
-	| TLocal { v_name = "__resources__" }, [] ->
+	| TIdent "__resources__", [] ->
 		call p (builtin p "array") (Hashtbl.fold (fun name data acc ->
 			(EObject [("name",gen_constant ctx e.epos (TString name));("data",gen_big_string ctx p data)],p) :: acc
 		) ctx.com.resources [])
@@ -219,8 +219,8 @@ and gen_expr ctx e =
 	match e.eexpr with
 	| TConst c ->
 		gen_constant ctx e.epos c
-	| TLocal v when v.v_name.[0] = '$' ->
-		(EConst (Builtin (String.sub v.v_name 1 (String.length v.v_name - 1))),p)
+	| TIdent s when s.[0] = '$' ->
+		(EConst (Builtin (String.sub s 1 (String.length s - 1))),p)
 	| TLocal v ->
 		if v.v_capture then
 			(EArray (ident p v.v_name,int p 0),p)
@@ -248,6 +248,8 @@ and gen_expr ctx e =
 		| _ -> assert false)
 	| TEnumParameter (e,_,i) ->
 		EArray (field p (gen_expr ctx e) "args",int p i),p
+	| TEnumIndex e ->
+		field p (gen_expr ctx e) "index"
 	| TField (e,f) ->
 		field p (gen_expr ctx e) (field_name f)
 	| TTypeExpr t ->
@@ -368,6 +370,8 @@ and gen_expr ctx e =
 		gen_expr ctx e
 	| TCast (e1,Some t) ->
 		gen_expr ctx (Codegen.default_cast ~vtmp:"@tmp" ctx.com e1 t e.etype e.epos)
+	| TIdent s ->
+		ident p s
 	| TSwitch (e,cases,eo) ->
 		let e = gen_expr ctx e in
 		let eo = (match eo with None -> None | Some e -> Some (gen_expr ctx e)) in
@@ -399,7 +403,7 @@ and gen_expr ctx e =
 
 let gen_method ctx p c acc =
 	ctx.curmethod <- c.cf_name;
-	if is_extern_field c then acc else
+	if not (is_physical_field c) then acc else
 	match c.cf_expr with
 	| None ->
 		((c.cf_name, null p) :: acc)

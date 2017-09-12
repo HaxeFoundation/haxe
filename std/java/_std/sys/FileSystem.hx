@@ -83,7 +83,8 @@ class FileSystem {
 
 	public static function createDirectory( path : String ) : Void
 	{
-		if (!new File(path).mkdirs())
+		var f = new File(path);
+		if (!f.isDirectory() && !f.mkdirs())
 			throw "Cannot create dir " + path;
 	}
 

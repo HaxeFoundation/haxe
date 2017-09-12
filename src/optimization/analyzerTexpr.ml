@@ -142,12 +142,12 @@ let rec can_be_used_as_value com e =
 let wrap_meta s e =
 	mk (TMeta((Meta.Custom s,[],e.epos),e)) e.etype e.epos
 
-let is_really_unbound v = match v.v_name with
+let is_really_unbound s = match s with
 	| "`trace" | "__int__" -> false
-	| _ -> is_unbound v
+	| _ -> true
 
 let r = Str.regexp "^\\([A-Za-z0-9_]\\)+$"
-let is_unbound_call_that_might_have_side_effects v el = match v.v_name,el with
+let is_unbound_call_that_might_have_side_effects s el = match s,el with
 	| "__js__",[{eexpr = TConst (TString s)}] when Str.string_match r s 0 -> false
 	| _ -> true
 
@@ -167,7 +167,7 @@ let rec is_asvar_type t =
 	| TEnum(en,_) -> check en.e_meta
 	| TType(t,tl) -> check t.t_meta || (is_asvar_type (apply_params t.t_params tl t.t_type))
 	| TAbstract(a,_) -> check a.a_meta
-	| TLazy f -> is_asvar_type (!f())
+	| TLazy f -> is_asvar_type (lazy_type f)
 	| TMono r ->
 		(match !r with
 		| Some t -> is_asvar_type t
@@ -188,10 +188,10 @@ let type_change_ok com t1 t2 =
 		let rec is_nullable_or_whatever = function
 			| TMono r ->
 				(match !r with None -> false | Some t -> is_nullable_or_whatever t)
-			| TType ({ t_path = ([],"Null") },[_]) ->
+			| TAbstract ({ a_path = ([],"Null") },[_]) ->
 				true
 			| TLazy f ->
-				is_nullable_or_whatever (!f())
+				is_nullable_or_whatever (lazy_type f)
 			| TType (t,tl) ->
 				is_nullable_or_whatever (apply_params t.t_params tl t.t_type)
 			| TFun _ ->
@@ -218,6 +218,100 @@ let dynarray_map f d =
 
 let dynarray_mapi f d =
 	DynArray.iteri (fun i e -> DynArray.unsafe_set d i (f i e)) d
+
+module TexprKindMapper = struct
+	type kind =
+		| KRead         (* Expression is read. *)
+		| KAccess       (* Structure of expression is accessed. *)
+		| KWrite        (* Expression is lhs of =. *)
+		| KReadWrite    (* Expression is lhs of += .*)
+		| KStore        (* Expression is stored (via =, += or in array/object declaration). *)
+		| KCalled       (* Expression is being called. *)
+		| KCallArgument (* Expression is call argument (leaves context). *)
+		| KReturn       (* Expression is returned (leaves context). *)
+		| KThrow        (* Expression is thrown (leaves context). *)
+
+	let rec map kind f e = match e.eexpr with
+		| TConst _
+		| TLocal _
+		| TBreak
+		| TContinue
+		| TTypeExpr _
+		| TIdent _ ->
+			e
+		| TArray(e1,e2) ->
+			let e1 = f KAccess e1 in
+			let e2 = f KRead e2 in
+			{ e with eexpr = TArray (e1,e2) }
+		| TBinop(OpAssign,e1,e2) ->
+			let e1 = f KWrite e1 in
+			let e2 = f KStore e2 in
+			{ e with eexpr = TBinop(OpAssign,e1,e2) }
+		| TBinop(OpAssignOp op,e1,e2) ->
+			let e1 = f KReadWrite e1 in
+			let e2 = f KStore e2 in
+			{ e with eexpr = TBinop(OpAssignOp op,e1,e2) }
+		| TBinop(op,e1,e2) ->
+			let e1 = f KRead e1 in
+			let e2 = f KRead e2 in
+			{ e with eexpr = TBinop(op,e1,e2) }
+		| TFor (v,e1,e2) ->
+			let e1 = f KRead e1 in
+			{ e with eexpr = TFor (v,e1,f KRead e2) }
+		| TWhile (e1,e2,flag) ->
+			let e1 = f KRead e1 in
+			{ e with eexpr = TWhile (e1,f KRead e2,flag) }
+		| TThrow e1 ->
+			{ e with eexpr = TThrow (f KThrow e1) }
+		| TEnumParameter (e1,ef,i) ->
+			{ e with eexpr = TEnumParameter(f KAccess e1,ef,i) }
+		| TEnumIndex e1 ->
+			{ e with eexpr = TEnumIndex (f KAccess e1) }
+		| TField (e1,v) ->
+			{ e with eexpr = TField (f KAccess e1,v) }
+		| TParenthesis e1 ->
+			{ e with eexpr = TParenthesis (f kind e1) }
+		| TUnop (op,pre,e1) ->
+			{ e with eexpr = TUnop (op,pre,f KRead e1) }
+		| TArrayDecl el ->
+			{ e with eexpr = TArrayDecl (List.map (f KStore) el) }
+		| TNew (t,pl,el) ->
+			{ e with eexpr = TNew (t,pl,List.map (f KCallArgument) el) }
+		| TBlock el ->
+			let rec loop acc el = match el with
+				| [e] -> f kind e :: acc
+				| e1 :: el -> loop (f KRead e1 :: acc) el
+				| [] -> []
+			in
+			let el = List.rev (loop [] el) in
+			{ e with eexpr = TBlock el }
+		| TObjectDecl el ->
+			{ e with eexpr = TObjectDecl (List.map (fun (v,e) -> v, f KStore e) el) }
+		| TCall (e1,el) ->
+			let e1 = f KCalled e1 in
+			{ e with eexpr = TCall (e1, List.map (f KCallArgument) el) }
+		| TVar (v,eo) ->
+			{ e with eexpr = TVar (v, match eo with None -> None | Some e -> Some (f KStore e)) }
+		| TFunction fu ->
+			{ e with eexpr = TFunction { fu with tf_expr = f KRead fu.tf_expr } }
+		| TIf (ec,e1,e2) ->
+			let ec = f KRead ec in
+			let e1 = f kind e1 in
+			{ e with eexpr = TIf (ec,e1,match e2 with None -> None | Some e -> Some (f kind e)) }
+		| TSwitch (e1,cases,def) ->
+			let e1 = f KRead e1 in
+			let cases = List.map (fun (el,e2) -> List.map (f KRead) el, f kind e2) cases in
+			{ e with eexpr = TSwitch (e1, cases, match def with None -> None | Some e -> Some (f kind e)) }
+		| TTry (e1,catches) ->
+			let e1 = f kind e1 in
+			{ e with eexpr = TTry (e1, List.map (fun (v,e) -> v, f kind e) catches) }
+		| TReturn eo ->
+			{ e with eexpr = TReturn (match eo with None -> None | Some e -> Some (f KReturn e)) }
+		| TCast (e1,t) ->
+			{ e with eexpr = TCast (f kind e1,t) }
+		| TMeta (m,e1) ->
+			{e with eexpr = TMeta(m,f kind e1)}
+end
 
 (*
 	This module rewrites some expressions to reduce the amount of special cases for subsequent analysis. After analysis
@@ -288,41 +382,6 @@ module TexprFilter = struct
 		loop e
 end
 
-module VarLazifier = struct
-	let apply com e =
-		let rec loop var_inits e = match e.eexpr with
-			| TVar(v,Some e1) when (Meta.has (Meta.Custom ":extractorVariable") v.v_meta) ->
-				let var_inits,e1 = loop var_inits e1 in
-				let var_inits = PMap.add v.v_id e1 var_inits in
-				var_inits,{e with eexpr = TVar(v,None)}
-			| TLocal v ->
-				begin try
-					let e_init = PMap.find v.v_id var_inits in
-					let e = {e with eexpr = TBinop(OpAssign,e,e_init)} in
-					let e = {e with eexpr = TParenthesis e} in
-					let var_inits = PMap.remove v.v_id var_inits in
-					var_inits,e
-				with Not_found ->
-					var_inits,e
-				end
-			| TIf(e1,e2,eo) ->
-				let var_inits,e1 = loop var_inits e1 in
-				let _,e2 = loop var_inits e2 in
-				let eo = match eo with None -> None | Some e -> Some (snd (loop var_inits e)) in
-				var_inits,{e with eexpr = TIf(e1,e2,eo)}
-			| TSwitch(e1,cases,edef) ->
-				let var_inits,e1 = loop var_inits e1 in
-				let cases = List.map (fun (el,e) ->
-					let _,e = loop var_inits e in
-					el,e
-				) cases in
-				let edef = match edef with None -> None | Some e -> Some (snd (loop var_inits e)) in
-				var_inits,{e with eexpr = TSwitch(e1,cases,edef)}
-			| _ ->
-				Texpr.foldmap loop var_inits e
-		in
-		snd (loop PMap.empty e)
-end
 
 (*
 	An InterferenceReport represents in which way a given code may be influenced and
@@ -429,7 +488,7 @@ module InterferenceReport = struct
 				loop e1;
 				loop e2;
 			(* state *)
-			| TCall({eexpr = TLocal v},el) when not (is_unbound_call_that_might_have_side_effects v el) ->
+			| TCall({eexpr = TIdent s},el) when not (is_unbound_call_that_might_have_side_effects s el) ->
 				List.iter loop el
 			| TNew(c,_,el) when (match c.cl_constructor with Some cf when PurityState.is_pure c cf -> true | _ -> false) ->
 				set_state_read ir;
@@ -561,10 +620,17 @@ module Fusion = struct
 		| OpBoolOr
 		| OpAssignOp _
 		| OpInterval
+		| OpIn
 		| OpArrow ->
 			false
 
 	let use_assign_op com op e1 e2 =
+		let skip e = match com.platform with
+			| Eval -> Texpr.skip e
+			| _ -> e
+		in
+		let e1 = skip e1 in
+		let e2 = skip e2 in
 		is_assign_op op && target_handles_assign_ops com && Texpr.equal e1 e2 && not (has_side_effect e1) && match com.platform with
 			| Cs when is_null e1.etype || is_null e2.etype -> false (* C# hates OpAssignOp on Null<T> *)
 			| _ -> true
@@ -583,7 +649,7 @@ module Fusion = struct
 				state#dec_reads v;
 				block_element acc el
 			(* no-side-effect *)
-			| {eexpr = TEnumParameter _ | TFunction _ | TConst _ | TTypeExpr _} :: el ->
+			| {eexpr = TEnumParameter _ | TEnumIndex _ | TFunction _ | TConst _ | TTypeExpr _} :: el ->
 				block_element acc el
 			| {eexpr = TMeta((Meta.Pure,_,_),_)} :: el ->
 				block_element acc el
@@ -636,31 +702,73 @@ module Fusion = struct
 				let e1 = {e1 with eexpr = TVar(v1,Some e2)} in
 				state#dec_writes v1;
 				fuse (e1 :: acc) el
-			| ({eexpr = TVar(v1,None)} as e1) :: ({eexpr = TIf(eif,_,Some _)} as e2) :: el
-				when
-					can_be_used_as_value com e2 &&
-					not (ExtType.is_void e2.etype) &&
-					(match com.platform with
-						| Php when not (Common.is_php7 com) -> false
-						| Cpp when not (Common.defined com Define.Cppia) -> false
-						| _ -> true)
+			| ({eexpr = TIf(eif,ethen,Some eelse)} as e1) :: el when
+				can_be_used_as_value com e1 &&
+				not (ExtType.is_void e1.etype) &&
+				(match com.platform with
+					| Php when not (Common.is_php7 com) -> false
+					| Cpp when not (Common.defined com Define.Cppia) -> false
+					| _ -> true)
 				->
 				begin try
 					let i = ref 0 in
-					let check_assign e = match e.eexpr with
-						| TBinop(OpAssign,{eexpr = TLocal v2},e2) when v1 == v2 -> incr i; e2
+					let e' = ref None in
+					let check e1 f1 e2 = match !e' with
+						| None ->
+							e' := Some (e1,f1);
+							e2
+						| Some (e',_) ->
+							if Texpr.equal e' e1 then e2 else raise Exit
+					in
+					let check_assign e =
+						match e.eexpr with
+						| TBinop(OpAssign,e1,e2) -> incr i; check e1 (fun e' -> {e with eexpr = TBinop(OpAssign,e1,e')}) e2
 						| _ -> raise Exit
 					in
-					let e,_ = map_values ~allow_control_flow:false check_assign e2 in
-					let e1 = {e1 with eexpr = TVar(v1,Some e)} in
+					let e,_ = map_values check_assign e1 in
+					let e = match !e' with
+						| None -> assert false
+						| Some(e1,f) ->
+							begin match e1.eexpr with
+								| TLocal v -> state#change_writes v (- !i + 1)
+								| _ -> ()
+							end;
+							f e
+					in
 					state#changed;
-					state#change_writes v1 (- !i);
-					fuse (e1 :: acc) el
+					fuse (e :: acc) el
 				with Exit ->
-					fuse (e1 :: acc) (e2 :: el)
+					fuse (e1 :: acc) el
 				end
 			| {eexpr = TVar(v1,Some e1)} :: el when config.optimize && config.local_dce && state#get_reads v1 = 0 && state#get_writes v1 = 0 ->
 				fuse acc (e1 :: el)
+			| ({eexpr = TVar(v1,None)} as ev) :: el when not v1.v_capture ->
+				let found = ref false in
+				let rec replace deep e = match e.eexpr with
+					| TBinop(OpAssign,{eexpr = TLocal v2},e2) when v1 == v2 ->
+						if deep then raise Exit;
+						found := true;
+						{ev with eexpr = TVar(v1,Some e2)}
+					| TLocal v2 when v1 == v2 -> raise Exit
+					| _ -> Type.map_expr (replace true) e
+				in
+				begin try
+					let rec loop acc el = match el with
+						| e :: el ->
+							let e = replace false e in
+							if !found then (List.rev (e :: acc)) @ el
+							else loop (e :: acc) el
+						| [] ->
+							List.rev acc
+					in
+					let el = loop [] el in
+					if not !found then raise Exit;
+					state#changed;
+					state#dec_writes v1;
+					fuse acc el
+				with Exit ->
+					fuse (ev :: acc) el
+				end
 			| ({eexpr = TVar(v1,Some e1)} as ev) :: el when can_be_fused v1 e1 ->
 				let found = ref false in
 				let blocked = ref false in
@@ -773,7 +881,7 @@ module Fusion = struct
 							|| has_field_write ir (field_name fa) || has_state_write ir ->
 							raise Exit
 						(* state *)
-						| TCall({eexpr = TLocal v},el) when not (is_unbound_call_that_might_have_side_effects v el) ->
+						| TCall({eexpr = TIdent s},el) when not (is_unbound_call_that_might_have_side_effects s el) ->
 							e
 						| TNew(c,tl,el) when (match c.cl_constructor with Some cf when PurityState.is_pure c cf -> true | _ -> false) ->
 							let el = handle_el el in
@@ -792,7 +900,7 @@ module Fusion = struct
 							{e with eexpr = TCall(ef,el)}
 						| TCall(e1,el) ->
 							let e1,el = match e1.eexpr with
-								| TLocal v when is_really_unbound v -> e1,el
+								| TIdent s when s <> "`trace" && s <> "__int__" -> e1,el
 								| _ -> handle_call e1 el
 							in
 							if not !found && (((has_state_read ir || has_any_field_read ir)) || has_state_write ir || has_any_field_write ir) then raise Exit;
@@ -843,7 +951,30 @@ module Fusion = struct
 					fuse acc el
 				with Exit ->
 					if config.fusion_debug then print_endline (Printf.sprintf "NO: %s" (Printexc.get_backtrace()));
-					fuse (ev :: acc) el
+					begin match el with
+					| ({eexpr = TUnop((Increment | Decrement) as op,Prefix,{eexpr = TLocal v1})} as e2) :: el ->
+						let found = ref false in
+						let rec replace e = match e.eexpr with
+							| TLocal v2 when v1 == v2 ->
+								if !found then raise Exit;
+								found := true;
+								{e with eexpr = TUnop(op,Postfix,e)}
+							| TIf _ | TSwitch _ | TTry _ | TWhile _ | TFor _ ->
+								raise Exit
+							| _ ->
+								Type.map_expr replace e
+						in
+						begin try
+							let ev = replace ev in
+							if not !found then raise Exit;
+							state#changed;
+							fuse acc (ev :: el)
+						with Exit ->
+							fuse (ev :: acc) (e2 :: el)
+						end
+					| _ ->
+						fuse (ev :: acc) el
+					end
 				end
 			| {eexpr = TUnop((Increment | Decrement as op,Prefix,({eexpr = TLocal v} as ev)))} as e1 :: e2 :: el ->
 				begin try
@@ -908,7 +1039,7 @@ module Fusion = struct
 				in
 				let el = fuse_loop el in
 				{e with eexpr = TBlock el}
-			| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
+			| TCall({eexpr = TIdent s},_) when is_really_unbound s ->
 				e
 			| _ ->
 				Type.map_expr loop e
@@ -917,6 +1048,8 @@ module Fusion = struct
 end
 
 module Cleanup = struct
+	open TexprKindMapper
+
 	let apply com e =
 		let if_or_op e e1 e2 e3 = match (Texpr.skip e1).eexpr,(Texpr.skip e3).eexpr with
 			| TUnop(Not,Prefix,e1),TConst (TBool true) -> optimize_binop {e with eexpr = TBinop(OpBoolOr,e1,e2)} OpBoolOr e1 e2
@@ -938,7 +1071,7 @@ module Cleanup = struct
 				if_or_op e e1 e2 e3;
 			| TUnop((Increment | Decrement),_,e1) when (match (Texpr.skip e1).eexpr with TConst _ -> true | _ -> false) ->
 				loop e1
-			| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
+			| TCall({eexpr = TIdent s},_) when is_really_unbound s ->
 				e
 			| TBlock el ->
 				let el = List.map (fun e ->
@@ -970,6 +1103,10 @@ module Cleanup = struct
 					| _ ->
 						{e with eexpr = TWhile(e1,e2,NormalWhile)}
 				end
+			| TField(e1,(FAnon {cf_name = s} | FDynamic s)) ->
+				let e1 = loop e1 in
+				let fa = quick_field_dynamic e1.etype s in
+				{e with eexpr = TField(e1,fa)}
 			| TField({eexpr = TTypeExpr _},_) ->
 				e
 			| TTypeExpr (TClassDecl c) ->
@@ -978,7 +1115,15 @@ module Cleanup = struct
 			| _ ->
 				Type.map_expr loop e
 		in
-		loop e
+		let e = loop e in
+		let rec loop kind e = match kind,e.eexpr with
+			| KRead,TField(e1,FClosure(Some(c,tl),cf)) ->
+				let e1 = loop KAccess e1 in
+				{e with eexpr = TField(e1,FInstance(c,tl,cf))}
+			| _ ->
+				TexprKindMapper.map kind loop e
+		in
+		TexprKindMapper.map KRead loop e
 end
 
 module Purity = struct
@@ -1079,7 +1224,7 @@ module Purity = struct
 					| _ ->
 						taint_raise node (* Can that even happen? *)
 				end
-			| TCall({eexpr = TLocal v},el) when not (is_unbound_call_that_might_have_side_effects v el) ->
+			| TCall({eexpr = TIdent s},el) when not (is_unbound_call_that_might_have_side_effects s el) ->
 				List.iter loop el;
 			| TCall _ ->
 				taint_raise node

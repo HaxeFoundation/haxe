@@ -143,6 +143,24 @@ class Boot {
 	}
 
 	/**
+		Returns a list of currently loaded haxe-generated classes.
+	**/
+	public static function getRegisteredClasses():Array<Class<Dynamic>> {
+		var result = [];
+		Syntax.foreach(aliases, function(phpName, haxeName) {
+			result.push(cast getClass(phpName));
+		});
+		return result;
+	}
+
+	/**
+		Returns a list of phpName=>haxeName for currently loaded haxe-generated classes.
+	**/
+	public static function getRegisteredAliases():NativeAssocArray<String> {
+		return aliases;
+	}
+
+	/**
 		Get Class<T> instance for PHP fully qualified class name (E.g. '\some\pack\MyClass')
 		It's always the same instance for the same `phpClassName`
 	**/
@@ -254,6 +272,13 @@ class Boot {
 	}
 
 	/**
+		Unsafe cast to HxClass
+	**/
+	public static inline function castClass(cls:Class<Dynamic>) : HxClass {
+		return cast cls;
+	}
+
+	/**
 		Returns `Class<T>` for `HxClosure`
 	**/
 	public static inline function closureHxClass() : HxClass {
@@ -341,7 +366,7 @@ class Boot {
 				return value.__toString();
 			}
 			if (Std.is(value, StdClass)) {
-				if (value.toString.isset() && value.toString.is_callable()) {
+				if (Global.isset(Syntax.getField(value, 'toString')) && value.toString.is_callable()) {
 					return value.toString();
 				}
 				var result = new NativeIndexedArray<String>();
@@ -493,8 +518,25 @@ class Boot {
 	/**
 		Make sure specified class is loaded
 	**/
-	static public inline function ensureLoaded(phpClassName:String ) : Bool {
+	static public inline function ensureLoaded( phpClassName:String ) : Bool {
 		return Global.class_exists(phpClassName) || Global.interface_exists(phpClassName);
+	}
+
+	/**
+		Get `field` of a dynamic `value` in a safe manner (avoid exceptions on trying to get a method)
+	**/
+	static public function dynamicField( value:Dynamic, field:String ) : Dynamic {
+		if(Global.method_exists(value, field)) {
+			return closure(value, field);
+		}
+		if(Global.is_string(value)) {
+			value = @:privateAccess new HxDynamicStr(value);
+		}
+		return Syntax.getField(value, field);
+	}
+
+	public static function dynamicString( str:String ) : HxDynamicStr {
+		return @:privateAccess new HxDynamicStr(str);
 	}
 }
 
@@ -517,7 +559,7 @@ private class HxClass {
 	**/
 	@:phpMagic
 	function __call( method:String, args:NativeArray ) : Dynamic {
-		var callback = phpClassName + '::' + method;
+		var callback = (phpClassName == 'String' ? (cast HxString:HxClass).phpClassName : phpClassName) + '::' + method;
 		return Global.call_user_func_array(callback, args);
 	}
 
@@ -700,13 +742,14 @@ private class HxString {
 }
 
 /**
-	For Dynamic access which looks like String
+	For Dynamic access which looks like String.
+	Instances of this class should not be saved anywhere.
+	Instead it should be used to immediately invoke a String field right after instance creation one time only.
 **/
 @:dox(hide)
 @:keep
-private class HxDynamicStr {
+private class HxDynamicStr extends HxClosure {
 	static var hxString : String = (cast HxString:HxClass).phpClassName;
-	var str : String;
 
 	/**
 		Returns HxDynamicStr instance if `value` is a string.
@@ -720,33 +763,57 @@ private class HxDynamicStr {
 		}
 	}
 
+	static inline function invoke( str:String, method:String, args:NativeArray ) : Dynamic {
+		Global.array_unshift(args, str);
+		return Global.call_user_func_array(hxString + '::' + method, args);
+	}
+
 	function new( str:String ) {
-		this.str = str;
+		super(str, null);
 	}
 
 	@:phpMagic
 	function __get( field:String ) : Dynamic {
 		switch (field) {
-			case 'length':      return str.length;
-			case 'toUpperCase': return HxString.toUpperCase.bind(str);
-			case 'toLowerCase': return HxString.toLowerCase.bind(str);
-			case 'charAt':      return HxString.charAt.bind(str);
-			case 'indexOf':     return HxString.indexOf.bind(str);
-			case 'lastIndexOf': return HxString.lastIndexOf.bind(str);
-			case 'split':       return HxString.split.bind(str);
-			case 'toString':    return HxString.toString.bind(str);
-			case 'substring':   return HxString.substring.bind(str);
-			case 'substr':      return HxString.substr.bind(str);
-			case 'charCodeAt':  return HxString.charCodeAt.bind(str);
+			case 'length':
+				return (target:String).length;
+			case _:
+				func = field;
+				return this;
 		}
-		/** Force invalid field access error */
-		return Syntax.getField(str, field);
 	}
 
 	@:phpMagic
 	function __call( method:String, args:NativeArray ) : Dynamic {
-		Global.array_unshift(args, str);
-		return Global.call_user_func_array(hxString + '::' + method, args);
+		return invoke(target, method, args);
+	}
+
+	/**
+		@see http://php.net/manual/en/language.oop5.magic.php#object.invoke
+	**/
+	@:phpMagic
+	override public function __invoke() {
+		return invoke(target, func, Global.func_get_args());
+	}
+
+	/**
+		Generates callable value for PHP
+	**/
+	override public function getCallback(eThis:Dynamic = null) : NativeIndexedArray<Dynamic> {
+		if (eThis == null) {
+			return Syntax.arrayDecl((this:Dynamic), func);
+		}
+		return Syntax.arrayDecl((new HxDynamicStr(eThis):Dynamic), func);
+	}
+
+	/**
+		Invoke this closure with `newThis` instead of `this`
+	**/
+	override public function callWith( newThis:Dynamic, args:NativeArray ) : Dynamic {
+		if (newThis == null) {
+			newThis = target;
+		}
+		return invoke(newThis, func, args);
 	}
 }
 

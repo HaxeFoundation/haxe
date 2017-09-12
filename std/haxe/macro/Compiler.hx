@@ -47,13 +47,13 @@ class Compiler {
 		return macro $v{haxe.macro.Context.definedValue(key)};
 	}
 
-#if (neko || (macro && hl))
+#if (neko || (macro && hl) || (macro && eval))
 
 	static var ident = ~/^[A-Za-z_][A-Za-z0-9_]*$/;
 	static var path = ~/^[A-Za-z_][A-Za-z0-9_.]*$/;
 
 	public static function allowPackage( v : String ) {
-		#if neko
+		#if (neko || eval)
 		load("allow_package", 1)(v);
 		#end
 	}
@@ -62,12 +62,12 @@ class Compiler {
 		Set a conditional compiler flag.
 	**/
 	public static function define( flag : String, ?value : String ) {
-		#if neko
+		#if (neko || eval)
 		load("define", 2)(flag,value);
 		#end
 	}
 
-	#if !neko
+	#if (!neko && !eval)
 	private static function typePatch( cl : String, f : String, stat : Bool, t : String ) {
 	}
 	private static function metaPatch( meta : String, cl : String, f : String, stat : Bool ) {
@@ -83,7 +83,7 @@ class Compiler {
 	public static function removeField( className : String, field : String, ?isStatic : Bool ) {
 		if( !path.match(className) ) throw "Invalid "+className;
 		if( !ident.match(field) ) throw "Invalid " + field;
-		#if neko
+		#if (neko || eval)
 		load("type_patch", 4)(className, field, isStatic == true, null);
 		#else
 		typePatch(className, field, isStatic == true, null);
@@ -97,7 +97,7 @@ class Compiler {
 	public static function setFieldType( className : String, field : String, type : String, ?isStatic : Bool ) {
 		if( !path.match(className) ) throw "Invalid "+className;
 		if( !ident.match((field.charAt(0) == "$") ? field.substr(1) : field) ) throw "Invalid "+field;
-		#if neko
+		#if (neko || eval)
 		load("type_patch", 4)(className, field, isStatic == true, type);
 		#else
 		typePatch(className, field, isStatic == true, type);
@@ -111,7 +111,7 @@ class Compiler {
 	public static function addMetadata( meta : String, className : String, ?field : String, ?isStatic : Bool ) {
 		if( !path.match(className) ) throw "Invalid "+className;
 		if( field != null && !ident.match(field) ) throw "Invalid "+field;
-		#if neko
+		#if (neko || eval)
 		load("meta_patch", 4)(meta, className, field, isStatic == true);
 		#else
 		metaPatch(meta, className, field, isStatic == true);
@@ -119,13 +119,13 @@ class Compiler {
 	}
 
 	public static function addClassPath( path : String ) {
-		#if neko
+		#if (neko || eval)
 		load("add_class_path", 1)(path);
 		#end
 	}
 
 	public static function getOutput() : String {
-		#if neko
+		#if (neko || eval)
 		return load("get_output", 0)();
 		#else
 		return null;
@@ -133,13 +133,13 @@ class Compiler {
 	}
 
 	public static function setOutput( fileOrDir : String ) {
-		#if neko
+		#if (neko || eval)
 		load("set_output", 1)(fileOrDir);
 		#end
 	}
 
 	public static function getDisplayPos() : Null<{ file : String, pos : Int }> {
-		#if neko
+		#if (neko || eval)
 		return load("get_display_pos", 0)();
 		#else
 		return null;
@@ -150,7 +150,7 @@ class Compiler {
 		Adds a native library depending on the platform (e.g. `-swf-lib` for Flash).
 	**/
 	public static function addNativeLib( name : String ) {
-		#if neko
+		#if (neko || eval)
 		load("add_native_lib", 1)(name);
 		#end
 	}
@@ -159,7 +159,7 @@ class Compiler {
 		Adds an argument to be passed to the native compiler (e.g. `-javac-arg` for Java).
 	 **/
 	public static function addNativeArg( argument : String ) {
-		#if neko
+		#if (neko || eval)
 		load("add_native_arg", 1)(argument);
 		#end
 	}
@@ -384,7 +384,7 @@ class Compiler {
 		through `Context.getType`.
 	**/
 	public static function addGlobalMetadata(pathFilter:String, meta:String, ?recursive:Bool = true, ?toTypes:Bool = true, ?toFields:Bool = false) {
-		#if neko
+		#if (neko || eval)
 		load("add_global_metadata_impl", 5)(pathFilter, meta, recursive, toTypes, toFields);
 		#else
 		addGlobalMetadataImpl(pathFilter, meta, recursive, toTypes, toFields);
@@ -395,12 +395,12 @@ class Compiler {
 		Change the default JS output by using a custom generator callback
 	**/
 	public static function setCustomJSGenerator( callb : JSGenApi -> Void ) {
-		#if neko
+		#if (neko || eval)
 		load("set_custom_js_generator", 1)(callb);
 		#end
 	}
 
-	#if neko
+	#if (neko || eval)
 	static inline function load( f, nargs ) : Dynamic {
 		return @:privateAccess Context.load(f, nargs);
 	}
@@ -410,7 +410,7 @@ class Compiler {
 
 	#if (js || lua || macro)
 	/**
-		Embed a JavaScript file at compile time (can be called by `--macro` or within an `__init__` method).
+		Embed a JavaScript or Lua file at compile time (can be called by `--macro` or within an `__init__` method).
 	**/
 	public static #if !macro macro #end function includeFile( file : String, position:IncludePosition = Top ) {
 		return switch ((position:String).toLowerCase()) {
@@ -420,7 +420,8 @@ class Compiler {
 
 				var f = try sys.io.File.getContent(Context.resolvePath(file)) catch( e : Dynamic ) Context.error(Std.string(e), Context.currentPos());
 				var p = Context.currentPos();
-				{ expr : EUntyped( { expr : ECall( { expr : EConst(CIdent("__js__")), pos : p }, [ { expr : EConst(CString(f)), pos : p } ]), pos : p } ), pos : p };
+				var magic = if (Context.defined("js")) "__js__" else "__lua__";
+				{ expr : EUntyped( { expr : ECall( { expr : EConst(CIdent(magic)), pos : p }, [ { expr : EConst(CString(f)), pos : p } ]), pos : p } ), pos : p };
 			case Top | Closure:
 				@:privateAccess Context.includeFile(file, position);
 				macro {};

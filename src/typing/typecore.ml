@@ -210,11 +210,6 @@ let add_local ctx n t p =
 	ctx.locals <- PMap.add n v ctx.locals;
 	v
 
-let add_unbound_local ctx n t p =
-	let v = add_local ctx n t p in
-	v.v_meta <- (Meta.Unbound,[],null_pos) :: v.v_meta;
-	v
-
 let gen_local_prefix = "`"
 
 let gen_local ctx t p =
@@ -273,14 +268,18 @@ let make_pass ctx f = f
 let init_class_done ctx =
 	ctx.pass <- PTypeField
 
-let exc_protect ctx f (where:string) =
-	let rec r = ref (fun() ->
+let exc_protect ?(force=true) ctx f (where:string) =
+	let r = ref (lazy_available t_dynamic) in
+	r := lazy_wait (fun() ->
 		try
-			f r
+			let t = f r in
+			r := lazy_available t;
+			t
 		with
 			| Error (m,p) ->
 				raise (Fatal_error ((error_msg m),p))
-	) in
+	);
+	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
 
 let fake_modules = Hashtbl.create 0
@@ -617,7 +616,7 @@ let context_ident ctx =
 		"  out "
 
 let debug ctx str =
-	if Common.raw_defined ctx.com "cdebug" then prerr_endline (context_ident ctx ^ !delay_tabs ^ str)
+	if Common.raw_defined ctx.com "cdebug" then print_endline (context_ident ctx ^ string_of_int (String.length !delay_tabs) ^ " " ^ !delay_tabs ^ str)
 
 let init_class_done ctx =
 	debug ctx ("init_class_done " ^ s_type_path ctx.curclass.cl_path);
@@ -648,6 +647,19 @@ let delay ctx p f =
 	in
 	ctx.g.debug_delayed <- loop ctx.g.debug_delayed;
 	debug ctx ("add " ^ inf)
+
+let delay_late ctx p f =
+	let inf = pass_infos ctx p in
+	let rec loop = function
+		| [] -> [p,[f,inf,ctx]]
+		| (p2,l) :: rest ->
+			if p2 <= p then
+				(p2,l) :: loop rest
+			else
+				(p,[f,inf,ctx]) :: (p2,l) :: rest
+	in
+	ctx.g.debug_delayed <- loop ctx.g.debug_delayed;
+	debug ctx ("add late " ^ inf)
 
 let pending_passes ctx =
 	let rec loop acc = function
@@ -713,15 +725,18 @@ let rec flush_pass ctx p where =
 let make_where ctx where =
 	where ^ " (" ^ ctx_pos ctx ^ ")"
 
-let exc_protect ctx f (where:string) =
-	let f = make_pass ~inf:(make_where ctx where) ctx f in
-	let rec r = ref (fun() ->
+let exc_protect ?(force=true) ctx f (where:string) =
+	let r = ref (lazy_available t_dynamic) in
+	r := lazy_wait (make_pass ~inf:(make_where ctx where) ctx (fun() ->
 		try
-			f r
+			let t = f r in
+			r := lazy_available t;
+			t
 		with
 			| Error (m,p) ->
-				raise (Fatal_error (error_msg m,p))
-	) in
+				raise (Fatal_error ((error_msg m),p))
+	));
+	if force then delay ctx PForce (fun () -> ignore(lazy_type r));
 	r
 
 */*)

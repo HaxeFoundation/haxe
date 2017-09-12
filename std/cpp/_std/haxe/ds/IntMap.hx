@@ -22,28 +22,33 @@
 package haxe.ds;
 
 @:headerClassCode("
-  inline void set(int key, ::null value) { __int_hash_set(h,key,value); }
-  inline void set(int key, bool value) { __int_hash_set(h,key,value); }
-  inline void set(int key, char value) { __int_hash_set_int(h,key,value); }
-  inline void set(int key, unsigned char value) { __int_hash_set_int(h,key,value); }
-  inline void set(int key, signed char value) { __int_hash_set_int(h,key,value); }
-  inline void set(int key, short value) { __int_hash_set_int(h,key,value); }
-  inline void set(int key, unsigned short value) { __int_hash_set_int(h,key,value); }
-  inline void set(int key, int value) { __int_hash_set_int(h,key,value); }
-  inline void set(int key, unsigned int value) { __int_hash_set_int(h,key,value); }
-  inline void set(int key, float value) { __int_hash_set_float(h,key,value); }
-  inline void set(int key, double value) { __int_hash_set_float(h,key,value); }
-  inline void set(int key, ::String value) { __int_hash_set_string(h,key,value); }
+  inline void set(int key, ::null value) { __int_hash_set(HX_MAP_THIS,key,value); }
+  inline void set(int key, bool value) { __int_hash_set(HX_MAP_THIS,key,value); }
+  inline void set(int key, char value) { __int_hash_set_int(HX_MAP_THIS,key,value); }
+  inline void set(int key, unsigned char value) { __int_hash_set_int(HX_MAP_THIS,key,value); }
+  inline void set(int key, signed char value) { __int_hash_set_int(HX_MAP_THIS,key,value); }
+  inline void set(int key, short value) { __int_hash_set_int(HX_MAP_THIS,key,value); }
+  inline void set(int key, unsigned short value) { __int_hash_set_int(HX_MAP_THIS,key,value); }
+  inline void set(int key, int value) { __int_hash_set_int(HX_MAP_THIS,key,value); }
+  inline void set(int key, unsigned int value) { __int_hash_set_int(HX_MAP_THIS,key,value); }
+  inline void set(int key, float value) { __int_hash_set_float(HX_MAP_THIS,key,value); }
+  inline void set(int key, double value) { __int_hash_set_float(HX_MAP_THIS,key,value); }
+  inline void set(int key, ::String value) { __int_hash_set_string(HX_MAP_THIS,key,value); }
 
   template<typename V, typename H>
-  inline void set(int key, const ::cpp::Struct<V,H> &value) {__int_hash_set(h,key,value); }
+  inline void set(int key, const ::cpp::Struct<V,H> &value) {__int_hash_set(HX_MAP_THIS,key,value); }
   template<typename F>
-  inline void set(int key, const ::cpp::Function<F> &value) {__int_hash_set(h,key,value); }
+  inline void set(int key, const ::cpp::Function<F> &value) {__int_hash_set(HX_MAP_THIS,key,value); }
   template<typename V>
-  inline void set(int key, const ::cpp::Pointer<V> &value) {__int_hash_set(h,key,(Dynamic)value ); }
+  inline void set(int key, const ::cpp::Pointer<V> &value) {__int_hash_set(HX_MAP_THIS,key,(Dynamic)value ); }
 
   template<typename VALUE>
   inline void set(Dynamic &key, const VALUE &value) { set( (int)key, value ); }
+
+  inline bool get_bool(int key) { return __int_hash_get_bool(h,key); }
+  inline int get_int(int key) { return __int_hash_get_int(h,key); }
+  inline Float get_float(int key) { return __int_hash_get_float(h,key); }
+  inline String get_string(int key) { return __int_hash_get_string(h,key); }
 ")
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 
@@ -53,7 +58,7 @@ package haxe.ds;
 	public function new() : Void { }
 
 	public function set( key : Int, value : T ) : Void {
-		untyped __global__.__int_hash_set(h,key,value);
+		untyped __global__.__int_hash_set(__cpp__("HX_MAP_THIS"),key,value);
 	}
 
 	public function get( key : Int ) : Null<T> {
@@ -77,8 +82,26 @@ package haxe.ds;
 		var a:Array<Dynamic> = untyped __global__.__int_hash_values(h);
 		return a.iterator();
 	}
+	
+	public function copy() : IntMap<T> {
+		var copied = new IntMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	public function toString() : String {
 		return untyped __global__.__int_hash_to_string(h);
 	}
+
+   #if (scriptable)
+   private function setString(key:Int,val:String) : Void { untyped __int_hash_set_string(__cpp__("HX_MAP_THIS"),key,val); }
+   private function setInt(key:Int,val:Int) : Void { untyped __int_hash_set_int(__cpp__("HX_MAP_THIS"),key,val); }
+   private function setBool(key:Int,val:Bool) : Void { untyped __int_hash_set_int(__cpp__("HX_MAP_THIS"),key,val); }
+   private function setFloat(key:Int,val:Float) : Void { untyped __int_hash_set_float(__cpp__("HX_MAP_THIS"),key,val); }
+
+   private function getString(key:Int) : String { return untyped __int_hash_get_string(h,key); }
+   private function getInt(key:Int) : Int { return untyped __int_hash_get_int(h,key); }
+   private function getBool(key:Int) : Bool { return untyped __int_hash_get_bool(h,key); }
+   private function getFloat(key:Int) : Float { return untyped __int_hash_get_float(h,key); }
+   #end
 }

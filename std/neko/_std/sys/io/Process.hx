@@ -92,7 +92,8 @@ private class Stdout extends haxe.io.Input {
 	public var stderr(default,null) : haxe.io.Input;
 	public var stdin(default,null) : haxe.io.Output;
 
-	public function new( cmd : String, ?args : Array<String> ) : Void {
+	public function new( cmd : String, ?args : Array<String>, ?detached : Bool ) : Void {
+		if( detached ) throw "Detached process is not supported on this platform";
 		p = try 
 			_run(untyped cmd.__s, neko.Lib.haxeToNeko(args))
 		catch( e : Dynamic )

@@ -48,9 +48,11 @@ extern class Process {
 		 2. When `args` is not given or is `null`, command arguments can be appended to `cmd`. No automatic quoting/escaping will be performed. `cmd` should be formatted exactly as it would be when typed at the command line.
 		It can run executables, as well as shell commands that are not executables (e.g. on Windows: `dir`, `cd`, `echo` etc).
 
+		`detached` allows the created process to be standalone. You cannot communicate with it but you can look at its exit code.
+		
 		`close()` should be called when the `Process` is no longer used.
 	*/
-	function new( cmd : String, ?args : Array<String> ) : Void;
+	function new( cmd : String, ?args : Array<String>, ?detached : Bool ) : Void;
 
 	/**
 		Return the process ID.

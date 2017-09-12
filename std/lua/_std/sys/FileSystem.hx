@@ -26,7 +26,7 @@ import lua.Os;
 import lua.Lib;
 import lua.Table;
 import haxe.io.Path;
-typedef LFileSystem = lua.lib.luv.fs.FileSystem;
+import lua.lib.luv.fs.FileSystem as LFileSystem;
 
 class FileSystem {
 	public static function exists( path : String ) : Bool {
@@ -107,7 +107,7 @@ class FileSystem {
 		}
 	}
 
-	public inline static function createDirectory( path : String ) : Void {
+	public static function createDirectory( path : String ) : Void {
 
 		var path = haxe.io.Path.addTrailingSlash(path);
 		var _p = null;

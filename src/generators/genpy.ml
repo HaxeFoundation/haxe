@@ -27,7 +27,7 @@ module Utils = struct
 	let class_of_module_type mt = match mt with
 		| TClassDecl c -> c
 		| _ -> failwith ("Not a class: " ^ (s_type_path (t_infos mt).mt_path))
-	
+
 	let find_type com path =
 		try
 			List.find (fun mt -> match mt with
@@ -713,6 +713,10 @@ module Transformer = struct
 			let e1 = trans true [] e1 in
 			let p = { ae.a_expr with eexpr = TEnumParameter(e1.a_expr,ef,i)} in
 			lift true e1.a_blocks p
+		| (_, TEnumIndex e1) ->
+			let e1 = trans true [] e1 in
+			let p = { ae.a_expr with eexpr = TEnumIndex e1.a_expr } in
+			lift true e1.a_blocks p
 		| (true, TIf(econd, eif, eelse)) ->
 			(let econd1 = trans true [] econd in
 			let eif1 = trans true [] eif in
@@ -846,13 +850,6 @@ module Transformer = struct
 		| (is_value, TBinop(OpAssignOp op,{eexpr = TField(e1,FDynamic s); etype = t},e2)) ->
 			let e = dynamic_field_read_write ae.a_next_id e1 s op e2 t in
 			transform_expr ~is_value:is_value e
-		(*
-		| (is_value, TField(e1, FClosure(Some ({cl_path = [],("str")},_),cf))) ->
-
-		| (is_value, TField(e1, FClosure(Some ({cl_path = [],("list")},_),cf))) ->
-			let e = dynamic_field_read e1 cf.cf_name ae.a_expr.etype in
-			transform_expr ~is_value:is_value e
-		*)
 		| (is_value, TBinop(OpAssign, left, right))->
 			(let left = trans true [] left in
 			let right = trans true [] right in
@@ -954,7 +951,7 @@ module Transformer = struct
 			let f = exprs_to_func (new_expr.a_blocks @ [new_expr.a_expr]) (ae.a_next_id()) ae in
 			lift_expr ~is_value:true ~blocks:f.a_blocks f.a_expr
 
-		| ( _, TBreak ) | ( _, TContinue ) ->
+		| ( _, TBreak ) | ( _, TContinue ) | ( _, TIdent _) ->
 			lift_expr a_expr
 
 	and transform e =
@@ -1056,7 +1053,7 @@ module Printer = struct
 		| OpShr -> ">>"
 		| OpUShr -> ">>"
 		| OpMod -> "%"
-		| OpInterval | OpArrow | OpAssignOp _ -> assert false
+		| OpInterval | OpArrow | OpIn | OpAssignOp _ -> assert false
 
 	let print_string s =
 		Printf.sprintf "\"%s\"" (Ast.s_escape s)
@@ -1196,6 +1193,8 @@ module Printer = struct
 				handle_keywords v.v_name
 			| TEnumParameter(e1,_,index) ->
 				Printf.sprintf "%s.params[%i]" (print_expr pctx e1) index
+			| TEnumIndex e1 ->
+				Printf.sprintf "%s.index" (print_expr pctx e1)
 			| TArray(e1,e2) when (is_type1 "" "list")(e1.etype) || is_underlying_array e1.etype ->
 				print_tarray_list pctx e1 e2
 			| TArray({etype = t} as e1,e2) when is_anon_or_dynamic t ->
@@ -1214,7 +1213,7 @@ module Printer = struct
 				Printf.sprintf "%s = %s" (print_expr pctx e1) (print_expr pctx (remove_outer_parens e2))
 			| TBinop(op,e1,({eexpr = TBinop(_,_,_)} as e2)) ->
 				print_expr pctx { e with eexpr = TBinop(op, e1, { e2 with eexpr = TParenthesis(e2) })}
-			| TBinop(OpEq,{eexpr = TCall({eexpr = TLocal {v_name = "__typeof__"}},[e1])},e2) ->
+			| TBinop(OpEq,{eexpr = TCall({eexpr = TIdent "__typeof__"},[e1])},e2) ->
 				begin match e2.eexpr with
 					| TConst(TString s) ->
 						begin match s with
@@ -1264,7 +1263,9 @@ module Printer = struct
 					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2)
 				| TDynamic _, TDynamic _ ->
 					Printf.sprintf "%s(%s,%s)" (third ops) (print_expr pctx e1) (print_expr pctx e2)
-				| TDynamic _, x | x, TDynamic _ when is_list_or_anon x ->
+				| TDynamic _, x when is_list_or_anon x ->
+					Printf.sprintf "%s(%s,%s)" (third ops) (print_expr pctx e1) (print_expr pctx e2)
+				| x, TDynamic _ when is_list_or_anon x ->
 					Printf.sprintf "%s(%s,%s)" (third ops) (print_expr pctx e1) (print_expr pctx e2)
 				| _,_ -> Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (snd ops) (print_expr pctx e2))
 			| TBinop(OpMod,e1,e2) when (is_type1 "" "Int")(e1.etype) && (is_type1 "" "Int")(e2.etype) ->
@@ -1380,6 +1381,8 @@ module Printer = struct
 				Printf.sprintf "(%s if %s else %s)" (print_expr pctx eif) (print_expr pctx econd) (print_expr pctx eelse)
 			| TMeta(_,e1) ->
 				print_expr pctx e1
+			| TIdent s ->
+				s
 			| TSwitch _ | TCast(_, Some _) | TFor _ | TUnop(_,Postfix,_) ->
 				assert false
 
@@ -1427,14 +1430,14 @@ module Printer = struct
 				Printf.sprintf "HxString.fromCharCode"
 			| FStatic({cl_path = ["python";"internal"],"UBuiltins"},{cf_name = s}) ->
 				s
-			| FClosure (Some(c,cf),_)  when call_override(name) && ((is_type "" "list")(TClassDecl c)) ->
-				Printf.sprintf "_hx_partial(python_internal_ArrayImpl.%s, %s)" name obj
-			| FInstance (c,_,cf) when call_override(name) && ((is_type "" "list")(TClassDecl c)) ->
-				Printf.sprintf "_hx_partial(python_internal_ArrayImpl.%s, %s)" name obj
-			| FClosure (Some(c,cf),_)  when call_override(name) && ((is_type "" "str")(TClassDecl c)) ->
-				Printf.sprintf "_hx_partial(HxString.%s, %s)" name obj
-			| FInstance (c,_,cf) when call_override(name) && ((is_type "" "str")(TClassDecl c)) ->
-				Printf.sprintf "_hx_partial(HxString.%s, %s)" name obj
+			| FClosure (Some(c,cf),_) when ((is_type "" "list")(TClassDecl c)) ->
+				Printf.sprintf "python_Boot.createClosure(%s, python_internal_ArrayImpl.%s)" obj name
+			| FClosure (Some(c,cf),_) when ((is_type "" "str")(TClassDecl c)) ->
+				Printf.sprintf "python_Boot.createClosure(%s, HxString.%s)" obj name
+			| FInstance (c,_,cf) when ((is_type "" "list")(TClassDecl c)) ->
+				Printf.sprintf "python_Boot.createClosure(%s, python_internal_ArrayImpl.%s)" obj name
+			| FInstance (c,_,cf) when ((is_type "" "str")(TClassDecl c)) ->
+				Printf.sprintf "python_Boot.createClosure(%s, HxString.%s)" obj name
 			| FInstance _ | FStatic _ ->
 				do_default ()
 			| FAnon cf when is_assign && call_override(name) ->
@@ -1519,35 +1522,14 @@ module Printer = struct
 				let s_el = (print_call_args pctx e1 el) in
 				Printf.sprintf "super().__init__(%s)" s_el
 			| ("python_Syntax._pythonCode"),[({ eexpr = TConst (TString code) } as ecode); {eexpr = TArrayDecl tl}] ->
-				let exprs = Array.of_list tl in
-				let i = ref 0 in
-				let err msg =
-					let pos = { ecode.epos with pmin = ecode.epos.pmin + !i } in
-					abort msg pos
+				let buf = Buffer.create 0 in
+				let interpolate () =
+					Codegen.interpolate_code pctx.pc_com code tl (Buffer.add_string buf) (fun e -> Buffer.add_string buf (print_expr pctx e)) ecode.epos
 				in
-				let regex = Str.regexp "[{}]" in
-				let rec loop m = match m with
-					| [] -> ""
-					| Str.Text txt :: tl ->
-						i := !i + String.length txt;
-						txt ^ (loop tl)
-					| Str.Delim a :: Str.Delim b :: tl when a = b ->
-						i := !i + 2;
-						a ^ (loop tl)
-					| Str.Delim "{" :: Str.Text n :: Str.Delim "}" :: tl ->
-						(try
-						let expr = Array.get exprs (int_of_string n) in
-						let txt = print_expr pctx expr in
-						i := !i + 2 + String.length n;
-						txt ^ (loop tl)
-					with | Failure "int_of_string" ->
-						err ("Index expected. Got " ^ n)
-					| Invalid_argument _ ->
-						err ("Out-of-bounds pythonCode special parameter: " ^ n))
-					| Str.Delim x :: _ ->
-						err ("Unexpected " ^ x)
-				in
-				loop (Str.full_split regex code)
+				let old = pctx.pc_com.error in
+				pctx.pc_com.error <- abort;
+				Std.finally (fun() -> pctx.pc_com.error <- old) interpolate ();
+				Buffer.contents buf
 			| ("python_Syntax._pythonCode"), [e] ->
 				print_expr pctx e
 			| "python_Syntax._callNamedUntyped",el ->
@@ -1627,7 +1609,7 @@ module Printer = struct
 			PMap.foldi fold_dict native_fields ""
 		in
 		match e1.eexpr, el with
-			| TLocal { v_name = "`trace" }, [e;infos] ->
+			| TIdent "`trace", [e;infos] ->
 				if has_feature pctx "haxe.Log.trace" then begin
 					"haxe_Log.trace(" ^ (print_expr pctx e) ^ "," ^ (print_expr pctx infos) ^ ")"
 				end else if is_safe_string pctx e then
@@ -1784,7 +1766,7 @@ module Generator = struct
 			match cf.cf_kind with
 				| Var({v_read = AccResolve}) ->
 					()
-				| Var _ when is_extern_field cf ->
+				| Var _ when not (is_physical_field cf) ->
 					()
 				| Var({v_read = AccCall}) ->
 					if Meta.has Meta.IsVar cf.cf_meta then
@@ -1805,7 +1787,7 @@ module Generator = struct
 	let collect_class_statics_data cfl =
 		let fields = DynArray.create () in
 		List.iter (fun cf ->
-			if not (is_extern_field cf) then
+			if is_physical_field cf then
 				DynArray.add fields cf.cf_name
 		) cfl;
 		DynArray.to_list fields
@@ -1815,7 +1797,7 @@ module Generator = struct
 
 	let get_members_with_init_expr c =
 		List.filter (fun cf -> match cf.cf_kind with
-			| Var _ when is_extern_field cf -> false
+			| Var _ when not (is_physical_field cf) -> false
 			| Var _ when cf.cf_expr = None -> true
 			| _ -> false
 		) c.cl_ordered_fields
@@ -2110,7 +2092,7 @@ module Generator = struct
 					let real_fields =
 						List.filter (fun f -> match f.cf_kind with
 							| Method MethDynamic -> raise Exit (* if a class has dynamic method, we can't use __slots__ because python will complain *)
-							| Var _ -> not (is_extern_field f)
+							| Var _ -> is_physical_field f
 							| _ -> false
 						) c.cl_ordered_fields
 					in
@@ -2255,32 +2237,7 @@ module Generator = struct
 		newline ctx;
 		let mt = (t_infos (TAbstractDecl a)) in
 		let p = get_path mt in
-		let p_name = get_full_name mt in
-		print ctx "class %s:" p;
-
-		let use_pass = ref true in
-
-		if has_feature ctx "python._hx_class_name" then begin
-			use_pass := false;
-			print ctx "\n    _hx_class_name = \"%s\"" p_name
-		end;
-
-		(match a.a_impl with
-		| Some c ->
-			List.iter (fun cf ->
-				use_pass := false;
-				if cf.cf_name = "_new" then
-					gen_class_constructor ctx c cf
-				else
-					gen_class_field ctx c p cf
-			) c.cl_ordered_statics
-		| None -> ());
-
-		if !use_pass then spr ctx "\n    pass";
-
-		if has_feature ctx "python._hx_class" then print ctx "\n%s._hx_class = %s" p p;
-		if has_feature ctx "python._hx_classes" then print ctx "\n_hx_classes[\"%s\"] = %s" p_name p
-
+		print ctx "class %s: pass" p
 
 	let gen_type ctx mt = match mt with
 		| TClassDecl c -> gen_class ctx c
@@ -2295,7 +2252,7 @@ module Generator = struct
 		| TAbstractDecl {a_path = [],"Dynamic"} when not (has_feature ctx "Dynamic.*") -> ()
 		| TAbstractDecl {a_path = [],"Bool"} when not (has_feature ctx "Bool.*") -> ()
 
-		| TAbstractDecl a when Meta.has Meta.CoreType a.a_meta -> gen_abstract ctx a
+		| TAbstractDecl a when Meta.has Meta.RuntimeValue a.a_meta -> gen_abstract ctx a
 		| _ -> ()
 
 	(* Generator parts *)

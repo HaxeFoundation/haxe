@@ -67,7 +67,7 @@ let mk_infos ctx p params =
 
 let check_assign ctx e =
 	match e.eexpr with
-	| TLocal {v_extra = None} | TArray _ | TField _ ->
+	| TLocal {v_extra = None} | TArray _ | TField _ | TIdent _ ->
 		()
 	| TConst TThis | TTypeExpr _ when ctx.untyped ->
 		()
@@ -170,11 +170,13 @@ let rec is_pos_infos = function
 		| Some t -> is_pos_infos t
 		| _ -> false)
 	| TLazy f ->
-		is_pos_infos (!f())
+		is_pos_infos (lazy_type f)
 	| TType ({ t_path = ["haxe"] , "PosInfos" },[]) ->
 		true
 	| TType (t,tl) ->
 		is_pos_infos (apply_params t.t_params tl t.t_type)
+	| TAbstract({a_path=[],"Null"},[t]) ->
+		is_pos_infos t
 	| _ ->
 		false
 
@@ -333,34 +335,6 @@ let prepare_using_field cf = match follow cf.cf_type with
 		{cf with cf_overloads = loop [] cf.cf_overloads; cf_type = TFun(args,ret)}
 	| _ -> cf
 
-let eval ctx s =
-	let p = { pfile = "--eval"; pmin = 0; pmax = String.length s; } in
-	let pack,decls = Parser.parse_string ctx.com s p error false in
-	let rec find_main current decls = match decls with
-		| (EClass c,_) :: decls ->
-			let path = pack,fst c.d_name in
-			begin try
-				let cff = List.find (fun cff -> fst cff.cff_name = "main") c.d_data in
-				if ctx.com.main_class <> None then error "Multiple main" cff.cff_pos;
-				ctx.com.main_class <- Some path;
-				Some path
-			with Not_found ->
-				find_main (if current = None then Some path else current) decls
-			end
-		| ((EEnum {d_name = (s,_)} | ETypedef {d_name = (s,_)} | EAbstract {d_name = (s,_)}),_) :: decls when current = None ->
-			find_main (Some (pack,s)) decls
-		| _ :: decls ->
-			find_main current decls
-		| [] ->
-			current
-	in
-	let path_module = match find_main None decls with
-		| None -> error "Evaluated string did not define any types" p
-		| Some path -> path
-	in
-	ignore(Typeload.type_module ctx path_module "eval" decls p);
-	flush_pass ctx PBuildClass "eval"
-
 let merge_core_doc ctx c =
 	let c_core = Typeload.load_core_class ctx c in
 	if c.cl_doc = None then c.cl_doc <- c_core.cl_doc;
@@ -405,7 +379,7 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 				loop (apply_params td.t_params pl td.t_type);
 				(* prioritize the most generic definition *)
 				tl := t :: !tl;
-			| TLazy f -> loop (!f())
+			| TLazy f -> loop (lazy_type f)
 			| TMono r -> (match !r with None -> () | Some t -> loop t)
 			| _ -> tl := t :: !tl)
 		in
@@ -1073,6 +1047,8 @@ let field_access ctx mode f fmode t e p =
 				AKExpr (mk (TField (e,FClosure (None,f))) t p)
 			else
 				normal()
+		| AccCall when ctx.in_display ->
+			normal()
 		| AccCall ->
 			let m = (match mode with MSet -> "set_" | _ -> "get_") ^ f.cf_name in
 			let is_abstract_this_access () = match e.eexpr,ctx.curfun with
@@ -1081,9 +1057,9 @@ let field_access ctx mode f fmode t e p =
 				| _ ->
 					false
 			in
-			if m = ctx.curfield.cf_name && (match e.eexpr with TConst TThis -> true | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
+			if m = ctx.curfield.cf_name && (match e.eexpr with TConst TThis -> true | TLocal v -> Option.map_default (fun vthis -> v == vthis) false ctx.vthis | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
 				let prefix = (match ctx.com.platform with Flash when Common.defined ctx.com Define.As3 -> "$" | _ -> "") in
-				if is_extern_field f then begin
+				if not (is_physical_field f) then begin
 					display_error ctx "This field cannot be accessed because it is not a real variable" p;
 					display_error ctx "Add @:isVar here to enable it" f.cf_pos;
 				end;
@@ -1423,6 +1399,7 @@ and type_field ?(resume=false) ctx e i p mode =
 	| TAnon a ->
 		(try
 			let f = PMap.find i a.a_fields in
+			if Meta.has Meta.Impl f.cf_meta && not (Meta.has Meta.Enum f.cf_meta) then display_error ctx "Cannot access non-static abstract field statically" p;
 			if not f.cf_public && not ctx.untyped then begin
 				match !(a.a_status) with
 				| Closed | Extend _ -> () (* always allow anon private fields access *)
@@ -1575,12 +1552,11 @@ and type_field ?(resume=false) ctx e i p mode =
 	| _ ->
 		try using_field ctx mode e i p with Not_found -> no_field()
 
-let type_bind ctx (e : texpr) params p =
-	let args,ret = match follow e.etype with TFun(args, ret) -> args, ret | _ -> error "First parameter of callback is not a function" p in
+let type_bind ctx (e : texpr) (args,ret) params p =
 	let vexpr v = mk (TLocal v) v.v_type p in
 	let acount = ref 0 in
 	let alloc_name n =
-		if n = "" || String.length n > 2 && not ctx.is_display_file then begin
+		if n = "" && not ctx.is_display_file then begin
 			incr acount;
 			"a" ^ string_of_int !acount;
 		end else
@@ -2159,7 +2135,8 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 		| KDyn , KInt | KDyn , KFloat | KDyn , KString -> ()
 		| KInt , KDyn | KFloat , KDyn | KString , KDyn -> ()
 		| KDyn , KDyn -> ()
-		| KParam _ , x | x , KParam _ when x <> KString && x <> KOther -> ()
+		| KParam _ , x when x <> KString && x <> KOther -> ()
+		| x , KParam _ when x <> KString && x <> KOther -> ()
 		| KAbstract _,_
 		| _,KAbstract _
 		| KDyn , KUnk
@@ -2189,6 +2166,8 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[e1;e2])) t p
 	| OpArrow ->
 		error "Unexpected =>" p
+	| OpIn ->
+		error "Unexpected in" p
 	| OpAssign
 	| OpAssignOp _ ->
 		assert false
@@ -2446,8 +2425,7 @@ and type_ident ctx i p mode =
 				AKExpr (mk (TConst TThis) ctx.tthis p)
 			else
 				let t = mk_mono() in
-				let v = alloc_unbound_var i t p in
-				AKExpr (mk (TLocal v) t p)
+				AKExpr ((mk (TIdent i)) t p)
 		end else begin
 			if ctx.curfun = FunStatic && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
 			begin try
@@ -2470,16 +2448,23 @@ and type_ident ctx i p mode =
 					| DMDiagnostics b when b || ctx.is_display_file ->
 						Display.ToplevelCollector.handle_unresolved_identifier ctx i p false;
 						let t = mk_mono() in
-						AKExpr (mk (TLocal (add_unbound_local ctx i t p)) t p)
+						AKExpr (mk (TIdent i) t p)
 					| _ ->
 						display_error ctx (error_msg err) p;
 						let t = mk_mono() in
-						AKExpr (mk (TLocal (add_unbound_local ctx i t p)) t p)
+						AKExpr (mk (TIdent i) t p)
 			end
 		end
 
 (* MORDOR *)
 and handle_efield ctx e p mode =
+	(*
+		given chain of fields as the `path` argument and an `access_mode->access_kind` getter for some starting expression as `e`,
+		return a new `access_mode->access_kind` getter for the whole field access chain.
+
+		if `resume` is true, `Not_found` will be raised if the first field in chain fails to resolve, in all other
+		cases, normal type errors will be raised if a field can't be accessed.
+	*)
 	let fields ?(resume=false) path e =
 		let resume = ref resume in
 		let force = ref false in
@@ -2493,50 +2478,61 @@ and handle_efield ctx e p mode =
 		if !force then ignore(e MCall); (* not necessarily a call, but prevent #2602 among others *)
 		e
 	in
+
+	(*
+		given a chain of identifiers (dot-path) represented as a list of (ident,starts_uppercase,pos) tuples,
+		resolve it into an `access_mode->access_kind` getter for the resolved expression
+	*)
 	let type_path path =
+		(*
+			this is an actual loop for processing a fully-qualified dot-path.
+			it relies on the fact that packages start with a lowercase letter, while modules and types
+			start with upper-case letters, so it processes path parts, accumulating lowercase package parts in `acc`,
+			until it encounters an upper-case part, which can mean either a module access or module's primary type access,
+			so it tries to figure out the type and and calls `fields` on it to resolve the rest of field access chain.
+		*)
 		let rec loop acc path =
 			match path with
-			| [] ->
-				(match List.rev acc with
-				| [] -> assert false
-				| (name,flag,p) :: path ->
-					try
-						fields path (type_ident ctx name p)
-					with
-						Error (Unknown_ident _,p2) as e when p = p2 ->
-							try
-								let path = ref [] in
-								let name , _ , _ = List.find (fun (name,flag,p) ->
-									if flag then
-										true
-									else begin
-										path := name :: !path;
-										false
-									end
-								) (List.rev acc) in
-								raise (Error (Module_not_found (List.rev !path,name),p))
-							with
-								Not_found ->
-									if ctx.in_display then raise (Parser.TypePath (List.map (fun (n,_,_) -> n) (List.rev acc),None,false));
-									raise e)
 			| (_,false,_) as x :: path ->
+				(* part starts with lowercase - it's a package part, add it the accumulator and proceed *)
 				loop (x :: acc) path
+
 			| (name,true,p) as x :: path ->
+				(* part starts with uppercase - it either points to a module or its main type *)
+
+				(* acc is contains all the package parts now, so extract package from them *)
 				let pack = List.rev_map (fun (x,_,_) -> x) acc in
+
+				(* default behaviour: try loading module's primary type (with the same name as module)
+				   and resolve the rest of the field chain against its statics, or the type itself
+				   if the rest of chain is empty *)
 				let def() =
 					try
 						let e = type_type ctx (pack,name) p in
 						fields path (fun _ -> AKExpr e)
 					with
 						Error (Module_not_found m,_) when m = (pack,name) ->
+							(* if it's not a module path after all, it could be an untyped field access that looks like
+							   a dot-path, e.g. `untyped __global__.String`, add the whole path to the accumulator and
+							   proceed to the untyped identifier resolution *)
 							loop ((List.rev path) @ x :: acc) []
 				in
-				match path with
+
+				(match path with
 				| (sname,true,p) :: path ->
+					(* next part starts with uppercase, meaning it can be either a module sub-type access
+					   or static field access for the primary module type, so we have to do some guessing here
+
+					   In this block, `name` is the first first-uppercase part (possibly a module name),
+					   and `sname` is the second first-uppsercase part (possibly a subtype name). *)
+
+					(* get static field by `sname` from a given type `t`, if `resume` is true - raise Not_found *)
 					let get_static resume t =
 						fields ~resume ((sname,true,p) :: path) (fun _ -> AKExpr (type_module_type ctx t None p))
 					in
-					let check_module m v =
+
+					(* try accessing subtype or main class static field by `sname` in given module with path `m` *)
+					let check_module m =
 						try
 							let md = Typeload.load_module ctx m p in
 							(* first look for existing subtype *)
@@ -2553,52 +2549,114 @@ and handle_efield ctx e p mode =
 						with Error (Module_not_found m2,_) when m = m2 ->
 							None
 					in
-					let rec loop pack =
-						match check_module (pack,name) sname with
-						| Some r -> r
-						| None ->
-							match List.rev pack with
-							| [] -> def()
-							| _ :: l -> loop (List.rev l)
-					in
+
 					(match pack with
 					| [] ->
+						(* if there's no package specified... *)
 						(try
+							(* first try getting a type by `name` in current module types and current imports
+							   and try accessing its static field by `sname` *)
 							let path_match t = snd (t_infos t).mt_path = name in
-							let t = try
-								List.find path_match ctx.m.curmod.m_types
-							with Not_found ->
-								let t,p = List.find (fun (t,_) -> path_match t) ctx.m.module_types in
-								Display.ImportHandling.maybe_mark_import_position ctx p;
-								t
+							let t =
+								try
+									List.find path_match ctx.m.curmod.m_types (* types in this modules *)
+								with Not_found ->
+									let t,p = List.find (fun (t,_) -> path_match t) ctx.m.module_types in (* imported types *)
+									Display.ImportHandling.maybe_mark_import_position ctx p;
+									t
 							in
-							(* if the static is not found, look for a subtype instead - #1916 *)
 							get_static true t
 						with Not_found ->
+							(* if the static field (or the type) wasn't not found, look for a subtype instead - #1916
+							   look for subtypes/main-class-statics in modules of current package and its parent packages *)
+							let rec loop pack =
+								match check_module (pack,name) with
+								| Some r -> r
+								| None ->
+									match List.rev pack with
+									| [] -> def()
+									| _ :: l -> loop (List.rev l)
+							in
 							loop (fst ctx.m.curmod.m_path))
 					| _ ->
-						match check_module (pack,name) sname with
+						(* if package was specified, treat it as fully-qualified access to either
+						   a module subtype or a static field of module's primary type*)
+						match check_module (pack,name) with
 						| Some r -> r
 						| None -> def());
-				| _ -> def()
+				| _ ->
+					(* no more parts or next part starts with lowercase - it's surely not a type name,
+					   so do the default thing: resolve fields against primary module type *)
+					def())
+
+			| [] ->
+				(* If we get to here, it means that either there were no uppercase-first-letter parts,
+				   or we couldn't find the specified module, so it's not a qualified dot-path after all.
+				   And it's not a known identifier too, because otherwise `loop` wouldn't be called at all.
+				   So this must be an untyped access (or a typo). Try resolving the first identifier with support
+				   for untyped and resolve the rest of field chain against it.
+
+				   TODO: extract this into a separate function
+				*)
+				(match List.rev acc with
+				| [] -> assert false
+				| (name,flag,p) :: path ->
+					try
+						fields path (type_ident ctx name p)
+					with
+						Error (Unknown_ident _,p2) as e when p = p2 ->
+							try
+								(* try raising a more sensible error if there was an uppercase-first (module name) part *)
+								let path = ref [] in
+								let name , _ , _ = List.find (fun (name,flag,p) ->
+									if flag then
+										true
+									else begin
+										path := name :: !path;
+										false
+									end
+								) (List.rev acc) in
+								raise (Error (Module_not_found (List.rev !path,name),p))
+							with
+								Not_found ->
+									(* if there was no module name part, last guess is that we're trying to get package completion *)
+									if ctx.in_display then raise (Parser.TypePath (List.map (fun (n,_,_) -> n) (List.rev acc),None,false));
+									raise e)
 		in
 		match path with
 		| [] -> assert false
 		| (name,_,p) :: pnext ->
 			try
+				(*
+					first, try to resolve the first ident in the chain and access its fields.
+					this doesn't support untyped identifiers yet, because we want to check
+					fully-qualified dot paths first even in an untyped block.
+				*)
 				fields pnext (fun _ -> type_ident_raise ctx name p MGet)
-			with
-				Not_found -> loop [] path
+			with Not_found ->
+				(* first ident couldn't be resolved, it's probably a fully qualified path - resolve it *)
+				loop [] path
 	in
-	let rec loop acc e =
-		let p = pos e in
-		match fst e with
+
+	(*
+		loop through the given EField expression and behave differently depending on whether it's a simple dot-path
+		or a more complex expression, accumulating field access parts in form of (ident,starts_uppercase,pos) tuples.
+
+		if it's a dot-path, then it might be either fully-qualified access (pack.Class.field) or normal field access of
+		a local/global/field identifier. we pass the accumulated path to `type_path` and let it figure out what it is.
+
+		if it's NOT a dot-path (anything other than indentifiers appears in EField chain), then we can be sure it's
+		normal field access, not fully-qualified access, so we pass the non-ident expr along with the accumulated
+		fields chain to the `fields` function and let it type the field access.
+	*)
+	let rec loop acc (e,p) =
+		match e with
 		| EField (e,s) ->
 			loop ((s,not (is_lower_ident s),p) :: acc) e
 		| EConst (Ident i) ->
 			type_path ((i,not (is_lower_ident i),p) :: acc)
 		| _ ->
-			fields acc (type_access ctx (fst e) (snd e))
+			fields acc (type_access ctx e p)
 	in
 	loop [] (e,p) mode
 
@@ -2702,7 +2760,7 @@ and type_vars ctx vl p =
 		with
 			Error (e,p) ->
 				check_error ctx e p;
-				add_unbound_local ctx v t_dynamic pv, None
+				add_local ctx v t_dynamic pv, None (* TODO: What to do with this... *)
 	) vl in
 	match vl with
 	| [v,eo] ->
@@ -2926,7 +2984,7 @@ and type_object_decl ctx fl with_type p =
 		mk (TObjectDecl (List.rev fields)) (TAnon { a_fields = types; a_status = x }) p
 	| ODKWithStructure a ->
 		let t, fl = type_fields a.a_fields in
-		if !(a.a_status) <> Const then a.a_status := Closed;
+		if !(a.a_status) = Opened then a.a_status := Closed;
 		mk (TObjectDecl fl) t p
 	| ODKWithClass (c,tl) ->
 		let t,ctor = get_constructor ctx c tl p in
@@ -3262,13 +3320,14 @@ and type_local_function ctx name f with_type p =
 	(match v with
 	| None -> e
 	| Some v ->
+		let open LocalUsage in
 		if params <> [] || inline then v.v_extra <- Some (params,if inline then Some e else None);
 		let rec loop = function
-			| Filters.Block f | Filters.Loop f | Filters.Function f -> f loop
-			| Filters.Use v2 | Filters.Assign v2 when v == v2 -> raise Exit
-			| Filters.Use _ | Filters.Assign _ | Filters.Declare _ -> ()
+			| LocalUsage.Block f | LocalUsage.Loop f | LocalUsage.Function f -> f loop
+			| LocalUsage.Use v2 | LocalUsage.Assign v2 when v == v2 -> raise Exit
+			| LocalUsage.Use _ | LocalUsage.Assign _ | LocalUsage.Declare _ -> ()
 		in
-		let is_rec = (try Filters.local_usage loop e; false with Exit -> true) in
+		let is_rec = (try local_usage loop e; false with Exit -> true) in
 		let decl = (if is_rec then begin
 			if inline then display_error ctx "Inline function cannot be recursive" e.epos;
 			let vnew = add_local ctx v.v_name ft v.v_pos in
@@ -3404,7 +3463,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| _ -> error "Identifier expected" (pos e1)
 		in
 		let rec loop display e1 = match fst e1 with
-			| EIn(e1,e2) -> loop_ident display e1,e2
+			| EBinop(OpIn,e1,e2) -> loop_ident display e1,e2
 			| EDisplay(e1,_) -> loop true e1
 			| _ -> error "For expression should be 'v in expr'" (snd it)
 		in
@@ -3451,8 +3510,6 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		ctx.in_loop <- old_loop;
 		old_locals();
 		e
-	| EIn _ ->
-		error "This expression is not allowed outside a for loop" p
 	| ETernary (e1,e2,e3) ->
 		type_expr ctx (EIf (e1,e2,Some e3),p) with_type
 	| EIf (e,e1,e2) ->
@@ -3501,18 +3558,25 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				unify ctx v ctx.ret p;
 				mk (TReturn None) t_dynamic p
 			| Some e ->
-				let e = type_expr ctx e (WithType ctx.ret) in
-				let e = AbstractCast.cast_or_unify ctx ctx.ret e p in
-				begin match follow e.etype with
-				| TAbstract({a_path=[],"Void"},_) ->
-					(* if we get a Void expression (e.g. from inlining) we don't want to return it (issue #4323) *)
-					mk (TBlock [
-						e;
-						mk (TReturn None) t_dynamic p
-					]) t_dynamic e.epos;
-				| _ ->
-					mk (TReturn (Some e)) t_dynamic p
-				end
+				try
+					let e = type_expr ctx e (WithType ctx.ret) in
+					let e = AbstractCast.cast_or_unify ctx ctx.ret e p in
+					begin match follow e.etype with
+					| TAbstract({a_path=[],"Void"},_) ->
+						(* if we get a Void expression (e.g. from inlining) we don't want to return it (issue #4323) *)
+						mk (TBlock [
+							e;
+							mk (TReturn None) t_dynamic p
+						]) t_dynamic e.epos;
+					| _ ->
+						mk (TReturn (Some e)) t_dynamic p
+					end
+				with Error(err,p) ->
+					check_error ctx err p;
+					(* If we have a bad return, let's generate a return null expression at least. This surpresses various
+					   follow-up errors that come from the fact that the function no longer has a return expression (issue #6445). *)
+					let e_null = mk (TConst TNull) (mk_mono()) p in
+					mk (TReturn (Some e_null)) t_dynamic p
 		end
 	| EBreak ->
 		if not ctx.in_loop then display_error ctx "Break outside loop" p;
@@ -3764,7 +3828,9 @@ and display_expr ctx e_ast e with_type p =
 			| TVar(v,_) -> v.v_type,None
 			| TCall({eexpr = TConst TSuper; etype = t},_) -> t,None
 			| TNew({cl_kind = KAbstractImpl a},tl,_) -> TType(abstract_module_type a tl,[]),None
-			| TNew(c,tl,_) -> TInst(c,tl),None
+			| TNew(c,tl,_) ->
+				let t,_ = get_constructor ctx c tl p in
+				t,None
 			| TTypeExpr (TClassDecl {cl_kind = KAbstractImpl a}) -> TType(abstract_module_type a (List.map snd a.a_params),[]),None
 			| TField(e1,FDynamic "bind") when (match follow e1.etype with TFun _ -> true | _ -> false) -> e1.etype,None
 			| TReturn (Some e1) -> loop e1 (* No point in letting the internal Dynamic surface (issue #5655) *)
@@ -3864,7 +3930,7 @@ and display_expr ctx e_ast e with_type p =
 			match t with
 			| TLazy f ->
 				Typeload.return_partial_type := true;
-				let t = (!f)() in
+				let t = lazy_type f in
 				Typeload.return_partial_type := false;
 				t
 			| _ ->
@@ -3946,6 +4012,7 @@ and display_expr ctx e_ast e with_type p =
 			| TFun (args,ret) ->
 				let t = opt_args args ret in
 				let cf = mk_field "bind" (tfun [t] t) p null_pos in
+				cf.cf_kind <- Method MethNormal;
 				PMap.add "bind" cf PMap.empty
 			| _ ->
 				PMap.empty
@@ -3960,7 +4027,7 @@ and display_expr ctx e_ast e with_type p =
 				let acc = ref (loop acc l) in
 				let rec dup t = Type.map dup t in
 				List.iter (fun f ->
-					if not (Meta.has Meta.NoUsing f.cf_meta) then
+					if not (Meta.has Meta.NoUsing f.cf_meta) && not (Meta.has Meta.Impl f.cf_meta) then
 					let f = { f with cf_type = opt_type f.cf_type } in
 					let monos = List.map (fun _ -> mk_mono()) f.cf_params in
 					let map = apply_params f.cf_params monos in
@@ -4084,25 +4151,16 @@ and type_call ctx e el (with_type:with_type) p =
 				| _ ->
 					e
 			in
-			let v_trace = alloc_unbound_var "`trace" t_dynamic p in
-			mk (TCall (mk (TLocal v_trace) t_dynamic p,[e;infos])) ctx.t.tvoid p
+			let e_trace = mk (TIdent "`trace") t_dynamic p in
+			mk (TCall (e_trace,[e;infos])) ctx.t.tvoid p
 		else
 			type_expr ctx (ECall ((EField ((EField ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[mk_to_string_meta e;infos]),p) NoValue
-	| (EConst(Ident "callback"),p1),args ->
-		let ecb = try Some (type_ident_raise ctx "callback" p1 MCall) with Not_found -> None in
-		(match ecb with
-		| Some ecb ->
-			build_call ctx ecb args with_type p
-		| None ->
-			display_error ctx "callback syntax has changed to func.bind(args)" p;
-			let e = type_expr ctx e Value in
-			type_bind ctx e args p)
 	| (EField ((EConst (Ident "super"),_),_),_), _ ->
 		def()
 	| (EField (e,"bind"),p), args ->
 		let e = type_expr ctx e Value in
 		(match follow e.etype with
-			| TFun _ -> type_bind ctx e args p
+			| TFun signature -> type_bind ctx e signature args p
 			| _ -> def ())
 	| (EConst (Ident "$type"),_) , [e] ->
 		let e = type_expr ctx e Value in
@@ -4123,8 +4181,8 @@ and type_call ctx e el (with_type:with_type) p =
 		let e = type_expr ctx e Value in
 		if Common.platform ctx.com Flash then
 			let t = tfun [e.etype] e.etype in
-			let v_unprotect = alloc_unbound_var "__unprotect__" t p in
-			mk (TCall (mk (TLocal v_unprotect) t p,[e])) e.etype e.epos
+			let e_unprotect = mk (TIdent "__unprotect__") t p in
+			mk (TCall (e_unprotect,[e])) e.etype e.epos
 		else
 			e
 	| (EDisplay((EConst (Ident "super"),_ as e1),false),_),_ ->
@@ -4467,7 +4525,7 @@ let rec create com =
 			get_build_infos = (fun() -> None);
 			std = null_module;
 			global_using = [];
-			do_inherit = Typeload.on_inherit;
+			do_inherit = MagicTypes.on_inherit;
 			do_create = create;
 			do_macro = MacroContext.type_macro;
 			do_load_module = Typeload.load_module;
@@ -4524,29 +4582,24 @@ let rec create com =
 			| "Int" -> ctx.t.tint <- TAbstract (a,[])
 			| "Bool" -> ctx.t.tbool <- TAbstract (a,[])
 			| "Dynamic" -> t_dynamic_def := TAbstract(a,List.map snd a.a_params);
-			| _ -> ());
-		| TEnumDecl e ->
-			()
-		| TClassDecl c ->
-			()
-		| TTypeDecl td ->
-			(match snd td.t_path with
 			| "Null" ->
 				let mk_null t =
 					try
-						if not (is_null ~no_lazy:true t) then TType (td,[t]) else t
+						if not (is_null ~no_lazy:true t) then TAbstract (a,[t]) else t
 					with Exit ->
 						(* don't force lazy evaluation *)
-						let r = ref (fun() -> assert false) in
-						r := (fun() ->
-							let t = (if not (is_null t) then TType (td,[t]) else t) in
-							r := (fun() -> t);
+						let r = ref (lazy_available t_dynamic) in
+						r := lazy_wait (fun() ->
+							let t = (if not (is_null t) then TAbstract (a,[t]) else t) in
+							r := lazy_available t;
 							t
 						);
 						TLazy r
 				in
 				ctx.t.tnull <- mk_null;
-			| _ -> ());
+			| _ -> ())
+		| TEnumDecl _ | TClassDecl _ | TTypeDecl _ ->
+			()
 	) ctx.g.std.m_types;
 	let m = Typeload.load_module ctx ([],"String") null_pos in
 	(match m.m_types with

@@ -25,8 +25,8 @@ open Error
 
 exception Internal_match_failure
 
-let s_type = s_type (print_context())
-let s_expr_pretty = s_expr_pretty false "" false s_type
+let s_type t = s_type (print_context()) t
+let s_expr_pretty e = s_expr_pretty false "" false s_type e
 
 let fake_tuple_type = TInst(mk_class null_module ([],"-Tuple") null_pos null_pos, [])
 
@@ -138,6 +138,7 @@ module Pattern = struct
 	type pattern_context = {
 		ctx : typer;
 		or_locals : (string, tvar * pos) PMap.t option;
+		ctx_locals : (string, tvar) PMap.t;
 		mutable current_locals : (string, tvar * pos) PMap.t;
 		mutable in_reification : bool;
 	}
@@ -186,12 +187,17 @@ module Pattern = struct
 				ctx.locals <- PMap.add name v ctx.locals;
 				v
 		in
+		let con_enum en ef p =
+			Display.DeprecationCheck.check_enum pctx.ctx.com en p;
+			Display.DeprecationCheck.check_ef pctx.ctx.com ef p;
+			ConEnum(en,ef)
+		in
 		let check_expr e =
 			let rec loop e = match e.eexpr with
 				| TField(_,FEnum(en,ef)) ->
 					(* Let the unification afterwards fail so we don't recover. *)
 					(* (match follow ef.ef_type with TFun _ -> raise Exit | _ -> ()); *)
-					PatConstructor(ConEnum(en,ef),[])
+					PatConstructor(con_enum en ef e.epos,[])
 				| TField(_,FStatic(c,({cf_kind = Var {v_write = AccNever}} as cf))) ->
 					PatConstructor(ConStatic(c,cf),[])
 				| TConst ct ->
@@ -322,7 +328,7 @@ module Pattern = struct
 						(* We want to change the original monomorphs back to type parameters, but we don't want to do that
 						   if they are bound to other monomorphs (issue #4578). *)
 						unapply_type_parameters ef.ef_params monos;
-						PatConstructor(ConEnum(en,ef),patterns)
+						PatConstructor(con_enum en ef e1.epos,patterns)
 					| _ ->
 						fail()
 				end
@@ -355,28 +361,43 @@ module Pattern = struct
 						fail()
 				end
 			| EObjectDecl fl ->
-				let known_fields = match follow t with
+				let rec known_fields t = match follow t with
 					| TAnon an ->
 						PMap.fold (fun cf acc -> (cf,cf.cf_type) :: acc) an.a_fields []
 					| TInst(c,tl) ->
 						let rec loop fields c tl =
-							let fields = List.fold_left (fun acc cf -> (cf,apply_params c.cl_params tl cf.cf_type) :: acc) fields c.cl_ordered_fields in
+							let fields = List.fold_left (fun acc cf ->
+								if Typer.can_access ctx c cf false then (cf,apply_params c.cl_params tl cf.cf_type) :: acc
+								else acc
+							) fields c.cl_ordered_fields in
 							match c.cl_super with
 								| None -> fields
 								| Some (csup,tlsup) -> loop fields csup (List.map (apply_params c.cl_params tl) tlsup)
 						in
 						loop [] c tl
 					| TAbstract({a_impl = Some c} as a,tl) ->
+						let fields = try
+							let _,el,_ = Meta.get Meta.Forward a.a_meta in
+							let sl = ExtList.List.filter_map (fun e -> match fst e with
+								| EConst(Ident s) -> Some s
+								| _ -> None
+							) el in
+							let fields = known_fields (Abstract.get_underlying_type a tl) in
+							if sl = [] then fields else List.filter (fun (cf,t) -> List.mem cf.cf_name sl) fields
+						with Not_found ->
+							[]
+						in
 						let fields = List.fold_left (fun acc cf ->
 							if Meta.has Meta.Impl cf.cf_meta then
 								(cf,apply_params a.a_params tl cf.cf_type) :: acc
 							else
 								acc
-						) [] c.cl_ordered_statics in
+						) fields c.cl_ordered_statics in
 						fields
 					| _ ->
 						error (Printf.sprintf "Cannot field-match against %s" (s_type t)) (pos e)
 				in
+				let known_fields = known_fields t in
 				let is_matchable cf =
 					match cf.cf_kind with Method _ -> false | _ -> true
 				in
@@ -403,14 +424,25 @@ module Pattern = struct
 					pctx.current_locals <- PMap.add name (v,p) pctx.current_locals
 				) pctx1.current_locals;
 				PatOr(pat1,pat2)
-			| EBinop(OpAssign,(EConst (Ident s),p),e2) ->
-				let pat = make pctx t e2 in
-				let v = add_local s p in
-				PatBind(v,pat)
+			| EBinop(OpAssign,e1,e2) ->
+				let rec loop in_display e = match e with
+					| (EConst (Ident s),p) ->
+						let v = add_local s p in
+						if in_display then ignore(Typer.display_expr ctx e (mk (TLocal v) v.v_type p) (WithType t) p);
+						let pat = make pctx t e2 in
+						PatBind(v,pat)
+					| (EParenthesis e1,_) -> loop in_display e1
+					| (EDisplay(e1,_),_) -> loop true e1
+					| _ -> fail()
+					in
+					loop false e1
 			| EBinop(OpArrow,e1,e2) ->
+				let restore = save_locals ctx in
+				ctx.locals <- pctx.ctx_locals;
 				let v = add_local "_" null_pos in
 				let e1 = type_expr ctx e1 Value in
 				v.v_name <- "tmp";
+				restore();
 				let pat = make pctx e1.etype e2 in
 				PatExtractor(v,e1,pat)
 			| EDisplay(e,iscall) ->
@@ -428,6 +460,7 @@ module Pattern = struct
 		let pctx = {
 			ctx = ctx;
 			current_locals = PMap.empty;
+			ctx_locals = ctx.locals;
 			or_locals = None;
 			in_reification = false;
 		} in
@@ -1035,23 +1068,25 @@ module Compile = struct
 		let pat_any = (PatAny,null_pos) in
 		let _,_,ex_subjects,cases,bindings = List.fold_left2 (fun (left,right,subjects,cases,ex_bindings) (case,bindings,patterns) extractor -> match extractor,patterns with
 			| Some(v,e1,pat,vars), _ :: patterns ->
-				let patterns = make_offset_list (left + 1) (right - 1) pat pat_any @ patterns in
 				let rec loop e = match e.eexpr with
 					| TLocal v' when v' == v -> subject
 					| _ -> Type.map_expr loop e
 				in
 				let e1 = loop e1 in
 				let bindings = List.map (fun v -> v,subject.epos,subject) vars @ bindings in
-				let v,ex_bindings = try
-					let v,_,_ = List.find (fun (_,_,e2) -> Texpr.equal e1 e2) ex_bindings in
-					v,ex_bindings
+				begin try
+					let v,_,_,left2,right2 = List.find (fun (_,_,e2,_,_) -> Texpr.equal e1 e2) ex_bindings in
+					let ev = mk (TLocal v) v.v_type e1.epos in
+					let patterns = make_offset_list (left2 + 1) (right2 - 1) pat pat_any @ patterns in
+					(left + 1, right - 1,ev :: subjects,((case,bindings,patterns) :: cases),ex_bindings)
 				with Not_found ->
 					let v = alloc_var "_hx_tmp" e1.etype e1.epos in
 					v.v_meta <- (Meta.Custom ":extractorVariable",[],v.v_pos) :: v.v_meta;
-					v,(v,e1.epos,e1) :: ex_bindings
-				in
-				let ev = mk (TLocal v) v.v_type e1.epos in
-				(left + 1, right - 1,ev :: subjects,((case,bindings,patterns) :: cases),ex_bindings)
+					let ex_bindings = (v,e1.epos,e1,left,right) :: ex_bindings in
+					let patterns = make_offset_list (left + 1) (right - 1) pat pat_any @ patterns in
+					let ev = mk (TLocal v) v.v_type e1.epos in
+					(left + 1, right - 1,ev :: subjects,((case,bindings,patterns) :: cases),ex_bindings)
+				end
 			| None,pat :: patterns ->
 				let patterns = make_offset_list 0 num_extractors pat pat_any @ patterns in
 				(left,right,subjects,((case,bindings,patterns) :: cases),ex_bindings)
@@ -1059,6 +1094,7 @@ module Compile = struct
 				assert false
 		) (0,num_extractors,[],[],[]) cases (List.rev extractors) in
 		let dt = compile mctx ((subject :: List.rev ex_subjects) @ subjects) (List.rev cases) in
+		let bindings = List.map (fun (a,b,c,_,_) -> (a,b,c)) bindings in
 		bind mctx bindings dt
 
 	let compile ctx match_debug subjects cases p =
@@ -1123,7 +1159,7 @@ module TexprConverter = struct
 			let t_ef = match follow ef.ef_type with TFun(_,t) -> t | _ -> ef.ef_type in
 			let t_ef = apply_params ctx.type_params params (monomorphs en.e_params (monomorphs ef.ef_params t_ef)) in
 			let monos = List.map (fun t -> match follow t with
-				| TInst({cl_kind = KTypeParameter _},_) -> mk_mono()
+				| TInst({cl_kind = KTypeParameter _},_) | TMono _ -> mk_mono()
 				| _ -> t
 			) params in
 			let rec duplicate_monos t = match follow t with
@@ -1255,8 +1291,7 @@ module TexprConverter = struct
 				   (correctly typed) neutral value because it doesn't actually matter. *)
 				mk (TConst (TInt (Int32.of_int 0))) ctx.t.tint e.epos
 			else
-				let cf = PMap.find "enumIndex" c_type.cl_statics in
-				make_static_call ctx c_type cf (fun t -> t) [e] com.basic.tint e.epos
+				mk (TEnumIndex e) com.basic.tint e.epos
 		in
 		let mk_name_call e =
 			if not ctx.in_macro && not ctx.com.display.DisplayMode.dms_full_typing then
@@ -1321,7 +1356,7 @@ module TexprConverter = struct
 				in
 				begin match cases with
 					| [_,e2] when e_default = None && (match finiteness with RunTimeFinite -> true | _ -> false) ->
-						e2
+						{e2 with etype = t_switch}
 					| [[e1],e2] when (with_type = NoValue || e_default <> None) && ctx.com.platform <> Java (* TODO: problem with TestJava.hx:285 *) ->
 						let e_op = mk (TBinop(OpEq,e_subject,e1)) ctx.t.tbool e_subject.epos in
 						mk (TIf(e_op,e2,e_default)) t_switch dt.dt_pos
@@ -1399,6 +1434,7 @@ module Match = struct
 			| _ -> None,with_type
 		in
 		let cases = List.map (fun (el,eg,eo,p) ->
+			let p = match eo with Some e when p = null_pos -> pos e | _ -> p in
 			let case,bindings,pat = Case.make ctx t el eg eo with_type p in
 			case,bindings,[pat]
 		) cases in

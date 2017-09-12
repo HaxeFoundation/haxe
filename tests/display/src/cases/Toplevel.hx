@@ -144,6 +144,61 @@ class Toplevel extends DisplayTestCase {
 		eq(true, hasToplevel(typesCompletion, "package", "haxe"));
 	}
 
+	/**
+	class Main<ClassT> {
+		static var myField;
+		static function main<FieldT>() {
+			{-1-}
+		}
+
+		function field<FieldT2>() {
+			{-2-}
+		}
+	**/
+	function testTypeParameters() {
+		eq(true, hasToplevel(toplevel(pos(1)), "type", "FieldT"));
+		eq(false, hasToplevel(toplevel(pos(1)), "type", "ClassT"));
+		eq(true, hasToplevel(toplevel(pos(2)), "type", "ClassT"));
+		eq(false, hasToplevel(toplevel(pos(2)), "type", "FieldT"));
+		eq(true, hasToplevel(toplevel(pos(2)), "type", "FieldT2"));
+	}
+
+	/**
+	import cases.Toplevel.E.a;
+
+	enum E {
+		a;
+	}
+
+	class Main {
+		static var a:Int;
+		function new(a) {
+			{-1-}
+		}
+
+		static function main() {
+		}
+	}
+	**/
+	function testDuplicates() {
+		var toplevels = toplevel(pos(1));
+		toplevels = toplevels.filter(function(t) return t.name == "a");
+		eq(1, toplevels.length);
+		eq("local", toplevels[0].kind);
+	}
+
+	/**
+	class Main {
+		static function main() {
+			{-1-}
+		}
+		@:noCompletion static function test() { }
+	}
+	**/
+	function testIssue6407() {
+		eq(false, hasToplevel(toplevel(pos(1)), "static", "test"));
+	}
+
 	public static function hasToplevel(a:Array<ToplevelElement>, kind:String, name:String):Bool {
 		return a.exists(function(t) return t.kind == kind && t.name == name);
 	}

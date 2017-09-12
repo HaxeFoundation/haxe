@@ -171,12 +171,12 @@ class Serializer {
 
 	function serializeRef(v) {
 		#if js
-		var vt = untyped __js__("typeof")(v);
+		var vt = js.Lib.typeof(v);
 		#end
 		for( i in 0...cache.length ) {
 			#if js
 			var ci = cache[i];
-			if( untyped __js__("typeof")(ci) == vt && ci == v ) {
+			if( js.Lib.typeof(ci) == vt && ci == v ) {
 			#else
 			if( cache[i] == v ) {
 			#end
@@ -262,7 +262,7 @@ class Serializer {
 				#if (flash || python || hl)
 				var v : Array<Dynamic> = v;
 				#end
-				var l = #if (neko || flash || php || cs || java || python || hl || lua) v.length #elseif cpp v.__length() #else __getField(v, "length") #end;
+				var l = #if (neko || flash || php || cs || java || python || hl || lua || eval) v.length #elseif cpp v.__length() #else __getField(v, "length") #end;
 				for( i in 0...l ) {
 					if( v[i] == null )
 						ucount++;
@@ -484,7 +484,7 @@ class Serializer {
 					#end
 				}
 			}
-			#elseif (java || cs || python || hl)
+			#elseif (java || cs || python || hl || eval)
 			if( useEnumIndex ) {
 				buf.add(":");
 				buf.add(Type.enumIndex(v));
@@ -501,6 +501,16 @@ class Serializer {
 				buf.add("0");
 			}
 
+			#elseif js_enums_as_objects
+			if( useEnumIndex ) {
+				buf.add(":");
+				buf.add(v._hx_index);
+			} else
+				serializeString(Type.enumConstructor(v));
+			buf.add(":");
+			var params = Type.enumParameters(v);
+			buf.add(params.length);
+			for(p in params) serialize(p);
 			#else
 			if( useEnumIndex ) {
 				buf.add(":");

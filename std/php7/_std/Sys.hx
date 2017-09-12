@@ -121,15 +121,18 @@ import sys.io.FileInput;
 	}
 
 	public static function stdin() : haxe.io.Input {
-		return @:privateAccess new FileInput(Const.STDIN);
+		var p = Global.defined('STDIN') ? Const.STDIN : Global.fopen('php://stdin', 'r');
+		return @:privateAccess new FileInput(p);
 	}
 
 	public static function stdout() : haxe.io.Output {
-		return @:privateAccess new FileOutput(Const.STDOUT);
+		var p = Global.defined('STDOUT') ? Const.STDOUT : Global.fopen('php://stdout', 'w');
+		return @:privateAccess new FileOutput(p);
 	}
 
 	public static function stderr() : haxe.io.Output {
-		return @:privateAccess new FileOutput(Const.STDERR);
+		var p = Global.defined('STDERR') ? Const.STDERR : Global.fopen('php://stderr', 'w');
+		return @:privateAccess new FileOutput(p);
 	}
 
 	public static function getChar( echo : Bool ) : Int {

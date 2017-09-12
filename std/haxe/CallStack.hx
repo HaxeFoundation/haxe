@@ -71,6 +71,11 @@ class CallStack {
 	public static var wrapCallSite:Dynamic->Dynamic;
 	#end
 
+	#if eval
+	static function getCallStack() { return []; }
+	static function getExceptionStack() { return []; }
+	#end
+
 	/**
 		Return the call stack elements, or an empty array if not available.
 	**/
@@ -145,6 +150,8 @@ class CallStack {
 				var st = _getExceptionStack();
 				return makeStack(st.length > 2 ? st.sub(2,st.length - 2) : st);
 			}
+		#elseif eval
+			return getCallStack();
 		#else
 			return []; // Unsupported
 		#end
@@ -201,9 +208,6 @@ class CallStack {
 					stack.push( method );
 				}
 			}
-			// stack.shift();
-			stack.shift();
-			stack.pop();
 			return stack;
 		#elseif cs
 			return makeStack(new cs.system.diagnostics.StackTrace(cs.internal.Exceptions.exception, true));
@@ -220,6 +224,8 @@ class CallStack {
 			return stack;
 		#elseif js
 			return untyped __define_feature__("haxe.CallStack.exceptionStack", getStack(lastException));
+		#elseif eval
+			return getExceptionStack();
 		#else
 			return []; // Unsupported
 		#end
@@ -326,7 +332,7 @@ class CallStack {
 		#elseif js
 			if (s == null) {
 				return [];
-			} else if ((untyped __js__("typeof"))(s) == "string") {
+			} else if (js.Lib.typeof(s) == "string") {
 				// Return the raw lines in browsers that don't support prepareStackTrace
 				var stack : Array<String> = s.split("\n");
 				if( stack[0] == "Error" ) stack.shift();

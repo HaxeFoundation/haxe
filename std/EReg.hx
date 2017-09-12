@@ -192,4 +192,13 @@ class EReg {
 	public function map( s : String, f : EReg -> String ) : String {
 		return null;
 	}
+
+	/**
+		Escape the string `s` for use as a part of regular expression.
+
+		If `s` is null, the result is unspecified.
+	**/
+	public static function escape( s : String ) : String {
+		return null;
+	}
 }

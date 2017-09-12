@@ -93,7 +93,7 @@ private class Stdout extends haxe.io.Input {
 
 	static var isWin = Sys.systemName() == "Windows";
 
-	public function new( cmd : String, ?args : Array<String> ) : Void {
+	public function new( cmd : String, ?args : Array<String>, ?detached : Bool ) : Void {
 		var runCmd = cmd;
 		if( isWin ) {
 			var b = new StringBuf();
@@ -144,7 +144,7 @@ private class Stdout extends haxe.io.Input {
 				for( i in 0...args.length )
 					aargs[i] = Sys.getPath(args[i]);
 			}
-			p = _run(Sys.getPath(runCmd), aargs);
+			p = _run(Sys.getPath(runCmd), aargs, detached);
 		}
 		if( p == null )
 			throw new Sys.SysError("Process creation failure : "+cmd);
@@ -173,7 +173,7 @@ private class Stdout extends haxe.io.Input {
 		_kill(p);
 	}
 
-	@:hlNative("std","process_run")	static function _run( cmd : hl.Bytes, args : hl.NativeArray<hl.Bytes> ) : ProcessHandle { return null; }
+	@:hlNative("std","process_run")	static function _run( cmd : hl.Bytes, args : hl.NativeArray<hl.Bytes>, detached : Bool ) : ProcessHandle { return null; }
 	@:hlNative("std", "process_exit") static function _exit( p : ProcessHandle, running : hl.Ref<Bool> ) : Int { return 0; }
 	@:hlNative("std", "process_pid") static function _pid( p : ProcessHandle ) : Int { return 0; }
 	@:hlNative("std","process_close") static function _close( p : ProcessHandle ) : Void { }

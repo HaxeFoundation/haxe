@@ -62,8 +62,8 @@
 	@:overload @:throws("java.lang.NumberFormatException") static function parseFloat(param1 : String) : Single;
 	@:overload static function toHexString(param1 : Single) : String;
 	@:native("toString") @:overload static function _toString(param1 : Single) : String;
-	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1 : String) : Float;
 	@:overload static function valueOf(param1 : Single) : Float;
+	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1 : String) : Float;
 
 }
 

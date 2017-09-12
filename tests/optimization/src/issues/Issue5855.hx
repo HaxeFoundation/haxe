@@ -1,5 +1,7 @@
 package issues;
 
+import TestJs.use;
+
 class C {
 	public var field:String;
 	public inline function new() {
@@ -15,11 +17,11 @@ class Issue5855 {
 		if(Math.random() > 0.5) {
 			c_field = "foo";
 		}
-		console.log(c_field);
+		TestJs.use(c_field);
 	')
 	@:analyzer(ignore)
 	static function main() {
 		var c = new C();
-		trace(c.field);
+		use(c.field);
 	}
 }

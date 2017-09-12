@@ -24,38 +24,52 @@ import lua.Lua;
 
 class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 
-	private var h : Dynamic;
+	private var h : lua.Table<Int,T>;
+	static var tnull : Dynamic = lua.Table.create();
 
 	public inline function new() : Void {
-		h = {};
+		h = lua.Table.create();
 	}
 
 	public inline function set( key : Int, value : T ) : Void {
-		 h[key] = value;
+		if (value == null){
+			h[key] = tnull;
+		} else {
+			h[key] = value;
+		}
 	}
 
 	public inline function get( key : Int ) : Null<T> {
-		return h[key];
+		var ret = h[key];
+		if (ret == tnull){
+			ret = null;
+		}
+		return ret;
 	}
 
 	public inline function exists( key : Int ) : Bool {
-		return Reflect.hasField(h,cast key);
+		return h[key] != null;
 	}
 
 	public function remove( key : Int ) : Bool {
-		if (!Reflect.hasField(h,cast key)) return false;
-		Reflect.deleteField(h, cast key);
-		return true;
+		if (h[key] == null){
+			return false;
+		} else {
+			h[key] = null;
+			return true;
+		}
 	}
 
 	public function keys() : Iterator<Int> {
-		var cur = Reflect.fields(h).iterator();
+		var next = Lua.next;
+		var cur = next(h,null).index;
 		return {
 			next : function() {
-				var ret = cur.next();
+				var ret = cur;
+				cur = next(h,cur).index;
 				return cast ret;
 			},
-			hasNext : function() return cur.hasNext()
+			hasNext : function() return cur != null
 		}
 	}
 
@@ -65,6 +79,12 @@ class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 			hasNext : function() return it.hasNext(),
 			next : function() return h[it.next()]
 		};
+	}
+
+	public function copy() : IntMap<T> {
+		var copied = new IntMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
 	}
 
 	public function toString() : String {

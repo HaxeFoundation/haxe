@@ -36,7 +36,7 @@ class TestCSharp extends Test
 	function testHaxeKeywords()
 	{
 		eq(Base._inline, 42);
-		eq(Base._callback, 43);
+		eq(Base.callback, 43);
 		eq(Base._cast, 44);
 		eq(Base._untyped, 45);
 		Base._untyped = 40;

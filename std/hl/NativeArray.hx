@@ -68,6 +68,10 @@ package hl;
 		return n;
 	}
 
+	@:to @:extern public inline function getRef() : Ref<T> {
+		return untyped $refdata(this);
+	}
+
 	@:hlNative("std","array_type") public function getType() : Type {
 		return null;
 	}

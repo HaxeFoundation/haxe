@@ -49,22 +49,103 @@ package js.jquery;
 		For key or mouse events, this property indicates the specific key or button that was pressed.
 	**/
 	public var which : Float;
+	/**
+		
+				Returns a `Boolean` that is `true` if the Alt ( Option or ⌥ on OS X) key was active when the key event was generated.
+			
+	**/
 	public var altKey : Bool;
+	/**
+		
+				The button number that was pressed when the mouse event was fired. 
+			
+	**/
 	public var button : Int;
+	/**
+		
+				
+				 The buttons being pressed when the mouse event was fired
+				 
+			
+	**/
 	public var buttons : Int;
 	public var char : Int;
+	/**
+		
+				Returns a `Number` representing the Unicode reference number of the key; this attribute is used only by the `keypress` event. For keys whose `char` attribute contains multiple characters, this is the Unicode value of the first character in that attribute. In Firefox 26 this returns codes for printable characters.
+				 Warning: This attribute is deprecated; you should use `KeyboardEvent.key` instead, if available.
+				 
+			
+	**/
 	public var charCode : Int;
+	/**
+		
+				The X coordinate of the mouse pointer in local (DOM content) coordinates.
+			
+	**/
 	public var clientX : Int;
+	/**
+		
+				The Y coordinate of the mouse pointer in local (DOM content) coordinates.
+			
+	**/
 	public var clientY : Int;
+	/**
+		
+				Returns a `Boolean` that is `true` if the Ctrl key was active when the key event was generated.
+			
+	**/
 	public var ctrlKey : Bool;
+	/**
+		
+				Returns a `long` with details about the event, depending on the event type.
+			
+	**/
 	public var detail : Int;
+	/**
+		
+				Returns a `DOMString` representing the key value of the key represented by the event.
+			
+	**/
 	public var key : String;
+	/**
+		
+				Returns a `Number` representing a system and implementation dependent numerical code identifying the unmodified value of the pressed key.
+				 Warning: This attribute is deprecated; you should use `KeyboardEvent.key` instead, if available.
+				 
+			
+	**/
 	public var keyCode : Int;
 	public var offsetX : Int;
 	public var offsetY : Int;
+	/**
+		
+				The X coordinate of the mouse pointer in global (screen) coordinates.
+			
+	**/
 	public var screenX : Int;
+	/**
+		
+				The Y coordinate of the mouse pointer in global (screen) coordinates.
+			
+	**/
 	public var screenY : Int;
+	/**
+		
+				Returns a `Boolean` that is `true` if the Shift key was active when the key event was generated.
+			
+	**/
 	public var shiftKey : Bool;
 	public var toElement : js.html.Element;
+	/**
+		
+				Returns a `WindowProxy` that contains the view that generated the event.
+			
+	**/
 	public var view : js.html.Window;
+	/**
+		A convenient method of getting `$(this)`, which is typically the same as `$(evt.currentTarget)`.
+		For detail, refer to https://api.jquery.com/event.currenttarget/.
+	**/
+	inline public function getThis():js.jquery.JQuery return new js.jquery.JQuery(js.Lib.nativeThis);
 }

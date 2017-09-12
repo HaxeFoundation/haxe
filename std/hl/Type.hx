@@ -27,21 +27,22 @@ abstract TypeKind(Int) {
 	public var HUI8 = 1;
 	public var HUI16 = 2;
 	public var HI32 = 3;
-	public var HF32 = 4;
-	public var HF64 = 5;
-	public var HBool = 6;
-	public var HBytes = 7;
-	public var HDyn = 8;
-	public var HFun = 9;
-	public var HObj = 10;
-	public var HArray = 11;
-	public var HType = 12;
-	public var HRef = 13;
-	public var HVirtual = 14;
-	public var HDynObj = 15;
-	public var HAbstract = 16;
-	public var HEnum = 17;
-	public var HNull = 18;
+	public var HI64 = 4;
+	public var HF32 = 5;
+	public var HF64 = 6;
+	public var HBool = 7;
+	public var HBytes = 8;
+	public var HDyn = 9;
+	public var HFun = 10;
+	public var HObj = 11;
+	public var HArray = 12;
+	public var HType = 13;
+	public var HRef = 14;
+	public var HVirtual = 15;
+	public var HDynObj = 16;
+	public var HAbstract = 17;
+	public var HEnum = 18;
+	public var HNull = 19;
 }
 
 @:coreType abstract Type {
@@ -105,7 +106,7 @@ abstract TypeKind(Int) {
 		return null;
 	}
 
-	@:hlNative("std", "alloc_enum") public function allocEnum( index : Int, args : NativeArray<Dynamic>, nargs : Int ) : Dynamic {
+	@:hlNative("std", "alloc_enum_dyn") public function allocEnum( index : Int, args : NativeArray<Dynamic>, nargs : Int ) : Dynamic {
 		return null;
 	}
 

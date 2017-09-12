@@ -49,4 +49,13 @@ class NativeStringTools {
 		return python.Syntax.field(s, "rpartition")(sep);
 	}
 
+	public static inline function startswith (s:String, prefix:String):Bool
+	{
+		return python.Syntax.field(s, "startswith")(prefix);
+	}
+
+	public static inline function endswith (s:String, suffix:String):Bool
+	{
+		return python.Syntax.field(s, "endswith")(suffix);
+	}
 }

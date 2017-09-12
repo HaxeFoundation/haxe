@@ -118,4 +118,8 @@
 			buf.add(s.substr(offset));
 		return buf.toString();
 	}
+
+	public static function escape( s : String ) : String {
+		return untyped __call__("preg_quote", s);
+	}
 }

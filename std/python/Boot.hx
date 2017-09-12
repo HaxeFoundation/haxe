@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package python;
-
+import python.internal.MethodClosure;
 import python.internal.ArrayImpl;
 import python.internal.Internal;
 import python.internal.StringImpl;
@@ -245,8 +245,7 @@ class Boot {
 		var a = [];
 		if (o != null) {
 			if (Internal.hasFields(o)) {
-				var fields:Array<String> = Internal.fieldFields(o);
-				return fields.copy();
+				return (Internal.fieldFields(o) : Array<String>).copy();
 			}
 			if (isAnonObject(o)) {
 
@@ -277,6 +276,8 @@ class Boot {
 		return UBuiltins.isinstance(o, UBuiltins.list);
 	}
 
+
+
 	static function simpleField( o : Dynamic, field : String ) : Dynamic {
 		if (field == null) return null;
 
@@ -284,51 +285,98 @@ class Boot {
 		return if (UBuiltins.hasattr(o, field)) UBuiltins.getattr(o, field) else null;
 	}
 
+	@:ifFeature("closure_Array", "closure_String")
+	static inline function createClosure (obj:Dynamic, func:Dynamic):Dynamic {
+		return new MethodClosure(obj, func);
+	}
+
 	static function field( o : Dynamic, field : String ) : Dynamic {
 		if (field == null) return null;
 
-		switch (field) {
-			case "length" if (isString(o)): return StringImpl.get_length(o);
-			case "toLowerCase" if (isString(o)): return StringImpl.toLowerCase.bind(o);
-			case "toUpperCase" if (isString(o)): return StringImpl.toUpperCase.bind(o);
-			case "charAt" if (isString(o)): return StringImpl.charAt.bind(o);
-			case "charCodeAt" if (isString(o)): return StringImpl.charCodeAt.bind(o);
-			case "indexOf" if (isString(o)): return StringImpl.indexOf.bind(o);
-			case "lastIndexOf" if (isString(o)): return StringImpl.lastIndexOf.bind(o);
-			case "split" if (isString(o)): return StringImpl.split.bind(o);
-			case "substr" if (isString(o)): return StringImpl.substr.bind(o);
-			case "substring" if (isString(o)): return StringImpl.substring.bind(o);
-			case "toString" if (isString(o)): return StringImpl.toString.bind(o);
-			case "length" if (isArray(o)): return ArrayImpl.get_length(o);
-			case "map" if (isArray(o)): return ArrayImpl.map.bind(o);
-			case "filter" if (isArray(o)): return ArrayImpl.filter.bind(o);
-			case "concat" if (isArray(o)): return ArrayImpl.concat.bind(o);
-			case "copy" if (isArray(o)): return function () return ArrayImpl.copy(o);
-			case "iterator" if (isArray(o)): return ArrayImpl.iterator.bind(o);
-			case "insert" if (isArray(o)): return ArrayImpl.insert.bind(o);
-			case "join" if (isArray(o)): return function (sep) return ArrayImpl.join(o, sep);
-			case "toString" if (isArray(o)): return ArrayImpl.toString.bind(o);
-			case "pop" if (isArray(o)): return ArrayImpl.pop.bind(o);
-			case "push" if (isArray(o)): return ArrayImpl.push.bind(o);
-			case "unshift" if (isArray(o)): return ArrayImpl.unshift.bind(o);
-			case "indexOf" if (isArray(o)): return ArrayImpl.indexOf.bind(o);
-			case "lastIndexOf" if (isArray(o)): return ArrayImpl.lastIndexOf.bind(o);
-			case "remove" if (isArray(o)): return ArrayImpl.remove.bind(o);
-			case "reverse" if (isArray(o)): return ArrayImpl.reverse.bind(o);
-			case "shift" if (isArray(o)): return ArrayImpl.shift.bind(o);
-			case "slice" if (isArray(o)): return ArrayImpl.slice.bind(o);
-			case "sort" if (isArray(o)): return ArrayImpl.sort.bind(o);
-			case "splice" if (isArray(o)): return ArrayImpl.splice.bind(o);
+		inline function def () {
+			var field = handleKeywords(field);
+			return if (UBuiltins.hasattr(o, field)) UBuiltins.getattr(o, field) else null;
 		}
 
-
-		var field = handleKeywords(field);
-		return if (UBuiltins.hasattr(o, field)) UBuiltins.getattr(o, field) else null;
+		return if (isString(o)) {
+			switch (field) {
+				case "length":
+					StringImpl.get_length(o);
+				case "toLowerCase":
+					createClosure(o, StringImpl.toLowerCase);
+				case "toUpperCase":
+					createClosure(o, StringImpl.toUpperCase);
+				case "charAt":
+					createClosure(o, StringImpl.charAt);
+				case "charCodeAt":
+					createClosure(o, StringImpl.charCodeAt);
+				case "indexOf":
+					createClosure(o, StringImpl.indexOf);
+				case "lastIndexOf":
+					createClosure(o, StringImpl.lastIndexOf);
+				case "split":
+					createClosure(o, StringImpl.split);
+				case "substr":
+					createClosure(o, StringImpl.substr);
+				case "substring":
+					createClosure(o, StringImpl.substring);
+				case "toString":
+					createClosure(o, StringImpl.toString);
+				default:
+					def();
+			}
+		} else if (isArray(o)) {
+			switch (field) {
+				case "length":
+					ArrayImpl.get_length(o);
+				case "map":
+					createClosure(o, ArrayImpl.map);
+				case "filter":
+					createClosure(o, ArrayImpl.filter);
+				case "concat":
+					createClosure(o, ArrayImpl.concat);
+				case "copy":
+					createClosure(o, ArrayImpl.copy);
+				case "iterator":
+					createClosure(o, ArrayImpl.iterator);
+				case "insert":
+					createClosure(o, ArrayImpl.insert);
+				case "join":
+					createClosure(o, ArrayImpl.join);
+				case "toString":
+					createClosure(o, ArrayImpl.toString);
+				case "pop":
+					createClosure(o, ArrayImpl.pop);
+				case "push":
+					createClosure(o, ArrayImpl.push);
+				case "unshift":
+					createClosure(o, ArrayImpl.unshift);
+				case "indexOf":
+					createClosure(o, ArrayImpl.indexOf);
+				case "lastIndexOf":
+					createClosure(o, ArrayImpl.lastIndexOf);
+				case "remove":
+					createClosure(o, ArrayImpl.remove);
+				case "reverse":
+					createClosure(o, ArrayImpl.reverse);
+				case "shift":
+					createClosure(o, ArrayImpl.shift);
+				case "slice":
+					createClosure(o, ArrayImpl.slice);
+				case "sort":
+					createClosure(o, ArrayImpl.sort);
+				case "splice":
+					createClosure(o, ArrayImpl.splice);
+				default:
+					def();
+			}
+		} else {
+			def();
+		}
 	}
 
-
 	static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
-		var f = if (Internal.hasFields(c)) Internal.fieldFields(c) else [];
+		var f = if (Internal.hasFields(c)) (Internal.fieldFields(c) : Array<String>).copy() else [];
 		if (Internal.hasMethods(c))
 			f = f.concat(Internal.fieldMethods(c));
 
@@ -340,8 +388,6 @@ class Boot {
 
 			var scArr = getInstanceFields(sc);
 			var scMap = new Set(scArr);
-			//var scMap = [for (f in scArr) f => f];
-			var res = [];
 			for (f1 in f) {
 				if (!scMap.has(f1)) {
 					scArr.push(f1);

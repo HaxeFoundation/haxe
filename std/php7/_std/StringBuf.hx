@@ -38,11 +38,11 @@ import php.Syntax;
 
 	public function add<T>( x : T ) : Void {
 		if( x == null ) {
-			Syntax.binop(b, '.=', 'null');
+			b = Syntax.binop(b, '.', 'null');
 		} else if( Global.is_bool(x) ) {
-			Syntax.binop(b, '.=', ((x:Dynamic) ? 'true' : 'false'));
+			b = Syntax.binop(b, '.', ((x:Dynamic) ? 'true' : 'false'));
 		} else if( Global.is_string(x) ) {
-			Syntax.binop(b, '.=', x);
+			b = Syntax.binop(b, '.', x);
 		} else {
 			b += x;
 		}

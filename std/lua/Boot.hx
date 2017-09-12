@@ -63,6 +63,7 @@ class Boot {
 	*/
 	static inline public function getClass(o:Dynamic) : Class<Dynamic> {
 		if (Std.is(o, Array)) return Array;
+		else if (Std.is(o, String)) return String;
 		else {
 			var cl = untyped __define_feature__("lua.Boot.getClass", o.__class__);
 			if (cl != null) return cl;
@@ -335,6 +336,12 @@ class Boot {
 	}
 
 	public static function fieldIterator( o : Table<String,Dynamic>) : Iterator<String> {
+		if (Lua.type(o) != "table") {
+			return  {
+				next : function() return null,
+				hasNext : function() return false
+			}
+		}
 		var tbl : Table<String,String> =  cast (untyped o.__fields__ != null) ?  o.__fields__ : o;
 		var cur = Lua.pairs(tbl).next;
 		var next_valid = function(tbl, val){

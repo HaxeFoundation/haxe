@@ -21,6 +21,6 @@
  */
  package cpp.zip;
 
-#if (haxe_ver < 4.0)
+#if (haxe_ver < 9000.0)
 typedef Uncompress = haxe.zip.Uncompress;
 #end

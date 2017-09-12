@@ -1,0 +1,6 @@
+brew "opam"
+brew "ninja"
+brew "zlib"
+brew "pcre"
+brew "awscli"
+brew "cmake"

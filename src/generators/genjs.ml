@@ -52,7 +52,6 @@ type ctx = {
 	mutable tabs : string;
 	mutable in_value : tvar option;
 	mutable in_loop : bool;
-	mutable handle_break : bool;
 	mutable id_counter : int;
 	mutable type_accessor : module_type -> string;
 	mutable separator : bool;
@@ -75,27 +74,30 @@ let get_exposed ctx path meta =
 
 let dot_path = s_type_path
 
-let flat_path (p,s) =
-	(* Replace _ with _$ in paths to prevent name collisions. *)
-	let escape str = String.concat "_$" (ExtString.String.nsplit str "_") in
+let s_path ctx = if ctx.js_flatten then Path.flat_path else dot_path
 
-	match p with
-	| [] -> escape s
-	| _ -> String.concat "_" (List.map escape p) ^ "_" ^ (escape s)
+let kwds = Hashtbl.create 0
 
-let s_path ctx = if ctx.js_flatten then flat_path else dot_path
+let setup_kwds lst =
+	List.iter (fun s -> Hashtbl.add kwds s ()) lst
 
-let kwds =
-	let h = Hashtbl.create 0 in
-	List.iter (fun s -> Hashtbl.add h s ()) [
-		"abstract"; "as"; "boolean"; "break"; "byte"; "case"; "catch"; "char"; "class"; "continue"; "const";
-		"debugger"; "default"; "delete"; "do"; "double"; "else"; "enum"; "export"; "extends"; "false"; "final";
-		"finally"; "float"; "for"; "function"; "goto"; "if"; "implements"; "import"; "in"; "instanceof"; "int";
-		"interface"; "is"; "let"; "long"; "namespace"; "native"; "new"; "null"; "package"; "private"; "protected";
-		"public"; "return"; "short"; "static"; "super"; "switch"; "synchronized"; "this"; "throw"; "throws";
-		"transient"; "true"; "try"; "typeof"; "use"; "var"; "void"; "volatile"; "while"; "with"; "yield"
-	];
-	h
+let es3kwds = [
+	"abstract"; "boolean"; "break"; "byte"; "case"; "catch"; "char"; "class"; "const"; "continue";
+	"debugger"; "default"; "delete"; "do"; "double"; "else"; "enum"; "export"; "extends"; "false"; "final";
+	"finally"; "float"; "for"; "function"; "goto"; "if"; "implements"; "import"; "in"; "instanceof"; "int";
+	"interface"; "long"; "native"; "new"; "null"; "package"; "private"; "protected";
+	"public"; "return"; "short"; "static"; "super"; "switch"; "synchronized"; "this"; "throw"; "throws";
+	"transient"; "true"; "try"; "typeof"; "var"; "void"; "volatile"; "while"; "with"
+]
+
+let es5kwds = [
+	"arguments"; "break"; "case"; "catch"; "class"; "const"; "continue";
+	"debugger"; "default"; "delete"; "do"; "else"; "enum"; "eval"; "export"; "extends"; "false";
+	"finally"; "for"; "function"; "if"; "implements"; "import"; "in"; "instanceof";
+	"interface"; "let"; "new"; "null"; "package"; "private"; "protected";
+	"public"; "return"; "static"; "super"; "switch"; "this"; "throw";
+	"true"; "try"; "typeof"; "var"; "void"; "while"; "with"; "yield"
+]
 
 (* Identifiers Haxe reserves to make the JS output cleaner. These can still be used in untyped code (TLocal),
    but are escaped upon declaration. *)
@@ -295,43 +297,13 @@ let open_block ctx =
 	ctx.tabs <- "\t" ^ ctx.tabs;
 	(fun() -> ctx.tabs <- oldt)
 
-let rec has_return e =
+let rec needs_switch_break e =
 	match e.eexpr with
-	| TBlock [] -> false
-	| TBlock el -> has_return (List.hd (List.rev el))
-	| TReturn _ -> true
-	| _ -> false
-
-let rec iter_switch_break in_switch e =
-	match e.eexpr with
-	| TFunction _ | TWhile _ | TFor _ -> ()
-	| TSwitch _ when not in_switch -> iter_switch_break true e
-	| TBreak when in_switch -> raise Exit
-	| _ -> iter (iter_switch_break in_switch) e
-
-let handle_break ctx e =
-	let old = ctx.in_loop, ctx.handle_break in
-	ctx.in_loop <- true;
-	try
-		iter_switch_break false e;
-		ctx.handle_break <- false;
-		(fun() ->
-			ctx.in_loop <- fst old;
-			ctx.handle_break <- snd old;
-		)
-	with
-		Exit ->
-			spr ctx "try {";
-			let b = open_block ctx in
-			newline ctx;
-			ctx.handle_break <- true;
-			(fun() ->
-				b();
-				ctx.in_loop <- fst old;
-				ctx.handle_break <- snd old;
-				newline ctx;
-				spr ctx "} catch( e ) { if( e != \"__break__\" ) throw e; }";
-			)
+	| TBlock [] -> true
+	| TBlock el -> needs_switch_break (List.hd (List.rev el))
+	| TMeta ((Meta.LoopLabel,_,_), {eexpr = TBreak})
+	| TContinue | TReturn _ | TThrow _ -> false
+	| _ -> true
 
 let this ctx = match ctx.in_value with None -> "this" | Some _ -> "$this"
 
@@ -383,64 +355,64 @@ let rec gen_call ctx e el in_value =
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
 		);
-	| TCall (x,_) , el when (match x.eexpr with TLocal { v_name = "__js__" } -> false | _ -> true) ->
+	| TCall (x,_) , el when (match x.eexpr with TIdent "__js__" -> false | _ -> true) ->
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ")";
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
-	| TLocal { v_name = "__new__" }, { eexpr = TConst (TString cl) } :: params ->
+	| TIdent "__new__", { eexpr = TConst (TString cl) } :: params ->
 		print ctx "new %s(" cl;
 		concat ctx "," (gen_value ctx) params;
 		spr ctx ")";
-	| TLocal { v_name = "__new__" }, e :: params ->
+	| TIdent "__new__", e :: params ->
 		spr ctx "new ";
 		gen_value ctx e;
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) params;
 		spr ctx ")";
-	| TLocal { v_name = "__js__" }, [{ eexpr = TConst (TString "this") }] ->
+	| TIdent "__js__", [{ eexpr = TConst (TString "this") }] ->
 		spr ctx (this ctx)
-	| TLocal { v_name = "__js__" }, [{ eexpr = TConst (TString code) }] ->
+	| TIdent "__js__", [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
-	| TLocal { v_name = "__js__" }, { eexpr = TConst (TString code); epos = p } :: tl ->
+	| TIdent "__js__", { eexpr = TConst (TString code); epos = p } :: tl ->
 		Codegen.interpolate_code ctx.com code tl (spr ctx) (gen_expr ctx) p
-	| TLocal { v_name = "__instanceof__" },  [o;t] ->
+	| TIdent "__instanceof__",  [o;t] ->
 		spr ctx "(";
 		gen_value ctx o;
 		print ctx " instanceof ";
 		gen_value ctx t;
 		spr ctx ")";
-	| TLocal { v_name = "__typeof__" },  [o] ->
+	| TIdent "__typeof__",  [o] ->
 		spr ctx "typeof(";
 		gen_value ctx o;
 		spr ctx ")";
-	| TLocal { v_name = "__strict_eq__" } , [x;y] ->
+	| TIdent "__strict_eq__" , [x;y] ->
 		(* add extra parenthesis here because of operator precedence *)
 		spr ctx "((";
 		gen_value ctx x;
 		spr ctx ") === ";
 		gen_value ctx y;
 		spr ctx ")";
-	| TLocal { v_name = "__strict_neq__" } , [x;y] ->
+	| TIdent "__strict_neq__" , [x;y] ->
 		(* add extra parenthesis here because of operator precedence *)
 		spr ctx "((";
 		gen_value ctx x;
 		spr ctx ") !== ";
 		gen_value ctx y;
 		spr ctx ")";
-	| TLocal ({v_name = "__define_feature__"}), [_;e] ->
+	| TIdent "__define_feature__", [_;e] ->
 		gen_expr ctx e
-	| TLocal { v_name = "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse ->
+	| TIdent "__feature__", { eexpr = TConst (TString f) } :: eif :: eelse ->
 		(if has_feature ctx f then
 			gen_value ctx eif
 		else match eelse with
 			| [] -> ()
 			| e :: _ -> gen_value ctx e)
-	| TLocal { v_name = "__rethrow__" }, [] ->
+	| TIdent "__rethrow__", [] ->
 		spr ctx "throw $hx_rethrow";
-	| TLocal { v_name = "__resources__" }, [] ->
+	| TIdent "__resources__", [] ->
 		spr ctx "[";
 		concat ctx "," (fun (name,data) ->
 			spr ctx "{ ";
@@ -451,7 +423,7 @@ let rec gen_call ctx e el in_value =
 			spr ctx "}"
 		) (Hashtbl.fold (fun name data acc -> (name,data) :: acc) ctx.com.resources []);
 		spr ctx "]";
-	| TLocal { v_name = "`trace" }, [e;infos] ->
+	| TIdent "`trace", [e;infos] ->
 		if has_feature ctx "haxe.Log.trace" then begin
 			let t = (try List.find (fun t -> t_path t = (["haxe"],"Log")) ctx.com.types with _ -> assert false) in
 			spr ctx (ctx.type_accessor t);
@@ -462,6 +434,13 @@ let rec gen_call ctx e el in_value =
 			spr ctx ")";
 		end else begin
 			spr ctx "console.log(";
+			(match infos.eexpr with
+			| TObjectDecl (
+				("fileName" , { eexpr = (TConst (TString file)) }) ::
+				("lineNumber" , { eexpr = (TConst (TInt line)) }) :: _) ->
+					print ctx "\"%s:%i:\"," file (Int32.to_int line)
+			| _ ->
+				());
 			gen_value ctx e;
 			spr ctx ")";
 		end
@@ -531,9 +510,21 @@ and gen_expr ctx e =
 			print ctx "($_=";
 			gen_value ctx x;
 			print ctx ",$bind($_,$_%s))" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name)))
-	| TEnumParameter (x,_,i) ->
+	| TEnumIndex x ->
 		gen_value ctx x;
-		print ctx "[%i]" (i + 2)
+		if Common.defined ctx.com Define.JsEnumsAsObjects then
+		print ctx "._hx_index"
+		else
+		print ctx "[1]"
+	| TEnumParameter (x,f,i) ->
+		gen_value ctx x;
+		if Common.defined ctx.com Define.JsEnumsAsObjects then
+			let fname = (match f.ef_type with TFun((args,_)) -> let fname,_,_ = List.nth args i in  fname | _ -> assert false ) in
+			print ctx ".%s" (fname)
+		else
+			print ctx "[%i]" (i + 2)
+	| TField (_, FStatic ({cl_path = [],""},f)) ->
+		spr ctx f.cf_name;
 	| TField (x, (FInstance(_,_,f) | FStatic(_,f) | FAnon(f))) when Meta.has Meta.SelfCall f.cf_meta ->
 		gen_value ctx x;
 	| TField (x,f) ->
@@ -552,6 +543,14 @@ and gen_expr ctx e =
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ")";
+	| TMeta ((Meta.LoopLabel,[(EConst(Int n),_)],_), e) ->
+		(match e.eexpr with
+		| TWhile _ | TFor _ ->
+			print ctx "_hx_loop%s: " n;
+			gen_expr ctx e
+		| TBreak ->
+			print ctx "break _hx_loop%s" n;
+		| _ -> assert false)
 	| TMeta (_,e) ->
 		gen_expr ctx e
 	| TReturn eo ->
@@ -564,7 +563,7 @@ and gen_expr ctx e =
 			gen_value ctx e);
 	| TBreak ->
 		if not ctx.in_loop then unsupported e.epos;
-		if ctx.handle_break then spr ctx "throw \"__break__\"" else spr ctx "break"
+		spr ctx "break"
 	| TContinue ->
 		if not ctx.in_loop then unsupported e.epos;
 		spr ctx "continue"
@@ -579,7 +578,11 @@ and gen_expr ctx e =
 		let old = ctx.in_value, ctx.in_loop in
 		ctx.in_value <- None;
 		ctx.in_loop <- false;
-		print ctx "function(%s) " (String.concat "," (List.map ident (List.map arg_name f.tf_args)));
+		let args = List.map (fun (v,_) ->
+			check_var_declaration v;
+			ident v.v_name
+		) f.tf_args in
+		print ctx "function(%s) " (String.concat "," args);
 		gen_expr ctx (fun_block ctx f e.epos);
 		ctx.in_value <- fst old;
 		ctx.in_loop <- snd old;
@@ -633,20 +636,22 @@ and gen_expr ctx e =
 		gen_value ctx e;
 		spr ctx (Ast.s_unop op)
 	| TWhile (cond,e,Ast.NormalWhile) ->
-		let handle_break = handle_break ctx e in
+		let old_in_loop = ctx.in_loop in
+		ctx.in_loop <- true;
 		spr ctx "while";
 		gen_value ctx cond;
 		spr ctx " ";
 		gen_expr ctx e;
-		handle_break();
+		ctx.in_loop <- old_in_loop
 	| TWhile (cond,e,Ast.DoWhile) ->
-		let handle_break = handle_break ctx e in
+		let old_in_loop = ctx.in_loop in
+		ctx.in_loop <- true;
 		spr ctx "do ";
 		gen_expr ctx e;
 		semicolon ctx;
 		spr ctx " while";
 		gen_value ctx cond;
-		handle_break();
+		ctx.in_loop <- old_in_loop
 	| TObjectDecl fields ->
 		spr ctx "{ ";
 		concat ctx ", " (fun (f,e) -> (match e.eexpr with
@@ -658,7 +663,8 @@ and gen_expr ctx e =
 		ctx.separator <- true
 	| TFor (v,it,e) ->
 		check_var_declaration v;
-		let handle_break = handle_break ctx e in
+		let old_in_loop = ctx.in_loop in
+		ctx.in_loop <- true;
 		let it = ident (match it.eexpr with
 			| TLocal v -> v.v_name
 			| _ ->
@@ -678,7 +684,7 @@ and gen_expr ctx e =
 		bend();
 		newline ctx;
 		spr ctx "}";
-		handle_break();
+		ctx.in_loop <- old_in_loop
 	| TTry (e,catchs) ->
 		spr ctx "try ";
 		gen_expr ctx e;
@@ -700,7 +706,7 @@ and gen_expr ctx e =
 		if (has_feature ctx "js.Lib.rethrow") then begin
 			let has_rethrow (_,e) =
 				let rec loop e = match e.eexpr with
-				| TCall({eexpr = TLocal {v_name = "__rethrow__"}}, []) -> raise Exit
+				| TCall({eexpr = TIdent "__rethrow__"}, []) -> raise Exit
 				| _ -> Type.iter loop e
 				in
 				try (loop e; false) with Exit -> true
@@ -800,7 +806,7 @@ and gen_expr ctx e =
 			) el;
 			let bend = open_block ctx in
 			gen_block_element ctx e2;
-			if not (has_return e2) then begin
+			if needs_switch_break e2 then begin
 				newline ctx;
 				print ctx "break";
 			end;
@@ -824,7 +830,10 @@ and gen_expr ctx e =
 		gen_expr ctx e1;
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
-		spr ctx ")");
+		spr ctx ")"
+	| TIdent s ->
+		spr ctx s
+	);
 	Option.may (fun smap -> smap.current_expr <- None) ctx.smap
 
 
@@ -832,7 +841,7 @@ and gen_block_element ?(after=false) ctx e =
 	match e.eexpr with
 	| TBlock el ->
 		List.iter (gen_block_element ~after ctx) el
-	| TCall ({ eexpr = TLocal { v_name = "__feature__" } }, { eexpr = TConst (TString f) } :: eif :: eelse) ->
+	| TCall ({ eexpr = TIdent "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse) ->
 		if has_feature ctx f then
 			gen_block_element ~after ctx eif
 		else (match eelse with
@@ -885,13 +894,15 @@ and gen_value ctx e =
 	| TBinop _
 	| TField _
 	| TEnumParameter _
+	| TEnumIndex _
 	| TTypeExpr _
 	| TParenthesis _
 	| TObjectDecl _
 	| TArrayDecl _
 	| TNew _
 	| TUnop _
-	| TFunction _ ->
+	| TFunction _
+	| TIdent _ ->
 		gen_expr ctx e
 	| TMeta (_,e1) ->
 		gen_value ctx e1
@@ -1006,7 +1017,7 @@ let gen_class_static_field ctx c f =
 	match f.cf_expr with
 	| None | Some { eexpr = TConst TNull } when not (has_feature ctx "Type.getClassFields") ->
 		()
-	| None when is_extern_field f ->
+	| None when not (is_physical_field f) ->
 		()
 	| None ->
 		print ctx "%s%s = null" (s_path ctx c.cl_path) (static_field c f.cf_name);
@@ -1028,7 +1039,7 @@ let can_gen_class_field ctx = function
 	| { cf_expr = (None | Some { eexpr = TConst TNull }) } when not (has_feature ctx "Type.getInstanceFields") ->
 		false
 	| f ->
-		not (is_extern_field f)
+		is_physical_field f
 
 let gen_class_field ctx c f =
 	check_field_name c f;
@@ -1162,26 +1173,44 @@ let generate_enum ctx e =
 	if has_feature ctx "js.Boot.isEnum" then print ctx " __ename__ : %s," (if has_feature ctx "Type.getEnumName" then "[" ^ String.concat "," ename ^ "]" else "true");
 	print ctx " __constructs__ : [%s] }" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
 	ctx.separator <- true;
+	let as_objects = Common.defined ctx.com Define.JsEnumsAsObjects in
+	if as_objects then begin
+		newline ctx;
+		print ctx "$hxEnums[\"%s\"] = %s" p p
+	end;
 	newline ctx;
 	List.iter (fun n ->
 		let f = PMap.find n e.e_constrs in
 		print ctx "%s%s = " p (field f.ef_name);
 		(match f.ef_type with
 		| TFun (args,_) ->
-			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in
-			print ctx "function(%s) { var $x = [\"%s\",%d,%s]; $x.__enum__ = %s;" sargs f.ef_name f.ef_index sargs p;
+			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in begin
+			if as_objects then
+				let sfields = String.concat "," (List.map (fun (n,_,_) -> (ident n) ^ ":" ^ (ident n) ) args) in
+				print ctx "function(%s) { var $x = {_hx_index:%d,%s,__enum__:\"%s\"};" sargs f.ef_index sfields p;
+			else
+				print ctx "function(%s) { var $x = [\"%s\",%d,%s]; $x.__enum__ = %s;" sargs f.ef_name f.ef_index sargs p;
+			end;
 			if has_feature ctx "has_enum" then
 				spr ctx " $x.toString = $estr;";
 			spr ctx " return $x; }";
+			if as_objects then begin
+				let sparams = String.concat "," (List.map (fun (n,_,_) -> "\"" ^ (ident n) ^ "\"" ) args) in
+				newline ctx;
+				print ctx "%s%s.__params__ = [%s];" p (field f.ef_name) sparams
+			end;
 			ctx.separator <- true;
 		| _ ->
-			print ctx "[\"%s\",%d]" f.ef_name f.ef_index;
+			if as_objects then
+				print ctx "{_hx_index:%d};" f.ef_index
+			else
+				print ctx "[\"%s\",%d]" f.ef_name f.ef_index;
 			newline ctx;
 			if has_feature ctx "has_enum" then begin
 				print ctx "%s%s.toString = $estr" p (field f.ef_name);
 				newline ctx;
 			end;
-			print ctx "%s%s.__enum__ = %s" p (field f.ef_name) p;
+			print ctx "%s%s.__enum__ = %s" p (field f.ef_name) (if as_objects then "\"" ^ p ^"\"" else p);
 		);
 		newline ctx
 	) e.e_names;
@@ -1291,7 +1320,6 @@ let alloc_ctx com =
 		tabs = "";
 		in_value = None;
 		in_loop = false;
-		handle_break = false;
 		id_counter = 0;
 		type_accessor = (fun _ -> assert false);
 		separator = false;
@@ -1324,6 +1352,8 @@ let generate com =
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "js.Boot.isEnum";
 
 	let nodejs = Common.raw_defined com "nodejs" in
+
+	setup_kwds (if ctx.es_version >= 5 then es5kwds else es3kwds);
 
 	let exposed = List.concat (List.map (fun t ->
 		match t with
@@ -1413,9 +1443,6 @@ let generate com =
 	);
 
 	if ctx.js_modern then begin
-		(* Additional ES5 strict mode keywords. *)
-		List.iter (fun s -> Hashtbl.replace kwds s ()) [ "arguments"; "eval" ];
-
 		(* Wrap output in a closure *)
 		print ctx "(function (%s) { \"use strict\"" (String.concat ", " (List.map fst closureArgs));
 		newline ctx;
@@ -1456,6 +1483,7 @@ let generate com =
 	let vars = if has_feature ctx "has_enum"
 		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) ^ ".__string_rec(this,''); }") :: vars
 		else vars in
+	let vars = if Common.defined com Define.JsEnumsAsObjects then "$hxEnums = {}" :: vars else vars in
 	(match List.rev vars with
 	| [] -> ()
 	| vl ->

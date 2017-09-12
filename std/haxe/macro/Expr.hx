@@ -212,6 +212,11 @@ enum Binop {
 		`=>`
 	**/
 	OpArrow;
+
+	/**
+		`in`
+	**/
+	OpIn;
 }
 
 /**
@@ -412,11 +417,6 @@ enum ExprDef {
 		A `for` expression.
 	**/
 	EFor( it : Expr, expr : Expr );
-
-	/**
-		A `(e1 in e2)` expression.
-	**/
-	EIn( e1 : Expr, e2 : Expr );
 
 	/**
 		An `if(econd) eif` or `if(econd) eif else eelse` expression.
@@ -807,6 +807,12 @@ typedef TypeDefinition = {
 		The name of the type definition.
 	**/
 	var name : String;
+
+	/**
+		The documentation of the type, if available. If the type has no
+		documentation, the value is `null`.
+	**/
+	@:optional var doc : Null<String>;
 
 	/**
 		The position to the type definition.

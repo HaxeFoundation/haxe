@@ -54,8 +54,8 @@ class ArrayBuffer {
 	}
 
 	static function __init__() untyped {
-		var ArrayBuffer = js.Lib.global.ArrayBuffer || js.html.compat.ArrayBuffer;
-		if( ArrayBuffer.prototype.slice == null ) ArrayBuffer.prototype.slice = sliceImpl; // IE10
+		__js__("var ArrayBuffer = {0} || {1}", js.Lib.global.ArrayBuffer, js.html.compat.ArrayBuffer);
+		if( __js__("ArrayBuffer").prototype.slice == null ) __js__("ArrayBuffer").prototype.slice = sliceImpl; // IE10
 	}
 }
 #end

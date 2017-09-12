@@ -77,8 +77,9 @@ class Process {
 		return new java.lang.ProcessBuilder(pargs);
 	}
 
-	public function new( cmd : String, ?args : Array<String> ) : Void
+	public function new( cmd : String, ?args : Array<String>, ?detached : Bool ) : Void
 	{
+		if( detached ) throw "Detached process is not supported on this platform";
 		var p = proc = createProcessBuilder(cmd, args).start();
 		stderr = new ProcessInput(p.getErrorStream());
 		stdout = new ProcessInput(p.getInputStream());

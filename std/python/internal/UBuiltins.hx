@@ -26,6 +26,7 @@ package python.internal;
     Fields listed here must be synchronized with genpy's KeywordHandler.kwds2 list to be properly escaped.
 **/
 extern class UBuiltins {
+    static function id(x:Dynamic):String;
     static function len(x:Dynamic):Int;
     static function isinstance(o:Dynamic, c:Dynamic):Bool;
     static function str(o:Dynamic):String;

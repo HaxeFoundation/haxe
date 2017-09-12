@@ -1,2 +1,2 @@
-MainVar.hx:3: characters 10-11 : expression expected after =
-MainVar.hx:3: characters 12-13 : Unexpected ;
+MainVar.hx:3: characters 11-12 : expression expected after =
+MainVar.hx:3: characters 13-14 : Unexpected ;

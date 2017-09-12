@@ -52,6 +52,7 @@ type strict_meta =
 	| Fixed
 	| FlatEnum
 	| Font
+	| ForLoopVariable
 	| Forward
 	| ForwardStatics
 	| From
@@ -75,6 +76,7 @@ type strict_meta =
 	| ImplicitCast
 	| Include
 	| InitPackage
+	| InlineConstructorArgument of int * int
 	| InlineConstructorVariable
 	| Internal
 	| IsVar
@@ -85,7 +87,9 @@ type strict_meta =
 	| KeepInit
 	| KeepSub
 	| LibType
+	| LoopLabel
 	| LuaRequire
+	| LuaDotMethod 
 	| Meta
 	| Macro
 	| MaybeUsed
@@ -120,6 +124,7 @@ type strict_meta =
 	| PhpClassConst
 	| PhpMagic
 	| PhpNoConstructor
+	| Pos
 	| PrivateAccess
 	| Property
 	| Protected
@@ -158,7 +163,6 @@ type strict_meta =
 	| TemplatedCall
 	| ValueUsed
 	| Volatile
-	| Unbound
 	| UnifyMinDynamic
 	| Unreflective
 	| Unsafe
@@ -237,7 +241,7 @@ let get_info = function
 	| EnumConstructorParam -> ":enumConstructorParam",("Used internally to annotate GADT type parameters",[UsedOn TClass; UsedInternally])
 	| Event -> ":event",("Automatically added by -net-lib on events. Has no effect on types compiled by Haxe",[Platform Cs; UsedOn TClassField])
 	| Exhaustive -> ":exhaustive",("",[UsedInternally])
-	| Expose -> ":expose",("Makes the class available on the window object",[HasParam "?Name=Class path";UsedOn TClass;Platform Js])
+	| Expose -> ":expose",("Includes the class or field in Haxe exports",[HasParam "?Name=Class path";UsedOnEither [TClass;TClassField];Platforms [Js;Lua]])
 	| Extern -> ":extern",("Marks the field as extern so it is not generated",[UsedOn TClassField])
 	| FakeEnum -> ":fakeEnum",("Treat enum as collection of values of the specified type",[HasParam "Type name";UsedOn TEnum])
 	| File -> ":file",("Includes a given binary file into the target Swf and associates it with the class (must extend flash.utils.ByteArray)",[HasParam "File path";UsedOn TClass;Platform Flash])
@@ -246,6 +250,7 @@ let get_info = function
 	| Fixed -> ":fixed",("Delcares an anonymous object to have fixed fields",[ (*UsedOn TObjectDecl(_)*)])
 	| FlatEnum -> ":flatEnum",("Internally used to mark an enum as being flat, i.e. having no function constructors",[UsedOn TEnum; UsedInternally])
 	| Font -> ":font",("Embeds the given TrueType font into the class (must extend flash.text.Font)",[HasParam "TTF path";HasParam "Range String";UsedOn TClass])
+	| ForLoopVariable -> ":forLoopVariable",("Internally used to mark for-loop variables",[UsedInternally])
 	| Forward -> ":forward",("Forwards field access to underlying type",[HasParam "List of field names";UsedOn TAbstract])
 	| ForwardStatics -> ":forwardStatics",("Forwards static field access to underlying type",[HasParam "List of field names";UsedOn TAbstract])
 	| From -> ":from",("Specifies that the field of the abstract is a cast operation from the type identified in the function",[UsedOn TAbstractField])
@@ -269,6 +274,7 @@ let get_info = function
 	| ImplicitCast -> ":implicitCast",("Generated automatically on the AST when an implicit abstract cast happens",[UsedInternally; UsedOn TExpr])
 	| Include -> ":include",("",[Platform Cpp])
 	| InitPackage -> ":initPackage",("Some weird thing for Genjs we want to remove someday",[UsedInternally; Platform Js])
+	| InlineConstructorArgument _ -> ":inlineConstructorArgument",("Internally used to mark expressions that were passed as arguments of an inlined constructor",[UsedInternally])
 	| InlineConstructorVariable -> ":inlineConstructorVariable",("Internally used to mark variables that come from inlined constructors",[UsedInternally])
 	| Internal -> ":internal",("Generates the annotated field/class with 'internal' access",[Platforms [Java;Cs]; UsedOnEither[TClass;TEnum;TClassField]])
 	| IsVar -> ":isVar",("Forces a physical field to be generated for properties that otherwise would not require one",[UsedOn TClassField])
@@ -276,10 +282,12 @@ let get_info = function
 	| JavaNative -> ":javaNative",("Automatically added by -java-lib on classes generated from JAR/class files",[Platform Java; UsedOnEither[TClass;TEnum]; UsedInternally])
 	| JsRequire -> ":jsRequire",("Generate javascript module require expression for given extern",[Platform Js; UsedOn TClass])
 	| LuaRequire -> ":luaRequire",("Generate lua module require expression for given extern",[Platform Lua; UsedOn TClass])
+	| LuaDotMethod -> ":luaDotMethod",("Indicates that the given extern type instance should have dot-style invocation for methods instead of colon.",[Platform Lua; UsedOnEither[TClass;TClassField]])
 	| Keep -> ":keep",("Causes a field or type to be kept by DCE",[])
 	| KeepInit -> ":keepInit",("Causes a class to be kept by DCE even if all its field are removed",[UsedOn TClass])
 	| KeepSub -> ":keepSub",("Extends @:keep metadata to all implementing and extending classes",[UsedOn TClass])
 	| LibType -> ":libType",("Used by -net-lib and -java-lib to mark a class that shouldn't be checked (overrides, interfaces, etc) by the type loader",[UsedInternally; UsedOn TClass; Platforms [Java;Cs]])
+	| LoopLabel -> ":loopLabel",("Mark loop and break expressions with a label to support breaking from within switch",[UsedInternally])
 	| Meta -> ":meta",("Internally used to mark a class field as being the metadata field",[])
 	| Macro -> ":macro",("(deprecated)",[])
 	| MaybeUsed -> ":maybeUsed",("Internally used by DCE to mark fields that might be kept",[UsedInternally])
@@ -310,10 +318,11 @@ let get_info = function
 	| Optional -> ":optional",("Marks the field of a structure as optional",[UsedOn TClassField])
 	| Overload -> ":overload",("Allows the field to be called with different argument types",[HasParam "Function specification (no expression)";UsedOn TClassField])
 	| PhpConstants -> ":phpConstants",("Marks the static fields of a class as PHP constants, without $",[Platform Php;UsedOn TClass])
-	| PhpGlobal -> ":phpGlobal",("(php7) Puts the static fields of a class in the global PHP namespace",[Platforms [Php;Php];UsedOn TClass])
+	| PhpGlobal -> ":phpGlobal",("(php7) Puts the static fields of a class in the global PHP namespace",[Platform Php;UsedOn TClass])
 	| PhpClassConst -> ":phpClassConst",("(php7)  Generate static var of an extern class as a PHP class constant",[Platform Php;UsedOn TClass])
 	| PhpMagic -> ":phpMagic",("(php7) Treat annotated field as special PHP magic field",[Platform Php;UsedOn TClassField])
 	| PhpNoConstructor -> ":phpNoConstructor",("(php7) Special meta for extern classes which does not have native constructor in PHP, but need a constructor in Haxe extern",[Platform Php;UsedOn TClass])
+	| Pos -> ":pos",("Sets the position of a reified expression",[HasParam "Position";UsedOn TExpr])
 	| Public -> ":public",("Marks a class field as being public",[UsedOn TClassField;UsedInternally])
 	| PublicFields -> ":publicFields",("Forces all class fields of inheriting classes to be public",[UsedOn TClass])
 	| QuotedField -> ":quotedField",("Used internally to mark structure fields which are quoted in syntax",[UsedInternally])
@@ -331,7 +340,7 @@ let get_info = function
 	| Runtime -> ":runtime",("?",[])
 	| RuntimeValue -> ":runtimeValue",("Marks an abstract as being a runtime value",[UsedOn TAbstract])
 	| Scalar -> ":scalar",("Used by hxcpp to mark a custom coreType abstract",[UsedOn TAbstract; Platform Cpp])
-	| SelfCall -> ":selfCall",("Translates method calls into calling object directly",[UsedOn TClassField; Platform Js])
+	| SelfCall -> ":selfCall",("Translates method calls into calling object directly",[UsedOn TClassField; Platforms [Js;Lua]])
 	| Setter -> ":setter",("Generates a native setter function on the given field",[HasParam "Class field name";UsedOn TClassField;Platform Flash])
 	| StackOnly -> ":stackOnly",("Instances of this type can only appear on the stack",[Platform Cpp])
 	| StoredTypedExpr -> ":storedTypedExpr",("Used internally to reference a typed expression returned from a macro",[UsedInternally])
@@ -352,7 +361,6 @@ let get_info = function
 	| Transient -> ":transient",("Adds the 'transient' flag to the class field",[Platform Java; UsedOn TClassField])
 	| ValueUsed -> ":valueUsed",("Internally used by DCE to mark an abstract value as used",[UsedInternally])
 	| Volatile -> ":volatile",("",[Platforms [Java;Cs]])
-	| Unbound -> ":unbound", ("Compiler internal to denote unbounded global variable",[UsedInternally])
 	| UnifyMinDynamic -> ":unifyMinDynamic",("Allows a collection of types to unify to Dynamic",[UsedOn TClassField])
 	| Unreflective -> ":unreflective",("",[Platform Cpp])
 	| Unsafe -> ":unsafe",("Declares a class, or a method with the C#'s 'unsafe' flag",[Platform Cs; UsedOnEither [TClass;TClassField]])
@@ -404,11 +412,7 @@ let get_documentation d =
 			| [] -> ""
 			| l -> "(" ^ String.concat "," l ^ ")"
 		) in
-		let pfs = (match List.rev !pfs with
-			| [] -> ""
-			| [p] -> " (" ^ platform_name p ^ " only)"
-			| pl -> " (for " ^ String.concat "," (List.map platform_name pl) ^ ")"
-		) in
+		let pfs = platform_list_help (List.rev !pfs) in
 		let str = "@" ^ t in
 		Some (str,params ^ doc ^ pfs)
 	end else

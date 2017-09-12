@@ -32,9 +32,22 @@ module ExprBuilder = struct
 		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
 		mk (TTypeExpr (TClassDecl c)) ta p
 
+	let make_typeexpr mt pos =
+		let t =
+			match mt with
+			| TClassDecl c -> TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) }
+			| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
+			| TAbstractDecl a -> TAnon { a_fields = PMap.empty; a_status = ref (AbstractStatics a) }
+			| _ -> assert false
+		in
+		mk (TTypeExpr mt) t pos
+
 	let make_static_field c cf p =
 		let e_this = make_static_this c p in
 		mk (TField(e_this,FStatic(c,cf))) cf.cf_type p
+
+	let make_throw e p =
+		mk (TThrow e) t_dynamic p
 
 	let make_int com i p =
 		mk (TConst (TInt (Int32.of_int i))) com.basic.tint p
@@ -72,6 +85,9 @@ let fcall e name el ret p =
 
 let mk_parent e =
 	mk (TParenthesis e) e.etype e.epos
+
+let mk_return e =
+	mk (TReturn (Some e)) t_dynamic e.epos
 
 let binop op a b t p =
 	mk (TBinop (op,a,b)) t p
@@ -228,7 +244,7 @@ let update_cache_dependencies t =
 			| Some t -> check_t m t
 			| _ -> ())
 		| TLazy f ->
-			check_t m (!f())
+			check_t m (lazy_type f)
 		| TDynamic t ->
 			if t == t_dynamic then
 				()
@@ -483,7 +499,7 @@ let rec is_volatile t =
 		| Some t -> is_volatile t
 		| _ -> false)
 	| TLazy f ->
-		is_volatile (!f())
+		is_volatile (lazy_type f)
 	| TType (t,tl) ->
 		(match t.t_path with
 		| _ -> is_volatile (apply_params t.t_params tl t.t_type))
@@ -499,7 +515,7 @@ let set_default ctx a c p =
 let bytes_serialize data =
 	let b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/" in
 	let tbl = Array.init (String.length b64) (fun i -> String.get b64 i) in
-	Base64.str_encode ~tbl data
+	Bytes.unsafe_to_string (Base64.str_encode ~tbl data)
 
 (*
 	Tells if the constructor might be called without any issue whatever its parameters
@@ -510,12 +526,12 @@ let rec constructor_side_effects e =
 		true
 	| TField (_,FEnum _) ->
 		false
-	| TUnop _ | TArray _ | TField _ | TEnumParameter _ | TCall _ | TNew _ | TFor _ | TWhile _ | TSwitch _ | TReturn _ | TThrow _ ->
+	| TUnop _ | TArray _ | TField _ | TEnumParameter _ | TEnumIndex _ | TCall _ | TNew _ | TFor _ | TWhile _ | TSwitch _ | TReturn _ | TThrow _ ->
 		true
 	| TBinop _ | TTry _ | TIf _ | TBlock _ | TVar _
 	| TFunction _ | TArrayDecl _ | TObjectDecl _
 	| TParenthesis _ | TTypeExpr _ | TLocal _ | TMeta _
-	| TConst _ | TContinue | TBreak | TCast _ ->
+	| TConst _ | TContinue | TBreak | TCast _ | TIdent _ ->
 		try
 			Type.iter (fun e -> if constructor_side_effects e then raise Exit) e;
 			false;
@@ -839,7 +855,7 @@ let interpolate_code com code tl f_string f_expr p =
 				let expr = Array.get exprs (int_of_string n) in
 				f_expr expr;
 			with
-			| Failure "int_of_string" ->
+			| Failure _ ->
 				f_string ("{" ^ n ^ "}");
 			| Invalid_argument _ ->
 				err ("Out-of-bounds special parameter: " ^ n)

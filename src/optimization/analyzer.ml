@@ -153,15 +153,15 @@ module Ssa = struct
 			v'
 		in
 		let rec loop is_phi i e = match e.eexpr with
-			| TLocal v when not (is_unbound v) ->
+			| TLocal v ->
 				let v' = local ctx e v bb in
 				add_ssa_edge ctx.graph v' bb is_phi i;
 				{e with eexpr = TLocal v'}
-			| TVar(v,Some e1) when not (is_unbound v) ->
+			| TVar(v,Some e1) ->
 				let e1 = (loop is_phi i) e1 in
 				let v' = write_var v is_phi i in
 				{e with eexpr = TVar(v',Some e1)}
-			| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) when not (is_unbound v) ->
+			| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
 				let e2 = (loop is_phi i) e2 in
 				let v' = write_var v is_phi i in
 				{e with eexpr = TBinop(OpAssign,{e1 with eexpr = TLocal v'},e2)};
@@ -384,7 +384,7 @@ module ConstPropagation = DataFlow(struct
 			| TConst ct ->
 				Const ct
 			| TLocal v ->
-				if is_unbound v || (follow v.v_type) == t_dynamic || v.v_capture then
+				if (follow v.v_type) == t_dynamic || v.v_capture then
 					Bottom
 				else
 					get_cell v.v_id
@@ -420,6 +420,20 @@ module ConstPropagation = DataFlow(struct
 					| EnumValue(_,el) -> (try List.nth el i with Failure _ -> raise Exit)
 					| _ -> raise Exit
 				end;
+			| TEnumIndex e1 ->
+				begin match eval bb e1 with
+					| EnumValue(i,_) -> Const (TInt (Int32.of_int i))
+					| _ -> raise Exit
+				end;
+			| TCall ({ eexpr = TField (_,FStatic({cl_path=[],"Type"} as c,({cf_name="enumIndex"} as cf)))},[e1]) when ctx.com.platform = Eval ->
+				begin match follow e1.etype,eval bb e1 with
+					| TEnum _,EnumValue(i,_) -> Const (TInt (Int32.of_int i))
+					| _,e1 ->
+						begin match Optimizer.api_inline2 ctx.com c cf.cf_name [wrap e1] e.epos with
+							| None -> raise Exit
+							| Some e -> eval bb e
+						end
+				end
 			| TCall ({ eexpr = TField (_,FStatic(c,cf))},el) ->
 				let el = List.map (eval bb) el in
 				let el = List.map wrap el in
@@ -589,7 +603,7 @@ module LocalDce = struct
 	let rec has_side_effect e =
 		let rec loop e =
 			match e.eexpr with
-			| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ -> ()
+			| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ | TIdent _ -> ()
 			| TCall ({ eexpr = TField(_,FStatic({ cl_path = ([],"Std") },{ cf_name = "string" })) },args) -> Type.iter loop e
 			| TCall ({eexpr = TField(_,FEnum _)},_) -> Type.iter loop e
 			| TCall ({eexpr = TConst (TString ("phi" | "fun"))},_) -> ()
@@ -597,7 +611,7 @@ module LocalDce = struct
 			| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
 			| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
 			| TFor _ -> raise Exit
-			| TArray _ | TEnumParameter _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _
+			| TArray _ | TEnumParameter _ | TEnumIndex _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _
 			| TField _ | TIf _ | TTry _ | TSwitch _ | TArrayDecl _ | TBlock _ | TObjectDecl _ | TVar _ -> Type.iter loop e
 		in
 		try
@@ -623,9 +637,9 @@ module LocalDce = struct
 				end
 			end
 		and expr e = match e.eexpr with
-			| TLocal v when not (is_unbound v) ->
+			| TLocal v ->
 				use v;
-			| TBinop(OpAssign,{eexpr = TLocal v},e1) | TVar(v,Some e1) when not (is_unbound v) ->
+			| TBinop(OpAssign,{eexpr = TLocal v},e1) | TVar(v,Some e1) ->
 				if has_side_effect e1 || keep v then expr e1
 				else ()
 			| _ ->
@@ -907,8 +921,6 @@ module Run = struct
 
 	let there actx e =
 		if actx.com.debug then add_debug_expr actx "initial" e;
-		let e = with_timer actx.config.detail_times ["->";"var-lazifier"] (fun () -> VarLazifier.apply actx.com e) in
-		if actx.com.debug then add_debug_expr actx "after var-lazifier" e;
 		let e = with_timer actx.config.detail_times ["->";"filter-apply"] (fun () -> TexprFilter.apply actx.com e) in
 		if actx.com.debug then add_debug_expr actx "after filter-apply" e;
 		let tf,t,is_real_function = match e.eexpr with

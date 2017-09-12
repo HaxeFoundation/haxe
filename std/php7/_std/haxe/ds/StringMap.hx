@@ -62,6 +62,12 @@ import haxe.Constraints;
 	public inline function iterator() : Iterator<T> {
 		return data.iterator();
 	}
+	
+	public function copy() : StringMap<T> {
+		var copied = new StringMap();
+		copied.data = data;
+		return copied;
+	}
 
 	public function toString() : String {
 		var parts = new NativeArray();

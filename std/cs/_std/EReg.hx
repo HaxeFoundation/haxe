@@ -130,4 +130,8 @@ import cs.system.text.regularexpressions.*;
 			buf.add(s.substr(offset));
 		return buf.toString();
 	}
+
+	public static inline function escape( s : String ) : String {
+		return Regex.Escape(s);
+	}
 }

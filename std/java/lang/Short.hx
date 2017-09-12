@@ -50,8 +50,8 @@
 	@:overload @:throws("java.lang.NumberFormatException") static function parseShort(param1 : String) : java.types.Int16;
 	@:overload static function reverseBytes(param1 : java.types.Int16) : java.types.Int16;
 	@:native("toString") @:overload static function _toString(param1 : java.types.Int16) : String;
-	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1 : String, param2 : Int) : Short;
 	@:overload static function valueOf(param1 : java.types.Int16) : Short;
+	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1 : String, param2 : Int) : Short;
 	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1 : String) : Short;
 }
 

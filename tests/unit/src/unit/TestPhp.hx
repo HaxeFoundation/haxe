@@ -114,6 +114,40 @@ class TestPhp extends Test
 		eq(result, 'nullb');
 	}
 	function add(a:Dynamic, b:Dynamic):Dynamic return a + b;
+
+	function testStringClosureType() {
+		var fn:Dynamic = 'foo'.toUpperCase;
+		var className = Type.getClassName(Type.getClass(fn)).split('.').pop();
+		eq('HxDynamicStr', className);
+		eq('FOO', fn());
+	}
+
+	function testStringAsAnon() {
+		var str = 'bar';
+		var anon:{
+			function toUpperCase() : String;
+			function toLowerCase() : String;
+			function charAt( index : Int) : String;
+			function indexOf( str : String, ?startIndex : Int ) : Int;
+			function lastIndexOf( str : String, ?startIndex : Int ) : Int;
+			function split( delimiter : String ) : Array<String>;
+			function toString() : String;
+			function substring( startIndex : Int, ?endIndex : Int ) : String;
+			function charCodeAt( index : Int) : Null<Int> ;
+			function substr( pos : Int, ?len : Int ) : String ;
+		} = str;
+
+		eq(str.charAt(0), anon.charAt(0));
+		eq(str.charCodeAt(0), anon.charCodeAt(0));
+		eq(str.indexOf("a"), anon.indexOf("a"));
+		eq(str.lastIndexOf("r"), anon.lastIndexOf("r"));
+		eq(str.split("a")[1], anon.split("a")[1]);
+		eq(str.substr(1),anon.substr(1, 2));
+		eq(str.substring(0, 2), anon.substring(0, 2));
+		eq(str, anon.toLowerCase());
+		eq(str.toUpperCase(), anon.toUpperCase());
+		eq(str.toString(), anon.toString());
+	}
 #end
 }
 
