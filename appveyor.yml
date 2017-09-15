@@ -22,8 +22,6 @@ environment:
 services:
     - mysql
 
-skip_tags: true
-
 cache:
     - opam32.tar.xz -> appveyor.yml
 

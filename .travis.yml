@@ -45,20 +45,26 @@ install_linux: &install_linux
       libgtk2.0-dev
       awscli
   # Install neko
-  - travis_retry git clone https://github.com/HaxeFoundation/neko.git ~/neko
-  - pushd ~/neko
-  - cmake -DSTATIC_DEPS=MbedTLS
-  - make
-  - sudo make install
-  - popd
+  - mkdir ~/neko
+  - export NEKOPATH=~/neko
+  - curl -s -L --retry 3 'http://nekovm.org/media/neko-2.1.0-linux64.tar.gz' | tar -C ~/neko -x -z --strip-components=1 -f -
+  - sudo ln -s ~/neko/neko ~/neko/nekoc ~/neko/nekoml ~/neko/nekotools /usr/local/bin/
+  - sudo ln -s ~/neko/libneko.* /usr/local/lib/
+  - sudo ln -s ~/neko/include/* /usr/local/include/
+  - sudo mkdir -p /usr/local/lib/neko/
+  - sudo ln -s ~/neko/*.ndll /usr/local/lib/neko/
+  - sudo ln -s ~/neko/nekoml.std /usr/local/lib/neko/
+  - sudo ldconfig
   # Setup JDK
   - jdk_switcher use oraclejdk7
   - java -version
   # Build haxe
   - make package_src -s
-  - make -s
+  - make -s STATICLINK=1
   - make package_bin -s
   - ls -l out
+  - ldd -v ./haxe
+  - ldd -v ./haxelib
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
 
@@ -66,14 +72,24 @@ install_osx: &install_osx
   # Install haxe dependencies
   - brew uninstall --force brew-cask # https://github.com/caskroom/homebrew-cask/pull/15381
   - travis_retry brew update
-  - travis_retry brew install ocaml camlp4;
+  - travis_retry brew install ocaml camlp4 zlib pcre;
   # Install neko
-  - travis_retry brew install neko --HEAD;
+  - mkdir ~/neko
+  - export NEKOPATH=~/neko
+  - curl -s -L --retry 3 'http://nekovm.org/media/neko-2.1.0-osx64.tar.gz' | tar -C ~/neko -x -z --strip-components=1 -f -
+  - sudo ln -s ~/neko/neko ~/neko/nekoc ~/neko/nekoml ~/neko/nekotools /usr/local/bin/
+  - sudo ln -s ~/neko/libneko.* /usr/local/lib/
+  - sudo ln -s ~/neko/include/* /usr/local/include/
+  - sudo mkdir -p /usr/local/lib/neko/
+  - sudo ln -s ~/neko/*.ndll /usr/local/lib/neko/
+  - sudo ln -s ~/neko/nekoml.std /usr/local/lib/neko/
   # Build haxe
   - make package_src -s
-  - make -s
+  - make -s STATICLINK=1 "LIB_PARAMS=/usr/local/opt/zlib/lib/libz.a /usr/local/lib/libpcre.a"
   - make package_bin -s
   - ls -l out
+  - otool -L ./haxe
+  - otool -L ./haxelib
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
   - travis_retry brew install awscli
@@ -154,12 +170,6 @@ script:
   -   haxe RunCi.hxml
   -   neko RunCi.n
   - popd
-
-branches:
-  except:
-    # A hack to prevent building for tags, assuming they all start with a number.
-    # https://github.com/travis-ci/travis-ci/issues/1532
-    - /^[0-9]/
 
 notifications:
   webhooks:
