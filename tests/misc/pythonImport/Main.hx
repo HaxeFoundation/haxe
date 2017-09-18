@@ -1,3 +1,5 @@
+import utest.Assert;
+
 @:pythonImport("native_python.sample", "A")
 extern class ExternClass {
     function new();
@@ -24,18 +26,20 @@ extern class InexistantExtern2 {}
 @:pythonImport("inexistant", ignoreError=true)
 extern class InexistantExtern3 {}
 
-class Main extends haxe.unit.TestCase {
+class Main {
+
+	function new() { }
 
     function testExtern() {
-        assertEquals(new ExternClass().f(1), 2);
-        assertEquals(new ExternNestedClass().f(1), 3);
-        assertEquals(ExternModule.f(1), 4);
+        Assert.equals(new ExternClass().f(1), 2);
+        Assert.equals(new ExternNestedClass().f(1), 3);
+        Assert.equals(ExternModule.f(1), 4);
     }
 
     static function main() {
-        var runner = new haxe.unit.TestRunner();
-        runner.add(new Main());
-        var code = runner.run() ? 0 : 1;
-        Sys.exit(code);
+        var runner = new utest.Runner();
+        runner.addCase(new Main());
+		utest.ui.Report.create(runner);
+		runner.run();
     }
 }
