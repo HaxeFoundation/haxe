@@ -861,6 +861,7 @@ class RunCi {
 						runCommand("haxe", ["compile.hxml"]);
 
 						changeDirectory(sysDir);
+						haxelibInstall("utest");
 						runCommand("haxe", ["compile-macro.hxml"]);
 						runCommand("haxe", ["compile-each.hxml", "--run", "Main"]);
 					case Neko:
@@ -868,6 +869,7 @@ class RunCi {
 						runCommand("neko", ["bin/unit.n"]);
 
 						changeDirectory(sysDir);
+						haxelibInstall("utest");
 						runCommand("haxe", ["compile-neko.hxml"]);
 						runCommand("neko", ["bin/neko/sys.n"]);
 					case Php7:
@@ -877,6 +879,7 @@ class RunCi {
 							runCommand("php", ["bin/php7/index.php"]);
 
 							changeDirectory(sysDir);
+							haxelibInstall("utest");
 							runCommand("haxe", ["compile-php7.hxml"]);
 							runCommand("php", ["bin/php7/Main/index.php"]);
 						}
@@ -886,6 +889,7 @@ class RunCi {
 							runCommand("php", ["bin/php/index.php"]);
 
 							changeDirectory(sysDir);
+							haxelibInstall("utest");
 							runCommand("haxe", ["compile-php.hxml"]);
 							runCommand("php", ["bin/php/Main/index.php"]);
 					case Python:
@@ -897,6 +901,7 @@ class RunCi {
 						}
 
 						changeDirectory(sysDir);
+						haxelibInstall("utest");
 						runCommand("haxe", ["compile-python.hxml"]);
 						for (py in pys) {
 							runCommand(py, ["bin/python/sys.py"]);
@@ -926,6 +931,7 @@ class RunCi {
 							runCommand("lua", ["bin/unit.lua"]);
 
 							changeDirectory(sysDir);
+							haxelibInstall("utest");
 							runCommand("haxe", ["compile-lua.hxml"].concat(args));
 							runCommand("lua", ["bin/lua/sys.lua"]);
 
@@ -955,6 +961,7 @@ class RunCi {
 						}
 
 						changeDirectory(sysDir);
+						haxelibInstall("utest");
 						runCommand("haxe", ["compile-cpp.hxml"]);
 						runCpp("bin/cpp/Main-debug", []);
 
@@ -1041,6 +1048,7 @@ class RunCi {
 						runCommand("java", ["-jar", "bin/java/TestMain-Debug.jar"]);
 
 						changeDirectory(sysDir);
+						haxelibInstall("utest");
 						runCommand("haxe", ["compile-java.hxml"]);
 						runCommand("java", ["-jar", "bin/java/Main-Debug.jar"]);
 
@@ -1085,6 +1093,7 @@ class RunCi {
 						runCs("bin/cs/bin/TestMain-Debug.exe");
 
 						changeDirectory(sysDir);
+						haxelibInstall("utest");
 						runCommand("haxe", ["compile-cs.hxml",'-D','fast_cast']);
 						runCs("bin/cs/bin/Main-Debug.exe", []);
 
