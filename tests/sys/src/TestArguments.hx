@@ -1,8 +1,11 @@
+import utest.Assert;
+import utest.Runner;
+import utest.ui.Report;
+
 /**
 	This test is intented to be used by TestSys and io.TestProcess.
-	It will write the result to "temp/TestArguments.txt" (for debugging).
 */
-class TestArguments extends haxe.unit.TestCase {
+class TestArguments {
 	// We may compare and update the test cases of other popular langs/libs: https://gist.github.com/andyli/d55ae9ea1327bbbf749d
 	static public var expectedArgs(default, never):Array<String> = [
 		"foo",
@@ -100,27 +103,20 @@ class TestArguments extends haxe.unit.TestCase {
 		null;
 	#end
 
-	static public var log = "temp/TestArguments.txt";
+	function new() { }
 
 	function testArgs() {
 		var args = Sys.args();
 		for (i in 0...expectedArgs.length) {
-			assertEquals(expectedArgs[i], args[i]);
+			Assert.equals(expectedArgs[i], args[i]);
 		}
-		assertEquals(expectedArgs.length, args.length);
+		Assert.equals(expectedArgs.length, args.length);
 	}
 
 	static function main():Void {
-		var log = sys.io.File.write(log);
-		log.writeString(haxe.Json.stringify(Sys.args()) + "\n");
-		haxe.unit.TestRunner.print = function(v){
-			log.writeString(v);
-		};
-		var runner = new haxe.unit.TestRunner();
-		runner.add(new TestArguments());
-		var code = runner.run() ? 0 : 1;
-		log.flush();
-		log.close();
-		Sys.exit(code);
+		var runner = new Runner();
+		Report.create(runner);
+		runner.addCase(new TestArguments());
+		runner.run();
 	}
 }

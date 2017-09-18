@@ -1,18 +1,21 @@
 package io;
 
+import utest.Assert;
 import sys.io.File;
 import sys.FileSystem;
 
-class TestFile extends haxe.unit.TestCase {
+class TestFile {
+	public function new() { }
+
 	public function testCopyOverwrite() {
 		var fileA = "temp/a.txt";
 		var fileB = "temp/b.txt";
 		File.saveContent(fileA, "a");
 		File.saveContent(fileB, "b");
 
-		assertEquals("b", File.getContent(fileB));
+		Assert.equals("b", File.getContent(fileB));
 		File.copy(fileA, fileB);
-		assertEquals("a", File.getContent(fileB));
+		Assert.equals("a", File.getContent(fileB));
 
 		// cleanup
 		FileSystem.deleteFile(fileA);
