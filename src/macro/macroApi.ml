@@ -387,6 +387,7 @@ and encode_access a =
 		| ADynamic -> 4
 		| AInline -> 5
 		| AMacro -> 6
+		| AFinal -> 7
 	in
 	encode_enum IAccess tag []
 
@@ -685,6 +686,7 @@ and decode_access v =
 	| 4, [] -> ADynamic
 	| 5, [] -> AInline
 	| 6, [] -> AMacro
+	| 7, [] -> AFinal
 	| _ -> raise Invalid_expr
 
 and decode_meta_entry v =

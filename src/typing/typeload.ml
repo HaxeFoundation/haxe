@@ -620,7 +620,7 @@ and load_complex_type ctx allow_display p (t,pn) =
 				| APublic -> ()
 				| APrivate -> pub := false;
 				| ADynamic when (match f.cff_kind with FFun _ -> true | _ -> false) -> dyn := true
-				| AStatic | AOverride | AInline | ADynamic | AMacro -> error ("Invalid access " ^ Ast.s_access a) p
+				| AStatic | AOverride | AInline | ADynamic | AMacro | AFinal -> error ("Invalid access " ^ Ast.s_access a) p
 			) f.cff_access;
 			let t , access = (match f.cff_kind with
 				| FVar (Some (CTPath({tpackage=[];tname="Void"}),_), _)  | FProp (_,_,Some (CTPath({tpackage=[];tname="Void"}),_),_) ->
@@ -2733,7 +2733,7 @@ module ClassInitializer = struct
 		if name.[0] = '$' then display_error ctx "Field names starting with a dollar are not allowed" p;
 		List.iter (fun acc ->
 			match (acc, f.cff_kind) with
-			| APublic, _ | APrivate, _ | AStatic, _ -> ()
+			| APublic, _ | APrivate, _ | AStatic, _ | AFinal, _ -> ()
 			| ADynamic, FFun _ | AOverride, FFun _ | AMacro, FFun _ | AInline, FFun _ | AInline, FVar _ -> ()
 			| _, FVar _ -> error ("Invalid accessor '" ^ Ast.s_access acc ^ "' for variable " ^ name) p
 			| _, FProp _ -> error ("Invalid accessor '" ^ Ast.s_access acc ^ "' for property " ^ name) p

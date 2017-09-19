@@ -84,7 +84,7 @@ let keywords =
 		Switch;Case;Default;Public;Private;Try;Untyped;
 		Catch;New;This;Throw;Extern;Enum;In;Interface;
 		Cast;Override;Dynamic;Typedef;Package;
-		Inline;Using;Null;True;False;Abstract;Macro];
+		Inline;Using;Null;True;False;Abstract;Macro;Final];
 	h
 
 let init file do_add =

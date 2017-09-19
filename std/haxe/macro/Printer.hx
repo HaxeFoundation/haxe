@@ -135,6 +135,7 @@ class Printer {
 		case AInline: "inline";
 		case ADynamic: "dynamic";
 		case AMacro: "macro";
+		case AFinal: "final";
 	}
 
 	public function printField(field:Field) return
