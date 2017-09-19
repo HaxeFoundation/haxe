@@ -1921,6 +1921,7 @@ module ClassInitializer = struct
 		context_init : unit -> unit;
 		mutable delayed_expr : (typer * tlazy ref option) list;
 		mutable force_constructor : bool;
+		mutable uninitialized_final : pos option;
 	}
 
 	type field_kind =
@@ -2021,6 +2022,7 @@ module ClassInitializer = struct
 			abstract = abstract;
 			context_init = context_init;
 			force_constructor = false;
+			uninitialized_final = None;
 			delayed_expr = [];
 		} in
 		ctx,cctx
@@ -2303,8 +2305,10 @@ module ClassInitializer = struct
 		if not fctx.is_static && cctx.abstract <> None then error (fst f.cff_name ^ ": Cannot declare member variable in abstract") p;
 		if fctx.is_inline && not fctx.is_static then error (fst f.cff_name ^ ": Inline variable must be static") p;
 		if fctx.is_inline && eo = None then error (fst f.cff_name ^ ": Inline variable must be initialized") p;
-		if fctx.is_final && fctx.is_static && eo = None then error (fst f.cff_name ^ ": Static final variable must be initialized") p;
-
+		if fctx.is_final && eo = None then begin
+			if fctx.is_static then error (fst f.cff_name ^ ": Static final variable must be initialized") p
+			else cctx.uninitialized_final <- Some f.cff_pos;
+		end;
 		let t = (match t with
 			| None when not fctx.is_static && eo = None ->
 				error ("Type required for member variable " ^ fst f.cff_name) p;
@@ -2896,6 +2900,13 @@ module ClassInitializer = struct
 		(*
 			make sure a default contructor with same access as super one will be added to the class structure at some point.
 		*)
+		begin match cctx.uninitialized_final with
+			| Some pf when c.cl_constructor = None ->
+				display_error ctx "This class has uninitialized final vars, which requires a constructor" p;
+				error "Example of an uninitialized final var" pf
+			| _ ->
+				()
+		end;
 		(* add_constructor does not deal with overloads correctly *)
 		if not ctx.com.config.pf_overload then add_constructor ctx c cctx.force_constructor p;
 		if Meta.has Meta.StructInit c.cl_meta then check_struct_init_constructor ctx c p;
