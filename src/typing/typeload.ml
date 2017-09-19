@@ -905,7 +905,7 @@ let check_overriding ctx c =
 					() (* allow to redefine a method as inlined *)
 				| _ ->
 					display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p);
-				if has_meta Meta.Final f2.cf_meta then display_error ctx ("Cannot override @:final method " ^ i) p;
+				if has_meta Meta.Final f2.cf_meta then display_error ctx ("Cannot override final method " ^ i) p;
 				try
 					let t = apply_params csup.cl_params params t in
 					valid_redefinition ctx f f.cf_type f2 t
@@ -1909,6 +1909,7 @@ module ClassInitializer = struct
 
 	type field_init_ctx = {
 		is_inline : bool;
+		is_final : bool;
 		is_static : bool;
 		is_override : bool;
 		is_extern : bool;
@@ -2028,6 +2029,7 @@ module ClassInitializer = struct
 			is_override = is_override;
 			is_macro = is_macro;
 			is_extern = is_extern;
+			is_final = List.mem AFinal cff.cff_access;
 			is_display_field = ctx.is_display_file && Display.is_display_position cff.cff_pos;
 			is_field_debug = cctx.is_class_debug;
 			is_abstract_member = cctx.abstract <> None && Meta.has Meta.Impl cff.cff_meta;
@@ -2280,6 +2282,7 @@ module ClassInitializer = struct
 		if not fctx.is_static && cctx.abstract <> None then error (fst f.cff_name ^ ": Cannot declare member variable in abstract") p;
 		if fctx.is_inline && not fctx.is_static then error (fst f.cff_name ^ ": Inline variable must be static") p;
 		if fctx.is_inline && eo = None then error (fst f.cff_name ^ ": Inline variable must be initialized") p;
+		if fctx.is_final && fctx.is_static && eo = None then error (fst f.cff_name ^ ": Static final variable must be initialized") p;
 
 		let t = (match t with
 			| None when not fctx.is_static && eo = None ->
@@ -2297,14 +2300,21 @@ module ClassInitializer = struct
 				if fctx.is_static then ctx.type_params <- old;
 				t
 		) in
+		let kind = if fctx.is_inline then
+			{ v_read = AccInline ; v_write = AccNever }
+		else if fctx.is_final then
+			{ v_read = AccNormal ; v_write = if fctx.is_static then AccNever else AccCtor }
+		else
+			{ v_read = AccNormal ; v_write = AccNormal }
+		in
 		let cf = {
 			cf_name = fst f.cff_name;
 			cf_doc = f.cff_doc;
-			cf_meta = f.cff_meta;
+			cf_meta = (if fctx.is_final && not (Meta.has Meta.Final f.cff_meta) then (Meta.Final,[],null_pos) :: f.cff_meta else f.cff_meta);
 			cf_type = t;
 			cf_pos = f.cff_pos;
 			cf_name_pos = pos f.cff_name;
-			cf_kind = Var (if fctx.is_inline then { v_read = AccInline ; v_write = AccNever } else { v_read = AccNormal; v_write = AccNormal });
+			cf_kind = Var kind;
 			cf_expr = None;
 			cf_expr_unoptimized = None;
 			cf_public = is_public (ctx,cctx) f.cff_access None;
@@ -2523,7 +2533,7 @@ module ClassInitializer = struct
 		let cf = {
 			cf_name = fst f.cff_name;
 			cf_doc = f.cff_doc;
-			cf_meta = f.cff_meta;
+			cf_meta = (if fctx.is_final && not (Meta.has Meta.Final f.cff_meta) then (Meta.Final,[],null_pos) :: f.cff_meta else f.cff_meta);
 			cf_type = t;
 			cf_pos = f.cff_pos;
 			cf_name_pos = pos f.cff_name;

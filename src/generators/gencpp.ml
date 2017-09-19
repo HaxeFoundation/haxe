@@ -5318,7 +5318,8 @@ let access_str a = match a with
    | AccResolve -> "AccResolve"
    | AccCall -> "AccCall"
    | AccInline -> "AccInline"
-   | AccRequire(_,_) -> "AccRequire" ;;
+   | AccRequire(_,_) -> "AccRequire"
+   | AccCtor -> "AccCtor";;
 
 
 let script_type t optional = if optional then begin
@@ -7992,7 +7993,7 @@ let generate_script_class common_ctx script class_def =
          script#writeOpLine IaInline;
       | Var v,_ ->
          let mode_code mode = match mode with
-         | AccNormal -> IaAccessNormal
+         | AccNormal | AccCtor -> IaAccessNormal
          | AccNo -> IaAccessNot
          | AccNever -> IaAccessNot
          | AccResolve -> IaAccessResolve

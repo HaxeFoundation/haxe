@@ -26,7 +26,7 @@ import haxe.xml.Fast;
 /**
 	XmlParser processes the runtime type information (RTTI) which
 	is stored as a XML string in a static field `__rtti`.
-	
+
 	@see <https://haxe.org/manual/cr-rtti.html>
 **/
 class XmlParser {
@@ -416,6 +416,7 @@ class XmlParser {
 			name : x.name,
 			type : t,
 			isPublic : x.x.exists("public") || defPublic,
+			isFinal : x.x.exists("final"),
 			isOverride : x.x.exists("override"),
 			line : if( x.has.line ) Std.parseInt(x.att.line) else null,
 			doc : doc,

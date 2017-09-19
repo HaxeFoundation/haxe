@@ -945,6 +945,7 @@ and encode_var_access a =
 		| AccCall -> 4, []
 		| AccInline	-> 5, []
 		| AccRequire (s,msg) -> 6, [encode_string s; null encode_string msg]
+		| AccCtor -> 7, []
 	) in
 	encode_enum IVarAccess tag pl
 
@@ -1268,6 +1269,7 @@ let decode_var_access v =
 	| 4, [] -> AccCall
 	| 5, [] -> AccInline
 	| 6, [s1;s2] -> AccRequire(decode_string s1, opt decode_string s2)
+	| 7, [] -> AccCtor
 	| _ -> raise Invalid_expr
 
 let decode_method_kind v =
