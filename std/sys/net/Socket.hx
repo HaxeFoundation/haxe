@@ -108,7 +108,7 @@ extern class Socket {
 	function waitForRead() : Void;
 
 	/**
-		Change the blocking mode of the socket. A blocking socket is the default behavior. A non-blocking socket will abort blocking operations immediately by throwing a haxe.io.Error.Blocking value.
+		Change the blocking mode of the socket. A blocking socket is the default behavior. A non-blocking socket will abort blocking operations immediately by throwing a haxe.io.Error.Blocked value.
 	**/
 	function setBlocking( b : Bool ) : Void;
 
