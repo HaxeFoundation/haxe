@@ -27,6 +27,7 @@ open EvalField
 exception Break
 exception Continue
 exception Return of value
+exception Sys_exit of int
 
 let is v path =
 	path = key_Dynamic || match v with

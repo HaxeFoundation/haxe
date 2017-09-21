@@ -186,7 +186,7 @@ let rec wait ctx run env =
 		| ["quit" | "exit"] ->
 			(* TODO: Borrowed from interp.ml *)
 			if (get_ctx()).curapi.use_cache() then raise (Error.Fatal_error ("",Globals.null_pos));
-			raise (Interp.Sys_exit 0);
+			raise (Sys_exit 0);
 		| ["detach"] ->
 			Hashtbl.iter (fun _ h ->
 				Hashtbl.clear h
