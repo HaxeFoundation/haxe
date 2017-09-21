@@ -929,7 +929,7 @@ module StdFile = struct
 	let create_out path binary flags =
 		let path = decode_string path in
 		let binary = match binary with
-			| VTrue -> true
+			| VTrue | VNull -> true
 			| _ -> false
 		in
 		let perms = 0o666 in
