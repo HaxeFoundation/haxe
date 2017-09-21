@@ -1,12 +1,15 @@
+import utest.Runner;
+import utest.ui.Report;
+
 class Main {
 	static public function main() {
-		var runner = new haxe.unit.TestRunner();
-		runner.add(new TestSys());
-		runner.add(new TestFileSystem());
-		runner.add(new io.TestFile());
-		runner.add(new io.TestFileInput());
-		runner.add(new io.TestProcess());
-		var code = runner.run() ? 0 : 1;
-		Sys.exit(code);
+		var runner = new Runner();
+		runner.addCase(new TestSys());
+		runner.addCase(new TestFileSystem());
+		runner.addCase(new io.TestFile());
+		runner.addCase(new io.TestFileInput());
+		runner.addCase(new io.TestProcess());
+		Report.create(runner);
+		runner.run();
 	}
 }
