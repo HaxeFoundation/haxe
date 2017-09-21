@@ -322,18 +322,21 @@ module AbstractCast = struct
 
 	let make_static_call ctx c cf a pl args t p =
 		if cf.cf_kind = Method MethMacro then begin
-			match args with
+			let args,f = match args with
 				| [e] ->
 					let e,f = push_this ctx e in
-					ctx.with_type_stack <- (WithType t) :: ctx.with_type_stack;
-					let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name [e] p with
-						| Some e -> type_expr ctx e Value
-						| None ->  type_expr ctx (EConst (Ident "null"),p) Value
-					in
-					ctx.with_type_stack <- List.tl ctx.with_type_stack;
-					f();
-					e
-				| _ -> assert false
+					[e],f
+				| _ ->
+					[],(fun () -> ())
+			in
+			ctx.with_type_stack <- (WithType t) :: ctx.with_type_stack;
+			let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name args p with
+				| Some e -> type_expr ctx e Value
+				| None ->  type_expr ctx (EConst (Ident "null"),p) Value
+			in
+			ctx.with_type_stack <- List.tl ctx.with_type_stack;
+			f();
+			e
 		end else
 			make_static_call ctx c cf (apply_params a.a_params pl) args t p
 

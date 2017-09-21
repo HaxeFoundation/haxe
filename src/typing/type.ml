@@ -290,6 +290,7 @@ and tabstract = {
 	mutable a_this : t;
 	mutable a_from : t list;
 	mutable a_from_field : (t * tclass_field) list;
+	mutable a_from_nothing : tclass_field option;
 	mutable a_to : t list;
 	mutable a_to_field : (t * tclass_field) list;
 	mutable a_array : tclass_field list;
@@ -467,6 +468,7 @@ let null_abstract = {
 	a_this = t_dynamic;
 	a_from = [];
 	a_from_field = [];
+	a_from_nothing = None;
 	a_to = [];
 	a_to_field = [];
 	a_array = [];

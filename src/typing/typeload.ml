@@ -191,6 +191,7 @@ let module_pass_1 ctx m tdecls loadp =
 				a_from = [];
 				a_to = [];
 				a_from_field = [];
+				a_from_nothing = None;
 				a_to_field = [];
 				a_ops = [];
 				a_unops = [];
@@ -2367,6 +2368,8 @@ module ClassInitializer = struct
 								| _ -> error (cf.cf_name ^ ": @:from cast functions must accept exactly one argument") p
 						in
 						a.a_from_field <- (TLazy (ref (lazy_wait r)),cf) :: a.a_from_field;
+					| ((Meta.Custom ":fromNothing"),_,_) :: _ ->
+						a.a_from_nothing <- Some cf;
 					| (Meta.To,_,_) :: _ ->
 						if fctx.is_macro then error (cf.cf_name ^ ": Macro cast functions are not supported") p;
 						(* TODO: this doesn't seem quite right... *)

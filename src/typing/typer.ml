@@ -506,7 +506,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 		if is_pos_infos t then
 			mk_pos_infos t
 		else
-			null (ctx.t.tnull t) callp
+				null (ctx.t.tnull t) callp
 	in
 	let skipped = ref [] in
 	let invalid_skips = ref [] in
@@ -542,9 +542,19 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 			call_error (Not_enough_arguments args) callp
 		| [],(name,true,t) :: args ->
 			begin match loop [] args with
-				| [] when not (inline && (ctx.g.doinline || force_inline)) && not ctx.com.config.pf_pad_nulls ->
-					if is_pos_infos t then [mk_pos_infos t,true]
-					else []
+				| [] ->
+					begin match follow t with
+						| TAbstract({a_impl = Some c; a_from_nothing = Some cf} as a,tl) ->
+							[AbstractCast.make_static_call ctx c cf a tl [] t callp,true]
+						| _ ->
+							if not (inline && (ctx.g.doinline || force_inline)) && not ctx.com.config.pf_pad_nulls then begin
+								if is_pos_infos t then [mk_pos_infos t,true]
+								else []
+							end else begin
+								let e_def = default_value name t in
+								[e_def,true]
+							end
+					end
 				| args ->
 					let e_def = default_value name t in
 					(e_def,true) :: args
