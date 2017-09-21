@@ -541,23 +541,27 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 		| [],(_,false,_) :: _ ->
 			call_error (Not_enough_arguments args) callp
 		| [],(name,true,t) :: args ->
-			begin match loop [] args with
-				| [] ->
-					begin match follow t with
-						| TAbstract({a_impl = Some c; a_from_nothing = Some cf} as a,tl) ->
-							[AbstractCast.make_static_call ctx c cf a tl [] t callp,true]
-						| _ ->
-							if not (inline && (ctx.g.doinline || force_inline)) && not ctx.com.config.pf_pad_nulls then begin
-								if is_pos_infos t then [mk_pos_infos t,true]
-								else []
-							end else begin
-								let e_def = default_value name t in
-								[e_def,true]
-							end
+			begin match follow t with
+				| TAbstract({a_impl = Some c; a_from_nothing = Some cf} as a,tl) ->
+					let t = (AbstractCast.make_static_call ctx c cf a tl [] t callp,true) in
+					begin match args with
+						| [] -> [t]
+						| _ -> t :: (loop [] args)
 					end
-				| args ->
-					let e_def = default_value name t in
-					(e_def,true) :: args
+				| _ ->
+					begin match args with
+					| [] ->
+						if not (inline && (ctx.g.doinline || force_inline)) && not ctx.com.config.pf_pad_nulls then begin
+							if is_pos_infos t then [mk_pos_infos t,true]
+							else []
+						end else begin
+							let e_def = default_value name t in
+							[e_def,true]
+						end
+					| _ ->
+						let e_def = default_value name t in
+						(e_def,true) :: (loop [] args)
+					end
 			end
 		| (_,p) :: _, [] ->
 			begin match List.rev !skipped with
