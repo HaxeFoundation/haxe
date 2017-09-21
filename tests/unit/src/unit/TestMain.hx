@@ -89,9 +89,9 @@ class TestMain {
 			#end
 			new TestInterface(),
 			new TestNaN(),
-			// #if ((dce == "full") && !interp && !as3)
-			// new TestDCE(),
-			// #end
+			#if ((dce == "full") && !interp && !as3)
+			new TestDCE(),
+			#end
 			// #if ( (java || neko) && !macro && !interp)
 			// new TestThreads(),
 			// #end
