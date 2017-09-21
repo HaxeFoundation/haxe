@@ -72,10 +72,10 @@ private abstract HasNodeAccess(Xml) from Xml {
 private abstract NodeListAccess(Xml) from Xml {
 
 	@:op(a.b)
-	public function resolve( name : String ) : List<Fast> {
-		var l = new List();
+	public function resolve( name : String ) : Array<Fast> {
+		var l = [];
 		for( x in this.elementsNamed(name) )
-			l.add(new Fast(x));
+			l.push(new Fast(x));
 		return l;
 	}
 
@@ -85,16 +85,17 @@ private abstract NodeListAccess(Xml) from Xml {
 	The `haxe.xml.Fast` API helps providing a fast dot-syntax access to the
 	most common `Xml` methods.
 **/
-class Fast {
-	/**
-		The current corresponding `Xml` node.
-	**/
-	public var x(default,null) : Xml;
+abstract Fast(Xml) {
+	public var x(get,never) : Xml;
+	public inline function get_x() return this;
 
 	/**
 		The name of the current element. This is the same as `Xml.nodeName`.
 	**/
 	public var name(get,never) : String;
+	inline function get_name() {
+		return if( this.nodeType == Xml.Document ) "Document" else this.nodeName;
+	}
 
 	/**
 		The inner PCDATA or CDATA of the node.
@@ -126,7 +127,7 @@ class Fast {
 		```
 	**/
 	public var node(get,never) : NodeAccess;
-	inline function get_node() return x;
+	inline function get_node() : NodeAccess return x;
 
 	/**
 		Access to the List of elements with the given name.
@@ -144,7 +145,7 @@ class Fast {
 		```
 	**/
 	public var nodes(get,never) : NodeListAccess;
-	inline function get_nodes() return x;
+	inline function get_nodes() : NodeListAccess return this;
 
 	/**
 		Access to a given attribute.
@@ -161,13 +162,13 @@ class Fast {
 		```
 	**/
 	public var att(get,never) : AttribAccess;
-	inline function get_att() return x;
+	inline function get_att() : AttribAccess return this;
 
 	/**
 		Check the existence of an attribute with the given name.
 	**/
 	public var has(get,never) : HasAttribAccess;
-	inline function get_has() return x;
+	inline function get_has() : HasAttribAccess return this;
 
 	/**
 		Check the existence of a sub node with the given name.
@@ -181,25 +182,22 @@ class Fast {
 		```
 	**/
 	public var hasNode(get,never) : HasNodeAccess;
-	inline function get_hasNode() return x;
+	inline function get_hasNode() : HasNodeAccess return x;
 
 	/**
 		The list of all sub-elements which are the nodes with type `Xml.Element`.
 	**/
 	public var elements(get,never) : Iterator<Fast>;
+	inline function get_elements() : Iterator<Fast> return cast this.elements();
 
-	public function new( x : Xml ) {
+	public inline function new( x : Xml ) {
 		if( x.nodeType != Xml.Document && x.nodeType != Xml.Element )
 			throw "Invalid nodeType "+x.nodeType;
-		this.x = x;
-	}
-
-	function get_name() {
-		return if( x.nodeType == Xml.Document ) "Document" else x.nodeName;
+		this = x;
 	}
 
 	function get_innerData() {
-		var it = x.iterator();
+		var it = this.iterator();
 		if( !it.hasNext() )
 			throw name+" does not have data";
 		var v = it.next();
@@ -222,21 +220,8 @@ class Fast {
 
 	function get_innerHTML() {
 		var s = new StringBuf();
-		for( x in x )
-			s.add(x.toString());
+		for( x in this )
+			s.add(this.toString());
 		return s.toString();
-	}
-
-	function get_elements() {
-		var it = x.elements();
-		return {
-			hasNext : it.hasNext,
-			next : function() {
-				var x = it.next();
-				if( x == null )
-					return null;
-				return new Fast(x);
-			}
-		};
 	}
 }
