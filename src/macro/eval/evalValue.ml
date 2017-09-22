@@ -183,7 +183,7 @@ module ValueHashtbl = Hashtbl.Make(struct
 
 	let equal = equals
 
-	let hash = Hashtbl.hash
+	let hash _ = 0
 end)
 
 let vnull = VNull
