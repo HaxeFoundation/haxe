@@ -21,6 +21,7 @@
  */
  package haxe.macro;
 
+import haxe.display.Position;
 import haxe.macro.Expr;
 
 class PositionTools {
@@ -59,4 +60,15 @@ class PositionTools {
 		#end
 	}
 
+	#if macro
+	/**
+		Converts a `haxe.macro.Position` to a `haxe.display.Range`.
+
+		This operation requires the source file the be known to the Haxe lexer in order
+		to determine line breaks. It is thus only available in macro context.
+	**/
+	public static function toRange(p:Position):Range {
+		return Context.load("position_to_range", 1)(p);
+	}
+	#end
 }

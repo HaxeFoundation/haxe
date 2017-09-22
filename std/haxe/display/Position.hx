@@ -1,0 +1,70 @@
+/*
+ * Copyright (C)2005-2017 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+package haxe.display;
+
+abstract DocumentUri(String) {
+    public inline function new(uri:String) {
+        this = uri;
+    }
+
+    public inline function toString() {
+        return this;
+    }
+}
+
+/**
+    Position in a text document expressed as zero-based line and character offset.
+**/
+typedef Position = {
+    /**
+        Line position in a document (zero-based).
+    **/
+    var line:Int;
+
+    /**
+        Character offset on a line in a document (zero-based).
+    **/
+    var character:Int;
+}
+
+/**
+    A range in a text document expressed as (zero-based) start and end positions.
+**/
+typedef Range = {
+    /**
+        The range's start position
+    **/
+    var start:Position;
+
+    /**
+        The range's end position
+    **/
+    var end:Position;
+}
+
+/**
+    Represents a location inside a resource, such as a line inside a text file.
+**/
+typedef Location = {
+    var uri:DocumentUri;
+    var range:Range;
+}
