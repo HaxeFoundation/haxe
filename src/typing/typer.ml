@@ -1367,7 +1367,10 @@ and type_field ?(resume=false) ctx e i p mode =
 			if not (can_access ctx c f false) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
 			field_access ctx mode f (match c2 with None -> FAnon f | Some (c,tl) -> FInstance (c,tl,f)) (apply_params c.cl_params params t) e p
 		with Not_found -> try
-			using_field ctx mode e i p
+			begin match e.eexpr with
+				| TConst TSuper -> raise Not_found
+				| _ -> using_field ctx mode e i p
+			end
 		with Not_found -> try
 			loop_dyn c params
 		with Not_found -> try
