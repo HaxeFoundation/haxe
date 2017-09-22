@@ -259,7 +259,22 @@ module Pattern = struct
 					if not (is_lower_ident s) && (match s.[0] with '`' | '_' -> false | _ -> true) then begin
 						display_error ctx "Capture variables must be lower-case" p;
 					end;
-					if toplevel then pctx.ctx.com.warning "case <ident> has been deprecated, use case var <ident> instead" p;
+					let sl = match follow t with
+						| TEnum(en,_) ->
+							en.e_names
+						| TAbstract({a_impl = Some c} as a,pl) when Meta.has Meta.Enum a.a_meta ->
+							ExtList.List.filter_map (fun cf ->
+								if Meta.has Meta.Impl cf.cf_meta && Meta.has Meta.Enum cf.cf_meta then Some cf.cf_name else None
+							) c.cl_ordered_statics
+						| _ ->
+							[]
+					in
+					begin match StringError.get_similar s sl with
+						| [] ->
+							if toplevel then
+								pctx.ctx.com.warning (Printf.sprintf "`case %s` has been deprecated, use `case var %s` instead" s s) p
+						| l -> pctx.ctx.com.warning ("Potential typo detected (expected similar values are " ^ (String.concat ", " l) ^ "). Consider using `var " ^ s ^ "` instead") p
+					end;
 					let v = add_local s p in
 					PatVariable v
 				end
