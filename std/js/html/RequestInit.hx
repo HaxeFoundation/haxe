@@ -24,13 +24,14 @@
 
 package js.html;
 
+import haxe.web.HTTPMethod;
 typedef RequestInit =
 {
 	@:optional var body : haxe.extern.EitherType<ArrayBuffer,haxe.extern.EitherType<ArrayBufferView,haxe.extern.EitherType<Blob,haxe.extern.EitherType<FormData,haxe.extern.EitherType<String,URLSearchParams>>>>>;
 	@:optional var cache : RequestCache;
 	@:optional var credentials : RequestCredentials;
 	@:optional var headers : haxe.extern.EitherType<Headers,haxe.extern.EitherType<Array<Array<String>>,Dynamic/*MISSING ByteStringMozMap*/>>;
-	@:optional var method : String;
+	@:optional var method : HTTPMethod;
 	@:optional var mode : RequestMode;
 	@:optional var redirect : RequestRedirect;
 	@:optional var referrer : String;

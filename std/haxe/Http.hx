@@ -23,6 +23,7 @@ package haxe;
 
 #if sys
 
+import haxe.web.MIME;
 import sys.net.Host;
 import sys.net.Socket;
 
@@ -52,7 +53,7 @@ class Http {
 	public var responseHeaders : Map<String,String>;
 	var chunk_size : Null<Int>;
 	var chunk_buf : haxe.io.Bytes;
-	var file : { param : String, filename : String, io : haxe.io.Input, size : Int, mimeType : String };
+	var file : { param : String, filename : String, io : haxe.io.Input, size : Int, mimeType : MIME };
 #elseif (js && !nodejs)
 	public var async : Bool;
 	public var withCredentials : Bool;

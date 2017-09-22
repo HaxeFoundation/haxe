@@ -31,6 +31,8 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaSource>
 **/
+import haxe.web.MIME;
+
 @:native("MediaSource")
 extern class MediaSource extends EventTarget
 {
@@ -38,7 +40,7 @@ extern class MediaSource extends EventTarget
 	/**
 		Returns a `Boolean` value indicating if the given MIME type is supported by the current user agent — this is, if it can successfully create `SourceBuffer` objects for that MIME type.
 	**/
-	function isTypeSupported( type : String ) : Bool;
+	function isTypeSupported( type : MIME ) : Bool;
 	
 	/**
 		Returns a `SourceBufferList` object containing the list of `SourceBuffer` objects associated with this `MediaSource`.

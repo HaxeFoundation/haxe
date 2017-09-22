@@ -31,6 +31,10 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest>
 **/
+import haxe.web.HTTPStatus;
+import haxe.web.HTTPMethod;
+import haxe.web.MIME;
+
 @:native("XMLHttpRequest")
 extern class XMLHttpRequest extends XMLHttpRequestEventTarget
 {
@@ -46,7 +50,7 @@ extern class XMLHttpRequest extends XMLHttpRequestEventTarget
 	var withCredentials : Bool;
 	var upload(default,null) : XMLHttpRequestUpload;
 	var responseURL(default,null) : String;
-	var status(default,null) : Int;
+	var status(default,null) : HTTPStatus;
 	var statusText(default,null) : String;
 	var responseType : XMLHttpRequestResponseType;
 	
@@ -61,12 +65,12 @@ extern class XMLHttpRequest extends XMLHttpRequestEventTarget
 	@:overload( function( ?params : Dynamic/*MISSING MozXMLHttpRequestParameters*/ ) : Void {} )
 	function new( ignored : String ) : Void;
 	/** @throws DOMError */
-	@:overload( function( method : String, url : String ) : Void {} )
+	@:overload( function( method : HTTPMethod, url : String ) : Void {} )
 	
 	/**
 		Initializes a request. This method is to be used from JavaScript code; to initialize a request from native code, use `openRequest()` instead.
 	**/
-	function open( method : String, url : String, async : Bool, ?user : String, ?password : String ) : Void;
+	function open( method : HTTPMethod, url : String, async : Bool, ?user : String, ?password : String ) : Void;
 	/** @throws DOMError */
 	
 	/**
@@ -109,5 +113,5 @@ extern class XMLHttpRequest extends XMLHttpRequestEventTarget
 	/**
 		Overrides the MIME type returned by the server.
 	**/
-	function overrideMimeType( mime : String ) : Void;
+	function overrideMimeType( mime : MIME ) : Void;
 }

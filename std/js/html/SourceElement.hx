@@ -31,6 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLSourceElement>
 **/
+import haxe.web.MIME;
 @:native("HTMLSourceElement")
 extern class SourceElement extends Element
 {
@@ -43,7 +44,7 @@ extern class SourceElement extends Element
 	/**
 		Is a `DOMString` reflecting the `type` HTML attribute, containing the type of the media resource.
 	**/
-	var type : String;
+	var type : MIME;
 	
 	/**
 		Is a `DOMString` reflecting the `srcset` HTML attribute, containing a list of candidate images, separated by a comma (`',', U+002C COMMA`). A candidate image is a URL followed by a `'w'` with the width of the images, or an `'x'` followed by the pixel density.

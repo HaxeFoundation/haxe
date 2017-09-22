@@ -24,9 +24,10 @@
 
 package js.html;
 
+import haxe.web.HTTPStatus;
 typedef ResponseInit =
 {
 	@:optional var headers : haxe.extern.EitherType<Headers,haxe.extern.EitherType<Array<Array<String>>,Dynamic/*MISSING ByteStringMozMap*/>>;
-	@:optional var status : Int;
+	@:optional var status : HTTPStatus;
 	@:optional var statusText : String;
 }

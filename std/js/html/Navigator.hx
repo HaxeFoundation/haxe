@@ -31,6 +31,8 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Navigator>
 **/
+import haxe.web.Scheme;
+import haxe.web.MIME;
 @:native("Navigator")
 extern class Navigator
 {
@@ -105,8 +107,8 @@ extern class Navigator
 	/** @throws DOMError */
 	function sendBeacon( url : String, ?data : haxe.extern.EitherType<ArrayBufferView,haxe.extern.EitherType<Blob,haxe.extern.EitherType<String,FormData>>> ) : Bool;
 	/** @throws DOMError */
-	function registerProtocolHandler( scheme : String, url : String, title : String ) : Void;
+	function registerProtocolHandler( scheme : Scheme, url : String, title : String ) : Void;
 	/** @throws DOMError */
-	function registerContentHandler( mimeType : String, url : String, title : String ) : Void;
+	function registerContentHandler( mimeType : MIME, url : String, title : String ) : Void;
 	function taintEnabled() : Bool;
 }

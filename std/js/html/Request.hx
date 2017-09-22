@@ -31,6 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Request>
 **/
+import haxe.web.HTTPMethod;
 @:native("Request")
 extern class Request
 {
@@ -38,7 +39,7 @@ extern class Request
 	/**
 		Contains the request's method (`GET`, `POST`, etc.)
 	**/
-	var method(default,null) : String;
+	var method(default,null) : HTTPMethod;
 	
 	/**
 		Contains the URL of the request.
