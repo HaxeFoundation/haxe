@@ -27,7 +27,6 @@ private abstract Dep<T>(T) from T to T {
 					case _: unexpected();
 				}
 			case t:
-				trace(t);
 				unexpected();
 		}
 	}
@@ -67,6 +66,28 @@ class TestFromNothing extends Test {
 
 		t(foo2.bind()() == 3);
 		t(foo3.bind()() == 6);
+
+		t(foo2.bind(7)() == 9);
+		t(foo3.bind(7)() == 12);
+
+		t(foo2.bind(_)(7) == 9);
+		t(foo2.bind(_,_)(7, 3) == 10);
+
+		function foo4 <T>(x:T, plus:T->T->T, ?a:Dep<T>) {
+			return plus(x, a);
+		}
+
+		t(foo4(1, (a, b) -> a + b) == 2);
+
+		var f = foo4.bind(_, (a, b) -> a + b);
+		t(f(1) == 2);
+
+		t(foo4( (1:Int2), (a, b) -> (a:Int) + (b:Int) ) == 3);
+
+		var f = foo4.bind(_, (a:Int2, b:Int2) -> ((a:Int) + (b:Int):Int2) );
+		t(f(1) == 3);
+
+
 
 	}
 }
