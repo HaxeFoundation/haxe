@@ -1919,7 +1919,7 @@ let macro_api ccom get_api =
 				"end",pos_end;
 			] in
 			let location = encode_obj O__Const [
-				"uri",encode_string p.Globals.pfile;
+				"file",encode_string p.Globals.pfile;
 				"range",range
 			] in
 			location

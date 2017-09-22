@@ -21,16 +21,6 @@
  */
 package haxe.display;
 
-abstract DocumentUri(String) {
-    public inline function new(uri:String) {
-        this = uri;
-    }
-
-    public inline function toString() {
-        return this;
-    }
-}
-
 /**
     Position in a text document expressed as zero-based line and character offset.
 **/
@@ -65,6 +55,6 @@ typedef Range = {
     Represents a location inside a resource, such as a line inside a text file.
 **/
 typedef Location = {
-    var uri:DocumentUri;
+    var file:String;
     var range:Range;
 }
