@@ -160,7 +160,7 @@ module Pattern = struct
 			| TAbstract(a,_) -> unify ctx (TAbstract(a,[mk_mono()])) t p
 			| _ -> assert false
 
-	let rec make pctx t e =
+	let rec make pctx toplevel t e =
 		let ctx = pctx.ctx in
 		let p = pos e in
 		let fail () =
@@ -259,6 +259,7 @@ module Pattern = struct
 					if not (is_lower_ident s) && (match s.[0] with '`' | '_' -> false | _ -> true) then begin
 						display_error ctx "Capture variables must be lower-case" p;
 					end;
+					if toplevel then pctx.ctx.com.warning "case <ident> has been deprecated, use case var <ident> instead" p;
 					let v = add_local s p in
 					PatVariable v
 				end
@@ -313,7 +314,7 @@ module Pattern = struct
 								(* Allow using final _ to match "multiple" arguments *)
 								(PatAny,p) :: (match tl with [] -> [] | _ -> loop el tl)
 							| e :: el,(_,_,t) :: tl ->
-								make pctx t e :: loop el tl
+								make pctx false t e :: loop el tl
 							| [],(_,true,t) :: tl ->
 								(PatAny,pos e) :: loop [] tl
 							| [],[] ->
@@ -343,7 +344,7 @@ module Pattern = struct
 					| TFun(tl,tr) when tr == fake_tuple_type ->
 						let rec loop el tl = match el,tl with
 							| e :: el,(_,_,t) :: tl ->
-								let pat = make pctx t e in
+								let pat = make pctx false t e in
 								pat :: loop el tl
 							| [],[] -> []
 							| [],_ -> error "Not enough arguments" p
@@ -353,7 +354,7 @@ module Pattern = struct
 						PatTuple patterns
 					| TInst({cl_path=[],"Array"},[t2]) | (TDynamic _ as t2) ->
 						let patterns = ExtList.List.mapi (fun i e ->
-							make pctx t2 e
+							make pctx false t2 e
 						) el in
 						PatConstructor(ConArray (List.length patterns),patterns)
 					| _ ->
@@ -404,7 +405,7 @@ module Pattern = struct
 					try
 						if pctx.in_reification && cf.cf_name = "pos" then raise Not_found;
 						let e1 = Expr.field_assoc cf.cf_name fl in
-						make pctx t e1 :: patterns,cf.cf_name :: fields
+						make pctx false t e1 :: patterns,cf.cf_name :: fields
 					with Not_found ->
 						if is_matchable cf then
 							(PatAny,cf.cf_pos) :: patterns,cf.cf_name :: fields
@@ -415,9 +416,9 @@ module Pattern = struct
 				PatConstructor(ConFields fields,patterns)
 			| EBinop(OpOr,e1,e2) ->
 				let pctx1 = {pctx with current_locals = PMap.empty} in
-				let pat1 = make pctx1 t e1 in
+				let pat1 = make pctx1 toplevel t e1 in
 				let pctx2 = {pctx with current_locals = PMap.empty; or_locals = Some (pctx1.current_locals)} in
-				let pat2 = make pctx2 t e2 in
+				let pat2 = make pctx2 toplevel t e2 in
 				PMap.iter (fun name (v,p) ->
 					if not (PMap.mem name pctx2.current_locals) then verror name p;
 					pctx.current_locals <- PMap.add name (v,p) pctx.current_locals
@@ -428,13 +429,13 @@ module Pattern = struct
 					| (EConst (Ident s),p) ->
 						let v = add_local s p in
 						if in_display then ignore(Typer.display_expr ctx e (mk (TLocal v) v.v_type p) (WithType t) p);
-						let pat = make pctx t e2 in
+						let pat = make pctx false t e2 in
 						PatBind(v,pat)
 					| (EParenthesis e1,_) -> loop in_display e1
 					| (EDisplay(e1,_),_) -> loop true e1
 					| _ -> fail()
-					in
-					loop false e1
+				in
+				loop false e1
 			| EBinop(OpArrow,e1,e2) ->
 				let restore = save_locals ctx in
 				ctx.locals <- pctx.ctx_locals;
@@ -442,7 +443,7 @@ module Pattern = struct
 				let e1 = type_expr ctx e1 Value in
 				v.v_name <- "tmp";
 				restore();
-				let pat = make pctx e1.etype e2 in
+				let pat = make pctx toplevel e1.etype e2 in
 				PatExtractor(v,e1,pat)
 			| EDisplay(e,iscall) ->
 				let pat = loop e in
@@ -463,7 +464,7 @@ module Pattern = struct
 			or_locals = None;
 			in_reification = false;
 		} in
-		make pctx t e
+		make pctx true t e
 end
 
 module Case = struct

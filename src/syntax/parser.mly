@@ -1551,6 +1551,10 @@ and parse_guard = parser
 	| [< '(Kwd If,p1); '(POpen,_); e = expr; '(PClose,_); >] ->
 		e
 
+and expr_or_var = parser
+	| [< '(Kwd Var,p1); name,p2 = dollar_ident; >] -> EVars [(name,p2),None,None],punion p1 p2
+	| [< e = expr >] -> e
+
 and parse_switch_cases eswitch cases = parser
 	| [< '(Kwd Default,p1); '(DblDot,_); s >] ->
 		let b,p2 = (try block_with_pos [] p1 s with Display e -> display (ESwitch (eswitch,cases,Some (Some e,punion p1 (pos e))),punion (pos eswitch) (pos e))) in
@@ -1561,7 +1565,7 @@ and parse_switch_cases eswitch cases = parser
 		let l , def = parse_switch_cases eswitch cases s in
 		(match def with None -> () | Some _ -> error Duplicate_default p1);
 		l , Some b
-	| [< '(Kwd Case,p1); el = psep Comma expr; eg = popt parse_guard; '(DblDot,_); s >] ->
+	| [< '(Kwd Case,p1); el = psep Comma expr_or_var; eg = popt parse_guard; '(DblDot,_); s >] ->
 		(match el with
 		| [] -> error (Custom "case without a pattern is not allowed") p1
 		| _ ->
