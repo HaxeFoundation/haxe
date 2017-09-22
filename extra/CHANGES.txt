@@ -1,3 +1,27 @@
+2017-10-??: 4.0.0-preview.2
+
+	New features:
+
+	all : added final keyword (#6596)
+
+	General improvements and optimizations:
+
+	all : replaced some occurrences of List with Array
+	all : changed haxe.xml.Fast to an abstract
+
+	Removals:
+
+	all : moved haxe.unit to hx3compat
+	all : moved haxe.web.Request to hx3compat
+
+	Bugfixes:
+
+	all : fixed issue with various functions not being displayed in macro context (#6000)
+	eval : fixed bug with equality handling
+	eval : fixed issue with file creation not defaulting to binary
+	cs/java : fixed DCE bug that would lose toString method of thrown objects
+	php/python : fixed some bit operators for Int32 (#5938)
+
 2017-09-12: 4.0.0-preview.1
 
 	New features:
