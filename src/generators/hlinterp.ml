@@ -1236,9 +1236,9 @@ let load_native ctx lib name t =
 		let t, _ = Unix.mktime d in
 		VInt (Int32.of_float t)
 	in
-	(* let hl_to_caml_sub str pos len =
+	let hl_to_caml_sub str pos len =
 		hl_to_caml (String.sub str pos len ^ "\x00\x00")
-	in *)
+	in
 	let no_virtual v =
 		match v with
 		| VVirtual v when v.vvalue <> VNull -> v.vvalue
@@ -1347,23 +1347,18 @@ let load_native ctx lib name t =
 		| "math_log" -> (function [VFloat f] -> VFloat (Pervasives.log f) | _ -> assert false)
 		| "math_exp" -> (function [VFloat f] -> VFloat (exp f) | _ -> assert false)
 		| "math_pow" -> (function [VFloat a; VFloat b] -> VFloat (a ** b) | _ -> assert false)
-		(* | "parse_int" ->
+		| "parse_int" ->
 			(function
 			| [VBytes str; VInt pos; VInt len] ->
 				(try
-					let i = (match Interp.parse_int (hl_to_caml_sub str (int pos) (int len)) with
-						| Interp.VInt v -> Int32.of_int v
-						| Interp.VInt32 v -> v
-						| _ -> assert false
-					) in
-					VDyn (VInt i,HI32)
+					VDyn (VInt (EvalStdLib.StdStd.parse_int (hl_to_caml_sub str (int pos) (int len))),HI32)
 				with _ ->
 					VNull)
-			| l -> assert false) *)
-		(* | "parse_float" ->
+			| l -> assert false)
+		| "parse_float" ->
 			(function
-			| [VBytes str; VInt pos; VInt len] -> (try VFloat (Interp.parse_float (hl_to_caml_sub str (int pos) (int len))) with _ -> VFloat nan)
-			| _ -> assert false) *)
+			| [VBytes str; VInt pos; VInt len] -> (try VFloat (EvalStdLib.StdStd.parse_float (hl_to_caml_sub str (int pos) (int len))) with _ -> VFloat nan)
+			| _ -> assert false)
 		| "dyn_compare" ->
 			(function
 			| [a;b] -> to_int (dyn_compare ctx a HDyn b HDyn)
