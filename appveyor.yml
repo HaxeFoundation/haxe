@@ -68,7 +68,6 @@ test_script:
     - cd %APPVEYOR_BUILD_FOLDER%/tests/
     - haxe -version
     - haxe RunCi.hxml
-    - neko RunCi.n
 
 artifacts:
     - path: 'out/*.zip'

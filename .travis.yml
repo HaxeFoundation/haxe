@@ -236,7 +236,6 @@ script:
   - test $CAN_BUILD && mkdir ~/haxelib && haxelib setup ~/haxelib
   - test $CAN_BUILD && haxe -version
   - test $CAN_BUILD && haxe RunCi.hxml
-  - test $CAN_BUILD && neko RunCi.n
   - test $CAN_BUILD && popd
 
 branches:
