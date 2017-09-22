@@ -43,7 +43,7 @@ class TypeTools {
 	static function toField(cf : ClassField) : Field return {
 		function varAccessToString(va : VarAccess, getOrSet : String) : String return {
 			switch (va) {
-				case AccNormal: "default";
+				case AccNormal | AccCtor: "default";
 				case AccNo: "null";
 				case AccNever: "never";
 				case AccResolve: throw "Invalid TAnonymous";
@@ -52,10 +52,14 @@ class TypeTools {
 				case AccRequire(_, _): "default";
 			}
 		}
+		var access = cf.isPublic ? [ APublic ] : [ APrivate ];
+		if (cf.meta.has(":final")) {
+			access.push(AFinal);
+		}
 		if (cf.params.length == 0) {
 			name: cf.name,
 			doc: cf.doc,
-			access: cf.isPublic ? [ APublic ] : [ APrivate ],
+			access: access,
 			kind: switch([ cf.kind, cf.type ]) {
 				case [ FVar(read, write), ret ]:
 					FProp(

@@ -414,6 +414,7 @@ class XmlParser {
 			name : x.name,
 			type : t,
 			isPublic : x.x.exists("public") || defPublic,
+			isFinal : x.x.exists("final"),
 			isOverride : x.x.exists("override"),
 			line : if( x.has.line ) Std.parseInt(x.att.line) else null,
 			doc : doc,

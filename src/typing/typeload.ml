@@ -620,7 +620,7 @@ and load_complex_type ctx allow_display p (t,pn) =
 				| APublic -> ()
 				| APrivate -> pub := false;
 				| ADynamic when (match f.cff_kind with FFun _ -> true | _ -> false) -> dyn := true
-				| AStatic | AOverride | AInline | ADynamic | AMacro -> error ("Invalid access " ^ Ast.s_access a) p
+				| AStatic | AOverride | AInline | ADynamic | AMacro | AFinal -> error ("Invalid access " ^ Ast.s_access a) p
 			) f.cff_access;
 			let t , access = (match f.cff_kind with
 				| FVar (Some (CTPath({tpackage=[];tname="Void"}),_), _)  | FProp (_,_,Some (CTPath({tpackage=[];tname="Void"}),_),_) ->
@@ -905,7 +905,7 @@ let check_overriding ctx c =
 					() (* allow to redefine a method as inlined *)
 				| _ ->
 					display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p);
-				if has_meta Meta.Final f2.cf_meta then display_error ctx ("Cannot override @:final method " ^ i) p;
+				if has_meta Meta.Final f2.cf_meta then display_error ctx ("Cannot override final method " ^ i) p;
 				try
 					let t = apply_params csup.cl_params params t in
 					valid_redefinition ctx f f.cf_type f2 t
@@ -1638,7 +1638,28 @@ let type_function ctx args ret fmode f do_display p =
 	in
 	let e = if fmode <> FunConstructor then
 		e
-	else match has_super_constr() with
+	else begin
+		let final_vars = Hashtbl.create 0 in
+		List.iter (fun cf -> match cf.cf_kind with
+			| Var _ when Meta.has Meta.Final cf.cf_meta && cf.cf_expr = None ->
+				Hashtbl.add final_vars cf.cf_name cf
+			| _ ->
+				()
+		) ctx.curclass.cl_ordered_fields;
+		if Hashtbl.length final_vars > 0 then begin
+			let rec find_inits e = match e.eexpr with
+				| TBinop(OpAssign,{eexpr = TField({eexpr = TConst TThis},fa)},e2) ->
+					Hashtbl.remove final_vars (field_name fa);
+					find_inits e2;
+				| _ ->
+					Type.iter find_inits e
+			in
+			find_inits e;
+			Hashtbl.iter (fun _ cf ->
+				display_error ctx ("final field " ^ cf.cf_name ^ " must be initialized immediately or in the constructor") cf.cf_pos;
+			) final_vars
+		end;
+		match has_super_constr() with
 		| Some (was_forced,t_super) ->
 			(try
 				loop e;
@@ -1654,7 +1675,7 @@ let type_function ctx args ret fmode f do_display p =
 				Exit -> e);
 		| None ->
 			e
-	in
+	end in
 	locals();
 	let e = match ctx.curfun, ctx.vthis with
 		| (FunMember|FunConstructor), Some v ->
@@ -1900,6 +1921,7 @@ module ClassInitializer = struct
 		context_init : unit -> unit;
 		mutable delayed_expr : (typer * tlazy ref option) list;
 		mutable force_constructor : bool;
+		mutable uninitialized_final : pos option;
 	}
 
 	type field_kind =
@@ -1909,6 +1931,7 @@ module ClassInitializer = struct
 
 	type field_init_ctx = {
 		is_inline : bool;
+		is_final : bool;
 		is_static : bool;
 		is_override : bool;
 		is_extern : bool;
@@ -1999,6 +2022,7 @@ module ClassInitializer = struct
 			abstract = abstract;
 			context_init = context_init;
 			force_constructor = false;
+			uninitialized_final = None;
 			delayed_expr = [];
 		} in
 		ctx,cctx
@@ -2028,6 +2052,7 @@ module ClassInitializer = struct
 			is_override = is_override;
 			is_macro = is_macro;
 			is_extern = is_extern;
+			is_final = List.mem AFinal cff.cff_access;
 			is_display_field = ctx.is_display_file && Display.is_display_position cff.cff_pos;
 			is_field_debug = cctx.is_class_debug;
 			is_abstract_member = cctx.abstract <> None && Meta.has Meta.Impl cff.cff_meta;
@@ -2280,7 +2305,10 @@ module ClassInitializer = struct
 		if not fctx.is_static && cctx.abstract <> None then error (fst f.cff_name ^ ": Cannot declare member variable in abstract") p;
 		if fctx.is_inline && not fctx.is_static then error (fst f.cff_name ^ ": Inline variable must be static") p;
 		if fctx.is_inline && eo = None then error (fst f.cff_name ^ ": Inline variable must be initialized") p;
-
+		if fctx.is_final && eo = None then begin
+			if fctx.is_static then error (fst f.cff_name ^ ": Static final variable must be initialized") p
+			else cctx.uninitialized_final <- Some f.cff_pos;
+		end;
 		let t = (match t with
 			| None when not fctx.is_static && eo = None ->
 				error ("Type required for member variable " ^ fst f.cff_name) p;
@@ -2297,14 +2325,21 @@ module ClassInitializer = struct
 				if fctx.is_static then ctx.type_params <- old;
 				t
 		) in
+		let kind = if fctx.is_inline then
+			{ v_read = AccInline ; v_write = AccNever }
+		else if fctx.is_final then
+			{ v_read = AccNormal ; v_write = if fctx.is_static then AccNever else AccCtor }
+		else
+			{ v_read = AccNormal ; v_write = AccNormal }
+		in
 		let cf = {
 			cf_name = fst f.cff_name;
 			cf_doc = f.cff_doc;
-			cf_meta = f.cff_meta;
+			cf_meta = (if fctx.is_final && not (Meta.has Meta.Final f.cff_meta) then (Meta.Final,[],null_pos) :: f.cff_meta else f.cff_meta);
 			cf_type = t;
 			cf_pos = f.cff_pos;
 			cf_name_pos = pos f.cff_name;
-			cf_kind = Var (if fctx.is_inline then { v_read = AccInline ; v_write = AccNever } else { v_read = AccNormal; v_write = AccNormal });
+			cf_kind = Var kind;
 			cf_expr = None;
 			cf_expr_unoptimized = None;
 			cf_public = is_public (ctx,cctx) f.cff_access None;
@@ -2523,7 +2558,7 @@ module ClassInitializer = struct
 		let cf = {
 			cf_name = fst f.cff_name;
 			cf_doc = f.cff_doc;
-			cf_meta = f.cff_meta;
+			cf_meta = (if fctx.is_final && not (Meta.has Meta.Final f.cff_meta) then (Meta.Final,[],null_pos) :: f.cff_meta else f.cff_meta);
 			cf_type = t;
 			cf_pos = f.cff_pos;
 			cf_name_pos = pos f.cff_name;
@@ -2733,7 +2768,7 @@ module ClassInitializer = struct
 		if name.[0] = '$' then display_error ctx "Field names starting with a dollar are not allowed" p;
 		List.iter (fun acc ->
 			match (acc, f.cff_kind) with
-			| APublic, _ | APrivate, _ | AStatic, _ -> ()
+			| APublic, _ | APrivate, _ | AStatic, _ | AFinal, _ -> ()
 			| ADynamic, FFun _ | AOverride, FFun _ | AMacro, FFun _ | AInline, FFun _ | AInline, FVar _ -> ()
 			| _, FVar _ -> error ("Invalid accessor '" ^ Ast.s_access acc ^ "' for variable " ^ name) p
 			| _, FProp _ -> error ("Invalid accessor '" ^ Ast.s_access acc ^ "' for property " ^ name) p
@@ -2865,6 +2900,13 @@ module ClassInitializer = struct
 		(*
 			make sure a default contructor with same access as super one will be added to the class structure at some point.
 		*)
+		begin match cctx.uninitialized_final with
+			| Some pf when c.cl_constructor = None ->
+				display_error ctx "This class has uninitialized final vars, which requires a constructor" p;
+				error "Example of an uninitialized final var" pf
+			| _ ->
+				()
+		end;
 		(* add_constructor does not deal with overloads correctly *)
 		if not ctx.com.config.pf_overload then add_constructor ctx c cctx.force_constructor p;
 		if Meta.has Meta.StructInit c.cl_meta then check_struct_init_constructor ctx c p;

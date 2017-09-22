@@ -628,6 +628,11 @@ enum VarAccess {
 		Failed access due to a `@:require` metadata.
 	**/
 	AccRequire( r : String, ?msg : String );
+
+	/**
+		Access is only allowed from the constructor.
+	**/
+	AccCtor;
 }
 
 /**

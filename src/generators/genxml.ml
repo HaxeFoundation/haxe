@@ -132,7 +132,7 @@ and gen_type_decl n t pl =
 and gen_field att f =
 	let add_get_set acc name att =
 		match acc with
-		| AccNormal | AccResolve | AccRequire _ -> att
+		| AccNormal | AccResolve | AccRequire _ | AccCtor -> att
 		| AccNo | AccNever -> (name, "null") :: att
 		| AccCall -> (name,"accessor") :: att
 		| AccInline -> (name,"inline") :: att
@@ -171,7 +171,9 @@ and gen_field att f =
 		with Not_found ->
 			cf.cf_name
 	in
-	node (field_name f) (if f.cf_public then ("public","1") :: att else att) (gen_type ~values:(Some values) f.cf_type :: gen_meta f.cf_meta @ gen_doc_opt f.cf_doc @ overloads)
+	let att = if f.cf_public then ("public","1") :: att else att in
+	let att = if (Meta.has Meta.Final) f.cf_meta then ("final","1") :: att else att in
+	node (field_name f) att (gen_type ~values:(Some values) f.cf_type :: gen_meta f.cf_meta @ gen_doc_opt f.cf_doc @ overloads)
 
 let gen_constr e =
 	let doc = gen_doc_opt e.ef_doc in

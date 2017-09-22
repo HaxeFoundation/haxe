@@ -338,6 +338,7 @@ let reify in_macro =
 			| ADynamic -> "ADynamic"
 			| AInline -> "AInline"
 			| AMacro -> "AMacro"
+			| AFinal -> "AFinal"
 			) in
 			mk_enum "Access" n [] p
 		in
@@ -848,7 +849,7 @@ and parse_class_field_resume tdecl s =
 			| Kwd New :: Kwd Function :: _ ->
 				junk_tokens (k - 2);
 				parse_class_field_resume tdecl s
-			| Kwd Macro :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ ->
+			| Kwd Macro :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Final :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ ->
 				junk_tokens (k - 1);
 				parse_class_field_resume tdecl s
 			| BrClose :: _ when tdecl ->
@@ -940,11 +941,11 @@ and parse_complex_type_inner = parser
 	| [< '(POpen,p1); t = parse_complex_type; '(PClose,p2) >] -> CTParent t,punion p1 p2
 	| [< '(BrOpen,p1); s >] ->
 		(match s with parser
-		| [< l,p2 = parse_type_anonymous false >] -> CTAnonymous l,punion p1 p2
+		| [< l,p2 = parse_type_anonymous false false >] -> CTAnonymous l,punion p1 p2
 		| [< t = parse_structural_extension; s>] ->
 			let tl = t :: plist parse_structural_extension s in
 			(match s with parser
-			| [< l,p2 = parse_type_anonymous false >] -> CTExtend (tl,l),punion p1 p2
+			| [< l,p2 = parse_type_anonymous false false >] -> CTExtend (tl,l),punion p1 p2
 			| [< l,p2 = parse_class_fields true p1 >] -> CTExtend (tl,l),punion p1 p2)
 		| [< l,p2 = parse_class_fields true p1 >] -> CTAnonymous l,punion p1 p2
 		| [< >] -> serror())
@@ -1018,8 +1019,9 @@ and parse_complex_type_next (t : type_hint) = parser
 			CTFunction ([t] , (t2,p2)),punion (pos t) p2)
 	| [< >] -> t
 
-and parse_type_anonymous opt = parser
-	| [< '(Question,_) when not opt; s >] -> parse_type_anonymous true s
+and parse_type_anonymous opt final = parser
+	| [< '(Question,_) when not opt; s >] -> parse_type_anonymous true final s
+	| [< '(Kwd Final,_) when not opt && not final; s >] -> parse_type_anonymous opt true s
 	| [< name, p1 = ident; t = parse_type_hint_with_pos; s >] ->
 		let p2 = pos (last_token s) in
 		let next acc =
@@ -1028,7 +1030,7 @@ and parse_type_anonymous opt = parser
 				cff_meta = if opt then [Meta.Optional,[],null_pos] else [];
 				cff_access = [];
 				cff_doc = None;
-				cff_kind = FVar (Some t,None);
+				cff_kind = if final then FProp(("default",null_pos),("never",null_pos),Some t,None) else FVar (Some t,None);
 				cff_pos = punion p1 p2;
 			} :: acc
 		in
@@ -1037,7 +1039,7 @@ and parse_type_anonymous opt = parser
 		| [< '(Comma,p2) >] ->
 			(match s with parser
 			| [< '(BrClose,p2) >] -> next [],p2
-			| [< l,p2 = parse_type_anonymous false >] -> next l,punion p1 p2
+			| [< l,p2 = parse_type_anonymous false false >] -> next l,punion p1 p2
 			| [< >] -> serror());
 		| [< >] -> serror()
 
@@ -1069,43 +1071,54 @@ and parse_enum_param = parser
 	| [< '(Question,_); name, _ = ident; t = parse_type_hint_with_pos >] -> (name,true,t)
 	| [< name, _ = ident; t = parse_type_hint_with_pos >] -> (name,false,t)
 
+and parse_function_field doc meta al = parser
+	| [< '(Kwd Function,p1); name = parse_fun_name; pl = parse_constraint_params; '(POpen,_); args = psep Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint_with_pos; s >] ->
+		let e, p2 = (match s with parser
+			| [< e = toplevel_expr; s >] ->
+				(try ignore(semicolon s) with Error (Missing_semicolon,p) -> !display_error Missing_semicolon p);
+				Some e, pos e
+			| [< p = semicolon >] -> None, p
+			| [< >] -> serror()
+		) in
+		let f = {
+			f_params = pl;
+			f_args = args;
+			f_type = t;
+			f_expr = e;
+		} in
+		name, punion p1 p2, FFun f, al
+
+and parse_var_field_assignment = parser
+	| [< '(Binop OpAssign,_); e = toplevel_expr; p2 = semicolon >] -> Some e , p2
+	| [< p2 = semicolon >] -> None , p2
+	| [< >] -> serror()
+
 and parse_class_field s =
 	let doc = get_doc s in
 	match s with parser
 	| [< meta = parse_meta; al = parse_cf_rights true []; s >] ->
-		let name, pos, k = (match s with parser
+		let name, pos, k, al = (match s with parser
 		| [< '(Kwd Var,p1); name = dollar_ident; s >] ->
-			(match s with parser
+			begin match s with parser
 			| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_) >] ->
 				let t = popt parse_type_hint_with_pos s in
-				let e , p2 = (match s with parser
-				| [< '(Binop OpAssign,_); e = toplevel_expr; p2 = semicolon >] -> Some e , p2
-				| [< p2 = semicolon >] -> None , p2
-				| [< >] -> serror()
-				) in
-				name, punion p1 p2, FProp (i1,i2,t, e)
+				let e,p2 = parse_var_field_assignment s in
+				name, punion p1 p2, FProp (i1,i2,t, e), al
 			| [< t = popt parse_type_hint_with_pos; s >] ->
-				let e , p2 = (match s with parser
-				| [< '(Binop OpAssign,_); e = toplevel_expr; p2 = semicolon >] -> Some e , p2
-				| [< p2 = semicolon >] -> None , p2
-				| [< >] -> serror()
-				) in
-				name, punion p1 p2, FVar (t,e))
-		| [< '(Kwd Function,p1); name = parse_fun_name; pl = parse_constraint_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint_with_pos; s >] ->
-			let e, p2 = (match s with parser
-				| [< e = toplevel_expr; s >] ->
-					(try ignore(semicolon s) with Error (Missing_semicolon,p) -> !display_error Missing_semicolon p);
-					Some e, pos e
-				| [< p = semicolon >] -> None, p
-				| [< >] -> serror()
-			) in
-			let f = {
-				f_params = pl;
-				f_args = al;
-				f_type = t;
-				f_expr = e;
-			} in
-			name, punion p1 p2, FFun f
+				let e,p2 = parse_var_field_assignment s in
+				name, punion p1 p2, FVar (t,e), al
+			end
+		| [< '(Kwd Final,p1) >] ->
+			begin match s with parser
+			| [< name = dollar_ident; t = popt parse_type_hint_with_pos; e,p2 = parse_var_field_assignment >] ->
+				name,punion p1 p2,FVar(t,e),(AFinal :: al)
+			| [< al = parse_cf_rights (not (List.mem AStatic al)) (AFinal :: al); f = parse_function_field doc meta al >] ->
+				f
+			| [< >] ->
+				serror()
+			end
+		| [< f = parse_function_field doc meta al >] ->
+			f
 		| [< >] ->
 			if al = [] then raise Stream.Failure else serror()
 		) in

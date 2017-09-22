@@ -387,6 +387,7 @@ and encode_access a =
 		| ADynamic -> 4
 		| AInline -> 5
 		| AMacro -> 6
+		| AFinal -> 7
 	in
 	encode_enum IAccess tag []
 
@@ -685,6 +686,7 @@ and decode_access v =
 	| 4, [] -> ADynamic
 	| 5, [] -> AInline
 	| 6, [] -> AMacro
+	| 7, [] -> AFinal
 	| _ -> raise Invalid_expr
 
 and decode_meta_entry v =
@@ -943,6 +945,7 @@ and encode_var_access a =
 		| AccCall -> 4, []
 		| AccInline	-> 5, []
 		| AccRequire (s,msg) -> 6, [encode_string s; null encode_string msg]
+		| AccCtor -> 7, []
 	) in
 	encode_enum IVarAccess tag pl
 
@@ -1266,6 +1269,7 @@ let decode_var_access v =
 	| 4, [] -> AccCall
 	| 5, [] -> AccInline
 	| 6, [s1;s2] -> AccRequire(decode_string s1, opt decode_string s2)
+	| 7, [] -> AccCtor
 	| _ -> raise Invalid_expr
 
 let decode_method_kind v =

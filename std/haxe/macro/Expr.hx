@@ -772,6 +772,12 @@ enum Access {
 		normal functions which are executed as soon as they are typed.
 	**/
 	AMacro;
+
+	/**
+		Final access modifier. For functions, they can not be overridden. For
+		variables, it means they can be assigned to only once.
+	**/
+	AFinal;
 }
 
 /**

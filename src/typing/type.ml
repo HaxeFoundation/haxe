@@ -33,11 +33,12 @@ and var_kind = {
 
 and var_access =
 	| AccNormal
-	| AccNo				(* can't be accessed outside of the class itself and its subclasses *)
-	| AccNever			(* can't be accessed, even in subclasses *)
-	| AccResolve		(* call resolve("field") when accessed *)
-	| AccCall			(* perform a method call when accessed *)
-	| AccInline			(* similar to Normal but inline when accessed *)
+	| AccNo             (* can't be accessed outside of the class itself and its subclasses *)
+	| AccNever          (* can't be accessed, even in subclasses *)
+	| AccCtor           (* can only be accessed from the constructor *)
+	| AccResolve        (* call resolve("field") when accessed *)
+	| AccCall           (* perform a method call when accessed *)
+	| AccInline         (* similar to Normal but inline when accessed *)
 	| AccRequire of string * string option (* set when @:require(cond) fails *)
 
 and method_kind =
@@ -974,6 +975,7 @@ let s_access is_read = function
 	| AccCall -> if is_read then "get" else "set"
 	| AccInline	-> "inline"
 	| AccRequire (n,_) -> "require " ^ n
+	| AccCtor -> "ctor"
 
 let s_kind = function
 	| Var { v_read = AccNormal; v_write = AccNormal } -> "var"
@@ -1627,7 +1629,7 @@ let unify_access a1 a2 =
 	| _ -> false
 
 let direct_access = function
-	| AccNo | AccNever | AccNormal | AccInline | AccRequire _ -> true
+	| AccNo | AccNever | AccNormal | AccInline | AccRequire _ | AccCtor -> true
 	| AccResolve | AccCall -> false
 
 let unify_kind k1 k2 =

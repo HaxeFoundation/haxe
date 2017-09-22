@@ -62,6 +62,7 @@ type keyword =
 	| False
 	| Abstract
 	| Macro
+	| Final
 
 type binop =
 	| OpAdd
@@ -221,6 +222,7 @@ and access =
 	| ADynamic
 	| AInline
 	| AMacro
+	| AFinal
 
 and class_field_kind =
 	| FVar of type_hint option * expr option
@@ -362,6 +364,7 @@ let s_access = function
 	| ADynamic -> "dynamic"
 	| AInline -> "inline"
 	| AMacro -> "macro"
+	| AFinal -> "final"
 
 let s_keyword = function
 	| Function -> "function"
@@ -406,6 +409,7 @@ let s_keyword = function
 	| False -> "false"
 	| Abstract -> "abstract"
 	| Macro -> "macro"
+	| Final -> "final"
 
 let rec s_binop = function
 	| OpAdd -> "+"

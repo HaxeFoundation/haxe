@@ -1088,6 +1088,8 @@ let field_access ctx mode f fmode t e p =
 			if ctx.untyped then normal() else AKNo f.cf_name
 		| AccInline ->
 			AKInline (e,f,fmode,t)
+		| AccCtor ->
+			if ctx.curfun = FunConstructor then normal() else AKNo f.cf_name
 		| AccRequire (r,msg) ->
 			match msg with
 			| None -> error_require r p

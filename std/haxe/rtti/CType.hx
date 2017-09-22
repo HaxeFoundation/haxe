@@ -110,6 +110,11 @@ typedef ClassField = {
 	var isPublic : Bool;
 
 	/**
+		Whether or not the field is final.
+	**/
+	var isFinal : Bool;
+
+	/**
 		Whether or not the field overrides another field.
 	**/
 	var isOverride : Bool;
