@@ -944,7 +944,7 @@ let error_require r p =
 		error "This field is not available with the current compilation flags" p
 	else
 	let r = if r = "sys" then
-		"a system platform (php,php7,neko,cpp,etc.)"
+		"a system platform (php7,neko,cpp,etc.)"
 	else try
 		if String.sub r 0 5 <> "flash" then raise Exit;
 		let _, v = ExtString.String.replace (String.sub r 5 (String.length r - 5)) "_" "." in
