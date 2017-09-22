@@ -160,16 +160,28 @@ and venum_value = {
 	enpos : pos option;
 }
 
+let equals a b = match a,b with
+	| VTrue,VTrue
+	| VFalse,VFalse
+	| VNull,VNull -> true
+	| VInt32 a,VInt32 b -> a = b
+	| VFloat a,VFloat b -> a = b
+	| VFloat a,VInt32 b -> a = (Int32.to_float b)
+	| VInt32 a,VFloat b -> (Int32.to_float a) = b
+	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && Array.length a.eargs = 0 && Array.length b.eargs = 0 && a.epath = b.epath
+	| VObject vo1,VObject vo2 -> vo1 == vo2
+	| VInstance vi1,VInstance vi2 -> vi1 == vi2
+	| VString(r1,s1),VString(r2,s2) -> r1 == r2 || Lazy.force s1 = Lazy.force s2
+	| VArray va1,VArray va2 -> va1 == va2
+	| VVector vv1,VVector vv2 -> vv1 == vv2
+	| VFunction(vf1,_),VFunction(vf2,_) -> vf1 == vf2
+	| VPrototype proto1,VPrototype proto2 -> proto1.ppath = proto2.ppath
+	| _ -> a == b
+
 module ValueHashtbl = Hashtbl.Make(struct
 	type t = value
 
-	let equal a b = match a,b with
-		| VObject o1,VObject o2 -> o1 == o2
-		| VInstance vi1,VInstance vi2 -> vi1 == vi2
-		| VPrototype p1,VPrototype p2 -> p1 == p2
-		| VFunction(f1,_),VFunction(f2,_) -> f1 == f2
-		| VFieldClosure(v1,f1),VFieldClosure(v2,f2) -> v1 == v2 && f1 == f2
-		| _ -> false
+	let equal = equals
 
 	let hash = Hashtbl.hash
 end)
