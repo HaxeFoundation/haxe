@@ -63,7 +63,7 @@ class Process {
 				case "Windows":
 					native.StartInfo.FileName = switch (Sys.getEnv("COMSPEC")) {
 						case null: "cmd.exe";
-						case comspec: comspec;
+						case var comspec: comspec;
 					}
 					native.StartInfo.Arguments = '/C "$cmd"';
 				case _:

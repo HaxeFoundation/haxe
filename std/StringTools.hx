@@ -93,7 +93,7 @@ class StringTools {
 					ret.addChar(cast c1);
 					ret.addChar(cast c2);
 				}
-			case chr:
+			case var chr:
 				ret.addChar(cast chr);
 			}
 		}
@@ -548,7 +548,7 @@ class StringTools {
 						result.add(bs);
 						bs_buf = new StringBuf();
 						result.add('\\"');
-					case c:
+					case var c:
 						// Normal char
 						if (bs_buf.length > 0) {
 							result.add(bs_buf.toString());

@@ -283,7 +283,7 @@ class TypeTools {
 			case TMono(tm):
 				switch(tm.get()) {
 					case null: t;
-					case t: f(t);
+					case var t: f(t);
 				}
 			case TEnum(_, []) | TInst(_, []) | TType(_, []):
 				t;
