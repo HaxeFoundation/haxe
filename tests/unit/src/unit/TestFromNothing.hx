@@ -87,7 +87,11 @@ class TestFromNothing extends Test {
 		var f = foo4.bind(_, (a:Int2, b:Int2) -> ((a:Int) + (b:Int):Int2) );
 		t(f(1) == 3);
 
+		function foo5 <T>(?x:Dep<T>, ?y:Dep<T>) {
+			return Std.string(x) + "-" + Std.string(y);
+		}
 
+		t(foo5(3) == "3-1");
 
 	}
 }
