@@ -28,7 +28,7 @@ enum ModuleHandle {
 }
 
 /**
-	A Neko Module represent a execution unit for the Neko Virtual Machine. 
+	A Neko Module represent a execution unit for the Neko Virtual Machine.
 	Each compiled `.n` bytecode file is a module once loaded by the NekoVM.
 **/
 class Module {
@@ -211,12 +211,12 @@ class Module {
 	static var _module_exec = neko.Lib.load("std","module_exec",1);
 	static var _module_name = neko.Lib.load("std","module_name",1);
 	static var _module_exports = neko.Lib.load("std","module_exports",1);
-	static var _module_loader = neko.Lib.load("std","module_loader",1);
+	static var _module_loader : Dynamic = neko.Lib.load("std","module_loader",1);
 	static var _module_code_size = neko.Lib.load("std","module_code_size",1);
 	static var _module_nglobals = neko.Lib.load("std","module_nglobals",1);
 	static var _module_global_get = neko.Lib.load("std","module_global_get",2);
 	static var _module_global_set = neko.Lib.load("std","module_global_set",3);
-	static var _module_read_string = neko.Lib.loadLazy("std","module_read_string",2);
+	static var _module_read_string : Dynamic = neko.Lib.loadLazy("std","module_read_string",2);
 	static var _module_set_name = neko.Lib.loadLazy("std","module_set_name",2);
 
 }

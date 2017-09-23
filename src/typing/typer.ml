@@ -4091,12 +4091,12 @@ and maybe_type_against_enum ctx f with_type p =
 		| WithType t ->
 			let rec loop stack t = match follow t with
 				| TEnum (en,_) ->
-					en.e_path,en.e_names,TEnumDecl en
+					en.e_path,en.e_names,TEnumDecl en,t
 				| TAbstract ({a_impl = Some c} as a,_) when has_meta Meta.Enum a.a_meta ->
 					let fields = ExtList.List.filter_map (fun cf ->
 						if Meta.has Meta.Enum cf.cf_meta then Some cf.cf_name else None
 					) c.cl_ordered_statics in
-					a.a_path,fields,TAbstractDecl a
+					a.a_path,fields,TAbstractDecl a,t
 				| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					begin match get_abstract_froms a pl with
 						| [t2] ->
@@ -4110,7 +4110,7 @@ and maybe_type_against_enum ctx f with_type p =
 				| _ ->
 					raise Exit
 			in
-			let path,fields,mt = loop [] t in
+			let path,fields,mt,t = loop [] t in
 			let old = ctx.m.curmod.m_types in
 			let restore () = ctx.m.curmod.m_types <- old in
 			ctx.m.curmod.m_types <- ctx.m.curmod.m_types @ [mt];
@@ -4126,6 +4126,15 @@ and maybe_type_against_enum ctx f with_type p =
 				raise exc;
 			in
 			restore();
+			begin match e with
+				| AKExpr e ->
+					let rec loop t' = match follow t' with
+						| TFun(_,t) -> loop t
+						| _ -> unify ctx t' t e.epos
+					in
+					loop e.etype
+				| _ -> () (* ??? *)
+			end;
 			e
 		| _ ->
 			raise Exit
