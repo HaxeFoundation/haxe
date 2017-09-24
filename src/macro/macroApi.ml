@@ -1903,6 +1903,27 @@ let macro_api ccom get_api =
 			) (decode_array a);
 			vnull
 		);
+		"position_to_range", vfun1 (fun p ->
+			let p = decode_pos p in
+			let l1,c1,l2,c2 = Lexer.get_pos_coords p in
+			let make_pos line character =
+				encode_obj O__Const [
+					"line",vint line;
+					"character",vint character;
+				]
+			in
+			let pos_start = make_pos l1 c1 in
+			let pos_end = make_pos l2 c2 in
+			let range = encode_obj O__Const [
+				"start",pos_start;
+				"end",pos_end;
+			] in
+			let location = encode_obj O__Const [
+				"file",encode_string p.Globals.pfile;
+				"range",range
+			] in
+			location
+		);
 	]
 
 

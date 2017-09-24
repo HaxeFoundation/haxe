@@ -13,14 +13,18 @@ environment:
         HXBUILDS_AWS_SECRET_ACCESS_KEY:
           secure: ewwkKcjnSKl/Vtrz1SXmI6XKk1ENmJDyzm5YaR2wi03foRhTke29TvymB21rDTSl
     matrix:
-        - TEST: "neko,python,cs,java,php7,macro"
+        - ARCH: 64
+          TEST: "neko,python,cs,java,php7,macro"
           DEPLOY_NIGHTLIES: 1
-        - TEST: "cpp"
+        - ARCH: 64
+          TEST: "cpp"
+        - ARCH: 32
+          TEST: "macro"
 
 skip_tags: true
 
 cache:
-    - opam64.tar.xz -> appveyor.yml
+    - opam.tar.xz -> appveyor.yml
 
 install:
     - 'git submodule update --init --recursive'
@@ -28,13 +32,13 @@ install:
     - choco install curl
     # Install ocaml
     - curl -fsSL -o cygwin-setup.exe --retry 3 https://cygwin.com/setup-x86_64.exe
-    - 'cygwin-setup.exe -g -q -R "%CYG_ROOT%" -P make -P git -P mingw64-x86_64-zlib -P rsync -P patch -P diffutils -P curl -P unzip -P m4 -P perl -P mingw64-x86_64-gcc-core -P mingw64-x86_64-pcre'
-    - if not exist "opam64.tar.xz" (
-        curl -fsSL -o opam64.tar.xz --retry 3 https://github.com/fdopen/opam-repository-mingw/releases/download/0.0.0.1/opam64.tar.xz
+    - 'cygwin-setup.exe -g -q -R "%CYG_ROOT%" -P make -P git -P mingw64-x86_64-zlib -P mingw64-i686-zlib -P rsync -P patch -P diffutils -P curl -P unzip -P m4 -P perl -P mingw64-x86_64-gcc-core -P mingw64-i686-gcc-core -P mingw64-x86_64-pcre -P mingw64-i686-pcre'
+    - if not exist "opam.tar.xz" (
+        curl -fsSL -o "opam.tar.xz" --retry 3 https://github.com/fdopen/opam-repository-mingw/releases/download/0.0.0.1/opam%ARCH%.tar.xz
       )
-    - 7z x "opam64.tar.xz" -so | 7z x -aoa -si -ttar
-    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && bash opam64/install.sh"'
-    - '%CYG_ROOT%/bin/bash -lc "opam init mingw \"https://github.com/fdopen/opam-repository-mingw.git\" --comp 4.02.3+mingw64c --switch 4.02.3+mingw64c --auto-setup --yes"'
+    - 7z x "opam.tar.xz" -so | 7z x -aoa -si -ttar
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && bash opam${ARCH}/install.sh"'
+    - '%CYG_ROOT%/bin/bash -lc "opam init mingw \"https://github.com/fdopen/opam-repository-mingw.git\" --comp 4.02.3+mingw${ARCH}c --switch 4.02.3+mingw${ARCH}c --auto-setup --yes"'
     - '%CYG_ROOT%/bin/bash -lc "opam install camlp4 sedlex ocamlfind xml-light extlib rope ptmap --yes"'
     # Install neko
     - choco install neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
@@ -48,7 +52,11 @@ install:
     - cmd: mklink C:\Python34-x64\python3.exe C:\Python34-x64\python.exe
     - set PATH=%PATH%;C:\Python34-x64
     # expose the dll files
-    - set "PATH=%CYG_ROOT%/usr/x86_64-w64-mingw32/sys-root/mingw/bin;%PATH%"
+    - if "%ARCH%" EQU "32" (
+        set "PATH=%CYG_ROOT%/usr/i686-w64-mingw32/sys-root/mingw/bin;%PATH%"
+      ) else (
+        set "PATH=%CYG_ROOT%/usr/x86_64-w64-mingw32/sys-root/mingw/bin;%PATH%"
+      )
     - choco install awscli
 
 build_script:

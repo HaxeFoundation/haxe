@@ -24,6 +24,7 @@ min << 1 == 0;
 min >> 1 == 0xc0000000;
 min >>> 1 == 0x40000000;
 
+#if !cpp
 var a = [1];
 var next = 0;
 
@@ -42,3 +43,4 @@ i32 == 3;
 var i32:haxe.Int32 = 2;
 var c = ~(((a[next] << 32) | 1):haxe.Int32);
 c == 0xfffffffe;
+#end

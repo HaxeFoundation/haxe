@@ -21,7 +21,9 @@
  */
 package neko.vm;
 
-enum ThreadHandle {
+@:callable
+@:coreType
+abstract ThreadHandle {
 }
 
 class Thread {

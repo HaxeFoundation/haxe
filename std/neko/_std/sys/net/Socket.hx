@@ -22,8 +22,9 @@
 package sys.net;
 import haxe.io.Error;
 
-private enum SocketHandle {
-}
+@:callable
+@:coreType
+abstract SocketHandle { }
 
 private class SocketOutput extends haxe.io.Output {
 

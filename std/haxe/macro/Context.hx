@@ -606,6 +606,7 @@ class Context {
 	@:allow(haxe.macro.TypeTools)
 	@:allow(haxe.macro.MacroStringTools)
 	@:allow(haxe.macro.TypedExprTools)
+	@:allow(haxe.macro.PositionTools)
 	static function load( f, nargs ) : Dynamic {
 		#if neko
 		return neko.Lib.load("macro", f, nargs);
