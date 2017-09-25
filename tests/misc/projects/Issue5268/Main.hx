@@ -6,7 +6,7 @@ class Main {
             case Some(v):
                 var value = switch v {
                     case 1: 1;
-                    case m: return None;
+                    case var m: return None;
                 }
                 value;
             case None:

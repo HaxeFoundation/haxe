@@ -2848,11 +2848,16 @@ module StringError = struct
 		in
 		loop cl
 
-	let string_error_raise s sl msg =
-		if sl = [] then msg else
+	let get_similar s sl =
+		if sl = [] then [] else
 		let cl = List.map (fun s2 -> s2,levenshtein s s2) sl in
 		let cl = List.sort (fun (_,c1) (_,c2) -> compare c1 c2) cl in
 		let cl = filter_similar (fun s2 i -> i <= (min (String.length s) (String.length s2)) / 3) cl in
+		cl
+
+	let string_error_raise s sl msg =
+		if sl = [] then msg else
+		let cl = get_similar s sl in
 		match cl with
 			| [] -> raise Not_found
 			| [s] -> Printf.sprintf "%s (Suggestion: %s)" msg s

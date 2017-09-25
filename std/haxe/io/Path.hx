@@ -235,7 +235,7 @@ class Path {
 					colon = true;
 				case "/".code if (!colon):
 					slashes = true;
-				case i:
+				case var i:
 					colon = false;
 					if (slashes) {
 						acc.add("/");

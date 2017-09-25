@@ -166,7 +166,7 @@ import php.*;
 						result.add(bs);
 						bs_buf = new StringBuf();
 						result.add('\\"');
-					case c:
+					case var c:
 						// Normal char
 						if (bs_buf.length > 0) {
 							result.add(bs_buf.toString());

@@ -1,1 +1,2 @@
 Main.hx:7: characters 18-23 : Capture variables must be lower-case
+Main.hx:7: characters 18-23 : Warning : `case VALUE` has been deprecated, use `case var VALUE` instead
