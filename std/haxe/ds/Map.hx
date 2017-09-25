@@ -175,7 +175,3 @@ abstract Map<K,V>(IMap<K,V> ) {
 		return cast map;
 	}
 }
-
-@:dox(hide)
-@:deprecated
-typedef IMap<K, V> = haxe.Constraints.IMap<K, V>;
