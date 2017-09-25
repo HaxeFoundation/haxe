@@ -489,7 +489,7 @@ class TestType extends Test {
 	{
 		#if !macro
 		eq(MyMacro.MyMacroHelper.followWithAbstracts(new Map<String,String>()), "TInst(haxe.ds.StringMap,[TInst(String,[])])");
-		eq(MyMacro.MyMacroHelper.followWithAbstractsOnce({ var x:TypedefToStringMap<String>; x; }), "TAbstract(Map,[TInst(String,[]),TInst(String,[])])");
+		eq(MyMacro.MyMacroHelper.followWithAbstractsOnce({ var x:TypedefToStringMap<String>; x; }), "TType(Map,[TInst(String,[]),TInst(String,[])])");
 		eq(MyMacro.MyMacroHelper.followWithAbstracts(new TypedefToStringMap<String>()), "TInst(haxe.ds.StringMap,[TInst(String,[])])");
 		#end
 	}

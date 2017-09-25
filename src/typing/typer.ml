@@ -3189,7 +3189,7 @@ and type_try ctx e1 catches with_type p =
 and type_map_declaration ctx e1 el with_type p =
 	let (tkey,tval,has_type) =
 		let get_map_params t = match follow t with
-			| TAbstract({a_path=[],"Map"},[tk;tv]) -> tk,tv,true
+			| TAbstract({a_path=["haxe";"ds"],"Map"},[tk;tv]) -> tk,tv,true
 			| TInst({cl_path=["haxe";"ds"],"IntMap"},[tv]) -> ctx.t.tint,tv,true
 			| TInst({cl_path=["haxe";"ds"],"StringMap"},[tv]) -> ctx.t.tstring,tv,true
 			| TInst({cl_path=["haxe";"ds"],("ObjectMap" | "EnumValueMap")},[tk;tv]) -> tk,tv,true
@@ -3239,7 +3239,7 @@ and type_map_declaration ctx e1 el with_type p =
 		let tval = unify_min_resume el_v in
 		el_k,el_v,tkey,tval
 	end in
-	let m = Typeload.load_module ctx ([],"Map") null_pos in
+	let m = Typeload.load_module ctx (["haxe";"ds"],"Map") null_pos in
 	let a,c = match m.m_types with
 		| (TAbstractDecl ({a_impl = Some c} as a)) :: _ -> a,c
 		| _ -> assert false
@@ -3440,7 +3440,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| EBlock [e] -> (EBlock [map_compr e],p)
 			| EParenthesis e2 -> (EParenthesis (map_compr e2),p)
 			| EBinop(OpArrow,a,b) ->
-				et := (ENew(({tpackage=[];tname="Map";tparams=[];tsub=None},null_pos),[]),p);
+				et := (ENew(({tpackage=["haxe";"ds"];tname="Map";tparams=[];tsub=None},null_pos),[]),p);
 				(ECall ((EField ((EConst (Ident v.v_name),p),"set"),p),[a;b]),p)
 			| _ ->
 				et := (EArrayDecl [],p);
