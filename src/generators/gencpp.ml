@@ -2895,7 +2895,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             | OpDiv -> TCppScalar("Float")
             | OpBoolAnd | OpBoolOr -> TCppScalar("bool")
             | OpAnd | OpOr | OpXor | OpShl | OpShr | OpUShr -> TCppScalar("int")
-            | OpAssign -> cpp_type_of left.etype
+            | OpAssign -> (retype TCppUnchanged left).cpptype
             | _ -> TCppUnchanged
             in
             let e1 = retype binOpType left in
