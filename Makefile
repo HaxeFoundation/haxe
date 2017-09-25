@@ -301,6 +301,12 @@ package_unix:
 
 package_bin: package_$(PLATFORM)
 
+$(INSTALLER_TMP_DIR):
+	mkdir -p $(INSTALLER_TMP_DIR)
+
+$(INSTALLER_TMP_DIR)/neko-osx64.tar.gz: $(INSTALLER_TMP_DIR)
+	wget http://nekovm.org/media/neko-2.1.0-osx64.tar.gz -O installer/neko-osx64.tar.gz
+
 install_dox:
 	haxelib git hxparse https://github.com/Simn/hxparse master src
 	haxelib git hxtemplo https://github.com/Simn/hxtemplo
@@ -322,7 +328,7 @@ deploy_doc:
 
 # Installer
 
-package_installer_mac:
+package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx64.tar.gz package_unix
 	$(eval DOCFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip)
 	$(eval OUTFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_installer.tar.gz)
 	$(eval PACKFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.tar.gz)

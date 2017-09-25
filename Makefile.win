@@ -62,7 +62,10 @@ package_choco:
 	mv out/choco/haxe.*.nupkg out
 	rm -rf out/choco
 
-package_installer_win:
+$(INSTALLER_TMP_DIR)/neko-win.zip: $(INSTALLER_TMP_DIR)
+	wget http://nekovm.org/media/neko-2.1.0-win.zip -O installer/neko-win.zip
+
+package_installer_win: $(INSTALLER_TMP_DIR)/neko-win.zip package_win
 	$(eval OUTFILE := $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_installer.zip)
 	$(eval VERSION := $(shell haxe -version 2>&1 | cut -d ' ' -f1))
 	rm -rf $(INSTALLER_TMP_DIR)/resources

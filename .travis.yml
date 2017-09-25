@@ -90,6 +90,7 @@ install_osx: &install_osx
   - make package_src -s
   - make -s STATICLINK=1 "LIB_PARAMS=/usr/local/opt/zlib/lib/libz.a /usr/local/lib/libpcre.a"
   - make package_bin -s
+  - make package_installer_mac -s
   - ls -l out
   - otool -L ./haxe
   - otool -L ./haxelib

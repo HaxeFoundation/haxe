@@ -73,6 +73,7 @@ build_script:
     - 'set PATH=%PATH%;%APPVEYOR_BUILD_FOLDER%'
     - 'set HAXEPATH=%APPVEYOR_BUILD_FOLDER%'
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win package_bin"'
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win package_installer_win"'
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win package_choco"'
     - move out\haxe.*.nupkg .
     - dir %APPVEYOR_BUILD_FOLDER%\out

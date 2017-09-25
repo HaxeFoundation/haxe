@@ -703,7 +703,7 @@ class RunCi {
 					runCommand("make", ["-s", "install_dox"]);
 					runCommand("make", ["-s", "package_doc"]);
 				}
-				deployNightlies(doInstaller);
+				deployNightlies();
 			}
 		}
 	}
@@ -775,7 +775,7 @@ class RunCi {
 	/**
 		Deploy source package to hxbuilds s3
 	*/
-	static function deployNightlies(doInstaller:Bool):Void {
+	static function deployNightlies():Void {
 		var gitTime = commandResult("git", ["show", "-s", "--format=%ct", "HEAD"]).stdout;
 		var tzd = {
 			var z = Date.fromTime(0);
@@ -792,11 +792,6 @@ class RunCi {
 			Sys.getEnv("TRAVIS_PULL_REQUEST") != "true"
 		) {
 			if (ci == TravisCI) {
-				runCommand("make", ["-s", "package_unix"]);
-				if (doInstaller) {
-					getLatestNeko();
-					runCommand("make", ["-s", 'package_installer_mac']);
-				}
 				if (systemName == 'Linux') {
 					// source
 					for (file in sys.FileSystem.readDirectory('out')) {
@@ -817,15 +812,6 @@ class RunCi {
 					}
 				}
 			} else {
-				if (doInstaller) {
-					getLatestNeko();
-					var cygRoot = Sys.getEnv("CYG_ROOT");
-					if (cygRoot != null) {
-						runCommand('$cygRoot/bin/bash', ['-lc', "cd \"$OLDPWD\" && make -s -f Makefile.win package_installer_win"]);
-					} else {
-						runCommand("make", ['-f', 'Makefile.win', "-s", 'package_installer_win']);
-					}
-				}
 				for (file in sys.FileSystem.readDirectory('out')) {
 					if (file.startsWith('haxe')) {
 						if (file.endsWith('_bin.zip')) {
@@ -839,23 +825,6 @@ class RunCi {
 		} else {
 			trace('Not deploying nightlies');
 		}
-	}
-
-	static function getLatestNeko() {
-		if (!FileSystem.exists('installer')) {
-			FileSystem.createDirectory('installer');
-		}
-		var src = 'http://nekovm.org/media/neko-2.1.0-';
-		var suffix = systemName == 'Windows' ? 'win.zip' : 'osx64.tar.gz';
-		src += suffix;
-		runCommand("wget", [src, '-O', 'installer/neko-$suffix'], true);
-	}
-
-	static function createNsiInstaller() {
-		if (!FileSystem.exists('installer')) {
-			FileSystem.createDirectory('installer');
-		}
-		getLatestNeko();
 	}
 
 	static function fileExtension(file:String) {
