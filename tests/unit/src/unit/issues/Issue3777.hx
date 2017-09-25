@@ -2,7 +2,7 @@ package unit.issues;
 
 private class A<T:String> {
 	public function new() f();
-	function f():Map<T,Int> throw "not implemented";
+	function f():haxe.ds.Map<T,Int> throw "not implemented";
 }
 
 private class B extends A<String> {
