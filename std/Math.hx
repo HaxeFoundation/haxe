@@ -73,10 +73,6 @@ extern class Math
 		result is unspecified.
 
 		In order to test if a value is `NaN`, you should use `Math.isNaN()` function.
-
-		@php In PHP versions prior to 5.3.1 VC 9 there may be unexpected
-		results when performing arithmetic operations with `NaN` on Windows,
-		see <https://bugs.php.net/bug.php?id=42143>
 	**/
 	static var NaN(default, null) : Float;
 
