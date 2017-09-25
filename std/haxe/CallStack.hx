@@ -88,8 +88,6 @@ class CallStack {
 			var a = makeStack( new flash.errors.Error().getStackTrace() );
 			a.shift(); // remove Stack.callStack()
 			return a;
-		#elseif php
-			return makeStack("%s");
 		#elseif cpp
 			var s:Array<String> = untyped __global__.__hxcpp_get_call_stack(true);
 			return makeStack(s);
@@ -188,8 +186,6 @@ class CallStack {
 				i--;
 			}
 			return a;
-		#elseif php
-			return makeStack("%e");
 		#elseif cpp
 			var s:Array<String> = untyped __global__.__hxcpp_get_exception_stack();
 			return makeStack(s);
@@ -306,16 +302,6 @@ class CallStack {
 				s = r.matchedRight();
 			}
 			return a;
-		#elseif php
-			if (!untyped __call__("isset", __var__("GLOBALS", s)))
-				return [];
-			var a : Array<String> = untyped __var__("GLOBALS", s);
-			var m = [];
-			for( i in 0...a.length - ((s == "%s") ? 2 : 0)) {
-				var d = a[i].split("::");
-				m.unshift(Method(d[0],d[1]));
-			}
-			return m;
 		#elseif cpp
 			var stack : Array<String> = s;
 			var m = new Array<StackItem>();

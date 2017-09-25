@@ -27,19 +27,12 @@ package haxe.crypto;
 class Sha224 {
 
     public static function encode( s:String ) : String {
-        #if php
-        return untyped __call__("hash", "sha224", s);
-        #else
         var sh = new Sha224();
         var h = sh.doEncode(s, s.length*8);
         return sh.hex(h);
-        #end
     }
 
     public static function make( b : haxe.io.Bytes ) : haxe.io.Bytes {
-        #if php
-        return haxe.io.Bytes.ofData(haxe.io.BytesData.ofString(untyped __call__("hash", "sha224", b.getData().toString(), true)));
-        #else
         var h = new Sha224().doEncode(b.toString(), b.length*8);
         var out = haxe.io.Bytes.alloc(28);
         var p = 0;
@@ -50,7 +43,6 @@ class Sha224 {
             out.set(p++,h[i]&0xFF);
         }
         return out;
-        #end
     }
 
     public function new() {

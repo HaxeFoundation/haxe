@@ -1,5 +1,5 @@
 (**
-	Compatible with PHP 7+
+	Compatible with PHP 7.0+
 *)
 
 open Ast

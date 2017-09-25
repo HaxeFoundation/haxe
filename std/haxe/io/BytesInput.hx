@@ -96,8 +96,6 @@ class BytesInput extends Input {
 			len--;
 			#if neko
 			return untyped __dollar__sget(b,pos++);
-			#elseif php
-			return b.get(pos++);
 			#elseif cpp
 			return untyped b[pos++];
 			#elseif java
@@ -140,8 +138,6 @@ class BytesInput extends Input {
 				len = this.len;
 			#if neko
 			try untyped __dollar__sblit(buf.getData(),pos,b,this.pos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
-			#elseif php
-			buf.getData().blit(pos, b, this.pos, len);
 			#elseif hl
 			@:privateAccess buf.b.blit(pos, b, this.pos, len);
 			#else
