@@ -4125,14 +4125,15 @@ and maybe_type_against_enum ctx f with_type p =
 			restore();
 			begin match e with
 				| AKExpr e ->
-					let rec loop t' = match follow t' with
-						| TFun(_,t) -> loop t
-						| _ -> unify ctx t' t e.epos
-					in
-					loop e.etype
-				| _ -> () (* ??? *)
-			end;
-			e
+					begin match follow e.etype with
+						| TFun(_,t') ->
+							unify ctx t' t e.epos;
+							AKExpr e
+						| _ ->
+							AKExpr (AbstractCast.cast_or_unify ctx t e e.epos)
+					end
+				| _ -> e (* ??? *)
+			end
 		| _ ->
 			raise Exit
 		end
