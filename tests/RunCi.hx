@@ -688,10 +688,10 @@ class RunCi {
 			if (doDocs) {
 				if (systemName != 'Windows') {
 					// generate doc
-					runCommand("make", ["-s", "install_dox"]);
-					runCommand("make", ["-s", "package_doc"]);
+					// runCommand("make", ["-s", "install_dox"]);
+					// runCommand("make", ["-s", "package_doc"]);
 					// deployBintray();
-					deployApiDoc();
+					// deployApiDoc();
 					// disable deployment to ppa:haxe/snapshots for now
 					// because there is no debian sedlex package...
 					// deployPPA();
@@ -700,8 +700,8 @@ class RunCi {
 			if (doNightlies) {
 				if (doInstaller && !doDocs && systemName != 'Windows') {
 					// generate doc
-					runCommand("make", ["-s", "install_dox"]);
-					runCommand("make", ["-s", "package_doc"]);
+					// runCommand("make", ["-s", "install_dox"]);
+					// runCommand("make", ["-s", "package_doc"]);
 				}
 				deployNightlies();
 			}
