@@ -547,7 +547,6 @@ and jit_expr jit return e =
 			let name = hash_s (field_name fa) in
 			let execs = List.map (jit_expr jit false) el in
 			let is_overridden c s_name =
-				true || (* TODO: temp fix (?) for https://github.com/HaxeFoundation/haxe/issues/6583 *)
 				try
 					Hashtbl.find ctx.overrides (c.cl_path,s_name)
 				with Not_found ->
