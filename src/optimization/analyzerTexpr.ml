@@ -657,6 +657,15 @@ module Fusion = struct
 				block_element acc (e1 :: el1 @ el2)
 			| {eexpr = TNew(c,tl,el1)} :: el2 when (match c.cl_constructor with Some cf when PurityState.is_pure c cf -> true | _ -> false) && config.local_dce ->
 				block_element acc (el1 @ el2)
+			| {eexpr = TIf ({ eexpr = TConst (TBool t) },e1,e2)} :: el ->
+				if t then
+					block_element acc (e1 :: el)
+				else begin match e2 with
+					| None ->
+						block_element acc el
+					| Some e ->
+						block_element acc (e :: el)
+				end
 			(* no-side-effect composites *)
 			| {eexpr = TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) | TField(e1,_) | TUnop(_,_,e1)} :: el ->
 				block_element acc (e1 :: el)
