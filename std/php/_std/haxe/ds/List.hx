@@ -19,6 +19,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+package haxe.ds;
+
 @:coreApi class List<T> implements php.IteratorAggregate<T> {
 
 	@:ifFeature("List.iterator") private var h : ArrayAccess<Dynamic>;
