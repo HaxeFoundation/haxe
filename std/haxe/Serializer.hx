@@ -289,7 +289,7 @@ class Serializer {
 					}
 				}
 				buf.add("h");
-			case #if (neko || cs || python) "List" #else cast List #end:
+			case #if (neko || cs || python) "haxe.ds.List" #else cast List #end:
 				buf.add("l");
 				var v : List<Dynamic> = v;
 				for( i in v )
