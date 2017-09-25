@@ -21,6 +21,8 @@
  */
 package haxe.rtti;
 
+import haxe.ds.List;
+
 /**
 	The (dot-)path of the runtime type.
 **/

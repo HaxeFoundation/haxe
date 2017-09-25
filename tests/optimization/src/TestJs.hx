@@ -1,3 +1,5 @@
+import haxe.ds.List;
+
 private enum Tree<T> {
 	Node(l:Tree<T>, r:Tree<T>);
 	Leaf(v:T);
@@ -38,7 +40,7 @@ class TestJs {
 	//Std.string(x);
 	//}
 
-	@:js("var a = new List();var _g_head = a.h;while(_g_head != null) _g_head = _g_head.next;")
+	@:js("var a = new haxe_ds_List();var _g_head = a.h;while(_g_head != null) _g_head = _g_head.next;")
 	static function testListIteratorInline() {
 		var a = new List();
 		for (v in a) { }

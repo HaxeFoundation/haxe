@@ -21,6 +21,8 @@
  */
 package haxe.zip;
 
+import haxe.ds.List;
+
 class Writer {
 
 	/*
