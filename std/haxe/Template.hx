@@ -21,6 +21,8 @@
  */
 package haxe;
 
+import haxe.ds.List;
+
 private enum TemplateExpr {
 	OpVar( v : String );
 	OpExpr( expr :  Void -> Dynamic );
