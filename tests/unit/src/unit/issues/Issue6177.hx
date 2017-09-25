@@ -1,5 +1,7 @@
 package unit.issues;
 
+import haxe.ds.List;
+
 class Issue6177 extends unit.Test {
     function test() {
         var list = new List();

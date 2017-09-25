@@ -21,6 +21,8 @@
  */
 package haxe;
 
+import haxe.ds.List;
+
 @:noDoc
 typedef TypeResolver = {
 	function resolveClass( name : String ) : Class<Dynamic>;

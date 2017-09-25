@@ -1,5 +1,6 @@
 package unit;
 
+import haxe.ds.List;
 using MyClass.UsingBase;
 using MyClass.UsingChild1;
 using MyClass.UsingChild2;

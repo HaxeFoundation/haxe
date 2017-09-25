@@ -21,6 +21,8 @@
  */
 package haxe.zip;
 
+import haxe.ds.List;
+
 enum ExtraField {
 	FUnknown( tag : Int, bytes : haxe.io.Bytes );
 	FInfoZipUnicodePath( name : String, crc : Int );

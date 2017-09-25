@@ -21,6 +21,7 @@
  */
 package haxe;
 
+import haxe.ds.List;
 /**
 	The Serializer class can be used to encode values and objects into a `String`,
 	from which the `Unserializer` class can recreate the original representation.

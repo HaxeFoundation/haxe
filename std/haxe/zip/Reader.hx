@@ -21,6 +21,7 @@
  */
 package haxe.zip;
 import haxe.zip.Entry;
+import haxe.ds.List;
 
 // see http://www.pkware.com/documents/casestudies/APPNOTE.TXT
 

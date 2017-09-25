@@ -21,6 +21,8 @@
  */
 package haxe;
 
+import haxe.ds.List;
+
 #if sys
 
 import sys.net.Host;

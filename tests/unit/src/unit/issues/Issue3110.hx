@@ -1,5 +1,7 @@
 package unit.issues;
 
+import haxe.ds.List;
+
 private abstract MyOpaciteInt(Int) {}
 
 class Issue3110 extends Test {
