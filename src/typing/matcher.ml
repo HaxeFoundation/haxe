@@ -296,7 +296,6 @@ module Pattern = struct
 				let v = add_local s p in
 				PatVariable v
 			| ECall(e1,el) ->
-				let t = tfun (List.map (fun _ -> mk_mono()) el) t in
 				let e1 = type_expr ctx e1 (WithType t) in
 				begin match e1.eexpr,follow e1.etype with
 					| TField(_, FEnum(en,ef)),TFun(_,TEnum(_,tl)) ->

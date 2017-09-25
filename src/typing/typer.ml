@@ -4104,9 +4104,6 @@ and maybe_type_against_enum ctx f with_type p =
 							loop (t :: stack) t2
 						| _ -> raise Exit
 					end
-				(* We might type against an enum constructor. *)
-				| TFun(_,tr) ->
-					loop stack tr
 				| _ ->
 					raise Exit
 			in
