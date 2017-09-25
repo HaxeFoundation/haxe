@@ -13,7 +13,7 @@ import haxe.io.*;
 	var Neko = "neko";
 	var Js = "js";
 	var Lua = "lua";
-	var Php7 = "php7";
+	var Php = "php";
 	var Cpp = "cpp";
 	var Flash9 = "flash9";
 	var As3 = "as3";
@@ -844,16 +844,16 @@ class RunCi {
 						haxelibInstall("utest");
 						runCommand("haxe", ["compile-neko.hxml"]);
 						runCommand("neko", ["bin/neko/sys.n"]);
-					case Php7:
+					case Php:
 						if (systemName == "Linux") {
 							runCommand("phpenv", ["global", "7.0"], false, true);
-							runCommand("haxe", ["compile-php7.hxml"].concat(args));
-							runCommand("php", ["bin/php7/index.php"]);
+							runCommand("haxe", ["compile-php.hxml"].concat(args));
+							runCommand("php", ["bin/php/index.php"]);
 
 							changeDirectory(sysDir);
 							haxelibInstall("utest");
-							runCommand("haxe", ["compile-php7.hxml"]);
-							runCommand("php", ["bin/php7/Main/index.php"]);
+							runCommand("haxe", ["compile-php.hxml"]);
+							runCommand("php", ["bin/php/Main/index.php"]);
 						}
 					case Python:
 						var pys = getPythonDependencies();

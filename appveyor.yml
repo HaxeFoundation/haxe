@@ -13,7 +13,12 @@ environment:
         HXBUILDS_AWS_SECRET_ACCESS_KEY:
           secure: ewwkKcjnSKl/Vtrz1SXmI6XKk1ENmJDyzm5YaR2wi03foRhTke29TvymB21rDTSl
     matrix:
+<<<<<<< 2c14b4aeff18c1064053db457a4ba01e3a8a20b5
         - TEST: "neko,python,cs,java,php,macro"
+=======
+        - ARCH: 64
+          TEST: "neko,python,cs,java,php,macro"
+>>>>>>> renamed php7 stuff to php
           DEPLOY_NIGHTLIES: 1
         - ARCH: 64
           TEST: "cpp"

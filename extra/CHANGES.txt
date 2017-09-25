@@ -13,6 +13,7 @@
 
 	all : moved haxe.unit to hx3compat
 	all : moved haxe.web.Request to hx3compat
+	php : dropped php5 support; minimum supported php version is 7.0 now
 
 	Bugfixes:
 
