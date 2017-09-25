@@ -4,7 +4,7 @@ using Reflect;
 
 class Issue6276 extends unit.Test {
 	function test(){
-#if (!(php && !php7) && !java && !cs)
+#if (!java && !cs)
 		var s = "bar";
 
 		var length = s.field("length");

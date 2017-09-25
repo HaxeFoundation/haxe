@@ -183,7 +183,7 @@ matrix:
     #########
     - os: linux
       env:
-        - TEST=macro,neko,js,php7,flash9,as3,java,cs,python,hl,lua
+        - TEST=macro,neko,js,php,flash9,as3,java,cs,python,hl,lua
         - DEPLOY_API_DOCS=1
         - DEPLOY_NIGHTLIES=1
         # - SAUCE=1

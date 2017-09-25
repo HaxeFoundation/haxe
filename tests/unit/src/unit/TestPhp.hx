@@ -65,7 +65,6 @@ class TestPhp extends Test
 		return new FunctionCaller(function(f) f());
 	}
 
-#if php7
 	/**
 		Check compiler will generate proper function signature with `Ref<T>` arguments
 	**/
@@ -148,7 +147,6 @@ class TestPhp extends Test
 		eq(str.toUpperCase(), anon.toUpperCase());
 		eq(str.toString(), anon.toString());
 	}
-#end
 }
 
 private class DummyForRef {

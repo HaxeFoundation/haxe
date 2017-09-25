@@ -242,9 +242,7 @@ module Initialize = struct
 				add_std "lua";
 				"lua"
 			| Php ->
-				com.package_rules <- PMap.add "php" (Directory "php7") com.package_rules;
-				com.package_rules <- PMap.add "php7" Forbidden com.package_rules;
-				add_std "php7";
+				add_std "php";
 				"php"
 			| Cpp ->
 				Common.define_value com Define.HxcppApiLevel "332";
