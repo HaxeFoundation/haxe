@@ -348,6 +348,7 @@ module ConstPropagation = DataFlow(struct
 	type t =
 		| Top
 		| Bottom
+		| Null of Type.t
 		| Const of tconstant
 		| EnumValue of int * t list
 
@@ -365,6 +366,7 @@ module ConstPropagation = DataFlow(struct
 	let equals lat1 lat2 = match lat1,lat2 with
 		| Top,Top | Bottom,Bottom -> true
 		| Const ct1,Const ct2 -> ct1 = ct2
+		| Null t1,Null t2 -> t1 == t2
 		| EnumValue(i1,_),EnumValue(i2,_) -> i1 = i2
 		| _ -> false
 
@@ -372,6 +374,7 @@ module ConstPropagation = DataFlow(struct
 		let rec eval bb e =
 			let wrap = function
 				| Const ct -> mk (TConst ct) t_dynamic null_pos
+				| Null t -> mk (TConst TNull) t e.epos
 				| _ -> raise Exit
 			in
 			let unwrap e = match e.eexpr with
@@ -379,8 +382,10 @@ module ConstPropagation = DataFlow(struct
 				| _ -> raise Exit
 			in
 			match e.eexpr with
-			| TConst (TSuper | TThis | TNull) ->
+			| TConst (TSuper | TThis) ->
 				Bottom
+			| TConst TNull ->
+				Null e.etype
 			| TConst ct ->
 				Const ct
 			| TLocal v ->
@@ -465,7 +470,7 @@ module ConstPropagation = DataFlow(struct
 
 	let commit ctx =
 		let inline e i = match get_cell i with
-			| Top | Bottom | EnumValue _ ->
+			| Top | Bottom | EnumValue _ | Null _ ->
 				raise Not_found
 			| Const ct ->
 				let e' = Codegen.type_constant ctx.com (tconst_to_const ct) e.epos in
