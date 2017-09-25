@@ -44,9 +44,7 @@ class TestRemoting extends Test {
 		#if (flash || js)
 		doTestConnection(ecnx);
 		#end
-		#if !php // accessing the properties of a null object generates a fatal error in php
 		exc(function() ecnx3.api.add.call([1,3]));
-		#end
 		#if js
 		doTestConnection(ecnx2);
 		#end
