@@ -271,8 +271,9 @@ module Pattern = struct
 					in
 					begin match StringError.get_similar s sl with
 						| [] ->
-							if toplevel then
-								pctx.ctx.com.warning (Printf.sprintf "`case %s` has been deprecated, use `case var %s` instead" s s) p
+							()
+							(* if toplevel then
+								pctx.ctx.com.warning (Printf.sprintf "`case %s` has been deprecated, use `case var %s` instead" s s) p *)
 						| l -> pctx.ctx.com.warning ("Potential typo detected (expected similar values are " ^ (String.concat ", " l) ^ "). Consider using `var " ^ s ^ "` instead") p
 					end;
 					let v = add_local s p in
