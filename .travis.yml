@@ -211,12 +211,12 @@ matrix:
     #######
     # osx #
     #######
-    # - os: osx
-    #   osx_image: xcode6.4 # to compile binaries that support older versions of Mac
-    #   env:
-    #     - TEST=macro,neko,js,php,python,hl,lua
-    #     - DEPLOY_NIGHTLIES=1
-    #   install: *install_osx
+    - os: osx
+      osx_image: xcode6.4 # to compile binaries that support older versions of Mac
+      env:
+        - TEST=macro,neko,js,php,python,hl,lua
+        - DEPLOY_NIGHTLIES=1
+      install: *install_osx
 
     - os: osx
       osx_image: xcode8.3 # to compile C++ faster
