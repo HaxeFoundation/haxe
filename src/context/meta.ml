@@ -319,7 +319,7 @@ let get_info = function
 	| PhpGlobal -> ":phpGlobal",("Indicates that static fields of an extern class actually are located in the global PHP namespace",[Platform Php;UsedOn TClass])
 	| PhpClassConst -> ":phpClassConst",("Indicates that a static var of an extern class is a PHP class constant",[Platform Php;UsedOn TClassField])
 	| PhpMagic -> ":phpMagic",("Treat annotated field as special PHP magic field. This meta makes compiler avoid renaming such fields on generating PHP code.",[Platform Php;UsedOn TClassField])
-	| PhpNoConstructor -> ":phpNoConstructor",("Special meta for extern classes which does not have native constructor in PHP, but need a constructor in Haxe extern",[Platform Php;UsedOn TClass])
+	| PhpNoConstructor -> ":phpNoConstructor",("Special meta for extern classes which do not have native constructor in PHP, but need a constructor in Haxe extern",[Platform Php;UsedOn TClass])
 	| Pos -> ":pos",("Sets the position of a reified expression",[HasParam "Position";UsedOn TExpr])
 	| Public -> ":public",("Marks a class field as being public",[UsedOn TClassField;UsedInternally])
 	| PublicFields -> ":publicFields",("Forces all class fields of inheriting classes to be public",[UsedOn TClass])
