@@ -489,7 +489,7 @@ module InterferenceReport = struct
 			(* state *)
 			| TCall({eexpr = TIdent s},el) when not (is_unbound_call_that_might_have_side_effects s el) ->
 				List.iter loop el
-			| TNew(c,_,el) when (match c.cl_constructor with Some cf when PurityState.is_pure c cf -> true | _ -> false) ->
+			| TNew(c,_,el) when (match (c.cl_structure()).cl_constructor with Some cf when PurityState.is_pure c cf -> true | _ -> false) ->
 				set_state_read ir;
 				List.iter loop el;
 			| TCall({eexpr = TField(e1,FEnum _)},el) ->
@@ -654,7 +654,7 @@ module Fusion = struct
 				block_element acc el
 			| {eexpr = TCall({eexpr = TField(e1,fa)},el1)} :: el2 when PurityState.is_pure_field_access fa && config.local_dce ->
 				block_element acc (e1 :: el1 @ el2)
-			| {eexpr = TNew(c,tl,el1)} :: el2 when (match c.cl_constructor with Some cf when PurityState.is_pure c cf -> true | _ -> false) && config.local_dce ->
+			| {eexpr = TNew(c,tl,el1)} :: el2 when (match (c.cl_structure()).cl_constructor with Some cf when PurityState.is_pure c cf -> true | _ -> false) && config.local_dce ->
 				block_element acc (el1 @ el2)
 			| {eexpr = TIf ({ eexpr = TConst (TBool t) },e1,e2)} :: el ->
 				if t then
@@ -881,7 +881,7 @@ module Fusion = struct
 						(* state *)
 						| TCall({eexpr = TIdent s},el) when not (is_unbound_call_that_might_have_side_effects s el) ->
 							e
-						| TNew(c,tl,el) when (match c.cl_constructor with Some cf when PurityState.is_pure c cf -> true | _ -> false) ->
+						| TNew(c,tl,el) when (match (c.cl_structure()).cl_constructor with Some cf when PurityState.is_pure c cf -> true | _ -> false) ->
 							let el = handle_el el in
 							if not !found && (has_state_write ir || has_any_field_write ir) then raise Exit;
 							{e with eexpr = TNew(c,tl,el)}
@@ -1108,7 +1108,7 @@ module Cleanup = struct
 			| TField({eexpr = TTypeExpr _},_) ->
 				e
 			| TTypeExpr (TClassDecl c) ->
-				List.iter (fun cf -> if not (Meta.has Meta.MaybeUsed cf.cf_meta) then cf.cf_meta <- (Meta.MaybeUsed,[],cf.cf_pos) :: cf.cf_meta;) c.cl_ordered_statics;
+				List.iter (fun cf -> if not (Meta.has Meta.MaybeUsed cf.cf_meta) then cf.cf_meta <- (Meta.MaybeUsed,[],cf.cf_pos) :: cf.cf_meta;) (c.cl_structure()).cl_ordered_statics;
 				e
 			| _ ->
 				Type.map_expr loop e
@@ -1163,7 +1163,7 @@ module Purity = struct
 				| None -> ()
 				| Some(c,_) ->
 					begin try
-						let cf = PMap.find node.pn_field.cf_name c.cl_fields in
+						let cf = PMap.find node.pn_field.cf_name (c.cl_structure()).cl_fields in
 						taint (get_node c cf);
 					with Not_found ->
 						()
@@ -1210,15 +1210,20 @@ module Purity = struct
 				check_field c cf;
 			| TNew(c,_,el) ->
 				List.iter loop el;
-				begin match c.cl_constructor with
+				begin match (c.cl_structure()).cl_constructor with
 					| Some cf -> check_field c cf
 					| None -> taint_raise node
 				end
 			| TCall({eexpr = TConst TSuper},el) ->
 				begin match c.cl_super with
-					| Some({cl_constructor = Some cf} as c,_) ->
-						check_field c cf;
-						List.iter loop el
+					| Some(c,_) ->
+						begin match (c.cl_structure()).cl_constructor with
+						| Some cf ->
+							check_field c cf;
+							List.iter loop el
+						| None ->
+							taint_raise node (* Can that even happen? *)
+						end
 					| _ ->
 						taint_raise node (* Can that even happen? *)
 				end
@@ -1250,9 +1255,10 @@ module Purity = struct
 						()
 
 	let apply_to_class com c =
-		List.iter (apply_to_field com false c) c.cl_ordered_fields;
-		List.iter (apply_to_field com false c) c.cl_ordered_statics;
-		(match c.cl_constructor with Some cf -> apply_to_field com true c cf | None -> ())
+		let cs = c.cl_structure() in
+		List.iter (apply_to_field com false c) cs.cl_ordered_fields;
+		List.iter (apply_to_field com false c) cs.cl_ordered_statics;
+		(match cs.cl_constructor with Some cf -> apply_to_field com true c cf | None -> ())
 
 	let infer com =
 		Hashtbl.clear node_lut;

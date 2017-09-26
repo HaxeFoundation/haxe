@@ -40,7 +40,7 @@ let eval_expr ctx key name e =
 
 (* Creates constructor function for class [c], if it has a constructor. *)
 let create_constructor ctx c =
-	match c.cl_constructor with
+	match (c.cl_structure()).cl_constructor with
 	| Some {cf_expr = Some {eexpr = TFunction tf; epos = pos}} when not c.cl_extern ->
 		let key = path_hash c.cl_path in
 		let v = lazy (vfunction (jit_tfunction ctx key key_new tf false pos)) in
@@ -180,7 +180,7 @@ let create_static_prototype ctx mt =
 		in
 		let interfaces = List.map (fun (c,_) -> path_hash c.cl_path) c.cl_implements in
 		let pctx = PrototypeBuilder.create ctx key pparent (PClass interfaces) meta in
-		let fields = List.filter (fun cf -> not (is_removable_field cf)) c.cl_ordered_statics in
+		let fields = List.filter (fun cf -> not (is_removable_field cf)) (c.cl_structure()).cl_ordered_statics in
 		let delays = DynArray.create() in
 		if not c.cl_extern then List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
 			| Method _,Some {eexpr = TFunction tf; epos = pos} ->
@@ -234,7 +234,7 @@ let create_instance_prototype ctx c =
 	in
 	let key = path_hash c.cl_path in
 	let pctx = PrototypeBuilder.create ctx key pparent PInstance None in
-	let fields = List.filter (fun cf -> not (is_removable_field cf)) c.cl_ordered_fields in
+	let fields = List.filter (fun cf -> not (is_removable_field cf)) (c.cl_structure()).cl_ordered_fields in
 	if c.cl_extern && c.cl_path <> ([],"String") then
 		()
 	else List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
@@ -296,7 +296,7 @@ let add_types ctx types ready =
 		| TClassDecl c ->
 			let rec loop p f =
 				match p with
-				| Some (p,_) when PMap.mem f.cf_name p.cl_fields || loop p.cl_super f ->
+				| Some (p,_) when PMap.mem f.cf_name (p.cl_structure()).cl_fields || loop p.cl_super f ->
 					Hashtbl.add ctx.overrides (p.cl_path,f.cf_name) true;
 					true
 				| _ ->

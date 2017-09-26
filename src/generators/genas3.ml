@@ -1011,7 +1011,7 @@ let generate_field ctx static f =
 			match c.cl_super with
 			| None -> ()
 			| Some (c,_) ->
-				if PMap.mem f.cf_name c.cl_fields then
+				if PMap.mem f.cf_name (c.cl_structure()).cl_fields then
 					spr ctx "override "
 				else
 					loop c
@@ -1088,7 +1088,7 @@ let rec define_getset ctx stat c =
 			(match v.v_read with AccCall -> def f ("get_" ^ f.cf_name) | _ -> ());
 			(match v.v_write with AccCall -> def f ("set_" ^ f.cf_name) | _ -> ())
 	in
-	List.iter field (if stat then c.cl_ordered_statics else c.cl_ordered_fields);
+	List.iter field (if stat then (c.cl_structure()).cl_ordered_statics else (c.cl_structure()).cl_ordered_fields);
 	match c.cl_super with
 	| Some (c,_) when not stat -> define_getset ctx stat c
 	| _ -> ()
@@ -1110,7 +1110,8 @@ let generate_class ctx c =
 		concat ctx ", " (fun (i,_) -> print ctx "%s" (s_path ctx true i.cl_path c.cl_pos)) l);
 	spr ctx "{";
 	let cl = open_block ctx in
-	(match c.cl_constructor with
+	let cs = c.cl_structure() in
+	(match cs.cl_constructor with
 	| None -> ()
 	| Some f ->
 		let f = { f with
@@ -1121,8 +1122,8 @@ let generate_class ctx c =
 		ctx.constructor_block <- true;
 		generate_field ctx false f;
 	);
-	List.iter (generate_field ctx false) c.cl_ordered_fields;
-	List.iter (generate_field ctx true) c.cl_ordered_statics;
+	List.iter (generate_field ctx false) cs.cl_ordered_fields;
+	List.iter (generate_field ctx true) cs.cl_ordered_statics;
 	let has_init = match c.cl_init with
 		| None -> false
 		| Some e ->

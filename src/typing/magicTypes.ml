@@ -106,7 +106,8 @@ let extend_xml_proxy ctx c t file p =
 			| Xml.Element (_,attrs,childs) ->
 				(try
 					let id = List.assoc "id" attrs in
-					if PMap.mem id c.cl_fields then error ("Duplicate id " ^ id) p;
+					let cs = c.cl_structure() in
+					if PMap.mem id cs.cl_fields then error ("Duplicate id " ^ id) p;
 					let t = if not check_used then t else begin
 						used := PMap.add id false (!used);
 						let ft() = used := PMap.add id true (!used); t in
@@ -126,7 +127,7 @@ let extend_xml_proxy ctx c t file p =
 						cf_expr_unoptimized = None;
 						cf_overloads = [];
 					} in
-					c.cl_fields <- PMap.add id f c.cl_fields;
+					cs.cl_fields <- PMap.add id f cs.cl_fields;
 				with
 					Not_found -> ());
 				List.iter loop childs;

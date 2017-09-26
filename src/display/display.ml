@@ -351,7 +351,7 @@ module DeprecationCheck = struct
 			| TNew(c,_,el) ->
 				List.iter expr el;
 				check_class com c e.epos;
-				(match c.cl_constructor with None -> () | Some cf -> check_cf com cf e.epos)
+				(match (c.cl_structure()).cl_constructor with None -> () | Some cf -> check_cf com cf e.epos)
 			| TTypeExpr(mt) | TCast(_,Some mt) ->
 				check_module_type com mt e.epos
 			| TMeta((Meta.Deprecated,_,_) as meta,e1) ->
@@ -368,10 +368,11 @@ module DeprecationCheck = struct
 		List.iter (fun t -> match t with
 			| TClassDecl c ->
 				curclass := c;
-				(match c.cl_constructor with None -> () | Some cf -> run_on_field com cf);
+				let cs = c.cl_structure() in
+				(match cs.cl_constructor with None -> () | Some cf -> run_on_field com cf);
 				(match c.cl_init with None -> () | Some e -> run_on_expr com e);
-				List.iter (run_on_field com) c.cl_ordered_statics;
-				List.iter (run_on_field com) c.cl_ordered_fields;
+				List.iter (run_on_field com) cs.cl_ordered_statics;
+				List.iter (run_on_field com) cs.cl_ordered_fields;
 			| _ ->
 				()
 		) com.types
@@ -486,9 +487,10 @@ module Diagnostics = struct
 	let prepare com global =
 		List.iter (function
 			| TClassDecl c when global || is_display_file c.cl_pos.pfile ->
-				List.iter (prepare_field com) c.cl_ordered_fields;
-				List.iter (prepare_field com) c.cl_ordered_statics;
-				(match c.cl_constructor with None -> () | Some cf -> prepare_field com cf);
+				let cs = c.cl_structure() in
+				List.iter (prepare_field com) cs.cl_ordered_fields;
+				List.iter (prepare_field com) cs.cl_ordered_statics;
+				(match cs.cl_constructor with None -> () | Some cf -> prepare_field com cf);
 			| _ ->
 				()
 		) com.types
@@ -603,7 +605,7 @@ module Statistics = struct
 				let rec loop c = match c.cl_super with
 					| Some (c,_) ->
 						begin try
-							let cf' = PMap.find cf.cf_name c.cl_fields in
+							let cf' = PMap.find cf.cf_name (c.cl_structure()).cl_fields in
 							add_relation cf'.cf_name_pos (Overridden,cf.cf_pos)
 						with Not_found ->
 							loop c
@@ -614,7 +616,7 @@ module Statistics = struct
 				loop c
 			) c.cl_overrides
 		in
-		let rec find_real_constructor c = match c.cl_constructor,c.cl_super with
+		let rec find_real_constructor c = match (c.cl_structure()).cl_constructor,c.cl_super with
 			(* The pos comparison might be a bit weak, not sure... *)
 			| Some cf,_ when not (Meta.has Meta.CompilerGenerated cf.cf_meta) && c.cl_pos <> cf.cf_pos -> cf
 			| _,Some(c,_) -> find_real_constructor c
@@ -687,9 +689,10 @@ module Statistics = struct
 					let _ = follow cf.cf_type in
 					match cf.cf_expr with None -> () | Some e -> collect_references c e
 				in
-				Option.may field c.cl_constructor;
-				List.iter field c.cl_ordered_fields;
-				List.iter field c.cl_ordered_statics;
+				let cs = c.cl_structure() in
+				Option.may field cs.cl_constructor;
+				List.iter field cs.cl_ordered_fields;
+				List.iter field cs.cl_ordered_statics;
 			| TEnumDecl en ->
 				declare (SKEnum en) en.e_name_pos;
 				PMap.iter (fun _ ef -> declare (SKEnumField ef) ef.ef_name_pos) en.e_constrs
@@ -722,7 +725,7 @@ module Statistics = struct
 				m
 			in
 			let check_field c s p =
-				let cf = PMap.find s c.cl_statics in
+				let cf = PMap.find s (c.cl_structure()).cl_statics in
 				add_relation cf.cf_name_pos (Referenced,p)
 			in
 			let check_subtype_field m ssub psub sfield pfield = match check_subtype m ssub psub with
@@ -798,9 +801,10 @@ module ToplevelCollector = struct
 			(* member vars *)
 			if ctx.curfun <> FunStatic then begin
 				let rec loop c =
+					let cs = c.cl_structure() in
 					List.iter (fun cf ->
 						if not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITMember(ctx.curclass,cf))
-					) c.cl_ordered_fields;
+					) cs.cl_ordered_fields;
 					match c.cl_super with
 						| None ->
 							()
@@ -814,7 +818,7 @@ module ToplevelCollector = struct
 			(* statics *)
 			List.iter (fun cf ->
 				if not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITStatic(ctx.curclass,cf))
-			) ctx.curclass.cl_ordered_statics;
+			) (ctx.curclass.cl_structure()).cl_ordered_statics;
 
 			(* enum constructors *)
 			let rec enum_ctors t =
@@ -822,7 +826,7 @@ module ToplevelCollector = struct
 				| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta ->
 					List.iter (fun cf ->
 						if (Meta.has Meta.Enum cf.cf_meta) && not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITEnumAbstract(a,cf));
-					) c.cl_ordered_statics
+					) (c.cl_structure()).cl_ordered_statics
 				| TClassDecl _ | TAbstractDecl _ ->
 					()
 				| TTypeDecl t ->
@@ -842,9 +846,9 @@ module ToplevelCollector = struct
 			PMap.iter (fun _ (mt,s,_) ->
 				try
 					let t = match resolve_typedef mt with
-						| TClassDecl c -> (PMap.find s c.cl_statics).cf_type
+						| TClassDecl c -> (PMap.find s (c.cl_structure()).cl_statics).cf_type
 						| TEnumDecl en -> (PMap.find s en.e_constrs).ef_type
-						| TAbstractDecl {a_impl = Some c} -> (PMap.find s c.cl_statics).cf_type
+						| TAbstractDecl {a_impl = Some c} -> (PMap.find s (c.cl_structure()).cl_statics).cf_type
 						| _ -> raise Not_found
 					in
 					add (ITGlobal(mt,s,t))

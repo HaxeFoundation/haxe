@@ -492,10 +492,15 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		| TCall({eexpr = TConst TSuper; etype = t},el) ->
 			had_side_effect := true;
 			begin match follow t with
-			| TInst({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,_) ->
-				begin match type_inline_ctor ctx c cf tf ethis el po with
-				| Some e -> map term e
-				| None -> error "Could not inline super constructor call" po
+			| TInst(c,_) ->
+				begin match (c.cl_structure()).cl_constructor with
+				| Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf) ->
+					begin match type_inline_ctor ctx c cf tf ethis el po with
+					| Some e -> map term e
+					| None -> error "Could not inline super constructor call" po
+					end
+				| _ ->
+					error "Cannot inline function containing super" po
 				end
 			| _ -> error "Cannot inline function containing super" po
 			end
@@ -670,7 +675,7 @@ and type_inline_ctor ctx c cf tf ethis el po =
 				let eassign = mk (TBinop(OpAssign,lhs,e)) cf.cf_type e.epos in
 				eassign :: acc
 			| _ -> acc
-		) [] c.cl_ordered_fields in
+		) [] (c.cl_structure()).cl_ordered_fields in
 		List.rev el
 	in
 	let tf =
@@ -817,11 +822,11 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 	| _ , TInst({ cl_path = [],"Array" },[pt])
 	| _ , TInst({ cl_path = ["flash"],"Vector" },[pt]) ->
 		gen_int_iter pt get_next_array_element get_array_length
-	| _ , TInst({ cl_array_access = Some pt } as c,pl) when (try match follow (PMap.find "length" c.cl_fields).cf_type with TAbstract ({ a_path = [],"Int" },[]) -> true | _ -> false with Not_found -> false) && not (PMap.mem "iterator" c.cl_fields) ->
+	| _ , TInst({ cl_array_access = Some pt } as c,pl) when (try match follow (PMap.find "length" (c.cl_structure()).cl_fields).cf_type with TAbstract ({ a_path = [],"Int" },[]) -> true | _ -> false with Not_found -> false) && not (PMap.mem "iterator" (c.cl_structure()).cl_fields) ->
 		gen_int_iter (apply_params c.cl_params pl pt) get_next_array_element get_array_length
 	| _, TAbstract({a_impl = Some c} as a,tl) ->
 		begin try
-			let cf_length = PMap.find "get_length" c.cl_statics in
+			let cf_length = PMap.find "get_length" (c.cl_structure()).cl_statics in
 			let get_length e p =
 				make_static_call ctx c cf_length (apply_params a.a_params tl) [e] ctx.com.basic.tint p
 			in
@@ -854,7 +859,7 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 			None
 		end
 	| _ , TInst ({ cl_kind = KGenericInstance ({ cl_path = ["haxe";"ds"],"GenericStack" },[t]) } as c,[]) ->
-		let tcell = (try (PMap.find "head" c.cl_fields).cf_type with Not_found -> assert false) in
+		let tcell = (try (PMap.find "head" (c.cl_structure()).cl_fields).cf_type with Not_found -> assert false) in
 		let i = add_local ctx i t p in
 		let cell = gen_local ctx tcell p in
 		let cexpr = mk (TLocal cell) tcell p in
@@ -1276,16 +1281,21 @@ let inline_constructors ctx e =
 					| [] ->
 						()
 					end
-				| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl) when type_iseq v.v_type e1.etype ->
-					begin match type_inline_ctor ctx c cf tf (mk (TLocal v) (TInst (c,tl)) e1.epos) pl e1.epos with
-					| Some e ->
-						let e' = match el_init with
-							| [] -> e
-							| _ -> mk (TBlock (List.rev (e :: el_init))) e.etype e.epos
-						in
-						add v e' (IKCtor(cf,is_extern_ctor c cf));
-						find_locals e
-					| None ->
+				| TNew(c,tl,pl) when type_iseq v.v_type e1.etype ->
+					begin match (c.cl_structure()).cl_constructor with
+					| Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf) ->
+						begin match type_inline_ctor ctx c cf tf (mk (TLocal v) (TInst (c,tl)) e1.epos) pl e1.epos with
+						| Some e ->
+							let e' = match el_init with
+								| [] -> e
+								| _ -> mk (TBlock (List.rev (e :: el_init))) e.etype e.epos
+							in
+							add v e' (IKCtor(cf,is_extern_ctor c cf));
+							find_locals e
+						| None ->
+							()
+						end
+					| _ ->
 						()
 					end
 				| TObjectDecl fl when fl <> [] ->
@@ -1433,9 +1443,14 @@ let inline_constructors ctx e =
 			in
 			let el = block [] el in
 			mk (TBlock (List.rev el)) e.etype e.epos
-		| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})} as cf)} as c,_,_) when is_extern_ctor c cf ->
-			display_error ctx "Extern constructor could not be inlined" e.epos;
-			Type.map_expr loop e
+		| TNew(c,_,_) ->
+			begin match (c.cl_structure()).cl_constructor with
+			| Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})} as cf) when is_extern_ctor c cf ->
+				display_error ctx "Extern constructor could not be inlined" e.epos;
+				Type.map_expr loop e
+			| _ ->
+				Type.map_expr loop e
+			end
 		| _ ->
 			Type.map_expr loop e
 	in

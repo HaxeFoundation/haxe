@@ -49,7 +49,7 @@ open Globals
 	which is converted into TBlocks by the caller as needed.
 *)
 
-type inline_object_kind = 
+type inline_object_kind =
 	| IOKCtor of tclass_field * bool * tvar list
 	| IOKStructure
 	| IOKArray of int
@@ -236,59 +236,73 @@ let inline_constructors ctx e =
 			| _ -> None
 			end
 		in
+		let default e =
+			let old = !scoped_ivs in
+			scoped_ivs := [];
+			let f e = ignore(analyze_aliases false e) in
+			Type.iter f e;
+			List.iter (fun iv -> iv.iv_closed <- true) !scoped_ivs;
+			scoped_ivs := old;
+			None
+		in
 		match e.eexpr, e.etype with
-		| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl),_
-			when captured && not (List.memq cf seen_ctors) ->
-			begin
-				let io_id = !current_io_id in
-				let rec loop (vs, decls, es) el = match el with
-					| e :: el ->
-						begin match e.eexpr with
-						| TConst _ -> loop (vs, decls, e::es) el
-						| _ -> 
-							let v = alloc_var "arg" e.etype e.epos in
-							let decle = mk (TVar(v, Some e)) ctx.t.tvoid e.epos in
-							let io_id_start = !current_io_id in
-							ignore(analyze_aliases true decle);
-							let mde = (Meta.InlineConstructorArgument (v.v_id, io_id_start)), [], e.epos in
-							let e = mk (TMeta(mde, e)) e.etype e.epos in
-							loop (v::vs, decle::decls, e::es) el
-						end
-					| [] -> vs, (List.rev decls), (List.rev es)
-				in
-				let argvs, argvdecls, pl = loop ([],[],[]) pl in
-				let _, cname = c.cl_path in
-				let v = alloc_var ("inl"^cname) e.etype e.epos in
-				match Optimizer.type_inline_ctor ctx c cf tf (mk (TLocal v) (TInst (c,tl)) e.epos) pl e.epos with
-				| Some inlined_expr ->
-					let has_untyped = (Meta.has Meta.HasUntyped cf.cf_meta) in
-					let io = mk_io (IOKCtor(cf,is_extern_ctor c cf,argvs)) io_id inlined_expr ~has_untyped:has_untyped in
-					let rec loop (c:tclass) (tl:t list) = 
-						let apply = apply_params c.cl_params tl in
-						List.iter (fun cf -> 
-							match cf.cf_kind,cf.cf_expr with
-							| Var _, _ ->
-								let fieldt = apply cf.cf_type in
-								ignore(alloc_io_field io cf.cf_name fieldt v.v_pos);
-							| _ -> ()
-						) c.cl_ordered_fields;
-						match c.cl_super with
-						| Some (c,tl) -> loop c (List.map apply tl)
-						| None -> ()
-					in loop c tl;
-					let iv = add v IVKLocal in
-					set_iv_alias iv io;
-					io.io_id_start <- !current_io_id;
-					ignore(analyze_aliases_in_ctor cf true io.io_expr);
-					io.io_id_end <- !current_io_id;
-					Some iv
-				| _ ->
-					List.iter (fun v -> cancel_v v v.v_pos) argvs;
-					if is_extern_ctor c cf then display_error ctx "Extern constructor could not be inlined" e.epos;
-					None
+		| TNew(c,tl,pl),_ ->
+			let cs = c.cl_structure() in
+			begin match cs.cl_constructor with
+			| Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf) when captured && not (List.memq cf seen_ctors) ->
+				begin
+					let io_id = !current_io_id in
+					let rec loop (vs, decls, es) el = match el with
+						| e :: el ->
+							begin match e.eexpr with
+							| TConst _ -> loop (vs, decls, e::es) el
+							| _ ->
+								let v = alloc_var "arg" e.etype e.epos in
+								let decle = mk (TVar(v, Some e)) ctx.t.tvoid e.epos in
+								let io_id_start = !current_io_id in
+								ignore(analyze_aliases true decle);
+								let mde = (Meta.InlineConstructorArgument (v.v_id, io_id_start)), [], e.epos in
+								let e = mk (TMeta(mde, e)) e.etype e.epos in
+								loop (v::vs, decle::decls, e::es) el
+							end
+						| [] -> vs, (List.rev decls), (List.rev es)
+					in
+					let argvs, argvdecls, pl = loop ([],[],[]) pl in
+					let _, cname = c.cl_path in
+					let v = alloc_var ("inl"^cname) e.etype e.epos in
+					match Optimizer.type_inline_ctor ctx c cf tf (mk (TLocal v) (TInst (c,tl)) e.epos) pl e.epos with
+					| Some inlined_expr ->
+						let has_untyped = (Meta.has Meta.HasUntyped cf.cf_meta) in
+						let io = mk_io (IOKCtor(cf,is_extern_ctor c cf,argvs)) io_id inlined_expr ~has_untyped:has_untyped in
+						let rec loop (c:tclass) (tl:t list) =
+							let apply = apply_params c.cl_params tl in
+							List.iter (fun cf ->
+								match cf.cf_kind,cf.cf_expr with
+								| Var _, _ ->
+									let fieldt = apply cf.cf_type in
+									ignore(alloc_io_field io cf.cf_name fieldt v.v_pos);
+								| _ -> ()
+							) cs.cl_ordered_fields;
+							match c.cl_super with
+							| Some (c,tl) -> loop c (List.map apply tl)
+							| None -> ()
+						in loop c tl;
+						let iv = add v IVKLocal in
+						set_iv_alias iv io;
+						io.io_id_start <- !current_io_id;
+						ignore(analyze_aliases_in_ctor cf true io.io_expr);
+						io.io_id_end <- !current_io_id;
+						Some iv
+					| _ ->
+						List.iter (fun v -> cancel_v v v.v_pos) argvs;
+						if is_extern_ctor c cf then display_error ctx "Extern constructor could not be inlined" e.epos;
+						None
+				end
+			| Some ({cf_kind = Method MethInline; cf_expr = Some _} as cf) when is_extern_ctor c cf ->
+				error "Extern constructor could not be inlined" e.epos;
+			| _ ->
+				default e
 			end
-		| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some _} as cf)} as c,_,pl),_ when is_extern_ctor c cf ->
-			error "Extern constructor could not be inlined" e.epos;
 		| TObjectDecl fl, _ when captured && fl <> [] && List.for_all (fun(s,_) -> is_valid_ident s) fl ->
 			let v = alloc_var "inlobj" e.etype e.epos in
 			let ev = mk (TLocal v) v.v_type e.epos in
@@ -361,7 +375,7 @@ let inline_constructors ctx e =
 				| [] -> None
 			in loop el
 		| TMeta((Meta.InlineConstructorArgument (vid,_),_,_),_),_ ->
-			(try 
+			(try
 				let iv = get_iv vid in
 				if iv.iv_closed || not captured then cancel_iv iv e.epos;
 				Some(get_iv vid)
@@ -369,13 +383,7 @@ let inline_constructors ctx e =
 		| TParenthesis e,_ | TMeta(_,e),_ | TCast(e,None),_ ->
 			analyze_aliases captured e
 		| _,_ ->
-			let old = !scoped_ivs in
-			scoped_ivs := [];
-			let f e = ignore(analyze_aliases false e) in
-			Type.iter f e;
-			List.iter (fun iv -> iv.iv_closed <- true) !scoped_ivs;
-			scoped_ivs := old;
-			None
+			default e
 	in
 	ignore(analyze_aliases [] false false e);
 	current_io_id := 0;
@@ -387,16 +395,16 @@ let inline_constructors ctx e =
 			let v = iv.iv_var in
 			[(mk (TVar(v,None)) ctx.t.tvoid v.v_pos)]
 		| _ -> []
-	and get_io_var_decls (io:inline_object) : texpr list = 
+	and get_io_var_decls (io:inline_object) : texpr list =
 		if io.io_declared then [] else begin
 			io.io_declared <- true;
 			PMap.foldi (fun _ iv acc -> acc@(get_iv_var_decls iv)) io.io_fields []
 		end
 	in
 	let included_untyped = ref false in
-	let rec final_map ?(unwrap_block = false) (e:texpr) : ((texpr list) * (inline_object option)) = 
+	let rec final_map ?(unwrap_block = false) (e:texpr) : ((texpr list) * (inline_object option)) =
 		increment_io_id e;
-		let default_case e = 
+		let default_case e =
 			let f e =
 				let (el,_) = final_map e in
 				make_expr_for_rev_list el e.etype e.epos
@@ -437,7 +445,7 @@ let inline_constructors ctx e =
 				let rve = make_expr_for_rev_list rvel rve.etype rve.epos in
 				begin match lvel with
 				| [] -> assert false
-				| e::el -> 
+				| e::el ->
 					let e = mk (TBinop(OpAssign, e, rve)) e.etype e.epos in
 					(e::el), None
 				end

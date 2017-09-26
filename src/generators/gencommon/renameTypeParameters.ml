@@ -70,11 +70,12 @@ let run types =
 			List.iter iter_types cl.cl_params;
 			let cur_found_types = !found_types in
 			let save = ref save in
+			let cs = cl.cl_structure() in
 			List.iter (fun cf ->
 				found_types := cur_found_types;
 				save := save_params !save cf.cf_params;
 				List.iter iter_types cf.cf_params
-			) (cl.cl_ordered_fields @ cl.cl_ordered_statics);
+			) (cs.cl_ordered_fields @ cs.cl_ordered_statics);
 
 			if !save <> [] then begin
 				let save = !save in

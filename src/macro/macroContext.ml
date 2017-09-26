@@ -531,7 +531,7 @@ let load_macro ctx display cpath f p =
 		let cl, meth = (match mt with
 			| TClassDecl c ->
 				mctx.g.do_finalize mctx;
-				c, (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
+				c, (try PMap.find f (c.cl_structure()).cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
 			| _ -> error "Macro should be called on a class" p
 		) in
 		if not (Common.defined ctx.com Define.NoDeprecationWarnings) then

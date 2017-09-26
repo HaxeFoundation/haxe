@@ -24,12 +24,14 @@ open Type
 open Gencommon
 
 let add_static c cf =
-	c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
-	c.cl_ordered_statics <- cf :: c.cl_ordered_statics
+	let cs = c.cl_structure() in
+	cs.cl_statics <- PMap.add cf.cf_name cf cs.cl_statics;
+	cs.cl_ordered_statics <- cf :: cs.cl_ordered_statics
 
 let add_field c cf override =
-	c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
-	c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
+	let cs = c.cl_structure() in
+	cs.cl_fields <- PMap.add cf.cf_name cf cs.cl_fields;
+	cs.cl_ordered_fields <- cf :: cs.cl_ordered_fields;
 	if override then c.cl_overrides <- cf :: c.cl_overrides
 
 let add_meta com en cl_enum =
@@ -173,7 +175,8 @@ module EnumToClass2Modf = struct
 						etype = cf_ctor_t;
 						epos = pos;
 					};
-					cl_ctor.cl_constructor <- Some cf_ctor;
+					let cs = cl_ctor.cl_structure() in
+					cs.cl_constructor <- Some cf_ctor;
 
 					let cf_toString_t = TFun ([],basic.tstring) in
 					let cf_toString = mk_class_field "toString" cf_toString_t true pos (Method MethNormal) [] in
@@ -271,7 +274,8 @@ module EnumToClass2Modf = struct
 						etype = cf_ctor_t;
 						epos = pos;
 					};
-					cl_ctor.cl_constructor <- Some cf_ctor;
+					let cs = cl_ctor.cl_structure() in
+					cs.cl_constructor <- Some cf_ctor;
 
 					let cf_static_inst = mk_class_field name cl_enum_t true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
 					cf_static_inst.cf_meta <- [Meta.ReadOnly,[],pos];

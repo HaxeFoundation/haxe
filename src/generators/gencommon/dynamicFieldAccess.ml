@@ -79,7 +79,7 @@ let configure gen (is_dynamic:texpr->Type.tfield_access->bool) (change_expr:texp
 			(try
 				match decl with
 				| TClassDecl cl ->
-					let cf = PMap.find name cl.cl_statics in
+					let cf = PMap.find name (cl.cl_structure()).cl_statics in
 					{ e with eexpr = TField ({ fexpr with eexpr = TTypeExpr decl }, FStatic (cl, cf)) }
 				| TEnumDecl en ->
 					let ef = PMap.find name en.e_constrs in

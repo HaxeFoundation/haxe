@@ -44,7 +44,7 @@ let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 (** retrieves all overloads from class c and field i, as (Type.t * tclass_field) list *)
 let rec get_overloads c i =
 	let ret = try
-			let f = PMap.find i c.cl_fields in
+			let f = PMap.find i (c.cl_structure()).cl_fields in
 			match f.cf_kind with
 				| Var _ ->
 					(* @:libType may generate classes that have a variable field in a superclass of an overloaded method *)

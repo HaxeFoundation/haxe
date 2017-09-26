@@ -38,7 +38,7 @@ module Utils = struct
 			abort (Printf.sprintf "Could not find type %s\n" (s_type_path path)) null_pos
 
 	let mk_static_field c cf p =
-			let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
+			let ta = TAnon { a_fields = (c.cl_structure()).cl_statics; a_status = ref (Statics c) } in
 			let ethis = mk (TTypeExpr (TClassDecl c)) ta p in
 			let t = monomorphs cf.cf_params cf.cf_type in
 			mk (TField (ethis,(FStatic (c,cf)))) t p
@@ -52,8 +52,9 @@ module Utils = struct
 		mk (TCall(ef,el)) tr p
 
 	let resolve_static_field c n =
+		let cs = c.cl_structure() in
 		try
-			PMap.find n c.cl_statics
+			PMap.find n cs.cl_statics
 		with Not_found ->
 			failwith (Printf.sprintf "Class %s has no field %s" (s_type_path c.cl_path) n)
 
@@ -438,7 +439,7 @@ module Transformer = struct
 				([eint],fs) :: acc
 			) length_map [] in
 			let c_string = match !t_string with TInst(c,_) -> c | _ -> assert false in
-			let cf_length = PMap.find "length" c_string.cl_fields in
+			let cf_length = PMap.find "length" (c_string.cl_structure()).cl_fields in
 			let ef = mk (TField(e1,FInstance(c_string,[],cf_length))) !t_int e1.epos in
 			let res_var = alloc_var (ae.a_next_id()) ef.etype ef.epos in
 			let res_local = {ef with eexpr = TLocal res_var} in
@@ -1800,7 +1801,7 @@ module Generator = struct
 			| Var _ when not (is_physical_field cf) -> false
 			| Var _ when cf.cf_expr = None -> true
 			| _ -> false
-		) c.cl_ordered_fields
+		) (c.cl_structure()).cl_ordered_fields
 
 	(* Printing *)
 
@@ -1988,11 +1989,12 @@ module Generator = struct
 		end
 
 	let gen_class_statics ctx c p =
+		let cs = c.cl_structure() in
 		let methods, other = List.partition (fun cf ->
 			match cf.cf_kind with
 			| Method _ -> (match cf.cf_expr with Some _ -> true | _ -> false)
 			| _ -> false
-		) c.cl_ordered_statics in
+		) cs.cl_ordered_statics in
 
 		(* generate non methods *)
 		let has_empty_static_vars = ref false in
@@ -2042,12 +2044,13 @@ module Generator = struct
 				ctx.class_inits <- f :: ctx.class_inits
 
 	let gen_class ctx c =
+		let cs = c.cl_structure() in
 		if not c.cl_extern then begin
 			let is_nativegen = Meta.has Meta.NativeGen c.cl_meta in
 			let mt = (t_infos (TClassDecl c)) in
 			let p = get_path mt in
 			let p_name = get_full_name mt in
-			let x = collect_class_field_data c.cl_ordered_fields in
+			let x = collect_class_field_data cs.cl_ordered_fields in
 			let p_super = match c.cl_super with
 				| None ->
 					None
@@ -2094,7 +2097,7 @@ module Generator = struct
 							| Method MethDynamic -> raise Exit (* if a class has dynamic method, we can't use __slots__ because python will complain *)
 							| Var _ -> is_physical_field f
 							| _ -> false
-						) c.cl_ordered_fields
+						) cs.cl_ordered_fields
 					in
 					let field_names = List.map (fun f -> handle_keywords f.cf_name) real_fields in
 					let field_names = match c.cl_dynamic with Some _ -> "__dict__" :: field_names | None -> field_names in
@@ -2110,7 +2113,7 @@ module Generator = struct
 				print_field x.cfd_fields "_hx_fields" true;
 				print_field x.cfd_methods "_hx_methods" true;
 				(* TODO: It seems strange to have a separation for member fields but a plain _hx_statics for static ones *)
-				print_field (collect_class_statics_data c.cl_ordered_statics) "_hx_statics" true;
+				print_field (collect_class_statics_data cs.cl_ordered_statics) "_hx_statics" true;
 				print_field (p_interfaces) "_hx_interfaces" false;
 
 				if has_feature ctx "python._hx_super" then (match p_super with
@@ -2122,25 +2125,25 @@ module Generator = struct
 
 			end;
 
-			begin match c.cl_constructor with
+			begin match cs.cl_constructor with
 				| Some cf -> gen_class_constructor ctx c cf;
 				| None -> ()
 			end;
-			List.iter (fun cf -> gen_class_field ctx c p cf) c.cl_ordered_fields;
+			List.iter (fun cf -> gen_class_field ctx c p cf) cs.cl_ordered_fields;
 
 			let has_inner_static = gen_class_statics ctx c p in
 
-			let has_empty_constructor = match ((Meta.has Meta.NativeGen c.cl_meta) || c.cl_interface), c.cl_ordered_fields with
+			let has_empty_constructor = match ((Meta.has Meta.NativeGen c.cl_meta) || c.cl_interface), cs.cl_ordered_fields with
 				| true,_
 				| _, [] ->
 					false
 				| _ ->
-					gen_class_empty_constructor ctx p c.cl_ordered_fields;
+					gen_class_empty_constructor ctx p cs.cl_ordered_fields;
 					has_feature ctx "Type.createEmptyInstance"
 			in
 
 			let use_pass = !use_pass && (not has_inner_static) && (not has_empty_constructor) && match x.cfd_methods with
-				| [] -> c.cl_constructor = None
+				| [] -> cs.cl_constructor = None
 				| _ -> c.cl_interface
 			in
 			if use_pass then spr ctx "\n    pass";

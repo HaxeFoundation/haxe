@@ -973,7 +973,7 @@ and encode_class_kind k =
 	encode_enum IClassKind tag pl
 
 and encode_tclass c =
-	ignore(c.cl_build());
+	let cs = c.cl_structure() in
 	encode_mtype OClassType (TClassDecl c) [
 		"kind", encode_class_kind c.cl_kind;
 		"isExtern", vbool c.cl_extern;
@@ -984,9 +984,9 @@ and encode_tclass c =
 			| Some (c,pl) -> encode_obj OClassType_superClass ["t",encode_clref c;"params",encode_tparams pl]
 		);
 		"interfaces", encode_array (List.map (fun (c,pl) -> encode_obj OClassType_interfaces ["t",encode_clref c;"params",encode_tparams pl]) c.cl_implements);
-		"fields", encode_ref c.cl_ordered_fields (encode_and_map_array encode_cfield) (fun() -> "class fields");
-		"statics", encode_ref c.cl_ordered_statics (encode_and_map_array encode_cfield) (fun() -> "class fields");
-		"constructor", (match c.cl_constructor with None -> vnull | Some cf -> encode_cfref cf);
+		"fields", encode_ref cs.cl_ordered_fields (encode_and_map_array encode_cfield) (fun() -> "class fields");
+		"statics", encode_ref cs.cl_ordered_statics (encode_and_map_array encode_cfield) (fun() -> "class fields");
+		"constructor", (match cs.cl_constructor with None -> vnull | Some cf -> encode_cfref cf);
 		"init", (match c.cl_init with None -> vnull | Some e -> encode_texpr e);
 		"overrides", (encode_array (List.map encode_cfref c.cl_overrides))
 	]

@@ -265,7 +265,7 @@ module Pattern = struct
 						| TAbstract({a_impl = Some c} as a,pl) when Meta.has Meta.Enum a.a_meta ->
 							ExtList.List.filter_map (fun cf ->
 								if Meta.has Meta.Impl cf.cf_meta && Meta.has Meta.Enum cf.cf_meta then Some cf.cf_name else None
-							) c.cl_ordered_statics
+							) (c.cl_structure()).cl_ordered_statics
 						| _ ->
 							[]
 					in
@@ -384,7 +384,7 @@ module Pattern = struct
 							let fields = List.fold_left (fun acc cf ->
 								if Typer.can_access ctx c cf false then (cf,apply_params c.cl_params tl cf.cf_type) :: acc
 								else acc
-							) fields c.cl_ordered_fields in
+							) fields (c.cl_structure()).cl_ordered_fields in
 							match c.cl_super with
 								| None -> fields
 								| Some (csup,tlsup) -> loop fields csup (List.map (apply_params c.cl_params tl) tlsup)
@@ -407,7 +407,7 @@ module Pattern = struct
 								(cf,apply_params a.a_params tl cf.cf_type) :: acc
 							else
 								acc
-						) fields c.cl_ordered_statics in
+						) fields (c.cl_structure()).cl_ordered_statics in
 						fields
 					| _ ->
 						error (Printf.sprintf "Cannot field-match against %s" (s_type t)) (pos e)
@@ -1238,7 +1238,7 @@ module TexprConverter = struct
 						| Some {eexpr = TConst ct | TCast ({eexpr = TConst ct},None)} ->
 							if ct != TNull then add (ConConst ct)
 						| _ -> add (ConStatic(c,cf))
-				) c.cl_ordered_statics;
+				) (c.cl_structure()).cl_ordered_statics;
 				SKValue,CompileTimeFinite
 			| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 				loop (Abstract.get_underlying_type a pl)
@@ -1282,7 +1282,7 @@ module TexprConverter = struct
 							match cf.cf_expr with
 							| Some ({eexpr = TConst ct2 | TCast({eexpr = TConst ct2},None)}) -> ct1 = ct2
 							| _ -> false
-						) c.cl_ordered_statics in
+						) (c.cl_structure()).cl_ordered_statics in
 						cf.cf_name
 					| _ ->
 						Constructor.to_string con
@@ -1312,7 +1312,7 @@ module TexprConverter = struct
 			if not ctx.in_macro && not ctx.com.display.DisplayMode.dms_full_typing then
 				mk (TConst (TString "")) ctx.t.tstring e.epos
 			else
-				let cf = PMap.find "enumConstructor" c_type.cl_statics in
+				let cf = PMap.find "enumConstructor" (c_type.cl_structure()).cl_statics in
 				make_static_call ctx c_type cf (fun t -> t) [e] com.basic.tstring e.epos
 		in
 		let rec loop toplevel params dt = match dt.dt_t with

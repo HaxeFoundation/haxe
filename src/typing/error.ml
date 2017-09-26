@@ -21,9 +21,9 @@ exception Fatal_error of string * Globals.pos
 exception Error of error_msg * Globals.pos
 
 let string_source t = match follow t with
-	| TInst(c,_) -> List.map (fun cf -> cf.cf_name) c.cl_ordered_fields
+	| TInst(c,_) -> List.map (fun cf -> cf.cf_name) (c.cl_structure()).cl_ordered_fields
 	| TAnon a -> PMap.fold (fun cf acc -> cf.cf_name :: acc) a.a_fields []
-	| TAbstract({a_impl = Some c},_) -> List.map (fun cf -> cf.cf_name) c.cl_ordered_statics
+	| TAbstract({a_impl = Some c},_) -> List.map (fun cf -> cf.cf_name) (c.cl_structure()).cl_ordered_statics
 	| _ -> []
 
 let short_type ctx t =

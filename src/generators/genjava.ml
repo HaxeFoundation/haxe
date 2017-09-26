@@ -2045,8 +2045,9 @@ let generate con =
 
 	let gen_class w cl =
 		let cf_filters = [ handle_throws ] in
-		List.iter (fun f -> List.iter (f gen) cl.cl_ordered_fields) cf_filters;
-		List.iter (fun f -> List.iter (f gen) cl.cl_ordered_statics) cf_filters;
+		let cs = cl.cl_structure() in
+		List.iter (fun f -> List.iter (f gen) cs.cl_ordered_fields) cf_filters;
+		List.iter (fun f -> List.iter (f gen) cs.cl_ordered_statics) cf_filters;
 		let should_close = match change_ns (fst cl.cl_path) with
 			| [] -> false
 			| ns ->
@@ -2120,8 +2121,9 @@ let generate con =
 		if !strict_mode && is_some cl.cl_constructor then assert false;*)
 
 		let rec loop cl =
-			List.iter (fun cf -> add_scope cf.cf_name) cl.cl_ordered_fields;
-			List.iter (fun cf -> add_scope cf.cf_name) cl.cl_ordered_statics;
+			let cs = cl.cl_structure() in
+			List.iter (fun cf -> add_scope cf.cf_name) cs.cl_ordered_fields;
+			List.iter (fun cf -> add_scope cf.cf_name) cs.cl_ordered_statics;
 			match cl.cl_super with
 				| Some(c,_) -> loop c
 				| None -> ()
@@ -2144,7 +2146,7 @@ let generate con =
 				(try
 					let t = Hashtbl.find gen.gtypes ([], "Sys") in
 							match t with
-								| TClassDecl(cl) when PMap.mem "_args" cl.cl_statics ->
+								| TClassDecl(cl) when PMap.mem "_args" (cl.cl_structure()).cl_statics ->
 									write w "Sys._args = args;"; newline w
 								| _ -> ()
 				with | Not_found -> ()
@@ -2167,9 +2169,10 @@ let generate con =
 				newline w
 		);
 
-		(if is_some cl.cl_constructor then gen_class_field w false cl is_final (get cl.cl_constructor));
-		(if not cl.cl_interface then List.iter (gen_class_field w true cl is_final) cl.cl_ordered_statics);
-		List.iter (gen_class_field w false cl is_final) cl.cl_ordered_fields;
+		let cs = cl.cl_structure() in
+		(if is_some cs.cl_constructor then gen_class_field w false cl is_final (get cs.cl_constructor));
+		(if not cl.cl_interface then List.iter (gen_class_field w true cl is_final) cs.cl_ordered_statics);
+		List.iter (gen_class_field w false cl is_final) cs.cl_ordered_fields;
 
 		end_block w;
 		if should_close then end_block w;
@@ -2256,7 +2259,8 @@ let generate con =
 	let super_map (cl,tl) = (cl, List.map run_follow_gen tl) in
 	List.iter (function
 		| TClassDecl cl ->
-				let all_fields = (Option.map_default (fun cf -> [cf]) [] cl.cl_constructor) @ cl.cl_ordered_fields @ cl.cl_ordered_statics in
+			let cs = cl.cl_structure() in
+				let all_fields = (Option.map_default (fun cf -> [cf]) [] cs.cl_constructor) @ cs.cl_ordered_fields @ cs.cl_ordered_statics in
 				List.iter (fun cf ->
 					cf.cf_type <- run_follow_gen cf.cf_type;
 					cf.cf_expr <- Option.map type_map cf.cf_expr
@@ -2620,7 +2624,7 @@ let generate con =
 	) gen.gcon.resources;
 	(try
 		let c = get_cl (Hashtbl.find gen.gtypes (["haxe"], "Resource")) in
-		let cf = PMap.find "content" c.cl_statics in
+		let cf = PMap.find "content" (c.cl_structure()).cl_statics in
 		cf.cf_expr <- Some ({ eexpr = TArrayDecl(!res); etype = gen.gcon.basic.tarray gen.gcon.basic.tstring; epos = null_pos })
 	with | Not_found -> ());
 

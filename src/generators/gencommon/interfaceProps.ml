@@ -26,8 +26,9 @@ open Type
 let run = function
 	| TClassDecl ({ cl_interface = false; cl_extern = false } as cl) ->
 		let vars = List.fold_left (fun acc (iface,_) ->
+			let cs = iface.cl_structure() in
 			if Meta.has Meta.CsNative iface.cl_meta then
-				let props = List.filter (fun cf -> match cf.cf_kind with Var { v_read = AccCall } | Var { v_write = AccCall } -> true | _ -> false) iface.cl_ordered_fields in
+				let props = List.filter (fun cf -> match cf.cf_kind with Var { v_read = AccCall } | Var { v_write = AccCall } -> true | _ -> false) cs.cl_ordered_fields in
 				props @ acc
 			else
 				acc
@@ -38,6 +39,6 @@ let run = function
 				| Var { v_read = AccCall } | Var { v_write = AccCall } when List.mem cf.cf_name vars ->
 					cf.cf_meta <- (Meta.Property, [], null_pos) :: cf.cf_meta
 				| _ -> ()
-			) cl.cl_ordered_fields
+			) (cl.cl_structure()).cl_ordered_fields
 	| _ ->
 		()

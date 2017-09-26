@@ -32,7 +32,7 @@ let add_abstract_params = function
 					cf.cf_params <- cf.cf_params @ a.a_params
 				| _ -> ())
 			| _ -> ()
-		) c.cl_ordered_statics
+		) (c.cl_structure()).cl_ordered_statics
 	| _ -> ()
 
 let name = "abstract_implementation_fix"

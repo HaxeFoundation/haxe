@@ -200,6 +200,14 @@ and tinfos = {
 	mt_params : type_params;
 }
 
+and tclass_structure = {
+	mutable cl_fields : (string, tclass_field) PMap.t;
+	mutable cl_statics : (string, tclass_field) PMap.t;
+	mutable cl_ordered_statics : tclass_field list;
+	mutable cl_ordered_fields : tclass_field list;
+	mutable cl_constructor : tclass_field option;
+}
+
 and tclass = {
 	mutable cl_path : path;
 	mutable cl_module : module_def;
@@ -215,13 +223,9 @@ and tclass = {
 	mutable cl_interface : bool;
 	mutable cl_super : (tclass * tparams) option;
 	mutable cl_implements : (tclass * tparams) list;
-	mutable cl_fields : (string, tclass_field) PMap.t;
-	mutable cl_statics : (string, tclass_field) PMap.t;
-	mutable cl_ordered_statics : tclass_field list;
-	mutable cl_ordered_fields : tclass_field list;
+	mutable cl_structure : unit -> tclass_structure;
 	mutable cl_dynamic : t option;
 	mutable cl_array_access : t option;
-	mutable cl_constructor : tclass_field option;
 	mutable cl_init : texpr option;
 	mutable cl_overrides : tclass_field list;
 
@@ -375,8 +379,17 @@ let tfun pl r = TFun (List.map (fun t -> "",false,t) pl,r)
 
 let fun_args l = List.map (fun (a,c,t) -> a, c <> None, t) l
 
+let class_structure () = {
+	cl_fields = PMap.empty;
+	cl_ordered_statics = [];
+	cl_ordered_fields = [];
+	cl_statics = PMap.empty;
+	cl_constructor = None;
+}
+
 let mk_class m path pos name_pos =
-	{
+	let cl_structure = class_structure() in
+	let c = {
 		cl_path = path;
 		cl_module = m;
 		cl_pos = pos;
@@ -390,19 +403,20 @@ let mk_class m path pos name_pos =
 		cl_params = [];
 		cl_super = None;
 		cl_implements = [];
-		cl_fields = PMap.empty;
-		cl_ordered_statics = [];
-		cl_ordered_fields = [];
-		cl_statics = PMap.empty;
+		cl_structure = (fun () -> assert false);
 		cl_dynamic = None;
 		cl_array_access = None;
-		cl_constructor = None;
 		cl_init = None;
 		cl_overrides = [];
 		cl_build = (fun() -> Built);
 		cl_restore = (fun() -> ());
 		cl_descendants = [];
-	}
+	} in
+	c.cl_structure <- (fun () ->
+		ignore(c.cl_build());
+		cl_structure
+	);
+	c
 
 let module_extra file sign time kind policy =
 	{
@@ -793,10 +807,11 @@ let field_type f =
 
 let rec raw_class_field build_type c tl i =
 	let apply = apply_params c.cl_params tl in
+	let cs = c.cl_structure() in
 	try
-		let f = PMap.find i c.cl_fields in
+		let f = PMap.find i cs.cl_fields in
 		Some (c,tl), build_type f , f
-	with Not_found -> try (match c.cl_constructor with
+	with Not_found -> try (match cs.cl_constructor with
 		| Some ctor when i = "new" -> Some (c,tl), build_type ctor,ctor
 		| _ -> raise Not_found)
 	with Not_found -> try
@@ -861,11 +876,11 @@ let quick_field t n =
 			let ef = PMap.find n e.e_constrs in
 			FEnum(e,ef)
 		| Statics c ->
-			FStatic (c,PMap.find n c.cl_statics)
+			FStatic (c,PMap.find n (c.cl_structure()).cl_statics)
 		| AbstractStatics a ->
 			begin match a.a_impl with
 				| Some c ->
-					let cf = PMap.find n c.cl_statics in
+					let cf = PMap.find n (c.cl_structure()).cl_statics in
 					FStatic(c,cf) (* is that right? *)
 				| _ ->
 					raise Not_found
@@ -884,7 +899,7 @@ let quick_field_dynamic t s =
 	with Not_found -> FDynamic s
 
 let rec get_constructor build_type c =
-	match c.cl_constructor, c.cl_super with
+	match (c.cl_structure()).cl_constructor, c.cl_super with
 	| Some c, _ -> build_type c, c
 	| None, None -> raise Not_found
 	| None, Some (csup,cparams) ->
@@ -1351,6 +1366,7 @@ module Printer = struct
 		]
 
 	let s_tclass tabs c =
+		let cs = c.cl_structure() in
 		s_record_fields tabs [
 			"cl_path",s_type_path c.cl_path;
 			"cl_module",s_type_path c.cl_module.m_path;
@@ -1369,9 +1385,9 @@ module Printer = struct
 			"cl_array_access",s_opt s_type c.cl_array_access;
 			"cl_overrides",s_list "," (fun cf -> cf.cf_name) c.cl_overrides;
 			"cl_init",s_opt (s_expr_ast true "" s_type) c.cl_init;
-			"cl_constructor",s_opt (s_tclass_field (tabs ^ "\t")) c.cl_constructor;
-			"cl_ordered_fields",s_list "\n\t" (s_tclass_field (tabs ^ "\t")) c.cl_ordered_fields;
-			"cl_ordered_statics",s_list "\n\t" (s_tclass_field (tabs ^ "\t")) c.cl_ordered_statics;
+			"cl_constructor",s_opt (s_tclass_field (tabs ^ "\t")) cs.cl_constructor;
+			"cl_ordered_fields",s_list "\n\t" (s_tclass_field (tabs ^ "\t")) cs.cl_ordered_fields;
+			"cl_ordered_statics",s_list "\n\t" (s_tclass_field (tabs ^ "\t")) cs.cl_ordered_statics;
 		]
 
 	let s_tdef tabs t =

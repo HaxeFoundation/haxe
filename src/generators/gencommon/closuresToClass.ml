@@ -383,6 +383,7 @@ let configure gen ft =
 		let cur_line = Lexer.get_error_line fexpr.epos in
 		let path = (fst gen.gcurrent_path, Printf.sprintf "%s_%s_%d__Fun" (snd gen.gcurrent_path) cfield cur_line) in
 		let cls = mk_class (get gen.gcurrent_class).cl_module path tfunc.tf_expr.epos in
+		let cs = cls.cl_structure() in
 		if in_unsafe then cls.cl_meta <- (Meta.Unsafe,[],null_pos) :: cls.cl_meta;
 
 		if Common.defined gen.gcon Define.EraseGenerics then begin
@@ -410,8 +411,8 @@ let configure gen ft =
 			match lexpr.eexpr with
 				| TLocal(v) ->
 					let cf = mk_class_field v.v_name v.v_type false lexpr.epos (Var({ v_read = AccNormal; v_write = AccNormal; })) [] in
-					cls.cl_fields <- PMap.add v.v_name cf cls.cl_fields;
-					cls.cl_ordered_fields <- cf :: cls.cl_ordered_fields;
+					cs.cl_fields <- PMap.add v.v_name cf cs.cl_fields;
+					cs.cl_ordered_fields <- cf :: cs.cl_ordered_fields;
 
 					let ctor_v = alloc_var v.v_name v.v_type in
 					((ctor_v, None) :: ctor_args, (v.v_name, false, v.v_type) :: ctor_sig, (mk_this_assign v cls.cl_pos) :: ctor_exprs)
@@ -436,8 +437,8 @@ let configure gen ft =
 				let cf = mk_class_field "Delegate" (TFun(fun_args tfunc.tf_args, tfunc.tf_type)) true pos (Method MethNormal) [] in
 				cf.cf_expr <- Some { fexpr with eexpr = TFunction { tfunc with tf_expr = func_expr }; };
 				cf.cf_meta <- (Meta.Final,[],pos) :: cf.cf_meta;
-				cls.cl_ordered_fields <- cf :: cls.cl_ordered_fields;
-				cls.cl_fields <- PMap.add cf.cf_name cf cls.cl_fields;
+				cs.cl_ordered_fields <- cf :: cs.cl_ordered_fields;
+				cs.cl_fields <- PMap.add cf.cf_name cf cs.cl_fields;
 				(* invoke function body: call Delegate function *)
 				let ibody = {
 					eexpr = TCall({
@@ -486,11 +487,11 @@ let configure gen ft =
 			etype = ctor_type;
 			epos = cls.cl_pos;
 		});
-		cls.cl_constructor <- Some(ctor);
+		cs.cl_constructor <- Some(ctor);
 
 		(* add invoke function to the class *)
-		cls.cl_ordered_fields <- invoke_field :: cls.cl_ordered_fields;
-		cls.cl_fields <- PMap.add invoke_field.cf_name invoke_field cls.cl_fields;
+		cs.cl_ordered_fields <- invoke_field :: cs.cl_ordered_fields;
+		cs.cl_fields <- PMap.add invoke_field.cf_name invoke_field cs.cl_fields;
 		cls.cl_overrides <- invoke_field :: cls.cl_overrides;
 
 		gen.gadd_to_module (TClassDecl cls) priority;
@@ -501,8 +502,9 @@ let configure gen ft =
 			| [], [] ->
 				let cache_var = mk_internal_name "hx" "current" in
 				let cache_cf = mk_class_field cache_var (TInst(cls,[])) false func_expr.epos (Var({ v_read = AccNormal; v_write = AccNormal })) [] in
-				cls.cl_ordered_statics <- cache_cf :: cls.cl_ordered_statics;
-				cls.cl_statics <- PMap.add cache_var cache_cf cls.cl_statics;
+				let cs = cls.cl_structure() in
+				cs.cl_ordered_statics <- cache_cf :: cs.cl_ordered_statics;
+				cs.cl_statics <- PMap.add cache_var cache_cf cs.cl_statics;
 
 				(* if (FuncClass.hx_current != null) FuncClass.hx_current; else (FuncClass.hx_current = new FuncClass()); *)
 
@@ -1113,13 +1115,14 @@ struct
 			in
 
 			let cfs = map_base_classfields cl map_fn in
+			let cs = parent_func_class.cl_structure() in
 			List.iter (fun cf ->
 				if cf.cf_name = "new" then
-					parent_func_class.cl_constructor <- Some cf
+					cs.cl_constructor <- Some cf
 				else
-					parent_func_class.cl_fields <- PMap.add cf.cf_name cf parent_func_class.cl_fields
+					cs.cl_fields <- PMap.add cf.cf_name cf cs.cl_fields
 			) cfs;
-			parent_func_class.cl_ordered_fields <- (List.filter (fun cf -> cf.cf_name <> "new") cfs) @ parent_func_class.cl_ordered_fields
+			cs.cl_ordered_fields <- (List.filter (fun cf -> cf.cf_name <> "new") cfs) @ cs.cl_ordered_fields
 		end;
 
 		{

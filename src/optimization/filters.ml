@@ -247,7 +247,7 @@ let collect_reserved_local_names com =
 					List.iter (fun cf ->
 						let native_name = try fst (get_native_name cf.cf_meta) with Not_found -> cf.cf_name in
 						add native_name
-					) c.cl_ordered_statics;
+					) (c.cl_structure()).cl_ordered_statics;
 				| _ -> ()
 			else
 				add native_name
@@ -417,9 +417,10 @@ let save_class_state ctx t = match t with
 
 		let meta = c.cl_meta and path = c.cl_path and ext = c.cl_extern and over = c.cl_overrides in
 		let sup = c.cl_super and impl = c.cl_implements in
-		let csr = Option.map (mk_field_restore) c.cl_constructor in
-		let ofr = List.map (mk_field_restore) c.cl_ordered_fields in
-		let osr = List.map (mk_field_restore) c.cl_ordered_statics in
+		let cs = c.cl_structure() in
+		let csr = Option.map (mk_field_restore) cs.cl_constructor in
+		let ofr = List.map (mk_field_restore) cs.cl_ordered_fields in
+		let osr = List.map (mk_field_restore) cs.cl_ordered_statics in
 		let init = c.cl_init in
 		c.cl_restore <- (fun() ->
 			c.cl_super <- sup;
@@ -428,11 +429,11 @@ let save_class_state ctx t = match t with
 			c.cl_extern <- ext;
 			c.cl_path <- path;
 			c.cl_init <- init;
-			c.cl_ordered_fields <- List.map restore_field ofr;
-			c.cl_ordered_statics <- List.map restore_field osr;
-			c.cl_fields <- mk_pmap c.cl_ordered_fields;
-			c.cl_statics <- mk_pmap c.cl_ordered_statics;
-			c.cl_constructor <- Option.map restore_field csr;
+			cs.cl_ordered_fields <- List.map restore_field ofr;
+			cs.cl_ordered_statics <- List.map restore_field osr;
+			cs.cl_fields <- mk_pmap cs.cl_ordered_fields;
+			cs.cl_statics <- mk_pmap cs.cl_ordered_statics;
+			cs.cl_constructor <- Option.map restore_field csr;
 			c.cl_overrides <- over;
 			c.cl_descendants <- [];
 		)
@@ -471,16 +472,17 @@ let remove_generic_base ctx t = match t with
 let remove_extern_fields ctx t = match t with
 	| TClassDecl c ->
 		if not (Common.defined ctx.com Define.DocGen) then begin
-			c.cl_ordered_fields <- List.filter (fun f ->
+			let cs = c.cl_structure() in
+			cs.cl_ordered_fields <- List.filter (fun f ->
 				let b = is_removable_field ctx f in
-				if b then c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
+				if b then cs.cl_fields <- PMap.remove f.cf_name cs.cl_fields;
 				not b
-			) c.cl_ordered_fields;
-			c.cl_ordered_statics <- List.filter (fun f ->
+			) cs.cl_ordered_fields;
+			cs.cl_ordered_statics <- List.filter (fun f ->
 				let b = is_removable_field ctx f in
-				if b then c.cl_statics <- PMap.remove f.cf_name c.cl_statics;
+				if b then cs.cl_statics <- PMap.remove f.cf_name cs.cl_statics;
 				not b
-			) c.cl_ordered_statics;
+			) cs.cl_ordered_statics;
 		end
 	| _ ->
 		()
@@ -565,8 +567,9 @@ let apply_native_paths ctx t =
 				else
 					old_map
 			in
-			c.cl_fields <- fields c.cl_ordered_fields c.cl_fields;
-			c.cl_statics <- fields c.cl_ordered_statics c.cl_statics;
+			let cs = c.cl_structure() in
+			cs.cl_fields <- fields cs.cl_ordered_fields cs.cl_fields;
+			cs.cl_statics <- fields cs.cl_ordered_statics cs.cl_statics;
 			let meta,path = get_real_path c.cl_meta c.cl_path in
 			c.cl_meta <- meta :: c.cl_meta;
 			c.cl_path <- path;
@@ -585,12 +588,13 @@ let add_rtti ctx t =
 		Meta.has Meta.Rtti c.cl_meta || match c.cl_super with None -> false | Some (csup,_) -> has_rtti csup
 	in
 	match t with
-	| TClassDecl c when has_rtti c && not (PMap.mem "__rtti" c.cl_statics) ->
+	| TClassDecl c when has_rtti c && not (PMap.mem "__rtti" (c.cl_structure()).cl_statics) ->
 		let f = mk_field "__rtti" ctx.t.tstring c.cl_pos null_pos in
 		let str = Genxml.gen_type_string ctx.com t in
 		f.cf_expr <- Some (mk (TConst (TString str)) f.cf_type c.cl_pos);
-		c.cl_ordered_statics <- f :: c.cl_ordered_statics;
-		c.cl_statics <- PMap.add f.cf_name f c.cl_statics;
+		let cs = c.cl_structure() in
+		cs.cl_ordered_statics <- f :: cs.cl_ordered_statics;
+		cs.cl_statics <- PMap.add f.cf_name f cs.cl_statics;
 	| _ ->
 		()
 
@@ -598,6 +602,7 @@ let add_rtti ctx t =
 let add_field_inits reserved ctx t =
 	let is_as3 = Common.defined ctx.com Define.As3 && not ctx.in_macro in
 	let apply c =
+		let cs = c.cl_structure() in
 		let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) c.cl_pos in
 		(* TODO: we have to find a variable name which is not used in any of the functions *)
 		let v = alloc_var "_g" ethis.etype ethis.epos in
@@ -620,15 +625,16 @@ let add_field_inits reserved ctx t =
 				let cf2 = {cf with cf_expr = Some e} in
 				(* if the method is an override, we have to remove the class field to not get invalid overrides *)
 				let fields = if List.memq cf c.cl_overrides then begin
-					c.cl_fields <- PMap.remove cf.cf_name c.cl_fields;
+
+					cs.cl_fields <- PMap.remove cf.cf_name cs.cl_fields;
 					fields
 				end else
 					cf2 :: fields
 				in
 				(cf2 :: inits, fields)
 			| _ -> (inits, cf :: fields)
-		) ([],[]) c.cl_ordered_fields in
-		c.cl_ordered_fields <- (List.rev fields);
+		) ([],[]) cs.cl_ordered_fields in
+		cs.cl_ordered_fields <- (List.rev fields);
 		match inits with
 		| [] -> ()
 		| _ ->
@@ -646,7 +652,7 @@ let add_field_inits reserved ctx t =
 						eassign;
 			) inits in
 			let el = if !need_this then (mk (TVar((v, Some ethis))) ethis.etype ethis.epos) :: el else el in
-			let cf = match c.cl_constructor with
+			let cf = match cs.cl_constructor with
 			| None ->
 				let ct = TFun([],ctx.com.basic.tvoid) in
 				let ce = mk (TFunction {
@@ -676,7 +682,7 @@ let add_field_inits reserved ctx t =
 				cf.cf_expr <- Some e
 			| _ ->
 				());
-			c.cl_constructor <- Some cf
+			cs.cl_constructor <- Some cf
 	in
 	match t with
 	| TClassDecl c ->
@@ -687,6 +693,7 @@ let add_field_inits reserved ctx t =
 (* Adds the __meta__ field if required *)
 let add_meta_field ctx t = match t with
 	| TClassDecl c ->
+		let cs = c.cl_structure() in
 		(match Codegen.build_metadata ctx.com t with
 		| None -> ()
 		| Some e ->
@@ -702,13 +709,14 @@ let add_meta_field ctx t = match t with
 				(* borrowed from gencommon, but I did wash my hands afterwards *)
 				let path = fst c.cl_path,snd c.cl_path ^ "_HxMeta" in
 				let ncls = mk_class c.cl_module path c.cl_pos null_pos in
-				ncls.cl_ordered_statics <- cf :: ncls.cl_ordered_statics;
-				ncls.cl_statics <- PMap.add cf.cf_name cf ncls.cl_statics;
+				let nclss = ncls.cl_structure() in
+				nclss.cl_ordered_statics <- cf :: nclss.cl_ordered_statics;
+				nclss.cl_statics <- PMap.add cf.cf_name cf nclss.cl_statics;
 				ctx.com.types <- ctx.com.types @ [ TClassDecl ncls ];
 				c.cl_meta <- (Meta.Custom ":hasMetadata",[],e.epos) :: c.cl_meta
 			end else begin
-				c.cl_ordered_statics <- cf :: c.cl_ordered_statics;
-				c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics
+				cs.cl_ordered_statics <- cf :: cs.cl_ordered_statics;
+				cs.cl_statics <- PMap.add cf.cf_name cf cs.cl_statics
 			end)
 	| _ ->
 		()
@@ -757,8 +765,9 @@ let check_cs_events com t = match t with
 			| _ ->
 				()
 		in
-		List.iter (check cl.cl_fields) cl.cl_ordered_fields;
-		List.iter (check cl.cl_statics) cl.cl_ordered_statics
+		let cs = cl.cl_structure() in
+		List.iter (check cs.cl_fields) cs.cl_ordered_fields;
+		List.iter (check cs.cl_statics) cs.cl_ordered_statics
 	| _ ->
 		()
 
@@ -775,8 +784,9 @@ let check_void_field ctx t = match t with
 		let check f =
 			match follow f.cf_type with TAbstract({a_path=[],"Void"},_) -> error "Fields of type Void are not allowed" f.cf_pos | _ -> ();
 		in
-		List.iter check c.cl_ordered_fields;
-		List.iter check c.cl_ordered_statics;
+		let cs = c.cl_structure() in
+		List.iter check cs.cl_ordered_fields;
+		List.iter check cs.cl_ordered_statics;
 	| _ ->
 		()
 
@@ -831,9 +841,10 @@ let run_expression_filters ctx filters t =
 			| _ -> ());
 			List.iter process_field f.cf_overloads
 		in
-		List.iter process_field c.cl_ordered_fields;
-		List.iter process_field c.cl_ordered_statics;
-		(match c.cl_constructor with
+		let cs = c.cl_structure() in
+		List.iter process_field cs.cl_ordered_fields;
+		List.iter process_field cs.cl_ordered_statics;
+		(match cs.cl_constructor with
 		| None -> ()
 		| Some f -> process_field f);
 		(match c.cl_init with
@@ -864,9 +875,10 @@ let iter_expressions fl mt =
 			| None -> ()
 			| Some e -> List.iter (fun f -> f e) fl
 		in
-		List.iter field c.cl_ordered_statics;
-		List.iter field c.cl_ordered_fields;
-		(match c.cl_constructor with None -> () | Some cf -> field cf)
+		let cs = c.cl_structure() in
+		List.iter field cs.cl_ordered_statics;
+		List.iter field cs.cl_ordered_fields;
+		(match cs.cl_constructor with None -> () | Some cf -> field cf)
 	| _ ->
 		()
 

@@ -70,6 +70,7 @@ let handle_override_dynfun acc e this field =
 	| Some add_expr -> add_expr :: e :: acc
 
 let handle_class com cl =
+	let cs = cl.cl_structure() in
 	let init = match cl.cl_init with
 		| None -> []
 		| Some i -> [i]
@@ -104,7 +105,7 @@ let handle_class com cl =
 						ret :: acc)
 				| None -> acc)
 			| _ -> acc
-	) init cl.cl_ordered_statics in
+	) init cs.cl_ordered_statics in
 	let init = List.rev init in
 	(match init with
 	| [] -> cl.cl_init <- None
@@ -128,8 +129,8 @@ let handle_class com cl =
 				let is_override = List.memq cf cl.cl_overrides in
 
 				if is_override then begin
-					cl.cl_ordered_fields <- List.filter (fun f -> f.cf_name <> cf.cf_name) cl.cl_ordered_fields;
-					cl.cl_fields <- PMap.remove cf.cf_name cl.cl_fields;
+					cs.cl_ordered_fields <- List.filter (fun f -> f.cf_name <> cf.cf_name) cs.cl_ordered_fields;
+					cs.cl_fields <- PMap.remove cf.cf_name cs.cl_fields;
 					acc_vars, handle_override_dynfun acc_funs ret var cf.cf_name
 				end else if is_var then
 					ret :: acc_vars, acc_funs
@@ -148,8 +149,8 @@ let handle_class com cl =
 				let is_override = List.memq cf cl.cl_overrides in
 
 				if is_override then begin
-					cl.cl_ordered_fields <- List.filter (fun f -> f.cf_name <> cf.cf_name) cl.cl_ordered_fields;
-					cl.cl_fields <- PMap.remove cf.cf_name cl.cl_fields;
+					cs.cl_ordered_fields <- List.filter (fun f -> f.cf_name <> cf.cf_name) cs.cl_ordered_fields;
+					cs.cl_fields <- PMap.remove cf.cf_name cs.cl_fields;
 					acc_vars, handle_override_dynfun acc_funs ret var cf.cf_name
 				end else if is_var then
 					ret :: acc_vars, acc_funs
@@ -157,7 +158,7 @@ let handle_class com cl =
 					acc_vars, ret :: acc_funs
 			| None, _ -> acc_vars,acc_funs)
 		| _ -> acc_vars,acc_funs
-	) ([],[]) cl.cl_ordered_fields
+	) ([],[]) cs.cl_ordered_fields
 	in
 	(* let vars = List.rev vars in *)
 	(* let funs = List.rev funs in *)
@@ -167,14 +168,14 @@ let handle_class com cl =
 	| _ ->
 		(* if there is, we need to find the constructor *)
 		let ctors =
-			match cl.cl_constructor with
+			match cs.cl_constructor with
 			| Some ctor ->
 				ctor
 			| None ->
 				try
 					let sctor, sup, stl = OverloadingConstructor.prev_ctor cl (List.map snd cl.cl_params) in
 					let ctor = OverloadingConstructor.clone_ctors com sctor sup stl cl in
-					cl.cl_constructor <- Some ctor;
+					cs.cl_constructor <- Some ctor;
 					ctor
 				with Not_found ->
 					let ctor = mk_class_field "new" (TFun([], com.basic.tvoid)) false cl.cl_pos (Method MethNormal) [] in
@@ -188,7 +189,7 @@ let handle_class com cl =
 						etype = ctor.cf_type;
 						epos = ctor.cf_pos;
 					};
-					cl.cl_constructor <- Some ctor;
+					cs.cl_constructor <- Some ctor;
 					ctor
 		in
 		let process ctor =

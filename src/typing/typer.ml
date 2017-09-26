@@ -298,7 +298,8 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 	let rec loop c =
 		(try
 			(* if our common ancestor declare/override the field, then we can access it *)
-			let f = if is_constr then (match c.cl_constructor with None -> raise Not_found | Some c -> c) else PMap.find cf.cf_name (if stat then c.cl_statics else c.cl_fields) in
+			let cs = c.cl_structure() in
+			let f = if is_constr then (match cs.cl_constructor with None -> raise Not_found | Some c -> c) else PMap.find cf.cf_name (if stat then cs.cl_statics else cs.cl_fields) in
 			is_parent c ctx.curclass || (List.exists (has Meta.Allow c f) !cur_paths)
 		with Not_found ->
 			false
@@ -341,9 +342,11 @@ let merge_core_doc ctx c =
 	let maybe_merge cf_map cf =
 		if cf.cf_doc = None then try cf.cf_doc <- (PMap.find cf.cf_name cf_map).cf_doc with Not_found -> ()
 	in
-	List.iter (maybe_merge c_core.cl_fields) c.cl_ordered_fields;
-	List.iter (maybe_merge c_core.cl_statics) c.cl_ordered_statics;
-	match c.cl_constructor,c_core.cl_constructor with
+	let cs = c.cl_structure() in
+	let c_cores = c_core.cl_structure() in
+	List.iter (maybe_merge c_cores.cl_fields) cs.cl_ordered_fields;
+	List.iter (maybe_merge c_cores.cl_statics) cs.cl_ordered_statics;
+	match cs.cl_constructor,c_cores.cl_constructor with
 		| Some ({cf_doc = None} as cf),Some cf2 -> cf.cf_doc <- cf2.cf_doc
 		| _ -> ()
 
@@ -721,7 +724,7 @@ let rec type_module_type ctx t tparams p =
 			t_pos = c.cl_pos;
 			t_name_pos = null_pos;
 			t_type = TAnon {
-				a_fields = c.cl_statics;
+				a_fields = (c.cl_structure()).cl_statics;
 				a_status = ref (Statics c);
 			};
 			t_private = true;
@@ -758,7 +761,7 @@ let type_type ctx tpath p =
 let get_constructor ctx c params p =
 	match c.cl_kind with
 	| KAbstractImpl a ->
-		let f = (try PMap.find "_new" c.cl_statics with Not_found -> raise_error (No_constructor (TAbstractDecl a)) p) in
+		let f = (try PMap.find "_new" (c.cl_structure()).cl_statics with Not_found -> raise_error (No_constructor (TAbstractDecl a)) p) in
 		let ct = field_type ctx c params f p in
 		apply_params a.a_params params ct, f
 	| _ ->
@@ -907,12 +910,13 @@ let rec acc_get ctx g p =
 						c.cl_module.m_types <- (TClassDecl c2) :: c.cl_module.m_types;
 						c2
 				in
+				let cs = c2.cl_structure() in
 				let cf = try
-					PMap.find f.cf_name c2.cl_statics
+					PMap.find f.cf_name cs.cl_statics
 				with Not_found ->
 					let cf = {f with cf_kind = Method MethNormal} in
-					c2.cl_statics <- PMap.add cf.cf_name cf c2.cl_statics;
-					c2.cl_ordered_statics <- cf :: c2.cl_ordered_statics;
+					cs.cl_statics <- PMap.add cf.cf_name cf cs.cl_statics;
+					cs.cl_ordered_statics <- cf :: cs.cl_ordered_statics;
 					cf
 				in
 				let e_t = type_module_type ctx (TClassDecl c2) None p in
@@ -1068,7 +1072,7 @@ let field_access ctx mode f fmode t e p =
 				let this = get_this ctx p in
 				if mode = MSet then begin
 					let c,a = match ctx.curclass with {cl_kind = KAbstractImpl a} as c -> c,a | _ -> assert false in
-					let f = PMap.find m c.cl_statics in
+					let f = PMap.find m (c.cl_structure()).cl_statics in
 					(* we don't have access to the type parameters here, right? *)
 					(* let t = apply_params a.a_params pl (field_type ctx c [] f p) in *)
 					let t = (field_type ctx c [] f p) in
@@ -1108,7 +1112,7 @@ let rec using_field ctx mode e i p =
 		raise Not_found
 	| (c,pc) :: l ->
 		try
-			let cf = PMap.find i c.cl_statics in
+			let cf = PMap.find i (c.cl_structure()).cl_statics in
 			if Meta.has Meta.NoUsing cf.cf_meta || not (can_access ctx c cf true) || (Meta.has Meta.Impl cf.cf_meta) then raise Not_found;
 			let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 			let map = apply_params cf.cf_params monos in
@@ -1200,7 +1204,7 @@ let rec type_ident_raise ctx i p mode =
 						let c = mk_class ctx.m.curmod (["local"],v.v_name) e.epos null_pos in
 						let cf = { (mk_field v.v_name v.v_type e.epos null_pos) with cf_params = params; cf_expr = Some e; cf_kind = Method MethInline } in
 						c.cl_extern <- true;
-						c.cl_fields <- PMap.add cf.cf_name cf PMap.empty;
+						(c.cl_structure()).cl_fields <- PMap.add cf.cf_name cf PMap.empty;
 						AKInline (mk (TConst TNull) (TInst (c,[])) p, cf, FInstance(c,[],cf), t)
 				end
 			| _ ->
@@ -1220,7 +1224,7 @@ let rec type_ident_raise ctx i p mode =
 		| _ -> assert false)
 	with Not_found -> try
 		(* static variable lookup *)
-		let f = PMap.find i ctx.curclass.cl_statics in
+		let f = PMap.find i (ctx.curclass.cl_structure()).cl_statics in
 		if Meta.has Meta.Impl f.cf_meta && not (Meta.has Meta.Impl ctx.curfield.cf_meta) && not (Meta.has Meta.Enum f.cf_meta) then
 			error (Printf.sprintf "Cannot access non-static field %s from static method" f.cf_name) p;
 		let e = type_type ctx ctx.curclass.cl_path p in
@@ -1240,7 +1244,7 @@ let rec type_ident_raise ctx i p mode =
 				match t with
 				| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta ->
 					begin try
-						let cf = PMap.find i c.cl_statics in
+						let cf = PMap.find i (c.cl_structure()).cl_statics in
 						if not (Meta.has Meta.Enum cf.cf_meta) then
 							loop l
 						else begin
@@ -1323,11 +1327,12 @@ and type_field ?(resume=false) ctx e i p mode =
 	match follow e.etype with
 	| TInst (c,params) ->
 		let rec loop_dyn c params =
+			let cs = c.cl_structure() in
 			match c.cl_dynamic with
 			| Some t ->
 				let t = apply_params c.cl_params params t in
-				if (mode = MGet || mode = MCall) && PMap.mem "resolve" c.cl_fields then begin
-					let f = PMap.find "resolve" c.cl_fields in
+				if (mode = MGet || mode = MCall) && PMap.mem "resolve" cs.cl_fields then begin
+					let f = PMap.find "resolve" cs.cl_fields in
 					begin match f.cf_kind with
 						| Method MethMacro -> display_error ctx "The macro accessor is not allowed for field resolve" f.cf_pos
 						| _ -> ()
@@ -1380,7 +1385,7 @@ and type_field ?(resume=false) ctx e i p mode =
 					let rec loop tl = match tl with
 						| t :: tl ->
 							begin match follow t with
-								| TAbstract({a_impl = Some c},tl) when PMap.mem i c.cl_statics ->
+								| TAbstract({a_impl = Some c},tl) when PMap.mem i (c.cl_structure()).cl_statics ->
 									let e = mk_cast e t p in
 									type_field ctx e i p mode;
 								| _ ->
@@ -1394,7 +1399,7 @@ and type_field ?(resume=false) ctx e i p mode =
 					raise Not_found
 			end
 		with Not_found ->
-			if PMap.mem i c.cl_statics then error ("Cannot access static field " ^ i ^ " from a class instance") p;
+			if PMap.mem i (c.cl_structure()).cl_statics then error ("Cannot access static field " ^ i ^ " from a class instance") p;
 			no_field())
 	| TDynamic t ->
 		(try
@@ -1481,7 +1486,8 @@ and type_field ?(resume=false) ctx e i p mode =
 		let static_abstract_access_through_instance = ref false in
 		(try
 			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
-			let f = PMap.find i c.cl_statics in
+			let cs = c.cl_structure() in
+			let f = PMap.find i cs.cl_statics in
 			if not (can_access ctx c f true) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
 			let field_type f =
 				if not (Meta.has Meta.Impl f.cf_meta) then begin
@@ -1496,13 +1502,13 @@ and type_field ?(resume=false) ctx e i p mode =
 			(match mode, f.cf_kind with
 			| (MGet | MCall), Var {v_read = AccCall } ->
 				(* getter call *)
-				let f = PMap.find ("get_" ^ f.cf_name) c.cl_statics in
+				let f = PMap.find ("get_" ^ f.cf_name) cs.cl_statics in
 				let t = field_type f in
 				let r = match follow t with TFun(_,r) -> r | _ -> raise Not_found in
 				let ef = field_expr f t in
 				AKExpr(make_call ctx ef [e] r p)
 			| MSet, Var {v_write = AccCall } ->
-				let f = PMap.find ("set_" ^ f.cf_name) c.cl_statics in
+				let f = PMap.find ("set_" ^ f.cf_name) cs.cl_statics in
 				let t = field_type f in
 				let ef = field_expr f t in
 				AKUsing (ef,c,f,e)
@@ -1724,13 +1730,14 @@ let unify_int ctx e k =
 			display_error ctx "Conflicting field was defined here" pcf;
 			raise err
 		in
+		let cs = c.cl_structure() in
 		let cf2 = try
 			let cf2 = if stat then
-				let cf2 = PMap.find name c.cl_statics in
+				let cf2 = PMap.find name cs.cl_statics in
 				unify_existing_field cf2.cf_type cf2.cf_pos;
 				cf2
 			else
-				let cf2 = PMap.find name c.cl_fields in
+				let cf2 = PMap.find name cs.cl_fields in
 				unify_existing_field cf2.cf_type cf2.cf_pos;
 				cf2
 			in
@@ -1738,12 +1745,12 @@ let unify_int ctx e k =
 		with Not_found ->
 			let cf2 = mk_field name (map_monos cf.cf_type) cf.cf_pos cf.cf_name_pos in
 			if stat then begin
-				c.cl_statics <- PMap.add name cf2 c.cl_statics;
-				c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics
+				cs.cl_statics <- PMap.add name cf2 cs.cl_statics;
+				cs.cl_ordered_statics <- cf2 :: cs.cl_ordered_statics
 			end else begin
 				if List.memq cf c.cl_overrides then c.cl_overrides <- cf2 :: c.cl_overrides;
-				c.cl_fields <- PMap.add name cf2 c.cl_fields;
-				c.cl_ordered_fields <- cf2 :: c.cl_ordered_fields
+				cs.cl_fields <- PMap.add name cf2 cs.cl_fields;
+				cs.cl_ordered_fields <- cf2 :: cs.cl_ordered_fields
 			end;
 			ignore(follow cf.cf_type);
 			let rec check e = match e.eexpr with
@@ -1986,7 +1993,7 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 	let tstring = ctx.t.tstring in
 	let to_string e =
 		let rec loop t = match classify t with
-			| KAbstract ({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics ->
+			| KAbstract ({a_impl = Some c},_) when PMap.mem "toString" (c.cl_structure()).cl_statics ->
 				call_to_string ctx e
 			| KInt | KFloat | KString -> e
 			| KUnk | KDyn | KParam _ | KOther ->
@@ -2432,7 +2439,7 @@ and type_ident ctx i p mode =
 				let t = mk_mono() in
 				AKExpr ((mk (TIdent i)) t p)
 		end else begin
-			if ctx.curfun = FunStatic && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
+			if ctx.curfun = FunStatic && PMap.mem i (ctx.curclass.cl_structure()).cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
 			begin try
 				let t = List.find (fun (i2,_) -> i2 = i) ctx.type_params in
 				let c = match follow (snd t) with TInst(c,_) -> c | _ -> assert false in
@@ -3051,26 +3058,31 @@ and type_new ctx path el with_type p =
 	with Typeload.Generic_Exception _ ->
 		(* Try to infer generic parameters from the argument list (issue #2044) *)
 		match resolve_typedef (Typeload.load_type_def ctx p (fst path)) with
-		| TClassDecl ({cl_constructor = Some cf} as c) ->
-			let monos = List.map (fun _ -> mk_mono()) c.cl_params in
-			let ct, f = get_constructor ctx c monos p in
-			ignore (unify_constructor_call c monos f ct);
-			begin try
-				let t = Typeload.build_generic ctx c p monos in
-				let map = apply_params c.cl_params monos in
-				check_constraints ctx (s_type_path c.cl_path) c.cl_params monos map true p;
-				t
-			with Typeload.Generic_Exception _ as exc ->
-				(* If we have an expected type, just use that (issue #3804) *)
-				begin match with_type with
-					| WithType t ->
-						begin match follow t with
-							| TMono _ -> raise exc
-							| t -> t
+		| TClassDecl c ->
+			begin match (c.cl_structure()).cl_constructor with
+				| Some cf ->
+					let monos = List.map (fun _ -> mk_mono()) c.cl_params in
+					let ct, f = get_constructor ctx c monos p in
+					ignore (unify_constructor_call c monos f ct);
+					begin try
+						let t = Typeload.build_generic ctx c p monos in
+						let map = apply_params c.cl_params monos in
+						check_constraints ctx (s_type_path c.cl_path) c.cl_params monos map true p;
+						t
+					with Typeload.Generic_Exception _ as exc ->
+						(* If we have an expected type, just use that (issue #3804) *)
+						begin match with_type with
+							| WithType t ->
+								begin match follow t with
+									| TMono _ -> raise exc
+									| t -> t
+								end
+							| _ ->
+								raise exc
 						end
-					| _ ->
-						raise exc
-				end
+					end
+				| None ->
+					error ((s_type_path c.cl_path) ^ " cannot be constructed") p
 			end
 		| mt ->
 			error ((s_type_path (t_infos mt).mt_path) ^ " cannot be constructed") p
@@ -3106,7 +3118,7 @@ and type_new ctx path el with_type p =
 		mk (TNew (c,params,el)) t p
 	| TAbstract({a_impl = Some c} as a,tl) when not (Meta.has Meta.MultiType a.a_meta) ->
 		let el,cf,ct = build_constructor_call c tl in
-		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
+		let ta = TAnon { a_fields = (c.cl_structure()).cl_statics; a_status = ref (Statics c) } in
 		let e = mk (TTypeExpr (TClassDecl c)) ta p in
 		let e = mk (TField (e,(FStatic (c,cf)))) ct p in
 		make_call ctx e el t p
@@ -3245,7 +3257,7 @@ and type_map_declaration ctx e1 el with_type p =
 		| _ -> assert false
 	in
 	let tmap = TAbstract(a,[tkey;tval]) in
-	let cf = PMap.find "set" c.cl_statics in
+	let cf = PMap.find "set" (c.cl_structure()).cl_statics in
 	let v = gen_local ctx tmap p in
 	let ev = mk (TLocal v) tmap p in
 	let ec = type_module_type ctx (TClassDecl c) None p in
@@ -3672,7 +3684,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| (Meta.ToString,_,_) ->
 				let e = e() in
 				(match follow e.etype with
-					| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics -> call_to_string ctx e
+					| TAbstract({a_impl = Some c},_) when PMap.mem "toString" (c.cl_structure()).cl_statics -> call_to_string ctx e
 					| _ -> e)
 			| (Meta.This,_,_) ->
 				let e = match ctx.this_stack with
@@ -3963,7 +3975,7 @@ and display_expr ctx e_ast e with_type p =
 						| None -> m
 						| Some (csup,cparams) -> merge m (loop csup cparams)
 					) in
-					let m = merge ~cond:(fun f -> should_access c f false) c.cl_fields m in
+					let m = merge ~cond:(fun f -> should_access c f false) (c.cl_structure()).cl_fields m in
 					let m = (match c.cl_kind with
 						| KTypeParameter pl -> List.fold_left (fun acc t -> merge acc (get_fields t)) m pl
 						| _ -> m
@@ -3972,6 +3984,7 @@ and display_expr ctx e_ast e with_type p =
 				in
 				loop c params
 			| TAbstract({a_impl = Some c} as a,pl) ->
+				let cs = c.cl_structure() in
 				if Meta.has Meta.CoreApi c.cl_meta then merge_core_doc ctx c;
 				let fields = try
 					let _,el,_ = Meta.get Meta.Forward a.a_meta in
@@ -3996,7 +4009,7 @@ and display_expr ctx e_ast e with_type p =
 						PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type t } acc
 					end else
 						acc
-				) c.cl_statics fields
+				) cs.cl_statics fields
 			| TAnon a when PMap.is_empty a.a_fields ->
 				begin match with_type with
 				| WithType t -> get_fields t
@@ -4007,7 +4020,7 @@ and display_expr ctx e_ast e with_type p =
 				| Statics c ->
 					if Meta.has Meta.CoreApi c.cl_meta then merge_core_doc ctx c;
 					let is_abstract_impl = match c.cl_kind with KAbstractImpl _ -> true | _ -> false in
-					let pm = match c.cl_constructor with None -> PMap.empty | Some cf -> PMap.add "new" cf PMap.empty in
+					let pm = match (c.cl_structure()).cl_constructor with None -> PMap.empty | Some cf -> PMap.add "new" cf PMap.empty in
 					PMap.fold (fun f acc ->
 						if should_access c f true && (not is_abstract_impl || not (Meta.has Meta.Impl f.cf_meta) || Meta.has Meta.Enum f.cf_meta) then
 							PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type f.cf_type } acc else acc
@@ -4055,7 +4068,7 @@ and display_expr ctx e_ast e with_type p =
 							end
 						with Error (Unify _,_) -> ())
 					| _ -> ()
-				) c.cl_ordered_statics;
+				) (c.cl_structure()).cl_ordered_statics;
 				!acc
 		in
 		let use_methods = match follow e.etype with TMono _ -> PMap.empty | _ -> loop (loop PMap.empty ctx.g.global_using) ctx.m.module_using in
@@ -4095,7 +4108,7 @@ and maybe_type_against_enum ctx f with_type p =
 				| TAbstract ({a_impl = Some c} as a,_) when has_meta Meta.Enum a.a_meta ->
 					let fields = ExtList.List.filter_map (fun cf ->
 						if Meta.has Meta.Enum cf.cf_meta then Some cf.cf_name else None
-					) c.cl_ordered_statics in
+					) (c.cl_structure()).cl_ordered_statics in
 					a.a_path,fields,TAbstractDecl a,t
 				| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					begin match get_abstract_froms a pl with
@@ -4158,7 +4171,7 @@ and type_call ctx e el (with_type:with_type) p =
 			let e = type_expr ctx e Value in
 			let infos = type_expr ctx infos Value in
 			let e = match follow e.etype with
-				| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics ->
+				| TAbstract({a_impl = Some c},_) when PMap.mem "toString" (c.cl_structure()).cl_statics ->
 					call_to_string ctx e
 				| _ ->
 					e
@@ -4279,7 +4292,7 @@ and build_call ctx acc el (with_type:with_type) p =
 			(match follow ethis.etype with
 			| TInst (c,_) ->
 				let rec loop c =
-					if PMap.mem cf.cf_name c.cl_fields then
+					if PMap.mem cf.cf_name (c.cl_structure()).cl_fields then
 						let eparam,f = push_this ctx ethis in
 						ethis_f := f;
 						let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name (eparam :: el) p with
@@ -4372,7 +4385,7 @@ let get_main ctx types =
 			error ("Invalid -main : " ^ s_type_path cl ^ " is not a class") null_pos
 		| TClassDecl c ->
 			try
-				let f = PMap.find "main" c.cl_statics in
+				let f = PMap.find "main" (c.cl_structure()).cl_statics in
 				let t = Type.field_type f in
 				(match follow t with
 				| TFun ([],r) -> FStatic (c,f), t, r
@@ -4386,7 +4399,7 @@ let get_main ctx types =
 		let main = (try
 			let et = List.find (fun t -> t_path t = (["haxe"],"EntryPoint")) types in
 			let ec = (match et with TClassDecl c -> c | _ -> assert false) in
-			let ef = PMap.find "run" ec.cl_statics in
+			let ef = PMap.find "run" (ec.cl_structure()).cl_statics in
 			let p = null_pos in
 			let et = mk (TTypeExpr et) (TAnon { a_fields = PMap.empty; a_status = ref (Statics ec) }) p in
 			let call = mk (TCall (mk (TField (et,FStatic (ec,ef))) ef.cf_type p,[])) ctx.t.tvoid p in
@@ -4479,7 +4492,7 @@ let generate ctx =
 					()
 				else begin
 					statics := PMap.add (c.cl_path,"new") () !statics;
-					(match c.cl_constructor with
+					(match (c.cl_structure()).cl_constructor with
 					| Some { cf_expr = Some e } -> walk_expr p e
 					| _ -> ());
 					match c.cl_super with
@@ -4507,7 +4520,7 @@ let generate ctx =
 				match e.eexpr with
 				| TFunction _ -> ()
 				| _ -> walk_expr p e
-		) c.cl_statics
+		) (c.cl_structure()).cl_statics
 
 	in
 	let sorted_modules = List.sort (fun m1 m2 -> compare m1.m_path m2.m_path) (Hashtbl.fold (fun _ m acc -> m :: acc) ctx.g.modules []) in

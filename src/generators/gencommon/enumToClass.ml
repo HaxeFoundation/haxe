@@ -83,8 +83,9 @@ struct
 			| Some expr ->
 				let cf = mk_class_field "__meta__" expr.etype false expr.epos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
 				cf.cf_expr <- Some expr;
-				cl.cl_statics <- PMap.add "__meta__" cf cl.cl_statics;
-				cl.cl_ordered_statics <- cf :: cl.cl_ordered_statics
+				let cs = cl.cl_structure() in
+				cs.cl_statics <- PMap.add "__meta__" cf cs.cl_statics;
+				cs.cl_ordered_statics <- cf :: cs.cl_ordered_statics
 			| _ -> ()
 		);
 
@@ -169,15 +170,17 @@ struct
 					};
 					cf
 			in
-			cl.cl_statics <- PMap.add cf.cf_name cf cl.cl_statics;
+			let cs = cl.cl_structure() in
+			cs.cl_statics <- PMap.add cf.cf_name cf cs.cl_statics;
 			cf
 		) en.e_names in
 		let constructs_cf = mk_class_field "__hx_constructs" (gen.gclasses.nativearray basic.tstring) true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
 		constructs_cf.cf_meta <- [Meta.ReadOnly,[],pos];
 		constructs_cf.cf_expr <- Some (mk_nativearray_decl gen basic.tstring (List.map (fun s -> { eexpr = TConst(TString s); etype = basic.tstring; epos = pos }) en.e_names) pos);
 
-		cl.cl_ordered_statics <- constructs_cf :: cfs @ cl.cl_ordered_statics ;
-		cl.cl_statics <- PMap.add "__hx_constructs" constructs_cf cl.cl_statics;
+		let cs = cl.cl_structure() in
+		cs.cl_ordered_statics <- constructs_cf :: cfs @ cs.cl_ordered_statics ;
+		cs.cl_statics <- PMap.add "__hx_constructs" constructs_cf cs.cl_statics;
 
 		let getTag_cf_type = tfun [] basic.tstring in
 		let getTag_cf = mk_class_field "getTag" getTag_cf_type true pos (Method MethNormal) [] in
@@ -201,8 +204,9 @@ struct
 			epos = pos;
 		};
 
-		cl.cl_ordered_fields <- getTag_cf :: cl.cl_ordered_fields ;
-		cl.cl_fields <- PMap.add "getTag" getTag_cf cl.cl_fields;
+		let cs = cl.cl_structure() in
+		cs.cl_ordered_fields <- getTag_cf :: cs.cl_ordered_fields ;
+		cs.cl_fields <- PMap.add "getTag" getTag_cf cs.cl_fields;
 		cl.cl_overrides <- getTag_cf :: cl.cl_overrides;
 		cl.cl_meta <- (Meta.NativeGen,[],cl.cl_pos) :: cl.cl_meta;
 		gen.gadd_to_module (TClassDecl cl) (max_dep);

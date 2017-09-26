@@ -2008,7 +2008,7 @@ let generate con =
 					| true, None -> []
 					| true, Some(cl,_) ->
 						(try
-								let cf2 = PMap.find cf.cf_name cl.cl_statics in
+								let cf2 = PMap.find cf.cf_name (cl.cl_structure()).cl_statics in
 								CastDetect.type_eq gen EqStrict cf.cf_type cf2.cf_type;
 								["new"]
 							with
@@ -2174,13 +2174,15 @@ let generate con =
 				newline w;
 		in
 
-		let check_special_behaviors w cl = match cl.cl_kind with
+		let check_special_behaviors w cl =
+		let cs = cl.cl_structure() in
+		match cl.cl_kind with
 		| KAbstractImpl _ -> ()
 		| _ ->
 			(* get/set pairs *)
 			let pairs = ref PMap.empty in
 			(try
-				let get = PMap.find "__get" cl.cl_fields in
+				let get = PMap.find "__get" cs.cl_fields in
 				List.iter (fun cf ->
 					let args,ret = get_fun cf.cf_type in
 					match args with
@@ -2189,7 +2191,7 @@ let generate con =
 				) (get :: get.cf_overloads)
 			with | Not_found -> ());
 			(try
-				let set = PMap.find "__set" cl.cl_fields in
+				let set = PMap.find "__set" cs.cl_fields in
 				List.iter (fun cf ->
 					let args, ret = get_fun cf.cf_type in
 					match args with
@@ -2223,7 +2225,7 @@ let generate con =
 						end_block w);
 					end_block w) !pairs;
 			(if not (PMap.is_empty !pairs) then try
-				let get = PMap.find "__get" cl.cl_fields in
+				let get = PMap.find "__get" cs.cl_fields in
 				let idx_t, v_t = match follow get.cf_type with
 					| TFun([_,_,arg_t],ret_t) ->
 						t_s (run_follow gen arg_t), t_s (run_follow gen ret_t)
@@ -2264,7 +2266,7 @@ let generate con =
 			end;
 			(try
 				if cl.cl_interface then raise Not_found;
-				let cf = PMap.find "toString" cl.cl_fields in
+				let cf = PMap.find "toString" cs.cl_fields in
 				(if List.exists (fun c -> c.cf_name = "toString") cl.cl_overrides then raise Not_found);
 				(match cf.cf_type with
 					| TFun([], ret) ->
@@ -2284,7 +2286,7 @@ let generate con =
 			with | Not_found -> ());
 			(try
 				if cl.cl_interface then raise Not_found;
-				let cf = PMap.find "finalize" cl.cl_fields in
+				let cf = PMap.find "finalize" cs.cl_fields in
 				(if List.exists (fun c -> c.cf_name = "finalize") cl.cl_overrides then raise Not_found);
 				(match cf.cf_type with
 					| TFun([], ret) ->
@@ -2343,8 +2345,9 @@ let generate con =
 					end
 			in
 			if Meta.has Meta.BridgeProperties cl.cl_meta then begin
-				List.iter (handle_prop true) cl.cl_ordered_statics;
-				List.iter (handle_prop false) cl.cl_ordered_fields;
+				let cs = cl.cl_structure() in
+				List.iter (handle_prop true) cs.cl_ordered_statics;
+				List.iter (handle_prop false) cs.cl_ordered_fields;
 			end
 		in
 
@@ -2543,10 +2546,10 @@ let generate con =
 				let ret = List.filter (function | (_,_,None,None) -> false | _ -> true) ret in
 				evts, ret, List.rev !nonprops
 			in
-
-			let fevents, fprops, fnonprops = partition cl cl.cl_ordered_fields in
-			let sevents, sprops, snonprops = partition cl cl.cl_ordered_statics in
-			(if is_some cl.cl_constructor then gen_class_field w false cl is_final (get cl.cl_constructor));
+			let cs = cl.cl_structure() in
+			let fevents, fprops, fnonprops = partition cl cs.cl_ordered_fields in
+			let sevents, sprops, snonprops = partition cl cs.cl_ordered_statics in
+			(if is_some cs.cl_constructor then gen_class_field w false cl is_final (get cs.cl_constructor));
 			if not cl.cl_interface then begin
 				(* we don't want to generate properties for abstract implementation classes, because they don't have object to work with *)
 				List.iter (gen_event w true cl) sevents;
@@ -2558,10 +2561,10 @@ let generate con =
 			List.iter (gen_class_field w false cl is_final) fnonprops;
 			check_special_behaviors w cl;
 			end_block w;
-			if cl.cl_interface && cl.cl_ordered_statics <> [] then begin
+			if cl.cl_interface && cs.cl_ordered_statics <> [] then begin
 				print w "public class %s__Statics_" (snd cl.cl_path);
 				begin_block w;
-				List.iter (gen_class_field w true { cl with cl_interface = false } is_final) cl.cl_ordered_statics;
+				List.iter (gen_class_field w true { cl with cl_interface = false } is_final) cs.cl_ordered_statics;
 				end_block w
 			end;
 			if should_close then end_block w
@@ -2655,7 +2658,8 @@ let generate con =
 		let super_map (cl,tl) = (cl, List.map run_follow_gen tl) in
 		List.iter (function
 			| TClassDecl cl ->
-					let all_fields = (Option.map_default (fun cf -> [cf]) [] cl.cl_constructor) @ cl.cl_ordered_fields @ cl.cl_ordered_statics in
+				let cs = cl.cl_structure() in
+					let all_fields = (Option.map_default (fun cf -> [cf]) [] cs.cl_constructor) @ cs.cl_ordered_fields @ cs.cl_ordered_statics in
 					List.iter (fun cf ->
 						cf.cf_type <- run_follow_gen cf.cf_type;
 						cf.cf_expr <- Option.map type_map cf.cf_expr;
@@ -2888,7 +2892,7 @@ let generate con =
 		List.iter (fun cl ->
 			List.iter (fun cf ->
 				if cf.cf_name = dynamic_name then cl.cl_overrides <- cf :: cl.cl_overrides
-			) cl.cl_ordered_fields
+			) (cl.cl_structure()).cl_ordered_fields
 		) [closure_cl; varargs_cl];
 
 		ReflectionCFs.implement_varargs_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"], "VarArgsBase")) );
@@ -3132,7 +3136,7 @@ let generate con =
 		(* add resources array *)
 		(try
 			let res = get_cl (Hashtbl.find gen.gtypes (["haxe"], "Resource")) in
-			let cf = PMap.find "content" res.cl_statics in
+			let cf = PMap.find "content" (res.cl_structure()).cl_statics in
 			let res = ref [] in
 			Hashtbl.iter (fun name v ->
 				res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = null_pos } :: !res;
@@ -3191,8 +3195,9 @@ let generate con =
 		with | Not_found -> try
 			let basic = gen.gcon.basic in
 			let cl = flookup_cl in
-			let field_ids = PMap.find "fieldIds" cl.cl_statics in
-			let fields = PMap.find "fields" cl.cl_statics in
+			let cs = cl.cl_structure() in
+			let field_ids = PMap.find "fieldIds" cs.cl_statics in
+			let fields = PMap.find "fields" cs.cl_statics in
 
 			field_ids.cf_expr <- Some (mk_nativearray_decl gen basic.tint (List.map (fun (i,s) -> { eexpr = TConst(TInt (i)); etype = basic.tint; epos = field_ids.cf_pos }) hashes) field_ids.cf_pos);
 			fields.cf_expr <- Some (mk_nativearray_decl gen basic.tstring (List.map (fun (i,s) -> { eexpr = TConst(TString s); etype = basic.tstring; epos = fields.cf_pos }) hashes) fields.cf_pos);

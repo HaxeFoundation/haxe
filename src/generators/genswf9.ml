@@ -351,7 +351,7 @@ let property ctx p t =
 		(* lookup the interface in which the field was actually declared *)
 		let rec loop c =
 			try
-				(match PMap.find p c.cl_fields with
+				(match PMap.find p (c.cl_structure()).cl_fields with
 				| { cf_kind = Var _ | Method MethDynamic } -> raise Exit (* no vars in interfaces in swf9 *)
 				| _ -> c)
 			with Not_found ->
@@ -454,7 +454,7 @@ let pop ctx n =
 
 let is_member ctx name =
 	let rec loop c =
-		PMap.mem name c.cl_fields || (match c.cl_super with None -> false | Some (c,_) -> loop c)
+		PMap.mem name (c.cl_structure()).cl_fields || (match c.cl_super with None -> false | Some (c,_) -> loop c)
 	in
 	loop ctx.cur_class
 
@@ -1637,7 +1637,7 @@ and gen_binop ctx retval op e1 e2 t p =
 		| None ->
 			gen_op A3OEq
 		| Some c ->
-			let f = FStatic (c,try PMap.find "compare" c.cl_statics with Not_found -> assert false) in
+			let f = FStatic (c,try PMap.find "compare" (c.cl_structure()).cl_statics with Not_found -> assert false) in
 			gen_expr ctx true (mk (TCall (mk (TField (mk (TTypeExpr (TClassDecl c)) t_dynamic p,f)) t_dynamic p,[e1;e2])) ctx.com.basic.tbool p);
 	in
 	match op with
@@ -1809,7 +1809,7 @@ let generate_construct ctx fdata c =
 			write ctx (HInitProp id);
 			j();
 		| _ -> ()
-	) c.cl_fields;
+	) (c.cl_structure()).cl_fields;
 	gen_expr ctx false fdata.tf_expr;
 	debug_infos ctx ~is_min:false fdata.tf_expr.epos;
 	write ctx HRetVoid;
@@ -1834,10 +1834,10 @@ let generate_class_statics ctx c const =
 			if Codegen.is_volatile f.cf_type then write ctx (HArray 1);
 			write ctx (HInitProp (ident f.cf_name));
 		| _ -> ()
-	) c.cl_ordered_statics
+	) (c.cl_structure()).cl_ordered_statics
 
 let need_init ctx c =
-	not ctx.swc && not c.cl_extern && List.exists (fun f -> match f.cf_expr with Some e -> not (is_const e) | _ -> false) c.cl_ordered_statics
+	not ctx.swc && not c.cl_extern && List.exists (fun f -> match f.cf_expr with Some e -> not (is_const e) | _ -> false) (c.cl_structure()).cl_ordered_statics
 
 let generate_extern_inits ctx =
 	List.iter (fun t ->
@@ -1892,7 +1892,7 @@ let generate_class_init ctx c hc =
 			write ctx (HFunction (generate_method ctx fdata true f.cf_meta));
 			write ctx (HInitProp (ident f.cf_name));
 		| _ -> ()
-	) c.cl_ordered_statics;
+	) (c.cl_structure()).cl_ordered_statics;
 	if not c.cl_interface then write ctx HPopScope;
 	write ctx (HInitProp (type_path ctx c.cl_path));
 	if ctx.swc && c.cl_path = ctx.boot then generate_extern_inits ctx;
@@ -1975,7 +1975,7 @@ let generate_field_kind ctx f c stat =
 			match c.cl_super with
 			| None -> false
 			| Some (c,_) ->
-				PMap.exists name c.cl_fields || loop c name
+				PMap.exists name (c.cl_structure()).cl_fields || loop c name
 		in
 		(match f.cf_kind with
 		| Method MethDynamic when List.memq f c.cl_overrides ->
@@ -2048,9 +2048,10 @@ let check_constructor ctx c f =
 		()
 
 let generate_class ctx c =
+	let cs = c.cl_structure() in
 	let name = type_path ctx c.cl_path in
 	ctx.cur_class <- c;
-	let cid , cnargs = (match c.cl_constructor with
+	let cid , cnargs = (match cs.cl_constructor with
 		| None ->
 			if c.cl_interface then
 				{ (empty_method ctx null_pos) with hlmt_function = None }, 0
@@ -2078,7 +2079,7 @@ let generate_class ctx c =
 	let make_name f stat =
 		let rec find_meta c =
 			try
-				let f = PMap.find f.cf_name (if stat then c.cl_statics else c.cl_fields) in
+				let f = PMap.find f.cf_name (if stat then cs.cl_statics else cs.cl_fields) in
 				if List.memq f c.cl_overrides then raise Not_found;
 				f.cf_meta
 			with Not_found ->
@@ -2129,7 +2130,7 @@ let generate_class ctx c =
 				hlf_kind = k;
 				hlf_metas = extract_meta f.cf_meta;
 			} :: acc
-	) c.cl_fields [] in
+	) cs.cl_fields [] in
 	let fields = if c.cl_path <> ctx.boot then fields else begin
 		{
 			hlf_name = make_name {
@@ -2171,7 +2172,7 @@ let generate_class ctx c =
 				hlf_kind = k;
 				hlf_metas = extract_meta f.cf_meta;
 			} :: acc
-	) [] c.cl_ordered_statics) in
+	) [] cs.cl_ordered_statics) in
 	let statics = if not (need_init ctx c) then statics else
 		{
 			hlf_name = ident "init__";

@@ -1009,9 +1009,11 @@ let rec has_feature com f =
 				| t when meth = "*" -> (match t with TAbstractDecl a -> Meta.has Meta.ValueUsed a.a_meta | _ ->
 					Meta.has Meta.Used (t_infos t).mt_meta)
 				| TClassDecl ({cl_extern = true} as c) when com.platform <> Js || cl <> "Array" && cl <> "Math" ->
-					Meta.has Meta.Used (try PMap.find meth c.cl_statics with Not_found -> PMap.find meth c.cl_fields).cf_meta
+					let cs = c.cl_structure() in
+					Meta.has Meta.Used (try PMap.find meth cs.cl_statics with Not_found -> PMap.find meth cs.cl_fields).cf_meta
 				| TClassDecl c ->
-					PMap.exists meth c.cl_statics || PMap.exists meth c.cl_fields
+					let cs = c.cl_structure() in
+					PMap.exists meth cs.cl_statics || PMap.exists meth cs.cl_fields
 				| _ ->
 					false)
 			with Not_found ->
