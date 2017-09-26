@@ -112,6 +112,7 @@ and mark_field dce c cf stat =
 	in
 	if cf.cf_name = "new" then begin
 		let rec loop c =
+			let cs = c.cl_structure() in
 			begin match cs.cl_constructor with
 				| Some cf -> add cf
 				| None -> ()
