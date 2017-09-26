@@ -275,6 +275,7 @@ let inline_constructors ctx e =
 						let has_untyped = (Meta.has Meta.HasUntyped cf.cf_meta) in
 						let io = mk_io (IOKCtor(cf,is_extern_ctor c cf,argvs)) io_id inlined_expr ~has_untyped:has_untyped in
 						let rec loop (c:tclass) (tl:t list) =
+							let cs = c.cl_structure() in
 							let apply = apply_params c.cl_params tl in
 							List.iter (fun cf ->
 								match cf.cf_kind,cf.cf_expr with
