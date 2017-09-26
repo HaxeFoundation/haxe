@@ -3141,7 +3141,7 @@ let rec generate_member ctx c f =
 			(* function __string() return this.toString().bytes *)
 			let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) p in
 			let tstr = mk (TCall (mk (TField (ethis,FInstance(c,List.map snd c.cl_params,f))) f.cf_type p,[])) ctx.com.basic.tstring p in
-			let cstr, cf_bytes = (try (match ctx.com.basic.tstring with TInst(c,_) -> c, PMap.find "bytes" cs.cl_fields | _ -> assert false) with Not_found -> assert false) in
+			let cstr, cf_bytes = (try (match ctx.com.basic.tstring with TInst(c,_) -> c, PMap.find "bytes" (c.cl_structure()).cl_fields | _ -> assert false) with Not_found -> assert false) in
 			let estr = mk (TReturn (Some (mk (TField (tstr,FInstance (cstr,[],cf_bytes))) cf_bytes.cf_type p))) ctx.com.basic.tvoid p in
 			ignore(make_fun ctx (s_type_path c.cl_path,"__string") (alloc_fun_path ctx c.cl_path "__string") { tf_expr = estr; tf_args = []; tf_type = cf_bytes.cf_type; } (Some c) None)
 		end
