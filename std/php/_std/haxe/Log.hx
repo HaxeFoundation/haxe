@@ -23,13 +23,6 @@ package haxe;
 
 @:coreApi class Log {
 	public static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
-		if (infos!=null && infos.customParams!=null) {
-			var extra:String = "";
-			for( v in infos.customParams )
-				extra += "," + v;
-			untyped __call__('_hx_trace', v + extra, infos);
-		}
-		else
-			untyped __call__('_hx_trace', v, infos);
+		php.Boot.trace(v, infos);
 	}
 }

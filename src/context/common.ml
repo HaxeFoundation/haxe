@@ -324,8 +324,6 @@ let get_signature com =
 		com.defines_signature <- Some s;
 		s
 
-let is_php7 com = com.platform = Php && PMap.exists "php7" com.defines
-
 module CompilationServer = struct
 	type cache = {
 		c_haxelib : (string list, string list) Hashtbl.t;
@@ -607,7 +605,7 @@ module Define = struct
 		| JsEnumsAsObjects -> "js_enums_as_objects",("Generate enum representation as object instead of as array",[Platform Js])
 		| JsUnflatten -> "js_unflatten",("Generate nested objects for packages and types",[Platform Js])
 		| JsSourceMap -> "js_source_map",("Generate JavaScript source map even in non-debug mode",[Platform Js])
-		| SourceMap -> "source_map",("Generate source map for compiled files (Currently supported for php7 only)",[Platform Php])
+		| SourceMap -> "source_map",("Generate source map for compiled files (Currently supported for php only)",[Platform Php])
 		| KeepOldOutput -> "keep_old_output",("Keep old source files in the output directory (for C#/Java)",[Platforms [Cs;Java]])
 		| LoopUnrollMaxCost -> "loop_unroll_max_cost",("Maximum cost (number of expressions * iterations) before loop unrolling is canceled (default 250)",[])
 		| LuaJit -> "lua_jit",("Enable the jit compiler for lua (version 5.2 only)",[Platform Lua])
@@ -634,8 +632,8 @@ module Define = struct
 		| Objc -> "objc",("Sets the hxcpp output to objective-c++ classes. Must be defined for interop",[Platform Cpp])
 		| OldConstructorInline -> "old-constructor-inline",("Use old constructor inlining logic (from haxe 3.4.2) instead of the reworked version.",[])
 		| OldErrorFormat -> "old-error-format",("Use Haxe 3.x zero-based column error messages instead of new one-based format.",[])
-		| PhpPrefix -> "php_prefix",("Compiled with --php-prefix",[Platform Php])
-		| RealPosition -> "real_position",("Disables Haxe source mapping when targetting C#, removes position comments in Java and Php7 output",[Platforms [Cs;Java;Php]])
+		| PhpPrefix -> "php_prefix",("Root namespace for generated php classes. E.g. if compiled with`--php-prefix some.sub`, then all classes will be generated in `\\some\\sub` namespace.",[Platform Php])
+		| RealPosition -> "real_position",("Disables Haxe source mapping when targetting C#, removes position comments in Java and Php output",[Platforms [Cs;Java;Php]])
 		| ReplaceFiles -> "replace_files",("GenCommon internal",[Platforms [Java;Cs]])
 		| Scriptable -> "scriptable",("GenCPP internal",[Platform Cpp])
 		| ShallowExpose -> "shallow-expose",("Expose types to surrounding scope of Haxe generated closure without writing to window object",[Platform Js])
@@ -756,17 +754,10 @@ let get_config com =
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
 		}
 	| Php ->
-		if is_php7 com then
-			{
-				default_config with
-				pf_static = false;
-			}
-		else
-			{
-				default_config with
-				pf_static = false;
-				pf_pad_nulls = true;
-			}
+		{
+			default_config with
+			pf_static = false;
+		}
 	| Cpp ->
 		{
 			default_config with

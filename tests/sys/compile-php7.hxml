@@ -1,16 +1,13 @@
 compile-each.hxml
 -main Main
--php bin/php7/Main
--D php7
+-php bin/php/Main
 
 --next
 compile-each.hxml
 -main TestArguments
--php bin/php7/TestArguments
--D php7
+-php bin/php/TestArguments
 
 --next
 compile-each.hxml
 -main ExitCode
--php bin/php7/ExitCode
--D php7
+-php bin/php/ExitCode

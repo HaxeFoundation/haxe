@@ -19,10 +19,15 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import php.*;
+import sys.io.FileOutput;
+import sys.io.FileInput;
+
 @:coreApi class Sys {
 
-	public static function print( v : Dynamic ) : Void {
-		untyped __call__("echo", Std.string(v));
+	public static inline function print( v : Dynamic ) : Void {
+		Global.echo(Std.string(v));
 	}
 
 	public static function println( v : Dynamic ) : Void {
@@ -31,43 +36,45 @@
 	}
 
 	public static function args() : Array<String> {
-		return untyped __call__('array_key_exists', 'argv', __var__('_SERVER')) ? __call__('new _hx_array', __call__('array_slice', __var__('_SERVER', 'argv'), 1)) : [];
+		if (Global.array_key_exists('argv', SuperGlobal._SERVER)) {
+			return @:privateAccess Array.wrap(Global.array_slice(SuperGlobal._SERVER['argv'], 1));
+		} else {
+			return [];
+		}
 	}
 
 	public static function getEnv( s : String ) : String {
-		var ret:Dynamic = untyped __call__("getenv", s);
-		return ret == false ? null : ret;
+		var value = Global.getenv(s);
+		return value == false ? null : value;
 	}
 
-	public static function putEnv( s : String, v : String ) : Void {
-		return untyped __call__("putenv", s + "=" + v);
+	public static inline function putEnv( s : String, v : String ) : Void {
+		Global.putenv('$s=$v');
 	}
 
-	public static function sleep( seconds : Float ) : Void {
-		return untyped __call__("usleep", seconds*1000000);
+	public static inline function sleep( seconds : Float ) : Void {
+		return Global.usleep(Std.int(seconds * 1000000));
 	}
 
-	public static function setTimeLocale( loc : String ) : Bool {
-		return untyped __call__("setlocale", __php__("LC_TIME"), loc) != false;
+	public static inline function setTimeLocale( loc : String ) : Bool {
+		return Global.setlocale(Const.LC_TIME, loc) != false;
 	}
 
 	public static function getCwd() : String {
-		var cwd : String = untyped __call__("getcwd");
-		var l = cwd.substr(-1);
-		return cwd + (l == '/' || l == '\\' ? '' : '/');
+		var cwd = Global.getcwd();
+		if (cwd == false) return null;
+		var l = (cwd:String).substr(-1);
+		return (cwd:String) + (l == '/' || l == '\\' ? '' : '/');
 	}
 
-	public static function setCwd( s : String ) : Void {
-		untyped __call__("chdir", s);
+	public static inline function setCwd( s : String ) : Void {
+		Global.chdir(s);
 	}
 
 	public static function systemName() : String {
-		var s : String = untyped __call__("php_uname", "s");
-		var p : Int;
-		if((p = s.indexOf(" ")) >= 0)
-			return s.substr(0, p);
-		else
-			return s;
+		var s = Global.php_uname('s');
+		var p = s.indexOf(" ");
+		return (p >= 0 ? s.substr(0, p) : s);
 	}
 
 	public static function command( cmd : String, ?args : Array<String> ) : Int {
@@ -82,57 +89,60 @@
 					cmd = [cmd].concat(args).map(StringTools.quoteUnixArg).join(" ");
 			}
 		}
-		var result = 0;
-		untyped __call__("system", cmd, result);
+		var result = Boot.deref(0);
+		Global.system(cmd, result);
 		return result;
 	}
 
-	public static function exit( code : Int ) : Void {
-		untyped __call__("exit", code);
+	public static inline function exit( code : Int ) : Void {
+		Global.exit(code);
 	}
 
-	public static function time() : Float {
-		return untyped __call__("microtime", true);
+	public static inline function time() : Float {
+		return Global.microtime(true);
 	}
 
 	public static function cpuTime() : Float {
-		return untyped __call__("microtime", true) - __php__("$_SERVER['REQUEST_TIME']");
+		return time() - SuperGlobal._SERVER['REQUEST_TIME'];
 	}
 
-	@:deprecated("Use programPath instead") public static function executablePath() : String {
-		return untyped __php__("$_SERVER['SCRIPT_FILENAME']");
+	@:deprecated("Use programPath instead") public static inline function executablePath() : String {
+		return SuperGlobal._SERVER['SCRIPT_FILENAME'];
 	}
 
 	// It has to be initialized before any call to Sys.setCwd()...
-	static var _programPath = sys.FileSystem.fullPath(untyped __php__("$_SERVER['SCRIPT_FILENAME']"));
+	static var _programPath = sys.FileSystem.fullPath(SuperGlobal._SERVER['SCRIPT_FILENAME']);
 	public static function programPath() : String {
 		return _programPath;
 	}
 
 	public static function environment() : Map<String,String> {
-		return php.Lib.hashOfAssociativeArray(untyped __php__("$_SERVER"));
+		return php.Lib.hashOfAssociativeArray(SuperGlobal._SERVER);
 	}
 
 	public static function stdin() : haxe.io.Input {
-		var p = untyped __php__("defined('STDIN') ? STDIN : fopen('php://stdin', 'r')");
-		return untyped new sys.io.FileInput(p);
+		var p = Global.defined('STDIN') ? Const.STDIN : Global.fopen('php://stdin', 'r');
+		return @:privateAccess new FileInput(p);
 	}
 
 	public static function stdout() : haxe.io.Output {
-		var p = untyped __php__("defined('STDOUT') ? STDOUT : fopen('php://stdout', 'w')");
-		return untyped new sys.io.FileOutput(p);
+		var p = Global.defined('STDOUT') ? Const.STDOUT : Global.fopen('php://stdout', 'w');
+		return @:privateAccess new FileOutput(p);
 	}
 
 	public static function stderr() : haxe.io.Output {
-		var p = untyped __php__("defined('STDERR') ? STDERR : fopen('php://stderr', 'w')");
-		return untyped new sys.io.FileOutput(p);
+		var p = Global.defined('STDERR') ? Const.STDERR : Global.fopen('php://stderr', 'w');
+		return @:privateAccess new FileOutput(p);
 	}
 
 	public static function getChar( echo : Bool ) : Int {
-		var v : Int = untyped __call__("fgetc", __php__("STDIN"));
-		if(echo)
-			untyped __call__('echo', v);
-		return v;
+		var c = Global.fgetc(Const.STDIN);
+		if (c == false) {
+			return 0;
+		} else {
+			if(echo) Global.echo(c);
+			return Global.ord(c);
+		}
 	}
 
 }

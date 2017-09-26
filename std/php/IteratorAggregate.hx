@@ -21,6 +21,7 @@
  */
 package php;
 
+@:native('IteratorAggregate')
 extern interface IteratorAggregate<T> {
 	/**
 		This method is not public to not induce Haxe users to use it ;)

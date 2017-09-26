@@ -14,7 +14,6 @@ import haxe.io.*;
 	var Js = "js";
 	var Lua = "lua";
 	var Php = "php";
-	var Php7 = "php7";
 	var Cpp = "cpp";
 	var Flash9 = "flash9";
 	var As3 = "as3";
@@ -305,33 +304,6 @@ class RunCi {
 			case "Mac", "Linux":
 				Sys.putEnv("PATH", Sys.getEnv("PATH") + ":" + path);
 		}
-	}
-
-	static function getPhpDependencies() {
-		switch (systemName) {
-			case "Linux":
-				var phpCmd = commandResult("php", ["-v"]);
-				var phpVerReg = ~/PHP ([0-9]+\.[0-9]+)/i;
-				var phpVer = if (phpVerReg.match(phpCmd.stdout))
-					Std.parseFloat(phpVerReg.matched(1));
-				else
-					null;
-				if (phpCmd.exitCode == 0 && phpVer != null && phpVer >= 5.5) {
-					infoMsg('php has already been installed.');
-				} else {
-					requireAptPackages(["php5-cli"]);
-				}
-			case "Mac":
-				//pass
-			case "Windows":
-				if (commandSucceed("php", ["-v"])) {
-					infoMsg('php has already been installed.');
-				} else {
-					runCommand("cinst", ["php", "-version", "5.6.3", "-y"], true);
-					addToPATH("C:\\tools\\php");
-				}
-		}
-		runCommand("php", ["-v"]);
 	}
 
 	static var gotCppDependencies = false;
@@ -872,19 +844,9 @@ class RunCi {
 						haxelibInstall("utest");
 						runCommand("haxe", ["compile-neko.hxml"]);
 						runCommand("neko", ["bin/neko/sys.n"]);
-					case Php7:
-						if (systemName == "Linux") {
-								runCommand("phpenv", ["global", "7.0"], false, true);
-							runCommand("haxe", ["compile-php7.hxml"].concat(args));
-							runCommand("php", ["bin/php7/index.php"]);
-
-							changeDirectory(sysDir);
-							haxelibInstall("utest");
-							runCommand("haxe", ["compile-php7.hxml"]);
-							runCommand("php", ["bin/php7/Main/index.php"]);
-						}
 					case Php:
-								getPhpDependencies();
+						if (systemName == "Linux") {
+							runCommand("phpenv", ["global", "7.0"], false, true);
 							runCommand("haxe", ["compile-php.hxml"].concat(args));
 							runCommand("php", ["bin/php/index.php"]);
 
@@ -892,6 +854,7 @@ class RunCi {
 							haxelibInstall("utest");
 							runCommand("haxe", ["compile-php.hxml"]);
 							runCommand("php", ["bin/php/Main/index.php"]);
+						}
 					case Python:
 						var pys = getPythonDependencies();
 

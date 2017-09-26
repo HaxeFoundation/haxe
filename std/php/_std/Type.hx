@@ -20,6 +20,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+import php.*;
+import php.reflection.*;
+import haxe.extern.EitherType;
+
+using php.Global;
+
 enum ValueType {
 	TNull;
 	TInt;
@@ -34,218 +40,283 @@ enum ValueType {
 
 @:coreApi class Type {
 
-	public static function getClass<T>( o : T ) : Class<T> untyped {
-		if(o == null) return null;
-		untyped if(__call__("is_array",  o)) {
-			if(__call__("count", o) == 2 && __call__("is_callable", o)) return null;
-			return __call__("_hx_ttype", 'Array');
-		}
-		if(untyped __call__("is_string", o)) {
-			if(__call__("_hx_is_lambda", untyped o)) return null;
-			return __call__("_hx_ttype", 'String');
-		}
-		if(!untyped __call__("is_object", o)) {
+	public static function getClass<T>( o : T ) : Class<T> {
+		if(Global.is_object(o) && !Boot.isClass(o) && !Boot.isEnumValue(o)) {
+			var cls = Boot.getClass(Global.get_class(cast o));
+			return (cls == Boot.getHxAnon() ? null : cast cls);
+		} else if(Global.is_string(o)) {
+			return cast String;
+		} else {
 			return null;
 		}
-		var c = __call__("get_class", o);
-		if(c == false || c == '_hx_anonymous' || __call__("is_subclass_of", c, "enum"))
-			return null;
-		else
-			return __call__("_hx_ttype", c);
 	}
 
-	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped {
-		if(!__php__("$o instanceof Enum"))
-			return null;
-		else
-			return __php__("_hx_ttype(get_class($o))");
+	public static function getEnum( o : EnumValue ) : Enum<Dynamic> {
+		if(o == null) return null;
+		return cast Boot.getClass(Global.get_class(cast o));
 	}
 
 	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> {
-		var s = untyped __call__("get_parent_class", c.__tname__);
-		if(s == false)
-			return null;
-		else
-			return untyped __call__("_hx_ttype", s);
+		if(c == null) return null;
+		var parentClass = Global.get_parent_class((cast c).phpClassName);
+		if(!parentClass) return null;
+		return cast Boot.getClass(parentClass);
 	}
 
 	public static function getClassName( c : Class<Dynamic> ) : String {
-		if( c == null )
-			return null;
-		return untyped c.__qname__;
+		if(c == null) return null;
+		return Boot.getHaxeName(cast c);
 	}
 
 	public static function getEnumName( e : Enum<Dynamic> ) : String {
-		return untyped e.__qname__;
+		return getClassName(cast e);
 	}
 
-	public static function resolveClass( name : String ) : Class<Dynamic> untyped {
-		var c = untyped __call__("_hx_qtype", name);
-		if(__php__("$c instanceof _hx_class || $c instanceof _hx_interface"))
-			return c;
-		else
-			return null;
+	public static function resolveClass( name : String ) : Class<Dynamic> {
+		if (name == null) return null;
+		switch(name) {
+			case 'Dynamic': return cast Dynamic;
+			case 'Int': return cast Int;
+			case 'Float': return cast Float;
+			case 'Bool':  return cast Bool;
+			case 'String': return String;
+			case 'Class': return cast Class;
+			case 'Enum': return cast Enum;
+		}
+
+		var phpClass = Boot.getPhpName(name);
+		if (!Global.class_exists(phpClass) && !Global.interface_exists(phpClass)) return null;
+
+		var hxClass = Boot.getClass(phpClass);
+
+		return cast hxClass;
 	}
 
 	public static function resolveEnum( name : String ) : Enum<Dynamic> {
-		var e = untyped __call__("_hx_qtype", name);
-		if(untyped __php__("$e instanceof _hx_enum"))
-			return e;
-		else
-			return null;
+		if (name == null) return null;
+		if (name == 'Bool') return cast Bool;
+
+		var phpClass = Boot.getPhpName(name);
+		if (!Global.class_exists(phpClass)) return null;
+
+		var hxClass = Boot.getClass(phpClass);
+
+		return cast hxClass;
 	}
 
-	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped {
-		if(cl.__qname__ == 'Array') return [];
-		if(cl.__qname__ == 'String') return args[0];
-		var c = cl.__rfl__();
-		if(c == null) return null;
-		return __php__("$inst = $c->getConstructor() ? $c->newInstanceArgs($args->a) : $c->newInstanceArgs()");
+	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T {
+		if (String == cast cl) return args[0];
+
+		var phpName = getPhpName(cl);
+		if (phpName == null) return null;
+		var nativeArgs:NativeArray = @:privateAccess args.arr;
+		return Syntax.construct(phpName, Syntax.splat(nativeArgs));
 	}
 
-	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped {
-		if(cl.__qname__ == 'Array') return [];
-		if(cl.__qname__ == 'String') return '';
-		try {
-			__php__("php_Boot::$skip_constructor = true");
-			var rfl = cl.__rfl__();
-			if(rfl == null) return null;
-			var m = __php__("$rfl->getConstructor()");
-			var nargs : Int = m.getNumberOfRequiredParameters();
-			var i;
-			if(nargs > 0) {
-				var args = __call__("array_fill", 0, m.getNumberOfRequiredParameters(), null);
-				i = __php__("$rfl->newInstanceArgs($args)");
-			} else {
-				i = __php__("$rfl->newInstanceArgs(array())");
-			}
-			__php__("php_Boot::$skip_constructor = false");
-			return i;
-		} catch( e : Dynamic ) {
-			__php__("php_Boot::$skip_constructor = false");
-			throw "Unable to instantiate " + Std.string(cl);
-		}
-		return null;
+	public static function createEmptyInstance<T>( cl : Class<T> ) : T {
+		if (String == cast cl) return cast '';
+		if (Array == cast cl) return cast [];
+
+		var phpName = getPhpName(cl);
+		if (phpName == null) return null;
+
+		var reflection = new ReflectionClass(phpName);
+		return reflection.newInstanceWithoutConstructor();
 	}
 
 	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T {
-		var f:Dynamic = Reflect.field(e,constr);
-		if( f == null ) throw "No such constructor "+constr;
-		if( Reflect.isFunction(f) ) {
-			if( params == null ) throw "Constructor "+constr+" need parameters";
-			return Reflect.callMethod(e,f,params);
+		if (e == null || constr == null) return null;
+
+		var phpName = getPhpName(e);
+		if (phpName == null) return null;
+
+		if (!Global.in_array(constr, Syntax.staticCall(phpName, "__hx__list"))) {
+			throw 'No such constructor $constr';
 		}
-		if( params != null && params.length != 0 )
-			throw "Constructor "+constr+" does not need parameters";
-		return f;
+
+		var paramsCounts:NativeAssocArray<Int> = Syntax.staticCall(phpName, "__hx__paramsCount");
+		if ((params == null && paramsCounts[constr] != 0) || (params != null && params.length != paramsCounts[constr])) {
+			throw 'Provided parameters count does not match expected parameters count';
+		}
+
+		if (params == null) {
+			return Syntax.staticCall(phpName, constr);
+		} else {
+			var nativeArgs:NativeArray = @:privateAccess params.arr;
+			return Syntax.staticCall(phpName, constr, Syntax.splat(nativeArgs));
+		}
 	}
 
 	public static function createEnumIndex<T>( e : Enum<T>, index : Int, ?params : Array<Dynamic> ) : T {
-		var c = Type.getEnumConstructs(e)[index];
-		if( c == null ) throw index+" is not a valid enum constructor index";
-		return createEnum(e,c,params);
+		if (e == null || index == null) return null;
+
+		var phpName = getPhpName(e);
+		if (phpName == null) return null;
+
+		var constructors:NativeIndexedArray<String> = Syntax.staticCall(phpName, "__hx__list");
+		if (index < 0 || index >= Global.count(constructors)) {
+			throw '$index is not a valid enum constructor index';
+		}
+
+		var constr = constructors[index];
+		var paramsCounts:NativeAssocArray<Int> = Syntax.staticCall(phpName, "__hx__paramsCount");
+		if ((params == null && paramsCounts[constr] != 0) || (params != null && params.length != paramsCounts[constr])) {
+			throw 'Provided parameters count does not match expected parameters count';
+		}
+
+		if (params == null) {
+			return Syntax.staticCall(phpName, constr);
+		} else {
+			var nativeArgs:NativeArray = @:privateAccess params.arr;
+			return Syntax.staticCall(phpName, constr, Syntax.splat(nativeArgs));
+		}
 	}
 
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
-		if(untyped c.__qname__ == 'String') return ['substr', 'charAt', 'charCodeAt', 'indexOf', 'lastIndexOf', 'split', 'toLowerCase', 'toUpperCase', 'toString', 'length'];
-		if(untyped c.__qname__ == 'Array') return  ['push', 'concat', 'join', 'pop', 'reverse', 'shift', 'slice', 'sort', 'splice', 'toString', 'copy', 'unshift', 'insert', 'remove', 'iterator', 'length'];
-		untyped __php__("
-		$rfl = $c->__rfl__();
-		if($rfl === null) return new _hx_array(array());
-		$r = array();
-		$internals = array('__construct', '__call', '__get', '__set', '__isset', '__unset', '__toString');
-		$ms = $rfl->getMethods();
-		while(list(, $m) = each($ms)) {
-			$n = $m->getName();
-			if(!$m->isStatic() && !in_array($n, $internals)) $r[] = $n;
+		if (c == null) return null;
+		if (c == String) {
+			return [
+				'substr', 'charAt', 'charCodeAt', 'indexOf',
+				'lastIndexOf', 'split', 'toLowerCase',
+				'toUpperCase', 'toString', 'length'
+			];
 		}
-		$ps = $rfl->getProperties();
-		while(list(, $p) = each($ps))
-			if(!$p->isStatic() && ($name = $p->getName()) !== '__dynamics') $r[] = $name;
-		");
-		return untyped __php__("new _hx_array(array_values(array_unique($r)))");
+
+		var phpName = getPhpName(c);
+		if (phpName == null) return null;
+
+		var reflection = new ReflectionClass(phpName);
+
+		var methods = new NativeArray();
+		for (m in reflection.getMethods()) {
+			var method:ReflectionMethod = m;
+			if (!method.isStatic()) {
+				var name = method.getName();
+				if (!isServiceFieldName(name)) {
+					methods.array_push(name);
+				}
+			}
+		}
+
+		var properties = new NativeArray();
+		for (p in reflection.getProperties()) {
+			var property:ReflectionProperty = p;
+			if (!property.isStatic()) {
+				var name = property.getName();
+				if (!isServiceFieldName(name)) {
+					properties.array_push(name);
+				}
+			}
+		}
+		properties = Global.array_diff(properties, methods);
+
+		var fields = Global.array_merge(properties, methods);
+
+		return @:privateAccess Array.wrap(fields);
 	}
 
 	public static function getClassFields( c : Class<Dynamic> ) : Array<String> {
-		if(untyped c.__qname__ == 'String') return ['fromCharCode'];
-		if(untyped c.__qname__ == 'Array')  return [];
-		untyped __php__("
-		$rfl = $c->__rfl__();
-		if($rfl === null) return new _hx_array(array());
-		$ms = $rfl->getMethods(ReflectionMethod::IS_STATIC);
-		$r = array();
-		while(list(, $m) = each($ms)) {
-			$cls = $m->getDeclaringClass();
-			if($cls->getName() == $c->__tname__) $r[] = $m->getName();
+		if (c == null) return null;
+		if (c == String) return ['fromCharCode'];
+
+		var phpName = getPhpName(c);
+		if (phpName == null) return null;
+
+		var reflection = new ReflectionClass(phpName);
+
+		var methods = new NativeArray();
+		for (m in reflection.getMethods(ReflectionMethod.IS_STATIC)) {
+			//TODO: report an issue on invalid type inference for iteration over `NativeIndexedArray`
+			var m:ReflectionMethod = m;
+			var name = m.getName();
+			if (!isServiceFieldName(name) && phpName == m.getDeclaringClass().getName()) {
+				methods.array_push(name);
+			}
 		}
-		$ps = $rfl->getProperties(ReflectionMethod::IS_STATIC);
-		while(list(, $p) = each($ps)) {
-			$cls = $p->getDeclaringClass();
-			if($cls->getName() == $c->__tname__ && ($name = $p->getName()) !== '__properties__') $r[] = $name;
+
+		var properties = new NativeArray();
+		for (p in reflection.getProperties(ReflectionProperty.IS_STATIC)) {
+			var p:ReflectionMethod = p;
+			var name = p.getName();
+			if (!isServiceFieldName(name) && phpName == p.getDeclaringClass().getName()) {
+				properties.array_push(name);
+			}
 		}
-		");
-		return untyped __php__("new _hx_array(array_values(array_unique($r)))");
+		properties = Global.array_diff(properties, methods);
+		var fields = Global.array_merge(properties, methods);
+
+		return @:privateAccess Array.wrap(fields);
 	}
 
-	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> untyped {
-		if (__php__("$e->__tname__ == 'Bool'")) return ['true', 'false'];
-		if (__php__("$e->__tname__ == 'Void'")) return [];
-		return __call__("new _hx_array", e.__constructors);
+	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
+		if (e == null) return null;
+		return @:privateAccess Array.wrap(untyped e.__hx__list());
 	}
 
-	public static function typeof( v : Dynamic ) : ValueType untyped {
-		if(v == null) return TNull;
-		if(__call__("is_array", v)) {
-			if(__call__("is_callable", v)) return TFunction;
-			return TClass(Array);
-		}
-		if(__call__("is_string", v)) {
-			if(__call__("_hx_is_lambda", v)) return TFunction;
-			return TClass(String);
-		}
-		if(__call__("is_bool", v)) return TBool;
-		if(__call__("is_int", v)) return TInt;
-		if(__call__("is_float", v)) return TFloat;
-		if(__php__("$v instanceof _hx_anonymous"))  return TObject;
-		if(__php__("$v instanceof _hx_enum"))  return TObject;
-		if(__php__("$v instanceof _hx_class"))  return TObject;
+	public static function typeof( v : Dynamic ) : ValueType {
+		if (v == null) return TNull;
 
-		var c = __php__("_hx_ttype(get_class($v))");
+		if (v.is_object()) {
+			if (Reflect.isFunction(v)) return TFunction;
+			if (Std.is(v, StdClass)) return TObject;
+			if (Boot.isClass(v)) return TObject;
 
-		if(__php__("$c instanceof _hx_enum"))  return TEnum(cast c);
-		if(__php__("$c instanceof _hx_class")) return TClass(cast c);
+			var hxClass = Boot.getClass(Global.get_class(v));
+			if (Boot.isEnumValue(v)) return TEnum(cast hxClass);
+			return TClass(cast hxClass);
+		}
+
+		if (v.is_bool()) return TBool;
+		if (v.is_int()) return TInt;
+		if (v.is_float()) return TFloat;
+		if (v.is_string()) return TClass(String);
+
 		return TUnknown;
 	}
 
-	public static function enumEq<T>( a : T, b : T ) : Bool untyped {
-		if( a == b )
-			return true;
+	public static function enumEq<T:EnumValue>( a : T, b : T ) : Bool {
+		if (a == b) return true;
+		if (a == null || b == null) return false;
+
 		try {
-			if( a.index != b.index )
-				return false;
-			for( i in 0...__call__("count", a.params))
-				if(getEnum(untyped __php__("$a->params[$i]")) != null) {
-					if(!untyped enumEq(__php__("$a->params[$i]"),__php__("$b->params[$i]")))
+			if (Global.get_class(cast a) != Global.get_class(cast b)) return false;
+			if (enumIndex(a) != enumIndex(b)) return false;
+
+			var aParams:NativeIndexedArray<Dynamic> = untyped a.params;
+			var bParams:NativeIndexedArray<Dynamic> = untyped b.params;
+			for (i in 0...Global.count(aParams)) {
+				//enums
+				if (Boot.isEnumValue(aParams[i])) {
+					if (!enumEq(aParams[i], bParams[i])) {
 						return false;
-				} else {
-					if(!untyped __call__("_hx_equal", __php__("$a->params[$i]"),__php__("$b->params[$i]")))
-						return false;
+					}
+					continue;
 				}
-		} catch( e : Dynamic ) {
+				//functions
+				if (Reflect.isFunction(aParams[i])) {
+					if (!Reflect.compareMethods(aParams[i], bParams[i])) {
+						return false;
+					}
+					continue;
+				}
+				//everything else
+				if (aParams[i] != bParams[i]) {
+					return false;
+				}
+			}
+
+			return true;
+		} catch (e:Dynamic) {
 			return false;
 		}
-		return true;
 	}
 
 	public static function enumConstructor( e : EnumValue ) : String {
 		return untyped e.tag;
 	}
 
-	public static function enumParameters( e : EnumValue ) : Array<Dynamic> untyped {
-		if(e.params == null)
-			return [];
-		else
-			return __php__("new _hx_array($e->params)");
+	public inline static function enumParameters( e : EnumValue ) : Array<Dynamic> {
+		return @:privateAccess Array.wrap(untyped e.params);
 	}
 
 	public inline static function enumIndex( e : EnumValue ) : Int {
@@ -253,15 +324,38 @@ enum ValueType {
 	}
 
 	public static function allEnums<T>( e : Enum<T> ) : Array<T> {
-		var all = [];
-		for( c in getEnumConstructs(e) ) {
-			var v = Reflect.field(e,c);
-			if( !Reflect.isFunction(v) )
-				all.push(v);
+		if (e == null) return null;
+
+		var phpName = getPhpName(e);
+		if (phpName == null) return null;
+
+		var result = [];
+
+		for (name in getEnumConstructs(e)) {
+			var reflection = new ReflectionMethod(phpName, name);
+			if (reflection.getNumberOfParameters() == 0) {
+				result.push(reflection.invoke(null));
+			}
 		}
-		return all;
+
+		return result;
 	}
 
+	/**
+		Get corresponding PHP name for specified `type`.
+		Returns `null` if `type` does not exist.
+	**/
+	static function getPhpName( type:EitherType<Class<Dynamic>,Enum<Dynamic>> ) : Null<String> {
+		var haxeName = Boot.getHaxeName(cast type);
 
+		return (haxeName == null ? null : Boot.getPhpName(haxeName));
+	}
+
+	/**
+		check if specified `name` is a special field name generated by compiler.
+	 **/
+	static inline function isServiceFieldName(name:String) : Bool {
+		return (name == '__construct' || name.indexOf('__hx__') == 0);
+	}
 }
 

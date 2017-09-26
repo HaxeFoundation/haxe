@@ -1,11 +1,11 @@
 package unit.issues;
 
-#if php7
+#if php
 import php.Syntax.*;
 #end
 
 class Issue5923 extends unit.Test {
-#if php7
+#if php
 	function test() {
 		//These expressions should not fail at runtime
 		binop({}, '??', null).value = 1;

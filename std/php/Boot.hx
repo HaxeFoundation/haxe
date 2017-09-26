@@ -21,966 +21,897 @@
  */
 package php;
 
+import haxe.PosInfos;
+
+using php.Global;
+
+/**
+	Various Haxe->PHP compatibility utilities.
+	You should not use this class directly.
+**/
+@:keep
+@:dox(hide)
+class Boot {
+	/** List of Haxe classes registered by their PHP class names  */
+	@:protected static var aliases = new NativeAssocArray<String>();
+	/** Cache of HxClass instances */
+	@:protected static var classes = new NativeAssocArray<HxClass>();
+	/** List of getters (for Reflect) */
+	@:protected static var getters = new NativeAssocArray<NativeAssocArray<Bool>>();
+	/** List of setters (for Reflect) */
+	@:protected static var setters = new NativeAssocArray<NativeAssocArray<Bool>>();
+	/** Metadata storage */
+	@:protected static var meta = new NativeAssocArray<{}>();
+
+	/**
+		Initialization stuff.
+		This method is called once before invoking any Haxe-generated user code.
+	**/
+	static function __init__() {
+		if (!Global.defined('HAXE_CUSTOM_ERROR_HANDLER') || !Const.HAXE_CUSTOM_ERROR_HANDLER) {
+			var previousLevel = Global.error_reporting(Const.E_ALL);
+			var previousHandler = Global.set_error_handler(
+				function (errno:Int, errstr:String, errfile:String, errline:Int) {
+					if (Global.error_reporting() & errno == 0) {
+						return false;
+					}
+					throw new ErrorException(errstr, 0, errno, errfile, errline);
+				}
+			);
+			//Already had user-defined handler. Return it.
+			if (previousHandler != null) {
+				Global.error_reporting(previousLevel);
+				Global.set_error_handler(previousHandler);
+			}
+		}
+	}
+
+	/**
+		Returns root namespace based on a value of `--php-prefix` compiler flag.
+		Returns empty string if no `--php-prefix` provided.
+	**/
+	public static inline function getPrefix() : String {
+		return untyped __php__('self::PHP_PREFIX');
+	}
+
+	/**
+		Register list of getters to be able to call getters using reflection
+	**/
+	public static function registerGetters( phpClassName:String, list:NativeAssocArray<Bool> ) : Void {
+		getters[phpClassName] = list;
+	}
+
+	/**
+		Register list of setters to be able to call getters using reflection
+	**/
+	public static function registerSetters( phpClassName:String, list:NativeAssocArray<Bool> ) : Void {
+		setters[phpClassName] = list;
+	}
+
+	/**
+		Check if specified property has getter
+	**/
+	public static function hasGetter( phpClassName:String, property:String ) : Bool {
+		ensureLoaded(phpClassName);
+
+		var has = false;
+		var phpClassName:haxe.extern.EitherType<Bool,String> = phpClassName;
+		do {
+			has = Global.isset(getters[phpClassName][property]);
+			phpClassName = Global.get_parent_class(phpClassName);
+		} while (!has && phpClassName != false && Global.class_exists(phpClassName));
+
+		return has;
+	}
+
+	/**
+		Check if specified property has setter
+	**/
+	public static function hasSetter( phpClassName:String, property:String ) : Bool {
+		ensureLoaded(phpClassName);
+
+		var has = false;
+		var phpClassName:haxe.extern.EitherType<Bool,String> = phpClassName;
+		do {
+			has = Global.isset(setters[phpClassName][property]);
+			phpClassName = Global.get_parent_class(phpClassName);
+		} while (!has && phpClassName != false && Global.class_exists(phpClassName));
+
+		return has;
+	}
+
+	/**
+		Save metadata for specified class
+	**/
+	public static function registerMeta( phpClassName:String, data:Dynamic ) : Void {
+		meta[phpClassName] = data;
+	}
+
+	/**
+		Retrieve metadata for specified class
+	**/
+	public static function getMeta( phpClassName:String ) : Null<Dynamic> {
+		ensureLoaded(phpClassName);
+		return Global.isset(meta[phpClassName]) ? meta[phpClassName] : null;
+	}
+
+	/**
+		Associate PHP class name with Haxe class name
+	**/
+	public static function registerClass( phpClassName:String, haxeClassName:String ) : Void {
+		aliases[phpClassName] = haxeClassName;
+	}
+
+	/**
+		Returns a list of currently loaded haxe-generated classes.
+	**/
+	public static function getRegisteredClasses():Array<Class<Dynamic>> {
+		var result = [];
+		Syntax.foreach(aliases, function(phpName, haxeName) {
+			result.push(cast getClass(phpName));
+		});
+		return result;
+	}
+
+	/**
+		Returns a list of phpName=>haxeName for currently loaded haxe-generated classes.
+	**/
+	public static function getRegisteredAliases():NativeAssocArray<String> {
+		return aliases;
+	}
+
+	/**
+		Get Class<T> instance for PHP fully qualified class name (E.g. '\some\pack\MyClass')
+		It's always the same instance for the same `phpClassName`
+	**/
+	public static function getClass( phpClassName:String ) : HxClass {
+		if (phpClassName.charAt(0) == '\\') {
+			phpClassName = phpClassName.substr(1);
+		}
+		if (!Global.isset(classes[phpClassName])) {
+			classes[phpClassName] = new HxClass(phpClassName);
+		}
+
+		return classes[phpClassName];
+	}
+
+	/**
+		Returns Class<HxAnon>
+	**/
+	public static inline function getHxAnon() : HxClass {
+		return cast HxAnon;
+	}
+
+	/**
+		Returns Class<HxClass>
+	**/
+	public static inline function getHxClass() : HxClass {
+		return cast HxClass;
+	}
+
+	/**
+		Returns either Haxe class name for specified `phpClassName` or (if no such Haxe class registered) `phpClassName`.
+	**/
+	public static function getClassName( phpClassName:String ) : String {
+		var hxClass = getClass(phpClassName);
+		var name = getHaxeName(hxClass);
+		return (name == null ? hxClass.phpClassName : name);
+	}
+
+	/**
+		Returns original Haxe fully qualified class name for this type (if exists)
+	**/
+	public static function getHaxeName( hxClass:HxClass) : Null<String> {
+		switch (hxClass.phpClassName) {
+			case 'Int': return 'Int';
+			case 'String': return 'String';
+			case 'Bool': return 'Bool';
+			case 'Float': return 'Float';
+			case 'Class': return 'Class';
+			case 'Enum': return 'Enum';
+			case 'Dynamic': return 'Dynamic';
+			case _:
+		}
+
+		inline function exists() return Global.isset(aliases[hxClass.phpClassName]);
+
+		if (exists()) {
+			return aliases[hxClass.phpClassName];
+		} else if (Global.class_exists(hxClass.phpClassName) && exists()) {
+			return aliases[hxClass.phpClassName];
+		} else if (Global.interface_exists(hxClass.phpClassName) && exists()) {
+			return aliases[hxClass.phpClassName];
+		}
+
+		return null;
+	}
+
+	/**
+		Find corresponding PHP class name.
+		Returns `null` if specified class does not exist.
+	**/
+	public static function getPhpName( haxeName:String ) : Null<String> {
+		var prefix = getPrefix();
+		var phpParts = (prefix.length == 0 ? [] : [prefix]);
+
+		var haxeParts = haxeName.split('.');
+		for (part in haxeParts) {
+			switch (part.toLowerCase()) {
+				case "__halt_compiler" | "abstract" | "and" | "array" | "as" | "break" | "callable" | "case" | "catch" | "class"
+					| "clone" | "const" | "continue" | "declare" | "default" | "die" | "do" | "echo" | "else" | "elseif" | "empty"
+					| "enddeclare" | "endfor" | "endforeach" | "endif" | "endswitch" | "endwhile" | "eval" | "exit" | "extends"
+					| "final" | "finally" | "for" | "foreach" | "function" | "global" | "goto" | "if" | "implements" | "include"
+					| "include_once" | "instanceof" | "insteadof" | "interface" | "isset" | "list" | "namespace" | "new" | "or"
+					| "print" | "private" | "protected" | "public" | "require" | "require_once" | "return" | "static" | "switch"
+					| "throw" | "trait" | "try" | "unset" | "use" | "var" | "while" | "xor" | "yield" | "__class__" | "__dir__"
+					| "__file__" | "__function__" | "__line__" | "__method__" | "__trait__" | "__namespace__" | "int" | "float"
+					| "bool" | "string" | "true" | "false" | "null" | "parent" | "void" | "iterable":
+						part += '_hx';
+				case _:
+			}
+			phpParts.push(part);
+		}
+
+		return phpParts.join('\\');
+	}
+
+	/**
+		Creates Haxe-compatible closure.
+		@param type `this` for instance methods; full php class name for static methods
+		@param func Method name
+	**/
+	public static inline function closure( target:Dynamic, func:Dynamic ) : HxClosure {
+		return new HxClosure(target, func);
+	}
+
+	/**
+		Unsafe cast to HxClosure
+	**/
+	public static inline function castClosure(value:Dynamic) : HxClosure {
+		return value;
+	}
+
+	/**
+		Unsafe cast to HxClass
+	**/
+	public static inline function castClass(cls:Class<Dynamic>) : HxClass {
+		return cast cls;
+	}
+
+	/**
+		Returns `Class<T>` for `HxClosure`
+	**/
+	public static inline function closureHxClass() : HxClass {
+		return cast HxClosure;
+	}
+
+	/**
+		Implementation for `cast(value, Class<Dynamic>)`
+		@throws HxException if `value` cannot be casted to this type
+	**/
+	public static function typedCast( hxClass:HxClass, value:Dynamic ) : Dynamic {
+		switch (hxClass.phpClassName) {
+			case 'Int':
+				if (Boot.isNumber(value)) {
+					return Global.intval(value);
+				}
+			case 'Float':
+				if (Boot.isNumber(value)) {
+					return value.floatval();
+				}
+			case 'Bool':
+				if (value.is_bool()) {
+					return value;
+				}
+			case 'String':
+				if (value.is_string()) {
+					return value;
+				}
+			case 'php\\NativeArray':
+				if (value.is_array()) {
+					return value;
+				}
+			case _:
+				if (value.is_object() && Std.is(value, cast hxClass)) {
+					return value;
+				}
+		}
+		throw 'Cannot cast ' + Std.string(value) + ' to ' + getClassName(hxClass.phpClassName);
+	}
+
+	/**
+		`trace()` implementation
+	**/
+	public static function trace( value:Dynamic, infos:PosInfos ) : Void {
+		if (infos != null) {
+			Global.echo('${infos.fileName}:${infos.lineNumber}: ');
+		}
+		Global.echo(stringify(value));
+		if (infos.customParams != null) {
+			for (value in infos.customParams) {
+				Global.echo(',' + stringify(value));
+			}
+		}
+		Global.echo('\n');
+	}
+
+	/**
+		Returns string representation of `value`
+	**/
+	public static function stringify( value : Dynamic ) : String {
+		if (value == null) {
+			return 'null';
+		}
+		if (value.is_string()) {
+			return value;
+		}
+		if (value.is_int() || value.is_float()) {
+			return Syntax.string(value);
+		}
+		if (value.is_bool()) {
+			return value ? 'true' : 'false';
+		}
+		if (value.is_array()) {
+			var strings = Syntax.arrayDecl();
+			Syntax.foreach(value, function(key:Dynamic, item:Dynamic) {
+				Global.array_push(strings, (key:String) + ' => ' + stringify(item));
+			});
+			return '[' + Global.implode(', ', strings) + ']';
+		}
+		if (value.is_object()) {
+			if (value.method_exists('toString')) {
+				return value.toString();
+			}
+			if (value.method_exists('__toString')) {
+				return value.__toString();
+			}
+			if (Std.is(value, StdClass)) {
+				if (Global.isset(Syntax.getField(value, 'toString')) && value.toString.is_callable()) {
+					return value.toString();
+				}
+				var result = new NativeIndexedArray<String>();
+				var data = Global.get_object_vars(value);
+				for (key in data.array_keys()) {
+					result.array_push('$key : ' + stringify(data[key]));
+				}
+				return '{ ' + Global.implode(', ', result) + ' }';
+			}
+			if (isFunction(value)) {
+				return '<function>';
+			}
+			if (Std.is(value, HxClass)) {
+				return '[class ' + getClassName((value:HxClass).phpClassName) + ']';
+			} else {
+				return '[object ' + getClassName(Global.get_class(value)) + ']';
+			}
+		}
+		throw "Unable to stringify value";
+	}
+
+	static public inline function isNumber( value:Dynamic ) {
+		return value.is_int() || value.is_float();
+	}
+
+	/**
+		Check if specified values are equal
+	**/
+	public static function equal( left:Dynamic, right:Dynamic ) : Bool {
+		if (isNumber(left) && isNumber(right)) {
+			return Syntax.binop(left, '==', right);
+		}
+		return Syntax.binop(left, '===', right);
+	}
+
+	/**
+		Concat `left` and `right` if both are strings or string and null.
+		Otherwise return sum of `left` and `right`.
+	**/
+	public static function addOrConcat( left:Dynamic, right:Dynamic ) : Dynamic {
+		if (left.is_string() || right.is_string()) {
+			return (left:String) + (right:String);
+		}
+		return Syntax.binop(left, '+', right);
+	}
+
+	/**
+		`Std.is()` implementation
+	**/
+	public static function is( value:Dynamic, type:HxClass ) : Bool {
+		if (type == null) return false;
+
+		var phpType = type.phpClassName;
+		switch (phpType) {
+			case 'Dynamic':
+				return true;
+			case 'Int':
+				return (
+						value.is_int()
+						|| (
+							value.is_float()
+							&& Syntax.binop(Syntax.int(value), '==', value)
+							&& !Global.is_nan(value)
+						)
+					)
+					&& Global.abs(value) <= 2147483648;
+			case 'Float':
+				return value.is_float() || value.is_int();
+			case 'Bool':
+				return value.is_bool();
+			case 'String':
+				return value.is_string();
+			case 'php\\NativeArray', 'php\\_NativeArray\\NativeArray_Impl_':
+				return value.is_array();
+			case 'Enum', 'Class':
+				if (Std.is(value, HxClass)) {
+					var valuePhpClass = (cast value:HxClass).phpClassName;
+					var enumPhpClass = (cast HxEnum:HxClass).phpClassName;
+					var isEnumType = Global.is_subclass_of(valuePhpClass, enumPhpClass);
+					return (phpType == 'Enum' ? isEnumType : !isEnumType);
+				}
+			case _:
+				if (value.is_object()) {
+					var type:Class<Dynamic> = cast type;
+					return Syntax.instanceof(value, type);
+				}
+		}
+		return false;
+	}
+
+	/**
+		Check if `value` is a `Class<T>`
+	**/
+	public static inline function isClass(value:Dynamic) : Bool {
+		return Std.is(value, HxClass);
+	}
+
+	/**
+		Check if `value` is an enum constructor instance
+	**/
+	public static inline function isEnumValue(value:Dynamic) : Bool {
+		return Std.is(value, HxEnum);
+	}
+
+	/**
+		Check if `value` is a function
+	**/
+	public static inline function isFunction(value:Dynamic) : Bool {
+		return Std.is(value, Closure) || Std.is(value, HxClosure);
+	}
+
+	/**
+		Check if `value` is an instance of `HxClosure`
+	**/
+	public static inline function isHxClosure(value:Dynamic) : Bool {
+		return Std.is(value, HxClosure);
+	}
+
+	/**
+		Performs `left >>> right` operation
+	**/
+	public static function shiftRightUnsigned( left:Int, right:Int ) : Int {
+		if (right == 0) {
+			return left;
+		} else if (left >= 0) {
+			return (left >> right);
+		} else {
+			return (left >> right) & (0x7fffffff >> (right - 1));
+		}
+	}
+
+	/**
+		Helper method to avoid "Cannot use temporary expression in write context" error for expressions like this:
+		```
+		(new MyClass()).fieldName = 'value';
+		```
+	**/
+	static public function deref( value:Dynamic ) : Dynamic {
+		return value;
+	}
+
+	/**
+		Create Haxe-compatible anonymous structure of `data` associative array
+	**/
+	static public inline function createAnon( data:NativeArray ) : Dynamic {
+		return new HxAnon(data);
+	}
+
+	/**
+		Make sure specified class is loaded
+	**/
+	static public inline function ensureLoaded( phpClassName:String ) : Bool {
+		return Global.class_exists(phpClassName) || Global.interface_exists(phpClassName);
+	}
+
+	/**
+		Get `field` of a dynamic `value` in a safe manner (avoid exceptions on trying to get a method)
+	**/
+	static public function dynamicField( value:Dynamic, field:String ) : Dynamic {
+		if(Global.method_exists(value, field)) {
+			return closure(value, field);
+		}
+		if(Global.is_string(value)) {
+			value = @:privateAccess new HxDynamicStr(value);
+		}
+		return Syntax.getField(value, field);
+	}
+
+	public static function dynamicString( str:String ) : HxDynamicStr {
+		return @:privateAccess new HxDynamicStr(str);
+	}
+}
+
+
+/**
+	Class<T> implementation for Haxe->PHP internals.
+**/
+@:keep
+@:dox(hide)
+private class HxClass {
+
+	public var phpClassName (default,null) : String;
+
+	public function new( phpClassName:String ) : Void {
+		this.phpClassName = phpClassName;
+	}
+
+	/**
+		Magic method to call static methods of this class, when `HxClass` instance is in a `Dynamic` variable.
+	**/
+	@:phpMagic
+	function __call( method:String, args:NativeArray ) : Dynamic {
+		var callback = (phpClassName == 'String' ? (cast HxString:HxClass).phpClassName : phpClassName) + '::' + method;
+		return Global.call_user_func_array(callback, args);
+	}
+
+	/**
+		Magic method to get static vars of this class, when `HxClass` instance is in a `Dynamic` variable.
+	**/
+	@:phpMagic
+	function __get( property:String ) : Dynamic {
+		if (Boot.hasGetter(phpClassName, property)) {
+			return Syntax.staticCall(phpClassName, 'get_$property');
+		} else {
+			return Syntax.getStaticField(phpClassName, property);
+		}
+	}
+
+	/**
+		Magic method to set static vars of this class, when `HxClass` instance is in a `Dynamic` variable.
+	**/
+	@:phpMagic
+	function __set( property:String, value:Dynamic ) : Void {
+		if (Boot.hasSetter(phpClassName, property)) {
+			Syntax.staticCall(phpClassName, 'set_$property', value);
+		} else {
+			Syntax.setStaticField(phpClassName, property, value);
+		}
+	}
+}
+
+
+/**
+	Base class for enum types
+**/
+@:keep
+@:dox(hide)
+private class HxEnum {
+	static var singletons = new Map<String,HxEnum>();
+
+	var tag : String;
+	var index : Int;
+	var params : NativeArray;
+
+	/**
+		Returns instances of constructors without arguments
+	**/
+	public static function singleton( enumClass:String, tag:String, index:Int ) : HxEnum {
+		var key = '$enumClass::$tag';
+
+		var instance = singletons.get(key);
+		if (instance == null) {
+			instance = Syntax.construct(enumClass, tag, index);
+			singletons.set(key, instance);
+		}
+
+		return instance;
+	}
+
+	public function new( tag:String, index:Int, arguments:NativeArray = null ) : Void {
+		this.tag = tag;
+		this.index = index;
+		params = (arguments == null ? new NativeArray() : arguments);
+	}
+
+	/**
+		Get string representation of this `Class`
+	**/
+	public function toString() : String {
+		return __toString();
+	}
+
+	/**
+		PHP magic method to get string representation of this `Class`
+	**/
+	@:phpMagic
+	public function __toString() : String {
+		var result = tag;
+		if (Global.count(params) > 0) {
+			var strings = Global.array_map(function (item) return Boot.stringify(item), params);
+			result += '(' + Global.implode(',', strings) + ')';
+		}
+		return result;
+	}
+}
+
+
+/**
+	`String` implementation
+**/
+@:keep
+@:dox(hide)
+private class HxString {
+
+	public static function toUpperCase( str:String ) : String {
+		return Global.strtoupper(str);
+	}
+
+	public static function toLowerCase( str:String ) : String {
+		return Global.strtolower(str);
+	}
+
+	public static function charAt( str:String, index:Int) : String {
+		if (index < 0 || index >= str.length) {
+			return '';
+		} else {
+			return (str:NativeString)[index];
+		}
+	}
+
+	public static function charCodeAt( str:String, index:Int) : Null<Int> {
+		if (index < 0 || index >= str.length) {
+			return null;
+		} else {
+			return Global.ord((str:NativeString)[index]);
+		}
+	}
+
+	public static function indexOf( str:String, search:String, startIndex:Int = null ) : Int {
+		if (startIndex == null) {
+			startIndex = 0;
+		} else if (startIndex < 0) {
+			startIndex += str.length;
+		}
+		var index = Global.strpos(str, search, startIndex);
+		return (index == false ? -1 : index);
+	}
+
+	public static function lastIndexOf( str:String, search:String, startIndex:Int = null ) : Int {
+		var index = Global.strrpos(str, search, (startIndex == null ? 0 : startIndex - str.length));
+		if (index == false) {
+			return -1;
+		} else {
+			return index;
+		}
+	}
+
+	public static function split( str:String, delimiter:String ) : Array<String> {
+		if (delimiter == '') {
+			return @:privateAccess Array.wrap(Global.str_split(str));
+		} else {
+			return @:privateAccess Array.wrap(Global.explode(delimiter, str));
+		}
+	}
+
+	public static function substr( str:String, pos:Int, ?len:Int ) : String {
+		if (pos < -str.length) {
+			pos = 0;
+		} else if (pos >= str.length) {
+			return '';
+		}
+		if (len == null) {
+			return Global.substr(str, pos);
+		} else {
+			var result = Global.substr(str, pos, len);
+			return (result == false ? '' : result);
+		}
+	}
+
+	public static function substring( str:String, startIndex:Int, ?endIndex:Int ) : String {
+		if (endIndex == null) {
+			endIndex = str.length;
+		} else if (endIndex < 0) {
+			endIndex = 0;
+		}
+		if (startIndex < 0) startIndex = 0;
+		if (startIndex > endIndex) {
+			var tmp = endIndex;
+			endIndex = startIndex;
+			startIndex = tmp;
+		}
+		var result = Global.substr(str, startIndex, endIndex - startIndex);
+		return (result == false ? '' : result);
+	}
+
+	public static function toString( str:String ) : String {
+		return str;
+	}
+
+	public static function fromCharCode( code:Int ) : String {
+		return Global.chr(code);
+	}
+}
+
+/**
+	For Dynamic access which looks like String.
+	Instances of this class should not be saved anywhere.
+	Instead it should be used to immediately invoke a String field right after instance creation one time only.
+**/
 @:dox(hide)
 @:keep
-class Boot {
-	static var qtypes;
-	static var ttypes;
-	static var tpaths;
-	static var skip_constructor = false;
-	static function __init__() : Void {
-		var _hx_class_prefix = untyped __prefix__();
-		untyped __php__("
-function _hx_add($a, $b) {
-	if (!_hx_is_numeric($a) || !_hx_is_numeric($b)) {
-		return _hx_string_or_null($a) . _hx_string_or_null($b);
-	} else {
-		return $a + $b;
+private class HxDynamicStr extends HxClosure {
+	static var hxString : String = (cast HxString:HxClass).phpClassName;
+
+	/**
+		Returns HxDynamicStr instance if `value` is a string.
+		Otherwise returns `value` as-is.
+	**/
+	static function wrap( value:Dynamic ) : Dynamic {
+		if (value.is_string()) {
+			return new HxDynamicStr(value);
+		} else {
+			return value;
+		}
+	}
+
+	static inline function invoke( str:String, method:String, args:NativeArray ) : Dynamic {
+		Global.array_unshift(args, str);
+		return Global.call_user_func_array(hxString + '::' + method, args);
+	}
+
+	function new( str:String ) {
+		super(str, null);
+	}
+
+	@:phpMagic
+	function __get( field:String ) : Dynamic {
+		switch (field) {
+			case 'length':
+				return (target:String).length;
+			case _:
+				func = field;
+				return this;
+		}
+	}
+
+	@:phpMagic
+	function __call( method:String, args:NativeArray ) : Dynamic {
+		return invoke(target, method, args);
+	}
+
+	/**
+		@see http://php.net/manual/en/language.oop5.magic.php#object.invoke
+	**/
+	@:phpMagic
+	override public function __invoke() {
+		return invoke(target, func, Global.func_get_args());
+	}
+
+	/**
+		Generates callable value for PHP
+	**/
+	override public function getCallback(eThis:Dynamic = null) : NativeIndexedArray<Dynamic> {
+		if (eThis == null) {
+			return Syntax.arrayDecl((this:Dynamic), func);
+		}
+		return Syntax.arrayDecl((new HxDynamicStr(eThis):Dynamic), func);
+	}
+
+	/**
+		Invoke this closure with `newThis` instead of `this`
+	**/
+	override public function callWith( newThis:Dynamic, args:NativeArray ) : Dynamic {
+		if (newThis == null) {
+			newThis = target;
+		}
+		return invoke(newThis, func, args);
 	}
 }
 
-function _hx_anonymous($arr = array()) {
-	$o = new _hx_anonymous();
-	foreach($arr as $k => $v)
-		$o->$k = $v;
-	return $o;
-}
 
-class _hx_array implements ArrayAccess, IteratorAggregate {
-	var $a;
-	var $length;
-	function __construct($a = array()) {
-		$this->a = $a;
-		$this->length = count($a);
+/**
+	Anonymous objects implementation
+**/
+@:keep
+@:dox(hide)
+private class HxAnon extends StdClass {
+
+	public function new( fields:NativeArray = null ) {
+		super();
+		if (fields != null) {
+			Syntax.foreach(fields, function(name, value) Syntax.setField(this, name, value));
+		}
 	}
 
-	function concat($a) {
-		return new _hx_array(array_merge($this->a, $a->a));
-	}
-
-	function copy() {
-		return new _hx_array($this->a);
-	}
-
-	function &get($index) {
-		if(isset($this->a[$index])) return $this->a[$index];
+	@:phpMagic
+	function __get( name:String ) {
 		return null;
 	}
 
-	function insert($pos, $x) {
-		array_splice($this->a, $pos, 0, array($x));
-		$this->length++;
+	@:phpMagic
+	function __call( name:String, args:NativeArray ) : Dynamic {
+		var method = Syntax.getField(this, name);
+		Syntax.keepVar(method);
+		return method(Syntax.splat(args));
 	}
+}
 
-	function iterator() {
-		return new _hx_array_iterator($this->a);
-	}
+/**
+	Closures implementation
+**/
+@:keep
+@:dox(hide)
+private class HxClosure {
+	/** `this` for instance methods; php class name for static methods */
+	var target : Dynamic;
+	/** Method name for methods */
+	var func : String;
 
-	function getIterator() {
-		return $this->iterator();
-	}
-
-	function join($sep) {
-		return implode($sep, array_map('_hx_string_rec',$this->a,array()));
-	}
-
-	function pop() {
-		$r = array_pop($this->a);
-		$this->length = count($this->a);
-		return $r;
-	}
-
-	function push($x) {
-		$this->a[] = $x;
-		return ++$this->length;
-	}
-
-	function remove($x) {
-		foreach($this->a as $i => $val)
-			if($val === $x) {
-				unset($this->a[$i]);
-				$this->a = array_values($this->a);
-				$this->length--;
-				return true;
-			}
-		return false;
-	}
-
-	function indexOf($x, $fromIndex) {
-		$i = ($fromIndex === null) ? 0 : $fromIndex;
-		$len = $this->length;
-		$a = $this->a;
-		if ($i < 0) {
-			$i += $len;
-			if ($i < 0) $i = 0;
+	public function new( target:Dynamic, func:String ) : Void {
+		this.target = target;
+		this.func = func;
+		//Force runtime error if trying to create a closure of an instance which happen to be `null`
+		if (target.is_null()) {
+			throw "Unable to create closure on `null`";
 		}
-		while ($i < $len) {
-			if ($a[$i] === $x)
-				return $i;
-			$i++;
+	}
+
+	/**
+		@see http://php.net/manual/en/language.oop5.magic.php#object.invoke
+	**/
+	@:phpMagic
+	public function __invoke() {
+		return Global.call_user_func_array(getCallback(), Global.func_get_args());
+	}
+
+	/**
+		Generates callable value for PHP
+	**/
+	public function getCallback(eThis:Dynamic = null) : NativeIndexedArray<Dynamic> {
+		if (eThis == null) {
+			eThis = target;
 		}
-		return -1;
-	}
-
-	function lastIndexOf($x, $fromIndex) {
-		$len = $this->length;
-		$i = ($fromIndex === null) ? $len - 1 : $fromIndex;
-		$a = $this->a;
-		if ($i >= $len)
-			$i = $len - 1;
-		else if ($i < 0)
-			$i += $len;
-		while ($i >= 0) {
-			if ($a[$i] === $x)
-				return $i;
-			$i--;
-		}
-		return -1;
-	}
-
-	function removeAt($pos) {
-		if(array_key_exists($pos, $this->a)) {
-			unset($this->a[$pos]);
-			$this->length--;
-			return true;
-		} else
-			return false;
-	}
-
-	function reverse() {
-		$this->a = array_reverse($this->a, false);
-	}
-
-	function shift() {
-		$r = array_shift($this->a);
-		$this->length = count($this->a);
-		return $r;
-	}
-
-	function slice($pos, $end) {
-		if($end === null)
-			return new _hx_array(array_slice($this->a, $pos));
-		else
-			return new _hx_array(array_slice($this->a, $pos, $end-$pos));
-	}
-
-	function sort($f) {
-		usort($this->a, $f);
-	}
-
-	function splice($pos, $len) {
-		if($len < 0) $len = 0;
-		$nh = new _hx_array(array_splice($this->a, $pos, $len));
-		$this->length = count($this->a);
-		return $nh;
-	}
-
-	function toString() {
-		return '['.implode(',', array_map('_hx_string_rec',$this->a,array())).']';
-	}
-
-	function __toString() {
-		return $this->toString();
-	}
-
-	function unshift($x) {
-		array_unshift($this->a, $x);
-		$this->length++;
-	}
-
-	function map($f) {
-		return new _hx_array(array_map($f, $this->a));
-	}
-
-	function filter($f) {
-		return new _hx_array(array_values(array_filter($this->a,$f)));
-	}
-
-	// ArrayAccess methods:
-	function offsetExists($offset) {
-		return isset($this->a[$offset]);
-	}
-
-	function offsetGet($offset) {
-		if(isset($this->a[$offset])) return $this->a[$offset];
-		return null;
-	}
-
-	function offsetSet($offset, $value) {
-		if($this->length <= $offset) {
-			$this->a = array_merge($this->a, array_fill(0, $offset+1-$this->length, null));
-			$this->length = $offset+1;
-		}
-		return $this->a[$offset] = $value;
-	}
-
-	function offsetUnset($offset) {
-		return $this->removeAt($offset);
-	}
-}
-
-class _hx_array_iterator implements Iterator {
-	private $a;
-	private $i;
-	public function __construct($a) {
-		$this->a = $a;
-		$this->i = 0;
-	}
-
-	public function next() {
-		if(!$this->hasNext()) return null;
-		return $this->a[$this->i++];
-	}
-
-	public function hasNext() {
-		return $this->i < count($this->a);
-	}
-
-	public function current() {
-		if (!$this->hasNext()) return false;
-		return $this->a[$this->i];
-	}
-
-	public function key() {
-		return $this->i;
-	}
-
-	public function valid() {
-		return $this->current() !== false;
-	}
-
-	public function rewind() {
-		$this->i = 0;
-	}
-	public function size() {
-		return count($this->a);
-	}
-}
-
-function _hx_array_get($a, $pos) { return $a[$pos]; }
-
-function _hx_array_increment($a, $pos) { return $a[$pos] += 1; }
-function _hx_array_decrement($a, $pos) { return $a[$pos] -= 1; }
-
-function _hx_array_assign($a, $i, $v) { return $a[$i] = $v; }
-
-class _hx_break_exception extends Exception {}
-
-function _hx_cast($v, $type) {
-	if(_hx_instanceof($v, $type)) {
-		return $v;
-	} else {
-		throw new HException('Class cast error');
-	}
-}
-
-function _hx_char_at($o, $i) {
-	if ($i < 0)
-		return '';
-	$c = substr($o, $i, 1);
-	return FALSE === $c ? '' : $c;
-}
-
-function _hx_char_code_at($s, $pos) {
-	if($pos < 0 || $pos >= strlen($s)) return null;
-	return ord($s{$pos});
-}
-
-function _hx_deref($o) { return $o; }
-
-function _hx_equal($x, $y) {
-	if(is_null($x)) {
-		return is_null($y);
-	} else {
-		if(is_null($y)) {
-			return false;
-		} else {
-			if((is_float($x) || is_int($x)) && (is_float($y) || is_int($y))) {
-				return $x == $y;
-			} else {
-				return $x === $y;
+		if (Std.is(eThis, StdClass)) {
+			if (Std.is(eThis, HxAnon)) {
+				return Syntax.getField(eThis, func);
 			}
 		}
+		return Syntax.arrayDecl(eThis, func);
+	}
+
+	/**
+		Check if this is the same closure
+	**/
+	public function equals( closure:HxClosure ) : Bool {
+		return (target == closure.target && func == closure.func);
+	}
+
+	/**
+		Invoke this closure with `newThis` instead of `this`
+	**/
+	public function callWith( newThis:Dynamic, args:NativeArray ) : Dynamic {
+		return Global.call_user_func_array(getCallback(newThis), args);
 	}
 }
 
-function _hx_mod($x, $y) {
-	if (is_int($x) && is_int($y)) {
-		if ($y == 0) return 0;
-		return $x % $y;
-	}
-	if (!is_nan($x) && !is_nan($y) && !is_finite($y) && is_finite($x)) {
-		return $x;
-	}
-	return fmod($x, $y);
-}
-
-function _hx_error_handler($errno, $errmsg, $filename, $linenum, $vars) {
-	if (!(error_reporting() & $errno)) {
-		return false;
-	}
-	$msg = $errmsg . ' (errno: ' . $errno . ')';
-	$e = new HException($msg, '', $errno, _hx_anonymous(array('fileName' => 'Boot.hx', 'lineNumber' => __LINE__, 'className' => 'php.Boot', 'methodName' => '_hx_error_handler')));
-	$e->setFile($filename);
-	$e->setLine($linenum);
-	throw $e;
-	return null;
-}
-
-function _hx_exception_handler($e) {
-	if(0 == strncasecmp(PHP_SAPI, 'cli', 3)) {
-		$msg   = $e-> getMessage();
-		$nl    = \"\\n\";
-		$pre   = '';
-		$post  = '';
-	} else {
-		$msg   = '<b>' . $e-> getMessage() . '</b>';
-		$nl    = \"<br />\";
-		$pre   = '<pre>';
-		$post  = '</pre>';
-	}
-	if(isset($GLOBALS['%s'])) {
-		$stack = '';
-		$i = $GLOBALS['%s']->length;
-		while(--$i >= 0)
-			$stack .= 'Called from '.$GLOBALS['%s'][$i].$nl;
-		echo $pre.'uncaught exception: '.$msg.$nl.$nl.$stack.$post;
-	} else
-		echo $pre.'uncaught exception: '.$msg.$nl.$nl.'in file: '.$e->getFile().' line '.$e->getLine().$nl.$e->getTraceAsString().$post;
-	exit(1);
-}
-
-function _hx_explode($delimiter, $s) {
-	if($delimiter == '')
-		return new _hx_array(str_split($s, 1));
-	return new _hx_array(explode($delimiter, $s));
-}
-
-function _hx_explode2($s, $delimiter) {
-	if($delimiter == '')
-		return new _hx_array(str_split($s, 1));
-	return new _hx_array(explode($delimiter, $s));
-}
-
-function _hx_field($o, $field) {
-	if(_hx_has_field($o, $field)) {
-		if($o instanceof _hx_type) {
-			if(is_callable($c = array($o->__tname__, $field)) && !property_exists($o->__tname__, $field)) {
-				return $c;
-			} else {
-				$name = $o->__tname__;
-				return eval('return '.$name.'::$'.$field.';');
-			}
-		} else {
-			if(is_string($o)) {
-				if($field == 'length') {
-					return strlen($o);
-				} else {
-					switch($field) {
-						case 'charAt'     : return array(new _hx_lambda(array(&$o), '_hx_char_at'), 'execute');
-						case 'charCodeAt' : return array(new _hx_lambda(array(&$o), '_hx_char_code_at'), 'execute');
-						case 'indexOf'    : return array(new _hx_lambda(array(&$o), '_hx_index_of'), 'execute');
-						case 'lastIndexOf': return array(new _hx_lambda(array(&$o), '_hx_last_index_of'), 'execute');
-						case 'split'      : return array(new _hx_lambda(array(&$o), '_hx_explode2'), 'execute');
-						case 'substr'     : return array(new _hx_lambda(array(&$o), '_hx_substr'), 'execute');
-						case 'toUpperCase': return array(new _hx_lambda(array(&$o), 'strtoupper'), 'execute');
-						case 'toLowerCase': return array(new _hx_lambda(array(&$o), 'strtolower'), 'execute');
-						case 'toString'   : return array(new _hx_lambda(array(&$o), '_hx_deref'), 'execute');
-					}
-					return null;
-				}
-			} else {
-				if(property_exists($o, $field)) {
-					if(is_array($o->$field) && is_callable($o->$field)) {
-						return $o->$field;
-					} else {
-						if(is_string($o->$field) && _hx_is_lambda($o->$field)) {
-							return array($o, $field);
-						} else {
-							return $o->$field;
-						}
-					}
-				} else if(isset($o->__dynamics) && isset($o->__dynamics[$field])) {
-					return $o->__dynamics[$field];
-				} else {
-					return array($o, $field);
-				}
-			}
-		}
-	} else {
-		return null;
-	}
-}
-
-function _hx_get_object_vars($o) {
-	$a = array_keys(get_object_vars($o));
-	if(isset($o->__dynamics))
-		$a = array_merge($a, array_keys($o->__dynamics));
-	$arr = array();
-	foreach($a as $val)
-		$arr[] = '' . $val;
-	return $arr;
-}
-
-function _hx_has_field($o, $field) {
-	return
-		(is_object($o) && (method_exists($o, $field) || isset($o->$field) || property_exists($o, $field) || isset($o->__dynamics[$field])))
-		||
-		(is_string($o) && (in_array($field, array('toUpperCase', 'toLowerCase', 'charAt', 'charCodeAt', 'indexOf', 'lastIndexOf', 'split', 'substr', 'toString', 'length'))))
-	;
-}
-
-function _hx_index_of($s, $value, $startIndex = null) {
-	$x = strpos($s, $value, $startIndex);
-	if($x === false)
-		return -1;
-	else
-		return $x;
-}
-
-function _hx_instanceof($v, $t) {
-	if($t === null) {
-		return false;
-	}
-	switch($t->__tname__) {
-		case 'Array'  : return is_array($v);
-		case 'String' : return is_string($v) && !_hx_is_lambda($v);
-		case 'Bool'   : return is_bool($v);
-		case 'Int'    : return (is_int($v) || (is_float($v) && intval($v) == $v && !is_nan($v))) && abs($v) <= 0x80000000;
-		case 'Float'  : return is_float($v) || is_int($v);
-		case 'Dynamic': return true;
-		case 'Class'  : return ($v instanceof _hx_class || $v instanceof _hx_interface) && $v->__tname__ != 'Enum';
-		case 'Enum'   : return $v instanceof _hx_enum;
-		case 'php.NativeArray': return is_array($v);
-		default       : return is_a($v, $t->__tname__);
-	}
-}
-
-function _hx_is_lambda($s) {
-	return (is_string($s) && substr($s, 0, 8) == chr(0).'lambda_') || (is_array($s) && count($s) > 0 && (is_a($s[0], '_hx_lambda') || is_a($s[0], '_hx_lambda2')));
-}
-
-function _hx_is_numeric($v)
-{
-	return is_numeric($v) && !is_string($v);
-}
-
-function _hx_last_index_of($s, $value, $startIndex = null) {
-	$x = strrpos($s, $value, $startIndex === null ? 0 : $startIndex-strlen($s));
-	if($x === false)
-		return -1;
-	else
-		return $x;
-}
-
-function _hx_len($o) {
-	return is_string($o) ? strlen($o) : $o->length;
-}
-
-class _hx_list_iterator implements Iterator {
-	private $h;
-	private $list;
-	private $counter;
-	public function __construct($list) {
-		$this->list = $list;
-		$this->rewind();
-	}
-
-	public function next() {
-		if($this->h == null) return null;
-		$this->counter++;
-		$x = $this->h[0];
-		$this->h = $this->h[1];
-		return $x;
-	}
-
-	public function hasNext() {
-		return $this->h != null;
-	}
-
-	public function current() {
-		if (!$this->hasNext()) return null;
-		return $this->h[0];
-	}
-
-	public function key() {
-		return $this->counter;
-	}
-
-	public function valid() {
-		return $this->current() !== null;
-	}
-
-	public function rewind() {
-		$this->counter = -1;
-		$this->h = $this->list->h;
-	}
-
-	public function size() {
-		return $this->list->length;
-	}
-}
-
-function _hx_null() { return null; }
-
-class _hx_nullob {
-	function _throw()       { throw new HException('Null object'); }
-	function __call($f, $a) { $this->_throw(); }
-	function __get($f)      { $this->_throw(); }
-	function __set($f, $v)  { $this->_throw(); }
-	function __isset($f)    { $this->_throw(); }
-	function __unset($f)    { $this->_throw(); }
-	function __toString()   { return 'null'; }
-	static $inst;
-}
-
-_hx_nullob::$inst = new _hx_nullob();
-
-function _hx_nullob() { return _hx_nullob::$inst; }
-
-function _hx_qtype($n) {
-	if(!isset(php_Boot::$qtypes[$n])) {
-		php_Boot::$qtypes[$n] = new _hx_type($n, null);
-	}
-
-	return php_Boot::$qtypes[$n];
-}
-
-function _hx_register_type($t) {
-	php_Boot::$qtypes[$t->__qname__] = $t;
-	php_Boot::$ttypes[$t->__tname__] = $t;
-	if($t->__path__ !== null)
-		php_Boot::$tpaths[$t->__tname__] = $t->__path__;
-}
-
-function _hx_set_method($o, $field, $func) {
-	$value[0]->scope = $o;
-	$o->$field = $func;
-}
-
-function _hx_shift_right($v, $n) {
-	return ($n == 0) ? $v : ($v >= 0) ? ($v >> $n) : ($v >> $n) & (0x7fffffff >> ($n-1));
-}
-
-function _hx_string_call($s, $method, $params) {
-	if(!is_string($s)) return call_user_func_array(array($s, $method), $params);
-	switch($method) {
-		case 'toUpperCase': return strtoupper($s);
-		case 'toLowerCase': return strtolower($s);
-		case 'charAt'     : return substr($s, $params[0], 1);
-		case 'charCodeAt' : return _hx_char_code_at($s, $params[0]);
-		case 'indexOf'    : return _hx_index_of($s, $params[0], (count($params) > 1 ? $params[1] : null));
-		case 'lastIndexOf': return _hx_last_index_of($s, $params[0], (count($params) > 1 ? $params[1] : null));
-		case 'split'      : return _hx_explode($params[0], $s);
-		case 'substr'     : return _hx_substr($s, $params[0], (count($params) > 1 ? $params[1] : null));
-		case 'toString'   : return $s;
-		default           : throw new HException('Invalid Operation: ' . $method);
-	}
-}
-
-function _hx_string_or_null($s) {
-	return $s === null ? 'null' : $s;
-}
-
-function _hx_string_rec($o, $s) {
-	if($o === null)                return 'null';
-	if(strlen($s) >= 5)            return '<...>';
-	if(is_int($o) || is_float($o)) return '' . $o;
-	if(is_bool($o))                return $o ? 'true' : 'false';
-	if(is_object($o)) {
-		$c = get_class($o);
-		if($o instanceof Enum) {
-			$b = $o->tag;
-			if(!empty($o->params)) {
-				$s .= \"\t\";
-				$b .= '(';
-				foreach($o->params as $i => $val) {
-					if($i > 0)
-						$b .= ',' . _hx_string_rec($val, $s);
-					else
-						$b .= _hx_string_rec($val, $s);
-				}
-				$b .= ')';
-			}
-			return $b;
-		} else {
-			if ($o instanceof _hx_anonymous) {
-				if ($o->toString && is_callable($o->toString)) {
-					return call_user_func($o->toString);
-				}
-				$rfl = new ReflectionObject($o);
-				$b2 = \"{\n\";
-				$s .= \"\t\";
-				$properties = $rfl->getProperties();
-
-				foreach($properties as $i => $prop) {
-					$f = $prop->getName();
-					if($i > 0)
-						$b2 .= \", \n\";
-					$b2 .= $s . $f . ' : ' . _hx_string_rec($o->$f, $s);
-				}
-				$s = substr($s, 1);
-				$b2 .= \"\n\" . $s . '}';
-				return $b2;
-			} else {
-				if($o instanceof _hx_type)
-					return $o->__qname__;
-				else {
-					if(is_callable(array($o, 'toString')))
-						return $o->toString();
-					else {
-						if(is_callable(array($o, '__toString')))
-							return $o->__toString();
-						else
-							return '[' . _hx_ttype($c) . ']';
-					}
-				}
-			}
-		}
-	}
-	if(is_string($o)) {
-		if(_hx_is_lambda($o)) return '<function>';
-//		if(strlen($s) > 0)    return '\"' . str_replace('\"', '\\\"', $o) . '\"';
-		else                  return $o;
-	}
-	if(is_array($o)) {
-		if(is_callable($o)) return '<function>';
-		$str = '[';
-		$s .= \"\t\";
-		$first = true;
-		$assoc = true;
-		foreach($o as $k => $v)
-		{
-			if ($first && $k === 0)
-				$assoc = false;
-			$str .= ($first ? '' : ',') . ($assoc
-				? _hx_string_rec($k, $s) . '=>' . _hx_string_rec($o[$k], $s)
-				: _hx_string_rec($o[$k], $s)
-			);
-			$first = false;
-		}
-		$str .= ']';
-		return $str;
-	}
-	return '';
-}
-
-function _hx_substr($s, $pos, $len) {
-	if($pos !== null && $pos !== 0 && $len !== null && $len < 0) return '';
-	if($len === null) $len = strlen($s);
-	if($pos < 0) {
-		$pos = strlen($s) + $pos;
-		if($pos < 0) $pos = 0;
-	} else if($len < 0 )
-		$len = strlen($s) + $len - $pos;
-	$s = substr($s, $pos, $len);
-	if($s === false)
-		return '';
-	else
-		return $s;
-}
-
-function _hx_substring($s, $startIndex, $endIndex) {
-	$len = strlen($s);
-	if ($endIndex === null)
-		$endIndex = $len;
-	else if ($endIndex < 0)
-		$endIndex = 0;
-	else if ($endIndex > $len)
-		$endIndex  = $len;
-
-	if ($startIndex < 0)
-		$startIndex = 0;
-	else if ($startIndex > $len)
-		$startIndex = $len;
-
-	if ($startIndex > $endIndex) {
-		$tmp = $startIndex;
-		$startIndex = $endIndex;
-		$endIndex = $tmp;
-	}
-	return _hx_substr($s, $startIndex, $endIndex - $startIndex);
-}
-
-function _hx_trace($v, $i) {
-	$msg = $i !== null ? $i->fileName.':'.$i->lineNumber.': ' : '';
-	echo $msg._hx_string_rec($v, '').\"\n\";
-}
-
-function _hx_ttype($n) {
-	return isset(php_Boot::$ttypes[$n]) ? php_Boot::$ttypes[$n] : null;
-}
-
-function _hx_make_var_args() {
-	$args = func_get_args();
-	$f = array_shift($args);
-	return call_user_func($f, new _hx_array($args));
-}
-
-class _hx_anonymous extends stdClass {
-	public function __call($m, $a) {
-		return call_user_func_array($this->$m, $a);
-	}
-
-	public function __set($n, $v) {
-		$this->$n = $v;
-	}
-
-	public function &__get($n) {
-		if(isset($this->$n))
-			return $this->$n;
-		$null = null;
-		return $null;
-	}
-
-	public function __isset($n) {
-		return isset($this->$n);
-	}
-
-	public function __unset($n) {
-		unset($this->$n);
-	}
-
-	public function __toString() {
-		$rfl = new ReflectionObject($this);
-		$b = '{ ';
-		$properties = $rfl->getProperties();
-		$first = true;
-		while(list(, $prop) = each($properties)) {
-			if($first)
-				$first = false;
-			else
-				$b .= ', ';
-			$f = $prop->getName();
-			$b .= $f . ' => ' . $this->$f;
-		}
-		$b .= ' }';
-		return $b;
-	}
-}
-
-class _hx_type {
-	public $__tname__;
-	public $__qname__;
-	public $__path__;
-	public function __construct($cn, $qn, $path = null) {
-		$this->__tname__ = $cn;
-		$this->__qname__ = $qn;
-		$this->__path__ = $path;
-		if(property_exists($cn, '__meta__'))
-			$this->__meta__ =  eval($cn.'::$__meta__');
-	}
-
-	public function __ensureMeta__() {
-		if(property_exists($this->__tname__, '__meta__') && !$this->__meta__) {
-			$this->__meta__ =  eval($this->__tname__.'::$__meta__');
-		}
-	}
-
-	public function toString()   { return $this->__toString(); }
-
-	public function __toString() {
-		return $this->__qname__;
-	}
-
-	private $rfl = false;
-	public function __rfl__() {
-		if($this->rfl !== false) return $this->rfl;
-		if(class_exists($this->__tname__) || interface_exists($this->__tname__))
-			$this->rfl = new ReflectionClass($this->__tname__);
-		else
-			$this->rfl = null;
-		return $this->rfl;
-	}
-
-	public function __call($n, $a) {
-		return call_user_func_array(array($this->__tname__, $n), $a);
-	}
-
-	public function __get($n) {
-		if(($r = $this->__rfl__())==null) return null;
-		if($r->hasProperty($n)) {
-			try {
-				return $r->getStaticPropertyValue($n);
-			} catch(Exception $e) {
-				return null;
-			}
-		} else if($r->hasMethod($n))
-			return array($r->name, $n);
-		else
-			return null;
-	}
-
-	public function __set($n, $v) {
-		if(($r = $this->__rfl__())==null) return null;
-		return $r->setStaticPropertyValue($n, $v);
-	}
-
-	public function __isset($n) {
-		if(($r = $this->__rfl__())==null) return null;
-		return array_key_exists($n, $r->getStaticProperties()) || $r->hasMethod($n);
-	}
-}
-
-class _hx_class extends _hx_type {}
-
-class _hx_enum extends _hx_type {}
-
-class _hx_interface extends _hx_type {}
-
-class HException extends Exception {
-	public function __construct($e, $message = null, $code = null, $p = null) {
-		$message = _hx_string_rec($e, '') . $message;
-		parent::__construct($message,$code);
-		$this->e = $e;
-		$this->p = $p;
-	}
-	public $e;
-	public $p;
-	public function setLine($l) {
-		$this->line = $l;
-	}
-	public function setFile($f) {
-		$this->file = $f;
-	}
-}
-
-class _hx_lambda {
-	public function __construct($locals, $func) {
-		$this->locals = $locals;
-		$this->func = $func;
-	}
-	public $locals;
-	public $func;
-
-	public function execute() {
-		// if use $this->locals directly in array_merge it works only if I make the assignement loop,
-		// so I've decided to reference $arr
-		$arr = array();
-		foreach($this->locals as $i => $val)
-			$arr[] = & $this->locals[$i];
-		$args = func_get_args();
-		return call_user_func_array($this->func, array_merge($arr, $args));
-	}
-}
-
-class Enum {
-	public function __construct($tag, $index, $params = null) { $this->tag = $tag; $this->index = $index; $this->params = $params; }
-	public $tag;
-	public $index;
-	public $params;
-
-	public function __toString() {
-		return $this->tag;
-	}
-}
-
-error_reporting(E_ALL & ~E_STRICT);
-set_error_handler('_hx_error_handler', E_ALL & ~E_STRICT);
-set_exception_handler('_hx_exception_handler');
-
-php_Boot::$qtypes = array();
-php_Boot::$ttypes = array();
-php_Boot::$tpaths = array();
-
-_hx_register_type(new _hx_class('String',  'String'));
-_hx_register_type(new _hx_class('_hx_array', 'Array'));
-_hx_register_type(new _hx_class('Int',     'Int'));
-_hx_register_type(new _hx_class('Float',   'Float'));
-_hx_register_type(new _hx_class('Class',   'Class'));
-_hx_register_type(new _hx_class('Enum',    'Enum'));
-_hx_register_type(new _hx_class('Dynamic', 'Dynamic'));
-_hx_register_type(new _hx_enum('Bool',     'Bool'));
-_hx_register_type(new _hx_enum('Void',     'Void'));
-
-
-$_hx_libdir = dirname(__FILE__) . '/..';
-$_hx_autload_cache_file = $_hx_libdir . '/../cache/haxe_autoload.php';
-if(!file_exists($_hx_autload_cache_file)) {
-	function _hx_build_paths($d, &$_hx_types_array, $pack, $prefix) {
-		$h = opendir($d);
-		while(false !== ($f = readdir($h))) {
-			$p = $d.'/'.$f;
-			if($f == '.' || $f == '..')
-				continue;
-				if (is_file($p) && substr($f, -4) == '.php') {
-				$bn = basename($f, '.php');
-				if ($prefix)
-				{
-					if ($prefix != substr($bn, 0, $lenprefix = strlen($prefix)))
-						continue;
-					$bn = substr($bn, $lenprefix);
-				}
-				if(substr($bn, -6) == '.class') {
-					$bn = substr($bn, 0, -6);
-					$t = 0;
-				} else if(substr($bn, -5) == '.enum') {
-					$bn = substr($bn, 0, -5);
-					$t = 1;
-				} else if(substr($bn, -10) == '.interface') {
-					$bn = substr($bn, 0, -10);
-					$t = 2;
-				} else if(substr($bn, -7) == '.extern') {
-					$bn = substr($bn, 0, -7);
-					$t = 3;
-				} else
-					continue;
-				$qname = ($bn == 'HList' && empty($pack)) ? 'List' : join(array_merge($pack, array($bn)), '.');
-				$_hx_types_array[] = array(
-					'path' => $p,
-					'name' => $prefix . $bn,
-					'type' => $t,
-					'qname' => $qname,
-					'phpname' => join(array_merge($pack, array($prefix . $bn)), '_')
-				);
-			} else if(is_dir($p))
-				_hx_build_paths($p, $_hx_types_array, array_merge($pack, array($f)), $prefix);
-		}
-		closedir($h);
-	}
-
-	$_hx_cache_content = '<?php\n\n';
-	$_hx_types_array = array();
-
-	_hx_build_paths($_hx_libdir, $_hx_types_array, array(), $_hx_class_prefix);
-
-	foreach($_hx_types_array as $val) {
-		$_hx_cache_content .= '_hx_register_type(new ';
-		$t = null;
-		if($val['type'] == 0) {
-			$t = new _hx_class($val['phpname'], $val['qname'], $val['path']);
-			$_hx_cache_content .= '_hx_class';
-		} else if($val['type'] == 1) {
-			$t = new _hx_enum($val['phpname'], $val['qname'], $val['path']);
-			$_hx_cache_content .= '_hx_enum';
-		} else if($val['type'] == 2) {
-			$t = new _hx_interface($val['phpname'], $val['qname'], $val['path']);
-			$_hx_cache_content .= '_hx_interface';
-		} else if($val['type'] == 3) {
-			$t = new _hx_class($val['name'], $val['qname'], $val['path']);
-			$_hx_cache_content .= '_hx_class';
-		}
-		_hx_register_type($t);
-		$_hx_cache_content .= '(\\''.($val['type'] == 3 ? $val['name'] : $val['phpname']).'\\', \\''.$val['qname'].'\\', \\''.$val['path'].'\\'));\n';
-	}
-	try {
-		file_put_contents($_hx_autload_cache_file, $_hx_cache_content);
-	} catch(Exception $e) {}
-	unset($_hx_types_array);
-	unset($_hx_cache_content);
-} else {
-	require($_hx_autload_cache_file);
-}
-
-function _hx_autoload($name) {
-	if(!isset(php_Boot::$tpaths[$name])) return false;
-	require_once(php_Boot::$tpaths[$name]);
-	return true;
-}
-
-if(!ini_get('date.timezone'))
-	date_default_timezone_set('UTC');
-
-spl_autoload_register('_hx_autoload')");
-	}
+/**
+	Special exception which is used to wrap non-throwable values
+**/
+@:keep
+@:dox(hide)
+private class HxException extends Exception {
+  var e : Dynamic;
+  public function new( e:Dynamic ) : Void {
+	  this.e = e;
+	  super(Boot.stringify(e));
+  }
 }

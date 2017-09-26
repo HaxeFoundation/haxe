@@ -230,7 +230,7 @@ abstract Int32(Int) from Int to Int {
 	}
 
 	#if php
-	static var extraBits : Int = untyped __php__("PHP_INT_SIZE") * 8 - 32;
+	static var extraBits : Int = php.Const.PHP_INT_SIZE * 8 - 32;
 	#end
 
 

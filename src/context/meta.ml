@@ -89,7 +89,7 @@ type strict_meta =
 	| LibType
 	| LoopLabel
 	| LuaRequire
-	| LuaDotMethod 
+	| LuaDotMethod
 	| Meta
 	| Macro
 	| MaybeUsed
@@ -119,7 +119,6 @@ type strict_meta =
 	| Op
 	| Optional
 	| Overload
-	| PhpConstants
 	| PhpGlobal
 	| PhpClassConst
 	| PhpMagic
@@ -317,11 +316,10 @@ let get_info = function
 	| Op -> ":op",("Declares an abstract field as being an operator overload",[HasParam "The operation";UsedOn TAbstractField])
 	| Optional -> ":optional",("Marks the field of a structure as optional",[UsedOn TClassField])
 	| Overload -> ":overload",("Allows the field to be called with different argument types",[HasParam "Function specification (no expression)";UsedOn TClassField])
-	| PhpConstants -> ":phpConstants",("Marks the static fields of a class as PHP constants, without $",[Platform Php;UsedOn TClass])
-	| PhpGlobal -> ":phpGlobal",("(php7) Puts the static fields of a class in the global PHP namespace",[Platform Php;UsedOn TClass])
-	| PhpClassConst -> ":phpClassConst",("(php7)  Generate static var of an extern class as a PHP class constant",[Platform Php;UsedOn TClass])
-	| PhpMagic -> ":phpMagic",("(php7) Treat annotated field as special PHP magic field",[Platform Php;UsedOn TClassField])
-	| PhpNoConstructor -> ":phpNoConstructor",("(php7) Special meta for extern classes which does not have native constructor in PHP, but need a constructor in Haxe extern",[Platform Php;UsedOn TClass])
+	| PhpGlobal -> ":phpGlobal",("Indicates that static fields of an extern class actually are located in the global PHP namespace",[Platform Php;UsedOn TClass])
+	| PhpClassConst -> ":phpClassConst",("Indicates that a static var of an extern class is a PHP class constant",[Platform Php;UsedOn TClassField])
+	| PhpMagic -> ":phpMagic",("Treat annotated field as special PHP magic field. This meta makes compiler avoid renaming such fields on generating PHP code.",[Platform Php;UsedOn TClassField])
+	| PhpNoConstructor -> ":phpNoConstructor",("Special meta for extern classes which do not have native constructor in PHP, but need a constructor in Haxe extern",[Platform Php;UsedOn TClass])
 	| Pos -> ":pos",("Sets the position of a reified expression",[HasParam "Position";UsedOn TExpr])
 	| Public -> ":public",("Marks a class field as being public",[UsedOn TClassField;UsedInternally])
 	| PublicFields -> ":publicFields",("Forces all class fields of inheriting classes to be public",[UsedOn TClass])

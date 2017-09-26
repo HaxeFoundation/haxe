@@ -21,70 +21,84 @@
  */
 package haxe.ds;
 
-@:coreApi class IntMap<T> implements php.IteratorAggregate<T> implements haxe.Constraints.IMap<Int,T> {
-	@:analyzer(no_simplification)
-	private var h : ArrayAccess<Int>;
+import php.Syntax;
+import php.Global;
+import php.NativeArray;
+import php.NativeIndexedArray;
 
+@:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
+
+	var data:NativeIndexedArray<T>;
+
+	/**
+		Creates a new IntMap.
+	**/
 	public function new() : Void {
-		h = untyped __call__('array');
-	}
-
-	public function set( key : Int, value : T ) : Void {
-		untyped h[key] = value;
-	}
-
-	public function get( key : Int ) : Null<T> {
-		if (untyped __call__("array_key_exists", key, h))
-			return untyped h[key];
-		else
-			return null;
-	}
-
-	public function exists( key : Int ) : Bool {
-		return untyped __call__("array_key_exists", key, h);
-	}
-
-	public function remove( key : Int ) : Bool {
-		if (untyped __call__("array_key_exists", key, h)) {
-			untyped __call__("unset", h[key]);
-			return true;
-		} else
-			return false;
-	}
-
-	public function keys() : Iterator<Int> {
-		return untyped __call__("new _hx_array_iterator", __call__("array_keys", h));
-	}
-
-	public function iterator() : Iterator<T> {
-		return untyped __call__("new _hx_array_iterator", __call__("array_values", h));
-	}
-	
-	public function copy() : IntMap<T> {
-		var copied = new IntMap();
-		copied.h = h;
-		return copied;
-	}
-
-	public function toString() : String {
-		var s = "{";
-		var it = keys();
-		for( i in it ) {
-			s += i;
-			s += " => ";
-			s += Std.string(get(i));
-			if( it.hasNext() )
-				s += ", ";
-		}
-		return s + "}";
+		data = new NativeIndexedArray();
 	}
 
 	/**
-		Implement IteratorAggregate for native php iteration
+		See `Map.set`
 	**/
-	#if php
-	function getIterator() : Iterator<T> {
-		return iterator();
+	public inline function set( key : Int, value : T ) : Void {
+		data[key] = value;
 	}
-	#end
+
+	/**
+		See `Map.get`
+	**/
+	public inline function get( key : Int ) : Null<T> {
+		return Syntax.binop(data[key], '??', null);
+	}
+
+	/**
+		See `Map.exists`
+	**/
+	public inline function exists( key : Int ) : Bool {
+		return Global.array_key_exists(key, data);
+	}
+
+	/**
+		See `Map.remove`
+	**/
+	public function remove( key : Int ) : Bool {
+		if (Global.array_key_exists(key, data)) {
+			Global.unset(data[key]);
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
+		See `Map.keys`
+	**/
+	public inline function keys() : Iterator<Int> {
+		return Global.array_keys(data).iterator();
+	}
+
+	/**
+		See `Map.iterator`
+	**/
+	public inline function iterator() : Iterator<T> {
+		return Global.array_values(data).iterator();
+	}
+
+	public function copy() : IntMap<T> {
+		var copied = new IntMap();
+		copied.data = data;
+		return copied;
+	}
+
+	/**
+		See `Map.toString`
+	**/
+	public function toString() : String {
+		var parts = new NativeArray();
+		Syntax.foreach(data, function(key:Int, value:T) {
+			Global.array_push(parts, '$key => ' + Std.string(value));
+		});
+
+		return '{' + Global.implode(', ', parts) + '}';
+	}
 }

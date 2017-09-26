@@ -21,6 +21,8 @@
  */
 package haxe;
 
+import php.Global;
+
 @:coreApi
 class Utf8 {
 
@@ -39,17 +41,18 @@ class Utf8 {
 	}
 
 	public static function encode( s : String ) : String {
-		return untyped __call__("utf8_encode", s);
+		return Global.utf8_encode(s);
 	}
 
 	public static function decode( s : String ) : String {
-		return untyped __call__("utf8_decode", s);
+		return Global.utf8_decode(s);
 	}
 
 	public static function iter(s : String, chars : Int -> Void ) : Void {
 		var len = length(s);
-		for(i in 0...len)
+		for(i in 0...len) {
 			chars(charCodeAt(s, i));
+		}
 	}
 
 	public static function charCodeAt( s : String, index : Int ) : Int {
@@ -57,28 +60,28 @@ class Utf8 {
 	}
 
 	static function uchr(i : Int) : String {
-		return untyped __php__("mb_convert_encoding(pack('N',$i), 'UTF-8', 'UCS-4BE')");
+		return Global.mb_convert_encoding(Global.pack('N', i), 'UTF-8', 'UCS-4BE');
 	}
 
-	static function uord(s : String) : Int untyped {
-		var c : Array<Int> = untyped __php__("unpack('N', mb_convert_encoding($s, 'UCS-4BE', 'UTF-8'))");
+	static function uord(s : String) : Int {
+		var c = Global.unpack('N', Global.mb_convert_encoding(s, 'UCS-4BE', 'UTF-8'));
 		return c[1];
 	}
 
 	public static function validate( s : String ) : Bool {
-		return untyped __call__("mb_check_encoding", s, enc);
+		return Global.mb_check_encoding(s, enc);
 	}
 
 	public static function length( s : String ) : Int {
-		return untyped __call__("mb_strlen", s, enc);
+		return Global.mb_strlen(s, enc);
 	}
 
 	public static function compare( a : String, b : String ) : Int {
-		return untyped __call__("strcmp", a, b);
+		return Global.strcmp(a, b);
 	}
 
 	public static function sub( s : String, pos : Int, len : Int ) : String {
-		return untyped __call__("mb_substr", s, pos, len, enc);
+		return Global.mb_substr(s, pos, len, enc);
 	}
 
 	private static inline var enc = "UTF-8";
