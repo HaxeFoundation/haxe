@@ -23,16 +23,18 @@ package haxe.io;
 
 import php.*;
 
+typedef BytesData = BytesDataAbstract;
+
 private class Container {
 	public var s:NativeString;
 	public inline function new(s:NativeString) this.s = s;
 }
 
-abstract BytesData(Container) from Container to Container {
+private abstract BytesDataAbstract(Container) from Container to Container {
 
 	public var length (get,never):Int;
 
-	public static inline function alloc (length:Int):BytesData {
+	public static inline function alloc (length:Int):BytesDataAbstract {
 		return Global.str_repeat(Global.chr(0), length);
 	}
 
@@ -46,7 +48,7 @@ abstract BytesData(Container) from Container to Container {
 		this.s = Global.substr_replace(this.s, Global.chr(val), index, 1);
 	}
 
-	public inline function compare (other:BytesData):Int {
+	public inline function compare (other:BytesDataAbstract):Int {
 		return Syntax.binop(this.s, '<=>', (other:Container).s);
 	}
 
@@ -54,11 +56,11 @@ abstract BytesData(Container) from Container to Container {
 		return Global.substr(this.s, pos, len);
 	}
 
-	public inline function sub (pos:Int, len:Int):BytesData {
+	public inline function sub (pos:Int, len:Int):BytesDataAbstract {
 		return (Global.substr(this.s, pos, len):String);
 	}
 
-	public inline function blit (pos : Int, src : BytesData, srcpos : Int, len : Int):Void {
+	public inline function blit (pos : Int, src : BytesDataAbstract, srcpos : Int, len : Int):Void {
 		this.s = Syntax.binop(Syntax.binop(Global.substr(this.s, 0, pos), '.', Global.substr(src, srcpos, len)), '.', Global.substr(this.s, pos + len));
 	}
 
@@ -67,7 +69,7 @@ abstract BytesData(Container) from Container to Container {
 	}
 
 	@:from
-	static inline function fromNativeString (s:NativeString):BytesData {
+	static inline function fromNativeString (s:NativeString):BytesDataAbstract {
 		return new Container(s);
 	}
 
@@ -77,7 +79,7 @@ abstract BytesData(Container) from Container to Container {
 	}
 
 	@:from
-	static inline function fromString (s:String):BytesData {
+	static inline function fromString (s:String):BytesDataAbstract {
 		return new Container(s);
 	}
 
