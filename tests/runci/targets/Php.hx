@@ -21,7 +21,8 @@ class Php {
 			case "Linux":
 				runCommand("phpenv", ["global", "7.0"], false, true);
 			case "Mac":
-				//pass
+				runCommand("brew", ["tap", "homebrew/homebrew-php"], true);
+				runCommand("brew", ["install", "php71"], true);
 			case "Windows":
 				runCommand("cinst", ["php", "-version", "7.1.8", "-y"], true);
 		}
