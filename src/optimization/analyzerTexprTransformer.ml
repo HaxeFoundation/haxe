@@ -521,8 +521,8 @@ let rec func ctx bb tf t p =
 			set_syntax_edge bb (SETry(bb_try,bb_exc,catches,bb_next,e.epos));
 			if bb_try_next != g.g_unreachable then add_cfg_edge bb_try_next bb_next CFGGoto;
 			close_node g bb_try_next;
-            close_node g bb_exc;
-            close_node g bb;
+			close_node g bb_exc;
+			close_node g bb;
 			bb_next
 		(* control flow *)
 		| TReturn None ->
