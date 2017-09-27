@@ -336,6 +336,7 @@ module AbstractCast = struct
 			in
 			ctx.with_type_stack <- List.tl ctx.with_type_stack;
 			f();
+			unify ctx t e.etype p;
 			e
 		end else
 			make_static_call ctx c cf (apply_params a.a_params pl) args t p
