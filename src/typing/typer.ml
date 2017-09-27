@@ -1596,7 +1596,8 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 				else if ctx.com.config.pf_pad_nulls then
 					(ordered_args @ [(mk (TConst TNull) t_dynamic p)])
 				else
-					ordered_args
+					ordered_args @ [(mk (TConst TNull) t_dynamic p)]
+					(*ordered_args*)
 			end
 			in
 			loop args [] given_args missing_args a
