@@ -6,9 +6,7 @@ import haxe.macro.Context;
 import haxe.macro.Type;
 #end
 
-private abstract Int2(Int) from Int to Int {}
 
-private abstract Int3(Int) from Int to Int {}
 
 @:forward
 @:callable
@@ -16,11 +14,12 @@ private abstract Int3(Int) from Int to Int {}
 @:extern
 private abstract Dep<T>(T) to T {
 
-	private function new (x:T) {
+	private inline function new (x:T) {
 		this = x;
 	}
 
-	@:from public static function fromT <T>(t:T):Dep<T> {
+
+	@:from public static inline function fromT <T>(t:T):Dep<T> {
 		return new Dep(t);
 	}
 
@@ -41,6 +40,11 @@ private abstract Dep<T>(T) to T {
 	}
 }
 #if !macro
+
+private abstract Int2(Int) from Int to Int {}
+
+private abstract Int3(Int) from Int to Int {}
+
 class TestFromNothing extends Test {
 
 	function test1() {
@@ -123,6 +127,13 @@ class TestFromNothing extends Test {
 		t(foo() == "7-1-5");
 
 		t(foo.bind()() == "7-1-5");
+
+		function foo (?x:Int = 5, ?y:haxe.PosInfos) {
+			var r =  Std.string(x) + "-" + (y != null);
+			return r;
+		}
+
+		t(foo.bind()() == "5-true");
 
 	}
 }
