@@ -289,7 +289,7 @@ let generate tctx ext xml_out interp swf_header =
 		Codegen.Dump.dump_dependencies com;
 		if not tctx.Typecore.in_macro then match tctx.Typecore.g.Typecore.macros with
 			| None -> ()
-			| Some(_,ctx) -> print_endline "generate"; Codegen.Dump.dump_dependencies ~target_override:(Some "macro") ctx.Typecore.com
+			| Some(_,ctx) -> Codegen.Dump.dump_dependencies ~target_override:(Some "macro") ctx.Typecore.com
 	end;
 	begin match com.platform with
 		| Neko | Hl | Eval when interp -> ()

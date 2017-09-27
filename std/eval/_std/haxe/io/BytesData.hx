@@ -22,9 +22,9 @@
 package haxe.io;
 
 @:forward
-private abstract BytesDataAbstract(Bytes) from Bytes to Bytes {
+private abstract NativeBytesDataAbstract(Bytes) from Bytes to Bytes {
 	@:arrayAccess public inline function get(i:Int) return this.get(i);
 	@:arrayAccess public inline function set(i:Int, v:Dynamic) this.set(i, v);
 }
 
-typedef BytesData = BytesDataAbstract;
+typedef BytesData = NativeBytesDataAbstract;
