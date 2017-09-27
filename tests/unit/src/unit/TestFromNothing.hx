@@ -14,7 +14,15 @@ private abstract Int3(Int) from Int to Int {}
 @:callable
 @:arrayAccess
 @:extern
-private abstract Dep<T>(T) from T to T {
+private abstract Dep<T>(T) to T {
+
+	private function new (x:T) {
+		this = x;
+	}
+
+	@:from public static function fromT <T>(t:T):Dep<T> {
+		return new Dep(t);
+	}
 
 	@:fromNothing macro public static function fromNothing ():Expr {
 		var unexpected = () -> Context.fatalError("unexpected", Context.currentPos());
@@ -24,7 +32,8 @@ private abstract Dep<T>(T) from T to T {
 					case TAbstract(_.toString() => "Int", []): macro 1;
 					case TAbstract(_.toString() => "unit._TestFromNothing.Int2", []): macro (2:Int2);
 					case TAbstract(_.toString() => "unit._TestFromNothing.Int3", []): macro (3:Int3);
-					case _: unexpected();
+					case t:
+						unexpected();
 				}
 			case t:
 				unexpected();
@@ -92,6 +101,28 @@ class TestFromNothing extends Test {
 		}
 
 		t(foo5(3) == "3-1");
+
+		function foo (?x:Int = 5, ?y:Dep<Int>) {
+			return Std.string(x) + "-" + Std.string(y);
+		}
+
+		t(foo() == "5-1");
+		t(foo.bind()() == "5-1");
+
+		function foo (?x:Dep<Int>, ?y:Int = 5) {
+			return Std.string(x) + "-" + Std.string(y);
+		}
+
+		t(foo() == "1-5");
+		t(foo.bind()() == "1-5");
+
+		function foo (?w:Int = 7, ?x:Dep<Int>, ?y:Int = 5) {
+			return Std.string(w) + "-" + Std.string(x) + "-" + Std.string(y);
+		}
+
+		t(foo() == "7-1-5");
+
+		t(foo.bind()() == "7-1-5");
 
 	}
 }
