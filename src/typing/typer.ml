@@ -549,7 +549,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 						| _ -> t :: (loop [] args)
 					end
 				| _ ->
-					begin match args with
+					begin match loop [] args with
 					| [] ->
 						if not (inline && (ctx.g.doinline || force_inline)) && not ctx.com.config.pf_pad_nulls then begin
 							if is_pos_infos t then [mk_pos_infos t,true]
@@ -558,9 +558,9 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 							let e_def = default_value name t in
 							[e_def,true]
 						end
-					| _ ->
+					| args ->
 						let e_def = default_value name t in
-						(e_def,true) :: (loop [] args)
+						(e_def,true) :: args
 					end
 			end
 		| (_,p) :: _, [] ->
