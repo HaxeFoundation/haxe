@@ -683,6 +683,10 @@ let clone com =
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
 		};
+		defines = {
+			values = com.defines.values;
+			defines_signature = com.defines.defines_signature;
+		}
 	}
 
 let file_time file = Extc.filetime file
@@ -961,3 +965,31 @@ let dump_context com = s_record_fields "" [
 	"defines",s_pmap (fun s -> s) (fun s -> s) com.defines.values;
 	"defines_signature",s_opt (fun s -> Digest.to_hex s) com.defines.defines_signature;
 ]
+
+let parse_float s =
+	let rec loop sp i =
+		if i = String.length s then (if sp = 0 then s else String.sub s sp (i - sp)) else
+		match String.unsafe_get s i with
+		| ' ' when sp = i -> loop (sp + 1) (i + 1)
+		| '0'..'9' | '-' | '+' | 'e' | 'E' | '.' -> loop sp (i + 1)
+		| _ -> String.sub s sp (i - sp)
+	in
+	float_of_string (loop 0 0)
+
+let parse_int s =
+	let rec loop_hex i =
+		if i = String.length s then s else
+		match String.unsafe_get s i with
+		| '0'..'9' | 'a'..'f' | 'A'..'F' -> loop_hex (i + 1)
+		| _ -> String.sub s 0 i
+	in
+	let rec loop sp i =
+		if i = String.length s then (if sp = 0 then s else String.sub s sp (i - sp)) else
+		match String.unsafe_get s i with
+		| '0'..'9' -> loop sp (i + 1)
+		| ' ' when sp = i -> loop (sp + 1) (i + 1)
+		| '-' when i = 0 -> loop sp (i + 1)
+		| ('x' | 'X') when i = 1 && String.get s 0 = '0' -> loop_hex (i + 1)
+		| _ -> String.sub s sp (i - sp)
+	in
+	Int32.of_string (loop 0 0)
