@@ -120,7 +120,7 @@ let load_macro_ref : (typer -> bool -> path -> string -> pos -> (typer * ((strin
 
 let make_macro_api ctx p =
 	let parse_expr_string s p inl =
-		typing_timer ctx false (fun() -> try Parser.parse_expr_string ctx.com s p error inl with Exit -> raise MacroApi.Invalid_expr)
+		typing_timer ctx false (fun() -> try Parser.parse_expr_string ctx.com.defines s p error inl with Exit -> raise MacroApi.Invalid_expr)
 	in
 	{
 		MacroApi.pos = p;
@@ -209,7 +209,7 @@ let make_macro_api ctx p =
 		MacroApi.type_patch = (fun t f s v ->
 			typing_timer ctx false (fun() ->
 				let v = (match v with None -> None | Some s ->
-					match Parser.parse_string ctx.com ("typedef T = " ^ s) null_pos error false with
+					match Parser.parse_string ctx.com.defines ("typedef T = " ^ s) null_pos error false with
 					| _,[ETypedef { d_data = ct },_] -> Some ct
 					| _ -> assert false
 				) in
@@ -220,7 +220,7 @@ let make_macro_api ctx p =
 			);
 		);
 		MacroApi.meta_patch = (fun m t f s ->
-			let m = (match Parser.parse_string ctx.com (m ^ " typedef T = T") null_pos error false with
+			let m = (match Parser.parse_string ctx.com.defines (m ^ " typedef T = T") null_pos error false with
 				| _,[ETypedef t,_] -> t.d_meta
 				| _ -> assert false
 			) in
@@ -353,7 +353,7 @@ let make_macro_api ctx p =
 			)
 		);
 		MacroApi.add_global_metadata = (fun s1 s2 config ->
-			let meta = (match Parser.parse_string ctx.com (s2 ^ " typedef T = T") null_pos error false with
+			let meta = (match Parser.parse_string ctx.com.defines (s2 ^ " typedef T = T") null_pos error false with
 				| _,[ETypedef t,_] -> t.d_meta
 				| _ -> assert false
 			) in
@@ -489,14 +489,14 @@ let get_macro_context ctx p =
 		com2.package_rules <- PMap.empty;
 		com2.main_class <- None;
 		com2.display <- DisplayMode.create DMNone;
-		List.iter (fun p -> com2.defines <- PMap.remove (Globals.platform_name p) com2.defines) Globals.platforms;
-		com2.defines_signature <- None;
+		List.iter (fun p -> com2.defines.Define.values <- PMap.remove (Globals.platform_name p) com2.defines.Define.values) Globals.platforms;
+		com2.defines.Define.defines_signature <- None;
 		com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
 		let name = platform_name !Globals.macro_platform in
 		com2.class_path <- List.map (fun p -> p ^ name ^ "/_std/") com2.std_path @ com2.class_path;
 		let to_remove = List.map (fun d -> fst (Define.infos d)) [Define.NoTraces] in
 		let to_remove = to_remove @ List.map (fun (_,d) -> "flash" ^ d) Common.flash_versions in
-		com2.defines <- PMap.foldi (fun k v acc -> if List.mem k to_remove then acc else PMap.add k v acc) com2.defines PMap.empty;
+		com2.defines.Define.values <- PMap.foldi (fun k v acc -> if List.mem k to_remove then acc else PMap.add k v acc) com2.defines.Define.values PMap.empty;
 		Common.define com2 Define.Macro;
 		Common.init_platform com2 !Globals.macro_platform;
 		let mctx = ctx.g.do_create com2 in
@@ -757,7 +757,7 @@ let call_macro ctx path meth args p =
 let call_init_macro ctx e =
 	let p = { pfile = "--macro"; pmin = 0; pmax = 0 } in
 	let e = try
-		Parser.parse_expr_string ctx.com e p error false
+		Parser.parse_expr_string ctx.com.defines e p error false
 	with err ->
 		display_error ctx ("Could not parse `" ^ e ^ "`") p;
 		raise err

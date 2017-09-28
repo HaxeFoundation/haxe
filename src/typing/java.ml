@@ -356,7 +356,7 @@ let convert_java_enum ctx p pe =
 							String.concat "_" parts,
 							(Meta.Native, [EConst (String (cff_name) ), cff_pos], cff_pos) :: !cff_meta
 		in
-		if PMap.mem "java_loader_debug" ctx.jcom.defines then
+		if PMap.mem "java_loader_debug" ctx.jcom.defines.Define.values then
 			Printf.printf "\t%s%sfield %s : %s\n" (if List.mem AStatic !cff_access then "static " else "") (if List.mem AOverride !cff_access then "override " else "") cff_name (s_sig field.jf_signature);
 
 		{
@@ -398,7 +398,7 @@ let convert_java_enum ctx p pe =
 				[convert_java_enum ctx p jc]
 		| false ->
 			let flags = ref [HExtern] in
-			if PMap.mem "java_loader_debug" ctx.jcom.defines then begin
+			if PMap.mem "java_loader_debug" ctx.jcom.defines.Define.values then begin
 				let sup = jc.csuper :: jc.cinterfaces in
 				print_endline ("converting " ^ (if List.mem JAbstract jc.cflags then "abstract " else "") ^ JData.path_s jc.cpath ^ " : " ^ (String.concat ", " (List.map s_sig sup)));
 			end;
@@ -1144,7 +1144,7 @@ let add_java_lib com file std =
 
 let before_generate con =
 	let java_ver = try
-			int_of_string (PMap.find "java_ver" con.defines)
+			int_of_string (PMap.find "java_ver" con.defines.Define.values)
 		with | Not_found ->
 			Common.define_value con Define.JavaVer "7";
 			7

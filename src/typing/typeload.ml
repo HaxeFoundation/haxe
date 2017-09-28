@@ -80,7 +80,7 @@ let make_module ctx mpath file loadp =
 		m_id = alloc_mid();
 		m_path = mpath;
 		m_types = [];
-		m_extra = module_extra (Path.unique_full_path file) (Common.get_signature ctx.com) (file_time file) (if ctx.in_macro then MMacro else MCode) (get_policy ctx mpath);
+		m_extra = module_extra (Path.unique_full_path file) (Define.get_signature ctx.com.defines) (file_time file) (if ctx.in_macro then MMacro else MCode) (get_policy ctx mpath);
 	} in
 	m
 
@@ -244,7 +244,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	Lexer.init file true;
 	incr stats.s_files_parsed;
 	let data = try
-		Parser.parse com lexbuf
+		Parser.parse com.defines lexbuf
 	with
 		| Sedlexing.MalFormed ->
 			t();
@@ -1711,7 +1711,7 @@ let load_core_class ctx c =
 	let ctx2 = (match ctx.g.core_api with
 		| None ->
 			let com2 = Common.clone ctx.com in
-			com2.defines <- PMap.empty;
+			com2.defines.Define.values <- PMap.empty;
 			Common.define com2 Define.CoreApi;
 			Common.define com2 Define.Sys;
 			if ctx.in_macro then Common.define com2 Define.Macro;
@@ -2843,7 +2843,7 @@ module ClassInitializer = struct
 							| EBinop ((OpEq|OpNotEq|OpGt|OpGte|OpLt|OpLte) as op,(EConst (Ident s),_),(EConst ((Int _ | Float _ | String _) as c),_)) -> s ^ s_binop op ^ s_constant c
 							| _ -> ""
 						in
-						if not (Parser.is_true (Parser.eval ctx.com e)) then
+						if not (Parser.is_true (Parser.eval ctx.com.defines e)) then
 							Some (sc,(match List.rev l with (EConst (String msg),_) :: _ -> Some msg | _ -> None))
 						else
 							loop l

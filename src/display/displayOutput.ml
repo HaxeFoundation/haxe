@@ -786,7 +786,7 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 		let symbols = match CompilationServer.get() with
 			| None -> symbols
 			| Some cs ->
-				let l = CompilationServer.get_context_files cs ((get_signature com) :: (match com.get_macros() with None -> [] | Some com -> [get_signature com])) in
+				let l = CompilationServer.get_context_files cs ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
 				List.fold_left (fun acc (file,data) ->
 					print_endline (Printf.sprintf "%s %b" file (is_display_file file));
 					if (filter <> None || is_display_file file) then

@@ -1802,7 +1802,7 @@ let alloc_ctx com =
         found_expose = false;
         lua_jit = Common.defined com Define.LuaJit;
         lua_ver = try
-                float_of_string (PMap.find "lua_ver" com.defines)
+                float_of_string (PMap.find "lua_ver" com.defines.Define.values)
             with | Not_found -> 5.2;
     } in
     ctx.type_accessor <- (fun t ->

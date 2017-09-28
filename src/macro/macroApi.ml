@@ -1535,7 +1535,7 @@ let macro_api ccom get_api =
 			try encode_string (Common.raw_defined_value (ccom()) (decode_string s)) with Not_found -> vnull
 		);
 		"get_defines", vfun0 (fun() ->
-			encode_string_map encode_string (ccom()).defines
+			encode_string_map encode_string (ccom()).defines.Define.values
 		);
 		"get_type", vfun1 (fun s ->
 			let tname = decode_string s in

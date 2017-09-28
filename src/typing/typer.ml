@@ -2868,7 +2868,7 @@ and format_string ctx s p =
 		if warn_escape then warn (pos + 1) slen;
 		min := !min + 2;
 		if slen > 0 then
-			add_expr (Parser.parse_expr_string ctx.com scode { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } error true) slen;
+			add_expr (Parser.parse_expr_string ctx.com.defines scode { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } error true) slen;
 		min := !min + 1;
 		parse (send + 1) (send + 1)
 	in

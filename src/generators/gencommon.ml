@@ -871,7 +871,7 @@ let dump_descriptor gen name path_s module_s =
 	PMap.iter (fun name _ ->
 		SourceWriter.write w name;
 		SourceWriter.newline w
-	) gen.gcon.defines;
+	) gen.gcon.defines.Define.values;
 	SourceWriter.write w "end defines";
 	SourceWriter.newline w;
 	(* dump all defines with their values; keeping the old defines for compatibility *)
@@ -882,7 +882,7 @@ let dump_descriptor gen name path_s module_s =
 		SourceWriter.write w "=";
 		SourceWriter.write w v;
 		SourceWriter.newline w
-	) gen.gcon.defines;
+	) gen.gcon.defines.Define.values;
 	SourceWriter.write w "end defines_data";
 	SourceWriter.newline w;
 	(* dump all generated types *)
