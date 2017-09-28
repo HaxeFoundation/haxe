@@ -683,6 +683,10 @@ let clone com =
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
 		};
+		defines = {
+			values = com.defines.values;
+			defines_signature = com.defines.defines_signature;
+		}
 	}
 
 let file_time file = Extc.filetime file
