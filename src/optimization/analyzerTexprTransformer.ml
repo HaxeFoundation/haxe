@@ -665,8 +665,7 @@ let from_tfunction ctx tf t p =
 	let bb_func,bb_exit = func ctx g.g_root tf t p in
 	ctx.entry <- bb_func;
 	close_node g g.g_root;
-	g.g_exit <- bb_exit;
-	set_syntax_edge bb_exit SEEnd
+	g.g_exit <- bb_exit
 
 let rec block_to_texpr_el ctx bb =
 	if bb.bb_dominator == ctx.graph.g_unreachable then
@@ -680,7 +679,7 @@ let rec block_to_texpr_el ctx bb =
 				Some bb_next,(block bb_sub) :: el
 			| el,SEMerge bb_next ->
 				Some bb_next,el
-			| el,(SEEnd | SENone) ->
+			| el,SENone ->
 				None,el
 			| {eexpr = TWhile(e1,_,flag)} as e :: el,(SEWhile(_,bb_body,bb_next)) ->
 				let e2 = block bb_body in

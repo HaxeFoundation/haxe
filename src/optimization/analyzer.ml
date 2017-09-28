@@ -759,8 +759,6 @@ module Debug = struct
 			edge bb_try "try";
 			List.iter (fun (_,bb_catch) -> edge bb_catch "catch") bbl;
 			edge bb_next "next";
-		| SEEnd ->
-			()
 		| SENone ->
 			()
 
