@@ -318,7 +318,7 @@ let convert_ilfield ctx p field =
 		| CInitOnly | CLiteral -> true, acc
 		| _ -> readonly,acc
 	) (false,[cff_access]) field.fflags.ff_contract in
-	if PMap.mem "net_loader_debug" ctx.ncom.defines then
+	if PMap.mem "net_loader_debug" ctx.ncom.defines.Define.values then
 		Printf.printf "\t%sfield %s : %s\n" (if List.mem AStatic acc then "static " else "") cff_name (IlMetaDebug.ilsig_s field.fsig.ssig);
 	let kind = match readonly with
 		| true ->
@@ -358,7 +358,7 @@ let convert_ilevent ctx p ev =
 			else
 				acc
 	in
-	if PMap.mem "net_loader_debug" ctx.ncom.defines then
+	if PMap.mem "net_loader_debug" ctx.ncom.defines.Define.values then
 		Printf.printf "\tevent %s : %s\n" name (IlMetaDebug.ilsig_s ev.esig.ssig);
 	let acc = add_m acc ev.eadd in
 	let acc = add_m acc ev.eremove in
@@ -397,7 +397,7 @@ let convert_ilmethod ctx p m is_explicit_impl =
 			APrivate, meta
 		| FAPublic -> APublic, meta
 		| _ ->
-			if PMap.mem "net_loader_debug" ctx.ncom.defines then
+			if PMap.mem "net_loader_debug" ctx.ncom.defines.Define.values then
 				Printf.printf "\tmethod %s (skipped) : %s\n" cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
 			raise Exit
 	in
@@ -408,7 +408,7 @@ let convert_ilmethod ctx p m is_explicit_impl =
 		| CMFinal -> acc, Some true
 		| _ -> acc, is_final
 	) ([acc],None) m.mflags.mf_contract in
-	if PMap.mem "net_loader_debug" ctx.ncom.defines then
+	if PMap.mem "net_loader_debug" ctx.ncom.defines.Define.values then
 		Printf.printf "\t%smethod %s : %s\n" (if !is_static then "static " else "") cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
 
 	let meta = match is_final with
@@ -546,7 +546,7 @@ let convert_ilprop ctx p prop is_explicit_impl =
 			| _ -> "never");
 		| Some _ -> "set"
 	in
-	if PMap.mem "net_loader_debug" ctx.ncom.defines then
+	if PMap.mem "net_loader_debug" ctx.ncom.defines.Define.values then
 		Printf.printf "\tproperty %s (%s,%s) : %s\n" prop.pname get set (IlMetaDebug.ilsig_s prop.psig.ssig);
 	let ilsig = match prop.psig.snorm with
 		| LMethod (_,ret,[]) -> ret
@@ -712,7 +712,7 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 	| _ ->
 		let flags = ref [HExtern] in
 		(* todo: instead of CsNative, use more specific definitions *)
-		if PMap.mem "net_loader_debug" ctx.ncom.defines then begin
+		if PMap.mem "net_loader_debug" ctx.ncom.defines.Define.values then begin
 			let sup = match ilcls.csuper with | None -> [] | Some c -> [IlMetaDebug.ilsig_s c.ssig] in
 			let sup = sup @ List.map (fun i -> IlMetaDebug.ilsig_s i.ssig) ilcls.cimplements in
 			print_endline ("converting " ^ ilpath_s ilcls.cpath ^ " : " ^ (String.concat ", " sup))
@@ -1124,20 +1124,20 @@ let add_net_lib com file std =
 					failwith (".NET lib " ^ file ^ " not found")
 			in
 			real_file := file;
-			let r = PeReader.create_r (open_in_bin file) com.defines in
+			let r = PeReader.create_r (open_in_bin file) com.defines.Define.values in
 			let ctx = PeReader.read r in
 			let clr_header = PeReader.read_clr_header ctx in
 			let cache = IlMetaReader.create_cache () in
 			let meta = IlMetaReader.read_meta_tables ctx clr_header cache in
 			close_in (r.PeReader.ch);
-			if PMap.mem "net_loader_debug" com.defines then
+			if PMap.mem "net_loader_debug" com.defines.Define.values then
 				print_endline ("for lib " ^ file);
 			let il_typedefs = Hashtbl.copy meta.il_typedefs in
 			Hashtbl.clear meta.il_typedefs;
 
 			Hashtbl.iter (fun _ td ->
 				let path = IlMetaTools.get_path (TypeDef td) in
-				if PMap.mem "net_loader_debug" com.defines then
+				if PMap.mem "net_loader_debug" com.defines.Define.values then
 					Printf.printf "found %s\n" (s_type_path (netpath_to_hx path));
 				Hashtbl.replace com.net_path_map (netpath_to_hx path) path;
 				Hashtbl.replace meta.il_typedefs path td
@@ -1174,7 +1174,7 @@ let add_net_lib com file std =
 		let pack = match fst path with | ["haxe";"root"] -> [] | p -> p in
 		let cp = ref [] in
 		let rec build path = try
-			if PMap.mem "net_loader_debug" com.defines then
+			if PMap.mem "net_loader_debug" com.defines.Define.values then
 				Printf.printf "looking up %s\n" (s_type_path path);
 			match lookup path with
 			| Some({csuper = Some{snorm = LClass( (["System"],[],("Delegate"|"MulticastDelegate")),_)}} as cls)
@@ -1214,7 +1214,7 @@ let add_net_lib com file std =
 let before_generate com =
 	(* net version *)
 	let net_ver = try
-			int_of_string (PMap.find "net_ver" com.defines)
+			int_of_string (PMap.find "net_ver" com.defines.Define.values)
 		with | Not_found ->
 			Common.define_value com Define.NetVer "20";
 			20
@@ -1235,7 +1235,7 @@ let before_generate com =
 
 	(* net target *)
 	let net_target = try
-			String.lowercase (PMap.find "net_target" com.defines)
+			String.lowercase (PMap.find "net_target" com.defines.Define.values)
 		with | Not_found ->
 			"net"
 	in

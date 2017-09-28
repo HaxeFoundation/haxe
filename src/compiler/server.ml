@@ -193,7 +193,7 @@ let rec wait_loop process_params verbose accept =
 	let test_server_messages = DynArray.create () in
 	let cs = CompilationServer.create () in
 	let sign_string com =
-		let sign = get_signature com in
+		let sign = Define.get_signature com.defines in
 		let	sign_id =
 			try
 				CompilationServer.get_sign cs sign;
@@ -245,7 +245,7 @@ let rec wait_loop process_params verbose accept =
 		| true, Some stdin when Common.defined com2 Define.DisplayStdin ->
 			Typeload.parse_file_from_string com2 file p stdin
 		| _ ->
-			let sign = get_signature com2 in
+			let sign = Define.get_signature com2.defines in
 			let ftime = file_time ffile in
 			let fkey = (ffile,sign) in
 			try
@@ -291,7 +291,7 @@ let rec wait_loop process_params verbose accept =
 	let get_changed_directories (ctx : Typecore.typer) =
 		let t = Common.timer ["server";"module cache";"changed dirs"] in
 		let com = ctx.Typecore.com in
-		let sign = get_signature com in
+		let sign = Define.get_signature com.defines in
 		let dirs = try
 			(* First, check if we already have determined changed directories for current compilation. *)
 			Hashtbl.find changed_directories sign
@@ -357,7 +357,7 @@ let rec wait_loop process_params verbose accept =
 	Typeload.type_module_hook := (fun (ctx:Typecore.typer) mpath p ->
 		let t = Common.timer ["server";"module cache"] in
 		let com2 = ctx.Typecore.com in
-		let sign = get_signature com2 in
+		let sign = Define.get_signature com2.defines in
 		let content_changed m file =
 			let ffile = Path.unique_full_path file in
 			let fkey = (ffile,sign) in
@@ -527,9 +527,9 @@ let rec wait_loop process_params verbose accept =
 				end else cache_context ctx.com;
 			);
 			ctx.setup <- (fun() ->
-				let sign = get_signature ctx.com in
+				let sign = Define.get_signature ctx.com.defines in
 				if verbose then begin
-					let defines = PMap.foldi (fun k v acc -> (k ^ "=" ^ v) :: acc) ctx.com.defines [] in
+					let defines = PMap.foldi (fun k v acc -> (k ^ "=" ^ v) :: acc) ctx.com.defines.Define.values [] in
 					print_endline ("Defines " ^ (String.concat "," (List.sort compare defines)));
 					print_endline ("Using signature " ^ Digest.to_hex sign);
 					print_endline ("Display position: " ^ (Printer.s_pos !Parser.resume_display));

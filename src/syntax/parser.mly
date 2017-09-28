@@ -1704,7 +1704,7 @@ let cmp v1 v2 =
 let rec eval ctx (e,p) =
 	match e with
 	| EConst (Ident i) ->
-		(try TString (Common.raw_defined_value ctx i) with Not_found -> TNull)
+		(try TString (Define.raw_defined_value ctx i) with Not_found -> TNull)
 	| EConst (String s) -> TString s
 	| EConst (Int i) -> TFloat (float_of_string i)
 	| EConst (Float f) -> TFloat (float_of_string f)
@@ -1736,7 +1736,7 @@ let parse ctx code =
 	let mstack = ref [] in
 	cache := DynArray.create();
 	last_doc := None;
-	in_macro := Common.defined ctx Common.Define.Macro;
+	in_macro := Define.defined ctx Define.Macro;
 	Lexer.skip_header code;
 
 	let sraw = Stream.from (fun _ -> Some (Lexer.token code)) in
