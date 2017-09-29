@@ -546,23 +546,23 @@ and jit_expr jit return e =
 		| TField(ef,fa) ->
 			let name = hash_s (field_name fa) in
 			let execs = List.map (jit_expr jit false) el in
-			let is_overridden c s_name =
+			(* let is_overridden c s_name =
 				try
 					Hashtbl.find ctx.overrides (c.cl_path,s_name)
 				with Not_found ->
 					false
-			in
+			in *)
 			let is_proper_method cf = match cf.cf_kind with
 				| Method MethDynamic -> false
 				| Method _ -> true
 				| Var _ -> false
 			in
-			let instance_call c =
+			(* let instance_call c =
 				let exec = jit_expr jit false ef in
 				let proto = get_instance_prototype ctx (path_hash c.cl_path) ef.epos in
 				let i = get_proto_field_index proto name in
 				emit_proto_field_call proto i (exec :: execs) e.epos
-			in
+			in *)
 			let default () =
 				let exec = jit_expr jit false ef in
 				emit_method_call exec name execs e.epos
@@ -590,7 +590,8 @@ and jit_expr jit return e =
 					let i = get_proto_field_index proto name in
 					emit_proto_field_call proto i execs e.epos
 				| FInstance(c,_,cf) when is_proper_method cf ->
-					if is_overridden c cf.cf_name then
+					default();
+					(* if is_overridden c cf.cf_name then
 						default()
 					else if not c.cl_interface then
 						instance_call c
@@ -600,7 +601,7 @@ and jit_expr jit return e =
 						| _ ->
 							default()
 					end else
-						default()
+						default() *)
 				| _ ->
 					let exec = jit_expr jit false ef in
 					emit_field_call exec name execs e.epos
