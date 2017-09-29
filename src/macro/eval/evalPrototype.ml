@@ -160,7 +160,9 @@ module PrototypeBuilder = struct
 			ctx.static_prototypes <- IntMap.add pctx.key proto ctx.static_prototypes
 		else begin
 			ctx.instance_prototypes <- IntMap.add pctx.key proto ctx.instance_prototypes;
-			if pctx.key = key_String then ctx.string_prototype <- proto;
+			if pctx.key = key_String then ctx.string_prototype <- proto
+			else if pctx.key = key_Array then ctx.array_prototype <- proto
+			else if pctx.key = key_eval_Vector then ctx.vector_prototype <- proto
 		end;
 		proto,f
 end
