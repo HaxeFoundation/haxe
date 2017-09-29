@@ -821,7 +821,9 @@ let flatten_method ctx m =
 	let mid = lookup_method ctx m in
 	(match m.hlmt_function with
 	| None -> ()
-	| Some f -> ctx.ffunctions <- flatten_function ctx f mid :: ctx.ffunctions);
+	| Some f ->
+		let x = flatten_function ctx f mid in
+		ctx.ffunctions <- x :: ctx.ffunctions);
 	{
 		mt3_ret = opt lookup_name ctx m.hlmt_ret;
 		mt3_args = List.map (opt lookup_name ctx) m.hlmt_args;
