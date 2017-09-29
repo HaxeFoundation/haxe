@@ -30,7 +30,11 @@ STATICLINK?=0
 
 HAXE_DIRECTORIES=core syntax context codegen codegen/gencommon generators optimization filters macro macro/eval typing compiler
 EXTLIB_LIBS=extlib-leftovers extc neko javalib swflib ttflib ilib objsize pcre ziplib
-FINDLIB_LIBS=unix str threads sedlex xml-light extlib rope ptmap dynlink
+OCAML_LIBS=unix str threads dynlink
+OPAM_LIBS=sedlex xml-light extlib rope ptmap
+
+FINDLIB_LIBS=$(OCAML_LIBS)
+FINDLIB_LIBS+=$(OPAM_LIBS)
 
 # Includes, packages and compiler
 
@@ -197,6 +201,9 @@ uninstall:
 	else \
 		rm -rf $(INSTALL_LIB_DIR); \
 	fi
+
+opam_install:
+	opam install $(OPAM_LIBS) camlp4 ocamlfind --yes
 
 # Dependencies
 
