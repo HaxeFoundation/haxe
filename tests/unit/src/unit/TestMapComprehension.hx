@@ -6,7 +6,6 @@ class TestMapComprehension extends unit.Test {
 		mapEq([for (i in 0...2) (i => i)], [0 => 0, 1 => 1]);
 		mapEq([for (i in 0...2) cast i => i], [0 => 0, 1 => 1]);
 		mapEq([for (i in 0...2) untyped i => i], [0 => 0, 1 => 1]);
-		mapEq([for (i in 0...2) (i => i : Void)], [0 => 0, 1 => 1]);
 		mapEq([for (i in 0...2) if (i == 1) i => i], [1 => 1]);
 		mapEq([for (i in 0...2) if (i == 0) i => i else i => i * 2], [0 => 0, 1 => 2]);
 		mapEq([for (i in 0...2) (i == 0) ? i => i : i => i * 2], [0 => 0, 1 => 2]);

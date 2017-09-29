@@ -3465,10 +3465,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				EDisplay(map_compr e1,b),p
 			| EMeta(m,e1) ->
 				EMeta(m,map_compr e1),p
-			| ECheckType(e1,ct) ->
-				ECheckType(map_compr e1,ct),p
 			| EConst _ | EArray _ | EBinop _ | EField _ | EObjectDecl _ | EArrayDecl _
-			| ECall _ | ENew _ | EUnop _ | EVars _ | EFunction _ | EDisplayNew _ ->
+			| ECall _ | ENew _ | EUnop _ | EVars _ | EFunction _ | EDisplayNew _ | EMeta _ | ECheckType _ ->
 				et := (EArrayDecl [],p);
 				(ECall ((EField ((EConst (Ident v.v_name),p),"push"),p),[(e,p)]),p)
 		in
