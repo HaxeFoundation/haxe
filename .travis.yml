@@ -15,16 +15,16 @@ install:
       sudo apt-get install ocaml zlib1g-dev -qqy;
       wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin system;
       export OPAMYES=1;
-      opam install extlib ocamlfind;
       eval `opam config env`;
+      opam install extlib ocamlfind;
     fi
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
       travis_retry brew update;
       travis_retry brew install opam;
       export OPAMYES=1;
       opam init;
-      opam install extlib ocamlfind;
       eval `opam config env`;
+      opam install extlib ocamlfind;
     fi
 
 script:
