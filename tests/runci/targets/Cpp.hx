@@ -53,13 +53,14 @@ class Cpp {
 				runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M64"].concat(args));
 				runCpp("bin/cpp/TestMain-debug", []);
 
-				runCommand("haxe", ["compile-cppia-host.hxml"]);
-				runCommand("haxe", ["compile-cppia.hxml"]);
-				runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
-				runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
-				runCommand("haxe", ["compile-cppia.hxml", "-D", "nocppiaast"]);
-				runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
-				runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
+				// https://github.com/HaxeFoundation/hxcpp/issues/646
+				// runCommand("haxe", ["compile-cppia-host.hxml"]);
+				// runCommand("haxe", ["compile-cppia.hxml"]);
+				// runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
+				// runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
+				// runCommand("haxe", ["compile-cppia.hxml", "-D", "nocppiaast"]);
+				// runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
+				// runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
 		}
 
 		changeDirectory(sysDir);
