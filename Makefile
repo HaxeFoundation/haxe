@@ -59,7 +59,17 @@ else
 	OCAMLDEP_FLAGS = -native
 endif
 
+ifeq (${FD_OUTPUT}, 1)
+FILTER=sed -e 's/_build\/src\//src\//' tmp.cmi
+endif
+
 CC_CMD = $(COMPILER) $(ALL_CFLAGS) -c $<
+
+ifdef FILTER
+CC_CMD=($(COMPILER) $(ALL_CFLAGS) -c $< 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
+CC_PARSER_CMD=($(COMPILER) -pp camlp4o $(ALL_CFLAGS) -c src/syntax/parser.ml 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
+endif
+
 
 # Meta information
 
