@@ -2052,11 +2052,11 @@ and eval_expr ctx e =
 		unsafe_cast_to ctx r (to_type ctx e.etype) e.epos
 	| TObjectDecl fl ->
 		(match to_type ctx e.etype with
-		| HVirtual vp as t when Array.length vp.vfields = List.length fl && not (List.exists (fun (s,e) -> s = "toString" && is_to_string e.etype) fl)  ->
+		| HVirtual vp as t when Array.length vp.vfields = List.length fl && not (List.exists (fun ((s,_,_),e) -> s = "toString" && is_to_string e.etype) fl)  ->
 			let r = alloc_tmp ctx t in
 			op ctx (ONew r);
 			hold ctx r;
-			List.iter (fun (s,ev) ->
+			List.iter (fun ((s,_,_),ev) ->
 				let fidx = (try PMap.find s vp.vindex with Not_found -> assert false) in
 				let _, _, ft = vp.vfields.(fidx) in
 				let v = eval_to ctx ev ft in
@@ -2069,7 +2069,7 @@ and eval_expr ctx e =
 			op ctx (ONew r);
 			hold ctx r;
 			let a = (match follow e.etype with TAnon a -> Some a | t -> if t == t_dynamic then None else assert false) in
-			List.iter (fun (s,ev) ->
+			List.iter (fun ((s,_,_),ev) ->
 				let ft = (try (match a with None -> raise Not_found | Some a -> PMap.find s a.a_fields).cf_type with Not_found -> ev.etype) in
 				let v = eval_to ctx ev (to_type ctx ft) in
 				op ctx (ODynSet (r,alloc_string ctx s,v));

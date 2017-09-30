@@ -63,30 +63,6 @@ let decl_flag_to_abstract_flag = function
 
 let special_identifier_files = Hashtbl.create 0
 
-let quoted_ident_prefix = "@$__hx__"
-
-let quote_ident s =
-	quoted_ident_prefix ^ s
-
-let unquote_ident f =
-	let pf = quoted_ident_prefix in
-	let pflen = String.length pf in
-	let is_quoted = String.length f >= pflen && String.sub f 0 pflen = pf in
-	let s = if is_quoted then String.sub f pflen (String.length f - pflen) else f in
-	let is_valid = not is_quoted || try
-		for i = 0 to String.length s - 1 do
-			match String.unsafe_get s i with
-			| 'a'..'z' | 'A'..'Z' | '_' -> ()
-			| '0'..'9' when i > 0 -> ()
-			| _ -> raise Exit
-		done;
-		if Hashtbl.mem Lexer.keywords s then raise Exit;
-		true
-	with Exit ->
-		false
-	in
-	s,is_quoted,is_valid
-
 let cache = ref (DynArray.create())
 let last_doc = ref None
 let use_doc = ref false
@@ -254,7 +230,7 @@ let reify in_macro =
 		(EConst (Ident (if o then "true" else "false")),p)
 	in
 	let to_obj fields p =
-		(EObjectDecl (List.map (fun (s,e) -> (s,null_pos),e) fields),p)
+		(EObjectDecl (List.map (fun (s,e) -> (s,null_pos,NoQuotes),e) fields),p)
 	in
 	let rec to_tparam t p =
 		let n, v = (match t with
@@ -406,7 +382,14 @@ let reify in_macro =
 		| EParenthesis e ->
 			expr "EParenthesis" [loop e]
 		| EObjectDecl fl ->
-			expr "EObjectDecl" [to_array (fun ((f,_),e) -> to_obj [("field",to_string f p);("expr",loop e)]) fl p]
+			let quote_kind kk p =
+				let n = match kk with
+					| NoQuotes -> "NoQuotes"
+					| DoubleQuotes -> "DoubleQuotes"
+				in
+				mk_enum "QuoteStatus" n [] p
+			in
+			expr "EObjectDecl" [to_array (fun ((f,pn,kk),e) -> to_obj [("field",to_string f p);("expr",loop e);("quotes",quote_kind kk pn)]) fl p]
 		| EArrayDecl el ->
 			expr "EArrayDecl" [to_expr_array el p]
 		| ECall (e,el) ->
@@ -1192,8 +1175,8 @@ and parse_class_herit = parser
 	| [< '(Kwd Implements,p1); t = parse_type_path_or_resume p1 >] -> HImplements t
 
 and block1 = parser
-	| [< name,p = dollar_ident; s >] -> block2 (name,p) (Ident name) p s
-	| [< '(Const (String name),p); s >] -> block2 (quote_ident name,p) (String name) p s
+	| [< name,p = dollar_ident; s >] -> block2 (name,p,NoQuotes) (Ident name) p s
+	| [< '(Const (String name),p); s >] -> block2 (name,p,DoubleQuotes) (String name) p s
 	| [< b = block [] >] -> EBlock b
 
 and block2 name ident p s =
@@ -1238,8 +1221,8 @@ and parse_block_elt = parser
 and parse_obj_decl = parser
 	| [< '(Comma,_); s >] ->
 		(match s with parser
-		| [< name,p = ident; '(DblDot,_); e = expr; l = parse_obj_decl >] -> ((name,p),e) :: l
-		| [< '(Const (String name),p); '(DblDot,_); e = expr; l = parse_obj_decl >] -> ((quote_ident name,p),e) :: l
+		| [< name,p = ident; '(DblDot,_); e = expr; l = parse_obj_decl >] -> ((name,p,NoQuotes),e) :: l
+		| [< '(Const (String name),p); '(DblDot,_); e = expr; l = parse_obj_decl >] -> ((name,p,DoubleQuotes),e) :: l
 		| [< >] -> [])
 	| [< >] -> []
 

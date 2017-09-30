@@ -3006,14 +3006,14 @@ let retype_expression ctx request_type function_args function_type expression_tr
             CppBlock(cppExprs, List.rev !local_closures, !gc_stack ), TCppVoid
 
          | TObjectDecl (
-            ("fileName" , { eexpr = (TConst (TString file)) }) ::
-               ("lineNumber" , { eexpr = (TConst (TInt line)) }) ::
-                  ("className" , { eexpr = (TConst (TString class_name)) }) ::
-                     ("methodName", { eexpr = (TConst (TString meth)) }) :: [] ) ->
+            (("fileName",_,_) , { eexpr = (TConst (TString file)) }) ::
+               (("lineNumber",_,_) , { eexpr = (TConst (TInt line)) }) ::
+                  (("className",_,_) , { eexpr = (TConst (TString class_name)) }) ::
+                     (("methodName",_,_), { eexpr = (TConst (TString meth)) }) :: [] ) ->
               CppPosition(file,line,class_name,meth), TCppDynamic
 
          | TObjectDecl el ->
-            let retypedEls = List.map ( fun(v,e) -> v, retype TCppDynamic e) el in
+            let retypedEls = List.map ( fun((v,_,_),e) -> v, retype TCppDynamic e) el in
             (match return_type with
             | TCppVoid -> CppObjectDecl(retypedEls,false), TCppVoid
             | _ -> CppObjectDecl(retypedEls,false), TCppDynamic
@@ -7533,16 +7533,16 @@ class script_writer ctx filename asciiOut =
               this#checkCast return_type value false false;
          )
    | TObjectDecl (
-      ("fileName" , { eexpr = (TConst (TString file)) }) ::
-         ("lineNumber" , { eexpr = (TConst (TInt line)) }) ::
-            ("className" , { eexpr = (TConst (TString class_name)) }) ::
-               ("methodName", { eexpr = (TConst (TString meth)) }) :: [] ) ->
+      (("fileName",_,_) , { eexpr = (TConst (TString file)) }) ::
+         (("lineNumber",_,_) , { eexpr = (TConst (TInt line)) }) ::
+            (("className",_,_) , { eexpr = (TConst (TString class_name)) }) ::
+               (("methodName",_,_), { eexpr = (TConst (TString meth)) }) :: [] ) ->
             this#write ( (this#op IaPosInfo) ^ (this#stringText file) ^ (Printf.sprintf "%ld" line) ^ " " ^
                         (this#stringText class_name) ^ " " ^  (this#stringText meth))
 
    | TObjectDecl values ->this#write ( (this#op IaObjDef) ^ (string_of_int (List.length values)));
          this#write " ";
-         List.iter (fun (name,_) -> this#write (this#stringText name)  ) values;
+         List.iter (fun ((name,_,_),_) -> this#write (this#stringText name)  ) values;
          this#write "\n";
          List.iter (fun (_,e) -> this#gen_expression e ) values;
    | TTypeExpr type_expr ->

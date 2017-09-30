@@ -1314,7 +1314,7 @@ module Printer = struct
 				begin match follow e.etype with
 					| TAnon an ->
 						PMap.iter (fun s cf ->
-							if not (List.mem_assoc s fl) then fl2 := (s,null cf.cf_type cf.cf_pos) :: !fl2
+							if not (Expr.field_mem_assoc s fl) then fl2 := ((s,null_pos,NoQuotes),null cf.cf_type cf.cf_pos) :: !fl2
 						) an.a_fields
 					| _ ->
 						()
@@ -1683,10 +1683,10 @@ module Printer = struct
 			print_exprs pctx sep el
 
 	and print_exprs_named pctx sep fl =
-		let args = String.concat sep (List.map (fun (s,e) -> Printf.sprintf "'%s': %s" (Ast.s_escape (handle_keywords s)) (print_expr pctx e)) fl) in
+		let args = String.concat sep (List.map (fun ((s,_,_),e) -> Printf.sprintf "'%s': %s" (Ast.s_escape (handle_keywords s)) (print_expr pctx e)) fl) in
 		Printf.sprintf "{%s}" args
 	and print_params_named pctx sep fl =
-		let args = String.concat sep (List.map (fun (s,e) -> Printf.sprintf "%s= %s" (handle_keywords s) (print_expr pctx e)) fl) in
+		let args = String.concat sep (List.map (fun ((s,_,_),e) -> Printf.sprintf "%s= %s" (handle_keywords s) (print_expr pctx e)) fl) in
 		Printf.sprintf "%s" args
 	let handle_keywords s =
 		KeywordHandler.handle_keywords s

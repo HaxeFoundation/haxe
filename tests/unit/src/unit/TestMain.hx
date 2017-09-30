@@ -94,6 +94,7 @@ class TestMain {
 			new TestDCE(),
 			#end
 			new TestMapComprehension(),
+			new TestMacro(),
 			// #if ( (java || neko) && !macro && !interp)
 			// new TestThreads(),
 			// #end

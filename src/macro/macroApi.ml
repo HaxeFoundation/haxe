@@ -75,6 +75,7 @@ type enum_type =
 	| IModuleType
 	| IFieldAccess
 	| IAnonStatus
+	| IQuoteStatus
 	| IImportMode
 
 type obj_type =
@@ -213,6 +214,7 @@ let enum_name = function
 	| IFieldAccess -> "FieldAccess"
 	| IAnonStatus -> "AnonStatus"
 	| IImportMode -> "ImportMode"
+	| IQuoteStatus -> "QuoteStatus"
 
 let proto_name = function
 	| O__Const -> assert false
@@ -474,9 +476,10 @@ and encode_expr e =
 			| EParenthesis e ->
 				4, [loop e]
 			| EObjectDecl fl ->
-				5, [encode_array (List.map (fun ((f,p),e) -> encode_obj OExprDef_fields [
+				5, [encode_array (List.map (fun ((f,p,qs),e) -> encode_obj OExprDef_fields [
 					"field",encode_string f;
 					"name_pos",encode_pos p;
+					"quotes",encode_enum IQuoteStatus (match qs with NoQuotes -> 0 | DoubleQuotes -> 1) [];
 					"expr",loop e;
 				]) fl)]
 			| EArrayDecl el ->
@@ -750,7 +753,15 @@ and decode_expr v =
 			EParenthesis (loop e)
 		| 5, [a] ->
 			EObjectDecl (List.map (fun o ->
-				(decode_placed_name (field o "name_pos") (field o "field")),loop (field o "expr")
+				let name,p = decode_placed_name (field o "name_pos") (field o "field") in
+				let vquotes = field o "quotes" in
+				let quotes = if vquotes = vnull then NoQuotes
+				else match decode_enum vquotes with
+					| 0,[] -> NoQuotes
+					| 1,[] -> DoubleQuotes
+					| _ -> raise Invalid_expr
+				in
+				(name,p,quotes),loop (field o "expr")
 			) (decode_array a))
 		| 6, [a] ->
 			EArrayDecl (List.map loop (decode_array a))
@@ -1191,7 +1202,7 @@ and encode_texpr e =
 			| TField(e1,fa) -> 4,[loop e1;encode_field_access fa]
 			| TTypeExpr mt -> 5,[encode_module_type mt]
 			| TParenthesis e1 -> 6,[loop e1]
-			| TObjectDecl fl -> 7, [encode_array (List.map (fun (f,e) ->
+			| TObjectDecl fl -> 7, [encode_array (List.map (fun ((f,_,_),e) ->
 				encode_obj OTypedExprDef_fields [
 					"name",encode_string f;
 					"expr",loop e;
@@ -1355,7 +1366,7 @@ and decode_texpr v =
 		| 4, [v1;fa] -> TField(loop v1,decode_field_access fa)
 		| 5, [mt] -> TTypeExpr(decode_module_type mt)
 		| 6, [v1] -> TParenthesis(loop v1)
-		| 7, [v] -> TObjectDecl(List.map (fun v -> decode_string (field v "name"),loop (field v "expr")) (decode_array v))
+		| 7, [v] -> TObjectDecl(List.map (fun v -> (decode_string (field v "name"),Globals.null_pos,NoQuotes),loop (field v "expr")) (decode_array v))
 		| 8, [vl] -> TArrayDecl(List.map loop (decode_array vl))
 		| 9, [v1;vl] -> TCall(loop v1,List.map loop (decode_array vl))
 		| 10, [c;tl;vl] -> TNew(decode_ref c,List.map decode_type (decode_array tl),List.map loop (decode_array vl))
@@ -1477,7 +1488,7 @@ let rec make_const e =
 	| TParenthesis e | TMeta(_,e) | TCast(e,None) ->
 		make_const e
 	| TObjectDecl el ->
-		encode_obj O__Const (List.map (fun (f,e) -> f, make_const e) el)
+		encode_obj O__Const (List.map (fun ((f,_,_),e) -> f, make_const e) el)
 	| TArrayDecl al ->
 		encode_array (List.map make_const al)
 	| _ ->

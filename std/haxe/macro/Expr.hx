@@ -337,6 +337,41 @@ typedef Catch = {
 }
 
 /**
+	Represents the way something is quoted.
+**/
+enum QuoteStatus {
+	/**
+		No qutoes
+	**/
+	NoQuotes;
+
+	/**
+		Double quotes `"`
+	**/
+	DoubleQuotes;
+}
+
+/**
+	Represents the field of an object declaration.
+**/
+typedef ObjectField = {
+	/**
+		The name of the field.
+	**/
+	var field : String;
+
+	/**
+		The field expression.
+	**/
+	var expr : Expr;
+
+	/**
+		How the field name is quoted.
+	**/
+	@:optional var quotes : QuoteStatus;
+}
+
+/**
 	Represents the kind of a node in the AST.
 **/
 enum ExprDef {
@@ -368,7 +403,7 @@ enum ExprDef {
 	/**
 		An object declaration.
 	**/
-	EObjectDecl( fields : Array<{ field : String, expr : Expr }> );
+	EObjectDecl( fields : Array<ObjectField> );
 
 	/**
 		An array declaration `[el]`.

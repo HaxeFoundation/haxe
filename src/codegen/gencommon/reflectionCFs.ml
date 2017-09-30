@@ -700,7 +700,7 @@ let implement_dynamic_object_ctor ctx cl =
 	let do_objdecl e objdecl =
 		let exprs_before = ref [] in
 		let rec change_exprs decl acc = match decl with
-			| (name,expr) :: tl ->
+			| ((name,_,_),expr) :: tl ->
 				if is_side_effects_free expr then
 					change_exprs tl ((name,expr) :: acc)
 				else begin

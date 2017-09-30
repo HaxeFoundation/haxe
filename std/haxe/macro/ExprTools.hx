@@ -164,7 +164,7 @@ class ExprTools {
 			case EObjectDecl(fields):
 				var ret = [];
 				for (field in fields)
-					ret.push( { field: field.field, expr: f(field.expr) } );
+					ret.push( { field: field.field, expr: f(field.expr), quotes: field.quotes } );
 				EObjectDecl(ret);
 			case EArrayDecl(el): EArrayDecl(ExprArrayTools.map(el, f));
 			case ECall(e, params): ECall(f(e), ExprArrayTools.map(params, f));

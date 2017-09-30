@@ -436,8 +436,8 @@ let rec gen_call ctx e el in_value =
 			spr ctx "console.log(";
 			(match infos.eexpr with
 			| TObjectDecl (
-				("fileName" , { eexpr = (TConst (TString file)) }) ::
-				("lineNumber" , { eexpr = (TConst (TInt line)) }) :: _) ->
+				(("fileName",_,_) , { eexpr = (TConst (TString file)) }) ::
+				(("lineNumber",_,_) , { eexpr = (TConst (TInt line)) }) :: _) ->
 					print ctx "\"%s:%i:\"," file (Int32.to_int line)
 			| _ ->
 				());
@@ -654,9 +654,9 @@ and gen_expr ctx e =
 		ctx.in_loop <- old_in_loop
 	| TObjectDecl fields ->
 		spr ctx "{ ";
-		concat ctx ", " (fun (f,e) -> (match e.eexpr with
-			| TMeta((Meta.QuotedField,_,_),e) -> print ctx "\"%s\" : " (Ast.s_escape f);
-			| _ -> print ctx "%s : " (anon_field f));
+		concat ctx ", " (fun ((f,_,qs),e) -> (match qs with
+			| DoubleQuotes -> print ctx "\"%s\" : " (Ast.s_escape f);
+			| NoQuotes -> print ctx "%s : " (anon_field f));
 			gen_value ctx e
 		) fields;
 		spr ctx "}";

@@ -430,7 +430,7 @@ let requires_value_meta com co =
 
 let generate_value_meta com co cf args =
 	if requires_value_meta com co then begin
-		let values = List.fold_left (fun acc ((name,p),_,_,_,eo) -> match eo with Some e -> ((name,p),e) :: acc | _ -> acc) [] args in
+		let values = List.fold_left (fun acc ((name,p),_,_,_,eo) -> match eo with Some e -> ((name,p,NoQuotes),e) :: acc | _ -> acc) [] args in
 		match values with
 			| [] -> ()
 			| _ -> cf.cf_meta <- ((Meta.Value,[EObjectDecl values,cf.cf_pos],null_pos) :: cf.cf_meta)
@@ -1140,7 +1140,7 @@ let field_to_type_path ctx e =
 	loop e [] []
 
 let handle_fields ctx fields_to_check with_type_expr =
-	List.map (fun ((name,_),expr) ->
+	List.map (fun ((name,_,_),expr) ->
 		let pos = snd expr in
 		let field = (EField(with_type_expr,name), pos) in
 		let fieldexpr = (EConst(Ident name),pos) in

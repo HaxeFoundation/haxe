@@ -242,7 +242,7 @@ and jit_expr jit return e =
 	| TConst ct ->
 		emit_const (eval_const ct)
 	| TObjectDecl fl ->
-		let fl = List.map (fun (s,e) -> hash_s s,jit_expr jit false e) fl in
+		let fl = List.map (fun ((s,_,_),e) -> hash_s s,jit_expr jit false e) fl in
 		let proto,_ = ctx.get_object_prototype ctx fl in
 		let fl = List.map (fun (s,exec) -> get_instance_field_index proto s e.epos,exec) fl in
 		let fa = Array.of_list fl in

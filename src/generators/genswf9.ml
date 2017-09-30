@@ -1025,7 +1025,7 @@ let rec gen_expr_content ctx retval e =
 	| TParenthesis e | TMeta (_,e) ->
 		gen_expr ctx retval e
 	| TObjectDecl fl ->
-		List.iter (fun (name,e) ->
+		List.iter (fun ((name,_,_),e) ->
 			write ctx (HString (reserved name));
 			gen_expr ctx true e
 		) fl;

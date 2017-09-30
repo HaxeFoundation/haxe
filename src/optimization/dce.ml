@@ -489,7 +489,7 @@ and expr dce e =
 		begin match el with
 			| [{eexpr = TObjectDecl fl}] ->
 				begin try
-					begin match List.assoc "customParams" fl with
+					begin match Expr.field_assoc "customParams" fl with
 						| {eexpr = TArrayDecl el} ->
 							List.iter (fun e -> to_string dce e.etype) el
 						| _ ->

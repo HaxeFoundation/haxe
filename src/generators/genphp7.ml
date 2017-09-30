@@ -1688,7 +1688,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 						self#write "[\n";
 						self#indent_more;
 						List.iter
-							(fun (name, field) ->
+							(fun ((name,_,_), field) ->
 								self#write_indentation;
 								self#write_const_string name;
 								self#write " => ";
@@ -2359,7 +2359,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| _ ->
 					self#write ("new " ^ (self#use hxanon_type_path)  ^ "([\n");
 					self#indent_more;
-					let write_field (key, value) = self#write_array_item ~key:key value in
+					let write_field ((key,_,_), value) = self#write_array_item ~key:key value in
 					List.iter write_field fields;
 					self#indent_less;
 					self#write_indentation;
