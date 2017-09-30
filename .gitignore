@@ -109,3 +109,4 @@ tests/server/test/cases/
 tests/server/test.js
 
 tests/unit/pypy3-*
+tmp.tmp

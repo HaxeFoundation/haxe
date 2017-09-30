@@ -45,6 +45,8 @@ FINDLIB_PACKAGES=$(FINDLIB_LIBS:%=-package %)
 CFLAGS=
 ALL_CFLAGS=-bin-annot -safe-string -thread -g -w -3 $(CFLAGS) $(ALL_INCLUDES) $(FINDLIB_PACKAGES)
 
+MESSAGE_FILTER=sed -e 's/_build\/src\//src\//' tmp.tmp
+
 ifeq ($(BYTECODE),1)
 	TARGET_FLAG = bytecode
 	COMPILER = ocamlfind ocamlc
@@ -59,7 +61,7 @@ else
 	OCAMLDEP_FLAGS = -native
 endif
 
-CC_CMD = $(COMPILER) $(ALL_CFLAGS) -c $<
+CC_CMD = ($(COMPILER) $(ALL_CFLAGS) -c $< 2>tmp.tmp && $(MESSAGE_FILTER)) || ($(MESSAGE_FILTER) && exit 1)
 
 # Meta information
 
