@@ -84,23 +84,6 @@ and inline_var = {
 }
 
 let inline_constructors ctx e =
-	let is_valid_ident s =
-		try
-			if String.length s = 0 then raise Exit;
-			begin match String.unsafe_get s 0 with
-				| 'a'..'z' | 'A'..'Z' | '_' -> ()
-				| _ -> raise Exit
-			end;
-			for i = 1 to String.length s - 1 do
-				match String.unsafe_get s i with
-				| 'a'..'z' | 'A'..'Z' | '_' -> ()
-				| '0'..'9' when i > 0 -> ()
-				| _ -> raise Exit
-			done;
-			true
-		with Exit ->
-			false
-	in
 	let inline_objs = ref IntMap.empty in
 	let vars = ref IntMap.empty in
 	let scoped_ivs = ref [] in
@@ -304,17 +287,17 @@ let inline_constructors ctx e =
 			| _ ->
 				default e
 			end
-		| TObjectDecl fl, _ when captured && fl <> [] && List.for_all (fun(s,_) -> is_valid_ident s) fl ->
+		| TObjectDecl fl, _ when captured && fl <> [] && List.for_all (fun((s,_,_),_) -> Lexer.is_valid_identifier s) fl ->
 			let v = alloc_var "inlobj" e.etype e.epos in
 			let ev = mk (TLocal v) v.v_type e.epos in
-			let el = List.map (fun (s,e) ->
+			let el = List.map (fun ((s,_,_),e) ->
 				let ef = mk (TField(ev,FDynamic s)) e.etype e.epos in
 				let e = mk (TBinop(OpAssign,ef,e)) e.etype e.epos in
 				e
 			) fl in
 			let io_expr = make_expr_for_list el ctx.t.tvoid e.epos in
 			let io = mk_io (IOKStructure) !current_io_id io_expr in
-			List.iter (fun (s,e) -> ignore(alloc_io_field io s e.etype v.v_pos)) fl;
+			List.iter (fun ((s,_,_),e) -> ignore(alloc_io_field io s e.etype v.v_pos)) fl;
 			let iv = add v IVKLocal in
 			set_iv_alias iv io;
 			List.iter (fun e -> ignore(analyze_aliases true e)) el;

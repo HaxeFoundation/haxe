@@ -1212,23 +1212,6 @@ type inline_info = {
 
 let inline_constructors ctx e =
 	let vars = ref IntMap.empty in
-	let is_valid_ident s =
-		try
-			if String.length s = 0 then raise Exit;
-			begin match String.unsafe_get s 0 with
-				| 'a'..'z' | 'A'..'Z' | '_' -> ()
-				| _ -> raise Exit
-			end;
-			for i = 1 to String.length s - 1 do
-				match String.unsafe_get s i with
-				| 'a'..'z' | 'A'..'Z' | '_' -> ()
-				| '0'..'9' when i > 0 -> ()
-				| _ -> raise Exit
-			done;
-			true
-		with Exit ->
-			false
-	in
 	let cancel v p =
 		try
 			let ii = IntMap.find v.v_id !vars in
@@ -1301,8 +1284,8 @@ let inline_constructors ctx e =
 				| TObjectDecl fl when fl <> [] ->
 					begin try
 						let ev = mk (TLocal v) v.v_type e.epos in
-						let el = List.fold_left (fun acc (s,e) ->
-							if not (is_valid_ident s) then raise Exit;
+						let el = List.fold_left (fun acc ((s,_,_),e) ->
+							if not (Lexer.is_valid_identifier s) then raise Exit;
 							let ef = mk (TField(ev,FDynamic s)) e.etype e.epos in
 							let e = mk (TBinop(OpAssign,ef,e)) e.etype e.epos in
 							e :: acc

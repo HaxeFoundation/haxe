@@ -124,7 +124,7 @@ let rec type_constant_value com (e,p) =
 	| EParenthesis e ->
 		type_constant_value com e
 	| EObjectDecl el ->
-		mk (TObjectDecl (List.map (fun ((n,_),e) -> n, type_constant_value com e) el)) (TAnon { a_fields = PMap.empty; a_status = ref Closed }) p
+		mk (TObjectDecl (List.map (fun (k,e) -> k,type_constant_value com e) el)) (TAnon { a_fields = PMap.empty; a_status = ref Closed }) p
 	| EArrayDecl el ->
 		mk (TArrayDecl (List.map (type_constant_value com) el)) (com.basic.tarray t_dynamic) p
 	| _ ->
@@ -161,7 +161,7 @@ let add_property_field com c =
 	| _ ->
 		let fields,values = List.fold_left (fun (fields,values) (n,v) ->
 			let cf = mk_field n com.basic.tstring p null_pos in
-			PMap.add n cf fields,(n, ExprBuilder.make_string com v p) :: values
+			PMap.add n cf fields,((n,null_pos,NoQuotes),ExprBuilder.make_string com v p) :: values
 		) (PMap.empty,[]) props in
 		let t = mk_anon fields in
 		let e = mk (TObjectDecl values) t p in
@@ -207,19 +207,19 @@ let build_metadata com t =
 		mk (TObjectDecl (List.map (fun (f,el,p) ->
 			if Hashtbl.mem h f then error ("Duplicate metadata '" ^ f ^ "'") p;
 			Hashtbl.add h f ();
-			f, mk (match el with [] -> TConst TNull | _ -> TArrayDecl (List.map (type_constant_value com) el)) (api.tarray t_dynamic) p
+			(f,null_pos,NoQuotes), mk (match el with [] -> TConst TNull | _ -> TArrayDecl (List.map (type_constant_value com) el)) (api.tarray t_dynamic) p
 		) ml)) t_dynamic p
 	in
 	let make_meta l =
-		mk (TObjectDecl (List.map (fun (f,ml) -> f,make_meta_field ml) l)) t_dynamic p
+		mk (TObjectDecl (List.map (fun (f,ml) -> (f,null_pos,NoQuotes),make_meta_field ml) l)) t_dynamic p
 	in
 	if meta = [] && fields = [] && statics = [] then
 		None
 	else
 		let meta_obj = [] in
-		let meta_obj = (if fields = [] then meta_obj else ("fields",make_meta fields) :: meta_obj) in
-		let meta_obj = (if statics = [] then meta_obj else ("statics",make_meta statics) :: meta_obj) in
-		let meta_obj = (try ("obj", make_meta_field (List.assoc "" meta)) :: meta_obj with Not_found -> meta_obj) in
+		let meta_obj = (if fields = [] then meta_obj else (("fields",null_pos,NoQuotes),make_meta fields) :: meta_obj) in
+		let meta_obj = (if statics = [] then meta_obj else (("statics",null_pos,NoQuotes),make_meta statics) :: meta_obj) in
+		let meta_obj = (try (("obj",null_pos,NoQuotes), make_meta_field (List.assoc "" meta)) :: meta_obj with Not_found -> meta_obj) in
 		Some (mk (TObjectDecl meta_obj) t_dynamic p)
 
 let update_cache_dependencies t =
@@ -807,14 +807,14 @@ module UnificationCallback = struct
 			| TObjectDecl fl ->
 				begin match follow e.etype with
 					| TAnon an ->
-						let fl = List.map (fun (n,e) ->
+						let fl = List.map (fun ((n,p,qs),e) ->
 							let e = try
 								let t = (PMap.find n an.a_fields).cf_type in
 								f e t
 							with Not_found ->
 								e
 							in
-							n,e
+							(n,p,qs),e
 						) fl in
 						{ e with eexpr = TObjectDecl fl }
 					| _ -> e

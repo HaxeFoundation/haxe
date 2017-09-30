@@ -389,7 +389,7 @@ let rec gen_call ctx e el =
                   if List.length(arr) > 0 then incr count;
               | { eexpr = TObjectDecl fields } ->
                   if (!count > 0 && List.length(fields) > 0) then spr ctx ",";
-                  concat ctx ", " (fun (f,e) ->
+                  concat ctx ", " (fun ((f,_,_),e) ->
                       print ctx "%s = " (anon_field f);
                       gen_value ctx e
                   ) fields;
@@ -624,7 +624,7 @@ and gen_expr ?(local=true) ctx e = begin
         spr ctx "(function(x) return x.";
         print ctx "%s" (field_name ef);
         spr ctx " end )({";
-        concat ctx ", " (fun (f,e) -> print ctx "%s = " (anon_field f); gen_value ctx e) fields;
+        concat ctx ", " (fun ((f,_,_),e) -> print ctx "%s = " (anon_field f); gen_value ctx e) fields;
         spr ctx "})";
     | TField ({eexpr = TLocal v}, f) when Meta.has Meta.MultiReturn v.v_meta ->
         (* field of a multireturn local var is actually just a local var *)
@@ -861,9 +861,9 @@ and gen_expr ?(local=true) ctx e = begin
         ctx.separator <- true
     | TObjectDecl fields ->
         spr ctx "_hx_o({__fields__={";
-        concat ctx "," (fun (f,e) -> print ctx "%s=" (anon_field f); spr ctx "true") fields;
+        concat ctx "," (fun ((f,_,_),e) -> print ctx "%s=" (anon_field f); spr ctx "true") fields;
         spr ctx "},";
-        concat ctx "," (fun (f,e) -> print ctx "%s=" (anon_field f); gen_anon_value ctx e) fields;
+        concat ctx "," (fun ((f,_,_),e) -> print ctx "%s=" (anon_field f); gen_anon_value ctx e) fields;
         spr ctx "})";
         ctx.separator <- true
     | TFor (v,it,e2) ->

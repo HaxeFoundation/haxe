@@ -137,6 +137,10 @@ type while_flag =
 	| NormalWhile
 	| DoWhile
 
+type quote_status =
+	| NoQuotes
+	| DoubleQuotes
+
 type type_path = {
 	tpackage : string list;
 	tname : string;
@@ -175,7 +179,7 @@ and expr_def =
 	| EBinop of binop * expr * expr
 	| EField of expr * string
 	| EParenthesis of expr
-	| EObjectDecl of (placed_name * expr) list
+	| EObjectDecl of ((string * pos * quote_status) * expr) list
 	| EArrayDecl of expr list
 	| ECall of expr * expr list
 	| ENew of placed_type_path * expr list
@@ -589,7 +593,7 @@ let map_expr loop (e,p) =
 		EBinop (op,e1,e2)
 	| EField (e,f) -> EField (loop e, f)
 	| EParenthesis e -> EParenthesis (loop e)
-	| EObjectDecl fl -> EObjectDecl (List.map (fun ((f,p),e) -> (f,p),loop e) fl)
+	| EObjectDecl fl -> EObjectDecl (List.map (fun (k,e) -> k,loop e) fl)
 	| EArrayDecl el -> EArrayDecl (List.map loop el)
 	| ECall (e,el) ->
 		let e = loop e in
@@ -687,6 +691,10 @@ let iter_expr loop (e,p) =
 		opt f.f_expr
 	| EVars vl -> List.iter (fun (_,_,eo) -> opt eo) vl
 
+let s_object_key_name name =  function
+	| DoubleQuotes -> "\"" ^ s_escape name ^ "\""
+	| NoQuotes -> name
+
 let s_expr e =
 	let rec s_expr_inner tabs (e,_) =
 		match e with
@@ -695,7 +703,7 @@ let s_expr e =
 		| EBinop (op,e1,e2) -> s_expr_inner tabs e1 ^ " " ^ s_binop op ^ " " ^ s_expr_inner tabs e2
 		| EField (e,f) -> s_expr_inner tabs e ^ "." ^ f
 		| EParenthesis e -> "(" ^ (s_expr_inner tabs e) ^ ")"
-		| EObjectDecl fl -> "{ " ^ (String.concat ", " (List.map (fun ((n,_),e) -> n ^ " : " ^ (s_expr_inner tabs e)) fl)) ^ " }"
+		| EObjectDecl fl -> "{ " ^ (String.concat ", " (List.map (fun ((n,_,qs),e) -> (s_object_key_name n qs) ^ " : " ^ (s_expr_inner tabs e)) fl)) ^ " }"
 		| EArrayDecl el -> "[" ^ s_expr_list tabs el ", " ^ "]"
 		| ECall (e,el) -> s_expr_inner tabs e ^ "(" ^ s_expr_list tabs el ", " ^ ")"
 		| ENew (t,el) -> "new " ^ s_complex_type_path tabs t ^ "(" ^ s_expr_list tabs el ", " ^ ")"
@@ -802,7 +810,7 @@ let s_expr e =
 let get_value_meta meta =
 	try
 		begin match Meta.get Meta.Value meta with
-			| (_,[EObjectDecl values,_],_) -> List.fold_left (fun acc ((s,_),e) -> PMap.add s e acc) PMap.empty values
+			| (_,[EObjectDecl values,_],_) -> List.fold_left (fun acc ((s,_,_),e) -> PMap.add s e acc) PMap.empty values
 			| _ -> raise Not_found
 		end
 	with Not_found ->
@@ -862,8 +870,18 @@ module Expr = struct
 
 	let field_assoc name fl =
 		let rec loop fl = match fl with
-			| ((name',_),e) :: fl -> if name' = name then e else loop fl
+			| ((name',_,_),e) :: fl -> if name' = name then e else loop fl
 			| [] -> raise Not_found
 		in
 		loop fl
+
+	let field_mem_assoc name fl =
+		let rec loop fl = match fl with
+			| ((name',_,_),e) :: fl -> if name' = name then raise Exit else loop fl
+			| [] -> false
+		in
+		try
+			loop fl
+		with Exit ->
+			true
 end

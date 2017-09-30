@@ -397,7 +397,10 @@ let rec value_to_expr v p =
 	| VFloat f -> haxe_float f p
 	| VString(r,s) -> (EConst (String (Lazy.force s)),p)
 	| VArray va -> (EArrayDecl (List.map (fun v -> value_to_expr v p) (EvalArray.to_list va)),p)
-	| VObject o -> (EObjectDecl (List.map (fun (k,v) -> ((rev_hash_s k,p),(value_to_expr v p))) (object_fields o)),p)
+	| VObject o -> (EObjectDecl (List.map (fun (k,v) ->
+			let n = rev_hash_s k in
+			((n,p,(if Lexer.is_valid_identifier n then NoQuotes else DoubleQuotes)),(value_to_expr v p))
+		) (object_fields o)),p)
 	| VEnumValue e ->
 		let epath =
 			let proto = get_static_prototype_raise (get_ctx()) e.epath in

@@ -260,7 +260,7 @@ and gen_expr ctx e =
 		gen_expr ctx e
 	| TObjectDecl fl ->
 		let hasToString = ref false in
-		let fl = List.map (fun (f,e) -> if f = "toString" then hasToString := (match follow e.etype with TFun ([],_) -> true | _ -> false); f , gen_expr ctx e) fl in
+		let fl = List.map (fun ((f,_,_),e) -> if f = "toString" then hasToString := (match follow e.etype with TFun ([],_) -> true | _ -> false); f , gen_expr ctx e) fl in
 		(EObject (if !hasToString then ("__string",ident p "@default__string") :: fl else fl),p)
 	| TArrayDecl el ->
 		call p (field p (ident p "Array") "new1") [array p (List.map (gen_expr ctx) el); int p (List.length el)]

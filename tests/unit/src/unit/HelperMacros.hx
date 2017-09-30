@@ -51,4 +51,10 @@ class HelperMacros {
 		} catch (e:Dynamic) Std.string(e.message);
 		return macro $v{result};
 	}
+
+	static public macro function parseAndPrint(s:String) {
+		var e = haxe.macro.Context.parse(s, haxe.macro.Context.currentPos());
+		var s2 = new haxe.macro.Printer().printExpr(e);
+		return macro eq($v{s}, $v{s2});
+	}
 }

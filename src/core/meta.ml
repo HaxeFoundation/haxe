@@ -130,7 +130,6 @@ type strict_meta =
 	| Public
 	| PublicFields
 	| Pure
-	| QuotedField
 	| ReadOnly
 	| RealPath
 	| Remove
@@ -323,7 +322,6 @@ let get_info = function
 	| Pos -> ":pos",("Sets the position of a reified expression",[HasParam "Position";UsedOn TExpr])
 	| Public -> ":public",("Marks a class field as being public",[UsedOn TClassField;UsedInternally])
 	| PublicFields -> ":publicFields",("Forces all class fields of inheriting classes to be public",[UsedOn TClass])
-	| QuotedField -> ":quotedField",("Used internally to mark structure fields which are quoted in syntax",[UsedInternally])
 	| PrivateAccess -> ":privateAccess",("Allow private access to anything for the annotated expression",[UsedOn TExpr])
 	| Protected -> ":protected",("Marks a class field as being protected",[UsedOn TClassField;Platforms [Cs;Java;Flash]])
 	| Property -> ":property",("Marks a property field to be compiled as a native C# property",[UsedOn TClassField;Platform Cs])

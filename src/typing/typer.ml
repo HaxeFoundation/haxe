@@ -56,13 +56,13 @@ let build_call_ref : (typer -> access_kind -> expr list -> with_type -> pos -> t
 let mk_infos ctx p params =
 	let file = if ctx.in_macro then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else Filename.basename p.pfile in
 	(EObjectDecl (
-		(("fileName",null_pos) , (EConst (String file) , p)) ::
-		(("lineNumber",null_pos) , (EConst (Int (string_of_int (Lexer.get_error_line p))),p)) ::
-		(("className",null_pos) , (EConst (String (s_type_path ctx.curclass.cl_path)),p)) ::
+		(("fileName",null_pos,NoQuotes) , (EConst (String file) , p)) ::
+		(("lineNumber",null_pos,NoQuotes) , (EConst (Int (string_of_int (Lexer.get_error_line p))),p)) ::
+		(("className",null_pos,NoQuotes) , (EConst (String (s_type_path ctx.curclass.cl_path)),p)) ::
 		if ctx.curfield.cf_name = "" then
 			params
 		else
-			(("methodName",null_pos), (EConst (String ctx.curfield.cf_name),p)) :: params
+			(("methodName",null_pos,NoQuotes), (EConst (String ctx.curfield.cf_name),p)) :: params
 	) ,p)
 
 let check_assign ctx e =
@@ -2930,14 +2930,11 @@ and type_object_decl ctx fl with_type p =
 	| _ ->
 		ODKPlain
 	) in
-	let wrap_quoted_meta e =
-		mk (TMeta((Meta.QuotedField,[],e.epos),e)) e.etype e.epos
-	in
 	let type_fields field_map =
 		let fields = ref PMap.empty in
 		let extra_fields = ref [] in
-		let fl = List.map (fun ((n,pn),e) ->
-			let n,is_quoted,is_valid = Parser.unquote_ident n in
+		let fl = List.map (fun ((n,pn,qs),e) ->
+			let is_valid = Lexer.is_valid_identifier n in
 			if PMap.mem n !fields then error ("Duplicate field in object declaration : " ^ n) p;
 			let e = try
 				let t = match !dynamic_parameter with
@@ -2960,8 +2957,7 @@ and type_object_decl ctx fl with_type p =
 				let cf = mk_field n e.etype (punion pn e.epos) pn in
 				fields := PMap.add n cf !fields;
 			end;
-			let e = if is_quoted then wrap_quoted_meta e else e in
-			(n,e)
+			((n,pn,qs),e)
 		) fl in
 		let t = (TAnon { a_fields = !fields; a_status = ref Const }) in
 		if not ctx.untyped then begin
@@ -2977,15 +2973,14 @@ and type_object_decl ctx fl with_type p =
 	in
 	(match a with
 	| ODKPlain ->
-		let rec loop (l,acc) ((f,pf),e) =
-			let f,is_quoted,is_valid = Parser.unquote_ident f in
+		let rec loop (l,acc) ((f,pf,qs),e) =
+			let is_valid = Lexer.is_valid_identifier f in
 			if PMap.mem f acc then error ("Duplicate field in object declaration : " ^ f) p;
 			let e = type_expr ctx e Value in
 			(match follow e.etype with TAbstract({a_path=[],"Void"},_) -> error "Fields of type Void are not allowed in structures" e.epos | _ -> ());
 			let cf = mk_field f e.etype (punion pf e.epos) pf in
 			if ctx.in_display && Display.is_display_position pf then Display.DisplayEmitter.display_field ctx.com.display cf pf;
-			let e = if is_quoted then wrap_quoted_meta e else e in
-			((f,e) :: l, if is_valid then begin
+			(((f,pf,qs),e) :: l, if is_valid then begin
 				if String.length f > 0 && f.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
 				PMap.add f cf acc
 			end else acc)
@@ -3025,7 +3020,7 @@ and type_object_decl ctx fl with_type p =
 			end
 		) ([],[],false) (List.rev fl) in
 		let el = List.map (fun (n,_,t) ->
-			try List.assoc n fl
+			try Expr.field_assoc n fl
 			with Not_found -> mk (TConst TNull) t p
 		) args in
 		let e = mk (TNew(c,tl,el)) (TInst(c,tl)) p in
@@ -3478,7 +3473,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| EMeta(m,e1) ->
 				EMeta(m,map_compr e1),p
 			| EConst _ | EArray _ | EBinop _ | EField _ | EObjectDecl _ | EArrayDecl _
-			| ECall _ | ENew _ | EUnop _ | EVars _ | EFunction _ | EDisplayNew _ | EMeta _ | ECheckType _ ->
+			| ECall _ | ENew _ | EUnop _ | EVars _ | EFunction _ | EDisplayNew _ | ECheckType _ ->
 				et := (EArrayDecl [],p);
 				(ECall ((EField ((EConst (Ident v.v_name),p),"push"),p),[(e,p)]),p)
 		in
@@ -4189,7 +4184,7 @@ and type_call ctx e el (with_type:with_type) p =
 			null ctx.t.tvoid p
 		else
 		let mk_to_string_meta e = EMeta((Meta.ToString,[],null_pos),e),pos e in
-		let params = (match el with [] -> [] | _ -> [("customParams",null_pos),(EArrayDecl (List.map mk_to_string_meta el) , p)]) in
+		let params = (match el with [] -> [] | _ -> [("customParams",null_pos,NoQuotes),(EArrayDecl (List.map mk_to_string_meta el) , p)]) in
 		let infos = mk_infos ctx p params in
 		if (platform ctx.com Js || platform ctx.com Python) && el = [] && has_dce ctx.com then
 			let e = type_expr ctx e Value in

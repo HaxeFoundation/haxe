@@ -125,7 +125,7 @@ and texpr_expr =
 	| TField of texpr * tfield_access
 	| TTypeExpr of module_type
 	| TParenthesis of texpr
-	| TObjectDecl of (string * texpr) list
+	| TObjectDecl of ((string * pos * quote_status) * texpr) list
 	| TArrayDecl of texpr list
 	| TCall of texpr * texpr list
 	| TNew of tclass * tparams * texpr list
@@ -1076,7 +1076,7 @@ let rec s_expr s_type e =
 	| TParenthesis e ->
 		sprintf "Parenthesis %s" (loop e)
 	| TObjectDecl fl ->
-		sprintf "ObjectDecl {%s}" (slist (fun (f,e) -> sprintf "%s : %s" f (loop e)) fl)
+		sprintf "ObjectDecl {%s}" (slist (fun ((f,_,qs),e) -> sprintf "%s : %s" (s_object_key_name f qs) (loop e)) fl)
 	| TArrayDecl el ->
 		sprintf "ArrayDecl [%s]" (slist loop el)
 	| TCall (e,el) ->
@@ -1141,7 +1141,7 @@ let rec s_expr_pretty print_var_ids tabs top_level s_type e =
 	| TField (e1,s) -> sprintf "%s.%s" (loop e1) (field_name s)
 	| TTypeExpr mt -> (s_type_path (t_path mt))
 	| TParenthesis e1 -> sprintf "(%s)" (loop e1)
-	| TObjectDecl fl -> sprintf "{%s}" (clist (fun (f,e) -> sprintf "%s : %s" f (loop e)) fl)
+	| TObjectDecl fl -> sprintf "{%s}" (clist (fun ((f,_,qs),e) -> sprintf "%s : %s" (s_object_key_name f qs) (loop e)) fl)
 	| TArrayDecl el -> sprintf "[%s]" (clist loop el)
 	| TCall (e1,el) -> sprintf "%s(%s)" (loop e1) (clist loop el)
 	| TNew (c,pl,el) ->
@@ -1236,7 +1236,7 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 		tag "Field" [loop e1; sfa]
 	| TTypeExpr mt -> module_type mt
 	| TParenthesis e1 -> tag "Parenthesis" [loop e1]
-	| TObjectDecl fl -> tag "ObjectDecl" (List.map (fun (s,e) -> sprintf "%s: %s" s (loop e)) fl)
+	| TObjectDecl fl -> tag "ObjectDecl" (List.map (fun ((s,_,qs),e) -> sprintf "%s: %s" (s_object_key_name s qs) (loop e)) fl)
 	| TArrayDecl el -> tag "ArrayDecl" (List.map loop el)
 	| TCall (e1,el) -> tag "Call" (loop e1 :: (List.map loop el))
 	| TNew (c,tl,el) -> tag "New" ((s_type (TInst(c,tl))) :: (List.map loop el))
@@ -2561,7 +2561,7 @@ module TExprToExpr = struct
 		| TField (e,f) -> EField (convert_expr e, field_name f)
 		| TTypeExpr t -> fst (mk_path (full_type_path t) e.epos)
 		| TParenthesis e -> EParenthesis (convert_expr e)
-		| TObjectDecl fl -> EObjectDecl (List.map (fun (f,e) -> (f,null_pos), convert_expr e) fl)
+		| TObjectDecl fl -> EObjectDecl (List.map (fun (k,e) -> k, convert_expr e) fl)
 		| TArrayDecl el -> EArrayDecl (List.map convert_expr el)
 		| TCall (e,el) -> ECall (convert_expr e,List.map convert_expr el)
 		| TNew (c,pl,el) -> ENew ((match (try convert_type (TInst (c,pl)) with Exit -> convert_type (TInst (c,[]))) with CTPath p -> p,null_pos | _ -> assert false),List.map convert_expr el)
