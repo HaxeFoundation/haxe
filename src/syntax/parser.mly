@@ -64,7 +64,16 @@ let decl_flag_to_abstract_flag = function
 
 let special_identifier_files = Hashtbl.create 0
 
-let cache = ref (DynArray.create())
+module TokenCache = struct
+	let cache = ref (DynArray.create ())
+	let add token = DynArray.add (!cache) token
+	let get index = DynArray.get (!cache) index
+	let clear () =
+		let old_cache = !cache in
+		cache := DynArray.create ();
+		(fun () -> cache := old_cache)
+end
+
 let last_doc = ref None
 let use_doc = ref false
 let resume_display = ref null_pos
@@ -72,7 +81,7 @@ let in_macro = ref false
 
 let last_token s =
 	let n = Stream.count s in
-	DynArray.get (!cache) (if n = 0 then 0 else n - 1)
+	TokenCache.get (if n = 0 then 0 else n - 1)
 
 let serror() = raise (Stream.Error "")
 
@@ -1338,9 +1347,8 @@ let rec eval ctx (e,p) =
 (* parse main *)
 let parse ctx code =
 	let old = Lexer.save() in
-	let old_cache = !cache in
+	let restore_cache = TokenCache.clear () in
 	let mstack = ref [] in
-	cache := DynArray.create();
 	last_doc := None;
 	in_macro := Define.defined ctx Define.Macro;
 	Lexer.skip_header code;
@@ -1419,13 +1427,13 @@ let parse ctx code =
 	in
 	let s = Stream.from (fun _ ->
 		let t = next_token() in
-		DynArray.add (!cache) t;
+		TokenCache.add t;
 		Some t
 	) in
 	try
 		let l = parse_file s in
 		(match !mstack with p :: _ when not (do_resume()) -> error Unclosed_macro p | _ -> ());
-		cache := old_cache;
+		restore_cache ();
 		Lexer.restore old;
 		l
 	with
@@ -1433,11 +1441,11 @@ let parse ctx code =
 		| Stream.Failure ->
 			let last = (match Stream.peek s with None -> last_token s | Some t -> t) in
 			Lexer.restore old;
-			cache := old_cache;
+			restore_cache ();
 			error (Unexpected (fst last)) (pos last)
 		| e ->
 			Lexer.restore old;
-			cache := old_cache;
+			restore_cache ();
 			raise e
 
 let parse_string com s p error inlined =
