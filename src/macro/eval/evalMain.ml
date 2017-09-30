@@ -115,6 +115,8 @@ let create com api is_macro =
 		had_error = false;
 		(* prototypes *)
 		string_prototype = fake_proto key_String;
+		array_prototype = fake_proto key_Array;
+		vector_prototype = fake_proto key_eval_Vector;
 		static_prototypes = IntMap.empty;
 		instance_prototypes = IntMap.empty;
 		constructors = IntMap.empty;

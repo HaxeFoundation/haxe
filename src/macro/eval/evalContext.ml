@@ -131,7 +131,9 @@ type context = {
 	mutable type_cache : Type.module_type IntMap.t;
 	overrides : (Type.path * string,bool) Hashtbl.t;
 	(* prototypes *)
+	mutable array_prototype : vprototype;
 	mutable string_prototype : vprototype;
+	mutable vector_prototype : vprototype;
 	mutable instance_prototypes : vprototype IntMap.t;
 	mutable static_prototypes : vprototype IntMap.t;
 	mutable constructors : value Lazy.t IntMap.t;
