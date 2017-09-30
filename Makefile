@@ -118,7 +118,7 @@ _build/%:%
 build_dirs:
 	@mkdir -p $(BUILD_DIRECTORIES)
 
-_build/src/syntax/parser.ml:src/syntax/parser.mly
+_build/src/syntax/grammar.ml:src/syntax/grammar.mly
 	camlp4o -impl $< -o $@
 
 _build/src/compiler/version.ml: FORCE
@@ -128,7 +128,7 @@ else
 	echo let version_extra = None > _build/src/compiler/version.ml
 endif
 
-build_src: | $(BUILD_SRC) _build/src/syntax/parser.ml _build/src/compiler/version.ml
+build_src: | $(BUILD_SRC) _build/src/syntax/grammar.ml _build/src/compiler/version.ml
 
 haxe: build_src
 	$(MAKE) -f $(MAKEFILENAME) build_pass_1

@@ -244,7 +244,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	Lexer.init file true;
 	incr stats.s_files_parsed;
 	let data = try
-		Parser.parse com.defines lexbuf
+		ParserEntry.parse com.defines lexbuf
 	with
 		| Sedlexing.MalFormed ->
 			t();
@@ -2819,7 +2819,7 @@ module ClassInitializer = struct
 							| EBinop ((OpEq|OpNotEq|OpGt|OpGte|OpLt|OpLte) as op,(EConst (Ident s),_),(EConst ((Int _ | Float _ | String _) as c),_)) -> s ^ s_binop op ^ s_constant c
 							| _ -> ""
 						in
-						if not (Parser.is_true (Parser.eval ctx.com.defines e)) then
+						if not (ParserEntry.is_true (ParserEntry.eval ctx.com.defines e)) then
 							Some (sc,(match List.rev l with (EConst (String msg),_) :: _ -> Some msg | _ -> None))
 						else
 							loop l
