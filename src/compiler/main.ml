@@ -739,7 +739,7 @@ try
 		com.error <- error ctx;
 	end;
 	Lexer.old_format := Common.defined com Define.OldErrorFormat;
-	if !Lexer.old_format && !Parser.resume_display <> null_pos then begin
+	if !Lexer.old_format && Parser.do_resume () then begin
 		let p = !Parser.resume_display in
 		(* convert byte position to utf8 position *)
 		try
