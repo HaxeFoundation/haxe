@@ -29,14 +29,19 @@ let reify in_macro =
 		| [] -> constr
 		| _ -> (ECall (constr,vl),pmin)
 	in
+	let to_string_kind k p =
+		match k with
+		| Double -> mk_enum "StringKind" "Double" [] p
+		| Single -> mk_enum "StringKind" "Single" [] p
+	in
 	let to_const c p =
-		let cst n v = mk_enum "Constant" n [EConst (String v),p] p in
+		let cst n v = mk_enum "Constant" n [EConst (String (v,Double)),p] p in
 		match c with
 		| Int i -> cst "CInt" i
-		| String s -> cst "CString" s
+		| String (s,k) -> mk_enum "Constant" "CString" [EConst (String (s,Double)),p; to_string_kind k p] p
 		| Float s -> cst "CFloat" s
 		| Ident s -> cst "CIdent" s
-		| Regexp (r,o) -> mk_enum "Constant" "CRegexp" [(EConst (String r),p);(EConst (String o),p)] p
+		| Regexp (r,o) -> mk_enum "Constant" "CRegexp" [(EConst (String (r,Double)),p);(EConst (String (o,Double)),p)] p
 	in
 	let rec to_binop o p =
 		let op n = mk_enum "Binop" n [] p in
@@ -71,7 +76,7 @@ let reify in_macro =
 		if len > 1 && s.[0] = '$' then
 			(EConst (Ident (String.sub s 1 (len - 1))),p)
 		else
-			(EConst (String s),p)
+			(EConst (String (s,Double)),p)
 	in
 	let to_placed_name (s,p) =
 		to_string s p
@@ -211,7 +216,7 @@ let reify in_macro =
 		| Some p ->
 			p
 		| None ->
-		let file = (EConst (String p.pfile),p) in
+		let file = (EConst (String (p.pfile,Double)),p) in
 		let pmin = (EConst (Int (string_of_int p.pmin)),p) in
 		let pmax = (EConst (Int (string_of_int p.pmax)),p) in
 		if in_macro then
@@ -340,7 +345,7 @@ let reify in_macro =
 			(* TODO: can $v and $i be implemented better? *)
 			| Meta.Dollar "v", _ ->
 				begin match fst e1 with
-				| EParenthesis (ECheckType (e2, (CTPath{tname="String";tpackage=[]},_)),_) -> expr "EConst" [mk_enum "Constant" "CString" [e2] (pos e2)]
+				| EParenthesis (ECheckType (e2, (CTPath{tname="String";tpackage=[]},_)),_) -> expr "EConst" [mk_enum "Constant" "CString" [e2;(EConst (Ident "_"),(pos e2))] (pos e2)]
 				| EParenthesis (ECheckType (e2, (CTPath{tname="Int";tpackage=[]},_)),_) -> expr "EConst" [mk_enum "Constant" "CInt" [e2] (pos e2)]
 				| EParenthesis (ECheckType (e2, (CTPath{tname="Float";tpackage=[]},_)),_) -> expr "EConst" [mk_enum "Constant" "CFloat" [e2] (pos e2)]
 				| _ -> (ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makeExpr"),p),[e; to_pos (pos e)]),p)

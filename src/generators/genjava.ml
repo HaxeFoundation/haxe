@@ -855,7 +855,7 @@ let rec handle_throws gen cf =
 	match cf.cf_expr with
 	| Some ({ eexpr = TFunction(tf) } as e)  ->
 		let rec collect_throws acc = function
-			| (Meta.Throws, [Ast.EConst (Ast.String path), _],_) :: meta -> (try
+			| (Meta.Throws, [Ast.EConst (Ast.String (path,_)), _],_) :: meta -> (try
 				collect_throws (get_cl ( get_type gen (parse_path path)) :: acc) meta
 			with | Not_found | TypeNotFound _ ->
 				collect_throws acc meta)
@@ -1088,7 +1088,7 @@ let generate con =
 
 	let path_s path meta = try
 		match Meta.get Meta.JavaCanonical meta with
-			| (Meta.JavaCanonical, [EConst(String pack), _; EConst(String name), _], _) ->
+			| (Meta.JavaCanonical, [EConst(String (pack,_)), _; EConst(String (name,_)), _], _) ->
 				if pack = "" then
 					name
 				else
@@ -1491,7 +1491,7 @@ let generate con =
 					write w " )"
 				| TField (e, FStatic(_, cf)) when Meta.has Meta.Native cf.cf_meta ->
 					let rec loop meta = match meta with
-						| (Meta.Native, [EConst (String s), _],_) :: _ ->
+						| (Meta.Native, [EConst (String (s,_)), _],_) :: _ ->
 							expr_s w e; write w "."; write_field w s
 						| _ :: tl -> loop tl
 						| [] -> expr_s w e; write w "."; write_field w (cf.cf_name)
@@ -1812,7 +1812,7 @@ let generate con =
 		| EConst c, p -> (match c with
 			| Int s | Float s | Ident s ->
 				write w s
-			| String s ->
+			| String (s,_) ->
 				write w "\"";
 				write w (escape s);
 				write w "\""
@@ -2027,10 +2027,10 @@ let generate con =
 								end else begin
 									expr_s w expr;
 								end)
-							| (Meta.Throws, [Ast.EConst (Ast.String t), _], _) :: tl ->
+							| (Meta.Throws, [Ast.EConst (Ast.String (t,_)), _], _) :: tl ->
 								print w " throws %s" t;
 								loop tl
-							| (Meta.FunctionCode, [Ast.EConst (Ast.String contents),_],_) :: tl ->
+							| (Meta.FunctionCode, [Ast.EConst (Ast.String (contents,_)),_],_) :: tl ->
 								begin_block w;
 								write w contents;
 								end_block w
@@ -2058,7 +2058,7 @@ let generate con =
 
 		let rec loop_meta meta acc =
 			match meta with
-				| (Meta.SuppressWarnings, [Ast.EConst (Ast.String w),_],_) :: meta -> loop_meta meta (w :: acc)
+				| (Meta.SuppressWarnings, [Ast.EConst (Ast.String (w,_)),_],_) :: meta -> loop_meta meta (w :: acc)
 				| _ :: meta -> loop_meta meta acc
 				| _ -> acc
 		in
@@ -2131,7 +2131,7 @@ let generate con =
 		let rec loop meta =
 			match meta with
 				| [] -> ()
-				| (Meta.ClassCode, [Ast.EConst (Ast.String contents),_],_) :: tl ->
+				| (Meta.ClassCode, [Ast.EConst (Ast.String (contents,_)),_],_) :: tl ->
 					write w contents
 				| _ :: tl -> loop tl
 		in

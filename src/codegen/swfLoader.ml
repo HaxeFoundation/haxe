@@ -165,7 +165,7 @@ let build_class com c file =
 				(match ns with
 				| HNPrivate _ | HNNamespace "http://www.adobe.com/2006/flex/mx/internal" -> []
 				| HNNamespace ns ->
-					if not (c.hlc_interface || is_xml) then meta := (Meta.Ns,[String ns]) :: !meta;
+					if not (c.hlc_interface || is_xml) then meta := (Meta.Ns,[String (ns,Double)]) :: !meta;
 					[APublic]
 				| HNExplicit _ | HNInternal _ | HNPublic _ ->
 					[APublic]
@@ -241,7 +241,7 @@ let build_class com c file =
 							| None -> None
 							| Some v ->
 								(* add for --gen-hx-classes generation *)
-								meta := (Meta.DefParam,[String aname;v]) :: !meta;
+								meta := (Meta.DefParam,[String (aname,Double);v]) :: !meta;
 								Some (EConst v,pos)
 					in
 					((aname,null_pos),!is_opt,[],Some (t,null_pos),def_val)

@@ -64,7 +64,7 @@ enum Constant {
 	/**
 		Represents a string literal.
 	**/
-	CString( s : String );
+	CString( s : String, kind : StringKind );
 
 	/**
 		Represents an identifier.
@@ -81,6 +81,18 @@ enum Constant {
 		@see https://haxe.org/manual/std-regex.html
 	**/
 	CRegexp( r : String, opt : String );
+}
+
+enum StringKind {
+	/**
+		Double-quoted string.
+	**/
+	Double;
+
+	/**
+		Single-quoted string.
+	**/
+	Single;
 }
 
 /**

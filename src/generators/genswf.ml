@@ -267,13 +267,13 @@ let build_swf9 com file swc =
 		| TClassDecl c ->
 			let rec loop = function
 				| [] -> acc
-				| (Meta.Font,(EConst (String file),p) :: args,_) :: l ->
+				| (Meta.Font,(EConst (String (file,_)),p) :: args,_) :: l ->
 					let file = try Common.find_file com file with Not_found -> file in
 					let ch = try open_in_bin file with _ -> abort "File not found" p in
 					let ttf = try TTFParser.parse ch with e -> abort ("Error while parsing font " ^ file ^ " : " ^ Printexc.to_string e) p in
 					close_in ch;
 					let get_string e = match fst e with
-						| EConst (String s) -> Some s
+						| EConst (String (s,_)) -> Some s
 						| _ -> raise Not_found
 					in
 					let ttf_config = {
@@ -281,7 +281,7 @@ let build_swf9 com file swc =
 						ttfc_font_name = None;
 					} in
 					begin match args with
-						| (EConst (String str),_) :: _ -> ttf_config.ttfc_range_str <- str;
+						| (EConst (String (str,_)),_) :: _ -> ttf_config.ttfc_range_str <- str;
 						| _ -> ()
 					end;
 					begin match args with
@@ -307,7 +307,7 @@ let build_swf9 com file swc =
 						cd_id = !cid;
 						cd_data = data;
 					}) :: loop l
-				| (Meta.Bitmap,[EConst (String file),p],_) :: l ->
+				| (Meta.Bitmap,[EConst (String (file,_)),p],_) :: l ->
 					let data = load_file_data file p in
 					incr cid;
 					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
@@ -343,7 +343,7 @@ let build_swf9 com file swc =
 						| _ -> raw()
 					) in
 					t :: loop l
-				| (Meta.Bitmap,[EConst (String dfile),p1;EConst (String afile),p2],_) :: l ->
+				| (Meta.Bitmap,[EConst (String (dfile,_)),p1;EConst (String (afile,_)),p2],_) :: l ->
 					let ddata = load_file_data dfile p1 in
 					let adata = load_file_data afile p2 in
 					(match detect_format ddata p1 with
@@ -368,12 +368,12 @@ let build_swf9 com file swc =
 					incr cid;
 					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
 					tag (TBitsJPEG3 { bd_id = !cid; bd_data = ddata; bd_table = None; bd_alpha = Some amask; bd_deblock = Some 0 }) :: loop l
-				| (Meta.File,[EConst (String file),p],_) :: l ->
+				| (Meta.File,[EConst (String (file,_)),p],_) :: l ->
 					let data = load_file_data file p in
 					incr cid;
 					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
 					tag (TBinaryData (!cid,data)) :: loop l
-				| (Meta.Sound,[EConst (String file),p],_) :: l ->
+				| (Meta.Sound,[EConst (String (file,_)),p],_) :: l ->
 					let data = load_file_data file p in
 					let make_flags fmt mono freq bits =
 						let fbits = (match freq with 5512 when fmt <> 2 -> 0 | 11025 -> 1 | 22050 -> 2 | 44100 -> 3 | _ -> failwith ("Unsupported frequency " ^ string_of_int freq)) in

@@ -110,7 +110,7 @@ let type_constant com c p =
 		(try mk (TConst (TInt (Int32.of_string s))) t.tint p
 		with _ -> mk (TConst (TFloat s)) t.tfloat p)
 	| Float f -> mk (TConst (TFloat f)) t.tfloat p
-	| String s -> mk (TConst (TString s)) t.tstring p
+	| String (s,_) -> mk (TConst (TString s)) t.tstring p
 	| Ident "true" -> mk (TConst (TBool true)) t.tbool p
 	| Ident "false" -> mk (TConst (TBool false)) t.tbool p
 	| Ident "null" -> mk (TConst TNull) (t.tnull (mk_mono())) p

@@ -516,13 +516,13 @@ let value_to_expr v p =
 				(Ast.EConst (Ast.Float (Common.float_repres f)), p)
 		| VAbstract (APos p) ->
 			(Ast.EObjectDecl (
-				(("fileName",Globals.null_pos,NoQuotes) , (Ast.EConst (Ast.String p.Globals.pfile) , p)) ::
+				(("fileName",Globals.null_pos,NoQuotes) , (Ast.EConst (Ast.String (p.Globals.pfile,Double)) , p)) ::
 				(("lineNumber",Globals.null_pos,NoQuotes) , (Ast.EConst (Ast.Int (string_of_int (Lexer.get_error_line p))),p)) ::
-				(("className",Globals.null_pos,NoQuotes) , (Ast.EConst (Ast.String ("")),p)) ::
+				(("className",Globals.null_pos,NoQuotes) , (Ast.EConst (Ast.String ("",Double)),p)) ::
 				[]
 			), p)
 		| VObj { oproto = { pclass = { pname = "String" } }; ofields = [|VBytes content;VInt _|] } ->
-			(Ast.EConst (Ast.String (hl_to_caml content)),p)
+			(Ast.EConst (Ast.String (hl_to_caml content,Double)),p)
 		| v ->
 			error v
 		(*

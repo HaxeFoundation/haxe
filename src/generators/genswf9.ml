@@ -1947,8 +1947,8 @@ let extract_meta meta =
 		| (Meta.Meta,[ECall ((EConst (Ident n),_),args),_],_) :: l ->
 			let mk_arg (a,p) =
 				match a with
-				| EConst (String s) -> (None, s)
-				| EBinop (OpAssign,(EConst (Ident n),_),(EConst (String s),_)) -> (Some n, s)
+				| EConst (String (s,_)) -> (None, s)
+				| EBinop (OpAssign,(EConst (Ident n),_),(EConst (String (s,_)),_)) -> (Some n, s)
 				| _ -> abort "Invalid meta definition" p
 			in
 			{ hlmeta_name = n; hlmeta_data = Array.of_list (List.map mk_arg args) } :: loop l
@@ -2101,7 +2101,7 @@ let generate_class ctx c =
 			| x :: l ->
 				match x with
 				| ((Meta.Getter | Meta.Setter),[EConst (Ident f),_],_) -> ident f
-				| (Meta.Ns,[EConst (String ns),_],_) -> HMName (f.cf_name,HNNamespace ns)
+				| (Meta.Ns,[EConst (String (ns,_)),_],_) -> HMName (f.cf_name,HNNamespace ns)
 				| (Meta.Protected,[],_) -> protect()
 				| _ -> loop_meta l
 		in

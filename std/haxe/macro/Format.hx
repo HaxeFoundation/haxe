@@ -31,7 +31,7 @@ class Format {
 	#if macro
 	public static function format( estr : Expr ) {
 		var str = switch( estr.expr ) {
-			case EConst(c): switch(c) { case CString(s): s; default: null; }
+			case EConst(c): switch(c) { case CString(s,_): s; default: null; }
 			default: null;
 		};
 		if( str == null )
@@ -59,7 +59,7 @@ class Format {
 				continue;
 			var len = i - start - 1;
 			if( len > 0 || expr == null )
-				add({ expr : EConst(CString(str.substr(start,len))), pos : make(len) });
+				add({ expr : EConst(CString(str.substr(start,len),Double)), pos : make(len) });
 			pos.min++;
 			start = i;
 			var c = StringTools.fastCodeAt(str, i);
@@ -105,9 +105,9 @@ class Format {
 		}
 		var len = i - start;
 		if( len > 0 )
-			add({ expr : EConst(CString(str.substr(start,len))), pos : make(len) });
+			add({ expr : EConst(CString(str.substr(start,len),Double)), pos : make(len) });
 		if( expr == null )
-			expr = { expr : EConst(CString("")), pos : make(0) };
+			expr = { expr : EConst(CString("",Double)), pos : make(0) };
 		return { expr : ECheckType(expr,TPath({ pack : [], name : "String", params : [] })), pos : expr.pos };
 	}
 	#end

@@ -461,7 +461,7 @@ let rec wait_loop process_params verbose accept =
 						| TEnumDecl e ->
 							let rec loop acc = function
 								| [] -> ()
-								| (Meta.RealPath,[Ast.EConst (Ast.String path),_],_) :: l ->
+								| (Meta.RealPath,[Ast.EConst (Ast.String (path,_)),_],_) :: l ->
 									e.e_path <- Ast.parse_path path;
 									e.e_meta <- (List.rev acc) @ l;
 								| x :: l -> loop (x::acc) l

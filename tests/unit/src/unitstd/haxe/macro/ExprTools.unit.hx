@@ -46,7 +46,7 @@ var upperIdents = [];
 
 function extract(e) {
 	switch(e.expr) {
-		case haxe.macro.Expr.ExprDef.EConst(haxe.macro.Expr.Constant.CString(s)):
+		case haxe.macro.Expr.ExprDef.EConst(haxe.macro.Expr.Constant.CString(s,_)):
 			strings.push(s);
 		case haxe.macro.Expr.ExprDef.EConst(haxe.macro.Expr.Constant.CIdent(s)) if (s.charCodeAt(0) >= 'A'.code && s.charCodeAt(0) <= 'Z'.code):
 			upperIdents.push(s);
@@ -71,7 +71,7 @@ function check(e, exp, ?pos) {
 iter(econst, fail);
 iter(econtinue, fail);
 iter(ebreak, fail);
-iter(efield, seq.bind("EConst(CString(foo))"));
+iter(efield, seq.bind("EConst(CString(foo,Double))"));
 iter(eparenthesis, seq.bind("EConst(CInt(1))"));
 iter(euntyped, seq.bind("EConst(CInt(1))"));
 iter(ethrow, seq.bind("EConst(CInt(1))"));
@@ -79,13 +79,13 @@ iter(eunop, seq.bind("EConst(CInt(1))"));
 iter(ecast, seq.bind("EConst(CInt(1))"));
 iter(emeta, seq.bind("EConst(CInt(1))"));
 check(earray, ["EConst(CInt(1))", "EConst(CInt(0))"]);
-check(ewhile1, ["EConst(CInt(1))", "EConst(CString(foo))"]);
-check(ewhile2, ["EConst(CInt(1))", "EConst(CString(foo))"]);
+check(ewhile1, ["EConst(CInt(1))", "EConst(CString(foo,Double))"]);
+check(ewhile2, ["EConst(CInt(1))", "EConst(CString(foo,Double))"]);
 check(ebinop, ["EConst(CInt(1))", "EConst(CInt(1))"]);
-check(efor, ["EConst(CInt(1))", "EConst(CString(foo))"]);
+check(efor, ["EConst(CInt(1))", "EConst(CString(foo,Double))"]);
 check(ein, ["EConst(CIdent(i))", "EConst(CInt(1))"]);
 check(evars, ["EConst(CInt(1))", "EConst(CInt(2))"]);
-check(etry, ["EConst(CInt(1))", "EConst(CString(foo))", "EConst(CString(bar))"]);
+check(etry, ["EConst(CInt(1))", "EConst(CString(foo,Double))", "EConst(CString(bar,Double))"]);
 check(eternary, ["EConst(CInt(1))", "EConst(CInt(2))", "EConst(CInt(3))"]);
 check(earraydecl, ["EConst(CInt(1))", "EConst(CInt(2))"]);
 check(enew, ["EConst(CInt(1))", "EConst(CInt(2))"]);

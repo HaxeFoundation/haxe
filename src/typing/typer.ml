@@ -56,13 +56,13 @@ let build_call_ref : (typer -> access_kind -> expr list -> with_type -> pos -> t
 let mk_infos ctx p params =
 	let file = if ctx.in_macro then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else Filename.basename p.pfile in
 	(EObjectDecl (
-		(("fileName",null_pos,NoQuotes) , (EConst (String file) , p)) ::
+		(("fileName",null_pos,NoQuotes) , (EConst (String (file,Double)) , p)) ::
 		(("lineNumber",null_pos,NoQuotes) , (EConst (Int (string_of_int (Lexer.get_error_line p))),p)) ::
-		(("className",null_pos,NoQuotes) , (EConst (String (s_type_path ctx.curclass.cl_path)),p)) ::
+		(("className",null_pos,NoQuotes) , (EConst (String (s_type_path ctx.curclass.cl_path,Double)),p)) ::
 		if ctx.curfield.cf_name = "" then
 			params
 		else
-			(("methodName",null_pos,NoQuotes), (EConst (String ctx.curfield.cf_name),p)) :: params
+			(("methodName",null_pos,NoQuotes), (EConst (String (ctx.curfield.cf_name,Double)),p)) :: params
 	) ,p)
 
 let check_assign ctx e =
@@ -1314,7 +1314,7 @@ and type_field ?(resume=false) ctx e i p mode =
 					true
 				| _ ->
 					List.exists (fun e -> match fst e with
-						| EConst(Ident s | String s) -> s = i
+						| EConst(Ident s | String (s,_)) -> s = i
 						| _ -> error "Identifier or string expected as argument to @:forward" (pos e)
 					) el
 		with Not_found ->
@@ -1338,7 +1338,7 @@ and type_field ?(resume=false) ctx e i p mode =
 					with Unify_error l ->
 						display_error ctx "Field resolve has an invalid type" f.cf_pos;
 						display_error ctx (error_msg (Unify [Cannot_unify(tfield,texpect)])) f.cf_pos);
-					AKExpr (make_call ctx (mk (TField (e,FInstance (c,params,f))) tfield p) [Codegen.type_constant ctx.com (String i) p] t p)
+					AKExpr (make_call ctx (mk (TField (e,FInstance (c,params,f))) tfield p) [Codegen.type_constant ctx.com (String (i,Double)) p] t p)
 				end else
 					AKExpr (mk (TField (e,FDynamic i)) t p)
 			| None ->
@@ -1550,7 +1550,7 @@ and type_field ?(resume=false) ctx e i p mode =
 			let et = type_module_type ctx (TClassDecl c) None p in
 			let t = apply_params a.a_params pl (field_type ctx c [] cf p) in
 			let ef = mk (TField (et,FStatic (c,cf))) t p in
-			AKExpr ((!build_call_ref) ctx (AKUsing(ef,c,cf,e)) [EConst (String i),p] NoValue p)
+			AKExpr ((!build_call_ref) ctx (AKUsing(ef,c,cf,e)) [EConst (String (i,Double)),p] NoValue p)
 		with Not_found ->
 			if !static_abstract_access_through_instance then error ("Invalid call to static function " ^ i ^ " through abstract instance") p
 			else no_field())
@@ -2796,7 +2796,7 @@ and format_string ctx s p =
 	in
 	let add_sub start pos =
 		let len = pos - start in
-		if len > 0 || !e = None then add (EConst (String (String.sub s start len))) len
+		if len > 0 || !e = None then add (EConst (String (String.sub s start len,Double))) len
 	in
 	let warn_escape = Common.defined ctx.com Define.FormatWarning in
 	let warn pos len =
@@ -3389,7 +3389,7 @@ and type_array_decl ctx el with_type p =
 
 and type_expr ctx (e,p) (with_type:with_type) =
 	match e with
-	| EField ((EConst (String s),ps),"code") ->
+	| EField ((EConst (String (s,_)),ps),"code") ->
 		if UTF8.length s <> 1 then error "String must be a single UTF8 char" ps;
 		mk (TConst (TInt (Int32.of_int (UChar.code (UTF8.get s 0))))) ctx.t.tint p
 	| EField(_,n) when n.[0] = '$' ->
@@ -3406,7 +3406,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let opt = mk (TConst (TString opt)) ctx.t.tstring p in
 		let t = Typeload.load_core_type ctx "EReg" in
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[str;opt])) t p
-	| EConst (String s) when s <> "" && Lexer.is_fmt_string p ->
+	| EConst (String (s,_)) when s <> "" && Lexer.is_fmt_string p ->
 		type_expr ctx (format_string ctx s p) with_type
 	| EConst c ->
 		Codegen.type_constant ctx.com c p
@@ -4080,7 +4080,7 @@ and display_expr ctx e_ast e with_type p =
 		let use_methods = match follow e.etype with TMono _ -> PMap.empty | _ -> loop (loop PMap.empty ctx.g.global_using) ctx.m.module_using in
 		let fields = PMap.fold (fun f acc -> PMap.add f.cf_name f acc) fields use_methods in
 		let fields = match fst e_ast with
-			| EConst(String s) when String.length s = 1 ->
+			| EConst(String (s,_)) when String.length s = 1 ->
 				let cf = mk_field "code" ctx.t.tint e.epos null_pos in
 				cf.cf_doc <- Some "The character code of this character (inlined at compile-time).";
 				cf.cf_kind <- Var { v_read = AccNormal; v_write = AccNever };
