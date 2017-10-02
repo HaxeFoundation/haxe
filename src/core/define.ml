@@ -41,6 +41,7 @@ type strict_defined =
 	| ForceNativeProperty
 	| FormatWarning
 	| GencommonDebug
+	| Haxe3Compat
 	| HaxeBoot
 	| HaxeVer
 	| HxcppApiLevel
@@ -148,6 +149,7 @@ let infos = function
 	| ForceNativeProperty -> "force_native_property",("Tag all properties with :nativeProperty metadata for 3.1 compatibility",[Platform Cpp])
 	| FormatWarning -> "format_warning",("Print a warning for each formated string, for 2.x compatibility",[])
 	| GencommonDebug -> "gencommon_debug",("GenCommon internal",[Platforms [Cs;Java]])
+	| Haxe3Compat -> "haxe3compat", ("Gives warnings about transition from Haxe 3.x to Haxe 4.0",[])
 	| HaxeBoot -> "haxe_boot",("Given the name 'haxe' to the flash boot class instead of a generated name",[Platform Flash])
 	| HaxeVer -> "haxe_ver",("The current Haxe version value",[])
 	| HxcppApiLevel -> "hxcpp_api_level",("Provided to allow compatibility between hxcpp versions",[Platform Cpp])
