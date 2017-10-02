@@ -2359,14 +2359,15 @@ module ClassInitializer = struct
 				let allows_no_expr = ref (Meta.has Meta.CoreType a.a_meta) in
 				let rec loop ml = match ml with
 					| (Meta.From,_,_) :: _ ->
-						let r = fun () ->
+						let r = exc_protect ctx (fun r ->
+							r := lazy_processing (fun () -> t);
 							(* the return type of a from-function must be the abstract, not the underlying type *)
 							if not fctx.is_macro then (try type_eq EqStrict ret ta with Unify_error l -> error (error_msg (Unify l)) p);
 							match t with
 								| TFun([_,_,t],_) -> t
 								| _ -> error (cf.cf_name ^ ": @:from cast functions must accept exactly one argument") p
-						in
-						a.a_from_field <- (TLazy (ref (lazy_wait r)),cf) :: a.a_from_field;
+						) "@:from" in
+						a.a_from_field <- (TLazy r,cf) :: a.a_from_field;
 					| (Meta.To,_,_) :: _ ->
 						if fctx.is_macro then error (cf.cf_name ^ ": Macro cast functions are not supported") p;
 						(* TODO: this doesn't seem quite right... *)
@@ -2378,6 +2379,7 @@ module ClassInitializer = struct
 								| m -> m
 						in
 						let r = exc_protect ctx (fun r ->
+							r := lazy_processing (fun () -> t);
 							let args = if Meta.has Meta.MultiType a.a_meta then begin
 								let ctor = try
 									PMap.find "_new" c.cl_statics
