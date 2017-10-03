@@ -1018,9 +1018,10 @@ class RunCi {
 								runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M64"].concat(args));
 								runCpp("bin/cpp/TestMain-debug", []);
 
-								runCommand("haxe", ["compile-cppia-host.hxml"]);
-								runCommand("haxe", ["compile-cppia.hxml"]);
-								runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
+								// https://github.com/HaxeFoundation/hxcpp/issues/646
+								// runCommand("haxe", ["compile-cppia-host.hxml"]);
+								// runCommand("haxe", ["compile-cppia.hxml"]);
+								// runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
 						}
 
 						changeDirectory(sysDir);
