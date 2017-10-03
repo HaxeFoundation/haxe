@@ -32,7 +32,7 @@ import php.Syntax.*;
 
 	public static inline function abs( v:Float ) : Float return Global.abs(v);
 	public static inline function min( a:Float, b:Float ) : Float return isNaN(a) || isNaN(b) ? NaN : Global.min(a, b);
-	public static inline function max( a:Float, b:Float ) : Float return isNaN(b) || isNaN(b) ? NaN : Global.max(a, b);
+	public static inline function max( a:Float, b:Float ) : Float return isNaN(a) || isNaN(b) ? NaN : Global.max(a, b);
 	public static inline function sin( v:Float ) : Float return Global.sin(v);
 	public static inline function cos( v:Float ) : Float return Global.cos(v);
 	public static inline function atan2( y:Float, x:Float ) : Float return Global.atan2(y, x);
