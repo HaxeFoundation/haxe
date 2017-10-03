@@ -2,6 +2,7 @@
 
 	Bugfixes:
 
+	php7 : fixed accessing `static inline var` via reflection (#6630)
 	js : fixed js syntax error for `value.iterator--` (#6637)
 
 2017-09-10: 3.4.3

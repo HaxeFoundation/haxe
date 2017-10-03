@@ -276,6 +276,11 @@ extern class Global {
 	static function defined( name:String ) : Bool;
 
 	/**
+		@see http://php.net/manual/en/function.constant.php
+	*/
+	static function constant( name:String ) : Dynamic;
+
+	/**
 		@see http://php.net/manual/en/function.define.php
 	**/
 	static function define( name:String, value:Dynamic, case_insensitive:Bool = false ) : Bool;
