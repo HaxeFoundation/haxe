@@ -76,6 +76,7 @@ type enum_type =
 	| IFieldAccess
 	| IAnonStatus
 	| IQuoteStatus
+	| IStringKind
 	| IImportMode
 
 type obj_type =
@@ -215,6 +216,7 @@ let enum_name = function
 	| IAnonStatus -> "AnonStatus"
 	| IImportMode -> "ImportMode"
 	| IQuoteStatus -> "QuoteStatus"
+	| IStringKind -> "StringKind"
 
 let proto_name = function
 	| O__Const -> assert false
@@ -302,11 +304,18 @@ let null f = function
 
 let encode_enum ?(pos=None) k tag vl = encode_enum k pos tag vl
 
+let encode_string_kind k =
+	let tag,pl = match k with
+		| Double -> 0,[]
+		| Single -> 1,[]
+	in
+	encode_enum IStringKind tag pl
+
 let encode_const c =
 	let tag, pl = match c with
 	| Int s -> 0, [encode_string s]
 	| Float s -> 1, [encode_string s]
-	| String s -> 2, [encode_string s]
+	| String (s,k) -> 2, [encode_string s; encode_string_kind k]
 	| Ident s -> 3, [encode_string s]
 	| Regexp (s,opt) -> 4, [encode_string s;encode_string opt]
 	in
@@ -577,11 +586,17 @@ let opt_list f v =
 let decode_opt_bool v =
 	if v = vnull then false else decode_bool v
 
+let decode_string_kind k =
+	match decode_enum k with
+	| 0, [] -> Double
+	| 1, [] -> Single
+	| _ -> raise Invalid_expr
+
 let decode_const c =
 	match decode_enum c with
 	| 0, [s] -> Int (decode_string s)
 	| 1, [s] -> Float (decode_string s)
-	| 2, [s] -> String (decode_string s)
+	| 2, [s;k] -> String (decode_string s, decode_string_kind k)
 	| 3, [s] -> Ident (decode_string s)
 	| 4, [s;opt] -> Regexp (decode_string s, decode_string opt)
 	| 5, [s] -> Ident (decode_string s) (** deprecated CType, keep until 3.0 release **)

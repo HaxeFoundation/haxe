@@ -421,7 +421,7 @@ class Compiler {
 				var f = try sys.io.File.getContent(Context.resolvePath(file)) catch( e : Dynamic ) Context.error(Std.string(e), Context.currentPos());
 				var p = Context.currentPos();
 				var magic = if (Context.defined("js")) "__js__" else "__lua__";
-				{ expr : EUntyped( { expr : ECall( { expr : EConst(CIdent(magic)), pos : p }, [ { expr : EConst(CString(f)), pos : p } ]), pos : p } ), pos : p };
+				{ expr : EUntyped( { expr : ECall( { expr : EConst(CIdent(magic)), pos : p }, [ { expr : EConst(CString(f,Double)), pos : p } ]), pos : p } ), pos : p };
 			case Top | Closure:
 				@:privateAccess Context.includeFile(file, position);
 				macro {};

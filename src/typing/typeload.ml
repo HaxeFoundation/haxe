@@ -478,7 +478,7 @@ let rec load_instance ?(allow_display=false) ctx (t,pn) allow_no_params p =
 				match t with
 				| TPExpr e ->
 					let name = (match fst e with
-						| EConst (String s) -> "S" ^ s
+						| EConst (String (s,_)) -> "S" ^ s
 						| EConst (Int i) -> "I" ^ i
 						| EConst (Float f) -> "F" ^ f
 						| _ -> "Expr"
@@ -1047,9 +1047,9 @@ let get_native_repr md pos =
 		| TAbstractDecl a -> a.a_path, a.a_meta
 	in
 	let rec loop acc = function
-		| (Meta.JavaCanonical,[EConst(String pack),_; EConst(String name),_],_) :: _ ->
+		| (Meta.JavaCanonical,[EConst(String (pack,_)),_; EConst(String (name,_)),_],_) :: _ ->
 			ExtString.String.nsplit pack ".", name
-		| (Meta.Native,[EConst(String name),_],_) :: meta ->
+		| (Meta.Native,[EConst(String (name,_)),_],_) :: meta ->
 			loop (Ast.parse_path name) meta
 		| _ :: meta ->
 			loop acc meta
@@ -1077,7 +1077,7 @@ let rec process_meta_argument ?(toplevel=true) ctx expr = match expr.eexpr with
 	| TConst(TFloat f) ->
 		(EConst(Float f), expr.epos)
 	| TConst(TString s) ->
-		(EConst(String s), expr.epos)
+		(EConst(String (s,Double)), expr.epos)
 	| TConst TNull ->
 		(EConst(Ident "null"), expr.epos)
 	| TConst(TBool b) ->
@@ -2822,7 +2822,7 @@ module ClassInitializer = struct
 							| _ -> ""
 						in
 						if not (ParserEntry.is_true (ParserEntry.eval ctx.com.defines e)) then
-							Some (sc,(match List.rev l with (EConst (String msg),_) :: _ -> Some msg | _ -> None))
+							Some (sc,(match List.rev l with (EConst (String (msg,_)),_) :: _ -> Some msg | _ -> None))
 						else
 							loop l
 				in
@@ -2832,7 +2832,7 @@ module ClassInitializer = struct
 		in
 		let rec check_if_feature = function
 			| [] -> []
-			| (Meta.IfFeature,el,_) :: _ -> List.map (fun (e,p) -> match e with EConst (String s) -> s | _ -> error "String expected" p) el
+			| (Meta.IfFeature,el,_) :: _ -> List.map (fun (e,p) -> match e with EConst (String (s,_)) -> s | _ -> error "String expected" p) el
 			| _ :: l -> check_if_feature l
 		in
 		let cl_if_feature = check_if_feature c.cl_meta in
@@ -4001,7 +4001,7 @@ let rec build_generic ctx c p tl =
 		(* In rare cases the class name can become too long, so let's shorten it (issue #3090). *)
 		if String.length (snd cg.cl_path) > 254 then begin
 			let n = get_short_name () in
-			cg.cl_meta <- (Meta.Native,[EConst(String (n)),p],null_pos) :: cg.cl_meta;
+			cg.cl_meta <- (Meta.Native,[EConst(String (n,Double)),p],null_pos) :: cg.cl_meta;
 		end;
 		TInst (cg,[])
 	end

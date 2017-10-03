@@ -355,13 +355,13 @@ let rec token lexbuf =
 		let pmin = lexeme_start lexbuf in
 		let pmax = (try string lexbuf with Exit -> error Unterminated_string pmin) in
 		let str = (try unescape (contents()) with Invalid_escape_sequence(c,i) -> error (Invalid_escape c) (pmin + i)) in
-		mk_tok (Const (String str)) pmin pmax;
+		mk_tok (Const (String (str,Double))) pmin pmax;
 	| "'" ->
 		reset();
 		let pmin = lexeme_start lexbuf in
 		let pmax = (try string2 lexbuf with Exit -> error Unterminated_string pmin) in
 		let str = (try unescape (contents()) with Invalid_escape_sequence(c,i) -> error (Invalid_escape c) (pmin + i)) in
-		let t = mk_tok (Const (String str)) pmin pmax in
+		let t = mk_tok (Const (String (str,Single))) pmin pmax in
 		fast_add_fmt_string (snd t);
 		t
 	| "~/" ->

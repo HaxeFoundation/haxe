@@ -31,7 +31,7 @@ class HelperMacros {
 			expr: if (result == null)
 					haxe.macro.Expr.ExprDef.EConst(haxe.macro.Expr.Constant.CIdent("null"))
 				else
-					haxe.macro.Expr.ExprDef.EConst(haxe.macro.Expr.Constant.CString(result))
+					haxe.macro.Expr.ExprDef.EConst(haxe.macro.Expr.Constant.CString(result,haxe.macro.Expr.StringKind.Double))
 		};
 	}
 

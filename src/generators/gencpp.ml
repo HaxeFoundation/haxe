@@ -419,7 +419,7 @@ let join_class_path_remap path separator =
 let get_meta_string meta key =
    let rec loop = function
       | [] -> ""
-      | (k,[Ast.EConst (Ast.String name),_],_) :: _  when k=key-> name
+      | (k,[Ast.EConst (Ast.String (name,_)),_],_) :: _  when k=key-> name
       | _ :: l -> loop l
       in
    loop meta
@@ -430,7 +430,7 @@ let get_meta_string meta key =
 let get_meta_string_path meta key =
    let rec loop = function
       | [] -> ""
-      | (k,[Ast.EConst (Ast.String name),_], pos) :: _  when k=key->
+      | (k,[Ast.EConst (Ast.String (name,_)),_], pos) :: _  when k=key->
            (try
            if (String.sub name 0 2) = "./" then begin
               let base = if (Filename.is_relative pos.pfile) then
@@ -2184,7 +2184,7 @@ let cpp_var_name_of var =
 
 let cpp_var_debug_name_of v =
    let rec loop meta = match meta with
-      | (Meta.RealPath,[EConst (String s),_],_) :: _ -> s
+      | (Meta.RealPath,[EConst (String (s,_)),_],_) :: _ -> s
       | _ :: meta -> loop meta
       | [] -> v.v_name
    in

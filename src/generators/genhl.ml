@@ -416,7 +416,7 @@ let rec to_type ?tref ctx t =
 		HDyn
 	| TEnum (e,_) ->
 		enum_type ~tref ctx e
-	| TInst ({ cl_path = ["hl"],"Abstract" },[TInst({ cl_kind = KExpr (EConst (String name),_) },_)]) ->
+	| TInst ({ cl_path = ["hl"],"Abstract" },[TInst({ cl_kind = KExpr (EConst (String (name,_)),_) },_)]) ->
 		HAbstract (name, alloc_string ctx name)
 	| TInst (c,pl) ->
 		(match c.cl_kind with
@@ -923,7 +923,7 @@ let captured_index ctx v =
 let real_name v =
 	let rec loop = function
 		| [] -> v.v_name
-		| (Meta.RealPath,[EConst (String name),_],_) :: _ -> name
+		| (Meta.RealPath,[EConst (String (name,_)),_],_) :: _ -> name
 		| _ :: l -> loop l
 	in
 	loop v.v_meta
@@ -3090,9 +3090,9 @@ let generate_static ctx c f =
 			));
 		in
 		let rec loop = function
-			| (Meta.Custom ":hlNative",[(EConst(String(lib)),_);(EConst(String(name)),_)] ,_ ) :: _ ->
+			| (Meta.Custom ":hlNative",[(EConst(String(lib,_)),_);(EConst(String(name,_)),_)] ,_ ) :: _ ->
 				add_native lib name
-			| (Meta.Custom ":hlNative",[(EConst(String(lib)),_)] ,_ ) :: _ ->
+			| (Meta.Custom ":hlNative",[(EConst(String(lib,_)),_)] ,_ ) :: _ ->
 				add_native lib f.cf_name
 			| (Meta.Custom ":hlNative",[] ,_ ) :: _ ->
 				add_native "std" f.cf_name
@@ -3734,8 +3734,8 @@ let add_types ctx types =
 			List.iter (fun (m,args,p) ->
 				if m = Meta.Custom ":hlNative" then
 					let lib, prefix = (match args with
-					| [(EConst (String lib),_)] -> lib, ""
-					| [(EConst (String lib),_);(EConst (String p),_)] -> lib, p
+					| [(EConst (String (lib,_)),_)] -> lib, ""
+					| [(EConst (String (lib,_)),_);(EConst (String (p,_)),_)] -> lib, p
 					| _ -> abort "hlNative on class requires library name" p
 					) in
 					(* adds :hlNative for all empty methods *)
@@ -3745,7 +3745,7 @@ let add_types ctx types =
 							(match f.cf_expr with
 							| Some { eexpr = TFunction { tf_expr = { eexpr = TBlock ([] | [{ eexpr = TReturn (Some { eexpr = TConst _ })}]) } } } | None ->
 								let name = prefix ^ String.lowercase (Str.global_replace (Str.regexp "[A-Z]+") "_\\0" f.cf_name) in
-								f.cf_meta <- (Meta.Custom ":hlNative", [(EConst (String lib),p);(EConst (String name),p)], p) :: f.cf_meta;
+								f.cf_meta <- (Meta.Custom ":hlNative", [(EConst (String (lib,Double)),p);(EConst (String (name,Double)),p)], p) :: f.cf_meta;
 							| _ -> ())
 						| _ -> ()
 					) c.cl_ordered_statics

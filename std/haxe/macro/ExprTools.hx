@@ -60,7 +60,7 @@ class ExprTools {
 		```haxe
 		function findStrings(e:Expr) {
 			switch(e.expr) {
-				case EConst(CString(s)):
+				case EConst(CString(s,_)):
 					// handle s
 				case _:
 					ExprTools.iter(e, findStrings);
@@ -146,8 +146,8 @@ class ExprTools {
 		```haxe
 		function capitalizeStrings(e:Expr) {
 			return switch(e.expr) {
-				case EConst(CString(s)):
-					{ expr: EConst(CString(s.toUpperCase())), pos: e.pos };
+				case EConst(CString(s,k)):
+					{ expr: EConst(CString(s.toUpperCase(), k)), pos: e.pos };
 				case _:
 					ExprTools.map(e, capitalizeStrings);
 			}
@@ -232,7 +232,7 @@ class ExprTools {
 		return switch (e.expr) {
 			case EConst(CInt(v)): Std.parseInt(v);
 			case EConst(CFloat(v)): Std.parseFloat(v);
-			case EConst(CString(s)): s;
+			case EConst(CString(s,_)): s;
 			case EConst(CIdent("true")): true;
 			case EConst(CIdent("false")): false;
 			case EConst(CIdent("null")): null;

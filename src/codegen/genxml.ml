@@ -60,7 +60,7 @@ let gen_arg_name (name,opt,_) =
 let real_path path meta =
 	let rec loop = function
 		| [] -> path
-		| (Meta.RealPath,[(Ast.EConst (Ast.String s),_)],_) :: _ -> parse_path s
+		| (Meta.RealPath,[(Ast.EConst (Ast.String (s,_)),_)],_) :: _ -> parse_path s
 		| _ :: l -> loop l
 	in
 	loop meta
@@ -165,7 +165,7 @@ and gen_field att f =
 	let field_name cf =
 		try
 			begin match Meta.get Meta.RealPath cf.cf_meta with
-				| _,[EConst (String (s)),_],_ -> s
+				| _,[EConst (String (s,_)),_],_ -> s
 				| _ -> raise Not_found
 			end;
 		with Not_found ->
@@ -323,7 +323,7 @@ let conv_path p =
 let get_real_path meta path =
 	try
 		let real_path = match Meta.get Meta.RealPath meta with
-			| (_,[(EConst(String s),_)],_) ->
+			| (_,[(EConst(String (s,_)),_)],_) ->
 				s
 			| _ -> raise Not_found
 		in
@@ -439,7 +439,7 @@ let generate_type com t =
 		print_meta f.cf_meta;
 		if stat then p "static ";
 		let name = try (match Meta.get Meta.RealPath f.cf_meta with
-				| (Meta.RealPath, [EConst( String s ), _], _) ->
+				| (Meta.RealPath, [EConst( String (s,_) ), _], _) ->
 					s
 				| _ ->
 					raise Not_found)
@@ -457,7 +457,7 @@ let generate_type com t =
 					List.map (fun (a,o,t) ->
 						let rec loop = function
 							| [] -> Ident "null"
-							| (Meta.DefParam,[(EConst (String p),_);(EConst v,_)],_) :: _ when p = a ->
+							| (Meta.DefParam,[(EConst (String (p,_)),_);(EConst v,_)],_) :: _ when p = a ->
 								(match v with
 								| Float "1.#QNAN" -> Float "0./*NaN*/"
 								| Float "4294967295." -> Int "0xFFFFFFFF"

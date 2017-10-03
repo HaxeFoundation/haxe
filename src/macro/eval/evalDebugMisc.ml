@@ -146,7 +146,7 @@ let expr_to_value ctx env e =
 	let rec loop e = match fst e with
 		| EConst cst ->
 			begin match cst with
-				| String s -> "",encode_string s
+				| String (s,_) -> "",encode_string s
 				| Int s -> "",VInt32 (Int32.of_string s)
 				| Float s -> "",VFloat (float_of_string s)
 				| Ident "true" -> "",VTrue

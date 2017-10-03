@@ -49,7 +49,7 @@ let extend_remoting ctx c t p async prot =
 			else
 				fd.f_args, eargs
 			in
-			let id = (EConst (String (fst f.cff_name)), p) in
+			let id = (EConst (String (fst f.cff_name,Double)), p) in
 			let id = if prot then id else ECall ((EConst (Ident "__unprotect__"),p),[id]),p in
 			let expr = ECall (
 				(EField (
@@ -147,7 +147,7 @@ let on_inherit ctx c p (is_extends,tp) =
 	| { tpackage = ["haxe";"remoting"]; tname = "AsyncProxy"; tparams = [TPType(CTPath t,null_pos)] } ->
 		extend_remoting ctx c t p true true;
 		false
-	| { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPExpr(EConst (String file),p);TPType (t,_)] } ->
+	| { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPExpr(EConst (String (file,_)),p);TPType (t,_)] } ->
 		extend_xml_proxy ctx c t file p;
 		true
 	| _ ->

@@ -67,7 +67,7 @@ let get_exposed ctx path meta =
 	try
 		let (_, args, pos) = Meta.get Meta.Expose meta in
 		(match args with
-			| [ EConst (String s), _ ] -> [s]
+			| [ EConst (String (s,_)), _ ] -> [s]
 			| [] -> [path]
 			| _ -> abort "Invalid @:expose parameters" pos)
 	with Not_found -> []
@@ -1248,9 +1248,9 @@ let generate_require ctx path meta =
 		generate_package_create ctx path;
 
 	(match args with
-	| [(EConst(String(module_name)),_)] ->
+	| [(EConst(String(module_name,_)),_)] ->
 		print ctx "%s = require(\"%s\")" p module_name
-	| [(EConst(String(module_name)),_) ; (EConst(String(object_path)),_)] ->
+	| [(EConst(String(module_name,_)),_) ; (EConst(String(object_path,_)),_)] ->
 		print ctx "%s = require(\"%s\").%s" p module_name object_path
 	| _ ->
 		abort "Unsupported @:jsRequire format" mp);

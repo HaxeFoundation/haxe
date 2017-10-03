@@ -641,7 +641,7 @@ and parse_class_herit = parser
 
 and block1 = parser
 	| [< name,p = dollar_ident; s >] -> block2 (name,p,NoQuotes) (Ident name) p s
-	| [< '(Const (String name),p); s >] -> block2 (name,p,DoubleQuotes) (String name) p s
+	| [< '(Const (String (name,kind)),p); s >] -> block2 (name,p,DoubleQuotes (* it can be single-quotes? *)) (String (name,kind)) p s
 	| [< b = block [] >] -> EBlock b
 
 and block2 name ident p s =
@@ -687,7 +687,7 @@ and parse_obj_decl = parser
 	| [< '(Comma,_); s >] ->
 		(match s with parser
 		| [< name,p = ident; '(DblDot,_); e = expr; l = parse_obj_decl >] -> ((name,p,NoQuotes),e) :: l
-		| [< '(Const (String name),p); '(DblDot,_); e = expr; l = parse_obj_decl >] -> ((name,p,DoubleQuotes),e) :: l
+		| [< '(Const (String (name,quotes)),p); '(DblDot,_); e = expr; l = parse_obj_decl >] -> ((name,p,DoubleQuotes),e) :: l
 		| [< >] -> [])
 	| [< >] -> []
 
@@ -1075,8 +1075,8 @@ and parse_macro_cond allow_op s =
 	match s with parser
 	| [< '(Const (Ident t),p) >] ->
 		parse_macro_ident allow_op t p s
-	| [< '(Const (String s),p) >] ->
-		None, (EConst (String s),p)
+	| [< '(Const (String (s,q)),p) >] ->
+		None, (EConst (String (s,q)),p)
 	| [< '(Const (Int i),p) >] ->
 		None, (EConst (Int i),p)
 	| [< '(Const (Float f),p) >] ->

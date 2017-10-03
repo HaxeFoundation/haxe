@@ -753,7 +753,7 @@ let rec module_type_of_type = function
 let tconst_to_const = function
 	| TInt i -> Int (Int32.to_string i)
 	| TFloat s -> Float s
-	| TString s -> String s
+	| TString s -> String (s,Double) (* not much we can do about preserving quotes kind here *)
 	| TBool b -> Ident (if b then "true" else "false")
 	| TNull -> Ident "null"
 	| TThis -> Ident "this"
