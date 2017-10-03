@@ -738,14 +738,7 @@ class RunCi {
 	}
 
 	static function shouldDeployInstaller() {
-		if (systemName == 'Linux') {
-			return false;
-		}
-		if (gitInfo.branch == 'three_four_three') {
-			return true;
-		}
-		var rev = Sys.getEnv('ADD_REVISION');
-		return rev != null && rev != "0";
+		return true;
 	}
 
 	static function isDeployApiDocsRequired () {
@@ -785,7 +778,7 @@ class RunCi {
 		if (
 			(gitInfo.branch == "development" ||
 			gitInfo.branch == "master" ||
-			gitInfo.branch == "three_four_three" ||
+			~/^[0-9]\.[0-9]_bugfix$/.match(gitInfo.branch) ||
 			gitInfo.branch == "nightly-travis") &&
 			Sys.getEnv("HXBUILDS_AWS_ACCESS_KEY_ID") != null &&
 			Sys.getEnv("HXBUILDS_AWS_SECRET_ACCESS_KEY") != null &&
