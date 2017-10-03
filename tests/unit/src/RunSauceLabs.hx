@@ -58,21 +58,9 @@ class RunSauceLabs {
 
 		//https://saucelabs.com/platforms
 		var browsers:Array<Dynamic> = [
-			// {
-			// 	"browserName": "internet explorer",
-			// 	"platform": "Windows XP",
-			// 	"version": "6.0",
-			//  "prerun": hideLongRunningScriptWarning
-			// },
-			// {
-			// 	"browserName": "internet explorer",
-			// 	"platform": "Windows XP",
-			// 	"version": "7.0",
-			//  "prerun": hideLongRunningScriptWarning
-			// },
 			{
 				"browserName": "internet explorer",
-				"platform": "Windows XP",
+				"platform": "Windows 7",
 				"version": "8.0",
 				"prerun": hideLongRunningScriptWarning
 			},
@@ -94,11 +82,11 @@ class RunSauceLabs {
 			},
 			{
 				"browserName": "chrome",
-				"platform": "Windows XP"
+				"platform": "Windows 7"
 			},
 			{
 				"browserName": "firefox",
-				"platform": "Windows XP"
+				"platform": "Windows 7"
 			},
 			{
 				"browserName": "safari",
