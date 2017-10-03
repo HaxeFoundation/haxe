@@ -22,6 +22,7 @@
 	eval : fixed issue with file creation not defaulting to binary
 	cs/java : fixed DCE bug that would lose toString method of thrown objects
 	php/python : fixed some bit operators for Int32 (#5938)
+	php : fixed accessing `static inline var` via reflection (#6630)
 
 2017-09-12: 4.0.0-preview.1
 

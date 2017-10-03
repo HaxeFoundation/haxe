@@ -568,7 +568,9 @@ private class HxClass {
 	**/
 	@:phpMagic
 	function __get( property:String ) : Dynamic {
-		if (Boot.hasGetter(phpClassName, property)) {
+		if (Global.defined('$phpClassName::$property')) {
+			return Global.constant('$phpClassName::$property');
+		} else if (Boot.hasGetter(phpClassName, property)) {
 			return Syntax.staticCall(phpClassName, 'get_$property');
 		} else {
 			return Syntax.getStaticField(phpClassName, property);

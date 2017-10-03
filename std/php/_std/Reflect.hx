@@ -35,7 +35,7 @@ using php.Global;
 
 		if (Boot.isClass(o)) {
 			var phpClassName = Boot.castClass(o).phpClassName;
-			return Global.property_exists(phpClassName, field) || Global.method_exists(phpClassName, field);
+			return Global.property_exists(phpClassName, field) || Global.method_exists(phpClassName, field) || Global.defined('$phpClassName::$field');
 		}
 
 		return false;
@@ -56,6 +56,9 @@ using php.Global;
 
 		if (Boot.isClass(o)) {
 			var phpClassName = Boot.castClass(o).phpClassName;
+			if (Global.defined('$phpClassName::$field')) {
+				return Global.constant('$phpClassName::$field');
+			}
 			if (Global.property_exists(phpClassName, field)) {
 				return Syntax.getField(o, field);
 			}
