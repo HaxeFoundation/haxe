@@ -2096,10 +2096,6 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 						write_method ((self#use boot_type_path) ^ "::addOrConcat")
 					else
 						write_binop " + "
-				| OpMult -> write_binop " * "
-				| OpDiv -> write_binop " / "
-				| OpSub -> write_binop " - "
-				| OpAssign -> write_binop " = "
 				| OpEq ->
 					if need_boot_equal expr1 expr2 then
 						write_method ((self#use boot_type_path) ^ "::equal")
@@ -2113,17 +2109,6 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 						end
 					else
 						write_binop " !== "
-				| OpGt -> compare " > "
-				| OpGte -> compare " >= "
-				| OpLt -> compare " < "
-				| OpLte -> compare " <= "
-				| OpAnd -> write_binop " & "
-				| OpOr -> write_binop " | "
-				| OpXor -> write_binop " ^ "
-				| OpBoolAnd -> write_binop " && "
-				| OpBoolOr -> write_binop " || "
-				| OpShl  -> write_binop " << "
-				| OpShr -> write_binop " >> "
 				| OpMod ->
 					if is_int expr1 && is_int expr2 then
 						write_binop " % "
@@ -2145,14 +2130,6 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 						end
 					else
 						write_binop " += "
-				| OpAssignOp OpMult -> write_binop " *= "
-				| OpAssignOp OpDiv -> write_binop " /= "
-				| OpAssignOp OpSub -> write_binop " -= "
-				| OpAssignOp OpAnd -> write_binop " &= "
-				| OpAssignOp OpOr -> write_binop " |= "
-				| OpAssignOp OpXor -> write_binop " ^= "
-				| OpAssignOp OpShl  -> write_binop " <<= "
-				| OpAssignOp OpShr -> write_binop " >>= "
 				| OpAssignOp OpMod ->
 					if is_int expr1 && is_int expr2 then
 						write_binop " %= "
@@ -2162,26 +2139,21 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					self#write_expr expr1;
 					self#write " = ";
 					write_method ((self#use boot_type_path) ^ "::shiftRightUnsigned")
-				| _ -> fail self#pos __POS__
+				| OpGt | OpGte | OpLt | OpLte ->
+					compare (" " ^ (Ast.s_binop operation) ^ " ")
+				| _ ->
+					write_binop (" " ^ (Ast.s_binop operation) ^ " ")
 		(**
 			Writes TUnOp to output buffer
 		*)
 		method write_expr_unop operation flag expr =
-			let write_unop operation =
-				match operation with
-					| Increment -> self#write "++"
-					| Decrement -> self#write "--"
-					| Not -> self#write "!"
-					| Neg -> self#write "-"
-					| NegBits -> self#write "~"
-			in
 			match flag with
 				| Prefix ->
-					write_unop operation;
+					self#write (Ast.s_unop operation);
 					self#write_expr expr
 				| Postfix ->
 					self#write_expr expr;
-					write_unop operation
+					self#write (Ast.s_unop operation)
 		method private write_expr_for_field_access expr access_str field_str =
 			let access_str = ref access_str in
 			(match (reveal_expr expr).eexpr with
