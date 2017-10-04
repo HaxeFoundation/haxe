@@ -29,7 +29,9 @@ cache:
 install:
     - 'git submodule update --init --recursive'
     - '%CYG_ROOT%/bin/bash -lc "echo initialize"'
-    - choco install curl
+    # http://help.appveyor.com/discussions/problems/5616-not-able-to-build-due-to-problem-in-chocolateyinstallps1
+    - ps: Set-Service wuauserv -StartupType Manual
+    - choco install curl nsis.portable wget awscli -y
     # Install ocaml
     - curl -fsSL -o cygwin-setup.exe --retry 3 https://cygwin.com/setup-x86_64.exe
     - 'cygwin-setup.exe -g -q -R "%CYG_ROOT%" -P make -P git -P mingw64-x86_64-zlib -P mingw64-i686-zlib -P rsync -P patch -P diffutils -P curl -P unzip -P m4 -P perl -P mingw64-x86_64-gcc-core -P mingw64-i686-gcc-core -P mingw64-x86_64-pcre -P mingw64-i686-pcre'
@@ -42,12 +44,10 @@ install:
     - '%CYG_ROOT%/bin/bash -lc "opam install camlp4 sedlex ocamlfind xml-light extlib rope ptmap --yes"'
     # Install neko
     - choco install neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
-    - choco install chocolatey-core.extension php --ignore-dependencies -y
-    - choco install nsis.portable
-    - choco install wget
+    # Install php
+    - choco install php -y
     - echo extension=php_openssl.dll >> C:\tools\php71\php.ini
     - RefreshEnv
-    - neko -version
     # setup python
     - cmd: mklink C:\Python34-x64\python3.exe C:\Python34-x64\python.exe
     - set PATH=%PATH%;C:\Python34-x64
@@ -57,7 +57,7 @@ install:
       ) else (
         set "PATH=%CYG_ROOT%/usr/x86_64-w64-mingw32/sys-root/mingw/bin;%PATH%"
       )
-    - choco install awscli
+    - neko -version
 
 build_script:
     - 'cd %APPVEYOR_BUILD_FOLDER%'
