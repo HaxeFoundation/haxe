@@ -2689,6 +2689,8 @@ let generate con =
 				match e.eexpr, real_type e.etype with
 					| TConst TThis, _ when gen.gcurrent_path = (["haxe";"lang"], "Null") ->
 						e
+					| TConst (TInt _ | TFloat _ | TBool _), _ ->
+						e
 					| _, TInst({ cl_path = (["haxe";"lang"], "Null") }, [t]) ->
 						let e = { e with eexpr = TParenthesis(e) } in
 						{ (mk_field_access gen e "value" e.epos) with etype = t }
