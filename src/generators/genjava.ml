@@ -2591,6 +2591,8 @@ let generate con =
 
 	UnreachableCodeEliminationSynf.configure gen true;
 
+	ArraySpliceOptimization.configure gen;
+
 	ArrayDeclSynf.configure gen native_arr_cl change_param_type;
 
 	JavaSpecificSynf.configure gen runtime_cl;
