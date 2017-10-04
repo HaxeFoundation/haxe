@@ -24,6 +24,7 @@
 	php/python : fixed some bit operators for Int32 (#5938)
 	php : fixed accessing `static inline var` via reflection (#6630)
 	php : fixed Math.min() and Math.max() for NAN on PHP 7.1.9 and 7.1.10
+	js : fixed js syntax error for `value.iterator--` (#6637)
 
 2017-09-12: 4.0.0-preview.1
 
