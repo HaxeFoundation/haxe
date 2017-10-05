@@ -3433,15 +3433,6 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| EFor(it,e2) -> (EFor (it, map_compr e2),p)
 			| EWhile(cond,e2,flag) -> (EWhile (cond,map_compr e2,flag),p)
 			| EIf (cond,e2,None) -> (EIf (cond,map_compr e2,None),p)
-			| EIf (cond,e2,Some e3) -> (EIf (cond,map_compr e2,Some (map_compr e3)),p)
-			| ESwitch(e1,cases,eo) ->
-				let cases = List.map (fun (el,eg,e,p) -> el,eg,Option.map map_compr e,p) cases in
-				let eo = Option.map (fun (eo,p) -> Option.map map_compr eo,p) eo in
-				ESwitch(e1,cases,eo),p
-			| ETry(e1,catches) ->
-				let catches = List.map (fun (n,ct,e,p) -> n,ct,map_compr e,p) catches in
-				ETry(map_compr e1,catches),p
-			| ETernary (cond,e2,e3) -> (ETernary (cond,map_compr e2,map_compr e3),p)
 			| EBlock [e] -> (EBlock [map_compr e],p)
 			| EBlock el -> begin match List.rev el with
 				| e :: el -> (EBlock ((List.rev el) @ [map_compr e]),p)
@@ -3451,18 +3442,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| EBinop(OpArrow,a,b) ->
 				et := (ENew(({tpackage=["haxe";"ds"];tname="Map";tparams=[];tsub=None},null_pos),[]),p);
 				(ECall ((EField ((EConst (Ident v.v_name),p),"set"),p),[a;b]),p)
-			| EContinue | EBreak | EReturn _ | EThrow _ ->
-				(e,p)
-			| ECast(e1,tho) ->
-				ECast(map_compr e1,tho),p
-			| EUntyped e1 ->
-				EUntyped(map_compr e1),p
-			| EDisplay(e1,b) ->
-				EDisplay(map_compr e1,b),p
-			| EMeta(m,e1) ->
-				EMeta(m,map_compr e1),p
-			| EConst _ | EArray _ | EBinop _ | EField _ | EObjectDecl _ | EArrayDecl _
-			| ECall _ | ENew _ | EUnop _ | EVars _ | EFunction _ | EDisplayNew _ | ECheckType _ ->
+			| _ ->
 				et := (EArrayDecl [],p);
 				(ECall ((EField ((EConst (Ident v.v_name),p),"push"),p),[(e,p)]),p)
 		in
