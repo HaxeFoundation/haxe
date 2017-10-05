@@ -17,12 +17,10 @@ environment:
           TEST: "neko,python,cs,java,macro"
           DEPLOY_NIGHTLIES: 1
         - ARCH: 64
-          TEST: "php7,php"
-          DEPLOY: 1
-        - ARCH: 64
-          TEST: "cpp"
+          TEST: "php7,php,cpp"
         - ARCH: 32
           TEST: "macro"
+          DEPLOY_NIGHTLIES: 1
 
 services:
     - mysql
