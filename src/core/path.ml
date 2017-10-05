@@ -154,3 +154,20 @@ let find_directories target recursive paths =
 			acc
 	in
 	List.fold_left (fun acc dir -> loop acc dir) [] paths
+
+let make_valid_filename s =
+	let r = Str.regexp "[^A-Za-z0-9_\\-\\.,]" in
+	Str.global_substitute r (fun s -> "_") s
+
+let rec create_file bin ext acc = function
+	| [] -> assert false
+	| d :: [] ->
+		let d = make_valid_filename d in
+		let maxlen = 200 - String.length ext in
+		let d = if String.length d > maxlen then String.sub d 0 maxlen else d in
+		let ch = (if bin then open_out_bin else open_out) (String.concat "/" (List.rev (d :: acc)) ^ ext) in
+		ch
+	| d :: l ->
+		let dir = String.concat "/" (List.rev (d :: acc)) in
+		if not (Sys.file_exists (remove_trailing_slash dir)) then Unix.mkdir dir 0o755;
+		create_file bin ext (d :: acc) l

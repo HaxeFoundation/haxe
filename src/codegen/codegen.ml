@@ -539,28 +539,11 @@ let rec constructor_side_effects e =
 			true
 
 module Dump = struct
-	let make_valid_filename s =
-		let r = Str.regexp "[^A-Za-z0-9_\\-\\.,]" in
-		Str.global_substitute r (fun s -> "_") s
-
-	let rec create_file ext acc = function
-		| [] -> assert false
-		| d :: [] ->
-			let d = make_valid_filename d in
-			let maxlen = 200 - String.length ext in
-			let d = if String.length d > maxlen then String.sub d 0 maxlen else d in
-			let ch = open_out (String.concat "/" (List.rev (d :: acc)) ^ ext) in
-			ch
-		| d :: l ->
-			let dir = String.concat "/" (List.rev (d :: acc)) in
-			if not (Sys.file_exists dir) then Unix.mkdir dir 0o755;
-			create_file ext (d :: acc) l
-
 	(*
 		Make a dump of the full typed AST of all types
 	*)
 	let create_dumpfile acc l =
-		let ch = create_file ".dump" acc l in
+		let ch = Path.create_file false ".dump" acc l in
 		let buf = Buffer.create 0 in
 		buf, (fun () ->
 			output_string ch (Buffer.contents buf);
