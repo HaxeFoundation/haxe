@@ -125,50 +125,64 @@ class Deployment {
 			Sys.getEnv("HXBUILDS_AWS_SECRET_ACCESS_KEY") != null &&
 			Sys.getEnv("TRAVIS_PULL_REQUEST") != "true"
 		) {
-			if (ci == TravisCI) {
-				runCommand("make", ["-s", "package_unix"]);
-				if (doInstaller) {
-					getLatestNeko();
-					runCommand("make", ["-s", 'package_installer_mac']);
-				}
-				if (systemName == 'Linux') {
-					// source
+			switch (ci) {
+				case null:
+					trace('Not deploying nightlies (not in CI)');
+				case TravisCI:
+					runCommand("make", ["-s", "package_unix"]);
+					if (doInstaller) {
+						getLatestNeko();
+						runCommand("make", ["-s", 'package_installer_mac']);
+					}
+					if (systemName == 'Linux') {
+						// source
+						for (file in sys.FileSystem.readDirectory('out')) {
+							if (file.startsWith('haxe') && file.endsWith('_src.tar.gz')) {
+								submitToS3("source", 'out/$file');
+								break;
+							}
+						}
+					}
 					for (file in sys.FileSystem.readDirectory('out')) {
-						if (file.startsWith('haxe') && file.endsWith('_src.tar.gz')) {
-							submitToS3("source", 'out/$file');
-							break;
+						if (file.startsWith('haxe')) {
+							if (file.endsWith('_bin.tar.gz')) {
+								var name = systemName == "Linux" ? 'linux64' : 'mac';
+								submitToS3(name, 'out/$file');
+							} else if (file.endsWith('_installer.tar.gz')) {
+								submitToS3('mac-installer', 'out/$file');
+							}
 						}
 					}
-				}
-				for (file in sys.FileSystem.readDirectory('out')) {
-					if (file.startsWith('haxe')) {
-						if (file.endsWith('_bin.tar.gz')) {
-							var name = systemName == "Linux" ? 'linux64' : 'mac';
-							submitToS3(name, 'out/$file');
-						} else if (file.endsWith('_installer.tar.gz')) {
-							submitToS3('mac-installer', 'out/$file');
+				case AppVeyor:
+					var kind = switch (Sys.getEnv("ARCH")) {
+						case null:
+							throw "ARCH is not set";
+						case "32":
+							"windows";
+						case "64":
+							"windows64";
+						case _:
+							throw "unknown ARCH";
+					}
+
+					if (doInstaller) {
+						getLatestNeko();
+						var cygRoot = Sys.getEnv("CYG_ROOT");
+						if (cygRoot != null) {
+							runCommand('$cygRoot/bin/bash', ['-lc', "cd \"$OLDPWD\" && make -s -f Makefile.win package_installer_win"]);
+						} else {
+							runCommand("make", ['-f', 'Makefile.win', "-s", 'package_installer_win']);
 						}
 					}
-				}
-			} else {
-				if (doInstaller) {
-					getLatestNeko();
-					var cygRoot = Sys.getEnv("CYG_ROOT");
-					if (cygRoot != null) {
-						runCommand('$cygRoot/bin/bash', ['-lc', "cd \"$OLDPWD\" && make -s -f Makefile.win package_installer_win"]);
-					} else {
-						runCommand("make", ['-f', 'Makefile.win', "-s", 'package_installer_win']);
-					}
-				}
-				for (file in sys.FileSystem.readDirectory('out')) {
-					if (file.startsWith('haxe')) {
-						if (file.endsWith('_bin.zip')) {
-							submitToS3('windows', 'out/$file');
-						} else if (file.endsWith('_installer.zip')) {
-							submitToS3('windows-installer', 'out/$file');
+					for (file in sys.FileSystem.readDirectory('out')) {
+						if (file.startsWith('haxe')) {
+							if (file.endsWith('_bin.zip')) {
+								submitToS3(kind, 'out/$file');
+							} else if (file.endsWith('_installer.zip')) {
+								submitToS3('${kind}-installer', 'out/$file');
+							}
 						}
 					}
-				}
 			}
 		} else {
 			trace('Not deploying nightlies');

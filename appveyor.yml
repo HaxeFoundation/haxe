@@ -20,6 +20,7 @@ environment:
           TEST: "cpp"
         - ARCH: 32
           TEST: "macro"
+          DEPLOY_NIGHTLIES: 1
 
 skip_tags: true
 
