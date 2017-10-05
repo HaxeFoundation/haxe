@@ -2,6 +2,7 @@
 
 	Bugfixes:
 
+	flash : fixed flash target broken when compiled with OCaml 4.05 (#6589)
 	php7 : fixed accessing `static inline var` via reflection (#6630)
 	js : fixed js syntax error for `value.iterator--` (#6637)
 
