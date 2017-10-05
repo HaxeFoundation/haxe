@@ -21,7 +21,8 @@ class RunCi {
 	static function main():Void {
 		Sys.putEnv("OCAMLRUNPARAM", "b");
 
-		var tests:Array<TestTarget> = switch (Sys.getEnv("TEST")) {
+		var args = Sys.args();
+		var tests:Array<TestTarget> = switch (args.length==1 ? args[0] : Sys.getEnv("TEST")) {
 			case null:
 				[Macro];
 			case env:
@@ -64,7 +65,9 @@ class RunCi {
 					case Lua:
 						runci.targets.Lua.run(args);
 					case Cpp:
-						runci.targets.Cpp.run(args);
+						runci.targets.Cpp.run(args, true, true);
+					case Cppia:
+						runci.targets.Cpp.run(args, false, true);
 					case Js:
 						runci.targets.Js.run(args);
 					case Java:
