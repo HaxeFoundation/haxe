@@ -490,6 +490,17 @@ and gen_expr ctx e =
 		print ctx "$iterator(";
 		gen_value ctx x;
 		print ctx ")";
+	(* Don't generate `$iterator(value)` for exprs like `value.iterator--` *)
+	| TUnop (op,flag,({eexpr = TField (x,f)} as fe)) when field_name f = "iterator" && is_dynamic_iterator ctx fe ->
+		(match flag with
+			| Prefix ->
+				spr ctx (Ast.s_unop op);
+				gen_value ctx x;
+				spr ctx ".iterator"
+			| Postfix ->
+				gen_value ctx x;
+				spr ctx ".iterator";
+				spr ctx (Ast.s_unop op))
 	| TField (x,FClosure (Some ({cl_path=[],"Array"},_), {cf_name="push"})) ->
 		(* see https://github.com/HaxeFoundation/haxe/issues/1997 *)
 		add_feature ctx "use.$arrayPush";
