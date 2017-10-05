@@ -58,7 +58,6 @@ class Cpp {
 				}
 
 				if (testCppia) {
-				// https://github.com/HaxeFoundation/hxcpp/issues/646
 					runCommand("haxe", ["compile-cppia-host.hxml"]);
 					runCommand("haxe", ["compile-cppia.hxml"]);
 					runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
