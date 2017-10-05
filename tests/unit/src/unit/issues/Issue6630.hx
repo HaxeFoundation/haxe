@@ -1,6 +1,7 @@
 package unit.issues;
 
 class Issue6630 extends unit.Test {
+	#if !cpp
 	static var cls:Dynamic;
 	static inline var HELLO = 'hello';
 
@@ -10,4 +11,5 @@ class Issue6630 extends unit.Test {
 		eq(Reflect.field(Issue6630, 'HELLO'), HELLO);
 		t(Reflect.hasField(Issue6630, 'HELLO'));
 	}
+	#end
 }
