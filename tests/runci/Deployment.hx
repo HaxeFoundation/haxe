@@ -223,6 +223,9 @@ class Deployment {
 		}
 		Indexer.index('$S3_HXBUILDS_ADDR/$kind/');
 		runCommand('aws s3 cp --region us-east-1 index.html "$S3_HXBUILDS_ADDR/$kind/index.html"');
+
+		Indexer.index('$S3_HXBUILDS_ADDR/');
+		runCommand('aws s3 cp --region us-east-1 index.html "$S3_HXBUILDS_ADDR/index.html"');
 	}
 
 	static function createNsiInstaller() {
