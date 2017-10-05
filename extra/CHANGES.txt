@@ -1,3 +1,9 @@
+2017-XX-XX: 3.4.4
+
+	Bugfixes:
+
+	js : fixed js syntax error for `value.iterator--` (#6637)
+
 2017-09-10: 3.4.3
 
 	Bugfixes:
