@@ -570,6 +570,11 @@ enum ComplexType {
 		Represents an optional type.
 	**/
 	TOptional( t : ComplexType );
+
+	/**
+		Represents a type with a name.
+	**/
+	TNamed( n : String, t : ComplexType );
 }
 
 /**
