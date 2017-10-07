@@ -9,12 +9,7 @@ private typedef Repr = {
 	var complement:String;
 }
 
-#if single_issue
-class Issue6640 extends TestSingleIssue {
-  public function new() { super(); };
-#else
 class Issue6640 extends Test {
-#end
 	static inline var MIN_INT64_STR = "-9223372036854775808";
 	static inline var MAX_INT64_STR = "9223372036854775807";
 	static inline var ABS_MIN_INT64_STR = "9223372036854775808";
@@ -95,10 +90,6 @@ class Issue6640 extends Test {
 				t(true);
 			}
 		}
-    
-  #if single_issue
-    end();
-  #end
 	}
 	
 	static inline function isNegativeStr(s:String):Bool {
