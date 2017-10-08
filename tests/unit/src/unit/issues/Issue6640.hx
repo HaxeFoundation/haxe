@@ -14,7 +14,7 @@ class Issue6640 extends Test {
 	static inline var MAX_INT64_STR = "9223372036854775807";
 	static inline var ABS_MIN_INT64_STR = "9223372036854775808";
 	static inline var ABS_MAX_INT64_STR = "9223372036854775807";
-  
+	
 	static var MIN_INT64_REPR = createRepr(MIN_INT64_STR);
 	static var MAX_INT64_REPR = createRepr(MAX_INT64_STR);
 
@@ -25,7 +25,7 @@ class Issue6640 extends Test {
 		
 		t(Int64Helper.parseString("-0") == 0);
 		
-    t(numLexiCompare("-0", "0") == 0);
+		t(numLexiCompare("-0", "0") == 0);
 		t(numLexiCompare("0000", "0") == 0);
 		t(numLexiCompare("-0001", "-1") == 0);
 		t(numLexiCompare("1", "0001") == 0);
@@ -33,12 +33,12 @@ class Issue6640 extends Test {
 		t(numLexiCompare("01", "-1") == 1);
 		t(numLexiCompare("1", "-1") == 1);
 		t(numLexiCompare("-1", "1") == -1);
-  
-    t(isInInt64Range("-7834911985406430862"));
-    t(isInInt64Range(MIN_INT64_STR));
-    t(isInInt64Range(MAX_INT64_STR));
-    f(isInInt64Range(ABS_MIN_INT64_STR));
-    
+	
+		t(isInInt64Range("-7834911985406430862"));
+		t(isInInt64Range(MIN_INT64_STR));
+		t(isInInt64Range(MAX_INT64_STR));
+		f(isInInt64Range(ABS_MIN_INT64_STR));
+		
 		var validInt64Strings = [
 			"-0317551087311700367",
 			"008854131894243499964",
@@ -100,22 +100,22 @@ class Issue6640 extends Test {
 		return StringTools.lpad(s, with, len);
 	}
 	
-  static inline function isNullOrEmpty(s:String):Bool {
-    return s == null || s == "";
-  }
-  
-  static function stripLeadingZeros(s:String):String {
-    var regex:EReg = ~/^([-])?([0]+)(.*)/g;
-    if (regex.match(s)) {
-        var sign = isNullOrEmpty(regex.matched(1)) ? "" : regex.matched(1);
-        var rest = isNullOrEmpty(regex.matched(3)) ? null : regex.matched(3);
-        if (rest == null) return "0";
-        return sign + rest;
-    } else {
-	    return s;
-    }
-  }
-  
+	static inline function isNullOrEmpty(s:String):Bool {
+		return s == null || s == "";
+	}
+	
+	static function stripLeadingZeros(s:String):String {
+		var regex:EReg = ~/^([-])?([0]+)(.*)/g;
+		if (regex.match(s)) {
+				var sign = isNullOrEmpty(regex.matched(1)) ? "" : regex.matched(1);
+				var rest = isNullOrEmpty(regex.matched(3)) ? null : regex.matched(3);
+				if (rest == null) return "0";
+				return sign + rest;
+		} else {
+			return s;
+		}
+	}
+	
 	static function createRepr(s:String):Repr {
 		inline function makeComplement(s:String) {
 			var buf = new StringBuf();
@@ -127,9 +127,9 @@ class Issue6640 extends Test {
 		}
 		
 		var isNegative = isNegativeStr(s);
-    var noZeros = stripLeadingZeros(s);
+		var noZeros = stripLeadingZeros(s);
 		var abs = isNegative ? noZeros.substr(1) : noZeros;
-    var padded = isNegative ? leftPad(abs, "9", noZeros.length) : noZeros;
+		var padded = isNegative ? leftPad(abs, "9", noZeros.length) : noZeros;
 		var complement = isNegative ? makeComplement(padded) : padded;
 		return { value:s, stripped:noZeros, complement:complement };
 	}
