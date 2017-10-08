@@ -20,7 +20,6 @@ env:
 
 sudo: required
 dist: trusty
-osx_image: xcode6.4
 addons: &addons
   ssh_known_hosts:
     - haxe.org
@@ -155,12 +154,20 @@ matrix:
     # osx #
     #######
     - os: osx
+      osx_image: xcode6.4
       env:
-        - TEST=macro,neko,js,php,flash9,as3,java,cs,python,hl,lua
+        - TEST=neko
         - DEPLOY_NIGHTLIES=1
       install: *install_osx
 
     - os: osx
+      osx_image: xcode9.1
+      env:
+        - TEST=macro,js,php,flash9,as3,java,cs,python,hl,lua
+      install: *install_osx
+
+    - os: osx
+      osx_image: xcode9.1
       env:
         - TEST=cpp
       install: *install_osx
