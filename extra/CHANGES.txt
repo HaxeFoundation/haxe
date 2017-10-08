@@ -8,6 +8,7 @@
 
 	all : replaced some occurrences of List with Array
 	all : changed haxe.xml.Fast to an abstract
+	php : changed `--php-prefix`, `--php-front` and `--php-lib` to `-D php-prefix=`, `-D php-front=` and `-D php-lib=` respectively
 
 	Removals:
 

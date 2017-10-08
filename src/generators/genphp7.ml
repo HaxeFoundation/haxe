@@ -184,9 +184,9 @@ let get_php_prefix ctx =
 		| Some prefix -> prefix
 		| None ->
 			let lst =
-				match ctx.php_prefix with
-					| None -> []
-					| Some str ->
+				match Common.defined_value_safe ctx Define.PhpPrefix with
+					| "" -> []
+					| str ->
 						if String.length str = 0 then
 							[]
 						else
@@ -3665,10 +3665,11 @@ class generator (ctx:context) =
 			match self#get_entry_point with
 				| None -> ()
 				| Some (uses, entry_point) ->
-					let filename = match ctx.php_front with None -> "index.php" | Some n -> n in
+					let filename = Common.defined_value_safe ~default:"index.php" ctx Define.PhpFront in
 					let channel = open_out (root_dir ^ "/" ^ filename) in
 					output_string channel "<?php\n";
 					output_string channel uses;
+					output_string channel "\n";
 					output_string channel ("set_include_path(__DIR__.'/" ^ (String.concat "/" self#get_lib_path) ^ "');\n");
 					output_string channel "spl_autoload_register(\n";
 					output_string channel "	function($class){\n";
@@ -3696,9 +3697,8 @@ class generator (ctx:context) =
 			Returns path from `index.php` to directory which will contain all generated classes
 		*)
 		method private get_lib_path : string list =
-			match ctx.php_lib with
-				| None -> ["lib"];
-				| Some path -> (Str.split (Str.regexp "/")  path)
+			let path = Common.defined_value_safe ~default:"lib" ctx Define.PhpLib in
+			(Str.split (Str.regexp "/")  path)
 		(**
 			Returns PHP code for entry point
 		*)

@@ -288,9 +288,6 @@ type context = {
 	mutable resources : (string,string) Hashtbl.t;
 	mutable neko_libs : string list;
 	mutable include_files : (string * string) list;
-	mutable php_front : string option;
-	mutable php_lib : string option;
-	mutable php_prefix : string option;
 	mutable swf_libs : (string * (unit -> Swf.swf) * (unit -> ((string list * string),As3hl.hl_class) Hashtbl.t)) list;
 	mutable java_libs : (string * bool * (unit -> unit) * (unit -> (path list)) * (path -> ((JData.jclass * string * string) option))) list; (* (path,std,close,all_files,lookup) *)
 	mutable net_libs : (string * bool * (unit -> path list) * (path -> IlData.ilclass option)) list; (* (path,std,all_files,lookup) *)
@@ -442,8 +439,10 @@ let raw_defined com v =
 let defined_value com v =
 	Define.defined_value com.defines v
 
-let defined_value_safe com v =
-	Define.defined_value_safe com.defines v
+let defined_value_safe ?default com v =
+	match default with
+		| Some s -> Define.defined_value_safe ~default:s com.defines v
+		| None -> Define.defined_value_safe com.defines v
 
 let define com v =
 	Define.define com.defines v
@@ -631,8 +630,6 @@ let create version s_version args =
 		main = None;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
-		php_front = None;
-		php_lib = None;
 		swf_libs = [];
 		java_libs = [];
 		net_libs = [];
@@ -641,7 +638,6 @@ let create version s_version args =
 		c_args = [];
 		neko_libs = [];
 		include_files = [];
-		php_prefix = None;
 		js_gen = None;
 		load_extern_type = [];
 		defines = {

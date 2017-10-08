@@ -82,6 +82,8 @@ type strict_defined =
 	| Objc
 	| OldConstructorInline
 	| OldErrorFormat
+	| PhpLib
+	| PhpFront
 	| PhpPrefix
 	| RealPosition
 	| ReplaceFiles
@@ -192,6 +194,8 @@ let infos = function
 	| OldConstructorInline -> "old-constructor-inline",("Use old constructor inlining logic (from haxe 3.4.2) instead of the reworked version.",[])
 	| OldErrorFormat -> "old-error-format",("Use Haxe 3.x zero-based column error messages instead of new one-based format.",[])
 	| PhpPrefix -> "php_prefix",("Root namespace for generated php classes. E.g. if compiled with`--php-prefix some.sub`, then all classes will be generated in `\\some\\sub` namespace.",[Platform Php])
+	| PhpLib -> "php_lib",("Select the name for the php lib folder.",[Platform Php])
+	| PhpFront -> "php_front",("Select the name for the php front file (by default: `index.php`).", [Platform Php])
 	| RealPosition -> "real_position",("Disables Haxe source mapping when targetting C#, removes position comments in Java and Php output",[Platforms [Cs;Java;Php]])
 	| ReplaceFiles -> "replace_files",("GenCommon internal",[Platforms [Java;Cs]])
 	| Scriptable -> "scriptable",("GenCPP internal",[Platform Cpp])
@@ -248,9 +252,9 @@ let raw_defined_value ctx k =
 let defined_value ctx v =
 	raw_defined_value ctx (fst (infos v))
 
-let defined_value_safe ctx v =
+let defined_value_safe ?default ctx v =
 	try defined_value ctx v
-	with Not_found -> ""
+	with Not_found -> match default with Some s -> s | None -> ""
 
 let raw_define ctx v =
 	let k,v = try ExtString.String.split v "=" with _ -> v,"1" in
