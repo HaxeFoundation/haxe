@@ -53,6 +53,7 @@ class Issue6640 extends Test {
 			try {
 				var i64:Int64 = Int64Helper.parseString(s);
 				t(isInInt64Range(s));
+				eq(i64.toStr(), stripLeadingZeros(s));
 			} catch (err:Dynamic) {
 				trace("this should be valid, but: " + s + " threw an exception while isInInt64Range is " + isInInt64Range(s));
 				f(true);
