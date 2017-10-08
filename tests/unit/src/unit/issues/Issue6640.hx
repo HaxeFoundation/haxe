@@ -54,7 +54,7 @@ class Issue6640 extends Test {
 				var i64:Int64 = Int64Helper.parseString(s);
 				t(isInInt64Range(s));
 			} catch (err:Dynamic) {
-				trace("this should be valid, but:	" + s + " isInInt64Range " + isInInt64Range(s));
+				trace("this should be valid, but: " + s + " threw an exception while isInInt64Range is " + isInInt64Range(s));
 				f(true);
 			}
 		}
@@ -85,7 +85,6 @@ class Issue6640 extends Test {
 				var i64:Int64 = Int64Helper.parseString(s);
 				trace("this should NOT be valid, but: isInInt64Range(" + s + "):" + isInInt64Range(s) + " vs i64:" + i64.toStr());
 				f(isInInt64Range(s));
-				f(true);
 			} catch (err:Dynamic) {
 				t(true);
 			}
@@ -107,10 +106,10 @@ class Issue6640 extends Test {
 	static function stripLeadingZeros(s:String):String {
 		var regex:EReg = ~/^([-])?([0]+)(.*)/g;
 		if (regex.match(s)) {
-				var sign = isNullOrEmpty(regex.matched(1)) ? "" : regex.matched(1);
-				var rest = isNullOrEmpty(regex.matched(3)) ? null : regex.matched(3);
-				if (rest == null) return "0";
-				return sign + rest;
+			var sign = isNullOrEmpty(regex.matched(1)) ? "" : regex.matched(1);
+			var rest = isNullOrEmpty(regex.matched(3)) ? null : regex.matched(3);
+			if (rest == null) return "0";
+			return sign + rest;
 		} else {
 			return s;
 		}
@@ -128,10 +127,14 @@ class Issue6640 extends Test {
 		
 		var isNegative = isNegativeStr(s);
 		var noZeros = stripLeadingZeros(s);
-		var abs = isNegative ? noZeros.substr(1) : noZeros;
-		var padded = isNegative ? leftPad(abs, "9", noZeros.length) : noZeros;
-		var complement = isNegative ? makeComplement(padded) : padded;
-		return { value:s, stripped:noZeros, complement:complement };
+		var repr:Repr = { value:s, stripped:noZeros, complement:noZeros };
+		if (isNegative) {
+			var abs = noZeros.substr(1);
+			var padded = leftPad(abs, "9", noZeros.length);
+			repr.complement = makeComplement(padded);
+		}
+		
+		return repr;
 	}
 	
 	static inline function cmp(a:Repr, b:Repr):Int {
