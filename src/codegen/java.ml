@@ -728,14 +728,14 @@ let fix_overrides_jclass com cls =
 			let super_methods = cls.cmethods @ super_methods in
 			let super_fields = cls.cfields @ super_fields in
 			let cmethods = if force_check then begin
-				let overriden = ref [] in
+				let overridden = ref [] in
 				let cmethods = List.map (fun jm ->
 					(* TODO rewrite/standardize empty spaces *)
 					if not (is_override jm) && not (List.mem JStatic jm.jf_flags) && List.exists (fun msup ->
 						let ret = msup.jf_name = jm.jf_name && not(List.mem JStatic msup.jf_flags) && compatible_methods msup jm in
 						if ret then begin
 							let f = mk_override msup in
-							overriden := { f with jf_flags = jm.jf_flags } :: !overriden
+							overridden := { f with jf_flags = jm.jf_flags } :: !overridden
 						end;
 						ret
 					) cls.cmethods then
@@ -743,7 +743,7 @@ let fix_overrides_jclass com cls =
 					else
 						jm
 				) cmethods in
-				!overriden @ cmethods
+				!overridden @ cmethods
 			end else
 				cmethods
 			in

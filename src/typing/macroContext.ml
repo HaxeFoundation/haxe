@@ -724,7 +724,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			So instead, we generate a haxe.macro.Context.delayedCalled(i) expression that will only evaluate the
 			macro if/when it is called.
 
-			The tricky part is that the whole delayed-evaluation process has to use the same contextual informations
+			The tricky part is that the whole delayed-evaluation process has to use the same contextual information
 			as if it was evaluated now.
 		*)
 		let ctx = {

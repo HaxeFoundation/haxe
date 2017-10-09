@@ -246,7 +246,7 @@ let efield_name e f =
 let global_type ctx g =
 	DynArray.get ctx.cglobals.arr g
 
-let is_overriden ctx c f =
+let is_overridden ctx c f =
 	ctx.is_macro || Hashtbl.mem ctx.overrides (f.cf_name,c.cl_path)
 
 let alloc_float ctx f =
@@ -592,7 +592,7 @@ and class_type ?(tref=None) ctx c pl statics =
 					let vid = (try -(fst (get_index f.cf_name p))-1 with Not_found -> assert false) in
 					DynArray.set virtuals vid g;
 					Some vid
-				else if is_overriden ctx c f then begin
+				else if is_overridden ctx c f then begin
 					let vid = DynArray.length virtuals in
 					DynArray.add virtuals g;
 					p.pindex <- PMap.add f.cf_name (-vid-1,HVoid) p.pindex;
@@ -1208,7 +1208,7 @@ and direct_method_call ctx c f ethis =
 		false
 	else if (match c.cl_kind with KTypeParameter _ ->  true | _ -> false) then
 		false
-	else if is_overriden ctx c f && ethis.eexpr <> TConst(TSuper) then
+	else if is_overridden ctx c f && ethis.eexpr <> TConst(TSuper) then
 		false
 	else
 		true

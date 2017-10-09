@@ -2801,7 +2801,7 @@ and format_string ctx s p =
 	in
 	let warn_escape = Common.defined ctx.com Define.FormatWarning in
 	let warn pos len =
-		ctx.com.warning "This string is formated" { p with pmin = !pmin + 1 + pos; pmax = !pmin + 1 + pos + len }
+		ctx.com.warning "This string is formatted" { p with pmin = !pmin + 1 + pos; pmax = !pmin + 1 + pos + len }
 	in
 	let len = String.length s in
 	let rec parse start pos =

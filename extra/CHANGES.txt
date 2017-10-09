@@ -986,7 +986,7 @@
 	cpp : Fix socket sellect passing _s
 	cpp : Throw error when match count does not match regex
 	cpp : Improve register capture in GC
-	cpp : Fix Dynamic interger compare
+	cpp : Fix Dynamic integer compare
 	cpp : Implement makeVarArgs
 	cpp : Fix toString for nulls in Enums and Arrays
 	cpp : Added initial Android support
@@ -1220,7 +1220,7 @@
 	set all private+protected names from SWF lib to public (allow override+reflect)
 	flash9 : use findprop instead of findpropstrict for 'this' access (allow dynamic)
 	don't allow nullness changes in overrided/implemented
-	prevent typing hole with overriden polymorphic methods
+	prevent typing hole with overridden polymorphic methods
 	added neko.vm.Mutex and neko.vm.Deque (included in neko 1.7.1)
 	added package remapping using --remap
 
@@ -1477,7 +1477,7 @@
 2007-01-28: 1.11
 	changed StringBuf.add implementation
 	added haxe.Firebug
-	allowed variable return type for overriden/implemented methods
+	allowed variable return type for overridden/implemented methods
 	display error position in front of each error line
 	improved error messages when optional arguments not matched
 	added neko.io.Path

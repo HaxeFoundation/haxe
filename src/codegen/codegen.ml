@@ -368,7 +368,7 @@ let stack_block ctx c m e =
 
 (*
 	on some platforms which doesn't support type parameters, we must have the
-	exact same type for overriden/implemented function as the original one
+	exact same type for overridden/implemented function as the original one
 *)
 
 let rec find_field com c f =
