@@ -15,9 +15,6 @@ class Issue6640 extends Test {
 	static inline var ABS_MIN_INT64_STR = "9223372036854775808";
 	static inline var ABS_MAX_INT64_STR = "9223372036854775807";
 	
-	static var MIN_INT64_REPR = createRepr(MIN_INT64_STR);
-	static var MAX_INT64_REPR = createRepr(MAX_INT64_STR);
-
 	public function test() {
 
 		t(Int64Helper.parseString(MIN_INT64_STR).toStr() == MIN_INT64_STR);
@@ -27,6 +24,7 @@ class Issue6640 extends Test {
 		
 		t(numLexiCompare("-0", "0") == 0);
 		t(numLexiCompare("0000", "0") == 0);
+		t(numLexiCompare("0000", "-0000") == 0);
 		t(numLexiCompare("-0001", "-1") == 0);
 		t(numLexiCompare("1", "0001") == 0);
 		t(numLexiCompare("-1", "0001") == -1);
@@ -40,25 +38,19 @@ class Issue6640 extends Test {
 		f(isInInt64Range(ABS_MIN_INT64_STR));
 		
 		var validInt64Strings = [
+			"9560",
+			"-9109",
 			"-0317551087311700367",
 			"008854131894243499964",
-			"-0087507667970265160", // lua-only issue
+			"-0087507667970265160",
 			"-0242362870617229368",
 			"0000" + ABS_MAX_INT64_STR,
 			"-0" + ABS_MIN_INT64_STR,
 			"-7834911985406430862",
 		];
 		
-		for (s in validInt64Strings) {
-			try {
-				var i64:Int64 = Int64Helper.parseString(s);
-				t(isInInt64Range(s));
-				eq(i64.toStr(), stripLeadingZeros(s));
-			} catch (err:Dynamic) {
-				trace("this should be valid, but: " + s + " threw an exception while isInInt64Range is " + isInInt64Range(s));
-				f(true);
-			}
-		}
+		for (str in validInt64Strings) checkDecString(str);
+		
 		
 		var invalidInt64Strings = [
 			"-9223372036854775809", // MIN_INT64 - 1
@@ -81,15 +73,44 @@ class Issue6640 extends Test {
 			"88851476464433781269008",
 		];
 		
-		for (s in invalidInt64Strings) {
+		for (str in invalidInt64Strings) checkDecString(str);
+		
+		// random strings
+		//var N = 1000;
+		//for (i in 0...N) {
+			//var str = getRandDecString();
+			//checkDecString(str);
+		//}
+	}
+	
+	function checkDecString(str:String) {
+		var inRange = isInInt64Range(str);
+		
+		if (inRange) {
 			try {
-				var i64:Int64 = Int64Helper.parseString(s);
-				trace("this should NOT be valid, but: isInInt64Range(" + s + "):" + isInInt64Range(s) + " vs i64:" + i64.toStr());
-				f(isInInt64Range(s));
-			} catch (err:Dynamic) {
+				var i64:Int64 = Int64Helper.parseString(str);
+				eq(i64.toStr(), stripLeadingZeros(str));
+			} catch (err:Dynamic){
+				trace("this should be valid, but `" + str + "` threw an exception while isInInt64Range returned " + inRange);
+				f(true);
+			}
+		} else {
+			try {
+				var i64:Int64 = Int64Helper.parseString(str);
+				trace("this should NOT be valid, but `" + str + "` returned i64:" + i64.toStr() + " while isInInt64Range returned " + inRange);
+				eq(i64.toStr(), stripLeadingZeros(str));
+			} catch (err:Dynamic){
 				t(true);
 			}
 		}
+	}
+	
+	static function getRandDecString(minLen:Int = 1, maxLen:Int = 25):String {
+		var chars = "000123456789".split(""); // make string containing zeros more probable
+		var sign = Math.random() > .5 ? "-" : "";
+		var length = minLen + Std.random(maxLen - minLen);
+		var randString = sign + [for (i in 0...length) chars[Std.random(chars.length)]].join("");
+		return randString;
 	}
 	
 	static inline function isNegativeStr(s:String):Bool {
@@ -116,7 +137,7 @@ class Issue6640 extends Test {
 		}
 	}
 	
-	static function createRepr(s:String):Repr {
+	static function createRepr(s:String, len:Int):Repr {
 		inline function makeComplement(s:String) {
 			var buf = new StringBuf();
 			for (i in 0...s.length) {
@@ -126,13 +147,17 @@ class Issue6640 extends Test {
 			return buf.toString();
 		}
 		
-		var isNegative = isNegativeStr(s);
 		var noZeros = stripLeadingZeros(s);
+		var isNegative = isNegativeStr(noZeros);
 		var repr:Repr = { value:s, stripped:noZeros, complement:noZeros };
 		if (isNegative) {
 			var abs = noZeros.substr(1);
-			var padded = leftPad(abs, "9", noZeros.length);
-			repr.complement = makeComplement(padded);
+			var padded = leftPad(abs, "0", len);
+			repr.complement = "0" + makeComplement(padded);
+		} else {
+			var abs = noZeros;
+			var padded = leftPad(abs, "0", len);
+			repr.complement = "9" + padded;
 		}
 		
 		return repr;
@@ -143,8 +168,10 @@ class Issue6640 extends Test {
 	}
 	
 	static function numLexiCompare(a:String, b:String):Int {
-		var first = createRepr(a);
-		var second = createRepr(b);
+		var len = a.length >= b.length ? a.length : b.length;
+		
+		var first = createRepr(a, len);
+		var second = createRepr(b, len);
 		
 		var compare = cmp(first, second);
 		//trace(compare, first, second);
@@ -153,6 +180,6 @@ class Issue6640 extends Test {
 	}
 	
 	static inline function isInInt64Range(a:String):Bool {
-		return (cmp(createRepr(a), MIN_INT64_REPR) >= 0 && cmp(createRepr(a), MAX_INT64_REPR) <= 0);
+		return (numLexiCompare(a, MIN_INT64_STR) >= 0 && numLexiCompare(a, MAX_INT64_STR) <= 0);
 	}
 }
