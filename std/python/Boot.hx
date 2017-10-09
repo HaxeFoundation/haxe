@@ -425,7 +425,7 @@ class Boot {
 
 
 
-	static inline function unsafeFastCodeAt (s, index) {
+	static inline function unsafeFastCodeAt (s:String, index:Int) {
 		return UBuiltins.ord(python.Syntax.arrayAccess(s, index));
 	}
 

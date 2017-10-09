@@ -266,7 +266,7 @@ class CallStack {
 	}
 
 	#if cpp @:noDebug #end /* Do not mess up the exception stack */
-	private static function makeStack(s #if cs : cs.system.diagnostics.StackTrace #elseif hl : hl.NativeArray<hl.Bytes> #end) {
+	private static function makeStack(s #if cs : cs.system.diagnostics.StackTrace #elseif hl : hl.NativeArray<hl.Bytes> #else : Dynamic #end) {
 		#if neko
 			var a = new Array();
 			var l = untyped __dollar__asize(s);

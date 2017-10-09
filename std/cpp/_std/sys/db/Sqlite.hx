@@ -115,7 +115,7 @@ private class SqliteResultSet implements ResultSet {
 	var r : Dynamic;
 	var cache : List<Dynamic>;
 
-	public function new( r ) {
+	public function new( r:Dynamic ) {
 		cache = new List();
 		this.r = r;
 		hasNext(); // execute the request

@@ -227,7 +227,7 @@ class TestMisc extends Test {
 		eq( bar(), 50);
 	}
 
-	function id(x) {
+	function id<T>(x:T) {
 		return x;
 	}
 

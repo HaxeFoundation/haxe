@@ -63,7 +63,7 @@ class Main {
 		return new haxe.Template(s).execute(context, macros);
 	}
 
-	static function normPath(resolve, p:String, properCase = false):String {
+	static function normPath(_, p:String, properCase = false):String {
 		if (Sys.systemName() == "Windows")
 		{
 			// on windows, haxe returns lowercase paths with backslashes, drive letter uppercased

@@ -170,7 +170,7 @@ class Serializer {
 		buf.add(s);
 	}
 
-	function serializeRef(v) {
+	function serializeRef(v:Dynamic) {
 		#if js
 		var vt = js.Lib.typeof(v);
 		#end
@@ -193,7 +193,7 @@ class Serializer {
 	#if flash
 	// only the instance variables
 
-	function serializeClassFields(v,c) {
+	function serializeClassFields(v:Dynamic, c:Dynamic) {
 		var xml : flash.xml.XML = untyped __global__["flash.utils.describeType"](c);
 		var vars = xml.factory[0].child("variable");
 		for( i in 0...vars.length() ) {
@@ -207,7 +207,7 @@ class Serializer {
 	}
 	#end
 
-	function serializeFields(v) {
+	function serializeFields(v:{}) {
 		for( f in Reflect.fields(v) ) {
 			serializeString(f);
 			serialize(Reflect.field(v,f));

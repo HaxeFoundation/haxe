@@ -106,7 +106,7 @@ class BytesInput extends Input {
 		#end
 	}
 
-	public override function readBytes( buf : Bytes, pos, len ) : Int {
+	public override function readBytes( buf : Bytes, pos : Int, len : Int ) : Int {
 		#if !neko
 			if( pos < 0 || len < 0 || pos + len > buf.length )
 				throw Error.OutsideBounds;

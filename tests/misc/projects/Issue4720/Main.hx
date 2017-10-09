@@ -44,11 +44,11 @@ class Main {
     // ... however deprecating getters and setters have some gotcha
     @:deprecated static var deprecatedProperty(get, set):String;
     static function get_deprecatedProperty():String return "0";
-    static function set_deprecatedProperty(value):String return "0";
+    static function set_deprecatedProperty(_):String return "0";
 
     static var deprecatedGetSet(get, set):String;
     @:deprecated static function get_deprecatedGetSet():String return "0";
-    @:deprecated static function set_deprecatedGetSet(value):String return "0";
+    @:deprecated static function set_deprecatedGetSet(_):String return "0";
 }
 
 @:deprecated
