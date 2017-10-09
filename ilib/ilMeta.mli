@@ -373,7 +373,7 @@ and meta_method_impl = {
 	mutable mi_method_body : method_def_or_ref;
 		(* overriding method *)
 	mutable mi_method_declaration : method_def_or_ref;
-		(* overriden method *)
+		(* overridden method *)
 }
 
 and meta_module_ref = {
@@ -707,7 +707,7 @@ and method_vtable =
 	| VNewSlot (* 0x100 *)
 		(* a new vtable slot is created, so it doesn't override the old implementation *)
 	| VStrict (* 0x200 *)
-		(* virtual method can be overriden only if it is accessible from the overriding class *)
+		(* virtual method can be overridden only if it is accessible from the overriding class *)
 
 and method_impl =
 	(* implementation flags - mask 0x2C08 *)
