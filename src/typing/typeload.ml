@@ -2580,9 +2580,10 @@ module ClassInitializer = struct
 					| _ ->
 						let e , fargs = type_function ctx args ret fmode fd fctx.is_display_field p in
 						if fctx.is_override then check_overriding ctx c cf;
-						List.iter (fun (v,_) ->
+						(* Disabled for now, see https://github.com/HaxeFoundation/haxe/issues/3033 *)
+						(* List.iter (fun (v,_) ->
 							if v.v_name <> "_" && has_mono v.v_type then ctx.com.warning "Uninferred function argument, please add a type-hint" v.v_pos;
-						) fargs;
+						) fargs; *)
 						let tf = {
 							tf_args = fargs;
 							tf_type = ret;
