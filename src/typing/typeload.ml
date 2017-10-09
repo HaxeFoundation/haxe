@@ -866,80 +866,76 @@ let copy_meta meta_src meta_target sl =
 	) meta_src;
 	!meta
 
-let check_overriding ctx c =
+let check_overriding ctx c f =
 	match c.cl_super with
 	| None ->
-		(match c.cl_overrides with
-		| [] -> ()
-		| i :: _ ->
-			display_error ctx ("Field " ^ i.cf_name ^ " is declared 'override' but doesn't override any field") i.cf_pos)
+		display_error ctx ("Field " ^ f.cf_name ^ " is declared 'override' but doesn't override any field") f.cf_pos
 	| _ when c.cl_extern && Meta.has Meta.CsNative c.cl_meta -> () (* -net-lib specific: do not check overrides on extern CsNative classes *)
 	| Some (csup,params) ->
-		PMap.iter (fun i f ->
-			let p = f.cf_pos in
-			let check_field f get_super_field is_overload = try
-				(if is_overload && not (Meta.has Meta.Overload f.cf_meta) then
-					display_error ctx ("Missing @:overload declaration for field " ^ i) p);
-				let t, f2 = get_super_field csup i in
-				(* allow to define fields that are not defined for this platform version in superclass *)
-				(match f2.cf_kind with
-				| Var { v_read = AccRequire _ } -> raise Not_found;
-				| _ -> ());
-				if ctx.com.config.pf_overload && (Meta.has Meta.Overload f2.cf_meta && not (Meta.has Meta.Overload f.cf_meta)) then
-					display_error ctx ("Field " ^ i ^ " should be declared with @:overload since it was already declared as @:overload in superclass") p
-				else if not (List.memq f c.cl_overrides) then
-					display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass " ^ s_type_path csup.cl_path) p
-				else if not f.cf_public && f2.cf_public then
-					display_error ctx ("Field " ^ i ^ " has less visibility (public/private) than superclass one") p
-				else (match f.cf_kind, f2.cf_kind with
-				| _, Method MethInline ->
-					display_error ctx ("Field " ^ i ^ " is inlined and cannot be overridden") p
-				| a, b when a = b -> ()
-				| Method MethInline, Method MethNormal ->
-					() (* allow to redefine a method as inlined *)
-				| _ ->
-					display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p);
-				if has_meta Meta.Final f2.cf_meta then display_error ctx ("Cannot override final method " ^ i) p;
-				try
-					let t = apply_params csup.cl_params params t in
-					valid_redefinition ctx f f.cf_type f2 t
-				with
-					Unify_error l ->
-						display_error ctx ("Field " ^ i ^ " overloads parent class with different or incomplete type") p;
-						display_error ctx ("Base field is defined here") f2.cf_pos;
-						display_error ctx (error_msg (Unify l)) p;
+		let p = f.cf_pos in
+		let i = f.cf_name in
+		let check_field f get_super_field is_overload = try
+			(if is_overload && not (Meta.has Meta.Overload f.cf_meta) then
+				display_error ctx ("Missing @:overload declaration for field " ^ i) p);
+			let t, f2 = get_super_field csup i in
+			(* allow to define fields that are not defined for this platform version in superclass *)
+			(match f2.cf_kind with
+			| Var { v_read = AccRequire _ } -> raise Not_found;
+			| _ -> ());
+			if ctx.com.config.pf_overload && (Meta.has Meta.Overload f2.cf_meta && not (Meta.has Meta.Overload f.cf_meta)) then
+				display_error ctx ("Field " ^ i ^ " should be declared with @:overload since it was already declared as @:overload in superclass") p
+			else if not (List.memq f c.cl_overrides) then
+				display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass " ^ s_type_path csup.cl_path) p
+			else if not f.cf_public && f2.cf_public then
+				display_error ctx ("Field " ^ i ^ " has less visibility (public/private) than superclass one") p
+			else (match f.cf_kind, f2.cf_kind with
+			| _, Method MethInline ->
+				display_error ctx ("Field " ^ i ^ " is inlined and cannot be overridden") p
+			| a, b when a = b -> ()
+			| Method MethInline, Method MethNormal ->
+				() (* allow to redefine a method as inlined *)
+			| _ ->
+				display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p);
+			if has_meta Meta.Final f2.cf_meta then display_error ctx ("Cannot override final method " ^ i) p;
+			try
+				let t = apply_params csup.cl_params params t in
+				valid_redefinition ctx f f.cf_type f2 t
 			with
-				Not_found ->
-					if List.memq f c.cl_overrides then
-						let msg = if is_overload then
-							("Field " ^ i ^ " is declared 'override' but no compatible overload was found")
-						else
-							("Field " ^ i ^ " is declared 'override' but doesn't override any field")
-						in
-						display_error ctx msg p
-			in
-			if ctx.com.config.pf_overload && Meta.has Meta.Overload f.cf_meta then begin
-				let overloads = Overloads.get_overloads csup i in
-				List.iter (fun (t,f2) ->
-					(* check if any super class fields are vars *)
-					match f2.cf_kind with
-					| Var _ ->
-						display_error ctx ("A variable named '" ^ f2.cf_name ^ "' was already declared in a superclass") f.cf_pos
-					| _ -> ()
-				) overloads;
-				List.iter (fun f ->
-					(* find the exact field being overridden *)
-					check_field f (fun csup i ->
-						List.find (fun (t,f2) ->
-							Overloads.same_overload_args f.cf_type (apply_params csup.cl_params params t) f f2
-						) overloads
-					) true
-				) (f :: f.cf_overloads)
-			end else
+				Unify_error l ->
+					display_error ctx ("Field " ^ i ^ " overloads parent class with different or incomplete type") p;
+					display_error ctx ("Base field is defined here") f2.cf_pos;
+					display_error ctx (error_msg (Unify l)) p;
+		with
+			Not_found ->
+				if List.memq f c.cl_overrides then
+					let msg = if is_overload then
+						("Field " ^ i ^ " is declared 'override' but no compatible overload was found")
+					else
+						("Field " ^ i ^ " is declared 'override' but doesn't override any field")
+					in
+					display_error ctx msg p
+		in
+		if ctx.com.config.pf_overload && Meta.has Meta.Overload f.cf_meta then begin
+			let overloads = Overloads.get_overloads csup i in
+			List.iter (fun (t,f2) ->
+				(* check if any super class fields are vars *)
+				match f2.cf_kind with
+				| Var _ ->
+					display_error ctx ("A variable named '" ^ f2.cf_name ^ "' was already declared in a superclass") f.cf_pos
+				| _ -> ()
+			) overloads;
+			List.iter (fun f ->
+				(* find the exact field being overridden *)
 				check_field f (fun csup i ->
-					let _, t, f2 = raw_class_field (fun f -> f.cf_type) csup params i in
-					t, f2) false
-		) c.cl_fields
+					List.find (fun (t,f2) ->
+						Overloads.same_overload_args f.cf_type (apply_params csup.cl_params params t) f f2
+					) overloads
+				) true
+			) (f :: f.cf_overloads)
+		end else
+			check_field f (fun csup i ->
+				let _, t, f2 = raw_class_field (fun f -> f.cf_type) csup params i in
+				t, f2) false
 
 let class_field_no_interf c i =
 	try
@@ -2583,6 +2579,7 @@ module ClassInitializer = struct
 						cf.cf_type <- t
 					| _ ->
 						let e , fargs = type_function ctx args ret fmode fd fctx.is_display_field p in
+						if fctx.is_override then check_overriding ctx c cf;
 						let tf = {
 							tf_args = fargs;
 							tf_type = ret;
@@ -2776,7 +2773,6 @@ module ClassInitializer = struct
 		let fields = build_fields (ctx,cctx) c fields in
 		if cctx.is_core_api && ctx.com.display.dms_check_core_api then delay ctx PForce (fun() -> init_core_api ctx c);
 		if not cctx.is_lib then begin
-			(match c.cl_super with None -> () | Some _ -> delay_late ctx PForce (fun() -> check_overriding ctx c));
 			if ctx.com.config.pf_overload then delay ctx PForce (fun() -> check_overloads ctx c)
 		end;
 		let rec has_field f = function
@@ -2847,7 +2843,7 @@ module ClassInitializer = struct
 				| FKNormal ->
 					let dup = if fctx.is_static then PMap.exists cf.cf_name c.cl_fields || has_field cf.cf_name c.cl_super else PMap.exists cf.cf_name c.cl_statics in
 					if not cctx.is_native && not c.cl_extern && dup then error ("Same field name can't be use for both static and instance : " ^ cf.cf_name) p;
-					if List.mem AOverride f.cff_access then c.cl_overrides <- cf :: c.cl_overrides;
+					if fctx.is_override then c.cl_overrides <- cf :: c.cl_overrides;
 					let is_var f = match cf.cf_kind with | Var _ -> true | _ -> false in
 					if PMap.mem cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) then
 						if ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta && not (is_var f) then
