@@ -35,7 +35,6 @@ import haxe.macro.Type.TypedExpr;
 	- `haxe.macro.ExprTools`
 	- `haxe.macro.TypeTools`
 **/
-#if !neko @:noDoc #end
 class Context {
 
 #if (neko || eval || display)
