@@ -657,18 +657,12 @@ and load_complex_type ctx allow_display p (t,pn) =
 			) in
 			let t = if Meta.has Meta.Optional f.cff_meta then ctx.t.tnull t else t in
 			let cf = {
-				cf_name = n;
-				cf_type = t;
-				cf_pos = p;
-				cf_name_pos = (pos f.cff_name);
+				(mk_field n t p (pos f.cff_name)) with
 				cf_public = !pub;
 				cf_kind = access;
 				cf_params = !params;
-				cf_expr = None;
-				cf_expr_unoptimized = None;
 				cf_doc = f.cff_doc;
 				cf_meta = f.cff_meta;
-				cf_overloads = [];
 			} in
 			init_meta_overloads ctx None cf;
 			if ctx.is_display_file then begin
@@ -2333,18 +2327,11 @@ module ClassInitializer = struct
 			{ v_read = AccNormal ; v_write = AccNormal }
 		in
 		let cf = {
-			cf_name = fst f.cff_name;
+			(mk_field (fst f.cff_name) t f.cff_pos (pos f.cff_name)) with
 			cf_doc = f.cff_doc;
 			cf_meta = (if fctx.is_final && not (Meta.has Meta.Final f.cff_meta) then (Meta.Final,[],null_pos) :: f.cff_meta else f.cff_meta);
-			cf_type = t;
-			cf_pos = f.cff_pos;
-			cf_name_pos = pos f.cff_name;
 			cf_kind = Var kind;
-			cf_expr = None;
-			cf_expr_unoptimized = None;
 			cf_public = is_public (ctx,cctx) f.cff_access None;
-			cf_params = [];
-			cf_overloads = [];
 		} in
 		ctx.curfield <- cf;
 		bind_var (ctx,cctx,fctx) cf eo;
@@ -2558,18 +2545,12 @@ module ClassInitializer = struct
 		let args = loop fd.f_args in
 		let t = TFun (fun_args args,ret) in
 		let cf = {
-			cf_name = fst f.cff_name;
+			(mk_field (fst f.cff_name) t f.cff_pos (pos f.cff_name)) with
 			cf_doc = f.cff_doc;
 			cf_meta = (if fctx.is_final && not (Meta.has Meta.Final f.cff_meta) then (Meta.Final,[],null_pos) :: f.cff_meta else f.cff_meta);
-			cf_type = t;
-			cf_pos = f.cff_pos;
-			cf_name_pos = pos f.cff_name;
 			cf_kind = Method (if fctx.is_macro then MethMacro else if fctx.is_inline then MethInline else if dynamic then MethDynamic else MethNormal);
-			cf_expr = None;
-			cf_expr_unoptimized = None;
 			cf_public = is_public (ctx,cctx) f.cff_access parent;
 			cf_params = params;
-			cf_overloads = [];
 		} in
 		cf.cf_meta <- List.map (fun (m,el,p) -> match m,el with
 			| Meta.AstSource,[] -> (m,(match fd.f_expr with None -> [] | Some e -> [e]),p)
@@ -2745,18 +2726,11 @@ module ClassInitializer = struct
 		) in
 		if set = AccNormal && (match get with AccCall -> true | _ -> false) then error (name ^ ": Unsupported property combination") p;
 		let cf = {
-			cf_name = name;
+			(mk_field name ret f.cff_pos (pos f.cff_name)) with
 			cf_doc = f.cff_doc;
 			cf_meta = f.cff_meta;
-			cf_pos = f.cff_pos;
-			cf_name_pos = pos f.cff_name;
 			cf_kind = Var { v_read = get; v_write = set };
-			cf_expr = None;
-			cf_expr_unoptimized = None;
-			cf_type = ret;
 			cf_public = is_public (ctx,cctx) f.cff_access None;
-			cf_params = [];
-			cf_overloads = [];
 		} in
 		ctx.curfield <- cf;
 		bind_var (ctx,cctx,fctx) cf eo;
@@ -3311,21 +3285,13 @@ let init_module_type ctx context_init do_init (decl,p) =
 				ef_meta = c.ec_meta;
 			} in
 			let cf = {
-				cf_name = f.ef_name;
-				cf_public = true;
-				cf_type = f.ef_type;
+				(mk_field f.ef_name f.ef_type p f.ef_name_pos) with
 				cf_kind = (match follow f.ef_type with
 					| TFun _ -> Method MethNormal
 					| _ -> Var { v_read = AccNormal; v_write = AccNo }
 				);
-				cf_pos = p;
-				cf_name_pos = f.ef_name_pos;
 				cf_doc = f.ef_doc;
-				cf_meta = no_meta;
-				cf_expr = None;
-				cf_expr_unoptimized = None;
 				cf_params = f.ef_params;
-				cf_overloads = [];
 			} in
  			if ctx.is_display_file && Display.is_display_position p then
  				Display.DisplayEmitter.display_enum_field ctx.com.display f p;

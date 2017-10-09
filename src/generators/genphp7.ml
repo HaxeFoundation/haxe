@@ -3268,15 +3268,8 @@ class class_builder ctx (cls:tclass) =
 						None
 					else
 						Some {
-							cf_name = "new";
-							cf_type = TFun ([], get_void ctx);
-							cf_public = true;
-							cf_pos = cls.cl_pos;
-							cf_name_pos = cls.cl_pos;
-							cf_doc = None;
-							cf_meta = [];
+							(mk_field "new" (TFun ([], get_void ctx)) cls.cl_pos cls.cl_pos) with
 							cf_kind = Method MethNormal;
-							cf_params = [];
 							cf_expr = Some {
 								eexpr = TFunction {
 									tf_args = [];
@@ -3286,8 +3279,6 @@ class class_builder ctx (cls:tclass) =
 								epos = cls.cl_pos;
 								etype = get_void ctx;
 							};
-							cf_expr_unoptimized = None;
-							cf_overloads = [];
 						}
 		(**
 			Writes type body to output buffer.

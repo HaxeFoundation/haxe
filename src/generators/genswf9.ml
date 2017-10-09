@@ -2133,18 +2133,9 @@ let generate_class ctx c =
 	let fields = if c.cl_path <> ctx.boot then fields else begin
 		{
 			hlf_name = make_name {
-				cf_name = "init";
+				(mk_field "init" (TFun ([],t_dynamic)) c.cl_pos null_pos) with
 				cf_public = ctx.swc && ctx.swf_protected;
-				cf_meta = [];
-				cf_doc = None;
-				cf_pos = c.cl_pos;
-				cf_name_pos = null_pos;
-				cf_type = TFun ([],t_dynamic);
-				cf_params = [];
-				cf_expr = None;
-				cf_expr_unoptimized = None;
 				cf_kind = Method MethNormal;
-				cf_overloads = [];
 			} false;
 			hlf_slot = 0;
 			hlf_kind = (HFMethod {
