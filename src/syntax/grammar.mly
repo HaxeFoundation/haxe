@@ -220,11 +220,15 @@ and parse_using s p1 =
 		| [< '(Semicolon,p2) >] ->
 			p2,List.rev acc
 	in
+	let priority = match s with parser
+		| [< '(Kwd Default,_) >] -> true
+		| [< >] -> false
+	in
 	let p2, path = (match s with parser
 		| [< '(Const (Ident name),p) >] -> loop [name,p]
 		| [< >] -> if would_skip_resume p1 s then p1, [] else serror()
 	) in
-	(EUsing path,punion p1 p2)
+	(EUsing(path,priority),punion p1 p2)
 
 and parse_abstract_relations s =
 	match s with parser

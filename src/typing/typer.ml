@@ -1096,7 +1096,7 @@ let field_access ctx mode f fmode t e p =
 			| None -> error_require r p
 			| Some msg -> error msg p
 
-let rec using_field ctx mode e i p =
+let rec using_field ctx usings mode e i p =
 	if mode = MSet then raise Not_found;
 	(* do not try to find using fields if the type is a monomorph, which could lead to side-effects *)
 	let is_dynamic = match follow e.etype with
@@ -1136,7 +1136,7 @@ let rec using_field ctx mode e i p =
 			if List.exists (function Has_extra_field _ -> true | _ -> false) el then check_constant_struct := true;
 			loop l
 	in
-	try loop ctx.m.module_using with Not_found ->
+	try loop usings with Not_found ->
 	try
 		let acc = loop ctx.g.global_using in
 		(match acc with
@@ -1145,7 +1145,7 @@ let rec using_field ctx mode e i p =
 		acc
 	with Not_found ->
 	if not !check_constant_struct then raise Not_found;
-	remove_constant_flag e.etype (fun ok -> if ok then using_field ctx mode e i p else raise Not_found)
+	remove_constant_flag e.etype (fun ok -> if ok then using_field ctx usings mode e i p else raise Not_found)
 
 let rec type_ident_raise ctx i p mode =
 	match i with
@@ -1216,7 +1216,7 @@ let rec type_ident_raise ctx i p mode =
 	with Not_found -> try
 		(* lookup using on 'this' *)
 		if ctx.curfun = FunStatic then raise Not_found;
-		(match using_field ctx mode (mk (TConst TThis) ctx.tthis p) i p with
+		(match using_field ctx ctx.m.module_using mode (mk (TConst TThis) ctx.tthis p) i p with
 		| AKUsing (et,c,f,_) -> AKUsing (et,c,f,get_this ctx p)
 		| _ -> assert false)
 	with Not_found -> try
@@ -1321,6 +1321,10 @@ and type_field ?(resume=false) ctx e i p mode =
 		with Not_found ->
 			false
 	in
+	try
+		if Meta.has Meta.NoUsing ctx.meta then raise Not_found;
+		using_field ctx ctx.m.module_using_priority mode e i p
+	with Not_found ->
 	match follow e.etype with
 	| TInst (c,params) ->
 		let rec loop_dyn c params =
@@ -1370,7 +1374,7 @@ and type_field ?(resume=false) ctx e i p mode =
 		with Not_found -> try
 			begin match e.eexpr with
 				| TConst TSuper -> raise Not_found
-				| _ -> using_field ctx mode e i p
+				| _ -> using_field ctx ctx.m.module_using mode e i p
 			end
 		with Not_found -> try
 			loop_dyn c params
@@ -1399,7 +1403,7 @@ and type_field ?(resume=false) ctx e i p mode =
 			no_field())
 	| TDynamic t ->
 		(try
-			using_field ctx mode e i p
+			using_field ctx ctx.m.module_using mode e i p
 		with Not_found ->
 			AKExpr (mk (TField (e,FDynamic i)) t p))
 	| TAnon a ->
@@ -1437,7 +1441,7 @@ and type_field ?(resume=false) ctx e i p mode =
 					raise Not_found
 			with Not_found ->
 				if is_closed a then try
-					using_field ctx mode e i p
+					using_field ctx ctx.m.module_using mode e i p
 				with Not_found ->
 					no_field()
 				else
@@ -1518,7 +1522,7 @@ and type_field ?(resume=false) ctx e i p mode =
 			else
 				raise Not_found
 		with Not_found -> try
-			using_field ctx mode e i p
+			using_field ctx ctx.m.module_using mode e i p
 		with Not_found -> try
 			(match ctx.curfun, e.eexpr with
 			| FunMemberAbstract, TConst (TThis) -> type_field ctx {e with etype = apply_params a.a_params pl a.a_this} i p mode;
@@ -1536,7 +1540,7 @@ and type_field ?(resume=false) ctx e i p mode =
 			if !static_abstract_access_through_instance then error ("Invalid call to static function " ^ i ^ " through abstract instance") p
 			else no_field())
 	| _ ->
-		try using_field ctx mode e i p with Not_found -> no_field()
+		try using_field ctx ctx.m.module_using mode e i p with Not_found -> no_field()
 
 let type_bind ctx (e : texpr) (args,ret) params p =
 	let vexpr v = mk (TLocal v) v.v_type p in
@@ -4038,7 +4042,7 @@ and display_expr ctx e_ast e with_type p =
 				) c.cl_ordered_statics;
 				!acc
 		in
-		let use_methods = match follow e.etype with TMono _ -> PMap.empty | _ -> loop (loop PMap.empty ctx.g.global_using) ctx.m.module_using in
+		let use_methods = match follow e.etype with TMono _ -> PMap.empty | _ -> loop (loop PMap.empty ctx.g.global_using) (ctx.m.module_using_priority @ ctx.m.module_using) in
 		let fields = PMap.fold (fun f acc -> PMap.add f.cf_name f acc) fields use_methods in
 		let fields = match fst e_ast with
 			| EConst(String s) when String.length s = 1 ->
@@ -4531,6 +4535,7 @@ let rec create com =
 			curmod = null_module;
 			module_types = [];
 			module_using = [];
+			module_using_priority = [];
 			module_globals = PMap.empty;
 			wildcard_packages = [];
 			module_imports = [];

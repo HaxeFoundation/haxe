@@ -264,7 +264,7 @@ let make_macro_api ctx p =
 			ctx.curfield.cf_name;
 		);
 		MacroApi.get_local_using = (fun() ->
-			List.map fst ctx.m.module_using;
+			List.map fst (ctx.m.module_using_priority @ ctx.m.module_using);
 		);
 		MacroApi.get_local_imports = (fun() ->
 			ctx.m.module_imports;
@@ -305,7 +305,7 @@ let make_macro_api ctx p =
 			let imports = List.map (fun (il,ik) -> EImport(il,ik),pos) imports in
 			let usings = List.map (fun tp ->
 				let sl = tp.tpackage @ [tp.tname] @ (match tp.tsub with None -> [] | Some s -> [s]) in
-				EUsing (List.map (fun s -> s,null_pos) sl),pos
+				EUsing (List.map (fun s -> s,null_pos) sl,false),pos
 			) usings in
 			let types = imports @ usings @ types in
 			let mpath = Ast.parse_path m in
@@ -522,6 +522,7 @@ let load_macro ctx display cpath f p =
 			curmod = mloaded;
 			module_types = [];
 			module_using = [];
+			module_using_priority = [];
 			module_globals = PMap.empty;
 			wildcard_packages = [];
 			module_imports = [];
@@ -544,6 +545,7 @@ let load_macro ctx display cpath f p =
 			curmod = null_module;
 			module_types = [];
 			module_using = [];
+			module_using_priority = [];
 			module_globals = PMap.empty;
 			wildcard_packages = [];
 			module_imports = [];

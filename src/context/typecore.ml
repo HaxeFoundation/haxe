@@ -60,6 +60,7 @@ type typer_module = {
 	curmod : module_def;
 	mutable module_types : (module_type * pos) list;
 	mutable module_using : (tclass * pos) list;
+	mutable module_using_priority : (tclass * pos) list;
 	mutable module_globals : (string, (module_type * string * pos)) PMap.t;
 	mutable wildcard_packages : (string list * pos) list;
 	mutable module_imports : import list;

@@ -730,6 +730,7 @@ let hide_params ctx =
 		curmod = ctx.g.std;
 		module_types = [];
 		module_using = [];
+		module_using_priority = [];
 		module_globals = PMap.empty;
 		wildcard_packages = [];
 		module_imports = [];
@@ -3086,7 +3087,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 						error "No statics to import from this type" p
 				) :: !context_init
 			))
-	| EUsing path ->
+	| EUsing(path,priority) ->
 		check_path_display path p;
 		let t = match List.rev path with
 			| (s1,_) :: (s2,_) :: sl ->
@@ -3123,7 +3124,11 @@ let init_module_type ctx context_init do_init (decl,p) =
 			in
 			loop [] types
 		in
-		context_init := (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using) :: !context_init
+		context_init := (fun() ->
+			let types = filter_classes types in
+			if priority then ctx.m.module_using_priority <- types @ ctx.m.module_using_priority
+			else ctx.m.module_using <- types @ ctx.m.module_using
+		) :: !context_init
 	| EClass d ->
 		let c = (match get_type (fst d.d_name) with TClassDecl c -> c | _ -> assert false) in
 		if ctx.is_display_file && Display.is_display_position (pos d.d_name) then
@@ -3469,6 +3474,7 @@ let type_types_into_module ctx m tdecls p =
 			curmod = m;
 			module_types = List.map (fun t -> t,null_pos) ctx.g.std.m_types;
 			module_using = [];
+			module_using_priority = [];
 			module_globals = PMap.empty;
 			wildcard_packages = [];
 			module_imports = [];
