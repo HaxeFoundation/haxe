@@ -341,7 +341,7 @@ typedef Catch = {
 **/
 enum QuoteStatus {
 	/**
-		No qutoes
+		No quotes
 	**/
 	NoQuotes;
 
