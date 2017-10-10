@@ -35,7 +35,6 @@ import haxe.macro.Type.TypedExpr;
 	- `haxe.macro.ExprTools`
 	- `haxe.macro.TypeTools`
 **/
-#if !neko @:noDoc #end
 class Context {
 
 #if (neko || eval || display)
@@ -607,7 +606,7 @@ class Context {
 	@:allow(haxe.macro.MacroStringTools)
 	@:allow(haxe.macro.TypedExprTools)
 	@:allow(haxe.macro.PositionTools)
-	static function load( f, nargs ) : Dynamic {
+	static function load(f:String, nargs:Int) : Dynamic {
 		#if neko
 		return neko.Lib.load("macro", f, nargs);
 		#elseif eval

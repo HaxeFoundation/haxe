@@ -644,19 +644,6 @@ try
 			com.foptimize <- false;
 			Common.define com Define.NoOpt;
 		), ": disable code optimizations");
-		("--php-front",Arg.String (fun f ->
-			if com.php_front <> None then raise (Arg.Bad "Multiple --php-front");
-			com.php_front <- Some f;
-		),"<filename> : select the name for the php front file");
-		("--php-lib",Arg.String (fun f ->
-			if com.php_lib <> None then raise (Arg.Bad "Multiple --php-lib");
-			com.php_lib <- Some f;
-		),"<filename> : select the name for the php lib folder");
-		("--php-prefix", Arg.String (fun f ->
-			if com.php_prefix <> None then raise (Arg.Bad "Multiple --php-prefix");
-			com.php_prefix <- Some f;
-			Common.define com Define.PhpPrefix;
-		),"<name> : prefix all classes with given name");
 		("--remap", Arg.String (fun s ->
 			let pack, target = (try ExtString.String.split s ":" with _ -> raise (Arg.Bad "Invalid remap format, expected source:target")) in
 			com.package_rules <- PMap.add pack (Remap target) com.package_rules;
@@ -739,7 +726,7 @@ try
 		com.error <- error ctx;
 	end;
 	Lexer.old_format := Common.defined com Define.OldErrorFormat;
-	if !Lexer.old_format && !Parser.resume_display <> null_pos then begin
+	if !Lexer.old_format && Parser.do_resume () then begin
 		let p = !Parser.resume_display in
 		(* convert byte position to utf8 position *)
 		try

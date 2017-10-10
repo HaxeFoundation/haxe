@@ -120,7 +120,7 @@ let load_macro_ref : (typer -> bool -> path -> string -> pos -> (typer * ((strin
 
 let make_macro_api ctx p =
 	let parse_expr_string s p inl =
-		typing_timer ctx false (fun() -> try Parser.parse_expr_string ctx.com.defines s p error inl with Exit -> raise MacroApi.Invalid_expr)
+		typing_timer ctx false (fun() -> try ParserEntry.parse_expr_string ctx.com.defines s p error inl with Exit -> raise MacroApi.Invalid_expr)
 	in
 	{
 		MacroApi.pos = p;
@@ -209,7 +209,7 @@ let make_macro_api ctx p =
 		MacroApi.type_patch = (fun t f s v ->
 			typing_timer ctx false (fun() ->
 				let v = (match v with None -> None | Some s ->
-					match Parser.parse_string ctx.com.defines ("typedef T = " ^ s) null_pos error false with
+					match ParserEntry.parse_string ctx.com.defines ("typedef T = " ^ s) null_pos error false with
 					| _,[ETypedef { d_data = ct },_] -> Some ct
 					| _ -> assert false
 				) in
@@ -220,7 +220,7 @@ let make_macro_api ctx p =
 			);
 		);
 		MacroApi.meta_patch = (fun m t f s ->
-			let m = (match Parser.parse_string ctx.com.defines (m ^ " typedef T = T") null_pos error false with
+			let m = (match ParserEntry.parse_string ctx.com.defines (m ^ " typedef T = T") null_pos error false with
 				| _,[ETypedef t,_] -> t.d_meta
 				| _ -> assert false
 			) in
@@ -353,7 +353,7 @@ let make_macro_api ctx p =
 			)
 		);
 		MacroApi.add_global_metadata = (fun s1 s2 config ->
-			let meta = (match Parser.parse_string ctx.com.defines (s2 ^ " typedef T = T") null_pos error false with
+			let meta = (match ParserEntry.parse_string ctx.com.defines (s2 ^ " typedef T = T") null_pos error false with
 				| _,[ETypedef t,_] -> t.d_meta
 				| _ -> assert false
 			) in
@@ -724,7 +724,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			So instead, we generate a haxe.macro.Context.delayedCalled(i) expression that will only evaluate the
 			macro if/when it is called.
 
-			The tricky part is that the whole delayed-evaluation process has to use the same contextual informations
+			The tricky part is that the whole delayed-evaluation process has to use the same contextual information
 			as if it was evaluated now.
 		*)
 		let ctx = {
@@ -757,7 +757,7 @@ let call_macro ctx path meth args p =
 let call_init_macro ctx e =
 	let p = { pfile = "--macro"; pmin = 0; pmax = 0 } in
 	let e = try
-		Parser.parse_expr_string ctx.com.defines e p error false
+		ParserEntry.parse_expr_string ctx.com.defines e p error false
 	with err ->
 		display_error ctx ("Could not parse `" ^ e ^ "`") p;
 		raise err

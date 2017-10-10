@@ -1063,6 +1063,7 @@ let field_access ctx mode f fmode t e p =
 			in
 			if m = ctx.curfield.cf_name && (match e.eexpr with TConst TThis -> true | TLocal v -> Option.map_default (fun vthis -> v == vthis) false ctx.vthis | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
 				let prefix = (match ctx.com.platform with Flash when Common.defined ctx.com Define.As3 -> "$" | _ -> "") in
+				(match e.eexpr with TLocal _ when Common.defined ctx.com Define.Haxe3Compat -> ctx.com.warning "Field set has changed here in Haxe 4: call setter explicitly to keep Haxe 3.x behaviour" p | _ -> ());
 				if not (is_physical_field f) then begin
 					display_error ctx "This field cannot be accessed because it is not a real variable" p;
 					display_error ctx "Add @:isVar here to enable it" f.cf_pos;
@@ -1446,36 +1447,16 @@ and type_field ?(resume=false) ctx e i p mode =
 					no_field()
 				else
 				let f = {
-					cf_name = i;
-					cf_type = mk_mono();
-					cf_doc = None;
-					cf_meta = no_meta;
-					cf_public = true;
-					cf_pos = p;
-					cf_name_pos = null_pos;
+					(mk_field i (mk_mono()) p null_pos) with
 					cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
-					cf_expr = None;
-					cf_expr_unoptimized = None;
-					cf_params = [];
-					cf_overloads = [];
 				} in
 				a.a_fields <- PMap.add i f a.a_fields;
 				field_access ctx mode f (FAnon f) (Type.field_type f) e p
 		)
 	| TMono r ->
 		let f = {
-			cf_name = i;
-			cf_type = mk_mono();
-			cf_doc = None;
-			cf_meta = no_meta;
-			cf_public = true;
-			cf_pos = p;
-			cf_name_pos = null_pos;
+			(mk_field i (mk_mono()) p null_pos) with
 			cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
-			cf_expr = None;
-			cf_expr_unoptimized = None;
-			cf_params = [];
-			cf_overloads = [];
 		} in
 		let x = ref Opened in
 		let t = TAnon { a_fields = PMap.add i f PMap.empty; a_status = x } in
@@ -2807,7 +2788,7 @@ and format_string ctx s p =
 	in
 	let warn_escape = Common.defined ctx.com Define.FormatWarning in
 	let warn pos len =
-		ctx.com.warning "This string is formated" { p with pmin = !pmin + 1 + pos; pmax = !pmin + 1 + pos + len }
+		ctx.com.warning "This string is formatted" { p with pmin = !pmin + 1 + pos; pmax = !pmin + 1 + pos + len }
 	in
 	let len = String.length s in
 	let rec parse start pos =
@@ -2868,7 +2849,7 @@ and format_string ctx s p =
 		if warn_escape then warn (pos + 1) slen;
 		min := !min + 2;
 		if slen > 0 then
-			add_expr (Parser.parse_expr_string ctx.com.defines scode { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } error true) slen;
+			add_expr (ParserEntry.parse_expr_string ctx.com.defines scode { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } error true) slen;
 		min := !min + 1;
 		parse (send + 1) (send + 1)
 	in
@@ -3444,15 +3425,6 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| EFor(it,e2) -> (EFor (it, map_compr e2),p)
 			| EWhile(cond,e2,flag) -> (EWhile (cond,map_compr e2,flag),p)
 			| EIf (cond,e2,None) -> (EIf (cond,map_compr e2,None),p)
-			| EIf (cond,e2,Some e3) -> (EIf (cond,map_compr e2,Some (map_compr e3)),p)
-			| ESwitch(e1,cases,eo) ->
-				let cases = List.map (fun (el,eg,e,p) -> el,eg,Option.map map_compr e,p) cases in
-				let eo = Option.map (fun (eo,p) -> Option.map map_compr eo,p) eo in
-				ESwitch(e1,cases,eo),p
-			| ETry(e1,catches) ->
-				let catches = List.map (fun (n,ct,e,p) -> n,ct,map_compr e,p) catches in
-				ETry(map_compr e1,catches),p
-			| ETernary (cond,e2,e3) -> (ETernary (cond,map_compr e2,map_compr e3),p)
 			| EBlock [e] -> (EBlock [map_compr e],p)
 			| EBlock el -> begin match List.rev el with
 				| e :: el -> (EBlock ((List.rev el) @ [map_compr e]),p)
@@ -3462,18 +3434,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| EBinop(OpArrow,a,b) ->
 				et := (ENew(({tpackage=["haxe";"ds"];tname="Map";tparams=[];tsub=None},null_pos),[]),p);
 				(ECall ((EField ((EConst (Ident v.v_name),p),"set"),p),[a;b]),p)
-			| EContinue | EBreak | EReturn _ | EThrow _ ->
-				(e,p)
-			| ECast(e1,tho) ->
-				ECast(map_compr e1,tho),p
-			| EUntyped e1 ->
-				EUntyped(map_compr e1),p
-			| EDisplay(e1,b) ->
-				EDisplay(map_compr e1,b),p
-			| EMeta(m,e1) ->
-				EMeta(m,map_compr e1),p
-			| EConst _ | EArray _ | EBinop _ | EField _ | EObjectDecl _ | EArrayDecl _
-			| ECall _ | ENew _ | EUnop _ | EVars _ | EFunction _ | EDisplayNew _ | ECheckType _ ->
+			| _ ->
 				et := (EArrayDecl [],p);
 				(ECall ((EField ((EConst (Ident v.v_name),p),"push"),p),[(e,p)]),p)
 		in

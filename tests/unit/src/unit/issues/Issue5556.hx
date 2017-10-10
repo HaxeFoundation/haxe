@@ -13,5 +13,5 @@ class Issue5556 extends unit.Test {
 		return 1;
 	}
 
-	static dynamic function dynamicFunc(x) return x;
+	static dynamic function dynamicFunc(x:Dynamic) return x;
 }

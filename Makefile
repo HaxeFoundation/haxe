@@ -45,6 +45,8 @@ FINDLIB_PACKAGES=$(FINDLIB_LIBS:%=-package %)
 CFLAGS=
 ALL_CFLAGS=-bin-annot -safe-string -thread -g -w -3 $(CFLAGS) $(ALL_INCLUDES) $(FINDLIB_PACKAGES)
 
+MESSAGE_FILTER=sed -e 's/_build\/src\//src\//' tmp.tmp
+
 ifeq ($(BYTECODE),1)
 	TARGET_FLAG = bytecode
 	COMPILER = ocamlfind ocamlc
@@ -59,7 +61,7 @@ else
 	OCAMLDEP_FLAGS = -native
 endif
 
-CC_CMD = $(COMPILER) $(ALL_CFLAGS) -c $<
+CC_CMD = ($(COMPILER) $(ALL_CFLAGS) -c $< 2>tmp.tmp && $(MESSAGE_FILTER)) || ($(MESSAGE_FILTER) && exit 1)
 
 # Meta information
 
@@ -116,7 +118,7 @@ _build/%:%
 build_dirs:
 	@mkdir -p $(BUILD_DIRECTORIES)
 
-_build/src/syntax/parser.ml:src/syntax/parser.mly
+_build/src/syntax/grammar.ml:src/syntax/grammar.mly
 	camlp4o -impl $< -o $@
 
 _build/src/compiler/version.ml: FORCE
@@ -126,7 +128,7 @@ else
 	echo let version_extra = None > _build/src/compiler/version.ml
 endif
 
-build_src: | $(BUILD_SRC) _build/src/syntax/parser.ml _build/src/compiler/version.ml
+build_src: | $(BUILD_SRC) _build/src/syntax/grammar.ml _build/src/compiler/version.ml
 
 haxe: build_src
 	$(MAKE) -f $(MAKEFILENAME) build_pass_1

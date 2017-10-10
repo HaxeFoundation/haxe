@@ -81,6 +81,7 @@ enum ValueType {
 		return e;
 	}
 
+	#if (js_es < 5)
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped {
 		switch( args.length ) {
 		case 0:
@@ -118,12 +119,15 @@ enum ValueType {
 		}
 	}
 
-	#if (js_es < 5)
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped {
 		__js__("function empty() {}; empty.prototype = cl.prototype");
 		return __js__("new empty()");
 	}
 	#else
+	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped {
+		return untyped __js__("new ({0})", Function.prototype.bind.apply(cl, [null].concat(args)));
+	}
+
 	public static inline function createEmptyInstance<T>( cl : Class<T> ) : T {
 		return js.Object.create((cast cl).prototype);
 	}

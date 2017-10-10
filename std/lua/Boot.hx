@@ -182,6 +182,7 @@ class Boot {
 			case "number" : {
 				if (o == std.Math.POSITIVE_INFINITY) "Infinity";
 				else if (o == std.Math.NEGATIVE_INFINITY) "-Infinity";
+				else if (o == 0) "0";
 				else if (o != o) "NaN";
 				else untyped tostring(o);
 			}

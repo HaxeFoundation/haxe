@@ -147,8 +147,8 @@ class InitProperties {
 	public var accNever(default, never):Int = 3;
 	public var accDynamic(default, dynamic):Int = 3;
 
-	function set_accFunc(v) return throw "setter was called";
-	function set_accDynamic(v) return throw "setter was called";
+	function set_accFunc(_) return throw "setter was called";
+	function set_accDynamic(_) return throw "setter was called";
 	public function new() { }
 }
 
@@ -212,7 +212,7 @@ class UsingUnrelated {
 		return 1;
 	}
 
-	static function set_SX(v) {
+	static function set_SX(v:Int) {
 		return v;
 	}
 
@@ -240,7 +240,7 @@ class UsingUnrelated {
 		return 1;
 	}
 
-	function set_x(v) {
+	function set_x(v:Int) {
 		return v;
 	}
 
@@ -269,7 +269,7 @@ class BaseSuperProp {
 	}
 
 	function get_prop() return 1;
-	function set_prop(v) return v;
+	function set_prop(v:Int) return v;
 
 	function get_fProp() return function(i:Int) return "test" +i;
 }

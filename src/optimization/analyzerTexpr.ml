@@ -890,7 +890,7 @@ module Fusion = struct
 							if not !found && (has_state_write ir || has_state_read ir || has_any_field_read ir || has_any_field_write ir) then raise Exit;
 							{e with eexpr = TNew(c,tl,el)}
 						| TCall({eexpr = TField(_,FEnum _)} as ef,el) ->
-							let el = List.map replace el in
+							let el = handle_el el in
 							{e with eexpr = TCall(ef,el)}
 						| TCall({eexpr = TField(_,fa)} as ef,el) when PurityState.is_pure_field_access fa ->
 							let ef,el = handle_call ef el in

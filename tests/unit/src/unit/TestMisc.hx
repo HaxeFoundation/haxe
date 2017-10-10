@@ -227,7 +227,7 @@ class TestMisc extends Test {
 		eq( bar(), 50);
 	}
 
-	function id(x) {
+	function id<T>(x:T) {
 		return x;
 	}
 
@@ -253,14 +253,14 @@ class TestMisc extends Test {
 		eq( inst.add.bind(1)(2), 103 );
 		eq( add(1,2), 103 );
 
-		// check overriden dynamic method
+		// check overridden dynamic method
 		var inst = new MyDynamicSubClass(100);
 		var add = inst.add;
 		eq( inst.add(1,2), 206 );
 		eq( inst.add.bind(1)(2), 206 );
 		eq( add(1,2), 206 );
 
-		// check overriden dynamic method
+		// check overridden dynamic method
 		var inst = new MyDynamicSubClass2(100);
 		var add = inst.add;
 		eq( inst.add(1,2), 206 );

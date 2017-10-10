@@ -10,7 +10,7 @@ import haxe.extern.EitherType;
 **/
 extern class Syntax {
     /**
-        This method allows to force specified binary operation for `left` and `right` values.
+        This method allows one to force specified binary operation for `left` and `right` values.
         `operator` must be a constant string like "+" or "==".
     **/
     static function binop( left:Dynamic, operator:String, right:Dynamic ) : Dynamic;

@@ -114,18 +114,8 @@ let extend_xml_proxy ctx c t file p =
 						TLazy (ref (lazy_wait ft))
 					end in
 					let f = {
-						cf_name = id;
-						cf_type = t;
-						cf_public = true;
-						cf_pos = p;
-						cf_name_pos = null_pos;
-						cf_doc = None;
-						cf_meta = no_meta;
+						(mk_field id t p null_pos) with
 						cf_kind = Var { v_read = AccResolve; v_write = AccNo };
-						cf_params = [];
-						cf_expr = None;
-						cf_expr_unoptimized = None;
-						cf_overloads = [];
 					} in
 					cs.cl_fields <- PMap.add id f cs.cl_fields;
 				with

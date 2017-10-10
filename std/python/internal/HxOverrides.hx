@@ -70,7 +70,7 @@ class HxOverrides {
 	}
 
 	@:ifFeature("dynamic_read.push", "anon_optional_read.push", "anon_read.push")
-	static public function push(x, e) {
+	static public function push(x:Dynamic, e:Dynamic) {
 		if (Boot.isArray(x)) {
 			return (x:Array<Dynamic>).push(e);
 		}
@@ -94,7 +94,7 @@ class HxOverrides {
 	}
 
 	@:ifFeature("dynamic_read.map", "anon_optional_read.map", "anon_read.map")
-	static public function map(x, f) {
+	static public function map(x:Dynamic, f:Dynamic) {
 		if (Boot.isArray(x)) {
 			return (x:Array<Dynamic>).map(f);
 		}

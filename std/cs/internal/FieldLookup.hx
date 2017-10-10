@@ -28,7 +28,7 @@ package cs.internal;
 	@:readOnly public var name(default,never):String;
 	public var value:Dynamic;
 	public var next:FieldHashConflict;
-	public function new(hash, name, value, next) {
+	public function new(hash, name, value:Dynamic, next) {
 		untyped this.hash = hash;
 		untyped this.name = name;
 		this.value = value;

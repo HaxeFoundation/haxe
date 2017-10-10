@@ -12,7 +12,7 @@ class Issue4949 extends Test {
 		}
 	}
 
-	function next(d) { }
+	function next(_) { }
 
 	function test() {
 		foo();

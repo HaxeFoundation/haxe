@@ -408,7 +408,7 @@ struct
 		Will also look for previous cast() definitions and override them, to reflect the current type and fields
 
 		FIXME: this function still doesn't support generics that extend generics, and are cast as one of its subclasses. This needs to be taken care, by
-		looking at previous superclasses and whenever a generic class is found, its cast argument must be overriden. the toughest part is to know how to type
+		looking at previous superclasses and whenever a generic class is found, its cast argument must be overridden. the toughest part is to know how to type
 		the current type correctly.
 	*)
 	let create_cast_cfield gen cl name =

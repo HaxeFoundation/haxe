@@ -194,7 +194,7 @@ class Web {
 		_set_cookie(untyped key.__s, untyped v.__s);
 	}
 
-	static function addPair( buf : StringBuf, name, value ) {
+	static function addPair( buf : StringBuf, name:String, value:String ) {
 		if( value == null ) return;
 		buf.add("; ");
 		buf.add(name);

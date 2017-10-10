@@ -50,7 +50,7 @@ class ExternalConnection implements Connection implements Dynamic<Connection> {
 		return s.split("\\").join("\\\\");
 	}
 	#else
-	static inline function escapeString(s) {
+	static inline function escapeString(s:String) {
 		return s;
 	}
 	#end

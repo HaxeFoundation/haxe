@@ -67,7 +67,7 @@ class Boot {
 	}
 
 	@:ifFeature("typed_catch")
-	private static function __instanceof(o,cl) {
+	private static function __instanceof(o:Dynamic, cl:Dynamic) {
 		untyped {
 			if( cl == Dynamic )
 				return true;
@@ -105,7 +105,7 @@ class Boot {
 		}
 	}
 
-	private static function __tagserialize(o) untyped {
+	private static function __tagserialize(o:Dynamic) untyped {
 		var n = o.__enum__.__ename__;
 		var x = __dollar__amake(n.length + 1);
 		for( i in 0...n.length )
@@ -114,7 +114,7 @@ class Boot {
 		return x;
 	}
 
-	private static function __unserialize(v) {
+	private static function __unserialize(v:Dynamic) {
 		untyped {
 			if( __dollar__typeof(v) != __dollar__tarray )
 				throw "Invalid serialized class data";

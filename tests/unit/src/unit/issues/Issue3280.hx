@@ -9,7 +9,7 @@ class Issue3280 extends Test {
 		return param;
 	}
 
-	static function iter( v : Int, f) {
+	static function iter( v : Int, f : Int -> String) {
 		return f(v-1);
 	}
 

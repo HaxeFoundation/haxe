@@ -8,5 +8,6 @@
 	},
 	"files.exclude": {
 		"**/_build": true
-	}
+	},
+	"reason.server.languages": ["ocaml"]
 }

@@ -128,14 +128,16 @@ module PrototypeBuilder = struct
 				| Some proto -> proto.pinstance_names,proto.pinstance_fields
 				| None -> IntMap.empty,[||]
 			in
-			let a = Array.make (Array.length fields + DynArray.length pctx.instance_fields) vnull in
-			Array.blit fields 0 a 0 (Array.length fields);
+			let offset = Array.length fields in
+			let a = Array.make (offset + DynArray.length pctx.instance_fields) vnull in
+			Array.blit fields 0 a 0 (offset);
 			(* Create the mapping from hashed name to field offset for instance fields. *)
 			let names,_ = DynArray.fold_left (fun (fields,count) (name,v) ->
 				IntMap.add name count fields,count + 1
-			) (names,Array.length fields) pctx.instance_fields in
+			) (names,offset) pctx.instance_fields in
 			names,a,(fun proto ->
-				DynArray.iteri (fun i (_,v) -> a.(i + Array.length fields) <- Lazy.force v) pctx.instance_fields;
+				Array.iteri (fun i v -> a.(i) <- v) fields;
+				DynArray.iteri (fun i (_,v) -> a.(i + offset) <- Lazy.force v) pctx.instance_fields;
 				initialize_fields pctx proto;
 			)
 		end else

@@ -27,7 +27,7 @@ class HxException extends python.Exceptions.Exception {
 	@:ifFeature("has_throw")
 	public var val:Dynamic;
 	@:ifFeature("has_throw")
-	public function new(val) {
+	public function new(val:Dynamic) {
 		var message = UBuiltins.str(val);
 		super(message);
 		this.val = val;

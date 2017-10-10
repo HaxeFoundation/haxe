@@ -41,6 +41,7 @@ type strict_defined =
 	| ForceNativeProperty
 	| FormatWarning
 	| GencommonDebug
+	| Haxe3Compat
 	| HaxeBoot
 	| HaxeVer
 	| HxcppApiLevel
@@ -81,6 +82,8 @@ type strict_defined =
 	| Objc
 	| OldConstructorInline
 	| OldErrorFormat
+	| PhpLib
+	| PhpFront
 	| PhpPrefix
 	| RealPosition
 	| ReplaceFiles
@@ -116,7 +119,7 @@ let infos = function
 	| AdvancedTelemetry -> "advanced-telemetry",("Allow the SWF to be measured with Monocle tool",[Platform Flash])
 	| AnnotateSource -> "annotate_source",("Add additional comments to generated source code",[Platform Cpp])
 	(* | Analyzer -> "analyzer",("Use static analyzer for optimization (experimental)") *)
-	| As3 -> "as3",("Defined when outputing flash9 as3 source code",[])
+	| As3 -> "as3",("Defined when outputting flash9 as3 source code",[])
 	| CheckXmlProxy -> "check_xml_proxy",("Check the used fields of the xml proxy",[])
 	| CoreApi -> "core_api",("Defined in the core api context",[])
 	| CoreApiSerialize -> "core_api_serialize",("Mark some generated core api classes with the Serializable attribute on C#",[Platform Cs])
@@ -146,8 +149,9 @@ let infos = function
 	(* force_lib_check is only here as a debug facility - compiler checking allows errors to be found more easily *)
 	| ForceLibCheck -> "force_lib_check",("Force the compiler to check -net-lib and -java-lib added classes (internal)",[Platforms [Cs;Java]])
 	| ForceNativeProperty -> "force_native_property",("Tag all properties with :nativeProperty metadata for 3.1 compatibility",[Platform Cpp])
-	| FormatWarning -> "format_warning",("Print a warning for each formated string, for 2.x compatibility",[])
+	| FormatWarning -> "format_warning",("Print a warning for each formatted string, for 2.x compatibility",[])
 	| GencommonDebug -> "gencommon_debug",("GenCommon internal",[Platforms [Cs;Java]])
+	| Haxe3Compat -> "haxe3compat", ("Gives warnings about transition from Haxe 3.x to Haxe 4.0",[])
 	| HaxeBoot -> "haxe_boot",("Given the name 'haxe' to the flash boot class instead of a generated name",[Platform Flash])
 	| HaxeVer -> "haxe_ver",("The current Haxe version value",[])
 	| HxcppApiLevel -> "hxcpp_api_level",("Provided to allow compatibility between hxcpp versions",[Platform Cpp])
@@ -156,9 +160,9 @@ let infos = function
 	| IncludePrefix -> "include_prefix",("prepend path to generated include files",[Platform Cpp])
 	| Interp -> "interp",("The code is compiled to be run with --interp",[])
 	| JavaVer -> "java_ver",("<version:5-7> Sets the Java version to be targeted",[Platform Java])
-	| JqueryVer -> "jquery_ver",("The jQuery version supported by js.jquery.*. The version is encoded as an interger. e.g. 1.11.3 is encoded as 11103",[Platform Js])
+	| JqueryVer -> "jquery_ver",("The jQuery version supported by js.jquery.*. The version is encoded as an integer. e.g. 1.11.3 is encoded as 11103",[Platform Js])
 	| JsClassic -> "js_classic",("Don't use a function wrapper and strict mode in JS output",[Platform Js])
-	| JsEs -> "js_es",("Generate JS compilant with given ES standard version (default 5)",[Platform Js; HasParam "version number"])
+	| JsEs -> "js_es",("Generate JS compliant with given ES standard version (default 5)",[Platform Js; HasParam "version number"])
 	| JsEnumsAsObjects -> "js_enums_as_objects",("Generate enum representation as object instead of as array",[Platform Js])
 	| JsUnflatten -> "js_unflatten",("Generate nested objects for packages and types",[Platform Js])
 	| JsSourceMap -> "js_source_map",("Generate JavaScript source map even in non-debug mode",[Platform Js])
@@ -190,6 +194,8 @@ let infos = function
 	| OldConstructorInline -> "old-constructor-inline",("Use old constructor inlining logic (from haxe 3.4.2) instead of the reworked version.",[])
 	| OldErrorFormat -> "old-error-format",("Use Haxe 3.x zero-based column error messages instead of new one-based format.",[])
 	| PhpPrefix -> "php_prefix",("Root namespace for generated php classes. E.g. if compiled with`--php-prefix some.sub`, then all classes will be generated in `\\some\\sub` namespace.",[Platform Php])
+	| PhpLib -> "php_lib",("Select the name for the php lib folder.",[Platform Php])
+	| PhpFront -> "php_front",("Select the name for the php front file (by default: `index.php`).", [Platform Php])
 	| RealPosition -> "real_position",("Disables Haxe source mapping when targetting C#, removes position comments in Java and Php output",[Platforms [Cs;Java;Php]])
 	| ReplaceFiles -> "replace_files",("GenCommon internal",[Platforms [Java;Cs]])
 	| Scriptable -> "scriptable",("GenCPP internal",[Platform Cpp])
@@ -246,9 +252,9 @@ let raw_defined_value ctx k =
 let defined_value ctx v =
 	raw_defined_value ctx (fst (infos v))
 
-let defined_value_safe ctx v =
+let defined_value_safe ?default ctx v =
 	try defined_value ctx v
-	with Not_found -> ""
+	with Not_found -> match default with Some s -> s | None -> ""
 
 let raw_define ctx v =
 	let k,v = try ExtString.String.split v "=" with _ -> v,"1" in

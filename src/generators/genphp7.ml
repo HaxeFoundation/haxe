@@ -184,9 +184,9 @@ let get_php_prefix ctx =
 		| Some prefix -> prefix
 		| None ->
 			let lst =
-				match ctx.php_prefix with
-					| None -> []
-					| Some str ->
+				match Common.defined_value_safe ctx Define.PhpPrefix with
+					| "" -> []
+					| str ->
 						if String.length str = 0 then
 							[]
 						else
@@ -2093,10 +2093,6 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 						write_method ((self#use boot_type_path) ^ "::addOrConcat")
 					else
 						write_binop " + "
-				| OpMult -> write_binop " * "
-				| OpDiv -> write_binop " / "
-				| OpSub -> write_binop " - "
-				| OpAssign -> write_binop " = "
 				| OpEq ->
 					if need_boot_equal expr1 expr2 then
 						write_method ((self#use boot_type_path) ^ "::equal")
@@ -2110,17 +2106,6 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 						end
 					else
 						write_binop " !== "
-				| OpGt -> compare " > "
-				| OpGte -> compare " >= "
-				| OpLt -> compare " < "
-				| OpLte -> compare " <= "
-				| OpAnd -> write_binop " & "
-				| OpOr -> write_binop " | "
-				| OpXor -> write_binop " ^ "
-				| OpBoolAnd -> write_binop " && "
-				| OpBoolOr -> write_binop " || "
-				| OpShl  -> write_binop " << "
-				| OpShr -> write_binop " >> "
 				| OpMod ->
 					if is_int expr1 && is_int expr2 then
 						write_binop " % "
@@ -2142,14 +2127,6 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 						end
 					else
 						write_binop " += "
-				| OpAssignOp OpMult -> write_binop " *= "
-				| OpAssignOp OpDiv -> write_binop " /= "
-				| OpAssignOp OpSub -> write_binop " -= "
-				| OpAssignOp OpAnd -> write_binop " &= "
-				| OpAssignOp OpOr -> write_binop " |= "
-				| OpAssignOp OpXor -> write_binop " ^= "
-				| OpAssignOp OpShl  -> write_binop " <<= "
-				| OpAssignOp OpShr -> write_binop " >>= "
 				| OpAssignOp OpMod ->
 					if is_int expr1 && is_int expr2 then
 						write_binop " %= "
@@ -2159,26 +2136,21 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					self#write_expr expr1;
 					self#write " = ";
 					write_method ((self#use boot_type_path) ^ "::shiftRightUnsigned")
-				| _ -> fail self#pos __POS__
+				| OpGt | OpGte | OpLt | OpLte ->
+					compare (" " ^ (Ast.s_binop operation) ^ " ")
+				| _ ->
+					write_binop (" " ^ (Ast.s_binop operation) ^ " ")
 		(**
 			Writes TUnOp to output buffer
 		*)
 		method write_expr_unop operation flag expr =
-			let write_unop operation =
-				match operation with
-					| Increment -> self#write "++"
-					| Decrement -> self#write "--"
-					| Not -> self#write "!"
-					| Neg -> self#write "-"
-					| NegBits -> self#write "~"
-			in
 			match flag with
 				| Prefix ->
-					write_unop operation;
+					self#write (Ast.s_unop operation);
 					self#write_expr expr
 				| Postfix ->
 					self#write_expr expr;
-					write_unop operation
+					self#write (Ast.s_unop operation)
 		method private write_expr_for_field_access expr access_str field_str =
 			let access_str = ref access_str in
 			(match (reveal_expr expr).eexpr with
@@ -3293,15 +3265,8 @@ class class_builder ctx (cls:tclass) =
 						None
 					else
 						Some {
-							cf_name = "new";
-							cf_type = TFun ([], get_void ctx);
-							cf_public = true;
-							cf_pos = cls.cl_pos;
-							cf_name_pos = cls.cl_pos;
-							cf_doc = None;
-							cf_meta = [];
+							(mk_field "new" (TFun ([], get_void ctx)) cls.cl_pos cls.cl_pos) with
 							cf_kind = Method MethNormal;
-							cf_params = [];
 							cf_expr = Some {
 								eexpr = TFunction {
 									tf_args = [];
@@ -3311,8 +3276,6 @@ class class_builder ctx (cls:tclass) =
 								epos = cls.cl_pos;
 								etype = get_void ctx;
 							};
-							cf_expr_unoptimized = None;
-							cf_overloads = [];
 						}
 		(**
 			Writes type body to output buffer.
@@ -3695,10 +3658,11 @@ class generator (ctx:context) =
 			match self#get_entry_point with
 				| None -> ()
 				| Some (uses, entry_point) ->
-					let filename = match ctx.php_front with None -> "index.php" | Some n -> n in
+					let filename = Common.defined_value_safe ~default:"index.php" ctx Define.PhpFront in
 					let channel = open_out (root_dir ^ "/" ^ filename) in
 					output_string channel "<?php\n";
 					output_string channel uses;
+					output_string channel "\n";
 					output_string channel ("set_include_path(__DIR__.'/" ^ (String.concat "/" self#get_lib_path) ^ "');\n");
 					output_string channel "spl_autoload_register(\n";
 					output_string channel "	function($class){\n";
@@ -3726,9 +3690,8 @@ class generator (ctx:context) =
 			Returns path from `index.php` to directory which will contain all generated classes
 		*)
 		method private get_lib_path : string list =
-			match ctx.php_lib with
-				| None -> ["lib"];
-				| Some path -> (Str.split (Str.regexp "/")  path)
+			let path = Common.defined_value_safe ~default:"lib" ctx Define.PhpLib in
+			(Str.split (Str.regexp "/")  path)
 		(**
 			Returns PHP code for entry point
 		*)

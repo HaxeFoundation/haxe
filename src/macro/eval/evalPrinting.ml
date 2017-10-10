@@ -50,14 +50,14 @@ let rec s_object depth o =
 and s_array depth va =
 	concat empty [
 		of_char '[';
-		EvalArray.join va (s_value 0) rcomma;
+		EvalArray.join va (s_value depth) rcomma;
 		of_char ']';
 	]
 
 and s_vector depth vv =
 	concat empty [
 		of_char '[';
-		EvalArray.join (EvalArray.create vv) (s_value 0) rcomma;
+		EvalArray.join (EvalArray.create vv) (s_value depth) rcomma;
 		of_char ']';
 	]
 

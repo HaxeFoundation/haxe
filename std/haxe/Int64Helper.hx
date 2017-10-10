@@ -82,7 +82,10 @@ class Int64Helper {
 
 		var noFractions = f - (f % 1);
 
-		// 2^53-1 and -2^53: these are parseable without loss of precision
+		// 2^53-1 and -2^53+1: these are parseable without loss of precision.
+		// In theory 2^53 and -2^53 are parseable too, but then there's no way to
+		// distinguish 2^53 from 2^53+1 
+		// (i.e. trace(9007199254740992. + 1. > 9007199254740992.); // false!)
 		if (noFractions > 9007199254740991) {
 			throw "Conversion overflow";
 		}

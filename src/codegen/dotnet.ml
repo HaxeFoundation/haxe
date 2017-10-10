@@ -381,6 +381,7 @@ let convert_ilmethod ctx p m is_explicit_impl =
 	let cff_name = match m.mname with
 		| ".ctor" -> "new"
 		| ".cctor"-> raise Exit (* __init__ field *)
+		| "Finalize" -> raise Exit (* destructor (~ClassName) *)
 		| "Equals" | "GetHashCode" -> raise Exit
 		| name when String.length name > 5 ->
 				(match String.sub name 0 5 with
