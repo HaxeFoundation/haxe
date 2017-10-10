@@ -76,11 +76,11 @@ class Issue6640 extends Test {
 		for (str in invalidInt64Strings) checkDecString(str);
 		
 		// random strings
-		//var N = 1000;
-		//for (i in 0...N) {
-			//var str = getRandDecString();
-			//checkDecString(str);
-		//}
+		var N = 50;
+		for (i in 0...N) {
+			var str = getRandDecString();
+			checkDecString(str);
+		}
 	}
 	
 	function checkDecString(str:String) {
