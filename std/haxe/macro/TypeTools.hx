@@ -125,7 +125,13 @@ class TypeTools {
 				TPath(toTypePath(baseType, params));
 			case TFun(args, ret):
 				TFunction(
-					[ for (a in args) a.opt ? nullable(toComplexType(a.t)) : toComplexType(a.t) ],
+					[ for (a in args)
+						{
+							name: a.name,
+							opt: a.opt,
+							type: a.opt ? nullable(toComplexType(a.t)) : toComplexType(a.t)
+						}
+					],
 					toComplexType(ret));
 			case TAnonymous(_.get() => { fields: fields }):
 				TAnonymous([ for (cf in fields) toField(cf) ]);

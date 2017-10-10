@@ -156,11 +156,13 @@ and type_param_or_const =
 
 and complex_type =
 	| CTPath of type_path
-	| CTFunction of type_hint list * type_hint
+	| CTFunction of function_arg list * type_hint
 	| CTAnonymous of class_field list
 	| CTParent of type_hint
 	| CTExtend of placed_type_path list * class_field list
 	| CTOptional of type_hint
+
+and function_arg = placed_name * (* optional? *) bool * type_hint
 
 and type_hint = complex_type * pos
 
@@ -297,6 +299,8 @@ type type_def =
 type type_decl = type_def * pos
 
 type package = string list * type_decl list
+
+let null_name : placed_name = ("",null_pos)
 
 let is_lower_ident i =
 	let rec loop p =
@@ -550,7 +554,7 @@ let map_expr loop (e,p) =
 	and type_hint (t,p) = (match t with
 		| CTPath t -> CTPath { t with tparams = List.map tparam t.tparams }
 		| CTFunction (cl,c) ->
-			let cl = List.map type_hint cl in
+			let cl = List.map (fun (n,o,t) -> n,o,type_hint t) cl in
 			let c = type_hint c in
 			CTFunction (cl,c)
 		| CTAnonymous fl -> CTAnonymous (List.map cfield fl)
@@ -559,7 +563,8 @@ let map_expr loop (e,p) =
 			let tl = List.map tpath tl in
 			let fl = List.map cfield fl in
 			CTExtend (tl,fl)
-		| CTOptional t -> CTOptional (type_hint t)),p
+		| CTOptional t -> CTOptional (type_hint t)
+		),p
 	and tparamdecl t =
 		let constraints = List.map type_hint t.tp_constraints in
 		let params = List.map tparamdecl t.tp_params in
@@ -753,7 +758,13 @@ let s_expr e =
 	and s_complex_type tabs ct =
 		match ct with
 		| CTPath t -> s_complex_type_path tabs (t,null_pos)
-		| CTFunction (cl,(c,_)) -> if List.length cl > 0 then String.concat " -> " (List.map (fun (t,_) -> s_complex_type tabs t) cl) else "Void" ^ " -> " ^ s_complex_type tabs c
+		| CTFunction (args,(t,_)) ->
+			let args = List.map (fun (n,o,t) ->
+				(if o then "?" else "") ^
+				(let n = fst n in if n = "" then "" else n ^ ":") ^
+				s_complex_type tabs (fst t)
+			) args in
+			"(" ^ (String.concat ", " args) ^ ") ->" ^ (s_complex_type tabs t)
 		| CTAnonymous fl -> "{ " ^ String.concat "; " (List.map (s_class_field tabs) fl) ^ "}";
 		| CTParent(t,_) -> "(" ^ s_complex_type tabs t ^ ")"
 		| CTOptional(t,_) -> "?" ^ s_complex_type tabs t

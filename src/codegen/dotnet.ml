@@ -208,7 +208,7 @@ let rec convert_signature ctx p = function
 		mk_type_path ctx (["cs"],[],"NativeArray") [TPType (convert_signature ctx p s,null_pos)]
 	(* | LArray of ilsig_norm * (int option * int option) array *)
 	| LMethod (_,ret,args) ->
-		CTFunction (List.map (fun v -> convert_signature ctx p v,null_pos) args, (convert_signature ctx p ret,null_pos))
+		CTFunction (List.map (fun v -> (null_name,false,(convert_signature ctx p v,null_pos))) args, (convert_signature ctx p ret,null_pos))
 	| _ -> mk_type_path ctx ([],[], "Dynamic") []
 
 let ilpath_s = function
@@ -613,7 +613,7 @@ let convert_fun_arg ctx p = function
 		convert_signature ctx p s,p
 
 let convert_fun ctx p ret args =
-	let args = List.map (convert_fun_arg ctx p) args in
+	let args = List.map (fun v -> null_name,false,convert_fun_arg ctx p v) args in
 	CTFunction(args, (convert_signature ctx p ret,null_pos))
 
 let get_clsname ctx cpath =

@@ -545,7 +545,7 @@ enum ComplexType {
 		Represents a function type.
 		@see https://haxe.org/manual/types-function.html
 	**/
-	TFunction( args : Array<ComplexType>, ret : ComplexType );
+	TFunction( args : Array<FunctionTypeArg>, ret : ComplexType );
 
 	/**
 		Represents an anonymous structure type.
@@ -570,6 +570,26 @@ enum ComplexType {
 		Represents an optional type.
 	**/
 	TOptional( t : ComplexType );
+}
+
+/**
+	Represents an argument of a function type (`ComplexType.TFunction`).
+**/
+typedef FunctionTypeArg = {
+	/**
+		The name of the function argument.
+	**/
+	var name : String;
+
+	/**
+		Whether or not the function argument is optional.
+	**/
+	var opt : Bool;
+
+	/**
+		The type-hint of the function argument.
+	**/
+	var type : ComplexType;
 }
 
 /**

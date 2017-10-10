@@ -112,11 +112,11 @@ class Printer {
 	public function printComplexType(ct:ComplexType) return switch(ct) {
 		case TPath(tp): printTypePath(tp);
 		case TFunction(args, ret):
-			function printArg(ct) return switch ct {
-				case TFunction(_): "(" + printComplexType(ct) + ")";
-				default: printComplexType(ct);
-			};
-			(args.length>0 ? args.map(printArg).join(" -> ") :"Void") + " -> " + printComplexType(ret);
+			function printArg(arg) return
+				(if (arg.opt) "?" else "") +
+				(if (arg.name == "") "" else arg.name + ":") +
+				printComplexType(arg.type);
+			"(" + args.map(printArg).join(", ") + ") -> " + printComplexType(ret);
 		case TAnonymous(fields): "{ " + [for (f in fields) printField(f) + "; "].join("") + "}";
 		case TParent(ct): "(" + printComplexType(ct) + ")";
 		case TOptional(ct): "?" + printComplexType(ct);

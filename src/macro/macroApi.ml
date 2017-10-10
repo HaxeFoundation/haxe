@@ -95,6 +95,7 @@ type obj_type =
 	| OCase
 	| OCatch
 	| OExpr
+	| OFunctionTypeArg
 	(* Type *)
 	| OMetaAccess
 	| OTypeParameter
@@ -231,6 +232,7 @@ let proto_name = function
 	| OCase -> "Case", None
 	| OCatch -> "Catch", None
 	| OExpr -> "Expr", None
+	| OFunctionTypeArg -> "FunctionTypeArg", None
 	| OMetaAccess -> "MetaAccess", None
 	| OTypeParameter -> "TypeParameter", None
 	| OClassType -> "ClassType", None
@@ -424,7 +426,7 @@ and encode_ctype t =
 	| CTPath p ->
 		0, [encode_path (p,Globals.null_pos)]
 	| CTFunction (pl,r) ->
-		1, [encode_array (List.map encode_ctype pl);encode_ctype r]
+		1, [encode_array (List.map encode_function_arg pl);encode_ctype r]
 	| CTAnonymous fl ->
 		2, [encode_array (List.map encode_field fl)]
 	| CTParent t ->
@@ -435,6 +437,13 @@ and encode_ctype t =
 		5, [encode_ctype t]
 	in
 	encode_enum ~pos:(Some (pos t)) ICType tag pl
+
+and encode_function_arg (n,o,t) =
+	encode_obj OFunctionTypeArg [
+		"name", encode_placed_name n;
+		"opt", vbool o;
+		"type", encode_ctype t;
+	]
 
 and encode_tparam_decl tp =
 	encode_obj OTypeParamDecl [
@@ -723,7 +732,7 @@ and decode_ctype t =
 	| 0, [p] ->
 		CTPath (fst (decode_path p))
 	| 1, [a;r] ->
-		CTFunction (List.map decode_ctype (decode_array a), decode_ctype r)
+		CTFunction (List.map decode_function_arg (decode_array a), decode_ctype r)
 	| 2, [fl] ->
 		CTAnonymous (List.map decode_field (decode_array fl))
 	| 3, [t] ->
@@ -734,6 +743,12 @@ and decode_ctype t =
 		CTOptional (decode_ctype t)
 	| _ ->
 		raise Invalid_expr),p
+
+and decode_function_arg o =
+	let name = (decode_string (field o "name"),Globals.null_pos) in
+	let opt = decode_bool (field o "opt") in
+	let t = decode_ctype (field o "type") in
+	(name,opt,t)
 
 and decode_expr v =
 	let rec loop v =

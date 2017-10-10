@@ -44,7 +44,7 @@ let extend_remoting ctx c t p async prot =
 			let eargs = [EArrayDecl (List.map (fun ((a,_),_,_,_,_) -> (EConst (Ident a),p)) fd.f_args),p] in
 			let ftype = (match fd.f_type with Some (CTPath { tpackage = []; tname = "Void" },_) -> None | _ -> fd.f_type) in
 			let fargs, eargs = if async then match ftype with
-				| Some (tret,_) -> fd.f_args @ [("__callb",null_pos),true,[],Some (CTFunction ([tret,null_pos],(tvoid,null_pos)),null_pos),None], eargs @ [EConst (Ident "__callb"),p]
+				| Some (tret,_) -> fd.f_args @ [("__callb",null_pos),true,[],Some (CTFunction ([null_name,false,(tret,null_pos)],(tvoid,null_pos)),null_pos),None], eargs @ [EConst (Ident "__callb"),p]
 				| _ -> fd.f_args, eargs @ [EConst (Ident "null"),p]
 			else
 				fd.f_args, eargs
