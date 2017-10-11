@@ -27,7 +27,7 @@ package haxe;
 enum StackItem {
 	CFunction;
 	Module( m : String );
-	FilePos( s : Null<StackItem>, file : String, line : Int, column : Int );
+	FilePos( s : Null<StackItem>, file : String, line : Int, column : Null<Int> );
 	Method( classname : String, method : String );
 	LocalFunction( ?v : Int );
 }
@@ -109,7 +109,7 @@ class CallStack {
 				var lineNumber = el.getLineNumber();
 				var method = Method( className, methodName );
 				if ( fileName != null || lineNumber >= 0 ) {
-					stack.push( FilePos( method, fileName, lineNumber, 0 ) );
+					stack.push( FilePos( method, fileName, lineNumber, null ) );
 				}
 				else {
 					stack.push( method );
@@ -127,7 +127,7 @@ class CallStack {
 			infos.pop();
 			infos.reverse();
 			for (elem in infos)
-				stack.push(FilePos(null, elem._1, elem._2, 0));
+				stack.push(FilePos(null, elem._1, elem._2, null));
 			return stack;
 		#elseif lua
 			var stack = [];
@@ -138,7 +138,7 @@ class CallStack {
 				var file  = parts[0];
 				var line  = parts[1];
 				// TODO: Give more information for FilePos
-				stack.push(FilePos(null, file, Std.parseInt(line), 0));
+				stack.push(FilePos(null, file, Std.parseInt(line), null));
 			}
 			return stack;
 		#elseif hl
@@ -198,7 +198,7 @@ class CallStack {
 				var lineNumber = el.getLineNumber();
 				var method = Method( className, methodName );
 				if ( fileName != null || lineNumber >= 0 ) {
-					stack.push( FilePos( method, fileName, lineNumber, 0 ) );
+					stack.push( FilePos( method, fileName, lineNumber, null ) );
 				}
 				else {
 					stack.push( method );
@@ -215,7 +215,7 @@ class CallStack {
 				var infos = python.lib.Traceback.extract_tb(exc._3);
 				infos.reverse();
 				for (elem in infos)
-					stack.push(FilePos(null, elem._1, elem._2, 0));
+					stack.push(FilePos(null, elem._1, elem._2, null));
 			}
 			return stack;
 		#elseif js
@@ -254,7 +254,7 @@ class CallStack {
 			b.add(file);
 			b.add(" line ");
 			b.add(line);
-			if(col != 0) {
+			if(col != null) {
 				b.add(" column ");
 				b.add(col);
 			}
@@ -282,7 +282,7 @@ class CallStack {
 				else if( untyped __dollar__typeof(x) == __dollar__tstring )
 					a.unshift(Module(new String(x)));
 				else
-					a.unshift(FilePos(null,new String(untyped x[0]),untyped x[1], 0));
+					a.unshift(FilePos(null,new String(untyped x[0]),untyped x[1], null));
 			}
 			return a;
 		#elseif flash
@@ -301,7 +301,7 @@ class CallStack {
 				} else
 					item = Method(cl,meth.substr(1));
 				if( r.matched(3) != null )
-					item = FilePos( item, r.matched(4), Std.parseInt(r.matched(5)), 0 );
+					item = FilePos( item, r.matched(4), Std.parseInt(r.matched(5)), null );
 				a.push(item);
 				s = r.matchedRight();
 			}
@@ -316,7 +316,7 @@ class CallStack {
 				else if (words.length==2)
 					m.push(Method(words[0],words[1]));
 				else if (words.length==4)
-					m.push(FilePos( Method(words[0],words[1]),words[2],Std.parseInt(words[3]),0));
+					m.push(FilePos( Method(words[0],words[1]),words[2],Std.parseInt(words[3]),null));
 			}
 			return m;
 		#elseif js
@@ -359,7 +359,7 @@ class CallStack {
 				var lineNumber = frame.GetFileLineNumber();
 
 				if (fileName != null || lineNumber >= 0)
-					stack.push(FilePos(method, fileName, lineNumber, 0));
+					stack.push(FilePos(method, fileName, lineNumber, null));
 				else
 					stack.push(method);
 			}
@@ -370,7 +370,7 @@ class CallStack {
 			for( i in 0...s.length-1 ) {
 				var str = @:privateAccess String.fromUCS2(s[i]);
 				if( r.match(str) )
-					stack.push(FilePos(Method(r.matched(1), r.matched(2)), r.matched(3), Std.parseInt(r.matched(4)), 0));
+					stack.push(FilePos(Method(r.matched(1), r.matched(2)), r.matched(3), Std.parseInt(r.matched(4)), null));
 				else
 					stack.push(Module(str));
 			}
