@@ -40,22 +40,22 @@ class HttpFlash extends haxe.http.HttpBase {
 	public override function request(?post:Bool) {
 		responseData = null;
 		var loader = req = new flash.net.URLLoader();
-		loader.addEventListener( "complete", function(e) {
+		loader.addEventListener("complete", function(e) {
 			req = null;
 			responseData = loader.data;
-			onData( loader.data );
+			onData(loader.data);
 		});
-		loader.addEventListener( "httpStatus", function(e:flash.events.HTTPStatusEvent){
+		loader.addEventListener("httpStatus", function(e:flash.events.HTTPStatusEvent) {
 			// on Firefox 1.5, Flash calls onHTTPStatus with 0 (!??)
-			if( e.status != 0 )
-				onStatus( e.status );
+			if(e.status != 0)
+				onStatus(e.status);
 		});
-		loader.addEventListener( "ioError", function(e:flash.events.IOErrorEvent){
+		loader.addEventListener("ioError", function(e:flash.events.IOErrorEvent) {
 			req = null;
 			responseData = loader.data;
 			onError(e.text);
 		});
-		loader.addEventListener( "securityError", function(e:flash.events.SecurityErrorEvent){
+		loader.addEventListener("securityError", function(e:flash.events.SecurityErrorEvent) {
 			req = null;
 			onError(e.text);
 		});
@@ -63,14 +63,14 @@ class HttpFlash extends haxe.http.HttpBase {
 		// headers
 		var param = false;
 		var vars = new flash.net.URLVariables();
-		for( p in params ){
+		for(p in params) {
 			param = true;
-			Reflect.setField(vars,p.param,p.value);
+			Reflect.setField(vars,p.name,p.value);
 		}
 		var small_url = url;
-		if( param && !post ){
+		if(param && !post) {
 			var k = url.split("?");
-			if( k.length > 1 ) {
+			if(k.length > 1) {
 				small_url = k.shift();
 				vars.decode(k.join("?"));
 			}
@@ -78,21 +78,21 @@ class HttpFlash extends haxe.http.HttpBase {
 		// Bug in flash player 9 ???
 		small_url.split("xxx");
 
-		var request = new flash.net.URLRequest( small_url );
-		for( h in headers )
-			request.requestHeaders.push( new flash.net.URLRequestHeader(h.header,h.value) );
+		var request = new flash.net.URLRequest(small_url);
+		for(h in headers)
+			request.requestHeaders.push(new flash.net.URLRequestHeader(h.name,h.value));
 
-		if( postData != null ) {
+		if(postData != null) {
 			request.data = postData;
 			request.method = "POST";
 		} else {
 			request.data = vars;
-			request.method = if( post ) "POST" else "GET";
+			request.method = if(post) "POST" else "GET";
 		}
 
 		try {
-			loader.load( request );
-		}catch( e : Dynamic ){
+			loader.load(request);
+		}catch(e : Dynamic) {
 			req = null;
 			onError("Exception: "+Std.string(e));
 		}

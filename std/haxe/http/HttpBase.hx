@@ -21,7 +21,10 @@
  */
 package haxe.http;
 
-import haxe.ds.List;
+private typedef StringKeyValue = {
+	var name:String;
+	var value:String;
+}
 
 /**
 	This class can be used to handle Http requests consistently across
@@ -39,11 +42,11 @@ class HttpBase {
 		can be changed in order to send the same request to different target
 		Urls.
 	**/
-	public var url : String;
-	public var responseData(default, null) : Null<String>;
-	var postData : String;
-	var headers : List<{ header:String, value:String }>;
-	var params : List<{ param:String, value:String }>;
+	public var url:String;
+	public var responseData(default, null):Null<String>;
+	var postData:String;
+	var headers:Array<StringKeyValue>;
+	var params:Array<StringKeyValue>;
 
 	/**
 		Creates a new Http instance with `url` as parameter.
@@ -56,10 +59,10 @@ class HttpBase {
 		(Php) Https (SSL) connections are allowed only if the OpenSSL extension
 		is enabled.
 	**/
-	public function new( url : String ) {
+	public function new(url:String) {
 		this.url = url;
-		headers = new List<{ header:String, value:String }>();
-		params = new List<{ param:String, value:String }>();
+		headers = [];
+		params = [];
 	}
 
 	/**
@@ -69,14 +72,19 @@ class HttpBase {
 
 		This method provides a fluent interface.
 	**/
-	public function setHeader( header : String, value : String ) {
-		headers = Lambda.filter(headers, function(h) return h.header != header);
-		headers.push({ header:header, value:value });
+	public function setHeader(name:String, value:String) {
+		for (i in 0...headers.length) {
+			if (headers[i].name == name) {
+				headers[i] = { name: name, value: value };
+				return this;
+			}
+		}
+		headers.push({ name: name, value: value });
 		return this;
 	}
 
-	public function addHeader( header : String, value : String ) {
-		headers.push({ header:header, value:value });
+	public function addHeader(header:String, value:String) {
+		headers.push({ name:header, value:value });
 		return this;
 	}
 
@@ -87,14 +95,19 @@ class HttpBase {
 
 		This method provides a fluent interface.
 	**/
-	public function setParameter( param : String, value : String ) {
-		params = Lambda.filter(params, function(p) return p.param != param);
-		params.push({ param:param, value:value });
+	public function setParameter(name:String, value:String) {
+		for (i in 0...params.length) {
+			if (params[i].name == name) {
+				params[i] = { name: name, value: value };
+				return this;
+			}
+		}
+		params.push({ name: name, value: value });
 		return this;
 	}
 
-	public function addParameter( param : String, value : String ) {
-		params.push({ param:param, value:value });
+	public function addParameter(name:String, value:String) {
+		params.push({ name: name, value: value });
 		return this;
 	}
 
@@ -108,7 +121,7 @@ class HttpBase {
 
 		This method provides a fluent interface.
 	**/
-	public function setPostData( data : String ) {
+	public function setPostData(data:String) {
 		postData = data;
 		return this;
 	}
@@ -130,7 +143,7 @@ class HttpBase {
 		[js] If `this.async` is false, the callback functions are called before
 		this method returns.
 	**/
-	public function request( ?post : Bool ) : Void {
+	public function request(?post:Bool):Void {
 		throw "not implemented";
 	}
 
@@ -142,7 +155,7 @@ class HttpBase {
 		The intended usage is to bind it to a custom function:
 		`httpInstance.onData = function(data) { // handle result }`
 	**/
-	public dynamic function onData( data : String ) {
+	public dynamic function onData(data:String) {
 	}
 
 	/**
@@ -152,7 +165,7 @@ class HttpBase {
 		The intended usage is to bind it to a custom function:
 		`httpInstance.onError = function(msg) { // handle error }`
 	**/
-	public dynamic function onError( msg : String ) {
+	public dynamic function onError(msg:String) {
 	}
 
 	/**
@@ -162,6 +175,6 @@ class HttpBase {
 		The intended usage is to bind it to a custom function:
 		`httpInstance.onStatus = function(status) { // handle status }`
 	**/
-	public dynamic function onStatus( status : Int ) {
+	public dynamic function onStatus(status:Int) {
 	}
 }

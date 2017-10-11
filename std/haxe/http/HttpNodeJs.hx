@@ -50,10 +50,10 @@ class HttpNodeJs extends haxe.http.HttpBase {
 		var port = if (parsedUrl.port != null) Std.parseInt(parsedUrl.port) else (secure ? 443 : 80);
 		var h:Dynamic = {};
 		for (i in headers) {
-			var arr = Reflect.field(h, i.header);
+			var arr = Reflect.field(h, i.name);
 			if (arr == null) {
 				arr = new Array<String>();
-				Reflect.setField(h, i.header, arr);
+				Reflect.setField(h, i.name, arr);
 			}
 
 			arr.push(i.value);
@@ -66,7 +66,7 @@ class HttpNodeJs extends haxe.http.HttpBase {
 				uri = "";
 			else
 				uri += "&";
-			uri += StringTools.urlEncode(p.param)+"="+StringTools.urlEncode(p.value);
+			uri += StringTools.urlEncode(p.name)+"="+StringTools.urlEncode(p.value);
 		}
 		var question = path.split("?").length <= 1;
 		if (!post && uri != null) path += (if( question ) "?" else "&") + uri;

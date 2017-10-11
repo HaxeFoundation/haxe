@@ -24,8 +24,8 @@ package haxe;
 typedef Http = HttpJs;
 
 class HttpJs extends haxe.http.HttpBase {
-	public var async : Bool;
-	public var withCredentials : Bool;
+	public var async:Bool;
+	public var withCredentials:Bool;
 	var req:js.html.XMLHttpRequest;
 
 	public function new(url:String) {
@@ -49,31 +49,31 @@ class HttpJs extends haxe.http.HttpBase {
 		responseData = null;
 		var r = req = js.Browser.createXMLHttpRequest();
 		var onreadystatechange = function(_) {
-			if( r.readyState != 4 )
+			if(r.readyState != 4)
 				return;
-			var s = try r.status catch( e : Dynamic ) null;
-			if ( s != null && untyped __js__('"undefined" !== typeof window') ) {
+			var s = try r.status catch(e:Dynamic) null;
+			if (s != null && untyped __js__('"undefined" !== typeof window')) {
 				// If the request is local and we have data: assume a success (jQuery approach):
 				var protocol = js.Browser.location.protocol.toLowerCase();
 				var rlocalProtocol = ~/^(?:about|app|app-storage|.+-extension|file|res|widget):$/;
-				var isLocal = rlocalProtocol.match( protocol );
-				if ( isLocal ) {
-					s = r.responseText != null ? 200 : 404;
+				var isLocal = rlocalProtocol.match(protocol);
+				if (isLocal) {
+					s = r.responseText != null ? 200:404;
 				}
 			}
-			if( s == untyped __js__("undefined") )
+			if(s == untyped __js__("undefined"))
 				s = null;
-			if( s != null )
+			if(s != null)
 				onStatus(s);
-			if( s != null && s >= 200 && s < 400 ) {
+			if(s != null && s >= 200 && s < 400) {
 				req = null;
 				onData(responseData = r.responseText);
 			}
-			else if ( s == null ) {
+			else if (s == null) {
 				req = null;
 				onError("Failed to connect or resolve host");
 			}
-			else switch( s ) {
+			else switch(s) {
 			case 12029:
 				req = null;
 				onError("Failed to connect to host");
@@ -86,40 +86,40 @@ class HttpJs extends haxe.http.HttpBase {
 				onError("Http Error #"+r.status);
 			}
 		};
-		if( async )
+		if(async)
 			r.onreadystatechange = onreadystatechange;
 		var uri = postData;
-		if( uri != null )
+		if(uri != null)
 			post = true;
-		else for( p in params ) {
-			if( uri == null )
+		else for(p in params) {
+			if(uri == null)
 				uri = "";
 			else
 				uri += "&";
-			uri += StringTools.urlEncode(p.param)+"="+StringTools.urlEncode(p.value);
+			uri += StringTools.urlEncode(p.name)+"="+StringTools.urlEncode(p.value);
 		}
 		try {
-			if( post )
+			if(post)
 				r.open("POST",url,async);
-			else if( uri != null ) {
+			else if(uri != null) {
 				var question = url.split("?").length <= 1;
-				r.open("GET",url+(if( question ) "?" else "&")+uri,async);
+				r.open("GET",url+(if(question) "?" else "&")+uri,async);
 				uri = null;
 			} else
 				r.open("GET",url,async);
-		} catch( e : Dynamic ) {
+		} catch(e:Dynamic) {
 			req = null;
 			onError(e.toString());
 			return;
 		}
 		r.withCredentials = withCredentials;
-		if( !Lambda.exists(headers, function(h) return h.header == "Content-Type") && post && postData == null )
+		if(!Lambda.exists(headers, function(h) return h.name == "Content-Type") && post && postData == null)
 			r.setRequestHeader("Content-Type","application/x-www-form-urlencoded");
 
-		for( h in headers )
-			r.setRequestHeader(h.header,h.value);
+		for(h in headers)
+			r.setRequestHeader(h.name,h.value);
 		r.send(uri);
-		if( !async )
+		if(!async)
 			onreadystatechange(null);
 	}
 
@@ -131,7 +131,7 @@ class HttpJs extends haxe.http.HttpBase {
 
 		If `url` is null, the result is unspecified.
 	**/
-	public static function requestUrl( url : String ) : String {
+	public static function requestUrl(url:String):String {
 		var h = new Http(url);
 		h.async = false;
 		var r = null;
