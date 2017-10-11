@@ -128,6 +128,7 @@ class TypeTools {
 					[ for (a in args)
 						{
 							name: a.name,
+							namePos: {file: "", min: -1, max: -1}, // TODO, I guess?
 							opt: a.opt,
 							type: a.opt ? nullable(toComplexType(a.t)) : toComplexType(a.t)
 						}

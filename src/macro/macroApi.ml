@@ -746,7 +746,7 @@ and decode_ctype t =
 		raise Invalid_expr),p
 
 and decode_function_arg o =
-	let name = decode_placed_name (field o "name") (field o "namePos") in
+	let name = decode_placed_name (field o "namePos") (field o "name") in
 	let opt = decode_bool (field o "opt") in
 	let t = decode_ctype (field o "type") in
 	(name,opt,t)
