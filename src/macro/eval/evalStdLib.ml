@@ -561,8 +561,8 @@ module StdCallStack = struct
 		let l = DynArray.create () in
 		List.iter (fun (pos,kind) ->
 			let file_pos s =
-				let line = Lexer.get_error_line pos in
-				encode_enum_value key_haxe_StackItem 2 [|s;encode_string pos.pfile;vint line|] None
+				let line1,col1,_,_ = Lexer.get_pos_coords pos in
+				encode_enum_value key_haxe_StackItem 2 [|s;encode_string pos.pfile;vint line1;vint col1|] None
 			in
 			match kind with
 			| EKLocalFunction i ->
