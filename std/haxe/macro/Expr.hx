@@ -343,12 +343,12 @@ enum QuoteStatus {
 	/**
 		No quotes
 	**/
-	NoQuotes;
+	Unquoted;
 
 	/**
 		Double quotes `"`
 	**/
-	DoubleQuotes;
+	Quoted;
 }
 
 /**

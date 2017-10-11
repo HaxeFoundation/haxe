@@ -245,8 +245,8 @@ let reify in_macro =
 		| EObjectDecl fl ->
 			let quote_kind kk p =
 				let n = match kk with
-					| NoQuotes -> "NoQuotes"
-					| DoubleQuotes -> "DoubleQuotes"
+					| NoQuotes -> "Unquoted"
+					| DoubleQuotes -> "Quoted"
 				in
 				mk_enum "QuoteStatus" n [] p
 			in
