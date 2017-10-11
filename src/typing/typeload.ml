@@ -615,14 +615,20 @@ and load_complex_type ctx allow_display p (t,pn) =
 			let pub = ref true in
 			let dyn = ref false in
 			let params = ref [] in
+			let final = ref false in
 			List.iter (fun a ->
 				match a with
 				| APublic -> ()
 				| APrivate -> pub := false;
 				| ADynamic when (match f.cff_kind with FFun _ -> true | _ -> false) -> dyn := true
-				| AStatic | AOverride | AInline | ADynamic | AMacro | AFinal -> error ("Invalid access " ^ Ast.s_access a) p
+				| AFinal -> final := true
+				| AStatic | AOverride | AInline | ADynamic | AMacro -> error ("Invalid access " ^ Ast.s_access a) p
 			) f.cff_access;
 			let t , access = (match f.cff_kind with
+				| FVar(t,e) when !final ->
+					no_expr e;
+					let t = (match t with None -> error "Type required for structure property" p | Some t -> t) in
+					load_complex_type ctx allow_display p t, Var { v_read = AccNormal; v_write = AccNever }
 				| FVar (Some (CTPath({tpackage=[];tname="Void"}),_), _)  | FProp (_,_,Some (CTPath({tpackage=[];tname="Void"}),_),_) ->
 					error "Fields of type Void are not allowed in structures" p
 				| FVar (t, e) ->

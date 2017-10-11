@@ -389,11 +389,11 @@ and parse_complex_type_inner = parser
 	| [< '(POpen,p1); t = parse_complex_type; '(PClose,p2) >] -> CTParent t,punion p1 p2
 	| [< '(BrOpen,p1); s >] ->
 		(match s with parser
-		| [< l,p2 = parse_type_anonymous false false >] -> CTAnonymous l,punion p1 p2
+		| [< l,p2 = parse_type_anonymous false >] -> CTAnonymous l,punion p1 p2
 		| [< t = parse_structural_extension; s>] ->
 			let tl = t :: plist parse_structural_extension s in
 			(match s with parser
-			| [< l,p2 = parse_type_anonymous false false >] -> CTExtend (tl,l),punion p1 p2
+			| [< l,p2 = parse_type_anonymous false >] -> CTExtend (tl,l),punion p1 p2
 			| [< l,p2 = parse_class_fields true p1 >] -> CTExtend (tl,l),punion p1 p2)
 		| [< l,p2 = parse_class_fields true p1 >] -> CTAnonymous l,punion p1 p2
 		| [< >] -> serror())
@@ -467,9 +467,8 @@ and parse_complex_type_next (t : type_hint) = parser
 			CTFunction ([t] , (t2,p2)),punion (pos t) p2)
 	| [< >] -> t
 
-and parse_type_anonymous opt final = parser
-	| [< '(Question,_) when not opt; s >] -> parse_type_anonymous true final s
-	| [< '(Kwd Final,_) when not opt && not final; s >] -> parse_type_anonymous opt true s
+and parse_type_anonymous opt = parser
+	| [< '(Question,_) when not opt; s >] -> parse_type_anonymous true s
 	| [< name, p1 = ident; t = parse_type_hint_with_pos; s >] ->
 		let p2 = pos (last_token s) in
 		let next acc =
@@ -478,7 +477,7 @@ and parse_type_anonymous opt final = parser
 				cff_meta = if opt then [Meta.Optional,[],null_pos] else [];
 				cff_access = [];
 				cff_doc = None;
-				cff_kind = if final then FProp(("default",null_pos),("never",null_pos),Some t,None) else FVar (Some t,None);
+				cff_kind = FVar (Some t,None);
 				cff_pos = punion p1 p2;
 			} :: acc
 		in
@@ -487,7 +486,7 @@ and parse_type_anonymous opt final = parser
 		| [< '(Comma,p2) >] ->
 			(match s with parser
 			| [< '(BrClose,p2) >] -> next [],p2
-			| [< l,p2 = parse_type_anonymous false false >] -> next l,punion p1 p2
+			| [< l,p2 = parse_type_anonymous false >] -> next l,punion p1 p2
 			| [< >] -> serror());
 		| [< >] -> serror()
 
