@@ -444,6 +444,11 @@ let rec gen_call ctx e el in_value =
 			gen_value ctx e;
 			spr ctx ")";
 		end
+	| TField (x,f), [] when field_name f = "iterator" && is_dynamic_iterator ctx e ->
+		add_feature ctx "use.$getIterator";
+		print ctx "$getIterator(";
+		gen_value ctx x;
+		print ctx ")";
 	| _ ->
 		gen_value ctx e;
 		spr ctx "(";
@@ -1525,6 +1530,10 @@ let generate com =
 	if has_feature ctx "use.$iterator" then begin
 		add_feature ctx "use.$bind";
 		print ctx "function $iterator(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? $bind(o,o.iterator) : o.iterator; }";
+		newline ctx;
+	end;
+	if has_feature ctx "use.$getIterator" then begin
+		print ctx "function $getIterator(o) { if( o instanceof Array ) return HxOverrides.iter(o); else return o.iterator(); }";
 		newline ctx;
 	end;
 	if has_feature ctx "use.$bind" then begin
