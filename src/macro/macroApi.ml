@@ -441,6 +441,7 @@ and encode_ctype t =
 and encode_function_arg (n,o,t) =
 	encode_obj OFunctionTypeArg [
 		"name", encode_placed_name n;
+		"namePos", encode_pos (pos n);
 		"opt", vbool o;
 		"type", encode_ctype t;
 	]
@@ -745,7 +746,7 @@ and decode_ctype t =
 		raise Invalid_expr),p
 
 and decode_function_arg o =
-	let name = (decode_string (field o "name"),Globals.null_pos) in
+	let name = decode_placed_name (field o "name") (field o "namePos") in
 	let opt = decode_bool (field o "opt") in
 	let t = decode_ctype (field o "type") in
 	(name,opt,t)

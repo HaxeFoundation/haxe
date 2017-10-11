@@ -128,6 +128,7 @@ let reify in_macro =
 	and to_function_arg (n,o,t) p =
 		to_obj [
 			"name", to_placed_name n;
+			"namePos", to_pos (pos n);
 			"opt", to_bool o p;
 			"type", to_type_hint t p;
 		] p

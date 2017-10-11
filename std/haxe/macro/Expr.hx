@@ -582,6 +582,11 @@ typedef FunctionTypeArg = {
 	var name : String;
 
 	/**
+		The position of the function argument name.
+	**/
+	var namePos : Position;
+
+	/**
 		Whether or not the function argument is optional.
 	**/
 	var opt : Bool;
