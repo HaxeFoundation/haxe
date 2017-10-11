@@ -10,7 +10,7 @@ private typedef NativeTrace = NativeIndexedArray<NativeAssocArray<Dynamic>>;
 enum StackItem {
 	CFunction;
 	Module( m : String );
-	FilePos( s : Null<StackItem>, file : String, line : Int, column : Null<Int> );
+	FilePos( s : Null<StackItem>, file : String, line : Int, ?column : Null<Int> );
 	Method( classname : String, method : String );
 	LocalFunction( ?v : Int );
 }
@@ -143,7 +143,7 @@ class CallStack {
 						entry['line'] = pos.originalLine;
 					}
 				}
-				result.push(FilePos(item, entry['file'], entry['line'], null));
+				result.push(FilePos(item, entry['file'], entry['line']));
 			} else if (item != null) {
 				result.push(item);
 			}
