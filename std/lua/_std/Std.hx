@@ -45,7 +45,7 @@ import lua.NativeStringTools;
 
 	public static function parseInt( x : String ) : Null<Int> {
 		if (x == null) return null;
-		var hexMatch = NativeStringTools.match(x, "^ *[%-+]*0[xX][%da-FA-F]*");
+		var hexMatch = NativeStringTools.match(x, "^ *[%-+]*0[xX][%da-fA-F]*");
 		if (hexMatch != null){
 			return lua.Lua.tonumber(hexMatch.substr(2), 16);
 		} else {
