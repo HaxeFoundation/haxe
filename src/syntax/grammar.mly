@@ -377,18 +377,37 @@ and parse_type_opt = parser
 	| [< t = parse_type_hint >] -> Some t
 	| [< >] -> None
 
-and parse_complex_type s =
-	let t = parse_complex_type_inner s in
-	parse_complex_type_next t s
+and parse_complex_type s = snd (parse_complex_type_maybe_named false s)
+
+and parse_complex_type_maybe_named allow_named = parser
+	| [< '(POpen,p1); tl = psep Comma (parse_complex_type_maybe_named true); '(PClose,p2); s >] ->
+		begin match tl with
+		| [] ->
+			(* it was () - clearly a new function type syntax, proceed with parsing return type *)
+			null_name,parse_function_type_next tl p1 s
+		| [(n,_)] when n != null_name ->
+			(* it was (a:T) - clearly a new function type syntax, proceed with parsing return type *)
+			null_name,parse_function_type_next tl p1 s
+		| [(n,t)] ->
+			(* it was some single unnamed type in parenthesis - use old function type syntax  *)
+			let t = CTParent t,punion p1 p2 in
+			n,parse_complex_type_next t s
+		| _ ->
+			(* it was multiple arguments - clearly a new function type syntax, proceed with parsing return type  *)
+			null_name,parse_function_type_next tl p1 s
+		end
+	| [< s >] ->
+		let n,t = parse_complex_type_inner allow_named s in
+		n,parse_complex_type_next t s
 
 and parse_structural_extension = parser
 	| [< '(Binop OpGt,_); t = parse_type_path; '(Comma,_); s >] ->
 		t
 
-and parse_complex_type_inner = parser
-	| [< '(POpen,p1); t = parse_complex_type; '(PClose,p2) >] -> CTParent t,punion p1 p2
+and parse_complex_type_inner allow_named = parser
+	| [< '(POpen,p1); t = parse_complex_type; '(PClose,p2) >] -> null_name,(CTParent t,punion p1 p2)
 	| [< '(BrOpen,p1); s >] ->
-		(match s with parser
+		null_name,(match s with parser
 		| [< l,p2 = parse_type_anonymous false >] -> CTAnonymous l,punion p1 p2
 		| [< t = parse_structural_extension; s>] ->
 			let tl = t :: plist parse_structural_extension s in
@@ -397,50 +416,61 @@ and parse_complex_type_inner = parser
 			| [< l,p2 = parse_class_fields true p1 >] -> CTExtend (tl,l),punion p1 p2)
 		| [< l,p2 = parse_class_fields true p1 >] -> CTAnonymous l,punion p1 p2
 		| [< >] -> serror())
-	| [< '(Question,p1); t,p2 = parse_complex_type_inner >] ->
-		CTOptional (t,p2),punion p1 p2
+	| [< '(Question,p1); n,(t,p2) = parse_complex_type_inner allow_named >] ->
+		n,(CTOptional (t,p2),punion p1 p2)
+	| [< n = dollar_ident; s >] ->
+		(match s with parser
+		| [< '(DblDot,_) when allow_named; t = parse_complex_type >] ->
+			n,t
+		| [< s >] ->
+			let n,p = n in
+			let t,p = parse_type_path2 None [] n p s in
+			null_name,(CTPath t,p))
 	| [< t,p = parse_type_path >] ->
-		CTPath t,p
+		null_name,(CTPath t,p)
 
 and parse_type_path s = parse_type_path1 None [] s
 
 and parse_type_path1 p0 pack = parser
 	| [< name, p1 = dollar_ident_macro pack; s >] ->
-		if is_lower_ident name then
-			(match s with parser
-			| [< '(Dot,p) >] ->
-				if is_resuming p then
-					raise (TypePath (List.rev (name :: pack),None,false))
-				else
-					parse_type_path1 (match p0 with None -> Some p1 | Some _ -> p0) (name :: pack) s
-			| [< '(Semicolon,_) >] ->
-				error (Custom "Type name should start with an uppercase letter") p1
-			| [< >] -> serror())
-		else
-			let sub,p2 = (match s with parser
-				| [< '(Dot,p); s >] ->
-					(if is_resuming p then
-						raise (TypePath (List.rev pack,Some (name,false),false))
-					else match s with parser
-						| [< '(Const (Ident name),p2) when not (is_lower_ident name) >] -> Some name,p2
-						| [< '(Binop OpOr,_) when do_resume() >] ->
-							set_resume p;
-							raise (TypePath (List.rev pack,Some (name,false),false))
-						| [< >] -> serror())
-				| [< >] -> None,p1
-			) in
-			let params,p2 = (match s with parser
-				| [< '(Binop OpLt,_); l = psep Comma parse_type_path_or_const; '(Binop OpGt,p2) >] -> l,p2
-				| [< >] -> [],p2
-			) in
-			{
-				tpackage = List.rev pack;
-				tname = name;
-				tparams = params;
-				tsub = sub;
-			},punion (match p0 with None -> p1 | Some p -> p) p2
+		parse_type_path2 p0 pack name p1 s
 	| [< '(Binop OpOr,_) when do_resume() >] ->
 		raise (TypePath (List.rev pack,None,false))
+
+and parse_type_path2 p0 pack name p1 s =
+	if is_lower_ident name then
+		(match s with parser
+		| [< '(Dot,p) >] ->
+			if is_resuming p then
+				raise (TypePath (List.rev (name :: pack),None,false))
+			else
+				parse_type_path1 (match p0 with None -> Some p1 | Some _ -> p0) (name :: pack) s
+		| [< '(Semicolon,_) >] ->
+			error (Custom "Type name should start with an uppercase letter") p1
+		| [< >] -> serror())
+	else
+		let sub,p2 = (match s with parser
+			| [< '(Dot,p); s >] ->
+				(if is_resuming p then
+					raise (TypePath (List.rev pack,Some (name,false),false))
+				else match s with parser
+					| [< '(Const (Ident name),p2) when not (is_lower_ident name) >] -> Some name,p2
+					| [< '(Binop OpOr,_) when do_resume() >] ->
+						set_resume p;
+						raise (TypePath (List.rev pack,Some (name,false),false))
+					| [< >] -> serror())
+			| [< >] -> None,p1
+		) in
+		let params,p2 = (match s with parser
+			| [< '(Binop OpLt,_); l = psep Comma parse_type_path_or_const; '(Binop OpGt,p2) >] -> l,p2
+			| [< >] -> [],p2
+		) in
+		{
+			tpackage = List.rev pack;
+			tname = name;
+			tparams = params;
+			tsub = sub;
+		},punion (match p0 with None -> p1 | Some p -> p) p2
 
 and type_name = parser
 	| [< '(Const (Ident name),p) >] ->
@@ -458,14 +488,25 @@ and parse_type_path_or_const = parser
 	| [< e = expr >] -> TPExpr e
 	| [< >] -> serror()
 
+and make_function_arg (n,t) =
+	let opt,t = match fst t with CTOptional t -> true,t | _ -> false, t in
+	(n,opt,t)
+
 and parse_complex_type_next (t : type_hint) = parser
 	| [< '(Arrow,_); t2,p2 = parse_complex_type >] ->
+		let arg = make_function_arg (null_name,t) in
 		(match t2 with
 		| CTFunction (args,r) ->
-			CTFunction (t :: args,r),punion (pos t) p2
+			CTFunction (arg :: args,r),punion (pos t) p2
 		| _ ->
-			CTFunction ([t] , (t2,p2)),punion (pos t) p2)
+			CTFunction ([arg] , (t2,p2)),punion (pos t) p2)
 	| [< >] -> t
+
+and parse_function_type_next tl p1 = parser
+	| [< '(Arrow,_); _,tret = parse_complex_type_inner false >] ->
+		let tl = List.map make_function_arg tl in
+		CTFunction (tl,tret), punion p1 (snd tret)
+	| [< >] -> serror ()
 
 and parse_type_anonymous opt = parser
 	| [< '(Question,_) when not opt; s >] -> parse_type_anonymous true s

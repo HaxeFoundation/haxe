@@ -2497,7 +2497,7 @@ module TExprToExpr = struct
 		| TAbstract (a,pl) ->
 			tpath a.a_path a.a_module.m_path (List.map convert_type' pl)
 		| TFun (args,ret) ->
-			CTFunction (List.map (fun (_,_,t) -> convert_type' t) args, (convert_type' ret))
+			CTFunction (List.map (fun (n,o,t) -> (n,null_pos),o,convert_type' t) args, (convert_type' ret))
 		| TAnon a ->
 			begin match !(a.a_status) with
 			| Statics c -> tpath ([],"Class") ([],"Class") [tpath c.cl_path c.cl_path [],null_pos]

@@ -125,13 +125,20 @@ let reify in_macro =
 			] in
 			to_obj (match t.tsub with None -> fields | Some s -> fields @ ["sub",to_string s p]) p
 		end
+	and to_function_arg (n,o,t) p =
+		to_obj [
+			"name", to_placed_name n;
+			"namePos", to_pos (pos n);
+			"opt", to_bool o p;
+			"type", to_type_hint t p;
+		] p
 	and to_ctype t p =
 		let ct n vl = mk_enum "ComplexType" n vl p in
 		match fst t with
 		| CTPath ({ tpackage = []; tparams = []; tsub = None; tname = n }) when n.[0] = '$' ->
 			to_string n p
 		| CTPath t -> ct "TPath" [to_tpath (t,p) p]
-		| CTFunction (args,ret) -> ct "TFunction" [to_array to_type_hint args p; to_type_hint ret p]
+		| CTFunction (args,ret) -> ct "TFunction" [to_array to_function_arg args p; to_type_hint ret p]
 		| CTAnonymous fields -> ct "TAnonymous" [to_array to_cfield fields p]
 		| CTParent t -> ct "TParent" [to_type_hint t p]
 		| CTExtend (tl,fields) -> ct "TExtend" [to_array to_tpath tl p; to_array to_cfield fields p]

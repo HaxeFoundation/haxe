@@ -680,12 +680,11 @@ and load_complex_type ctx allow_display p (t,pn) =
 		mk_anon (List.fold_left loop PMap.empty l)
 	| CTFunction (args,r) ->
 		match args with
-		| [CTPath { tpackage = []; tparams = []; tname = "Void" },_] ->
+		| [(("",_),false,(CTPath { tpackage = []; tparams = []; tname = "Void" },_))] ->
 			TFun ([],load_complex_type ctx allow_display p r)
 		| _ ->
-			TFun (List.map (fun t ->
-				let t, opt = (match fst t with CTOptional t -> t, true | _ -> t,false) in
-				"",opt,load_complex_type ctx allow_display p t
+			TFun (List.map (fun (n,opt,t) ->
+				fst n,opt,load_complex_type ctx allow_display p t
 			) args,load_complex_type ctx allow_display p r)
 
 and init_meta_overloads ctx co cf =
