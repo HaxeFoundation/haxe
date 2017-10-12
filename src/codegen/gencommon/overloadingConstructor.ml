@@ -106,7 +106,7 @@ let replace_super_call com c tl with_params me p follow_type =
 	{
 		eexpr = TCall(
 			{
-				eexpr = TField(ExprBuilder.make_static_this sup p, FStatic(sup,cf));
+				eexpr = TField(Texpr.Builder.make_static_this sup p, FStatic(sup,cf));
 				etype = apply_params cf.cf_params stl cf.cf_type;
 				epos = p
 			},
@@ -205,7 +205,7 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 				eexpr = TCall(
 					{
 						eexpr = TField(
-							ExprBuilder.make_static_this cl p,
+							Texpr.Builder.make_static_this cl p,
 							FStatic(cl, static_ctor));
 						etype = apply_params static_ctor.cf_params (List.map snd cl.cl_params) static_ctor.cf_type;
 						epos = p

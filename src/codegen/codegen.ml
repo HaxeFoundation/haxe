@@ -26,109 +26,6 @@ open Globals
 (* -------------------------------------------------------------------------- *)
 (* TOOLS *)
 
-(* Collection of functions that return expressions *)
-module ExprBuilder = struct
-	let make_static_this c p =
-		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
-		mk (TTypeExpr (TClassDecl c)) ta p
-
-	let make_typeexpr mt pos =
-		let t =
-			match mt with
-			| TClassDecl c -> TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) }
-			| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
-			| TAbstractDecl a -> TAnon { a_fields = PMap.empty; a_status = ref (AbstractStatics a) }
-			| _ -> assert false
-		in
-		mk (TTypeExpr mt) t pos
-
-	let make_static_field c cf p =
-		let e_this = make_static_this c p in
-		mk (TField(e_this,FStatic(c,cf))) cf.cf_type p
-
-	let make_throw e p =
-		mk (TThrow e) t_dynamic p
-
-	let make_int com i p =
-		mk (TConst (TInt (Int32.of_int i))) com.basic.tint p
-
-	let make_float com f p =
-		mk (TConst (TFloat f)) com.basic.tfloat p
-
-	let make_bool com b p =
-		mk (TConst(TBool b)) com.basic.tbool p
-
-	let make_string com s p =
-		mk (TConst (TString s)) com.basic.tstring p
-
-	let make_null t p =
-		mk (TConst TNull) t p
-
-	let make_local v p =
-		mk (TLocal v) v.v_type p
-
-	let make_const_texpr com ct p = match ct with
-		| TString s -> mk (TConst (TString s)) com.basic.tstring p
-		| TInt i -> mk (TConst (TInt i)) com.basic.tint p
-		| TFloat f -> mk (TConst (TFloat f)) com.basic.tfloat p
-		| TBool b -> mk (TConst (TBool b)) com.basic.tbool p
-		| TNull -> mk (TConst TNull) (com.basic.tnull (mk_mono())) p
-		| _ -> error "Unsupported constant" p
-end
-
-let field e name t p =
-	mk (TField (e,try quick_field e.etype name with Not_found -> assert false)) t p
-
-let fcall e name el ret p =
-	let ft = tfun (List.map (fun e -> e.etype) el) ret in
-	mk (TCall (field e name ft p,el)) ret p
-
-let mk_parent e =
-	mk (TParenthesis e) e.etype e.epos
-
-let mk_return e =
-	mk (TReturn (Some e)) t_dynamic e.epos
-
-let binop op a b t p =
-	mk (TBinop (op,a,b)) t p
-
-let index com e index t p =
-	mk (TArray (e,mk (TConst (TInt (Int32.of_int index))) com.basic.tint p)) t p
-
-let maybe_cast e t =
-	try
-		type_eq EqDoNotFollowNull e.etype t;
-		e
-	with
-		Unify_error _ -> mk (TCast(e,None)) t e.epos
-
-let type_constant basic c p =
-	match c with
-	| Int s ->
-		if String.length s > 10 && String.sub s 0 2 = "0x" then error "Invalid hexadecimal integer" p;
-		(try mk (TConst (TInt (Int32.of_string s))) basic.tint p
-		with _ -> mk (TConst (TFloat s)) basic.tfloat p)
-	| Float f -> mk (TConst (TFloat f)) basic.tfloat p
-	| String s -> mk (TConst (TString s)) basic.tstring p
-	| Ident "true" -> mk (TConst (TBool true)) basic.tbool p
-	| Ident "false" -> mk (TConst (TBool false)) basic.tbool p
-	| Ident "null" -> mk (TConst TNull) (basic.tnull (mk_mono())) p
-	| Ident t -> error ("Invalid constant :  " ^ t) p
-	| Regexp _ -> error "Invalid constant" p
-
-let rec type_constant_value basic (e,p) =
-	match e with
-	| EConst c ->
-		type_constant basic c p
-	| EParenthesis e ->
-		type_constant_value basic e
-	| EObjectDecl el ->
-		mk (TObjectDecl (List.map (fun (k,e) -> k,type_constant_value basic e) el)) (TAnon { a_fields = PMap.empty; a_status = ref Closed }) p
-	| EArrayDecl el ->
-		mk (TArrayDecl (List.map (type_constant_value basic) el)) (basic.tarray t_dynamic) p
-	| _ ->
-		error "Constant value expected" p
-
 let rec has_properties c =
 	List.exists (fun f ->
 		match f.cf_kind with
@@ -159,7 +56,7 @@ let add_property_field com c =
 	| _ ->
 		let fields,values = List.fold_left (fun (fields,values) (n,v) ->
 			let cf = mk_field n com.basic.tstring p null_pos in
-			PMap.add n cf fields,((n,null_pos,NoQuotes),ExprBuilder.make_string com v p) :: values
+			PMap.add n cf fields,((n,null_pos,NoQuotes),Texpr.Builder.make_string com.basic v p) :: values
 		) (PMap.empty,[]) props in
 		let t = mk_anon fields in
 		let e = mk (TObjectDecl values) t p in
@@ -203,7 +100,7 @@ let build_metadata api t =
 		mk (TObjectDecl (List.map (fun (f,el,p) ->
 			if Hashtbl.mem h f then error ("Duplicate metadata '" ^ f ^ "'") p;
 			Hashtbl.add h f ();
-			(f,null_pos,NoQuotes), mk (match el with [] -> TConst TNull | _ -> TArrayDecl (List.map (type_constant_value api) el)) (api.tarray t_dynamic) p
+			(f,null_pos,NoQuotes), mk (match el with [] -> TConst TNull | _ -> TArrayDecl (List.map (Texpr.type_constant_value api) el)) (api.tarray t_dynamic) p
 		) ml)) t_dynamic p
 	in
 	let make_meta l =
@@ -402,37 +299,10 @@ let rec is_volatile t =
 	| _ ->
 		false
 
-let set_default basic a c p =
-	let t = a.v_type in
-	let ve = mk (TLocal a) t p in
-	let cond =  TBinop (OpEq,ve,mk (TConst TNull) t p) in
-	mk (TIf (mk_parent (mk cond basic.tbool p), mk (TBinop (OpAssign,ve,mk (TConst c) t p)) t p,None)) basic.tvoid p
-
 let bytes_serialize data =
 	let b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/" in
 	let tbl = Array.init (String.length b64) (fun i -> String.get b64 i) in
 	Bytes.unsafe_to_string (Base64.str_encode ~tbl data)
-
-(*
-	Tells if the constructor might be called without any issue whatever its parameters
-*)
-let rec constructor_side_effects e =
-	match e.eexpr with
-	| TBinop (op,_,_) when op <> OpAssign ->
-		true
-	| TField (_,FEnum _) ->
-		false
-	| TUnop _ | TArray _ | TField _ | TEnumParameter _ | TEnumIndex _ | TCall _ | TNew _ | TFor _ | TWhile _ | TSwitch _ | TReturn _ | TThrow _ ->
-		true
-	| TBinop _ | TTry _ | TIf _ | TBlock _ | TVar _
-	| TFunction _ | TArrayDecl _ | TObjectDecl _
-	| TParenthesis _ | TTypeExpr _ | TLocal _ | TMeta _
-	| TConst _ | TContinue | TBreak | TCast _ | TIdent _ ->
-		try
-			Type.iter (fun e -> if constructor_side_effects e then raise Exit) e;
-			false;
-		with Exit ->
-			true
 
 module Dump = struct
 	(*
@@ -621,7 +491,7 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 	let is = mk (TField (std,fis)) (tfun [t_dynamic;t_dynamic] api.tbool) p in
 	let is = mk (TCall (is,[vexpr;texpr])) api.tbool p in
 	let exc = mk (TThrow (mk (TConst (TString "Class cast error")) api.tstring p)) t p in
-	let check = mk (TIf (mk_parent is,mk (TCast (vexpr,None)) t p,Some exc)) t p in
+	let check = mk (TIf (Texpr.Builder.mk_parent is,mk (TCast (vexpr,None)) t p,Some exc)) t p in
 	mk (TBlock [var;check;vexpr]) t p
 
 module UnificationCallback = struct
@@ -762,7 +632,7 @@ module ExtClass = struct
 			| Some e' -> c.cl_init <- Some (concat e' e)
 
 	let add_static_init c cf e p =
-		let ethis = ExprBuilder.make_static_this c p in
+		let ethis = Texpr.Builder.make_static_this c p in
 		let ef1 = mk (TField(ethis,FStatic(c,cf))) cf.cf_type p in
 		let e_assign = mk (TBinop(OpAssign,ef1,e)) e.etype p in
 		add_cl_init c e_assign

@@ -120,7 +120,7 @@ let t_empty = TAnon({ a_fields = PMap.empty; a_status = ref Closed })
 
 let alloc_var n t = Type.alloc_var n t null_pos
 
-let mk_local = ExprBuilder.make_local
+let mk_local = Texpr.Builder.make_local
 
 (* the undefined is a special var that works like null, but can have special meaning *)
 let undefined =
@@ -186,7 +186,7 @@ let mk_castfast t e = { e with eexpr = TCast(e, Some (TClassDecl null_class)); e
 
 let mk_static_field_access_infer cl field pos params =
 	try
-		let e_type = ExprBuilder.make_static_this cl pos in
+		let e_type = Texpr.Builder.make_static_this cl pos in
 		let cf = PMap.find field cl.cl_statics in
 		let t = if params = [] then cf.cf_type else apply_params cf.cf_params params cf.cf_type in
 		mk (TField(e_type, FStatic(cl, cf))) t pos

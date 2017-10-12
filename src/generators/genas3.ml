@@ -676,7 +676,7 @@ and gen_expr ctx e =
 		let bend = open_block ctx in
 		let cb = (if not ctx.constructor_block then
 			(fun () -> ())
-		else if not (Codegen.constructor_side_effects e) then begin
+		else if not (Texpr.constructor_side_effects e) then begin
 			ctx.constructor_block <- false;
 			(fun () -> ())
 		end else begin

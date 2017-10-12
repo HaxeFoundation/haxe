@@ -21,6 +21,7 @@ open Globals
 open Ast
 open Type
 open Codegen
+open Texpr.Builder
 open Gencommon
 
 (* ******************************************* *)
@@ -143,7 +144,7 @@ struct
 						eexpr = TFunction({
 							tf_args = tf_args;
 							tf_type = ret;
-							tf_expr = mk_block ( mk_return { eexpr = TNew(cl,List.map snd dup_types, [ExprBuilder.make_int gen.gcon old_i pos; arr_decl] ); etype = TInst(cl, List.map snd dup_types); epos = pos } );
+							tf_expr = mk_block ( mk_return { eexpr = TNew(cl,List.map snd dup_types, [make_int gen.gcon.basic old_i pos; arr_decl] ); etype = TInst(cl, List.map snd dup_types); epos = pos } );
 						});
 						etype = ef_type;
 						epos = pos
@@ -157,9 +158,9 @@ struct
 					in
 					let cf = mk_class_field name actual_t true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
 					let args = if has_params then
-						[ExprBuilder.make_int gen.gcon old_i pos; null (gen.gclasses.nativearray t_dynamic) pos]
+						[make_int gen.gcon.basic old_i pos; null (gen.gclasses.nativearray t_dynamic) pos]
 					else
-						[ExprBuilder.make_int gen.gcon old_i pos]
+						[make_int gen.gcon.basic old_i pos]
 					in
 					cf.cf_meta <- [Meta.ReadOnly,[],pos];
 					cf.cf_expr <- Some {
@@ -287,7 +288,7 @@ struct
 					f
 				in
 				let cond_array = { (mk_field_access gen f "params" f.epos) with etype = gen.gclasses.nativearray t_dynamic } in
-				Codegen.index gen.gcon cond_array i e.etype e.epos
+				index gen.gcon.basic cond_array i e.etype e.epos
 			| _ ->
 				Type.map_expr run e
 		in

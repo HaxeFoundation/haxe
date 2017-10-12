@@ -20,6 +20,7 @@ open Common
 open Ast
 open Type
 open Codegen
+open Texpr.Builder
 open Gencommon
 
 (* ******************************************* *)
@@ -65,9 +66,9 @@ open Gencommon
 let init com handle_strings (should_change:texpr->bool) (equals_handler:texpr->texpr->texpr) (dyn_plus_handler:texpr->texpr->texpr->texpr) (compare_handler:Ast.binop->texpr->texpr->texpr->texpr) =
 	let get_etype_one e =
 		if like_int e.etype then
-			ExprBuilder.make_int com 1 e.epos
+			make_int com.basic 1 e.epos
 		else
-			ExprBuilder.make_float com "1.0" e.epos
+			make_float com.basic "1.0" e.epos
 	in
 	let rec run e =
 		match e.eexpr with
@@ -144,21 +145,21 @@ let init com handle_strings (should_change:texpr->bool) (equals_handler:texpr->t
 					| TField (fexpr, field) ->
 						let tmp = mk_temp "getvar" fexpr.etype in
 						let var = mk (TVar (tmp, Some (run fexpr))) com.basic.tvoid e.epos in
-						([var], mk (TField (ExprBuilder.make_local tmp fexpr.epos, field)) etype e1.epos)
+						([var], mk (TField (make_local tmp fexpr.epos, field)) etype e1.epos)
 					| _ ->
 						([], e1)
 				in
 				match flag with
 				| Prefix ->
 					vars @ [
-						mk_cast etype { e with eexpr = TBinop(OpAssign, getvar, Codegen.binop op (mk_cast etype getvar) one etype e.epos); etype = getvar.etype }
+						mk_cast etype { e with eexpr = TBinop(OpAssign, getvar, binop op (mk_cast etype getvar) one etype e.epos); etype = getvar.etype }
 					]
 				| Postfix ->
 					let ret = mk_temp "ret" etype in
-					let retlocal = ExprBuilder.make_local ret e.epos in
+					let retlocal = make_local ret e.epos in
 					vars @ [
 						mk (TVar (ret, Some (mk_cast etype getvar))) com.basic.tvoid e.epos;
-						{ e with eexpr = TBinop (OpAssign, getvar, Codegen.binop op retlocal one getvar.etype e.epos) };
+						{ e with eexpr = TBinop (OpAssign, getvar, binop op retlocal one getvar.etype e.epos) };
 						retlocal
 					]
 			in

@@ -619,7 +619,7 @@ let inject_defaults (ctx:Common.context) (func:tfunc) =
 			| (_, None) :: rest -> inject rest body_exprs
 			| (_, Some TNull) :: rest -> inject rest body_exprs
 			| (var, Some const) :: rest ->
-				let expr = Codegen.set_default ctx.basic var const func.tf_expr.epos in
+				let expr = Texpr.set_default ctx.basic var const func.tf_expr.epos in
 			 	expr :: (inject rest body_exprs)
 	in
 	let exprs =

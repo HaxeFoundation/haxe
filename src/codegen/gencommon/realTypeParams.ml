@@ -21,6 +21,7 @@ open Common
 open Ast
 open Type
 open Codegen
+open Texpr.Builder
 open Gencommon
 
 (* ******************************************* *)
@@ -468,12 +469,12 @@ struct
 						t_cf
 						pos
 				in
-				[ExprBuilder.make_string gen.gcon cf.cf_name pos], expr
+				[make_string gen.gcon.basic cf.cf_name pos], expr
 			) fields
 		in
 
 		let mk_typehandle =
-			(fun cl -> mk (TCall (mk (TIdent "__typeof__") t_dynamic pos, [ExprBuilder.make_static_this cl pos])) t_dynamic pos)
+			(fun cl -> mk (TCall (mk (TIdent "__typeof__") t_dynamic pos, [make_static_this cl pos])) t_dynamic pos)
 		in
 		let mk_eq cl1 cl2 =
 			binop OpEq (mk_typehandle cl1) (mk_typehandle cl2) basic.tbool pos
@@ -503,7 +504,7 @@ struct
 				(* var fields = Reflect.fields(this); *)
 				mk (TVar (fields_var, Some (gen.gtools.r_fields true this))) basic.tvoid pos;
 				(* var i = 0; *)
-				mk (TVar (i_var, Some (ExprBuilder.make_int gen.gcon 0 pos))) basic.tvoid pos;
+				mk (TVar (i_var, Some (make_int gen.gcon.basic 0 pos))) basic.tvoid pos;
 				(* while (i < fields.length) *)
 				mk (TWhile (
 					binop OpLt local_i (mk_field_access gen local_fields "length" pos) basic.tbool pos,

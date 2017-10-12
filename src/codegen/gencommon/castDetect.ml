@@ -81,10 +81,10 @@ struct
 				let ret_type = match !current_ret_type with | Some(s) -> s | None -> gen.gcon.error "Invalid return outside function declaration." e.epos; assert false in
 				(match eopt with
 				| None when not (ExtType.is_void ret_type) ->
-					mk_return (null ret_type e.epos)
+					Texpr.Builder.mk_return (null ret_type e.epos)
 				| None -> e
 				| Some eret ->
-					mk_return (handle (run eret) ret_type eret.etype))
+					Texpr.Builder.mk_return (handle (run eret) ret_type eret.etype))
 			| TFunction(tfunc) ->
 				let last_ret = !current_ret_type in
 				current_ret_type := Some(tfunc.tf_type);

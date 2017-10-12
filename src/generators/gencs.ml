@@ -25,6 +25,7 @@ open Type
 open Gencommon
 open Gencommon.SourceWriter
 open Codegen
+open Texpr.Builder
 open Printf
 open Option
 open ExtString
@@ -381,7 +382,7 @@ struct
 					{ e with eexpr = TField(run ef, FDynamic "ToUpperInvariant") }
 
 				| TCall( { eexpr = TField(_, FStatic({ cl_path = [], "String" }, { cf_name = "fromCharCode" })) }, [cc] ) ->
-					{ e with eexpr = TNew(get_cl_from_t basic.tstring, [], [mk_cast tchar (run cc); ExprBuilder.make_int gen.gcon 1 cc.epos]) }
+					{ e with eexpr = TNew(get_cl_from_t basic.tstring, [], [mk_cast tchar (run cc); make_int gen.gcon.basic 1 cc.epos]) }
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("charAt" as field) })) }, args )
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("charCodeAt" as field) })) }, args )
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("indexOf" as field) })) }, args )
@@ -535,7 +536,7 @@ let add_cast_handler gen =
 				epos = e.epos
 			};
 			{
-				eexpr = TVar(i, Some( ExprBuilder.make_int gen.gcon (-1) e.epos ));
+				eexpr = TVar(i, Some( make_int gen.gcon.basic (-1) e.epos ));
 				etype = basic.tvoid;
 				epos = e.epos
 			};
@@ -2316,7 +2317,7 @@ let generate con =
 					in
 					if prop v.v_read && prop v.v_write && (v.v_read = AccCall || v.v_write = AccCall) then begin
 						let this = if static then
-							ExprBuilder.make_static_this cl f.cf_pos
+							make_static_this cl f.cf_pos
 						else
 							{ eexpr = TConst TThis; etype = TInst(cl,List.map snd cl.cl_params); epos = f.cf_pos }
 						in
@@ -2739,7 +2740,7 @@ let generate con =
 
 		let cl_arg_exc = get_cl (get_type gen (["System"],"ArgumentException")) in
 		let cl_arg_exc_t = TInst (cl_arg_exc, []) in
-		let mk_arg_exception msg pos = mk (TNew (cl_arg_exc, [], [ExprBuilder.make_string gen.gcon msg pos])) cl_arg_exc_t pos in
+		let mk_arg_exception msg pos = mk (TNew (cl_arg_exc, [], [make_string gen.gcon.basic msg pos])) cl_arg_exc_t pos in
 		let closure_t = ClosuresToClass.DoubleAndDynamicClosureImpl.get_ctx gen (get_cl (get_type gen (["haxe";"lang"],"Function"))) 6 mk_arg_exception in
 		ClosuresToClass.configure gen closure_t;
 
@@ -2842,7 +2843,7 @@ let generate con =
 
 		let cl_field_exc = get_cl (get_type gen (["System"],"MemberAccessException")) in
 		let cl_field_exc_t = TInst (cl_field_exc, []) in
-		let mk_field_exception msg pos = mk (TNew (cl_field_exc, [], [ExprBuilder.make_string gen.gcon msg pos])) cl_field_exc_t pos in
+		let mk_field_exception msg pos = mk (TNew (cl_field_exc, [], [make_string gen.gcon.basic msg pos])) cl_field_exc_t pos in
 
 		let rcf_ctx =
 			ReflectionCFs.new_ctx
@@ -3075,7 +3076,7 @@ let generate con =
 									{ eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tint; epos=e1.epos }
 								end
 							in
-							let zero = ExprBuilder.make_int gen.gcon 0 e.epos in
+							let zero = make_int gen.gcon.basic 0 e.epos in
 							{ e with eexpr = TBinop(op, handler, zero) }
 		);
 

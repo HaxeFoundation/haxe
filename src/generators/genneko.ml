@@ -296,7 +296,7 @@ and gen_expr ctx e =
 			in
 			match c with
 			| None | Some TNull -> acc
-			| Some c ->	gen_expr ctx (Codegen.set_default ctx.com.basic a c e.epos) :: acc
+			| Some c ->	gen_expr ctx (Texpr.set_default ctx.com.basic a c e.epos) :: acc
 		) [] f.tf_args in
 		let e = gen_expr ctx f.tf_expr in
 		let e = (match inits with [] -> e | _ -> EBlock (List.rev (e :: inits)),p) in

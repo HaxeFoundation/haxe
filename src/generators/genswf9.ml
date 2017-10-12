@@ -1788,7 +1788,7 @@ let generate_construct ctx fdata c =
 	(* if skip_constructor, then returns immediatly *)
 	if ctx.need_ctor_skip then (match c.cl_kind with
 	| KGenericInstance _ -> ()
-	| _ when not (Codegen.constructor_side_effects fdata.tf_expr) -> ()
+	| _ when not (Texpr.constructor_side_effects fdata.tf_expr) -> ()
 	| _ ->
 		let id = ident "skip_constructor" in
 		getvar ctx (VGlobal (type_path ctx (["flash"],"Boot")));

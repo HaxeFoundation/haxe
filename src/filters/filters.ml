@@ -95,8 +95,8 @@ let rec wrap_js_exceptions com e =
 			let cerr = match terr with TClassDecl c -> c | _ -> assert false in
 			(match eerr.etype with
 			| TDynamic _ ->
-				let eterr = Codegen.ExprBuilder.make_static_this cerr e.epos in
-				let ewrap = Codegen.fcall eterr "wrap" [eerr] t_dynamic e.epos in
+				let eterr = Texpr.Builder.make_static_this cerr e.epos in
+				let ewrap = Texpr.Builder.fcall eterr "wrap" [eerr] t_dynamic e.epos in
 				{ e with eexpr = TThrow ewrap }
 			| _ ->
 				let ewrap = { eerr with eexpr = TNew (cerr,[],[eerr]); etype = TInst (cerr,[]) } in

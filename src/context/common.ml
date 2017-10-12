@@ -29,16 +29,6 @@ type package_rule =
 
 type pos = Globals.pos
 
-type basic_types = {
-	mutable tvoid : t;
-	mutable tint : t;
-	mutable tfloat : t;
-	mutable tbool : t;
-	mutable tnull : t -> t;
-	mutable tstring : t;
-	mutable tarray : t -> t;
-}
-
 let const_type basic const default =
 	match const with
 	| TString _ -> basic.tstring

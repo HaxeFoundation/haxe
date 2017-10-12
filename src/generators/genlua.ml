@@ -190,7 +190,7 @@ let fun_block ctx f p =
     let e = List.fold_left (fun e (a,c) ->
         match c with
         | None | Some TNull -> e
-        | Some c -> Type.concat (Codegen.set_default ctx.com.basic a c p) e
+        | Some c -> Type.concat (Texpr.set_default ctx.com.basic a c p) e
     ) f.tf_expr f.tf_args in
     e
 
@@ -244,7 +244,7 @@ let index_of f l =
 (* create a __lua__ call *)
 let mk_lua_code com code args t pos =
     let lua_local = mk (TIdent "__lua__") t_dynamic pos in
-    let code_const = Codegen.ExprBuilder.make_string com code pos in
+    let code_const = Texpr.Builder.make_string com code pos in
     mk (TCall (lua_local, code_const :: args)) t pos
 
 (* create a multi-return boxing call for given expr *)
@@ -258,7 +258,7 @@ let mk_mr_box ctx e =
     add_feature ctx "use._hx_box_mr";
     add_feature ctx "use._hx_table";
     let code = Printf.sprintf "_hx_box_mr(_hx_table.pack({0}), {%s})" s_fields in
-    mk_lua_code ctx.com code [e] e.etype e.epos
+    mk_lua_code ctx.com.basic code [e] e.etype e.epos
 
 (* create a multi-return select call for given expr and field name *)
 let mk_mr_select com e ecall name =
@@ -1836,7 +1836,7 @@ let transform_multireturn ctx = function
                     (* if we found a field access for the multi-return call, generate select call *)
                     | TField ({ eexpr = TCall _ } as ecall, f) when is_multireturn ecall.etype ->
                         let ecall = Type.map_expr loop ecall in
-                        mk_mr_select ctx.com e ecall (field_name f)
+                        mk_mr_select ctx.com.basic e ecall (field_name f)
 
                     (* if we found a multi-return call used as a value, box it *)
                     | TCall _ when is_multireturn e.etype ->

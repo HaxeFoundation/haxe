@@ -137,7 +137,7 @@ let configure gen (should_convert:texpr->bool) =
 						let fields = Hashtbl.create (List.length real_enum.e_names) in
 						PMap.iter (fun _ ef -> Hashtbl.add fields ef.ef_index ef) real_enum.e_constrs;
 
-						let enum_expr = ExprBuilder.make_typeexpr (TEnumDecl real_enum) e.epos in
+						let enum_expr = Texpr.Builder.make_typeexpr (TEnumDecl real_enum) e.epos in
 						let cases = List.map (fun (patterns, body) ->
 							let patterns = List.map (fun e ->
 								match e.eexpr with
