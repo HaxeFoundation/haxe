@@ -6051,7 +6051,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          )
       in
 
-      output_cpp "#if HXCPP_SCRIPTABLE\n";
+      output_cpp "#ifdef HXCPP_SCRIPTABLE\n";
 
       let stored_fields = List.filter is_data_member implemented_instance_fields in
       if ( (List.length stored_fields) > 0) then begin
