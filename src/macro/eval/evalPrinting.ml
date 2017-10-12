@@ -98,7 +98,7 @@ and s_value depth v =
 	| VTrue -> rtrue
 	| VFalse -> rfalse
 	| VFloat f ->
-		let s = Common.float_repres f in
+		let s = Numeric.float_repres f in
 		let len = String.length s in
 		of_string (if String.unsafe_get s (len - 1) = '.' then String.sub s 0 (len - 1) else s)
 	| VFunction (f,_) ->

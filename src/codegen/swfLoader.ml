@@ -235,7 +235,7 @@ let build_class com c file =
 							| HVInt i | HVUInt i ->
 								Some (Int (Int32.to_string i))
 							| HVFloat f ->
-								Some (Float (float_repres f))
+								Some (Float (Numeric.float_repres f))
 							) in
 							match v with
 							| None -> None

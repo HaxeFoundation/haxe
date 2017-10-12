@@ -1853,11 +1853,11 @@ module StdStd = struct
 	)
 
 	let parseInt = vfun1 (fun v ->
-		try vint32 (Common.parse_int (decode_string v)) with _ -> vnull
+		try vint32 (Numeric.parse_int (decode_string v)) with _ -> vnull
 	)
 
 	let parseFloat = vfun1 (fun v ->
-		try vfloat (Common.parse_float (decode_string v)) with _ -> vnull
+		try vfloat (Numeric.parse_float (decode_string v)) with _ -> vnull
 	)
 
 	let random = vfun1 (fun v ->

@@ -827,34 +827,6 @@ let mem_size v =
 
 let timer = Timer.timer
 
-(*  Taken from OCaml source typing/oprint.ml
-
-	This is a better version of string_of_float which prints without loss of precision
-	so that float_of_string (float_repres x) = x for all floats x
-*)
-let valid_float_lexeme s =
-	let l = String.length s in
-	let rec loop i =
-		if i >= l then s ^ "." else
-		match s.[i] with
-		| '0' .. '9' | '-' -> loop (i+1)
-		| _ -> s
-	in loop 0
-
-let float_repres f =
-	match classify_float f with
-	| FP_nan -> "nan"
-	| FP_infinite ->
-		if f < 0.0 then "neg_infinity" else "infinity"
-	| _ ->
-		let float_val =
-			let s1 = Printf.sprintf "%.12g" f in
-			if f = float_of_string s1 then s1 else
-			let s2 = Printf.sprintf "%.15g" f in
-			if f = float_of_string s2 then s2 else
-			Printf.sprintf "%.18g" f
-		in valid_float_lexeme float_val
-
 let hash f =
 	let h = ref 0 in
 	for i = 0 to String.length f - 1 do
@@ -878,31 +850,3 @@ let dump_context com = s_record_fields "" [
 	"defines",s_pmap (fun s -> s) (fun s -> s) com.defines.values;
 	"defines_signature",s_opt (fun s -> Digest.to_hex s) com.defines.defines_signature;
 ]
-
-let parse_float s =
-	let rec loop sp i =
-		if i = String.length s then (if sp = 0 then s else String.sub s sp (i - sp)) else
-		match String.unsafe_get s i with
-		| ' ' when sp = i -> loop (sp + 1) (i + 1)
-		| '0'..'9' | '-' | '+' | 'e' | 'E' | '.' -> loop sp (i + 1)
-		| _ -> String.sub s sp (i - sp)
-	in
-	float_of_string (loop 0 0)
-
-let parse_int s =
-	let rec loop_hex i =
-		if i = String.length s then s else
-		match String.unsafe_get s i with
-		| '0'..'9' | 'a'..'f' | 'A'..'F' -> loop_hex (i + 1)
-		| _ -> String.sub s 0 i
-	in
-	let rec loop sp i =
-		if i = String.length s then (if sp = 0 then s else String.sub s sp (i - sp)) else
-		match String.unsafe_get s i with
-		| '0'..'9' -> loop sp (i + 1)
-		| ' ' when sp = i -> loop (sp + 1) (i + 1)
-		| '-' when i = 0 -> loop sp (i + 1)
-		| ('x' | 'X') when i = 1 && String.get s 0 = '0' -> loop_hex (i + 1)
-		| _ -> String.sub s sp (i - sp)
-	in
-	Int32.of_string (loop 0 0)

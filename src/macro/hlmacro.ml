@@ -513,7 +513,7 @@ let value_to_expr v p =
 			else if (f <> f) then
 				(Ast.EField (math, "NaN"), p)
 			else
-				(Ast.EConst (Ast.Float (Common.float_repres f)), p)
+				(Ast.EConst (Ast.Float (Numeric.float_repres f)), p)
 		| VAbstract (APos p) ->
 			(Ast.EObjectDecl (
 				(("fileName",Globals.null_pos,NoQuotes) , (Ast.EConst (Ast.String p.Globals.pfile) , p)) ::
