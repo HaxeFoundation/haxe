@@ -2153,7 +2153,7 @@ module Generator = struct
 		gen_class_init ctx c
 
 	let gen_enum_metadata ctx en p =
-		let meta = Codegen.build_metadata ctx.com (TEnumDecl en) in
+		let meta = Codegen.build_metadata ctx.com.basic (TEnumDecl en) in
 		match meta with
 			| None ->
 				()

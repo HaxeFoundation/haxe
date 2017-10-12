@@ -102,31 +102,30 @@ let maybe_cast e t =
 	with
 		Unify_error _ -> mk (TCast(e,None)) t e.epos
 
-let type_constant com c p =
-	let t = com.basic in
+let type_constant basic c p =
 	match c with
 	| Int s ->
 		if String.length s > 10 && String.sub s 0 2 = "0x" then error "Invalid hexadecimal integer" p;
-		(try mk (TConst (TInt (Int32.of_string s))) t.tint p
-		with _ -> mk (TConst (TFloat s)) t.tfloat p)
-	| Float f -> mk (TConst (TFloat f)) t.tfloat p
-	| String s -> mk (TConst (TString s)) t.tstring p
-	| Ident "true" -> mk (TConst (TBool true)) t.tbool p
-	| Ident "false" -> mk (TConst (TBool false)) t.tbool p
-	| Ident "null" -> mk (TConst TNull) (t.tnull (mk_mono())) p
+		(try mk (TConst (TInt (Int32.of_string s))) basic.tint p
+		with _ -> mk (TConst (TFloat s)) basic.tfloat p)
+	| Float f -> mk (TConst (TFloat f)) basic.tfloat p
+	| String s -> mk (TConst (TString s)) basic.tstring p
+	| Ident "true" -> mk (TConst (TBool true)) basic.tbool p
+	| Ident "false" -> mk (TConst (TBool false)) basic.tbool p
+	| Ident "null" -> mk (TConst TNull) (basic.tnull (mk_mono())) p
 	| Ident t -> error ("Invalid constant :  " ^ t) p
 	| Regexp _ -> error "Invalid constant" p
 
-let rec type_constant_value com (e,p) =
+let rec type_constant_value basic (e,p) =
 	match e with
 	| EConst c ->
-		type_constant com c p
+		type_constant basic c p
 	| EParenthesis e ->
-		type_constant_value com e
+		type_constant_value basic e
 	| EObjectDecl el ->
-		mk (TObjectDecl (List.map (fun (k,e) -> k,type_constant_value com e) el)) (TAnon { a_fields = PMap.empty; a_status = ref Closed }) p
+		mk (TObjectDecl (List.map (fun (k,e) -> k,type_constant_value basic e) el)) (TAnon { a_fields = PMap.empty; a_status = ref Closed }) p
 	| EArrayDecl el ->
-		mk (TArrayDecl (List.map (type_constant_value com) el)) (com.basic.tarray t_dynamic) p
+		mk (TArrayDecl (List.map (type_constant_value basic) el)) (basic.tarray t_dynamic) p
 	| _ ->
 		error "Constant value expected" p
 
@@ -181,8 +180,7 @@ let escape_res_name name allow_dirs =
 (* -------------------------------------------------------------------------- *)
 (* BUILD META DATA OBJECT *)
 
-let build_metadata com t =
-	let api = com.basic in
+let build_metadata api t =
 	let p, meta, fields, statics = (match t with
 		| TClassDecl c ->
 			let fields = List.map (fun f -> f.cf_name,f.cf_meta) (c.cl_ordered_fields @ (match c.cl_constructor with None -> [] | Some f -> [{ f with cf_name = "_" }])) in
@@ -205,7 +203,7 @@ let build_metadata com t =
 		mk (TObjectDecl (List.map (fun (f,el,p) ->
 			if Hashtbl.mem h f then error ("Duplicate metadata '" ^ f ^ "'") p;
 			Hashtbl.add h f ();
-			(f,null_pos,NoQuotes), mk (match el with [] -> TConst TNull | _ -> TArrayDecl (List.map (type_constant_value com) el)) (api.tarray t_dynamic) p
+			(f,null_pos,NoQuotes), mk (match el with [] -> TConst TNull | _ -> TArrayDecl (List.map (type_constant_value api) el)) (api.tarray t_dynamic) p
 		) ml)) t_dynamic p
 	in
 	let make_meta l =
@@ -506,11 +504,11 @@ let rec is_volatile t =
 	| _ ->
 		false
 
-let set_default ctx a c p =
+let set_default basic a c p =
 	let t = a.v_type in
 	let ve = mk (TLocal a) t p in
 	let cond =  TBinop (OpEq,ve,mk (TConst TNull) t p) in
-	mk (TIf (mk_parent (mk cond ctx.basic.tbool p), mk (TBinop (OpAssign,ve,mk (TConst c) t p)) t p,None)) ctx.basic.tvoid p
+	mk (TIf (mk_parent (mk cond basic.tbool p), mk (TBinop (OpAssign,ve,mk (TConst c) t p)) t p,None)) basic.tvoid p
 
 let bytes_serialize data =
 	let b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/" in
@@ -872,17 +870,17 @@ module ExtClass = struct
 		add_cl_init c e_assign
 end
 
-let for_remap com v e1 e2 p =
+let for_remap basic v e1 e2 p =
 	let v' = alloc_var v.v_name e1.etype e1.epos in
 	let ev' = mk (TLocal v') e1.etype e1.epos in
 	let t1 = (Abstract.follow_with_abstracts e1.etype) in
-	let ehasnext = mk (TField(ev',quick_field t1 "hasNext")) (tfun [] com.basic.tbool) e1.epos in
-	let ehasnext = mk (TCall(ehasnext,[])) com.basic.tbool ehasnext.epos in
+	let ehasnext = mk (TField(ev',quick_field t1 "hasNext")) (tfun [] basic.tbool) e1.epos in
+	let ehasnext = mk (TCall(ehasnext,[])) basic.tbool ehasnext.epos in
 	let enext = mk (TField(ev',quick_field t1 "next")) (tfun [] v.v_type) e1.epos in
 	let enext = mk (TCall(enext,[])) v.v_type e1.epos in
-	let eassign = mk (TVar(v,Some enext)) com.basic.tvoid p in
+	let eassign = mk (TVar(v,Some enext)) basic.tvoid p in
 	let ebody = Type.concat eassign e2 in
 	mk (TBlock [
-		mk (TVar (v',Some e1)) com.basic.tvoid e1.epos;
-		mk (TWhile((mk (TParenthesis ehasnext) ehasnext.etype ehasnext.epos),ebody,NormalWhile)) com.basic.tvoid e1.epos;
-	]) com.basic.tvoid p
+		mk (TVar (v',Some e1)) basic.tvoid e1.epos;
+		mk (TWhile((mk (TParenthesis ehasnext) ehasnext.etype ehasnext.epos),ebody,NormalWhile)) basic.tvoid e1.epos;
+	]) basic.tvoid p

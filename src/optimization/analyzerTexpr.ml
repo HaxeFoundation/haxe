@@ -373,7 +373,7 @@ module TexprFilter = struct
 			let e = mk (TWhile(Codegen.mk_parent e_true,e_block,NormalWhile)) e.etype p in
 			loop e
 		| TFor(v,e1,e2) ->
-			let e = Codegen.for_remap com v e1 e2 e.epos in
+			let e = Codegen.for_remap com.basic v e1 e2 e.epos in
 			loop e
 		| _ ->
 			Type.map_expr loop e

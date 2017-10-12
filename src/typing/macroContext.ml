@@ -638,7 +638,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		let constants = List.map (fun e ->
 			let p = snd e in
 			let e = (try
-				(match Codegen.type_constant_value ctx.com e with
+				(match Codegen.type_constant_value ctx.com.basic e with
 				| { eexpr = TConst (TString _); epos = p } when Lexer.is_fmt_string p ->
 					Lexer.remove_fmt_string p;
 					todo := (fun() -> Lexer.add_fmt_string p) :: !todo;

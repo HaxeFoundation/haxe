@@ -175,7 +175,7 @@ let is_removable_field cf =
 let create_static_prototype ctx mt =
 	let key = path_hash (t_infos mt).mt_path in
 	let com = ctx.curapi.MacroApi.get_com() in
-	let meta = Codegen.build_metadata com mt in
+	let meta = Codegen.build_metadata com.Common.basic mt in
 	let o = match mt with
 	| TClassDecl c ->
 		let pparent = match c.cl_super with

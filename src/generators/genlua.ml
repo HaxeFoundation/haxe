@@ -190,7 +190,7 @@ let fun_block ctx f p =
     let e = List.fold_left (fun e (a,c) ->
         match c with
         | None | Some TNull -> e
-        | Some c -> Type.concat (Codegen.set_default ctx.com a c p) e
+        | Some c -> Type.concat (Codegen.set_default ctx.com.basic a c p) e
     ) f.tf_expr f.tf_args in
     e
 
@@ -1713,7 +1713,7 @@ let generate_static ctx (c,f,e) =
 let generate_enumMeta_fields ctx = function
     | TEnumDecl e -> begin
             let p = s_path ctx e.e_path in
-            match Codegen.build_metadata ctx.com (TEnumDecl e) with
+            match Codegen.build_metadata ctx.com.basic (TEnumDecl e) with
             | None -> ()
             | Some e ->
                 print ctx "%s.__meta__ = " p;

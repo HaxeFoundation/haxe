@@ -288,7 +288,7 @@ let fun_block ctx f p =
 	let e = List.fold_left (fun e (a,c) ->
 		match c with
 		| None | Some TNull -> e
-		| Some c -> Type.concat (Codegen.set_default ctx.com a c p) e
+		| Some c -> Type.concat (Codegen.set_default ctx.com.basic a c p) e
 	) f.tf_expr f.tf_args in
 	e
 
@@ -1240,7 +1240,7 @@ let generate_enum ctx e =
 		print ctx "%s.__empty_constructs__ = [%s]" p (String.concat "," (List.map (fun s -> Printf.sprintf "%s.%s" p s) ctors_without_args));
 		newline ctx
 	end;
-	begin match Codegen.build_metadata ctx.com (TEnumDecl e) with
+	begin match Codegen.build_metadata ctx.com.basic (TEnumDecl e) with
 	| None -> ()
 	| Some e ->
 		print ctx "%s.__meta__ = " p;

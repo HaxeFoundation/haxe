@@ -48,7 +48,7 @@ let add_opt com block pos (var,opt) =
 	| None | Some TNull ->
 		(var,opt)
 	| Some (TString str) ->
-		block := Codegen.set_default com var (TString str) pos :: !block;
+		block := Codegen.set_default com.basic var (TString str) pos :: !block;
 		(var, opt)
 	| Some const ->
 		let basic = com.basic in

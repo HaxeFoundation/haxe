@@ -296,7 +296,7 @@ and gen_expr ctx e =
 			in
 			match c with
 			| None | Some TNull -> acc
-			| Some c ->	gen_expr ctx (Codegen.set_default ctx.com a c e.epos) :: acc
+			| Some c ->	gen_expr ctx (Codegen.set_default ctx.com.basic a c e.epos) :: acc
 		) [] f.tf_args in
 		let e = gen_expr ctx f.tf_expr in
 		let e = (match inits with [] -> e | _ -> EBlock (List.rev (e :: inits)),p) in
@@ -630,7 +630,7 @@ let gen_name ctx acc t =
 		let setname = (EBinop ("=",field p path "__ename__",arr),p) in
 		let arr = call p (field p (ident p "Array") "new1") [array p (List.map (fun n -> gen_constant ctx e.e_pos (TString n)) e.e_names); int p (List.length e.e_names)] in
 		let setconstrs = (EBinop ("=", field p path "__constructs__", arr),p) in
-		let meta = (match Codegen.build_metadata ctx.com (TEnumDecl e) with
+		let meta = (match Codegen.build_metadata ctx.com.basic (TEnumDecl e) with
 			| None -> []
 			| Some e -> [EBinop ("=",field p path "__meta__", gen_expr ctx e),p]
 		) in

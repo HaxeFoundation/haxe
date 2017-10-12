@@ -293,7 +293,7 @@ module Pattern = struct
 				pctx.in_reification <- old;
 				e
 			| EConst((Ident ("false" | "true") | Int _ | String _ | Float _) as ct) ->
-				let e = Codegen.type_constant ctx.com ct p in
+				let e = Codegen.type_constant ctx.com.basic ct p in
 				unify_expected e.etype;
 				let ct = match e.eexpr with TConst ct -> ct | _ -> assert false in
 				PatConstructor(ConConst ct,[])

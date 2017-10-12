@@ -650,7 +650,7 @@ let add_field_inits reserved ctx t =
 (* Adds the __meta__ field if required *)
 let add_meta_field ctx t = match t with
 	| TClassDecl c ->
-		(match Codegen.build_metadata ctx.com t with
+		(match Codegen.build_metadata ctx.com.basic t with
 		| None -> ()
 		| Some e ->
 			add_feature ctx.com "has_metadata";

@@ -79,7 +79,7 @@ struct
 		let cl = mk_class en.e_module en.e_path pos in
 		Hashtbl.add t.ec_tbl en.e_path cl;
 
-		(match Codegen.build_metadata gen.gcon (TEnumDecl en) with
+		(match Codegen.build_metadata gen.gcon.basic (TEnumDecl en) with
 			| Some expr ->
 				let cf = mk_class_field "__meta__" expr.etype false expr.epos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
 				cf.cf_expr <- Some expr;
