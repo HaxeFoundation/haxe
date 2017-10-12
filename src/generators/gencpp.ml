@@ -176,7 +176,7 @@ let cached_source_writer common_ctx filename =
    new source_writer common_ctx (add_header) (add_buf) (close)
 ;;
 
-let make_class_directories = Common.mkdir_recursive;;
+let make_class_directories = Path.mkdir_recursive;;
 
 let make_base_directory dir =
    make_class_directories "" ( ( Str.split_delim (Str.regexp "[\\/]+") dir ) );;

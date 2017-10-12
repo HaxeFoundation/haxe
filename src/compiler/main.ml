@@ -294,8 +294,8 @@ let generate tctx ext xml_out interp swf_header =
 	begin match com.platform with
 		| Neko | Hl | Eval when interp -> ()
 		| Cpp when Common.defined com Define.Cppia -> ()
-		| Cpp | Cs | Java | Php -> Common.mkdir_from_path (com.file ^ "/.")
-		| _ -> Common.mkdir_from_path com.file
+		| Cpp | Cs | Java | Php -> Path.mkdir_from_path (com.file ^ "/.")
+		| _ -> Path.mkdir_from_path com.file
 	end;
 	if interp then
 		Std.finally (Common.timer ["interp"]) MacroContext.interpret tctx
@@ -786,7 +786,7 @@ try
 			Genxml.generate_hx com
 		| Some file ->
 			Common.log com ("Generating xml : " ^ file);
-			Common.mkdir_from_path file;
+			Path.mkdir_from_path file;
 			Genxml.generate com file);
 		if not !no_output then generate tctx ext !xml_out !interp !swf_header;
 	end;

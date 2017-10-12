@@ -3122,7 +3122,7 @@ let generate con =
 			Hashtbl.iter (fun name v ->
 				let name = Codegen.escape_res_name name true in
 				let full_path = src ^ "/" ^ name in
-				mkdir_from_path full_path;
+				Path.mkdir_from_path full_path;
 
 				let f = open_out_bin full_path in
 				output_string f v;
@@ -3225,7 +3225,7 @@ let generate con =
 
 		RenameTypeParameters.run gen.gtypes_list;
 
-		mkdir_from_path gen.gcon.file;
+		Path.mkdir_from_path gen.gcon.file;
 
 		List.iter (fun md_def ->
 			let source_dir = gen.gcon.file ^ "/src/" ^ (String.concat "/" (fst (path_of_md_def md_def))) in

@@ -794,7 +794,7 @@ let generate com =
 	let use_nekoc = Common.defined com Define.UseNekoc in
 	if not use_nekoc then begin
 		try
-			mkdir_from_path com.file;
+			Path.mkdir_from_path com.file;
 			let ch = IO.output_channel (open_out_bin com.file) in
 			Nbytecode.write ch (Ncompile.compile ctx.version e);
 			IO.close_out ch;

@@ -815,7 +815,7 @@ let write_file gen w source_dir path extension out_files =
 	let t = timer ["write";"file"] in
 	let s_path = source_dir	^ "/" ^ (snd path) ^ "." ^ (extension) in
 	(* create the folders if they don't exist *)
-	mkdir_from_path s_path;
+	Path.mkdir_from_path s_path;
 
 	let contents = SourceWriter.contents w in
 	let should_write = if not (Common.defined gen.gcon Define.ReplaceFiles) && Sys.file_exists s_path then begin

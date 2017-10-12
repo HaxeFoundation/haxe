@@ -821,34 +821,6 @@ let find_file ctx f =
 		| None -> raise Not_found
 		| Some f -> f)
 
-let rec mkdir_recursive base dir_list =
-	match dir_list with
-	| [] -> ()
-	| dir :: remaining ->
-		let path = match base with
-				   | "" ->  dir
-				   | "/" -> "/" ^ dir
-				   | _ -> base ^ "/" ^ dir
-		in
-		let path_len = String.length path in
-		let path =
-			if path_len > 0 && (path.[path_len - 1] = '/' || path.[path_len - 1] == '\\') then
-				String.sub path 0 (path_len - 1)
-			else
-				path
-		in
-		if not ( (path = "") || ( (path_len = 2) && ((String.sub path 1 1) = ":") ) ) then
-			if not (Sys.file_exists path) then
-				Unix.mkdir path 0o755;
-		mkdir_recursive (if (path = "") then "/" else path) remaining
-
-let mkdir_from_path path =
-	let parts = Str.split_delim (Str.regexp "[\\/]+") path in
-	match parts with
-		| [] -> (* path was "" *) ()
-		| _ ->
-			let dir_list = List.rev (List.tl (List.rev parts)) in
-			mkdir_recursive "" dir_list
 
 let mem_size v =
 	Objsize.size_with_headers (Objsize.objsize v [] [])

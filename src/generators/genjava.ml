@@ -2600,7 +2600,7 @@ let generate con =
 	let str_cl = match gen.gcon.basic.tstring with | TInst(cl,_) -> cl | _ -> assert false in
 	str_cl.cl_super <- Some (get_cl (get_type gen (["haxe";"lang"], "NativeString")), []);
 
-	mkdir_from_path (gen.gcon.file ^ "/src");
+	Path.mkdir_from_path (gen.gcon.file ^ "/src");
 
 	let out_files = ref [] in
 
@@ -2610,7 +2610,7 @@ let generate con =
 		res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = null_pos } :: !res;
 		let name = Codegen.escape_res_name name true in
 		let full_path = gen.gcon.file ^ "/src/" ^ name in
-		mkdir_from_path full_path;
+		Path.mkdir_from_path full_path;
 
 		let f = open_out_bin full_path in
 		output_string f v;
@@ -2629,7 +2629,7 @@ let generate con =
 	RenameTypeParameters.run gen.gtypes_list;
 
 	let parts = Str.split_delim (Str.regexp "[\\/]+") gen.gcon.file in
-	mkdir_recursive "" parts;
+	Path.mkdir_recursive "" parts;
 
 	let source_dir = gen.gcon.file ^ "/src" in
 	List.iter (fun md ->

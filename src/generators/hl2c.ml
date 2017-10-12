@@ -235,7 +235,7 @@ let close_file ctx =
 	ctx.curfile <- "";
 	let fcontent = (try Std.input_file ~bin:true fpath with _ -> "") in
 	if fcontent <> str then begin
-		Common.mkdir_recursive "" (ExtString.String.nsplit (Filename.dirname fpath) "/");
+		Path.mkdir_recursive "" (ExtString.String.nsplit (Filename.dirname fpath) "/");
 		let ch = open_out_bin fpath in
 		output_string ch str;
 		close_out ch;

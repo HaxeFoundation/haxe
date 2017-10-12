@@ -1134,7 +1134,7 @@ module StdFileSystem = struct
 	)
 
 	let createDirectory = vfun1 (fun path ->
-		(try Common.mkdir_from_path (Path.add_trailing_slash (decode_string path)) with Unix.Unix_error (_,cmd,msg) -> exc_string (cmd ^ " " ^ msg));
+		(try Path.mkdir_from_path (Path.add_trailing_slash (decode_string path)) with Unix.Unix_error (_,cmd,msg) -> exc_string (cmd ^ " " ^ msg));
 		vnull
 	)
 

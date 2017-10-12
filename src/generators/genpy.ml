@@ -2428,7 +2428,7 @@ module Generator = struct
 		gen_static_inits ctx;
 		gen_main ctx;
 
-		mkdir_from_path com.file;
+		Path.mkdir_from_path com.file;
 		let ch = open_out_bin com.file in
 		output_string ch (Buffer.contents ctx.buf);
 		close_out ch
