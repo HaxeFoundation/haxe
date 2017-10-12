@@ -183,7 +183,7 @@ matrix:
     #########
     - os: linux
       env:
-        - TEST=macro,neko,js,php,flash9,as3,java,cs,python,hl,lua
+        - TEST=macro,neko,js,php,flash9,as3,java,cs,python,lua
         - DEPLOY_API_DOCS=1
         - DEPLOY_NIGHTLIES=1
         # - SAUCE=1
@@ -221,7 +221,7 @@ matrix:
     - os: osx
       osx_image: xcode8.3 # to compile faster
       env:
-        - TEST=java,cs,hl,lua
+        - TEST=java,cs,lua
       install: *install_osx
 
     - os: osx
