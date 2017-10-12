@@ -42,7 +42,7 @@ let stdlib = ref None
 let debug = ref None
 
 let create com api is_macro =
-	let t = Common.timer [(if is_macro then "macro" else "interp");"create"] in
+	let t = Timer.timer [(if is_macro then "macro" else "interp");"create"] in
 	incr sid;
 	let builtins = match !stdlib with
 		| None ->

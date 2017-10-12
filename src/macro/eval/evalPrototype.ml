@@ -270,7 +270,7 @@ let get_object_prototype ctx l =
 		proto,l
 
 let add_types ctx types ready =
-	let t = Common.timer [(if ctx.is_macro then "macro" else "interp");"add_types"] in
+	let t = Timer.timer [(if ctx.is_macro then "macro" else "interp");"add_types"] in
 	let new_types = List.filter (fun mt ->
 		let inf = Type.t_infos mt in
 		let key = path_hash inf.mt_path in

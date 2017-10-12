@@ -815,8 +815,6 @@ let find_file ctx f =
 let mem_size v =
 	Objsize.size_with_headers (Objsize.objsize v [] [])
 
-let timer = Timer.timer
-
 let hash f =
 	let h = ref 0 in
 	for i = 0 to String.length f - 1 do

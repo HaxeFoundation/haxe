@@ -267,7 +267,7 @@ let create_env_info static pfile kind capture_infos =
 let push_environment_debug ctx info num_locals num_captures =
 	let eval = get_eval ctx in
 	let timer = if ctx.detail_times then
-		Common.timer ["macro";"execution";kind_name eval info.kind]
+		Timer.timer ["macro";"execution";kind_name eval info.kind]
 	else
 		no_timer
 	in

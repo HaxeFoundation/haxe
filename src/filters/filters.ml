@@ -834,7 +834,7 @@ let iter_expressions fl mt =
 		()
 
 let filter_timer detailed s =
-	timer (if detailed then "filters" :: s else ["filters"])
+	Timer.timer (if detailed then "filters" :: s else ["filters"])
 
 let run com tctx main =
 	let detail_times = Common.raw_defined com "filter-times" in

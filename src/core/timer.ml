@@ -68,4 +68,100 @@ let rec close_times() =
 	| [] -> ()
 	| t :: _ -> close t; close_times()
 
-;;
+(* Printing *)
+
+type timer_node = {
+	name : string;
+	path : string;
+	parent : timer_node;
+	info : string;
+	mutable time : float;
+	mutable num_calls : int;
+	mutable children : timer_node list;
+}
+
+let report_times print =
+	let nodes = Hashtbl.create 0 in
+	let rec root = {
+		name = "";
+		path = "";
+		parent = root;
+		info = "";
+		time = 0.;
+		num_calls = 0;
+		children = [];
+	} in
+	Hashtbl.iter (fun _ timer ->
+		let rec loop parent sl = match sl with
+			| [] -> assert false
+			| s :: sl ->
+				let path = (match parent.path with "" -> "" | _ -> parent.path ^ ".") ^ s in
+				let node = try
+					let node = Hashtbl.find nodes path in
+					node.num_calls <- node.num_calls + timer.calls;
+					node.time <- node.time +. timer.total;
+					node
+				with Not_found ->
+					let name,info = try
+						let i = String.rindex s '.' in
+						String.sub s (i + 1) (String.length s - i - 1),String.sub s 0 i
+					with Not_found ->
+						s,""
+					in
+					let node = {
+						name = name;
+						path = path;
+						parent = parent;
+						info = info;
+						time = timer.total;
+						num_calls = timer.calls;
+						children = [];
+					} in
+					Hashtbl.add nodes path node;
+					node
+				in
+				begin match sl with
+					| [] -> ()
+					| _ ->
+						let child = loop node sl in
+						if not (List.memq child node.children) then
+							node.children <- child :: node.children;
+				end;
+				node
+		in
+		let node = loop root timer.id in
+		if not (List.memq node root.children) then
+			root.children <- node :: root.children
+	) htimers;
+	let max_name = ref 0 in
+	let max_calls = ref 0 in
+	let rec loop depth node =
+		let l = (String.length node.name) + 2 * depth in
+		List.iter (fun child ->
+			if depth = 0 then begin
+				node.num_calls <- node.num_calls + child.num_calls;
+				node.time <- node.time +. child.time;
+			end;
+			loop (depth + 1) child;
+		) node.children;
+		node.children <- List.sort (fun node1 node2 -> compare node2.time node1.time) node.children;
+		if node.num_calls > !max_calls then max_calls := node.num_calls;
+		if node.time > 0.0009 && l > !max_name then max_name := l;
+	in
+	loop 0 root;
+	let max_calls = String.length (string_of_int !max_calls) in
+	print (Printf.sprintf "%-*s | %7s |   %% |  p%% | %*s | info" !max_name "name" "time(s)" max_calls "#");
+	let sep = String.make (!max_name + max_calls + 27) '-' in
+	print sep;
+	let print_time name node =
+		if node.time > 0.0009 then
+			print (Printf.sprintf "%-*s | %7.3f | %3.0f | %3.0f | %*i | %s" !max_name name node.time (node.time *. 100. /. root.time) (node.time *. 100. /. node.parent.time) max_calls node.num_calls node.info)
+	in
+	let rec loop depth node =
+		let name = (String.make (depth * 2) ' ') ^ node.name in
+		print_time name node;
+		List.iter (loop (depth + 1)) node.children
+	in
+	List.iter (loop 0) root.children;
+	print sep;
+	print_time "total" root

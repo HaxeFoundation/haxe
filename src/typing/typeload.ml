@@ -240,7 +240,7 @@ let module_pass_1 ctx m tdecls loadp =
 	decls, List.rev tdecls
 
 let parse_file_from_lexbuf com file p lexbuf =
-	let t = Common.timer ["parsing"] in
+	let t = Timer.timer ["parsing"] in
 	Lexer.init file true;
 	incr stats.s_files_parsed;
 	let data = try

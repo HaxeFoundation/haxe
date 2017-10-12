@@ -136,7 +136,7 @@ let debug_expr = s_expr debug_type
 
 let debug_mode = ref false
 let trace s = if !debug_mode then print_endline s else ()
-let timer name = if !debug_mode then Common.timer name else fun () -> ()
+let timer name = if !debug_mode then Timer.timer name else fun () -> ()
 
 let is_string t =
 	match follow t with
@@ -302,7 +302,7 @@ class ['tp, 'ret] rule_dispatcher name =
 				if key < priority then begin
 					let q = Hashtbl.find tbl key in
 					Stack.iter (fun (n, rule) ->
-						let t = if !debug_mode then Common.timer [("rule dispatcher rule: " ^ n)] else fun () -> () in
+						let t = if !debug_mode then Timer.timer [("rule dispatcher rule: " ^ n)] else fun () -> () in
 						let r = rule(tp) in
 						t();
 						if is_some r then begin ret := r; raise Exit end
@@ -362,7 +362,7 @@ class ['tp] rule_map_dispatcher name = object(self)
 				let q = Hashtbl.find tbl key in
 				Stack.iter (fun (n, rule) ->
 					trace ("running rule " ^ n);
-					let t = if !debug_mode then Common.timer [("rule map dispatcher rule: " ^ n)] else fun () -> () in
+					let t = if !debug_mode then Timer.timer [("rule map dispatcher rule: " ^ n)] else fun () -> () in
 					cur := rule !cur;
 					t();
 				) q
@@ -719,7 +719,7 @@ let run_filters gen =
 	let has_errors = ref false in
 	gen.gcon.error <- (fun msg pos -> has_errors := true; last_error msg pos);
 	(* first of all, we have to make sure that the filters won't trigger a major Gc collection *)
-	let t = Common.timer ["gencommon_filters"] in
+	let t = Timer.timer ["gencommon_filters"] in
 	(if Common.defined gen.gcon Define.GencommonDebug then debug_mode := true else debug_mode := false);
 	let run_filters (filter : texpr rule_map_dispatcher) =
 		let rec loop acc mds =

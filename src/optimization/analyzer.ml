@@ -896,7 +896,7 @@ module Run = struct
 	open Graph
 
 	let with_timer detailed s f =
-		let timer = timer (if detailed then "analyzer" :: s else ["analyzer"]) in
+		let timer = Timer.timer (if detailed then "analyzer" :: s else ["analyzer"]) in
 		let r = f() in
 		timer();
 		r

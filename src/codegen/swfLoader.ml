@@ -358,7 +358,7 @@ let build_class com c file =
 	(path.tpackage, [(EClass class_data,pos)])
 
 let extract_data (_,tags) =
-	let t = Common.timer ["read";"swf"] in
+	let t = Timer.timer ["read";"swf"] in
 	let h = Hashtbl.create 0 in
 	let rec loop_field f =
 		match f.hlf_kind with
@@ -450,7 +450,7 @@ let remove_debug_infos as3 =
 	As3hlparse.flatten (List.map loop_static hl)
 
 let parse_swf com file =
-	let t = Common.timer ["read";"swf"] in
+	let t = Timer.timer ["read";"swf"] in
 	let is_swc = file_extension file = "swc" || file_extension file = "ane" in
 	let file = (try Common.find_file com file with Not_found -> failwith ((if is_swc then "SWC" else "SWF") ^ " Library not found : " ^ file)) in
 	let ch = if is_swc then begin

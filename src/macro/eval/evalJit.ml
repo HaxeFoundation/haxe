@@ -838,7 +838,7 @@ and get_env jit static file info =
 
 (* Creates a [EvalValue.vfunc] of function [tf], which can be [static] or not. *)
 let jit_tfunction ctx key_type key_field tf static pos =
-	let t = Common.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
+	let t = Timer.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
 	(* Create a new JitContext with an initial scope *)
 	let jit = EvalJitContext.create ctx in
 	let exec = jit_tfunction jit static pos tf in
@@ -852,7 +852,7 @@ let jit_tfunction ctx key_type key_field tf static pos =
 
 (* JITs expression [e] to a function. This is used for expressions that are not in a method. *)
 let jit_expr ctx e =
-	let t = Common.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
+	let t = Timer.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
 	let jit = EvalJitContext.create ctx in
 	let f = jit_expr jit false (mk_block e) in
 	t();

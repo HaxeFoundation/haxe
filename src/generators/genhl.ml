@@ -3800,7 +3800,7 @@ let generate com =
 		check ctx;
 		Hlinterp.check code false;
 	end;
-	let t = Common.timer ["write";"hl"] in
+	let t = Timer.timer ["write";"hl"] in
 
 	let escape_command s =
 		let b = Buffer.create 0 in
@@ -3810,7 +3810,7 @@ let generate com =
 
 	if file_extension com.file = "c" then begin
 		Hl2c.write_c com com.file code;
-		let t = Common.timer ["nativecompile";"hl"] in
+		let t = Timer.timer ["nativecompile";"hl"] in
 		if not (Common.defined com Define.NoCompilation) && com.run_command ("haxelib run hashlink build " ^ escape_command com.file) <> 0 then failwith "Build failed";
 		t();
 	end else begin
@@ -3849,7 +3849,7 @@ let generate com =
 	end;
 	if Common.defined com Define.Interp then
 		try
-			let t = Common.timer ["generate";"hl";"interp"] in
+			let t = Timer.timer ["generate";"hl";"interp"] in
 			let ctx = Hlinterp.create true in
 			Hlinterp.add_code ctx code;
 			t();

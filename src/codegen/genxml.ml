@@ -288,10 +288,10 @@ let rec write_xml ch tabs x =
 		IO.printf ch "<![CDATA[%s]]>" s
 
 let generate com file =
-	let t = Common.timer ["generate";"xml"] in
+	let t = Timer.timer ["generate";"xml"] in
 	let x = node "haxe" [] (List.map (gen_type_decl com true) (List.filter (fun t -> not (Meta.has Meta.NoDoc (t_infos t).mt_meta)) com.types)) in
 	t();
-	let t = Common.timer ["write";"xml"] in
+	let t = Timer.timer ["write";"xml"] in
 	let ch = IO.output_channel (open_out_bin file) in
 	IO.printf ch "<!-- This file can be parsed by haxe.rtti.XmlParser -->\n";
 	write_xml ch "" x;

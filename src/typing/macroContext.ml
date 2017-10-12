@@ -82,10 +82,10 @@ let get_type_patch ctx t sub =
 			tp
 
 let macro_timer ctx l =
-	Common.timer (if Common.defined ctx.com Define.MacroTimes then ("macro" :: l) else ["macro"])
+	Timer.timer (if Common.defined ctx.com Define.MacroTimes then ("macro" :: l) else ["macro"])
 
 let typing_timer ctx need_type f =
-	let t = Common.timer ["typing"] in
+	let t = Timer.timer ["typing"] in
 	let old = ctx.com.error and oldp = ctx.pass and oldlocals = ctx.locals in
 	(*
 		disable resumable errors... unless we are in display mode (we want to reach point of completion)
