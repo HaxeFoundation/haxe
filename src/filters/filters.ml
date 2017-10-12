@@ -530,13 +530,17 @@ let apply_native_paths ctx t =
 			in
 			c.cl_fields <- fields c.cl_ordered_fields c.cl_fields;
 			c.cl_statics <- fields c.cl_ordered_statics c.cl_statics;
-			let meta,path = get_real_path c.cl_meta c.cl_path in
-			c.cl_meta <- meta :: c.cl_meta;
-			c.cl_path <- path;
+			if not (Meta.has Meta.RealPath c.cl_meta) then begin
+				let meta,path = get_real_path c.cl_meta c.cl_path in
+				c.cl_meta <- meta :: c.cl_meta;
+				c.cl_path <- path;
+			end
 		| TEnumDecl e ->
-			let meta,path = get_real_path e.e_meta e.e_path in
-			e.e_meta <- meta :: e.e_meta;
-			e.e_path <- path;
+			if not (Meta.has Meta.RealPath e.e_meta) then begin
+				let meta,path = get_real_path e.e_meta e.e_path in
+				e.e_meta <- meta :: e.e_meta;
+				e.e_path <- path;
+			end
 		| _ ->
 			())
 	with Not_found ->
