@@ -483,7 +483,7 @@ let rec load_instance ?(allow_display=false) ctx (t,pn) allow_no_params p =
 						| EConst (Float f) -> "F" ^ f
 						| _ -> "Expr"
 					) in
-					let c = mk_class null_module ([],name) p (pos e) in
+					let c = mk_class ctx.m.curmod ([],name) p (pos e) in
 					c.cl_kind <- KExpr e;
 					TInst (c,[])
 				| TPType t -> load_complex_type ctx true p t
