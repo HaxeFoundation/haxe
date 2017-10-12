@@ -398,4 +398,16 @@ class Boot {
 
 		return null;
 	}
+	public static function _split(str:String, delimiter:String) : Array<String> {
+		var delim = EReg.escape(delimiter);
+		var ret = [];
+		var f = lua.lib.lrexlib.Rex.split(str, delimiter);
+		var str = f();
+		while (str != null){
+			ret.push(str);
+			str = f();
+		}
+		return ret;
+
+	}
 }
