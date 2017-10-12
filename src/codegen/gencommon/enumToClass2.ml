@@ -37,7 +37,7 @@ let add_meta com en cl_enum =
 		let cf_meta = mk_field "__meta__" expr.etype expr.epos expr.epos in
 		cf_meta.cf_expr <- Some expr;
 		add_static cl_enum cf_meta;
-	) (Codegen.build_metadata com.basic (TEnumDecl en));
+	) (Texpr.build_metadata com.basic (TEnumDecl en));
 
 type enclasses = {
 	base : tclass;

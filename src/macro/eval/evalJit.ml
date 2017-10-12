@@ -783,7 +783,7 @@ and jit_expr jit return e =
 		unop jit op flag v1 e.epos
 	(* rewrites/skips *)
 	| TFor(v,e1,e2) ->
-		loop (Codegen.for_remap (ctx.curapi.MacroApi.get_com()).Common.basic v e1 e2 e.epos)
+		loop (Texpr.for_remap (ctx.curapi.MacroApi.get_com()).Common.basic v e1 e2 e.epos)
 	| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 		loop e1
 	| TIdent s ->

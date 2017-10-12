@@ -2327,7 +2327,7 @@ let rec generate_type ctx t =
 		if e.e_extern then
 			None
 		else
-			let meta = Codegen.build_metadata ctx.com.basic t in
+			let meta = Texpr.build_metadata ctx.com.basic t in
 			let hlc = generate_enum ctx e meta in
 			let init = begin_fun ctx [] ctx.com.basic.tvoid [ethis] false e.e_pos in
 			generate_enum_init ctx e hlc meta;

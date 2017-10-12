@@ -1240,7 +1240,7 @@ let generate_enum ctx e =
 		print ctx "%s.__empty_constructs__ = [%s]" p (String.concat "," (List.map (fun s -> Printf.sprintf "%s.%s" p s) ctors_without_args));
 		newline ctx
 	end;
-	begin match Codegen.build_metadata ctx.com.basic (TEnumDecl e) with
+	begin match Texpr.build_metadata ctx.com.basic (TEnumDecl e) with
 	| None -> ()
 	| Some e ->
 		print ctx "%s.__meta__ = " p;

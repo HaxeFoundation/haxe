@@ -1204,7 +1204,7 @@ let generate_enum ctx e =
 			print ctx "public static var %s : %s = new %s(\"%s\",%d)" c.ef_name ename ename c.ef_name c.ef_index;
 	) e.e_constrs;
 	newline ctx;
-	(match Codegen.build_metadata ctx.inf.com.basic (TEnumDecl e) with
+	(match Texpr.build_metadata ctx.inf.com.basic (TEnumDecl e) with
 	| None -> ()
 	| Some e ->
 		print ctx "public static var __meta__ : * = ";

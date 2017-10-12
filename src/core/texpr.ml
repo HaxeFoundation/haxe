@@ -1,3 +1,4 @@
+open Globals
 open Ast
 open Type
 open Error
@@ -329,3 +330,59 @@ let rec type_constant_value basic (e,p) =
 		mk (TArrayDecl (List.map (type_constant_value basic) el)) (basic.tarray t_dynamic) p
 	| _ ->
 		error "Constant value expected" p
+
+let for_remap basic v e1 e2 p =
+	let v' = alloc_var v.v_name e1.etype e1.epos in
+	let ev' = mk (TLocal v') e1.etype e1.epos in
+	let t1 = (Abstract.follow_with_abstracts e1.etype) in
+	let ehasnext = mk (TField(ev',quick_field t1 "hasNext")) (tfun [] basic.tbool) e1.epos in
+	let ehasnext = mk (TCall(ehasnext,[])) basic.tbool ehasnext.epos in
+	let enext = mk (TField(ev',quick_field t1 "next")) (tfun [] v.v_type) e1.epos in
+	let enext = mk (TCall(enext,[])) v.v_type e1.epos in
+	let eassign = mk (TVar(v,Some enext)) basic.tvoid p in
+	let ebody = Type.concat eassign e2 in
+	mk (TBlock [
+		mk (TVar (v',Some e1)) basic.tvoid e1.epos;
+		mk (TWhile((mk (TParenthesis ehasnext) ehasnext.etype ehasnext.epos),ebody,NormalWhile)) basic.tvoid e1.epos;
+	]) basic.tvoid p
+
+(* -------------------------------------------------------------------------- *)
+(* BUILD META DATA OBJECT *)
+
+let build_metadata api t =
+	let p, meta, fields, statics = (match t with
+		| TClassDecl c ->
+			let fields = List.map (fun f -> f.cf_name,f.cf_meta) (c.cl_ordered_fields @ (match c.cl_constructor with None -> [] | Some f -> [{ f with cf_name = "_" }])) in
+			let statics =  List.map (fun f -> f.cf_name,f.cf_meta) c.cl_ordered_statics in
+			(c.cl_pos, ["",c.cl_meta],fields,statics)
+		| TEnumDecl e ->
+			(e.e_pos, ["",e.e_meta],List.map (fun n -> n, (PMap.find n e.e_constrs).ef_meta) e.e_names, [])
+		| TTypeDecl t ->
+			(t.t_pos, ["",t.t_meta],(match follow t.t_type with TAnon a -> PMap.fold (fun f acc -> (f.cf_name,f.cf_meta) :: acc) a.a_fields [] | _ -> []),[])
+		| TAbstractDecl a ->
+			(a.a_pos, ["",a.a_meta],[],[])
+	) in
+	let filter l =
+		let l = List.map (fun (n,ml) -> n, ExtList.List.filter_map (fun (m,el,p) -> match m with Meta.Custom s when String.length s > 0 && s.[0] <> ':' -> Some (s,el,p) | _ -> None) ml) l in
+		List.filter (fun (_,ml) -> ml <> []) l
+	in
+	let meta, fields, statics = filter meta, filter fields, filter statics in
+	let make_meta_field ml =
+		let h = Hashtbl.create 0 in
+		mk (TObjectDecl (List.map (fun (f,el,p) ->
+			if Hashtbl.mem h f then error ("Duplicate metadata '" ^ f ^ "'") p;
+			Hashtbl.add h f ();
+			(f,null_pos,NoQuotes), mk (match el with [] -> TConst TNull | _ -> TArrayDecl (List.map (type_constant_value api) el)) (api.tarray t_dynamic) p
+		) ml)) t_dynamic p
+	in
+	let make_meta l =
+		mk (TObjectDecl (List.map (fun (f,ml) -> (f,null_pos,NoQuotes),make_meta_field ml) l)) t_dynamic p
+	in
+	if meta = [] && fields = [] && statics = [] then
+		None
+	else
+		let meta_obj = [] in
+		let meta_obj = (if fields = [] then meta_obj else (("fields",null_pos,NoQuotes),make_meta fields) :: meta_obj) in
+		let meta_obj = (if statics = [] then meta_obj else (("statics",null_pos,NoQuotes),make_meta statics) :: meta_obj) in
+		let meta_obj = (try (("obj",null_pos,NoQuotes), make_meta_field (List.assoc "" meta)) :: meta_obj with Not_found -> meta_obj) in
+		Some (mk (TObjectDecl meta_obj) t_dynamic p)

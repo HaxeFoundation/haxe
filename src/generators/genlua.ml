@@ -1713,7 +1713,7 @@ let generate_static ctx (c,f,e) =
 let generate_enumMeta_fields ctx = function
     | TEnumDecl e -> begin
             let p = s_path ctx e.e_path in
-            match Codegen.build_metadata ctx.com.basic (TEnumDecl e) with
+            match Texpr.build_metadata ctx.com.basic (TEnumDecl e) with
             | None -> ()
             | Some e ->
                 print ctx "%s.__meta__ = " p;

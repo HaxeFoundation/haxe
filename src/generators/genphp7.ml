@@ -761,7 +761,7 @@ let unpack_single_expr_block expr =
 	Check if specified type has rtti meta
 *)
 let has_rtti_meta ctx mtype =
-	match Codegen.build_metadata ctx.basic mtype with
+	match Texpr.build_metadata ctx.basic mtype with
 		| None -> false
 		| Some _ -> true
 
@@ -2950,7 +2950,7 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 			Writes rtti meta to output buffer
 		*)
 		method write_rtti_meta =
-			match Codegen.build_metadata ctx.basic wrapper#get_module_type with
+			match Texpr.build_metadata ctx.basic wrapper#get_module_type with
 				| None -> ()
 				| Some meta_expr ->
 					let boot_class = writer#use boot_type_path in

@@ -630,7 +630,7 @@ let gen_name ctx acc t =
 		let setname = (EBinop ("=",field p path "__ename__",arr),p) in
 		let arr = call p (field p (ident p "Array") "new1") [array p (List.map (fun n -> gen_constant ctx e.e_pos (TString n)) e.e_names); int p (List.length e.e_names)] in
 		let setconstrs = (EBinop ("=", field p path "__constructs__", arr),p) in
-		let meta = (match Codegen.build_metadata ctx.com.basic (TEnumDecl e) with
+		let meta = (match Texpr.build_metadata ctx.com.basic (TEnumDecl e) with
 			| None -> []
 			| Some e -> [EBinop ("=",field p path "__meta__", gen_expr ctx e),p]
 		) in
