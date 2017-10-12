@@ -535,7 +535,7 @@ let is_static_overload c name =
 	| None -> false
 	| Some (sup,_) ->
 		let rec loop c =
-			(PMap.mem name c.cl_statics) || (match c.cl_super with
+			(PMap.mem name (c.cl_structure()).cl_statics) || (match c.cl_super with
 				| None -> false
 				| Some (sup,_) -> loop sup)
 		in

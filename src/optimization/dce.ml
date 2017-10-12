@@ -52,7 +52,7 @@ let rec is_or_overrides_extern_field cf c =
 		match c.cl_super with
 			| None -> false
 			| Some (csup,_) ->
-				try is_or_overrides_extern_field (PMap.find cf.cf_name csup.cl_fields) csup
+				try is_or_overrides_extern_field (PMap.find cf.cf_name (csup.cl_structure()).cl_fields) csup
 				with Not_found -> false
 
 let is_std_file dce file =
@@ -101,6 +101,7 @@ and check_and_add_feature dce s =
 
 (* mark a field as kept *)
 and mark_field dce c cf stat =
+	let cs = c.cl_structure() in
 	let add cf =
 		if not (Meta.has Meta.Used cf.cf_meta) then begin
 			cf.cf_meta <- (Meta.Used,[],cf.cf_pos) :: cf.cf_meta;
@@ -111,7 +112,8 @@ and mark_field dce c cf stat =
 	in
 	if cf.cf_name = "new" then begin
 		let rec loop c =
-			begin match c.cl_constructor with
+			let cs = c.cl_structure() in
+			begin match cs.cl_constructor with
 				| Some cf -> add cf
 				| None -> ()
 			end;
@@ -121,7 +123,7 @@ and mark_field dce c cf stat =
 		in
 		loop c
 	end else begin
-		if not (PMap.mem cf.cf_name (if stat then c.cl_statics else c.cl_fields)) then begin
+		if not (PMap.mem cf.cf_name (if stat then cs.cl_statics else cs.cl_fields)) then begin
 			match c.cl_super with
 			| None -> add cf
 			| Some (c,_) -> mark_field dce c cf stat
@@ -130,13 +132,14 @@ and mark_field dce c cf stat =
 	end
 
 let rec update_marked_class_fields dce c =
+	let cs = c.cl_structure() in
 	(* mark all :?used fields as surely :used now *)
 	List.iter (fun cf ->
 		if Meta.has Meta.MaybeUsed cf.cf_meta then mark_field dce c cf true
-	) c.cl_ordered_statics;
+	) cs.cl_ordered_statics;
 	List.iter (fun cf ->
 		if Meta.has Meta.MaybeUsed cf.cf_meta then mark_field dce c cf false
-	) c.cl_ordered_fields;
+	) cs.cl_ordered_fields;
 	(* we always have to keep super classes and implemented interfaces *)
 	(match c.cl_init with None -> () | Some init -> dce.follow_expr dce init);
 	List.iter (fun (c,_) -> mark_class dce c) c.cl_implements;
@@ -216,8 +219,9 @@ let mark_mt dce mt = match mt with
 (* find all dependent fields by checking implementing/subclassing types *)
 let rec mark_dependent_fields dce csup n stat =
 	let rec loop c =
+		let cs = c.cl_structure() in
 		(try
-			let cf = PMap.find n (if stat then c.cl_statics else c.cl_fields) in
+			let cf = PMap.find n (if stat then cs.cl_statics else cs.cl_fields) in
 			(* if it's clear that the class is kept, the field has to be kept as well. This is also true for
 				extern interfaces because we cannot remove fields from them *)
 			if Meta.has Meta.Used c.cl_meta || (csup.cl_interface && csup.cl_extern) then mark_field dce c cf stat
@@ -269,11 +273,12 @@ let rec to_string dce t = match t with
 		()
 
 and field dce c n stat =
+	let cs = c.cl_structure() in
 	let find_field n =
-		if n = "new" then match c.cl_constructor with
+		if n = "new" then match cs.cl_constructor with
 			| None -> raise Not_found
 			| Some cf -> cf
-		else PMap.find n (if stat then c.cl_statics else c.cl_fields)
+		else PMap.find n (if stat then cs.cl_statics else cs.cl_fields)
 	in
 	(try
 		let cf = find_field n in
@@ -596,18 +601,19 @@ and expr dce e =
 let fix_accessors com =
 	List.iter (fun mt -> match mt with
 		(* filter empty abstract implementation classes (issue #1885). *)
-		| TClassDecl({cl_kind = KAbstractImpl _} as c) when c.cl_ordered_statics = [] && c.cl_ordered_fields = [] && not (Meta.has Meta.Used c.cl_meta) ->
+		| TClassDecl({cl_kind = KAbstractImpl _} as c) when (c.cl_structure()).cl_ordered_statics = [] && (c.cl_structure()).cl_ordered_fields = [] && not (Meta.has Meta.Used c.cl_meta) ->
 			c.cl_extern <- true
 		| TClassDecl({cl_kind = KAbstractImpl a} as c) when Meta.has Meta.Enum a.a_meta ->
 			let is_runtime_field cf =
 				not (Meta.has Meta.Enum cf.cf_meta)
 			in
 			(* also filter abstract implementation classes that have only @:enum fields (issue #2858) *)
-			if not (List.exists is_runtime_field c.cl_ordered_statics) then
+			if not (List.exists is_runtime_field (c.cl_structure()).cl_ordered_statics) then
 				c.cl_extern <- true
 		| (TClassDecl c) ->
+			let cs = c.cl_structure() in
 			let rec has_accessor c n stat =
-				PMap.mem n (if stat then c.cl_statics else c.cl_fields)
+				PMap.mem n (if stat then cs.cl_statics else cs.cl_fields)
 				|| match c.cl_super with Some (csup,_) -> has_accessor csup n stat | None -> false
 			in
 			let check_prop stat cf =
@@ -622,8 +628,8 @@ let fix_accessors com =
 					cf.cf_kind <- Var {v_write = if has_accessor c s stat then AccCall else AccNever; v_read = a}
 				| _ -> ())
 			in
-			List.iter (check_prop true) c.cl_ordered_statics;
-			List.iter (check_prop false) c.cl_ordered_fields;
+			List.iter (check_prop true) cs.cl_ordered_statics;
+			List.iter (check_prop false) cs.cl_ordered_fields;
 		| _ -> ()
 	) com.types
 
@@ -662,9 +668,10 @@ let run com main full =
 			let loop stat cf =
 				if keep_class || keep_field dce cf c stat then mark_field dce c cf stat
 			in
-			List.iter (loop true) c.cl_ordered_statics;
-			List.iter (loop false) c.cl_ordered_fields;
-			begin match c.cl_constructor with
+			let cs = c.cl_structure() in
+			List.iter (loop true) cs.cl_ordered_statics;
+			List.iter (loop false) cs.cl_ordered_fields;
+			begin match cs.cl_constructor with
 				| Some cf -> loop false cf
 				| None -> ()
 			end;
@@ -718,6 +725,7 @@ let run com main full =
 		| (TClassDecl c) as mt :: l when keep_whole_class dce c ->
 			loop (mt :: acc) l
 		| (TClassDecl c) as mt :: l ->
+			let cs = c.cl_structure() in
 			let check_property cf stat =
 				let add_accessor_metadata cf =
 					if not (Meta.has Meta.Accessor cf.cf_meta) then cf.cf_meta <- (Meta.Accessor,[],c.cl_pos) :: cf.cf_meta
@@ -725,7 +733,7 @@ let run com main full =
 				begin match cf.cf_kind with
 				| Var {v_read = AccCall} ->
 					begin try
-						add_accessor_metadata (PMap.find ("get_" ^ cf.cf_name) (if stat then c.cl_statics else c.cl_fields))
+						add_accessor_metadata (PMap.find ("get_" ^ cf.cf_name) (if stat then cs.cl_statics else cs.cl_fields))
 					with Not_found ->
 						()
 					end
@@ -735,7 +743,7 @@ let run com main full =
 				begin match cf.cf_kind with
 				| Var {v_write = AccCall} ->
 					begin try
-						add_accessor_metadata (PMap.find ("set_" ^ cf.cf_name) (if stat then c.cl_statics else c.cl_fields))
+						add_accessor_metadata (PMap.find ("set_" ^ cf.cf_name) (if stat then cs.cl_statics else cs.cl_fields))
 					with Not_found ->
 						()
 					end
@@ -745,27 +753,27 @@ let run com main full =
 			in
 			(* add :keep so subsequent filter calls do not process class fields again *)
 			c.cl_meta <- (Meta.Keep,[],c.cl_pos) :: c.cl_meta;
- 			c.cl_ordered_statics <- List.filter (fun cf ->
+ 			cs.cl_ordered_statics <- List.filter (fun cf ->
 				let b = keep_field dce cf c true in
 				if not b then begin
 					if dce.debug then print_endline ("[DCE] Removed field " ^ (s_type_path c.cl_path) ^ "." ^ (cf.cf_name));
 					check_property cf true;
-					c.cl_statics <- PMap.remove cf.cf_name c.cl_statics;
+					cs.cl_statics <- PMap.remove cf.cf_name cs.cl_statics;
 				end;
 				b
-			) c.cl_ordered_statics;
-			c.cl_ordered_fields <- List.filter (fun cf ->
+			) cs.cl_ordered_statics;
+			cs.cl_ordered_fields <- List.filter (fun cf ->
 				let b = keep_field dce cf c false in
 				if not b then begin
 					if dce.debug then print_endline ("[DCE] Removed field " ^ (s_type_path c.cl_path) ^ "." ^ (cf.cf_name));
 					check_property cf false;
-					c.cl_fields <- PMap.remove cf.cf_name c.cl_fields;
+					cs.cl_fields <- PMap.remove cf.cf_name cs.cl_fields;
 				end;
 				b
-			) c.cl_ordered_fields;
-			(match c.cl_constructor with Some cf when not (keep_field dce cf c false) -> c.cl_constructor <- None | _ -> ());
+			) cs.cl_ordered_fields;
+			(match cs.cl_constructor with Some cf when not (keep_field dce cf c false) -> cs.cl_constructor <- None | _ -> ());
 			let inef cf = is_physical_field cf in
-			let has_non_extern_fields = List.exists inef c.cl_ordered_fields || List.exists inef c.cl_ordered_statics in
+			let has_non_extern_fields = List.exists inef cs.cl_ordered_fields || List.exists inef cs.cl_ordered_statics in
 			(* we keep a class if it was used or has a used field *)
 			if Meta.has Meta.Used c.cl_meta || has_non_extern_fields then loop (mt :: acc) l else begin
 				(match c.cl_init with
@@ -798,7 +806,7 @@ let run com main full =
 			c.cl_overrides <- List.filter (fun s ->
 				let rec loop c =
 					match c.cl_super with
-					| Some (csup,_) when PMap.mem s.cf_name csup.cl_fields -> true
+					| Some (csup,_) when PMap.mem s.cf_name (csup.cl_structure()).cl_fields -> true
 					| Some (csup,_) -> loop csup
 					| None -> false
 				in

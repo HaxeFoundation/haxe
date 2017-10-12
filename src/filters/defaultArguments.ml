@@ -153,7 +153,8 @@ let run com md =
 	match md with
 	| TClassDecl cl ->
 		let apply = change_func com cl in
-		List.iter apply cl.cl_ordered_fields;
-		List.iter apply cl.cl_ordered_statics;
-		Option.may apply cl.cl_constructor;
+		let cs = cl.cl_structure() in
+		List.iter apply cs.cl_ordered_fields;
+		List.iter apply cs.cl_ordered_statics;
+		Option.may apply cs.cl_constructor;
 	| _ -> ()

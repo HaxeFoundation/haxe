@@ -1026,9 +1026,10 @@ module Run = struct
 			| Var _ when not stat -> ()
 			| _ -> run_on_field ctx config c cf
 		in
-		List.iter (process_field false) c.cl_ordered_fields;
-		List.iter (process_field true) c.cl_ordered_statics;
-		begin match c.cl_constructor with
+		let cs = c.cl_structure() in
+		List.iter (process_field false) cs.cl_ordered_fields;
+		List.iter (process_field true) cs.cl_ordered_statics;
+		begin match cs.cl_constructor with
 			| None -> ()
 			| Some f -> process_field false f;
 		end;

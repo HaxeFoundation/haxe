@@ -42,7 +42,7 @@ open Gencommon
 		the ability to call super() constructor in any place in the constructor
 *)
 let rec cur_ctor c tl =
-	match c.cl_constructor with
+	match (c.cl_structure()).cl_constructor with
 	| Some ctor ->
 		ctor, c, tl
 	| None ->
@@ -58,7 +58,7 @@ let rec prev_ctor c tl =
 		raise Not_found
 	| Some (sup,stl) ->
 		let stl = List.map (apply_params c.cl_params tl) stl in
-		match sup.cl_constructor with
+		match (sup.cl_structure()).cl_constructor with
 		| None -> prev_ctor sup stl
 		| Some ctor -> ctor, sup, stl
 
@@ -76,7 +76,7 @@ let replace_super_call com c tl with_params me p follow_type =
 			let stl = List.map (apply_params c.cl_params tl) stl in
 			try
 				let static_ctor_name = make_static_ctor_name sup in
-				sup, stl, PMap.find static_ctor_name sup.cl_statics
+				sup, stl, PMap.find static_ctor_name (sup.cl_structure()).cl_statics
 			with Not_found ->
 				loop_super sup stl
 	in
@@ -188,12 +188,13 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 		| _ -> assert false in
 		static_ctor.cf_expr <- Some expr;
 		(* add to the statics *)
+		let cs = cl.cl_structure() in
 		(try
-			let stat = PMap.find static_ctor_name cl.cl_statics in
+			let stat = PMap.find static_ctor_name cs.cl_statics in
 			stat.cf_overloads <- static_ctor :: stat.cf_overloads
 		with | Not_found ->
-			cl.cl_ordered_statics <- static_ctor :: cl.cl_ordered_statics;
-			cl.cl_statics <- PMap.add static_ctor_name static_ctor cl.cl_statics);
+			cs.cl_ordered_statics <- static_ctor :: cs.cl_ordered_statics;
+			cs.cl_statics <- PMap.add static_ctor_name static_ctor cs.cl_statics);
 		(* change current super call *)
 		match ctor.cf_expr with
 		| Some({ eexpr = TFunction(tf) } as e) ->
@@ -307,7 +308,8 @@ let init com (empty_ctor_type : t) (empty_ctor_expr : texpr) (follow_type : t ->
 			(* implement static hx_ctor and reimplement constructors *)
 			(try
 				let ctor =
-					match cl.cl_constructor with
+					let cs = cl.cl_structure() in
+					match cs.cl_constructor with
 					| Some ctor ->
 						ctor
 					| None ->
@@ -315,7 +317,7 @@ let init com (empty_ctor_type : t) (empty_ctor_expr : texpr) (follow_type : t ->
 							let sctor, sup, stl = prev_ctor cl (List.map snd cl.cl_params) in
 							(* we'll make constructors that will only call super() *)
 							let ctor = clone_ctors com sctor sup stl cl in
-							cl.cl_constructor <- Some ctor;
+							cs.cl_constructor <- Some ctor;
 							ctor
 						with Not_found -> (* create default constructor *)
 							let ctor = mk_class_field "new" (TFun ([], basic.tvoid)) false cl.cl_pos (Method MethNormal) [] in
@@ -328,7 +330,7 @@ let init com (empty_ctor_type : t) (empty_ctor_expr : texpr) (follow_type : t ->
 								etype = ctor.cf_type;
 								epos = ctor.cf_pos;
 							};
-							cl.cl_constructor <- Some ctor;
+							cs.cl_constructor <- Some ctor;
 							ctor
 				in
 				(* now that we made sure we have a constructor, exit if native gen *)
@@ -397,9 +399,10 @@ let init com (empty_ctor_type : t) (empty_ctor_expr : texpr) (follow_type : t ->
 				};
 				ctor.cf_meta <- [Meta.SkipCtor, [], ctor.cf_pos];
 				Hashtbl.add empty_ctors cl.cl_path ctor;
-				match cl.cl_constructor with
+				let cs = cl.cl_structure() in
+				match cs.cl_constructor with
 				| None ->
-					cl.cl_constructor <- Some ctor
+					cs.cl_constructor <- Some ctor
 				| Some c ->
 					c.cf_overloads <- ctor :: c.cf_overloads
 			with Exit -> ());

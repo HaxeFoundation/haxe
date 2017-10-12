@@ -48,17 +48,18 @@ let run ~explicit_fn_name ~get_vmtype gen =
 	let implement_explicitly = is_some explicit_fn_name in
 	let run md = match md with
 		| TClassDecl ( { cl_interface = true; cl_extern = false } as c ) ->
+			let cs = c.cl_structure() in
 			(* overrides can be removed from interfaces *)
-			c.cl_ordered_fields <- List.filter (fun f ->
+			cs.cl_ordered_fields <- List.filter (fun f ->
 				try
 					if Meta.has Meta.Overload f.cf_meta then raise Not_found;
 					let f2 = Codegen.find_field gen.gcon c f in
 					if f2 == f then raise Not_found;
-					c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
+					cs.cl_fields <- PMap.remove f.cf_name cs.cl_fields;
 					false;
 				with Not_found ->
 					true
-			) c.cl_ordered_fields;
+			) cs.cl_ordered_fields;
 			md
 		| TClassDecl({ cl_extern = false } as c) ->
 			let this = { eexpr = TConst TThis; etype = TInst(c,List.map snd c.cl_params); epos = c.cl_pos } in
@@ -143,17 +144,18 @@ let run ~explicit_fn_name ~get_vmtype gen =
 									etype = real_ftype;
 									epos = p;
 								};
+								let cs = c.cl_structure() in
 								(try
-									let fm = PMap.find name c.cl_fields in
+									let fm = PMap.find name cs.cl_fields in
 									fm.cf_overloads <- newf :: fm.cf_overloads
 								with | Not_found ->
-									c.cl_fields <- PMap.add name newf c.cl_fields;
-									c.cl_ordered_fields <- newf :: c.cl_ordered_fields)
+									cs.cl_fields <- PMap.add name newf cs.cl_fields;
+									cs.cl_ordered_fields <- newf :: cs.cl_ordered_fields)
 							| _ -> assert false
 						end
 					with | Not_found -> ()
 				in
-				List.iter (fun f -> match f.cf_kind with | Var _ -> () | _ -> loop_f f) iface.cl_ordered_fields
+				List.iter (fun f -> match f.cf_kind with | Var _ -> () | _ -> loop_f f) (iface.cl_structure()).cl_ordered_fields
 			in
 			List.iter (fun (iface,itl) -> loop_iface iface itl) c.cl_implements;
 			(* now go through all overrides, *)

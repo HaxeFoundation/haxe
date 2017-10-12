@@ -190,7 +190,8 @@ let rec set_hxgeneric gen mds isfirst md =
 														if not (Hashtbl.mem gen.gtparam_cast e.e_path) then true else loop cfs
 													| _ -> loop cfs (* TAbstracts / Dynamics can't be generic *)
 									in
-									if loop cl.cl_ordered_fields then begin
+									let cs = cl.cl_structure() in
+									if loop cs.cl_ordered_fields then begin
 										cl.cl_meta <- (Meta.NativeGeneric, [], cl.cl_pos) :: cl.cl_meta;
 										Some false
 									end else if isfirst && !has_unresolved then
@@ -288,8 +289,9 @@ let set_hxgeneric gen md =
 				| KAbstractImpl a ->
 					List.iter set_hxgeneric a.a_params;
 				| _ -> ());
-			List.iter handle_field c.cl_ordered_fields;
-			List.iter handle_field c.cl_ordered_statics
+			let cs = c.cl_structure() in
+			List.iter handle_field cs.cl_ordered_fields;
+			List.iter handle_field cs.cl_ordered_statics
 		| _ -> ()
 	end;
 	ret
@@ -336,7 +338,7 @@ struct
 				| TEnum(e, ((_ :: _) as p)) when not (is_hxgeneric (TEnumDecl e)) && params_has_tparams p ->
 					(cf, apply_params cl.cl_params params_cl cf.cf_type, apply_params cl.cl_params params_cf cf.cf_type) :: acc
 				| _ -> acc
-		) [] cl.cl_ordered_fields in
+		) [] (cl.cl_structure()).cl_ordered_fields in
 		match cl.cl_super with
 			| Some(cs, tls) ->
 				get_fields gen cs (List.map (apply_params cl.cl_params params_cl) tls) (List.map (apply_params cl.cl_params params_cf) tls) (fields @ acc)
@@ -354,7 +356,7 @@ struct
 			if (level <> 0 || curcls.cl_interface) && params <> [] && is_hxgeneric (TClassDecl curcls) then begin
 				let cparams = List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) curcls.cl_params in
 				let name = get_cast_name curcls in
-				if not (PMap.mem name cl.cl_fields) then begin
+				if not (PMap.mem name (cl.cl_structure()).cl_fields) then begin
 					let reverse_params = List.map (apply_params curcls.cl_params params) reverse_params in
 					let cfield = mk_class_field name (TFun([], t_dynamic)) false cl.cl_pos (Method MethNormal) cparams in
 					let field = { eexpr = TField(this, FInstance(cl,List.map snd cl.cl_params, cast_cfield)); etype = apply_params cast_cfield.cf_params reverse_params cast_cfield.cf_type; epos = p } in
@@ -379,8 +381,9 @@ struct
 						}
 					in
 					gen.gafter_filters_ended <- delay :: gen.gafter_filters_ended; (* do not let filters alter this expression content *)
-					cl.cl_ordered_fields <- cfield :: cl.cl_ordered_fields;
-					cl.cl_fields <- PMap.add cfield.cf_name cfield cl.cl_fields;
+					let cs = cl.cl_structure() in
+					cs.cl_ordered_fields <- cfield :: cs.cl_ordered_fields;
+					cs.cl_fields <- PMap.add cfield.cf_name cfield cs.cl_fields;
 					if level <> 0 then cl.cl_overrides <- cfield :: cl.cl_overrides
 				end
 			end;
@@ -578,8 +581,9 @@ struct
 		in
 
 		let implement_stub_cast cthis iface tl =
+			let cs = cthis.cl_structure() in
 			let name = get_cast_name iface in
-			if not (PMap.mem name cthis.cl_fields) then begin
+			if not (PMap.mem name cs.cl_fields) then begin
 				let cparams = List.map (fun (s,t) -> ("To_" ^ s, TInst(map_param (get_cl_t t), []))) iface.cl_params in
 				let field = mk_class_field name (TFun([],t_dynamic)) false iface.cl_pos (Method MethNormal) cparams in
 				let this = { eexpr = TConst TThis; etype = TInst(cthis, List.map snd cthis.cl_params); epos = cthis.cl_pos } in
@@ -592,8 +596,8 @@ struct
 						tf_expr = mk_block (mk_return this)
 					}
 				};
-				cthis.cl_ordered_fields <- field :: cthis.cl_ordered_fields;
-				cthis.cl_fields <- PMap.add name field cthis.cl_fields
+				cs.cl_ordered_fields <- field :: cs.cl_ordered_fields;
+				cs.cl_fields <- PMap.add name field cs.cl_fields
 			end
 		in
 
@@ -640,17 +644,18 @@ struct
 						with | Not_found -> loop sup
 					in
 					loop cl;
-
-					(if not cl.cl_interface then cl.cl_ordered_fields <- cast_cf :: cl.cl_ordered_fields);
+					let cs = cl.cl_structure() in
+					(if not cl.cl_interface then cs.cl_ordered_fields <- cast_cf :: cs.cl_ordered_fields);
 					let iface_cf = mk_class_field name cast_cf.cf_type false cast_cf.cf_pos (Method MethNormal) cast_cf.cf_params in
 					let cast_static_cf, delay = create_static_cast_cf gen iface iface_cf in
-
-					cl.cl_ordered_statics <- cast_static_cf :: cl.cl_ordered_statics;
-					cl.cl_statics <- PMap.add cast_static_cf.cf_name cast_static_cf cl.cl_statics;
+					let cs = cl.cl_structure() in
+					cs.cl_ordered_statics <- cast_static_cf :: cs.cl_ordered_statics;
+					cs.cl_statics <- PMap.add cast_static_cf.cf_name cast_static_cf cs.cl_statics;
 					gen.gafter_filters_ended <- delay :: gen.gafter_filters_ended; (* do not let filters alter this expression content *)
 
 					iface_cf.cf_type <- cast_cf.cf_type;
-					iface.cl_fields <- PMap.add name iface_cf iface.cl_fields;
+					let is = iface.cl_structure() in
+					is.cl_fields <- PMap.add name iface_cf is.cl_fields;
 					let fields = List.filter (fun cf -> match cf.cf_kind with
 						| Var _ | Method MethDynamic -> false
 						| _ ->
@@ -664,12 +669,12 @@ struct
 							in
 
 							not (has_type_params cf_type)
-						) cl.cl_ordered_fields
+						) cs.cl_ordered_fields
 					in
 					let fields = List.map (fun f -> mk_class_field f.cf_name f.cf_type f.cf_public f.cf_pos f.cf_kind f.cf_params) fields in
 					let fields = iface_cf :: fields in
-					iface.cl_ordered_fields <- fields;
-					List.iter (fun f -> iface.cl_fields <- PMap.add f.cf_name f iface.cl_fields) fields;
+					is.cl_ordered_fields <- fields;
+					List.iter (fun f -> is.cl_fields <- PMap.add f.cf_name f is.cl_fields) fields;
 
 					add_iface iface;
 					md

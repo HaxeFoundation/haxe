@@ -40,6 +40,7 @@ let configure gen =
 	let run md =
 		match md with
 		| TClassDecl ({ cl_interface = true } as cl) ->
+			let cs = cl.cl_structure() in
 			let to_add = ref [] in
 			let fields = List.filter (fun cf ->
 				match cf.cf_kind with
@@ -58,23 +59,23 @@ let configure gen =
 							to_add := newcf :: !to_add;
 						| _ -> ()
 					);
-					cl.cl_fields <- PMap.remove cf.cf_name cl.cl_fields;
+					cs.cl_fields <- PMap.remove cf.cf_name cs.cl_fields;
 					false
 				| Method MethDynamic ->
 					(* TODO OPTIMIZATION - add a `_dispatch` method to the interface which will call the dynamic function itself *)
-					cl.cl_fields <- PMap.remove cf.cf_name cl.cl_fields;
+					cs.cl_fields <- PMap.remove cf.cf_name cs.cl_fields;
 					false
 				| _ ->
 					true
-			) cl.cl_ordered_fields in
+			) cs.cl_ordered_fields in
 
-			cl.cl_ordered_fields <- fields;
+			cs.cl_ordered_fields <- fields;
 
 			List.iter (fun cf ->
 				match field_access gen (TInst(cl,List.map snd cl.cl_params)) cf.cf_name with
 				| FNotFound | FDynamicField _ ->
-					cl.cl_ordered_fields <- cf :: cl.cl_ordered_fields;
-					cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields
+					cs.cl_ordered_fields <- cf :: cs.cl_ordered_fields;
+					cs.cl_fields <- PMap.add cf.cf_name cf cs.cl_fields
 				| _ ->
 					()
 			) !to_add

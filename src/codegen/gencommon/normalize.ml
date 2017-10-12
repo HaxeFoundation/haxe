@@ -81,9 +81,10 @@ let type_filter = function
 			cf.cf_type <- filter_param cf.cf_type;
 			List.iter map cf.cf_overloads
 		in
-		List.iter map cl.cl_ordered_fields;
-		List.iter map cl.cl_ordered_statics;
-		Option.may map cl.cl_constructor
+		let cs = cl.cl_structure() in
+		List.iter map cs.cl_ordered_fields;
+		List.iter map cs.cl_ordered_statics;
+		Option.may map cs.cl_constructor
 	| _ ->
 		()
 

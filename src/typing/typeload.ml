@@ -935,19 +935,19 @@ let check_overriding ctx c f =
 			List.iter (fun f ->
 				(* find the exact field being overridden *)
 				check_field f (fun csup i ->
-					List.find (fun (t,f2) ->
-						Overloads.same_overload_args f.cf_type (apply_params csup.cl_params params t) f f2
-					) overloads
-				) true
-			) (f :: f.cf_overloads)
-		end else
-			check_field f (fun csup i ->
-				let _, t, f2 = raw_class_field (fun f -> f.cf_type) csup params i in
-				t, f2) false
+						List.find (fun (t,f2) ->
+							Overloads.same_overload_args f.cf_type (apply_params csup.cl_params params t) f f2
+						) overloads
+					) true
+				) (f :: f.cf_overloads)
+			end else
+				check_field f (fun csup i ->
+					let _, t, f2 = raw_class_field (fun f -> f.cf_type) csup params i in
+					t, f2) false
 
 let class_field_no_interf c i =
 	try
-		let f = PMap.find i c.cl_fields in
+		let f = PMap.find i (c.cl_structure()).cl_fields in
 		f.cf_type , f
 	with Not_found ->
 		match c.cl_super with
@@ -1208,8 +1208,21 @@ let check_strict_meta ctx metas =
 (**** end of strict meta handling *****)
 
 let add_constructor ctx c force_constructor p =
-	match c.cl_constructor, c.cl_super with
-	| None, Some ({ cl_constructor = Some cfsup } as csup,cparams) when not c.cl_extern ->
+	let cs = c.cl_structure() in
+	let add_forced_constructor () =
+		let constr = mk (TFunction {
+			tf_args = [];
+			tf_type = ctx.t.tvoid;
+			tf_expr = mk (TBlock []) ctx.t.tvoid p;
+		}) (tfun [] ctx.t.tvoid) p in
+		let cf = mk_field "new" constr.etype p null_pos in
+		cf.cf_expr <- Some constr;
+		cf.cf_type <- constr.etype;
+		cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos];
+		cf.cf_kind <- Method MethNormal;
+		cs.cl_constructor <- Some cf;
+	in
+	let inherit_constructor csup cparams cfsup =
 		let cf = {
 			cfsup with
 			cf_pos = p;
@@ -1265,24 +1278,27 @@ let add_constructor ctx c force_constructor p =
 			t
 		) "add_constructor" in
 		cf.cf_type <- TLazy r;
-		c.cl_constructor <- Some cf;
-	| None,_ when force_constructor ->
-		let constr = mk (TFunction {
-			tf_args = [];
-			tf_type = ctx.t.tvoid;
-			tf_expr = mk (TBlock []) ctx.t.tvoid p;
-		}) (tfun [] ctx.t.tvoid) p in
-		let cf = mk_field "new" constr.etype p null_pos in
-		cf.cf_expr <- Some constr;
-		cf.cf_type <- constr.etype;
-		cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos];
-		cf.cf_kind <- Method MethNormal;
-		c.cl_constructor <- Some cf;
-	| _ ->
-		(* nothing to do *)
+		cs.cl_constructor <- Some cf;
+	in
+	match cs.cl_constructor with
+	| Some _ ->
 		()
+	| None ->
+		if c.cl_extern then begin
+			if force_constructor then add_forced_constructor ()
+		end else match c.cl_super with
+		| Some(csup,cparams) ->
+			begin match (csup.cl_structure()).cl_constructor with
+			| Some cfsup -> inherit_constructor csup cparams cfsup
+			| None when force_constructor -> add_forced_constructor()
+			| None -> ()
+			end
+		| None when force_constructor -> add_forced_constructor()
+		| None -> ()
 
-let check_struct_init_constructor ctx c p = match c.cl_constructor with
+let check_struct_init_constructor ctx c p =
+	let cs = c.cl_structure() in
+	match cs.cl_constructor with
 	| Some _ ->
 		()
 	| None ->
@@ -1299,7 +1315,7 @@ let check_struct_init_constructor ctx c p = match c.cl_constructor with
 				(v,None) :: args,e :: el,(cf.cf_name,opt,t) :: tl
 			| Method _ ->
 				args,el,tl
-		) ([],[],[]) (List.rev c.cl_ordered_fields) in
+		) ([],[],[]) (List.rev cs.cl_ordered_fields) in
 		let tf = {
 			tf_args = args;
 			tf_type = ctx.t.tvoid;
@@ -1311,7 +1327,7 @@ let check_struct_init_constructor ctx c p = match c.cl_constructor with
 		cf.cf_type <- e.etype;
 		cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos];
 		cf.cf_kind <- Method MethNormal;
-		c.cl_constructor <- Some cf
+		cs.cl_constructor <- Some cf
 
 module Inheritance = struct
 	let check_extends ctx c t p = match follow t with
@@ -1386,7 +1402,7 @@ module Inheritance = struct
 					display_error ctx msg p
 				| Not_found -> ()
 		in
-		PMap.iter check_field intf.cl_fields;
+		PMap.iter check_field (intf.cl_structure()).cl_fields;
 		List.iter (fun (i2,p2) ->
 			check_interface ctx c i2 (List.map (apply_params intf.cl_params params) p2)
 		) intf.cl_implements
@@ -1643,7 +1659,7 @@ let type_function ctx args ret fmode f do_display p =
 				Hashtbl.add final_vars cf.cf_name cf
 			| _ ->
 				()
-		) ctx.curclass.cl_ordered_fields;
+		) (ctx.curclass.cl_structure()).cl_ordered_fields;
 		if Hashtbl.length final_vars > 0 then begin
 			let rec find_inits e = match e.eexpr with
 				| TBinop(OpAssign,{eexpr = TField({eexpr = TConst TThis},fa)},e2) ->
@@ -1777,9 +1793,11 @@ let init_core_api ctx c =
 			if f.cf_public && not (Meta.has Meta.Hack f.cf_meta) && not (PMap.mem f.cf_name fcore) && not (List.memq f c.cl_overrides) then error ("Public field " ^ i ^ " is not part of core type") p;
 		) fl;
 	in
-	check_fields ccore.cl_fields c.cl_fields;
-	check_fields ccore.cl_statics c.cl_statics;
-	(match ccore.cl_constructor, c.cl_constructor with
+	let ccores = ccore.cl_structure() in
+	let cs = c.cl_structure() in
+	check_fields ccores.cl_fields cs.cl_fields;
+	check_fields ccores.cl_statics cs.cl_statics;
+	(match ccores.cl_constructor, cs.cl_constructor with
 	| None, None -> ()
 	| Some { cf_public = false }, _ -> ()
 	| Some f, Some f2 -> compare_fields f f2
@@ -2075,17 +2093,18 @@ module ClassInitializer = struct
 		| None -> None
 		| Some (csup,_) ->
 			try
-				Some (PMap.find name csup.cl_fields)
+				Some (PMap.find name (csup.cl_structure()).cl_fields)
 			with
 				Not_found -> get_parent csup name
 
 	let add_field c cf is_static =
+		let cs = c.cl_structure() in
 		if is_static then begin
-			c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
-			c.cl_ordered_statics <- cf :: c.cl_ordered_statics;
+			cs.cl_statics <- PMap.add cf.cf_name cf cs.cl_statics;
+			cs.cl_ordered_statics <- cf :: cs.cl_ordered_statics;
 		end else begin
-			c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
-			c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
+			cs.cl_fields <- PMap.add cf.cf_name cf cs.cl_fields;
+			cs.cl_ordered_fields <- cf :: cs.cl_ordered_fields;
 		end
 
 	let type_opt (ctx,cctx) p t =
@@ -2179,7 +2198,7 @@ module ClassInitializer = struct
 		let p = cf.cf_pos in
 		let rec get_declared f = function
 			| None -> None
-			| Some (c,a) when PMap.exists f c.cl_fields ->
+			| Some (c,a) when PMap.exists f (c.cl_structure()).cl_fields ->
 				Some (c,a)
 			| Some (c,_) ->
 				let ret = get_declared f c.cl_super in
@@ -2342,6 +2361,7 @@ module ClassInitializer = struct
 		cf
 
 	let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
+		let cs = c.cl_structure() in
 		match cctx.abstract with
 			| Some a ->
 				let m = mk_mono() in
@@ -2373,7 +2393,7 @@ module ClassInitializer = struct
 							r := lazy_processing (fun () -> t);
 							let args = if Meta.has Meta.MultiType a.a_meta then begin
 								let ctor = try
-									PMap.find "_new" c.cl_statics
+									PMap.find "_new" cs.cl_statics
 								with Not_found ->
 									error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
 								in
@@ -2612,6 +2632,7 @@ module ClassInitializer = struct
 		cf
 
 	let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
+		let cs = c.cl_structure() in
 		let name = fst f.cff_name in
 		(match cctx.abstract with
 		| Some a when fctx.is_abstract_member ->
@@ -2634,13 +2655,13 @@ module ClassInitializer = struct
 			(* on pf_overload platforms, the getter/setter may have been defined as an overloaded function; get all overloads *)
 			if ctx.com.config.pf_overload then
 				if fctx.is_static then
-					let f = PMap.find m c.cl_statics in
+					let f = PMap.find m cs.cl_statics in
 					(f.cf_type, f) :: (List.map (fun f -> f.cf_type, f) f.cf_overloads)
 				else
 					Overloads.get_overloads c m
 			else
 				[ if fctx.is_static then
-					let f = PMap.find m c.cl_statics in
+					let f = PMap.find m cs.cl_statics in
 					f.cf_type, f
 				else match class_field c (List.map snd c.cl_params) m with
 					| _, t,f -> t,f ]
@@ -2689,11 +2710,11 @@ module ClassInitializer = struct
 						let cf = mk_field m t p null_pos in
 						cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos];
 						cf.cf_kind <- Method MethNormal;
-						c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
-						c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
+						cs.cl_fields <- PMap.add cf.cf_name cf cs.cl_fields;
+						cs.cl_ordered_fields <- cf :: cs.cl_ordered_fields;
 					end else if not c.cl_extern then begin
 						try
-							let _, _, f2 = (if not fctx.is_static then let f = PMap.find m c.cl_statics in None, f.cf_type, f else class_field c (List.map snd c.cl_params) m) in
+							let _, _, f2 = (if not fctx.is_static then let f = PMap.find m cs.cl_statics in None, f.cf_type, f else class_field c (List.map snd c.cl_params) m) in
 							display_error ctx (Printf.sprintf "Method %s is no valid accessor for %s because it is %sstatic" m (name) (if fctx.is_static then "not " else "")) f2.cf_pos
 						with Not_found ->
 							display_error ctx ("Method " ^ m ^ " required by property " ^ name ^ " is missing") p
@@ -2768,6 +2789,7 @@ module ClassInitializer = struct
 			create_property (ctx,cctx,fctx) c f (get,set,t,eo) p
 
 	let check_overloads ctx c =
+		let cs = c.cl_structure() in
 		(* check if field with same signature was declared more than once *)
 		List.iter (fun f ->
 			if Meta.has Meta.Overload f.cf_meta then
@@ -2776,9 +2798,10 @@ module ClassInitializer = struct
 						ignore (List.find (fun f3 -> f3 != f2 && Overloads.same_overload_args f2.cf_type f3.cf_type f2 f3) (f :: f.cf_overloads));
 						display_error ctx ("Another overloaded field of same signature was already declared : " ^ f2.cf_name) f2.cf_pos
 					with | Not_found -> ()
-			) (f :: f.cf_overloads)) (c.cl_ordered_fields @ c.cl_ordered_statics)
+			) (f :: f.cf_overloads)) (cs.cl_ordered_fields @ cs.cl_ordered_statics)
 
 	let init_class ctx c p context_init herits fields =
+		let cs = c.cl_structure() in
 		let ctx,cctx = create_class_context ctx c context_init p in
 		if cctx.is_class_debug then print_endline ("Created class context: " ^ dump_class_context cctx);
 		let fields = patch_class ctx c fields in
@@ -2790,7 +2813,8 @@ module ClassInitializer = struct
 		let rec has_field f = function
 			| None -> false
 			| Some (c,_) ->
-				PMap.exists f c.cl_fields || has_field f c.cl_super || List.exists (fun i -> has_field f (Some i)) c.cl_implements
+				let cs = c.cl_structure() in
+				PMap.exists f cs.cl_fields || has_field f c.cl_super || List.exists (fun i -> has_field f (Some i)) c.cl_implements
 		in
 		let rec check_require = function
 			| [] -> None
@@ -2839,9 +2863,9 @@ module ClassInitializer = struct
 				| Some r -> cf.cf_kind <- Var { v_read = AccRequire (fst r, snd r); v_write = AccRequire (fst r, snd r) });
 				begin match fctx.field_kind with
 				| FKConstructor ->
-					begin match c.cl_constructor with
+					begin match cs.cl_constructor with
 					| None ->
-							c.cl_constructor <- Some cf
+							cs.cl_constructor <- Some cf
 					| Some ctor when ctx.com.config.pf_overload ->
 							if Meta.has Meta.Overload cf.cf_meta && Meta.has Meta.Overload ctor.cf_meta then
 								ctor.cf_overloads <- cf :: ctor.cf_overloads
@@ -2853,13 +2877,13 @@ module ClassInitializer = struct
 				| FKInit ->
 					()
 				| FKNormal ->
-					let dup = if fctx.is_static then PMap.exists cf.cf_name c.cl_fields || has_field cf.cf_name c.cl_super else PMap.exists cf.cf_name c.cl_statics in
+					let dup = if fctx.is_static then PMap.exists cf.cf_name cs.cl_fields || has_field cf.cf_name c.cl_super else PMap.exists cf.cf_name cs.cl_statics in
 					if not cctx.is_native && not c.cl_extern && dup then error ("Same field name can't be use for both static and instance : " ^ cf.cf_name) p;
 					if fctx.is_override then c.cl_overrides <- cf :: c.cl_overrides;
 					let is_var f = match cf.cf_kind with | Var _ -> true | _ -> false in
-					if PMap.mem cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) then
+					if PMap.mem cf.cf_name (if fctx.is_static then cs.cl_statics else cs.cl_fields) then
 						if ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta && not (is_var f) then
-							let mainf = PMap.find cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) in
+							let mainf = PMap.find cf.cf_name (if fctx.is_static then cs.cl_statics else cs.cl_fields) in
 							if is_var mainf then display_error ctx "Cannot declare a variable with same name as a method" mainf.cf_pos;
 							(if not (Meta.has Meta.Overload mainf.cf_meta) then display_error ctx ("Overloaded methods must have @:overload metadata") mainf.cf_pos);
 							mainf.cf_overloads <- cf :: mainf.cf_overloads
@@ -2879,13 +2903,13 @@ module ClassInitializer = struct
 			a.a_unops <- List.rev a.a_unops;
 			a.a_array <- List.rev a.a_array;
 		| None -> ());
-		c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
-		c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
+		cs.cl_ordered_statics <- List.rev cs.cl_ordered_statics;
+		cs.cl_ordered_fields <- List.rev cs.cl_ordered_fields;
 		(*
 			make sure a default contructor with same access as super one will be added to the class structure at some point.
 		*)
 		begin match cctx.uninitialized_final with
-			| Some pf when c.cl_constructor = None ->
+			| Some pf when cs.cl_constructor = None ->
 				display_error ctx "This class has uninitialized final vars, which requires a constructor" p;
 				error "Example of an uninitialized final var" pf
 			| _ ->
@@ -2895,7 +2919,7 @@ module ClassInitializer = struct
 		if not ctx.com.config.pf_overload then add_constructor ctx c cctx.force_constructor p;
 		if Meta.has Meta.StructInit c.cl_meta then check_struct_init_constructor ctx c p;
 		(* check overloaded constructors *)
-		(if ctx.com.config.pf_overload && not cctx.is_lib then match c.cl_constructor with
+		(if ctx.com.config.pf_overload && not cctx.is_lib then match cs.cl_constructor with
 		| Some ctor ->
 			delay ctx PTypeField (fun() ->
 				List.iter (fun f ->
@@ -2952,8 +2976,8 @@ let handle_path_display ctx path p =
 			let m = ctx.g.do_load_module ctx (sl,sm) p in
 			List.iter (fun t -> match t with
 				| TClassDecl c when snd c.cl_path = st ->
-					ignore(c.cl_build());
-					let cf = PMap.find sf c.cl_statics in
+					let cs = c.cl_structure() in
+					let cf = PMap.find sf cs.cl_statics in
 					Display.DisplayEmitter.display_field ctx.com.display cf p
 				| _ ->
 					()
@@ -3031,8 +3055,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 				let name = (match name with None -> s | Some n -> n) in
 				match resolve_typedef t with
 				| TClassDecl c ->
-					ignore(c.cl_build());
-					ignore(PMap.find s c.cl_statics);
+					let cs = c.cl_structure() in
+					ignore(PMap.find s cs.cl_statics);
 					ctx.m.module_globals <- PMap.add name (TClassDecl c,s,p) ctx.m.module_globals
 				| TEnumDecl e ->
 					ignore(PMap.find s e.e_constrs);
@@ -3088,7 +3112,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 					| TClassDecl c
 					| TAbstractDecl {a_impl = Some c} ->
 						ignore(c.cl_build());
-						PMap.iter (fun _ cf -> if not (has_meta Meta.NoImportGlobal cf.cf_meta) then ctx.m.module_globals <- PMap.add cf.cf_name (TClassDecl c,cf.cf_name,p) ctx.m.module_globals) c.cl_statics
+						PMap.iter (fun _ cf -> if not (has_meta Meta.NoImportGlobal cf.cf_meta) then ctx.m.module_globals <- PMap.add cf.cf_name (TClassDecl c,cf.cf_name,p) ctx.m.module_globals) (c.cl_structure()).cl_statics
 					| TEnumDecl e ->
 						PMap.iter (fun _ c -> if not (has_meta Meta.NoImportGlobal c.ef_meta) then ctx.m.module_globals <- PMap.add c.ef_name (TEnumDecl e,c.ef_name,p) ctx.m.module_globals) e.e_constrs
 					| _ ->
@@ -3189,9 +3213,10 @@ let init_module_type ctx context_init do_init (decl,p) =
 					if metas <> [] then cf.cf_meta <- metas @ cf.cf_meta;
 					List.iter run_field cf.cf_overloads
 				in
-				List.iter run_field c.cl_ordered_statics;
-				List.iter run_field c.cl_ordered_fields;
-				match c.cl_constructor with
+				let cs = c.cl_structure() in
+				List.iter run_field cs.cl_ordered_statics;
+				List.iter run_field cs.cl_ordered_fields;
+				match cs.cl_constructor with
 					| Some f -> run_field f
 					| _ -> ()
 			);
@@ -3816,6 +3841,7 @@ let get_short_name =
 	)
 
 let rec build_generic ctx c p tl =
+	let cs = c.cl_structure() in
 	let pack = fst c.cl_path in
 	let recurse = ref false in
 	let rec check_recursive t =
@@ -3851,6 +3877,7 @@ let rec build_generic ctx c p tl =
 		} in
 		gctx.mg <- Some mg;
 		let cg = mk_class mg (pack,name) c.cl_pos null_pos in
+		let cgs = cg.cl_structure() in
 		mg.m_types <- [TClassDecl cg];
 		Hashtbl.add ctx.g.modules mg.m_path mg;
 		add_dependency mg m;
@@ -3935,7 +3962,7 @@ let rec build_generic ctx c p tl =
 		List.iter (fun cf -> match cf.cf_kind with
 			| Method MethMacro when not ctx.in_macro -> ()
 			| _ -> error "A generic class can't have static fields" cf.cf_pos
-		) c.cl_ordered_statics;
+		) cs.cl_ordered_statics;
 		cg.cl_super <- (match c.cl_super with
 			| None -> None
 			| Some (cs,pl) ->
@@ -3953,7 +3980,7 @@ let rec build_generic ctx c p tl =
 		cg.cl_meta <- (Meta.NoDoc,[],null_pos) :: cg.cl_meta;
 		if has_meta Meta.Keep c.cl_meta then cg.cl_meta <- (Meta.Keep,[],null_pos) :: cg.cl_meta;
 		cg.cl_interface <- c.cl_interface;
-		cg.cl_constructor <- (match cg.cl_constructor, c.cl_constructor, c.cl_super with
+		cgs.cl_constructor <- (match cgs.cl_constructor, cs.cl_constructor, c.cl_super with
 			| _, Some cf, _ -> Some (build_field cf)
 			| Some ctor, _, _ -> Some ctor
 			| None, None, None -> None
@@ -3964,13 +3991,13 @@ let rec build_generic ctx c p tl =
 			| TInst (i,tl) -> i, tl
 			| _ -> assert false)
 		) c.cl_implements;
-		cg.cl_ordered_fields <- List.map (fun f ->
+		cgs.cl_ordered_fields <- List.map (fun f ->
 			let f = build_field f in
-			cg.cl_fields <- PMap.add f.cf_name f cg.cl_fields;
+			cgs.cl_fields <- PMap.add f.cf_name f cgs.cl_fields;
 			f
-		) c.cl_ordered_fields;
+		) cs.cl_ordered_fields;
 		cg.cl_overrides <- List.map (fun f ->
-			try PMap.find f.cf_name cg.cl_fields with Not_found -> assert false
+			try PMap.find f.cf_name cgs.cl_fields with Not_found -> assert false
 		) c.cl_overrides;
 		(* In rare cases the class name can become too long, so let's shorten it (issue #3090). *)
 		if String.length (snd cg.cl_path) > 254 then begin
@@ -3993,7 +4020,7 @@ let get_macro_path ctx e args p =
 	let path = match e with
 		| (EConst(Ident i)),_ ->
 			let path = try
-				if not (PMap.mem i ctx.curclass.cl_statics) then raise Not_found;
+				if not (PMap.mem i (ctx.curclass.cl_structure()).cl_statics) then raise Not_found;
 				ctx.curclass.cl_path
 			with Not_found -> try
 				(t_infos (let path,_,_ = PMap.find i ctx.m.module_globals in path)).mt_path

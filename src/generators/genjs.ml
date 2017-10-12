@@ -625,7 +625,7 @@ and gen_expr ctx e =
 	| TNew ({ cl_path = [],"Array" },_,[]) ->
 		print ctx "[]"
 	| TNew (c,_,el) ->
-		(match c.cl_constructor with
+		(match (c.cl_structure()).cl_constructor with
 		| Some cf when Meta.has Meta.SelfCall cf.cf_meta -> ()
 		| _ -> print ctx "new ");
 		print ctx "%s(" (ctx.type_accessor (TClassDecl c));
@@ -1104,7 +1104,7 @@ let generate_class ctx c =
 			(* abstract implementations only contain static members and don't need to have constructor functions *)
 			print ctx "{}"; ctx.separator <- true
 		| _ ->
-			(match c.cl_constructor with
+			(match (c.cl_structure()).cl_constructor with
 			| Some { cf_expr = Some e } -> gen_expr ctx e
 			| _ -> (print ctx "function() { }"); ctx.separator <- true)
 	);
@@ -1126,8 +1126,9 @@ let generate_class ctx c =
 	let has_property_reflection =
 		(has_feature ctx "Reflect.getProperty") || (has_feature ctx "Reflect.setProperty") in
 
+	let cs = c.cl_structure() in
 	if has_property_reflection then begin
-		(match Codegen.get_properties c.cl_ordered_statics with
+		(match Codegen.get_properties cs.cl_ordered_statics with
 		| [] -> ()
 		| props ->
 			print ctx "%s.__properties__ = {%s}" p (gen_props props);
@@ -1135,10 +1136,10 @@ let generate_class ctx c =
 			newline ctx);
 	end;
 
-	List.iter (gen_class_static_field ctx c) c.cl_ordered_statics;
+	List.iter (gen_class_static_field ctx c) cs.cl_ordered_statics;
 
-	let has_class = has_feature ctx "js.Boot.getClass" && (c.cl_super <> None || c.cl_ordered_fields <> [] || c.cl_constructor <> None) in
-	let has_prototype = c.cl_super <> None || has_class || List.exists (can_gen_class_field ctx) c.cl_ordered_fields in
+	let has_class = has_feature ctx "js.Boot.getClass" && (c.cl_super <> None || cs.cl_ordered_fields <> [] || cs.cl_constructor <> None) in
+	let has_prototype = c.cl_super <> None || has_class || List.exists (can_gen_class_field ctx) cs.cl_ordered_fields in
 	if has_prototype then begin
 		(match c.cl_super with
 		| None -> print ctx "%s.prototype = {" p;
@@ -1150,14 +1151,14 @@ let generate_class ctx c =
 		);
 
 		let bend = open_block ctx in
-		List.iter (fun f -> if can_gen_class_field ctx f then gen_class_field ctx c f) c.cl_ordered_fields;
+		List.iter (fun f -> if can_gen_class_field ctx f then gen_class_field ctx c f) cs.cl_ordered_fields;
 		if has_class then begin
 			newprop ctx;
 			print ctx "__class__: %s" p;
 		end;
 
 		if has_property_reflection then begin
-			let props = Codegen.get_properties c.cl_ordered_fields in
+			let props = Codegen.get_properties cs.cl_ordered_fields in
 			(match c.cl_super with
 			| _ when props = [] -> ()
 			| Some (csup,_) when Codegen.has_properties csup ->
@@ -1283,7 +1284,7 @@ let generate_type ctx = function
 		let p = s_path ctx c.cl_path in
 		if p = "Math" then generate_class___name__ ctx c;
 		(* Another special case for Std because we do not want to generate it if it's empty. *)
-		if p = "Std" && c.cl_ordered_statics = [] then
+		if p = "Std" && (c.cl_structure()).cl_ordered_statics = [] then
 			()
 		else if not c.cl_extern then
 			generate_class ctx c
@@ -1378,7 +1379,7 @@ let generate com =
 				let class_exposed = get_exposed ctx path c.cl_meta in
 				let static_exposed = List.map (fun f ->
 					get_exposed ctx (path ^ static_field c f.cf_name) f.cf_meta
-				) c.cl_ordered_statics in
+				) (c.cl_structure()).cl_ordered_statics in
 				List.concat (class_exposed :: static_exposed)
 			| _ -> []
 		) com.types) in

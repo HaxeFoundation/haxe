@@ -479,7 +479,7 @@ and field_type ctx f p =
 		let creal = resolve_class ctx c pl false in
 		let rec loop c =
 			try
-				PMap.find f.cf_name c.cl_fields
+				PMap.find f.cf_name (c.cl_structure()).cl_fields
 			with Not_found ->
 				match c.cl_super with
 				| Some (csup,_) -> loop csup
@@ -534,7 +534,7 @@ and class_type ?(tref=None) ctx c pl statics =
 		ctx.cached_types <- PMap.add c.cl_path t ctx.cached_types;
 		let rec loop c =
 			let fields = List.fold_left (fun acc (i,_) -> loop i @ acc) [] c.cl_implements in
-			PMap.fold (fun cf acc -> (cf.cf_name,alloc_string ctx cf.cf_name,to_type ctx cf.cf_type) :: acc) c.cl_fields fields
+			PMap.fold (fun cf acc -> (cf.cf_name,alloc_string ctx cf.cf_name,to_type ctx cf.cf_type) :: acc) (c.cl_structure()).cl_fields fields
 		in
 		let fields = loop c in
 		vp.vfields <- Array.of_list fields;
@@ -582,6 +582,7 @@ and class_type ?(tref=None) ctx c pl statics =
 		) in
 		let fa = DynArray.create() and pa = DynArray.create() and virtuals = DynArray.of_array virtuals in
 		let todo = ref [] in
+		let cs = c.cl_structure() in
 		List.iter (fun f ->
 			if is_extern_field f || (statics && f.cf_name = "__meta__") then () else
 			let fid = (match f.cf_kind with
@@ -618,7 +619,7 @@ and class_type ?(tref=None) ctx c pl statics =
 			match f.cf_kind, fid with
 			| Method _, Some fid -> p.pbindings <- (fid, alloc_fun_path ctx c.cl_path f.cf_name) :: p.pbindings
 			| _ -> ()
-		) (if statics then c.cl_ordered_statics else c.cl_ordered_fields);
+		) (if statics then cs.cl_ordered_statics else cs.cl_ordered_fields);
 		if not statics then begin
 			(* add interfaces *)
 			List.iter (fun (i,pl) ->
@@ -629,13 +630,13 @@ and class_type ?(tref=None) ctx c pl statics =
 			) c.cl_implements;
 			(* check toString *)
 			(try
-				let cf = PMap.find "toString" c.cl_fields in
-				if List.memq cf c.cl_overrides || PMap.mem "__string" c.cl_fields || not (is_to_string cf.cf_type) then raise Not_found;
+				let cf = PMap.find "toString" cs.cl_fields in
+				if List.memq cf c.cl_overrides || PMap.mem "__string" cs.cl_fields || not (is_to_string cf.cf_type) then raise Not_found;
 				DynArray.add pa { fname = "__string"; fid = alloc_string ctx "__string"; fmethod = alloc_fun_path ctx c.cl_path "__string"; fvirtual = None; }
 			with Not_found ->
 				());
 		end else begin
-			(match c.cl_constructor with
+			(match cs.cl_constructor with
 			| Some f when not (is_extern_field f) ->
 				p.pbindings <- ((try fst (get_index "__constructor__" p) with Not_found -> assert false),alloc_fid ctx c f) :: p.pbindings
 			| _ -> ());
@@ -1226,7 +1227,7 @@ and get_access ctx e =
 		| FInstance (cdef,pl,f), TInst (c,_) when direct_method_call ctx c f ethis ->
 			(* cdef is the original definition, we want the last redefinition *)
 			let rec loop c =
-				if PMap.mem f.cf_name c.cl_fields then c else (match c.cl_super with None -> cdef | Some (c,_) -> loop c)
+				if PMap.mem f.cf_name (c.cl_structure()).cl_fields then c else (match c.cl_super with None -> cdef | Some (c,_) -> loop c)
 			in
 			let last_def = loop c in
 			AInstanceFun (ethis, alloc_fid ctx (resolve_class ctx last_def pl false) f)
@@ -1506,7 +1507,7 @@ and eval_expr ctx e =
 	| TCall ({ eexpr = TConst TSuper } as s, el) ->
 		(match follow s.etype with
 		| TInst (csup,_) ->
-			(match csup.cl_constructor with
+			(match (csup.cl_structure()).cl_constructor with
 			| None -> assert false
 			| Some f ->
 				let r = alloc_tmp ctx HVoid in
@@ -2086,7 +2087,7 @@ and eval_expr ctx e =
 		let r = alloc_tmp ctx (class_type ctx c pl false) in
 		op ctx (ONew r);
 		hold ctx r;
-		(match c.cl_constructor with
+		(match (c.cl_structure()).cl_constructor with
 		| None -> if c.cl_implements <> [] then assert false
 		| Some { cf_expr = None } -> abort (s_type_path c.cl_path ^ " does not have a constructor") e.epos
 		| Some ({ cf_expr = Some cexpr } as constr) ->
@@ -3107,6 +3108,7 @@ let generate_static ctx c f =
 
 
 let rec generate_member ctx c f =
+	let cs = c.cl_structure() in
 	match f.cf_kind with
 	| Var _ -> ()
 	| _ when is_extern_field f -> ()
@@ -3131,15 +3133,15 @@ let rec generate_member ctx c f =
 					op ctx (OInstanceClosure (r,alloc_fid ctx c f,0));
 					op ctx (OSetThis (fid,r));
 				| _ -> ()
-			) c.cl_ordered_fields;
+			) cs.cl_ordered_fields;
 		) in
 		ignore(make_fun ?gen_content ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> abort "Missing function body" f.cf_pos) (Some c) None);
-		if f.cf_name = "toString" && not (List.memq f c.cl_overrides) && not (PMap.mem "__string" c.cl_fields) && is_to_string f.cf_type then begin
+		if f.cf_name = "toString" && not (List.memq f c.cl_overrides) && not (PMap.mem "__string" cs.cl_fields) && is_to_string f.cf_type then begin
 			let p = f.cf_pos in
 			(* function __string() return this.toString().bytes *)
 			let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) p in
 			let tstr = mk (TCall (mk (TField (ethis,FInstance(c,List.map snd c.cl_params,f))) f.cf_type p,[])) ctx.com.basic.tstring p in
-			let cstr, cf_bytes = (try (match ctx.com.basic.tstring with TInst(c,_) -> c, PMap.find "bytes" c.cl_fields | _ -> assert false) with Not_found -> assert false) in
+			let cstr, cf_bytes = (try (match ctx.com.basic.tstring with TInst(c,_) -> c, PMap.find "bytes" (c.cl_structure()).cl_fields | _ -> assert false) with Not_found -> assert false) in
 			let estr = mk (TReturn (Some (mk (TField (tstr,FInstance (cstr,[],cf_bytes))) cf_bytes.cf_type p))) ctx.com.basic.tvoid p in
 			ignore(make_fun ctx (s_type_path c.cl_path,"__string") (alloc_fun_path ctx c.cl_path "__string") { tf_expr = estr; tf_args = []; tf_type = cf_bytes.cf_type; } (Some c) None)
 		end
@@ -3149,19 +3151,21 @@ let generate_type ctx t =
 	| TClassDecl { cl_interface = true }->
 		()
 	| TClassDecl c when c.cl_extern ->
+		let cs = c.cl_structure() in
 		List.iter (fun f ->
 			List.iter (fun (name,args,pos) ->
 				match name with
 				| Meta.Custom ":hlNative" -> generate_static ctx c f
 				| _ -> ()
 			) f.cf_meta
-		) c.cl_ordered_statics
+		) cs.cl_ordered_statics
 	| TClassDecl c ->
-		List.iter (generate_static ctx c) c.cl_ordered_statics;
-		(match c.cl_constructor with
+		let cs = c.cl_structure() in
+		List.iter (generate_static ctx c) cs.cl_ordered_statics;
+		(match cs.cl_constructor with
 		| None -> ()
 		| Some f -> generate_member ctx c f);
-		List.iter (generate_member ctx c) c.cl_ordered_fields;
+		List.iter (generate_member ctx c) cs.cl_ordered_fields;
 	| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
 		()
 
@@ -3357,7 +3361,7 @@ let generate_static_init ctx types main =
 					exprs := e :: !exprs;
 				| _ ->
 					()
-			) c.cl_ordered_statics;
+			) (c.cl_structure()).cl_ordered_statics;
 		| _ -> ()
 	) types;
 	(* call main() *)
@@ -3724,7 +3728,7 @@ let add_types ctx types =
 		| TClassDecl c ->
 			let rec loop p f =
 				match p with
-				| Some (p,_) when PMap.mem f.cf_name p.cl_fields || loop p.cl_super f ->
+				| Some (p,_) when PMap.mem f.cf_name (p.cl_structure()).cl_fields || loop p.cl_super f ->
 					Hashtbl.replace ctx.overrides (f.cf_name,p.cl_path) true;
 					true
 				| _ ->
@@ -3748,7 +3752,7 @@ let add_types ctx types =
 								f.cf_meta <- (Meta.Custom ":hlNative", [(EConst (String lib),p);(EConst (String name),p)], p) :: f.cf_meta;
 							| _ -> ())
 						| _ -> ()
-					) c.cl_ordered_statics
+					) (c.cl_structure()).cl_ordered_statics
 			) c.cl_meta;
  		| _ -> ()
 	) types;

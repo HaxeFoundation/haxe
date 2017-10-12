@@ -981,7 +981,7 @@ let is_extern_class_instance obj =
 
 let rec is_dynamic_accessor name acc field class_def =
  ( ( acc ^ "_" ^ field.cf_name) = name ) &&
-   ( not (List.exists (fun f -> f.cf_name=name) class_def.cl_ordered_fields) )
+   ( not (List.exists (fun f -> f.cf_name=name) (class_def.cl_structure()).cl_ordered_fields) )
    && (match class_def.cl_super with None -> true | Some (parent,_) -> is_dynamic_accessor name acc field parent )
 ;;
 
@@ -2809,7 +2809,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             )
 
          | TNew (class_def,params,args) ->
-            let rec find_constructor c = (match c.cl_constructor, c.cl_super with
+            let rec find_constructor c = (match (c.cl_structure()).cl_constructor, c.cl_super with
             | (Some constructor), _  -> constructor.cf_type
             | _ , Some (super,_)  -> find_constructor super
             | _ -> abort "TNew without constructor " expr.epos
@@ -4219,7 +4219,7 @@ let current_virtual_functions clazz =
   List.rev (List.fold_left (fun result elem -> match follow elem.cf_type, elem.cf_kind  with
     | _, Method MethDynamic -> result
     | TFun (args,return_type), Method _  when not (is_override clazz elem.cf_name ) -> (elem,args,return_type) :: result
-    | _,_ -> result ) [] clazz.cl_ordered_fields)
+    | _,_ -> result ) [] (clazz.cl_structure()).cl_ordered_fields)
 ;;
 
 let all_virtual_functions clazz =
@@ -4709,9 +4709,10 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
          | Some expression -> visit_params expression | _ -> ());
    in
    let visit_class class_def =
-      let fields = List.append class_def.cl_ordered_fields class_def.cl_ordered_statics in
+      let class_structure = class_def.cl_structure() in
+      let fields = List.append class_structure.cl_ordered_fields class_structure.cl_ordered_statics in
       let fields_and_constructor = List.append fields
-         (match class_def.cl_constructor with | Some expr -> [expr] | _ -> [] ) in
+         (match class_structure.cl_constructor with | Some expr -> [expr] | _ -> [] ) in
       let fields_and_constructor =
          if field_name="*" then
             fields_and_constructor
@@ -4787,7 +4788,7 @@ let generate_main ctx super_deps class_def =
    let common_ctx = ctx.ctx_common in
    (* main routine should be a single static function *)
    let main_expression =
-      (match class_def.cl_ordered_statics with
+      (match (class_def.cl_structure()).cl_ordered_statics with
       | [{ cf_expr = Some expression }] -> expression;
       | _ -> assert false ) in
    ignore(find_referenced_types ctx (TClassDecl class_def) super_deps (Hashtbl.create 0) false false false);
@@ -5168,7 +5169,7 @@ let has_new_gc_references ctx class_def =
       let is_gc_reference field =
       (should_implement_field field) && (is_data_member field) && not (ctx_cant_be_null ctx field.cf_type)
       in
-      List.exists is_gc_reference class_def.cl_ordered_fields
+      List.exists is_gc_reference (class_def.cl_structure()).cl_ordered_fields
       )
 ;;
 
@@ -5222,11 +5223,11 @@ let is_writable class_def field =
 ;;
 
 
-let statics_except_meta class_def = (List.filter (fun static -> static.cf_name <> "__meta__" && static.cf_name <> "__rtti") class_def.cl_ordered_statics);;
+let statics_except_meta class_def = (List.filter (fun static -> static.cf_name <> "__meta__" && static.cf_name <> "__rtti") (class_def.cl_structure()).cl_ordered_statics);;
 
 let has_set_member_field class_def =
    implement_dynamic_here class_def || (
-      let reflect_fields = List.filter (reflective class_def) (class_def.cl_ordered_fields) in
+      let reflect_fields = List.filter (reflective class_def) ((class_def.cl_structure()).cl_ordered_fields) in
       let reflect_writable = List.filter (is_writable class_def) reflect_fields in
       List.exists variable_field reflect_writable
    )
@@ -5243,13 +5244,13 @@ let has_set_static_field class_def =
 let has_get_fields class_def =
    implement_dynamic_here class_def || (
       let is_data_field field = (match follow field.cf_type with | TFun _ -> false | _ -> true) in
-      List.exists is_data_field class_def.cl_ordered_fields
+      List.exists is_data_field (class_def.cl_structure()).cl_ordered_fields
    )
 ;;
 
 let has_get_member_field class_def =
    implement_dynamic_here class_def || (
-      let reflect_fields = List.filter (reflective class_def) (class_def.cl_ordered_fields) in
+      let reflect_fields = List.filter (reflective class_def) ((class_def.cl_structure()).cl_ordered_fields) in
       List.exists (is_readable class_def) reflect_fields
    )
 ;;
@@ -5264,7 +5265,7 @@ let has_get_static_field class_def =
 
 let has_boot_field class_def =
    match class_def.cl_init with
-   | None -> List.exists has_field_init (List.filter should_implement_field class_def.cl_ordered_statics)
+   | None -> List.exists has_field_init (List.filter should_implement_field (class_def.cl_structure()).cl_ordered_statics)
    | _ -> true
 ;;
 
@@ -5278,7 +5279,7 @@ exception FieldFound of tclass_field;;
 
 let find_class_implementation ctx class_def name interface =
    let rec find def =
-      List.iter (fun f -> if f.cf_name=name then raise (FieldFound f) ) def.cl_ordered_fields;
+      List.iter (fun f -> if f.cf_name=name then raise (FieldFound f) ) (def.cl_structure()).cl_ordered_fields;
       match def.cl_super with
       | Some (def,_) -> find def
       | _ -> ()
@@ -5356,7 +5357,7 @@ let script_size_type t optional = match script_type t optional with
 
 
 let constructor_arg_var_list class_def ctx =
-   match class_def.cl_constructor with
+   match (class_def.cl_structure()).cl_constructor with
    | Some definition ->
             (match definition.cf_expr with
                | Some { eexpr = TFunction function_def } ->
@@ -5371,7 +5372,7 @@ let constructor_arg_var_list class_def ctx =
 ;;
 
 let can_inline_constructor ctx class_def super_deps constructor_deps =
-   match class_def.cl_constructor with
+   match (class_def.cl_structure()).cl_constructor with
    | Some { cf_expr= Some super_func } ->
        let is_simple = ref true in
        let rec check_simple e =
@@ -5400,7 +5401,7 @@ let has_dynamic_member_functions class_def =
 List.fold_left (fun result field ->
    match field.cf_expr with
    | Some { eexpr = TFunction function_def } when is_dynamic_haxe_method field -> true
-   | _ -> result ) false class_def.cl_ordered_fields
+   | _ -> result ) false (class_def.cl_structure()).cl_ordered_fields
 ;;
 
 
@@ -5462,7 +5463,7 @@ let generate_protocol_delegate ctx class_def output =
          output (");\n}\n\n");
       | _ -> ()
    in
-   List.iter dump_delegate class_def.cl_ordered_fields;
+   List.iter dump_delegate (class_def.cl_structure()).cl_ordered_fields;
 
    output ("@end\n\n");
 ;;
@@ -5522,16 +5523,16 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       match field.cf_expr with
       | Some { eexpr = TFunction function_def } when is_dynamic_haxe_method field ->
             (keyword_remap field.cf_name) :: result
-      | _ -> result ) [] class_def.cl_ordered_fields
+      | _ -> result ) [] (class_def.cl_structure()).cl_ordered_fields
    in
 
 
    (* Field groups *)
    let statics_except_meta = statics_except_meta class_def in
    let implemented_fields = List.filter should_implement_field statics_except_meta in
-   let implemented_instance_fields = List.filter should_implement_field class_def.cl_ordered_fields in
+   let implemented_instance_fields = List.filter should_implement_field (class_def.cl_structure()).cl_ordered_fields in
 
-   let reflect_member_fields = List.filter (reflective class_def) class_def.cl_ordered_fields in
+   let reflect_member_fields = List.filter (reflective class_def) (class_def.cl_structure()).cl_ordered_fields in
    let reflect_member_readable = List.filter (is_readable class_def) reflect_member_fields in
    let reflect_member_writable = List.filter (is_writable class_def) reflect_member_fields in
    let reflect_write_member_variables = List.filter variable_field reflect_member_writable in
@@ -5555,7 +5556,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                   Hashtbl.replace have field.cf_name ();
                   want := field :: !want;
                end
-               ) intf_def.cl_ordered_fields;
+               ) (intf_def.cl_structure()).cl_ordered_fields;
           ) native_implemented;
          !want;
       end
@@ -5595,7 +5596,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       dump_dynamic class_def;
 
       if isHeader then begin
-        match class_def.cl_constructor with
+        match (class_def.cl_structure()).cl_constructor with
          | Some ( { cf_expr = Some ( { eexpr = TFunction(function_def) } ) } as definition ) ->
             let old_debug = ctx.ctx_debug_level in
             if has_meta_key definition.cf_meta Meta.NoDebug then
@@ -5659,7 +5660,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    if (not class_def.cl_interface) && not nativeGen then begin
       output_cpp ("void " ^ class_name ^ "::__construct(" ^ constructor_type_args ^ ")");
-      (match class_def.cl_constructor with
+      (match (class_def.cl_structure()).cl_constructor with
          | Some ( { cf_expr = Some ( { eexpr = TFunction(function_def) } ) } as definition ) ->
             let old_debug = ctx.ctx_debug_level in
             if has_meta_key definition.cf_meta Meta.NoDebug then
@@ -5751,7 +5752,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                       (match interface.cl_super with
                       | Some super -> gen_interface_funcs (fst super)
                       | _ -> ());
-                      List.iter gen_field interface.cl_ordered_fields;
+                      List.iter gen_field (interface.cl_structure()).cl_ordered_fields;
                       in
                    gen_interface_funcs interface;
                    output_cpp "};\n\n";
@@ -5795,7 +5796,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    List.iter
       (gen_field ctx class_def class_name smart_class_name dot_name false class_def.cl_interface)
-      class_def.cl_ordered_fields;
+      (class_def.cl_structure()).cl_ordered_fields;
    List.iter
       (gen_field ctx class_def class_name smart_class_name dot_name true class_def.cl_interface) statics_except_meta;
    output_cpp "\n";
@@ -6026,7 +6027,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          let is_data_field field = (match follow field.cf_type with | TFun _ -> false | _ -> true) in
 
          output_cpp ("void " ^ class_name ^ "::__GetFields(Array< ::String> &outFields)\n{\n");
-         List.iter append_field (List.filter is_data_field class_def.cl_ordered_fields);
+         List.iter append_field (List.filter is_data_field (class_def.cl_structure()).cl_ordered_fields);
          if (implement_dynamic) then
             output_cpp "\tHX_APPEND_DYNAMIC_FIELDS(outFields);\n";
          output_cpp "\tsuper::__GetFields(outFields);\n";
@@ -6198,8 +6199,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          output_cpp ("class " ^ sctipt_name ^ " : public " ^ class_name ^ " {\n" );
          output_cpp ("   typedef "^sctipt_name ^" __ME;\n");
          output_cpp ("   typedef "^class_name ^" super;\n");
-         let has_funky_toString = List.exists (fun f -> f.cf_name="toString") class_def.cl_ordered_statics  ||
-                                 List.exists (fun f -> f.cf_name="toString" && field_arg_count f <> 0) class_def.cl_ordered_fields in
+         let has_funky_toString = List.exists (fun f -> f.cf_name="toString") (class_def.cl_structure()).cl_ordered_statics  ||
+                                 List.exists (fun f -> f.cf_name="toString" && field_arg_count f <> 0) (class_def.cl_structure()).cl_ordered_fields in
          let super_string = if has_funky_toString then class_name ^ "::super" else class_name in
          output_cpp ("   typedef "^ super_string ^" __superString;\n");
          if (class_def.cl_interface) then
@@ -6229,7 +6230,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
             let s = generate_script_function true f ("__s_" ^f.cf_name) (keyword_remap f.cf_name) in
             Hashtbl.add sigs f.cf_name s
          in
-         List.iter dump_script_static class_def.cl_ordered_statics;
+         List.iter dump_script_static (class_def.cl_structure()).cl_ordered_statics;
 
          output_cpp "static hx::ScriptNamedFunction __scriptableFunctions[] = {\n";
          let dump_func f isStaticFlag =
@@ -6261,7 +6262,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       (* Remap the specialised "extern" classes back to the generic names *)
       output_cpp ("hx::Class " ^ class_name ^ "::__mClass;\n\n");
       if (scriptable) then begin
-         (match class_def.cl_constructor with
+         (match (class_def.cl_structure()).cl_constructor with
             | Some field  ->
                   let signature = generate_script_function false field "__script_construct_func" "__construct" in
                   output_cpp ("hx::ScriptFunction " ^ class_name ^ "::__script_construct(__script_construct_func,\"" ^ signature ^ "\");\n");
@@ -6331,7 +6332,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    if (has_boot_field class_def) then begin
       output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
 
-      List.iter (gen_field_init ctx class_def ) (List.filter should_implement_field class_def.cl_ordered_statics);
+      List.iter (gen_field_init ctx class_def ) (List.filter should_implement_field (class_def.cl_structure()).cl_ordered_statics);
 
       output_cpp ("}\n\n");
    end;
@@ -6528,12 +6529,12 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    | _ -> ());
 
 
-   List.iter (gen_member_def ctx class_def true class_def.cl_interface) (List.filter should_implement_field class_def.cl_ordered_statics);
+   List.iter (gen_member_def ctx class_def true class_def.cl_interface) (List.filter should_implement_field (class_def.cl_structure()).cl_ordered_statics);
 
    if class_def.cl_interface then begin
       List.iter (fun (field,_,_) -> gen_member_def ctx class_def false true field) functions;
    end else begin
-      List.iter (gen_member_def ctx class_def false false) (List.filter should_implement_field class_def.cl_ordered_fields);
+      List.iter (gen_member_def ctx class_def false false) (List.filter should_implement_field (class_def.cl_structure()).cl_ordered_fields);
    end;
 
    if class_def.cl_interface && has_meta_key class_def.cl_meta Meta.ObjcProtocol then begin
@@ -6698,7 +6699,7 @@ let create_member_types common_ctx =
          | TClassDecl class_def when not class_def.cl_interface ->
             let rec add_override to_super =
                let class_name = (join_class_path to_super.cl_path ".") in
-               List.iter (fun member -> Hashtbl.add result (class_name ^ "." ^ member.cf_name) "virtual " ) class_def.cl_ordered_fields;
+               List.iter (fun member -> Hashtbl.add result (class_name ^ "." ^ member.cf_name) "virtual " ) (class_def.cl_structure()).cl_ordered_fields;
                match to_super.cl_super with
                | Some super -> add_override (fst super)
                | _ -> ()
@@ -6732,7 +6733,7 @@ let create_constructor_dependencies common_ctx =
    List.iter (fun object_def ->
       (match object_def with
       | TClassDecl class_def when not class_def.cl_extern ->
-         (match class_def.cl_constructor with
+         (match (class_def.cl_structure()).cl_constructor with
          | Some func_def -> Hashtbl.add result class_def.cl_path func_def
          | _ -> () )
       | _ -> () );
@@ -7511,7 +7512,7 @@ class script_writer ctx filename asciiOut =
                      this#checkCast tvar.v_type init false false);
    | TNew (clazz,params,arg_list) ->
       this#write ((this#op IaNew) ^ (this#typeText (TInst(clazz,params))) ^ (string_of_int (List.length arg_list)) ^ "\n");
-      let rec matched_args clazz = match clazz.cl_constructor, clazz.cl_super with
+      let rec matched_args clazz = match (clazz.cl_structure()).cl_constructor, clazz.cl_super with
          | None, Some super -> matched_args (fst super)
          | None, _ -> false
          | Some ctr, _ ->
@@ -7978,11 +7979,12 @@ let generate_script_class common_ctx script class_def =
       | Method _, Some _ -> true
       | _ -> false
    in
-   let ordered_statics = List.filter non_dodgy_function class_def.cl_ordered_statics in
-   let ordered_fields = List.filter non_dodgy_function class_def.cl_ordered_fields in
+   let class_structure = class_def.cl_structure() in
+   let ordered_statics = List.filter non_dodgy_function class_structure.cl_ordered_statics in
+   let ordered_fields = List.filter non_dodgy_function class_structure.cl_ordered_fields in
    script#write ((string_of_int ( (List.length ordered_fields) +
                                  (List.length ordered_statics) +
-                                 (match class_def.cl_constructor with Some _ -> 1 | _ -> 0 ) +
+                                 (match class_structure.cl_constructor with Some _ -> 1 | _ -> 0 ) +
                                  (if (implement_dynamic_here class_def) then 1 else 0) +
                                  (match class_def.cl_init with Some _ -> 1 | _ -> 0 ) ) )
                                  ^ "\n");
@@ -8015,7 +8017,7 @@ let generate_script_class common_ctx script class_def =
       | Method _, _ -> print_endline ("Unknown method type " ^ (join_class_path class_def.cl_path "." )
                      ^ "." ^field.cf_name )
    in
-   (match class_def.cl_constructor with
+   (match (class_def.cl_structure()).cl_constructor with
       | Some field  -> generate_field true field
       | _ -> () );
    (match class_def.cl_init with
@@ -8192,7 +8194,7 @@ let generate_source ctx =
       let main_field = { (mk_field "__main__" t_dynamic e.epos null_pos) with
          cf_expr = Some e;
 	  } in
-      let class_def = { null_class with cl_path = ([],"@Main"); cl_ordered_statics = [main_field] } in
+      let class_def = { null_class with cl_path = ([],"@Main"); cl_structure = (fun () -> { (class_structure()) with cl_ordered_statics = [main_field] }) } in
       main_deps := find_referenced_types ctx (TClassDecl class_def) super_deps constructor_deps false true false;
       generate_main ctx super_deps class_def
    );

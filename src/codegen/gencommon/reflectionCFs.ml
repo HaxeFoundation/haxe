@@ -195,7 +195,7 @@ let collect_fields cl (methods : bool option) =
 		loop cfs acc
 	in
 	let rec loop cl acc =
-		let acc = collect_cfs cl.cl_ordered_fields acc in
+		let acc = collect_cfs (cl.cl_structure()).cl_ordered_fields acc in
 		match cl.cl_super with
 			| None -> acc
 			| Some(cl,_) ->
@@ -745,6 +745,7 @@ let implement_dynamic_object_ctor ctx cl =
 	do_objdecl
 
 let implement_dynamics ctx cl =
+	let cs = cl.cl_structure() in
 	let pos = cl.cl_pos in
 	let is_override = is_override cl in
 	if is_some cl.cl_dynamic then begin
@@ -786,7 +787,7 @@ let implement_dynamics ctx cl =
 			] in
 
 			List.iter (fun cf ->
-				cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields
+				cs.cl_fields <- PMap.add cf.cf_name cf cs.cl_fields
 			) new_fields;
 
 	(*
@@ -807,13 +808,13 @@ let implement_dynamics ctx cl =
 					If class has @:dynamicObject meta, also create another new() class with its parameters as constructor arguments
 			*)
 
-			cl.cl_ordered_fields <- cl.cl_ordered_fields @ new_fields;
+			cs.cl_ordered_fields <- cs.cl_ordered_fields @ new_fields;
 			if is_override then cl.cl_overrides <- delete :: cl.cl_overrides
 		end
 	end else if not is_override then begin
 		let delete = get_delete_field ctx cl false in
-		cl.cl_ordered_fields <- cl.cl_ordered_fields @ [delete];
-		cl.cl_fields <- PMap.add delete.cf_name delete cl.cl_fields
+		cs.cl_ordered_fields <- cs.cl_ordered_fields @ [delete];
+		cs.cl_fields <- PMap.add delete.cf_name delete cs.cl_fields
 	end
 
 
@@ -920,9 +921,10 @@ let implement_final_lookup ctx cl =
 			create_cf false true;
 			create_cf true true
 		] in
-		cl.cl_ordered_fields <- cl.cl_ordered_fields @ cfs;
+		let cs = cl.cl_structure() in
+		cs.cl_ordered_fields <- cs.cl_ordered_fields @ cfs;
 		List.iter (fun cf ->
-			cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields;
+			cs.cl_fields <- PMap.add cf.cf_name cf cs.cl_fields;
 			if is_override then cl.cl_overrides <- cf :: cl.cl_overrides
 		) cfs
 	in
@@ -1176,9 +1178,9 @@ let implement_get_set ctx cl =
 
 			cfield.cf_type <- !fun_type;
 			cfield.cf_expr <- Some func;
-
-			cl.cl_ordered_fields <- cl.cl_ordered_fields @ [cfield];
-			cl.cl_fields <- PMap.add fun_name cfield cl.cl_fields;
+			let cs = cl.cl_structure() in
+			cs.cl_ordered_fields <- cs.cl_ordered_fields @ [cfield];
+			cs.cl_fields <- PMap.add fun_name cfield cs.cl_fields;
 
 			(if is_override then cl.cl_overrides <- cfield	:: cl.cl_overrides)
 		end else ()
@@ -1258,8 +1260,9 @@ let implement_getFields ctx cl =
 	};
 
 	if !has_value || not (is_override cl) then begin
-		cl.cl_ordered_fields <- cl.cl_ordered_fields @ [cf];
-		cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields;
+		let cs = cl.cl_structure() in
+		cs.cl_ordered_fields <- cs.cl_ordered_fields @ [cf];
+		cs.cl_fields <- PMap.add cf.cf_name cf cs.cl_fields;
 		(if is_override cl then cl.cl_overrides <- cf :: cl.cl_overrides)
 	end
 
@@ -1397,7 +1400,7 @@ let implement_invokeField ctx slow_invoke cl =
 
 		let nonstatics =
 			List.filter (fun (n,cf) ->
-				let is_old = not (PMap.mem cf.cf_name cl.cl_fields) || List.memq cf cl.cl_overrides in
+				let is_old = not (PMap.mem cf.cf_name (cl.cl_structure()).cl_fields) || List.memq cf cl.cl_overrides in
 				(if is_old then old_nonstatics := cf :: !old_nonstatics);
 				not is_old
 			) nonstatics
@@ -1418,8 +1421,9 @@ let implement_invokeField ctx slow_invoke cl =
 			epos = pos;
 		};
 	if !is_override && not (!has_method) then () else begin
-		cl.cl_ordered_fields <- cl.cl_ordered_fields @ [dyn_fun];
-		cl.cl_fields <- PMap.add dyn_fun.cf_name dyn_fun cl.cl_fields;
+		let cs = cl.cl_structure() in
+		cs.cl_ordered_fields <- cs.cl_ordered_fields @ [dyn_fun];
+		cs.cl_fields <- PMap.add dyn_fun.cf_name dyn_fun cs.cl_fields;
 		(if !is_override then cl.cl_overrides <- dyn_fun :: cl.cl_overrides)
 	end
 
@@ -1469,14 +1473,15 @@ let implement_varargs_cl ctx cl =
 
 	let all_cfs = List.filter (fun cf -> cf.cf_name <> "new" && cf.cf_name <> (invokedyn) && match cf.cf_kind with Method _ -> true | _ -> false) (ctx.rcf_ft.map_base_classfields cl map_fn) in
 
-	cl.cl_ordered_fields <- cl.cl_ordered_fields @ all_cfs;
+	let cs = cl.cl_structure() in
+	cs.cl_ordered_fields <- cs.cl_ordered_fields @ all_cfs;
 	List.iter (fun cf ->
-		cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields
+		cs.cl_fields <- PMap.add cf.cf_name cf cs.cl_fields
 	) all_cfs;
 
 	List.iter (fun cf ->
 		cl.cl_overrides <- cf :: cl.cl_overrides
-	) cl.cl_ordered_fields
+	) cs.cl_ordered_fields
 
 let implement_closure_cl ctx cl =
 	let pos = cl.cl_pos in
@@ -1537,9 +1542,10 @@ let implement_closure_cl ctx cl =
 	) all_cfs;
 	let all_cfs = cfs @ all_cfs in
 
-	cl.cl_ordered_fields <- cl.cl_ordered_fields @ all_cfs;
+	let cs = cl.cl_structure() in
+	cs.cl_ordered_fields <- cs.cl_ordered_fields @ all_cfs;
 	List.iter (fun cf ->
-		cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields
+		cs.cl_fields <- PMap.add cf.cf_name cf cs.cl_fields
 	) all_cfs;
 
 	let ctor_t = TFun(fun_args tf_args, basic.tvoid) in
@@ -1558,7 +1564,7 @@ let implement_closure_cl ctx cl =
 		epos = pos
 	};
 
-	cl.cl_constructor <- Some ctor_cf;
+	cs.cl_constructor <- Some ctor_cf;
 
 	let closure_fun eclosure e field is_static =
 		let f = ExprBuilder.make_string gen.gcon field eclosure.epos in
@@ -1663,10 +1669,11 @@ let configure ctx baseinterface ~slow_invoke =
 		(match md with
 		| TClassDecl ({ cl_extern = false } as cl) when is_hxgen md && ( not cl.cl_interface || cl.cl_path = baseinterface.cl_path ) && (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) ->
 			implement_dynamics ctx cl;
-			if not (PMap.mem (mk_internal_name "hx" "lookupField") cl.cl_fields) then implement_final_lookup ctx cl;
-			if not (PMap.mem (mk_internal_name "hx" "getField") cl.cl_fields) then implement_get_set ctx cl;
-			if not (PMap.mem (mk_internal_name "hx" "invokeField") cl.cl_fields) then implement_invokeField ctx slow_invoke cl;
-			if not (PMap.mem (mk_internal_name "hx" "getFields") cl.cl_fields) then implement_getFields ctx cl;
+			let cs = cl.cl_structure() in
+			if not (PMap.mem (mk_internal_name "hx" "lookupField") cs.cl_fields) then implement_final_lookup ctx cl;
+			if not (PMap.mem (mk_internal_name "hx" "getField") cs.cl_fields) then implement_get_set ctx cl;
+			if not (PMap.mem (mk_internal_name "hx" "invokeField") cs.cl_fields) then implement_invokeField ctx slow_invoke cl;
+			if not (PMap.mem (mk_internal_name "hx" "getFields") cs.cl_fields) then implement_getFields ctx cl;
 		| _ -> ());
 		md
 	in

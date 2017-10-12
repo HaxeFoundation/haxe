@@ -130,9 +130,10 @@ let build_dependencies t =
 	in
 	(match t with
 	| TClassDecl c when not c.cl_extern ->
-		List.iter add_field c.cl_ordered_fields;
-		List.iter add_field c.cl_ordered_statics;
-		(match c.cl_constructor with
+		let cs = c.cl_structure() in
+		List.iter add_field cs.cl_ordered_fields;
+		List.iter add_field cs.cl_ordered_statics;
+		(match cs.cl_constructor with
 		| None -> ()
 		| Some f ->
 			add_field f;

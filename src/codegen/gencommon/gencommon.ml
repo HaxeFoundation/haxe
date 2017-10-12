@@ -187,7 +187,7 @@ let mk_castfast t e = { e with eexpr = TCast(e, Some (TClassDecl null_class)); e
 let mk_static_field_access_infer cl field pos params =
 	try
 		let e_type = ExprBuilder.make_static_this cl pos in
-		let cf = PMap.find field cl.cl_statics in
+		let cf = PMap.find field (cl.cl_structure()).cl_statics in
 		let t = if params = [] then cf.cf_type else apply_params cf.cf_params params cf.cf_type in
 		mk (TField(e_type, FStatic(cl, cf))) t pos
 	with Not_found ->
@@ -700,10 +700,11 @@ let run_filters_from gen t filters =
 				f.cf_expr <- Some (List.fold_left (fun e f -> f e) e filters));
 			List.iter process_field f.cf_overloads;
 		in
-		List.iter process_field c.cl_ordered_fields;
-		List.iter process_field c.cl_ordered_statics;
+		let cs = c.cl_structure() in
+		List.iter process_field cs.cl_ordered_fields;
+		List.iter process_field cs.cl_ordered_statics;
 
-		(match c.cl_constructor with
+		(match cs.cl_constructor with
 		| None -> ()
 		| Some f -> process_field f);
 		gen.gcurrent_classfield <- None;
@@ -1050,11 +1051,15 @@ let t_to_mt t =
 		| _ -> assert false
 
 let rec get_last_ctor cl =
-	Option.map_default (fun (super,_) -> if is_some super.cl_constructor then Some(get super.cl_constructor) else get_last_ctor super) None cl.cl_super
+	Option.map_default (fun (super,_) ->
+		let cs = super.cl_structure() in
+		if is_some cs.cl_constructor then Some(get cs.cl_constructor) else get_last_ctor super
+	) None cl.cl_super
 
 let add_constructor cl cf =
-	match cl.cl_constructor with
-	| None -> cl.cl_constructor <- Some cf
+	let cs = cl.cl_structure() in
+	match cs.cl_constructor with
+	| None -> cs.cl_constructor <- Some cf
 	| Some ctor ->
 			if ctor != cf && not (List.memq cf ctor.cf_overloads) then
 				ctor.cf_overloads <- cf :: ctor.cf_overloads
@@ -1116,8 +1121,9 @@ let find_first_declared_field gen orig_cl ?get_vmtype ?exact_field field =
 	let chosen = ref None in
 	let is_overload = ref false in
 	let rec loop_cl depth c tl tlch =
+		let cs = c.cl_structure() in
 		(try
-			let ret = PMap.find field c.cl_fields in
+			let ret = PMap.find field cs.cl_fields in
 			if Meta.has Meta.Overload ret.cf_meta then is_overload := true;
 			match !chosen, exact_field with
 			| Some(d,f,_,_,_), _ when depth <= d || (is_var ret && not (is_var f)) -> ()
@@ -1226,7 +1232,7 @@ let rec field_access gen (t:t) (field:string) : (tfield_access) =
 		| TAnon anon ->
 			(try match !(anon.a_status) with
 				| Statics cl ->
-					let cf = PMap.find field cl.cl_statics in
+					let cf = PMap.find field (cl.cl_structure()).cl_statics in
 					FClassField(cl, List.map (fun _ -> t_dynamic) cl.cl_params, cl, cf, true, cf.cf_type, cf.cf_type)
 				| EnumStatics e ->
 					let f = PMap.find field e.e_constrs in

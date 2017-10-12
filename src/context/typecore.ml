@@ -164,7 +164,7 @@ let unify_min ctx el = (!unify_min_ref) ctx el
 let match_expr ctx e cases def with_type p = !match_expr_ref ctx e cases def with_type p
 
 let make_static_this c p =
-	let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
+	let ta = TAnon { a_fields = (c.cl_structure()).cl_statics; a_status = ref (Statics c) } in
 	mk (TTypeExpr (TClassDecl c)) ta p
 
 let make_static_field_access c cf t p =
@@ -534,7 +534,7 @@ module AbstractCast = struct
 				begin match follow e1.etype with
 					| TAbstract({a_impl = Some c} as a,tl) ->
 						begin try
-							let cf = PMap.find "toString" c.cl_statics in
+							let cf = PMap.find "toString" (c.cl_structure()).cl_statics in
 							make_static_call ctx c cf a tl [e1] ctx.t.tstring e.epos
 						with Not_found ->
 							e
@@ -585,7 +585,7 @@ module AbstractCast = struct
 								(* quick_field raises Not_found if m is an abstract, we have to replicate the 'using' call here *)
 								match follow m with
 								| TAbstract({a_impl = Some c} as a,pl) ->
-									let cf = PMap.find fname c.cl_statics in
+									let cf = PMap.find fname (c.cl_structure()).cl_statics in
 									make_static_call ctx c cf a pl (e2 :: el) e.etype e.epos
 								| _ -> raise Not_found
 							end

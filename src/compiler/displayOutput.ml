@@ -183,8 +183,9 @@ let display_memory com =
 					| TClassDecl c ->
 						deps := Obj.repr c :: !deps;
 						c.cl_descendants <- []; (* prevent false positive *)
-						List.iter (fun f -> deps := Obj.repr f :: !deps) c.cl_ordered_statics;
-						List.iter (fun f -> deps := Obj.repr f :: !deps) c.cl_ordered_fields;
+						let cs = c.cl_structure() in
+						List.iter (fun f -> deps := Obj.repr f :: !deps) cs.cl_ordered_statics;
+						List.iter (fun f -> deps := Obj.repr f :: !deps) cs.cl_ordered_fields;
 					| TEnumDecl e ->
 						deps := Obj.repr e :: !deps;
 						List.iter (fun n -> deps := Obj.repr (PMap.find n e.e_constrs) :: !deps) e.e_names;
@@ -366,8 +367,7 @@ module TypePathHandler = struct
 				let is_module_type = snd tinfos.mt_path = c in
 				if is_import && is_module_type then begin match t with
 					| TClassDecl c ->
-						ignore(c.cl_build());
-						statics := Some c.cl_ordered_statics
+						statics := Some (c.cl_structure()).cl_ordered_statics
 					| _ -> ()
 				end;
 				not tinfos.mt_private

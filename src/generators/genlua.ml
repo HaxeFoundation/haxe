@@ -252,7 +252,7 @@ let mk_mr_box ctx e =
     let s_fields =
         match follow e.etype with
         | TInst (c,_) ->
-            String.concat ", " (List.map (fun f -> "\"" ^ f.cf_name ^ "\"") c.cl_ordered_fields)
+            String.concat ", " (List.map (fun f -> "\"" ^ f.cf_name ^ "\"") (c.cl_structure()).cl_ordered_fields)
         | _ -> assert false
     in
     add_feature ctx "use._hx_box_mr";
@@ -265,7 +265,7 @@ let mk_mr_select com e ecall name =
     let i =
         match follow ecall.etype with
         | TInst (c,_) ->
-            index_of (fun f -> f.cf_name = name) c.cl_ordered_fields
+            index_of (fun f -> f.cf_name = name) (c.cl_structure()).cl_ordered_fields
         | _ ->
             assert false
     in
@@ -721,7 +721,7 @@ and gen_expr ?(local=true) ctx e = begin
                     let names =
                         match follow v.v_type with
                         | TInst (c, _) ->
-                            List.map (fun f -> id ^ "_" ^name ^ "_" ^ f.cf_name) c.cl_ordered_fields
+                            List.map (fun f -> id ^ "_" ^name ^ "_" ^ f.cf_name) (c.cl_structure()).cl_ordered_fields
                         | _ ->
                             assert false
                     in
@@ -743,7 +743,7 @@ and gen_expr ?(local=true) ctx e = begin
                     gen_value ctx e;
         end
     | TNew (c,_,el) ->
-        (match c.cl_constructor with
+        (match (c.cl_structure()).cl_constructor with
          | Some cf when Meta.has Meta.SelfCall cf.cf_meta ->
              print ctx "%s" (ctx.type_accessor (TClassDecl c));
          | Some cf when Meta.has Meta.Native cf.cf_meta ->
@@ -1421,10 +1421,12 @@ and gen_iife_assign ctx f =
 
 
 and has_class ctx c =
-    has_feature ctx "lua.Boot.getClass" && (c.cl_super <> None || c.cl_ordered_fields <> [] || c.cl_constructor <> None)
+	let cs = c.cl_structure() in
+    has_feature ctx "lua.Boot.getClass" && (c.cl_super <> None || cs.cl_ordered_fields <> [] || cs.cl_constructor <> None)
 
 and has_prototype ctx c =
-    c.cl_super <> None || (has_class ctx c) || List.exists (can_gen_class_field ctx) c.cl_ordered_fields
+	let cs = c.cl_structure() in
+    c.cl_super <> None || (has_class ctx c) || List.exists (can_gen_class_field ctx) cs.cl_ordered_fields
 
 and can_gen_class_field ctx = function
     | { cf_expr = (None | Some { eexpr = TConst TNull }) } when not (has_feature ctx "Type.getInstanceFields") ->
@@ -1434,13 +1436,14 @@ and can_gen_class_field ctx = function
 
 
 let check_multireturn ctx c =
+	let cs = c.cl_structure() in
     match c with
     | _ when Meta.has Meta.MultiReturn c.cl_meta ->
         if not c.cl_extern then
             error "MultiReturns must be externs" c.cl_pos
-        else if List.length c.cl_ordered_statics > 0 then
+        else if List.length cs.cl_ordered_statics > 0 then
             error "MultiReturns must not contain static fields" c.cl_pos
-        else if (List.exists (fun cf -> match cf.cf_kind with Method _ -> true | _-> false) c.cl_ordered_fields) then
+        else if (List.exists (fun cf -> match cf.cf_kind with Method _ -> true | _-> false) cs.cl_ordered_fields) then
             error "MultiReturns must not contain methods" c.cl_pos;
     | {cl_super = Some(csup,_)} when Meta.has Meta.MultiReturn csup.cl_meta ->
         error "Cannot extend a MultiReturn" c.cl_pos
@@ -1535,6 +1538,7 @@ let generate_class___name__ ctx c =
     end
 
 let generate_class ctx c =
+	let cs = c.cl_structure() in
     ctx.current <- c;
     ctx.id_counter <- 0;
     (match c.cl_path with
@@ -1549,7 +1553,7 @@ let generate_class ctx c =
          (* abstract implementations only contain static members and don't need to have constructor functions *)
          print ctx "{}"; ctx.separator <- true
      | _ ->
-         (match c.cl_constructor with
+         (match cs.cl_constructor with
           | Some { cf_expr = Some e } ->
               (match e.eexpr with
                | TFunction f ->
@@ -1600,18 +1604,18 @@ let generate_class ctx c =
         (has_feature ctx "Reflect.getProperty") || (has_feature ctx "Reflect.setProperty") in
 
     if has_property_reflection then begin
-        (match Codegen.get_properties c.cl_ordered_statics with
+        (match Codegen.get_properties cs.cl_ordered_statics with
          | [] -> ()
          | props -> println ctx "%s.__properties__ = {%s}" p (gen_props props);
         );
     end;
 
-    List.iter (gen_class_static_field ctx c) c.cl_ordered_statics;
+    List.iter (gen_class_static_field ctx c) cs.cl_ordered_statics;
 
     if (has_prototype ctx c) then begin
         println ctx "%s.prototype = _hx_a();" p;
         let count = ref 0 in
-        List.iter (fun f -> if can_gen_class_field ctx f then (gen_class_field ctx c f) ) c.cl_ordered_fields;
+        List.iter (fun f -> if can_gen_class_field ctx f then (gen_class_field ctx c f) ) cs.cl_ordered_fields;
         if (has_class ctx c) then begin
             newprop ctx;
             println ctx "%s.prototype.__class__ =  %s" p p;
@@ -1619,7 +1623,7 @@ let generate_class ctx c =
         end;
 
         if has_property_reflection then begin
-            let props = Codegen.get_properties c.cl_ordered_fields in
+            let props = Codegen.get_properties cs.cl_ordered_fields in
             (match c.cl_super with
              | _ when props = [] -> ()
              | _ ->
@@ -1744,7 +1748,7 @@ let generate_type ctx = function
              ctx.inits <- e :: ctx.inits);
         let p = s_path ctx c.cl_path in
         (* A special case for Std because we do not want to generate it if it's empty. *)
-        if p = "Std" && c.cl_ordered_statics = [] then
+        if p = "Std" && (c.cl_structure()).cl_ordered_statics = [] then
             ()
         else if (not c.cl_extern) && Meta.has Meta.LuaDotMethod c.cl_meta then
             error "LuaDotMethod is valid for externs only" c.cl_pos
@@ -1875,10 +1879,11 @@ let transform_multireturn ctx = function
                 in
                 f.cf_expr <- Some (loop e);
             | _ -> ()
-        in
-        List.iter transform_field c.cl_ordered_fields;
-        List.iter transform_field c.cl_ordered_statics;
-        Option.may transform_field c.cl_constructor;
+		in
+		let cs = c.cl_structure() in
+        List.iter transform_field cs.cl_ordered_fields;
+        List.iter transform_field cs.cl_ordered_statics;
+        Option.may transform_field cs.cl_constructor;
     | _ -> ()
 
 let generate com =
@@ -1911,7 +1916,7 @@ let generate com =
             let class_exposed = get_exposed ctx path c.cl_meta in
             let static_exposed = List.map (fun f ->
                 get_exposed ctx (path ^ static_field c f.cf_name) f.cf_meta
-            ) c.cl_ordered_statics in
+            ) (c.cl_structure()).cl_ordered_statics in
             List.concat (class_exposed :: static_exposed)
         | _ -> []
     ) com.types) in

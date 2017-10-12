@@ -910,7 +910,7 @@ class class_wrapper (cls) =
 									if not !needs then needs := is_dynamic_method field
 								end
 							)
-							cls.cl_statics;
+							(cls.cl_structure()).cl_statics;
 						!needs
 		(**
 			Returns expression of a user-defined static __init__ method
@@ -939,15 +939,12 @@ class class_wrapper (cls) =
 							match cls.cl_path with
 								| (pack, name) -> (pack @ ["_" ^ name], ("_extern_" ^ name))
 						in
+						let cs = class_structure() in
 						let additional_cls = {
 							cls with
 								cl_extern =  false;
 								cl_path = path;
-								cl_fields  = PMap.create (fun a b -> 0);
-								cl_statics  = PMap.create (fun a b -> 0);
-								cl_ordered_fields  = [];
-								cl_ordered_statics  = [];
-								cl_constructor = None;
+								cl_structure = (fun () -> cs);
 								cl_overrides = [];
 								cl_init = Some body
 						} in
@@ -1454,7 +1451,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 		*)
 		method dereference expr =
 			let boot_cls = get_boot ctx in
-			let deref_field = PMap.find "deref" boot_cls.cl_statics in
+			let deref_field = PMap.find "deref" (boot_cls.cl_structure()).cl_statics in
 			match expr.eexpr with
 				| TField (target_expr, access) ->
 					{
@@ -3195,7 +3192,7 @@ class class_builder ctx (cls:tclass) =
 						if Meta.has Meta.PhpNoConstructor parent.cl_meta then
 							true
 						else
-							match parent.cl_constructor with
+							match (parent.cl_structure()).cl_constructor with
 								| Some _ -> false
 								| None -> extends_no_constructor parent
 			in
@@ -3261,7 +3258,7 @@ class class_builder ctx (cls:tclass) =
 			Returns either user-defined constructor or creates empty constructor if instance initialization is required.
 		*)
 		method private get_constructor : tclass_field option =
-			match cls.cl_constructor with
+			match (cls.cl_structure()).cl_constructor with
 				| Some field -> Some field
 				| None ->
 					if not self#constructor_is_required then
@@ -3316,32 +3313,34 @@ class class_builder ctx (cls:tclass) =
 				self#write_php_prefix ();
 				at_least_one_field_written := true
 			end;
-		 	if not cls.cl_interface then begin
+			let cs = cls.cl_structure() in
+			if not cls.cl_interface then begin
 		 		(* Inlined statc vars (constants) *)
-				PMap.iter (write_if_constant) cls.cl_statics;
+				PMap.iter (write_if_constant) cs.cl_statics;
 				if !at_least_one_field_written then writer#write_empty_lines;
 				at_least_one_field_written := false;
 		 		(* Statc vars *)
-				PMap.iter (write_if_var true) cls.cl_statics;
+				PMap.iter (write_if_var true) cs.cl_statics;
 				if !at_least_one_field_written then writer#write_empty_lines;
 				at_least_one_field_written := false;
 				(* instance vars *)
-				PMap.iter (write_if_var false) cls.cl_fields
+				PMap.iter (write_if_var false) cs.cl_fields
 			end;
 			(* Statc methods *)
-			PMap.iter (write_if_method true) cls.cl_statics;
+			PMap.iter (write_if_method true) cs.cl_statics;
 			(* Constructor *)
 			(match self#get_constructor with
 				| Some field -> write_if_method false "new" field
 				| None -> ()
 			);
 			(* Instance methods *)
-			PMap.iter (write_if_method false) cls.cl_fields;
+			PMap.iter (write_if_method false) cs.cl_fields;
 			(* Generate `__toString()` if not defined by user, but has `toString()` *)
 			self#write_toString_if_required
 		method private write_toString_if_required =
-			if PMap.exists "toString" cls.cl_fields then
-				if (not cls.cl_interface) && (not (PMap.exists "__toString" cls.cl_statics)) && (not (PMap.exists "__toString" cls.cl_fields)) then
+			let cs = cls.cl_structure() in
+			if PMap.exists "toString" cs.cl_fields then
+				if (not cls.cl_interface) && (not (PMap.exists "__toString" cs.cl_statics)) && (not (PMap.exists "__toString" cs.cl_fields)) then
 					begin
 						writer#write_empty_lines;
 						writer#indent 1;
@@ -3355,6 +3354,7 @@ class class_builder ctx (cls:tclass) =
 			Check if this class requires constructor to be generated even if there is no user-defined one
 		*)
 		method private constructor_is_required =
+			let cs = cls.cl_structure() in
 			if List.length self#get_namespace > 0 then
 				false
 			else begin
@@ -3364,7 +3364,7 @@ class class_builder ctx (cls:tclass) =
 						if not !required then
 							required := (String.lowercase field.cf_name = String.lowercase self#get_name)
 					)
-					(cls.cl_ordered_statics @ cls.cl_ordered_fields);
+					(cs.cl_ordered_statics @ cs.cl_ordered_fields);
 				!required
 			end
 		(**
@@ -3380,6 +3380,7 @@ class class_builder ctx (cls:tclass) =
 			Writes expressions for `__hx__init` method
 		*)
 		method private write_hx_init_body =
+			let cs = cls.cl_structure() in
 			(* `static dynamic function` initialization *)
 			let write_dynamic_method_initialization field =
 				let field_access = "self::$" ^ (field_name field) in
@@ -3397,7 +3398,7 @@ class class_builder ctx (cls:tclass) =
 						| Method MethDynamic -> write_dynamic_method_initialization field
 						| _ -> ()
 				)
-				cls.cl_statics;
+				cs.cl_statics;
 			(* `static var` initialization *)
 			let write_var_initialization field =
 				let write_assign expr =
@@ -3431,7 +3432,7 @@ class class_builder ctx (cls:tclass) =
 					writer#write ";\n"
 				end
 			in
-			List.iter write_var_initialization cls.cl_ordered_statics
+			List.iter write_var_initialization cs.cl_ordered_statics
 		(**
 			Writes single field to output buffer.
 		*)
@@ -3559,7 +3560,7 @@ class class_builder ctx (cls:tclass) =
 						| Method MethDynamic -> init_dynamic_method field
 						| _ -> ()
 				)
-				cls.cl_ordered_fields
+				(cls.cl_structure()).cl_ordered_fields
 		(**
 			Writes additional initialization code, which should be called before `__hx__init()`
 		*)
@@ -3573,8 +3574,9 @@ class class_builder ctx (cls:tclass) =
 						if write = AccCall then setters := field.cf_name :: !setters;
 					| _ -> ()
 			in
-			List.iter collect cls.cl_ordered_fields;
-			List.iter collect cls.cl_ordered_statics;
+			let cs = cls.cl_structure() in
+			List.iter collect cs.cl_ordered_fields;
+			List.iter collect cs.cl_ordered_statics;
 			let rec write lst =
 				match lst with
 					| [] -> ()

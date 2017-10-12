@@ -418,12 +418,13 @@ let gen_method ctx p c acc =
 		| _ -> (c.cf_name, null p) :: acc
 
 let gen_class ctx c =
+	let cs = c.cl_structure() in
 	ctx.curclass <- s_type_path c.cl_path;
 	ctx.curmethod <- "$init";
 	let p = pos ctx c.cl_pos in
 	let clpath = gen_type_path p (fst c.cl_path,"@" ^ snd c.cl_path) in
 	let stpath = gen_type_path p c.cl_path in
-	let fnew = (match c.cl_constructor with
+	let fnew = (match cs.cl_constructor with
 	| Some f ->
 		(match f.cf_expr with
 		| Some {eexpr = TFunction tf} ->
@@ -439,7 +440,7 @@ let gen_class ctx c =
 		[]
 	) in
 	let fstring = (try
-		let f = PMap.find "toString" c.cl_fields in
+		let f = PMap.find "toString" cs.cl_fields in
 		match follow f.cf_type with
 		| TFun ([],_) -> ["__string",ident p "@default__string"]
 		| _ -> []
@@ -458,21 +459,21 @@ let gen_class ctx c =
 	let tmp = (EVars ["@tmp",Some (call p (builtin p "new") [null p])],p) in
 	let estat = (EBinop ("=", stpath, ident p "@tmp"),p) in
 	let gen_props props = (EObject (List.map (fun (n,s) -> n,str p s) props),p) in
-	let sprops = (match Codegen.get_properties c.cl_ordered_statics with
+	let sprops = (match Codegen.get_properties cs.cl_ordered_statics with
 		| [] -> []
 		| l -> ["__properties__",gen_props l]
 	) in
 	let sfields = List.map build
 		(
 			("prototype",clpath) :: sprops @
-			PMap.fold (gen_method ctx p) c.cl_statics (fnew @ others)
+			PMap.fold (gen_method ctx p) cs.cl_statics (fnew @ others)
 		)
 	in
 	let eclass = (EBinop ("=", clpath, ident p "@tmp"),p) in
 	let mfields = List.map build
-		(PMap.fold (gen_method ctx p) c.cl_fields (fserialize :: fstring))
+		(PMap.fold (gen_method ctx p) cs.cl_fields (fserialize :: fstring))
 	in
-	let props = Codegen.get_properties c.cl_ordered_fields in
+	let props = Codegen.get_properties cs.cl_ordered_fields in
 	let emeta = (EBinop ("=",field p clpath "__class__",stpath),p) ::
 		(match props with
 		| [] -> []
@@ -589,7 +590,7 @@ let gen_static_vars ctx t =
 							(field p (gen_type_path p c.cl_path) f.cf_name),
 							gen_expr ctx e
 						),p) :: acc
-			) c.cl_ordered_statics []
+			) (c.cl_structure()).cl_ordered_statics []
 
 let gen_package ctx t =
 	let rec loop acc p =
