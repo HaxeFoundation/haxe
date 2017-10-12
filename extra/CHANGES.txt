@@ -3,6 +3,7 @@
 	New features:
 
 	all : added final keyword (#6596)
+	all : added new function type notation (#6645)
 
 	General improvements and optimizations:
 
