@@ -236,12 +236,12 @@ and tclass = {
 
 and tenum_field = {
 	ef_name : string;
-	ef_type : t;
+	mutable ef_type : t;
 	ef_pos : pos;
 	ef_name_pos : pos;
 	ef_doc : Ast.documentation;
 	ef_index : int;
-	ef_params : type_params;
+	mutable ef_params : type_params;
 	mutable ef_meta : metadata;
 }
 
