@@ -3,6 +3,7 @@ open Globals
 open Ast
 open Common
 open Common.DisplayMode
+open Timer
 open Type
 open DisplayOutput
 open Json
@@ -11,7 +12,7 @@ exception Dirty of module_def
 
 let measure_times = ref false
 let prompt = ref false
-let start_time = ref (get_time())
+let start_time = ref (Timer.get_time())
 
 let is_debug_run() =
 	try Sys.getenv "HAXEDEBUG" = "1" with _ -> false
@@ -101,7 +102,7 @@ let report_times print =
 		let node = loop root timer.id in
 		if not (List.memq node root.children) then
 			root.children <- node :: root.children
-	) Common.htimers;
+	) Timer.htimers;
 	let max_name = ref 0 in
 	let max_calls = ref 0 in
 	let rec loop depth node =
@@ -580,7 +581,7 @@ let rec wait_loop process_params verbose accept =
 				stats.s_classes_built := 0;
 				stats.s_methods_typed := 0;
 				stats.s_macros_called := 0;
-				Hashtbl.clear Common.htimers;
+				Hashtbl.clear Timer.htimers;
 				let _ = Common.timer ["other"] in
 				incr compilation_step;
 				compilation_mark := !mark_loop;

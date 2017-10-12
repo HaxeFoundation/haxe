@@ -1,5 +1,6 @@
 open Globals
 open Common
+open Timer
 open Common.DisplayMode
 open Type
 open Display
@@ -16,12 +17,12 @@ let htmlescape s =
 
 let get_timer_fields start_time =
 	let tot = ref 0. in
-	Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
+	Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Timer.htimers;
 	let fields = [("@TOTAL", Printf.sprintf "%.3fs" (get_time() -. start_time))] in
 	if !tot > 0. then
 		Hashtbl.fold (fun _ t acc ->
 			((String.concat "." t.id),(Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot))) :: acc
-		) Common.htimers fields
+		) Timer.htimers fields
 	else
 		fields
 

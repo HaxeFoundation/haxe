@@ -839,7 +839,7 @@ with
 		) fields in
 		let fields =
 			if !measure_times then begin
-				close_times();
+				Timer.close_times();
 				(List.map (fun (name,value) -> ("@TIME " ^ name, Display.FKTimer value, "")) (DisplayOutput.get_timer_fields !start_time)) @ fields
 			end else
 				fields
@@ -858,7 +858,7 @@ with
 	| Display.DisplayToplevel il ->
 		let il =
 			if !measure_times then begin
-				close_times();
+				Timer.close_times();
 				(List.map (fun (name,value) -> IdentifierType.ITTimer ("@TIME " ^ name ^ ": " ^ value)) (DisplayOutput.get_timer_fields !start_time)) @ il
 			end else
 				il
