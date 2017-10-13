@@ -2718,7 +2718,7 @@ and eval_expr ctx e =
 			op ctx (OSafeCast (r,re));
 		r
 	| TIdent s ->
-		assert false
+		abort ("Unbound identifier " ^ s) e.epos
 
 and gen_assign_op ctx acc e1 f =
 	let f r =
