@@ -1544,8 +1544,19 @@ let type_function_params ctx fd fname p =
 	params := type_type_params ctx ([],fname) (fun() -> !params) p fd.f_params;
 	!params
 
+let save_function_state ctx =
+	let old_ret = ctx.ret in
+	let old_fun = ctx.curfun in
+	let old_opened = ctx.opened in
+	let locals = ctx.locals in
+	(fun () ->
+		ctx.locals <- locals;
+		ctx.ret <- old_ret;
+		ctx.curfun <- old_fun;
+		ctx.opened <- old_opened;
+	)
+
 let type_function ctx args ret fmode f do_display p =
-	let locals = save_locals ctx in
 	let fargs = List.map2 (fun (n,c,t) ((_,pn),_,m,_,_) ->
 		if n.[0] = '$' then error "Function argument names starting with a dollar are not allowed" p;
 		let c = type_function_arg_value ctx t c do_display in
@@ -1556,9 +1567,6 @@ let type_function ctx args ret fmode f do_display p =
 		if n = "this" then v.v_meta <- (Meta.This,[],null_pos) :: v.v_meta;
 		v,c
 	) args f.f_args in
-	let old_ret = ctx.ret in
-	let old_fun = ctx.curfun in
-	let old_opened = ctx.opened in
 	ctx.curfun <- fmode;
 	ctx.ret <- ret;
 	ctx.opened <- [];
@@ -1647,7 +1655,6 @@ let type_function ctx args ret fmode f do_display p =
 		| None ->
 			e
 	in
-	locals();
 	let e = match ctx.curfun, ctx.vthis with
 		| (FunMember|FunConstructor), Some v ->
 			let ev = mk (TVar (v,Some (mk (TConst TThis) ctx.tthis p))) ctx.t.tvoid p in
@@ -1657,10 +1664,11 @@ let type_function ctx args ret fmode f do_display p =
 		| _ -> e
 	in
 	List.iter (fun r -> r := Closed) ctx.opened;
-	ctx.ret <- old_ret;
-	ctx.curfun <- old_fun;
-	ctx.opened <- old_opened;
 	e , fargs
+
+let type_function ctx args ret fmode f do_display p =
+	let save = save_function_state ctx in
+	Std.finally save (type_function ctx args ret fmode f do_display) p
 
 let load_core_class ctx c =
 	let ctx2 = (match ctx.g.core_api with
