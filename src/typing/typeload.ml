@@ -2714,6 +2714,7 @@ module ClassInitializer = struct
 			with Not_found ->
 				()
 		in
+		let delay_check = if c.cl_interface then delay_late ctx PBuildClass else delay ctx PTypeField in
 		let get = (match get with
 			| "null",_ -> AccNo
 			| "dynamic",_ -> AccCall
@@ -2722,7 +2723,7 @@ module ClassInitializer = struct
 			| get,pget ->
 				let get = if get = "get" then "get_" ^ name else get in
 				if fctx.is_display_field && Display.is_display_position pget then delay ctx PTypeField (fun () -> display_accessor get pget);
-				if not cctx.is_lib then delay_late ctx PBuildClass (fun() -> check_method get t_get (if get <> "get" && get <> "get_" ^ name then Some ("get_" ^ name) else None));
+				if not cctx.is_lib then delay_check (fun() -> check_method get t_get (if get <> "get" && get <> "get_" ^ name then Some ("get_" ^ name) else None));
 				AccCall
 		) in
 		let set = (match set with
@@ -2738,7 +2739,7 @@ module ClassInitializer = struct
 			| set,pset ->
 				let set = if set = "set" then "set_" ^ name else set in
 				if fctx.is_display_field && Display.is_display_position pset then delay ctx PTypeField (fun () -> display_accessor set pset);
-				if not cctx.is_lib then delay_late ctx PBuildClass (fun() -> check_method set t_set (if set <> "set" && set <> "set_" ^ name then Some ("set_" ^ name) else None));
+				if not cctx.is_lib then delay_check (fun() -> check_method set t_set (if set <> "set" && set <> "set_" ^ name then Some ("set_" ^ name) else None));
 				AccCall
 		) in
 		if set = AccNormal && (match get with AccCall -> true | _ -> false) then error (name ^ ": Unsupported property combination") p;
