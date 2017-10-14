@@ -3888,7 +3888,7 @@ let rec build_generic ctx c p tl =
 			   we need the full substitution list first. *)
 			let param_subst,params = List.fold_left (fun (subst,params) (s,t) -> match follow t with
 				| TInst(c,tl) as t ->
-					let t2 = TInst({c with cl_pos = c.cl_pos;},tl) in
+					let t2 = TInst({c with cl_module = mg;},tl) in
 					(t,t2) :: subst,(s,t2) :: params
 				| _ -> assert false
 			) ([],[]) cf_old.cf_params in
