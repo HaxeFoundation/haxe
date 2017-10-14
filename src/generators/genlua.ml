@@ -572,7 +572,7 @@ and ttype_multireturn t = match t with
             false
 and check_multireturn_param ctx t pos =
    match t with
-         TAbstract(_,p) | TType(_,p) | TInst(_,p) ->
+         TAbstract(_,p) | TInst(_,p) ->
             if List.exists ttype_multireturn p then
                 error "MultiReturns must not be type parameters" pos
             else
