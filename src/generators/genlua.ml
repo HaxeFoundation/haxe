@@ -563,6 +563,23 @@ and is_possible_string_field e field_name=
             false
 
 
+and ttype_multireturn t = match t with
+    | TInst (c,_) ->
+            Meta.has Meta.MultiReturn c.cl_meta
+    | TType (c,_) ->
+            Meta.has Meta.MultiReturn c.t_meta
+    | _ ->
+            false
+and check_multireturn_param ctx t pos =
+   match t with
+         TAbstract(_,p) | TType(_,p) | TInst(_,p) ->
+            if List.exists ttype_multireturn p then
+                error "MultiReturns must not be type parameters" pos
+            else
+                ()
+        | _ ->
+                ();
+
 and gen_expr ?(local=true) ctx e = begin
     match e.eexpr with
       TConst c ->
@@ -1815,19 +1832,20 @@ let alloc_ctx com =
 let transform_multireturn ctx = function
     | TClassDecl c ->
         let transform_field f =
+            check_multireturn_param ctx f.cf_type f.cf_pos;
             match f.cf_expr with
             | Some e ->
+                let is_multireturn t =
+                    match follow t with
+                    | TInst (c, _) when Meta.has Meta.MultiReturn c.cl_meta -> true
+                    | _ -> false
+                in
                 let rec loop e =
-                    let is_multireturn t =
-                        match follow t with
-                        | TInst (c, _) when Meta.has Meta.MultiReturn c.cl_meta -> true
-                        | _ -> false
-                    in
                     match e.eexpr with
-     (*
-						if we found a var declaration initialized by a multi-return call, mark it with @:multiReturn meta,
-						so it will later be generated as multiple locals unpacking the value
-					*)
+                    (*
+                        if we found a var declaration initialized by a multi-return call, mark it with @:multiReturn meta,
+                        so it will later be generated as multiple locals unpacking the value
+                    *)
                     | TVar (v, Some ({ eexpr = TCall _ } as ecall)) when is_multireturn v.v_type ->
                         v.v_meta <- (Meta.MultiReturn,[],v.v_pos) :: v.v_meta;
                         let ecall = Type.map_expr loop ecall in
@@ -2012,7 +2030,7 @@ let generate com =
     List.iter (generate_static ctx) (List.rev ctx.statics);
     (* Localize init variables inside a do-block *)
     (* Note: __init__ logic can modify static variables. *)
-    (* Generate statics *)
+    (* Generate static inits *)
     List.iter (gen_block_element ctx) (List.rev ctx.inits);
     b();
     newline ctx;
