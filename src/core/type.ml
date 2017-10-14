@@ -2677,3 +2677,45 @@ module StringError = struct
 		try string_error_raise s sl msg
 		with Not_found -> msg
 end
+
+let class_module_type c = {
+	t_path = [],"Class<" ^ (s_type_path c.cl_path) ^ ">" ;
+	t_module = c.cl_module;
+	t_doc = None;
+	t_pos = c.cl_pos;
+	t_name_pos = null_pos;
+	t_type = TAnon {
+		a_fields = c.cl_statics;
+		a_status = ref (Statics c);
+	};
+	t_private = true;
+	t_params = [];
+	t_meta = no_meta;
+}
+
+let enum_module_type m path p  = {
+	t_path = [], "Enum<" ^ (s_type_path path) ^ ">";
+	t_module = m;
+	t_doc = None;
+	t_pos = p;
+	t_name_pos = null_pos;
+	t_type = mk_mono();
+	t_private = true;
+	t_params = [];
+	t_meta = [];
+}
+
+let abstract_module_type a tl = {
+	t_path = [],Printf.sprintf "Abstract<%s%s>" (s_type_path a.a_path) (s_type_params (ref []) tl);
+	t_module = a.a_module;
+	t_doc = None;
+	t_pos = a.a_pos;
+	t_name_pos = null_pos;
+	t_type = TAnon {
+		a_fields = PMap.empty;
+		a_status = ref (AbstractStatics a);
+	};
+	t_private = true;
+	t_params = [];
+	t_meta = no_meta;
+}

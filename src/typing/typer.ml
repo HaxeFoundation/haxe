@@ -686,21 +686,6 @@ let fast_enum_field e ef p =
 	let et = mk (TTypeExpr (TEnumDecl e)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }) p in
 	TField (et,FEnum (e,ef))
 
-let abstract_module_type a tl = {
-	t_path = [],Printf.sprintf "Abstract<%s%s>" (s_type_path a.a_path) (s_type_params (ref []) tl);
-	t_module = a.a_module;
-	t_doc = None;
-	t_pos = a.a_pos;
-	t_name_pos = null_pos;
-	t_type = TAnon {
-		a_fields = PMap.empty;
-		a_status = ref (AbstractStatics a);
-	};
-	t_private = true;
-	t_params = [];
-	t_meta = no_meta;
-}
-
 let rec type_module_type ctx t tparams p =
 	match t with
 	| TClassDecl {cl_kind = KGenericBuild _} ->
@@ -714,20 +699,7 @@ let rec type_module_type ctx t tparams p =
 		in
 		type_module_type ctx mt None p
 	| TClassDecl c ->
-		let t_tmp = {
-			t_path = [],"Class<" ^ (s_type_path c.cl_path) ^ ">" ;
-			t_module = c.cl_module;
-			t_doc = None;
-			t_pos = c.cl_pos;
-			t_name_pos = null_pos;
-			t_type = TAnon {
-				a_fields = c.cl_statics;
-				a_status = ref (Statics c);
-			};
-			t_private = true;
-			t_params = [];
-			t_meta = no_meta;
-		} in
+		let t_tmp = class_module_type c in
 		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
 	| TEnumDecl e ->
 		let types = (match tparams with None -> List.map (fun _ -> mk_mono()) e.e_params | Some l -> l) in
