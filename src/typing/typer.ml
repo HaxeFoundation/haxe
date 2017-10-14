@@ -4374,7 +4374,7 @@ type state =
 	| Done
 	| NotYet
 
-let generate ctx =
+let sort_types com modules =
 	let types = ref [] in
 	let states = Hashtbl.create 0 in
 	let state p = try Hashtbl.find states p with Not_found -> NotYet in
@@ -4385,7 +4385,7 @@ let generate ctx =
 		match state p with
 		| Done -> ()
 		| Generating ->
-			ctx.com.warning ("Warning : maybe loop in static generation of " ^ s_type_path p) (t_infos t).mt_pos;
+			com.warning ("Warning : maybe loop in static generation of " ^ s_type_path p) (t_infos t).mt_pos;
 		| NotYet ->
 			Hashtbl.add states p Generating;
 			let t = (match t with
@@ -4465,9 +4465,13 @@ let generate ctx =
 		) c.cl_statics
 
 	in
-	let sorted_modules = List.sort (fun m1 m2 -> compare m1.m_path m2.m_path) (Hashtbl.fold (fun _ m acc -> m :: acc) ctx.g.modules []) in
+	let sorted_modules = List.sort (fun m1 m2 -> compare m1.m_path m2.m_path) (Hashtbl.fold (fun _ m acc -> m :: acc) modules []) in
 	List.iter (fun m -> List.iter loop m.m_types) sorted_modules;
-	get_main ctx !types, List.rev !types, sorted_modules
+	List.rev !types, sorted_modules
+
+let generate ctx =
+	let types,modules = sort_types ctx.com ctx.g.modules in
+	get_main ctx types,types,modules
 
 (* ---------------------------------------------------------------------- *)
 (* TYPER INITIALIZATION *)
