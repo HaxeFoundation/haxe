@@ -130,11 +130,17 @@ let api_inline2 com c field params p =
 
 let api_inline ctx c field params p = match c.cl_path, field, params with
 	| ([],"Std"),"is",[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when ctx.com.platform = Js ->
-		let mk_local ctx n t pos = mk (TIdent n) t pos in
-
 		let tstring = ctx.com.basic.tstring in
 		let tbool = ctx.com.basic.tbool in
 		let tint = ctx.com.basic.tint in
+
+		let esyntax =
+			let m = Hashtbl.find ctx.g.modules (["js"],"Syntax") in
+			ExtList.List.find_map (function
+				| TClassDecl ({ cl_path = ["js"],"Syntax" } as cl) -> Some (make_static_this cl p)
+				| _ -> None
+			) m.m_types
+		in
 
 		let is_trivial e =
 			match e.eexpr with
@@ -143,8 +149,7 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 		in
 
 		let typeof t =
-			let tof = mk (TIdent "__typeof__") (tfun [o.etype] tstring) p in
-			let tof = mk (TCall (tof, [o])) tstring p in
+			let tof = Texpr.Builder.fcall esyntax "typeof" [o] tstring p in
 			mk (TBinop (Ast.OpEq, tof, (mk (TConst (TString t)) tstring p))) tbool p
 		in
 
@@ -155,14 +160,12 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 		| TTypeExpr (TAbstractDecl ({ a_path = [],"Float" })) -> Some (typeof "number")
 		| TTypeExpr (TAbstractDecl ({ a_path = [],"Int" })) when is_trivial o ->
 			(* generate typeof(o) == "number" && (o|0) === o check *)
-			let teq = mk_local ctx "__strict_eq__" (tfun [tint; tint] tbool) p in
 			let lhs = mk (TBinop (Ast.OpOr, o, mk (TConst (TInt Int32.zero)) tint p)) tint p in
-			let jscheck = mk (TCall (teq, [lhs; o])) tbool p in
+			let jscheck = Texpr.Builder.fcall esyntax "strictEq" [lhs;o] tbool p in
 			Some(mk (TBinop (Ast.OpBoolAnd, typeof "number", jscheck)) tbool p)
 		| TTypeExpr (TClassDecl ({ cl_path = [],"Array" })) ->
 			(* generate (o instanceof Array) && o.__enum__ == null check *)
-			let iof = mk_local ctx "__instanceof__" (tfun [o.etype;t.etype] tbool) p in
-			let iof = mk (TCall (iof, [o; t])) tbool p in
+			let iof = Texpr.Builder.fcall esyntax "instanceof" [o;t] tbool p in
 			let enum = mk (TField (o, FDynamic "__enum__")) (mk_mono()) p in
 			let null = mk (TConst TNull) (mk_mono()) p in
 			let not_enum = mk (TBinop (Ast.OpEq, enum, null)) tbool p in

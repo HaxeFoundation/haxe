@@ -336,6 +336,9 @@ let gen_constant ctx p = function
 	| TThis -> spr ctx (this ctx)
 	| TSuper -> assert false
 
+let print_deprecation_message com msg p =
+	com.warning msg p
+
 let rec gen_call ctx e el in_value =
 	match e.eexpr , el with
 	| TConst TSuper , params ->
@@ -362,46 +365,29 @@ let rec gen_call ctx e el in_value =
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
-	| TIdent "__new__", { eexpr = TConst (TString cl) } :: params ->
-		print ctx "new %s(" cl;
-		concat ctx "," (gen_value ctx) params;
-		spr ctx ")";
-	| TIdent "__new__", e :: params ->
-		spr ctx "new ";
-		gen_value ctx e;
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) params;
-		spr ctx ")";
+	| TField (_, FStatic ({ cl_path = ["js"],"Syntax" }, { cf_name = meth })), args ->
+		gen_syntax ctx meth args e.epos
+	| TIdent "__new__", args ->
+		print_deprecation_message ctx.com "__new__ is deprecated, use js.Syntax.new_ instead" e.epos;
+		gen_syntax ctx "new_" args e.epos
 	| TIdent "__js__", [{ eexpr = TConst (TString "this") }] ->
 		spr ctx (this ctx)
 	| TIdent "__js__", [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
 	| TIdent "__js__", { eexpr = TConst (TString code); epos = p } :: tl ->
 		Codegen.interpolate_code ctx.com code tl (spr ctx) (gen_expr ctx) p
-	| TIdent "__instanceof__",  [o;t] ->
-		spr ctx "(";
-		gen_value ctx o;
-		print ctx " instanceof ";
-		gen_value ctx t;
-		spr ctx ")";
-	| TIdent "__typeof__",  [o] ->
-		spr ctx "typeof(";
-		gen_value ctx o;
-		spr ctx ")";
-	| TIdent "__strict_eq__" , [x;y] ->
-		(* add extra parenthesis here because of operator precedence *)
-		spr ctx "((";
-		gen_value ctx x;
-		spr ctx ") === ";
-		gen_value ctx y;
-		spr ctx ")";
-	| TIdent "__strict_neq__" , [x;y] ->
-		(* add extra parenthesis here because of operator precedence *)
-		spr ctx "((";
-		gen_value ctx x;
-		spr ctx ") !== ";
-		gen_value ctx y;
-		spr ctx ")";
+	| TIdent "__instanceof__",  args ->
+		print_deprecation_message ctx.com "__instanceof__ is deprecated, use js.Syntax.instanceof instead" e.epos;
+		gen_syntax ctx "instanceof" args e.epos
+	| TIdent "__typeof__",  args ->
+		print_deprecation_message ctx.com "__typeof__ is deprecated, use js.Syntax.typeof instead" e.epos;
+		gen_syntax ctx "typeof" args e.epos
+	| TIdent "__strict_eq__" , args ->
+		print_deprecation_message ctx.com "__strict_eq__ is deprecated, use js.Syntax.strictEq instead" e.epos;
+		gen_syntax ctx "strictEq" args e.epos
+	| TIdent "__strict_neq__" , args ->
+		print_deprecation_message ctx.com "__strict_neq__ is deprecated, use js.Syntax.strictNeq instead" e.epos;
+		gen_syntax ctx "strictNeq" args e.epos
 	| TIdent "__define_feature__", [_;e] ->
 		gen_expr ctx e
 	| TIdent "__feature__", { eexpr = TConst (TString f) } :: eif :: eelse ->
@@ -990,6 +976,52 @@ and gen_value ctx e =
 		v());
 	Option.may (fun smap -> smap.current_expr <- None) ctx.smap
 
+and gen_syntax ctx meth args pos =
+	match meth, args with
+	| "new_", cl :: params ->
+		spr ctx "new ";
+		begin
+			match cl.eexpr with
+			| TConst (TString cl) ->
+				spr ctx cl
+			| _ ->
+				gen_value ctx cl
+		end;
+		spr ctx "(";
+		concat ctx "," (gen_value ctx) params;
+		spr ctx ")"
+	| "instanceof", [o;t] ->
+		spr ctx "(";
+		gen_value ctx o;
+		print ctx " instanceof ";
+		gen_value ctx t;
+		spr ctx ")"
+	| "typeof", [o] ->
+		spr ctx "typeof(";
+		gen_value ctx o;
+		spr ctx ")"
+	| "strictEq" , [x;y] ->
+		(* add extra parenthesis here because of operator precedence *)
+		spr ctx "((";
+		gen_value ctx x;
+		spr ctx ") === ";
+		gen_value ctx y;
+		spr ctx ")";
+	| "strictNeq" , [x;y] ->
+		(* add extra parenthesis here because of operator precedence *)
+		spr ctx "((";
+		gen_value ctx x;
+		spr ctx ") !== ";
+		gen_value ctx y;
+		spr ctx ")";
+	| "delete" , [o;f] ->
+		spr ctx "delete(";
+		gen_value ctx o;
+		spr ctx "[";
+		gen_value ctx f;
+		spr ctx "]";
+		spr ctx ")";
+	| _ -> abort (Printf.sprintf "Unknown js.Syntax method %s with %d arguments" meth (List.length args)) pos
 
 let generate_package_create ctx (p,_) =
 	let rec loop acc = function

@@ -172,12 +172,12 @@ class Serializer {
 
 	function serializeRef(v:Dynamic) {
 		#if js
-		var vt = js.Lib.typeof(v);
+		var vt = js.Syntax.typeof(v);
 		#end
 		for( i in 0...cache.length ) {
 			#if js
 			var ci = cache[i];
-			if( js.Lib.typeof(ci) == vt && ci == v ) {
+			if( js.Syntax.typeof(ci) == vt && ci == v ) {
 			#else
 			if( cache[i] == v ) {
 			#end
@@ -537,7 +537,7 @@ class Serializer {
 		}
 	}
 
-	@:extern inline function __getField(o:Dynamic, f:String):Dynamic return untyped o[f];
+	@:extern inline function __getField(o:Dynamic, f:String):Dynamic return o[cast f];
 
 	public function serializeException( e : Dynamic ) {
 		buf.add("x");
