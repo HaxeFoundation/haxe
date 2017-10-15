@@ -32,7 +32,7 @@
 	@:pure function getDay() : Int;
 
 	@:pure inline function toString() : String {
-		return untyped HxOverrides.dateStr(this);
+		return @:privateAccess HxOverrides.dateStr(this);
 	}
 
 	@:pure static inline function now() : Date {
@@ -44,6 +44,6 @@
 	}
 
 	@:pure static inline function fromString( s : String ) : Date {
-		return untyped HxOverrides.strDate(s);
+		return @:privateAccess HxOverrides.strDate(s);
 	}
 }

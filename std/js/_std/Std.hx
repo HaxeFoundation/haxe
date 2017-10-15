@@ -25,7 +25,7 @@ import js.Boot;
 @:coreApi class Std {
 
 	public static inline function is( v : Dynamic, t : Dynamic ) : Bool {
-		return untyped js.Boot.__instanceof(v,t);
+		return @:privateAccess js.Boot.__instanceof(v,t);
 	}
 
 	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
@@ -34,7 +34,7 @@ import js.Boot;
 
 	@:pure
 	public static function string( s : Dynamic ) : String {
-		return untyped js.Boot.__string_rec(s,"");
+		return @:privateAccess js.Boot.__string_rec(s,"");
 	}
 
 	public static inline function int( x : Float ) : Int {
