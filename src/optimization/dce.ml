@@ -46,14 +46,22 @@ let rec super_forces_keep c =
 	| Some (csup,_) -> super_forces_keep csup
 	| _ -> false
 
-let rec is_or_overrides_extern_field cf c =
-	if c.cl_extern then cf.cf_expr = None
-	else
+let overrides_extern_field cf c =
+	let is_extern c cf = c.cl_extern && cf.cf_expr = None in
+	let rec loop c cf =
 		match c.cl_super with
-			| None -> false
-			| Some (csup,_) ->
-				try is_or_overrides_extern_field (PMap.find cf.cf_name csup.cl_fields) csup
-				with Not_found -> false
+		| None -> false
+		| Some (c,_) ->
+			try
+				let cf = PMap.find cf.cf_name c.cl_fields in
+				if is_extern c cf then
+					true
+				else
+					loop c cf
+			with Not_found ->
+				false
+	in
+	loop c cf
 
 let is_std_file dce file =
 	List.exists (ExtString.String.starts_with file) dce.std_dirs
@@ -81,7 +89,7 @@ let keep_field dce cf c is_static =
 	|| Meta.has Meta.Used cf.cf_meta
 	|| cf.cf_name = "__init__"
 	|| not (is_physical_field cf)
-	|| (not is_static && is_or_overrides_extern_field cf c)
+	|| (not is_static && overrides_extern_field cf c)
 
 (* marking *)
 
