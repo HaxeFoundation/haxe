@@ -36,5 +36,6 @@ extern class Syntax {
 	/**
 		Generate `delete o[f]` expression.
 	**/
-	static function delete(o:Dynamic, f:String):Void;
+	@:overload(function(o:Dynamic, f:Int):Bool {})
+	static function delete(o:Dynamic, f:String):Bool;
 }

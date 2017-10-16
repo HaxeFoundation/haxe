@@ -48,8 +48,8 @@ enum ValueType {
 		#end
 	}
 
-	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> untyped {
-		return c.__super__;
+	public static inline function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> {
+		return (cast c).__super__;
 	}
 
 
