@@ -170,6 +170,8 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 			let null = mk (TConst TNull) (mk_mono()) p in
 			let not_enum = mk (TBinop (Ast.OpEq, enum, null)) tbool p in
 			Some (mk (TBinop (Ast.OpBoolAnd, iof, not_enum)) tbool p)
+		| TTypeExpr (TClassDecl cls) when not cls.cl_interface ->
+			Some (Texpr.Builder.fcall esyntax "instanceof" [o;t] tbool p)
 		| _ ->
 			None)
 	| (["cs" | "java"],"Lib"),("nativeArray"),[{ eexpr = TArrayDecl args } as edecl; _]
