@@ -712,11 +712,11 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 					ctx.ret <- t;
 					(EBlock [],p)
 				)
-			with MacroApi.Invalid_expr ->
-				if v = Interp.vnull then
-					error "Unexpected null value returned from macro" p
-				else
-					error "The macro didn't return a valid result" p
+			with MacroApi.Invalid_expr | EvalContext.RunTimeException _ ->
+				let s,errors = Interp.handle_decoding_error v mret in
+				print_endline s;
+				List.iter (fun (s,i) -> print_endline (Printf.sprintf "line %i: %s" i s)) (List.rev errors);
+				error "There was a problem decoding the macro result" p;
 	in
 	let e = (if ctx.in_macro then begin
 		(*
