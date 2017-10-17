@@ -160,7 +160,6 @@ matrix:
         - TEST=neko
         - DEPLOY_API_DOCS=1
         - DEPLOY_NIGHTLIES=1
-        - SAUCE=1
         # haxeci_decrypt (Deploy source package to ppa:haxe/snapshots.)
         - secure: "Mw3p6bDZuqVQ6u7GrwLQfje5hhIOA4+mdqqLXYHP79UKdhgqb91Dn6IbG9vQ1VXVe64W4YZbQAMBMMRX5kEPDl6JvTVGSBhg00Mi69oO5qrCMcBI6f9FntG72YaVvLf+PA7co+vKrnJzaP2M9pe4SH9Ztbhy0YNxULp7NQ8FLsM="
         # deploy_key_decrypt (Deploy doc to api.haxe.org.)
@@ -176,6 +175,7 @@ matrix:
     - os: linux
       env:
         - TEST=macro,js,php,flash9,as3,java,cs,python,lua
+        - SAUCE=1
       addons:
         sauce_connect: true
       before_install:
