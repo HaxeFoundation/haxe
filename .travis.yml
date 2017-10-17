@@ -165,6 +165,10 @@ matrix:
         - secure: "Mw3p6bDZuqVQ6u7GrwLQfje5hhIOA4+mdqqLXYHP79UKdhgqb91Dn6IbG9vQ1VXVe64W4YZbQAMBMMRX5kEPDl6JvTVGSBhg00Mi69oO5qrCMcBI6f9FntG72YaVvLf+PA7co+vKrnJzaP2M9pe4SH9Ztbhy0YNxULp7NQ8FLsM="
         # deploy_key_decrypt (Deploy doc to api.haxe.org.)
         - secure: "A75uYqU0Xz6plIgSewEs0QQWe472dCMb9kf3j7Hx0DS7dApXgx8++189sw9Sv0wam5KPtbcIM292MucjGCb5zocVj9xCUVgajhEA0QpTuDMBjk/cg3ClWCGjfybaCl2E5LLdUs7Zy4b4oNWtVikOWLWJ4sC1kaarR9p6kv8yYZg="
+      addons:
+        ssh_known_hosts:
+          - haxe.org
+          - api.haxe.org
       before_install:
         - eval `ssh-agent -s` # for deployment to haxe.org
       install: *install_linux
@@ -173,9 +177,6 @@ matrix:
       env:
         - TEST=macro,js,php,flash9,as3,java,cs,python,lua
       addons:
-        ssh_known_hosts:
-          - haxe.org
-          - api.haxe.org
         sauce_connect: true
       before_install:
         - "export DISPLAY=:99.0"
