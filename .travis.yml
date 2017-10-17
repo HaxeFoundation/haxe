@@ -22,6 +22,7 @@ before_cache:
 
 env:
   global:
+    - OPAMYES=1
     # make variables
     - ADD_REVISION=1
     # nightly builds submit
@@ -43,13 +44,6 @@ sudo: required
 dist: trusty
 
 install_linux: &install_linux
-  - if [ ! -d "$HOME/neko" ]; then
-      export CACHE_AVAILABLE=0;
-    elif [ ! -d "$HOME/neko/.git" ]; then
-      export CACHE_AVAILABLE=0;
-    else
-      export CACHE_AVAILABLE=1;
-    fi
   # Install dependencies
   - export APT_CACHE_DIR=~/apt-cache && mkdir -pv $APT_CACHE_DIR
   - sudo apt-get install --reinstall ca-certificates # workaround for "Cannot add PPA: 'ppa:haxe/ocaml'. Please check that the PPA name or format is correct."
@@ -67,38 +61,34 @@ install_linux: &install_linux
       awscli
       $JOB_DEPENDENCIES
   - wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin system
-  - export OPAMYES=1
   - opam install sedlex xml-light extlib rope ptmap
-  # check if we need to install neko
-  - export REF_CHANGED=1;
-  - if [ ! -d "$HOME/neko" ]; then
-      mkdir $HOME/neko;
-      pushd $HOME/neko;
-      git clone https://github.com/HaxeFoundation/neko.git .;
-      git submodule update --init --recursive;
+  # install neko
+  - if [ ! $DEPLOY_NIGHTLIES ]; then
+      sudo add-apt-repository ppa:haxe/snapshots -y;
+      sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y neko neko-dev;
     else
-      pushd $HOME/neko;
-      if [ ! -d "$HOME/neko/.git" ]; then
+      if [ ! -d "$HOME/neko" ]; then
+        mkdir $HOME/neko;
+        pushd $HOME/neko;
         git clone https://github.com/HaxeFoundation/neko.git .;
         git submodule update --init --recursive;
       else
-        git fetch --all;
-        export REF_CUR=`git rev-list master | head -n 1`;
-        export REF_REMOTE=`git rev-list origin/master | head -n 1`;
-        export REF_CHANGED=`(test $REF_CUR != $REF_REMOTE && echo 1) || echo 0`;
-        if [ $REF_CHANGED = 1 ]; then
+        pushd $HOME/neko;
+        if [ ! -d "$HOME/neko/.git" ]; then
+          git clone https://github.com/HaxeFoundation/neko.git .;
+          git submodule update --init --recursive;
+        else
+          git fetch --all;
           git reset --hard origin/master;
           git submodule update --init --recursive;
         fi;
       fi;
-    fi;
-  - env
-  - test $REF_CHANGED = 0 || cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
-  # download static dependencies before actual build, with 3 chances to deal with network issues
-  - test $REF_CHANGED = 0 || ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
-  - test $REF_CHANGED = 0 || (ninja -j 4)
-  - sudo cmake -P cmake_install.cmake
-  - popd
+      cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && cmake . -DSTATIC_DEPS=all -G Ninja);
+      ninja download_static_deps || ninja download_static_deps || ninja download_static_deps;
+      ninja -j 4;
+      sudo ninja install;
+      popd;
+    fi
   # Setup JDK
   - jdk_switcher use oraclejdk7
   - java -version
@@ -115,52 +105,40 @@ install_linux: &install_linux
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
 
 install_osx: &install_osx
-  - if [ ! -d "$HOME/neko" ]; then
-      export CACHE_AVAILABLE=0;
-    elif [ ! -d "$HOME/neko/.git" ]; then
-      export CACHE_AVAILABLE=0;
-    else
-      export CACHE_AVAILABLE=1;
-    fi
   # Install dependencies
   - travis_retry brew update --merge
   - brew uninstall --force brew-cask # https://github.com/caskroom/homebrew-cask/pull/15381
   - travis_retry brew tap Homebrew/bundle
   - travis_retry brew bundle --file=tests/Brewfile
-  - export OPAMYES=1
   - opam init
   - eval `opam config env`
   - opam install camlp4 sedlex ocamlfind xml-light extlib rope ptmap
-  # check if we need to install neko
-  - export REF_CHANGED=1;
-  - if [ ! -d "$HOME/neko" ]; then
-      mkdir $HOME/neko;
-      pushd $HOME/neko;
-      git clone https://github.com/HaxeFoundation/neko.git .;
-      git submodule update --init --recursive;
+  # install neko
+  - if [ ! $DEPLOY_NIGHTLIES ]; then
+      brew install neko --HEAD;
     else
-      pushd $HOME/neko;
-      if [ ! -d "$HOME/neko/.git" ]; then
+      if [ ! -d "$HOME/neko" ]; then
+        mkdir $HOME/neko;
+        pushd $HOME/neko;
         git clone https://github.com/HaxeFoundation/neko.git .;
         git submodule update --init --recursive;
       else
-        git fetch --all;
-        export REF_CUR=`git rev-list master | head -n 1`;
-        export REF_REMOTE=`git rev-list origin/master | head -n 1`;
-        export REF_CHANGED=`(test $REF_CUR != $REF_REMOTE && echo 1) || echo 0`;
-        if [ $REF_CHANGED = 1 ]; then
+        pushd $HOME/neko;
+        if [ ! -d "$HOME/neko/.git" ]; then
+          git clone https://github.com/HaxeFoundation/neko.git .;
+          git submodule update --init --recursive;
+        else
+          git fetch --all;
           git reset --hard origin/master;
           git submodule update --init --recursive;
         fi;
       fi;
+      cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && cmake . -DSTATIC_DEPS=all -G Ninja);
+      ninja download_static_deps || ninja download_static_deps || ninja download_static_deps;
+      ninja -j 4;
+      sudo ninja install;
+      popd;
     fi
-  - env
-  - test $REF_CHANGED = 0 || cmake . -DSTATIC_DEPS=all -G Ninja || (git clean -dfx && export CACHE_AVAILABLE=0 && cmake . -DSTATIC_DEPS=all -G Ninja)
-  # download static dependencies before actual build, with 3 chances to deal with network issues
-  - test $REF_CHANGED = 0 || ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
-  - test $REF_CHANGED = 0 || (ninja -j 4)
-  - sudo cmake -P cmake_install.cmake
-  - popd
   # Build haxe
   - make -s STATICLINK=1 "LIB_PARAMS=/usr/local/opt/zlib/lib/libz.a /usr/local/lib/libpcre.a" libs
   - make -s -j STATICLINK=1 "LIB_PARAMS=/usr/local/opt/zlib/lib/libz.a /usr/local/lib/libpcre.a" haxe
@@ -179,7 +157,7 @@ matrix:
     #########
     - os: linux
       env:
-        - TEST=macro,neko,js,php,flash9,as3,java,cs,python,lua
+        - TEST=neko
         - DEPLOY_API_DOCS=1
         - DEPLOY_NIGHTLIES=1
         - SAUCE=1
@@ -187,6 +165,13 @@ matrix:
         - secure: "Mw3p6bDZuqVQ6u7GrwLQfje5hhIOA4+mdqqLXYHP79UKdhgqb91Dn6IbG9vQ1VXVe64W4YZbQAMBMMRX5kEPDl6JvTVGSBhg00Mi69oO5qrCMcBI6f9FntG72YaVvLf+PA7co+vKrnJzaP2M9pe4SH9Ztbhy0YNxULp7NQ8FLsM="
         # deploy_key_decrypt (Deploy doc to api.haxe.org.)
         - secure: "A75uYqU0Xz6plIgSewEs0QQWe472dCMb9kf3j7Hx0DS7dApXgx8++189sw9Sv0wam5KPtbcIM292MucjGCb5zocVj9xCUVgajhEA0QpTuDMBjk/cg3ClWCGjfybaCl2E5LLdUs7Zy4b4oNWtVikOWLWJ4sC1kaarR9p6kv8yYZg="
+      before_install:
+        - eval `ssh-agent -s` # for deployment to haxe.org
+      install: *install_linux
+
+    - os: linux
+      env:
+        - TEST=macro,js,php,flash9,as3,java,cs,python,lua
       addons:
         ssh_known_hosts:
           - haxe.org
@@ -197,13 +182,13 @@ matrix:
         - "sh -e /etc/init.d/xvfb start"
         - "export AUDIODEV=null"
       install: *install_linux
+
     - os: linux
       env:
         - TEST=cpp
         - HXCPP_COMPILE_THREADS=4
         - HXCPP_COMPILE_CACHE=~/hxcache
-      before_install:
-        - export JOB_DEPENDENCIES="gcc-multilib g++-multilib"
+        - JOB_DEPENDENCIES="gcc-multilib g++-multilib"
       install: *install_linux
 
     #######
@@ -212,14 +197,14 @@ matrix:
     - os: osx
       osx_image: xcode7.3 # to compile binaries that support older versions of Mac, and 10.11 is the min version that brew provides bottles
       env:
-        - TEST=macro,neko,js,php,flash9,python
+        - TEST=neko
         - DEPLOY_NIGHTLIES=1
       install: *install_osx
 
     - os: osx
       osx_image: xcode9.1 # to compile faster
       env:
-        - TEST=java,cs,lua
+        - TEST=macro,java,cs,lua,js,php,flash9,python
       install: *install_osx
 
     - os: osx
@@ -231,16 +216,11 @@ matrix:
       install: *install_osx
 
 script:
-  - eval `ssh-agent -s` # for deployment to haxe.org
-  - export CAN_BUILD=`(test $CACHE_AVAILABLE = 1 || test $TRAVIS_OS_NAME = 'linux') && echo 1`
-  - if [ ! $CAN_BUILD ]; then
-      echo "No cache available, but initial cache created, please try restarting this job";
-    fi
-  - test $CAN_BUILD && pushd tests
-  - test $CAN_BUILD && mkdir ~/haxelib && haxelib setup ~/haxelib
-  - test $CAN_BUILD && haxe -version
-  - test $CAN_BUILD && haxe RunCi.hxml
-  - test $CAN_BUILD && popd
+  - pushd tests
+  - mkdir ~/haxelib && haxelib setup ~/haxelib
+  - haxe -version
+  - haxe RunCi.hxml
+  - popd
 
 branches:
   except:
