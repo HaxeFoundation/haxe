@@ -21,14 +21,13 @@
  */
 package js;
 
-@:native("Map")
-extern class Map<K,V> {
+@:native("Set")
+extern class Set<T> {
 	var size(default,null):Int;
 	@:pure function new();
-	@:pure function has(key:K):Bool;
-	@:pure function get(key:K):Null<V>;
-	function set(key:K, value:V):Map<K,V>;
-	function delete(key:K):Bool;
+	@:pure function has(value:T):Bool;
+	function add(value:T):Set<T>;
+	function delete(value:T):Bool;
 	function clear():Void;
-	function forEach(callback:(value:V, key:K, map:Map<K,V>)->Void, ?thisArg:Any):Void;
+	function forEach(callback:(value:T, key:T, set:Set<T>)->Void, ?thisArg:Any):Void;
 }
