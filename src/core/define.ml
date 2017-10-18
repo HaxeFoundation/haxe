@@ -193,7 +193,7 @@ let infos = function
 	| Objc -> "objc",("Sets the hxcpp output to objective-c++ classes. Must be defined for interop",[Platform Cpp])
 	| OldConstructorInline -> "old-constructor-inline",("Use old constructor inlining logic (from haxe 3.4.2) instead of the reworked version.",[])
 	| OldErrorFormat -> "old-error-format",("Use Haxe 3.x zero-based column error messages instead of new one-based format.",[])
-	| PhpPrefix -> "php_prefix",("Root namespace for generated php classes. E.g. if compiled with`--php-prefix some.sub`, then all classes will be generated in `\\some\\sub` namespace.",[Platform Php])
+	| PhpPrefix -> "php_prefix",("Root namespace for generated php classes. E.g. if compiled with`-D php-prefix=some.sub`, then all classes will be generated in `\\some\\sub` namespace.",[Platform Php])
 	| PhpLib -> "php_lib",("Select the name for the php lib folder.",[Platform Php])
 	| PhpFront -> "php_front",("Select the name for the php front file (by default: `index.php`).", [Platform Php])
 	| RealPosition -> "real_position",("Disables Haxe source mapping when targetting C#, removes position comments in Java and Php output",[Platforms [Cs;Java;Php]])
