@@ -1308,7 +1308,10 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 							match !alias_source with
 								| [] ->  failwith ("Failed to find already used type: " ^ get_full_type_name type_path)
 								| name :: rest ->
-									alias_source := rest;
+									alias_source := (match rest with
+										| [] -> [name]
+										| _ -> rest
+									);
 									String.capitalize name
 						and added = ref false
 						and alias = ref (get_type_name type_path) in
