@@ -84,12 +84,22 @@ let keep_whole_enum dce en =
 	|| not (dce.full || is_std_file dce en.e_module.m_extra.m_file || has_meta Meta.Dce en.e_meta)
 
 (* check if a field is kept *)
-let keep_field dce cf c is_static =
+let rec keep_field dce cf c is_static =
 	Meta.has Meta.Keep cf.cf_meta
 	|| Meta.has Meta.Used cf.cf_meta
 	|| cf.cf_name = "__init__"
 	|| not (is_physical_field cf)
 	|| (not is_static && overrides_extern_field cf c)
+	|| (cf.cf_name = "new" && keep_instance_fields dce c)
+
+(* Check if at least one instance field will be kept *)
+and keep_instance_fields dce c =
+	let rec check_next_field fields =
+		match fields with
+			| [] -> false
+			| next :: rest -> (keep_field dce next c false) || check_next_field rest
+	in
+	check_next_field c.cl_ordered_fields
 
 (* marking *)
 
