@@ -90,7 +90,16 @@ let rec keep_field dce cf c is_static =
 	|| cf.cf_name = "__init__"
 	|| not (is_physical_field cf)
 	|| (not is_static && overrides_extern_field cf c)
-	|| (cf.cf_name = "new" && keep_instance_fields dce c)
+	|| (
+		cf.cf_name = "new"
+			&& (
+				(keep_instance_fields dce c) (* kept own instance fields*)
+				|| (match c.cl_super with (* parent class kept constructor *)
+					| Some ({ cl_constructor = Some ctor } as csup, _) -> keep_field dce ctor csup false
+					| _ -> false
+				)
+			)
+	)
 
 (* Check if at least one instance field will be kept *)
 and keep_instance_fields dce c =
