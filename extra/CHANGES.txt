@@ -1,3 +1,10 @@
+2017-XX-XX: 3.4.5
+
+	Bugfixes:
+
+	js : fixed saving setter to `tmp` var before invocation (#6672)
+	php7 : don't fail on generating import aliases for classes with the similar names (#6680)
+
 2017-10-08: 3.4.4
 
 	Bugfixes:
@@ -22,7 +29,6 @@
 	php7: implemented `php.Lib.loadLib()`
 	php7: implemented `php.Lib.getClasses()` (#6384)
 	php7: fixed exception on `Reflect.getProperty(o, field)` if requested field does not exist (#6559)
-	php7: don't fail on generating import aliases for classes with the similar names (#6680)
 	php/php7: fixed accessing enum constructors on enum type stored to a variable (#6159)
 	php/php7: fixed "cannot implement previously implemented interface" (#6208)
 	php: fixed invoking functions stored in dynamic static vars (#6158)
