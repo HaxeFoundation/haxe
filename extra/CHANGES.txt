@@ -10,6 +10,7 @@
 
 	Bugfixes:
 
+	js : fixed saving setter to `tmp` var before invocation (#6672)
 	php : don't fail on generating import aliases for classes with the similar names (#6680)
 
 2017-10-08: 4.0.0-preview.2
@@ -49,7 +50,6 @@
 	php/python : fixed some bit operators for Int32 (#5938)
 	php : fixed accessing `static inline var` via reflection (#6630)
 	php : fixed Math.min() and Math.max() for NAN on PHP 7.1.9 and 7.1.10
-	php : don't fail on generating import aliases for classes with the similar names (#6680)
 	js : fixed js syntax error for `value.iterator--` (#6637)
 
 	Standard Library:
