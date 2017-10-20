@@ -682,14 +682,7 @@ let run com main full =
 		| TClassDecl c ->
 			let keep_class = keep_whole_class dce c && (not c.cl_extern || c.cl_interface) in
 			let loop stat cf =
-				if keep_class || keep_field dce cf c stat then
-					begin
-						mark_field dce c cf stat;
-						if not stat then
-							match c.cl_constructor with
-								| None -> ()
-								| Some ctor -> mark_field dce c ctor false
-					end
+				if keep_class || keep_field dce cf c stat then mark_field dce c cf stat
 			in
 			List.iter (loop true) c.cl_ordered_statics;
 			List.iter (loop false) c.cl_ordered_fields;
