@@ -97,15 +97,6 @@ let rec keep_field dce cf c is_static =
 			| _ -> false
 	)
 
-(* Check if at least one instance field will be kept *)
-and keep_instance_fields dce c =
-	let rec check_next_field fields =
-		match fields with
-			| [] -> false
-			| next :: rest -> (keep_field dce next c false) || check_next_field rest
-	in
-	check_next_field c.cl_ordered_fields
-
 (* marking *)
 
 let rec check_feature dce s =
