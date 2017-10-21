@@ -50,6 +50,15 @@ let delayed_macro_result = ref ((fun() -> assert false) : unit -> unit -> Interp
 let unify_call_args_ref = ref (fun _ _ _ _ _ _ _-> assert false)
 let unify_call_args a b c d e f g : (texpr list * t) = !unify_call_args_ref a b c d e f g
 
+let safe_decode v t p f =
+	try
+		f ()
+	with MacroApi.Invalid_expr | EvalContext.RunTimeException _ ->
+		let s,errors = Interp.handle_decoding_error v t in
+		print_endline s;
+		List.iter (fun (s,i) -> print_endline (Printf.sprintf "line %i: %s" i s)) (List.rev errors);
+		error "There was a problem decoding" p
+
 let get_next_stored_typed_expr_id =
 	let uid = ref 0 in
 	(fun() -> incr uid; !uid)
@@ -281,7 +290,11 @@ let make_macro_api ctx p =
 			!get_pattern_locals_ref ctx e t
 		);
 		MacroApi.define_type = (fun v mdep ->
-			let m, tdef, pos = (try Interp.decode_type_def v with MacroApi.Invalid_expr -> Interp.exc_string "Invalid type definition") in
+			let cttype = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = Some ("TypeDefinition") } in
+			let mctx = (match ctx.g.macros with None -> assert false | Some (_,mctx) -> mctx) in
+			let ttype = Typeload.load_instance mctx (cttype,null_pos) false p in
+			let f () = Interp.decode_type_def v in
+			let m, tdef, pos = safe_decode v ttype p f in
 			let add is_macro ctx =
 				let mdep = Option.map_default (fun s -> Typeload.load_module ctx (parse_path s) pos) ctx.m.curmod mdep in
 				let mnew = Typeload.type_module ctx m mdep.m_extra.m_file [tdef,pos] pos in
@@ -290,8 +303,8 @@ let make_macro_api ctx p =
 			in
 			add false ctx;
 			(* if we are adding a class which has a macro field, we also have to add it to the macro context (issue #1497) *)
-			if not ctx.in_macro then match tdef,ctx.g.macros with
-			| EClass c,Some (_,mctx) when List.exists (fun cff -> (Meta.has Meta.Macro cff.cff_meta || List.mem AMacro cff.cff_access)) c.d_data ->
+			if not ctx.in_macro then match tdef with
+			| EClass c when List.exists (fun cff -> (Meta.has Meta.Macro cff.cff_meta || List.mem AMacro cff.cff_access)) c.d_data ->
 				add true mctx
 			| _ ->
 				()
@@ -688,7 +701,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		match call_macro args with
 		| None -> None
 		| Some v ->
-			try
+			let process () =
 				Some (match mode with
 				| MExpr | MDisplay -> Interp.decode_expr v
 				| MBuild ->
@@ -712,11 +725,9 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 					ctx.ret <- t;
 					(EBlock [],p)
 				)
-			with MacroApi.Invalid_expr | EvalContext.RunTimeException _ ->
-				let s,errors = Interp.handle_decoding_error v mret in
-				print_endline s;
-				List.iter (fun (s,i) -> print_endline (Printf.sprintf "line %i: %s" i s)) (List.rev errors);
-				error "There was a problem decoding the macro result" p;
+			in
+			safe_decode v mret p process
+
 	in
 	let e = (if ctx.in_macro then begin
 		(*
