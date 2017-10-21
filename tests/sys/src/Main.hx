@@ -10,6 +10,7 @@ class Main {
 		runner.addCase(new io.TestFileInput());
 		runner.addCase(new io.TestProcess());
 		runner.addCase(new net.TestSocket());
+		runner.addCase(new db.TestSqlite());
 		Report.create(runner);
 		runner.run();
 	}
