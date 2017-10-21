@@ -10,7 +10,9 @@ class Main {
 		runner.addCase(new io.TestFileInput());
 		runner.addCase(new io.TestProcess());
 		runner.addCase(new net.TestSocket());
+		#if !(python || lua)
 		runner.addCase(new db.TestSqlite());
+		#end
 		Report.create(runner);
 		runner.run();
 	}
