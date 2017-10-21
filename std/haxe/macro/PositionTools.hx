@@ -60,7 +60,7 @@ class PositionTools {
 		#end
 	}
 
-	#if macro
+	#if (macro || display)
 	/**
 		Converts a `haxe.macro.Position` to a `haxe.display.Range`.
 
