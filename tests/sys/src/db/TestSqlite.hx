@@ -2,6 +2,7 @@ package db;
 
 import sys.db.*;
 import utest.Assert;
+import sys.FileSystem;
 
 class TestSqlite {
 	static public inline var DB_FILE = 'temp/db.sqlite';
@@ -15,10 +16,14 @@ class TestSqlite {
 
 	public function tearDown() {
 		cnx.close();
-		sys.FileSystem.deleteFile(DB_FILE);
+		FileSystem.deleteFile(DB_FILE);
 	}
 
 	public function new() {}
+
+	public function testCorrectDbFileCreated() {
+		Assert.isTrue(FileSystem.exists(DB_FILE));
+	}
 
 	public function testResultSet() {
 		cnx.request("INSERT INTO test (id, num, value) VALUES (1, 1.5, 'one'),(10, 10.1, 'ten')");
