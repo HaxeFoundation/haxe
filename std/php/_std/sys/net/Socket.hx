@@ -94,7 +94,7 @@ class Socket {
 	public function bind(host : Host, port : Int) : Void {
 		var errs = null;
 		var errn = null;
-		var r = untyped __call__('stream_socket_server', protocol + '://' +host._ip + ':' + port, errn, errs, (protocol=="udp") ? __php__('STREAM_SERVER_BIND') : __php__('STREAM_SERVER_BIND | STREAM_SERVER_LISTEN'));
+		var r = untyped __call__('stream_socket_server', protocol + '://' + host.host + ':' + port, errn, errs, (protocol=="udp") ? __php__('STREAM_SERVER_BIND') : __php__('STREAM_SERVER_BIND | STREAM_SERVER_LISTEN'));
 		Socket.checkError(r, errn, errs);
 		__s = cast r;
 		assignHandler();

@@ -4,6 +4,7 @@
 
 	js : fixed saving setter to `tmp` var before invocation (#6672)
 	php7 : don't fail on generating import aliases for classes with the similar names (#6680)
+	php/php7 : fixed `sys.net.Socket.bind()` (#6693)
 
 2017-10-08: 3.4.4
 
