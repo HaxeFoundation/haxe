@@ -15,6 +15,7 @@ class TestSqlite {
 	}
 
 	public function tearDown() {
+		cnx.request("DROP TABLE test");
 		cnx.close();
 		FileSystem.deleteFile(DB_FILE);
 	}
