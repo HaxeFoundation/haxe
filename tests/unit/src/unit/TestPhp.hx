@@ -66,6 +66,21 @@ class TestPhp extends Test
 	}
 
 #if php7
+
+	function testIssue6698() {
+		var arr = new NativeAssocArray<Dynamic>();
+		var innerArr = new NativeAssocArray<Int>();
+		innerArr['one'] = 1;
+		innerArr['two'] = 2;
+		arr['inner'] = innerArr;
+
+		var obj = Lib.objectOfAssociativeArray(arr);
+		var innerObj = obj.inner;
+		t(Global.is_object(innerObj));
+		eq(1, innerObj.one);
+		eq(2, innerObj.two);
+	}
+
 	/**
 		Check compiler will generate proper function signature with `Ref<T>` arguments
 	**/

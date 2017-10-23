@@ -108,6 +108,11 @@ class Lib {
 	}
 
 	public static inline function objectOfAssociativeArray(arr : NativeArray) : Dynamic {
+		Syntax.foreach(arr, function(key:Scalar, value:Dynamic) {
+			if(Global.is_array(value)) {
+				arr[key] = objectOfAssociativeArray(value);
+			}
+		});
 		return Boot.createAnon(arr);
 	}
 
