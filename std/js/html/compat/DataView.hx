@@ -92,8 +92,15 @@ class DataView {
 	}
 
 	public function getFloat64( byteOffset : Int, ?littleEndian : Bool ) : Float {
-		var lo = getInt32(byteOffset, littleEndian);
-		var hi = getInt32(byteOffset + 4, littleEndian);
+		var lo = 0;
+		var hi = 0;
+		if (littleEndian) {
+			lo = getInt32(byteOffset    , true);
+			hi = getInt32(byteOffset + 4, true);
+		} else {
+			hi = getInt32(byteOffset    , false);
+			lo = getInt32(byteOffset + 4, false);
+		}
 		var sign = 0x80000000 & hi == 0 ? 1.0 : -1.0;
 		var e = (hi >> 20) & 0x7ff;
 		if (e == 2047)
