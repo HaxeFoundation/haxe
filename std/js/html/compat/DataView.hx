@@ -80,36 +80,13 @@ class DataView {
 	}
 
 	public function getFloat32( byteOffset : Int, ?littleEndian : Bool ) : Float {
-		var i = getInt32(byteOffset, littleEndian);
-		var sign = 0x80000000 & i == 0 ? 1.0 : -1.0;
-		var e = (i >> 23) & 0xff;
-		if (e == 255)
-			return i & 0x7fffff == 0
-				? (sign > 0 ? Math.POSITIVE_INFINITY : Math.NEGATIVE_INFINITY)
-				: Math.NaN;
-		var m = e == 0 ? (i & 0x7fffff) << 1 : (i & 0x7fffff) | 0x800000;
-		return sign * m * Math.pow(2, e - 150);
+		return @:privateAccess haxe.io.FPHelper.i2f(getInt32(byteOffset, littleEndian));
 	}
 
 	public function getFloat64( byteOffset : Int, ?littleEndian : Bool ) : Float {
-		var lo = 0;
-		var hi = 0;
-		if (littleEndian) {
-			lo = getInt32(byteOffset    , true);
-			hi = getInt32(byteOffset + 4, true);
-		} else {
-			hi = getInt32(byteOffset    , false);
-			lo = getInt32(byteOffset + 4, false);
-		}
-		var sign = 0x80000000 & hi == 0 ? 1.0 : -1.0;
-		var e = (hi >> 20) & 0x7ff;
-		if (e == 2047)
-			return lo == 0 && (hi & 0xFFFFF) == 0
-				? (sign > 0 ? Math.POSITIVE_INFINITY : Math.NEGATIVE_INFINITY)
-				: Math.NaN;
-		var m = Math.pow(2, -52) * ((hi & 0xFFFFF) * 4294967296. + (lo >>> 31) * 2147483648. + (lo & 0x7FFFFFFF));
-		m = e == 0 ? m * 2.0 : m + 1.0;
-		return sign * m * Math.pow(2, e - 1023);
+		var a = getInt32(byteOffset, littleEndian);
+		var b = getInt32(byteOffset + 4, littleEndian);
+		return @:privateAccess haxe.io.FPHelper.ii2d(littleEndian ? a : b, littleEndian ? b : a);
 	}
 
 	public function setInt8( byteOffset : Int, value : Int ) : Void {
@@ -155,54 +132,18 @@ class DataView {
 	}
 
 	static inline var LN2 = 0.6931471805599453;
-	public function setFloat32( byteOffset : Int, f : Float, ?littleEndian : Bool ) : Void {
-		if( f == 0 ) setUint32(byteOffset, 0, littleEndian);
-		var af = f < 0 ? -f : f;
-		var exp = Math.floor(Math.log(af) / LN2);
-		if ( exp <= -127 ) {
-			exp = -127;
-			af = af / Math.pow(2, exp) * 0.5;
-		}else if ( exp > 127 ) {
-			setUint32(byteOffset, 0x7F800000, littleEndian);
-		} else {
-			af = af / Math.pow(2, exp) - 1.0;
-		}
-		var sig = Math.round(af * 0x800000);
-		setUint32(byteOffset, (f < 0 ? 0x80000000 : 0) | ((exp + 127) << 23) | sig , littleEndian);
+	public function setFloat32( byteOffset : Int, value : Float, ?littleEndian : Bool ) : Void {
+		setUint32(byteOffset, @:privateAccess haxe.io.FPHelper.f2i(value), littleEndian);
 	}
 
-	public function setFloat64( byteOffset : Int, v : Float, ?littleEndian : Bool ) : Void {
-		var lo = 0;
-		var hi = 0;
-		if (!Math.isFinite(v)) {
-			lo = 0;
-			hi = v > 0 ? 0x7FF00000 : 0xFFF00000;
-		} else if (v != 0) {
-			var av = v < 0 ? -v : v;
-			var exp = Math.floor(Math.log(av) / LN2);
-			if (exp > 1023) {  // MAX_VALUE
-				lo = 0xFFFFFFFF;
-				hi = 0x7FEFFFFF;
-			} else {
-				 if (exp <= -1023) {
-					exp = -1023;
-					av = av / Math.pow(2, exp) * 0.5;
-				 } else {
-					av = av / Math.pow(2, exp) - 1.0;
-				 }
-				var sig = Math.fround(av * 4503599627370496.); // 2^52
-				// Note: If "sig" is outside of the signed Int32 range, or is NaN, NEGATIVE_INFINITY or POSITIVE_INFINITY, the result is unspecified.
-				// Works in JS, Lua, Flash, Python and Cpp
-				lo = Std.int(sig);
-				hi = (v < 0 ? 0x80000000 : 0) | ((exp + 1023) << 20) | Std.int(sig / 4294967296.0);
-			}
-		}
+	public function setFloat64( byteOffset : Int, value : Float, ?littleEndian : Bool ) : Void {
+		var i64 = @:privateAccess haxe.io.FPHelper.d2ii(value);
 		if( littleEndian ) {
-			setUint32(byteOffset,     lo, true);
-			setUint32(byteOffset + 4, hi, true);
+			setUint32(byteOffset,     i64.low , true);
+			setUint32(byteOffset + 4, i64.high, true);
 		} else {
-			setUint32(byteOffset,     hi, false);
-			setUint32(byteOffset + 4, lo, false);
+			setUint32(byteOffset,     i64.high, false);
+			setUint32(byteOffset + 4, i64.low , false);
 		}
 	}
 
