@@ -54,6 +54,20 @@ class TestPhp extends Test
 		f(Class2146.test());
 	}
 
+	function testIssue6698() {
+		var arr = new NativeAssocArray<Dynamic>();
+		var innerArr = new NativeAssocArray<Int>();
+		innerArr['one'] = 1;
+		innerArr['two'] = 2;
+		arr['inner'] = innerArr;
+
+		var obj = Lib.objectOfAssociativeArray(arr);
+		var innerObj = obj.inner;
+		t(Global.is_object(innerObj));
+		eq(1, innerObj.one);
+		eq(2, innerObj.two);
+	}
+
 	function testStupidShit9000() {
 		var f = make();
 		f.handle( function() {
