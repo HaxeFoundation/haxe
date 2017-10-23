@@ -174,7 +174,7 @@ class Printer {
 
 	public function printObjectFieldKey(of:ObjectField) {
 		return switch (of.quotes) {
-			case Unquoted: of.field;
+			case null | Unquoted: of.field;
 			case Quoted: '"${of.field}"'; // TODO: Have to escape that?
 		}
 	}
