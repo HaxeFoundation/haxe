@@ -867,7 +867,7 @@ let copy_meta meta_src meta_target sl =
 let check_overriding ctx c f =
 	match c.cl_super with
 	| None ->
-		display_error ctx ("Field " ^ f.cf_name ^ " is declared 'override' but doesn't override any field") f.cf_pos
+		if List.memq f c.cl_overrides then display_error ctx ("Field " ^ f.cf_name ^ " is declared 'override' but doesn't override any field") f.cf_pos
 	| _ when c.cl_extern && Meta.has Meta.CsNative c.cl_meta -> () (* -net-lib specific: do not check overrides on extern CsNative classes *)
 	| Some (csup,params) ->
 		let p = f.cf_pos in
@@ -2585,7 +2585,10 @@ module ClassInitializer = struct
 						cf.cf_type <- t
 					| _ ->
 						let e , fargs = type_function ctx args ret fmode fd fctx.is_display_field p in
-						if fctx.is_override then check_overriding ctx c cf;
+						begin match fctx.field_kind with
+						| FKNormal when not fctx.is_static -> check_overriding ctx c cf
+						| _ -> ()
+						end;
 						(* Disabled for now, see https://github.com/HaxeFoundation/haxe/issues/3033 *)
 						(* List.iter (fun (v,_) ->
 							if v.v_name <> "_" && has_mono v.v_type then ctx.com.warning "Uninferred function argument, please add a type-hint" v.v_pos;
