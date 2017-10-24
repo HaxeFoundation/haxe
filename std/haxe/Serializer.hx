@@ -472,7 +472,7 @@ class Serializer {
 			} else
 				serializeString(v.tag);
 			buf.add(":");
-			var l : Int = untyped __call__("count", v.params);
+			var l : Int = php.Syntax.code("count({0})", v.params);
 			if( l == 0 || v.params == null)
 				buf.add(0);
 			else {

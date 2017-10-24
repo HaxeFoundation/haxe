@@ -48,7 +48,7 @@ import php.NativeIndexedArray;
 		See `Map.get`
 	**/
 	public inline function get( key : Int ) : Null<T> {
-		return Syntax.binop(data[key], '??', null);
+		return Syntax.coalesce(data[key], null);
 	}
 
 	/**

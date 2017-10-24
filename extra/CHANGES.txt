@@ -8,6 +8,8 @@
 
 	Removals:
 
+	php : dropped support for `untyped __php__`, `untyped __call__` etc. Use `php.Syntax` instead.
+
 	Bugfixes:
 
 	js : fixed saving setter to `tmp` var before invocation (#6672)

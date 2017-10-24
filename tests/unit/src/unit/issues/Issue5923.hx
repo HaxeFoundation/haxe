@@ -8,7 +8,7 @@ class Issue5923 extends unit.Test {
 #if php
 	function test() {
 		//These expressions should not fail at runtime
-		binop({}, '??', null).value = 1;
+		coalesce(({}:Dynamic), null).value = 1;
 		object(arrayDecl()).value = 1;
 		array({})['value'] = 1;
 
