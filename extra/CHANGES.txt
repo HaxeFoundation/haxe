@@ -1,5 +1,9 @@
 2017-XX-XX: 3.4.5
 
+	General improvements and optimizations:
+
+	dce : optimized DCE performance (#6181)
+
 	Bugfixes:
 
 	js : fixed saving setter to `tmp` var before invocation (#6672)
