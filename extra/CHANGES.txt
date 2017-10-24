@@ -6,6 +6,7 @@
 
 	Bugfixes:
 
+	dce : don't remove constructor if any instance field is kept (#6062)
 	js : fixed saving setter to `tmp` var before invocation (#6672)
 	php7 : don't fail on generating import aliases for classes with the similar names (#6680)
 	php7 : fixed appending "sqlite:" prefix to the names of files created by `sys.db.Sqlite.open()` (#6692)
