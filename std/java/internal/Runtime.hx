@@ -333,15 +333,16 @@ package java.internal;
 			java.lang.reflect.Field f = cl.getField(field);
 			f.setAccessible(true);
 
-			//FIXME we must evaluate if field to be set receives either int or double
-			if (isInt(value))
-			{
-				f.setInt(obj, toInt(value));
-			} else if (isDouble(value)) {
-				f.setDouble(obj, toDouble(value));
-			} else {
-				f.set(obj, value);
-			}
+// 			//FIXME we must evaluate if field to be set receives either int or double
+// 			if (isInt(value))
+// 			{
+// 				f.setInt(obj, toInt(value));
+// 			} else if (isDouble(value)) {
+// 				f.setDouble(obj, toDouble(value));
+// 			} else {
+// 				f.set(obj, value);
+// 			}
+			f.set(obj, value);
 			return value;
 		}
 		catch (Throwable t)
