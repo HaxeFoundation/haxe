@@ -56,7 +56,7 @@ class FPHelper {
 		static var helper = new js.html.DataView(new js.html.ArrayBuffer(8));
 	#end
 
-	#if !(neko || cpp || cs || java || flash || nodejs)
+	#if !(neko || cpp || cs || java || flash || (js && nodejs))
 		static inline var LN2 = 0.6931471805599453; // Math.log(2)
 
 		static inline function i2f(i: Int): Float {
