@@ -80,13 +80,13 @@ class DataView {
 	}
 
 	public function getFloat32( byteOffset : Int, ?littleEndian : Bool ) : Float {
-		return @:privateAccess haxe.io.FPHelper.i2f(getInt32(byteOffset, littleEndian));
+		return @:privateAccess haxe.io.FPHelper._i32ToFloat(getInt32(byteOffset, littleEndian));
 	}
 
 	public function getFloat64( byteOffset : Int, ?littleEndian : Bool ) : Float {
 		var a = getInt32(byteOffset, littleEndian);
 		var b = getInt32(byteOffset + 4, littleEndian);
-		return @:privateAccess haxe.io.FPHelper.ii2d(littleEndian ? a : b, littleEndian ? b : a);
+		return @:privateAccess haxe.io.FPHelper._i64ToDouble(littleEndian ? a : b, littleEndian ? b : a);
 	}
 
 	public function setInt8( byteOffset : Int, value : Int ) : Void {
@@ -133,11 +133,11 @@ class DataView {
 
 	static inline var LN2 = 0.6931471805599453;
 	public function setFloat32( byteOffset : Int, value : Float, ?littleEndian : Bool ) : Void {
-		setUint32(byteOffset, @:privateAccess haxe.io.FPHelper.f2i(value), littleEndian);
+		setUint32(byteOffset, @:privateAccess haxe.io.FPHelper._floatToI32(value), littleEndian);
 	}
 
 	public function setFloat64( byteOffset : Int, value : Float, ?littleEndian : Bool ) : Void {
-		var i64 = @:privateAccess haxe.io.FPHelper.d2ii(value);
+		var i64 = @:privateAccess haxe.io.FPHelper._doubleToI64(value);
 		if( littleEndian ) {
 			setUint32(byteOffset,     i64.low , true);
 			setUint32(byteOffset + 4, i64.high, true);

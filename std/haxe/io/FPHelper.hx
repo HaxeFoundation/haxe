@@ -59,7 +59,7 @@ class FPHelper {
 	#if !(neko || cpp || cs || java || flash || (js && nodejs))
 		static inline var LN2 = 0.6931471805599453; // Math.log(2)
 
-		static inline function i2f(i: Int): Float {
+		static inline function _i32ToFloat(i: Int): Float {
 			var sign = 0x80000000 & i == 0 ? 1.0 : -1.0;
 			var e = (i >> 23) & 0xff;
 			if (e == 255)
@@ -70,7 +70,7 @@ class FPHelper {
 			return sign * m * Math.pow(2, e - 150);
 		}
 
-		static inline function ii2d(lo: Int, hi: Int): Float {
+		static inline function _i64ToDouble(lo: Int, hi: Int): Float {
 			var sign = 0x80000000 & hi == 0 ? 1.0 : -1.0;
 			var e = (hi >> 20) & 0x7ff;
 			if (e == 2047)
@@ -82,7 +82,7 @@ class FPHelper {
 			return sign * m * Math.pow(2, e - 1023);
 		}
 
-		static inline function f2i(f: Float): Int {
+		static inline function _floatToI32(f: Float): Int {
 			if( f == 0 ) return 0;
 			var af = f < 0 ? -f : f;
 			var exp = Math.floor(Math.log(af) / LN2);
@@ -100,7 +100,7 @@ class FPHelper {
 			}
 		}
 
-		static inline function d2ii(v: Float): Int64 @:privateAccess {
+		static inline function _doubleToI64(v: Float): Int64 @:privateAccess {
 			var i64 = i64tmp;
 			if( v == 0 ) {
 				i64.set_low(0);
@@ -172,7 +172,7 @@ class FPHelper {
 			helper.setInt32(0, i, true);
 			return helper.getFloat32(0, true);
 		#else
-			return i2f(i);
+			return _i32ToFloat(i);
 		#end
 	}
 
@@ -208,7 +208,7 @@ class FPHelper {
 			helper.setFloat32(0, f, true);
 			return helper.getInt32(0,true);
 		#else
-			return f2i(f);
+			return _floatToI32(f);
 		#end
 	}
 
@@ -267,7 +267,7 @@ class FPHelper {
 				return Math.NEGATIVE_INFINITY;
 			}
 			#end
-			return ii2d(low, high);
+			return _i64ToDouble(low, high);
 		#end
 	}
 
@@ -341,7 +341,7 @@ class FPHelper {
 			}
 			return i64;
 		#else
-			return d2ii(v);
+			return _doubleToI64(v);
 		#end
 	}
 
