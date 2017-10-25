@@ -232,37 +232,15 @@ package_unix:
 
 package_bin: package_$(PLATFORM)
 
-install_dox:
-	haxelib git hxparse https://github.com/Simn/hxparse master src
-	haxelib git hxtemplo https://github.com/Simn/hxtemplo
-	haxelib git hxargs https://github.com/Simn/hxargs
-	haxelib git markdown https://github.com/dpeek/haxe-markdown master src
-	haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp
-	haxelib git hxjava https://github.com/HaxeFoundation/hxjava
-	haxelib git hxcs https://github.com/HaxeFoundation/hxcs
-	haxelib git dox https://github.com/HaxeFoundation/dox
-
-package_doc:
-	mkdir -p $(PACKAGE_OUT_DIR)
-	$(eval OUTFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip)
-	$(eval VERSION := $(shell haxe -version 2>&1))
-	cd $$(haxelib path dox | head -n 1) && \
-		haxe run.hxml && \
-		haxe gen.hxml && \
-		haxe -lib hxtemplo -lib hxparse -lib hxargs -lib markdown \
-		-cp src -dce no --run dox.Dox -theme haxe_api -D website "http://haxe.org/" \
-		--title "Haxe API" -o $(OUTFILE) \
-		-D version "$(VERSION)" -i bin/xml -ex microsoft -ex javax -ex cs.internal \
-		-D source-path https://github.com/HaxeFoundation/haxe/blob/$(BRANCH)/std/
-
-deploy_doc:
-	scp $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip www-haxe@api.haxe.org:/data/haxeapi/www/v/dev/api-latest.zip
-	ssh www-haxe@api.haxe.org "cd /data/haxeapi/www/v/dev && find . ! -name 'api-latest.zip' -maxdepth 1 -mindepth 1 -exec rm -rf {} + && unzip -q -o api-latest.zip"
+xmldoc:
+	haxelib path hxcpp  || haxelib git hxcpp  https://github.com/HaxeFoundation/hxcpp
+	haxelib path hxjava || haxelib git hxjava https://github.com/HaxeFoundation/hxjava
+	haxelib path hxcs   || haxelib git hxcs   https://github.com/HaxeFoundation/hxcs
+	cd extra && haxe doc.hxml
 
 # Installer
 
 package_installer_mac:
-	$(eval DOCFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip)
 	$(eval OUTFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_installer.tar.gz)
 	$(eval PACKFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.tar.gz)
 	$(eval VERSION := $(shell haxe -version 2>&1))
