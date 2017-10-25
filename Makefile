@@ -301,35 +301,21 @@ package_unix:
 
 package_bin: package_$(PLATFORM)
 
+xmldoc:
+	haxelib path hxcpp  || haxelib git hxcpp  https://github.com/HaxeFoundation/hxcpp
+	haxelib path hxjava || haxelib git hxjava https://github.com/HaxeFoundation/hxjava
+	haxelib path hxcs   || haxelib git hxcs   https://github.com/HaxeFoundation/hxcs
+	cd extra && haxe doc.hxml
+
 $(INSTALLER_TMP_DIR):
 	mkdir -p $(INSTALLER_TMP_DIR)
 
 $(INSTALLER_TMP_DIR)/neko-osx64.tar.gz: $(INSTALLER_TMP_DIR)
 	wget http://nekovm.org/media/neko-2.1.0-osx64.tar.gz -O installer/neko-osx64.tar.gz
 
-install_dox:
-	haxelib git hxparse https://github.com/Simn/hxparse master src
-	haxelib git hxtemplo https://github.com/Simn/hxtemplo
-	haxelib git hxargs https://github.com/Simn/hxargs
-	haxelib git markdown https://github.com/dpeek/haxe-markdown master src
-	haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp
-	haxelib git hxjava https://github.com/HaxeFoundation/hxjava
-	haxelib git hxcs https://github.com/HaxeFoundation/hxcs
-	haxelib git dox https://github.com/HaxeFoundation/dox
-
-package_doc:
-	mkdir -p $(PACKAGE_OUT_DIR)
-	cd $$(haxelib path dox | head -n 1) && haxe run.hxml && haxe gen.hxml
-	haxelib run dox -theme haxe_api -D website "http://haxe.org/" --title "Haxe API" -o $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip -D version "$$(haxe -version 2>&1)" -i $$(haxelib path dox | head -n 1)bin/xml -ex microsoft -ex javax -ex cs.internal -D source-path https://github.com/HaxeFoundation/haxe/blob/$(BRANCH)/std/
-
-deploy_doc:
-	scp $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip www-haxe@api.haxe.org:/data/haxeapi/www/v/dev/api-latest.zip
-	ssh www-haxe@api.haxe.org "cd /data/haxeapi/www/v/dev && find . ! -name 'api-latest.zip' -maxdepth 1 -mindepth 1 -exec rm -rf {} + && unzip -q -o api-latest.zip"
-
 # Installer
 
 package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx64.tar.gz package_unix
-	$(eval DOCFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip)
 	$(eval OUTFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_installer.tar.gz)
 	$(eval PACKFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.tar.gz)
 	$(eval VERSION := $(shell haxe -version 2>&1))

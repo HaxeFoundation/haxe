@@ -677,34 +677,15 @@ class RunCi {
 	}
 
 	static function deploy():Void {
-		changeDirectory(repoDir);
-
-		var doDocs = isDeployApiDocsRequired();
-		var doNightlies = isDeployNightlies(),
-				doInstaller = doNightlies && shouldDeployInstaller();
-
-		if (doDocs || doNightlies) {
+		if (isDeployNightlies()) {
 			changeDirectory(repoDir);
-			if (doDocs) {
-				if (systemName != 'Windows') {
-					// generate doc
-					// runCommand("make", ["-s", "install_dox"]);
-					// runCommand("make", ["-s", "package_doc"]);
-					// deployBintray();
-					// deployApiDoc();
-					// disable deployment to ppa:haxe/snapshots for now
-					// because there is no debian sedlex package...
-					// deployPPA();
-				}
-			}
-			if (doNightlies) {
-				if (doInstaller && !doDocs && systemName != 'Windows') {
-					// generate doc
-					// runCommand("make", ["-s", "install_dox"]);
-					// runCommand("make", ["-s", "package_doc"]);
-				}
-				deployNightlies();
-			}
+			deployNightlies();
+		}
+
+		if (isDeployApiDocsRequired()) {
+			changeDirectory(repoDir);
+			runCommand("make", ["xmldoc"]);
+			deployApiDoc();
 		}
 	}
 
@@ -737,31 +718,34 @@ class RunCi {
 		}
 	}
 
-	static function shouldDeployInstaller() {
-		return true;
-	}
-
 	static function isDeployApiDocsRequired () {
-		return gitInfo.branch == "development" &&
-			Sys.getEnv("DEPLOY_API_DOCS") != null &&
-			Sys.getEnv("deploy_key_decrypt") != null;
+		return
+			Sys.getEnv("DEPLOY_API_DOCS") != null && 
+			switch(Sys.getEnv("TRAVIS_TAG")) {
+				case null, _.trim() => "":
+					false;
+				case tag:
+					trace('tag $tag is deployable');
+					true;
+			}
 	}
 
 	/**
 		Deploy doc to api.haxe.org.
 	*/
 	static function deployApiDoc():Void {
-		if (
-			gitInfo.branch == "development" &&
-			Sys.getEnv("DEPLOY") != null &&
-			Sys.getEnv("deploy_key_decrypt") != null
-		) {
-			// setup deploy_key
-			runCommand("openssl aes-256-cbc -k \"$deploy_key_decrypt\" -in extra/deploy_key.enc -out extra/deploy_key -d");
-			runCommand("chmod 600 extra/deploy_key");
-			runCommand("ssh-add extra/deploy_key");
-
-			runCommand("make", ["-s", "deploy_doc"]);
+		changeDirectory(repoDir);
+		File.saveContent("extra/doc/info.json", Json.stringify({
+			"commit": gitInfo.commit,
+			"branch": gitInfo.branch,
+		}));
+		switch (Sys.getEnv("GHP_REMOTE")) { // should be in the form of https://token@github.com/account/repo.git
+			case null:
+				infoMsg('Missing GHP_REMOTE, skip api doc deploy.');
+			case remoteRepo:
+				var localRepo = "extra/api.haxe.org";
+				runCommand("git", ["clone", remoteRepo, localRepo]);
+				runCommand("haxe", ["--cwd", localRepo, "--run", "ImportXml", FileSystem.absolutePath("extra/doc")]);
 		}
 	}
 

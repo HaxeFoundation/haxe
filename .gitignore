@@ -19,6 +19,7 @@
 /extra/deploy_key
 /extra/*_sec.gpg
 /extra/*_ssh
+/extra/doc/
 
 /src/version.ml
 /haxe
