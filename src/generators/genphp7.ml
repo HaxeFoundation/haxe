@@ -238,19 +238,20 @@ let error_message pos message = (stringify_pos pos) ^ ": " ^ message
 (**
 	Terminates compiler process and prints user-friendly instructions about filing an issue in compiler repo.
 *)
-let fail hxpos mlpos =
+let fail ?msg hxpos mlpos =
+	let msg =
+		error_message
+			hxpos
+			(
+				(match msg with Some msg -> msg | _ -> "")
+				^ " Unexpected expression. Please submit an issue with expression example and following information:"
+			)
+	in
 	match mlpos with
 		| (file, line, _, _) ->
-			Printf.printf "%s\n" (error_message hxpos "Unexpected expression. Please submit an issue with expression example and following information:");
-			Printf.printf "%s:%d\n" file line;
+			Printf.eprintf "%s\n" msg;
+			Printf.eprintf "%s:%d\n" file line;
 			assert false
-
-(**
-	Print compilation error message and abort compilation process.
-*)
-let error_and_exit pos message =
-	Printf.printf "%s\n" (error_message pos message);
-	exit 1
 
 (**
 	Check if `target` is a `Dynamic` type
@@ -1311,7 +1312,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 						let alias_source = ref (List.rev module_path) in
 						let get_alias_next_part () =
 							match !alias_source with
-								| [] ->  failwith ("Failed to find already used type: " ^ get_full_type_name type_path)
+								| [] ->  fail ~msg:("Failed to find already used type: " ^ get_full_type_name type_path) self#pos __POS__
 								| name :: rest ->
 									alias_source := (match rest with
 										| [] -> [name]
@@ -1358,13 +1359,13 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| TFun _ -> self#use ~prefix:false ([], "Closure")
 				| TAnon _ -> "object"
 				| TDynamic _ -> "mixed"
-				| TLazy _ -> failwith "TLazy not implemented"
+				| TLazy _ -> fail ~msg:"TLazy not implemented" self#pos __POS__
 				| TMono mono ->
 					(match !mono with
 						| None -> "mixed"
 						| Some t -> self#use_t t
 					)
-				| TType _ -> failwith "TType not implemented"
+				| TType _ -> fail ~msg:"TType not implemented" self#pos __POS__
 				| TAbstract (abstr, _) ->
 					match abstr.a_path with
 						| ([],"Int") -> "int"
@@ -1598,7 +1599,8 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| TCall (_, [arg]) when is_native_struct_array_cast expr && is_object_declaration arg ->
 					(match (reveal_expr arg).eexpr with TObjectDecl fields -> self#write_assoc_array_decl fields | _ -> fail self#pos __POS__)
 				| TCall ({ eexpr = TIdent name}, args) when is_magic expr ->
-					error_and_exit self#pos ("untyped " ^ name ^ " is not supported anymore. Use php.Syntax instead.")
+					ctx.warning ("untyped " ^ name ^ " is deprecated. Use php.Syntax instead.") self#pos;
+					self#write_expr_magic name args
 				| TCall ({ eexpr = TField (expr, access) }, args) when is_string expr -> self#write_expr_call_string expr access args
 				| TCall (expr, args) when is_syntax_extern expr -> self#write_expr_call_syntax_extern expr args
 				| TCall (target, args) when is_sure_var_field_access target -> self#write_expr_call (parenthesis target) args
@@ -1981,6 +1983,53 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					self#write_expr expr;
 					self#write ")"
 		(**
+			Write Haxe->PHP magic function call
+			@see http://old.haxe.org/doc/advanced/magic#php-magic
+		*)
+		method write_expr_magic name args =
+			let error = ("Invalid arguments for " ^ name ^ " magic call") in
+			match args with
+				| [] -> fail ~msg:error self#pos __POS__
+				| { eexpr = TConst (TString code) } as expr :: args ->
+					(match name with
+						| "__php__" ->
+							(match expr.eexpr with
+								| TConst (TString php) ->
+									Codegen.interpolate_code ctx php args self#write self#write_expr self#pos
+								| _ -> fail self#pos __POS__
+							)
+						| "__call__" ->
+							self#write (code ^ "(");
+							write_args self#write self#write_expr args;
+							self#write ")"
+						| "__physeq__" ->
+							(match args with
+								| [expr2] -> self#write_expr_binop OpEq expr expr2
+								| _ -> fail ~msg:error self#pos __POS__
+							)
+						| "__var__" ->
+							(match args with
+								| [] ->
+									self#write ("$" ^ code)
+								| [expr2] ->
+									self#write ("$" ^ code ^ "[");
+									self#write_expr expr2;
+									self#write "]"
+								| _ -> fail ~msg:error self#pos __POS__
+							)
+						| _ -> fail ~msg:error self#pos __POS__
+					)
+				| [expr1; expr2] ->
+					(match name with
+						| "__physeq__" ->
+							(match args with
+								| [expr1; expr2] -> self#write_expr_binop OpEq expr1 expr2
+								| _ -> fail ~msg:error self#pos __POS__
+							)
+						| _ -> fail ~msg:error self#pos __POS__
+					)
+				| _ -> fail ~msg:error self#pos __POS__
+		(**
 			Writes TTypeExpr to output buffer
 		*)
 		method write_expr_type (mtype:module_type) =
@@ -2328,7 +2377,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| "assocDecl" -> self#write_expr_syntax_assoc_decl args
 				| "suppress" -> self#write_expr_syntax_suppress args
 				| "keepVar" -> ()
-				| _ -> error_and_exit self#pos ("php.Syntax." ^ name ^ "() is not supported.")
+				| _ -> ctx.error ("php.Syntax." ^ name ^ "() is not supported.") self#pos
 		(**
 			Writes plain php code (for `php.Syntax.php()`)
 		*)
@@ -2337,7 +2386,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| [] -> fail self#pos __POS__
 				| { eexpr = TConst (TString php) } :: args ->
 					Codegen.interpolate_code ctx php args self#write self#write_expr self#pos
-				| _ -> error_and_exit self#pos "First argument of php.Syntax.php() must be a constant string."
+				| _ -> ctx.error "First argument of php.Syntax.php() must be a constant string." self#pos
 		(**
 			Writes error suppression operator (for `php.Syntax.suppress()`)
 		*)
@@ -2360,7 +2409,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 		method write_expr_syntax_assoc_decl args =
 			match args with
 				| { eexpr = TObjectDecl fields } :: [] -> self#write_assoc_array_decl fields
-				| _ -> error_and_exit self#pos "php.Syntax.assocDecl() accepts object declaration only."
+				| _ -> ctx.error "php.Syntax.assocDecl() accepts object declaration only." self#pos
 		(**
 			Writes a call to instance method (for `php.Syntax.call()`)
 		*)
@@ -2487,7 +2536,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					self#write (" as $" ^ key_name ^ " => $" ^ value_name ^ ") ");
 					self#write_as_block fn.tf_expr
 				| _ ->
-					error_and_exit self#pos "php.Syntax.foreach() only accepts anonymous function declaration for second argument."
+					ctx.error "php.Syntax.foreach() only accepts anonymous function declaration for second argument." self#pos
 		(**
 			Writes TCall to output buffer
 		*)

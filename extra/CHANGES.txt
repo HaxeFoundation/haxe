@@ -8,7 +8,9 @@
 
 	Removals:
 
-	php : dropped support for `untyped __php__`, `untyped __call__` etc. Use `php.Syntax` instead.
+	Deprecations:
+
+	php : deprecated support for `untyped __php__`, `untyped __call__` etc. Use `php.Syntax` instead.
 
 	Bugfixes:
 
