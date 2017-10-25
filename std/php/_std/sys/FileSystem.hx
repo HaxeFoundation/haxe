@@ -62,7 +62,7 @@ class FileSystem {
 	}
 
 	public static inline function fullPath( relPath : String ) : String {
-		return (Syntax.binop(Global.realpath(relPath), "?:", null));
+		return Syntax.shortTernary(Global.realpath(relPath), null);
 	}
 
 	public static function absolutePath ( relPath : String ) : String {

@@ -272,7 +272,7 @@ class Web {
 		var data : String = null;
 		var counter = 0;
 		while (!feof(h) && counter < max) {
-			data = Syntax.binop(data, ' . ', fread(h, bsize));
+			data = Syntax.concat(data, fread(h, bsize));
 			counter++;
 		}
 		fclose(h);

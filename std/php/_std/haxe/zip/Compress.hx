@@ -49,7 +49,7 @@ class Compress {
 	}
 
 	public static function run( s : haxe.io.Bytes, level : Int ) : haxe.io.Bytes {
-		var c = untyped __call__("gzcompress", s.toString(), level);
+		var c = php.Global.gzcompress(s.toString(), level);
 		return haxe.io.Bytes.ofString(c);
 	}
 }
