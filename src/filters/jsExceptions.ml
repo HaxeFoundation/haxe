@@ -18,7 +18,7 @@
  *)
 
 (*
-	This filter handles everything related to expressions for the JavaScript target:
+	This filter handles everything related to exceptions for the JavaScript target:
 
 	- wrapping non-js.Error types in HaxeError on throwing
 	- unwrapping HaxeError on catch
@@ -56,10 +56,10 @@ open Texpr.Builder
 
 let follow = Abstract.follow_with_abstracts
 
-let rec is_js_error t =
-	match t with
-	| TInst ({ cl_path = ["js"],"Error" },_) -> true
-	| TInst ({ cl_super = Some (csup,tl) },_) -> is_js_error (TInst (csup,tl))
+let rec is_js_error c =
+	match c with
+	| { cl_path = ["js"],"Error" } -> true
+	| { cl_super = Some (csup,_) } -> is_js_error csup
 	| _ -> false
 
 let find_cl ctx path =
@@ -95,10 +95,10 @@ let init ctx =
 					(match eexc.eexpr with
 					| TConst (TInt _ | TFloat _ | TString _ | TBool _ | TNull) -> static_wrap eexc
 					| _ -> dynamic_wrap eexc)
-				| t when not (is_js_error t) ->
-					static_wrap eexc
-				| _ ->
+				| TInst (c,_) when (is_js_error c) ->
 					eexc
+				| _ ->
+					static_wrap eexc
 			in
 			{ e with eexpr = TThrow eexc }
 
@@ -127,10 +127,14 @@ let init ctx =
 			let eunwrap = mk (TIf (eInstanceof, eVal, Some (ecatchall))) t_dynamic e.epos in
 
 			let vunwrapped = alloc_var catchall_name t_dynamic e.epos in
+			vunwrapped.v_meta <- (Meta.CompilerGenerated,[],Globals.null_pos) :: vunwrapped.v_meta;
 			let eunwrapped = make_local vunwrapped e.epos in
 
 			let ecatch = List.fold_left (fun acc (v,ecatch) ->
 				let ecatch = loop (Some ecatchall) ecatch in
+
+				(* it's not really compiler-generated, but it kind of is, since it was used as catch identifier and we add a TVar for it *)
+				v.v_meta <- (Meta.CompilerGenerated,[],Globals.null_pos) :: v.v_meta;
 
 				match follow v.v_type with
 				| TDynamic _ ->
