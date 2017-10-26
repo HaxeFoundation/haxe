@@ -81,33 +81,6 @@ let rec add_final_return e =
 			{ e with eexpr = TFunction f }
 		| _ -> e
 
-let rec wrap_js_exceptions com e =
-	let rec is_error t =
-		match follow t with
-		| TInst ({cl_path = (["js"],"Error")},_) -> true
-		| TInst ({cl_super = Some (csup,tl)}, _) -> is_error (TInst (csup,tl))
-		| _ -> false
-	in
-	let rec loop e =
-		match e.eexpr with
-		| TThrow eerr when not (is_error eerr.etype) ->
-			let terr = List.find (fun mt -> match mt with TClassDecl {cl_path = ["js";"_Boot"],"HaxeError"} -> true | _ -> false) com.types in
-			let cerr = match terr with TClassDecl c -> c | _ -> assert false in
-			(match eerr.etype with
-			| TDynamic _ ->
-				let eterr = Texpr.Builder.make_static_this cerr e.epos in
-				let ewrap = Texpr.Builder.fcall eterr "wrap" [eerr] t_dynamic e.epos in
-				{ e with eexpr = TThrow ewrap }
-			| _ ->
-				let ewrap = { eerr with eexpr = TNew (cerr,[],[eerr]); etype = TInst (cerr,[]) } in
-				{ e with eexpr = TThrow ewrap }
-			)
-		| _ ->
-			Type.map_expr loop e
-	in
-
-	loop e
-
 (* -------------------------------------------------------------------------- *)
 (* CHECK LOCAL VARS INIT *)
 
@@ -869,6 +842,8 @@ let run com tctx main =
 			filters @ [
 				TryCatchWrapper.configure_java com
 			]
+		| Js ->
+			filters @ [JsExceptions.init tctx];
 		| _ -> filters
 	in
 	let t = filter_timer detail_times ["expr 1"] in
@@ -897,7 +872,6 @@ let run com tctx main =
 	let filters = [
 		Optimizer.sanitize com;
 		if com.config.pf_add_final_return then add_final_return else (fun e -> e);
-		if com.platform = Js then wrap_js_exceptions com else (fun e -> e);
 		rename_local_vars tctx reserved;
 		mark_switch_break_loops;
 	] in
