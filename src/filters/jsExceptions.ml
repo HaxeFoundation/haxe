@@ -62,19 +62,18 @@ let rec is_js_error c =
 	| { cl_super = Some (csup,_) } -> is_js_error csup
 	| _ -> false
 
-let find_cl ctx path =
+let find_cl com path =
 	ExtList.List.find_map (function
 		| TClassDecl c when c.cl_path = path -> Some c
 		| _ -> None
-	) ctx.com.types
+	) com.types
 
 let init ctx =
-	let cJsError = find_cl ctx (["js"],"Error") in
-	let cHaxeError = find_cl ctx (["js";"_Boot"],"HaxeError") in
-	let cStd = find_cl ctx ([],"Std") in
-	let cBoot = find_cl ctx (["js"],"Boot") in
-	let cSyntax = find_cl ctx (["js"],"Syntax") in
-	let cCallStack = try Some (find_cl ctx (["haxe"],"CallStack")) with Not_found -> None in
+	let cJsError = find_cl ctx.com (["js"],"Error") in
+	let cHaxeError = find_cl ctx.com (["js";"_Boot"],"HaxeError") in
+	let cStd = find_cl ctx.com ([],"Std") in
+	let cBoot = find_cl ctx.com (["js"],"Boot") in
+	let cSyntax = find_cl ctx.com (["js"],"Syntax") in
 
 	let dynamic_wrap e =
 		let eHaxeError = make_static_this cHaxeError e.epos in
@@ -163,30 +162,42 @@ let init ctx =
 					mk (TIf (echeck, ecatch, Some acc)) e.etype e.epos
 			) erethrow (List.rev catches) in
 
-			let ecatch_block = [
-				mk (TVar (vunwrapped, Some eunwrap)) ctx.com.basic.tvoid e.epos;
-				ecatch;
-			] in
-
-			let ecatch_block =
-				match cCallStack with
-				| None -> ecatch_block
-				| Some c ->
-					(*
-						TODO: we should use `__feature__` here, but analyzer won't like an unbound identifier,
-						so let's wait for some proper way to deal with feature-conditional expressions (@:ifFeature maybe?)
-
-						Alternatively, we could run an additional post-analyzer/dce filter that adds these assignments.
-					*)
-					let eCallStack = make_static_this c ecatch.epos in
-					let elastException = field eCallStack "lastException" t_dynamic ecatch.epos in
-					let estore = mk (TBinop (Ast.OpAssign, elastException, ecatchall)) ecatch.etype ecatch.epos in
-					estore :: ecatch_block
-			in
-
-			let ecatch = { ecatch with eexpr = TBlock ecatch_block } in
+			let ecatch = { ecatch with
+				eexpr = TBlock [
+					mk (TVar (vunwrapped, Some eunwrap)) ctx.com.basic.tvoid e.epos;
+					ecatch;
+				]
+			} in
 			{ e with eexpr = TTry (etry, [(vcatchall,ecatch)]) }
 		| _ ->
 			Type.map_expr (loop vrethrow) e
 	in
 	loop None
+
+let inject_callstack com type_filters =
+	let cCallStack =
+		if Common.has_dce com && Common.has_feature com "haxe.CallStack.exceptionStack" then
+			Some (find_cl com (["haxe"],"CallStack"))
+		else
+			try Some (find_cl com (["haxe"],"CallStack")) with Not_found -> None
+	in
+	match cCallStack with
+	| Some cCallStack ->
+		let rec loop e =
+			match e.eexpr with
+			| TTry (etry,[(v,ecatch)]) ->
+				let eCallStack = make_static_this cCallStack ecatch.epos in
+				let elastException = field eCallStack "lastException" t_dynamic ecatch.epos in
+				let elocal = make_local v ecatch.epos in
+				let eStoreException = mk (TBinop (Ast.OpAssign, elastException, elocal)) ecatch.etype ecatch.epos in
+				let ecatch = Type.concat eStoreException ecatch in
+				{ e with eexpr = TTry (etry,[(v,ecatch)]) }
+			| TTry _ ->
+				(* this should be handled by the filter above *)
+				assert false
+			| _ ->
+				Type.map_expr loop e
+		in
+		type_filters @ [ fun ctx t -> FiltersCommon.run_expression_filters ctx [loop] t ]
+	| None ->
+		type_filters
