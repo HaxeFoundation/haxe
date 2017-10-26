@@ -84,12 +84,12 @@ class TestJs {
 		}) {}
 	}
 
-	@:js('var a = [1,2,3];var _g = 0;while(_g < a.length) {var v = a[_g];++_g;TestJs.use(v + 2);}')
-	static function testInlineFunctionWithAnonymousCallback() {
-		var a = [1,2,3];
-		inline function forEach(f) for (v in a) f(v);
-		forEach(function(x) use(x + 2));
-	}
+	// @:js('var a = [1,2,3];var _g = 0;while(_g < a.length) {var v = a[_g];++_g;TestJs.use(v + 2);}')
+	// static function testInlineFunctionWithAnonymousCallback() {
+	// 	var a = [1,2,3];
+	// 	inline function forEach(f) for (v in a) f(v);
+	// 	forEach(function(x) use(x + 2));
+	// }
 
 	@:js('var a = "";var e;var _hx_tmp = a.toLowerCase();if(_hx_tmp == "e") {e = 0;} else {throw new Error();}')
 	@:analyzer(no_const_propagation, no_local_dce, no_copy_propagation)
