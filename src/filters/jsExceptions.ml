@@ -186,6 +186,9 @@ let inject_callstack com type_filters =
 		let rec loop e =
 			match e.eexpr with
 			| TTry (etry,[(v,ecatch)]) ->
+				let etry = loop etry in
+				let ecatch = loop ecatch in
+
 				let eCallStack = make_static_this cCallStack ecatch.epos in
 				let elastException = field eCallStack "lastException" t_dynamic ecatch.epos in
 				let elocal = make_local v ecatch.epos in
