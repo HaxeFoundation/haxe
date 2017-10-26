@@ -102,6 +102,11 @@ let init ctx =
 			in
 			{ e with eexpr = TThrow eexc }
 
+		| TCall ({ eexpr = TField (_, FStatic ({ cl_path = ["js"],"Lib" }, { cf_name = "getOriginalException" })) }, _) ->
+			(match vrethrow with
+			| Some erethrowvar -> erethrowvar
+			| None -> abort "js.Lib.getOriginalException can only be called inside a catch block" e.epos)
+
 		| TCall ({ eexpr = TField (_, FStatic ({ cl_path = ["js"],"Lib" }, { cf_name = "rethrow" })) }, _) ->
 			(match vrethrow with
 			| Some erethrowvar -> { e with eexpr = TThrow erethrowvar }
