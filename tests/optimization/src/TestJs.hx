@@ -182,6 +182,15 @@ class TestJs {
 		try throw false catch (e:Bool) {};
 	}
 
+	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {var e1 = (e instanceof js__$Boot_HaxeError) ? e.val : e;if(typeof(e1) == "boolean") {TestJs.use(e);} else {throw e;}}')
+	static function testGetOriginalException() {
+		try throw false catch (e:Bool) use(js.Lib.getOriginalException());
+	}
+
+	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {var e1 = (e instanceof js__$Boot_HaxeError) ? e.val : e;if(typeof(e1) == "boolean") {throw e;} else {throw e;}}')
+	static function testRethrow() {
+		try throw false catch (e:Bool) js.Lib.rethrow();
+	}
 
 	@:js('TestJs.use(2);')
 	static function testIssue3938() {
