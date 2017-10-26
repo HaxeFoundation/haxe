@@ -90,7 +90,7 @@ class Boot {
 					}
 				}
 				#end
-				if( __js__("o instanceof Array") ) {
+				if( js.Syntax.instanceof(o, Array) ) {
 					#if !js_enums_as_objects
 					if( o.__enum__ ) {
 						if( o.length == 2 )
@@ -173,7 +173,7 @@ class Boot {
 			return false;
 		switch( cl ) {
 		case Int:
-			return js.Syntax.typeof(o) == "number" && untyped __js__("(o|0) === o");
+			return js.Syntax.typeof(o) == "number" && js.Syntax.strictEq(o | 0, o);
 		case Float:
 			return js.Syntax.typeof(o) == "number";
 		case Bool:
@@ -181,20 +181,20 @@ class Boot {
 		case String:
 			return js.Syntax.typeof(o) == "string";
 		case Array:
-			return (untyped __js__("(o instanceof Array)")) && o.__enum__ == null;
+			return js.Syntax.instanceof(o, Array) && o.__enum__ == null;
 		case Dynamic:
 			return true;
 		default:
 			if( o != null ) {
 				// Check if o is an instance of a Haxe class or a native JS object
 				if( js.Syntax.typeof(cl) == "function" ) {
-					if( untyped __js__("o instanceof cl") )
+					if( js.Syntax.instanceof(o, cl) )
 						return true;
 					if( __interfLoop(getClass(o),cl) )
 						return true;
 				}
 				else if ( js.Syntax.typeof(cl) == "object" && __isNativeObj(cl) ) {
-					if( untyped __js__("o instanceof cl") )
+					if( js.Syntax.instanceof(o, cl) )
 						return true;
 				}
 			} else {
@@ -204,7 +204,7 @@ class Boot {
 			untyped __feature__("Class.*",if( cl == Class && o.__name__ != null ) return true);
 			untyped __feature__("Enum.*",if( cl == Enum && o.__ename__ != null ) return true);
 			#if !js_enums_as_objects
-			return untyped o.__enum__ == cl;
+			return o.__enum__ == cl;
 			#else
 			return (untyped $hxEnums[o.__enum__]) == cl;
 			#end
