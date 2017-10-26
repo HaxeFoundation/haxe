@@ -369,12 +369,9 @@ let rec gen_call ctx e el in_value =
 	| TIdent "__new__", args ->
 		print_deprecation_message ctx.com "__new__ is deprecated, use js.Syntax.new_ instead" e.epos;
 		gen_syntax ctx "new_" args e.epos
-	| TIdent "__js__", [{ eexpr = TConst (TString "this") }] ->
-		spr ctx (this ctx)
-	| TIdent "__js__", [{ eexpr = TConst (TString code) }] ->
-		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
-	| TIdent "__js__", { eexpr = TConst (TString code); epos = p } :: tl ->
-		Codegen.interpolate_code ctx.com code tl (spr ctx) (gen_expr ctx) p
+	| TIdent "__js__", args ->
+		(* TODO: add deprecation warning when we figure out what to do with purity here *)
+		gen_syntax ctx "code" args e.epos
 	| TIdent "__instanceof__",  args ->
 		print_deprecation_message ctx.com "__instanceof__ is deprecated, use js.Syntax.instanceof instead" e.epos;
 		gen_syntax ctx "instanceof" args e.epos
@@ -922,7 +919,24 @@ and gen_syntax ctx meth args pos =
 		gen_value ctx f;
 		spr ctx "]";
 		spr ctx ")";
-	| _ -> abort (Printf.sprintf "Unknown js.Syntax method %s with %d arguments" meth (List.length args)) pos
+	| "code", code :: args ->
+		let code, code_pos =
+			match code.eexpr with
+			| TConst (TString s) -> s, code.epos
+			| _ -> abort "The `code` argument for js.Syntax must be a string constant" code.epos
+		in
+		begin
+			match args with
+			| [] ->
+				if code = "this" then
+					spr ctx (this ctx)
+				else
+					spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
+			| _ ->
+				Codegen.interpolate_code ctx.com code args (spr ctx) (gen_expr ctx) code_pos
+		end
+	| _ ->
+		abort (Printf.sprintf "Unknown js.Syntax method `%s` with %d arguments" meth (List.length args)) pos
 
 let generate_package_create ctx (p,_) =
 	let rec loop acc = function

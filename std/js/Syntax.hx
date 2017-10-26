@@ -8,6 +8,22 @@ import haxe.extern.Rest;
 **/
 extern class Syntax {
 	/**
+		Inject `code` directly into generated source.
+
+		`code` must be a string constant.
+
+		Additional `args` are supported to provide code interpolation, for example:
+		```
+		Syntax.code("console.log({0}, {1})", "hi", 42);
+		```
+		will generate
+		```
+		console.log("hi", 42);
+		```
+	**/
+	static function code(code:String, args:Rest<Dynamic>):Dynamic;
+
+	/**
 		Generate `new cl(...args)` expression.
 	**/
 	@:overload(function(cl:String, args:Rest<Dynamic>):Dynamic {})
