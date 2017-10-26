@@ -45,7 +45,6 @@ type ctx = {
 	js_modern : bool;
 	js_flatten : bool;
 	es_version : int;
-	store_exception_stack : bool;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
 	mutable inits : texpr list;
@@ -396,8 +395,6 @@ let rec gen_call ctx e el in_value =
 		else match eelse with
 			| [] -> ()
 			| e :: _ -> gen_value ctx e)
-	| TIdent "__rethrow__", [] ->
-		spr ctx "throw $hx_rethrow";
 	| TIdent "__resources__", [] ->
 		spr ctx "[";
 		concat ctx "," (fun (name,data) ->
@@ -687,110 +684,14 @@ and gen_expr ctx e =
 		newline ctx;
 		spr ctx "}";
 		ctx.in_loop <- old_in_loop
-	| TTry (e,catchs) ->
+	| TTry (etry,[(v,ecatch)]) ->
 		spr ctx "try ";
-		gen_expr ctx e;
-		let vname = (match catchs with [(v,_)] -> check_var_declaration v; v.v_name | _ ->
-			let id = ctx.id_counter in
-			ctx.id_counter <- ctx.id_counter + 1;
-			"$e" ^ string_of_int id
-		) in
-		print ctx " catch( %s ) {" vname;
-		let bend = open_block ctx in
-		let last = ref false in
-		let else_block = ref false in
-
-		if ctx.store_exception_stack then begin
-			newline ctx;
-			print ctx "%s.lastException = %s" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["haxe"],"CallStack" })) vname
-		end;
-
-		if (has_feature ctx "js.Lib.rethrow") then begin
-			let has_rethrow (_,e) =
-				let rec loop e = match e.eexpr with
-				| TCall({eexpr = TIdent "__rethrow__"}, []) -> raise Exit
-				| _ -> Type.iter loop e
-				in
-				try (loop e; false) with Exit -> true
-			in
-			if List.exists has_rethrow catchs then begin
-				newline ctx;
-				print ctx "var $hx_rethrow = %s" vname;
-			end
-		end;
-
-		if (has_feature ctx "js.Boot.HaxeError") then begin
-			let catch_var_used =
-				try
-					List.iter (fun (v,e) ->
-						match follow v.v_type with
-						| TDynamic _ -> (* Dynamic catch - unrap if the catch value is used *)
-							let rec loop e = match e.eexpr with
-							| TLocal v2 when v2 == v -> raise Exit
-							| _ -> Type.iter loop e
-							in
-							loop e
-						| _ -> (* not a Dynamic catch - we need to unwrap the error for type-checking *)
-							raise Exit
-					) catchs;
-					false
-				with Exit ->
-					true
-			in
-			if catch_var_used then begin
-				newline ctx;
-				print ctx "if (%s instanceof %s) %s = %s.val" vname (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js";"_Boot"],"HaxeError" })) vname vname;
-			end;
-		end;
-
-		List.iter (fun (v,e) ->
-			if !last then () else
-			let t = (match follow v.v_type with
-			| TEnum (e,_) -> Some (TEnumDecl e)
-			| TInst (c,_) -> Some (TClassDecl c)
-			| TAbstract (a,_) -> Some (TAbstractDecl a)
-			| TFun _
-			| TLazy _
-			| TType _
-			| TAnon _ ->
-				assert false
-			| TMono _
-			| TDynamic _ ->
-				None
-			) in
-			match t with
-			| None ->
-				last := true;
-				if !else_block then print ctx "{";
-				if vname <> v.v_name then begin
-					newline ctx;
-					print ctx "var %s = %s" v.v_name vname;
-				end;
-				gen_block_element ctx e;
-				if !else_block then begin
-					newline ctx;
-					print ctx "}";
-				end
-			| Some t ->
-				if not !else_block then newline ctx;
-				print ctx "if( %s.__instanceof(%s," (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) vname;
-				gen_value ctx (mk (TTypeExpr t) (mk_mono()) e.epos);
-				spr ctx ") ) {";
-				let bend = open_block ctx in
-				if vname <> v.v_name then begin
-					newline ctx;
-					print ctx "var %s = %s" v.v_name vname;
-				end;
-				gen_block_element ctx e;
-				bend();
-				newline ctx;
-				spr ctx "} else ";
-				else_block := true
-		) catchs;
-		if not !last then print ctx "throw(%s)" vname;
-		bend();
-		newline ctx;
-		spr ctx "}";
+		gen_expr ctx etry;
+		check_var_declaration v;
+		print ctx " catch( %s ) " v.v_name;
+		gen_expr ctx ecatch
+	| TTry _ ->
+		abort "Unhandled try/catch, please report" e.epos
 	| TSwitch (e,cases,def) ->
 		spr ctx "switch";
 		gen_value ctx e;
@@ -1361,7 +1262,6 @@ let alloc_ctx com =
 		js_modern = not (Common.defined com Define.JsClassic);
 		js_flatten = not (Common.defined com Define.JsUnflatten);
 		es_version = (try int_of_string (Common.defined_value com Define.JsEs) with _ -> 0);
-		store_exception_stack = if Common.has_dce com then (Common.has_feature com "haxe.CallStack.exceptionStack") else List.exists (function TClassDecl { cl_path=["haxe"],"CallStack" } -> true | _ -> false) com.types;
 		statics = [];
 		inits = [];
 		current = null_class;

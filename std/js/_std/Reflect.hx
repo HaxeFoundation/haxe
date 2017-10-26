@@ -26,6 +26,7 @@
 		return js.Object.prototype.hasOwnProperty.call(o, field);
 	}
 
+	@:pure
 	public static function field( o : Dynamic, field : String ) : Dynamic {
 		try return o[cast field] catch( e : Dynamic ) return null;
 	}

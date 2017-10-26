@@ -24,17 +24,17 @@ package js;
 import js.Syntax; // import it here so it's always available in the compiler
 
 private class HaxeError extends js.Error {
-
 	var val:Dynamic;
 
-	public function new(val:Dynamic) untyped {
+	@:pure
+	public function new(val:Dynamic) {
 		super();
-		this.val = __define_feature__("js.Boot.HaxeError", val);
-		this.message = String(val);
-		if (js.Error.captureStackTrace) js.Error.captureStackTrace(this, HaxeError);
+		this.val = val;
+		this.message = (cast String)(val);
+		if ((cast js.Error).captureStackTrace) (cast js.Error).captureStackTrace(this, HaxeError);
 	}
 
-	public static function wrap(val:Dynamic):Dynamic {
+	public static function wrap(val:Dynamic):js.Error {
 		return if (js.Syntax.instanceof(val, js.Error)) val else new HaxeError(val);
 	}
 }
@@ -168,7 +168,7 @@ class Boot {
 		return __interfLoop(cc.__super__,cl);
 	}
 
-	@:ifFeature("typed_catch") private static function __instanceof(o : Dynamic,cl : Dynamic) {
+	@:ifFeature("typed_catch") @:pure private static function __instanceof(o : Dynamic,cl : Dynamic) {
 		if( cl == null )
 			return false;
 		switch( cl ) {

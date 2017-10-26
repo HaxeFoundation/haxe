@@ -117,9 +117,20 @@ class Lib {
 	/**
 		Re-throw last cathed exception, preserving original stack information.
 
-		Calling this only makes sense inside a catch statement.
+		Calling this is only possible inside a catch statement.
 	**/
-	@:extern public static inline function rethrow() {
-		untyped __define_feature__("js.Lib.rethrow", __rethrow__());
+	@:pure(false) public static function rethrow() {
+		// function is implemented in the compiler
+	}
+
+	/**
+		Get original caught exception object, before unwrapping the `js.Boot.HaxeError`.
+
+		Can be useful if we want to redirect the original error into some external API (e.g. Promise or node.js callbacks).
+
+		Calling this is only possible inside a catch statement.
+	**/
+	public static function getOriginalException():Dynamic {
+		return null; // function is implemented in the compiler
 	}
 }
