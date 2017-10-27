@@ -77,7 +77,7 @@ class FPHelper {
 				return lo == 0 && (hi & 0xFFFFF) == 0
 					? (sign > 0 ? Math.POSITIVE_INFINITY : Math.NEGATIVE_INFINITY)
 					: Math.NaN;
-			var m = Math.pow(2, -52) * ((hi & 0xFFFFF) * 4294967296. + (lo >>> 31) * 2147483648. + (lo & 0x7FFFFFFF));
+			var m = 2.220446049250313e-16 * ((hi & 0xFFFFF) * 4294967296. + (lo >>> 31) * 2147483648. + (lo & 0x7FFFFFFF));
 			m = e == 0 ? m * 2.0 : m + 1.0;
 			return sign * m * Math.pow(2, e - 1023);
 		}
@@ -91,12 +91,11 @@ class FPHelper {
 			} else {
 				if (exp <= -127 ) {
 					exp = -127;
-					af = af / Math.pow(2, exp) * 0.5;
+					af *= 7.1362384635298e+44;
 				} else {
-					af = af / Math.pow(2, exp) - 1.0;
+					af = (af / Math.pow(2, exp) - 1.0) * 0x800000;
 				}
-				var sig = Math.round(af * 0x800000);
-				return (f < 0 ? 0x80000000 : 0) | ((exp + 127) << 23) | sig;
+				return (f < 0 ? 0x80000000 : 0) | ((exp + 127) << 23) | Math.round(af);
 			}
 		}
 
@@ -117,7 +116,7 @@ class FPHelper {
 				} else {
 					if (exp <= -1023) {
 						exp = -1023;
-						av = av / Math.pow(2, exp) * 0.5;
+						av = av / 2.2250738585072014e-308;  // av * 0.5 / Math.pow(2, -1023)
 					} else {
 						av = av / Math.pow(2, exp) - 1.0;
 					}
