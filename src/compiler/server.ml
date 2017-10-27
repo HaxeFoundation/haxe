@@ -21,10 +21,20 @@ type context = {
 	com : Common.context;
 	mutable flush : unit -> unit;
 	mutable setup : unit -> unit;
-	mutable messages : string list;
+	mutable messages : compiler_message list;
 	mutable has_next : bool;
 	mutable has_error : bool;
 }
+
+let format msg p =
+	if p = null_pos then
+		msg
+	else begin
+		let error_printer file line = sprintf "%s:%d:" file line in
+		let epos = Lexer.get_error_pos error_printer p in
+		let msg = String.concat ("\n" ^ epos ^ " : ") (ExtString.String.nsplit msg "\n") in
+		sprintf "%s : %s" epos msg
+	end
 
 type server_message =
 	| AddedDirectory of string
@@ -41,7 +51,15 @@ let s_version =
 	Printf.sprintf "%d.%d.%d%s" version_major version_minor version_revision (match Version.version_extra with None -> "" | Some v -> " " ^ v)
 
 let default_flush ctx =
-	List.iter prerr_endline (List.rev ctx.messages);
+	List.iter
+		(fun msg ->
+			match msg with
+				| CMInfo(str,p)
+				| CMWarning(str,p)
+				| CMError(str,p) ->
+					prerr_endline (format str p)
+		)
+		(List.rev ctx.messages);
 	if ctx.has_error && !prompt then begin
 		print_endline "Press enter to exit...";
 		ignore(read_line());
@@ -425,7 +443,17 @@ let rec wait_loop process_params verbose accept =
 			ctx.flush <- (fun() ->
 				incr compilation_step;
 				compilation_mark := !mark_loop;
-				List.iter (fun s -> write (s ^ "\n"); if verbose then print_endline ("> " ^ s)) (List.rev ctx.messages);
+				List.iter
+					(fun msg ->
+						let s = match msg with
+							| CMInfo (s,p) -> format s p
+							| CMWarning (s,p) -> format s p
+							| CMError (s,p) -> format s p
+						in
+						write (s ^ "\n");
+						if verbose then print_endline ("> " ^ s)
+					)
+					(List.rev ctx.messages);
 				if ctx.has_error then begin
 					measure_times := false;
 					write "\x02\n"

@@ -54,18 +54,8 @@ exception Abort
 let executable_path() =
 	Extc.executable_path()
 
-let format msg p =
-	if p = null_pos then
-		msg
-	else begin
-		let error_printer file line = sprintf "%s:%d:" file line in
-		let epos = Lexer.get_error_pos error_printer p in
-		let msg = String.concat ("\n" ^ epos ^ " : ") (ExtString.String.nsplit msg "\n") in
-		sprintf "%s : %s" epos msg
-	end
-
-let message ctx msg p =
-	ctx.messages <- format msg p :: ctx.messages
+let message ctx msg =
+	ctx.messages <- msg :: ctx.messages
 
 let deprecated = []
 
@@ -83,7 +73,7 @@ let limit_string s offset =
 
 let error ctx msg p =
 	let msg = try List.assoc msg deprecated with Not_found -> msg in
-	message ctx msg p;
+	message ctx (CMError(msg,p));
 	ctx.has_error <- true
 
 let reserved_flags = [
@@ -180,7 +170,7 @@ let run_command ctx cmd =
 	let result = (match Unix.close_process_full (pout,pin,perr) with Unix.WEXITED c | Unix.WSIGNALED c | Unix.WSTOPPED c -> c) in
 	let serr = binary_string (Buffer.contents berr) in
 	let sout = binary_string (Buffer.contents bout) in
-	if serr <> "" then ctx.messages <- (if serr.[String.length serr - 1] = '\n' then String.sub serr 0 (String.length serr - 1) else serr) :: ctx.messages;
+	if serr <> "" then ctx.messages <- CMError((if serr.[String.length serr - 1] = '\n' then String.sub serr 0 (String.length serr - 1) else serr),null_pos) :: ctx.messages;
 	if sout <> "" then ctx.com.print (sout ^ "\n");
 	t();
 	result
@@ -443,7 +433,7 @@ try
 	Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int Globals.version /. 1000.));
 	Common.raw_define com "haxe3";
 	Common.define_value com Define.Dce "std";
-	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
+	com.warning <- (fun msg p -> message ctx (CMWarning(msg,p)));
 	com.error <- error ctx;
 	if CompilationServer.runs() then com.run_command <- run_command ctx;
 	Parser.display_error := (fun e p -> com.error (Parser.error_msg e) p);
@@ -675,7 +665,7 @@ try
 			assert false
 		),"<dir> : set current working directory");
 		("-version",Arg.Unit (fun() ->
-			message ctx s_version null_pos;
+			message ctx (CMInfo(s_version,null_pos));
 			did_something := true;
 		),": print version and exit");
 		("--help-defines", Arg.Unit (fun() ->
@@ -722,7 +712,11 @@ try
 	process ctx.com.args;
 	process_libs();
 	if com.display.dms_display then begin
-		com.warning <- if com.display.dms_error_policy = EPCollect then (fun s p -> add_diagnostics_message com s p DisplayTypes.DiagnosticsSeverity.Warning) else message ctx;
+		com.warning <-
+			if com.display.dms_error_policy = EPCollect then
+				(fun s p -> add_diagnostics_message com s p DisplayTypes.DiagnosticsSeverity.Warning)
+			else
+				(fun msg p -> message ctx (CMWarning(msg,p)));
 		com.error <- error ctx;
 	end;
 	Lexer.old_format := Common.defined com Define.OldErrorFormat;
@@ -820,8 +814,8 @@ with
 	| Error.Error (m,p) ->
 		error ctx (Error.error_msg m) p
 	| Hlmacro.Error (msg,p :: l) ->
-		message ctx msg p;
-		List.iter (message ctx "Called from") l;
+		message ctx (CMError(msg,p));
+		List.iter (fun p -> message ctx (CMError("Called from",p))) l;
 		error ctx "Aborted" null_pos;
 	| Typeload.Generic_Exception(m,p) ->
 		error ctx m p
@@ -830,7 +824,7 @@ with
 	| Failure msg when not (is_debug_run()) ->
 		error ctx ("Error: " ^ msg) null_pos
 	| Arg.Help msg ->
-		message ctx msg null_pos
+		message ctx (CMInfo(msg,null_pos))
 	| Display.DisplayPackage pack ->
 		raise (DisplayOutput.Completion (String.concat "." pack))
 	| Display.DisplayFields fields ->

@@ -44,6 +44,11 @@ type stats = {
 	s_macros_called : int ref;
 }
 
+type compiler_message =
+	| CMInfo of string * pos
+	| CMWarning of string * pos
+	| CMError of string * pos
+
 (**
 	The capture policy tells which handling we make of captured locals
 	(the locals which are referenced in local functions)
