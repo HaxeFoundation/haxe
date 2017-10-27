@@ -102,7 +102,7 @@ class Std {
 			switch( tb.kind ) {
 			case HUI8, HUI16, HI32: return a + (b:Int);
 			case HF32, HF64: return a + (b:Float);
-			case HVOID: return a;
+			case HVoid: return a;
 			default:
 			}
 		case HF32, HF64:
@@ -110,13 +110,13 @@ class Std {
 			switch( tb.kind ) {
 			case HUI8, HUI16, HI32: return a + (b:Int);
 			case HF32, HF64: return a + (b:Float);
-			case HVOID: return a;
+			case HVoid: return a;
 			default:
 			}
-		case HVOID:
+		case HVoid:
 			switch( tb.kind ) {
 			case HUI8, HUI16, HI32, HF32, HF64: return b;
-			case HVOID: return 0.;
+			case HVoid: return 0.;
 			default:
 			}
 		default:
