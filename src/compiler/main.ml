@@ -667,7 +667,7 @@ try
 					init_wait_socket com.verbose host port
 			in
 			wait_loop process_params com.verbose accept
-		),"<[host:]port or stdio> : wait on the given port (or use standard i/o) for commands to run)");
+		),"[[host:]port]|stdio] : wait on the given port (or use standard i/o) for commands to run)");
 		("--connect",Arg.String (fun _ ->
 			assert false
 		),"<[host:]port> : connect on the given port and run commands there)");
