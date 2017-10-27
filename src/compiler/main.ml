@@ -88,7 +88,7 @@ let error ctx msg p =
 
 let reserved_flags = [
 	"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
-	"as3";"swc";"macro";"sys"
+	"as3";"swc";"macro";"sys";"static"
 	]
 
 let delete_file f = try Sys.remove f with _ -> ()

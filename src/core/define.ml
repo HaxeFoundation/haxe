@@ -91,6 +91,7 @@ type strict_defined =
 	| ShallowExpose
 	| SourceHeader
 	| SourceMapContent
+	| Static
 	| Swc
 	| SwfCompressLevel
 	| SwfDebugPassword
@@ -202,6 +203,7 @@ let infos = function
 	| ShallowExpose -> "shallow-expose",("Expose types to surrounding scope of Haxe generated closure without writing to window object",[Platform Js])
 	| SourceHeader -> "source-header",("Print value as comment on top of generated files, use '' value to disable",[])
 	| SourceMapContent -> "source-map-content",("Include the hx sources as part of the JS source map",[Platform Js])
+	| Static -> "static",("Defined if the current target is static",[])
 	| Swc -> "swc",("Output a SWC instead of a SWF",[Platform Flash])
 	| SwfCompressLevel -> "swf_compress_level",("<level:1-9> Set the amount of compression for the SWF output",[Platform Flash])
 	| SwfDebugPassword -> "swf_debug_password",("Set a password for debugging",[Platform Flash])
