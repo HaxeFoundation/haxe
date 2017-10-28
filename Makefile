@@ -238,9 +238,15 @@ xmldoc:
 	haxelib path hxcs   || haxelib git hxcs   https://github.com/HaxeFoundation/hxcs
 	cd extra && haxe doc.hxml
 
+$(INSTALLER_TMP_DIR):
+	mkdir -p $(INSTALLER_TMP_DIR)
+
+$(INSTALLER_TMP_DIR)/neko-osx64.tar.gz: $(INSTALLER_TMP_DIR)
+	wget http://nekovm.org/media/neko-2.1.0-osx64.tar.gz -O installer/neko-osx64.tar.gz
+
 # Installer
 
-package_installer_mac:
+package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx64.tar.gz package_unix
 	$(eval OUTFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_installer.tar.gz)
 	$(eval PACKFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.tar.gz)
 	$(eval VERSION := $(shell haxe -version 2>&1))

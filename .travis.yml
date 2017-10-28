@@ -210,12 +210,6 @@ script:
   - haxe RunCi.hxml
   - popd
 
-branches:
-  except:
-    # A hack to prevent building for tags, assuming they all start with a number.
-    # https://github.com/travis-ci/travis-ci/issues/1532
-    - /^[0-9]/
-
 notifications:
   webhooks:
     urls:
