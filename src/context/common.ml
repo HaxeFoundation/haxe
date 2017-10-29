@@ -49,6 +49,20 @@ type compiler_message =
 	| CMWarning of string * pos
 	| CMError of string * pos
 
+let compiler_message_string msg =
+	let (str,p) = match msg with
+		| CMInfo(str,p) | CMError(str,p) -> (str,p)
+		| CMWarning(str,p) -> ("Warning : " ^ str, p)
+	in
+	if p = null_pos then
+		str
+	else begin
+		let error_printer file line = Printf.sprintf "%s:%d:" file line in
+		let epos = Lexer.get_error_pos error_printer p in
+		let str = String.concat ("\n" ^ epos ^ " : ") (ExtString.String.nsplit str "\n") in
+		Printf.sprintf "%s : %s" epos str
+	end
+
 (**
 	The capture policy tells which handling we make of captured locals
 	(the locals which are referenced in local functions)

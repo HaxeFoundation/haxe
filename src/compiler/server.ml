@@ -26,16 +26,6 @@ type context = {
 	mutable has_error : bool;
 }
 
-let format msg p =
-	if p = null_pos then
-		msg
-	else begin
-		let error_printer file line = sprintf "%s:%d:" file line in
-		let epos = Lexer.get_error_pos error_printer p in
-		let msg = String.concat ("\n" ^ epos ^ " : ") (ExtString.String.nsplit msg "\n") in
-		sprintf "%s : %s" epos msg
-	end
-
 type server_message =
 	| AddedDirectory of string
 	| FoundDirectories of (string * float ref) list
@@ -52,13 +42,7 @@ let s_version =
 
 let default_flush ctx =
 	List.iter
-		(fun msg ->
-			match msg with
-				| CMInfo(str,p)
-				| CMWarning(str,p)
-				| CMError(str,p) ->
-					prerr_endline (format str p)
-		)
+		(fun msg -> prerr_endline (compiler_message_string msg))
 		(List.rev ctx.messages);
 	if ctx.has_error && !prompt then begin
 		print_endline "Press enter to exit...";
@@ -445,11 +429,7 @@ let rec wait_loop process_params verbose accept =
 				compilation_mark := !mark_loop;
 				List.iter
 					(fun msg ->
-						let s = match msg with
-							| CMInfo (s,p) -> format s p
-							| CMWarning (s,p) -> format s p
-							| CMError (s,p) -> format s p
-						in
+						let s = compiler_message_string msg in
 						write (s ^ "\n");
 						if verbose then print_endline ("> " ^ s)
 					)
