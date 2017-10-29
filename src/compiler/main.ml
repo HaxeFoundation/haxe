@@ -88,7 +88,7 @@ let error ctx msg p =
 
 let reserved_flags = [
 	"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
-	"as3";"swc";"macro";"sys"
+	"as3";"swc";"macro";"sys";"static"
 	]
 
 let delete_file f = try Sys.remove f with _ -> ()
@@ -667,7 +667,7 @@ try
 					init_wait_socket com.verbose host port
 			in
 			wait_loop process_params com.verbose accept
-		),"<[host:]port> : wait on the given port for commands to run)");
+		),"[[host:]port]|stdio] : wait on the given port (or use standard i/o) for commands to run)");
 		("--connect",Arg.String (fun _ ->
 			assert false
 		),"<[host:]port> : connect on the given port and run commands there)");

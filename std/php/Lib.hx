@@ -107,7 +107,12 @@ class Lib {
 		return @:privateAccess hash.data;
 	}
 
-	public static inline function objectOfAssociativeArray(arr : NativeArray) : Dynamic {
+	public static function objectOfAssociativeArray(arr : NativeArray) : Dynamic {
+		Syntax.foreach(arr, function(key:Scalar, value:Dynamic) {
+			if(Global.is_array(value)) {
+				arr[key] = objectOfAssociativeArray(value);
+			}
+		});
 		return Boot.createAnon(arr);
 	}
 
@@ -136,7 +141,7 @@ class Lib {
 	}
 
 	/**
-		Tries to load all compiled php files and returns list of tpes.
+		Tries to load all compiled php files and returns list of types.
 	**/
 	public static function getClasses():Dynamic {
 		if(!loaded) {

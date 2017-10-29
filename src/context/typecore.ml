@@ -207,6 +207,14 @@ let save_locals ctx =
 
 let add_local ctx n t p =
 	let v = alloc_var n t p in
+	if Define.raw_defined ctx.com.defines "warn-var-shadowing" then begin
+		try
+			let v' = PMap.find n ctx.locals in
+			ctx.com.warning "This variable shadows a previously declared variable" p;
+			ctx.com.warning "Previous variable was here" v'.v_pos
+		with Not_found ->
+			()
+	end;
 	ctx.locals <- PMap.add n v ctx.locals;
 	v
 

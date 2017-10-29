@@ -192,6 +192,8 @@ module type InterpApi = sig
 
 	val flush_core_context : (unit -> t) -> t
 
+	val handle_decoding_error : value -> Type.t -> (string * (string * int) list)
+
 end
 
 let enum_name = function

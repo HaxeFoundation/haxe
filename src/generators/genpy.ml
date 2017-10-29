@@ -2370,7 +2370,9 @@ module Generator = struct
 			spr ctx "class _hx_AnonObject:\n";
 			if with_body then begin
 				spr ctx "    def __init__(self, fields):\n";
-				spr ctx "        self.__dict__ = fields"
+				spr ctx "        self.__dict__ = fields\n";
+				spr ctx "    def __repr__(self):\n";
+				spr ctx "        return repr(self.__dict__)"
 			end else
 				spr ctx "    pass";
 			Hashtbl.add used_paths ([],"_hx_AnonObject") true;

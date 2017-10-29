@@ -92,7 +92,7 @@ class Socket {
 		var errs = Boot.deref(null);
 		var errn = Boot.deref(null);
 		var r = stream_socket_server(
-			protocol + '://' + host.ip + ':' + port,
+			protocol + '://' + host.host + ':' + port,
 			errn,
 			errs,
 			(protocol == "udp" ? STREAM_SERVER_BIND : STREAM_SERVER_BIND | STREAM_SERVER_LISTEN)

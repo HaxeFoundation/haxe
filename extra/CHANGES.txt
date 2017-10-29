@@ -1,3 +1,26 @@
+????-??-??: 4.0.0-preview.3
+
+	New features:
+
+	all : added new function type notation (#6645)
+
+	General improvements and optimizations:
+
+	Removals:
+
+	Deprecations:
+
+	php : deprecated support for `untyped __php__`, `untyped __call__` etc. Use `php.Syntax` instead.
+
+	Bugfixes:
+
+	js : fixed saving setter to `tmp` var before invocation (#6672)
+	php : don't fail on generating import aliases for classes with the similar names (#6680)
+	php : fixed `Sys.environment()` to also return variables set by `Sys.putEnv()`
+	php : fixed `sys.net.Socket.bind()` (#6693)
+	php : fixed appending "sqlite:" prefix to the names of files created by `sys.db.Sqlite.open()` (#6692)
+	php : made php.Lib.objectOfAssociativeArray() recursive (#6698)
+
 2017-10-08: 4.0.0-preview.2
 
 	New features:

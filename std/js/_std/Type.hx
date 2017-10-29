@@ -48,8 +48,8 @@ enum ValueType {
 		#end
 	}
 
-	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> untyped {
-		return c.__super__;
+	public static inline function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> {
+		return (cast c).__super__;
 	}
 
 
@@ -82,38 +82,38 @@ enum ValueType {
 	}
 
 	#if (js_es < 5)
-	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped {
+	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T {
 		switch( args.length ) {
 		case 0:
-			return __new__(cl);
+			return js.Syntax.new_(cl);
 		case 1:
-			return __new__(cl,args[0]);
+			return js.Syntax.new_(cl,args[0]);
 		case 2:
-			return __new__(cl,args[0],args[1]);
+			return js.Syntax.new_(cl,args[0],args[1]);
 		case 3:
-			return __new__(cl,args[0],args[1],args[2]);
+			return js.Syntax.new_(cl,args[0],args[1],args[2]);
 		case 4:
-			return __new__(cl,args[0],args[1],args[2],args[3]);
+			return js.Syntax.new_(cl,args[0],args[1],args[2],args[3]);
 		case 5:
-			return __new__(cl,args[0],args[1],args[2],args[3],args[4]);
+			return js.Syntax.new_(cl,args[0],args[1],args[2],args[3],args[4]);
 		case 6:
-			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5]);
+			return js.Syntax.new_(cl,args[0],args[1],args[2],args[3],args[4],args[5]);
 		case 7:
-			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6]);
+			return js.Syntax.new_(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6]);
 		case 8:
-			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7]);
+			return js.Syntax.new_(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7]);
 		case 9:
-			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8]);
+			return js.Syntax.new_(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8]);
 		case 10:
-			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9]);
+			return js.Syntax.new_(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9]);
 		case 11:
-			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10]);
+			return js.Syntax.new_(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10]);
 		case 12:
-			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11]);
+			return js.Syntax.new_(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11]);
 		case 13:
-			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11],args[12]);
+			return js.Syntax.new_(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11],args[12]);
 		case 14:
-			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11],args[12],args[13]);
+			return js.Syntax.new_(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11],args[12],args[13]);
 		default:
 			throw "Too many arguments";
 		}
@@ -176,7 +176,7 @@ enum ValueType {
 
 	@:access(js.Boot)
 	public static function typeof( v : Dynamic ) : ValueType {
-		switch (js.Lib.typeof(v)) {
+		switch (js.Syntax.typeof(v)) {
 		case "boolean":
 			return TBool;
 		case "string":

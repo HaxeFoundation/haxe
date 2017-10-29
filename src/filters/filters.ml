@@ -23,6 +23,7 @@ open Type
 open Typecore
 open Error
 open Globals
+open FiltersCommon
 
 (** retrieve string from @:native metadata or raise Not_found *)
 let get_native_name meta =
@@ -80,33 +81,6 @@ let rec add_final_return e =
 			) in
 			{ e with eexpr = TFunction f }
 		| _ -> e
-
-let rec wrap_js_exceptions com e =
-	let rec is_error t =
-		match follow t with
-		| TInst ({cl_path = (["js"],"Error")},_) -> true
-		| TInst ({cl_super = Some (csup,tl)}, _) -> is_error (TInst (csup,tl))
-		| _ -> false
-	in
-	let rec loop e =
-		match e.eexpr with
-		| TThrow eerr when not (is_error eerr.etype) ->
-			let terr = List.find (fun mt -> match mt with TClassDecl {cl_path = ["js";"_Boot"],"HaxeError"} -> true | _ -> false) com.types in
-			let cerr = match terr with TClassDecl c -> c | _ -> assert false in
-			(match eerr.etype with
-			| TDynamic _ ->
-				let eterr = Texpr.Builder.make_static_this cerr e.epos in
-				let ewrap = Texpr.Builder.fcall eterr "wrap" [eerr] t_dynamic e.epos in
-				{ e with eexpr = TThrow ewrap }
-			| _ ->
-				let ewrap = { eerr with eexpr = TNew (cerr,[],[eerr]); etype = TInst (cerr,[]) } in
-				{ e with eexpr = TThrow ewrap }
-			)
-		| _ ->
-			Type.map_expr loop e
-	in
-
-	loop e
 
 (* -------------------------------------------------------------------------- *)
 (* CHECK LOCAL VARS INIT *)
@@ -441,25 +415,6 @@ let save_class_state ctx t = match t with
 
 (* PASS 2 begin *)
 
-let rec is_removable_class c =
-	match c.cl_kind with
-	| KGeneric ->
-		(Meta.has Meta.Remove c.cl_meta ||
-		(match c.cl_super with
-			| Some (c,_) -> is_removable_class c
-			| _ -> false) ||
-		List.exists (fun (_,t) -> match follow t with
-			| TInst(c,_) ->
-				has_ctor_constraint c || Meta.has Meta.Const c.cl_meta
-			| _ ->
-				false
-		) c.cl_params)
-	| KTypeParameter _ ->
-		(* this shouldn't happen, have to investigate (see #4092) *)
-		true
-	| _ ->
-		false
-
 let remove_generic_base ctx t = match t with
 	| TClassDecl c when is_removable_class c ->
 		c.cl_extern <- true
@@ -776,37 +731,6 @@ let check_reserved_type_paths ctx t =
 
 (* PASS 3 end *)
 
-let run_expression_filters ctx filters t =
-	let run e =
-		List.fold_left (fun e f -> f e) e filters
-	in
-	match t with
-	| TClassDecl c when is_removable_class c -> ()
-	| TClassDecl c ->
-		ctx.curclass <- c;
-		let rec process_field f =
-			ctx.curfield <- f;
-			(match f.cf_expr with
-			| Some e when not (is_removable_field ctx f) ->
-				AbstractCast.cast_stack := f :: !AbstractCast.cast_stack;
-				f.cf_expr <- Some (run e);
-				AbstractCast.cast_stack := List.tl !AbstractCast.cast_stack;
-			| _ -> ());
-			List.iter process_field f.cf_overloads
-		in
-		List.iter process_field c.cl_ordered_fields;
-		List.iter process_field c.cl_ordered_statics;
-		(match c.cl_constructor with
-		| None -> ()
-		| Some f -> process_field f);
-		(match c.cl_init with
-		| None -> ()
-		| Some e ->
-			c.cl_init <- Some (run e));
-	| TEnumDecl _ -> ()
-	| TTypeDecl _ -> ()
-	| TAbstractDecl _ -> ()
-
 let pp_counter = ref 1
 
 let is_cached t =
@@ -869,6 +793,8 @@ let run com tctx main =
 			filters @ [
 				TryCatchWrapper.configure_java com
 			]
+		| Js ->
+			filters @ [JsExceptions.init tctx];
 		| _ -> filters
 	in
 	let t = filter_timer detail_times ["expr 1"] in
@@ -897,7 +823,6 @@ let run com tctx main =
 	let filters = [
 		Optimizer.sanitize com;
 		if com.config.pf_add_final_return then add_final_return else (fun e -> e);
-		if com.platform = Js then wrap_js_exceptions com else (fun e -> e);
 		rename_local_vars tctx reserved;
 		mark_switch_break_loops;
 	] in
@@ -949,6 +874,7 @@ let run com tctx main =
 	] in
 	let type_filters = match com.platform with
 		| Cs -> type_filters @ [ fun _ t -> InterfaceProps.run t ]
+		| Js -> JsExceptions.inject_callstack com type_filters
 		| _ -> type_filters
 	in
 	let t = filter_timer detail_times ["type 3"] in

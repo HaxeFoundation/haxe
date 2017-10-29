@@ -15,7 +15,7 @@ class JqIterator {
 	}
 
 	static function __init__() {
-		if (untyped __typeof__(JQuery) != "undefined" && JQuery.fn != null)
+		if (js.Syntax.typeof(JQuery) != "undefined" && JQuery.fn != null)
 			JQuery.fn.iterator = function() return new JqIterator(js.Lib.nativeThis);
 	}
 }

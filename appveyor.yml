@@ -22,8 +22,6 @@ environment:
           TEST: "macro"
           DEPLOY_NIGHTLIES: 1
 
-skip_tags: true
-
 cache:
     - opam.tar.xz -> appveyor.yml
 

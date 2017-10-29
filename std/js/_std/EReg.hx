@@ -77,11 +77,11 @@
 	public function split( s : String ) : Array<String> {
 		// we can't use directly s.split because it's ignoring the 'g' flag
 		var d = "#__delim__#";
-		return untyped s.replace(r,d).split(d);
+		return replace(s,d).split(d);
 	}
 
 	public inline function replace( s : String, by : String ) : String {
-		return untyped s.replace(r,by);
+		return (cast s).replace(r,by);
 	}
 
 	public function map( s : String, f : EReg -> String ) : String {

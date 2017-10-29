@@ -71,7 +71,7 @@ class Boot {
 		Returns empty string if no `--php-prefix` provided.
 	**/
 	public static inline function getPrefix() : String {
-		return untyped __php__('self::PHP_PREFIX');
+		return Syntax.code('self::PHP_PREFIX');
 	}
 
 	/**
@@ -397,9 +397,9 @@ class Boot {
 	**/
 	public static function equal( left:Dynamic, right:Dynamic ) : Bool {
 		if (isNumber(left) && isNumber(right)) {
-			return Syntax.binop(left, '==', right);
+			return Syntax.equal(left, right);
 		}
-		return Syntax.binop(left, '===', right);
+		return Syntax.strictEqual(left, right);
 	}
 
 	/**
@@ -410,7 +410,7 @@ class Boot {
 		if (left.is_string() || right.is_string()) {
 			return (left:String) + (right:String);
 		}
-		return Syntax.binop(left, '+', right);
+		return Syntax.add(left, right);
 	}
 
 	/**
@@ -428,7 +428,7 @@ class Boot {
 						value.is_int()
 						|| (
 							value.is_float()
-							&& Syntax.binop(Syntax.int(value), '==', value)
+							&& Syntax.equal(Syntax.int(value), value)
 							&& !Global.is_nan(value)
 						)
 					)

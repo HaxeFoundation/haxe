@@ -36,11 +36,11 @@
 	}
 
 	@:pure static inline function now() : Date {
-		return untyped __new__(Date);
+		return js.Syntax.new_(Date);
 	}
 
 	@:pure static inline function fromTime( t : Float ) : Date {
-		return untyped __new__(Date, t);
+		return js.Syntax.new_(Date, t);
 	}
 
 	@:pure static inline function fromString( s : String ) : Date {
