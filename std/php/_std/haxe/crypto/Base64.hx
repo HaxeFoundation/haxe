@@ -26,14 +26,24 @@ import haxe.io.Bytes;
 
 class Base64 {
 
-    public static var CHARS(default,null) = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	public static var CHARS(default,null) = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 	public static var BYTES(default,null) = haxe.io.Bytes.ofString(CHARS);
 
 	public static inline function encode( bytes : Bytes, complement = true ) : String {
-		return Global.base64_encode( bytes.toString() );
+		var result = Global.base64_encode( bytes.toString() );
+		return (complement ? result : Global.rtrim(result, "="));
 	}
 
-    public static inline function decode( str : String, complement = true ) : Bytes {
-        return Bytes.ofString( Global.base64_decode( str, true ) );
-    }
+	public static inline function decode( str : String, complement = true ) : Bytes {
+		if(!complement) {
+			switch (Global.strlen(str) % 3) {
+				case 1:
+					str += "==";
+				case 2:
+					str += "=";
+				default:
+			}
+		}
+		return Bytes.ofString( Global.base64_decode( str, true ) );
+	}
 }
