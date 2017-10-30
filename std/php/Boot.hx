@@ -399,9 +399,6 @@ class Boot {
 		if (isNumber(left) && isNumber(right)) {
 			return Syntax.equal(left, right);
 		}
-		if (Std.is(left, HxClosure) && Std.is(right, HxClosure)) {
-			return (left:HxClosure).equals(right);
-		}
 		return Syntax.strictEqual(left, right);
 	}
 
@@ -575,8 +572,6 @@ private class HxClass {
 			return Global.constant('$phpClassName::$property');
 		} else if (Boot.hasGetter(phpClassName, property)) {
 			return Syntax.staticCall(phpClassName, 'get_$property');
-		} else if(phpClassName.method_exists(property)) {
-			return new HxClosure(phpClassName, property);
 		} else {
 			return Syntax.getStaticField(phpClassName, property);
 		}

@@ -6,8 +6,6 @@
 
 	General improvements and optimizations:
 
-	php : implemented direct method comparison. No need to use `Reflect.compareMethods()`
-
 	Removals:
 
 	Deprecations:
