@@ -161,6 +161,28 @@ class TestPhp extends Test
 		eq(str.toUpperCase(), anon.toUpperCase());
 		eq(str.toString(), anon.toString());
 	}
+
+	function testClosureComparison() {
+		eq(ClosureDummy.testStatic, ClosureDummy.testStatic);
+		//Waiting for a fix: https://github.com/HaxeFoundation/haxe/issues/6719
+		// t(ClosureDummy.testStatic == ClosureDummy.testStatic);
+		t((ClosureDummy:Dynamic).testStatic == (ClosureDummy:Dynamic).testStatic);
+
+		var inst = new ClosureDummy();
+		eq(inst.test, inst.test);
+		//Waiting for a fix: https://github.com/HaxeFoundation/haxe/issues/6719
+		// t(inst.test == inst.test);
+		t((inst:Dynamic).test == (inst:Dynamic).test);
+		var inst2 = new ClosureDummy();
+		//Waiting for a fix: https://github.com/HaxeFoundation/haxe/issues/6719
+		// f(inst.test == inst2.test);
+	}
+}
+
+private class ClosureDummy {
+	static public function testStatic() {}
+	public function new() {}
+	public function test() {}
 }
 
 private class DummyForRef {

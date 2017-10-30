@@ -287,6 +287,15 @@ let is_int expr = match follow expr.etype with TAbstract ({ a_path = ([], "Int")
 let is_float expr = match follow expr.etype with TAbstract ({ a_path = ([], "Float") }, _) -> true | _ -> false
 
 (**
+	Check if specified expression is of `Int` or `Float` type
+*)
+let is_number expr =
+	match follow expr.etype with
+		| TAbstract ({ a_path = ([], "Float") }, _)
+		| TAbstract ({ a_path = ([], "Int") }, _) -> true
+		| _ -> false
+
+(**
 	Check if specified type is String
 *)
 let is_string_type t = match follow t with TInst ({ cl_path = ([], "String") }, _) -> true | _ -> false
@@ -713,16 +722,40 @@ let is_magic expr =
 	| _ -> false
 
 (**
+	Check if `expr` is a closure created of a static or an instance method (except `dynamic` methods)
+*)
+let is_method_closure expr =
+	match (reveal_expr expr).eexpr with
+		| TField (_, access) ->
+			(match access with
+				| FClosure (_, field) -> not (is_dynamic_method field)
+				| _ -> false
+			)
+		| _ -> false
+
+(**
 	Check if `expr1` and `expr2` can be reliably checked for equality only with `Boot.equal()`
 *)
 let need_boot_equal expr1 expr2 =
 	if is_constant_null expr1 || is_constant_null expr2 then
 		false
 	else
-		(is_int expr1 && (is_float expr2 || is_unknown_type expr2.etype))
-		|| (is_float expr1 && (is_float expr2 || is_int expr2 || is_unknown_type expr2.etype))
-		|| (is_unknown_type expr1.etype && (is_int expr2 || is_float expr2))
-		|| (is_unknown_type expr1.etype && is_unknown_type expr2.etype)
+		if is_method_closure expr1 || is_method_closure expr2 then
+			true
+		else
+			let unknown1 = is_unknown_type expr1.etype
+			and unknown2 = is_unknown_type expr2.etype in
+			if unknown1 && unknown2 then
+				true
+			else
+				let int1 = is_int expr1
+				and int2 = is_int expr2
+				and float1 = is_float expr1
+				and float2 = is_float expr2 in
+				(int1 && float2)
+				|| (float1 && (float2 || int2))
+				|| (unknown1 && (int2 || float2))
+				|| ((int1 || float1) && unknown2)
 
 (**
 	Adds `return` expression to block if it does not have one already
