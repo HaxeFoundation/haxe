@@ -597,26 +597,9 @@ private class HxClass {
 @:keep
 @:dox(hide)
 private class HxEnum {
-	static var singletons = new Map<String,HxEnum>();
-
 	var tag : String;
 	var index : Int;
 	var params : NativeArray;
-
-	/**
-		Returns instances of constructors without arguments
-	**/
-	public static function singleton( enumClass:String, tag:String, index:Int ) : HxEnum {
-		var key = '$enumClass::$tag';
-
-		var instance = singletons.get(key);
-		if (instance == null) {
-			instance = Syntax.construct(enumClass, tag, index);
-			singletons.set(key, instance);
-		}
-
-		return instance;
-	}
 
 	public function new( tag:String, index:Int, arguments:NativeArray = null ) : Void {
 		this.tag = tag;

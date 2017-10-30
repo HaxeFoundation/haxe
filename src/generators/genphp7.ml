@@ -3049,17 +3049,27 @@ class enum_builder ctx (enm:tenum) =
 			write_args writer#write (writer#write_arg true) args;
 			writer#write ") {\n";
 			writer#indent_more;
-			writer#write_indentation;
-			writer#write "return ";
 			let index_str = string_of_int field.ef_index in
+			let write_construction args =
+				writer#write ("new " ^ self#get_name ^ "('" ^ name ^ "', " ^ index_str ^", [");
+				write_args writer#write (fun (name, _, _) -> writer#write ("$" ^ name)) args;
+				writer#write "])"
+			in
 			(match args with
-				| [] -> writer#write ((writer#use hxenum_type_path) ^ "::singleton(static::class, '" ^ name ^ "', " ^ index_str ^")")
+				| [] ->
+					(* writer#write ((writer#use hxenum_type_path) ^ "::singleton(static::class, '" ^ name ^ "', " ^ index_str ^")") *)
+					writer#write_line "static $inst = null;";
+					writer#write_indentation;
+					writer#write "if (!$inst) $inst = ";
+					write_construction [];
+					writer#write ";\n";
+					writer#write_line "return $inst;"
 				| args ->
-					writer#write ("new " ^ self#get_name ^ "('" ^ name ^ "', " ^ index_str ^", [");
-					write_args writer#write (fun (name, _, _) -> writer#write ("$" ^ name)) args;
-					writer#write "])"
+					writer#write_indentation;
+					writer#write "return ";
+					write_construction args;
+					writer#write ";\n";
 			);
-			writer#write ";\n";
 			writer#indent_less;
 			writer#write_line "}"
 		(**
