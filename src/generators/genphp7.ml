@@ -367,7 +367,7 @@ let parenthesis expr = {eexpr = TParenthesis expr; etype = expr.etype; epos = ex
 	Check if `current` binary should be surrounded with parenthesis
 *)
 let need_parenthesis_for_binop current parent =
-	if current = parent then
+	if current = parent && current != OpNotEq && current != OpEq then
 		false
 	else
 		match (current, parent) with

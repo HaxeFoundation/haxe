@@ -22,6 +22,7 @@
 	php : fixed `sys.net.Socket.bind()` (#6693)
 	php : fixed appending "sqlite:" prefix to the names of files created by `sys.db.Sqlite.open()` (#6692)
 	php : made php.Lib.objectOfAssociativeArray() recursive (#6698)
+	php : fixed php error on parsing expressions like `a == b == c` (#6720)
 
 2017-10-08: 4.0.0-preview.2
 
