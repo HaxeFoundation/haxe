@@ -309,6 +309,16 @@ class TestMisc extends Test {
 	}
 
 	function testBaseCode() {
+		// base64
+		eq("SMOpbGxvdw==", haxe.crypto.Base64.encode(haxe.io.Bytes.ofString("Héllow")));
+		eq("SMOpbGxvdw", haxe.crypto.Base64.encode(haxe.io.Bytes.ofString("Héllow"), false));
+		eq("SMOpbGxv", haxe.crypto.Base64.encode(haxe.io.Bytes.ofString("Héllo")));
+		eq("SMOpbGw=", haxe.crypto.Base64.encode(haxe.io.Bytes.ofString("Héll")));
+		eq("Héllow", haxe.crypto.Base64.decode("SMOpbGxvdw==").toString());
+		eq("Héllow", haxe.crypto.Base64.decode("SMOpbGxvdw", false).toString());
+		eq("Héllo", haxe.crypto.Base64.decode("SMOpbGxv").toString());
+		eq("Héll", haxe.crypto.Base64.decode("SMOpbGw=").toString());
+
 		// alternative base64
 		var b = new haxe.crypto.BaseCode(haxe.io.Bytes.ofString("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-"));
 		eq( b.encodeString("Héllow"), "iceFr6NLtM" );
