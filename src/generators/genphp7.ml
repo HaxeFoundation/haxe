@@ -297,6 +297,11 @@ let is_string_type t = match follow t with TInst ({ cl_path = ([], "String") }, 
 let is_string expr = is_string_type expr.etype
 
 (**
+	Check if specified type represents a function
+*)
+let is_function_type t = match follow t with TFun _ -> true | _ -> false
+
+(**
 	Check if `expr` is an access to a method of special `php.PHP` class
 *)
 let is_syntax_extern expr =
@@ -719,10 +724,21 @@ let need_boot_equal expr1 expr2 =
 	if is_constant_null expr1 || is_constant_null expr2 then
 		false
 	else
-		(is_int expr1 && (is_float expr2 || is_unknown_type expr2.etype))
-		|| (is_float expr1 && (is_float expr2 || is_int expr2 || is_unknown_type expr2.etype))
-		|| (is_unknown_type expr1.etype && (is_int expr2 || is_float expr2))
-		|| (is_unknown_type expr1.etype && is_unknown_type expr2.etype)
+		let unknown1 = is_unknown_type expr1.etype
+		and unknown2 = is_unknown_type expr2.etype in
+		if unknown1 && unknown2 then
+			true
+		else if is_function_type expr1.etype || is_function_type expr2.etype then
+			true
+		else
+			let int1 = is_int expr1
+			and int2 = is_int expr2
+			and float1 = is_float expr1
+			and float2 = is_float expr2 in
+			(int1 && float2)
+			|| (float1 && (float2 || int2))
+			|| (unknown1 && (int2 || float2))
+			|| ((int1 || float1) && unknown2)
 
 (**
 	Adds `return` expression to block if it does not have one already
