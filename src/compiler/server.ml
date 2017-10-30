@@ -21,7 +21,7 @@ type context = {
 	com : Common.context;
 	mutable flush : unit -> unit;
 	mutable setup : unit -> unit;
-	mutable messages : string list;
+	mutable messages : compiler_message list;
 	mutable has_next : bool;
 	mutable has_error : bool;
 }
@@ -41,7 +41,9 @@ let s_version =
 	Printf.sprintf "%d.%d.%d%s" version_major version_minor version_revision (match Version.version_extra with None -> "" | Some v -> " " ^ v)
 
 let default_flush ctx =
-	List.iter prerr_endline (List.rev ctx.messages);
+	List.iter
+		(fun msg -> prerr_endline (compiler_message_string msg))
+		(List.rev ctx.messages);
 	if ctx.has_error && !prompt then begin
 		print_endline "Press enter to exit...";
 		ignore(read_line());
@@ -425,7 +427,13 @@ let rec wait_loop process_params verbose accept =
 			ctx.flush <- (fun() ->
 				incr compilation_step;
 				compilation_mark := !mark_loop;
-				List.iter (fun s -> write (s ^ "\n"); if verbose then print_endline ("> " ^ s)) (List.rev ctx.messages);
+				List.iter
+					(fun msg ->
+						let s = compiler_message_string msg in
+						write (s ^ "\n");
+						if verbose then print_endline ("> " ^ s)
+					)
+					(List.rev ctx.messages);
 				if ctx.has_error then begin
 					measure_times := false;
 					write "\x02\n"
