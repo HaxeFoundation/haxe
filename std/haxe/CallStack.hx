@@ -95,7 +95,7 @@ class CallStack {
 			try {
 				throw new js.Error();
 			} catch( e : Dynamic ) {
-				var a = getStack(e);
+				var a = getStack(js.Lib.getOriginalException());
 				a.shift(); // remove Stack.callStack()
 				return a;
 			}
@@ -219,7 +219,7 @@ class CallStack {
 			}
 			return stack;
 		#elseif js
-			return untyped __define_feature__("haxe.CallStack.exceptionStack", getStack(lastException));
+			return getStack(lastException);
 		#elseif eval
 			return getExceptionStack();
 		#else

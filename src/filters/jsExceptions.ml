@@ -176,8 +176,11 @@ let init ctx =
 
 let inject_callstack com type_filters =
 	let cCallStack =
-		if Common.has_dce com && Common.has_feature com "haxe.CallStack.exceptionStack" then
-			Some (find_cl com (["haxe"],"CallStack"))
+		if Common.has_dce com then
+			if Common.has_feature com "haxe.CallStack.lastException" then
+				Some (find_cl com (["haxe"],"CallStack"))
+			else
+				None
 		else
 			try Some (find_cl com (["haxe"],"CallStack")) with Not_found -> None
 	in
