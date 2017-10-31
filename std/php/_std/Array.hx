@@ -42,8 +42,14 @@ class Array<T> implements ArrayAccess<Int,T> {
 		return wrap(arr);
 	}
 
-	public function filter(f:T->Bool):Array<T> {
-		return wrap(Global.array_values(Global.array_filter(arr, f)));
+	public inline function filter(f:T->Bool):Array<T> {
+		var result = Syntax.arrayDecl();
+		Syntax.foreach(arr, function(_, value:T) {
+			if(f(value)) {
+				result.push(value);
+			}
+		});
+		return wrap(result);
 	}
 
 	public function indexOf(x:T, ?fromIndex:Int):Int {
@@ -96,9 +102,9 @@ class Array<T> implements ArrayAccess<Int,T> {
 
 	public inline function map<S>(f:T->S):Array<S> {
 		var result = Syntax.arrayDecl();
-		for(i in 0...length) {
-			result[i] = f(arr[i]);
-		}
+		Syntax.foreach(arr, function(_, value:T) {
+			result.push(f(value));
+		});
 		return wrap(result);
 	}
 
