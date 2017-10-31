@@ -41,12 +41,28 @@ let s_version =
 	Printf.sprintf "%d.%d.%d%s" version_major version_minor version_revision (match Version.version_extra with None -> "" | Some v -> " " ^ v)
 
 let default_flush ctx =
+	let infos = ref []
+	and warnings = ref []
+	and errors = ref [] in
 	List.iter
 		(fun msg -> match msg with
-			| CMInfo _ -> print_endline (compiler_message_string msg)
-			| CMWarning _ | CMError _ -> prerr_endline (compiler_message_string msg)
+			| CMInfo _ -> infos := (compiler_message_string msg) :: !infos
+			| CMError _ -> errors := (compiler_message_string msg) :: !errors
+			| CMWarning _ -> warnings := (compiler_message_string msg) :: !warnings
 		)
-		(List.rev ctx.messages);
+		ctx.messages;
+	(* print stdout *)
+	List.iter prerr_endline !infos;
+	(* print warnings *)
+	if ctx.com.group_warnings then
+		match !warnings with
+			| [msg] -> prerr_endline msg
+			| [] -> ()
+			| _ -> prerr_endline ("Warning : Run without -w to see " ^ (string_of_int (List.length !warnings)) ^ " warnings.")
+	else
+		List.iter prerr_endline !warnings;
+	(* print errors *)
+	List.iter prerr_endline !errors;
 	if ctx.has_error && !prompt then begin
 		print_endline "Press enter to exit...";
 		ignore(read_line());

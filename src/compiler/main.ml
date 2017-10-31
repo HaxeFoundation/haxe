@@ -516,6 +516,9 @@ try
 		("-v",Arg.Unit (fun () ->
 			com.verbose <- true
 		),": turn on verbose mode");
+		("-w",Arg.Unit (fun () ->
+			com.group_warnings <- true
+		),": print warnings count instead of actual warning mesages if multiple warnings occur");
 		("-debug", Arg.Unit (fun() ->
 			Common.define com Define.Debug;
 			com.debug <- true;

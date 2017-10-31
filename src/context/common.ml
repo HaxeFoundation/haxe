@@ -268,6 +268,7 @@ type context = {
 	mutable display : DisplayMode.settings;
 	mutable debug : bool;
 	mutable verbose : bool;
+	mutable group_warnings : bool;
 	mutable foptimize : bool;
 	mutable platform : platform;
 	mutable config : platform_config;
@@ -622,6 +623,7 @@ let create version s_version args =
 		debug = false;
 		display = DisplayMode.create !display_default;
 		verbose = false;
+		group_warnings = false;
 		foptimize = true;
 		features = Hashtbl.create 0;
 		platform = Cross;
