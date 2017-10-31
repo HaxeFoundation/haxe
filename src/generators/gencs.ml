@@ -46,7 +46,7 @@ let rec is_cs_basic_type t =
 			true
 		| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 			is_cs_basic_type (Abstract.get_underlying_type a pl)
-		| TEnum(e, _) when not (Meta.has Meta.Class e.e_meta) -> true
+		| TEnum(e, _) as t when not (is_hxgen_t t) -> true
 		| TInst(cl, _) when Meta.has Meta.Struct cl.cl_meta -> true
 		| _ -> false
 
