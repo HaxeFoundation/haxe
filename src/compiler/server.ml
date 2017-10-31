@@ -42,7 +42,10 @@ let s_version =
 
 let default_flush ctx =
 	List.iter
-		(fun msg -> prerr_endline (compiler_message_string msg))
+		(fun msg -> match msg with
+			| CMInfo _ -> print_endline (compiler_message_string msg)
+			| CMWarning _ | CMError _ -> prerr_endline (compiler_message_string msg)
+		)
 		(List.rev ctx.messages);
 	if ctx.has_error && !prompt then begin
 		print_endline "Press enter to exit...";

@@ -6,6 +6,8 @@
 
 	General improvements and optimizations:
 
+	all : made all non-warning/non-error compiler messages output to stdout (#4480)
+
 	php : implemented direct method comparison. No need to use `Reflect.compareMethods()`
 
 	Removals:
