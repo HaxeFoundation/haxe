@@ -60,7 +60,6 @@ abstract Utf16(Utf16Impl) {
 		this = Utf16Tools.nativeStringToImpl(str);
 	}
 
-
 	public inline function iterator () {
 		return new Utf16Iterator(fromImpl(this));
 	}

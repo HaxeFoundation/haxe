@@ -136,7 +136,7 @@ abstract Utf32(String) {
 	}
 
 	public static function fromByteAccess (ba:ByteAccess):Utf32 {
-		return new Utf32(ba.getData().decode("utf-32be"));
+		return new Utf32(ba.getData().decode("utf-32le"));
 	}
 
 	@:op(A == B) inline function opEq (other:Utf32) {
