@@ -44,11 +44,11 @@ class Array<T> implements ArrayAccess<Int,T> {
 
 	public inline function filter(f:T->Bool):Array<T> {
 		var result = Syntax.arrayDecl();
-		Syntax.foreach(arr, function(_, value:T) {
-			if(f(value)) {
-				result.push(value);
+		for(i in 0...length) {
+			if(f(arr[i])) {
+				result.push(arr[i]);
 			}
-		});
+		}
 		return wrap(result);
 	}
 
@@ -102,9 +102,9 @@ class Array<T> implements ArrayAccess<Int,T> {
 
 	public inline function map<S>(f:T->S):Array<S> {
 		var result = Syntax.arrayDecl();
-		Syntax.foreach(arr, function(_, value:T) {
-			result.push(f(value));
-		});
+		for(i in 0...length) {
+			result.push(f(arr[i]));
+		}
 		return wrap(result);
 	}
 
