@@ -2,18 +2,20 @@
 
 var wrap = function (s) return new haxe.i18n.Utf16(s);
 
-var arrEq = function (a:Array<haxe.i18n.Utf16>, b:Array<haxe.i18n.Utf16>) {
+var eq1 = function (a:haxe.i18n.Utf16, b:haxe.i18n.Utf16, ?pos:haxe.PosInfos) {
+	eqAbstract(a == b, a.toCodeArray(), b.toCodeArray(), pos);
+}
+
+var arrEq = function (a:Array<haxe.i18n.Utf16>, b:Array<haxe.i18n.Utf16>, ?pos:haxe.PosInfos) {
 	t(a.length == b.length);
 	for (i in 0...a.length) {
 		var a1 = a[i];
 		var b1 = b[i];
-		t(a1 == b1);
+		eq1(a1,b1, pos);
 	}
 }
 
-var eq1 = function (a:haxe.i18n.Utf16, b:haxe.i18n.Utf16, ?pos:haxe.PosInfos) {
-	eqAbstract(a == b, a.toCodeArray(), b.toCodeArray(), pos);
-}
+
 
 var violine = 0x1D11E; // 𝄞.code
 
@@ -23,13 +25,21 @@ x.charCodeAt(0) == violine;
 var x = haxe.i18n.Ucs2.fromCharCode(violine);
 
 x.toUtf16().length == 1;
-
 wrap("𝄞").length == 1;
 
 eq1(wrap("𝄞"), haxe.i18n.Utf16.fromCharCode(violine));
 
-arrEq(wrap("𝄞_𝄞_𝄞").split(wrap("_")), [wrap("𝄞"), wrap("𝄞"), wrap("𝄞")]);
+arrEq(
+	wrap("𝄞_𝄞")
+	.split(wrap("_"))
+	, [wrap("𝄞"),wrap("𝄞")]
+);
 
+arrEq(
+	wrap("𝄞_𝄞_𝄞")
+	.split(wrap("_"))
+	, [wrap("𝄞"), wrap("𝄞"), wrap("𝄞")]
+);
 wrap("𝄞_𝄞_𝄞").lastIndexOf(wrap("𝄞_𝄞")) == 2;
 wrap("𝄞_𝄞_𝄞").indexOf(wrap("𝄞_𝄞")) == 0;
 wrap("𝄞_𝄞_𝄞aa").lastIndexOf(wrap("𝄞_𝄞")) == 2;

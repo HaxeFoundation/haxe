@@ -2,18 +2,20 @@
 
 var wrap = function (s) return new haxe.i18n.Utf16(s);
 
-var arrEq = function (a:Array<haxe.i18n.Utf16>, b:Array<haxe.i18n.Utf16>) {
+var eq1 = function (a:haxe.i18n.Utf16, b:haxe.i18n.Utf16, ?pos:haxe.PosInfos) {
+	eqAbstract(a == b, a.toCodeArray(), b.toCodeArray(), pos);
+}
+
+var arrEq = function (a:Array<haxe.i18n.Utf16>, b:Array<haxe.i18n.Utf16>, ?pos:haxe.PosInfos) {
 	t(a.length == b.length);
 	for (i in 0...a.length) {
 		var a1 = a[i];
 		var b1 = b[i];
-		t(a1 == b1);
+		eq1(a1, b1, pos);
 	}
 }
 
-var eq1 = function (a:haxe.i18n.Utf16, b:haxe.i18n.Utf16, ?pos:haxe.PosInfos) {
-	eqAbstract(a == b, a.toCodeArray(), b.toCodeArray(), pos);
-}
+
 
 eq1(wrap("foo"), wrap("foo"));
 t(wrap("foo") == wrap("foo"));
@@ -104,6 +106,8 @@ s.lastIndexOf(wrap("bar"), 12) == 12;
 s.lastIndexOf(wrap("bar"), 11) == 9;
 s.lastIndexOf(wrap("bar"), 9) == 9;
 s.lastIndexOf(wrap("bar"), 8) == -1;
+
+arrEq(wrap("x_x").split(wrap("_")), [wrap("x"), wrap("x")]);
 
 // split
 var s = wrap("xfooxfooxxbarxbarxx");

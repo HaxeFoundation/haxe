@@ -28,52 +28,26 @@ import haxe.io.BytesBuffer;
 private class BytesBufferTools {
 
 	public static inline function reset(buffer:BytesBuffer):BytesBuffer {
-		#if neko
-		buffer.b = untyped StringBuf.__make();
-		#elseif flash
-		buffer.b = new flash.utils.ByteArray();
-		buffer.b.endian = flash.utils.Endian.LITTLE_ENDIAN;
-		#elseif php
-		buffer.b = "";
-		#elseif cpp
-		buffer.b = new haxe.io.BytesData();
-		#elseif cs
-		buffer.b = new cs.system.io.MemoryStream();
-		#elseif java
-		buffer.b = new java.io.ByteArrayOutputStream();
-		#elseif hl
-		buffer.b = new hl.Bytes(buffer.size);
-		buffer.pos = 0;
-		#elseif eval
-		buffer = new BytesBuffer();
-		#else
-		buffer.b = new Array();
-		#end
+
+		@:privateAccess buffer.pos = 0;
+		@:privateAccess buffer.size = 0;
+		@:privateAccess buffer.view = null;
+		@:privateAccess buffer.u8 = null;
+		@:privateAccess buffer.buffer = null;
 		return buffer;
 	}
 
 	public static inline function addBytesData( buffer:BytesBuffer, src : haxe.io.BytesData ) {
-		#if neko
-		untyped StringBuf.__add(buffer.b,src);
-		#elseif flash
-		buffer.b.writeBytes(src);
-		#elseif php
-		buffer.b += src.toString();
-		#elseif cs
-		buffer.b.Write(src, 0, src.length);
-		#elseif java
-		buffer.b.write(src, 0, src.length);
-		#elseif eval
-		buffer.addBytes(src, 0, src.length);
-		#elseif hl
-		@:privateAccess buffer.__add(src, 0, src.length);
+		var buf = buffer;
 
-		#else
-		var b1 = buffer.b;
-		var b2 = src;
-		for( i in 0...src.length )
-			buffer.b.push(b2[i]);
-		#end
+		@:privateAccess {
+			if( buf.pos + src.byteLength > buf.size ) buf.grow(src.byteLength);
+			if( buf.size == 0 ) return;
+			var sub = new js.html.Uint8Array(@:privateAccess (src:Dynamic).bytes.buffer, @:privateAccess (src:Dynamic).bytes.byteOffset, src.byteLength);
+			buf.u8.set(sub, buf.pos);
+			buf.pos += src.byteLength;
+		}
+
 	}
 }
 
@@ -85,6 +59,7 @@ private class BytesBufferTools {
 	}
 
 	public inline function add (b:ByteAccess) {
+		trace("ADDDD");
 		BytesBufferTools.addBytesData(this, b.getData());
 	}
 
@@ -101,13 +76,11 @@ private class BytesBufferTools {
 	}
 
 	public inline function addBuffer (buf:ByteAccessBuffer) {
-		#if (python)
-		for (e in (@:privateAccess (buf.impl()).b)) {
-			this.addByte(e);
+		var buf = buf.impl();
+
+		@:privateAccess for (i in 0...buf.length) {
+			this.addByte( buf.view.getInt8(i));
 		}
-		#else
-		add(buf.getByteAccess());
-		#end
 	}
 
 	public inline function reset ():ByteAccessBuffer {

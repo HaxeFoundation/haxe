@@ -121,6 +121,7 @@ abstract Ucs2(String) {
 		return fromByteAccess(ByteAccess.fromBytes(bytes));
 	}
 
+
 	public static function fromByteAccess(bytes:ByteAccess):Ucs2 {
 		var i = 0;
 		var buf = new StringBuf();
@@ -177,7 +178,7 @@ abstract Ucs2(String) {
 	}
 
 	public static inline function fromUtf16 (s:Utf16):Ucs2 {
-		return fromByteAccess(s.impl().b);
+		return new Ucs2(s.toNativeString());
 	}
 
 	public static inline function fromUtf8(s:Utf8) : Ucs2 {

@@ -67,7 +67,7 @@ class TestMain {
 			#if !no_pattern_matching
 			//new TestMatch(),
 			#end
-			new TestSpecification()
+			new TestSpecification(),
 			#if cs
 			//new TestCSharp(),
 			#end
@@ -89,13 +89,13 @@ class TestMain {
 			#if (java || cs)
 			//new TestOverloads(),
 			#end
-			new TestInterface(),
-			new TestNaN(),
+			//new TestInterface(),
+			//new TestNaN(),
 			#if ((dce == "full") && !interp && !as3)
-			new TestDCE(),
+			//new TestDCE(),
 			#end
-			new TestMapComprehension(),
-			new TestMacro(),
+			//new TestMapComprehension(),
+			//new TestMacro(),
 			// #if ( (java || neko) && !macro && !interp)
 			// new TestThreads(),
 			// #end

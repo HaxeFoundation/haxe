@@ -21,9 +21,13 @@
  */
 package haxe.i18n;
 
-import haxe.i18n.Tools;
+import haxe.i18n.Tools.NativeStringTools;
+
+import haxe.i18n.Tools.Convert;
 
 #if python
+
+import haxe.i18n.Tools.StringBufTools;
 
 @:allow(haxe.i18n)
 abstract Utf32(String) {
@@ -223,7 +227,7 @@ abstract Utf32(Utf32Impl) {
 	public var length(get,never) : Int;
 
 	public inline function new(str:String)  {
-		this = Tools.NativeStringTools.toUtf32Vector(str);
+		this = NativeStringTools.toUtf32Vector(str);
 	}
 
 	public inline function getReader ():Utf32Reader {
@@ -346,9 +350,11 @@ abstract Utf32(Utf32Impl) {
 		return Utf8.fromUtf32(fromImpl(this));
 	}
 
+
 	public inline function toUtf16() : Utf16 {
 		return Utf16.fromUtf32(fromImpl(this));
 	}
+
 
 	public inline function toUcs2() : Ucs2 {
 		return Ucs2.fromUtf32(fromImpl(this));
@@ -368,12 +374,14 @@ abstract Utf32(Utf32Impl) {
 		return fromImpl(r);
 	}
 
+
 	inline static function fromUtf16 (s:Utf16):Utf32 {
 		var r = Utf32Tools.alloc(s.length);
 		var pos = 0;
 		s.eachCode(function (codePoint) r[pos++] = codePoint);
 		return fromImpl(r);
 	}
+
 
 	@:op(A == B) inline function opEq (other:Utf32) {
 		return Utf32Tools.equal(this, other.impl());

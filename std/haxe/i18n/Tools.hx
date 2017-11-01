@@ -706,6 +706,7 @@ class NativeStringTools {
 		#end
 	}
 
+
 	public static function toUtf16ByteAccess (s:String):ByteAccess {
 		#if python
 		return ByteAccess.ofData(python.NativeStringTools.encode(s, "utf-16be"));
@@ -732,10 +733,6 @@ class NativeStringTools {
 		#end
 	}
 
-	public static inline function toUcs2ByteAccess (s:String):ByteAccess {
-		return toUtf16ByteAccess(s);
-	}
-
 	public static function toUtf32Vector (s:String):Vector<Int>
 	{
 		var v = new Vector<Int>(s.length);
@@ -755,6 +752,12 @@ class NativeStringTools {
 			return res;
 		}
 	}
+
+	public static inline function toUcs2ByteAccess (s:String):ByteAccess {
+		return toUtf16ByteAccess(s);
+	}
+
+
 
 	/*
 	public static function toUtf32ByteAccess (s:String):ByteAccess {
@@ -785,7 +788,7 @@ class NativeStringTools {
 		b.writeUTFBytes(s);
 		return ByteAccess.ofData(b);
 		#elseif php
-		var x = #if php7 (s:BytesData) #else BytesData.ofString(s) #end;
+		var x = (s:BytesData);
 		return ByteAccess.ofData(x);
 		#elseif cpp
 		var a = new BytesData();
@@ -829,6 +832,7 @@ class NativeStringTools {
 		#end
 	}
 }
+
 
 class StringBufTools {
 	public static inline function addString (buf:StringBuf, s:String) {

@@ -156,7 +156,11 @@ abstract Utf8(Utf8Impl) {
 	}
 
 	public static inline function fromUtf16 (s:Utf16):Utf8 {
+		#if (flash || js || hl || java || cs)
+		return new Utf8(s.impl().s);
+		#else
 		return fromByteAccess(Convert.convertUtf16toUtf8(s.getReader(), true));
+		#end
 	}
 
 	public static inline function fromUcs2(s:Ucs2) : Utf8 {
@@ -672,6 +676,7 @@ private class Utf8Tools {
 	static function substring<T>( ba:Utf8Impl, startIndex : Int, ?endIndex : Int ) : Utf8Impl {
 		var startIndex:Null<Int> = startIndex;
 
+
 		if (startIndex < 0) startIndex = 0;
 		if (endIndex != null && endIndex < 0) endIndex = 0;
 
@@ -690,13 +695,13 @@ private class Utf8Tools {
 		if (startIndex == null || startIndex > len) return empty;
 
 
+		var len = endIndex - startIndex;
+		if (len == 0) return empty;
 		return if (isAscii(ba)) {
-			var len = endIndex - startIndex;
-			return mkImpl(ba.b.sub(startIndex, len), len);
+			mkImpl(ba.b.sub(startIndex, len), len);
 		} else {
-			substr(ba, startIndex, endIndex - startIndex);
+			substr(ba, startIndex, len);
 		}
-
 	}
 
 	static inline function fromCharCode( code : Int ) : Utf8Impl
