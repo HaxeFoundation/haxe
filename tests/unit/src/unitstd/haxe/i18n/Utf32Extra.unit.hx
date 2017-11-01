@@ -199,3 +199,14 @@ wrap(s).toNativeString() == s;
 [for (i in wrap("𝄞")) i] == [wrap("𝄞").charCodeAt(0)];
 
 [for (i in wrap("")) i] == [];
+
+eq1(wrap("𝄞ऽऽ"), haxe.i18n.Utf32.fromBytes(wrap("𝄞ऽऽ").toBytes()));
+
+var b = wrap("𝄞").toBytes();
+b.length == 4;
+b.get(0) == 0x1e;
+b.get(1) == 0xd1;
+b.get(2) == 0x01;
+b.get(3) == 0x00;
+
+eq1(wrap("𝄞ऽऽ"), wrap(wrap("𝄞ऽऽ").toNativeString()));
