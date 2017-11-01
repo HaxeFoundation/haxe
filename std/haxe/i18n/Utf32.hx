@@ -29,6 +29,26 @@ import haxe.i18n.Tools.Convert;
 
 import haxe.i18n.Tools.StringBufTools;
 
+class Utf32Iterator {
+	var s:Utf32;
+	var p:Int;
+
+	public inline function new (s) {
+		this.p = 0;
+		this.s = s;
+	}
+
+	public inline function hasNext ():Bool {
+		return p < s.length;
+	}
+
+	public inline function next ():Int {
+		var code = s.fastCodeAt(p);
+		p++;
+		return code;
+	}
+}
+
 @:allow(haxe.i18n)
 abstract Utf32(String) {
 
@@ -36,6 +56,10 @@ abstract Utf32(String) {
 
 	public inline function new(str:String) : Void {
 		this = str;
+	}
+
+	public inline function iterator () {
+		return new Utf32Iterator(fromImpl(this));
 	}
 
 	inline function get_length():Int {
@@ -221,6 +245,26 @@ import haxe.i18n.ByteAccess;
 
 private typedef Utf32Impl = haxe.ds.Vector<Int>;
 
+class Utf32Iterator {
+	var s:Utf32;
+	var p:Int;
+
+	public inline function new (s) {
+		this.p = 0;
+		this.s = s;
+	}
+
+	public inline function hasNext ():Bool {
+		return p < Utf32Tools.strLength(s.impl());
+	}
+
+	public inline function next ():Int {
+		var code = Utf32Tools.fastCodeAt(s.impl(), p);
+		p++;
+		return code;
+	}
+}
+
 @:allow(haxe.i18n)
 abstract Utf32(Utf32Impl) {
 
@@ -228,6 +272,10 @@ abstract Utf32(Utf32Impl) {
 
 	public inline function new(str:String)  {
 		this = NativeStringTools.toUtf32Vector(str);
+	}
+
+	public inline function iterator () {
+		return new Utf32Iterator(fromImpl(this));
 	}
 
 	public inline function getReader ():Utf32Reader {

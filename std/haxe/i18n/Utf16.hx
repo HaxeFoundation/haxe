@@ -30,6 +30,27 @@ import haxe.i18n.Tools;
 	public var length(default,null) : Int;
 }
 
+class Utf16Iterator {
+	var s:Utf16;
+	var p:Int;
+
+	public inline function new (s) {
+		this.p = 0;
+		this.s = s;
+	}
+	public inline function hasNext ():Bool {
+		return p < Utf16Tools.lengthInt16(s.impl());
+	}
+
+	public inline function next ():Int {
+		var b = Utf16Tools.getInt16(s.impl(), p);
+		var size = Utf16Tools.getSequenceSize(b);
+		var code = Utf16Tools.getCharCode(s.impl(), p, size);
+		p += size;
+		return code;
+	}
+}
+
 @:allow(haxe.i18n)
 abstract Utf16(Utf16Impl) {
 
@@ -37,6 +58,11 @@ abstract Utf16(Utf16Impl) {
 
 	public inline function new(str:String) : Void {
 		this = Utf16Tools.nativeStringToImpl(str);
+	}
+
+
+	public inline function iterator () {
+		return new Utf16Iterator(fromImpl(this));
 	}
 
 	public inline function toUpperCase() : Utf16 {
@@ -723,6 +749,28 @@ import haxe.i18n.Tools;
 	public var length(default,null) : Int;
 }
 
+class Utf16Iterator {
+	var s:Utf16;
+	var p:Int;
+
+	public inline function new (s) {
+		this.p = 0;
+		this.s = s;
+	}
+	public inline function hasNext ():Bool {
+		return p < Utf16Tools.byteLength(s.impl());
+	}
+
+	public inline function next ():Int {
+		var b = Utf16Tools.getInt16(s.impl(), p);
+		var size = Utf16Tools.getSequenceSize(b);
+		var code = Utf16Tools.getCharCode(s.impl(), p, size);
+		p += size;
+		return code;
+	}
+}
+
+
 @:allow(haxe.i18n)
 abstract Utf16(Utf16Impl) {
 
@@ -730,6 +778,10 @@ abstract Utf16(Utf16Impl) {
 
 	public inline function new(str:String) : Void {
 		this = Utf16Tools.nativeStringToImpl(str);
+	}
+
+	public inline function iterator () {
+		return new Utf16Iterator(fromImpl(this));
 	}
 
 	public inline function toUpperCase() : Utf16 {

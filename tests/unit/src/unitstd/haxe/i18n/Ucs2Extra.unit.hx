@@ -161,3 +161,14 @@ wrap(s).toNativeString() == s;
 
 var s = "ॐऽऽ";
 wrap(s).toNativeString() == s;
+
+[for (i in wrap("𝄞ऽऽ")) i] == [
+	wrap("𝄞").charCodeAt(0),
+	wrap("𝄞").charCodeAt(1),
+	wrap("ऽ").charCodeAt(0),
+	wrap("ऽ").charCodeAt(0)
+];
+
+[for (i in wrap("𝄞")) i] == [wrap("𝄞").charCodeAt(0)];
+
+[for (i in wrap("")) i] == [];

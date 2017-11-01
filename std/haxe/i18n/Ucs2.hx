@@ -28,6 +28,27 @@ import haxe.i18n.Tools;
 **/
 #if (flash || js || hl || java || cs)
 
+
+class Ucs2Iterator {
+	var s:Ucs2;
+	var p:Int;
+
+	public inline function new (s) {
+		this.p = 0;
+		this.s = s;
+	}
+
+	public inline function hasNext ():Bool {
+		return p < s.length;
+	}
+
+	public inline function next ():Int {
+		var code = s.fastCodeAt(p);
+		p++;
+		return code;
+	}
+}
+
 @:allow(haxe.i18n)
 abstract Ucs2(String) {
 
@@ -35,6 +56,10 @@ abstract Ucs2(String) {
 
 	public inline function new(str:String) : Void {
 		this = str;
+	}
+
+	public inline function iterator () {
+		return new Ucs2Iterator(fromImpl(this));
 	}
 
 	inline function get_length():Int {
@@ -261,12 +286,36 @@ import haxe.i18n.ByteAccess;
 
 private typedef Ucs2Impl = ByteAccess;
 
+class Ucs2Iterator {
+	var s:Ucs2;
+	var p:Int;
+
+	public inline function new (s) {
+		this.p = 0;
+		this.s = s;
+	}
+
+	public inline function hasNext ():Bool {
+		return p < s.length;
+	}
+
+	public inline function next ():Int {
+		var code = Ucs2Tools.fastCodeAt(s.impl(), p);
+		p++;
+		return code;
+	}
+}
+
 @:allow(haxe.i18n)
 abstract Ucs2(ByteAccess) {
 	public var length(get,never) : Int;
 
 	public inline function new(str:String)  {
 		this = NativeStringTools.toUcs2ByteAccess(str);
+	}
+
+	public inline function iterator () {
+		return new Ucs2Iterator(fromImpl(this));
 	}
 
 	public inline function getReader ():Ucs2Reader {

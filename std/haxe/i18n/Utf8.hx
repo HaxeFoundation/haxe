@@ -30,13 +30,40 @@ import haxe.io.Bytes;
 	public var length(default,null) : Int;
 }
 
+class Utf8Iterator {
+	var s:Utf8;
+	var p:Int;
+
+	public inline function new (s) {
+		this.p = 0;
+		this.s = s;
+	}
+
+	public inline function hasNext ():Bool {
+		return p < Utf8Tools.byteLength(s.impl());
+	}
+
+	public inline function next ():Int {
+		var b = Utf8Tools.fastGet(s.impl(), p);
+		var size = Utf8Tools.getSequenceSize(b);
+		var code = Utf8Tools.getCharCode(s.impl(), p, size);
+		p += size;
+		return code;
+	}
+}
+
 @:allow(haxe.i18n.Utf8Tools)
+@:allow(haxe.i18n.Utf8Iterator)
 abstract Utf8(Utf8Impl) {
 
 	public var length(get,never) : Int;
 
 	public inline function new(str:String) : Void {
 		this = Utf8Tools.nativeStringToImpl(str);
+	}
+
+	public inline function iterator () {
+		return new Utf8Iterator(fromImpl(this));
 	}
 
 	public inline function toUpperCase() : Utf8 {
