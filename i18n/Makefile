@@ -59,9 +59,13 @@ test-php7:
 	cd ../tests/unit && $(HAXE_EXEC) compile-php7.hxml
 	cd ../tests/unit && php bin/php/index.php
 
+#test-hl:
+#	cd ../tests/unit && $(HAXE_EXEC) compile-hl.hxml
+#	cd ../tests/unit && $(HL) bin/unit.hl
+
 test-hl:
-	cd ../tests/unit && $(HAXE_EXEC) compile-hl.hxml
-	cd ../tests/unit && $(HL) bin/unit.hl
+	cd ../tests/unit && $(HAXE_EXEC) -D interp compile-hl.hxml
+	#cd ../tests/unit && $(HL) bin/unit.hl
 
 test-interp:
 	cd ../tests/unit && $(HAXE_EXEC) -cp ../../standalone compile-macro.hxml
