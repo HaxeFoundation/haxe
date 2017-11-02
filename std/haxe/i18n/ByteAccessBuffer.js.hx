@@ -63,6 +63,7 @@ private class BytesBufferTools {
 		BytesBufferTools.addBytesData(this, b.getData());
 	}
 
+	/*
 	public inline function addInt16BE (i:Int) {
 		this.addByte((i >> 8) & 0xFF);
 		this.addByte(i & 0xFF);
@@ -74,6 +75,7 @@ private class BytesBufferTools {
 		this.addByte((i >> 8) & 0xFF);
 		this.addByte(i & 0xFF);
 	}
+	*/
 
 	public inline function addInt16LE (i:Int) {
 		this.addByte(i & 0xFF);

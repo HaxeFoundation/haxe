@@ -59,6 +59,7 @@ abstract ByteAccess(Uint8Array) {
 		return Uint8ArrayTools.get(this, pos);
 	}
 
+	/*
 	public inline function getInt32BE( pos : Int ) : Int {
 		return (get(pos) << 24) | (get(pos+1) << 16) | (get(pos+2) << 8) | get(pos+3);
 	}
@@ -66,6 +67,7 @@ abstract ByteAccess(Uint8Array) {
 	public inline function getInt16BE( pos : Int ) : Int {
 		return (get(pos) << 8) | get(pos+1);
 	}
+	*/
 
 	public inline function getInt32LE( pos : Int ) : Int {
 		return get(pos) | (get(pos+1) << 8) | (get(pos+2) << 16) | (get(pos+3) << 24);
@@ -89,6 +91,7 @@ abstract ByteAccess(Uint8Array) {
 		Uint8ArrayTools.set(this, pos, v);
 	}
 
+	/*
 	public inline function setInt16BE( pos : Int, v : Int ) : Void {
 		Uint8ArrayTools.set(this, pos, (v >> 8) & 0xFF );
 		Uint8ArrayTools.set(this, pos+1, v & 0xFF );
@@ -100,6 +103,7 @@ abstract ByteAccess(Uint8Array) {
 		Uint8ArrayTools.set(this, pos+2, (v >> 8) & 0xFF );
 		Uint8ArrayTools.set(this, pos+3, v & 0xFF );
 	}
+	*/
 
 	public inline function setInt16LE( pos : Int, v : Int ) : Void {
 		Uint8ArrayTools.set(this, pos, v & 0xFF );
