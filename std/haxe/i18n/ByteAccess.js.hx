@@ -81,11 +81,28 @@ abstract ByteAccess(Uint8Array) {
 		Uint8ArrayTools.set(this, pos, v);
 	}
 
+	public inline function setInt16( pos : Int, v : Int ) : Void {
+		Uint8ArrayTools.set(this, pos, (v >> 8) & 0xFF );
+		Uint8ArrayTools.set(this, pos+1, v & 0xFF );
+	}
+
 	public inline function setInt32( pos : Int, v : Int ) : Void {
 		Uint8ArrayTools.set(this, pos, (v >> 24) & 0xFF );
 		Uint8ArrayTools.set(this, pos+1, (v >> 16) & 0xFF );
 		Uint8ArrayTools.set(this, pos+2, (v >> 8) & 0xFF );
 		Uint8ArrayTools.set(this, pos+3, v & 0xFF );
+	}
+
+	public inline function setInt16LE( pos : Int, v : Int ) : Void {
+		Uint8ArrayTools.set(this, pos, v & 0xFF );
+		Uint8ArrayTools.set(this, pos+1, (v >> 8) & 0xFF );
+	}
+
+	public inline function setInt32LE( pos : Int, v : Int ) : Void {
+		Uint8ArrayTools.set(this, pos, v & 0xFF );
+		Uint8ArrayTools.set(this, pos+1, (v >> 8) & 0xFF );
+		Uint8ArrayTools.set(this, pos+2, (v >> 16) & 0xFF );
+		Uint8ArrayTools.set(this, pos+3, (v >> 24) & 0xFF );
 	}
 
 	/* sets end */

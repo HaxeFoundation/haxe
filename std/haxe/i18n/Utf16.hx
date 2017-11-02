@@ -956,12 +956,8 @@ abstract Utf16Reader(ByteAccess) {
 @:publicFields
 private class Utf16Tools {
 
-	static inline function fastGet (impl:Utf16Impl, pos:Int) {
-		return impl.b.fastGet(pos);
-	}
-
-	static inline function set (impl:Utf16Impl, pos:Int, v:Int) {
-		return impl.b.set(pos, v);
+	static inline function setInt16 (impl:Utf16Impl, pos:Int, v:Int) {
+		return impl.b.setInt16(pos, v);
 	}
 
 	static inline function byteLength (ba:Utf16Impl) {
@@ -995,23 +991,16 @@ private class Utf16Tools {
 		return mkImpl(ByteAccess.alloc(size), strLength);
 	}
 
+	static var empty = allocImpl(0, 0);
+
 	static inline function getInt16 (impl:Utf16Impl, pos:Int) {
 		return impl.b.getInt16(pos);
-	}
-
-	static inline function getInt32 (impl:Utf16Impl, pos:Int) {
-		return impl.b.getInt32(pos);
 	}
 
 	static inline function fromByteAccess (ba:ByteAccess):Utf16Impl {
 		var len = calcLength(ba);
 		return mkImpl(ba, len);
 	}
-
-	//public inline function toNativeString(impl:Utf16Impl) : String {
-//
-	//	//return impl.b.getString(0, impl.b.length);
-	//}
 
 	static inline function equal (impl:Utf16Impl, other:Utf16Impl) {
 		return impl == other || (impl.length == other.length && impl.b.equal(other.b));
@@ -1045,40 +1034,40 @@ private class Utf16Tools {
 	}
 
 	static inline function isUpperCaseLetter (bytes:Utf16Impl, pos:Int, size:Int) {
-		var b1 = fastGet(bytes, pos);
-		var b2 = fastGet(bytes, pos+1);
-		return b1 == 0x00 && b2 >= 0x41 && b2 <= 0x5A;
+		var code = getInt16(bytes, pos);
+		return code >= 0x41 && code <= 0x5A;
 	}
 
 	static inline function isLowerCaseLetter (bytes:Utf16Impl, pos:Int, size:Int) {
-		var b1 = fastGet(bytes, pos);
-		var b2 = fastGet(bytes, pos+1);
-		return b1 == 0x00 && b2 >= 0x61 && b2 <= 0x7A;
+		var code = getInt16(bytes, pos);
+		return code >= 0x61 && code <= 0x7A;
 	}
 
 	static inline function toLowerCaseLetter (bytes:Utf16Impl, target:Utf16Impl, pos:Int, size:Int) {
-		if (size == 2 && isUpperCaseLetter(bytes, pos, size)) {
-			set(target, pos, fastGet(bytes, pos));
-			set(target, pos+1, fastGet(bytes, pos+1)+0x20);
-		} else {
-			for (i in 0...size) {
-				set(target, pos+i, fastGet(bytes, pos+i));
-			}
+		switch size {
+			case 2 if (isUpperCaseLetter(bytes, pos, size)):
+				setInt16(target, pos, getInt16(bytes, pos)+0x20);
+			case 2:
+				setInt16(target, pos, getInt16(bytes, pos));
+			case 4:
+				setInt16(target, pos, getInt16(bytes, pos));
+				setInt16(target, pos+2, getInt16(bytes, pos+2));
+			case _: throw "unexpected";
 		}
 	}
 
 	static inline function toUpperCaseLetter (bytes:Utf16Impl, target:Utf16Impl, pos:Int, size:Int) {
-		if (size == 2 && isLowerCaseLetter(bytes, pos, size)) {
-			set(target, pos, fastGet(bytes, pos));
-			set(target, pos+1, fastGet(bytes, pos+1)-0x20);
-		} else {
-			for (i in 0...size) {
-				set(target, pos + i, fastGet(bytes, pos+i));
-			}
+		switch size {
+			case 2 if (isLowerCaseLetter(bytes, pos, size)):
+				setInt16(target, pos, getInt16(bytes, pos)-0x20);
+			case 2:
+				setInt16(target, pos, getInt16(bytes, pos));
+			case 4:
+				setInt16(target, pos, getInt16(bytes, pos));
+				setInt16(target, pos+2, getInt16(bytes, pos+2));
+			case _: throw "unexpected";
 		}
 	}
-
-	static var empty = allocImpl(0, 0);
 
 	static inline function getCharCode ( b:Utf16Impl, pos:Int, size:Int):Int {
 		return switch size {
@@ -1096,8 +1085,13 @@ private class Utf16Tools {
 	}
 
 	static inline function pushCharCode (bytes:Utf16Impl, buf:ByteAccessBuffer, pos:Int, size:Int) {
-		for (i in 0...size) {
-			buf.addByte(fastGet(bytes, pos+i));
+		switch size {
+			case 2:
+				buf.addInt16BigEndian(getInt16(bytes, pos));
+			case 4:
+				buf.addInt16BigEndian(getInt16(bytes, pos));
+				buf.addInt16BigEndian(getInt16(bytes, pos+2));
+			case _: throw "unexpected";
 		}
 	}
 
@@ -1346,9 +1340,10 @@ private class Utf16Tools {
 				pos++;
 				j+=size;
 				tmpBufLen++;
-				for (k in 0...size) {
+				pushCharCode(impl, tmpBuf, i, size);
+				/*for (k in 0...size) {
 					tmpBuf.addByte(fastGet(impl,i+k));
-				}
+				}*/
 			} else {
 				if (pos != 0) {
 					j = 0;
@@ -1358,9 +1353,10 @@ private class Utf16Tools {
 					tmpBufLen = 0;
 					tmpBuf = tmpBuf.reset();
 				}
-				for (k in 0...size) {
+				pushCharCode(impl, buf, i, size);
+				/*for (k in 0...size) {
 					buf.addByte(fastGet(impl, i+k));
-				}
+				}*/
 				bufLen++;
 			}
 			i+=size;

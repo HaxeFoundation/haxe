@@ -131,13 +131,12 @@ abstract Ucs2(String) {
 	}
 
 	public function toBytes() : haxe.io.Bytes {
-		var b = haxe.io.Bytes.alloc(length*2);
+		var b = ByteAccess.alloc(length * 2);
 		for (i in 0...length) {
 			var code = fastCodeAt(i);
-			b.set(i * 2, ((code & 0xFF00) >> 8));
-			b.set(i * 2 + 1, (code & 0x00FF));
+			b.setInt16(i*2, code);
 		}
-		return b;
+		return b.toBytes();
 	}
 
 	public static inline function fromBytes( bytes : haxe.io.Bytes ) : Ucs2 {
@@ -149,10 +148,10 @@ abstract Ucs2(String) {
 		var i = 0;
 		var buf = new StringBuf();
 		while (i < bytes.length) {
-			var code1 = (bytes.fastGet(i) << 8) | bytes.fastGet(i+1);
+			var code1 = bytes.getInt16(i);
 			// we allow surrogates in ucs2, but we treat them as individual chars with invalid codes
 			if (Convert.isHighSurrogate(code1)) {
-				var code2 = (bytes.fastGet(i+2) << 8) | bytes.fastGet(i+3);
+				var code2 = bytes.getInt16(i+2);
 				#if hl
 				var code = Convert.surrogatePairToCharCode(code1, code2);
 				StringBufTools.addString(buf, String.fromCharCode(code));
@@ -547,8 +546,7 @@ private class Ucs2Tools {
 			return empty;
 		}
 		var b = ByteAccess.alloc(2);
-		b.set(0, impl.get(index * 2));
-		b.set(1, impl.get(index * 2 + 1));
+		b.setInt16(0, impl.getInt16(index*2));
 		return b;
 	}
 
@@ -561,24 +559,24 @@ private class Ucs2Tools {
 		var pos = 0;
 		var fullPos = i;
 		while (i < byteLen) {
-			if (impl.fastGet(i) == str.fastGet(pos)) {
-				pos++;
+			if (impl.getInt16(i) == str.getInt16(pos)) {
+				pos+=2;
 			} else if (pos > 0) {
 				pos = 0;
 			}
-			fullPos++;
+			fullPos+=2;
 			if (pos == strLen) {
 				res = implToStrIndex(fullPos - strLen);
 				break;
 			}
-			i++;
+			i+=2;
 		}
 		return res;
 	}
 
 	static function lastIndexOf( impl:Ucs2Impl, str : Ucs2Impl, ?startIndex : Int ) : Int {
 		var byteLen = byteLength(str);
-		var pos = byteLen-1;
+		var pos = byteLen-2;
 
 		var startIndex = startIndex == null ? byteLength(impl) : strToImplIndex(startIndex) + byteLen;
 
@@ -588,15 +586,17 @@ private class Ucs2Tools {
 		var i = startIndex;
 		var res = -1;
 		var fullPos = startIndex;
-		var lastPos = byteLen - 1;
-		while (--i > -1) {
-			if (impl.fastGet(i) == str.fastGet(pos)) {
-				pos--;
+		var lastPos = byteLen - 2;
+		while (true) {
+			i-=2;
+			if (i <= -1) break;
+			if (impl.getInt16(i) == str.getInt16(pos)) {
+				pos-=2;
 			} else if (pos < lastPos) {
 				pos = lastPos;
 			}
-			fullPos--;
-			if (pos == -1) {
+			fullPos-=2;
+			if (pos == -2) {
 				res = implToStrIndex(fullPos);
 				break;
 			}
@@ -664,26 +664,26 @@ private class Ucs2Tools {
 
 		while ( i < byteLength(impl)) {
 
-			var b = impl.fastGet(i);
-			var d = delimiter.fastGet(pos);
+			var b = impl.getInt16(i);
+			var d = delimiter.getInt16(pos);
 
 			if (b == d) {
-				pos++;
+				pos+=2;
 			} else {
 				pos = 0;
 			}
 
 			if (pos == delimiterLen) {
-				var size = ((i+1) - delimiterLen) - lastPos;
+				var size = ((i+2) - delimiterLen) - lastPos;
 				if (size > 0) {
 					res.push(Ucs2.fromImpl(impl.sub(lastPos, size)));
 				} else {
 					res.push(Ucs2.fromImpl(empty));
 				}
 				pos = 0;
-				lastPos = i+1;
+				lastPos = i+2;
 			}
-			i++;
+			i+=2;
 		}
 
 		if (lastPos < byteLength(impl)) {

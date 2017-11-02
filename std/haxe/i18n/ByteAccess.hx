@@ -72,6 +72,16 @@ abstract ByteAccess(BytesData) {
 		return upper | lower;
 	}
 
+	public inline function getInt32LE( pos : Int ) : Int {
+		return get(pos) | (get(pos+1) << 8) | (get(pos+2) << 16) | (get(pos+3) << 24);
+	}
+
+	public inline function getInt16LE( pos : Int ) : Int {
+		var lower =  get(pos);
+		var upper = get(pos+1) << 8;
+		return upper | lower;
+	}
+
 	public inline function getString( pos : Int, len : Int ) : String {
 		return BytesDataTools.getString(this, pos, len);
 	}
@@ -87,11 +97,23 @@ abstract ByteAccess(BytesData) {
 		BytesDataTools.set(this, pos+1, v & 0xFF );
 	}
 
+	public inline function setInt16LE( pos : Int, v : Int ) : Void {
+		BytesDataTools.set(this, pos, v & 0xFF );
+		BytesDataTools.set(this, pos+1, (v >> 8) & 0xFF );
+	}
+
 	public inline function setInt32( pos : Int, v : Int ) : Void {
 		BytesDataTools.set(this, pos, (v >> 24) & 0xFF );
 		BytesDataTools.set(this, pos+1, (v >> 16) & 0xFF );
 		BytesDataTools.set(this, pos+2, (v >> 8) & 0xFF );
 		BytesDataTools.set(this, pos+3, v & 0xFF );
+	}
+
+	public inline function setInt32LE( pos : Int, v : Int ) : Void {
+		BytesDataTools.set(this, pos, v & 0xFF );
+		BytesDataTools.set(this, pos+1, (v >> 8) & 0xFF );
+		BytesDataTools.set(this, pos+2, (v >> 16) & 0xFF );
+		BytesDataTools.set(this, pos+3, (v >> 24) & 0xFF );
 	}
 
 	/* sets end */

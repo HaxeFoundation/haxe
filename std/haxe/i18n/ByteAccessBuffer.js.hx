@@ -75,6 +75,18 @@ private class BytesBufferTools {
 		this.addByte(i & 0xFF);
 	}
 
+	public inline function addInt16LE (i:Int) {
+		this.addByte(i & 0xFF);
+		this.addByte((i >> 8) & 0xFF);
+	}
+
+	public inline function addInt32LE (i:Int) {
+		this.addByte(i & 0xFF);
+		this.addByte((i >> 8) & 0xFF);
+		this.addByte((i >> 16) & 0xFF);
+		this.addByte((i >> 24) & 0xFF);
+	}
+
 	public inline function addBuffer (buf:ByteAccessBuffer) {
 		var buf = buf.impl();
 		@:privateAccess for (i in 0...buf.length) {
