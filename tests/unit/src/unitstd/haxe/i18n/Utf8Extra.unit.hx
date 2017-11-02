@@ -210,4 +210,8 @@ b.get(1) == 0x9D;
 b.get(2) == 0x84;
 b.get(3) == 0x9E;
 
+var b = wrap("!").toBytes();
+b.length == 1;
+b.get(0) == 0x21;
+
 eq1(wrap("𝄞ऽऽ"), wrap(wrap("𝄞ऽऽ").toNativeString()));

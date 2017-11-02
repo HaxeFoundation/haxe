@@ -202,11 +202,19 @@ wrap(s).toNativeString() == s;
 
 eq1(wrap("𝄞ऽऽ"), haxe.i18n.Utf32.fromBytes(wrap("𝄞ऽऽ").toBytes()));
 
+// should be little endian
 var b = wrap("𝄞").toBytes();
 b.length == 4;
-b.get(0) == 0x00;
-b.get(1) == 0x01;
-b.get(2) == 0xd1;
-b.get(3) == 0x1e;
+b.get(0) == 0x1e;
+b.get(1) == 0xd1;
+b.get(2) == 0x01;
+b.get(3) == 0x00;
+
+var b = wrap("!").toBytes();
+b.length == 4;
+b.get(0) == 0x21;
+b.get(1) == 0x00;
+b.get(2) == 0x00;
+b.get(3) == 0x00;
 
 eq1(wrap("𝄞ऽऽ"), wrap(wrap("𝄞ऽऽ").toNativeString()));

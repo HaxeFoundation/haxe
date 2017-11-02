@@ -124,7 +124,7 @@ abstract Utf32(String) {
 	public function toBytes(  ) : haxe.io.Bytes {
 		var res = ByteAccess.alloc(this.length << 2);
 		for (i in 0...this.length) {
-			res.setInt32(i << 2, fastCodeAt(i));
+			res.setInt32LE(i << 2, fastCodeAt(i));
 		}
 		return res.toBytes();
 	}
@@ -134,7 +134,7 @@ abstract Utf32(String) {
 	}
 
 	public static function fromByteAccess (ba:ByteAccess):Utf32 {
-		return new Utf32(ba.getData().decode("utf-32be"));
+		return new Utf32(ba.getData().decode("utf-32le"));
 	}
 
 	@:op(A == B) inline function opEq (other:Utf32) {
@@ -341,7 +341,7 @@ abstract Utf32(Utf32Impl) {
 		var res = Utf32Tools.alloc(ba.length >> 2);
 		var i = 0;
 		while (i < ba.length) {
-			res[i >> 2] = ba.getInt32(i);
+			res[i >> 2] = ba.getInt32LE(i);
 			i+=4;
 		}
 		return res;
@@ -372,7 +372,7 @@ abstract Utf32(Utf32Impl) {
 	public function toBytes(  ) : haxe.io.Bytes {
 		var res = ByteAccess.alloc(this.length << 2);
 		for (i in 0...this.length) {
-			res.setInt32(i << 2, this[i]);
+			res.setInt32LE(i << 2, this[i]);
 		}
 		return res.toBytes();
 	}
@@ -382,7 +382,7 @@ abstract Utf32(Utf32Impl) {
 		var ba = ByteAccess.fromBytes(bytes);
 		var i = 0;
 		while (i < ba.length) {
-			res[i >> 2] = ba.getInt32(i);
+			res[i >> 2] = ba.getInt32LE(i);
 			i+=4;
 		}
 		return fromImpl(res);

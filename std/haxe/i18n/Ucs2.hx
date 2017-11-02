@@ -134,7 +134,7 @@ abstract Ucs2(String) {
 		var b = ByteAccess.alloc(length * 2);
 		for (i in 0...length) {
 			var code = fastCodeAt(i);
-			b.setInt16(i*2, code);
+			b.setInt16LE(i*2, code);
 		}
 		return b.toBytes();
 	}
@@ -148,10 +148,10 @@ abstract Ucs2(String) {
 		var i = 0;
 		var buf = new StringBuf();
 		while (i < bytes.length) {
-			var code1 = bytes.getInt16(i);
+			var code1 = bytes.getInt16LE(i);
 			// we allow surrogates in ucs2, but we treat them as individual chars with invalid codes
 			if (Convert.isHighSurrogate(code1)) {
-				var code2 = bytes.getInt16(i+2);
+				var code2 = bytes.getInt16LE(i+2);
 				#if hl
 				var code = Convert.surrogatePairToCharCode(code1, code2);
 				StringBufTools.addString(buf, String.fromCharCode(code));
@@ -473,7 +473,7 @@ abstract Ucs2Reader(ByteAccess) {
 	}
 
 	public inline function getInt16 (pos:Int) {
-		return this.getInt16(pos);
+		return this.getInt16LE(pos);
 	}
 }
 
@@ -522,8 +522,8 @@ private class Ucs2Tools {
 		var res = Ucs2Impl.alloc(byteLength(impl));
 		var i = 0;
 		while (i < impl.length) {
-			var b = impl.getInt16(i);
-			res.setInt16(i, f(b));
+			var b = getInt16(impl, i);
+			res.setInt16LE(i, f(b));
 			i+=2;
 		}
 		return res;
@@ -541,12 +541,16 @@ private class Ucs2Tools {
 
 	static var empty = ByteAccess.alloc(0);
 
+	static inline function getInt16 (impl:Ucs2Impl, pos:Int) {
+		return impl.getInt16LE(pos);
+	}
+
 	static inline function charAt(impl:Ucs2Impl, index : Int) : Ucs2Impl {
 		if (index < 0 || index >= strLength(impl)) {
 			return empty;
 		}
 		var b = ByteAccess.alloc(2);
-		b.setInt16(0, impl.getInt16(index*2));
+		b.setInt16LE(0, getInt16(impl, index*2));
 		return b;
 	}
 
@@ -559,7 +563,7 @@ private class Ucs2Tools {
 		var pos = 0;
 		var fullPos = i;
 		while (i < byteLen) {
-			if (impl.getInt16(i) == str.getInt16(pos)) {
+			if (getInt16(impl, i) == getInt16(str, pos)) {
 				pos+=2;
 			} else if (pos > 0) {
 				pos = 0;
@@ -590,7 +594,7 @@ private class Ucs2Tools {
 		while (true) {
 			i-=2;
 			if (i <= -1) break;
-			if (impl.getInt16(i) == str.getInt16(pos)) {
+			if (getInt16(impl, i) == getInt16(str, pos)) {
 				pos-=2;
 			} else if (pos < lastPos) {
 				pos = lastPos;
@@ -664,8 +668,8 @@ private class Ucs2Tools {
 
 		while ( i < byteLength(impl)) {
 
-			var b = impl.getInt16(i);
-			var d = delimiter.getInt16(pos);
+			var b = getInt16(impl, i);
+			var d = getInt16(delimiter, pos);
 
 			if (b == d) {
 				pos+=2;
@@ -703,7 +707,8 @@ private class Ucs2Tools {
 	}
 
 	static inline function fastCodeAt( impl:Ucs2Impl, index : Int) : Int {
-		return (impl.get(strToImplIndex(index)) << 8) | impl.get(strToImplIndex(index) + 1);
+		return getInt16(impl, strToImplIndex(index));
+		//return (impl.get(strToImplIndex(index)) << 8) | impl.get(strToImplIndex(index) + 1);
 	}
 
 	static inline function eachCode ( impl:Ucs2Impl, f : Int -> Void) {

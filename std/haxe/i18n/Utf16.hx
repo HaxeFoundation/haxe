@@ -944,12 +944,14 @@ abstract Utf16Reader(ByteAccess) {
 		return this.length;
 	}
 
+	/*
 	public inline function fastGet (pos:Int) {
 		return this.fastGet(pos);
 	}
+	*/
 
 	public inline function getInt16 (pos:Int) {
-		return this.getInt16(pos);
+		return this.getInt16LE(pos);
 	}
 }
 
@@ -957,7 +959,7 @@ abstract Utf16Reader(ByteAccess) {
 private class Utf16Tools {
 
 	static inline function setInt16 (impl:Utf16Impl, pos:Int, v:Int) {
-		return impl.b.setInt16(pos, v);
+		return impl.b.setInt16LE(pos, v);
 	}
 
 	static inline function byteLength (ba:Utf16Impl) {
@@ -994,7 +996,7 @@ private class Utf16Tools {
 	static var empty = allocImpl(0, 0);
 
 	static inline function getInt16 (impl:Utf16Impl, pos:Int) {
-		return impl.b.getInt16(pos);
+		return impl.b.getInt16LE(pos);
 	}
 
 	static inline function fromByteAccess (ba:ByteAccess):Utf16Impl {
@@ -1022,7 +1024,7 @@ private class Utf16Tools {
 		var len = 0;
 		var index = 0;
 		while (index < ba.length) {
-			var size = getSequenceSize(ba.getInt16(index));
+			var size = getSequenceSize(ba.getInt16LE(index));
 			len++;
 			index += size;
 		}
@@ -1087,10 +1089,10 @@ private class Utf16Tools {
 	static inline function pushCharCode (bytes:Utf16Impl, buf:ByteAccessBuffer, pos:Int, size:Int) {
 		switch size {
 			case 2:
-				buf.addInt16BigEndian(getInt16(bytes, pos));
+				buf.addInt16LE(getInt16(bytes, pos));
 			case 4:
-				buf.addInt16BigEndian(getInt16(bytes, pos));
-				buf.addInt16BigEndian(getInt16(bytes, pos+2));
+				buf.addInt16LE(getInt16(bytes, pos));
+				buf.addInt16LE(getInt16(bytes, pos+2));
 			case _: throw "unexpected";
 		}
 	}

@@ -426,7 +426,7 @@ class Convert {
 			}
 			var charCode = charCodeFromUtf8Bytes(source, i, size);
 
-			writeUtf16CodeUnits(charCode, i, function (_, unit) target.addInt16BigEndian(unit), strict, strictUcs2 );
+			writeUtf16CodeUnits(charCode, i, function (_, unit) target.addInt16LE(unit), strict, strictUcs2 );
 			i+=size;
 		}
 		return target.getByteAccess();
@@ -451,8 +451,9 @@ class Convert {
 
 		Convert.writeUtf16CodeUnits(charCode, 0,
 			function (pos, val) {
-				bytes.set(pos << 1, (val >> 8) & 0xFF );
-				bytes.set((pos << 1)+1, val & 0xFF);
+				bytes.setInt16LE(pos << 1, val);
+				//bytes.set(pos << 1, (val >> 8) & 0xFF );
+				//bytes.set((pos << 1)+1, val & 0xFF);
 			}, true, false);
 		return bytes;
 	}
@@ -481,7 +482,7 @@ class Convert {
 					* replacement character.
 					*/
 					i += findMaximalSubpartOfIllFormedUtf8Sequence(source, i);
-					target.addInt32BigEndian(UNI_REPLACEMENT_CHAR);
+					target.addInt32LE(UNI_REPLACEMENT_CHAR);
 					continue;
 				}
 			}
@@ -495,7 +496,7 @@ class Convert {
 					* replacement character.
 					*/
 					i += findMaximalSubpartOfIllFormedUtf8Sequence(source, i);
-					target.addInt32BigEndian(UNI_REPLACEMENT_CHAR);
+					target.addInt32LE(UNI_REPLACEMENT_CHAR);
 					continue;
 				}
 			}
@@ -511,10 +512,10 @@ class Convert {
 					if (strict) {
 						throw SourceIllegal(i);
 					} else {
-						target.addInt32BigEndian(UNI_REPLACEMENT_CHAR);
+						target.addInt32LE(UNI_REPLACEMENT_CHAR);
 					}
 				} else {
-					target.addInt32BigEndian(code);
+					target.addInt32LE(code);
 				}
 			} else { /* i.e., ch > UNI_MAX_LEGAL_UTF32 */
 				throw SourceIllegal(i);
@@ -601,7 +602,7 @@ class Convert {
 					throw SourceIllegal(i);
 				}
 			}
-			target.addInt32BigEndian(unit);
+			target.addInt32LE(unit);
 			i += 2;
 		}
 		return target.getByteAccess();
@@ -648,22 +649,22 @@ class Convert {
 					if (strict) {
 						throw SourceIllegal(i);
 					} else {
-						target.addInt16BigEndian(UNI_REPLACEMENT_CHAR);
+						target.addInt16LE(UNI_REPLACEMENT_CHAR);
 					}
 				} else {
-					target.addInt16BigEndian(unit);
+					target.addInt16LE(unit);
 				}
 			} else if (unit > UNI_MAX_LEGAL_UTF32) {
 				if (strict) {
 					throw SourceIllegal(i);
 				} else {
-					target.addInt16BigEndian(UNI_REPLACEMENT_CHAR);
+					target.addInt16LE(UNI_REPLACEMENT_CHAR);
 				}
 			} else {
 				var pair = codePointToSurrogatePair(unit);
 
-				target.addInt16BigEndian(pair.high);
-				target.addInt16BigEndian(pair.low);
+				target.addInt16LE(pair.high);
+				target.addInt16LE(pair.low);
 			}
 			i+=4;
 		}
@@ -709,16 +710,16 @@ class NativeStringTools {
 
 	public static function toUtf16ByteAccess (s:String):ByteAccess {
 		#if python
-		return ByteAccess.ofData(python.NativeStringTools.encode(s, "utf-16be"));
+		return ByteAccess.ofData(python.NativeStringTools.encode(s, "utf-16le"));
 		#elseif java
 		try
 		{
-			var b:BytesData = untyped s.getBytes("UTF-16BE");
+			var b:BytesData = untyped s.getBytes("UTF-16LE");
 			return ByteAccess.ofData(b);
 		}
 		catch (e:Dynamic) throw e;
 		#elseif cs
-		var b = cs.system.text.Encoding.BigEndianUnicode.GetBytes(s);
+		var b = cs.system.text.Encoding.Unicode.GetBytes(s);
 		return ByteAccess.ofData(b);
 		#else
 		var buf = new ByteAccessBuffer();
@@ -726,7 +727,7 @@ class NativeStringTools {
 		eachCharCode(s, (code, _) -> {
 			Tools.Convert.writeUtf16CodeUnits(code, pos, (_, int16) -> {
 				pos++;
-				buf.addInt16BigEndian(int16);
+				buf.addInt16LE(int16);
 			}, true, false);
 		});
 		return buf.getByteAccess();

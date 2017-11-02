@@ -88,16 +88,28 @@ private class BytesBufferTools {
 		BytesBufferTools.addBytesData(this, b.getData());
 	}
 
-	public inline function addInt16BigEndian (i:Int) {
+	public inline function addInt16BE (i:Int) {
 		this.addByte((i >> 8) & 0xFF);
 		this.addByte(i & 0xFF);
 	}
 
-	public inline function addInt32BigEndian (i:Int) {
+	public inline function addInt32BE (i:Int) {
 		this.addByte((i >> 24) & 0xFF);
 		this.addByte((i >> 16) & 0xFF);
 		this.addByte((i >> 8) & 0xFF);
 		this.addByte(i & 0xFF);
+	}
+
+	public inline function addInt16LE (i:Int) {
+		this.addByte(i & 0xFF);
+		this.addByte((i >> 8) & 0xFF);
+	}
+
+	public inline function addInt32LE (i:Int) {
+		this.addByte(i & 0xFF);
+		this.addByte((i >> 8) & 0xFF);
+		this.addByte((i >> 16) & 0xFF);
+		this.addByte((i >> 24) & 0xFF);
 	}
 
 	public inline function addBuffer (buf:ByteAccessBuffer) {

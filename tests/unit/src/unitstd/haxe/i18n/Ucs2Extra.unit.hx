@@ -176,11 +176,17 @@ wrap(s).toNativeString() == s;
 
 eq1(wrap("𝄞ऽऽ"), haxe.i18n.Ucs2.fromBytes(wrap("𝄞ऽऽ").toBytes()));
 
+// should be little endian
 var b = wrap("𝄞").toBytes();
 b.length == 4;
-b.get(0) == 0xD8;
-b.get(1) == 0x34;
-b.get(2) == 0xDD;
-b.get(3) == 0x1E;
+b.get(0) == 0x34;
+b.get(1) == 0xD8;
+b.get(2) == 0x1E;
+b.get(3) == 0xDD;
+
+var b = wrap("!").toBytes();
+b.length == 2;
+b.get(0) == 0x21;
+b.get(1) == 0x00;
 
 eq1(wrap("𝄞ऽऽ"), wrap(wrap("𝄞ऽऽ").toNativeString()));
