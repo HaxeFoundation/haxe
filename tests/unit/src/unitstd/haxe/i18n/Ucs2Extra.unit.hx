@@ -189,4 +189,9 @@ b.length == 2;
 b.get(0) == 0x21;
 b.get(1) == 0x00;
 
+var b = wrap("γ").toBytes();
+b.length == 2;
+b.get(0) == 0xB3;
+b.get(1) == 0x03;
+
 eq1(wrap("𝄞ऽऽ"), wrap(wrap("𝄞ऽऽ").toNativeString()));

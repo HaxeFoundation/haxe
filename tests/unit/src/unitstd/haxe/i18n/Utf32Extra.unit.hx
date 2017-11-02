@@ -217,4 +217,12 @@ b.get(1) == 0x00;
 b.get(2) == 0x00;
 b.get(3) == 0x00;
 
+var b = wrap("γ").toBytes();
+b.length == 4;
+b.get(0) == 0xB3;
+b.get(1) == 0x03;
+b.get(2) == 0x00;
+b.get(3) == 0x00;
+
+
 eq1(wrap("𝄞ऽऽ"), wrap(wrap("𝄞ऽऽ").toNativeString()));

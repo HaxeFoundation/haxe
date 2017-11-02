@@ -214,4 +214,11 @@ var b = wrap("!").toBytes();
 b.length == 1;
 b.get(0) == 0x21;
 
+var b = wrap("γ").toBytes();
+b.length == 2;
+b.get(0) == 0xCE;
+b.get(1) == 0xB3;
+
+
+
 eq1(wrap("𝄞ऽऽ"), wrap(wrap("𝄞ऽऽ").toNativeString()));
