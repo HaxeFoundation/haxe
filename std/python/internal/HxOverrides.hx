@@ -117,6 +117,16 @@ class HxOverrides {
 		return Syntax.callField(x, "toLowerCase");
 	}
 
+	@:ifFeature("dynamic_read.length", "anon_optional_read.length", "anon_read.length")
+	static public function length(x:Dynamic) {
+		if (Boot.isString(x)) {
+			return (x:String).length;
+		} else if (Boot.isArray(x)) {
+			return (x:Array<Dynamic>).length;
+		}
+		return Syntax.field(x, "length");
+	}
+
 	@:ifFeature("binop_>>>")
 	static public function rshift(val:Int, n:Int) {
 		return Syntax.binop(Syntax.binop(val, "%", Syntax.pythonCode("0x100000000")), ">>", n);
