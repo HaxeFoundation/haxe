@@ -43,7 +43,8 @@ private class BytesBufferTools {
 		@:privateAccess {
 			if( buf.pos + src.byteLength > buf.size ) buf.grow(src.byteLength);
 			if( buf.size == 0 ) return;
-			var sub = new js.html.Uint8Array(@:privateAccess (src:Dynamic).bytes.buffer, @:privateAccess (src:Dynamic).bytes.byteOffset, src.byteLength);
+			var bytes = ((src:Dynamic).bytes:js.html.Uint8Array);
+			var sub = new js.html.Uint8Array(bytes.buffer, bytes.byteOffset, src.byteLength);
 			buf.u8.set(sub, buf.pos);
 			buf.pos += src.byteLength;
 		}
