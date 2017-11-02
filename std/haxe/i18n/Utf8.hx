@@ -30,7 +30,7 @@ import haxe.io.Bytes;
 	public var length(default,null) : Int;
 }
 
-class Utf8Iterator {
+private class Utf8Iterator {
 	var s:Utf8Impl;
 	var p:Int;
 

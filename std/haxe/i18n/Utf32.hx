@@ -29,7 +29,7 @@ import haxe.i18n.ByteAccess;
 
 private typedef Utf32Impl = haxe.ds.Vector<Int>;
 
-class Utf32Iterator {
+private class Utf32Iterator {
 
 	var s:Utf32Impl;
 	var p:Int;

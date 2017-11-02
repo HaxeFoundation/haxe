@@ -30,7 +30,7 @@ import haxe.i18n.Tools;
 	public var length(default,null) : Int;
 }
 
-class Utf16Iterator {
+private class Utf16Iterator {
 
 	var s:Utf16Impl;
 	var p:Int;
@@ -704,7 +704,7 @@ import haxe.i18n.Tools;
 	public var length(default,null) : Int;
 }
 
-class Utf16Iterator {
+private class Utf16Iterator {
 	var s:Utf16Impl;
 	var p:Int;
 
@@ -712,6 +712,7 @@ class Utf16Iterator {
 		this.p = 0;
 		this.s = s.impl();
 	}
+
 	public inline function hasNext ():Bool {
 		return p < Utf16Tools.byteLength(s);
 	}
@@ -724,7 +725,6 @@ class Utf16Iterator {
 		return code;
 	}
 }
-
 
 @:allow(haxe.i18n)
 abstract Utf16(Utf16Impl) {
@@ -742,6 +742,7 @@ abstract Utf16(Utf16Impl) {
 	public inline function toUpperCase() : Utf16 {
 		return fromImpl(Utf16Tools.toUpperCase(this));
 	}
+
 	public inline function toLowerCase() : Utf16 {
 		return fromImpl(Utf16Tools.toLowerCase(this));
 	}
@@ -797,9 +798,11 @@ abstract Utf16(Utf16Impl) {
 	@:op(A > B) inline function opGreaterThan (other:Utf16) {
 		return compare(other) == 1;
 	}
+
 	@:op(A < B) inline function opLessThan (other:Utf16) {
 		return compare(other) == -1;
 	}
+
 	@:op(A <= B) inline function opLessThanOrEq (other:Utf16) {
 		return compare(other) <= 0;
 	}
@@ -816,7 +819,6 @@ abstract Utf16(Utf16Impl) {
 
 	public inline function toNativeString() : String {
 		return toUtf8().toNativeString();
-		//return Utf16Tools.toNativeString(this);//this.getString(0, this.length);
 	}
 
 	public inline function toUcs2() : Ucs2 {
@@ -860,15 +862,13 @@ abstract Utf16(Utf16Impl) {
 		#end
 	}
 
-	public inline function getReader ():Utf16Reader
-	{
+	public inline function getReader ():Utf16Reader {
 		return new Utf16Reader(this.b);
 	}
 
 	public inline function eachCode ( f : Int -> Void) {
 		return Utf16Tools.eachCode(this, f);
 	}
-
 
 	// private helpers
 
@@ -1283,7 +1283,6 @@ private class Utf16Tools {
 			var size2 = getSequenceSize(getInt16(delimiter, j));
 
 			if (size == size2 && compareChar(impl, i, delimiter, j, size) == 0) {
-
 				pos++;
 				j+=size;
 				tmpBufLen++;
@@ -1334,6 +1333,7 @@ private class Utf16Tools {
 
 		var lenIsNull = len == null;
 		var byteLength = byteLength(str);
+
 		if (pos < 0) {
 			var thisLength = strLength(str);
 			pos = thisLength + pos;
@@ -1399,8 +1399,7 @@ private class Utf16Tools {
 		}
 	}
 
-	static inline function fromCharCode( code : Int ) : Utf16Impl
-	{
+	static inline function fromCharCode( code:Int ) : Utf16Impl {
 		return mkImpl(Convert.codePointToUtf16ByteAccess(code), 1);
 	}
 

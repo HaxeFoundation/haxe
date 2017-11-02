@@ -27,7 +27,7 @@ import haxe.i18n.Tools.Convert;
 
 import haxe.i18n.Tools.StringBufTools;
 
-class Utf32Iterator {
+private class Utf32Iterator {
 	var s:Utf32;
 	var p:Int;
 

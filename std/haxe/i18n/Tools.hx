@@ -150,26 +150,22 @@ class Convert {
 				addByte( ( ( (charCode      ) | byteMark) & byteMask) );
 			case 1:
 				addByte( (   (charCode      ) | firstByteMark[bytesToWrite]) );
+			case _:
+				throw "Unexpected bytesToWrite " + bytesToWrite;
 		}
 	}
 
 	static inline function getUtf8SequenceSizeFromCodePoint (codePoint:Int) {
-		if (codePoint <= 0x7F) {
-			return 1;
-		} else if (codePoint <= 0x7FF) {
-			return 2;
-		} else if (codePoint <= UNI_MAX_BMP) {
-			return 3;
-		} else if (codePoint <= UNI_MAX_LEGAL_UTF32) {
-			return 4;
-		} else {
-			return 3;
-		}
+		return
+			if (codePoint <= 0x7F) 1
+			else if (codePoint <= 0x7FF) 2
+			else if (codePoint <= UNI_MAX_BMP) 3
+			else if (codePoint <= UNI_MAX_LEGAL_UTF32) 4
+			else 3;
 	}
 
 	static inline function isInvalidUtf8CodePoint (codePoint:Int) {
 		return codePoint > UNI_MAX_LEGAL_UTF32;
-
 	}
 
 	public static inline function getUtf8SequenceSize (firstCodeUnit:Int) {
@@ -243,7 +239,6 @@ class Convert {
 	 * If presented with a length > 4, this returns false.  The Unicode
 	 * definition of UTF-8 goes up to 4-byte sequences.
 	 */
-
 	static function isLegalUtf8Sequence( source:Utf8Reader, pos:Int, length:Int):Bool
 	{
 		var unit0 = source.fastGet(pos);
@@ -282,16 +277,11 @@ class Convert {
 
 		return switch (length)
 		{
-			case 4:
-				check4() && check3() && check2() && check1() && check0();
-			case 3:
-				check3() && check2() && check1() && check0();
-			case 2:
-				check2() && check1() && check0();
-			case 1:
-				check1() && check0();
-			case _:
-				false;
+			case 4: check4() && check3() && check2() && check1() && check0();
+			case 3: check3() && check2() && check1() && check0();
+			case 2: check2() && check1() && check0();
+			case 1: check1() && check0();
+			case _: false;
 		}
 	}
 
@@ -520,7 +510,7 @@ class Convert {
 			} else { /* i.e., ch > UNI_MAX_LEGAL_UTF32 */
 				throw SourceIllegal(i);
 			}
-			i+=size;
+			i += size;
 		}
 
 		return target.getByteAccess();
@@ -631,7 +621,7 @@ class Convert {
 				}
 			}
 			writeUtf8CodeUnits(code, size, function (x) target.addByte(x));
-			i+=4;
+			i += 4;
 		}
 		return target.getByteAccess();
 	}
@@ -810,7 +800,6 @@ class NativeStringTools {
 		#end
 	}
 }
-
 
 class StringBufTools {
 	public static inline function addString (buf:StringBuf, s:String) {

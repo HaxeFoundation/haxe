@@ -29,7 +29,7 @@ import haxe.i18n.Tools;
 #if (flash || js || hl || java || cs)
 
 
-class Ucs2Iterator {
+private class Ucs2Iterator {
 	var s:Ucs2;
 	var p:Int;
 
@@ -280,7 +280,7 @@ import haxe.i18n.ByteAccess;
 
 private typedef Ucs2Impl = ByteAccess;
 
-class Ucs2Iterator {
+private class Ucs2Iterator {
 	var s:Ucs2;
 	var p:Int;
 
