@@ -1469,13 +1469,17 @@ module Printer = struct
 			let assign = if is_empty_expr then "" else Printf.sprintf "%s = _hx_e1\n%s" v.v_name indent in
 			let handle_base_type bt =
 				let t = print_base_type bt in
+				let print_custom_check t_str =
+					Printf.sprintf "if %s:\n%s    %s    %s" t_str indent assign (print_expr {pctx with pc_indent = "    " ^ pctx.pc_indent} e)
+				in
 				let print_type_check t_str =
-					Printf.sprintf "if isinstance(_hx_e1, %s):\n%s    %s    %s" t_str indent assign (print_expr {pctx with pc_indent = "    " ^ pctx.pc_indent} e)
+					print_custom_check ("isinstance(_hx_e1, " ^ t_str ^ ")")
+					(*Printf.sprintf "if isinstance(_hx_e1, %s):\n%s    %s    %s" t_str indent assign (print_expr {pctx with pc_indent = "    " ^ pctx.pc_indent} e)*)
 				in
 				let res = match t with
 				| "str" -> print_type_check "str"
 				| "Bool" -> print_type_check "bool"
-				| "Int" -> print_type_check "int"
+				| "Int" -> print_custom_check "(isinstance(_hx_e1, int) and not isinstance(_hx_e1, bool))" (* for historic reasons bool extends int *)
 				| "Float" -> print_type_check "float"
 				| t -> print_type_check t
 				in
