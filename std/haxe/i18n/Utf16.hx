@@ -661,6 +661,9 @@ private class Utf16Tools {
 
 		if (startIndex == null || startIndex > len) return empty;
 
+		var endIndex:Int = endIndex;
+		var startIndex:Int = startIndex;
+
 		return if (hasNoSurrogates(impl)) {
 			var len = (endIndex) - (startIndex);
 			mkImpl(impl.s.substr( (startIndex), len), len);
