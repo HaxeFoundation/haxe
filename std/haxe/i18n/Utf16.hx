@@ -31,21 +31,21 @@ import haxe.i18n.Tools;
 }
 
 class Utf16Iterator {
-	var s:Utf16;
+	var s:Utf16Impl;
 	var p:Int;
 
-	public inline function new (s) {
+	public inline function new (s:Utf16) {
 		this.p = 0;
-		this.s = s;
+		this.s = s.impl();
 	}
 	public inline function hasNext ():Bool {
-		return p < Utf16Tools.lengthInt16(s.impl());
+		return p < Utf16Tools.lengthInt16(s);
 	}
 
 	public inline function next ():Int {
-		var b = Utf16Tools.getInt16(s.impl(), p);
+		var b = Utf16Tools.getInt16(s, p);
 		var size = Utf16Tools.getSequenceSize(b);
-		var code = Utf16Tools.getCharCode(s.impl(), p, size);
+		var code = Utf16Tools.getCharCode(s, p, size);
 		p += size;
 		return code;
 	}
@@ -461,14 +461,7 @@ private class Utf16Tools {
 
 
 	public static inline function eachCode ( impl:Utf16Impl, f : Int -> Void) {
-		var i = 0;
-		while (i < lengthInt16(impl)) {
-			var b = getInt16(impl, i);
-			var size = getSequenceSize(b);
-			var code = getCharCode(impl, i, size);
-			f(code);
-			i += size;
-		}
+		for (c in Utf16.fromImpl(impl)) f(c);
 	}
 
 	static function indexOf( impl:Utf16Impl, str : Utf16Impl, ?startIndex : Int ) : Int
@@ -749,21 +742,21 @@ import haxe.i18n.Tools;
 }
 
 class Utf16Iterator {
-	var s:Utf16;
+	var s:Utf16Impl;
 	var p:Int;
 
-	public inline function new (s) {
+	public inline function new (s:Utf16) {
 		this.p = 0;
-		this.s = s;
+		this.s = s.impl();
 	}
 	public inline function hasNext ():Bool {
-		return p < Utf16Tools.byteLength(s.impl());
+		return p < Utf16Tools.byteLength(s);
 	}
 
 	public inline function next ():Int {
-		var b = Utf16Tools.getInt16(s.impl(), p);
+		var b = Utf16Tools.getInt16(s, p);
 		var size = Utf16Tools.getSequenceSize(b);
-		var code = Utf16Tools.getCharCode(s.impl(), p, size);
+		var code = Utf16Tools.getCharCode(s, p, size);
 		p += size;
 		return code;
 	}
@@ -1220,14 +1213,7 @@ private class Utf16Tools {
 
 
 	public static inline function eachCode ( impl:Utf16Impl, f : Int -> Void) {
-		var i = 0;
-		while (i < byteLength(impl)) {
-			var b = getInt16(impl, i);
-			var size = getSequenceSize(b);
-			var code = getCharCode(impl, i, size);
-			f(code);
-			i += size;
-		}
+		for (c in Utf16.fromImpl(impl)) f(c);
 	}
 
 	static function indexOf( impl:Utf16Impl, str : Utf16Impl, ?startIndex : Int ) : Int

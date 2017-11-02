@@ -31,22 +31,22 @@ import haxe.io.Bytes;
 }
 
 class Utf8Iterator {
-	var s:Utf8;
+	var s:Utf8Impl;
 	var p:Int;
 
-	public inline function new (s) {
+	public inline function new (s:Utf8) {
 		this.p = 0;
-		this.s = s;
+		this.s = s.impl();
 	}
 
 	public inline function hasNext ():Bool {
-		return p < Utf8Tools.byteLength(s.impl());
+		return p < Utf8Tools.byteLength(s);
 	}
 
 	public inline function next ():Int {
-		var b = Utf8Tools.fastGet(s.impl(), p);
+		var b = Utf8Tools.fastGet(s, p);
 		var size = Utf8Tools.getSequenceSize(b);
-		var code = Utf8Tools.getCharCode(s.impl(), p, size);
+		var code = Utf8Tools.getCharCode(s, p, size);
 		p += size;
 		return code;
 	}
@@ -362,14 +362,7 @@ private class Utf8Tools {
 	static var empty = allocImpl(0, 0);
 
 	static inline function eachCode ( ba:Utf8Impl, f : Int -> Void) {
-		var i = 0;
-		while (i < byteLength(ba)) {
-			var b = fastGet(ba, i);
-			var size = getSequenceSize(b);
-			var code = getCharCode(ba, i, size);
-			f(code);
-			i += size;
-		}
+		for (c in Utf8.fromImpl(ba)) f(c);
 	}
 
 	static inline function getCharCode ( b:Utf8Impl, pos:Int, size:Int):Int {

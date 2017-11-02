@@ -43,9 +43,7 @@ class Utf32Iterator {
 	}
 
 	public inline function next ():Int {
-		var code = s.fastCodeAt(p);
-		p++;
-		return code;
+		return s.fastCodeAt(p++);
 	}
 }
 
@@ -190,10 +188,7 @@ abstract Utf32(String) {
 	}
 
 	inline function eachCode ( f : Int -> Void) {
-		for (i in 0...length) {
-			var code = fastCodeAt(i);
-			f(code);
-		}
+		for (c in fromImpl(this)) f(c);
 	}
 
 	public inline function getReader ():Utf32Reader {
@@ -246,22 +241,20 @@ import haxe.i18n.ByteAccess;
 private typedef Utf32Impl = haxe.ds.Vector<Int>;
 
 class Utf32Iterator {
-	var s:Utf32;
+	var s:Utf32Impl;
 	var p:Int;
 
-	public inline function new (s) {
+	public inline function new (s:Utf32) {
 		this.p = 0;
-		this.s = s;
+		this.s = s.impl();
 	}
 
 	public inline function hasNext ():Bool {
-		return p < Utf32Tools.strLength(s.impl());
+		return p < Utf32Tools.strLength(s);
 	}
 
 	public inline function next ():Int {
-		var code = Utf32Tools.fastCodeAt(s.impl(), p);
-		p++;
-		return code;
+		return Utf32Tools.fastCodeAt(s, p++);
 	}
 }
 
@@ -729,10 +722,7 @@ private class Utf32Tools {
 	}
 
 	static inline function eachCode ( impl:Utf32Impl, f : Int -> Void) {
-		for (i in 0...strLength(impl)) {
-			var code = fastCodeAt(impl, i);
-			f(code);
-		}
+		for (c in Utf32.fromImpl(impl)) f(c);
 	}
 
 	static inline function toNativeString(impl:Utf32Impl) : String {

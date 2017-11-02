@@ -43,9 +43,7 @@ class Ucs2Iterator {
 	}
 
 	public inline function next ():Int {
-		var code = s.fastCodeAt(p);
-		p++;
-		return code;
+		return s.fastCodeAt(p++);
 	}
 }
 
@@ -223,10 +221,7 @@ abstract Ucs2(String) {
 	}
 
 	inline function eachCode ( f : Int -> Void) {
-		for (i in 0...length) {
-			var code = fastCodeAt(i);
-			f(code);
-		}
+		for (c in fromImpl(this)) f(c);
 	}
 
 	public inline function getReader ():Ucs2Reader {
@@ -300,9 +295,7 @@ class Ucs2Iterator {
 	}
 
 	public inline function next ():Int {
-		var code = Ucs2Tools.fastCodeAt(s.impl(), p);
-		p++;
-		return code;
+		return Ucs2Tools.fastCodeAt(s.impl(), p++);
 	}
 }
 
@@ -714,10 +707,7 @@ private class Ucs2Tools {
 	}
 
 	static inline function eachCode ( impl:Ucs2Impl, f : Int -> Void) {
-		for (i in 0...strLength(impl)) {
-			var code = fastCodeAt(impl, i);
-			f(code);
-		}
+		for (c in Ucs2.fromImpl(impl)) f(c);
 	}
 
 	static inline function toNativeString(impl:Ucs2Impl) : String {
