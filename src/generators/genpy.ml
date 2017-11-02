@@ -1474,7 +1474,6 @@ module Printer = struct
 				in
 				let print_type_check t_str =
 					print_custom_check ("isinstance(_hx_e1, " ^ t_str ^ ")")
-					(*Printf.sprintf "if isinstance(_hx_e1, %s):\n%s    %s    %s" t_str indent assign (print_expr {pctx with pc_indent = "    " ^ pctx.pc_indent} e)*)
 				in
 				let res = match t with
 				| "str" -> print_type_check "str"
