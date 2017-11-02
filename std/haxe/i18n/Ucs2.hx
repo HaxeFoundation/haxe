@@ -495,16 +495,16 @@ private class Ucs2Tools {
 	}
 
 	static inline function isUpperCaseLetter (bytes:Int) {
-		return bytes >= 0x0041 && bytes <= 0x005A;
+		return bytes >= 0x41 && bytes <= 0x5A;
 	}
 
 	static inline function isLowerCaseLetter (bytes:Int) {
-		return bytes >= 0x0061 && bytes <= 0x007A;
+		return bytes >= 0x61 && bytes <= 0x7A;
 	}
 
 	static inline function toLowerCaseLetter (bytes:Int):Int {
 		return if (isUpperCaseLetter(bytes)) {
-			bytes + 0x0020;
+			bytes + 0x20;
 		} else {
 			bytes;
 		}
@@ -512,7 +512,7 @@ private class Ucs2Tools {
 
 	static inline function toUpperCaseLetter (bytes:Int) {
 		return if (isLowerCaseLetter(bytes)) {
-			bytes - 0x0020;
+			bytes - 0x20;
 		} else {
 			bytes;
 		}

@@ -202,7 +202,6 @@ abstract Utf8(Utf8Impl) {
 		return new Utf8Reader(this.b);
 	}
 
-
 	// private api
 
 	inline function get_length() {

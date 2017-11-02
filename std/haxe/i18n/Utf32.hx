@@ -25,222 +25,12 @@ import haxe.i18n.Tools.NativeStringTools;
 
 import haxe.i18n.Tools.Convert;
 
-#if python
-
-import haxe.i18n.Tools.StringBufTools;
-
-class Utf32Iterator {
-	var s:Utf32;
-	var p:Int;
-
-	public inline function new (s) {
-		this.p = 0;
-		this.s = s;
-	}
-
-	public inline function hasNext ():Bool {
-		return p < s.length;
-	}
-
-	public inline function next ():Int {
-		return s.fastCodeAt(p++);
-	}
-}
-
-@:allow(haxe.i18n)
-abstract Utf32(String) {
-
-	public var length(get,never) : Int;
-
-	public inline function new(str:String) : Void {
-		this = str;
-	}
-
-	public inline function iterator () {
-		return new Utf32Iterator(fromImpl(this));
-	}
-
-	inline function get_length():Int {
-		return this.length;
-	}
-
-	public inline function toUpperCase() : Utf32 {
-		return new Utf32(this.toUpperCase());
-	}
-
-	public inline function toLowerCase() : Utf32 {
-		return new Utf32(this.toLowerCase());
-	}
-
-	public inline function charAt(index : Int) : Utf32 {
-		return new Utf32(this.charAt(index));
-	}
-
-	public inline function charCodeAt( index : Int) : Null<Int> {
-		return this.charCodeAt(index);
-	}
-
-	public inline function fastCodeAt( index : Int) : Int {
-		return StringTools.fastCodeAt(this, index);
-	}
-
-	public inline function indexOf( str : Utf32, ?startIndex : Int ) : Int {
-		return this.indexOf(str.impl(),startIndex);
-	}
-
-	public inline function lastIndexOf( str : Utf32, ?startIndex : Int ) : Int {
-		if (startIndex == null) { // required for flash
-			return this.lastIndexOf(str.impl());
-		}
-		return this.lastIndexOf(str.impl(), startIndex);
-	}
-
-	public inline function split( delimiter : Utf32 ) : Array<Utf32> {
-		return cast this.split(delimiter.impl());
-	}
-
-	public function substr( pos : Int, ?len : Int ) : Utf32 {
-		if (len == null) return new Utf32(this.substr(pos)); // required for flash
-		return new Utf32(this.substr(pos,len));
-	}
-
-	public function substring( startIndex : Int, ?endIndex : Int ) : Utf32 {
-		if (endIndex == null) return new Utf32(this.substring(startIndex));
-		return new Utf32(this.substring(startIndex,endIndex));
-	}
-
-	public inline function toNativeString() : String {
-		return this;
-	}
-
-	public static inline function fromCharCode( code : Int ) : Utf32 {
-		return new Utf32(nativeStringfromCharCode(code));
-	}
-
-	static inline function nativeStringfromCharCode( code : Int ) : String {
-		return String.fromCharCode(code);
-	}
-
-	public function toBytes(  ) : haxe.io.Bytes {
-		var res = ByteAccess.alloc(this.length << 2);
-		for (i in 0...this.length) {
-			res.setInt32LE(i << 2, fastCodeAt(i));
-		}
-		return res.toBytes();
-	}
-
-	public static inline function fromBytes( bytes : haxe.io.Bytes ) : Utf32 {
-		return fromByteAccess(ByteAccess.fromBytes(bytes));
-	}
-
-	public static function fromByteAccess (ba:ByteAccess):Utf32 {
-		return new Utf32(ba.getData().decode("utf-32le"));
-	}
-
-	@:op(A == B) inline function opEq (other:Utf32) {
-		return this == other.impl();
-	}
-
-	@:op(A + B) inline function opAdd (other:Utf32) {
-		return fromImpl(this + other.impl());
-	}
-
-	@:op(A != B) inline function opNotEq (other:Utf32) {
-		return !opEq(other);
-	}
-
-	public inline function toUtf8() : Utf8 {
-		return Utf8.fromUtf32(fromImpl(this));
-	}
-
-	public inline function toUtf16() : Utf16 {
-		return Utf16.fromUtf32(fromImpl(this));
-	}
-
-	public inline function toUcs2() : Ucs2 {
-		return Ucs2.fromUtf32(fromImpl(this));
-	}
-
-	inline static function fromUcs2 (s:Ucs2):Utf32 {
-		var buf = new StringBuf();
-		s.eachCode(function (codePoint) StringBufTools.addString(buf, String.fromCharCode(codePoint)));
-		return fromImpl(buf.toString());
-	}
-
-	inline static function fromUtf16 (s:Utf16):Utf32 {
-		var buf = new StringBuf();
-		s.eachCode(function (codePoint) StringBufTools.addString(buf, String.fromCharCode(codePoint)));
-		return fromImpl(buf.toString());
-	}
-
-	inline static function fromUtf8 (s:Utf8):Utf32 {
-		var buf = new StringBuf();
-		s.eachCode(function (codePoint) StringBufTools.addString(buf, String.fromCharCode(codePoint)));
-		return fromImpl(buf.toString());
-	}
-
-	static inline function fromImpl (str:String):Utf32 {
-		return cast str;
-	}
-
-	inline function impl() : String {
-		return this;
-	}
-
-	inline function eachCode ( f : Int -> Void) {
-		for (c in fromImpl(this)) f(c);
-	}
-
-	public inline function getReader ():Utf32Reader {
-		return new Utf32Reader(this);
-	}
-
-	public function toCodeArray ():Array<Int> {
-		var res = [];
-		eachCode(function (c) res.push(c));
-		return res;
-	}
-
-	@:op(A > B) inline function opGreaterThan (other:Utf32) {
-		return this > other.impl();
-	}
-
-	@:op(A < B) inline function opLessThan (other:Utf32) {
-		return this < other.impl();
-	}
-
-	@:op(A <= B) inline function opLessThanOrEq (other:Utf32) {
-		return this <= other.impl();
-	}
-
-	@:op(A >= B) inline function opGreaterThanOrEq (other:Utf32) {
-		return this >= other.impl();
-	}
-}
-
-abstract Utf32Reader(String) {
-	public inline function new (s:String) {
-		this = s;
-	}
-
-	public var length(get, never):Int;
-
-	inline function get_length () {
-		return this.length;
-	}
-
-	public inline function getInt32 (pos:Int) {
-		return StringTools.fastCodeAt(this, pos);
-	}
-}
-
-#else
-
 import haxe.i18n.ByteAccess;
 
 private typedef Utf32Impl = haxe.ds.Vector<Int>;
 
 class Utf32Iterator {
+
 	var s:Utf32Impl;
 	var p:Int;
 
@@ -350,18 +140,20 @@ abstract Utf32(Utf32Impl) {
 	static inline function fromByteAccess (bytes:ByteAccess):Utf32 {
 		return fromImpl(byteAccessToImpl(bytes));
 	}
+
 	static inline function fromImpl (impl:Utf32Impl):Utf32 {
 		return cast impl;
 	}
+
 	inline function impl ():Utf32Impl {
 		return this;
 	}
+
 	// end private helpers
 
 	public inline function toNativeString() : String {
 		return Utf32Tools.toNativeString(this);
 	}
-
 
 	public static inline function fromCharCode( code : Int ) : Utf32 {
 		var v = Utf32Tools.alloc(1);
@@ -369,7 +161,7 @@ abstract Utf32(Utf32Impl) {
 		return fromImpl(v);
 	}
 
-	public function toBytes(  ) : haxe.io.Bytes {
+	public function toBytes() : haxe.io.Bytes {
 		var res = ByteAccess.alloc(this.length << 2);
 		for (i in 0...this.length) {
 			res.setInt32LE(i << 2, this[i]);
@@ -392,11 +184,9 @@ abstract Utf32(Utf32Impl) {
 		return Utf8.fromUtf32(fromImpl(this));
 	}
 
-
 	public inline function toUtf16() : Utf16 {
 		return Utf16.fromUtf32(fromImpl(this));
 	}
-
 
 	public inline function toUcs2() : Ucs2 {
 		return Ucs2.fromUtf32(fromImpl(this));
@@ -416,14 +206,12 @@ abstract Utf32(Utf32Impl) {
 		return fromImpl(r);
 	}
 
-
 	inline static function fromUtf16 (s:Utf16):Utf32 {
 		var r = Utf32Tools.alloc(s.length);
 		var pos = 0;
 		s.eachCode(function (codePoint) r[pos++] = codePoint);
 		return fromImpl(r);
 	}
-
 
 	@:op(A == B) inline function opEq (other:Utf32) {
 		return Utf32Tools.equal(this, other.impl());
@@ -444,9 +232,11 @@ abstract Utf32(Utf32Impl) {
 	@:op(A > B) inline function opGreaterThan (other:Utf32) {
 		return compare(other) == 1;
 	}
+
 	@:op(A < B) inline function opLessThan (other:Utf32) {
 		return compare(other) == -1;
 	}
+
 	@:op(A <= B) inline function opLessThanOrEq (other:Utf32) {
 		return compare(other) <= 0;
 	}
@@ -493,15 +283,8 @@ private class Utf32Tools {
 		#end
 	}
 
-	static inline function strToImplIndex (strIndex:Int):Int {
-		return strIndex;
-	}
-	static inline function implToStrIndex (strIndex:Int):Int {
-		return strIndex;
-	}
-
 	static inline function strLength(impl:Utf32Impl):Int {
-		return implToStrIndex(impl.length);
+		return impl.length;
 	}
 
 	static inline function isUpperCaseLetter (code:Int) {
@@ -555,7 +338,7 @@ private class Utf32Tools {
 			return empty;
 		}
 		var b = alloc(1);
-		var pos = strToImplIndex(index);
+		var pos = index;
 		b[0] = impl[pos];
 		return b;
 	}
@@ -565,7 +348,7 @@ private class Utf32Tools {
 		var strLen = str.length;
 
 		var len = impl.length;
-		var i = startIndex != null ? (strToImplIndex(startIndex)) : 0;
+		var i = startIndex != null ? startIndex : 0;
 		var pos = 0;
 		var fullPos = i;
 		while (i < len) {
@@ -576,7 +359,7 @@ private class Utf32Tools {
 			}
 			fullPos++;
 			if (pos == strLen) {
-				res = implToStrIndex(fullPos - strLen);
+				res = fullPos - strLen;
 				break;
 			}
 			i++;
@@ -588,7 +371,7 @@ private class Utf32Tools {
 		var len = str.length;
 		var pos = len-1;
 
-		var startIndex = startIndex == null ? impl.length : strToImplIndex(startIndex) + len;
+		var startIndex = startIndex == null ? impl.length : startIndex + len;
 
 		if (startIndex > impl.length) {
 			startIndex = impl.length;
@@ -605,7 +388,7 @@ private class Utf32Tools {
 			}
 			fullPos--;
 			if (pos == -1) {
-				res = implToStrIndex(fullPos);
+				res = fullPos;
 				break;
 			}
 		}
@@ -654,9 +437,7 @@ private class Utf32Tools {
 
 	static inline function sub( impl:Utf32Impl, pos:Int, size:Int ) : Utf32Impl {
 		var res = alloc(size);
-
 		Utf32Impl.blit(impl, pos, res, 0, size);
-
 		return res;
 	}
 
@@ -678,7 +459,6 @@ private class Utf32Tools {
 		}
 
 		while ( i < impl.length) {
-
 			var b = impl[i];
 			var d = delimiter[pos];
 
@@ -718,7 +498,7 @@ private class Utf32Tools {
 	}
 
 	static inline function fastCodeAt( impl:Utf32Impl, index : Int) : Int {
-		var pos = strToImplIndex(index);
+		var pos = index;
 		return (impl[pos]);
 	}
 
@@ -741,7 +521,6 @@ private class Utf32Tools {
 			var res = a < b ? -1 : a > b ? 1 : 0;
 			if (res != 0) return res;
 		}
-
 		return l1 < l2 ? -1 : l1 > l2 ? 1 : 0;
 	}
 
@@ -769,5 +548,3 @@ private class Utf32Tools {
 		return true;
 	}
 }
-
-#end

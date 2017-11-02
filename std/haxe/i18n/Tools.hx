@@ -758,29 +758,6 @@ class NativeStringTools {
 		return toUtf16ByteAccess(s);
 	}
 
-
-
-	/*
-	public static function toUtf32ByteAccess (s:String):ByteAccess {
-		#if python
-		return ByteAccess.ofData(python.NativeStringTools.encode(s, "utf-32be"));
-		#elseif java
-		try
-		{
-			var b:BytesData = untyped s.getBytes("UTF-32BE");
-			return ByteAccess.ofData(b);
-		}
-		catch (e:Dynamic) throw e;
-		#elseif cs
-		var b = cs.system.text.Encoding.UTF32.GetBytes(s);
-		return ByteAccess.ofData(b);
-		#else
-		return Convert.convertUtf8toUtf32(new Utf8Reader(toUtf8(s)), true);
-		#end
-	}
-	*/
-
-
 	public static function toUtf8ByteAccess (s:String):ByteAccess {
 		#if neko
 		return ByteAccess.ofData(untyped __dollar__ssub(s.__s,0,s.length));
