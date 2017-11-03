@@ -259,6 +259,8 @@ module Initialize = struct
 				add_std "java"; "java"
 			| Python ->
 				add_std "python";
+				if not (Common.defined com Define.PythonVersion) then
+					Common.define_value com Define.PythonVersion "3.3";
 				"python"
 			| Hl ->
 				add_std "hl";
