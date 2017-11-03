@@ -117,6 +117,14 @@ class HxOverrides {
 		return Syntax.callField(x, "toLowerCase");
 	}
 
+	@:ifFeature("dynamic_read.split", "anon_optional_read.split", "anon_read.split")
+	static public function split(x:Dynamic, delimiter:String) {
+		if (Boot.isString(x)) {
+			return (x:String).split(delimiter);
+		}
+		return Syntax.callField(x, "split", delimiter);
+	}
+
 	@:ifFeature("dynamic_read.length", "anon_optional_read.length", "anon_read.length")
 	static public function length(x:Dynamic) {
 		if (Boot.isString(x)) {
