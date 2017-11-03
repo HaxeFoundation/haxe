@@ -19,47 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package python.lib;
+package python.lib.ssl;
 
-import python.lib.ssl.SSLContext;
-
-@:pythonImport("ssl")
-extern class Ssl {
-
-	@:require(python_version >= 3.4)
-	public static function create_default_context(purpose:String):SSLContext;
-
-	/**
-		Prevents a TLSv1 connection. This option is only applicable in conjunction
-		with PROTOCOL_TLS. It prevents the peers from choosing TLSv1 as the
-		protocol version.
-	**/
-	public static var OP_NO_TLSv1:Int;
-	/**
-		Prevents a TLSv1.1 connection. This option is only applicable in conjunction
-		with PROTOCOL_TLS. It prevents the peers from choosing TLSv1.1 as the
-		protocol version. Available only with openssl version 1.0.1+.
-
-		since python 3.4
-	**/
-	@:require(python_version >= 3.4)
-	public static var OP_NO_TLSv1_1:Int;
-
-	public static var OP_NO_SSLv3:Int;
-	public static var OP_NO_SSLv2:Int;
-
-	public static var OP_NO_COMPRESSION:Int;
-
-
-	#if (python_version >= 3.6)
-	@:deprecated("deprecated, use PROTOCOL_TLS instead")
-	#end
-	public static var PROTOCOL_SSLv23:String;
-
-	@:require(python_version >= 3.6)
-	public static var PROTOCOL_TLS:String;
-
-	public static var CERT_REQUIRED:Int;
-
+@:require(python_version >= 3.6)
+@:pythonImport("ssl", "SSLSession")
+extern class SSLSession {
 
 }
+
