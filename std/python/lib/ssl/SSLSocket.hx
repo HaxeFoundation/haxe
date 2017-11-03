@@ -22,6 +22,6 @@
 package python.lib.ssl;
 
 @:pythonImport("ssl", "SSLSocket")
-extern class SSLSocket extends python.lib.net.Socket {
+extern class SSLSocket extends python.lib.socket.Socket {
 
 }

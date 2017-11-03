@@ -27,9 +27,9 @@ import python.lib.ssl.SSLSocket;
 extern class SSLContext {
 	public function new (protocol:String):Void;
 	#if (python_version >= 3.6)
-	public function wrap_socket(s:python.lib.net.Socket, server_side:Bool = false, do_handshake_on_connect:Bool = true, suppress_ragged_eofs:Bool = true, server_hostname:String = null, session:SSLSession = null ):python.lib.ssl.SSLSocket;
+	public function wrap_socket(s:python.lib.socket.Socket, server_side:Bool = false, do_handshake_on_connect:Bool = true, suppress_ragged_eofs:Bool = true, server_hostname:String = null, session:SSLSession = null ):python.lib.ssl.SSLSocket;
 	#else
-	public function wrap_socket(s:python.lib.net.Socket, server_side:Bool = false, do_handshake_on_connect:Bool = true, suppress_ragged_eofs:Bool = true, server_hostname:String = null ):python.lib.ssl.SSLSocket;
+	public function wrap_socket(s:python.lib.socket.Socket, server_side:Bool = false, do_handshake_on_connect:Bool = true, suppress_ragged_eofs:Bool = true, server_hostname:String = null ):python.lib.ssl.SSLSocket;
 	#end
 	public var options:Int;
 

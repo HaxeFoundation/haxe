@@ -2,7 +2,7 @@ package python.net;
 
 import python.lib.Ssl;
 import python.lib.ssl.Purpose;
-import python.lib.net.Socket as PSocket;
+import python.lib.socket.Socket as PSocket;
 import sys.net.Host;
 
 class SslSocket extends sys.net.Socket {

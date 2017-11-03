@@ -19,7 +19,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package python.lib.net;
+package python.lib.socket;
 
-@:deprecated("Use python.lib.socket.Adress instead")
-typedef Address = python.lib.socket.Address;
+typedef Address = python.Tuple.Tuple2<String,Int>;
