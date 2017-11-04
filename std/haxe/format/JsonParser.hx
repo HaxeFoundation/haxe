@@ -67,7 +67,7 @@ class JsonParser {
 					case ' '.code, '\r'.code, '\n'.code, '\t'.code:
 						// loop
 					case '}'.code:
-						if( field != null || comma == false )
+						if( field != null || comma == false || !isEndOfField() )
 							invalidChar();
 						return obj;
 					case ':'.code:
@@ -93,7 +93,7 @@ class JsonParser {
 					case ' '.code, '\r'.code, '\n'.code, '\t'.code:
 						// loop
 					case ']'.code:
-						if( comma == false ) invalidChar();
+						if( comma == false || !isEndOfField() ) invalidChar();
 						return arr;
 					case ','.code:
 						if( comma ) comma = false else invalidChar();
@@ -106,21 +106,21 @@ class JsonParser {
 				}
 			case 't'.code:
 				var save = pos;
-				if( nextChar() != 'r'.code || nextChar() != 'u'.code || nextChar() != 'e'.code ) {
+				if( nextChar() != 'r'.code || nextChar() != 'u'.code || nextChar() != 'e'.code || !isEndOfField() ) {
 					pos = save;
 					invalidChar();
 				}
 				return true;
 			case 'f'.code:
 				var save = pos;
-				if( nextChar() != 'a'.code || nextChar() != 'l'.code || nextChar() != 's'.code || nextChar() != 'e'.code ) {
+				if( nextChar() != 'a'.code || nextChar() != 'l'.code || nextChar() != 's'.code || nextChar() != 'e'.code || !isEndOfField() ) {
 					pos = save;
 					invalidChar();
 				}
 				return false;
 			case 'n'.code:
 				var save = pos;
-				if( nextChar() != 'u'.code || nextChar() != 'l'.code || nextChar() != 'l'.code ) {
+				if( nextChar() != 'u'.code || nextChar() != 'l'.code || nextChar() != 'l'.code || !isEndOfField() ) {
 					pos = save;
 					invalidChar();
 				}
@@ -222,7 +222,7 @@ class JsonParser {
 					if (minus) minus = false;
 					digit = true; zero = false;
 				case '.'.code :
-					if (minus || point) invalidNumber(start);
+					if (minus || point || e) invalidNumber(start);
 					digit = false; point = true;
 				case 'e'.code, 'E'.code :
 					if (minus || zero || e) invalidNumber(start);
@@ -237,6 +237,13 @@ class JsonParser {
 			}
 			if (end) break;
 		}
+
+		if (!isEndOfField()) {
+			pos++;
+			invalidNumber(start);
+			pos--;
+		}
+
 		var f = Std.parseFloat(str.substr(start, pos - start));
 		var i = Std.int(f);
 		return if( i == f ) i else f;
@@ -244,6 +251,24 @@ class JsonParser {
 
 	inline function nextChar() {
 		return StringTools.fastCodeAt(str,pos++);
+	}
+
+	function isEndOfField() {
+		var save = pos;
+		while( true ) {
+			var c = nextChar();
+			switch( c ) {
+				case ' '.code, '\r'.code, '\n'.code, '\t'.code:
+					// loop
+				case ','.code, '}'.code, ']'.code:
+					pos--;
+					return true;
+				default:
+					pos--;
+					return StringTools.isEof(c);
+			}
+		}
+		return false;
 	}
 
 	function invalidChar() {
