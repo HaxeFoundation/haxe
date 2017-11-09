@@ -38,7 +38,8 @@ type 'value compiler_api = {
 	get_pattern_locals : Ast.expr -> Type.t -> (string,Type.tvar * Globals.pos) PMap.t;
 	define_type : 'value -> string option -> unit;
 	define_module : string -> 'value list -> ((string * Globals.pos) list * Ast.import_mode) list -> Ast.type_path list -> unit;
-	module_dependency : string -> string -> bool -> unit;
+	module_dependency : string -> string -> unit;
+	module_reuse_call : string -> string -> unit;
 	current_module : unit -> module_def;
 	on_reuse : (unit -> bool) -> unit;
 	mutable current_macro_module : unit -> module_def;
@@ -1833,11 +1834,11 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"register_module_dependency", vfun2 (fun m file ->
-			(get_api()).module_dependency (decode_string m) (decode_string file) false;
+			(get_api()).module_dependency (decode_string m) (decode_string file);
 			vnull
 		);
 		"register_module_reuse_call", vfun2 (fun m mcall ->
-			(get_api()).module_dependency (decode_string m) (decode_string mcall) true;
+			(get_api()).module_reuse_call (decode_string m) (decode_string mcall);
 			vnull
 		);
 		"get_typed_expr", vfun1 (fun e ->
