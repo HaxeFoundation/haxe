@@ -334,7 +334,7 @@ let make_macro_api ctx p =
 		MacroApi.module_dependency = (fun mpath file ismacro ->
 			let m = typing_timer ctx false (fun() -> Typeload.load_module ctx (parse_path mpath) p) in
 			if ismacro then
-				m.m_extra.m_macro_calls <- file :: List.filter ((<>) file) m.m_extra.m_macro_calls
+				m.m_extra.m_reuse_macro_calls <- file :: List.filter ((<>) file) m.m_extra.m_reuse_macro_calls
 			else
 				add_dependency m (create_fake_module ctx file);
 		);
