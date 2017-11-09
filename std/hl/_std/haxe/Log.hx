@@ -27,5 +27,6 @@ package haxe;
 		var str = Std.string(v);
 		if( infos != null && infos.customParams != null ) for( v in infos.customParams ) str += "," + Std.string(v);
 		Sys.println(pstr+": "+str);
+		Sys.stdout().flush();
 	}
 }
