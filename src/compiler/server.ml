@@ -397,6 +397,7 @@ let rec wait_loop process_params verbose accept =
 			| Some m' ->
 				if verbose then process_server_message com2 "" (SkippingDep(m,m'));
 				tcheck();
+				List.iter (MacroContext.call_init_macro ctx) m.m_extra.m_skip_macro_calls;
 				raise Not_found;
 			end;
 			tcheck();

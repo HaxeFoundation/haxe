@@ -40,6 +40,7 @@ type 'value compiler_api = {
 	define_module : string -> 'value list -> ((string * Globals.pos) list * Ast.import_mode) list -> Ast.type_path list -> unit;
 	module_dependency : string -> string -> unit;
 	module_reuse_call : string -> string -> unit;
+	module_skip_call : string -> string -> unit;
 	current_module : unit -> module_def;
 	on_reuse : (unit -> bool) -> unit;
 	mutable current_macro_module : unit -> module_def;
@@ -1839,6 +1840,10 @@ let macro_api ccom get_api =
 		);
 		"register_module_reuse_call", vfun2 (fun m mcall ->
 			(get_api()).module_reuse_call (decode_string m) (decode_string mcall);
+			vnull
+		);
+		"register_module_skip_call", vfun2 (fun m mcall ->
+			(get_api()).module_skip_call (decode_string m) (decode_string mcall);
 			vnull
 		);
 		"get_typed_expr", vfun1 (fun e ->

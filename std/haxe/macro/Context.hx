@@ -593,6 +593,10 @@ class Context {
 		load("register_module_reuse_call", 2)(modulePath,macroCall);
 	}
 
+	public static function registerModuleSkipCall( modulePath : String, macroCall : String ) {
+		load("register_module_skip_call", 2)(modulePath,macroCall);
+	}
+
 	/**
 		Register a callback function that will be called every time the macro context cached is reused with a new
 		compilation. This enable to reset some static vars since the code might have been changed. If the callback

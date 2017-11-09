@@ -339,6 +339,10 @@ let make_macro_api ctx p =
 			let m = typing_timer ctx false (fun() -> Typeload.load_module ctx (parse_path mpath) p) in
 			m.m_extra.m_reuse_macro_calls <- call :: List.filter ((<>) call) m.m_extra.m_reuse_macro_calls
 		);
+		MacroApi.module_skip_call = (fun mpath call ->
+			let m = typing_timer ctx false (fun() -> Typeload.load_module ctx (parse_path mpath) p) in
+			m.m_extra.m_skip_macro_calls <- call :: List.filter ((<>) call) m.m_extra.m_skip_macro_calls
+		);
 		MacroApi.current_module = (fun() ->
 			ctx.m.curmod
 		);
