@@ -65,7 +65,6 @@ class Log {
 		untyped __define_feature__("use._hx_print",_hx_print(str));
 		#elseif sys
 		Sys.println(str);
-		Sys.stdout().flush();
 		#else
 		throw "Not implemented"
 		#end
