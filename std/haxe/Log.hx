@@ -56,11 +56,11 @@ class Log {
 		If it is bound to null, subsequent calls to `trace()` will cause an
 		exception.
 	**/
-	static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
+	public static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
 		var str = formatOutput(v,infos);
 		#if js
 		if( js.Syntax.typeof(untyped console) != "undefined" && (untyped console).log != null )
-			(untyped console).log(msg);
+			(untyped console).log(str);
 		#elseif lua
 		untyped __define_feature__("use._hx_print",_hx_print(str));
 		#elseif sys
