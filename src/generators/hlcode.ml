@@ -206,6 +206,7 @@ type fundecl = {
 	regs : ttype array;
 	code : opcode array;
 	debug : (int * int) array;
+	assigns : (string index * int) array;
 }
 
 type code = {
