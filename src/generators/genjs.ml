@@ -33,7 +33,7 @@ type sourcemap = {
 	mutable print_comma : bool;
 	mutable output_last_col : int;
 	mutable output_current_col : int;
-	mutable current_expr : texpr option;
+	mutable current_expr : (int * int * int) option;
 }
 
 type ctx = {
@@ -138,8 +138,53 @@ let add_feature ctx = Common.add_feature ctx.com
 
 let unsupported p = abort "This expression cannot be compiled to Javascript" p
 
+let encode_mapping smap file line col =
+	if smap.print_comma then
+		Rbuffer.add_char smap.mappings ','
+	else
+		smap.print_comma <- true;
 
-let add_mapping smap force e =
+	let base64_vlq number =
+		let encode_digit digit =
+			let chars = [|
+				'A';'B';'C';'D';'E';'F';'G';'H';'I';'J';'K';'L';'M';'N';'O';'P';
+				'Q';'R';'S';'T';'U';'V';'W';'X';'Y';'Z';'a';'b';'c';'d';'e';'f';
+				'g';'h';'i';'j';'k';'l';'m';'n';'o';'p';'q';'r';'s';'t';'u';'v';
+				'w';'x';'y';'z';'0';'1';'2';'3';'4';'5';'6';'7';'8';'9';'+';'/'
+			|] in
+			Array.unsafe_get chars digit
+		in
+		let to_vlq number =
+			if number < 0 then
+				((-number) lsl 1) + 1
+			else
+				number lsl 1
+		in
+		let rec loop vlq =
+			let shift = 5 in
+			let base = 1 lsl shift in
+			let mask = base - 1 in
+			let continuation_bit = base in
+			let digit = vlq land mask in
+			let next = vlq asr shift in
+			Rbuffer.add_char smap.mappings (encode_digit (
+				if next > 0 then digit lor continuation_bit else digit));
+			if next > 0 then loop next else ()
+		in
+		loop (to_vlq number)
+	in
+
+	base64_vlq (smap.output_current_col - smap.output_last_col);
+	base64_vlq (file - smap.source_last_file);
+	base64_vlq (line - smap.source_last_line);
+	base64_vlq (col - smap.source_last_col);
+
+	smap.source_last_file <- file;
+	smap.source_last_line <- line;
+	smap.source_last_col <- col;
+	smap.output_last_col <- smap.output_current_col
+
+let add_mapping smap e =
 	if e.epos.pmin < 0 then () else
 	let pos = e.epos in
 	let file = try
@@ -152,52 +197,9 @@ let add_mapping smap force e =
 	in
 	let line, col = Lexer.find_pos pos in
 	let line = line - 1 in
-	if force || smap.source_last_file != file || smap.source_last_line != line || smap.source_last_col != col then begin
-		smap.current_expr <- Some e;
-		if smap.print_comma then
-			Rbuffer.add_char smap.mappings ','
-		else
-			smap.print_comma <- true;
-
-		let base64_vlq number =
-			let encode_digit digit =
-				let chars = [|
-					'A';'B';'C';'D';'E';'F';'G';'H';'I';'J';'K';'L';'M';'N';'O';'P';
-					'Q';'R';'S';'T';'U';'V';'W';'X';'Y';'Z';'a';'b';'c';'d';'e';'f';
-					'g';'h';'i';'j';'k';'l';'m';'n';'o';'p';'q';'r';'s';'t';'u';'v';
-					'w';'x';'y';'z';'0';'1';'2';'3';'4';'5';'6';'7';'8';'9';'+';'/'
-				|] in
-				Array.unsafe_get chars digit
-			in
-			let to_vlq number =
-				if number < 0 then
-					((-number) lsl 1) + 1
-				else
-					number lsl 1
-			in
-			let rec loop vlq =
-				let shift = 5 in
-				let base = 1 lsl shift in
-				let mask = base - 1 in
-				let continuation_bit = base in
-				let digit = vlq land mask in
-				let next = vlq asr shift in
-				Rbuffer.add_char smap.mappings (encode_digit (
-					if next > 0 then digit lor continuation_bit else digit));
-				if next > 0 then loop next else ()
-			in
-			loop (to_vlq number)
-		in
-
-		base64_vlq (smap.output_current_col - smap.output_last_col);
-		base64_vlq (file - smap.source_last_file);
-		base64_vlq (line - smap.source_last_line);
-		base64_vlq (col - smap.source_last_col);
-
-		smap.source_last_file <- file;
-		smap.source_last_line <- line;
-		smap.source_last_col <- col;
-		smap.output_last_col <- smap.output_current_col
+	if smap.source_last_file != file || smap.source_last_line != line || smap.source_last_col != col then begin
+		smap.current_expr <- Some (file, line, col);
+		encode_mapping smap file line col
 	end
 
 let handle_newlines ctx str =
@@ -209,7 +211,7 @@ let handle_newlines ctx str =
 				smap.output_last_col <- 0;
 				smap.output_current_col <- 0;
 				smap.print_comma <- false;
-				Option.may (fun e -> add_mapping smap true e) smap.current_expr;
+				Option.may (fun (file,line,col) -> encode_mapping smap file line col) smap.current_expr;
 				loop next
 			end with Not_found ->
 				smap.output_current_col <- smap.output_current_col + (String.length str - from);
@@ -449,7 +451,7 @@ and add_objectdecl_parens e =
 	loop e
 
 and gen_expr ctx e =
-	Option.may (fun smap -> add_mapping smap false e) ctx.smap;
+	Option.may (fun smap -> add_mapping smap e) ctx.smap;
 	(match e.eexpr with
 	| TConst c -> gen_constant ctx e.epos c
 	| TLocal v -> spr ctx (ident v.v_name)
@@ -758,7 +760,7 @@ and gen_block_element ?(after=false) ctx e =
 		if after then newline ctx
 
 and gen_value ctx e =
-	Option.may (fun smap -> add_mapping smap false e) ctx.smap;
+	Option.may (fun smap -> add_mapping smap e) ctx.smap;
 	let assign e =
 		mk (TBinop (Ast.OpAssign,
 			mk (TLocal (match ctx.in_value with None -> assert false | Some v -> v)) t_dynamic e.epos,
