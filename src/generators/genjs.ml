@@ -186,8 +186,10 @@ let encode_mapping smap pos =
 	smap.source_last_pos <- pos;
 	smap.output_last_col <- smap.output_current_col
 
+let noop () = ()
+
 let add_mapping smap pos =
-	if pos.pmin < 0 then () else
+	if pos.pmin < 0 then noop else
 
 	let file = try
 		Hashtbl.find smap.sources_hash pos.pfile
@@ -205,9 +207,15 @@ let add_mapping smap pos =
 	in
 
 	if smap.source_last_pos <> pos then begin
+		let old_current_expr = smap.current_expr in
 		smap.current_expr <- Some pos;
-		encode_mapping smap pos
-	end
+		encode_mapping smap pos;
+		(fun () -> smap.current_expr <- old_current_expr)
+	end else
+		noop
+
+let add_mapping ctx e =
+	Option.map_default (fun smap -> add_mapping smap e.epos) noop ctx.smap
 
 let handle_newlines ctx str =
 	Option.may (fun smap ->
@@ -458,7 +466,7 @@ and add_objectdecl_parens e =
 	loop e
 
 and gen_expr ctx e =
-	Option.may (fun smap -> add_mapping smap e.epos) ctx.smap;
+	let clear_mapping = add_mapping ctx e in
 	(match e.eexpr with
 	| TConst c -> gen_constant ctx e.epos c
 	| TLocal v -> spr ctx (ident v.v_name)
@@ -743,8 +751,7 @@ and gen_expr ctx e =
 	| TIdent s ->
 		spr ctx s
 	);
-	Option.may (fun smap -> smap.current_expr <- None) ctx.smap
-
+	clear_mapping ()
 
 and gen_block_element ?(after=false) ctx e =
 	match e.eexpr with
@@ -767,7 +774,7 @@ and gen_block_element ?(after=false) ctx e =
 		if after then newline ctx
 
 and gen_value ctx e =
-	Option.may (fun smap -> add_mapping smap e.epos) ctx.smap;
+	let clear_mapping = add_mapping ctx e in
 	let assign e =
 		mk (TBinop (Ast.OpAssign,
 			mk (TLocal (match ctx.in_value with None -> assert false | Some v -> v)) t_dynamic e.epos,
@@ -881,7 +888,7 @@ and gen_value ctx e =
 			List.map (fun (v,e) -> v, block (assign e)) catchs
 		)) e.etype e.epos);
 		v());
-	Option.may (fun smap -> smap.current_expr <- None) ctx.smap
+	clear_mapping ()
 
 and gen_syntax ctx meth args pos =
 	match meth, args with
