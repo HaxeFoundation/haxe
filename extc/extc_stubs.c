@@ -451,8 +451,16 @@ CAMLprim value get_real_path( value path ) {
 
 		// get actual file/dir name with proper case
 		if ((handle = FindFirstFile(out, &data)) != INVALID_HANDLE_VALUE) {
+			int klen = strlen(data.cFileName);
+			// a ~ was expanded !
+			if( klen != i - last ) {
+				int d = klen - (i - last);
+				memmove(out + i + d, out + i, len - i + 1);
+				len += d;
+				i += d;
+			}
 			// replace the component with proper case
-			memcpy(out + last, data.cFileName, i - last);
+			memcpy(out + last, data.cFileName, klen + 1);
 			FindClose(handle);
 		}
 
