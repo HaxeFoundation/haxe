@@ -99,7 +99,7 @@ install_osx: &install_osx
   - brew uninstall --force brew-cask # https://github.com/caskroom/homebrew-cask/pull/15381
   - travis_retry brew tap Homebrew/bundle
   - travis_retry brew bundle --file=tests/Brewfile
-  - opam init
+  - opam init --compiler=4.05.0
   - eval `opam config env`
   - opam install camlp4 sedlex ocamlfind xml-light extlib rope ptmap
   # install neko
