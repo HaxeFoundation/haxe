@@ -1,0 +1,24 @@
+opam-version: "1.2"
+name: "haxe"
+version: "3.4.4"
+maintainer: "Haxe Foundation"
+author: "Haxe Foundation"
+homepage: "https://haxe.org/"
+bug-reports: "https://github.com/HaxeFoundation/haxe/issues"
+license: "GPL2+ MIT"
+dev-repo: "https://github.com/HaxeFoundation/haxe"
+build: [
+  [make]
+]
+install: [make "install" "INSTALL_DIR=%{prefix}%"]
+remove: [make "uninstall" "INSTALL_DIR=%{prefix}%"]
+depends: [
+  "ocamlfind" {build}
+  "camlp4"    {build}
+  "sedlex"    {build}
+  "xml-light" {build}
+  "extlib"    {build}
+  "rope"      {build}
+  "ptmap"     {build}
+]
+available: [ ocaml-version { > "4.02" & < "4.06"} ]
