@@ -1,6 +1,6 @@
 opam-version: "1.2"
 name: "haxe"
-version: "3.4.4"
+version: "4.0.0"
 maintainer: ["Haxe Foundation <contact@haxe.org>" "Andy Li <andy@onthewings.net>"]
 author: "Haxe Foundation <contact@haxe.org>"
 homepage: "https://haxe.org/"
