@@ -17,7 +17,7 @@ depends: [
   "camlp4"    {build}
   "sedlex"    {build}
   "xml-light" {build}
-  "extlib"    {build}
+  "extlib"    {build & >= "1.7"}
   "rope"      {build}
   "ptmap"     {build}
 ]
