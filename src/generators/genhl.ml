@@ -1334,10 +1334,20 @@ and jump_expr ctx e jcond =
 		jump_expr ctx e (not jcond)
 	| TBinop (OpEq,{ eexpr = TConst(TNull) },e) | TBinop (OpEq,e,{ eexpr = TConst(TNull) }) ->
 		let r = eval_expr ctx e in
-		jump ctx (fun i -> if jcond then OJNull (r,i) else OJNotNull (r,i))
+		if is_nullable(rtype ctx r) then
+			jump ctx (fun i -> if jcond then OJNull (r,i) else OJNotNull (r,i))
+		else if not jcond then
+			jump ctx (fun i -> OJAlways i)
+		else
+			(fun i -> ())
 	| TBinop (OpNotEq,{ eexpr = TConst(TNull) },e) | TBinop (OpNotEq,e,{ eexpr = TConst(TNull) }) ->
 		let r = eval_expr ctx e in
-		jump ctx (fun i -> if jcond then OJNotNull (r,i) else OJNull (r,i))
+		if is_nullable(rtype ctx r) then
+			jump ctx (fun i -> if jcond then OJNotNull (r,i) else OJNull (r,i))
+		else if jcond then
+			jump ctx (fun i -> OJAlways i)
+		else
+			(fun i -> ())
 	| TBinop (OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte as jop, e1, e2) ->
 		let t = common_type ctx e1 e2 (match jop with OpEq | OpNotEq -> true | _ -> false) e.epos in
 		let r1 = eval_to ctx e1 t in
