@@ -547,7 +547,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		let flag = not i.i_force_temp && (match e.eexpr with
 			| TLocal _ when i.i_abstract_this -> true
 			| TLocal _ | TConst _ -> not i.i_write
-			| TFunction _ -> if i.i_write then error "Cannot modify a closure parameter inside inline method" p; i.i_read <= 1
+			| TFunction _ -> if i.i_write then error "Cannot modify a closure parameter inside inline method" p; true
 			| _ -> not i.i_write && i.i_read <= 1
 		) in
 		let flag = flag && (not i.i_captured || is_constant e) in
