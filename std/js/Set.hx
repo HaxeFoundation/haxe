@@ -21,13 +21,18 @@
  */
 package js;
 
+import js.Map.MapEntry;
+
 @:native("Set")
 extern class Set<T> {
 	var size(default,null):Int;
-	@:pure function new();
+	@:pure function new(?iterable:Any);
 	@:pure function has(value:T):Bool;
 	function add(value:T):Set<T>;
 	function delete(value:T):Bool;
 	function clear():Void;
 	function forEach(callback:(value:T, key:T, set:Set<T>)->Void, ?thisArg:Any):Void;
+	function keys():JsIterator<T>;
+	function values():JsIterator<T>;
+	function entries():JsIterator<MapEntry<T,T>>;
 }
