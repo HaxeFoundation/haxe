@@ -30,7 +30,7 @@ import haxe.io.Error;
 using cpp.NativeArray;
 #end
 class BytesDataTools {
-
+	#if !js
 	public static function alloc( length : Int ) : BytesData {
 		#if neko
 		return untyped __dollar__smake(length);
@@ -286,4 +286,5 @@ class BytesDataTools {
 		return b[pos];
 		#end
 	}
+	#end
 }
