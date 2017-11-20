@@ -1970,8 +1970,7 @@ let is_java_native_function meta = try
 
 let build_module_def ctx mt meta fvars context_init fbuild =
 
-	let loop (f_build,f_enum) meta =
-		match meta with
+	let loop (f_build,f_enum) = function
 		| Meta.Build,args,p ->
 			(fun () ->
 				if ctx.in_macro then error "You cannot use @:build inside a macro : make sure that your type is not used in macro" p;
