@@ -1984,12 +1984,6 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 			| Some e -> fbuild e)
 		in
 		match meta with
-		| Meta.MacroCall(epath),args,p ->
-			(fun () ->
-				if ctx.in_macro then error "You cannot use @-? on a class inside a macro : make sure that your type is not used in macro" p;
-				let el = args in
-				do_build epath el p
-			) :: f_build,f_enum
 		| Meta.Build,args,p ->
 			(fun () ->
 				if ctx.in_macro then error "You cannot use @:build inside a macro : make sure that your type is not used in macro" p;
@@ -2950,29 +2944,6 @@ module ClassInitializer = struct
 						List.iter (fun f' ->
 							if f'.cff_name = f.cff_name then begin
 								f'.cff_meta <- List.filter (fun (m,_,_) -> m <> Meta.Build) f'.cff_meta;
-							end;
-							handle_field f'
-						) fl
-					| _ -> error "Build failure" p
-				end
-			with Not_found ->
-			try
-				let id, s,el = match Meta.get_macro_calls f.cff_meta with
-					| Meta.MacroCall id, el,_ -> id, id,el
-					| _ -> assert false
-				in
-				let mt = TClassDecl c in
-				let get_fields () = [f] in
-				let old = ctx.g.get_build_infos in
-				ctx.g.get_build_infos <- (fun() -> Some (mt, List.map snd (t_infos mt).mt_params, get_fields()));
-				let r = try apply_macro ctx MBuild s el p with e -> ctx.g.get_build_infos <- old; raise e in
-				ctx.g.get_build_infos <- old;
-				begin match r with
-					| None -> error "Build failure" p
-					| Some (EVars [_,Some (CTAnonymous fl,p),None],_) ->
-						List.iter (fun f' ->
-							if f'.cff_name = f.cff_name then begin
-								f'.cff_meta <- List.filter (fun (m,_,_) -> m <> (Meta.MacroCall id)) f'.cff_meta;
 							end;
 							handle_field f'
 						) fl

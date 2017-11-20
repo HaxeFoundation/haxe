@@ -3635,25 +3635,6 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| (Meta.Fixed,_,_) when ctx.com.platform=Cpp ->
 				let e = e() in
 				{e with eexpr = TMeta(m,e)}
-			| (Meta.MacroCall(fn),params,p) ->
-				let type_call ctx e e1 with_type p =
-					let acc = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) MCall) with_type p in
-					match acc with
-						| AKMacro _ ->
-							(*
-								We pass the config as an Array and the expression to the macro.
-								@-myMacro(cfg1, cfg2) expr
-							*)
-							let cfg = EArrayDecl params, p in
-							let el = cfg :: [e1] in
-							build_call ctx acc el with_type p
-						| _ ->
-							error ("only macros can be called with MacroCall syntax, " ^ fn ^ " is not a macro in `@-" ^ fn ^ "`") p
-				in
-
-				let eid = ((EConst (Ident fn)), p) in
-
-				type_call ctx eid e1 with_type p
 			| _ -> e()
 		in
 		ctx.meta <- old;

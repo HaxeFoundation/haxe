@@ -91,7 +91,6 @@ type strict_meta =
 	| LuaRequire
 	| Meta
 	| Macro
-	| MacroCall of string
 	| MaybeUsed
 	| MergeBlock
 	| MultiReturn
@@ -178,11 +177,6 @@ type strict_meta =
 
 let has m ml = List.exists (fun (m2,_,_) -> m = m2) ml
 let get m ml = List.find (fun (m2,_,_) -> m = m2) ml
-let get_macro_calls ml =
-	List.find (fun (m,_,_) -> match m with
-		| MacroCall s -> true
-		| _ -> false
-	) ml
 
 type meta_usage =
 	| TClass
@@ -377,7 +371,6 @@ let get_info = function
 	(* do not put any custom metadata after Last *)
 	| Dollar s -> "$" ^ s,("",[])
 	| Custom s -> s,("",[])
-	| MacroCall s -> "-" ^ s,("",[])
 
 let to_string m = fst (get_info m)
 
@@ -400,7 +393,6 @@ let from_string s =
 	if s = "" then Custom "" else match s.[0] with
 	| ':' -> (try Hashtbl.find hmeta s with Not_found -> Custom s)
 	| '$' -> Dollar (String.sub s 1 (String.length s - 1))
-	| '-' -> MacroCall (String.sub s 1 (String.length s - 1))
 	| _ -> Custom s
 
 let get_documentation d =
