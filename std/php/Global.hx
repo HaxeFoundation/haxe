@@ -276,6 +276,11 @@ extern class Global {
 	static function defined( name:String ) : Bool;
 
 	/**
+		@see http://php.net/manual/en/function.constant.php
+	*/
+	static function constant( name:String ) : Dynamic;
+
+	/**
 		@see http://php.net/manual/en/function.define.php
 	**/
 	static function define( name:String, value:Dynamic, case_insensitive:Bool = false ) : Bool;
@@ -1088,6 +1093,11 @@ extern class Global {
 	static function mktime( ?hour:Int, ?minute:Int, ?second:Int, ?month:Int, ?day:Int, ?year:Int, ?is_dst:Int ) : EitherType<Int,Bool>;
 
 	/**
+		@see http://php.net/manual/en/function.gmmktime.php
+	**/
+	static function gmmktime( ?hour:Int, ?minute:Int, ?second:Int, ?month:Int, ?day:Int, ?year:Int, ?is_dst:Int ) : Int;
+
+	/**
 		@see http://php.net/manual/en/function.date.php
 	**/
 	static function date( format:String, ?timestamp:Int ) : EitherType<String,Bool>;
@@ -1192,4 +1202,14 @@ extern class Global {
 		@see http://php.net/manual/en/function.include-once.php
 	**/
 	static function include_once( include_path:String ) : Void;
+
+	/**
+		@see http://php.net/manual/en/function.gzcompress.php
+	**/
+	static function gzcompress( data:String, ?level:Int, ?encoding:Int ) : EitherType<String,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.gzuncompress.php
+	**/
+	static function gzuncompress( data:String, ?length:Int ) : EitherType<String,Bool>;
 }

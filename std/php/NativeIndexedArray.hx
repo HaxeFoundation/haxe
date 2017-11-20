@@ -34,6 +34,9 @@ abstract NativeIndexedArray<T>(NativeArray) from NativeArray to NativeArray {
 	inline function set(idx:Int, val:T):T
 		return this[idx] = val;
 
+	public inline function push(val:T)
+		Syntax.code('{0}[] = {1}', this, val);
+
 	@:to
 	inline function toHaxeArray():Array<T>
 		return @:privateAccess Array.wrap(this);

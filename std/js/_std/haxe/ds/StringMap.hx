@@ -83,19 +83,19 @@ private class StringMapIterator<T> {
 
 	function existsReserved( key : String ) : Bool {
 		if( rh == null ) return false;
-		return untyped rh.hasOwnProperty("$"+key);
+		return (cast rh).hasOwnProperty("$"+key);
 	}
 
 	public function remove( key : String ) : Bool {
 		if( isReserved(key) ) {
 			key = "$" + key;
 			if( rh == null || !rh.hasOwnProperty(key) ) return false;
-			untyped __js__("delete")(rh[key]);
+			js.Syntax.delete(rh, key);
 			return true;
 		} else {
 			if( !h.hasOwnProperty(key) )
 				return false;
-			untyped __js__("delete")(h[key]);
+			js.Syntax.delete(h, key);
 			return true;
 		}
 	}
@@ -103,7 +103,7 @@ private class StringMapIterator<T> {
 	public function keys() : Iterator<String> {
 		return arrayKeys().iterator();
 	}
-	
+
 	function arrayKeys() : Array<String> {
 		var out = [];
 		untyped {
@@ -124,7 +124,7 @@ private class StringMapIterator<T> {
 	public inline function iterator() : Iterator<T> {
 		return new StringMapIterator(this, arrayKeys());
 	}
-	
+
 	public function copy() : StringMap<T> {
 		var copied = new StringMap();
 		for(key in keys()) copied.set(key, get(key));

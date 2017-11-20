@@ -3,7 +3,7 @@ class Main {
         throw invalidChar(65);
     }
 
-    static public function invalidChar(c) {
+    static public function invalidChar(_) {
         throw "error";
     }
 }

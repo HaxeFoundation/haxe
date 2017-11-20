@@ -91,7 +91,7 @@ class ArraySort {
 		doMerge(a, cmp, new_mid, second_cut, to, len1 - len11, len2 - len22);
 	}
 
-	static function rotate<T>(a:Array<T>, cmp, from, mid, to) {
+	static function rotate<T>(a:Array<T>, cmp:T -> T -> Int, from, mid, to) {
 		var n;
 		if (from == mid || mid == to) return;
 		n = gcd(to - from, mid - from);
@@ -153,7 +153,7 @@ class ArraySort {
 		a[j] = tmp;
 	}
 
-	static inline function compare<T>(a:Array<T>, cmp, i, j) {
+	static inline function compare<T>(a:Array<T>, cmp:T -> T -> Int, i, j) {
 		return cmp(a[i], a[j]);
 	}
 }

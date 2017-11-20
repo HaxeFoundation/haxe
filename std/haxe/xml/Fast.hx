@@ -221,7 +221,7 @@ abstract Fast(Xml) {
 	function get_innerHTML() {
 		var s = new StringBuf();
 		for( x in this )
-			s.add(this.toString());
+			s.add(x.toString());
 		return s.toString();
 	}
 }

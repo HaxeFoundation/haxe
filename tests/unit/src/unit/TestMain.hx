@@ -94,6 +94,8 @@ class TestMain {
 			#if ((dce == "full") && !interp && !as3)
 			new TestDCE(),
 			#end
+			new TestMapComprehension(),
+			new TestMacro(),
 			// #if ( (java || neko) && !macro && !interp)
 			// new TestThreads(),
 			// #end

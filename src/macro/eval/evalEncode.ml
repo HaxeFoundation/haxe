@@ -85,6 +85,7 @@ let encode_enum i pos index pl =
 		| IFieldAccess -> key_haxe_macro_FieldAccess
 		| IAnonStatus -> key_haxe_macro_AnonStatus
 		| IImportMode -> key_haxe_macro_ImportMode
+		| IQuoteStatus -> key_haxe_macro_QuoteStatus
 	in
 	encode_enum_value key index (Array.of_list pl) pos
 
@@ -128,10 +129,10 @@ let encode_bytes s =
 
 let encode_int_map_direct h =
 	encode_instance key_haxe_ds_IntMap ~kind:(IIntMap h)
-	
+
 let encode_string_map_direct h =
 	encode_instance key_haxe_ds_StringMap ~kind:(IStringMap h)
-	
+
 let encode_object_map_direct h =
 	encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic h))
 

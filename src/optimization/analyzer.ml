@@ -473,7 +473,7 @@ module ConstPropagation = DataFlow(struct
 			| Top | Bottom | EnumValue _ | Null _ ->
 				raise Not_found
 			| Const ct ->
-				let e' = Codegen.type_constant ctx.com (tconst_to_const ct) e.epos in
+				let e' = Texpr.type_constant ctx.com.basic (tconst_to_const ct) e.epos in
 				if not (type_change_ok ctx.com e'.etype e.etype) then raise Not_found;
 				e'
 		in
@@ -759,8 +759,6 @@ module Debug = struct
 			edge bb_try "try";
 			List.iter (fun (_,bb_catch) -> edge bb_catch "catch") bbl;
 			edge bb_next "next";
-		| SEEnd ->
-			()
 		| SENone ->
 			()
 
@@ -806,7 +804,7 @@ module Debug = struct
 	let dot_debug ctx c cf =
 		let g = ctx.graph in
 		let start_graph ?(graph_config=[]) suffix =
-			let ch = Codegen.Dump.create_file suffix [] (get_dump_path ctx c cf) in
+			let ch = Path.create_file false suffix [] (get_dump_path ctx c cf) in
 			Printf.fprintf ch "digraph graphname {\n";
 			List.iter (fun s -> Printf.fprintf ch "%s;\n" s) graph_config;
 			ch,(fun () ->
@@ -898,7 +896,7 @@ module Run = struct
 	open Graph
 
 	let with_timer detailed s f =
-		let timer = timer (if detailed then "analyzer" :: s else ["analyzer"]) in
+		let timer = Timer.timer (if detailed then "analyzer" :: s else ["analyzer"]) in
 		let r = f() in
 		timer();
 		r

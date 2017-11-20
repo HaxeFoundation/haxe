@@ -28,7 +28,7 @@ private class Stdin extends haxe.io.Output {
 	var p : Dynamic;
 	var buf : haxe.io.Bytes;
 
-	public function new(p) {
+	public function new(p:Dynamic) {
 		this.p = p;
 		buf = haxe.io.Bytes.alloc(1);
 	}
@@ -60,7 +60,7 @@ private class Stdout extends haxe.io.Input {
 	var out : Bool;
 	var buf : haxe.io.Bytes;
 
-	public function new(p,out) {
+	public function new(p:Dynamic,out) {
 		this.p = p;
 		this.out = out;
 		buf = haxe.io.Bytes.alloc(1);

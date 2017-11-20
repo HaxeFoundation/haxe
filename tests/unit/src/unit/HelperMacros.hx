@@ -7,6 +7,12 @@ class HelperMacros {
 		return macro $v { Std.string(Date.now()) };
 	}
 
+	static public macro function typeString(e) {
+		var typed = haxe.macro.Context.typeExpr(e);
+		var s = haxe.macro.TypeTools.toString(typed.t);
+		return macro $v{s};
+	}
+
 	static public macro function typedAs(actual:haxe.macro.Expr, expected:haxe.macro.Expr) {
 		var tExpected = haxe.macro.Context.typeof(expected);
 		var tActual = haxe.macro.Context.typeof(actual);
@@ -50,5 +56,11 @@ class HelperMacros {
 			"no error";
 		} catch (e:Dynamic) Std.string(e.message);
 		return macro $v{result};
+	}
+
+	static public macro function parseAndPrint(s:String) {
+		var e = haxe.macro.Context.parse(s, haxe.macro.Context.currentPos());
+		var s2 = new haxe.macro.Printer().printExpr(e);
+		return macro eq($v{s}, $v{s2});
 	}
 }

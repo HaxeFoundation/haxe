@@ -21,8 +21,8 @@ class Cpp {
 
 		//install and build hxcpp
 		try {
-			getHaxelibPath("hxcpp");
-			infoMsg('hxcpp has already been installed.');
+			var path = getHaxelibPath("hxcpp");
+			infoMsg('hxcpp has already been installed in $path.');
 		} catch(e:Dynamic) {
 			haxelibInstallGit("HaxeFoundation", "hxcpp", true);
 			var oldDir = Sys.getCwd();
@@ -40,26 +40,32 @@ class Cpp {
 		runCommand(bin, args);
 	}
 
-	static public function run(args:Array<String>) {
+	static public function run(args:Array<String>, testCompiled:Bool, testCppia:Bool) {
 		getCppDependencies();
-		runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M32"].concat(args));
-		runCpp("bin/cpp/TestMain-debug", []);
+		if (testCompiled) {
+			runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M32"].concat(args));
+			runCpp("bin/cpp/TestMain-debug", []);
+		}
 
 		switch (ci) {
 			case AppVeyor:
 				//save time...
 			case _:
-				runCommand("rm", ["-rf", "cpp"]);
-				runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M64"].concat(args));
-				runCpp("bin/cpp/TestMain-debug", []);
+				if (testCompiled) {
+					runCommand("rm", ["-rf", "cpp"]);
+					runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M64"].concat(args));
+					runCpp("bin/cpp/TestMain-debug", []);
+				}
 
-				runCommand("haxe", ["compile-cppia-host.hxml"]);
-				runCommand("haxe", ["compile-cppia.hxml"]);
-				runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
-				runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
-				runCommand("haxe", ["compile-cppia.hxml", "-D", "nocppiaast"]);
-				runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
-				runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
+				if (testCppia) {
+					runCommand("haxe", ["compile-cppia-host.hxml"]);
+					runCommand("haxe", ["compile-cppia.hxml"]);
+					runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
+					runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
+					runCommand("haxe", ["compile-cppia.hxml", "-D", "nocppiaast"]);
+					runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
+					runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
+				}
 		}
 
 		changeDirectory(sysDir);

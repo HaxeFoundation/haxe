@@ -131,7 +131,9 @@ type context = {
 	mutable type_cache : Type.module_type IntMap.t;
 	overrides : (Type.path * string,bool) Hashtbl.t;
 	(* prototypes *)
+	mutable array_prototype : vprototype;
 	mutable string_prototype : vprototype;
+	mutable vector_prototype : vprototype;
 	mutable instance_prototypes : vprototype IntMap.t;
 	mutable static_prototypes : vprototype IntMap.t;
 	mutable constructors : value Lazy.t IntMap.t;
@@ -265,7 +267,7 @@ let create_env_info static pfile kind capture_infos =
 let push_environment_debug ctx info num_locals num_captures =
 	let eval = get_eval ctx in
 	let timer = if ctx.detail_times then
-		Common.timer ["macro";"execution";kind_name eval info.kind]
+		Timer.timer ["macro";"execution";kind_name eval info.kind]
 	else
 		no_timer
 	in

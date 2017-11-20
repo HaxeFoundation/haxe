@@ -46,14 +46,22 @@ let rec super_forces_keep c =
 	| Some (csup,_) -> super_forces_keep csup
 	| _ -> false
 
-let rec is_or_overrides_extern_field cf c =
-	if c.cl_extern then cf.cf_expr = None
-	else
+let overrides_extern_field cf c =
+	let is_extern c cf = c.cl_extern && cf.cf_expr = None in
+	let rec loop c cf =
 		match c.cl_super with
-			| None -> false
-			| Some (csup,_) ->
-				try is_or_overrides_extern_field (PMap.find cf.cf_name csup.cl_fields) csup
-				with Not_found -> false
+		| None -> false
+		| Some (c,_) ->
+			try
+				let cf = PMap.find cf.cf_name c.cl_fields in
+				if is_extern c cf then
+					true
+				else
+					loop c cf
+			with Not_found ->
+				false
+	in
+	loop c cf
 
 let is_std_file dce file =
 	List.exists (ExtString.String.starts_with file) dce.std_dirs
@@ -75,13 +83,23 @@ let keep_whole_enum dce en =
 	Meta.has Meta.Keep en.e_meta
 	|| not (dce.full || is_std_file dce en.e_module.m_extra.m_file || has_meta Meta.Dce en.e_meta)
 
-(* check if a field is kept *)
-let keep_field dce cf c is_static =
+(*
+	Check if a field is kept.
+	`keep_field` is checked to determine the DCE entry points, i.e. all fields that have `@:keep` or kept for other reasons.
+	And then it is used at the end to check which fields can be filtered from their classes.
+*)
+let rec keep_field dce cf c is_static =
 	Meta.has Meta.Keep cf.cf_meta
 	|| Meta.has Meta.Used cf.cf_meta
 	|| cf.cf_name = "__init__"
 	|| not (is_physical_field cf)
-	|| (not is_static && is_or_overrides_extern_field cf c)
+	|| (not is_static && overrides_extern_field cf c)
+	|| (
+		cf.cf_name = "new"
+		&& match c.cl_super with (* parent class kept constructor *)
+			| Some ({ cl_constructor = Some ctor } as csup, _) -> keep_field dce ctor csup false
+			| _ -> false
+	)
 
 (* marking *)
 
@@ -126,7 +144,11 @@ and mark_field dce c cf stat =
 			| None -> add cf
 			| Some (c,_) -> mark_field dce c cf stat
 		end else
-			add cf
+			add cf;
+		if not stat then
+			match c.cl_constructor with
+				| None -> ()
+				| Some ctor -> mark_field dce c ctor false
 	end
 
 let rec update_marked_class_fields dce c =
@@ -489,7 +511,7 @@ and expr dce e =
 		begin match el with
 			| [{eexpr = TObjectDecl fl}] ->
 				begin try
-					begin match List.assoc "customParams" fl with
+					begin match Expr.field_assoc "customParams" fl with
 						| {eexpr = TArrayDecl el} ->
 							List.iter (fun e -> to_string dce e.etype) el
 						| _ ->
@@ -510,7 +532,7 @@ and expr dce e =
 		check_and_add_feature dce "array_write";
 		check_and_add_feature dce "array_read";
 		expr dce e1;
-	| TBinop(OpAdd,e1,e2) when is_dynamic e1.etype || is_dynamic e2.etype ->
+	| TBinop((OpAdd | OpAssignOp(OpAdd)),e1,e2) when is_dynamic e1.etype || is_dynamic e2.etype ->
 		check_and_add_feature dce "add_dynamic";
 		expr dce e1;
 		expr dce e2;

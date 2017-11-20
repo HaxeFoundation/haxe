@@ -28,9 +28,13 @@ STATICLINK?=0
 
 # Configuration
 
-HAXE_DIRECTORIES=compiler context generators generators/gencommon macro filters macro/eval optimization syntax typing display
+HAXE_DIRECTORIES=core syntax context codegen codegen/gencommon generators optimization filters macro macro/eval typing compiler
 EXTLIB_LIBS=extlib-leftovers extc neko javalib swflib ttflib ilib objsize pcre ziplib
-FINDLIB_LIBS=unix str threads sedlex xml-light extlib rope ptmap dynlink
+OCAML_LIBS=unix str threads dynlink
+OPAM_LIBS=sedlex xml-light extlib rope ptmap
+
+FINDLIB_LIBS=$(OCAML_LIBS)
+FINDLIB_LIBS+=$(OPAM_LIBS)
 
 # Includes, packages and compiler
 
@@ -40,6 +44,8 @@ ALL_INCLUDES=$(EXTLIB_INCLUDES) $(HAXE_INCLUDES)
 FINDLIB_PACKAGES=$(FINDLIB_LIBS:%=-package %)
 CFLAGS=
 ALL_CFLAGS=-bin-annot -safe-string -thread -g -w -3 $(CFLAGS) $(ALL_INCLUDES) $(FINDLIB_PACKAGES)
+
+MESSAGE_FILTER=sed -e 's/_build\/src\//src\//' tmp.tmp
 
 ifeq ($(BYTECODE),1)
 	TARGET_FLAG = bytecode
@@ -55,7 +61,7 @@ else
 	OCAMLDEP_FLAGS = -native
 endif
 
-CC_CMD = $(COMPILER) $(ALL_CFLAGS) -c $<
+CC_CMD = ($(COMPILER) $(ALL_CFLAGS) -c $< 2>tmp.tmp && $(MESSAGE_FILTER)) || ($(MESSAGE_FILTER) && exit 1)
 
 # Meta information
 
@@ -112,7 +118,7 @@ _build/%:%
 build_dirs:
 	@mkdir -p $(BUILD_DIRECTORIES)
 
-_build/src/syntax/parser.ml:src/syntax/parser.mly
+_build/src/syntax/grammar.ml:src/syntax/grammar.mly
 	camlp4o -impl $< -o $@
 
 _build/src/compiler/version.ml: FORCE
@@ -122,7 +128,7 @@ else
 	echo let version_extra = None > _build/src/compiler/version.ml
 endif
 
-build_src: | $(BUILD_SRC) _build/src/syntax/parser.ml _build/src/compiler/version.ml
+build_src: | $(BUILD_SRC) _build/src/syntax/grammar.ml _build/src/compiler/version.ml
 
 haxe: build_src
 	$(MAKE) -f $(MAKEFILENAME) build_pass_1
@@ -198,6 +204,9 @@ uninstall:
 		rm -rf $(INSTALL_LIB_DIR); \
 	fi
 
+opam_install:
+	opam install $(OPAM_LIBS) camlp4 ocamlfind --yes
+
 # Dependencies
 
 -include Makefile.dependencies
@@ -223,37 +232,21 @@ package_unix:
 
 package_bin: package_$(PLATFORM)
 
-install_dox:
-	haxelib git hxparse https://github.com/Simn/hxparse master src
-	haxelib git hxtemplo https://github.com/Simn/hxtemplo
-	haxelib git hxargs https://github.com/Simn/hxargs
-	haxelib git markdown https://github.com/dpeek/haxe-markdown master src
-	haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp
-	haxelib git hxjava https://github.com/HaxeFoundation/hxjava
-	haxelib git hxcs https://github.com/HaxeFoundation/hxcs
-	haxelib git dox https://github.com/HaxeFoundation/dox
+xmldoc:
+	haxelib path hxcpp  || haxelib git hxcpp  https://github.com/HaxeFoundation/hxcpp
+	haxelib path hxjava || haxelib git hxjava https://github.com/HaxeFoundation/hxjava
+	haxelib path hxcs   || haxelib git hxcs   https://github.com/HaxeFoundation/hxcs
+	cd extra && haxe doc.hxml
 
-package_doc:
-	mkdir -p $(PACKAGE_OUT_DIR)
-	$(eval OUTFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip)
-	$(eval VERSION := $(shell haxe -version 2>&1))
-	cd $$(haxelib path dox | head -n 1) && \
-		haxe run.hxml && \
-		haxe gen.hxml && \
-		haxe -lib hxtemplo -lib hxparse -lib hxargs -lib markdown \
-		-cp src -dce no --run dox.Dox -theme haxe_api -D website "http://haxe.org/" \
-		--title "Haxe API" -o $(OUTFILE) \
-		-D version "$(VERSION)" -i bin/xml -ex microsoft -ex javax -ex cs.internal \
-		-D source-path https://github.com/HaxeFoundation/haxe/blob/$(BRANCH)/std/
+$(INSTALLER_TMP_DIR):
+	mkdir -p $(INSTALLER_TMP_DIR)
 
-deploy_doc:
-	scp $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip www-haxe@api.haxe.org:/data/haxeapi/www/v/dev/api-latest.zip
-	ssh www-haxe@api.haxe.org "cd /data/haxeapi/www/v/dev && find . ! -name 'api-latest.zip' -maxdepth 1 -mindepth 1 -exec rm -rf {} + && unzip -q -o api-latest.zip"
+$(INSTALLER_TMP_DIR)/neko-osx64.tar.gz: $(INSTALLER_TMP_DIR)
+	wget http://nekovm.org/media/neko-2.1.0-osx64.tar.gz -O installer/neko-osx64.tar.gz
 
 # Installer
 
-package_installer_mac:
-	$(eval DOCFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip)
+package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx64.tar.gz package_unix
 	$(eval OUTFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_installer.tar.gz)
 	$(eval PACKFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.tar.gz)
 	$(eval VERSION := $(shell haxe -version 2>&1))

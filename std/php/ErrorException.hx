@@ -35,6 +35,6 @@ extern class ErrorException implements Throwable {
     @:final function getFile() : String;          // source filename
     @:final function getLine() : Int;             // source line
     @:final function getTrace() : NativeIndexedArray<NativeAssocArray<Dynamic>>;  // an array of the backtrace
-    @:final function getTraceAsString() : String; // formated string of trace
-	@:phpMagic function __toString() : String;       // formated string for display
+    @:final function getTraceAsString() : String; // formatted string of trace
+	@:phpMagic function __toString() : String;       // formatted string for display
 }

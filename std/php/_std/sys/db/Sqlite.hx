@@ -35,7 +35,7 @@ private class SQLiteConnection implements Connection {
 	var db:SQLite3;
 
 	public function new( file:String ) {
-		db = new SQLite3('sqlite:$file');
+		db = new SQLite3(file);
 		db.enableExceptions(true);
 	}
 

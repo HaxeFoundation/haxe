@@ -1,13 +1,48 @@
-2017-10-??: 4.0.0-preview.2
+????-??-??: 4.0.0-preview.3
+
+	New features:
+
+	all : added new function type notation (#6645)
+
+	General improvements and optimizations:
+
+	all : made all non-warning/non-error compiler messages output to stdout (#4480)
+	php : implemented direct method comparison. No need to use `Reflect.compareMethods()`
+	php : added `php.Syntax.code()` instead of deprecated `untyped __php__()` (#6708)
+	php : added methods to `php.Syntax` for each php operator: `??`, `?:`, `**` etc. (#6708)
+
+	Removals:
+
+	php : removed `php.Syntax.binop()` (#6708)
+
+	Deprecations:
+
+	php : deprecated support for `untyped __php__`, `untyped __call__` etc. Use `php.Syntax` instead.
+
+	Bugfixes:
+
+	js : fixed saving setter to `tmp` var before invocation (#6672)
+	php : don't fail on generating import aliases for classes with the similar names (#6680)
+	php : fixed `Sys.environment()` to also return variables set by `Sys.putEnv()`
+	php : fixed `sys.net.Socket.bind()` (#6693)
+	php : fixed appending "sqlite:" prefix to the names of files created by `sys.db.Sqlite.open()` (#6692)
+	php : made php.Lib.objectOfAssociativeArray() recursive (#6698)
+	php : fixed php error on parsing expressions like `a == b == c` (#6720)
+
+2017-10-08: 4.0.0-preview.2
 
 	New features:
 
 	all : added final keyword (#6596)
+	all : added new function type notation (#6645)
 
 	General improvements and optimizations:
 
 	all : replaced some occurrences of List with Array
 	all : changed haxe.xml.Fast to an abstract
+	all : improved optimization when comparing against `null`
+	all : added support for `case var x` syntax and detect possible typos (#6608)
+	php : changed `--php-prefix`, `--php-front` and `--php-lib` to `-D php-prefix=`, `-D php-front=` and `-D php-lib=` respectively
 
 	Removals:
 
@@ -18,10 +53,25 @@
 	Bugfixes:
 
 	all : fixed issue with various functions not being displayed in macro context (#6000)
+	all : fixed invalid  static extension lookup on `super` (#3607)
+	all : fixed typing error when constructing enums with abstracts over functions (#6609)
+	all : fixed bug that skipped checking @:from typing in some cases (#6564)
+	all : fixed Int64 parsing of negative numbers that end in a zero (#5493)
+	all : fixed top-down inference when constructing enums (#6606)
 	eval : fixed bug with equality handling
 	eval : fixed issue with file creation not defaulting to binary
+	eval : fixed invalid override detection (#6583)
+	eval : fixed infinite recursion when printing arrays/vectors
 	cs/java : fixed DCE bug that would lose toString method of thrown objects
 	php/python : fixed some bit operators for Int32 (#5938)
+	php : fixed accessing `static inline var` via reflection (#6630)
+	php : fixed Math.min() and Math.max() for NAN on PHP 7.1.9 and 7.1.10
+	js : fixed js syntax error for `value.iterator--` (#6637)
+
+	Standard Library:
+
+	macro : added have.display.Position and PositionTools.toRange (#6599)
+	all : moved List to haxe.ds (#6610)
 
 2017-09-12: 4.0.0-preview.1
 
@@ -64,6 +114,36 @@
 
 	all : added `EReg.escape` (#5098)
 	all : `BalancedTree implements `haxe.Constraints.IMap` (#6231)
+
+2017-10-08: 3.4.4
+
+	Bugfixes:
+
+	flash : fixed flash target broken when compiled with OCaml 4.05 (#6589)
+	php7 : fixed accessing `static inline var` via reflection (#6630)
+	js : fixed js syntax error for `value.iterator--` (#6637)
+	cpp : fixed evaluation order problem when constructing enums (#6643)
+
+2017-09-10: 3.4.3
+
+	Bugfixes:
+
+	all : fixed DCE issue with interface fields (#6502)
+	cpp : fixed return typing for embedded closures (#6121)
+	php7: fixed `@:enum abstract` generation  without `-dce full` (#6175)
+	php7: fixed using enum constructor with arguments as a call argument (#6177)
+	php7: fixed accessing methods on dynamic values (#6211)
+	php7: fixed `null` property access (#6281)
+	php7: fixed setting values in a map stored in another map (#6257)
+	php7: implemented `php.Lib.mail()`
+	php7: implemented `php.Lib.loadLib()`
+	php7: implemented `php.Lib.getClasses()` (#6384)
+	php7: fixed exception on `Reflect.getProperty(o, field)` if requested field does not exist (#6559)
+	php/php7: fixed accessing enum constructors on enum type stored to a variable (#6159)
+	php/php7: fixed "cannot implement previously implemented interface" (#6208)
+	php: fixed invoking functions stored in dynamic static vars (#6158)
+	php: fixed field access on `new MyClass()` expressions wrapped in a `cast` (#6294)
+	macro : fixed bug in addClassPath that overwrites macro class paths with context class paths
 
 2017-03-20: 3.4.2
 
@@ -938,7 +1018,7 @@
 	cpp : Fix socket sellect passing _s
 	cpp : Throw error when match count does not match regex
 	cpp : Improve register capture in GC
-	cpp : Fix Dynamic interger compare
+	cpp : Fix Dynamic integer compare
 	cpp : Implement makeVarArgs
 	cpp : Fix toString for nulls in Enums and Arrays
 	cpp : Added initial Android support
@@ -1172,7 +1252,7 @@
 	set all private+protected names from SWF lib to public (allow override+reflect)
 	flash9 : use findprop instead of findpropstrict for 'this' access (allow dynamic)
 	don't allow nullness changes in overrided/implemented
-	prevent typing hole with overriden polymorphic methods
+	prevent typing hole with overridden polymorphic methods
 	added neko.vm.Mutex and neko.vm.Deque (included in neko 1.7.1)
 	added package remapping using --remap
 
@@ -1429,7 +1509,7 @@
 2007-01-28: 1.11
 	changed StringBuf.add implementation
 	added haxe.Firebug
-	allowed variable return type for overriden/implemented methods
+	allowed variable return type for overridden/implemented methods
 	display error position in front of each error line
 	improved error messages when optional arguments not matched
 	added neko.io.Path

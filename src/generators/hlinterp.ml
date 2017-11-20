@@ -1351,13 +1351,13 @@ let load_native ctx lib name t =
 			(function
 			| [VBytes str; VInt pos; VInt len] ->
 				(try
-					VDyn (VInt (EvalStdLib.StdStd.parse_int (hl_to_caml_sub str (int pos) (int len))),HI32)
+					VDyn (VInt (Numeric.parse_int (hl_to_caml_sub str (int pos) (int len))),HI32)
 				with _ ->
 					VNull)
 			| l -> assert false)
 		| "parse_float" ->
 			(function
-			| [VBytes str; VInt pos; VInt len] -> (try VFloat (EvalStdLib.StdStd.parse_float (hl_to_caml_sub str (int pos) (int len))) with _ -> VFloat nan)
+			| [VBytes str; VInt pos; VInt len] -> (try VFloat (Numeric.parse_float (hl_to_caml_sub str (int pos) (int len))) with _ -> VFloat nan)
 			| _ -> assert false)
 		| "dyn_compare" ->
 			(function

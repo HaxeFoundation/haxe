@@ -60,28 +60,16 @@ class RunSauceLabs {
 		var browsers:Array<Dynamic> = [
 			// {
 			// 	"browserName": "internet explorer",
-			// 	"platform": "Windows XP",
-			// 	"version": "6.0",
-			//  "prerun": hideLongRunningScriptWarning
+			// 	"platform": "Windows 7",
+			// 	"version": "8.0",
+			// 	"prerun": hideLongRunningScriptWarning
 			// },
 			// {
 			// 	"browserName": "internet explorer",
-			// 	"platform": "Windows XP",
-			// 	"version": "7.0",
-			//  "prerun": hideLongRunningScriptWarning
+			// 	"platform": "Windows 7",
+			// 	"version": "9.0",
+			// 	"prerun": hideLongRunningScriptWarning
 			// },
-			{
-				"browserName": "internet explorer",
-				"platform": "Windows XP",
-				"version": "8.0",
-				"prerun": hideLongRunningScriptWarning
-			},
-			{
-				"browserName": "internet explorer",
-				"platform": "Windows 7",
-				"version": "9.0",
-				"prerun": hideLongRunningScriptWarning
-			},
 			{
 				"browserName": "internet explorer",
 				"platform": "Windows 7",
@@ -94,16 +82,11 @@ class RunSauceLabs {
 			},
 			{
 				"browserName": "chrome",
-				"platform": "Windows XP"
+				"platform": "Windows 7"
 			},
 			{
 				"browserName": "firefox",
-				"platform": "Windows XP"
-			},
-			{
-				"browserName": "safari",
-				"platform": "OS X 10.8",
-				"version": "6.0"
+				"platform": "Windows 7"
 			},
 			{
 				"browserName": "safari",

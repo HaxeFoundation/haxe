@@ -12,7 +12,7 @@ class Issue3138 extends Test
 }
 
 private class A {
-	public function new(a) {}
+	public function new(_) {}
 }
 
 private class B extends A {

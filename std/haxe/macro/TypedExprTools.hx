@@ -156,7 +156,7 @@ class TypedExprTools {
 		}
 	}
 
-	#if macro
+	#if (macro || display)
 	static public function toString(t:TypedExpr, ?pretty = false):String {
 		return @:privateAccess haxe.macro.Context.sExpr(t, pretty);
 	}

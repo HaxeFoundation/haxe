@@ -11,6 +11,6 @@ extern interface Throwable {
     function getFile() : String;          // source filename
     function getLine() : Int;             // source line
     function getTrace() : NativeIndexedArray<NativeAssocArray<Dynamic>>;  // an array of the backtrace
-    function getTraceAsString() : String; // formated string of trace
-	@:phpMagic function __toString() : String;       // formated string for display
+    function getTraceAsString() : String; // formatted string of trace
+	@:phpMagic function __toString() : String;       // formatted string for display
 }

@@ -87,6 +87,18 @@ let keywords =
 		Inline;Using;Null;True;False;Abstract;Macro;Final];
 	h
 
+let is_valid_identifier s = try
+	for i = 0 to String.length s - 1 do
+		match String.unsafe_get s i with
+		| 'a'..'z' | 'A'..'Z' | '_' -> ()
+		| '0'..'9' when i > 0 -> ()
+		| _ -> raise Exit
+	done;
+	if Hashtbl.mem keywords s then raise Exit;
+	true
+with Exit ->
+	false
+
 let init file do_add =
 	let f = make_file file in
 	cur := f;

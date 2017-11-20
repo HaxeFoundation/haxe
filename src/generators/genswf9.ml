@@ -1025,7 +1025,7 @@ let rec gen_expr_content ctx retval e =
 	| TParenthesis e | TMeta (_,e) ->
 		gen_expr ctx retval e
 	| TObjectDecl fl ->
-		List.iter (fun (name,e) ->
+		List.iter (fun ((name,_,_),e) ->
 			write ctx (HString (reserved name));
 			gen_expr ctx true e
 		) fl;
@@ -1788,7 +1788,7 @@ let generate_construct ctx fdata c =
 	(* if skip_constructor, then returns immediatly *)
 	if ctx.need_ctor_skip then (match c.cl_kind with
 	| KGenericInstance _ -> ()
-	| _ when not (Codegen.constructor_side_effects fdata.tf_expr) -> ()
+	| _ when not (Texpr.constructor_side_effects fdata.tf_expr) -> ()
 	| _ ->
 		let id = ident "skip_constructor" in
 		getvar ctx (VGlobal (type_path ctx (["flash"],"Boot")));
@@ -2133,18 +2133,9 @@ let generate_class ctx c =
 	let fields = if c.cl_path <> ctx.boot then fields else begin
 		{
 			hlf_name = make_name {
-				cf_name = "init";
+				(mk_field "init" (TFun ([],t_dynamic)) c.cl_pos null_pos) with
 				cf_public = ctx.swc && ctx.swf_protected;
-				cf_meta = [];
-				cf_doc = None;
-				cf_pos = c.cl_pos;
-				cf_name_pos = null_pos;
-				cf_type = TFun ([],t_dynamic);
-				cf_params = [];
-				cf_expr = None;
-				cf_expr_unoptimized = None;
 				cf_kind = Method MethNormal;
-				cf_overloads = [];
 			} false;
 			hlf_slot = 0;
 			hlf_kind = (HFMethod {
@@ -2336,7 +2327,7 @@ let rec generate_type ctx t =
 		if e.e_extern then
 			None
 		else
-			let meta = Codegen.build_metadata ctx.com t in
+			let meta = Texpr.build_metadata ctx.com.basic t in
 			let hlc = generate_enum ctx e meta in
 			let init = begin_fun ctx [] ctx.com.basic.tvoid [ethis] false e.e_pos in
 			generate_enum_init ctx e hlc meta;

@@ -246,7 +246,7 @@ let efield_name e f =
 let global_type ctx g =
 	DynArray.get ctx.cglobals.arr g
 
-let is_overriden ctx c f =
+let is_overridden ctx c f =
 	ctx.is_macro || Hashtbl.mem ctx.overrides (f.cf_name,c.cl_path)
 
 let alloc_float ctx f =
@@ -592,7 +592,7 @@ and class_type ?(tref=None) ctx c pl statics =
 					let vid = (try -(fst (get_index f.cf_name p))-1 with Not_found -> assert false) in
 					DynArray.set virtuals vid g;
 					Some vid
-				else if is_overriden ctx c f then begin
+				else if is_overridden ctx c f then begin
 					let vid = DynArray.length virtuals in
 					DynArray.add virtuals g;
 					p.pindex <- PMap.add f.cf_name (-vid-1,HVoid) p.pindex;
@@ -1208,7 +1208,7 @@ and direct_method_call ctx c f ethis =
 		false
 	else if (match c.cl_kind with KTypeParameter _ ->  true | _ -> false) then
 		false
-	else if is_overriden ctx c f && ethis.eexpr <> TConst(TSuper) then
+	else if is_overridden ctx c f && ethis.eexpr <> TConst(TSuper) then
 		false
 	else
 		true
@@ -2052,11 +2052,11 @@ and eval_expr ctx e =
 		unsafe_cast_to ctx r (to_type ctx e.etype) e.epos
 	| TObjectDecl fl ->
 		(match to_type ctx e.etype with
-		| HVirtual vp as t when Array.length vp.vfields = List.length fl && not (List.exists (fun (s,e) -> s = "toString" && is_to_string e.etype) fl)  ->
+		| HVirtual vp as t when Array.length vp.vfields = List.length fl && not (List.exists (fun ((s,_,_),e) -> s = "toString" && is_to_string e.etype) fl)  ->
 			let r = alloc_tmp ctx t in
 			op ctx (ONew r);
 			hold ctx r;
-			List.iter (fun (s,ev) ->
+			List.iter (fun ((s,_,_),ev) ->
 				let fidx = (try PMap.find s vp.vindex with Not_found -> assert false) in
 				let _, _, ft = vp.vfields.(fidx) in
 				let v = eval_to ctx ev ft in
@@ -2069,7 +2069,7 @@ and eval_expr ctx e =
 			op ctx (ONew r);
 			hold ctx r;
 			let a = (match follow e.etype with TAnon a -> Some a | t -> if t == t_dynamic then None else assert false) in
-			List.iter (fun (s,ev) ->
+			List.iter (fun ((s,_,_),ev) ->
 				let ft = (try (match a with None -> raise Not_found | Some a -> PMap.find s a.a_fields).cf_type with Not_found -> ev.etype) in
 				let v = eval_to ctx ev (to_type ctx ft) in
 				op ctx (ODynSet (r,alloc_string ctx s,v));
@@ -2534,7 +2534,7 @@ and eval_expr ctx e =
 	| TMeta (_,e) ->
 		eval_expr ctx e
 	| TFor (v,it,loop) ->
-		eval_expr ctx (Codegen.for_remap ctx.com v it loop e.epos)
+		eval_expr ctx (Texpr.for_remap ctx.com.basic v it loop e.epos)
 	| TSwitch (en,cases,def) ->
 		let rt = to_type ctx e.etype in
 		let r = alloc_tmp ctx rt in
@@ -2718,7 +2718,7 @@ and eval_expr ctx e =
 			op ctx (OSafeCast (r,re));
 		r
 	| TIdent s ->
-		assert false
+		abort ("Unbound identifier " ^ s) e.epos
 
 and gen_assign_op ctx acc e1 f =
 	let f r =
@@ -3260,7 +3260,7 @@ let generate_static_init ctx types main =
 					op ctx (OSetGlobal (g, rt));
 				end;
 
-				(match Codegen.build_metadata ctx.com (TClassDecl c) with
+				(match Texpr.build_metadata ctx.com.basic (TClassDecl c) with
 				| None -> ()
 				| Some e ->
 					let r = eval_to ctx e HDyn in
@@ -3306,7 +3306,7 @@ let generate_static_init ctx types main =
 						op ctx (OSetGlobal (g,r));
 				) e.e_names;
 
-				(match Codegen.build_metadata ctx.com (TEnumDecl e) with
+				(match Texpr.build_metadata ctx.com.basic (TEnumDecl e) with
 				| None -> ()
 				| Some e -> op ctx (OSetField (r,index "__meta__",eval_to ctx e HDyn)));
 
@@ -3800,7 +3800,7 @@ let generate com =
 		check ctx;
 		Hlinterp.check code false;
 	end;
-	let t = Common.timer ["write";"hl"] in
+	let t = Timer.timer ["write";"hl"] in
 
 	let escape_command s =
 		let b = Buffer.create 0 in
@@ -3810,7 +3810,7 @@ let generate com =
 
 	if file_extension com.file = "c" then begin
 		Hl2c.write_c com com.file code;
-		let t = Common.timer ["nativecompile";"hl"] in
+		let t = Timer.timer ["nativecompile";"hl"] in
 		if not (Common.defined com Define.NoCompilation) && com.run_command ("haxelib run hashlink build " ^ escape_command com.file) <> 0 then failwith "Build failed";
 		t();
 	end else begin
@@ -3849,7 +3849,7 @@ let generate com =
 	end;
 	if Common.defined com Define.Interp then
 		try
-			let t = Common.timer ["generate";"hl";"interp"] in
+			let t = Timer.timer ["generate";"hl";"interp"] in
 			let ctx = Hlinterp.create true in
 			Hlinterp.add_code ctx code;
 			t();

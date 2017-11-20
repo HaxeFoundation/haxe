@@ -638,7 +638,7 @@ let generate swf_header com =
 		{header with h_frame_count = header.h_frame_count + 1},loop tags
 	| _ -> swf in
 	(* write swf/swc *)
-	let t = Common.timer ["write";"swf"] in
+	let t = Timer.timer ["write";"swf"] in
 	let level = (try int_of_string (Common.defined_value com Define.SwfCompressLevel) with Not_found -> 9) in
 	SwfParser.init Extc.input_zip (Extc.output_zip ~level);
 	(match swc with

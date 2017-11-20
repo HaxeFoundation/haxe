@@ -38,7 +38,7 @@ class Uncompress {
 	}
 
 	public static function run( src : haxe.io.Bytes, ?bufsize : Int ) : haxe.io.Bytes {
-		var c = untyped __call__("gzuncompress", src.toString());
+		var c = php.Global.gzuncompress(src.toString());
 		return haxe.io.Bytes.ofString(c);
 	}
 

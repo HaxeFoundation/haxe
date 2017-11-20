@@ -81,8 +81,8 @@ Lambda.iter([],function(i) return throw "no call");
 Lambda.array(Lambda.filter([1,2,3,4],function(i) return i < 3)) == [1,2];
 Lambda.array(Lambda.filter([1,2,3,4],function(i) return true)) == [1,2,3,4];
 Lambda.array(Lambda.filter([1,2,3,4],function(i) return false)) == [];
-Lambda.array(Lambda.filter([],function(i) return false)) == [];
-Lambda.array(Lambda.filter([],function(i) return true)) == [];
+Lambda.array(Lambda.filter([],function(_) return false)) == [];
+Lambda.array(Lambda.filter([],function(_) return true)) == [];
 Lambda.array(Lambda.filter([],null)) == [];
 
 

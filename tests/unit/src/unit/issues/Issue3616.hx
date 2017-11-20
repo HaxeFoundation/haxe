@@ -12,7 +12,7 @@ private abstract B<T>(T) {
 private abstract C(Null<Int>) {
 	public static var f(get,set):Int;
 	static function get_f() return 1;
-	static function set_f(value) return 1;
+	static function set_f(_) return 1;
 }
 
 class Issue3616 extends Test {

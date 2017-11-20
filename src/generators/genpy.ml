@@ -21,7 +21,7 @@ open Globals
 open Ast
 open Type
 open Common
-open Codegen.ExprBuilder
+open Texpr.Builder
 
 module Utils = struct
 	let class_of_module_type mt = match mt with
@@ -430,7 +430,7 @@ module Transformer = struct
 			let mk_or e1 e2 = mk (TBinop(OpOr,e1,e2)) !t_bool (punion e1.epos e2.epos) in
 			let mk_if (el,e) eo =
 				let eif = List.fold_left (fun eacc e -> mk_or eacc (mk_eq e1 e)) (mk_eq e1 (List.hd el)) (List.tl el) in
-				mk (TIf(Codegen.mk_parent eif,e,eo)) e.etype e.epos
+				mk (TIf(mk_parent eif,e,eo)) e.etype e.epos
 			in
 			let cases = Hashtbl.fold (fun i el acc ->
 				let eint = mk (TConst (TInt (Int32.of_int i))) !t_int e1.epos in
@@ -1314,7 +1314,7 @@ module Printer = struct
 				begin match follow e.etype with
 					| TAnon an ->
 						PMap.iter (fun s cf ->
-							if not (List.mem_assoc s fl) then fl2 := (s,null cf.cf_type cf.cf_pos) :: !fl2
+							if not (Expr.field_mem_assoc s fl) then fl2 := ((s,null_pos,NoQuotes),null cf.cf_type cf.cf_pos) :: !fl2
 						) an.a_fields
 					| _ ->
 						()
@@ -1426,6 +1426,8 @@ module Printer = struct
 				Printf.sprintf "len(%s)" (print_expr pctx e1)
 			| FInstance(c,_,{cf_name = "length"}) when (is_type "" "str")(TClassDecl c) ->
 				Printf.sprintf "len(%s)" (print_expr pctx e1)
+			| FAnon({cf_name = "length"}) | FDynamic ("length") ->
+				Printf.sprintf "HxOverrides.length(%s)" (print_expr pctx e1)
 			| FStatic(c,{cf_name = "fromCharCode"}) when (is_type "" "str")(TClassDecl c) ->
 				Printf.sprintf "HxString.fromCharCode"
 			| FStatic({cl_path = ["python";"internal"],"UBuiltins"},{cf_name = s}) ->
@@ -1469,13 +1471,16 @@ module Printer = struct
 			let assign = if is_empty_expr then "" else Printf.sprintf "%s = _hx_e1\n%s" v.v_name indent in
 			let handle_base_type bt =
 				let t = print_base_type bt in
+				let print_custom_check t_str =
+					Printf.sprintf "if %s:\n%s    %s    %s" t_str indent assign (print_expr {pctx with pc_indent = "    " ^ pctx.pc_indent} e)
+				in
 				let print_type_check t_str =
-					Printf.sprintf "if isinstance(_hx_e1, %s):\n%s    %s    %s" t_str indent assign (print_expr {pctx with pc_indent = "    " ^ pctx.pc_indent} e)
+					print_custom_check ("isinstance(_hx_e1, " ^ t_str ^ ")")
 				in
 				let res = match t with
 				| "str" -> print_type_check "str"
 				| "Bool" -> print_type_check "bool"
-				| "Int" -> print_type_check "int"
+				| "Int" -> print_custom_check "(isinstance(_hx_e1, int) and not isinstance(_hx_e1, bool))" (* for historic reasons bool extends int *)
 				| "Float" -> print_type_check "float"
 				| t -> print_type_check t
 				in
@@ -1616,7 +1621,7 @@ module Printer = struct
 					"print(" ^ (print_expr pctx e) ^ ")"
 				else
 					"print(str(" ^ (print_expr pctx e) ^ "))"
-			| TField(e1,((FAnon {cf_name = (("join" | "push" | "map" | "filter") as s)}) | FDynamic (("join" | "push" | "map" | "filter") as s))), [x] ->
+			| TField(e1,((FAnon {cf_name = (("split" | "join" | "push" | "map" | "filter") as s)}) | FDynamic (("split" | "join" | "push" | "map" | "filter") as s))), [x] ->
 				Printf.sprintf "HxOverrides.%s(%s, %s)" s (print_expr pctx e1) (print_expr pctx x)
 			| TField(e1,((FAnon {cf_name = (("iterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift") as s)}) | FDynamic (("iterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift") as s))), [] ->
 				Printf.sprintf "HxOverrides.%s(%s)" s (print_expr pctx e1)
@@ -1683,10 +1688,10 @@ module Printer = struct
 			print_exprs pctx sep el
 
 	and print_exprs_named pctx sep fl =
-		let args = String.concat sep (List.map (fun (s,e) -> Printf.sprintf "'%s': %s" (Ast.s_escape (handle_keywords s)) (print_expr pctx e)) fl) in
+		let args = String.concat sep (List.map (fun ((s,_,_),e) -> Printf.sprintf "'%s': %s" (Ast.s_escape (handle_keywords s)) (print_expr pctx e)) fl) in
 		Printf.sprintf "{%s}" args
 	and print_params_named pctx sep fl =
-		let args = String.concat sep (List.map (fun (s,e) -> Printf.sprintf "%s= %s" (handle_keywords s) (print_expr pctx e)) fl) in
+		let args = String.concat sep (List.map (fun ((s,_,_),e) -> Printf.sprintf "%s= %s" (handle_keywords s) (print_expr pctx e)) fl) in
 		Printf.sprintf "%s" args
 	let handle_keywords s =
 		KeywordHandler.handle_keywords s
@@ -2153,7 +2158,7 @@ module Generator = struct
 		gen_class_init ctx c
 
 	let gen_enum_metadata ctx en p =
-		let meta = Codegen.build_metadata ctx.com (TEnumDecl en) in
+		let meta = Texpr.build_metadata ctx.com.basic (TEnumDecl en) in
 		match meta with
 			| None ->
 				()
@@ -2370,7 +2375,9 @@ module Generator = struct
 			spr ctx "class _hx_AnonObject:\n";
 			if with_body then begin
 				spr ctx "    def __init__(self, fields):\n";
-				spr ctx "        self.__dict__ = fields"
+				spr ctx "        self.__dict__ = fields\n";
+				spr ctx "    def __repr__(self):\n";
+				spr ctx "        return repr(self.__dict__)"
 			end else
 				spr ctx "    pass";
 			Hashtbl.add used_paths ([],"_hx_AnonObject") true;
@@ -2428,7 +2435,7 @@ module Generator = struct
 		gen_static_inits ctx;
 		gen_main ctx;
 
-		mkdir_from_path com.file;
+		Path.mkdir_from_path com.file;
 		let ch = open_out_bin com.file in
 		output_string ch (Buffer.contents ctx.buf);
 		close_out ch

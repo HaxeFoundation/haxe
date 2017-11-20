@@ -54,6 +54,20 @@ class TestPhp extends Test
 		f(Class2146.test());
 	}
 
+	function testIssue6698() {
+		var arr = new NativeAssocArray<Dynamic>();
+		var innerArr = new NativeAssocArray<Int>();
+		innerArr['one'] = 1;
+		innerArr['two'] = 2;
+		arr['inner'] = innerArr;
+
+		var obj = Lib.objectOfAssociativeArray(arr);
+		var innerObj = obj.inner;
+		t(Global.is_object(innerObj));
+		eq(1, innerObj.one);
+		eq(2, innerObj.two);
+	}
+
 	function testStupidShit9000() {
 		var f = make();
 		f.handle( function() {
@@ -147,6 +161,44 @@ class TestPhp extends Test
 		eq(str.toUpperCase(), anon.toUpperCase());
 		eq(str.toString(), anon.toString());
 	}
+
+	function testClosureComparison() {
+		var fn1:Void->Void;
+		var fn2:Void->Void;
+		eq(ClosureDummy.testStatic, ClosureDummy.testStatic);
+		//Waiting for a fix: https://github.com/HaxeFoundation/haxe/issues/6719
+		// t(ClosureDummy.testStatic == ClosureDummy.testStatic);
+		t((ClosureDummy:Dynamic).testStatic == (ClosureDummy:Dynamic).testStatic);
+		fn1 = (ClosureDummy:Dynamic).testStatic;
+		fn2 = (ClosureDummy:Dynamic).testStatic;
+		t(fn1 == fn2);
+
+		var inst = new ClosureDummy();
+		eq(inst.test, inst.test);
+		//Waiting for a fix: https://github.com/HaxeFoundation/haxe/issues/6719
+		// t(inst.test == inst.test);
+		t((inst:Dynamic).test == (inst:Dynamic).test);
+		fn1 = (inst:Dynamic).test;
+		fn2 = (inst:Dynamic).test;
+		t(fn1 == fn2);
+		var a = [fn1];
+		t(a.indexOf(fn2) == 0);
+		t(a.remove(fn2));
+
+		var inst2 = new ClosureDummy();
+		//Waiting for a fix: https://github.com/HaxeFoundation/haxe/issues/6719
+		// f(inst.test == inst2.test);
+		a = [fn1];
+		fn2 = (inst2:Dynamic).test;
+		t(a.indexOf(fn2) < 0);
+		f(a.remove(fn2));
+	}
+}
+
+private class ClosureDummy {
+	static public function testStatic() {}
+	public function new() {}
+	public function test() {}
 }
 
 private class DummyForRef {

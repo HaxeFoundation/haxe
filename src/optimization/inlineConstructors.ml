@@ -49,7 +49,7 @@ open Globals
 	which is converted into TBlocks by the caller as needed.
 *)
 
-type inline_object_kind = 
+type inline_object_kind =
 	| IOKCtor of tclass_field * bool * tvar list
 	| IOKStructure
 	| IOKArray of int
@@ -84,23 +84,6 @@ and inline_var = {
 }
 
 let inline_constructors ctx e =
-	let is_valid_ident s =
-		try
-			if String.length s = 0 then raise Exit;
-			begin match String.unsafe_get s 0 with
-				| 'a'..'z' | 'A'..'Z' | '_' -> ()
-				| _ -> raise Exit
-			end;
-			for i = 1 to String.length s - 1 do
-				match String.unsafe_get s i with
-				| 'a'..'z' | 'A'..'Z' | '_' -> ()
-				| '0'..'9' when i > 0 -> ()
-				| _ -> raise Exit
-			done;
-			true
-		with Exit ->
-			false
-	in
 	let inline_objs = ref IntMap.empty in
 	let vars = ref IntMap.empty in
 	let scoped_ivs = ref [] in
@@ -245,7 +228,7 @@ let inline_constructors ctx e =
 					| e :: el ->
 						begin match e.eexpr with
 						| TConst _ -> loop (vs, decls, e::es) el
-						| _ -> 
+						| _ ->
 							let v = alloc_var "arg" e.etype e.epos in
 							let decle = mk (TVar(v, Some e)) ctx.t.tvoid e.epos in
 							let io_id_start = !current_io_id in
@@ -263,9 +246,9 @@ let inline_constructors ctx e =
 				| Some inlined_expr ->
 					let has_untyped = (Meta.has Meta.HasUntyped cf.cf_meta) in
 					let io = mk_io (IOKCtor(cf,is_extern_ctor c cf,argvs)) io_id inlined_expr ~has_untyped:has_untyped in
-					let rec loop (c:tclass) (tl:t list) = 
+					let rec loop (c:tclass) (tl:t list) =
 						let apply = apply_params c.cl_params tl in
-						List.iter (fun cf -> 
+						List.iter (fun cf ->
 							match cf.cf_kind,cf.cf_expr with
 							| Var _, _ ->
 								let fieldt = apply cf.cf_type in
@@ -289,17 +272,17 @@ let inline_constructors ctx e =
 			end
 		| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some _} as cf)} as c,_,pl),_ when is_extern_ctor c cf ->
 			error "Extern constructor could not be inlined" e.epos;
-		| TObjectDecl fl, _ when captured && fl <> [] && List.for_all (fun(s,_) -> is_valid_ident s) fl ->
+		| TObjectDecl fl, _ when captured && fl <> [] && List.for_all (fun((s,_,_),_) -> Lexer.is_valid_identifier s) fl ->
 			let v = alloc_var "inlobj" e.etype e.epos in
 			let ev = mk (TLocal v) v.v_type e.epos in
-			let el = List.map (fun (s,e) ->
+			let el = List.map (fun ((s,_,_),e) ->
 				let ef = mk (TField(ev,FDynamic s)) e.etype e.epos in
 				let e = mk (TBinop(OpAssign,ef,e)) e.etype e.epos in
 				e
 			) fl in
 			let io_expr = make_expr_for_list el ctx.t.tvoid e.epos in
 			let io = mk_io (IOKStructure) !current_io_id io_expr in
-			List.iter (fun (s,e) -> ignore(alloc_io_field io s e.etype v.v_pos)) fl;
+			List.iter (fun ((s,_,_),e) -> ignore(alloc_io_field io s e.etype v.v_pos)) fl;
 			let iv = add v IVKLocal in
 			set_iv_alias iv io;
 			List.iter (fun e -> ignore(analyze_aliases true e)) el;
@@ -361,7 +344,7 @@ let inline_constructors ctx e =
 				| [] -> None
 			in loop el
 		| TMeta((Meta.InlineConstructorArgument (vid,_),_,_),_),_ ->
-			(try 
+			(try
 				let iv = get_iv vid in
 				if iv.iv_closed || not captured then cancel_iv iv e.epos;
 				Some(get_iv vid)
@@ -387,16 +370,16 @@ let inline_constructors ctx e =
 			let v = iv.iv_var in
 			[(mk (TVar(v,None)) ctx.t.tvoid v.v_pos)]
 		| _ -> []
-	and get_io_var_decls (io:inline_object) : texpr list = 
+	and get_io_var_decls (io:inline_object) : texpr list =
 		if io.io_declared then [] else begin
 			io.io_declared <- true;
 			PMap.foldi (fun _ iv acc -> acc@(get_iv_var_decls iv)) io.io_fields []
 		end
 	in
 	let included_untyped = ref false in
-	let rec final_map ?(unwrap_block = false) (e:texpr) : ((texpr list) * (inline_object option)) = 
+	let rec final_map ?(unwrap_block = false) (e:texpr) : ((texpr list) * (inline_object option)) =
 		increment_io_id e;
-		let default_case e = 
+		let default_case e =
 			let f e =
 				let (el,_) = final_map e in
 				make_expr_for_rev_list el e.etype e.epos
@@ -437,7 +420,7 @@ let inline_constructors ctx e =
 				let rve = make_expr_for_rev_list rvel rve.etype rve.epos in
 				begin match lvel with
 				| [] -> assert false
-				| e::el -> 
+				| e::el ->
 					let e = mk (TBinop(OpAssign, e, rve)) e.etype e.epos in
 					(e::el), None
 				end

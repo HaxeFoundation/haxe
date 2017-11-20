@@ -45,7 +45,6 @@ type ctx = {
 	js_modern : bool;
 	js_flatten : bool;
 	es_version : int;
-	store_exception_stack : bool;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
 	mutable inits : texpr list;
@@ -288,7 +287,7 @@ let fun_block ctx f p =
 	let e = List.fold_left (fun e (a,c) ->
 		match c with
 		| None | Some TNull -> e
-		| Some c -> Type.concat (Codegen.set_default ctx.com a c p) e
+		| Some c -> Type.concat (Texpr.set_default ctx.com.basic a c p) e
 	) f.tf_expr f.tf_args in
 	e
 
@@ -336,6 +335,9 @@ let gen_constant ctx p = function
 	| TThis -> spr ctx (this ctx)
 	| TSuper -> assert false
 
+let print_deprecation_message com msg p =
+	com.warning msg p
+
 let rec gen_call ctx e el in_value =
 	match e.eexpr , el with
 	| TConst TSuper , params ->
@@ -362,46 +364,26 @@ let rec gen_call ctx e el in_value =
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
-	| TIdent "__new__", { eexpr = TConst (TString cl) } :: params ->
-		print ctx "new %s(" cl;
-		concat ctx "," (gen_value ctx) params;
-		spr ctx ")";
-	| TIdent "__new__", e :: params ->
-		spr ctx "new ";
-		gen_value ctx e;
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) params;
-		spr ctx ")";
-	| TIdent "__js__", [{ eexpr = TConst (TString "this") }] ->
-		spr ctx (this ctx)
-	| TIdent "__js__", [{ eexpr = TConst (TString code) }] ->
-		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
-	| TIdent "__js__", { eexpr = TConst (TString code); epos = p } :: tl ->
-		Codegen.interpolate_code ctx.com code tl (spr ctx) (gen_expr ctx) p
-	| TIdent "__instanceof__",  [o;t] ->
-		spr ctx "(";
-		gen_value ctx o;
-		print ctx " instanceof ";
-		gen_value ctx t;
-		spr ctx ")";
-	| TIdent "__typeof__",  [o] ->
-		spr ctx "typeof(";
-		gen_value ctx o;
-		spr ctx ")";
-	| TIdent "__strict_eq__" , [x;y] ->
-		(* add extra parenthesis here because of operator precedence *)
-		spr ctx "((";
-		gen_value ctx x;
-		spr ctx ") === ";
-		gen_value ctx y;
-		spr ctx ")";
-	| TIdent "__strict_neq__" , [x;y] ->
-		(* add extra parenthesis here because of operator precedence *)
-		spr ctx "((";
-		gen_value ctx x;
-		spr ctx ") !== ";
-		gen_value ctx y;
-		spr ctx ")";
+	| TField (_, FStatic ({ cl_path = ["js"],"Syntax" }, { cf_name = meth })), args ->
+		gen_syntax ctx meth args e.epos
+	| TIdent "__new__", args ->
+		print_deprecation_message ctx.com "__new__ is deprecated, use js.Syntax.new_ instead" e.epos;
+		gen_syntax ctx "new_" args e.epos
+	| TIdent "__js__", args ->
+		(* TODO: add deprecation warning when we figure out what to do with purity here *)
+		gen_syntax ctx "code" args e.epos
+	| TIdent "__instanceof__",  args ->
+		print_deprecation_message ctx.com "__instanceof__ is deprecated, use js.Syntax.instanceof instead" e.epos;
+		gen_syntax ctx "instanceof" args e.epos
+	| TIdent "__typeof__",  args ->
+		print_deprecation_message ctx.com "__typeof__ is deprecated, use js.Syntax.typeof instead" e.epos;
+		gen_syntax ctx "typeof" args e.epos
+	| TIdent "__strict_eq__" , args ->
+		print_deprecation_message ctx.com "__strict_eq__ is deprecated, use js.Syntax.strictEq instead" e.epos;
+		gen_syntax ctx "strictEq" args e.epos
+	| TIdent "__strict_neq__" , args ->
+		print_deprecation_message ctx.com "__strict_neq__ is deprecated, use js.Syntax.strictNeq instead" e.epos;
+		gen_syntax ctx "strictNeq" args e.epos
 	| TIdent "__define_feature__", [_;e] ->
 		gen_expr ctx e
 	| TIdent "__feature__", { eexpr = TConst (TString f) } :: eif :: eelse ->
@@ -410,8 +392,6 @@ let rec gen_call ctx e el in_value =
 		else match eelse with
 			| [] -> ()
 			| e :: _ -> gen_value ctx e)
-	| TIdent "__rethrow__", [] ->
-		spr ctx "throw $hx_rethrow";
 	| TIdent "__resources__", [] ->
 		spr ctx "[";
 		concat ctx "," (fun (name,data) ->
@@ -436,14 +416,19 @@ let rec gen_call ctx e el in_value =
 			spr ctx "console.log(";
 			(match infos.eexpr with
 			| TObjectDecl (
-				("fileName" , { eexpr = (TConst (TString file)) }) ::
-				("lineNumber" , { eexpr = (TConst (TInt line)) }) :: _) ->
+				(("fileName",_,_) , { eexpr = (TConst (TString file)) }) ::
+				(("lineNumber",_,_) , { eexpr = (TConst (TInt line)) }) :: _) ->
 					print ctx "\"%s:%i:\"," file (Int32.to_int line)
 			| _ ->
 				());
 			gen_value ctx e;
 			spr ctx ")";
 		end
+	| TField (x,f), [] when field_name f = "iterator" && is_dynamic_iterator ctx e ->
+		add_feature ctx "use.$getIterator";
+		print ctx "$getIterator(";
+		gen_value ctx x;
+		print ctx ")";
 	| _ ->
 		gen_value ctx e;
 		spr ctx "(";
@@ -490,6 +475,17 @@ and gen_expr ctx e =
 		print ctx "$iterator(";
 		gen_value ctx x;
 		print ctx ")";
+	(* Don't generate `$iterator(value)` for exprs like `value.iterator--` *)
+	| TUnop (op,flag,({eexpr = TField (x,f)} as fe)) when field_name f = "iterator" && is_dynamic_iterator ctx fe ->
+		(match flag with
+			| Prefix ->
+				spr ctx (Ast.s_unop op);
+				gen_value ctx x;
+				spr ctx ".iterator"
+			| Postfix ->
+				gen_value ctx x;
+				spr ctx ".iterator";
+				spr ctx (Ast.s_unop op))
 	| TField (x,FClosure (Some ({cl_path=[],"Array"},_), {cf_name="push"})) ->
 		(* see https://github.com/HaxeFoundation/haxe/issues/1997 *)
 		add_feature ctx "use.$arrayPush";
@@ -654,9 +650,9 @@ and gen_expr ctx e =
 		ctx.in_loop <- old_in_loop
 	| TObjectDecl fields ->
 		spr ctx "{ ";
-		concat ctx ", " (fun (f,e) -> (match e.eexpr with
-			| TMeta((Meta.QuotedField,_,_),e) -> print ctx "\"%s\" : " (Ast.s_escape f);
-			| _ -> print ctx "%s : " (anon_field f));
+		concat ctx ", " (fun ((f,_,qs),e) -> (match qs with
+			| DoubleQuotes -> print ctx "\"%s\" : " (Ast.s_escape f);
+			| NoQuotes -> print ctx "%s : " (anon_field f));
 			gen_value ctx e
 		) fields;
 		spr ctx "}";
@@ -685,110 +681,14 @@ and gen_expr ctx e =
 		newline ctx;
 		spr ctx "}";
 		ctx.in_loop <- old_in_loop
-	| TTry (e,catchs) ->
+	| TTry (etry,[(v,ecatch)]) ->
 		spr ctx "try ";
-		gen_expr ctx e;
-		let vname = (match catchs with [(v,_)] -> check_var_declaration v; v.v_name | _ ->
-			let id = ctx.id_counter in
-			ctx.id_counter <- ctx.id_counter + 1;
-			"$e" ^ string_of_int id
-		) in
-		print ctx " catch( %s ) {" vname;
-		let bend = open_block ctx in
-		let last = ref false in
-		let else_block = ref false in
-
-		if ctx.store_exception_stack then begin
-			newline ctx;
-			print ctx "%s.lastException = %s" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["haxe"],"CallStack" })) vname
-		end;
-
-		if (has_feature ctx "js.Lib.rethrow") then begin
-			let has_rethrow (_,e) =
-				let rec loop e = match e.eexpr with
-				| TCall({eexpr = TIdent "__rethrow__"}, []) -> raise Exit
-				| _ -> Type.iter loop e
-				in
-				try (loop e; false) with Exit -> true
-			in
-			if List.exists has_rethrow catchs then begin
-				newline ctx;
-				print ctx "var $hx_rethrow = %s" vname;
-			end
-		end;
-
-		if (has_feature ctx "js.Boot.HaxeError") then begin
-			let catch_var_used =
-				try
-					List.iter (fun (v,e) ->
-						match follow v.v_type with
-						| TDynamic _ -> (* Dynamic catch - unrap if the catch value is used *)
-							let rec loop e = match e.eexpr with
-							| TLocal v2 when v2 == v -> raise Exit
-							| _ -> Type.iter loop e
-							in
-							loop e
-						| _ -> (* not a Dynamic catch - we need to unwrap the error for type-checking *)
-							raise Exit
-					) catchs;
-					false
-				with Exit ->
-					true
-			in
-			if catch_var_used then begin
-				newline ctx;
-				print ctx "if (%s instanceof %s) %s = %s.val" vname (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js";"_Boot"],"HaxeError" })) vname vname;
-			end;
-		end;
-
-		List.iter (fun (v,e) ->
-			if !last then () else
-			let t = (match follow v.v_type with
-			| TEnum (e,_) -> Some (TEnumDecl e)
-			| TInst (c,_) -> Some (TClassDecl c)
-			| TAbstract (a,_) -> Some (TAbstractDecl a)
-			| TFun _
-			| TLazy _
-			| TType _
-			| TAnon _ ->
-				assert false
-			| TMono _
-			| TDynamic _ ->
-				None
-			) in
-			match t with
-			| None ->
-				last := true;
-				if !else_block then print ctx "{";
-				if vname <> v.v_name then begin
-					newline ctx;
-					print ctx "var %s = %s" v.v_name vname;
-				end;
-				gen_block_element ctx e;
-				if !else_block then begin
-					newline ctx;
-					print ctx "}";
-				end
-			| Some t ->
-				if not !else_block then newline ctx;
-				print ctx "if( %s.__instanceof(%s," (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) vname;
-				gen_value ctx (mk (TTypeExpr t) (mk_mono()) e.epos);
-				spr ctx ") ) {";
-				let bend = open_block ctx in
-				if vname <> v.v_name then begin
-					newline ctx;
-					print ctx "var %s = %s" v.v_name vname;
-				end;
-				gen_block_element ctx e;
-				bend();
-				newline ctx;
-				spr ctx "} else ";
-				else_block := true
-		) catchs;
-		if not !last then print ctx "throw(%s)" vname;
-		bend();
-		newline ctx;
-		spr ctx "}";
+		gen_expr ctx etry;
+		check_var_declaration v;
+		print ctx " catch( %s ) " v.v_name;
+		gen_expr ctx ecatch
+	| TTry _ ->
+		abort "Unhandled try/catch, please report" e.epos
 	| TSwitch (e,cases,def) ->
 		spr ctx "switch";
 		gen_value ctx e;
@@ -974,6 +874,69 @@ and gen_value ctx e =
 		v());
 	Option.may (fun smap -> smap.current_expr <- None) ctx.smap
 
+and gen_syntax ctx meth args pos =
+	match meth, args with
+	| "new_", cl :: params ->
+		spr ctx "new ";
+		begin
+			match cl.eexpr with
+			| TConst (TString cl) ->
+				spr ctx cl
+			| _ ->
+				gen_value ctx cl
+		end;
+		spr ctx "(";
+		concat ctx "," (gen_value ctx) params;
+		spr ctx ")"
+	| "instanceof", [o;t] ->
+		spr ctx "(";
+		gen_value ctx o;
+		print ctx " instanceof ";
+		gen_value ctx t;
+		spr ctx ")"
+	| "typeof", [o] ->
+		spr ctx "typeof(";
+		gen_value ctx o;
+		spr ctx ")"
+	| "strictEq" , [x;y] ->
+		(* add extra parenthesis here because of operator precedence *)
+		spr ctx "((";
+		gen_value ctx x;
+		spr ctx ") === ";
+		gen_value ctx y;
+		spr ctx ")";
+	| "strictNeq" , [x;y] ->
+		(* add extra parenthesis here because of operator precedence *)
+		spr ctx "((";
+		gen_value ctx x;
+		spr ctx ") !== ";
+		gen_value ctx y;
+		spr ctx ")";
+	| "delete" , [o;f] ->
+		spr ctx "delete(";
+		gen_value ctx o;
+		spr ctx "[";
+		gen_value ctx f;
+		spr ctx "]";
+		spr ctx ")";
+	| "code", code :: args ->
+		let code, code_pos =
+			match code.eexpr with
+			| TConst (TString s) -> s, code.epos
+			| _ -> abort "The `code` argument for js.Syntax must be a string constant" code.epos
+		in
+		begin
+			match args with
+			| [] ->
+				if code = "this" then
+					spr ctx (this ctx)
+				else
+					spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
+			| _ ->
+				Codegen.interpolate_code ctx.com code args (spr ctx) (gen_expr ctx) code_pos
+		end
+	| _ ->
+		abort (Printf.sprintf "Unknown js.Syntax method `%s` with %d arguments" meth (List.length args)) pos
 
 let generate_package_create ctx (p,_) =
 	let rec loop acc = function
@@ -1224,7 +1187,7 @@ let generate_enum ctx e =
 		print ctx "%s.__empty_constructs__ = [%s]" p (String.concat "," (List.map (fun s -> Printf.sprintf "%s.%s" p s) ctors_without_args));
 		newline ctx
 	end;
-	begin match Codegen.build_metadata ctx.com (TEnumDecl e) with
+	begin match Texpr.build_metadata ctx.com.basic (TEnumDecl e) with
 	| None -> ()
 	| Some e ->
 		print ctx "%s.__meta__ = " p;
@@ -1313,7 +1276,6 @@ let alloc_ctx com =
 		js_modern = not (Common.defined com Define.JsClassic);
 		js_flatten = not (Common.defined com Define.JsUnflatten);
 		es_version = (try int_of_string (Common.defined_value com Define.JsEs) with _ -> 0);
-		store_exception_stack = if Common.has_dce com then (Common.has_feature com "haxe.CallStack.exceptionStack") else List.exists (function TClassDecl { cl_path=["haxe"],"CallStack" } -> true | _ -> false) com.types;
 		statics = [];
 		inits = [];
 		current = null_class;
@@ -1514,6 +1476,10 @@ let generate com =
 	if has_feature ctx "use.$iterator" then begin
 		add_feature ctx "use.$bind";
 		print ctx "function $iterator(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? $bind(o,o.iterator) : o.iterator; }";
+		newline ctx;
+	end;
+	if has_feature ctx "use.$getIterator" then begin
+		print ctx "function $getIterator(o) { if( o instanceof Array ) return HxOverrides.iter(o); else return o.iterator(); }";
 		newline ctx;
 	end;
 	if has_feature ctx "use.$bind" then begin

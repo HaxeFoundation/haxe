@@ -54,18 +54,8 @@ exception Abort
 let executable_path() =
 	Extc.executable_path()
 
-let format msg p =
-	if p = null_pos then
-		msg
-	else begin
-		let error_printer file line = sprintf "%s:%d:" file line in
-		let epos = Lexer.get_error_pos error_printer p in
-		let msg = String.concat ("\n" ^ epos ^ " : ") (ExtString.String.nsplit msg "\n") in
-		sprintf "%s : %s" epos msg
-	end
-
-let message ctx msg p =
-	ctx.messages <- format msg p :: ctx.messages
+let message ctx msg =
+	ctx.messages <- msg :: ctx.messages
 
 let deprecated = []
 
@@ -83,12 +73,12 @@ let limit_string s offset =
 
 let error ctx msg p =
 	let msg = try List.assoc msg deprecated with Not_found -> msg in
-	message ctx msg p;
+	message ctx (CMError(msg,p));
 	ctx.has_error <- true
 
 let reserved_flags = [
 	"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
-	"as3";"swc";"macro";"sys"
+	"as3";"swc";"macro";"sys";"static"
 	]
 
 let delete_file f = try Sys.remove f with _ -> ()
@@ -109,7 +99,7 @@ let expand_env ?(h=None) path  =
 
 let add_libs com libs =
 	let call_haxelib() =
-		let t = Common.timer ["haxelib"] in
+		let t = Timer.timer ["haxelib"] in
 		let cmd = "haxelib path " ^ String.concat " " libs in
 		let pin, pout, perr = Unix.open_process_full cmd (Unix.environment()) in
 		let lines = Std.input_list pin in
@@ -158,7 +148,7 @@ let run_command ctx cmd =
 	let h = Hashtbl.create 0 in
 	Hashtbl.add h "__file__" ctx.com.file;
 	Hashtbl.add h "__platform__" (platform_name ctx.com.platform);
-	let t = Common.timer ["command"] in
+	let t = Timer.timer ["command"] in
 	let cmd = expand_env ~h:(Some h) cmd in
 	let len = String.length cmd in
 	if len > 3 && String.sub cmd 0 3 = "cd " then begin
@@ -180,7 +170,7 @@ let run_command ctx cmd =
 	let result = (match Unix.close_process_full (pout,pin,perr) with Unix.WEXITED c | Unix.WSIGNALED c | Unix.WSTOPPED c -> c) in
 	let serr = binary_string (Buffer.contents berr) in
 	let sout = binary_string (Buffer.contents bout) in
-	if serr <> "" then ctx.messages <- (if serr.[String.length serr - 1] = '\n' then String.sub serr 0 (String.length serr - 1) else serr) :: ctx.messages;
+	if serr <> "" then ctx.messages <- CMError((if serr.[String.length serr - 1] = '\n' then String.sub serr 0 (String.length serr - 1) else serr),null_pos) :: ctx.messages;
 	if sout <> "" then ctx.com.print (sout ^ "\n");
 	t();
 	result
@@ -218,7 +208,7 @@ module Initialize = struct
 				add_std "neko";
 				"n"
 			| Js ->
-				if not (PMap.exists (fst (Define.infos Define.JqueryVer)) com.defines) then
+				if not (PMap.exists (fst (Define.infos Define.JqueryVer)) com.defines.Define.values) then
 					Common.define_value com Define.JqueryVer "11204";
 
 				let es_version =
@@ -269,6 +259,8 @@ module Initialize = struct
 				add_std "java"; "java"
 			| Python ->
 				add_std "python";
+				if not (Common.defined com Define.PythonVersion) then
+					Common.define_value com Define.PythonVersion "3.3";
 				"python"
 			| Hl ->
 				add_std "hl";
@@ -294,11 +286,11 @@ let generate tctx ext xml_out interp swf_header =
 	begin match com.platform with
 		| Neko | Hl | Eval when interp -> ()
 		| Cpp when Common.defined com Define.Cppia -> ()
-		| Cpp | Cs | Java | Php -> Common.mkdir_from_path (com.file ^ "/.")
-		| _ -> Common.mkdir_from_path com.file
+		| Cpp | Cs | Java | Php -> Path.mkdir_from_path (com.file ^ "/.")
+		| _ -> Path.mkdir_from_path com.file
 	end;
 	if interp then
-		Std.finally (Common.timer ["interp"]) MacroContext.interpret tctx
+		Std.finally (Timer.timer ["interp"]) MacroContext.interpret tctx
 	else if com.platform = Cross then
 		()
 	else begin
@@ -331,7 +323,7 @@ let generate tctx ext xml_out interp swf_header =
 			assert false
 		in
 		Common.log com ("Generating " ^ name ^ ": " ^ com.file);
-		let t = Common.timer ["generate";name] in
+		let t = Timer.timer ["generate";name] in
 		generate com;
 		t()
 	end
@@ -443,7 +435,7 @@ try
 	Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int Globals.version /. 1000.));
 	Common.raw_define com "haxe3";
 	Common.define_value com Define.Dce "std";
-	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
+	com.warning <- (fun msg p -> message ctx (CMWarning(msg,p)));
 	com.error <- error ctx;
 	if CompilationServer.runs() then com.run_command <- run_command ctx;
 	Parser.display_error := (fun e p -> com.error (Parser.error_msg e) p);
@@ -644,19 +636,6 @@ try
 			com.foptimize <- false;
 			Common.define com Define.NoOpt;
 		), ": disable code optimizations");
-		("--php-front",Arg.String (fun f ->
-			if com.php_front <> None then raise (Arg.Bad "Multiple --php-front");
-			com.php_front <- Some f;
-		),"<filename> : select the name for the php front file");
-		("--php-lib",Arg.String (fun f ->
-			if com.php_lib <> None then raise (Arg.Bad "Multiple --php-lib");
-			com.php_lib <- Some f;
-		),"<filename> : select the name for the php lib folder");
-		("--php-prefix", Arg.String (fun f ->
-			if com.php_prefix <> None then raise (Arg.Bad "Multiple --php-prefix");
-			com.php_prefix <- Some f;
-			Common.define com Define.PhpPrefix;
-		),"<name> : prefix all classes with given name");
 		("--remap", Arg.String (fun s ->
 			let pack, target = (try ExtString.String.split s ":" with _ -> raise (Arg.Bad "Invalid remap format, expected source:target")) in
 			com.package_rules <- PMap.add pack (Remap target) com.package_rules;
@@ -680,7 +659,7 @@ try
 					init_wait_socket com.verbose host port
 			in
 			wait_loop process_params com.verbose accept
-		),"<[host:]port> : wait on the given port for commands to run)");
+		),"[[host:]port]|stdio] : wait on the given port (or use standard i/o) for commands to run)");
 		("--connect",Arg.String (fun _ ->
 			assert false
 		),"<[host:]port> : connect on the given port and run commands there)");
@@ -688,7 +667,7 @@ try
 			assert false
 		),"<dir> : set current working directory");
 		("-version",Arg.Unit (fun() ->
-			message ctx s_version null_pos;
+			message ctx (CMInfo(s_version,null_pos));
 			did_something := true;
 		),": print version and exit");
 		("--help-defines", Arg.Unit (fun() ->
@@ -735,11 +714,15 @@ try
 	process ctx.com.args;
 	process_libs();
 	if com.display.dms_display then begin
-		com.warning <- if com.display.dms_error_policy = EPCollect then (fun s p -> add_diagnostics_message com s p DisplayTypes.DiagnosticsSeverity.Warning) else message ctx;
+		com.warning <-
+			if com.display.dms_error_policy = EPCollect then
+				(fun s p -> add_diagnostics_message com s p DisplayTypes.DiagnosticsSeverity.Warning)
+			else
+				(fun msg p -> message ctx (CMWarning(msg,p)));
 		com.error <- error ctx;
 	end;
 	Lexer.old_format := Common.defined com Define.OldErrorFormat;
-	if !Lexer.old_format && !Parser.resume_display <> null_pos then begin
+	if !Lexer.old_format && Parser.do_resume () then begin
 		let p = !Parser.resume_display in
 		(* convert byte position to utf8 position *)
 		try
@@ -769,8 +752,8 @@ try
 	end else begin
 		ctx.setup();
 		Common.log com ("Classpath : " ^ (String.concat ";" com.class_path));
-		Common.log com ("Defines : " ^ (String.concat ";" (PMap.foldi (fun k v acc -> (match v with "1" -> k | _ -> k ^ "=" ^ v) :: acc) com.defines [])));
-		let t = Common.timer ["typing"] in
+		Common.log com ("Defines : " ^ (String.concat ";" (PMap.foldi (fun k v acc -> (match v with "1" -> k | _ -> k ^ "=" ^ v) :: acc) com.defines.Define.values [])));
+		let t = Timer.timer ["typing"] in
 		Typecore.type_expr_ref := (fun ctx e with_type -> Typer.type_expr ctx e with_type);
 		let tctx = Typer.create com in
 		List.iter (MacroContext.call_init_macro tctx) (List.rev !config_macros);
@@ -782,7 +765,7 @@ try
 			if ctx.has_next || ctx.has_error then raise Abort;
 			failwith "No completion point was found";
 		end;
-		let t = Common.timer ["filters"] in
+		let t = Timer.timer ["filters"] in
 		let main, types, modules = Typer.generate tctx in
 		com.main <- main;
 		com.types <- types;
@@ -799,7 +782,7 @@ try
 			Genxml.generate_hx com
 		| Some file ->
 			Common.log com ("Generating xml : " ^ file);
-			Common.mkdir_from_path file;
+			Path.mkdir_from_path file;
 			Genxml.generate com file);
 		if not !no_output then generate tctx ext !xml_out !interp !swf_header;
 	end;
@@ -833,8 +816,8 @@ with
 	| Error.Error (m,p) ->
 		error ctx (Error.error_msg m) p
 	| Hlmacro.Error (msg,p :: l) ->
-		message ctx msg p;
-		List.iter (message ctx "Called from") l;
+		message ctx (CMError(msg,p));
+		List.iter (fun p -> message ctx (CMError("Called from",p))) l;
 		error ctx "Aborted" null_pos;
 	| Typeload.Generic_Exception(m,p) ->
 		error ctx m p
@@ -843,7 +826,7 @@ with
 	| Failure msg when not (is_debug_run()) ->
 		error ctx ("Error: " ^ msg) null_pos
 	| Arg.Help msg ->
-		message ctx msg null_pos
+		message ctx (CMInfo(msg,null_pos))
 	| Display.DisplayPackage pack ->
 		raise (DisplayOutput.Completion (String.concat "." pack))
 	| Display.DisplayFields fields ->
@@ -852,7 +835,7 @@ with
 		) fields in
 		let fields =
 			if !measure_times then begin
-				close_times();
+				Timer.close_times();
 				(List.map (fun (name,value) -> ("@TIME " ^ name, Display.FKTimer value, "")) (DisplayOutput.get_timer_fields !start_time)) @ fields
 			end else
 				fields
@@ -871,7 +854,7 @@ with
 	| Display.DisplayToplevel il ->
 		let il =
 			if !measure_times then begin
-				close_times();
+				Timer.close_times();
 				(List.map (fun (name,value) -> IdentifierType.ITTimer ("@TIME " ^ name ^ ": " ^ value)) (DisplayOutput.get_timer_fields !start_time)) @ il
 			end else
 				il
@@ -893,13 +876,13 @@ with
 		raise (DisplayOutput.Completion s)
 	| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->
 		ctx.flush();
-		if !measure_times then report_times prerr_endline;
+		if !measure_times then Timer.report_times prerr_endline;
 		exit i
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not (is_debug_run()) ->
 		error ctx (Printexc.to_string e) null_pos
 
 ;;
-let other = Common.timer ["other"] in
+let other = Timer.timer ["other"] in
 Sys.catch_break true;
 MacroContext.setup();
 let args = List.tl (Array.to_list Sys.argv) in
@@ -917,4 +900,4 @@ with DisplayOutput.Completion c ->
 	exit 1
 );
 other();
-if !measure_times then report_times prerr_endline
+if !measure_times then Timer.report_times prerr_endline

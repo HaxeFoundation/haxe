@@ -170,14 +170,14 @@ class Serializer {
 		buf.add(s);
 	}
 
-	function serializeRef(v) {
+	function serializeRef(v:Dynamic) {
 		#if js
-		var vt = js.Lib.typeof(v);
+		var vt = js.Syntax.typeof(v);
 		#end
 		for( i in 0...cache.length ) {
 			#if js
 			var ci = cache[i];
-			if( js.Lib.typeof(ci) == vt && ci == v ) {
+			if( js.Syntax.typeof(ci) == vt && ci == v ) {
 			#else
 			if( cache[i] == v ) {
 			#end
@@ -193,7 +193,7 @@ class Serializer {
 	#if flash
 	// only the instance variables
 
-	function serializeClassFields(v,c) {
+	function serializeClassFields(v:Dynamic, c:Dynamic) {
 		var xml : flash.xml.XML = untyped __global__["flash.utils.describeType"](c);
 		var vars = xml.factory[0].child("variable");
 		for( i in 0...vars.length() ) {
@@ -207,7 +207,7 @@ class Serializer {
 	}
 	#end
 
-	function serializeFields(v) {
+	function serializeFields(v:{}) {
 		for( f in Reflect.fields(v) ) {
 			serializeString(f);
 			serialize(Reflect.field(v,f));
@@ -472,7 +472,7 @@ class Serializer {
 			} else
 				serializeString(v.tag);
 			buf.add(":");
-			var l : Int = untyped __call__("count", v.params);
+			var l : Int = php.Syntax.code("count({0})", v.params);
 			if( l == 0 || v.params == null)
 				buf.add(0);
 			else {
@@ -537,7 +537,7 @@ class Serializer {
 		}
 	}
 
-	@:extern inline function __getField(o:Dynamic, f:String):Dynamic return untyped o[f];
+	@:extern inline function __getField(o:Dynamic, f:String):Dynamic return o[cast f];
 
 	public function serializeException( e : Dynamic ) {
 		buf.add("x");

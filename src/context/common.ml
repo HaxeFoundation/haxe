@@ -20,6 +20,7 @@
 open Ast
 open Type
 open Globals
+open Define
 
 type package_rule =
 	| Forbidden
@@ -27,16 +28,6 @@ type package_rule =
 	| Remap of string
 
 type pos = Globals.pos
-
-type basic_types = {
-	mutable tvoid : t;
-	mutable tint : t;
-	mutable tfloat : t;
-	mutable tbool : t;
-	mutable tnull : t -> t;
-	mutable tstring : t;
-	mutable tarray : t -> t;
-}
 
 let const_type basic const default =
 	match const with
@@ -52,6 +43,25 @@ type stats = {
 	s_methods_typed : int ref;
 	s_macros_called : int ref;
 }
+
+type compiler_message =
+	| CMInfo of string * pos
+	| CMWarning of string * pos
+	| CMError of string * pos
+
+let compiler_message_string msg =
+	let (str,p) = match msg with
+		| CMInfo(str,p) | CMError(str,p) -> (str,p)
+		| CMWarning(str,p) -> ("Warning : " ^ str, p)
+	in
+	if p = null_pos then
+		str
+	else begin
+		let error_printer file line = Printf.sprintf "%s:%d:" file line in
+		let epos = Lexer.get_error_pos error_printer p in
+		let str = String.concat ("\n" ^ epos ^ " : ") (ExtString.String.nsplit str "\n") in
+		Printf.sprintf "%s : %s" epos str
+	end
 
 (**
 	The capture policy tells which handling we make of captured locals
@@ -264,13 +274,12 @@ type context = {
 	mutable std_path : string list;
 	mutable class_path : string list;
 	mutable main_class : Type.path option;
-	mutable defines : (string,string) PMap.t;
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable error : string -> pos -> unit;
 	mutable warning : string -> pos -> unit;
 	mutable load_extern_type : (path -> pos -> (string * Ast.package) option) list; (* allow finding types which are not in sources *)
 	callbacks : compiler_callback;
-	mutable defines_signature : string option;
+	defines : Define.define;
 	mutable print : string -> unit;
 	mutable get_macros : unit -> context option;
 	mutable run_command : string -> int;
@@ -288,9 +297,6 @@ type context = {
 	mutable resources : (string,string) Hashtbl.t;
 	mutable neko_libs : string list;
 	mutable include_files : (string * string) list;
-	mutable php_front : string option;
-	mutable php_lib : string option;
-	mutable php_prefix : string option;
 	mutable swf_libs : (string * (unit -> Swf.swf) * (unit -> ((string list * string),As3hl.hl_class) Hashtbl.t)) list;
 	mutable java_libs : (string * bool * (unit -> unit) * (unit -> (path list)) * (path -> ((JData.jclass * string * string) option))) list; (* (path,std,close,all_files,lookup) *)
 	mutable net_libs : (string * bool * (unit -> path list) * (path -> IlData.ilclass option)) list; (* (path,std,all_files,lookup) *)
@@ -306,23 +312,6 @@ type context = {
 exception Abort of string * pos
 
 let display_default = ref DisplayMode.DMNone
-
-let get_signature com =
-	match com.defines_signature with
-	| Some s -> s
-	| None ->
-		let defines = PMap.foldi (fun k v acc ->
-			(* don't make much difference between these special compilation flags *)
-			match String.concat "_" (ExtString.String.nsplit k "-") with
-			(* If we add something here that might be used in conditional compilation it should be added to
-			   Parser.parse_macro_ident as well (issue #5682). *)
-			| "display" | "use_rtti_doc" | "macro_times" | "display_details" | "no_copt" | "display_stdin" -> acc
-			| _ -> (k ^ "=" ^ v) :: acc
-		) com.defines [] in
-		let str = String.concat "@" (List.sort compare defines) in
-		let s = Digest.string str in
-		com.defines_signature <- Some s;
-		s
 
 module CompilationServer = struct
 	type cache = {
@@ -446,237 +435,35 @@ module CompilationServer = struct
 		Hashtbl.remove cs.cache.c_directories key
 end
 
-module Define = struct
+(* Defines *)
 
-	type strict_defined =
-		| AbsolutePath
-		| AdvancedTelemetry
-		| AnnotateSource
-		(* | Analyzer *)
-		| As3
-		| CheckXmlProxy
-		| CoreApi
-		| CoreApiSerialize
-		| Cppia
-		| NoCppiaAst
-		| Dce
-		| DceDebug
-		| Debug
-		| Display
-		| DisplayStdin
-		| DllExport
-		| DllImport
-		| DocGen
-		| Dump
-		| DumpDependencies
-		| DumpIgnoreVarIds
-		| DynamicInterfaceClosures
-		| EraseGenerics
-		| EvalDebugger
-		| EvalStack
-		| EvalTimes
-		| FastCast
-		| Fdb
-		| FileExtension
-		| FlashStrict
-		| FlashUseStage
-		| ForceLibCheck
-		| ForceNativeProperty
-		| FormatWarning
-		| GencommonDebug
-		| HaxeBoot
-		| HaxeVer
-		| HxcppApiLevel
-		| HxcppGcGenerational
-		| HxcppDebugger
-		| IncludePrefix
-		| Interp
-		| JavaVer
-		| JqueryVer
-		| JsClassic
-		| JsEs
-		| JsUnflatten
-		| JsSourceMap
-		| JsEnumsAsObjects
-		| SourceMap
-		| KeepOldOutput
-		| LoopUnrollMaxCost
-		| LuaVer
-		| LuaJit
-		| Macro
-		| MacroDebug
-		| MacroTimes
-		| NekoSource
-		| NekoV1
-		| NetworkSandbox
-		| NetVer
-		| NetTarget
-		| NoCompilation
-		| NoCOpt
-		| NoDeprecationWarnings
-		| NoFlashOverride
-		| NoDebug
-		| NoInline
-		| NoOpt
-		| NoRoot
-		| NoSwfCompress
-		| NoTraces
-		| Objc
-		| OldConstructorInline
-		| OldErrorFormat
-		| PhpPrefix
-		| RealPosition
-		| ReplaceFiles
-		| Scriptable
-		| ShallowExpose
-		| SourceHeader
-		| SourceMapContent
-		| Swc
-		| SwfCompressLevel
-		| SwfDebugPassword
-		| SwfDirectBlit
-		| SwfGpu
-		| SwfMetadata
-		| SwfPreloaderFrame
-		| SwfProtected
-		| SwfScriptTimeout
-		| SwfUseDoAbc
-		| Sys
-		| Unsafe
-		| UseNekoc
-		| UseRttiDoc
-		| Vcproj
-		| NoMacroCache
-		| Last (* must be last *)
+module Define = Define
 
-	type define_parameter =
-		| HasParam of string
-		| Platform of platform
-		| Platforms of platform list
+let defined com s =
+	Define.defined com.defines s
 
-	let infos = function
-		| AbsolutePath -> "absolute_path",("Print absolute file path in trace output",[])
-		| AdvancedTelemetry -> "advanced-telemetry",("Allow the SWF to be measured with Monocle tool",[Platform Flash])
-		| AnnotateSource -> "annotate_source",("Add additional comments to generated source code",[Platform Cpp])
-		(* | Analyzer -> "analyzer",("Use static analyzer for optimization (experimental)") *)
-		| As3 -> "as3",("Defined when outputing flash9 as3 source code",[])
-		| CheckXmlProxy -> "check_xml_proxy",("Check the used fields of the xml proxy",[])
-		| CoreApi -> "core_api",("Defined in the core api context",[])
-		| CoreApiSerialize -> "core_api_serialize",("Mark some generated core api classes with the Serializable attribute on C#",[Platform Cs])
-		| Cppia -> "cppia",("Generate cpp instruction assembly",[])
-		| NoCppiaAst -> "nocppiaast",("Use legacy cppia generation",[])
-		| Dce -> "dce",("<mode:std|full|no> Set the dead code elimination mode (default std)",[])
-		| DceDebug -> "dce_debug",("Show DCE log",[])
-		| Debug -> "debug",("Activated when compiling with -debug",[])
-		| Display -> "display",("Activated during completion",[])
-		| DisplayStdin -> "display_stdin",("Read the contents of a file specified in --display from standard input",[])
-		| DllExport -> "dll_export",("GenCPP experimental linking",[Platform Cpp])
-		| DllImport -> "dll_import",("Handle Haxe-generated .NET dll imports",[Platform Cs])
-		| DocGen -> "doc_gen",("Do not perform any removal/change in order to correctly generate documentation",[])
-		| Dump -> "dump",("<mode:pretty|record|legacy> Dump typed AST in dump subdirectory using specified mode or non-prettified default",[])
-		| DumpDependencies -> "dump_dependencies",("Dump the classes dependencies in a dump subdirectory",[])
-		| DumpIgnoreVarIds -> "dump_ignore_var_ids",("Remove variable IDs from non-pretty dumps (helps with diff)",[])
-		| DynamicInterfaceClosures -> "dynamic_interface_closures",("Use slow path for interface closures to save space",[Platform Cpp])
-		| EraseGenerics -> "erase_generics",("Erase generic classes on C#",[Platform Cs])
-		| EvalDebugger -> "eval_debugger",("Support debugger in macro/interp mode. Allows host:port value to open a socket. Implies eval_stack.",[])
-		| EvalStack -> "eval_stack",("Record stack information in macro/interp mode",[])
-		| EvalTimes -> "eval_times",("Record per-method execution times in macro/interp mode. Implies eval_stack.",[])
-		| FastCast -> "fast_cast",("Enables an experimental casts cleanup on C# and Java",[Platforms [Cs;Java]])
-		| Fdb -> "fdb",("Enable full flash debug infos for FDB interactive debugging",[Platform Flash])
-		| FileExtension -> "file_extension",("Output filename extension for cpp source code",[Platform Cpp])
-		| FlashStrict -> "flash_strict",("More strict typing for flash target",[Platform Flash])
-		| FlashUseStage -> "flash_use_stage",("Keep the SWF library initial stage",[Platform Flash])
-		(* force_lib_check is only here as a debug facility - compiler checking allows errors to be found more easily *)
-		| ForceLibCheck -> "force_lib_check",("Force the compiler to check -net-lib and -java-lib added classes (internal)",[Platforms [Cs;Java]])
-		| ForceNativeProperty -> "force_native_property",("Tag all properties with :nativeProperty metadata for 3.1 compatibility",[Platform Cpp])
-		| FormatWarning -> "format_warning",("Print a warning for each formated string, for 2.x compatibility",[])
-		| GencommonDebug -> "gencommon_debug",("GenCommon internal",[Platforms [Cs;Java]])
-		| HaxeBoot -> "haxe_boot",("Given the name 'haxe' to the flash boot class instead of a generated name",[Platform Flash])
-		| HaxeVer -> "haxe_ver",("The current Haxe version value",[])
-		| HxcppApiLevel -> "hxcpp_api_level",("Provided to allow compatibility between hxcpp versions",[Platform Cpp])
-		| HxcppGcGenerational -> "HXCPP_GC_GENERATIONAL",("Experimental Garbage Collector",[Platform Cpp])
-		| HxcppDebugger -> "HXCPP_DEBUGGER",("Include additional information for HXCPP_DEBUGGER",[Platform Cpp])
-		| IncludePrefix -> "include_prefix",("prepend path to generated include files",[Platform Cpp])
-		| Interp -> "interp",("The code is compiled to be run with --interp",[])
-		| JavaVer -> "java_ver",("<version:5-7> Sets the Java version to be targeted",[Platform Java])
-		| JqueryVer -> "jquery_ver",("The jQuery version supported by js.jquery.*. The version is encoded as an interger. e.g. 1.11.3 is encoded as 11103",[Platform Js])
-		| JsClassic -> "js_classic",("Don't use a function wrapper and strict mode in JS output",[Platform Js])
-		| JsEs -> "js_es",("Generate JS compilant with given ES standard version (default 5)",[Platform Js; HasParam "version number"])
-		| JsEnumsAsObjects -> "js_enums_as_objects",("Generate enum representation as object instead of as array",[Platform Js])
-		| JsUnflatten -> "js_unflatten",("Generate nested objects for packages and types",[Platform Js])
-		| JsSourceMap -> "js_source_map",("Generate JavaScript source map even in non-debug mode",[Platform Js])
-		| SourceMap -> "source_map",("Generate source map for compiled files (Currently supported for php only)",[Platform Php])
-		| KeepOldOutput -> "keep_old_output",("Keep old source files in the output directory (for C#/Java)",[Platforms [Cs;Java]])
-		| LoopUnrollMaxCost -> "loop_unroll_max_cost",("Maximum cost (number of expressions * iterations) before loop unrolling is canceled (default 250)",[])
-		| LuaJit -> "lua_jit",("Enable the jit compiler for lua (version 5.2 only)",[Platform Lua])
-		| LuaVer -> "lua_ver",("The lua version to target",[Platform Lua])
-		| Macro -> "macro",("Defined when code is compiled in the macro context",[])
-		| MacroDebug -> "macro_debug",("Show warnings for potential macro problems (e.g. macro-in-macro calls)",[])
-		| MacroTimes -> "macro_times",("Display per-macro timing when used with --times",[])
-		| NetVer -> "net_ver",("<version:20-45> Sets the .NET version to be targeted",[Platform Cs])
-		| NetTarget -> "net_target",("<name> Sets the .NET target. Defaults to \"net\". xbox, micro (Micro Framework), compact (Compact Framework) are some valid values",[Platform Cs])
-		| NekoSource -> "neko_source",("Output neko source instead of bytecode",[Platform Neko])
-		| NekoV1 -> "neko_v1",("Keep Neko 1.x compatibility",[Platform Neko])
-		| NetworkSandbox -> "network-sandbox",("Use local network sandbox instead of local file access one",[Platform Flash])
-		| NoCompilation -> "no-compilation",("Disable final compilation",[Platforms [Cs;Java;Cpp;Hl]])
-		| NoCOpt -> "no_copt",("Disable completion optimization (for debug purposes)",[])
-		| NoDebug -> "no_debug",("Remove all debug macros from cpp output",[])
-		| NoDeprecationWarnings -> "no-deprecation-warnings",("Do not warn if fields annotated with @:deprecated are used",[])
-		| NoFlashOverride -> "no-flash-override",("Change overrides on some basic classes into HX suffixed methods, flash only",[Platform Flash])
-		| NoOpt -> "no_opt",("Disable optimizations",[])
-		| NoInline -> "no_inline",("Disable inlining",[])
-		| NoRoot -> "no_root",("Generate top-level types into haxe.root namespace",[Platform Cs])
-		| NoMacroCache -> "no_macro_cache",("Disable macro context caching",[])
-		| NoSwfCompress -> "no_swf_compress",("Disable SWF output compression",[Platform Flash])
-		| NoTraces -> "no_traces",("Disable all trace calls",[])
-		| Objc -> "objc",("Sets the hxcpp output to objective-c++ classes. Must be defined for interop",[Platform Cpp])
-		| OldConstructorInline -> "old-constructor-inline",("Use old constructor inlining logic (from haxe 3.4.2) instead of the reworked version.",[])
-		| OldErrorFormat -> "old-error-format",("Use Haxe 3.x zero-based column error messages instead of new one-based format.",[])
-		| PhpPrefix -> "php_prefix",("Root namespace for generated php classes. E.g. if compiled with`--php-prefix some.sub`, then all classes will be generated in `\\some\\sub` namespace.",[Platform Php])
-		| RealPosition -> "real_position",("Disables Haxe source mapping when targetting C#, removes position comments in Java and Php output",[Platforms [Cs;Java;Php]])
-		| ReplaceFiles -> "replace_files",("GenCommon internal",[Platforms [Java;Cs]])
-		| Scriptable -> "scriptable",("GenCPP internal",[Platform Cpp])
-		| ShallowExpose -> "shallow-expose",("Expose types to surrounding scope of Haxe generated closure without writing to window object",[Platform Js])
-		| SourceHeader -> "source-header",("Print value as comment on top of generated files, use '' value to disable",[])
-		| SourceMapContent -> "source-map-content",("Include the hx sources as part of the JS source map",[Platform Js])
-		| Swc -> "swc",("Output a SWC instead of a SWF",[Platform Flash])
-		| SwfCompressLevel -> "swf_compress_level",("<level:1-9> Set the amount of compression for the SWF output",[Platform Flash])
-		| SwfDebugPassword -> "swf_debug_password",("Set a password for debugging",[Platform Flash])
-		| SwfDirectBlit -> "swf_direct_blit",("Use hardware acceleration to blit graphics",[Platform Flash])
-		| SwfGpu -> "swf_gpu",("Use GPU compositing features when drawing graphics",[Platform Flash])
-		| SwfMetadata -> "swf_metadata",("<file> Include contents of <file> as metadata in the swf",[Platform Flash])
-		| SwfPreloaderFrame -> "swf_preloader_frame",("Insert empty first frame in swf",[Platform Flash])
-		| SwfProtected -> "swf_protected",("Compile Haxe private as protected in the SWF instead of public",[Platform Flash])
-		| SwfScriptTimeout -> "swf_script_timeout",("Maximum ActionScript processing time before script stuck dialog box displays (in seconds)",[Platform Flash])
-		| SwfUseDoAbc -> "swf_use_doabc",("Use DoAbc swf-tag instead of DoAbcDefine",[Platform Flash])
-		| Sys -> "sys",("Defined for all system platforms",[])
-		| Unsafe -> "unsafe",("Allow unsafe code when targeting C#",[Platform Cs])
-		| UseNekoc -> "use_nekoc",("Use nekoc compiler instead of internal one",[Platform Neko])
-		| UseRttiDoc -> "use_rtti_doc",("Allows access to documentation during compilation",[])
-		| Vcproj -> "vcproj",("GenCPP internal",[Platform Cpp])
-		| Last -> assert false
+let raw_defined com v =
+	Define.raw_defined com.defines v
 
-	let get_documentation_list() =
-		let m = ref 0 in
-		let rec loop i =
-			let d = Obj.magic i in
-			if d <> Last then begin
-				let t, (doc,flags) = infos d in
-				let pfs = ref [] in
-				List.iter (function
-				| HasParam s -> () (* TODO *)
-				| Platform p -> pfs := p :: !pfs;
-				| Platforms pl -> pfs := pl @ !pfs;
-				) flags;
-				let pfs = platform_list_help (List.rev !pfs) in
-				if String.length t > !m then m := String.length t;
-				((String.concat "-" (ExtString.String.nsplit t "_")),doc ^ pfs) :: (loop (i + 1))
-			end else
-				[]
-		in
-		let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop 0) in
-		all,!m
-end
+let defined_value com v =
+	Define.defined_value com.defines v
+
+let defined_value_safe ?default com v =
+	match default with
+		| Some s -> Define.defined_value_safe ~default:s com.defines v
+		| None -> Define.defined_value_safe com.defines v
+
+let define com v =
+	Define.define com.defines v
+
+let raw_define com v =
+	Define.raw_define com.defines v
+
+let define_value com k v =
+	Define.define_value com.defines k v
+
+let raw_defined_value com k =
+	Define.raw_defined_value com.defines k
 
 let short_platform_name = function
 	| Cross -> "x"
@@ -713,7 +500,7 @@ let default_config =
 	}
 
 let get_config com =
-	let defined f = PMap.mem (fst (Define.infos f)) com.defines in
+	let defined f = PMap.mem (fst (Define.infos f)) com.defines.values in
 	match com.platform with
 	| Cross ->
 		default_config
@@ -844,7 +631,6 @@ let create version s_version args =
 		std_path = [];
 		class_path = [];
 		main_class = None;
-		defines = defines;
 		package_rules = PMap.empty;
 		file = "";
 		types = [];
@@ -853,8 +639,6 @@ let create version s_version args =
 		main = None;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
-		php_front = None;
-		php_lib = None;
 		swf_libs = [];
 		java_libs = [];
 		net_libs = [];
@@ -863,10 +647,12 @@ let create version s_version args =
 		c_args = [];
 		neko_libs = [];
 		include_files = [];
-		php_prefix = None;
 		js_gen = None;
 		load_extern_type = [];
-		defines_signature = None;
+		defines = {
+			defines_signature = None;
+			values = defines;
+		};
 		get_macros = (fun() -> None);
 		warning = (fun _ _ -> assert false);
 		error = (fun _ _ -> assert false);
@@ -902,6 +688,10 @@ let clone com =
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
 		};
+		defines = {
+			values = com.defines.values;
+			defines_signature = com.defines.defines_signature;
+		}
 	}
 
 let file_time file = Extc.filetime file
@@ -938,42 +728,13 @@ let flash_version_tag = function
 	| v when v >= 12.0 && float_of_int (int_of_float v) = v -> int_of_float v + 11
 	| v -> failwith ("Invalid SWF version " ^ string_of_float v)
 
-let raw_defined ctx v =
-	PMap.mem v ctx.defines
-
-let defined ctx v =
-	raw_defined ctx (fst (Define.infos v))
-
-let raw_defined_value ctx k =
-	PMap.find k ctx.defines
-
-let defined_value ctx v =
-	raw_defined_value ctx (fst (Define.infos v))
-
-let defined_value_safe ctx v =
-	try defined_value ctx v
-	with Not_found -> ""
-
-let raw_define ctx v =
-	let k,v = try ExtString.String.split v "=" with _ -> v,"1" in
-	ctx.defines <- PMap.add k v ctx.defines;
-	let k = String.concat "_" (ExtString.String.nsplit k "-") in
-	ctx.defines <- PMap.add k v ctx.defines;
-	ctx.defines_signature <- None
-
-let define_value ctx k v =
-	raw_define ctx (fst (Define.infos k) ^ "=" ^ v)
-
-let define ctx v =
-	raw_define ctx (fst (Define.infos v))
-
 let init_platform com pf =
 	com.platform <- pf;
 	let name = platform_name pf in
 	let forbid acc p = if p = name || PMap.mem p acc then acc else PMap.add p Forbidden acc in
 	com.package_rules <- List.fold_left forbid com.package_rules (List.map platform_name platforms);
 	com.config <- get_config com;
-(*	if com.config.pf_static then define com "static"; *)
+	if com.config.pf_static then define com Define.Static;
 	if com.config.pf_sys then define com Define.Sys else com.package_rules <- PMap.add "sys" Forbidden com.package_rules;
 	raw_define com name
 
@@ -1069,120 +830,9 @@ let find_file ctx f =
 		| None -> raise Not_found
 		| Some f -> f)
 
-let rec mkdir_recursive base dir_list =
-	match dir_list with
-	| [] -> ()
-	| dir :: remaining ->
-		let path = match base with
-				   | "" ->  dir
-				   | "/" -> "/" ^ dir
-				   | _ -> base ^ "/" ^ dir
-		in
-		let path_len = String.length path in
-		let path =
-			if path_len > 0 && (path.[path_len - 1] = '/' || path.[path_len - 1] == '\\') then
-				String.sub path 0 (path_len - 1)
-			else
-				path
-		in
-		if not ( (path = "") || ( (path_len = 2) && ((String.sub path 1 1) = ":") ) ) then
-			if not (Sys.file_exists path) then
-				Unix.mkdir path 0o755;
-		mkdir_recursive (if (path = "") then "/" else path) remaining
-
-let mkdir_from_path path =
-	let parts = Str.split_delim (Str.regexp "[\\/]+") path in
-	match parts with
-		| [] -> (* path was "" *) ()
-		| _ ->
-			let dir_list = List.rev (List.tl (List.rev parts)) in
-			mkdir_recursive "" dir_list
 
 let mem_size v =
 	Objsize.size_with_headers (Objsize.objsize v [] [])
-
-(* ------------------------- TIMERS ----------------------------- *)
-
-type timer_infos = {
-	id : string list;
-	mutable start : float list;
-	mutable total : float;
-	mutable calls : int;
-}
-
-let get_time = Extc.time
-let htimers = Hashtbl.create 0
-
-let new_timer id =
-	let key = String.concat "." id in
-	try
-		let t = Hashtbl.find htimers key in
-		t.start <- get_time() :: t.start;
-		t.calls <- t.calls + 1;
-		t
-	with Not_found ->
-		let t = { id = id; start = [get_time()]; total = 0.; calls = 1; } in
-		Hashtbl.add htimers key t;
-		t
-
-let curtime = ref []
-
-let close t =
-	let start = (match t.start with
-		| [] -> assert false
-		| s :: l -> t.start <- l; s
-	) in
-	let now = get_time() in
-	let dt = now -. start in
-	t.total <- t.total +. dt;
-	let rec loop() =
-		match !curtime with
-		| [] -> failwith ("Timer " ^ (String.concat "." t.id) ^ " closed while not active")
-		| tt :: l -> curtime := l; if t != tt then loop()
-	in
-	loop();
-	(* because of rounding errors while adding small times, we need to make sure that we don't have start > now *)
-	List.iter (fun ct -> ct.start <- List.map (fun t -> let s = t +. dt in if s > now then now else s) ct.start) !curtime
-
-let timer id =
-	let t = new_timer id in
-	curtime := t :: !curtime;
-	(function() -> close t)
-
-let rec close_times() =
-	match !curtime with
-	| [] -> ()
-	| t :: _ -> close t; close_times()
-
-;;
-
-(*  Taken from OCaml source typing/oprint.ml
-
-	This is a better version of string_of_float which prints without loss of precision
-	so that float_of_string (float_repres x) = x for all floats x
-*)
-let valid_float_lexeme s =
-	let l = String.length s in
-	let rec loop i =
-		if i >= l then s ^ "." else
-		match s.[i] with
-		| '0' .. '9' | '-' -> loop (i+1)
-		| _ -> s
-	in loop 0
-
-let float_repres f =
-	match classify_float f with
-	| FP_nan -> "nan"
-	| FP_infinite ->
-		if f < 0.0 then "neg_infinity" else "infinity"
-	| _ ->
-		let float_val =
-			let s1 = Printf.sprintf "%.12g" f in
-			if f = float_of_string s1 then s1 else
-			let s2 = Printf.sprintf "%.15g" f in
-			if f = float_of_string s2 then s2 else
-			Printf.sprintf "%.18g" f
-		in valid_float_lexeme float_val
 
 let hash f =
 	let h = ref 0 in
@@ -1204,6 +854,6 @@ let dump_context com = s_record_fields "" [
 	"platform",platform_name com.platform;
 	"std_path",s_list ", " (fun s -> s) com.std_path;
 	"class_path",s_list ", " (fun s -> s) com.class_path;
-	"defines",s_pmap (fun s -> s) (fun s -> s) com.defines;
-	"defines_signature",s_opt (fun s -> Digest.to_hex s) com.defines_signature;
+	"defines",s_pmap (fun s -> s) (fun s -> s) com.defines.values;
+	"defines_signature",s_opt (fun s -> Digest.to_hex s) com.defines.defines_signature;
 ]

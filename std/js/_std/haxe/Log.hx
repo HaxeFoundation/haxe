@@ -29,7 +29,7 @@ package haxe;
 		if (infos != null && infos.customParams != null)
 			for (v in infos.customParams)
 				msg += "," + js.Boot.__string_rec(v, "");
-		if( js.Lib.typeof(untyped console) != "undefined" && (untyped console).log != null )
+		if( js.Syntax.typeof(untyped console) != "undefined" && (untyped console).log != null )
 			(untyped console).log(msg);
 	}
 }

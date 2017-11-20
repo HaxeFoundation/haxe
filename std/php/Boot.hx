@@ -71,7 +71,7 @@ class Boot {
 		Returns empty string if no `--php-prefix` provided.
 	**/
 	public static inline function getPrefix() : String {
-		return untyped __php__('self::PHP_PREFIX');
+		return Syntax.code('self::PHP_PREFIX');
 	}
 
 	/**
@@ -397,9 +397,12 @@ class Boot {
 	**/
 	public static function equal( left:Dynamic, right:Dynamic ) : Bool {
 		if (isNumber(left) && isNumber(right)) {
-			return Syntax.binop(left, '==', right);
+			return Syntax.equal(left, right);
 		}
-		return Syntax.binop(left, '===', right);
+		if (Std.is(left, HxClosure) && Std.is(right, HxClosure)) {
+			return (left:HxClosure).equals(right);
+		}
+		return Syntax.strictEqual(left, right);
 	}
 
 	/**
@@ -410,7 +413,7 @@ class Boot {
 		if (left.is_string() || right.is_string()) {
 			return (left:String) + (right:String);
 		}
-		return Syntax.binop(left, '+', right);
+		return Syntax.add(left, right);
 	}
 
 	/**
@@ -428,7 +431,7 @@ class Boot {
 						value.is_int()
 						|| (
 							value.is_float()
-							&& Syntax.binop(Syntax.int(value), '==', value)
+							&& Syntax.equal(Syntax.int(value), value)
 							&& !Global.is_nan(value)
 						)
 					)
@@ -568,8 +571,12 @@ private class HxClass {
 	**/
 	@:phpMagic
 	function __get( property:String ) : Dynamic {
-		if (Boot.hasGetter(phpClassName, property)) {
+		if (Global.defined('$phpClassName::$property')) {
+			return Global.constant('$phpClassName::$property');
+		} else if (Boot.hasGetter(phpClassName, property)) {
 			return Syntax.staticCall(phpClassName, 'get_$property');
+		} else if(phpClassName.method_exists(property)) {
+			return new HxClosure(phpClassName, property);
 		} else {
 			return Syntax.getStaticField(phpClassName, property);
 		}
@@ -595,26 +602,9 @@ private class HxClass {
 @:keep
 @:dox(hide)
 private class HxEnum {
-	static var singletons = new Map<String,HxEnum>();
-
 	var tag : String;
 	var index : Int;
 	var params : NativeArray;
-
-	/**
-		Returns instances of constructors without arguments
-	**/
-	public static function singleton( enumClass:String, tag:String, index:Int ) : HxEnum {
-		var key = '$enumClass::$tag';
-
-		var instance = singletons.get(key);
-		if (instance == null) {
-			instance = Syntax.construct(enumClass, tag, index);
-			singletons.set(key, instance);
-		}
-
-		return instance;
-	}
 
 	public function new( tag:String, index:Int, arguments:NativeArray = null ) : Void {
 		this.tag = tag;

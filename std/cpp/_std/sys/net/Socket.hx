@@ -28,7 +28,7 @@ private class SocketInput extends haxe.io.Input {
 
    var __s : Dynamic;
 
-   public function new(s) {
+   public function new(s:Dynamic) {
       __s = s;
    }
 
@@ -73,7 +73,7 @@ private class SocketOutput extends haxe.io.Output {
 
    var __s : Dynamic;
 
-   public function new(s) {
+   public function new(s:Dynamic) {
       __s = s;
    }
 

@@ -235,7 +235,7 @@ let close_file ctx =
 	ctx.curfile <- "";
 	let fcontent = (try Std.input_file ~bin:true fpath with _ -> "") in
 	if fcontent <> str then begin
-		Common.mkdir_recursive "" (ExtString.String.nsplit (Filename.dirname fpath) "/");
+		Path.mkdir_recursive "" (ExtString.String.nsplit (Filename.dirname fpath) "/");
 		let ch = open_out_bin fpath in
 		output_string ch str;
 		close_out ch;
@@ -1399,7 +1399,7 @@ let write_c com file (code:code) =
 	block ctx;
 	sline "\"version\" : %d," ctx.version;
 	sline "\"libs\" : [%s]," (String.concat "," (Hashtbl.fold (fun k _ acc -> sprintf "\"%s\"" k :: acc) native_libs []));
-	sline "\"defines\" : {%s\n\t}," (String.concat "," (PMap.foldi (fun k v acc -> sprintf "\n\t\t\"%s\" : \"%s\"" k v :: acc) com.Common.defines []));
+	sline "\"defines\" : {%s\n\t}," (String.concat "," (PMap.foldi (fun k v acc -> sprintf "\n\t\t\"%s\" : \"%s\"" k v :: acc) com.Common.defines.Define.values []));
 	sline "\"files\" : [%s\n\t]" (String.concat "," (List.map (sprintf "\n\t\t\"%s\"") ctx.cfiles));
 	unblock ctx;
 	line "}";

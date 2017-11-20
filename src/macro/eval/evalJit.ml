@@ -242,7 +242,7 @@ and jit_expr jit return e =
 	| TConst ct ->
 		emit_const (eval_const ct)
 	| TObjectDecl fl ->
-		let fl = List.map (fun (s,e) -> hash_s s,jit_expr jit false e) fl in
+		let fl = List.map (fun ((s,_,_),e) -> hash_s s,jit_expr jit false e) fl in
 		let proto,_ = ctx.get_object_prototype ctx fl in
 		let fl = List.map (fun (s,exec) -> get_instance_field_index proto s e.epos,exec) fl in
 		let fa = Array.of_list fl in
@@ -546,23 +546,23 @@ and jit_expr jit return e =
 		| TField(ef,fa) ->
 			let name = hash_s (field_name fa) in
 			let execs = List.map (jit_expr jit false) el in
-			let is_overridden c s_name =
+			(* let is_overridden c s_name =
 				try
 					Hashtbl.find ctx.overrides (c.cl_path,s_name)
 				with Not_found ->
 					false
-			in
+			in *)
 			let is_proper_method cf = match cf.cf_kind with
 				| Method MethDynamic -> false
 				| Method _ -> true
 				| Var _ -> false
 			in
-			let instance_call c =
+			(* let instance_call c =
 				let exec = jit_expr jit false ef in
 				let proto = get_instance_prototype ctx (path_hash c.cl_path) ef.epos in
 				let i = get_proto_field_index proto name in
 				emit_proto_field_call proto i (exec :: execs) e.epos
-			in
+			in *)
 			let default () =
 				let exec = jit_expr jit false ef in
 				emit_method_call exec name execs e.epos
@@ -590,7 +590,8 @@ and jit_expr jit return e =
 					let i = get_proto_field_index proto name in
 					emit_proto_field_call proto i execs e.epos
 				| FInstance(c,_,cf) when is_proper_method cf ->
-					if is_overridden c cf.cf_name then
+					default();
+					(* if is_overridden c cf.cf_name then
 						default()
 					else if not c.cl_interface then
 						instance_call c
@@ -600,7 +601,7 @@ and jit_expr jit return e =
 						| _ ->
 							default()
 					end else
-						default()
+						default() *)
 				| _ ->
 					let exec = jit_expr jit false ef in
 					emit_field_call exec name execs e.epos
@@ -782,7 +783,7 @@ and jit_expr jit return e =
 		unop jit op flag v1 e.epos
 	(* rewrites/skips *)
 	| TFor(v,e1,e2) ->
-		loop (Codegen.for_remap (ctx.curapi.MacroApi.get_com()) v e1 e2 e.epos)
+		loop (Texpr.for_remap (ctx.curapi.MacroApi.get_com()).Common.basic v e1 e2 e.epos)
 	| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 		loop e1
 	| TIdent s ->
@@ -807,7 +808,7 @@ and jit_tfunction jit static pos tf =
 	(* Add conditionals for default values. *)
 	let e = List.fold_left (fun e (v,cto) -> match cto with
 		| None -> e
-		| Some ct -> concat (Codegen.set_default (ctx.curapi.MacroApi.get_com()) v ct e.epos) e
+		| Some ct -> concat (Texpr.set_default (ctx.curapi.MacroApi.get_com()).Common.basic v ct e.epos) e
 	) tf.tf_expr tf.tf_args in
 	(* Jit the function expression. *)
 	let exec = jit_expr jit true e in
@@ -837,7 +838,7 @@ and get_env jit static file info =
 
 (* Creates a [EvalValue.vfunc] of function [tf], which can be [static] or not. *)
 let jit_tfunction ctx key_type key_field tf static pos =
-	let t = Common.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
+	let t = Timer.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
 	(* Create a new JitContext with an initial scope *)
 	let jit = EvalJitContext.create ctx in
 	let exec = jit_tfunction jit static pos tf in
@@ -851,7 +852,7 @@ let jit_tfunction ctx key_type key_field tf static pos =
 
 (* JITs expression [e] to a function. This is used for expressions that are not in a method. *)
 let jit_expr ctx e =
-	let t = Common.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
+	let t = Timer.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
 	let jit = EvalJitContext.create ctx in
 	let f = jit_expr jit false (mk_block e) in
 	t();

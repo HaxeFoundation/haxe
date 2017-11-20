@@ -4,8 +4,7 @@ import runci.Config.*;
 import runci.System.*;
 import sys.io.File;
 import sys.FileSystem;
-
-import haxe.Template;
+import haxe.*;
 using StringTools;
 
 class Deployment {
@@ -44,8 +43,10 @@ class Deployment {
 		}
 	}
 
-	static function isDeployNightlies () {
-		return Sys.getEnv("DEPLOY_NIGHTLIES") != null;
+	static function isDeployNightlies() {
+		return
+			Sys.getEnv("DEPLOY_NIGHTLIES") != null &&
+			(gitInfo.branch == "development" || gitInfo.branch == "master");
 	}
 
 	static function deployBintray():Void {
@@ -77,21 +78,18 @@ class Deployment {
 		}
 	}
 
-	static function shouldDeployInstaller() {
-		if (systemName == 'Linux') {
-			return false;
-		}
-		if (gitInfo.branch == 'nightly-travis') {
-			return true;
-		}
-		var rev = Sys.getEnv('ADD_REVISION');
-		return rev != null && rev != "0";
-	}
-
-	static function isDeployApiDocsRequired () {
-		return gitInfo.branch == "development" &&
+	static function isDeployApiDocsRequired() {
+		return
 			Sys.getEnv("DEPLOY_API_DOCS") != null &&
-			Sys.getEnv("deploy_key_decrypt") != null;
+			(
+				gitInfo.branch == "development" ||
+				switch(Sys.getEnv("TRAVIS_TAG")) {
+					case null, _.trim() => "":
+						false;
+					case tag:
+						true;
+				}
+			);
 	}
 
 	/**
@@ -99,90 +97,85 @@ class Deployment {
 	*/
 
 	static function deployApiDoc():Void {
-		// setup deploy_key
-		runCommand("openssl aes-256-cbc -k \"$deploy_key_decrypt\" -in extra/deploy_key.enc -out extra/deploy_key -d");
-		runCommand("chmod 600 extra/deploy_key");
-		runCommand("ssh-add extra/deploy_key");
-
-		runCommand("make", ["-s", "deploy_doc"]);
+		changeDirectory(repoDir);
+		runCommand("make", ["xmldoc"]);
+		File.saveContent("extra/doc/info.json", Json.stringify({
+			"commit": gitInfo.commit,
+			"branch": gitInfo.branch,
+		}));
+		switch (Sys.getEnv("GHP_REMOTE")) { // should be in the form of https://token@github.com/account/repo.git
+			case null:
+				infoMsg('Missing GHP_REMOTE, skip api doc deploy.');
+			case remoteRepo:
+				var localRepo = "extra/api.haxe.org";
+				runCommand("git", ["clone", remoteRepo, localRepo]);
+				runCommand("haxe", ["--cwd", localRepo, "--run", "ImportXml", FileSystem.absolutePath("extra/doc")]);
+		}
 	}
 
 	/**
 		Deploy source package to hxbuilds s3
 	*/
-	static function deployNightlies(doInstaller:Bool):Void {
-		var gitTime = commandResult("git", ["show", "-s", "--format=%ct", "HEAD"]).stdout;
-		var tzd = {
-			var z = Date.fromTime(0);
-			z.getHours() * 60 * 60 * 1000 + z.getMinutes() * 60 * 1000;
-		};
-		var time = Date.fromTime(Std.parseFloat(gitTime) * 1000 - tzd);
-		if (
-			(gitInfo.branch == "development" ||
-			gitInfo.branch == "master" ||
-			gitInfo.branch == "nightly-travis") &&
-			Sys.getEnv("HXBUILDS_AWS_ACCESS_KEY_ID") != null &&
-			Sys.getEnv("HXBUILDS_AWS_SECRET_ACCESS_KEY") != null &&
-			Sys.getEnv("TRAVIS_PULL_REQUEST") != "true"
-		) {
-			if (ci == TravisCI) {
-				runCommand("make", ["-s", "package_unix"]);
-				if (doInstaller) {
-					getLatestNeko();
-					runCommand("make", ["-s", 'package_installer_mac']);
-				}
-				if (systemName == 'Linux') {
-					// source
-					for (file in sys.FileSystem.readDirectory('out')) {
-						if (file.startsWith('haxe') && file.endsWith('_src.tar.gz')) {
-							submitToS3("source", 'out/$file');
-							break;
-						}
+	static function deployNightlies():Void {
+		changeDirectory(repoDir);
+
+		switch (systemName) {
+			case "Linux":
+				runCommand("make", ["-s", "package_unix"]);// source
+				for (file in sys.FileSystem.readDirectory('out')) {
+					if (file.startsWith('haxe') && file.endsWith('_src.tar.gz')) {
+						submitToS3("source", 'out/$file');
+						break;
 					}
 				}
 				for (file in sys.FileSystem.readDirectory('out')) {
 					if (file.startsWith('haxe')) {
 						if (file.endsWith('_bin.tar.gz')) {
-							var name = systemName == "Linux" ? 'linux64' : 'mac';
-							submitToS3(name, 'out/$file');
+							submitToS3('linux64', 'out/$file');
+						}
+					}
+				}
+			case "Mac":
+				runCommand("make", ["-s", 'package_unix', 'package_installer_mac']);
+				for (file in sys.FileSystem.readDirectory('out')) {
+					if (file.startsWith('haxe')) {
+						if (file.endsWith('_bin.tar.gz')) {
+							submitToS3('mac', 'out/$file');
 						} else if (file.endsWith('_installer.tar.gz')) {
 							submitToS3('mac-installer', 'out/$file');
 						}
 					}
 				}
-			} else {
-				if (doInstaller) {
-					getLatestNeko();
-					var cygRoot = Sys.getEnv("CYG_ROOT");
-					if (cygRoot != null) {
-						runCommand('$cygRoot/bin/bash', ['-lc', "cd \"$OLDPWD\" && make -s -f Makefile.win package_installer_win"]);
-					} else {
-						runCommand("make", ['-f', 'Makefile.win', "-s", 'package_installer_win']);
-					}
+			case "Windows":
+				var kind = switch (Sys.getEnv("ARCH")) {
+					case null:
+						throw "ARCH is not set";
+					case "32":
+						"windows";
+					case "64":
+						"windows64";
+					case _:
+						throw "unknown ARCH";
+				}
+
+				var cygRoot = Sys.getEnv("CYG_ROOT");
+				if (cygRoot != null) {
+					runCommand('$cygRoot/bin/bash', ['-lc', "cd \"$OLDPWD\" && make -s -f Makefile.win package_installer_win"]);
+				} else {
+					runCommand("make", ['-f', 'Makefile.win', "-s", 'package_installer_win']);
 				}
 				for (file in sys.FileSystem.readDirectory('out')) {
 					if (file.startsWith('haxe')) {
 						if (file.endsWith('_bin.zip')) {
-							submitToS3('windows', 'out/$file');
+							submitToS3(kind, 'out/$file');
 						} else if (file.endsWith('_installer.zip')) {
-							submitToS3('windows-installer', 'out/$file');
+							submitToS3('${kind}-installer', 'out/$file');
 						}
 					}
 				}
-			}
-		} else {
-			trace('Not deploying nightlies');
+			case _:
+				throw "unknown system";
 		}
-	}
-
-	static function getLatestNeko() {
-		if (!FileSystem.exists('installer')) {
-			FileSystem.createDirectory('installer');
-		}
-		var src = 'http://nekovm.org/media/neko-2.1.0-';
-		var suffix = systemName == 'Windows' ? 'win.zip' : 'osx64.tar.gz';
-		src += suffix;
-		runCommand("wget", [src, '-O', 'installer/neko-$suffix'], true);
 	}
 
 	static function fileExtension(file:String) {
@@ -196,26 +189,30 @@ class Deployment {
 	}
 
 	static function submitToS3(kind:String, sourceFile:String) {
-		var date = DateTools.format(Date.now(), '%Y-%m-%d');
-		var ext = fileExtension(sourceFile);
-		var fileName = 'haxe_${date}_${gitInfo.branch}_${gitInfo.commit.substr(0,7)}${ext}';
+		switch ([
+			Sys.getEnv("HXBUILDS_AWS_ACCESS_KEY_ID"),
+			Sys.getEnv("HXBUILDS_AWS_SECRET_ACCESS_KEY")
+		]) {
+			case [null, _] | [_, null]:
+				infoMsg("Missing HXBUILDS_AWS_*, skip submit to S3");
+			case [accessKeyId, secretAccessKey]:
+				var date = DateTools.format(Date.now(), '%Y-%m-%d');
+				var ext = fileExtension(sourceFile);
+				var fileName = 'haxe_${date}_${gitInfo.branch}_${gitInfo.commit.substr(0,7)}${ext}';
 
-		var changeLatest = gitInfo.branch == "development";
-		Sys.putEnv('AWS_ACCESS_KEY_ID', Sys.getEnv('HXBUILDS_AWS_ACCESS_KEY_ID'));
-		Sys.putEnv('AWS_SECRET_ACCESS_KEY', Sys.getEnv('HXBUILDS_AWS_SECRET_ACCESS_KEY'));
-		runCommand('aws s3 cp --region us-east-1 "$sourceFile" "$S3_HXBUILDS_ADDR/$kind/$fileName"');
-		if (changeLatest) {
-			runCommand('aws s3 cp --region us-east-1 "$sourceFile" "$S3_HXBUILDS_ADDR/$kind/haxe_latest$ext"');
-		}
-		Indexer.index('$S3_HXBUILDS_ADDR/$kind/');
-		runCommand('aws s3 cp --region us-east-1 index.html "$S3_HXBUILDS_ADDR/$kind/index.html"');
-	}
+				var changeLatest = gitInfo.branch == "development";
+				Sys.putEnv('AWS_ACCESS_KEY_ID', accessKeyId);
+				Sys.putEnv('AWS_SECRET_ACCESS_KEY', secretAccessKey);
+				runCommand('aws s3 cp --region us-east-1 "$sourceFile" "$S3_HXBUILDS_ADDR/$kind/$fileName"');
+				if (changeLatest) {
+					runCommand('aws s3 cp --region us-east-1 "$sourceFile" "$S3_HXBUILDS_ADDR/$kind/haxe_latest$ext"');
+				}
+				Indexer.index('$S3_HXBUILDS_ADDR/$kind/');
+				runCommand('aws s3 cp --region us-east-1 index.html "$S3_HXBUILDS_ADDR/$kind/index.html"');
 
-	static function createNsiInstaller() {
-		if (!FileSystem.exists('installer')) {
-			FileSystem.createDirectory('installer');
+				Indexer.index('$S3_HXBUILDS_ADDR/');
+				runCommand('aws s3 cp --region us-east-1 index.html "$S3_HXBUILDS_ADDR/index.html"');
 		}
-		getLatestNeko();
 	}
 
 	/**
@@ -286,32 +283,16 @@ class Deployment {
 	}
 
 	static public function deploy():Void {
-		var doDocs = isDeployApiDocsRequired();
-		var doNightlies = isDeployNightlies(),
-				doInstaller = doNightlies && shouldDeployInstaller();
+		if (isDeployApiDocsRequired()) {
+			deployApiDoc();
+		} else {
+			infoMsg("Not deploying API doc");
+		}
 
-		if (doDocs || doNightlies) {
-			changeDirectory(repoDir);
-			if (doDocs) {
-				if (systemName != 'Windows') {
-					// generate doc
-					runCommand("make", ["-s", "install_dox"]);
-					runCommand("make", ["-s", "package_doc"]);
-					// deployBintray();
-					deployApiDoc();
-					// disable deployment to ppa:haxe/snapshots for now
-					// because there is no debian sedlex package...
-					// deployPPA();
-				}
-			}
-			if (doNightlies) {
-				if (doInstaller && !doDocs && systemName != 'Windows') {
-					// generate doc
-					runCommand("make", ["-s", "install_dox"]);
-					runCommand("make", ["-s", "package_doc"]);
-				}
-				deployNightlies(doInstaller);
-			}
+		if (isDeployNightlies()) {
+			deployNightlies();
+		} else {
+			infoMsg("Not deploying nightlies");
 		}
 	}
 }

@@ -9,46 +9,158 @@ import haxe.extern.EitherType;
     Don't use these functions unless you are really sure what you are doing.
 **/
 extern class Syntax {
+
     /**
-        This method allows to force specified binary operation for `left` and `right` values.
-        `operator` must be a constant string like "+" or "==".
+        Embeds plain php code.
+        `php` should be a string literal with php code.
+        It can contain placeholders like `{0}`, `{1}` which will be replaced with corresponding arguments from `args`.
+        E.g.:
+        ```
+        Syntax.code("var_dump({0}, {1})", a, b);
+        ```
+        will generate
+        ```
+        var_dump($a, $b);
+        ```
     **/
-    static function binop( left:Dynamic, operator:String, right:Dynamic ) : Dynamic;
+    static function code(php:String, args:Rest<Dynamic>):Dynamic;
+
+    /**
+        The same as `code()`, but adds dereferencing
+        when required to workaround "cannot use temporary expression in write context" php error.
+    **/
+    static function codeDeref(php:String, args:Rest<Dynamic>):Dynamic;
+
+    /**
+        Generates `$left <=> $right`
+    **/
+    static inline function spaceship( left:Dynamic, right:Dynamic ) : Int {
+        return code('({0} <=> {1})', left, right);
+    }
+
+    /**
+        Generates `$left ?? $right`
+    **/
+    static inline function coalesce<T>( left:T, right:T ) : T {
+        return codeDeref('({0} ?? {1})', left, right);
+    }
+
+    /**
+        Generates `$left . $right`
+    **/
+    static inline function concat( left:String, right:String ) : String {
+        return code('({0} . {1})', left, right);
+    }
+
+    /**
+        Generates `$left == $right`
+    **/
+    static inline function equal( left:Dynamic, right:Dynamic ) : Bool {
+        return code('({0} == {1})', left, right);
+    }
+
+    /**
+        Generates `$left === $right`
+    **/
+    static inline function strictEqual( left:Dynamic, right:Dynamic ) : Bool {
+        return code('({0} === {1})', left, right);
+    }
+
+    /**
+        Generates `$left != $right`
+    **/
+    static inline function notEqual( left:Dynamic, right:Dynamic ) : Bool {
+        return code('({0} != {1})', left, right);
+    }
+
+    /**
+        Generates `$left !== $right`
+    **/
+    static inline function strictNotEqual( left:Dynamic, right:Dynamic ) : Bool {
+        return code('({0} !== {1})', left, right);
+    }
+
+    /**
+        Generates `$left + $right` for numbers.
+    **/
+    static inline function add<T:Float>( left:T, right:T ) : T {
+        return code('({0} + {1})', left, right);
+    }
+
+    /**
+        Generates `$left + $right` for php arrays.
+    **/
+    static inline function union( left:NativeArray, right:NativeArray ) : NativeArray {
+        return codeDeref('({0} + {1})', left, right);
+    }
+
+    /**
+        Generates `$left ** $right`
+    **/
+    static inline function exp<T:Float>( left:T, right:T ) : T {
+        return code('({0} ** {1})', left, right);
+    }
+
+    /**
+        Generates `$left ?: $right`
+    **/
+    static inline function shortTernary<T>( left:T, right:T ) : T {
+        return codeDeref('({0} ?: {1})', left, right);
+    }
+
+    /**
+        Generates `$left xor $right`
+    **/
+    static inline function xor( left:Bool, right:Bool ) : Bool {
+        return code('({0} xor {1})', left, right);
+    }
 
     /**
         Generates `(int)$value`
     **/
-    static function int( value:Dynamic ) : Int;
+    static inline function int( value:Dynamic ) : Int {
+        return code('(int)({0})', value);
+    }
 
     /**
         Generates `(float)$value`
     **/
-    static function float( value:Dynamic ) : Float;
+    static inline function float( value:Dynamic ) : Float {
+        return code('(float)({0})', value);
+    }
 
     /**
         Generates `(string)$value`
     **/
-    static function string( value:Dynamic ) : String;
+    static inline function string( value:Dynamic ) : String {
+        return code('(string)({0})', value);
+    }
 
     /**
         Generates `(bool)$value`
     **/
-    static function bool( value:Dynamic ) : Bool;
+    static inline function bool( value:Dynamic ) : Bool {
+        return code('(bool)({0})', value);
+    }
 
     /**
         Generates `(object)$value`
     **/
-    static function object( value:Dynamic ) : Dynamic;
+    static inline function object( value:Dynamic ) : StdClass {
+        return codeDeref('(object)({0})', value);
+    }
 
     /**
         Generates `(array)$value`
     **/
-    static function array( value:Dynamic ) : NativeArray;
+    static inline function array( value:Dynamic ) : NativeArray {
+        return codeDeref('(array)({0})', value);
+    }
 
     /**
-        Ggenerates `$value instanceof $phpClassName`.
-        Haxe generates `Std.is(value, Type)` calls to `$value instanceof Type` automatically where possible.
-        `type` only accepts direct class names. That means `Type.resolveClass('MyClass')` is not allowed, but `MyClass` is.
+        Generates `$value instanceof $phpClassName`.
+        Haxe generates `Std.is(value, Type)` calls as `$value instanceof Type` automatically where possible.
+        So you may need this only if you have a `Class` stored in a variable.
     **/
     static function instanceof<V,C>( value:AsVar<V>,  type:AsVar<Class<C>> ) : Bool;
 
@@ -111,6 +223,21 @@ extern class Syntax {
     static function arrayDecl<T>( args:Rest<T> ) : NativeIndexedArray<T>;
 
     /**
+        ```
+        Syntax.assocDecl({field1:'first', field2:2}});
+        ```
+        Generates native associative array declaration:
+        ```
+        ["field1" => "first", "field2" => 2];
+        ```
+        This method is not recursive.
+        Accepts object declarations only.
+        That means you can't pass an object stored in a variable to this method like `Syntax.assocDecl(someVar)`.
+        Use `php.Lib.associativeArrayOfObject(someVar)` instead.
+    **/
+    static function assocDecl<T:{}>( ?arg:T ) : NativeAssocArray<Dynamic>;
+
+    /**
         Don't let compiler to optimize away local var passed to this method.
     **/
     static function keepVar( localVar:Dynamic ) : Void;
@@ -118,7 +245,9 @@ extern class Syntax {
     /**
         Adds `...` operator before `args`
     **/
-    static function splat( args:EitherType<NativeArray, Traversable> ) : Rest<Dynamic>;
+    static inline function splat( args:EitherType<NativeArray, Traversable> ) : Rest<Dynamic> {
+        return code('...{0}', args);
+    }
 
     /**
         Add errors suppression operator `@` before `expression`

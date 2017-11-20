@@ -35,7 +35,8 @@ extern class Context {
 
 		Sample plugin:
 
-		```open EvalValue
+		```
+open EvalValue
 open EvalContext
 open EvalEncode
 

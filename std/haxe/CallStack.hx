@@ -27,7 +27,7 @@ package haxe;
 enum StackItem {
 	CFunction;
 	Module( m : String );
-	FilePos( s : Null<StackItem>, file : String, line : Int );
+	FilePos( s : Null<StackItem>, file : String, line : Int, ?column : Null<Int> );
 	Method( classname : String, method : String );
 	LocalFunction( ?v : Int );
 }
@@ -57,7 +57,7 @@ class CallStack {
 						method = Method(className, methodName);
 					}
 				}
-				stack.push(FilePos(method, site.getFileName(), site.getLineNumber()));
+				stack.push(FilePos(method, site.getFileName(), site.getLineNumber(), site.getColumnNumber()));
 			}
 			return stack;
 		}
@@ -95,7 +95,7 @@ class CallStack {
 			try {
 				throw new js.Error();
 			} catch( e : Dynamic ) {
-				var a = getStack(e);
+				var a = getStack(js.Lib.getOriginalException());
 				a.shift(); // remove Stack.callStack()
 				return a;
 			}
@@ -219,7 +219,7 @@ class CallStack {
 			}
 			return stack;
 		#elseif js
-			return untyped __define_feature__("haxe.CallStack.exceptionStack", getStack(lastException));
+			return getStack(lastException);
 		#elseif eval
 			return getExceptionStack();
 		#else
@@ -246,7 +246,7 @@ class CallStack {
 		case Module(m):
 			b.add("module ");
 			b.add(m);
-		case FilePos(s,file,line):
+		case FilePos(s,file,line,col):
 			if( s != null ) {
 				itemToString(b,s);
 				b.add(" (");
@@ -254,6 +254,10 @@ class CallStack {
 			b.add(file);
 			b.add(" line ");
 			b.add(line);
+			if(col != null) {
+				b.add(" column ");
+				b.add(col);
+			}
 			if( s != null ) b.add(")");
 		case Method(cname,meth):
 			b.add(cname);
@@ -266,7 +270,7 @@ class CallStack {
 	}
 
 	#if cpp @:noDebug #end /* Do not mess up the exception stack */
-	private static function makeStack(s #if cs : cs.system.diagnostics.StackTrace #elseif hl : hl.NativeArray<hl.Bytes> #end) {
+	private static function makeStack(s #if cs : cs.system.diagnostics.StackTrace #elseif hl : hl.NativeArray<hl.Bytes> #else : Dynamic #end) {
 		#if neko
 			var a = new Array();
 			var l = untyped __dollar__asize(s);
@@ -318,7 +322,7 @@ class CallStack {
 		#elseif js
 			if (s == null) {
 				return [];
-			} else if (js.Lib.typeof(s) == "string") {
+			} else if (js.Syntax.typeof(s) == "string") {
 				// Return the raw lines in browsers that don't support prepareStackTrace
 				var stack : Array<String> = s.split("\n");
 				if( stack[0] == "Error" ) stack.shift();
@@ -330,7 +334,8 @@ class CallStack {
 						var meth = path.pop();
 						var file = rie10.matched(2);
 						var line = Std.parseInt(rie10.matched(3));
-						m.push(FilePos( meth == "Anonymous function" ? LocalFunction() : meth == "Global code" ? null : Method(path.join("."),meth), file, line ));
+						var column = Std.parseInt(rie10.matched(4));
+						m.push(FilePos( meth == "Anonymous function" ? LocalFunction() : meth == "Global code" ? null : Method(path.join("."),meth), file, line, column ));
 					} else
 						m.push(Module(StringTools.trim(line))); // A little weird, but better than nothing
 				}

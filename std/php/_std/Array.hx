@@ -42,12 +42,18 @@ class Array<T> implements ArrayAccess<Int,T> {
 		return wrap(arr);
 	}
 
-	public function filter(f:T->Bool):Array<T> {
-		return wrap(Global.array_values(Global.array_filter(arr, f)));
+	public inline function filter(f:T->Bool):Array<T> {
+		var result = Syntax.arrayDecl();
+		for(i in 0...length) {
+			if(f(arr[i])) {
+				result.push(arr[i]);
+			}
+		}
+		return wrap(result);
 	}
 
 	public function indexOf(x:T, ?fromIndex:Int):Int {
-		if (fromIndex == null) {
+		if (fromIndex == null && !Boot.isHxClosure(x) && !Boot.isNumber(x)) {
 			var index = Global.array_search(x, arr, true);
 			if (index == false) {
 				return -1;
@@ -55,8 +61,12 @@ class Array<T> implements ArrayAccess<Int,T> {
 				return index;
 			}
 		}
-		if (fromIndex < 0) fromIndex += length;
-		if (fromIndex < 0) fromIndex = 0;
+		if (fromIndex == null) {
+			fromIndex = 0;
+		} else {
+			if (fromIndex < 0) fromIndex += length;
+			if (fromIndex < 0) fromIndex = 0;
+		}
 		while (fromIndex < length) {
 			if (arr[fromIndex] == x)
 				return fromIndex;
@@ -93,7 +103,7 @@ class Array<T> implements ArrayAccess<Int,T> {
 	public inline function map<S>(f:T->S):Array<S> {
 		var result = Syntax.arrayDecl();
 		for(i in 0...length) {
-			result[i] = f(arr[i]);
+			result.push(f(arr[i]));
 		}
 		return wrap(result);
 	}

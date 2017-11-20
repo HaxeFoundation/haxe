@@ -26,7 +26,7 @@ private class Stdin extends haxe.io.Output {
 	var p : Dynamic;
 	var buf : haxe.io.Bytes;
 
-	public function new(p) {
+	public function new(p:Dynamic) {
 		this.p = p;
 		buf = haxe.io.Bytes.alloc(1);
 	}
@@ -60,7 +60,7 @@ private class Stdout extends haxe.io.Input {
 	var out : Bool;
 	var buf : haxe.io.Bytes;
 
-	public function new(p,out) {
+	public function new(p:Dynamic,out) {
 		this.p = p;
 		this.out = out;
 		buf = haxe.io.Bytes.alloc(1);
@@ -94,7 +94,7 @@ private class Stdout extends haxe.io.Input {
 
 	public function new( cmd : String, ?args : Array<String>, ?detached : Bool ) : Void {
 		if( detached ) throw "Detached process is not supported on this platform";
-		p = try 
+		p = try
 			_run(untyped cmd.__s, neko.Lib.haxeToNeko(args))
 		catch( e : Dynamic )
 			throw "Process creation failure : "+cmd;

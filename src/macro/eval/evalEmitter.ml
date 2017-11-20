@@ -544,6 +544,8 @@ let emit_method_call exec name execs p =
 	let vf vthis = match vthis with
 		| VInstance {iproto = proto} | VPrototype proto -> proto_field_raise proto name
 		| VString _ -> proto_field_raise (get_ctx()).string_prototype name
+		| VArray _ -> proto_field_raise (get_ctx()).array_prototype name
+		| VVector _ -> proto_field_raise (get_ctx()).vector_prototype name
 		| _ -> unexpected_value_p vthis "instance" p
 	in
 	match execs with

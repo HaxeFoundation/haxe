@@ -25,6 +25,8 @@ import sys.io.FileOutput;
 import sys.io.FileInput;
 
 @:coreApi class Sys {
+	/** Environment variables set by `Sys.putEnv()` */
+	static var customEnvVars = new NativeAssocArray<String>();
 
 	public static inline function print( v : Dynamic ) : Void {
 		Global.echo(Std.string(v));
@@ -48,7 +50,8 @@ import sys.io.FileInput;
 		return value == false ? null : value;
 	}
 
-	public static inline function putEnv( s : String, v : String ) : Void {
+	public static function putEnv( s : String, v : String ) : Void {
+		customEnvVars[s] = '$v'; //in case of `null` it should become `"null"`
 		Global.putenv('$s=$v');
 	}
 
@@ -117,7 +120,11 @@ import sys.io.FileInput;
 	}
 
 	public static function environment() : Map<String,String> {
-		return php.Lib.hashOfAssociativeArray(SuperGlobal._SERVER);
+		var env = SuperGlobal._SERVER;
+		Syntax.foreach(customEnvVars, function(name:String, value:String) {
+			env[name] = value;
+		});
+		return php.Lib.hashOfAssociativeArray(env);
 	}
 
 	public static function stdin() : haxe.io.Input {
