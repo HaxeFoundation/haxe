@@ -331,12 +331,13 @@ let make_macro_api ctx p =
 				add_dependency mnew ctx.m.curmod;
 			end
 		);
-		MacroApi.module_dependency = (fun mpath file ismacro ->
+		MacroApi.module_dependency = (fun mpath file ->
 			let m = typing_timer ctx false (fun() -> Typeload.load_module ctx (parse_path mpath) p) in
-			if ismacro then
-				m.m_extra.m_macro_calls <- file :: List.filter ((<>) file) m.m_extra.m_macro_calls
-			else
-				add_dependency m (create_fake_module ctx file);
+			add_dependency m (create_fake_module ctx file);
+		);
+		MacroApi.module_reuse_call = (fun mpath call ->
+			let m = typing_timer ctx false (fun() -> Typeload.load_module ctx (parse_path mpath) p) in
+			m.m_extra.m_reuse_macro_calls <- call :: List.filter ((<>) call) m.m_extra.m_reuse_macro_calls
 		);
 		MacroApi.current_module = (fun() ->
 			ctx.m.curmod

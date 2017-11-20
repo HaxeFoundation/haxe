@@ -64,6 +64,7 @@ class TestMain {
 			new TestGeneric(),
 			new TestArrowFunctions(),
 			new TestFromNothing(),
+			new TestCasts(),
 			#if !no_pattern_matching
 			new TestMatch(),
 			#end

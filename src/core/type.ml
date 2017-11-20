@@ -322,7 +322,7 @@ and module_def_extra = {
 	mutable m_processed : int;
 	mutable m_kind : module_kind;
 	mutable m_binded_res : (string, string) PMap.t;
-	mutable m_macro_calls : string list;
+	mutable m_reuse_macro_calls : string list;
 	mutable m_if_feature : (string *(tclass * tclass_field * bool)) list;
 	mutable m_features : (string,bool) Hashtbl.t;
 }
@@ -427,7 +427,7 @@ let module_extra file sign time kind policy =
 		m_deps = PMap.empty;
 		m_kind = kind;
 		m_binded_res = PMap.empty;
-		m_macro_calls = [];
+		m_reuse_macro_calls = [];
 		m_if_feature = [];
 		m_features = Hashtbl.create 0;
 		m_check_policy = policy;
@@ -1488,7 +1488,7 @@ module Printer = struct
 			"m_processed",string_of_int me.m_processed;
 			"m_kind",s_module_kind me.m_kind;
 			"m_binded_res",""; (* TODO *)
-			"m_macro_calls",String.concat ", " me.m_macro_calls;
+			"m_reuse_macro_calls",String.concat ", " me.m_reuse_macro_calls;
 			"m_if_feature",""; (* TODO *)
 			"m_features",""; (* TODO *)
 		]

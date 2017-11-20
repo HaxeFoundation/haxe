@@ -40,7 +40,9 @@ install:
     - 7z x "opam.tar.xz" -so | 7z x -aoa -si -ttar
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && bash opam${ARCH}/install.sh"'
     - '%CYG_ROOT%/bin/bash -lc "opam init mingw \"https://github.com/fdopen/opam-repository-mingw.git\" --comp 4.02.3+mingw${ARCH}c --switch 4.02.3+mingw${ARCH}c --auto-setup --yes"'
-    - '%CYG_ROOT%/bin/bash -lc "opam install camlp4 sedlex ocamlfind xml-light extlib rope ptmap --yes"'
+    - '%CYG_ROOT%/bin/bash -lc "opam update --yes"'
+    - '%CYG_ROOT%/bin/bash -lc "opam pin add haxe \"$APPVEYOR_BUILD_FOLDER\" --no-action --yes"'
+    - '%CYG_ROOT%/bin/bash -lc "opam install haxe --deps-only --yes"'
     # Install neko
     - choco install neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
     # Install php
