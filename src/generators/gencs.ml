@@ -3186,8 +3186,7 @@ let generate con =
 
 		RenameTypeParameters.run gen.gtypes_list;
 
-		let parts = Str.split_delim (Str.regexp "[\\/]+") gen.gcon.file in
-		mkdir_recursive "" parts;
+		mkdir_from_path gen.gcon.file;
 
 		List.iter (fun md_def ->
 			let source_dir = gen.gcon.file ^ "/src/" ^ (String.concat "/" (fst (path_of_md_def md_def))) in

@@ -509,6 +509,10 @@ class Boot {
 		}
 		return Syntax.getField(value, field);
 	}
+
+	public static function dynamicString( str:String ) : HxDynamicStr {
+		return @:privateAccess HxDynamicStr.wrap(str);
+	}
 }
 
 
@@ -748,7 +752,7 @@ private class HxDynamicStr {
 			case 'lastIndexOf': return HxString.lastIndexOf.bind(str);
 			case 'split':       return HxString.split.bind(str);
 			case 'toString':    return HxString.toString.bind(str);
-			case 'substring':   return HxString.substring.bind(str);
+			case 'substring':   return HxString.substring.bind(str, _, _);
 			case 'substr':      return HxString.substr.bind(str);
 			case 'charCodeAt':  return HxString.charCodeAt.bind(str);
 		}

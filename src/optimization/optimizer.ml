@@ -344,9 +344,6 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		if l.i_abstract_this then l.i_subst.v_extra <- Some ([],Some e);
 		l, e
 	) (ethis :: loop params f.tf_args true) ((vthis,None) :: f.tf_args) in
-	List.iter (fun (l,e) ->
-		if might_be_affected e then l.i_force_temp <- true;
-	) inlined_vars;
 	let inlined_vars = List.rev inlined_vars in
 	(*
 		here, we try to eliminate final returns from the expression tree.
@@ -466,10 +463,12 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			let e1 = map term e1 in
 			mk (TParenthesis e1) e1.etype e.epos
 		| TUnop ((Increment|Decrement) as op,flag,({ eexpr = TLocal v } as e1)) ->
+			had_side_effect := true;
 			let l = read_local v in
 			l.i_write <- true;
 			{e with eexpr = TUnop(op,flag,{e1 with eexpr = TLocal l.i_subst})}
 		| TBinop ((OpAssign | OpAssignOp _) as op,({ eexpr = TLocal v } as e1),e2) ->
+			had_side_effect := true;
 			let l = read_local v in
 			l.i_write <- true;
 			let e2 = map false e2 in
@@ -492,6 +491,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			old();
 			{ e with eexpr = TFunction { tf_args = args; tf_expr = expr; tf_type = f.tf_type } }
 		| TCall({eexpr = TConst TSuper; etype = t},el) ->
+			had_side_effect := true;
 			begin match follow t with
 			| TInst({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,_) ->
 				begin match type_inline_ctor ctx c cf tf ethis el po with
@@ -505,10 +505,16 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		| TMeta(m,e1) ->
 			let e1 = map term e1 in
 			{e with eexpr = TMeta(m,e1)}
+		| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) ->
+			had_side_effect := true;
+			Type.map_expr (map false) e
 		| _ ->
 			Type.map_expr (map false) e
 	in
 	let e = map true f.tf_expr in
+	if !had_side_effect then List.iter (fun (l,e) ->
+		if might_be_affected e then l.i_force_temp <- true;
+	) inlined_vars;
 	(*
 		if variables are not written and used with a const value, let's substitute
 		with the actual value, either create a temp var

@@ -79,6 +79,12 @@ class ObjectMap<A,B> implements haxe.Constraints.IMap<A,B> {
 			next : function() return h[itr.next()]
 		};
 	}
+	
+	public function copy() : ObjectMap<A,B> {
+		var copied = new ObjectMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	public function toString() : String {
 		var s = new StringBuf();

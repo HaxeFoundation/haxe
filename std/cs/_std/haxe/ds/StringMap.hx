@@ -388,6 +388,12 @@ import cs.NativeArray;
 		return new StringMapValueIterator(this);
 	}
 
+	public function copy() : StringMap<T> {
+		var copied = new StringMap<T>();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
+
 	/**
 		Returns an displayable representation of the hashtable content.
 	**/

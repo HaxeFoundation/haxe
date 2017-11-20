@@ -28,25 +28,25 @@ open ExtList
 type pos = Globals.pos
 
 type ctx = {
-	com : Common.context;
-	buf : Buffer.t;
-	packages : (string list,unit) Hashtbl.t;
-	mutable current : tclass;
-	mutable statics : (tclass * string * texpr) list;
-	mutable inits : texpr list;
-	mutable tabs : string;
-	mutable in_value : tvar option;
-	mutable in_loop : bool;
-	mutable iife_assign : bool;
-	mutable handle_break : bool;
-	mutable break_depth : int;
-	mutable handle_continue : bool;
-	mutable id_counter : int;
-	mutable type_accessor : module_type -> string;
-	mutable separator : bool;
-	mutable found_expose : bool;
-	mutable lua_jit : bool;
-	mutable lua_ver : float;
+        com : Common.context;
+        buf : Buffer.t;
+        packages : (string list,unit) Hashtbl.t;
+        mutable current : tclass;
+        mutable statics : (tclass * string * texpr) list;
+        mutable inits : texpr list;
+        mutable tabs : string;
+        mutable in_value : tvar option;
+        mutable in_loop : bool;
+        mutable in_loop_try : bool;
+        mutable iife_assign : bool;
+        mutable break_depth : int;
+        mutable handle_continue : bool;
+        mutable id_counter : int;
+        mutable type_accessor : module_type -> string;
+        mutable separator : bool;
+        mutable found_expose : bool;
+        mutable lua_jit : bool;
+        mutable lua_ver : float;
 }
 
 type object_store = {
@@ -61,6 +61,14 @@ let debug_expression expression  =
 let debug_type t  =
     " --[[ " ^ Type.s_type_kind t  ^ " --]] ";;
 
+let flat_path (p,s) =
+	(* Replace _ with __ in paths to prevent name collisions. *)
+	let escape str = String.concat "_" (ExtString.String.nsplit str "_") in
+
+	match p with
+	| [] -> escape s
+	| _ -> "__" ^ String.concat "_" (List.map escape p) ^ "_" ^ (escape s)
+
 let get_exposed ctx path meta = try
 		let (_, args, pos) = Meta.get Meta.Expose meta in
 		(match args with
@@ -71,7 +79,7 @@ let get_exposed ctx path meta = try
 
 let dot_path = Globals.s_type_path
 
-let s_path ctx = dot_path
+let s_path ctx = flat_path
 
 (* Lua requires decimal encoding for characters, rather than the hex *)
 (* provided by Ast.s_escape *)
@@ -189,43 +197,6 @@ let open_block ctx =
 	let oldt = ctx.tabs in
 	ctx.tabs <- "  " ^ ctx.tabs;
 	(fun() -> ctx.tabs <- oldt)
-
-let rec iter_switch_break in_switch e =
-	match e.eexpr with
-	| TFunction _ | TWhile _ | TFor _ -> ()
-	| TSwitch _ when not in_switch -> iter_switch_break true e
-	| TBreak when in_switch -> raise Exit
-	| _ -> iter (iter_switch_break in_switch) e
-
-let handle_break ctx e =
-    (* TODO: This got messy. Find a way to unify the implementation with a try/catch helper at least *)
-	let old = ctx.in_loop, ctx.handle_break in
-	ctx.in_loop <- true;
-	try
-		iter_switch_break false e;
-		ctx.handle_break <- false;
-		(fun() ->
-			ctx.in_loop <- fst old;
-			ctx.handle_break <- snd old;
-		)
-	with
-		Exit ->
-			println ctx "local _hx_expected_result = {}";
-			println ctx "local _hx_status, _hx_result = pcall(function() ";
-			let b = open_block ctx in
-			newline ctx;
-			ctx.handle_break <- true;
-			(fun() ->
-				b();
-				ctx.in_loop <- fst old;
-				ctx.handle_break <- snd old;
-				newline ctx;
-				println ctx "end";
-				println ctx " return _hx_expected_result end)";
-				spr ctx " if not _hx_status then ";
-				newline ctx;
-				println ctx " elseif _hx_result ~= _hx_expected_result then return _hx_result";
-			)
 
 let this ctx = match ctx.in_value with None -> "self" | Some _ -> "self"
 
@@ -361,12 +332,8 @@ let rec gen_call ctx e el in_value =
 			spr ctx ")";
 		);
 	| TCall (x,_) , el when (match x.eexpr with TLocal { v_name = "__lua__" } -> false | _ -> true) ->
-		spr ctx "(";
-		gen_value ctx e;
-		spr ctx ")";
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")";
+                gen_paren ctx [e];
+                gen_paren ctx el;
 	| TLocal { v_name = "__new__" }, { eexpr = TConst (TString cl) } :: params ->
 		print ctx "%s.new(" cl;
 		concat ctx "," (gen_value ctx) params;
@@ -378,14 +345,10 @@ let rec gen_call ctx e el in_value =
 		spr ctx ")";
 	| TLocal { v_name = "__callself__" }, { eexpr = TConst (TString head) } :: { eexpr = TConst (TString tail) } :: el ->
 		print ctx "%s:%s" head tail;
-		spr ctx "(";
-		concat ctx ", " (gen_value ctx) el;
-		spr ctx ")";
+                gen_paren ctx el;
 	| TLocal { v_name = "__call__" }, { eexpr = TConst (TString code) } :: el ->
 		spr ctx code;
-		spr ctx "(";
-		concat ctx ", " (gen_value ctx) el;
-		spr ctx ")";
+                gen_paren ctx el;
 	| TLocal { v_name = "__lua_length__" }, [e]->
 		spr ctx "#"; gen_value ctx e;
 	| TLocal { v_name = "__lua_table__" }, el ->
@@ -414,9 +377,8 @@ let rec gen_call ctx e el in_value =
 	| TLocal { v_name = "__lua__" }, { eexpr = TConst (TString code); epos = p } :: tl ->
 		Codegen.interpolate_code ctx.com code tl (spr ctx) (gen_expr ctx) p
 	| TLocal { v_name = "__type__" },  [o] ->
-		spr ctx "type(";
-		gen_value ctx o;
-		spr ctx ")";
+		spr ctx "type";
+                gen_paren ctx [o];
 	| TLocal ({v_name = "__define_feature__"}), [_;e] ->
 		gen_expr ctx e
 	| TLocal { v_name = "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse ->
@@ -455,9 +417,8 @@ let rec gen_call ctx e el in_value =
 			spr ctx ")";
 		end
 	| TField ( { eexpr = TConst(TInt _ | TFloat _| TString _| TBool _) } as e , ((FInstance _ | FAnon _) as ef)), el ->
-		spr ctx ("(");
-		gen_value ctx e;
-		print ctx ("):%s(") (field_name ef);
+                gen_paren ctx [e];
+		print ctx (":%s(") (field_name ef);
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
 	| TField (_, FStatic( { cl_path = ([],"Std") }, { cf_name = "string" })),[{eexpr = TCall({eexpr=TField (_, FStatic( { cl_path = ([],"Std") }, { cf_name = "string" }))}, _)} as el] ->
@@ -475,16 +436,68 @@ let rec gen_call ctx e el in_value =
 		    spr ctx ")";
 		end else begin
 		    gen_value ctx e;
-		    print ctx ":%s(" (field_name ef);
-		    concat ctx "," (gen_value ctx) el;
-		    spr ctx ")"
+		    print ctx ":%s" (field_name ef);
+                    gen_paren ctx el;
 		end;
 	| _ ->
 		gen_value ctx e;
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")");
+                gen_paren ctx el);
 	ctx.iife_assign <- false;
+
+and has_continue e =
+    let rec loop e = match e.eexpr with
+	| TContinue -> raise Exit
+	| TWhile(e1,_,_) | TFor(_,e1,_) -> loop e1 (* in theory there could be a continue there. Note that we don't want to recurse into the loop body because we do not care about inner continue expressions *)
+	| _ -> Type.iter loop e
+    in
+    try
+	loop e;
+	false;
+    with Exit ->
+	true
+
+and gen_paren ctx el =
+    spr ctx "(";
+    concat ctx ", " (gen_value ctx) el;
+    spr ctx ")";
+
+and gen_cond ctx cond =
+    ctx.iife_assign <- true;
+    gen_value ctx cond;
+    ctx.iife_assign <- false
+
+and gen_loop ctx label cond e =
+    let old_in_loop = ctx.in_loop in
+    ctx.in_loop <- true;
+    let old_handle_continue = ctx.handle_continue in
+    let will_continue = has_continue e in
+    ctx.handle_continue <- has_continue e;
+    ctx.break_depth <- ctx.break_depth + 1;
+    if will_continue then begin
+        println ctx "local _hx_continue_%i = false;" ctx.break_depth;
+    end;
+    print ctx "%s " label;
+    gen_cond ctx cond;
+    print ctx " do ";
+    if will_continue then print ctx "repeat ";
+    gen_block_element ctx e;
+    newline ctx;
+    if will_continue then begin
+        if will_continue then begin
+            println ctx "until true";
+        end;
+        println ctx "if _hx_continue_%i then " ctx.break_depth;
+        println ctx "_hx_continue_%i = false;" ctx.break_depth;
+        if ctx.in_loop_try then
+            println ctx "_G.error(\"_hx_pcall_break\");"
+        else
+            println ctx "break;";
+        println ctx "end;";
+    end;
+    print ctx "end";
+    ctx.in_loop <- old_in_loop;
+    ctx.break_depth <- ctx.break_depth-1;
+    ctx.handle_continue <- old_handle_continue;
 
 and gen_expr ?(local=true) ctx e = begin
 	match e.eexpr with
@@ -531,9 +544,8 @@ and gen_expr ?(local=true) ctx e = begin
 	| TField (x, (FInstance(_,_,f) | FStatic(_,f) | FAnon(f))) when Meta.has Meta.SelfCall f.cf_meta ->
 		gen_value ctx x;
 	| TField ({ eexpr = TConst(TInt _ | TFloat _| TString _| TBool _) } as e , ((FInstance _ | FAnon _) as ef)) ->
-		spr ctx ("(");
-		gen_value ctx e;
-		print ctx (").%s") (field_name ef);
+                gen_paren ctx [e];
+		print ctx (".%s") (field_name ef);
 	| TField ({ eexpr = TConst (TInt _ | TFloat _) } as x,f) ->
 		gen_expr ctx { e with eexpr = TField(mk (TParenthesis x) x.etype x.epos,f) }
 	| TField ({ eexpr = TObjectDecl fields }, ef ) ->
@@ -557,23 +569,24 @@ and gen_expr ?(local=true) ctx e = begin
 	| TTypeExpr t ->
 		spr ctx (ctx.type_accessor t)
 	| TParenthesis e ->
-		spr ctx "(";
-		gen_value ctx e;
-		spr ctx ")";
+                gen_paren ctx [e];
 	| TMeta (_,e) ->
 		gen_expr ctx e
 	| TReturn eo -> gen_return ctx e eo;
 	| TBreak ->
 		if not ctx.in_loop then unsupported e.epos;
-		if ctx.handle_break then
-		    spr ctx "_G.error(\"_hx__break__\")"
-		else if ctx.handle_continue then
-		    print ctx "_hx_break_%i = true; break" ctx.break_depth
+		if ctx.handle_continue then
+                    print ctx "_hx_continue_%i = true;" ctx.break_depth;
+		if ctx.in_loop_try then
+		    print ctx "_G.error(\"_hx_pcall_break\", 0)"
 		else
-		    spr ctx "break" (*todo*)
+		    spr ctx "break"
 	| TContinue ->
 		if not ctx.in_loop then unsupported e.epos;
-		spr ctx "break";
+		if ctx.in_loop_try then
+		    print ctx "_G.error(\"_hx_pcall_break\", 0)"
+		else
+		    spr ctx "break" (*todo*)
 	| TBlock el ->
 		let bend = open_block ctx in
 		List.iter (gen_block_element ctx) el;
@@ -671,9 +684,7 @@ and gen_expr ?(local=true) ctx e = begin
 			| _ ->
 				print ctx "%s.new" (ctx.type_accessor (TClassDecl c)));
 		| _ -> print ctx "%s.new" (ctx.type_accessor (TClassDecl c)));
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")"
+                gen_paren ctx el;
 	| TIf (cond,e,eelse) ->
 		ctx.iife_assign <- true;
 		spr ctx "if ";
@@ -770,68 +781,11 @@ and gen_expr ?(local=true) ctx e = begin
 		gen_value ctx e;
 		spr ctx (Ast.s_unop op)
 	| TWhile (cond,e,Ast.NormalWhile) ->
-		let handle_break = handle_break ctx e in
-		let has_continue = has_continue e in
-		let old_ctx_continue = ctx.handle_continue in
-		ctx.handle_continue <- has_continue;
-		if has_continue then
-		  println ctx "local _hx_break_%i = false;" ctx.break_depth;
-		spr ctx "while ";
-		gen_cond ctx cond;
-		let b = open_block ctx in
-		print ctx " do ";
-		if has_continue then begin
-		    newline ctx;
-		    (open_block ctx)();
-		    spr ctx "repeat "
-		end;
-		ctx.break_depth <- ctx.break_depth + 1;
-		gen_block_element ctx e;
-		newline ctx;
-		if has_continue then begin
-		    b();
-		    newline ctx;
-		    println ctx "until true";
-		    println ctx "if _hx_break_%i then _hx_break_%i = false; break; end" ctx.break_depth ctx.break_depth;
-		end;
-		b();
-		handle_break();
-		spr ctx "end";
-		ctx.break_depth <- ctx.break_depth-1;
-		ctx.handle_continue <- old_ctx_continue;
+                gen_loop ctx "while" cond e
 	| TWhile (cond,e,Ast.DoWhile) ->
-		let handle_break = handle_break ctx e in
-		let has_continue = has_continue e in
-		let old_ctx_continue = ctx.handle_continue in
-		ctx.handle_continue <- has_continue;
 		println ctx "while true do ";
 		gen_block_element ctx e;
-		newline ctx;
-		if has_continue then
-		  println ctx "local _hx_break_%i = false;" ctx.break_depth;
-		spr ctx " while ";
-		gen_cond ctx cond;
-		let b = open_block ctx in
-		println ctx " do ";
-		let b2 = open_block ctx in
-		if has_continue then begin
-		    newline ctx;
-		    (open_block ctx)();
-		    spr ctx "repeat "
-		end;
-		ctx.break_depth <- ctx.break_depth + 1;
-		gen_block_element ctx e;
-		handle_break();
-		if has_continue then begin
-		    b2();
-		    newline ctx;
-		    println ctx "until true";
-		    println ctx "if _hx_break_%i then _hx_break_%i = false; break; end" ctx.break_depth ctx.break_depth;
-		end;
-		b();
-		spr ctx "end";
-		ctx.break_depth <- ctx.break_depth-1;
-		ctx.handle_continue <- old_ctx_continue;
+                gen_loop ctx "while" cond e
 	| TObjectDecl [] ->
 		spr ctx "_hx_e()";
 		ctx.separator <- true
@@ -842,37 +796,28 @@ and gen_expr ?(local=true) ctx e = begin
 		concat ctx "," (fun (f,e) -> print ctx "%s=" (anon_field f); gen_anon_value ctx e) fields;
 		spr ctx "})";
 		ctx.separator <- true
-	| TFor (v,it,e) ->
-		let handle_break = handle_break ctx e in
-		let it = ident (match it.eexpr with
-			| TLocal v -> v.v_name
-			| _ ->
-				let name = temp ctx in
-				print ctx "local %s = " name;
-				gen_value ctx it;
-				newline ctx;
-				name
-		) in
-		print ctx "while( %s:hasNext() ) do" it;
-		let bend = open_block ctx in
-		newline ctx;
-		print ctx "local %s = %s:next();" (ident v.v_name) it;
-		gen_block_element ctx e;
-		bend();
-		newline ctx;
-		spr ctx "end";
-		handle_break();
-		newline ctx;
+	| TFor (v,it,e2) ->
+                unsupported e.epos;
 	| TTry (e,catchs) ->
 		(* TODO: add temp variables *)
-		println ctx "local _hx_expected_result = {}";
+                let old_in_loop_try = ctx.in_loop_try in
+                if ctx.in_loop then
+                    ctx.in_loop_try <- true;
 		println ctx "local _hx_status, _hx_result = pcall(function() ";
 		let b = open_block ctx in
 		gen_expr ctx e;
 		let vname = temp ctx in
 		b();
-		println ctx " return _hx_expected_result end)";
-		spr ctx " if not _hx_status then ";
+                println ctx "return _hx_pcall_default";
+                println ctx "end)";
+                ctx.in_loop_try <- old_in_loop_try;
+                println ctx "if not _hx_status and _hx_result == \"_hx_pcall_break\" then";
+                if ctx.in_loop then
+                    if old_in_loop_try then
+                        println ctx "  _G.error(_hx_result,0);"
+                    else
+                        println ctx "  break";
+		println ctx "elseif not _hx_status then ";
 		let bend = open_block ctx in
 		newline ctx;
 		print ctx "local %s = _hx_result" vname;
@@ -928,7 +873,9 @@ and gen_expr ?(local=true) ctx e = begin
 		end;
 		bend();
 		newline ctx;
-		print ctx " elseif _hx_result ~= _hx_expected_result then return _hx_result end";
+                println ctx "elseif _hx_result ~= _hx_pcall_default then";
+                println ctx "  return _hx_result";
+                print ctx "end";
 	| TSwitch (e,cases,def) ->
 		List.iteri (fun cnt (el,e2) ->
 		    if cnt == 0 then spr ctx "if "
@@ -1230,7 +1177,7 @@ and gen_tbinop ctx op e1 e2 =
 		gen_value ctx e1;
 		spr ctx " = ";
 		gen_value ctx e3;
-	    | TField(e3, FInstance _ ), TField(e4, FClosure _ )  ->
+	    | TField(e3, FInstance _ ), TField(e4, (FClosure _| FStatic _) )  ->
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
 		add_feature ctx "use._hx_funcToField";
@@ -1332,9 +1279,7 @@ and gen_paren_tbinop ctx e =
     let ee = extract_expr e in
     match ee.eexpr with
     | TBinop _  ->
-	    spr ctx "(";
-	    gen_value ctx ee;
-	    spr ctx ")";
+            gen_paren ctx [ee];
     | _ ->
 	    gen_value ctx ee
 
@@ -1385,10 +1330,6 @@ and gen_iife_assign ctx f =
     f();
     spr ctx " end)()";
 
-and gen_cond ctx cond =
-    ctx.iife_assign <- true;
-    gen_value ctx cond;
-    ctx.iife_assign <- false;
 
 and has_class ctx c =
     has_feature ctx "lua.Boot.getClass" && (c.cl_super <> None || c.cl_ordered_fields <> [] || c.cl_constructor <> None)
@@ -1402,17 +1343,6 @@ and can_gen_class_field ctx = function
 	| f ->
 		not (is_extern_field f)
 
-and has_continue e =
-    let rec loop e = match e.eexpr with
-	| TContinue -> raise Exit
-	| TWhile(e1,_,_) | TFor(_,e1,_) -> loop e1 (* in theory there could be a continue there. Note that we don't want to recurse into the loop body because we do not care about inner continue expressions *)
-	| _ -> Type.iter loop e
-    in
-    try
-	loop e;
-	false;
-    with Exit ->
-	true
 
 let check_multireturn ctx c =
     match c with
@@ -1581,7 +1511,7 @@ let generate_class ctx c =
 	);
 	newline ctx;
 
-	(match (get_exposed ctx (dot_path c.cl_path) c.cl_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) p; newline ctx) | _ -> ());
+	(match (get_exposed ctx (s_path ctx c.cl_path) c.cl_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) p; newline ctx) | _ -> ());
 
 	if hxClasses then println ctx "_hxClasses[\"%s\"] = %s" (dot_path c.cl_path) p;
 	generate_class___name__ ctx c;
@@ -1729,7 +1659,7 @@ let generate_require ctx path meta =
 	let _, args, mp = Meta.get Meta.LuaRequire meta in
 	let p = (s_path ctx path) in
 
-	generate_package_create ctx path;
+	(* generate_package_create ctx path; *)
 
 	(match args with
 	| [(EConst(String(module_name)),_)] ->
@@ -1794,7 +1724,7 @@ let alloc_ctx com =
 		in_value = None;
 		iife_assign = false;
 		in_loop = false;
-		handle_break = false;
+                in_loop_try = false;
 		break_depth = 0;
 		handle_continue = false;
 		id_counter = 0;
@@ -1812,7 +1742,7 @@ let alloc_ctx com =
 		| TClassDecl ({ cl_extern = true } as c) when not (Meta.has Meta.LuaRequire c.cl_meta)
 			-> dot_path p
 		| TEnumDecl { e_extern = true }
-			-> dot_path p
+			-> s_path ctx p
 		| _ -> s_path ctx p);
 	ctx
 
@@ -1975,8 +1905,10 @@ let generate com =
 
 	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
-	(* Generate some dummy placeholders for utility libs that may be required*)
-	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp, _hx_table, _hx_bit_raw";
+        (* Generate some dummy placeholders for utility libs that may be required*)
+        println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp, _hx_table, _hx_bit_raw";
+        println ctx "local _hx_pcall_default = {};";
+        println ctx "local _hx_pcall_break = {};";
 
 	List.iter (transform_multireturn ctx) com.types;
 	List.iter (generate_type ctx) com.types;
@@ -2000,6 +1932,8 @@ let generate com =
 	    println ctx "  _hx_bit = setmetatable({}, { __index = _hx_bit_raw });";
 	    println ctx "  _hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end;"; (* lua 5.2  weirdness *)
 	    println ctx "  _hx_bit.bxor = function(...) return _hx_bit_clamp(_hx_bit_raw.bxor(...)) end;"; (* lua 5.2  weirdness *)
+	    println ctx "else";
+            println ctx "  _G.error(\"Bitop library is missing.  Please install luabitop\");";
 	    println ctx "end";
 	end;
 
@@ -2125,10 +2059,12 @@ let generate com =
 	| None -> ()
 	| Some e -> gen_expr ctx e; newline ctx);
 
-	println ctx "return _hx_exports";
+        if anyExposed then
+            println ctx "return _hx_exports";
 
 	let ch = open_out_bin com.file in
 	output_string ch (Buffer.contents ctx.buf);
 	close_out ch
+
 
 

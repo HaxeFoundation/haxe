@@ -360,7 +360,10 @@ module Pattern = struct
 						PMap.fold (fun cf acc -> (cf,cf.cf_type) :: acc) an.a_fields []
 					| TInst(c,tl) ->
 						let rec loop fields c tl =
-							let fields = List.fold_left (fun acc cf -> (cf,apply_params c.cl_params tl cf.cf_type) :: acc) fields c.cl_ordered_fields in
+							let fields = List.fold_left (fun acc cf ->
+								if Typer.can_access ctx c cf false then (cf,apply_params c.cl_params tl cf.cf_type) :: acc
+								else acc
+							) fields c.cl_ordered_fields in
 							match c.cl_super with
 								| None -> fields
 								| Some (csup,tlsup) -> loop fields csup (List.map (apply_params c.cl_params tl) tlsup)
@@ -1035,23 +1038,25 @@ module Compile = struct
 		let pat_any = (PatAny,null_pos) in
 		let _,_,ex_subjects,cases,bindings = List.fold_left2 (fun (left,right,subjects,cases,ex_bindings) (case,bindings,patterns) extractor -> match extractor,patterns with
 			| Some(v,e1,pat,vars), _ :: patterns ->
-				let patterns = make_offset_list (left + 1) (right - 1) pat pat_any @ patterns in
 				let rec loop e = match e.eexpr with
 					| TLocal v' when v' == v -> subject
 					| _ -> Type.map_expr loop e
 				in
 				let e1 = loop e1 in
 				let bindings = List.map (fun v -> v,subject.epos,subject) vars @ bindings in
-				let v,ex_bindings = try
-					let v,_,_ = List.find (fun (_,_,e2) -> Texpr.equal e1 e2) ex_bindings in
-					v,ex_bindings
+				begin try
+					let v,_,_,left,right = List.find (fun (_,_,e2,_,_) -> Texpr.equal e1 e2) ex_bindings in
+					let ev = mk (TLocal v) v.v_type e1.epos in
+					let patterns = make_offset_list (left + 1) (right - 1) pat pat_any @ patterns in
+					(left + 1, right - 1,ev :: subjects,((case,bindings,patterns) :: cases),ex_bindings)
 				with Not_found ->
 					let v = alloc_var "_hx_tmp" e1.etype e1.epos in
 					v.v_meta <- (Meta.Custom ":extractorVariable",[],v.v_pos) :: v.v_meta;
-					v,(v,e1.epos,e1) :: ex_bindings
-				in
-				let ev = mk (TLocal v) v.v_type e1.epos in
-				(left + 1, right - 1,ev :: subjects,((case,bindings,patterns) :: cases),ex_bindings)
+					let ex_bindings = (v,e1.epos,e1,left,right) :: ex_bindings in
+					let patterns = make_offset_list (left + 1) (right - 1) pat pat_any @ patterns in
+					let ev = mk (TLocal v) v.v_type e1.epos in
+					(left + 1, right - 1,ev :: subjects,((case,bindings,patterns) :: cases),ex_bindings)
+				end
 			| None,pat :: patterns ->
 				let patterns = make_offset_list 0 num_extractors pat pat_any @ patterns in
 				(left,right,subjects,((case,bindings,patterns) :: cases),ex_bindings)
@@ -1059,6 +1064,7 @@ module Compile = struct
 				assert false
 		) (0,num_extractors,[],[],[]) cases (List.rev extractors) in
 		let dt = compile mctx ((subject :: List.rev ex_subjects) @ subjects) (List.rev cases) in
+		let bindings = List.map (fun (a,b,c,_,_) -> (a,b,c)) bindings in
 		bind mctx bindings dt
 
 	let compile ctx match_debug subjects cases p =

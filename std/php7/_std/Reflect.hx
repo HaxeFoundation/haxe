@@ -42,6 +42,9 @@ using php.Global;
 	}
 
 	public static function field( o : Dynamic, field : String ) : Dynamic {
+		if (o.is_string()) {
+			return Syntax.getField(Boot.dynamicString(o), field);
+		}
 		if (!o.is_object()) return null;
 
 		if (o.property_exists(field)) {
@@ -169,6 +172,4 @@ using php.Global;
 			return Global.call_user_func(f, @:privateAccess Array.wrap(Global.func_get_args()));
 		}
 	}
-
-
 }

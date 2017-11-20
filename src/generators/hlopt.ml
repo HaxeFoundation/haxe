@@ -149,7 +149,7 @@ let opcode_fx frw op =
 		write d
 	| OSetEnumField (a,_,b) ->
 		read a; read b
-	| ONop _ ->
+	| ONop _ | OAssert _ ->
 		()
 
 let opcode_eq a b =
@@ -408,7 +408,7 @@ let opcode_map read write op =
 		OMakeEnum (write d, e, rl)
 	| OSetEnumField (a,f,b) ->
 		OSetEnumField (read a, f, read b)
-	| ONop _ ->
+	| ONop _ | OAssert _ ->
 		op
 
 (* build code graph *)

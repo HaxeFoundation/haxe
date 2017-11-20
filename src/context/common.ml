@@ -474,6 +474,9 @@ module Define = struct
 		| DumpIgnoreVarIds
 		| DynamicInterfaceClosures
 		| EraseGenerics
+		| EvalDebugger
+		| EvalStack
+		| EvalTimes
 		| FastCast
 		| Fdb
 		| FileExtension
@@ -571,6 +574,9 @@ module Define = struct
 		| DumpIgnoreVarIds -> ("dump_ignore_var_ids","Remove variable IDs from non-pretty dumps (helps with diff)")
 		| DynamicInterfaceClosures -> ("dynamic_interface_closures","Use slow path for interface closures to save space")
 		| EraseGenerics -> ("erase_generics","Erase generic classes on C#")
+		| EvalDebugger -> ("eval_debugger","Support debugger in macro/interp mode. Allows host:port value to open a socket. Implies eval_stack.")
+		| EvalStack -> ("eval_stack","Record stack information in macro/interp mode")
+		| EvalTimes -> ("eval_times","Record per-method execution times in macro/interp mode. Implies eval_stack.")
 		| FastCast -> ("fast_cast","Enables an experimental casts cleanup on C# and Java")
 		| Fdb -> ("fdb","Enable full flash debug infos for FDB interactive debugging")
 		| FileExtension -> ("file_extension","Output filename extension for cpp source code")
@@ -1053,7 +1059,14 @@ let rec mkdir_recursive base dir_list =
 				   | "/" -> "/" ^ dir
 				   | _ -> base ^ "/" ^ dir
 		in
-		if not ( (path = "") || ( ((String.length path) = 2) && ((String.sub path 1 1) = ":") ) ) then
+		let path_len = String.length path in
+		let path =
+			if path_len > 0 && path.[path_len - 1] = '/' || path.[path_len - 1] == '\\' then
+				String.sub path 0 (path_len - 1)
+			else
+				path
+		in
+		if not ( (path = "") || ( (path_len = 2) && ((String.sub path 1 1) = ":") ) ) then
 			if not (Sys.file_exists path) then
 				Unix.mkdir path 0o755;
 		mkdir_recursive (if (path = "") then "/" else path) remaining

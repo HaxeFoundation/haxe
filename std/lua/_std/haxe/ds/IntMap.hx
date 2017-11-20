@@ -66,6 +66,12 @@ class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 			next : function() return h[it.next()]
 		};
 	}
+	
+	public function copy() : IntMap<T> {
+		var copied = new IntMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	public function toString() : String {
 		var s = new StringBuf();

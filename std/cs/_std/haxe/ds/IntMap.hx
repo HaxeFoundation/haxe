@@ -362,6 +362,12 @@ import cs.NativeArray;
 	{
 		return new IntMapValueIterator(this);
 	}
+	
+	public function copy() : IntMap<T> {
+		var copied = new IntMap<T>();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	/**
 		Returns an displayable representation of the hashtable content.

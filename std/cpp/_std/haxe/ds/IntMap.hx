@@ -44,6 +44,11 @@ package haxe.ds;
 
   template<typename VALUE>
   inline void set(Dynamic &key, const VALUE &value) { set( (int)key, value ); }
+
+  inline bool get_bool(int key) { return __int_hash_get_bool(h,key); }
+  inline int get_int(int key) { return __int_hash_get_int(h,key); }
+  inline Float get_float(int key) { return __int_hash_get_float(h,key); }
+  inline String get_string(int key) { return __int_hash_get_string(h,key); }
 ")
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 
@@ -77,8 +82,26 @@ package haxe.ds;
 		var a:Array<Dynamic> = untyped __global__.__int_hash_values(h);
 		return a.iterator();
 	}
+	
+	public function copy() : IntMap<T> {
+		var copied = new IntMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	public function toString() : String {
 		return untyped __global__.__int_hash_to_string(h);
 	}
+
+   #if (scriptable)
+   private function setString(key:Int,val:String) : Void { untyped __int_hash_set_string(h,key,val); }
+   private function setInt(key:Int,val:Int) : Void { untyped __int_hash_set_int(h,key,val); }
+   private function setBool(key:Int,val:Bool) : Void { untyped __int_hash_set_int(h,key,val); }
+   private function setFloat(key:Int,val:Float) : Void { untyped __int_hash_set_float(h,key,val); }
+
+   private function getString(key:Int) : String { return untyped __int_hash_get_string(h,key); }
+   private function getInt(key:Int) : Int { return untyped __int_hash_get_int(h,key); }
+   private function getBool(key:Int) : Bool { return untyped __int_hash_get_bool(h,key); }
+   private function getFloat(key:Int) : Float { return untyped __int_hash_get_float(h,key); }
+   #end
 }

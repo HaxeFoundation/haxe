@@ -80,6 +80,13 @@ class WeakMap<K: { },V> implements haxe.Constraints.IMap<K,V> {
 	public function iterator():Iterator<V> {
 		return null;
 	}
+	
+	/**
+		See `Map.copy`
+	**/
+	public function copy() : WeakMap<K,V> {
+		return null;
+	}
 
 	/**
 		See `Map.toString`

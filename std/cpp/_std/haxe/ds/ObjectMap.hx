@@ -43,6 +43,11 @@ package haxe.ds;
   template<typename V>
   inline void set(Dynamic key, const ::cpp::Pointer<V> &value) {__object_hash_set(h,key,(Dynamic)value ); }
 
+  inline bool get_bool(Dynamic key) { return __object_hash_get_bool(h,key); }
+  inline int get_int(Dynamic key) { return __object_hash_get_int(h,key); }
+  inline Float get_float(Dynamic key) { return __object_hash_get_float(h,key); }
+  inline String get_string(Dynamic key) { return __object_hash_get_string(h,key); }
+
 ")
 @:coreApi
 class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K,V> {
@@ -76,8 +81,26 @@ class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K,V> {
 		var a:Array<Dynamic> = untyped __global__.__object_hash_values(h);
 		return a.iterator();
 	}
+	
+	public function copy() : ObjectMap<K,V> {
+		var copied = new ObjectMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
 
 	public function toString() : String {
 		return untyped __global__.__object_hash_to_string(h);
 	}
+
+   #if (scriptable)
+   private function setString(key:Dynamic,val:String) : Void { untyped __object_hash_set_string(h,key,val); }
+   private function setInt(key:Dynamic,val:Int) : Void { untyped __object_hash_set_int(h,key,val); }
+   private function setBool(key:Dynamic,val:Bool) : Void { untyped __object_hash_set_int(h,key,val); }
+   private function setFloat(key:Dynamic,val:Float) : Void { untyped __object_hash_set_float(h,key,val); }
+
+   private function getString(key:Dynamic) : String { return untyped __object_hash_get_string(h,key); }
+   private function getInt(key:Dynamic) : Int { return untyped __object_hash_get_int(h,key); }
+   private function getBool(key:Dynamic) : Bool { return untyped __object_hash_get_bool(h,key); }
+   private function getFloat(key:Dynamic) : Float { return untyped __object_hash_get_float(h,key); }
+   #end
 }

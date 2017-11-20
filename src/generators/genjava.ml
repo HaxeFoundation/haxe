@@ -2384,9 +2384,7 @@ let generate con =
 	let str_cl = match gen.gcon.basic.tstring with | TInst(cl,_) -> cl | _ -> assert false in
 	str_cl.cl_super <- Some (get_cl (get_type gen (["haxe";"lang"], "NativeString")), []);
 
-	let mkdir dir = if not (Sys.file_exists dir) then Unix.mkdir dir 0o755 in
-	mkdir gen.gcon.file;
-	mkdir (gen.gcon.file ^ "/src");
+	mkdir_from_path (gen.gcon.file ^ "/src");
 
 	let out_files = ref [] in
 
