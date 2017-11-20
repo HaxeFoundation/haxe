@@ -132,6 +132,7 @@ class HostClasses
 
    "haxe.i18n.ByteAccess",
    "haxe.i18n.ByteAccessBuffer",
+   "haxe.i18n.BytesDataTools",
    "haxe.i18n.Ucs2",
    "haxe.i18n.Utf8",
    "haxe.i18n.Utf16",
