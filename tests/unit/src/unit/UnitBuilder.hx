@@ -46,8 +46,9 @@ class UnitBuilder {
 						params: [],
 						expr: read(filePath)
 					}
+					var fp = filePath.startsWith(basePath) ? filePath.substr(basePath.length) : filePath;
 					ret.push( {
-						name: "test" + ~/\./g.map(file, function(_) return "_"),
+						name: "test" + ~/[\.\\\/]/g.map(fp, function(_) return "_"),
 						kind: FFun(func),
 						pos: Context.makePosition( { min:0, max:0, file:filePath + file } ),
 						access: [APublic],
@@ -111,7 +112,7 @@ class UnitBuilder {
 				macro eqAbstract($e1 == $e2, $e1, $e2);
 			case _:
 				macro eq($e1, $e2);
-				
+
 		}
 		return {
 			expr: e.expr,
