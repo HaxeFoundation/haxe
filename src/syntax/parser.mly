@@ -882,8 +882,6 @@ and parse_meta = parser
 and meta_name p1 = parser
 	| [< '(Const (Ident i),p) when p.pmin = p1.pmax >] -> (Meta.Custom i), p
 	| [< '(Kwd k,p) when p.pmin = p1.pmax >] -> (Meta.Custom (s_keyword k)),p
-	| [< '(Binop OpSub,p) when p.pmin = p1.pmax; s >] -> (match s with parser
-		| [< >] -> if is_resuming p then Meta.Last,p else raise Stream.Failure)
 	| [< '(DblDot,p) when p.pmin = p1.pmax; s >] -> match s with parser
 		| [< '(Const (Ident i),p1) when p1.pmin = p.pmax >] -> (Meta.parse i),punion p p1
 		| [< '(Kwd k,p1) when p1.pmin = p.pmax >] -> (Meta.parse (s_keyword k)),punion p p1

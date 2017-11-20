@@ -388,7 +388,6 @@ let hmeta =
 
 let parse s = try Hashtbl.find hmeta (":" ^ s) with Not_found -> Custom (":" ^ s)
 
-
 let from_string s =
 	if s = "" then Custom "" else match s.[0] with
 	| ':' -> (try Hashtbl.find hmeta s with Not_found -> Custom s)

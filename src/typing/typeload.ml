@@ -17,7 +17,6 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
-
 open Ast
 open Common
 open Common.DisplayMode
@@ -1972,17 +1971,6 @@ let is_java_native_function meta = try
 let build_module_def ctx mt meta fvars context_init fbuild =
 
 	let loop (f_build,f_enum) meta =
-		let do_build s el p =
-
-			let old = ctx.g.get_build_infos in
-			ctx.g.get_build_infos <- (fun() -> Some (mt, List.map snd (t_infos mt).mt_params, fvars()));
-			context_init();
-			let r = try apply_macro ctx MBuild s el p with e -> ctx.g.get_build_infos <- old; raise e in
-			ctx.g.get_build_infos <- old;
-			(match r with
-			| None -> error "Build failure" p
-			| Some e -> fbuild e)
-		in
 		match meta with
 		| Meta.Build,args,p ->
 			(fun () ->
@@ -1992,7 +1980,14 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 					| _ -> error "Invalid build parameters" p
 				) in
 				let s = try String.concat "." (List.rev (string_list_of_expr_path epath)) with Error (_,p) -> error "Build call parameter must be a class path" p in
-				do_build s el p
+				let old = ctx.g.get_build_infos in
+				ctx.g.get_build_infos <- (fun() -> Some (mt, List.map snd (t_infos mt).mt_params, fvars()));
+				context_init();
+				let r = try apply_macro ctx MBuild s el p with e -> ctx.g.get_build_infos <- old; raise e in
+				ctx.g.get_build_infos <- old;
+				(match r with
+				| None -> error "Build failure" p
+				| Some e -> fbuild e)
 			) :: f_build,f_enum
 		| Meta.Enum,_,p -> f_build,Some (fun () ->
 				begin match mt with
