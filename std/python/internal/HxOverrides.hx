@@ -70,7 +70,7 @@ class HxOverrides {
 	}
 
 	@:ifFeature("dynamic_read.push", "anon_optional_read.push", "anon_read.push")
-	static public function push(x, e) {
+	static public function push(x:Dynamic, e:Dynamic) {
 		if (Boot.isArray(x)) {
 			return (x:Array<Dynamic>).push(e);
 		}
@@ -94,7 +94,7 @@ class HxOverrides {
 	}
 
 	@:ifFeature("dynamic_read.map", "anon_optional_read.map", "anon_read.map")
-	static public function map(x, f) {
+	static public function map(x:Dynamic, f:Dynamic) {
 		if (Boot.isArray(x)) {
 			return (x:Array<Dynamic>).map(f);
 		}
@@ -115,6 +115,24 @@ class HxOverrides {
 			return (x:String).toLowerCase();
 		}
 		return Syntax.callField(x, "toLowerCase");
+	}
+
+	@:ifFeature("dynamic_read.split", "anon_optional_read.split", "anon_read.split")
+	static public function split(x:Dynamic, delimiter:String) {
+		if (Boot.isString(x)) {
+			return (x:String).split(delimiter);
+		}
+		return Syntax.callField(x, "split", delimiter);
+	}
+
+	@:ifFeature("dynamic_read.length", "anon_optional_read.length", "anon_read.length")
+	static public function length(x:Dynamic) {
+		if (Boot.isString(x)) {
+			return (x:String).length;
+		} else if (Boot.isArray(x)) {
+			return (x:Array<Dynamic>).length;
+		}
+		return Syntax.field(x, "length");
 	}
 
 	@:ifFeature("binop_>>>")

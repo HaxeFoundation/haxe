@@ -104,12 +104,12 @@ extern class Date
 	static function now() : Date;
 
 	/**
-		Returns a Date from timestamp `t`.
+		Returns a Date from timestamp (in milliseconds) `t`.
 	**/
 	static function fromTime( t : Float ) : Date;
 
 	/**
-		Returns a Date from a formated string `s`, with the following accepted
+		Returns a Date from a formatted string `s`, with the following accepted
 		formats:
 
 		- `"YYYY-MM-DD hh:mm:ss"`

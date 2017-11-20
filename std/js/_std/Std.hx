@@ -25,16 +25,16 @@ import js.Boot;
 @:coreApi class Std {
 
 	public static inline function is( v : Dynamic, t : Dynamic ) : Bool {
-		return untyped js.Boot.__instanceof(v,t);
+		return @:privateAccess js.Boot.__instanceof(v,t);
 	}
 
 	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
-		return untyped __instanceof__(value, c) ? cast value : null;
+		return js.Syntax.instanceof(value, c) ? cast value : null;
 	}
 
 	@:pure
 	public static function string( s : Dynamic ) : String {
-		return untyped js.Boot.__string_rec(s,"");
+		return @:privateAccess js.Boot.__string_rec(s,"");
 	}
 
 	public static inline function int( x : Float ) : Int {
@@ -69,12 +69,12 @@ import js.Boot;
 			__feature__("js.Boot.getClass",__js__('Date').prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["Date"] = __js__('Date'),__js__('Date')));
 			__feature__("js.Boot.isClass",__js__('Date').__name__ = ["Date"]);
 		});
-		__feature__("Int.*",var Int = {});
-		__feature__("Dynamic.*",var Dynamic = {});
-		__feature__("Float.*",var Float = __js__("Number"));
-		__feature__("Bool.*",var Bool = __js__("Boolean"));
-		__feature__("Class.*",var Class = {});
-		__feature__("Enum.*",var Enum = {});
+		__feature__("Int.*",__js__('var Int = { };'));
+		__feature__("Dynamic.*",__js__('var Dynamic = { };'));
+		__feature__("Float.*",__js__('var Float = Number'));
+		__feature__("Bool.*",__js__('var Bool = Boolean'));
+		__feature__("Class.*",__js__('var Class = { };'));
+		__feature__("Enum.*",__js__('var Enum = { };'));
 
 #if (js_es < 5)
 		__feature__("Array.map",

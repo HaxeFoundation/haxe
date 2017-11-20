@@ -27,7 +27,7 @@ enum GcFlag {
 	**/
 	Profile;
 	/**
-		Allows to dump a hlmemory.dump file when HL runs out of memory to be examined with hl memory inspector tool.
+		Allows one to dump a hlmemory.dump file when HL runs out of memory to be examined with hl memory inspector tool.
 	**/
 	DumpMem;
 	/**

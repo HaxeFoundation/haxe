@@ -21,6 +21,7 @@ open Globals
 open Ast
 open Type
 open Common
+open Texpr.Builder
 open Error
 
 exception Internal_match_failure
@@ -111,10 +112,10 @@ module Constructor = struct
  				mk (TField(e_mt,FEnum(en,ef))) ef.ef_type p
  			end else if match_debug then mk (TConst (TString ef.ef_name)) ctx.t.tstring p
 			else mk (TConst (TInt (Int32.of_int ef.ef_index))) ctx.t.tint p
-		| ConConst ct -> Codegen.ExprBuilder.make_const_texpr ctx.com ct p
-		| ConArray i -> Codegen.ExprBuilder.make_int ctx.com i p
+		| ConConst ct -> make_const_texpr ctx.com.basic ct p
+		| ConArray i -> make_int ctx.com.basic i p
 		| ConTypeExpr mt -> Typer.type_module_type ctx mt None p
-		| ConStatic(c,cf) -> Codegen.ExprBuilder.make_static_field c cf p
+		| ConStatic(c,cf) -> make_static_field c cf p
 		| ConFields _ -> error "Something went wrong" p
 
 	let hash = Hashtbl.hash
@@ -138,6 +139,7 @@ module Pattern = struct
 	type pattern_context = {
 		ctx : typer;
 		or_locals : (string, tvar * pos) PMap.t option;
+		ctx_locals : (string, tvar) PMap.t;
 		mutable current_locals : (string, tvar * pos) PMap.t;
 		mutable in_reification : bool;
 	}
@@ -159,7 +161,7 @@ module Pattern = struct
 			| TAbstract(a,_) -> unify ctx (TAbstract(a,[mk_mono()])) t p
 			| _ -> assert false
 
-	let rec make pctx t e =
+	let rec make pctx toplevel t e =
 		let ctx = pctx.ctx in
 		let p = pos e in
 		let fail () =
@@ -186,12 +188,17 @@ module Pattern = struct
 				ctx.locals <- PMap.add name v ctx.locals;
 				v
 		in
+		let con_enum en ef p =
+			Display.DeprecationCheck.check_enum pctx.ctx.com en p;
+			Display.DeprecationCheck.check_ef pctx.ctx.com ef p;
+			ConEnum(en,ef)
+		in
 		let check_expr e =
 			let rec loop e = match e.eexpr with
 				| TField(_,FEnum(en,ef)) ->
 					(* Let the unification afterwards fail so we don't recover. *)
 					(* (match follow ef.ef_type with TFun _ -> raise Exit | _ -> ()); *)
-					PatConstructor(ConEnum(en,ef),[])
+					PatConstructor(con_enum en ef e.epos,[])
 				| TField(_,FStatic(c,({cf_kind = Var {v_write = AccNever}} as cf))) ->
 					PatConstructor(ConStatic(c,cf),[])
 				| TConst ct ->
@@ -253,6 +260,23 @@ module Pattern = struct
 					if not (is_lower_ident s) && (match s.[0] with '`' | '_' -> false | _ -> true) then begin
 						display_error ctx "Capture variables must be lower-case" p;
 					end;
+					let sl = match follow t with
+						| TEnum(en,_) ->
+							en.e_names
+						| TAbstract({a_impl = Some c} as a,pl) when Meta.has Meta.Enum a.a_meta ->
+							ExtList.List.filter_map (fun cf ->
+								if Meta.has Meta.Impl cf.cf_meta && Meta.has Meta.Enum cf.cf_meta then Some cf.cf_name else None
+							) c.cl_ordered_statics
+						| _ ->
+							[]
+					in
+					begin match StringError.get_similar s sl with
+						| [] ->
+							()
+							(* if toplevel then
+								pctx.ctx.com.warning (Printf.sprintf "`case %s` has been deprecated, use `case var %s` instead" s s) p *)
+						| l -> pctx.ctx.com.warning ("Potential typo detected (expected similar values are " ^ (String.concat ", " l) ^ "). Consider using `var " ^ s ^ "` instead") p
+					end;
 					let v = add_local s p in
 					PatVariable v
 				end
@@ -270,7 +294,7 @@ module Pattern = struct
 				pctx.in_reification <- old;
 				e
 			| EConst((Ident ("false" | "true") | Int _ | String _ | Float _) as ct) ->
-				let e = Codegen.type_constant ctx.com ct p in
+				let e = Texpr.type_constant ctx.com.basic ct p in
 				unify_expected e.etype;
 				let ct = match e.eexpr with TConst ct -> ct | _ -> assert false in
 				PatConstructor(ConConst ct,[])
@@ -290,7 +314,6 @@ module Pattern = struct
 				let v = add_local s p in
 				PatVariable v
 			| ECall(e1,el) ->
-				let t = tfun (List.map (fun _ -> mk_mono()) el) t in
 				let e1 = type_expr ctx e1 (WithType t) in
 				begin match e1.eexpr,follow e1.etype with
 					| TField(_, FEnum(en,ef)),TFun(_,TEnum(_,tl)) ->
@@ -308,7 +331,7 @@ module Pattern = struct
 								(* Allow using final _ to match "multiple" arguments *)
 								(PatAny,p) :: (match tl with [] -> [] | _ -> loop el tl)
 							| e :: el,(_,_,t) :: tl ->
-								make pctx t e :: loop el tl
+								make pctx false t e :: loop el tl
 							| [],(_,true,t) :: tl ->
 								(PatAny,pos e) :: loop [] tl
 							| [],[] ->
@@ -322,7 +345,7 @@ module Pattern = struct
 						(* We want to change the original monomorphs back to type parameters, but we don't want to do that
 						   if they are bound to other monomorphs (issue #4578). *)
 						unapply_type_parameters ef.ef_params monos;
-						PatConstructor(ConEnum(en,ef),patterns)
+						PatConstructor(con_enum en ef e1.epos,patterns)
 					| _ ->
 						fail()
 				end
@@ -338,7 +361,7 @@ module Pattern = struct
 					| TFun(tl,tr) when tr == fake_tuple_type ->
 						let rec loop el tl = match el,tl with
 							| e :: el,(_,_,t) :: tl ->
-								let pat = make pctx t e in
+								let pat = make pctx false t e in
 								pat :: loop el tl
 							| [],[] -> []
 							| [],_ -> error "Not enough arguments" p
@@ -348,14 +371,14 @@ module Pattern = struct
 						PatTuple patterns
 					| TInst({cl_path=[],"Array"},[t2]) | (TDynamic _ as t2) ->
 						let patterns = ExtList.List.mapi (fun i e ->
-							make pctx t2 e
+							make pctx false t2 e
 						) el in
 						PatConstructor(ConArray (List.length patterns),patterns)
 					| _ ->
 						fail()
 				end
 			| EObjectDecl fl ->
-				let known_fields = match follow t with
+				let rec known_fields t = match follow t with
 					| TAnon an ->
 						PMap.fold (fun cf acc -> (cf,cf.cf_type) :: acc) an.a_fields []
 					| TInst(c,tl) ->
@@ -370,16 +393,28 @@ module Pattern = struct
 						in
 						loop [] c tl
 					| TAbstract({a_impl = Some c} as a,tl) ->
+						let fields = try
+							let _,el,_ = Meta.get Meta.Forward a.a_meta in
+							let sl = ExtList.List.filter_map (fun e -> match fst e with
+								| EConst(Ident s) -> Some s
+								| _ -> None
+							) el in
+							let fields = known_fields (Abstract.get_underlying_type a tl) in
+							if sl = [] then fields else List.filter (fun (cf,t) -> List.mem cf.cf_name sl) fields
+						with Not_found ->
+							[]
+						in
 						let fields = List.fold_left (fun acc cf ->
 							if Meta.has Meta.Impl cf.cf_meta then
 								(cf,apply_params a.a_params tl cf.cf_type) :: acc
 							else
 								acc
-						) [] c.cl_ordered_statics in
+						) fields c.cl_ordered_statics in
 						fields
 					| _ ->
 						error (Printf.sprintf "Cannot field-match against %s" (s_type t)) (pos e)
 				in
+				let known_fields = known_fields t in
 				let is_matchable cf =
 					match cf.cf_kind with Method _ -> false | _ -> true
 				in
@@ -387,34 +422,45 @@ module Pattern = struct
 					try
 						if pctx.in_reification && cf.cf_name = "pos" then raise Not_found;
 						let e1 = Expr.field_assoc cf.cf_name fl in
-						make pctx t e1 :: patterns,cf.cf_name :: fields
+						make pctx false t e1 :: patterns,cf.cf_name :: fields
 					with Not_found ->
 						if is_matchable cf then
 							(PatAny,cf.cf_pos) :: patterns,cf.cf_name :: fields
 						else
 							patterns,fields
 				) ([],[]) known_fields in
-				List.iter (fun ((s,_),e) -> if not (List.mem s fields) then error (Printf.sprintf "%s has no field %s" (s_type t) s) (pos e)) fl;
+				List.iter (fun ((s,_,_),e) -> if not (List.mem s fields) then error (Printf.sprintf "%s has no field %s" (s_type t) s) (pos e)) fl;
 				PatConstructor(ConFields fields,patterns)
 			| EBinop(OpOr,e1,e2) ->
 				let pctx1 = {pctx with current_locals = PMap.empty} in
-				let pat1 = make pctx1 t e1 in
+				let pat1 = make pctx1 toplevel t e1 in
 				let pctx2 = {pctx with current_locals = PMap.empty; or_locals = Some (pctx1.current_locals)} in
-				let pat2 = make pctx2 t e2 in
+				let pat2 = make pctx2 toplevel t e2 in
 				PMap.iter (fun name (v,p) ->
 					if not (PMap.mem name pctx2.current_locals) then verror name p;
 					pctx.current_locals <- PMap.add name (v,p) pctx.current_locals
 				) pctx1.current_locals;
 				PatOr(pat1,pat2)
-			| EBinop(OpAssign,(EConst (Ident s),p),e2) ->
-				let pat = make pctx t e2 in
-				let v = add_local s p in
-				PatBind(v,pat)
+			| EBinop(OpAssign,e1,e2) ->
+				let rec loop in_display e = match e with
+					| (EConst (Ident s),p) ->
+						let v = add_local s p in
+						if in_display then ignore(Typer.display_expr ctx e (mk (TLocal v) v.v_type p) (WithType t) p);
+						let pat = make pctx false t e2 in
+						PatBind(v,pat)
+					| (EParenthesis e1,_) -> loop in_display e1
+					| (EDisplay(e1,_),_) -> loop true e1
+					| _ -> fail()
+				in
+				loop false e1
 			| EBinop(OpArrow,e1,e2) ->
+				let restore = save_locals ctx in
+				ctx.locals <- pctx.ctx_locals;
 				let v = add_local "_" null_pos in
 				let e1 = type_expr ctx e1 Value in
 				v.v_name <- "tmp";
-				let pat = make pctx e1.etype e2 in
+				restore();
+				let pat = make pctx toplevel e1.etype e2 in
 				PatExtractor(v,e1,pat)
 			| EDisplay(e,iscall) ->
 				let pat = loop e in
@@ -431,10 +477,11 @@ module Pattern = struct
 		let pctx = {
 			ctx = ctx;
 			current_locals = PMap.empty;
+			ctx_locals = ctx.locals;
 			or_locals = None;
 			in_reification = false;
 		} in
-		make pctx t e
+		make pctx true t e
 end
 
 module Case = struct
@@ -821,7 +868,7 @@ module Compile = struct
 		| ConArray i ->
 			let t = match follow e.etype with TInst({cl_path=[],"Array"},[t]) -> t | TDynamic _ as t -> t | _ -> assert false in
 			ExtList.List.init i (fun i ->
-				let ei = Codegen.ExprBuilder.make_int mctx.ctx.com i e.epos in
+				let ei = make_int mctx.ctx.com.basic i e.epos in
 				mk (TArray(e,ei)) t e.epos
 			)
 		| ConConst _ | ConTypeExpr _ | ConStatic _ ->
@@ -1045,9 +1092,9 @@ module Compile = struct
 				let e1 = loop e1 in
 				let bindings = List.map (fun v -> v,subject.epos,subject) vars @ bindings in
 				begin try
-					let v,_,_,left,right = List.find (fun (_,_,e2,_,_) -> Texpr.equal e1 e2) ex_bindings in
+					let v,_,_,left2,right2 = List.find (fun (_,_,e2,_,_) -> Texpr.equal e1 e2) ex_bindings in
 					let ev = mk (TLocal v) v.v_type e1.epos in
-					let patterns = make_offset_list (left + 1) (right - 1) pat pat_any @ patterns in
+					let patterns = make_offset_list (left2 + 1) (right2 - 1) pat pat_any @ patterns in
 					(left + 1, right - 1,ev :: subjects,((case,bindings,patterns) :: cases),ex_bindings)
 				with Not_found ->
 					let v = alloc_var "_hx_tmp" e1.etype e1.epos in
@@ -1129,7 +1176,7 @@ module TexprConverter = struct
 			let t_ef = match follow ef.ef_type with TFun(_,t) -> t | _ -> ef.ef_type in
 			let t_ef = apply_params ctx.type_params params (monomorphs en.e_params (monomorphs ef.ef_params t_ef)) in
 			let monos = List.map (fun t -> match follow t with
-				| TInst({cl_kind = KTypeParameter _},_) -> mk_mono()
+				| TInst({cl_kind = KTypeParameter _},_) | TMono _ -> mk_mono()
 				| _ -> t
 			) params in
 			let rec duplicate_monos t = match follow t with
@@ -1261,8 +1308,7 @@ module TexprConverter = struct
 				   (correctly typed) neutral value because it doesn't actually matter. *)
 				mk (TConst (TInt (Int32.of_int 0))) ctx.t.tint e.epos
 			else
-				let cf = PMap.find "enumIndex" c_type.cl_statics in
-				make_static_call ctx c_type cf (fun t -> t) [e] com.basic.tint e.epos
+				mk (TEnumIndex e) com.basic.tint e.epos
 		in
 		let mk_name_call e =
 			if not ctx.in_macro && not ctx.com.display.DisplayMode.dms_full_typing then
@@ -1327,7 +1373,7 @@ module TexprConverter = struct
 				in
 				begin match cases with
 					| [_,e2] when e_default = None && (match finiteness with RunTimeFinite -> true | _ -> false) ->
-						e2
+						{e2 with etype = t_switch}
 					| [[e1],e2] when (with_type = NoValue || e_default <> None) && ctx.com.platform <> Java (* TODO: problem with TestJava.hx:285 *) ->
 						let e_op = mk (TBinop(OpEq,e_subject,e1)) ctx.t.tbool e_subject.epos in
 						mk (TIf(e_op,e2,e_default)) t_switch dt.dt_pos
@@ -1350,7 +1396,7 @@ module TexprConverter = struct
 					mk (TIf(e,e_then,None)) ctx.t.tvoid (punion e.epos e_then.epos)
 				end
 			| GuardNull(e,dt1,dt2) ->
-				let e_null = Codegen.ExprBuilder.make_null e.etype e.epos in
+				let e_null = make_null e.etype e.epos in
 				let f = try
 					let e_then = loop false params dt1 in
 					(fun () ->

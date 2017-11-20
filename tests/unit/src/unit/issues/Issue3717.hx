@@ -28,8 +28,9 @@ private abstract Metric (MetricCore) from MetricCore to MetricCore {
 	@:from static function fromFloat(v:Float) {
 		var m = new MetricCore();
 		m.dip = v;
-		return m;
+		return cast m;
 	}
+
 	@:to function toFloat() return this.dip;
 
 

@@ -24,7 +24,9 @@ package neko.vm;
 /**
 	The Neko object that implements the loader.
 **/
-enum LoaderHandle {
+@:callable
+@:coreType
+abstract LoaderHandle {
 }
 
 /**

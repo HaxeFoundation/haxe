@@ -1,5 +1,6 @@
 package unit;
 
+import haxe.ds.List;
 import haxe.macro.Expr;
 
 typedef T = {
@@ -79,6 +80,15 @@ private class ClassWithToStringChild2 extends ClassWithToString {
 
 private class ClassWithCtorDefaultValuesChild extends ClassWithCtorDefaultValues {
 
+}
+
+@:keep private class ClassWithCtorDefaultValues2 {
+	public var a : Null<Float>;
+	public var b : String;
+	public function new(a = 1.1, b = "foo") {
+		this.a = a;
+		this.b = b;
+	}
 }
 
 private enum SomeEnum<T> {

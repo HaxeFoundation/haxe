@@ -128,14 +128,16 @@ module PrototypeBuilder = struct
 				| Some proto -> proto.pinstance_names,proto.pinstance_fields
 				| None -> IntMap.empty,[||]
 			in
-			let a = Array.make (Array.length fields + DynArray.length pctx.instance_fields) vnull in
-			Array.blit fields 0 a 0 (Array.length fields);
+			let offset = Array.length fields in
+			let a = Array.make (offset + DynArray.length pctx.instance_fields) vnull in
+			Array.blit fields 0 a 0 (offset);
 			(* Create the mapping from hashed name to field offset for instance fields. *)
 			let names,_ = DynArray.fold_left (fun (fields,count) (name,v) ->
 				IntMap.add name count fields,count + 1
-			) (names,Array.length fields) pctx.instance_fields in
+			) (names,offset) pctx.instance_fields in
 			names,a,(fun proto ->
-				DynArray.iteri (fun i (_,v) -> a.(i + Array.length fields) <- Lazy.force v) pctx.instance_fields;
+				Array.iteri (fun i v -> a.(i) <- v) fields;
+				DynArray.iteri (fun i (_,v) -> a.(i + offset) <- Lazy.force v) pctx.instance_fields;
 				initialize_fields pctx proto;
 			)
 		end else
@@ -160,7 +162,9 @@ module PrototypeBuilder = struct
 			ctx.static_prototypes <- IntMap.add pctx.key proto ctx.static_prototypes
 		else begin
 			ctx.instance_prototypes <- IntMap.add pctx.key proto ctx.instance_prototypes;
-			if pctx.key = key_String then ctx.string_prototype <- proto;
+			if pctx.key = key_String then ctx.string_prototype <- proto
+			else if pctx.key = key_Array then ctx.array_prototype <- proto
+			else if pctx.key = key_eval_Vector then ctx.vector_prototype <- proto
 		end;
 		proto,f
 end
@@ -171,7 +175,7 @@ let is_removable_field cf =
 let create_static_prototype ctx mt =
 	let key = path_hash (t_infos mt).mt_path in
 	let com = ctx.curapi.MacroApi.get_com() in
-	let meta = Codegen.build_metadata com mt in
+	let meta = Texpr.build_metadata com.Common.basic mt in
 	let o = match mt with
 	| TClassDecl c ->
 		let pparent = match c.cl_super with
@@ -191,7 +195,7 @@ let create_static_prototype ctx mt =
 				PrototypeBuilder.add_proto_field pctx name (lazy vnull);
 				let i = DynArray.length pctx.PrototypeBuilder.fields - 1 in
 				DynArray.add delays (fun proto -> proto.pfields.(i) <- (match eval_expr ctx key name e with Some e -> e | None -> vnull))
-			| _,None when not (is_extern_field cf) ->
+			| _,None when is_physical_field cf ->
 				PrototypeBuilder.add_proto_field pctx (hash_s cf.cf_name) (lazy vnull);
 			|  _ ->
 				()
@@ -243,7 +247,7 @@ let create_instance_prototype ctx c =
 			let v = lazy (vfunction (jit_tfunction ctx key name tf false pos)) in
 			if meth = MethDynamic then PrototypeBuilder.add_instance_field pctx name v;
 			PrototypeBuilder.add_proto_field pctx name v
-		| Var _,_ when not (is_extern_field cf) ->
+		| Var _,_ when is_physical_field cf ->
 			let name = hash_s cf.cf_name in
 			PrototypeBuilder.add_instance_field pctx name (lazy vnull);
 		|  _ ->
@@ -266,7 +270,7 @@ let get_object_prototype ctx l =
 		proto,l
 
 let add_types ctx types ready =
-	let t = Common.timer [(if ctx.is_macro then "macro" else "interp");"add_types"] in
+	let t = Timer.timer [(if ctx.is_macro then "macro" else "interp");"add_types"] in
 	let new_types = List.filter (fun mt ->
 		let inf = Type.t_infos mt in
 		let key = path_hash inf.mt_path in

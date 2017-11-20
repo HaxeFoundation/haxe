@@ -212,6 +212,11 @@ enum Binop {
 		`=>`
 	**/
 	OpArrow;
+
+	/**
+		`in`
+	**/
+	OpIn;
 }
 
 /**
@@ -332,6 +337,41 @@ typedef Catch = {
 }
 
 /**
+	Represents the way something is quoted.
+**/
+enum QuoteStatus {
+	/**
+		No quotes
+	**/
+	Unquoted;
+
+	/**
+		Double quotes `"`
+	**/
+	Quoted;
+}
+
+/**
+	Represents the field of an object declaration.
+**/
+typedef ObjectField = {
+	/**
+		The name of the field.
+	**/
+	var field : String;
+
+	/**
+		The field expression.
+	**/
+	var expr : Expr;
+
+	/**
+		How the field name is quoted.
+	**/
+	@:optional var quotes : QuoteStatus;
+}
+
+/**
 	Represents the kind of a node in the AST.
 **/
 enum ExprDef {
@@ -363,7 +403,7 @@ enum ExprDef {
 	/**
 		An object declaration.
 	**/
-	EObjectDecl( fields : Array<{ field : String, expr : Expr }> );
+	EObjectDecl( fields : Array<ObjectField> );
 
 	/**
 		An array declaration `[el]`.
@@ -412,11 +452,6 @@ enum ExprDef {
 		A `for` expression.
 	**/
 	EFor( it : Expr, expr : Expr );
-
-	/**
-		A `(e1 in e2)` expression.
-	**/
-	EIn( e1 : Expr, e2 : Expr );
 
 	/**
 		An `if(econd) eif` or `if(econd) eif else eelse` expression.
@@ -535,6 +570,11 @@ enum ComplexType {
 		Represents an optional type.
 	**/
 	TOptional( t : ComplexType );
+
+	/**
+		Represents a type with a name.
+	**/
+	TNamed( n : String, t : ComplexType );
 }
 
 /**
@@ -772,6 +812,12 @@ enum Access {
 		normal functions which are executed as soon as they are typed.
 	**/
 	AMacro;
+
+	/**
+		Final access modifier. For functions, they can not be overridden. For
+		variables, it means they can be assigned to only once.
+	**/
+	AFinal;
 }
 
 /**
@@ -807,6 +853,12 @@ typedef TypeDefinition = {
 		The name of the type definition.
 	**/
 	var name : String;
+
+	/**
+		The documentation of the type, if available. If the type has no
+		documentation, the value is `null`.
+	**/
+	@:optional var doc : Null<String>;
 
 	/**
 		The position to the type definition.

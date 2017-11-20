@@ -3,6 +3,7 @@ open Globals
 open Ast
 open Common
 open Common.DisplayMode
+open Timer
 open Type
 open DisplayOutput
 open Json
@@ -11,7 +12,7 @@ exception Dirty of module_def
 
 let measure_times = ref false
 let prompt = ref false
-let start_time = ref (get_time())
+let start_time = ref (Timer.get_time())
 
 let is_debug_run() =
 	try Sys.getenv "HAXEDEBUG" = "1" with _ -> false
@@ -20,7 +21,7 @@ type context = {
 	com : Common.context;
 	mutable flush : unit -> unit;
 	mutable setup : unit -> unit;
-	mutable messages : string list;
+	mutable messages : compiler_message list;
 	mutable has_next : bool;
 	mutable has_error : bool;
 }
@@ -39,104 +40,13 @@ type server_message =
 let s_version =
 	Printf.sprintf "%d.%d.%d%s" version_major version_minor version_revision (match Version.version_extra with None -> "" | Some v -> " " ^ v)
 
-type timer_node = {
-	name : string;
-	path : string;
-	parent : timer_node;
-	info : string;
-	mutable time : float;
-	mutable num_calls : int;
-	mutable children : timer_node list;
-}
-
-let report_times print =
-	let nodes = Hashtbl.create 0 in
-	let rec root = {
-		name = "";
-		path = "";
-		parent = root;
-		info = "";
-		time = 0.;
-		num_calls = 0;
-		children = [];
-	} in
-	Hashtbl.iter (fun _ timer ->
-		let rec loop parent sl = match sl with
-			| [] -> assert false
-			| s :: sl ->
-				let path = (match parent.path with "" -> "" | _ -> parent.path ^ ".") ^ s in
-				let node = try
-					let node = Hashtbl.find nodes path in
-					node.num_calls <- node.num_calls + timer.calls;
-					node.time <- node.time +. timer.total;
-					node
-				with Not_found ->
-					let name,info = try
-						let i = String.rindex s '.' in
-						String.sub s (i + 1) (String.length s - i - 1),String.sub s 0 i
-					with Not_found ->
-						s,""
-					in
-					let node = {
-						name = name;
-						path = path;
-						parent = parent;
-						info = info;
-						time = timer.total;
-						num_calls = timer.calls;
-						children = [];
-					} in
-					Hashtbl.add nodes path node;
-					node
-				in
-				begin match sl with
-					| [] -> ()
-					| _ ->
-						let child = loop node sl in
-						if not (List.memq child node.children) then
-							node.children <- child :: node.children;
-				end;
-				node
-		in
-		let node = loop root timer.id in
-		if not (List.memq node root.children) then
-			root.children <- node :: root.children
-	) Common.htimers;
-	let max_name = ref 0 in
-	let max_calls = ref 0 in
-	let rec loop depth node =
-		let l = (String.length node.name) + 2 * depth in
-		if l > !max_name then max_name := l;
-		List.iter (fun child ->
-			if depth = 0 then begin
-				node.num_calls <- node.num_calls + child.num_calls;
-				node.time <- node.time +. child.time;
-			end;
-			loop (depth + 1) child;
-		) node.children;
-		node.children <- List.sort (fun node1 node2 -> compare node2.time node1.time) node.children;
-		if node.num_calls > !max_calls then max_calls := node.num_calls;
-	in
-	loop 0 root;
-	let max_calls = String.length (string_of_int !max_calls) in
-	print (Printf.sprintf "%-*s | %7s |   %% |  p%% | %*s | info" !max_name "name" "time(s)" max_calls "#");
-	let sep = String.make (!max_name + max_calls + 27) '-' in
-	print sep;
-	let print_time name node =
-		if node.time > 0.0009 then
-			print (Printf.sprintf "%-*s | %7.3f | %3.0f | %3.0f | %*i | %s" !max_name name node.time (node.time *. 100. /. root.time) (node.time *. 100. /. node.parent.time) max_calls node.num_calls node.info)
-	in
-	let rec loop depth node =
-		let name = (String.make (depth * 2) ' ') ^ node.name in
-		print_time name node;
-		List.iter (loop (depth + 1)) node.children
-	in
-	List.iter (loop 0) root.children;
-	print sep;
-	print_time "total" root
-
 let default_flush ctx =
-	List.iter prerr_endline (List.rev ctx.messages);
+	List.iter
+		(fun msg -> match msg with
+			| CMInfo _ -> print_endline (compiler_message_string msg)
+			| CMWarning _ | CMError _ -> prerr_endline (compiler_message_string msg)
+		)
+		(List.rev ctx.messages);
 	if ctx.has_error && !prompt then begin
 		print_endline "Press enter to exit...";
 		ignore(read_line());
@@ -193,7 +103,7 @@ let rec wait_loop process_params verbose accept =
 	let test_server_messages = DynArray.create () in
 	let cs = CompilationServer.create () in
 	let sign_string com =
-		let sign = get_signature com in
+		let sign = Define.get_signature com.defines in
 		let	sign_id =
 			try
 				CompilationServer.get_sign cs sign;
@@ -245,7 +155,7 @@ let rec wait_loop process_params verbose accept =
 		| true, Some stdin when Common.defined com2 Define.DisplayStdin ->
 			Typeload.parse_file_from_string com2 file p stdin
 		| _ ->
-			let sign = get_signature com2 in
+			let sign = Define.get_signature com2.defines in
 			let ftime = file_time ffile in
 			let fkey = (ffile,sign) in
 			try
@@ -289,9 +199,9 @@ let rec wait_loop process_params verbose accept =
 		(Unix.stat (Path.remove_trailing_slash dir)).Unix.st_mtime
 	in
 	let get_changed_directories (ctx : Typecore.typer) =
-		let t = Common.timer ["server";"module cache";"changed dirs"] in
+		let t = Timer.timer ["server";"module cache";"changed dirs"] in
 		let com = ctx.Typecore.com in
-		let sign = get_signature com in
+		let sign = Define.get_signature com.defines in
 		let dirs = try
 			(* First, check if we already have determined changed directories for current compilation. *)
 			Hashtbl.find changed_directories sign
@@ -355,9 +265,9 @@ let rec wait_loop process_params verbose accept =
 	let compilation_mark = ref 0 in
 	let mark_loop = ref 0 in
 	Typeload.type_module_hook := (fun (ctx:Typecore.typer) mpath p ->
-		let t = Common.timer ["server";"module cache"] in
+		let t = Timer.timer ["server";"module cache"] in
 		let com2 = ctx.Typecore.com in
-		let sign = get_signature com2 in
+		let sign = Define.get_signature com2.defines in
 		let content_changed m file =
 			let ffile = Path.unique_full_path file in
 			let fkey = (ffile,sign) in
@@ -377,7 +287,7 @@ let rec wait_loop process_params verbose accept =
 			let check_module_path () =
 				let directories = get_changed_directories ctx in
 				match m.m_extra.m_kind with
-				| MFake | MSub | MImport -> () (* don't get classpath *)
+				| MFake | MImport -> () (* don't get classpath *)
 				| MExtern ->
 					(* if we have a file then this will override our extern type *)
 					let has_file = (try check_module_shadowing com2 directories m; true with Not_found -> false) in
@@ -471,17 +381,17 @@ let rec wait_loop process_params verbose accept =
 							a.a_meta <- List.filter (fun (m,_,_) -> m <> Meta.ValueUsed) a.a_meta
 						| _ -> ()
 					) m.m_types;
-					if m.m_extra.m_kind <> MSub then Typeload.add_module ctx m p;
+					Typeload.add_module ctx m p;
 					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
 					if ctx.Typecore.in_macro || com2.display.dms_full_typing then
 						PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps;
-					List.iter (MacroContext.call_init_macro ctx) m.m_extra.m_macro_calls
+					List.iter (MacroContext.call_init_macro ctx) m.m_extra.m_reuse_macro_calls
 				)
 			end
 		in
 		try
 			let m = CompilationServer.find_module cs (mpath,sign) in
-			let tcheck = Common.timer ["server";"module cache";"check"] in
+			let tcheck = Timer.timer ["server";"module cache";"check"] in
 			begin match check m with
 			| None -> ()
 			| Some m' ->
@@ -490,7 +400,7 @@ let rec wait_loop process_params verbose accept =
 				raise Not_found;
 			end;
 			tcheck();
-			let tadd = Common.timer ["server";"module cache";"add modules"] in
+			let tadd = Timer.timer ["server";"module cache";"add modules"] in
 			add_modules "" m m;
 			tadd();
 			t();
@@ -520,16 +430,22 @@ let rec wait_loop process_params verbose accept =
 			ctx.flush <- (fun() ->
 				incr compilation_step;
 				compilation_mark := !mark_loop;
-				List.iter (fun s -> write (s ^ "\n"); if verbose then print_endline ("> " ^ s)) (List.rev ctx.messages);
+				List.iter
+					(fun msg ->
+						let s = compiler_message_string msg in
+						write (s ^ "\n");
+						if verbose then print_endline ("> " ^ s)
+					)
+					(List.rev ctx.messages);
 				if ctx.has_error then begin
 					measure_times := false;
 					write "\x02\n"
 				end else cache_context ctx.com;
 			);
 			ctx.setup <- (fun() ->
-				let sign = get_signature ctx.com in
+				let sign = Define.get_signature ctx.com.defines in
 				if verbose then begin
-					let defines = PMap.foldi (fun k v acc -> (k ^ "=" ^ v) :: acc) ctx.com.defines [] in
+					let defines = PMap.foldi (fun k v acc -> (k ^ "=" ^ v) :: acc) ctx.com.defines.Define.values [] in
 					print_endline ("Defines " ^ (String.concat "," (List.sort compare defines)));
 					print_endline ("Using signature " ^ Digest.to_hex sign);
 					print_endline ("Display position: " ^ (Printer.s_pos !Parser.resume_display));
@@ -580,8 +496,8 @@ let rec wait_loop process_params verbose accept =
 				stats.s_classes_built := 0;
 				stats.s_methods_typed := 0;
 				stats.s_macros_called := 0;
-				Hashtbl.clear Common.htimers;
-				let _ = Common.timer ["other"] in
+				Hashtbl.clear Timer.htimers;
+				let _ = Timer.timer ["other"] in
 				incr compilation_step;
 				compilation_mark := !mark_loop;
 				start_time := get_time();

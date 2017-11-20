@@ -50,14 +50,14 @@ let rec s_object depth o =
 and s_array depth va =
 	concat empty [
 		of_char '[';
-		EvalArray.join va (s_value 0) rcomma;
+		EvalArray.join va (s_value depth) rcomma;
 		of_char ']';
 	]
 
 and s_vector depth vv =
 	concat empty [
 		of_char '[';
-		EvalArray.join (EvalArray.create vv) (s_value 0) rcomma;
+		EvalArray.join (EvalArray.create vv) (s_value depth) rcomma;
 		of_char ']';
 	]
 
@@ -98,7 +98,7 @@ and s_value depth v =
 	| VTrue -> rtrue
 	| VFalse -> rfalse
 	| VFloat f ->
-		let s = Common.float_repres f in
+		let s = Numeric.float_repres f in
 		let len = String.length s in
 		of_string (if String.unsafe_get s (len - 1) = '.' then String.sub s 0 (len - 1) else s)
 	| VFunction (f,_) ->

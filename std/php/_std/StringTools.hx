@@ -19,33 +19,33 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import php.*;
+
 @:coreApi class StringTools {
 
-	public inline static function urlEncode( s : String ) : String untyped {
-		return __call__("rawurlencode", s);
+	public inline static function urlEncode( s : String ) : String {
+		return Global.rawurlencode(s);
 	}
 
-	public inline static function urlDecode( s : String ) : String untyped {
-		return __call__("urldecode", s);
+	public inline static function urlDecode( s : String ) : String {
+		return Global.urldecode(s);
 	}
 
-	public static function htmlEscape( s : String, ?quotes : Bool ) : String {
-		s = s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
-		return quotes ? s.split('"').join("&quot;").split("'").join("&#039;") : s;
+	public inline static function htmlEscape( s : String, ?quotes : Bool ) : String {
+		return Global.htmlspecialchars(s, (quotes ? Const.ENT_QUOTES | Const.ENT_HTML401 : Const.ENT_NOQUOTES));
 	}
 
 	public inline static function htmlUnescape( s : String ) : String {
-		return untyped __call__("htmlspecialchars_decode", s ,__php__("ENT_QUOTES"));
+		return Global.htmlspecialchars_decode(s, Const.ENT_QUOTES);
 	}
 
 	public static function startsWith( s : String, start : String ) : Bool {
-		return( s.length >= start.length && s.substr(0,start.length) == start );
+		return start == '' || Global.strpos(s, start) == 0;
 	}
 
 	public static function endsWith( s : String, end : String ) : Bool {
-		var elen = end.length;
-		var slen = s.length;
-		return( slen >= elen && s.substr(slen-elen,elen) == end );
+		return end == '' || Global.substr(s, -end.length) == end;
 	}
 
 	public static function isSpace( s : String, pos : Int ) : Bool {
@@ -54,32 +54,39 @@
 	}
 
 	public inline static function ltrim( s : String ) : String {
-		return untyped __call__("ltrim", s);
+		return Global.ltrim(s);
 	}
 
 	public inline static function rtrim( s : String ) : String {
-		return untyped __call__("rtrim", s);
+		return Global.rtrim(s);
 	}
 
 	public inline static function trim( s : String ) : String {
-		return untyped __call__("trim", s);
+		return Global.trim(s);
 	}
 
-	public inline static function rpad( s : String, c : String, l : Int ) : String {
-		return c.length == 0 || s.length >= l ? s : untyped __call__("str_pad", s, Math.ceil((l-s.length) / c.length) * c.length + s.length , c, __php__("STR_PAD_RIGHT"));
+	public static function rpad( s : String, c : String, l : Int ) : String {
+		if (c.length == 0 || s.length >= l) return s;
+		var padLength = Math.ceil((l - s.length) / c.length) * c.length + s.length;
+		return Global.str_pad(s, padLength, c, Const.STR_PAD_RIGHT);
 	}
 
-	public inline static function lpad( s : String, c : String, l : Int ) : String {
-		return c.length == 0 || s.length >= l ? s : untyped __call__("str_pad", s, Math.ceil((l-s.length) / c.length) * c.length + s.length , c, __php__("STR_PAD_LEFT"));
+	public static function lpad( s : String, c : String, l : Int ) : String {
+		if (c.length == 0 || s.length >= l) return s;
+		var padLength = Math.ceil((l - s.length) / c.length) * c.length + s.length;
+		return Global.str_pad(s, padLength, c, Const.STR_PAD_LEFT);
 	}
 
-	public inline static function replace( s : String, sub : String, by : String ) : String {
-		return untyped sub=="" ? __call__("implode", __call__("str_split ", s) , by) : __call__("str_replace", sub, by, s);
+	public static function replace( s : String, sub : String, by : String ) : String {
+		if (sub == '') {
+			return Global.implode(by, Global.str_split(s));
+		}
+		return Global.str_replace(sub, by, s);
 	}
 
 	public static function hex( n : Int, ?digits : Int ) : String {
-		var s : String = untyped __call__("dechex", n),
-			len = 8;
+		var s = Global.dechex(n);
+		var len = 8;
 		if (s.length > (null == digits ? len : (len = digits > len ? digits : len)))
 			s = s.substr(-len);
 		else if ( digits != null )
@@ -88,11 +95,11 @@
 	}
 
 	public static inline function fastCodeAt( s : String, index : Int ) : Int {
-		return untyped s.cca(index);
+		return (s.length == index ? 0 : Global.ord((s:NativeString)[index]));
 	}
 
 	public static inline function isEof( c : Int ) : Bool {
-		return untyped __physeq__(c, 0);
+		return c == 0;
 	}
 
 	/**
@@ -159,7 +166,7 @@
 						result.add(bs);
 						bs_buf = new StringBuf();
 						result.add('\\"');
-					case c:
+					case var c:
 						// Normal char
 						if (bs_buf.length > 0) {
 							result.add(bs_buf.toString());

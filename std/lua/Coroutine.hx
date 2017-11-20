@@ -57,14 +57,14 @@ extern class Coroutine<T:Function> extends Thread {
 		by the body function (if the coroutine terminates). If there is any error,
 		`resume` returns `false` plus the error message.
 	**/
-	public static function resume(c : Coroutine<Dynamic>, args : Rest<Dynamic>) : CoroutineResume;
+	public static function resume<A,B>(c : Coroutine<Dynamic>, args : Rest<A>) : CoroutineResume<B>;
 
 	/**
 		Suspends the execution of the calling coroutine.
 		The coroutine cannot be running a C function, a metamethod, or an iterator.
 		Any arguments to `yield` are passed as extra results to `resume`.
 	**/
-	public static function yield<T>(args : Rest<T>) : T;
+	public static function yield<T>(args : Rest<Dynamic>) : T;
 
 	/**
 		Creates a new coroutine, with body `f`.
@@ -73,7 +73,7 @@ extern class Coroutine<T:Function> extends Thread {
 		Returns the same values returned by `resume`, except the first boolean.
 		In case of error, propagates the error.
 	**/
-	public static function wrap<T:Function>(f : T) : Coroutine<T>;
+	public static function wrap<T:Function>(f : T) : T;
 }
 
 /**
@@ -106,9 +106,9 @@ abstract CoroutineState(String) {
 }
 
 @:multiReturn
-extern class CoroutineResume  {
+extern class CoroutineResume<T>  {
 	var success  : Bool;
-	var result : Dynamic;
+	var result : T;
 }
 
 

@@ -1,2 +1,2 @@
-Main.hx:12: characters 8-9 : x : Int -> E should be E
-Main.hx:10: characters 10-11 : Invalid match: Not enough patterns
+Main.hx:12: characters 9-10 : x : Int -> E should be E
+Main.hx:10: characters 11-12 : Invalid match: Not enough patterns

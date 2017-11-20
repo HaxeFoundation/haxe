@@ -26,9 +26,9 @@ import python.internal.StringImpl;
 @:native("str")
 extern class String {
 	var length(default,null) : Int;
-	
+
 	function new(string:String) : Void;
-	
+
 	@:runtime public inline function toUpperCase() : String {
 		return StringImpl.toUpperCase(this);
 	}
@@ -55,7 +55,7 @@ extern class String {
 		return StringImpl.lastIndexOf(this, str, startIndex);
 	}
 
-	inline function split( delimiter : String ) : Array<String> {
+	@:runtime inline function split( delimiter : String ) : Array<String> {
 		return StringImpl.split(this, delimiter);
 	}
 

@@ -57,7 +57,7 @@
 **/
 @:coreType @:notNull @:runtimeValue abstract Int to Float { }
 
-#if (java || cs || hl)
+#if (java || cs || hl || cpp)
 /**
 	Single-precision IEEE 32bit float (4-byte).
 **/
@@ -72,7 +72,9 @@
 
 	@see https://haxe.org/manual/types-nullability.html
 **/
-typedef Null<T> = T
+@:forward
+@:coreType
+abstract Null<T> from T to T { }
 
 /**
 	The standard Boolean type, which can either be `true` or `false`.

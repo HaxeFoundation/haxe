@@ -27,13 +27,17 @@ type sourcemap = {
 	sources_hash : (string, int) Hashtbl.t;
 	mappings : Rbuffer.t;
 
-	mutable source_last_line : int;
-	mutable source_last_col : int;
-	mutable source_last_file : int;
+	mutable source_last_pos : sourcemap_pos;
 	mutable print_comma : bool;
 	mutable output_last_col : int;
 	mutable output_current_col : int;
-	mutable current_expr : texpr option;
+	mutable current_expr : sourcemap_pos option;
+}
+
+and sourcemap_pos = {
+	file : int;
+	line : int;
+	col : int;
 }
 
 type ctx = {
@@ -45,7 +49,6 @@ type ctx = {
 	js_modern : bool;
 	js_flatten : bool;
 	es_version : int;
-	store_exception_stack : bool;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
 	mutable inits : texpr list;
@@ -74,27 +77,30 @@ let get_exposed ctx path meta =
 
 let dot_path = s_type_path
 
-let flat_path (p,s) =
-	(* Replace _ with _$ in paths to prevent name collisions. *)
-	let escape str = String.concat "_$" (ExtString.String.nsplit str "_") in
+let s_path ctx = if ctx.js_flatten then Path.flat_path else dot_path
 
-	match p with
-	| [] -> escape s
-	| _ -> String.concat "_" (List.map escape p) ^ "_" ^ (escape s)
+let kwds = Hashtbl.create 0
 
-let s_path ctx = if ctx.js_flatten then flat_path else dot_path
+let setup_kwds lst =
+	List.iter (fun s -> Hashtbl.add kwds s ()) lst
 
-let kwds =
-	let h = Hashtbl.create 0 in
-	List.iter (fun s -> Hashtbl.add h s ()) [
-		"abstract"; "as"; "boolean"; "break"; "byte"; "case"; "catch"; "char"; "class"; "continue"; "const";
-		"debugger"; "default"; "delete"; "do"; "double"; "else"; "enum"; "export"; "extends"; "false"; "final";
-		"finally"; "float"; "for"; "function"; "goto"; "if"; "implements"; "import"; "in"; "instanceof"; "int";
-		"interface"; "is"; "let"; "long"; "namespace"; "native"; "new"; "null"; "package"; "private"; "protected";
-		"public"; "return"; "short"; "static"; "super"; "switch"; "synchronized"; "this"; "throw"; "throws";
-		"transient"; "true"; "try"; "typeof"; "use"; "var"; "void"; "volatile"; "while"; "with"; "yield"
-	];
-	h
+let es3kwds = [
+	"abstract"; "boolean"; "break"; "byte"; "case"; "catch"; "char"; "class"; "const"; "continue";
+	"debugger"; "default"; "delete"; "do"; "double"; "else"; "enum"; "export"; "extends"; "false"; "final";
+	"finally"; "float"; "for"; "function"; "goto"; "if"; "implements"; "import"; "in"; "instanceof"; "int";
+	"interface"; "long"; "native"; "new"; "null"; "package"; "private"; "protected";
+	"public"; "return"; "short"; "static"; "super"; "switch"; "synchronized"; "this"; "throw"; "throws";
+	"transient"; "true"; "try"; "typeof"; "var"; "void"; "volatile"; "while"; "with"
+]
+
+let es5kwds = [
+	"arguments"; "break"; "case"; "catch"; "class"; "const"; "continue";
+	"debugger"; "default"; "delete"; "do"; "else"; "enum"; "eval"; "export"; "extends"; "false";
+	"finally"; "for"; "function"; "if"; "implements"; "import"; "in"; "instanceof";
+	"interface"; "let"; "new"; "null"; "package"; "private"; "protected";
+	"public"; "return"; "static"; "super"; "switch"; "this"; "throw";
+	"true"; "try"; "typeof"; "var"; "void"; "while"; "with"; "yield"
+]
 
 (* Identifiers Haxe reserves to make the JS output cleaner. These can still be used in untyped code (TLocal),
    but are escaped upon declaration. *)
@@ -136,10 +142,55 @@ let add_feature ctx = Common.add_feature ctx.com
 
 let unsupported p = abort "This expression cannot be compiled to Javascript" p
 
+let encode_mapping smap pos =
+	if smap.print_comma then
+		Rbuffer.add_char smap.mappings ','
+	else
+		smap.print_comma <- true;
 
-let add_mapping smap force e =
-	if e.epos.pmin < 0 then () else
-	let pos = e.epos in
+	let base64_vlq number =
+		let encode_digit digit =
+			let chars = [|
+				'A';'B';'C';'D';'E';'F';'G';'H';'I';'J';'K';'L';'M';'N';'O';'P';
+				'Q';'R';'S';'T';'U';'V';'W';'X';'Y';'Z';'a';'b';'c';'d';'e';'f';
+				'g';'h';'i';'j';'k';'l';'m';'n';'o';'p';'q';'r';'s';'t';'u';'v';
+				'w';'x';'y';'z';'0';'1';'2';'3';'4';'5';'6';'7';'8';'9';'+';'/'
+			|] in
+			Array.unsafe_get chars digit
+		in
+		let to_vlq number =
+			if number < 0 then
+				((-number) lsl 1) + 1
+			else
+				number lsl 1
+		in
+		let rec loop vlq =
+			let shift = 5 in
+			let base = 1 lsl shift in
+			let mask = base - 1 in
+			let continuation_bit = base in
+			let digit = vlq land mask in
+			let next = vlq asr shift in
+			Rbuffer.add_char smap.mappings (encode_digit (
+				if next > 0 then digit lor continuation_bit else digit));
+			if next > 0 then loop next else ()
+		in
+		loop (to_vlq number)
+	in
+
+	base64_vlq (smap.output_current_col - smap.output_last_col);
+	base64_vlq (pos.file - smap.source_last_pos.file);
+	base64_vlq (pos.line - smap.source_last_pos.line);
+	base64_vlq (pos.col - smap.source_last_pos.col);
+
+	smap.source_last_pos <- pos;
+	smap.output_last_col <- smap.output_current_col
+
+let noop () = ()
+
+let add_mapping smap pos =
+	if pos.pmin < 0 then noop else
+
 	let file = try
 		Hashtbl.find smap.sources_hash pos.pfile
 	with Not_found ->
@@ -148,55 +199,23 @@ let add_mapping smap force e =
 		DynArray.add smap.sources pos.pfile;
 		length
 	in
-	let line, col = Lexer.find_pos pos in
-	let line = line - 1 in
-	if force || smap.source_last_file != file || smap.source_last_line != line || smap.source_last_col != col then begin
-		smap.current_expr <- Some e;
-		if smap.print_comma then
-			Rbuffer.add_char smap.mappings ','
-		else
-			smap.print_comma <- true;
 
-		let base64_vlq number =
-			let encode_digit digit =
-				let chars = [|
-					'A';'B';'C';'D';'E';'F';'G';'H';'I';'J';'K';'L';'M';'N';'O';'P';
-					'Q';'R';'S';'T';'U';'V';'W';'X';'Y';'Z';'a';'b';'c';'d';'e';'f';
-					'g';'h';'i';'j';'k';'l';'m';'n';'o';'p';'q';'r';'s';'t';'u';'v';
-					'w';'x';'y';'z';'0';'1';'2';'3';'4';'5';'6';'7';'8';'9';'+';'/'
-				|] in
-				Array.unsafe_get chars digit
-			in
-			let to_vlq number =
-				if number < 0 then
-					((-number) lsl 1) + 1
-				else
-					number lsl 1
-			in
-			let rec loop vlq =
-				let shift = 5 in
-				let base = 1 lsl shift in
-				let mask = base - 1 in
-				let continuation_bit = base in
-				let digit = vlq land mask in
-				let next = vlq asr shift in
-				Rbuffer.add_char smap.mappings (encode_digit (
-					if next > 0 then digit lor continuation_bit else digit));
-				if next > 0 then loop next else ()
-			in
-			loop (to_vlq number)
-		in
+	let pos =
+		let line, col = Lexer.find_pos pos in
+		let line = line - 1 in
+		{ file = file; line = line; col = col }
+	in
 
-		base64_vlq (smap.output_current_col - smap.output_last_col);
-		base64_vlq (file - smap.source_last_file);
-		base64_vlq (line - smap.source_last_line);
-		base64_vlq (col - smap.source_last_col);
+	if smap.source_last_pos <> pos then begin
+		let old_current_expr = smap.current_expr in
+		smap.current_expr <- Some pos;
+		encode_mapping smap pos;
+		(fun () -> smap.current_expr <- old_current_expr)
+	end else
+		noop
 
-		smap.source_last_file <- file;
-		smap.source_last_line <- line;
-		smap.source_last_col <- col;
-		smap.output_last_col <- smap.output_current_col
-	end
+let add_mapping ctx e =
+	Option.map_default (fun smap -> add_mapping smap e.epos) noop ctx.smap
 
 let handle_newlines ctx str =
 	Option.may (fun smap ->
@@ -207,7 +226,7 @@ let handle_newlines ctx str =
 				smap.output_last_col <- 0;
 				smap.output_current_col <- 0;
 				smap.print_comma <- false;
-				Option.may (fun e -> add_mapping smap true e) smap.current_expr;
+				Option.may (encode_mapping smap) smap.current_expr;
 				loop next
 			end with Not_found ->
 				smap.output_current_col <- smap.output_current_col + (String.length str - from);
@@ -285,7 +304,7 @@ let fun_block ctx f p =
 	let e = List.fold_left (fun e (a,c) ->
 		match c with
 		| None | Some TNull -> e
-		| Some c -> Type.concat (Codegen.set_default ctx.com a c p) e
+		| Some c -> Type.concat (Texpr.set_default ctx.com.basic a c p) e
 	) f.tf_expr f.tf_args in
 	e
 
@@ -333,6 +352,9 @@ let gen_constant ctx p = function
 	| TThis -> spr ctx (this ctx)
 	| TSuper -> assert false
 
+let print_deprecation_message com msg p =
+	com.warning msg p
+
 let rec gen_call ctx e el in_value =
 	match e.eexpr , el with
 	| TConst TSuper , params ->
@@ -352,64 +374,42 @@ let rec gen_call ctx e el in_value =
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
 		);
-	| TCall (x,_) , el when (match x.eexpr with TLocal { v_name = "__js__" } -> false | _ -> true) ->
+	| TCall (x,_) , el when (match x.eexpr with TIdent "__js__" -> false | _ -> true) ->
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ")";
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
-	| TLocal { v_name = "__new__" }, { eexpr = TConst (TString cl) } :: params ->
-		print ctx "new %s(" cl;
-		concat ctx "," (gen_value ctx) params;
-		spr ctx ")";
-	| TLocal { v_name = "__new__" }, e :: params ->
-		spr ctx "new ";
-		gen_value ctx e;
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) params;
-		spr ctx ")";
-	| TLocal { v_name = "__js__" }, [{ eexpr = TConst (TString "this") }] ->
-		spr ctx (this ctx)
-	| TLocal { v_name = "__js__" }, [{ eexpr = TConst (TString code) }] ->
-		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
-	| TLocal { v_name = "__js__" }, { eexpr = TConst (TString code); epos = p } :: tl ->
-		Codegen.interpolate_code ctx.com code tl (spr ctx) (gen_expr ctx) p
-	| TLocal { v_name = "__instanceof__" },  [o;t] ->
-		spr ctx "(";
-		gen_value ctx o;
-		print ctx " instanceof ";
-		gen_value ctx t;
-		spr ctx ")";
-	| TLocal { v_name = "__typeof__" },  [o] ->
-		spr ctx "typeof(";
-		gen_value ctx o;
-		spr ctx ")";
-	| TLocal { v_name = "__strict_eq__" } , [x;y] ->
-		(* add extra parenthesis here because of operator precedence *)
-		spr ctx "((";
-		gen_value ctx x;
-		spr ctx ") === ";
-		gen_value ctx y;
-		spr ctx ")";
-	| TLocal { v_name = "__strict_neq__" } , [x;y] ->
-		(* add extra parenthesis here because of operator precedence *)
-		spr ctx "((";
-		gen_value ctx x;
-		spr ctx ") !== ";
-		gen_value ctx y;
-		spr ctx ")";
-	| TLocal ({v_name = "__define_feature__"}), [_;e] ->
+	| TField (_, FStatic ({ cl_path = ["js"],"Syntax" }, { cf_name = meth })), args ->
+		gen_syntax ctx meth args e.epos
+	| TIdent "__new__", args ->
+		print_deprecation_message ctx.com "__new__ is deprecated, use js.Syntax.new_ instead" e.epos;
+		gen_syntax ctx "new_" args e.epos
+	| TIdent "__js__", args ->
+		(* TODO: add deprecation warning when we figure out what to do with purity here *)
+		gen_syntax ctx "code" args e.epos
+	| TIdent "__instanceof__",  args ->
+		print_deprecation_message ctx.com "__instanceof__ is deprecated, use js.Syntax.instanceof instead" e.epos;
+		gen_syntax ctx "instanceof" args e.epos
+	| TIdent "__typeof__",  args ->
+		print_deprecation_message ctx.com "__typeof__ is deprecated, use js.Syntax.typeof instead" e.epos;
+		gen_syntax ctx "typeof" args e.epos
+	| TIdent "__strict_eq__" , args ->
+		print_deprecation_message ctx.com "__strict_eq__ is deprecated, use js.Syntax.strictEq instead" e.epos;
+		gen_syntax ctx "strictEq" args e.epos
+	| TIdent "__strict_neq__" , args ->
+		print_deprecation_message ctx.com "__strict_neq__ is deprecated, use js.Syntax.strictNeq instead" e.epos;
+		gen_syntax ctx "strictNeq" args e.epos
+	| TIdent "__define_feature__", [_;e] ->
 		gen_expr ctx e
-	| TLocal { v_name = "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse ->
+	| TIdent "__feature__", { eexpr = TConst (TString f) } :: eif :: eelse ->
 		(if has_feature ctx f then
 			gen_value ctx eif
 		else match eelse with
 			| [] -> ()
 			| e :: _ -> gen_value ctx e)
-	| TLocal { v_name = "__rethrow__" }, [] ->
-		spr ctx "throw $hx_rethrow";
-	| TLocal { v_name = "__resources__" }, [] ->
+	| TIdent "__resources__", [] ->
 		spr ctx "[";
 		concat ctx "," (fun (name,data) ->
 			spr ctx "{ ";
@@ -420,7 +420,7 @@ let rec gen_call ctx e el in_value =
 			spr ctx "}"
 		) (Hashtbl.fold (fun name data acc -> (name,data) :: acc) ctx.com.resources []);
 		spr ctx "]";
-	| TLocal { v_name = "`trace" }, [e;infos] ->
+	| TIdent "`trace", [e;infos] ->
 		if has_feature ctx "haxe.Log.trace" then begin
 			let t = (try List.find (fun t -> t_path t = (["haxe"],"Log")) ctx.com.types with _ -> assert false) in
 			spr ctx (ctx.type_accessor t);
@@ -431,9 +431,21 @@ let rec gen_call ctx e el in_value =
 			spr ctx ")";
 		end else begin
 			spr ctx "console.log(";
+			(match infos.eexpr with
+			| TObjectDecl (
+				(("fileName",_,_) , { eexpr = (TConst (TString file)) }) ::
+				(("lineNumber",_,_) , { eexpr = (TConst (TInt line)) }) :: _) ->
+					print ctx "\"%s:%i:\"," file (Int32.to_int line)
+			| _ ->
+				());
 			gen_value ctx e;
 			spr ctx ")";
 		end
+	| TField (x,f), [] when field_name f = "iterator" && is_dynamic_iterator ctx e ->
+		add_feature ctx "use.$getIterator";
+		print ctx "$getIterator(";
+		gen_value ctx x;
+		print ctx ")";
 	| _ ->
 		gen_value ctx e;
 		spr ctx "(";
@@ -454,7 +466,7 @@ and add_objectdecl_parens e =
 	loop e
 
 and gen_expr ctx e =
-	Option.may (fun smap -> add_mapping smap false e) ctx.smap;
+	let clear_mapping = add_mapping ctx e in
 	(match e.eexpr with
 	| TConst c -> gen_constant ctx e.epos c
 	| TLocal v -> spr ctx (ident v.v_name)
@@ -480,6 +492,17 @@ and gen_expr ctx e =
 		print ctx "$iterator(";
 		gen_value ctx x;
 		print ctx ")";
+	(* Don't generate `$iterator(value)` for exprs like `value.iterator--` *)
+	| TUnop (op,flag,({eexpr = TField (x,f)} as fe)) when field_name f = "iterator" && is_dynamic_iterator ctx fe ->
+		(match flag with
+			| Prefix ->
+				spr ctx (Ast.s_unop op);
+				gen_value ctx x;
+				spr ctx ".iterator"
+			| Postfix ->
+				gen_value ctx x;
+				spr ctx ".iterator";
+				spr ctx (Ast.s_unop op))
 	| TField (x,FClosure (Some ({cl_path=[],"Array"},_), {cf_name="push"})) ->
 		(* see https://github.com/HaxeFoundation/haxe/issues/1997 *)
 		add_feature ctx "use.$arrayPush";
@@ -500,9 +523,21 @@ and gen_expr ctx e =
 			print ctx "($_=";
 			gen_value ctx x;
 			print ctx ",$bind($_,$_%s))" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name)))
-	| TEnumParameter (x,_,i) ->
+	| TEnumIndex x ->
 		gen_value ctx x;
-		print ctx "[%i]" (i + 2)
+		if Common.defined ctx.com Define.JsEnumsAsObjects then
+		print ctx "._hx_index"
+		else
+		print ctx "[1]"
+	| TEnumParameter (x,f,i) ->
+		gen_value ctx x;
+		if Common.defined ctx.com Define.JsEnumsAsObjects then
+			let fname = (match f.ef_type with TFun((args,_)) -> let fname,_,_ = List.nth args i in  fname | _ -> assert false ) in
+			print ctx ".%s" (fname)
+		else
+			print ctx "[%i]" (i + 2)
+	| TField (_, FStatic ({cl_path = [],""},f)) ->
+		spr ctx f.cf_name;
 	| TField (x, (FInstance(_,_,f) | FStatic(_,f) | FAnon(f))) when Meta.has Meta.SelfCall f.cf_meta ->
 		gen_value ctx x;
 	| TField (x,f) ->
@@ -556,7 +591,11 @@ and gen_expr ctx e =
 		let old = ctx.in_value, ctx.in_loop in
 		ctx.in_value <- None;
 		ctx.in_loop <- false;
-		print ctx "function(%s) " (String.concat "," (List.map ident (List.map arg_name f.tf_args)));
+		let args = List.map (fun (v,_) ->
+			check_var_declaration v;
+			ident v.v_name
+		) f.tf_args in
+		print ctx "function(%s) " (String.concat "," args);
 		gen_expr ctx (fun_block ctx f e.epos);
 		ctx.in_value <- fst old;
 		ctx.in_loop <- snd old;
@@ -628,9 +667,9 @@ and gen_expr ctx e =
 		ctx.in_loop <- old_in_loop
 	| TObjectDecl fields ->
 		spr ctx "{ ";
-		concat ctx ", " (fun (f,e) -> (match e.eexpr with
-			| TMeta((Meta.QuotedField,_,_),e) -> print ctx "\"%s\" : " (Ast.s_escape f);
-			| _ -> print ctx "%s : " (anon_field f));
+		concat ctx ", " (fun ((f,_,qs),e) -> (match qs with
+			| DoubleQuotes -> print ctx "\"%s\" : " (Ast.s_escape f);
+			| NoQuotes -> print ctx "%s : " (anon_field f));
 			gen_value ctx e
 		) fields;
 		spr ctx "}";
@@ -659,110 +698,14 @@ and gen_expr ctx e =
 		newline ctx;
 		spr ctx "}";
 		ctx.in_loop <- old_in_loop
-	| TTry (e,catchs) ->
+	| TTry (etry,[(v,ecatch)]) ->
 		spr ctx "try ";
-		gen_expr ctx e;
-		let vname = (match catchs with [(v,_)] -> check_var_declaration v; v.v_name | _ ->
-			let id = ctx.id_counter in
-			ctx.id_counter <- ctx.id_counter + 1;
-			"$e" ^ string_of_int id
-		) in
-		print ctx " catch( %s ) {" vname;
-		let bend = open_block ctx in
-		let last = ref false in
-		let else_block = ref false in
-
-		if ctx.store_exception_stack then begin
-			newline ctx;
-			print ctx "%s.lastException = %s" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["haxe"],"CallStack" })) vname
-		end;
-
-		if (has_feature ctx "js.Lib.rethrow") then begin
-			let has_rethrow (_,e) =
-				let rec loop e = match e.eexpr with
-				| TCall({eexpr = TLocal {v_name = "__rethrow__"}}, []) -> raise Exit
-				| _ -> Type.iter loop e
-				in
-				try (loop e; false) with Exit -> true
-			in
-			if List.exists has_rethrow catchs then begin
-				newline ctx;
-				print ctx "var $hx_rethrow = %s" vname;
-			end
-		end;
-
-		if (has_feature ctx "js.Boot.HaxeError") then begin
-			let catch_var_used =
-				try
-					List.iter (fun (v,e) ->
-						match follow v.v_type with
-						| TDynamic _ -> (* Dynamic catch - unrap if the catch value is used *)
-							let rec loop e = match e.eexpr with
-							| TLocal v2 when v2 == v -> raise Exit
-							| _ -> Type.iter loop e
-							in
-							loop e
-						| _ -> (* not a Dynamic catch - we need to unwrap the error for type-checking *)
-							raise Exit
-					) catchs;
-					false
-				with Exit ->
-					true
-			in
-			if catch_var_used then begin
-				newline ctx;
-				print ctx "if (%s instanceof %s) %s = %s.val" vname (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js";"_Boot"],"HaxeError" })) vname vname;
-			end;
-		end;
-
-		List.iter (fun (v,e) ->
-			if !last then () else
-			let t = (match follow v.v_type with
-			| TEnum (e,_) -> Some (TEnumDecl e)
-			| TInst (c,_) -> Some (TClassDecl c)
-			| TAbstract (a,_) -> Some (TAbstractDecl a)
-			| TFun _
-			| TLazy _
-			| TType _
-			| TAnon _ ->
-				assert false
-			| TMono _
-			| TDynamic _ ->
-				None
-			) in
-			match t with
-			| None ->
-				last := true;
-				if !else_block then print ctx "{";
-				if vname <> v.v_name then begin
-					newline ctx;
-					print ctx "var %s = %s" v.v_name vname;
-				end;
-				gen_block_element ctx e;
-				if !else_block then begin
-					newline ctx;
-					print ctx "}";
-				end
-			| Some t ->
-				if not !else_block then newline ctx;
-				print ctx "if( %s.__instanceof(%s," (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) vname;
-				gen_value ctx (mk (TTypeExpr t) (mk_mono()) e.epos);
-				spr ctx ") ) {";
-				let bend = open_block ctx in
-				if vname <> v.v_name then begin
-					newline ctx;
-					print ctx "var %s = %s" v.v_name vname;
-				end;
-				gen_block_element ctx e;
-				bend();
-				newline ctx;
-				spr ctx "} else ";
-				else_block := true
-		) catchs;
-		if not !last then print ctx "throw(%s)" vname;
-		bend();
-		newline ctx;
-		spr ctx "}";
+		gen_expr ctx etry;
+		check_var_declaration v;
+		print ctx " catch( %s ) " v.v_name;
+		gen_expr ctx ecatch
+	| TTry _ ->
+		abort "Unhandled try/catch, please report" e.epos
 	| TSwitch (e,cases,def) ->
 		spr ctx "switch";
 		gen_value ctx e;
@@ -804,15 +747,17 @@ and gen_expr ctx e =
 		gen_expr ctx e1;
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
-		spr ctx ")");
-	Option.may (fun smap -> smap.current_expr <- None) ctx.smap
-
+		spr ctx ")"
+	| TIdent s ->
+		spr ctx s
+	);
+	clear_mapping ()
 
 and gen_block_element ?(after=false) ctx e =
 	match e.eexpr with
 	| TBlock el ->
 		List.iter (gen_block_element ~after ctx) el
-	| TCall ({ eexpr = TLocal { v_name = "__feature__" } }, { eexpr = TConst (TString f) } :: eif :: eelse) ->
+	| TCall ({ eexpr = TIdent "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse) ->
 		if has_feature ctx f then
 			gen_block_element ~after ctx eif
 		else (match eelse with
@@ -829,7 +774,7 @@ and gen_block_element ?(after=false) ctx e =
 		if after then newline ctx
 
 and gen_value ctx e =
-	Option.may (fun smap -> add_mapping smap false e) ctx.smap;
+	let clear_mapping = add_mapping ctx e in
 	let assign e =
 		mk (TBinop (Ast.OpAssign,
 			mk (TLocal (match ctx.in_value with None -> assert false | Some v -> v)) t_dynamic e.epos,
@@ -865,13 +810,15 @@ and gen_value ctx e =
 	| TBinop _
 	| TField _
 	| TEnumParameter _
+	| TEnumIndex _
 	| TTypeExpr _
 	| TParenthesis _
 	| TObjectDecl _
 	| TArrayDecl _
 	| TNew _
 	| TUnop _
-	| TFunction _ ->
+	| TFunction _
+	| TIdent _ ->
 		gen_expr ctx e
 	| TMeta (_,e1) ->
 		gen_value ctx e1
@@ -941,8 +888,71 @@ and gen_value ctx e =
 			List.map (fun (v,e) -> v, block (assign e)) catchs
 		)) e.etype e.epos);
 		v());
-	Option.may (fun smap -> smap.current_expr <- None) ctx.smap
+	clear_mapping ()
 
+and gen_syntax ctx meth args pos =
+	match meth, args with
+	| "new_", cl :: params ->
+		spr ctx "new ";
+		begin
+			match cl.eexpr with
+			| TConst (TString cl) ->
+				spr ctx cl
+			| _ ->
+				gen_value ctx cl
+		end;
+		spr ctx "(";
+		concat ctx "," (gen_value ctx) params;
+		spr ctx ")"
+	| "instanceof", [o;t] ->
+		spr ctx "(";
+		gen_value ctx o;
+		print ctx " instanceof ";
+		gen_value ctx t;
+		spr ctx ")"
+	| "typeof", [o] ->
+		spr ctx "typeof(";
+		gen_value ctx o;
+		spr ctx ")"
+	| "strictEq" , [x;y] ->
+		(* add extra parenthesis here because of operator precedence *)
+		spr ctx "((";
+		gen_value ctx x;
+		spr ctx ") === ";
+		gen_value ctx y;
+		spr ctx ")";
+	| "strictNeq" , [x;y] ->
+		(* add extra parenthesis here because of operator precedence *)
+		spr ctx "((";
+		gen_value ctx x;
+		spr ctx ") !== ";
+		gen_value ctx y;
+		spr ctx ")";
+	| "delete" , [o;f] ->
+		spr ctx "delete(";
+		gen_value ctx o;
+		spr ctx "[";
+		gen_value ctx f;
+		spr ctx "]";
+		spr ctx ")";
+	| "code", code :: args ->
+		let code, code_pos =
+			match code.eexpr with
+			| TConst (TString s) -> s, code.epos
+			| _ -> abort "The `code` argument for js.Syntax must be a string constant" code.epos
+		in
+		begin
+			match args with
+			| [] ->
+				if code = "this" then
+					spr ctx (this ctx)
+				else
+					spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
+			| _ ->
+				Codegen.interpolate_code ctx.com code args (spr ctx) (gen_expr ctx) code_pos
+		end
+	| _ ->
+		abort (Printf.sprintf "Unknown js.Syntax method `%s` with %d arguments" meth (List.length args)) pos
 
 let generate_package_create ctx (p,_) =
 	let rec loop acc = function
@@ -986,7 +996,7 @@ let gen_class_static_field ctx c f =
 	match f.cf_expr with
 	| None | Some { eexpr = TConst TNull } when not (has_feature ctx "Type.getClassFields") ->
 		()
-	| None when is_extern_field f ->
+	| None when not (is_physical_field f) ->
 		()
 	| None ->
 		print ctx "%s%s = null" (s_path ctx c.cl_path) (static_field c f.cf_name);
@@ -1008,7 +1018,7 @@ let can_gen_class_field ctx = function
 	| { cf_expr = (None | Some { eexpr = TConst TNull }) } when not (has_feature ctx "Type.getInstanceFields") ->
 		false
 	| f ->
-		not (is_extern_field f)
+		is_physical_field f
 
 let gen_class_field ctx c f =
 	check_field_name c f;
@@ -1142,26 +1152,44 @@ let generate_enum ctx e =
 	if has_feature ctx "js.Boot.isEnum" then print ctx " __ename__ : %s," (if has_feature ctx "Type.getEnumName" then "[" ^ String.concat "," ename ^ "]" else "true");
 	print ctx " __constructs__ : [%s] }" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
 	ctx.separator <- true;
+	let as_objects = Common.defined ctx.com Define.JsEnumsAsObjects in
+	if as_objects then begin
+		newline ctx;
+		print ctx "$hxEnums[\"%s\"] = %s" p p
+	end;
 	newline ctx;
 	List.iter (fun n ->
 		let f = PMap.find n e.e_constrs in
 		print ctx "%s%s = " p (field f.ef_name);
 		(match f.ef_type with
 		| TFun (args,_) ->
-			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in
-			print ctx "function(%s) { var $x = [\"%s\",%d,%s]; $x.__enum__ = %s;" sargs f.ef_name f.ef_index sargs p;
+			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in begin
+			if as_objects then
+				let sfields = String.concat "," (List.map (fun (n,_,_) -> (ident n) ^ ":" ^ (ident n) ) args) in
+				print ctx "function(%s) { var $x = {_hx_index:%d,%s,__enum__:\"%s\"};" sargs f.ef_index sfields p;
+			else
+				print ctx "function(%s) { var $x = [\"%s\",%d,%s]; $x.__enum__ = %s;" sargs f.ef_name f.ef_index sargs p;
+			end;
 			if has_feature ctx "has_enum" then
 				spr ctx " $x.toString = $estr;";
 			spr ctx " return $x; }";
+			if as_objects then begin
+				let sparams = String.concat "," (List.map (fun (n,_,_) -> "\"" ^ (ident n) ^ "\"" ) args) in
+				newline ctx;
+				print ctx "%s%s.__params__ = [%s];" p (field f.ef_name) sparams
+			end;
 			ctx.separator <- true;
 		| _ ->
-			print ctx "[\"%s\",%d]" f.ef_name f.ef_index;
+			if as_objects then
+				print ctx "{_hx_index:%d};" f.ef_index
+			else
+				print ctx "[\"%s\",%d]" f.ef_name f.ef_index;
 			newline ctx;
 			if has_feature ctx "has_enum" then begin
 				print ctx "%s%s.toString = $estr" p (field f.ef_name);
 				newline ctx;
 			end;
-			print ctx "%s%s.__enum__ = %s" p (field f.ef_name) p;
+			print ctx "%s%s.__enum__ = %s" p (field f.ef_name) (if as_objects then "\"" ^ p ^"\"" else p);
 		);
 		newline ctx
 	) e.e_names;
@@ -1175,7 +1203,7 @@ let generate_enum ctx e =
 		print ctx "%s.__empty_constructs__ = [%s]" p (String.concat "," (List.map (fun s -> Printf.sprintf "%s.%s" p s) ctors_without_args));
 		newline ctx
 	end;
-	begin match Codegen.build_metadata ctx.com (TEnumDecl e) with
+	begin match Texpr.build_metadata ctx.com.basic (TEnumDecl e) with
 	| None -> ()
 	| Some e ->
 		print ctx "%s.__meta__ = " p;
@@ -1241,9 +1269,7 @@ let alloc_ctx com =
 	let smap =
 		if com.debug || Common.defined com Define.JsSourceMap then
 			Some {
-				source_last_line = 0;
-				source_last_col = 0;
-				source_last_file = 0;
+				source_last_pos = { file = 0; line = 0; col = 0};
 				print_comma = false;
 				output_last_col = 0;
 				output_current_col = 0;
@@ -1264,7 +1290,6 @@ let alloc_ctx com =
 		js_modern = not (Common.defined com Define.JsClassic);
 		js_flatten = not (Common.defined com Define.JsUnflatten);
 		es_version = (try int_of_string (Common.defined_value com Define.JsEs) with _ -> 0);
-		store_exception_stack = if Common.has_dce com then (Common.has_feature com "haxe.CallStack.exceptionStack") else List.exists (function TClassDecl { cl_path=["haxe"],"CallStack" } -> true | _ -> false) com.types;
 		statics = [];
 		inits = [];
 		current = null_class;
@@ -1303,6 +1328,8 @@ let generate com =
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "js.Boot.isEnum";
 
 	let nodejs = Common.raw_defined com "nodejs" in
+
+	setup_kwds (if ctx.es_version >= 5 then es5kwds else es3kwds);
 
 	let exposed = List.concat (List.map (fun t ->
 		match t with
@@ -1392,9 +1419,6 @@ let generate com =
 	);
 
 	if ctx.js_modern then begin
-		(* Additional ES5 strict mode keywords. *)
-		List.iter (fun s -> Hashtbl.replace kwds s ()) [ "arguments"; "eval" ];
-
 		(* Wrap output in a closure *)
 		print ctx "(function (%s) { \"use strict\"" (String.concat ", " (List.map fst closureArgs));
 		newline ctx;
@@ -1435,6 +1459,7 @@ let generate com =
 	let vars = if has_feature ctx "has_enum"
 		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) ^ ".__string_rec(this,''); }") :: vars
 		else vars in
+	let vars = if Common.defined com Define.JsEnumsAsObjects then "$hxEnums = {}" :: vars else vars in
 	(match List.rev vars with
 	| [] -> ()
 	| vl ->
@@ -1465,6 +1490,10 @@ let generate com =
 	if has_feature ctx "use.$iterator" then begin
 		add_feature ctx "use.$bind";
 		print ctx "function $iterator(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? $bind(o,o.iterator) : o.iterator; }";
+		newline ctx;
+	end;
+	if has_feature ctx "use.$getIterator" then begin
+		print ctx "function $getIterator(o) { if( o instanceof Array ) return HxOverrides.iter(o); else return o.iterator(); }";
 		newline ctx;
 	end;
 	if has_feature ctx "use.$bind" then begin

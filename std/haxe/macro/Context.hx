@@ -35,10 +35,9 @@ import haxe.macro.Type.TypedExpr;
 	- `haxe.macro.ExprTools`
 	- `haxe.macro.TypeTools`
 **/
-#if !neko @:noDoc #end
 class Context {
 
-#if (neko || eval)
+#if (neko || eval || display)
 	/**
 		Displays a compilation error `msg` at the given `Position` `pos`
 		and aborts the current macro call.
@@ -517,8 +516,8 @@ class Context {
 	}
 
 	/**
-		Types expression `e`, stores the resulting typed expression internally and 
-		returns a syntax-level expression that can be returned from a macro and 
+		Types expression `e`, stores the resulting typed expression internally and
+		returns a syntax-level expression that can be returned from a macro and
 		will be replaced by the stored typed expression.
 
 		If `e` is null or invalid, an exception is thrown.
@@ -606,7 +605,8 @@ class Context {
 	@:allow(haxe.macro.TypeTools)
 	@:allow(haxe.macro.MacroStringTools)
 	@:allow(haxe.macro.TypedExprTools)
-	static function load( f, nargs ) : Dynamic {
+	@:allow(haxe.macro.PositionTools)
+	static function load(f:String, nargs:Int) : Dynamic {
 		#if neko
 		return neko.Lib.load("macro", f, nargs);
 		#elseif eval

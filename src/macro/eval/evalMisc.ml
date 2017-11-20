@@ -51,6 +51,15 @@ let set_object_field o name v2 =
 	with Not_found ->
 		o.oextra <- IntMap.add name v2 o.oextra
 
+let set_bytes_length_field v1 v2 =
+	match v1 with
+	| VInstance ({ikind=IBytes b} as vi) ->
+		let i = decode_int v2 in
+		let b' = Bytes.create i in
+		Bytes.blit b 0 b' 0 (if i > Bytes.length b then Bytes.length b else i);
+		vi.ikind <- IBytes b'
+	| _ -> unexpected_value v1 "bytes"
+
 let set_field v1 name v2 = match v1 with
 	| VObject o -> set_object_field o name v2
 	| VPrototype proto -> set_proto_field proto name v2
@@ -60,6 +69,7 @@ let set_field v1 name v2 = match v1 with
 			EvalArray.set_length va (decode_int v2);
 		end else
 			unexpected_value v1 "object"
+	| VInstance {ikind = IBytes _} -> set_bytes_length_field v1 v2
 	| VInstance vi -> set_instance_field vi name v2
 	| _ -> unexpected_value v1 "object"
 
@@ -99,16 +109,6 @@ let rec compare a b =
 		if f1 != f2 then CUndef
 		else compare v1 v2
 	| _ -> CUndef
-
-let equals a b = match a,b with
-	| VInt32 a,VInt32 b -> a = b
-	| VFloat a,VFloat b -> a = b
-	| VFloat a,VInt32 b -> a = (Int32.to_float b)
-	| VInt32 a,VFloat b -> (Int32.to_float a) = b
-	| VString(r1,s1),VString(r2,s2) -> r1 == r2 || Lazy.force s1 = Lazy.force s2
-	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && Array.length a.eargs = 0 && Array.length b.eargs = 0 && a.epath = b.epath
-	| VPrototype proto1,VPrototype proto2 -> proto1.ppath = proto2.ppath
-	| _ -> a == b
 
 let rec arrays_equal a1 a2 =
 	if Array.length a1 <> Array.length a2 then

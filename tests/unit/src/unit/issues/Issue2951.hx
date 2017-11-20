@@ -5,7 +5,7 @@ import unit.Test;
 
 class Issue2951 extends Test{
 
-  public static inline function foo (x) {
+  public static inline function foo (_) {
 
   }
 

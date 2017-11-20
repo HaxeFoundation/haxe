@@ -21,6 +21,7 @@
  */
 package haxe;
 
+import haxe.ds.List;
 /**
 	The Serializer class can be used to encode values and objects into a `String`,
 	from which the `Unserializer` class can recreate the original representation.
@@ -169,14 +170,14 @@ class Serializer {
 		buf.add(s);
 	}
 
-	function serializeRef(v) {
+	function serializeRef(v:Dynamic) {
 		#if js
-		var vt = js.Lib.typeof(v);
+		var vt = js.Syntax.typeof(v);
 		#end
 		for( i in 0...cache.length ) {
 			#if js
 			var ci = cache[i];
-			if( js.Lib.typeof(ci) == vt && ci == v ) {
+			if( js.Syntax.typeof(ci) == vt && ci == v ) {
 			#else
 			if( cache[i] == v ) {
 			#end
@@ -192,7 +193,7 @@ class Serializer {
 	#if flash
 	// only the instance variables
 
-	function serializeClassFields(v,c) {
+	function serializeClassFields(v:Dynamic, c:Dynamic) {
 		var xml : flash.xml.XML = untyped __global__["flash.utils.describeType"](c);
 		var vars = xml.factory[0].child("variable");
 		for( i in 0...vars.length() ) {
@@ -206,7 +207,7 @@ class Serializer {
 	}
 	#end
 
-	function serializeFields(v) {
+	function serializeFields(v:{}) {
 		for( f in Reflect.fields(v) ) {
 			serializeString(f);
 			serialize(Reflect.field(v,f));
@@ -288,7 +289,7 @@ class Serializer {
 					}
 				}
 				buf.add("h");
-			case #if (neko || cs || python) "List" #else cast List #end:
+			case #if (neko || cs || python) "haxe.ds.List" #else cast List #end:
 				buf.add("l");
 				var v : List<Dynamic> = v;
 				for( i in v )
@@ -377,7 +378,7 @@ class Serializer {
 				#end
 			default:
 				if( useCache ) cache.pop();
-				if( #if flash try v.hxSerialize != null catch( e : Dynamic ) false #elseif (cs || java || python) Reflect.hasField(v, "hxSerialize") #elseif (php && php7) php.Global.method_exists(v, 'hxSerialize') #else v.hxSerialize != null #end  ) {
+				if( #if flash try v.hxSerialize != null catch( e : Dynamic ) false #elseif (cs || java || python) Reflect.hasField(v, "hxSerialize") #elseif php php.Global.method_exists(v, 'hxSerialize') #else v.hxSerialize != null #end  ) {
 					buf.add("C");
 					serializeString(Type.getClassName(c));
 					if( useCache ) cache.push(v);
@@ -471,16 +472,14 @@ class Serializer {
 			} else
 				serializeString(v.tag);
 			buf.add(":");
-			var l : Int = untyped __call__("count", v.params);
+			var l : Int = php.Syntax.code("count({0})", v.params);
 			if( l == 0 || v.params == null)
 				buf.add(0);
 			else {
 				buf.add(l);
 				for( i in 0...l ) {
-					#if (php && php7)
+					#if php
 					serialize(v.params[i]);
-					#elseif php
-					serialize(untyped __field__(v, __php__("params"), i));
 					#end
 				}
 			}
@@ -501,6 +500,16 @@ class Serializer {
 				buf.add("0");
 			}
 
+			#elseif js_enums_as_objects
+			if( useEnumIndex ) {
+				buf.add(":");
+				buf.add(v._hx_index);
+			} else
+				serializeString(Type.enumConstructor(v));
+			buf.add(":");
+			var params = Type.enumParameters(v);
+			buf.add(params.length);
+			for(p in params) serialize(p);
 			#else
 			if( useEnumIndex ) {
 				buf.add(":");
@@ -528,7 +537,7 @@ class Serializer {
 		}
 	}
 
-	@:extern inline function __getField(o:Dynamic, f:String):Dynamic return untyped o[f];
+	@:extern inline function __getField(o:Dynamic, f:String):Dynamic return o[cast f];
 
 	public function serializeException( e : Dynamic ) {
 		buf.add("x");

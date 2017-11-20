@@ -31,7 +31,7 @@ class Float32Array {
 
 	static function _new( ?arg1 : Dynamic, ?offset : Int, ?length : Int ) : Dynamic {
 		var arr : Array<Float>;
-		if( untyped __typeof__(arg1) == 'number' ) {
+		if( js.Syntax.typeof(arg1) == 'number' ) {
 			arr = new Array();
 			for( i in 0...arg1 )
 				arr[i] = 0;
@@ -104,7 +104,7 @@ class Float32Array {
 	}
 
 	static function __init__() {
-		var Float32Array = untyped js.Lib.global.Float32Array || _new;
+		untyped __js__("var Float32Array = {0} || {1}", js.Lib.global.Float32Array, _new);
 	}
 
 }

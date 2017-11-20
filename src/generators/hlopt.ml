@@ -149,7 +149,16 @@ let opcode_fx frw op =
 		write d
 	| OSetEnumField (a,_,b) ->
 		read a; read b
-	| ONop _ | OAssert _ ->
+	| OAssert _ ->
+		()
+	| ORefData (r,d) ->
+		read d;
+		write r;
+	| ORefOffset (r,r2,off) ->
+		read r2;
+		read off;
+		write r;
+	| ONop _  ->
 		()
 
 let opcode_eq a b =
@@ -408,7 +417,16 @@ let opcode_map read write op =
 		OMakeEnum (write d, e, rl)
 	| OSetEnumField (a,f,b) ->
 		OSetEnumField (read a, f, read b)
-	| ONop _ | OAssert _ ->
+	| OAssert _ ->
+		op
+	| ORefData (r,d) ->
+		let d = read d in
+		ORefData(write r,d);
+	| ORefOffset (r,r2,off) ->
+		let r2 = read r2 in
+		let off = read off in
+		ORefOffset (write r,r2,off);
+	| ONop _ ->
 		op
 
 (* build code graph *)
@@ -767,6 +785,7 @@ let optimize dump (f:fundecl) =
 	let code = ref f.code in
 	let regs = ref f.regs in
 	let debug = ref f.debug in
+	let assigns = ref f.assigns in
 
 	if !nop_count > 0 || reg_remap then begin
 		let new_pos = Array.make (Array.length f.code) 0 in
@@ -813,8 +832,13 @@ let optimize dump (f:fundecl) =
 			| OTrap (r,d) -> OTrap (r,pos d)
 			| _ -> assert false)
 		) !jumps;
+
+		let new_assigns = List.filter (fun (i,p) -> p < 0 || (match f.code.(p) with ONop _ -> false | _ -> true)) (Array.to_list !assigns) in
+		let new_assigns = List.map (fun (i,p) -> i, if p < 0 then p else new_pos.(p)) new_assigns in
+
 		code := out_code;
 		debug := new_debug;
+		assigns := Array.of_list new_assigns;
 		if reg_remap then begin
 			let new_regs = Array.make !used_regs HVoid in
 			for i=0 to nregs-1 do
@@ -825,4 +849,4 @@ let optimize dump (f:fundecl) =
 		end;
 	end;
 
-	{ f with code = !code; regs = !regs; debug = !debug }
+	{ f with code = !code; regs = !regs; debug = !debug; assigns = !assigns }

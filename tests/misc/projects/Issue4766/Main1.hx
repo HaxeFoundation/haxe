@@ -1,5 +1,5 @@
 class C {
-    public function new(f) {}
+    public function new(_) {}
     public function f() {}
 }
 

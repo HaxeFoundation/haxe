@@ -43,8 +43,6 @@ class Bytes {
 		return untyped $sget(b,pos);
 		#elseif flash
 		return b[pos];
-		#elseif php
-		return b.get(pos);
 		#elseif cpp
 		return untyped b[pos];
 		#elseif java
@@ -61,8 +59,6 @@ class Bytes {
 		untyped $sset(b,pos,v);
 		#elseif flash
 		b[pos] = v;
-		#elseif php
-		b.set(pos, v);
 		#elseif cpp
 		untyped b[pos] = v;
 		#elseif java
@@ -82,8 +78,6 @@ class Bytes {
 		#end
 		#if neko
 		try untyped $sblit(b,pos,src.b,srcpos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
-		#elseif php
-		b.blit(pos, src.b, srcpos, len);
 		#elseif flash
 		b.position = pos;
 		if( len > 0 ) b.writeBytes(src.b,srcpos,len);
@@ -141,8 +135,6 @@ class Bytes {
 		var b2 = new flash.utils.ByteArray();
 		b.readBytes(b2,0,len);
 		return new Bytes(len,b2);
-		#elseif php
-		return new Bytes(len, b.sub(pos, len));
 		#elseif java
 		var newarr = new java.NativeArray(len);
 		java.lang.System.arraycopy(b, pos, newarr, 0, len);
@@ -187,8 +179,6 @@ class Bytes {
 		b1.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		b2.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		return length - other.length;
-		#elseif php
-		return b.compare(other.b);
 		//#elseif cs
 		//TODO: memcmp if unsafe flag is on
 		#elseif cpp
@@ -239,8 +229,7 @@ class Bytes {
 		if( pos < 0 || pos + 4 > length ) throw Error.OutsideBounds;
 		return untyped __global__.__hxcpp_memory_get_float(b,pos);
 		#else
-		var b = new haxe.io.BytesInput(this,pos,4);
-		return b.readFloat();
+		return FPHelper.i32ToFloat(getInt32(pos));
 		#end
 	}
 
@@ -317,7 +306,7 @@ class Bytes {
 	public inline function getInt32( pos : Int ) : Int {
 		#if neko_v21
 		return untyped $sget32(b, pos, false);
-		#elseif (php || python)
+		#elseif python
 		var v = get(pos) | (get(pos + 1) << 8) | (get(pos + 2) << 16) | (get(pos+3) << 24);
 		return if( v & 0x80000000 != 0 ) v | 0x80000000 else v;
 		#elseif lua
@@ -366,8 +355,6 @@ class Bytes {
 		#elseif flash
 		b.position = pos;
 		return b.readUTFBytes(len);
-		#elseif php
-		return b.getString(pos, len);
 		#elseif cpp
 		var result:String="";
 		untyped __global__.__hxcpp_string_of_bytes(b,result,pos,len);
@@ -426,8 +413,6 @@ class Bytes {
 		#elseif flash
 		b.position = 0;
 		return b.toString();
-		#elseif php
-		return b.toString();
 		#elseif cs
 		return cs.system.text.Encoding.UTF8.GetString(b, 0, length);
 		#elseif java
@@ -466,8 +451,6 @@ class Bytes {
 		var b = new flash.utils.ByteArray();
 		b.length = length;
 		return new Bytes(length,b);
-		#elseif php
-		return new Bytes(length, BytesData.alloc(length));
 		#elseif cpp
 		var a = new BytesData();
 		if (length>0) cpp.NativeArray.setSize(a, length);
@@ -494,9 +477,6 @@ class Bytes {
 		var b = new flash.utils.ByteArray();
 		b.writeUTFBytes(s);
 		return new Bytes(b.length,b);
-		#elseif php
-		var x = BytesData.ofString(s);
-		return new Bytes(x.length, x);
 		#elseif cpp
 		var a = new BytesData();
 		untyped __global__.__hxcpp_bytes_of_string(a,s);
@@ -553,8 +533,6 @@ class Bytes {
 		return new Bytes(b.length,b);
 		#elseif neko
 		return new Bytes(untyped __dollar__ssize(b),b);
-		#elseif php
-		return new Bytes(b.length, b);
 		#elseif cs
 		return new Bytes(b.Length,b);
 		#else
@@ -571,8 +549,6 @@ class Bytes {
 		return untyped __dollar__sget(b,pos);
 		#elseif flash
 		return b[pos];
-		#elseif php
-		return b.get(pos);
 		#elseif cpp
 		return untyped b.unsafeGet(pos);
 		#elseif java

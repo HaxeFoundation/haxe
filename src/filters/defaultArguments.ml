@@ -19,7 +19,7 @@
 open Common
 open Type
 open Codegen
-open Codegen.ExprBuilder
+open Texpr.Builder
 
 (*
 	This Module Filter will go through all defined functions in all modules and change them
@@ -29,7 +29,7 @@ open Codegen.ExprBuilder
 
 let gen_check basic t nullable_var const pos =
 	let needs_cast t1 t2 =
-		let is_null t = match t with TType ({t_path = ([],"Null")}, _) -> true | _ -> false in
+		let is_null t = match t with TAbstract ({a_path = ([],"Null")}, _) -> true | _ -> false in
 		(is_null t1) <> (is_null t2)
 	in
 
@@ -48,7 +48,7 @@ let add_opt com block pos (var,opt) =
 	| None | Some TNull ->
 		(var,opt)
 	| Some (TString str) ->
-		block := Codegen.set_default com var (TString str) pos :: !block;
+		block := Texpr.set_default com.basic var (TString str) pos :: !block;
 		(var, opt)
 	| Some const ->
 		let basic = com.basic in

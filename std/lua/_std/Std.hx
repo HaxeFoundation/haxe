@@ -45,7 +45,7 @@ import lua.NativeStringTools;
 
 	public static function parseInt( x : String ) : Null<Int> {
 		if (x == null) return null;
-		var hexMatch = NativeStringTools.match(x, "^ *[%-+]*0[xX][%da-FA-F]*");
+		var hexMatch = NativeStringTools.match(x, "^ *[%-+]*0[xX][%da-fA-F]*");
 		if (hexMatch != null){
 			return lua.Lua.tonumber(hexMatch.substr(2), 16);
 		} else {
@@ -86,7 +86,6 @@ import lua.NativeStringTools;
 
 		// class reflection metadata
 		haxe.macro.Compiler.includeFile("lua/_lua/_hx_classes.lua");
-		__feature__("lua.Boot.getClass", String.prototype.__class__ = __feature__("Type.resolveClass",_hxClasses["String"] = String,String));
 		__feature__("lua.Boot.isClass", String.__name__ = __feature__("Type.getClassName", __lua_table__(["String"]),true));
 		__feature__("Type.resolveClass",_hxClasses["Array"] = Array);
 		__feature__("lua.Boot.isClass",Array.__name__ = __feature__("Type.getClassName",__lua_table__(["Array"]),true));

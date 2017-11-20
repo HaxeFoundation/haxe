@@ -55,7 +55,7 @@ let debug_loop jit e f =
 	let line,col1,_,_ = Lexer.get_pos_coords e.epos in
 	let column_matches breakpoint = match breakpoint.bpcolumn with
 		| BPAny -> true
-		| BPColumn i -> i = col1 + 1
+		| BPColumn i -> i = col1
 	in
 	let conn = match ctx.debug.debug_socket with
 		| Some socket -> EvalDebugSocket.make_connection socket

@@ -31,7 +31,7 @@ class Uint8Array {
 
 	static function _new( ?arg1 : Dynamic, ?offset : Int, ?length : Int ) : Dynamic {
 		var arr;
-		if( untyped __typeof__(arg1) == 'number' ) {
+		if( js.Syntax.typeof(arg1) == 'number' ) {
 			arr = new Array();
 			for( i in 0...arg1 )
 				arr[i] = 0;
@@ -95,7 +95,7 @@ class Uint8Array {
 	}
 
 	static function __init__() {
-		var Uint8Array = untyped js.Lib.global.Uint8Array || _new;
+		untyped __js__("var Uint8Array = {0} || {1}", js.Lib.global.Uint8Array, _new);
 	}
 
 }

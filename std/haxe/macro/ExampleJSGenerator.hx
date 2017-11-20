@@ -54,7 +54,7 @@ class ExampleJSGenerator {
 		};
 	}
 
-	inline function print(str) {
+	inline function print(str:String) {
 		buf.add(str);
 	}
 

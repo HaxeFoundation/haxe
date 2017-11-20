@@ -13,53 +13,56 @@ environment:
         HXBUILDS_AWS_SECRET_ACCESS_KEY:
           secure: ewwkKcjnSKl/Vtrz1SXmI6XKk1ENmJDyzm5YaR2wi03foRhTke29TvymB21rDTSl
     matrix:
-        - TEST: "neko,python,cs,java,macro"
-        - TEST: "php7,php"
-          DEPLOY: 1
-        - TEST: "cpp"
-
-services:
-    - mysql
-
-skip_tags: true
+        - ARCH: 64
+          TEST: "neko,python,cs,java,php,macro"
+          DEPLOY_NIGHTLIES: 1
+        - ARCH: 64
+          TEST: "cpp"
+        - ARCH: 32
+          TEST: "macro"
+          DEPLOY_NIGHTLIES: 1
 
 cache:
-    - opam64.tar.xz -> appveyor.yml
+    - opam.tar.xz -> appveyor.yml
 
 install:
     - 'git submodule update --init --recursive'
     - '%CYG_ROOT%/bin/bash -lc "echo initialize"'
-    - choco install curl
+    # http://help.appveyor.com/discussions/problems/5616-not-able-to-build-due-to-problem-in-chocolateyinstallps1
+    - ps: Set-Service wuauserv -StartupType Manual
+    - choco install curl nsis.portable wget awscli -y
     # Install ocaml
     - curl -fsSL -o cygwin-setup.exe --retry 3 https://cygwin.com/setup-x86_64.exe
-    - 'cygwin-setup.exe -g -q -R "%CYG_ROOT%" -P make -P git -P mingw64-x86_64-zlib -P rsync -P patch -P diffutils -P curl -P unzip -P m4 -P perl -P mingw64-x86_64-gcc-core -P mingw64-x86_64-pcre'
-    - if not exist "opam64.tar.xz" (
-        curl -fsSL -o opam64.tar.xz --retry 3 https://github.com/fdopen/opam-repository-mingw/releases/download/0.0.0.1/opam64.tar.xz
+    - 'cygwin-setup.exe -g -q -R "%CYG_ROOT%" -P make -P git -P mingw64-x86_64-zlib -P mingw64-i686-zlib -P rsync -P patch -P diffutils -P curl -P unzip -P m4 -P perl -P mingw64-x86_64-gcc-core -P mingw64-i686-gcc-core -P mingw64-x86_64-pcre -P mingw64-i686-pcre'
+    - if not exist "opam.tar.xz" (
+        curl -fsSL -o "opam.tar.xz" --retry 3 https://github.com/fdopen/opam-repository-mingw/releases/download/0.0.0.1/opam%ARCH%.tar.xz
       )
-    - 7z x "opam64.tar.xz" -so | 7z x -aoa -si -ttar
-    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && bash opam64/install.sh"'
-    - '%CYG_ROOT%/bin/bash -lc "opam init mingw \"https://github.com/fdopen/opam-repository-mingw.git\" --comp 4.02.3+mingw64c --switch 4.02.3+mingw64c --auto-setup --yes"'
-    - '%CYG_ROOT%/bin/bash -lc "opam install camlp4 sedlex ocamlfind xml-light extlib rope ptmap --yes"'
+    - 7z x "opam.tar.xz" -so | 7z x -aoa -si -ttar
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && bash opam${ARCH}/install.sh"'
+    - '%CYG_ROOT%/bin/bash -lc "opam init mingw \"https://github.com/fdopen/opam-repository-mingw.git\" --comp 4.02.3+mingw${ARCH}c --switch 4.02.3+mingw${ARCH}c --auto-setup --yes"'
+    - '%CYG_ROOT%/bin/bash -lc "opam update --yes"'
+    - '%CYG_ROOT%/bin/bash -lc "opam pin add haxe \"$APPVEYOR_BUILD_FOLDER\" --no-action --yes"'
+    - '%CYG_ROOT%/bin/bash -lc "opam install haxe --deps-only --yes"'
     # Install neko
     - choco install neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
-    - choco install chocolatey-core.extension php --ignore-dependencies -y
-    - echo extension=php_mysqli.dll >> C:\tools\php71\php.ini
-    - echo extension=php_sqlite3.dll >> C:\tools\php71\php.ini
+    # Install php
+    - choco install php -y
     - echo extension=php_openssl.dll >> C:\tools\php71\php.ini
-    - echo extension=php_pdo_mysql.dll >> C:\tools\php71\php.ini
-    - echo extension=php_pdo_sqlite.dll >> C:\tools\php71\php.ini
     - RefreshEnv
-    - neko -version
     # setup python
     - cmd: mklink C:\Python34-x64\python3.exe C:\Python34-x64\python.exe
     - set PATH=%PATH%;C:\Python34-x64
     # expose the dll files
-    - set "PATH=%CYG_ROOT%/usr/x86_64-w64-mingw32/sys-root/mingw/bin;%PATH%"
-    - choco install awscli
+    - if "%ARCH%" EQU "32" (
+        set "PATH=%CYG_ROOT%/usr/i686-w64-mingw32/sys-root/mingw/bin;%PATH%"
+      ) else (
+        set "PATH=%CYG_ROOT%/usr/x86_64-w64-mingw32/sys-root/mingw/bin;%PATH%"
+      )
+    - neko -version
 
 build_script:
     - 'cd %APPVEYOR_BUILD_FOLDER%'
-    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win"'
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win libs && make -j -s -f Makefile.win haxe && make -s -f Makefile.win haxelib"'
     - 'set PATH=%PATH%;%APPVEYOR_BUILD_FOLDER%'
     - 'set HAXEPATH=%APPVEYOR_BUILD_FOLDER%'
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win package_bin"'
@@ -69,17 +72,11 @@ build_script:
     - cd %APPVEYOR_BUILD_FOLDER%/tests/
     - mkdir "%HAXELIB_ROOT%"
     - haxelib setup "%HAXELIB_ROOT%"
-    # setup mysql for testing
-    - set PATH=%MYSQL_PATH%\bin;%PATH%
-    - mysql --user=%MYSQL_USER% --password=%MYSQL_PASSWORD% -e "create user 'travis'@'localhost';"
-    - mysql --user=%MYSQL_USER% --password=%MYSQL_PASSWORD% -e "create database haxe_test;"
-    - mysql --user=%MYSQL_USER% --password=%MYSQL_PASSWORD% -e "grant all on haxe_test.* to 'travis'@'localhost';"
 
 test_script:
     - cd %APPVEYOR_BUILD_FOLDER%/tests/
     - haxe -version
     - haxe RunCi.hxml
-    - neko RunCi.n
 
 artifacts:
     - path: 'out/*.zip'

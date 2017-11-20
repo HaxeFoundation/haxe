@@ -21,6 +21,7 @@
  */
 package haxe;
 
+import php.*;
 import haxe.io.Bytes;
 import haxe.crypto.Base64;
 
@@ -32,7 +33,7 @@ class Resource {
 	}
 
 	static function getDir() : String {
-		return untyped __call__('dirname', __php__('__FILE__'))+"/../../res";
+		return Global.dirname(Const.__FILE__) + "/../../res";
 	}
 
 	@:access(haxe.io.Path.escape)

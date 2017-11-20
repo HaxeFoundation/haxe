@@ -124,121 +124,60 @@ enum ValueType {
 		return resolveClass(name);
 	}
 
-	@:functionCode('
-			int len = args.length;
-			java.lang.Class[] cls = new java.lang.Class[len];
-			java.lang.Object[] objs = new java.lang.Object[len];
-
-			java.lang.reflect.Constructor[] ms = cl.getConstructors();
-			int msl = ms.length;
-			int realMsl = 0;
-			for(int i =0; i < msl; i++)
-			{
-				if (!ms[i].isVarArgs() && ms[i].getParameterTypes().length != len)
-				{
-					ms[i] = null;
-				} else {
-					ms[realMsl] = ms[i];
-					if (realMsl != i)
-						ms[i] = null;
-					realMsl++;
-				}
-			}
-
-			boolean hasNumber = false;
-
-			for (int i = 0; i < len; i++)
-			{
-				Object o = args.__get(i);
-				objs[i]= o;
-				cls[i] = o.getClass();
-				boolean isNum = false;
-
-				if (o instanceof java.lang.Number)
-				{
-					cls[i] = java.lang.Number.class;
-					isNum = hasNumber = true;
-				}
-
-				msl = realMsl;
-				realMsl = 0;
-
-				for (int j = 0; j < msl; j++)
-				{
-					java.lang.Class[] allcls = ms[j].getParameterTypes();
-					if (i < allcls.length)
-					{
-						if (! ((isNum && allcls[i].isPrimitive()) || allcls[i].isAssignableFrom(cls[i])) )
-						{
-							ms[j] = null;
-						} else {
-							ms[realMsl] = ms[j];
-							if (realMsl != j)
-								ms[j] = null;
-							realMsl++;
-						}
-					}
-				}
-
-			}
-
-			java.lang.reflect.Constructor found = ms[0];
-
-			if (hasNumber)
-			{
-				java.lang.Class[] allcls = found.getParameterTypes();
-
-				for (int i = 0; i < len; i++)
-				{
-					java.lang.Object o = objs[i];
-					if (o instanceof java.lang.Number)
-					{
-						java.lang.Class curCls = null;
-						if (i < allcls.length)
-						{
-							curCls = allcls[i];
-							if (!curCls.isAssignableFrom(o.getClass()))
-							{
-								String name = curCls.getName();
-								if (name.equals("double") || name.equals("java.lang.Double"))
-								{
-									objs[i] = ((java.lang.Number)o).doubleValue();
-								} else if (name.equals("int") || name.equals("java.lang.Integer"))
-								{
-									objs[i] = ((java.lang.Number)o).intValue();
-								} else if (name.equals("float") || name.equals("java.lang.Float"))
-								{
-									objs[i] = ((java.lang.Number)o).floatValue();
-								} else if (name.equals("byte") || name.equals("java.lang.Byte"))
-								{
-									objs[i] = ((java.lang.Number)o).byteValue();
-								} else if (name.equals("short") || name.equals("java.lang.Short"))
-								{
-									objs[i] = ((java.lang.Number)o).shortValue();
-								}
-							}
-						} //else varargs not handled TODO
-					}
-				}
-			}
-
-		try {
-			found.setAccessible(true);
-			return (T) found.newInstance(objs);
-		}
-		catch (java.lang.reflect.InvocationTargetException e)
-		{
-			throw haxe.lang.HaxeException.wrap(e.getCause());
-		}
-
-		catch (Throwable t)
-		{
-			throw haxe.lang.HaxeException.wrap(t);
-		}
-	')
-	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped
+	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T
 	{
-		return null;
+		var nargs = args.length,
+				callArguments = new java.NativeArray<Dynamic>(nargs);
+
+		var ctors = java.Lib.toNativeType(cl).getConstructors(),
+				totalCtors = ctors.length,
+				validCtors = 0;
+
+		for (i in 0...totalCtors) {
+			var ctor = ctors[i];
+			var ptypes = ctor.getParameterTypes();
+			if (ptypes.length != nargs && !ctor.isVarArgs()) {
+				continue;
+			}
+
+			var argNum = -1,
+					valid = true;
+			for (arg in args) {
+				argNum++;
+				var expectedType = argNum < ptypes.length ? ptypes[argNum] : ptypes[ptypes.length - 1]; // varags
+				if (arg == null || expectedType.isAssignableFrom(java.Lib.toNativeType(Type.getClass(arg)))) {
+					callArguments[argNum] = arg;
+				} else if (Std.is(arg, java.lang.Number)) {
+					var name = expectedType.getName();
+					switch(name) {
+						case 'double' | 'java.lang.Double':
+							callArguments[argNum] = (cast arg : java.lang.Number).doubleValue();
+						case 'int' | 'java.lang.Integer':
+							callArguments[argNum] = (cast arg : java.lang.Number).intValue();
+						case 'float' | 'java.lang.Float':
+							callArguments[argNum] = (cast arg : java.lang.Number).floatValue();
+						case 'byte' | 'java.lang.Byte':
+							callArguments[argNum] = (cast arg : java.lang.Number).byteValue();
+						case 'short' | 'java.lang.Short':
+							callArguments[argNum] = (cast arg : java.lang.Number).shortValue();
+						case _:
+							throw 'Unknown expected number subclass of type $name';
+					}
+				} else {
+					valid = false;
+					break;
+				}
+			}
+			if (!valid) {
+				continue;
+			}
+
+			// the current constructor was found and it is valid - call it
+			ctor.setAccessible(true);
+			return cast ctor.newInstance(callArguments);
+		}
+
+		throw 'Could not find any constructor that matches the provided arguments for class $cl';
 	}
 
 	// cache empty constructor arguments so we don't allocate it on each createEmptyInstance call
@@ -407,6 +346,7 @@ enum ValueType {
 		return null;
 	}
 
+	@:ifFeature("has_enum")
 	@:functionCode('
 		if (e instanceof java.lang.Enum)
 			return ((java.lang.Enum) e).ordinal();

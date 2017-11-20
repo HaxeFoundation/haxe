@@ -364,9 +364,7 @@ math.log(math.POSITIVE_INFINITY) == math.POSITIVE_INFINITY;
 // exp + log
 var floats = [1.33, 12.0, -112.999992, 0.0, math.NEGATIVE_INFINITY, math.POSITIVE_INFINITY];
 for (f in floats) {
-	#if !php
 	feq(math.log(math.exp(f)), f);
-	#end
 }
 
 // sqrt

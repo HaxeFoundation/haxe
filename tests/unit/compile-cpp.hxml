@@ -2,4 +2,3 @@ compile-each.hxml
 -main unit.TestMain
 -cpp bin/cpp
 -D HXCPP_NO_DEBUG_LINK
--lib record-macros

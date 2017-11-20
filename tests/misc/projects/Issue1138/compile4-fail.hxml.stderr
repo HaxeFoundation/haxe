@@ -1,1 +1,1 @@
-$$normPath(::cwd::/src3/import.hx):1: characters 0-14 : Only import and using is allowed in import.hx files
+$$normPath(::cwd::/src3/import.hx):1: characters 1-15 : Only import and using is allowed in import.hx files

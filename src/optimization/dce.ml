@@ -46,6 +46,23 @@ let rec super_forces_keep c =
 	| Some (csup,_) -> super_forces_keep csup
 	| _ -> false
 
+let overrides_extern_field cf c =
+	let is_extern c cf = c.cl_extern && cf.cf_expr = None in
+	let rec loop c cf =
+		match c.cl_super with
+		| None -> false
+		| Some (c,_) ->
+			try
+				let cf = PMap.find cf.cf_name c.cl_fields in
+				if is_extern c cf then
+					true
+				else
+					loop c cf
+			with Not_found ->
+				false
+	in
+	loop c cf
+
 let is_std_file dce file =
 	List.exists (ExtString.String.starts_with file) dce.std_dirs
 
@@ -66,12 +83,23 @@ let keep_whole_enum dce en =
 	Meta.has Meta.Keep en.e_meta
 	|| not (dce.full || is_std_file dce en.e_module.m_extra.m_file || has_meta Meta.Dce en.e_meta)
 
-(* check if a field is kept *)
-let keep_field dce cf =
+(*
+	Check if a field is kept.
+	`keep_field` is checked to determine the DCE entry points, i.e. all fields that have `@:keep` or kept for other reasons.
+	And then it is used at the end to check which fields can be filtered from their classes.
+*)
+let rec keep_field dce cf c is_static =
 	Meta.has Meta.Keep cf.cf_meta
 	|| Meta.has Meta.Used cf.cf_meta
 	|| cf.cf_name = "__init__"
-	|| is_extern_field cf
+	|| not (is_physical_field cf)
+	|| (not is_static && overrides_extern_field cf c)
+	|| (
+		cf.cf_name = "new"
+		&& match c.cl_super with (* parent class kept constructor *)
+			| Some ({ cl_constructor = Some ctor } as csup, _) -> keep_field dce ctor csup false
+			| _ -> false
+	)
 
 (* marking *)
 
@@ -116,7 +144,11 @@ and mark_field dce c cf stat =
 			| None -> add cf
 			| Some (c,_) -> mark_field dce c cf stat
 		end else
-			add cf
+			add cf;
+		if not stat then
+			match c.cl_constructor with
+				| None -> ()
+				| Some ctor -> mark_field dce c ctor false
 	end
 
 let rec update_marked_class_fields dce c =
@@ -248,7 +280,7 @@ let rec to_string dce t = match t with
 		| Some t -> to_string dce t
 		| _ -> ())
 	| TLazy f ->
-		to_string dce (!f())
+		to_string dce (lazy_type f)
 	| TDynamic t ->
 		if t == t_dynamic then
 			()
@@ -292,41 +324,42 @@ and field dce c n stat =
 	with Not_found ->
 		if dce.debug then prerr_endline ("[DCE] Field " ^ n ^ " not found on " ^ (s_type_path c.cl_path)) else ())
 
-and mark_directly_used_class c =
-	if not (Meta.has Meta.DirectlyUsed c.cl_meta) then
+and mark_directly_used_class dce c =
+	(* don't add @:directlyUsed if it's used within the class itself. this can happen with extern inline methods *)
+	if c != dce.curclass && not (Meta.has Meta.DirectlyUsed c.cl_meta) then
 		c.cl_meta <- (Meta.DirectlyUsed,[],c.cl_pos) :: c.cl_meta
 
 and mark_directly_used_enum e =
 	if not (Meta.has Meta.DirectlyUsed e.e_meta) then
 		e.e_meta <- (Meta.DirectlyUsed,[],e.e_pos) :: e.e_meta
 
-and mark_directly_used_mt mt =
+and mark_directly_used_mt dce mt =
 	match mt with
 	| TClassDecl c ->
-		mark_directly_used_class c
+		mark_directly_used_class dce c
 	| TEnumDecl e ->
 		mark_directly_used_enum e
 	| _ ->
 		()
 
-and mark_directly_used_t com p t =
+and mark_directly_used_t dce p t =
 	match follow t with
 	| TInst({cl_kind = KNormal} as c,pl) ->
-		mark_directly_used_class c;
-		List.iter (mark_directly_used_t com p) pl
+		mark_directly_used_class dce c;
+		List.iter (mark_directly_used_t dce p) pl
 	| TEnum(e,pl) ->
 		mark_directly_used_enum e;
-		List.iter (mark_directly_used_t com p) pl
+		List.iter (mark_directly_used_t dce p) pl
 	| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
 		begin try (* this is copy-pasted from mark_t *)
-			mark_directly_used_t com p (snd (Typecore.AbstractCast.find_multitype_specialization com a pl p))
+			mark_directly_used_t dce p (snd (Typecore.AbstractCast.find_multitype_specialization dce.com a pl p))
 		with Error.Error _ ->
 			()
 		end
 	| TAbstract(a,pl) ->
-		List.iter (mark_directly_used_t com p) pl;
+		List.iter (mark_directly_used_t dce p) pl;
 		if not (Meta.has Meta.CoreType a.a_meta) then
-			mark_directly_used_t com p (Abstract.get_underlying_type a pl)
+			mark_directly_used_t dce p (Abstract.get_underlying_type a pl)
 	| _ ->
 		()
 
@@ -433,7 +466,7 @@ and expr dce e =
 	match e.eexpr with
 	| TNew(c,pl,el) ->
 		mark_class dce c;
-		mark_directly_used_class c;
+		mark_directly_used_class dce c;
 		field dce c "new" false;
 		List.iter (expr dce) el;
 		List.iter (mark_t dce e.epos) pl;
@@ -443,29 +476,29 @@ and expr dce e =
 	| TCast(e, Some mt) ->
 		check_feature dce "typed_cast";
 		mark_mt dce mt;
-		mark_directly_used_mt mt;
+		mark_directly_used_mt dce mt;
 		expr dce e;
 	| TObjectDecl(vl) ->
 		check_and_add_feature dce "has_anon";
 		List.iter (fun (_,e) -> expr dce e) vl;
 	| TTypeExpr mt ->
 		mark_mt dce mt;
-		mark_directly_used_mt mt;
+		mark_directly_used_mt dce mt;
 	| TTry(e, vl) ->
 		expr dce e;
 		List.iter (fun (v,e) ->
 			if v.v_type != t_dynamic then begin
 				check_feature dce "typed_catch";
-				mark_directly_used_t dce.com v.v_pos v.v_type;
+				mark_directly_used_t dce v.v_pos v.v_type;
 			end;
 			expr dce e;
 			mark_t dce e.epos v.v_type;
 		) vl;
-	| TCall ({eexpr = TLocal ({v_name = "`trace"})},[p;{ eexpr = TObjectDecl(v)}]) ->
+	| TCall ({eexpr = TIdent "`trace"},[p;{ eexpr = TObjectDecl(v)}]) ->
 		check_and_add_feature dce "has_anon_trace";
 		List.iter (fun (_,e) -> expr dce e) v;
 		expr dce p;
-	| TCall ({eexpr = TLocal ({v_name = "__define_feature__"})},[{eexpr = TConst (TString ft)};e]) ->
+	| TCall ({eexpr = TIdent "__define_feature__"},[{eexpr = TConst (TString ft)};e]) ->
 		Hashtbl.replace dce.curclass.cl_module.m_extra.m_features ft true;
 		check_feature dce ft;
 		expr dce e;
@@ -478,7 +511,7 @@ and expr dce e =
 		begin match el with
 			| [{eexpr = TObjectDecl fl}] ->
 				begin try
-					begin match List.assoc "customParams" fl with
+					begin match Expr.field_assoc "customParams" fl with
 						| {eexpr = TArrayDecl el} ->
 							List.iter (fun e -> to_string dce e.etype) el
 						| _ ->
@@ -499,7 +532,7 @@ and expr dce e =
 		check_and_add_feature dce "array_write";
 		check_and_add_feature dce "array_read";
 		expr dce e1;
-	| TBinop(OpAdd,e1,e2) when is_dynamic e1.etype || is_dynamic e2.etype ->
+	| TBinop((OpAdd | OpAssignOp(OpAdd)),e1,e2) when is_dynamic e1.etype || is_dynamic e2.etype ->
 		check_and_add_feature dce "add_dynamic";
 		expr dce e1;
 		expr dce e2;
@@ -574,16 +607,11 @@ and expr dce e =
 	| TThrow e ->
 		check_and_add_feature dce "has_throw";
 		expr dce e;
-		(*
-			TODO: Simon, save me! \o
-			This is a hack needed to keep toString field of the actual exception objects
-			that are thrown, but are wrapped into HaxeError before DCE comes into play.
-		*)
-		let e = (match e.eexpr with
-			| TNew({cl_path=(["js";"_Boot"],"HaxeError")}, _, [eoriginal]) -> eoriginal
-			| _ -> e
-		) in
-		to_string dce e.etype
+		let rec loop e =
+			to_string dce e.etype;
+			Type.iter loop e
+		in
+		loop e
 	| _ ->
 		Type.iter (expr dce) e
 
@@ -654,7 +682,7 @@ let run com main full =
 		| TClassDecl c ->
 			let keep_class = keep_whole_class dce c && (not c.cl_extern || c.cl_interface) in
 			let loop stat cf =
-				if keep_class || keep_field dce cf then mark_field dce c cf stat
+				if keep_class || keep_field dce cf c stat then mark_field dce c cf stat
 			in
 			List.iter (loop true) c.cl_ordered_statics;
 			List.iter (loop false) c.cl_ordered_fields;
@@ -692,7 +720,7 @@ let run com main full =
 			List.iter (fun (c,cf,stat) -> mark_dependent_fields dce c cf.cf_name stat) cfl;
 			(* mark fields as used *)
 			List.iter (fun (c,cf,stat) ->
-				if not (is_extern_field cf) then mark_class dce c;
+				if is_physical_field cf then mark_class dce c;
 				mark_field dce c cf stat;
 				mark_t dce cf.cf_pos cf.cf_type
 			) cfl;
@@ -700,7 +728,8 @@ let run com main full =
 			List.iter (fun (c,cf,_) ->
 				dce.curclass <- c;
 				opt (expr dce) cf.cf_expr;
-				List.iter (fun cf -> if cf.cf_expr <> None then opt (expr dce) cf.cf_expr) cf.cf_overloads
+				List.iter (fun cf -> if cf.cf_expr <> None then opt (expr dce) cf.cf_expr) cf.cf_overloads;
+				dce.curclass <- null_class
 			) cfl;
 			loop ()
 	in
@@ -739,7 +768,7 @@ let run com main full =
 			(* add :keep so subsequent filter calls do not process class fields again *)
 			c.cl_meta <- (Meta.Keep,[],c.cl_pos) :: c.cl_meta;
  			c.cl_ordered_statics <- List.filter (fun cf ->
-				let b = keep_field dce cf in
+				let b = keep_field dce cf c true in
 				if not b then begin
 					if dce.debug then print_endline ("[DCE] Removed field " ^ (s_type_path c.cl_path) ^ "." ^ (cf.cf_name));
 					check_property cf true;
@@ -748,7 +777,7 @@ let run com main full =
 				b
 			) c.cl_ordered_statics;
 			c.cl_ordered_fields <- List.filter (fun cf ->
-				let b = keep_field dce cf in
+				let b = keep_field dce cf c false in
 				if not b then begin
 					if dce.debug then print_endline ("[DCE] Removed field " ^ (s_type_path c.cl_path) ^ "." ^ (cf.cf_name));
 					check_property cf false;
@@ -756,8 +785,8 @@ let run com main full =
 				end;
 				b
 			) c.cl_ordered_fields;
-			(match c.cl_constructor with Some cf when not (keep_field dce cf) -> c.cl_constructor <- None | _ -> ());
-			let inef cf = not (is_extern_field cf) in
+			(match c.cl_constructor with Some cf when not (keep_field dce cf c false) -> c.cl_constructor <- None | _ -> ());
+			let inef cf = is_physical_field cf in
 			let has_non_extern_fields = List.exists inef c.cl_ordered_fields || List.exists inef c.cl_ordered_statics in
 			(* we keep a class if it was used or has a used field *)
 			if Meta.has Meta.Used c.cl_meta || has_non_extern_fields then loop (mt :: acc) l else begin
@@ -805,9 +834,9 @@ let run com main full =
 	*)
 	List.iter (function
 		| TClassDecl ({cl_extern = false; cl_super = Some ({cl_extern = true} as csup, _)}) ->
-			mark_directly_used_class csup
+			mark_directly_used_class dce csup
 		| TClassDecl ({cl_extern = false} as c) when c.cl_implements <> [] ->
-			List.iter (fun (iface,_) -> if (iface.cl_extern) then mark_directly_used_class iface) c.cl_implements;
+			List.iter (fun (iface,_) -> if (iface.cl_extern) then mark_directly_used_class dce iface) c.cl_implements;
 		| _ -> ()
 	) com.types;
 

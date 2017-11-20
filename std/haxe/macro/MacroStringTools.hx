@@ -30,7 +30,7 @@ import haxe.macro.Expr;
 **/
 #if hl @:hlNative("macro") #end
 class MacroStringTools {
-	#if macro
+	#if (macro || display)
 
 
 	/**

@@ -65,4 +65,13 @@ class Format {
 	public static function scaleImage( out : hl.Bytes, outPos : Int,  outStride : Int, outWidth : Int, outHeight : Int, _in : hl.Bytes, inPos : Int,  inStride : Int, inWidth : Int, inHeight : Int, flags : Int ) {
 	}
 
+	/**
+		Performs a cryptographic digest of some bytes.
+		0 = Md5 , 1 = Sha1 , 2 = Crc32, 3 = Adler32
+		Set 256 flag to tell the src are String bytes.
+	**/
+	@:hlNative("fmt", "digest")
+	public static function digest( out : hl.Bytes, src : hl.Bytes, srcLen : Int, algorithm : Int ) {
+	}
+
 }

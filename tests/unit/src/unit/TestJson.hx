@@ -50,7 +50,7 @@ class TestJson extends Test {
 	function testHaxeJson() {
 		#if php
 		// php's haxe.Utf8 uses mbstring
-		if (untyped __call__("extension_loaded", "mbstring")) {
+		if (php.Global.extension_loaded("mbstring")) {
 		#end
 
 		var str = haxe.format.JsonPrinter.print( { x : -4500, y : 1.456, a : ["hello", "wor'\"\n\t\rd"], b : function() {} } );
@@ -88,6 +88,8 @@ class TestJson extends Test {
 		deepId( {array: mix} );
 
 		eq( haxe.format.JsonParser.parse('"\\u00E9"'), "é" );
+		//exc(() -> haxe.format.JsonParser.parse('{"""a": 1}'));
+		exc( function() haxe.format.JsonParser.parse('{"""a": 1}'));
 
 		eq(haxe.format.JsonPrinter.print(Math.POSITIVE_INFINITY), "null");
 		eq(haxe.format.JsonPrinter.print(Math.NEGATIVE_INFINITY), "null");

@@ -46,7 +46,7 @@ class TestMatch extends Test {
 				s;
 			case EArray(_, { expr : EConst(CInt(i) | CFloat(i)) } ):
 				Std.string(i);
-			case EIn(_, { expr : e, pos : _ }) :
+			case EBinop(OpIn, _, { expr : e, pos : _ }) :
 				Std.string(e);
 			case _:
 				"not_found";
@@ -82,7 +82,7 @@ class TestMatch extends Test {
 			case ["b"]: "2";
 			case [a]: "3:" + a;
 			case [a, b]: "4:" + a + "," +b;
-			case a if (a.length == 3): "5:" + a.length;
+			case var a if (a.length == 3): "5:" + a.length;
 			case []: "6";
 			case _: "7";
 		}
@@ -125,7 +125,7 @@ class TestMatch extends Test {
 		return switch(cl) {
 			case String: "String";
 			case MyClass: "unit.MyClass";
-			case a: "other: " +Type.getClassName(a);
+			case var a: "other: " +Type.getClassName(a);
 		}
 	}
 
@@ -231,7 +231,7 @@ class TestMatch extends Test {
 			case val = (4 | 5 | 6) if (val == 5): "1";
 			case 4, 5, 6: "2";
 			case 8, 9: "3";
-			case x: '_:$x';
+			case var x: '_:$x';
 		}
 		var results = ["_:0", "0", "0", "0", "2", "1", "2", "_:7", "3", "3", "_:10"];
 		for (i in 0...results.length) {
@@ -496,7 +496,7 @@ class TestMatch extends Test {
 			return switch(i) {
 				case [x]: 1;
 				case isPair(_) => Some(p) : p.a+p.b;
-				case arr: 3;
+				case var arr: 3;
 			}
 		}
 
@@ -552,7 +552,7 @@ class TestMatch extends Test {
 				case isPair(_) => Some({ a : is(even)(_) => Some(a), b : b }) : a+b;
 				case isPair(_) => Some({ a : isNot(even)(_) => Some(a), b : b }) : a*b;
 				case testArgs(1, "foo", _) => "[99,98,97]": 99;
-				case arr: 3;
+				case var arr: 3;
 			}
 		}
 

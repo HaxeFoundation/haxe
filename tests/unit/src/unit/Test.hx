@@ -65,6 +65,7 @@ class Test {
 
 	function assert( ?pos ) {
 		report("Assert",pos);
+		success = false;
 	}
 
 	function exc( f : Void -> Void, ?pos ) {
@@ -157,7 +158,7 @@ class Test {
 			return;
 		}
 		asyncWaits.push(pos);
-		seterror(function(e) {
+		seterror(function(_) {
 			incrCount(pos);
 			if( asyncWaits.remove(pos) )
 				checkDone();
@@ -166,7 +167,7 @@ class Test {
 				success = false;
 			}
 		});
-		f(args,function(v) {
+		f(args,function(_) {
 			incrCount(pos);
 			if( asyncWaits.remove(pos) ) {
 				report("No exception occurred",pos);
@@ -179,7 +180,7 @@ class Test {
 		});
 	}
 
-	function log( msg, ?pos : haxe.PosInfos ) {
+	function log( msg : String, ?pos : haxe.PosInfos ) {
 		haxe.Log.trace(msg,pos);
 	}
 

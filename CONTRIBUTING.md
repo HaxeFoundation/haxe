@@ -12,7 +12,7 @@ This repository is about the Haxe compiler itself and the Haxe standard library.
 * The haxelib command line tool or lib.haxe.org: <https://github.com/HaxeFoundation/haxelib/issues>
 * Something on try.haxe.org: <https://github.com/clemos/try-haxe/issues>
 * Something under haxe.org/manual: <https://github.com/HaxeFoundation/HaxeManual/issues>
-* Something on api.haxe.org: For content this is probably the right repository. If it's about the representation, try <https://github.com/dpeek/dox/issues> instead.
+* Something on api.haxe.org: For content this is probably the right repository. If it's about the representation, try <https://github.com/HaxeFoundation/dox/issues> instead.
 * Something else on haxe.org: <https://github.com/HaxeFoundation/haxe.org/issues>
 
 ## Other remarks:

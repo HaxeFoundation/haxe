@@ -22,7 +22,7 @@
 package haxe.crypto;
 
 /**
-	Allows to encode/decode String and bytes using Base64 encoding.
+	Allows one to encode/decode String and bytes using Base64 encoding.
 **/
 class Base64 {
 

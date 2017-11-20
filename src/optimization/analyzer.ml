@@ -153,15 +153,15 @@ module Ssa = struct
 			v'
 		in
 		let rec loop is_phi i e = match e.eexpr with
-			| TLocal v when not (is_unbound v) ->
+			| TLocal v ->
 				let v' = local ctx e v bb in
 				add_ssa_edge ctx.graph v' bb is_phi i;
 				{e with eexpr = TLocal v'}
-			| TVar(v,Some e1) when not (is_unbound v) ->
+			| TVar(v,Some e1) ->
 				let e1 = (loop is_phi i) e1 in
 				let v' = write_var v is_phi i in
 				{e with eexpr = TVar(v',Some e1)}
-			| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) when not (is_unbound v) ->
+			| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
 				let e2 = (loop is_phi i) e2 in
 				let v' = write_var v is_phi i in
 				{e with eexpr = TBinop(OpAssign,{e1 with eexpr = TLocal v'},e2)};
@@ -348,6 +348,7 @@ module ConstPropagation = DataFlow(struct
 	type t =
 		| Top
 		| Bottom
+		| Null of Type.t
 		| Const of tconstant
 		| EnumValue of int * t list
 
@@ -365,6 +366,7 @@ module ConstPropagation = DataFlow(struct
 	let equals lat1 lat2 = match lat1,lat2 with
 		| Top,Top | Bottom,Bottom -> true
 		| Const ct1,Const ct2 -> ct1 = ct2
+		| Null t1,Null t2 -> t1 == t2
 		| EnumValue(i1,_),EnumValue(i2,_) -> i1 = i2
 		| _ -> false
 
@@ -372,6 +374,7 @@ module ConstPropagation = DataFlow(struct
 		let rec eval bb e =
 			let wrap = function
 				| Const ct -> mk (TConst ct) t_dynamic null_pos
+				| Null t -> mk (TConst TNull) t e.epos
 				| _ -> raise Exit
 			in
 			let unwrap e = match e.eexpr with
@@ -379,12 +382,14 @@ module ConstPropagation = DataFlow(struct
 				| _ -> raise Exit
 			in
 			match e.eexpr with
-			| TConst (TSuper | TThis | TNull) ->
+			| TConst (TSuper | TThis) ->
 				Bottom
+			| TConst TNull ->
+				Null e.etype
 			| TConst ct ->
 				Const ct
 			| TLocal v ->
-				if is_unbound v || (follow v.v_type) == t_dynamic || v.v_capture then
+				if (follow v.v_type) == t_dynamic || v.v_capture then
 					Bottom
 				else
 					get_cell v.v_id
@@ -418,6 +423,11 @@ module ConstPropagation = DataFlow(struct
 			| TEnumParameter(e1,_,i) ->
 				begin match eval bb e1 with
 					| EnumValue(_,el) -> (try List.nth el i with Failure _ -> raise Exit)
+					| _ -> raise Exit
+				end;
+			| TEnumIndex e1 ->
+				begin match eval bb e1 with
+					| EnumValue(i,_) -> Const (TInt (Int32.of_int i))
 					| _ -> raise Exit
 				end;
 			| TCall ({ eexpr = TField (_,FStatic({cl_path=[],"Type"} as c,({cf_name="enumIndex"} as cf)))},[e1]) when ctx.com.platform = Eval ->
@@ -460,10 +470,10 @@ module ConstPropagation = DataFlow(struct
 
 	let commit ctx =
 		let inline e i = match get_cell i with
-			| Top | Bottom | EnumValue _ ->
+			| Top | Bottom | EnumValue _ | Null _ ->
 				raise Not_found
 			| Const ct ->
-				let e' = Codegen.type_constant ctx.com (tconst_to_const ct) e.epos in
+				let e' = Texpr.type_constant ctx.com.basic (tconst_to_const ct) e.epos in
 				if not (type_change_ok ctx.com e'.etype e.etype) then raise Not_found;
 				e'
 		in
@@ -598,7 +608,7 @@ module LocalDce = struct
 	let rec has_side_effect e =
 		let rec loop e =
 			match e.eexpr with
-			| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ -> ()
+			| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ | TIdent _ -> ()
 			| TCall ({ eexpr = TField(_,FStatic({ cl_path = ([],"Std") },{ cf_name = "string" })) },args) -> Type.iter loop e
 			| TCall ({eexpr = TField(_,FEnum _)},_) -> Type.iter loop e
 			| TCall ({eexpr = TConst (TString ("phi" | "fun"))},_) -> ()
@@ -606,7 +616,7 @@ module LocalDce = struct
 			| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
 			| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
 			| TFor _ -> raise Exit
-			| TArray _ | TEnumParameter _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _
+			| TArray _ | TEnumParameter _ | TEnumIndex _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _
 			| TField _ | TIf _ | TTry _ | TSwitch _ | TArrayDecl _ | TBlock _ | TObjectDecl _ | TVar _ -> Type.iter loop e
 		in
 		try
@@ -632,9 +642,9 @@ module LocalDce = struct
 				end
 			end
 		and expr e = match e.eexpr with
-			| TLocal v when not (is_unbound v) ->
+			| TLocal v ->
 				use v;
-			| TBinop(OpAssign,{eexpr = TLocal v},e1) | TVar(v,Some e1) when not (is_unbound v) ->
+			| TBinop(OpAssign,{eexpr = TLocal v},e1) | TVar(v,Some e1) ->
 				if has_side_effect e1 || keep v then expr e1
 				else ()
 			| _ ->
@@ -749,8 +759,6 @@ module Debug = struct
 			edge bb_try "try";
 			List.iter (fun (_,bb_catch) -> edge bb_catch "catch") bbl;
 			edge bb_next "next";
-		| SEEnd ->
-			()
 		| SENone ->
 			()
 
@@ -796,7 +804,7 @@ module Debug = struct
 	let dot_debug ctx c cf =
 		let g = ctx.graph in
 		let start_graph ?(graph_config=[]) suffix =
-			let ch = Codegen.Dump.create_file suffix [] (get_dump_path ctx c cf) in
+			let ch = Path.create_file false suffix [] (get_dump_path ctx c cf) in
 			Printf.fprintf ch "digraph graphname {\n";
 			List.iter (fun s -> Printf.fprintf ch "%s;\n" s) graph_config;
 			ch,(fun () ->
@@ -888,7 +896,7 @@ module Run = struct
 	open Graph
 
 	let with_timer detailed s f =
-		let timer = timer (if detailed then "analyzer" :: s else ["analyzer"]) in
+		let timer = Timer.timer (if detailed then "analyzer" :: s else ["analyzer"]) in
 		let r = f() in
 		timer();
 		r

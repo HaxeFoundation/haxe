@@ -31,6 +31,10 @@ class Host
       module.run();
    }
 
+
+   @:native("hx::EnableJit")
+   @:extern public static function enableJit(enable:Bool) : Void { }
+
    public static function runFile(filename:String)
    {
       run( sys.io.File.getContent(filename) );
@@ -39,7 +43,12 @@ class Host
 
    public static function main()
    {
-      var script = Sys.args()[0];
+      var args = Sys.args();
+      if (args.remove("-jit"))
+         enableJit(true);
+
+      var script = args[0];
+
       #if (!scriptable && !doc_gen)
       #error "Please define scriptable to use cppia"
       #end

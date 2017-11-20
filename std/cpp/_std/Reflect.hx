@@ -49,8 +49,11 @@ class Reflect {
 	}
 
 	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic untyped {
-			if (func!=null && func.__GetType()==ObjectType.vtString)
+			if (func!=null && func.__GetType()==ObjectType.vtString) {
+				if (o==null) throw cpp.ErrorConstants.invalidObject;
 				func = o.__Field(func,untyped __cpp__("hx::paccDynamic"));
+			}
+			if (func==null) throw cpp.ErrorConstants.nullFunctionPointer;
 			untyped func.__SetThis(o);
          return untyped func.__Run(args);
 	}

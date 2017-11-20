@@ -27,19 +27,12 @@ package haxe.crypto;
 class Sha256 {
 
 	public static function encode( s:String ) : String {
-		#if php
-		return untyped __call__("hash", "sha256", s);
-		#else
 		var sh = new Sha256();
 		var h = sh.doEncode(str2blks(s), s.length*8);
 		return sh.hex(h);
-		#end
 	}
 
 	public static function make( b : haxe.io.Bytes ) : haxe.io.Bytes {
-		#if php
-		return haxe.io.Bytes.ofData(haxe.io.BytesData.ofString(untyped __call__("hash", "sha256", b.getData().toString(), true)));
-		#else
 		var h = new Sha256().doEncode(bytes2blks(b), b.length*8);
 		var out = haxe.io.Bytes.alloc(32);
 		var p = 0;
@@ -50,7 +43,6 @@ class Sha256 {
 			out.set(p++,h[i]&0xFF);
 		}
 		return out;
-		#end
 	}
 
 	public function new() {
@@ -113,7 +105,7 @@ class Sha256 {
 		Append padding bits and the length, as described in the SHA1 standard.
 	 */
 	static function str2blks( s :String ) : Array<Int> {
-#if !(neko || cpp || php)
+#if !(neko || cpp)
 		var s = haxe.io.Bytes.ofString(s);
 #end
 		var nblk = ((s.length + 8) >> 6) + 1;
@@ -123,7 +115,7 @@ class Sha256 {
 			blks[i] = 0;
 		for (i in 0...s.length){
 			var p = i >> 2;
-			blks[p] |= #if !(neko || cpp || php) s.get(i) #else s.charCodeAt(i) #end << (24 - ((i & 3) << 3));
+			blks[p] |= #if !(neko || cpp) s.get(i) #else s.charCodeAt(i) #end << (24 - ((i & 3) << 3));
 		}
 		var i = s.length;
 		var p = i >> 2;
