@@ -45,57 +45,58 @@ class TestMain {
 		tf.mouseEnabled = true;
 		#end
 		var classes = [
-			//new TestOps(),
-			//new TestBasetypes(),
-			//new TestBytes(),
-			//new TestIO(),
-			//new TestLocals(),
-			//new TestEReg(),
-			//new TestXML(),
-			//new TestMisc(),
-			//new TestJson(),
-			//new TestResource(),
-			//new TestInt64(),
-			//new TestReflect(),
-			//new TestSerialize(),
-			//new TestMeta(),
-			//new TestType(),
-			//new TestOrder(),
-			//new TestGADT(),
-			//new TestGeneric(),
-			//new TestArrowFunctions(),
+			new TestOps(),
+			new TestBasetypes(),
+			new TestBytes(),
+			new TestIO(),
+			new TestLocals(),
+			new TestEReg(),
+			new TestXML(),
+			new TestMisc(),
+			new TestJson(),
+			new TestResource(),
+			new TestInt64(),
+			new TestReflect(),
+			new TestSerialize(),
+			new TestMeta(),
+			new TestType(),
+			new TestOrder(),
+			new TestGADT(),
+			new TestGeneric(),
+			new TestArrowFunctions(),
+			new TestCasts(),
 			#if !no_pattern_matching
-			//new TestMatch(),
+			new TestMatch(),
 			#end
 			new TestSpecification(),
 			#if cs
-			//new TestCSharp(),
+			new TestCSharp(),
 			#end
 			#if java
-			//new TestJava(),
+			new TestJava(),
 			#end
 			#if lua
-			//new TestLua(),
+			new TestLua(),
 			#end
 			#if python
-			//new TestPython(),
+			new TestPython(),
 			#end
 			#if hl
-			//new TestHL(),
+			new TestHL(),
 			#end
 			#if php
-			//new TestPhp(),
+			new TestPhp(),
 			#end
 			#if (java || cs)
-			//new TestOverloads(),
+			new TestOverloads(),
 			#end
-			//new TestInterface(),
-			//new TestNaN(),
+			new TestInterface(),
+			new TestNaN(),
 			#if ((dce == "full") && !interp && !as3)
-			//new TestDCE(),
+			new TestDCE(),
 			#end
-			//new TestMapComprehension(),
-			//new TestMacro(),
+			new TestMapComprehension(),
+			new TestMacro(),
 			// #if ( (java || neko) && !macro && !interp)
 			// new TestThreads(),
 			// #end
@@ -105,31 +106,14 @@ class TestMain {
 
 
 		#if js
-		//if (js.Browser.supported) {
-		//	classes.push(new TestJQuery());
-		//}
+		if (js.Browser.supported) {
+			classes.push(new TestJQuery());
+		}
 		#end
 
-		// SPOD tests
-		#if ( (neko || (php && (travis || appveyor || php_sqlite)) || java || cpp || (cs && (travis || appveyor))) && !macro && !interp)
-		#if ( (travis || appveyor) && !(cpp || cs) )
-		/*
-		classes.push(new TestSpod(sys.db.Mysql.connect({
-			host : "127.0.0.1",
-			user : "travis",
-			pass : "",
-			port : 3306,
-			database : "haxe_test" })));
-		*/
-		#end
-		/*
-		if (verbose)
-			logVerbose("Setup sqlite");
-		classes.push(new TestSpod(sys.db.Sqlite.open("db.db3")));
-		*/
-		#end
-		//TestIssues.addIssueClasses("src/unit/issues", "unit.issues");
-		//TestIssues.addIssueClasses("src/unit/hxcpp_issues", "unit.hxcpp_issues");
+
+		TestIssues.addIssueClasses("src/unit/issues", "unit.issues");
+		TestIssues.addIssueClasses("src/unit/hxcpp_issues", "unit.hxcpp_issues");
 		var current = null;
 		#if (!fail_eager)
 		try
