@@ -203,6 +203,7 @@ uninstall:
 	else \
 		rm -rf $(INSTALL_LIB_DIR); \
 	fi
+	rm -rf  $(INSTALL_STD_DIR)
 
 opam_install:
 	opam install $(OPAM_LIBS) camlp4 ocamlfind --yes

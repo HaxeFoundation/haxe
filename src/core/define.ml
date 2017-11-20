@@ -85,6 +85,7 @@ type strict_defined =
 	| PhpLib
 	| PhpFront
 	| PhpPrefix
+	| PythonVersion
 	| RealPosition
 	| ReplaceFiles
 	| Scriptable
@@ -197,6 +198,7 @@ let infos = function
 	| PhpPrefix -> "php_prefix",("Root namespace for generated php classes. E.g. if compiled with`-D php-prefix=some.sub`, then all classes will be generated in `\\some\\sub` namespace.",[Platform Php])
 	| PhpLib -> "php_lib",("Select the name for the php lib folder.",[Platform Php])
 	| PhpFront -> "php_front",("Select the name for the php front file (by default: `index.php`).", [Platform Php])
+	| PythonVersion -> "python_version",("The python version to target (default 3.3)",[Platform Python])
 	| RealPosition -> "real_position",("Disables Haxe source mapping when targetting C#, removes position comments in Java and Php output",[Platforms [Cs;Java;Php]])
 	| ReplaceFiles -> "replace_files",("GenCommon internal",[Platforms [Java;Cs]])
 	| Scriptable -> "scriptable",("GenCPP internal",[Platform Cpp])

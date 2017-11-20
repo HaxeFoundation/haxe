@@ -22,7 +22,7 @@ class Profile {
 
 	public static var enable(get, set) : Bool;
 
-	public static function getData() {
+	public static function getData( sortBySize = false ) {
 		var old = enable;
 		enable = false;
 		var maxDepth = 0;
@@ -37,17 +37,19 @@ class Profile {
 			a.stack = [for( a in arr ) resolveSymbol(a)];
 			out.push(a);
 		}
-		out.sort(function(a1, a2) return a2.count - a1.count);
+		if( sortBySize )
+			out.sort(function(a1, a2) return a2.size - a1.size);
+		else
+			out.sort(function(a1, a2) return a2.count - a1.count);
 		enable = old;
 		return out;
 	}
 
-	public static function dump( fileName = "alloc.dump" ) {
-		var d = getData();
+	public static function dump( fileName = "alloc.dump", sortBySize = false ) {
 		var old = enable;
 		enable = false;
 		var f = sys.io.File.write(fileName);
-		var data = getData();
+		var data = getData(sortBySize);
 		var count = 0, size = 0;
 		for( o in data ) {
 			count += o.count;

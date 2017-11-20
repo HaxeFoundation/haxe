@@ -320,22 +320,6 @@ class Boot {
 	}
 
 	/**
-		`trace()` implementation
-	**/
-	public static function trace( value:Dynamic, infos:PosInfos ) : Void {
-		if (infos != null) {
-			Global.echo('${infos.fileName}:${infos.lineNumber}: ');
-		}
-		Global.echo(stringify(value));
-		if (infos.customParams != null) {
-			for (value in infos.customParams) {
-				Global.echo(',' + stringify(value));
-			}
-		}
-		Global.echo('\n');
-	}
-
-	/**
 		Returns string representation of `value`
 	**/
 	public static function stringify( value : Dynamic ) : String {

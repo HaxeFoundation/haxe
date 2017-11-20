@@ -2342,7 +2342,7 @@ let check code macros =
 				reg r HBool;
 				can_jump delta
 			| OJNull (r,delta) | OJNotNull (r,delta) ->
-				ignore(rtype r);
+				if not (is_nullable (rtype r)) then reg r HDyn;
 				can_jump delta
 			| OJUGte (a,b,delta) | OJULt (a,b,delta) | OJSGte (a,b,delta) | OJSLt (a,b,delta) | OJSGt (a,b,delta) | OJSLte (a,b,delta) | OJNotLt (a,b,delta) | OJNotGte (a,b,delta) ->
 				if not (safe_cast (rtype a) (rtype b)) then reg b (rtype a);

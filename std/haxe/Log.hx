@@ -25,7 +25,19 @@ package haxe;
 	Log primarily provides the `trace()` method, which is invoked upon a call to
 	`trace()` in Haxe code.
 **/
-extern class Log {
+class Log {
+
+	/**
+		Format the output of `trace` before printing it.
+	**/
+	public static function formatOutput( v : Dynamic, infos : PosInfos ) : String {
+		var str = Std.string(v);
+		if( infos == null )
+			return str;
+		var pstr = infos.fileName + ":" + infos.lineNumber;
+		if( infos != null && infos.customParams != null ) for( v in infos.customParams ) str += ", " + Std.string(v);
+		return pstr+": "+str;
+	}
 
 	/**
 		Outputs `v` in a platform-dependent way.
@@ -44,5 +56,18 @@ extern class Log {
 		If it is bound to null, subsequent calls to `trace()` will cause an
 		exception.
 	**/
-	static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void;
+	public static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
+		var str = formatOutput(v,infos);
+		#if js
+		if( js.Syntax.typeof(untyped console) != "undefined" && (untyped console).log != null )
+			(untyped console).log(str);
+		#elseif lua
+		untyped __define_feature__("use._hx_print",_hx_print(str));
+		#elseif sys
+		Sys.println(str);
+		#else
+		throw "Not implemented"
+		#end
+	}
+
 }

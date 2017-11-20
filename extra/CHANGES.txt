@@ -7,10 +7,13 @@
 	General improvements and optimizations:
 
 	all : made all non-warning/non-error compiler messages output to stdout (#4480)
-
 	php : implemented direct method comparison. No need to use `Reflect.compareMethods()`
+	php : added `php.Syntax.code()` instead of deprecated `untyped __php__()` (#6708)
+	php : added methods to `php.Syntax` for each php operator: `??`, `?:`, `**` etc. (#6708)
 
 	Removals:
+
+	php : removed `php.Syntax.binop()` (#6708)
 
 	Deprecations:
 

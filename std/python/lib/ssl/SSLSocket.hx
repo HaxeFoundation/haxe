@@ -19,17 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package haxe;
+package python.lib.ssl;
 
-@:coreApi class Log {
-	@:access(js.Boot.__string_rec)
-	public static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
-		var msg = if (infos != null) infos.fileName + ":" + infos.lineNumber + ": " else "";
-		msg += js.Boot.__string_rec(v, "");
-		if (infos != null && infos.customParams != null)
-			for (v in infos.customParams)
-				msg += "," + js.Boot.__string_rec(v, "");
-		if( js.Syntax.typeof(untyped console) != "undefined" && (untyped console).log != null )
-			(untyped console).log(msg);
-	}
+@:pythonImport("ssl", "SSLSocket")
+extern class SSLSocket extends python.lib.socket.Socket {
+
 }

@@ -235,7 +235,7 @@ extern class Syntax {
         That means you can't pass an object stored in a variable to this method like `Syntax.assocDecl(someVar)`.
         Use `php.Lib.associativeArrayOfObject(someVar)` instead.
     **/
-    static function assocDecl<T:{}>( arg:T ) : NativeAssocArray<Dynamic>;
+    static function assocDecl<T:{}>( ?arg:T ) : NativeAssocArray<Dynamic>;
 
     /**
         Don't let compiler to optimize away local var passed to this method.

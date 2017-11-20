@@ -60,7 +60,8 @@ class Boot {
 	}
 
 	inline static function isPyInt(o:Dynamic):Bool {
-		return UBuiltins.isinstance(o, UBuiltins.int);
+		// for historic reasons bool extends int
+		return UBuiltins.isinstance(o, UBuiltins.int) && !isPyBool(o);
 	}
 
 	inline static function isPyFloat(o:Dynamic):Bool {
