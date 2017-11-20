@@ -532,7 +532,7 @@ and expr dce e =
 		check_and_add_feature dce "array_write";
 		check_and_add_feature dce "array_read";
 		expr dce e1;
-	| TBinop(OpAdd,e1,e2) when is_dynamic e1.etype || is_dynamic e2.etype ->
+	| TBinop((OpAdd | OpAssignOp(OpAdd)),e1,e2) when is_dynamic e1.etype || is_dynamic e2.etype ->
 		check_and_add_feature dce "add_dynamic";
 		expr dce e1;
 		expr dce e2;

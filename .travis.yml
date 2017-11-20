@@ -42,7 +42,6 @@ install_linux: &install_linux
       ocaml
       ocaml-native-compilers
       ocaml-findlib
-      camlp4
       libpcre3-dev
       zlib1g-dev
       libgtk2.0-dev
@@ -50,7 +49,9 @@ install_linux: &install_linux
       awscli
       $JOB_DEPENDENCIES
   - wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin system
-  - opam install sedlex xml-light extlib rope ptmap
+  - opam update
+  - opam pin add haxe . --no-action
+  - opam install haxe --deps-only
   # install neko
   - if [ ! $DEPLOY_NIGHTLIES ]; then
       sudo add-apt-repository ppa:haxe/snapshots -y;
@@ -99,9 +100,11 @@ install_osx: &install_osx
   - brew uninstall --force brew-cask # https://github.com/caskroom/homebrew-cask/pull/15381
   - travis_retry brew tap Homebrew/bundle
   - travis_retry brew bundle --file=tests/Brewfile
-  - opam init
+  - opam init --compiler=4.05.0
   - eval `opam config env`
-  - opam install camlp4 sedlex ocamlfind xml-light extlib rope ptmap
+  - opam update
+  - opam pin add haxe . --no-action
+  - opam install haxe --deps-only
   # install neko
   - if [ ! $DEPLOY_NIGHTLIES ]; then
       brew install neko --HEAD;

@@ -28,6 +28,25 @@ import haxe.i18n.Tools;
 **/
 #if (flash || js || hl || java || cs)
 
+
+private class Ucs2Iterator {
+	var s:Ucs2;
+	var p:Int;
+
+	public inline function new (s) {
+		this.p = 0;
+		this.s = s;
+	}
+
+	public inline function hasNext ():Bool {
+		return p < s.length;
+	}
+
+	public inline function next ():Int {
+		return s.fastCodeAt(p++);
+	}
+}
+
 @:allow(haxe.i18n)
 abstract Ucs2(String) {
 
@@ -35,6 +54,10 @@ abstract Ucs2(String) {
 
 	public inline function new(str:String) : Void {
 		this = str;
+	}
+
+	public inline function iterator () {
+		return new Ucs2Iterator(fromImpl(this));
 	}
 
 	inline function get_length():Int {
@@ -108,13 +131,12 @@ abstract Ucs2(String) {
 	}
 
 	public function toBytes() : haxe.io.Bytes {
-		var b = haxe.io.Bytes.alloc(length*2);
+		var b = ByteAccess.alloc(length * 2);
 		for (i in 0...length) {
 			var code = fastCodeAt(i);
-			b.set(i * 2, ((code & 0xFF00) >> 8));
-			b.set(i * 2 + 1, (code & 0x00FF));
+			b.setInt16LE(i*2, code);
 		}
-		return b;
+		return b.toBytes();
 	}
 
 	public static inline function fromBytes( bytes : haxe.io.Bytes ) : Ucs2 {
@@ -126,10 +148,10 @@ abstract Ucs2(String) {
 		var i = 0;
 		var buf = new StringBuf();
 		while (i < bytes.length) {
-			var code1 = (bytes.fastGet(i) << 8) | bytes.fastGet(i+1);
+			var code1 = bytes.getInt16LE(i);
 			// we allow surrogates in ucs2, but we treat them as individual chars with invalid codes
 			if (Convert.isHighSurrogate(code1)) {
-				var code2 = (bytes.fastGet(i+2) << 8) | bytes.fastGet(i+3);
+				var code2 = bytes.getInt16LE(i+2);
 				#if hl
 				var code = Convert.surrogatePairToCharCode(code1, code2);
 				StringBufTools.addString(buf, String.fromCharCode(code));
@@ -198,10 +220,7 @@ abstract Ucs2(String) {
 	}
 
 	inline function eachCode ( f : Int -> Void) {
-		for (i in 0...length) {
-			var code = fastCodeAt(i);
-			f(code);
-		}
+		for (c in fromImpl(this)) f(c);
 	}
 
 	public inline function getReader ():Ucs2Reader {
@@ -261,12 +280,34 @@ import haxe.i18n.ByteAccess;
 
 private typedef Ucs2Impl = ByteAccess;
 
+private class Ucs2Iterator {
+	var s:Ucs2;
+	var p:Int;
+
+	public inline function new (s) {
+		this.p = 0;
+		this.s = s;
+	}
+
+	public inline function hasNext ():Bool {
+		return p < s.length;
+	}
+
+	public inline function next ():Int {
+		return Ucs2Tools.fastCodeAt(s.impl(), p++);
+	}
+}
+
 @:allow(haxe.i18n)
 abstract Ucs2(ByteAccess) {
 	public var length(get,never) : Int;
 
 	public inline function new(str:String)  {
 		this = NativeStringTools.toUcs2ByteAccess(str);
+	}
+
+	public inline function iterator () {
+		return new Ucs2Iterator(fromImpl(this));
 	}
 
 	public inline function getReader ():Ucs2Reader {
@@ -432,7 +473,7 @@ abstract Ucs2Reader(ByteAccess) {
 	}
 
 	public inline function getInt16 (pos:Int) {
-		return this.getInt16(pos);
+		return this.getInt16LE(pos);
 	}
 }
 
@@ -454,16 +495,16 @@ private class Ucs2Tools {
 	}
 
 	static inline function isUpperCaseLetter (bytes:Int) {
-		return bytes >= 0x0041 && bytes <= 0x005A;
+		return bytes >= 0x41 && bytes <= 0x5A;
 	}
 
 	static inline function isLowerCaseLetter (bytes:Int) {
-		return bytes >= 0x0061 && bytes <= 0x007A;
+		return bytes >= 0x61 && bytes <= 0x7A;
 	}
 
 	static inline function toLowerCaseLetter (bytes:Int):Int {
 		return if (isUpperCaseLetter(bytes)) {
-			bytes + 0x0020;
+			bytes + 0x20;
 		} else {
 			bytes;
 		}
@@ -471,7 +512,7 @@ private class Ucs2Tools {
 
 	static inline function toUpperCaseLetter (bytes:Int) {
 		return if (isLowerCaseLetter(bytes)) {
-			bytes - 0x0020;
+			bytes - 0x20;
 		} else {
 			bytes;
 		}
@@ -481,8 +522,8 @@ private class Ucs2Tools {
 		var res = Ucs2Impl.alloc(byteLength(impl));
 		var i = 0;
 		while (i < impl.length) {
-			var b = impl.getInt16(i);
-			res.setInt16(i, f(b));
+			var b = getInt16(impl, i);
+			res.setInt16LE(i, f(b));
 			i+=2;
 		}
 		return res;
@@ -500,13 +541,16 @@ private class Ucs2Tools {
 
 	static var empty = ByteAccess.alloc(0);
 
+	static inline function getInt16 (impl:Ucs2Impl, pos:Int) {
+		return impl.getInt16LE(pos);
+	}
+
 	static inline function charAt(impl:Ucs2Impl, index : Int) : Ucs2Impl {
 		if (index < 0 || index >= strLength(impl)) {
 			return empty;
 		}
 		var b = ByteAccess.alloc(2);
-		b.set(0, impl.get(index * 2));
-		b.set(1, impl.get(index * 2 + 1));
+		b.setInt16LE(0, getInt16(impl, index*2));
 		return b;
 	}
 
@@ -519,24 +563,24 @@ private class Ucs2Tools {
 		var pos = 0;
 		var fullPos = i;
 		while (i < byteLen) {
-			if (impl.fastGet(i) == str.fastGet(pos)) {
-				pos++;
+			if (getInt16(impl, i) == getInt16(str, pos)) {
+				pos+=2;
 			} else if (pos > 0) {
 				pos = 0;
 			}
-			fullPos++;
+			fullPos+=2;
 			if (pos == strLen) {
 				res = implToStrIndex(fullPos - strLen);
 				break;
 			}
-			i++;
+			i+=2;
 		}
 		return res;
 	}
 
 	static function lastIndexOf( impl:Ucs2Impl, str : Ucs2Impl, ?startIndex : Int ) : Int {
 		var byteLen = byteLength(str);
-		var pos = byteLen-1;
+		var pos = byteLen-2;
 
 		var startIndex = startIndex == null ? byteLength(impl) : strToImplIndex(startIndex) + byteLen;
 
@@ -546,15 +590,17 @@ private class Ucs2Tools {
 		var i = startIndex;
 		var res = -1;
 		var fullPos = startIndex;
-		var lastPos = byteLen - 1;
-		while (--i > -1) {
-			if (impl.fastGet(i) == str.fastGet(pos)) {
-				pos--;
+		var lastPos = byteLen - 2;
+		while (true) {
+			i-=2;
+			if (i <= -1) break;
+			if (getInt16(impl, i) == getInt16(str, pos)) {
+				pos-=2;
 			} else if (pos < lastPos) {
 				pos = lastPos;
 			}
-			fullPos--;
-			if (pos == -1) {
+			fullPos-=2;
+			if (pos == -2) {
 				res = implToStrIndex(fullPos);
 				break;
 			}
@@ -622,26 +668,26 @@ private class Ucs2Tools {
 
 		while ( i < byteLength(impl)) {
 
-			var b = impl.fastGet(i);
-			var d = delimiter.fastGet(pos);
+			var b = getInt16(impl, i);
+			var d = getInt16(delimiter, pos);
 
 			if (b == d) {
-				pos++;
+				pos+=2;
 			} else {
 				pos = 0;
 			}
 
 			if (pos == delimiterLen) {
-				var size = ((i+1) - delimiterLen) - lastPos;
+				var size = ((i+2) - delimiterLen) - lastPos;
 				if (size > 0) {
 					res.push(Ucs2.fromImpl(impl.sub(lastPos, size)));
 				} else {
 					res.push(Ucs2.fromImpl(empty));
 				}
 				pos = 0;
-				lastPos = i+1;
+				lastPos = i+2;
 			}
-			i++;
+			i+=2;
 		}
 
 		if (lastPos < byteLength(impl)) {
@@ -661,14 +707,12 @@ private class Ucs2Tools {
 	}
 
 	static inline function fastCodeAt( impl:Ucs2Impl, index : Int) : Int {
-		return (impl.get(strToImplIndex(index)) << 8) | impl.get(strToImplIndex(index) + 1);
+		return getInt16(impl, strToImplIndex(index));
+		//return (impl.get(strToImplIndex(index)) << 8) | impl.get(strToImplIndex(index) + 1);
 	}
 
 	static inline function eachCode ( impl:Ucs2Impl, f : Int -> Void) {
-		for (i in 0...strLength(impl)) {
-			var code = fastCodeAt(impl, i);
-			f(code);
-		}
+		for (c in Ucs2.fromImpl(impl)) f(c);
 	}
 
 	static inline function toNativeString(impl:Ucs2Impl) : String {

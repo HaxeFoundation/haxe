@@ -30,6 +30,29 @@ import haxe.i18n.Tools;
 	public var length(default,null) : Int;
 }
 
+private class Utf16Iterator {
+
+	var s:Utf16Impl;
+	var p:Int;
+
+	public inline function new (s:Utf16) {
+		this.p = 0;
+		this.s = s.impl();
+	}
+
+	public inline function hasNext ():Bool {
+		return p < Utf16Tools.lengthInt16(s);
+	}
+
+	public inline function next ():Int {
+		var b = Utf16Tools.getInt16(s, p);
+		var size = Utf16Tools.getSequenceSize(b);
+		var code = Utf16Tools.getCharCode(s, p, size);
+		p += size;
+		return code;
+	}
+}
+
 @:allow(haxe.i18n)
 abstract Utf16(Utf16Impl) {
 
@@ -37,6 +60,10 @@ abstract Utf16(Utf16Impl) {
 
 	public inline function new(str:String) : Void {
 		this = Utf16Tools.nativeStringToImpl(str);
+	}
+
+	public inline function iterator () {
+		return new Utf16Iterator(fromImpl(this));
 	}
 
 	public inline function toUpperCase() : Utf16 {
@@ -97,9 +124,11 @@ abstract Utf16(Utf16Impl) {
 	@:op(A > B) inline function opGreaterThan (other:Utf16) {
 		return compare(other) == 1;
 	}
+
 	@:op(A < B) inline function opLessThan (other:Utf16) {
 		return compare(other) == -1;
 	}
+
 	@:op(A <= B) inline function opLessThanOrEq (other:Utf16) {
 		return compare(other) <= 0;
 	}
@@ -147,31 +176,20 @@ abstract Utf16(Utf16Impl) {
 	}
 
 	public static inline function fromUcs2 (s:Ucs2):Utf16 {
-		#if (flash || js || hl || java || cs)
 		return fromImpl(Utf16Tools.nativeStringToImpl(s.toNativeString()));
-		#else
-		// we can reuse the same underlying byteaccess because ucs2 allows supplementary chars
-		return fromByteAccess(s.impl());
-		#end
 	}
 
 	public static inline function fromUtf32 (s:Utf32):Utf16 {
-		#if python
-		return fromByteAccess(NativeStringTools.toUtf16ByteAccess(s.impl()));
-		#else
 		return fromByteAccess(Convert.convertUtf32toUtf16(s.getReader(), true));
-		#end
 	}
 
-	public inline function getReader ():Utf16Reader
-	{
+	public inline function getReader ():Utf16Reader {
 		return new Utf16Reader(this.s);
 	}
 
 	public inline function eachCode ( f : Int -> Void) {
 		return Utf16Tools.eachCode(this, f);
 	}
-
 
 	// private helpers
 
@@ -203,10 +221,6 @@ abstract Utf16Reader(String) {
 	inline function get_length () {
 		return this.length;
 	}
-
-	//public inline function fastGet (pos:Int) {
-	//	return StringTools.fastCodeAt(this, pos);
-	//}
 
 	public inline function getInt16 (pos:Int) {
 		return StringTools.fastCodeAt(this, pos);
@@ -246,18 +260,11 @@ private class Utf16Tools {
 		return mkImpl(s, calcLength(s));
 	}
 
-	/*
-	static inline function allocImpl (size:Int, strLength:Int):Utf16Impl {
-		return mkImpl(ByteAccess.alloc(size), strLength);
-	}
-	*/
-
 	static inline function getInt32 (impl:Utf16Impl, pos:Int) {
 		var a = StringTools.fastCodeAt(impl.s, pos);
 		var b = StringTools.fastCodeAt(impl.s, pos+1);
 		return a | b;
 	}
-
 
 	static inline function fromByteAccess (ba:ByteAccess):Utf16Impl {
 		var s = Ucs2.fromByteAccess(ba).toNativeString();
@@ -308,7 +315,6 @@ private class Utf16Tools {
 	static inline function compareChar ( b1:Utf16Impl, pos1:Int, b2:Utf16Impl, pos2:Int, size:Int):Int {
 		var c1 = getCharCode(b1, pos1, size);
 		var c2 = getCharCode(b2, pos2, size);
-
 		return c1 - c2;
 	}
 
@@ -322,22 +328,6 @@ private class Utf16Tools {
 		}
 		#end
 	}
-
-	 // string functions
-
-	/*
-	static inline function map(impl:Utf16Impl, f:Utf16Impl->Utf16Impl->Int->Int->Void) : Utf16Impl {
-		var res = allocImpl(byteLength(impl), strLength(impl));
-		var i = 0;
-		while (i < byteLength(impl)) {
-			var b = getInt16(impl, i);
-			var size = getSequenceSize(b);
-			f(impl, res, i, size);
-			i += size;
-		}
-		return res;
-	}
-	*/
 
 	static inline function toUpperCase(impl:Utf16Impl) : Utf16Impl {
 		return mkImpl(impl.s.toUpperCase(), impl.length);
@@ -436,14 +426,7 @@ private class Utf16Tools {
 
 
 	public static inline function eachCode ( impl:Utf16Impl, f : Int -> Void) {
-		var i = 0;
-		while (i < lengthInt16(impl)) {
-			var b = getInt16(impl, i);
-			var size = getSequenceSize(b);
-			var code = getCharCode(impl, i, size);
-			f(code);
-			i += size;
-		}
+		for (c in Utf16.fromImpl(impl)) f(c);
 	}
 
 	static function indexOf( impl:Utf16Impl, str : Utf16Impl, ?startIndex : Int ) : Int
@@ -519,7 +502,6 @@ private class Utf16Tools {
 
 			} else {
 				if (j > 0) {
-
 					posFull++;
 					i = iNext; // restore next search position and continue
 					j = 0;
@@ -679,6 +661,9 @@ private class Utf16Tools {
 
 		if (startIndex == null || startIndex > len) return empty;
 
+		var endIndex:Int = endIndex;
+		var startIndex:Int = startIndex;
+
 		return if (hasNoSurrogates(impl)) {
 			var len = (endIndex) - (startIndex);
 			mkImpl(impl.s.substr( (startIndex), len), len);
@@ -692,7 +677,6 @@ private class Utf16Tools {
 
 	static inline function fromCharCode( code : Int ) : Utf16Impl
 	{
-
 		return mkImpl(nativeStringfromCharCode(code), 1);
 	}
 
@@ -723,6 +707,28 @@ import haxe.i18n.Tools;
 	public var length(default,null) : Int;
 }
 
+private class Utf16Iterator {
+	var s:Utf16Impl;
+	var p:Int;
+
+	public inline function new (s:Utf16) {
+		this.p = 0;
+		this.s = s.impl();
+	}
+
+	public inline function hasNext ():Bool {
+		return p < Utf16Tools.byteLength(s);
+	}
+
+	public inline function next ():Int {
+		var b = Utf16Tools.getInt16(s, p);
+		var size = Utf16Tools.getSequenceSize(b);
+		var code = Utf16Tools.getCharCode(s, p, size);
+		p += size;
+		return code;
+	}
+}
+
 @:allow(haxe.i18n)
 abstract Utf16(Utf16Impl) {
 
@@ -732,9 +738,14 @@ abstract Utf16(Utf16Impl) {
 		this = Utf16Tools.nativeStringToImpl(str);
 	}
 
+	public inline function iterator () {
+		return new Utf16Iterator(fromImpl(this));
+	}
+
 	public inline function toUpperCase() : Utf16 {
 		return fromImpl(Utf16Tools.toUpperCase(this));
 	}
+
 	public inline function toLowerCase() : Utf16 {
 		return fromImpl(Utf16Tools.toLowerCase(this));
 	}
@@ -790,9 +801,11 @@ abstract Utf16(Utf16Impl) {
 	@:op(A > B) inline function opGreaterThan (other:Utf16) {
 		return compare(other) == 1;
 	}
+
 	@:op(A < B) inline function opLessThan (other:Utf16) {
 		return compare(other) == -1;
 	}
+
 	@:op(A <= B) inline function opLessThanOrEq (other:Utf16) {
 		return compare(other) <= 0;
 	}
@@ -809,7 +822,6 @@ abstract Utf16(Utf16Impl) {
 
 	public inline function toNativeString() : String {
 		return toUtf8().toNativeString();
-		//return Utf16Tools.toNativeString(this);//this.getString(0, this.length);
 	}
 
 	public inline function toUcs2() : Ucs2 {
@@ -820,11 +832,9 @@ abstract Utf16(Utf16Impl) {
 		return Utf8.fromUtf16(fromImpl(this));
 	}
 
-
 	public inline function toUtf32 ():Utf32 {
 		return Utf32.fromUtf16(fromImpl(this));
 	}
-
 
 	public inline function toBytes() : haxe.io.Bytes {
 		return Utf16Tools.toBytes(this);
@@ -843,12 +853,8 @@ abstract Utf16(Utf16Impl) {
 	}
 
 	public static inline function fromUcs2 (s:Ucs2):Utf16 {
-		#if (flash || js || hl || java || cs)
-		return fromBytes(s.toBytes());
-		#else
 		// we can reuse the same underlying byteaccess because ucs2 allows supplementary chars
 		return fromByteAccess(s.impl());
-		#end
 	}
 
 	public static inline function fromUtf32 (s:Utf32):Utf16 {
@@ -859,15 +865,13 @@ abstract Utf16(Utf16Impl) {
 		#end
 	}
 
-	public inline function getReader ():Utf16Reader
-	{
+	public inline function getReader ():Utf16Reader {
 		return new Utf16Reader(this.b);
 	}
 
 	public inline function eachCode ( f : Int -> Void) {
 		return Utf16Tools.eachCode(this, f);
 	}
-
 
 	// private helpers
 
@@ -900,24 +904,16 @@ abstract Utf16Reader(ByteAccess) {
 		return this.length;
 	}
 
-	public inline function fastGet (pos:Int) {
-		return this.fastGet(pos);
-	}
-
 	public inline function getInt16 (pos:Int) {
-		return this.getInt16(pos);
+		return this.getInt16LE(pos);
 	}
 }
 
 @:publicFields
 private class Utf16Tools {
 
-	static inline function fastGet (impl:Utf16Impl, pos:Int) {
-		return impl.b.fastGet(pos);
-	}
-
-	static inline function set (impl:Utf16Impl, pos:Int, v:Int) {
-		return impl.b.set(pos, v);
+	static inline function setInt16 (impl:Utf16Impl, pos:Int, v:Int) {
+		return impl.b.setInt16LE(pos, v);
 	}
 
 	static inline function byteLength (ba:Utf16Impl) {
@@ -951,23 +947,16 @@ private class Utf16Tools {
 		return mkImpl(ByteAccess.alloc(size), strLength);
 	}
 
-	static inline function getInt16 (impl:Utf16Impl, pos:Int) {
-		return impl.b.getInt16(pos);
-	}
+	static var empty = allocImpl(0, 0);
 
-	static inline function getInt32 (impl:Utf16Impl, pos:Int) {
-		return impl.b.getInt32(pos);
+	static inline function getInt16 (impl:Utf16Impl, pos:Int) {
+		return impl.b.getInt16LE(pos);
 	}
 
 	static inline function fromByteAccess (ba:ByteAccess):Utf16Impl {
 		var len = calcLength(ba);
 		return mkImpl(ba, len);
 	}
-
-	//public inline function toNativeString(impl:Utf16Impl) : String {
-//
-	//	//return impl.b.getString(0, impl.b.length);
-	//}
 
 	static inline function equal (impl:Utf16Impl, other:Utf16Impl) {
 		return impl == other || (impl.length == other.length && impl.b.equal(other.b));
@@ -989,7 +978,7 @@ private class Utf16Tools {
 		var len = 0;
 		var index = 0;
 		while (index < ba.length) {
-			var size = getSequenceSize(ba.getInt16(index));
+			var size = getSequenceSize(ba.getInt16LE(index));
 			len++;
 			index += size;
 		}
@@ -1001,40 +990,40 @@ private class Utf16Tools {
 	}
 
 	static inline function isUpperCaseLetter (bytes:Utf16Impl, pos:Int, size:Int) {
-		var b1 = fastGet(bytes, pos);
-		var b2 = fastGet(bytes, pos+1);
-		return b1 == 0x00 && b2 >= 0x41 && b2 <= 0x5A;
+		var code = getInt16(bytes, pos);
+		return code >= 0x41 && code <= 0x5A;
 	}
 
 	static inline function isLowerCaseLetter (bytes:Utf16Impl, pos:Int, size:Int) {
-		var b1 = fastGet(bytes, pos);
-		var b2 = fastGet(bytes, pos+1);
-		return b1 == 0x00 && b2 >= 0x61 && b2 <= 0x7A;
+		var code = getInt16(bytes, pos);
+		return code >= 0x61 && code <= 0x7A;
 	}
 
 	static inline function toLowerCaseLetter (bytes:Utf16Impl, target:Utf16Impl, pos:Int, size:Int) {
-		if (size == 2 && isUpperCaseLetter(bytes, pos, size)) {
-			set(target, pos, fastGet(bytes, pos));
-			set(target, pos+1, fastGet(bytes, pos+1)+0x20);
-		} else {
-			for (i in 0...size) {
-				set(target, pos+i, fastGet(bytes, pos+i));
-			}
+		switch size {
+			case 2 if (isUpperCaseLetter(bytes, pos, size)):
+				setInt16(target, pos, getInt16(bytes, pos) + 0x20);
+			case 2:
+				setInt16(target, pos, getInt16(bytes, pos));
+			case 4:
+				setInt16(target, pos, getInt16(bytes, pos));
+				setInt16(target, pos+2, getInt16(bytes, pos+2));
+			case _: throw "unexpected";
 		}
 	}
 
 	static inline function toUpperCaseLetter (bytes:Utf16Impl, target:Utf16Impl, pos:Int, size:Int) {
-		if (size == 2 && isLowerCaseLetter(bytes, pos, size)) {
-			set(target, pos, fastGet(bytes, pos));
-			set(target, pos+1, fastGet(bytes, pos+1)-0x20);
-		} else {
-			for (i in 0...size) {
-				set(target, pos + i, fastGet(bytes, pos+i));
-			}
+		switch size {
+			case 2 if (isLowerCaseLetter(bytes, pos, size)):
+				setInt16(target, pos, getInt16(bytes, pos) - 0x20);
+			case 2:
+				setInt16(target, pos, getInt16(bytes, pos));
+			case 4:
+				setInt16(target, pos, getInt16(bytes, pos));
+				setInt16(target, pos+2, getInt16(bytes, pos+2));
+			case _: throw "unexpected";
 		}
 	}
-
-	static var empty = allocImpl(0, 0);
 
 	static inline function getCharCode ( b:Utf16Impl, pos:Int, size:Int):Int {
 		return switch size {
@@ -1047,13 +1036,17 @@ private class Utf16Tools {
 	static inline function compareChar ( b1:Utf16Impl, pos1:Int, b2:Utf16Impl, pos2:Int, size:Int):Int {
 		var c1 = getCharCode(b1, pos1, size);
 		var c2 = getCharCode(b2, pos2, size);
-
 		return c1 - c2;
 	}
 
 	static inline function pushCharCode (bytes:Utf16Impl, buf:ByteAccessBuffer, pos:Int, size:Int) {
-		for (i in 0...size) {
-			buf.addByte(fastGet(bytes, pos+i));
+		switch size {
+			case 2:
+				buf.addInt16LE(getInt16(bytes, pos));
+			case 4:
+				buf.addInt16LE(getInt16(bytes, pos));
+				buf.addInt16LE(getInt16(bytes, pos+2));
+			case _: throw "unexpected";
 		}
 	}
 
@@ -1130,7 +1123,6 @@ private class Utf16Tools {
 		var i = 0;
 		var r:Null<Int> = null;
 		while (r == null && i < byteLength(ba)) {
-
 			var b = getInt16(ba, i);
 			var size = getSequenceSize(b);
 			if (pos == index) {
@@ -1169,20 +1161,13 @@ private class Utf16Tools {
 
 
 	public static inline function eachCode ( impl:Utf16Impl, f : Int -> Void) {
-		var i = 0;
-		while (i < byteLength(impl)) {
-			var b = getInt16(impl, i);
-			var size = getSequenceSize(b);
-			var code = getCharCode(impl, i, size);
-			f(code);
-			i += size;
-		}
+		for (c in Utf16.fromImpl(impl)) f(c);
 	}
 
 	static function indexOf( impl:Utf16Impl, str : Utf16Impl, ?startIndex : Int ) : Int
 	{
 		var res = -1;
-		var len = strLength(str); // O(n)
+		var len = strLength(str);
 		var pos = 0;
 		var posFull = 0;
 		var byteLength = byteLength(impl);
@@ -1221,7 +1206,6 @@ private class Utf16Tools {
 			if (pos == 0) {
 				posFull++;
 			}
-
 		}
 		return res;
 	}
@@ -1249,10 +1233,8 @@ private class Utf16Tools {
 				}
 				pos++;
 				j+=size;
-
 			} else {
 				if (j > 0) {
-
 					posFull++;
 					i = iNext; // restore next search position and continue
 					j = 0;
@@ -1260,7 +1242,6 @@ private class Utf16Tools {
 					continue;
 				}
 			}
-
 			i+=size;
 			if (pos == len) {
 				res = posFull;
@@ -1282,8 +1263,8 @@ private class Utf16Tools {
 		var delimiterLen = strLength(delimiter);
 		var buf = new ByteAccessBuffer();
 		var tmpBuf = new ByteAccessBuffer();
-		var bufLen = 0; // store utf8 len
-		var tmpBufLen = 0; // store utf8 len
+		var bufLen = 0;
+		var tmpBufLen = 0;
 
 		var res:Array<Utf16> = [];
 
@@ -1305,13 +1286,10 @@ private class Utf16Tools {
 			var size2 = getSequenceSize(getInt16(delimiter, j));
 
 			if (size == size2 && compareChar(impl, i, delimiter, j, size) == 0) {
-
 				pos++;
 				j+=size;
 				tmpBufLen++;
-				for (k in 0...size) {
-					tmpBuf.addByte(fastGet(impl,i+k));
-				}
+				pushCharCode(impl, tmpBuf, i, size);
 			} else {
 				if (pos != 0) {
 					j = 0;
@@ -1321,9 +1299,7 @@ private class Utf16Tools {
 					tmpBufLen = 0;
 					tmpBuf = tmpBuf.reset();
 				}
-				for (k in 0...size) {
-					buf.addByte(fastGet(impl, i+k));
-				}
+				pushCharCode(impl, buf, i, size);
 				bufLen++;
 			}
 			i+=size;
@@ -1360,6 +1336,7 @@ private class Utf16Tools {
 
 		var lenIsNull = len == null;
 		var byteLength = byteLength(str);
+
 		if (pos < 0) {
 			var thisLength = strLength(str);
 			pos = thisLength + pos;
@@ -1374,9 +1351,7 @@ private class Utf16Tools {
 		if (len == 0) return empty;
 
 		var buf = new ByteAccessBuffer();
-
 		var cur = 0;
-
 		var i = 0;
 		var newSize = 0;
 		while (i < byteLength) {
@@ -1427,8 +1402,7 @@ private class Utf16Tools {
 		}
 	}
 
-	static inline function fromCharCode( code : Int ) : Utf16Impl
-	{
+	static inline function fromCharCode( code:Int ) : Utf16Impl {
 		return mkImpl(Convert.codePointToUtf16ByteAccess(code), 1);
 	}
 

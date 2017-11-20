@@ -150,26 +150,22 @@ class Convert {
 				addByte( ( ( (charCode      ) | byteMark) & byteMask) );
 			case 1:
 				addByte( (   (charCode      ) | firstByteMark[bytesToWrite]) );
+			case _:
+				throw "Unexpected bytesToWrite " + bytesToWrite;
 		}
 	}
 
 	static inline function getUtf8SequenceSizeFromCodePoint (codePoint:Int) {
-		if (codePoint <= 0x7F) {
-			return 1;
-		} else if (codePoint <= 0x7FF) {
-			return 2;
-		} else if (codePoint <= UNI_MAX_BMP) {
-			return 3;
-		} else if (codePoint <= UNI_MAX_LEGAL_UTF32) {
-			return 4;
-		} else {
-			return 3;
-		}
+		return
+			if (codePoint <= 0x7F) 1
+			else if (codePoint <= 0x7FF) 2
+			else if (codePoint <= UNI_MAX_BMP) 3
+			else if (codePoint <= UNI_MAX_LEGAL_UTF32) 4
+			else 3;
 	}
 
 	static inline function isInvalidUtf8CodePoint (codePoint:Int) {
 		return codePoint > UNI_MAX_LEGAL_UTF32;
-
 	}
 
 	public static inline function getUtf8SequenceSize (firstCodeUnit:Int) {
@@ -243,7 +239,6 @@ class Convert {
 	 * If presented with a length > 4, this returns false.  The Unicode
 	 * definition of UTF-8 goes up to 4-byte sequences.
 	 */
-
 	static function isLegalUtf8Sequence( source:Utf8Reader, pos:Int, length:Int):Bool
 	{
 		var unit0 = source.fastGet(pos);
@@ -282,16 +277,11 @@ class Convert {
 
 		return switch (length)
 		{
-			case 4:
-				check4() && check3() && check2() && check1() && check0();
-			case 3:
-				check3() && check2() && check1() && check0();
-			case 2:
-				check2() && check1() && check0();
-			case 1:
-				check1() && check0();
-			case _:
-				false;
+			case 4: check4() && check3() && check2() && check1() && check0();
+			case 3: check3() && check2() && check1() && check0();
+			case 2: check2() && check1() && check0();
+			case 1: check1() && check0();
+			case _: false;
 		}
 	}
 
@@ -426,7 +416,7 @@ class Convert {
 			}
 			var charCode = charCodeFromUtf8Bytes(source, i, size);
 
-			writeUtf16CodeUnits(charCode, i, function (_, unit) target.addInt16BigEndian(unit), strict, strictUcs2 );
+			writeUtf16CodeUnits(charCode, i, function (_, unit) target.addInt16LE(unit), strict, strictUcs2 );
 			i+=size;
 		}
 		return target.getByteAccess();
@@ -451,8 +441,9 @@ class Convert {
 
 		Convert.writeUtf16CodeUnits(charCode, 0,
 			function (pos, val) {
-				bytes.set(pos << 1, (val >> 8) & 0xFF );
-				bytes.set((pos << 1)+1, val & 0xFF);
+				bytes.setInt16LE(pos << 1, val);
+				//bytes.set(pos << 1, (val >> 8) & 0xFF );
+				//bytes.set((pos << 1)+1, val & 0xFF);
 			}, true, false);
 		return bytes;
 	}
@@ -481,7 +472,7 @@ class Convert {
 					* replacement character.
 					*/
 					i += findMaximalSubpartOfIllFormedUtf8Sequence(source, i);
-					target.addInt32BigEndian(UNI_REPLACEMENT_CHAR);
+					target.addInt32LE(UNI_REPLACEMENT_CHAR);
 					continue;
 				}
 			}
@@ -495,7 +486,7 @@ class Convert {
 					* replacement character.
 					*/
 					i += findMaximalSubpartOfIllFormedUtf8Sequence(source, i);
-					target.addInt32BigEndian(UNI_REPLACEMENT_CHAR);
+					target.addInt32LE(UNI_REPLACEMENT_CHAR);
 					continue;
 				}
 			}
@@ -511,15 +502,15 @@ class Convert {
 					if (strict) {
 						throw SourceIllegal(i);
 					} else {
-						target.addInt32BigEndian(UNI_REPLACEMENT_CHAR);
+						target.addInt32LE(UNI_REPLACEMENT_CHAR);
 					}
 				} else {
-					target.addInt32BigEndian(code);
+					target.addInt32LE(code);
 				}
 			} else { /* i.e., ch > UNI_MAX_LEGAL_UTF32 */
 				throw SourceIllegal(i);
 			}
-			i+=size;
+			i += size;
 		}
 
 		return target.getByteAccess();
@@ -601,7 +592,7 @@ class Convert {
 					throw SourceIllegal(i);
 				}
 			}
-			target.addInt32BigEndian(unit);
+			target.addInt32LE(unit);
 			i += 2;
 		}
 		return target.getByteAccess();
@@ -630,7 +621,7 @@ class Convert {
 				}
 			}
 			writeUtf8CodeUnits(code, size, function (x) target.addByte(x));
-			i+=4;
+			i += 4;
 		}
 		return target.getByteAccess();
 	}
@@ -648,22 +639,22 @@ class Convert {
 					if (strict) {
 						throw SourceIllegal(i);
 					} else {
-						target.addInt16BigEndian(UNI_REPLACEMENT_CHAR);
+						target.addInt16LE(UNI_REPLACEMENT_CHAR);
 					}
 				} else {
-					target.addInt16BigEndian(unit);
+					target.addInt16LE(unit);
 				}
 			} else if (unit > UNI_MAX_LEGAL_UTF32) {
 				if (strict) {
 					throw SourceIllegal(i);
 				} else {
-					target.addInt16BigEndian(UNI_REPLACEMENT_CHAR);
+					target.addInt16LE(UNI_REPLACEMENT_CHAR);
 				}
 			} else {
 				var pair = codePointToSurrogatePair(unit);
 
-				target.addInt16BigEndian(pair.high);
-				target.addInt16BigEndian(pair.low);
+				target.addInt16LE(pair.high);
+				target.addInt16LE(pair.low);
 			}
 			i+=4;
 		}
@@ -709,16 +700,16 @@ class NativeStringTools {
 
 	public static function toUtf16ByteAccess (s:String):ByteAccess {
 		#if python
-		return ByteAccess.ofData(python.NativeStringTools.encode(s, "utf-16be"));
+		return ByteAccess.ofData(python.NativeStringTools.encode(s, "utf-16le"));
 		#elseif java
 		try
 		{
-			var b:BytesData = untyped s.getBytes("UTF-16BE");
+			var b:BytesData = untyped s.getBytes("UTF-16LE");
 			return ByteAccess.ofData(b);
 		}
 		catch (e:Dynamic) throw e;
 		#elseif cs
-		var b = cs.system.text.Encoding.BigEndianUnicode.GetBytes(s);
+		var b = cs.system.text.Encoding.Unicode.GetBytes(s);
 		return ByteAccess.ofData(b);
 		#else
 		var buf = new ByteAccessBuffer();
@@ -726,7 +717,7 @@ class NativeStringTools {
 		eachCharCode(s, (code, _) -> {
 			Tools.Convert.writeUtf16CodeUnits(code, pos, (_, int16) -> {
 				pos++;
-				buf.addInt16BigEndian(int16);
+				buf.addInt16LE(int16);
 			}, true, false);
 		});
 		return buf.getByteAccess();
@@ -756,29 +747,6 @@ class NativeStringTools {
 	public static inline function toUcs2ByteAccess (s:String):ByteAccess {
 		return toUtf16ByteAccess(s);
 	}
-
-
-
-	/*
-	public static function toUtf32ByteAccess (s:String):ByteAccess {
-		#if python
-		return ByteAccess.ofData(python.NativeStringTools.encode(s, "utf-32be"));
-		#elseif java
-		try
-		{
-			var b:BytesData = untyped s.getBytes("UTF-32BE");
-			return ByteAccess.ofData(b);
-		}
-		catch (e:Dynamic) throw e;
-		#elseif cs
-		var b = cs.system.text.Encoding.UTF32.GetBytes(s);
-		return ByteAccess.ofData(b);
-		#else
-		return Convert.convertUtf8toUtf32(new Utf8Reader(toUtf8(s)), true);
-		#end
-	}
-	*/
-
 
 	public static function toUtf8ByteAccess (s:String):ByteAccess {
 		#if neko
@@ -832,7 +800,6 @@ class NativeStringTools {
 		#end
 	}
 }
-
 
 class StringBufTools {
 	public static inline function addString (buf:StringBuf, s:String) {

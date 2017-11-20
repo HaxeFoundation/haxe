@@ -161,3 +161,37 @@ wrap(s).toNativeString() == s;
 
 var s = "ॐऽऽ";
 wrap(s).toNativeString() == s;
+
+[for (i in wrap("𝄞ऽऽ")) i] == [
+	wrap("𝄞").charCodeAt(0),
+	wrap("𝄞").charCodeAt(1),
+	wrap("ऽ").charCodeAt(0),
+	wrap("ऽ").charCodeAt(0)
+];
+
+[for (i in wrap("𝄞")) i] == [wrap("𝄞").charCodeAt(0)];
+
+[for (i in wrap("")) i] == [];
+
+
+eq1(wrap("𝄞ऽऽ"), haxe.i18n.Ucs2.fromBytes(wrap("𝄞ऽऽ").toBytes()));
+
+// should be little endian
+var b = wrap("𝄞").toBytes();
+b.length == 4;
+b.get(0) == 0x34;
+b.get(1) == 0xD8;
+b.get(2) == 0x1E;
+b.get(3) == 0xDD;
+
+var b = wrap("!").toBytes();
+b.length == 2;
+b.get(0) == 0x21;
+b.get(1) == 0x00;
+
+var b = wrap("γ").toBytes();
+b.length == 2;
+b.get(0) == 0xB3;
+b.get(1) == 0x03;
+
+eq1(wrap("𝄞ऽऽ"), wrap(wrap("𝄞ऽऽ").toNativeString()));

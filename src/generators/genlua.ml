@@ -338,7 +338,31 @@ let gen_constant ctx p = function
     | TThis -> spr ctx (this ctx)
     | TSuper -> assert false
 
-let rec gen_call ctx e el =
+
+let rec is_function_type t = match follow(t) with
+        | TFun _ -> true
+        | _ -> false
+
+and gen_argument ctx e = begin
+    match e.eexpr with
+    | TField (x,(FInstance (_,_,f) | FAnon(f)))  when (is_function_type e.etype) ->
+            add_feature ctx "use._hx_bind";
+            print ctx "_hx_bind(";
+            gen_value ctx x;
+            print ctx ",";
+            gen_value ctx x;
+            print ctx "%s)" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name))
+    | _ ->
+        gen_value ctx e;
+end
+
+and gen_paren_arguments ctx el = begin
+    spr ctx "(";
+    concat ctx ", " (gen_argument ctx) el;
+    spr ctx ")";
+end
+
+and gen_call ctx e el =
     ctx.iife_assign <- true;
     (match e.eexpr , el with
      | TConst TSuper , params ->
@@ -346,7 +370,7 @@ let rec gen_call ctx e el =
           | None -> error "Missing api.setCurrentClass" e.epos
           | Some (c,_) ->
               print ctx "%s.super(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
-              List.iter (fun p -> print ctx ","; gen_value ctx p) params;
+              List.iter (fun p -> print ctx ","; gen_argument ctx p) params;
               spr ctx ")";
          );
      | TField ({ eexpr = TConst TSuper },f) , params ->
@@ -355,27 +379,25 @@ let rec gen_call ctx e el =
           | Some (c,_) ->
               let name = field_name f in
               print ctx "%s.prototype%s(%s" (ctx.type_accessor (TClassDecl c)) (field name) (this ctx);
-              List.iter (fun p -> print ctx ","; gen_value ctx p) params;
+              List.iter (fun p -> print ctx ","; gen_argument ctx p) params;
               spr ctx ")";
          );
      | TCall (x,_) , el when (match x.eexpr with TIdent "__lua__" -> false | _ -> true) ->
          gen_paren ctx [e];
-         gen_paren ctx el;
+         gen_paren_arguments ctx el;
      | TIdent "__new__", { eexpr = TConst (TString cl) } :: params ->
-         print ctx "%s.new(" cl;
-         concat ctx "," (gen_value ctx) params;
-         spr ctx ")";
+         print ctx "%s.new" cl;
+         gen_paren_arguments ctx params;
      | TIdent "__new__", e :: params ->
          gen_value ctx e;
-         spr ctx ".new(";
-         concat ctx "," (gen_value ctx) params;
-         spr ctx ")";
+         spr ctx ".new";
+         gen_paren_arguments ctx params;
      | TIdent "__callself__", { eexpr = TConst (TString head) } :: { eexpr = TConst (TString tail) } :: el ->
          print ctx "%s:%s" head tail;
-         gen_paren ctx el;
+         gen_paren_arguments ctx el;
      | TIdent "__call__", { eexpr = TConst (TString code) } :: el ->
          spr ctx code;
-         gen_paren ctx el;
+         gen_paren_arguments ctx el;
      | TIdent "__lua_length__", [e]->
          spr ctx "#"; gen_value ctx e;
      | TIdent "__lua_table__", el ->
@@ -458,7 +480,7 @@ let rec gen_call ctx e el =
          gen_value ctx e;
          print ctx ",'%s'" (field_name ef);
          spr ctx ")(";
-         concat ctx "," (gen_value ctx) (e::el);
+         concat ctx "," (gen_argument ctx) (e::el);
          spr ctx ")";
      | TField (e, ((FInstance _ | FAnon _ | FDynamic _) as ef)), el ->
          let s = (field_name ef) in
@@ -468,7 +490,7 @@ let rec gen_call ctx e el =
              gen_value ctx e;
              print ctx ",\"%s\"" (field_name ef);
              if List.length(el) > 0 then spr ctx ",";
-             concat ctx "," (gen_value ctx) el;
+             concat ctx "," (gen_argument ctx) el;
              spr ctx ")";
          end else begin
              gen_value ctx e;
@@ -476,11 +498,11 @@ let rec gen_call ctx e el =
                  print ctx ".%s" (field_name ef)
              else
                  print ctx ":%s" (field_name ef);
-             gen_paren ctx el;
+             gen_paren_arguments ctx el;
          end;
      | _ ->
          gen_value ctx e;
-         gen_paren ctx el);
+         gen_paren_arguments ctx el);
     ctx.iife_assign <- false;
 
 and has_continue e =
@@ -1088,7 +1110,7 @@ and gen_anon_value ctx e =
         ctx.in_value <- fst old;
         ctx.in_loop <- snd old;
         ctx.separator <- true
-    | _ when (is_function_type ctx e.etype) && not (is_const_null e) ->
+    | _ when (is_function_type e.etype) && not (is_const_null e) ->
         spr ctx "function(_,...) return ";
         gen_value ctx e;
         spr ctx "(...) end";
@@ -1232,11 +1254,6 @@ and gen_value ctx e =
                                         )) e.etype e.epos);
         v()
 
-and is_function_type ctx t =
-    match follow(t) with
-    | TFun _ -> true
-    | _ -> false;
-
 and gen_tbinop ctx op e1 e2 =
     (match op, e1.eexpr, e2.eexpr with
      | Ast.OpAssign, TField(e3, FInstance _), TFunction f ->
@@ -1281,7 +1298,7 @@ and gen_tbinop ctx op e1 e2 =
               spr ctx "_hx_funcToField(";
               gen_value ctx e2;
               spr ctx ")";
-          | TField(_, FInstance _ ), TLocal t  when (is_function_type ctx t.v_type)   ->
+          | TField(_, FInstance _ ), TLocal t  when (is_function_type t.v_type)   ->
               gen_value ctx e1;
               print ctx " %s " (Ast.s_binop op);
               add_feature ctx "use._hx_funcToField";
@@ -1411,7 +1428,7 @@ and gen_return ctx e eo =
          spr ctx "do return end"
      | Some e ->
          (match e.eexpr with
-          | TField (e2, ((FClosure (_, tcf) | FAnon tcf |FInstance (_,_,tcf)))) when is_function_type ctx tcf.cf_type ->
+          | TField (e2, ((FClosure (_, tcf) | FAnon tcf |FInstance (_,_,tcf)))) when (is_function_type tcf.cf_type) ->
               (* See issue #6259 *)
               add_feature ctx "use._hx_bind";
               spr ctx "do return ";

@@ -46,8 +46,9 @@ class UnitBuilder {
 						params: [],
 						expr: read(filePath)
 					}
+					var fp = filePath.startsWith(basePath) ? filePath.substr(basePath.length) : filePath;
 					ret.push( {
-						name: "test" + ~/\./g.map(file, function(_) return "_"),
+						name: "test" + ~/[\.\\\/]/g.map(fp, function(_) return "_"),
 						kind: FFun(func),
 						pos: Context.makePosition( { min:0, max:0, file:filePath + file } ),
 						access: [APublic],
@@ -102,16 +103,26 @@ class UnitBuilder {
 				return false;
 			}
 		}
+
 		var e = switch [isAbstract(e1) && isAbstract(e2), isFloat(e1) || isFloat(e2), e2.expr] {
 			case [_, _, EField( { expr:EConst(CIdent("Math" | "math")) }, "POSITIVE_INFINITY" | "NEGATIVE_INFINITY")] if (Context.defined("cpp") || Context.defined("php")):
 				macro t($e1 == $e2);
 			case [_,true, _]:
 				macro feq($e1, $e2);
 			case [true, _, _]:
-				macro eqAbstract($e1 == $e2, $e1, $e2);
+				var same = try {
+					var t1 = Context.follow(Context.typeof(e1));
+					var t2 = Context.follow(Context.typeof(e2));
+					haxe.macro.TypeTools.toString(t1) == haxe.macro.TypeTools.toString(t2);
+				} catch (e:Dynamic) { false; };
+				if (same) {
+					macro eqAbstract($e1 == $e2, $e1, $e2);
+				} else {
+					macro eq($e1, $e2);
+				}
 			case _:
 				macro eq($e1, $e2);
-				
+
 		}
 		return {
 			expr: e.expr,

@@ -19,13 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package haxe;
+package python.lib.ssl;
 
-@:coreApi class Log {
-	public static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
-		var pstr = infos == null ? "(null)" : infos.fileName + ":" + infos.lineNumber;
-		var str = Std.string(v);
-		if( infos != null && infos.customParams != null ) for( v in infos.customParams ) str += "," + Std.string(v);
-		Sys.println(pstr+": "+str);
-	}
+@:require(python_version >= 3.6)
+@:pythonImport("ssl", "SSLSession")
+extern class SSLSession {
+
 }
+

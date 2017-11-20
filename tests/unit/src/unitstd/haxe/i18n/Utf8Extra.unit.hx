@@ -189,3 +189,36 @@ wrap(s).toNativeString() == s;
 
 var s = "ॐऽऽ";
 wrap(s).toNativeString() == s;
+
+[for (i in wrap("𝄞ऽऽ")) i] == [
+	wrap("𝄞").charCodeAt(0),
+	wrap("ऽ").charCodeAt(0),
+	wrap("ऽ").charCodeAt(0)
+];
+
+[for (i in wrap("𝄞")) i] == [wrap("𝄞").charCodeAt(0)];
+
+[for (i in wrap("")) i] == [];
+
+
+eq1(wrap("𝄞ऽऽ"), haxe.i18n.Utf8.fromBytes(wrap("𝄞ऽऽ").toBytes()));
+
+var b = wrap("𝄞").toBytes();
+b.length == 4;
+b.get(0) == 0xF0;
+b.get(1) == 0x9D;
+b.get(2) == 0x84;
+b.get(3) == 0x9E;
+
+var b = wrap("!").toBytes();
+b.length == 1;
+b.get(0) == 0x21;
+
+var b = wrap("γ").toBytes();
+b.length == 2;
+b.get(0) == 0xCE;
+b.get(1) == 0xB3;
+
+
+
+eq1(wrap("𝄞ऽऽ"), wrap(wrap("𝄞ऽऽ").toNativeString()));

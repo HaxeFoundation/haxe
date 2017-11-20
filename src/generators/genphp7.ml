@@ -2424,6 +2424,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 		*)
 		method write_expr_syntax_assoc_decl args =
 			match args with
+				| [] -> self#write_assoc_array_decl []
 				| { eexpr = TObjectDecl fields } :: [] -> self#write_assoc_array_decl fields
 				| _ -> ctx.error "php.Syntax.assocDecl() accepts object declaration only." self#pos
 		(**

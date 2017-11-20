@@ -21,4 +21,5 @@
  */
 package python.lib.net;
 
-typedef Address = python.Tuple.Tuple2<String,Int>;
+@:deprecated("Use python.lib.socket.Adress instead")
+typedef Address = python.lib.socket.Address;

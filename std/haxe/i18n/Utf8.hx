@@ -30,13 +30,40 @@ import haxe.io.Bytes;
 	public var length(default,null) : Int;
 }
 
+private class Utf8Iterator {
+	var s:Utf8Impl;
+	var p:Int;
+
+	public inline function new (s:Utf8) {
+		this.p = 0;
+		this.s = s.impl();
+	}
+
+	public inline function hasNext ():Bool {
+		return p < Utf8Tools.byteLength(s);
+	}
+
+	public inline function next ():Int {
+		var b = Utf8Tools.fastGet(s, p);
+		var size = Utf8Tools.getSequenceSize(b);
+		var code = Utf8Tools.getCharCode(s, p, size);
+		p += size;
+		return code;
+	}
+}
+
 @:allow(haxe.i18n.Utf8Tools)
+@:allow(haxe.i18n.Utf8Iterator)
 abstract Utf8(Utf8Impl) {
 
 	public var length(get,never) : Int;
 
 	public inline function new(str:String) : Void {
 		this = Utf8Tools.nativeStringToImpl(str);
+	}
+
+	public inline function iterator () {
+		return new Utf8Iterator(fromImpl(this));
 	}
 
 	public inline function toUpperCase() : Utf8 {
@@ -174,7 +201,6 @@ abstract Utf8(Utf8Impl) {
 	public inline function getReader ():Utf8Reader {
 		return new Utf8Reader(this.b);
 	}
-
 
 	// private api
 
@@ -335,14 +361,7 @@ private class Utf8Tools {
 	static var empty = allocImpl(0, 0);
 
 	static inline function eachCode ( ba:Utf8Impl, f : Int -> Void) {
-		var i = 0;
-		while (i < byteLength(ba)) {
-			var b = fastGet(ba, i);
-			var size = getSequenceSize(b);
-			var code = getCharCode(ba, i, size);
-			f(code);
-			i += size;
-		}
+		for (c in Utf8.fromImpl(ba)) f(c);
 	}
 
 	static inline function getCharCode ( b:Utf8Impl, pos:Int, size:Int):Int {

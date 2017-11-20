@@ -27,13 +27,17 @@ type sourcemap = {
 	sources_hash : (string, int) Hashtbl.t;
 	mappings : Rbuffer.t;
 
-	mutable source_last_line : int;
-	mutable source_last_col : int;
-	mutable source_last_file : int;
+	mutable source_last_pos : sourcemap_pos;
 	mutable print_comma : bool;
 	mutable output_last_col : int;
 	mutable output_current_col : int;
-	mutable current_expr : texpr option;
+	mutable current_expr : sourcemap_pos option;
+}
+
+and sourcemap_pos = {
+	file : int;
+	line : int;
+	col : int;
 }
 
 type ctx = {
@@ -138,10 +142,55 @@ let add_feature ctx = Common.add_feature ctx.com
 
 let unsupported p = abort "This expression cannot be compiled to Javascript" p
 
+let encode_mapping smap pos =
+	if smap.print_comma then
+		Rbuffer.add_char smap.mappings ','
+	else
+		smap.print_comma <- true;
 
-let add_mapping smap force e =
-	if e.epos.pmin < 0 then () else
-	let pos = e.epos in
+	let base64_vlq number =
+		let encode_digit digit =
+			let chars = [|
+				'A';'B';'C';'D';'E';'F';'G';'H';'I';'J';'K';'L';'M';'N';'O';'P';
+				'Q';'R';'S';'T';'U';'V';'W';'X';'Y';'Z';'a';'b';'c';'d';'e';'f';
+				'g';'h';'i';'j';'k';'l';'m';'n';'o';'p';'q';'r';'s';'t';'u';'v';
+				'w';'x';'y';'z';'0';'1';'2';'3';'4';'5';'6';'7';'8';'9';'+';'/'
+			|] in
+			Array.unsafe_get chars digit
+		in
+		let to_vlq number =
+			if number < 0 then
+				((-number) lsl 1) + 1
+			else
+				number lsl 1
+		in
+		let rec loop vlq =
+			let shift = 5 in
+			let base = 1 lsl shift in
+			let mask = base - 1 in
+			let continuation_bit = base in
+			let digit = vlq land mask in
+			let next = vlq asr shift in
+			Rbuffer.add_char smap.mappings (encode_digit (
+				if next > 0 then digit lor continuation_bit else digit));
+			if next > 0 then loop next else ()
+		in
+		loop (to_vlq number)
+	in
+
+	base64_vlq (smap.output_current_col - smap.output_last_col);
+	base64_vlq (pos.file - smap.source_last_pos.file);
+	base64_vlq (pos.line - smap.source_last_pos.line);
+	base64_vlq (pos.col - smap.source_last_pos.col);
+
+	smap.source_last_pos <- pos;
+	smap.output_last_col <- smap.output_current_col
+
+let noop () = ()
+
+let add_mapping smap pos =
+	if pos.pmin < 0 then noop else
+
 	let file = try
 		Hashtbl.find smap.sources_hash pos.pfile
 	with Not_found ->
@@ -150,55 +199,23 @@ let add_mapping smap force e =
 		DynArray.add smap.sources pos.pfile;
 		length
 	in
-	let line, col = Lexer.find_pos pos in
-	let line = line - 1 in
-	if force || smap.source_last_file != file || smap.source_last_line != line || smap.source_last_col != col then begin
-		smap.current_expr <- Some e;
-		if smap.print_comma then
-			Rbuffer.add_char smap.mappings ','
-		else
-			smap.print_comma <- true;
 
-		let base64_vlq number =
-			let encode_digit digit =
-				let chars = [|
-					'A';'B';'C';'D';'E';'F';'G';'H';'I';'J';'K';'L';'M';'N';'O';'P';
-					'Q';'R';'S';'T';'U';'V';'W';'X';'Y';'Z';'a';'b';'c';'d';'e';'f';
-					'g';'h';'i';'j';'k';'l';'m';'n';'o';'p';'q';'r';'s';'t';'u';'v';
-					'w';'x';'y';'z';'0';'1';'2';'3';'4';'5';'6';'7';'8';'9';'+';'/'
-				|] in
-				Array.unsafe_get chars digit
-			in
-			let to_vlq number =
-				if number < 0 then
-					((-number) lsl 1) + 1
-				else
-					number lsl 1
-			in
-			let rec loop vlq =
-				let shift = 5 in
-				let base = 1 lsl shift in
-				let mask = base - 1 in
-				let continuation_bit = base in
-				let digit = vlq land mask in
-				let next = vlq asr shift in
-				Rbuffer.add_char smap.mappings (encode_digit (
-					if next > 0 then digit lor continuation_bit else digit));
-				if next > 0 then loop next else ()
-			in
-			loop (to_vlq number)
-		in
+	let pos =
+		let line, col = Lexer.find_pos pos in
+		let line = line - 1 in
+		{ file = file; line = line; col = col }
+	in
 
-		base64_vlq (smap.output_current_col - smap.output_last_col);
-		base64_vlq (file - smap.source_last_file);
-		base64_vlq (line - smap.source_last_line);
-		base64_vlq (col - smap.source_last_col);
+	if smap.source_last_pos <> pos then begin
+		let old_current_expr = smap.current_expr in
+		smap.current_expr <- Some pos;
+		encode_mapping smap pos;
+		(fun () -> smap.current_expr <- old_current_expr)
+	end else
+		noop
 
-		smap.source_last_file <- file;
-		smap.source_last_line <- line;
-		smap.source_last_col <- col;
-		smap.output_last_col <- smap.output_current_col
-	end
+let add_mapping ctx e =
+	Option.map_default (fun smap -> add_mapping smap e.epos) noop ctx.smap
 
 let handle_newlines ctx str =
 	Option.may (fun smap ->
@@ -209,7 +226,7 @@ let handle_newlines ctx str =
 				smap.output_last_col <- 0;
 				smap.output_current_col <- 0;
 				smap.print_comma <- false;
-				Option.may (fun e -> add_mapping smap true e) smap.current_expr;
+				Option.may (encode_mapping smap) smap.current_expr;
 				loop next
 			end with Not_found ->
 				smap.output_current_col <- smap.output_current_col + (String.length str - from);
@@ -449,7 +466,7 @@ and add_objectdecl_parens e =
 	loop e
 
 and gen_expr ctx e =
-	Option.may (fun smap -> add_mapping smap false e) ctx.smap;
+	let clear_mapping = add_mapping ctx e in
 	(match e.eexpr with
 	| TConst c -> gen_constant ctx e.epos c
 	| TLocal v -> spr ctx (ident v.v_name)
@@ -734,8 +751,7 @@ and gen_expr ctx e =
 	| TIdent s ->
 		spr ctx s
 	);
-	Option.may (fun smap -> smap.current_expr <- None) ctx.smap
-
+	clear_mapping ()
 
 and gen_block_element ?(after=false) ctx e =
 	match e.eexpr with
@@ -758,7 +774,7 @@ and gen_block_element ?(after=false) ctx e =
 		if after then newline ctx
 
 and gen_value ctx e =
-	Option.may (fun smap -> add_mapping smap false e) ctx.smap;
+	let clear_mapping = add_mapping ctx e in
 	let assign e =
 		mk (TBinop (Ast.OpAssign,
 			mk (TLocal (match ctx.in_value with None -> assert false | Some v -> v)) t_dynamic e.epos,
@@ -872,7 +888,7 @@ and gen_value ctx e =
 			List.map (fun (v,e) -> v, block (assign e)) catchs
 		)) e.etype e.epos);
 		v());
-	Option.may (fun smap -> smap.current_expr <- None) ctx.smap
+	clear_mapping ()
 
 and gen_syntax ctx meth args pos =
 	match meth, args with
@@ -1253,9 +1269,7 @@ let alloc_ctx com =
 	let smap =
 		if com.debug || Common.defined com Define.JsSourceMap then
 			Some {
-				source_last_line = 0;
-				source_last_col = 0;
-				source_last_file = 0;
+				source_last_pos = { file = 0; line = 0; col = 0};
 				print_comma = false;
 				output_last_col = 0;
 				output_current_col = 0;

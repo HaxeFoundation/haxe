@@ -62,13 +62,25 @@ abstract ByteAccess(BytesData) {
 		return BytesDataTools.fastGet(this, pos);
 	}
 
-	public inline function getInt32( pos : Int ) : Int {
+	/*
+	public inline function getInt32BE( pos : Int ) : Int {
 		return (get(pos) << 24) | (get(pos+1) << 16) | (get(pos+2) << 8) | get(pos+3);
 	}
 
-	public inline function getInt16( pos : Int ) : Int {
+	public inline function getInt16BE( pos : Int ) : Int {
 		var upper = get(pos) << 8;
 		var lower =  get(pos+1);
+		return upper | lower;
+	}
+	*/
+
+	public inline function getInt32LE( pos : Int ) : Int {
+		return get(pos) | (get(pos+1) << 8) | (get(pos+2) << 16) | (get(pos+3) << 24);
+	}
+
+	public inline function getInt16LE( pos : Int ) : Int {
+		var lower =  get(pos);
+		var upper = get(pos+1) << 8;
 		return upper | lower;
 	}
 
@@ -82,16 +94,32 @@ abstract ByteAccess(BytesData) {
 		BytesDataTools.set(this, pos, v);
 	}
 
-	public inline function setInt16( pos : Int, v : Int ) : Void {
+	/*
+	public inline function setInt16BE( pos : Int, v : Int ) : Void {
 		BytesDataTools.set(this, pos, (v >> 8) & 0xFF );
 		BytesDataTools.set(this, pos+1, v & 0xFF );
 	}
+	*/
 
-	public inline function setInt32( pos : Int, v : Int ) : Void {
+	public inline function setInt16LE( pos : Int, v : Int ) : Void {
+		BytesDataTools.set(this, pos, v & 0xFF );
+		BytesDataTools.set(this, pos+1, (v >> 8) & 0xFF );
+	}
+
+	/*
+	public inline function setInt32BE( pos : Int, v : Int ) : Void {
 		BytesDataTools.set(this, pos, (v >> 24) & 0xFF );
 		BytesDataTools.set(this, pos+1, (v >> 16) & 0xFF );
 		BytesDataTools.set(this, pos+2, (v >> 8) & 0xFF );
 		BytesDataTools.set(this, pos+3, v & 0xFF );
+	}
+	*/
+
+	public inline function setInt32LE( pos : Int, v : Int ) : Void {
+		BytesDataTools.set(this, pos, v & 0xFF );
+		BytesDataTools.set(this, pos+1, (v >> 8) & 0xFF );
+		BytesDataTools.set(this, pos+2, (v >> 16) & 0xFF );
+		BytesDataTools.set(this, pos+3, (v >> 24) & 0xFF );
 	}
 
 	/* sets end */

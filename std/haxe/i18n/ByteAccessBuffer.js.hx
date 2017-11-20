@@ -29,23 +29,24 @@ private class BytesBufferTools {
 
 	public static inline function reset(buffer:BytesBuffer):BytesBuffer {
 
-		@:privateAccess buffer.pos = 0;
-		@:privateAccess buffer.size = 0;
-		@:privateAccess buffer.view = null;
-		@:privateAccess buffer.u8 = null;
-		@:privateAccess buffer.buffer = null;
+		@:privateAccess {
+			buffer.pos = 0;
+			buffer.size = 0;
+			buffer.view = null;
+			buffer.u8 = null;
+			buffer.buffer = null;
+		}
 		return buffer;
 	}
 
 	public static inline function addBytesData( buffer:BytesBuffer, src : haxe.io.BytesData ) {
-		var buf = buffer;
-
 		@:privateAccess {
-			if( buf.pos + src.byteLength > buf.size ) buf.grow(src.byteLength);
-			if( buf.size == 0 ) return;
-			var sub = new js.html.Uint8Array(@:privateAccess (src:Dynamic).bytes.buffer, @:privateAccess (src:Dynamic).bytes.byteOffset, src.byteLength);
-			buf.u8.set(sub, buf.pos);
-			buf.pos += src.byteLength;
+			if( buffer.pos + src.byteLength > buffer.size ) buffer.grow(src.byteLength);
+			if( buffer.size == 0 ) return;
+			var bytes = ((src:Dynamic).bytes:js.html.Uint8Array);
+			var sub = new js.html.Uint8Array(bytes.buffer, bytes.byteOffset, src.byteLength);
+			buffer.u8.set(sub, buffer.pos);
+			buffer.pos += src.byteLength;
 		}
 
 	}
@@ -59,25 +60,37 @@ private class BytesBufferTools {
 	}
 
 	public inline function add (b:ByteAccess) {
-		trace("ADDDD");
 		BytesBufferTools.addBytesData(this, b.getData());
 	}
 
-	public inline function addInt16BigEndian (i:Int) {
+	/*
+	public inline function addInt16BE (i:Int) {
 		this.addByte((i >> 8) & 0xFF);
 		this.addByte(i & 0xFF);
 	}
 
-	public inline function addInt32BigEndian (i:Int) {
+	public inline function addInt32BE (i:Int) {
 		this.addByte((i >> 24) & 0xFF);
 		this.addByte((i >> 16) & 0xFF);
 		this.addByte((i >> 8) & 0xFF);
 		this.addByte(i & 0xFF);
 	}
+	*/
+
+	public inline function addInt16LE (i:Int) {
+		this.addByte(i & 0xFF);
+		this.addByte((i >> 8) & 0xFF);
+	}
+
+	public inline function addInt32LE (i:Int) {
+		this.addByte(i & 0xFF);
+		this.addByte((i >> 8) & 0xFF);
+		this.addByte((i >> 16) & 0xFF);
+		this.addByte((i >> 24) & 0xFF);
+	}
 
 	public inline function addBuffer (buf:ByteAccessBuffer) {
 		var buf = buf.impl();
-
 		@:privateAccess for (i in 0...buf.length) {
 			this.addByte( buf.view.getInt8(i));
 		}
@@ -93,7 +106,6 @@ private class BytesBufferTools {
 	}
 
 	/* internal */
-
 	static inline function fromImpl (buf:BytesBuffer):ByteAccessBuffer {
 		return cast buf;
 	}
@@ -101,5 +113,4 @@ private class BytesBufferTools {
 	inline function impl ():BytesBuffer {
 		return this;
 	}
-
 }

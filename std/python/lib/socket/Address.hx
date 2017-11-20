@@ -19,20 +19,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package haxe;
+package python.lib.socket;
 
-@:coreApi class Log {
-	public static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
-		var str:String = null;
-		if (infos != null) {
-			str = infos.fileName + ":" + infos.lineNumber + ": " + v;
-			if (infos.customParams != null)
-			{
-				str += "," + infos.customParams.join(",");
-			}
-		} else {
-			str = v;
-		}
-		Sys.println(str);
-	}
-}
+typedef Address = python.Tuple.Tuple2<String,Int>;
