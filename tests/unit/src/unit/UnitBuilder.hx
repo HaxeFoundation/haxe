@@ -126,11 +126,10 @@ class UnitBuilder {
 						macro eq($e1, $e2);
 					} else {
 						//macro eq($e1, $e2);
-						macro eqAbstract($e1 != $e2, $e1, $e2);
+						macro eqAbstract($e1 == $e2, $e1, $e2);
 					}
 					#else
-					trace("here");
-					macro eqAbstract($e1 != $e2, $e1, $e2);
+					macro eqAbstract($e1 == $e2, $e1, $e2);
 					#end
 				} else {
 					macro eq($e1, $e2);
