@@ -60,7 +60,7 @@ class FPHelper {
 		static inline var LN2 = 0.6931471805599453; // Math.log(2)
 
 		static inline function _i32ToFloat(i: Int): Float {
-			var sign = 0x80000000 & i == 0 ? 1.0 : -1.0;
+			var sign = 1 - ((i >>> 31) << 1);
 			var e = (i >> 23) & 0xff;
 			if (e == 255)
 				return i & 0x7fffff == 0
@@ -71,7 +71,7 @@ class FPHelper {
 		}
 
 		static inline function _i64ToDouble(lo: Int, hi: Int): Float {
-			var sign = 0x80000000 & hi == 0 ? 1.0 : -1.0;
+			var sign = 1 - ((hi >>> 31) << 1);
 			var e = (hi >> 20) & 0x7ff;
 			if (e == 2047)
 				return lo == 0 && (hi & 0xFFFFF) == 0
@@ -91,7 +91,7 @@ class FPHelper {
 			} else {
 				if (exp <= -127 ) {
 					exp = -127;
-					af *= 7.1362384635298e+44;
+					af *= 7.1362384635298e+44;  // af * 0.5 * 0x800000 / Math.pow(2, -127)
 				} else {
 					af = (af / Math.pow(2, exp) - 1.0) * 0x800000;
 				}
@@ -116,7 +116,7 @@ class FPHelper {
 				} else {
 					if (exp <= -1023) {
 						exp = -1023;
-						av = av / 2.2250738585072014e-308;  // av * 0.5 / Math.pow(2, -1023)
+						av = av / 2.2250738585072014e-308;
 					} else {
 						av = av / Math.pow(2, exp) - 1.0;
 					}
