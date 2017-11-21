@@ -209,6 +209,11 @@ class HostClasses
       externs.set("sys.ssl._Socket.SocketOutput",true);
       externs.set("haxe.ds.TreeNode",true);
       externs.set("haxe.xml.XmlParserException",true);
+      externs.set("haxe.i18n._Ucs2.Ucs2Impl",true);
+      externs.set("haxe.i18n._Utf8.Utf8Impl",true);
+      externs.set("haxe.i18n._Utf16.Utf16Impl",true);
+      externs.set("haxe.i18n._Utf32.Utf32Impl",true);
+
       for(e in classes)
          externs.set(e,true);
 
