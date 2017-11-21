@@ -25,8 +25,6 @@ env:
     - OPAMYES=1
     # make variables
     - ADD_REVISION=1
-    # OCaml 4.06 compat. workaround
-    - OCAMLPARAM="safe-string=0,_"
     # nightly builds submit
     - secure: "UoGjYvQqt66GWmeLC4Pih1iue5AufVgW8XQOd2Bx839NN/2mQQ9bD1HuONJe+taWBJ+PHInkAjYROYYaiCQUA7B1SXs3oQD7Og6arVcR7kY7XOdAQ2t8ZkxJHTnuYGWW/2gNFBESv+3H17bkXG4rzaSn2LV5PJLOxSjw0ziBUMY="
     - secure: "ugpxt+zeYiAiMYKLK96f5TLSxbQAtmDWiumdwaLHl88fIUeefxJJPIF1Xm0AHeYEJE7sD8dLE1dMbRSzOpXFfTmJoQZv19Wjv+2N5B+DaabKjGj1nZG7q3blGa3nUYzWVfFNFiIpM9c5fvW8yiUFzacZE5itEY8+lZQeGsNh+WQ="
@@ -105,6 +103,8 @@ install_osx: &install_osx
   - opam init
   - eval `opam config env`
   - opam update
+  - opam pin add obuild --dev-repo --no-action # https://github.com/ocaml-obuild/obuild/pull/167#issuecomment-345937677
+  - opam pin add ptmap https://github.com/andyli/ptmap.git#ocaml406 --no-action # https://github.com/backtracking/ptmap/pull/8
   - opam pin add haxe . --no-action
   - opam install haxe --deps-only
   # install neko
