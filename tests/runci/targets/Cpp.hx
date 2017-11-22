@@ -42,14 +42,13 @@ class Cpp {
 
 	static public function run(args:Array<String>, testCompiled:Bool, testCppia:Bool) {
 		getCppDependencies();
-		if (testCompiled) {
-			runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M32"].concat(args));
-			runCpp("bin/cpp/TestMain-debug", []);
-		}
 
 		switch (ci) {
 			case AppVeyor:
-				//save time...
+				if (testCompiled) {
+					runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M32"].concat(args));
+					runCpp("bin/cpp/TestMain-debug", []);
+				}
 			case _:
 				if (testCompiled) {
 					runCommand("rm", ["-rf", "cpp"]);
