@@ -417,7 +417,7 @@ let apply_macro ctx mode path el p =
 let rec load_type_def ctx p t =
 	let no_pack = t.tpackage = [] in
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
-	if tname = "" then raise (Display.DisplayToplevel (Display.ToplevelCollector.run ctx true));
+	if tname = "" then raise (Display.DisplayToplevel (DisplayToplevel.collect ctx true));
 	try
 		if t.tsub <> None then raise Not_found;
 		let path_matches t2 =
@@ -880,7 +880,7 @@ let load_type_hint ?(opt=false) ctx pcur t =
 			try
 				load_complex_type ctx true pcur (t,p)
 			with Error(Module_not_found(([],name)),p) as exc ->
-				if Display.Diagnostics.is_diagnostics_run ctx then Display.ToplevelCollector.handle_unresolved_identifier ctx name p true;
+				if Display.Diagnostics.is_diagnostics_run ctx then DisplayToplevel.handle_unresolved_identifier ctx name p true;
 				(* Default to Dynamic in display mode *)
 				if ctx.com.display.dms_display then t_dynamic else raise exc
 	in
@@ -1591,7 +1591,7 @@ module Inheritance = struct
 				let t = load_instance ~allow_display:true ctx t false p in
 				Some (check_herit t is_extends)
 			with Error(Module_not_found(([],name)),p) when ctx.com.display.dms_display ->
-				if Display.Diagnostics.is_diagnostics_run ctx then Display.ToplevelCollector.handle_unresolved_identifier ctx name p true;
+				if Display.Diagnostics.is_diagnostics_run ctx then DisplayToplevel.handle_unresolved_identifier ctx name p true;
 				None
 		) herits in
 		fl
@@ -3100,7 +3100,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				ctx.m.wildcard_packages <- (List.map fst pack,p) :: ctx.m.wildcard_packages
 			| _ ->
 				(match List.rev path with
-				| [] -> raise (Display.DisplayToplevel (Display.ToplevelCollector.run ctx true));
+				| [] -> raise (Display.DisplayToplevel (DisplayToplevel.collect ctx true));
 				| (_,p) :: _ -> error "Module name must start with an uppercase letter" p))
 		| (tname,p2) :: rest ->
 			let p1 = (match pack with [] -> p2 | (_,p1) :: _ -> p1) in
@@ -3209,7 +3209,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			| (s1,_) :: sl ->
 				{ tpackage = List.rev (List.map fst sl); tname = s1; tsub = None; tparams = [] }
 			| [] ->
-				raise (Display.DisplayToplevel (Display.ToplevelCollector.run ctx true));
+				raise (Display.DisplayToplevel (DisplayToplevel.collect ctx true));
 		in
 		(* do the import first *)
 		let types = (match t.tsub with

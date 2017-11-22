@@ -21,4 +21,4 @@ depends: [
   "rope"      {build}
   "ptmap"     {build}
 ]
-available: [ ocaml-version > "4.02" & ocaml-version < "4.06" ]
+available: [ ocaml-version > "4.02" ]
