@@ -363,7 +363,7 @@ let merge_core_doc ctx c =
 
 let check_error ctx err p = match err with
 	| Module_not_found ([],name) when Display.Diagnostics.is_diagnostics_run ctx ->
-		Display.ToplevelCollector.handle_unresolved_identifier ctx name p true
+		DisplayToplevel.handle_unresolved_identifier ctx name p true
 	| _ ->
 		display_error ctx (error_msg err) p
 
@@ -2417,7 +2417,7 @@ and type_ident ctx i p mode =
 					| DMNone ->
 						raise (Error(err,p))
 					| DMDiagnostics b when b || ctx.is_display_file ->
-						Display.ToplevelCollector.handle_unresolved_identifier ctx i p false;
+						DisplayToplevel.handle_unresolved_identifier ctx i p false;
 						let t = mk_mono() in
 						AKExpr (mk (TIdent i) t p)
 					| _ ->
@@ -3883,7 +3883,7 @@ and display_expr ctx e_ast e with_type p =
 		let pl = loop e in
 		raise (Display.DisplayPosition pl);
 	| DMToplevel ->
-		raise (Display.DisplayToplevel (Display.ToplevelCollector.run ctx false))
+		raise (Display.DisplayToplevel (DisplayToplevel.collect ctx false))
 	| DMField | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
 		let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
 		let e = match e.eexpr with
