@@ -1,7 +1,7 @@
 OCAMLOPT = ocamlopt
 OCAMLC = ocamlc
 TARGET_FLAG = all
-LIBS=extlib-leftovers extc neko javalib ilib swflib ttflib objsize pcre
+LIBS=extlib-leftovers extc neko javalib ilib swflib ttflib objsize pcre ziplib
 
 all: $(LIBS)
 $(LIBS):
@@ -17,6 +17,7 @@ clean:
 	$(MAKE) -C ttflib clean
 	$(MAKE) -C objsize clean
 	$(MAKE) -C pcre clean
+	$(MAKE) -C ziplib clean
 
 .PHONY: all clean $(LIBS)
 
