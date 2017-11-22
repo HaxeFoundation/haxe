@@ -107,7 +107,7 @@ class FileSystem {
 		}
 	}
 
-	public inline static function createDirectory( path : String ) : Void {
+	public static function createDirectory( path : String ) : Void {
 
 		var path = haxe.io.Path.addTrailingSlash(path);
 		var _p = null;

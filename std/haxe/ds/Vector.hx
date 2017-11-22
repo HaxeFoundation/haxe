@@ -65,7 +65,7 @@ abstract Vector<T>(VectorData<T>) {
 		#elseif neko
 			this = untyped __dollar__amake(length);
 		#elseif js
-			this = untyped __new__(Array, length);
+			this = js.Syntax.new_(Array, length);
 		#elseif cs
 			this = new cs.NativeArray(length);
 		#elseif java

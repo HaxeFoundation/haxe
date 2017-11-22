@@ -1868,7 +1868,7 @@ let generate con =
 					| Some t -> run t
 					| _ -> () (* avoid infinite loop / should be the same in this context *))
 				| TLazy f ->
-					run (!f())
+					run (lazy_type f)
 				| _ -> ()
 		in
 		run t;
@@ -2288,7 +2288,7 @@ let generate con =
 
 	let cl_arg_exc = get_cl (get_type gen (["java";"lang"],"IllegalArgumentException")) in
 	let cl_arg_exc_t = TInst (cl_arg_exc, []) in
-	let mk_arg_exception msg pos = mk (TNew (cl_arg_exc, [], [ExprBuilder.make_string gen.gcon msg pos])) cl_arg_exc_t pos in
+	let mk_arg_exception msg pos = mk (TNew (cl_arg_exc, [], [Texpr.Builder.make_string gen.gcon.basic msg pos])) cl_arg_exc_t pos in
 	let closure_t = ClosuresToClass.DoubleAndDynamicClosureImpl.get_ctx gen (get_cl (get_type gen (["haxe";"lang"],"Function"))) 6 mk_arg_exception in
 	ClosuresToClass.configure gen closure_t;
 
@@ -2379,7 +2379,7 @@ let generate con =
 
 	let cl_field_exc = get_cl (get_type gen (["java";"lang"],"RuntimeException")) in
 	let cl_field_exc_t = TInst (cl_field_exc, []) in
-	let mk_field_exception msg pos = mk (TNew (cl_field_exc, [], [ExprBuilder.make_string gen.gcon msg pos])) cl_field_exc_t pos in
+	let mk_field_exception msg pos = mk (TNew (cl_field_exc, [], [Texpr.Builder.make_string gen.gcon.basic msg pos])) cl_field_exc_t pos in
 
 	let rcf_ctx =
 		ReflectionCFs.new_ctx
@@ -2557,7 +2557,7 @@ let generate con =
 									{ eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tint; epos=e1.epos }
 								end
 							in
-							let zero = ExprBuilder.make_int gen.gcon 0 e.epos in
+							let zero = Texpr.Builder.make_int gen.gcon.basic 0 e.epos in
 							{ e with eexpr = TBinop(op, handler, zero) }
 			);
 
@@ -2600,7 +2600,7 @@ let generate con =
 	let str_cl = match gen.gcon.basic.tstring with | TInst(cl,_) -> cl | _ -> assert false in
 	str_cl.cl_super <- Some (get_cl (get_type gen (["haxe";"lang"], "NativeString")), []);
 
-	mkdir_from_path (gen.gcon.file ^ "/src");
+	Path.mkdir_from_path (gen.gcon.file ^ "/src");
 
 	let out_files = ref [] in
 
@@ -2610,7 +2610,7 @@ let generate con =
 		res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = null_pos } :: !res;
 		let name = Codegen.escape_res_name name true in
 		let full_path = gen.gcon.file ^ "/src/" ^ name in
-		mkdir_from_path full_path;
+		Path.mkdir_from_path full_path;
 
 		let f = open_out_bin full_path in
 		output_string f v;
@@ -2629,7 +2629,7 @@ let generate con =
 	RenameTypeParameters.run gen.gtypes_list;
 
 	let parts = Str.split_delim (Str.regexp "[\\/]+") gen.gcon.file in
-	mkdir_recursive "" parts;
+	Path.mkdir_recursive "" parts;
 
 	let source_dir = gen.gcon.file ^ "/src" in
 	List.iter (fun md ->

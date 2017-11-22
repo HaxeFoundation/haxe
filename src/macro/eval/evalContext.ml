@@ -131,7 +131,9 @@ type context = {
 	mutable type_cache : Type.module_type IntMap.t;
 	overrides : (Type.path * string,bool) Hashtbl.t;
 	(* prototypes *)
+	mutable array_prototype : vprototype;
 	mutable string_prototype : vprototype;
+	mutable vector_prototype : vprototype;
 	mutable instance_prototypes : vprototype IntMap.t;
 	mutable static_prototypes : vprototype IntMap.t;
 	mutable constructors : value Lazy.t IntMap.t;
@@ -234,6 +236,12 @@ let exc v = throw v null_pos
 
 let exc_string str = exc (vstring (Rope.of_string str))
 
+let error_message = exc_string
+
+let flush_core_context f =
+	let ctx = get_ctx() in
+	ctx.curapi.MacroApi.flush_context f
+
 (* Environment handling *)
 
 let no_timer = fun () -> ()
@@ -259,7 +267,7 @@ let create_env_info static pfile kind capture_infos =
 let push_environment_debug ctx info num_locals num_captures =
 	let eval = get_eval ctx in
 	let timer = if ctx.detail_times then
-		Common.timer ["macro";"execution";kind_name eval info.kind]
+		Timer.timer ["macro";"execution";kind_name eval info.kind]
 	else
 		no_timer
 	in
@@ -358,6 +366,6 @@ let get_proto_field_index proto name =
 let get_instance_field_index_raise proto name =
 	IntMap.find name proto.pinstance_names
 
-let get_instance_field_index proto name =
+let get_instance_field_index proto name p =
 	try get_instance_field_index_raise proto name
-	with Not_found -> Error.error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash_s name) (rev_hash_s proto.ppath)) null_pos
+	with Not_found -> Error.error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash_s name) (rev_hash_s proto.ppath)) p

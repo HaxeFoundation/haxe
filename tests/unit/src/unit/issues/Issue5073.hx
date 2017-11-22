@@ -11,5 +11,5 @@ class Issue5073 extends Test {
 		pretendToRun(dontRunMe);
 	}
 
-	static function pretendToRun(f) { }
+	static function pretendToRun(_) { }
 }

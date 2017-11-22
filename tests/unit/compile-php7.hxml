@@ -1,4 +1,0 @@
-compile-each.hxml
--main unit.TestMain
--php bin/php7
--D php7

@@ -19,6 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import php.Global;
+import php.Syntax;
+
 @:coreApi class StringBuf {
 	private var b : String;
 
@@ -33,8 +37,15 @@
 	}
 
 	public function add<T>( x : T ) : Void {
-		untyped if( __call__('is_null',x) ) x = cast 'null' else if( __call__('is_bool',x) ) x = cast (x?'true':'false');
-		b += x;
+		if( x == null ) {
+			b = Syntax.concat(b, 'null');
+		} else if( Global.is_bool(x) ) {
+			b = Syntax.concat(b, ((x:Dynamic) ? 'true' : 'false'));
+		} else if( Global.is_string(x) ) {
+			b = Syntax.concat(b, cast x);
+		} else {
+			b += x;
+		}
 	}
 
 	public inline function addSub( s : String, pos : Int, ?len : Int ) : Void {

@@ -50,7 +50,7 @@ class TestJson extends Test {
 	function testHaxeJson() {
 		#if php
 		// php's haxe.Utf8 uses mbstring
-		if (untyped __call__("extension_loaded", "mbstring")) {
+		if (php.Global.extension_loaded("mbstring")) {
 		#end
 
 		var str = haxe.format.JsonPrinter.print( { x : -4500, y : 1.456, a : ["hello", "wor'\"\n\t\rd"], b : function() {} } );

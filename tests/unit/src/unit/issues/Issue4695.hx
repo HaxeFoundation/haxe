@@ -17,8 +17,8 @@ class Issue4695 extends unit.Test {
 
 	#if php
 	public function testNativeArray() {
-		var a1 = (untyped __php__)('array("f1" => 1, "f2" => 2, "f3" => 3)');
-		var a2 = (untyped __php__)('array("f1" => true, "f2" => "2", "f3" => 3)');
+		var a1 = php.Syntax.assocDecl({"f1" : 1, "f2" : 2, "f3" : 3});
+		var a2 = php.Syntax.assocDecl({"f1" : true, "f2" : "2", "f3" : 3});
 		f(a1 == a2);
 		f(eqCheck(a1, a2));
 	}

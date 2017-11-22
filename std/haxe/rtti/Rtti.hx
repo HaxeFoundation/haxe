@@ -25,7 +25,7 @@ import haxe.rtti.CType;
 
 /**
 	Rtti is a helper class which supplements the `@:rtti` metadata.
-	
+
 	@see <https://haxe.org/manual/cr-rtti.html>
 **/
 class Rtti {
@@ -47,7 +47,7 @@ class Rtti {
 		var infos = new haxe.rtti.XmlParser().processElement(x);
 		switch (infos) {
 			case TClassdecl(c): return c;
-			case t: throw 'Enum mismatch: expected TClassDecl but found $t';
+			case var t: throw 'Enum mismatch: expected TClassDecl but found $t';
 		}
 	}
 

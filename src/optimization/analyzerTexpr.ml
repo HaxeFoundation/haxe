@@ -125,7 +125,6 @@ let rec can_be_used_as_value com e =
 		(* | TCall _ | TNew _ when (match com.platform with Cpp | Php -> true | _ -> false) -> raise Exit *)
 		| TReturn _ | TThrow _ | TBreak | TContinue -> raise Exit
 		| TUnop((Increment | Decrement),_,_) when not (target_handles_unops com) -> raise Exit
-		| TNew _ when com.platform = Php && not (Common.is_php7 com) -> raise Exit
 		| TFunction _ -> ()
 		| _ -> Type.iter loop e
 	in
@@ -167,7 +166,7 @@ let rec is_asvar_type t =
 	| TEnum(en,_) -> check en.e_meta
 	| TType(t,tl) -> check t.t_meta || (is_asvar_type (apply_params t.t_params tl t.t_type))
 	| TAbstract(a,_) -> check a.a_meta
-	| TLazy f -> is_asvar_type (!f())
+	| TLazy f -> is_asvar_type (lazy_type f)
 	| TMono r ->
 		(match !r with
 		| Some t -> is_asvar_type t
@@ -191,7 +190,7 @@ let type_change_ok com t1 t2 =
 			| TAbstract ({ a_path = ([],"Null") },[_]) ->
 				true
 			| TLazy f ->
-				is_nullable_or_whatever (!f())
+				is_nullable_or_whatever (lazy_type f)
 			| TType (t,tl) ->
 				is_nullable_or_whatever (apply_params t.t_params tl t.t_type)
 			| TFun _ ->
@@ -357,7 +356,7 @@ module TexprFilter = struct
 		| TWhile(e1,e2,flag) when not (is_true_expr e1) ->
 			let p = e.epos in
 			let e_break = mk TBreak t_dynamic p in
-			let e_not = mk (TUnop(Not,Prefix,Codegen.mk_parent e1)) e1.etype e1.epos in
+			let e_not = mk (TUnop(Not,Prefix,Texpr.Builder.mk_parent e1)) e1.etype e1.epos in
 			let e_if eo = mk (TIf(e_not,e_break,eo)) com.basic.tvoid p in
 			let rec map_continue e = match e.eexpr with
 				| TContinue ->
@@ -371,10 +370,10 @@ module TexprFilter = struct
 			let e_if = e_if None in
 			let e_block = if flag = NormalWhile then Type.concat e_if e2 else Type.concat e2 e_if in
 			let e_true = mk (TConst (TBool true)) com.basic.tbool p in
-			let e = mk (TWhile(Codegen.mk_parent e_true,e_block,NormalWhile)) e.etype p in
+			let e = mk (TWhile(Texpr.Builder.mk_parent e_true,e_block,NormalWhile)) e.etype p in
 			loop e
 		| TFor(v,e1,e2) ->
-			let e = Codegen.for_remap com v e1 e2 e.epos in
+			let e = Texpr.for_remap com.basic v e1 e2 e.epos in
 			loop e
 		| _ ->
 			Type.map_expr loop e
@@ -657,6 +656,15 @@ module Fusion = struct
 				block_element acc (e1 :: el1 @ el2)
 			| {eexpr = TNew(c,tl,el1)} :: el2 when (match c.cl_constructor with Some cf when PurityState.is_pure c cf -> true | _ -> false) && config.local_dce ->
 				block_element acc (el1 @ el2)
+			| {eexpr = TIf ({ eexpr = TConst (TBool t) },e1,e2)} :: el ->
+				if t then
+					block_element acc (e1 :: el)
+				else begin match e2 with
+					| None ->
+						block_element acc el
+					| Some e ->
+						block_element acc (e :: el)
+				end
 			(* no-side-effect composites *)
 			| {eexpr = TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) | TField(e1,_) | TUnop(_,_,e1)} :: el ->
 				block_element acc (e1 :: el)
@@ -706,7 +714,6 @@ module Fusion = struct
 				can_be_used_as_value com e1 &&
 				not (ExtType.is_void e1.etype) &&
 				(match com.platform with
-					| Php when not (Common.is_php7 com) -> false
 					| Cpp when not (Common.defined com Define.Cppia) -> false
 					| _ -> true)
 				->
@@ -807,17 +814,8 @@ module Fusion = struct
 							let el = List.map replace el in
 							let e2 = replace e2 in
 							e2,el
-						| Php | Cpp  when not (Common.defined com Define.Cppia) && not (Common.is_php7 com) ->
-							let is_php_safe e1 =
-								let rec loop e = match e.eexpr with
-									| TCall _ -> raise Exit
-									| TCast(e1,_) | TParenthesis e1 | TMeta(_,e1) -> loop e1
-									| _ -> ()
-								in
-								try loop e1; true with Exit -> false
-							in
-							(* PHP5 doesn't like call()() expressions. *)
-							let e2 = if com.platform = Php && not (is_php_safe e1) then explore e2 else replace e2 in
+						| Cpp ->
+							let e2 = replace e2 in
 							let el = handle_el el in
 							e2,el
 						| _ ->
@@ -892,7 +890,7 @@ module Fusion = struct
 							if not !found && (has_state_write ir || has_state_read ir || has_any_field_read ir || has_any_field_write ir) then raise Exit;
 							{e with eexpr = TNew(c,tl,el)}
 						| TCall({eexpr = TField(_,FEnum _)} as ef,el) ->
-							let el = List.map replace el in
+							let el = handle_el el in
 							{e with eexpr = TCall(ef,el)}
 						| TCall({eexpr = TField(_,fa)} as ef,el) when PurityState.is_pure_field_access fa ->
 							let ef,el = handle_call ef el in
@@ -919,7 +917,7 @@ module Fusion = struct
 							let e3 = replace e3 in
 							if not !found && has_state_read ir then raise Exit;
 							{e with eexpr = TBinop(OpAssign,{ea with eexpr = TArray(e1,e2)},e3)}
-						| TBinop(op,e1,e2) when (match com.platform with Cpp | Php when not (Common.is_php7 com) -> true | _ -> false) ->
+						| TBinop(op,e1,e2) when (match com.platform with Cpp -> true | _ -> false) ->
 							let e1 = replace e1 in
 							let temp_found = !found in
 							found := false;

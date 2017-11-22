@@ -70,7 +70,7 @@ class Printer {
 		case OpMod: "%";
 		case OpInterval: "...";
 		case OpArrow: "=>";
-		case OpIn: " in ";
+		case OpIn: "in";
 		case OpAssignOp(op):
 			printBinop(op)
 			+ "=";
@@ -120,6 +120,7 @@ class Printer {
 		case TAnonymous(fields): "{ " + [for (f in fields) printField(f) + "; "].join("") + "}";
 		case TParent(ct): "(" + printComplexType(ct) + ")";
 		case TOptional(ct): "?" + printComplexType(ct);
+		case TNamed(n,ct): n + ":" + printComplexType(ct);
 		case TExtend(tpl, fields): '{> ${tpl.map(printTypePath).join(" >, ")}, ${fields.map(printField).join(", ")} }';
 	}
 
@@ -135,6 +136,7 @@ class Printer {
 		case AInline: "inline";
 		case ADynamic: "dynamic";
 		case AMacro: "macro";
+		case AFinal: "final";
 	}
 
 	public function printField(field:Field) return
@@ -170,6 +172,17 @@ class Printer {
 		+ opt(v.expr, printExpr, " = ");
 
 
+	public function printObjectFieldKey(of:ObjectField) {
+		return switch (of.quotes) {
+			case null | Unquoted: of.field;
+			case Quoted: '"${of.field}"'; // TODO: Have to escape that?
+		}
+	}
+
+	public function printObjectField(of:ObjectField) {
+		return '${printObjectFieldKey(of)} : ${printExpr(of.expr)}';
+	}
+
 	public function printExpr(e:Expr) return e == null ? "#NULL" : switch(e.expr) {
 		#if macro
 		case EConst(CString(s)): haxe.macro.MacroStringTools.isFormatExpr(e) ? printFormatString(s) : printString(s);
@@ -180,7 +193,7 @@ class Printer {
 		case EField(e1, n): '${printExpr(e1)}.$n';
 		case EParenthesis(e1): '(${printExpr(e1)})';
 		case EObjectDecl(fl):
-			"{ " + fl.map(function(fld) return '${fld.field} : ${printExpr(fld.expr)}').join(", ") + " }";
+			"{ " + fl.map(function(fld) return printObjectField(fld)).join(", ") + " }";
 		case EArrayDecl(el): '[${printExprs(el, ", ")}]';
 		case ECall(e1, el): '${printExpr(e1)}(${printExprs(el,", ")})';
 		case ENew(tp, el): 'new ${printTypePath(tp)}(${printExprs(el,", ")})';

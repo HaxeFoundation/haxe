@@ -21,6 +21,11 @@
  */
 package php;
 
-extern class NativeString implements ArrayAccess<String> {
+/**
+	Native PHP string.
+**/
+@:coreType @:runtimeValue abstract NativeString from String to String {
 
+	@:arrayAccess function get(key:Int):String;
+	@:arrayAccess function set(key:Int, val:String):String;
 }

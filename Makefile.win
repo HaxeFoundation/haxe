@@ -60,3 +60,34 @@ package_choco:
 	cd out/choco && choco pack
 	mv out/choco/haxe.*.nupkg out
 	rm -rf out/choco
+
+$(INSTALLER_TMP_DIR)/neko-win.zip: $(INSTALLER_TMP_DIR)
+	wget http://nekovm.org/media/neko-2.1.0-win.zip -O installer/neko-win.zip
+
+package_installer_win: $(INSTALLER_TMP_DIR)/neko-win.zip package_win
+	$(eval OUTFILE := $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_installer.zip)
+	$(eval VERSION := $(shell haxe -version 2>&1 | cut -d ' ' -f1))
+	rm -rf $(INSTALLER_TMP_DIR)/resources
+	# neko
+	mkdir $(INSTALLER_TMP_DIR)/resources
+	cd $(INSTALLER_TMP_DIR) && 7z x -y neko-win.zip
+	rm $(INSTALLER_TMP_DIR)/neko-win.zip
+	mv $(INSTALLER_TMP_DIR)/neko* $(INSTALLER_TMP_DIR)/resources/neko
+	# haxe
+	7z x -y $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.zip -o$(INSTALLER_TMP_DIR)/resources
+	mv $(INSTALLER_TMP_DIR)/resources/haxe* $(INSTALLER_TMP_DIR)/resources/haxe
+	# haxesetup.exe
+	haxelib path hxcpp || haxelib install hxcpp
+	cd extra; haxelib run hxcpp build-haxesetup.xml
+	cp extra/haxesetup.exe $(INSTALLER_TMP_DIR)/resources/haxe
+	# extra
+	cp extra/*.nsi $(INSTALLER_TMP_DIR)
+	cp extra/*.nsh $(INSTALLER_TMP_DIR)
+	cp -rf extra/images $(INSTALLER_TMP_DIR)
+	# nsis
+	sed -i "s/%%VERSION%%/$(VERSION)/g" $(INSTALLER_TMP_DIR)/installer.nsi
+	sed -i "s/%%VERSTRING%%/$(VERSION)/g" $(INSTALLER_TMP_DIR)/installer.nsi
+	sed -i "s/%%VERLONG%%/$(VERSION)/g" $(INSTALLER_TMP_DIR)/installer.nsi
+	cd $(INSTALLER_TMP_DIR) && makensis installer.nsi
+	7z a -r -tzip $(OUTFILE) $(INSTALLER_TMP_DIR)/*.exe
+	dir $(PACKAGE_OUT_DIR)

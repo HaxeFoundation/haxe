@@ -176,7 +176,7 @@ let cached_source_writer common_ctx filename =
    new source_writer common_ctx (add_header) (add_buf) (close)
 ;;
 
-let make_class_directories = Common.mkdir_recursive;;
+let make_class_directories = Path.mkdir_recursive;;
 
 let make_base_directory dir =
    make_class_directories "" ( ( Str.split_delim (Str.regexp "[\\/]+") dir ) );;
@@ -634,7 +634,7 @@ let rec is_objc_type t =
    | TType(td,_) -> (Meta.has Meta.Objc td.t_meta)
    | TAbstract (a,_) -> (Meta.has Meta.Objc a.a_meta)
    | TMono r -> (match !r with | Some t -> is_objc_type t | _ -> false)
-   | TLazy f -> is_objc_type (!f())
+   | TLazy f -> is_objc_type (lazy_type f)
    | _ -> false
 ;;
 
@@ -806,7 +806,7 @@ and type_string_suff suffix haxe_type remap =
       | _ -> "Dynamic"  ^ suffix )
       *)
    | TDynamic haxe_type -> "Dynamic" ^ suffix
-   | TLazy func -> type_string_suff suffix ((!func)()) remap
+   | TLazy func -> type_string_suff suffix (lazy_type func) remap
    | TAbstract (abs,pl) when abs.a_impl <> None ->
       type_string_suff suffix (Abstract.get_underlying_type abs pl) remap
    | TAbstract (abs,pl) ->
@@ -1796,7 +1796,7 @@ let rec cpp_type_of ctx haxe_type =
    | TFun _ -> TCppObject
    | TAnon _ -> TCppObject
    | TDynamic _ -> TCppDynamic
-   | TLazy func -> cpp_type_of ctx ((!func)())
+   | TLazy func -> cpp_type_of ctx (lazy_type func)
    )
    and  cpp_type_from_path ctx path params default =
       match path,params with
@@ -2895,7 +2895,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             | OpDiv -> TCppScalar("Float")
             | OpBoolAnd | OpBoolOr -> TCppScalar("bool")
             | OpAnd | OpOr | OpXor | OpShl | OpShr | OpUShr -> TCppScalar("int")
-            | OpAssign -> cpp_type_of left.etype
+            | OpAssign -> (retype TCppUnchanged left).cpptype
             | _ -> TCppUnchanged
             in
             let e1 = retype binOpType left in
@@ -3006,14 +3006,14 @@ let retype_expression ctx request_type function_args function_type expression_tr
             CppBlock(cppExprs, List.rev !local_closures, !gc_stack ), TCppVoid
 
          | TObjectDecl (
-            ("fileName" , { eexpr = (TConst (TString file)) }) ::
-               ("lineNumber" , { eexpr = (TConst (TInt line)) }) ::
-                  ("className" , { eexpr = (TConst (TString class_name)) }) ::
-                     ("methodName", { eexpr = (TConst (TString meth)) }) :: [] ) ->
+            (("fileName",_,_) , { eexpr = (TConst (TString file)) }) ::
+               (("lineNumber",_,_) , { eexpr = (TConst (TInt line)) }) ::
+                  (("className",_,_) , { eexpr = (TConst (TString class_name)) }) ::
+                     (("methodName",_,_), { eexpr = (TConst (TString meth)) }) :: [] ) ->
               CppPosition(file,line,class_name,meth), TCppDynamic
 
          | TObjectDecl el ->
-            let retypedEls = List.map ( fun(v,e) -> v, retype TCppDynamic e) el in
+            let retypedEls = List.map ( fun((v,_,_),e) -> v, retype TCppDynamic e) el in
             (match return_type with
             | TCppVoid -> CppObjectDecl(retypedEls,false), TCppVoid
             | _ -> CppObjectDecl(retypedEls,false), TCppDynamic
@@ -4736,7 +4736,7 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
          | _ -> () );
          ) enum_def.e_constrs;
       if (not header_only) then begin
-         let meta = Codegen.build_metadata ctx.ctx_common (TEnumDecl enum_def) in
+         let meta = Texpr.build_metadata ctx.ctx_common.basic (TEnumDecl enum_def) in
          match meta with Some expr -> visit_params expr | _ -> ();
       end;
    in
@@ -5318,7 +5318,8 @@ let access_str a = match a with
    | AccResolve -> "AccResolve"
    | AccCall -> "AccCall"
    | AccInline -> "AccInline"
-   | AccRequire(_,_) -> "AccRequire" ;;
+   | AccRequire(_,_) -> "AccRequire"
+   | AccCtor -> "AccCtor";;
 
 
 let script_type t optional = if optional then begin
@@ -6050,7 +6051,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          )
       in
 
-      output_cpp "#if HXCPP_SCRIPTABLE\n";
+      output_cpp "#ifdef HXCPP_SCRIPTABLE\n";
 
       let stored_fields = List.filter is_data_member implemented_instance_fields in
       if ( (List.length stored_fields) > 0) then begin
@@ -7532,16 +7533,16 @@ class script_writer ctx filename asciiOut =
               this#checkCast return_type value false false;
          )
    | TObjectDecl (
-      ("fileName" , { eexpr = (TConst (TString file)) }) ::
-         ("lineNumber" , { eexpr = (TConst (TInt line)) }) ::
-            ("className" , { eexpr = (TConst (TString class_name)) }) ::
-               ("methodName", { eexpr = (TConst (TString meth)) }) :: [] ) ->
+      (("fileName",_,_) , { eexpr = (TConst (TString file)) }) ::
+         (("lineNumber",_,_) , { eexpr = (TConst (TInt line)) }) ::
+            (("className",_,_) , { eexpr = (TConst (TString class_name)) }) ::
+               (("methodName",_,_), { eexpr = (TConst (TString meth)) }) :: [] ) ->
             this#write ( (this#op IaPosInfo) ^ (this#stringText file) ^ (Printf.sprintf "%ld" line) ^ " " ^
                         (this#stringText class_name) ^ " " ^  (this#stringText meth))
 
    | TObjectDecl values ->this#write ( (this#op IaObjDef) ^ (string_of_int (List.length values)));
          this#write " ";
-         List.iter (fun (name,_) -> this#write (this#stringText name)  ) values;
+         List.iter (fun ((name,_,_),_) -> this#write (this#stringText name)  ) values;
          this#write "\n";
          List.iter (fun (_,e) -> this#gen_expression e ) values;
    | TTypeExpr type_expr ->
@@ -7992,7 +7993,7 @@ let generate_script_class common_ctx script class_def =
          script#writeOpLine IaInline;
       | Var v,_ ->
          let mode_code mode = match mode with
-         | AccNormal -> IaAccessNormal
+         | AccNormal | AccCtor -> IaAccessNormal
          | AccNo -> IaAccessNot
          | AccNever -> IaAccessNot
          | AccResolve -> IaAccessResolve
@@ -8075,7 +8076,7 @@ let generate_cppia ctx =
          if (is_internal) then
             (if (debug>=4) then print_endline (" internal enum " ^ (join_class_path enum_def.e_path ".") ))
          else begin
-            let meta = Codegen.build_metadata common_ctx object_def in
+            let meta = Texpr.build_metadata common_ctx.basic object_def in
             if (enum_def.e_extern) then
                (if (debug>=4) then print_endline ("external enum " ^  (join_class_path enum_def.e_path ".") ));
             generate_script_enum common_ctx script enum_def meta
@@ -8170,7 +8171,7 @@ let generate_source ctx =
          if (is_internal) then
             (if (debug>1) then print_endline (" internal enum " ^ name ))
          else begin
-            let meta = Codegen.build_metadata common_ctx object_def in
+            let meta = Texpr.build_metadata common_ctx.basic object_def in
             if (enum_def.e_extern) then
                (if (debug>1) then print_endline ("external enum " ^ name ));
             boot_enums := enum_def.e_path :: !boot_enums;
@@ -8188,7 +8189,9 @@ let generate_source ctx =
    (match common_ctx.main with
    | None -> generate_dummy_main common_ctx
    | Some e ->
-      let main_field = { cf_name = "__main__"; cf_type = t_dynamic; cf_expr = Some e; cf_expr_unoptimized = None; cf_pos = e.epos; cf_name_pos = null_pos; cf_public = true; cf_meta = []; cf_overloads = []; cf_doc = None; cf_kind = Var { v_read = AccNormal; v_write = AccNormal; }; cf_params = [] } in
+      let main_field = { (mk_field "__main__" t_dynamic e.epos null_pos) with
+         cf_expr = Some e;
+	  } in
       let class_def = { null_class with cl_path = ([],"@Main"); cl_ordered_statics = [main_field] } in
       main_deps := find_referenced_types ctx (TClassDecl class_def) super_deps constructor_deps false true false;
       generate_main ctx super_deps class_def
@@ -8254,10 +8257,10 @@ let generate_source ctx =
    let cmd_defines = ref "" in
    PMap.iter ( fun name value -> match name with
       | "true" | "sys" | "dce" | "cpp" | "debug" -> ()
-      | _ -> cmd_defines := !cmd_defines ^ " -D" ^ name ^ "=\"" ^ (escape_command value) ^ "\"" ) common_ctx.defines;
-   write_build_options common_ctx (common_ctx.file ^ "/Options.txt") common_ctx.defines;
+      | _ -> cmd_defines := !cmd_defines ^ " -D" ^ name ^ "=\"" ^ (escape_command value) ^ "\"" ) common_ctx.defines.Define.values;
+   write_build_options common_ctx (common_ctx.file ^ "/Options.txt") common_ctx.defines.Define.values;
    if ( not (Common.defined common_ctx Define.NoCompilation) ) then begin
-      let t = Common.timer ["generate";"cpp";"native compilation"] in
+      let t = Timer.timer ["generate";"cpp";"native compilation"] in
       let old_dir = Sys.getcwd() in
       Sys.chdir common_ctx.file;
       let cmd = ref "haxelib run hxcpp Build.xml haxe" in
@@ -8272,11 +8275,12 @@ let generate_source ctx =
    ;;
 
 let generate common_ctx =
+   let debug_level = if (Common.defined common_ctx Define.NoDebug) then 0 else 1 in
    if (Common.defined common_ctx Define.Cppia) then begin
-      let ctx = new_context common_ctx 1 (ref PMap.empty) (Hashtbl.create 0)  in
+      let ctx = new_context common_ctx debug_level (ref PMap.empty) (Hashtbl.create 0)  in
       generate_cppia ctx
    end else begin
-      let ctx = new_context common_ctx 1 (ref PMap.empty) (create_member_types common_ctx) in
+      let ctx = new_context common_ctx debug_level (ref PMap.empty) (create_member_types common_ctx) in
       generate_source ctx
    end
 ;;

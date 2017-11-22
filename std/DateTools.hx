@@ -37,7 +37,7 @@ class DateTools {
 	static var DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 	static var MONTH_SHORT_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 	static var MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-	
+
 	private static function __format_get( d : Date, e : String ) : String {
 		return switch( e ){
 			case "%":
@@ -237,7 +237,7 @@ class DateTools {
 	    #if (js || flash || python)
 		   return untyped Date.UTC(year, month, day, hour, min, sec);
 		#elseif php
-		   return untyped __call__("gmmktime", hour, min, sec, month + 1, day, year) * 1000;
+		   return php.Global.gmmktime(hour, min, sec, month + 1, day, year) * 1000;
 		#elseif cpp
 		  return untyped __global__.__hxcpp_utc_date(year,month,day,hour,min,sec)*1000.0 ;
 		#else

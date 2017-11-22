@@ -70,7 +70,6 @@ module BasicBlock = struct
 		| SEWhile of t * t * t                                   (* `while` with "head", "body" and "next" *)
 		| SESubBlock of t * t                                    (* "sub" with "next" *)
 		| SEMerge of t                                           (* Merge to same block *)
-		| SEEnd                                                  (* End of syntax *)
 		| SENone                                                 (* No syntax exit *)
 
 	and t = {
@@ -506,7 +505,7 @@ module Graph = struct
 					loop scopes bb_next
 				| SEMerge bb ->
 					loop scopes bb
-				| SEEnd | SENone ->
+				| SENone ->
 					()
 			end
 		in

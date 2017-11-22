@@ -98,7 +98,7 @@ class InflateImpl {
 	var nbits : Int;
 	var bits : Int;
 	var state : State;
-	var final : Bool;
+	var isFinal : Bool;
 	var huffman : Huffman;
 	var huffdist : Null<Huffman>;
 	var htools : HuffTools;
@@ -114,7 +114,7 @@ class InflateImpl {
 	static var FIXED_HUFFMAN = null;
 
 	public function new( i, ?header = true, ?crc = true ) {
-		final = false;
+		isFinal = false;
 		htools = new HuffTools();
 		huffman = buildFixedHuffman();
 		huffdist = null;
@@ -279,7 +279,7 @@ class InflateImpl {
 			// nothing
 			return false;
 		case Block:
-			final = getBit();
+			isFinal = getBit();
 			switch( getBits(2) ) {
 			case 0: // no compression
 				len = input.readUInt16();
@@ -319,7 +319,7 @@ class InflateImpl {
 			var bytes = input.read(rlen);
 			len -= rlen;
 			addBytes(bytes,0,rlen);
-			if( len == 0 ) state = final ? Crc : Block;
+			if( len == 0 ) state = isFinal ? Crc : Block;
 			return needed > 0;
 		case DistOne:
 			var rlen = (len < needed) ? len : needed;
@@ -342,7 +342,7 @@ class InflateImpl {
 				addByte(n);
 				return needed > 0;
 			} else if( n == 256 ) {
-				state = final ? Crc : Block;
+				state = isFinal ? Crc : Block;
 				return true;
 			} else {
 				n -= 257;

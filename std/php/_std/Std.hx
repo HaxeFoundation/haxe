@@ -1,3 +1,5 @@
+import php.Boot;
+
 /*
  * Copyright (C)2005-2017 Haxe Foundation
  *
@@ -19,47 +21,54 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import php.Global;
+import php.Const;
+import php.Syntax;
+
+@:keep
 @:coreApi class Std {
 
-	public static function is( v : Dynamic, t : Dynamic ) : Bool {
-		return untyped __call__("_hx_instanceof", v,t);
+	public static inline function is( v : Dynamic, t : Dynamic ) : Bool {
+		return Boot.is(v, t);
 	}
 
-	public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
-		return Std.is(value, c) ? cast value : null;
+	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+		return Boot.is(value, cast c) ? cast value : null;
 	}
 
 	public static function string( s : Dynamic ) : String {
-		return untyped __call__("_hx_string_rec", s, '');
+		return Boot.stringify(s);
 	}
 
-	public static function int( x : Float ) : Int {
-		var i : Int = untyped __call__("fmod", x, 0x80000000) & 0xffffffff;
-		if (untyped i & 0x80000000)
-        	i = -((~i & 0xffffffff) + 1);
-        return i;
+	public static inline function int( x : Float ) : Int {
+		return Syntax.int(x);
 	}
 
 	public static function parseInt( x : String ) : Null<Int> {
-		x = untyped __call__("ltrim", x);
-		var firstCharIndex = (x.charAt(0) == '-' ? 1 : 0);
-		var firstCharCode = x.charCodeAt(firstCharIndex);
-		if (!isDigitCode(firstCharCode)) {
-			return null;
-		}
-		var secondChar = x.charAt(firstCharIndex + 1);
-		if (secondChar == 'x' || secondChar == 'X') {
-			return untyped __call__("intval", x, 0);
+		if (Global.is_numeric(x)) {
+			return Global.intval(x, 10);
 		} else {
-			return untyped __call__("intval", x, 10);
+			x = Global.ltrim(x);
+			var firstCharIndex = (x.charAt(0) == '-' ? 1 : 0);
+			var firstCharCode = x.charCodeAt(firstCharIndex);
+			if (!isDigitCode(firstCharCode)) {
+				return null;
+			}
+			var secondChar = x.charAt(firstCharIndex + 1);
+			if (secondChar == 'x' || secondChar == 'X') {
+				return Global.intval(x, 0);
+			} else {
+				return Global.intval(x, 10);
+			}
 		}
 	}
 
 	public static function parseFloat( x : String ) : Float {
-		var result = untyped __call__("floatval", x);
-		if (untyped __php__("$result != 0")) return result;
+		var result = Global.floatval(x);
+		if (result != 0) return result;
 
-		x = untyped __call__("ltrim", x);
+		x = Global.ltrim(x);
 		var firstCharIndex = (x.charAt(0) == '-' ? 1 : 0);
 		var charCode = x.charCodeAt(firstCharIndex);
 
@@ -70,15 +79,16 @@
 		if (isDigitCode(charCode)) {
 			return 0.0;
 		} else {
-			return Math.NaN;
+			return Const.NAN;
 		}
 	}
 
-	public static function random( x : Int ) : Int {
-		return untyped x <= 0 ? 0 : __call__("mt_rand", 0, x-1);
+	public static inline function random( x : Int ) : Int {
+		return x <= 1 ? 0 : Global.mt_rand(0, x - 1);
 	}
 
 	static inline function isDigitCode( charCode:Null<Int> ) : Bool {
 		return charCode != null && charCode >= '0'.code && charCode <= '9'.code;
 	}
+
 }

@@ -12,7 +12,7 @@ class Issue3031 extends Test {
 		var a = "";
 		switch (new StringBuf()) {
 			case null: a = "null";
-			case notNull: a = "not null";
+			case var notNull: a = "not null";
 		}
 		eq("not null", a);
 	}

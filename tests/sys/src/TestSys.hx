@@ -1,48 +1,50 @@
+import utest.Assert;
+
 class TestSys extends TestCommandBase {
 	override function run(cmd:String, ?args:Array<String>):Int {
 		return Sys.command(cmd, args);
 	}
 
 	function testEnv() {
-		#if !(java || php || lua)
+		#if !(java || lua)
 		Sys.putEnv("foo", "value");
-		assertEquals("value", Sys.getEnv("foo"));
+		Assert.equals("value", Sys.getEnv("foo"));
 		#end
-		assertEquals(null, Sys.getEnv("doesn't exist"));
+		Assert.equals(null, Sys.getEnv("doesn't exist"));
 
-		#if !(java || php || lua)
+		#if !(java || lua)
 		var env = Sys.environment();
-		assertEquals("value", env.get("foo"));
+		Assert.equals("value", env.get("foo"));
 		#end
 	}
 
 	function testProgramPath() {
 		var p = Sys.programPath();
 
-		assertTrue(haxe.io.Path.isAbsolute(p));
-		assertTrue(sys.FileSystem.exists(p));
+		Assert.isTrue(haxe.io.Path.isAbsolute(p));
+		Assert.isTrue(sys.FileSystem.exists(p));
 
 		#if interp
-			assertTrue(StringTools.endsWith(p, "Main.hx"));
+			Assert.isTrue(StringTools.endsWith(p, "Main.hx"));
 		#elseif neko
-			assertTrue(StringTools.endsWith(p, "sys.n"));
+			Assert.isTrue(StringTools.endsWith(p, "sys.n"));
 		#elseif cpp
 			switch (Sys.systemName()) {
 				case "Windows":
-					assertTrue(StringTools.endsWith(p, "Main-debug.exe"));
+					Assert.isTrue(StringTools.endsWith(p, "Main-debug.exe"));
 				case _:
-					assertTrue(StringTools.endsWith(p, "Main-debug"));
+					Assert.isTrue(StringTools.endsWith(p, "Main-debug"));
 			}
 		#elseif cs
-			assertTrue(StringTools.endsWith(p, "Main-Debug.exe"));
+			Assert.isTrue(StringTools.endsWith(p, "Main-Debug.exe"));
 		#elseif java
-			assertTrue(StringTools.endsWith(p, "Main-Debug.jar"));
+			Assert.isTrue(StringTools.endsWith(p, "Main-Debug.jar"));
 		#elseif python
-			assertTrue(StringTools.endsWith(p, "sys.py"));
+			Assert.isTrue(StringTools.endsWith(p, "sys.py"));
 		#elseif php
-			assertTrue(StringTools.endsWith(p, "index.php"));
+			Assert.isTrue(StringTools.endsWith(p, "index.php"));
 		#elseif lua
-			assertTrue(StringTools.endsWith(p, "sys.lua"));
+			Assert.isTrue(StringTools.endsWith(p, "sys.lua"));
 		#end
 	}
 
@@ -54,7 +56,7 @@ class TestSys extends TestCommandBase {
 		function normalize(path) {
 			return haxe.io.Path.addTrailingSlash(haxe.io.Path.normalize(path));
 		}
-		assertEquals(normalize(newCwd), normalize(Sys.getCwd()));
+		Assert.equals(normalize(newCwd), normalize(Sys.getCwd()));
 		Sys.setCwd(cur);
 	}
 	#end

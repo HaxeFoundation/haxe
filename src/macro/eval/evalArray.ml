@@ -36,10 +36,13 @@ let array_join a f sep =
 
 let to_list a = Array.to_list (Array.sub a.avalues 0 a.alength)
 
+let make len =
+	try Array.make len vnull with _ -> EvalContext.error_message "Array allocation is too large"
+
 let set_length a l =
 	a.alength <- l;
 	if a.alength > Array.length a.avalues then begin
-		let values' = Array.make (a.alength * 2) vnull in
+		let values' = make (a.alength * 2) in
 		Array.blit a.avalues 0 values' 0 (Array.length a.avalues);
 		a.avalues <- values'
 	end
@@ -48,7 +51,7 @@ let unsafe_get a i = a.avalues.(i)
 let unsafe_set a i v = a.avalues.(i) <- v
 
 let concat a a2 =
-	let values' = Array.make (a.alength + a2.alength) vnull in
+	let values' = make (a.alength + a2.alength) in
 	Array.blit a.avalues 0 values' 0 a.alength;
 	let values2 = (Obj.magic a2.avalues) in
 	Array.blit values2 0 values' a.alength a2.alength;
@@ -71,7 +74,7 @@ let rec indexOf a equals x fromIndex =
 
 let insert a pos x =
 	if a.alength + 1 >= Array.length a.avalues then begin
-		let values' = Array.make (Array.length a.avalues * 2 + 5) vnull in
+		let values' = make (Array.length a.avalues * 2 + 5) in
 		Array.blit a.avalues 0 values' 0 a.alength;
 		a.avalues <- values'
 	end;
@@ -121,7 +124,7 @@ let pop a =
 
 let push a v =
 	if a.alength + 1 >= Array.length a.avalues then begin
-		let values' = Array.make (Array.length a.avalues * 2 + 5) vnull in
+		let values' = make (Array.length a.avalues * 2 + 5) in
 		Array.blit a.avalues 0 values' 0 a.alength;
 		Array.set values' a.alength v;
 		a.avalues <- values'
@@ -147,7 +150,7 @@ let reverse a =
 let set a i v =
 	if i >= a.alength then begin
 		if i >= Array.length a.avalues then begin
-			let values' = Array.make (i + 5) vnull in
+			let values' = make (i + 5) in
 			Array.blit a.avalues 0 values' 0 a.alength;
 			a.avalues <- values';
 		end;
@@ -183,7 +186,7 @@ let splice a pos len end' =
 
 let unshift a v =
 	if a.alength + 1 >= Array.length a.avalues then begin
-		let values' = Array.make (Array.length a.avalues * 2 + 5) vnull in
+		let values' = make (Array.length a.avalues * 2 + 5) in
 		Array.blit a.avalues 0 values' 1 a.alength;
 		a.avalues <- values'
 	end else begin

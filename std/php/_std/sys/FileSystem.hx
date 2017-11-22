@@ -21,6 +21,9 @@
  */
 package sys;
 
+import php.*;
+import haxe.io.Path;
+
 private enum FileKind {
 	kdir;
 	kfile;
@@ -31,83 +34,80 @@ private enum FileKind {
 class FileSystem {
 
 	public static inline function exists( path : String ) : Bool {
-		return untyped __call__("file_exists", path);
+		return Global.file_exists(path);
 	}
 
 	public static inline function rename( path : String, newPath : String ) : Void {
-		untyped __call__("rename", path, newPath);
+		Global.rename(path, newPath);
 	}
 
 	public static function stat( path : String ) : FileStat {
-		untyped __php__("$fstat = stat($path);");
-		return untyped {
-			gid   : __php__("$fstat['gid']"),
-			uid   : __php__("$fstat['uid']"),
-			atime : Date.fromTime(__php__("$fstat['atime']")*1000),
-			mtime : Date.fromTime(__php__("$fstat['mtime']")*1000),
-			ctime : Date.fromTime(__php__("$fstat['ctime']")*1000),
-			dev   : __php__("$fstat['dev']"),
-			ino   : __php__("$fstat['ino']"),
-			nlink : __php__("$fstat['nlink']"),
-			rdev  : __php__("$fstat['rdev']"),
-			size  : __php__("$fstat['size']"),
-			mode  : __php__("$fstat['mode']")
+		var info = Global.stat(path);
+		if (info == false) throw 'Unable to stat $path';
+		var info:NativeArray = info;
+
+		return {
+			gid   : info['gid'],
+			uid   : info['uid'],
+			atime : Date.fromTime(info['atime'] * 1000),
+			mtime : Date.fromTime(info['mtime'] * 1000),
+			ctime : Date.fromTime(info['ctime'] * 1000),
+			dev   : info['dev'],
+			ino   : info['ino'],
+			nlink : info['nlink'],
+			rdev  : info['rdev'],
+			size  : info['size'],
+			mode  : info['mode']
 		};
 	}
 
 	public static inline function fullPath( relPath : String ) : String {
-		var p = untyped __call__("realpath", relPath);
-		if (untyped __physeq__(p, false))
-			return null;
-		else
-			return p;
+		return Syntax.shortTernary(Global.realpath(relPath), null);
 	}
 
 	public static function absolutePath ( relPath : String ) : String {
-		if (haxe.io.Path.isAbsolute(relPath)) return relPath;
-		return haxe.io.Path.join([Sys.getCwd(), relPath]);
+		if (Path.isAbsolute(relPath)) return relPath;
+		return Path.join([Sys.getCwd(), relPath]);
 	}
 
 	static function kind( path : String ) : FileKind {
-		var k = untyped __call__("filetype", path);
-		switch(k) {
+		var kind = Global.filetype(path);
+		if (kind == false) throw 'Failed to check file type $path';
+
+		switch(kind) {
 			case "file": return kfile;
 			case "dir": return kdir;
-			default: return kother(k);
+			default: return kother(kind);
 		}
 	}
 
 	public static inline function isDirectory( path : String ) : Bool {
-		return untyped __call__("is_dir", path);
+		return Global.is_dir(path);
 	}
 
 	public static inline function createDirectory( path : String ) : Void {
-		var path = haxe.io.Path.addTrailingSlash(path);
-		var _p = null;
-		var parts = [];
-		while (path != (_p = haxe.io.Path.directory(path))) {
-			parts.unshift(path);
-			path = _p;
-		}
-		for (part in parts) {
-			if (part.charCodeAt(part.length - 1) != ":".code && !exists(part))
-				untyped __call__("@mkdir", part, 493); // php default is 0777, neko is 0755
-		}
+		if (!Global.is_dir(path))
+			Global.mkdir(path, 493, true);
 	}
 
 	public static inline function deleteFile( path : String ) : Void {
-		untyped __call__("unlink", path);
+		Global.unlink(path);
 	}
 
 	public static inline function deleteDirectory( path : String ) : Void {
-		untyped __call__("rmdir", path);
+		Global.rmdir(path);
 	}
 
 	public static function readDirectory( path : String ) : Array<String> {
-		var l = untyped __call__("array");
-		untyped __php__("$dh = opendir($path);
-        while (($file = readdir($dh)) !== false) if(\".\" != $file && \"..\" != $file) $l[] = $file;
-        closedir($dh);");
-		return untyped __call__("new _hx_array", l);
+		var list = [];
+		var dir = Global.opendir(path);
+		var file;
+		while ((file = Global.readdir(dir)) != false) {
+			if (file != '.' && file != '..') {
+				list.push(file);
+			}
+		}
+		Global.closedir(dir);
+        return list;
 	}
 }

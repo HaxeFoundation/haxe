@@ -26,9 +26,9 @@ import haxe.io.Bytes;
 import haxe.io.BytesData;
 import python.Exceptions;
 import python.Tuple;
-import python.lib.net.Socket in PSocket;
-import python.lib.net.Socket.SocketModule in PSocketModule;
-import python.lib.net.Address in PAddress;
+import python.lib.socket.Socket in PSocket;
+import python.lib.Socket in PSocketModule;
+import python.lib.socket.Address in PAddress;
 import python.lib.Select;
 
 private class SocketInput extends haxe.io.Input {
@@ -136,8 +136,12 @@ private class SocketOutput extends haxe.io.Output {
     public function new() : Void {
     }
 
-    function __init() : Void  {
+    function __initSocket ():Void {
         __s = new PSocket();
+    }
+
+    function __init() : Void  {
+        __initSocket();
         input = new SocketInput(__s);
         output = new SocketOutput(__s);
     }
@@ -169,7 +173,7 @@ private class SocketOutput extends haxe.io.Output {
     public function connect( host : Host, port : Int ) : Void {
         __init();
         var host_str = host.toString();
-        __s.connect(python.Syntax.pythonCode("(host_str,port)"));
+        __s.connect(Tuple2.make(host_str,port));
     }
 
     /**
@@ -191,7 +195,7 @@ private class SocketOutput extends haxe.io.Output {
     public function bind( host : Host, port : Int ) : Void {
         __init();
         var host_str = host.toString();
-        __s.bind(python.Syntax.pythonCode("(host_str,port)"));
+        __s.bind(Tuple2.make(host_str,port));
     }
 
     /**
@@ -237,7 +241,7 @@ private class SocketOutput extends haxe.io.Output {
     }
 
     /**
-        Change the blocking mode of the socket. A blocking socket is the default behavior. A non-blocking socket will abort blocking operations immediately by throwing a haxe.io.Error.Blocking value.
+        Change the blocking mode of the socket. A blocking socket is the default behavior. A non-blocking socket will abort blocking operations immediately by throwing a haxe.io.Error.Blocked value.
     **/
     public function setBlocking( b : Bool ) : Void {
         __s.setblocking(b);

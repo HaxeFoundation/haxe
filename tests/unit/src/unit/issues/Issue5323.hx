@@ -7,7 +7,7 @@ class Issue5323 extends Test{
         eq(actual, expected);
     }
 
-    function doStuff(self) {
+    function doStuff(_) {
         return doOtherStuff();
     }
 

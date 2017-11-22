@@ -43,7 +43,7 @@ class TypeTools {
 	static function toField(cf : ClassField) : Field return {
 		function varAccessToString(va : VarAccess, getOrSet : String) : String return {
 			switch (va) {
-				case AccNormal: "default";
+				case AccNormal | AccCtor: "default";
 				case AccNo: "null";
 				case AccNever: "never";
 				case AccResolve: throw "Invalid TAnonymous";
@@ -52,10 +52,14 @@ class TypeTools {
 				case AccRequire(_, _): "default";
 			}
 		}
+		var access = cf.isPublic ? [ APublic ] : [ APrivate ];
+		if (cf.meta.has(":final")) {
+			access.push(AFinal);
+		}
 		if (cf.params.length == 0) {
 			name: cf.name,
 			doc: cf.doc,
-			access: cf.isPublic ? [ APublic ] : [ APrivate ],
+			access: access,
 			kind: switch([ cf.kind, cf.type ]) {
 				case [ FVar(read, write), ret ]:
 					FProp(
@@ -153,7 +157,7 @@ class TypeTools {
 	}
 
 
-	#if macro
+	#if (macro || display)
 
 	/**
 		Follows all typedefs of `t` to reach the actual type.
@@ -279,7 +283,7 @@ class TypeTools {
 			case TMono(tm):
 				switch(tm.get()) {
 					case null: t;
-					case t: f(t);
+					case var t: f(t);
 				}
 			case TEnum(_, []) | TInst(_, []) | TType(_, []):
 				t;

@@ -22,6 +22,7 @@
 package haxe.io;
 
 extern class Bytes {
+	function new(length:Int,b:BytesData):Void;
 	public var length(default,null):Int;
 	public function get( pos : Int ) : Int;
 	public function set( pos : Int, v : Int ) : Void;

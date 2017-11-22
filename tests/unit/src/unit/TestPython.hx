@@ -51,8 +51,8 @@ import python.lib.io.RawIOBase;
 import python.lib.io.StringIO;
 import python.lib.io.TextIOBase;
 
-import python.lib.net.Address;
-import python.lib.net.Socket;
+import python.lib.socket.Address;
+import python.lib.socket.Socket;
 
 import python.lib.subprocess.Popen;
 

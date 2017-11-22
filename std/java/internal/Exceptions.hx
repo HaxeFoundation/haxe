@@ -73,13 +73,13 @@ class Exceptions {
 	{
 		return "Haxe Exception: " + obj;
 	}
-	
+
 	@:overload override public function getMessage():String
 	{
 		return switch (super.getMessage())
 		{
 			case null: Std.string(obj);
-			case message: message;
+			case var message: message;
 		}
 	}
 

@@ -1351,18 +1351,13 @@ let load_native ctx lib name t =
 			(function
 			| [VBytes str; VInt pos; VInt len] ->
 				(try
-					let i = (match Interp.parse_int (hl_to_caml_sub str (int pos) (int len)) with
-						| Interp.VInt v -> Int32.of_int v
-						| Interp.VInt32 v -> v
-						| _ -> assert false
-					) in
-					VDyn (VInt i,HI32)
+					VDyn (VInt (Numeric.parse_int (hl_to_caml_sub str (int pos) (int len))),HI32)
 				with _ ->
 					VNull)
 			| l -> assert false)
 		| "parse_float" ->
 			(function
-			| [VBytes str; VInt pos; VInt len] -> (try VFloat (Interp.parse_float (hl_to_caml_sub str (int pos) (int len))) with _ -> VFloat nan)
+			| [VBytes str; VInt pos; VInt len] -> (try VFloat (Numeric.parse_float (hl_to_caml_sub str (int pos) (int len))) with _ -> VFloat nan)
 			| _ -> assert false)
 		| "dyn_compare" ->
 			(function
@@ -2347,7 +2342,7 @@ let check code macros =
 				reg r HBool;
 				can_jump delta
 			| OJNull (r,delta) | OJNotNull (r,delta) ->
-				ignore(rtype r);
+				if not (is_nullable (rtype r)) then reg r HDyn;
 				can_jump delta
 			| OJUGte (a,b,delta) | OJULt (a,b,delta) | OJSGte (a,b,delta) | OJSLt (a,b,delta) | OJSGt (a,b,delta) | OJSLte (a,b,delta) | OJNotLt (a,b,delta) | OJNotGte (a,b,delta) ->
 				if not (safe_cast (rtype a) (rtype b)) then reg b (rtype a);

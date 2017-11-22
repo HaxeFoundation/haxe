@@ -21,6 +21,8 @@
  */
 package haxe;
 
+import haxe.ds.List;
+
 @:noDoc
 typedef TypeResolver = {
 	function resolveClass( name : String ) : Class<Dynamic>;
@@ -47,7 +49,7 @@ class Unserializer {
 	/**
 		This value can be set to use custom type resolvers.
 
-		A type resolver finds a `Class` or `Enum` instance from a given `String`. 
+		A type resolver finds a `Class` or `Enum` instance from a given `String`.
 		By default, the Haxe `Type` Api is used.
 
 		A type resolver must provide two methods:
@@ -183,7 +185,7 @@ class Unserializer {
  		return Std.parseFloat(buf.substr(p1,pos-p1));
 	}
 
-	function unserializeObject(o) {
+	function unserializeObject(o:{}) {
  		while( true ) {
  			if( pos >= length )
  				throw "Invalid object";
@@ -198,7 +200,7 @@ class Unserializer {
  		pos++;
 	}
 
-	function unserializeEnum( edecl, tag ) {
+	function unserializeEnum<T>( edecl:Enum<T>, tag:String ) {
 		if( get(pos++) != ":".code )
 			throw "Invalid enum format";
 		var nargs = readDigits();

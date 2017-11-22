@@ -300,7 +300,7 @@ let rec type_str ctx t p =
 		| [], "UInt" -> "uint"
 		| _ -> type_str ctx (apply_params t.t_params args t.t_type) p)
 	| TLazy f ->
-		type_str ctx ((!f)()) p
+		type_str ctx (lazy_type f) p
 
 let rec iter_switch_break in_switch e =
 	match e.eexpr with
@@ -676,7 +676,7 @@ and gen_expr ctx e =
 		let bend = open_block ctx in
 		let cb = (if not ctx.constructor_block then
 			(fun () -> ())
-		else if not (Codegen.constructor_side_effects e) then begin
+		else if not (Texpr.constructor_side_effects e) then begin
 			ctx.constructor_block <- false;
 			(fun () -> ())
 		end else begin
@@ -754,7 +754,7 @@ and gen_expr ctx e =
 		handle_break();
 	| TObjectDecl fields ->
 		spr ctx "{ ";
-		concat ctx ", " (fun (f,e) -> print ctx "%s : " (anon_field f); gen_value ctx e) fields;
+		concat ctx ", " (fun ((f,_,_),e) -> print ctx "%s : " (anon_field f); gen_value ctx e) fields;
 		spr ctx "}"
 	| TFor (v,it,e) ->
 		let handle_break = handle_break ctx e in
@@ -1204,7 +1204,7 @@ let generate_enum ctx e =
 			print ctx "public static var %s : %s = new %s(\"%s\",%d)" c.ef_name ename ename c.ef_name c.ef_index;
 	) e.e_constrs;
 	newline ctx;
-	(match Codegen.build_metadata ctx.inf.com (TEnumDecl e) with
+	(match Texpr.build_metadata ctx.inf.com.basic (TEnumDecl e) with
 	| None -> ()
 	| Some e ->
 		print ctx "public static var __meta__ : * = ";

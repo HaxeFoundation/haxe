@@ -3,7 +3,7 @@ package unit.issues;
 private abstract A(Int) from Int {
     public function size() {
         return switch (this) {
-            case size: size;
+            case var size: size;
         }
     }
 }

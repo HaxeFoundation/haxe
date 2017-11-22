@@ -521,8 +521,8 @@ let rec func ctx bb tf t p =
 			set_syntax_edge bb (SETry(bb_try,bb_exc,catches,bb_next,e.epos));
 			if bb_try_next != g.g_unreachable then add_cfg_edge bb_try_next bb_next CFGGoto;
 			close_node g bb_try_next;
-            close_node g bb_exc;
-            close_node g bb;
+			close_node g bb_exc;
+			close_node g bb;
 			bb_next
 		(* control flow *)
 		| TReturn None ->
@@ -665,8 +665,7 @@ let from_tfunction ctx tf t p =
 	let bb_func,bb_exit = func ctx g.g_root tf t p in
 	ctx.entry <- bb_func;
 	close_node g g.g_root;
-	g.g_exit <- bb_exit;
-	set_syntax_edge bb_exit SEEnd
+	g.g_exit <- bb_exit
 
 let rec block_to_texpr_el ctx bb =
 	if bb.bb_dominator == ctx.graph.g_unreachable then
@@ -680,7 +679,7 @@ let rec block_to_texpr_el ctx bb =
 				Some bb_next,(block bb_sub) :: el
 			| el,SEMerge bb_next ->
 				Some bb_next,el
-			| el,(SEEnd | SENone) ->
+			| el,SENone ->
 				None,el
 			| {eexpr = TWhile(e1,_,flag)} as e :: el,(SEWhile(_,bb_body,bb_next)) ->
 				let e2 = block bb_body in

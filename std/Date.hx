@@ -109,7 +109,7 @@ extern class Date
 	static function fromTime( t : Float ) : Date;
 
 	/**
-		Returns a Date from a formated string `s`, with the following accepted
+		Returns a Date from a formatted string `s`, with the following accepted
 		formats:
 
 		- `"YYYY-MM-DD hh:mm:ss"`

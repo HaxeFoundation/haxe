@@ -75,7 +75,7 @@ class UnitBuilder {
 		}
 	}
 
-	static function mkEq(e1, e2, p) {
+	static function mkEq(e1, e2, p:Position) {
 		function isFloat(e) {
 			try return switch(Context.follow(Context.typeof(e))) {
 				case TAbstract(tr, _):

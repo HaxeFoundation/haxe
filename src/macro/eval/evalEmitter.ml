@@ -544,6 +544,8 @@ let emit_method_call exec name execs p =
 	let vf vthis = match vthis with
 		| VInstance {iproto = proto} | VPrototype proto -> proto_field_raise proto name
 		| VString _ -> proto_field_raise (get_ctx()).string_prototype name
+		| VArray _ -> proto_field_raise (get_ctx()).array_prototype name
+		| VVector _ -> proto_field_raise (get_ctx()).vector_prototype name
 		| _ -> unexpected_value_p vthis "instance" p
 	in
 	match execs with
@@ -924,6 +926,12 @@ let emit_string_cca exec1 exec2 p env =
 
 (* Write *)
 
+let emit_bytes_length_write exec1 exec2 env =
+	let v1 = exec1 env in
+	let v2 = exec2 env in
+	set_bytes_length_field v1 v2;
+	v2
+
 let emit_local_write slot exec env =
 	let v = exec env in
 	env.env_locals.(slot) <- v;
@@ -1090,7 +1098,7 @@ let emit_field_read_write exec1 name exec2 fop prefix env =
 		set_object_field o name v;
 		if prefix then v else vf
 	| VInstance vi ->
-		let i = get_instance_field_index vi.iproto name in
+		let i = get_instance_field_index vi.iproto name null_pos in
 		instance_field_read_write vi i exec2 fop prefix env
 	| VPrototype proto ->
 		let i = get_proto_field_index proto name in

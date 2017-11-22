@@ -46,43 +46,37 @@ class Meta {
 	private static function isInterface(t:Dynamic):Bool {
 		#if java
 			return java.Lib.toNativeType(t).isInterface();
-	#elseif cs
+		#elseif cs
 			return cs.Lib.toNativeType(t).IsInterface;
 		#elseif (flash && as3)
 			return untyped flash.Lib.describeType(t).factory.extendsClass.length() == 0;
-		#elseif (php && !php7)
-			return untyped __php__("{0} instanceof _hx_interface", t);
 		#else
 			throw "Something went wrong";
 		#end
 	}
 
-	private static function getMeta(t:Dynamic):MetaObject
-	{
-#if (php && php7)
-		return php.Boot.getMeta(t.phpClassName);
-#elseif (java || cs || php || (flash && as3))
+	private static function getMeta(t:Dynamic):MetaObject {
 		#if php
-		t.__ensureMeta__();
-		#end
-		var ret = Reflect.field(t, "__meta__");
-		if (ret == null && Std.is(t,Class))
-		{
-			if (isInterface(t))
+			return php.Boot.getMeta(t.phpClassName);
+		#elseif (java || cs || (flash && as3))
+			var ret = Reflect.field(t, "__meta__");
+			if (ret == null && Std.is(t,Class))
 			{
-				var name = Type.getClassName(t),
-				    cls = Type.resolveClass(name + '_HxMeta');
-				if (cls != null)
-					return Reflect.field(cls, "__meta__");
+				if (isInterface(t))
+				{
+					var name = Type.getClassName(t),
+						cls = Type.resolveClass(name + '_HxMeta');
+					if (cls != null)
+						return Reflect.field(cls, "__meta__");
+				}
 			}
-		}
-		return ret;
-#elseif hl
-		var t : hl.BaseType = t;
-		return t.__meta__;
-#else
-		return untyped t.__meta__;
-#end
+			return ret;
+		#elseif hl
+			var t : hl.BaseType = t;
+			return t.__meta__;
+		#else
+			return untyped t.__meta__;
+		#end
 	}
 
 	/**

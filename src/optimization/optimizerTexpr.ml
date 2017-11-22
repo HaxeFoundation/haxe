@@ -143,7 +143,7 @@ let optimize_binop e op e1 e2 =
 	in
 	let check_float op f1 f2 =
 		let f = op f1 f2 in
-		let fstr = Common.float_repres f in
+		let fstr = Numeric.float_repres f in
 		if (match classify_float f with FP_nan | FP_infinite -> false | _ -> float_of_string fstr = f) then { e with eexpr = TConst (TFloat fstr) } else e
 	in
 	(match e1.eexpr, e2.eexpr with
@@ -298,7 +298,7 @@ let optimize_unop e op flag esub =
 		| NegBits, TConst (TInt i) -> { e with eexpr = TConst (TInt (Int32.lognot i)) }
 		| Neg, TConst (TFloat f) ->
 			let v = 0. -. float_of_string f in
-			let vstr = Common.float_repres v in
+			let vstr = Numeric.float_repres v in
 			if float_of_string vstr = v then
 				{ e with eexpr = TConst (TFloat vstr) }
 			else

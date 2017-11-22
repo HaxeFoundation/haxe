@@ -22,8 +22,8 @@
 package cpp;
 
 /**
-	Platform-specific Cpp Library. Provides some platform-specific functions 
-	for the C++ target, such as conversion from Haxe types to native types 
+	Platform-specific Cpp Library. Provides some platform-specific functions
+	for the C++ target, such as conversion from Haxe types to native types
 	and vice-versa.
 **/
 class Lib {
@@ -65,7 +65,7 @@ class Lib {
 		Tries to load, and always returns a valid function, but the function may throw
 		if called.
 	**/
-	public static function loadLazy(lib,prim,nargs) : Dynamic {
+	public static function loadLazy(lib:String, prim:String, nargs:Int) : Dynamic {
 		try {
 			return untyped __global__.__loadprim(lib,prim,nargs);
 		} catch( e : Dynamic ) {

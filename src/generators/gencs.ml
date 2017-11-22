@@ -25,6 +25,7 @@ open Type
 open Gencommon
 open Gencommon.SourceWriter
 open Codegen
+open Texpr.Builder
 open Printf
 open Option
 open ExtString
@@ -45,7 +46,7 @@ let rec is_cs_basic_type t =
 			true
 		| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 			is_cs_basic_type (Abstract.get_underlying_type a pl)
-		| TEnum(e, _) when not (Meta.has Meta.Class e.e_meta) -> true
+		| TEnum(e, _) as t when not (is_hxgen_t t) -> true
 		| TInst(cl, _) when Meta.has Meta.Struct cl.cl_meta -> true
 		| _ -> false
 
@@ -101,7 +102,7 @@ let rec is_null t =
 			| Some t -> is_null t
 			| _ -> false)
 		| TLazy f ->
-			is_null (!f())
+			is_null (lazy_type f)
 		| _ -> false
 
 let rec get_ptr e = match e.eexpr with
@@ -381,7 +382,7 @@ struct
 					{ e with eexpr = TField(run ef, FDynamic "ToUpperInvariant") }
 
 				| TCall( { eexpr = TField(_, FStatic({ cl_path = [], "String" }, { cf_name = "fromCharCode" })) }, [cc] ) ->
-					{ e with eexpr = TNew(get_cl_from_t basic.tstring, [], [mk_cast tchar (run cc); ExprBuilder.make_int gen.gcon 1 cc.epos]) }
+					{ e with eexpr = TNew(get_cl_from_t basic.tstring, [], [mk_cast tchar (run cc); make_int gen.gcon.basic 1 cc.epos]) }
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("charAt" as field) })) }, args )
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("charCodeAt" as field) })) }, args )
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("indexOf" as field) })) }, args )
@@ -535,7 +536,7 @@ let add_cast_handler gen =
 				epos = e.epos
 			};
 			{
-				eexpr = TVar(i, Some( ExprBuilder.make_int gen.gcon (-1) e.epos ));
+				eexpr = TVar(i, Some( make_int gen.gcon.basic (-1) e.epos ));
 				etype = basic.tvoid;
 				epos = e.epos
 			};
@@ -1797,7 +1798,7 @@ let generate con =
 						| Some t -> run t
 						| _ -> () (* avoid infinite loop / should be the same in this context *))
 					| TLazy f ->
-						run (!f())
+						run (lazy_type f)
 					| _ -> ()
 			in
 			run t;
@@ -2124,7 +2125,7 @@ let generate con =
 										| TBlock _ ->
 											let unchecked = needs_unchecked e in
 											if unchecked then (begin_block w; write w "unchecked ");
-											let t = Common.timer ["expression to string"] in
+											let t = Timer.timer ["expression to string"] in
 											expr_s w e;
 											t();
 											line_reset_directive w;
@@ -2151,7 +2152,7 @@ let generate con =
 													| None -> ()
 													| Some sc ->
 														write w ": ";
-														let t = Common.timer ["expression to string"] in
+														let t = Timer.timer ["expression to string"] in
 														expr_s w sc;
 														write w " ";
 														t()
@@ -2316,7 +2317,7 @@ let generate con =
 					in
 					if prop v.v_read && prop v.v_write && (v.v_read = AccCall || v.v_write = AccCall) then begin
 						let this = if static then
-							ExprBuilder.make_static_this cl f.cf_pos
+							make_static_this cl f.cf_pos
 						else
 							{ eexpr = TConst TThis; etype = TInst(cl,List.map snd cl.cl_params); epos = f.cf_pos }
 						in
@@ -2689,6 +2690,8 @@ let generate con =
 				match e.eexpr, real_type e.etype with
 					| TConst TThis, _ when gen.gcurrent_path = (["haxe";"lang"], "Null") ->
 						e
+					| TConst (TInt _ | TFloat _ | TBool _), _ ->
+						e
 					| _, TInst({ cl_path = (["haxe";"lang"], "Null") }, [t]) ->
 						let e = { e with eexpr = TParenthesis(e) } in
 						{ (mk_field_access gen e "value" e.epos) with etype = t }
@@ -2737,7 +2740,7 @@ let generate con =
 
 		let cl_arg_exc = get_cl (get_type gen (["System"],"ArgumentException")) in
 		let cl_arg_exc_t = TInst (cl_arg_exc, []) in
-		let mk_arg_exception msg pos = mk (TNew (cl_arg_exc, [], [ExprBuilder.make_string gen.gcon msg pos])) cl_arg_exc_t pos in
+		let mk_arg_exception msg pos = mk (TNew (cl_arg_exc, [], [make_string gen.gcon.basic msg pos])) cl_arg_exc_t pos in
 		let closure_t = ClosuresToClass.DoubleAndDynamicClosureImpl.get_ctx gen (get_cl (get_type gen (["haxe";"lang"],"Function"))) 6 mk_arg_exception in
 		ClosuresToClass.configure gen closure_t;
 
@@ -2840,7 +2843,7 @@ let generate con =
 
 		let cl_field_exc = get_cl (get_type gen (["System"],"MemberAccessException")) in
 		let cl_field_exc_t = TInst (cl_field_exc, []) in
-		let mk_field_exception msg pos = mk (TNew (cl_field_exc, [], [ExprBuilder.make_string gen.gcon msg pos])) cl_field_exc_t pos in
+		let mk_field_exception msg pos = mk (TNew (cl_field_exc, [], [make_string gen.gcon.basic msg pos])) cl_field_exc_t pos in
 
 		let rcf_ctx =
 			ReflectionCFs.new_ctx
@@ -3073,7 +3076,7 @@ let generate con =
 									{ eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tint; epos=e1.epos }
 								end
 							in
-							let zero = ExprBuilder.make_int gen.gcon 0 e.epos in
+							let zero = make_int gen.gcon.basic 0 e.epos in
 							{ e with eexpr = TBinop(op, handler, zero) }
 		);
 
@@ -3120,7 +3123,7 @@ let generate con =
 			Hashtbl.iter (fun name v ->
 				let name = Codegen.escape_res_name name true in
 				let full_path = src ^ "/" ^ name in
-				mkdir_from_path full_path;
+				Path.mkdir_from_path full_path;
 
 				let f = open_out_bin full_path in
 				output_string f v;
@@ -3223,7 +3226,7 @@ let generate con =
 
 		RenameTypeParameters.run gen.gtypes_list;
 
-		mkdir_from_path gen.gcon.file;
+		Path.mkdir_from_path gen.gcon.file;
 
 		List.iter (fun md_def ->
 			let source_dir = gen.gcon.file ^ "/src/" ^ (String.concat "/" (fst (path_of_md_def md_def))) in

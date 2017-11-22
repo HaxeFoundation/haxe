@@ -12,5 +12,5 @@ class Issue2380 extends unit.Test
 #if !cpp @:nativeGen #end private class SomeCls
 {
 	public function new():Void {}
-	@:keep public function test(v) return v == null;
+	@:keep public function test(v:Dynamic) return v == null;
 }

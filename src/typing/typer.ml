@@ -53,16 +53,30 @@ type object_decl_kind =
 
 let build_call_ref : (typer -> access_kind -> expr list -> with_type -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
 
+let relative_path ctx file =
+	let slashes path = String.concat "/" (ExtString.String.nsplit path "\\") in
+	let fpath = slashes (Path.get_full_path file) in
+	let fpath_lower = String.lowercase fpath in
+	let flen = String.length fpath_lower in
+	let rec loop = function
+		| [] -> Filename.basename file
+		| path :: l ->
+			let spath = String.lowercase (slashes path) in
+			let slen = String.length spath in
+			if slen > 0 && slen < flen && String.sub fpath_lower 0 slen = spath then String.sub fpath slen (flen - slen) else loop l
+	in
+	loop ctx.com.class_path
+
 let mk_infos ctx p params =
-	let file = if ctx.in_macro then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else Filename.basename p.pfile in
+	let file = if ctx.in_macro then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else relative_path ctx p.pfile in
 	(EObjectDecl (
-		(("fileName",null_pos) , (EConst (String file) , p)) ::
-		(("lineNumber",null_pos) , (EConst (Int (string_of_int (Lexer.get_error_line p))),p)) ::
-		(("className",null_pos) , (EConst (String (s_type_path ctx.curclass.cl_path)),p)) ::
+		(("fileName",null_pos,NoQuotes) , (EConst (String file) , p)) ::
+		(("lineNumber",null_pos,NoQuotes) , (EConst (Int (string_of_int (Lexer.get_error_line p))),p)) ::
+		(("className",null_pos,NoQuotes) , (EConst (String (s_type_path ctx.curclass.cl_path)),p)) ::
 		if ctx.curfield.cf_name = "" then
 			params
 		else
-			(("methodName",null_pos), (EConst (String ctx.curfield.cf_name),p)) :: params
+			(("methodName",null_pos,NoQuotes), (EConst (String ctx.curfield.cf_name),p)) :: params
 	) ,p)
 
 let check_assign ctx e =
@@ -170,7 +184,7 @@ let rec is_pos_infos = function
 		| Some t -> is_pos_infos t
 		| _ -> false)
 	| TLazy f ->
-		is_pos_infos (!f())
+		is_pos_infos (lazy_type f)
 	| TType ({ t_path = ["haxe"] , "PosInfos" },[]) ->
 		true
 	| TType (t,tl) ->
@@ -349,7 +363,7 @@ let merge_core_doc ctx c =
 
 let check_error ctx err p = match err with
 	| Module_not_found ([],name) when Display.Diagnostics.is_diagnostics_run ctx ->
-		Display.ToplevelCollector.handle_unresolved_identifier ctx name p true
+		DisplayToplevel.handle_unresolved_identifier ctx name p true
 	| _ ->
 		display_error ctx (error_msg err) p
 
@@ -379,7 +393,7 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 				loop (apply_params td.t_params pl td.t_type);
 				(* prioritize the most generic definition *)
 				tl := t :: !tl;
-			| TLazy f -> loop (!f())
+			| TLazy f -> loop (lazy_type f)
 			| TMono r -> (match !r with None -> () | Some t -> loop t)
 			| _ -> tl := t :: !tl)
 		in
@@ -686,21 +700,6 @@ let fast_enum_field e ef p =
 	let et = mk (TTypeExpr (TEnumDecl e)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }) p in
 	TField (et,FEnum (e,ef))
 
-let abstract_module_type a tl = {
-	t_path = [],Printf.sprintf "Abstract<%s%s>" (s_type_path a.a_path) (s_type_params (ref []) tl);
-	t_module = a.a_module;
-	t_doc = None;
-	t_pos = a.a_pos;
-	t_name_pos = null_pos;
-	t_type = TAnon {
-		a_fields = PMap.empty;
-		a_status = ref (AbstractStatics a);
-	};
-	t_private = true;
-	t_params = [];
-	t_meta = no_meta;
-}
-
 let rec type_module_type ctx t tparams p =
 	match t with
 	| TClassDecl {cl_kind = KGenericBuild _} ->
@@ -714,20 +713,7 @@ let rec type_module_type ctx t tparams p =
 		in
 		type_module_type ctx mt None p
 	| TClassDecl c ->
-		let t_tmp = {
-			t_path = [],"Class<" ^ (s_type_path c.cl_path) ^ ">" ;
-			t_module = c.cl_module;
-			t_doc = None;
-			t_pos = c.cl_pos;
-			t_name_pos = null_pos;
-			t_type = TAnon {
-				a_fields = c.cl_statics;
-				a_status = ref (Statics c);
-			};
-			t_private = true;
-			t_params = [];
-			t_meta = no_meta;
-		} in
+		let t_tmp = class_module_type c in
 		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
 	| TEnumDecl e ->
 		let types = (match tparams with None -> List.map (fun _ -> mk_mono()) e.e_params | Some l -> l) in
@@ -944,7 +930,7 @@ let error_require r p =
 		error "This field is not available with the current compilation flags" p
 	else
 	let r = if r = "sys" then
-		"a system platform (php,php7,neko,cpp,etc.)"
+		"a system platform (php,neko,cpp,etc.)"
 	else try
 		if String.sub r 0 5 <> "flash" then raise Exit;
 		let _, v = ExtString.String.replace (String.sub r 5 (String.length r - 5)) "_" "." in
@@ -1059,6 +1045,7 @@ let field_access ctx mode f fmode t e p =
 			in
 			if m = ctx.curfield.cf_name && (match e.eexpr with TConst TThis -> true | TLocal v -> Option.map_default (fun vthis -> v == vthis) false ctx.vthis | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
 				let prefix = (match ctx.com.platform with Flash when Common.defined ctx.com Define.As3 -> "$" | _ -> "") in
+				(match e.eexpr with TLocal _ when Common.defined ctx.com Define.Haxe3Compat -> ctx.com.warning "Field set has changed here in Haxe 4: call setter explicitly to keep Haxe 3.x behaviour" p | _ -> ());
 				if not (is_physical_field f) then begin
 					display_error ctx "This field cannot be accessed because it is not a real variable" p;
 					display_error ctx "Add @:isVar here to enable it" f.cf_pos;
@@ -1088,6 +1075,8 @@ let field_access ctx mode f fmode t e p =
 			if ctx.untyped then normal() else AKNo f.cf_name
 		| AccInline ->
 			AKInline (e,f,fmode,t)
+		| AccCtor ->
+			if ctx.curfun = FunConstructor then normal() else AKNo f.cf_name
 		| AccRequire (r,msg) ->
 			match msg with
 			| None -> error_require r p
@@ -1336,7 +1325,7 @@ and type_field ?(resume=false) ctx e i p mode =
 					with Unify_error l ->
 						display_error ctx "Field resolve has an invalid type" f.cf_pos;
 						display_error ctx (error_msg (Unify [Cannot_unify(tfield,texpect)])) f.cf_pos);
-					AKExpr (make_call ctx (mk (TField (e,FInstance (c,params,f))) tfield p) [Codegen.type_constant ctx.com (String i) p] t p)
+					AKExpr (make_call ctx (mk (TField (e,FInstance (c,params,f))) tfield p) [Texpr.type_constant ctx.com.basic (String i) p] t p)
 				end else
 					AKExpr (mk (TField (e,FDynamic i)) t p)
 			| None ->
@@ -1365,7 +1354,10 @@ and type_field ?(resume=false) ctx e i p mode =
 			if not (can_access ctx c f false) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
 			field_access ctx mode f (match c2 with None -> FAnon f | Some (c,tl) -> FInstance (c,tl,f)) (apply_params c.cl_params params t) e p
 		with Not_found -> try
-			using_field ctx mode e i p
+			begin match e.eexpr with
+				| TConst TSuper -> raise Not_found
+				| _ -> using_field ctx mode e i p
+			end
 		with Not_found -> try
 			loop_dyn c params
 		with Not_found -> try
@@ -1436,36 +1428,16 @@ and type_field ?(resume=false) ctx e i p mode =
 					no_field()
 				else
 				let f = {
-					cf_name = i;
-					cf_type = mk_mono();
-					cf_doc = None;
-					cf_meta = no_meta;
-					cf_public = true;
-					cf_pos = p;
-					cf_name_pos = null_pos;
+					(mk_field i (mk_mono()) p null_pos) with
 					cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
-					cf_expr = None;
-					cf_expr_unoptimized = None;
-					cf_params = [];
-					cf_overloads = [];
 				} in
 				a.a_fields <- PMap.add i f a.a_fields;
 				field_access ctx mode f (FAnon f) (Type.field_type f) e p
 		)
 	| TMono r ->
 		let f = {
-			cf_name = i;
-			cf_type = mk_mono();
-			cf_doc = None;
-			cf_meta = no_meta;
-			cf_public = true;
-			cf_pos = p;
-			cf_name_pos = null_pos;
+			(mk_field i (mk_mono()) p null_pos) with
 			cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
-			cf_expr = None;
-			cf_expr_unoptimized = None;
-			cf_params = [];
-			cf_overloads = [];
 		} in
 		let x = ref Opened in
 		let t = TAnon { a_fields = PMap.add i f PMap.empty; a_status = x } in
@@ -2192,9 +2164,8 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 								error (Printf.sprintf "The result of this operation (%s) is not compatible with declared return type %s" (st t_expected) (st tret)) p
 					end;
 				end;
-				let e = Codegen.binop op e1 e2 tret p in
+				let e = Texpr.Builder.binop op e1 e2 tret p in
 				mk_cast e tret p
-				(* Codegen.maybe_cast e tret *)
 			end else begin
 				let e = make_static_call ctx c cf map [e1;e2] tret p in
 				e
@@ -2446,7 +2417,7 @@ and type_ident ctx i p mode =
 					| DMNone ->
 						raise (Error(err,p))
 					| DMDiagnostics b when b || ctx.is_display_file ->
-						Display.ToplevelCollector.handle_unresolved_identifier ctx i p false;
+						DisplayToplevel.handle_unresolved_identifier ctx i p false;
 						let t = mk_mono() in
 						AKExpr (mk (TIdent i) t p)
 					| _ ->
@@ -2795,7 +2766,7 @@ and format_string ctx s p =
 	in
 	let warn_escape = Common.defined ctx.com Define.FormatWarning in
 	let warn pos len =
-		ctx.com.warning "This string is formated" { p with pmin = !pmin + 1 + pos; pmax = !pmin + 1 + pos + len }
+		ctx.com.warning "This string is formatted" { p with pmin = !pmin + 1 + pos; pmax = !pmin + 1 + pos + len }
 	in
 	let len = String.length s in
 	let rec parse start pos =
@@ -2856,7 +2827,7 @@ and format_string ctx s p =
 		if warn_escape then warn (pos + 1) slen;
 		min := !min + 2;
 		if slen > 0 then
-			add_expr (Parser.parse_expr_string ctx.com scode { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } error true) slen;
+			add_expr (ParserEntry.parse_expr_string ctx.com.defines scode { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } error true) slen;
 		min := !min + 1;
 		parse (send + 1) (send + 1)
 	in
@@ -2918,14 +2889,11 @@ and type_object_decl ctx fl with_type p =
 	| _ ->
 		ODKPlain
 	) in
-	let wrap_quoted_meta e =
-		mk (TMeta((Meta.QuotedField,[],e.epos),e)) e.etype e.epos
-	in
 	let type_fields field_map =
 		let fields = ref PMap.empty in
 		let extra_fields = ref [] in
-		let fl = List.map (fun ((n,pn),e) ->
-			let n,is_quoted,is_valid = Parser.unquote_ident n in
+		let fl = List.map (fun ((n,pn,qs),e) ->
+			let is_valid = Lexer.is_valid_identifier n in
 			if PMap.mem n !fields then error ("Duplicate field in object declaration : " ^ n) p;
 			let e = try
 				let t = match !dynamic_parameter with
@@ -2948,8 +2916,7 @@ and type_object_decl ctx fl with_type p =
 				let cf = mk_field n e.etype (punion pn e.epos) pn in
 				fields := PMap.add n cf !fields;
 			end;
-			let e = if is_quoted then wrap_quoted_meta e else e in
-			(n,e)
+			((n,pn,qs),e)
 		) fl in
 		let t = (TAnon { a_fields = !fields; a_status = ref Const }) in
 		if not ctx.untyped then begin
@@ -2965,15 +2932,14 @@ and type_object_decl ctx fl with_type p =
 	in
 	(match a with
 	| ODKPlain ->
-		let rec loop (l,acc) ((f,pf),e) =
-			let f,is_quoted,is_valid = Parser.unquote_ident f in
+		let rec loop (l,acc) ((f,pf,qs),e) =
+			let is_valid = Lexer.is_valid_identifier f in
 			if PMap.mem f acc then error ("Duplicate field in object declaration : " ^ f) p;
 			let e = type_expr ctx e Value in
 			(match follow e.etype with TAbstract({a_path=[],"Void"},_) -> error "Fields of type Void are not allowed in structures" e.epos | _ -> ());
 			let cf = mk_field f e.etype (punion pf e.epos) pf in
 			if ctx.in_display && Display.is_display_position pf then Display.DisplayEmitter.display_field ctx.com.display cf pf;
-			let e = if is_quoted then wrap_quoted_meta e else e in
-			((f,e) :: l, if is_valid then begin
+			(((f,pf,qs),e) :: l, if is_valid then begin
 				if String.length f > 0 && f.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
 				PMap.add f cf acc
 			end else acc)
@@ -3013,7 +2979,7 @@ and type_object_decl ctx fl with_type p =
 			end
 		) ([],[],false) (List.rev fl) in
 		let el = List.map (fun (n,_,t) ->
-			try List.assoc n fl
+			try Expr.field_assoc n fl
 			with Not_found -> mk (TConst TNull) t p
 		) args in
 		let e = mk (TNew(c,tl,el)) (TInst(c,tl)) p in
@@ -3184,7 +3150,7 @@ and type_try ctx e1 catches with_type p =
 and type_map_declaration ctx e1 el with_type p =
 	let (tkey,tval,has_type) =
 		let get_map_params t = match follow t with
-			| TAbstract({a_path=[],"Map"},[tk;tv]) -> tk,tv,true
+			| TAbstract({a_path=["haxe";"ds"],"Map"},[tk;tv]) -> tk,tv,true
 			| TInst({cl_path=["haxe";"ds"],"IntMap"},[tv]) -> ctx.t.tint,tv,true
 			| TInst({cl_path=["haxe";"ds"],"StringMap"},[tv]) -> ctx.t.tstring,tv,true
 			| TInst({cl_path=["haxe";"ds"],("ObjectMap" | "EnumValueMap")},[tk;tv]) -> tk,tv,true
@@ -3234,7 +3200,7 @@ and type_map_declaration ctx e1 el with_type p =
 		let tval = unify_min_resume el_v in
 		el_k,el_v,tkey,tval
 	end in
-	let m = Typeload.load_module ctx ([],"Map") null_pos in
+	let m = Typeload.load_module ctx (["haxe";"ds"],"Map") null_pos in
 	let a,c = match m.m_types with
 		| (TAbstractDecl ({a_impl = Some c} as a)) :: _ -> a,c
 		| _ -> assert false
@@ -3396,7 +3362,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		error "Field names starting with $ are not allowed" p
 	| EConst (Ident s) ->
 		if s = "super" && with_type <> NoValue && not ctx.in_display then error "Cannot use super as value" p;
-		let e = maybe_type_against_enum ctx (fun () -> type_ident ctx s p MGet) with_type p in
+		let e = maybe_type_against_enum ctx (fun () -> type_ident ctx s p MGet) with_type false p in
 		acc_get ctx e p
 	| EField _
 	| EArray _ ->
@@ -3409,7 +3375,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EConst (String s) when s <> "" && Lexer.is_fmt_string p ->
 		type_expr ctx (format_string ctx s p) with_type
 	| EConst c ->
-		Codegen.type_constant ctx.com c p
+		Texpr.type_constant ctx.com.basic c p
 	| EBinop (op,e1,e2) ->
 		type_binop ctx op e1 e2 false with_type p
 	| EBlock [] when with_type <> NoValue ->
@@ -3433,9 +3399,13 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| EWhile(cond,e2,flag) -> (EWhile (cond,map_compr e2,flag),p)
 			| EIf (cond,e2,None) -> (EIf (cond,map_compr e2,None),p)
 			| EBlock [e] -> (EBlock [map_compr e],p)
+			| EBlock el -> begin match List.rev el with
+				| e :: el -> (EBlock ((List.rev el) @ [map_compr e]),p)
+				| [] -> e,p
+				end
 			| EParenthesis e2 -> (EParenthesis (map_compr e2),p)
 			| EBinop(OpArrow,a,b) ->
-				et := (ENew(({tpackage=[];tname="Map";tparams=[];tsub=None},null_pos),[]),p);
+				et := (ENew(({tpackage=["haxe";"ds"];tname="Map";tparams=[];tsub=None},null_pos),[]),p);
 				(ECall ((EField ((EConst (Ident v.v_name),p),"set"),p),[a;b]),p)
 			| _ ->
 				et := (EArrayDecl [],p);
@@ -3913,7 +3883,7 @@ and display_expr ctx e_ast e with_type p =
 		let pl = loop e in
 		raise (Display.DisplayPosition pl);
 	| DMToplevel ->
-		raise (Display.DisplayToplevel (Display.ToplevelCollector.run ctx false))
+		raise (Display.DisplayToplevel (DisplayToplevel.collect ctx false))
 	| DMField | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
 		let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
 		let e = match e.eexpr with
@@ -3930,7 +3900,7 @@ and display_expr ctx e_ast e with_type p =
 			match t with
 			| TLazy f ->
 				Typeload.return_partial_type := true;
-				let t = (!f)() in
+				let t = lazy_type f in
 				Typeload.return_partial_type := false;
 				t
 			| _ ->
@@ -4080,7 +4050,7 @@ and display_expr ctx e_ast e with_type p =
 		in
 		raise (Display.DisplayFields fields)
 
-and maybe_type_against_enum ctx f with_type p =
+and maybe_type_against_enum ctx f with_type iscall p =
 	try
 		begin match with_type with
 		| WithType t ->
@@ -4099,9 +4069,6 @@ and maybe_type_against_enum ctx f with_type p =
 							loop (t :: stack) t2
 						| _ -> raise Exit
 					end
-				(* We might type against an enum constructor. *)
-				| TFun(_,tr) ->
-					loop stack tr
 				| _ ->
 					raise Exit
 			in
@@ -4121,7 +4088,21 @@ and maybe_type_against_enum ctx f with_type p =
 				raise exc;
 			in
 			restore();
-			e
+			begin match e with
+				| AKExpr e ->
+					begin match follow e.etype with
+						| TFun(_,t') ->
+							unify ctx t' t e.epos;
+							AKExpr e
+						| _ ->
+							if iscall then
+								AKExpr e
+							else begin
+								AKExpr (AbstractCast.cast_or_unify ctx t e e.epos)
+							end
+					end
+				| _ -> e (* ??? *)
+			end
 		| _ ->
 			raise Exit
 		end
@@ -4130,7 +4111,7 @@ and maybe_type_against_enum ctx f with_type p =
 
 and type_call ctx e el (with_type:with_type) p =
 	let def () =
-		let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) MCall) with_type p in
+		let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) MCall) with_type true p in
 		let e = build_call ctx e el with_type p in
 		e
 	in
@@ -4140,7 +4121,7 @@ and type_call ctx e el (with_type:with_type) p =
 			null ctx.t.tvoid p
 		else
 		let mk_to_string_meta e = EMeta((Meta.ToString,[],null_pos),e),pos e in
-		let params = (match el with [] -> [] | _ -> [("customParams",null_pos),(EArrayDecl (List.map mk_to_string_meta el) , p)]) in
+		let params = (match el with [] -> [] | _ -> [("customParams",null_pos,NoQuotes),(EArrayDecl (List.map mk_to_string_meta el) , p)]) in
 		let infos = mk_infos ctx p params in
 		if (platform ctx.com Js || platform ctx.com Python) && el = [] && has_dce ctx.com then
 			let e = type_expr ctx e Value in
@@ -4407,7 +4388,7 @@ type state =
 	| Done
 	| NotYet
 
-let generate ctx =
+let sort_types com modules =
 	let types = ref [] in
 	let states = Hashtbl.create 0 in
 	let state p = try Hashtbl.find states p with Not_found -> NotYet in
@@ -4418,7 +4399,7 @@ let generate ctx =
 		match state p with
 		| Done -> ()
 		| Generating ->
-			ctx.com.warning ("Warning : maybe loop in static generation of " ^ s_type_path p) (t_infos t).mt_pos;
+			com.warning ("Warning : maybe loop in static generation of " ^ s_type_path p) (t_infos t).mt_pos;
 		| NotYet ->
 			Hashtbl.add states p Generating;
 			let t = (match t with
@@ -4498,9 +4479,13 @@ let generate ctx =
 		) c.cl_statics
 
 	in
-	let sorted_modules = List.sort (fun m1 m2 -> compare m1.m_path m2.m_path) (Hashtbl.fold (fun _ m acc -> m :: acc) ctx.g.modules []) in
+	let sorted_modules = List.sort (fun m1 m2 -> compare m1.m_path m2.m_path) (Hashtbl.fold (fun _ m acc -> m :: acc) modules []) in
 	List.iter (fun m -> List.iter loop m.m_types) sorted_modules;
-	get_main ctx !types, List.rev !types, sorted_modules
+	List.rev !types, sorted_modules
+
+let generate ctx =
+	let types,modules = sort_types ctx.com ctx.g.modules in
+	get_main ctx types,types,modules
 
 (* ---------------------------------------------------------------------- *)
 (* TYPER INITIALIZATION *)
@@ -4588,10 +4573,10 @@ let rec create com =
 						if not (is_null ~no_lazy:true t) then TAbstract (a,[t]) else t
 					with Exit ->
 						(* don't force lazy evaluation *)
-						let r = ref (fun() -> assert false) in
-						r := (fun() ->
+						let r = ref (lazy_available t_dynamic) in
+						r := lazy_wait (fun() ->
 							let t = (if not (is_null t) then TAbstract (a,[t]) else t) in
-							r := (fun() -> t);
+							r := lazy_available t;
 							t
 						);
 						TLazy r

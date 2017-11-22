@@ -58,7 +58,7 @@ private class D {
       return haxe.io.Bytes.ofData(data);
 
    public static function secondsToDate(seconds:Float) : Dynamic
-      return Date.fromTime(seconds);
+      return Date.fromTime(seconds * 1000);
 
 }
 
@@ -69,7 +69,7 @@ private class MysqlResultSet implements sys.db.ResultSet {
 	private var __r : Dynamic;
 	private var cache : Dynamic;
 
-	public function new(r) {
+	public function new(r:Dynamic) {
 		__r = r;
 	}
 
@@ -127,11 +127,11 @@ private class MysqlConnection implements sys.db.Connection {
 
 	private var __c : Dynamic;
 
-	public function new(c) {
+	public function new(c:Dynamic) {
 		__c = c;
 	 D.set_conv_funs( cpp.Function.fromStaticFunction(D.charsToBytes),
                      cpp.Function.fromStaticFunction(D.secondsToDate) );
-    
+
 	}
 
 	public function request( s : String ) : sys.db.ResultSet {

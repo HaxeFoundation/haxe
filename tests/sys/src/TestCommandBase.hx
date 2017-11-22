@@ -1,8 +1,12 @@
 import sys.*;
 import haxe.io.*;
+import utest.Assert;
 
-class TestCommandBase extends haxe.unit.TestCase {
+class TestCommandBase {
 	var runInfo:{out:String, err:String} = null;
+
+	public function new() { }
+
 	function run(cmd:String, ?args:Array<String>):Int {
 		throw "should be overridden";
 	}
@@ -13,9 +17,7 @@ class TestCommandBase extends haxe.unit.TestCase {
 
 		#if !cs
 		var exitCode = run("haxe", ["compile-each.hxml", "--run", "TestArguments"].concat(args));
-		if (exitCode != 0)
-			trace(sys.io.File.getContent(TestArguments.log));
-		assertEquals(0, exitCode);
+		Assert.equals(0, exitCode);
 		#end
 
 		var exitCode =
@@ -39,19 +41,13 @@ class TestCommandBase extends haxe.unit.TestCase {
 			#elseif hl
 				run("hl", [bin].concat(args));
 			#elseif php
-				run(untyped __php__("defined('PHP_BINARY') ? PHP_BINARY : 'php'"), [bin].concat(args));
+				run(php.Global.defined('PHP_BINARY') ? php.Const.PHP_BINARY : 'php', [bin].concat(args));
 			#elseif lua
-				if (untyped lua.jit != null){
-					run("luajit", [bin].concat(args));
-				} else {
-					run("lua", [bin].concat(args));
-				}
+				run("lua", [bin].concat(args));
 			#else
 				-1;
 			#end
-		if (exitCode != 0)
-			trace(sys.io.File.getContent(TestArguments.log));
-		assertEquals(0, exitCode);
+		Assert.equals(0, exitCode);
 	}
 
 	function testCommandName() {
@@ -70,7 +66,7 @@ class TestCommandBase extends haxe.unit.TestCase {
 						sys.io.File.copy(ExitCode.getNative(), path);
 					case "Mac", "Linux", _:
 						var exitCode = run("cp", [ExitCode.getNative(), path]);
-						assertEquals(0, exitCode);
+						Assert.equals(0, exitCode);
 				}
 
 				Sys.sleep(0.1);
@@ -85,7 +81,7 @@ class TestCommandBase extends haxe.unit.TestCase {
 				}
 				if (exitCode != random)
 					trace(name);
-				assertEquals(random, exitCode);
+				Assert.equals(random, exitCode);
 				FileSystem.deleteFile(path);
 			}
 		}
@@ -101,7 +97,7 @@ class TestCommandBase extends haxe.unit.TestCase {
 		for (code in codes) {
 			var args = [Std.string(code)];
 			var exitCode = run(ExitCode.getNative(), args);
-			assertEquals(code, exitCode);
+			Assert.equals(code, exitCode);
 		}
 
 		for (code in codes) {
@@ -127,20 +123,16 @@ class TestCommandBase extends haxe.unit.TestCase {
 				#elseif hl
 					run("hl", [bin].concat(args));
 				#elseif php
-					run(untyped __php__("defined('PHP_BINARY') ? PHP_BINARY : 'php'"), [bin].concat(args));
+					run(php.Global.defined('PHP_BINARY') ? php.Const.PHP_BINARY : 'php', [bin].concat(args));
 				#elseif lua
-					if (untyped lua.jit != null){
-						run("luajit", [bin].concat(args));
-					} else {
-						run("lua", [bin].concat(args));
-					}
+					run("lua", [bin].concat(args));
 				#else
 					-1;
 				#end
 			if ((code != exitCode) && (runInfo != null)) {
 				trace(runInfo);
 			}
-			assertEquals(code, exitCode);
+			Assert.equals(code, exitCode);
 		}
 	}
 
@@ -148,6 +140,6 @@ class TestCommandBase extends haxe.unit.TestCase {
 		var bin = sys.FileSystem.absolutePath(ExitCode.bin);
 		var native = sys.FileSystem.absolutePath(ExitCode.getNative());
 		var exitCode = run('$native 1 || $native 0');
-		assertEquals(0, exitCode);
+		Assert.equals(0, exitCode);
 	}
 }

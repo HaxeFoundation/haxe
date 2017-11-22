@@ -32,18 +32,18 @@
 	@:pure function getDay() : Int;
 
 	@:pure inline function toString() : String {
-		return untyped HxOverrides.dateStr(this);
+		return @:privateAccess HxOverrides.dateStr(this);
 	}
 
 	@:pure static inline function now() : Date {
-		return untyped __new__(Date);
+		return js.Syntax.new_(Date);
 	}
 
 	@:pure static inline function fromTime( t : Float ) : Date {
-		return untyped __new__(Date, t);
+		return js.Syntax.new_(Date, t);
 	}
 
 	@:pure static inline function fromString( s : String ) : Date {
-		return untyped HxOverrides.strDate(s);
+		return @:privateAccess HxOverrides.strDate(s);
 	}
 }

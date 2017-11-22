@@ -38,7 +38,8 @@ type 'value compiler_api = {
 	get_pattern_locals : Ast.expr -> Type.t -> (string,Type.tvar * Globals.pos) PMap.t;
 	define_type : 'value -> string option -> unit;
 	define_module : string -> 'value list -> ((string * Globals.pos) list * Ast.import_mode) list -> Ast.type_path list -> unit;
-	module_dependency : string -> string -> bool -> unit;
+	module_dependency : string -> string -> unit;
+	module_reuse_call : string -> string -> unit;
 	current_module : unit -> module_def;
 	on_reuse : (unit -> bool) -> unit;
 	mutable current_macro_module : unit -> module_def;
@@ -52,6 +53,7 @@ type 'value compiler_api = {
 	encode_expr : Ast.expr -> 'value;
 	encode_ctype : Ast.type_hint -> 'value;
 	decode_type : 'value -> t;
+	flush_context : (unit -> t) -> t;
 }
 
 
@@ -74,6 +76,7 @@ type enum_type =
 	| IModuleType
 	| IFieldAccess
 	| IAnonStatus
+	| IQuoteStatus
 	| IImportMode
 
 type obj_type =
@@ -154,7 +157,7 @@ module type InterpApi = sig
 	val encode_string_map : ('a -> value) -> (string, 'a) PMap.t -> value
 
 	val encode_tdecl : Type.module_type -> value
-	val encode_lazytype : (unit -> Type.t) ref -> (unit -> value) -> value
+	val encode_lazytype : tlazy ref -> (unit -> value) -> value
 	val encode_unsafe : Obj.t -> value
 
 	val field : value -> string -> value
@@ -168,7 +171,7 @@ module type InterpApi = sig
 	val decode_pos : value -> Globals.pos
 	val decode_enum : value -> int * value list
 	val decode_tdecl : value -> Type.module_type
-	val decode_lazytype : value -> (unit -> Type.t) ref
+	val decode_lazytype : value -> tlazy ref
 	val decode_unsafe : value -> Obj.t
 
 	val decode_enum_with_pos : value -> (int * value list) * Globals.pos
@@ -177,6 +180,7 @@ module type InterpApi = sig
 	val decode_ref : value -> 'a
 
 	val compiler_error : string -> Globals.pos -> 'a
+	val error_message : string -> 'a
 	val value_to_expr : value -> Globals.pos -> Ast.expr
 	val value_signature : value -> string
 
@@ -186,6 +190,10 @@ module type InterpApi = sig
 	val prepare_callback : value -> int -> (value list -> value)
 
 	val value_string : value -> string
+
+	val flush_core_context : (unit -> t) -> t
+
+	val handle_decoding_error : value -> Type.t -> (string * (string * int) list)
 
 end
 
@@ -209,6 +217,7 @@ let enum_name = function
 	| IFieldAccess -> "FieldAccess"
 	| IAnonStatus -> "AnonStatus"
 	| IImportMode -> "ImportMode"
+	| IQuoteStatus -> "QuoteStatus"
 
 let proto_name = function
 	| O__Const -> assert false
@@ -277,7 +286,7 @@ let haxe_float f p =
 	else if (f <> f) then
 		(Ast.EField (math, "NaN"), p)
 	else
-		(Ast.EConst (Ast.Float (float_repres f)), p)
+		(Ast.EConst (Ast.Float (Numeric.float_repres f)), p)
 
 (* ------------------------------------------------------------------------------------------------------------- *)
 (* Our macro api functor *)
@@ -383,6 +392,7 @@ and encode_access a =
 		| ADynamic -> 4
 		| AInline -> 5
 		| AMacro -> 6
+		| AFinal -> 7
 	in
 	encode_enum IAccess tag []
 
@@ -426,6 +436,8 @@ and encode_ctype t =
 		4, [encode_array (List.map encode_path tl); encode_array (List.map encode_field fields)]
 	| CTOptional t ->
 		5, [encode_ctype t]
+	| CTNamed (n,t) ->
+		6, [encode_placed_name n; encode_ctype t]
 	in
 	encode_enum ~pos:(Some (pos t)) ICType tag pl
 
@@ -469,9 +481,10 @@ and encode_expr e =
 			| EParenthesis e ->
 				4, [loop e]
 			| EObjectDecl fl ->
-				5, [encode_array (List.map (fun ((f,p),e) -> encode_obj OExprDef_fields [
+				5, [encode_array (List.map (fun ((f,p,qs),e) -> encode_obj OExprDef_fields [
 					"field",encode_string f;
 					"name_pos",encode_pos p;
+					"quotes",encode_enum IQuoteStatus (match qs with NoQuotes -> 0 | DoubleQuotes -> 1) [];
 					"expr",loop e;
 				]) fl)]
 			| EArrayDecl el ->
@@ -681,6 +694,7 @@ and decode_access v =
 	| 4, [] -> ADynamic
 	| 5, [] -> AInline
 	| 6, [] -> AMacro
+	| 7, [] -> AFinal
 	| _ -> raise Invalid_expr
 
 and decode_meta_entry v =
@@ -723,6 +737,8 @@ and decode_ctype t =
 		CTExtend (List.map decode_path (decode_array tl), List.map decode_field (decode_array fl))
 	| 5, [t] ->
 		CTOptional (decode_ctype t)
+	| 6, [n;t] ->
+		CTNamed ((decode_string n,p), decode_ctype t)
 	| _ ->
 		raise Invalid_expr),p
 
@@ -744,7 +760,15 @@ and decode_expr v =
 			EParenthesis (loop e)
 		| 5, [a] ->
 			EObjectDecl (List.map (fun o ->
-				(decode_placed_name (field o "name_pos") (field o "field")),loop (field o "expr")
+				let name,p = decode_placed_name (field o "name_pos") (field o "field") in
+				let vquotes = field o "quotes" in
+				let quotes = if vquotes = vnull then NoQuotes
+				else match decode_enum vquotes with
+					| 0,[] -> NoQuotes
+					| 1,[] -> DoubleQuotes
+					| _ -> raise Invalid_expr
+				in
+				(name,p,quotes),loop (field o "expr")
 			) (decode_array a))
 		| 6, [a] ->
 			EArrayDecl (List.map loop (decode_array a))
@@ -908,11 +932,14 @@ and encode_efield f =
 and encode_cfield f =
 	encode_obj OClassField [
 		"name", encode_string f.cf_name;
-		"type", (match f.cf_kind with Method _ -> encode_lazy_type f.cf_type | _ -> encode_type f.cf_type);
+		"type", encode_lazy_type f.cf_type;
 		"isPublic", vbool f.cf_public;
 		"params", encode_type_params f.cf_params;
 		"meta", encode_meta f.cf_meta (fun m -> f.cf_meta <- m);
-		"expr", vfun0 (fun() -> ignore(follow f.cf_type); (match f.cf_expr with None -> vnull | Some e -> encode_texpr e));
+		"expr", vfun0 (fun() ->
+			ignore (flush_core_context (fun() -> follow f.cf_type));
+			(match f.cf_expr with None -> vnull | Some e -> encode_texpr e)
+		);
 		"kind", encode_field_kind f.cf_kind;
 		"pos", encode_pos f.cf_pos;
 		"namePos",encode_pos f.cf_name_pos;
@@ -936,6 +963,7 @@ and encode_var_access a =
 		| AccCall -> 4, []
 		| AccInline	-> 5, []
 		| AccRequire (s,msg) -> 6, [encode_string s; null encode_string msg]
+		| AccCtor -> 7, []
 	) in
 	encode_enum IVarAccess tag pl
 
@@ -1051,7 +1079,7 @@ and encode_type t =
 			else
 				6, [encode_type tsub]
 		| TLazy f ->
-			loop (!f())
+			loop (lazy_type f)
 		| TAbstract (a, pl) ->
 			8, [encode_abref a; encode_tparams pl]
 	in
@@ -1065,7 +1093,21 @@ and encode_lazy_type t =
 			| Some t -> loop t
 			| _ -> encode_type t)
 		| TLazy f ->
-			encode_enum IType 7 [encode_lazytype f (fun() -> encode_type (!f()))]
+			(match !f with
+			| LAvailable t ->
+				encode_type t
+			| _ ->
+				encode_enum IType 7 [encode_lazytype f (fun() ->
+					(match !f with
+					| LAvailable t ->
+						encode_type t
+					| LWait _ ->
+						(* we are doing some typing here, let's flush our context if it's not already *)
+						encode_type (flush_core_context (fun() -> lazy_type f))
+					| LProcessing _ ->
+						(* our type in on the processing stack, error instead of returning most likely an unbound mono *)
+						error_message "Accessing a type while it's being typed");
+				)])
 		| _ ->
 			encode_type t
 	in
@@ -1167,7 +1209,7 @@ and encode_texpr e =
 			| TField(e1,fa) -> 4,[loop e1;encode_field_access fa]
 			| TTypeExpr mt -> 5,[encode_module_type mt]
 			| TParenthesis e1 -> 6,[loop e1]
-			| TObjectDecl fl -> 7, [encode_array (List.map (fun (f,e) ->
+			| TObjectDecl fl -> 7, [encode_array (List.map (fun ((f,_,_),e) ->
 				encode_obj OTypedExprDef_fields [
 					"name",encode_string f;
 					"expr",loop e;
@@ -1245,6 +1287,7 @@ let decode_var_access v =
 	| 4, [] -> AccCall
 	| 5, [] -> AccInline
 	| 6, [s1;s2] -> AccRequire(decode_string s1, opt decode_string s2)
+	| 7, [] -> AccCtor
 	| _ -> raise Invalid_expr
 
 let decode_method_kind v =
@@ -1330,7 +1373,7 @@ and decode_texpr v =
 		| 4, [v1;fa] -> TField(loop v1,decode_field_access fa)
 		| 5, [mt] -> TTypeExpr(decode_module_type mt)
 		| 6, [v1] -> TParenthesis(loop v1)
-		| 7, [v] -> TObjectDecl(List.map (fun v -> decode_string (field v "name"),loop (field v "expr")) (decode_array v))
+		| 7, [v] -> TObjectDecl(List.map (fun v -> (decode_string (field v "name"),Globals.null_pos,NoQuotes),loop (field v "expr")) (decode_array v))
 		| 8, [vl] -> TArrayDecl(List.map loop (decode_array vl))
 		| 9, [v1;vl] -> TCall(loop v1,List.map loop (decode_array vl))
 		| 10, [c;tl;vl] -> TNew(decode_ref c,List.map decode_type (decode_array tl),List.map loop (decode_array vl))
@@ -1452,7 +1495,7 @@ let rec make_const e =
 	| TParenthesis e | TMeta(_,e) | TCast(e,None) ->
 		make_const e
 	| TObjectDecl el ->
-		encode_obj O__Const (List.map (fun (f,e) -> f, make_const e) el)
+		encode_obj O__Const (List.map (fun ((f,_,_),e) -> f, make_const e) el)
 	| TArrayDecl al ->
 		encode_array (List.map make_const al)
 	| _ ->
@@ -1510,7 +1553,7 @@ let macro_api ccom get_api =
 			try encode_string (Common.raw_defined_value (ccom()) (decode_string s)) with Not_found -> vnull
 		);
 		"get_defines", vfun0 (fun() ->
-			encode_string_map encode_string (ccom()).defines
+			encode_string_map encode_string (ccom()).defines.Define.values
 		);
 		"get_type", vfun1 (fun s ->
 			let tname = decode_string s in
@@ -1625,7 +1668,7 @@ let macro_api ccom get_api =
 						encode_string ("\"" ^ Ast.s_escape (decode_string v) ^ "\"")
 					);
 					"buildMetaData", vfun1 (fun t ->
-						match Codegen.build_metadata com (decode_type_decl t) with
+						match Texpr.build_metadata com.basic (decode_type_decl t) with
 						| None -> vnull
 						| Some e -> encode_texpr e
 					);
@@ -1718,7 +1761,7 @@ let macro_api ccom get_api =
 				| TType (t,tl) ->
 					apply_params t.t_params tl t.t_type
 				| TLazy f ->
-					(!f)()
+					lazy_type f
 			in
 			encode_type (if decode_opt_bool once then follow_once t else Abstract.follow_with_abstracts t)
 		);
@@ -1735,7 +1778,7 @@ let macro_api ccom get_api =
 				| TType (t,tl) ->
 					apply_params t.t_params tl t.t_type
 				| TLazy f ->
-					(!f)()
+					lazy_type f
 			in
 			encode_type (if decode_opt_bool once then follow_once t else follow t)
 		);
@@ -1791,11 +1834,11 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"register_module_dependency", vfun2 (fun m file ->
-			(get_api()).module_dependency (decode_string m) (decode_string file) false;
+			(get_api()).module_dependency (decode_string m) (decode_string file);
 			vnull
 		);
 		"register_module_reuse_call", vfun2 (fun m mcall ->
-			(get_api()).module_dependency (decode_string m) (decode_string mcall) true;
+			(get_api()).module_reuse_call (decode_string m) (decode_string mcall);
 			vnull
 		);
 		"get_typed_expr", vfun1 (fun e ->
@@ -1877,6 +1920,27 @@ let macro_api ccom get_api =
 				CompilationServer.remove_files cs s;
 			) (decode_array a);
 			vnull
+		);
+		"position_to_range", vfun1 (fun p ->
+			let p = decode_pos p in
+			let l1,c1,l2,c2 = Lexer.get_pos_coords p in
+			let make_pos line character =
+				encode_obj O__Const [
+					"line",vint line;
+					"character",vint character;
+				]
+			in
+			let pos_start = make_pos l1 c1 in
+			let pos_end = make_pos l2 c2 in
+			let range = encode_obj O__Const [
+				"start",pos_start;
+				"end",pos_end;
+			] in
+			let location = encode_obj O__Const [
+				"file",encode_string p.Globals.pfile;
+				"range",range
+			] in
+			location
 		);
 	]
 

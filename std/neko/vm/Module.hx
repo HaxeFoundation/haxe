@@ -24,11 +24,13 @@ package neko.vm;
 /**
 	The abstract Neko module handle.
 **/
-enum ModuleHandle {
+@:callable
+@:coreType
+abstract ModuleHandle {
 }
 
 /**
-	A Neko Module represent a execution unit for the Neko Virtual Machine. 
+	A Neko Module represent a execution unit for the Neko Virtual Machine.
 	Each compiled `.n` bytecode file is a module once loaded by the NekoVM.
 **/
 class Module {

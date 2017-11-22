@@ -1,5 +1,7 @@
 ﻿package unit;
 
+import haxe.ds.List;
+
 class TestSerialize extends Test {
 
 	function id<T>( v : T ) : T {

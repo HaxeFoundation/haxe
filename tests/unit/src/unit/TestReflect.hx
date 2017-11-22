@@ -1,4 +1,6 @@
 package unit;
+
+import haxe.ds.List;
 import Type;
 
 interface InterfWithProp {
@@ -85,7 +87,7 @@ class TestReflect extends Test {
 
 	static var TNAMES = [
 		"null","Int","String","Bool","Float",
-		"Array",u("haxe.ds.StringMap"),u("List"),"Date","Xml","Math",
+		"Array",u("haxe.ds.StringMap"),u("haxe.ds.List"),"Date","Xml","Math",
 		u2("unit","MyEnum"),u2("unit","MyClass"),u2("unit","MySubClass"),
 		#if !flash u #end("Class"), u("Enum"), u("Dynamic"),
 		u2("unit","MyInterface")

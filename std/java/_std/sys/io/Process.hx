@@ -46,7 +46,7 @@ class Process {
 					pargs = new NativeArray(3);
 					pargs[0] = cmd = switch (Sys.getEnv("COMSPEC")) {
 						case null: "cmd.exe";
-						case comspec: comspec;
+						case var comspec: comspec;
 					}
 					pargs[1] = '/C';
 					pargs[2] = '"$cmdStr"';
@@ -102,7 +102,7 @@ class Process {
 				return null;
 			}
 		}
-		
+
 		cast(stdout, ProcessInput).bufferContents();
 		cast(stderr, ProcessInput).bufferContents();
 		try

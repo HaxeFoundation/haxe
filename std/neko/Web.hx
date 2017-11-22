@@ -21,6 +21,8 @@
  */
 package neko;
 
+import haxe.ds.List;
+
 /**
 	This class is used for accessing the local Web server and the current
 	client request and information.
@@ -192,7 +194,7 @@ class Web {
 		_set_cookie(untyped key.__s, untyped v.__s);
 	}
 
-	static function addPair( buf : StringBuf, name, value ) {
+	static function addPair( buf : StringBuf, name:String, value:String ) {
 		if( value == null ) return;
 		buf.add("; ");
 		buf.add(name);

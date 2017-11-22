@@ -89,7 +89,7 @@ class String {
 				ret.push(match);
 				idx = newidx + delimiter.length;
 			} else {
-				ret.push(NativeStringTools.sub(this,idx,NativeStringTools.len(this)).match);
+				ret.push(NativeStringTools.sub(this,idx,this.length).match);
 				idx = null;
 			}
 		}
