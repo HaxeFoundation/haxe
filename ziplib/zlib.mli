@@ -16,14 +16,14 @@
 
 val compress:
   ?level: int -> ?header: bool -> 
-  (string -> int) -> (string -> int -> unit) -> unit
+  (bytes -> int) -> (bytes -> int -> unit) -> unit
 
 val compress_direct:
-  ?level: int -> ?header: bool -> (string -> int -> unit) ->
-  (string -> int -> int -> unit) * (unit -> unit)
+  ?level: int -> ?header: bool -> (bytes -> int -> unit) ->
+  (bytes -> int -> int -> unit) * (unit -> unit)
 
 val uncompress:
-  ?header: bool -> (string -> int) -> (string -> int -> unit) -> unit
+  ?header: bool -> (bytes -> int) -> (bytes -> int -> unit) -> unit
 
 val update_crc: 
-  int32 -> string -> int -> int -> int32
+  int32 -> bytes -> int -> int -> int32
