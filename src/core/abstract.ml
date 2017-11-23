@@ -2,21 +2,40 @@ open Meta
 open Type
 open Error
 
+let has_direct_to ab pl b =
+	List.exists (unify_to ab pl ~allow_transitive_cast:false b) ab.a_to
+
+let has_direct_from ab pl a b =
+	List.exists (unify_from ab pl a ~allow_transitive_cast:false b) ab.a_from
+
+let find_field_to ab pl b =
+	List.find (unify_to_field ab pl b) ab.a_to_field
+
+let find_field_from ab pl a b =
+	List.find (unify_from_field ab pl a b) ab.a_from_field
+
+let find_to_from f ab_left tl_left ab_right tl_right tleft tright =
+	if has_direct_to ab_right tl_right tleft || has_direct_from ab_left tl_left tright tleft then
+		raise Not_found
+	else
+		try f ab_right tl_right (fun () -> find_field_to ab_right tl_right tleft)
+		with Not_found -> f ab_left tl_left (fun () -> find_field_from ab_left tl_left tright tleft)
+
 let find_to ab pl b =
 	if follow b == t_dynamic then
 		List.find (fun (t,_) -> follow t == t_dynamic) ab.a_to_field
-	else if List.exists (unify_to ab pl ~allow_transitive_cast:false b) ab.a_to then
+	else if has_direct_to ab pl b then
 		raise Not_found (* legacy compatibility *)
 	else
-		List.find (unify_to_field ab pl b) ab.a_to_field
+		find_field_to ab pl b
 
 let find_from ab pl a b =
 	if follow a == t_dynamic then
 		List.find (fun (t,_) -> follow t == t_dynamic) ab.a_from_field
-	else if List.exists (unify_from ab pl a ~allow_transitive_cast:false b) ab.a_from then
+	else if has_direct_from ab pl a b then
 		raise Not_found (* legacy compatibility *)
 	else
-		List.find (unify_from_field ab pl a b) ab.a_from_field
+		find_field_from ab pl a b
 
 let underlying_type_stack = ref []
 
