@@ -1,5 +1,7 @@
 env:
   global:
+    # Haxe 3.4 is not safe-string compatible
+    - OCAMLPARAM="safe-string=0,_"
     # make variables
     - OCAMLC=ocamlc.opt
     - OCAMLOPT=ocamlopt.opt
@@ -60,10 +62,7 @@ install_osx: &install_osx
   # Install haxe dependencies
   - brew uninstall --force brew-cask # https://github.com/caskroom/homebrew-cask/pull/15381
   - travis_retry brew update
-  - travis_retry brew install opam zlib pcre;
-  - opam init --comp 4.02.3 -y
-  - eval `opam config env`
-  - opam install camlp4 -y
+  - travis_retry brew install ocaml camlp4 zlib pcre;
   # Install neko
   - mkdir ~/neko
   - export NEKOPATH=~/neko
