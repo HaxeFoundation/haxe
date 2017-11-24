@@ -48,6 +48,7 @@ open Common.DisplayMode
 open Type
 open Server
 open Globals
+open Filename
 
 exception Abort
 
@@ -343,21 +344,22 @@ let get_std_class_paths () =
 		let parts = Str.split_delim (Str.regexp "[;:]") p in
 		"" :: List.map Path.add_trailing_slash (loop parts)
 	with Not_found ->
+		let base_path = Path.get_real_path (try executable_path() with _ -> "./") in
 		if Sys.os_type = "Unix" then
+			let prefix_path = Filename.dirname base_path in
+			let lib_path = Filename.concat prefix_path "lib" in
+			let share_path = Filename.concat prefix_path "share" in
 			[
-				"/usr/local/share/haxe/std/";
-				"/usr/local/lib/haxe/std/";
-				"/usr/local/lib/haxe/extraLibs/";
-				"/usr/share/haxe/std/";
-				"/usr/lib/haxe/std/";
-				"/usr/lib/haxe/extraLibs/";
+				Path.add_trailing_slash (Filename.concat lib_path "haxe/std");
+				Path.add_trailing_slash (Filename.concat lib_path "haxe/extraLibs");
+				Path.add_trailing_slash (Filename.concat share_path "haxe/std");
+				Path.add_trailing_slash (Filename.concat share_path "haxe/extraLibs");
 				""
 			]
 		else
-			let base_path = Path.add_trailing_slash (Path.get_real_path (try executable_path() with _ -> "./")) in
 			[
-				base_path ^ "std/";
-				base_path ^ "extraLibs/";
+				Path.add_trailing_slash (Filename.concat base_path "std");
+				Path.add_trailing_slash (Filename.concat base_path "extraLibs");
 				""
 			]
 
