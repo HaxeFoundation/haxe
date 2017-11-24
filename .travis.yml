@@ -61,8 +61,8 @@ install_linux: &install_linux
 install_osx: &install_osx
   # Install haxe dependencies
   - brew uninstall --force brew-cask # https://github.com/caskroom/homebrew-cask/pull/15381
-  - travis_retry brew update
-  - travis_retry brew install ocaml camlp4 zlib pcre;
+  - travis_retry brew tap Homebrew/bundle
+  - travis_retry brew bundle --file=tests/Brewfile
   # Install neko
   - mkdir ~/neko
   - export NEKOPATH=~/neko
@@ -83,7 +83,6 @@ install_osx: &install_osx
   - otool -L ./haxelib
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
-  - travis_retry brew install awscli
 
 matrix:
   include:
