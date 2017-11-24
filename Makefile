@@ -10,7 +10,7 @@
 #
 .SUFFIXES : .ml .mli .cmo .cmi .cmx .mly
 
-INSTALL_DIR=$(DESTDIR)/usr/local
+INSTALL_DIR=/usr/local
 INSTALL_BIN_DIR=$(INSTALL_DIR)/bin
 INSTALL_LIB_DIR=$(INSTALL_DIR)/lib/haxe
 INSTALL_STD_DIR=$(INSTALL_DIR)/share/haxe/std
@@ -177,33 +177,20 @@ haxelib:
 tools: haxelib
 
 install: uninstall
-	mkdir -p $(INSTALL_BIN_DIR)
-	mkdir -p $(INSTALL_LIB_DIR)/lib
-	mkdir -p $(INSTALL_STD_DIR)
-	cp -rf std/* $(INSTALL_STD_DIR)
-	cp -rf extra $(INSTALL_LIB_DIR)
-	cp haxe $(INSTALL_LIB_DIR)
-	ln -s $(INSTALL_LIB_DIR)/haxe $(INSTALL_BIN_DIR)/haxe
-	cp haxelib $(INSTALL_LIB_DIR)
-	ln -s $(INSTALL_LIB_DIR)/haxelib $(INSTALL_BIN_DIR)/haxelib
-	chmod -R a+rx $(INSTALL_LIB_DIR)
-	chmod 777 $(INSTALL_LIB_DIR)/lib
-	chmod a+rx $(INSTALL_BIN_DIR)/haxe $(INSTALL_BIN_DIR)/haxelib
-
-# will install native version of the tools instead of script ones
-install_tools: tools
-	cp haxelib ${INSTALL_BIN_DIR}/haxelib
-	chmod a+rx $(INSTALL_BIN_DIR)/haxelib
+	mkdir -p "$(DESTDIR)$(INSTALL_BIN_DIR)"
+	cp haxe haxelib "$(DESTDIR)$(INSTALL_BIN_DIR)"
+	mkdir -p "$(DESTDIR)$(INSTALL_STD_DIR)"
+	cp -r std/* "$(DESTDIR)$(INSTALL_STD_DIR)"
 
 uninstall:
-	rm -rf $(INSTALL_BIN_DIR)/haxe $(INSTALL_BIN_DIR)/haxelib
-	if [ -d "$(INSTALL_LIB_DIR)/lib" ] && find "$(INSTALL_LIB_DIR)/lib" -mindepth 1 -print -quit | grep -q .; then \
-		echo "The local haxelib repo at $(INSTALL_LIB_DIR)/lib will not be removed. Remove it manually if you want."; \
-		find $(INSTALL_LIB_DIR)/ ! -name 'lib' -mindepth 1 -maxdepth 1 -exec rm -rf {} +; \
+	rm -rf $(DESTDIR)$(INSTALL_BIN_DIR)/haxe $(DESTDIR)$(INSTALL_BIN_DIR)/haxelib
+	if [ -d "$(DESTDIR)$(INSTALL_LIB_DIR)/lib" ] && find "$(DESTDIR)$(INSTALL_LIB_DIR)/lib" -mindepth 1 -print -quit | grep -q .; then \
+		echo "The local haxelib repo at $(DESTDIR)$(INSTALL_LIB_DIR)/lib will not be removed. Remove it manually if you want."; \
+		find $(DESTDIR)$(INSTALL_LIB_DIR)/ ! -name 'lib' -mindepth 1 -maxdepth 1 -exec rm -rf {} +; \
 	else \
-		rm -rf $(INSTALL_LIB_DIR); \
+		rm -rf $(DESTDIR)$(INSTALL_LIB_DIR); \
 	fi
-	rm -rf  $(INSTALL_STD_DIR)
+	rm -rf $(DESTDIR)$(INSTALL_STD_DIR)
 
 opam_install:
 	opam install $(OPAM_LIBS) camlp4 ocamlfind --yes
