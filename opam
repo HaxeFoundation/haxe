@@ -1,0 +1,27 @@
+
+opam-version: "1.2"
+name: "haxe"
+version: "3.4.4"
+maintainer: ["Haxe Foundation <contact@haxe.org>" "Andy Li <andy@onthewings.net>"]
+author: "Haxe Foundation <contact@haxe.org>"
+homepage: "https://haxe.org/"
+bug-reports: "https://github.com/HaxeFoundation/haxe/issues"
+license: ["GPL2+" "MIT"]
+dev-repo: "https://github.com/HaxeFoundation/haxe"
+build: [
+  [ "env" "OCAMLPARAM=safe-string=0,_" make ]
+]
+install: [
+  ["cp" "haxe" "haxelib" "%{bin}%"]
+  ["mkdir" "-p" "%{share}%/haxe"]
+  ["cp" "-r" "std" "%{share}%/haxe/std"]
+]
+remove: [
+  ["rm" "%{bin}%/haxe" "%{bin}%/haxelib"]
+  ["rm" "-r" "%{share}%/haxe"]
+]
+depends: [
+  "ocamlfind" {build}
+  "camlp4"    {build}
+]
+available: [ ocaml-version > "4.02" ]
