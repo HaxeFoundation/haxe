@@ -354,6 +354,8 @@ let get_std_class_paths () =
 				Path.add_trailing_slash (Filename.concat lib_path "haxe/extraLibs");
 				Path.add_trailing_slash (Filename.concat share_path "haxe/std");
 				Path.add_trailing_slash (Filename.concat share_path "haxe/extraLibs");
+				Path.add_trailing_slash (Filename.concat base_path "std");
+				Path.add_trailing_slash (Filename.concat base_path "extraLibs");
 				""
 			]
 		else
