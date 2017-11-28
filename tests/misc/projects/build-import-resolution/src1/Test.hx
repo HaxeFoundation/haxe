@@ -2,7 +2,7 @@ import TestMacro.*;
 import TestMacro2.build;
 import TestMacro2.build as buildFoo;
 import foo.*;
-import Main.*;
+import Test.*;
 
 
 #if !macro
@@ -15,7 +15,7 @@ import Main.*;
 @:build(foo.bar.TestMacro.build(7, true))
 @:build(bar.TestMacro.build(8, true))
 #end
-class Main {
+class Test {
 
 	macro static function run () {
 		build(1, false);
