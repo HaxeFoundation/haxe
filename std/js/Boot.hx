@@ -30,12 +30,15 @@ private class HaxeError extends js.Error {
 	public function new(val:Dynamic) {
 		super();
 		this.val = val;
-		this.message = (cast String)(val);
 		if ((cast js.Error).captureStackTrace) (cast js.Error).captureStackTrace(this, HaxeError);
 	}
 
 	public static function wrap(val:Dynamic):js.Error {
 		return if (js.Syntax.instanceof(val, js.Error)) val else new HaxeError(val);
+	}
+
+	static function __init__() {
+		js.Object.defineProperty((cast HaxeError).prototype, "message", {get: () -> (cast String)(js.Lib.nativeThis.val)});
 	}
 }
 
