@@ -109,7 +109,7 @@ class EntryPoint {
 	/**
 		Start the main loop. Depending on the platform, this can return immediately or will only return when the application exits.
 	**/
-	@:keep public static function run() @:privateAccess {
+	@:keep public dynamic static function run() @:privateAccess {
 		#if js
 
 		var nextTick = processEvents();
