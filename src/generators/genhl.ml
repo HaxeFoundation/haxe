@@ -580,6 +580,18 @@ and class_type ?(tref=None) ctx c pl statics =
 		) in
 		let fa = DynArray.create() and pa = DynArray.create() and virtuals = DynArray.of_array virtuals in
 		let todo = ref [] in
+		let add_field name get_t =
+			let fid = DynArray.length fa + start_field in
+			let str = if name = "" then 0 else alloc_string ctx name in
+			p.pindex <- PMap.add name (fid, HVoid) p.pindex;
+			DynArray.add fa (name, str, HVoid);
+			todo := (fun() ->
+				let t = get_t() in
+				p.pindex <- PMap.add name (fid, t) p.pindex;
+				Array.set p.pfields (fid - start_field) (name, str, t);
+			) :: !todo;
+			fid
+		in
 		List.iter (fun f ->
 			if is_extern_field f || (statics && f.cf_name = "__meta__") then () else
 			let fid = (match f.cf_kind with
@@ -603,15 +615,8 @@ and class_type ?(tref=None) ctx c pl statics =
 			| Method MethDynamic when List.exists (fun ff -> ff.cf_name = f.cf_name) c.cl_overrides ->
 				Some (try fst (get_index f.cf_name p) with Not_found -> assert false)
 			| _ ->
-				let fid = DynArray.length fa in
-				p.pindex <- PMap.add f.cf_name (fid + start_field, t) p.pindex;
-				DynArray.add fa (f.cf_name, alloc_string ctx f.cf_name, HVoid);
-				todo := (fun() ->
-					let t = to_type ctx f.cf_type in
-					p.pindex <- PMap.add f.cf_name (fid + start_field, t) p.pindex;
-					Array.set p.pfields fid (f.cf_name, alloc_string ctx f.cf_name, t)
-				) :: !todo;
-				Some (fid + start_field)
+				let fid = add_field f.cf_name (fun() -> to_type ctx f.cf_type) in
+				Some fid
 			) in
 			match f.cf_kind, fid with
 			| Method _, Some fid -> p.pbindings <- (fid, alloc_fun_path ctx c.cl_path f.cf_name) :: p.pbindings
@@ -620,10 +625,12 @@ and class_type ?(tref=None) ctx c pl statics =
 		if not statics then begin
 			(* add interfaces *)
 			List.iter (fun (i,pl) ->
-				let fid = DynArray.length fa in
-				let t = to_type ctx (TInst (i,pl)) in
-				p.pinterfaces <- PMap.add t (fid + start_field) p.pinterfaces;
-				DynArray.add fa ("", 0, t);
+				let rid = ref (-1) in
+				rid := add_field "" (fun() ->
+					let t = to_type ctx (TInst (i,pl)) in
+					p.pinterfaces <- PMap.add t !rid p.pinterfaces;
+					t
+				);
 			) c.cl_implements;
 			(* check toString *)
 			(try
@@ -1036,7 +1043,15 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 	| HObj o, HVirtual _ ->
 		let out = alloc_tmp ctx t in
 		(try
-			let fid = PMap.find t o.pinterfaces in
+			let rec lookup_intf o =
+				try
+					PMap.find t o.pinterfaces
+				with Not_found ->
+					match o.psuper with
+					| None -> raise Not_found
+					| Some o -> lookup_intf o
+			in
+			let fid = lookup_intf o in
 			(* memoisation *)
 			let need_null_check r =
 				not (r = 0 && ctx.m.mhasthis)
