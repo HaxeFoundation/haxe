@@ -65,6 +65,9 @@ let property_ident = parser
 let comma = parser
 	| [< '(Comma,_) >] -> ()
 
+let question = parser
+	| [< '(Question,p) >] -> p
+
 let semicolon s =
 	if fst (last_token s) = BrClose then
 		match s with parser
@@ -553,7 +556,7 @@ and parse_enum_param = parser
 	| [< name, _ = ident; t = parse_type_hint_with_pos >] -> (name,false,t)
 
 and parse_function_field doc meta al = parser
-	| [< '(Kwd Function,p1); name = parse_fun_name; pl = parse_constraint_params; '(POpen,_); args = psep Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint_with_pos; s >] ->
+	| [< '(Kwd Function,p1); opt = popt question; name = parse_fun_name; pl = parse_constraint_params; '(POpen,_); args = psep Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint_with_pos; s >] ->
 		let e, p2 = (match s with parser
 			| [< e = toplevel_expr; s >] ->
 				(try ignore(semicolon s) with Error (Missing_semicolon,p) -> !display_error Missing_semicolon p);
@@ -567,7 +570,7 @@ and parse_function_field doc meta al = parser
 			f_type = t;
 			f_expr = e;
 		} in
-		name, punion p1 p2, FFun f, al
+		name, punion p1 p2, FFun f, al, opt
 
 and parse_var_field_assignment = parser
 	| [< '(Binop OpAssign,_); e = toplevel_expr; p2 = semicolon >] -> Some e , p2
@@ -578,31 +581,38 @@ and parse_class_field s =
 	let doc = get_doc s in
 	match s with parser
 	| [< meta = parse_meta; al = parse_cf_rights true []; s >] ->
-		let name, pos, k, al = (match s with parser
-		| [< '(Kwd Var,p1); name = dollar_ident; s >] ->
+		let name, pos, k, al, opt = (match s with parser
+		| [< '(Kwd Var,p1); opt = popt question; name = dollar_ident; s >] ->
 			begin match s with parser
 			| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_) >] ->
 				let t = popt parse_type_hint_with_pos s in
 				let e,p2 = parse_var_field_assignment s in
-				name, punion p1 p2, FProp (i1,i2,t, e), al
+				name, punion p1 p2, FProp (i1,i2,t, e), al, opt
 			| [< t = popt parse_type_hint_with_pos; s >] ->
 				let e,p2 = parse_var_field_assignment s in
-				name, punion p1 p2, FVar (t,e), al
+				name, punion p1 p2, FVar (t,e), al, opt
 			end
 		| [< '(Kwd Final,p1) >] ->
+			let opt = popt question s in
 			begin match s with parser
 			| [< name = dollar_ident; t = popt parse_type_hint_with_pos; e,p2 = parse_var_field_assignment >] ->
-				name,punion p1 p2,FVar(t,e),(AFinal :: al)
-			| [< al = parse_cf_rights (not (List.mem AStatic al)) (AFinal :: al); f = parse_function_field doc meta al >] ->
-				f
+				name,punion p1 p2,FVar(t,e),(AFinal :: al),opt
 			| [< >] ->
-				serror()
+				if Option.is_none opt then
+					match s with parser
+					| [< al = parse_cf_rights (not (List.mem AStatic al)) (AFinal :: al); f = parse_function_field doc meta al >] ->
+						f
+					| [< >] ->
+						serror()
+				else
+					serror()
 			end
 		| [< f = parse_function_field doc meta al >] ->
 			f
 		| [< >] ->
 			if al = [] then raise Stream.Failure else serror()
 		) in
+		let meta = Option.map_default (fun p -> (Meta.Optional,[],p) :: meta) meta opt in
 		{
 			cff_name = name;
 			cff_doc = doc;
