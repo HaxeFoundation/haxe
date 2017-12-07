@@ -398,7 +398,7 @@ class Http extends haxe.http.HttpBase {
 				if(p.len <= len) {
 					var cstr = chunk_re.matched(1);
 					chunk_size = Std.parseInt("0x"+cstr);
-					if(cstr == "0") {
+					if(chunk_size == 0) {
 						chunk_size = null;
 						chunk_buf = null;
 						return false;
