@@ -941,7 +941,11 @@ let real_name v =
 	in
 	loop v.v_meta
 
+let is_gen_local v =
+	String.length v.v_name >= 2 && String.unsafe_get v.v_name 0 = '_' && String.unsafe_get v.v_name 1 = 'g'
+
 let add_assign ctx v =
+	if is_gen_local v then () else
 	let name = real_name v in
 	ctx.m.massign <- (alloc_string ctx name, current_pos ctx - 1) :: ctx.m.massign
 
