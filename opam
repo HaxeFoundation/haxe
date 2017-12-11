@@ -6,7 +6,7 @@ author: "Haxe Foundation <contact@haxe.org>"
 homepage: "https://haxe.org/"
 bug-reports: "https://github.com/HaxeFoundation/haxe/issues"
 license: ["GPL2+" "MIT"]
-dev-repo: "https://github.com/HaxeFoundation/haxe"
+dev-repo: "https://github.com/HaxeFoundation/haxe.git"
 build: [
   [make]
 ]
