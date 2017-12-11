@@ -386,17 +386,17 @@ CAMLprim value executable_path(value u) {
 		failwith("executable_path");
 	return caml_copy_string(path);
 #else
-	const char *p = getenv("_");
-	if( p != NULL )
-		return caml_copy_string(p);
-	{
-		char path[200];
-		int length = readlink("/proc/self/exe", path, sizeof(path));
-		if( length < 0 || length >= 200 )
+	char path[PATH_MAX];
+	int length = readlink("/proc/self/exe", path, sizeof(path));
+	if( length < 0 || length >= PATH_MAX ) {
+		const char *p = getenv("_");
+		if( p != NULL )
+			return caml_copy_string(p);
+		else
 			failwith("executable_path");
-	    path[length] = '\0';
-		return caml_copy_string(path);
 	}
+	path[length] = '\0';
+	return caml_copy_string(path);
 #endif
 }
 
