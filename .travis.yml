@@ -12,7 +12,7 @@ install:
   - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
       sudo add-apt-repository ppa:haxe/ocaml -y;
       sudo apt-get update -qq;
-      sudo apt-get install ocaml zlib1g-dev -qqy;
+      sudo apt-get install ocaml zlib1g-dev aspcud -qqy;
       wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin system;
       export OPAMYES=1;
       eval `opam config env`;
