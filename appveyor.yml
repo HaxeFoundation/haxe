@@ -35,7 +35,7 @@ install:
     - choco install neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
     # Install ocaml
     - curl -fsSL -o cygwin-setup.exe --retry 3 https://cygwin.com/setup-x86_64.exe
-    - 'cygwin-setup.exe -g -q -R "%CYG_ROOT%" -P make -P git -P mingw64-x86_64-zlib -P mingw64-i686-zlib -P rsync -P patch -P diffutils -P curl -P unzip -P m4 -P perl -P mingw64-x86_64-gcc-core -P mingw64-i686-gcc-core -P mingw64-x86_64-pcre -P mingw64-i686-pcre'
+    - 'cygwin-setup.exe -g -q -R "%CYG_ROOT%" -P make -P git -P zlib-devel -P mingw64-x86_64-zlib -P mingw64-i686-zlib -P rsync -P patch -P diffutils -P curl -P unzip -P m4 -P perl -P mingw64-x86_64-gcc-core -P mingw64-i686-gcc-core -P libpcre-devel -P mingw64-x86_64-pcre -P mingw64-i686-pcre'
     - if not exist "opam.tar.xz" (
         curl -fsSL -o "opam.tar.xz" --retry 3 https://github.com/fdopen/opam-repository-mingw/releases/download/0.0.0.1/opam%ARCH%.tar.xz
       )
