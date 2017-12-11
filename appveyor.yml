@@ -31,6 +31,8 @@ install:
     # http://help.appveyor.com/discussions/problems/5616-not-able-to-build-due-to-problem-in-chocolateyinstallps1
     - ps: Set-Service wuauserv -StartupType Manual
     - choco install curl nsis.portable wget awscli -y
+    # Install neko
+    - choco install neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
     # Install ocaml
     - curl -fsSL -o cygwin-setup.exe --retry 3 https://cygwin.com/setup-x86_64.exe
     - 'cygwin-setup.exe -g -q -R "%CYG_ROOT%" -P make -P git -P mingw64-x86_64-zlib -P mingw64-i686-zlib -P rsync -P patch -P diffutils -P curl -P unzip -P m4 -P perl -P mingw64-x86_64-gcc-core -P mingw64-i686-gcc-core -P mingw64-x86_64-pcre -P mingw64-i686-pcre'
@@ -41,10 +43,9 @@ install:
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && bash opam${ARCH}/install.sh"'
     - '%CYG_ROOT%/bin/bash -lc "opam init mingw \"https://github.com/fdopen/opam-repository-mingw.git\" --comp 4.02.3+mingw${ARCH}c --switch 4.02.3+mingw${ARCH}c --auto-setup --yes"'
     - '%CYG_ROOT%/bin/bash -lc "opam update --yes"'
+    - '%CYG_ROOT%/bin/bash -lc "opam pin add conf-neko https://raw.githubusercontent.com/ocaml/opam-repository/master/packages/conf-neko/conf-neko.1/opam --no-action --yes"'
     - '%CYG_ROOT%/bin/bash -lc "opam pin add haxe \"$APPVEYOR_BUILD_FOLDER\" --no-action --yes"'
     - '%CYG_ROOT%/bin/bash -lc "opam install haxe --deps-only --yes"'
-    # Install neko
-    - choco install neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
     # Install php
     - choco install php --version 7.2.0 -y
     - echo extension=php_openssl.dll >> C:\tools\php72\php.ini
