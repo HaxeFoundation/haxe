@@ -13,12 +13,15 @@ build: [
 install: [make "install" "INSTALL_DIR=%{prefix}%"]
 remove: [make "uninstall" "INSTALL_DIR=%{prefix}%"]
 depends: [
-  "ocamlfind" {build}
-  "camlp4"    {build}
-  "sedlex"    {build}
-  "xml-light" {build}
-  "extlib"    {build & >= "1.7"}
-  "rope"      {build}
-  "ptmap"     {build}
+  "ocamlfind"    {build}
+  "camlp4"       {build}
+  "sedlex"       {build}
+  "xml-light"    {build}
+  "extlib"       {build & >= "1.7"}
+  "rope"         {build}
+  "ptmap"        {build}
+  "conf-libpcre"
+  "conf-zlib"
+  "conf-neko"
 ]
 available: [ ocaml-version > "4.02" ]
