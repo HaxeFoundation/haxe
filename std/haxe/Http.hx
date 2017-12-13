@@ -25,6 +25,8 @@ package haxe;
 typedef Http = sys.Http;
 #elseif nodejs
 typedef Http = haxe.http.HttpNodeJs;
+#elseif js
+typedef Http = haxe.http.HttpJs;
 #else
 typedef Http = haxe.http.HttpBase;
 #end

@@ -19,9 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package haxe;
-
-typedef Http = HttpJs;
+package haxe.http;
 
 class HttpJs extends haxe.http.HttpBase {
 	public var async:Bool;
