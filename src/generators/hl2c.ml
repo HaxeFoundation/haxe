@@ -811,6 +811,8 @@ let generate_function ctx f =
 			sexpr "goto %s" (label d)
 		| OLabel _ ->
 			if not (has_label i) then sline "%s:" (label (-1))
+		| OToDyn (r,v) when rtype v = HBool ->
+			sexpr "%s = hl_alloc_dynbool(%s)" (reg r) (reg v)
 		| OToDyn (r,v) ->
 			if is_ptr (rtype v) then begin
 				sline "if( %s == NULL ) %s = NULL; else {" (reg v) (reg r);
