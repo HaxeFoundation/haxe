@@ -549,6 +549,15 @@ let unify_field_call ctx fa el args ret p inline =
 		| _ ->
 			assert false
 	in
+	let maybe_raise_unknown_ident cerr p =
+		let rec loop err =
+			match err with
+			| Unknown_ident _ -> error (error_msg err) p
+			| Stack (e1,e2) -> (loop e1; loop e2)
+			| _ -> ()
+		in
+		match cerr with Could_not_unify err -> loop err | _ -> ()
+	in
 	let rec loop candidates = match candidates with
 		| [] -> [],[]
 		| (t,cf) :: candidates ->
@@ -559,7 +568,8 @@ let unify_field_call ctx fa el args ret p inline =
 					candidate :: candidates,failures
 				end else
 					[candidate],[]
-			with Error ((Call_error _ as err),p) ->
+			with Error ((Call_error cerr as err),p) ->
+				maybe_raise_unknown_ident cerr p;
 				let candidates,failures = loop candidates in
 				candidates,(cf,err,p) :: failures
 			end
