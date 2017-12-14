@@ -321,6 +321,97 @@ let is_removable_field ctx f =
 		| Method MethMacro -> not ctx.in_macro
 		| _ -> false)
 
+(** checks if we can access to a given class field using current context *)
+let rec can_access ctx ?(in_overload=false) c cf stat =
+	if cf.cf_public then
+		true
+	else if not in_overload && ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta then
+		true
+	else
+	(* TODO: should we add a c == ctx.curclass short check here? *)
+	(* has metadata path *)
+	let rec make_path c f = match c.cl_kind with
+		| KAbstractImpl a -> fst a.a_path @ [snd a.a_path; f.cf_name]
+		| KGenericInstance(c,_) -> make_path c f
+		| _ when c.cl_private -> List.rev (f.cf_name :: snd c.cl_path :: (List.tl (List.rev (fst c.cl_path))))
+		| _ -> fst c.cl_path @ [snd c.cl_path; f.cf_name]
+	in
+	let rec expr_path acc e =
+		match fst e with
+		| EField (e,f) -> expr_path (f :: acc) e
+		| EConst (Ident n) -> n :: acc
+		| _ -> []
+	in
+	let rec chk_path psub pfull =
+		match psub, pfull with
+		| [], _ -> true
+		| a :: l1, b :: l2 when a = b -> chk_path l1 l2
+		| _ -> false
+	in
+	let has m c f path =
+		let rec loop = function
+			| (m2,el,_) :: l when m = m2 ->
+				List.exists (fun e ->
+					let p = expr_path [] e in
+					(p <> [] && chk_path p path)
+				) el
+				|| loop l
+			| _ :: l -> loop l
+			| [] -> false
+		in
+		loop c.cl_meta || loop f.cf_meta
+	in
+	let cur_paths = ref [] in
+	let rec loop c =
+		cur_paths := make_path c ctx.curfield :: !cur_paths;
+		begin match c.cl_super with
+			| Some (csup,_) -> loop csup
+			| None -> ()
+		end;
+		List.iter (fun (c,_) -> loop c) c.cl_implements;
+	in
+	loop ctx.curclass;
+	let is_constr = cf.cf_name = "new" in
+	let rec loop c =
+		(try
+			(* if our common ancestor declare/override the field, then we can access it *)
+			let f = if is_constr then (match c.cl_constructor with None -> raise Not_found | Some c -> c) else PMap.find cf.cf_name (if stat then c.cl_statics else c.cl_fields) in
+			is_parent c ctx.curclass || (List.exists (has Meta.Allow c f) !cur_paths)
+		with Not_found ->
+			false
+		)
+		|| (match c.cl_super with
+		| Some (csup,_) -> loop csup
+		| None -> false)
+		|| has Meta.Access ctx.curclass ctx.curfield (make_path c cf)
+	in
+	let b = loop c
+	(* access is also allowed of we access a type parameter which is constrained to our (base) class *)
+	|| (match c.cl_kind with
+		| KTypeParameter tl ->
+			List.exists (fun t -> match follow t with TInst(c,_) -> loop c | _ -> false) tl
+		| _ -> false)
+	|| (Meta.has Meta.PrivateAccess ctx.meta) in
+	(* TODO: find out what this does and move it to genas3 *)
+	if b && Common.defined ctx.com Common.Define.As3 && not (Meta.has Meta.Public cf.cf_meta) then cf.cf_meta <- (Meta.Public,[],cf.cf_pos) :: cf.cf_meta;
+	b
+
+(** removes the first argument of the class field's function type and all its overloads *)
+let prepare_using_field cf = match follow cf.cf_type with
+	| TFun((_,_,tf) :: args,ret) ->
+		let rec loop acc overloads = match overloads with
+			| ({cf_type = TFun((_,_,tfo) :: args,ret)} as cfo) :: l ->
+				let tfo = apply_params cfo.cf_params (List.map snd cfo.cf_params) tfo in
+				(* ignore overloads which have a different first argument *)
+				if type_iseq tf tfo then loop ({cfo with cf_type = TFun(args,ret)} :: acc) l else loop acc l
+			| _ :: l ->
+				loop acc l
+			| [] ->
+				acc
+		in
+		{cf with cf_overloads = loop [] cf.cf_overloads; cf_type = TFun(args,ret)}
+	| _ -> cf
+
 (* -------------------------------------------------------------------------- *)
 (* ABSTRACT CASTS *)
 

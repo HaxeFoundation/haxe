@@ -15,8 +15,7 @@
 	You should have received a copy of the GNU General Public License
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- *)
-
+*)
 open Ast
 open Common.DisplayMode
 open Common
@@ -257,97 +256,6 @@ let field_type ctx c pl f p =
 
 let class_field ctx c tl name p =
 	raw_class_field (fun f -> field_type ctx c tl f p) c tl name
-
-(* checks if we can access to a given class field using current context *)
-let rec can_access ctx ?(in_overload=false) c cf stat =
-	if cf.cf_public then
-		true
-	else if not in_overload && ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta then
-		true
-	else
-	(* TODO: should we add a c == ctx.curclass short check here? *)
-	(* has metadata path *)
-	let rec make_path c f = match c.cl_kind with
-		| KAbstractImpl a -> fst a.a_path @ [snd a.a_path; f.cf_name]
-		| KGenericInstance(c,_) -> make_path c f
-		| _ when c.cl_private -> List.rev (f.cf_name :: snd c.cl_path :: (List.tl (List.rev (fst c.cl_path))))
-		| _ -> fst c.cl_path @ [snd c.cl_path; f.cf_name]
-	in
-	let rec expr_path acc e =
-		match fst e with
-		| EField (e,f) -> expr_path (f :: acc) e
-		| EConst (Ident n) -> n :: acc
-		| _ -> []
-	in
-	let rec chk_path psub pfull =
-		match psub, pfull with
-		| [], _ -> true
-		| a :: l1, b :: l2 when a = b -> chk_path l1 l2
-		| _ -> false
-	in
-	let has m c f path =
-		let rec loop = function
-			| (m2,el,_) :: l when m = m2 ->
-				List.exists (fun e ->
-					let p = expr_path [] e in
-					(p <> [] && chk_path p path)
-				) el
-				|| loop l
-			| _ :: l -> loop l
-			| [] -> false
-		in
-		loop c.cl_meta || loop f.cf_meta
-	in
-	let cur_paths = ref [] in
-	let rec loop c =
-		cur_paths := make_path c ctx.curfield :: !cur_paths;
-		begin match c.cl_super with
-			| Some (csup,_) -> loop csup
-			| None -> ()
-		end;
-		List.iter (fun (c,_) -> loop c) c.cl_implements;
-	in
-	loop ctx.curclass;
-	let is_constr = cf.cf_name = "new" in
-	let rec loop c =
-		(try
-			(* if our common ancestor declare/override the field, then we can access it *)
-			let f = if is_constr then (match c.cl_constructor with None -> raise Not_found | Some c -> c) else PMap.find cf.cf_name (if stat then c.cl_statics else c.cl_fields) in
-			is_parent c ctx.curclass || (List.exists (has Meta.Allow c f) !cur_paths)
-		with Not_found ->
-			false
-		)
-		|| (match c.cl_super with
-		| Some (csup,_) -> loop csup
-		| None -> false)
-		|| has Meta.Access ctx.curclass ctx.curfield (make_path c cf)
-	in
-	let b = loop c
-	(* access is also allowed of we access a type parameter which is constrained to our (base) class *)
-	|| (match c.cl_kind with
-		| KTypeParameter tl ->
-			List.exists (fun t -> match follow t with TInst(c,_) -> loop c | _ -> false) tl
-		| _ -> false)
-	|| (Meta.has Meta.PrivateAccess ctx.meta) in
-	(* TODO: find out what this does and move it to genas3 *)
-	if b && Common.defined ctx.com Common.Define.As3 && not (Meta.has Meta.Public cf.cf_meta) then cf.cf_meta <- (Meta.Public,[],cf.cf_pos) :: cf.cf_meta;
-	b
-
-(* removes the first argument of the class field's function type and all its overloads *)
-let prepare_using_field cf = match follow cf.cf_type with
-	| TFun((_,_,tf) :: args,ret) ->
-		let rec loop acc overloads = match overloads with
-			| ({cf_type = TFun((_,_,tfo) :: args,ret)} as cfo) :: l ->
-				let tfo = apply_params cfo.cf_params (List.map snd cfo.cf_params) tfo in
-				(* ignore overloads which have a different first argument *)
-				if Type.type_iseq tf tfo then loop ({cfo with cf_type = TFun(args,ret)} :: acc) l else loop acc l
-			| _ :: l ->
-				loop acc l
-			| [] ->
-				acc
-		in
-		{cf with cf_overloads = loop [] cf.cf_overloads; cf_type = TFun(args,ret)}
-	| _ -> cf
 
 let merge_core_doc ctx c =
 	let c_core = Typeload.load_core_class ctx c in
@@ -3673,15 +3581,6 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		ctx.meta <- old;
 		e
 
-and get_submodule_fields ctx path =
-	let m = Hashtbl.find ctx.g.modules path in
-	let tl = List.filter (fun t -> path <> (t_infos t).mt_path && not (t_infos t).mt_private) m.m_types in
-	let tl = List.map (fun mt ->
-		let infos = t_infos mt in
-		(snd infos.mt_path),Display.FKType (type_of_module_type mt),infos.mt_doc
-	) tl in
-	tl
-
 and handle_display ctx e_ast with_type =
 	let old = ctx.in_display,ctx.in_call_args in
 	ctx.in_display <- true;
@@ -3700,7 +3599,7 @@ and handle_display ctx e_ast with_type =
 		raise (Parser.TypePath ([n],None,false))
 	| Error (Type_not_found (path,_),_) as err ->
 		begin try
-			raise (Display.DisplayFields (get_submodule_fields ctx path))
+			raise (Display.DisplayFields (DisplayFields.get_submodule_fields ctx path))
 		with Not_found ->
 			raise err
 		end
@@ -3885,169 +3784,7 @@ and display_expr ctx e_ast e with_type p =
 	| DMToplevel ->
 		raise (Display.DisplayToplevel (DisplayToplevel.collect ctx false))
 	| DMField | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
-		let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
-		let e = match e.eexpr with
-			| TField (e1,fa) ->
-				if field_name fa = "bind" then (match follow e1.etype with
-					| TFun(args,ret) -> {e1 with etype = opt_args args ret}
-					| _ -> e)
-				else
-					e
-			| _ ->
-				e
-		in
-		let opt_type t =
-			match t with
-			| TLazy f ->
-				Typeload.return_partial_type := true;
-				let t = lazy_type f in
-				Typeload.return_partial_type := false;
-				t
-			| _ ->
-				t
-		in
-		let should_access c cf stat =
-			if c != ctx.curclass && not cf.cf_public && String.length cf.cf_name > 4 then begin match String.sub cf.cf_name 0 4 with
-				| "get_" | "set_" -> false
-				| _ -> can_access ctx c cf stat
-			end else
-				can_access ctx c cf stat
-		in
-		let rec get_fields t =
-			match follow t with
-			| TInst (c,params) ->
-				if Meta.has Meta.CoreApi c.cl_meta then merge_core_doc ctx c;
-				let merge ?(cond=(fun _ -> true)) a b =
-					PMap.foldi (fun k f m -> if cond f then PMap.add k f m else m) a b
-				in
-				let rec loop c params =
-					let m = List.fold_left (fun m (i,params) ->
-						merge m (loop i params)
-					) PMap.empty c.cl_implements in
-					let m = (match c.cl_super with
-						| None -> m
-						| Some (csup,cparams) -> merge m (loop csup cparams)
-					) in
-					let m = merge ~cond:(fun f -> should_access c f false) c.cl_fields m in
-					let m = (match c.cl_kind with
-						| KTypeParameter pl -> List.fold_left (fun acc t -> merge acc (get_fields t)) m pl
-						| _ -> m
-					) in
-					PMap.map (fun f -> { f with cf_type = apply_params c.cl_params params (opt_type f.cf_type); cf_public = true; }) m
-				in
-				loop c params
-			| TAbstract({a_impl = Some c} as a,pl) ->
-				if Meta.has Meta.CoreApi c.cl_meta then merge_core_doc ctx c;
-				let fields = try
-					let _,el,_ = Meta.get Meta.Forward a.a_meta in
-					let sl = ExtList.List.filter_map (fun e -> match fst e with
-						| EConst(Ident s) -> Some s
-						| _ -> None
-					) el in
-					let fields = get_fields (apply_params a.a_params pl a.a_this) in
-					if sl = [] then fields else PMap.fold (fun cf acc ->
-						if List.mem cf.cf_name sl then
-							PMap.add cf.cf_name cf acc
-						else
-							acc
-					) fields PMap.empty
-				with Not_found ->
-					PMap.empty
-				in
-				PMap.fold (fun f acc ->
-					if f.cf_name <> "_new" && should_access c f true && Meta.has Meta.Impl f.cf_meta && not (Meta.has Meta.Enum f.cf_meta) then begin
-						let f = prepare_using_field f in
-						let t = apply_params a.a_params pl (follow f.cf_type) in
-						PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type t } acc
-					end else
-						acc
-				) c.cl_statics fields
-			| TAnon a when PMap.is_empty a.a_fields ->
-				begin match with_type with
-				| WithType t -> get_fields t
-				| _ -> a.a_fields
-				end
-			| TAnon a ->
-				(match !(a.a_status) with
-				| Statics c ->
-					if Meta.has Meta.CoreApi c.cl_meta then merge_core_doc ctx c;
-					let is_abstract_impl = match c.cl_kind with KAbstractImpl _ -> true | _ -> false in
-					let pm = match c.cl_constructor with None -> PMap.empty | Some cf -> PMap.add "new" cf PMap.empty in
-					PMap.fold (fun f acc ->
-						if should_access c f true && (not is_abstract_impl || not (Meta.has Meta.Impl f.cf_meta) || Meta.has Meta.Enum f.cf_meta) then
-							PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type f.cf_type } acc else acc
-					) a.a_fields pm
-				| _ ->
-					a.a_fields)
-			| TFun (args,ret) ->
-				let t = opt_args args ret in
-				let cf = mk_field "bind" (tfun [t] t) p null_pos in
-				cf.cf_kind <- Method MethNormal;
-				PMap.add "bind" cf PMap.empty
-			| _ ->
-				PMap.empty
-		in
-		let fields = get_fields e.etype in
-		(*
-			add 'using' methods compatible with this type
-		*)
-		let rec loop acc = function
-			| [] -> acc
-			| (c,_) :: l ->
-				let acc = ref (loop acc l) in
-				let rec dup t = Type.map dup t in
-				List.iter (fun f ->
-					if not (Meta.has Meta.NoUsing f.cf_meta) && not (Meta.has Meta.Impl f.cf_meta) then
-					let f = { f with cf_type = opt_type f.cf_type } in
-					let monos = List.map (fun _ -> mk_mono()) f.cf_params in
-					let map = apply_params f.cf_params monos in
-					match follow (map f.cf_type) with
-					| TFun((_,_,TType({t_path=["haxe";"macro"], "ExprOf"}, [t])) :: args, ret)
-					| TFun((_,_,t) :: args, ret) ->
-						(try
-							unify_raise ctx (dup e.etype) t e.epos;
-							List.iter2 (fun m (name,t) -> match follow t with
-								| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
-									List.iter (fun tc -> unify_raise ctx m (map tc) e.epos) constr
-								| _ -> ()
-							) monos f.cf_params;
-							if not (can_access ctx c f true) || follow e.etype == t_dynamic && follow t != t_dynamic then
-								()
-							else begin
-								let f = prepare_using_field f in
-								let f = { f with cf_params = []; cf_public = true; cf_type = TFun(args,ret) } in
-								acc := PMap.add f.cf_name f (!acc)
-							end
-						with Error (Unify _,_) -> ())
-					| _ -> ()
-				) c.cl_ordered_statics;
-				!acc
-		in
-		let use_methods = match follow e.etype with TMono _ -> PMap.empty | _ -> loop (loop PMap.empty ctx.g.global_using) ctx.m.module_using in
-		let fields = PMap.fold (fun f acc -> PMap.add f.cf_name f acc) fields use_methods in
-		let fields = match fst e_ast with
-			| EConst(String s) when String.length s = 1 ->
-				let cf = mk_field "code" ctx.t.tint e.epos null_pos in
-				cf.cf_doc <- Some "The character code of this character (inlined at compile-time).";
-				cf.cf_kind <- Var { v_read = AccNormal; v_write = AccNever };
-				PMap.add cf.cf_name cf fields
-			| _ ->
-				fields
-		in
-		let fields = PMap.fold (fun f acc -> if Meta.has Meta.NoCompletion f.cf_meta then acc else f :: acc) fields [] in
-		let get_field acc f =
-			List.fold_left (fun acc f ->
-				let kind = match f.cf_kind with Method _ -> Display.FKMethod f.cf_type | Var _ -> Display.FKVar f.cf_type in
-				if f.cf_public then (f.cf_name,kind,f.cf_doc) :: acc else acc
-			) acc (f :: f.cf_overloads)
-		in
-		let fields = List.fold_left get_field [] fields in
-		let fields = try
-			let sl = string_list_of_expr_path_raise e_ast in
-			fields @ get_submodule_fields ctx (List.tl sl,List.hd sl)
-		with Exit | Not_found ->
-			fields
-		in
+		let fields = DisplayFields.collect ctx e_ast e with_type p in
 		raise (Display.DisplayFields fields)
 
 and maybe_type_against_enum ctx f with_type iscall p =
