@@ -23,21 +23,23 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 	@:hlNative("uv","stop") public function stop() : Void {
 	}
 
-	@:hlNative("uv","default_loop")
 	public static function getDefault() : Loop {
+		var def = default_loop();
+		if( loopEvent == null )
+			loopEvent = haxe.MainLoop.add(function() {
+				// if no more things to process, stop
+				if( def.run(NoWait) == 0 ) {
+					loopEvent.stop();
+					loopEvent = null;
+				}
+			});
+		return def;
+	}
+
+	@:hlNative("uv", "default_loop") static function default_loop() : Loop {
 		return null;
 	}
 
-	/**
-		Register the default loop into the main haxe loop.
-		Should be called at least once unless you want to integrate the loop update yourself.
-	**/
-	public static function register() {
-		if( initDone ) return;
-		initDone = true;
-		var def = getDefault();
-		haxe.MainLoop.add(function() def.run(NoWait));
-	}
-	static var initDone = false;
+	static var loopEvent : haxe.MainLoop.MainEvent;
 
 }
