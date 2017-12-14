@@ -21,6 +21,8 @@
  */
 package haxe.http;
 
+#if js
+
 class HttpJs extends haxe.http.HttpBase {
 	public var async:Bool;
 	public var withCredentials:Bool;
@@ -143,3 +145,5 @@ class HttpJs extends haxe.http.HttpBase {
 		return r;
 	}
 }
+
+#end
