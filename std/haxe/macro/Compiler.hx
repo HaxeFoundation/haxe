@@ -182,12 +182,13 @@ class Compiler {
 		@param strict If true and given package wasn't found in any of class paths, fail with an error.
 	**/
 	public static function include( pack : String, ?rec = true, ?ignore : Array<String>, ?classPaths : Array<String>, strict = false ) {
-		var ignore_wildcard:Bool = false;
+		var ignore_wildcard:Array<String> = [];
 		if(ignore != null) {
-			for (ignore_rule in ignore) {
-				if(StringTools.endsWith(ignore_rule, "*")) {
-					ignore_wildcard = true;
-					break;
+			var i = ignore.length;
+			while (i-- > 0) {
+				if(StringTools.endsWith(ignore[i], "*")) {
+					ignore_wildcard.push(ignore[i].substr(0, ignore[i].length-1));
+					ignore.splice(i, 1);
 				}
 			}
 		}
@@ -195,16 +196,9 @@ class Compiler {
 			function(c) return false;
 		} else {
 			function(c:String) {
-				if(ignore_wildcard) {
-					for (ignore_rule in ignore) {
-						if(StringTools.endsWith(ignore_rule, "*")) {
-							if(StringTools.startsWith(c, ignore_rule.substr(0, ignore_rule.length-1))) {
-								return true;
-							}
-						}
-					}
-				}
-				return Lambda.has(ignore, c);
+				if(Lambda.has(ignore, c)) return true;
+				for (ignore_rule in ignore_wildcard) if(StringTools.startsWith(c, ignore_rule)) return true;
+				return false;
 			}
 		}
 		var displayValue = Context.definedValue("display");
