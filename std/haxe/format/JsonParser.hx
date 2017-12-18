@@ -42,7 +42,7 @@ class JsonParser {
 		If `str` is null, the result is unspecified.
 	**/
 	static public inline function parse(str : String) : Dynamic {
-		return new JsonParser(str).parseRec();
+		return new JsonParser(str).doParse();
 	}
 
 	var str : String;
@@ -51,6 +51,20 @@ class JsonParser {
 	function new( str : String ) {
 		this.str = str;
 		this.pos = 0;
+	}
+
+	function doParse() : Dynamic {
+		var result = parseRec();
+		var c;
+		while( !StringTools.isEof(c = nextChar()) ) {
+			switch( c ) {
+				case ' '.code, '\r'.code, '\n'.code, '\t'.code:
+					// allow trailing whitespace
+				default:
+					invalidChar();
+			}
+		}
+		return result;
 	}
 
 	function parseRec() : Dynamic {
@@ -67,7 +81,7 @@ class JsonParser {
 					case ' '.code, '\r'.code, '\n'.code, '\t'.code:
 						// loop
 					case '}'.code:
-						if( field != null || comma == false || !isEndOfField() )
+						if( field != null || comma == false )
 							invalidChar();
 						return obj;
 					case ':'.code:
@@ -93,7 +107,7 @@ class JsonParser {
 					case ' '.code, '\r'.code, '\n'.code, '\t'.code:
 						// loop
 					case ']'.code:
-						if( comma == false || !isEndOfField() ) invalidChar();
+						if( comma == false ) invalidChar();
 						return arr;
 					case ','.code:
 						if( comma ) comma = false else invalidChar();
@@ -106,21 +120,21 @@ class JsonParser {
 				}
 			case 't'.code:
 				var save = pos;
-				if( nextChar() != 'r'.code || nextChar() != 'u'.code || nextChar() != 'e'.code || !isEndOfField() ) {
+				if( nextChar() != 'r'.code || nextChar() != 'u'.code || nextChar() != 'e'.code ) {
 					pos = save;
 					invalidChar();
 				}
 				return true;
 			case 'f'.code:
 				var save = pos;
-				if( nextChar() != 'a'.code || nextChar() != 'l'.code || nextChar() != 's'.code || nextChar() != 'e'.code || !isEndOfField() ) {
+				if( nextChar() != 'a'.code || nextChar() != 'l'.code || nextChar() != 's'.code || nextChar() != 'e'.code ) {
 					pos = save;
 					invalidChar();
 				}
 				return false;
 			case 'n'.code:
 				var save = pos;
-				if( nextChar() != 'u'.code || nextChar() != 'l'.code || nextChar() != 'l'.code || !isEndOfField() ) {
+				if( nextChar() != 'u'.code || nextChar() != 'l'.code || nextChar() != 'l'.code ) {
 					pos = save;
 					invalidChar();
 				}
@@ -238,12 +252,6 @@ class JsonParser {
 			if (end) break;
 		}
 
-		if (!isEndOfField()) {
-			pos++;
-			invalidNumber(start);
-			pos--;
-		}
-
 		var f = Std.parseFloat(str.substr(start, pos - start));
 		var i = Std.int(f);
 		return if( i == f ) i else f;
@@ -251,24 +259,6 @@ class JsonParser {
 
 	inline function nextChar() {
 		return StringTools.fastCodeAt(str,pos++);
-	}
-
-	function isEndOfField() {
-		var save = pos;
-		while( true ) {
-			var c = nextChar();
-			switch( c ) {
-				case ' '.code, '\r'.code, '\n'.code, '\t'.code:
-					// loop
-				case ','.code, '}'.code, ']'.code:
-					pos--;
-					return true;
-				default:
-					pos--;
-					return StringTools.isEof(c);
-			}
-		}
-		return false;
 	}
 
 	function invalidChar() {
