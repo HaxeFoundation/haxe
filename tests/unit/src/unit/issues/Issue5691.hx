@@ -13,5 +13,19 @@ class Issue5691 extends unit.Test {
 				t(true);
 			}
 		}
+		try {
+			JsonParser.parse("1e2");
+			t(true);
+		}
+		catch (e:Dynamic) {
+			t(false);
+		}
+		try {
+			JsonParser.parse("1e2.5");
+			t(false);
+		}
+		catch(e:Dynamic) {
+			t(true);
+		}
 	}
 }
