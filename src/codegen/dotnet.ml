@@ -1214,9 +1214,11 @@ let add_net_lib com file std =
 
 let before_generate com =
 	(* net version *)
-	let net_ver = try
-			int_of_string (PMap.find "net_ver" com.defines.Define.values)
-		with | Not_found ->
+	let net_ver =
+		try
+			let ver = PMap.find "net_ver" com.defines.Define.values in
+			try int_of_string ver with Failure _ -> raise (Arg.Bad "Invalid value for -D net-ver. Expected format: xx (e.g. 20, 35, 40, 45)")
+		with Not_found ->
 			Common.define_value com Define.NetVer "20";
 			20
 	in
