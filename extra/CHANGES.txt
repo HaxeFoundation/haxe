@@ -1,26 +1,32 @@
 ????-??-??: 4.0.0-preview.3
 
-	See full commit history at https://github.com/HaxeFoundation/haxe/compare/4.0.0-preview.2...4.0.0-preview.3
+	See full commit history at https://github.com/HaxeFoundation/haxe/compare/4.0.0-preview.2...4.0.0-preview.3, notable changes below:
 
 	New features:
 
-	all : added new function type notation (#6645)
+	all : added new function type syntax (`(a:Int, b:String)->Void`) (#6645)
 	all : added column to StackItem.FilePos (#6665)
 	all : added `-D warn-var-shadowing`
+	all : added haxe.Log.formatOutput (#6738)
 	js : added js.Syntax class for generating unsupported JavaScript syntax in a type-safe analyzer-friendly way
 	js : added js.Map and js.Set and js.JsIterator extern definitions (ES6)
+	hl : added hl.Format.digest, use it for native Sha1/Md5
 
 	General improvements and optimizations:
 
 	all : made all non-warning/non-error compiler messages output to stdout (#4480)
 	all : make DCE keep constructor if any instance field is kept (#6690)
 	all : fix some invalid Json being accepted by haxe.format.JsonParser (#6734)
+	all : make `final` in structures use class notation
 	php : implemented direct method comparison. No need to use `Reflect.compareMethods()`
 	php : added `php.Syntax.code()` instead of deprecated `untyped __php__()` (#6708)
 	php : added methods to `php.Syntax` for each php operator: `??`, `?:`, `**` etc. (#6708)
+	python : add basic ssl support for http requests
+	python : improve Sys.print(ln) code generation (#6184)
 	js : generate faster code for `x.iterator()` calls (#6669)
 	js : rework exception handling, added js.Lib.getOriginalException (#6713)
 	js : generate generate `value instanceof MyClass` instead of `Std.is(value, MyClass)` (#6687)
+	js : use lazy getter for HaxeError.message instead of calling String(val) in the ctor (#6754)
 
 	Removals:
 
@@ -37,6 +43,7 @@
 	all : fixed abstract `@:to` used when `from` is available in a specific case (#6751)
 	js : fixed saving setter to `tmp` var before invocation (#6672)
 	lua : fix toString behavior in the case of -0 (#6652)
+	lua : properly bind field functions when passed as arguments (#6722)
 	php : don't fail on generating import aliases for classes with the similar names (#6680)
 	php : fixed `Sys.environment()` to also return variables set by `Sys.putEnv()`
 	php : fixed `sys.net.Socket.bind()` (#6693)
