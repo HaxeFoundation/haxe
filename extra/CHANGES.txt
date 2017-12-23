@@ -21,7 +21,7 @@
 	php : implemented direct method comparison. No need to use `Reflect.compareMethods()`
 	php : added `php.Syntax.code()` instead of deprecated `untyped __php__()` (#6708)
 	php : added methods to `php.Syntax` for each php operator: `??`, `?:`, `**` etc. (#6708)
-	python : add basic ssl support for http requests
+	python : add ssl support for http requests
 	python : improve Sys.print(ln) code generation (#6184)
 	js : generate faster code for `x.iterator()` calls (#6669)
 	js : rework exception handling, added js.Lib.getOriginalException (#6713)
@@ -41,6 +41,7 @@
 	all : delay interface accessor generation properly (#6225, #6672)
 	all : fixed unbound variable error in anonymous functions (#6674)
 	all : fixed abstract `@:to` used when `from` is available in a specific case (#6751)
+	all : sys.Http: fix chunked encoding handling (#6763)
 	js : fixed saving setter to `tmp` var before invocation (#6672)
 	lua : fix toString behavior in the case of -0 (#6652)
 	lua : properly bind field functions when passed as arguments (#6722)
