@@ -1,15 +1,26 @@
 ????-??-??: 4.0.0-preview.3
 
+	See full commit history at https://github.com/HaxeFoundation/haxe/compare/4.0.0-preview.2...4.0.0-preview.3
+
 	New features:
 
 	all : added new function type notation (#6645)
+	all : added column to StackItem.FilePos (#6665)
+	all : added `-D warn-var-shadowing`
+	js : added js.Syntax class for generating unsupported JavaScript syntax in a type-safe analyzer-friendly way
+	js : added js.Map and js.Set and js.JsIterator extern definitions (ES6)
 
 	General improvements and optimizations:
 
 	all : made all non-warning/non-error compiler messages output to stdout (#4480)
+	all : make DCE keep constructor if any instance field is kept (#6690)
+	all : fix some invalid Json being accepted by haxe.format.JsonParser (#6734)
 	php : implemented direct method comparison. No need to use `Reflect.compareMethods()`
 	php : added `php.Syntax.code()` instead of deprecated `untyped __php__()` (#6708)
 	php : added methods to `php.Syntax` for each php operator: `??`, `?:`, `**` etc. (#6708)
+	js : generate faster code for `x.iterator()` calls (#6669)
+	js : rework exception handling, added js.Lib.getOriginalException (#6713)
+	js : generate generate `value instanceof MyClass` instead of `Std.is(value, MyClass)` (#6687)
 
 	Removals:
 
@@ -21,20 +32,25 @@
 
 	Bugfixes:
 
+	all : delay interface accessor generation properly (#6225, #6672)
+	all : fixed unbound variable error in anonymous functions (#6674)
+	all : fixed abstract `@:to` used when `from` is available in a specific case (#6751)
 	js : fixed saving setter to `tmp` var before invocation (#6672)
+	lua : fix toString behavior in the case of -0 (#6652)
 	php : don't fail on generating import aliases for classes with the similar names (#6680)
 	php : fixed `Sys.environment()` to also return variables set by `Sys.putEnv()`
 	php : fixed `sys.net.Socket.bind()` (#6693)
 	php : fixed appending "sqlite:" prefix to the names of files created by `sys.db.Sqlite.open()` (#6692)
 	php : made php.Lib.objectOfAssociativeArray() recursive (#6698)
 	php : fixed php error on parsing expressions like `a == b == c` (#6720)
+	eval : don't lose dynamic function inits from parent classes (#6660)
+	cs : fix order-dependent enum type parameter issue (#6016)
 
 2017-10-08: 4.0.0-preview.2
 
 	New features:
 
 	all : added final keyword (#6596)
-	all : added new function type notation (#6645)
 
 	General improvements and optimizations:
 
