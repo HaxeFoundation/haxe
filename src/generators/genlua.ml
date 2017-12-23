@@ -339,9 +339,12 @@ let gen_constant ctx p = function
     | TSuper -> assert false
 
 
-let rec is_function_type t = match follow(t) with
-        | TFun _ -> true
-        | _ -> false
+
+let rec is_function_type t =
+    match follow(t) with
+    | TFun _ -> true
+    | TAbstract({a_path=["haxe"],"Function" },_) -> true
+    | _ -> false
 
 and gen_argument ctx e = begin
     match e.eexpr with
