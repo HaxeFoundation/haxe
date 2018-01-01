@@ -2735,7 +2735,7 @@ module ClassInitializer = struct
 				if not cctx.is_lib then delay_check (fun() -> check_method set t_set (if set <> "set" && set <> "set_" ^ name then Some ("set_" ^ name) else None));
 				AccCall
 		) in
-		if set = AccNormal && (match get with AccCall -> true | _ -> false) then error (name ^ ": Unsupported property combination") p;
+		if (set = AccNormal && (match get with AccCall -> true | _ -> false)) || (set = AccNever && (match get with AccNever -> true | _ -> false))  then error (name ^ ": Unsupported property combination") p;
 		let cf = {
 			(mk_field name ret f.cff_pos (pos f.cff_name)) with
 			cf_doc = f.cff_doc;
