@@ -31,7 +31,7 @@ typedef Position = {
     var line:Int;
 
     /**
-        Character offset on a line in a document (zero-based).
+        Character offset on a line in a document (1-based).
     **/
     var character:Int;
 }
