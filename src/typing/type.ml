@@ -772,8 +772,8 @@ let extract_field = function
 
 let is_physical_var_field f =
 	match f.cf_kind with
-	| Var { v_read = AccNormal | AccInline | AccNo } | Var { v_write = AccNormal | AccNo } -> false
-	| Var _ -> not (Meta.has Meta.IsVar f.cf_meta)
+	| Var { v_read = AccNormal | AccInline | AccNo } | Var { v_write = AccNormal | AccNo } -> true
+	| Var _ -> Meta.has Meta.IsVar f.cf_meta
 	| _ -> false
 
 let is_extern_field f =
