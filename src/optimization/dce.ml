@@ -145,7 +145,7 @@ and mark_field dce c cf stat =
 			| Some (c,_) -> mark_field dce c cf stat
 		end else
 			add cf;
-		if not stat then
+		if not stat && is_physical_var_field cf then
 			match c.cl_constructor with
 				| None -> ()
 				| Some ctor -> mark_field dce c ctor false
@@ -257,6 +257,14 @@ let rec mark_dependent_fields dce csup n stat =
 		List.iter (fun d -> loop_inheritance d) c.cl_descendants;
 	in
 	loop_inheritance csup
+
+(*
+	if not stat then begin
+			match csup.cl_constructor with
+				| None -> ()
+				| Some ctor -> mark ctor
+		end
+*)
 
 (* expr and field evaluation *)
 

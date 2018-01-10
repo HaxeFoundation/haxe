@@ -790,11 +790,16 @@ let extract_field = function
 	| FAnon f | FInstance (_,_,f) | FStatic (_,f) | FClosure (_,f) -> Some f
 	| _ -> None
 
+let is_physical_var_field f =
+	match f.cf_kind with
+	| Var { v_read = AccNormal | AccInline | AccNo } | Var { v_write = AccNormal | AccNo } -> true
+	| Var _ -> Meta.has Meta.IsVar f.cf_meta
+	| _ -> false
+
 let is_physical_field f =
 	match f.cf_kind with
 	| Method _ -> true
-	| Var { v_read = AccNormal | AccInline | AccNo } | Var { v_write = AccNormal | AccNo } -> true
-	| _ -> Meta.has Meta.IsVar f.cf_meta
+	| _ -> is_physical_var_field f
 
 let field_type f =
 	match f.cf_params with
