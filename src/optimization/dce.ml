@@ -128,8 +128,8 @@ and mark_field dce c cf stat =
 			| Some (c,_) -> mark_field dce c cf stat
 		end else
 			add cf;
-		if not stat then
-			match c.cl_constructor && is_physical_var_field cf with
+		if not stat && is_physical_var_field cf then
+			match c.cl_constructor with
 				| None -> ()
 				| Some ctor -> mark_field dce c ctor false
 	end
