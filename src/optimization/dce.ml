@@ -258,14 +258,6 @@ let rec mark_dependent_fields dce csup n stat =
 	in
 	loop_inheritance csup
 
-(*
-	if not stat then begin
-			match csup.cl_constructor with
-				| None -> ()
-				| Some ctor -> mark ctor
-		end
-*)
-
 (* expr and field evaluation *)
 
 let opt f e = match e with None -> () | Some e -> f e
