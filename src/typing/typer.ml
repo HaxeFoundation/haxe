@@ -1069,7 +1069,7 @@ let rec type_ident_raise ctx i p mode =
 			(match ctx.curfield.cf_kind with
 			| Method MethInline -> ()
 			| Method _ when ctx.curfield.cf_name = "_new" -> ()
-			| _ -> error "You can only modify 'this' inside an inline function" p);
+			| _ -> error "Abstract 'this' value can only be modified inside an inline function" p);
 			AKExpr (get_this ctx p)
 		| (MCall, KAbstractImpl _) | (MGet, _)-> AKExpr(get_this ctx p)
 		| _ -> AKNo i)
