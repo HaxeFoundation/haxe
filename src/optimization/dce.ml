@@ -129,7 +129,7 @@ and mark_field dce c cf stat =
 		end else
 			add cf;
 		if not stat then
-			match c.cl_constructor with
+			match c.cl_constructor && is_physical_var_field cf with
 				| None -> ()
 				| Some ctor -> mark_field dce c ctor false
 	end
