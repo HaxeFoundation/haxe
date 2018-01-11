@@ -219,8 +219,8 @@ type compiler_callback = {
 module IdentifierType = struct
 	type t =
 		| ITLocal of tvar
-		| ITMember of tclass * tclass_field
-		| ITStatic of tclass * tclass_field
+		| ITMember of tclass_field
+		| ITStatic of tclass_field
 		| ITEnum of tenum * tenum_field
 		| ITEnumAbstract of tabstract * tclass_field
 		| ITGlobal of module_type * string * Type.t
@@ -231,7 +231,7 @@ module IdentifierType = struct
 
 	let get_name = function
 		| ITLocal v -> v.v_name
-		| ITMember(_,cf) | ITStatic(_,cf) | ITEnumAbstract(_,cf) -> cf.cf_name
+		| ITMember cf | ITStatic cf | ITEnumAbstract(_,cf) -> cf.cf_name
 		| ITEnum(_,ef) -> ef.ef_name
 		| ITGlobal(_,s,_) -> s
 		| ITType mt -> snd (t_infos mt).mt_path

@@ -35,12 +35,10 @@ let collect ctx e_ast e with_type p =
 	let merge_core_doc = !merge_core_doc_ref in
 	let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
 	let e = match e.eexpr with
-		| TField (e1,fa) ->
-			if field_name fa = "bind" then (match follow e1.etype with
-				| TFun(args,ret) -> {e1 with etype = opt_args args ret}
-				| _ -> e)
-			else
-				e
+		| TField (e1,fa) when field_name fa = "bind" ->
+			(match follow e1.etype with
+			| TFun(args,ret) -> {e1 with etype = opt_args args ret}
+			| _ -> e)
 		| _ ->
 			e
 	in

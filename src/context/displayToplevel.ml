@@ -65,7 +65,7 @@ let collect ctx only_types =
 		if ctx.curfun <> FunStatic then begin
 			let rec loop c =
 				List.iter (fun cf ->
-					if not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITMember(ctx.curclass,cf))
+					if not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITMember cf)
 				) c.cl_ordered_fields;
 				match c.cl_super with
 					| None ->
@@ -79,7 +79,7 @@ let collect ctx only_types =
 
 		(* statics *)
 		List.iter (fun cf ->
-			if not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITStatic(ctx.curclass,cf))
+			if not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITStatic cf)
 		) ctx.curclass.cl_ordered_statics;
 
 		(* enum constructors *)
