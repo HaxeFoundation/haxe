@@ -1106,7 +1106,7 @@ let write_c com file (code:code) =
 		match f.ftype with
 		| HFun (args,t) ->
 			let fname = String.concat "_" (ExtString.String.nsplit (fundecl_name f) ".") in
-			sexpr "%s %s(%s)" (ctype t) fname (String.concat "," (List.map ctype args));
+			sexpr "%s %s(%s)" (ctype t) fname (if args = [] then "void" else String.concat "," (List.map ctype args));
 			let ft = ctx.ftable.(f.findex) in
 			ft.fe_name <- fname;
 			ft.fe_args <- args;
@@ -1131,7 +1131,7 @@ let write_c com file (code:code) =
 		if Hashtbl.mem bytes_strings i then
 			sexpr "extern vbyte bytes$%d[]" i
 		else if String.length str >= string_data_limit then
-			sexpr "vbyte string$%d[]" i
+			sexpr "extern vbyte string$%d[]" i
 	) code.strings;
 
 	Hashtbl.iter (fun fid _ -> sexpr "extern vclosure cl$%d" fid) used_closures;
