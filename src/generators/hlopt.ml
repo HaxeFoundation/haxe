@@ -632,6 +632,10 @@ let optimize dump get_str (f:fundecl) =
 			| ONullCheck r ->
 				let s = state.(r) in
 				if s.rnullcheck then set_nop i "nullcheck" else begin do_read r; s.rnullcheck <- true; end;
+			| ONew r ->
+				let s = state.(r) in
+				do_write r;
+				s.rnullcheck <- true;
 			| _ ->
 				opcode_fx (fun r read ->
 					if read then do_read r else do_write r
