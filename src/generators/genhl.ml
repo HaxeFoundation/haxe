@@ -939,7 +939,9 @@ let real_name v =
 		| (Meta.RealPath,[EConst (String name),_],_) :: _ -> name
 		| _ :: l -> loop l
 	in
-	loop v.v_meta
+	match loop v.v_meta with
+	| "_gthis" -> "this"
+	| name -> name
 
 let is_gen_local v =
 	String.length v.v_name >= 2 && String.unsafe_get v.v_name 0 = '_' && String.unsafe_get v.v_name 1 = 'g'
