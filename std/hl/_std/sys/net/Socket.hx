@@ -118,7 +118,7 @@ class Socket {
 	}
 
 	function init() : Void {
-		__s = socket_new(false);
+		if( __s == null ) __s = socket_new(false);
 		input = new SocketInput(this);
 		output = new SocketOutput(this);
 	}
