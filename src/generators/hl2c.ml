@@ -134,7 +134,7 @@ let ctype t =
 	if nptr = 0 then t else t ^ String.make nptr '*'
 
 let cast_fun s args t =
-	sprintf "((%s (*)(%s))%s)" (ctype t) (String.concat "," (List.map ctype args)) s
+	sprintf "((%s (*)(%s))%s)" (ctype t) (if args = [] then "void" else String.concat "," (List.map ctype args)) s
 
 let dyn_value_field t =
 	"->v." ^ match t with
