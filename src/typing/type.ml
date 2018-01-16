@@ -776,6 +776,11 @@ let is_physical_var_field f =
 	| Var _ -> Meta.has Meta.IsVar f.cf_meta
 	| _ -> false
 
+let is_physical_field f =
+	match f.cf_kind with
+	| Method _ -> true
+	| _ -> is_physical_var_field f
+
 let is_extern_field f =
 	match f.cf_kind with
 	| Method _ -> false
