@@ -2585,10 +2585,16 @@ and type_access ctx e p mode =
 	| EField _ ->
 		handle_efield ctx e p mode
 	| EArray (e1,e2) ->
-		let e1 = type_expr ctx e1 Value in
-		let e2 = type_expr ctx e2 Value in
-		let has_abstract_array_access = ref false in
-		(try (match follow e1.etype with
+		type_array_access ctx e1 e2 p mode
+	| _ ->
+		AKExpr (type_expr ctx (e,p) Value)
+
+and type_array_access ctx e1 e2 p mode =
+	let e1 = type_expr ctx e1 Value in
+	let e2 = type_expr ctx e2 Value in
+	let has_abstract_array_access = ref false in
+	try
+		(match follow e1.etype with
 		| TAbstract ({a_impl = Some c} as a,pl) when a.a_array <> [] ->
 			begin match mode with
 			| MSet ->
@@ -2600,7 +2606,7 @@ and type_access ctx e p mode =
 				AKExpr e
 			end
 		| _ -> raise Not_found)
-		with Not_found ->
+	with Not_found ->
 		unify ctx e2.etype ctx.t.tint e2.epos;
 		let rec loop et =
 			match follow et with
@@ -2625,9 +2631,7 @@ and type_access ctx e p mode =
 				pt
 		in
 		let pt = loop e1.etype in
-		AKExpr (mk (TArray (e1,e2)) pt p))
-	| _ ->
-		AKExpr (type_expr ctx (e,p) Value)
+		AKExpr (mk (TArray (e1,e2)) pt p)
 
 and type_vars ctx vl p =
 	let vl = List.map (fun ((v,pv),t,e) ->
