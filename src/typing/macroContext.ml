@@ -669,7 +669,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			incr index;
 			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index))),p)),p)
 		) el in
-		let elt, _ = unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false in
+		let elt, _ = try unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false with e -> List.iter (fun f -> f()) (!todo); raise e; in
 		List.iter (fun f -> f()) (!todo);
 		List.map2 (fun (_,mct) e ->
 			let e, et = (match e.eexpr with
