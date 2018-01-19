@@ -185,7 +185,6 @@
     <hidden path="src\syntax\parser.cmx" />
     <hidden path="src\syntax\parser.cmi" />
     <hidden path="src\syntax\lexer.obj" />
-    <hidden path="src\syntax\lexer.ml" />
     <hidden path="src\syntax\lexer.cmx" />
     <hidden path="src\syntax\lexer.cmi" />
     <hidden path="src\syntax\ast.obj" />
@@ -427,7 +426,7 @@
   <postBuildCommand alwaysRun="False" />
   <!-- Other project options -->
   <options>
-    <option showHiddenPaths="False" />
+    <option showHiddenPaths="True" />
     <option testMovie="Custom" />
     <option testMovieCommand="" />
   </options>
