@@ -2620,8 +2620,17 @@ and type_array_access ctx e1 e2 p mode =
 				t_dynamic
 			| TAbstract(a,tl) when Meta.has Meta.ArrayAccess a.a_meta ->
 				loop (apply_params a.a_params tl a.a_this)
-			| _ ->
-				let pt = mk_mono() in
+			| t ->
+				let pt =
+					match t with
+					| TInst ({ cl_path = [],"Array"},[t]) ->
+						let t = Abstract.follow_with_abstracts t in
+						if (Common.defined ctx.com Define.Static) && (t = ctx.t.tint || t = ctx.t.tfloat || t = ctx.t.tbool) then
+							mk_mono()
+						else
+							ctx.t.tnull (mk_mono())
+					| _ -> mk_mono()
+				in
 				let t = ctx.t.tarray pt in
 				(try unify_raise ctx et t p
 				with Error(Unify _,_) -> if not ctx.untyped then begin
