@@ -2622,14 +2622,17 @@ and type_array_access ctx e1 e2 p mode =
 				loop (apply_params a.a_params tl a.a_this)
 			| t ->
 				let pt =
-					match t with
-					| TInst ({ cl_path = [],"Array"},[t]) ->
-						let t = Abstract.follow_with_abstracts t in
-						if (Common.defined ctx.com Define.Static) && (t = ctx.t.tint || t = ctx.t.tfloat || t = ctx.t.tbool) then
-							mk_mono()
-						else
-							ctx.t.tnull (mk_mono())
-					| _ -> mk_mono()
+					if mode = MSet then
+						mk_mono()
+					else
+						match t with
+						| TInst ({ cl_path = [],"Array"},[t]) ->
+							let t = Abstract.follow_with_abstracts t in
+							if (Common.defined ctx.com Define.Static) && (t = ctx.t.tint || t = ctx.t.tfloat || t = ctx.t.tbool) then
+								mk_mono()
+							else
+								ctx.t.tnull (mk_mono())
+						| _ -> mk_mono()
 				in
 				let t = ctx.t.tarray pt in
 				(try unify_raise ctx et t p
