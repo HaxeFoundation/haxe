@@ -133,8 +133,11 @@ let ctype t =
 	let t, nptr = ctype_no_ptr t in
 	if nptr = 0 then t else t ^ String.make nptr '*'
 
+let args_repr args =
+	if args = [] then "void" else String.concat "," (List.map ctype args)
+
 let cast_fun s args t =
-	sprintf "((%s (*)(%s))%s)" (ctype t) (if args = [] then "void" else String.concat "," (List.map ctype args)) s
+	sprintf "((%s (*)(%s))%s)" (ctype t) (args_repr args) s
 
 let dyn_value_field t =
 	"->v." ^ match t with
@@ -1091,7 +1094,7 @@ let write_c com file (code:code) =
 				let lib = if lib = "std" then "hl" else lib in
 				lib ^ "_" ^ code.strings.(name)
 			in
-			sexpr "HL_API %s %s(%s)" (ctype t) fname (String.concat "," (List.map ctype args));
+			sexpr "HL_API %s %s(%s)" (ctype t) fname (args_repr args);
 			let ft = ctx.ftable.(idx) in
 			ft.fe_name <- fname;
 			ft.fe_args <- args;
@@ -1106,7 +1109,7 @@ let write_c com file (code:code) =
 		match f.ftype with
 		| HFun (args,t) ->
 			let fname = String.concat "_" (ExtString.String.nsplit (fundecl_name f) ".") in
-			sexpr "%s %s(%s)" (ctype t) fname (if args = [] then "void" else String.concat "," (List.map ctype args));
+			sexpr "%s %s(%s)" (ctype t) fname (args_repr args);
 			let ft = ctx.ftable.(f.findex) in
 			ft.fe_name <- fname;
 			ft.fe_args <- args;
