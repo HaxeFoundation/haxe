@@ -396,6 +396,7 @@ let make_macro_api ctx p =
 		MacroApi.encode_expr = Interp.encode_expr;
 		MacroApi.encode_ctype = Interp.encode_ctype;
 		MacroApi.decode_type = Interp.decode_type;
+		MacroApi.typer_ctx = ctx;
 	}
 
 let rec init_macro_interp ctx mctx mint =

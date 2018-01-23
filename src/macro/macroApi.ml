@@ -54,6 +54,7 @@ type 'value compiler_api = {
 	encode_ctype : Ast.type_hint -> 'value;
 	decode_type : 'value -> t;
 	flush_context : (unit -> t) -> t;
+	typer_ctx : Typecore.typer;
 }
 
 
