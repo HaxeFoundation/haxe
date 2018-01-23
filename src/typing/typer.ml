@@ -2628,7 +2628,7 @@ and type_array_access ctx e1 e2 p mode =
 						match t with
 						| TInst ({ cl_path = [],"Array"},[t]) ->
 							let t = Abstract.follow_with_abstracts t in
-							if (Common.defined ctx.com Define.Static) && (t = ctx.t.tint || t = ctx.t.tfloat || t = ctx.t.tbool) then
+							if (Common.defined ctx.com Define.Static) && (t == ctx.t.tint || t == ctx.t.tfloat || t == ctx.t.tbool) then
 								mk_mono()
 							else
 								ctx.t.tnull (mk_mono())
