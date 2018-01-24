@@ -142,7 +142,6 @@ typedef FileOptions = {
 	@:optional var filters : Array<{ name : String, exts : Array<String> }>;
 	@:optional var filterIndex : Int;
 	@:optional var fileName : String;
-	@:optional var directory : String;
 	@:optional var title : String;
 }
 
@@ -190,10 +189,24 @@ class UI {
 	static function chooseFile( save : Bool, opts : FileOptions ) @:privateAccess {
 		var out : Dynamic = {
 		};
-		if( opts.fileName != null )
-			out.fileName = opts.fileName.bytes;
-		if( opts.directory != null )
-			out.directory = opts.directory.bytes;
+		if( opts.fileName != null ) {
+			var file = sys.FileSystem.absolutePath(opts.fileName);
+			if( Sys.systemName() == "Windows" )
+				file = file.split("/").join("\\");
+			var dir = null;
+			if( sys.FileSystem.isDirectory(file) ) {
+				dir = file;
+				file = null;
+			} else {
+				var path = new haxe.io.Path(file);
+				dir = path.dir;
+				file = path.file + (path.ext == null ? "" : "." + path.ext);
+			}
+			if( file != null )
+				out.fileName = file.bytes;
+			if( dir != null )
+				out.directory = dir.bytes;
+		}
 		if( opts.title != null )
 			out.title = opts.title.bytes;
 		if( opts.filters != null ) {
