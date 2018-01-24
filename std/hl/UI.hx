@@ -137,6 +137,15 @@ enum DialogFlags {
 	var Quit = 2;
 }
 
+typedef FileOptions = {
+	@:optional var window : Window;
+	@:optional var filters : Array<{ name : String, exts : Array<String> }>;
+	@:optional var filterIndex : Int;
+	@:optional var fileName : String;
+	@:optional var directory : String;
+	@:optional var title : String;
+}
+
 /**
 	These are the bindings for the HL `ui.hdll` library, which contains some low level system access.
 **/
@@ -168,6 +177,44 @@ class UI {
 
 	@:hlNative("ui","ui_close_console")
 	public static function closeConsole() : Void {
+	}
+
+	public static function loadFile( opts : FileOptions ) {
+		return chooseFile(false, opts);
+	}
+
+	public static function saveFile( opts : FileOptions ) {
+		return chooseFile(true, opts);
+	}
+
+	static function chooseFile( save : Bool, opts : FileOptions ) @:privateAccess {
+		var out : Dynamic = {
+		};
+		if( opts.fileName != null )
+			out.fileName = opts.fileName.bytes;
+		if( opts.directory != null )
+			out.directory = opts.directory.bytes;
+		if( opts.title != null )
+			out.title = opts.title.bytes;
+		if( opts.filters != null ) {
+			var filters = new hl.NativeArray<hl.Bytes>(opts.filters.length * 2);
+			var i = 0;
+			for( f in opts.filters ) {
+				filters[i++] = f.name.bytes;
+				filters[i++] = [for( e in f.exts ) "*."+e].join(";").bytes;
+			}
+			out.filters = filters;
+			out.filterIndex = opts.filterIndex;
+		}
+		if( opts.window != null )
+			out.window = opts.window.h;
+		var str = _chooseFile(save, out);
+		return str == null ? null : String.fromUCS2(str);
+	}
+
+	@:hlNative("ui","ui_choose_file")
+	static function _chooseFile( forSave : Bool, obj : Dynamic ) : hl.Bytes {
+		return null;
 	}
 
 }
