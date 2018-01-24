@@ -85,7 +85,7 @@ install_linux: &install_linux
   - opam install haxe --deps-only
   # Build haxe
   - git tag
-  - git fetch
+  - git fetch --tags
   - git tag
   - git checkout 4.0.0-preview.2 4.0.0-preview.2
   - git submodule update --init --recursive
