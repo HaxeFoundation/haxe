@@ -84,7 +84,10 @@ install_linux: &install_linux
   - opam pin add haxe . --no-action
   - opam install haxe --deps-only
   # Build haxe
-  - git checkout 4.0.0-preview.2
+  - git tag
+  - git fetch
+  - git tag
+  - git checkout 4.0.0-preview.2 4.0.0-preview.2
   - git submodule update --init --recursive
   - make package_src -s
   - opam config exec -- make -s STATICLINK=1 libs
