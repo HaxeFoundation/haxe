@@ -1212,4 +1212,14 @@ extern class Global {
 		@see http://php.net/manual/en/function.gzuncompress.php
 	**/
 	static function gzuncompress( data:String, ?length:Int ) : EitherType<String,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.move-uploaded-file.php
+	**/
+	static function move_uploaded_file( filename:String, destination:String ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.is-uploaded-file.php
+	**/
+	static function is_uploaded_file( filename:String ) : Bool;
 }
