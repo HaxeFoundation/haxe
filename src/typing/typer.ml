@@ -2589,6 +2589,19 @@ and type_access ctx e p mode =
 	| _ ->
 		AKExpr (type_expr ctx (e,p) Value)
 
+and should_be_nullable_array_access ctx array_type access_mode =
+	if access_mode = MSet then
+		false
+	else
+		match array_type with
+		| TInst ({ cl_path = [],"Array"},[t]) ->
+			let t = Abstract.follow_with_abstracts t in
+			if (Common.defined ctx.com Define.Static) && (t == ctx.t.tint || t == ctx.t.tfloat || t == ctx.t.tbool) then
+				false
+			else
+				true
+		| _ -> false
+
 and type_array_access ctx e1 e2 p mode =
 	let e1 = type_expr ctx e1 Value in
 	let e2 = type_expr ctx e2 Value in
@@ -2621,19 +2634,7 @@ and type_array_access ctx e1 e2 p mode =
 			| TAbstract(a,tl) when Meta.has Meta.ArrayAccess a.a_meta ->
 				loop (apply_params a.a_params tl a.a_this)
 			| t ->
-				let pt =
-					if mode = MSet then
-						mk_mono()
-					else
-						match t with
-						| TInst ({ cl_path = [],"Array"},[t]) ->
-							let t = Abstract.follow_with_abstracts t in
-							if (Common.defined ctx.com Define.Static) && (t == ctx.t.tint || t == ctx.t.tfloat || t == ctx.t.tbool) then
-								mk_mono()
-							else
-								ctx.t.tnull (mk_mono())
-						| _ -> mk_mono()
-				in
+				let pt = if should_be_nullable_array_access ctx t mode then ctx.t.tnull (mk_mono()) else mk_mono() in
 				let t = ctx.t.tarray pt in
 				(try unify_raise ctx et t p
 				with Error(Unify _,_) -> if not ctx.untyped then begin
