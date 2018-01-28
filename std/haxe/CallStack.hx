@@ -58,7 +58,7 @@ class CallStack {
 					}
 				}
 				var fileName : String = site.getFileName();
-				var fileAddr = fileName.indexOf("file:");
+				var fileAddr = fileName == null ? -1 : fileName.indexOf("file:");
 				if( wrapCallSite != null && fileAddr > 0 )
 					fileName = fileName.substr(fileAddr + 6);
 				stack.push(FilePos(method, fileName, site.getLineNumber(), site.getColumnNumber()));
