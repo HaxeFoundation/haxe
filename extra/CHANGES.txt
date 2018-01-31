@@ -140,6 +140,22 @@
 	all : added `EReg.escape` (#5098)
 	all : `BalancedTree implements `haxe.Constraints.IMap` (#6231)
 
+2018-01-31: 3.4.5
+
+	General improvements and optimizations:
+
+	dce : optimized DCE performance (#6181)
+
+	Bugfixes:
+
+	dce : don't remove constructor if any instance field is kept (#6062)
+	js : fixed saving setter to `tmp` var before invocation (#6672)
+	php7 : don't fail on generating import aliases for classes with the similar names (#6680)
+	php7 : fixed appending "sqlite:" prefix to the names of files created by `sys.db.Sqlite.open()` (#6692)
+	php7 : made php.Lib.objectOfAssociativeArray() recursive (#6698)
+	php7 : fixed php error on parsing expressions like `a == b == c` (#6720)
+	php/php7 : fixed `sys.net.Socket.bind()` (#6693)
+
 2017-10-08: 3.4.4
 
 	Bugfixes:
