@@ -12,6 +12,7 @@
 	php7 : fixed appending "sqlite:" prefix to the names of files created by `sys.db.Sqlite.open()` (#6692)
 	php7 : made php.Lib.objectOfAssociativeArray() recursive (#6698)
 	php7 : fixed php error on parsing expressions like `a == b == c` (#6720)
+	php7 : fixed `Math.min()` and `Math.max()` for NAN on PHP 7.1.9 and 7.1.10
 	php/php7 : fixed `sys.net.Socket.bind()` (#6693)
 
 2017-10-08: 3.4.4
