@@ -636,6 +636,7 @@ let rec get_class_modifiers meta cl_type cl_access cl_modifiers =
 let rec get_fun_modifiers meta access modifiers =
 	match meta with
 		| [] -> access,modifiers
+		| (Meta.Private,[],_) :: meta -> get_fun_modifiers meta "private" modifiers
 		| (Meta.Protected,[],_) :: meta -> get_fun_modifiers meta "protected" modifiers
 		| (Meta.Internal,[],_) :: meta -> get_fun_modifiers meta "internal" modifiers
 		| (Meta.ReadOnly,[],_) :: meta -> get_fun_modifiers meta access ("readonly" :: modifiers)
