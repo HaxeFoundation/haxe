@@ -2748,8 +2748,14 @@ and format_string ctx s p =
 		let scode = String.sub s (pos + 1) slen in
 		if warn_escape then warn (pos + 1) slen;
 		min := !min + 2;
-		if slen > 0 then
-			add_expr (ParserEntry.parse_expr_string ctx.com.defines scode { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } error true) slen;
+		if slen > 0 then begin
+			let e =
+				let ep = { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } in
+				try ParserEntry.parse_expr_string ctx.com.defines scode ep error true
+				with Exit -> error "Invalid interpolated expression" ep
+			in
+			add_expr e slen
+		end;
 		min := !min + 1;
 		parse (send + 1) (send + 1)
 	in
