@@ -131,6 +131,14 @@ let make_macro_api ctx p =
 	let parse_expr_string s p inl =
 		typing_timer ctx false (fun() -> try ParserEntry.parse_expr_string ctx.com.defines s p error inl with Exit -> raise MacroApi.Invalid_expr)
 	in
+	let parse_metadata s p =
+		try
+			match ParserEntry.parse_string ctx.com.defines (s ^ " typedef T = T") null_pos error false with
+			| _,[ETypedef t,_] -> t.d_meta
+			| _ -> assert false
+		with _ ->
+			error "Malformed metadata string" p
+	in
 	{
 		MacroApi.pos = p;
 		MacroApi.get_com = (fun() -> ctx.com);
@@ -229,10 +237,7 @@ let make_macro_api ctx p =
 			);
 		);
 		MacroApi.meta_patch = (fun m t f s ->
-			let m = (match ParserEntry.parse_string ctx.com.defines (m ^ " typedef T = T") null_pos error false with
-				| _,[ETypedef t,_] -> t.d_meta
-				| _ -> assert false
-			) in
+			let m = parse_metadata m p in
 			let tp = get_type_patch ctx t (match f with None -> None | Some f -> Some (f,s)) in
 			tp.tp_meta <- tp.tp_meta @ m;
 		);
@@ -367,10 +372,7 @@ let make_macro_api ctx p =
 			)
 		);
 		MacroApi.add_global_metadata = (fun s1 s2 config ->
-			let meta = (match ParserEntry.parse_string ctx.com.defines (s2 ^ " typedef T = T") null_pos error false with
-				| _,[ETypedef t,_] -> t.d_meta
-				| _ -> assert false
-			) in
+			let meta = parse_metadata s2 p in
 			List.iter (fun m ->
 				ctx.g.global_metadata <- (ExtString.String.nsplit s1 ".",m,config) :: ctx.g.global_metadata;
 			) meta;
