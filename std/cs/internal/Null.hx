@@ -46,6 +46,10 @@ package cs.internal;
 			private __NoValue__() {}
 		}
 
+		override public string ToString() {
+			if (!hasValue) return "null";
+			else return value.ToString();
+		}
 ')
 #if core_api_serialize
 @:meta(System.Serializable)
