@@ -2596,7 +2596,7 @@ and should_be_nullable_array_access ctx array_type access_mode =
 		match array_type with
 		| TInst ({ cl_path = [],"Array"},[t]) ->
 			let t = Abstract.follow_with_abstracts t in
-			if (Common.defined ctx.com Define.Static) && (t == ctx.t.tint || t == ctx.t.tfloat || t == ctx.t.tbool) then
+			if (Common.defined ctx.com Define.Static) && (type_has_meta t Meta.NotNull) then
 				false
 			else
 				true
