@@ -2475,13 +2475,13 @@ module TExprToExpr = struct
 			CTPath {
 				tpackage = fst p;
 				tname = snd p;
-				tparams = List.map (fun t -> TPType t) pl;
+				tparams = pl;
 				tsub = None;
 			}
 		else CTPath {
 				tpackage = fst mp;
 				tname = snd mp;
-				tparams = List.map (fun t -> TPType t) pl;
+				tparams = pl;
 				tsub = Some (snd p);
 			}
 
@@ -2497,26 +2497,28 @@ module TExprToExpr = struct
 			CTPath {
 				tpackage = [];
 				tname = name;
-				tparams = List.map (fun t -> TPType (convert_type' t)) tl;
+				tparams = List.map tparam tl;
 				tsub = None;
 			}
 		| TEnum (e,pl) ->
-			tpath e.e_path e.e_module.m_path (List.map convert_type' pl)
+			tpath e.e_path e.e_module.m_path (List.map tparam pl)
+		| TInst({cl_kind = KExpr e} as c,pl) ->
+			tpath ([],snd c.cl_path) ([],snd c.cl_path) (List.map tparam pl)
 		| TInst({cl_kind = KTypeParameter _} as c,pl) ->
-			tpath ([],snd c.cl_path) ([],snd c.cl_path) (List.map convert_type' pl)
+			tpath ([],snd c.cl_path) ([],snd c.cl_path) (List.map tparam pl)
 		| TInst (c,pl) ->
-			tpath c.cl_path c.cl_module.m_path (List.map convert_type' pl)
+			tpath c.cl_path c.cl_module.m_path (List.map tparam pl)
 		| TType (t,pl) as tf ->
 			(* recurse on type-type *)
-			if (snd t.t_path).[0] = '#' then convert_type (follow tf) else tpath t.t_path t.t_module.m_path (List.map convert_type' pl)
+			if (snd t.t_path).[0] = '#' then convert_type (follow tf) else tpath t.t_path t.t_module.m_path (List.map tparam pl)
 		| TAbstract (a,pl) ->
-			tpath a.a_path a.a_module.m_path (List.map convert_type' pl)
+			tpath a.a_path a.a_module.m_path (List.map tparam pl)
 		| TFun (args,ret) ->
 			CTFunction (List.map (fun (_,_,t) -> convert_type' t) args, (convert_type' ret))
 		| TAnon a ->
 			begin match !(a.a_status) with
-			| Statics c -> tpath ([],"Class") ([],"Class") [tpath c.cl_path c.cl_path [],null_pos]
-			| EnumStatics e -> tpath ([],"Enum") ([],"Enum") [tpath e.e_path e.e_path [],null_pos]
+			| Statics c -> tpath ([],"Class") ([],"Class") [TPType (tpath c.cl_path c.cl_path [],null_pos)]
+			| EnumStatics e -> tpath ([],"Enum") ([],"Enum") [TPType (tpath e.e_path e.e_path [],null_pos)]
 			| _ ->
 				CTAnonymous (PMap.foldi (fun _ f acc ->
 					{
@@ -2530,12 +2532,16 @@ module TExprToExpr = struct
 				) a.a_fields [])
 			end
 		| (TDynamic t2) as t ->
-			tpath ([],"Dynamic") ([],"Dynamic") (if t == t_dynamic then [] else [convert_type' t2])
+			tpath ([],"Dynamic") ([],"Dynamic") (if t == t_dynamic then [] else [tparam t2])
 		| TLazy f ->
 			convert_type (lazy_type f)
 
 	and convert_type' t =
 		convert_type t,null_pos
+
+	and tparam = function
+		| TInst ({cl_kind = KExpr e}, _) -> TPExpr e
+		| t -> TPType (convert_type' t)
 
 	and mk_type_hint t p =
 		match follow t with

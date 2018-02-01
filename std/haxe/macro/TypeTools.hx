@@ -146,13 +146,20 @@ class TypeTools {
 		#end
 	}
 
+	static function toTypeParam(type : Type) : TypeParam return {
+		switch (type) {
+			case TInst(_.get() => {kind: KExpr(e)}, _): TPExpr(e);
+			case _: TPType(toComplexType(type));
+		}
+	}
+
 	static function toTypePath(baseType : BaseType, params : Array<Type>) : TypePath return {
 		var module = baseType.module;
 		{
 			pack: baseType.pack,
 			name: module.substring(module.lastIndexOf(".") + 1),
 			sub: baseType.name,
-			params: [ for (t in params) TPType(toComplexType(t)) ],
+			params: [ for (t in params) toTypeParam(t) ],
 		}
 	}
 
