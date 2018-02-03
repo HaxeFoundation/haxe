@@ -356,6 +356,7 @@ let generate_reflection ctx =
 		| HUI8 | HUI16 | HBool | HI32 -> "i"
 		| HF32 -> "f"
 		| HF64 -> "d"
+		| HI64 -> "i64"
 		| _ -> "p"
 	in
 	let make_wrap_name args t =
@@ -460,6 +461,7 @@ let generate_function ctx f =
 		| HUI8 | HUI16 | HI32 | HBool -> "i"
 		| HF32 -> "f"
 		| HF64 -> "d"
+		| HI64 -> "i64"
 		| _ -> "p"
 	in
 
