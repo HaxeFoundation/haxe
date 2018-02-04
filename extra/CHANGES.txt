@@ -22,6 +22,7 @@
 	php : added `php.Syntax.code()` instead of deprecated `untyped __php__()` (#6708)
 	php : added methods to `php.Syntax` for each php operator: `??`, `?:`, `**` etc. (#6708)
 	php : fixed multiple file uploads in php.Web.parseMultiPart() (#4173)
+	php : fixed an issue with "Object" used as a class name for PHP 7.2 (it's a new keyword in php) (#6838)
 	python : add ssl support for http requests
 	python : improve Sys.print(ln) code generation (#6184)
 	js : generate faster code for `x.iterator()` calls (#6669)

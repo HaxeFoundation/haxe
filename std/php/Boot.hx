@@ -245,7 +245,7 @@ class Boot {
 					| "print" | "private" | "protected" | "public" | "require" | "require_once" | "return" | "static" | "switch"
 					| "throw" | "trait" | "try" | "unset" | "use" | "var" | "while" | "xor" | "yield" | "__class__" | "__dir__"
 					| "__file__" | "__function__" | "__line__" | "__method__" | "__trait__" | "__namespace__" | "int" | "float"
-					| "bool" | "string" | "true" | "false" | "null" | "parent" | "void" | "iterable":
+					| "bool" | "string" | "true" | "false" | "null" | "parent" | "void" | "iterable" | "object":
 						part += '_hx';
 				case _:
 			}
