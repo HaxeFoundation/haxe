@@ -135,7 +135,7 @@ let is_to_string t =
 	| _ -> false
 
 let is_extern_field f =
-	not (Type.is_physical_field f) || (match f.cf_kind with Method MethNormal -> List.exists (fun (m,_,_) -> m = Meta.Custom ":hlNative") f.cf_meta | _ -> false) || Meta.has Meta.Extern f.cf_meta
+	not (Type.is_physical_field f) || (match f.cf_kind with Method MethNormal -> List.exists (fun (m,_,_) -> m = Meta.HlNative) f.cf_meta | _ -> false) || Meta.has Meta.Extern f.cf_meta
 
 let is_array_class name =
 	match name with
@@ -3122,13 +3122,13 @@ let generate_static ctx c f =
 			));
 		in
 		let rec loop = function
-			| (Meta.Custom ":hlNative",[(EConst(String(lib)),_);(EConst(String(name)),_)] ,_ ) :: _ ->
+			| (Meta.HlNative,[(EConst(String(lib)),_);(EConst(String(name)),_)] ,_ ) :: _ ->
 				add_native lib name
-			| (Meta.Custom ":hlNative",[(EConst(String(lib)),_)] ,_ ) :: _ ->
+			| (Meta.HlNative,[(EConst(String(lib)),_)] ,_ ) :: _ ->
 				add_native lib f.cf_name
-			| (Meta.Custom ":hlNative",[] ,_ ) :: _ ->
+			| (Meta.HlNative,[] ,_ ) :: _ ->
 				add_native "std" f.cf_name
-			| (Meta.Custom ":hlNative",_ ,p) :: _ ->
+			| (Meta.HlNative,_ ,p) :: _ ->
 				abort "Invalid @:hlNative decl" p
 			| [] ->
 				ignore(make_fun ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> abort "Missing function body" f.cf_pos) None None)
@@ -3184,7 +3184,7 @@ let generate_type ctx t =
 		List.iter (fun f ->
 			List.iter (fun (name,args,pos) ->
 				match name with
-				| Meta.Custom ":hlNative" -> generate_static ctx c f
+				| Meta.HlNative -> generate_static ctx c f
 				| _ -> ()
 			) f.cf_meta
 		) c.cl_ordered_statics
@@ -3771,7 +3771,7 @@ let add_types ctx types =
 			in
 			if not ctx.is_macro then List.iter (fun f -> ignore(loop c.cl_super f)) c.cl_overrides;
 			List.iter (fun (m,args,p) ->
-				if m = Meta.Custom ":hlNative" then
+				if m = Meta.HlNative then
 					let lib, prefix = (match args with
 					| [(EConst (String lib),_)] -> lib, ""
 					| [(EConst (String lib),_);(EConst (String p),_)] -> lib, p
@@ -3780,11 +3780,11 @@ let add_types ctx types =
 					(* adds :hlNative for all empty methods *)
 					List.iter (fun f ->
 						match f.cf_kind with
-						| Method MethNormal when not (List.exists (fun (m,_,_) -> m = Meta.Custom ":hlNative") f.cf_meta) ->
+						| Method MethNormal when not (List.exists (fun (m,_,_) -> m = Meta.HlNative) f.cf_meta) ->
 							(match f.cf_expr with
 							| Some { eexpr = TFunction { tf_expr = { eexpr = TBlock ([] | [{ eexpr = TReturn (Some { eexpr = TConst _ })}]) } } } | None ->
 								let name = prefix ^ String.lowercase (Str.global_replace (Str.regexp "[A-Z]+") "_\\0" f.cf_name) in
-								f.cf_meta <- (Meta.Custom ":hlNative", [(EConst (String lib),p);(EConst (String name),p)], p) :: f.cf_meta;
+								f.cf_meta <- (Meta.HlNative, [(EConst (String lib),p);(EConst (String name),p)], p) :: f.cf_meta;
 							| _ -> ())
 						| _ -> ()
 					) c.cl_ordered_statics
