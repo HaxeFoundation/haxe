@@ -1,3 +1,9 @@
+2018-XX-XX: 3.4.6
+
+	Bugfixes:
+
+	php7 : fixed an issue with "Object" used as a class name for PHP 7.2 (it's a new keyword in php) (#6838)
+
 2018-01-31: 3.4.5
 
 	General improvements and optimizations:
