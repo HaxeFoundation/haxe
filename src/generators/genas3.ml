@@ -75,7 +75,7 @@ let is_fixed_override cf t =
 
 let protect name =
 	match name with
-	| "Error" | "Namespace" -> "_" ^ name
+	| "Error" | "Namespace" | "Object" -> "_" ^ name
 	| _ -> name
 
 let s_path ctx stat path p =
@@ -123,7 +123,7 @@ let reserved =
 	(* we don't include get+set since they are not 'real' keywords, but they can't be used as method names *)
 	"function";"class";"var";"if";"else";"while";"do";"for";"break";"continue";"return";"extends";"implements";
 	"import";"switch";"case";"default";"static";"public";"private";"try";"catch";"new";"this";"throw";"interface";
-	"override";"package";"null";"true";"false";"void";"object"
+	"override";"package";"null";"true";"false";"void"
 	];
 	h
 
