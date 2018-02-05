@@ -38,7 +38,7 @@ import haxe.ds.List;
 	or may not work for instances of external/native classes.
 
 	The specification of the serialization format can be found here:
-	<https://haxe.org/manual/serialization/format>
+	<https://haxe.org/manual/std-serialization-format.html>
 **/
 class Serializer {
 
