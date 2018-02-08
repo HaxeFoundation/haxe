@@ -67,8 +67,8 @@ class Boot {
 	}
 
 	/**
-		Returns root namespace based on a value of `--php-prefix` compiler flag.
-		Returns empty string if no `--php-prefix` provided.
+		Returns root namespace based on a value of `-D php-prefix=value` compiler flag.
+		Returns empty string if no `-D php-prefix=value` provided.
 	**/
 	public static function getPrefix() : String {
 		return Syntax.code('self::PHP_PREFIX');
