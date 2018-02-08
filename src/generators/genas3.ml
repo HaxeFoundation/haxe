@@ -75,7 +75,7 @@ let is_fixed_override cf t =
 
 let protect name =
 	match name with
-	| "Error" | "Namespace" -> "_" ^ name
+	| "Error" | "Namespace" | "Object" -> "_" ^ name
 	| _ -> name
 
 let s_path ctx stat path p =

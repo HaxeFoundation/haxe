@@ -80,7 +80,13 @@ enum ValueType {
 		#end
 		default:
 		}
-		return str.split("::").join(".");
+		var parts = str.split("::");
+		#if as3
+		if(parts[parts.length - 1] == "_Object") {
+			parts[parts.length - 1] = "Object";
+		}
+		#end
+		return parts.join(".");
 	}
 
 	public static function getEnumName( e : Enum<Dynamic> ) : String {
