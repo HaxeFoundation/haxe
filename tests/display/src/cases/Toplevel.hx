@@ -199,6 +199,26 @@ class Toplevel extends DisplayTestCase {
 		eq(false, hasToplevel(toplevel(pos(1)), "static", "test"));
 	}
 
+	/**
+	class Parent {
+		function parent() {
+			{-1-}
+		}
+	}
+	class Child extends Parent {
+		function child() {
+			{-2-}
+		}
+	}
+	**/
+	function testThisSuper() {
+		eq(true, hasToplevel(toplevel(pos(1)), "literal", "this"));
+		eq(false, hasToplevel(toplevel(pos(1)), "literal", "super"));
+
+		eq(true, hasToplevel(toplevel(pos(2)), "literal", "this"));
+		eq(true, hasToplevel(toplevel(pos(2)), "literal", "super"));
+	}
+
 	public static function hasToplevel(a:Array<ToplevelElement>, kind:String, name:String):Bool {
 		return a.exists(function(t) return t.kind == kind && t.name == name);
 	}

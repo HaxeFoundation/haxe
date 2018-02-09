@@ -122,6 +122,10 @@ let collect ctx only_types =
 		add (ITLiteral "null");
 		add (ITLiteral "true");
 		add (ITLiteral "false");
+		add (ITLiteral "this");
+		match ctx.curclass.cl_super with
+			| Some _ -> add (ITLiteral "super")
+			| None -> ()
 	end;
 
 	let module_types = ref [] in
