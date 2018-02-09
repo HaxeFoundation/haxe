@@ -294,9 +294,6 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 					let t = apply_params cl.cl_params params (TInst (csup,pl)) in
 					loop t);
 				tl := t :: !tl;
-			| TEnum(en,(_ :: _ as tl2)) ->
-				tl := (TEnum(en,List.map (fun _ -> t_dynamic) tl2)) :: !tl;
-				tl := t :: !tl;
 			| TType (td,pl) ->
 				loop (apply_params td.t_params pl td.t_type);
 				(* prioritize the most generic definition *)
