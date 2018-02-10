@@ -188,6 +188,20 @@ module Pattern = struct
 				ctx.locals <- PMap.add name v ctx.locals;
 				v
 		in
+		let is_list_repr en =
+			Meta.has (Meta.Custom ":listRepr") en.e_meta && List.length en.e_names >= 2
+		in
+		let make_ident en id p =
+			let path = [id] in
+			let path = if snd en.e_path <> snd en.e_module.m_path then snd en.e_path :: path else path in
+			let path = List.rev (fst en.e_module.m_path @ snd en.e_module.m_path :: path) in
+			let rec loop = function
+				| [] -> assert false
+				| [id] -> (EConst (Ident id), p)
+				| f :: fl -> (EField (loop fl, f), p)
+			in
+			loop path
+		in
 		let con_enum en ef p =
 			Display.DeprecationCheck.check_enum pctx.ctx.com en p;
 			Display.DeprecationCheck.check_ef pctx.ctx.com ef p;
@@ -374,6 +388,26 @@ module Pattern = struct
 							make pctx false t2 e
 						) el in
 						PatConstructor(ConArray (List.length patterns),patterns)
+					| TEnum (en,etl) when is_list_repr en ->
+						(* convert array into enum pattern *)
+						let p = snd e in
+						let tl, hd = (match en.e_names with tl :: hd :: _ -> tl, hd | _ -> assert false) in
+						let rec build = function
+							| [] -> make_ident en tl p
+							| e :: el -> (ECall (make_ident en hd (snd e),[e;build el]),snd e)
+						in
+						loop (build el)
+					| TAbstract (a,atl) ->
+						(match follow a.a_this with
+						| TEnum (en,_) when is_list_repr en ->
+							let p = snd e in
+							let tl, hd = (match en.e_names with tl :: hd :: _ -> tl, hd | _ -> assert false) in
+							let rec build = function
+								| [] -> make_ident en tl p
+								| e :: el -> (ECall (make_ident en hd (snd e),[e;build el]),snd e)
+							in
+							loop (build el)
+						| _ -> fail());
 					| _ ->
 						fail()
 				end
@@ -462,6 +496,20 @@ module Pattern = struct
 				restore();
 				let pat = make pctx toplevel e1.etype e2 in
 				PatExtractor(v,e1,pat)
+			| EBinop(OpList,e1,e2) ->
+				(match follow t with
+				| TEnum (en,etl) when is_list_repr en ->
+					(* convert array into enum pattern *)
+					let tl, hd = (match en.e_names with tl :: hd :: _ -> tl, hd | _ -> assert false) in
+					loop (ECall (make_ident en hd (snd e),[e1;e2]),snd e)
+				| TAbstract (a, _) ->
+					(match follow a.a_this with
+					| TEnum (en,_) when is_list_repr en ->
+						let tl, hd = (match en.e_names with tl :: hd :: _ -> tl, hd | _ -> assert false) in
+						loop (ECall (make_ident en hd (snd e),[e1;e2]),snd e)
+					| _ -> fail());
+				| _ ->
+					fail())
 			| EDisplay(e,iscall) ->
 				let pat = loop e in
 				let _ = if iscall then Typer.handle_signature_display ctx e (WithType t)
