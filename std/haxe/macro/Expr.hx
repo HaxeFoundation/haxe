@@ -217,6 +217,11 @@ enum Binop {
 		`in`
 	**/
 	OpIn;
+	
+	/**
+		`::`
+	**/
+	OpList;
 }
 
 /**

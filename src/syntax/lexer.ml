@@ -325,6 +325,7 @@ let rec token lexbuf =
 	| ">" -> mk lexbuf (Binop OpGt)
 	| ";" -> mk lexbuf Semicolon
 	| ":" -> mk lexbuf DblDot
+	| "::" -> mk lexbuf (Binop OpList)
 	| "," -> mk lexbuf Comma
 	| "." -> mk lexbuf Dot
 	| "%" -> mk lexbuf (Binop OpMod)

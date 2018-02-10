@@ -89,6 +89,7 @@ type binop =
 	| OpInterval
 	| OpArrow
 	| OpIn
+	| OpList
 
 type unop =
 	| Increment
@@ -441,6 +442,7 @@ let rec s_binop = function
 	| OpInterval -> "..."
 	| OpArrow -> "=>"
 	| OpIn -> " in "
+	| OpList -> "::"
 
 let s_unop = function
 	| Increment -> "++"

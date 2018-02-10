@@ -917,7 +917,7 @@ let standard_precedence op =
 	match op with
 	| OpIn -> 4, right
 	| OpMult | OpDiv | OpMod -> 5, left
-	| OpAdd | OpSub -> 6, left
+	| OpAdd | OpSub | OpList -> 6, left
 	| OpShl | OpShr | OpUShr -> 7, left
 	| OpLt | OpLte | OpGt | OpGte -> 8, left
 	| OpEq | OpNotEq -> 9, left

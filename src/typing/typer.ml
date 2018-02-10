@@ -2055,6 +2055,8 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 		error "Unexpected =>" p
 	| OpIn ->
 		error "Unexpected in" p
+	| OpList ->
+		error "Unexpected ::" p
 	| OpAssign
 	| OpAssignOp _ ->
 		assert false

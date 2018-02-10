@@ -65,6 +65,7 @@ let reify in_macro =
 		| OpInterval -> op "OpInterval"
 		| OpArrow -> op "OpArrow"
 		| OpIn -> op "OpIn"
+		| OpList -> op "OpList"
 	in
 	let to_string s p =
 		let len = String.length s in

@@ -136,7 +136,7 @@ let precedence op =
 	| OpIn -> 0, right
 	| OpMod -> 1, left
 	| OpMult | OpDiv -> 2, left
-	| OpAdd | OpSub -> 3, left
+	| OpAdd | OpSub | OpList -> 3, left
 	| OpShl | OpShr | OpUShr -> 4, left
 	| OpOr | OpAnd | OpXor -> 5, left
 	| OpEq | OpNotEq | OpGt | OpLt | OpGte | OpLte -> 6, left

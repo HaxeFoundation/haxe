@@ -606,6 +606,7 @@ module Fusion = struct
 		| OpShl
 		| OpShr
 		| OpUShr
+		| OpList
 		| OpMod ->
 			true
 		| OpAssign

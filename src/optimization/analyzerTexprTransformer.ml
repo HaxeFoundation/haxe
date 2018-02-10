@@ -727,7 +727,7 @@ and func ctx i =
 			let e2 = loop e2 in
 			let e3 = loop e3 in
 			let is_valid_assign_op = function
-				| OpAdd | OpMult | OpDiv | OpSub | OpAnd
+				| OpAdd | OpMult | OpDiv | OpSub | OpAnd | OpList
 				| OpOr | OpXor | OpShl | OpShr | OpUShr | OpMod ->
 					true
 				| OpAssignOp _ | OpInterval | OpArrow | OpIn | OpAssign | OpEq
