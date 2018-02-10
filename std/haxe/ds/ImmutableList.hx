@@ -8,6 +8,7 @@ package haxe.ds;
 /**
 	Immutable list
 **/
+#if ml extern #end
 abstract ImmutableList<T>(ListRepr<T>) from ListRepr<T> to ListRepr<T> {
 
 	@:op(a :: b) static inline function prepend<T>( v : T, a : ImmutableList<T> ) : ImmutableList<T> {
@@ -34,7 +35,7 @@ abstract ImmutableList<T>(ListRepr<T>) from ListRepr<T> to ListRepr<T> {
 		return l;
 	}
 		
-	function toString() {
+	function toString() : String {
 		var a = toArray();
 		return Std.string(a);
 	}
