@@ -3109,6 +3109,8 @@ let generate con =
 
 		UnreachableCodeEliminationSynf.configure gen false;
 
+		ArraySpliceOptimization.configure gen;
+
 		ArrayDeclSynf.configure gen native_arr_cl change_param_type;
 
 		CSharpSpecificSynf.configure gen runtime_cl;
