@@ -478,6 +478,7 @@ let short_platform_name = function
 	| Python -> "py"
 	| Hl -> "hl"
 	| Eval -> "evl"
+	| Ml -> "ml"
 
 let stats =
 	{
@@ -585,6 +586,8 @@ let get_config com =
 			pf_static = false;
 			pf_pad_nulls = true;
 		}
+	| Ml ->
+		default_config
 
 let memory_marker = [|Unix.time()|]
 

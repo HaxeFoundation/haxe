@@ -78,7 +78,7 @@ let error ctx msg p =
 	ctx.has_error <- true
 
 let reserved_flags = [
-	"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
+	"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";"ml";
 	"as3";"swc";"macro";"sys";"static"
 	]
 
@@ -269,6 +269,9 @@ module Initialize = struct
 			| Eval ->
 				add_std "eval";
 				"eval"
+			| Ml ->
+				add_std "ml";
+				"ml"
 end
 
 let generate tctx ext xml_out interp swf_header =
@@ -318,6 +321,8 @@ let generate tctx ext xml_out interp swf_header =
 			Genpy.generate,"python"
 		| Hl ->
 			Genhl.generate,"hl"
+		| Ml ->
+			Genml.generate,"ml"
 		| Eval ->
 			(fun _ -> MacroContext.interpret tctx),"eval"
 		| Cross ->
@@ -497,6 +502,9 @@ try
 		("-hl",Arg.String (fun file ->
 			Initialize.set_platform com Hl file;
 		),"<file> : compile HL code as target file");
+		("-ml",Arg.String (fun dir ->
+			Initialize.set_platform com Ml dir;
+		),"<directory> : generate OCaml code into target directory");
 		("-xml",Arg.String (fun file ->
 			Parser.use_doc := true;
 			xml_out := Some file

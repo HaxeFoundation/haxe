@@ -20,6 +20,7 @@ type platform =
 	| Python
 	| Hl
 	| Eval
+	| Ml
 
 let version = 4000
 let version_major = version / 1000
@@ -42,6 +43,7 @@ let platforms = [
 	Python;
 	Hl;
 	Eval;
+	Ml;
 ]
 
 let platform_name = function
@@ -57,6 +59,7 @@ let platform_name = function
 	| Python -> "python"
 	| Hl -> "hl"
 	| Eval -> "eval"
+	| Ml -> "ml"
 
 let platform_list_help = function
 	| [] -> ""
