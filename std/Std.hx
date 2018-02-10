@@ -96,7 +96,8 @@ extern class Std {
 		Leading 0s that are not part of the 0x/0X hexadecimal notation are ignored, which means octal
 		notation is not supported.
 
-		If the input cannot be recognized, the result is `null`.
+		If `x` is null, the result is unspecified.
+		If `x` cannot be parsed as integer, the result is `null`.
 	**/
 	public static function parseInt( x : String ) : Null<Int>;
 
