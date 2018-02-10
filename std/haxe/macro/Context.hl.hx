@@ -27,7 +27,7 @@ import haxe.macro.Type.TypedExpr;
 @:noDoc @:hlNative("macro")
 class Context {
 
-#if macro
+#if (macro || display)
 
 	public static function error( msg : String, pos : Position ) : Dynamic {
 		return null;

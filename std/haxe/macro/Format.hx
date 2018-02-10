@@ -28,7 +28,7 @@ import haxe.macro.Context;
 **/
 class Format {
 
-	#if macro
+	#if (macro || display)
 	public static function format( estr : Expr ) {
 		var str = switch( estr.expr ) {
 			case EConst(c): switch(c) { case CString(s): s; default: null; }
