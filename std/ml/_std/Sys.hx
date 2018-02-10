@@ -1,5 +1,5 @@
 
 extern class Sys {
 
-	static function print( s : String ) : Void;
+	@:mlNative("Pervasives.print_string") static function print( s : String ) : Void;
 }
