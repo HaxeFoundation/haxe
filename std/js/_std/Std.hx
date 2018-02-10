@@ -43,6 +43,9 @@ import js.Boot;
 
 	@:pure
 	public static function parseInt( x : String ) : Null<Int> {
+		if ( x == null ) {
+			return null;
+		}
 		var v = untyped __js__("parseInt")(x, 10);
 		// parse again if hexadecimal
 		if( v == 0 && (x.charCodeAt(1) == 'x'.code || x.charCodeAt(1) == 'X'.code) )
