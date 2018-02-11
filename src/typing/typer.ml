@@ -1858,7 +1858,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			| _ ->
 				Value
 		in
-		if wt = Value && op = OpList then
+		if op = OpList && (match wt with Value | NoValue -> true | WithType t -> (match follow t with TAbstract ({ a_path = ["haxe";"ds"], "ImmutableList" },_) -> true | _ -> false)) then
 			type_expr ctx (ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"ds"),p),"ImmutableList"),p),"prepend"),p),[e1;e2]),p) Value
 		else
 		let e1 = type_expr ctx e1 wt in
