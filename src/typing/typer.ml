@@ -1858,6 +1858,9 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			| _ ->
 				Value
 		in
+		if wt = Value && op = OpList then
+			type_expr ctx (ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"ds"),p),"ImmutableList"),p),"prepend"),p),[e1;e2]),p) Value
+		else
 		let e1 = type_expr ctx e1 wt in
 		type_binop2 ctx op e1 e2 is_assign_op wt p
 
