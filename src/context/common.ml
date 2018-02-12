@@ -1036,7 +1036,7 @@ let rec mkdir_recursive base dir_list =
 		in
 		let path_len = String.length path in
 		let path =
-			if path_len > 0 && path.[path_len - 1] = '/' || path.[path_len - 1] == '\\' then
+			if path_len > 0 && (path.[path_len - 1] = '/' || path.[path_len - 1] == '\\') then
 				String.sub path 0 (path_len - 1)
 			else
 				path
