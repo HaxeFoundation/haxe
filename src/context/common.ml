@@ -1034,7 +1034,14 @@ let rec mkdir_recursive base dir_list =
 				   | "/" -> "/" ^ dir
 				   | _ -> base ^ "/" ^ dir
 		in
-		if not ( (path = "") || ( ((String.length path) = 2) && ((String.sub path 1 1) = ":") ) ) then
+		let path_len = String.length path in
+		let path =
+			if path_len > 0 && path.[path_len - 1] = '/' || path.[path_len - 1] == '\\' then
+				String.sub path 0 (path_len - 1)
+			else
+				path
+		in
+		if not ( (path = "") || ( (path_len = 2) && ((String.sub path 1 1) = ":") ) ) then
 			if not (Sys.file_exists path) then
 				Unix.mkdir path 0o755;
 		mkdir_recursive (if (path = "") then "/" else path) remaining
