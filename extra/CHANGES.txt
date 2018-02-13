@@ -17,6 +17,8 @@
 	all : made all non-warning/non-error compiler messages output to stdout (#4480)
 	all : make DCE keep constructor if any instance field is kept (#6690)
 	all : make `final` in structures use class notation
+	all : type array read access on `Array<T>` as `Null<T>` instead of just `T` for nullable `T`s (#6825)
+	display : added `this` and `super` to toplevel completion (#6051)
 	php : implemented direct method comparison. No need to use `Reflect.compareMethods()`
 	php : added `php.Syntax.code()` instead of deprecated `untyped __php__()` (#6708)
 	php : added methods to `php.Syntax` for each php operator: `??`, `?:`, `**` etc. (#6708)
@@ -79,7 +81,7 @@
 	Bugfixes:
 
 	all : fixed issue with various functions not being displayed in macro context (#6000)
-	all : fixed invalid  static extension lookup on `super` (#3607)
+	all : fixed invalid static extension lookup on `super` (#3607)
 	all : fixed typing error when constructing enums with abstracts over functions (#6609)
 	all : fixed bug that skipped checking @:from typing in some cases (#6564)
 	all : fixed Int64 parsing of negative numbers that end in a zero (#5493)
