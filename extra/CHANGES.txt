@@ -17,7 +17,6 @@
 	all : made all non-warning/non-error compiler messages output to stdout (#4480)
 	all : make DCE keep constructor if any instance field is kept (#6690)
 	all : make `final` in structures use class notation
-	all : type array read access on `Array<T>` as `Null<T>` instead of just `T` for nullable `T`s (#6825)
 	display : added `this` and `super` to toplevel completion (#6051)
 	php : implemented direct method comparison. No need to use `Reflect.compareMethods()`
 	php : added `php.Syntax.code()` instead of deprecated `untyped __php__()` (#6708)
