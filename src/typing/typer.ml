@@ -2614,6 +2614,7 @@ and type_array_access ctx e1 e2 p mode =
 		| _ -> raise Not_found)
 	with Not_found ->
 		unify ctx e2.etype ctx.t.tint e2.epos;
+		let is_nullable = ref false in
 		let rec loop et =
 			match follow et with
 			| TInst ({ cl_array_access = Some t; cl_params = pl },tl) ->
@@ -2627,7 +2628,9 @@ and type_array_access ctx e1 e2 p mode =
 			| TAbstract(a,tl) when Meta.has Meta.ArrayAccess a.a_meta ->
 				loop (apply_params a.a_params tl a.a_this)
 			| t ->
-				let pt = if should_be_nullable_array_access ctx t mode then ctx.t.tnull (mk_mono()) else mk_mono() in
+				if should_be_nullable_array_access ctx t mode then
+					is_nullable := true;
+				let pt = mk_mono() in
 				let t = ctx.t.tarray pt in
 				(try unify_raise ctx et t p
 				with Error(Unify _,_) -> if not ctx.untyped then begin
@@ -2637,6 +2640,7 @@ and type_array_access ctx e1 e2 p mode =
 				pt
 		in
 		let pt = loop e1.etype in
+		let pt = if !is_nullable then ctx.t.tnull pt else pt in
 		AKExpr (mk (TArray (e1,e2)) pt p)
 
 and type_vars ctx vl p =
