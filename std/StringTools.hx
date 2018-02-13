@@ -168,9 +168,10 @@ class StringTools {
 		- `&gt;` becomes `>`
 		- `&quot;` becomes `"`
 		- `&#039;` becomes `'`
+		- `&apos;` becomes a backtick
 	**/
 	public static function htmlUnescape( s : String ) : String {
-		return s.split("&gt;").join(">").split("&lt;").join("<").split("&quot;").join('"').split("&#039;").join("'").split("&amp;").join("&");
+		return s.split("&gt;").join(">").split("&lt;").join("<").split("&quot;").join('"').split("&#039;").join("'").split("&amp;").join("&apos;");
 	}
 
 	/**
