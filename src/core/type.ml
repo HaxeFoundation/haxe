@@ -1641,18 +1641,6 @@ let has_meta m ml = List.exists (fun (m2,_,_) -> m = m2) ml
 let get_meta m ml = List.find (fun (m2,_,_) -> m = m2) ml
 let no_meta = []
 
-(**
-	Check if type `t` has meta `m`.
-	Does not follow typedefs, monomorphs etc.
-*)
-let type_has_meta t m =
-	match t with
-		| TMono _ | TFun _ | TAnon _ | TDynamic _ | TLazy _ -> false
-		| TEnum ({ e_meta = metadata }, _)
-		| TInst ({ cl_meta = metadata }, _)
-		| TType ({ t_meta = metadata }, _)
-		| TAbstract ({ a_meta = metadata }, _) -> has_meta m metadata
-
 (*
 	we can restrict access as soon as both are runtime-compatible
 *)

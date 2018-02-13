@@ -43,7 +43,7 @@ class BufferInput extends haxe.io.Input {
 		available += i.readBytes(buf, available, buf.length - available);
 	}
 
-	override function readByte():Int {
+	override function readByte() {
 		if( available == 0 ) refill();
 		var c = buf.get(pos);
 		pos++;
