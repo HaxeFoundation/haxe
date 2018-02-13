@@ -42,6 +42,7 @@
 	all : fixed abstract `@:to` used when `from` is available in a specific case (#6751)
 	all : sys.Http: fix chunked encoding handling (#6763)
 	all : fix some invalid Json being accepted by haxe.format.JsonParser (#6734)
+	all : decode &apos; to backtick in StringTools.htmlUnescape() (#6832)
 	js : fixed saving setter to `tmp` var before invocation (#6672)
 	lua : fix toString behavior in the case of -0 (#6652)
 	lua : properly bind field functions when passed as arguments (#6722)
