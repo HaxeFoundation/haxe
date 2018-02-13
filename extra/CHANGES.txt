@@ -16,18 +16,15 @@
 
 	all : made all non-warning/non-error compiler messages output to stdout (#4480)
 	all : make DCE keep constructor if any instance field is kept (#6690)
-	all : fix some invalid Json being accepted by haxe.format.JsonParser (#6734)
 	all : make `final` in structures use class notation
 	php : implemented direct method comparison. No need to use `Reflect.compareMethods()`
 	php : added `php.Syntax.code()` instead of deprecated `untyped __php__()` (#6708)
 	php : added methods to `php.Syntax` for each php operator: `??`, `?:`, `**` etc. (#6708)
-	php : fixed multiple file uploads in php.Web.parseMultiPart() (#4173)
-	php : fixed an issue with "Object" used as a class name for PHP 7.2 (it's a new keyword in php) (#6838)
 	python : add ssl support for http requests
 	python : improve Sys.print(ln) code generation (#6184)
 	js : generate faster code for `x.iterator()` calls (#6669)
 	js : rework exception handling, added js.Lib.getOriginalException (#6713)
-	js : generate generate `value instanceof MyClass` instead of `Std.is(value, MyClass)` (#6687)
+	js : generate `value instanceof MyClass` instead of `Std.is(value, MyClass)` (#6687)
 	js : use lazy getter for HaxeError.message instead of calling String(val) in the ctor (#6754)
 
 	Removals:
@@ -44,6 +41,7 @@
 	all : fixed unbound variable error in anonymous functions (#6674)
 	all : fixed abstract `@:to` used when `from` is available in a specific case (#6751)
 	all : sys.Http: fix chunked encoding handling (#6763)
+	all : fix some invalid Json being accepted by haxe.format.JsonParser (#6734)
 	js : fixed saving setter to `tmp` var before invocation (#6672)
 	lua : fix toString behavior in the case of -0 (#6652)
 	lua : properly bind field functions when passed as arguments (#6722)
@@ -53,6 +51,8 @@
 	php : fixed appending "sqlite:" prefix to the names of files created by `sys.db.Sqlite.open()` (#6692)
 	php : made php.Lib.objectOfAssociativeArray() recursive (#6698)
 	php : fixed php error on parsing expressions like `a == b == c` (#6720)
+	php : fixed multiple file uploads in php.Web.parseMultiPart() (#4173)
+	php : fixed an issue with "Object" used as a class name for PHP 7.2 (it's a new keyword in php) (#6838)
 	eval : don't lose dynamic function inits from parent classes (#6660)
 	cs : fix order-dependent enum type parameter issue (#6016)
 
