@@ -2402,7 +2402,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| [] -> fail self#pos __POS__
 				| { eexpr = TConst (TString php) } :: args ->
 					Codegen.interpolate_code ctx php args self#write self#write_expr self#pos
-				| _ -> ctx.error "First argument of php.Syntax.php() must be a constant string." self#pos
+				| _ -> ctx.error "First argument of php.Syntax.code() must be a constant string." self#pos
 		(**
 			Writes error suppression operator (for `php.Syntax.suppress()`)
 		*)

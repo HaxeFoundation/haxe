@@ -48,11 +48,11 @@ class Boot {
 	]);
 
 	inline static function arrayJoin <T>(x:Array<T>, sep:String):String {
-		return Syntax.field(sep, "join")(Syntax.pythonCode("[{0}(x1,'') for x1 in {1}]", python.Boot.toString1, x));
+		return Syntax.field(sep, "join")(Syntax.code("[{0}(x1,'') for x1 in {1}]", python.Boot.toString1, x));
 	}
 
 	inline static function safeJoin (x:Array<String>, sep:String):String {
-		return Syntax.field(sep, "join")(Syntax.pythonCode("[x1 for x1 in {0}]", x));
+		return Syntax.field(sep, "join")(Syntax.code("[x1 for x1 in {0}]", x));
 	}
 
 	inline static function isPyBool(o:Dynamic):Bool {
@@ -254,15 +254,15 @@ class Boot {
 				var keys = Syntax.callField(d, "keys");
 				var handler = unhandleKeywords;
 
-				Syntax.pythonCode("for k in keys:");
-				Syntax.pythonCode("    a.append(handler(k))");
+				Syntax.code("for k in keys:");
+				Syntax.code("    a.append(handler(k))");
 			}
 			else if (UBuiltins.hasattr(o, "__dict__")) {
 				var a = [];
 				var d = Syntax.field(o, "__dict__");
 				var keys1  = Syntax.callField(d, "keys");
-				Syntax.pythonCode("for k in keys1:");
-				Syntax.pythonCode("    a.append(k)");
+				Syntax.code("for k in keys1:");
+				Syntax.code("    a.append(k)");
 
 			}
 		}

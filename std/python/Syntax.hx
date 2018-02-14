@@ -27,6 +27,8 @@ import haxe.macro.Context;
 import haxe.macro.ExprTools;
 #end
 
+import haxe.extern.Rest;
+
 @:noPackageRestrict
 extern class Syntax {
 
@@ -35,14 +37,14 @@ extern class Syntax {
 	#end
 
 	@:noUsing macro public static function importModule (module:String):haxe.macro.Expr {
-		return macro ($self.pythonCode($v{"import " + module}):Void);
+		return macro ($self.code($v{"import " + module}):Void);
 	}
 
 	@:noUsing macro public static function importAs (module:String, className : String):haxe.macro.Expr {
 		var n = className.split(".").join("_");
 		var e = "import " + module + " as " + n;
 
-		return macro ($self.pythonCode($v{e}):Void);
+		return macro ($self.code($v{e}):Void);
 	}
 
 	@:noUsing
@@ -64,7 +66,12 @@ extern class Syntax {
 	@:noUsing
 	public static function assign(a:Dynamic, b:Dynamic):Void { }
 
+	#if !macro
+	public static function code(code:String, args:Rest<Dynamic>):Dynamic;
+	#end
+
 	@:noUsing
+	@:deprecated("python.Syntax.pythonCode() is deprecated. Use python.Syntax.code() instead.")
 	macro public static function pythonCode(b:ExprOf<String>, rest:Array<Expr>):Expr {
 		if (rest == null) rest = [];
 		return macro @:pos(Context.currentPos()) untyped $self._pythonCode($b, $a{rest});
@@ -120,7 +127,7 @@ extern class Syntax {
 
 		var e = "from " + from + " import " + module + " as " + n;
 
-		return macro ($self.pythonCode($v{e}):Void);
+		return macro ($self.code($v{e}):Void);
 	}
 
 	@:noUsing

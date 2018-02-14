@@ -86,7 +86,7 @@ class Bytes {
 		#elseif cs
 		cs.system.Array.Copy(src.b, srcpos, b, pos, len);
 		#elseif python
-		python.Syntax.pythonCode("self.b[{0}:{0}+{1}] = src.b[srcpos:srcpos+{1}]", pos, len);
+		python.Syntax.code("self.b[{0}:{0}+{1}] = src.b[srcpos:srcpos+{1}]", pos, len);
 		#elseif cpp
 		b.blit(pos, src.b, srcpos, len);
 		#else
@@ -366,7 +366,7 @@ class Bytes {
 			return new String(b, pos, len, "UTF-8")
 		catch (e:Dynamic) throw e;
 		#elseif python
-		return python.Syntax.pythonCode("self.b[{0}:{0}+{1}].decode('UTF-8','replace')", pos, len);
+		return python.Syntax.code("self.b[{0}:{0}+{1}].decode('UTF-8','replace')", pos, len);
 		#elseif lua
 		var begin = cast(Math.min(pos,b.length),Int);
 		var end = cast(Math.min(pos+len,b.length),Int);
