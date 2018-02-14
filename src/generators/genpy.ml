@@ -1587,8 +1587,14 @@ module Printer = struct
 				Printf.sprintf "%s = %s" (print_expr pctx e0) (print_expr pctx e1)
 			| "python_Syntax.arraySet",[e1;e2;e3] ->
 				Printf.sprintf "%s[%s] = %s" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
-			| "python_Syntax._newInstance", e1 :: [{eexpr = TArrayDecl el}] ->
-				Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el)
+			| "python_Syntax._newInstance", e1 :: [{eexpr = TArrayDecl el}]
+			| "python_Syntax.construct", e1 :: [{eexpr = TArrayDecl el}] ->
+				let cls =
+					match e1.eexpr with
+						| TConst (TString class_name) -> "globals()[\"" ^ class_name ^ "\"]"
+						| _ -> print_expr pctx e1
+				in
+				Printf.sprintf "%s(%s)" cls (print_exprs pctx ", " el)
 			| "python_Syntax.opPow", [e1;e2] ->
 				Printf.sprintf "(%s ** %s)" (print_expr pctx e1) (print_expr pctx e2)
  			| "python_Syntax._foreach",[e1;e2;e3] ->

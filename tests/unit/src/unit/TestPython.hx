@@ -84,6 +84,11 @@ private class B extends A {
 	public function new() {}
 }
 
+private class Construct {
+	public var value:Int;
+	public function new(arg:Int) value = arg;
+}
+
 class TestPython extends Test {
 
 	public function testDoWhileAsExpression () {
@@ -383,6 +388,16 @@ class TestPython extends Test {
 
 		eq(2, test4a(1));
 		eq("2", test4b(1));
+	}
+
+	function testPythonConstruct () {
+		var a:Construct = Syntax.construct("unit__TestPython_Construct", [10]);
+		t(Std.is(a, Construct));
+		eq(10, a.value);
+
+		var b = Syntax.construct(Construct, [10]);
+		t(Std.is(b, Construct));
+		eq(10, b.value);
 	}
 
 	function testTupleCreation() {

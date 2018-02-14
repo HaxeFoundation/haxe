@@ -47,7 +47,13 @@ extern class Syntax {
 		return macro ($self.code($v{e}):Void);
 	}
 
+	#if !macro
+	@:overload(function(className:String, args:Rest<Dynamic>):Dynamic {})
+	static function construct<T>(cls:Class<T>, args:Rest<Dynamic>):T;
+	#end
+
 	@:noUsing
+	@:deprecated("python.Syntax.newInstance() is deprecated. Use python.Syntax.construct() instead.")
 	macro public static function newInstance (c:Expr, params:Array<Expr>):haxe.macro.Expr {
 		return macro $self._newInstance($c, $a{params});
 	}
