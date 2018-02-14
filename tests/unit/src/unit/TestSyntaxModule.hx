@@ -26,11 +26,11 @@ class TestSyntaxModule extends Test {
 				#end
 			#elseif python "unit__TestSyntaxModule_Construct";
 			#end
-		var a:Construct = Syntax.construct(className, [10]);
+		var a:Construct = Syntax.construct(className, 10);
 		t(Std.is(a, Construct));
 		eq(10, a.value);
 
-		var b = Syntax.construct(Construct, [10]);
+		var b = Syntax.construct(Construct, 10);
 		t(Std.is(b, Construct));
 		eq(10, b.value);
 	}

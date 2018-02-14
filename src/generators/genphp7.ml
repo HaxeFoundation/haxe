@@ -2511,6 +2511,10 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 			in
 			self#write "new ";
 			self#write_expr class_expr;
+			(match follow class_expr.etype with
+				| TInst ({ cl_path = ([], "String") }, _) -> ()
+				| _ -> self#write "->phpClassName"
+			);
 			self#write "(";
 			write_args self#write (fun e -> self#write_expr e) args;
 			self#write ")"

@@ -1588,7 +1588,7 @@ module Printer = struct
 			| "python_Syntax.arraySet",[e1;e2;e3] ->
 				Printf.sprintf "%s[%s] = %s" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
 			| "python_Syntax._newInstance", e1 :: [{eexpr = TArrayDecl el}]
-			| "python_Syntax.construct", e1 :: [{eexpr = TArrayDecl el}] ->
+			| "python_Syntax.construct", e1 :: el ->
 				let cls =
 					match e1.eexpr with
 						| TConst (TString class_name) -> class_name

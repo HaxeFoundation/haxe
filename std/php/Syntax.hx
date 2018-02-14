@@ -187,7 +187,8 @@ extern class Syntax {
     /**
         Generates `new $className($arg1, ...$argN)`
     **/
-    static function construct( className:AsVar<String>, args:Rest<Dynamic>) : Dynamic;
+    @:overload(function(className:AsVar<String>, args:Rest<Dynamic>):Dynamic {})
+    static function construct<T>( cls:AsVar<Class<T>>, args:Rest<Dynamic>) : T;
 
     /**
         Generates instance field access for reading on `object`
