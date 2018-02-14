@@ -1591,7 +1591,7 @@ module Printer = struct
 			| "python_Syntax.construct", e1 :: [{eexpr = TArrayDecl el}] ->
 				let cls =
 					match e1.eexpr with
-						| TConst (TString class_name) -> "globals()[\"" ^ class_name ^ "\"]"
+						| TConst (TString class_name) -> class_name
 						| _ -> print_expr pctx e1
 				in
 				Printf.sprintf "%s(%s)" cls (print_exprs pctx ", " el)
