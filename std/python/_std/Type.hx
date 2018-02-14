@@ -113,7 +113,7 @@ enum ValueType {
 
 	public static inline function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T
 	{
-		return Syntax.newInstance(cl, Syntax.varArgs(args));
+		return Syntax.construct(cl, Syntax.varArgs(args));
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T
