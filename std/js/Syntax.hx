@@ -54,4 +54,11 @@ extern class Syntax {
 	**/
 	@:overload(function(o:Dynamic, f:Int):Bool {})
 	static function delete(o:Dynamic, f:String):Bool;
+
+	/**
+		Generate `o[f]` expression
+	*/
+	static inline function field(o:Dynamic, f:String):Dynamic {
+		return code('{0}[{1}]', o, f);
+	}
 }

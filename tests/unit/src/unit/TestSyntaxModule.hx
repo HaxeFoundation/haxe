@@ -17,6 +17,12 @@ class TestSyntaxModule extends Test {
 		eq(i1 + i2, result);
 	}
 
+	function testField() {
+		var o = {field:'hello'};
+		var value = Syntax.field(o, 'field');
+		eq(o.field, value);
+	}
+
 	function testConstruct() {
 		var className:String =
 			#if php "\\unit\\_TestSyntaxModule\\Construct";

@@ -43,12 +43,12 @@ using php.Global;
 
 	public static function field( o : Dynamic, field : String ) : Dynamic {
 		if (o.is_string()) {
-			return Syntax.getField(Boot.dynamicString(o), field);
+			return Syntax.field(Boot.dynamicString(o), field);
 		}
 		if (!o.is_object()) return null;
 
 		if (o.property_exists(field)) {
-			return Syntax.getField(o, field);
+			return Syntax.field(o, field);
 		}
 		if (o.method_exists(field)) {
 			return Boot.closure(o, field);
@@ -60,7 +60,7 @@ using php.Global;
 				return Global.constant('$phpClassName::$field');
 			}
 			if (Global.property_exists(phpClassName, field)) {
-				return Syntax.getField(o, field);
+				return Syntax.field(o, field);
 			}
 			if (Global.method_exists(phpClassName, field)) {
 				return Boot.closure(phpClassName, field);
@@ -152,7 +152,7 @@ using php.Global;
 
 	public static function deleteField( o : Dynamic, field : String ) : Bool {
 		if (hasField(o, field)) {
-			Global.unset(Syntax.getField(o, field));
+			Global.unset(Syntax.field(o, field));
 			return true;
 		} else {
 			return false;

@@ -2383,7 +2383,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| "instanceof" -> self#write_expr_syntax_instanceof args
 				| "foreach" -> self#write_expr_syntax_foreach args
 				| "construct" -> self#write_expr_syntax_construct args
-				| "getField" -> self#write_expr_syntax_get_field args
+				| "field" | "getField" -> self#write_expr_syntax_get_field args
 				| "setField" -> self#write_expr_syntax_set_field args
 				| "getStaticField" -> self#write_expr_syntax_get_static_field args
 				| "setStaticField" -> self#write_expr_syntax_set_static_field args

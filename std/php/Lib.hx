@@ -156,10 +156,10 @@ class Lib {
 			var obj = result;
 			while(parts.length > 1) {
 				var pack = parts.shift();
-				if(Syntax.getField(obj, pack) == null) {
+				if(Syntax.field(obj, pack) == null) {
 					Syntax.setField(obj, pack, {});
 				}
-				obj = Syntax.getField(obj, pack);
+				obj = Syntax.field(obj, pack);
 			}
 			Syntax.setField(obj, parts[0], Boot.getClass(phpName));
 		});

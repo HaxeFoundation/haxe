@@ -350,7 +350,7 @@ class Boot {
 				return value.__toString();
 			}
 			if (Std.is(value, StdClass)) {
-				if (Global.isset(Syntax.getField(value, 'toString')) && value.toString.is_callable()) {
+				if (Global.isset(Syntax.field(value, 'toString')) && value.toString.is_callable()) {
 					return value.toString();
 				}
 				var result = new NativeIndexedArray<String>();
@@ -519,7 +519,7 @@ class Boot {
 		if(Global.is_string(value)) {
 			value = @:privateAccess new HxDynamicStr(value);
 		}
-		return Syntax.getField(value, field);
+		return Syntax.field(value, field);
 	}
 
 	public static function dynamicString( str:String ) : HxDynamicStr {
@@ -813,7 +813,7 @@ private class HxAnon extends StdClass {
 
 	@:phpMagic
 	function __call( name:String, args:NativeArray ) : Dynamic {
-		var method = Syntax.getField(this, name);
+		var method = Syntax.field(this, name);
 		Syntax.keepVar(method);
 		return method(Syntax.splat(args));
 	}
@@ -856,7 +856,7 @@ private class HxClosure {
 		}
 		if (Std.is(eThis, StdClass)) {
 			if (Std.is(eThis, HxAnon)) {
-				return Syntax.getField(eThis, func);
+				return Syntax.field(eThis, func);
 			}
 		}
 		return Syntax.arrayDecl(eThis, func);
