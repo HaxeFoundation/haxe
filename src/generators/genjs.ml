@@ -892,7 +892,7 @@ and gen_value ctx e =
 
 and gen_syntax ctx meth args pos =
 	match meth, args with
-	| "new_", cl :: params ->
+	| "construct", cl :: params ->
 		spr ctx "new ";
 		begin
 			match cl.eexpr with

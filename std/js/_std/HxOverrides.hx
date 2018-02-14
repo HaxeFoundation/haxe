@@ -40,7 +40,7 @@ class HxOverrides {
 		switch( s.length ) {
 		case 8: // hh:mm:ss
 			var k = s.split(":");
-			var d = js.Syntax.new_(Date);
+			var d = js.Syntax.construct(Date);
 			(cast d)[cast "setTime"](0);
 			(cast d)[cast "setUTCHours"](k[0]);
 			(cast d)[cast "setUTCMinutes"](k[1]);

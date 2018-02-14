@@ -27,7 +27,7 @@ extern class Syntax {
 		Generate `new cl(...args)` expression.
 	**/
 	@:overload(function(cl:String, args:Rest<Dynamic>):Dynamic {})
-	static function new_<T>(cl:Class<T>, args:Rest<Dynamic>):T;
+	static function construct<T>(cl:Class<T>, args:Rest<Dynamic>):T;
 
 	/**
 		Generate `v instanceof cl` expression.
