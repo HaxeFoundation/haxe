@@ -162,6 +162,7 @@ extern class Syntax {
         Haxe generates `Std.is(value, Type)` calls as `$value instanceof Type` automatically where possible.
         So you may need this only if you have a `Class` stored in a variable.
     **/
+    @:overload(function( value:AsVar<Dynamic>, phpClassName:AsVar<String> ) : Bool {})
     static function instanceof<V,C>( value:AsVar<V>,  type:AsVar<Class<C>> ) : Bool;
 
     /**

@@ -193,6 +193,13 @@ class TestPhp extends Test
 		t(a.indexOf(fn2) < 0);
 		f(a.remove(fn2));
 	}
+
+	function testSyntaxInstanceof() {
+		var o = new ClosureDummy();
+		var phpClassName = Boot.castClass(ClosureDummy).phpClassName;
+		t(Syntax.instanceof(o, ClosureDummy));
+		t(Syntax.instanceof(o, phpClassName));
+	}
 }
 
 private class ClosureDummy {
