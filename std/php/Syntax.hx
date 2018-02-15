@@ -166,6 +166,14 @@ extern class Syntax {
     static function instanceof<V,C>( value:AsVar<V>,  type:AsVar<Class<C>> ) : Bool;
 
     /**
+        Generates PHP class name for a provided Haxe class.
+        ```
+        trace(Syntax.nativeClassName(php.Web)); // outputs: php\Web
+        ```
+     */
+    static function nativeClassName<T>(cls:EitherType<Class<T>, Enum<T>>) : String;
+
+    /**
         ```
         Syntax.foreach(collection, function(key, value) trace(key, value));
         ```
