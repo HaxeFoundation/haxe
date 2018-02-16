@@ -854,6 +854,11 @@ let url_encode s add_char =
 			add_char (String.unsafe_get hex (int_of_char c land 0xF));
 	done
 
+let url_encode_s s =
+	let b = Buffer.create 0 in
+	url_encode s (Buffer.add_char b);
+	Buffer.contents b
+
 let add_diagnostics_message com s p sev =
 	let di = com.shared.shared_display_information in
 	di.diagnostics_messages <- (s,p,sev) :: di.diagnostics_messages
