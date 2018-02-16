@@ -78,7 +78,7 @@ class Internal {
 	}
 
 	macro public static function classRegistry ():Expr {
-		return macro (untyped __define_feature__($v{"python." + _classes}, python.Syntax.pythonCode($v{_classes})) : python.Dict<String, Class<Dynamic>>);
+		return macro (untyped __define_feature__($v{"python." + _classes}, python.Syntax.code($v{_classes})) : python.Dict<String, Class<Dynamic>>);
 	}
 
 	macro public static function callFieldPrefixed (o:Expr, x:String, params:Array<Expr>):Expr {
@@ -107,7 +107,7 @@ class Internal {
 	}
 
 	macro public static function pythonCodePrefixed (x:String):Expr {
-		return macro python.Syntax.pythonCode($v{_prefix + x});
+		return macro python.Syntax.code($v{_prefix + x});
 	}
 
 	macro public static function hasClassName (o:Expr):Expr {

@@ -104,7 +104,7 @@ class Browser {
 			return new XMLHttpRequest();
 		}
 		if( untyped __js__("typeof ActiveXObject") != "undefined" ) {
-			return js.Syntax.new_("ActiveXObject","Microsoft.XMLHTTP");
+			return js.Syntax.construct("ActiveXObject","Microsoft.XMLHTTP");
 		}
 		throw "Unable to create XMLHttpRequest object.";
 	}

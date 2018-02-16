@@ -19,8 +19,11 @@ class Python {
 					infoMsg('pypy3 has already been installed.');
 				} else {
 					var pypyVersion = "pypy3-2.4.0-linux64";
-					runCommand("wget", ['https://bitbucket.org/pypy/pypy/downloads/${pypyVersion}.tar.bz2'], true);
-					runCommand("tar", ["-xf", '${pypyVersion}.tar.bz2']);
+					var file = '${pypyVersion}.tar.bz2';
+					if(!FileSystem.exists(file)) {
+						runCommand("wget", ['https://bitbucket.org/pypy/pypy/downloads/$file'], true);
+					}
+					runCommand("tar", ["-xf", file]);
 					pypy = FileSystem.fullPath('${pypyVersion}/bin/pypy3');
 				}
 				runCommand(pypy, ["-V"]);

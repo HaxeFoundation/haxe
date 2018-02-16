@@ -36,11 +36,11 @@
 	}
 
 	@:pure static inline function now() : Date {
-		return js.Syntax.new_(Date);
+		return js.Syntax.construct(Date);
 	}
 
 	@:pure static inline function fromTime( t : Float ) : Date {
-		return js.Syntax.new_(Date, t);
+		return js.Syntax.construct(Date, t);
 	}
 
 	@:pure static inline function fromString( s : String ) : Date {

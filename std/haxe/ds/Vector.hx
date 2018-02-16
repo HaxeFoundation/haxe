@@ -65,7 +65,7 @@ abstract Vector<T>(VectorData<T>) {
 		#elseif neko
 			this = untyped __dollar__amake(length);
 		#elseif js
-			this = js.Syntax.new_(Array, length);
+			this = js.Syntax.construct(Array, length);
 		#elseif cs
 			this = new cs.NativeArray(length);
 		#elseif java
@@ -73,7 +73,7 @@ abstract Vector<T>(VectorData<T>) {
 		#elseif cpp
 			this = NativeArray.create(length);
 		#elseif python
-			this = python.Syntax.pythonCode("[{0}]*{1}", null, length);
+			this = python.Syntax.code("[{0}]*{1}", null, length);
 		#elseif lua
 			this = untyped __lua_table__({length:length});
 		#elseif eval

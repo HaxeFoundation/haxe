@@ -23,13 +23,13 @@ extern class Syntax {
         var_dump($a, $b);
         ```
     **/
-    static function code(php:String, args:Rest<Dynamic>):Dynamic;
+    static function code(code:String, args:Rest<Dynamic>):Dynamic;
 
     /**
         The same as `code()`, but adds dereferencing
         when required to workaround "cannot use temporary expression in write context" php error.
     **/
-    static function codeDeref(php:String, args:Rest<Dynamic>):Dynamic;
+    static function codeDeref(code:String, args:Rest<Dynamic>):Dynamic;
 
     /**
         Generates `$left <=> $right`
@@ -99,6 +99,13 @@ extern class Syntax {
     **/
     static inline function exp<T:Float>( left:T, right:T ) : T {
         return code('({0} ** {1})', left, right);
+    }
+
+    /**
+        Generates `$left % $right`
+    **/
+    static inline function mod( left:Float, right:Float ) : Int {
+        return code('({0} % {1})', left, right);
     }
 
     /**
@@ -189,11 +196,18 @@ extern class Syntax {
     /**
         Generates `new $className($arg1, ...$argN)`
     **/
-    static function construct( className:AsVar<String>, args:Rest<Dynamic>) : Dynamic;
+    @:overload(function(className:AsVar<String>, args:Rest<Dynamic>):Dynamic {})
+    static function construct<T>( cls:AsVar<Class<T>>, args:Rest<Dynamic>) : T;
 
     /**
         Generates instance field access for reading on `object`
     **/
+    static function field<T>( object:AsVar<T>, fieldName:AsVar<String> ) : Dynamic;
+
+    /**
+        Generates instance field access for reading on `object`
+    **/
+    @:deprecated("php.Syntax.getFiled() is deprecated. Use php.Syntax.field() instead.")
     static function getField<T>( object:AsVar<T>, fieldName:AsVar<String> ) : Dynamic;
 
     /**
