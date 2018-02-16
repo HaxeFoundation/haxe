@@ -29,5 +29,24 @@ c.get(4) == 0;
 c.get(5) == 0;
 c.get(6) == 0;
 c.get(7) == 1;
+#end
 
+#if php
+var b = haxe.io.Bytes.alloc(0);
+var c = haxe.io.Bytes.alloc(8);
+var d = new haxe.zip.Compress(9);
+var r = d.execute(b, 0, c, 0);
+
+r.done == true;
+r.read == 0;
+r.write == 8;
+c.length == 8;
+c.get(0) == 120;
+c.get(1) == 218;
+c.get(2) == 3;
+c.get(3) == 0;
+c.get(4) == 0;
+c.get(5) == 0;
+c.get(6) == 0;
+c.get(7) == 1;
 #end
