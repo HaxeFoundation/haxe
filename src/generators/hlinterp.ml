@@ -1796,17 +1796,7 @@ let load_native ctx lib name t =
 			| [VBytes s; VRef (r, HI32)] ->
 				let s = hl_to_caml s in
 				let buf = Buffer.create 0 in
-				let hex = "0123456789ABCDEF" in
-				for i = 0 to String.length s - 1 do
-					let c = String.unsafe_get s i in
-					match c with
-					| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '-' | '.' ->
-						utf16_char buf c
-					| _ ->
-						utf16_char buf '%';
-						utf16_char buf (String.unsafe_get hex (int_of_char c lsr 4));
-						utf16_char buf (String.unsafe_get hex (int_of_char c land 0xF));
-				done;
+				Common.url_encode s (utf16_char buf);
 				utf16_add buf 0;
 				let str = Buffer.contents buf in
 				set_ref r (to_int (String.length str lsr 1 - 1));

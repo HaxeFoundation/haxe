@@ -841,6 +841,19 @@ let hash f =
 	done;
 	if Sys.word_size = 64 then Int32.to_int (Int32.shift_right (Int32.shift_left (Int32.of_int !h) 1) 1) else !h
 
+let url_encode s add_char =
+	let hex = "0123456789ABCDEF" in
+	for i = 0 to String.length s - 1 do
+		let c = String.unsafe_get s i in
+		match c with
+		| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '-' | '.' ->
+			add_char c
+		| _ ->
+			add_char '%';
+			add_char (String.unsafe_get hex (int_of_char c lsr 4));
+			add_char (String.unsafe_get hex (int_of_char c land 0xF));
+	done
+
 let add_diagnostics_message com s p sev =
 	let di = com.shared.shared_display_information in
 	di.diagnostics_messages <- (s,p,sev) :: di.diagnostics_messages
