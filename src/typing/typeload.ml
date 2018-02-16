@@ -2858,9 +2858,9 @@ module ClassInitializer = struct
 					let dup = if fctx.is_static then PMap.exists cf.cf_name c.cl_fields || has_field cf.cf_name c.cl_super else PMap.exists cf.cf_name c.cl_statics in
 					if not cctx.is_native && not c.cl_extern && dup then error ("Same field name can't be use for both static and instance : " ^ cf.cf_name) p;
 					if fctx.is_override then c.cl_overrides <- cf :: c.cl_overrides;
-					let is_var f = match cf.cf_kind with | Var _ -> true | _ -> false in
+					let is_var cf = match cf.cf_kind with | Var _ -> true | _ -> false in
 					if PMap.mem cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) then
-						if ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta && not (is_var f) then
+						if ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta && not (is_var cf) then
 							let mainf = PMap.find cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) in
 							if is_var mainf then display_error ctx "Cannot declare a variable with same name as a method" mainf.cf_pos;
 							(if not (Meta.has Meta.Overload mainf.cf_meta) then display_error ctx ("Overloaded methods must have @:overload metadata") mainf.cf_pos);
