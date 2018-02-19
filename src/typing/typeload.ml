@@ -2821,6 +2821,14 @@ module ClassInitializer = struct
 		in
 		let cl_if_feature = check_if_feature c.cl_meta in
 		let cl_req = check_require c.cl_meta in
+		(* #6772 Final fields are expected before constructor, so initialize final fields first *)
+		let fields = List.stable_sort (fun a b ->
+			match (List.mem AFinal a.cff_access, List.mem AFinal b.cff_access) with
+			| true, false -> -1
+			| false, true -> 1
+			| _ -> 0
+		) fields
+		in
 		List.iter (fun f ->
 			let p = f.cff_pos in
 			try
