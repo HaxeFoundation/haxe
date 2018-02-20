@@ -384,8 +384,8 @@ let rec gen_call ctx e el in_value =
 	| TField (_, FStatic ({ cl_path = ["js"],"Syntax" }, { cf_name = meth })), args ->
 		gen_syntax ctx meth args e.epos
 	| TIdent "__new__", args ->
-		print_deprecation_message ctx.com "__new__ is deprecated, use js.Syntax.new_ instead" e.epos;
-		gen_syntax ctx "new_" args e.epos
+		print_deprecation_message ctx.com "__new__ is deprecated, use js.Syntax.construct instead" e.epos;
+		gen_syntax ctx "construct" args e.epos
 	| TIdent "__js__", args ->
 		(* TODO: add deprecation warning when we figure out what to do with purity here *)
 		gen_syntax ctx "code" args e.epos
