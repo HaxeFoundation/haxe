@@ -60,7 +60,7 @@
 		if( h == null )
 			return null;
 		var x = h[0];
-		h = h[1];
+		untyped __php__("$this->h =& $this->h[1]");
 		if( h == null )
 			q = null;
 		length--;
