@@ -8,7 +8,6 @@
 	all : added column to StackItem.FilePos (#6665)
 	all : added `-D warn-var-shadowing`
 	all : added haxe.Log.formatOutput (#6738)
-	all : fixed haxe.format.JsonPrinter for instances of classes to make it produce consistent result across targets (#6801)
 	js : added js.Syntax class for generating unsupported JavaScript syntax in a type-safe analyzer-friendly way
 	js : added js.Map and js.Set and js.JsIterator extern definitions (ES6)
 	hl : added hl.Format.digest, use it for native Sha1/Md5
@@ -18,6 +17,7 @@
 	all : made all non-warning/non-error compiler messages output to stdout (#4480)
 	all : make DCE keep constructor if any instance field is kept (#6690)
 	all : make `final` in structures use class notation
+	all : fixed haxe.format.JsonPrinter for instances of classes to make it produce consistent result across targets (#6801)
 	display : added `this` and `super` to toplevel completion (#6051)
 	php : implemented direct method comparison. No need to use `Reflect.compareMethods()`
 	php : added `php.Syntax.code()` instead of deprecated `untyped __php__()` (#6708)
