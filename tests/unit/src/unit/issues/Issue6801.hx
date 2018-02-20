@@ -8,7 +8,6 @@ class Issue6801 extends unit.Test {
 	function test() {
 		var o = new Child();
         var json = haxe.format.JsonPrinter.print(o);
-        trace(json);
 
         var expected = {c:'hello', c2:true, p:1, p2:0};
         var actual = Json.parse(json);
