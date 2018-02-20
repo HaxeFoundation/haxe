@@ -1272,10 +1272,33 @@ let add_constructor ctx c force_constructor p =
 		(* nothing to do *)
 		()
 
-let check_struct_init_constructor ctx c p = match c.cl_constructor with
+let get_method_args field = 
+	match field.cf_expr with
+		| Some { eexpr = TFunction { tf_args = args } } -> args
+		| _ -> raise Not_found
+
+let get_struct_init_super_info ctx c p =
+	match c.cl_super with
+		| Some ({ cl_constructor = Some ctor } as csup, cparams) -> 
+			let args = (try get_method_args ctor with Not_found -> []) in
+			let tl,el = 
+				List.fold_left (fun (args,exprs) (v,value) ->
+					let opt = match value with Some _ -> true | None -> false in
+					let t = if opt then ctx.t.tnull v.v_type else v.v_type in
+					(v.v_name,opt,t) :: args,(mk (TLocal v) v.v_type p) :: exprs
+				) ([],[]) args
+			in
+			let super_expr = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p, el)) ctx.t.tvoid p in
+			(args,Some super_expr,tl)
+		| _ -> 
+			[],None,[]
+
+let check_struct_init_constructor ctx c p =
+	match c.cl_constructor with
 	| Some _ ->
 		()
 	| None ->
+		let super_args,super_expr,super_tl = get_struct_init_super_info ctx c p in
 		let params = List.map snd c.cl_params in
 		let ethis = mk (TConst TThis) (TInst(c,params)) p in
 		let args,el,tl = List.fold_left (fun (args,el,tl) cf -> match cf.cf_kind with
@@ -1290,12 +1313,13 @@ let check_struct_init_constructor ctx c p = match c.cl_constructor with
 			| Method _ ->
 				args,el,tl
 		) ([],[],[]) (List.rev c.cl_ordered_fields) in
+		let el = match super_expr with Some e -> e :: el | None -> el in
 		let tf = {
-			tf_args = args;
+			tf_args = args @ super_args;
 			tf_type = ctx.t.tvoid;
 			tf_expr = mk (TBlock el) ctx.t.tvoid p
 		} in
-		let e = mk (TFunction tf) (TFun(tl,ctx.t.tvoid)) p in
+		let e = mk (TFunction tf) (TFun(tl @ super_tl,ctx.t.tvoid)) p in
 		let cf = mk_field "new" e.etype p null_pos in
 		cf.cf_expr <- Some e;
 		cf.cf_type <- e.etype;
@@ -2893,9 +2917,11 @@ module ClassInitializer = struct
 			| _ ->
 				()
 		end;
-		(* add_constructor does not deal with overloads correctly *)
-		if not ctx.com.config.pf_overload then add_constructor ctx c cctx.force_constructor p;
-		if Meta.has Meta.StructInit c.cl_meta then check_struct_init_constructor ctx c p;
+		if Meta.has Meta.StructInit c.cl_meta then 
+			check_struct_init_constructor ctx c p
+		else
+			(* add_constructor does not deal with overloads correctly *)
+			if not ctx.com.config.pf_overload then add_constructor ctx c cctx.force_constructor p;
 		(* check overloaded constructors *)
 		(if ctx.com.config.pf_overload && not cctx.is_lib then match c.cl_constructor with
 		| Some ctor ->
