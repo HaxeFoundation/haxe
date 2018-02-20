@@ -122,11 +122,7 @@ class JsonPrinter {
 				var v : Date = v;
 				quote(v.toString());
 			} else
-				#if flash
 				classString(v);
-				#else
-				objString(v);
-				#end
 		case TEnum(_):
 			var i : Dynamic = Type.enumIndex(v);
 			add(i);
@@ -154,11 +150,9 @@ class JsonPrinter {
 		#end
 	}
 
-	#if flash
 	function classString ( v : Dynamic ) {
 		fieldsString(v,Type.getInstanceFields(Type.getClass(v)));
 	}
-	#end
 
 	inline function objString( v : Dynamic ) {
 		fieldsString(v,Reflect.fields(v));
