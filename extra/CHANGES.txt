@@ -3,6 +3,7 @@
 	Bugfixes:
 
 	all : fixed a compilation failure if output directory starts with a slash (#6844)
+	php : fixed List.pop() for sequential pops (#6859)
 
 2018-02-12: 3.4.6
 
