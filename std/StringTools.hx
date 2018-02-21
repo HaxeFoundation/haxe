@@ -149,10 +149,11 @@ class StringTools {
 
 		- `"` becomes `&quot`;
 		- `'` becomes `&#039`;
+		- backtick becomes `&apos;`
 	**/
 	public static function htmlEscape( s : String, ?quotes : Bool ) : String {
 		s = s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
-		return quotes ? s.split('"').join("&quot;").split("'").join("&#039;") : s;
+		return quotes ? s.split('"').join("&quot;").split("'").join("&#039;").split("`").join("&apos;") : s;
 	}
 
 	/**
@@ -168,9 +169,10 @@ class StringTools {
 		- `&gt;` becomes `>`
 		- `&quot;` becomes `"`
 		- `&#039;` becomes `'`
+		- `&apos;` becomes a backtick
 	**/
 	public static function htmlUnescape( s : String ) : String {
-		return s.split("&gt;").join(">").split("&lt;").join("<").split("&quot;").join('"').split("&#039;").join("'").split("&amp;").join("&");
+		return s.split("&gt;").join(">").split("&lt;").join("<").split("&quot;").join('"').split("&#039;").join("'").split("&amp;").join("&apos;");
 	}
 
 	/**

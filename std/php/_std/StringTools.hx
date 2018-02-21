@@ -37,7 +37,7 @@ import php.*;
 	}
 
 	public inline static function htmlUnescape( s : String ) : String {
-		return Global.htmlspecialchars_decode(s, Const.ENT_QUOTES);
+		return Global.htmlspecialchars_decode(s, Const.ENT_QUOTES | Const.ENT_HTML401 | Const.ENT_XML1);
 	}
 
 	public static function startsWith( s : String, start : String ) : Bool {

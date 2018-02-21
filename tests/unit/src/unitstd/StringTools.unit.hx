@@ -1,7 +1,7 @@
 // htmlEscape
-var str = "<foo> & <bar> = 'invalid\"'";
-var strEsc = "&lt;foo&gt; &amp; &lt;bar&gt; = 'invalid\"'";
-var strEscQuotes = "&lt;foo&gt; &amp; &lt;bar&gt; = &#039;invalid&quot;&#039;";
+var str = "<foo> & <bar> = 'invalid\"'`";
+var strEsc = "&lt;foo&gt; &amp; &lt;bar&gt; = 'invalid\"'`";
+var strEscQuotes = "&lt;foo&gt; &amp; &lt;bar&gt; = &#039;invalid&quot;&#039;&apos;";
 StringTools.htmlEscape(str, false) == strEsc;
 StringTools.htmlEscape(str, true) == strEscQuotes;
 
