@@ -503,6 +503,12 @@ and expr dce e =
 		check_feature dce ft;
 		expr dce e;
 
+	(* keep toString method of T when array<T>.join() is called *)
+	| TCall ({eexpr = TField(_, FInstance({cl_path = ([],"Array")}, pl, {cf_name="join"}))} as ef, args) ->
+		List.iter (fun e -> to_string dce e) pl;
+		expr dce ef;
+		List.iter (expr dce) args;
+
 	(* keep toString method when the class is argument to Std.string or haxe.Log.trace *)
 	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = (["haxe"],"Log")} as c))},FStatic (_,{cf_name="trace"}))} as ef, ((e2 :: el) as args))
 	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = ([],"Std")} as c))},FStatic (_,{cf_name="string"}))} as ef, ((e2 :: el) as args)) ->
